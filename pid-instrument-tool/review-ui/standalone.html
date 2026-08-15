@@ -1,3 +1,532 @@
+<!DOCTYPE html>
+<!--
+  Instrument List 검토 UI — 단일 파일 빌드
+  생성: scripts/build_standalone.py · 2026-08-15 23:21
+  원본: review-ui/index.html + styles.css + app.js
+  이 파일은 자동 생성됩니다. 고칠 때는 원본을 고치고 다시 빌드하세요.
+-->
+
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Instrument List 검토</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23146c43'/><path d='M8 16.5l5 5 11-11' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+<style>
+/* Instrument List 검토 UI
+ *
+ * 제도 필름(drafting film)의 차가운 회녹색 바탕과 청먹색 잉크, 제도 청록 액센트.
+ * 상태색(확신도/오탐/수정/추가)은 액센트와 분리해 한눈에 구분되게 한다.
+ * 도면번호·TYPE·수량 같은 식별자는 모노스페이스 + tabular-nums 로 자릿수를 맞춘다.
+ */
+
+:root {
+  /* 바탕과 잉크 */
+  --ground: #f2f5f3;
+  --panel: #ffffff;
+  --panel-2: #f7f9f8;
+  --ink: #14181b;
+  --ink-2: #4a5459;
+  --ink-3: #7b868b;
+  --line: #dde3e1;
+  --line-strong: #c3ccc9;
+
+  /* 액센트 (제도 청록) */
+  --accent: #0e5e63;
+  --accent-ink: #ffffff;
+  --accent-soft: #dbeceb;
+
+  /* 상태 */
+  --ok: #1f6b45;
+  --ok-soft: #dcefe4;
+  --caution: #8a5510;
+  --caution-soft: #f6e8d3;
+  --critical: #9d2b21;
+  --critical-soft: #f7e0dd;
+  --added: #1d5a9e;
+  --added-soft: #dde9f7;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 10px 30px rgba(20, 24, 27, .13);
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Malgun Gothic", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #101314;
+    --panel: #181c1e;
+    --panel-2: #1e2325;
+    --ink: #e6eaea;
+    --ink-2: #a6b0b2;
+    --ink-3: #7c8688;
+    --line: #2a3032;
+    --line-strong: #3a4245;
+
+    --accent: #4fb3b8;
+    --accent-ink: #06201f;
+    --accent-soft: #12312f;
+
+    --ok: #5fcf95;
+    --ok-soft: #13301f;
+    --caution: #e0aa5c;
+    --caution-soft: #362713;
+    --critical: #ff9b8f;
+    --critical-soft: #3a1c19;
+    --added: #7fb6f5;
+    --added-soft: #14263a;
+
+    --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #101314;
+  --panel: #181c1e;
+  --panel-2: #1e2325;
+  --ink: #e6eaea;
+  --ink-2: #a6b0b2;
+  --ink-3: #7c8688;
+  --line: #2a3032;
+  --line-strong: #3a4245;
+
+  --accent: #4fb3b8;
+  --accent-ink: #06201f;
+  --accent-soft: #12312f;
+
+  --ok: #5fcf95;
+  --ok-soft: #13301f;
+  --caution: #e0aa5c;
+  --caution-soft: #362713;
+  --critical: #ff9b8f;
+  --critical-soft: #3a1c19;
+  --added: #7fb6f5;
+  --added-soft: #14263a;
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 13.5px/1.55 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
+h2 { font-size: 15px; margin: 0 0 10px; letter-spacing: -.01em; }
+h3 { font-size: 13px; margin: 0 0 8px; }
+p { margin: 0 0 8px; }
+code, .mono { font-family: var(--font-mono); font-size: .92em; }
+code { background: var(--panel-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+.muted { color: var(--ink-3); font-size: 12px; }
+.hidden { display: none !important; }
+.spacer { flex: 1; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+
+/* ── 상단 바 ───────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 9px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.brand p {
+  margin: 2px 0 0; color: var(--ink-3); font-size: 11.5px;
+  font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.logo {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; flex: none;
+}
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+/* ── 컨트롤 ────────────────────────────────────────────── */
+button {
+  font: inherit; border-radius: var(--radius-sm); cursor: pointer; padding: 6px 11px;
+  border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink);
+}
+button:hover { border-color: var(--ink-3); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.ghost { border-color: var(--line); }
+button.danger { color: var(--critical); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 6px 9px; width: 100%;
+}
+textarea { resize: vertical; line-height: 1.5; }
+.inline { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.inline > span { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.inline select, .inline input { width: auto; }
+.check input { width: auto; }
+.field { display: block; margin-bottom: 13px; }
+.field > span { display: block; font-weight: 600; margin-bottom: 5px; font-size: 12px; }
+.req { color: var(--critical); }
+
+/* ── 시작 화면 ─────────────────────────────────────────── */
+.empty { max-width: 860px; margin: 44px auto; padding: 0 20px; display: grid; gap: 18px; }
+.dropzone {
+  border: 1.5px dashed var(--line-strong); border-radius: var(--radius); padding: 44px 24px;
+  text-align: center; cursor: pointer; background: var(--panel);
+  transition: border-color .15s, background .15s;
+}
+.dropzone.over, .dropzone:hover { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone h2 { margin-bottom: 6px; }
+.empty-actions { display: flex; justify-content: center; gap: 10px; }
+.howto { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.howto ol { margin: 0; padding-left: 19px; display: grid; gap: 7px; color: var(--ink-2); }
+.howto strong { color: var(--ink); }
+
+/* ── 본문 ──────────────────────────────────────────────── */
+main { padding: 13px 18px 92px; }
+.toolbar {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 9px 11px; margin-bottom: 9px;
+}
+.toolbar input[type="search"] { width: 200px; }
+
+.stats { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 1px 9px; }
+.stats .chip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  background: var(--panel); border-radius: var(--radius-sm); padding: 4px 10px;
+  font-size: 11.5px; color: var(--ink-3);
+}
+.stats .chip b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink); }
+.stats .chip.c-fix { border-left-color: var(--ok); }
+.stats .chip.c-del { border-left-color: var(--critical); }
+.stats .chip.c-add { border-left-color: var(--added); }
+.stats .chip.c-low { border-left-color: var(--caution); }
+
+/* ── 표 ────────────────────────────────────────────────── */
+.table-wrap {
+  overflow: auto; max-height: 60vh; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--panel);
+}
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th {
+  background: var(--panel-2); position: sticky; top: 0; z-index: 2; white-space: nowrap;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .055em; color: var(--ink-2);
+  border-bottom: 1px solid var(--line-strong); font-weight: 600;
+}
+thead th.ro { color: var(--ink-3); font-weight: 500; }
+tbody tr:hover td { background: var(--panel-2); }
+tbody td.ro { color: var(--ink-3); }
+tbody td.edit { cursor: pointer; }
+tbody td.edit:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+tbody td.corrected { background: var(--ok-soft); font-weight: 600; }
+tbody tr.deleted td { text-decoration: line-through; opacity: .5; }
+tbody tr.added td { background: var(--added-soft); }
+tbody tr.sel td { box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* 식별자 계열은 모노스페이스로 자릿수를 맞춘다 */
+td.mono, td.idx { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td.idx, th.idx { text-align: right; color: var(--ink-3); width: 44px; white-space: nowrap; }
+td.st, th.st { width: 44px; }
+td.act { white-space: nowrap; }
+td.act button { padding: 2px 7px; font-size: 11px; }
+
+.tag {
+  display: inline-block; border-radius: 3px; padding: 1px 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.tag.ok { color: var(--ink-3); background: none; }
+.tag.low { background: var(--caution-soft); color: var(--caution); }
+.tag.med { background: var(--caution-soft); color: var(--caution); opacity: .8; }
+.tag.fix { background: var(--ok-soft); color: var(--ok); }
+.tag.del { background: var(--critical-soft); color: var(--critical); }
+.tag.add { background: var(--added-soft); color: var(--added); }
+.tag.sev-high { background: var(--critical-soft); color: var(--critical); }
+.tag.sev-medium { background: var(--caution-soft); color: var(--caution); }
+.tag.sev-low { background: var(--accent-soft); color: var(--accent); }
+
+/* ── 접이식 패널 ───────────────────────────────────────── */
+.panel {
+  margin-top: 10px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 9px 14px;
+}
+.panel summary { cursor: pointer; font-weight: 600; font-size: 12.5px; }
+.panel ul { margin: 10px 0 0; padding-left: 17px; display: grid; gap: 6px; color: var(--ink-2); }
+.panel .table-wrap { margin-top: 9px; max-height: 34vh; }
+
+/* ── 하단 바 ───────────────────────────────────────────── */
+.bottombar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: var(--panel); border-top: 1px solid var(--line-strong); padding: 9px 18px;
+}
+.row-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.progress { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 11.5px; }
+.progress .bar { width: 160px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress .bar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.progress .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* ── 수정 패널 ─────────────────────────────────────────── */
+.editor {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 100vw); z-index: 30;
+  background: var(--panel); border-left: 1px solid var(--line-strong); padding: 15px 18px 22px;
+  overflow-y: auto; box-shadow: var(--shadow);
+}
+.editor header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.editor header h2 { margin: 0; }
+.ed-context {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px;
+}
+.ed-context dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.ed-context dt {
+  color: var(--ink-3); font-size: 10px; margin: 0;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.ed-context dd { margin: 1px 0 0; font-size: 12.5px; font-family: var(--font-mono); word-break: break-all; }
+.ed-evidence { margin: 10px 0 0; font-size: 12px; color: var(--ink-2); }
+.ed-evidence span { color: var(--ink-3); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.before {
+  display: block; padding: 7px 9px; border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm); color: var(--ink-3); word-break: break-word;
+  font-family: var(--font-mono); font-size: 12px; background: var(--panel-2);
+}
+.quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.quick button { padding: 3px 8px; font-size: 11px; color: var(--ink-2); }
+.editor footer { display: flex; gap: 7px; margin-top: 6px; }
+
+@media (max-width: 900px) {
+  .editor {
+    top: auto; left: 0; width: 100%; max-height: 82vh;
+    border-left: none; border-top: 1px solid var(--line-strong);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+}
+
+/* ── 행 처리 다이얼로그 ────────────────────────────────── */
+dialog {
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 19px;
+  background: var(--panel); color: var(--ink); width: min(520px, 94vw); max-height: 88vh;
+  box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(16, 19, 20, .5); }
+dialog menu { display: flex; justify-content: flex-end; gap: 7px; margin: 14px 0 0; padding: 0; }
+.rd-fields { max-height: 40vh; overflow-y: auto; padding-right: 2px; }
+.rd-summary {
+  background: var(--panel-2); border: 1px solid var(--line); padding: 8px 10px;
+  border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 12px;
+}
+.error { color: var(--critical); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">✓</span>
+    <div>
+      <h1>Instrument List 검토</h1>
+      <p id="run-info">result.json 을 불러오세요</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <label class="inline">
+      <span>검토자</span>
+      <input id="reviewer" type="text" placeholder="이름" size="10" />
+    </label>
+    <button id="btn-load" class="ghost" type="button">파일 열기</button>
+    <input id="file-input" type="file" accept=".json" hidden />
+  </div>
+</header>
+
+<!-- 파일 미로드 상태 -->
+<section id="empty" class="empty">
+  <div class="dropzone" id="dropzone">
+    <h2>검토할 결과 파일을 여세요</h2>
+    <p><code>outputs/run_YYYYMMDD_HHMM/result.json</code> 을 끌어다 놓거나 클릭해서 선택하세요.</p>
+    <p class="muted">이 파일은 <code>scripts/build_excel.py</code>가 Excel과 함께 만듭니다.</p>
+  </div>
+  <div class="empty-actions">
+    <button id="btn-demo" class="ghost" type="button">샘플 데이터로 둘러보기</button>
+  </div>
+  <div class="howto">
+    <h3>검토 방법</h3>
+    <ol>
+      <li>생성된 <strong>Excel</strong>을 열어 사람이 검토합니다.</li>
+      <li>틀린 값을 발견하면 이 화면에서 <strong>해당 셀을 클릭</strong>합니다.</li>
+      <li><strong>정확한 값</strong>을 입력하고, <strong>왜 틀렸는지(사유)</strong>와
+          <strong>앞으로 어떻게 출력되어야 하는지(규칙 코멘트)</strong>를 적습니다.</li>
+      <li>누락된 계기는 <strong>행 추가</strong>, 잘못 잡아낸 계기는 <strong>행 삭제(오탐)</strong>로 처리합니다.</li>
+      <li>다 되면 <strong>피드백 내보내기</strong> → <code>scripts/apply_feedback.py</code> 로
+          <code>review_log.md</code>와 판독 규칙에 반영합니다.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 메인 -->
+<main id="main" class="hidden">
+  <div class="toolbar">
+    <label class="inline"><span>도면</span>
+      <select id="f-drawing"><option value="">전체</option></select>
+    </label>
+    <label class="inline"><span>확신도</span>
+      <select id="f-conf">
+        <option value="">전체</option>
+        <option value="low">low 만</option>
+        <option value="low,medium">low + medium</option>
+      </select>
+    </label>
+    <label class="inline"><span>상태</span>
+      <select id="f-state">
+        <option value="">전체</option>
+        <option value="edited">수정한 행</option>
+        <option value="untouched">아직 안 본 행</option>
+        <option value="deleted">삭제 표시한 행</option>
+        <option value="added">추가한 행</option>
+      </select>
+    </label>
+    <input id="f-text" type="search" placeholder="TAG/DESCRIPTION 검색…" />
+    <span class="spacer"></span>
+    <label class="inline check"><input id="f-compact" type="checkbox" checked /> <span>판독 컬럼만</span></label>
+    <button id="btn-add-row" class="ghost" type="button">+ 누락 계기 추가</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="table-wrap">
+    <table id="grid">
+      <thead><tr id="grid-head"></tr></thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+  </div>
+
+  <details class="panel">
+    <summary>모델이 <strong>제외</strong>한 후보 (<span id="excl-count">0</span>) — 누락 원인 추적용</summary>
+    <div class="table-wrap"><table id="excluded"><thead><tr>
+      <th>도면</th><th>문자</th><th>위치</th><th>제외 사유</th><th></th></tr></thead><tbody></tbody></table></div>
+  </details>
+
+  <details class="panel">
+    <summary>모델이 남긴 <strong>확인 필요</strong> 사항 (<span id="find-count">0</span>)</summary>
+    <ul id="findings"></ul>
+  </details>
+
+  <div class="bottombar">
+    <div id="progress" class="progress"></div>
+    <div class="row-actions">
+      <button id="btn-export-feedback" class="primary" type="button">피드백 내보내기 (JSON)</button>
+      <button id="btn-export-result" class="ghost" type="button">수정 반영 result.json</button>
+      <button id="btn-export-csv" class="ghost" type="button">수정 반영 CSV</button>
+      <button id="btn-export-log" class="ghost" type="button">review_log 스니펫</button>
+      <button id="btn-clear" class="ghost danger" type="button">검토 내용 초기화</button>
+    </div>
+  </div>
+</main>
+
+<!-- 셀 수정 패널 -->
+<aside id="editor" class="editor hidden">
+  <header>
+    <h2 id="ed-title">셀 수정</h2>
+    <button id="ed-close" class="ghost" type="button" title="닫기 (Esc)">✕</button>
+  </header>
+
+  <div class="ed-context">
+    <dl>
+      <div><dt>도면</dt><dd id="ed-drawing">-</dd></div>
+      <div><dt>행</dt><dd id="ed-row">-</dd></div>
+      <div><dt>컬럼</dt><dd id="ed-col">-</dd></div>
+      <div><dt>확신도</dt><dd id="ed-conf">-</dd></div>
+    </dl>
+    <p class="ed-evidence"><span>판독 근거</span><br /><em id="ed-evidence">-</em></p>
+  </div>
+
+  <label class="field">
+    <span>모델이 출력한 값</span>
+    <output id="ed-before" class="before">-</output>
+  </label>
+
+  <label class="field">
+    <span>정확한 값 <b class="req">*</b></span>
+    <textarea id="ed-after" rows="2" placeholder="이 셀에 들어가야 하는 올바른 값"></textarea>
+    <small class="muted" id="ed-hint"></small>
+  </label>
+
+  <label class="field">
+    <span>오류 유형</span>
+    <select id="ed-category">
+      <option value="wrong_value">값 오류 — 잘못 읽음</option>
+      <option value="description_error">DESCRIPTION 오류 — 표현/구성 규칙 위반</option>
+      <option value="type_error">TYPE 오류 — 계기 종류 오판</option>
+      <option value="qty_error">수량 오류 — 통합/분리 잘못</option>
+      <option value="typical_error">TYPICAL TYPE 오류</option>
+      <option value="format_error">형식 오류 — 대소문자/단위/표기</option>
+      <option value="other">기타</option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>왜 틀렸는지 (사유) <b class="req">*</b></span>
+    <textarea id="ed-reason" rows="3"
+      placeholder="예) 도면에서 이 계기는 BFP A 흡입측이 아니라 토출측 라인에 붙어 있음. From/To 라벨을 반대로 읽었음."></textarea>
+  </label>
+
+  <label class="field">
+    <span>앞으로 어떻게 출력되어야 하는지 (규칙 코멘트) <b class="req">*</b></span>
+    <textarea id="ed-rule" rows="4"
+      placeholder="예) 펌프 주변 계기는 흡입/토출을 라인 방향 화살표로 판단하고, DESCRIPTION에 SUCTION 또는 DISCHARGE를 반드시 포함할 것."></textarea>
+    <div class="quick">
+      <button type="button" data-quick="일회성 오류라 규칙화가 필요하지 않음.">일회성 오류</button>
+      <button type="button" data-quick="이 항목은 도면에서 판독 불가하므로 항상 비워 두고 사람이 채울 것.">판독 불가 → 비워둘 것</button>
+      <button type="button" data-quick="Design Table에서 조인해야 하는 값이므로 판독 대상이 아님.">Design Table 값</button>
+    </div>
+  </label>
+
+  <footer>
+    <button id="ed-save" class="primary" type="button">저장 (Ctrl+Enter)</button>
+    <button id="ed-delete" class="ghost danger hidden" type="button">이 수정 취소</button>
+  </footer>
+</aside>
+
+<!-- 행 단위 처리(삭제=오탐 / 추가=누락) -->
+<dialog id="rowdlg">
+  <form method="dialog" class="rowform">
+    <h2 id="rd-title">행 처리</h2>
+
+    <div id="rd-fields" class="rd-fields"></div>
+
+    <label class="field">
+      <span>왜 이렇게 처리하는지 (사유) <b class="req">*</b></span>
+      <textarea id="rd-reason" rows="3"
+        placeholder="예) 이 원형 심볼은 밸브 리밋스위치(ZS)라 Field Instrument 범위가 아님."></textarea>
+    </label>
+
+    <label class="field">
+      <span>앞으로 어떻게 출력되어야 하는지 (규칙 코멘트) <b class="req">*</b></span>
+      <textarea id="rd-rule" rows="3"
+        placeholder="예) ZS 문자는 항상 excluded로 보내고 Instrument List에 올리지 말 것."></textarea>
+    </label>
+
+    <p id="rd-error" class="error hidden"></p>
+
+    <menu>
+      <button id="rd-ok" value="ok" class="primary" type="submit">확인</button>
+      <button value="cancel" class="ghost" type="submit" formnovalidate>취소</button>
+    </menu>
+  </form>
+</dialog>
+
+<script>
 /* Instrument List 검토 UI
  *
  * build_excel.py가 만든 result.json을 불러와 사람이 셀 단위로 고치고,
@@ -815,3 +1344,7 @@ window.addEventListener('beforeunload', (e) => {
     e.preventDefault();
   }
 });
+
+</script>
+</body>
+</html>
