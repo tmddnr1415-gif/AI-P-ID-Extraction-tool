@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>P&amp;ID Instrument List</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230e5e63'/><circle cx='16' cy='13' r='6.5' fill='none' stroke='white' stroke-width='2'/><path d='M4 24h24' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">P&amp;ID</span>
+    <div>
+      <h1>P&amp;ID Instrument List</h1>
+      <p id="subtitle">PDF 도면을 판독해 지정 Excel 포맷으로 만듭니다</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button id="btn-rules" class="ghost" type="button">판독 규칙</button>
+    <button id="btn-settings" class="ghost" type="button">⚙ 설정</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1. 자료 ─────────────────────────────────────────── -->
+  <section class="card">
+    <h2><span class="step">1</span> 자료 넣기</h2>
+    <div class="two-col">
+      <div>
+        <div class="dropzone" id="dz-pdf">
+          <strong>P&amp;ID PDF</strong>
+          <p class="muted">도면 전체가 든 PDF를 끌어다 놓거나 클릭</p>
+          <p id="pdf-state" class="state">비어 있음</p>
+        </div>
+        <input id="in-pdf" type="file" accept="application/pdf" hidden />
+      </div>
+      <div>
+        <div class="dropzone" id="dz-tpl">
+          <strong>Excel 템플릿</strong>
+          <p class="muted"><code>2.0_Instrument List</code> 시트가 있는 xlsx</p>
+          <p id="tpl-state" class="state">비어 있음</p>
+        </div>
+        <input id="in-tpl" type="file" accept=".xlsx" hidden />
+      </div>
+    </div>
+    <p class="muted">두 파일은 브라우저에만 저장됩니다. 다음에 열 때 다시 넣지 않아도 됩니다.</p>
+    <p id="spec-info" class="spec-info hidden"></p>
+  </section>
+
+  <!-- 2. 도면 선택 ────────────────────────────────────── -->
+  <section id="sec-pages" class="card hidden">
+    <div class="card-head">
+      <h2><span class="step">2</span> 판독할 도면 고르기</h2>
+      <div class="row-actions">
+        <button id="btn-all" class="ghost" type="button">전체</button>
+        <button id="btn-none" class="ghost" type="button">해제</button>
+        <button id="btn-conflicts" class="ghost" type="button">충돌만</button>
+      </div>
+    </div>
+    <div class="table-wrap short">
+      <table id="pages">
+        <thead><tr>
+          <th class="st"></th><th class="idx">쪽</th><th>도면번호</th><th>도면명</th>
+          <th class="idx">계기후보</th><th>확인 필요</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="pages-note" class="muted"></p>
+  </section>
+
+  <!-- 3. 판독 ─────────────────────────────────────────── -->
+  <section id="sec-run" class="card hidden">
+    <h2><span class="step">3</span> 판독</h2>
+    <div class="run-row">
+      <button id="btn-run" class="primary" type="button">선택한 도면 판독</button>
+      <button id="btn-stop" class="ghost hidden" type="button">중지</button>
+      <label class="inline"><input id="opt-dry" type="checkbox" /> <span>API 없이 시험 실행</span></label>
+      <span id="run-status" class="status"></span>
+    </div>
+    <div id="run-log" class="run-log hidden"></div>
+    <p id="run-error" class="error hidden"></p>
+  </section>
+
+  <!-- 4. 결과 ─────────────────────────────────────────── -->
+  <section id="sec-result" class="card hidden">
+    <div class="card-head">
+      <h2><span class="step">4</span> 결과</h2>
+      <div class="row-actions">
+        <input id="f-text" type="search" placeholder="검색…" />
+        <button id="btn-xlsx" class="primary" type="button">Excel 다운로드</button>
+        <button id="btn-csv" class="ghost" type="button">CSV</button>
+        <button id="btn-json" class="ghost" type="button">검토용 JSON</button>
+      </div>
+    </div>
+    <div id="result-stats" class="stats"></div>
+    <div class="table-wrap">
+      <table id="result"><thead><tr id="result-head"></tr></thead><tbody></tbody></table>
+    </div>
+
+    <details class="panel">
+      <summary>모델이 <strong>제외</strong>한 후보 (<span id="excl-count">0</span>) — 누락 원인 추적용</summary>
+      <div class="table-wrap short"><table id="excluded"><thead><tr>
+        <th>도면</th><th>문자</th><th>위치</th><th>제외 사유</th></tr></thead><tbody></tbody></table></div>
+    </details>
+
+    <details class="panel">
+      <summary>모델이 남긴 <strong>확인 필요</strong> 사항 (<span id="find-count">0</span>)</summary>
+      <ul id="findings"></ul>
+    </details>
+
+    <p class="muted">
+      검토는 <strong>검토용 JSON</strong>을 받아 <code>review-ui</code>에서 여세요.
+      거기서 셀을 고치고 사유·규칙을 남기면 판독 규칙에 되먹일 수 있습니다.
+    </p>
+  </section>
+</main>
+
+<!-- 설정 -->
+<dialog id="dlg-settings">
+  <form method="dialog">
+    <h2>설정</h2>
+    <label class="field">
+      <span>Anthropic API Key</span>
+      <input id="api-key" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <small class="muted">브라우저에만 저장되며 Anthropic API 외에는 전송되지 않습니다.</small>
+    </label>
+    <label class="field">
+      <span>모델</span>
+      <select id="model">
+        <option value="claude-opus-5">claude-opus-5 (권장 · 도면 판독 정확도 최상)</option>
+        <option value="claude-sonnet-5">claude-sonnet-5 (빠름 · 저비용)</option>
+        <option value="claude-opus-4-8">claude-opus-4-8</option>
+      </select>
+    </label>
+    <div class="two-col">
+      <label class="field">
+        <span>Effort</span>
+        <select id="effort">
+          <option value="xhigh">xhigh</option>
+          <option value="high" selected>high (권장)</option>
+          <option value="medium">medium</option>
+          <option value="low">low</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>최대 출력 토큰</span>
+        <input id="max-tokens" type="number" min="4096" max="128000" value="32000" />
+      </label>
+    </div>
+    <div class="two-col">
+      <label class="field">
+        <span>타일 분할 (가로×세로)</span>
+        <select id="tiles">
+          <option value="3x2" selected>3 × 2 (권장)</option>
+          <option value="4x3">4 × 3 (더 정밀·비용↑)</option>
+          <option value="2x2">2 × 2</option>
+          <option value="0x0">타일 없음 (전체 이미지만)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>타일 렌더링 DPI</span>
+        <input id="dpi" type="number" min="100" max="400" step="10" value="200" />
+      </label>
+    </div>
+    <menu>
+      <button value="save" class="primary" type="submit">저장</button>
+      <button value="cancel" class="ghost" type="submit" formnovalidate>닫기</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- 판독 규칙 -->
+<dialog id="dlg-rules">
+  <form method="dialog" class="rules-form">
+    <h2>판독 규칙</h2>
+    <p class="muted">
+      아래 내용이 그대로 판독 프롬프트에 들어갑니다. 검토하다 발견한 오류를 규칙으로 바꿔 여기에 누적하세요.
+      수정 내용은 브라우저에 저장됩니다.
+    </p>
+    <div class="tabs" id="rule-tabs"></div>
+    <textarea id="rule-text" rows="18" spellcheck="false"></textarea>
+    <menu>
+      <button id="rule-reset" value="reset" class="ghost danger" type="submit">이 문서 기본값으로</button>
+      <span class="spacer"></span>
+      <button value="save" class="primary" type="submit">저장</button>
+      <button value="cancel" class="ghost" type="submit" formnovalidate>닫기</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/fflate.min.js"></script>
+<script src="rules.gen.js"></script>
+<script src="xlsx.js"></script>
+<script src="pdfscan.js"></script>
+<script src="claude.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

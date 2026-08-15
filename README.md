@@ -1,62 +1,47 @@
-# P&ID Instrument Extractor
+# AI P&ID Extraction Tool
 
-P&ID 도면을 업로드하면 Claude API가 도면을 검토하고 **계기(instrument) 목록을 지정한 포맷으로** 뽑아주는 HTML 기반 웹앱입니다.
-빌드 도구·백엔드 없이 `index.html` / `styles.css` / `app.js` 세 파일로 동작합니다.
+P&ID 도면에서 계기(instrument) 목록을 자동으로 뽑아내는 도구 모음입니다.
+결과물은 실제 플랜트 설계에 쓰이는 **안전 관련 문서**이므로, 모든 출력은 사람의 검토를 거쳐야 합니다.
 
-## 기능
+## 무엇을 열어야 하나
 
-- **도면 업로드** — PNG / JPG / WEBP / GIF / PDF, 여러 장 동시 업로드 (멀티 시트 도면 지원)
-- **출력 포맷 지정** — 화면에서 컬럼(필드 키·헤더·추출 기준)을 직접 편집. 편집한 컬럼이 그대로 JSON Schema로 변환되어
-  [구조화 출력(structured outputs)](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)으로 모델에 전달되므로,
-  응답은 **항상** 지정한 포맷을 그대로 따릅니다.
-- **기본 포맷** — ISA-5.1 기준 10개 컬럼: Tag No. / Function / Measured Var. / Service / Line·Equip. /
-  P&ID No. / Signal·Loop / Location / I/O Type / Remarks
-- **검토 의견** — 태그 중복·누락, 번호 체계 불일치, 심볼-태그 불일치, 판독 불가 영역을 severity와 함께 보고
-- **내보내기** — CSV(엑셀 한글 호환 BOM 포함) · 엑셀 붙여넣기용 TSV 복사 · 전체 JSON
-- **스트리밍 진행 표시**와 중지 버튼, 검색 필터
+| 하고 싶은 일 | 열 파일 | 설치 |
+|---|---|---|
+| **PDF 넣고 지정 Excel 포맷으로 받기** | `pid-instrument-tool/web/standalone.html` | 없음 |
+| 판독 결과를 검토하고 규칙에 되먹이기 | `pid-instrument-tool/review-ui/standalone.html` | 없음 |
+| 배치 실행 · 규칙을 git으로 관리 | `pid-instrument-tool/` (파이썬) | `pip install -r requirements.txt` |
+| 아무 P&ID나 빠르게 훑어보기 | `index.html` (루트) | 로컬 서버 필요 |
 
-## 실행
+`standalone.html` 두 개는 **더블클릭하면 바로 열립니다.** 서버도 파이썬도 필요 없습니다.
 
-`file://` 로 열면 브라우저가 API 호출을 CORS로 차단할 수 있으므로 로컬 서버로 띄웁니다.
+## 주 워크플로우
 
-```bash
-# 아무 정적 서버나 사용 가능
-python3 -m http.server 8000
-#   또는
-npx serve .
+```
+P&ID PDF ──▶ web/standalone.html ──▶ instrument_list.xlsx  (템플릿 서식 그대로)
+                    │                └─▶ result.json
+                    │                        │
+                    │                        ▼
+                    │            review-ui/standalone.html
+                    │              셀 수정 + 사유 + 향후 규칙 코멘트
+                    │                        │
+                    └────── 규칙 개정 ◀───────┘
 ```
 
-`http://localhost:8000` 접속 → 우측 상단 **⚙ 설정**에서 Anthropic API Key 입력 → 도면 업로드 → **P&ID 검토 실행**.
+한 번에 완벽한 자동화가 목표가 아닙니다. 사람이 검토하며 지적한 오류를 **판독 규칙으로 바꿔
+누적**하고, 다시 돌려 정확도를 올리는 반복 검증이 이 도구의 핵심입니다.
 
-API Key는 브라우저 `localStorage`에만 저장되고 `api.anthropic.com` 외 어디로도 전송되지 않습니다.
+## 시작하기
 
-## 설정 항목
+1. `pid-instrument-tool/web/standalone.html` 을 브라우저로 엽니다.
+2. ⚙ 설정에 Anthropic API 키를 넣습니다. (키는 브라우저에만 저장됩니다)
+3. P&ID PDF와 Excel 템플릿을 넣습니다.
+4. 판독할 도면을 고르고 실행합니다. **먼저 3~5장으로 정확도를 확인한 뒤** 범위를 넓히세요.
+5. Excel을 받아 검토하고, 틀린 곳은 검토 UI에서 사유·규칙과 함께 고칩니다.
 
-| 항목 | 기본값 | 설명 |
-|---|---|---|
-| 모델 | `claude-opus-5` | 도면 판독 정확도가 가장 높습니다. 빠르고 저렴하게 돌리려면 `claude-sonnet-5`. |
-| Effort | `high` | 추론 깊이. 복잡하거나 밀도 높은 도면은 `xhigh`, 단순 도면은 `medium`. |
-| 최대 출력 토큰 | 32,000 | 계기 수가 많아 응답이 잘리면(`max_tokens` 경고) 늘리세요. |
-| 이미지 자동 축소 | 켬 | 장변 2576px(모델 최대 해상도) 초과 이미지만 축소합니다. 그 이하 이미지는 선이 뭉개지지 않도록 원본 그대로 전송합니다. |
+자세한 내용은 [`pid-instrument-tool/README.md`](pid-instrument-tool/README.md) 를 보세요.
 
-## 동작 방식
+## 정확도에 대해
 
-1. 업로드한 도면을 base64 `image` / `document` 블록으로 만들어 Messages API에 보냅니다.
-2. 시스템 프롬프트는 ISA-5.1 판독 규칙(태그 문자 해석, 버블 테두리 → 설치 위치, 신호선 형태 → 신호 종류)과
-   "보이는 것만 기재하고 확인 불가하면 `-`" 원칙을 지시합니다.
-3. `output_config.format` 에 컬럼에서 생성한 JSON Schema를 실어 응답 포맷을 강제합니다
-   (`instruments[]`, `review_findings[]`, `summary`).
-4. 응답은 SSE로 스트리밍해 진행 상황을 표시하고, 완료 시 파싱해 표로 렌더링합니다.
-
-## 정확도를 높이려면
-
-- 도면은 가능한 **고해상도**로 올리세요. 계기 버블의 태그 글자가 뭉개지면 모델도 읽지 못하고, 그런 영역은 검토 의견에 보고됩니다.
-- 한 번에 너무 많은 시트를 넣기보다 **시트 단위로 나눠 실행**하면 누락이 줄어듭니다.
-- 프로젝트 고유 규칙(태그 체계, 제외 대상, 비고 기재 방식)은 **추가 지시사항**에 적어주세요.
-- 결과는 반드시 사람이 검증해야 합니다. 이 도구는 계기 목록 초안 작성용이지 승인 문서 생성용이 아닙니다.
-
-## 제약
-
-- 요청 1건 최대 32MB(PDF 기준). 초과하면 업로드 영역에 경고가 표시됩니다.
-- 브라우저에서 API를 직접 호출하므로 API Key를 다루는 사람만 사용하는 내부용 도구로 적합합니다.
-  여러 사용자에게 배포하려면 API Key를 서버에 두고 프록시하는 백엔드를 추가하세요.
+이 도구는 아직 **실제 정확도가 측정되지 않았습니다.** 대표 도면 세트로 정답과 대조해
+규칙을 몇 바퀴 다듬은 뒤에 도면 범위를 넓히는 것을 전제로 만들었습니다
+(`pid-instrument-tool/samples/test_set_v1/README.md`).
