@@ -1,0 +1,20 @@
+# 원본 도면/산출물은 용량이 크고 프로젝트 기밀이라 커밋하지 않는다.
+inputs/*
+!inputs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# 정답 데이터는 원본 Excel의 파생물이라 같은 기밀 등급이다.
+# inspect_template.py 한 번으로 언제든 다시 만들 수 있으므로 커밋하지 않는다.
+samples/test_set_v1/ground_truth.json
+
+# 리뷰 UI에서 내려받은 피드백 원본
+feedback_*.json
+result_reviewed_*.json
+
+# 규칙 문서 백업
+rules/*.bak.md
+
+__pycache__/
+*.pyc
+.DS_Store

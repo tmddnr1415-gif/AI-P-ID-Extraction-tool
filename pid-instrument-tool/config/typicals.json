@@ -1,0 +1,202 @@
+{
+  "FE-1": {
+    "sensing_type": "-",
+    "element_type": "Orifice",
+    "mounting_type": "-",
+    "signal_type": "-",
+    "base_option": "Flange with Bolt/Nut/Gasket Set",
+    "_count": 18
+  },
+  "FIT-1": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Remote",
+    "signal_type": "4~20mA",
+    "base_option": "5-WAY MANIFOLD, MOUNTING BRACKET",
+    "_count": 29
+  },
+  "FIT-3": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Remote Diaphragm Seal",
+    "mounting_type": "Remote Capillary",
+    "signal_type": "4~20mA",
+    "base_option": "OIL FILLED CAPILLARY TUBE 10M, MOUNTING BRACKET, 2\" FLANGE: 316LSS",
+    "_count": 1
+  },
+  "FIT-4": {
+    "sensing_type": "Volumetric",
+    "element_type": "Magnetic",
+    "mounting_type": "-",
+    "signal_type": "4~20mA",
+    "base_option": "REMOTE DISPLAY UNIT, MOUNTING BRACKET",
+    "_count": 1
+  },
+  "FS-1": {
+    "sensing_type": "Pressure",
+    "element_type": "-",
+    "mounting_type": "Direct",
+    "signal_type": "Contact",
+    "base_option": "1-DPDT (OR 2-SPDT)",
+    "_count": 3
+  },
+  "LI-1": {
+    "sensing_type": "-",
+    "element_type": "Reflex",
+    "mounting_type": "-",
+    "signal_type": "-",
+    "base_option": "W/ VENT & DRAIN VALVE, C-C LENGTH : 1500MM",
+    "_count": 1
+  },
+  "LI-4": {
+    "sensing_type": "-",
+    "element_type": "Float",
+    "mounting_type": "-",
+    "signal_type": "-",
+    "base_option": "LOCAL DIAL INDICATOR, W/ GUIDE  PIPE, MOUNTING BRACKET",
+    "_count": 9
+  },
+  "LIT-3": {
+    "sensing_type": "GWR",
+    "element_type": "-",
+    "mounting_type": "-",
+    "signal_type": "4~20mA",
+    "base_option": "W/ CHAMBER",
+    "_count": 3
+  },
+  "LIT-6": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Direct",
+    "signal_type": "4~20mA",
+    "base_option": "2\" RF FLANGE : 316LSS",
+    "_count": 10
+  },
+  "LS-2": {
+    "sensing_type": "-",
+    "element_type": "Displacer",
+    "mounting_type": "-",
+    "signal_type": "Contact",
+    "base_option": "2-SPDT OR 1-DPDT, CHAMBER W/ DRAIN VALVE, C-C LENGTH : 300MM",
+    "_count": 22
+  },
+  "LT-5": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Remote",
+    "signal_type": "4~20mA",
+    "base_option": "5-WAY MANIFOLD, MOUNTING BRACKET",
+    "_count": 2
+  },
+  "LT-6": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Direct",
+    "signal_type": "4~20mA",
+    "base_option": "2\" RF FLANGE : 316LSS",
+    "_count": 14
+  },
+  "PDIT-1": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Remote",
+    "signal_type": "4~20mA",
+    "base_option": "5-WAY MANIFOLD, MOUNTING BRACKET",
+    "_count": 39
+  },
+  "PDIT-2": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Remote Diaphragm Seal",
+    "mounting_type": "Remote Capillary",
+    "signal_type": "4~20mA",
+    "base_option": "OIL FILLED CAPILLARY TUBE 10M, MOUNTING BRACKET, 2\" FLANGE: 316LSS",
+    "_count": 5
+  },
+  "PDIT-3": {
+    "sensing_type": "Diff. Pressure",
+    "element_type": "Remote Diaphragm Seal",
+    "mounting_type": "Remote Capillary",
+    "signal_type": "4~20mA",
+    "base_option": "OIL FILLED CAPILLARY TUBE 10M, MOUNTING BRACKET, 2\" FLANGE: 316LSS",
+    "_count": 9
+  },
+  "PI-1": {
+    "sensing_type": "Pressure",
+    "element_type": "Bourdon",
+    "mounting_type": "Direct",
+    "signal_type": "-",
+    "base_option": "DIAL SIZE: 100mm, 2-WAY MANIFOLD, OIL FILLED,",
+    "_count": 104
+  },
+  "PI-6": {
+    "sensing_type": "Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Direct",
+    "signal_type": "-",
+    "base_option": "DIAL SIZE: 100mm, OIL FILLED, 2\" FLANGE :316LSS",
+    "_count": 7
+  },
+  "PIT-1": {
+    "sensing_type": "Pressure",
+    "element_type": "Diaphragm",
+    "mounting_type": "Remote",
+    "signal_type": "4~20mA",
+    "base_option": "2-WAY MANIFOLD, MOUNTING BRACKET",
+    "_count": 77
+  },
+  "PIT-2": {
+    "sensing_type": "Pressure",
+    "element_type": "Remote Diaphragm Seal",
+    "mounting_type": "Remote Capillary",
+    "signal_type": "4~20mA",
+    "base_option": "OIL FILLED CAPILLARY TUBE 10M, MOUNTING BRACKET, 2\" FLANGE: 316LSS",
+    "_count": 24
+  },
+  "PIT-3": {
+    "sensing_type": "Pressure",
+    "element_type": "Remote Diaphragm Seal",
+    "mounting_type": "Remote Capillary",
+    "signal_type": "4~20mA",
+    "base_option": "OIL FILLED CAPILLARY TUBE 10M, MOUNTING BRACKET, 2\" FLANGE: 316LSS",
+    "_count": 7
+  },
+  "RO-1": {
+    "sensing_type": "-",
+    "element_type": "Orifice",
+    "mounting_type": "-",
+    "signal_type": "-",
+    "base_option": "",
+    "_count": 19
+  },
+  "TI-1": {
+    "sensing_type": "Temp.",
+    "element_type": "Bi-metal",
+    "mounting_type": "Direct",
+    "signal_type": "-",
+    "base_option": "DIAL SIZE: 100mm, W/ THERMOWELL",
+    "_count": 53
+  },
+  "TI-2": {
+    "sensing_type": "Temp.",
+    "element_type": "Bi-metal",
+    "mounting_type": "Direct",
+    "signal_type": "-",
+    "base_option": "DIAL SIZE: 100mm, W/ THERMOWELL",
+    "_count": 7
+  },
+  "TIT-3": {
+    "sensing_type": "Temp.",
+    "element_type": "Thermocouple-K",
+    "mounting_type": "Head-Mount",
+    "signal_type": "4~20mA",
+    "base_option": "T/C K TYPE, DUPLEX ELEMENT, W/ ELEMENT & THERMOWELL",
+    "_count": 53
+  },
+  "TIT-5": {
+    "sensing_type": "Temp.",
+    "element_type": "R.T.D(PT100)",
+    "mounting_type": "Head-Mount",
+    "signal_type": "4~20mA",
+    "base_option": "3-WIRE RTD, DUPLEX ELEMENT, W/ ELEMENT & THERMOWELL",
+    "_count": 46
+  }
+}

@@ -1,0 +1,4 @@
+# P&ID Instrument List 자동 생성 도구
+anthropic>=0.60      # Claude Messages API (vision + 구조화 출력 + 프롬프트 캐싱)
+pymupdf>=1.24        # PDF → 이미지 변환, 텍스트 레이어 추출
+openpyxl>=3.1        # Excel 템플릿 읽기/쓰기

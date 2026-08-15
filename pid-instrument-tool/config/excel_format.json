@@ -1,0 +1,393 @@
+{
+  "sheet": "2.0_Instrument List",
+  "header_row": 6,
+  "subheader_row": 7,
+  "data_start_row": 8,
+  "template_file": "D00P-00CZE00-J30-0001_RC_Field_Instrument_2512xx.xlsx",
+  "columns": [
+    {
+      "col": "A",
+      "key": "no",
+      "label": "NO",
+      "sub_label": "",
+      "source": "auto_index"
+    },
+    {
+      "col": "B",
+      "key": "unit",
+      "label": "UNIT",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "C",
+      "key": "system_code",
+      "label": "SYSTEM CODE",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "D",
+      "key": "system_sequence",
+      "label": "SYSTEM SEQUENCE",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "E",
+      "key": "tag",
+      "label": "TAG",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "F",
+      "key": "system",
+      "label": "SYSTEM",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "G",
+      "key": "pid_no",
+      "label": "P&ID No.",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "H",
+      "key": "type",
+      "label": "TYPE",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "I",
+      "key": "qty",
+      "label": "Q'ty",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "J",
+      "key": "description",
+      "label": "DESCRIPTION",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "K",
+      "key": "design_table_no",
+      "label": "Design table No.",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "L",
+      "key": "op_mass_flow",
+      "label": "Operating condition",
+      "sub_label": "Mass Flow kg/s",
+      "source": "design_table"
+    },
+    {
+      "col": "M",
+      "key": "op_pressure",
+      "label": "Press. [bara]",
+      "sub_label": "Press. [bara]",
+      "source": "design_table"
+    },
+    {
+      "col": "N",
+      "key": "op_temperature",
+      "label": "Temp. deg.C",
+      "sub_label": "Temp. deg.C",
+      "source": "design_table"
+    },
+    {
+      "col": "O",
+      "key": "des_mass_flow",
+      "label": "Design condition",
+      "sub_label": "Mass Flow kg/s",
+      "source": "design_table"
+    },
+    {
+      "col": "P",
+      "key": "des_pressure",
+      "label": "Press. [bara]",
+      "sub_label": "Press. [bara]",
+      "source": "design_table"
+    },
+    {
+      "col": "Q",
+      "key": "des_temperature",
+      "label": "Temp. deg.C",
+      "sub_label": "Temp. deg.C",
+      "source": "design_table"
+    },
+    {
+      "col": "R",
+      "key": "pipe_material",
+      "label": "Pipe",
+      "sub_label": "Material [ASTM]",
+      "source": "design_table"
+    },
+    {
+      "col": "S",
+      "key": "pipe_nb",
+      "label": "NB [mm]",
+      "sub_label": "NB [mm]",
+      "source": "design_table"
+    },
+    {
+      "col": "T",
+      "key": "pipe_sch",
+      "label": "Sch.",
+      "sub_label": "Sch.",
+      "source": "design_table"
+    },
+    {
+      "col": "U",
+      "key": "rating",
+      "label": "Rating",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "V",
+      "key": "velocity_criteria",
+      "label": "Velocity Criteria",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "W",
+      "key": "fluid",
+      "label": "Fluid",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "X",
+      "key": "inst_typical_type",
+      "label": "INST. TYPICAL TYPE",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "Y",
+      "key": "sensing_type",
+      "label": "SENSING TYPE",
+      "sub_label": "",
+      "source": "typical"
+    },
+    {
+      "col": "Z",
+      "key": "element_type",
+      "label": "ELEMENT TYPE",
+      "sub_label": "",
+      "source": "typical"
+    },
+    {
+      "col": "AA",
+      "key": "mounting_type",
+      "label": "Mounting  Type",
+      "sub_label": "",
+      "source": "typical"
+    },
+    {
+      "col": "AB",
+      "key": "signal_type",
+      "label": "Signal Type",
+      "sub_label": "",
+      "source": "typical"
+    },
+    {
+      "col": "AC",
+      "key": "calibration_range",
+      "label": "REQUIRED CALIBRATION RANGE",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AD",
+      "key": "calibration_unit",
+      "label": "UNIT",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AE",
+      "key": "element_material",
+      "label": "ELEM. MATERIAL",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AF",
+      "key": "connection_type",
+      "label": "Connection Type",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AG",
+      "key": "tw_chamber_spec",
+      "label": "TW / CHAMBER SPECIFICATION",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AH",
+      "key": "explosion_proof",
+      "label": "EXPLOSION PROOF",
+      "sub_label": "",
+      "source": "design_table"
+    },
+    {
+      "col": "AI",
+      "key": "base_option",
+      "label": "BASE OPTION & ACCESSORY",
+      "sub_label": "",
+      "source": "typical"
+    },
+    {
+      "col": "AJ",
+      "key": "body_material",
+      "label": "BODY MATERIAL",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "AK",
+      "key": "scope_of_supply",
+      "label": "Scope of Supply",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "AL",
+      "key": "maker",
+      "label": "MAKER",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "AM",
+      "key": "model",
+      "label": "MODEL",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "AN",
+      "key": "status",
+      "label": "STATUS",
+      "sub_label": "",
+      "source": "blank"
+    },
+    {
+      "col": "AO",
+      "key": "remark",
+      "label": "REMARK",
+      "sub_label": "",
+      "source": "drawing"
+    },
+    {
+      "col": "AP",
+      "key": "note",
+      "label": "",
+      "sub_label": "",
+      "source": "review"
+    }
+  ],
+  "instrument_types": [
+    "FE",
+    "FIT",
+    "FS",
+    "LI",
+    "LIT",
+    "LS",
+    "PDIT",
+    "PI",
+    "PIT",
+    "RO",
+    "TI",
+    "TIT"
+  ],
+  "systems": [
+    "AUX Cooling Water System",
+    "Aux. Steam System",
+    "Bypass Steam System",
+    "CRH Steam System",
+    "Circulating Water System",
+    "Clean Drain System",
+    "Closed Cooling Water System",
+    "Compressed Air System",
+    "Condensate System",
+    "Condenser Air Removal System",
+    "Demineralized Water Distribution System",
+    "Desal Water Supply System",
+    "Feedwater System",
+    "Fuel Oil Supply System",
+    "Fuel gas Supply System",
+    "GT FGH&TCA Cooler System",
+    "GT Flash Pipe System",
+    "HP Steam System",
+    "HRH Steam System",
+    "HRSG Blowdown System",
+    "LP Steam System",
+    "Potable Water Supply System",
+    "Service Water Distribution System"
+  ],
+  "type_to_typical_types": {
+    "FE": [
+      "FE-1"
+    ],
+    "FIT": [
+      "FIT-1",
+      "FIT-3",
+      "FIT-4"
+    ],
+    "FS": [
+      "FS-1"
+    ],
+    "LI": [
+      "LI-1",
+      "LI-4"
+    ],
+    "LIT": [
+      "LIT-3",
+      "LIT-6",
+      "LT-5",
+      "LT-6"
+    ],
+    "LS": [
+      "LS-2"
+    ],
+    "PDIT": [
+      "PDIT-1",
+      "PDIT-2",
+      "PDIT-3"
+    ],
+    "PI": [
+      "PI-1",
+      "PI-6"
+    ],
+    "PIT": [
+      "PIT-1",
+      "PIT-2",
+      "PIT-3"
+    ],
+    "RO": [
+      "RO-1"
+    ],
+    "TI": [
+      "TI-1",
+      "TI-2"
+    ],
+    "TIT": [
+      "TIT-3",
+      "TIT-5"
+    ]
+  }
+}

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Instrument List 검토</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23146c43'/><path d='M8 16.5l5 5 11-11' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">✓</span>
+    <div>
+      <h1>Instrument List 검토</h1>
+      <p id="run-info">result.json 을 불러오세요</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <label class="inline">
+      <span>검토자</span>
+      <input id="reviewer" type="text" placeholder="이름" size="10" />
+    </label>
+    <button id="btn-load" class="ghost" type="button">파일 열기</button>
+    <input id="file-input" type="file" accept=".json" hidden />
+  </div>
+</header>
+
+<!-- 파일 미로드 상태 -->
+<section id="empty" class="empty">
+  <div class="dropzone" id="dropzone">
+    <h2>검토할 결과 파일을 여세요</h2>
+    <p><code>outputs/run_YYYYMMDD_HHMM/result.json</code> 을 끌어다 놓거나 클릭해서 선택하세요.</p>
+    <p class="muted">이 파일은 <code>scripts/build_excel.py</code>가 Excel과 함께 만듭니다.</p>
+  </div>
+  <div class="howto">
+    <h3>검토 방법</h3>
+    <ol>
+      <li>생성된 <strong>Excel</strong>을 열어 사람이 검토합니다.</li>
+      <li>틀린 값을 발견하면 이 화면에서 <strong>해당 셀을 클릭</strong>합니다.</li>
+      <li><strong>정확한 값</strong>을 입력하고, <strong>왜 틀렸는지(사유)</strong>와
+          <strong>앞으로 어떻게 출력되어야 하는지(규칙 코멘트)</strong>를 적습니다.</li>
+      <li>누락된 계기는 <strong>행 추가</strong>, 잘못 잡아낸 계기는 <strong>행 삭제(오탐)</strong>로 처리합니다.</li>
+      <li>다 되면 <strong>피드백 내보내기</strong> → <code>scripts/apply_feedback.py</code> 로
+          <code>review_log.md</code>와 판독 규칙에 반영합니다.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 메인 -->
+<main id="main" class="hidden">
+  <div class="toolbar">
+    <label class="inline"><span>도면</span>
+      <select id="f-drawing"><option value="">전체</option></select>
+    </label>
+    <label class="inline"><span>확신도</span>
+      <select id="f-conf">
+        <option value="">전체</option>
+        <option value="low">low 만</option>
+        <option value="low,medium">low + medium</option>
+      </select>
+    </label>
+    <label class="inline"><span>상태</span>
+      <select id="f-state">
+        <option value="">전체</option>
+        <option value="edited">수정한 행</option>
+        <option value="untouched">아직 안 본 행</option>
+        <option value="deleted">삭제 표시한 행</option>
+        <option value="added">추가한 행</option>
+      </select>
+    </label>
+    <input id="f-text" type="search" placeholder="TAG/DESCRIPTION 검색…" />
+    <span class="spacer"></span>
+    <label class="inline check"><input id="f-compact" type="checkbox" checked /> <span>판독 컬럼만</span></label>
+    <button id="btn-add-row" class="ghost" type="button">+ 누락 계기 추가</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="table-wrap">
+    <table id="grid">
+      <thead><tr id="grid-head"></tr></thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+  </div>
+
+  <details class="panel">
+    <summary>모델이 <strong>제외</strong>한 후보 (<span id="excl-count">0</span>) — 누락 원인 추적용</summary>
+    <div class="table-wrap"><table id="excluded"><thead><tr>
+      <th>도면</th><th>문자</th><th>위치</th><th>제외 사유</th><th></th></tr></thead><tbody></tbody></table></div>
+  </details>
+
+  <details class="panel">
+    <summary>모델이 남긴 <strong>확인 필요</strong> 사항 (<span id="find-count">0</span>)</summary>
+    <ul id="findings"></ul>
+  </details>
+
+  <div class="bottombar">
+    <div id="progress" class="progress"></div>
+    <div class="row-actions">
+      <button id="btn-export-feedback" class="primary" type="button">피드백 내보내기 (JSON)</button>
+      <button id="btn-export-result" class="ghost" type="button">수정 반영 result.json</button>
+      <button id="btn-export-csv" class="ghost" type="button">수정 반영 CSV</button>
+      <button id="btn-export-log" class="ghost" type="button">review_log 스니펫</button>
+      <button id="btn-clear" class="ghost danger" type="button">검토 내용 초기화</button>
+    </div>
+  </div>
+</main>
+
+<!-- 셀 수정 패널 -->
+<aside id="editor" class="editor hidden">
+  <header>
+    <h2 id="ed-title">셀 수정</h2>
+    <button id="ed-close" class="ghost" type="button" title="닫기 (Esc)">✕</button>
+  </header>
+
+  <div class="ed-context">
+    <dl>
+      <div><dt>도면</dt><dd id="ed-drawing">-</dd></div>
+      <div><dt>행</dt><dd id="ed-row">-</dd></div>
+      <div><dt>컬럼</dt><dd id="ed-col">-</dd></div>
+      <div><dt>확신도</dt><dd id="ed-conf">-</dd></div>
+    </dl>
+    <p class="ed-evidence"><span>판독 근거</span><br /><em id="ed-evidence">-</em></p>
+  </div>
+
+  <label class="field">
+    <span>모델이 출력한 값</span>
+    <output id="ed-before" class="before">-</output>
+  </label>
+
+  <label class="field">
+    <span>정확한 값 <b class="req">*</b></span>
+    <textarea id="ed-after" rows="2" placeholder="이 셀에 들어가야 하는 올바른 값"></textarea>
+    <small class="muted" id="ed-hint"></small>
+  </label>
+
+  <label class="field">
+    <span>오류 유형</span>
+    <select id="ed-category">
+      <option value="wrong_value">값 오류 — 잘못 읽음</option>
+      <option value="description_error">DESCRIPTION 오류 — 표현/구성 규칙 위반</option>
+      <option value="type_error">TYPE 오류 — 계기 종류 오판</option>
+      <option value="qty_error">수량 오류 — 통합/분리 잘못</option>
+      <option value="typical_error">TYPICAL TYPE 오류</option>
+      <option value="format_error">형식 오류 — 대소문자/단위/표기</option>
+      <option value="other">기타</option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>왜 틀렸는지 (사유) <b class="req">*</b></span>
+    <textarea id="ed-reason" rows="3"
+      placeholder="예) 도면에서 이 계기는 BFP A 흡입측이 아니라 토출측 라인에 붙어 있음. From/To 라벨을 반대로 읽었음."></textarea>
+  </label>
+
+  <label class="field">
+    <span>앞으로 어떻게 출력되어야 하는지 (규칙 코멘트) <b class="req">*</b></span>
+    <textarea id="ed-rule" rows="4"
+      placeholder="예) 펌프 주변 계기는 흡입/토출을 라인 방향 화살표로 판단하고, DESCRIPTION에 SUCTION 또는 DISCHARGE를 반드시 포함할 것."></textarea>
+    <div class="quick">
+      <button type="button" data-quick="일회성 오류라 규칙화가 필요하지 않음.">일회성 오류</button>
+      <button type="button" data-quick="이 항목은 도면에서 판독 불가하므로 항상 비워 두고 사람이 채울 것.">판독 불가 → 비워둘 것</button>
+      <button type="button" data-quick="Design Table에서 조인해야 하는 값이므로 판독 대상이 아님.">Design Table 값</button>
+    </div>
+  </label>
+
+  <footer>
+    <button id="ed-save" class="primary" type="button">저장 (Ctrl+Enter)</button>
+    <button id="ed-delete" class="ghost danger hidden" type="button">이 수정 취소</button>
+  </footer>
+</aside>
+
+<!-- 행 단위 처리(삭제=오탐 / 추가=누락) -->
+<dialog id="rowdlg">
+  <form method="dialog" class="rowform">
+    <h2 id="rd-title">행 처리</h2>
+
+    <div id="rd-fields" class="rd-fields"></div>
+
+    <label class="field">
+      <span>왜 이렇게 처리하는지 (사유) <b class="req">*</b></span>
+      <textarea id="rd-reason" rows="3"
+        placeholder="예) 이 원형 심볼은 밸브 리밋스위치(ZS)라 Field Instrument 범위가 아님."></textarea>
+    </label>
+
+    <label class="field">
+      <span>앞으로 어떻게 출력되어야 하는지 (규칙 코멘트) <b class="req">*</b></span>
+      <textarea id="rd-rule" rows="3"
+        placeholder="예) ZS 문자는 항상 excluded로 보내고 Instrument List에 올리지 말 것."></textarea>
+    </label>
+
+    <p id="rd-error" class="error hidden"></p>
+
+    <menu>
+      <button id="rd-ok" value="ok" class="primary" type="submit">확인</button>
+      <button value="cancel" class="ghost" type="submit" formnovalidate>취소</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
