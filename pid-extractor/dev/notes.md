@@ -483,3 +483,13 @@ LSHH/LSH(레벨 스위치)로 감시한다.** TIT 가 없다. 도면마다 계�
 **안 잰 것** — 앱이 `api.anthropic.com` 으로 보내는 호출 자체(여전히 미검증)와,
 `max_tokens 1000` 제약 아래 §4 프롬프트로 받았을 때 같은 품질이 나오는가.
 읽은 주체는 Claude Code 안의 Claude 이고, 앱이 부를 Claude 가 아니다.
+
+### 다시 돌리는 법
+
+```
+node dev/dump_tiles.mjs <쪽> <타일폴더>            # 앱과 같은 설정으로 타일 16장
+#   → 그 이미지를 Claude 가 §4 프롬프트로 읽어 판독 JSON 을 만든다
+node dev/run_reading.mjs <쪽> <판독.json> [<xlsx>] # 판독을 앱에 넣고 나머지를 시킨다
+```
+
+판독 JSON 은 도면의 계기 배치 그 자체다. **저장소에 넣지 않는다** — 공개 저장소다.
