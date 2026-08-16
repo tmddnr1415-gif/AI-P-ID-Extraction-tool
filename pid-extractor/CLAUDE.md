@@ -448,6 +448,21 @@ Artifact 밖(내려받은 파일, 사내 웹서버)에서 돌려야 하면 §4 �
 요구사항 9(다른 사람이 써도 API 호출이 아니어야 한다)는 Artifact 경로로 지켜진다 —
 키 칸은 비워 두는 것이 기본이다.
 
-**외부 라이브러리는 심는다.** CDN 경로 하나가 어긋나면 기능 전체가 죽는다(발견 17).
-fflate 는 `index.html` 안에 심었다. pdf.js 는 크기 때문에 아직 CDN 이며, Artifact 는
-cdnjs 를 허용한다.
+**외부 라이브러리는 되도록 없앤다.** CDN 경로 하나가 어긋나면 기능 전체가 죽는다
+(발견 17). zip(xlsx)은 브라우저의 `CompressionStream`/`DecompressionStream` 으로 직접
+처리해 fflate 를 뺐다(발견 20). pdf.js 만 CDN 에 남았고 claude.ai 아티팩트는 cdnjs 를
+허용한다. `index.html` 은 **작게 유지한다** — claude.ai 에 붙여 아티팩트로 만들 때
+Claude 가 파일을 다시 써야 하므로 크기가 곧 성공률이다.
+
+### 배포본 세 가지
+
+| 파일 | 쓰임 | 실판독 |
+|---|---|---|
+| `index.html` | claude.ai 대화창에 붙이는 **원본** | 된다 — 키 없이 |
+| `dist/app.html` | pdf.js 까지 심은 자립 파일 (`--real`) | 본인 API 키로 된다 |
+| `dist/artifact.html` | Claude Code publish 용 UI 미리보기 | 안 된다 (기록 결과) |
+
+Claude Code 로 publish 하는 Artifact 는 CSP 가 외부 호스트를 막고 다운로드 허용
+확장자에 xlsx 가 없어 **구조적으로** 미리보기 이상이 될 수 없다. 제품은 `index.html`
+이다. 기록 결과(`__STUB_FIXTURE`)는 미리보기와 회귀 시험에만 존재하며, `--real`
+배포본은 `stubbing()` 을 `false` 로 박고 빌드가 그것을 검사한다.
