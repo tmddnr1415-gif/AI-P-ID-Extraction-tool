@@ -117,7 +117,16 @@ OCR로 읽을 글자가 없으므로 Tesseract 계열은 쓰지 않는다.
 ### 후처리 (JS)
 
 1. 오버랩 중복 제거 — 페이지 절대 좌표 ±2% 이내 + 동일 TYPE이면 동일 계기
+   - **[2026-08-16 보정]** 이 규칙만으로는 틀린다. 이중화 계기는 같은 배관에 세로로
+     나란히 붙고 실측 간격이 페이지의 **1.7%**밖에 안 되어, ±2%로 훑으면 서로 다른
+     두 계기를 하나로 합친다 (HP Steam 도면에서 드레인 온도계 8개 → 4개). 세 가지를 건다.
+     1. **같은 타일 안에서는 합치지 않는다.** 한 응답에 따로 적혔으면 따로다.
+     2. 반경 안에서 아무거나 잡지 말고 **가장 가까운 것**만 짝으로 본다.
+     3. 반경은 **±1%**. 같은 지점을 두 타일에서 본 좌표 오차보다는 크고, 세로로 붙은
+        서로 다른 계기의 간격(1.7%)보다는 작아야 한다.
 2. 정렬 — y 우선, 같은 행(±3%)이면 x 순
+   - **[2026-08-16 확인]** 정답 파일은 UNIT 번호순(#11 → #12 → #10)이라 이 순서와
+     다르다. 내용은 같고 순서만 다르므로 대조는 다중집합으로 한다.
 3. TYPE 룩업 적용 (§8)
 4. Q'ty 적용 (§7.5)
 5. 행 번호 부여
@@ -231,12 +240,22 @@ UNIT #[nn] + [계통·설비명] + [위치] + [측정변수] + [접미사]
 | 요소 | 허용값 |
 |---|---|
 | UNIT | `#11` `#12` `#10` `#20` `#00`(플랜트 공통) |
-| 위치 | SUPPLY / RETURN / INLET / OUTLET / UPSTREAM / DOWNSTREAM / DISCHARGE / SUCTION / BODY DRAIN |
+| 위치 | SUPPLY / RETURN / INLET / OUTLET / UPSTREAM / DOWNSTREAM / DISCHARGE / SUCTION / BODY DRAIN / **DRAIN** |
 | 측정변수 | PRESSURE / TEMPERATURE / FLOW / LEVEL / DIFFERENTIAL PRESSURE / FLOW ELEMENT |
 | 접미사 | 이중화 `A` `B` `C` / 물리적 복수 `1` `2` `3` `4` |
 | LS 전용 | `LEVEL HIGH` / `LEVEL HIGH HIGH` |
 
 설비명과 위치는 **라인의 From/To 주석 및 인접 장비 라벨**에서 도출한다.
+
+**[2026-08-16 추가] SYSTEM(F열)은 도면 제목을 그대로 쓰지 않는다.** 제목은 전부
+대문자(`P&ID FOR HP STEAM SYSTEM GROUP 10`)이지만 정답의 SYSTEM은 `HP Steam System`
+이다. 머리글자만 대문자로 바꾸되 계통 약어(HP IP LP CRH HRH CCW HRSG GT ST STG BFP
+CEP DCS AUX BOP)는 대문자로 남긴다.
+
+**[2026-08-16 추가] DESCRIPTION 문장은 JS가 조립한다.** Vision은 부품(equipment,
+position, redundancy, line_context)만 돌려주고, `UNIT + 설비 + 위치 + 측정변수 + 접미사`
+결합과 측정변수 매핑(TYPE → PRESSURE/TEMPERATURE/…)은 결정론적 코드가 한다.
+같은 부품에서 매번 같은 문장이 나와야 회귀 테스트가 성립한다.
 
 검증용 실제 정답 예시:
 

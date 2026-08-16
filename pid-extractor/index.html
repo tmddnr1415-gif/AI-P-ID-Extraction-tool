@@ -156,6 +156,34 @@ dialog.viewer .bar {
 dialog.viewer .bar .spacer { flex:1; }
 dialog.viewer .body { overflow:auto; max-height:82vh; background:#fff; }
 dialog.viewer .body canvas { display:block; }
+/* 판독 로그 */
+.run-log {
+  margin-top:12px; border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--panel-2); max-height:240px; overflow:auto;
+}
+.run-log .ln {
+  display:flex; gap:10px; align-items:baseline; padding:5px 10px;
+  border-bottom:1px solid var(--line); font:12px/1.5 var(--mono);
+}
+.run-log .ln:last-child { border-bottom:0; }
+.run-log .ln .k { color:var(--ink-2); min-width:210px; }
+.run-log .ln .v { color:var(--ink-3); flex:1; }
+.run-log .ln.ok .v { color:var(--ok); }
+.run-log .ln.bad .v { color:var(--bad); }
+
+/* 결과 표 */
+.table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius-sm); margin-top:12px; }
+table { border-collapse:collapse; width:100%; font-size:13px; }
+th, td { padding:6px 9px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+th { background:var(--panel-2); font-weight:600; font-size:12px; position:sticky; top:0; z-index:1; }
+tbody tr:last-child td { border-bottom:0; }
+td.idx, th.idx { text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-3); width:1%; white-space:nowrap; }
+td.mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+td[contenteditable]:focus { background:var(--accent-soft); outline:none; }
+tr.vendor td { color:var(--ink-3); }
+td select { padding:2px 4px; font-size:12px; }
+button.del { border:0; background:none; color:var(--ink-3); cursor:pointer; padding:0 4px; }
+button.del:hover { color:var(--bad); }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
@@ -229,11 +257,45 @@ dialog.viewer .body canvas { display:block; }
     <div class="tiles" id="tiles" style="margin-top:12px"></div>
   </section>
 
-  <section class="card">
-    <h2><span class="step">4</span> 다음 단계</h2>
-    <p class="note" style="margin-top:0">
-      Phase 1은 <b>렌더링까지</b>입니다 (CLAUDE.md §10). 판독 호출은 아직 붙이지 않았습니다.
-      타일에서 계기가 눈으로 구분되는 것을 확인한 뒤 Phase 2로 넘어갑니다.
+  <!-- 4. 판독 -->
+  <section class="card hidden" id="sec-run">
+    <div class="head-row">
+      <h2 style="margin:0"><span class="step">4</span> 판독</h2>
+      <span class="spacer"></span>
+      <label class="inline">
+        <input type="checkbox" id="opt-vendor" /> <span>공급 역무(<code>*</code>·SCT) 계기 제외</span>
+      </label>
+      <button class="primary" id="btn-run" type="button">선택한 도면 판독</button>
+      <button class="ghost hidden" id="btn-stop" type="button">중지</button>
+    </div>
+    <div class="stats" id="run-stats"></div>
+    <div id="run-log" class="run-log hidden"></div>
+    <div class="warn-box hidden" id="fail-box">
+      <b>실패한 타일</b> <span id="fail-list"></span>
+      <button class="ghost" id="btn-retry" type="button" style="margin-left:8px">재시도</button>
+    </div>
+  </section>
+
+  <!-- 5. 결과 -->
+  <section class="card hidden" id="sec-result">
+    <div class="head-row">
+      <h2 style="margin:0"><span class="step">5</span> 결과</h2>
+      <span class="spacer"></span>
+      <span class="sub" id="result-note" style="font:12px/1 var(--mono); color:var(--ink-3)"></span>
+    </div>
+    <div class="stats" id="result-stats"></div>
+    <div class="table-wrap">
+      <table id="result">
+        <thead><tr>
+          <th class="idx">NO</th><th>SYSTEM</th><th>P&amp;ID No.</th><th>TYPE</th>
+          <th class="idx">Q'ty</th><th>DESCRIPTION</th><th>REMARK</th><th class="idx"></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note">
+      DESCRIPTION 은 눌러서 고칠 수 있고 TYPE 은 드롭다운입니다. 행 끝 <code>×</code> 로 지웁니다.
+      Excel 출력은 Phase 3 입니다.
     </p>
   </section>
 </div>
@@ -405,6 +467,7 @@ function toggle(no, el) {
   state.current = state.selected.size ? Math.min(...state.selected) : null;
   updatePageStats();
   $('sec-tiles').classList.toggle('hidden', !state.selected.size);
+  $('sec-run').classList.toggle('hidden', !state.selected.size);
 }
 
 function updatePageStats() {
@@ -425,6 +488,7 @@ $('btn-none').addEventListener('click', () => {
   state.current = null;
   updatePageStats();
   $('sec-tiles').classList.add('hidden');
+  $('sec-run').classList.add('hidden');
 });
 $('btn-inst').addEventListener('click', () => {
   state.selected.clear();
@@ -436,6 +500,7 @@ $('btn-inst').addEventListener('click', () => {
   state.current = state.selected.size ? Math.min(...state.selected) : null;
   updatePageStats();
   $('sec-tiles').classList.toggle('hidden', !state.selected.size);
+  $('sec-run').classList.toggle('hidden', !state.selected.size);
 });
 $('opt-grid').addEventListener('change', updatePageStats);
 
@@ -530,6 +595,439 @@ async function makeTiles() {
   btn.disabled = false;
   btn.textContent = '타일 만들기';
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 2 — 판독
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* CLAUDE.md §7.1 — 뽑을 것 12종. 이 밖은 전부 버린다. */
+const WHITELIST = ['PIT', 'PI', 'TIT', 'TI', 'PDIT', 'FIT', 'FE', 'LIT', 'LI', 'LS', 'FS', 'RO'];
+
+/* §8 TYPE 룩업. Phase 3(Excel)에서 X~AI 열을 채운다. */
+const TYPE_SPEC = {
+  PIT:  { X:'PIT-1',  Y:'Pressure',       Z:'Diaphragm',      AA:'Remote',     AB:'4~20mA', AD:'bar(g)', AE:'316SS',  AF:'1/2" NPT', AG:'-', AH:'-', AI:'2-WAY MANIFOLD, MOUNTING BRACKET' },
+  PI:   { X:'PI-1',   Y:'Pressure',       Z:'Bourdon',        AA:'Direct',     AB:'-',      AD:'bar(g)', AE:'316SS',  AF:'1/2" NPT', AG:'-', AH:'-', AI:'DIAL SIZE: 100mm, 2-WAY MANIFOLD, OIL FILLED,' },
+  PDIT: { X:'PDIT-1', Y:'Diff. Pressure', Z:'Diaphragm',      AA:'Remote',     AB:'4~20mA', AD:'bar',    AE:'316SS',  AF:'1/2" NPT', AG:'-', AH:'-', AI:'5-WAY MANIFOLD, MOUNTING BRACKET' },
+  TIT:  { X:'TIT-3',  Y:'Temp.',          Z:'Thermocouple-K', AA:'Head-Mount', AB:'4~20mA', AD:'℃',      AE:'T/C-K ', AF:'24Ф WI',   AG:'U:120/T:50/Ext.N:200 mm', AH:'-', AI:'T/C K TYPE, DUPLEX ELEMENT, W/ ELEMENT & THERMOWELL' },
+  TI:   { X:'TI-1',   Y:'Temp.',          Z:'Bi-metal',       AA:'Direct',     AB:'-',      AD:'℃',      AE:'316SS',  AF:'24Ф WI',   AG:'U:60/T:50/Ext.N:200 mm\n316LSS', AH:'-', AI:'DIAL SIZE: 100mm, W/ THERMOWELL' },
+  FIT:  { X:'FIT-1',  Y:'Diff. Pressure', Z:'Diaphragm',      AA:'Remote',     AB:'4~20mA', AD:'T/h',    AE:'316SS',  AF:'1/2" NPT', AG:'-', AH:'-', AI:'5-WAY MANIFOLD, MOUNTING BRACKET' },
+  FE:   { X:'FE-1',   Y:'-',              Z:'Orifice',        AA:'-',          AB:'-',      AD:'T/h',    AE:'316LSS', AF:'',         AG:'-', AH:'-', AI:'Flange with Bolt/Nut/Gasket Set' },
+  RO:   { X:'RO-1',   Y:'-',              Z:'Orifice',        AA:'-',          AB:'-',      AD:'-',      AE:'316SS',  AF:'',         AG:'-', AH:'-', AI:'None' },
+  LIT:  { X:'LT-6',   Y:'Diff. Pressure', Z:'Diaphragm',      AA:'Direct',     AB:'4~20mA', AD:'mm',     AE:'316LSS', AF:'2" RF',    AG:'-', AH:'-', AI:'2" RF FLANGE : 316LSS' },
+  LI:   { X:'LI-4',   Y:'-',              Z:'Float',          AA:'-',          AB:'-',      AD:'mm',     AE:'316LSS', AF:'2" RF',    AG:'-', AH:'-', AI:'LOCAL DIAL INDICATOR, W/ GUIDE  PIPE, MOUNTING BRACKET' },
+  LS:   { X:'LS-2',   Y:'-',              Z:'Displacer',      AA:'-',          AB:'Contact',AD:'-',      AE:'316SS',  AF:'1" SW',    AG:'Chamber:316SS', AH:'-', AI:'2-SPDT OR 1-DPDT, CHAMBER W/ DRAIN VALVE, C-C LENGTH : 300MM' },
+  FS:   { X:'FS-1',   Y:'Pressure',       Z:'-',              AA:'Direct',     AB:'Contact',AD:'-',      AE:'316SS',  AF:'1/2" NPT', AG:'-', AH:'Ex.d', AI:'1-DPDT (OR 2-SPDT)' },
+};
+
+/* §7.4 측정변수는 TYPE 에서 결정된다. Vision 이 정할 일이 아니다. */
+const MEASURE = {
+  PIT:'PRESSURE', PI:'PRESSURE', PDIT:'DIFFERENTIAL PRESSURE',
+  TIT:'TEMPERATURE', TI:'TEMPERATURE',
+  FIT:'FLOW', FS:'FLOW', FE:'FLOW ELEMENT',
+  LIT:'LEVEL', LI:'LEVEL', LS:'LEVEL',
+  RO:'RESTRICTION ORIFICE',
+};
+
+/* §7.5 Q'ty 는 NOTES 의 'IDENTICAL FOR ...' 에서 나온다. 도면이 몇 호기를 대표하는지다. */
+function qtyFromNotes(notes) {
+  const flat = (notes || '').replace(/\s+/g, ' ').toUpperCase();
+  const m = flat.match(/CONFIGURATION IS IDENTICAL FOR\s+((?:GROUP|UNIT)?\s*#?\s*[\d,\s#]+)/);
+  if (!m) return { qty: 1, why: 'IDENTICAL FOR 문구 없음' };
+  const others = (m[1].match(/\d+/g) || []).length;
+  return others
+    ? { qty: others + 1, why: `NOTES: 다른 호기 ${others}개 + 이 도면` }
+    : { qty: 1, why: 'IDENTICAL FOR 는 있으나 호기 번호를 못 읽음' };
+}
+
+/* 계통명 → Fluid (§5.1 W열) */
+function fluidOf(system) {
+  const s = (system || '').toUpperCase();
+  if (/SEA\s*WATER|CIRCULATING WATER|SEAWATER/.test(s)) return 'SEA WATER';
+  if (/STEAM|CONDENSATE|FEEDWATER|BLOWDOWN/.test(s)) return 'STEAM';
+  if (/FUEL GAS|SERVICE GAS/.test(s)) return 'FUEL GAS';
+  if (/FUEL OIL/.test(s)) return 'FUEL OIL';
+  if (/AIR/.test(s)) return 'AIR';
+  if (/WATER/.test(s)) return 'WATER';
+  return '';
+}
+
+/* ── Claude 호출 ─────────────────────────────────────────────────────────
+ * §2 규격. Artifact 런타임에서는 키 없이 이 엔드포인트가 열린다.
+ * 로컬(Claude Code)에서는 인증이 없어 전부 실패하므로 STUB 로 갈아끼운다.
+ * ──────────────────────────────────────────────────────────────────────── */
+/* 스텁 픽스처. USE_STUB 이거나 dev 에서 window.__STUB_FIXTURE 를 심으면 그걸 쓴다.
+   { "p6:r0c0": [...], "p6:pass1": {...} } 형태. */
+const stubbing = () => USE_STUB || !!window.__STUB_FIXTURE;
+
+async function callClaude(content, { signal, label } = {}) {
+  if (stubbing()) {
+    await new Promise((r) => setTimeout(r, 10));
+    const fx = window.__STUB_FIXTURE || {};
+    const hit = fx[label];
+    if (hit === undefined) throw new Error(`스텁에 ${label} 가 없습니다`);
+    return typeof hit === 'string' ? hit : JSON.stringify(hit);
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, messages: [{ role: 'user', content }] }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  if (data.stop_reason === 'max_tokens') {
+    throw new Error(`응답이 ${MAX_TOKENS} 토큰에서 잘렸습니다. 타일을 더 잘게 나누세요.`);
+  }
+  return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+}
+
+/** 지수 백오프 3회 (§4 동시성). */
+async function withRetry(fn, label, log) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { return await fn(); } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      last = err;
+      if (i < 2) {
+        log && log(`재시도 ${i + 1}/2 — ${err.message.slice(0, 60)}`);
+        await new Promise((r) => setTimeout(r, 800 * (2 ** i)));
+      }
+    }
+  }
+  throw last;
+}
+
+/** 모델이 코드펜스나 설명을 붙여 와도 배열/객체만 건져낸다. */
+function parseJson(text, label) {
+  const t = (text || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  try { return JSON.parse(t); } catch { /* 아래에서 다시 */ }
+  const s = t.indexOf('['), e = t.lastIndexOf(']');
+  if (s >= 0 && e > s) {
+    try { return JSON.parse(t.slice(s, e + 1)); } catch { /* fallthrough */ }
+  }
+  throw new Error(`${label}: JSON 으로 못 읽음 — ${t.slice(0, 120)}`);
+}
+
+const toB64 = (cv) => cv.toDataURL('image/png').split(',')[1];
+const imgBlock = (b64) => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: b64 } });
+
+/* ── Pass 1 — 도면 메타 ──────────────────────────────────────────────────
+ * §4 는 Vision 으로 뽑으라고 하지만, 도면번호·제목·NOTES 는 텍스트 레이어에서
+ * 결정적으로 나온다. 요구사항 5("OCR로 검색되지 않는 것은 Claude가")에 따라
+ * 텍스트로 되는 것은 텍스트로 하고, Vision 은 텍스트가 비었을 때만 부른다.
+ * ──────────────────────────────────────────────────────────────────────── */
+async function pass1(p, log) {
+  const need = !p.drawing_no || !p.title || (p.notes || '').length < 40;
+  if (!need) {
+    log(`Pass 1  ${p.drawing_no}`, '텍스트 레이어에서 확보 (호출 0회)', 'ok');
+    return { drawing_no: p.drawing_no, system: systemFromTitle(p.title), notes: p.notes };
+  }
+  const cv = await renderPageCanvas(p.page, 1560);
+  const text = await withRetry(() => callClaude([
+    imgBlock(toB64(cv)),
+    { type: 'text', text:
+      '이 P&ID 도면의 타이틀블록과 NOTES 를 읽어 JSON 하나로만 답하세요. 설명 금지.\n'
+      + '{"drawing_no":"D00P-…-M05-0000","system":"도면 제목의 계통명","notes":"NOTES/GENERAL NOTES 전문"}' },
+  ], { label: `p${p.page}:pass1` }), `p${p.page}:pass1`, (m) => log(`Pass 1  p${p.page}`, m));
+  const j = parseJson(text, 'Pass 1');
+  log(`Pass 1  ${j.drawing_no || p.page}`, 'Vision 으로 보완', 'ok');
+  return {
+    drawing_no: p.drawing_no || j.drawing_no,
+    system: systemFromTitle(p.title) || j.system,
+    notes: (p.notes || '').length >= 40 ? p.notes : (j.notes || ''),
+  };
+}
+
+/* 도면 제목은 전부 대문자로 적혀 있지만 정답 파일의 SYSTEM 은 'HP Steam System'
+   처럼 머리글자만 대문자다. 계통 약어는 대문자로 남긴다. */
+const SYSTEM_ACRONYMS = new Set(
+  ('HP IP LP CRH HRH CCW HRSG GT ST STG BFP CEP DCS AUX BOP GTG HGCF CPH BD I&C').split(' '));
+
+function systemFromTitle(title) {
+  if (!title) return '';
+  const bare = title.replace(/^P&ID FOR\s+/i, '')
+    .replace(/\s*\(\d+\s*OF\s*\d+\)\s*$/i, '')
+    .replace(/\s+(GROUP|UNIT)\s*#?\s*\d+\s*$/i, '')
+    .trim();
+  return bare.split(/\s+/).map((w) => {
+    const up = w.toUpperCase();
+    if (SYSTEM_ACRONYMS.has(up.replace(/[^A-Z&]/g, ''))) return up;
+    return up.charAt(0) + up.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+/* ── Pass 2 — 타일 판독 ─────────────────────────────────────────────────── */
+function pass2Prompt(meta) {
+  return [
+    'P&ID 도면의 일부입니다. 계기(instrument)만 찾아 JSON 배열 하나로 답하세요. 설명·코드펜스 금지.',
+    '',
+    '이 도면은 입찰 단계라 계기 버블 안 태그가 점선(.....)으로 비어 있습니다.',
+    '태그를 지어내지 마세요. 버블 위/옆에 적힌 문자(PT, TT, FT …)로 종류를 판별합니다.',
+    '',
+    `## 뽑을 것 — 이 12종만: ${WHITELIST.join(' ')}`,
+    '도면 문자와 다를 수 있습니다: PT→PIT, TT→TIT, LT→LIT, FT→FIT, PDT/PDI→PDIT.',
+    'PI/TI/LI 는 로컬 게이지(단일 원)이고 PIT/TIT/LIT 는 전송기입니다. 심볼로 구분하세요.',
+    'FE(오리피스)와 FIT(전송기)는 한 세트로 그려져도 각각 별도 항목입니다.',
+    '',
+    '## 버릴 것',
+    '제어밸브 FCV TCV PCV LCV / 밸브·구동기 XV MOV NRV HV PSV BPRV PRV /',
+    '밸브 부속 ZS ZSO ZSC ZT ZI HS YS YSO YSR YSA / 분석기 AT AIT QMS /',
+    'I/P 변환기, 로직 박스, 서모웰(TW), 도면 간 참조 화살표(D00P-…-M05-000n) — 계기가 아닙니다.',
+    '',
+    '## 공급 역무 — 반드시 판정',
+    '계기 버블 바로 위/옆의 별표 표기를 보세요.',
+    '  * 하나  → vendor_scope: "*"',
+    '  ** 둘   → vendor_scope: "**"',
+    '점선/일점쇄선 박스에 별표가 하나 찍혀 있으면 그 박스 안 계기 전부가 해당됩니다.',
+    'SCT 기호(스코프 브레이커)와 화살표가 가리키는 쪽, 또는 SUPPLIED BY ○○ / PROVIDED BY ○○',
+    '주석이 걸린 범위의 계기도 vendor_scope 에 그 공급자명을 넣으세요.',
+    '표기가 없으면 vendor_scope: null. **추측하지 말고 보이는 대로만.**',
+    '',
+    '## 설비명과 위치 — 배관의 From/To 에서',
+    '계기가 붙은 배관을 따라가 From/To 라벨(FROM HRSG#12, TO HP BYPASS#12, TO CLEAN DRAIN TANK)과',
+    '인접 설비 박스 이름을 읽어 line_context 와 equipment 에 넣으세요.',
+    'position 은 다음 중 하나 또는 null: SUPPLY RETURN INLET OUTLET UPSTREAM DOWNSTREAM DISCHARGE SUCTION "BODY DRAIN".',
+    '같은 지점에 같은 계기가 여럿이면 왼쪽/위쪽부터 redundancy 에 A B C.',
+    '',
+    `## 이 도면 정보`,
+    `도면번호 ${meta.drawing_no || '?'} · 계통 ${meta.system || '?'}`,
+    meta.notes ? `NOTES:\n${meta.notes.slice(0, 900)}` : '',
+    '',
+    '## 응답 형식 (배열 하나. 계기가 없으면 [])',
+    '[{"type":"PIT","x":0.42,"y":0.18,"line_context":"FROM HRSG#11 / TO HP BYPASS#11",',
+    '  "equipment":"HP STEAM MAIN","position":"DOWNSTREAM","redundancy":"A",',
+    '  "vendor_scope":null,"note_ref":"1"}]',
+    'x,y 는 이 타일 안의 상대 좌표(0~1)입니다. 계기 8개를 넘기지 마세요(응답이 잘립니다).',
+  ].filter(Boolean).join('\n');
+}
+
+async function pass2Tile(pageNo, rect, meta, px, signal, log) {
+  const label = `p${pageNo}:r${rect.r}c${rect.c}`;
+  const cv = await renderTile(pageNo, rect, px);
+  const text = await withRetry(
+    () => callClaude([imgBlock(toB64(cv)), { type: 'text', text: pass2Prompt(meta) }], { signal, label }),
+    label, (m) => log(label, m));
+  const arr = parseJson(text, label);
+  if (!Array.isArray(arr)) throw new Error(`${label}: 배열이 아닙니다`);
+  // 타일 상대좌표 → 페이지 절대좌표
+  return arr
+    .filter((r) => r && WHITELIST.includes(String(r.type || '').toUpperCase()))
+    .map((r) => ({
+      ...r,
+      type: String(r.type).toUpperCase(),
+      ax: rect.x + (+r.x || 0) * rect.w,
+      ay: rect.y + (+r.y || 0) * rect.h,
+      _tile: `r${rect.r}c${rect.c}`,
+    }));
+}
+
+/* ── 후처리 (§4) ────────────────────────────────────────────────────────── */
+
+/* 1. 겹침 중복 제거 — 절대좌표 ±2% + 같은 TYPE (§4).
+ *
+ * 규칙 그대로 쓰면 안 된다. 이중화 계기는 같은 배관에 세로로 나란히 붙어 있고
+ * 간격이 페이지의 1.7% 밖에 안 된다. ±2% 로 훑으면 서로 다른 두 계기를 하나로
+ * 합쳐 버린다 (HP Steam 도면에서 드레인 온도계 8개가 4개로 줄었다).
+ *
+ * 그래서 두 가지를 건다.
+ *   - **같은 타일 안에서는 합치지 않는다.** 한 응답에 따로 적혔으면 따로다.
+ *   - 반경 안에서 아무거나 잡지 않고 **가장 가까운 것**만 짝으로 본다.
+ *     겹침으로 두 번 보인 같은 계기는 거리가 0 에 가깝고, 옆 계기는 그보다 멀다.
+ *   - 반경은 2% 가 아니라 **1%**. 같은 지점을 두 타일에서 본 좌표 오차보다는 크고,
+ *     세로로 붙은 서로 다른 계기의 실측 간격(1.7%)보다는 작아야 한다.
+ */
+const DEDUP_R = 0.010;
+
+function dedupe(items) {
+  const out = [];
+  for (const it of items) {
+    let best = null, bestD = Infinity;
+    for (const o of out) {
+      if (o.type !== it.type || o._tile === it._tile) continue;
+      const d = Math.hypot(o.ax - it.ax, o.ay - it.ay);
+      if (d < bestD) { bestD = d; best = o; }
+    }
+    if (best && bestD < DEDUP_R) {
+      if (score(it) > score(best)) Object.assign(best, it, { _tile: best._tile });
+      continue;
+    }
+    out.push({ ...it });
+  }
+  return out;
+}
+const score = (r) => (r.line_context ? 2 : 0) + (r.equipment ? 2 : 0) + (r.position ? 1 : 0);
+
+/** 2. 정렬 — y 우선, 같은 행(±3%)이면 x 순. */
+function sortRows(items) {
+  return items.slice().sort((a, b) =>
+    (Math.abs(a.ay - b.ay) < 0.03 ? a.ax - b.ax : a.ay - b.ay));
+}
+
+/** §7.4 문법으로 조립. Vision 은 부품을 주고 문장은 JS 가 만든다. */
+function buildDescription(r, meta) {
+  const unit = unitOf(r, meta);
+  const equip = clean(r.equipment);
+  const pos = clean(r.position);
+  const measure = MEASURE[r.type] || '';
+  const suffix = clean(r.redundancy);
+  return [unit, equip, pos, measure, suffix]
+    .filter(Boolean).join(' ').replace(/\s+/g, ' ').toUpperCase().trim();
+}
+const clean = (s) => (s == null ? '' : String(s).trim().replace(/^(null|none|n\/a|-)$/i, ''));
+
+function unitOf(r, meta) {
+  const hay = `${r.equipment || ''} ${r.line_context || ''}`;
+  const m = hay.match(/#\s?(\d{2})\b/);
+  if (m) return `UNIT #${m[1]}`;
+  const g = (meta.drawing_no || '').match(/^D00P-(\d{2})/);
+  return g ? `UNIT #${g[1]}` : '';
+}
+
+/* ── 실행 ────────────────────────────────────────────────────────────────*/
+const run = { controller: null, failed: [], rows: [], meta: null };
+
+$('btn-run').addEventListener('click', () => runSelected());
+$('btn-stop').addEventListener('click', () => run.controller && run.controller.abort());
+$('btn-retry').addEventListener('click', () => runSelected(run.failed.slice()));
+
+function logLine(k, v, cls) {
+  const el = document.createElement('div');
+  el.className = 'ln' + (cls ? ' ' + cls : '');
+  el.innerHTML = `<span class="k"></span><span class="v"></span>`;
+  el.children[0].textContent = k;
+  el.children[1].textContent = v || '';
+  $('run-log').append(el);
+  el.scrollIntoView({ block: 'nearest' });
+  return (v2, c2) => { el.children[1].textContent = v2; if (c2) el.classList.add(c2); };
+}
+
+async function runSelected(onlyTiles) {
+  const pages = [...state.selected].sort((a, b) => a - b);
+  if (!pages.length) return;
+  const [cols, rows] = $('opt-grid').value.split('x').map(Number);
+  const px = +$('opt-px').value;
+
+  run.controller = new AbortController();
+  run.failed = [];
+  $('run-log').classList.remove('hidden');
+  $('run-log').innerHTML = '';
+  $('fail-box').classList.add('hidden');
+  $('btn-run').disabled = true;
+  $('btn-stop').classList.remove('hidden');
+
+  const all = [];
+  try {
+    for (let pi = 0; pi < pages.length; pi++) {
+      const no = pages[pi];
+      const p = state.pages.find((x) => x.page === no);
+      const meta = await pass1(p, (k, v, c) => logLine(k, v, c));
+      run.meta = meta;
+      const q = qtyFromNotes(meta.notes);
+
+      const rects = tileRects(cols, rows)
+        .filter((rc) => !onlyTiles || onlyTiles.includes(`p${no}:r${rc.r}c${rc.c}`));
+      const found = [];
+      // §4 동시 호출 최대 2개
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < rects.length) {
+          const rect = rects[cursor++];
+          const label = `p${no}:r${rect.r}c${rect.c}`;
+          const set = logLine(`${label}  (${pi + 1}/${pages.length})`, '판독 중…');
+          try {
+            const got = await pass2Tile(no, rect, meta, px, run.controller.signal, (k, v) => set(v));
+            found.push(...got);
+            set(`계기 ${got.length}`, 'ok');
+          } catch (err) {
+            if (err.name === 'AbortError') throw err;
+            run.failed.push(label);
+            set(err.message.slice(0, 90), 'bad');
+          }
+          $('run-stats').innerHTML = chip('누적 계기', found.length) + chip('실패 타일', run.failed.length);
+        }
+      };
+      await Promise.all([worker(), worker()]);
+
+      const merged = sortRows(dedupe(found)).map((r) => ({
+        ...r,
+        system: meta.system, pid_no: meta.drawing_no,
+        qty: q.qty, qty_why: q.why,
+        description: buildDescription(r, meta),
+        fluid: fluidOf(meta.system),
+        remark: [r.vendor_scope ? `VENDOR SCOPE (${r.vendor_scope})` : '',
+                 r.note_ref ? `NOTE ${r.note_ref}` : ''].filter(Boolean).join(' · ') || '-',
+      }));
+      all.push(...merged);
+      logLine(`${meta.drawing_no || 'p' + no} 완료`, `${merged.length}행 · Q'ty ${q.qty} (${q.why})`, 'ok');
+    }
+    run.rows = all;
+    renderResult();
+  } catch (err) {
+    if (err.name !== 'AbortError') logLine('중단', err.message, 'bad');
+    if (all.length) { run.rows = all; renderResult(); }
+  } finally {
+    $('btn-run').disabled = false;
+    $('btn-stop').classList.add('hidden');
+    run.controller = null;
+    if (run.failed.length) {
+      $('fail-box').classList.remove('hidden');
+      $('fail-list').textContent = run.failed.join(', ');
+    }
+  }
+}
+
+/* ── 결과 표 ─────────────────────────────────────────────────────────────*/
+function visibleRows() {
+  return $('opt-vendor').checked ? run.rows.filter((r) => !r.vendor_scope) : run.rows;
+}
+
+function renderResult() {
+  $('sec-result').classList.remove('hidden');
+  const rows = visibleRows();
+  const tb = $('result').querySelector('tbody');
+  tb.innerHTML = '';
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (r.vendor_scope) tr.className = 'vendor';
+    tr.innerHTML =
+      `<td class="idx">${i + 1}</td>`
+      + `<td>${esc(r.system || '')}</td>`
+      + `<td class="mono">${esc(r.pid_no || '')}</td>`
+      + `<td class="mono"><select></select></td>`
+      + `<td class="idx">${r.qty}</td>`
+      + `<td contenteditable spellcheck="false">${esc(r.description || '')}</td>`
+      + `<td>${esc(r.remark || '')}</td>`
+      + `<td class="idx"><button class="del" type="button" title="이 행 지우기">×</button></td>`;
+    const sel = tr.querySelector('select');
+    for (const t of WHITELIST) {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = t; o.selected = t === r.type;
+      sel.append(o);
+    }
+    sel.addEventListener('change', () => {
+      r.type = sel.value;
+      r.description = buildDescription(r, run.meta || {});
+      renderResult();
+    });
+    tr.querySelector('[contenteditable]').addEventListener('blur', (e) => {
+      r.description = e.target.textContent.trim().toUpperCase();
+    });
+    tr.querySelector('.del').addEventListener('click', () => {
+      run.rows.splice(run.rows.indexOf(r), 1);
+      renderResult();
+    });
+    tb.append(tr);
+  });
+
+  const byType = {};
+  for (const r of rows) byType[r.type] = (byType[r.type] || 0) + 1;
+  $('result-stats').innerHTML =
+    chip('행', rows.length)
+    + chip('공급 역무 표기', run.rows.filter((r) => r.vendor_scope).length)
+    + Object.entries(byType).sort().map(([t, n]) => chip(t, n)).join('');
+  $('result-note').textContent = $('opt-vendor').checked ? '공급 역무 계기 숨김' : '';
+}
+$('opt-vendor').addEventListener('change', () => run.rows.length && renderResult());
 
 function showBig(cv, title) {
   const copy = document.createElement('canvas');

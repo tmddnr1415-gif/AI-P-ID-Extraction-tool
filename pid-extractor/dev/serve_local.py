@@ -38,19 +38,33 @@ def main() -> int:
             return 1
         shutil.copy2(src, out / name)
 
-    html = (ROOT / "index.html").read_text(encoding="utf-8")
-    html = html.replace(f"{CDN}/pdf.worker.min.js", "pdf.worker.min.js")
-    html = html.replace(f"{CDN}/pdf.min.js", "pdf.min.js")
-    (out / "index.html").write_text(html, encoding="utf-8")
+    def refresh() -> None:
+        """요청마다 다시 만든다. 서버를 켜 둔 채 index.html 을 고쳐도 바로 반영된다."""
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        html = html.replace(f"{CDN}/pdf.worker.min.js", "pdf.worker.min.js")
+        html = html.replace(f"{CDN}/pdf.min.js", "pdf.min.js")
+        (out / "index.html").write_text(html, encoding="utf-8")
+
+    refresh()
 
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *a, **kw):
             super().__init__(*a, directory=str(out), **kw)
 
+        def do_GET(self):
+            if self.path in ("/", "/index.html"):
+                refresh()
+            super().do_GET()
+
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
         def log_message(self, *a):
             pass
 
     print(f"[✓] http://localhost:{args.port}/   (dev/_local, cdnjs → 로컬 사본)")
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", args.port), Handler) as srv:
         srv.serve_forever()
     return 0
