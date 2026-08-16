@@ -4,3 +4,8 @@ __pycache__/
 # Source drawings are large binaries supplied per project, not repo content.
 data/*.pdf
 data/*.xlsx
+
+# Viewer page backdrops are regenerated from the PDF by
+# `spike/detect_valves.py --viewer out/viewer`; only the overlay data and the
+# viewer itself are repo content.
+out/viewer/*.png

@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>P&ID detection overlay</title>
+<style>
+ :root { color-scheme: light dark; --bg:#111; --fg:#eee; --panel:#1c1c1c; }
+ * { box-sizing: border-box; }
+ body { margin:0; font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;
+        background:var(--bg); color:var(--fg); display:flex; height:100vh; }
+ #side { width:260px; flex:none; overflow:auto; padding:10px;
+         background:var(--panel); border-right:1px solid #333; }
+ #stage { flex:1; overflow:auto; position:relative; }
+ #wrap { position:relative; transform-origin:0 0; }
+ #sheet { display:block; }
+ svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+ rect.det { fill:none; stroke-width:1.4; vector-effect:non-scaling-stroke;
+            cursor:pointer; }
+ rect.det.sel { stroke-width:3; }
+ h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+      color:#888; margin:14px 0 6px; }
+ label { display:flex; align-items:center; gap:6px; padding:1px 0; }
+ .swatch { width:10px; height:10px; flex:none; border:1px solid #0006; }
+ select, button { width:100%; background:#262626; color:var(--fg);
+                  border:1px solid #444; padding:4px; }
+ #evidence { white-space:pre-wrap; word-break:break-word; font-size:12px;
+             background:#000; padding:8px; margin-top:6px; min-height:80px; }
+ #zoom { display:flex; gap:4px; }
+ #zoom button { width:auto; flex:1; }
+ .count { color:#888; margin-left:auto; }
+</style>
+<div id="side">
+  <h2>page</h2>
+  <select id="page"></select>
+  <h2>zoom</h2>
+  <div id="zoom">
+    <button data-z="-1">&minus;</button>
+    <button data-z="0">fit</button>
+    <button data-z="1">+</button>
+  </div>
+  <h2>layers</h2>
+  <div id="layers"></div>
+  <h2>selection</h2>
+  <div id="evidence">click a box</div>
+</div>
+<div id="stage"><div id="wrap"><img id="sheet"><svg id="ov"></svg></div></div>
+<script src="data.js"></script>
+<script>
+const D = window.PID_DATA;
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+let zoom = 1, page = null, hidden = new Set();
+
+const sel = $("#page");
+D.pages.forEach((p, i) => {
+  const o = document.createElement("option");
+  o.value = i;
+  o.textContent = "p" + p.page_no + "  " + (p.label || "");
+  sel.appendChild(o);
+});
+sel.onchange = () => show(+sel.value);
+
+$("#zoom").onclick = e => {
+  const z = e.target.dataset.z;
+  if (z === undefined) return;
+  if (z === "0") zoom = ($("#stage").clientWidth - 20) / page.width;
+  else zoom *= (z === "1" ? 1.35 : 1 / 1.35);
+  apply();
+};
+
+function apply() {
+  $("#wrap").style.transform = "scale(" + zoom + ")";
+  $("#wrap").style.width = page.width + "px";
+  $("#wrap").style.height = page.height + "px";
+}
+
+function show(i) {
+  page = D.pages[i];
+  $("#sheet").src = page.image;
+  $("#sheet").width = page.width;
+  $("#sheet").height = page.height;
+  const ov = $("#ov");
+  ov.setAttribute("viewBox", "0 0 " + page.width + " " + page.height);
+  ov.innerHTML = "";
+  const box = $("#layers");
+  box.innerHTML = "";
+  for (const layer of page.layers) {
+    const g = document.createElementNS(NS, "g");
+    g.dataset.layer = layer.name;
+    g.style.display = hidden.has(layer.name) ? "none" : "";
+    for (const it of layer.items) {
+      const r = document.createElementNS(NS, "rect");
+      const [x0, y0, x1, y1] = it.rect;
+      r.setAttribute("x", x0 * page.scale);
+      r.setAttribute("y", y0 * page.scale);
+      r.setAttribute("width", Math.max(1, (x1 - x0) * page.scale));
+      r.setAttribute("height", Math.max(1, (y1 - y0) * page.scale));
+      r.setAttribute("class", "det");
+      r.setAttribute("stroke", layer.color);
+      r.onclick = ev => {
+        document.querySelectorAll("rect.sel").forEach(n => n.classList.remove("sel"));
+        r.classList.add("sel");
+        $("#evidence").textContent =
+          layer.name + "\n" + JSON.stringify(it, null, 1);
+        ev.stopPropagation();
+      };
+      g.appendChild(r);
+    }
+    ov.appendChild(g);
+
+    const lab = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !hidden.has(layer.name);
+    cb.onchange = () => {
+      if (cb.checked) hidden.delete(layer.name); else hidden.add(layer.name);
+      g.style.display = cb.checked ? "" : "none";
+    };
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    sw.style.background = layer.color;
+    const n = document.createElement("span");
+    n.className = "count";
+    n.textContent = layer.items.length;
+    lab.append(cb, sw, document.createTextNode(layer.name), n);
+    box.appendChild(lab);
+  }
+  zoom = ($("#stage").clientWidth - 20) / page.width;
+  apply();
+}
+show(0);
+</script>
