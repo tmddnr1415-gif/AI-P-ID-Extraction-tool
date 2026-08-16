@@ -67,6 +67,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
+from typing import NamedTuple
 from pathlib import Path
 
 try:
@@ -116,6 +117,27 @@ _V2_FIELD_TYPE_MAP = dict(_V1_FIELD_TYPE_MAP)
 _V2_FIELD_TYPE_MAP.update({"FE": "FE", "LSH": "LS", "LSHH": "LS", "LSL": "LS"})
 _V2_NOT_FIELD = frozenset({"TW", "FT"})
 
+# V3 completes the anchor audit — every Excel TYPE was cross-tabbed against the
+# in-bubble tokens of the pages that carry its rows, per page rather than in
+# aggregate.  Three mappings came out exact:
+#
+#   FT -> FIT.  p10 5/5, p11 5/5, p12 1/1, p17 2/2, p20 8/8.  The 4 FT each on
+#         p6 and p9 that have no FIT row are the HRSG flow packages, i.e. a
+#         vendor-mark question, not a type question — the same trap FE fell in.
+#
+#   LG -> LI.  Pages use one spelling or the other, never both, and the counts
+#         line up: p33 LG 2 / LI 2, p49 LG 2 / LI 2, p51 LG 1 / LI 1, while p47
+#         writes LI directly, 2 / 2.  (LG is not an Excel TYPE; it is how the
+#         drawings spell a level gauge that the Excel lists as LI.)
+#
+#   DPIT -> PDIT.  p21 draws 4 DPIT + 1 PDIT against 5 PDIT rows.
+#
+# TW stays excluded (0 Excel rows), and ZS/ZSO/ZSC/ZT/PP map to nothing: the
+# Excel TYPE column has no entry for any of them.
+_V3_FIELD_TYPE_MAP = dict(_V2_FIELD_TYPE_MAP)
+_V3_FIELD_TYPE_MAP.update({"FT": "FIT", "LG": "LI", "DPIT": "PDIT"})
+_V3_NOT_FIELD = frozenset({"TW"})
+
 # Valve anchors -> the valve deliverables, not this list.
 VALVE_ANCHORS = frozenset({"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV",
                            "LCV", "NRV", "PSV", "PRV", "BPRV"})
@@ -149,11 +171,18 @@ DEFAULT_DISABLED = frozenset({"SCT_SUPPLIER_SCOPE"})
 RULESET_V1 = Ruleset("v1-page6", _V1_FIELD_TYPE_MAP, _V1_NOT_FIELD, disabled=frozenset())
 RULESET_V2 = Ruleset("v2-excel-verified", _V2_FIELD_TYPE_MAP, _V2_NOT_FIELD,
                      disabled=DEFAULT_DISABLED)
+RULESET_V3 = Ruleset("v3-anchor-audit", _V3_FIELD_TYPE_MAP, _V3_NOT_FIELD,
+                     disabled=DEFAULT_DISABLED)
 
 # Back-compat aliases used by the single-page script.
-FIELD_TYPE_MAP = _V2_FIELD_TYPE_MAP
-NOT_FIELD_INSTRUMENT = _V2_NOT_FIELD
-ANCHORS = RULESET_V2.anchors
+FIELD_TYPE_MAP = _V3_FIELD_TYPE_MAP
+NOT_FIELD_INSTRUMENT = _V3_NOT_FIELD
+ANCHORS = RULESET_V3.anchors
+
+# Glyph sizes seen in the mark legends of the pages that draw their marks.
+# Used only to *notice* a mark on a page whose own legend is missing, never to
+# interpret one — that stays page-scoped (docs/design.md §10.1).
+KNOWN_GLYPH_SIZES = ((4.0, 4.0), (5.2, 5.2))
 
 # Shape of an ISA function-letter tag, used only to spot anchors the dictionary
 # above is missing.  Matching this does not make something a detection.
@@ -179,7 +208,13 @@ class Layout:
     anchor_slack: float = 3.0
 
     # Vendor asterisk marks sit just above the bubble.
-    mark_size: tuple = (3.5, 4.5)
+    mark_blob: tuple = (1.5, 8.0)        # a raw path fragment of a mark
+    mark_glyph_span: tuple = (3.0, 8.0)  # a whole clustered mark
+    mark_cluster_gap: float = 2.0        # below the 4.5pt gap between two marks
+    notes_text_x_max: float = 2330.0     # right edge of the notes text column
+    box_edge_cover: float = 0.35         # how much of a box edge must be drawn
+    box_mark_margin: float = 20.0        # how far outside a box its mark may sit
+    note_line_gap: float = 20.0          # max y gap for a wrapped note line
     mark_above: float = 25.0
     mark_x_slack: float = 6.0
     note_mark_row_tol: float = 6.0
@@ -287,19 +322,226 @@ def bubble_sizes(bubbles) -> collections.Counter:
     )
 
 
-def find_marks(pc, lay: Layout = LAYOUT) -> list[pymupdf.Point]:
-    """Centres of the small asterisk vendor marks (drawn as vector, not text)."""
-    lo, hi = lay.mark_size
-    seen = set()
-    out = []
+class Mark(NamedTuple):
+    """One vendor mark occurrence.  `stars` is how many asterisks it carries."""
+    x: float
+    y: float
+    stars: int
+    form: str            # GLYPH | TEXT
+
+
+MARK_TEXT_RE = re.compile(r"^\(?(\*{1,3})\)?")
+
+
+def _glyph_clusters(pc, lay: Layout = LAYOUT):
+    """Small square-ish vector blobs, merged into single glyphs.
+
+    The asterisk is drawn differently on different sheets — one 4.0 pt path on
+    page 6, four 2.6 pt paths on page 49 — so adjacent fragments are clustered
+    rather than matched against a fixed size.  Which cluster size actually
+    counts as a mark is decided per page from that page's own legend.
+    """
+    lo, hi, gap = lay.mark_blob, lay.mark_glyph_span, lay.mark_cluster_gap
+    seen, blobs = set(), []
     for r in pc.rects():
-        if lo < r.width < hi and lo < r.height < hi:
-            key = (round(r.x0, 1), round(r.y0, 1))
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))
+        w, h = r.width, r.height
+        if not (lo[0] <= max(w, h) <= lo[1]) or min(w, h) <= 0.5:
+            continue
+        if not 0.55 <= w / h <= 1.8:
+            continue
+        key = (round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1))
+        if key in seen:
+            continue
+        seen.add(key)
+        blobs.append(+r)
+
+    grid = collections.defaultdict(list)
+    for i, r in enumerate(blobs):
+        grid[(int(r.x0 // 8), int(r.y0 // 8))].append(i)
+    parent = list(range(len(blobs)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for (gx, gy), idxs in grid.items():
+        cand = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                cand += grid.get((gx + dx, gy + dy), [])
+        for i in idxs:
+            for j in cand:
+                if i >= j:
+                    continue
+                a, b = blobs[i], blobs[j]
+                if (a.x0 <= b.x1 + gap and b.x0 <= a.x1 + gap
+                        and a.y0 <= b.y1 + gap and b.y0 <= a.y1 + gap):
+                    ra, rb = find(i), find(j)
+                    if ra != rb:
+                        parent[rb] = ra
+
+    groups = collections.defaultdict(list)
+    for i in range(len(blobs)):
+        groups[find(i)].append(blobs[i])
+
+    out = []
+    for g in groups.values():
+        bb = pymupdf.Rect(min(r.x0 for r in g), min(r.y0 for r in g),
+                          max(r.x1 for r in g), max(r.y1 for r in g))
+        if not hi[0] <= max(bb.width, bb.height) <= hi[1]:
+            continue
+        if not 0.75 <= bb.width / bb.height <= 1.35:
+            continue
+        out.append(bb)
     return out
+
+
+def _notes_lines(pc, lay: Layout = LAYOUT):
+    """The NOTES column, reassembled into lines."""
+    x0, y0, x1, y1 = lay.notes_area
+    sel = [(r, t) for r, t in pc.words if x0 <= r.x0 <= lay.notes_text_x_max
+           and y0 <= r.y0 <= y1]
+    rows = collections.defaultdict(list)
+    for r, t in sel:
+        rows[round(r.y0 / 7)].append((r, t))
+    lines = []
+    for key in sorted(rows):
+        items = sorted(rows[key], key=lambda rt: rt[0].x0)
+        lines.append({
+            "y": min(r.y0 for r, _ in items),
+            "y1": max(r.y1 for r, _ in items),
+            "x0": items[0][0].x0,
+            "words": [t for _, t in items],
+            "text": " ".join(t for _, t in items),
+        })
+    return lines
+
+
+def read_mark_dictionary(pc, lay: Layout = LAYOUT):
+    """Page-scoped mark legend: {asterisk count -> meaning}.
+
+    Returns (dictionary, glyph_size).  `glyph_size` is the cluster size this
+    page uses for a drawn asterisk, or None when the page writes its marks as
+    text.  Both notations occur, and several spellings of each:
+
+        p6   [glyph]  DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG.
+        p49  [glyph]  TO BE SUPPLIED BY PUMP VENDOR.
+        p26  4. (*) SYMBOL INDICATES COMPONENTS FURNISHED BY / <cont.>
+        p32  1. (*)MARKED ITEMS TO BE PROVIDED BY FUEL OIL PUMP / SUPPLIER.
+        p46  * TO BE SUPPLIED BY WATER TREATMENT SUPPLIER
+        p51  1. MARKED WITH * TO BE SUPPLIED BY PUMP VENDOR.
+
+    Nothing is inferred from other pages: docs/design.md §10.1 requires the
+    dictionary to be page-scoped because the same glyph means different things
+    on different sheets.
+    """
+    lines = _notes_lines(pc, lay)
+    clusters = [c for c in _glyph_clusters(pc, lay)
+                if lay.notes_area[0] <= c.x0 <= lay.notes_text_x_max]
+
+    entries = []            # (line_index, stars, text_after_mark, glyph_size)
+    for i, ln in enumerate(lines):
+        stars, size, rest = 0, None, None
+
+        # glyph marks sitting to the left of the line's text
+        on_line = [c for c in clusters
+                   if ln["y"] - 4 <= (c.y0 + c.y1) / 2 <= ln["y1"] + 4
+                   and (c.x0 + c.x1) / 2 < ln["x0"]]
+        if on_line:
+            stars = len(on_line)
+            size = (round(on_line[0].width, 1), round(on_line[0].height, 1))
+            rest = ln["text"]
+        else:
+            for j, w in enumerate(ln["words"]):
+                m = MARK_TEXT_RE.match(w)
+                if m:
+                    stars = len(m.group(1))
+                    tail = w[m.end():]
+                    rest = " ".join(([tail] if tail else []) + ln["words"][j + 1:])
+                    break
+        if stars:
+            entries.append({"line": i, "stars": stars, "text": rest, "size": size})
+
+    dictionary, glyph_size = {}, None
+    entry_lines = {e["line"] for e in entries}
+    for e in entries:
+        text = e["text"]
+        prev_y = lines[e["line"]]["y"]
+        for k in range(e["line"] + 1, len(lines)):
+            ln = lines[k]
+            # A wrapped note continues on the very next line, indented, with no
+            # mark of its own.  The y gate keeps unrelated stamps further down
+            # the column (e.g. "FOR INTERNAL USE") out of the definition.
+            if k in entry_lines or ln["y"] - prev_y > lay.note_line_gap:
+                break
+            if re.match(r"^\d+\.", ln["text"]) or ln["x0"] <= lines[e["line"]]["x0"] + 2:
+                break
+            text += " " + ln["text"]
+            prev_y = ln["y"]
+        text = text.strip()
+        if text and e["stars"] not in dictionary:
+            dictionary[e["stars"]] = text
+        if e["size"] and glyph_size is None:
+            glyph_size = e["size"]
+    return dictionary, glyph_size
+
+
+def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=()):
+    """Vendor marks in the drawing area, in whichever notation the page uses.
+
+    A drawn asterisk is only accepted when it matches the size this page's own
+    legend uses (`glyph_size`).  Without that, every small square blob on the
+    sheet — and there are hundreds — would read as a mark.  `allow_sizes` is
+    the fallback for pages with no legend: sizes seen in other pages' legends
+    are used to *notice* a mark, never to interpret it, which is what produces
+    VENDOR_MARK_UNDEFINED.
+    """
+    out = []
+    sizes = [glyph_size] if glyph_size else list(allow_sizes)
+    if sizes:
+        for c in _glyph_clusters(pc, lay):
+            if c.x1 > lay.drawing_area[2]:
+                continue
+            for w, h in sizes:
+                if abs(c.width - w) <= 0.6 and abs(c.height - h) <= 0.6:
+                    out.append(Mark((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2, 1, "GLYPH"))
+                    break
+    for r, t in pc.words:
+        m = MARK_TEXT_RE.match(t)
+        if m and r.x1 <= lay.drawing_area[2] and t.strip("()*") == "":
+            out.append(Mark((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, len(m.group(1)), "TEXT"))
+    return out
+
+
+def find_package_boxes(pc, lay: Layout = LAYOUT):
+    """Dashed package boundary rectangles.
+
+    Page 6 showed that a vendor mark can be attached to the corner of a package
+    box instead of to each bubble inside it, so the box has to be found before
+    the marks can be attributed.
+    """
+    h = broken_runs(pc, "h", lay)
+    v = broken_runs(pc, "v", lay)
+    boxes = []
+    for i in range(len(v)):
+        for j in range(i + 1, len(v)):
+            x1, ya1, yb1, _ = v[i]
+            x2, ya2, yb2, _ = v[j]
+            if x2 < x1:
+                x1, x2, ya1, ya2, yb1, yb2 = x2, x1, ya2, ya1, yb2, yb1
+            if abs(ya1 - ya2) > 3 or abs(yb1 - yb2) > 3 or x2 - x1 < 30:
+                continue
+            width = x2 - x1
+            need = lay.box_edge_cover * width
+            top = [r for r in h if abs(r[0] - ya1) <= 3
+                   and r[1] >= x1 - 3 and r[2] <= x2 + 3 and r[2] - r[1] >= need]
+            bot = [r for r in h if abs(r[0] - yb1) <= 3
+                   and r[1] >= x1 - 3 and r[2] <= x2 + 3 and r[2] - r[1] >= need]
+            if top and bot:
+                boxes.append(pymupdf.Rect(x1, ya1, x2, yb1))
+    return boxes
 
 
 def broken_runs(pc, axis: str, lay: Layout = LAYOUT) -> list[tuple]:
@@ -347,35 +589,6 @@ def broken_runs(pc, axis: str, lay: Layout = LAYOUT) -> list[tuple]:
             if len(ch) >= lay.brk_min_marks and span >= lay.brk_min_span:
                 out.append((key, ch[0][0], ch[-1][1], len(ch)))
     return out
-
-
-# --------------------------------------------------------------------------
-# Page-scoped mark dictionary (docs/design.md §10.1)
-# --------------------------------------------------------------------------
-def read_mark_dictionary(pc, lay: Layout = LAYOUT) -> dict[int, str]:
-    """Map asterisk count -> meaning, read from this page's NOTES block.
-
-    The marks in the notes column are the same vector glyphs used on the
-    drawing, so counting them on a note line gives the legend directly.
-    """
-    notes_marks = [p for p in find_marks(pc, lay) if _inside(p.x, p.y, lay.notes_area)]
-    rows: dict[float, list] = collections.defaultdict(list)
-    for p in notes_marks:
-        key = next((k for k in rows if abs(k - p.y) <= lay.note_mark_row_tol), p.y)
-        rows[key].append(p)
-
-    dictionary = {}
-    for y, marks in rows.items():
-        right_of = max(m.x for m in marks)
-        words = [
-            (r, t) for r, t in pc.words
-            if r.x0 > right_of and abs((r.y0 + r.y1) / 2 - y) <= lay.note_mark_row_tol + 4
-        ]
-        words.sort(key=lambda rt: rt[0].x0)
-        text = " ".join(t for _, t in words).strip()
-        if text:
-            dictionary[len(marks)] = text
-    return dictionary
 
 
 # --------------------------------------------------------------------------
@@ -509,13 +722,27 @@ class Detection:
         }
 
 
-def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V2,
+def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None):
     bubbles = find_bubbles(pc, lay)
-    marks = find_marks(pc, lay)
-    mark_dict = read_mark_dictionary(pc, lay)
+    mark_dict, glyph_size = read_mark_dictionary(pc, lay)
+    marks = find_marks(pc, lay, glyph_size, allow_sizes=KNOWN_GLYPH_SIZES)
+    boxes = find_package_boxes(pc, lay)
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)
+
+    # A mark on a package boundary applies to everything inside the boundary
+    # (page 6 marks the HRSG flow package that way, not its bubbles).
+    box_marks = []
+    m = lay.box_mark_margin
+    for b in boxes:
+        outer = pymupdf.Rect(b.x0 - m, b.y0 - m, b.x1 + m, b.y1 + m)
+        inner = pymupdf.Rect(b.x0 + 5, b.y0 + 5, b.x1 - 5, b.y1 - 5)
+        stars = sum(k.stars for k in marks
+                    if outer.x0 <= k.x <= outer.x1 and outer.y0 <= k.y <= outer.y1
+                    and not (inner.x0 <= k.x <= inner.x1 and inner.y0 <= k.y <= inner.y1))
+        if stars:
+            box_marks.append((b, stars))
 
     if disabled is None:
         disabled = rules.disabled
@@ -563,27 +790,38 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V2,
 
         # -- vendor mark (page-scoped meaning) -------------------------
         near = [
-            m for m in marks
-            if bubble.x0 - lay.mark_x_slack <= m.x <= bubble.x1 + lay.mark_x_slack
-            and bubble.y0 - lay.mark_above <= m.y <= bubble.y0
+            k for k in marks
+            if bubble.x0 - lay.mark_x_slack <= k.x <= bubble.x1 + lay.mark_x_slack
+            and bubble.y0 - lay.mark_above <= k.y <= bubble.y0
         ]
-        if near:
-            meaning = mark_dict.get(len(near))
+        stars = sum(k.stars for k in near)
+        source, forms = "SYMBOL", {k.form for k in near}
+        if not stars:
+            for b, st in box_marks:
+                if b.x0 <= cx <= b.x1 and b.y0 <= cy <= b.y1:
+                    stars, source, forms = st, "PACKAGE_BOX", {"BOX"}
+                    break
+
+        if stars:
+            meaning = mark_dict.get(stars)
             det.evidence["vendor_mark"] = {
-                "count": len(near),
+                "stars": stars, "source": source,
                 "meaning": meaning or "UNDEFINED ON THIS PAGE",
             }
             if meaning is None:
-                # The mark dictionary is page-scoped (docs/design.md §10.1) and
-                # the same glyph means different things on different sheets, so
-                # an undefined mark must not be acted on.  Hold the judgement
-                # and flag it instead of guessing.
+                # The mark dictionary is page-scoped (docs/design.md §10.1): the
+                # same glyph means different things on different sheets, so an
+                # undefined mark must not be acted on.  Hold the judgement and
+                # flag it rather than guess.
                 det.rules_hit.append("VENDOR_MARK_UNDEFINED")
             else:
-                det.rules_hit.append("VENDOR_MARK")
-                if det.included and "VENDOR_MARK" not in disabled:
+                rule = ("VENDOR_MARK_BOX" if source == "PACKAGE_BOX"
+                        else "VENDOR_MARK_TEXT" if "TEXT" in forms
+                        else "VENDOR_MARK_GLYPH")
+                det.rules_hit.append(rule)
+                if det.included and rule not in disabled:
                     det.included = False
-                    det.exclude_rule = "VENDOR_MARK"
+                    det.exclude_rule = rule
 
         # -- SCT supplier scope ----------------------------------------
         for sc in scopes:
@@ -626,7 +864,7 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V2,
             unmapped.append({"token": t, "center": [round(cx, 1), round(cy, 1)]})
 
     detections.sort(key=lambda d: (round(d.center[1] / 15), d.center[0]))
-    return detections, scopes, mark_dict, unverified, unmapped
+    return detections, scopes, mark_dict, unverified, unmapped, boxes
 
 
 # --------------------------------------------------------------------------
@@ -659,7 +897,9 @@ def load_excel_rows(path: Path, drawing_no: str) -> list[dict]:
 # --------------------------------------------------------------------------
 COLORS = {
     "included": (0.0, 0.55, 0.0),
-    "VENDOR_MARK": (0.85, 0.35, 0.0),
+    "VENDOR_MARK_GLYPH": (0.85, 0.35, 0.0),
+    "VENDOR_MARK_TEXT": (0.95, 0.6, 0.0),
+    "VENDOR_MARK_BOX": (0.6, 0.2, 0.6),
     "SCT_SUPPLIER_SCOPE": (0.85, 0.0, 0.0),
     "NOT_FIELD_INSTRUMENT": (0.45, 0.45, 0.45),
     "VALVE": (0.0, 0.35, 0.85),
@@ -687,7 +927,9 @@ def write_overlay(pc, detections, scopes, path: Path, zoom: float = 1.6) -> None
         page.insert_text((d.bbox.x0, d.bbox.y0 - 3), label, fontsize=11, color=color)
 
     legend = [("detected (in list)", COLORS["included"]),
-              ("excluded: vendor mark", COLORS["VENDOR_MARK"]),
+              ("excluded: vendor mark (glyph)", COLORS["VENDOR_MARK_GLYPH"]),
+              ("excluded: vendor mark (text)", COLORS["VENDOR_MARK_TEXT"]),
+              ("excluded: vendor mark (package box)", COLORS["VENDOR_MARK_BOX"]),
               ("excluded: SCT supplier scope", COLORS["SCT_SUPPLIER_SCOPE"]),
               ("excluded: not a field instrument", COLORS["NOT_FIELD_INSTRUMENT"]),
               ("excluded: valve", COLORS["VALVE"])]
@@ -709,6 +951,8 @@ def report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows
     print("page-scoped mark dictionary (from this page's NOTES, §10.1):")
     for n, meaning in sorted(mark_dict.items()):
         print(f"  {'*' * n:<4} {meaning}")
+    if not mark_dict:
+        print("  (none defined on this page)")
 
     print("\nSCT supplier scope regions found:")
     for sc in scopes:
@@ -730,7 +974,9 @@ def report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows
 
     print(f"\nexcluded: {len(excluded)}")
     print("\n  rule coverage (rules overlap; each counts every symbol it catches):")
-    for rule in ("SCT_SUPPLIER_SCOPE", "VENDOR_MARK", "NOT_FIELD_INSTRUMENT", "VALVE"):
+    for rule in ("SCT_SUPPLIER_SCOPE", "VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT",
+                 "VENDOR_MARK_BOX", "VENDOR_MARK_UNDEFINED",
+                 "NOT_FIELD_INSTRUMENT", "VALVE"):
         hit = [d for d in detections if rule in d.rules_hit]
         only = [d for d in hit if d.rules_hit == [rule]]
         print(f"    {rule:<22} catches {len(hit):>2}   (uniquely: {len(only)})")
@@ -744,7 +990,7 @@ def report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows
             why = ""
             if rule == "VENDOR_MARK":
                 vm = d.evidence["vendor_mark"]
-                why = f"{'*' * vm['count']} = {vm['meaning']}"
+                why = f"{'*' * vm['stars']} [{vm['source']}] = {vm['meaning']}"
             elif rule == "SCT_SUPPLIER_SCOPE":
                 sc = d.evidence["sct_scope"]
                 why = f"{sc['label']} [{sc['kind']}] {sc['region']}"
@@ -824,11 +1070,11 @@ def main() -> int:
     )
 
     enabled = {r.strip() for r in args.enable_rule.split(",") if r.strip()}
-    disabled = (RULESET_V2.disabled - enabled) | frozenset(
+    disabled = (RULESET_V3.disabled - enabled) | frozenset(
         r.strip() for r in args.without.split(",") if r.strip())
     if disabled:
         print(f"\n   exclusion rules off for this run: {', '.join(sorted(disabled))}")
-    detections, scopes, mark_dict, unverified, unmapped = detect(pc, disabled=disabled)
+    detections, scopes, mark_dict, unverified, unmapped, boxes = detect(pc, disabled=disabled)
     excel_rows = load_excel_rows(Path(args.compare), drawing_no) if args.compare else []
     metrics = report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows)
 

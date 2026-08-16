@@ -46,12 +46,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from detect_symbols import (  # noqa: E402
+    KNOWN_GLYPH_SIZES,
     RULESET_V1,
     RULESET_V2,
+    RULESET_V3,
     bubble_sizes,
     detect,
     find_bubbles,
     find_marks,
+    find_package_boxes,
+    read_mark_dictionary,
 )
 from pidcache import load_pages  # noqa: E402
 
@@ -60,7 +64,51 @@ from pidcache import load_pages  # noqa: E402
 # only knows how to see the drawn form.
 MARK_TEXT_RE = re.compile(r"^\({1,2}\*{1,3}\)?$")
 
-SCOPE_RULES = ("VENDOR_MARK", "SCT_SUPPLIER_SCOPE")
+# Korean reviewer markup sits on these sheets as a separate annotation layer
+# (삭제 = delete, 추가 = add, 위치이동 = relocate, 복원 = restore).  It matters twice
+# over: its text is picked up by the anchor scanner, and it records revisions the
+# Excel has not absorbed.  Diagnostic only — nothing acts on it.
+HANGUL_RE = re.compile(r"[가-힣]")
+
+
+def review_annotations(pc, lay_x=1960.0):
+    out, cur, last = [], [], None
+    ann = sorted([(r, t) for r, t in pc.words if HANGUL_RE.search(t)],
+                 key=lambda z: (round(z[0].y0 / 8), z[0].x0))
+    for r, t in ann:
+        key = round(r.y0 / 8)
+        if key != last:
+            if cur:
+                out.append(cur)
+            cur, last = [], key
+        cur.append((r, t))
+    if cur:
+        out.append(cur)
+    res = []
+    for grp in out:
+        r0 = grp[0][0]
+        # pull in the latin words on the same line, so "PIT 삭제" survives intact
+        line = [(r, t) for r, t in pc.words
+                if abs((r.y0 + r.y1) / 2 - (r0.y0 + r0.y1) / 2) < 6
+                and abs(r.x0 - r0.x0) < 260]
+        line.sort(key=lambda z: z[0].x0)
+        res.append({"where": "TITLEBLOCK" if r0.x0 > lay_x else "DRAWING",
+                    "pos": [round(r0.x0, 1), round(r0.y0, 1)],
+                    "text": " ".join(t for _, t in line)})
+    return res
+
+VENDOR_RULES = ("VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX")
+SCOPE_RULES = VENDOR_RULES + ("SCT_SUPPLIER_SCOPE",)
+
+# The contribution of each vendor-mark notation, measured by switching them on
+# one at a time.  SCT stays off by default (see DEFAULT_DISABLED).
+COMBOS = {
+    "none":            frozenset(),
+    "glyph":           frozenset({"VENDOR_MARK_GLYPH"}),
+    "glyph+text":      frozenset({"VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT"}),
+    "glyph+text+box":  frozenset(VENDOR_RULES),
+    "all+sct":         frozenset(SCOPE_RULES),
+}
 
 FAILURE_TYPES = [
     "NO_ANCHOR",
@@ -118,14 +166,14 @@ def title_match_score(system_value: str, title: str) -> float:
     return hits / len(sys_t)
 
 
-def mark_notation(pc, mark_dict):
-    notes_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 > 1960)
-    draw_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 < 1960)
-    draw_glyph = sum(1 for m in find_marks(pc) if m.x < 1960)
-    return {"glyph_definitions": len(mark_dict),
-            "text_definitions_in_notes": notes_text,
-            "text_marks_in_drawing": draw_text,
-            "glyph_marks_in_drawing": draw_glyph}
+def mark_notation(pc, mark_dict, glyph_size, marks, boxes):
+    forms = collections.Counter(m.form for m in marks)
+    return {"definitions": len(mark_dict),
+            "legend_form": "GLYPH" if glyph_size else ("TEXT" if mark_dict else "NONE"),
+            "glyph_size": list(glyph_size) if glyph_size else None,
+            "glyph_marks_in_drawing": forms.get("GLYPH", 0),
+            "text_marks_in_drawing": forms.get("TEXT", 0),
+            "package_boxes": len(boxes)}
 
 
 def load_excel(path: Path):
@@ -214,7 +262,9 @@ def main() -> int:
     per_page = {}
     size_dist = collections.Counter()
     for i, pc in enumerate(targets, 1):
-        dets, scopes, mark_dict, unverified, unmapped = detect(pc, rules=RULESET_V2)
+        dets, scopes, mark_dict, unverified, unmapped, boxes = detect(pc, rules=RULESET_V3)
+        _, glyph_size = read_mark_dictionary(pc)
+        marks = find_marks(pc, glyph_size=glyph_size, allow_sizes=KNOWN_GLYPH_SIZES)
         sizes = bubble_sizes(find_bubbles(pc))
         size_dist.update(sizes)
         per_page[pc.page_no] = {
@@ -222,11 +272,15 @@ def main() -> int:
             "title": tb[pc.page_no]["drawing_title"],
             "detections": dets, "scopes": scopes, "mark_dict": mark_dict,
             "unverified": unverified, "unmapped": unmapped, "sizes": sizes,
-            "notation": mark_notation(pc, mark_dict),
+            "notation": mark_notation(pc, mark_dict, glyph_size, marks, boxes),
+            "annotations": review_annotations(pc),
+            "undefined_marks": sum(1 for d in dets
+                                   if "VENDOR_MARK_UNDEFINED" in d.rules_hit),
         }
         print(f"  [{i:>2}/{len(targets)}] p{pc.page_no:<3} "
               f"{tb[pc.page_no]['drawing_no']}  anchors={len(dets):<4} "
-              f"unverified={len(unverified):<3} marks={len(mark_dict)}", flush=True)
+              f"unverified={len(unverified):<3} defs={len(mark_dict)} "
+              f"marks={len(marks)} boxes={len(boxes)}", flush=True)
 
     pages_by_drawing = collections.defaultdict(list)
     for pno, info in per_page.items():
@@ -254,13 +308,16 @@ def main() -> int:
                 "recall": tp / exp_tot if exp_tot else 0.0,
                 "precision": tp / det_tot if det_tot else 0.0}
 
-    v1_scope = frozenset(SCOPE_RULES)                 # v1 had both rules on
-    v2_scope = frozenset(SCOPE_RULES) - RULESET_V2.disabled
+    v1_scope = frozenset(SCOPE_RULES)
     variants = {
         "v1_drawing_join": None,      # filled below, old-style number
         "v1_page_join": score(RULESET_V1, v1_scope, matched),
-        "v2_page_join": score(RULESET_V2, v2_scope, matched),
-        "v2_page_join_with_sct": score(RULESET_V2, frozenset(SCOPE_RULES), matched),
+        "v2_glyph_only": score(RULESET_V2, COMBOS["glyph"], matched),
+        "v3_none": score(RULESET_V3, COMBOS["none"], matched),
+        "v3_glyph": score(RULESET_V3, COMBOS["glyph"], matched),
+        "v3_glyph_text": score(RULESET_V3, COMBOS["glyph+text"], matched),
+        "v3_glyph_text_box": score(RULESET_V3, COMBOS["glyph+text+box"], matched),
+        "v3_all_sct": score(RULESET_V3, COMBOS["all+sct"], matched),
     }
 
     # The old headline, reproduced: drawing-level join over every page.
@@ -283,12 +340,13 @@ def main() -> int:
         "precision": old_tp / old_det if old_det else 0.0}
 
     # ---- per-page detail, MATCHED only --------------------------------
+    ACTIVE_SCOPE = COMBOS["glyph+text+box"]
     page_rows = []
     for pno in sorted(matched):
         info = per_page[pno]
         det = collections.Counter(
-            excel_type_under(d, RULESET_V2) for d in info["detections"]
-            if included_under(d, RULESET_V2, v2_scope))
+            excel_type_under(d, RULESET_V3) for d in info["detections"]
+            if included_under(d, RULESET_V3, ACTIVE_SCOPE))
         exp = collections.Counter(r["type"] for r in owned[pno])
         tp = sum(min(det.get(t, 0), exp.get(t, 0)) for t in set(det) | set(exp))
         page_rows.append({
@@ -298,7 +356,7 @@ def main() -> int:
             "det_counts": dict(det), "exp_counts": dict(exp),
         })
 
-    failures = classify(page_rows, per_page, owned, v2_scope)
+    failures = classify(page_rows, per_page, owned, ACTIVE_SCOPE)
     failures_v1 = classify(
         [_recount(p, per_page, owned, RULESET_V1, v1_scope) for p in page_rows],
         per_page, owned, v1_scope, rules=RULESET_V1)
@@ -340,7 +398,7 @@ def _recount(prow, per_page, owned, rules, scope):
             "tp": tp, "det_counts": dict(det), "exp_counts": dict(exp)}
 
 
-def classify(page_rows, per_page, owned, scope, rules=RULESET_V2):
+def classify(page_rows, per_page, owned, scope, rules=RULESET_V3):
     out = []
     for row in page_rows:
         pno = row["page_no"]
@@ -484,16 +542,32 @@ def report(variants, page_rows, failures, failures_v1, size_dist, per_page,
     print("SCORE — before and after the measurement fix (MATCHED set only)")
     print("=" * 78)
     labels = {
-        "v1_drawing_join": "v1 rules, drawing join (previous headline)",
+        "v1_drawing_join": "v1 rules, drawing join (2b headline)",
         "v1_page_join":    "v1 rules, page join",
-        "v2_page_join":    "v2 rules, page join, SCT off  <- new baseline",
-        "v2_page_join_with_sct": "v2 rules, page join, SCT on",
+        "v2_glyph_only":   "v2 rules, glyph marks only (2c baseline)",
+        "v3_none":         "v3 rules, no vendor rule",
+        "v3_glyph":        "v3 rules, glyph marks",
+        "v3_glyph_text":   "v3 rules, glyph + text marks",
+        "v3_glyph_text_box": "v3 rules, glyph + text + package box  <- new baseline",
+        "v3_all_sct":      "v3 rules, all + SCT on",
     }
     print(f"{'variant':<44} {'det':>5} {'excel':>6} {'TP':>5} {'recall':>8} {'prec':>8}")
-    for k in ("v1_drawing_join", "v1_page_join", "v2_page_join", "v2_page_join_with_sct"):
+    for k in ("v1_drawing_join", "v1_page_join", "v2_glyph_only", "v3_none", "v3_glyph", "v3_glyph_text", "v3_glyph_text_box", "v3_all_sct"):
         v = variants[k]
         print(f"{labels[k]:<44} {v['detected']:>5} {v['expected']:>6} {v['tp']:>5} "
               f"{v['recall']:>7.1%} {v['precision']:>8.1%}")
+
+    undef = {p: i["undefined_marks"] for p, i in per_page.items() if i["undefined_marks"]}
+    print(f"\n  VENDOR_MARK_UNDEFINED detections (mark present, page's NOTES silent): "
+          f"{sum(undef.values())} on pages {sorted(undef)}")
+
+    ann_pages = {p: i["annotations"] for p, i in per_page.items()
+                 if any(a["where"] == "DRAWING" for a in i["annotations"])}
+    print(f"\n  Korean review markup on {len(ann_pages)} drawing bodies:")
+    for pno in sorted(ann_pages):
+        for a in ann_pages[pno]:
+            if a["where"] == "DRAWING":
+                print(f"    p{pno:<3} {a['pos']}  {a['text'][:70]}")
 
     print("\n" + "=" * 78)
     print("PER-SYSTEM ACCURACY (MATCHED, recall ascending)")
@@ -504,11 +578,11 @@ def report(variants, page_rows, failures, failures_v1, size_dist, per_page,
               f"{r['tp']:>5} {r['recall']:>7.1%} {r['precision']:>7.1%}  {r['title'][:42]}")
 
     print("\n" + "=" * 78)
-    print("FAILURE TYPES — v1 rules vs v2 rules (both on the MATCHED set)")
+    print("FAILURE TYPES — v1 rules vs v3 rules (both on the MATCHED set)")
     print("=" * 78)
     c1, r1 = _fail_counts(failures_v1)
     c2, r2 = _fail_counts(failures)
-    print(f"{'type':<24} {'v1 cases':>9} {'v1 rows':>8} {'v2 cases':>9} {'v2 rows':>8}")
+    print(f"{'type':<24} {'v1 cases':>9} {'v1 rows':>8} {'v3 cases':>9} {'v3 rows':>8}")
     for t in FAILURE_TYPES:
         print(f"  {t:<22} {c1.get(t,0):>9} {r1.get(t,0):>8} {c2.get(t,0):>9} {r2.get(t,0):>8}")
 
@@ -518,7 +592,7 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
                  excel_total, excel_spare, xmatch):
     c1, r1 = _fail_counts(failures_v1)
     c2, r2 = _fail_counts(failures)
-    v = variants["v2_page_join"]
+    v = variants["v3_glyph_text_box"]
     L = []
     L.append("# 실패 리포트 — Phase 0 spike 2b (측정 재정의)\n")
     L.append("검출 규칙은 추가하지 않았습니다. 이번 변경은 **조인 기준 확정**과 "
@@ -570,8 +644,7 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
     for pno in sorted(pdf_only):
         info = per_page[pno]
         n = sum(1 for d in info["detections"]
-                if included_under(d, RULESET_V2,
-                                  frozenset(SCOPE_RULES) - RULESET_V2.disabled))
+                if included_under(d, RULESET_V3, frozenset(VENDOR_RULES)))
         L.append(f"| p{pno} | `{info['drawing_no']}` | {info['title']} | {n} |")
 
     L.append("\n## B. 앵커 사전 수정\n")
@@ -600,7 +673,7 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
     L.append("| `MOV` = 밸브 | Excel Field 리스트에 밸브 TYPE 없음 | ✅ 유지 |")
 
     L.append("\n## C. SCT 규칙 — 기본 비활성\n")
-    a, b = variants["v2_page_join"], variants["v2_page_join_with_sct"]
+    a, b = variants["v3_glyph_text_box"], variants["v3_all_sct"]
     L.append(f"- 끈 상태: 검출 {a['detected']} / TP {a['tp']} / 재현율 {a['recall']:.1%} / 정밀도 {a['precision']:.1%}")
     L.append(f"- 켠 상태: 검출 {b['detected']} / TP {b['tp']} / 재현율 {b['recall']:.1%} / 정밀도 {b['precision']:.1%}")
     L.append("- 코드는 유지하고 `--enable-rule SCT_SUPPLIER_SCOPE` 로 켤 수 있습니다. "
@@ -609,11 +682,15 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
     L.append("\n## 1. 측정 재정의 전후 비교\n")
     L.append("| 변형 | 검출 | Excel | 일치 | 재현율 | 정밀도 |")
     L.append("|---|---|---|---|---|---|")
-    labels = {"v1_drawing_join": "v1 규칙 + 도면 조인 (이전 발표값)",
-              "v1_page_join": "v1 규칙 + 페이지 조인 (조인만 수정)",
-              "v2_page_join": "**v2 규칙 + 페이지 조인, SCT off (새 기준선)**",
-              "v2_page_join_with_sct": "v2 규칙 + 페이지 조인, SCT on"}
-    for k in ("v1_drawing_join", "v1_page_join", "v2_page_join", "v2_page_join_with_sct"):
+    labels = {"v1_drawing_join": "v1 규칙 + 도면 조인 (2b 발표값)",
+              "v1_page_join": "v1 규칙 + 페이지 조인",
+              "v2_glyph_only": "v2 규칙 + 글리프 마크만 (2c 기준선)",
+              "v3_none": "v3 규칙 + 벤더 규칙 없음",
+              "v3_glyph": "v3 규칙 + 글리프",
+              "v3_glyph_text": "v3 규칙 + 글리프 + 텍스트",
+              "v3_glyph_text_box": "**v3 규칙 + 글리프 + 텍스트 + 패키지박스 (새 기준선)**",
+              "v3_all_sct": "v3 규칙 + 전부 + SCT on"}
+    for k in ("v1_drawing_join", "v1_page_join", "v2_glyph_only", "v3_none", "v3_glyph", "v3_glyph_text", "v3_glyph_text_box", "v3_all_sct"):
         x = variants[k]
         L.append(f"| {labels[k]} | {x['detected']} | {x['expected']} | {x['tp']} "
                  f"| {x['recall']:.1%} | {x['precision']:.1%} |")
@@ -625,8 +702,8 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
         L.append(f"| `{r['system']}` | {r['pages']} | {r['detected']} | {r['expected']} "
                  f"| {r['tp']} | {r['recall']:.1%} | {r['precision']:.1%} | {r['title'][:38]} |")
 
-    L.append("\n## 4~5. 실패 유형 재집계 (v1 규칙 → v2 규칙, MATCHED 기준)\n")
-    L.append("| 유형 | v1 케이스 | v1 행 | v2 케이스 | v2 행 | 변화 |")
+    L.append("\n## 4~5. 실패 유형 재집계 (v1 규칙 → v3 규칙, MATCHED 기준)\n")
+    L.append("| 유형 | v1 케이스 | v1 행 | v3 케이스 | v3 행 | 변화 |")
     L.append("|---|---|---|---|---|---|")
     for t in FAILURE_TYPES:
         delta = r2.get(t, 0) - r1.get(t, 0)

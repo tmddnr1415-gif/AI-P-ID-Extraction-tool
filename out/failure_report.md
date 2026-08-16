@@ -62,7 +62,7 @@ Excel SYSTEM: Demineralized Water Distribution System
 | p34 | `D00P-11EGD00-M05-0001` | P&ID FOR GT FUEL OIL SUPPLY SYSTEM | 1 |
 | p42 | `D00P-10QFA10-M05-0001` | P&ID FOR COMPRESSED AIR SYSTEM | 10 |
 | p45 | `D00P-00QJA10-M05-0001` | P&ID FOR SERVICE GAS SYSTEM | 0 |
-| p46 | `D00P-00GHC10-M05-0001` | P&ID FOR DESAL. WATER SUPPLY SYSTEM | 20 |
+| p46 | `D00P-00GHC10-M05-0001` | P&ID FOR DESAL. WATER SUPPLY SYSTEM | 16 |
 | p50 | `D00P-00GHB10-M05-0002` | P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (2 OF 2) | 0 |
 | p52 | `D00P-00GMA10-M05-0001` | P&ID FOR CHEMICAL WASTE WATER TRANSFER SYSTEM | 30 |
 | p53 | `D00P-00GMB10-M05-0001` | P&ID FOR OILY WASTE WATER TRANSFER SYSTEM (1 OF 2) | 24 |
@@ -93,18 +93,22 @@ Excel SYSTEM: Demineralized Water Distribution System
 
 ## C. SCT 규칙 — 기본 비활성
 
-- 끈 상태: 검출 609 / TP 491 / 재현율 91.6% / 정밀도 80.6%
-- 켠 상태: 검출 607 / TP 489 / 재현율 91.2% / 정밀도 80.6%
+- 끈 상태: 검출 598 / TP 520 / 재현율 97.0% / 정밀도 87.0%
+- 켠 상태: 검출 596 / TP 518 / 재현율 96.6% / 정밀도 86.9%
 - 코드는 유지하고 `--enable-rule SCT_SUPPLIER_SCOPE` 로 켤 수 있습니다. 비활성 사유는 `detect_symbols.py` 의 `DEFAULT_DISABLED` 주석에 근거와 함께 기록했습니다.
 
 ## 1. 측정 재정의 전후 비교
 
 | 변형 | 검출 | Excel | 일치 | 재현율 | 정밀도 |
 |---|---|---|---|---|---|
-| v1 규칙 + 도면 조인 (이전 발표값) | 620 | 557 | 456 | 81.9% | 73.5% |
-| v1 규칙 + 페이지 조인 (조인만 수정) | 568 | 536 | 456 | 85.1% | 80.3% |
-| **v2 규칙 + 페이지 조인, SCT off (새 기준선)** | 609 | 536 | 491 | 91.6% | 80.6% |
-| v2 규칙 + 페이지 조인, SCT on | 607 | 536 | 489 | 91.2% | 80.6% |
+| v1 규칙 + 도면 조인 (2b 발표값) | 573 | 557 | 455 | 81.7% | 79.4% |
+| v1 규칙 + 페이지 조인 | 525 | 536 | 455 | 84.9% | 86.7% |
+| v2 규칙 + 글리프 마크만 (2c 기준선) | 572 | 536 | 490 | 91.4% | 85.7% |
+| v3 규칙 + 벤더 규칙 없음 | 717 | 536 | 524 | 97.8% | 73.1% |
+| v3 규칙 + 글리프 | 610 | 536 | 520 | 97.0% | 85.2% |
+| v3 규칙 + 글리프 + 텍스트 | 604 | 536 | 520 | 97.0% | 86.1% |
+| **v3 규칙 + 글리프 + 텍스트 + 패키지박스 (새 기준선)** | 598 | 536 | 520 | 97.0% | 87.0% |
+| v3 규칙 + 전부 + SCT on | 596 | 536 | 518 | 96.6% | 86.9% |
 
 ## 2. 계통별 정확도 (MATCHED, 재현율 오름차순)
 
@@ -112,88 +116,86 @@ Excel SYSTEM: Demineralized Water Distribution System
 |---|---|---|---|---|---|---|---|
 | `SCB` | 1 | 0 | 1 | 0 | 0.0% | 0.0% | P&ID FOR SERVICE AIR DISTRIBUTION SYST |
 | `QFB` | 1 | 1 | 2 | 1 | 50.0% | 100.0% | P&ID FOR INSTRUMENT AIR DISTRIBUTION S |
-| `GHB` | 1 | 18 | 17 | 9 | 52.9% | 50.0% | P&ID FOR SERVICE WATER DISTRIBUTION SY |
-| `LAB` | 1 | 25 | 33 | 25 | 75.8% | 100.0% | P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11 |
-| `LAC` | 1 | 18 | 23 | 18 | 78.3% | 100.0% | P&ID FOR FGH & TCA COOLING SYSTEM UNIT |
-| `MAN` | 2 | 54 | 64 | 54 | 84.4% | 100.0% | P&ID FOR BYPASS STEAM SYSTEM GROUP 10  |
-| `LCA` | 2 | 36 | 41 | 35 | 85.4% | 97.2% | P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 |
-| `PAB` | 3 | 50 | 14 | 12 | 85.7% | 24.0% | P&ID FOR SEAWATER INTAKE SYSTEM (1 OF  |
-| `GKB` | 1 | 12 | 7 | 6 | 85.7% | 50.0% | P&ID FOR POTABLE WATER SUPPLY SYSTEM |
-| `LBG` | 1 | 12 | 13 | 12 | 92.3% | 100.0% | P&ID FOR AUXILIARY STEAM SYSTEM GROUP  |
-| `EGD` | 2 | 57 | 33 | 31 | 93.9% | 54.4% | P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2) |
-| `PGB` | 7 | 177 | 170 | 170 | 100.0% | 96.0% | P&ID FOR CLOSED COOLING WATER SYSTEM G |
-| `LBA` | 2 | 29 | 24 | 24 | 100.0% | 82.8% | P&ID FOR HP STEAM SYSTEM GROUP 10 |
+| `GHB` | 1 | 17 | 17 | 11 | 64.7% | 64.7% | P&ID FOR SERVICE WATER DISTRIBUTION SY |
+| `PAB` | 3 | 22 | 14 | 12 | 85.7% | 54.5% | P&ID FOR SEAWATER INTAKE SYSTEM (1 OF  |
+| `LCA` | 2 | 38 | 41 | 37 | 90.2% | 97.4% | P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 |
+| `LAC` | 1 | 22 | 23 | 22 | 95.7% | 100.0% | P&ID FOR FGH & TCA COOLING SYSTEM UNIT |
+| `PGB` | 7 | 176 | 170 | 169 | 99.4% | 96.0% | P&ID FOR CLOSED COOLING WATER SYSTEM G |
+| `MAN` | 2 | 64 | 64 | 64 | 100.0% | 100.0% | P&ID FOR BYPASS STEAM SYSTEM GROUP 10  |
+| `LAB` | 1 | 33 | 33 | 33 | 100.0% | 100.0% | P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11 |
+| `EGD` | 2 | 51 | 33 | 33 | 100.0% | 64.7% | P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2) |
+| `LBA` | 2 | 31 | 24 | 24 | 100.0% | 77.4% | P&ID FOR HP STEAM SYSTEM GROUP 10 |
 | `LBC` | 2 | 21 | 21 | 21 | 100.0% | 100.0% | P&ID FOR CRH STEAM SYSTEM GROUP 10 |
 | `PAC` | 1 | 24 | 16 | 16 | 100.0% | 66.7% | P&ID FOR CIRCULATING WATER SYSTEM FOR  |
 | `GHC` | 1 | 34 | 16 | 16 | 100.0% | 47.1% | P&ID FOR DEMINERALIZED WATER DISTRIBUT |
 | `PCB` | 1 | 15 | 15 | 15 | 100.0% | 100.0% | P&ID FOR AUX. COOLING WATER SYSTEM FOR |
+| `LBG` | 1 | 13 | 13 | 13 | 100.0% | 100.0% | P&ID FOR AUXILIARY STEAM SYSTEM GROUP  |
 | `LCM` | 1 | 9 | 9 | 9 | 100.0% | 100.0% | P&ID FOR CLEAN DRAIN SYSTEM FOR GROUP  |
 | `EKG` | 3 | 9 | 9 | 9 | 100.0% | 100.0% | P&ID FOR FUEL GAS SUPPLY SYSTEM (1 OF  |
 | `MAJ` | 1 | 8 | 8 | 8 | 100.0% | 100.0% | P&ID FOR CONDENSER AIR REMOVAL SYSTEM  |
+| `GKB` | 1 | 10 | 7 | 7 | 100.0% | 70.0% | P&ID FOR POTABLE WATER SUPPLY SYSTEM |
 
-## 4~5. 실패 유형 재집계 (v1 규칙 → v2 규칙, MATCHED 기준)
+## 4~5. 실패 유형 재집계 (v1 규칙 → v3 규칙, MATCHED 기준)
 
-| 유형 | v1 케이스 | v1 행 | v2 케이스 | v2 행 | 변화 |
+| 유형 | v1 케이스 | v1 행 | v3 케이스 | v3 행 | 변화 |
 |---|---|---|---|---|---|
-| `NO_ANCHOR` | 5 | 20 | 4 | 12 | -8 |
-| `AMBIGUOUS_GEOMETRY` | 4 | 5 | 4 | 5 | +0 |
-| `SCOPE_CONFLICT` | 3 | 5 | 2 | 3 | -2 |
+| `NO_ANCHOR` | 7 | 23 | 1 | 1 | -22 |
+| `AMBIGUOUS_GEOMETRY` | 8 | 13 | 6 | 9 | -4 |
+| `SCOPE_CONFLICT` | 4 | 6 | 3 | 4 | -2 |
 | `VENDOR_MARK_UNDEFINED` | 0 | 0 | 0 | 0 | +0 |
-| `TYPE_MAPPING_MISS` | 18 | 50 | 10 | 25 | -25 |
-| `OVER_DETECT` | 24 | 112 | 27 | 118 | +6 |
+| `TYPE_MAPPING_MISS` | 12 | 39 | 2 | 2 | -37 |
+| `OVER_DETECT` | 19 | 70 | 22 | 78 | +8 |
 
 ## 유형별 대표 사례 (v2 기준)
 
 
-### `NO_ANCHOR` — 4 케이스 / 12 행
+### `NO_ANCHOR` — 1 케이스 / 1 행
 
-**p10 D00P-10MAN10-M05-0001** (계통 `MAN`, TYPE `FIT`, 5행)  
-P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)  
-추정 원인: no 'FIT' anchor found in any bubble on this page  
-
-**p11 D00P-10MAN10-M05-0002** (계통 `MAN`, TYPE `FIT`, 5행)  
-P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)  
-추정 원인: no 'FIT' anchor found in any bubble on this page  
-
-**p12 D00P-10LBG10-M05-0001** (계통 `LBG`, TYPE `FIT`, 1행)  
-P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10  
-추정 원인: no 'FIT' anchor found in any bubble on this page  
+**p43 D00P-10QFB10-M05-0001** (계통 `QFB`, TYPE `PIT`, 1행)  
+P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM  
+추정 원인: no 'PIT' anchor found in any bubble on this page  
 
 
-### `AMBIGUOUS_GEOMETRY` — 4 케이스 / 5 행
+### `AMBIGUOUS_GEOMETRY` — 6 케이스 / 9 행
 
-**p17 D00P-10LCA10-M05-0002** (계통 `LCA`, TYPE `FIT`, 2행)  
-P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)  
+**p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `PDIT`, 3행)  
+P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
 추정 원인: anchors found but no single enclosing bubble  
-- `CV` @ [807.5, 296.9]  규칙: -
-- `CV` @ [1074.5, 402.7]  규칙: -
+- `PDIT` @ [1375.1, 323.8]  규칙: -
+- `PIT` @ [1432.1, 323.8]  규칙: -
+- `FIT` @ [1702.9, 758.7]  규칙: -
+
+**p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `PIT`, 2행)  
+P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
+추정 원인: anchors found but no single enclosing bubble  
+- `PDIT` @ [1375.1, 323.8]  규칙: -
+- `PIT` @ [1432.1, 323.8]  규칙: -
+- `FIT` @ [1702.9, 758.7]  규칙: -
 
 **p26 D00P-00PAB10-M05-0001** (계통 `PAB`, TYPE `PIT`, 1행)  
 P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)  
 추정 원인: anchors found but no single enclosing bubble  
 - `MOV` @ [1080.2, 650.5]  규칙: -
 
-**p27 D00P-00PAB10-M05-0002** (계통 `PAB`, TYPE `PIT`, 1행)  
-P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)  
-추정 원인: anchors found but no single enclosing bubble  
-- `RO` @ [303.3, 940.8]  규칙: -
-- `HV` @ [1000.6, 600.7]  규칙: -
-- `MOV` @ [1003.6, 614.5]  규칙: -
 
-
-### `SCOPE_CONFLICT` — 2 케이스 / 3 행
+### `SCOPE_CONFLICT` — 3 케이스 / 4 행
 
 **p16 D00P-10LCA10-M05-0001** (계통 `LCA`, TYPE `PI`, 2행)  
 P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)  
 추정 원인: excluded by a scope rule but the Excel keeps the row  
-- `PI` @ [677.0, 318.0]  규칙: VENDOR_MARK
-- `PI` @ [657.0, 877.3]  규칙: VENDOR_MARK
-- `PI` @ [1348.0, 1144.3]  규칙: VENDOR_MARK
+- `PI` @ [677.0, 318.0]  규칙: VENDOR_MARK_GLYPH
+- `PI` @ [657.0, 877.3]  규칙: VENDOR_MARK_GLYPH
+- `PI` @ [1348.0, 1144.3]  규칙: VENDOR_MARK_GLYPH
 
 **p16 D00P-10LCA10-M05-0001** (계통 `LCA`, TYPE `TI`, 1행)  
 P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)  
 추정 원인: excluded by a scope rule but the Excel keeps the row  
-- `TI` @ [798.7, 877.3]  규칙: VENDOR_MARK
+- `TI` @ [798.7, 877.3]  규칙: VENDOR_MARK_GLYPH
+
+**p35 D00P-10PGB10-M05-0001** (계통 `PGB`, TYPE `TIT`, 1행)  
+P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)  
+추정 원인: excluded by a scope rule but the Excel keeps the row  
+- `TIT` @ [1518.9, 1483.1]  규칙: VENDOR_MARK_GLYPH
 
 
 ### `VENDOR_MARK_UNDEFINED` — 0 케이스 / 0 행
@@ -201,36 +203,31 @@ P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)
 해당 없음.
 
 
-### `TYPE_MAPPING_MISS` — 10 케이스 / 25 행
+### `TYPE_MAPPING_MISS` — 2 케이스 / 2 행
 
-**p20 D00P-11LAB00-M05-0001** (계통 `LAB`, TYPE `FIT`, 8행)  
-P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11  
-추정 원인: bubble holds a tag outside the anchor dictionary: ZS  
-- `ZS` @ [488.1, 638.5]  규칙: -
-- `ZS` @ [521.4, 1152.3]  규칙: -
+**p16 D00P-10LCA10-M05-0001** (계통 `LCA`, TYPE `RO`, 1행)  
+P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)  
+추정 원인: bubble holds a tag outside the anchor dictionary: AIT, PP, ZS  
+- `PP` @ [677.2, 182.7]  규칙: -
+- `PP` @ [719.7, 212.2]  규칙: -
+- `PP` @ [762.2, 182.7]  규칙: -
 
-**p21 D00P-11LAC10-M05-0001** (계통 `LAC`, TYPE `PDIT`, 4행)  
+**p21 D00P-11LAC10-M05-0001** (계통 `LAC`, TYPE `FE`, 1행)  
 P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11  
-추정 원인: bubble holds a tag outside the anchor dictionary: DPIT, ZSC, ZSO, ZT  
-- `DPIT` @ [920.8, 1031.0]  규칙: -
+추정 원인: bubble holds a tag outside the anchor dictionary: ZSC, ZSO, ZT  
 - `ZSC` @ [400.2, 465.9]  규칙: -
 - `ZSO` @ [400.2, 488.5]  규칙: -
-
-**p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `PDIT`, 3행)  
-P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
-추정 원인: bubble holds a tag outside the anchor dictionary: LG  
-- `LG` @ [677.6, 215.8]  규칙: -
-- `LG` @ [677.6, 999.8]  규칙: -
+- `ZSO` @ [400.2, 718.5]  규칙: -
 
 
-### `OVER_DETECT` — 27 케이스 / 118 행
+### `OVER_DETECT` — 22 케이스 / 78 행
 
 **p33 D00P-00EGD00-M05-0002** (계통 `EGD`, TYPE `PI`, 12행)  
 P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)  
 추정 원인: detected 12 vs excel 0  
-- `PI` @ [1196.7, 215.6]  규칙: -
-- `PI` @ [1353.9, 208.5]  규칙: -
-- `PI` @ [1353.9, 427.5]  규칙: -
+- `PI` @ [1196.7, 215.6]  규칙: VENDOR_MARK_UNDEFINED
+- `PI` @ [1353.9, 208.5]  규칙: VENDOR_MARK_UNDEFINED
+- `PI` @ [1353.9, 427.5]  규칙: VENDOR_MARK_UNDEFINED
 
 **p47 D00P-00GHC10-M05-0001** (계통 `GHC`, TYPE `PI`, 12행)  
 P&ID FOR DEMINERALIZED WATER DISTRIBUTION SYSTEM (1 OF 2)  
@@ -239,12 +236,12 @@ P&ID FOR DEMINERALIZED WATER DISTRIBUTION SYSTEM (1 OF 2)
 - `PI` @ [1173.6, 458.6]  규칙: -
 - `PI` @ [1463.9, 584.2]  규칙: -
 
-**p26 D00P-00PAB10-M05-0001** (계통 `PAB`, TYPE `LIT`, 10행)  
-P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)  
-추정 원인: detected 10 vs excel 0  
-- `LIT` @ [970.9, 826.1]  규칙: -
-- `LIT` @ [1250.6, 826.1]  규칙: -
-- `LIT` @ [1524.2, 826.1]  규칙: -
+**p30 D00P-10PAC10-M05-0001** (계통 `PAC`, TYPE `LIT`, 8행)  
+P&ID FOR CIRCULATING WATER SYSTEM FOR GROUP 10  
+추정 원인: detected 8 vs excel 0  
+- `LIT` @ [572.5, 761.4]  규칙: -
+- `LIT` @ [713.8, 761.4]  규칙: -
+- `LIT` @ [855.2, 761.4]  규칙: -
 
 
 ## 버블 치수 분포 (페이지별 실측)

@@ -56,13 +56,11 @@
   ],
   "metrics": {
     "recall": 1.0,
-    "precision": 0.8571428571428571,
+    "precision": 1.0,
     "tp": 12,
-    "detected": 14,
+    "detected": 12,
     "expected": 12,
-    "mismatch_types": [
-      "FE"
-    ]
+    "mismatch_types": []
   },
   "excel_rows": [
     {
@@ -153,12 +151,12 @@
   "detections": [
     {
       "anchor": "FT",
-      "excel_type": null,
-      "category": "OTHER",
+      "excel_type": "FIT",
+      "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
+      "exclude_rule": "VENDOR_MARK_BOX",
       "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
+        "VENDOR_MARK_BOX"
       ],
       "bbox": [
         431.3,
@@ -171,7 +169,11 @@
         442.8
       ],
       "evidence": {
-        "note": "FT never appears in the field instrument list"
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
       }
     },
     {
@@ -179,9 +181,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -196,7 +198,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -215,9 +218,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -232,7 +235,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -251,9 +255,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -268,7 +272,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -287,9 +292,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -304,7 +309,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -323,9 +329,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -340,7 +346,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -356,12 +363,12 @@
     },
     {
       "anchor": "FT",
-      "excel_type": null,
-      "category": "OTHER",
+      "excel_type": "FIT",
+      "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
+      "exclude_rule": "VENDOR_MARK_BOX",
       "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
+        "VENDOR_MARK_BOX"
       ],
       "bbox": [
         431.3,
@@ -374,7 +381,11 @@
         482.7
       ],
       "evidence": {
-        "note": "FT never appears in the field instrument list"
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
       }
     },
     {
@@ -419,9 +430,11 @@
       "anchor": "FE",
       "excel_type": "FE",
       "category": "FIELD_INSTRUMENT",
-      "included": true,
-      "exclude_rule": "",
-      "rules_hit": [],
+      "included": false,
+      "exclude_rule": "VENDOR_MARK_BOX",
+      "rules_hit": [
+        "VENDOR_MARK_BOX"
+      ],
       "bbox": [
         431.3,
         516.5,
@@ -432,7 +445,13 @@
         465.9,
         521.7
       ],
-      "evidence": {}
+      "evidence": {
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
+      }
     },
     {
       "anchor": "TT",
@@ -500,9 +519,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1156.6,
@@ -516,7 +535,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -526,9 +546,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1304.8,
@@ -542,7 +562,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -555,7 +576,7 @@
       "exclude_rule": "NOT_FIELD_INSTRUMENT",
       "rules_hit": [
         "NOT_FIELD_INSTRUMENT",
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1156.6,
@@ -570,7 +591,8 @@
       "evidence": {
         "note": "TW never appears in the field instrument list",
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -580,9 +602,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1304.8,
@@ -596,7 +618,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -609,7 +632,7 @@
       "exclude_rule": "NOT_FIELD_INSTRUMENT",
       "rules_hit": [
         "NOT_FIELD_INSTRUMENT",
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1156.6,
@@ -624,7 +647,8 @@
       "evidence": {
         "note": "TW never appears in the field instrument list",
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -637,7 +661,7 @@
       "exclude_rule": "NOT_FIELD_INSTRUMENT",
       "rules_hit": [
         "NOT_FIELD_INSTRUMENT",
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1304.8,
@@ -652,7 +676,8 @@
       "evidence": {
         "note": "TW never appears in the field instrument list",
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -662,9 +687,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1156.6,
@@ -678,7 +703,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -691,7 +717,7 @@
       "exclude_rule": "NOT_FIELD_INSTRUMENT",
       "rules_hit": [
         "NOT_FIELD_INSTRUMENT",
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1304.8,
@@ -706,7 +732,8 @@
       "evidence": {
         "note": "TW never appears in the field instrument list",
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -716,9 +743,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1156.6,
@@ -732,7 +759,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
@@ -742,9 +770,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK"
+        "VENDOR_MARK_GLYPH"
       ],
       "bbox": [
         1304.8,
@@ -758,19 +786,20 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 2,
+          "stars": 2,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER."
         }
       }
     },
     {
       "anchor": "FT",
-      "excel_type": null,
-      "category": "OTHER",
+      "excel_type": "FIT",
+      "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
+      "exclude_rule": "VENDOR_MARK_BOX",
       "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
+        "VENDOR_MARK_BOX"
       ],
       "bbox": [
         431.3,
@@ -783,7 +812,11 @@
         979.1
       ],
       "evidence": {
-        "note": "FT never appears in the field instrument list"
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
       }
     },
     {
@@ -791,9 +824,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -808,7 +841,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -827,9 +861,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -844,7 +878,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -863,9 +898,9 @@
       "excel_type": "TIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -880,7 +915,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -899,9 +935,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -916,7 +952,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -935,9 +972,9 @@
       "excel_type": "PIT",
       "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "VENDOR_MARK",
+      "exclude_rule": "VENDOR_MARK_GLYPH",
       "rules_hit": [
-        "VENDOR_MARK",
+        "VENDOR_MARK_GLYPH",
         "SCT_SUPPLIER_SCOPE"
       ],
       "bbox": [
@@ -952,7 +989,8 @@
       ],
       "evidence": {
         "vendor_mark": {
-          "count": 1,
+          "stars": 1,
+          "source": "SYMBOL",
           "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
         },
         "sct_scope": {
@@ -1006,12 +1044,12 @@
     },
     {
       "anchor": "FT",
-      "excel_type": null,
-      "category": "OTHER",
+      "excel_type": "FIT",
+      "category": "FIELD_INSTRUMENT",
       "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
+      "exclude_rule": "VENDOR_MARK_BOX",
       "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
+        "VENDOR_MARK_BOX"
       ],
       "bbox": [
         431.3,
@@ -1024,16 +1062,22 @@
         1019.0
       ],
       "evidence": {
-        "note": "FT never appears in the field instrument list"
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
       }
     },
     {
       "anchor": "FE",
       "excel_type": "FE",
       "category": "FIELD_INSTRUMENT",
-      "included": true,
-      "exclude_rule": "",
-      "rules_hit": [],
+      "included": false,
+      "exclude_rule": "VENDOR_MARK_BOX",
+      "rules_hit": [
+        "VENDOR_MARK_BOX"
+      ],
       "bbox": [
         431.3,
         1052.8,
@@ -1044,7 +1088,13 @@
         465.9,
         1058.1
       ],
-      "evidence": {}
+      "evidence": {
+        "vendor_mark": {
+          "stars": 1,
+          "source": "PACKAGE_BOX",
+          "meaning": "DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG."
+        }
+      }
     },
     {
       "anchor": "TT",

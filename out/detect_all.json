@@ -161,32 +161,60 @@
   ],
   "variants": {
     "v1_drawing_join": {
-      "tp": 456,
-      "detected": 620,
+      "tp": 455,
+      "detected": 573,
       "expected": 557,
-      "recall": 0.8186714542190305,
-      "precision": 0.7354838709677419
+      "recall": 0.8168761220825853,
+      "precision": 0.794066317626527
     },
     "v1_page_join": {
-      "tp": 456,
-      "detected": 568,
+      "tp": 455,
+      "detected": 525,
       "expected": 536,
-      "recall": 0.8507462686567164,
-      "precision": 0.8028169014084507
+      "recall": 0.8488805970149254,
+      "precision": 0.8666666666666667
     },
-    "v2_page_join": {
-      "tp": 491,
-      "detected": 609,
+    "v2_glyph_only": {
+      "tp": 490,
+      "detected": 572,
       "expected": 536,
-      "recall": 0.9160447761194029,
-      "precision": 0.80623973727422
+      "recall": 0.914179104477612,
+      "precision": 0.8566433566433567
     },
-    "v2_page_join_with_sct": {
-      "tp": 489,
-      "detected": 607,
+    "v3_none": {
+      "tp": 524,
+      "detected": 717,
       "expected": 536,
-      "recall": 0.9123134328358209,
-      "precision": 0.8056013179571664
+      "recall": 0.9776119402985075,
+      "precision": 0.7308228730822873
+    },
+    "v3_glyph": {
+      "tp": 520,
+      "detected": 610,
+      "expected": 536,
+      "recall": 0.9701492537313433,
+      "precision": 0.8524590163934426
+    },
+    "v3_glyph_text": {
+      "tp": 520,
+      "detected": 604,
+      "expected": 536,
+      "recall": 0.9701492537313433,
+      "precision": 0.8609271523178808
+    },
+    "v3_glyph_text_box": {
+      "tp": 520,
+      "detected": 598,
+      "expected": 536,
+      "recall": 0.9701492537313433,
+      "precision": 0.8695652173913043
+    },
+    "v3_all_sct": {
+      "tp": 518,
+      "detected": 596,
+      "expected": 536,
+      "recall": 0.9664179104477612,
+      "precision": 0.8691275167785235
     }
   },
   "bubble_size_distribution": {
@@ -207,13 +235,12 @@
       "drawing_no": "D00P-10LBA10-M05-0001",
       "system": "LBA",
       "title": "P&ID FOR HP STEAM SYSTEM GROUP 10",
-      "detected": 14,
+      "detected": 12,
       "expected": 12,
       "tp": 12,
       "det_counts": {
         "PIT": 2,
-        "TIT": 10,
-        "FE": 2
+        "TIT": 10
       },
       "exp_counts": {
         "PIT": 2,
@@ -261,10 +288,11 @@
       "drawing_no": "D00P-10LBA30-M05-0001",
       "system": "LBA",
       "title": "P&ID FOR LP STEAM SYSTEM GROUP 10",
-      "detected": 15,
+      "detected": 19,
       "expected": 12,
       "tp": 12,
       "det_counts": {
+        "FIT": 4,
         "PIT": 2,
         "TIT": 2,
         "FE": 2,
@@ -282,12 +310,13 @@
       "drawing_no": "D00P-10MAN10-M05-0001",
       "system": "MAN",
       "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)",
-      "detected": 27,
+      "detected": 32,
       "expected": 32,
-      "tp": 27,
+      "tp": 32,
       "det_counts": {
         "PIT": 6,
         "TIT": 13,
+        "FIT": 5,
         "PDIT": 3,
         "FE": 3,
         "LS": 2
@@ -306,12 +335,13 @@
       "drawing_no": "D00P-10MAN10-M05-0002",
       "system": "MAN",
       "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)",
-      "detected": 27,
+      "detected": 32,
       "expected": 32,
-      "tp": 27,
+      "tp": 32,
       "det_counts": {
         "PIT": 6,
         "TIT": 13,
+        "FIT": 5,
         "PDIT": 3,
         "FE": 3,
         "LS": 2
@@ -330,10 +360,11 @@
       "drawing_no": "D00P-10LBG10-M05-0001",
       "system": "LBG",
       "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
-      "detected": 12,
+      "detected": 13,
       "expected": 13,
-      "tp": 12,
+      "tp": 13,
       "det_counts": {
+        "FIT": 1,
         "PDIT": 1,
         "FE": 1,
         "LS": 2,
@@ -405,12 +436,13 @@
       "drawing_no": "D00P-10LCA10-M05-0002",
       "system": "LCA",
       "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)",
-      "detected": 8,
+      "detected": 10,
       "expected": 10,
-      "tp": 8,
+      "tp": 10,
       "det_counts": {
         "RO": 2,
         "PIT": 3,
+        "FIT": 2,
         "TIT": 2,
         "FE": 1
       },
@@ -444,10 +476,11 @@
       "drawing_no": "D00P-11LAB00-M05-0001",
       "system": "LAB",
       "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
-      "detected": 25,
+      "detected": 33,
       "expected": 33,
-      "tp": 25,
+      "tp": 33,
       "det_counts": {
+        "FIT": 8,
         "PIT": 13,
         "FE": 4,
         "TIT": 6,
@@ -466,14 +499,14 @@
       "drawing_no": "D00P-11LAC10-M05-0001",
       "system": "LAC",
       "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
-      "detected": 18,
+      "detected": 22,
       "expected": 23,
-      "tp": 18,
+      "tp": 22,
       "det_counts": {
         "TIT": 5,
         "PIT": 4,
         "FIT": 6,
-        "PDIT": 1,
+        "PDIT": 5,
         "FE": 2
       },
       "exp_counts": {
@@ -542,14 +575,12 @@
       "drawing_no": "D00P-00PAB10-M05-0001",
       "system": "PAB",
       "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
-      "detected": 22,
+      "detected": 8,
       "expected": 5,
       "tp": 4,
       "det_counts": {
-        "PI": 7,
-        "PIT": 4,
-        "LIT": 10,
-        "PDIT": 1
+        "PI": 4,
+        "PIT": 4
       },
       "exp_counts": {
         "PIT": 5
@@ -560,13 +591,12 @@
       "drawing_no": "D00P-00PAB10-M05-0002",
       "system": "PAB",
       "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
-      "detected": 18,
+      "detected": 8,
       "expected": 5,
       "tp": 4,
       "det_counts": {
         "PI": 4,
-        "PIT": 4,
-        "LIT": 10
+        "PIT": 4
       },
       "exp_counts": {
         "PIT": 5
@@ -577,13 +607,12 @@
       "drawing_no": "D00P-00PAB10-M05-0003",
       "system": "PAB",
       "title": "P&ID FOR SEAWATER INTAKE SYSTEM (3 OF 3)",
-      "detected": 10,
+      "detected": 6,
       "expected": 4,
       "tp": 4,
       "det_counts": {
         "PIT": 4,
-        "PI": 2,
-        "LIT": 4
+        "PI": 2
       },
       "exp_counts": {
         "PIT": 4
@@ -635,12 +664,11 @@
       "drawing_no": "D00P-00EGD00-M05-0001",
       "system": "EGD",
       "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
-      "detected": 24,
+      "detected": 16,
       "expected": 10,
       "tp": 10,
       "det_counts": {
         "PIT": 4,
-        "PI": 8,
         "TIT": 2,
         "FS": 3,
         "PDIT": 3,
@@ -659,10 +687,11 @@
       "drawing_no": "D00P-00EGD00-M05-0002",
       "system": "EGD",
       "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
-      "detected": 33,
+      "detected": 35,
       "expected": 23,
-      "tp": 21,
+      "tp": 23,
       "det_counts": {
+        "LI": 2,
         "PI": 12,
         "PDIT": 6,
         "PIT": 4,
@@ -686,16 +715,16 @@
       "drawing_no": "D00P-10PGB10-M05-0001",
       "system": "PGB",
       "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)",
-      "detected": 24,
+      "detected": 23,
       "expected": 19,
-      "tp": 19,
+      "tp": 18,
       "det_counts": {
         "PI": 4,
         "PDIT": 5,
         "PIT": 6,
         "LIT": 2,
         "LI": 1,
-        "TIT": 6
+        "TIT": 5
       },
       "exp_counts": {
         "LIT": 2,
@@ -864,13 +893,14 @@
       "drawing_no": "D00P-00GHB10-M05-0001",
       "system": "GHB",
       "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-      "detected": 18,
+      "detected": 17,
       "expected": 17,
-      "tp": 9,
+      "tp": 11,
       "det_counts": {
+        "LI": 2,
         "LIT": 4,
-        "PI": 6,
-        "RO": 3,
+        "PI": 5,
+        "RO": 1,
         "PDIT": 3,
         "PIT": 2
       },
@@ -887,13 +917,14 @@
       "drawing_no": "D00P-00GKB10-M05-0001",
       "system": "GKB",
       "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
-      "detected": 12,
+      "detected": 10,
       "expected": 7,
-      "tp": 6,
+      "tp": 7,
       "det_counts": {
+        "LI": 1,
         "RO": 2,
         "LIT": 2,
-        "PI": 4,
+        "PI": 1,
         "PDIT": 2,
         "PIT": 2
       },
@@ -909,39 +940,6 @@
     "NO_ANCHOR": [
       {
         "type": "NO_ANCHOR",
-        "page_no": 10,
-        "drawing_no": "D00P-10MAN10-M05-0001",
-        "system": "MAN",
-        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)",
-        "excel_type": "FIT",
-        "count": 5,
-        "cause": "no 'FIT' anchor found in any bubble on this page",
-        "samples": []
-      },
-      {
-        "type": "NO_ANCHOR",
-        "page_no": 11,
-        "drawing_no": "D00P-10MAN10-M05-0002",
-        "system": "MAN",
-        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)",
-        "excel_type": "FIT",
-        "count": 5,
-        "cause": "no 'FIT' anchor found in any bubble on this page",
-        "samples": []
-      },
-      {
-        "type": "NO_ANCHOR",
-        "page_no": 12,
-        "drawing_no": "D00P-10LBG10-M05-0001",
-        "system": "LBG",
-        "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
-        "excel_type": "FIT",
-        "count": 1,
-        "cause": "no 'FIT' anchor found in any bubble on this page",
-        "samples": []
-      },
-      {
-        "type": "NO_ANCHOR",
         "page_no": 43,
         "drawing_no": "D00P-10QFB10-M05-0001",
         "system": "QFB",
@@ -953,32 +951,6 @@
       }
     ],
     "AMBIGUOUS_GEOMETRY": [
-      {
-        "type": "AMBIGUOUS_GEOMETRY",
-        "page_no": 17,
-        "drawing_no": "D00P-10LCA10-M05-0002",
-        "system": "LCA",
-        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)",
-        "excel_type": "FIT",
-        "count": 2,
-        "cause": "anchors found but no single enclosing bubble",
-        "samples": [
-          {
-            "anchor": "CV",
-            "center": [
-              807.5,
-              296.9
-            ]
-          },
-          {
-            "anchor": "CV",
-            "center": [
-              1074.5,
-              402.7
-            ]
-          }
-        ]
-      },
       {
         "type": "AMBIGUOUS_GEOMETRY",
         "page_no": 26,
@@ -1049,6 +1021,105 @@
             ]
           }
         ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "page_no": 49,
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "FIT",
+        "count": 1,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "anchor": "PDIT",
+            "center": [
+              1375.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "PIT",
+            "center": [
+              1432.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "FIT",
+            "center": [
+              1702.9,
+              758.7
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "page_no": 49,
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "PDIT",
+        "count": 3,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "anchor": "PDIT",
+            "center": [
+              1375.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "PIT",
+            "center": [
+              1432.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "FIT",
+            "center": [
+              1702.9,
+              758.7
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "page_no": 49,
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "anchor": "PDIT",
+            "center": [
+              1375.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "PIT",
+            "center": [
+              1432.1,
+              323.8
+            ]
+          },
+          {
+            "anchor": "FIT",
+            "center": [
+              1702.9,
+              758.7
+            ]
+          }
+        ]
       }
     ],
     "SCOPE_CONFLICT": [
@@ -1069,7 +1140,7 @@
               318.0
             ],
             "rules_hit": [
-              "VENDOR_MARK"
+              "VENDOR_MARK_GLYPH"
             ]
           },
           {
@@ -1079,7 +1150,7 @@
               877.3
             ],
             "rules_hit": [
-              "VENDOR_MARK"
+              "VENDOR_MARK_GLYPH"
             ]
           },
           {
@@ -1089,7 +1160,7 @@
               1144.3
             ],
             "rules_hit": [
-              "VENDOR_MARK"
+              "VENDOR_MARK_GLYPH"
             ]
           }
         ]
@@ -1111,7 +1182,29 @@
               877.3
             ],
             "rules_hit": [
-              "VENDOR_MARK"
+              "VENDOR_MARK_GLYPH"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SCOPE_CONFLICT",
+        "page_no": 35,
+        "drawing_no": "D00P-10PGB10-M05-0001",
+        "system": "PGB",
+        "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)",
+        "excel_type": "TIT",
+        "count": 1,
+        "cause": "excluded by a scope rule but the Excel keeps the row",
+        "samples": [
+          {
+            "anchor": "TIT",
+            "center": [
+              1518.9,
+              1483.1
+            ],
+            "rules_hit": [
+              "VENDOR_MARK_GLYPH"
             ]
           }
         ]
@@ -1154,47 +1247,14 @@
       },
       {
         "type": "TYPE_MAPPING_MISS",
-        "page_no": 20,
-        "drawing_no": "D00P-11LAB00-M05-0001",
-        "system": "LAB",
-        "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
-        "excel_type": "FIT",
-        "count": 8,
-        "cause": "bubble holds a tag outside the anchor dictionary: ZS",
-        "samples": [
-          {
-            "anchor": "ZS",
-            "center": [
-              488.1,
-              638.5
-            ]
-          },
-          {
-            "anchor": "ZS",
-            "center": [
-              521.4,
-              1152.3
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
         "page_no": 21,
         "drawing_no": "D00P-11LAC10-M05-0001",
         "system": "LAC",
         "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
         "excel_type": "FE",
         "count": 1,
-        "cause": "bubble holds a tag outside the anchor dictionary: DPIT, ZSC, ZSO, ZT",
+        "cause": "bubble holds a tag outside the anchor dictionary: ZSC, ZSO, ZT",
         "samples": [
-          {
-            "anchor": "DPIT",
-            "center": [
-              920.8,
-              1031.0
-            ]
-          },
           {
             "anchor": "ZSC",
             "center": [
@@ -1208,221 +1268,18 @@
               400.2,
               488.5
             ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 21,
-        "drawing_no": "D00P-11LAC10-M05-0001",
-        "system": "LAC",
-        "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
-        "excel_type": "PDIT",
-        "count": 4,
-        "cause": "bubble holds a tag outside the anchor dictionary: DPIT, ZSC, ZSO, ZT",
-        "samples": [
-          {
-            "anchor": "DPIT",
-            "center": [
-              920.8,
-              1031.0
-            ]
-          },
-          {
-            "anchor": "ZSC",
-            "center": [
-              400.2,
-              465.9
-            ]
           },
           {
             "anchor": "ZSO",
             "center": [
               400.2,
-              488.5
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 33,
-        "drawing_no": "D00P-00EGD00-M05-0002",
-        "system": "EGD",
-        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
-        "excel_type": "LI",
-        "count": 2,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              499.6,
-              706.6
-            ]
-          },
-          {
-            "anchor": "LG",
-            "center": [
-              499.6,
-              90.9
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 49,
-        "drawing_no": "D00P-00GHB10-M05-0001",
-        "system": "GHB",
-        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-        "excel_type": "FIT",
-        "count": 1,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              215.8
-            ]
-          },
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              999.8
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 49,
-        "drawing_no": "D00P-00GHB10-M05-0001",
-        "system": "GHB",
-        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-        "excel_type": "LI",
-        "count": 2,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              215.8
-            ]
-          },
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              999.8
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 49,
-        "drawing_no": "D00P-00GHB10-M05-0001",
-        "system": "GHB",
-        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-        "excel_type": "PDIT",
-        "count": 3,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              215.8
-            ]
-          },
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              999.8
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 49,
-        "drawing_no": "D00P-00GHB10-M05-0001",
-        "system": "GHB",
-        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-        "excel_type": "PIT",
-        "count": 2,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              215.8
-            ]
-          },
-          {
-            "anchor": "LG",
-            "center": [
-              677.6,
-              999.8
-            ]
-          }
-        ]
-      },
-      {
-        "type": "TYPE_MAPPING_MISS",
-        "page_no": 51,
-        "drawing_no": "D00P-00GKB10-M05-0001",
-        "system": "GKB",
-        "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
-        "excel_type": "LI",
-        "count": 1,
-        "cause": "bubble holds a tag outside the anchor dictionary: LG",
-        "samples": [
-          {
-            "anchor": "LG",
-            "center": [
-              660.6,
-              96.9
+              718.5
             ]
           }
         ]
       }
     ],
     "OVER_DETECT": [
-      {
-        "type": "OVER_DETECT",
-        "page_no": 6,
-        "drawing_no": "D00P-10LBA10-M05-0001",
-        "system": "LBA",
-        "title": "P&ID FOR HP STEAM SYSTEM GROUP 10",
-        "excel_type": "FE",
-        "count": 2,
-        "cause": "detected 2 vs excel 0",
-        "samples": [
-          {
-            "anchor": "FE",
-            "center": [
-              465.9,
-              521.7
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "FE",
-            "center": [
-              465.9,
-              1058.1
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
       {
         "type": "OVER_DETECT",
         "page_no": 9,
@@ -1446,6 +1303,42 @@
             "center": [
               528.6,
               1121.8
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "page_no": 9,
+        "drawing_no": "D00P-10LBA30-M05-0001",
+        "system": "LBA",
+        "title": "P&ID FOR LP STEAM SYSTEM GROUP 10",
+        "excel_type": "FIT",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
+        "samples": [
+          {
+            "anchor": "FT",
+            "center": [
+              528.6,
+              452.8
+            ],
+            "rules_hit": []
+          },
+          {
+            "anchor": "FT",
+            "center": [
+              528.6,
+              484.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "anchor": "FT",
+            "center": [
+              528.6,
+              1059.8
             ],
             "rules_hit": []
           }
@@ -1497,65 +1390,9 @@
         "drawing_no": "D00P-00PAB10-M05-0001",
         "system": "PAB",
         "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
-        "excel_type": "LIT",
-        "count": 10,
-        "cause": "detected 10 vs excel 0",
-        "samples": [
-          {
-            "anchor": "LIT",
-            "center": [
-              970.9,
-              826.1
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              1250.6,
-              826.1
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              1524.2,
-              826.1
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
-      {
-        "type": "OVER_DETECT",
-        "page_no": 26,
-        "drawing_no": "D00P-00PAB10-M05-0001",
-        "system": "PAB",
-        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
-        "excel_type": "PDIT",
-        "count": 1,
-        "cause": "detected 1 vs excel 0",
-        "samples": [
-          {
-            "anchor": "PDIT",
-            "center": [
-              1766.6,
-              1132.9
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
-      {
-        "type": "OVER_DETECT",
-        "page_no": 26,
-        "drawing_no": "D00P-00PAB10-M05-0001",
-        "system": "PAB",
-        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
         "excel_type": "PI",
-        "count": 7,
-        "cause": "detected 7 vs excel 0",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
         "samples": [
           {
             "anchor": "PI",
@@ -1578,42 +1415,6 @@
             "center": [
               1101.4,
               619.9
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
-      {
-        "type": "OVER_DETECT",
-        "page_no": 27,
-        "drawing_no": "D00P-00PAB10-M05-0002",
-        "system": "PAB",
-        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
-        "excel_type": "LIT",
-        "count": 10,
-        "cause": "detected 10 vs excel 0",
-        "samples": [
-          {
-            "anchor": "LIT",
-            "center": [
-              855.1,
-              768.5
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              1134.8,
-              768.5
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              1408.4,
-              768.5
             ],
             "rules_hit": []
           }
@@ -1650,42 +1451,6 @@
             "center": [
               985.6,
               562.3
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
-      {
-        "type": "OVER_DETECT",
-        "page_no": 28,
-        "drawing_no": "D00P-00PAB10-M05-0003",
-        "system": "PAB",
-        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (3 OF 3)",
-        "excel_type": "LIT",
-        "count": 4,
-        "cause": "detected 4 vs excel 0",
-        "samples": [
-          {
-            "anchor": "LIT",
-            "center": [
-              644.4,
-              893.1
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              1053.0,
-              1098.9
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "LIT",
-            "center": [
-              992.0,
-              1263.0
             ],
             "rules_hit": []
           }
@@ -1789,42 +1554,6 @@
         "drawing_no": "D00P-00EGD00-M05-0001",
         "system": "EGD",
         "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
-        "excel_type": "PI",
-        "count": 8,
-        "cause": "detected 8 vs excel 0",
-        "samples": [
-          {
-            "anchor": "PI",
-            "center": [
-              963.8,
-              153.8
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "PI",
-            "center": [
-              651.8,
-              163.8
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "PI",
-            "center": [
-              669.6,
-              491.6
-            ],
-            "rules_hit": []
-          }
-        ]
-      },
-      {
-        "type": "OVER_DETECT",
-        "page_no": 32,
-        "drawing_no": "D00P-00EGD00-M05-0001",
-        "system": "EGD",
-        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
         "excel_type": "PIT",
         "count": 2,
         "cause": "detected 4 vs excel 2",
@@ -1899,7 +1628,9 @@
               1196.7,
               215.6
             ],
-            "rules_hit": []
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
           },
           {
             "anchor": "PI",
@@ -1907,7 +1638,9 @@
               1353.9,
               208.5
             ],
-            "rules_hit": []
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
           },
           {
             "anchor": "PI",
@@ -1915,7 +1648,9 @@
               1353.9,
               427.5
             ],
-            "rules_hit": []
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
           }
         ]
       },
@@ -1935,9 +1670,7 @@
               399.4,
               338.7
             ],
-            "rules_hit": [
-              "VENDOR_MARK_UNDEFINED"
-            ]
+            "rules_hit": []
           }
         ]
       },
@@ -1957,9 +1690,7 @@
               1335.2,
               214.8
             ],
-            "rules_hit": [
-              "VENDOR_MARK_UNDEFINED"
-            ]
+            "rules_hit": []
           },
           {
             "anchor": "PI",
@@ -1967,9 +1698,7 @@
               1236.2,
               224.8
             ],
-            "rules_hit": [
-              "VENDOR_MARK_UNDEFINED"
-            ]
+            "rules_hit": []
           },
           {
             "anchor": "PI",
@@ -1977,9 +1706,7 @@
               1335.2,
               434.3
             ],
-            "rules_hit": [
-              "VENDOR_MARK_UNDEFINED"
-            ]
+            "rules_hit": []
           }
         ]
       },
@@ -1999,7 +1726,9 @@
               1795.6,
               1090.8
             ],
-            "rules_hit": []
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
           }
         ]
       },
@@ -2019,7 +1748,9 @@
               1795.6,
               1090.8
             ],
-            "rules_hit": []
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
           }
         ]
       },
@@ -2102,8 +1833,8 @@
         "system": "GHB",
         "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
         "excel_type": "PI",
-        "count": 6,
-        "cause": "detected 6 vs excel 0",
+        "count": 5,
+        "cause": "detected 5 vs excel 0",
         "samples": [
           {
             "anchor": "PI",
@@ -2138,25 +1869,9 @@
         "system": "GHB",
         "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
         "excel_type": "RO",
-        "count": 3,
-        "cause": "detected 3 vs excel 0",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
         "samples": [
-          {
-            "anchor": "RO",
-            "center": [
-              1380.9,
-              753.5
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "RO",
-            "center": [
-              1445.0,
-              753.5
-            ],
-            "rules_hit": []
-          },
           {
             "anchor": "RO",
             "center": [
@@ -2174,30 +1889,14 @@
         "system": "GKB",
         "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
         "excel_type": "PI",
-        "count": 4,
-        "cause": "detected 4 vs excel 0",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
         "samples": [
-          {
-            "anchor": "PI",
-            "center": [
-              1465.1,
-              365.2
-            ],
-            "rules_hit": []
-          },
           {
             "anchor": "PI",
             "center": [
               1254.3,
               375.3
-            ],
-            "rules_hit": []
-          },
-          {
-            "anchor": "PI",
-            "center": [
-              1465.1,
-              545.8
             ],
             "rules_hit": []
           }
