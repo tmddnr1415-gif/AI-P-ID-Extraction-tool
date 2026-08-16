@@ -63,6 +63,14 @@
     </div>
     <p class="muted">두 파일은 브라우저에만 저장됩니다. 다음에 열 때 다시 넣지 않아도 됩니다.</p>
     <p id="spec-info" class="spec-info hidden"></p>
+    <p class="muted">
+      이전에 받은 <strong>검토용 JSON</strong>이 있으면
+      <button id="btn-import" class="link" type="button">불러와서</button>
+      이어서 볼 수 있습니다. 다른 컴퓨터에서 돌린 결과나 Claude Code가 만든
+      <code>extraction.json</code>도 됩니다.
+      <input id="in-import" type="file" accept=".json" hidden />
+      <span id="import-state" class="state"></span>
+    </p>
   </section>
 
   <!-- 2. 도면 선택 ────────────────────────────────────── -->
@@ -109,8 +117,13 @@
         <button id="btn-xlsx" class="primary" type="button">Excel 다운로드</button>
         <button id="btn-csv" class="ghost" type="button">CSV</button>
         <button id="btn-json" class="ghost" type="button">검토용 JSON</button>
+        <button id="btn-clear" class="ghost danger" type="button" title="쌓인 판독 결과를 모두 비웁니다">결과 비우기</button>
       </div>
     </div>
+    <p class="note">
+      판독은 <strong>쌓입니다</strong>. 5장씩 끊어 돌려도 결과가 이어지고, 같은 도면을 다시
+      판독하면 그 도면 행만 새 결과로 바뀝니다. 브라우저를 닫아도 남아 있습니다.
+    </p>
     <div id="result-stats" class="stats"></div>
     <div class="table-wrap">
       <table id="result"><thead><tr id="result-head"></tr></thead><tbody></tbody></table>

@@ -141,6 +141,12 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 button.primary:hover { filter: brightness(1.08); }
 button.ghost { border-color: var(--line); }
 button.danger { color: var(--critical); }
+/* 문장 안에 섞여 들어가는 버튼. 앞뒤 글과 같은 높이로 흐르게 둔다. */
+button.link {
+  border: 0; background: none; padding: 0; color: var(--accent);
+  font: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+button.link:hover { filter: brightness(1.15); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 
 input, select, textarea {

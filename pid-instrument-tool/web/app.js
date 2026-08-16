@@ -198,6 +198,7 @@ async function useTemplate(name, bytes) {
       + `모델이 도면에서 판독할 컬럼 <b>${drawing.length}</b>개(${drawing.join(', ')}), `
       + `TYPICAL TYPE으로 채울 컬럼 <b>${spec.columns.filter((c) => c.source === 'typical').length}</b>개, `
       + `Design Table 조인이 필요해 비워 둘 컬럼 <b>${blanks}</b>개.`;
+    if (state.result?.rows?.length) renderResult();   // 템플릿을 기다리던 결과를 이제 그린다
   } catch (err) {
     $('tpl-state').textContent = `읽지 못했습니다: ${err.message}`;
     $('tpl-state').classList.remove('ok');
@@ -330,7 +331,20 @@ async function run() {
   const targets = state.pages.filter((p) => state.selected.has(p.page));
 
   state.controller = new AbortController();
-  const acc = { rows: [], excluded: [], findings: [], pages: [], usage: { input: 0, output: 0, cached: 0 } };
+
+  /* 판독 결과는 쌓인다. 58장을 5장씩 끊어 돌려도 이어지도록, 이전 결과를 이어받되
+     이번에 다시 판독하는 도면의 옛 행은 걷어낸다(같은 도면이 두 번 들어가지 않게). */
+  const redo = new Set(targets.map((p) => p.page));
+  const prev = state.result;
+  const acc = prev
+    ? {
+        rows: prev.rows.filter((r) => !redo.has(r._page)),
+        excluded: prev.excluded.filter((e) => !redo.has(e._page)),
+        findings: prev.findings.filter((f) => !redo.has(f._page)),
+        pages: prev.pages.filter((p) => !redo.has(p.page)),
+        usage: { ...prev.usage },
+      }
+    : { rows: [], excluded: [], findings: [], pages: [], usage: { input: 0, output: 0, cached: 0 } };
 
   try {
     for (let i = 0; i < targets.length; i++) {
@@ -374,23 +388,89 @@ async function run() {
       acc.pages.push({ page: p.page, drawing_no: p.drawing_no, title: p.title,
                        count: data.instruments.length, summary: data.page_summary });
     }
-    state.result = acc;
-    renderResult();
-    setRunning(false, `완료 · 도면 ${targets.length}장 → ${acc.rows.length}행`);
+    setResult(acc);
+    setRunning(false, `완료 · 이번 ${targets.length}장 · 누적 도면 ${acc.pages.length}장 → ${acc.rows.length}행`);
   } catch (err) {
     setRunning(false, err.name === 'AbortError' ? '중지했습니다.' : '');
     if (err.name !== 'AbortError') {
       $('run-error').textContent = err.message;
       $('run-error').classList.remove('hidden');
     }
-    if (acc.rows.length) {                 // 중간까지 나온 결과는 살린다
-      state.result = acc;
-      renderResult();
-    }
+    if (acc.rows.length) setResult(acc);   // 중간까지 나온 결과는 살린다
   } finally {
     state.controller = null;
     if (!dry) refreshQuota();
   }
+}
+
+/** 결과를 갈아끼우고 화면과 브라우저 보관을 함께 갱신한다. */
+function setResult(acc) {
+  state.result = acc;
+  renderResult();
+  idbPut('result', acc);                   // 브라우저를 닫아도 남는다
+}
+
+$('btn-clear').addEventListener('click', () => {
+  if (!state.result) return;
+  const n = state.result.pages.length;
+  if (!confirm(`쌓인 판독 결과를 모두 비웁니다.\n도면 ${n}장 · ${state.result.rows.length}행이 사라집니다.`)) return;
+  state.result = null;
+  idbPut('result', null);
+  $('sec-result').classList.add('hidden');
+  $('run-status').textContent = '결과를 비웠습니다.';
+});
+
+/* ── 결과 불러오기 ─────────────────────────────────────────
+ * 앱이 내보낸 검토용 JSON(result_*.json)과 파이썬 파이프라인의 extraction.json
+ * 둘 다 받는다. 형식이 달라 보여도 결국 같은 판독 결과다.
+ */
+$('btn-import').addEventListener('click', () => $('in-import').click());
+$('in-import').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const st = $('import-state');
+  try {
+    const data = JSON.parse(await file.text());
+    const acc = normalizeImported(data);
+    if (!acc.rows.length) throw new Error('계기 행을 찾지 못했습니다.');
+    setResult(acc);
+    st.textContent = `${file.name} · 도면 ${acc.pages.length}장 ${acc.rows.length}행`;
+    st.className = 'state ok';
+    $('sec-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    st.textContent = `읽지 못했습니다 — ${err.message}`;
+    st.className = 'state bad';
+  } finally {
+    e.target.value = '';
+  }
+});
+
+function normalizeImported(data) {
+  const pages = data.pages || [];
+  const drawingKeys = (state.spec?.columns || []).filter((c) => c.source === 'drawing').map((c) => c.key);
+  let rows;
+  if (Array.isArray(data.instruments)) {
+    // 파이썬 extraction.json — 판독 키가 그대로 들어 있다
+    rows = data.instruments.map((r) => ({ ...r }));
+  } else if (Array.isArray(data.rows)) {
+    // 앱이 내보낸 검토용 JSON — values 안에 컬럼 키로 들어 있다
+    rows = data.rows.map((r) => {
+      const out = { _page: r.page ?? null, confidence: r.confidence || '', source_tokens: r.source_tokens || '' };
+      for (const k of drawingKeys.length ? drawingKeys : Object.keys(r.values || {})) {
+        if (r.values && r.values[k] !== undefined) out[k] = r.values[k];
+      }
+      return out;
+    });
+  } else {
+    throw new Error('instruments 또는 rows 배열이 없습니다.');
+  }
+  return {
+    rows,
+    excluded: data.excluded || [],
+    findings: data.review_findings || data.findings || [],
+    pages,
+    usage: data.usage || { input: 0, output: 0, cached: 0 },
+  };
 }
 
 function setRunning(on, msg = '') {
@@ -471,6 +551,8 @@ function withTypicals(row) {
 }
 
 function renderResult() {
+  // 표는 템플릿의 컬럼 정의로 그린다. 템플릿이 아직 없으면 결과만 들고 기다린다.
+  if (!state.spec) return;
   $('sec-result').classList.remove('hidden');
   const cols = shownColumns();
 
@@ -722,6 +804,8 @@ $('login-form').addEventListener('submit', async (e) => {
 
   const tpl = await idbGet('template');
   if (tpl && !state.spec) await useTemplate(tpl.name, tpl.bytes);
+  const saved = await idbGet('result');           // 지난번에 쌓아둔 판독 결과
+  if (saved?.rows?.length) { state.result = saved; renderResult(); }
   const pdf = await idbGet('pdf');
   if (pdf) { state.pdf = pdf; await scanPdf(); }
 })();
