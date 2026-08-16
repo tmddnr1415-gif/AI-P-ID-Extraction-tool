@@ -8,6 +8,7 @@
 const $ = (id) => document.getElementById(id);
 
 const state = {
+  server: null,       // 공유 링크 서버 모드일 때 /api/config 응답
   settings: {
     apiKey: '', model: 'claude-opus-5', effort: 'high', maxTokens: 32000,
     tiles: '3x2', dpi: 200,
@@ -153,13 +154,15 @@ $('dlg-rules').addEventListener('close', () => {
 /* ── 파일 넣기 ─────────────────────────────────────────── */
 function wireDrop(zoneId, inputId, handler, accept) {
   const zone = $(zoneId); const input = $(inputId);
-  zone.addEventListener('click', () => input.click());
+  const locked = () => zone.classList.contains('locked');   // 서버가 정해주는 파일
+  zone.addEventListener('click', () => { if (!locked()) input.click(); });
   input.addEventListener('change', (e) => { if (e.target.files[0]) handler(e.target.files[0]); e.target.value = ''; });
   ['dragenter', 'dragover'].forEach((ev) =>
     zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) =>
     zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
   zone.addEventListener('drop', (e) => {
+    if (locked()) return;
     const f = e.dataTransfer.files[0];
     if (!f) return;
     if (accept && !accept.test(f.name)) { alert(`${accept} 형식의 파일이 필요합니다.`); return; }
@@ -300,7 +303,7 @@ $('btn-stop').addEventListener('click', () => state.controller?.abort());
 
 async function run() {
   const dry = $('opt-dry').checked;
-  if (!dry && !state.settings.apiKey) {
+  if (!dry && !state.server && !state.settings.apiKey) {
     alert('API 키가 없습니다. ⚙ 설정에서 입력하거나 "API 없이 시험 실행"을 켜세요.');
     return;
   }
@@ -332,6 +335,7 @@ async function run() {
         line.set(`판독 중 (이미지 ${1 + images.tiles.length}장)…`);
         const res = await ClaudeAPI.extractDrawing({
           apiKey: state.settings.apiKey,
+          endpoint: state.server ? '/api/extract' : null,
           model: state.settings.model,
           effort: state.settings.effort,
           maxTokens: state.settings.maxTokens,
@@ -609,16 +613,90 @@ function save(data, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/* ── 공유 링크 서버 모드 ───────────────────────────────────
+ * /api/config 가 응답하면 서버 배포본이다. 이때 API 키는 서버에만 있고,
+ * 템플릿도 서버가 내려준다. 사용자는 비밀번호만 넣으면 된다.
+ */
+async function detectServer() {
+  try {
+    const res = await fetch('/api/config', { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    const cfg = await res.json();
+    return cfg.server ? cfg : null;
+  } catch {
+    return null;      // file:// 이거나 정적 배포 — 로컬 모드
+  }
+}
+
+function applyServerMode(cfg) {
+  state.server = cfg;
+  Object.assign(state.settings, {
+    model: cfg.model, effort: cfg.effort, maxTokens: cfg.maxTokens,
+    tiles: cfg.tiles, dpi: cfg.dpi,
+  });
+  // 서버가 정하는 값이므로 브라우저에서 바꾸지 못하게 한다.
+  $('btn-settings').classList.add('hidden');
+  $('dz-tpl').classList.add('locked');
+  document.body.classList.add('server-mode');
+  updateSubtitle();
+}
+
+async function serverLogin(password) {
+  const res = await fetch('/api/login', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `로그인 실패 (HTTP ${res.status})`);
+  return true;
+}
+
+async function loadServerTemplate() {
+  const res = await fetch('/api/template', { credentials: 'same-origin' });
+  if (!res.ok) throw new Error(`템플릿을 받지 못했습니다 (HTTP ${res.status})`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  await useTemplate('서버 템플릿', bytes);
+}
+
+function showLogin(show) {
+  $('login').classList.toggle('hidden', !show);
+  document.querySelector('main').classList.toggle('hidden', show);
+  if (show) setTimeout(() => $('login-password').focus(), 50);
+}
+
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('login-error');
+  err.classList.add('hidden');
+  $('login-submit').disabled = true;
+  try {
+    await serverLogin($('login-password').value);
+    showLogin(false);
+    await loadServerTemplate();
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.classList.remove('hidden');
+  } finally {
+    $('login-submit').disabled = false;
+    $('login-password').value = '';
+  }
+});
+
 /* ── 시작 ──────────────────────────────────────────────── */
 (async function init() {
   loadSettings();
   updateSubtitle();
-  try {
-    const tpl = await idbGet('template');
-    if (tpl) await useTemplate(tpl.name, tpl.bytes);
-    const pdf = await idbGet('pdf');
-    if (pdf) { state.pdf = pdf; await scanPdf(); }
-  } catch (err) {
-    console.warn('저장된 파일을 불러오지 못했습니다', err);
+
+  const cfg = await detectServer();
+  if (cfg) {
+    applyServerMode(cfg);
+    if (!cfg.authed) { showLogin(true); return; }
+    try { await loadServerTemplate(); } catch (err) { console.warn(err); }
   }
+
+  const tpl = await idbGet('template');
+  if (tpl && !state.spec) await useTemplate(tpl.name, tpl.bytes);
+  const pdf = await idbGet('pdf');
+  if (pdf) { state.pdf = pdf; await scanPdf(); }
 })();

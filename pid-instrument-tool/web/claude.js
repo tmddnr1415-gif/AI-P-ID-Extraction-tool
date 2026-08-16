@@ -152,9 +152,14 @@ const ClaudeAPI = (() => {
     return content;
   }
 
-  /** 도면 한 장을 판독한다. onDelta(누적문자수)로 진행 상황을 알린다. */
-  async function extractDrawing({ apiKey, model, effort, maxTokens, system, schema, page, images,
-                                  signal, onDelta }) {
+  /**
+   * 도면 한 장을 판독한다. onDelta(누적문자수)로 진행 상황을 알린다.
+   *
+   * endpoint를 주면 그 주소로 보낸다(공유 링크 서버 모드). 이때 API 키는 서버에만
+   * 있으므로 브라우저에서 헤더를 붙이지 않는다.
+   */
+  async function extractDrawing({ apiKey, endpoint, model, effort, maxTokens, system, schema,
+                                  page, images, signal, onDelta }) {
     const body = {
       model,
       max_tokens: maxTokens,
@@ -165,15 +170,17 @@ const ClaudeAPI = (() => {
       messages: [{ role: 'user', content: userContent(page, images) }],
     };
 
-    const res = await fetch(API_URL, {
+    const headers = { 'content-type': 'application/json' };
+    if (!endpoint) {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = API_VERSION;
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+    const res = await fetch(endpoint || API_URL, {
       method: 'POST',
       signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': API_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers,
+      credentials: endpoint ? 'same-origin' : 'omit',
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(await describeError(res));

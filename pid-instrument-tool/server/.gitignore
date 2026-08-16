@@ -1,0 +1,11 @@
+# build_server.py 가 만드는 산출물 (web/ 복사본)
+public/
+
+# 프로젝트 Excel 템플릿이 들어 있어 커밋하지 않는다.
+src/template.b64.js
+
+# 로컬 개발용 비밀값
+.dev.vars
+
+node_modules/
+.wrangler/

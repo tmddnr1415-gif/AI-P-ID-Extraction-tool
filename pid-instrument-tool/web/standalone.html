@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   P&ID Instrument List — 단일 파일 빌드
-  생성: scripts/build_web.py · 2026-08-15 23:50
+  생성: scripts/build_web.py · 2026-08-16 00:24
   원본: web/index.html + styles.css + *.js + vendor/
   자동 생성 파일입니다. 고칠 때는 원본을 고치고 다시 빌드하세요.
 -->
@@ -386,6 +386,18 @@ main { max-width: 1240px; margin: 0 auto; padding: 14px 18px 60px; }
 dialog form { display: block; }
 dialog h2 { margin-bottom: 12px; }
 
+/* ── 공유 링크 서버 모드 ───────────────────────────────── */
+.login { display: grid; place-items: center; min-height: 78vh; padding: 20px; }
+.login-box {
+  width: min(360px, 92vw); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 26px 24px;
+}
+.login-box h2 { margin-bottom: 4px; }
+.login-box button { width: 100%; margin-top: 4px; }
+.login-box .muted:last-child { margin: 12px 0 0; text-align: center; }
+.server-mode .dropzone.locked { cursor: default; opacity: .75; }
+.server-mode .dropzone.locked:hover { border-color: var(--line-strong); background: var(--panel); }
+
 </style>
 </head>
 <body>
@@ -403,6 +415,21 @@ dialog h2 { margin-bottom: 12px; }
     <button id="btn-settings" class="ghost" type="button">⚙ 설정</button>
   </div>
 </header>
+
+<!-- 공유 링크 서버 모드에서만 나타납니다 -->
+<section id="login" class="login hidden">
+  <form id="login-form" class="login-box">
+    <h2>P&amp;ID Instrument List</h2>
+    <p class="muted">이 도구를 쓰려면 비밀번호가 필요합니다.</p>
+    <label class="field">
+      <span>비밀번호</span>
+      <input id="login-password" type="password" autocomplete="current-password" required />
+    </label>
+    <p id="login-error" class="error hidden"></p>
+    <button id="login-submit" class="primary" type="submit">들어가기</button>
+    <p class="muted">API 키는 서버에만 있고 브라우저로 내려오지 않습니다.</p>
+  </form>
+</section>
 
 <main>
 
@@ -606,7 +633,7 @@ dialog h2 { margin-bottom: 12px; }
 <!-- rules.gen.js -->
 <script>
 /* rules/*.md 에서 자동 생성됩니다. 직접 고치지 마세요.
-   생성: scripts/build_web.py · 2026-08-15 23:50 */
+   생성: scripts/build_web.py · 2026-08-16 00:24 */
 const RULES_DEFAULT = {
   "extraction_guide.md": "# P&ID Field Instrument 판독 규칙\n\n> 이 문서는 `extract_instruments.py`의 시스템 프롬프트에 **통째로** 들어간다.\n> 사람이 검토하면서 발견한 오류를 규칙으로 바꿔 여기에 계속 누적한다.\n> 규칙을 고칠 때는 `review_log.md`에 언제·무엇을·왜 고쳤는지 함께 남긴다.\n\n버전: v1 (초기) · 최종 수정: 2026-08-15\n\n---\n\n## 1. 읽는 순서\n\n각 P&ID는 **위 → 아래, 왼쪽 → 오른쪽** 순서로 읽는다. 출력 행 순서도 이 순서를 따른다.\n확대 타일이 제공되면 타일 순서(r0c0 → r0c1 → …)가 곧 이 순서다.\n\n## 2. Symbol & Legend 우선\n\n계기를 판독하기 전에 `rules/symbol_legend.md`(기호 정의, 첫 글자/뒤 글자 조합표, 신호선,\n밸브 상태 기호 FO/FC/LO)를 먼저 적용한다. 레전드에 없는 기호를 임의로 해석하지 않는다.\n\n## 3. 무엇이 Field Instrument인가\n\n계기는 **원(circle) 또는 태그 박스** 안에 **계기 문자 조합**이 들어 있는 것으로만 식별한다.\n\n계기로 **오인하지 말 것**:\n\n- 배관 치수 표기 (DN 사이즈, `550`, `SPL-THK` 등)\n- 라인 브레이크 기호, 연속 도면 참조 화살표\n- 장비 심볼(펌프, 열교환기)과 장비 번호\n- 밸브 자체, 밸브 액추에이터, `I/P` 변환기\n\n이번 단계 범위에서 **제외**하는 것 (제외한 사실은 `excluded`에 이유와 함께 남긴다):\n\n| 대상 | 이유 |\n|---|---|\n| `ZS`, `ZSO`, `ZSC` | 밸브 리밋스위치 — Valve 카테고리에서 다룬다 |\n| `HS`, `XS` | 수동 스위치 / 기타 — Field Instrument 아님 |\n| 벤더 패키지 내부 계기 | 패키지 공급 범위. GT/ST/HRSG 스킨 내부 등 |\n| 제어밸브에 딸린 포지셔너 | Valve 카테고리 |\n\n## 4. 텍스트 레이어 후보의 사용법\n\n프롬프트에 함께 들어오는 \"텍스트 레이어 계기 문자 후보\"는 PDF에서 결정적으로 추출한\n것이라 **위치와 개수가 정확하다**. 이것을 기준선으로 삼되 그대로 옮기지 않는다.\n\n- 후보 하나하나를 이미지에서 확인해 Field Instrument인지 판단한다.\n- 후보에 없어도 이미지에서 계기를 발견하면 추가하고 `source_tokens`에 그 사실을 적는다.\n- 후보 문자와 최종 TYPE은 다를 수 있다. 도면에는 전송기를 `PT`로 그려도\n  Instrument List의 TYPE은 `PIT`로 쓴다.\n\n### 도면 문자 → TYPE 매핑\n\n| 도면 문자 | Instrument List TYPE |\n|---|---|\n| PT, PIT | PIT |\n| TT, TIT | TIT |\n| LT, LIT | LIT |\n| FT, FIT | FIT |\n| PDT, PDI, PDIT | PDIT |\n| AT, AIT | AIT |\n| PI / TI / LI / FI | 그대로 (지시계) |\n| FE | FE (오리피스 등 유량 요소) |\n| RO | RO (제한 오리피스) |\n| LS, FS, PS, TS | 그대로 (스위치) |\n\n## 5. Q'ty (수량) 통합 규칙\n\n**같은 사양 · 같은 용도**로 중복 설치된 계기는 **한 행으로 합치고** `qty`에 개수를 적는다.\n\n- 2-out-of-3, 이중화(A/B) 등으로 나란히 붙은 동일 계기 → 한 행, qty=2 또는 3\n- UNIT #11 / #12 처럼 **호기가 다르면 별도 행**으로 둔다 (DESCRIPTION이 다르므로)\n- 측정점이 다르면(공급/회수, 입구/출구) 별도 행\n\n## 6. DESCRIPTION 작성 기준\n\n`UNIT 번호 + 설비/계통 + 측정 대상 + 서브 식별자` 순서로 **영문 대문자**로 쓴다.\n각 라인의 From/To 라벨(예: `TO HRSG#11 BD TANK`)을 근거로 삼는다.\n\n```\nUNIT #11 HP STEAM PRESSURE A\nUNIT #11 BOILER FEED WATER PUMP B SUCTION PRESSURE A\nUNIT #11 BFP A/B COOLER CCW RETURN TEMPERATURE\nUNIT #11 BOILER FEED WATER PUMP B DISCHARGE IP FLOW ELEMENT\n```\n\n- 서브 식별자 `A`/`B`는 **이중화된 측정점을 구분할 때만** 붙인다.\n- 유량 요소(FE)는 끝에 `FLOW ELEMENT`를 붙여 전송기(FIT)와 구분한다.\n- 도면에서 설비 이름을 읽을 수 없으면 지어내지 말고 confidence를 `low`로 둔다.\n\n## 7. TAG 열은 비운다\n\n제안 단계 도면의 계기 버블은 태그 번호 자리가 점선(`.....`)으로 비어 있다.\n템플릿의 `TAG` 열도 전 행이 비어 있다. **태그 번호를 만들어내지 않는다.**\n행의 식별은 `P&ID No. + TYPE + DESCRIPTION` 조합으로 한다.\n\n## 8. INST. TYPICAL TYPE 선택\n\nTYPE이 정해지면 허용된 TYPICAL TYPE 중에서 고른다(프롬프트에 목록이 들어온다).\n선택 기준은 도면에서 읽히는 설치 형태다.\n\n- 다이어프램 실(remote seal)/캐필러리가 그려져 있으면 `-2`/`-3` 계열\n- 일반 직결/원격 전송이면 `-1` 계열\n- 온도계는 열전대(T/C)면 `TIT-3`, RTD면 `TIT-5`\n- 판단 근거가 도면에 없으면 가장 흔한 계열을 고르고 confidence를 `medium` 이하로 둔다\n\n## 9. Vendor Scope 표기\n\n도면에 `*` 또는 별도 심볼로 벤더 공급 범위가 표시된 계기는 `REMARK`에\n`Vendor Scope`(또는 확인되는 벤더명)를 명시한다. 패키지 내부 계기라 목록에서\n제외한 경우에는 `excluded`에 그 이유를 적는다.\n\n## 10. 도면 Note 반영\n\n각 도면 좌측의 `GENERAL NOTES` / `NOTES`를 읽고 계기에 영향을 주는 내용이면 REMARK에 반영한다.\n예: `THIS P&ID IS FOR UNIT#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22` →\n같은 계기가 다른 호기에도 있다는 뜻이므로, 호기별 행 분리 여부를 확인해야 한다(→ review_findings).\n\n## 11. REMARK / 개정 표기\n\n- 개정으로 추가된 계기: `ADD`\n- 개정으로 삭제된 계기: `DEL` (행은 남기고 REMARK에 표기)\n- 해당 없음: `-`\n\n## 12. 채우지 않는 컬럼\n\n다음은 도면에서 읽을 수 없으므로 **비워 둔다**. 억지로 채우지 않는다.\n\n- `UNIT`, `SYSTEM CODE`, `SYSTEM SEQUENCE`, `TAG` — 템플릿에서 전 행 비어 있음\n- `Design table No.`, 운전/설계 조건, 배관 정보, `Rating`, `Velocity Criteria`, `Fluid`\n  — 별도 Design Table에서 조인\n- `REQUIRED CALIBRATION RANGE`, `UNIT`, `ELEM. MATERIAL`, `Connection Type`,\n  `TW / CHAMBER SPECIFICATION`, `EXPLOSION PROOF` — 서비스 조건에 따라 달라져\n  TYPICAL TYPE만으로 결정되지 않음\n- `BODY MATERIAL`, `Scope of Supply`, `MAKER`, `MODEL`, `STATUS`\n\n## 13. 확신도와 검토 의견\n\n- `confidence`: 글자가 흐리거나 맥락 추정이 섞였으면 `low`\n- 판독 불가 영역, 도면 간 태그 충돌, 규칙으로 판단이 안 되는 경우는 반드시\n  `review_findings`에 남긴다. 조용히 넘어가지 않는다.\n\n---\n\n## 검토 피드백에서 도출된 규칙\n\n> `scripts/apply_feedback.py --apply-rules` 가 이 아래에 규칙을 추가한다.\n> 사람이 문장을 다듬어 위 본문으로 승격시키는 것을 권장한다.\n\n_(아직 없음)_\n",
   "naming_convention.md": "# 태그 넘버링 규칙 (KKS / ISA 5.1)\n\n> 출처: `D00P-00GEN00-M05-0005` (P&ID FOR SYMBOLS & LEGENDS 4) 텍스트 레이어에서 발췌.\n> 원문 근거가 있는 내용만 적었다. 확장할 때도 도면·기준서 근거를 함께 남긴다.\n> 프로젝트 기준서: `19K9-00GEN00-G02-0002` (KKS NUMBERING SYSTEM)\n\n---\n\n## 1. KKS 식별 체계\n\n태그 넘버링은 **KKS(Kraftwerk-Kennzeichensystem)** 기준을 따른다.\n브레이크다운 레벨 4단계로 구성된다.\n\n| 레벨 | 자리 | 의미 |\n|---|---|---|\n| 0 | `U` `U` | Plant Unit (호기 구분) |\n| 1 | `S` `S` `S` + 숫자 | 시스템 코드 + 시스템 내 순번 (예: `LAB01`) |\n| 2 | `A` `A` + 숫자 | 설비 유닛 코드 + 설비 순번 (예: `AP001`) |\n| 3 | `-M` 등 | 컴포넌트 코드 |\n\n**적용 예시 (도면 원문):**\n\n```\n20LAB31AP001      COGENERATION FEEDWATER PUMP A\n20LAB11AP001-M    COGENERATION FEEDWATER PUMP A MOTOR\n```\n\n## 2. 호기(Plant Unit) 코드\n\n| 코드 | 의미 |\n|---|---|\n| `00` | POWER PLANT COMMON |\n| `10` | FIRST GROUP COMMON (INCL. FIRST GROUP STG) |\n| `11` | FIRST GROUP #1 GTG / HRSG |\n| `12` | FIRST GROUP #2 GTG / HRSG |\n| `20` / `21` / `22` | SECOND GROUP (동일 구조) |\n\n도면번호 `D00P-11LAB00-M05-0001`의 `11`이 이 호기 코드이며, DESCRIPTION의\n`UNIT #11`과 대응한다.\n\n## 3. 도면번호 체계\n\n```\nD00P - 11LAB00 - M05 - 0001\n │       │        │      └ 도면 일련번호\n │       │        └ 도면 종류 (M05 = P&ID)\n │       └ 호기(2) + 시스템 코드(3) + 시스템 순번(2)\n └ 프로젝트 코드\n```\n\n## 4. 계기 회로 번호 범위\n\n계기류는 KKS 번호 범위 중 `191-199`(INSTRUMENTATION), `201-250`(INSTRUMENT ISOLATION)\n구간을 사용한다. 밸브류는 `001-100`(주배관 밸브), `101-190`(밸브 일반),\n`301-399`(제어밸브/댐퍼), `401-499`(안전밸브) 등 별도 구간이다.\n\n## 5. 이 프로젝트에서 태그 번호를 쓰지 않는 이유\n\n제안(proposal) 단계 도면이라 계기 버블 안의 태그 번호 자리가 점선(`.....`)으로\n비어 있다. 정답 Instrument List의 `TAG` 열도 563행 전부 비어 있다.\n\n→ **판독 단계에서 태그 번호를 생성하지 않는다.**\n→ 행의 식별자는 `P&ID No. + TYPE + DESCRIPTION` 조합이다.\n\n상세설계 단계 도면으로 넘어가 태그가 부여되면 이 절을 개정하고, `extraction_guide.md`\n7절도 함께 고친다.\n\n## 6. ISA 5.1 문자 조합\n\n첫 글자(측정 변수)와 뒤 글자(기능)의 조합표는 Symbol & Legend 도면에서 추출해\n`rules/symbol_legend.md`에 둔다. 이 프로젝트에서 실제로 나타나는 조합은 다음과 같다\n(정답 Instrument List 563행 기준).\n\n| TYPE | 조합 해석 |\n|---|---|\n| `PI` / `TI` / `LI` | 압력 / 온도 / 레벨 지시계 |\n| `PIT` / `TIT` / `LIT` / `FIT` | 지시 + 전송기 |\n| `PDIT` | 차압 지시 전송기 |\n| `LS` / `FS` | 레벨 / 유량 스위치 |\n| `FE` | 유량 요소 (오리피스 등) |\n| `RO` | 제한 오리피스 (Restriction Orifice) |\n\n`AIT`(분석), `LSH`/`LSHH`/`LSL`(레벨 스위치 하이/로우) 등은 템플릿에는 예시로\n언급되어 있으나 현재 정답 목록에는 나타나지 않는다. 새로 발견되면 `review_findings`로\n보고하고 이 표에 추가한다.\n",
@@ -1302,9 +1329,14 @@ const ClaudeAPI = (() => {
     return content;
   }
 
-  /** 도면 한 장을 판독한다. onDelta(누적문자수)로 진행 상황을 알린다. */
-  async function extractDrawing({ apiKey, model, effort, maxTokens, system, schema, page, images,
-                                  signal, onDelta }) {
+  /**
+   * 도면 한 장을 판독한다. onDelta(누적문자수)로 진행 상황을 알린다.
+   *
+   * endpoint를 주면 그 주소로 보낸다(공유 링크 서버 모드). 이때 API 키는 서버에만
+   * 있으므로 브라우저에서 헤더를 붙이지 않는다.
+   */
+  async function extractDrawing({ apiKey, endpoint, model, effort, maxTokens, system, schema,
+                                  page, images, signal, onDelta }) {
     const body = {
       model,
       max_tokens: maxTokens,
@@ -1315,15 +1347,17 @@ const ClaudeAPI = (() => {
       messages: [{ role: 'user', content: userContent(page, images) }],
     };
 
-    const res = await fetch(API_URL, {
+    const headers = { 'content-type': 'application/json' };
+    if (!endpoint) {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = API_VERSION;
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+    const res = await fetch(endpoint || API_URL, {
       method: 'POST',
       signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': API_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers,
+      credentials: endpoint ? 'same-origin' : 'omit',
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(await describeError(res));
@@ -1423,6 +1457,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ClaudeAPI;
 const $ = (id) => document.getElementById(id);
 
 const state = {
+  server: null,       // 공유 링크 서버 모드일 때 /api/config 응답
   settings: {
     apiKey: '', model: 'claude-opus-5', effort: 'high', maxTokens: 32000,
     tiles: '3x2', dpi: 200,
@@ -1568,13 +1603,15 @@ $('dlg-rules').addEventListener('close', () => {
 /* ── 파일 넣기 ─────────────────────────────────────────── */
 function wireDrop(zoneId, inputId, handler, accept) {
   const zone = $(zoneId); const input = $(inputId);
-  zone.addEventListener('click', () => input.click());
+  const locked = () => zone.classList.contains('locked');   // 서버가 정해주는 파일
+  zone.addEventListener('click', () => { if (!locked()) input.click(); });
   input.addEventListener('change', (e) => { if (e.target.files[0]) handler(e.target.files[0]); e.target.value = ''; });
   ['dragenter', 'dragover'].forEach((ev) =>
     zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) =>
     zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('over'); }));
   zone.addEventListener('drop', (e) => {
+    if (locked()) return;
     const f = e.dataTransfer.files[0];
     if (!f) return;
     if (accept && !accept.test(f.name)) { alert(`${accept} 형식의 파일이 필요합니다.`); return; }
@@ -1715,7 +1752,7 @@ $('btn-stop').addEventListener('click', () => state.controller?.abort());
 
 async function run() {
   const dry = $('opt-dry').checked;
-  if (!dry && !state.settings.apiKey) {
+  if (!dry && !state.server && !state.settings.apiKey) {
     alert('API 키가 없습니다. ⚙ 설정에서 입력하거나 "API 없이 시험 실행"을 켜세요.');
     return;
   }
@@ -1747,6 +1784,7 @@ async function run() {
         line.set(`판독 중 (이미지 ${1 + images.tiles.length}장)…`);
         const res = await ClaudeAPI.extractDrawing({
           apiKey: state.settings.apiKey,
+          endpoint: state.server ? '/api/extract' : null,
           model: state.settings.model,
           effort: state.settings.effort,
           maxTokens: state.settings.maxTokens,
@@ -2024,18 +2062,92 @@ function save(data, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/* ── 공유 링크 서버 모드 ───────────────────────────────────
+ * /api/config 가 응답하면 서버 배포본이다. 이때 API 키는 서버에만 있고,
+ * 템플릿도 서버가 내려준다. 사용자는 비밀번호만 넣으면 된다.
+ */
+async function detectServer() {
+  try {
+    const res = await fetch('/api/config', { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    const cfg = await res.json();
+    return cfg.server ? cfg : null;
+  } catch {
+    return null;      // file:// 이거나 정적 배포 — 로컬 모드
+  }
+}
+
+function applyServerMode(cfg) {
+  state.server = cfg;
+  Object.assign(state.settings, {
+    model: cfg.model, effort: cfg.effort, maxTokens: cfg.maxTokens,
+    tiles: cfg.tiles, dpi: cfg.dpi,
+  });
+  // 서버가 정하는 값이므로 브라우저에서 바꾸지 못하게 한다.
+  $('btn-settings').classList.add('hidden');
+  $('dz-tpl').classList.add('locked');
+  document.body.classList.add('server-mode');
+  updateSubtitle();
+}
+
+async function serverLogin(password) {
+  const res = await fetch('/api/login', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `로그인 실패 (HTTP ${res.status})`);
+  return true;
+}
+
+async function loadServerTemplate() {
+  const res = await fetch('/api/template', { credentials: 'same-origin' });
+  if (!res.ok) throw new Error(`템플릿을 받지 못했습니다 (HTTP ${res.status})`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  await useTemplate('서버 템플릿', bytes);
+}
+
+function showLogin(show) {
+  $('login').classList.toggle('hidden', !show);
+  document.querySelector('main').classList.toggle('hidden', show);
+  if (show) setTimeout(() => $('login-password').focus(), 50);
+}
+
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('login-error');
+  err.classList.add('hidden');
+  $('login-submit').disabled = true;
+  try {
+    await serverLogin($('login-password').value);
+    showLogin(false);
+    await loadServerTemplate();
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.classList.remove('hidden');
+  } finally {
+    $('login-submit').disabled = false;
+    $('login-password').value = '';
+  }
+});
+
 /* ── 시작 ──────────────────────────────────────────────── */
 (async function init() {
   loadSettings();
   updateSubtitle();
-  try {
-    const tpl = await idbGet('template');
-    if (tpl) await useTemplate(tpl.name, tpl.bytes);
-    const pdf = await idbGet('pdf');
-    if (pdf) { state.pdf = pdf; await scanPdf(); }
-  } catch (err) {
-    console.warn('저장된 파일을 불러오지 못했습니다', err);
+
+  const cfg = await detectServer();
+  if (cfg) {
+    applyServerMode(cfg);
+    if (!cfg.authed) { showLogin(true); return; }
+    try { await loadServerTemplate(); } catch (err) { console.warn(err); }
   }
+
+  const tpl = await idbGet('template');
+  if (tpl && !state.spec) await useTemplate(tpl.name, tpl.bytes);
+  const pdf = await idbGet('pdf');
+  if (pdf) { state.pdf = pdf; await scanPdf(); }
 })();
 
 </script>

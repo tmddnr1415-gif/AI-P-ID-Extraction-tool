@@ -371,3 +371,15 @@ main { max-width: 1240px; margin: 0 auto; padding: 14px 18px 60px; }
 
 dialog form { display: block; }
 dialog h2 { margin-bottom: 12px; }
+
+/* ── 공유 링크 서버 모드 ───────────────────────────────── */
+.login { display: grid; place-items: center; min-height: 78vh; padding: 20px; }
+.login-box {
+  width: min(360px, 92vw); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 26px 24px;
+}
+.login-box h2 { margin-bottom: 4px; }
+.login-box button { width: 100%; margin-top: 4px; }
+.login-box .muted:last-child { margin: 12px 0 0; text-align: center; }
+.server-mode .dropzone.locked { cursor: default; opacity: .75; }
+.server-mode .dropzone.locked:hover { border-color: var(--line-strong); background: var(--panel); }
