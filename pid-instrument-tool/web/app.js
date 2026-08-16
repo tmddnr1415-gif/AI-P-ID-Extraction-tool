@@ -563,6 +563,27 @@ function systemFromTitle(title, systems) {
   return score >= 0.6 ? best : '';
 }
 
+/* DESCRIPTION 을 쓸 때 볼 근거 — 계기 옆에 있던 설비명과 배관 행선지.
+ *
+ * 이 라벨들로 DESCRIPTION 을 자동 조립해 보았으나 시험 3장에서 69행 중 6행만 맞았다.
+ * 어느 라벨을 고를지와 뭐라고 부를지가 곧 판독이라 좌표만으로는 안 된다.
+ * 그래서 문장을 지어내지 않고 재료만 붙인다. 사람이 도면을 뒤지지 않아도 되게.
+ */
+function describeHints(p, c) {
+  const near = (kind, wx, wy) => {
+    const pool = (p.labels || []).filter((l) => l.kind === kind);
+    if (!pool.length) return null;
+    const d = (l) => ((l.x - c.x) * wx) ** 2 + ((l.y - c.y) * wy) ** 2;
+    return pool.reduce((a, b) => (d(b) < d(a) ? b : a));
+  };
+  const eq = near('equip', 3, 1);        // 설비 박스는 세로 열로 서 있어 x를 크게 본다
+  const ln = near('line', 1, 1.5);
+  const bits = [`'${c.token}' @ x=${c.x} y=${c.y}`];
+  if (eq) bits.push(`설비 '${eq.t}'`);
+  if (ln) bits.push(`배관 '${ln.t}'`);
+  return bits.join(' · ');
+}
+
 /* API 없이 텍스트 레이어와 NOTES만으로 만드는 기준선.
  *
  * 도면에서 결정적으로 읽히는 것만 채운다 — SYSTEM · P&ID No. · TYPE · Q'ty ·
@@ -589,9 +610,9 @@ function baseline(p) {
     }
     instruments.push({
       system, pid_no: p.drawing_no || '', type, qty: String(qty),
-      description: '',                          // 사람이 채울 칸
+      description: '',                          // 사람이 채울 칸 — 아래 근거를 보고 쓴다
       inst_typical_type: top[`${system}||${type}`] || top[type] || '', remark: '-',
-      source_tokens: `텍스트 레이어 '${c.token}' @ x=${c.x} y=${c.y}`,
+      source_tokens: describeHints(p, c),
       confidence: 'low',
     });
   }
@@ -600,7 +621,9 @@ function baseline(p) {
     severity: 'high', location: p.drawing_no || '',
     finding: `API 없이 만든 기준선입니다. 계기 ${instruments.length}건의 SYSTEM · P&ID No. · TYPE · `
       + `Q'ty · INST. TYPICAL TYPE 은 도면에서 결정적으로 읽어 채웠고, DESCRIPTION 은 비어 있습니다.`,
-    recommendation: 'DESCRIPTION 을 검토 UI에서 채우고, 벤더 공급 범위 계기를 지우세요.',
+    recommendation: 'DESCRIPTION 은 각 행의 근거 칸에 붙은 설비명·배관 행선지를 보고 쓰세요. '
+      + '자동 조립도 시도했지만 시험 3장에서 69행 중 6행만 맞아 문장을 지어내지 않습니다. '
+      + '함께 벤더 공급 범위 계기를 지우세요.',
   }, {
     severity: 'high', location: p.drawing_no || '',
     finding: `Q'ty ${qty} — ${why}`,

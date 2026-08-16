@@ -95,7 +95,35 @@ const PDFScan = (() => {
       .map((i) => ({ token: i.str.replace(/[.,;:()[\]]/g, ''), x: +i.x.toFixed(4), y: +i.y.toFixed(4) }))
       .sort((a, b) => a.y - b.y || a.x - b.x);
 
-    return { drawing_no: nums.length ? nums[nums.length - 1] : null, title, notes, candidates };
+    return { drawing_no: nums.length ? nums[nums.length - 1] : null, title, notes, candidates,
+             labels: sheetLabels(items) };
+  }
+
+  /* 도면 안쪽 글자 라벨 — 설비 박스 이름과 배관 행선지.
+   *
+   * DESCRIPTION 을 이걸로 자동 조립해 보았으나 시험 3장에서 69행 중 6행만 맞았다.
+   * 어느 라벨을 고를지와 어떻게 부를지가 곧 판독이라 좌표만으로는 안 된다.
+   * 그래서 문장을 지어내지 않고, 계기마다 가장 가까운 라벨을 근거로 붙여 준다.
+   * 사람이 DESCRIPTION 을 쓸 때 도면을 뒤지지 않아도 되게 하는 용도다.
+   */
+  const EQUIP_HINT = /\b(COOLER|COOLERS|PUMP|TANK|DRUM|SYSTEM|TURBINE|BOILER|HEATER|ECONOMIZER|VESSEL|FAN|COMPRESSOR|FILTER|HEADER)\b/i;
+  const SECTION = /\b(SUPPLY|RETURN|DRAIN|DISCHARGE|SUCTION|INLET|OUTLET|BYPASS|VENT)\b/i;
+  const LABEL_NOISE = /SAMSUNG|PROJECT|DRAWING|SHEET|SCALE|PROPERTY|INTERNAL USE|AL NOUF|EMPLOYER|TENDERER|PREPARED|REFER TO|DENOTES|CONFIGURATION|THIS DRAWING|MARKED ITEM|NOTES|SHALL BE|IDENTICAL/i;
+
+  function sheetLabels(items) {
+    const out = [];
+    for (const i of items) {
+      const t = i.str;
+      if (i.x > 0.78 || (i.x > 0.55 && i.y > 0.78)) continue;   // 노트·타이틀블록
+      if (t.length < 6 || DRAWING_NO.test(t) || LABEL_NOISE.test(t)) continue;
+      if (!/[A-Z]{3,}/.test(t)) continue;
+      // 'TO HRSG#12 BD TANK' 은 설비명이 아니라 행선지다. 설비 후보에서 뺀다.
+      const line = /^(TO|FROM)\b/i.test(t) || SECTION.test(t);
+      const equip = !/^(TO|FROM)\b/i.test(t) && EQUIP_HINT.test(t);
+      if (!line && !equip) continue;
+      out.push({ t, x: +i.x.toFixed(4), y: +i.y.toFixed(4), kind: equip ? 'equip' : 'line' });
+    }
+    return out.slice(0, 80);
   }
 
   /** 1쪽 DRAWING LIST에서 도면번호 → 도면명 대조표 */
@@ -168,6 +196,7 @@ const PDFScan = (() => {
         title: info.title,
         notes: info.notes,
         candidates: info.candidates,
+        labels: info.labels,
         page_size_pt: [Math.round(vp.width), Math.round(vp.height)],
         conflicts: [],
         is_legend: /GEN00/.test(info.drawing_no || '')
