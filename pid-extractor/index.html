@@ -315,6 +315,7 @@ button.del:hover { color:var(--bad); }
                     border:1px solid var(--line); border-radius:var(--radius-sm);
                     background:var(--bg-2); color:var(--ink)" />
     </label>
+    <p class="note" id="env-note" style="font:12px/1.6 var(--mono)"></p>
     <div class="stats" id="run-stats"></div>
     <div id="run-log" class="run-log hidden"></div>
     <div class="warn-box hidden" id="fail-box">
@@ -427,6 +428,7 @@ function ensurePdfjs() {
 
 /* ── PDF 받기 ───────────────────────────────────────────────────────────── */
 wireDrop('dz', 'in-pdf', /\.pdf$/i, loadPdf);
+$('env-note').textContent = `실행 환경 — ${runtimeInfo()}`;
 
 async function loadPdf(file) {
   const st = $('pdf-state');
@@ -740,6 +742,24 @@ function fluidOf(system) {
    { "p6:r0c0": [...], "p6:pass1": {...} } 형태. */
 const stubbing = () => USE_STUB || !!window.__STUB_FIXTURE;
 
+/* ── 실행 환경 ───────────────────────────────────────────────────────────
+ * 화면만 보고는 여기가 claude.ai 아티팩트인지, 다른 뷰어인지, 그냥 연 파일인지
+ * 구분이 안 된다. 그런데 그 차이가 Claude 호출이 열리느냐를 가른다.
+ * 그래서 앱이 스스로 밝힌다 — 오류를 알릴 때 이 줄이 같이 있어야 원인을 안다. */
+function runtimeInfo() {
+  const bits = [window.top === window.self ? '최상위 창' : 'iframe 안'];
+  let parent = '';
+  try {
+    const a = location.ancestorOrigins;
+    if (a && a.length) parent = a[a.length - 1];
+    else if (document.referrer) parent = new URL(document.referrer).origin;
+  } catch { /* 접근 막힘 */ }
+  bits.push(`상위 ${parent || '알 수 없음'}`);
+  bits.push(`이 창 ${location.origin === 'null' ? 'null(샌드박스)' : location.origin}`);
+  bits.push(`window.claude ${window.claude ? '있음' : '없음'}`);
+  return bits.join(' · ');
+}
+
 /** 재시도해도 소용없는 오류. 타일 하나가 아니라 판독 전체를 멈춘다. */
 function fatal(msg) {
   const e = new Error(msg);
@@ -780,7 +800,7 @@ async function callClaude(content, { signal, label } = {}) {
       : '이 화면에서는 Claude 호출이 막혀 있습니다. 키 없는 호출은 '
         + 'claude.ai 대화창에서 만든 아티팩트 안에서만 열립니다. '
         + 'claude.ai 에 index.html 을 붙여 "그대로 아티팩트로 만들어 줘" 하고 거기서 돌리시거나, '
-        + '아래 API 키 칸에 본인 키를 넣으세요.');
+        + `아래 API 키 칸에 본인 키를 넣으세요.  [실행 환경 — ${runtimeInfo()}]`);
   }
   if (res.status === 401 || res.status === 403) {
     throw fatal(`인증 거부 (HTTP ${res.status}). API 키를 확인하세요.`);
