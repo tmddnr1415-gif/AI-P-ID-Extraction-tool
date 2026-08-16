@@ -97,6 +97,27 @@ def review_annotations(pc, lay_x=1960.0):
                     "text": " ".join(t for _, t in line)})
     return res
 
+def annotation_anchors(pc, unverified, x_reach=260.0, y_tol=8.0):
+    """Split geometry-rejected anchors into review markup vs genuine misses.
+
+    A reviewer note like "PIT 삭제" puts the letters PIT on the sheet with no
+    bubble around them, so the anchor scanner picks it up and geometry
+    verification throws it out.  Counting those as AMBIGUOUS_GEOMETRY overstates
+    the geometry problem and hides a data-quality one, so they get their own
+    bucket: an anchor is markup when Korean text shares its line.
+    """
+    han = [r for r, t in pc.words if HANGUL_RE.search(t)]
+    ann, rest = [], []
+    for u in unverified:
+        cx, cy = u["center"]
+        if any(abs((r.y0 + r.y1) / 2 - cy) <= y_tol and abs(r.x0 - cx) <= x_reach
+               for r in han):
+            ann.append(u)
+        else:
+            rest.append(u)
+    return ann, rest
+
+
 VENDOR_RULES = ("VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX")
 SCOPE_RULES = VENDOR_RULES + ("SCT_SUPPLIER_SCOPE",)
 
@@ -112,6 +133,7 @@ COMBOS = {
 
 FAILURE_TYPES = [
     "NO_ANCHOR",
+    "ANNOTATION_TEXT",
     "AMBIGUOUS_GEOMETRY",
     "SCOPE_CONFLICT",
     "VENDOR_MARK_UNDEFINED",
@@ -245,6 +267,7 @@ def main() -> int:
     ap.add_argument("--titleblocks", default="out/titleblocks.csv")
     ap.add_argument("--json", default="out/detect_all.json")
     ap.add_argument("--failures", default="out/failure_report.md")
+    ap.add_argument("--revision-gap", default="out/revision_gap.md")
     args = ap.parse_args()
 
     tb = {int(r["page_no"]): r for r in
@@ -274,6 +297,8 @@ def main() -> int:
             "unverified": unverified, "unmapped": unmapped, "sizes": sizes,
             "notation": mark_notation(pc, mark_dict, glyph_size, marks, boxes),
             "annotations": review_annotations(pc),
+            "annotation_anchors": annotation_anchors(pc, unverified)[0],
+            "true_unverified": annotation_anchors(pc, unverified)[1],
             "undefined_marks": sum(1 for d in dets
                                    if "VENDOR_MARK_UNDEFINED" in d.rules_hit),
         }
@@ -370,6 +395,8 @@ def main() -> int:
                  size_dist, per_page, matched, pdf_only, excel_only, excel,
                  decisions, excel_total, excel_spare, xmatch)
 
+    write_revision_gap(Path(args.revision_gap), per_page, page_rows)
+
     out = Path(args.json)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({
@@ -383,7 +410,7 @@ def main() -> int:
         "pages": page_rows,
         "failures": {k: [f for f in failures if f["type"] == k] for k in FAILURE_TYPES},
     }, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\nwrote {out} and {args.failures}")
+    print(f"\nwrote {out}, {args.failures} and {args.revision_gap}")
     return 0
 
 
@@ -396,6 +423,64 @@ def _recount(prow, per_page, owned, rules, scope):
     tp = sum(min(det.get(t, 0), exp.get(t, 0)) for t in set(det) | set(exp))
     return {**prow, "detected": sum(det.values()), "expected": sum(exp.values()),
             "tp": tp, "det_counts": dict(det), "exp_counts": dict(exp)}
+
+
+def write_revision_gap(path, per_page, page_rows):
+    """Drawings whose review markup records a revision the Excel has not taken up.
+
+    Produced for the client to reconcile.  Nothing in the detector compensates
+    for any of it — a rule that "corrects" for stale Excel rows would be fitting
+    the answer key rather than reading the drawing.
+    """
+    rows = {r["page_no"]: r for r in page_rows}
+    body_pages = [p for p in sorted(per_page)
+                  if any(a["where"] == "DRAWING" for a in per_page[p]["annotations"])]
+
+    L = []
+    L.append("# 도면 개정 ↔ Excel 불일치 목록")
+    L.append("")
+    L.append("PDF 에 검토자 국문 주석 레이어가 있고, 그 내용이 Excel 에 반영되지 않았습니다.")
+    L.append("**규칙으로 보정하지 않았습니다** — 발주처 확인용 목록입니다.")
+    L.append("")
+    L.append(f"도면 본문에 주석이 있는 도면 **{len(body_pages)}건**.")
+    L.append("")
+    L.append("| 페이지 | 도면번호 | 도면명 | 주석 | 검출 | Excel | 상태 |")
+    L.append("|---|---|---|---|---|---|---|")
+    for pno in body_pages:
+        info = per_page[pno]
+        r = rows.get(pno)
+        det = sum(r["det_counts"].values()) if r else 0
+        exp = sum(r["exp_counts"].values()) if r else 0
+        state = "MATCHED" if r else "PDF_ONLY"
+        texts = "<br>".join(a["text"][:56] for a in info["annotations"]
+                            if a["where"] == "DRAWING")
+        L.append(f"| p{pno} | `{info['drawing_no']}` | {info['title'][:32]} | {texts} "
+                 f"| {det} | {exp} | {state} |")
+
+    L.append("")
+    L.append("## 수치로 확인된 건")
+    L.append("")
+    L.append("- **p49 `D00P-00GHB10-M05-0001`** — 주석 `PDIT 3EA, PIT 2EA 삭제`. "
+             "Excel 은 `PDIT` 6 / `PIT` 4 인데 개정 도면과 검출은 모두 **3 / 2** 입니다. "
+             "`RO FIT 1EA 삭제` 주석은 `FIT` 1행 결손과 대응합니다. "
+             "주석을 반영하면 이 도면 재현율은 11/11 이 됩니다.")
+    L.append("- **p44 `D00P-00SCB10-M05-0001`** — 주석 `PIT 삭제`. Excel 의 유일한 1행은 "
+             "`Instument air ring header PRESSURE` (SYSTEM `Compressed Air System`) 로 "
+             "이 도면 소관이 아닙니다. 검출 0 이 맞습니다.")
+    L.append("- **p16 `D00P-10LCA10-M05-0001`** — `RO 추가` 주석 2건. 도면에는 반영됐는데 "
+             "Excel 반영 여부 확인이 필요합니다.")
+    L.append("")
+    L.append("## 타이틀블록 `미접수` 표기")
+    L.append("")
+    tb = sorted(p for p in per_page
+                if any(a["where"] == "TITLEBLOCK" for a in per_page[p]["annotations"]))
+    L.append(f"`Rev.C P&ID 미접수` 가 타이틀블록에 붙은 페이지: {tb}")
+    L.append("")
+    L.append("최신 Rev 도면을 아직 수령하지 못했다는 표시입니다. Excel 이 최신 Rev 기준으로 "
+             "작성됐다면, 이 페이지들의 결손은 검출기 문제가 아니라 도면 버전 차이입니다.")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(L) + "\n", encoding="utf-8")
 
 
 def classify(page_rows, per_page, owned, scope, rules=RULESET_V3):
@@ -427,7 +512,8 @@ def classify(page_rows, per_page, owned, scope, rules=RULESET_V3):
             mistyped = [d for d in info["detections"] if d.anchor == t
                         and d.anchor in rules.not_field]
             unmapped = info["unmapped"]
-            ambiguous = info["unverified"]
+            ambiguous = info["true_unverified"]
+            markup = [a for a in info["annotation_anchors"] if a["anchor"] == t]
 
             if mistyped:
                 out.append(_mk(row, "TYPE_MAPPING_MISS", t, deficit, mistyped[:3],
@@ -443,6 +529,10 @@ def classify(page_rows, per_page, owned, scope, rules=RULESET_V3):
                 out.append(_mk(row, "TYPE_MAPPING_MISS", t, deficit, unmapped[:3],
                                "bubble holds a tag outside the anchor dictionary: "
                                + ", ".join(toks)))
+            elif markup:
+                out.append(_mk(row, "ANNOTATION_TEXT", t, deficit, markup[:3],
+                               "the only match is reviewer markup text, not a symbol — "
+                               "the drawing was revised and the Excel still lists the row"))
             elif ambiguous:
                 out.append(_mk(row, "AMBIGUOUS_GEOMETRY", t, deficit, ambiguous[:3],
                                "anchors found but no single enclosing bubble"))
@@ -560,6 +650,12 @@ def report(variants, page_rows, failures, failures_v1, size_dist, per_page,
     undef = {p: i["undefined_marks"] for p, i in per_page.items() if i["undefined_marks"]}
     print(f"\n  VENDOR_MARK_UNDEFINED detections (mark present, page's NOTES silent): "
           f"{sum(undef.values())} on pages {sorted(undef)}")
+
+    mk_tot = sum(len(i["annotation_anchors"]) for i in per_page.values())
+    mk_pages = {p: len(i["annotation_anchors"]) for p, i in per_page.items()
+                if i["annotation_anchors"]}
+    print(f"\n  anchors that are reviewer markup, not symbols: {mk_tot} "
+          f"on pages {sorted(mk_pages)}")
 
     ann_pages = {p: i["annotations"] for p, i in per_page.items()
                  if any(a["where"] == "DRAWING" for a in i["annotations"])}

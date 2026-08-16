@@ -723,10 +723,10 @@ class Detection:
 
 
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
-           disabled: frozenset | None = None):
+           disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES):
     bubbles = find_bubbles(pc, lay)
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)
-    marks = find_marks(pc, lay, glyph_size, allow_sizes=KNOWN_GLYPH_SIZES)
+    marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes)
     boxes = find_package_boxes(pc, lay)
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)

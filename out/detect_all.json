@@ -950,6 +950,46 @@
         "samples": []
       }
     ],
+    "ANNOTATION_TEXT": [
+      {
+        "type": "ANNOTATION_TEXT",
+        "page_no": 44,
+        "drawing_no": "D00P-00SCB10-M05-0001",
+        "system": "SCB",
+        "title": "P&ID FOR SERVICE AIR DISTRIBUTION SYSTEM",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "the only match is reviewer markup text, not a symbol — the drawing was revised and the Excel still lists the row",
+        "samples": [
+          {
+            "anchor": "PIT",
+            "center": [
+              973.9,
+              162.2
+            ]
+          }
+        ]
+      },
+      {
+        "type": "ANNOTATION_TEXT",
+        "page_no": 49,
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "FIT",
+        "count": 1,
+        "cause": "the only match is reviewer markup text, not a symbol — the drawing was revised and the Excel still lists the row",
+        "samples": [
+          {
+            "anchor": "FIT",
+            "center": [
+              1702.9,
+              758.7
+            ]
+          }
+        ]
+      }
+    ],
     "AMBIGUOUS_GEOMETRY": [
       {
         "type": "AMBIGUOUS_GEOMETRY",
@@ -1005,58 +1045,6 @@
       },
       {
         "type": "AMBIGUOUS_GEOMETRY",
-        "page_no": 44,
-        "drawing_no": "D00P-00SCB10-M05-0001",
-        "system": "SCB",
-        "title": "P&ID FOR SERVICE AIR DISTRIBUTION SYSTEM",
-        "excel_type": "PIT",
-        "count": 1,
-        "cause": "anchors found but no single enclosing bubble",
-        "samples": [
-          {
-            "anchor": "PIT",
-            "center": [
-              973.9,
-              162.2
-            ]
-          }
-        ]
-      },
-      {
-        "type": "AMBIGUOUS_GEOMETRY",
-        "page_no": 49,
-        "drawing_no": "D00P-00GHB10-M05-0001",
-        "system": "GHB",
-        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
-        "excel_type": "FIT",
-        "count": 1,
-        "cause": "anchors found but no single enclosing bubble",
-        "samples": [
-          {
-            "anchor": "PDIT",
-            "center": [
-              1375.1,
-              323.8
-            ]
-          },
-          {
-            "anchor": "PIT",
-            "center": [
-              1432.1,
-              323.8
-            ]
-          },
-          {
-            "anchor": "FIT",
-            "center": [
-              1702.9,
-              758.7
-            ]
-          }
-        ]
-      },
-      {
-        "type": "AMBIGUOUS_GEOMETRY",
         "page_no": 49,
         "drawing_no": "D00P-00GHB10-M05-0001",
         "system": "GHB",
@@ -1077,13 +1065,6 @@
             "center": [
               1432.1,
               323.8
-            ]
-          },
-          {
-            "anchor": "FIT",
-            "center": [
-              1702.9,
-              758.7
             ]
           }
         ]
@@ -1110,13 +1091,6 @@
             "center": [
               1432.1,
               323.8
-            ]
-          },
-          {
-            "anchor": "FIT",
-            "center": [
-              1702.9,
-              758.7
             ]
           }
         ]

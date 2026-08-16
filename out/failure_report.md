@@ -140,7 +140,8 @@ Excel SYSTEM: Demineralized Water Distribution System
 | 유형 | v1 케이스 | v1 행 | v3 케이스 | v3 행 | 변화 |
 |---|---|---|---|---|---|
 | `NO_ANCHOR` | 7 | 23 | 1 | 1 | -22 |
-| `AMBIGUOUS_GEOMETRY` | 8 | 13 | 6 | 9 | -4 |
+| `ANNOTATION_TEXT` | 2 | 2 | 2 | 2 | +0 |
+| `AMBIGUOUS_GEOMETRY` | 6 | 11 | 4 | 7 | -4 |
 | `SCOPE_CONFLICT` | 4 | 6 | 3 | 4 | -2 |
 | `VENDOR_MARK_UNDEFINED` | 0 | 0 | 0 | 0 | +0 |
 | `TYPE_MAPPING_MISS` | 12 | 39 | 2 | 2 | -37 |
@@ -156,21 +157,32 @@ P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM
 추정 원인: no 'PIT' anchor found in any bubble on this page  
 
 
-### `AMBIGUOUS_GEOMETRY` — 6 케이스 / 9 행
+### `ANNOTATION_TEXT` — 2 케이스 / 2 행
+
+**p44 D00P-00SCB10-M05-0001** (계통 `SCB`, TYPE `PIT`, 1행)  
+P&ID FOR SERVICE AIR DISTRIBUTION SYSTEM  
+추정 원인: the only match is reviewer markup text, not a symbol — the drawing was revised and the Excel still lists the row  
+- `PIT` @ [973.9, 162.2]  규칙: -
+
+**p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `FIT`, 1행)  
+P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
+추정 원인: the only match is reviewer markup text, not a symbol — the drawing was revised and the Excel still lists the row  
+- `FIT` @ [1702.9, 758.7]  규칙: -
+
+
+### `AMBIGUOUS_GEOMETRY` — 4 케이스 / 7 행
 
 **p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `PDIT`, 3행)  
 P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
 추정 원인: anchors found but no single enclosing bubble  
 - `PDIT` @ [1375.1, 323.8]  규칙: -
 - `PIT` @ [1432.1, 323.8]  규칙: -
-- `FIT` @ [1702.9, 758.7]  규칙: -
 
 **p49 D00P-00GHB10-M05-0001** (계통 `GHB`, TYPE `PIT`, 2행)  
 P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)  
 추정 원인: anchors found but no single enclosing bubble  
 - `PDIT` @ [1375.1, 323.8]  규칙: -
 - `PIT` @ [1432.1, 323.8]  규칙: -
-- `FIT` @ [1702.9, 758.7]  규칙: -
 
 **p26 D00P-00PAB10-M05-0001** (계통 `PAB`, TYPE `PIT`, 1행)  
 P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)  
