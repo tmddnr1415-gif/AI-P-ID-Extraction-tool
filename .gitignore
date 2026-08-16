@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+
+# Source drawings are large binaries supplied per project, not repo content.
+data/*.pdf
+data/*.xlsx
