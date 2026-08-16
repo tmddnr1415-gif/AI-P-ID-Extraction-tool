@@ -512,3 +512,35 @@ node dev/run_reading.mjs <쪽> <판독.json> [<xlsx>] # 판독을 앱에 넣고 
 
 `downloads` 권한을 선언해 Excel 버튼이 조용히 죽지 않고 거절 사유를 말하게 했다
 (xlsx 는 이 뷰어의 허용 확장자가 아니다).
+
+### 발견 25 — `pdfjsLib is not defined` · CDN 하나에 앱 전체가 걸려 있었다
+
+`<script src="cdnjs…/pdf.min.js">` 가 막히면 그걸로 끝이었다. 화면은 멀쩡히 뜨고,
+PDF 를 넣는 순간 `pdfjsLib is not defined` 만 뜬다. 이 문구는 **무엇이 잘못됐는지
+말해 주지 않는다** — 사용자는 앱이 고장 난 줄 안다.
+
+fflate 때(발견 17·20)와 같은 병이다. 그때는 라이브러리를 없애 해결했지만 pdf.js 는
+1MB 라 `index.html` 에 심을 수 없다 — 심으면 claude.ai 대화창에 붙여 아티팩트로
+만들 수가 없다(모델이 파일을 통째로 다시 써야 한다). 그래서 다르게 푼다.
+
+**조치 둘:**
+
+1. `ensurePdfjs()` — 정적 `<script src>` 를 없애고 **CDN 세 곳을 차례로** 시도한다
+   (cdnjs → jsdelivr → unpkg). PDF 를 넣는 순간에만 부른다.
+2. 전부 막히면 **막힌 호스트 이름과 다음 행동을 그대로 쓴다.**
+   "pdf.js 를 못 불러왔습니다 — cdnjs.cloudflare.com, cdn.jsdelivr.net, unpkg.com
+   가 모두 막혔습니다. 이 화면이 외부 파일을 차단하고 있습니다. …"
+
+`<!-- PDFJS_INJECT` 자리를 두어 배포본과 개발 서버가 같은 방식으로 pdf.js 를 심는다.
+심으면 `ensurePdfjs()` 가 `window.pdfjsLib` 를 보고 즉시 돌아가 CDN 을 아예 안 건드린다.
+
+확인 (`dev/verify_cdn.mjs`):
+
+```
+(a) cdnjs 만 막힘    → cdn.jsdelivr.net 에서 가져옴 · PDF 58쪽 열림
+(b) 세 곳 다 막힘    → 막힌 호스트를 이름까지 적고 멈춤
+(c) 심어 둔 배포본   → CDN 요청 0건 · PDF 58쪽 열림
+```
+
+회귀: p6 3x3/4x4/5x4 각 12/12 · p6+p38 58행 · 9쪽 실호출 경로 32행 ·
+모바일 파일 고르기 · 호출 차단 시 중단 — 전부 유지, pageerror 없음.

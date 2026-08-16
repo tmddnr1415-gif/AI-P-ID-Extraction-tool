@@ -101,13 +101,12 @@ def main() -> int:
     worker = (args.vendor / "pdf.worker.min.js").read_text(encoding="utf-8")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
 
-    # pdf.js 심기. 워커를 먼저 로드해 globalThis.pdfjsWorker 를 채워 둔다.
-    html = sub1(html, f'<script src="{CDN}/pdf.min.js"></script>',
-                f"<script>{worker}</script>\n<script>{lib}</script>", "pdf.js 심기")
-    html = sub1(html,
-                f"  pdfjsLib.GlobalWorkerOptions.workerSrc =\n    '{CDN}/pdf.worker.min.js';",
-                "  // 워커를 위에서 미리 심어 두었으므로 workerSrc 를 두지 않는다.\n"
-                "  pdfjsLib.GlobalWorkerOptions.workerSrc = '';", "workerSrc 비우기")
+    # pdf.js 심기. 워커를 먼저 로드해 globalThis.pdfjsWorker 를 채워 두면 pdf.js 가
+    # Worker 를 새로 띄우지 않고 메인 스레드에서 돈다. 심어 두면 ensurePdfjs() 가
+    # window.pdfjsLib 를 보고 바로 돌아가므로 CDN 을 아예 건드리지 않는다.
+    html = sub1(html, "<!-- PDFJS_INJECT",
+                f"<script>{worker}</script>\n<script>{lib}</script>\n<!-- PDFJS_INJECT",
+                "pdf.js 심기")
 
     if not args.standalone:
         # 겉껍데기 제거 — Artifact 가 doctype/html/head/body 를 직접 씌운다.

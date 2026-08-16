@@ -357,7 +357,8 @@ button.del:hover { color:var(--bad); }
   <div class="body" id="v-body"></div>
 </dialog>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- PDFJS_INJECT — 배포본에 따라 여기에 pdf.js 를 통째로 심는다. 비어 있으면 아래
+     ensurePdfjs() 가 CDN 에서 가져온다. -->
 <script>
 'use strict';
 
@@ -380,10 +381,48 @@ const state = {
   pdf: null, doc: null, pages: [], selected: new Set(), current: null,
 };
 
-/* pdf.js 워커. 같은 CDN 버전을 맞춰야 한다. */
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+/* ── pdf.js 불러오기 ─────────────────────────────────────────────────────
+ * pdf.js 는 1MB 라 이 파일에 심으면 claude.ai 대화창에 붙여 아티팩트로 만들 수가
+ * 없다(모델이 파일을 다시 써야 한다). 그래서 CDN 에서 가져오는데, **화면마다 막는
+ * 호스트가 다르다.** 하나가 막히면 다음 것을 시도하고, 전부 막히면 원인을 화면에
+ * 그대로 쓴다. `pdfjsLib is not defined` 는 무엇이 잘못됐는지 말해 주지 않는다. */
+const PDFJS_CDNS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build',
+  'https://unpkg.com/pdfjs-dist@3.11.174/build',
+];
+
+const loadScript = (src) => new Promise((ok, no) => {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = ok;
+  s.onerror = () => no(new Error(src));
+  document.head.append(s);
+});
+
+let pdfjsReady = null;
+function ensurePdfjs() {
+  // 심어 둔 배포본이면 이미 있다. 그 경우 워커도 미리 채워져 있으므로 손대지 않는다.
+  if (window.pdfjsLib) return Promise.resolve();
+  if (pdfjsReady) return pdfjsReady;
+  pdfjsReady = (async () => {
+    const failed = [];
+    for (const base of PDFJS_CDNS) {
+      try {
+        await loadScript(base + '/pdf.min.js');
+        if (window.pdfjsLib) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = base + '/pdf.worker.min.js';
+          return;
+        }
+      } catch { /* 다음 것 */ }
+      failed.push(base.split('/')[2]);
+    }
+    pdfjsReady = null;   // 다음에 다시 해 볼 수 있게
+    throw new Error(`pdf.js 를 못 불러왔습니다 — ${failed.join(', ')} 가 모두 막혔습니다. `
+      + '이 화면이 외부 파일을 차단하고 있습니다. claude.ai 대화창에서 만든 아티팩트에서 '
+      + '열거나, pdf.js 를 파일 안에 심어 둔 app.html 을 쓰세요.');
+  })();
+  return pdfjsReady;
 }
 
 /* ── PDF 받기 ───────────────────────────────────────────────────────────── */
@@ -394,6 +433,7 @@ async function loadPdf(file) {
   st.className = 'state';
   st.textContent = `${file.name} 여는 중…`;
   try {
+    await ensurePdfjs();
     const bytes = new Uint8Array(await file.arrayBuffer());
     state.doc = await pdfjsLib.getDocument({ data: bytes }).promise;
     st.textContent = `${file.name} · ${state.doc.numPages}쪽 · 훑는 중…`;

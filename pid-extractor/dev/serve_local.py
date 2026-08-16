@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """로컬에서 index.html 을 확인하기 위한 임시 서버.
 
-index.html 은 CLAUDE.md §2 대로 cdnjs 를 쓴다. 개발 컨테이너에서는 cdnjs 에
-닿지 않으므로, 서빙할 때만 CDN 주소를 옆에 둔 사본으로 바꿔치기한다.
-**index.html 자체는 건드리지 않는다** — 배포본은 스펙대로 cdnjs 를 써야 한다.
+index.html 은 pdf.js 를 CDN 에서 가져온다(ensurePdfjs). 개발 컨테이너는 바깥에
+닿지 않아 세 CDN 이 모두 시간 초과로 죽는다. 그래서 서빙할 때만 PDFJS_INJECT 자리에
+옆에 둔 사본을 심어 CDN 을 아예 건드리지 않게 한다.
+**index.html 자체는 건드리지 않는다** — 배포본은 CDN 을 써야 한다.
 
 사용:
   python3 dev/serve_local.py --vendor ../pid-instrument-tool/web/vendor
@@ -18,7 +19,7 @@ import socketserver
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174"
+MARKER = "<!-- PDFJS_INJECT"
 
 
 def main() -> int:
@@ -41,8 +42,12 @@ def main() -> int:
     def refresh() -> None:
         """요청마다 다시 만든다. 서버를 켜 둔 채 index.html 을 고쳐도 바로 반영된다."""
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        html = html.replace(f"{CDN}/pdf.worker.min.js", "pdf.worker.min.js")
-        html = html.replace(f"{CDN}/pdf.min.js", "pdf.min.js")
+        # 워커를 먼저 실어 globalThis.pdfjsWorker 를 채우면 pdf.js 가 메인 스레드에서
+        # 돈다. 배포본(build_artifact.py)이 하는 것과 같은 자리, 같은 방식이다.
+        if MARKER not in html:
+            raise SystemExit("index.html 에 PDFJS_INJECT 자리가 없다")
+        html = html.replace(MARKER, '<script src="pdf.worker.min.js"></script>\n'
+                                    '<script src="pdf.min.js"></script>\n' + MARKER, 1)
         (out / "index.html").write_text(html, encoding="utf-8")
 
     refresh()

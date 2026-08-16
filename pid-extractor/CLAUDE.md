@@ -450,8 +450,9 @@ Artifact 밖(내려받은 파일, 사내 웹서버)에서 돌려야 하면 §4 �
 
 **외부 라이브러리는 되도록 없앤다.** CDN 경로 하나가 어긋나면 기능 전체가 죽는다
 (발견 17). zip(xlsx)은 브라우저의 `CompressionStream`/`DecompressionStream` 으로 직접
-처리해 fflate 를 뺐다(발견 20). pdf.js 만 CDN 에 남았고 claude.ai 아티팩트는 cdnjs 를
-허용한다. `index.html` 은 **작게 유지한다** — claude.ai 에 붙여 아티팩트로 만들 때
+처리해 fflate 를 뺐다(발견 20). pdf.js 만 CDN 에 남았다 — 1MB 라 심으면 claude.ai 에 붙여 아티팩트로
+만들 수가 없다. 대신 **CDN 세 곳을 차례로 시도**하고(cdnjs → jsdelivr → unpkg),
+전부 막히면 막힌 호스트 이름과 다음 행동을 화면에 쓴다(발견 25). `index.html` 은 **작게 유지한다** — claude.ai 에 붙여 아티팩트로 만들 때
 Claude 가 파일을 다시 써야 하므로 크기가 곧 성공률이다.
 
 ### 배포본 세 가지
