@@ -95,6 +95,9 @@ select, input[type=number] {
   border:1px solid var(--line-strong); background:var(--panel); color:var(--ink);
 }
 label.inline { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-2); }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:720px) { .two-col { grid-template-columns:1fr; } }
+.drop .opt { font-weight:400; color:var(--ink-3); font-size:12px; }
 
 /* 페이지 썸네일 그리드 */
 .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:12px; }
@@ -202,13 +205,30 @@ button.del:hover { color:var(--bad); }
 
   <!-- 1. PDF -->
   <section class="card">
-    <h2><span class="step">1</span> P&amp;ID PDF</h2>
-    <div class="drop" id="dz">
-      <strong>도면 PDF를 끌어다 놓으세요</strong>
-      <p>클릭해서 골라도 됩니다. 파일은 이 브라우저 밖으로 나가지 않습니다.</p>
-      <p class="state" id="pdf-state">비어 있음</p>
+    <h2><span class="step">1</span> 자료 넣기</h2>
+    <div class="two-col">
+      <div>
+        <div class="drop" id="dz">
+          <strong>P&amp;ID PDF</strong>
+          <p>도면 전체가 든 PDF를 끌어다 놓거나 클릭</p>
+          <p class="state" id="pdf-state">비어 있음</p>
+        </div>
+        <input id="in-pdf" type="file" accept="application/pdf" hidden />
+      </div>
+      <div>
+        <div class="drop" id="dz-tpl">
+          <strong>Instrument List 양식</strong>
+          <p><code>2.0_Instrument List</code> 시트가 있는 기존 xlsx</p>
+          <p class="state" id="tpl-state">비어 있음</p>
+        </div>
+        <input id="in-tpl" type="file" accept=".xlsx" hidden />
+      </div>
     </div>
-    <input id="in-pdf" type="file" accept="application/pdf" hidden />
+    <p class="note">
+      두 파일 모두 이 브라우저 밖으로 나가지 않습니다. Excel 출력은 <b>넣으신 양식 파일을
+      그대로 복사해 데이터 행만 갈아끼우는</b> 방식이라 머리글·병합·열 너비·서식·다른 시트가
+      건드려지지 않습니다. 그래서 양식이 있어야 Excel 을 만들 수 있습니다.
+    </p>
   </section>
 
   <!-- 2. 페이지 선택 -->
@@ -284,7 +304,9 @@ button.del:hover { color:var(--bad); }
       <h2 style="margin:0"><span class="step">5</span> 결과</h2>
       <span class="spacer"></span>
       <span class="sub" id="result-note" style="font:12px/1 var(--mono); color:var(--ink-3)"></span>
+      <button class="primary" id="btn-xlsx" type="button">Excel 다운로드</button>
     </div>
+    <p class="state" id="xlsx-state"></p>
     <div class="stats" id="result-stats"></div>
     <div class="table-wrap">
       <table id="result">
@@ -311,6 +333,7 @@ button.del:hover { color:var(--bad); }
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/umd/index.js"></script>
 <script>
 'use strict';
 
@@ -340,15 +363,7 @@ if (window.pdfjsLib) {
 }
 
 /* ── PDF 받기 ───────────────────────────────────────────────────────────── */
-$('dz').addEventListener('click', () => $('in-pdf').click());
-$('dz').addEventListener('dragover', (e) => { e.preventDefault(); $('dz').classList.add('over'); });
-$('dz').addEventListener('dragleave', () => $('dz').classList.remove('over'));
-$('dz').addEventListener('drop', (e) => {
-  e.preventDefault(); $('dz').classList.remove('over');
-  const f = [...e.dataTransfer.files].find((x) => /\.pdf$/i.test(x.name));
-  if (f) loadPdf(f);
-});
-$('in-pdf').addEventListener('change', (e) => { if (e.target.files[0]) loadPdf(e.target.files[0]); });
+wireDrop('dz', 'in-pdf', /\.pdf$/i, loadPdf);
 
 async function loadPdf(file) {
   const st = $('pdf-state');
@@ -1030,6 +1045,246 @@ function renderResult() {
   $('result-note').textContent = $('opt-vendor').checked ? '공급 역무 계기 숨김' : '';
 }
 $('opt-vendor').addEventListener('change', () => run.rows.length && renderResult());
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Phase 3 — Excel 출력 (§5)
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+const SHEET = '2.0_Instrument List';
+const DATA_ROW = 8;   // 머리글 6행, 데이터는 8행부터 (양식과 동일)
+
+/* §5.1 자동 채움 컬럼. 여기 없는 열은 손대지 않는다 — §5.3(B~E TAG, K~V, AC,
+   AJ~AN)은 비워 두는 것이 규칙이라 '안 쓰는 것'으로 지킨다. */
+const COL = { no: 'A', system: 'F', pid: 'G', type: 'H', qty: 'I', desc: 'J', fluid: 'W', remark: 'AO' };
+
+/* §5.4 말미 SPARE 블록 */
+const SPARE = [['PIT', 2], ['PDIT', 1], ['TI', 1], ['TIT', 2]];
+
+/* §8.1 변종은 자동 판정하지 않는다. 기본값을 넣고 REMARK 에 표시만 남긴다. */
+const VARIANT_TYPES = new Set(['PIT', 'TIT', 'TI', 'PI', 'PDIT']);
+
+/** 행 하나를 §5.1(판독값) + §5.2(TYPE 룩업) 로 펼친다. 여기 없는 열은 손대지 않는다. */
+function excelRow(r, i) {
+  const cells = {
+    [COL.no]: i + 1,
+    [COL.system]: r.system || '',
+    [COL.pid]: r.pid_no || '',
+    [COL.type]: r.type,
+    [COL.qty]: Number(r.qty) || 1,
+    [COL.desc]: r.description || '',
+    [COL.fluid]: r.fluid || '',
+    ...(TYPE_SPEC[r.type] || {}),
+  };
+  const remark = [r.remark && r.remark !== '-' ? r.remark : '',
+                  VARIANT_TYPES.has(r.type) ? 'VARIANT CHECK' : ''].filter(Boolean).join(' · ');
+  cells[COL.remark] = remark || '-';
+  return cells;
+}
+
+/* 양식 파일. 이 파일을 복사해 데이터 행만 갈아끼운다. */
+let templateBytes = null;
+let templateName = '';
+
+wireDrop('dz-tpl', 'in-tpl', /\.xlsx$/i, async (file) => {
+  const st = $('tpl-state');
+  st.className = 'state';
+  st.textContent = `${file.name} 읽는 중…`;
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const zip = fflate.unzipSync(bytes);
+    const path = sheetPath(zip, SHEET);
+    if (!path) throw new Error(`'${SHEET}' 시트를 찾지 못했습니다`);
+    templateBytes = bytes;
+    templateName = file.name;
+    st.className = 'state ok';
+    st.textContent = `${file.name} · '${SHEET}' 확인`;
+  } catch (err) {
+    templateBytes = null;
+    st.className = 'state bad';
+    st.textContent = `쓸 수 없습니다 — ${err.message}`;
+  }
+});
+
+function wireDrop(zoneId, inputId, re, onFile) {
+  const zone = $(zoneId), input = $(inputId);
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault(); zone.classList.remove('over');
+    const f = [...e.dataTransfer.files].find((x) => re.test(x.name));
+    if (f) onFile(f);
+  });
+  input.addEventListener('change', (e) => { if (e.target.files[0]) onFile(e.target.files[0]); });
+}
+
+/* ── xlsx 쓰기 ───────────────────────────────────────────────────────────
+ * 양식을 **zip 수준에서 복사**하고 시트 XML 하나만 다시 쓴다.
+ *
+ * ExcelJS(§5 지정)로 이 양식을 열어 보았으나 파싱에서 죽는다 —
+ * `20:13: unexpected close tag`. 양식 안에 셀 메모용 VML 도형
+ * (`xl/drawings/vmlDrawing1.vml`)이 있는데 VML 은 엄밀한 XML 이 아니라
+ * ExcelJS 의 파서가 못 넘긴다. 라이브러리를 바꿔도 같은 계열 문제가 남는다.
+ *
+ * 그래서 파일을 해석하지 않는다. 나머지 부품(스타일·병합·열 너비·도형·
+ * 외부링크·다른 시트)은 **바이트 그대로** 두고 데이터 행만 갈아끼운다.
+ * 서식이 '유지'되는 게 아니라 애초에 건드리지 않는다.
+ * ──────────────────────────────────────────────────────────────────────── */
+const dec = new TextDecoder();
+const enc = new TextEncoder();
+
+/** 자기닫힘 태그(`<c .../>`)까지 제대로 끊어 읽는 스캐너. */
+function* iterTags(xml, tag) {
+  const open = new RegExp(`<${tag}\\b([^>]*?)(\\/)?>`, 'g');
+  const close = `</${tag}>`;
+  let m;
+  while ((m = open.exec(xml))) {
+    const from = m.index;
+    if (m[2]) { yield { attrs: m[1], inner: '', source: m[0] }; continue; }
+    const at = xml.indexOf(close, open.lastIndex);
+    const stop = at < 0 ? xml.length : at;
+    yield { attrs: m[1], inner: xml.slice(open.lastIndex, stop), source: xml.slice(from, stop + close.length) };
+    open.lastIndex = stop + close.length;
+  }
+}
+const attr = (s, k) => (s.match(new RegExp(`${k}="([^"]*)"`)) || [])[1];
+
+/** 시트 이름 → zip 안 경로. workbook.xml 의 r:id 를 rels 로 푼다. */
+function sheetPath(zip, name) {
+  const wb = dec.decode(zip['xl/workbook.xml'] || new Uint8Array());
+  const tag = (wb.match(new RegExp(`<sheet[^>]*name="${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`)) || [])[0];
+  if (!tag) return null;
+  const rid = attr(tag, 'r:id');
+  const rels = dec.decode(zip['xl/_rels/workbook.xml.rels'] || new Uint8Array());
+  const rel = (rels.match(new RegExp(`<Relationship[^>]*Id="${rid}"[^>]*>`)) || [])[0];
+  const target = rel && attr(rel, 'Target');
+  if (!target) return null;
+  return 'xl/' + target.replace(/^\/?xl\//, '').replace(/^\//, '');
+}
+
+const xmlEsc = (v) => String(v).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const colOf = (ref) => (ref.match(/^[A-Z]+/) || [''])[0];
+
+/** 데이터 첫 행에서 열별 스타일 번호를 걷어 새 행에 그대로 물려준다. */
+function styleMap(sheetXml) {
+  const out = {};
+  for (const row of iterTags(sheetXml, 'row')) {
+    if (+attr(row.attrs, 'r') !== DATA_ROW) continue;
+    for (const c of iterTags(row.inner, 'c')) {
+      const ref = attr(c.attrs, 'r');
+      if (ref) out[colOf(ref)] = attr(c.attrs, 's');
+    }
+    break;
+  }
+  return out;
+}
+
+function rowXml(rowNo, cells, styles) {
+  const parts = [];
+  for (const [col, v] of Object.entries(cells)) {
+    if (v === '' || v == null) continue;
+    const s = styles[col] !== undefined ? ` s="${styles[col]}"` : '';
+    // 숫자는 숫자로, 나머지는 inlineStr — sharedStrings 를 건드리지 않아도 된다.
+    parts.push(typeof v === 'number'
+      ? `<c r="${col}${rowNo}"${s}><v>${v}</v></c>`
+      : `<c r="${col}${rowNo}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`);
+  }
+  return `<row r="${rowNo}">${parts.join('')}</row>`;
+}
+
+function buildXlsx(rows) {
+  if (!templateBytes) throw new Error('기존 양식 xlsx 를 1번에 넣어 주세요.');
+  const zip = fflate.unzipSync(templateBytes);
+  const path = sheetPath(zip, SHEET);
+  const xml = dec.decode(zip[path]);
+  const styles = styleMap(xml);
+
+  const body = [];
+  let n = 0;
+  for (const r of rows) body.push(rowXml(DATA_ROW + n++, excelRow(r, n - 1), styles));
+  for (const [type, count] of SPARE) {
+    for (let k = 0; k < count; k++, n++) {
+      const spare = { [COL.no]: n + 1, [COL.type]: type, [COL.desc]: 'SPARE', ...(TYPE_SPEC[type] || {}) };
+      body.push(rowXml(DATA_ROW + n, spare, styles));
+    }
+  }
+
+  // 머리글(8행 앞)은 그대로 두고 데이터 행만 바꾼다.
+  let head = '';
+  for (const row of iterTags(xml, 'row')) {
+    if (+attr(row.attrs, 'r') >= DATA_ROW) break;
+    head += row.source;
+  }
+  const before = xml.slice(0, xml.indexOf('<sheetData')) ;
+  const after = xml.slice(xml.indexOf('</sheetData>') + '</sheetData>'.length);
+  let out = `${before}<sheetData>${head}${body.join('')}</sheetData>${after}`;
+
+  // 표 범위와 계산 캐시를 새 행 수에 맞춘다.
+  const lastRow = DATA_ROW + n - 1;
+  out = out.replace(/<dimension ref="([A-Z]+)\d+:([A-Z]+)\d+"\/>/,
+                    (_, a, b) => `<dimension ref="${a}1:${b}${lastRow}"/>`);
+  zip[path] = enc.encode(out);
+  delete zip['xl/calcChain.xml'];   // 행이 바뀌면 캐시가 어긋난다. 엑셀이 다시 만든다.
+
+  return fflate.zipSync(zip, { level: 6 });
+}
+
+$('btn-xlsx').addEventListener('click', async () => {
+  const rows = visibleRows();
+  const st = $('xlsx-state');
+  const btn = $('btn-xlsx');
+  if (!rows.length) { st.className = 'state bad'; st.textContent = '내보낼 행이 없습니다.'; return; }
+  btn.disabled = true;
+  st.className = 'state';
+  st.textContent = '만드는 중…';
+  try {
+    const bytes = buildXlsx(rows);
+    const name = `instrument_list_${stamp()}.xlsx`;
+    await saveFile(new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), name);
+    st.className = 'state ok';
+    st.textContent = `${name} · ${rows.length}행 + SPARE 6행 · ${templateName} 서식 그대로`;
+  } catch (err) {
+    st.className = 'state bad';
+    st.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+
+/* 다운로드.
+ *
+ * 런타임이 페이지발 다운로드를 막고 별도 통로를 주는 경우가 있어 그쪽을 먼저 본다.
+ * **실패를 삼키지 않는다** — 못 내려받았는데 '완료' 라고 적히면 안 된다. */
+async function saveFile(blob, filename) {
+  let dl = null;
+  try {
+    if (window.claude && typeof window.claude.use === 'function') dl = await window.claude.use('downloads');
+  } catch { dl = null; }
+
+  if (dl) {
+    try {
+      await dl.save({ filename, data: await blob.arrayBuffer() });
+      return;
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'declined') throw new Error('다운로드를 취소하셨습니다.');
+      if (code === 'rejected_extension' || code === 'extension_not_enabled') {
+        throw new Error('이 화면에서는 xlsx 를 내려받을 수 없습니다. '
+          + 'claude.ai Artifact 나 index.html 을 직접 열었을 때는 됩니다.');
+      }
+      throw new Error(`다운로드하지 못했습니다 — ${(err && err.message) || code || '알 수 없음'}`);
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function showBig(cv, title) {
   const copy = document.createElement('canvas');

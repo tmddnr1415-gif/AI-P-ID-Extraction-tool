@@ -149,6 +149,19 @@ OCR로 읽을 글자가 없으므로 Tesseract 계열은 쓰지 않는다.
 
 **라이브러리: ExcelJS 사용** (cdnjs). SheetJS 커뮤니티 버전은 폰트·서식 지정이 안 되므로 쓰지 말 것.
 
+**[2026-08-16 보정] ExcelJS 로는 이 양식을 못 연다.** `ref/example_instrument_list.xlsx`
+를 `xlsx.load()` 하면 `20:13: unexpected close tag` 로 죽는다. 양식 안 셀 메모용 VML
+도형(`xl/drawings/vmlDrawing1.vml`)이 엄밀한 XML 이 아니라 ExcelJS 의 파서가 못 넘긴다.
+
+→ **`fflate` 로 zip 을 열어 `xl/worksheets/sheet1.xml` 하나만 다시 쓴다.** 나머지
+부품은 바이트 그대로 되넣는다. 파일을 해석하지 않으므로 스타일·병합·열 너비·도형·
+다른 시트가 애초에 건드려지지 않는다. 이 방식은 **양식 파일이 있어야** 하므로
+사용자가 기존 xlsx 를 함께 넣어야 한다.
+
+곁가지: 자기닫힘 셀(`<c r="E8" s="207"/>`)을 삼키지 않는 스캐너를 쓸 것.
+`xl/calcChain.xml` 은 지울 것(행 수가 바뀌면 어긋난다). 값은 `inlineStr` 로 넣어
+`sharedStrings.xml` 을 손대지 말 것.
+
 - 시트명: `2.0_Instrument List`
 - 헤더 6행, 데이터 8행부터 (정답 파일과 동일)
 - 폰트: Arial
@@ -407,3 +420,6 @@ ExcelJS로 §5 포맷 생성 + 다운로드.
 
 1. **Vendor scope** — 제외(정답 파일 방식) vs 포함 후 AO 표기. 기본값은 후자로 구현
 2. **PI/TI 로컬 게이지 범위** — 정답 파일은 CCW 계통에서 쿨러별 supply/return을 전부 개별 행으로 잡아 170행이 나왔다. 이 수준까지 자동 생성할지
+3. **[2026-08-16 추가] VARIANT CHECK 범위** — §8.1 대로 PIT/TIT/TI/PI/PDIT 에 표기하니
+   HP Steam 12행 전부에 붙었다. 이 다섯이 계기의 대부분이라 표시가 정보를 주지 못한다.
+   해수·부식성·저온처럼 변종이 실제로 갈리는 조건에서만 표기하도록 좁힐지 결정 필요

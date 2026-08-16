@@ -28,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174"
+CDN_XLSX = "https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/umd/index.js"
 
 BANNER = """
 <div class="demo-banner">
@@ -68,6 +69,7 @@ def main() -> int:
 
     lib = (args.vendor / "pdf.min.js").read_text(encoding="utf-8")
     worker = (args.vendor / "pdf.worker.min.js").read_text(encoding="utf-8")
+    xlsx = (ROOT / "dev/vendor/fflate.min.js").read_text(encoding="utf-8")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
 
     # 1. 겉껍데기 제거 — Artifact 가 doctype/html/head/body 를 직접 씌운다.
@@ -81,6 +83,7 @@ def main() -> int:
     html = html.replace(
         f'<script src="{CDN}/pdf.min.js"></script>',
         f"<script>{worker}</script>\n<script>{lib}</script>")
+    html = html.replace(f'<script src="{CDN_XLSX}"></script>', f"<script>{xlsx}</script>")
     html = html.replace(
         f"""  pdfjsLib.GlobalWorkerOptions.workerSrc =
     '{CDN}/pdf.worker.min.js';""",
@@ -93,7 +96,17 @@ def main() -> int:
     html = html.replace("</style>", BANNER_CSS + "</style>")
     html = html.replace('<div class="wrap">', f'<div class="wrap">{BANNER}')
 
-    # 4. 기록에 없는 도면을 고르면 왜 안 되는지 그대로 말한다.
+    # 4. 이 런타임은 페이지발 다운로드를 막고, 허용 확장자에 xlsx 가 아예 없다.
+    #    버튼을 눌러 봐야 조용히 아무 일도 안 일어나므로 미리 그렇게 말해 둔다.
+    html = html.replace(
+        "    const name = `instrument_list_${stamp()}.xlsx`;",
+        "    throw new Error('이 미리보기 화면은 xlsx 를 내려받을 수 없습니다 — 뷰어가 "
+        "페이지발 다운로드를 막고 허용 확장자에 xlsx 가 없습니다. "
+        "행 12개는 위 표에 그대로 있고, 실제 파일 저장은 claude.ai Artifact 나 "
+        "index.html 을 직접 열었을 때 됩니다.');\n"
+        "    const name = `instrument_list_${stamp()}.xlsx`;")
+
+    # 5. 기록에 없는 도면을 고르면 왜 안 되는지 그대로 말한다.
     html = html.replace(
         "    if (hit === undefined) throw new Error(`스텁에 ${label} 가 없습니다`);",
         "    if (hit === undefined) throw new Error("
