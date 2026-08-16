@@ -150,13 +150,18 @@ source_file(id, project_id, kind, filename, storage_path, sha256, uploaded_at)
   -- kind: PID_PDF | LEGEND | EXCEL_TEMPLATE | NOTE_DOC
 
 pid_page(id, project_id, source_file_id,
-         page_no,              -- PDF 물리 페이지 (1-based)
-         drawing_no,           -- D00P-10LBA10-M05-0001
+         page_no,              -- ★ 자연키. PDF 물리 페이지 (1-based)
+                               --   UNIQUE(source_file_id, page_no)
+         drawing_no,           -- D00P-10LBA10-M05-0001 — 인덱스일 뿐 키가 아님
+                               --   INDEX(drawing_no), UNIQUE 제약 금지
          drawing_title, revision, rev_date,
          unit_code,            -- KKS 5~6자리: '00'|'10'|'11'|...
          system_name,          -- 'HP Steam System'
          page_kind,            -- PID | LEGEND | DRAWING_LIST | COVER
-         width_pt, height_pt)
+         analysis_scope,       -- BOOLEAN DEFAULT true — false면 집계·산출물에서 제외
+         scope_reason,         -- analysis_scope=false 사유 (예: 'FOREIGN_PROJECT')
+         source_rotation,      -- 원본 PDF 회전각(0|90|180|270). 참고용 기록
+         width_pt, height_pt)  -- 회전 정규화 후(=표시 좌표계) 크기
 
 -- Note / 규칙 --------------------------------------------------------
 pid_note(id, pid_page_id, note_kind, note_no, raw_text,
@@ -215,20 +220,45 @@ rule_candidate(id, project_id, pattern JSONB, occurrence_count,
                approved_by, approved_at)
 ```
 
-**핵심 설계 결정 3가지**
+**핵심 설계 결정 6가지**
 
 1. `ai_values` / `user_values` 분리 → 재분석 시 사용자 수정값이 덮어써지지 않음 (요구사항 §17 마지막 항목 충족).
 2. `item`은 마스터 테이블 하나. 4개 산출물은 `instrument_type` 필터 뷰. 실제 Excel이 그렇게 만들어져 있음(§0 발견 3).
 3. 모든 판단에 `item_evidence` 행이 붙음. 근거 없는 값은 저장하지 않음.
+4. **`pid_page` 의 자연키는 `page_no` 이고 `drawing_no` 는 인덱스다.** Phase 0
+   스파이크 1 실측 결과 도면번호가 3건 중복이었다 — `D00P-00GHC10-M05-0001`
+   (p46/47), `D00P-00GMA10-M05-0001`(p52/55), `D00P-10LBG10-M05-0001`(p12/15).
+   셋 다 제목이 서로 다른 **별개 도면**이므로 채번 오류이지 §11 중복 항목이
+   아니다. `drawing_no` 에 UNIQUE 를 걸면 적재 자체가 실패한다. 페이지 간
+   참조(Off-page connector §7)는 `drawing_no` 로 조회하되 **다건 반환을 전제로**
+   설계하고, 후보가 2건 이상이면 `NEEDS_REVIEW` 로 넘긴다.
+5. **회전은 캐시 생성 시점에 정규화한다.** 원본 PDF 58페이지 중 2페이지(7, 48)가
+   270° 회전 저장되어 있다. `PageCache` 가 `page.rotation_matrix` 를 적용해
+   텍스트·벡터 좌표를 모두 표시 좌표계로 변환한 뒤 캐싱하므로, 심볼 검출·라인
+   추적·Note 파서 등 **하위 모듈은 회전을 전혀 알 필요가 없다**. 원본 회전각은
+   `source_rotation` 에 기록만 한다. 하위 모듈이 각자 회전을 처리하면 2페이지
+   때문에 모든 모듈에 분기가 생기고, 좌표계 혼선은 라인 추적에서 조용한 오류로
+   나타난다.
+6. **분석 대상 여부는 데이터로 표시하고 삭제하지 않는다.** 페이지 48은 PROJECT
+   NAME 이 `PORT DICKSON 1400MW CCGT` 로, 나머지 57페이지(`AL NOUF1 PROJECT`)와
+   다른 **타 프로젝트 도면**이다. 이런 페이지는 `analysis_scope=false` +
+   `scope_reason` 으로 표시하고 집계·산출물에서 제외하되 레코드는 남긴다.
+   원본 PDF 에 실제로 존재하는 페이지이므로 삭제하면 페이지 번호 대조가 깨지고,
+   왜 빠졌는지 추적할 수 없게 된다. 판정 기준은 페이지 번호 하드코딩이 아니라
+   **PROJECT NAME 다수결**이다.
 
 ---
 
 ## 5. P&ID 분석 파이프라인
 
 ```
+[0] 캐시 생성          → PageCache: rotation_matrix 적용해 좌표를 표시 좌표계로
+                          정규화 (§4 설계결정 5). 이후 모든 단계는 회전 미인지
+                       → PROJECT NAME 다수결로 analysis_scope 판정 (§4 결정 6)
 [1] 페이지 추출        → PyMuPDF로 page별 text span + drawing path 수집
 [2] 타이틀블록 파싱     → 우하단 고정영역에서 DWG NO / TITLE / REV 추출
                           → drawing_no에서 unit_code(5~6자리) 파싱
+                          → REV 칸은 텍스트가 없으면 글리프 매칭 (부록 A-1)
 [3] 페이지 분류        → LEGEND / DRAWING_LIST / PID
 [4] Legend 학습        → Legend 4장에서 심볼-의미 매핑 후보 추출 (사용자 승인)
 [5] Note 추출          → 'GENERAL NOTES :' / 'NOTES :' 블록 파싱 → 승수/스코프

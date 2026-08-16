@@ -73,6 +73,9 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("numpy is required:  pip install numpy")
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pidcache import PageCache, in_region, load_pages  # noqa: E402
+
 
 # --------------------------------------------------------------------------
 # Layout
@@ -133,37 +136,27 @@ REV_TEXT_RE = re.compile(r"^[A-Z][0-9]?$")
 
 
 # --------------------------------------------------------------------------
-# Page data (computed once per page — get_drawings() is expensive on these
-# sheets, which carry 7k-17k paths each)
+# Page access
+#
+# Coordinates arrive already normalised for page rotation from pidcache
+# (docs/design.md §4 설계결정 5), so nothing below needs a rotated-page case.
 # --------------------------------------------------------------------------
-class PageData:
-    def __init__(self, page, page_no: int):
-        self.page = page
-        self.page_no = page_no
-        self.rotation = page.rotation
-        m = page.rotation_matrix
-        self.words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]
-        self.rects = [pymupdf.Rect(d["rect"]) * m for d in page.get_drawings()]
-        self._hist_rows = None
-
-    def history_rows(self, lay: Layout = LAYOUT) -> list[tuple[float, float]]:
-        """Revision history row bands (y0, y1), bottom-most row first."""
-        if self._hist_rows is None:
-            ys = {
-                round(r.y0, 1) for r in self.rects
-                if abs(r.height) < 1.0
-                and r.x0 < lay.hist_rule_x0_max
-                and r.x1 > lay.hist_rule_x1_min
-                and lay.hist_rule_y[0] < r.y0 < lay.hist_rule_y[1]
-            }
-            rules = sorted(ys)
-            self._hist_rows = list(zip(rules, rules[1:]))[::-1]
-        return self._hist_rows
+_HIST_ROWS: dict[int, list[tuple[float, float]]] = {}
 
 
-def in_region(r: pymupdf.Rect, region: tuple) -> bool:
-    x0, y0, x1, y1 = region
-    return x0 <= r.x0 and r.x1 <= x1 and y0 <= r.y0 and r.y1 <= y1
+def history_rows(pd: PageCache, lay: Layout = LAYOUT) -> list[tuple[float, float]]:
+    """Revision history row bands (y0, y1), bottom-most row first."""
+    if pd.page_no not in _HIST_ROWS:
+        ys = {
+            round(r.y0, 1) for r in pd.rects()
+            if abs(r.height) < 1.0
+            and r.x0 < lay.hist_rule_x0_max
+            and r.x1 > lay.hist_rule_x1_min
+            and lay.hist_rule_y[0] < r.y0 < lay.hist_rule_y[1]
+        }
+        rules = sorted(ys)
+        _HIST_ROWS[pd.page_no] = list(zip(rules, rules[1:]))[::-1]
+    return _HIST_ROWS[pd.page_no]
 
 
 # --------------------------------------------------------------------------
@@ -240,7 +233,7 @@ def segment_chars(page, clip: pymupdf.Rect, lay: Layout = LAYOUT) -> list:
     return out
 
 
-def has_titleblock_text(pd: PageData, lay: Layout = LAYOUT) -> str | None:
+def has_titleblock_text(pd: PageCache, lay: Layout = LAYOUT) -> str | None:
     """REV cell contents when the title block carries a real text layer."""
     x0, y0, x1, y1 = lay.rev_box
     for r, t in pd.words:
@@ -249,7 +242,7 @@ def has_titleblock_text(pd: PageData, lay: Layout = LAYOUT) -> str | None:
     return None
 
 
-def build_glyph_library(pages: list[PageData], lay: Layout = LAYOUT) -> dict:
+def build_glyph_library(pages: list[PageCache], lay: Layout = LAYOUT) -> dict:
     """Bootstrap glyph templates from the document itself.
 
     Templates are kept as a *list per character* rather than one average,
@@ -279,7 +272,7 @@ def build_glyph_library(pages: list[PageData], lay: Layout = LAYOUT) -> dict:
             # Rows holding more than one character cannot be labelled this way
             # and are skipped.
             rank = 0
-            for y0, y1 in pd.history_rows(lay):
+            for y0, y1 in history_rows(pd, lay):
                 clip = pymupdf.Rect(
                     lay.hist_rev_col[0], y0 + lay.hist_row_inset,
                     lay.hist_rev_col[1], y1 - lay.hist_row_inset,
@@ -321,7 +314,7 @@ def classify(bitmap, library: dict, lay: Layout = LAYOUT):
     return best, best_d, ratio
 
 
-def read_rev_glyphs(pd: PageData, library: dict, lay: Layout = LAYOUT):
+def read_rev_glyphs(pd: PageCache, library: dict, lay: Layout = LAYOUT):
     """Read the REV cell character by character.  Returns (rev, conf, detail)."""
     chars = segment_chars(pd.page, pymupdf.Rect(*lay.rev_box), lay)
     if not chars:
@@ -354,7 +347,7 @@ def read_rev_glyphs(pd: PageData, library: dict, lay: Layout = LAYOUT):
 # --------------------------------------------------------------------------
 # Field parsers
 # --------------------------------------------------------------------------
-def parse_drawing_no(pd: PageData, lay: Layout = LAYOUT) -> str | None:
+def parse_drawing_no(pd: PageCache, lay: Layout = LAYOUT) -> str | None:
     """Drawing number from the PROJECT DWG NO. cell.
 
     Region-anchored on purpose: the same pattern appears all over the sheet in
@@ -368,7 +361,7 @@ def parse_drawing_no(pd: PageData, lay: Layout = LAYOUT) -> str | None:
     return min(hits)[1] if hits else None
 
 
-def parse_title(pd: PageData, lay: Layout = LAYOUT) -> str | None:
+def parse_title(pd: PageCache, lay: Layout = LAYOUT) -> str | None:
     """Drawing title, joined across lines when the cell wraps (e.g. page 48)."""
     cand = [
         (r, t) for r, t in pd.words
@@ -397,12 +390,12 @@ def parse_unit_code(drawing_no: str | None) -> str | None:
     return parts[1][:2]
 
 
-def parse_rev_date(pd: PageData, rev: str | None, lay: Layout = LAYOUT) -> str | None:
+def parse_rev_date(pd: PageCache, rev: str | None, lay: Layout = LAYOUT) -> str | None:
     """Date of the current revision, where the history table is real text."""
     if not rev:
         return None
     rank = 0
-    for y0, y1 in pd.history_rows(lay):
+    for y0, y1 in history_rows(pd, lay):
         clip = pymupdf.Rect(
             lay.hist_rev_col[0], y0 + lay.hist_row_inset,
             lay.hist_rev_col[1], y1 - lay.hist_row_inset,
@@ -433,7 +426,7 @@ def classify_page(title: str | None, drawing_no: str | None) -> str:
 # --------------------------------------------------------------------------
 # Extraction
 # --------------------------------------------------------------------------
-def extract_page(pd: PageData, library: dict, lay: Layout = LAYOUT) -> dict:
+def extract_page(pd: PageCache, library: dict, lay: Layout = LAYOUT) -> dict:
     drawing_no = parse_drawing_no(pd, lay)
     title = parse_title(pd, lay)
     unit_code = parse_unit_code(drawing_no)
@@ -473,7 +466,10 @@ def extract_page(pd: PageData, library: dict, lay: Layout = LAYOUT) -> dict:
         "rev_confidence": rev_conf,
         "rev_detail": rev_detail,
         "page_kind": classify_page(title, drawing_no),
-        "rotation": pd.rotation,
+        "project_name": pd.project_name,
+        "analysis_scope": pd.analysis_scope,
+        "scope_reason": pd.scope_reason,
+        "rotation": pd.source_rotation,
         "status": status,
         "issues": ";".join(issues),
     }
@@ -481,12 +477,12 @@ def extract_page(pd: PageData, library: dict, lay: Layout = LAYOUT) -> dict:
 
 FIELDNAMES = [
     "page_no", "drawing_no", "drawing_title", "unit_code", "rev", "rev_date",
-    "rev_method", "rev_confidence", "rev_detail", "page_kind", "rotation",
-    "status", "issues",
+    "rev_method", "rev_confidence", "rev_detail", "page_kind", "project_name",
+    "analysis_scope", "scope_reason", "rotation", "status", "issues",
 ]
 
 
-def dump_rev_sheet(pages: list[PageData], rows, path: Path, lay: Layout = LAYOUT) -> None:
+def dump_rev_sheet(pages: list[PageCache], rows, path: Path, lay: Layout = LAYOUT) -> None:
     """Contact sheet of every REV cell, labelled with what was read.
 
     Phase 0 is a verification spike, and the REV cell is the one field that
@@ -517,54 +513,65 @@ def dump_rev_sheet(pages: list[PageData], rows, path: Path, lay: Layout = LAYOUT
 
 def report(rows, library: dict, out_path: Path) -> None:
     n = len(rows)
-    pct = lambda k: 100.0 * k / n if n else 0.0            # noqa: E731
-    filled = lambda f: sum(1 for r in rows if r[f])        # noqa: E731
+    # Aggregates cover in-scope pages only (docs/design.md §4 설계결정 6);
+    # out-of-scope pages are still parsed, stored and listed, just not counted.
+    scoped = [r for r in rows if r["analysis_scope"]]
+    out_of_scope = [r for r in rows if not r["analysis_scope"]]
+    ns = len(scoped)
+    pct = lambda k: 100.0 * k / ns if ns else 0.0            # noqa: E731
+    filled = lambda f: sum(1 for r in scoped if r[f])        # noqa: E731
 
-    print(f"\n=== Title block parsing — {n} pages -> {out_path} ===\n")
+    print(f"\n=== Title block parsing — {n} pages ({ns} in scope) -> {out_path} ===\n")
     lib_desc = ", ".join(f"{k}x{len(v)}" for k, v in sorted(library.items()))
     print(f"glyph library bootstrapped: {lib_desc}\n")
     print("field           parsed      rate")
     print("-" * 36)
     for f in ("drawing_no", "drawing_title", "unit_code", "rev", "rev_date"):
         c = filled(f)
-        print(f"{f:<15} {c:>3}/{n:<3}  {pct(c):6.1f}%")
+        print(f"{f:<15} {c:>3}/{ns:<3}  {pct(c):6.1f}%")
 
     print("\nrev source:")
     for m in ("TEXT", "GLYPH", "NONE"):
-        pgs = [r["page_no"] for r in rows if r["rev_method"] == m]
+        pgs = [r["page_no"] for r in scoped if r["rev_method"] == m]
         if pgs:
             print(f"  {m:<6} {len(pgs):>3}")
 
     print("\nrev confidence:")
     for c_ in ("HIGH", "MEDIUM", "LOW", "NONE"):
-        pgs = [str(r["page_no"]) for r in rows if r["rev_confidence"] == c_]
+        pgs = [str(r["page_no"]) for r in scoped if r["rev_confidence"] == c_]
         if pgs:
             extra = f"   pages {', '.join(pgs)}" if c_ != "HIGH" else ""
             print(f"  {c_:<6} {len(pgs):>3}{extra}")
 
     print("\nrev distribution:")
     dist: dict[str, int] = {}
-    for r in rows:
+    for r in scoped:
         dist[r["rev"] or "(none)"] = dist.get(r["rev"] or "(none)", 0) + 1
     for k in sorted(dist):
         print(f"  {k:<8} {dist[k]:>3}")
 
     print("\nunit_code distribution:")
     dist = {}
-    for r in rows:
+    for r in scoped:
         dist[r["unit_code"] or "(none)"] = dist.get(r["unit_code"] or "(none)", 0) + 1
     for k in sorted(dist):
         print(f"  {k:<8} {dist[k]:>3}")
 
     print("\npage_kind:")
     dist = {}
-    for r in rows:
+    for r in scoped:
         dist[r["page_kind"]] = dist.get(r["page_kind"], 0) + 1
     for k in sorted(dist):
         print(f"  {k:<14} {dist[k]:>3}")
 
-    # Duplicate drawing numbers matter: pid_page keys off drawing_no
-    # (docs/design.md §4) and duplicates feed the §11 duplicate-item logic.
+    if out_of_scope:
+        print("\nOUT OF SCOPE (parsed and stored, excluded from the counts above):")
+        for r in out_of_scope:
+            print(f"  page {r['page_no']:>3}  {r['scope_reason']}")
+            print(f"           {r['drawing_no']}  rev {r['rev']}  {r['drawing_title']}")
+
+    # Duplicate drawing numbers are why pid_page keys off page_no, not
+    # drawing_no (docs/design.md §4 설계결정 4).
     seen: dict[str, list] = {}
     for r in rows:
         if r["drawing_no"]:
@@ -608,8 +615,7 @@ def main() -> int:
     if not pdf_path.exists():
         sys.exit(f"PDF not found: {pdf_path}")
 
-    doc = pymupdf.open(pdf_path)
-    pages = [PageData(doc[i], i + 1) for i in range(doc.page_count)]
+    doc, pages = load_pages(pdf_path)
 
     library = build_glyph_library(pages)
     rows = [extract_page(pd, library) for pd in pages]
