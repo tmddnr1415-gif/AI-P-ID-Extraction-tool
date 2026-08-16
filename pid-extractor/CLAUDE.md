@@ -456,11 +456,16 @@ Claude 가 파일을 다시 써야 하므로 크기가 곧 성공률이다.
 
 ### 배포본 세 가지
 
-| 파일 | 쓰임 | 실판독 |
-|---|---|---|
-| `index.html` | claude.ai 대화창에 붙이는 **원본** | 된다 — 키 없이 |
-| `dist/app.html` | pdf.js 까지 심은 자립 파일 (`--real`) | 본인 API 키로 된다 |
-| `dist/artifact.html` | Claude Code publish 용 UI 미리보기 | 안 된다 (기록 결과) |
+| 파일 | 빌드 | 쓰임 | 실판독 |
+|---|---|---|---|
+| `index.html` | — | claude.ai 대화창에 붙이는 **원본** | 된다 — 키 없이 |
+| `dist/app.html` | `--standalone` | pdf.js 까지 심은 자립 파일 | 본인 API 키로 된다 |
+| `dist/artifact.html` | (기본) | Claude Code publish 용 **앱 실물** | 이 뷰어에서는 막힘 |
+| `dist/preview.html` | `--stub` | 기록 결과로 흐름만 보이기 | 안 된다 (기록 결과) |
+
+`dist/artifact.html` 에는 기록 결과가 **없다.** PDF 넣기·페이지 훑기·도면 고르기·
+타일 만들기까지 실제로 돌고, 판독에서 "호출이 막혀 있습니다" 로 멈춘다. 흐름을
+끝까지 보여야 할 때만 `--stub` 을 쓴다.
 
 Claude Code 로 publish 하는 Artifact 는 CSP 가 외부 호스트를 막고 다운로드 허용
 확장자에 xlsx 가 없어 **구조적으로** 미리보기 이상이 될 수 없다. 제품은 `index.html`

@@ -43,6 +43,19 @@ BANNER = """
 </div>
 """
 
+BANNER_REAL = """
+<div class="demo-banner">
+  <b>이 화면은 앱 그대로입니다 — 미리 기록해 둔 결과가 하나도 없습니다.</b>
+  PDF 넣기 · 58쪽 훑기 · 도면 고르기 · 타일 만들기 · 타일 확대해 보기는 전부 실제로 돕니다.<br />
+  다만 <b>판독 버튼</b>은 이 뷰어가 외부 호출을 막아 "Claude 호출이 막혀 있습니다" 로 멈춥니다.
+  <b>Excel 저장</b>도 이 뷰어의 허용 확장자에 xlsx 가 없어 안 됩니다. 둘 다 이 런타임의 제약이지
+  앱의 문제가 아닙니다.<br />
+  <b>끝까지 돌리려면</b> claude.ai 대화창에 <code>index.html</code> 을 붙이고
+  <i>"첨부한 index.html 을 그대로 아티팩트로 만들어 줘. 코드는 한 글자도 고치지 말고"</i>
+  라고 하신 뒤 <b>그 아티팩트</b>에서 쓰세요. 거기서는 아무 도면이나 읽힙니다.
+</div>
+"""
+
 BANNER_CSS = """
 .demo-banner {
   margin:18px 0 0; padding:12px 14px; font-size:13px; line-height:1.6;
@@ -76,9 +89,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--vendor", type=Path, required=True)
-    ap.add_argument("--real", action="store_true",
-                    help="스텁 없는 진짜 앱을 dist/app.html 로 만든다")
+    ap.add_argument("--standalone", action="store_true",
+                    help="브라우저로 바로 여는 자립 파일 dist/app.html")
+    ap.add_argument("--stub", action="store_true",
+                    help="미리 기록해 둔 판독 결과를 심는다 (dist/preview.html)")
     args = ap.parse_args()
+    if args.standalone and args.stub:
+        raise SystemExit("--standalone 과 --stub 은 같이 못 쓴다")
 
     lib = (args.vendor / "pdf.min.js").read_text(encoding="utf-8")
     worker = (args.vendor / "pdf.worker.min.js").read_text(encoding="utf-8")
@@ -92,19 +109,23 @@ def main() -> int:
                 "  // 워커를 위에서 미리 심어 두었으므로 workerSrc 를 두지 않는다.\n"
                 "  pdfjsLib.GlobalWorkerOptions.workerSrc = '';", "workerSrc 비우기")
 
-    if args.real:
-        # 기록 결과로 새는 길을 아예 끊는다. 이 배포본은 Claude 를 부르거나 실패하거나 둘뿐이다.
-        html = sub1(html, "const stubbing = () => USE_STUB || !!window.__STUB_FIXTURE;",
-                    "const stubbing = () => false;   // 진짜 앱 — 기록 결과로 새지 않는다.",
-                    "스텁 경로 차단")
-        out = ROOT / "dist/app.html"
-    else:
+    if not args.standalone:
         # 겉껍데기 제거 — Artifact 가 doctype/html/head/body 를 직접 씌운다.
         html = re.sub(r"^.*?<title>", "<title>", html, flags=re.S)
         html = html.replace("</head>\n<body>\n", "")
         html = re.sub(r"</body>\s*</html>\s*$", "", html)
         html = re.sub(r'<link rel="stylesheet"[^>]*>\n?', "", html)
 
+    if not args.stub:
+        # 기록 결과로 새는 길을 아예 끊는다. Claude 를 부르거나 실패하거나 둘뿐이다.
+        html = sub1(html, "const stubbing = () => USE_STUB || !!window.__STUB_FIXTURE;",
+                    "const stubbing = () => false;   // 진짜 앱 — 기록 결과로 새지 않는다.",
+                    "스텁 경로 차단")
+        html = sub1(html, "</style>", BANNER_CSS + "</style>", "배너 CSS")
+        if not args.standalone:
+            html = sub1(html, '<div class="wrap">', f'<div class="wrap">{BANNER_REAL}', "배너")
+        out = ROOT / ("dist/app.html" if args.standalone else "dist/artifact.html")
+    else:
         html = sub1(html, "const USE_STUB = false;",
                     f"const USE_STUB = false;\nwindow.__STUB_FIXTURE = {fixture_json()};",
                     "기록 결과 심기")
@@ -125,14 +146,14 @@ def main() -> int:
                     "'이 미리보기에는 이 도면의 기록이 없습니다 — 6쪽 HP Steam 과 38쪽 CCW "
                     "두 장뿐입니다. 아무 도면이나 실제로 읽히려면 claude.ai 대화창에서 만든 "
                     "아티팩트에서 돌리세요.');", "기록 없음 안내")
-        out = ROOT / "dist/artifact.html"
+        out = ROOT / "dist/preview.html"
 
-    if args.real and ("__STUB_FIXTURE =" in html or "USE_STUB = true" in html):
+    if not args.stub and ("__STUB_FIXTURE =" in html or "USE_STUB = true" in html):
         raise SystemExit("진짜 앱에 기록 결과가 섞였다 — 중단")
 
     out.parent.mkdir(exist_ok=True)
     out.write_text(html, encoding="utf-8")
-    kind = "진짜 앱 (스텁 없음)" if args.real else "UI 미리보기 (기록 결과)"
+    kind = "UI 미리보기 (기록 결과)" if args.stub else "진짜 앱 (스텁 없음)"
     print(f"[✓] {out}  ({out.stat().st_size / 1048576:.1f} MB)  — {kind}")
     return 0
 
