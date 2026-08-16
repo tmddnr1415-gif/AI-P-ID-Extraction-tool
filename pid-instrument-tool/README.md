@@ -22,6 +22,7 @@ PDF 넣기 → 도면 골라 판독 → **템플릿 서식 그대로의 Excel �
 | Excel 템플릿 | 각자 업로드 | **서버가 제공** | `inputs/` |
 | 도면 판독 | ✅ | ✅ | ✅ |
 | 템플릿 서식 Excel | ✅ | ✅ | ✅ |
+| 사용량 한도 | ✕ | **하루 N장 (KV)** | ✕ |
 | 규칙 편집 | 앱 안에서 | 배포자만 (재배포) | `rules/*.md` (git 이력) |
 | 검토 피드백 | 검토용 JSON → 리뷰 UI | 검토용 JSON → 리뷰 UI | `apply_feedback.py`로 자동 |
 | 배치·자동화·CI | ✕ | ✕ | ✅ |
@@ -39,7 +40,12 @@ python3 scripts/build_web.py
 링크를 받은 사람이 **비밀번호만 넣으면** 어느 컴퓨터에서든 쓸 수 있습니다.
 API 키는 서버에만 있고 브라우저로 내려가지 않으며, Excel 템플릿도 서버가 내려줍니다.
 사용자는 **PDF만 넣으면** 됩니다. Cloudflare Workers 무료 플랜으로 배포합니다.
-자세한 내용은 [`server/README.md`](server/README.md).
+
+```bash
+cd server && ./deploy.sh        # 빌드 · KV 한도 · 비밀값 · 배포를 한 번에
+```
+
+접속 주소와 비밀번호만 공유하면 됩니다. 자세한 내용은 [`server/README.md`](server/README.md).
 
 **③ 파이썬 파이프라인** — 아래 내용.
 
@@ -183,7 +189,7 @@ python3 -m http.server 8000        # 프로젝트 루트에서
 - [x] 템플릿 서식을 유지하는 Excel 생성
 - [x] 검토 UI (셀 수정 + 사유 + 규칙 코멘트) 및 피드백 → 규칙/로그 반영
 - [x] 브라우저 단독 앱 (PDF → 템플릿 서식 Excel)
-- [x] 공유 링크 서버 (비밀번호 인증 + 서버 보관 API 키)
+- [x] 공유 링크 서버 (비밀번호 인증 + 서버 보관 API 키 + 하루 사용량 한도)
 - [ ] `compare.py` — 정답과 자동 대조 (워크플로우 5). DESCRIPTION 정규화 규칙 합의 필요
 - [ ] Design Table 조인 (19개 컬럼) — `1.2_Designtable` 시트를 받으면 구현 가능
 - [ ] Valve / DCS I/O 카테고리 확장 (`inputs/`에 참고 자료가 이미 있음)

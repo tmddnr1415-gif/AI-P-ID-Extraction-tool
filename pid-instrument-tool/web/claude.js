@@ -201,12 +201,17 @@ const ClaudeAPI = (() => {
 
   async function describeError(res) {
     let detail = '';
+    let server = false;      // 공유 링크 서버가 돌려준 메시지인가
     try {
       const j = await res.json();
-      detail = j?.error?.message || JSON.stringify(j);
+      if (typeof j?.error === 'string') { detail = j.error; server = true; }   // 우리 서버
+      else detail = j?.error?.message || JSON.stringify(j);                    // Anthropic
     } catch {
       detail = await res.text().catch(() => '');
     }
+    // 서버가 이미 사람이 읽을 메시지를 준 경우엔 그대로 쓴다.
+    if (server) return res.status === 401 ? `${detail}\n새로고침 후 다시 로그인하세요.` : detail;
+
     const hint = {
       401: 'API 키를 확인하세요.',
       403: '이 키에 해당 모델 권한이 없을 수 있습니다.',

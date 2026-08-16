@@ -1,15 +1,10 @@
 # P&ID Instrument List — 공유 링크 서버
 #
-# 배포:
-#   npm install -g wrangler
-#   wrangler login
-#   python3 ../scripts/build_server.py        # public/ 과 src/template.b64.js 생성
-#   wrangler secret put ANTHROPIC_API_KEY     # Anthropic API 키
-#   wrangler secret put APP_PASSWORD          # 링크를 공유받은 사람이 넣을 비밀번호
-#   wrangler secret put SESSION_SECRET        # 아무 긴 임의 문자열
-#   wrangler deploy
+# 배포는 ./deploy.sh 한 번이면 됩니다. 빌드·KV 생성·비밀값·배포를 순서대로 합니다.
+# 손으로 하려면 README.md 의 "직접 배포" 를 보세요.
 #
 # 배포가 끝나면 https://<name>.<계정>.workers.dev 주소가 나옵니다.
+# name 을 바꾸면 주소도 바뀝니다.
 
 name = "pid-instrument-list"
 main = "src/worker.js"
@@ -26,10 +21,17 @@ EFFORT = "high"
 MAX_TOKENS = "32000"
 TILES = "3x2"
 DPI = "200"
-DAILY_LIMIT = "200"      # 하루 판독 가능한 도면 수 (KV를 연결했을 때만 적용)
+DAILY_LIMIT = "200"      # 하루 판독 가능한 도면 수
+TZ_OFFSET = "9"          # 한도가 초기화되는 시각 기준 (9 = 자정 KST)
 
-# 사용량 제한을 켜려면 KV 네임스페이스를 만들어 아래 주석을 풀고 id를 채우세요.
-#   wrangler kv namespace create RATE
+# ── 사용량 제한 (KV) ────────────────────────────────────────────────
+# deploy.sh 가 네임스페이스를 만들어 아래 세 줄의 주석을 풀고 id를 채웁니다.
+# 손으로 하려면:  wrangler kv namespace create RATE
+# 그리고 출력된 id를 아래에 넣고 주석을 푸세요.
+#
+# 이 블록이 주석인 채로 배포하면 DAILY_LIMIT 이 적용되지 않아 한도가 없습니다.
+# KV_BLOCK_START
 # [[kv_namespaces]]
 # binding = "RATE"
-# id = "여기에_붙여넣기"
+# id = "PASTE_KV_ID_HERE"
+# KV_BLOCK_END

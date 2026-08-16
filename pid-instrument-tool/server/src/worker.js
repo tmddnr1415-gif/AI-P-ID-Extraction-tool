@@ -118,9 +118,9 @@ async function config(request, env) {
     tiles: env.TILES || '3x2',
     dpi: +(env.DPI || 200),
     hasTemplate: Boolean(TEMPLATE_B64),
-    dailyLimit: dailyLimit(env),
   };
-  if (authed && env.RATE) body.usedToday = +(await env.RATE.get(rateKey()) || 0);
+  // 남은 판독 수는 로그인한 사람에게만 알린다.
+  if (authed) body.quota = await quota(env);
   return json(body);
 }
 
@@ -146,18 +146,64 @@ async function template(request, env) {
   });
 }
 
-/* ── 사용량 제한 ───────────────────────────────────────── */
-const dailyLimit = (env) => +(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT);
-const rateKey = () => `count:${new Date().toISOString().slice(0, 10)}`;
+/* ── 사용량 제한 (KV) ──────────────────────────────────────
+ * 판독 한 건마다 키를 하나씩 쓰고, 오늘 것의 개수를 세어 한도와 비교한다.
+ *
+ * 카운터 하나를 읽어서 +1 해 쓰는 방식이 간단하지만, 도면을 연달아 판독하면
+ * 두 요청이 같은 값을 읽고 같은 값을 써서 증가분이 사라진다(lost update).
+ * KV에는 원자적 증가가 없으므로 키를 나눠 써서 이 문제를 없앤다.
+ *
+ * 다만 KV는 최종적 일관성이라 방금 쓴 키가 곧바로 목록에 안 보일 수 있다.
+ * 즉 짧은 순간 한도를 몇 건 넘길 수는 있어도, 누적치가 영구히 적게 세어지는
+ * 일은 없다. 정확한 과금 통제가 아니라 폭주 방지용 안전장치다.
+ */
+const dailyLimit = (env) => Math.max(1, +(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT) || DEFAULT_DAILY_LIMIT);
+
+/** 한도가 초기화되는 시각의 기준 시간대. 기본 +9(한국) — 자정 KST에 초기화된다. */
+const tzOffset = (env) => {
+  const n = +(env.TZ_OFFSET ?? 9);
+  return Number.isFinite(n) ? n : 9;
+};
+const dayStamp = (env) => new Date(Date.now() + tzOffset(env) * 3600e3).toISOString().slice(0, 10);
+const ratePrefix = (env) => `hit:${dayStamp(env)}:`;
+
+/** 자정(기준 시간대)까지 남은 초. 429 응답의 Retry-After 로 쓴다. */
+function secondsUntilReset(env) {
+  const now = Date.now() + tzOffset(env) * 3600e3;
+  return Math.max(60, Math.ceil((86400e3 - (now % 86400e3)) / 1000));
+}
+
+/** 오늘 쓴 건수. limit 을 넘기면 더 세지 않고 멈춘다. */
+async function countToday(env, limit) {
+  let count = 0;
+  let cursor;
+  for (let page = 0; page < 5; page++) {
+    const res = await env.RATE.list({ prefix: ratePrefix(env), limit: 1000, cursor });
+    count += res.keys.length;
+    if (res.list_complete || !res.cursor || count >= limit) break;
+    cursor = res.cursor;
+  }
+  return count;
+}
+
+/** 로그인 화면 이후 남은 판독 수를 보여주기 위한 현재 상태. */
+async function quota(env) {
+  if (!env.RATE) return { enabled: false, limit: dailyLimit(env) };
+  const limit = dailyLimit(env);
+  const used = await countToday(env, limit);
+  return { enabled: true, limit, used, remaining: Math.max(0, limit - used), resetsIn: secondsUntilReset(env) };
+}
 
 async function checkRate(env, ctx) {
   if (!env.RATE) return null;                      // KV 미연결이면 제한 없음
-  const key = rateKey();
-  const used = +(await env.RATE.get(key) || 0);
-  if (used >= dailyLimit(env)) {
-    return json({ error: `오늘 판독 한도(${dailyLimit(env)}장)를 모두 썼습니다. 내일 다시 시도하세요.` }, 429);
+  const limit = dailyLimit(env);
+  const used = await countToday(env, limit);
+  if (used >= limit) {
+    return json(
+      { error: `오늘 판독 한도(${limit}장)를 모두 썼습니다. 자정 이후 다시 시도하세요.`, used, limit },
+      429, { 'retry-after': String(secondsUntilReset(env)) });
   }
-  ctx.waitUntil(env.RATE.put(key, String(used + 1), { expirationTtl: 172800 }));
+  ctx.waitUntil(env.RATE.put(ratePrefix(env) + crypto.randomUUID(), '1', { expirationTtl: 172800 }));
   return null;
 }
 

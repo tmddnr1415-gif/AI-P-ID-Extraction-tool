@@ -293,8 +293,10 @@ function updateRunnable() {
 }
 function updateSubtitle() {
   const s = state.settings;
-  $('subtitle').textContent =
-    `${s.model} · effort ${s.effort} · 타일 ${s.tiles} · ${s.dpi}dpi`;
+  let text = `${s.model} · effort ${s.effort} · 타일 ${s.tiles} · ${s.dpi}dpi`;
+  const q = state.server?.quota;
+  if (q?.enabled) text += ` · 오늘 남은 판독 ${q.remaining}/${q.limit}장`;
+  $('subtitle').textContent = text;
 }
 
 /* ── 판독 ──────────────────────────────────────────────── */
@@ -306,6 +308,16 @@ async function run() {
   if (!dry && !state.server && !state.settings.apiKey) {
     alert('API 키가 없습니다. ⚙ 설정에서 입력하거나 "API 없이 시험 실행"을 켜세요.');
     return;
+  }
+  // 도중에 한도가 걸려 반만 판독되는 일이 없도록 시작 전에 알린다.
+  const q = state.server?.quota;
+  if (!dry && q?.enabled && state.selected.size > q.remaining) {
+    const msg = q.remaining === 0
+      ? `오늘 판독 한도(${q.limit}장)를 모두 썼습니다. 자정 이후 다시 시도하세요.`
+      : `오늘 ${q.remaining}장만 더 판독할 수 있는데 ${state.selected.size}장을 선택했습니다.\n`
+        + `${q.remaining}장까지만 판독되고 나머지는 한도 초과로 실패합니다. 계속할까요?`;
+    if (q.remaining === 0) { alert(msg); return; }
+    if (!confirm(msg)) return;
   }
   $('run-error').classList.add('hidden');
   $('run-log').classList.remove('hidden');
@@ -377,6 +389,7 @@ async function run() {
     }
   } finally {
     state.controller = null;
+    if (!dry) refreshQuota();
   }
 }
 
@@ -641,6 +654,17 @@ function applyServerMode(cfg) {
   updateSubtitle();
 }
 
+/** 남은 판독 수를 다시 받아 부제목에 반영한다. 실패해도 무시한다. */
+async function refreshQuota() {
+  if (!state.server) return;
+  try {
+    const res = await fetch('/api/config', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (cfg.quota) { state.server.quota = cfg.quota; updateSubtitle(); }
+  } catch { /* 부가 정보이므로 조용히 넘어간다 */ }
+}
+
 async function serverLogin(password) {
   const res = await fetch('/api/login', {
     method: 'POST', credentials: 'same-origin',
@@ -673,6 +697,7 @@ $('login-form').addEventListener('submit', async (e) => {
   try {
     await serverLogin($('login-password').value);
     showLogin(false);
+    await refreshQuota();
     await loadServerTemplate();
   } catch (ex) {
     err.textContent = ex.message;
