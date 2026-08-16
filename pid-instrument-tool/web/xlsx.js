@@ -208,11 +208,25 @@ const XLSX = (() => {
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort();
     const typeToTypicals = {};
+    /* API 없이 돌릴 때 TYPE만 보고 채울 기본값.
+     *
+     * TYPE 하나에 TYPICAL이 여럿 붙는다. TIT는 템플릿에서 TIT-3(열전대) 53건과
+     * TIT-5(RTD) 46건으로 거의 반반이라 TYPE만 보면 동전 던지기다. 그런데 계통을
+     * 함께 보면 갈린다 — 고온 증기는 열전대, 급수는 RTD 쪽이다. 그래서 계통별
+     * 최빈값을 먼저 쓰고, 그 계통에 전례가 없을 때만 TYPE 전체 최빈값으로 물러난다. */
+    const freq = {};                        // '계통||TYPE' 과 'TYPE' → {TYPICAL: 횟수}
+    const bump = (k, v) => { (freq[k] = freq[k] || {})[v] = (freq[k][v] || 0) + 1; };
     for (const rec of data) {
       if (!rec.type || !rec.inst_typical_type) continue;
       (typeToTypicals[rec.type] = typeToTypicals[rec.type] || new Set()).add(rec.inst_typical_type);
+      bump(rec.type, rec.inst_typical_type);
+      if (rec.system) bump(`${rec.system}||${rec.type}`, rec.inst_typical_type);
     }
     for (const k of Object.keys(typeToTypicals)) typeToTypicals[k] = [...typeToTypicals[k]].sort();
+    const typeToTopTypical = {};
+    for (const [k, f] of Object.entries(freq)) {
+      typeToTopTypical[k] = Object.entries(f).sort((a, b) => b[1] - a[1])[0][0];
+    }
 
     return {
       sheet: sheetName, sheetPath, headerRow, dataStartRow: dataStart,
@@ -220,6 +234,7 @@ const XLSX = (() => {
       instrumentTypes: uniq(data.map((r) => r.type)),
       systems: uniq(data.map((r) => r.system)),
       typeToTypicalTypes: typeToTypicals,
+      typeToTopTypical,
       templateRowCount: data.length,
       demotedColumns: [...inconsistent],
     };

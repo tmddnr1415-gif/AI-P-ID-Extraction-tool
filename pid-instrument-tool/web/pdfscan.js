@@ -56,6 +56,26 @@ const PDFScan = (() => {
     return items.filter(pred).sort((a, b) => a.y - b.y || a.x - b.x).map((i) => i.str).join('\n');
   }
 
+  /* GENERAL NOTES / NOTES 블록.
+   *
+   * 이 블록이 판독의 절반이다. `* DENOTES ... SUPPLIED BY HRSG` 같은 공급 범위 각주와
+   * `CONFIGURATION IS IDENTICAL FOR GROUP#20` 이 여기 있고, 각각 어느 계기를 뺄지와
+   * Q'ty를 정한다. 위치를 놓치면 모델이 그 판단 근거를 아예 못 본다.
+   *
+   * 좌표를 고정하지 않고 `GENERAL NOTES` / `NOTES :` 글자를 찾아 그 아래·오른쪽을 딸려
+   * 온다. 도면 양식이 달라도 따라간다. 못 찾으면 우상단을 넓게 훑는다.
+   */
+  function findNotes(items) {
+    const anchors = items.filter((i) => /^(GENERAL\s+)?NOTES?\s*:?$/i.test(i.str));
+    if (anchors.length) {
+      const x0 = Math.min(...anchors.map((a) => a.x)) - 0.03;
+      const y0 = Math.min(...anchors.map((a) => a.y)) - 0.01;
+      const block = joinRegion(items, (i) => i.x >= x0 && i.y >= y0 && i.y < y0 + 0.55);
+      if (block.length > 40) return block.slice(0, 4000);
+    }
+    return joinRegion(items, (i) => i.x > 0.72 && i.y < 0.60).slice(0, 4000);
+  }
+
   function scanPage(items) {
     // 타이틀블록: 우하단
     const tb = joinRegion(items, (i) => i.x > 0.55 && i.y > 0.78);
@@ -68,8 +88,7 @@ const PDFScan = (() => {
       const i = tb.toUpperCase().indexOf('P&ID FOR');
       if (i >= 0) title = tb.slice(i, i + 90).replace(/\s+/g, ' ').trim();
     }
-    // 노트: 좌상단
-    const notes = joinRegion(items, (i) => i.x < 0.22 && i.y < 0.55).slice(0, 4000);
+    const notes = findNotes(items);
     // 계기 문자 후보
     const candidates = items
       .filter((i) => TOKEN_SET.has(i.str.replace(/[.,;:()[\]]/g, '')))

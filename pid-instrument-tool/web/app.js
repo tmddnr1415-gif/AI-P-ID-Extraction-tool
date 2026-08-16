@@ -291,7 +291,37 @@ function updateRunnable() {
   $('btn-run').disabled = !ready;
   $('btn-run').textContent = ready ? `선택한 ${state.selected.size}장 판독` : '선택한 도면 판독';
   updateSubtitle();
+  updateCostNote();
 }
+
+/* 판독 전에 이번 요청이 얼마나 큰지 알려 준다. 대형 도면 이미지가 입력 토큰의 대부분이라
+ * 타일 수와 DPI가 비용을 좌우한다. 단가는 계정마다 다르므로 토큰 수만 보여 준다. */
+function estimateTokens() {
+  const [cols, rows] = state.settings.tiles.split('x').map(Number);
+  const dpi = state.settings.dpi;
+  const px = (w, h) => Math.min(w * h, 2576 * 2576);
+  // A1 가로 도면 기준 (594×841mm). 전체 1장 + 타일 cols×rows
+  const fullPx = px(2576, 1820);
+  const tileW = (841 / 25.4) * dpi / cols * 1.08;
+  const tileH = (594 / 25.4) * dpi / rows * 1.08;
+  const perDrawing = (fullPx + cols * rows * px(tileW, tileH)) / 750;
+  const n = state.selected.size;
+  return { perDrawing: Math.round(perDrawing), total: Math.round(perDrawing * n), tiles: cols * rows, n };
+}
+
+function updateCostNote() {
+  const el = $('cost-note');
+  if (!el) return;
+  if (!state.selected.size || $('opt-dry').checked) { el.textContent = ''; return; }
+  const e = estimateTokens();
+  el.innerHTML =
+    `이번 판독 예상 입력 <b>약 ${(e.total / 1000).toFixed(0)}k 토큰</b> `
+    + `(도면당 ${(e.perDrawing / 1000).toFixed(0)}k × ${e.n}장). `
+    + `대부분이 도면 이미지라 <b>타일 ${e.tiles}장 · ${state.settings.dpi}dpi</b> 설정이 비용을 좌우합니다. `
+    + `줄이려면 ⚙ 설정에서 타일을 2x2, dpi를 150으로 낮추거나 모델을 Sonnet으로 바꾸세요. `
+    + `단가는 <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">Console</a>에서 확인하세요.`;
+}
+$('opt-dry').addEventListener('change', updateCostNote);
 function updateSubtitle() {
   const s = state.settings;
   let text = `${s.model} · effort ${s.effort} · 타일 ${s.tiles} · ${s.dpi}dpi`;
@@ -507,34 +537,97 @@ const TOKEN_TO_TYPE = {
 };
 const NOT_FIELD = new Set(['ZS', 'ZSC', 'ZSO', 'HS', 'XS']);
 
+/* NOTES의 "CONFIGURATION IS IDENTICAL FOR ..." 에서 Q'ty를 읽는다.
+ *   FOR GROUP#10 … IDENTICAL FOR GROUP#20        → 2
+ *   FOR UNIT#11  … IDENTICAL FOR UNIT#12,21,22   → 4
+ * 이 도면이 몇 개 호기를 대표하는지가 곧 Q'ty다 (extraction_guide 5.1). */
+function qtyFromNotes(notes) {
+  const flat = (notes || '').replace(/\s+/g, ' ').toUpperCase();
+  const m = flat.match(/CONFIGURATION IS IDENTICAL FOR\s+((?:GROUP|UNIT)?\s*#?\s*[\d,\s#]+)/);
+  if (!m) return { qty: 1, why: 'IDENTICAL FOR 노트 없음' };
+  const others = (m[1].match(/\d+/g) || []).length;
+  return others
+    ? { qty: others + 1, why: `NOTES: IDENTICAL FOR ... 다른 호기 ${others}개 → 이 도면 포함 ${others + 1}` }
+    : { qty: 1, why: 'IDENTICAL FOR 노트를 읽었지만 호기 번호를 못 찾음' };
+}
+
+/** 도면 제목과 템플릿의 SYSTEM 목록을 맞춰 본다. 애매하면 비운다. */
+function systemFromTitle(title, systems) {
+  const t = (title || '').toUpperCase().replace(/^P&ID FOR\s+/, '');
+  let best = '', score = 0;
+  for (const s of systems || []) {
+    const words = s.toUpperCase().split(/\s+/).filter((w) => w.length > 2);
+    const hit = words.filter((w) => t.includes(w)).length / (words.length || 1);
+    if (hit > score) { score = hit; best = s; }
+  }
+  return score >= 0.6 ? best : '';
+}
+
+/* API 없이 텍스트 레이어와 NOTES만으로 만드는 기준선.
+ *
+ * 도면에서 결정적으로 읽히는 것만 채운다 — SYSTEM · P&ID No. · TYPE · Q'ty ·
+ * INST. TYPICAL TYPE. DESCRIPTION과 벤더 공급 범위 제외는 도면 그림을 봐야 하는
+ * 판단이라 여기서 채우지 않고 사람이 검토 UI에서 채운다.
+ */
 function baseline(p) {
-  const counts = {}; const excluded = [];
+  const excluded = [];
+  const { qty, why } = qtyFromNotes(p.notes);
+  const system = systemFromTitle(p.title, state.spec?.systems);
+  const top = state.spec?.typeToTopTypical || {};
+
+  const instruments = [];
   for (const c of p.candidates) {
     if (NOT_FIELD.has(c.token)) {
       excluded.push({ token: c.token, location: `x=${c.x},y=${c.y}`,
                       reason: '밸브 리밋스위치 계열이라 Field Instrument 범위 밖' });
       continue;
     }
-    const t = TOKEN_TO_TYPE[c.token];
-    if (!t) {
+    const type = TOKEN_TO_TYPE[c.token];
+    if (!type) {
       excluded.push({ token: c.token, location: `x=${c.x},y=${c.y}`, reason: '매핑에 없는 문자' });
       continue;
     }
-    counts[t] = (counts[t] || 0) + 1;
+    instruments.push({
+      system, pid_no: p.drawing_no || '', type, qty: String(qty),
+      description: '',                          // 사람이 채울 칸
+      inst_typical_type: top[`${system}||${type}`] || top[type] || '', remark: '-',
+      source_tokens: `텍스트 레이어 '${c.token}' @ x=${c.x} y=${c.y}`,
+      confidence: 'low',
+    });
   }
-  const instruments = Object.entries(counts).sort().map(([type, n]) => ({
-    system: '', pid_no: p.drawing_no || '', type, qty: String(n), description: '-',
-    inst_typical_type: '', remark: '-',
-    source_tokens: `텍스트 레이어 ${type} ${n}건`, confidence: 'low',
-  }));
-  return {
-    instruments, excluded,
-    review_findings: [{
+
+  const findings = [{
+    severity: 'high', location: p.drawing_no || '',
+    finding: `API 없이 만든 기준선입니다. 계기 ${instruments.length}건의 SYSTEM · P&ID No. · TYPE · `
+      + `Q'ty · INST. TYPICAL TYPE 은 도면에서 결정적으로 읽어 채웠고, DESCRIPTION 은 비어 있습니다.`,
+    recommendation: 'DESCRIPTION 을 검토 UI에서 채우고, 벤더 공급 범위 계기를 지우세요.',
+  }, {
+    severity: 'high', location: p.drawing_no || '',
+    finding: `Q'ty ${qty} — ${why}`,
+    recommendation: 'PLANT COMMON 처럼 호기 공용인 설비는 이 배수에서 빼고 1로 고치세요.',
+  }];
+  if (/DENOTES|MARKED ITEM|SUPPLIED BY/i.test(p.notes || '')) {
+    const lines = (p.notes || '').split('\n')
+      .filter((l) => /DENOTES|MARKED ITEM|SUPPLIED BY/i.test(l)).join(' / ');
+    findings.push({
       severity: 'high', location: p.drawing_no || '',
-      finding: '시험 실행 결과입니다. DESCRIPTION과 수량 통합이 반영되지 않았습니다.',
-      recommendation: '실제 판독은 API 키를 넣고 "API 없이 시험 실행"을 끈 뒤 실행하세요.',
-    }],
-    page_summary: `기준선: 후보 ${p.candidates.length}건 → ${instruments.length}행`,
+      finding: `이 도면에 공급 범위 각주가 있습니다 — ${lines}`,
+      recommendation: '도면에서 * / ** 표기가 붙은 계기를 찾아 목록에서 지우세요. '
+        + '기준선은 표기를 못 읽으므로 그 계기들이 아직 남아 있습니다.',
+    });
+  }
+  if (!system) {
+    findings.push({
+      severity: 'medium', location: p.drawing_no || '',
+      finding: `제목('${p.title || '—'}')이 템플릿 SYSTEM 목록과 맞지 않아 SYSTEM을 비웠습니다.`,
+      recommendation: '검토 UI에서 SYSTEM을 골라 주세요.',
+    });
+  }
+
+  return {
+    instruments, excluded, review_findings: findings,
+    page_summary: `API 없이 만든 기준선 — 후보 ${p.candidates.length}건 중 ${instruments.length}건을 `
+      + `행으로, ${excluded.length}건 제외. Q'ty ${qty}. DESCRIPTION은 비어 있습니다.`,
   };
 }
 

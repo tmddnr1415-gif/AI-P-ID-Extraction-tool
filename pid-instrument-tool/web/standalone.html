@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   P&ID Instrument List — 단일 파일 빌드
-  생성: scripts/build_web.py · 2026-08-16 01:14
+  생성: scripts/build_web.py · 2026-08-16 01:22
   원본: web/index.html + styles.css + *.js + vendor/
   자동 생성 파일입니다. 고칠 때는 원본을 고치고 다시 빌드하세요.
 -->
@@ -503,6 +503,7 @@ dialog h2 { margin-bottom: 12px; }
       <label class="inline"><input id="opt-dry" type="checkbox" /> <span>API 없이 시험 실행</span></label>
       <span id="run-status" class="status"></span>
     </div>
+    <p id="cost-note" class="muted"></p>
     <div id="run-log" class="run-log hidden"></div>
     <p id="run-error" class="error hidden"></p>
   </section>
@@ -652,7 +653,7 @@ dialog h2 { margin-bottom: 12px; }
 <!-- rules.gen.js -->
 <script>
 /* rules/*.md 에서 자동 생성됩니다. 직접 고치지 마세요.
-   생성: scripts/build_web.py · 2026-08-16 01:14 */
+   생성: scripts/build_web.py · 2026-08-16 01:22 */
 const RULES_DEFAULT = {
   "extraction_guide.md": "# P&ID Field Instrument 판독 규칙\n\n> 이 문서는 `extract_instruments.py`의 시스템 프롬프트에 **통째로** 들어간다.\n> 사람이 검토하면서 발견한 오류를 규칙으로 바꿔 여기에 계속 누적한다.\n> 규칙을 고칠 때는 `review_log.md`에 언제·무엇을·왜 고쳤는지 함께 남긴다.\n\n버전: v1 (초기) · 최종 수정: 2026-08-15\n\n---\n\n## 1. 읽는 순서\n\n각 P&ID는 **위 → 아래, 왼쪽 → 오른쪽** 순서로 읽는다. 출력 행 순서도 이 순서를 따른다.\n확대 타일이 제공되면 타일 순서(r0c0 → r0c1 → …)가 곧 이 순서다.\n\n## 2. Symbol & Legend 우선\n\n계기를 판독하기 전에 `rules/symbol_legend.md`(기호 정의, 첫 글자/뒤 글자 조합표, 신호선,\n밸브 상태 기호 FO/FC/LO)를 먼저 적용한다. 레전드에 없는 기호를 임의로 해석하지 않는다.\n\n## 3. 무엇이 Field Instrument인가\n\n계기는 **원(circle) 또는 태그 박스** 안에 **계기 문자 조합**이 들어 있는 것으로만 식별한다.\n\n계기로 **오인하지 말 것**:\n\n- 배관 치수 표기 (DN 사이즈, `550`, `SPL-THK` 등)\n- 라인 브레이크 기호, 연속 도면 참조 화살표\n- 장비 심볼(펌프, 열교환기)과 장비 번호\n- 밸브 자체, 밸브 액추에이터, `I/P` 변환기\n\n이번 단계 범위에서 **제외**하는 것 (제외한 사실은 `excluded`에 이유와 함께 남긴다):\n\n| 대상 | 이유 |\n|---|---|\n| `ZS`, `ZSO`, `ZSC` | 밸브 리밋스위치 — Valve 카테고리에서 다룬다 |\n| `HS`, `XS` | 수동 스위치 / 기타 — Field Instrument 아님 |\n| 벤더 공급 범위 표기가 붙은 계기 | 아래 3.1 |\n| 제어밸브에 딸린 포지셔너 | Valve 카테고리 |\n| `PSV`, `MOV`, `TW` | 안전밸브 / 전동밸브 / 서모웰 — 계기 아님 |\n\n### 3.1 벤더 공급 범위 표기 — 가장 큰 제외 사유\n\n**이 판단 하나가 도면당 행 수를 좌우한다. 다른 무엇보다 먼저 확인한다.**\n\n각 도면 우측 `GENERAL NOTES` 아래에 기호 각주가 있다. 예:\n\n```\n*   DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG.\n**  DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER.\n*   MARKED ITEM TO BE SUPPLIED BY BFP SUPPLIER.\n```\n\n**계기 버블 바로 위에 `*` 또는 `**` 가 찍혀 있으면 그 계기는 목록에서 뺀다.**\n점선/일점쇄선 박스에 `*` 가 하나 찍혀 있으면 **박스 안 계기 전부**가 해당된다.\n각주 문구는 도면마다 다르므로 그 도면의 각주를 읽고 판단한다.\n\n빼는 이유는 남의 공급 범위라서다. `excluded` 에 어떤 표기 때문인지 반드시 남긴다.\n\n> 실측: `D00P-10LBA10-M05-0001`(HP Steam)은 계기 문자 34건 중 `*`(HRSG) 16건,\n> `**`(ST SUPPLIER) 6건이 이 표기 때문에 빠져 **12건만** 목록에 오른다.\n> `D00P-11LAB00-M05-0001`(Feedwater)은 `*`(BFP SUPPLIER)가 붙은 PDIT 2건이 빠진다.\n\n`SCT` + 화살표 + 공급자명(`HRSG`, `SUPPLIER`)은 공급 범위 경계선이다. 경계 **바깥**\n(우리 범위)의 계기는 표기가 없으므로 포함한다. 경계 자체를 제외 근거로 쓰지 않는다.\n\n## 4. 텍스트 레이어 후보의 사용법\n\n프롬프트에 함께 들어오는 \"텍스트 레이어 계기 문자 후보\"는 PDF에서 결정적으로 추출한\n것이라 **위치와 개수가 정확하다**. 이것을 기준선으로 삼되 그대로 옮기지 않는다.\n\n- 후보 하나하나를 이미지에서 확인해 Field Instrument인지 판단한다.\n- 후보에 없어도 이미지에서 계기를 발견하면 추가하고 `source_tokens`에 그 사실을 적는다.\n- 후보 문자와 최종 TYPE은 다를 수 있다. 도면에는 전송기를 `PT`로 그려도\n  Instrument List의 TYPE은 `PIT`로 쓴다.\n\n### 도면 문자 → TYPE 매핑\n\n| 도면 문자 | Instrument List TYPE |\n|---|---|\n| PT, PIT | PIT |\n| TT, TIT | TIT |\n| LT, LIT | LIT |\n| FT, FIT | FIT |\n| PDT, PDI, PDIT | PDIT |\n| AT, AIT | AIT |\n| PI / TI / LI / FI | 그대로 (지시계) |\n| FE | FE (오리피스 등 유량 요소) |\n| RO | RO (제한 오리피스) |\n| LS, FS, PS, TS | 그대로 (스위치) |\n\n## 5. Q'ty (수량) 규칙\n\n`Q'ty`는 **이 도면이 대표하는 호기 수**다. 도면에 그려진 계기 개수가 아니다.\n\n### 5.1 \"CONFIGURATION IS IDENTICAL FOR ...\" 노트가 Q'ty를 정한다\n\n각 도면 `NOTES` 1번에 거의 항상 이런 문장이 있다.\n\n```\nTHIS P&ID IS FOR GROUP#10, CONFIGURATION IS IDENTICAL FOR GROUP#20.\nTHIS P&ID IS FOR UNIT#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.\n```\n\n이때 **행을 호기별로 나누지 않는다. 한 행으로 두고 `qty`에 호기 수를 적는다.**\n\n| 노트 | qty |\n|---|---|\n| `FOR GROUP#10 … IDENTICAL FOR GROUP#20` | **2** |\n| `FOR UNIT#11 … IDENTICAL FOR UNIT#12,21,22` | **4** |\n| 그런 노트가 없음 | 1 |\n\n**예외 — 호기 공용 설비는 qty 1.** 설비명에 `PLANT COMMON`이 붙어 있거나 전 호기가\n같은 것 하나를 쓰는 설비(예: `AUXILIARY BOILER COOLER (PLANT COMMON)`)는 복제되지\n않으므로 노트와 무관하게 `qty = 1`이다.\n\n### 5.2 도면 안에서 합치지 않는다\n\n같은 도면에 나란히 그려진 계기는 각각 **별도 행**이다. 합쳐서 qty를 올리지 않는다.\n\n- 오리피스(FE) 하나에 전송기(FIT) 2개 → FE 1행 + FIT 2행 (DESCRIPTION 끝에 A / B)\n- 펌프 A 라인과 펌프 B 라인 → 각각 별도 행\n- 공급/회수, 입구/출구 → 각각 별도 행\n\n> 실측: `D00P-10PGB10-M05-0004`(CCW)는 계기 24건이 모두 별도 행 24행이고,\n> `PLANT COMMON` 냉각기 3행만 qty 1, 나머지 21행이 qty 2다.\n\n## 6. DESCRIPTION 작성 기준\n\n`UNIT 번호 + 설비/계통 + 측정 대상 + 서브 식별자` 순서로 **영문 대문자**로 쓴다.\n각 라인의 From/To 라벨(예: `TO HRSG#11 BD TANK`)을 근거로 삼는다.\n\n```\nUNIT #11 HP STEAM PRESSURE A\nUNIT #11 BOILER FEED WATER PUMP B SUCTION PRESSURE A\nUNIT #11 BFP A/B COOLER CCW RETURN TEMPERATURE\nUNIT #11 BOILER FEED WATER PUMP B DISCHARGE IP FLOW ELEMENT\n```\n\n- 유량 요소(FE)는 끝에 `FLOW ELEMENT`를 붙여 전송기(FIT)와 구분한다.\n- 도면에서 설비 이름을 읽을 수 없으면 지어내지 말고 confidence를 `low`로 둔다.\n\n### 6.1 자리별로 뜯어보면\n\n```\nUNIT #11   BOILER FEED WATER PUMP   A    DISCHARGE HP   FLOW   B\n└ 호기      └ 설비 (약어 금지)        └ 설비  └ 구간·계통    └ 측정  └ 중복\n                                      서브                    대상    식별자\n```\n\n**A/B가 두 자리에 나온다. 뜻이 다르므로 섞지 않는다.**\n\n| 자리 | 뜻 | 예 |\n|---|---|---|\n| 설비명 **뒤** | 어느 설비인가 | `PUMP A SUCTION PRESSURE` |\n| 문장 **끝** | 같은 지점의 몇 번째 계기인가 | `SUCTION PRESSURE A` / `... B` |\n\n둘 다 필요하면 둘 다 쓴다 — `BOILER FEED WATER PUMP A SUCTION PRESSURE B`\n(A펌프 흡입에 붙은 두 압력전송기 중 두 번째).\n\n### 6.2 설비 이름은 그 도면의 설비 박스에 적힌 대로 쓴다\n\n지어내거나 임의로 줄이거나 늘리지 않는다. 같은 설비라도 도면이 다르게 부르면 다르게 쓴다.\n\n| 도면의 설비 박스 | DESCRIPTION |\n|---|---|\n| `FEEDWATER PUMP FOR HRSG UNIT #11 (A/B)` | `BOILER FEED WATER PUMP A` |\n| `#11 BFP A/B COOLERS` | `BFP A/B COOLER` |\n\n계통 약어 `HRSG` `CCW` `HP` `IP` `LP` `STG` 는 항상 그대로 둔다.\n\n### 6.3 설비 하나를 여러 갈래가 공유하면 설비 이름을 그대로 쓴다\n\n도면 설비 박스가 `#11 BFP A/B COOLERS` 처럼 A/B를 묶어 부르면 **묶은 이름 그대로**\n`UNIT #11 BFP A/B COOLER ...` 로 쓴다. 갈래마다 행은 따로 만들되 이름은 쪼개지 않는다.\n같은 DESCRIPTION이 두 행 나오는 것은 정상이다.\n\n마찬가지로 `#11 HRSG COOLERS (CPH. HGCF)` 는 괄호 안을 풀지 말고\n`UNIT #11 HRSG COOLERS ...` 로 쓴다.\n\n### 6.4 공용 헤더는 설비 서브 식별자를 뺀다\n\n펌프 A/B가 공유하는 흡입·토출 헤더의 계기는 설비 서브를 붙이지 않는다.\n\n```\nUNIT #11 BOILER FEED WATER PUMP SUCTION PRESSURE              ← 공용 흡입 헤더\nUNIT #11 BOILER FEED WATER PUMP A SUCTION PRESSURE A          ← A펌프 개별\nUNIT #11 BOILER FEED WATER PUMP DISCHARGE HEADER HP PRESSURE A ← 공용 토출 헤더\n```\n\n### 6.5 구간 이름은 도착지에서 가져온다\n\n배관에 적힌 치수(`DN200`)나 선 이름(`MINIMUM FLOW RECIRCULATION LINE`)이 아니라\n**그 갈래가 어디로 가는지**로 이름 붙인다. `TO HRSG#11 HP ECONOMIZER` 로 가는\n유량계는 `DISCHARGE HP FLOW`, IP 이코노마이저로 가면 `DISCHARGE IP FLOW` 다.\n\n### 6.6 호기 공용은 그룹 번호를 쓴다\n\n특정 호기에 속하지 않고 그룹이 공유하는 계기는 그룹 번호를 호기 자리에 쓴다.\nGROUP#10 도면의 공통 헤더 → `UNIT #10 HP STEAM DRAIN TEMPERATURE`.\n\n## 7. TAG 열은 비운다\n\n제안 단계 도면의 계기 버블은 태그 번호 자리가 점선(`.....`)으로 비어 있다.\n템플릿의 `TAG` 열도 전 행이 비어 있다. **태그 번호를 만들어내지 않는다.**\n행의 식별은 `P&ID No. + TYPE + DESCRIPTION` 조합으로 한다.\n\n## 8. INST. TYPICAL TYPE 선택\n\nTYPE이 정해지면 허용된 TYPICAL TYPE 중에서 고른다(프롬프트에 목록이 들어온다).\n선택 기준은 도면에서 읽히는 설치 형태다.\n\n- 다이어프램 실(remote seal)/캐필러리가 그려져 있으면 `-2`/`-3` 계열\n- 일반 직결/원격 전송이면 `-1` 계열\n- 온도계는 열전대(T/C)면 `TIT-3`, RTD면 `TIT-5`\n- 판단 근거가 도면에 없으면 가장 흔한 계열을 고르고 confidence를 `medium` 이하로 둔다\n\n## 9. Vendor Scope 표기\n\n3.1이 판단 기준이다. 표기가 붙은 계기는 목록에서 빼고 `excluded`에 어떤 표기 때문인지\n적는다. 빼지 않기로 한 경계 근처 계기는 `REMARK`에 `Vendor Scope`(또는 벤더명)를 남긴다.\n\n## 10. 도면 Note 반영\n\n판독을 시작하기 전에 도면 우측 `GENERAL NOTES` / `NOTES` / 기호 각주를 **먼저** 읽는다.\n행 수와 Q'ty가 여기서 결정되기 때문이다.\n\n| 읽을 것 | 결정되는 것 |\n|---|---|\n| `*` / `**` 공급 범위 각주 | 어느 계기를 뺄지 (→ 3.1) |\n| `CONFIGURATION IS IDENTICAL FOR ...` | Q'ty (→ 5.1) |\n| 그 외 계기에 영향 주는 노트 | REMARK |\n\n## 11. REMARK / 개정 표기\n\n- 개정으로 추가된 계기: `ADD`\n- 개정으로 삭제된 계기: `DEL` (행은 남기고 REMARK에 표기)\n- 해당 없음: `-`\n\n## 12. 채우지 않는 컬럼\n\n다음은 도면에서 읽을 수 없으므로 **비워 둔다**. 억지로 채우지 않는다.\n\n- `UNIT`, `SYSTEM CODE`, `SYSTEM SEQUENCE`, `TAG` — 템플릿에서 전 행 비어 있음\n- `Design table No.`, 운전/설계 조건, 배관 정보, `Rating`, `Velocity Criteria`, `Fluid`\n  — 별도 Design Table에서 조인\n- `REQUIRED CALIBRATION RANGE`, `UNIT`, `ELEM. MATERIAL`, `Connection Type`,\n  `TW / CHAMBER SPECIFICATION`, `EXPLOSION PROOF` — 서비스 조건에 따라 달라져\n  TYPICAL TYPE만으로 결정되지 않음\n- `BODY MATERIAL`, `Scope of Supply`, `MAKER`, `MODEL`, `STATUS`\n\n## 13. 확신도와 검토 의견\n\n- `confidence`: 글자가 흐리거나 맥락 추정이 섞였으면 `low`\n- 판독 불가 영역, 도면 간 태그 충돌, 규칙으로 판단이 안 되는 경우는 반드시\n  `review_findings`에 남긴다. 조용히 넘어가지 않는다.\n\n---\n\n## 검토 피드백에서 도출된 규칙\n\n> `scripts/apply_feedback.py --apply-rules` 가 이 아래에 규칙을 추가한다.\n> 사람이 문장을 다듬어 위 본문으로 승격시키는 것을 권장한다.\n\n**2026-08-16 · 1차 시험판독 (p6 / p20 / p38) 결과 반영 — 본문으로 승격 완료**\n\n정답 대조에서 나온 것들이며 각각 위 본문에 반영했다.\n\n| 발견 | 반영 위치 |\n|---|---|\n| `*` / `**` 공급 범위 표기가 최대 제외 사유 (p6는 34건 중 22건이 이 사유) | 3.1 |\n| `CONFIGURATION IS IDENTICAL FOR ...` 는 행 분리가 아니라 Q'ty 배수 | 5.1 |\n| `PLANT COMMON` 설비는 그 배수에서 제외 (qty 1) | 5.1 |\n| 도면 안 병렬 계기는 합치지 않는다 (FE 1 + FIT 2 = 3행) | 5.2 |\n| A/B가 설비 자리와 문장 끝 자리에서 뜻이 다르다 | 6.1 |\n| `BFP` → `BOILER FEED WATER PUMP` 로 풀어 쓴다 | 6.2 |\n| 설비 박스가 `A/B COOLERS` 면 이름을 쪼개지 않는다 | 6.3 |\n| 공용 헤더는 설비 서브 식별자를 뺀다 | 6.4 |\n| 구간 이름은 배관 치수가 아니라 도착지에서 (`DISCHARGE HP FLOW`) | 6.5 |\n| 그룹 공용 계기는 그룹 번호를 호기 자리에 (`UNIT #10`) | 6.6 |\n",
   "naming_convention.md": "# 태그 넘버링 규칙 (KKS / ISA 5.1)\n\n> 출처: `D00P-00GEN00-M05-0005` (P&ID FOR SYMBOLS & LEGENDS 4) 텍스트 레이어에서 발췌.\n> 원문 근거가 있는 내용만 적었다. 확장할 때도 도면·기준서 근거를 함께 남긴다.\n> 프로젝트 기준서: `19K9-00GEN00-G02-0002` (KKS NUMBERING SYSTEM)\n\n---\n\n## 1. KKS 식별 체계\n\n태그 넘버링은 **KKS(Kraftwerk-Kennzeichensystem)** 기준을 따른다.\n브레이크다운 레벨 4단계로 구성된다.\n\n| 레벨 | 자리 | 의미 |\n|---|---|---|\n| 0 | `U` `U` | Plant Unit (호기 구분) |\n| 1 | `S` `S` `S` + 숫자 | 시스템 코드 + 시스템 내 순번 (예: `LAB01`) |\n| 2 | `A` `A` + 숫자 | 설비 유닛 코드 + 설비 순번 (예: `AP001`) |\n| 3 | `-M` 등 | 컴포넌트 코드 |\n\n**적용 예시 (도면 원문):**\n\n```\n20LAB31AP001      COGENERATION FEEDWATER PUMP A\n20LAB11AP001-M    COGENERATION FEEDWATER PUMP A MOTOR\n```\n\n## 2. 호기(Plant Unit) 코드\n\n| 코드 | 의미 |\n|---|---|\n| `00` | POWER PLANT COMMON |\n| `10` | FIRST GROUP COMMON (INCL. FIRST GROUP STG) |\n| `11` | FIRST GROUP #1 GTG / HRSG |\n| `12` | FIRST GROUP #2 GTG / HRSG |\n| `20` / `21` / `22` | SECOND GROUP (동일 구조) |\n\n도면번호 `D00P-11LAB00-M05-0001`의 `11`이 이 호기 코드이며, DESCRIPTION의\n`UNIT #11`과 대응한다.\n\n## 3. 도면번호 체계\n\n```\nD00P - 11LAB00 - M05 - 0001\n │       │        │      └ 도면 일련번호\n │       │        └ 도면 종류 (M05 = P&ID)\n │       └ 호기(2) + 시스템 코드(3) + 시스템 순번(2)\n └ 프로젝트 코드\n```\n\n## 4. 계기 회로 번호 범위\n\n계기류는 KKS 번호 범위 중 `191-199`(INSTRUMENTATION), `201-250`(INSTRUMENT ISOLATION)\n구간을 사용한다. 밸브류는 `001-100`(주배관 밸브), `101-190`(밸브 일반),\n`301-399`(제어밸브/댐퍼), `401-499`(안전밸브) 등 별도 구간이다.\n\n## 5. 이 프로젝트에서 태그 번호를 쓰지 않는 이유\n\n제안(proposal) 단계 도면이라 계기 버블 안의 태그 번호 자리가 점선(`.....`)으로\n비어 있다. 정답 Instrument List의 `TAG` 열도 563행 전부 비어 있다.\n\n→ **판독 단계에서 태그 번호를 생성하지 않는다.**\n→ 행의 식별자는 `P&ID No. + TYPE + DESCRIPTION` 조합이다.\n\n상세설계 단계 도면으로 넘어가 태그가 부여되면 이 절을 개정하고, `extraction_guide.md`\n7절도 함께 고친다.\n\n## 6. ISA 5.1 문자 조합\n\n첫 글자(측정 변수)와 뒤 글자(기능)의 조합표는 Symbol & Legend 도면에서 추출해\n`rules/symbol_legend.md`에 둔다. 이 프로젝트에서 실제로 나타나는 조합은 다음과 같다\n(정답 Instrument List 563행 기준).\n\n| TYPE | 조합 해석 |\n|---|---|\n| `PI` / `TI` / `LI` | 압력 / 온도 / 레벨 지시계 |\n| `PIT` / `TIT` / `LIT` / `FIT` | 지시 + 전송기 |\n| `PDIT` | 차압 지시 전송기 |\n| `LS` / `FS` | 레벨 / 유량 스위치 |\n| `FE` | 유량 요소 (오리피스 등) |\n| `RO` | 제한 오리피스 (Restriction Orifice) |\n\n`AIT`(분석), `LSH`/`LSHH`/`LSL`(레벨 스위치 하이/로우) 등은 템플릿에는 예시로\n언급되어 있으나 현재 정답 목록에는 나타나지 않는다. 새로 발견되면 `review_findings`로\n보고하고 이 표에 추가한다.\n",
@@ -873,11 +874,25 @@ const XLSX = (() => {
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort();
     const typeToTypicals = {};
+    /* API 없이 돌릴 때 TYPE만 보고 채울 기본값.
+     *
+     * TYPE 하나에 TYPICAL이 여럿 붙는다. TIT는 템플릿에서 TIT-3(열전대) 53건과
+     * TIT-5(RTD) 46건으로 거의 반반이라 TYPE만 보면 동전 던지기다. 그런데 계통을
+     * 함께 보면 갈린다 — 고온 증기는 열전대, 급수는 RTD 쪽이다. 그래서 계통별
+     * 최빈값을 먼저 쓰고, 그 계통에 전례가 없을 때만 TYPE 전체 최빈값으로 물러난다. */
+    const freq = {};                        // '계통||TYPE' 과 'TYPE' → {TYPICAL: 횟수}
+    const bump = (k, v) => { (freq[k] = freq[k] || {})[v] = (freq[k][v] || 0) + 1; };
     for (const rec of data) {
       if (!rec.type || !rec.inst_typical_type) continue;
       (typeToTypicals[rec.type] = typeToTypicals[rec.type] || new Set()).add(rec.inst_typical_type);
+      bump(rec.type, rec.inst_typical_type);
+      if (rec.system) bump(`${rec.system}||${rec.type}`, rec.inst_typical_type);
     }
     for (const k of Object.keys(typeToTypicals)) typeToTypicals[k] = [...typeToTypicals[k]].sort();
+    const typeToTopTypical = {};
+    for (const [k, f] of Object.entries(freq)) {
+      typeToTopTypical[k] = Object.entries(f).sort((a, b) => b[1] - a[1])[0][0];
+    }
 
     return {
       sheet: sheetName, sheetPath, headerRow, dataStartRow: dataStart,
@@ -885,6 +900,7 @@ const XLSX = (() => {
       instrumentTypes: uniq(data.map((r) => r.type)),
       systems: uniq(data.map((r) => r.system)),
       typeToTypicalTypes: typeToTypicals,
+      typeToTopTypical,
       templateRowCount: data.length,
       demotedColumns: [...inconsistent],
     };
@@ -1043,6 +1059,26 @@ const PDFScan = (() => {
     return items.filter(pred).sort((a, b) => a.y - b.y || a.x - b.x).map((i) => i.str).join('\n');
   }
 
+  /* GENERAL NOTES / NOTES 블록.
+   *
+   * 이 블록이 판독의 절반이다. `* DENOTES ... SUPPLIED BY HRSG` 같은 공급 범위 각주와
+   * `CONFIGURATION IS IDENTICAL FOR GROUP#20` 이 여기 있고, 각각 어느 계기를 뺄지와
+   * Q'ty를 정한다. 위치를 놓치면 모델이 그 판단 근거를 아예 못 본다.
+   *
+   * 좌표를 고정하지 않고 `GENERAL NOTES` / `NOTES :` 글자를 찾아 그 아래·오른쪽을 딸려
+   * 온다. 도면 양식이 달라도 따라간다. 못 찾으면 우상단을 넓게 훑는다.
+   */
+  function findNotes(items) {
+    const anchors = items.filter((i) => /^(GENERAL\s+)?NOTES?\s*:?$/i.test(i.str));
+    if (anchors.length) {
+      const x0 = Math.min(...anchors.map((a) => a.x)) - 0.03;
+      const y0 = Math.min(...anchors.map((a) => a.y)) - 0.01;
+      const block = joinRegion(items, (i) => i.x >= x0 && i.y >= y0 && i.y < y0 + 0.55);
+      if (block.length > 40) return block.slice(0, 4000);
+    }
+    return joinRegion(items, (i) => i.x > 0.72 && i.y < 0.60).slice(0, 4000);
+  }
+
   function scanPage(items) {
     // 타이틀블록: 우하단
     const tb = joinRegion(items, (i) => i.x > 0.55 && i.y > 0.78);
@@ -1055,8 +1091,7 @@ const PDFScan = (() => {
       const i = tb.toUpperCase().indexOf('P&ID FOR');
       if (i >= 0) title = tb.slice(i, i + 90).replace(/\s+/g, ' ').trim();
     }
-    // 노트: 좌상단
-    const notes = joinRegion(items, (i) => i.x < 0.22 && i.y < 0.55).slice(0, 4000);
+    const notes = findNotes(items);
     // 계기 문자 후보
     const candidates = items
       .filter((i) => TOKEN_SET.has(i.str.replace(/[.,;:()[\]]/g, '')))
@@ -1764,7 +1799,37 @@ function updateRunnable() {
   $('btn-run').disabled = !ready;
   $('btn-run').textContent = ready ? `선택한 ${state.selected.size}장 판독` : '선택한 도면 판독';
   updateSubtitle();
+  updateCostNote();
 }
+
+/* 판독 전에 이번 요청이 얼마나 큰지 알려 준다. 대형 도면 이미지가 입력 토큰의 대부분이라
+ * 타일 수와 DPI가 비용을 좌우한다. 단가는 계정마다 다르므로 토큰 수만 보여 준다. */
+function estimateTokens() {
+  const [cols, rows] = state.settings.tiles.split('x').map(Number);
+  const dpi = state.settings.dpi;
+  const px = (w, h) => Math.min(w * h, 2576 * 2576);
+  // A1 가로 도면 기준 (594×841mm). 전체 1장 + 타일 cols×rows
+  const fullPx = px(2576, 1820);
+  const tileW = (841 / 25.4) * dpi / cols * 1.08;
+  const tileH = (594 / 25.4) * dpi / rows * 1.08;
+  const perDrawing = (fullPx + cols * rows * px(tileW, tileH)) / 750;
+  const n = state.selected.size;
+  return { perDrawing: Math.round(perDrawing), total: Math.round(perDrawing * n), tiles: cols * rows, n };
+}
+
+function updateCostNote() {
+  const el = $('cost-note');
+  if (!el) return;
+  if (!state.selected.size || $('opt-dry').checked) { el.textContent = ''; return; }
+  const e = estimateTokens();
+  el.innerHTML =
+    `이번 판독 예상 입력 <b>약 ${(e.total / 1000).toFixed(0)}k 토큰</b> `
+    + `(도면당 ${(e.perDrawing / 1000).toFixed(0)}k × ${e.n}장). `
+    + `대부분이 도면 이미지라 <b>타일 ${e.tiles}장 · ${state.settings.dpi}dpi</b> 설정이 비용을 좌우합니다. `
+    + `줄이려면 ⚙ 설정에서 타일을 2x2, dpi를 150으로 낮추거나 모델을 Sonnet으로 바꾸세요. `
+    + `단가는 <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">Console</a>에서 확인하세요.`;
+}
+$('opt-dry').addEventListener('change', updateCostNote);
 function updateSubtitle() {
   const s = state.settings;
   let text = `${s.model} · effort ${s.effort} · 타일 ${s.tiles} · ${s.dpi}dpi`;
@@ -1980,34 +2045,97 @@ const TOKEN_TO_TYPE = {
 };
 const NOT_FIELD = new Set(['ZS', 'ZSC', 'ZSO', 'HS', 'XS']);
 
+/* NOTES의 "CONFIGURATION IS IDENTICAL FOR ..." 에서 Q'ty를 읽는다.
+ *   FOR GROUP#10 … IDENTICAL FOR GROUP#20        → 2
+ *   FOR UNIT#11  … IDENTICAL FOR UNIT#12,21,22   → 4
+ * 이 도면이 몇 개 호기를 대표하는지가 곧 Q'ty다 (extraction_guide 5.1). */
+function qtyFromNotes(notes) {
+  const flat = (notes || '').replace(/\s+/g, ' ').toUpperCase();
+  const m = flat.match(/CONFIGURATION IS IDENTICAL FOR\s+((?:GROUP|UNIT)?\s*#?\s*[\d,\s#]+)/);
+  if (!m) return { qty: 1, why: 'IDENTICAL FOR 노트 없음' };
+  const others = (m[1].match(/\d+/g) || []).length;
+  return others
+    ? { qty: others + 1, why: `NOTES: IDENTICAL FOR ... 다른 호기 ${others}개 → 이 도면 포함 ${others + 1}` }
+    : { qty: 1, why: 'IDENTICAL FOR 노트를 읽었지만 호기 번호를 못 찾음' };
+}
+
+/** 도면 제목과 템플릿의 SYSTEM 목록을 맞춰 본다. 애매하면 비운다. */
+function systemFromTitle(title, systems) {
+  const t = (title || '').toUpperCase().replace(/^P&ID FOR\s+/, '');
+  let best = '', score = 0;
+  for (const s of systems || []) {
+    const words = s.toUpperCase().split(/\s+/).filter((w) => w.length > 2);
+    const hit = words.filter((w) => t.includes(w)).length / (words.length || 1);
+    if (hit > score) { score = hit; best = s; }
+  }
+  return score >= 0.6 ? best : '';
+}
+
+/* API 없이 텍스트 레이어와 NOTES만으로 만드는 기준선.
+ *
+ * 도면에서 결정적으로 읽히는 것만 채운다 — SYSTEM · P&ID No. · TYPE · Q'ty ·
+ * INST. TYPICAL TYPE. DESCRIPTION과 벤더 공급 범위 제외는 도면 그림을 봐야 하는
+ * 판단이라 여기서 채우지 않고 사람이 검토 UI에서 채운다.
+ */
 function baseline(p) {
-  const counts = {}; const excluded = [];
+  const excluded = [];
+  const { qty, why } = qtyFromNotes(p.notes);
+  const system = systemFromTitle(p.title, state.spec?.systems);
+  const top = state.spec?.typeToTopTypical || {};
+
+  const instruments = [];
   for (const c of p.candidates) {
     if (NOT_FIELD.has(c.token)) {
       excluded.push({ token: c.token, location: `x=${c.x},y=${c.y}`,
                       reason: '밸브 리밋스위치 계열이라 Field Instrument 범위 밖' });
       continue;
     }
-    const t = TOKEN_TO_TYPE[c.token];
-    if (!t) {
+    const type = TOKEN_TO_TYPE[c.token];
+    if (!type) {
       excluded.push({ token: c.token, location: `x=${c.x},y=${c.y}`, reason: '매핑에 없는 문자' });
       continue;
     }
-    counts[t] = (counts[t] || 0) + 1;
+    instruments.push({
+      system, pid_no: p.drawing_no || '', type, qty: String(qty),
+      description: '',                          // 사람이 채울 칸
+      inst_typical_type: top[`${system}||${type}`] || top[type] || '', remark: '-',
+      source_tokens: `텍스트 레이어 '${c.token}' @ x=${c.x} y=${c.y}`,
+      confidence: 'low',
+    });
   }
-  const instruments = Object.entries(counts).sort().map(([type, n]) => ({
-    system: '', pid_no: p.drawing_no || '', type, qty: String(n), description: '-',
-    inst_typical_type: '', remark: '-',
-    source_tokens: `텍스트 레이어 ${type} ${n}건`, confidence: 'low',
-  }));
-  return {
-    instruments, excluded,
-    review_findings: [{
+
+  const findings = [{
+    severity: 'high', location: p.drawing_no || '',
+    finding: `API 없이 만든 기준선입니다. 계기 ${instruments.length}건의 SYSTEM · P&ID No. · TYPE · `
+      + `Q'ty · INST. TYPICAL TYPE 은 도면에서 결정적으로 읽어 채웠고, DESCRIPTION 은 비어 있습니다.`,
+    recommendation: 'DESCRIPTION 을 검토 UI에서 채우고, 벤더 공급 범위 계기를 지우세요.',
+  }, {
+    severity: 'high', location: p.drawing_no || '',
+    finding: `Q'ty ${qty} — ${why}`,
+    recommendation: 'PLANT COMMON 처럼 호기 공용인 설비는 이 배수에서 빼고 1로 고치세요.',
+  }];
+  if (/DENOTES|MARKED ITEM|SUPPLIED BY/i.test(p.notes || '')) {
+    const lines = (p.notes || '').split('\n')
+      .filter((l) => /DENOTES|MARKED ITEM|SUPPLIED BY/i.test(l)).join(' / ');
+    findings.push({
       severity: 'high', location: p.drawing_no || '',
-      finding: '시험 실행 결과입니다. DESCRIPTION과 수량 통합이 반영되지 않았습니다.',
-      recommendation: '실제 판독은 API 키를 넣고 "API 없이 시험 실행"을 끈 뒤 실행하세요.',
-    }],
-    page_summary: `기준선: 후보 ${p.candidates.length}건 → ${instruments.length}행`,
+      finding: `이 도면에 공급 범위 각주가 있습니다 — ${lines}`,
+      recommendation: '도면에서 * / ** 표기가 붙은 계기를 찾아 목록에서 지우세요. '
+        + '기준선은 표기를 못 읽으므로 그 계기들이 아직 남아 있습니다.',
+    });
+  }
+  if (!system) {
+    findings.push({
+      severity: 'medium', location: p.drawing_no || '',
+      finding: `제목('${p.title || '—'}')이 템플릿 SYSTEM 목록과 맞지 않아 SYSTEM을 비웠습니다.`,
+      recommendation: '검토 UI에서 SYSTEM을 골라 주세요.',
+    });
+  }
+
+  return {
+    instruments, excluded, review_findings: findings,
+    page_summary: `API 없이 만든 기준선 — 후보 ${p.candidates.length}건 중 ${instruments.length}건을 `
+      + `행으로, ${excluded.length}건 제외. Q'ty ${qty}. DESCRIPTION은 비어 있습니다.`,
   };
 }
 

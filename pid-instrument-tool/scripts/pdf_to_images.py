@@ -184,12 +184,31 @@ def main() -> int:
     return 0
 
 
+NOTES_ANCHOR = re.compile(r"^(GENERAL\s+)?NOTES?\s*:?$", re.I)
+
+
 def page_notes(page: pymupdf.Page) -> str:
-    """GENERAL NOTES / NOTES 블록(좌상단)을 텍스트로 뽑는다."""
+    """GENERAL NOTES / NOTES 블록을 텍스트로 뽑는다.
+
+    이 블록이 판독의 절반이다. `* DENOTES ... SUPPLIED BY HRSG` 같은 공급 범위 각주와
+    `CONFIGURATION IS IDENTICAL FOR GROUP#20` 이 여기 있고, 각각 어느 계기를 뺄지와
+    Q'ty를 정한다. 위치를 놓치면 모델이 그 판단 근거를 아예 못 본다.
+
+    좌표를 고정하지 않고 `GENERAL NOTES` / `NOTES :` 글자를 찾아 그 아래·오른쪽을 딸려
+    온다. 못 찾으면 우상단을 넓게 훑는다.
+    """
     r = page.rect
-    clip = pymupdf.Rect(0, 0, r.width * 0.22, r.height * 0.55)
-    text = page.get_text("text", clip=clip).strip()
-    return text[:4000]
+    anchors = [b for b in page.get_text("blocks")
+               if any(NOTES_ANCHOR.match(ln.strip()) for ln in b[4].splitlines() if ln.strip())]
+    if anchors:
+        x0 = min(b[0] for b in anchors) - r.width * 0.03
+        y0 = min(b[1] for b in anchors) - r.height * 0.01
+        clip = pymupdf.Rect(max(0, x0), max(0, y0), r.width, min(r.height, y0 + r.height * 0.55))
+        text = page.get_text("text", clip=clip).strip()
+        if len(text) > 40:
+            return text[:4000]
+    clip = pymupdf.Rect(r.width * 0.72, 0, r.width, r.height * 0.60)
+    return page.get_text("text", clip=clip).strip()[:4000]
 
 
 def make_tiles(page: pymupdf.Page, args, stem: str) -> list[dict]:
