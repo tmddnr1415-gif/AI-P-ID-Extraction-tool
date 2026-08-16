@@ -222,7 +222,7 @@ button.del:hover { color:var(--bad); }
     <div class="stats" id="page-stats"></div>
     <div class="thumbs" id="thumbs" style="margin-top:12px"></div>
     <div class="warn-box">
-      도면 1장당 타일 <b id="wb-tiles">9</b>개 = 판독 호출 <b id="wb-calls">10</b>회입니다.
+      도면 1장당 타일 <b id="wb-tiles">16</b>개 = 판독 호출 <b id="wb-calls">17</b>회입니다.
       <b>5~10장씩 나눠 처리</b>하시는 것을 권합니다.
     </div>
   </section>
@@ -236,7 +236,7 @@ button.del:hover { color:var(--bad); }
         <select id="opt-grid">
           <option value="3x3">3 × 3</option>
           <option value="4x3">4 × 3</option>
-          <option value="4x4">4 × 4</option>
+          <option value="4x4" selected>4 × 4</option>
           <option value="5x4">5 × 4</option>
         </select>
       </label>
@@ -251,7 +251,9 @@ button.del:hover { color:var(--bad); }
     </div>
     <p class="note" id="tile-note">
       계기 버블 안 글자가 읽히는지 눈으로 확인하세요. 흐리면 분할을 늘리거나 해상도를 올립니다.
-      <b>여기서 안 읽히면 이후 판독도 실패합니다.</b>
+      <b>여기서 안 읽히면 이후 판독도 실패합니다.</b><br />
+      기본 4×4 는 타일당 계기를 8개 아래로 눌러 <code>max_tokens</code> 상한에 응답이 잘리지 않게
+      한 값입니다. 3×3 은 호출이 적지만 계기가 몰린 타일에서 잘립니다.
     </p>
     <div class="stats" id="tile-stats"></div>
     <div class="tiles" id="tiles" style="margin-top:12px"></div>

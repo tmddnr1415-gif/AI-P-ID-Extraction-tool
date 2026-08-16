@@ -1,91 +1,96 @@
-/* Phase 2 검증 픽스처 — HP Steam (p6, D00P-10LBA10-M05-0001)
+/* Phase 2 회귀 테스트 픽스처 — HP Steam (p6, D00P-10LBA10-M05-0001)
  *
- * 실제 타일 이미지(r0c0 / r1c0 / r2c1)를 눈으로 읽어 만든 "Pass 2 가 이렇게 답해야
- * 맞다" 는 정답 응답이다. 좌표는 텍스트 레이어의 계기 문자 위치를 타일 상대좌표로
- * 환산했다. 이걸로 검증하는 것은 **파이프라인**(중복 제거·정렬·Q'ty·DESCRIPTION
- * 조립)이지 모델의 판독력이 아니다. 판독력은 실제 호출로만 잴 수 있다.
+ * 실제 타일 이미지를 눈으로 읽어 만든 "Pass 2 가 이렇게 답해야 맞다" 는 정답 응답이다.
+ * 이걸로 검증하는 것은 **파이프라인**(중복 제거·정렬·Q'ty·DESCRIPTION 조립·공급 역무
+ * 분리)이지 모델의 판독력이 아니다. 판독력은 실호출로만 잴 수 있다.
+ *
+ * 계기는 **페이지 좌표로 한 번만** 적는다. 타일 배분은 계산으로 한다.
+ * 분할을 3×3 에서 4×4 로 바꿔도 픽스처를 다시 쓰지 않아도 된다 — 격자를 바꿀 때마다
+ * 손으로 좌표를 옮기면 그 자체가 오류원이 된다.
+ *
+ * 좌표 출처: PDF 텍스트 레이어의 계기 문자 위치 34건 (도면의 계기 총수와 일치).
+ * 공급 역무(vs)와 배관 맥락(line/pos)은 타일 이미지에서 읽었다.
  */
 
-// 3×3 · 10% 겹침 타일의 페이지 좌표 범위
-const R = {
-  c0: { x: 0, w: 0.35 }, c1: { x: 0.31667, w: 0.36667 }, c2: { x: 0.65, w: 0.35 },
-  r0: { y: 0, h: 0.35 }, r1: { y: 0.31667, h: 0.36667 }, r2: { y: 0.65, h: 0.35 },
-};
-const rel = (tile, px, py) => {
-  const [r, c] = [tile[1], tile[3]];
-  const cc = R['c' + c], rr = R['r' + r];
-  return { x: +((px - cc.x) / cc.w).toFixed(4), y: +((py - rr.y) / rr.h).toFixed(4) };
-};
+/** 도면 위 계기 34건. x,y 는 페이지 정규 좌표. */
+const PAGE_ITEMS = [];
 
-/** 계기 하나. page 좌표를 주면 타일 상대좌표로 바꿔 준다. */
-const I = (tile, type, px, py, o = {}) => ({
-  type, ...rel(tile, px, py),
-  line_context: o.line || null, equipment: o.eq || null, position: o.pos || null,
+const add = (type, x, y, o = {}) => PAGE_ITEMS.push({
+  type, x, y,
+  line_context: o.line || null, equipment: o.eq || 'HP STEAM', position: o.pos || null,
   redundancy: o.red || null, vendor_scope: o.vs || null, note_ref: o.note || null,
 });
 
-/* HRSG 공급 범위(`*`)로 묶인 한 벌 — 출구 계기 5개 + 유량 3개. 상·하반부 동일. */
-const hrsgSet = (tile, y0, unit) => [
-  I(tile, 'TIT', 0.110, y0, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'TIT', 0.121, y0, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'TIT', 0.131, y0, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'PIT', 0.142, y0, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'PIT', 0.153, y0, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'FIT', 0.195, y0 - 0.019, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'FIT', 0.195, y0 + 0.005, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-  I(tile, 'FE', 0.195, y0 + 0.028, { line: `FROM HRSG#${unit}`, eq: 'HP STEAM', vs: '*' }),
-];
+/* HRSG 출구 한 벌 — 전부 `*` (HRSG 공급 범위). 상·하반부 동일 구조. */
+for (const [unit, y] of [[12, 0.282], [11, 0.600]]) {
+  const from = `FROM HRSG#${unit}`;
+  add('TIT', 0.110, y, { line: from, vs: '*' });
+  add('TIT', 0.121, y, { line: from, vs: '*' });
+  add('TIT', 0.131, y, { line: from, vs: '*' });
+  add('PIT', 0.142, y, { line: from, vs: '*' });
+  add('PIT', 0.153, y, { line: from, vs: '*' });
+  // 점선 박스 안 유량 3점 — 박스 우상단에 `*` 하나가 박스 전체에 걸린다
+  add('FIT', 0.195, y - 0.019, { line: from, vs: '*' });
+  add('FIT', 0.195, y + 0.005, { line: from, vs: '*' });
+  add('FE',  0.195, y + 0.028, { line: from, vs: '*' });
+  // SCT/HRSG 경계 하류 — 여기서부터 우리 범위
+  add('PIT', 0.278, y, { line: `${from} / DN550`, red: 'A' });
+  add('TIT', 0.289, y, { line: `${from} / DN550`, red: 'A' });
+}
 
-/* SCT/HRSG 경계 하류의 우리 범위 계기 — 주증기 압력·온도 한 쌍. */
-const mainPair = (tile, y0, unit) => [
-  I(tile, 'PIT', 0.278, y0, { line: `FROM HRSG#${unit} / DN550`, eq: 'HP STEAM', red: 'A' }),
-  I(tile, 'TIT', 0.289, y0, { line: `FROM HRSG#${unit} / DN550`, eq: 'HP STEAM', red: 'A' }),
-];
+/* 각 호기 드레인 (DN300 → TO HRSG#nn BD TANK) */
+add('TIT', 0.321, 0.359, { line: 'TO HRSG#12 BD TANK', pos: 'DRAIN' });
+add('TIT', 0.321, 0.376, { line: 'TO HRSG#12 BD TANK', pos: 'DRAIN' });
+add('TIT', 0.321, 0.673, { line: 'TO HRSG#11 BD TANK', pos: 'DRAIN' });
+add('TIT', 0.321, 0.690, { line: 'TO HRSG#11 BD TANK', pos: 'DRAIN' });
 
-export const FIXTURE_P6 = {
-  'p6:r0c0': [...hrsgSet('r0c0', 0.282, 12), ...mainPair('r0c0', 0.282, 12)],
+/* STG#10 터빈 입구 — 전부 `**` (ST SUPPLIER 공급 범위) */
+for (const [type, x, y] of [
+  ['TIT', 0.500, 0.456], ['PIT', 0.500, 0.532], ['PIT', 0.500, 0.557],
+  ['TIT', 0.562, 0.456], ['TIT', 0.562, 0.482], ['PIT', 0.562, 0.557],
+]) add(type, x, y, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' });
 
-  'p6:r0c1': [],
-  'p6:r0c2': [],
+/* 그룹 공용 헤더 드레인 (DN350 → TO CLEAN DRAIN TANK) */
+for (const [x, y] of [[0.558, 0.678], [0.558, 0.695], [0.394, 0.788], [0.394, 0.805]])
+  add('TIT', x, y, { line: 'TO CLEAN DRAIN TANK', pos: 'DRAIN' });
 
-  'p6:r1c0': [
-    // HRSG#12 드레인 (DN300 → TO HRSG#12 BD TANK)
-    I('r1c0', 'TIT', 0.321, 0.359, { line: 'TO HRSG#12 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r1c0', 'TIT', 0.321, 0.376, { line: 'TO HRSG#12 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    ...hrsgSet('r1c0', 0.600, 11),
-    ...mainPair('r1c0', 0.600, 11),
-    I('r1c0', 'TIT', 0.321, 0.673, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-  ],
+/** index.html 의 tileRects() 와 같은 계산. 겹침 10%. */
+function tileRects(cols, rows, overlap = 0.10) {
+  const out = [];
+  const ovx = (1 / cols) * overlap, ovy = (1 / rows) * overlap;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.max(0, c / cols - ovx / 2), x1 = Math.min(1, (c + 1) / cols + ovx / 2);
+      const y0 = Math.max(0, r / rows - ovy / 2), y1 = Math.min(1, (r + 1) / rows + ovy / 2);
+      out.push({ r, c, x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    }
+  }
+  return out;
+}
 
-  'p6:r1c1': [
-    I('r1c1', 'TIT', 0.321, 0.359, { line: 'TO HRSG#12 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r1c1', 'TIT', 0.321, 0.376, { line: 'TO HRSG#12 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    // STG#10 터빈 입구 — ** (ST SUPPLIER 공급 범위)
-    I('r1c1', 'TIT', 0.500, 0.456, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'PIT', 0.500, 0.532, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'PIT', 0.500, 0.557, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'TIT', 0.562, 0.456, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'TIT', 0.562, 0.482, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'PIT', 0.562, 0.557, { line: 'TO STG#10', eq: 'HP TURBINE', vs: '**' }),
-    I('r1c1', 'TIT', 0.321, 0.673, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r1c1', 'TIT', 0.558, 0.678, { line: 'TO CLEAN DRAIN TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-  ],
+/** 격자에 맞춰 타일별 응답을 만든다. 타일에 걸친 계기는 양쪽에 다 들어간다(겹침). */
+export function fixtureFor(cols = 4, rows = 4, page = 6) {
+  const fx = {};
+  for (const rect of tileRects(cols, rows)) {
+    fx[`p${page}:r${rect.r}c${rect.c}`] = PAGE_ITEMS
+      .filter((it) => it.x >= rect.x && it.x < rect.x + rect.w
+                   && it.y >= rect.y && it.y < rect.y + rect.h)
+      .map((it) => ({
+        type: it.type,
+        x: +((it.x - rect.x) / rect.w).toFixed(4),
+        y: +((it.y - rect.y) / rect.h).toFixed(4),
+        line_context: it.line_context, equipment: it.equipment, position: it.position,
+        redundancy: it.redundancy, vendor_scope: it.vendor_scope, note_ref: it.note_ref,
+      }));
+  }
+  return fx;
+}
 
-  'p6:r1c2': [],
+/** 타일당 계기 수 — max_tokens 상한(8개)을 넘는지 보는 용도. */
+export function loadPerTile(cols, rows) {
+  const fx = fixtureFor(cols, rows);
+  return Object.fromEntries(Object.entries(fx).filter(([, v]) => v.length).map(([k, v]) => [k, v.length]));
+}
 
-  'p6:r2c0': [
-    I('r2c0', 'TIT', 0.321, 0.673, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c0', 'TIT', 0.321, 0.690, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-  ],
-
-  'p6:r2c1': [
-    I('r2c1', 'TIT', 0.321, 0.673, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c1', 'TIT', 0.321, 0.690, { line: 'TO HRSG#11 BD TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c1', 'TIT', 0.558, 0.678, { line: 'TO CLEAN DRAIN TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c1', 'TIT', 0.558, 0.695, { line: 'TO CLEAN DRAIN TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c1', 'TIT', 0.394, 0.788, { line: 'TO CLEAN DRAIN TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-    I('r2c1', 'TIT', 0.394, 0.805, { line: 'TO CLEAN DRAIN TANK', eq: 'HP STEAM', pos: 'DRAIN' }),
-  ],
-
-  'p6:r2c2': [],
-};
+export const PAGE_ITEM_COUNT = PAGE_ITEMS.length;
+export const FIXTURE_P6 = fixtureFor(4, 4);
