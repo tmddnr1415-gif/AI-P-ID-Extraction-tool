@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import http.server
+import os
 import shutil
 import socketserver
 from pathlib import Path
@@ -41,7 +42,9 @@ def main() -> int:
 
     def refresh() -> None:
         """요청마다 다시 만든다. 서버를 켜 둔 채 index.html 을 고쳐도 바로 반영된다."""
-        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        # MIN=1 이면 압축본을 대신 서빙한다. 회귀 시험을 압축본에도 그대로 돌린다.
+        name = "dist/index.min.html" if os.environ.get("MIN") else "index.html"
+        html = (ROOT / name).read_text(encoding="utf-8")
         # 워커를 먼저 실어 globalThis.pdfjsWorker 를 채우면 pdf.js 가 메인 스레드에서
         # 돈다. 배포본(build_artifact.py)이 하는 것과 같은 자리, 같은 방식이다.
         if MARKER not in html:
