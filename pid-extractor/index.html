@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>P&amp;ID Instrument Extractor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230e5e63'/><circle cx='16' cy='13' r='6.5' fill='none' stroke='white' stroke-width='2'/><path d='M4 24h24' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>" />
+<style>
+/* 청사진 필름 팔레트 — 도면을 보는 화면이라 배경은 눕히고 선과 숫자를 세운다. */
+:root {
+  --ground:#f4f5f3; --panel:#fbfbfa; --panel-2:#eef0ed;
+  --line:#dcdfd8; --line-strong:#c3c8bd;
+  --ink:#1c211c; --ink-2:#4a5249; --ink-3:#7b8479;
+  --accent:#0e5e63; --accent-ink:#ffffff; --accent-soft:#dceceb;
+  --ok:#2f6b3d; --warn:#8a6212; --bad:#9b3226;
+  --radius:10px; --radius-sm:6px;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","Noto Sans KR",sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#14171a; --panel:#1b1f22; --panel-2:#23282c;
+    --line:#2e343a; --line-strong:#3d454c;
+    --ink:#e6eae6; --ink-2:#b3bcb5; --ink-3:#7e8a83;
+    --accent:#4fb3ba; --accent-ink:#0b1416; --accent-soft:#1d3336;
+    --ok:#6dbb7c; --warn:#d9ae4a; --bad:#e0796a;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#14171a; --panel:#1b1f22; --panel-2:#23282c;
+  --line:#2e343a; --line-strong:#3d454c;
+  --ink:#e6eae6; --ink-2:#b3bcb5; --ink-3:#7e8a83;
+  --accent:#4fb3ba; --accent-ink:#0b1416; --accent-soft:#1d3336;
+  --ok:#6dbb7c; --warn:#d9ae4a; --bad:#e0796a;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--ground); color:var(--ink);
+  font:15px/1.55 var(--sans); -webkit-font-smoothing:antialiased;
+}
+.wrap { max-width:1180px; margin:0 auto; padding:0 20px 72px; }
+
+header.top {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 20px; border-bottom:1px solid var(--line); background:var(--panel);
+  position:sticky; top:0; z-index:20;
+}
+.logo {
+  font:600 13px/1 var(--mono); letter-spacing:.06em;
+  background:var(--accent); color:var(--accent-ink); padding:7px 9px; border-radius:var(--radius-sm);
+}
+header.top h1 { font-size:15px; font-weight:600; margin:0; }
+header.top .sub { color:var(--ink-3); font:12px/1 var(--mono); }
+header.top .spacer { flex:1; }
+
+.card {
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:18px; margin-top:18px;
+}
+.card > h2 {
+  display:flex; align-items:center; gap:9px;
+  margin:0 0 12px; font-size:14px; font-weight:650; letter-spacing:.01em;
+}
+.step {
+  width:21px; height:21px; flex:none; border-radius:50%;
+  background:var(--accent-soft); color:var(--accent);
+  font:600 11px/21px var(--mono); text-align:center;
+}
+.head-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.head-row .spacer { flex:1; }
+
+.drop {
+  border:1.5px dashed var(--line-strong); border-radius:var(--radius);
+  padding:30px 18px; text-align:center; cursor:pointer; background:var(--panel-2);
+  transition:border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color:var(--accent); background:var(--accent-soft); }
+.drop strong { display:block; font-size:15px; }
+.drop p { margin:5px 0 0; color:var(--ink-3); font-size:13px; }
+.state { margin:9px 0 0; font:12px/1.4 var(--mono); color:var(--ink-3); }
+.state.ok { color:var(--ok); }
+.state.bad { color:var(--bad); }
+
+button {
+  font:inherit; padding:7px 12px; border-radius:var(--radius-sm); cursor:pointer;
+  border:1px solid var(--line-strong); background:var(--panel); color:var(--ink);
+}
+button:hover:not(:disabled) { border-color:var(--ink-3); }
+button.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600; }
+button.primary:hover:not(:disabled) { filter:brightness(1.08); }
+button.ghost { border-color:var(--line); }
+button:disabled { opacity:.45; cursor:not-allowed; }
+select, input[type=number] {
+  font:inherit; padding:6px 8px; border-radius:var(--radius-sm);
+  border:1px solid var(--line-strong); background:var(--panel); color:var(--ink);
+}
+label.inline { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-2); }
+
+/* 페이지 썸네일 그리드 */
+.thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:12px; }
+.thumb {
+  border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden;
+  background:var(--panel-2); cursor:pointer; position:relative; text-align:left;
+  padding:0; display:flex; flex-direction:column;
+}
+.thumb:hover { border-color:var(--ink-3); }
+.thumb.sel { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.thumb canvas { width:100%; height:auto; display:block; background:#fff; }
+/* 썸네일이 채워지기 전에도 칸 높이를 잡아 둔다. 안 그러면 쪽번호 뱃지가
+   도면번호 위로 겹쳐 앉는다. A1 가로 도면 비율. */
+.thumb .ph { aspect-ratio:1.414/1; background:var(--panel-2); }
+.thumb .meta { padding:7px 8px; border-top:1px solid var(--line); }
+.thumb .no { font:11px/1.3 var(--mono); color:var(--ink); font-variant-numeric:tabular-nums; }
+.thumb .ttl { font-size:11px; color:var(--ink-3); margin-top:2px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.thumb .badge {
+  position:absolute; top:6px; left:6px; background:var(--panel); border:1px solid var(--line-strong);
+  border-radius:4px; font:10px/1 var(--mono); padding:3px 5px; color:var(--ink-2);
+}
+.thumb.sel .badge { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+
+/* 타일 미리보기 */
+.tiles { display:grid; gap:8px; }
+.tile { border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; background:#fff; position:relative; }
+.tile canvas { width:100%; height:auto; display:block; cursor:zoom-in; }
+.tile .tag {
+  position:absolute; top:5px; left:5px; background:rgba(0,0,0,.6); color:#fff;
+  font:10px/1 var(--mono); padding:3px 5px; border-radius:4px;
+}
+.note { color:var(--ink-3); font-size:13px; margin:10px 0 0; }
+.warn-box {
+  border:1px solid var(--line-strong); border-left:3px solid var(--warn);
+  background:var(--panel-2); border-radius:var(--radius-sm); padding:11px 13px; margin-top:12px; font-size:13px;
+}
+.warn-box b { color:var(--ink); }
+code { font:12px/1.4 var(--mono); background:var(--panel-2); padding:1px 5px; border-radius:4px; }
+.hidden { display:none !important; }
+.stats { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0; }
+.chip {
+  font:12px/1 var(--mono); padding:5px 8px; border-radius:999px;
+  background:var(--panel-2); border:1px solid var(--line); color:var(--ink-2);
+  font-variant-numeric:tabular-nums;
+}
+.chip b { color:var(--ink); font-weight:600; }
+
+/* 원본 크기 확대 보기 */
+dialog.viewer {
+  border:none; border-radius:var(--radius); padding:0; background:var(--panel);
+  max-width:96vw; max-height:94vh; color:var(--ink);
+}
+dialog.viewer::backdrop { background:rgba(0,0,0,.62); }
+dialog.viewer .bar {
+  display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line);
+  font:12px/1 var(--mono);
+}
+dialog.viewer .bar .spacer { flex:1; }
+dialog.viewer .body { overflow:auto; max-height:82vh; background:#fff; }
+dialog.viewer .body canvas { display:block; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="logo">P&amp;ID</span>
+  <h1>Instrument Extractor</h1>
+  <span class="sub" id="subtitle">Phase 1 · 렌더링</span>
+  <span class="spacer"></span>
+  <span class="sub" id="mode-tag"></span>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. PDF -->
+  <section class="card">
+    <h2><span class="step">1</span> P&amp;ID PDF</h2>
+    <div class="drop" id="dz">
+      <strong>도면 PDF를 끌어다 놓으세요</strong>
+      <p>클릭해서 골라도 됩니다. 파일은 이 브라우저 밖으로 나가지 않습니다.</p>
+      <p class="state" id="pdf-state">비어 있음</p>
+    </div>
+    <input id="in-pdf" type="file" accept="application/pdf" hidden />
+  </section>
+
+  <!-- 2. 페이지 선택 -->
+  <section class="card hidden" id="sec-pages">
+    <div class="head-row">
+      <h2 style="margin:0"><span class="step">2</span> 처리할 도면 고르기</h2>
+      <span class="spacer"></span>
+      <button class="ghost" id="btn-none" type="button">전체 해제</button>
+      <button class="ghost" id="btn-inst" type="button">계기 있는 도면만</button>
+    </div>
+    <div class="stats" id="page-stats"></div>
+    <div class="thumbs" id="thumbs" style="margin-top:12px"></div>
+    <div class="warn-box">
+      도면 1장당 타일 <b id="wb-tiles">9</b>개 = 판독 호출 <b id="wb-calls">10</b>회입니다.
+      <b>5~10장씩 나눠 처리</b>하시는 것을 권합니다.
+    </div>
+  </section>
+
+  <!-- 3. 타일 -->
+  <section class="card hidden" id="sec-tiles">
+    <div class="head-row">
+      <h2 style="margin:0"><span class="step">3</span> 타일 미리보기</h2>
+      <span class="spacer"></span>
+      <label class="inline">분할
+        <select id="opt-grid">
+          <option value="3x3">3 × 3</option>
+          <option value="4x3">4 × 3</option>
+          <option value="4x4">4 × 4</option>
+          <option value="5x4">5 × 4</option>
+        </select>
+      </label>
+      <label class="inline">타일 해상도
+        <select id="opt-px">
+          <option value="1120">1120 px</option>
+          <option value="1560" selected>1560 px</option>
+          <option value="2000">2000 px</option>
+        </select>
+      </label>
+      <button class="primary" id="btn-tiles" type="button">타일 만들기</button>
+    </div>
+    <p class="note" id="tile-note">
+      계기 버블 안 글자가 읽히는지 눈으로 확인하세요. 흐리면 분할을 늘리거나 해상도를 올립니다.
+      <b>여기서 안 읽히면 이후 판독도 실패합니다.</b>
+    </p>
+    <div class="stats" id="tile-stats"></div>
+    <div class="tiles" id="tiles" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">4</span> 다음 단계</h2>
+    <p class="note" style="margin-top:0">
+      Phase 1은 <b>렌더링까지</b>입니다 (CLAUDE.md §10). 판독 호출은 아직 붙이지 않았습니다.
+      타일에서 계기가 눈으로 구분되는 것을 확인한 뒤 Phase 2로 넘어갑니다.
+    </p>
+  </section>
+</div>
+
+<dialog class="viewer" id="viewer">
+  <div class="bar">
+    <span id="v-title"></span><span class="spacer"></span>
+    <button class="ghost" id="v-close" type="button">닫기</button>
+  </div>
+  <div class="body" id="v-body"></div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * P&ID Instrument Extractor — Phase 1 (렌더링)
+ *
+ * CLAUDE.md §10 의 순서를 따른다. 이 파일에는 아직 Claude 호출이 없다.
+ * PDF 드롭 → 페이지 썸네일 → 도면 선택 → 겹침 타일 렌더 → 눈으로 확인.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const USE_STUB = false;          // Phase 2 부터 씀. 로컬에서는 true 로 두고 고정 JSON 반환.
+const MODEL = 'claude-sonnet-4-6';
+const MAX_TOKENS = 1000;         // CLAUDE.md §2 하드 리밋
+
+const OVERLAP = 0.10;            // 타일 겹침 비율 (§4 Pass 2)
+const THUMB_PX = 300;            // 썸네일 장변
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  pdf: null, doc: null, pages: [], selected: new Set(), current: null,
+};
+
+/* pdf.js 워커. 같은 CDN 버전을 맞춰야 한다. */
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+/* ── PDF 받기 ───────────────────────────────────────────────────────────── */
+$('dz').addEventListener('click', () => $('in-pdf').click());
+$('dz').addEventListener('dragover', (e) => { e.preventDefault(); $('dz').classList.add('over'); });
+$('dz').addEventListener('dragleave', () => $('dz').classList.remove('over'));
+$('dz').addEventListener('drop', (e) => {
+  e.preventDefault(); $('dz').classList.remove('over');
+  const f = [...e.dataTransfer.files].find((x) => /\.pdf$/i.test(x.name));
+  if (f) loadPdf(f);
+});
+$('in-pdf').addEventListener('change', (e) => { if (e.target.files[0]) loadPdf(e.target.files[0]); });
+
+async function loadPdf(file) {
+  const st = $('pdf-state');
+  st.className = 'state';
+  st.textContent = `${file.name} 여는 중…`;
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    state.doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+    st.textContent = `${file.name} · ${state.doc.numPages}쪽 · 훑는 중…`;
+    await scanPages(st, file.name);
+  } catch (err) {
+    st.className = 'state bad';
+    st.textContent = `열지 못했습니다 — ${err.message}`;
+  }
+}
+
+/* ── 페이지 훑기 ─────────────────────────────────────────────────────────
+ * 텍스트 레이어에서 도면번호·제목·NOTES 를 결정적으로 뽑는다.
+ * 이건 Claude 호출 없이도 정확하므로 판독 대상 고르기에 그대로 쓴다.
+ * ──────────────────────────────────────────────────────────────────────── */
+const DRAWING_NO = /D00P-[0-9A-Z]{5,9}-M\d{2}-\d{4}/g;
+const INSTRUMENT_TOKENS = new Set(
+  ('PIT PI TIT TI PDIT FIT FE LIT LI LS FS RO PT TT LT FT PDT PDI').split(' '));
+
+async function scanPages(st, filename) {
+  state.pages = [];
+  for (let n = 1; n <= state.doc.numPages; n++) {
+    const page = await state.doc.getPage(n);
+    const vp = page.getViewport({ scale: 1 });
+    const items = (await page.getTextContent()).items
+      .filter((it) => it.str && it.str.trim())
+      .map((it) => {
+        const [, , , , x, y] = it.transform;
+        return { s: it.str.trim(), x: x / vp.width, y: 1 - y / vp.height };
+      });
+    state.pages.push({ page: n, vp: { w: vp.width, h: vp.height }, ...readSheet(items) });
+    page.cleanup();
+    if (n % 5 === 0 || n === state.doc.numPages) {
+      st.textContent = `${filename} · ${state.doc.numPages}쪽 · 훑는 중 ${n}/${state.doc.numPages}`;
+      await new Promise((r) => setTimeout(r));      // 화면이 멎지 않게 양보
+    }
+  }
+  st.className = 'state ok';
+  st.textContent = `${filename} · ${state.doc.numPages}쪽`;
+  renderThumbs();
+}
+
+function joinRegion(items, pred) {
+  return items.filter(pred).sort((a, b) => a.y - b.y || a.x - b.x).map((i) => i.s).join('\n');
+}
+
+function readSheet(items) {
+  // 타이틀블록은 우하단
+  const tb = joinRegion(items, (i) => i.x > 0.55 && i.y > 0.78);
+  const nos = tb.match(DRAWING_NO) || [];
+  let title = null;
+  for (const ln of tb.split('\n')) {
+    if (ln.toUpperCase().includes('P&ID FOR')) { title = ln.replace(/\s+/g, ' ').trim(); break; }
+  }
+  // NOTES 는 'GENERAL NOTES' / 'NOTES :' 글자를 찾아 그 아래·오른쪽을 딸려 온다.
+  // 좌표를 고정하면 도면 양식이 조금만 달라도 통째로 놓친다.
+  let notes = '';
+  const anchors = items.filter((i) => /^(GENERAL\s+)?NOTES?\s*:?$/i.test(i.s));
+  if (anchors.length) {
+    const x0 = Math.min(...anchors.map((a) => a.x)) - 0.03;
+    const y0 = Math.min(...anchors.map((a) => a.y)) - 0.01;
+    notes = joinRegion(items, (i) => i.x >= x0 && i.y >= y0 && i.y < y0 + 0.55);
+  }
+  if (notes.length < 40) notes = joinRegion(items, (i) => i.x > 0.72 && i.y < 0.60);
+
+  const tokens = items
+    .map((i) => i.s.replace(/[.,;:()[\]]/g, ''))
+    .filter((s) => INSTRUMENT_TOKENS.has(s));
+
+  return {
+    drawing_no: nos.length ? nos[nos.length - 1] : null,
+    title, notes: notes.slice(0, 4000), tokenCount: tokens.length,
+    isLegend: /GEN00/.test(nos[nos.length - 1] || '')
+      || /SYMBOL|LEGEND|DRAWING LIST/i.test(title || ''),
+  };
+}
+
+/* ── 썸네일 ─────────────────────────────────────────────────────────────── */
+async function renderThumbs() {
+  const box = $('thumbs');
+  box.innerHTML = '';
+  $('sec-pages').classList.remove('hidden');
+  updatePageStats();
+
+  for (const p of state.pages) {
+    const el = document.createElement('button');
+    el.className = 'thumb';
+    el.type = 'button';
+    el.innerHTML =
+      `<span class="badge">${p.page}</span>`
+      + `<div class="ph"></div>`
+      + `<div class="meta"><div class="no">${p.drawing_no || '—'}</div>`
+      + `<div class="ttl">${p.title ? esc(p.title.replace(/^P&ID FOR\s+/i, '')) : (p.isLegend ? '범례/목록' : '')}`
+      + ` · 계기 ${p.tokenCount}</div></div>`;
+    el.addEventListener('click', () => toggle(p.page, el));
+    box.append(el);
+    p._el = el;
+  }
+  // 썸네일은 무거우니 그린 뒤 하나씩 채운다.
+  for (const p of state.pages) {
+    const cv = await renderPageCanvas(p.page, THUMB_PX);
+    p._el.querySelector('.ph').replaceWith(cv);
+    await new Promise((r) => setTimeout(r));
+  }
+}
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function toggle(no, el) {
+  if (state.selected.has(no)) state.selected.delete(no);
+  else state.selected.add(no);
+  el.classList.toggle('sel', state.selected.has(no));
+  state.current = state.selected.size ? Math.min(...state.selected) : null;
+  updatePageStats();
+  $('sec-tiles').classList.toggle('hidden', !state.selected.size);
+}
+
+function updatePageStats() {
+  const inst = state.pages.filter((p) => !p.isLegend && p.tokenCount > 0).length;
+  $('page-stats').innerHTML =
+    chip('전체', state.pages.length + '쪽')
+    + chip('계기 있는 도면', inst + '쪽')
+    + chip('선택', state.selected.size + '쪽');
+  const [c, r] = $('opt-grid').value.split('x').map(Number);
+  $('wb-tiles').textContent = c * r;
+  $('wb-calls').textContent = c * r + 1;
+}
+const chip = (k, v) => `<span class="chip">${k} <b>${v}</b></span>`;
+
+$('btn-none').addEventListener('click', () => {
+  state.selected.clear();
+  state.pages.forEach((p) => p._el && p._el.classList.remove('sel'));
+  state.current = null;
+  updatePageStats();
+  $('sec-tiles').classList.add('hidden');
+});
+$('btn-inst').addEventListener('click', () => {
+  state.selected.clear();
+  for (const p of state.pages) {
+    const on = !p.isLegend && p.tokenCount > 0;
+    if (on) state.selected.add(p.page);
+    if (p._el) p._el.classList.toggle('sel', on);
+  }
+  state.current = state.selected.size ? Math.min(...state.selected) : null;
+  updatePageStats();
+  $('sec-tiles').classList.toggle('hidden', !state.selected.size);
+});
+$('opt-grid').addEventListener('change', updatePageStats);
+
+/* ── 렌더 ────────────────────────────────────────────────────────────────
+ * 전체 시트를 300DPI 로 한 번에 그리면 A1 기준 9900×7000px = 280MB 라
+ * 브라우저가 못 버틴다. 그래서 타일 영역만 직접 그린다. 결과 해상도는 같고
+ * 메모리는 타일 하나치만 든다.
+ * ──────────────────────────────────────────────────────────────────────── */
+async function renderPageCanvas(no, longEdgePx) {
+  const page = await state.doc.getPage(no);
+  const base = page.getViewport({ scale: 1 });
+  const scale = longEdgePx / Math.max(base.width, base.height);
+  const vp = page.getViewport({ scale });
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+  await page.render({ canvasContext: cv.getContext('2d', { alpha: false }), viewport: vp }).promise;
+  page.cleanup();
+  return cv;
+}
+
+/** 타일 하나. rect 는 페이지 정규 좌표(0~1). */
+async function renderTile(no, rect, longEdgePx) {
+  const page = await state.doc.getPage(no);
+  const base = page.getViewport({ scale: 1 });
+  const wPt = base.width * rect.w, hPt = base.height * rect.h;
+  const scale = longEdgePx / Math.max(wPt, hPt);
+  const vp = page.getViewport({ scale });
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(wPt * scale); cv.height = Math.round(hPt * scale);
+  await page.render({
+    canvasContext: cv.getContext('2d', { alpha: false }),
+    viewport: vp,
+    // 타일 좌상단이 캔버스 원점에 오도록 화면을 밀어 놓고 그린다.
+    transform: [1, 0, 0, 1, -rect.x * base.width * scale, -rect.y * base.height * scale],
+  }).promise;
+  page.cleanup();
+  return cv;
+}
+
+/** 3×3 · 10% 겹침. 겹침은 타일 경계에 걸친 계기를 양쪽에서 보게 한다. */
+function tileRects(cols, rows) {
+  const out = [];
+  const ovx = (1 / cols) * OVERLAP, ovy = (1 / rows) * OVERLAP;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x0 = Math.max(0, c / cols - ovx / 2), x1 = Math.min(1, (c + 1) / cols + ovx / 2);
+      const y0 = Math.max(0, r / rows - ovy / 2), y1 = Math.min(1, (r + 1) / rows + ovy / 2);
+      out.push({ r, c, x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    }
+  }
+  return out;
+}
+
+$('btn-tiles').addEventListener('click', makeTiles);
+
+async function makeTiles() {
+  const no = state.current;
+  if (!no) return;
+  const p = state.pages.find((x) => x.page === no);
+  const [cols, rows] = $('opt-grid').value.split('x').map(Number);
+  const px = +$('opt-px').value;
+  const btn = $('btn-tiles');
+  btn.disabled = true;
+  btn.textContent = '만드는 중…';
+
+  const box = $('tiles');
+  box.innerHTML = '';
+  box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  const rects = tileRects(cols, rows);
+  let first = null;
+  for (const rect of rects) {
+    const cv = await renderTile(no, rect, px);
+    if (!first) first = cv;
+    const wrap = document.createElement('div');
+    wrap.className = 'tile';
+    wrap.innerHTML = `<span class="tag">r${rect.r}c${rect.c}</span>`;
+    cv.addEventListener('click', () => showBig(cv, `p${no} r${rect.r}c${rect.c} — 원본 ${cv.width}×${cv.height}`));
+    wrap.append(cv);
+    box.append(wrap);
+  }
+
+  // 이 타일이 모델에게 실제로 몇 DPI 로 보이는지. Claude 는 장변 1568px 로 줄인다.
+  const sheetInWide = (p.vp.w / 72) / cols * (1 + OVERLAP);
+  const effDpi = Math.round(Math.min(px, 1568) / sheetInWide);
+  $('tile-stats').innerHTML =
+    chip('타일', `${cols}×${rows} = ${rects.length}장`)
+    + chip('타일 크기', `${first.width}×${first.height} px`)
+    + chip('모델이 보는 해상도', `약 ${effDpi} DPI`)
+    + chip('도면', p.drawing_no || `p${no}`);
+
+  btn.disabled = false;
+  btn.textContent = '타일 만들기';
+}
+
+function showBig(cv, title) {
+  const copy = document.createElement('canvas');
+  copy.width = cv.width; copy.height = cv.height;
+  copy.getContext('2d').drawImage(cv, 0, 0);
+  $('v-title').textContent = title;
+  $('v-body').innerHTML = '';
+  $('v-body').append(copy);
+  $('viewer').showModal();
+}
+$('v-close').addEventListener('click', () => $('viewer').close());
+
+$('mode-tag').textContent = USE_STUB ? 'STUB' : '';
+</script>
+</body>
+</html>
