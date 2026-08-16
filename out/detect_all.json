@@ -1,0 +1,3406 @@
+{
+  "pages_in_scope": 52,
+  "excel_rows_total": 563,
+  "excel_rows_spare": 6,
+  "combo_scores": {
+    "none": {
+      "tp": 461,
+      "detected": 759,
+      "expected": 557,
+      "recall": 0.8276481149012568,
+      "precision": 0.6073781291172595
+    },
+    "vendor_only": {
+      "tp": 458,
+      "detected": 622,
+      "expected": 557,
+      "recall": 0.822262118491921,
+      "precision": 0.7363344051446945
+    },
+    "sct_only": {
+      "tp": 459,
+      "detected": 727,
+      "expected": 557,
+      "recall": 0.8240574506283662,
+      "precision": 0.6313617606602476
+    },
+    "both": {
+      "tp": 456,
+      "detected": 620,
+      "expected": 557,
+      "recall": 0.8186714542190305,
+      "precision": 0.7354838709677419
+    }
+  },
+  "bubble_size_distribution": {
+    "68.0x22.6": 558,
+    "85.1x28.4": 361,
+    "67.9x22.6": 138,
+    "85.0x28.4": 98,
+    "50.0x16.6": 8,
+    "54.5x18.2": 6,
+    "49.9x16.6": 5,
+    "10.3x5.1": 2,
+    "45.2x15.1": 2,
+    "54.4x18.2": 1
+  },
+  "drawings": [
+    {
+      "drawing_no": "D00P-00EGD00-M05-0001",
+      "system": "EGD",
+      "pages": [
+        32
+      ],
+      "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
+      "detected": 22,
+      "expected": 10,
+      "tp": 10,
+      "det_counts": {
+        "PIT": 4,
+        "PI": 8,
+        "TIT": 2,
+        "FS": 3,
+        "PDIT": 3,
+        "LIT": 2
+      },
+      "exp_counts": {
+        "FS": 3,
+        "PDIT": 3,
+        "PIT": 2,
+        "LIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EGD00-M05-0002",
+      "system": "EGD",
+      "pages": [
+        33
+      ],
+      "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
+      "detected": 32,
+      "expected": 23,
+      "tp": 20,
+      "det_counts": {
+        "PI": 12,
+        "PDIT": 6,
+        "PIT": 4,
+        "TIT": 4,
+        "FIT": 1,
+        "LIT": 5
+      },
+      "exp_counts": {
+        "LI": 2,
+        "LIT": 5,
+        "TIT": 4,
+        "PDIT": 6,
+        "PIT": 4,
+        "FE": 1,
+        "FIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EGD00-M05-0003",
+      "system": "EGD",
+      "pages": [],
+      "title": "",
+      "detected": 0,
+      "expected": 2,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "PIT": 1,
+        "RO": 1
+      },
+      "has_page": false,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EKG10-M05-0001",
+      "system": "EKG",
+      "pages": [
+        22
+      ],
+      "title": "P&ID FOR FUEL GAS SUPPLY SYSTEM (1 OF 3)",
+      "detected": 3,
+      "expected": 3,
+      "tp": 3,
+      "det_counts": {
+        "PIT": 1,
+        "TIT": 1,
+        "LIT": 1
+      },
+      "exp_counts": {
+        "PIT": 1,
+        "TIT": 1,
+        "LIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EKG10-M05-0002",
+      "system": "EKG",
+      "pages": [
+        23
+      ],
+      "title": "P&ID FOR FUEL GAS SUPPLY SYSTEM (2 OF 3)",
+      "detected": 4,
+      "expected": 4,
+      "tp": 4,
+      "det_counts": {
+        "PIT": 2,
+        "TIT": 2
+      },
+      "exp_counts": {
+        "PIT": 2,
+        "TIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EKG10-M05-0003",
+      "system": "EKG",
+      "pages": [
+        24
+      ],
+      "title": "P&ID FOR FUEL GAS SUPPLY SYSTEM (3 OF 3)",
+      "detected": 2,
+      "expected": 2,
+      "tp": 2,
+      "det_counts": {
+        "PIT": 1,
+        "TIT": 1
+      },
+      "exp_counts": {
+        "PIT": 1,
+        "TIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00EKG10-M05-0004",
+      "system": "EKG",
+      "pages": [],
+      "title": "",
+      "detected": 0,
+      "expected": 2,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "PIT": 1,
+        "TIT": 1
+      },
+      "has_page": false,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00GBL10-M05-0001",
+      "system": "GBL",
+      "pages": [],
+      "title": "",
+      "detected": 0,
+      "expected": 11,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "LIT": 4,
+        "LI": 2,
+        "PDIT": 3,
+        "PIT": 2
+      },
+      "has_page": false,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00GHB10-M05-0001",
+      "system": "GHB",
+      "pages": [
+        49
+      ],
+      "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+      "detected": 18,
+      "expected": 17,
+      "tp": 9,
+      "det_counts": {
+        "LIT": 4,
+        "PI": 6,
+        "RO": 3,
+        "PDIT": 3,
+        "PIT": 2
+      },
+      "exp_counts": {
+        "LIT": 4,
+        "LI": 2,
+        "PDIT": 6,
+        "PIT": 4,
+        "FIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00GHB10-M05-0002",
+      "system": "GHB",
+      "pages": [
+        50
+      ],
+      "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (2 OF 2)",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00GHC10-M05-0001",
+      "system": "GHC",
+      "pages": [
+        46,
+        47
+      ],
+      "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+      "detected": 54,
+      "expected": 16,
+      "tp": 16,
+      "det_counts": {
+        "LI": 4,
+        "PI": 18,
+        "RO": 9,
+        "PDIT": 9,
+        "LIT": 8,
+        "PIT": 6
+      },
+      "exp_counts": {
+        "LIT": 4,
+        "LI": 2,
+        "PDIT": 6,
+        "PIT": 4
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00GKB10-M05-0001",
+      "system": "GKB",
+      "pages": [
+        51
+      ],
+      "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
+      "detected": 12,
+      "expected": 7,
+      "tp": 6,
+      "det_counts": {
+        "RO": 2,
+        "LIT": 2,
+        "PI": 4,
+        "PDIT": 2,
+        "PIT": 2
+      },
+      "exp_counts": {
+        "LIT": 2,
+        "LI": 1,
+        "PDIT": 2,
+        "PIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00GMA10-M05-0001",
+      "system": "GMA",
+      "pages": [
+        52,
+        55
+      ],
+      "title": "P&ID FOR CHEMICAL WASTE WATER TRANSFER SYSTEM",
+      "detected": 6,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {
+        "PI": 6
+      },
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00GMB10-M05-0001",
+      "system": "GMB",
+      "pages": [
+        53
+      ],
+      "title": "P&ID FOR OILY WASTE WATER TRANSFER SYSTEM (1 OF 2)",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00GMB10-M05-0002",
+      "system": "GMB",
+      "pages": [
+        54
+      ],
+      "title": "P&ID FOR OILY WASTE WATER TRANSFER SYSTEM (2 OF 2)",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00GQA10-M05-0001",
+      "system": "GQA",
+      "pages": [
+        56
+      ],
+      "title": "P&ID FOR SANITARY SEWER TRANSFER SYSTEM",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00PAB10-M05-0001",
+      "system": "PAB",
+      "pages": [
+        26
+      ],
+      "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
+      "detected": 22,
+      "expected": 5,
+      "tp": 4,
+      "det_counts": {
+        "PI": 7,
+        "PIT": 4,
+        "LIT": 10,
+        "PDIT": 1
+      },
+      "exp_counts": {
+        "PIT": 5
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00PAB10-M05-0002",
+      "system": "PAB",
+      "pages": [
+        27
+      ],
+      "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
+      "detected": 18,
+      "expected": 5,
+      "tp": 4,
+      "det_counts": {
+        "PI": 4,
+        "PIT": 4,
+        "LIT": 10
+      },
+      "exp_counts": {
+        "PIT": 5
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00PAB10-M05-0003",
+      "system": "PAB",
+      "pages": [
+        28
+      ],
+      "title": "P&ID FOR SEAWATER INTAKE SYSTEM (3 OF 3)",
+      "detected": 10,
+      "expected": 4,
+      "tp": 4,
+      "det_counts": {
+        "PIT": 4,
+        "PI": 2,
+        "LIT": 4
+      },
+      "exp_counts": {
+        "PIT": 4
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-00PAB10-M05-0004",
+      "system": "PAB",
+      "pages": [
+        29
+      ],
+      "title": "P&ID FOR SEAL PIT SYSTEM",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00QCA00-M05-0001",
+      "system": "QCA",
+      "pages": [
+        57
+      ],
+      "title": "P&ID FOR CHEMICAL DOSING SYSTEM",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00QJA10-M05-0001",
+      "system": "QJA",
+      "pages": [
+        45
+      ],
+      "title": "P&ID FOR SERVICE GAS SYSTEM",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-00SCB10-M05-0001",
+      "system": "SCB",
+      "pages": [
+        44
+      ],
+      "title": "P&ID FOR SERVICE AIR DISTRIBUTION SYSTEM",
+      "detected": 0,
+      "expected": 1,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "PIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LBA10-M05-0001",
+      "system": "LBA",
+      "pages": [
+        6
+      ],
+      "title": "P&ID FOR HP STEAM SYSTEM GROUP 10",
+      "detected": 12,
+      "expected": 12,
+      "tp": 12,
+      "det_counts": {
+        "PIT": 2,
+        "TIT": 10
+      },
+      "exp_counts": {
+        "PIT": 2,
+        "TIT": 10
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LBA30-M05-0001",
+      "system": "LBA",
+      "pages": [
+        9
+      ],
+      "title": "P&ID FOR LP STEAM SYSTEM GROUP 10",
+      "detected": 5,
+      "expected": 12,
+      "tp": 4,
+      "det_counts": {
+        "PIT": 2,
+        "TIT": 2,
+        "PDIT": 1
+      },
+      "exp_counts": {
+        "PIT": 2,
+        "TIT": 2,
+        "LS": 8
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LBC40-M05-0001",
+      "system": "LBC",
+      "pages": [
+        7
+      ],
+      "title": "P&ID FOR CRH STEAM SYSTEM GROUP 10",
+      "detected": 3,
+      "expected": 11,
+      "tp": 3,
+      "det_counts": {
+        "PIT": 2,
+        "TIT": 1
+      },
+      "exp_counts": {
+        "LS": 8,
+        "PIT": 2,
+        "TIT": 1
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LBC50-M05-0001",
+      "system": "LBC",
+      "pages": [
+        8
+      ],
+      "title": "P&ID FOR HRH STEAM SYSTEM GROUP 10",
+      "detected": 10,
+      "expected": 10,
+      "tp": 10,
+      "det_counts": {
+        "PIT": 2,
+        "TIT": 8
+      },
+      "exp_counts": {
+        "PIT": 2,
+        "TIT": 8
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LBG10-M05-0001",
+      "system": "LBG",
+      "pages": [
+        12,
+        15
+      ],
+      "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
+      "detected": 12,
+      "expected": 13,
+      "tp": 11,
+      "det_counts": {
+        "PDIT": 1,
+        "LS": 2,
+        "PIT": 3,
+        "TIT": 5,
+        "LI": 1
+      },
+      "exp_counts": {
+        "LS": 2,
+        "PDIT": 1,
+        "FE": 1,
+        "FIT": 1,
+        "PIT": 3,
+        "TIT": 5
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LCA10-M05-0001",
+      "system": "LCA",
+      "pages": [
+        16
+      ],
+      "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+      "detected": 26,
+      "expected": 31,
+      "tp": 25,
+      "det_counts": {
+        "TIT": 5,
+        "RO": 12,
+        "FIT": 2,
+        "LIT": 3,
+        "LI": 1,
+        "PIT": 3
+      },
+      "exp_counts": {
+        "RO": 13,
+        "TIT": 5,
+        "PI": 2,
+        "TI": 1,
+        "LIT": 3,
+        "FE": 2,
+        "FIT": 2,
+        "PIT": 3
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LCA10-M05-0002",
+      "system": "LCA",
+      "pages": [
+        17
+      ],
+      "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)",
+      "detected": 7,
+      "expected": 10,
+      "tp": 7,
+      "det_counts": {
+        "RO": 2,
+        "PIT": 3,
+        "TIT": 2
+      },
+      "exp_counts": {
+        "RO": 2,
+        "PIT": 3,
+        "TIT": 2,
+        "FE": 1,
+        "FIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LCM10-M05-0001",
+      "system": "LCM",
+      "pages": [
+        14
+      ],
+      "title": "P&ID FOR CLEAN DRAIN SYSTEM FOR GROUP 10",
+      "detected": 9,
+      "expected": 9,
+      "tp": 9,
+      "det_counts": {
+        "PI": 2,
+        "TIT": 1,
+        "LIT": 2,
+        "PIT": 2,
+        "PDIT": 2
+      },
+      "exp_counts": {
+        "TIT": 1,
+        "LIT": 2,
+        "PI": 2,
+        "PDIT": 2,
+        "PIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10LCQ10-M05-0001",
+      "system": "LCQ",
+      "pages": [],
+      "title": "",
+      "detected": 0,
+      "expected": 5,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "RO": 1,
+        "PDIT": 2,
+        "PIT": 2
+      },
+      "has_page": false,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10MAJ10-M05-0001",
+      "system": "MAJ",
+      "pages": [
+        18
+      ],
+      "title": "P&ID FOR CONDENSER AIR REMOVAL SYSTEM GROUP 10",
+      "detected": 8,
+      "expected": 8,
+      "tp": 8,
+      "det_counts": {
+        "PI": 4,
+        "TI": 4
+      },
+      "exp_counts": {
+        "PI": 4,
+        "TI": 4
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10MAN10-M05-0001",
+      "system": "MAN",
+      "pages": [
+        10
+      ],
+      "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)",
+      "detected": 24,
+      "expected": 32,
+      "tp": 24,
+      "det_counts": {
+        "PIT": 6,
+        "TIT": 13,
+        "PDIT": 3,
+        "LS": 2
+      },
+      "exp_counts": {
+        "TIT": 13,
+        "PIT": 6,
+        "PDIT": 3,
+        "FE": 3,
+        "FIT": 5,
+        "LS": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10MAN10-M05-0002",
+      "system": "MAN",
+      "pages": [
+        11
+      ],
+      "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)",
+      "detected": 24,
+      "expected": 32,
+      "tp": 24,
+      "det_counts": {
+        "PIT": 6,
+        "TIT": 13,
+        "PDIT": 3,
+        "LS": 2
+      },
+      "exp_counts": {
+        "TIT": 13,
+        "PIT": 6,
+        "PDIT": 3,
+        "FE": 3,
+        "FIT": 5,
+        "LS": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PAC10-M05-0001",
+      "system": "PAC",
+      "pages": [
+        30
+      ],
+      "title": "P&ID FOR CIRCULATING WATER SYSTEM FOR GROUP 10",
+      "detected": 24,
+      "expected": 16,
+      "tp": 16,
+      "det_counts": {
+        "TIT": 8,
+        "PIT": 8,
+        "LIT": 8
+      },
+      "exp_counts": {
+        "TIT": 8,
+        "PIT": 8
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PCB10-M05-0001",
+      "system": "PCB",
+      "pages": [
+        31
+      ],
+      "title": "P&ID FOR AUX. COOLING WATER SYSTEM FOR GROUP 10",
+      "detected": 15,
+      "expected": 15,
+      "tp": 15,
+      "det_counts": {
+        "PDIT": 5,
+        "PI": 3,
+        "TI": 3,
+        "TIT": 3,
+        "PIT": 1
+      },
+      "exp_counts": {
+        "PIT": 1,
+        "TIT": 3,
+        "PDIT": 5,
+        "PI": 3,
+        "TI": 3
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0001",
+      "system": "PGB",
+      "pages": [
+        35
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)",
+      "detected": 24,
+      "expected": 19,
+      "tp": 19,
+      "det_counts": {
+        "PI": 4,
+        "PDIT": 5,
+        "PIT": 6,
+        "LIT": 2,
+        "LI": 1,
+        "TIT": 6
+      },
+      "exp_counts": {
+        "LIT": 2,
+        "PIT": 6,
+        "PDIT": 5,
+        "TIT": 6
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0002",
+      "system": "PGB",
+      "pages": [
+        36
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (2 OF 7)",
+      "detected": 12,
+      "expected": 12,
+      "tp": 12,
+      "det_counts": {
+        "PI": 8,
+        "TI": 4
+      },
+      "exp_counts": {
+        "PI": 8,
+        "TI": 4
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0003",
+      "system": "PGB",
+      "pages": [
+        37
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (3 OF 7)",
+      "detected": 30,
+      "expected": 30,
+      "tp": 30,
+      "det_counts": {
+        "PI": 20,
+        "TI": 10
+      },
+      "exp_counts": {
+        "PI": 20,
+        "TI": 10
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0004",
+      "system": "PGB",
+      "pages": [
+        38
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (4 OF 7)",
+      "detected": 24,
+      "expected": 24,
+      "tp": 24,
+      "det_counts": {
+        "PI": 16,
+        "TI": 8
+      },
+      "exp_counts": {
+        "PI": 16,
+        "TI": 8
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0005",
+      "system": "PGB",
+      "pages": [
+        39
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (5 OF 7)",
+      "detected": 21,
+      "expected": 21,
+      "tp": 21,
+      "det_counts": {
+        "PI": 14,
+        "TI": 7
+      },
+      "exp_counts": {
+        "PI": 14,
+        "TI": 7
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0006",
+      "system": "PGB",
+      "pages": [
+        40
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (6 OF 7)",
+      "detected": 33,
+      "expected": 32,
+      "tp": 32,
+      "det_counts": {
+        "PI": 21,
+        "TI": 11,
+        "LS": 1
+      },
+      "exp_counts": {
+        "PI": 21,
+        "TI": 11
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PGB10-M05-0007",
+      "system": "PGB",
+      "pages": [
+        41
+      ],
+      "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (7 OF 7)",
+      "detected": 33,
+      "expected": 32,
+      "tp": 32,
+      "det_counts": {
+        "PI": 21,
+        "TI": 11,
+        "LS": 1
+      },
+      "exp_counts": {
+        "PI": 21,
+        "TI": 11
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-10PUE00-M05-0001",
+      "system": "PUE",
+      "pages": [
+        19
+      ],
+      "title": "P&ID FOR CONDENSER WATERBOX AIR REMOVAL SYSTEM GROUP 10",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-10QFA10-M05-0001",
+      "system": "QFA",
+      "pages": [
+        42
+      ],
+      "title": "P&ID FOR COMPRESSED AIR SYSTEM",
+      "detected": 10,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {
+        "PIT": 7,
+        "TIT": 3
+      },
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-10QFB10-M05-0001",
+      "system": "QFB",
+      "pages": [
+        43
+      ],
+      "title": "P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM",
+      "detected": 1,
+      "expected": 2,
+      "tp": 1,
+      "det_counts": {
+        "PIT": 1
+      },
+      "exp_counts": {
+        "PIT": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-11EGD00-M05-0001",
+      "system": "EGD",
+      "pages": [
+        34
+      ],
+      "title": "P&ID FOR GT FUEL OIL SUPPLY SYSTEM",
+      "detected": 1,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {
+        "PIT": 1
+      },
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-11EKG10-M05-0001",
+      "system": "EKG",
+      "pages": [
+        25
+      ],
+      "title": "P&ID FOR GT FUEL GAS SUPPLY SYSTEM",
+      "detected": 9,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {
+        "PIT": 6,
+        "TIT": 3
+      },
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-11LAB00-M05-0001",
+      "system": "LAB",
+      "pages": [
+        20
+      ],
+      "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
+      "detected": 19,
+      "expected": 33,
+      "tp": 19,
+      "det_counts": {
+        "PIT": 13,
+        "TIT": 6
+      },
+      "exp_counts": {
+        "PIT": 13,
+        "TIT": 6,
+        "FE": 4,
+        "FIT": 8,
+        "RO": 2
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-11LAC10-M05-0001",
+      "system": "LAC",
+      "pages": [
+        21
+      ],
+      "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
+      "detected": 16,
+      "expected": 23,
+      "tp": 16,
+      "det_counts": {
+        "TIT": 5,
+        "PIT": 4,
+        "FIT": 6,
+        "PDIT": 1
+      },
+      "exp_counts": {
+        "TIT": 5,
+        "PIT": 4,
+        "PDIT": 5,
+        "FE": 3,
+        "FIT": 6
+      },
+      "has_page": true,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-11LCM10-M05-0002",
+      "system": "LCM",
+      "pages": [],
+      "title": "",
+      "detected": 0,
+      "expected": 1,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {
+        "LI": 1
+      },
+      "has_page": false,
+      "in_excel": true
+    },
+    {
+      "drawing_no": "D00P-11LCQ10-M05-0001",
+      "system": "LCQ",
+      "pages": [
+        13
+      ],
+      "title": "P&ID FOR HRSG BLOWDOWN SYSTEM UNIT 11",
+      "detected": 5,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {
+        "RO": 1,
+        "PIT": 2,
+        "PDIT": 2
+      },
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    },
+    {
+      "drawing_no": "D00P-11QUA10-M05-0001",
+      "system": "QUA",
+      "pages": [
+        58
+      ],
+      "title": "P&ID FOR SAMPLING SYSTEM UNIT 11",
+      "detected": 0,
+      "expected": 0,
+      "tp": 0,
+      "det_counts": {},
+      "exp_counts": {},
+      "has_page": true,
+      "in_excel": false
+    }
+  ],
+  "failures": {
+    "NO_ANCHOR": [
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00EGD00-M05-0003",
+        "system": "EGD",
+        "title": "",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00EGD00-M05-0003",
+        "system": "EGD",
+        "title": "",
+        "excel_type": "RO",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00EKG10-M05-0004",
+        "system": "EKG",
+        "title": "",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00EKG10-M05-0004",
+        "system": "EKG",
+        "title": "",
+        "excel_type": "TIT",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00GBL10-M05-0001",
+        "system": "GBL",
+        "title": "",
+        "excel_type": "LI",
+        "count": 2,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00GBL10-M05-0001",
+        "system": "GBL",
+        "title": "",
+        "excel_type": "LIT",
+        "count": 4,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00GBL10-M05-0001",
+        "system": "GBL",
+        "title": "",
+        "excel_type": "PDIT",
+        "count": 3,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-00GBL10-M05-0001",
+        "system": "GBL",
+        "title": "",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "",
+        "excel_type": "PDIT",
+        "count": 2,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "",
+        "excel_type": "RO",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10MAN10-M05-0001",
+        "system": "MAN",
+        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "FIT",
+        "count": 5,
+        "cause": "no 'FIT' anchor found in any bubble on this drawing",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10MAN10-M05-0002",
+        "system": "MAN",
+        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)",
+        "excel_type": "FIT",
+        "count": 5,
+        "cause": "no 'FIT' anchor found in any bubble on this drawing",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-10QFB10-M05-0001",
+        "system": "QFB",
+        "title": "P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "no 'PIT' anchor found in any bubble on this drawing",
+        "samples": []
+      },
+      {
+        "type": "NO_ANCHOR",
+        "drawing_no": "D00P-11LCM10-M05-0002",
+        "system": "LCM",
+        "title": "",
+        "excel_type": "LI",
+        "count": 1,
+        "cause": "no page in the PDF carries this drawing number",
+        "samples": []
+      }
+    ],
+    "AMBIGUOUS_GEOMETRY": [
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "drawing_no": "D00P-00PAB10-M05-0001",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "page": 26,
+            "anchor": "MOV",
+            "center": [
+              1080.2,
+              650.5
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "drawing_no": "D00P-00PAB10-M05-0002",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "page": 27,
+            "anchor": "RO",
+            "center": [
+              303.3,
+              940.8
+            ]
+          },
+          {
+            "page": 27,
+            "anchor": "HV",
+            "center": [
+              1000.6,
+              600.7
+            ]
+          },
+          {
+            "page": 27,
+            "anchor": "MOV",
+            "center": [
+              1003.6,
+              614.5
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "drawing_no": "D00P-00SCB10-M05-0001",
+        "system": "SCB",
+        "title": "P&ID FOR SERVICE AIR DISTRIBUTION SYSTEM",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "page": 44,
+            "anchor": "PIT",
+            "center": [
+              973.9,
+              162.2
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "drawing_no": "D00P-10LBG10-M05-0001",
+        "system": "LBG",
+        "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
+        "excel_type": "FIT",
+        "count": 1,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "page": 15,
+            "anchor": "PSV",
+            "center": [
+              422.1,
+              936.5
+            ]
+          },
+          {
+            "page": 15,
+            "anchor": "PSV",
+            "center": [
+              439.1,
+              1023.4
+            ]
+          }
+        ]
+      },
+      {
+        "type": "AMBIGUOUS_GEOMETRY",
+        "drawing_no": "D00P-10LCA10-M05-0002",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)",
+        "excel_type": "FIT",
+        "count": 2,
+        "cause": "anchors found but no single enclosing bubble",
+        "samples": [
+          {
+            "page": 17,
+            "anchor": "CV",
+            "center": [
+              807.5,
+              296.9
+            ]
+          },
+          {
+            "page": 17,
+            "anchor": "CV",
+            "center": [
+              1074.5,
+              402.7
+            ]
+          }
+        ]
+      }
+    ],
+    "SCOPE_CONFLICT": [
+      {
+        "type": "SCOPE_CONFLICT",
+        "drawing_no": "D00P-10LCA10-M05-0001",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "PI",
+        "count": 2,
+        "cause": "excluded by a scope rule but the Excel keeps the row",
+        "samples": [
+          {
+            "page": 16,
+            "anchor": "PI",
+            "center": [
+              677.0,
+              318.0
+            ],
+            "rules_hit": [
+              "VENDOR_MARK"
+            ]
+          },
+          {
+            "page": 16,
+            "anchor": "PI",
+            "center": [
+              657.0,
+              877.3
+            ],
+            "rules_hit": [
+              "VENDOR_MARK"
+            ]
+          },
+          {
+            "page": 16,
+            "anchor": "PI",
+            "center": [
+              1348.0,
+              1144.3
+            ],
+            "rules_hit": [
+              "VENDOR_MARK"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SCOPE_CONFLICT",
+        "drawing_no": "D00P-10LCA10-M05-0001",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "TI",
+        "count": 1,
+        "cause": "excluded by a scope rule but the Excel keeps the row",
+        "samples": [
+          {
+            "page": 16,
+            "anchor": "TI",
+            "center": [
+              798.7,
+              877.3
+            ],
+            "rules_hit": [
+              "VENDOR_MARK"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SCOPE_CONFLICT",
+        "drawing_no": "D00P-11LAB00-M05-0001",
+        "system": "LAB",
+        "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
+        "excel_type": "RO",
+        "count": 2,
+        "cause": "excluded by a scope rule but the Excel keeps the row",
+        "samples": [
+          {
+            "page": 20,
+            "anchor": "RO",
+            "center": [
+              1118.5,
+              809.4
+            ],
+            "rules_hit": [
+              "SCT_SUPPLIER_SCOPE"
+            ]
+          },
+          {
+            "page": 20,
+            "anchor": "RO",
+            "center": [
+              1118.5,
+              1300.0
+            ],
+            "rules_hit": [
+              "SCT_SUPPLIER_SCOPE"
+            ]
+          }
+        ]
+      }
+    ],
+    "VENDOR_MARK_UNDEFINED": [],
+    "TYPE_MAPPING_MISS": [
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00EGD00-M05-0002",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
+        "excel_type": "FE",
+        "count": 1,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 33,
+            "anchor": "FE",
+            "center": [
+              1718.5,
+              340.3
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00EGD00-M05-0002",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
+        "excel_type": "LI",
+        "count": 2,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 33,
+            "anchor": "LG",
+            "center": [
+              499.6,
+              706.6
+            ]
+          },
+          {
+            "page": 33,
+            "anchor": "LG",
+            "center": [
+              499.6,
+              90.9
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "FIT",
+        "count": 1,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              215.8
+            ]
+          },
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              999.8
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "LI",
+        "count": 2,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              215.8
+            ]
+          },
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              999.8
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "PDIT",
+        "count": 3,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              215.8
+            ]
+          },
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              999.8
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              215.8
+            ]
+          },
+          {
+            "page": 49,
+            "anchor": "LG",
+            "center": [
+              677.6,
+              999.8
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-00GKB10-M05-0001",
+        "system": "GKB",
+        "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
+        "excel_type": "LI",
+        "count": 1,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LG",
+        "samples": [
+          {
+            "page": 51,
+            "anchor": "LG",
+            "center": [
+              660.6,
+              96.9
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LBA30-M05-0001",
+        "system": "LBA",
+        "title": "P&ID FOR LP STEAM SYSTEM GROUP 10",
+        "excel_type": "LS",
+        "count": 8,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LSH, LSHH",
+        "samples": [
+          {
+            "page": 9,
+            "anchor": "LSH",
+            "center": [
+              953.0,
+              645.1
+            ]
+          },
+          {
+            "page": 9,
+            "anchor": "LSHH",
+            "center": [
+              823.4,
+              659.2
+            ]
+          },
+          {
+            "page": 9,
+            "anchor": "LSH",
+            "center": [
+              938.8,
+              1259.1
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LBC40-M05-0001",
+        "system": "LBC",
+        "title": "P&ID FOR CRH STEAM SYSTEM GROUP 10",
+        "excel_type": "LS",
+        "count": 8,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: LSH, LSHH, PP",
+        "samples": [
+          {
+            "page": 7,
+            "anchor": "LSHH",
+            "center": [
+              1481.9,
+              674.0
+            ]
+          },
+          {
+            "page": 7,
+            "anchor": "LSH",
+            "center": [
+              1611.6,
+              688.2
+            ]
+          },
+          {
+            "page": 7,
+            "anchor": "LSHH",
+            "center": [
+              1481.9,
+              1271.0
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LBG10-M05-0001",
+        "system": "LBG",
+        "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
+        "excel_type": "FE",
+        "count": 1,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 12,
+            "anchor": "FE",
+            "center": [
+              1022.8,
+              379.1
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LCA10-M05-0001",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "FE",
+        "count": 2,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 16,
+            "anchor": "FE",
+            "center": [
+              299.9,
+              638.6
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 16,
+            "anchor": "FE",
+            "center": [
+              299.9,
+              725.5
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LCA10-M05-0001",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "RO",
+        "count": 1,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: AIT, PP, ZS",
+        "samples": [
+          {
+            "page": 16,
+            "anchor": "PP",
+            "center": [
+              677.2,
+              182.7
+            ]
+          },
+          {
+            "page": 16,
+            "anchor": "PP",
+            "center": [
+              719.7,
+              212.2
+            ]
+          },
+          {
+            "page": 16,
+            "anchor": "PP",
+            "center": [
+              762.2,
+              182.7
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10LCA10-M05-0002",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (2 OF 2)",
+        "excel_type": "FE",
+        "count": 1,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 17,
+            "anchor": "FE",
+            "center": [
+              1168.3,
+              1193.7
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10MAN10-M05-0001",
+        "system": "MAN",
+        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "FE",
+        "count": 3,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 10,
+            "anchor": "FE",
+            "center": [
+              1380.2,
+              348.2
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 10,
+            "anchor": "FE",
+            "center": [
+              1380.2,
+              856.6
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 10,
+            "anchor": "FE",
+            "center": [
+              1380.2,
+              1352.5
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-10MAN10-M05-0002",
+        "system": "MAN",
+        "title": "P&ID FOR BYPASS STEAM SYSTEM GROUP 10 (2 OF 2)",
+        "excel_type": "FE",
+        "count": 3,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 11,
+            "anchor": "FE",
+            "center": [
+              1407.2,
+              348.4
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 11,
+            "anchor": "FE",
+            "center": [
+              1407.2,
+              844.3
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 11,
+            "anchor": "FE",
+            "center": [
+              1407.2,
+              1340.3
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-11LAB00-M05-0001",
+        "system": "LAB",
+        "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
+        "excel_type": "FE",
+        "count": 4,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 20,
+            "anchor": "FE",
+            "center": [
+              1109.6,
+              460.4
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 20,
+            "anchor": "FE",
+            "center": [
+              1180.5,
+              624.4
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 20,
+            "anchor": "FE",
+            "center": [
+              1109.6,
+              951.0
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-11LAB00-M05-0001",
+        "system": "LAB",
+        "title": "P&ID FOR HRSG FEEDWATER SYSTEM UNIT 11",
+        "excel_type": "FIT",
+        "count": 8,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: ZS",
+        "samples": [
+          {
+            "page": 20,
+            "anchor": "ZS",
+            "center": [
+              488.1,
+              638.5
+            ]
+          },
+          {
+            "page": 20,
+            "anchor": "ZS",
+            "center": [
+              521.4,
+              1152.3
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-11LAC10-M05-0001",
+        "system": "LAC",
+        "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
+        "excel_type": "FE",
+        "count": 3,
+        "cause": "'FE' is on the drawing but the ruleset treats it as NOT_FIELD_INSTRUMENT",
+        "samples": [
+          {
+            "page": 21,
+            "anchor": "FE",
+            "center": [
+              853.9,
+              482.4
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          },
+          {
+            "page": 21,
+            "anchor": "FE",
+            "center": [
+              391.9,
+              1324.2
+            ],
+            "rules_hit": [
+              "NOT_FIELD_INSTRUMENT"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TYPE_MAPPING_MISS",
+        "drawing_no": "D00P-11LAC10-M05-0001",
+        "system": "LAC",
+        "title": "P&ID FOR FGH & TCA COOLING SYSTEM UNIT 11",
+        "excel_type": "PDIT",
+        "count": 4,
+        "cause": "bubble holds a tag the anchor dictionary does not cover: DPIT, ZSC, ZSO, ZT",
+        "samples": [
+          {
+            "page": 21,
+            "anchor": "DPIT",
+            "center": [
+              920.8,
+              1031.0
+            ]
+          },
+          {
+            "page": 21,
+            "anchor": "ZSC",
+            "center": [
+              400.2,
+              465.9
+            ]
+          },
+          {
+            "page": 21,
+            "anchor": "ZSO",
+            "center": [
+              400.2,
+              488.5
+            ]
+          }
+        ]
+      }
+    ],
+    "OVER_DETECT": [
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00EGD00-M05-0001",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
+        "excel_type": "PI",
+        "count": 8,
+        "cause": "detected 8 vs excel 0",
+        "samples": [
+          {
+            "page": 32,
+            "anchor": "PI",
+            "center": [
+              963.8,
+              153.8
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 32,
+            "anchor": "PI",
+            "center": [
+              651.8,
+              163.8
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 32,
+            "anchor": "PI",
+            "center": [
+              669.6,
+              491.6
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00EGD00-M05-0001",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "detected 4 vs excel 2",
+        "samples": [
+          {
+            "page": 32,
+            "anchor": "PIT",
+            "center": [
+              1892.4,
+              131.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 32,
+            "anchor": "PIT",
+            "center": [
+              1930.3,
+              131.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 32,
+            "anchor": "PIT",
+            "center": [
+              1720.7,
+              153.0
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00EGD00-M05-0001",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (1/2)",
+        "excel_type": "TIT",
+        "count": 2,
+        "cause": "detected 2 vs excel 0",
+        "samples": [
+          {
+            "page": 32,
+            "anchor": "TIT",
+            "center": [
+              1761.0,
+              153.0
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 32,
+            "anchor": "TIT",
+            "center": [
+              1745.0,
+              432.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00EGD00-M05-0002",
+        "system": "EGD",
+        "title": "P&ID FOR FUEL OIL SUPPLY SYSTEM (2/2)",
+        "excel_type": "PI",
+        "count": 12,
+        "cause": "detected 12 vs excel 0",
+        "samples": [
+          {
+            "page": 33,
+            "anchor": "PI",
+            "center": [
+              1196.7,
+              215.6
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 33,
+            "anchor": "PI",
+            "center": [
+              1353.9,
+              208.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 33,
+            "anchor": "PI",
+            "center": [
+              1353.9,
+              427.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "PI",
+        "count": 6,
+        "cause": "detected 6 vs excel 0",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "PI",
+            "center": [
+              1322.0,
+              737.8
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 49,
+            "anchor": "PI",
+            "center": [
+              1124.9,
+              756.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 49,
+            "anchor": "PI",
+            "center": [
+              1322.0,
+              881.8
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHB10-M05-0001",
+        "system": "GHB",
+        "title": "P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)",
+        "excel_type": "RO",
+        "count": 3,
+        "cause": "detected 3 vs excel 0",
+        "samples": [
+          {
+            "page": 49,
+            "anchor": "RO",
+            "center": [
+              1380.9,
+              753.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 49,
+            "anchor": "RO",
+            "center": [
+              1445.0,
+              753.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 49,
+            "anchor": "RO",
+            "center": [
+              1507.0,
+              753.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "LI",
+        "count": 2,
+        "cause": "detected 4 vs excel 2",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "LI",
+            "center": [
+              584.5,
+              207.0
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "LI",
+            "center": [
+              584.5,
+              1095.4
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 47,
+            "anchor": "LI",
+            "center": [
+              583.1,
+              189.0
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "LIT",
+        "count": 4,
+        "cause": "detected 8 vs excel 4",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "LIT",
+            "center": [
+              237.0,
+              554.7
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "LIT",
+            "center": [
+              237.0,
+              592.8
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "LIT",
+            "center": [
+              237.0,
+              1430.2
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "PDIT",
+        "count": 3,
+        "cause": "detected 9 vs excel 6",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "PDIT",
+            "center": [
+              1048.4,
+              547.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "PDIT",
+            "center": [
+              1048.4,
+              691.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "PDIT",
+            "center": [
+              1048.4,
+              825.1
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "PI",
+        "count": 18,
+        "cause": "detected 18 vs excel 0",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "PI",
+            "center": [
+              1367.3,
+              495.9
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "PI",
+            "center": [
+              1142.7,
+              514.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "PI",
+            "center": [
+              1367.3,
+              639.9
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "detected 6 vs excel 4",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "PIT",
+            "center": [
+              1719.7,
+              632.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "PIT",
+            "center": [
+              1746.6,
+              632.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 47,
+            "anchor": "PIT",
+            "center": [
+              1810.8,
+              397.1
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GHC10-M05-0001",
+        "system": "GHC",
+        "title": "P&ID FOR DESAL. WATER SUPPLY SYSTEM",
+        "excel_type": "RO",
+        "count": 9,
+        "cause": "detected 9 vs excel 0",
+        "samples": [
+          {
+            "page": 46,
+            "anchor": "RO",
+            "center": [
+              1445.7,
+              508.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "RO",
+            "center": [
+              1509.7,
+              508.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 46,
+            "anchor": "RO",
+            "center": [
+              1571.7,
+              508.2
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GKB10-M05-0001",
+        "system": "GKB",
+        "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
+        "excel_type": "PI",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
+        "samples": [
+          {
+            "page": 51,
+            "anchor": "PI",
+            "center": [
+              1465.1,
+              365.2
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 51,
+            "anchor": "PI",
+            "center": [
+              1254.3,
+              375.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 51,
+            "anchor": "PI",
+            "center": [
+              1465.1,
+              545.8
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GKB10-M05-0001",
+        "system": "GKB",
+        "title": "P&ID FOR POTABLE WATER SUPPLY SYSTEM",
+        "excel_type": "RO",
+        "count": 2,
+        "cause": "detected 2 vs excel 0",
+        "samples": [
+          {
+            "page": 51,
+            "anchor": "RO",
+            "center": [
+              1585.8,
+              193.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 51,
+            "anchor": "RO",
+            "center": [
+              1683.9,
+              193.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00GMA10-M05-0001",
+        "system": "GMA",
+        "title": "P&ID FOR CHEMICAL WASTE WATER TRANSFER SYSTEM",
+        "excel_type": "PI",
+        "count": 6,
+        "cause": "detected 6 vs excel 0",
+        "samples": [
+          {
+            "page": 55,
+            "anchor": "PI",
+            "center": [
+              553.4,
+              510.4
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 55,
+            "anchor": "PI",
+            "center": [
+              715.8,
+              510.4
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 55,
+            "anchor": "PI",
+            "center": [
+              1244.6,
+              510.4
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0001",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
+        "excel_type": "LIT",
+        "count": 10,
+        "cause": "detected 10 vs excel 0",
+        "samples": [
+          {
+            "page": 26,
+            "anchor": "LIT",
+            "center": [
+              970.9,
+              826.1
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 26,
+            "anchor": "LIT",
+            "center": [
+              1250.6,
+              826.1
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 26,
+            "anchor": "LIT",
+            "center": [
+              1524.2,
+              826.1
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0001",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
+        "excel_type": "PDIT",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 26,
+            "anchor": "PDIT",
+            "center": [
+              1766.6,
+              1132.9
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0001",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (1 OF 3)",
+        "excel_type": "PI",
+        "count": 7,
+        "cause": "detected 7 vs excel 0",
+        "samples": [
+          {
+            "page": 26,
+            "anchor": "PI",
+            "center": [
+              546.2,
+              619.9
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 26,
+            "anchor": "PI",
+            "center": [
+              823.8,
+              619.9
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 26,
+            "anchor": "PI",
+            "center": [
+              1101.4,
+              619.9
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0002",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
+        "excel_type": "LIT",
+        "count": 10,
+        "cause": "detected 10 vs excel 0",
+        "samples": [
+          {
+            "page": 27,
+            "anchor": "LIT",
+            "center": [
+              855.1,
+              768.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 27,
+            "anchor": "LIT",
+            "center": [
+              1134.8,
+              768.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 27,
+            "anchor": "LIT",
+            "center": [
+              1408.4,
+              768.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0002",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (2 OF 3)",
+        "excel_type": "PI",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
+        "samples": [
+          {
+            "page": 27,
+            "anchor": "PI",
+            "center": [
+              430.4,
+              562.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 27,
+            "anchor": "PI",
+            "center": [
+              708.0,
+              562.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 27,
+            "anchor": "PI",
+            "center": [
+              985.6,
+              562.3
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0003",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (3 OF 3)",
+        "excel_type": "LIT",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
+        "samples": [
+          {
+            "page": 28,
+            "anchor": "LIT",
+            "center": [
+              644.4,
+              893.1
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 28,
+            "anchor": "LIT",
+            "center": [
+              1053.0,
+              1098.9
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 28,
+            "anchor": "LIT",
+            "center": [
+              992.0,
+              1263.0
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-00PAB10-M05-0003",
+        "system": "PAB",
+        "title": "P&ID FOR SEAWATER INTAKE SYSTEM (3 OF 3)",
+        "excel_type": "PI",
+        "count": 2,
+        "cause": "detected 2 vs excel 0",
+        "samples": [
+          {
+            "page": 28,
+            "anchor": "PI",
+            "center": [
+              495.2,
+              687.0
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 28,
+            "anchor": "PI",
+            "center": [
+              772.8,
+              687.0
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10LBA30-M05-0001",
+        "system": "LBA",
+        "title": "P&ID FOR LP STEAM SYSTEM GROUP 10",
+        "excel_type": "PDIT",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 9,
+            "anchor": "PDIT",
+            "center": [
+              1655.9,
+              767.7
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10LBG10-M05-0001",
+        "system": "LBG",
+        "title": "P&ID FOR AUXILIARY STEAM SYSTEM GROUP 10",
+        "excel_type": "LI",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 15,
+            "anchor": "LI",
+            "center": [
+              875.1,
+              1314.1
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10LCA10-M05-0001",
+        "system": "LCA",
+        "title": "P&ID FOR CONDENSATE SYSTEM GROUP 10 (1 OF 2)",
+        "excel_type": "LI",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 16,
+            "anchor": "LI",
+            "center": [
+              505.3,
+              969.4
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10PAC10-M05-0001",
+        "system": "PAC",
+        "title": "P&ID FOR CIRCULATING WATER SYSTEM FOR GROUP 10",
+        "excel_type": "LIT",
+        "count": 8,
+        "cause": "detected 8 vs excel 0",
+        "samples": [
+          {
+            "page": 30,
+            "anchor": "LIT",
+            "center": [
+              572.5,
+              761.4
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 30,
+            "anchor": "LIT",
+            "center": [
+              713.8,
+              761.4
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 30,
+            "anchor": "LIT",
+            "center": [
+              855.2,
+              761.4
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10PGB10-M05-0001",
+        "system": "PGB",
+        "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)",
+        "excel_type": "LI",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 35,
+            "anchor": "LI",
+            "center": [
+              399.4,
+              338.7
+            ],
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10PGB10-M05-0001",
+        "system": "PGB",
+        "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (1 OF 7)",
+        "excel_type": "PI",
+        "count": 4,
+        "cause": "detected 4 vs excel 0",
+        "samples": [
+          {
+            "page": 35,
+            "anchor": "PI",
+            "center": [
+              1335.2,
+              214.8
+            ],
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
+          },
+          {
+            "page": 35,
+            "anchor": "PI",
+            "center": [
+              1236.2,
+              224.8
+            ],
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
+          },
+          {
+            "page": 35,
+            "anchor": "PI",
+            "center": [
+              1335.2,
+              434.3
+            ],
+            "rules_hit": [
+              "VENDOR_MARK_UNDEFINED"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10PGB10-M05-0006",
+        "system": "PGB",
+        "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (6 OF 7)",
+        "excel_type": "LS",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 40,
+            "anchor": "LS",
+            "center": [
+              1795.6,
+              1090.8
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10PGB10-M05-0007",
+        "system": "PGB",
+        "title": "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (7 OF 7)",
+        "excel_type": "LS",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 41,
+            "anchor": "LS",
+            "center": [
+              1795.6,
+              1090.8
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10QFA10-M05-0001",
+        "system": "QFA",
+        "title": "P&ID FOR COMPRESSED AIR SYSTEM",
+        "excel_type": "PIT",
+        "count": 7,
+        "cause": "detected 7 vs excel 0",
+        "samples": [
+          {
+            "page": 42,
+            "anchor": "PT",
+            "center": [
+              1208.1,
+              291.0
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 42,
+            "anchor": "PT",
+            "center": [
+              468.1,
+              334.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 42,
+            "anchor": "PT",
+            "center": [
+              539.0,
+              334.3
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-10QFA10-M05-0001",
+        "system": "QFA",
+        "title": "P&ID FOR COMPRESSED AIR SYSTEM",
+        "excel_type": "TIT",
+        "count": 3,
+        "cause": "detected 3 vs excel 0",
+        "samples": [
+          {
+            "page": 42,
+            "anchor": "TT",
+            "center": [
+              609.9,
+              334.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 42,
+            "anchor": "TT",
+            "center": [
+              1567.4,
+              358.1
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 42,
+            "anchor": "TT",
+            "center": [
+              1543.2,
+              1039.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11EGD00-M05-0001",
+        "system": "EGD",
+        "title": "P&ID FOR GT FUEL OIL SUPPLY SYSTEM",
+        "excel_type": "PIT",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 34,
+            "anchor": "PIT",
+            "center": [
+              1342.3,
+              641.0
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11EKG10-M05-0001",
+        "system": "EKG",
+        "title": "P&ID FOR GT FUEL GAS SUPPLY SYSTEM",
+        "excel_type": "PIT",
+        "count": 6,
+        "cause": "detected 6 vs excel 0",
+        "samples": [
+          {
+            "page": 25,
+            "anchor": "PT",
+            "center": [
+              1193.1,
+              683.7
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 25,
+            "anchor": "PT",
+            "center": [
+              1596.9,
+              683.7
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 25,
+            "anchor": "PIT",
+            "center": [
+              1681.1,
+              683.6
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11EKG10-M05-0001",
+        "system": "EKG",
+        "title": "P&ID FOR GT FUEL GAS SUPPLY SYSTEM",
+        "excel_type": "TIT",
+        "count": 3,
+        "cause": "detected 3 vs excel 0",
+        "samples": [
+          {
+            "page": 25,
+            "anchor": "TT",
+            "center": [
+              1226.1,
+              683.7
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 25,
+            "anchor": "TT",
+            "center": [
+              1792.8,
+              683.7
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 25,
+            "anchor": "TT",
+            "center": [
+              1211.7,
+              1048.5
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "P&ID FOR HRSG BLOWDOWN SYSTEM UNIT 11",
+        "excel_type": "PDIT",
+        "count": 2,
+        "cause": "detected 2 vs excel 0",
+        "samples": [
+          {
+            "page": 13,
+            "anchor": "PDIT",
+            "center": [
+              855.0,
+              968.5
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 13,
+            "anchor": "PDIT",
+            "center": [
+              855.0,
+              1223.7
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "P&ID FOR HRSG BLOWDOWN SYSTEM UNIT 11",
+        "excel_type": "PIT",
+        "count": 2,
+        "cause": "detected 2 vs excel 0",
+        "samples": [
+          {
+            "page": 13,
+            "anchor": "PIT",
+            "center": [
+              1539.5,
+              954.3
+            ],
+            "rules_hit": []
+          },
+          {
+            "page": 13,
+            "anchor": "PIT",
+            "center": [
+              1610.3,
+              954.3
+            ],
+            "rules_hit": []
+          }
+        ]
+      },
+      {
+        "type": "OVER_DETECT",
+        "drawing_no": "D00P-11LCQ10-M05-0001",
+        "system": "LCQ",
+        "title": "P&ID FOR HRSG BLOWDOWN SYSTEM UNIT 11",
+        "excel_type": "RO",
+        "count": 1,
+        "cause": "detected 1 vs excel 0",
+        "samples": [
+          {
+            "page": 13,
+            "anchor": "RO",
+            "center": [
+              681.6,
+              474.6
+            ],
+            "rules_hit": []
+          }
+        ]
+      }
+    ]
+  }
+}

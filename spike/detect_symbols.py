@@ -62,6 +62,7 @@ import argparse
 import collections
 import itertools
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -96,6 +97,10 @@ VALVE_ANCHORS = {"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV", "LCV",
 
 ANCHORS = set(FIELD_TYPE_MAP) | NOT_FIELD_INSTRUMENT | VALVE_ANCHORS
 
+# Shape of an ISA function-letter tag, used only to spot anchors the dictionary
+# above is missing.  Matching this does not make something a detection.
+ISA_LIKE_RE = re.compile(r"^[A-Z]{1,5}$")
+
 
 @dataclass(frozen=True)
 class Layout:
@@ -103,10 +108,16 @@ class Layout:
     drawing_area: tuple = (38.0, 35.0, 1960.0, 1650.0)
     notes_area: tuple = (1960.0, 35.0, 2384.0, 1250.0)
 
-    # Instrument bubble: a stadium of 68.0 x 22.6 pt built from two arc caps.
-    cap_long: tuple = (20.0, 26.0)      # cap size along the stadium axis
-    cap_short: tuple = (9.0, 14.0)
-    cap_separation: tuple = (54.0, 59.0)  # between cap centres
+    # Instrument bubble: a stadium built from two arc caps joined by straight
+    # sides.  Sizes are NOT fixed — this document uses at least two families
+    # (68.0 x 22.6 and 85.1 x 28.4) plus rarer ones, so the detector measures
+    # them per page instead.  These bounds only say "an arc cap is roughly a
+    # 2:1 rounded end of a plausible size"; the stadium length falls out of the
+    # geometry.
+    cap_span: tuple = (7.0, 50.0)       # long side of a cap
+    cap_ratio: tuple = (1.6, 2.4)       # long/short of a cap
+    side_tol: float = 0.8               # how close a side must run to the cap edge
+    side_slack: float = 1.5             # how far a side may fall short of the caps
     anchor_slack: float = 3.0
 
     # Vendor asterisk marks sit just above the bubble.
@@ -140,42 +151,82 @@ def _inside(x, y, region) -> bool:
 
 
 def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
-    """Instrument bubbles, from pairs of matching arc caps.
+    """Instrument bubbles, measured rather than assumed.
 
-    Adjacent bubbles are only 25.5 pt apart, so caps must be *paired* by
-    alignment and separation — taking the union of all nearby caps merges
-    neighbouring bubbles into one blob.
+    A bubble is two arc caps facing each other with *straight sides joining
+    them*.  Requiring both sides is what makes this size-free: an adjacent pair
+    of caps belonging to two different bubbles has no sides between it, so it
+    is rejected without needing to know how long a stadium is supposed to be.
+    That matters because this document set uses more than one bubble size, and
+    the page 6 constants (68.0 x 22.6) do not hold everywhere.
+
+    Caps are grouped by alignment and only *neighbouring* caps are paired, so
+    bubbles standing 25 pt apart never merge into one blob.
     """
-    caps_h, caps_v = [], []
+    caps_wide, caps_tall = [], []
     for d in pc.drawings():
         items = d["items"]
         if not items or any(i[0] != "c" for i in items):
             continue
         r = d["bbox"]
-        lo_l, hi_l = lay.cap_long
-        lo_s, hi_s = lay.cap_short
-        if lo_l < r.width < hi_l and lo_s < r.height < hi_s:
-            caps_h.append(r)      # top/bottom cap of a vertical stadium
-        elif lo_s < r.width < hi_s and lo_l < r.height < hi_l:
-            caps_v.append(r)      # left/right cap of a horizontal stadium
+        w, h = r.width, r.height
+        if w <= 0 or h <= 0:
+            continue
+        short, long_ = min(w, h), max(w, h)
+        if not lay.cap_span[0] <= long_ <= lay.cap_span[1]:
+            continue
+        if not lay.cap_ratio[0] <= long_ / short <= lay.cap_ratio[1]:
+            continue
+        (caps_tall if h > w else caps_wide).append(r)
 
-    lo_sep, hi_sep = lay.cap_separation
-    bubbles = []
-    for caps, vertical in ((caps_h, True), (caps_v, False)):
-        for a, b in itertools.combinations(caps, 2):
-            if vertical:
-                if abs(a.x0 - b.x0) > 1 or abs(a.x1 - b.x1) > 1:
-                    continue
-                sep = abs((a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2)
-            else:
-                if abs(a.y0 - b.y0) > 1 or abs(a.y1 - b.y1) > 1:
-                    continue
-                sep = abs((a.x0 + a.x1) / 2 - (b.x0 + b.x1) / 2)
-            if not lo_sep < sep < hi_sep:
-                continue
-            bubbles.append(pymupdf.Rect(min(a.x0, b.x0), min(a.y0, b.y0),
-                                        max(a.x1, b.x1), max(a.y1, b.y1)))
+    h_seg: dict[float, list] = collections.defaultdict(list)
+    v_seg: dict[float, list] = collections.defaultdict(list)
+    for a, b in pc.segments():
+        if abs(a.y - b.y) < 0.4 and abs(a.x - b.x) > 1.0:
+            h_seg[round(a.y, 1)].append((min(a.x, b.x), max(a.x, b.x)))
+        elif abs(a.x - b.x) < 0.4 and abs(a.y - b.y) > 1.0:
+            v_seg[round(a.x, 1)].append((min(a.y, b.y), max(a.y, b.y)))
+
+    steps = [round(i * 0.1, 1) for i in range(-8, 9)]
+
+    def spans(index, coord, lo, hi) -> bool:
+        for d in steps:
+            for s0, s1 in index.get(round(coord + d, 1), ()):
+                if s0 <= lo + lay.side_slack and s1 >= hi - lay.side_slack:
+                    return True
+        return False
+
+    bubbles: list[pymupdf.Rect] = []
+
+    # Horizontal stadiums: tall caps sharing a y extent, sides run horizontally.
+    groups: dict[tuple, list] = collections.defaultdict(list)
+    for r in caps_tall:
+        groups[(round(r.y0, 1), round(r.y1, 1))].append(r)
+    for g in groups.values():
+        g.sort(key=lambda r: r.x0)
+        for a, b in zip(g, g[1:]):
+            if spans(h_seg, a.y0, a.x1, b.x0) and spans(h_seg, a.y1, a.x1, b.x0):
+                bubbles.append(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1))
+
+    # Vertical stadiums: wide caps sharing an x extent, sides run vertically.
+    groups = collections.defaultdict(list)
+    for r in caps_wide:
+        groups[(round(r.x0, 1), round(r.x1, 1))].append(r)
+    for g in groups.values():
+        g.sort(key=lambda r: r.y0)
+        for a, b in zip(g, g[1:]):
+            if spans(v_seg, a.x0, a.y1, b.y0) and spans(v_seg, a.x1, a.y1, b.y0):
+                bubbles.append(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1))
+
     return bubbles
+
+
+def bubble_sizes(bubbles) -> collections.Counter:
+    """Distribution of bubble dimensions, for reporting what a page actually uses."""
+    return collections.Counter(
+        (round(max(b.width, b.height), 1), round(min(b.width, b.height), 1))
+        for b in bubbles
+    )
 
 
 def find_marks(pc, lay: Layout = LAYOUT) -> list[pymupdf.Point]:
@@ -332,7 +383,21 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
     return scopes
 
 
-def lands_on_run(pc, bubble: pymupdf.Rect, run: tuple, lay: Layout = LAYOUT) -> bool:
+def vertical_index(pc) -> dict:
+    """Vertical segments bucketed by x, so drop-line tests stay cheap.
+
+    These sheets carry ~150k segments each; scanning them per detection per
+    scope would dominate a 52-page run.
+    """
+    idx: dict[float, list] = collections.defaultdict(list)
+    for a, b in pc.segments():
+        if abs(a.x - b.x) < 0.4 and abs(a.y - b.y) > 0.5:
+            idx[round(a.x, 1)].append((min(a.y, b.y), max(a.y, b.y)))
+    return idx
+
+
+def lands_on_run(pc, bubble: pymupdf.Rect, run: tuple, lay: Layout = LAYOUT,
+                 v_index: dict | None = None) -> bool:
     """True if the instrument's drop line lands on this broken pipe run.
 
     The drop line hangs from the bubble centre straight down onto the pipe, so
@@ -346,11 +411,14 @@ def lands_on_run(pc, bubble: pymupdf.Rect, run: tuple, lay: Layout = LAYOUT) -> 
     cx = (bubble.x0 + bubble.x1) / 2
     if not rx0 <= cx <= rx1 or bubble.y1 > ry:
         return False
-    for a, b in pc.segments():
-        if abs(a.x - b.x) >= 0.4 or abs(a.x - cx) > lay.drop_x_tol:
-            continue
-        if abs(max(a.y, b.y) - ry) <= lay.drop_end_tol and min(a.y, b.y) >= bubble.y1 - 2:
-            return True
+    if v_index is None:
+        v_index = vertical_index(pc)
+    step = 0.1
+    n = int(lay.drop_x_tol / step)
+    for i in range(-n, n + 1):
+        for lo, hi in v_index.get(round(cx + i * step, 1), ()):
+            if abs(hi - ry) <= lay.drop_end_tol and lo >= bubble.y1 - 2:
+                return True
     return False
 
 
@@ -388,6 +456,7 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
     marks = find_marks(pc, lay)
     mark_dict = read_mark_dictionary(pc, lay)
     scopes = find_sct_scopes(pc, lay)
+    v_index = vertical_index(pc)
 
     detections: list[Detection] = []
     unverified: list[dict] = []
@@ -437,14 +506,22 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
             and bubble.y0 - lay.mark_above <= m.y <= bubble.y0
         ]
         if near:
+            meaning = mark_dict.get(len(near))
             det.evidence["vendor_mark"] = {
                 "count": len(near),
-                "meaning": mark_dict.get(len(near), "UNDEFINED ON THIS PAGE"),
+                "meaning": meaning or "UNDEFINED ON THIS PAGE",
             }
-            det.rules_hit.append("VENDOR_MARK")
-            if det.included and "VENDOR_MARK" not in disabled:
-                det.included = False
-                det.exclude_rule = "VENDOR_MARK"
+            if meaning is None:
+                # The mark dictionary is page-scoped (docs/design.md §10.1) and
+                # the same glyph means different things on different sheets, so
+                # an undefined mark must not be acted on.  Hold the judgement
+                # and flag it instead of guessing.
+                det.rules_hit.append("VENDOR_MARK_UNDEFINED")
+            else:
+                det.rules_hit.append("VENDOR_MARK")
+                if det.included and "VENDOR_MARK" not in disabled:
+                    det.included = False
+                    det.exclude_rule = "VENDOR_MARK"
 
         # -- SCT supplier scope ----------------------------------------
         for sc in scopes:
@@ -452,7 +529,7 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
             if sc.kind == "BOX" and sc.rect is not None:
                 inside = sc.rect.x0 <= cx <= sc.rect.x1 and sc.rect.y0 <= cy <= sc.rect.y1
             elif sc.kind == "PIPE_BREAK" and sc.run is not None:
-                inside = lands_on_run(pc, bubble, sc.run, lay)
+                inside = lands_on_run(pc, bubble, sc.run, lay, v_index)
             if inside:
                 det.evidence["sct_scope"] = {
                     "label": sc.label,
@@ -468,8 +545,26 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
 
         detections.append(det)
 
+    # Diagnostic only, never a detection rule: tokens that sit inside a verified
+    # bubble but that the anchor dictionary does not cover.  These are the
+    # candidates for TYPE_MAPPING_MISS when a drawing comes up short.
+    unmapped: list[dict] = []
+    for r, t in pc.words:
+        if t in ANCHORS or not ISA_LIKE_RE.match(t):
+            continue
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        if not _inside(cx, cy, lay.drawing_area):
+            continue
+        hit = [
+            b for b in bubbles
+            if b.x0 - lay.anchor_slack <= cx <= b.x1 + lay.anchor_slack
+            and b.y0 - lay.anchor_slack <= cy <= b.y1 + lay.anchor_slack
+        ]
+        if len(hit) == 1:
+            unmapped.append({"token": t, "center": [round(cx, 1), round(cy, 1)]})
+
     detections.sort(key=lambda d: (round(d.center[1] / 15), d.center[0]))
-    return detections, scopes, mark_dict, unverified
+    return detections, scopes, mark_dict, unverified, unmapped
 
 
 # --------------------------------------------------------------------------
@@ -666,7 +761,7 @@ def main() -> int:
     disabled = frozenset(r.strip() for r in args.without.split(",") if r.strip())
     if disabled:
         print(f"\n!! exclusion rules disabled for this run: {', '.join(sorted(disabled))}")
-    detections, scopes, mark_dict, unverified = detect(pc, disabled=disabled)
+    detections, scopes, mark_dict, unverified, unmapped = detect(pc, disabled=disabled)
     excel_rows = load_excel_rows(Path(args.compare), drawing_no) if args.compare else []
     metrics = report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows)
 
@@ -687,6 +782,7 @@ def main() -> int:
         "excel_rows": excel_rows,
         "detections": [d.to_json() for d in detections],
         "geometry_unverified": unverified,
+        "unmapped_in_bubble": unmapped,
     }
     out_json = Path(args.json)
     out_json.parent.mkdir(parents=True, exist_ok=True)
