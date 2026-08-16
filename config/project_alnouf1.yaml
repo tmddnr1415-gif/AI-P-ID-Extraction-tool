@@ -1,0 +1,164 @@
+# Project-dependent values for AL NOUF1 (D00P).
+#
+# Every entry here was classified PROJECT in out/project_deps.md, meaning it was
+# derived from this project's NOTES / KKS scheme / title block form / Excel
+# template rather than from the Symbol & Legend sheets.  Values classified
+# LEGEND stay in the code, with the legend page cited at the point of use.
+#
+# There are no defaults.  A lookup that misses in this file does not fall back
+# to a guess — the caller records NEEDS_REVIEW with a reason and leaves the
+# value empty.  See spike/projectconfig.py.
+#
+# Item numbers (P1..P18) refer to out/project_deps.md.
+
+project:
+  code: D00P
+  name: AL NOUF1 PROJECT
+
+# P7 — the whole coordinate system assumes this sheet size.
+sheet:
+  width_pt: 2384.0
+  height_pt: 1684.0
+
+# P6 — split between the drawing body and the title block / notes column.
+# Derived from the title block frame line at x=1969.6.
+regions:
+  drawing_area: [38.0, 35.0, 1960.0, 1650.0]
+  notes_area: [1960.0, 35.0, 2384.0, 1250.0]
+  notes_text_x_max: 2330.0
+
+# P4, P5 — title block cell coordinates, measured from this company's A1 form.
+title_block:
+  dwg_no_region: [1950.0, 1560.0, 2384.0, 1600.0]
+  title_region: [1960.0, 1500.0, 2384.0, 1574.0]
+  title_min_height: 15.0
+  title_line_tol: 6.0
+  project_name_region: [1960.0, 1480.0, 2384.0, 1520.0]
+  project_name_min_height: 15.0
+  rev_box: [2296.0, 1583.0, 2326.0, 1597.0]
+  sheet_box: [2248.0, 1583.0, 2286.0, 1597.0]
+  hist_rule_x0_max: 1975.0
+  hist_rule_x1_min: 2320.0
+  hist_rule_y: [1200.0, 1390.0]
+  hist_rev_col: [1971.0, 1988.0]
+  hist_date_col: [1992.0, 2070.0]
+  hist_row_inset: 1.2
+
+# P8, P9, P10 — string formats used in the title block.
+formats:
+  drawing_no: '^[A-Z0-9]{4}-[A-Z0-9]{7}-[A-Z0-9]{3}-\d{4}$'
+  date: '^\d{1,2}\.\s?[A-Z]{3}\.\d{4}$'
+  revision: '^[A-Z][0-9]?$'
+  # Which characters of the drawing number carry the KKS unit code.
+  # 'D00P-10LBA10-M05-0001' -> segment 1, characters 0..2 -> '10'.
+  unit_code_segment: 1
+  unit_code_chars: [0, 2]
+  system_code_chars: [2, 5]
+
+# P3 — the client's Excel template.  The valve deliverables use a different
+# sheet name ('3.0_Valve List'), so this must move with the deliverable.
+excel:
+  sheet: '2.0_Instrument List'
+  first_data_row: 8
+  columns:
+    # Quoted: YAML 1.1 reads a bare `no` as boolean false.
+    'no': 1
+    system: 6
+    pid_no: 7
+    type: 8
+    qty: 9
+    description: 10
+
+# P1, P2 — drawing tag -> Excel TYPE.
+#
+# The tag vocabulary itself is LEGEND (page 3's FIRST LETTER x SUCCEEDING
+# LETTERS matrix defines TT, FE, LG and the rest).  What is project-specific is
+# the *correspondence* to the Excel TYPE column: the legend has no TIT, FIT or
+# LI at all — those are the Excel's own spelling, so every row below is a
+# convention of this deliverable.
+anchors:
+  type_map:
+    TT: TIT
+    PT: PIT
+    LT: LIT
+    PDT: PDIT
+    DPIT: PDIT
+    FT: FIT
+    LG: LI
+    TI: TI
+    PI: PI
+    LI: LI
+    FI: FI
+    TIT: TIT
+    PIT: PIT
+    LIT: LIT
+    PDIT: PDIT
+    FIT: FIT
+    LS: LS
+    LSH: LS
+    LSHH: LS
+    LSL: LS
+    FS: FS
+    RO: RO
+    FE: FE
+  # Recognised on the drawing but never a row in this deliverable.
+  not_field: [TW]
+
+# P11..P15 — vendor marks.
+#
+# Meanings are never configured: the legend sheets define no marks at all, so
+# the dictionary is read from each page's own NOTES at run time
+# (docs/design.md §10.1).  Only the geometry of finding them lives here.
+vendor_marks:
+  # P12 — sizes at which this project draws an asterisk.  Used to recognise a
+  # mark on a page whose own legend is missing; a size not listed here is not
+  # silently accepted.
+  glyph_sizes: [[4.0, 4.0], [5.2, 5.2]]
+  blob_span: [1.5, 8.0]
+  glyph_span: [3.0, 8.0]
+  cluster_gap: 2.0
+  # P13 — where a mark sits relative to the bubble it applies to.
+  above: 25.0
+  x_slack: 6.0
+  note_row_tol: 6.0
+  note_line_gap: 20.0
+  # P15 — package boundary box carrying a mark for everything inside it.
+  package_box:
+    edge_cover: 0.35
+    mark_margin: 20.0
+
+# P16 — SCT supplier scope.  The symbol is LEGEND (defined on page 2 as
+# 'SCT / SUPPLIER INTERFACE'); these tolerances are measured from page 6.
+sct_scope:
+  text_tol: 30.0
+  drop_x_tol: 2.0
+  drop_end_tol: 1.5
+
+# P17 — words with no discriminating power when matching an Excel SYSTEM value
+# against a drawing title.
+matching:
+  stopwords: [PID, 'P&ID', FOR, SYSTEM, THE, OF, AND, TO, A, B, C, '1', '2', '3', OR]
+
+# P18 — the language this project's reviewers annotate in.
+review_markup:
+  script_ranges: ['가-힣']
+
+# Q'ty multipliers.
+#
+# NOT the source of truth.  The multiplier is derived at run time from the
+# legend's UNIT IDENTIFICATION NUMBERS table (page 5), which states the group
+# and unit breakdown explicitly; deriving it means a plant with a different
+# configuration works without editing this file.  The block below is used only
+# if that table cannot be parsed, and its use is logged.
+unit_multiplier_fallback:
+  '00': 1
+  '10': 2
+  '11': 4
+
+# Scope keywords that override the unit multiplier for an individual item.
+# Verified on D00P-10PGB10-M05-0004, where 'AUXILIARY BOILER COOLER' carries
+# '(PLANT COMMON)' directly beneath it and its 3 Excel rows are Q'ty 1 on a
+# drawing whose other 21 rows are Q'ty 2.
+qty_scope_overrides:
+  - keyword: 'PLANT COMMON'
+    multiplier: 1

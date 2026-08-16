@@ -74,7 +74,10 @@ except ImportError:  # pragma: no cover
     sys.exit("numpy is required:  pip install numpy")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import projectconfig  # noqa: E402
 from pidcache import PageCache, in_region, load_pages  # noqa: E402
+
+CFG = projectconfig.load()
 
 
 # --------------------------------------------------------------------------
@@ -128,11 +131,37 @@ class Layout:
     ratio_medium: float = 1.5
 
 
-LAYOUT = Layout()
+def _layout_from_config(cfg=CFG) -> Layout:
+    """Title block cell coordinates all come from config (project_deps P4).
 
-DWG_NO_RE = re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{7}-[A-Z0-9]{3}-\d{4}$")
-DATE_RE = re.compile(r"^\d{1,2}\.\s?[A-Z]{3}\.\d{4}$")
-REV_TEXT_RE = re.compile(r"^[A-Z][0-9]?$")
+    What stays in code is the glyph reading itself — rasterisation grid, ink
+    threshold, character segmentation — which carries no project semantics.
+    """
+    tb = "title_block."
+    return Layout(
+        dwg_no_region=cfg.rect(tb + "dwg_no_region"),
+        title_region=cfg.rect(tb + "title_region"),
+        title_min_height=float(cfg.get(tb + "title_min_height")),
+        title_line_tol=float(cfg.get(tb + "title_line_tol")),
+        rev_box=cfg.rect(tb + "rev_box"),
+        sheet_box=cfg.rect(tb + "sheet_box"),
+        hist_rule_x0_max=float(cfg.get(tb + "hist_rule_x0_max")),
+        hist_rule_x1_min=float(cfg.get(tb + "hist_rule_x1_min")),
+        hist_rule_y=cfg.pair(tb + "hist_rule_y"),
+        hist_rev_col=cfg.pair(tb + "hist_rev_col"),
+        hist_date_col=cfg.pair(tb + "hist_date_col"),
+        hist_row_inset=float(cfg.get(tb + "hist_row_inset")),
+    )
+
+
+LAYOUT = _layout_from_config()
+
+# String formats of this project's title block (project_deps P8/P9/P10).
+DWG_NO_RE = re.compile(CFG.get("formats.drawing_no"))
+DATE_RE = re.compile(CFG.get("formats.date"))
+REV_TEXT_RE = re.compile(CFG.get("formats.revision"))
+_UC_SEG = int(CFG.get("formats.unit_code_segment"))
+_UC_FROM, _UC_TO = (int(v) for v in CFG.get("formats.unit_code_chars"))
 
 
 # --------------------------------------------------------------------------
@@ -385,9 +414,9 @@ def parse_unit_code(drawing_no: str | None) -> str | None:
     if not drawing_no:
         return None
     parts = drawing_no.split("-")
-    if len(parts) < 2 or len(parts[1]) < 2:
+    if len(parts) <= _UC_SEG or len(parts[_UC_SEG]) < _UC_TO:
         return None
-    return parts[1][:2]
+    return parts[_UC_SEG][_UC_FROM:_UC_TO]
 
 
 def parse_rev_date(pd: PageCache, rev: str | None, lay: Layout = LAYOUT) -> str | None:

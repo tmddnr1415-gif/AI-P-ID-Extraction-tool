@@ -57,7 +57,10 @@ from detect_symbols import (  # noqa: E402
     find_package_boxes,
     read_mark_dictionary,
 )
+import projectconfig  # noqa: E402
 from pidcache import load_pages  # noqa: E402
+
+CFG = projectconfig.load()
 
 # A vendor mark written as literal text, e.g. "(*)" or "(**)".  Page 6 draws its
 # marks as vector glyphs; other sheets type them instead, and the page-6 rule
@@ -68,7 +71,7 @@ MARK_TEXT_RE = re.compile(r"^\({1,2}\*{1,3}\)?$")
 # (삭제 = delete, 추가 = add, 위치이동 = relocate, 복원 = restore).  It matters twice
 # over: its text is picked up by the anchor scanner, and it records revisions the
 # Excel has not absorbed.  Diagnostic only — nothing acts on it.
-HANGUL_RE = re.compile(r"[가-힣]")
+HANGUL_RE = re.compile("[" + "".join(CFG.get("review_markup.script_ranges")) + "]")
 
 
 def review_annotations(pc, lay_x=1960.0):
@@ -143,8 +146,7 @@ FAILURE_TYPES = [
 
 # Words that carry no discriminating power when matching an Excel SYSTEM value
 # against a drawing title.
-STOPWORDS = frozenset({"PID", "P&ID", "FOR", "SYSTEM", "THE", "OF", "AND",
-                       "TO", "A", "B", "C", "1", "2", "3", "OR"})
+STOPWORDS = frozenset(str(w).upper() for w in CFG.get("matching.stopwords"))
 
 
 def excel_type_under(det, rules):
@@ -160,9 +162,13 @@ def included_under(det, rules, active_scope: frozenset) -> bool:
     return not any(r in active_scope and r in det.rules_hit for r in SCOPE_RULES)
 
 
+_SC_FROM, _SC_TO = (int(v) for v in CFG.get("formats.system_code_chars"))
+
+
 def system_of(drawing_no: str) -> str:
     parts = drawing_no.split("-")
-    return parts[1][2:5] if len(parts) > 1 and len(parts[1]) >= 5 else "???"
+    return (parts[1][_SC_FROM:_SC_TO]
+            if len(parts) > 1 and len(parts[1]) >= _SC_TO else "???")
 
 
 def tokens(text: str) -> set:
@@ -201,25 +207,28 @@ def mark_notation(pc, mark_dict, glyph_size, marks, boxes):
 def load_excel(path: Path):
     import openpyxl
 
+    col = CFG.get("excel.columns")
     wb = openpyxl.load_workbook(path, data_only=True)
-    ws = wb["2.0_Instrument List"]
+    ws = wb[CFG.get("excel.sheet")]
     by_drawing: dict[str, list] = collections.defaultdict(list)
     total = spare = 0
-    for i in range(8, ws.max_row + 1):
-        no = ws.cell(i, 1).value
+    for i in range(int(CFG.get("excel.first_data_row")), ws.max_row + 1):
+        no = ws.cell(i, col["no"]).value
         if not isinstance(no, (int, float)):
             continue
         total += 1
-        pid = ws.cell(i, 7).value
+        pid = ws.cell(i, col["pid_no"]).value
         pid = str(pid).strip() if pid else ""
         if not pid:
             spare += 1
             continue
         by_drawing[pid].append({
             "row": i, "no": no,
-            "type": str(ws.cell(i, 8).value).strip() if ws.cell(i, 8).value else "",
-            "system": ws.cell(i, 6).value,
-            "description": ws.cell(i, 10).value,
+            "type": (str(ws.cell(i, col["type"]).value).strip()
+                     if ws.cell(i, col["type"]).value else ""),
+            "qty": ws.cell(i, col["qty"]).value,
+            "system": ws.cell(i, col["system"]).value,
+            "description": ws.cell(i, col["description"]).value,
         })
     return by_drawing, total, spare
 

@@ -1,0 +1,1328 @@
+{
+  "multiplier_source": "LEGEND",
+  "multiplier_note": "legend p5: GROUPx2, PLANTx1, UNITx4",
+  "multipliers": {
+    "00": 1,
+    "10": 2,
+    "11": 4,
+    "12": 4,
+    "20": 2,
+    "21": 4,
+    "22": 4
+  },
+  "rows": [
+    {
+      "page_no": 6,
+      "drawing_no": "D00P-10LBA10-M05-0001",
+      "system": "LBA",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 24,
+      "excel_qty": 24,
+      "symbols": 12,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 10,
+          "qty": 20,
+          "excel_qty": 20
+        }
+      }
+    },
+    {
+      "page_no": 7,
+      "drawing_no": "D00P-10LBC40-M05-0001",
+      "system": "LBC",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 22,
+      "excel_qty": 22,
+      "symbols": 11,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "LS": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "PIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        }
+      }
+    },
+    {
+      "page_no": 8,
+      "drawing_no": "D00P-10LBC50-M05-0001",
+      "system": "LBC",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 20,
+      "excel_qty": 20,
+      "symbols": 10,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        }
+      }
+    },
+    {
+      "page_no": 9,
+      "drawing_no": "D00P-10LBA30-M05-0001",
+      "system": "LBA",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 38,
+      "excel_qty": 24,
+      "symbols": 19,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "FIT": {
+          "symbols": 4,
+          "qty": 8,
+          "excel_qty": 0
+        },
+        "PIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "FE": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 0
+        },
+        "LS": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "PDIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 0
+        }
+      }
+    },
+    {
+      "page_no": 10,
+      "drawing_no": "D00P-10MAN10-M05-0001",
+      "system": "MAN",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 64,
+      "excel_qty": 64,
+      "symbols": 32,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PIT": {
+          "symbols": 6,
+          "qty": 12,
+          "excel_qty": 12
+        },
+        "TIT": {
+          "symbols": 13,
+          "qty": 26,
+          "excel_qty": 26
+        },
+        "FIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        },
+        "PDIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "FE": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "LS": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        }
+      }
+    },
+    {
+      "page_no": 11,
+      "drawing_no": "D00P-10MAN10-M05-0002",
+      "system": "MAN",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 64,
+      "excel_qty": 64,
+      "symbols": 32,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PIT": {
+          "symbols": 6,
+          "qty": 12,
+          "excel_qty": 12
+        },
+        "TIT": {
+          "symbols": 13,
+          "qty": 26,
+          "excel_qty": 26
+        },
+        "FIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        },
+        "PDIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "FE": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "LS": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        }
+      }
+    },
+    {
+      "page_no": 12,
+      "drawing_no": "D00P-10LBG10-M05-0001",
+      "system": "LBG",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 26,
+      "excel_qty": 26,
+      "symbols": 13,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "FIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "PDIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "FE": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "LS": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "TIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        }
+      }
+    },
+    {
+      "page_no": 14,
+      "drawing_no": "D00P-10LCM10-M05-0001",
+      "system": "LCM",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 18,
+      "excel_qty": 18,
+      "symbols": 9,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "LIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PDIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        }
+      }
+    },
+    {
+      "page_no": 16,
+      "drawing_no": "D00P-10LCA10-M05-0001",
+      "system": "LCA",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 56,
+      "excel_qty": 58,
+      "symbols": 28,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "TIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        },
+        "RO": {
+          "symbols": 12,
+          "qty": 24,
+          "excel_qty": 28
+        },
+        "FIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "FE": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "LIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "LI": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 0
+        },
+        "PIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        }
+      }
+    },
+    {
+      "page_no": 17,
+      "drawing_no": "D00P-10LCA10-M05-0002",
+      "system": "LCA",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 20,
+      "excel_qty": 20,
+      "symbols": 10,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "RO": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "FIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "FE": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        }
+      }
+    },
+    {
+      "page_no": 18,
+      "drawing_no": "D00P-10MAJ10-M05-0001",
+      "system": "MAJ",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 16,
+      "excel_qty": 16,
+      "symbols": 8,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 4,
+          "qty": 8,
+          "excel_qty": 8
+        },
+        "TI": {
+          "symbols": 4,
+          "qty": 8,
+          "excel_qty": 8
+        }
+      }
+    },
+    {
+      "page_no": 20,
+      "drawing_no": "D00P-11LAB00-M05-0001",
+      "system": "LAB",
+      "unit_code": "11",
+      "multiplier": 4,
+      "qty": 132,
+      "excel_qty": 132,
+      "symbols": 33,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "11",
+        "12",
+        "21",
+        "22"
+      ],
+      "by_type": {
+        "FIT": {
+          "symbols": 8,
+          "qty": 32,
+          "excel_qty": 32
+        },
+        "PIT": {
+          "symbols": 13,
+          "qty": 52,
+          "excel_qty": 52
+        },
+        "FE": {
+          "symbols": 4,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "TIT": {
+          "symbols": 6,
+          "qty": 24,
+          "excel_qty": 24
+        },
+        "RO": {
+          "symbols": 2,
+          "qty": 8,
+          "excel_qty": 8
+        }
+      }
+    },
+    {
+      "page_no": 21,
+      "drawing_no": "D00P-11LAC10-M05-0001",
+      "system": "LAC",
+      "unit_code": "11",
+      "multiplier": 4,
+      "qty": 88,
+      "excel_qty": 92,
+      "symbols": 22,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "11",
+        "12",
+        "21",
+        "22"
+      ],
+      "by_type": {
+        "TIT": {
+          "symbols": 5,
+          "qty": 20,
+          "excel_qty": 20
+        },
+        "PIT": {
+          "symbols": 4,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "FIT": {
+          "symbols": 6,
+          "qty": 24,
+          "excel_qty": 24
+        },
+        "PDIT": {
+          "symbols": 5,
+          "qty": 20,
+          "excel_qty": 20
+        },
+        "FE": {
+          "symbols": 2,
+          "qty": 8,
+          "excel_qty": 12
+        }
+      }
+    },
+    {
+      "page_no": 22,
+      "drawing_no": "D00P-00EKG10-M05-0001",
+      "system": "EKG",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 3,
+      "excel_qty": 3,
+      "symbols": 3,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "TIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "LIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 23,
+      "drawing_no": "D00P-00EKG10-M05-0002",
+      "system": "EKG",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 4,
+      "excel_qty": 4,
+      "symbols": 4,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "TIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        }
+      }
+    },
+    {
+      "page_no": 24,
+      "drawing_no": "D00P-00EKG10-M05-0003",
+      "system": "EKG",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 2,
+      "excel_qty": 2,
+      "symbols": 2,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "TIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 26,
+      "drawing_no": "D00P-00PAB10-M05-0001",
+      "system": "PAB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 8,
+      "excel_qty": 5,
+      "symbols": 8,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PI": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 0
+        },
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 5
+        }
+      }
+    },
+    {
+      "page_no": 27,
+      "drawing_no": "D00P-00PAB10-M05-0002",
+      "system": "PAB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 8,
+      "excel_qty": 5,
+      "symbols": 8,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PI": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 0
+        },
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 5
+        }
+      }
+    },
+    {
+      "page_no": 28,
+      "drawing_no": "D00P-00PAB10-M05-0003",
+      "system": "PAB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 6,
+      "excel_qty": 4,
+      "symbols": 6,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PI": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 0
+        }
+      }
+    },
+    {
+      "page_no": 30,
+      "drawing_no": "D00P-10PAC10-M05-0001",
+      "system": "PAC",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 48,
+      "excel_qty": 32,
+      "symbols": 24,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "TIT": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "PIT": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "LIT": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 0
+        }
+      }
+    },
+    {
+      "page_no": 31,
+      "drawing_no": "D00P-10PCB10-M05-0001",
+      "system": "PCB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 30,
+      "excel_qty": 30,
+      "symbols": 15,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PDIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        },
+        "PI": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "TI": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "TIT": {
+          "symbols": 3,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "PIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 2
+        }
+      }
+    },
+    {
+      "page_no": 32,
+      "drawing_no": "D00P-00EGD00-M05-0001",
+      "system": "EGD",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 16,
+      "excel_qty": 9,
+      "symbols": 16,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 2
+        },
+        "TIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 0
+        },
+        "FS": {
+          "symbols": 3,
+          "qty": 3,
+          "excel_qty": 3
+        },
+        "PDIT": {
+          "symbols": 3,
+          "qty": 3,
+          "excel_qty": 3
+        },
+        "FE": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 0
+        },
+        "LIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 33,
+      "drawing_no": "D00P-00EGD00-M05-0002",
+      "system": "EGD",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 35,
+      "excel_qty": 23,
+      "symbols": 35,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "LI": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "PI": {
+          "symbols": 12,
+          "qty": 12,
+          "excel_qty": 0
+        },
+        "PDIT": {
+          "symbols": 6,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "TIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "FIT": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "FE": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "LIT": {
+          "symbols": 5,
+          "qty": 5,
+          "excel_qty": 5
+        }
+      }
+    },
+    {
+      "page_no": 35,
+      "drawing_no": "D00P-10PGB10-M05-0001",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 46,
+      "excel_qty": 38,
+      "symbols": 23,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 4,
+          "qty": 8,
+          "excel_qty": 0
+        },
+        "PDIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 10
+        },
+        "PIT": {
+          "symbols": 6,
+          "qty": 12,
+          "excel_qty": 12
+        },
+        "LIT": {
+          "symbols": 2,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "LI": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 0
+        },
+        "TIT": {
+          "symbols": 5,
+          "qty": 10,
+          "excel_qty": 12
+        }
+      }
+    },
+    {
+      "page_no": 36,
+      "drawing_no": "D00P-10PGB10-M05-0002",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 24,
+      "excel_qty": 24,
+      "symbols": 12,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 16
+        },
+        "TI": {
+          "symbols": 4,
+          "qty": 8,
+          "excel_qty": 8
+        }
+      }
+    },
+    {
+      "page_no": 37,
+      "drawing_no": "D00P-10PGB10-M05-0003",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 60,
+      "excel_qty": 60,
+      "symbols": 30,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 20,
+          "qty": 40,
+          "excel_qty": 40
+        },
+        "TI": {
+          "symbols": 10,
+          "qty": 20,
+          "excel_qty": 20
+        }
+      }
+    },
+    {
+      "page_no": 38,
+      "drawing_no": "D00P-10PGB10-M05-0004",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 48,
+      "excel_qty": 45,
+      "symbols": 24,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [
+        "PLANT COMMON"
+      ],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 16,
+          "qty": 32,
+          "excel_qty": 30
+        },
+        "TI": {
+          "symbols": 8,
+          "qty": 16,
+          "excel_qty": 15
+        }
+      }
+    },
+    {
+      "page_no": 39,
+      "drawing_no": "D00P-10PGB10-M05-0005",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 42,
+      "excel_qty": 42,
+      "symbols": 21,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 14,
+          "qty": 28,
+          "excel_qty": 28
+        },
+        "TI": {
+          "symbols": 7,
+          "qty": 14,
+          "excel_qty": 14
+        }
+      }
+    },
+    {
+      "page_no": 40,
+      "drawing_no": "D00P-10PGB10-M05-0006",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 66,
+      "excel_qty": 64,
+      "symbols": 33,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 21,
+          "qty": 42,
+          "excel_qty": 42
+        },
+        "TI": {
+          "symbols": 11,
+          "qty": 22,
+          "excel_qty": 22
+        },
+        "LS": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 0
+        }
+      }
+    },
+    {
+      "page_no": 41,
+      "drawing_no": "D00P-10PGB10-M05-0007",
+      "system": "PGB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 66,
+      "excel_qty": 64,
+      "symbols": 33,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [
+        "10",
+        "20"
+      ],
+      "by_type": {
+        "PI": {
+          "symbols": 21,
+          "qty": 42,
+          "excel_qty": 42
+        },
+        "TI": {
+          "symbols": 11,
+          "qty": 22,
+          "excel_qty": 22
+        },
+        "LS": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 0
+        }
+      }
+    },
+    {
+      "page_no": 43,
+      "drawing_no": "D00P-10QFB10-M05-0001",
+      "system": "QFB",
+      "unit_code": "10",
+      "multiplier": 2,
+      "qty": 2,
+      "excel_qty": 1,
+      "symbols": 1,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 1,
+          "qty": 2,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 44,
+      "drawing_no": "D00P-00SCB10-M05-0001",
+      "system": "SCB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 0,
+      "excel_qty": 1,
+      "symbols": 0,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "PIT": {
+          "symbols": 0,
+          "qty": 0,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 47,
+      "drawing_no": "D00P-00GHC10-M05-0001",
+      "system": "GHC",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 34,
+      "excel_qty": 16,
+      "symbols": 34,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "LI": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "PIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PI": {
+          "symbols": 12,
+          "qty": 12,
+          "excel_qty": 0
+        },
+        "RO": {
+          "symbols": 6,
+          "qty": 6,
+          "excel_qty": 0
+        },
+        "PDIT": {
+          "symbols": 6,
+          "qty": 6,
+          "excel_qty": 6
+        },
+        "LIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        }
+      }
+    },
+    {
+      "page_no": 49,
+      "drawing_no": "D00P-00GHB10-M05-0001",
+      "system": "GHB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 17,
+      "excel_qty": 17,
+      "symbols": 17,
+      "status": "OK",
+      "markup": true,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "LI": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "LIT": {
+          "symbols": 4,
+          "qty": 4,
+          "excel_qty": 4
+        },
+        "PI": {
+          "symbols": 5,
+          "qty": 5,
+          "excel_qty": 0
+        },
+        "RO": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 0
+        },
+        "PDIT": {
+          "symbols": 3,
+          "qty": 3,
+          "excel_qty": 6
+        },
+        "PIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 4
+        },
+        "FIT": {
+          "symbols": 0,
+          "qty": 0,
+          "excel_qty": 1
+        }
+      }
+    },
+    {
+      "page_no": 51,
+      "drawing_no": "D00P-00GKB10-M05-0001",
+      "system": "GKB",
+      "unit_code": "00",
+      "multiplier": 1,
+      "qty": 10,
+      "excel_qty": 7,
+      "symbols": 10,
+      "status": "OK",
+      "markup": false,
+      "scope_keywords": [],
+      "note_refs": [],
+      "by_type": {
+        "LI": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 1
+        },
+        "RO": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 0
+        },
+        "LIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "PI": {
+          "symbols": 1,
+          "qty": 1,
+          "excel_qty": 0
+        },
+        "PDIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        },
+        "PIT": {
+          "symbols": 2,
+          "qty": 2,
+          "excel_qty": 2
+        }
+      }
+    }
+  ],
+  "needs_review": []
+}

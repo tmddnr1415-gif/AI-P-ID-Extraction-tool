@@ -76,7 +76,10 @@ except ImportError:  # pragma: no cover
     sys.exit("PyMuPDF is required:  pip install pymupdf")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import projectconfig  # noqa: E402
 from pidcache import load_pages  # noqa: E402
+
+CFG = projectconfig.load()
 
 
 # --------------------------------------------------------------------------
@@ -96,49 +99,24 @@ _V1_FIELD_TYPE_MAP = {
 }
 _V1_NOT_FIELD = frozenset({"TW", "FE", "FT"})
 
-# V2 changes, each backed by the full Excel rather than one page:
-#
-#   FE  -> field instrument.  Page 6 concluded "FE is never in the list" from
-#          two samples that happened to be vendor-supplied.  The Excel carries
-#          18 FE rows ("... SPRAY WATER FLOW ELEMENT"), e.g. rows 61/71/82 on
-#          D00P-10MAN10-M05-0001, and that page draws exactly 3 FE bubbles.
-#
-#   LSH / LSHH / LSL -> LS.  The Excel has 22 LS rows whose descriptions read
-#          "... LEVEL HIGH HIGH" / "... LEVEL HIGH" (rows 20-23 on
-#          D00P-10LBC40-M05-0001), and that drawing carries 4 LSHH + 4 LSH
-#          bubbles.  The drawings spell out the switch qualifier, the Excel
-#          does not.
-#
-# Deliberately NOT added, despite being on the request list: ZS and LG.  The
-# Excel TYPE column contains neither (0 rows each).  They appeared in the
-# earlier failure report only as "unmapped tokens seen on the same page", not
-# as missing rows, so mapping them would invent list entries.
+# V2 kept only so the effect of each correction stays measurable.
 _V2_FIELD_TYPE_MAP = dict(_V1_FIELD_TYPE_MAP)
 _V2_FIELD_TYPE_MAP.update({"FE": "FE", "LSH": "LS", "LSHH": "LS", "LSL": "LS"})
 _V2_NOT_FIELD = frozenset({"TW", "FT"})
 
-# V3 completes the anchor audit — every Excel TYPE was cross-tabbed against the
-# in-bubble tokens of the pages that carry its rows, per page rather than in
-# aggregate.  Three mappings came out exact:
-#
-#   FT -> FIT.  p10 5/5, p11 5/5, p12 1/1, p17 2/2, p20 8/8.  The 4 FT each on
-#         p6 and p9 that have no FIT row are the HRSG flow packages, i.e. a
-#         vendor-mark question, not a type question — the same trap FE fell in.
-#
-#   LG -> LI.  Pages use one spelling or the other, never both, and the counts
-#         line up: p33 LG 2 / LI 2, p49 LG 2 / LI 2, p51 LG 1 / LI 1, while p47
-#         writes LI directly, 2 / 2.  (LG is not an Excel TYPE; it is how the
-#         drawings spell a level gauge that the Excel lists as LI.)
-#
-#   DPIT -> PDIT.  p21 draws 4 DPIT + 1 PDIT against 5 PDIT rows.
-#
-# TW stays excluded (0 Excel rows), and ZS/ZSO/ZSC/ZT/PP map to nothing: the
-# Excel TYPE column has no entry for any of them.
-_V3_FIELD_TYPE_MAP = dict(_V2_FIELD_TYPE_MAP)
-_V3_FIELD_TYPE_MAP.update({"FT": "FIT", "LG": "LI", "DPIT": "PDIT"})
-_V3_NOT_FIELD = frozenset({"TW"})
+# V3 is the shipping ruleset and now comes from the project config
+# (out/project_deps.md P1/P2).  The tag vocabulary itself is LEGEND — legend
+# page 3's FIRST LETTER x SUCCEEDING LETTERS matrix defines TT, FE, LG and the
+# rest — but the correspondence to the Excel TYPE column is not in the legend at
+# all (it prints no TIT, FIT or LI), so it is a convention of this deliverable.
+_V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get("anchors.type_map").items()}
+_V3_NOT_FIELD = frozenset(str(x) for x in CFG.get("anchors.not_field"))
 
 # Valve anchors -> the valve deliverables, not this list.
+#
+# LEGEND, so it stays in code: legend page 3 lists PSV / PRV / BPRV under
+# SELF-ACTUATED DEVICES and FCV / LCV / PCV / TCV in the CONTROL DEVICE column,
+# and page 4 draws MOV / HCV / HV under VALVE BODY WITH ACTUATOR.
 VALVE_ANCHORS = frozenset({"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV",
                            "LCV", "NRV", "PSV", "PRV", "BPRV"})
 
@@ -182,10 +160,14 @@ ANCHORS = RULESET_V3.anchors
 # Glyph sizes seen in the mark legends of the pages that draw their marks.
 # Used only to *notice* a mark on a page whose own legend is missing, never to
 # interpret one — that stays page-scoped (docs/design.md §10.1).
-KNOWN_GLYPH_SIZES = ((4.0, 4.0), (5.2, 5.2))
+KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
+                          for pair in CFG.get("vendor_marks.glyph_sizes"))
 
 # Shape of an ISA function-letter tag, used only to spot anchors the dictionary
 # above is missing.  Matching this does not make something a detection.
+#
+# LEGEND: page 3's matrix tops out at five letters (PDAHL), which is where the
+# bound comes from — not from anything project-specific.
 ISA_LIKE_RE = re.compile(r"^[A-Z]{1,5}$")
 
 
@@ -232,7 +214,35 @@ class Layout:
     drop_end_tol: float = 1.5
 
 
-LAYOUT = Layout()
+def _layout_from_config(cfg=CFG) -> Layout:
+    """Build the layout, taking every PROJECT-classified value from config.
+
+    Values left as dataclass defaults are the LEGEND / algorithm ones: the cap
+    and side tolerances describe the bubble shape that legend pages 3-4 draw,
+    and the broken-line parameters describe the line styles legend page 2
+    prints.  Neither changes with the project.
+    """
+    box = cfg.get("vendor_marks.package_box")
+    return Layout(
+        drawing_area=cfg.rect("regions.drawing_area"),
+        notes_area=cfg.rect("regions.notes_area"),
+        notes_text_x_max=float(cfg.get("regions.notes_text_x_max")),
+        mark_blob=cfg.pair("vendor_marks.blob_span"),
+        mark_glyph_span=cfg.pair("vendor_marks.glyph_span"),
+        mark_cluster_gap=float(cfg.get("vendor_marks.cluster_gap")),
+        mark_above=float(cfg.get("vendor_marks.above")),
+        mark_x_slack=float(cfg.get("vendor_marks.x_slack")),
+        note_mark_row_tol=float(cfg.get("vendor_marks.note_row_tol")),
+        note_line_gap=float(cfg.get("vendor_marks.note_line_gap")),
+        box_edge_cover=float(box["edge_cover"]),
+        box_mark_margin=float(box["mark_margin"]),
+        scope_text_tol=float(cfg.get("sct_scope.text_tol")),
+        drop_x_tol=float(cfg.get("sct_scope.drop_x_tol")),
+        drop_end_tol=float(cfg.get("sct_scope.drop_end_tol")),
+    )
+
+
+LAYOUT = _layout_from_config()
 
 
 # --------------------------------------------------------------------------

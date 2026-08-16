@@ -21,15 +21,21 @@ to think about them:
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pymupdf
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import projectconfig  # noqa: E402
 
-# Title block PROJECT NAME cell, display space (A1 sheet, 2384 x 1684 pt).
-PROJECT_NAME_REGION = (1960.0, 1480.0, 2384.0, 1520.0)
-PROJECT_NAME_MIN_HEIGHT = 15.0
+
+# Title block PROJECT NAME cell.  Project-dependent (out/project_deps.md P5),
+# so it comes from the project config rather than a constant here.
+_CFG = projectconfig.load()
+PROJECT_NAME_REGION = _CFG.rect("title_block.project_name_region")
+PROJECT_NAME_MIN_HEIGHT = float(_CFG.get("title_block.project_name_min_height"))
 
 
 @dataclass

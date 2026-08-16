@@ -10,7 +10,8 @@
 | 2c | `detect_all.py` | 측정 재정의 — 페이지 단위 조인 + 앵커 사전 수정 | ✅ 재현율 91.6%, 정밀도 80.6% (MATCHED 기준선) |
 | 2d | `detect_all.py` | 앵커 감사 완료 + 벤더마크 표기 3종 통합 | ✅ **재현율 97.0%, 정밀도 87.0%** |
 | 2e | `crossval.py` | 교차검증 — Steam 만으로 규칙 세워 미지 계통 적용 | ⚠️ **미지 계통 95.3% / 81.4%** (전체 튜닝 대비 −1.7 / −5.6pp) |
-| 3 | `parse_notes.py` | Note 승수 파싱 전수 검증 | 미구현 |
+| 2f | `projectconfig.py` + `config/` | PROJECT 18건 config 분리 | ✅ **97.0 / 87.0 그대로 재현** |
+| 3 | `parse_notes.py` | Q'ty 승수 검증 (범례 유도) | ✅ **재현율 99.5%, 정밀도 91.2%** |
 
 공통 모듈 `pidcache.py` 가 회전 정규화와 `analysis_scope` 판정을 담당합니다
 (docs/design.md §4 설계결정 5·6, §5 단계 [0]). 하위 모듈은 회전을 인지하지 않습니다.
@@ -748,3 +749,127 @@ config 화 1순위이며, 신규 프로젝트 투입 시 **동일한 전수 대�
 - `out/project_deps.md` — 33개 항목 인벤토리 (LEGEND/PROJECT/UNKNOWN + 근거)
 - `out/crossval.md`, `out/crossval.json` — 교차검증
 - `out/revision_gap.md` — 도면 개정 ↔ Excel 불일치 (발주처 확인용)
+
+---
+
+## 2f. config 분리 — PROJECT 18건
+
+```
+config/project_alnouf1.yaml   프로젝트 종속 값
+spike/projectconfig.py        로더 + 범례 승수 유도
+```
+
+`out/project_deps.md` 에서 `PROJECT` 로 판정한 18건만 옮겼습니다. `LEGEND` 10건은
+코드에 남기고, **어느 범례 페이지의 어느 항목에서 유도했는지 주석으로** 남겼습니다.
+예: `VALVE_ANCHORS` 위에는 "범례 p3 SELF-ACTUATED DEVICES 와 p4 VALVE BODY WITH
+ACTUATOR" 근거가, `ISA_LIKE_RE` 위에는 "p3 행렬의 최대 길이 5자(PDAHL)" 근거가
+붙어 있습니다.
+
+### 동작 요건
+
+- **기본값 없음.** `ProjectConfig.lookup()` 은 키가 없으면 `UNDEFINED` 를 돌려주고,
+  호출부는 값을 채우지 않고 `NEEDS_REVIEW` 를 사유와 함께 기록합니다.
+  예: 범례 표에 없는 `unit_code '30'` → 수량 공란 + `"unit code '30' is not in
+  the legend's UNIT IDENTIFICATION NUMBERS table; multiplier undefined"`.
+- **멈추지 않습니다.** 항목 단위 결손은 해당 항목만 검토로 넘기고 나머지는 계속
+  처리합니다. 예외는 config 파일 자체가 없거나 구조가 깨진 경우로, 이건 실행 전
+  설정 오류이므로 즉시 실패시킵니다.
+- **재현 확인**: config 분리 후 재실행 결과 **재현율 97.0% / 정밀도 87.0%**,
+  타이틀블록 58/58 — 분리 전과 완전히 동일합니다.
+
+> YAML 함정 하나: `excel.columns` 의 `no` 키는 따옴표가 필요합니다. YAML 1.1 이
+> 맨 `no` 를 boolean false 로 읽습니다.
+
+---
+
+## 3. Q'ty 승수 검증
+
+```bash
+python spike/parse_notes.py --pdf data/pid_total.pdf \
+       --compare data/CZE_Field_Instrument.xlsx \
+       --titleblocks out/titleblocks.csv --out out/qty_report.md
+```
+
+### 승수는 config 상수가 아니라 범례에서 유도합니다
+
+범례 p5 `UNIT IDENTIFICATION NUMBERS` 표를 파싱해 스코프별 행 수를 셉니다.
+
+| unit_code | 승수 | 스코프 | 근거 |
+|---|---|---|---|
+| `00` | ×1 | PLANT | POWER PLANT COMMON — 표에 1건 |
+| `10` `20` | ×2 | GROUP | FIRST/SECOND GROUP COMMON — 표에 2건 |
+| `11` `12` `21` `22` | ×4 | UNIT | 각 그룹 #1/#2 GTG/HRSG — 표에 4건 |
+
+파싱 성공(`source: LEGEND`). **상수 `{00:1, 10:2, 11:4}` 를 config 에 박지
+않았습니다** — 그룹이 3개인 플랜트라면 같은 코드가 ×3/×6 을 내놓습니다.
+config 의 `unit_multiplier_fallback` 은 파싱 실패 시에만 쓰이고, 사용 여부가
+`source` 로 로그에 남습니다.
+
+### 정확도 (MATCHED, 개정 주석 페이지 제외)
+
+| 집합 | 페이지 | 산정 Q'ty | Excel Q'ty | 일치 | 재현율 | 정밀도 |
+|---|---|---|---|---|---|---|
+| **주석 없는 페이지 (기준)** | 24 | 834 | 765 | 761 | **99.5%** | **91.2%** |
+| 개정 주석 페이지 (별도 계상) | 11 | 329 | 311 | — | — | — |
+| MATCHED 전체 | 35 | 1163 | 1076 | 1057 | 98.2% | 90.9% |
+
+Excel 563행 Q'ty 합계는 1,120 이고, 그중 MATCHED 집합에 귀속되는 것이 1,076 입니다.
+
+**승수별** — 승수 자체는 정확합니다. 오차는 전부 심볼 과검출에서 옵니다.
+
+| 승수 | 페이지 | 심볼 | 산정 | Excel | 차이 |
+|---|---|---|---|---|---|
+| ×1 | 7 | 94 | 94 | 59 | +35 |
+| ×2 | 15 | 260 | 520 | 482 | +38 |
+| ×4 | 2 | 55 | 220 | 224 | **−4** |
+
+**계통별 (오차 큰 순)**: `GHC` +18, `PAC` +16, `LBA` +14, `EGD` +12, `PGB` +7,
+`LAC` −4, `GKB` +3, `PAB` +2, `QFB` +1, 그리고 `MAJ`·`LCM`·`LBG`·`LBC`·`LAB`·`EKG`
+**6개 계통은 오차 0**. 오차 상위 계통은 심볼 정밀도가 낮았던 계통과 정확히
+같습니다(GHC 47.1%, PAC 66.7%, EGD 64.7%) — 즉 **Q'ty 오차는 승수 문제가 아니라
+심볼 과검출이 승수만큼 증폭된 것**입니다.
+
+### Note 문구 교차검증 — 16/16 일치
+
+NOTES 의 `GROUP#`/`UNIT#` 열거 **개수만** 세어(문장 해석 없음) 범례 승수와
+대조했습니다. 열거가 있는 16페이지 전부 일치합니다.
+
+주의점 하나: 이 도면들의 Note 는 `IDENTICAL FOR UNIT#12,21,22` 처럼 **쉼표로
+이어 씁니다.** `UNIT#\d{2}` 만 잡는 정규식은 4를 2로 잘못 세어 p20·p21 에서
+불일치가 나왔고, 쉼표 연속을 포함하도록 고쳐 16/16 이 됐습니다.
+
+또한 설계안 §8.1 은 "Note 가 1순위, unit_code 는 검증용"이라 했지만, 실측으로는
+**둘이 완전히 일치**하고 범례 표 쪽이 파싱이 훨씬 단순합니다. 승수는 범례에서
+유도하고 Note 는 교차검증에 두는 현재 구성을 권합니다.
+
+### 같은 도면 내 승수 예외 — 1건, 가설 검증됨 / 적용 보류
+
+`D00P-10PGB10-M05-0004`(p38) 한 건입니다.
+
+- 도면에 `AUXILIARY BOILER COOLER` 라벨이 있고 **바로 아래 `(PLANT COMMON)`**
+  (좌표 `327.6, 814.9`).
+- Excel 에서 이 도면의 Q'ty=1 인 3행은 전부 이 설비 것 — `CCW SUPPLY PRESSURE`(PI),
+  `CCW RETURN TEMPERATURE`(TI), `CCW RETURN PRESSURE`(PI). 나머지 21행은 Q'ty=2.
+- 도면 렌더링 결과 이 설비의 계기는 정확히 **PI 2 + TI 1**, 좌표
+  `(243.5,473.4)` `(410.7,1135.4)` `(410.5,1184.4)`.
+
+**가설은 맞습니다. 그러나 승수 강제를 적용하지 않았습니다.** "어느 계기가 이 설비
+소속인가"를 판정하려면 설비를 지나는 수직 배관을 따라가야 하는데,
+
+- 설비 점선 박스는 대시가 길어 현재 broken-line 검출기에 안 잡힙니다
+  (`brk_max_mark` 는 UNKNOWN 항목이라 이번에 튜닝하지 않았습니다),
+- 라벨 x 범위로 묶으면 옆 설비의 `(LUBE OIL` 텍스트가 끼어들어 엉뚱한 계기가
+  포함되고 정작 `(243.5, …)` 는 빠집니다.
+
+설계안 §8.3(불확실하면 비우고 검토로) 에 따라 **키워드 발견 사실만 기록**했습니다.
+지표 영향은 3행 × (2−1) = Q'ty 3 과다로 전체의 0.3% 입니다. 올바른 귀속은
+§7 라인 추적(Phase 2) 이 들어와야 가능합니다.
+
+### NEEDS_REVIEW
+
+이번 문서에서는 0건 — 등장하는 unit_code 가 전부 범례 표에 있습니다.
+정의에 없는 코드가 나오면 수량을 비우고 사유와 함께 검토로 보냅니다.
+
+### 산출물
+
+- `out/qty_report.md`, `out/qty_report.json`
