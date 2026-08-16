@@ -430,3 +430,24 @@ ExcelJS로 §5 포맷 생성 + 다운로드.
 3. **[2026-08-16 추가] VARIANT CHECK 범위** — §8.1 대로 PIT/TIT/TI/PI/PDIT 에 표기하니
    HP Steam 12행 전부에 붙었다. 이 다섯이 계기의 대부분이라 표시가 정보를 주지 못한다.
    해수·부식성·저온처럼 변종이 실제로 갈리는 조건에서만 표기하도록 좁힐지 결정 필요
+
+---
+
+## 13. [2026-08-16 보정] 실행 환경 — 어디서 열었느냐가 결과를 가른다
+
+§2 의 키 없는 `fetch('https://api.anthropic.com/v1/messages')` 는 **claude.ai Artifact
+런타임 안에서만** 열린다. `index.html` 을 내려받아 브라우저로 그냥 열면 CORS 에서
+`Failed to fetch` 로 전부 죽는다. 이건 버그가 아니라 그 통로가 없는 것이다.
+
+따라서 배포 경로는 하나다 — **claude.ai 대화창에 `index.html` 을 붙이고
+"그대로 아티팩트로 만들어 줘"** 라고 시킨 뒤 그 아티팩트 안에서 돌린다.
+
+Artifact 밖(내려받은 파일, 사내 웹서버)에서 돌려야 하면 §4 화면의 **선택 API 키 칸**에
+본인 키를 넣는다. 이때만 `x-api-key` · `anthropic-version: 2023-06-01` ·
+`anthropic-dangerous-direct-browser-access: true` 를 붙인다. 키는 메모리에만 둔다.
+요구사항 9(다른 사람이 써도 API 호출이 아니어야 한다)는 Artifact 경로로 지켜진다 —
+키 칸은 비워 두는 것이 기본이다.
+
+**외부 라이브러리는 심는다.** CDN 경로 하나가 어긋나면 기능 전체가 죽는다(발견 17).
+fflate 는 `index.html` 안에 심었다. pdf.js 는 크기 때문에 아직 CDN 이며, Artifact 는
+cdnjs 를 허용한다.

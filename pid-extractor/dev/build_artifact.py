@@ -28,7 +28,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174"
-CDN_XLSX = "https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/umd/index.js"
 
 BANNER = """
 <div class="demo-banner">
@@ -71,7 +70,6 @@ def main() -> int:
 
     lib = (args.vendor / "pdf.min.js").read_text(encoding="utf-8")
     worker = (args.vendor / "pdf.worker.min.js").read_text(encoding="utf-8")
-    xlsx = (ROOT / "dev/vendor/fflate.min.js").read_text(encoding="utf-8")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
 
     # 1. 겉껍데기 제거 — Artifact 가 doctype/html/head/body 를 직접 씌운다.
@@ -85,7 +83,6 @@ def main() -> int:
     html = html.replace(
         f'<script src="{CDN}/pdf.min.js"></script>',
         f"<script>{worker}</script>\n<script>{lib}</script>")
-    html = html.replace(f'<script src="{CDN_XLSX}"></script>', f"<script>{xlsx}</script>")
     html = html.replace(
         f"""  pdfjsLib.GlobalWorkerOptions.workerSrc =
     '{CDN}/pdf.worker.min.js';""",

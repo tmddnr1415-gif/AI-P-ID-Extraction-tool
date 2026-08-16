@@ -19,7 +19,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174"
-CDN_XLSX = "https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/umd/index.js"
 
 
 def main() -> int:
@@ -38,14 +37,12 @@ def main() -> int:
             print(f"[!] {src} 없음")
             return 1
         shutil.copy2(src, out / name)
-    shutil.copy2(ROOT / "dev/vendor/fflate.min.js", out / "fflate.min.js")
 
     def refresh() -> None:
         """요청마다 다시 만든다. 서버를 켜 둔 채 index.html 을 고쳐도 바로 반영된다."""
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         html = html.replace(f"{CDN}/pdf.worker.min.js", "pdf.worker.min.js")
         html = html.replace(f"{CDN}/pdf.min.js", "pdf.min.js")
-        html = html.replace(CDN_XLSX, "fflate.min.js")
         (out / "index.html").write_text(html, encoding="utf-8")
 
     refresh()
