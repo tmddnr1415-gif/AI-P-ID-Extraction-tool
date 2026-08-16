@@ -881,9 +881,11 @@ function sortRows(items) {
 }
 
 /** §7.4 문법으로 조립. Vision 은 부품을 주고 문장은 JS 가 만든다. */
-function buildDescription(r, meta) {
-  const unit = unitOf(r, meta);
-  const equip = clean(r.equipment);
+function buildDescription(r, drawingNo) {
+  const unit = unitOf(r, drawingNo);
+  // 호기를 앞으로 뽑았으면 설비명에 남은 호기 표기는 지운다.
+  // 안 그러면 'UNIT #11 UNIT #11 BFP A/B COOLER …' 처럼 두 번 붙는다.
+  const equip = clean(r.equipment).replace(/\b(UNIT\s*)?#\s?\d{2}\b\s*/gi, '').trim();
   const pos = clean(r.position);
   const measure = MEASURE[r.type] || '';
   const suffix = clean(r.redundancy);
@@ -892,16 +894,26 @@ function buildDescription(r, meta) {
 }
 const clean = (s) => (s == null ? '' : String(s).trim().replace(/^(null|none|n\/a|-)$/i, ''));
 
-function unitOf(r, meta) {
-  const hay = `${r.equipment || ''} ${r.line_context || ''}`;
-  const m = hay.match(/#\s?(\d{2})\b/);
-  if (m) return `UNIT #${m[1]}`;
-  const g = (meta.drawing_no || '').match(/^D00P-(\d{2})/);
+/* 호기 찾기. 여러 도면을 한 번에 돌리므로 **그 행이 나온 도면**을 기준으로 한다.
+ *
+ * 1) 설비 라벨의 `#nn` — 그 계기가 붙은 설비의 호기다. 가장 확실하다.
+ * 2) 배관 From/To 의 `#nn` — 단 `GROUP#nn` 은 제외한다. GROUP#10 도면의
+ *    `FROM GROUP#20 CCW SUPPLY` 는 옆 그룹에서 넘어오는 연결선이지 이 계기의
+ *    호기가 아니다. 이걸 그냥 쓰면 GROUP#10 도면에 UNIT #20 이 붙는다.
+ * 3) 도면번호 앞 두 자리.
+ */
+function unitOf(r, drawingNo) {
+  const eq = String(r.equipment || '').match(/#\s?(\d{2})\b/);
+  if (eq) return `UNIT #${eq[1]}`;
+  const line = String(r.line_context || '').replace(/GROUP\s*#\s?\d{2}/gi, '');
+  const ln = line.match(/#\s?(\d{2})\b/);
+  if (ln) return `UNIT #${ln[1]}`;
+  const g = String(drawingNo || '').match(/^D00P-(\d{2})/);
   return g ? `UNIT #${g[1]}` : '';
 }
 
 /* ── 실행 ────────────────────────────────────────────────────────────────*/
-const run = { controller: null, failed: [], rows: [], meta: null };
+const run = { controller: null, failed: [], rows: [] };
 
 $('btn-run').addEventListener('click', () => runSelected());
 $('btn-stop').addEventListener('click', () => run.controller && run.controller.abort());
@@ -938,7 +950,6 @@ async function runSelected(onlyTiles) {
       const no = pages[pi];
       const p = state.pages.find((x) => x.page === no);
       const meta = await pass1(p, (k, v, c) => logLine(k, v, c));
-      run.meta = meta;
       const q = qtyFromNotes(meta.notes);
 
       const rects = tileRects(cols, rows)
@@ -960,7 +971,8 @@ async function runSelected(onlyTiles) {
             run.failed.push(label);
             set(err.message.slice(0, 90), 'bad');
           }
-          $('run-stats').innerHTML = chip('누적 계기', found.length) + chip('실패 타일', run.failed.length);
+          $('run-stats').innerHTML = chip('도면', `${pi + 1}/${pages.length}`)
+            + chip('누적 계기', all.length + found.length) + chip('실패 타일', run.failed.length);
         }
       };
       await Promise.all([worker(), worker()]);
@@ -969,7 +981,7 @@ async function runSelected(onlyTiles) {
         ...r,
         system: meta.system, pid_no: meta.drawing_no,
         qty: q.qty, qty_why: q.why,
-        description: buildDescription(r, meta),
+        description: buildDescription(r, meta.drawing_no),
         fluid: fluidOf(meta.system),
         remark: [r.vendor_scope ? `VENDOR SCOPE (${r.vendor_scope})` : '',
                  r.note_ref ? `NOTE ${r.note_ref}` : ''].filter(Boolean).join(' · ') || '-',
@@ -1023,7 +1035,7 @@ function renderResult() {
     }
     sel.addEventListener('change', () => {
       r.type = sel.value;
-      r.description = buildDescription(r, run.meta || {});
+      r.description = buildDescription(r, r.pid_no);
       renderResult();
     });
     tr.querySelector('[contenteditable]').addEventListener('blur', (e) => {

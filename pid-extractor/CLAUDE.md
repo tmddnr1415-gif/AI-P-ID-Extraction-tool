@@ -267,6 +267,13 @@ UNIT #[nn] + [계통·설비명] + [위치] + [측정변수] + [접미사]
 
 설비명과 위치는 **라인의 From/To 주석 및 인접 장비 라벨**에서 도출한다.
 
+**[2026-08-16 추가] 호기(UNIT #nn) 찾는 순서.** ① 설비 라벨의 `#nn` ② 배관 From/To 의
+`#nn` — **단 `GROUP#nn` 은 제외** ③ 도면번호 앞 두 자리. GROUP#10 도면의
+`FROM GROUP#20 CCW SUPPLY` 는 옆 그룹에서 넘어오는 연결선이지 그 계기의 호기가 아니다.
+이걸 그냥 쓰면 GROUP#10 도면 행에 UNIT #20 이 붙는다.
+또 호기를 앞으로 뽑았으면 **설비명에 남은 `#nn` 을 지울 것** — 안 그러면
+`UNIT #11 UNIT #11 BFP A/B COOLER …` 처럼 두 번 붙는다.
+
 **[2026-08-16 추가] SYSTEM(F열)은 도면 제목을 그대로 쓰지 않는다.** 제목은 전부
 대문자(`P&ID FOR HP STEAM SYSTEM GROUP 10`)이지만 정답의 SYSTEM은 `HP Steam System`
 이다. 머리글자만 대문자로 바꾸되 계통 약어(HP IP LP CRH HRH CCW HRSG GT ST STG BFP

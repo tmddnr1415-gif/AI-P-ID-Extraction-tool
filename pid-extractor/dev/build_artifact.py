@@ -34,8 +34,10 @@ BANNER = """
 <div class="demo-banner">
   <b>미리보기</b> — 이 화면에서 <b>PDF 넣기 · 도면 고르기 · 타일 만들기</b>는 실제로 돕니다.
   판독은 <b>미리 기록해 둔 결과</b>를 보여줍니다. Claude 가 그 자리에서 도면을 읽는 것은
-  이 런타임이 외부 호출을 막아 안 됩니다 — <code>ref/PID_Total.pdf</code> 를 넣고
-  <b>HP Steam (D00P-10LBA10-M05-0001, 6쪽)</b> 을 골라 판독을 눌러 보세요.
+  이 런타임이 외부 호출을 막아 안 됩니다.<br />
+  PDF 를 넣고 <b>6쪽 HP Steam (D00P-10LBA10-M05-0001)</b> 과
+  <b>38쪽 CCW (D00P-10PGB10-M05-0004)</b> 를 <b>둘 다 골라</b> 판독을 눌러 보세요.
+  두 도면이 합쳐져 36행이 나옵니다. 이 두 장만 기록이 준비돼 있습니다.
 </div>
 """
 
@@ -52,8 +54,8 @@ def fixture_json() -> str:
     """dev/fixture_p6.mjs 를 node 로 평가해 JSON 으로 뽑는다."""
     out = subprocess.run(
         ["node", "--input-type=module", "-e",
-         f"import {{FIXTURE_P6}} from '{ROOT / 'dev/fixture_p6.mjs'}';"
-         "process.stdout.write(JSON.stringify(FIXTURE_P6));"],
+         f"import {{fixtureMulti}} from '{ROOT / 'dev/fixture_p6.mjs'}';"
+         "process.stdout.write(JSON.stringify(fixtureMulti(4, 4)));"],
         capture_output=True, text=True, env={"PATH": "/opt/node22/bin:/usr/bin:/bin"})
     if out.returncode:
         print(out.stderr, file=sys.stderr)
@@ -102,7 +104,7 @@ def main() -> int:
         "    const name = `instrument_list_${stamp()}.xlsx`;",
         "    throw new Error('이 미리보기 화면은 xlsx 를 내려받을 수 없습니다 — 뷰어가 "
         "페이지발 다운로드를 막고 허용 확장자에 xlsx 가 없습니다. "
-        "행 12개는 위 표에 그대로 있고, 실제 파일 저장은 claude.ai Artifact 나 "
+        "판독한 행은 위 표에 그대로 있고, 실제 파일 저장은 claude.ai Artifact 나 "
         "index.html 을 직접 열었을 때 됩니다.');\n"
         "    const name = `instrument_list_${stamp()}.xlsx`;")
 
@@ -110,10 +112,8 @@ def main() -> int:
     html = html.replace(
         "    if (hit === undefined) throw new Error(`스텁에 ${label} 가 없습니다`);",
         "    if (hit === undefined) throw new Error("
-        "'이 미리보기에는 이 타일의 기록이 없습니다. HP Steam(6쪽)만 준비돼 있습니다. "
-        "실제 판독은 claude.ai Artifact 에서만 됩니다.');")
-    html = html.replace("<title>P&amp;ID Instrument Extractor</title>",
-                        "<title>P&amp;ID Instrument Extractor</title>")
+        "'이 미리보기에는 이 도면의 기록이 없습니다. 6쪽 HP Steam 과 38쪽 CCW 두 장만 "
+        "준비돼 있습니다. 다른 도면 판독은 claude.ai Artifact 에서 실제 호출로만 됩니다.');")
 
     out = ROOT / "dist/artifact.html"
     out.parent.mkdir(exist_ok=True)

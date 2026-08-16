@@ -94,3 +94,51 @@ export function loadPerTile(cols, rows) {
 
 export const PAGE_ITEM_COUNT = PAGE_ITEMS.length;
 export const FIXTURE_P6 = fixtureFor(4, 4);
+
+/* ── p38 · CCW (D00P-10PGB10-M05-0004) ─────────────────────────────────────
+ * 여러 도면을 한 번에 돌리는 경로를 시험하려고 둘째 도면을 붙인다.
+ * 이 도면에는 공급 역무 표기가 없다. 공급 헤더 분기 8곳에 PI, 회수 라인 8곳에
+ * PI 와 TI. 좌표는 텍스트 레이어에서 뽑은 24건 그대로다.
+ */
+const CCW_BRANCHES = [
+  'AUXILIARY BOILER COOLER', 'UNIT #11 BFP A/B COOLER', 'UNIT #11 BFP A/B COOLER',
+  'UNIT #11 BFP A/B MOTOR COOLER', 'UNIT #11 BFP A/B MOTOR COOLER',
+  'UNIT #11 HRSG COOLERS', 'UNIT #11 HRSG COOLERS', 'UNIT #11 SAMPLING SYSTEM',
+];
+const CCW_SUPPLY_X = [0.102, 0.220, 0.280, 0.343, 0.396, 0.459, 0.512, 0.595];
+const CCW_RETURN_X = [0.172, 0.289, 0.343, 0.406, 0.459, 0.522, 0.575, 0.665];
+
+const CCW_ITEMS = [];
+CCW_SUPPLY_X.forEach((x, i) => CCW_ITEMS.push({
+  type: 'PI', x, y: 0.281, line_context: 'FROM GROUP#20 CCW SUPPLY',
+  equipment: `${CCW_BRANCHES[i]} CCW`, position: 'SUPPLY',
+  redundancy: null, vendor_scope: null, note_ref: null,
+}));
+CCW_RETURN_X.forEach((x, i) => {
+  for (const [type, y] of [['PI', 0.674], ['TI', i === 0 ? 0.703 : 0.700]]) {
+    CCW_ITEMS.push({
+      type, x, y, line_context: 'TO GROUP#20 CCW RETURN',
+      equipment: `${CCW_BRANCHES[i]} CCW`, position: 'RETURN',
+      redundancy: null, vendor_scope: null, note_ref: null,
+    });
+  }
+});
+
+function fixtureFrom(items, cols, rows, page) {
+  const fx = {};
+  for (const rect of tileRects(cols, rows)) {
+    fx[`p${page}:r${rect.r}c${rect.c}`] = items
+      .filter((it) => it.x >= rect.x && it.x < rect.x + rect.w
+                   && it.y >= rect.y && it.y < rect.y + rect.h)
+      .map((it) => ({ ...it,
+        x: +((it.x - rect.x) / rect.w).toFixed(4),
+        y: +((it.y - rect.y) / rect.h).toFixed(4) }));
+  }
+  return fx;
+}
+
+/** 6쪽(HP Steam) + 38쪽(CCW) 을 한 번에. 여러 도면 선택 경로 시험용. */
+export function fixtureMulti(cols = 4, rows = 4) {
+  return { ...fixtureFor(cols, rows, 6), ...fixtureFrom(CCW_ITEMS, cols, rows, 38) };
+}
+export const CCW_ITEM_COUNT = CCW_ITEMS.length;
