@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
-"""Phase 0 spike 2b — apply the page-6 rules to every P&ID page and see where
-they break.
+"""Phase 0 spike 2b — measure the page-6 ruleset over the whole drawing set.
 
-No new detection rules.  This runs exactly the ruleset validated on page 6
-(spike/detect_symbols.py) across every in-scope P&ID page and measures the
-damage, so that rule work in the next phase is aimed at real failures rather
-than guessed ones.
+This revision fixes the *measurement* rather than the detector.  The previous
+run scored 81.9% / 73.5%, but that number mixed three different things
+together, so it could not be used as a baseline:
 
-Two things are measured rather than assumed, because page 6 is not
-representative of the set:
+* Five Excel drawing numbers have no page in the PDF at all — undetectable by
+  construction, yet they were counted as recall misses.
+* Fourteen pages have no Excel rows — counted as precision misses.
+* Three drawing numbers are shared by two different drawings, so the 1:N join
+  summed detections from one drawing against another drawing's rows.
 
-* **Bubble size.**  Page 6 uses a 68.0 x 22.6 pt stadium, but the document has
-  at least two families.  The detector derives bubbles from geometry (two arc
-  caps joined by straight sides) with no size constant, and this script reports
-  the size distribution it actually found per page.
+Now the join is **page-level**.  Rows of a shared drawing number are attributed
+to a specific page by matching the Excel `SYSTEM` column against the page's
+drawing title, and the comparison is split into three disjoint sets:
 
-* **Vendor mark meaning.**  The mark dictionary is page-scoped
-  (docs/design.md §10.1).  Where a page's NOTES do not define a mark that
-  appears on a bubble, the exclusion is *held*, not guessed, and the case is
-  reported as VENDOR_MARK_UNDEFINED.
+    MATCHED     page and Excel rows both exist   <- rule quality measured here
+    EXCEL_ONLY  Excel rows with no page          <- reported, never scored
+    PDF_ONLY    page with no Excel rows          <- reported, never scored
 
-Comparison
-----------
-Joined to the Field Instrument Excel on `P&ID No.`.  Three drawing numbers
-appear on two pages each, so the join is 1:N and everything is aggregated **by
-drawing number**, never by page.  Only row counts are compared: `Q'ty` is a
-note multiplier rather than a symbol count (docs/design.md §8) and belongs to
-spike 3.
+The anchor dictionary is also corrected against the full 563-row Excel rather
+than page 6 alone (see RULESET_V1 / RULESET_V2 in detect_symbols.py), and both
+versions are scored side by side so the effect is visible.
+
+No new detection rules are added here.
 
 Usage
 -----
@@ -49,14 +46,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from detect_symbols import (  # noqa: E402
-    FIELD_TYPE_MAP,
-    NOT_FIELD_INSTRUMENT,
+    RULESET_V1,
+    RULESET_V2,
     bubble_sizes,
     detect,
     find_bubbles,
     find_marks,
 )
-
 from pidcache import load_pages  # noqa: E402
 
 # A vendor mark written as literal text, e.g. "(*)" or "(**)".  Page 6 draws its
@@ -64,32 +60,7 @@ from pidcache import load_pages  # noqa: E402
 # only knows how to see the drawn form.
 MARK_TEXT_RE = re.compile(r"^\({1,2}\*{1,3}\)?$")
 
-
-def mark_notation(pc, mark_dict):
-    """How this page expresses vendor marks — drawn glyphs, typed text, or none.
-
-    Reported because the exclusion rule validated on page 6 can only see the
-    drawn form, so a page that types its marks is silently unfiltered.
-    """
-    notes_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 > 1960)
-    draw_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 < 1960)
-    draw_glyph = sum(1 for m in find_marks(pc) if m.x < 1960)
-    return {"glyph_definitions": len(mark_dict),
-            "text_definitions_in_notes": notes_text,
-            "text_marks_in_drawing": draw_text,
-            "glyph_marks_in_drawing": draw_glyph}
-
-# The two rules whose contribution is being measured.  The other two
-# (NOT_FIELD_INSTRUMENT, VALVE) are type filters, not scope rules, and are
-# always on.
 SCOPE_RULES = ("VENDOR_MARK", "SCT_SUPPLIER_SCOPE")
-
-COMBOS = {
-    "none": frozenset(),
-    "vendor_only": frozenset({"VENDOR_MARK"}),
-    "sct_only": frozenset({"SCT_SUPPLIER_SCOPE"}),
-    "both": frozenset(SCOPE_RULES),
-}
 
 FAILURE_TYPES = [
     "NO_ANCHOR",
@@ -100,27 +71,64 @@ FAILURE_TYPES = [
     "OVER_DETECT",
 ]
 
+# Words that carry no discriminating power when matching an Excel SYSTEM value
+# against a drawing title.
+STOPWORDS = frozenset({"PID", "P&ID", "FOR", "SYSTEM", "THE", "OF", "AND",
+                       "TO", "A", "B", "C", "1", "2", "3", "OR"})
 
-def included_under(det, active: frozenset) -> bool:
-    """Whether a detection survives a given rule combination.
 
-    Every rule that fired is recorded on the detection regardless of whether it
-    was allowed to exclude, so all four combinations come from a single
-    detection pass instead of four.
-    """
-    hits = det.rules_hit
-    if "NOT_FIELD_INSTRUMENT" in hits or "VALVE" in hits:
+def excel_type_under(det, rules):
+    """The Excel TYPE this detection would carry under a given ruleset."""
+    if det.anchor in rules.valves or det.anchor in rules.not_field:
+        return None
+    return rules.field_type_map.get(det.anchor)
+
+
+def included_under(det, rules, active_scope: frozenset) -> bool:
+    if excel_type_under(det, rules) is None:
         return False
-    return not any(r in active and r in hits for r in SCOPE_RULES)
+    return not any(r in active_scope and r in det.rules_hit for r in SCOPE_RULES)
 
 
 def system_of(drawing_no: str) -> str:
-    """KKS system code — 'D00P-10LBA10-M05-0001' -> 'LBA'."""
     parts = drawing_no.split("-")
     return parts[1][2:5] if len(parts) > 1 and len(parts[1]) >= 5 else "???"
 
 
-def load_excel(path: Path) -> tuple[dict, int, int]:
+def tokens(text: str) -> set:
+    return {w for w in re.split(r"[^A-Z0-9&]+", (text or "").upper())
+            if w and w not in STOPWORDS}
+
+
+def title_match_score(system_value: str, title: str) -> float:
+    """How well an Excel SYSTEM value matches a page's drawing title.
+
+    Prefix matching, because the Excel abbreviates where the drawing does not
+    ('Aux. Steam System' vs 'AUXILIARY STEAM SYSTEM').
+    """
+    sys_t, title_t = tokens(system_value), tokens(title)
+    if not sys_t:
+        return 0.0
+    hits = 0
+    for s in sys_t:
+        for t in title_t:
+            if s == t or (len(s) >= 3 and len(t) >= 3 and (s.startswith(t) or t.startswith(s))):
+                hits += 1
+                break
+    return hits / len(sys_t)
+
+
+def mark_notation(pc, mark_dict):
+    notes_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 > 1960)
+    draw_text = sum(1 for r, t in pc.words if MARK_TEXT_RE.match(t) and r.x0 < 1960)
+    draw_glyph = sum(1 for m in find_marks(pc) if m.x < 1960)
+    return {"glyph_definitions": len(mark_dict),
+            "text_definitions_in_notes": notes_text,
+            "text_marks_in_drawing": draw_text,
+            "glyph_marks_in_drawing": draw_glyph}
+
+
+def load_excel(path: Path):
     import openpyxl
 
     wb = openpyxl.load_workbook(path, data_only=True)
@@ -146,8 +154,44 @@ def load_excel(path: Path) -> tuple[dict, int, int]:
     return by_drawing, total, spare
 
 
+def attribute_rows(excel, pages_by_drawing, per_page):
+    """Assign every Excel row to one page.
+
+    Unique drawing numbers are trivial.  For the three numbers shared by two
+    pages, each row goes to the page whose drawing title best matches the row's
+    SYSTEM value; that is the only field in the Excel that distinguishes them.
+    """
+    owned: dict[int, list] = collections.defaultdict(list)
+    decisions = []
+    for dn, rows in excel.items():
+        cand = pages_by_drawing.get(dn, [])
+        if not cand:
+            continue                      # EXCEL_ONLY, handled by the caller
+        if len(cand) == 1:
+            owned[cand[0]].extend(rows)
+            continue
+        scores = {p: 0.0 for p in cand}
+        for r in rows:
+            best_p, best_s = None, 0.0
+            for p in cand:
+                sc = title_match_score(str(r["system"]), per_page[p]["title"])
+                if sc > best_s:
+                    best_p, best_s = p, sc
+            target = best_p if best_p is not None else cand[0]
+            owned[target].append(r)
+            scores[target] += 1
+        decisions.append({
+            "drawing_no": dn,
+            "pages": cand,
+            "titles": {p: per_page[p]["title"] for p in cand},
+            "excel_systems": sorted({str(r["system"]) for r in rows}),
+            "rows_assigned": {p: int(scores[p]) for p in cand},
+        })
+    return owned, decisions
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Phase 0 spike 2b — all pages")
+    ap = argparse.ArgumentParser(description="Phase 0 spike 2b — all pages, page-level join")
     ap.add_argument("--pdf", default="data/pid_total.pdf")
     ap.add_argument("--compare", default="data/CZE_Field_Instrument.xlsx")
     ap.add_argument("--titleblocks", default="out/titleblocks.csv")
@@ -160,403 +204,458 @@ def main() -> int:
     excel, excel_total, excel_spare = load_excel(Path(args.compare))
 
     doc, pages = load_pages(args.pdf)
-    targets = [
-        pc for pc in pages
-        if tb[pc.page_no]["page_kind"] == "PID"
-        and tb[pc.page_no]["analysis_scope"] == "True"
-    ]
+    targets = [pc for pc in pages
+               if tb[pc.page_no]["page_kind"] == "PID"
+               and tb[pc.page_no]["analysis_scope"] == "True"]
     print(f"pages in scope: {len(targets)}   "
           f"excel rows: {excel_total} ({excel_spare} SPARE without P&ID No.)")
 
-    # ---- detect ------------------------------------------------------
+    # ---- detect once, with the superset anchor dictionary (V2) --------
     per_page = {}
-    size_dist_global = collections.Counter()
+    size_dist = collections.Counter()
     for i, pc in enumerate(targets, 1):
-        dets, scopes, mark_dict, unverified, unmapped = detect(pc)
+        dets, scopes, mark_dict, unverified, unmapped = detect(pc, rules=RULESET_V2)
         sizes = bubble_sizes(find_bubbles(pc))
-        notation = mark_notation(pc, mark_dict)
-        size_dist_global.update(sizes)
+        size_dist.update(sizes)
         per_page[pc.page_no] = {
             "drawing_no": tb[pc.page_no]["drawing_no"],
             "title": tb[pc.page_no]["drawing_title"],
-            "detections": dets,
-            "scopes": scopes,
-            "mark_dict": mark_dict,
-            "unverified": unverified,
-            "unmapped": unmapped,
-            "sizes": sizes,
-            "notation": notation,
+            "detections": dets, "scopes": scopes, "mark_dict": mark_dict,
+            "unverified": unverified, "unmapped": unmapped, "sizes": sizes,
+            "notation": mark_notation(pc, mark_dict),
         }
-        print(f"  [{i:>2}/{len(targets)}] p{pc.page_no:<3} {tb[pc.page_no]['drawing_no']}"
-              f"  anchors={len(dets):<4} unverified={len(unverified):<3}"
-              f" marks_defined={len(mark_dict)}", flush=True)
+        print(f"  [{i:>2}/{len(targets)}] p{pc.page_no:<3} "
+              f"{tb[pc.page_no]['drawing_no']}  anchors={len(dets):<4} "
+              f"unverified={len(unverified):<3} marks={len(mark_dict)}", flush=True)
 
-    # ---- aggregate by drawing number (the join is 1:N) ---------------
-    by_drawing: dict[str, dict] = collections.defaultdict(
-        lambda: {"pages": [], "detections": [], "unverified": [], "unmapped": [],
-                 "mark_dicts": [], "scopes": []})
-    for page_no, info in per_page.items():
-        d = by_drawing[info["drawing_no"]]
-        d["pages"].append(page_no)
-        d["detections"].extend((page_no, x) for x in info["detections"])
-        d["unverified"].extend((page_no, x) for x in info["unverified"])
-        d["unmapped"].extend((page_no, x) for x in info["unmapped"])
-        d["mark_dicts"].append((page_no, info["mark_dict"]))
-        d["scopes"].extend((page_no, s) for s in info["scopes"])
+    pages_by_drawing = collections.defaultdict(list)
+    for pno, info in per_page.items():
+        pages_by_drawing[info["drawing_no"]].append(pno)
 
-    all_drawings = sorted(set(by_drawing) | set(excel))
+    owned, decisions = attribute_rows(excel, pages_by_drawing, per_page)
 
-    # ---- metrics per rule combination --------------------------------
-    def score(active: frozenset):
-        tp = det_total = exp_total = 0
-        for dn in all_drawings:
-            det_counts = collections.Counter(
-                x.excel_type for _, x in by_drawing.get(dn, {}).get("detections", [])
-                if included_under(x, active)
-            )
-            exp_counts = collections.Counter(r["type"] for r in excel.get(dn, []))
-            for t in set(det_counts) | set(exp_counts):
-                tp += min(det_counts.get(t, 0), exp_counts.get(t, 0))
-            det_total += sum(det_counts.values())
-            exp_total += sum(exp_counts.values())
-        return {
-            "tp": tp, "detected": det_total, "expected": exp_total,
-            "recall": tp / exp_total if exp_total else 0.0,
-            "precision": tp / det_total if det_total else 0.0,
-        }
+    # ---- three disjoint sets ------------------------------------------
+    matched = [p for p in per_page if owned.get(p)]
+    pdf_only = [p for p in per_page if not owned.get(p)]
+    excel_only = [dn for dn in excel if dn not in pages_by_drawing]
 
-    combo_scores = {name: score(active) for name, active in COMBOS.items()}
+    def score(rules, active_scope, page_set):
+        tp = det_tot = exp_tot = 0
+        for pno in page_set:
+            det = collections.Counter(
+                excel_type_under(d, rules) for d in per_page[pno]["detections"]
+                if included_under(d, rules, active_scope))
+            exp = collections.Counter(r["type"] for r in owned.get(pno, []))
+            for t in set(det) | set(exp):
+                tp += min(det.get(t, 0), exp.get(t, 0))
+            det_tot += sum(det.values())
+            exp_tot += sum(exp.values())
+        return {"tp": tp, "detected": det_tot, "expected": exp_tot,
+                "recall": tp / exp_tot if exp_tot else 0.0,
+                "precision": tp / det_tot if det_tot else 0.0}
 
-    # ---- per-drawing detail for the shipped combination --------------
-    ACTIVE = COMBOS["both"]
-    drawing_rows = []
-    for dn in all_drawings:
-        info = by_drawing.get(dn)
-        det_counts = collections.Counter(
-            x.excel_type for _, x in (info["detections"] if info else [])
-            if included_under(x, ACTIVE)
-        )
-        exp_counts = collections.Counter(r["type"] for r in excel.get(dn, []))
-        tp = sum(min(det_counts.get(t, 0), exp_counts.get(t, 0))
-                 for t in set(det_counts) | set(exp_counts))
-        drawing_rows.append({
-            "drawing_no": dn,
-            "system": system_of(dn),
-            "pages": info["pages"] if info else [],
-            "title": (per_page[info["pages"][0]]["title"] if info else ""),
-            "detected": sum(det_counts.values()),
-            "expected": sum(exp_counts.values()),
-            "tp": tp,
-            "det_counts": dict(det_counts),
-            "exp_counts": dict(exp_counts),
-            "has_page": bool(info),
-            "in_excel": dn in excel,
+    v1_scope = frozenset(SCOPE_RULES)                 # v1 had both rules on
+    v2_scope = frozenset(SCOPE_RULES) - RULESET_V2.disabled
+    variants = {
+        "v1_drawing_join": None,      # filled below, old-style number
+        "v1_page_join": score(RULESET_V1, v1_scope, matched),
+        "v2_page_join": score(RULESET_V2, v2_scope, matched),
+        "v2_page_join_with_sct": score(RULESET_V2, frozenset(SCOPE_RULES), matched),
+    }
+
+    # The old headline, reproduced: drawing-level join over every page.
+    old_tp = old_det = old_exp = 0
+    by_dn_det = collections.defaultdict(collections.Counter)
+    for pno, info in per_page.items():
+        for d in info["detections"]:
+            if included_under(d, RULESET_V1, v1_scope):
+                by_dn_det[info["drawing_no"]][excel_type_under(d, RULESET_V1)] += 1
+    for dn in set(by_dn_det) | set(excel):
+        det, exp = by_dn_det.get(dn, collections.Counter()), collections.Counter(
+            r["type"] for r in excel.get(dn, []))
+        for t in set(det) | set(exp):
+            old_tp += min(det.get(t, 0), exp.get(t, 0))
+        old_det += sum(det.values())
+        old_exp += sum(exp.values())
+    variants["v1_drawing_join"] = {
+        "tp": old_tp, "detected": old_det, "expected": old_exp,
+        "recall": old_tp / old_exp if old_exp else 0.0,
+        "precision": old_tp / old_det if old_det else 0.0}
+
+    # ---- per-page detail, MATCHED only --------------------------------
+    page_rows = []
+    for pno in sorted(matched):
+        info = per_page[pno]
+        det = collections.Counter(
+            excel_type_under(d, RULESET_V2) for d in info["detections"]
+            if included_under(d, RULESET_V2, v2_scope))
+        exp = collections.Counter(r["type"] for r in owned[pno])
+        tp = sum(min(det.get(t, 0), exp.get(t, 0)) for t in set(det) | set(exp))
+        page_rows.append({
+            "page_no": pno, "drawing_no": info["drawing_no"],
+            "system": system_of(info["drawing_no"]), "title": info["title"],
+            "detected": sum(det.values()), "expected": sum(exp.values()), "tp": tp,
+            "det_counts": dict(det), "exp_counts": dict(exp),
         })
 
-    # ---- failure classification --------------------------------------
-    failures = classify_failures(drawing_rows, by_drawing, excel, ACTIVE)
+    failures = classify(page_rows, per_page, owned, v2_scope)
+    failures_v1 = classify(
+        [_recount(p, per_page, owned, RULESET_V1, v1_scope) for p in page_rows],
+        per_page, owned, v1_scope, rules=RULESET_V1)
 
-    # ---- report -------------------------------------------------------
-    print_report(combo_scores, drawing_rows, failures, size_dist_global, per_page)
+    xmatch = cross_match(excel_only, pdf_only, excel, per_page)
 
-    write_failure_report(Path(args.failures), failures, drawing_rows,
-                         combo_scores, size_dist_global, per_page,
-                         excel_total, excel_spare, excel)
+    report(variants, page_rows, failures, failures_v1, size_dist, per_page,
+           matched, pdf_only, excel_only, excel, decisions, xmatch)
 
-    payload = {
-        "pages_in_scope": len(targets),
-        "excel_rows_total": excel_total,
-        "excel_rows_spare": excel_spare,
-        "combo_scores": combo_scores,
-        "bubble_size_distribution": {f"{k[0]}x{k[1]}": v
-                                     for k, v in size_dist_global.most_common()},
-        "drawings": drawing_rows,
-        "failures": {k: [f for f in failures if f["type"] == k] for k in FAILURE_TYPES},
-    }
+    write_report(Path(args.failures), variants, page_rows, failures, failures_v1,
+                 size_dist, per_page, matched, pdf_only, excel_only, excel,
+                 decisions, excel_total, excel_spare, xmatch)
+
     out = Path(args.json)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    out.write_text(json.dumps({
+        "sets": {"matched_pages": sorted(matched),
+                 "pdf_only_pages": sorted(pdf_only),
+                 "excel_only_drawings": sorted(excel_only)},
+        "attribution_decisions": decisions,
+        "excel_only_cross_match": xmatch,
+        "variants": variants,
+        "bubble_size_distribution": {f"{k[0]}x{k[1]}": v for k, v in size_dist.most_common()},
+        "pages": page_rows,
+        "failures": {k: [f for f in failures if f["type"] == k] for k in FAILURE_TYPES},
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nwrote {out} and {args.failures}")
     return 0
 
 
-def classify_failures(drawing_rows, by_drawing, excel, active):
-    """Explain every count mismatch, using evidence from the page itself."""
-    failures = []
-    for row in drawing_rows:
-        dn = row["drawing_no"]
-        info = by_drawing.get(dn)
-        det_counts, exp_counts = row["det_counts"], row["exp_counts"]
+def _recount(prow, per_page, owned, rules, scope):
+    pno = prow["page_no"]
+    det = collections.Counter(
+        excel_type_under(d, rules) for d in per_page[pno]["detections"]
+        if included_under(d, rules, scope))
+    exp = collections.Counter(r["type"] for r in owned[pno])
+    tp = sum(min(det.get(t, 0), exp.get(t, 0)) for t in set(det) | set(exp))
+    return {**prow, "detected": sum(det.values()), "expected": sum(exp.values()),
+            "tp": tp, "det_counts": dict(det), "exp_counts": dict(exp)}
 
-        for t in sorted(set(det_counts) | set(exp_counts)):
-            got, want = det_counts.get(t, 0), exp_counts.get(t, 0)
+
+def classify(page_rows, per_page, owned, scope, rules=RULESET_V2):
+    out = []
+    for row in page_rows:
+        pno = row["page_no"]
+        info = per_page[pno]
+        det, exp = row["det_counts"], row["exp_counts"]
+        for t in sorted(set(det) | set(exp)):
+            got, want = det.get(t, 0), exp.get(t, 0)
             if got == want:
                 continue
-
             if got > want:
-                extras = [(p, x) for p, x in (info["detections"] if info else [])
-                          if x.excel_type == t and included_under(x, active)]
-                failures.append(_mk(dn, row, "OVER_DETECT", t, got - want,
-                                    extras[:3],
-                                    f"detected {got} vs excel {want}"))
+                extras = [d for d in info["detections"]
+                          if excel_type_under(d, rules) == t
+                          and included_under(d, rules, scope)]
+                out.append(_mk(row, "OVER_DETECT", t, got - want, extras[:3],
+                               f"detected {got} vs excel {want}"))
                 continue
 
             deficit = want - got
-            if not row["has_page"]:
-                failures.append(_mk(dn, row, "NO_ANCHOR", t, deficit, [],
-                                    "no page in the PDF carries this drawing number"))
-                continue
-
-            # Which evidence on the page explains the shortfall?
-            held = [(p, x) for p, x in info["detections"]
-                    if x.excel_type == t and "VENDOR_MARK_UNDEFINED" in x.rules_hit]
-            scoped = [(p, x) for p, x in info["detections"]
-                      if x.excel_type == t and not included_under(x, active)
-                      and any(r in x.rules_hit for r in SCOPE_RULES)]
-            mistyped = [(p, x) for p, x in info["detections"]
-                        if x.anchor == t and "NOT_FIELD_INSTRUMENT" in x.rules_hit]
-            unmapped = [(p, u) for p, u in info["unmapped"]]
-            ambiguous = [(p, u) for p, u in info["unverified"]]
+            held = [d for d in info["detections"]
+                    if excel_type_under(d, rules) == t
+                    and "VENDOR_MARK_UNDEFINED" in d.rules_hit]
+            scoped = [d for d in info["detections"]
+                      if excel_type_under(d, rules) == t
+                      and not included_under(d, rules, scope)
+                      and any(r in d.rules_hit for r in SCOPE_RULES)]
+            mistyped = [d for d in info["detections"] if d.anchor == t
+                        and d.anchor in rules.not_field]
+            unmapped = info["unmapped"]
+            ambiguous = info["unverified"]
 
             if mistyped:
-                failures.append(_mk(dn, row, "TYPE_MAPPING_MISS", t, deficit,
-                                    mistyped[:3],
-                                    f"'{t}' is on the drawing but the ruleset treats it "
-                                    f"as NOT_FIELD_INSTRUMENT"))
+                out.append(_mk(row, "TYPE_MAPPING_MISS", t, deficit, mistyped[:3],
+                               f"'{t}' is drawn but the ruleset calls it NOT_FIELD_INSTRUMENT"))
             elif held:
-                failures.append(_mk(dn, row, "VENDOR_MARK_UNDEFINED", t, deficit,
-                                    held[:3],
-                                    "bubble carries a mark this page's NOTES do not define; "
-                                    "exclusion held"))
+                out.append(_mk(row, "VENDOR_MARK_UNDEFINED", t, deficit, held[:3],
+                               "mark present but undefined in this page's NOTES; exclusion held"))
             elif scoped:
-                failures.append(_mk(dn, row, "SCOPE_CONFLICT", t, deficit,
-                                    scoped[:3],
-                                    "excluded by a scope rule but the Excel keeps the row"))
+                out.append(_mk(row, "SCOPE_CONFLICT", t, deficit, scoped[:3],
+                               "excluded by a scope rule but the Excel keeps the row"))
             elif unmapped:
-                failures.append(_mk(dn, row, "TYPE_MAPPING_MISS", t, deficit,
-                                    unmapped[:3],
-                                    "bubble holds a tag the anchor dictionary does not cover: "
-                                    + ", ".join(sorted({u['token'] for _, u in unmapped})[:6])))
+                toks = sorted({u["token"] for u in unmapped})[:6]
+                out.append(_mk(row, "TYPE_MAPPING_MISS", t, deficit, unmapped[:3],
+                               "bubble holds a tag outside the anchor dictionary: "
+                               + ", ".join(toks)))
             elif ambiguous:
-                failures.append(_mk(dn, row, "AMBIGUOUS_GEOMETRY", t, deficit,
-                                    ambiguous[:3],
-                                    "anchors found but no single enclosing bubble"))
+                out.append(_mk(row, "AMBIGUOUS_GEOMETRY", t, deficit, ambiguous[:3],
+                               "anchors found but no single enclosing bubble"))
             else:
-                failures.append(_mk(dn, row, "NO_ANCHOR", t, deficit, [],
-                                    f"no '{t}' anchor found in any bubble on this drawing"))
-    return failures
+                out.append(_mk(row, "NO_ANCHOR", t, deficit, [],
+                               f"no '{t}' anchor found in any bubble on this page"))
+    return out
 
 
-def _mk(dn, row, kind, type_, count, samples, cause):
-    out_samples = []
-    for page_no, obj in samples:
+def _mk(row, kind, type_, count, samples, cause):
+    smp = []
+    for obj in samples:
         if hasattr(obj, "center"):
-            out_samples.append({"page": page_no, "anchor": obj.anchor,
-                                "center": [round(obj.center[0], 1), round(obj.center[1], 1)],
-                                "rules_hit": list(obj.rules_hit)})
+            smp.append({"anchor": obj.anchor,
+                        "center": [round(obj.center[0], 1), round(obj.center[1], 1)],
+                        "rules_hit": list(obj.rules_hit)})
         else:
-            out_samples.append({"page": page_no,
-                                "anchor": obj.get("anchor") or obj.get("token"),
-                                "center": obj.get("center")})
-    return {"type": kind, "drawing_no": dn, "system": row["system"],
-            "title": row["title"], "excel_type": type_, "count": count,
-            "cause": cause, "samples": out_samples}
+            smp.append({"anchor": obj.get("anchor") or obj.get("token"),
+                        "center": obj.get("center")})
+    return {"type": kind, "page_no": row["page_no"], "drawing_no": row["drawing_no"],
+            "system": row["system"], "title": row["title"], "excel_type": type_,
+            "count": count, "cause": cause, "samples": smp}
 
 
-def system_table(drawing_rows):
-    agg = collections.defaultdict(lambda: {"tp": 0, "det": 0, "exp": 0,
-                                           "drawings": 0, "titles": []})
-    for r in drawing_rows:
-        a = agg[r["system"]]
-        a["tp"] += r["tp"]
-        a["det"] += r["detected"]
-        a["exp"] += r["expected"]
-        a["drawings"] += 1
-        if r["title"]:
-            a["titles"].append(r["title"])
-    rows = []
-    for sysname, a in agg.items():
-        if a["exp"] == 0 and a["det"] == 0:
-            continue
-        rows.append({
-            "system": sysname,
-            "drawings": a["drawings"],
-            "detected": a["det"],
-            "expected": a["exp"],
-            "tp": a["tp"],
-            "recall": a["tp"] / a["exp"] if a["exp"] else float("nan"),
-            "precision": a["tp"] / a["det"] if a["det"] else float("nan"),
-            "title": a["titles"][0] if a["titles"] else "",
+def cross_match(excel_only, pdf_only, excel, per_page):
+    """Pair EXCEL_ONLY drawings with PDF_ONLY pages by system name.
+
+    Diagnostic only — nothing is joined on the strength of it.  A high score
+    means the drawing does exist in the PDF but under a different number, which
+    is a data problem to fix upstream rather than a detector problem.
+    """
+    out = []
+    for dn in sorted(excel_only):
+        systems = sorted({str(r["system"]) for r in excel[dn]})
+        best, best_score = None, 0.0
+        for pno in pdf_only:
+            sc = max(title_match_score(sv, per_page[pno]["title"]) for sv in systems)
+            if sc > best_score:
+                best, best_score = pno, sc
+        out.append({
+            "drawing_no": dn, "rows": len(excel[dn]), "systems": systems,
+            "candidate_page": best, "score": round(best_score, 2),
+            "candidate_drawing_no": per_page[best]["drawing_no"] if best else None,
+            "candidate_title": per_page[best]["title"] if best else None,
         })
-    rows.sort(key=lambda r: (r["recall"] if r["expected"] else 9, -r["expected"]))
+    return out
+
+
+def system_table(page_rows):
+    agg = collections.defaultdict(lambda: {"tp": 0, "det": 0, "exp": 0,
+                                           "pages": 0, "title": ""})
+    for r in page_rows:
+        a = agg[r["system"]]
+        a["tp"] += r["tp"]; a["det"] += r["detected"]; a["exp"] += r["expected"]
+        a["pages"] += 1
+        a["title"] = a["title"] or r["title"]
+    rows = [{"system": k, "pages": a["pages"], "detected": a["det"],
+             "expected": a["exp"], "tp": a["tp"],
+             "recall": a["tp"] / a["exp"] if a["exp"] else 0.0,
+             "precision": a["tp"] / a["det"] if a["det"] else 0.0,
+             "title": a["title"]} for k, a in agg.items()]
+    rows.sort(key=lambda r: (r["recall"], -r["expected"]))
     return rows
 
 
-def print_report(combo_scores, drawing_rows, failures, size_dist, per_page):
-    print("\n" + "=" * 78)
-    print("BUBBLE GEOMETRY — measured per page, not assumed")
-    print("=" * 78)
-    print(f"{'stadium (long x short)':<26} {'count':>7}   pages using it")
-    for (lo, sh), n in size_dist.most_common(8):
-        users = sum(1 for i in per_page.values() if (lo, sh) in i["sizes"])
-        print(f"  {lo:>7.1f} x {sh:<12.1f} {n:>7}   {users}")
-    p6 = (68.0, 22.6)
-    other = sum(n for k, n in size_dist.items() if k != p6)
-    print(f"\n  page-6 size {p6[0]}x{p6[1]} covers {size_dist.get(p6,0)} bubbles; "
-          f"{other} bubbles use a different size")
-
-    print("\n" + "=" * 78)
-    print("VENDOR MARK NOTATION — where the page-6 rule can even apply")
-    print("=" * 78)
-    glyph_pages = [p for p, i in per_page.items() if i["notation"]["glyph_definitions"]]
-    text_pages = [p for p, i in per_page.items()
-                  if not i["notation"]["glyph_definitions"]
-                  and i["notation"]["text_marks_in_drawing"]]
-    none_pages = [p for p, i in per_page.items()
-                  if not i["notation"]["glyph_definitions"]
-                  and not i["notation"]["text_marks_in_drawing"]]
-    print(f"  marks drawn as glyphs, legend readable : {len(glyph_pages):>3} pages  (rule works)")
-    print(f"  marks typed as text '(*)' / '(**)'     : {len(text_pages):>3} pages  "
-          f"(rule blind)  {sorted(text_pages)}")
-    print(f"  no marks found at all                  : {len(none_pages):>3} pages")
-
-    print("\n" + "=" * 78)
-    print("RULE CONTRIBUTION — the core question")
-    print("=" * 78)
-    print(f"{'active rules':<16} {'detected':>9} {'excel':>7} {'TP':>6} {'recall':>9} {'precision':>10}")
-    for name in ("none", "sct_only", "vendor_only", "both"):
-        s = combo_scores[name]
-        print(f"{name:<16} {s['detected']:>9} {s['expected']:>7} {s['tp']:>6} "
-              f"{s['recall']:>8.1%} {s['precision']:>10.1%}")
-
-    print("\n" + "=" * 78)
-    print("PER-SYSTEM ACCURACY  (recall ascending)")
-    print("=" * 78)
-    rows = system_table(drawing_rows)
-    print(f"{'sys':<5} {'dwg':>4} {'det':>5} {'excel':>6} {'TP':>5} {'recall':>8} {'prec':>8}  title")
-    for r in rows:
-        rc = f"{r['recall']:.1%}" if r["expected"] else "   n/a"
-        pr = f"{r['precision']:.1%}" if r["detected"] else "   n/a"
-        print(f"{r['system']:<5} {r['drawings']:>4} {r['detected']:>5} {r['expected']:>6} "
-              f"{r['tp']:>5} {rc:>8} {pr:>8}  {r['title'][:44]}")
-
-    print("\n" + "=" * 78)
-    print("FAILURE TYPES")
-    print("=" * 78)
-    counts = collections.Counter(f["type"] for f in failures)
-    rowsum = collections.Counter()
+def _fail_counts(failures):
+    cases = collections.Counter(f["type"] for f in failures)
+    rows = collections.Counter()
     for f in failures:
-        rowsum[f["type"]] += f["count"]
+        rows[f["type"]] += f["count"]
+    return cases, rows
+
+
+def report(variants, page_rows, failures, failures_v1, size_dist, per_page,
+           matched, pdf_only, excel_only, excel, decisions, xmatch):
+    print("\n" + "=" * 78)
+    print("JOIN — attribution of shared drawing numbers")
+    print("=" * 78)
+    for d in decisions:
+        print(f"  {d['drawing_no']}  pages {d['pages']}")
+        print(f"     Excel SYSTEM: {', '.join(d['excel_systems'])}")
+        for p, t in d["titles"].items():
+            print(f"     p{p}: {t}   -> {d['rows_assigned'][p]} rows")
+    print(f"\n  MATCHED    {len(matched):>3} pages")
+    print(f"  PDF_ONLY   {len(pdf_only):>3} pages   {sorted(pdf_only)}")
+    print(f"  EXCEL_ONLY {len(excel_only):>3} drawings "
+          f"({sum(len(excel[d]) for d in excel_only)} rows)")
+
+    print("\n  EXCEL_ONLY -> best matching PDF_ONLY page (diagnostic, not joined):")
+    for x in xmatch:
+        tgt = (f"p{x['candidate_page']} {x['candidate_drawing_no']}"
+               if x["candidate_page"] else "(none)")
+        print(f"    {x['drawing_no']} ({x['rows']} rows, {x['systems'][0]})")
+        print(f"       -> {tgt}  score={x['score']}  {x['candidate_title'] or ''}")
+
+    print("\n" + "=" * 78)
+    print("SCORE — before and after the measurement fix (MATCHED set only)")
+    print("=" * 78)
+    labels = {
+        "v1_drawing_join": "v1 rules, drawing join (previous headline)",
+        "v1_page_join":    "v1 rules, page join",
+        "v2_page_join":    "v2 rules, page join, SCT off  <- new baseline",
+        "v2_page_join_with_sct": "v2 rules, page join, SCT on",
+    }
+    print(f"{'variant':<44} {'det':>5} {'excel':>6} {'TP':>5} {'recall':>8} {'prec':>8}")
+    for k in ("v1_drawing_join", "v1_page_join", "v2_page_join", "v2_page_join_with_sct"):
+        v = variants[k]
+        print(f"{labels[k]:<44} {v['detected']:>5} {v['expected']:>6} {v['tp']:>5} "
+              f"{v['recall']:>7.1%} {v['precision']:>8.1%}")
+
+    print("\n" + "=" * 78)
+    print("PER-SYSTEM ACCURACY (MATCHED, recall ascending)")
+    print("=" * 78)
+    print(f"{'sys':<5} {'pg':>3} {'det':>5} {'excel':>6} {'TP':>5} {'recall':>8} {'prec':>8}  title")
+    for r in system_table(page_rows):
+        print(f"{r['system']:<5} {r['pages']:>3} {r['detected']:>5} {r['expected']:>6} "
+              f"{r['tp']:>5} {r['recall']:>7.1%} {r['precision']:>7.1%}  {r['title'][:42]}")
+
+    print("\n" + "=" * 78)
+    print("FAILURE TYPES — v1 rules vs v2 rules (both on the MATCHED set)")
+    print("=" * 78)
+    c1, r1 = _fail_counts(failures_v1)
+    c2, r2 = _fail_counts(failures)
+    print(f"{'type':<24} {'v1 cases':>9} {'v1 rows':>8} {'v2 cases':>9} {'v2 rows':>8}")
     for t in FAILURE_TYPES:
-        print(f"  {t:<24} cases={counts.get(t,0):>4}   rows={rowsum.get(t,0):>4}")
+        print(f"  {t:<22} {c1.get(t,0):>9} {r1.get(t,0):>8} {c2.get(t,0):>9} {r2.get(t,0):>8}")
 
 
-def write_failure_report(path, failures, drawing_rows, combo_scores,
-                         size_dist, per_page, excel_total, excel_spare, excel):
-    counts = collections.Counter(f["type"] for f in failures)
-    rowsum = collections.Counter()
-    for f in failures:
-        rowsum[f["type"]] += f["count"]
-
+def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
+                 per_page, matched, pdf_only, excel_only, excel, decisions,
+                 excel_total, excel_spare, xmatch):
+    c1, r1 = _fail_counts(failures_v1)
+    c2, r2 = _fail_counts(failures)
+    v = variants["v2_page_join"]
     L = []
-    L.append("# 전수 적용 실패 리포트 — Phase 0 spike 2b\n")
-    L.append("page 6 에서 검증한 규칙을 **그대로** 전 페이지에 적용한 결과입니다. "
-             "새 규칙은 추가하지 않았습니다.\n")
+    L.append("# 실패 리포트 — Phase 0 spike 2b (측정 재정의)\n")
+    L.append("검출 규칙은 추가하지 않았습니다. 이번 변경은 **조인 기준 확정**과 "
+             "**전체 Excel 로 확인된 앵커 매핑 수정** 두 가지뿐입니다.\n")
 
-    s = combo_scores["both"]
-    L.append(f"- Excel 총 {excel_total}행 중 `P&ID No.` 가 있는 "
-             f"{excel_total - excel_spare}행이 조인 대상 (나머지 {excel_spare}행은 SPARE)\n")
-    L.append(f"- 검출 {s['detected']}행 / 정답 {s['expected']}행 / 일치 {s['tp']}행\n")
-    L.append(f"- **재현율 {s['recall']:.1%}, 정밀도 {s['precision']:.1%}**\n")
+    L.append("\n## A. 조인 기준 — 페이지 단위\n")
+    L.append("### 도면번호 공유 3건의 귀속 판정\n")
+    L.append("Excel `SYSTEM` 열을 페이지의 `drawing_title` 과 토큰 대조(접두 일치 허용)해 "
+             "행 단위로 귀속시켰습니다.\n")
+    for d in decisions:
+        L.append(f"**`{d['drawing_no']}`** — pages {d['pages']}  ")
+        L.append(f"Excel SYSTEM: {', '.join(d['excel_systems']) or '(행 없음)'}  ")
+        for p, t in d["titles"].items():
+            L.append(f"- p{p}: {t} → **{d['rows_assigned'][p]}행**")
+        L.append("")
+    gma = [dn for dn, ps in
+           [(x["drawing_no"], x["pages"]) for x in decisions]]
+    if "D00P-00GMA10-M05-0001" not in gma:
+        L.append("**`D00P-00GMA10-M05-0001`** (p52 / p55) — Excel 전체에 `GMA` 를 "
+                 "포함한 `P&ID No.` 가 **한 건도 없습니다**. 귀속시킬 행 자체가 없으므로 "
+                 "두 페이지 모두 `PDF_ONLY` 입니다.\n")
 
-    # The join itself is a confound: some Excel drawings have no page, some
-    # pages have no Excel rows, and three numbers are shared by two drawings.
-    orphan_excel = [r for r in drawing_rows if not r["has_page"] and r["in_excel"]]
-    orphan_page = [r for r in drawing_rows if r["has_page"] and not r["in_excel"]]
-    shared = [r for r in drawing_rows if len(r["pages"]) > 1]
-    L.append("\n## 조인 무결성 — 지표를 왜곡하는 요인\n")
-    L.append(f"- Excel 에는 있으나 **PDF 에 해당 도면이 없는** 도면번호 "
-             f"{len(orphan_excel)}건 / {sum(r['expected'] for r in orphan_excel)}행 "
-             f"→ 검출 불가, 전부 재현율 손실로 계상됨")
-    for r in orphan_excel:
-        L.append(f"  - `{r['drawing_no']}` ({r['expected']}행)")
-    L.append(f"- PDF 에는 있으나 **Excel 에 행이 없는** 도면 {len(orphan_page)}건 "
-             f"/ 검출 {sum(r['detected'] for r in orphan_page)}행 → 전부 정밀도 손실로 계상됨")
-    L.append(f"- **도면번호를 공유하는 페이지** {len(shared)}건 — 1:N 조인이라 "
-             f"서로 다른 도면의 검출이 한 번호로 합산됩니다")
-    for r in shared:
-        systems = sorted({str(x["system"]) for x in excel.get(r["drawing_no"], [])})
-        titles = [per_page[p]["title"] for p in r["pages"]]
-        L.append(f"  - `{r['drawing_no']}` pages {r['pages']} 검출 {r['detected']} / "
-                 f"Excel {r['expected']}")
-        for pno, t in zip(r["pages"], titles):
-            L.append(f"    - p{pno}: {t}")
-        L.append(f"    - Excel SYSTEM: {', '.join(systems) if systems else '(행 없음)'}")
+    L.append("\n### 3개 집합\n")
+    L.append("| 집합 | 규모 | 처리 |")
+    L.append("|---|---|---|")
+    L.append(f"| `MATCHED` | {len(matched)}페이지 / Excel {v['expected']}행 | **규칙 성능은 여기서만 측정** |")
+    L.append(f"| `EXCEL_ONLY` | {len(excel_only)}도면 / {sum(len(excel[d]) for d in excel_only)}행 | 검출 불가, 점수에서 제외 |")
+    L.append(f"| `PDF_ONLY` | {len(pdf_only)}페이지 | 정답 없음, 점수에서 제외 |")
 
-    L.append("\n## 규칙 조합별 성능\n")
-    L.append("| 활성 규칙 | 검출 | 정답 | 일치 | 재현율 | 정밀도 |")
+    L.append("\n#### EXCEL_ONLY — Excel 에만 있는 도면\n")
+    L.append("| 도면번호 | 행 수 | Excel SYSTEM |")
+    L.append("|---|---|---|")
+    for dn in sorted(excel_only):
+        systems = sorted({str(r["system"]) for r in excel[dn]})
+        L.append(f"| `{dn}` | {len(excel[dn])} | {', '.join(systems)} |")
+
+    L.append("\n**원인 판정** — 위 5건은 모두 PDF 안에 해당 도면이 "
+             "**다른 번호로 존재**합니다. 도면 누락이 아니라 채번 불일치입니다.\n")
+    L.append("| Excel 도면번호 | 행 | Excel SYSTEM | PDF 상의 실제 페이지 | 그 페이지의 타이틀블록 번호 | 일치도 |")
     L.append("|---|---|---|---|---|---|")
-    label = {"none": "둘 다 끔", "sct_only": "SCT 만",
-             "vendor_only": "벤더마크 만", "both": "둘 다"}
-    for name in ("none", "sct_only", "vendor_only", "both"):
-        c = combo_scores[name]
-        L.append(f"| {label[name]} | {c['detected']} | {c['expected']} | {c['tp']} "
-                 f"| {c['recall']:.1%} | {c['precision']:.1%} |")
+    for x in xmatch:
+        tgt = f"p{x['candidate_page']} — {x['candidate_title']}" if x["candidate_page"] else "(없음)"
+        L.append(f"| `{x['drawing_no']}` | {x['rows']} | {x['systems'][0]} | {tgt} "
+                 f"| `{x['candidate_drawing_no'] or '-'}` | {x['score']} |")
 
-    L.append("\n## 버블 치수 분포 (페이지별 실측)\n")
-    L.append("| 스타디움 (긴변 x 짧은변) | 개수 | 사용 페이지 수 |")
-    L.append("|---|---|---|")
-    for (lo, sh), n in size_dist.most_common(8):
-        users = sum(1 for i in per_page.values() if (lo, sh) in i["sizes"])
-        L.append(f"| {lo} x {sh} | {n} | {users} |")
-
-    glyph_pages = [p for p, i in per_page.items() if i["notation"]["glyph_definitions"]]
-    text_pages = [p for p, i in per_page.items()
-                  if not i["notation"]["glyph_definitions"]
-                  and i["notation"]["text_marks_in_drawing"]]
-    none_pages = [p for p, i in per_page.items()
-                  if not i["notation"]["glyph_definitions"]
-                  and not i["notation"]["text_marks_in_drawing"]]
-    L.append("\n## 벤더 마크 표기 방식 (규칙이 적용 가능한 범위)\n")
-    L.append("| 표기 방식 | 페이지 수 | 규칙 적용 | 페이지 |")
+    L.append("\n#### PDF_ONLY — Excel 에 행이 없는 페이지\n")
+    L.append("| 페이지 | 도면번호 | 도면명 | 검출 |")
     L.append("|---|---|---|---|")
-    L.append(f"| 벡터 글리프 (page 6 방식) | {len(glyph_pages)} | 가능 | {sorted(glyph_pages)} |")
-    L.append(f"| 텍스트 `(*)` / `(**)` | {len(text_pages)} | **불가 — 규칙이 못 봄** | {sorted(text_pages)} |")
-    L.append(f"| 마크 없음 | {len(none_pages)} | 해당 없음 | {sorted(none_pages)} |")
+    for pno in sorted(pdf_only):
+        info = per_page[pno]
+        n = sum(1 for d in info["detections"]
+                if included_under(d, RULESET_V2,
+                                  frozenset(SCOPE_RULES) - RULESET_V2.disabled))
+        L.append(f"| p{pno} | `{info['drawing_no']}` | {info['title']} | {n} |")
 
-    L.append("\n## 실패 유형별 집계\n")
-    L.append("| 유형 | 케이스 | 행 수 |")
+    L.append("\n## B. 앵커 사전 수정\n")
+    L.append("| 코드 | 조치 | 근거 |")
     L.append("|---|---|---|")
-    for t in FAILURE_TYPES:
-        L.append(f"| `{t}` | {counts.get(t,0)} | {rowsum.get(t,0)} |")
+    L.append("| `FE` | 비대상 → **Field 대상** | Excel `FE` 18행. "
+             "`D00P-10MAN10-M05-0001` 행 61/71/82 (`... SPRAY WATER FLOW ELEMENT`), "
+             "해당 p10 도면의 FE 버블 3개와 일치 |")
+    L.append("| `LSH`/`LSHH`/`LSL` | **→ `LS` 매핑** | Excel `LS` 22행, 설명이 "
+             "`... LEVEL HIGH HIGH` / `... LEVEL HIGH`. "
+             "`D00P-10LBC40-M05-0001` 행 20~23, 해당 p7 도면에 LSHH 4 + LSH 4 |")
+    L.append("| `ZS` | **추가하지 않음** | Excel `TYPE` 열에 `ZS` **0행**. "
+             "이전 리포트에서 `ZS` 옆의 숫자는 같은 페이지의 *다른* TYPE 결손이었고 "
+             "ZS 자체의 행 수가 아니었습니다 |")
+    L.append("| `LG` | **추가하지 않음** | Excel `TYPE` 열에 `LG` **0행**. 위와 동일 |")
 
-    L.append("\n## 유형별 대표 사례\n")
+    L.append("\n### 한 페이지 표본으로 굳어진 규칙 재점검 (전체 Excel 대조)\n")
+    L.append("| 규칙 | 근거 | 판정 |")
+    L.append("|---|---|---|")
+    L.append("| `FE` = 비대상 | Excel FE **18행** | ❌ 오류 — 이번에 철회 |")
+    L.append("| `FT` = 비대상 | Excel `FIT` **31행**. `D00P-10MAN10-M05-0001` 이 "
+             "`FIT` 5행을 요구하고 p10 도면에 `FT` 버블이 정확히 5개 |"
+             " ⚠️ **오류로 보임 — 이번 지시 목록 밖이라 미적용** |")
+    L.append("| `TW` = 비대상 | Excel `TYPE` 에 `TW` 0행 | ✅ 유지 |")
+    L.append("| `TT`→`TIT`, `PT`→`PIT` | Excel 에 `TT`/`PT` TYPE 0행, `TIT` 99 / `PIT` 108행 | ✅ 유지 |")
+    L.append("| `MOV` = 밸브 | Excel Field 리스트에 밸브 TYPE 없음 | ✅ 유지 |")
+
+    L.append("\n## C. SCT 규칙 — 기본 비활성\n")
+    a, b = variants["v2_page_join"], variants["v2_page_join_with_sct"]
+    L.append(f"- 끈 상태: 검출 {a['detected']} / TP {a['tp']} / 재현율 {a['recall']:.1%} / 정밀도 {a['precision']:.1%}")
+    L.append(f"- 켠 상태: 검출 {b['detected']} / TP {b['tp']} / 재현율 {b['recall']:.1%} / 정밀도 {b['precision']:.1%}")
+    L.append("- 코드는 유지하고 `--enable-rule SCT_SUPPLIER_SCOPE` 로 켤 수 있습니다. "
+             "비활성 사유는 `detect_symbols.py` 의 `DEFAULT_DISABLED` 주석에 근거와 함께 기록했습니다.")
+
+    L.append("\n## 1. 측정 재정의 전후 비교\n")
+    L.append("| 변형 | 검출 | Excel | 일치 | 재현율 | 정밀도 |")
+    L.append("|---|---|---|---|---|---|")
+    labels = {"v1_drawing_join": "v1 규칙 + 도면 조인 (이전 발표값)",
+              "v1_page_join": "v1 규칙 + 페이지 조인 (조인만 수정)",
+              "v2_page_join": "**v2 규칙 + 페이지 조인, SCT off (새 기준선)**",
+              "v2_page_join_with_sct": "v2 규칙 + 페이지 조인, SCT on"}
+    for k in ("v1_drawing_join", "v1_page_join", "v2_page_join", "v2_page_join_with_sct"):
+        x = variants[k]
+        L.append(f"| {labels[k]} | {x['detected']} | {x['expected']} | {x['tp']} "
+                 f"| {x['recall']:.1%} | {x['precision']:.1%} |")
+
+    L.append("\n## 2. 계통별 정확도 (MATCHED, 재현율 오름차순)\n")
+    L.append("| 계통 | 페이지 | 검출 | Excel | 일치 | 재현율 | 정밀도 | 대표 도면명 |")
+    L.append("|---|---|---|---|---|---|---|---|")
+    for r in system_table(page_rows):
+        L.append(f"| `{r['system']}` | {r['pages']} | {r['detected']} | {r['expected']} "
+                 f"| {r['tp']} | {r['recall']:.1%} | {r['precision']:.1%} | {r['title'][:38]} |")
+
+    L.append("\n## 4~5. 실패 유형 재집계 (v1 규칙 → v2 규칙, MATCHED 기준)\n")
+    L.append("| 유형 | v1 케이스 | v1 행 | v2 케이스 | v2 행 | 변화 |")
+    L.append("|---|---|---|---|---|---|")
     for t in FAILURE_TYPES:
-        items = sorted([f for f in failures if f["type"] == t],
-                       key=lambda f: -f["count"])
-        L.append(f"\n### `{t}` — {counts.get(t,0)} 케이스 / {rowsum.get(t,0)} 행\n")
+        delta = r2.get(t, 0) - r1.get(t, 0)
+        L.append(f"| `{t}` | {c1.get(t,0)} | {r1.get(t,0)} | {c2.get(t,0)} | {r2.get(t,0)} "
+                 f"| {delta:+d} |")
+
+    L.append("\n## 유형별 대표 사례 (v2 기준)\n")
+    for t in FAILURE_TYPES:
+        items = sorted([f for f in failures if f["type"] == t], key=lambda f: -f["count"])
+        L.append(f"\n### `{t}` — {c2.get(t,0)} 케이스 / {r2.get(t,0)} 행\n")
         if not items:
             L.append("해당 없음.\n")
             continue
         for f in items[:3]:
-            L.append(f"**{f['drawing_no']}** (계통 `{f['system']}`, TYPE `{f['excel_type']}`, "
-                     f"{f['count']}행)  ")
+            L.append(f"**p{f['page_no']} {f['drawing_no']}** (계통 `{f['system']}`, "
+                     f"TYPE `{f['excel_type']}`, {f['count']}행)  ")
             L.append(f"{f['title']}  ")
             L.append(f"추정 원인: {f['cause']}  ")
-            if f["samples"]:
-                for smp in f["samples"]:
-                    rules = ("/".join(smp["rules_hit"]) if smp.get("rules_hit") else "-")
-                    L.append(f"- p{smp['page']} `{smp['anchor']}` @ {smp['center']}  규칙: {rules}")
+            for s in f["samples"]:
+                rules = "/".join(s["rules_hit"]) if s.get("rules_hit") else "-"
+                L.append(f"- `{s['anchor']}` @ {s['center']}  규칙: {rules}")
             L.append("")
 
-    L.append("\n## 계통별 정확도 (재현율 오름차순)\n")
-    L.append("| 계통 | 도면 | 검출 | Excel | 일치 | 재현율 | 정밀도 | 대표 도면명 |")
-    L.append("|---|---|---|---|---|---|---|---|")
-    for r in system_table(drawing_rows):
-        rc = f"{r['recall']:.1%}" if r["expected"] else "n/a"
-        pr = f"{r['precision']:.1%}" if r["detected"] else "n/a"
-        L.append(f"| `{r['system']}` | {r['drawings']} | {r['detected']} | {r['expected']} "
-                 f"| {r['tp']} | {rc} | {pr} | {r['title'][:40]} |")
+    L.append("\n## 버블 치수 분포 (페이지별 실측)\n")
+    L.append("| 스타디움 | 개수 | 페이지 수 |")
+    L.append("|---|---|---|")
+    for (lo, sh), n in size_dist.most_common(6):
+        users = sum(1 for i in per_page.values() if (lo, sh) in i["sizes"])
+        L.append(f"| {lo} x {sh} | {n} | {users} |")
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(L) + "\n", encoding="utf-8")

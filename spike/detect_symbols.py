@@ -43,8 +43,10 @@ Exclusion filters
                   is inside the vendor region when its drop line lands on the
                   broken part of the pipe.
 
-`NOT_FIELD_INSTRUMENT`  TW (thermowell), FE and FT never appear in the field
-                instrument list.
+`NOT_FIELD_INSTRUMENT`  TW (thermowell) and FT never appear in the field
+                instrument list.  FE was in this set when only page 6 had been
+                checked; the full Excel has 18 FE rows, so it was moved back to
+                the field instruments (see RULESET_V2).
 
 `VALVE`         MOV and friends are valves, so they belong to the valve
                 deliverables (docs/design.md §1.3), not this one.
@@ -81,21 +83,77 @@ from pidcache import load_pages  # noqa: E402
 # --------------------------------------------------------------------------
 # Drawing anchor -> Excel TYPE.  The drawing uses transmitter letters (TT/PT)
 # while the Excel uses indicating-transmitter letters (TIT/PIT).
-FIELD_TYPE_MAP = {
+#
+# Two rule versions are kept so that a measurement can be compared like for
+# like.  V1 is what page 6 alone justified; V2 corrects the entries that the
+# full 563-row Excel disproved.
+_V1_FIELD_TYPE_MAP = {
     "TT": "TIT", "PT": "PIT", "LT": "LIT", "PDT": "PDIT",
     "TI": "TI", "PI": "PI", "LI": "LI", "FI": "FI",
     "TIT": "TIT", "PIT": "PIT", "LIT": "LIT", "PDIT": "PDIT", "FIT": "FIT",
     "LS": "LS", "FS": "FS", "RO": "RO",
 }
+_V1_NOT_FIELD = frozenset({"TW", "FE", "FT"})
 
-# Recognised but never a field instrument row.
-NOT_FIELD_INSTRUMENT = {"TW", "FE", "FT"}
+# V2 changes, each backed by the full Excel rather than one page:
+#
+#   FE  -> field instrument.  Page 6 concluded "FE is never in the list" from
+#          two samples that happened to be vendor-supplied.  The Excel carries
+#          18 FE rows ("... SPRAY WATER FLOW ELEMENT"), e.g. rows 61/71/82 on
+#          D00P-10MAN10-M05-0001, and that page draws exactly 3 FE bubbles.
+#
+#   LSH / LSHH / LSL -> LS.  The Excel has 22 LS rows whose descriptions read
+#          "... LEVEL HIGH HIGH" / "... LEVEL HIGH" (rows 20-23 on
+#          D00P-10LBC40-M05-0001), and that drawing carries 4 LSHH + 4 LSH
+#          bubbles.  The drawings spell out the switch qualifier, the Excel
+#          does not.
+#
+# Deliberately NOT added, despite being on the request list: ZS and LG.  The
+# Excel TYPE column contains neither (0 rows each).  They appeared in the
+# earlier failure report only as "unmapped tokens seen on the same page", not
+# as missing rows, so mapping them would invent list entries.
+_V2_FIELD_TYPE_MAP = dict(_V1_FIELD_TYPE_MAP)
+_V2_FIELD_TYPE_MAP.update({"FE": "FE", "LSH": "LS", "LSHH": "LS", "LSL": "LS"})
+_V2_NOT_FIELD = frozenset({"TW", "FT"})
 
 # Valve anchors -> the valve deliverables, not this list.
-VALVE_ANCHORS = {"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV", "LCV",
-                 "NRV", "PSV", "PRV", "BPRV"}
+VALVE_ANCHORS = frozenset({"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV",
+                           "LCV", "NRV", "PSV", "PRV", "BPRV"})
 
-ANCHORS = set(FIELD_TYPE_MAP) | NOT_FIELD_INSTRUMENT | VALVE_ANCHORS
+
+@dataclass(frozen=True)
+class Ruleset:
+    name: str
+    field_type_map: dict
+    not_field: frozenset
+    valves: frozenset = VALVE_ANCHORS
+    disabled: frozenset = frozenset()   # scope rules switched off
+
+    @property
+    def anchors(self) -> frozenset:
+        return frozenset(self.field_type_map) | self.not_field | self.valves
+
+
+# SCT_SUPPLIER_SCOPE is off by default.
+#
+# Measured over all 49 drawings (spike/detect_all.py): with VENDOR_MARK active,
+# enabling SCT changes detections 622 -> 620 and true positives 458 -> 456.
+# Every symbol it uniquely removes is a row the Excel keeps — the two RO
+# bubbles on p20 D00P-11LAB00-M05-0001 at (1118.5, 809.4) and (1118.5, 1300.0).
+# It never uniquely catches a correct exclusion on any system, so it costs
+# recall and buys nothing.  The code stays because the scope-break geometry it
+# reads is real and will matter once piping scope is modelled separately from
+# equipment supply; enable it with --enable-rule SCT_SUPPLIER_SCOPE.
+DEFAULT_DISABLED = frozenset({"SCT_SUPPLIER_SCOPE"})
+
+RULESET_V1 = Ruleset("v1-page6", _V1_FIELD_TYPE_MAP, _V1_NOT_FIELD, disabled=frozenset())
+RULESET_V2 = Ruleset("v2-excel-verified", _V2_FIELD_TYPE_MAP, _V2_NOT_FIELD,
+                     disabled=DEFAULT_DISABLED)
+
+# Back-compat aliases used by the single-page script.
+FIELD_TYPE_MAP = _V2_FIELD_TYPE_MAP
+NOT_FIELD_INSTRUMENT = _V2_NOT_FIELD
+ANCHORS = RULESET_V2.anchors
 
 # Shape of an ISA function-letter tag, used only to spot anchors the dictionary
 # above is missing.  Matching this does not make something a detection.
@@ -451,18 +509,22 @@ class Detection:
         }
 
 
-def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
+def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V2,
+           disabled: frozenset | None = None):
     bubbles = find_bubbles(pc, lay)
     marks = find_marks(pc, lay)
     mark_dict = read_mark_dictionary(pc, lay)
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)
 
+    if disabled is None:
+        disabled = rules.disabled
+
     detections: list[Detection] = []
     unverified: list[dict] = []
 
     for r, t in pc.words:
-        if t not in ANCHORS:
+        if t not in rules.anchors:
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
 
@@ -483,13 +545,13 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
         det = Detection(anchor=t, bbox=bubble, center=(cx, cy))
 
         # -- category / type mapping -----------------------------------
-        if t in VALVE_ANCHORS:
+        if t in rules.valves:
             det.category = "VALVE"
             det.included = False
             det.exclude_rule = "VALVE"
             det.rules_hit.append("VALVE")
             det.evidence["note"] = "valve deliverable, not the field instrument list"
-        elif t in NOT_FIELD_INSTRUMENT:
+        elif t in rules.not_field:
             det.category = "OTHER"
             det.included = False
             det.exclude_rule = "NOT_FIELD_INSTRUMENT"
@@ -497,7 +559,7 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
             det.evidence["note"] = f"{t} never appears in the field instrument list"
         else:
             det.category = "FIELD_INSTRUMENT"
-            det.excel_type = FIELD_TYPE_MAP[t]
+            det.excel_type = rules.field_type_map[t]
 
         # -- vendor mark (page-scoped meaning) -------------------------
         near = [
@@ -550,7 +612,7 @@ def detect(pc, lay: Layout = LAYOUT, disabled: frozenset = frozenset()):
     # candidates for TYPE_MAPPING_MISS when a drawing comes up short.
     unmapped: list[dict] = []
     for r, t in pc.words:
-        if t in ANCHORS or not ISA_LIKE_RE.match(t):
+        if t in rules.anchors or not ISA_LIKE_RE.match(t):
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         if not _inside(cx, cy, lay.drawing_area):
@@ -741,6 +803,9 @@ def main() -> int:
     ap.add_argument("--compare", default="data/CZE_Field_Instrument.xlsx")
     ap.add_argument("--json", default="out/detect_page006.json")
     ap.add_argument("--png", default="out/detect_page006.png")
+    ap.add_argument("--enable-rule", default="", metavar="RULE",
+                    help="re-enable a rule that is off by default "
+                         "(currently SCT_SUPPLIER_SCOPE; see DEFAULT_DISABLED)")
     ap.add_argument("--without", default="",
                     help="comma-separated exclusion rules to disable, to measure "
                          "what each one contributes (e.g. --without VENDOR_MARK)")
@@ -758,9 +823,11 @@ def main() -> int:
         "",
     )
 
-    disabled = frozenset(r.strip() for r in args.without.split(",") if r.strip())
+    enabled = {r.strip() for r in args.enable_rule.split(",") if r.strip()}
+    disabled = (RULESET_V2.disabled - enabled) | frozenset(
+        r.strip() for r in args.without.split(",") if r.strip())
     if disabled:
-        print(f"\n!! exclusion rules disabled for this run: {', '.join(sorted(disabled))}")
+        print(f"\n   exclusion rules off for this run: {', '.join(sorted(disabled))}")
     detections, scopes, mark_dict, unverified, unmapped = detect(pc, disabled=disabled)
     excel_rows = load_excel_rows(Path(args.compare), drawing_no) if args.compare else []
     metrics = report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows)

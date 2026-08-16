@@ -56,11 +56,13 @@
   ],
   "metrics": {
     "recall": 1.0,
-    "precision": 1.0,
+    "precision": 0.8571428571428571,
     "tp": 12,
-    "detected": 12,
+    "detected": 14,
     "expected": 12,
-    "mismatch_types": []
+    "mismatch_types": [
+      "FE"
+    ]
   },
   "excel_rows": [
     {
@@ -415,13 +417,11 @@
     },
     {
       "anchor": "FE",
-      "excel_type": null,
-      "category": "OTHER",
-      "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
-      "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
-      ],
+      "excel_type": "FE",
+      "category": "FIELD_INSTRUMENT",
+      "included": true,
+      "exclude_rule": "",
+      "rules_hit": [],
       "bbox": [
         431.3,
         516.5,
@@ -432,9 +432,7 @@
         465.9,
         521.7
       ],
-      "evidence": {
-        "note": "FE never appears in the field instrument list"
-      }
+      "evidence": {}
     },
     {
       "anchor": "TT",
@@ -1031,13 +1029,11 @@
     },
     {
       "anchor": "FE",
-      "excel_type": null,
-      "category": "OTHER",
-      "included": false,
-      "exclude_rule": "NOT_FIELD_INSTRUMENT",
-      "rules_hit": [
-        "NOT_FIELD_INSTRUMENT"
-      ],
+      "excel_type": "FE",
+      "category": "FIELD_INSTRUMENT",
+      "included": true,
+      "exclude_rule": "",
+      "rules_hit": [],
       "bbox": [
         431.3,
         1052.8,
@@ -1048,9 +1044,7 @@
         465.9,
         1058.1
       ],
-      "evidence": {
-        "note": "FE never appears in the field instrument list"
-      }
+      "evidence": {}
     },
     {
       "anchor": "TT",
