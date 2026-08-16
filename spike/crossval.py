@@ -99,7 +99,11 @@ def score(pages_subset, per_page, owned, rules, scope):
     return {"tp": tp, "detected": det_tot, "expected": exp_tot,
             "recall": tp / exp_tot if exp_tot else 0.0,
             "precision": tp / det_tot if det_tot else 0.0,
-            "delta_by_type": {k: v for k, v in per_type.items() if v}}
+            # Sorted so the report is byte-identical between runs: the key
+            # -abs(v) alone leaves ties to dict insertion order.
+            "delta_by_type": {k: v for k, v in
+                              sorted(per_type.items(), key=lambda kv: (-abs(kv[1]), kv[0]))
+                              if v}}
 
 
 def main() -> int:
@@ -167,7 +171,8 @@ def main() -> int:
     print("\nDROP when the held-out systems are scored with Steam-only rules:")
     print(f"{'group':<22} {'Δrecall':>9} {'Δprecision':>11}   biggest type gaps")
     for r in rows:
-        gaps = sorted(r["steam"]["delta_by_type"].items(), key=lambda kv: -abs(kv[1]))[:4]
+        gaps = sorted(r["steam"]["delta_by_type"].items(),
+                      key=lambda kv: (-abs(kv[1]), kv[0]))[:4]
         gap_s = ", ".join(f"{k}{v:+d}" for k, v in gaps)
         print(f"{r['group']:<22} {r['d_recall']:>+8.1%} {r['d_precision']:>+10.1%}   {gap_s}")
 
@@ -200,7 +205,8 @@ def main() -> int:
     L.append("| 대상 | 편차 |")
     L.append("|---|---|")
     for r in rows:
-        gaps = sorted(r["steam"]["delta_by_type"].items(), key=lambda kv: -abs(kv[1]))
+        gaps = sorted(r["steam"]["delta_by_type"].items(),
+                      key=lambda kv: (-abs(kv[1]), kv[0]))
         L.append(f"| {r['group']} | " + ", ".join(f"`{k}` {v:+d}" for k, v in gaps) + " |")
 
     out = Path(args.out)

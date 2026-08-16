@@ -33,7 +33,7 @@
 | 대상 | 편차 |
 |---|---|
 | STEAM (in-sample) | `FIT` +4, `FE` +2, `PDIT` +1 |
-| PGB (held out) | `PI` +4, `LS` +2, `TIT` -1, `LI` +1 |
+| PGB (held out) | `PI` +4, `LS` +2, `LI` +1, `TIT` -1 |
 | PAB (held out) | `LIT` +24, `PI` +13, `PIT` -2, `PDIT` +1 |
-| EGD (held out) | `PI` +20, `TIT` +2, `PIT` +2, `FE` +2, `LI` -2 |
-| ALL MATCHED | `PI` +56, `LIT` +32, `RO` +8, `PDIT` -5, `PIT` -4, `FE` +3, `FIT` +3, `LI` -3, `LS` +2, `TIT` +1, `TI` -1 |
+| EGD (held out) | `PI` +20, `FE` +2, `LI` -2, `PIT` +2, `TIT` +2 |
+| ALL MATCHED | `PI` +56, `LIT` +32, `RO` +8, `PDIT` -5, `PIT` -4, `FE` +3, `FIT` +3, `LI` -3, `LS` +2, `TI` -1, `TIT` +1 |

@@ -9,9 +9,9 @@
       "recall": 1.0,
       "precision": 0.9457364341085271,
       "delta_by_type": {
+        "FIT": 4,
         "FE": 2,
-        "PDIT": 1,
-        "FIT": 4
+        "PDIT": 1
       }
     },
     "full": {
@@ -21,9 +21,9 @@
       "recall": 1.0,
       "precision": 0.9457364341085271,
       "delta_by_type": {
+        "FIT": 4,
         "FE": 2,
-        "PDIT": 1,
-        "FIT": 4
+        "PDIT": 1
       }
     }
   },
@@ -37,10 +37,10 @@
       "recall": 0.9941176470588236,
       "precision": 0.9602272727272727,
       "delta_by_type": {
-        "TIT": -1,
         "PI": 4,
+        "LS": 2,
         "LI": 1,
-        "LS": 2
+        "TIT": -1
       }
     },
     "full": {
@@ -50,10 +50,10 @@
       "recall": 0.9941176470588236,
       "precision": 0.9602272727272727,
       "delta_by_type": {
-        "TIT": -1,
         "PI": 4,
+        "LS": 2,
         "LI": 1,
-        "LS": 2
+        "TIT": -1
       }
     }
   },
@@ -68,9 +68,9 @@
       "precision": 0.24,
       "delta_by_type": {
         "LIT": 24,
-        "PDIT": 1,
         "PI": 13,
-        "PIT": -2
+        "PIT": -2,
+        "PDIT": 1
       }
     },
     "full": {
@@ -95,11 +95,11 @@
       "recall": 0.9393939393939394,
       "precision": 0.543859649122807,
       "delta_by_type": {
-        "TIT": 2,
         "PI": 20,
-        "PIT": 2,
         "FE": 2,
-        "LI": -2
+        "LI": -2,
+        "PIT": 2,
+        "TIT": 2
       }
     },
     "full": {
@@ -109,10 +109,10 @@
       "recall": 1.0,
       "precision": 0.6470588235294118,
       "delta_by_type": {
-        "TIT": 2,
-        "PIT": 2,
+        "PI": 12,
         "FE": 2,
-        "PI": 12
+        "PIT": 2,
+        "TIT": 2
       }
     }
   },
@@ -126,17 +126,17 @@
       "recall": 0.9533582089552238,
       "precision": 0.8136942675159236,
       "delta_by_type": {
-        "TIT": 1,
-        "PIT": -4,
-        "LS": 2,
-        "FE": 3,
-        "PDIT": -5,
-        "FIT": 3,
         "PI": 56,
         "LIT": 32,
         "RO": 8,
+        "PDIT": -5,
+        "PIT": -4,
+        "FE": 3,
+        "FIT": 3,
+        "LI": -3,
+        "LS": 2,
         "TI": -1,
-        "LI": -3
+        "TIT": 1
       }
     },
     "full": {
@@ -146,17 +146,17 @@
       "recall": 0.9701492537313433,
       "precision": 0.8695652173913043,
       "delta_by_type": {
-        "TIT": 1,
-        "PIT": -4,
-        "LS": 2,
-        "FE": 3,
-        "PDIT": -2,
-        "FIT": 3,
         "PI": 42,
         "LIT": 8,
         "RO": 8,
+        "PIT": -4,
+        "FE": 3,
+        "FIT": 3,
+        "LI": 2,
+        "LS": 2,
+        "PDIT": -2,
         "TI": -1,
-        "LI": 2
+        "TIT": 1
       }
     }
   }
