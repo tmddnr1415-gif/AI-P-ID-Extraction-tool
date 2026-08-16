@@ -13,8 +13,7 @@ P&ID PDF 도면을 읽어 지정된 Excel 포맷(`2.0_Instrument List`)으로 Fi
 
 설치도 로그인도 없이 브라우저로 바로 씁니다. 이 저장소에 push 하면
 [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) 이 다시 올립니다.
-
-처음 한 번만 켜야 합니다 — 저장소 **Settings → Pages → Source** 를 `GitHub Actions` 로.
+Pages 설정도 워크플로가 켜므로 저장소 설정을 손댈 일은 없습니다.
 
 | | GitHub Pages | 공유 링크 서버 (`server/`) |
 |---|---|---|
