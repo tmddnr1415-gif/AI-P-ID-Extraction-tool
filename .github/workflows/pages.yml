@@ -1,7 +1,11 @@
 # web/ 를 GitHub Pages로 올린다.
 #
-# 이 브랜치에 push 하면 자동으로 다시 올라간다. Pages 설정도 워크플로가 켠다
-# (configure-pages 의 enablement). 저장소 설정을 손댈 필요가 없다.
+# 켜는 법 (한 번만): 저장소 Settings → Pages → Source 를 "GitHub Actions" 로.
+# 그 뒤로는 이 브랜치에 push 할 때마다 자동으로 다시 올라간다.
+#
+# 워크플로가 대신 켜려면 Pages 사이트를 만들어야 하는데, Actions 토큰에는 그 권한이
+# 없다(Create Pages site → Resource not accessible by integration). 저장소 관리자
+# 권한이 필요해서 사람이 한 번 눌러야 한다.
 #
 # 주소: https://tmddnr1415-gif.github.io/AI-P-ID-Extraction-tool/
 #
@@ -34,11 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Pages 를 아직 안 켰으면 여기서 켠다 (Source = GitHub Actions).
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/setup-python@v5
         with:
