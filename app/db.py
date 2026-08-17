@@ -289,7 +289,11 @@ ALL_ORIGINS = ("MATCHED", "REVISION_GAP", "PDF_ONLY")
 
 def snapshot(con, job_id: str, label: str = "", origins=None) -> int:
     origins = tuple(origins) if origins else ALL_ORIGINS
-    rows = [r for r in merged_rows(con, job_id) if r["origin"] in origins]
+    # A row whose origin could not be determined is kept, not dropped: silently
+    # losing rows from a delivered workbook is the one failure mode this gate
+    # exists to prevent, and an unknown origin is a reason to look, not to omit.
+    rows = [r for r in merged_rows(con, job_id)
+            if not r["origin"] or r["origin"] in origins]
     job = get_job(con, job_id)
     payload = {
         "origins_included": list(origins),
