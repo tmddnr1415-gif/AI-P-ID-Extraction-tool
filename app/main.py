@@ -304,16 +304,36 @@ def make_snapshot(job_id: str, payload: dict = None):
     """
     if db.get_job(CON, job_id) is None:
         raise HTTPException(404, "no such job")
-    label = (payload or {}).get("label", "")
-    origins = (payload or {}).get("origins") or list(db.ALL_ORIGINS)
+    payload = payload or {}
+    label = payload.get("label", "")
+    origins = payload.get("origins") or list(db.ALL_ORIGINS)
     unknown = set(origins) - set(db.ALL_ORIGINS)
     if unknown:
         raise HTTPException(400, f"unknown origin(s): {sorted(unknown)}")
-    rev = db.snapshot(CON, job_id, label, origins)
+    drawings = payload.get("drawings")
+    if drawings is not None:
+        known = {d["drawing_no"] for d in db.drawings_of(CON, job_id)}
+        unknown_d = set(drawings) - known
+        if unknown_d:
+            raise HTTPException(400, f"unknown drawing(s): {sorted(unknown_d)}")
+        if not drawings:
+            raise HTTPException(400, "no drawing selected, so nothing to deliver")
+    hold = bool(payload.get("hold_review"))
+    rev = db.snapshot(CON, job_id, label, origins, drawings, hold)
     snap = db.get_revision(CON, rev)
     return {"revision_id": rev, "origins": origins,
+            "drawings": snap["drawings_included"],
+            "review_held_back": hold,
             "rows": len(snap["rows"]),
             "review_count": db.review_count(CON, job_id)}
+
+
+@app.get("/jobs/{job_id}/drawings")
+def job_drawings(job_id: str):
+    """Drawings in this job with their row and review counts, grouped by system."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return db.drawings_of(CON, job_id)
 
 
 @app.get("/jobs/{job_id}/revisions")

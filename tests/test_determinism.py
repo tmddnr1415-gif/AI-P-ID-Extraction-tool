@@ -108,6 +108,36 @@ def test_user_edits_survive_reanalysis(tmp_path, first_run, second_run):
     assert summary["conflicts"] == [], "an unchanged re-run cannot conflict"
 
 
+def test_segments_are_not_mutated_by_the_engine():
+    """`segments()` hands out the drawing cache's own points; nothing may move them.
+
+    On an unrotated page the rotation matrix is the identity, so `segments()`
+    skips building a multiplied copy of every point - which is where most of the
+    analysis time went.  The price is that the points it returns belong to the
+    cached drawings.  This runs the three modules that consume them over a real
+    page and checks that not one coordinate moved.
+    """
+    sys.path.insert(0, str(ROOT / "app" / "engine"))
+    import pidcache                      # noqa: E402
+    import detect_symbols as ds          # noqa: E402
+    import detect_valves as dv           # noqa: E402
+    import legend_rules                  # noqa: E402
+
+    doc, pages = pidcache.load_pages(PDF)
+    pc = next(p for p in pages if p.page_no == 6)
+    before = [(p0.x, p0.y, p1.x, p1.y) for p0, p1 in pc.segments()]
+    ids = [(id(p0), id(p1)) for p0, p1 in pc.segments()]
+
+    ds.detect(pc, rules=ds.RULESET_V3)
+    dv.analyse(pc, dv.LAYOUT)
+    legend_rules.stroke_index(pc.segments())
+
+    after = [(p0.x, p0.y, p1.x, p1.y) for p0, p1 in pc.segments()]
+    assert after == before, "a caller moved a point in the shared drawing cache"
+    assert ids == [(id(p0), id(p1)) for p0, p1 in pc.segments()], \
+        "the segment list was rebuilt; the cache is not being reused"
+
+
 def test_origin_needs_no_answer_key():
     """Attribution must not depend on a finished list the user does not have.
 

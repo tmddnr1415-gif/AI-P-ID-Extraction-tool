@@ -37,6 +37,11 @@ _CFG = projectconfig.load()
 PROJECT_NAME_REGION = _CFG.rect("title_block.project_name_region")
 PROJECT_NAME_MIN_HEIGHT = float(_CFG.get("title_block.project_name_min_height"))
 
+# A page whose /Rotate is 0 has this as its rotation matrix, and multiplying a
+# point by it is a no-op.  Compared as a tuple because Matrix has no __eq__ that
+# says so.
+_IDENTITY = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+
 
 @dataclass
 class PageCache:
@@ -80,15 +85,28 @@ class PageCache:
 
         Note these sheets carry ~150k segments each, most of them glyph and
         curve tessellation — callers should filter by length.
+
+        **The points are the drawing cache's own objects on unrotated pages.**
+        Building two `pymupdf.Point`s per segment and multiplying each by the
+        rotation matrix was the single largest cost in the analysis — 300k to
+        660k objects per page — and on 56 of these 58 pages the matrix is the
+        identity, so the multiplication changed nothing.  Measured over six
+        pages: 30.8s to build them, 1.3s to hand back the points already in the
+        cache.  Every caller only reads coordinates (`detect_symbols` x3,
+        `detect_valves` x2, `legend_rules`), which `tests/test_determinism.py
+        ::test_segments_are_not_mutated_by_the_engine` pins; a caller that
+        wanted to move a point would now be moving the cached drawing with it.
         """
         if self._segments is None:
             m = self.page.rotation_matrix
-            segs = []
-            for d in self.page.get_drawings():
-                for item in d["items"]:
-                    if item[0] == "l":
-                        segs.append((pymupdf.Point(item[1]) * m, pymupdf.Point(item[2]) * m))
-            self._segments = segs
+            drawings = self.drawings()
+            if tuple(m) == _IDENTITY:
+                self._segments = [(it[1], it[2]) for d in drawings
+                                  for it in d["items"] if it[0] == "l"]
+            else:
+                self._segments = [
+                    (pymupdf.Point(it[1]) * m, pymupdf.Point(it[2]) * m)
+                    for d in drawings for it in d["items"] if it[0] == "l"]
         return self._segments
 
     def pixmap(self, clip: pymupdf.Rect, zoom: float = 2.0, **kw):

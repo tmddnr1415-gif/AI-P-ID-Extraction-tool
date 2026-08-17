@@ -301,6 +301,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "detections": dets,
             "annotations": annotations,
             "scope_keywords": scope_keywords,
+            "page_cache": pc,
         }
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
@@ -331,10 +332,23 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if not r.rect:
             continue
         layers.setdefault(r.page_no, collections.defaultdict(list))
+        scope = (SCOPE_REVIEW if r.needs_review else
+                 SCOPE_SCT if r.scope == "SCT" else
+                 SCOPE_VENDOR if r.vendor_supply == "VENDOR" else SCOPE_INCLUDED)
         layers[r.page_no][r.tab].append({
             "key": r.key, "rect": [round(v, 1) for v in r.rect],
             "label": r.type or r.valve_type, "needs_review": bool(r.needs_review),
+            "scope": scope,
+            "kind": KIND_VALVE if r.evidence.get("body") else KIND_INSTRUMENT,
+            "row": True,
+            "reason": r.needs_review,
         })
+    # And the symbols that were excluded, which have no row to hang off.
+    for pno, info in per_page.items():
+        marks = _excluded_marks(info["page_cache"], tb_rows[pno], info["detections"])
+        if marks:
+            layers.setdefault(pno, collections.defaultdict(list))
+            layers[pno]["EXCLUDED"].extend(marks)
 
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
@@ -434,6 +448,59 @@ SCOPE_OVERRIDES = {str(k["keyword"]).upper(): int(k["multiplier"])
 IP_TOKEN_EVIDENCE = ("I/P positioner on stem",)
 
 
+# How a symbol on the drawing relates to our supply scope.  This is what the
+# overlay is coloured by, because "why is this one not in my list" is the
+# question a reviewer asks of the drawing rather than of the grid - and the
+# answer is invisible when every box is the same colour.  The excluded ones are
+# not rows at all, so they are carried here or nowhere.
+SCOPE_INCLUDED = "INCLUDED"          # our supply, in a deliverable
+SCOPE_VENDOR = "VENDOR_EXCLUDED"     # a vendor mark is drawn on the symbol
+SCOPE_SCT = "SCT"                    # inside a supplier-scope box
+SCOPE_REVIEW = "REVIEW"              # a row whose judgement is held open
+KIND_INSTRUMENT = "INSTRUMENT"
+KIND_VALVE = "VALVE"
+
+# Which exclusion rule hit, in the words the report uses.
+_VENDOR_RULES = ("VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX")
+
+
+def _excluded_marks(pc, meta, dets) -> list:
+    """Symbols the exclusion rules removed, as overlay items with the reason.
+
+    They never become rows - that is the point of excluding them - so without
+    this they are simply absent from the drawing view, and a reviewer counting
+    boxes against the sheet has no way to tell an exclusion from a miss.
+    """
+    out = []
+    for d in dets:
+        if da.excel_type_under(d, ds.RULESET_V3) is None:
+            continue                     # not a deliverable symbol in any case
+        if da.included_under(d, ds.RULESET_V3, ACTIVE_SCOPE):
+            continue
+        hits = list(getattr(d, "rules_hit", []) or [])
+        rule = getattr(d, "exclude_rule", "") or next(
+            (r for r in hits if r in da.SCOPE_RULES), "")
+        scope = SCOPE_SCT if rule == "SCT_SUPPLIER_SCOPE" else SCOPE_VENDOR
+        r = d.bbox
+        out.append({
+            "key": _key(meta["drawing_no"], pc.page_no, "X", rule,
+                        *[round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]),
+            "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)],
+            "label": getattr(d, "anchor", "") or rule,
+            "scope": scope,
+            "kind": KIND_INSTRUMENT,
+            "needs_review": False,
+            "row": False,
+            "reason": f"{rule} — 이 심볼은 제외되어 리스트에 나오지 않습니다",
+            # The sentence this page's NOTES prints about the mark.  For an
+            # excluded symbol this *is* the answer to "why is it not in my
+            # list", so it travels with the mark rather than living in a row
+            # that was never created.
+            "notes_text": _notes_quotes(d),
+        })
+    return out
+
+
 def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
     """Field instrument rows for one drawing (spike 2 + spike 3)."""
     out = []
@@ -495,10 +562,31 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
                 "rules_hit": list(getattr(d, "rules_hit", [])),
                 "excluded_by": getattr(d, "exclude_rule", ""),
                 "detail": dict(getattr(d, "evidence", {}) or {}),
+                # The sentence this drawing's NOTES actually prints about the
+                # mark on this symbol, quoted rather than interpreted: the tool
+                # matched a mark, and the reader reads what the page says it
+                # means.  Empty when the page defines no meaning, which is what
+                # VENDOR_MARK_UNDEFINED is.
+                "notes_text": _notes_quotes(d),
                 "qty_basis": (f"1 symbol x {factor} (unit code {unit}, "
                               f"{mult.source})" if not undefined else
                               f"unit code {unit} undefined"),
+                "qty_source": f"{mult.source} — {mult.note}" if mult.note else mult.source,
             }))
+    return out
+
+
+def _notes_quotes(d) -> list:
+    """The drawing's own words about this symbol's scope marks."""
+    ev = getattr(d, "evidence", {}) or {}
+    out = []
+    mark = ev.get("vendor_mark") or {}
+    if mark.get("meaning"):
+        out.append(f"[벤더마크 x{mark.get('stars')}, {mark.get('source')}] "
+                   f"{mark['meaning']}")
+    sct = ev.get("sct_scope") or {}
+    if sct.get("label"):
+        out.append(f"[SCT {sct.get('kind')}] {sct['label']}")
     return out
 
 
@@ -521,15 +609,23 @@ def _scope_of(d) -> str:
 _VALVE_TAB = {dv.CLASS_BFV: TAB_BFV, dv.CLASS_MOV: TAB_MOV,
               dv.CLASS_CV: TAB_PNEUMATIC, dv.CLASS_XV: TAB_PNEUMATIC}
 
-# Bodies this tool treats as actuated valves.  Not a new rule: it is the set
-# `detect_valves.deliverable_class` already requires for a motor, plus the
-# butterfly it sends to its own deliverable.  A pneumatic actuator lands on
-# anything, because that branch never checked the body - and with the pneumatic
-# shapes now detected, two check valves came through as control valves: p7 has a
-# cylinder standing over a body tagged NRV, a non-return valve, which cannot be
-# actuated at all.  Those rows are flagged, not dropped: deciding they are wrong
-# is a detection change, and showing them to a reviewer is not.
-ACTUATED_BODIES = ("GATE", "GLOBE", "BALL", "BUTTERFLY")
+# Body families a deliverable covers, from the client's own files (config V5,
+# taken from each one's DESCRIPTION line): BUTTERFLY for CZI, GATE/GLOBE/BALL for
+# CZH.  A detection whose body is in none of them cannot be written into any
+# deliverable as an actuated valve, and that is the whole authority this flag
+# claims - it is not a detection rule, and it removes nothing.
+#
+# It is not derived from the legend, and that is deliberate: the legend does pair
+# its pneumatic actuators with bodies, but only by example, and every example is
+# a plain bowtie.  Measured on this document - legend p3 draws 4 domed
+# diaphragms, all on bowties (tagged PRV, BPRV, FCV), and legend p4's CONTROL
+# VALVE and ON-OFF VALVE rows draw 6 more, again all bowties.  The detector calls
+# a plain bowtie GATE and a bowtie with a waist disc GLOBE, so taking the
+# legend's examples as the permitted set would say GATE only, and throw away the
+# 38 globe and 5 ball bodies the drawings actually put pneumatic actuators on.
+# So the legend does not answer this question at the granularity it is asked.
+ACTUATED_BODIES = frozenset(
+    kind for _tag, _path, families in dv.DELIVERABLES for kind in families)
 
 
 def _valve_rows(page_no, meta, res, mult) -> list:
@@ -560,9 +656,10 @@ def _valve_rows(page_no, meta, res, mult) -> list:
                            "derived from this document")
         if not unread and b.kind not in ACTUATED_BODIES:
             reasons.append(
-                f"a {b.actuator} actuator was read onto a {b.kind} body, which "
-                f"this document's legend never draws with one"
-                + (f" (the tag bubble says {b.tag})" if b.tag else "")
+                f"a {b.actuator} actuator was read onto a {b.kind} body, and no "
+                f"deliverable covers that body family "
+                f"({', '.join(sorted(ACTUATED_BODIES))})"
+                + (f"; the tag bubble says {b.tag}" if b.tag else "")
                 + " - confirm before shipping")
         if undefined:
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
@@ -589,6 +686,7 @@ def _valve_rows(page_no, meta, res, mult) -> list:
                 "qty_basis": (f"1 symbol x {factor} (unit code {unit}, "
                               f"{mult.source})" if not undefined else
                               f"unit code {unit} undefined"),
+                "qty_source": f"{mult.source} — {mult.note}" if mult.note else mult.source,
             }))
     return out
 

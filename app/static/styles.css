@@ -64,7 +64,7 @@ button.ghost { background: transparent; border: 1px solid var(--line); color: va
 /* ---------- split ---------- */
 #split { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
 #left, #right { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-#left { border-right: 1px solid var(--line); }
+#left { border-right: 1px solid var(--line); position: relative; }
 .toolbar {
   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
   border-bottom: 1px solid var(--line); flex: none;
@@ -81,11 +81,48 @@ input[type=search] { flex: 1; }
 #wrap { position: relative; transform-origin: 0 0; }
 #sheet { display: block; background: #fff; }
 #ov { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* Colour is the scope, the dash is the deliverable kind, so the two read
+   independently.  Excluded symbols are drawn thinner: they are context, not
+   deliverables, and there are 158 of them against 748 rows. */
 rect.det {
-  fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; cursor: pointer;
+  /* Transparent, not `none`: with no fill only the 1.6px outline is hit-tested,
+     so clicking inside a symbol landed on the SVG behind it and selected
+     nothing.  The whole box is the target. */
+  fill: transparent; pointer-events: all;
+  stroke-width: 1.6; vector-effect: non-scaling-stroke; cursor: pointer;
 }
-rect.det.review { stroke-dasharray: 3 2; }
-rect.det.sel { stroke: #fff; stroke-width: 3; }
+rect.det.valve { stroke-dasharray: 5 3; }
+rect.det.excluded { stroke-width: 1.1; }
+rect.det.sel {
+  stroke: #fff; stroke-width: 3; stroke-dasharray: none;
+  filter: drop-shadow(0 0 3px #000);
+}
+/* One pulse on selection: enough to find the box on a 2384pt sheet, and over
+   before it becomes a distraction. */
+@keyframes detpulse {
+  0%   { stroke-width: 3;  opacity: 1; }
+  35%  { stroke-width: 11; opacity: .45; }
+  100% { stroke-width: 3;  opacity: 1; }
+}
+rect.det.pulse { animation: detpulse .55s ease-out 2; }
+
+/* ---------- overlay legend ---------- */
+#ovlegend {
+  /* Anchored to the panel, not to the sheet: it must not scroll away. */
+  position: absolute; left: 10px; bottom: 10px; z-index: 5; width: 186px;
+  background: #17181cec; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; backdrop-filter: blur(4px); font-size: 12px;
+}
+.ovl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.ovl-mode { margin-left: auto; color: var(--muted); font-size: 11px;
+  display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.ovl-row { display: flex; align-items: center; gap: 6px; padding: 2px 0;
+  cursor: pointer; }
+.ovl-row .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.ovl-row .n { margin-left: auto; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.ovl-foot { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line);
+  font-size: 11px; }
 
 /* ---------- grid ---------- */
 #gridwrap { flex: 1; overflow: auto; }
@@ -135,9 +172,21 @@ td[contenteditable]:focus { background: #4c8dff22; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   padding: 12px; box-shadow: 0 8px 28px #0008;
 }
+.scope-body { max-height: 72vh; overflow: auto; }
 .scope-body label { padding: 5px 0; gap: 8px; }
 .scope-body .n { margin-left: auto; color: var(--muted);
   font-variant-numeric: tabular-nums; }
+.scope-sec { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px;
+  padding-top: 8px; border-top: 1px solid var(--line); }
+.scope-sec b { flex: 1; }
+button.mini { padding: 1px 7px; font-size: 11px; }
+label.hold { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px !important;
+  background: var(--bg); }
+.sysgroup summary { cursor: pointer; display: flex; gap: 6px; padding: 4px 0;
+  color: var(--muted); }
+.sysgroup .dwg { padding-left: 14px !important; }
+.sysgroup .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 11px; }
 td.origin-PDF_ONLY { color: var(--warn); }
 td.origin-REVISION_GAP { color: #c77dff; }
 

@@ -1864,7 +1864,7 @@ def measure_against_master(results, pages) -> dict:
     }
 
 
-def rollcall(results, tag: str) -> dict:
+def rollcall(results, tag: str, cls: str = None) -> dict:
     """Walk a deliverable row by row and try to place each one on the drawing.
 
     Rows carry no coordinates, so a row is matched greedily against the
@@ -1872,6 +1872,16 @@ def rollcall(results, tag: str) -> dict:
     the same actuator, then one with the right family but a different actuator,
     then nothing.  That is weaker than a positional match, but it is a per-row
     verdict rather than a count comparison, and it names which rows failed.
+
+    `cls` is the deliverable this file *is* (`CLASS_MOV` for the MOV file), and
+    it decides what the leftovers are counted against.  Without it the pool was
+    "any body of the right family carrying any actuator", which counted a
+    pneumatically-actuated globe against the MOV file's precision even though
+    `deliverable_class` ships it in the control-valve deliverable instead: when
+    the pneumatic shapes became detectable that put 20 such valves into the MOV
+    denominator and dropped its precision from 82.6 to 64.0 without a single MOV
+    row changing verdict.  With `cls`, the pool is what this app would actually
+    write into this file.
     """
     entry = next((d for d in DELIVERABLES if d[0] == tag), None)
     if entry is None or not entry[1].exists():
@@ -1880,12 +1890,19 @@ def rollcall(results, tag: str) -> dict:
     idx = page_index()
     rows = load_valve_rows(path)
 
+    def candidate(b) -> bool:
+        if b.actuator in ("NONE", "UNREAD"):
+            return False
+        if cls is not None:
+            return deliverable_class(b) == cls
+        return b.kind in family
+
     pool: dict[str, list] = {}
     for dwg in {_norm(r["pid_no"]) for r in rows}:
         pgs = [p for k, v in idx.items() if _norm(k) == dwg for p in v]
         pool[dwg] = [b for p in pgs
                      for b in results.get(p, {"bodies": []})["bodies"]
-                     if b.kind in family and b.actuator not in ("NONE", "UNREAD")]
+                     if candidate(b)]
 
     out, verdicts = [], collections.Counter()
     for r in rows:
@@ -1923,7 +1940,7 @@ def class_scores(results) -> dict:
     """
     scores = {}
     for tag, cls in (("CZI", CLASS_BFV), ("CZH", CLASS_MOV)):
-        rc = rollcall(results, tag)
+        rc = rollcall(results, tag, cls)
         if not rc.get("available"):
             continue
         want = rc["rows"]
@@ -2425,7 +2442,7 @@ def main() -> int:
             "glyphs": glyphs,
             "failures": classify_failures(results, cmp_data),
             "class_scores": class_scores(results),
-            "rollcall_CZI": rollcall(results, "CZI"),
+            "rollcall_CZI": rollcall(results, "CZI", CLASS_BFV),
             "master": measure_against_master(results, pages),
         }
         if args.contributions:

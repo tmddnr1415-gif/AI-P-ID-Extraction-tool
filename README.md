@@ -44,7 +44,7 @@ pip install -r requirements.txt
 
 **분석 결과는 옮겨올 수 없습니다 — 옮겨올 필요도 없습니다.** `app/_data/` 도
 `.gitignore` 대상이라 커밋되지 않습니다. 내 PC 에서 PDF 를 한 번 끌어다 놓으면
-58장 약 7분이 걸리고, 그 결과는 이전 실행과 **바이트 단위로 동일**합니다
+58장 약 3분 30초가 걸리고, 그 결과는 이전 실행과 **바이트 단위로 동일**합니다
 (`tests/test_determinism.py::test_reanalysis_is_byte_identical` 가 보장).
 즉 재분석으로 잃는 것은 시간뿐이고, DB 를 옮겨야만 살아나는 것은 **사람이 손으로
 고친 값(`user_values`)** 하나입니다. 아직 손편집이 없다면 재분석이 곧 원본입니다.
@@ -91,7 +91,7 @@ FastAPI 프로세스가 `app/static/` 에서 서빙합니다 — 포트 하나, 
 (`http://127.0.0.1:8000/#<job_id>` 로 바로 들어가도 됩니다). 처음부터 다시 하려면
 `rm -rf app/_data`.
 
-새 PDF 는 창에 끌어다 놓으면 분석이 시작됩니다(58장 기준 약 7분, 진행률 SSE 실시간).
+새 PDF 는 창에 끌어다 놓으면 분석이 시작됩니다(58장 기준 약 3분 30초, 진행률 SSE 실시간).
 
 직접 띄우고 싶다면:
 
@@ -99,27 +99,33 @@ FastAPI 프로세스가 `app/static/` 에서 서빙합니다 — 포트 하나, 
 python3 -m uvicorn app.main:app --reload --port 8000 2>&1 | tee -a logs/server.log
 ```
 
-## 분석이 느릴 때 — 어디에 시간이 갔는지
+## 분석 시간 — 58장 약 3분 30초
 
 분석은 페이지별·단계별 소요시간을 로그에 남깁니다(`logs/server.log`). 페이지마다 한 줄,
 끝에 단계별 합계가 붙습니다.
 
 ```
-  page   6    4.31s   instruments 4.18s annotations 0.13s
-  page   7    3.92s   instruments 3.80s annotations 0.12s
-analysis took 425.8s, by stage:
-  instruments              190.72s   44.8%
-  titleblock_glyphs         79.61s   18.7%
-  valves.actuators          51.57s   12.1%
-  titleblocks               43.05s   10.1%
-  valves.bodies             40.64s    9.5%
-  legend_rules              14.83s    3.5%
-  slowest pages: p4 25.4s, p2 20.5s, p3 14.2s, p21 13.3s, p32 11.7s
+  page   6    1.10s   instruments 1.10s annotations 0.00s
+analysis took 211.6s, by stage:
+  titleblock_glyphs         67.81s   32.0%
+  valves.actuators          55.10s   26.0%
+  titleblocks               45.08s   21.3%
+  instruments               28.43s   13.4%
+  valves.bodies              7.75s    3.7%
+  slowest pages: p3 15.2s, p4 10.1s, p2 9.8s, p24 8.6s
 ```
 
 같은 내용이 `GET /jobs/{id}` 의 `engine.timings` 로도 남으니 나중에 비교할 수 있습니다.
 파서는 **PyMuPDF 하나뿐**입니다 — `pdfplumber` 도 `pypdfium2` 도 설치되어 있지 않고
 코드에서 부르지도 않습니다(`grep -rn "pdfplumber\|pdfium" app/` → 0건).
+
+**이전에는 425초였습니다.** `pidcache.segments()` 가 선분마다 `pymupdf.Point(...) *
+matrix` 를 만들던 것을, 회전이 항등인 페이지(58장 중 56장)에서는 곱셈을 생략하고 캐시의
+좌표를 그대로 넘기도록 바꿨습니다. 같은 실행에서 두 방식을 다 돌려 대조한 결과 지문·행
+데이터(540,772바이트)·오버레이가 **전부 동일**했고 시간은 381.5초 → 195.6초였습니다.
+대신 `segments()` 가 넘기는 Point 는 캐시 객체 자체이므로 호출자가 제자리에서 고치면
+안 되고, 그것을 `tests/test_determinism.py::test_segments_are_not_mutated_by_the_engine`
+이 실제 페이지로 검사합니다.
 
 ## 검증 모드
 
@@ -142,11 +148,18 @@ PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh     # Windows: start.ba
 
 화면에서 아래가 맞는지 봐 주세요. 괄호 안은 이번 회차 실측값입니다.
 
-- [ ] **p6 오버레이** — 좌측 페이지 선택에서 `p6` 선택. Field 박스 24개 + MOV 8개.
-      `Vendor` 열이 `VENDOR` 인 행을 클릭하면 도면 위 해당 박스가 흰 테두리로 강조됩니다.
-      (주의: 오버레이 색은 **탭 색**입니다 — Field 파랑 / MOV 주황 / BFV 초록.
-      vendor mark 여부는 색이 아니라 `Vendor` 열과 근거 패널의 `VENDOR_MARK_*` 로 봅니다.
-      벤더마크가 붙은 심볼은 제외 대상이라 애초에 행으로 나오지 않습니다.)
+- [ ] **오버레이 색 = 스코프** — 좌측 아래 `표시` 범례가 상시 떠 있습니다.
+      파랑 `포함` / 주황 `벤더 제외` / 보라 `SCT` / 빨강 `검토 필요`, 실선은 계장·파선은
+      밸브입니다. 항목을 체크 해제하면 그 색이 도면에서 사라집니다. `탭 색으로` 를 켜면
+      예전처럼 탭 색(Field 파랑 / MOV 주황 / BFV 초록)으로 돌아갑니다.
+      p6 에서 `포함 20` / `벤더 제외 22`, p25 에서 `벤더 제외 1` / `검토 필요 2`,
+      p20 에서 `SCT 2` 가 보여야 합니다.
+      **벤더마크가 붙은 심볼은 리스트에 행이 없지만 도면에는 주황으로 나옵니다** —
+      클릭하면 근거 패널에 그 페이지 NOTES 원문이 그대로 뜹니다
+      (예: "DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER.")
+- [ ] **행 ↔ 도면** — 그리드 행을 클릭하면 그 페이지로 넘어가 심볼을 화면 중앙으로
+      끌어오고 2.2배로 확대하며, 흰 테두리로 두 번 깜박입니다. 도면의 박스를 클릭하면
+      그 행이 선택되고 그리드가 그 행으로 스크롤됩니다. `Esc` 또는 빈 도면 클릭으로 해제
 - [ ] **행 수** — 상단 탭 `전체 892` / `Field 748` / `BFV 23` / `MOV 76` / `Pneumatic 45`.
       `출력 범위` 패널에서 `DRAWING 605행` / `REVISION_GAP 287행`
       (`MATCHED` / `PDF_ONLY` 는 검증 모드에서만 나옵니다 — 위 "검증 모드" 참고)
@@ -161,8 +174,12 @@ PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh     # Windows: start.ba
 - [ ] **적용 규칙 패널** — 상단 `적용 규칙` 클릭. 제외 스코프가 `glyph+text+box`,
       활성 제외규칙 3종, 비활성 `SCT_SUPPLIER_SCOPE`, 밸브 규칙 7종(`PNEUMATIC_SHELL`
       포함), 범례 유도에 `pneumatic: LEGEND`
+- [ ] **출력 범위** — `출력 범위` 클릭. 맨 위 `검토 필요 행 보류`(40행), 그 아래 시스템별로
+      묶인 **도면 42개** 체크박스(각 행수·검토수 표시), 전체/해제 버튼.
+      귀속은 두 종류 이상일 때만 아래에 나옵니다
 - [ ] **Excel 출력** — `전체 검토 완료` 체크 후 `Excel 출력`.
-      양식이 있는 산출물만 나옵니다: FIELD 748 / BFV 23 / MOV 76 / PNEUMATIC 45
+      양식이 있는 산출물만 나옵니다: FIELD 748 / BFV 23 / MOV 76 / PNEUMATIC 45.
+      도면을 빼거나 `검토 필요 행 보류` 를 켜면 스냅샷 행수가 줄고 버튼에 표시됩니다
 - [ ] **템플릿 패널** — Pneumatic·Master 는 `없음`. xlsx 를 올리면 다음 출력에 포함됩니다
 
 ## 화면
@@ -172,13 +189,24 @@ PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh     # Windows: start.ba
 - **인라인 편집** Type, Q'ty, System, Valve Type, Vendor, Scope, Tag No.,
   Description. 사람이 고친 값은 `user_values` 에 따로 저장되어 **재분석해도
   보존**됩니다
-- **판정 근거 패널** 앵커 / Body 판정 / 액추에이터 / 제외 사유 / 수량 근거
+- **판정 근거 패널** 스코프 판정(포함·제외·어느 규칙·NOTES 원문) / 수량(값·근거·승수
+  출처) / 분류(앵커·Type·Body·개폐·액추에이터·태그·산출물) / 위치(도면번호·페이지·좌표)
+  / 검토 필요 시 판단 못한 이유. 제외된 심볼은 행이 없어도 같은 패널로 사유를 보여줍니다
 - **검토 필요 건수** 상단에 상시 표시
 
 ## 출력 게이트
 
 `전체 검토 완료` 를 체크하면 그 시점 데이터가 **revision 스냅샷**으로 저장되고,
 Excel 은 **스냅샷에서만** 생성됩니다. 라이브 데이터에서 바로 뽑지 않습니다.
+
+범위를 좁히는 축은 셋이고 전부 기본값이 "전체 포함"입니다 — 사용자가 빼는 구조입니다.
+
+| 축 | 기준 | 왜 |
+| --- | --- | --- |
+| **도면 (P&ID No.)** | 도면별 체크박스, 시스템별로 묶음 | 계약이 도면 단위로 쓰이고, 어느 도면이 우리 역무인지는 도형으로 알 수 없습니다 |
+| **검토 필요 행 보류** | `needs_review` 가 있는 행 제외 | 판정이 열려 있는 행을 납품물에 넣지 않고 미룰 수 있어야 합니다 |
+| **귀속** | `REVISION_GAP` 등 | 두 종류 이상일 때만 표시 (검증 모드 포함) |
+
 출력은 발주처 파일을 복사한 뒤 데이터 영역만 바꾸므로 서식·필터·열너비·부속시트
 5종과 표 하단 기술요구사항 Note 가 그대로 유지됩니다.
 
@@ -186,8 +214,8 @@ Excel 은 **스냅샷에서만** 생성됩니다. 라이브 데이터에서 바�
 
 ```bash
 python3 -m pytest -q -m "not slow and not ui"   # 병합·충돌·스냅샷 규칙 (1초)
-python3 -m pytest -q -m ui                      # 실제 브라우저 편집 시나리오 (7분)
-python3 -m pytest -q                            # 전부, 결정론성 포함 (약 22분)
+python3 -m pytest -q -m ui                      # 실제 브라우저 편집 시나리오 (8분)
+python3 -m pytest -q                            # 전부, 결정론성 포함 (약 16분)
 ```
 
 `-m ui` 는 `app/_data/app.db` 의 기존 분석을 재사용하므로 재분석하지 않습니다.
@@ -205,25 +233,6 @@ app/static    리뷰 UI (빌드 도구 없음)
 spike/README.md  Phase 0 검증 기록 (수치·근거)
 docs/design.md   설계안
 ```
-
-## 성능 — 알고 있는 개선 여지 (미적용)
-
-`app/engine/pidcache.py` 의 `segments()` 가 좌표를 표시공간으로 옮기려고 선분마다
-`pymupdf.Point(...) * matrix` 를 만듭니다. 페이지당 15만~33만 선분이니 파이썬 객체가
-페이지마다 30만~66만 개 생기고, 이것이 실행시간의 대부분입니다. 그런데 58장 중 56장은
-회전이 0 이라 그 행렬이 **항등**이고, 곱셈이 아무것도 바꾸지 않습니다. 6페이지 실측:
-
-| | 6페이지 합계 |
-| --- | --- |
-| 현재 `segments()` | 30.8s |
-| 항등행렬이면 곱셈 생략 | **1.3s (24배)** |
-| `get_cdrawings()` 로 다시 읽기 | 2.8s (11배) |
-
-전체 실행 452초 중 약 265초가 여기이므로, 항등일 때만 생략하면 **3분대**로 내려갑니다.
-회전된 2장(p7·p48)은 지금 경로를 그대로 씁니다. 결과는 비트 단위로 같아야 하지만
-(항등행렬에서 `Point*m == Point`), 반환하는 Point 가 캐시 안의 객체 자체가 되므로
-호출자가 제자리에서 고치지 않는다는 점만 확인하면 됩니다 — 현재 세 곳 모두 읽기만
-합니다. **검출 로직 변경이 아니지만 아직 적용하지 않았습니다.**
 
 ## 알려진 범위
 

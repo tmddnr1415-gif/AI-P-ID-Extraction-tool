@@ -34,8 +34,8 @@
     <span id="review-badge" class="badge"></span>
     <details id="scope" class="scope">
       <summary>출력 범위</summary>
-      <!-- Filled from the origins the analysis actually produced; see
-           app.js buildScope(). -->
+      <!-- Filled from what the analysis actually produced: the drawings, the
+           origins present, and the review hold.  See app.js buildScope(). -->
       <div class="scope-body"></div>
     </details>
     <label class="gate">
@@ -64,6 +64,18 @@
         <span id="page-note" class="muted"></span>
       </div>
       <div id="stage"><div id="wrap"><img id="sheet" alt=""><svg id="ov"></svg></div></div>
+      <!-- Always on the drawing, so a colour never has to be remembered.  It
+           sits outside #stage because #stage is the scroll container, and an
+           absolutely positioned child of it scrolls away with the sheet.
+           Each row toggles its own layer; see app.js buildOverlayLegend(). -->
+      <div id="ovlegend">
+        <div class="ovl-head">
+          <b>표시</b>
+          <label class="ovl-mode"><input type="checkbox" id="ovl-bytab">탭 색으로</label>
+        </div>
+        <div id="ovl-items"></div>
+        <div class="ovl-foot muted">실선 계장 · 파선 밸브</div>
+      </div>
     </section>
 
     <section id="right">

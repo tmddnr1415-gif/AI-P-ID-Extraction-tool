@@ -361,17 +361,55 @@ def review_count(con, job_id: str) -> int:
 ALL_ORIGINS = ("DRAWING", "MATCHED", "REVISION_GAP", "PDF_ONLY")
 
 
-def snapshot(con, job_id: str, label: str = "", origins=None) -> int:
+def drawings_of(con, job_id: str) -> list:
+    """Every drawing in the job with its row count, for the output-scope panel.
+
+    The drawing is the unit a reviewer actually decides by: their contract covers
+    some P&ID numbers and not others, and no amount of geometry can tell the tool
+    which.  Grouped by system, because the client splits its packages that way.
+    """
+    out = {}
+    for r in merged_rows(con, job_id):
+        if r["removed"]:
+            continue
+        d = out.setdefault(r["drawing_no"], {
+            "drawing_no": r["drawing_no"],
+            "system": r["values"].get("system") or "",
+            "pages": set(), "rows": 0, "review": 0})
+        d["pages"].add(r["page_no"])
+        d["rows"] += 1
+        if r["needs_review"] or r["deleted"]:
+            d["review"] += 1
+    for d in out.values():
+        d["pages"] = sorted(d["pages"])
+    return sorted(out.values(), key=lambda d: (d["system"], d["drawing_no"]))
+
+
+def snapshot(con, job_id: str, label: str = "", origins=None,
+             drawings=None, hold_review: bool = False) -> int:
+    """Freeze what is to be delivered.  Excel comes only from one of these.
+
+    Three ways to narrow it, all of them the reviewer's decision and none of
+    them the tool's: `origins` (the page-origin sets), `drawings` (P&ID numbers -
+    the axis a contract is actually written on), and `hold_review`, which keeps
+    rows whose judgement is still open out of the workbook.  Every one defaults
+    to including everything: a reviewer takes rows *out*.
+    """
     origins = tuple(origins) if origins else ALL_ORIGINS
+    wanted = set(drawings) if drawings else None
     # A row whose origin could not be determined is kept, not dropped: silently
     # losing rows from a delivered workbook is the one failure mode this gate
     # exists to prevent, and an unknown origin is a reason to look, not to omit.
     rows = [r for r in merged_rows(con, job_id)
             if (not r["origin"] or r["origin"] in origins)
-            and not r["removed"]]
+            and not r["removed"]
+            and (wanted is None or r["drawing_no"] in wanted)
+            and not (hold_review and (r["needs_review"] or r["deleted"]))]
     job = get_job(con, job_id)
     payload = {
         "origins_included": list(origins),
+        "drawings_included": sorted(wanted) if wanted else None,
+        "review_held_back": bool(hold_review),
         "job_id": job_id,
         "pdf_name": job["pdf_name"],
         "pdf_sha256": job["pdf_sha256"],
