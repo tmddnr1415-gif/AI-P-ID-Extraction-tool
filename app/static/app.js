@@ -39,6 +39,8 @@ const S = {
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
   picking: false, feedback: 0, showTrace: true,
+  // Which trace layers the reviewer switched off: pipe | up | down | break.
+  trOff: new Set(),
 };
 
 /* ---------------- upload ---------------- */
@@ -232,6 +234,12 @@ function showAppliedRules() {
   const a = (S.job.engine || {}).applied_rules;
   if (!a) { $("#rules-body").innerHTML = "<p class='muted'>기록 없음</p>"; return; }
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  // The span label is a project fact from config, so it comes from the run
+  // rather than being written twice.
+  const ds = (S.job.engine || {}).description_scope || {};
+  if (ds.supplier_span_label) SUPPLIER_SPAN_LABEL = ds.supplier_span_label;
+  const pt = (S.job.engine || {}).pipe_trace || {};
+  const st = pt.per_status || {};
   $("#rules-body").innerHTML = "<dl class='rules'>"
     + row("계기 룰셋", a.instrument_ruleset)
     + row("제외 스코프", `<b>${a.exclusion_scope_name}</b>`)
@@ -248,6 +256,18 @@ function showAppliedRules() {
         .map(([k, v]) => `${k}: ${v.source}`
           + (v.source === "LEGEND" ? "" : ` <span class="muted">— ${v.note || ""}</span>`))
         .join("<br>"))
+    // Two axes, printed apart: how many rows are in the list, and how many of
+    // them will ever carry a Description.  The trace rate is stated on the
+    // Description-needed denominator, because that is what the stage was asked.
+    + row("Description 대상", `${ds.needed ?? "-"}행 · 생략 ${ds.skipped ?? 0}행`
+      + (Object.keys(ds.by_reason || {}).length
+        ? `<br><span class="muted">${Object.entries(ds.by_reason)
+          .map(([k, v]) => `${k}: ${v}`).join("<br>")}</span>` : ""))
+    + row("배관 추적", `대상 ${pt.description_needed ?? 0}행 중 `
+      + `성공 ${st.TRACED || 0} (${pt.rate_of_needed ?? 0}%) · `
+      + `후보다수 ${st.MULTIPLE || 0} · 실패 ${st.FAILED || 0}`
+      + `<br><span class="muted">전체 행 기준 ${pt.rate_of_all_rows ?? 0}% · `
+      + `추적 생략 ${pt.skipped_not_needed ?? 0}행</span>`)
     + "</dl>";
 }
 
@@ -503,7 +523,7 @@ function showEvidence(row) {
 
   // --- scope: included or not, by which rule, in the NOTES' own words -------
   const scopeName = row.needs_review ? "검토 필요"
-    : row.values.scope === "SCT" ? "SCT 표시"
+    : row.values.scope === "SCT" ? SUPPLIER_SPAN_LABEL
     : row.values.vendor_supply === "VENDOR" ? "벤더 공급"
     : row.values.vendor_supply === "UNDEFINED" ? "벤더 마크 (정의 없음)"
     : "포함";
@@ -538,9 +558,34 @@ function showEvidence(row) {
   add("귀속", row.origin);
   add("도면 주석", (e.annotations || []).join(" / "));
 
+  // --- multi-signal bubble group --------------------------------------------
+  // Three bubbles drawn edge-to-edge are three signals off one physical
+  // instrument.  The group is shown; the quantity is not touched, because neither
+  // the legend nor the client's own list says what the physical count is.
+  const grp = e.signal_group;
+  if (grp) {
+    add("다중 신호 버블", `${grp.members.length}개 버블이 한 묶음으로 그려져 있습니다 — `
+      + grp.members.map(m => m.anchor || m.type).join(" / "));
+    add("묶음 근거", `테두리 간격 ${(grp.basis.touching_gaps_pt || []).join(", ")}pt `
+      + `(허용 ${grp.basis.slack_pt}pt, legend_rules.INDEX_SLACK) · `
+      + `첫 문자 '${grp.basis.shared_first_letter}' 공통 · 세로 정렬`);
+    add("적용된 수량", `${(grp.basis.qty_applied || []).join(" + ")} — `
+      + "합산하지 않았습니다. 범례 p3 은 다기능 계기를 버블 1개로 그리고 "
+      + "묶음 표기를 정의하지 않으며, 발주처 리스트는 이 도면들을 다루지 않습니다");
+  }
+
+  // --- Description axis (separate from scope) --------------------------------
+  const needed = e.description_needed;
+  if (needed === false) {
+    add("Description 대상", `아님 — ${e.description_note || ""}`);
+    add("배관 추적", "수행하지 않았습니다 (Description 대상이 아니므로)");
+  } else if (needed === true) {
+    add("Description 대상", "예 — 리스트와 Description 모두 대상");
+  }
+
  // --- pipe connectivity ----------------------------------------------------
   const tr = e.trace || {};
-  if (tr.status) {
+  if (tr.status && tr.status !== "SKIPPED") {
     const names = (list) => (list || []).map(t =>
       `${t.label || t.kind}${t.kind === "EQUIPMENT" ? " (기기)" : ""}`).join(" / ");
     const label = { TRACED: "추적 성공", MULTIPLE: "후보 다수", FAILED: "추적 실패" };
@@ -555,6 +600,11 @@ function showEvidence(row) {
       add("추적 실패 사유", tr.reason || (tr.budget_exhausted
         ? "탐색 한도 초과 — 배관망이 너무 크게 연결돼 있습니다"
         : "이 심볼에서 도달 가능한 커넥터·기기가 없습니다"));
+      if ((tr.dead_ends || []).length) {
+        add("끊긴 지점", `${tr.dead_ends.length}곳 — 도면에 붉은 X 로 표시했습니다 `
+          + `(${tr.dead_ends.slice(0, 3).map(p => `${Math.round(p[0])},${Math.round(p[1])}`)
+            .join(" · ")}${tr.dead_ends.length > 3 ? " …" : ""})`);
+      }
     }
     add("Description", "이번 회차에서는 문장을 만들지 않습니다 (추적 결과만 기록)");
   }
@@ -634,10 +684,20 @@ $(".toolbar").addEventListener("click", ev => {
  * line work, all of them saturated enough not to read as drawing ink, and none
  * of them grey. Tab colouring is still available as a mode for the old view.
  */
+/* The span between two line breakers.  The wording was corrected: it used to read
+ * "SCT 배관 제외", which named our own company as the supplier and said the item
+ * was out of the list.  A reviewer confirmed the opposite on p20's
+ * D00P-11LAB00-M05-0001 - the pipe and the equipment inside the span are the
+ * supplier's scope, and the item stays in the list.  The engine's rule name and
+ * its behaviour are untouched; `config supplier_interface_span` holds the
+ * project's wording, and the server sends it with the result. */
+let SUPPLIER_SPAN_LABEL = "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위";
+
 const SCOPE = [
   ["INCLUDED", "포함", "#0a84ff", "우리 공급 범위 — 리스트에 나옴"],
   ["VENDOR_EXCLUDED", "벤더 제외", "#ff9f0a", "기기에 벤더 마크 → 리스트에서 제외"],
-  ["SCT", "SCT", "#bf5af2", "공급자 스코프 박스 안 (계약 범위 밖 배관)"],
+  ["SCT", "공급자 인터페이스 구간", "#bf5af2",
+   "브레이커 구간 안 — 배관 및 기기 공급자 범위. 행은 리스트에 남고 Description 만 생략"],
   ["REVIEW", "검토 필요", "#ff453a", "판정 보류 — 근거 패널의 사유 확인"],
 ];
 const SCOPE_COLOR = Object.fromEntries(SCOPE.map(([k, , c]) => [k, c]));
@@ -709,26 +769,53 @@ function drawOverlay() {
   buildOverlayLegend();
 }
 
-/* The traced pipe path for the selected row, under the boxes so it never hides
- * one.  Terminals are ringed and labelled: the walk stops at an off-page
- * connector or a piece of equipment, and which one it stopped at is the whole
- * result.  Nothing here writes a sentence - that is the next round's job. */
+/* The selected row's pipe, under the boxes so it never hides one.
+ *
+ * Four layers, each toggleable, because they answer different questions:
+ *
+ *   배관 라인   every run the walk reached - the line this instrument hangs off,
+ *               which is the thing a reviewer wants lit up on the sheet
+ *   upstream    the runs leading to a terminal the drawing printed `FROM`
+ *   downstream  the same for `TO`.  Direction is the drawing's own preposition,
+ *               never inferred from geometry
+ *   끊긴 지점   where the run stopped with nothing further drawn
+ *
+ * On this document most traces fail, and that last layer is the useful one: it
+ * puts the reviewer's eye exactly where the connectivity ran out, so they can see
+ * on the drawing whether the pipe really ends there.  Nothing here writes a
+ * sentence - that is still not this round's job. */
+const TRACE_COLOUR = { pipe: "#5ac8fa", up: "#30d158", down: "#ffd60a",
+                       other: "#8e8e93", break: "#ff375f" };
+
 function drawTrace(ov, scale) {
   const row = S.rows.find(r => r.key === S.sel);
   const tr = row && row.evidence && row.evidence.trace;
   if (!tr || !S.showTrace) return;
   const NS = "http://www.w3.org/2000/svg";
-  for (const run of tr.path || []) {
+  const on = (layer) => !S.trOff.has(layer);
+  const line = (run, colour, cls) => {
     const l = document.createElementNS(NS, "line");
     l.setAttribute("x1", run[0] * scale); l.setAttribute("y1", run[1] * scale);
     l.setAttribute("x2", run[2] * scale); l.setAttribute("y2", run[3] * scale);
-    l.setAttribute("class", "tracepath");
+    l.setAttribute("class", cls);
+    l.setAttribute("stroke", colour);
     ov.appendChild(l);
+  };
+
+  // 1. the pipe this row is attached to, plus the contact runs, so a failed
+  //    trace still shows where the symbol meets the drawing.
+  if (on("pipe")) {
+    for (const run of tr.contact || []) line(run, TRACE_COLOUR.pipe, "tracecontact");
+    for (const run of tr.path || []) line(run, TRACE_COLOUR.pipe, "tracepath");
   }
-  const seen = [["upstream", "#3fb950"], ["downstream", "#ff9f0a"],
-                ["undirected", "#8b8f9a"]];
-  for (const [dir, colour] of seen) {
+
+  // 2. the paths to each terminal, per direction.
+  const dirs = [["upstream", "up"], ["downstream", "down"], ["undirected", "other"]];
+  for (const [dir, layer] of dirs) {
+    const colour = TRACE_COLOUR[layer];
+    if (layer !== "other" && !on(layer)) continue;
     for (const t of tr[dir] || []) {
+      for (const run of t.path || []) line(run, colour, "tracedir");
       if (!t.rect || t.rect.length !== 4) continue;
       const r = document.createElementNS(NS, "rect");
       r.setAttribute("x", t.rect[0] * scale);
@@ -740,15 +827,31 @@ function drawTrace(ov, scale) {
       ov.appendChild(r);
     }
   }
+
+  // 3. where it broke off.  Marked with a cross rather than a box: it is a point
+  //    on the drawing, not a thing that was found.
+  if (on("break") && tr.status === "FAILED") {
+    for (const [x, y] of tr.dead_ends || []) {
+      for (const [dx, dy] of [[1, 1], [1, -1]]) {
+        line([x - 4 * dx, y - 4 * dy, x + 4 * dx, y + 4 * dy],
+             TRACE_COLOUR.break, "tracebreak");
+      }
+    }
+  }
 }
 
 $req("#ovl-bytab").addEventListener("change", ev => {
   S.byTab = ev.target.checked;
   drawOverlay();
 });
-$req("#ovl-trace").addEventListener("change", ev => {
-  S.showTrace = ev.target.checked;
-  drawOverlay();
+document.querySelectorAll(".ovl-tr").forEach(c => {
+  c.addEventListener("change", () => {
+    if (c.checked) S.trOff.delete(c.value); else S.trOff.add(c.value);
+    // The pipe layer is the trace itself; switching it off with the others hides
+    // the lot, which is what the old single checkbox did.
+    S.showTrace = document.querySelectorAll(".ovl-tr:checked").length > 0;
+    drawOverlay();
+  });
 });
 $req("#stage").addEventListener("click", ev => {
   if (S.picking) {

@@ -247,7 +247,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                 (result.get("fingerprint", ""),
                  json.dumps({k: result.get(k) for k in
                              ("multipliers", "legend", "glyphs", "job_review",
-                              "applied_rules", "timings")}, default=str),
+                              "applied_rules", "timings", "pipe_trace",
+                              "description_scope")}, default=str),
                  job_id))
     con.commit()
     return {"rows": len(result["rows"]), "conflicts": conflicts,

@@ -556,7 +556,14 @@ def trace(g: Graph, node_id: str) -> dict:
     """
     found, path_runs, budget = [], [], WALK_BUDGET
     seen = {node_id}
+    # Where each node was reached from, so the runs leading to one terminal can be
+    # separated from the rest of the walk.  Without it every direction shares one
+    # flat list of runs, and a reader looking at the drawing cannot tell which
+    # part of the highlighted pipe goes upstream and which goes down.
+    came_from = {}
     queue = collections.deque((nb, run, 0) for nb, run in g.adj[node_id])
+    for nb, run in g.adj[node_id]:
+        came_from[nb] = (node_id, run)
     while queue and budget > 0:
         nid, run, depth = queue.popleft()
         budget -= 1
@@ -567,12 +574,14 @@ def trace(g: Graph, node_id: str) -> dict:
         path_runs.append(run)
         if node["kind"] in ("CONNECTOR", "EQUIPMENT"):
             found.append({"kind": node["kind"], "label": node["label"],
-                          "rect": node["rect"], "depth": depth})
+                          "rect": node["rect"], "depth": depth,
+                          "path": _path_to(g, came_from, node_id, nid)})
             continue                       # a terminal ends the walk
         if node["kind"] == "SYMBOL":
             continue                       # another symbol is not our terminal
         for nb, nrun in g.adj[nid]:
             if nb not in seen:
+                came_from.setdefault(nb, (nid, nrun))
                 queue.append((nb, nrun, depth + 1))
 
     up, down, other = [], [], []
@@ -594,6 +603,15 @@ def trace(g: Graph, node_id: str) -> dict:
     overall = (FAILED if not found else
                MULTIPLE if len(up) > 1 or len(down) > 1 or len(other) > 1 else
                TRACED)
+    # Where the walk stopped with nothing further to follow.  On this document
+    # most traces fail, and the useful thing to put on the drawing is not "no
+    # result" but *where the pipe ran out* - a reviewer can look at that point and
+    # see in one glance whether the drawing really ends there or whether the run
+    # continues and we lost it.  These are visited junctions with only one edge:
+    # the drawing itself draws nothing beyond them.
+    dead_ends = [[g.nodes[nid]["x"], g.nodes[nid]["y"]]
+                 for nid in seen
+                 if g.nodes[nid]["kind"] == "JUNCTION" and len(g.adj[nid]) <= 1]
     return {
         "status": overall,
         "upstream": up, "downstream": down, "undirected": other,
@@ -601,4 +619,21 @@ def trace(g: Graph, node_id: str) -> dict:
         "budget_exhausted": budget <= 0,
         "nodes_walked": len(seen),
         "path": path_runs[:60],
+        # The runs from the symbol to the pipe it hangs off, kept apart from the
+        # walk so the drawing can show the contact point even when nothing was
+        # reached.
+        "contact": [run for _nb, run in g.adj[node_id]][:8],
+        "dead_ends": dead_ends[:40],
     }
+
+
+def _path_to(g: Graph, came_from: dict, start: str, end: str) -> list:
+    """The runs from `start` to `end`, walking the BFS parents backwards."""
+    runs, cur, guard = [], end, 0
+    while cur != start and cur in came_from and guard < WALK_BUDGET:
+        prev, run = came_from[cur]
+        runs.append(run)
+        cur = prev
+        guard += 1
+    runs.reverse()
+    return runs[:60]

@@ -42,6 +42,7 @@ if str(ENGINE) not in sys.path:
 
 import pidcache            # noqa: E402
 import projectconfig       # noqa: E402
+import legend_rules        # noqa: E402
 import extract_titleblocks as tb   # noqa: E402
 import detect_symbols as ds        # noqa: E402
 import detect_all as da            # noqa: E402
@@ -118,6 +119,11 @@ class Row:
     scope: str = ""
     description: str = ""          # Phase 2
     tag_no: str = ""               # not assigned on these drawings
+    # Whether this row needs a Description at all.  A separate axis from `scope`:
+    # `scope` decides whether the row is in the list, this decides whether a
+    # sentence will ever be written for it.  See `_description_skip`.
+    description_needed: bool = True
+    description_note: str = ""
     needs_review: str = ""         # engine uncertainty, empty when fine
     annotation: str = ""           # reviewer markup on the drawing, page-level
     rect: tuple = ()
@@ -337,6 +343,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     for r in rows:
         r.origin = origins.get(r.page_no, ORIGIN_DRAWING)
 
+    # Bubbles the drawing stacks edge-to-edge.  Flagged, never merged.
+    signal_groups = _signal_groups(rows)
+
     say(total - 1, total, "building overlays")
     for r in rows:
         if not r.rect:
@@ -352,6 +361,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "kind": KIND_VALVE if r.evidence.get("body") else KIND_INSTRUMENT,
             "row": True,
             "reason": r.needs_review,
+            "description_needed": r.description_needed,
         })
     # And the symbols that were excluded, which have no row to hang off.
     for pno, info in per_page.items():
@@ -419,6 +429,17 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # because it is the one key that must differ between two runs.
         "timings": clock.report(),
         "pipe_trace": trace_stats,
+        # The two axes, counted separately on purpose.  `scope` is what is in the
+        # list; this is what will carry a Description.
+        "description_scope": {
+            "needed": sum(1 for r in rows if r.description_needed),
+            "skipped": sum(1 for r in rows if not r.description_needed),
+            "by_reason": dict(collections.Counter(
+                r.description_note for r in rows if not r.description_needed)),
+            "supplier_span_label": SUPPLIER_SPAN_LABEL,
+            "supplier_span_party": SUPPLIER_SPAN_PARTY,
+        },
+        "signal_groups": signal_groups,
         "pdf": str(pdf_path),
         "pages": [
             {"page_no": p.page_no, "width": p.width, "height": p.height,
@@ -481,6 +502,152 @@ KIND_VALVE = "VALVE"
 # Which exclusion rule hit, in the words the report uses.
 _VENDOR_RULES = ("VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX")
 
+# What a supplier-interface span is called.
+#
+# The drawing marks the span with a broken line and the letters `SCT`, and the
+# engine's rule is named after those letters - `SCT_SUPPLIER_SCOPE`, untouched,
+# because it is verified detection.  What the span *means* is what this corrects.
+# The label used to read "SCT 배관 제외", which names our own company as the party
+# and says the item is out of the list; a reviewer confirmed that on p20's
+# D00P-11LAB00-M05-0001 the pipe and the equipment inside the span are the
+# *supplier's* scope, and that the item stays in the list.  The judgement is
+# unchanged - only the sentence that explains it.
+#
+# The legend does not define this span (measured last round: pages 2-5 print no
+# row for it), so no rule is derived from it.  Who supplies it is a project fact,
+# so `config supplier_interface_span` holds the place and stays blank until a
+# project states it.
+SUPPLIER_SPAN = CFG.data.get("supplier_interface_span") or {}
+SUPPLIER_SPAN_LABEL = str(SUPPLIER_SPAN.get("label")
+                          or "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위")
+SUPPLIER_SPAN_PARTY = str(SUPPLIER_SPAN.get("supplied_by") or "")
+
+# Rows that stay in the list but get no Description, and why.  This is the second
+# axis, deliberately not mixed with `scope`: a confirmed other-party supply item
+# is still delivered as a line of the list - the reviewer confirmed that is the
+# client's practice - and its Description is left blank, because we do not
+# describe a scope we do not supply.  Tracing is skipped for the same reason.
+#
+# `VENDOR_MARK_UNDEFINED` is deliberately absent: a mark this drawing's NOTES do
+# not define is not a confirmation of anything, so those rows keep their
+# Description, keep their trace and keep their review flag.
+DESCRIPTION_SKIP_RULES = {
+    "SCT_SUPPLIER_SCOPE": SUPPLIER_SPAN_LABEL,
+    "VENDOR_MARK_GLYPH": "벤더 마크 — 타사 공급 범위",
+    "VENDOR_MARK_TEXT": "벤더 마크(텍스트형) — 타사 공급 범위",
+    "VENDOR_MARK_BOX": "벤더 패키지 박스 안 — 타사 공급 범위",
+}
+DESCRIPTION_SKIP_NOTE = "타사 공급 — Description 생략"
+
+
+def _description_skip(d) -> str:
+    """Why this row needs no Description, or "" when it does.
+
+    Read off the same rule hits the scope judgement uses, so the two axes agree on
+    the facts while staying separate in what they do about them.
+    """
+    for rule in getattr(d, "rules_hit", []) or []:
+        if rule in DESCRIPTION_SKIP_RULES:
+            return f"{DESCRIPTION_SKIP_NOTE} ({DESCRIPTION_SKIP_RULES[rule]})"
+    return ""
+
+
+# Multi-signal bubble groups: several signals off one physical instrument.
+#
+# A reviewer confirmed that the LSHH / LSH / LSL bubbles drawn edge-to-edge are
+# one physical level switch, so the physical quantity should be 1 rather than 3.
+# Nothing here acts on that, because nothing in the document says so:
+#
+#   * legend p3 defines "INSTRUMENT FOR SINGLE MEASURED VARIABLE AND ANY NUMBER OF
+#     FUNCTIONS" and draws it as *one* bubble; it draws no stack anywhere, so it
+#     does not define this case.
+#   * the client's own list writes one row per bubble (22 LS rows against 22 LS
+#     bubbles on the five drawings it covers) - but it covers none of the five
+#     drawings that carry the stacks, so it never ruled on them either.
+#
+# So the group is measured, shown and flagged, and the quantity is left alone.
+MULTI_SIGNAL_REASON = "다중 신호 버블 — 물리 수량 확인 필요"
+
+
+def _signal_groups(rows) -> list:
+    """Bubbles the drawing stacks edge-to-edge, grouped, with the basis measured.
+
+    The three tests are the ones the drawing itself answers, and none of them is a
+    distance someone chose:
+
+      touching       the vertical gap is no more than the stroke index's own slack
+                     (`legend_rules.INDEX_SLACK`).  Measured over every
+                     horizontally-overlapping pair of bubbles in this document,
+                     the pairs that pass are exactly the 34 LSH/LSHH/LSL stacks
+                     and their gap is 0.0; the next-closest overlapping pair
+                     anywhere is 3 pt apart.  The test reads a discrete fact.
+      stacked        their horizontal extents overlap by at least half the
+                     narrower bubble - that is what makes it a stack rather than
+                     two neighbours side by side.
+      same variable  the anchors begin with the same letter, so they are functions
+                     on one measured variable.
+    """
+    by_page = collections.defaultdict(list)
+    for r in rows:
+        anchor = str(r.evidence.get("anchor") or "")
+        if r.rect and anchor:
+            by_page[r.page_no].append((anchor, r))
+    groups = []
+    for pno, members in sorted(by_page.items()):
+        parent = list(range(len(members)))
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for i in range(len(members)):
+            for j in range(i + 1, len(members)):
+                (ai, ri), (aj, rj) = members[i], members[j]
+                if ai[0] != aj[0]:
+                    continue
+                a, b = ri.rect, rj.rect
+                overlap = min(a[2], b[2]) - max(a[0], b[0])
+                if overlap < 0.5 * min(a[2] - a[0], b[2] - b[0]):
+                    continue
+                gap = max(a[1], b[1]) - min(a[3], b[3])
+                if gap > legend_rules.INDEX_SLACK:
+                    continue
+                pi, pj = find(i), find(j)
+                if pi != pj:
+                    parent[pj] = pi
+        buckets = collections.defaultdict(list)
+        for i in range(len(members)):
+            buckets[find(i)].append(i)
+        for idxs in buckets.values():
+            if len(idxs) < 2:
+                continue
+            idxs.sort(key=lambda i: members[i][1].rect[1])
+            grp = [members[i][1] for i in idxs]
+            gaps = [round(grp[k + 1].rect[1] - grp[k].rect[3], 2)
+                    for k in range(len(grp) - 1)]
+            group = {
+                "page_no": pno,
+                "drawing_no": grp[0].drawing_no,
+                "members": [{"key": r.key, "anchor": r.evidence.get("anchor", ""),
+                             "type": r.type,
+                             "rect": [round(v, 1) for v in r.rect]} for r in grp],
+                "basis": {
+                    "touching_gaps_pt": gaps,
+                    "slack_pt": legend_rules.INDEX_SLACK,
+                    "shared_first_letter": str(
+                        grp[0].evidence.get("anchor", ""))[:1],
+                    "qty_applied": [r.qty for r in grp],
+                },
+            }
+            groups.append(group)
+            for r in grp:
+                r.evidence["signal_group"] = group
+                r.needs_review = "; ".join(
+                    [s for s in (r.needs_review, MULTI_SIGNAL_REASON) if s])
+    return groups
+
 
 def _excluded_marks(pc, meta, dets) -> list:
     """Symbols the exclusion rules removed, as overlay items with the reason.
@@ -509,7 +676,9 @@ def _excluded_marks(pc, meta, dets) -> list:
             "kind": KIND_INSTRUMENT,
             "needs_review": False,
             "row": False,
-            "reason": f"{rule} — 이 심볼은 제외되어 리스트에 나오지 않습니다",
+            "reason": (f"{rule} — {SUPPLIER_SPAN_LABEL}"
+                       if rule == "SCT_SUPPLIER_SCOPE"
+                       else f"{rule} — 이 심볼은 제외되어 리스트에 나오지 않습니다"),
             # The sentence this page's NOTES prints about the mark.  For an
             # excluded symbol this *is* the answer to "why is it not in my
             # list", so it travels with the mark rather than living in a row
@@ -571,11 +740,19 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
             system=meta["drawing_title"],
             vendor_supply=_vendor_of(d),
             scope=_scope_of(d),
+            description_needed=not _description_skip(d),
+            description_note=_description_skip(d),
             needs_review="; ".join(reasons),
             annotation=("reviewer markup on this drawing" if marked else ""),
             rect=rect,
             evidence={
                 "anchor": getattr(d, "anchor", ""),
+                # Carried in the evidence as well as on the row: the database
+                # stores the editable columns and the evidence, so this is how the
+                # second axis reaches the reviewer's screen without pretending to
+                # be an editable value.
+                "description_needed": not _description_skip(d),
+                "description_note": _description_skip(d),
                 "annotations": [a.get("text", "") for a in annotations][:6],
                 "rules_hit": list(getattr(d, "rules_hit", [])),
                 "excluded_by": getattr(d, "exclude_rule", ""),
@@ -594,18 +771,32 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
     return out
 
 
+SKIPPED = "SKIPPED"        # not traced: this row will never carry a Description
+
+
 def _trace_rows(rows, per_page, style, clock) -> dict:
-    """Attach a pipe trace to every row that has a rectangle.
+    """Attach a pipe trace to every row that will need a Description.
 
     One graph per page, then one walk per row.  The result goes in the row's
     evidence as `trace` and is classified TRACED / MULTIPLE / FAILED so the
     accuracy of this stage can be counted rather than asserted.
+
+    Rows exempt from Description are not walked at all - there is no sentence to
+    write for them, so the walk would be work for nothing - and they are counted
+    separately.  That also fixes the denominator: a success rate measured over
+    every row understates the stage, because it charges it with rows it was never
+    asked about.  Both numbers are reported.
     """
     area = CFG.rect("regions.drawing_area")
     stats = collections.Counter()
     graphs = {}
     by_page = collections.defaultdict(list)
+    skipped = 0
     for r in rows:
+        if not r.description_needed:
+            r.evidence["trace"] = {"status": SKIPPED, "reason": r.description_note}
+            skipped += 1
+            continue
         if r.rect:
             by_page[r.page_no].append(r)
     for pno, page_rows in sorted(by_page.items()):
@@ -629,7 +820,19 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
             tr["attached_by"] = g.nodes[nid].get("attached_by", "")
             r.evidence["trace"] = tr
             stats[tr["status"]] += 1
-    return {"per_status": dict(stats), "graphs": graphs}
+    walked = sum(stats.values())
+    return {
+        "per_status": dict(stats),
+        "graphs": graphs,
+        # The two denominators, both stated: rows walked because they will need a
+        # Description, and rows skipped because they will not.
+        "description_needed": walked,
+        "skipped_not_needed": skipped,
+        "rate_of_needed": round(100 * stats[pipe_graph.TRACED] / walked, 1)
+        if walked else 0.0,
+        "rate_of_all_rows": round(100 * stats[pipe_graph.TRACED] / (walked + skipped), 1)
+        if walked + skipped else 0.0,
+    }
 
 
 def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
@@ -718,7 +921,13 @@ def _notes_quotes(d) -> list:
                    f"{mark['meaning']}")
     sct = ev.get("sct_scope") or {}
     if sct.get("label"):
-        out.append(f"[SCT {sct.get('kind')}] {sct['label']}")
+        # The span's own marking, quoted, under the corrected name: the letters
+        # the drawing prints are `SCT`, and what the span means is a supplier
+        # interface - the label used to claim the item was excluded as our own
+        # piping, which named the wrong party.
+        out.append(f"[{SUPPLIER_SPAN_LABEL}] 도면 표기 “{sct['label']}”"
+                   f" ({sct.get('kind')})"
+                   + (f", 공급: {SUPPLIER_SPAN_PARTY}" if SUPPLIER_SPAN_PARTY else ""))
     return out
 
 

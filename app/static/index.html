@@ -78,10 +78,29 @@
           <label class="ovl-mode"><input type="checkbox" id="ovl-bytab">탭 색으로</label>
         </div>
         <div id="ovl-items"></div>
-        <label class="ovl-row" title="선택한 행의 배관 추적 경로를 도면에 표시">
-          <input type="checkbox" id="ovl-trace" checked>
+        <!-- The selected row's pipe, in four separable layers.  Most traces on
+             this document fail, so the layer that matters most is the last one:
+             where the run stops.  See app.js drawTrace(). -->
+        <div class="ovl-head"><b>선택한 계기의 배관</b></div>
+        <label class="ovl-row" title="선택한 행이 물려 있는 배관 전체">
+          <input type="checkbox" class="ovl-tr" value="pipe" checked>
           <span class="swatch" style="background:#5ac8fa"></span>
-          <span class="ovl-label">배관 경로</span>
+          <span class="ovl-label">배관 라인</span>
+        </label>
+        <label class="ovl-row" title="FROM 으로 적힌 쪽 — 도면의 낱말이 정한 방향">
+          <input type="checkbox" class="ovl-tr" value="up" checked>
+          <span class="swatch" style="background:#30d158"></span>
+          <span class="ovl-label">upstream</span>
+        </label>
+        <label class="ovl-row" title="TO 로 적힌 쪽 — 도면의 낱말이 정한 방향">
+          <input type="checkbox" class="ovl-tr" value="down" checked>
+          <span class="swatch" style="background:#ffd60a"></span>
+          <span class="ovl-label">downstream</span>
+        </label>
+        <label class="ovl-row" title="추적이 끊긴 지점 — 도면에서 직접 확인할 곳">
+          <input type="checkbox" class="ovl-tr" value="break" checked>
+          <span class="swatch" style="background:#ff375f"></span>
+          <span class="ovl-label">끊긴 지점</span>
         </label>
         <div class="ovl-foot muted">실선 계장 · 파선 밸브</div>
       </div>

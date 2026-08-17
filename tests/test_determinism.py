@@ -80,6 +80,55 @@ def test_pneumatic_valves_are_found(first_run):
 
 
 @pytest.mark.slow
+def test_multi_signal_bubbles_are_flagged_never_merged(first_run):
+    """Stacked bubbles are grouped and held open, and the quantity is untouched.
+
+    A reviewer confirmed the LSHH / LSH / LSL stack is one physical switch.  The
+    document does not say so - legend p3 draws a multi-function instrument as a
+    single bubble and never draws a stack, and the client's own list covers none
+    of the five drawings that carry one - so the group is reported and the
+    quantity is left exactly as the multiplier put it.
+    """
+    groups = first_run["signal_groups"]
+    assert groups, "no stacked bubble group found on a document that has 34"
+    members = [m for g in groups for m in g["members"]]
+    by_key = {r["key"]: r for r in first_run["rows"]}
+    for g in groups:
+        assert len(set(m["anchor"][:1] for m in g["members"])) == 1
+        assert all(gap <= g["basis"]["slack_pt"]
+                   for gap in g["basis"]["touching_gaps_pt"])
+        for m in g["members"]:
+            row = by_key[m["key"]]
+            assert pipeline.MULTI_SIGNAL_REASON in row["needs_review"]
+    # every member still carries its own quantity: nothing was summed or dropped
+    assert len({m["key"] for m in members}) == len(members)
+
+
+@pytest.mark.slow
+def test_description_scope_is_a_separate_axis_from_the_list(first_run):
+    """A row exempt from Description is still a row, and is not traced.
+
+    Whether an item is in the list and whether it needs a Description are two
+    different questions; mixing them would drop other-party items out of the
+    deliverable, which is the opposite of what the client does with them.
+    """
+    exempt = [r for r in first_run["rows"]
+              if r["evidence"].get("description_needed") is False]
+    assert exempt, "no row is exempt from Description on a document that has some"
+    for r in exempt:
+        assert r["tab"] != pipeline.TAB_REVIEW or r["needs_review"]
+        assert r["evidence"]["trace"]["status"] == pipeline.SKIPPED, (
+            "an item we do not describe should not be traced")
+        assert r["evidence"]["description_note"], "no reason given for the skip"
+    stats = first_run["pipe_trace"]
+    assert stats["skipped_not_needed"] == len(exempt)
+    assert stats["description_needed"] + stats["skipped_not_needed"] <= len(
+        first_run["rows"])
+    # both denominators are reported, and the honest one is the larger rate
+    assert stats["rate_of_needed"] >= stats["rate_of_all_rows"]
+
+
+@pytest.mark.slow
 def test_row_keys_are_unique_and_stable(first_run, second_run):
     """A row's identity has to survive a re-run, or edits cannot be carried."""
     ka = [r["key"] for r in first_run["rows"]]

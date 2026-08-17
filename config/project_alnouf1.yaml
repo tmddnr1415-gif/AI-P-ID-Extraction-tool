@@ -141,6 +141,26 @@ sct_scope:
   drop_x_tol: 2.0
   drop_end_tol: 1.5
 
+# What the span between two line breakers is called, and who supplies it.
+#
+# The drawing marks the span with a broken line and the letters `SCT`, and the
+# detection rule is named after those letters (`SCT_SUPPLIER_SCOPE`).  The legend
+# does not define the span - measured over legend pages 2-5, no row prints it - so
+# nothing is derived from it and no rule reads this block.  It only names the
+# span in the report: a reviewer confirmed that on p20's D00P-11LAB00-M05-0001 the
+# pipe and the equipment inside the span are the *supplier's* scope, so the old
+# wording ("SCT 배관 제외") named the wrong party.
+#
+# `supplied_by` is the project's own fact and is deliberately left blank: this
+# tool has no way to measure who supplies a span, so it says nothing until a
+# project fills it in.  `description` records that a confirmed other-party span
+# gets no Description sentence, which is the axis `pipeline.DESCRIPTION_SKIP_RULES`
+# implements - the row stays in the list either way.
+supplier_interface_span:
+  label: "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위"
+  supplied_by: ""
+  description: skip
+
 # P17 — words with no discriminating power when matching an Excel SYSTEM value
 # against a drawing title.
 matching:

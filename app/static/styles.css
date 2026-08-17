@@ -122,6 +122,22 @@ line.tracepath {
   stroke: #5ac8fa; stroke-width: 5; stroke-linecap: round; opacity: .75;
   vector-effect: non-scaling-stroke; pointer-events: none;
 }
+/* The symbol's own connection to the pipe: thinner than the pipe it joins, so a
+   failed trace still shows where the instrument meets the drawing. */
+line.tracecontact {
+  stroke-width: 3; stroke-linecap: round; opacity: .95;
+  vector-effect: non-scaling-stroke; pointer-events: none;
+}
+/* The runs leading to one terminal, over the pipe layer and brighter. */
+line.tracedir {
+  stroke-width: 6; stroke-linecap: round; opacity: .9;
+  vector-effect: non-scaling-stroke; pointer-events: none;
+}
+/* Where the run stops with nothing further drawn. */
+line.tracebreak {
+  stroke-width: 2.5; opacity: 1;
+  vector-effect: non-scaling-stroke; pointer-events: none;
+}
 rect.terminal {
   fill: none; stroke-width: 2.5; stroke-dasharray: 6 3;
   vector-effect: non-scaling-stroke; pointer-events: none;
