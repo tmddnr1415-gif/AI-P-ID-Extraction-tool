@@ -12,6 +12,7 @@ const TABS = [
 ];
 const COLS = [
   ["page_no", "Page", false], ["pid_no", "P&ID No.", false],
+  ["origin", "귀속", false],
   ["type", "Type", true], ["valve_type", "Valve Type", true],
   ["qty", "Q'ty", true], ["system", "System", true],
   ["vendor_supply", "Vendor", true], ["scope", "Scope", true],
@@ -26,6 +27,7 @@ const COLOR = {
 const S = {
   job: null, tab: "ALL", rows: [], pages: [], page: null, zoom: 1,
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
+  originFilter: "", originCounts: {},
 };
 
 /* ---------------- upload ---------------- */
@@ -104,20 +106,30 @@ async function open(jobId) {
 async function loadRows() {
   S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
   S.counts = { ALL: S.rows.length, REVIEW: 0 };
+  S.originCounts = {};
   for (const r of S.rows) {
     S.counts[r.tab] = (S.counts[r.tab] || 0) + 1;
     if (r.needs_review || r.deleted) S.counts.REVIEW++;
+    S.originCounts[r.origin] = (S.originCounts[r.origin] || 0) + 1;
   }
+  for (const el of document.querySelectorAll(".scope-body .n"))
+    el.textContent = `${S.originCounts[el.dataset.n] || 0}행`;
+  S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
   buildTabs();
   updateBadge();
   renderGrid();
 }
 
 function updateBadge() {
-  const n = S.counts.REVIEW || 0;
+  const rows = S.counts.REVIEW || 0;
+  const doc = (S.jobReview && S.jobReview.job_review || []).length;
   const b = $("#review-badge");
-  b.textContent = `검토 필요 ${n}건`;
-  b.classList.toggle("warn", n > 0);
+  // Document-level findings are counted too: a reviewer's load is not only the
+  // rows that happen to have a rectangle.
+  b.textContent = doc ? `검토 필요 ${rows}행 + 문서 ${doc}건` : `검토 필요 ${rows}건`;
+  b.title = (S.jobReview && S.jobReview.job_review || [])
+    .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
+  b.classList.toggle("warn", rows + doc > 0);
 }
 
 /* ---------------- tabs ---------------- */
@@ -137,6 +149,7 @@ function visibleRows() {
   let rows = S.rows;
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
   else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
+  if (S.originFilter) rows = rows.filter(r => r.origin === S.originFilter);
   if (S.filter) {
     const q = S.filter.toLowerCase();
     rows = rows.filter(r => JSON.stringify(r.values).toLowerCase().includes(q)
@@ -144,8 +157,8 @@ function visibleRows() {
   }
   const { col, dir } = S.sort;
   return rows.slice().sort((a, b) => {
-    const av = col === "page_no" ? a.page_no : (a.values[col] ?? "");
-    const bv = col === "page_no" ? b.page_no : (b.values[col] ?? "");
+    const av = col === "page_no" ? a.page_no : col === "origin" ? a.origin : (a.values[col] ?? "");
+    const bv = col === "page_no" ? b.page_no : col === "origin" ? b.origin : (b.values[col] ?? "");
     return (av > bv ? 1 : av < bv ? -1 : 0) * dir;
   });
 }
@@ -184,9 +197,11 @@ function renderGrid() {
     for (const [key, , editable] of COLS) {
       const td = document.createElement("td");
       const val = key === "page_no" ? r.page_no
+        : key === "origin" ? r.origin
         : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
         : (r.values[key] ?? "");
       td.textContent = val;
+      if (key === "origin") td.classList.add(`origin-${r.origin}`);
       if (r.user && key in r.user) td.classList.add("edited");
       if (r.conflict && key in r.conflict) td.classList.add("conflict");
       if (editable && !r.deleted) {
@@ -342,17 +357,32 @@ function drawOverlay() {
 
 /* ---------------- filter, gate, export ---------------- */
 $("#filter").addEventListener("input", ev => { S.filter = ev.target.value; renderGrid(); });
+$("#origin-filter").addEventListener("change", ev => {
+  S.originFilter = ev.target.value; renderGrid();
+});
+const chosenOrigins = () =>
+  [...document.querySelectorAll(".origin:checked")].map(c => c.value);
+document.querySelectorAll(".origin").forEach(c => c.addEventListener("change", () => {
+  // Changing the scope invalidates any snapshot already taken for it.
+  $("#gate-check").checked = false;
+  $("#excel").disabled = true;
+  $("#excel").textContent = "Excel 출력";
+  S.revision = null;
+}));
 
 $("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;
   if (!ev.target.checked) return;
+  const origins = chosenOrigins();
+  if (!origins.length) { alert("출력 범위를 하나 이상 선택하세요."); ev.target.checked = false; return; }
   const r = await fetch(`/jobs/${S.job.id}/snapshot`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label: new Date().toISOString() }),
+    body: JSON.stringify({ label: new Date().toISOString(), origins }),
   });
   const out = await r.json();
   S.revision = out.revision_id;
-  $("#excel").textContent = `Excel 출력 (rev ${out.revision_id})`;
+  $("#excel").disabled = false;
+  $("#excel").textContent = `Excel 출력 (rev ${out.revision_id}, ${out.rows}행)`;
 });
 
 $("#excel").addEventListener("click", () => {

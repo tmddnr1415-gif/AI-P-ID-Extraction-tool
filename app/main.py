@@ -175,6 +175,17 @@ def rows(job_id: str, tab: str = "ALL"):
     return db.merged_rows(CON, job_id, tab)
 
 
+@app.get("/jobs/{job_id}/review")
+def job_review(job_id: str):
+    """Findings that belong to the document rather than to any single row."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    engine = json.loads(job["engine_json"] or "{}")
+    return {"job_review": engine.get("job_review", []),
+            "row_review": db.review_count(CON, job_id)}
+
+
 @app.get("/jobs/{job_id}/pages")
 def pages(job_id: str):
     out = []
@@ -246,8 +257,15 @@ def make_snapshot(job_id: str, payload: dict = None):
     if db.get_job(CON, job_id) is None:
         raise HTTPException(404, "no such job")
     label = (payload or {}).get("label", "")
-    rev = db.snapshot(CON, job_id, label)
-    return {"revision_id": rev, "review_count": db.review_count(CON, job_id)}
+    origins = (payload or {}).get("origins") or list(db.ALL_ORIGINS)
+    unknown = set(origins) - set(db.ALL_ORIGINS)
+    if unknown:
+        raise HTTPException(400, f"unknown origin(s): {sorted(unknown)}")
+    rev = db.snapshot(CON, job_id, label, origins)
+    snap = db.get_revision(CON, rev)
+    return {"revision_id": rev, "origins": origins,
+            "rows": len(snap["rows"]),
+            "review_count": db.review_count(CON, job_id)}
 
 
 @app.get("/jobs/{job_id}/revisions")

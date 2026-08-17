@@ -44,8 +44,18 @@ import extract_titleblocks as tb   # noqa: E402
 import detect_symbols as ds        # noqa: E402
 import detect_all as da            # noqa: E402
 import detect_valves as dv         # noqa: E402
+import parse_notes as pn           # noqa: E402
 
 CFG = projectconfig.load()
+
+# The exclusion set Phase 0 scored on.  `included_under` takes the rules that
+# are *active* - not the ones that are disabled - and passing
+# `detect_symbols.DEFAULT_DISABLED` here meant the three vendor-mark rules were
+# never applied, so every vendor-supply symbol came through as a deliverable
+# row.  This is the `v3_glyph_text_box` variant, the one out/failure_report.md
+# calls the baseline at 97.0 / 87.0; SCT stays out of it for the reason
+# detect_symbols.DEFAULT_DISABLED records.
+ACTIVE_SCOPE = da.COMBOS["glyph+text+box"]
 
 # Which grid tab a row belongs to.  These are the four deliverables the client
 # splits its packages by, plus the review queue.
@@ -54,6 +64,22 @@ TAB_BFV = "BFV"
 TAB_MOV = "MOV"
 TAB_PNEUMATIC = "PNEUMATIC"
 TAB_REVIEW = "REVIEW"
+
+# How a page relates to the client's Excel.  Exactly the three sets
+# detect_all.py already scores with, computed the same way and reported per
+# row so a reviewer can decide what to ship - the tool does not decide for them.
+#
+#   MATCHED       the drawing has rows in the client's Excel; this is the only
+#                 set the Phase 0 accuracy numbers were ever measured on
+#   PDF_ONLY      the drawing is in the PDF and has no rows in the Excel at all
+#   REVISION_GAP  the drawing carries reviewer markup recording a revision the
+#                 Excel has not taken up (out/revision_gap.md)
+#
+# A page can be both MATCHED and REVISION_GAP; the gap flag wins in the column
+# because it is the one that changes what a reviewer should do about the row.
+ORIGIN_MATCHED = "MATCHED"
+ORIGIN_PDF_ONLY = "PDF_ONLY"
+ORIGIN_REVISION_GAP = "REVISION_GAP"
 
 
 @dataclass
@@ -64,6 +90,7 @@ class Row:
     tab: str
     page_no: int
     drawing_no: str
+    origin: str = ""               # MATCHED | PDF_ONLY | REVISION_GAP
     type: str = ""
     qty: object = None
     system: str = ""
@@ -83,6 +110,11 @@ class Row:
         return d
 
 
+def instrument_kind(row: dict) -> str:
+    """FIELD or VALVE, from which detector produced the row."""
+    return "VALVE" if row.get("evidence", {}).get("body") else "FIELD"
+
+
 def _key(*parts) -> str:
     """Stable row identity: same drawing, same place, same kind.
 
@@ -92,6 +124,37 @@ def _key(*parts) -> str:
     """
     raw = "|".join(str(p) for p in parts)
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+# The client's instrument list, used only to tell which drawings it covers.
+# Nothing about detection reads it; it decides `origin`, and `origin` decides
+# nothing on its own either - it is a column and a filter.
+REFERENCE_EXCEL = Path(__file__).resolve().parent.parent / "data" / "CZE_Field_Instrument.xlsx"
+
+
+def _page_origins(pages, tb_rows, per_page, reference: Path = REFERENCE_EXCEL) -> dict:
+    """page_no -> MATCHED | PDF_ONLY | REVISION_GAP, by detect_all's own rule.
+
+    The MATCHED / PDF_ONLY split is `detect_all.attribute_rows`, unchanged: a
+    drawing number appearing on several sheets is attributed by matching the
+    Excel SYSTEM value against the drawing title, which is what stopped 52
+    phantom over-detections being counted in Phase 0.  REVISION_GAP is
+    `detect_all.review_annotations` finding markup in the drawing body.
+    """
+    origins = {p: ORIGIN_PDF_ONLY for p in per_page}
+    if reference.exists():
+        excel, _total, _spare = da.load_excel(reference)
+        pages_by_drawing: dict[str, list] = collections.defaultdict(list)
+        for pno, info in per_page.items():
+            pages_by_drawing[info["drawing_no"]].append(pno)
+        owned, _ = da.attribute_rows(excel, pages_by_drawing, per_page)
+        for pno in per_page:
+            if owned.get(pno):
+                origins[pno] = ORIGIN_MATCHED
+    for pno, info in per_page.items():
+        if any(a["where"] == "DRAWING" for a in info["annotations"]):
+            origins[pno] = ORIGIN_REVISION_GAP
+    return origins
 
 
 def analyse(pdf_path: Path, progress=None) -> dict:
@@ -127,14 +190,20 @@ def analyse(pdf_path: Path, progress=None) -> dict:
         dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
             pc, rules=ds.RULESET_V3)
         annotations = da.review_annotations(pc)
+        # The same body-text scan parse_notes.py does: a scope keyword says some
+        # items on this drawing take a different multiplier from the rest of it.
+        body_text = " ".join(t for r, t in pc.words
+                             if r.x0 < CFG.rect("regions.drawing_area")[2]).upper()
+        scope_keywords = [k for k in SCOPE_OVERRIDES if k in body_text]
         per_page[pc.page_no] = {
             "drawing_no": meta["drawing_no"],
             "title": meta["drawing_title"],
             "unit_code": meta["unit_code"],
             "detections": dets,
             "annotations": annotations,
+            "scope_keywords": scope_keywords,
         }
-        rows.extend(_field_rows(pc, meta, dets, mult, annotations))
+        rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
 
     say(total - 2, total, "valve bodies and actuators")
@@ -144,6 +213,10 @@ def analyse(pdf_path: Path, progress=None) -> dict:
         if not meta or meta["page_kind"] != "PID":
             continue
         rows.extend(_valve_rows(page_no, meta, res, mult))
+
+    origins = _page_origins(pages, tb_rows, per_page)
+    for r in rows:
+        r.origin = origins.get(r.page_no, ORIGIN_PDF_ONLY)
 
     say(total - 1, total, "building overlays")
     for r in rows:
@@ -156,6 +229,25 @@ def analyse(pdf_path: Path, progress=None) -> dict:
         })
 
     alarms = _glyph_alarms(glyphs)
+    # Findings that belong to the document rather than to any one row.  They are
+    # returned alongside the rows so the review count on screen is the whole
+    # review load, not just the part that happens to have a rectangle.
+    job_review = []
+    for u in glyphs.unlabeled:
+        job_review.append({"kind": u["kind"], "detail": u,
+                           "pages": u.get("pages", [])})
+    for a in alarms:
+        job_review.append({"kind": a["kind"], "detail": a,
+                           "pages": a.get("pages", [])})
+    for pno, info in sorted(per_page.items()):
+        if info.get("scope_keywords"):
+            job_review.append({
+                "kind": "SCOPE_OVERRIDE_UNRESOLVED",
+                "pages": [pno],
+                "detail": {"drawing_no": info["drawing_no"],
+                           "keywords": info["scope_keywords"],
+                           "reason": "scope keyword found; which items it covers "
+                                     "needs line tracing (Phase 2)"}})
     say(total, total, "done")
     return {
         "pdf": str(pdf_path),
@@ -176,6 +268,8 @@ def analyse(pdf_path: Path, progress=None) -> dict:
         },
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
+        "job_review": job_review,
+        "origins": origins,
         "glyphs": {
             "letters": dict(sorted(glyphs.letters.items())),
             "clusters": glyphs.clusters,
@@ -185,7 +279,17 @@ def analyse(pdf_path: Path, progress=None) -> dict:
     }
 
 
-def _field_rows(pc, meta, dets, mult, annotations) -> list:
+# Scope keywords that override the unit multiplier for individual items
+# (config `qty_scope_overrides`).  Phase 0 confirmed the one case on p38 and
+# deliberately did not apply it: deciding *which* items belong to the scoped
+# equipment needs the dashed equipment box, whose detection depends on
+# brk_max_mark - still an UNKNOWN.  So the quantity keeps the sheet multiplier
+# and the row says why, which is what SCOPE_OVERRIDE_UNRESOLVED means.
+SCOPE_OVERRIDES = {str(k["keyword"]).upper(): int(k["multiplier"])
+                   for k in (CFG.data.get("qty_scope_overrides") or [])}
+
+
+def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
     """Field instrument rows for one drawing (spike 2 + spike 3)."""
     out = []
     unit = meta["unit_code"]
@@ -194,7 +298,7 @@ def _field_rows(pc, meta, dets, mult, annotations) -> list:
     marked = bool(annotations)
     for d in dets:
         type_ = da.excel_type_under(d, ds.RULESET_V3)
-        included = da.included_under(d, ds.RULESET_V3, ds.DEFAULT_DISABLED)
+        included = da.included_under(d, ds.RULESET_V3, ACTIVE_SCOPE)
         if not included or not type_:
             continue
         # `Detection.bbox`, not `.rect` - a valve Body uses `.rect` and an
@@ -207,6 +311,16 @@ def _field_rows(pc, meta, dets, mult, annotations) -> list:
         if undefined:
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
+        if "VENDOR_MARK_UNDEFINED" in (getattr(d, "rules_hit", []) or []):
+            reasons.append("a vendor mark is drawn on this symbol but this "
+                           "drawing's NOTES do not define what it means, so "
+                           "whether it is vendor supply is undecided")
+        if scope_keywords:
+            reasons.append(
+                f"SCOPE_OVERRIDE_UNRESOLVED: {', '.join(scope_keywords)} appears "
+                f"on this drawing, so some items take a different multiplier "
+                f"from the sheet's x{'?' if undefined else factor}; which items "
+                f"needs line tracing (Phase 2), so the sheet multiplier stands")
         # Reviewer markup is a fact about the *drawing*, not a doubt about this
         # row: it means the client and the drawing disagree, which is theirs to
         # reconcile (out/revision_gap.md says not to correct it by rule).  It is
@@ -215,7 +329,11 @@ def _field_rows(pc, meta, dets, mult, annotations) -> list:
         # would have been 314 of 1004 rows.
         out.append(Row(
             key=_key(meta["drawing_no"], pc.page_no, "F", type_, *[round(v, 1) for v in rect]),
-            tab=TAB_REVIEW if reasons else TAB_FIELD,
+            # The tab is the deliverable, always.  Review is a *view* over
+            # `needs_review`, not a fifth deliverable: moving a flagged row into
+            # a REVIEW tab would quietly drop it from the Field workbook, which
+            # is the opposite of what flagging it is for.
+            tab=TAB_FIELD,
             page_no=pc.page_no,
             drawing_no=meta["drawing_no"],
             type=type_,
@@ -285,7 +403,7 @@ def _valve_rows(page_no, meta, res, mult) -> list:
         out.append(Row(
             key=_key(meta["drawing_no"], page_no, "V", b.kind,
                      *[round(v, 1) for v in rect]),
-            tab=TAB_REVIEW if reasons else _VALVE_TAB.get(cls, TAB_REVIEW),
+            tab=_VALVE_TAB.get(cls, TAB_REVIEW),
             page_no=page_no,
             drawing_no=meta["drawing_no"],
             type=b.kind,

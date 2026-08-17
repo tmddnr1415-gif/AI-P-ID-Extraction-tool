@@ -180,9 +180,15 @@ def _value_for(name: str, row: dict, values: dict):
 
 def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
     """Write every deliverable a template was supplied for."""
+    # The snapshot was already filtered to the chosen origins when it was
+    # taken; this re-checks rather than trusting, because a snapshot is the
+    # thing a delivered workbook is answerable to.
+    origins = set(snapshot.get("origins_included") or [])
     by_tab: dict[str, list] = {}
     for row in snapshot["rows"]:
         if row.get("deleted"):
+            continue
+        if origins and row.get("origin") and row["origin"] not in origins:
             continue
         by_tab.setdefault(row["tab"], []).append(row)
 

@@ -121,3 +121,22 @@ td[contenteditable]:focus { background: #4c8dff22; }
 .evidence dt { color: var(--muted); }
 .evidence dd { margin: 0; word-break: break-word; }
 .evidence pre { white-space: pre-wrap; margin: 6px 0 0; color: var(--muted); }
+
+/* ---------- output scope ---------- */
+.scope { position: relative; }
+.scope summary {
+  cursor: pointer; list-style: none; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.scope summary::-webkit-details-marker { display: none; }
+.scope[open] summary { background: var(--bg); }
+.scope-body {
+  position: absolute; right: 0; top: 32px; z-index: 20; width: 380px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px; box-shadow: 0 8px 28px #0008;
+}
+.scope-body label { padding: 5px 0; gap: 8px; }
+.scope-body .n { margin-left: auto; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+td.origin-PDF_ONLY { color: var(--warn); }
+td.origin-REVISION_GAP { color: #c77dff; }

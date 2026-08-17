@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS item (
     tab           TEXT NOT NULL,
     page_no       INTEGER NOT NULL,
     drawing_no    TEXT NOT NULL DEFAULT '',
+    origin        TEXT NOT NULL DEFAULT '',   -- MATCHED | PDF_ONLY | REVISION_GAP
     rect_json     TEXT NOT NULL DEFAULT '[]',
     ai_json       TEXT NOT NULL,          -- what the engine decided
     user_json     TEXT NOT NULL DEFAULT '{}',   -- what a person decided
@@ -178,19 +179,19 @@ def store_result(con, job_id: str, result: dict) -> dict:
                 "re-analysis changed " + ", ".join(sorted(conflict)) +
                 " under an edit you made"]))
         con.execute(
-            "INSERT INTO item (job_id,key,tab,page_no,drawing_no,rect_json,ai_json,"
-            "user_json,evidence_json,needs_review,annotation,conflict_json,deleted)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)"
+            "INSERT INTO item (job_id,key,tab,page_no,drawing_no,origin,rect_json,"
+            "ai_json,user_json,evidence_json,needs_review,annotation,conflict_json,"
+            "deleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0)"
             " ON CONFLICT(job_id,key) DO UPDATE SET"
             "   tab=excluded.tab, page_no=excluded.page_no,"
-            "   drawing_no=excluded.drawing_no,"
+            "   drawing_no=excluded.drawing_no, origin=excluded.origin,"
             "   rect_json=excluded.rect_json, ai_json=excluded.ai_json,"
             "   evidence_json=excluded.evidence_json,"
             "   needs_review=excluded.needs_review,"
             "   annotation=excluded.annotation,"
             "   conflict_json=excluded.conflict_json, deleted=0",
             (job_id, key, row["tab"], row["page_no"], row.get("drawing_no", ""),
-             json.dumps(row["rect"]), json.dumps(ai, sort_keys=True),
+             row.get("origin", ""), json.dumps(row["rect"]), json.dumps(ai, sort_keys=True),
              json.dumps(user, sort_keys=True),
              json.dumps(row["evidence"], sort_keys=True, default=str),
              review, row.get("annotation", ""),
@@ -210,8 +211,9 @@ def store_result(con, job_id: str, result: dict) -> dict:
     con.execute("UPDATE job SET status='done', progress=1.0, message='done',"
                 " fingerprint=?, engine_json=? WHERE id=?",
                 (result.get("fingerprint", ""),
-                 json.dumps({k: result[k] for k in
-                             ("multipliers", "legend", "glyphs")}, default=str),
+                 json.dumps({k: result.get(k) for k in
+                             ("multipliers", "legend", "glyphs", "job_review")},
+                            default=str),
                  job_id))
     con.commit()
     return {"rows": len(result["rows"]), "conflicts": conflicts,
@@ -236,7 +238,7 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
         merged.update({k: v for k, v in user.items() if v is not None})
         out.append({
             "key": r["key"], "tab": r["tab"], "page_no": r["page_no"],
-            "drawing_no": r["drawing_no"],
+            "drawing_no": r["drawing_no"], "origin": r["origin"],
             "rect": json.loads(r["rect_json"]),
             "values": merged, "ai": ai, "user": user,
             "evidence": json.loads(r["evidence_json"]),
@@ -279,10 +281,18 @@ def review_count(con, job_id: str) -> int:
 # Revisions - the only thing Excel is ever generated from
 # --------------------------------------------------------------------------
 
-def snapshot(con, job_id: str, label: str = "") -> int:
-    rows = merged_rows(con, job_id)
+# Which page-origin sets a snapshot covers.  The default is everything: the
+# tool has no opinion about whether a drawing the client's Excel does not cover
+# should be delivered, so a reviewer takes sets *out* rather than adding them.
+ALL_ORIGINS = ("MATCHED", "REVISION_GAP", "PDF_ONLY")
+
+
+def snapshot(con, job_id: str, label: str = "", origins=None) -> int:
+    origins = tuple(origins) if origins else ALL_ORIGINS
+    rows = [r for r in merged_rows(con, job_id) if r["origin"] in origins]
     job = get_job(con, job_id)
     payload = {
+        "origins_included": list(origins),
         "job_id": job_id,
         "pdf_name": job["pdf_name"],
         "pdf_sha256": job["pdf_sha256"],
