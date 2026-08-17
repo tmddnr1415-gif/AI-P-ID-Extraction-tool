@@ -124,15 +124,45 @@ def annotation_anchors(pc, unverified, x_reach=260.0, y_tol=8.0):
 VENDOR_RULES = ("VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX")
 SCOPE_RULES = VENDOR_RULES + ("SCT_SUPPLIER_SCOPE",)
 
+
+class ActiveScope(frozenset):
+    """The exclusion rules that are switched ON.
+
+    A distinct type, because there is a set of the same shape meaning the exact
+    opposite - `detect_symbols.DEFAULT_DISABLED`, the rules switched OFF - and
+    passing one where the other belongs type-checks, runs, and quietly changes
+    the answer.  That is not hypothetical: app/pipeline.py did it, and the
+    result was every vendor-supply symbol appearing as a deliverable row (906
+    instead of 748) with nothing failing.
+
+    `included_under` now requires this type, so the mistake raises instead of
+    scoring.
+    """
+
+    def __repr__(self) -> str:
+        return f"ActiveScope({sorted(self)})"
+
 # The contribution of each vendor-mark notation, measured by switching them on
 # one at a time.  SCT stays off by default (see DEFAULT_DISABLED).
 COMBOS = {
-    "none":            frozenset(),
-    "glyph":           frozenset({"VENDOR_MARK_GLYPH"}),
-    "glyph+text":      frozenset({"VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT"}),
-    "glyph+text+box":  frozenset(VENDOR_RULES),
-    "all+sct":         frozenset(SCOPE_RULES),
+    "none":            ActiveScope(),
+    "glyph":           ActiveScope({"VENDOR_MARK_GLYPH"}),
+    "glyph+text":      ActiveScope({"VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT"}),
+    "glyph+text+box":  ActiveScope(VENDOR_RULES),
+    "all+sct":         ActiveScope(SCOPE_RULES),
 }
+
+# The variant every published Phase 0 number was measured on.  Named so callers
+# ask for it by name rather than assembling a set and hoping.
+BASELINE_SCOPE_NAME = "glyph+text+box"
+
+
+def active_scope(name: str) -> ActiveScope:
+    """Look an exclusion set up by name; unknown names fail loudly."""
+    try:
+        return COMBOS[name]
+    except KeyError:
+        raise KeyError(f"unknown scope '{name}'; known: {sorted(COMBOS)}") from None
 
 FAILURE_TYPES = [
     "NO_ANCHOR",
@@ -156,7 +186,15 @@ def excel_type_under(det, rules):
     return rules.field_type_map.get(det.anchor)
 
 
-def included_under(det, rules, active_scope: frozenset) -> bool:
+def included_under(det, rules, active_scope: "ActiveScope") -> bool:
+    if not isinstance(active_scope, ActiveScope):
+        raise TypeError(
+            "included_under() wants the rules that are ACTIVE, as an "
+            "ActiveScope (use detect_all.active_scope('glyph+text+box') or a "
+            "COMBOS value).  A plain frozenset was passed, which is how a "
+            "*disabled* set such as detect_symbols.DEFAULT_DISABLED gets in "
+            "here and silently inverts the meaning.  Got: "
+            f"{sorted(active_scope)!r}")
     if excel_type_under(det, rules) is None:
         return False
     return not any(r in active_scope and r in det.rules_hit for r in SCOPE_RULES)
@@ -342,7 +380,7 @@ def main() -> int:
                 "recall": tp / exp_tot if exp_tot else 0.0,
                 "precision": tp / det_tot if det_tot else 0.0}
 
-    v1_scope = frozenset(SCOPE_RULES)
+    v1_scope = COMBOS["all+sct"]
     variants = {
         "v1_drawing_join": None,      # filled below, old-style number
         "v1_page_join": score(RULESET_V1, v1_scope, matched),

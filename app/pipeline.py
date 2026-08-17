@@ -55,7 +55,7 @@ CFG = projectconfig.load()
 # row.  This is the `v3_glyph_text_box` variant, the one out/failure_report.md
 # calls the baseline at 97.0 / 87.0; SCT stays out of it for the reason
 # detect_symbols.DEFAULT_DISABLED records.
-ACTIVE_SCOPE = da.COMBOS["glyph+text+box"]
+ACTIVE_SCOPE = da.active_scope(da.BASELINE_SCOPE_NAME)
 
 # Which grid tab a row belongs to.  These are the four deliverables the client
 # splits its packages by, plus the review queue.
@@ -249,7 +249,19 @@ def analyse(pdf_path: Path, progress=None) -> dict:
                            "reason": "scope keyword found; which items it covers "
                                      "needs line tracing (Phase 2)"}})
     say(total, total, "done")
+    applied = {
+        "instrument_ruleset": ds.RULESET_V3.name,
+        "exclusion_scope_name": da.BASELINE_SCOPE_NAME,
+        "exclusion_rules_active": sorted(ACTIVE_SCOPE),
+        "exclusion_rules_inactive": sorted(
+            set(da.SCOPE_RULES) - set(ACTIVE_SCOPE)),
+        "valve_rules_active": sorted(dv.ALL_RULES),
+        "valve_rules_disabled": [],
+        "anchor_map_entries": len(ds.RULESET_V3.field_type_map),
+        "not_field": sorted(ds.RULESET_V3.not_field),
+    }
     return {
+        "applied_rules": applied,
         "pdf": str(pdf_path),
         "pages": [
             {"page_no": p.page_no, "width": p.width, "height": p.height,
@@ -287,6 +299,14 @@ def analyse(pdf_path: Path, progress=None) -> dict:
 # and the row says why, which is what SCOPE_OVERRIDE_UNRESOLVED means.
 SCOPE_OVERRIDES = {str(k["keyword"]).upper(): int(k["multiplier"])
                    for k in (CFG.data.get("qty_scope_overrides") or [])}
+
+# `IP` is mapped to PNEUMATIC in detect_valves.ACT_LETTERS, but every one of the
+# 17 `IP` tokens in this document is part of an equipment name - "IP TURBINE",
+# and the label on a BFP discharge line - not an I/P positioner.  None of them
+# currently reaches a valve, because the stem test rejects them.  If one ever
+# does, the valve it creates is a phantom, so it is flagged rather than trusted.
+# The detector is untouched: this only decides what the row says about itself.
+IP_TOKEN_EVIDENCE = ("I/P positioner on stem",)
 
 
 def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
@@ -395,6 +415,11 @@ def _valve_rows(page_no, meta, res, mult) -> list:
             continue
         rect = (b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1)
         reasons = []
+        if any(m in b.actuator_evidence for m in IP_TOKEN_EVIDENCE):
+            reasons.append(
+                "an 'I/P' token was taken as this valve's actuator, but every "
+                "such token in this document is part of an equipment name "
+                "(e.g. 'IP TURBINE'), not a positioner - confirm before shipping")
         if unread:
             reasons.append("actuator enclosure found but its letter could not be "
                            "derived from this document")

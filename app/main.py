@@ -219,9 +219,43 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
                              headers={"Cache-Control": "public, max-age=3600"})
 
 
-@app.post("/jobs/{job_id}/rows/{key}")
-def edit_row(job_id: str, field: str = Form(...), value: str = Form("")):
-    raise HTTPException(405, "use PATCH")
+@app.post("/jobs/{job_id}/rows")
+async def add_row(job_id: str, payload: dict):
+    """Create a row a reviewer wants that the engine did not propose."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    key = db.add_row(CON, job_id,
+                     int(payload.get("page_no") or 0),
+                     payload.get("tab") or "FIELD",
+                     payload.get("origin") or "",
+                     payload.get("drawing_no") or "",
+                     payload.get("values") or {})
+    return {"key": key, "review_count": db.review_count(CON, job_id)}
+
+
+@app.post("/jobs/{job_id}/rows/{key}/copy")
+def copy_row(job_id: str, key: str):
+    try:
+        new_key = db.copy_row(CON, job_id, key)
+    except KeyError:
+        raise HTTPException(404, "no such row")
+    return {"key": new_key, "review_count": db.review_count(CON, job_id)}
+
+
+@app.delete("/jobs/{job_id}/rows/{key}")
+def delete_row(job_id: str, key: str):
+    try:
+        out = db.remove_row(CON, job_id, key)
+    except KeyError:
+        raise HTTPException(404, "no such row")
+    out["review_count"] = db.review_count(CON, job_id)
+    return out
+
+
+@app.post("/jobs/{job_id}/rows/{key}/restore")
+def restore_row(job_id: str, key: str):
+    db.restore_row(CON, job_id, key)
+    return {"key": key, "review_count": db.review_count(CON, job_id)}
 
 
 @app.patch("/jobs/{job_id}/rows/{key}")
@@ -298,6 +332,8 @@ def revision_excel(revision_id: int):
             "engine_fingerprint": snap["fingerprint"],
             "written": result["written"],
             "skipped": result["skipped"],
+            "note": "unmapped_values lists edits with no column in that "
+                    "deliverable's form; they are stored but not written",
         }, indent=1))
     buf.seek(0)
     return StreamingResponse(

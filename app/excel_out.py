@@ -155,9 +155,28 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
         right = openpyxl.utils.get_column_letter(max_c)
         ws.auto_filter.ref = f"{left}{min_r}:{right}{first_row + max(wanted, 1) - 1}"
 
+    # A value a reviewer typed that this deliverable's form has no column for.
+    # It cannot be written anywhere, so it is named rather than dropped in
+    # silence - e.g. Vendor Supply, which the instrument form carries as 'Scope
+    # of Supply' and the valve form does not carry at all.
+    mapped = set(cols) | {"body", "actuator"}
+    unmapped: dict[str, int] = {}
+    for row in rows:
+        for field, value in (row.get("user") or {}).items():
+            if value in (None, ""):
+                continue
+            if field in mapped:
+                continue
+            if field == "type" and "body" in cols:
+                continue
+            if field == "valve_type" and "actuator" in cols:
+                continue
+            unmapped[field] = unmapped.get(field, 0) + 1
+
     wb.save(out_path)
     return {"kind": kind, "sheet": sheet, "rows": wanted,
-            "template_rows": template_rows, "path": str(out_path)}
+            "template_rows": template_rows, "path": str(out_path),
+            "unmapped_values": unmapped}
 
 
 # How a snapshot row maps onto the client's column names.  Description and Tag
@@ -165,17 +184,16 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
 def _value_for(name: str, row: dict, values: dict):
     if name == "pid_no":
         return row.get("drawing_no") or None
-    if name == "type":
-        return values.get("type")
+    # The client's own column names, mapped to what the app read.
+    if name == "body":
+        return values.get("type") or None          # GATE / GLOBE / BUTTERFLY
+    if name == "actuator":
+        return values.get("valve_type") or None    # MOTOR / HYDRAULIC
     if name == "valve_type":
-        return values.get("valve_type")
-    if name == "qty":
-        return values.get("qty")
-    if name == "system":
-        return values.get("system")
-    if name == "description":
-        return values.get("description") or None
-    return values.get(name)
+        # Column C's MOV / MOV_I / HOV vocabulary; the app does not produce it,
+        # so it is left for a reviewer rather than guessed from the actuator.
+        return values.get("valve_type_code") or None
+    return values.get(name) or None
 
 
 def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:

@@ -63,7 +63,9 @@ CREATE TABLE IF NOT EXISTS item (
     needs_review  TEXT NOT NULL DEFAULT '',
     annotation    TEXT NOT NULL DEFAULT '',
     conflict_json TEXT NOT NULL DEFAULT '{}',
-    deleted       INTEGER NOT NULL DEFAULT 0,
+    deleted       INTEGER NOT NULL DEFAULT 0,   -- engine no longer finds it
+    added         INTEGER NOT NULL DEFAULT 0,   -- a reviewer created it
+    removed       INTEGER NOT NULL DEFAULT 0,   -- a reviewer struck it out
     PRIMARY KEY (job_id, key)
 );
 
@@ -201,7 +203,12 @@ def store_result(con, job_id: str, result: dict) -> dict:
     # carrying a reviewer's edit, and losing that silently would be worse than
     # showing a row that has gone away.
     gone = 0
-    for key in existing:
+    for key, prev in existing.items():
+        if prev["added"]:
+            # A reviewer-created row is not something the engine can find, so
+            # its absence from an analysis says nothing.  Marking it would have
+            # struck out every hand-added row on each re-run.
+            continue
         if key not in seen:
             con.execute(
                 "UPDATE item SET deleted=1, needs_review=? WHERE job_id=? AND key=?",
@@ -212,8 +219,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                 " fingerprint=?, engine_json=? WHERE id=?",
                 (result.get("fingerprint", ""),
                  json.dumps({k: result.get(k) for k in
-                             ("multipliers", "legend", "glyphs", "job_review")},
-                            default=str),
+                             ("multipliers", "legend", "glyphs", "job_review",
+                              "applied_rules")}, default=str),
                  job_id))
     con.commit()
     return {"rows": len(result["rows"]), "conflicts": conflicts,
@@ -245,8 +252,73 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
             "needs_review": r["needs_review"], "annotation": r["annotation"],
             "conflict": json.loads(r["conflict_json"]),
             "deleted": bool(r["deleted"]),
+            "added": bool(r["added"]), "removed": bool(r["removed"]),
         })
     return out
+
+
+def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
+            drawing_no: str = "", values: dict = None, source_key: str = None) -> str:
+    """A row a reviewer created, by hand or by copying one.
+
+    It has no `ai_values` - the engine never proposed it - so every value in it
+    is a user value, and a re-analysis leaves it alone for the same reason it
+    leaves an edit alone.  Reviewer-created rows are marked so a later reader can
+    tell them from detections; nothing in the grid hides the difference.
+    """
+    import uuid
+    key = "u" + uuid.uuid4().hex[:15]
+    values = dict(values or {})
+    con.execute(
+        "INSERT INTO item (job_id,key,tab,page_no,drawing_no,origin,rect_json,"
+        "ai_json,user_json,evidence_json,needs_review,annotation,conflict_json,"
+        "deleted,added,removed) VALUES (?,?,?,?,?,?,'[]',?,?,?,?,'','{}',0,1,0)",
+        (job_id, key, tab, page_no, drawing_no, origin,
+         json.dumps({k: None for k in EDITABLE}, sort_keys=True),
+         json.dumps(values, sort_keys=True),
+         json.dumps({"added_by": "reviewer",
+                     "copied_from": source_key} if source_key else
+                    {"added_by": "reviewer"}, sort_keys=True),
+         "reviewer-added row: no detection stands behind it"))
+    con.commit()
+    return key
+
+
+def copy_row(con, job_id: str, key: str) -> str:
+    src = con.execute("SELECT * FROM item WHERE job_id=? AND key=?",
+                      (job_id, key)).fetchone()
+    if src is None:
+        raise KeyError(key)
+    merged = json.loads(src["ai_json"])
+    merged.update({k: v for k, v in json.loads(src["user_json"]).items()
+                   if v is not None})
+    return add_row(con, job_id, src["page_no"], src["tab"], src["origin"],
+                   src["drawing_no"], merged, source_key=key)
+
+
+def remove_row(con, job_id: str, key: str) -> dict:
+    """Strike a row out.  Reviewer-created rows go for good; detections do not.
+
+    A detection is never really deleted, because the next analysis would just
+    bring it back and the reviewer's decision would be lost.  It is marked
+    `removed`, which keeps it visible and out of the export.
+    """
+    row = con.execute("SELECT added FROM item WHERE job_id=? AND key=?",
+                      (job_id, key)).fetchone()
+    if row is None:
+        raise KeyError(key)
+    if row["added"]:
+        con.execute("DELETE FROM item WHERE job_id=? AND key=?", (job_id, key))
+        con.commit()
+        return {"key": key, "dropped": True}
+    con.execute("UPDATE item SET removed=1 WHERE job_id=? AND key=?", (job_id, key))
+    con.commit()
+    return {"key": key, "removed": True}
+
+
+def restore_row(con, job_id: str, key: str) -> None:
+    con.execute("UPDATE item SET removed=0 WHERE job_id=? AND key=?", (job_id, key))
+    con.commit()
 
 
 def set_user_value(con, job_id: str, key: str, field: str, value):
@@ -273,8 +345,8 @@ def set_user_value(con, job_id: str, key: str, field: str, value):
 
 def review_count(con, job_id: str) -> int:
     return con.execute(
-        "SELECT COUNT(*) FROM item WHERE job_id=? AND (needs_review<>'' OR deleted=1)",
-        (job_id,)).fetchone()[0]
+        "SELECT COUNT(*) FROM item WHERE job_id=? AND removed=0"
+        " AND (needs_review<>'' OR deleted=1)", (job_id,)).fetchone()[0]
 
 
 # --------------------------------------------------------------------------
@@ -293,7 +365,8 @@ def snapshot(con, job_id: str, label: str = "", origins=None) -> int:
     # losing rows from a delivered workbook is the one failure mode this gate
     # exists to prevent, and an unknown origin is a reason to look, not to omit.
     rows = [r for r in merged_rows(con, job_id)
-            if not r["origin"] or r["origin"] in origins]
+            if (not r["origin"] or r["origin"] in origins)
+            and not r["removed"]]
     job = get_job(con, job_id)
     payload = {
         "origins_included": list(origins),

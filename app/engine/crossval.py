@@ -45,6 +45,7 @@ from detect_all import (  # noqa: E402
     attribute_rows,
     excel_type_under,
     included_under,
+    ActiveScope,
     load_excel,
     system_of,
 )
@@ -76,8 +77,8 @@ _STEAM_MAP = {
 }
 RULESET_STEAM = Ruleset("steam-only", _STEAM_MAP, frozenset({"TW"}), VALVE_ANCHORS)
 
-STEAM_SCOPE = frozenset({"VENDOR_MARK_GLYPH", "VENDOR_MARK_BOX"})
-FULL_SCOPE = frozenset(VENDOR_RULES)
+STEAM_SCOPE = ActiveScope({"VENDOR_MARK_GLYPH", "VENDOR_MARK_BOX"})
+FULL_SCOPE = ActiveScope(VENDOR_RULES)
 STEAM_GLYPH_SIZES = ((4.0, 4.0),)
 
 

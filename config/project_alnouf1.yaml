@@ -68,6 +68,13 @@ excel:
     type: 8
     qty: 9
     description: 10
+    # Columns the app also fills, located by the header text the client prints
+    # in row 6: 'TAG' at E and 'Scope of Supply' at AK.  There is no separate
+    # column for the SCT supplier-interface flag, so that one stays in the app
+    # (grid and evidence panel) rather than being written somewhere it does not
+    # belong.
+    tag_no: 5
+    vendor_supply: 37
 
 # P1, P2 — drawing tag -> Excel TYPE.
 #
@@ -197,6 +204,15 @@ valves:
       qty: 4
       system: 5
       description: 12
+      # Row 6 prints 'TAG NUMBER' at K; row 7 sub-heads 'ACTUATOR' at Y and
+      # 'BODY' at AA under the merged TYPE group.  The app writes the body it
+      # read (GATE / GLOBE / BUTTERFLY) and the actuator it read (MOTOR /
+      # HYDRAULIC) into those two, and leaves column C's own MOV / MOV_I / HOV
+      # vocabulary alone: mapping an actuator back onto it is ambiguous
+      # (MOTOR is both MOV and MOV_I) and the app has no basis to choose.
+      tag_no: 11
+      actuator: 25
+      body: 27
 
   # V5 — which body types each deliverable covers.  Taken from each file's own
   # DESCRIPTION line, plus the observation that the master files ball-bodied

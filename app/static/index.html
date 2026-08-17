@@ -52,6 +52,14 @@
       전체 검토 완료
     </label>
     <button id="excel" disabled>Excel 출력</button>
+    <details id="rules" class="scope">
+      <summary>적용 규칙</summary>
+      <div class="scope-body" id="rules-body"></div>
+    </details>
+    <details id="tmpl" class="scope">
+      <summary>템플릿</summary>
+      <div class="scope-body" id="tmpl-body"></div>
+    </details>
     <button id="reanalyse" class="ghost">재분석</button>
   </header>
 
@@ -76,6 +84,9 @@
           <option value="REVISION_GAP">REVISION_GAP</option>
           <option value="PDF_ONLY">PDF_ONLY</option>
         </select>
+        <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
+        <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
+        <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>
         <span id="count" class="muted"></span>
       </div>
       <div id="gridwrap">

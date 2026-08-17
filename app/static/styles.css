@@ -140,3 +140,13 @@ td[contenteditable]:focus { background: #4c8dff22; }
   font-variant-numeric: tabular-nums; }
 td.origin-PDF_ONLY { color: var(--warn); }
 td.origin-REVISION_GAP { color: #c77dff; }
+
+dl.rules { display: grid; grid-template-columns: 108px 1fr; gap: 4px 12px; margin: 0; }
+dl.rules dt { color: var(--muted); }
+dl.rules dd { margin: 0; }
+.tmpl-row { display: grid; grid-template-columns: 1fr 44px; gap: 6px;
+  align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.tmpl-row input[type=file] { grid-column: 1 / -1; font-size: 11px; }
+.ok { color: var(--ok); }
+
+tbody tr.added td:first-child { box-shadow: inset 2px 0 0 var(--ok); }

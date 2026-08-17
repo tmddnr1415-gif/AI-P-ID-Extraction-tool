@@ -115,6 +115,8 @@ async function loadRows() {
   for (const el of document.querySelectorAll(".scope-body .n"))
     el.textContent = `${S.originCounts[el.dataset.n] || 0}행`;
   S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
+  showAppliedRules();
+  await showTemplates();
   buildTabs();
   updateBadge();
   renderGrid();
@@ -130,6 +132,61 @@ function updateBadge() {
   b.title = (S.jobReview && S.jobReview.job_review || [])
     .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
   b.classList.toggle("warn", rows + doc > 0);
+}
+
+/* ---------------- applied rules ----------------
+ * Shown because the one bug that mattered so far was an inverted rule set that
+ * type-checked and ran. If it happens again it should be readable on screen,
+ * not inferable from a row count.
+ */
+function showAppliedRules() {
+  const a = (S.job.engine || {}).applied_rules;
+  if (!a) { $("#rules-body").innerHTML = "<p class='muted'>기록 없음</p>"; return; }
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  $("#rules-body").innerHTML = "<dl class='rules'>"
+    + row("계기 룰셋", a.instrument_ruleset)
+    + row("제외 스코프", `<b>${a.exclusion_scope_name}</b>`)
+    + row("활성 제외규칙", (a.exclusion_rules_active || []).join("<br>") || "-")
+    + row("비활성 제외규칙", (a.exclusion_rules_inactive || []).join("<br>") || "-")
+    + row("밸브 규칙", (a.valve_rules_active || []).join(", "))
+    + row("밸브 비활성", (a.valve_rules_disabled || []).join(", ") || "없음")
+    + row("앵커 매핑", `${a.anchor_map_entries}건`)
+    + row("Field 비대상", (a.not_field || []).join(", "))
+    + row("승수", `${(S.job.engine.multipliers || {}).source} — ${(S.job.engine.multipliers || {}).note || ""}`)
+    + row("범례 유도", Object.entries(S.job.engine.legend || {})
+        .map(([k, v]) => `${k}: ${v.source}`).join("<br>"))
+    + "</dl>";
+}
+
+/* ---------------- templates ---------------- */
+async function showTemplates() {
+  const t = await (await fetch("/templates")).json();
+  const KIND = { FIELD: "Field Instrument", BFV: "I&C Butterfly Valve",
+                 MOV: "MOV (Gate & Globe)", PNEUMATIC: "Control / Shutoff Valve",
+                 MASTER: "Valve List (master)" };
+  $("#tmpl-body").innerHTML =
+    "<p class='muted'>발주처 양식을 올리면 그 산출물이 출력됩니다. 없으면 출력하지 않고 사유를 남깁니다.</p>"
+    + Object.entries(KIND).map(([k, label]) => `
+      <label class="tmpl-row">
+        <span>${label}</span>
+        <span class="${t[k] ? "ok" : "muted"}">${t[k] ? "있음" : "없음"}</span>
+        <input type="file" accept=".xlsx" data-kind="${k}">
+      </label>`).join("");
+  $("#tmpl-body").querySelectorAll("input[type=file]").forEach(inp =>
+    inp.addEventListener("change", async ev => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      const fd = new FormData();
+      fd.append("kind", ev.target.dataset.kind);
+      fd.append("file", f);
+      const r = await fetch("/templates", { method: "POST", body: fd });
+      if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
+      await showTemplates();
+      // A new template changes what a snapshot can produce.
+      $("#gate-check").checked = false;
+      $("#excel").disabled = true;
+      S.revision = null;
+    }));
 }
 
 /* ---------------- tabs ---------------- */
@@ -168,6 +225,7 @@ function renderGrid() {
   head.innerHTML = "";
   for (const [key, label] of COLS) {
     const th = document.createElement("th");
+    th.dataset.col = key;
     th.textContent = label;
     if (S.sort.col === key) {
       const s = document.createElement("span");
@@ -192,7 +250,9 @@ function renderGrid() {
   for (const r of rows) {
     const tr = document.createElement("tr");
     tr.dataset.key = r.key;
-    if (r.deleted) tr.classList.add("deleted");
+    if (r.added) tr.dataset.added = "1";
+    if (r.deleted || r.removed) tr.classList.add("deleted");
+    if (r.added) tr.classList.add("added");
     if (S.sel === r.key) tr.classList.add("sel");
     for (const [key, , editable] of COLS) {
       const td = document.createElement("td");
@@ -204,7 +264,7 @@ function renderGrid() {
       if (key === "origin") td.classList.add(`origin-${r.origin}`);
       if (r.user && key in r.user) td.classList.add("edited");
       if (r.conflict && key in r.conflict) td.classList.add("conflict");
-      if (editable && !r.deleted) {
+      if (editable && !r.deleted && !r.removed) {
         td.contentEditable = "true";
         td.addEventListener("blur", () => saveEdit(r, key, td));
         td.addEventListener("keydown", ev => {
@@ -216,6 +276,8 @@ function renderGrid() {
     const f = document.createElement("td");
     if (r.needs_review) f.innerHTML += '<span class="flag bad" title="검토 필요">●</span>';
     if (r.annotation) f.innerHTML += '<span class="flag" title="도면에 검토 주석">▲</span>';
+    if (r.added) f.innerHTML += '<span class="flag ok" title="검토자 추가 행">＋</span>';
+    if (r.removed) f.innerHTML += '<span class="flag" title="검토자 삭제 — 출력 제외">✕</span>';
     tr.appendChild(f);
     tr.onclick = () => select(r.key, true);
     body.appendChild(tr);
@@ -381,6 +443,7 @@ $("#gate-check").addEventListener("change", async ev => {
   });
   const out = await r.json();
   S.revision = out.revision_id;
+  window.__rev = out.revision_id;      // read by tests/test_ui_edits.py
   $("#excel").disabled = false;
   $("#excel").textContent = `Excel 출력 (rev ${out.revision_id}, ${out.rows}행)`;
 });
@@ -388,6 +451,48 @@ $("#gate-check").addEventListener("change", async ev => {
 $("#excel").addEventListener("click", () => {
   if (!S.revision) return;
   location.href = `/revisions/${S.revision}/excel`;
+});
+
+/* ---------------- row add / copy / delete ---------------- */
+async function refreshRows(selectKey) {
+  await loadRows();
+  if (selectKey) select(selectKey, true);
+}
+
+$("#row-add").addEventListener("click", async () => {
+  const src = S.rows.find(r => r.key === S.sel);
+  const body = {
+    page_no: src ? src.page_no : (S.page ? S.page.page_no : 0),
+    tab: src ? src.tab : (S.tab === "ALL" || S.tab === "REVIEW" ? "FIELD" : S.tab),
+    origin: src ? src.origin : "",
+    drawing_no: src ? src.drawing_no : (S.page ? S.page.drawing_no : ""),
+    values: {},
+  };
+  const r = await fetch(`/jobs/${S.job.id}/rows`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { alert("행 추가 실패"); return; }
+  await refreshRows((await r.json()).key);
+});
+
+$("#row-copy").addEventListener("click", async () => {
+  if (!S.sel) { alert("복사할 행을 먼저 선택하세요."); return; }
+  const r = await fetch(`/jobs/${S.job.id}/rows/${S.sel}/copy`, { method: "POST" });
+  if (!r.ok) { alert("복사 실패"); return; }
+  await refreshRows((await r.json()).key);
+});
+
+$("#row-delete").addEventListener("click", async () => {
+  if (!S.sel) { alert("삭제할 행을 먼저 선택하세요."); return; }
+  const key = S.sel;
+  const r = await fetch(`/jobs/${S.job.id}/rows/${key}`, { method: "DELETE" });
+  if (!r.ok) { alert("삭제 실패"); return; }
+  const out = await r.json();
+  // A detection is struck out, not dropped: the next analysis would find it
+  // again, and the reviewer's decision has to outlive that.
+  S.sel = out.dropped ? null : key;
+  await refreshRows(S.sel);
 });
 
 $("#reanalyse").addEventListener("click", async () => {
