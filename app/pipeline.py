@@ -239,6 +239,19 @@ def analyse(pdf_path: Path, progress=None) -> dict:
     for a in alarms:
         job_review.append({"kind": a["kind"], "detail": a,
                            "pages": a.get("pages", [])})
+    if not REFERENCE_EXCEL.exists():
+        # Without the client's instrument list there is nothing to compare the
+        # drawings against, so every page falls back to PDF_ONLY.  That is a
+        # missing input, not a finding about the drawings, and it would quietly
+        # make the output-scope panel read 100% PDF_ONLY - so it is said out loud.
+        job_review.append({
+            "kind": "ORIGIN_REFERENCE_MISSING",
+            "pages": [],
+            "detail": {"expected": str(REFERENCE_EXCEL),
+                       "reason": "귀속(MATCHED/PDF_ONLY) 판정 기준 파일이 없어 "
+                                 "전 페이지가 PDF_ONLY 로 남았습니다. 발주처 "
+                                 "Field Instrument 양식을 data/ 에 두고 재분석하면 "
+                                 "귀속이 채워집니다."}})
     for pno, info in sorted(per_page.items()):
         if info.get("scope_keywords"):
             job_review.append({

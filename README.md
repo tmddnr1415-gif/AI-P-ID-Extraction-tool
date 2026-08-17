@@ -5,6 +5,53 @@ MOV Gate&Globe / Control·Shutoff Valve)을 채웁니다. 도면은 100% 벡터�
 쓰지 않고 텍스트 앵커와 도형 검증으로 판정하며, 판정 규칙은 문서의 Symbol & Legend
 시트에서 런타임에 측정합니다. LLM 을 호출하지 않습니다.
 
+## 처음 한 번 — 내 PC 에 올리기
+
+이 앱은 **띄운 그 컴퓨터에서만** 보입니다. `127.0.0.1` 은 서버가 도는 기계의
+루프백이므로, 다른 기계(원격 컨테이너·CI 러너·클라우드 세션)에서 띄운 서버는
+내 브라우저로 열리지 않습니다. 열려면 내 PC 에서 아래를 한 번 해 둡니다.
+
+```bash
+git clone https://github.com/tmddnr1415-gif/AI-P-ID-Extraction-tool.git
+cd AI-P-ID-Extraction-tool
+git checkout claude/titleblock-parsing-c5st4x
+
+python3 -m venv .venv && source .venv/bin/activate    # 권장 (Windows: .venv\Scripts\activate)
+pip install -r requirements.txt
+```
+
+**파이썬 3.10 이상** (3.11.15 에서 개발·검증). 패키지는 `requirements.txt` 7개
+— pymupdf, openpyxl, PyYAML, numpy, fastapi, uvicorn[standard], python-multipart.
+테스트까지 돌리려면 `pip install pytest playwright && playwright install chromium`.
+
+**도면과 발주처 양식은 리포지터리에 없습니다.** 용량이 크고 프로젝트별 자료라
+`.gitignore` 가 `data/*.pdf` 와 `data/*.xlsx` 를 제외합니다. 원본을 `data/` 에
+이 이름 그대로 넣어 주세요.
+
+| 파일 | 쓰이는 곳 | 없으면 |
+| --- | --- | --- |
+| `data/pid_total.pdf` | 분석 대상 도면 | UI 에 끌어다 놓아도 되므로 필수는 아님 |
+| `data/CZE_Field_Instrument.xlsx` | FIELD 출력 양식 **＋ 귀속 판정 기준** | FIELD 건너뛰어짐, 전 페이지가 `PDF_ONLY` 로 남고 검토 목록에 `ORIGIN_REFERENCE_MISSING` 이 뜸 |
+| `data/CZI_Butterfly_Valve.xlsx` | BFV 출력 양식 | BFV 건너뛰어짐 |
+| `data/CZH_MOV_Gate_Globe.xlsx` | MOV 출력 양식 | MOV 건너뛰어짐 |
+
+양식은 `data/` 에 두는 대신 화면의 **템플릿 패널**에서 올려도 됩니다
+(`app/_data/templates/` 에 저장되고 `data/` 보다 우선합니다). 어느 쪽도 없으면
+그 산출물은 **양식을 지어내지 않고** 이유와 함께 건너뜁니다.
+
+**분석 결과는 옮겨올 수 없습니다 — 옮겨올 필요도 없습니다.** `app/_data/` 도
+`.gitignore` 대상이라 커밋되지 않습니다. 내 PC 에서 PDF 를 한 번 끌어다 놓으면
+58장 약 7분이 걸리고, 그 결과는 이전 실행과 **바이트 단위로 동일**합니다
+(`tests/test_determinism.py::test_reanalysis_is_byte_identical` 가 보장).
+즉 재분석으로 잃는 것은 시간뿐이고, DB 를 옮겨야만 살아나는 것은 **사람이 손으로
+고친 값(`user_values`)** 하나입니다. 아직 손편집이 없다면 재분석이 곧 원본입니다.
+
+Windows 에서 `run.sh` (bash) 를 못 쓰면 uvicorn 을 직접 부릅니다.
+
+```powershell
+python -m uvicorn app.main:app --reload --port 8000
+```
+
 ## 실행
 
 ```bash
