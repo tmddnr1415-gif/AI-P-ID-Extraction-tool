@@ -99,6 +99,7 @@ import collections
 import json
 import re
 import sys
+import dataclasses
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -108,6 +109,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pidcache          # noqa: E402
 import projectconfig     # noqa: E402
 import detect_symbols as ds   # noqa: E402
+import legend_rules          # noqa: E402
 
 CFG = projectconfig.load()
 
@@ -197,6 +199,11 @@ class ValveLayout:
                                         # end bar is drawn clear of the circle,
                                         # never through it
 
+    # How far short of the gap a stem run may fall.  Legend p3 draws it flush
+    # with the enclosure edge, so the derived value is the index slack alone;
+    # the default here is the pre-derivation behaviour (a quarter of the gap).
+    stem_slack: float = -1.0            # <0 means "a quarter of the gap"
+
     # Actuator sits on the stem, on the axis perpendicular to flow.  Both
     # bounds are PROJECT (out/valve_project_deps.md V1, V2) and come from
     # config; the defaults here are only so the dataclass is constructible.
@@ -255,6 +262,51 @@ def _layout(cfg=CFG) -> ValveLayout:
 
 
 LAYOUT = _layout()
+
+# Windows around a derived point value.  The legend states one number per
+# feature; how much either side of it a different drawing may use is not stated
+# anywhere, so these factors are the residual unknown (out/valve_project_deps.md
+# VU4) while the centres they widen are now measured rather than guessed.
+TICK_LENGTH_BAND = (0.5, 2.0)
+BAR_RADII_BAND = (0.75, 1.25)
+REACH_FACTOR = 2.0
+
+# Slack already inherent in the segment index, which buckets coordinates to
+# 0.1 pt and searches +-8 buckets.  Used as the tolerance on values the legend
+# gives as exactly zero.
+INDEX_SLACK = 0.8
+
+
+def derive_layout(pages, lay: ValveLayout = None, cfg=CFG):
+    """Replace the measured constants with values read off the legend.
+
+    Returns `(layout, provenance)`.  Anything the legend cannot supply keeps the
+    config value and says so in the provenance, so a failed derivation is
+    visible rather than silently absorbed.
+    """
+    lay = lay or LAYOUT
+    derived = legend_rules.derive_all(pages, cfg)
+    bf, st = derived["butterfly"], derived["actuator_stem"]
+    kw = {}
+    if bf.values:
+        tl = float(bf.values["tick_length"])
+        kw["tick_span"] = (tl * TICK_LENGTH_BAND[0], tl * TICK_LENGTH_BAND[1])
+        kw["tick_reach"] = float(bf.values["tick_reach_radii"])
+        kw["bar_reach"] = float(bf.values["bar_reach_radii"]) * BAR_RADII_BAND[1]
+        kw["bar_min"] = float(bf.values["bar_min_radii"]) * BAR_RADII_BAND[0]
+    if st.values:
+        # The legend draws the stem on the enclosure's centre line and starting
+        # on its edge, so both tolerances are its measured value plus the index
+        # slack rather than a chosen allowance.
+        kw["act_offaxis"] = float(st.values["stem_offaxis"]) + INDEX_SLACK
+        kw["stem_slack"] = float(st.values["stem_gap"]) + INDEX_SLACK
+        # The legend lays its own actuator out at `centre_to_body`; a drawing at
+        # another scale needs headroom, and REACH_FACTOR is that headroom.
+        kw["act_reach"] = float(st.values["centre_to_body"]) * REACH_FACTOR
+    return dataclasses.replace(lay, **kw), derived
+
+
+
 
 # Valve tags that can appear in a bubble.  LEGEND: page 3 lists FCV / LCV / PCV
 # / TCV in the CONTROL DEVICE column and PSV / PRV / BPRV under SELF-ACTUATED
@@ -586,7 +638,12 @@ def _vane_ticks(diag_pts, cx, cy, radius, lay: ValveLayout) -> int:
             continue
         mx, my = (p0.x + p1.x) / 2, (p0.y + p1.y) / 2
         d = ((mx - cx) ** 2 + (my - cy) ** 2) ** 0.5
-        if radius * 0.5 <= d <= radius * lay.tick_reach + length:
+        # The bound is the legend's own tick offset in radii, widened by the
+        # stated band - and nothing else.  It used to carry `+ length` on top,
+        # which pushed the reach to 2.5 radii and swallowed the vendor asterisk
+        # mark drawn beside a valve: three plain ball valves on page 26 were
+        # read as butterflies because the asterisk's strokes fell inside it.
+        if radius * 0.5 <= d <= radius * lay.tick_reach * BAR_RADII_BAND[1]:
             hits.append((mx - cx, my - cy))
     for i, a in enumerate(hits):
         for b in hits[i + 1:]:
@@ -1064,9 +1121,10 @@ def _stem_links(index, coord, lo, hi, lay: ValveLayout) -> bool:
     from a closed globe valve with nothing drawn in between.
     """
     span = hi - lo
+    slack = lay.stem_slack if lay.stem_slack >= 0 else span * 0.25
     for step in range(-8, 9):
         for s0, s1 in index.get(round(coord + step * 0.1, 1), ()):
-            if s0 <= lo + span * 0.25 and s1 >= hi - span * 0.25:
+            if s0 <= lo + slack and s1 >= hi - slack:
                 return True
     return False
 
@@ -1592,10 +1650,23 @@ def rule_contributions(pages, baseline_cmp) -> list[dict]:
 STEAM_SYSTEMS = ("LBA", "LBC", "LBG", "LCA", "LCM", "LAB", "MAN", "MAJ")
 HOLDOUT_SYSTEMS = ("PGB", "PAB", "EGD")
 
-# Rules no Steam drawing could have supplied.
+# Rules no Steam drawing could have supplied - three snapshots of the same
+# question, kept together so the progression is visible instead of asserted.
+#
+#   LEGACY    all three, when the actuator letters were a hand-written table and
+#             the tick and stem numbers had been read off drawing pages.
+#   MID       after the letters moved to run-time derivation.
+#   AUTHORED  after the tick and stem numbers moved to run-time measurement off
+#             the legend (spike/legend_rules.py).  This set is *empty*: there is
+#             no longer a valve rule whose value a Steam-only author could have
+#             got wrong, because none of them are authored.  The 0.0 pp that
+#             follows is therefore a statement about what is left to blind, not
+#             a score - the test that still bites is the self-sufficiency table
+#             below it.
 STEAM_BLIND_LEGACY = frozenset({"VANE_TICK", "ACT_STEM", "STROKE_LETTER"})
-STEAM_BLIND_AUTHORED = frozenset({"VANE_TICK", "ACT_STEM"})
-STEAM_BLIND = STEAM_BLIND_AUTHORED
+STEAM_BLIND_MID = frozenset({"VANE_TICK", "ACT_STEM"})
+STEAM_BLIND_AUTHORED = frozenset()
+STEAM_BLIND = STEAM_BLIND_MID
 
 
 def _system_of(drawing: str) -> str:
@@ -1610,6 +1681,7 @@ def crossvalidate(pages) -> dict:
     full = compare(full_res, pages)
     variants = {}
     for name, blind in (("legacy", STEAM_BLIND_LEGACY),
+                        ("mid", STEAM_BLIND_MID),
                         ("authored", STEAM_BLIND_AUTHORED)):
         res, _ = analyse_all(pages, blind)
         variants[name] = compare(res, pages)
@@ -1634,6 +1706,7 @@ def crossvalidate(pages) -> dict:
 
     out = {
         "blinded_legacy": sorted(STEAM_BLIND_LEGACY),
+        "blinded_mid": sorted(STEAM_BLIND_MID),
         "blinded_authored": sorted(STEAM_BLIND_AUTHORED),
         "groups": [],
         "self_sufficiency": _group_self_sufficiency(pages),
@@ -2056,7 +2129,9 @@ def write_report(results, cmp_data, path: Path, extra=None) -> None:
         L.append(f"`legacy` blinds `{'`, `'.join(cv['blinded_legacy'])}` - the set "
                  f"used before the actuator letters were derived at run time, kept "
                  f"for a like-for-like comparison.")
-        L.append(f"`authored` blinds `{'`, `'.join(cv['blinded_authored'])}` - what "
+        L.append(f"`mid` blinds `{'`, `'.join(cv['blinded_mid'])}` - after the "
+                 f"actuator letters became a run-time derivation.")
+        L.append(f"`authored` blinds `{'`, `'.join(cv['blinded_authored']) or '(nothing)'}` - what "
                  f"is left once STROKE_LETTER stops being authored knowledge and "
                  f"becomes something the tool derives from the document in front "
                  f"of it.\n")
@@ -2065,17 +2140,21 @@ def write_report(results, cmp_data, path: Path, extra=None) -> None:
         L.append("|---|---|---:|---:|---:|---:|---:|---:|---:|")
         for g in cv["groups"]:
             for label, key in (("full", "full"), ("steam-only (legacy)", "legacy"),
+                               ("steam-only (mid)", "mid"),
                                ("steam-only (authored)", "authored")):
                 d = g[key]
                 L.append(f"| {g['group']} | {label} | {d['drawings']} | {d['excel']} "
                          f"| {d['detected']} | {d['matched']} | {d['recall']:.1f}% "
                          f"| {d['precision']:.1f}% | {d['exact']} |")
             L.append(f"| | **drop, legacy** | | | | | "
-                     f"**-{g['legacy_recall_drop']:.1f}pp** "
-                     f"| **-{g['legacy_precision_drop']:.1f}pp** | |")
+                     f"**{-g['legacy_recall_drop']:+.1f}pp** "
+                     f"| **{-g['legacy_precision_drop']:+.1f}pp** | |")
+            L.append(f"| | **drop, mid** | | | | | "
+                     f"**{-g['mid_recall_drop']:+.1f}pp** "
+                     f"| **{-g['mid_precision_drop']:+.1f}pp** | |")
             L.append(f"| | **drop, authored** | | | | | "
-                     f"**-{g['authored_recall_drop']:.1f}pp** "
-                     f"| **-{g['authored_precision_drop']:.1f}pp** | |")
+                     f"**{-g['authored_recall_drop']:+.1f}pp** "
+                     f"| **{-g['authored_precision_drop']:+.1f}pp** | |")
         L.append("")
         L.append("A per-document derivation makes the strict train/test split "
                  "incoherent - the label comes from the same drawing as the glyph, "
@@ -2192,16 +2271,22 @@ DEPS_DOC = """# 밸브 규칙 프로젝트 종속 값 인벤토리 (스파이크
 
 ---
 
-## UNKNOWN — 조사 필요, 이번에 튜닝하지 않음 (6건)
+## UNKNOWN — Phase 1 진입 전 리스크 정리 (6건)
 
-| # | 항목 | 위치 | 왜 UNKNOWN 인가 |
-|---|---|---|---|
-| VU1 | **세그먼트 길이 상한** 60.0 | `seg_span` | 범례 최대 밸브 치수는 34.0(유압 실린더 상자). 60 은 여유값이고 유도 근거가 없음. 성능 필터라 결과에 영향은 없지만 근거는 없음 |
-| VU2 | **바 커버리지 여유** 1.2 / **끝단 허용** 0.8 | `bar_cover`, `bar_axis_tol` | 1pt 미만의 작도 정밀도 여유. 범례에서 유도되지 않음 |
-| VU3 | **허리 중심 허용 오차** 2.0 | `centre_tol` | 범례 글로브 원반은 중심 오차 **0.0**. 2.0 이 어디서 왔는지 근거 없음 |
-| VU4 | **범례 실측값 주변 창 폭** (`body_short`, `body_ratio`, `waist_ratio`, `tick_span`, `tick_reach`) | `ValveLayout` | 창의 **중심값**은 전부 범례 실측(17.0×9.9, 0.72, 3.0 …)이지만 **폭**은 유도된 것이 아님. 다른 축척으로 그린 도면을 통과시키려는 의도지만 검증되지 않음 |
-| VU5 | **닫힘 판정 면적 임계** 0.30 | `_triangles_filled` | 검은 나비넥타이의 `fs` 4장이 몸체 bbox 의 몇 %를 덮는지 범례에서 계산하지 않았음 |
-| VU6 | **글자 군집 반경** 0.020 | `GLYPH_RADIUS` | 실측 근거는 있습니다 — 같은 글자쌍 0.0~0.1012, 다른 글자쌍 0.0292~0.0870, 반경 스윕 0.005/0.01/0.02/0.025/0.03/0.05 에서 순수 군집 13/10/4/4/2/2. 0.02~0.025 가 평탄 구간입니다. **다만 문서 1건에서만 측정했으므로** 범례 유도값도 아니고 다른 프로젝트에서 검증되지도 않았습니다 |
+튜닝하지 않았습니다. 목록과 리스크만 확정합니다.
+
+| # | 항목 | 위치 | 신규 프로젝트에서 깨질 가능성 | 깨졌을 때 증상 | Phase 3 조사 방법 |
+|---|---|---|---|---|---|
+| VU1 | **세그먼트 길이 상한** 60.0 | `seg_span` | **하** | 상한을 넘는 큰 밸브가 통째로 미검출. 범례 최대 치수는 34.0 이라 여유 76% | 문서별 밸브 몸체 크기 분포를 뽑아 상한을 범례 최대치의 배수로 유도. 성능 필터라 넉넉히 잡아도 비용은 시간뿐 |
+| VU2 | **바 커버리지 여유** 1.2 / **끝단 허용** 0.8 | `bar_cover`, `bar_axis_tol` | **하** | 끝 바가 살짝 짧게 그려진 밸브가 몸체로 인식되지 않음 → NO_BODY | CAD 출력 정밀도 문제. 같은 도면 안에서 같은 심볼의 좌표 편차를 측정하면 상한이 나옴 (이 문서는 0.1pt 미만) |
+| VU3 | **허리 중심 허용 오차** 2.0 | `centre_tol` | **중** | 글로브의 원반이 중심에서 벗어나게 그려지면 GATE 로 오분류 → Gate/Globe 혼동 | 범례 실측은 0.0. 문서 내 글로브 원반의 중심 편차 분포를 측정해 상한 유도. **마스터 BODY 열이 오면 혼동행렬로 직접 검증 가능** |
+| VU4 | **범례 실측값 주변 창 폭** (`TICK_LENGTH_BAND` 0.5~2.0, `BAR_RADII_BAND` 0.75~1.25, `REACH_FACTOR` 2.0, `body_short`, `body_ratio`, `waist_ratio`) | `ValveLayout`, `detect_valves` 상단 | **중** | 중심값은 이제 범례에서 유도되므로(VL1~VL8, VL11) 축척이 크게 다른 도면에서만 문제. 창을 벗어나면 몸체 미검출 또는 과검출 | 서로 다른 축척의 프로젝트 2건 이상에서 같은 심볼을 측정해 창 폭을 실측으로 정한다. 지금은 문서 1건뿐이라 정할 근거가 없음 |
+| VU5 | **닫힘 판정 면적 임계** 0.30 | `_triangles_filled` | **하** | `state` 가 OPEN/CLOSED 를 뒤집음. **검출·분류에는 영향 없음**(state 는 부가 정보) | 범례 p2 VALVE OPERATION 의 검은 나비넥타이에서 `fs` 덮개 비율을 직접 계산해 유도. 30분 작업 |
+| VU6 | **글자 군집 반경** 0.020 | `GLYPH_RADIUS` | **상** | 너무 작으면 같은 글자가 여러 군집으로 쪼개져 태그 없는 군집이 늘고 NEEDS_REVIEW 증가(안전). 너무 크면 서로 다른 글자가 합쳐져 **틀린 글자를 자동 부여**(위험) | 이 문서 측정: 같은 글자쌍 0.0~0.1012 / 다른 글자쌍 0.0292~0.0870, 반경 스윕에서 0.03 부터 순수도가 깨짐. **문서 1건 측정이므로 상**. 프로젝트가 늘 때마다 스윕을 다시 돌려 순수도 평탄 구간을 확인하고, 합쳐진 군집은 태그 불일치로 자동 검출 가능(한 군집에 MOV·HV 태그가 동시에 나타나면 경보) |
+
+리스크가 **상**인 항목은 VU6 하나입니다. 다만 실패 방향이 비대칭이라 — 반경이 작으면
+NEEDS_REVIEW 만 늘고, 클 때만 위험 — Phase 1 에서는 **한 군집에 서로 다른 태그가
+섞이면 경보**하는 검사를 넣으면 위험 쪽을 자동으로 잡을 수 있습니다.
 
 **UNKNOWN 은 이번에도 손대지 않았습니다.** 계기 쪽 UNKNOWN 5건과 함께 Phase 3 조사
 대상입니다.
@@ -2237,9 +2322,22 @@ def main() -> int:
     args = ap.parse_args()
 
     doc, pages = pidcache.load_pages(PDF)
+
+    # Derive before any --pages filter: the rules are measured off the legend
+    # sheets, which are usually not among the pages being analysed.
+    global LAYOUT
+    LAYOUT, legend_derived = derive_layout(pages)
+
     if args.pages:
         want = {int(x) for x in args.pages.split(",")}
         pages = [p for p in pages if p.page_no in want]
+    print("legend-derived rules:")
+    for line in legend_rules.describe(legend_derived):
+        print("  " + line)
+    print(f"  -> tick_span={tuple(round(v, 3) for v in LAYOUT.tick_span)} "
+          f"tick_reach={LAYOUT.tick_reach:.3f} bar_reach={LAYOUT.bar_reach:.3f} "
+          f"bar_min={LAYOUT.bar_min:.3f} act_offaxis={LAYOUT.act_offaxis:.3f} "
+          f"act_reach={LAYOUT.act_reach:.3f} stem_slack={LAYOUT.stem_slack:.3f}")
 
     disabled = frozenset(x.strip() for x in args.without.split(",") if x.strip())
     unknown = disabled - set(ALL_RULES)

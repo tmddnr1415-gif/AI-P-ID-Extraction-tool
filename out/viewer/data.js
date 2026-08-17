@@ -38054,6 +38054,29 @@ window.PID_DATA = {
       {
        "kind": "BALL",
        "rect": [
+        800.9,
+        607.7,
+        808.1,
+        624.8
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.6
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
         209.3,
         251.3,
         230.6,
@@ -38117,6 +38140,29 @@ window.PID_DATA = {
         "bar_gap": [
          10.6,
          10.7
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        796.6,
+        977.3,
+        803.8,
+        994.2
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.4,
+         8.5
         ]
        }
       },
@@ -38701,52 +38747,6 @@ window.PID_DATA = {
      "name": "body:BUTTERFLY",
      "color": "#42d4f4",
      "items": [
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        800.9,
-        607.7,
-        808.1,
-        624.8
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.6
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        796.6,
-        977.3,
-        803.8,
-        994.2
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.4,
-         8.5
-        ]
-       }
-      },
       {
        "kind": "BUTTERFLY",
        "rect": [
@@ -40718,6 +40718,29 @@ window.PID_DATA = {
       {
        "kind": "BALL",
        "rect": [
+        1111.8,
+        319.0,
+        1117.9,
+        336.0
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 6.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
         1208.8,
         320.7,
         1214.9,
@@ -40856,6 +40879,29 @@ window.PID_DATA = {
         "bar_gap": [
          8.5,
          8.6
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1111.8,
+        538.0,
+        1117.9,
+        555.0
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 6.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
         ]
        }
       },
@@ -41295,29 +41341,6 @@ window.PID_DATA = {
        "tag_rect": [],
        "evidence": {
         "circle": 6.1,
-        "vane_ticks": 4,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1111.8,
-        319.0,
-        1117.9,
-        336.0
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 6.1,
         "vane_ticks": 2,
         "bar_gap": [
          8.5,
@@ -41332,29 +41355,6 @@ window.PID_DATA = {
         546.6,
         1093.4,
         563.6
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 6.1,
-        "vane_ticks": 4,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1111.8,
-        538.0,
-        1117.9,
-        555.0
        ],
        "axis": "V",
        "state": "CLOSED",
@@ -59657,10 +59657,56 @@ window.PID_DATA = {
       {
        "kind": "BALL",
        "rect": [
+        1216.0,
+        762.9,
+        1223.2,
+        779.9
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
         1201.7,
         896.9,
         1208.9,
         913.9
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1216.0,
+        618.9,
+        1223.2,
+        635.9
        ],
        "axis": "V",
        "state": "CLOSED",
@@ -59755,29 +59801,6 @@ window.PID_DATA = {
       {
        "kind": "BUTTERFLY",
        "rect": [
-        1216.0,
-        762.9,
-        1223.2,
-        779.9
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
         949.0,
         596.3,
         966.1,
@@ -59794,29 +59817,6 @@ window.PID_DATA = {
         "vane_ticks": 2,
         "bar_gap": [
          8.6,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1216.0,
-        618.9,
-        1223.2,
-        635.9
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
          8.5
         ]
        }
@@ -61455,9 +61455,55 @@ window.PID_DATA = {
        "kind": "BALL",
        "rect": [
         1246.9,
+        707.3,
+        1254.1,
+        724.3
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1246.9,
         841.2,
         1254.1,
         858.2
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1141.0,
+        1212.9,
+        1148.1,
+        1229.9
        ],
        "axis": "V",
        "state": "CLOSED",
@@ -61516,6 +61562,29 @@ window.PID_DATA = {
         "vane_ticks": 0,
         "bar_gap": [
          8.4,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1246.9,
+        563.3,
+        1254.1,
+        580.3
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
          8.5
         ]
        }
@@ -61736,52 +61805,6 @@ window.PID_DATA = {
       {
        "kind": "BUTTERFLY",
        "rect": [
-        1246.9,
-        707.3,
-        1254.1,
-        724.3
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1141.0,
-        1212.9,
-        1148.1,
-        1229.9
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
         888.7,
         540.7,
         905.7,
@@ -61795,29 +61818,6 @@ window.PID_DATA = {
        "tag_rect": [],
        "evidence": {
         "circle": 6.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1246.9,
-        563.3,
-        1254.1,
-        580.3
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
         "vane_ticks": 2,
         "bar_gap": [
          8.5,
@@ -64901,9 +64901,55 @@ window.PID_DATA = {
        "kind": "BALL",
        "rect": [
         1198.3,
+        1004.9,
+        1205.4,
+        1022.0
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.6
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1198.3,
         1138.8,
         1205.4,
         1155.8
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1198.3,
+        860.9,
+        1205.4,
+        877.9
        ],
        "axis": "V",
        "state": "CLOSED",
@@ -65067,29 +65113,6 @@ window.PID_DATA = {
       {
        "kind": "BUTTERFLY",
        "rect": [
-        1198.3,
-        1004.9,
-        1205.4,
-        1022.0
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
-         8.6
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
         960.4,
         838.3,
         977.5,
@@ -65106,29 +65129,6 @@ window.PID_DATA = {
         "vane_ticks": 2,
         "bar_gap": [
          8.6,
-         8.5
-        ]
-       }
-      },
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1198.3,
-        860.9,
-        1205.4,
-        877.9
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
-        "bar_gap": [
-         8.5,
          8.5
         ]
        }
@@ -69031,6 +69031,29 @@ window.PID_DATA = {
        "kind": "BALL",
        "rect": [
         1318.5,
+        488.6,
+        1325.6,
+        505.6
+       ],
+       "axis": "V",
+       "state": "CLOSED",
+       "actuator": "NONE",
+       "actuator_evidence": "",
+       "tag": "",
+       "tag_rect": [],
+       "evidence": {
+        "circle": 7.1,
+        "vane_ticks": 0,
+        "bar_gap": [
+         8.5,
+         8.5
+        ]
+       }
+      },
+      {
+       "kind": "BALL",
+       "rect": [
+        1318.5,
         669.2,
         1325.6,
         686.1
@@ -69067,35 +69090,6 @@ window.PID_DATA = {
        "evidence": {
         "circle": 7.1,
         "vane_ticks": 0,
-        "bar_gap": [
-         8.5,
-         8.5
-        ]
-       }
-      }
-     ]
-    },
-    {
-     "name": "body:BUTTERFLY",
-     "color": "#42d4f4",
-     "items": [
-      {
-       "kind": "BUTTERFLY",
-       "rect": [
-        1318.5,
-        488.6,
-        1325.6,
-        505.6
-       ],
-       "axis": "V",
-       "state": "CLOSED",
-       "actuator": "NONE",
-       "actuator_evidence": "",
-       "tag": "",
-       "tag_rect": [],
-       "evidence": {
-        "circle": 7.1,
-        "vane_ticks": 2,
         "bar_gap": [
          8.5,
          8.5

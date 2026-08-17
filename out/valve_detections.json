@@ -35493,7 +35493,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      800.9,
      607.7,
@@ -35508,7 +35508,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.6
@@ -35585,7 +35585,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      796.6,
      977.3,
@@ -35600,7 +35600,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.4,
       8.5
@@ -36210,8 +36210,8 @@
    "GLOBE": 31,
    "CHECK": 7,
    "GATE": 13,
-   "BALL": 29,
-   "BUTTERFLY": 3
+   "BALL": 31,
+   "BUTTERFLY": 1
   },
   "actuators": {
    "NONE": 83
@@ -38688,7 +38688,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 6.1,
-     "vane_ticks": 4,
+     "vane_ticks": 2,
      "bar_gap": [
       8.5,
       8.5
@@ -38696,7 +38696,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1111.8,
      319.0,
@@ -38711,7 +38711,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 6.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -38878,7 +38878,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 6.1,
-     "vane_ticks": 4,
+     "vane_ticks": 2,
      "bar_gap": [
       8.5,
       8.5
@@ -38886,7 +38886,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1111.8,
      538.0,
@@ -38901,7 +38901,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 6.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -39350,8 +39350,8 @@
    "GLOBE": 50,
    "CHECK": 6,
    "GATE": 24,
-   "BALL": 46,
-   "BUTTERFLY": 5
+   "BALL": 48,
+   "BUTTERFLY": 3
   },
   "actuators": {
    "NONE": 119,
@@ -56076,7 +56076,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1216.0,
      762.9,
@@ -56091,7 +56091,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -56145,7 +56145,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1216.0,
      618.9,
@@ -56160,7 +56160,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -56334,8 +56334,8 @@
    "GLOBE": 33,
    "DIAPHRAGM": 2,
    "CHECK": 6,
-   "BUTTERFLY": 13,
-   "BALL": 1
+   "BUTTERFLY": 11,
+   "BALL": 3
   },
   "actuators": {
    "NONE": 69,
@@ -59521,7 +59521,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1246.9,
      707.3,
@@ -59536,7 +59536,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -59567,7 +59567,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1141.0,
      1212.9,
@@ -59582,7 +59582,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -59659,7 +59659,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1246.9,
      563.3,
@@ -59674,7 +59674,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -59687,8 +59687,8 @@
    "GLOBE": 76,
    "GATE": 32,
    "CHECK": 12,
-   "BUTTERFLY": 13,
-   "BALL": 3
+   "BUTTERFLY": 10,
+   "BALL": 6
   },
   "actuators": {
    "NONE": 138,
@@ -61500,7 +61500,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1198.3,
      1004.9,
@@ -61515,7 +61515,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.6
@@ -61569,7 +61569,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1198.3,
      860.9,
@@ -61584,7 +61584,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -61596,8 +61596,8 @@
    "GATE": 19,
    "GLOBE": 44,
    "CHECK": 6,
-   "BUTTERFLY": 9,
-   "BALL": 1
+   "BUTTERFLY": 7,
+   "BALL": 3
   },
   "actuators": {
    "NONE": 77,
@@ -65141,7 +65141,7 @@
     }
    },
    {
-    "kind": "BUTTERFLY",
+    "kind": "BALL",
     "rect": [
      1318.5,
      488.6,
@@ -65156,7 +65156,7 @@
     "tag_rect": [],
     "evidence": {
      "circle": 7.1,
-     "vane_ticks": 2,
+     "vane_ticks": 0,
      "bar_gap": [
       8.5,
       8.5
@@ -65214,8 +65214,7 @@
    "GATE": 41,
    "CHECK": 4,
    "GLOBE": 15,
-   "BUTTERFLY": 1,
-   "BALL": 2
+   "BALL": 3
   },
   "actuators": {
    "NONE": 62,

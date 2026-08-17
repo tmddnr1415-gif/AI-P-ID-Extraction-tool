@@ -20,9 +20,9 @@ found from the symbol.
 |---|---:|
 | GLOBE | 1360 |
 | GATE | 779 |
-| BALL | 311 |
+| BALL | 323 |
 | CHECK | 264 |
-| BUTTERFLY | 136 |
+| BUTTERFLY | 124 |
 | DIAPHRAGM | 46 |
 
 ## 3. Actuators found
@@ -73,10 +73,10 @@ Derived letters: **{'H': 4, 'M': 32}**
 
 | drawing | page | excel rows | excel actuators | bodies in family | actuated | detected actuators | unread | delta |
 |---|---|---:|---|---:|---:|---|---:|---:|
-| D00P-00EGD00-M05-0002 | 33 | 12 | MOTOR 12 | 120 | 12 | MOTOR 12 | 0 | +0 |
-| D00P-00GHB10-M05-0001 | 49 | 2 | MOTOR 2 | 64 | 2 | MOTOR 2 | 0 | +0 |
-| D00P-00GHC10-M05-0001 | 46,47 | 2 | MOTOR 2 | 161 | 4 | MOTOR 4 | 0 | +2 |
-| D00P-00GKB10-M05-0001 | 51 | 1 | MOTOR 1 | 58 | 1 | MOTOR 1 | 0 | +0 |
+| D00P-00EGD00-M05-0002 | 33 | 12 | MOTOR 12 | 122 | 12 | MOTOR 12 | 0 | +0 |
+| D00P-00GHB10-M05-0001 | 49 | 2 | MOTOR 2 | 66 | 2 | MOTOR 2 | 0 | +0 |
+| D00P-00GHC10-M05-0001 | 46,47 | 2 | MOTOR 2 | 166 | 4 | MOTOR 4 | 0 | +2 |
+| D00P-00GKB10-M05-0001 | 51 | 1 | MOTOR 1 | 59 | 1 | MOTOR 1 | 0 | +0 |
 | D00P-10LBA10-M05-0001 | 6 | 6 | MOTOR 6 | 60 | 8 | MOTOR 8 | 0 | +2 |
 | D00P-10LBA30-M05-0001 | 9 | 4 | MOTOR 4 | 57 | 6 | MOTOR 6 | 0 | +2 |
 | D00P-10LBC40-M05-0001 | 7 | 4 | MOTOR 4 | 66 | 8 | MOTOR 8 | 0 | +4 |
@@ -146,10 +146,10 @@ nothing in the actuated column and still be load-bearing.
 |---|---:|---:|---:|---:|---:|
 | WAIST_DISC | 88 | -3 | 3 | 12 | 4207 |
 | VANE_TICK | 69 | -22 | 4 | 9 | 2896 |
-| END_BARS | 91 | +0 | 0 | 11 | 4149 |
+| END_BARS | 91 | +0 | 0 | 11 | 4141 |
 | STROKE_LETTER | 58 | -33 | 7 | 7 | 2896 |
 | ACT_CLEARANCE | 91 | +0 | 0 | 11 | 2896 |
-| ACT_STEM | 104 | +13 | 3 | 9 | 2896 |
+| ACT_STEM | 91 | +0 | 0 | 11 | 2896 |
 
 ## 7. Per-deliverable recall / precision
 
@@ -192,25 +192,32 @@ Unclaimed butterfly detections on those drawings: **2** - the file lists only th
 ## 8. Cross-validation - Steam-only ruleset
 
 `legacy` blinds `ACT_STEM`, `STROKE_LETTER`, `VANE_TICK` - the set used before the actuator letters were derived at run time, kept for a like-for-like comparison.
-`authored` blinds `ACT_STEM`, `VANE_TICK` - what is left once STROKE_LETTER stops being authored knowledge and becomes something the tool derives from the document in front of it.
+`mid` blinds `ACT_STEM`, `VANE_TICK` - after the actuator letters became a run-time derivation.
+`authored` blinds `(nothing)` - what is left once STROKE_LETTER stops being authored knowledge and becomes something the tool derives from the document in front of it.
 
 | group | ruleset | drawings | excel | detected | matched | recall | precision | exact |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | STEAM (training) | full | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
 | STEAM (training) | steam-only (legacy) | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
+| STEAM (training) | steam-only (mid) | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
 | STEAM (training) | steam-only (authored) | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
 | | **drop, legacy** | | | | | **-0.0pp** | **-0.0pp** | |
+| | **drop, mid** | | | | | **-0.0pp** | **-0.0pp** | |
 | | **drop, authored** | | | | | **-0.0pp** | **-0.0pp** | |
 | HOLDOUT PGB/PAB/EGD | full | 4 | 25 | 26 | 24 | 96.0% | 92.3% | 2 |
 | HOLDOUT PGB/PAB/EGD | steam-only (legacy) | 4 | 25 | 0 | 0 | 0.0% | 0.0% | 0 |
-| HOLDOUT PGB/PAB/EGD | steam-only (authored) | 4 | 25 | 18 | 12 | 48.0% | 66.7% | 0 |
+| HOLDOUT PGB/PAB/EGD | steam-only (mid) | 4 | 25 | 12 | 12 | 48.0% | 100.0% | 1 |
+| HOLDOUT PGB/PAB/EGD | steam-only (authored) | 4 | 25 | 26 | 24 | 96.0% | 92.3% | 2 |
 | | **drop, legacy** | | | | | **-96.0pp** | **-92.3pp** | |
-| | **drop, authored** | | | | | **-48.0pp** | **-25.6pp** | |
+| | **drop, mid** | | | | | **-48.0pp** | **+7.7pp** | |
+| | **drop, authored** | | | | | **-0.0pp** | **-0.0pp** | |
 | ALL | full | 19 | 78 | 91 | 77 | 98.7% | 84.6% | 11 |
 | ALL | steam-only (legacy) | 19 | 78 | 50 | 40 | 51.3% | 80.0% | 6 |
-| ALL | steam-only (authored) | 19 | 78 | 82 | 57 | 73.1% | 69.5% | 7 |
+| ALL | steam-only (mid) | 19 | 78 | 69 | 57 | 73.1% | 82.6% | 9 |
+| ALL | steam-only (authored) | 19 | 78 | 91 | 77 | 98.7% | 84.6% | 11 |
 | | **drop, legacy** | | | | | **-47.4pp** | **-4.6pp** | |
-| | **drop, authored** | | | | | **-25.6pp** | **-15.1pp** | |
+| | **drop, mid** | | | | | **-25.6pp** | **-2.0pp** | |
+| | **drop, authored** | | | | | **-0.0pp** | **-0.0pp** | |
 
 A per-document derivation makes the strict train/test split incoherent - the label comes from the same drawing as the glyph, not from a training set - so the question a new project really asks is whether its own drawings carry enough tag bubbles to derive their own letters:
 

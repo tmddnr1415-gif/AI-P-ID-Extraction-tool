@@ -231,3 +231,22 @@ valves:
   # circle and HV with the hydraulic box).  A cluster with no such member is
   # reported as UNLABELED_GLYPH_CLUSTER instead of being guessed.  See
   # out/stroke_bootstrap.md and spike/detect_valves.derive_glyph_library.
+
+  # Fallback for the two rules now measured off the legend at run time
+  # (spike/legend_rules.py).  These are NOT the source of truth: VANE_TICK is
+  # measured from the BUTTERFLY row of legend p2 and ACT_STEM from the VALVES
+  # ACTUATORS column of legend p3.  This block is used only when a legend sheet
+  # cannot be read, and its use is logged with the reason.  The values are the
+  # ones this project's legend yields, so a fallback run reproduces it.
+  legend_fallback:
+    butterfly:
+      tick_length: 3.0
+      tick_reach_radii: 1.498
+      bar_reach_radii: 2.822
+      bar_min_radii: 2.378
+      circle_diameter: 6.06
+    actuator_stem:
+      stem_gap: 0.0
+      stem_offaxis: 0.03
+      stem_length: 19.86
+      centre_to_body: 26.97
