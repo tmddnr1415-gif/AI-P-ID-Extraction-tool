@@ -96,9 +96,11 @@ from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import json
 import re
 import sys
+import time
 import dataclasses
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -204,6 +206,17 @@ class ValveLayout:
     # the default here is the pre-derivation behaviour (a quarter of the gap).
     stem_slack: float = -1.0            # <0 means "a quarter of the gap"
 
+    # Pneumatic actuators, legend page 3, measured by
+    # `legend_rules.derive_pneumatic`.  An empty window means the legend could
+    # not be measured and no config fallback was supplied, in which case the
+    # candidate is not proposed at all - the pneumatic shapes carry no letter,
+    # so there is nothing to fall back on reading.
+    dome_flat: tuple = ()        # flat side of the diaphragm dome
+    dome_aspect: tuple = ()      # its depth / flat side; a half circle is 0.5
+    cyl_side: tuple = ()         # side of the cylinder box
+    cyl_aspect: tuple = ()       # its height / side; the legend's is square
+    cyl_divider: tuple = ()      # where the piston line crosses, as a fraction
+
     # Actuator sits on the stem, on the axis perpendicular to flow.  Both
     # bounds are PROJECT (out/valve_project_deps.md V1, V2) and come from
     # config; the defaults here are only so the dataclass is constructible.
@@ -241,8 +254,16 @@ class ValveLayout:
 #                  longer load-bearing and the report says so.
 #   ACT_STEM       legend p3/p4 - the actuator is joined to the body by a drawn
 #                  stem.  Off: proximity on the stem axis is enough.
+#   PNEUMATIC_SHELL  legend p3 - the domed diaphragm and the divided cylinder
+#                  box are actuators even though they hold no letter.
+#                  Off: both stay invisible, which is what the detector did
+#                  before they were measured, and every CV/XV valve is missed.
 ALL_RULES = ("WAIST_DISC", "VANE_TICK", "END_BARS", "STROKE_LETTER",
-             "ACT_CLEARANCE", "ACT_STEM")
+             "ACT_CLEARANCE", "ACT_STEM", "PNEUMATIC_SHELL")
+
+# Enclosure shapes legend page 3 draws empty.  Their shape names come from
+# `_actuator_shells`; both mean PNEUMATIC and neither can be read for a letter.
+PNEUMATIC_SHAPES = ("dome", "cylinder")
 
 
 def _layout(cfg=CFG) -> ValveLayout:
@@ -270,6 +291,12 @@ LAYOUT = _layout()
 TICK_LENGTH_BAND = (0.5, 2.0)
 BAR_RADII_BAND = (0.75, 1.25)
 REACH_FACTOR = 2.0
+# Same residual unknown for the pneumatic shapes: the legend states one size,
+# and how far a drawing at another scale may depart from it is not stated.  This
+# document draws them at exactly the legend's size on every page, so the band is
+# only headroom - and it is what keeps a 22.6 pt tag-bubble arc and a 9.9 pt
+# half-round out of the dome candidates.
+PNEUMATIC_SIZE_BAND = (0.75, 1.25)
 
 # Slack already inherent in the segment index, which buckets coordinates to
 # 0.1 pt and searches +-8 buckets.  Used as the tolerance on values the legend
@@ -286,8 +313,29 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG):
     """
     lay = lay or LAYOUT
     derived = legend_rules.derive_all(pages, cfg)
-    bf, st = derived["butterfly"], derived["actuator_stem"]
+    bf, st, pn = derived["butterfly"], derived["actuator_stem"], derived["pneumatic"]
     kw = {}
+    if pn.values:
+        # Sizes get the band above.  Aspect and divider position are ratios, so
+        # they do not move with the drawing's scale; their tolerance is the
+        # coordinate slack the stroke index already carries, expressed as a
+        # fraction of the size the legend drew - not a chosen allowance.
+        flat = float(pn.values.get("dome_flat") or 0.0)
+        side = float(pn.values.get("cylinder_side") or 0.0)
+        if flat:
+            kw["dome_flat"] = (flat * PNEUMATIC_SIZE_BAND[0],
+                               flat * PNEUMATIC_SIZE_BAND[1])
+            slack = INDEX_SLACK / flat
+            aspect = float(pn.values["dome_aspect"])
+            kw["dome_aspect"] = (aspect - slack, aspect + slack)
+        if side and pn.values.get("cylinder_divider") is not None:
+            kw["cyl_side"] = (side * PNEUMATIC_SIZE_BAND[0],
+                              side * PNEUMATIC_SIZE_BAND[1])
+            slack = INDEX_SLACK / side
+            aspect = float(pn.values["cylinder_aspect"])
+            kw["cyl_aspect"] = (aspect - slack, aspect + slack)
+            div = float(pn.values["cylinder_divider"])
+            kw["cyl_divider"] = (div - slack, div + slack)
     if bf.values:
         tl = float(bf.values["tick_length"])
         kw["tick_span"] = (tl * TICK_LENGTH_BAND[0], tl * TICK_LENGTH_BAND[1])
@@ -714,137 +762,12 @@ def _find_discs_between_bars(pc, horiz, vert, rounds, fills, diag, claimed,
 # --------------------------------------------------------------------------
 # Actuator judgement (legend page 3, VALVES ACTUATORS)
 # --------------------------------------------------------------------------
-
-def _actuator_shells(pc, lay: ValveLayout):
-    """Small closed shapes that could hold an actuator letter.
-
-    Legend page 3 always encloses the letter: a circle for ROTARY MOTOR and
-    ELECTRO OR HYDRAULIC, a box for HYDRAULIC CYLINDER, SOLENOID and
-    UNCLASSIFIED.  Finding the enclosure first - rather than starting from a
-    letter - matters because the letter is not always text.  Page 6 writes its
-    motor 'M' into the text layer; page 26 strokes its hydraulic 'H' as three
-    line segments with no text at all, the same way the title block strokes its
-    revision letter.  Enclosure-first lets an unread letter be reported as
-    unread instead of silently dropping the actuator.
-    """
-    shells = []
-    for d in pc.drawings():
-        items = d["items"]
-        if not items:
-            continue
-        b = d["bbox"]
-        if not _in_area(b, lay.drawing_area):
-            continue
-        if not (lay.act_box[0] <= b.width <= lay.act_box[1]
-                and lay.act_box[0] <= b.height <= lay.act_box[1]):
-            continue
-        ratio = min(b.width, b.height) / max(b.width, b.height)
-        if ratio < 0.75:
-            continue
-        if all(i[0] == "c" for i in items):
-            shells.append(("circle", b))
-        elif all(i[0] in ("l", "qu", "re") for i in items) and (
-                any(i[0] in ("qu", "re") for i in items)
-                or sum(1 for i in items if i[0] == "l") >= 4):
-            # A box needs four sides.  Accepting a single `l` item let one
-            # diagonal stroke of the spring symbol pass as an enclosure whenever
-            # its bounding box came out square - that alone produced 12 of the
-            # 14 UNREAD actuators, all of them on check and three-way valves
-            # that cannot have an actuator at all.  Legend page 3 draws every
-            # box actuator closed: the hydraulic cylinder as six `l` items, and
-            # page 26 strokes its H box as a single `qu`.
-            shells.append(("box", b))
-    return shells
-
-
-def _strokes_in(pc, rect, lay: ValveLayout):
-    """Straight strokes wholly inside a shell - the drawn letter."""
-    out = []
-    for p0, p1 in pc.segments():
-        if not (rect.x0 - 0.3 <= min(p0.x, p1.x) and max(p0.x, p1.x) <= rect.x1 + 0.3
-                and rect.y0 - 0.3 <= min(p0.y, p1.y) and max(p0.y, p1.y) <= rect.y1 + 0.3):
-            continue
-        dx, dy = p1.x - p0.x, p1.y - p0.y
-        length = (dx * dx + dy * dy) ** 0.5
-        if length < 0.8 or length > max(rect.width, rect.height) * 1.1:
-            continue
-        out.append((p0, p1, abs(dx), abs(dy), length))
-    return out
-
-
-# --------------------------------------------------------------------------
-# Actuator letters that are drawn rather than typed
-# --------------------------------------------------------------------------
 #
-# There is no signature table any more.  It used to live in
-# `valves.stroked_letters` as config item V8, hand-written by opening pages 26
-# and 33 and reading their vector dumps, and cross-validation showed it was the
-# single reason the ruleset did not transfer: blinding it took the holdout
-# systems to zero.
-#
-# It is now derived from each document at run time, by the route
-# spike/stroke_bootstrap.py measured:
-#
-#   * glyphs drawn as strokes cannot be read against templates taken from the
-#     text layer.  A stroked M sits 0.4331..0.5190 from the nearest text M and a
-#     stroked H sits 0.4633..0.5159 - the ranges overlap, because the distance
-#     is dominated by filled-outline-versus-thin-stroke rendering rather than by
-#     the letter.  So that route is not used.
-#
-#   * stroked glyphs compared against *each other* separate cleanly.
-#     Leave-one-out nearest neighbour over all 73 in this document is 73/73, so
-#     one labelled example per letter is enough.
-#
-#   * the label comes from the text layer by a different door.  Legend page 4
-#     pairs the MOV tag bubble with the M circle and the HV bubble with the
-#     hydraulic box, so a valve carrying a text tag states which letter is on
-#     its stem - the same trick spike 1 uses when the revision-history row order
-#     labels its own strokes.
-#
-# A cluster with no tag-labelled member is never guessed at.  It is reported as
-# UNLABELED_GLYPH_CLUSTER and the enclosures in it stay unread.
-
-# Two stroked glyphs are the same letter when their normalised bitmaps sit
-# within this distance.  Measured, not tuned: same-letter pairs run 0.0..0.1012
-# and cross-letter pairs 0.0292..0.0870, and a linkage sweep over
-# 0.005/0.01/0.02/0.025/0.03/0.05 gives 13/10/4/4/3/3 clusters of which
-# 13/10/4/4/2/2 are pure - so 0.02..0.025 is the widest radius that keeps every
-# cluster to one letter.  See out/stroke_bootstrap.md.
-GLYPH_RADIUS = 0.020
-
-# Crop inside the enclosure before rasterising; the outline is ink and would
-# otherwise dominate the normalised bitmap.
-GLYPH_INSET = 0.18
-
-# Valve tag -> the actuator letter legend page 3 draws for it.  Both halves are
-# LEGEND: page 4 pairs the MOV bubble with the M circle and the HV bubble with
-# the hydraulic box, and page 3 names M as ROTARY MOTOR, H as HYDRAULIC
-# CYLINDER.  A tag not listed here labels nothing.
-TAG_LETTER = {"MOV": "M", "HV": "H", "HOV": "H", "XV": "X"}
-
-
-def _glyph_bitmap(pc, rect: pymupdf.Rect):
-    """Normalised ink bitmap of an enclosure's interior.
-
-    The same two steps spike 1 applies to the revision cell: an ink mask
-    thresholded relative to the darkest pixel present, then an area average
-    onto a fixed grid, which makes the comparison independent of position, size
-    and stroke weight.  That is what lets a 14.2 pt circle and a 19.3 pt one
-    land in the same cluster.
-    """
-    import extract_titleblocks as _tb
-    d = min(rect.width, rect.height) * GLYPH_INSET
-    clip = pymupdf.Rect(rect.x0 + d, rect.y0 + d, rect.x1 - d, rect.y1 - d)
-    mask = _tb._ink_mask(pc.page, clip, _tb.LAYOUT)
-    if mask is None:
-        return None
-    return _tb._normalise(mask, _tb.LAYOUT)
-
-
-def _glyph_distance(a, b) -> float:
-    import numpy as np
-    return float(np.abs(a - b).mean())
-
+# This whole section used to appear twice, byte for byte: `_actuator_shells`,
+# `_strokes_in`, `_glyph_bitmap`, `_glyph_distance` and the GLYPH_* constants
+# were defined once here and again below, so the first copy was dead - Python
+# keeps the last definition - while reading exactly like the live one.  The dead
+# copy is gone.
 
 @dataclass
 class GlyphLibrary:
@@ -936,7 +859,7 @@ def derive_glyph_library(results) -> GlyphLibrary:
     return lib
 
 
-def _actuator_shells(pc, lay: ValveLayout):
+def _actuator_shells(pc, lay: ValveLayout, disabled=frozenset()):
     """Small closed shapes that could hold an actuator letter.
 
     Legend page 3 always encloses the letter: a circle for ROTARY MOTOR and
@@ -947,14 +870,31 @@ def _actuator_shells(pc, lay: ValveLayout):
     line segments with no text at all, the same way the title block strokes its
     revision letter.  Enclosure-first lets an unread letter be reported as
     unread instead of silently dropping the actuator.
+
+    Two shapes on the same legend sheet hold no letter at all, and so were never
+    candidates for a search that was looking for something to read: the
+    PNEUMATIC DIAPHRAGM dome and the PNEUMATIC CYLINDER box.  They are added
+    here from `legend_rules.derive_pneumatic`'s measurements - see `_is_dome` and
+    `_pneumatic_cylinders` for what each one has to satisfy.
     """
     shells = []
+    # With PNEUMATIC_SHELL off, the two letterless shapes are not proposed at
+    # all.  Naming them later is not enough: an unnamed dome would fall through
+    # to the stroked-letter reader, join the glyph clusters and change what the
+    # letters are derived from, so `--without PNEUMATIC_SHELL` would measure
+    # something that is neither the old detector nor the new one.
+    index = None if "PNEUMATIC_SHELL" in disabled else _pneumatic_index(pc, lay)
     for d in pc.drawings():
         items = d["items"]
         if not items:
             continue
         b = d["bbox"]
         if not _in_area(b, lay.drawing_area):
+            continue
+        if index is not None and _is_dome(b, items, lay, index[0]):
+            # Tested before the size and squareness checks below, neither of
+            # which a dome can pass: it is half as deep as it is wide.
+            shells.append(("dome", b))
             continue
         if not (lay.act_box[0] <= b.width <= lay.act_box[1]
                 and lay.act_box[0] <= b.height <= lay.act_box[1]):
@@ -975,7 +915,72 @@ def _actuator_shells(pc, lay: ValveLayout):
             # box actuator closed: the hydraulic cylinder as six `l` items, and
             # page 26 strokes its H box as a single `qu`.
             shells.append(("box", b))
+    if index is not None:
+        shells.extend(_pneumatic_cylinders(pc, lay, index))
     return shells
+
+
+def _pneumatic_index(pc, lay: ValveLayout):
+    """Stroke index for the pneumatic shapes, or None when nothing was derived.
+
+    Built only when the legend actually gave a pneumatic measurement, so a
+    document whose legend has no PNEUMATIC row pays neither the cost nor the
+    risk.
+    """
+    if not (lay.dome_flat or lay.cyl_side):
+        return None
+    return legend_rules.stroke_index(pc.segments())
+
+
+def _is_dome(b, items, lay: ValveLayout, horiz) -> bool:
+    """A half circle standing on a drawn chord: legend p3 PNEUMATIC DIAPHRAGM.
+
+    Three facts, all of them the legend's: the shape is curves only, it is half
+    as deep as it is wide, and its flat side is drawn.  The chord is what earns
+    the rule its keep - a tag bubble's rounded end has the same 0.50 aspect and
+    the same curve-only path, and there are 1220 of those in this document
+    against 35 domes, so without the chord this rule would be noise.
+    """
+    if not lay.dome_flat or any(i[0] != "c" for i in items):
+        return False
+    flat, depth = max(b.width, b.height), min(b.width, b.height)
+    if not lay.dome_flat[0] <= flat <= lay.dome_flat[1]:
+        return False
+    if flat <= 0 or not lay.dome_aspect[0] <= depth / flat <= lay.dome_aspect[1]:
+        return False
+    if b.width > b.height:
+        return (legend_rules.covers(horiz, b.y1, b.x0, b.x1, lay.bar_cover)
+                or legend_rules.covers(horiz, b.y0, b.x0, b.x1, lay.bar_cover))
+    # A dome on a vertical run is turned a quarter: its chord is vertical, and
+    # the vertical index is the one to ask.  `horiz` is passed for the common
+    # case, so the turned one is measured against the same shape rule and
+    # reported unread rather than silently accepted.
+    return False
+
+
+def _pneumatic_cylinders(pc, lay: ValveLayout, index):
+    """Closed square boxes crossed by a piston line: legend p3 PNEUMATIC CYLINDER.
+
+    The box is not a path.  Legend page 3 draws it as six separate one-segment
+    paths and page 12 splits its left wall into two touching halves, so it is
+    assembled from strokes by `legend_rules.closed_boxes`.  The divider is what
+    separates it from the plain letter boxes on the same sheet - H, S and X are
+    closed and undivided - and it is why this rule does not simply re-find the
+    boxes the path search above already has.
+    """
+    if not lay.cyl_side:
+        return []
+    out = []
+    for x0, y0, x1, y1, dividers in legend_rules.closed_boxes(
+            index, sides=lay.cyl_side, square=lay.cyl_aspect,
+            cover=lay.bar_cover):
+        if not any(lay.cyl_divider[0] <= f <= lay.cyl_divider[1] for f in dividers):
+            continue
+        b = pymupdf.Rect(x0, y0, x1, y1)
+        if not _in_area(b, lay.drawing_area):
+            continue
+        out.append(("cylinder", b))
+    return out
 
 
 def _strokes_in(pc, rect, lay: ValveLayout):
@@ -1077,7 +1082,7 @@ def find_actuators(pc, lay: ValveLayout = LAYOUT, disabled=frozenset()):
     """
     words = [(r, t.strip()) for r, t in pc.words if _in_area(r, lay.drawing_area)]
     out = []
-    for shape, b in _actuator_shells(pc, lay):
+    for shape, b in _actuator_shells(pc, lay, disabled):
         centre = pymupdf.Point((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)
         rect = b
         inside = [t for r, t in words
@@ -1090,6 +1095,14 @@ def find_actuators(pc, lay: ValveLayout = LAYOUT, disabled=frozenset()):
             continue
         if text:
             continue                     # a labelled box that is not an actuator
+        if shape in PNEUMATIC_SHAPES:
+            # The legend draws these two with nothing inside them, so the shape
+            # is the whole evidence and there is no letter to wait for.  A dome
+            # or cylinder that does hold a letter was already handled above, and
+            # neither shape is proposed at all when the rule is off.
+            out.append(("PNEUMATIC", centre, rect,
+                        f"legend p3 pneumatic {shape}, no letter drawn", None))
+            continue
         n = len(_strokes_in(pc, b, lay))
         if n == 0:
             # Nothing drawn inside: most likely not an actuator at all.
@@ -1250,10 +1263,29 @@ def attach_tags(pc, bodies: list[Body], lay: ValveLayout = LAYOUT) -> list[tuple
 # Per-page driver
 # --------------------------------------------------------------------------
 
-def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset()) -> dict:
-    bodies = find_bodies(pc, lay, disabled)
-    attach_actuators(pc, bodies, lay, disabled)
-    tags = attach_tags(pc, bodies, lay)
+def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset(),
+            on_step=None) -> dict:
+    """`on_step(page_no, step_name, seconds)` is a timing hook and nothing else.
+
+    It exists so a slow run can be attributed to a step instead of guessed at.
+    Nothing it reports is read back, so the result is the same whether it is
+    passed or not.
+    """
+    @contextlib.contextmanager
+    def timed(name):
+        t0 = time.perf_counter()
+        try:
+            yield
+        finally:
+            if on_step:
+                on_step(pc.page_no, name, time.perf_counter() - t0)
+
+    with timed("bodies"):
+        bodies = find_bodies(pc, lay, disabled)
+    with timed("actuators"):
+        attach_actuators(pc, bodies, lay, disabled)
+    with timed("tags"):
+        tags = attach_tags(pc, bodies, lay)
     tagged = sum(1 for b in bodies if b.tag)
     return {
         "page_no": pc.page_no,
@@ -1414,16 +1446,19 @@ def page_index(titleblocks: Path = None) -> dict:
     return idx
 
 
-def analyse_all(pages, disabled=frozenset(), derive=True):
+def analyse_all(pages, disabled=frozenset(), derive=True, on_step=None):
     """Analyse every page, then derive the document's own glyph letters.
 
     Returns `(results, library)`.  The derivation is a second look at results
     already computed, not a second pass over the PDF: naming a letter does not
-    change any geometry.
+    change any geometry.  `on_step` is the timing hook `analyse` documents.
     """
-    results = {pc.page_no: analyse(pc, LAYOUT, disabled)
+    results = {pc.page_no: analyse(pc, LAYOUT, disabled, on_step)
                for pc in pages if pc.analysis_scope}
+    t0 = time.perf_counter()
     lib = derive_glyph_library(results) if derive else GlyphLibrary()
+    if on_step:
+        on_step(None, "glyph_library", time.perf_counter() - t0)
     return results, lib
 
 

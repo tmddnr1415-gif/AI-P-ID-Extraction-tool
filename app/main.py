@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import queue
 import sys
 import threading
@@ -43,6 +44,18 @@ STATIC = Path(__file__).resolve().parent / "static"
 app = FastAPI(title="P&ID extraction")
 CON = db.connect(DB_PATH)
 
+# Verification mode.  Attributing a drawing to MATCHED or PDF_ONLY needs a
+# *finished* instrument list to attribute it against, and in real use no such
+# file exists - the inputs are the drawings and an empty output form.  So the
+# answer key is opt-in through the environment and off by default:
+#
+#   PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh
+#
+# With it unset every drawing is DRAWING, the origin column and its filter stay
+# out of the way, and nothing reads anything out of data/.
+VERIFY_AGAINST = (Path(os.environ["PID_VERIFY_EXCEL"]).expanduser()
+                  if os.environ.get("PID_VERIFY_EXCEL") else None)
+
 # One analysis at a time; listeners get progress events per job.
 _JOBS: "queue.Queue[str]" = queue.Queue()
 _LISTENERS: dict[str, list] = {}
@@ -71,7 +84,8 @@ def _worker() -> None:
                 _emit(job_id, {"progress": frac, "message": message,
                                "status": "running"})
 
-            result = pipeline.analyse(Path(row["pdf_path"]), progress=progress)
+            result = pipeline.analyse(Path(row["pdf_path"]), progress=progress,
+                                      reference=VERIFY_AGAINST)
             result["fingerprint"] = pipeline.fingerprint(result)
             summary = db.store_result(CON, job_id, result)
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
@@ -359,7 +373,10 @@ async def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
 
 TEMPLATES = DATA_DIR / "templates"
 
-# Templates the repository already ships, used when none has been uploaded.
+# Output forms found beside the project, used when none has been uploaded.  The
+# repository does not carry these - `data/*.xlsx` is gitignored - so on a fresh
+# clone every deliverable starts out with no template and says so.  An *empty*
+# form is enough: only the layout is read, and the data area is rewritten.
 _BUILTIN = {
     "FIELD": ROOT / "data" / "CZE_Field_Instrument.xlsx",
     "BFV": ROOT / "data" / "CZI_Butterfly_Valve.xlsx",

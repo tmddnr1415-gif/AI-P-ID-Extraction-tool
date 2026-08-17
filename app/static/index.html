@@ -34,18 +34,9 @@
     <span id="review-badge" class="badge"></span>
     <details id="scope" class="scope">
       <summary>출력 범위</summary>
-      <div class="scope-body">
-        <p class="muted">Excel 에 포함할 페이지 귀속. 기본은 전체 포함입니다.</p>
-        <label><input type="checkbox" class="origin" value="MATCHED" checked>
-          <b>MATCHED</b> <span class="muted">Excel 에 대응 도면이 있는 페이지</span>
-          <span class="n" data-n="MATCHED"></span></label>
-        <label><input type="checkbox" class="origin" value="REVISION_GAP" checked>
-          <b>REVISION_GAP</b> <span class="muted">Excel 이 도면 개정을 미반영</span>
-          <span class="n" data-n="REVISION_GAP"></span></label>
-        <label><input type="checkbox" class="origin" value="PDF_ONLY" checked>
-          <b>PDF_ONLY</b> <span class="muted">Excel 에 행이 없는 도면</span>
-          <span class="n" data-n="PDF_ONLY"></span></label>
-      </div>
+      <!-- Filled from the origins the analysis actually produced; see
+           app.js buildScope(). -->
+      <div class="scope-body"></div>
     </details>
     <label class="gate">
       <input type="checkbox" id="gate-check">
@@ -78,12 +69,7 @@
     <section id="right">
       <div class="toolbar">
         <input id="filter" type="search" placeholder="필터 — 도면번호 / Type / System">
-        <select id="origin-filter">
-          <option value="">귀속 전체</option>
-          <option value="MATCHED">MATCHED</option>
-          <option value="REVISION_GAP">REVISION_GAP</option>
-          <option value="PDF_ONLY">PDF_ONLY</option>
-        </select>
+        <select id="origin-filter"><option value="">귀속 전체</option></select>
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>

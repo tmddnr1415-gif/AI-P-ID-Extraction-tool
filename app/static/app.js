@@ -27,7 +27,7 @@ const COLOR = {
 const S = {
   job: null, tab: "ALL", rows: [], pages: [], page: null, zoom: 1,
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
-  originFilter: "", originCounts: {},
+  originFilter: "", originCounts: {}, showOrigin: false,
 };
 
 /* ---------------- upload ---------------- */
@@ -112,14 +112,49 @@ async function loadRows() {
     if (r.needs_review || r.deleted) S.counts.REVIEW++;
     S.originCounts[r.origin] = (S.originCounts[r.origin] || 0) + 1;
   }
-  for (const el of document.querySelectorAll(".scope-body .n"))
-    el.textContent = `${S.originCounts[el.dataset.n] || 0}행`;
+  buildScope();
   S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
   showAppliedRules();
   await showTemplates();
   buildTabs();
   updateBadge();
   renderGrid();
+}
+
+/* Page origin.  MATCHED and PDF_ONLY only exist when the app was given a
+ * finished instrument list to attribute drawings against, which is verification
+ * mode; a normal run has no such file and every page is DRAWING.  So the panel,
+ * the filter and the column are built from what is actually there, and when
+ * DRAWING is all there is they are hidden: a choice between one option is not a
+ * choice, and showing an empty MATCHED / PDF_ONLY split invites the reader to
+ * think the tool compared something it never had. */
+const ORIGIN_TEXT = {
+  DRAWING: "도면에서 검출 (대조 기준 없음)",
+  MATCHED: "대조 리스트에 대응 도면이 있는 페이지",
+  REVISION_GAP: "도면에 개정 주석이 있는 페이지",
+  PDF_ONLY: "대조 리스트에 행이 없는 도면",
+};
+
+function originsPresent() {
+  return Object.keys(S.originCounts).filter(o => o && S.originCounts[o]);
+}
+
+function buildScope() {
+  const present = originsPresent();
+  const trivial = present.length <= 1;
+  $("#scope").classList.toggle("hidden", trivial);
+  $("#origin-filter").classList.toggle("hidden", trivial);
+  $("#scope .scope-body").innerHTML =
+    "<p class='muted'>Excel 에 포함할 페이지 귀속. 기본은 전체 포함입니다.</p>" +
+    present.map(o => `<label><input type="checkbox" class="origin" value="${o}" checked>
+      <b>${o}</b> <span class="muted">${ORIGIN_TEXT[o] || ""}</span>
+      <span class="n">${S.originCounts[o]}행</span></label>`).join("");
+  document.querySelectorAll(".origin").forEach(
+    c => c.addEventListener("change", scopeChanged));
+  $("#origin-filter").innerHTML = "<option value=''>귀속 전체</option>" +
+    present.map(o => `<option value="${o}">${o}</option>`).join("");
+  S.originFilter = "";
+  S.showOrigin = !trivial;
 }
 
 function updateBadge() {
@@ -153,8 +188,12 @@ function showAppliedRules() {
     + row("앵커 매핑", `${a.anchor_map_entries}건`)
     + row("Field 비대상", (a.not_field || []).join(", "))
     + row("승수", `${(S.job.engine.multipliers || {}).source} — ${(S.job.engine.multipliers || {}).note || ""}`)
+    // A derivation that fell back to config, or gave up, says why right here -
+    // the source alone does not tell a reviewer what to do about it.
     + row("범례 유도", Object.entries(S.job.engine.legend || {})
-        .map(([k, v]) => `${k}: ${v.source}`).join("<br>"))
+        .map(([k, v]) => `${k}: ${v.source}`
+          + (v.source === "LEGEND" ? "" : ` <span class="muted">— ${v.note || ""}</span>`))
+        .join("<br>"))
     + "</dl>";
 }
 
@@ -223,7 +262,10 @@ function visibleRows() {
 function renderGrid() {
   const head = $("#head");
   head.innerHTML = "";
-  for (const [key, label] of COLS) {
+  // The 귀속 column is dropped when every page has the same origin - see
+  // buildScope(): with no answer key there is nothing for it to say.
+  const cols = COLS.filter(([key]) => key !== "origin" || S.showOrigin);
+  for (const [key, label] of cols) {
     const th = document.createElement("th");
     th.dataset.col = key;
     th.textContent = label;
@@ -254,7 +296,7 @@ function renderGrid() {
     if (r.deleted || r.removed) tr.classList.add("deleted");
     if (r.added) tr.classList.add("added");
     if (S.sel === r.key) tr.classList.add("sel");
-    for (const [key, , editable] of COLS) {
+    for (const [key, , editable] of cols) {
       const td = document.createElement("td");
       const val = key === "page_no" ? r.page_no
         : key === "origin" ? r.origin
@@ -424,13 +466,14 @@ $("#origin-filter").addEventListener("change", ev => {
 });
 const chosenOrigins = () =>
   [...document.querySelectorAll(".origin:checked")].map(c => c.value);
-document.querySelectorAll(".origin").forEach(c => c.addEventListener("change", () => {
+
+function scopeChanged() {
   // Changing the scope invalidates any snapshot already taken for it.
   $("#gate-check").checked = false;
   $("#excel").disabled = true;
   $("#excel").textContent = "Excel 출력";
   S.revision = null;
-}));
+}
 
 $("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;

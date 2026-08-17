@@ -220,7 +220,7 @@ def store_result(con, job_id: str, result: dict) -> dict:
                 (result.get("fingerprint", ""),
                  json.dumps({k: result.get(k) for k in
                              ("multipliers", "legend", "glyphs", "job_review",
-                              "applied_rules")}, default=str),
+                              "applied_rules", "timings")}, default=str),
                  job_id))
     con.commit()
     return {"rows": len(result["rows"]), "conflicts": conflicts,
@@ -356,7 +356,9 @@ def review_count(con, job_id: str) -> int:
 # Which page-origin sets a snapshot covers.  The default is everything: the
 # tool has no opinion about whether a drawing the client's Excel does not cover
 # should be delivered, so a reviewer takes sets *out* rather than adding them.
-ALL_ORIGINS = ("MATCHED", "REVISION_GAP", "PDF_ONLY")
+# DRAWING is what a page is when no answer key was supplied, which is every
+# normal run; MATCHED and PDF_ONLY appear only in verification mode.
+ALL_ORIGINS = ("DRAWING", "MATCHED", "REVISION_GAP", "PDF_ONLY")
 
 
 def snapshot(con, job_id: str, label: str = "", origins=None) -> int:

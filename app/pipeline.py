@@ -24,9 +24,11 @@ row is "why".
 from __future__ import annotations
 
 import collections
+import contextlib
 import hashlib
 import json
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -57,6 +59,19 @@ CFG = projectconfig.load()
 # detect_symbols.DEFAULT_DISABLED records.
 ACTIVE_SCOPE = da.active_scope(da.BASELINE_SCOPE_NAME)
 
+# Valve rules to switch off for this project, by name from `detect_valves
+# .ALL_RULES`.  Empty by default: every measured rule applies.  This exists so a
+# rule can be withdrawn from a delivery without editing the engine - and so the
+# result records which rules were actually applied rather than implying all of
+# them.  An unknown name is an error, not a no-op.
+VALVE_DISABLED = frozenset(str(r) for r in
+                           (CFG.data.get("valves") or {}).get("disabled_rules") or ())
+_unknown = VALVE_DISABLED - set(dv.ALL_RULES)
+if _unknown:
+    raise SystemExit(f"config valves.disabled_rules: unknown rule(s) "
+                     f"{', '.join(sorted(_unknown))}; "
+                     f"known: {', '.join(dv.ALL_RULES)}")
+
 # Which grid tab a row belongs to.  These are the four deliverables the client
 # splits its packages by, plus the review queue.
 TAB_FIELD = "FIELD"
@@ -65,18 +80,21 @@ TAB_MOV = "MOV"
 TAB_PNEUMATIC = "PNEUMATIC"
 TAB_REVIEW = "REVIEW"
 
-# How a page relates to the client's Excel.  Exactly the three sets
-# detect_all.py already scores with, computed the same way and reported per
-# row so a reviewer can decide what to ship - the tool does not decide for them.
+# Where a row's drawing stands, reported per row so a reviewer can decide what
+# to ship - the tool does not decide for them.
 #
-#   MATCHED       the drawing has rows in the client's Excel; this is the only
-#                 set the Phase 0 accuracy numbers were ever measured on
-#   PDF_ONLY      the drawing is in the PDF and has no rows in the Excel at all
-#   REVISION_GAP  the drawing carries reviewer markup recording a revision the
-#                 Excel has not taken up (out/revision_gap.md)
+#   DRAWING       it is in the PDF.  Nothing else is claimed, and this is what
+#                 every page is in normal use
+#   REVISION_GAP  the drawing carries revision markup (out/revision_gap.md).
+#                 Read off the drawing, so it needs no other input
+#   MATCHED       verification mode only: the answer key covers this drawing,
+#                 and this is the only set the Phase 0 accuracy numbers were
+#                 ever measured on
+#   PDF_ONLY      verification mode only: the answer key has no row for it
 #
-# A page can be both MATCHED and REVISION_GAP; the gap flag wins in the column
+# A page can be both MATCHED and REVISION_GAP; the gap wins in the column
 # because it is the one that changes what a reviewer should do about the row.
+ORIGIN_DRAWING = "DRAWING"
 ORIGIN_MATCHED = "MATCHED"
 ORIGIN_PDF_ONLY = "PDF_ONLY"
 ORIGIN_REVISION_GAP = "REVISION_GAP"
@@ -90,7 +108,7 @@ class Row:
     tab: str
     page_no: int
     drawing_no: str
-    origin: str = ""               # MATCHED | PDF_ONLY | REVISION_GAP
+    origin: str = ""               # DRAWING | REVISION_GAP | (verify: MATCHED | PDF_ONLY)
     type: str = ""
     qty: object = None
     system: str = ""
@@ -126,24 +144,89 @@ def _key(*parts) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
-# The client's instrument list, used only to tell which drawings it covers.
-# Nothing about detection reads it; it decides `origin`, and `origin` decides
-# nothing on its own either - it is a column and a filter.
-REFERENCE_EXCEL = Path(__file__).resolve().parent.parent / "data" / "CZE_Field_Instrument.xlsx"
+class Timings:
+    """Wall clock per stage and per page.
 
-
-def _page_origins(pages, tb_rows, per_page, reference: Path = REFERENCE_EXCEL) -> dict:
-    """page_no -> MATCHED | PDF_ONLY | REVISION_GAP, by detect_all's own rule.
-
-    The MATCHED / PDF_ONLY split is `detect_all.attribute_rows`, unchanged: a
-    drawing number appearing on several sheets is attributed by matching the
-    Excel SYSTEM value against the drawing title, which is what stopped 52
-    phantom over-detections being counted in Phase 0.  REVISION_GAP is
-    `detect_all.review_annotations` finding markup in the drawing body.
+    "The analysis is slower than I expected" is not answerable without knowing
+    which stage the time went to, so every stage is timed, printed as it
+    finishes and returned with the result.  Times are deliberately kept out of
+    `fingerprint()` and out of every row: they are the one part of the result
+    that legitimately differs between two runs of the same PDF.
     """
-    origins = {p: ORIGIN_PDF_ONLY for p in per_page}
-    if reference.exists():
-        excel, _total, _spare = da.load_excel(reference)
+
+    def __init__(self, log=None):
+        self.stages: dict[str, float] = collections.defaultdict(float)
+        self.pages: dict[int, dict[str, float]] = {}
+        self.log = log if log is not None else (lambda m: print(m, flush=True))
+
+    @contextlib.contextmanager
+    def stage(self, name: str, page_no: int = None):
+        t0 = time.perf_counter()
+        try:
+            yield
+        finally:
+            dt = time.perf_counter() - t0
+            self.stages[name] += dt
+            if page_no is not None:
+                self.pages.setdefault(page_no, {})[name] = dt
+
+    def page_done(self, page_no: int) -> None:
+        per = self.pages.get(page_no, {})
+        if not per:
+            return
+        parts = " ".join(f"{k} {v:.2f}s" for k, v in sorted(
+            per.items(), key=lambda kv: -kv[1]))
+        self.log(f"  page {page_no:>3}  {sum(per.values()):6.2f}s   {parts}")
+
+    def report(self) -> dict:
+        total = sum(self.stages.values())
+        return {
+            "total_s": round(total, 2),
+            "by_stage": {k: round(v, 2) for k, v in sorted(
+                self.stages.items(), key=lambda kv: -kv[1])},
+            "by_page": {str(p): {k: round(v, 2) for k, v in per.items()}
+                        for p, per in sorted(self.pages.items())},
+            "slowest_pages": [
+                {"page_no": p, "seconds": round(sum(per.values()), 2)}
+                for p, per in sorted(self.pages.items(),
+                                     key=lambda kv: -sum(kv[1].values()))[:5]],
+        }
+
+    def summary_lines(self) -> list[str]:
+        r = self.report()
+        out = [f"analysis took {r['total_s']:.1f}s, by stage:"]
+        for name, secs in r["by_stage"].items():
+            share = 100 * secs / r["total_s"] if r["total_s"] else 0
+            out.append(f"  {name:<22} {secs:8.2f}s  {share:5.1f}%")
+        if r["slowest_pages"]:
+            worst = ", ".join(f"p{s['page_no']} {s['seconds']:.1f}s"
+                              for s in r["slowest_pages"])
+            out.append(f"  slowest pages: {worst}")
+        return out
+
+
+def _page_origins(pages, tb_rows, per_page, reference: Path = None) -> dict:
+    """page_no -> DRAWING | MATCHED | PDF_ONLY, overridden by REVISION_GAP.
+
+    `reference` is a *finished* instrument list - the answer key Phase 0 scored
+    against.  In real use it does not exist: what a user has is the PDF and an
+    empty output form, and if they already had a filled-in list they would not
+    need this tool.  So it defaults to None and every drawing is DRAWING, which
+    is all that can honestly be said about it.
+
+    Given an answer key (verification mode) the MATCHED / PDF_ONLY split is
+    `detect_all.attribute_rows`, unchanged: a drawing number appearing on several
+    sheets is attributed by matching the Excel SYSTEM value against the drawing
+    title, which is what stopped 52 phantom over-detections being counted in
+    Phase 0.
+
+    REVISION_GAP needs no key at all - it is `detect_all.review_annotations`
+    finding revision markup in the drawing body - so it is decided either way.
+    """
+    keyed = reference is not None and Path(reference).exists()
+    origins = {p: (ORIGIN_PDF_ONLY if keyed else ORIGIN_DRAWING) for p in per_page}
+    if keyed:
+        excel, _total, _spare = da.load_excel(Path(reference))
         pages_by_drawing: dict[str, list] = collections.defaultdict(list)
         for pno, info in per_page.items():
             pages_by_drawing[info["drawing_no"]].append(pno)
@@ -157,25 +240,39 @@ def _page_origins(pages, tb_rows, per_page, reference: Path = REFERENCE_EXCEL) -
     return origins
 
 
-def analyse(pdf_path: Path, progress=None) -> dict:
-    """Full analysis of one PDF.  `progress(done, total, message)` is optional."""
+def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
+            reference: Path = None) -> dict:
+    """Full analysis of one PDF.  `progress(done, total, message)` is optional.
+
+    `reference` turns on verification mode: it is a finished instrument list to
+    attribute drawings against, and it is the only thing in this pipeline that
+    needs one.  Real runs pass nothing.
+    """
     def say(done, total, msg):
         if progress:
             progress(done, total, msg)
 
-    doc, pages = pidcache.load_pages(pdf_path)
+    clock = timings or Timings()
+
+    with clock.stage("open_pdf"):
+        doc, pages = pidcache.load_pages(pdf_path)
     total = len(pages) + 6
     say(1, total, "reading title blocks")
 
-    library = tb.build_glyph_library(pages)
-    tb_rows = {r["page_no"]: r for r in (tb.extract_page(pd, library) for pd in pages)}
+    with clock.stage("titleblock_glyphs"):
+        library = tb.build_glyph_library(pages)
+    with clock.stage("titleblocks"):
+        tb_rows = {r["page_no"]: r
+                   for r in (tb.extract_page(pd, library) for pd in pages)}
 
     say(2, total, "measuring rules off the legend sheets")
-    dv.LAYOUT, legend_derived = dv.derive_layout(pages)
+    with clock.stage("legend_rules"):
+        dv.LAYOUT, legend_derived = dv.derive_layout(pages)
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     say(3, total, "deriving unit multipliers from legend page 5")
-    mult = projectconfig.derive_unit_multipliers(pages, CFG, page_kinds)
+    with clock.stage("unit_multipliers"):
+        mult = projectconfig.derive_unit_multipliers(pages, CFG, page_kinds)
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]
@@ -187,9 +284,11 @@ def analyse(pdf_path: Path, progress=None) -> dict:
     for i, pc in enumerate(targets, 1):
         say(3 + i, total, f"page {pc.page_no} of {len(pages)}")
         meta = tb_rows[pc.page_no]
-        dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
-            pc, rules=ds.RULESET_V3)
-        annotations = da.review_annotations(pc)
+        with clock.stage("instruments", pc.page_no):
+            dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
+                pc, rules=ds.RULESET_V3)
+        with clock.stage("annotations", pc.page_no):
+            annotations = da.review_annotations(pc)
         # The same body-text scan parse_notes.py does: a scope keyword says some
         # items on this drawing take a different multiplier from the rest of it.
         body_text = " ".join(t for r, t in pc.words
@@ -205,18 +304,27 @@ def analyse(pdf_path: Path, progress=None) -> dict:
         }
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
+        clock.page_done(pc.page_no)
 
     say(total - 2, total, "valve bodies and actuators")
-    valve_results, glyphs = dv.analyse_all(pages)
+
+    def valve_step(page_no, name, dt):
+        """Timing hook for the valve stage, which runs all pages in one call."""
+        clock.stages["valves." + name] += dt
+        if page_no is not None:
+            clock.pages.setdefault(page_no, {})["valves." + name] = dt
+
+    valve_results, glyphs = dv.analyse_all(pages, VALVE_DISABLED,
+                                           on_step=valve_step)
     for page_no, res in valve_results.items():
         meta = tb_rows.get(page_no)
         if not meta or meta["page_kind"] != "PID":
             continue
         rows.extend(_valve_rows(page_no, meta, res, mult))
 
-    origins = _page_origins(pages, tb_rows, per_page)
+    origins = _page_origins(pages, tb_rows, per_page, reference)
     for r in rows:
-        r.origin = origins.get(r.page_no, ORIGIN_PDF_ONLY)
+        r.origin = origins.get(r.page_no, ORIGIN_DRAWING)
 
     say(total - 1, total, "building overlays")
     for r in rows:
@@ -239,19 +347,18 @@ def analyse(pdf_path: Path, progress=None) -> dict:
     for a in alarms:
         job_review.append({"kind": a["kind"], "detail": a,
                            "pages": a.get("pages", [])})
-    if not REFERENCE_EXCEL.exists():
-        # Without the client's instrument list there is nothing to compare the
-        # drawings against, so every page falls back to PDF_ONLY.  That is a
-        # missing input, not a finding about the drawings, and it would quietly
-        # make the output-scope panel read 100% PDF_ONLY - so it is said out loud.
+    if reference is not None and not Path(reference).exists():
+        # Verification mode was asked for and its answer key is not there.  That
+        # is a missing *input*, and saying so is the difference between "these
+        # drawings are not in the client's list" and "we never looked".  A normal
+        # run passes no reference and never reaches this branch.
         job_review.append({
             "kind": "ORIGIN_REFERENCE_MISSING",
             "pages": [],
-            "detail": {"expected": str(REFERENCE_EXCEL),
-                       "reason": "귀속(MATCHED/PDF_ONLY) 판정 기준 파일이 없어 "
-                                 "전 페이지가 PDF_ONLY 로 남았습니다. 발주처 "
-                                 "Field Instrument 양식을 data/ 에 두고 재분석하면 "
-                                 "귀속이 채워집니다."}})
+            "detail": {"expected": str(reference),
+                       "reason": "검증 모드로 요청됐지만 대조용 계기 리스트가 그 "
+                                 "경로에 없습니다. 귀속은 전 페이지 DRAWING 으로 "
+                                 "남았습니다."}})
     for pno, info in sorted(per_page.items()):
         if info.get("scope_keywords"):
             job_review.append({
@@ -262,19 +369,24 @@ def analyse(pdf_path: Path, progress=None) -> dict:
                            "reason": "scope keyword found; which items it covers "
                                      "needs line tracing (Phase 2)"}})
     say(total, total, "done")
+    for line in clock.summary_lines():
+        clock.log(line)
     applied = {
         "instrument_ruleset": ds.RULESET_V3.name,
         "exclusion_scope_name": da.BASELINE_SCOPE_NAME,
         "exclusion_rules_active": sorted(ACTIVE_SCOPE),
         "exclusion_rules_inactive": sorted(
             set(da.SCOPE_RULES) - set(ACTIVE_SCOPE)),
-        "valve_rules_active": sorted(dv.ALL_RULES),
-        "valve_rules_disabled": [],
+        "valve_rules_active": sorted(set(dv.ALL_RULES) - VALVE_DISABLED),
+        "valve_rules_disabled": sorted(VALVE_DISABLED),
         "anchor_map_entries": len(ds.RULESET_V3.field_type_map),
         "not_field": sorted(ds.RULESET_V3.not_field),
     }
     return {
         "applied_rules": applied,
+        # Wall clock, not a finding: excluded from `fingerprint()` on purpose,
+        # because it is the one key that must differ between two runs.
+        "timings": clock.report(),
         "pdf": str(pdf_path),
         "pages": [
             {"page_no": p.page_no, "width": p.width, "height": p.height,

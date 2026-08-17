@@ -183,7 +183,14 @@ def test_step2_survives_page_navigation(page, edited):
 
 
 def test_step3_survives_origin_filter(page, edited):
-    page.select_option("#origin-filter", "MATCHED")
+    # Which origins exist depends on whether an answer key was supplied, so the
+    # test picks one that is actually on the menu rather than naming MATCHED,
+    # which only verification mode produces.
+    origin = page.evaluate(
+        "[...document.querySelectorAll('#origin-filter option')]"
+        ".map(o => o.value).find(v => v)")
+    assert origin, "the origin filter has nothing to choose"
+    page.select_option("#origin-filter", origin)
     page.wait_for_timeout(400)
     page.select_option("#origin-filter", "")
     page.wait_for_timeout(400)

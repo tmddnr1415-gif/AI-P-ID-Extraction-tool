@@ -254,6 +254,13 @@ valves:
   # ACTUATORS column of legend p3.  This block is used only when a legend sheet
   # cannot be read, and its use is logged with the reason.  The values are the
   # ones this project's legend yields, so a fallback run reproduces it.
+  # Valve rules to switch off for this project, from detect_valves.ALL_RULES:
+  # WAIST_DISC / VANE_TICK / END_BARS / STROKE_LETTER / ACT_CLEARANCE /
+  # ACT_STEM / PNEUMATIC_SHELL.  Empty means every measured rule applies, which
+  # is the delivered state; a name here withdraws that rule from the analysis
+  # and the result records it under applied_rules.valve_rules_disabled.
+  disabled_rules: []
+
   legend_fallback:
     butterfly:
       tick_length: 3.0
@@ -266,3 +273,15 @@ valves:
       stem_offaxis: 0.03
       stem_length: 19.86
       centre_to_body: 26.97
+    # Legend p3 VALVES ACTUATORS, the rows it labels PNEUMATIC: the DIAPHRAGM
+    # dome measures 14.22 x 7.11 (a half circle, hence aspect 0.5) and the
+    # CYLINDER box 14.16 square with its piston line across the middle.  Used
+    # only when that sheet cannot be measured; `derive_pneumatic` normally
+    # supplies these, and the report says which of the two happened.
+    pneumatic:
+      dome_flat: 14.22
+      dome_depth: 7.11
+      dome_aspect: 0.5
+      cylinder_side: 14.16
+      cylinder_aspect: 1.003
+      cylinder_divider: 0.5

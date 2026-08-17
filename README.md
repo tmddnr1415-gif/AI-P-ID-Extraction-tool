@@ -31,13 +31,16 @@ pip install -r requirements.txt
 | 파일 | 쓰이는 곳 | 없으면 |
 | --- | --- | --- |
 | `data/pid_total.pdf` | 분석 대상 도면 | UI 에 끌어다 놓아도 되므로 필수는 아님 |
-| `data/CZE_Field_Instrument.xlsx` | FIELD 출력 양식 **＋ 귀속 판정 기준** | FIELD 건너뛰어짐, 전 페이지가 `PDF_ONLY` 로 남고 검토 목록에 `ORIGIN_REFERENCE_MISSING` 이 뜸 |
+| `data/CZE_Field_Instrument.xlsx` | FIELD 출력 양식 | FIELD 가 이유와 함께 건너뛰어짐 |
 | `data/CZI_Butterfly_Valve.xlsx` | BFV 출력 양식 | BFV 건너뛰어짐 |
 | `data/CZH_MOV_Gate_Globe.xlsx` | MOV 출력 양식 | MOV 건너뛰어짐 |
 
-양식은 `data/` 에 두는 대신 화면의 **템플릿 패널**에서 올려도 됩니다
-(`app/_data/templates/` 에 저장되고 `data/` 보다 우선합니다). 어느 쪽도 없으면
-그 산출물은 **양식을 지어내지 않고** 이유와 함께 건너뜁니다.
+**세 xlsx 는 데이터가 채워져 있어도 되고 비어 있어도 됩니다** — 앱은 양식(서식·헤더·
+열너비·Note)만 쓰고 데이터 영역은 새로 채웁니다. 즉 실사용에서 올릴 것은 **빈 양식**
+이면 충분하고, 완성된 리스트는 필요하지 않습니다. `data/` 에 두는 대신 화면의
+**템플릿 패널**에서 올려도 됩니다(`app/_data/templates/` 에 저장되고 `data/` 보다
+우선합니다). 어느 쪽도 없으면 그 산출물은 **양식을 지어내지 않고** 이유와 함께
+건너뜁니다. `data/` 가 통째로 비어 있어도 분석·검토·재분석은 정상 동작합니다.
 
 **분석 결과는 옮겨올 수 없습니다 — 옮겨올 필요도 없습니다.** `app/_data/` 도
 `.gitignore` 대상이라 커밋되지 않습니다. 내 PC 에서 PDF 를 한 번 끌어다 놓으면
@@ -46,7 +49,19 @@ pip install -r requirements.txt
 즉 재분석으로 잃는 것은 시간뿐이고, DB 를 옮겨야만 살아나는 것은 **사람이 손으로
 고친 값(`user_values`)** 하나입니다. 아직 손편집이 없다면 재분석이 곧 원본입니다.
 
-Windows 에서 `run.sh` (bash) 를 못 쓰면 uvicorn 을 직접 부릅니다.
+**Windows** 에서는 `run.sh`(bash) 대신 `start.bat` 을 씁니다. 더블클릭해도 되고,
+명령창에서 인자를 줘도 됩니다.
+
+```bat
+start.bat                 :: 8000 포트, 코드 수정 시 자동 재시작
+start.bat 9000            :: 포트 변경
+start.bat --no-reload     :: 파일 감시 끔
+start.bat --verify        :: 검증 모드 (아래)
+```
+
+`.venv\Scripts\python.exe` 가 있으면 그것을 쓰므로 가상환경을 따로 활성화하지 않아도
+됩니다. 로그는 화면에 나오면서 `logs\server.log` 에도 쌓입니다(cmd 에 `tee` 가 없어
+같은 일을 파이썬 한 줄로 합니다). uvicorn 을 직접 부르는 것도 됩니다.
 
 ```powershell
 python -m uvicorn app.main:app --reload --port 8000
@@ -84,6 +99,43 @@ FastAPI 프로세스가 `app/static/` 에서 서빙합니다 — 포트 하나, 
 python3 -m uvicorn app.main:app --reload --port 8000 2>&1 | tee -a logs/server.log
 ```
 
+## 분석이 느릴 때 — 어디에 시간이 갔는지
+
+분석은 페이지별·단계별 소요시간을 로그에 남깁니다(`logs/server.log`). 페이지마다 한 줄,
+끝에 단계별 합계가 붙습니다.
+
+```
+  page   6    4.31s   instruments 4.18s annotations 0.13s
+  page   7    3.92s   instruments 3.80s annotations 0.12s
+analysis took 431.2s, by stage:
+  valves.bodies           148.30s   34.4%
+  titleblock_glyphs        85.19s   19.8%
+  instruments              79.40s   18.4%
+  ...
+  slowest pages: p16 12.4s, p14 11.0s, ...
+```
+
+같은 내용이 `GET /jobs/{id}` 의 `engine.timings` 로도 남으니 나중에 비교할 수 있습니다.
+파서는 **PyMuPDF 하나뿐**입니다 — `pdfplumber` 도 `pypdfium2` 도 설치되어 있지 않고
+코드에서 부르지도 않습니다(`grep -rn "pdfplumber\|pdfium" app/` → 0건).
+
+## 검증 모드
+
+앱이 실사용에서 받는 입력은 **P&ID PDF** 와 **빈 출력 양식** 둘뿐입니다. 완성된 계기
+리스트는 존재하지 않습니다 — 있으면 이 앱이 필요 없습니다. 그래서 도면 귀속은 기본적으로
+`DRAWING`(도면에서 검출) 하나이고, 귀속 열과 필터는 화면에 나오지 않습니다.
+
+Phase 0 의 정확도 측정처럼 **완성된 리스트와 대조**하려면 명시적으로 켭니다.
+
+```bash
+PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh     # Windows: start.bat --verify
+```
+
+이때만 귀속이 `MATCHED` / `PDF_ONLY` 로 갈리고, 귀속 열·필터·출력범위 선택이 나타납니다.
+지정한 파일이 없으면 검토 목록에 `ORIGIN_REFERENCE_MISSING` 이 떠서 "대조를 안 했다"와
+"대조했더니 없었다"가 구분됩니다. `REVISION_GAP`(도면 안의 개정 주석)은 대조 파일이
+필요 없으므로 두 모드 모두에서 판정됩니다.
+
 ## 내가 확인할 체크리스트
 
 화면에서 아래가 맞는지 봐 주세요. 괄호 안은 이번 회차 실측값입니다.
@@ -93,15 +145,19 @@ python3 -m uvicorn app.main:app --reload --port 8000 2>&1 | tee -a logs/server.l
       (주의: 오버레이 색은 **탭 색**입니다 — Field 파랑 / MOV 주황 / BFV 초록.
       vendor mark 여부는 색이 아니라 `Vendor` 열과 근거 패널의 `VENDOR_MARK_*` 로 봅니다.
       벤더마크가 붙은 심볼은 제외 대상이라 애초에 행으로 나오지 않습니다.)
-- [ ] **행 수** — 상단 탭 `전체 846` / `Field 748` / `BFV 22` / `MOV 76` / `Pneumatic 0`.
-      `출력 범위` 패널에서 `MATCHED 476행` / `REVISION_GAP 265행` / `PDF_ONLY 105행`
-- [ ] **귀속 필터** — 우측 상단 드롭다운에서 `MATCHED` 선택 시 `476행`
-- [ ] **검토필요 배지** — `검토 필요 38행 + 문서 1건` (배지에 마우스를 올리면 문서 건 내용)
+- [ ] **행 수** — 상단 탭 `전체 892` / `Field 748` / `BFV 23` / `MOV 76` / `Pneumatic 45`.
+      `출력 범위` 패널에서 `DRAWING 605행` / `REVISION_GAP 287행`
+      (`MATCHED` / `PDF_ONLY` 는 검증 모드에서만 나옵니다 — 위 "검증 모드" 참고)
+- [ ] **Pneumatic 탭** — 45행. 아무 행이나 눌러 근거 패널을 보면 액추에이터 근거가
+      `legend p3 pneumatic dome, no letter drawn` 또는 `... cylinder ...` 이고,
+      `dome` 인 행의 태그는 TCV/FCV/PCV 계열, `cylinder` 인 행은 XV 계열입니다
+- [ ] **검토필요 배지** — `검토 필요 38행 + 문서 1건` (배지에 마우스를 올리면 문서 건 내용:
+      `SCOPE_OVERRIDE_UNRESOLVED`)
 - [ ] **적용 규칙 패널** — 상단 `적용 규칙` 클릭. 제외 스코프가 `glyph+text+box`,
-      활성 제외규칙 3종, 비활성 `SCT_SUPPLIER_SCOPE`
+      활성 제외규칙 3종, 비활성 `SCT_SUPPLIER_SCOPE`, 밸브 규칙 7종(`PNEUMATIC_SHELL`
+      포함), 범례 유도에 `pneumatic: LEGEND`
 - [ ] **Excel 출력** — `전체 검토 완료` 체크 후 `Excel 출력`.
-      전체 포함 시 FIELD 748 / BFV 22 / MOV 76,
-      `MATCHED` 만 체크하면 **FIELD 409 / BFV 11 / MOV 56**
+      양식이 있는 산출물만 나옵니다: FIELD 748 / BFV 23 / MOV 76 / PNEUMATIC 45
 - [ ] **템플릿 패널** — Pneumatic·Master 는 `없음`. xlsx 를 올리면 다음 출력에 포함됩니다
 
 ## 화면
@@ -144,6 +200,25 @@ app/static    리뷰 UI (빌드 도구 없음)
 spike/README.md  Phase 0 검증 기록 (수치·근거)
 docs/design.md   설계안
 ```
+
+## 성능 — 알고 있는 개선 여지 (미적용)
+
+`app/engine/pidcache.py` 의 `segments()` 가 좌표를 표시공간으로 옮기려고 선분마다
+`pymupdf.Point(...) * matrix` 를 만듭니다. 페이지당 15만~33만 선분이니 파이썬 객체가
+페이지마다 30만~66만 개 생기고, 이것이 실행시간의 대부분입니다. 그런데 58장 중 56장은
+회전이 0 이라 그 행렬이 **항등**이고, 곱셈이 아무것도 바꾸지 않습니다. 6페이지 실측:
+
+| | 6페이지 합계 |
+| --- | --- |
+| 현재 `segments()` | 30.8s |
+| 항등행렬이면 곱셈 생략 | **1.3s (24배)** |
+| `get_cdrawings()` 로 다시 읽기 | 2.8s (11배) |
+
+전체 실행 452초 중 약 265초가 여기이므로, 항등일 때만 생략하면 **3분대**로 내려갑니다.
+회전된 2장(p7·p48)은 지금 경로를 그대로 씁니다. 결과는 비트 단위로 같아야 하지만
+(항등행렬에서 `Point*m == Point`), 반환하는 Point 가 캐시 안의 객체 자체가 되므로
+호출자가 제자리에서 고치지 않는다는 점만 확인하면 됩니다 — 현재 세 곳 모두 읽기만
+합니다. **검출 로직 변경이 아니지만 아직 적용하지 않았습니다.**
 
 ## 알려진 범위
 

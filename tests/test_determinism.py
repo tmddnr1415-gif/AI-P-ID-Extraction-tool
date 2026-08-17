@@ -17,6 +17,7 @@ The full-document tests are slow (about seven minutes each), so they are marked
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -54,6 +55,31 @@ def test_reanalysis_is_byte_identical(first_run, second_run):
 
 
 @pytest.mark.slow
+def test_a_real_run_needs_no_answer_key(first_run):
+    """End to end, with nothing supplied but the PDF."""
+    origins = {r["origin"] for r in first_run["rows"]}
+    assert origins <= {pipeline.ORIGIN_DRAWING, pipeline.ORIGIN_REVISION_GAP}, origins
+    kinds = {f["kind"] for f in first_run["job_review"]}
+    assert "ORIGIN_REFERENCE_MISSING" not in kinds, (
+        "a normal run must not report a missing verification input")
+
+
+@pytest.mark.slow
+def test_pneumatic_valves_are_found(first_run):
+    """The legend's two letterless actuator shapes reach the deliverable.
+
+    Before they were measured, the Pneumatic tab was empty on a document with 35
+    domes and 25 XV tags in it, because the enclosure search only accepted
+    shapes big enough to hold a letter.
+    """
+    pneumatic = [r for r in first_run["rows"] if r["tab"] == "PNEUMATIC"]
+    assert pneumatic, "no pneumatic valve reached the deliverable"
+    basis = {r["evidence"].get("actuator_basis", "") for r in pneumatic}
+    assert any("dome" in b for b in basis)
+    assert any("cylinder" in b for b in basis)
+
+
+@pytest.mark.slow
 def test_row_keys_are_unique_and_stable(first_run, second_run):
     """A row's identity has to survive a re-run, or edits cannot be carried."""
     ka = [r["key"] for r in first_run["rows"]]
@@ -80,6 +106,40 @@ def test_user_edits_survive_reanalysis(tmp_path, first_run, second_run):
     assert after["ai"] == row["ai"], "the engine's own values should be refreshed as-is"
     assert summary["kept_edits"] >= 2
     assert summary["conflicts"] == [], "an unchanged re-run cannot conflict"
+
+
+def test_origin_needs_no_answer_key():
+    """Attribution must not depend on a finished list the user does not have.
+
+    In real use the inputs are the drawings and an empty output form; a filled-in
+    instrument list exists only in verification.  So with no reference every page
+    is DRAWING, and REVISION_GAP - which is read off the drawing itself - still
+    works.  MATCHED and PDF_ONLY may not appear.
+    """
+    per_page = {6: {"drawing_no": "D-6", "annotations": []},
+                7: {"drawing_no": "D-7", "annotations": [{"where": "DRAWING"}]}}
+
+    plain = pipeline._page_origins(None, None, dict(per_page))
+    assert plain[6] == pipeline.ORIGIN_DRAWING
+    assert plain[7] == pipeline.ORIGIN_REVISION_GAP
+    assert pipeline.ORIGIN_MATCHED not in plain.values()
+    assert pipeline.ORIGIN_PDF_ONLY not in plain.values()
+
+    # A reference that is named but absent must not silently read as PDF_ONLY.
+    missing = pipeline._page_origins(None, None, dict(per_page),
+                                     reference=Path("no/such/list.xlsx"))
+    assert missing[6] == pipeline.ORIGIN_DRAWING
+
+
+def test_the_answer_key_is_opt_in():
+    """The verification-only input cannot creep back in as a default."""
+    import inspect
+    assert not hasattr(pipeline, "REFERENCE_EXCEL"), (
+        "the answer key is a verification argument, not a module constant")
+    sig = inspect.signature(pipeline.analyse)
+    assert sig.parameters["reference"].default is None
+    from app import main
+    assert (main.VERIFY_AGAINST is None) == (not os.environ.get("PID_VERIFY_EXCEL"))
 
 
 def test_conflicting_reanalysis_is_flagged(tmp_path):
