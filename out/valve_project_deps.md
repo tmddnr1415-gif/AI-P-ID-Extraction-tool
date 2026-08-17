@@ -8,13 +8,13 @@
 | `PROJECT` | 도면/NOTES/Excel 양식에서 유도 → config |
 | `UNKNOWN` | 출처 불명 → 조사 필요, 튜닝 금지 |
 
-**집계: `LEGEND` 12건 / `PROJECT` 8건 / `UNKNOWN` 5건 (총 25건)**
+**집계: `LEGEND` 13건 / `PROJECT` 7건 / `UNKNOWN` 6건 (총 26건)**
 
 판정 근거는 전부 실측입니다. "아마 그럴 것 같다"는 UNKNOWN 으로 넘겼습니다.
 
 ---
 
-## LEGEND — 코드 유지 (12건)
+## LEGEND — 코드 유지 (13건)
 
 | # | 항목 | 위치 | 근거 (실측) |
 |---|---|---|---|
@@ -30,10 +30,11 @@
 | VL10 | **액추에이터 울타리 크기 하한** | `act_box` 하한 9.0 | 범례 p3 모터·E/H 원 **14.2×14.2**, 유압/솔레노이드/X 상자 **14.2×34.0**. 글로브 허리 원반은 7.1 → 9.0 이 둘 사이 |
 | VL11 | **액추에이터는 줄기로 몸체에 연결된다** | `_actuator_stem` | 범례 p3 의 8행 전부, p4 `VALVE BODY WITH ACTUATOR` 의 MOV 도 예외 없이 줄기를 그림 |
 | VL12 | **자력식은 별도 그룹** (NONE ≠ SELF ACTING) | `deliverable_class` | 범례 p3 이 `SELF-ACTUATED DEVICES`(PSV/PRV/BPRV)를 고유 심볼로 따로 둠. 줄기에 아무것도 없는 것은 수동 밸브지 자력식이 아님 |
+| VL13 | **태그 ↔ 액추에이터 짝** (`MOV`↔`M` 원, `HV`/`HOV`↔유압 상자, `XV`↔`X`) | `TAG_LETTER` | 범례 p4 `VALVE BODY WITH ACTUATOR` 가 MOV 버블과 M 원을 같은 그림에 그리고, 범례 p3 이 `M`=ROTARY MOTOR, `H`=HYDRAULIC CYLINDER 로 이름을 붙입니다. **이 짝이 스트로크 글자의 정답을 문서 안에서 공급합니다** — V8 을 없앨 수 있었던 이유 |
 
 ---
 
-## PROJECT — config 이동 완료 (8건)
+## PROJECT — config 이동 완료 (7건)
 
 전부 `config/project_alnouf1.yaml` 의 `valves:` 블록으로 옮겼습니다.
 
@@ -46,11 +47,15 @@
 | V5 | **납품서 ↔ 몸체 계열** (CZI=BUTTERFLY, CZH=GATE/GLOBE/**BALL**) | `valves.deliverables` | 각 파일 헤더의 `DESCRIPTION` 줄. CZH 는 제목이 GATE & GLOBE 지만 볼 몸체 MOV 도 담고 있어 계열에 BALL 을 포함해야 함 |
 | V6 | **`VALVE TYPE` 어휘** MOV / MOV_I / HOV / CV | `valves.valve_type_actuator` | 이 문자열들은 범례에 없음. 납품서 표기이고 몸체가 아니라 구동 방식 |
 | V7 | **CV vs XV 태그 분리** | `valves.cv_tags`, `valves.xv_tags` | 태그 어휘 자체는 범례(p3 CONTROL DEVICE, p4 차단 태그)지만 **두 납품서로 가르는 기준**은 발주처 관행 |
-| V8 | **스트로크 글자 서명** (M 4획 / H 3획 / X 2획) | `valves.stroked_letters` | **범례는 M·H·S·X 를 텍스트로 인쇄합니다.** 즉 범례만 봐서는 이 회사 CAD 스트로크 폰트가 글자를 어떻게 조립하는지 알 수 없습니다. 서명은 p26(H)·p33(M) 도면에서 읽었으므로 PROJECT |
+~~V8 스트로크 글자 서명~~ — **삭제됨.** config 에서 뺐고 코드에도 남기지 않았습니다.
+매 실행마다 문서에서 유도합니다(`derive_glyph_library`): 스트로크 글자끼리 군집한 뒤
+군집 안에 텍스트 태그 버블이 달린 밸브가 있으면 그 태그로 군집 전체를 라벨하고,
+없으면 `UNLABELED_GLYPH_CLUSTER` 로 NEEDS_REVIEW 에 올립니다. 추측 라벨은 하지
+않습니다. 관측된 적 없던 `X` 서명도 함께 제거했습니다.
 
 ---
 
-## UNKNOWN — 조사 필요, 이번에 튜닝하지 않음 (5건)
+## UNKNOWN — 조사 필요, 이번에 튜닝하지 않음 (6건)
 
 | # | 항목 | 위치 | 왜 UNKNOWN 인가 |
 |---|---|---|---|
@@ -59,6 +64,7 @@
 | VU3 | **허리 중심 허용 오차** 2.0 | `centre_tol` | 범례 글로브 원반은 중심 오차 **0.0**. 2.0 이 어디서 왔는지 근거 없음 |
 | VU4 | **범례 실측값 주변 창 폭** (`body_short`, `body_ratio`, `waist_ratio`, `tick_span`, `tick_reach`) | `ValveLayout` | 창의 **중심값**은 전부 범례 실측(17.0×9.9, 0.72, 3.0 …)이지만 **폭**은 유도된 것이 아님. 다른 축척으로 그린 도면을 통과시키려는 의도지만 검증되지 않음 |
 | VU5 | **닫힘 판정 면적 임계** 0.30 | `_triangles_filled` | 검은 나비넥타이의 `fs` 4장이 몸체 bbox 의 몇 %를 덮는지 범례에서 계산하지 않았음 |
+| VU6 | **글자 군집 반경** 0.020 | `GLYPH_RADIUS` | 실측 근거는 있습니다 — 같은 글자쌍 0.0~0.1012, 다른 글자쌍 0.0292~0.0870, 반경 스윕 0.005/0.01/0.02/0.025/0.03/0.05 에서 순수 군집 13/10/4/4/2/2. 0.02~0.025 가 평탄 구간입니다. **다만 문서 1건에서만 측정했으므로** 범례 유도값도 아니고 다른 프로젝트에서 검증되지도 않았습니다 |
 
 **UNKNOWN 은 이번에도 손대지 않았습니다.** 계기 쪽 UNKNOWN 5건과 함께 Phase 3 조사
 대상입니다.

@@ -29018,7 +29018,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "HYDRAULIC",
-    "actuator_evidence": "stroked 'H' in box, 26.9pt along the stem",
+    "actuator_evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
     "tag": "HV",
     "tag_rect": [
      1230.8,
@@ -29047,7 +29047,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "HYDRAULIC",
-    "actuator_evidence": "stroked 'H' in box, 27.0pt along the stem",
+    "actuator_evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
     "tag": "HV",
     "tag_rect": [
      1508.4,
@@ -29214,7 +29214,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      675.6,
@@ -29243,7 +29243,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -29289,7 +29289,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -29312,7 +29312,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -29335,7 +29335,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      953.2,
@@ -30633,7 +30633,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30679,7 +30679,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30702,7 +30702,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30725,7 +30725,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "HYDRAULIC",
-    "actuator_evidence": "stroked 'H' in box, 26.9pt along the stem",
+    "actuator_evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
     "tag": "HV",
     "tag_rect": [
      1115.0,
@@ -30754,7 +30754,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "HYDRAULIC",
-    "actuator_evidence": "stroked 'H' in box, 27.0pt along the stem",
+    "actuator_evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
     "tag": "HV",
     "tag_rect": [
      1392.6,
@@ -30783,7 +30783,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      559.8,
@@ -30812,7 +30812,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      837.4,
@@ -31447,7 +31447,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -31493,7 +31493,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      902.2,
@@ -31522,7 +31522,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      624.7,
@@ -37469,7 +37469,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37492,7 +37492,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37515,7 +37515,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37538,7 +37538,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37561,7 +37561,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37584,7 +37584,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37607,7 +37607,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37630,7 +37630,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37653,7 +37653,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37676,7 +37676,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37699,7 +37699,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37722,7 +37722,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -54675,7 +54675,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      279.3,
@@ -55073,7 +55073,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -57402,7 +57402,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      277.8,
@@ -58879,7 +58879,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -59732,7 +59732,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      370.9,
@@ -60497,7 +60497,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      396.8,
@@ -64154,7 +64154,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+    "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
     "tag": "MOV",
     "tag_rect": [
      322.4,

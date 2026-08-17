@@ -224,24 +224,10 @@ valves:
   cv_tags: [FCV, LCV, PCV, TCV, CV]
   xv_tags: [XV, HV]
 
-  # V8 — stroke signatures for actuator letters that are drawn rather than
-  # typed.  PROJECT, not LEGEND: the legend prints M, H, S and X as text, so
-  # the legend cannot tell you how this company's CAD stroke font builds them.
-  # The signatures were read off p26 (H, 3 strokes) and p33 (M, 4 strokes).
-  # A letter not listed here is reported UNREAD, never guessed.
-  stroked_letters:
-    M:
-      strokes: 4
-      parallel: 2
-      diagonal: 2
-      # Each diagonal spans the stems' full length and leans by less than this
-      # fraction of it.
-      diagonal_lean_max: 0.6
-      diagonal_length_tol: 0.25
-    H:
-      strokes: 3
-      parallel: 2
-      perpendicular: 1
-    X:
-      strokes: 2
-      diagonal: 2
+  # V8 (removed) — stroke signatures for drawn actuator letters used to live
+  # here.  They are now derived from each document at run time: stroked
+  # glyphs are clustered against each other and each cluster is labelled by a
+  # valve in it that carries a text tag bubble (legend p4 pairs MOV with the M
+  # circle and HV with the hydraulic box).  A cluster with no such member is
+  # reported as UNLABELED_GLYPH_CLUSTER instead of being guessed.  See
+  # out/stroke_bootstrap.md and spike/detect_valves.derive_glyph_library.

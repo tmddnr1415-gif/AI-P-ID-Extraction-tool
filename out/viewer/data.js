@@ -30598,7 +30598,7 @@ window.PID_DATA = {
         573.6
        ],
        "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 26.9pt along the stem"
+       "evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'"
       },
       {
        "rect": [
@@ -30608,7 +30608,7 @@ window.PID_DATA = {
         573.6
        ],
        "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 27.0pt along the stem"
+       "evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'"
       }
      ]
     },
@@ -30624,7 +30624,7 @@ window.PID_DATA = {
         573.6
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -30634,7 +30634,7 @@ window.PID_DATA = {
         1121.3
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -30644,7 +30644,7 @@ window.PID_DATA = {
         1116.5
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -30654,7 +30654,7 @@ window.PID_DATA = {
         1121.3
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -30664,7 +30664,7 @@ window.PID_DATA = {
         573.6
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -30683,7 +30683,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -30706,7 +30706,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -30729,7 +30729,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -30758,7 +30758,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 26.9pt along the stem",
+       "actuator_evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
        "tag": "HV",
        "tag_rect": [
         1230.8,
@@ -30787,7 +30787,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 27.0pt along the stem",
+       "actuator_evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
        "tag": "HV",
        "tag_rect": [
         1508.4,
@@ -30954,7 +30954,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         675.6,
@@ -31006,7 +31006,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         953.2,
@@ -32692,7 +32692,7 @@ window.PID_DATA = {
         516.0
        ],
        "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 26.9pt along the stem"
+       "evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'"
       },
       {
        "rect": [
@@ -32702,7 +32702,7 @@ window.PID_DATA = {
         516.0
        ],
        "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 27.0pt along the stem"
+       "evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'"
       }
      ]
     },
@@ -32718,7 +32718,7 @@ window.PID_DATA = {
         1089.9
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -32728,7 +32728,7 @@ window.PID_DATA = {
         1089.9
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -32738,7 +32738,7 @@ window.PID_DATA = {
         1089.9
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -32748,7 +32748,7 @@ window.PID_DATA = {
         516.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -32758,7 +32758,7 @@ window.PID_DATA = {
         516.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -32777,7 +32777,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -32823,7 +32823,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -32846,7 +32846,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -32869,7 +32869,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 26.9pt along the stem",
+       "actuator_evidence": "box with 3 strokes, 26.9pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
        "tag": "HV",
        "tag_rect": [
         1115.0,
@@ -32898,7 +32898,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 27.0pt along the stem",
+       "actuator_evidence": "box with 3 strokes, 27.0pt along the stem; letter 'H' derived from a cluster of 4 labelled by the text tag 'HV'",
        "tag": "HV",
        "tag_rect": [
         1392.6,
@@ -32927,7 +32927,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         559.8,
@@ -32956,7 +32956,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         837.4,
@@ -34344,7 +34344,7 @@ window.PID_DATA = {
         1222.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -34354,7 +34354,7 @@ window.PID_DATA = {
         641.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -34364,7 +34364,7 @@ window.PID_DATA = {
         641.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -34383,7 +34383,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -34429,7 +34429,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         902.2,
@@ -34458,7 +34458,7 @@ window.PID_DATA = {
        "axis": "V",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 13 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         624.7,
@@ -40091,7 +40091,7 @@ window.PID_DATA = {
         280.1
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40101,7 +40101,7 @@ window.PID_DATA = {
         364.9
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40111,7 +40111,7 @@ window.PID_DATA = {
         358.2
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40121,7 +40121,7 @@ window.PID_DATA = {
         231.3
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40131,7 +40131,7 @@ window.PID_DATA = {
         537.2
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40141,7 +40141,7 @@ window.PID_DATA = {
         610.7
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40151,7 +40151,7 @@ window.PID_DATA = {
         847.2
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40161,7 +40161,7 @@ window.PID_DATA = {
         974.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40171,7 +40171,7 @@ window.PID_DATA = {
         1153.0
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40181,7 +40181,7 @@ window.PID_DATA = {
         1226.4
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40191,7 +40191,7 @@ window.PID_DATA = {
         895.8
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -40201,7 +40201,7 @@ window.PID_DATA = {
         971.6
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -41687,7 +41687,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41710,7 +41710,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41733,7 +41733,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41756,7 +41756,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41779,7 +41779,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41802,7 +41802,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41825,7 +41825,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41848,7 +41848,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41871,7 +41871,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41894,7 +41894,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41917,7 +41917,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -41940,7 +41940,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "CLOSED",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -59636,7 +59636,7 @@ window.PID_DATA = {
         1246.9
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -59646,7 +59646,7 @@ window.PID_DATA = {
         386.8
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -60194,7 +60194,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         279.3,
@@ -60315,7 +60315,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 2 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -61433,7 +61433,7 @@ window.PID_DATA = {
         1228.8
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -61443,7 +61443,7 @@ window.PID_DATA = {
         368.7
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -62473,7 +62473,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         277.8,
@@ -62778,7 +62778,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -64879,7 +64879,7 @@ window.PID_DATA = {
         313.7
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       },
       {
        "rect": [
@@ -64889,7 +64889,7 @@ window.PID_DATA = {
         1097.7
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 26.9pt along the stem"
+       "evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -65293,7 +65293,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         370.9,
@@ -65483,7 +65483,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 26.9pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         396.8,
@@ -69019,7 +69019,7 @@ window.PID_DATA = {
         125.8
        ],
        "actuator": "MOTOR",
-       "evidence": "stroked 'M' in circle, 27.0pt along the stem"
+       "evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'"
       }
      ]
     },
@@ -69316,7 +69316,7 @@ window.PID_DATA = {
        "axis": "H",
        "state": "OPEN",
        "actuator": "MOTOR",
-       "actuator_evidence": "stroked 'M' in circle, 27.0pt along the stem",
+       "actuator_evidence": "circle with 4 strokes, 27.0pt along the stem; letter 'M' derived from a cluster of 17 labelled by the text tag 'MOV'",
        "tag": "MOV",
        "tag_rect": [
         322.4,

@@ -1,17 +1,16 @@
 {
  "enclosures": 539,
  "by_source": {
-  "UNREAD": 389,
+  "UNREAD": 390,
   "TEXT": 76,
-  "STROKE": 74
+  "STROKE": 73
  },
  "by_letter": {
   "STROKE:H": 4,
   "STROKE:M": 69,
-  "STROKE:X": 1,
   "TEXT:E/H": 1,
   "TEXT:M": 75,
-  "UNREAD:?": 389
+  "UNREAD:?": 390
  },
  "pages_with_text": [
   2,
@@ -32,7 +31,6 @@
   30
  ],
  "pages_with_stroke": [
-  4,
   26,
   27,
   28,
@@ -44,19 +42,7 @@
   49,
   51
  ],
- "coexist_pages": [
-  {
-   "page_no": 4,
-   "text": [
-    "M"
-   ],
-   "stroke": [
-    "X"
-   ],
-   "n_text": 8,
-   "n_stroke": 1
-  }
- ],
+ "coexist_pages": [],
  "bootstrap": {
   "stroked_samples": 73,
   "tagged_samples": 15,

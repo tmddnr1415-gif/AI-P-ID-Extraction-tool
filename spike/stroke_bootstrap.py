@@ -70,6 +70,42 @@ CLUSTER_RADIUS = 0.10
 KNOWN = tuple(dv.ACT_LETTERS)
 
 
+def _retired_signature(strokes):
+    """The hand-written stroke signature, retired from the pipeline.
+
+    `spike/detect_valves.py` no longer holds a signature table: actuator
+    letters are derived from each document (`derive_glyph_library`).  This copy
+    survives here for one purpose only - to check that the derived letters
+    reproduce what the hand-written ones read.  It is never used to detect
+    anything.
+
+    The retired table read `M` as four strokes (two parallel stems plus two
+    diagonals forming the inner V), `H` as three (two parallel plus one
+    perpendicular), and `X` as two crossing diagonals.  `X` was never observed
+    in this document and has been dropped from the pipeline entirely.
+    """
+    if not strokes:
+        return None
+    axial = [s for s in strokes if s[2] < 0.4 or s[3] < 0.4]
+    diagonal = [s for s in strokes if s[2] >= 0.4 and s[3] >= 0.4]
+    if len(axial) == 3 and not diagonal:
+        horiz = [s for s in axial if s[3] < 0.4]
+        vert = [s for s in axial if s[2] < 0.4]
+        if (len(horiz), len(vert)) in ((2, 1), (1, 2)):
+            return "H"
+    if len(strokes) == 4 and len(axial) == 2 and len(diagonal) == 2:
+        vertical = axial[0][2] < 0.4
+        if vertical != (axial[1][2] < 0.4):
+            return None
+        stem = max(s[3] if vertical else s[2] for s in axial)
+        for s in diagonal:
+            long_, cross = (s[3], s[2]) if vertical else (s[2], s[3])
+            if abs(long_ - stem) > stem * 0.25 or cross > long_ * 0.6:
+                return None
+        return "M"
+    return None
+
+
 def _drawing_sheets() -> set:
     """Page numbers of actual P&ID sheets, from the title block spike."""
     import csv
@@ -106,7 +142,7 @@ def collect(pc, lay=dv.LAYOUT):
             continue
         if text:
             continue                     # a labelled box that is not an actuator
-        letter = dv._read_stroked_letter(dv._strokes_in(pc, b, lay))
+        letter = _retired_signature(dv._strokes_in(pc, b, lay))
         out.append({"page_no": pc.page_no, "shape": shape, "rect": b,
                     "letter": letter or "", "source": "STROKE" if letter else "UNREAD",
                     "strokes": len(dv._strokes_in(pc, b, lay))})
@@ -147,9 +183,9 @@ def _tagged_stroke_bodies(pc, lay=dv.LAYOUT):
     bodies = dv.find_bodies(pc, lay)
     dv.attach_actuators(pc, bodies, lay)
     dv.attach_tags(pc, bodies, lay)
-    return [b for b in bodies
-            if b.tag and "stroked" in b.actuator_evidence
-            and b.actuator not in ("NONE", "UNREAD")]
+    # A stroked enclosure is exactly one that produced a glyph bitmap; keying
+    # on the evidence string would break every time its wording changes.
+    return [b for b in bodies if b.tag and b.glyph is not None]
 
 
 # Valve tag -> the actuator letter legend page 3 draws for it.  Both halves are

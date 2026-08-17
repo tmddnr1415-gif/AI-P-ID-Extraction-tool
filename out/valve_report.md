@@ -42,7 +42,20 @@ apart:
 | unread reason | count | meaning |
 |---|---:|---|
 | ACT_UNREAD_EMPTY | 0 | enclosure holds no strokes at all - most likely not an actuator |
-| ACT_UNREAD_STROKE | 0 | strokes are there but match no signature in `valves.stroked_letters` |
+| ACT_UNREAD_STROKE | 0 | strokes are there but their cluster carries no tag-labelled member (UNLABELED_GLYPH_CLUSTER) |
+
+### Actuator letters derived from this document
+
+No signature table is consulted.  Stroked glyphs are clustered against each other and each cluster takes its letter from a valve in it that carries a text tag bubble (legend page 4 pairs the MOV bubble with the M circle and HV with the hydraulic box). A cluster with no such member is not guessed at.
+
+| cluster size | pages | tags found | derived letter |
+|---:|---|---|---|
+| 17 | [33, 47, 49, 51] | {'MOV': 4} | M |
+| 13 | [26, 27, 28] | {'MOV': 6} | M |
+| 4 | [26, 27] | {'HV': 4} | H |
+| 2 | [46] | {'MOV': 1} | M |
+
+Derived letters: **{'H': 4, 'M': 32}**
 
 ## 4. Against the valve deliverables
 
@@ -178,19 +191,33 @@ Unclaimed butterfly detections on those drawings: **2** - the file lists only th
 
 ## 8. Cross-validation - Steam-only ruleset
 
-Rules no Steam drawing could have taught, switched off: `ACT_STEM`, `STROKE_LETTER`, `VANE_TICK`.
+`legacy` blinds `ACT_STEM`, `STROKE_LETTER`, `VANE_TICK` - the set used before the actuator letters were derived at run time, kept for a like-for-like comparison.
+`authored` blinds `ACT_STEM`, `VANE_TICK` - what is left once STROKE_LETTER stops being authored knowledge and becomes something the tool derives from the document in front of it.
 
-| group | | drawings | excel | detected | matched | recall | precision | exact |
+| group | ruleset | drawings | excel | detected | matched | recall | precision | exact |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | STEAM (training) | full | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
-| STEAM (training) | steam-only | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
-| | **drop** | | | | | **-0.0pp** | **-0.0pp** | |
+| STEAM (training) | steam-only (legacy) | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
+| STEAM (training) | steam-only (authored) | 11 | 40 | 50 | 40 | 100.0% | 80.0% | 6 |
+| | **drop, legacy** | | | | | **-0.0pp** | **-0.0pp** | |
+| | **drop, authored** | | | | | **-0.0pp** | **-0.0pp** | |
 | HOLDOUT PGB/PAB/EGD | full | 4 | 25 | 26 | 24 | 96.0% | 92.3% | 2 |
-| HOLDOUT PGB/PAB/EGD | steam-only | 4 | 25 | 0 | 0 | 0.0% | 0.0% | 0 |
-| | **drop** | | | | | **-96.0pp** | **-92.3pp** | |
+| HOLDOUT PGB/PAB/EGD | steam-only (legacy) | 4 | 25 | 0 | 0 | 0.0% | 0.0% | 0 |
+| HOLDOUT PGB/PAB/EGD | steam-only (authored) | 4 | 25 | 18 | 12 | 48.0% | 66.7% | 0 |
+| | **drop, legacy** | | | | | **-96.0pp** | **-92.3pp** | |
+| | **drop, authored** | | | | | **-48.0pp** | **-25.6pp** | |
 | ALL | full | 19 | 78 | 91 | 77 | 98.7% | 84.6% | 11 |
-| ALL | steam-only | 19 | 78 | 50 | 40 | 51.3% | 80.0% | 6 |
-| | **drop** | | | | | **-47.4pp** | **-4.6pp** | |
+| ALL | steam-only (legacy) | 19 | 78 | 50 | 40 | 51.3% | 80.0% | 6 |
+| ALL | steam-only (authored) | 19 | 78 | 82 | 57 | 73.1% | 69.5% | 7 |
+| | **drop, legacy** | | | | | **-47.4pp** | **-4.6pp** | |
+| | **drop, authored** | | | | | **-25.6pp** | **-15.1pp** | |
+
+A per-document derivation makes the strict train/test split incoherent - the label comes from the same drawing as the glyph, not from a training set - so the question a new project really asks is whether its own drawings carry enough tag bubbles to derive their own letters:
+
+| group | pages | clusters | derived letters | unlabeled clusters | unlabeled glyphs |
+|---|---:|---:|---|---:|---:|
+| STEAM | 13 | 0 | {} | 0 | 0 |
+| PGB/PAB/EGD | 14 | 3 | {'H': 4, 'M': 13} | 1 | 12 |
 
 ## 9. Against the master valve list
 

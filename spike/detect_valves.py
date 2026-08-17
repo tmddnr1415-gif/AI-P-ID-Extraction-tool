@@ -284,7 +284,8 @@ class Body:
     rect: pymupdf.Rect
     axis: str                       # H (flow horizontal) | V
     state: str = "OPEN"             # legend p2 VALVE OPERATION; fill = CLOSED
-    actuator: str = "NONE"
+    actuator: str = "NONE"          # ... | GLYPH (letter not yet derived)
+    glyph: object = None            # normalised bitmap, not serialised
     actuator_evidence: str = ""
     tag: str = ""                   # MOV / HOV / ... when a bubble is attached
     tag_rect: tuple = ()
@@ -714,51 +715,360 @@ def _strokes_in(pc, rect, lay: ValveLayout):
     return out
 
 
-_STROKE_SIGS = CFG.get("valves.stroked_letters")
+# --------------------------------------------------------------------------
+# Actuator letters that are drawn rather than typed
+# --------------------------------------------------------------------------
+#
+# There is no signature table any more.  It used to live in
+# `valves.stroked_letters` as config item V8, hand-written by opening pages 26
+# and 33 and reading their vector dumps, and cross-validation showed it was the
+# single reason the ruleset did not transfer: blinding it took the holdout
+# systems to zero.
+#
+# It is now derived from each document at run time, by the route
+# spike/stroke_bootstrap.py measured:
+#
+#   * glyphs drawn as strokes cannot be read against templates taken from the
+#     text layer.  A stroked M sits 0.4331..0.5190 from the nearest text M and a
+#     stroked H sits 0.4633..0.5159 - the ranges overlap, because the distance
+#     is dominated by filled-outline-versus-thin-stroke rendering rather than by
+#     the letter.  So that route is not used.
+#
+#   * stroked glyphs compared against *each other* separate cleanly.
+#     Leave-one-out nearest neighbour over all 73 in this document is 73/73, so
+#     one labelled example per letter is enough.
+#
+#   * the label comes from the text layer by a different door.  Legend page 4
+#     pairs the MOV tag bubble with the M circle and the HV bubble with the
+#     hydraulic box, so a valve carrying a text tag states which letter is on
+#     its stem - the same trick spike 1 uses when the revision-history row order
+#     labels its own strokes.
+#
+# A cluster with no tag-labelled member is never guessed at.  It is reported as
+# UNLABELED_GLYPH_CLUSTER and the enclosures in it stay unread.
+
+# Two stroked glyphs are the same letter when their normalised bitmaps sit
+# within this distance.  Measured, not tuned: same-letter pairs run 0.0..0.1012
+# and cross-letter pairs 0.0292..0.0870, and a linkage sweep over
+# 0.005/0.01/0.02/0.025/0.03/0.05 gives 13/10/4/4/3/3 clusters of which
+# 13/10/4/4/2/2 are pure - so 0.02..0.025 is the widest radius that keeps every
+# cluster to one letter.  See out/stroke_bootstrap.md.
+GLYPH_RADIUS = 0.020
+
+# Crop inside the enclosure before rasterising; the outline is ink and would
+# otherwise dominate the normalised bitmap.
+GLYPH_INSET = 0.18
+
+# Valve tag -> the actuator letter legend page 3 draws for it.  Both halves are
+# LEGEND: page 4 pairs the MOV bubble with the M circle and the HV bubble with
+# the hydraulic box, and page 3 names M as ROTARY MOTOR, H as HYDRAULIC
+# CYLINDER.  A tag not listed here labels nothing.
+TAG_LETTER = {"MOV": "M", "HV": "H", "HOV": "H", "XV": "X"}
 
 
-def _read_stroked_letter(strokes, sigs=None):
-    """Name the letter a shell contains from its stroke signature.
+def _glyph_bitmap(pc, rect: pymupdf.Rect):
+    """Normalised ink bitmap of an enclosure's interior.
 
-    The letters this project strokes are decided on stroke *count and
-    orientation*, never on size - page 33 draws the same M at 14.2 pt and at
-    19.3 pt, and page 26 draws its H rotated with the vertical pipe, so every
-    rule below is stated as parallel/perpendicular rather than up/down:
-
-      M  four strokes - two parallel full-height stems and two diagonals of the
-         same length forming the inner V, each leaning by well under its own
-         length.
-      H  three strokes - two parallel and one perpendicular joining them.
-      X  two strokes, both diagonal, crossing.
-
-    Anything else returns None and the caller reports the letter as unread
-    rather than guessing.
+    The same two steps spike 1 applies to the revision cell: an ink mask
+    thresholded relative to the darkest pixel present, then an area average
+    onto a fixed grid, which makes the comparison independent of position, size
+    and stroke weight.  That is what lets a 14.2 pt circle and a 19.3 pt one
+    land in the same cluster.
     """
-    sigs = _STROKE_SIGS if sigs is None else sigs
-    if not strokes:
+    import extract_titleblocks as _tb
+    d = min(rect.width, rect.height) * GLYPH_INSET
+    clip = pymupdf.Rect(rect.x0 + d, rect.y0 + d, rect.x1 - d, rect.y1 - d)
+    mask = _tb._ink_mask(pc.page, clip, _tb.LAYOUT)
+    if mask is None:
         return None
-    axial = [s for s in strokes if s[2] < 0.4 or s[3] < 0.4]
-    diagonal = [s for s in strokes if s[2] >= 0.4 and s[3] >= 0.4]
-    if "X" in sigs and len(strokes) == 2 and len(diagonal) == 2:
-        return "X"
-    if "H" in sigs and len(axial) == 3 and not diagonal:
-        horiz = [s for s in axial if s[3] < 0.4]
-        vert = [s for s in axial if s[2] < 0.4]
-        if (len(horiz), len(vert)) in ((2, 1), (1, 2)):
-            return "H"
-    if "M" in sigs and len(strokes) == 4 and len(axial) == 2 and len(diagonal) == 2:
-        sig = sigs["M"]
-        vertical = axial[0][2] < 0.4
-        if vertical != (axial[1][2] < 0.4):
-            return None                  # the two stems are not parallel
-        stem = max(s[3] if vertical else s[2] for s in axial)
-        for s in diagonal:
-            long_, cross = (s[3], s[2]) if vertical else (s[2], s[3])
-            if (abs(long_ - stem) > stem * float(sig["diagonal_length_tol"])
-                    or cross > long_ * float(sig["diagonal_lean_max"])):
-                return None
-        return "M"
-    return None
+    return _tb._normalise(mask, _tb.LAYOUT)
+
+
+def _glyph_distance(a, b) -> float:
+    import numpy as np
+    return float(np.abs(a - b).mean())
+
+
+@dataclass
+class GlyphLibrary:
+    """Letters derived from one document, with the evidence for each."""
+
+    letters: dict = field(default_factory=dict)     # letter -> sample count
+    clusters: list = field(default_factory=list)    # reporting rows
+    unlabeled: list = field(default_factory=list)   # NEEDS_REVIEW rows
+
+
+def derive_glyph_library(results) -> GlyphLibrary:
+    """Cluster every stroked enclosure, label clusters from valve tags, apply.
+
+    `results` is the output of `analyse_all` before letters are known: bodies
+    whose actuator came out `GLYPH` carry the enclosure bitmap and the tag of
+    the valve they stand on.
+
+    A glyph takes its letter from **its own cluster**, never from the nearest
+    labelled sample.  That distinction is the whole point: nearest-neighbour
+    would hand a letter to a cluster that has no evidence for one, which is
+    exactly the guess this is meant to avoid.  A cluster with no tag-labelled
+    member is reported as UNLABELED_GLYPH_CLUSTER and its enclosures stay
+    unread.
+    """
+    bodies = [b for res in results.values() for b in res["bodies"]
+              if b.actuator == "GLYPH"]
+    samples = [b for b in bodies if b.glyph is not None]
+
+    parent = list(range(len(samples)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for i in range(len(samples)):
+        for j in range(i + 1, len(samples)):
+            if _glyph_distance(samples[i].glyph, samples[j].glyph) <= GLYPH_RADIUS:
+                a, b = find(i), find(j)
+                if a != b:
+                    parent[a] = b
+    groups: dict[int, list] = {}
+    for i in range(len(samples)):
+        groups.setdefault(find(i), []).append(samples[i])
+
+    lib = GlyphLibrary()
+    page_of = {id(b): res_no for res_no, res in results.items()
+               for b in res["bodies"]}
+    for members in sorted(groups.values(),
+                          key=lambda g: (-len(g), page_of[id(g[0])])):
+        tags = collections.Counter(m.tag for m in members if m.tag in TAG_LETTER)
+        pages = sorted({page_of[id(m)] for m in members})
+        row = {"size": len(members), "pages": pages, "tags": dict(tags)}
+        if not tags:
+            row["letter"] = ""
+            lib.unlabeled.append({
+                "kind": "UNLABELED_GLYPH_CLUSTER",
+                "size": len(members), "pages": pages,
+                "reason": "no valve in this cluster carries a text tag bubble "
+                          "naming its actuator, so the letter is unknown; these "
+                          "enclosures stay unread rather than being guessed",
+            })
+            for m in members:
+                m.actuator = "UNREAD"
+                m.actuator_evidence += ("; UNLABELED_GLYPH_CLUSTER "
+                                        f"(size {len(members)}, pages {pages})")
+        else:
+            tag, _ = tags.most_common(1)[0]
+            letter = TAG_LETTER[tag]
+            row["letter"] = letter
+            row["labelled_by"] = tag
+            lib.letters[letter] = lib.letters.get(letter, 0) + len(members)
+            for m in members:
+                m.actuator = ACT_LETTERS[letter]
+                m.actuator_evidence += (
+                    f"; letter '{letter}' derived from a cluster of "
+                    f"{len(members)} labelled by the text tag '{tag}'")
+        lib.clusters.append(row)
+
+    # Anything that never produced a bitmap cannot be clustered at all.
+    for b in bodies:
+        if b.actuator == "GLYPH":
+            b.actuator = "UNREAD"
+            b.actuator_evidence += "; no ink found inside the enclosure"
+
+    for res in results.values():
+        res["actuators"] = collections.Counter(b.actuator for b in res["bodies"])
+    return lib
+
+
+def _actuator_shells(pc, lay: ValveLayout):
+    """Small closed shapes that could hold an actuator letter.
+
+    Legend page 3 always encloses the letter: a circle for ROTARY MOTOR and
+    ELECTRO OR HYDRAULIC, a box for HYDRAULIC CYLINDER, SOLENOID and
+    UNCLASSIFIED.  Finding the enclosure first - rather than starting from a
+    letter - matters because the letter is not always text.  Page 6 writes its
+    motor 'M' into the text layer; page 26 strokes its hydraulic 'H' as three
+    line segments with no text at all, the same way the title block strokes its
+    revision letter.  Enclosure-first lets an unread letter be reported as
+    unread instead of silently dropping the actuator.
+    """
+    shells = []
+    for d in pc.drawings():
+        items = d["items"]
+        if not items:
+            continue
+        b = d["bbox"]
+        if not _in_area(b, lay.drawing_area):
+            continue
+        if not (lay.act_box[0] <= b.width <= lay.act_box[1]
+                and lay.act_box[0] <= b.height <= lay.act_box[1]):
+            continue
+        ratio = min(b.width, b.height) / max(b.width, b.height)
+        if ratio < 0.75:
+            continue
+        if all(i[0] == "c" for i in items):
+            shells.append(("circle", b))
+        elif all(i[0] in ("l", "qu", "re") for i in items) and (
+                any(i[0] in ("qu", "re") for i in items)
+                or sum(1 for i in items if i[0] == "l") >= 4):
+            # A box needs four sides.  Accepting a single `l` item let one
+            # diagonal stroke of the spring symbol pass as an enclosure whenever
+            # its bounding box came out square - that alone produced 12 of the
+            # 14 UNREAD actuators, all of them on check and three-way valves
+            # that cannot have an actuator at all.  Legend page 3 draws every
+            # box actuator closed: the hydraulic cylinder as six `l` items, and
+            # page 26 strokes its H box as a single `qu`.
+            shells.append(("box", b))
+    return shells
+
+
+def _strokes_in(pc, rect, lay: ValveLayout):
+    """Straight strokes wholly inside a shell - the drawn letter."""
+    out = []
+    for p0, p1 in pc.segments():
+        if not (rect.x0 - 0.3 <= min(p0.x, p1.x) and max(p0.x, p1.x) <= rect.x1 + 0.3
+                and rect.y0 - 0.3 <= min(p0.y, p1.y) and max(p0.y, p1.y) <= rect.y1 + 0.3):
+            continue
+        dx, dy = p1.x - p0.x, p1.y - p0.y
+        length = (dx * dx + dy * dy) ** 0.5
+        if length < 0.8 or length > max(rect.width, rect.height) * 1.1:
+            continue
+        out.append((p0, p1, abs(dx), abs(dy), length))
+    return out
+
+
+# --------------------------------------------------------------------------
+# Actuator letters that are drawn rather than typed
+# --------------------------------------------------------------------------
+#
+# There is no signature table any more.  It used to live in
+# `valves.stroked_letters` as config item V8, hand-written by opening pages 26
+# and 33 and reading their vector dumps, and cross-validation showed it was the
+# single reason the ruleset did not transfer: blinding it took the holdout
+# systems to zero.
+#
+# It is now derived from each document at run time, by the route
+# spike/stroke_bootstrap.py measured:
+#
+#   * glyphs drawn as strokes cannot be read against templates taken from the
+#     text layer.  A stroked M sits 0.4331..0.5190 from the nearest text M and a
+#     stroked H sits 0.4633..0.5159 - the ranges overlap, because the distance
+#     is dominated by filled-outline-versus-thin-stroke rendering rather than by
+#     the letter.  So that route is not used.
+#
+#   * stroked glyphs compared against *each other* separate cleanly.
+#     Leave-one-out nearest neighbour over all 73 in this document is 73/73, so
+#     one labelled example per letter is enough.
+#
+#   * the label comes from the text layer by a different door.  Legend page 4
+#     pairs the MOV tag bubble with the M circle and the HV bubble with the
+#     hydraulic box, so a valve carrying a text tag states which letter is on
+#     its stem - the same trick spike 1 uses when the revision-history row order
+#     labels its own strokes.
+#
+# A cluster with no tag-labelled member is never guessed at.  It is reported as
+# UNLABELED_GLYPH_CLUSTER and the enclosures in it stay unread.
+
+# Two stroked glyphs are the same letter when their normalised bitmaps sit
+# within this distance.  Measured, not tuned: same-letter pairs run 0.0..0.1012
+# and cross-letter pairs 0.0292..0.0870, and a linkage sweep over
+# 0.005/0.01/0.02/0.025/0.03/0.05 gives 13/10/4/4/3/3 clusters of which
+# 13/10/4/4/2/2 are pure - so 0.02..0.025 is the widest radius that keeps every
+# cluster to one letter.  See out/stroke_bootstrap.md.
+GLYPH_RADIUS = 0.020
+
+# Crop inside the enclosure before rasterising; the outline is ink and would
+# otherwise dominate the normalised bitmap.
+GLYPH_INSET = 0.18
+
+# Valve tag -> the actuator letter legend page 3 draws for it.  Both halves are
+# LEGEND: page 4 pairs the MOV bubble with the M circle and the HV bubble with
+# the hydraulic box, and page 3 names M as ROTARY MOTOR, H as HYDRAULIC
+# CYLINDER.  A tag not listed here labels nothing.
+TAG_LETTER = {"MOV": "M", "HV": "H", "HOV": "H", "XV": "X"}
+
+
+def _glyph_bitmap(pc, rect: pymupdf.Rect):
+    """Normalised ink bitmap of an enclosure's interior.
+
+    The same two steps spike 1 applies to the revision cell: an ink mask
+    thresholded relative to the darkest pixel present, then an area average
+    onto a fixed grid, which makes the comparison independent of position, size
+    and stroke weight.  That is what lets a 14.2 pt circle and a 19.3 pt one
+    land in the same cluster.
+    """
+    import extract_titleblocks as _tb
+    d = min(rect.width, rect.height) * GLYPH_INSET
+    clip = pymupdf.Rect(rect.x0 + d, rect.y0 + d, rect.x1 - d, rect.y1 - d)
+    mask = _tb._ink_mask(pc.page, clip, _tb.LAYOUT)
+    if mask is None:
+        return None
+    return _tb._normalise(mask, _tb.LAYOUT)
+
+
+def _glyph_distance(a, b) -> float:
+    import numpy as np
+    return float(np.abs(a - b).mean())
+
+
+def find_actuators(pc, lay: ValveLayout = LAYOUT, disabled=frozenset()):
+    """Actuator marks: (kind, centre, rect, evidence, bitmap).
+
+    `kind` is a legend page 3 actuator name when the letter is in the text
+    layer, `GLYPH` when the letter is drawn as strokes and still has to be
+    derived (`derive_glyph_library`), or `UNREAD` when the enclosure holds
+    nothing readable at all.
+    """
+    words = [(r, t.strip()) for r, t in pc.words if _in_area(r, lay.drawing_area)]
+    out = []
+    for shape, b in _actuator_shells(pc, lay):
+        centre = pymupdf.Point((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)
+        rect = b
+        inside = [t for r, t in words
+                  if b.x0 - 1 <= r.x0 and r.x1 <= b.x1 + 1
+                  and b.y0 - 1 <= r.y0 and r.y1 <= b.y1 + 1]
+        text = "".join(inside).strip()
+        kind = ACT_LETTERS.get(text)
+        if kind is not None:
+            out.append((kind, centre, rect, f"text '{text}' in {shape}", None))
+            continue
+        if text:
+            continue                     # a labelled box that is not an actuator
+        n = len(_strokes_in(pc, b, lay))
+        if n == 0:
+            # Nothing drawn inside: most likely not an actuator at all.
+            out.append(("UNREAD", centre, rect,
+                        f"empty {shape}, no strokes inside", None))
+            continue
+        if "STROKE_LETTER" in disabled:
+            out.append(("UNREAD", centre, rect,
+                        f"{shape} with {n} strokes, glyph reading disabled", None))
+            continue
+        out.append(("GLYPH", centre, rect,
+                    f"{shape} with {n} strokes", _glyph_bitmap(pc, b)))
+    # I/P positioners are written as text on the stem with no enclosure
+    # (legend page 3, PNEUMATIC DIAPHRAGM WITH POSITIONER).
+    for r, t in words:
+        if t in ("I/P", "IP"):
+            out.append(("PNEUMATIC", pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2),
+                        pymupdf.Rect(r), "I/P positioner on stem", None))
+    return out
+
+
+def _stem_links(index, coord, lo, hi, lay: ValveLayout) -> bool:
+    """Is there a drawn run at `coord` spanning lo..hi?
+
+    LEGEND pages 3 and 4 never float an actuator next to a valve: it is always
+    joined to the body by a stem.  Requiring the stem is what separates a valve
+    actuator from a *pump* motor, which is the same M-in-a-circle sitting the
+    same distance away on the same axis - page 46 has three of them, each 75 pt
+    from a closed globe valve with nothing drawn in between.
+    """
+    span = hi - lo
+    for step in range(-8, 9):
+        for s0, s1 in index.get(round(coord + step * 0.1, 1), ()):
+            if s0 <= lo + span * 0.25 and s1 >= hi - span * 0.25:
+                return True
+    return False
 
 
 def _actuator_stem(horiz, vert, rect, body: Body, lay: ValveLayout) -> bool:
@@ -783,70 +1093,8 @@ def _actuator_stem(horiz, vert, rect, body: Body, lay: ValveLayout) -> bool:
     return lo >= hi - 0.5 or _stem_links(horiz, coord, lo, hi, lay)
 
 
-def find_actuators(pc, lay: ValveLayout = LAYOUT, disabled=frozenset(),
-                   sigs=None):
-    """Actuator marks: (kind, centre, evidence).
-
-    `kind` is a legend page 3 actuator name, or `UNREAD` when the enclosure is
-    there but the letter inside it could not be named.
-    """
-    words = [(r, t.strip()) for r, t in pc.words if _in_area(r, lay.drawing_area)]
-    out = []
-    for shape, b in _actuator_shells(pc, lay):
-        centre = pymupdf.Point((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)
-        rect = b
-        inside = [t for r, t in words
-                  if b.x0 - 1 <= r.x0 and r.x1 <= b.x1 + 1
-                  and b.y0 - 1 <= r.y0 and r.y1 <= b.y1 + 1]
-        text = "".join(inside).strip()
-        kind = ACT_LETTERS.get(text)
-        if kind is not None:
-            out.append((kind, centre, rect, f"text '{text}' in {shape}"))
-            continue
-        if text:
-            continue                     # a labelled box that is not an actuator
-        letter = (None if "STROKE_LETTER" in disabled
-                  else _read_stroked_letter(_strokes_in(pc, b, lay), sigs))
-        if letter is not None:
-            out.append((ACT_LETTERS[letter], centre, rect,
-                        f"stroked '{letter}' in {shape}"))
-        else:
-            n = len(_strokes_in(pc, b, lay))
-            # Split the two reasons an enclosure stays unread, because they are
-            # different problems: nothing drawn inside means the shape is
-            # probably not an actuator at all, while strokes that match no
-            # signature mean a letter this module cannot yet name.
-            out.append(("UNREAD", centre, rect,
-                        f"empty {shape}, no strokes inside" if n == 0 else
-                        f"{shape} with {n} strokes, no letter signature"))
-    # I/P positioners are written as text on the stem with no enclosure
-    # (legend page 3, PNEUMATIC DIAPHRAGM WITH POSITIONER).
-    for r, t in words:
-        if t in ("I/P", "IP"):
-            out.append(("PNEUMATIC", pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2),
-                        pymupdf.Rect(r), "I/P positioner on stem"))
-    return out
-
-
-def _stem_links(index, coord, lo, hi, lay: ValveLayout) -> bool:
-    """Is there a drawn run at `coord` spanning lo..hi?
-
-    LEGEND pages 3 and 4 never float an actuator next to a valve: it is always
-    joined to the body by a stem.  Requiring the stem is what separates a valve
-    actuator from a *pump* motor, which is the same M-in-a-circle sitting the
-    same distance away on the same axis - page 46 has three of them, each 75 pt
-    from a closed globe valve with nothing drawn in between.
-    """
-    span = hi - lo
-    for step in range(-8, 9):
-        for s0, s1 in index.get(round(coord + step * 0.1, 1), ()):
-            if s0 <= lo + span * 0.25 and s1 >= hi - span * 0.25:
-                return True
-    return False
-
-
 def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
-                     disabled=frozenset(), sigs=None) -> None:
+                     disabled=frozenset()) -> None:
     """Assign each actuator mark to the body it stands over.
 
     Legend pages 3 and 4 both draw the actuator on the stem, on the axis
@@ -854,10 +1102,12 @@ def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
     named actuator outranks an UNREAD one for the same body, so an enclosure
     whose letter could not be read never displaces a letter that could.
     """
-    marks = find_actuators(pc, lay, disabled, sigs)
-    marks.sort(key=lambda m: m[0] == "UNREAD")
+    marks = find_actuators(pc, lay, disabled)
+    # A named letter outranks a glyph still to be derived, which outranks an
+    # enclosure with nothing in it.
+    marks.sort(key=lambda m: (m[0] == "GLYPH", m[0] == "UNREAD"))
     horiz, vert, _ = _index_segments(pc, lay)
-    for kind, pt, rect, why in marks:
+    for kind, pt, rect, why, glyph in marks:
         best, best_d = None, None
         for b in bodies:
             # An actuator stands clear of the body on the stem.  This was
@@ -882,6 +1132,7 @@ def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
         if best is None or best.actuator != "NONE":
             continue
         best.actuator = kind
+        best.glyph = glyph
         best.actuator_evidence = f"{why}, {round(best_d, 1)}pt along the stem"
 
 
@@ -941,10 +1192,9 @@ def attach_tags(pc, bodies: list[Body], lay: ValveLayout = LAYOUT) -> list[tuple
 # Per-page driver
 # --------------------------------------------------------------------------
 
-def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset(),
-            sigs=None) -> dict:
+def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset()) -> dict:
     bodies = find_bodies(pc, lay, disabled)
-    attach_actuators(pc, bodies, lay, disabled, sigs)
+    attach_actuators(pc, bodies, lay, disabled)
     tags = attach_tags(pc, bodies, lay)
     tagged = sum(1 for b in bodies if b.tag)
     return {
@@ -1101,9 +1351,17 @@ def page_index() -> dict:
     return idx
 
 
-def analyse_all(pages, disabled=frozenset(), sigs=None) -> dict:
-    return {pc.page_no: analyse(pc, LAYOUT, disabled, sigs)
-            for pc in pages if pc.analysis_scope}
+def analyse_all(pages, disabled=frozenset(), derive=True):
+    """Analyse every page, then derive the document's own glyph letters.
+
+    Returns `(results, library)`.  The derivation is a second look at results
+    already computed, not a second pass over the PDF: naming a letter does not
+    change any geometry.
+    """
+    results = {pc.page_no: analyse(pc, LAYOUT, disabled)
+               for pc in pages if pc.analysis_scope}
+    lib = derive_glyph_library(results) if derive else GlyphLibrary()
+    return results, lib
 
 
 def cmd_reach(results) -> dict:
@@ -1277,7 +1535,7 @@ def rule_contributions(pages, baseline_cmp) -> list[dict]:
     base_total = sum(base.values())
     rows = []
     for rule in ALL_RULES:
-        res = analyse_all(pages, frozenset({rule}))
+        res, _lib = analyse_all(pages, frozenset({rule}))
         cmp_ = compare(res, pages)
         got, exact, moved = {}, 0, 0
         for d in cmp_["deliverables"]:
@@ -1318,15 +1576,26 @@ def rule_contributions(pages, baseline_cmp) -> list[dict]:
 #   ACT_STEM       p46 (GHC, not Steam)                 -> NOT available
 #   STROKE_LETTER  p26 (PAB) + p33 (EGD), neither Steam -> NOT available
 #
-# The Steam drawings write their motor 'M' into the text layer, so no Steam page
-# could have taught the stroke signatures at all.  That is the point of the
-# exercise: it says which parts of the accuracy are transferable and which were
-# bought by looking at the systems being measured.
+# That table described the hand-written signatures, and blinding them took the
+# holdout to zero.  STROKE_LETTER has since stopped being authored knowledge:
+# the letters are derived from whatever document is in front of the tool, by
+# clustering its own stroked glyphs and labelling each cluster from a valve tag
+# in it.  There is no longer anything for a Steam-only author to have missed, so
+# `STEAM_BLIND_AUTHORED` drops it while `STEAM_BLIND_LEGACY` keeps it for a
+# like-for-like comparison with the earlier measurement.
+#
+# A per-document derivation also makes the strict train/test framing incoherent
+# - the labels come from the same drawing as the glyph, not from a training set
+# - so `--crossval` additionally reports, for each system group, whether that
+# group's drawings alone would have been enough to derive their own letters.
+# That is the question a new project actually asks.
 STEAM_SYSTEMS = ("LBA", "LBC", "LBG", "LCA", "LCM", "LAB", "MAN", "MAJ")
 HOLDOUT_SYSTEMS = ("PGB", "PAB", "EGD")
 
 # Rules no Steam drawing could have supplied.
-STEAM_BLIND = frozenset({"VANE_TICK", "ACT_STEM", "STROKE_LETTER"})
+STEAM_BLIND_LEGACY = frozenset({"VANE_TICK", "ACT_STEM", "STROKE_LETTER"})
+STEAM_BLIND_AUTHORED = frozenset({"VANE_TICK", "ACT_STEM"})
+STEAM_BLIND = STEAM_BLIND_AUTHORED
 
 
 def _system_of(drawing: str) -> str:
@@ -1337,8 +1606,13 @@ def _system_of(drawing: str) -> str:
 
 def crossvalidate(pages) -> dict:
     """Full ruleset vs Steam-only ruleset, scored on the holdout systems."""
-    full = compare(analyse_all(pages), pages)
-    steam = compare(analyse_all(pages, STEAM_BLIND), pages)
+    full_res, full_lib = analyse_all(pages)
+    full = compare(full_res, pages)
+    variants = {}
+    for name, blind in (("legacy", STEAM_BLIND_LEGACY),
+                        ("authored", STEAM_BLIND_AUTHORED)):
+        res, _ = analyse_all(pages, blind)
+        variants[name] = compare(res, pages)
 
     def score(cmp_, systems):
         rows = []
@@ -1358,17 +1632,54 @@ def crossvalidate(pages) -> dict:
                          if e["excel_rows"] == e["detected_actuated"]),
         }
 
-    out = {"blinded": sorted(STEAM_BLIND), "groups": []}
+    out = {
+        "blinded_legacy": sorted(STEAM_BLIND_LEGACY),
+        "blinded_authored": sorted(STEAM_BLIND_AUTHORED),
+        "groups": [],
+        "self_sufficiency": _group_self_sufficiency(pages),
+    }
     for name, systems in (("STEAM (training)", STEAM_SYSTEMS),
                           ("HOLDOUT PGB/PAB/EGD", HOLDOUT_SYSTEMS),
                           ("ALL", ())):
-        a, b = score(full, systems), score(steam, systems)
-        out["groups"].append({
-            "group": name, "full": a, "steam_only": b,
-            "recall_drop": a["recall"] - b["recall"],
-            "precision_drop": a["precision"] - b["precision"],
-        })
+        a = score(full, systems)
+        row = {"group": name, "full": a}
+        for key, cmp_ in variants.items():
+            b = score(cmp_, systems)
+            row[key] = b
+            row[key + "_recall_drop"] = a["recall"] - b["recall"]
+            row[key + "_precision_drop"] = a["precision"] - b["precision"]
+        out["groups"].append(row)
     return out
+
+
+def _group_self_sufficiency(pages) -> list:
+    """Could each system group derive its own actuator letters, alone?
+
+    This is what a new project asks: given only these drawings, does the glyph
+    derivation find a tag-labelled member for every cluster it forms?
+    """
+    idx = page_index()
+    sys_of_page = {}
+    for dwg, pgs in idx.items():
+        for p in pgs:
+            sys_of_page[p] = _system_of(dwg)
+    rows = []
+    for label, systems in (("STEAM", STEAM_SYSTEMS),
+                           ("PGB/PAB/EGD", HOLDOUT_SYSTEMS)):
+        subset = [pc for pc in pages
+                  if pc.analysis_scope and sys_of_page.get(pc.page_no) in systems]
+        if not subset:
+            continue
+        _res, lib = analyse_all(subset)
+        rows.append({
+            "group": label,
+            "pages": len(subset),
+            "clusters": len(lib.clusters),
+            "letters": dict(sorted(lib.letters.items())),
+            "unlabeled_clusters": len(lib.unlabeled),
+            "unlabeled_glyphs": sum(u["size"] for u in lib.unlabeled),
+        })
+    return rows
 
 
 # --------------------------------------------------------------------------
@@ -1605,13 +1916,37 @@ def write_report(results, cmp_data, path: Path, extra=None) -> None:
                 continue
             unread["ACT_UNREAD_EMPTY" if "no strokes" in b.actuator_evidence
                    else "ACT_UNREAD_STROKE"] += 1
+    glyphs = extra.get("glyphs")
     L.append("| unread reason | count | meaning |")
     L.append("|---|---:|---|")
     L.append(f"| ACT_UNREAD_EMPTY | {unread['ACT_UNREAD_EMPTY']} | enclosure holds "
              "no strokes at all - most likely not an actuator |")
     L.append(f"| ACT_UNREAD_STROKE | {unread['ACT_UNREAD_STROKE']} | strokes are "
-             "there but match no signature in `valves.stroked_letters` |")
+             "there but their cluster carries no tag-labelled member "
+             "(UNLABELED_GLYPH_CLUSTER) |")
     L.append("")
+
+    glyphs = extra.get("glyphs")
+    if glyphs is not None:
+        L.append("### Actuator letters derived from this document\n")
+        L.append("No signature table is consulted.  Stroked glyphs are clustered "
+                 "against each other and each cluster takes its letter from a "
+                 "valve in it that carries a text tag bubble (legend page 4 pairs "
+                 "the MOV bubble with the M circle and HV with the hydraulic box). "
+                 "A cluster with no such member is not guessed at.\n")
+        L.append("| cluster size | pages | tags found | derived letter |")
+        L.append("|---:|---|---|---|")
+        for c in glyphs.clusters:
+            L.append(f"| {c['size']} | {c['pages']} | {c['tags'] or '-'} "
+                     f"| {c['letter'] or '**UNLABELED**'} |")
+        L.append("")
+        L.append(f"Derived letters: **{dict(sorted(glyphs.letters.items()))}**\n")
+        if glyphs.unlabeled:
+            L.append("NEEDS_REVIEW:\n")
+            for u in glyphs.unlabeled:
+                L.append(f"- `{u['kind']}` size {u['size']} pages {u['pages']} - "
+                         f"{u['reason']}")
+            L.append("")
 
     L.append("## 4. Against the valve deliverables\n")
     for d in cmp_data["deliverables"]:
@@ -1718,18 +2053,42 @@ def write_report(results, cmp_data, path: Path, extra=None) -> None:
     cv = extra.get("crossval")
     if cv:
         L.append("## 8. Cross-validation - Steam-only ruleset\n")
-        L.append(f"Rules no Steam drawing could have taught, switched off: "
-                 f"`{'`, `'.join(cv['blinded'])}`.\n")
-        L.append("| group | | drawings | excel | detected | matched | recall | precision | exact |")
+        L.append(f"`legacy` blinds `{'`, `'.join(cv['blinded_legacy'])}` - the set "
+                 f"used before the actuator letters were derived at run time, kept "
+                 f"for a like-for-like comparison.")
+        L.append(f"`authored` blinds `{'`, `'.join(cv['blinded_authored'])}` - what "
+                 f"is left once STROKE_LETTER stops being authored knowledge and "
+                 f"becomes something the tool derives from the document in front "
+                 f"of it.\n")
+        L.append("| group | ruleset | drawings | excel | detected | matched "
+                 "| recall | precision | exact |")
         L.append("|---|---|---:|---:|---:|---:|---:|---:|---:|")
         for g in cv["groups"]:
-            for label, key in (("full", "full"), ("steam-only", "steam_only")):
+            for label, key in (("full", "full"), ("steam-only (legacy)", "legacy"),
+                               ("steam-only (authored)", "authored")):
                 d = g[key]
                 L.append(f"| {g['group']} | {label} | {d['drawings']} | {d['excel']} "
                          f"| {d['detected']} | {d['matched']} | {d['recall']:.1f}% "
                          f"| {d['precision']:.1f}% | {d['exact']} |")
-            L.append(f"| | **drop** | | | | | **-{g['recall_drop']:.1f}pp** "
-                     f"| **-{g['precision_drop']:.1f}pp** | |")
+            L.append(f"| | **drop, legacy** | | | | | "
+                     f"**-{g['legacy_recall_drop']:.1f}pp** "
+                     f"| **-{g['legacy_precision_drop']:.1f}pp** | |")
+            L.append(f"| | **drop, authored** | | | | | "
+                     f"**-{g['authored_recall_drop']:.1f}pp** "
+                     f"| **-{g['authored_precision_drop']:.1f}pp** | |")
+        L.append("")
+        L.append("A per-document derivation makes the strict train/test split "
+                 "incoherent - the label comes from the same drawing as the glyph, "
+                 "not from a training set - so the question a new project really "
+                 "asks is whether its own drawings carry enough tag bubbles to "
+                 "derive their own letters:\n")
+        L.append("| group | pages | clusters | derived letters | unlabeled clusters "
+                 "| unlabeled glyphs |")
+        L.append("|---|---:|---:|---|---:|---:|")
+        for r in cv["self_sufficiency"]:
+            L.append(f"| {r['group']} | {r['pages']} | {r['clusters']} "
+                     f"| {r['letters']} | {r['unlabeled_clusters']} "
+                     f"| {r['unlabeled_glyphs']} |")
         L.append("")
 
     master = extra.get("master")
@@ -1786,13 +2145,13 @@ DEPS_DOC = """# 밸브 규칙 프로젝트 종속 값 인벤토리 (스파이크
 | `PROJECT` | 도면/NOTES/Excel 양식에서 유도 → config |
 | `UNKNOWN` | 출처 불명 → 조사 필요, 튜닝 금지 |
 
-**집계: `LEGEND` 12건 / `PROJECT` 8건 / `UNKNOWN` 5건 (총 25건)**
+**집계: `LEGEND` 13건 / `PROJECT` 7건 / `UNKNOWN` 6건 (총 26건)**
 
 판정 근거는 전부 실측입니다. "아마 그럴 것 같다"는 UNKNOWN 으로 넘겼습니다.
 
 ---
 
-## LEGEND — 코드 유지 (12건)
+## LEGEND — 코드 유지 (13건)
 
 | # | 항목 | 위치 | 근거 (실측) |
 |---|---|---|---|
@@ -1808,10 +2167,11 @@ DEPS_DOC = """# 밸브 규칙 프로젝트 종속 값 인벤토리 (스파이크
 | VL10 | **액추에이터 울타리 크기 하한** | `act_box` 하한 9.0 | 범례 p3 모터·E/H 원 **14.2×14.2**, 유압/솔레노이드/X 상자 **14.2×34.0**. 글로브 허리 원반은 7.1 → 9.0 이 둘 사이 |
 | VL11 | **액추에이터는 줄기로 몸체에 연결된다** | `_actuator_stem` | 범례 p3 의 8행 전부, p4 `VALVE BODY WITH ACTUATOR` 의 MOV 도 예외 없이 줄기를 그림 |
 | VL12 | **자력식은 별도 그룹** (NONE ≠ SELF ACTING) | `deliverable_class` | 범례 p3 이 `SELF-ACTUATED DEVICES`(PSV/PRV/BPRV)를 고유 심볼로 따로 둠. 줄기에 아무것도 없는 것은 수동 밸브지 자력식이 아님 |
+| VL13 | **태그 ↔ 액추에이터 짝** (`MOV`↔`M` 원, `HV`/`HOV`↔유압 상자, `XV`↔`X`) | `TAG_LETTER` | 범례 p4 `VALVE BODY WITH ACTUATOR` 가 MOV 버블과 M 원을 같은 그림에 그리고, 범례 p3 이 `M`=ROTARY MOTOR, `H`=HYDRAULIC CYLINDER 로 이름을 붙입니다. **이 짝이 스트로크 글자의 정답을 문서 안에서 공급합니다** — V8 을 없앨 수 있었던 이유 |
 
 ---
 
-## PROJECT — config 이동 완료 (8건)
+## PROJECT — config 이동 완료 (7건)
 
 전부 `config/project_alnouf1.yaml` 의 `valves:` 블록으로 옮겼습니다.
 
@@ -1824,11 +2184,15 @@ DEPS_DOC = """# 밸브 규칙 프로젝트 종속 값 인벤토리 (스파이크
 | V5 | **납품서 ↔ 몸체 계열** (CZI=BUTTERFLY, CZH=GATE/GLOBE/**BALL**) | `valves.deliverables` | 각 파일 헤더의 `DESCRIPTION` 줄. CZH 는 제목이 GATE & GLOBE 지만 볼 몸체 MOV 도 담고 있어 계열에 BALL 을 포함해야 함 |
 | V6 | **`VALVE TYPE` 어휘** MOV / MOV_I / HOV / CV | `valves.valve_type_actuator` | 이 문자열들은 범례에 없음. 납품서 표기이고 몸체가 아니라 구동 방식 |
 | V7 | **CV vs XV 태그 분리** | `valves.cv_tags`, `valves.xv_tags` | 태그 어휘 자체는 범례(p3 CONTROL DEVICE, p4 차단 태그)지만 **두 납품서로 가르는 기준**은 발주처 관행 |
-| V8 | **스트로크 글자 서명** (M 4획 / H 3획 / X 2획) | `valves.stroked_letters` | **범례는 M·H·S·X 를 텍스트로 인쇄합니다.** 즉 범례만 봐서는 이 회사 CAD 스트로크 폰트가 글자를 어떻게 조립하는지 알 수 없습니다. 서명은 p26(H)·p33(M) 도면에서 읽었으므로 PROJECT |
+~~V8 스트로크 글자 서명~~ — **삭제됨.** config 에서 뺐고 코드에도 남기지 않았습니다.
+매 실행마다 문서에서 유도합니다(`derive_glyph_library`): 스트로크 글자끼리 군집한 뒤
+군집 안에 텍스트 태그 버블이 달린 밸브가 있으면 그 태그로 군집 전체를 라벨하고,
+없으면 `UNLABELED_GLYPH_CLUSTER` 로 NEEDS_REVIEW 에 올립니다. 추측 라벨은 하지
+않습니다. 관측된 적 없던 `X` 서명도 함께 제거했습니다.
 
 ---
 
-## UNKNOWN — 조사 필요, 이번에 튜닝하지 않음 (5건)
+## UNKNOWN — 조사 필요, 이번에 튜닝하지 않음 (6건)
 
 | # | 항목 | 위치 | 왜 UNKNOWN 인가 |
 |---|---|---|---|
@@ -1837,6 +2201,7 @@ DEPS_DOC = """# 밸브 규칙 프로젝트 종속 값 인벤토리 (스파이크
 | VU3 | **허리 중심 허용 오차** 2.0 | `centre_tol` | 범례 글로브 원반은 중심 오차 **0.0**. 2.0 이 어디서 왔는지 근거 없음 |
 | VU4 | **범례 실측값 주변 창 폭** (`body_short`, `body_ratio`, `waist_ratio`, `tick_span`, `tick_reach`) | `ValveLayout` | 창의 **중심값**은 전부 범례 실측(17.0×9.9, 0.72, 3.0 …)이지만 **폭**은 유도된 것이 아님. 다른 축척으로 그린 도면을 통과시키려는 의도지만 검증되지 않음 |
 | VU5 | **닫힘 판정 면적 임계** 0.30 | `_triangles_filled` | 검은 나비넥타이의 `fs` 4장이 몸체 bbox 의 몇 %를 덮는지 범례에서 계산하지 않았음 |
+| VU6 | **글자 군집 반경** 0.020 | `GLYPH_RADIUS` | 실측 근거는 있습니다 — 같은 글자쌍 0.0~0.1012, 다른 글자쌍 0.0292~0.0870, 반경 스윕 0.005/0.01/0.02/0.025/0.03/0.05 에서 순수 군집 13/10/4/4/2/2. 0.02~0.025 가 평탄 구간입니다. **다만 문서 1건에서만 측정했으므로** 범례 유도값도 아니고 다른 프로젝트에서 검증되지도 않았습니다 |
 
 **UNKNOWN 은 이번에도 손대지 않았습니다.** 계기 쪽 UNKNOWN 5건과 함께 Phase 3 조사
 대상입니다.
@@ -1883,7 +2248,13 @@ def main() -> int:
                  f"known: {', '.join(ALL_RULES)}")
     if disabled:
         print("rules disabled:", ", ".join(sorted(disabled)))
-    results = analyse_all(pages, disabled)
+    results, glyphs = analyse_all(pages, disabled)
+    print("derived glyph letters:", dict(sorted(glyphs.letters.items())))
+    for c in glyphs.clusters:
+        print(f"  cluster size={c['size']:<3} pages={c['pages']} "
+              f"letter={c['letter'] or '-'} tags={c['tags']}")
+    for u in glyphs.unlabeled:
+        print("  NEEDS_REVIEW", u["kind"], "size", u["size"], "pages", u["pages"])
 
     for page_no, res in sorted(results.items()):
         if not res["bodies"]:
@@ -1913,6 +2284,7 @@ def main() -> int:
         print("wrote", args.deps)
     if args.report:
         extra = {
+            "glyphs": glyphs,
             "failures": classify_failures(results, cmp_data),
             "class_scores": class_scores(results),
             "rollcall_CZI": rollcall(results, "CZI"),
