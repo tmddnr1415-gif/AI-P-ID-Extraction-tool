@@ -144,6 +144,66 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
                                   if valve else "2.4 x the signal dash"})
 
 
+def derive_connector_reach(pages, style, drawing_area, cfg=None):
+    """How far a connector's text sits from the pipe that feeds it, measured.
+
+    The legend does not draw the off-page connector at all: pages 2-5 print no
+    OFF-PAGE, CONTINUATION, MATCH LINE or CONNECTOR row, and the only interface
+    symbol they do define (SUPPLIER INTERFACE) is a solid line crossed by a
+    31.2 pt bar, which is a different thing.  So the contact point cannot be
+    derived from the legend, and the flag has no closed outline to measure either
+    - its edges are separate dashed strokes.
+
+    What *is* measurable is the drawing's own habit: on every connector in the
+    document, how far the printed text is from the nearest pipe-run endpoint.
+    That distribution is measured here and the reach is its high end, so the
+    number is a measurement of this document rather than a radius someone picked.
+    A connector whose flag is longer than that stays unattached, and the rows
+    that needed it report FAILED - which is the honest outcome, not a silent one.
+    """
+    cfg = cfg or projectconfig.load()
+    seen = []
+    for pc in pages:
+        if not pc.analysis_scope:
+            continue
+        labels = _connector_labels(pc, drawing_area)
+        if not labels:
+            continue
+        horiz, vert = legend_rules.stroke_index(pc.segments(), min_len=1.0)
+        ends = []
+        for axis, index in (("H", horiz), ("V", vert)):
+            for coord, runs in index.items():
+                for a, b in runs:
+                    if b - a < style["min_run"]:
+                        continue
+                    ends += ([(a, coord), (b, coord)] if axis == "H"
+                             else [(coord, a), (coord, b)])
+        for rect, _text in labels:
+            cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
+            d = min((max(abs(px - cx), abs(py - cy)) for px, py in ends),
+                    default=None)
+            if d is not None:
+                seen.append(d)
+    if not seen:
+        return legend_rules._fallback(
+            cfg, "connector_reach",
+            "no connector text and pipe run appear on the same page")
+    seen.sort()
+    # The high end of the measured distribution, not the maximum: one connector
+    # printed far from its flag would otherwise set the reach for all of them.
+    reach = seen[int(len(seen) * 0.9)]
+    hist = collections.Counter(int(d // 5) * 5 for d in seen)
+    return legend_rules.Derived(
+        values={"connector_reach": round(reach, 1)},
+        source="MEASURED",
+        note=f"the legend draws no off-page connector, so this is measured from "
+             f"{len(seen)} connectors in this document",
+        evidence={"connectors": len(seen),
+                  "min": round(seen[0], 1), "median": round(seen[len(seen) // 2], 1),
+                  "p90": round(reach, 1), "max": round(seen[-1], 1),
+                  "histogram_5pt": dict(sorted(hist.items()))})
+
+
 def _merge_runs(index, min_len: float, slack: float):
     """Collinear pieces unioned into runs, and the dashed chains kept apart.
 
@@ -295,7 +355,8 @@ def build(pc, symbols, style: dict, drawing_area) -> Graph:
     for rect, text in _connector_labels(pc, drawing_area):
         cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
         nid = add_node(cx, cy, "CONNECTOR", text, rect)
-        near = _nearest_node(g, cx, cy, "JUNCTION", limit=90.0)
+        near = _nearest_node(g, cx, cy, "JUNCTION",
+                             limit=style.get("connector_reach") or 0.0)
         if near:
             run = [round(cx, 1), round(cy, 1), g.nodes[near]["x"], g.nodes[near]["y"]]
             g.edges.append((nid, near, run))
@@ -304,7 +365,14 @@ def build(pc, symbols, style: dict, drawing_area) -> Graph:
 
     for rect in _equipment_boxes(pc, style, drawing_area):
         cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
+        # The label is the raw text inside the box.  Which of those words is the
+        # equipment's name is not derivable: a box holds the name, its duty
+        # ("(2X50%)"), supplier notes, line sizes and the tags of instruments
+        # mounted on it, and neither the legend nor any measurable convention
+        # separates them.  It is passed through unedited and marked as raw so
+        # nothing downstream mistakes it for a name.
         nid = add_node(cx, cy, "EQUIPMENT", _box_label(pc, rect), rect)
+        g.nodes[nid]["label_is_raw"] = True
         for jid, node in list(g.nodes.items()):
             if node["kind"] != "JUNCTION":
                 continue

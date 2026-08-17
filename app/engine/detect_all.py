@@ -787,7 +787,7 @@ def write_report(path, variants, page_rows, failures, failures_v1, size_dist,
     for pno in sorted(pdf_only):
         info = per_page[pno]
         n = sum(1 for d in info["detections"]
-                if included_under(d, RULESET_V3, frozenset(VENDOR_RULES)))
+                if included_under(d, RULESET_V3, active_scope(BASELINE_SCOPE_NAME)))
         L.append(f"| p{pno} | `{info['drawing_no']}` | {info['title']} | {n} |")
 
     L.append("\n## B. 앵커 사전 수정\n")

@@ -271,6 +271,13 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         dv.LAYOUT, legend_derived = dv.derive_layout(pages)
         pipe_style = pipe_graph.derive_line_styles(pages, CFG)
         legend_derived["line_styles"] = pipe_style
+        # The off-page connector is not in the legend, so how far its text sits
+        # from the pipe is measured off this document instead - see
+        # `pipe_graph.derive_connector_reach`, which says so in its provenance.
+        reach = pipe_graph.derive_connector_reach(
+            pages, pipe_style.values, CFG.rect("regions.drawing_area"), CFG)
+        legend_derived["connector_reach"] = reach
+        pipe_style.values.update(reach.values)
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     say(3, total, "deriving unit multipliers from legend page 5")

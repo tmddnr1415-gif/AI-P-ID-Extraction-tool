@@ -251,6 +251,48 @@ docs/design.md   설계안
 같은 사례가 몇 번 반복됐는지 나중에 셀 수 있습니다 — 예: `EDITED|type|TIT>PDIT`,
 `REMOVED|TIT|TT`, `ADDED|FIELD|PT`. `GET /jobs/{id}/feedback` 로 그대로 읽힙니다.
 
+## 배관 추적 — 범례가 답하지 않는 것들
+
+추적률이 13%대에 머무는 원인을 셋으로 특정했고, 그중 둘은 **범례가 답하지 않는다**는
+결론이 났습니다. 측정 결과를 남겨 둡니다.
+
+**대시-닷 선의 정체 — 범례에 없음.** 범례 p2~p5 의 선 종류를 전수 측정했습니다
+(PDF 대시배열은 어디에도 없고, 모든 파선이 개별 선분으로 그려집니다).
+
+| 범례 항목 | 그려진 방식 |
+| --- | --- |
+| MAIN / SECONDARY PROCESS LINE | 연속선 138.8 + 중앙에 10.0×5.0 마크 |
+| SUPPLIER INTERFACE | 연속선 138.8 + 31.2 세로 바 |
+| INSTRUMENTATION LINE BREAK / RESUMPTION POINT | 연속선 128.9 + 17.6 세로 바 2개 |
+| PIPING BY OTHER THAN SAMSUNG | **대시 7.2 / 간격 3.6** (13조각) |
+| ELECTRIC SIGNAL | **대시 7.2 / 간격 3.6** (13조각) |
+| HEAT TRACING | 연속선 + 4.0 눈금 |
+| BURIED PIPE | 연속선 + 동심원 |
+| PNEUMATIC SIGNAL | 2.4 조각 + 교차 해칭 |
+| SOFTWARE OR DATA LINK | 대시 7.8 / 간격 6.4 |
+
+p6 헤더의 **10.0 / 15.6 패턴은 범례 어디에도 없습니다.** 문서 전체에서 6페이지·36곳
+(p6·p8·p9·p21 각 8, p3·p49 각 2)에 나오고 전부 2조각짜리라 선이 아니라 반복 마크입니다.
+**추측으로 규칙을 만들지 않았습니다.**
+
+주의가 필요한 발견: `PIPING BY OTHER THAN SAMSUNG` 과 `ELECTRIC SIGNAL` 이
+**같은 대시 패턴(7.2/3.6)** 입니다. 즉 신호선 레이어가 "타사 배관"을 함께 걸러낼 수
+있고, 범례는 둘을 도형으로 구분해 주지 않습니다.
+
+**Off-page connector — 범례에 없음.** p2~p5 에 OFF-PAGE / CONTINUATION /
+MATCH LINE / CONNECTOR 행이 없고, 정의된 인터페이스 심볼은 `SUPPLIER INTERFACE`
+(연속선 + 세로 바) 하나로 깃발과 다릅니다. 깃발은 닫힌 외곽선도 아닙니다(테두리가
+9.9/8.2 파선 조각). 그래서 접점을 범례에서 유도할 수 없습니다. 대신 **이 문서의
+커넥터 218개에서 텍스트~배관끝 거리를 측정**해 90퍼센타일 70.2pt 를 씁니다
+(min 1.3 / 중위 37.8 / max 142.8). 임의로 고른 90pt 를 측정값으로 바꾼 것이고,
+출처는 `connector_reach: MEASURED` 로 기록됩니다. 깃발이 그보다 길면 연결되지 않고
+그 행은 FAILED 로 보고됩니다.
+
+**EQUIPMENT 라벨은 정제하지 않습니다.** 박스 안에는 기기명·용량표기·공급자 노트·
+호칭경·박스에 붙은 계기 태그가 섞여 있고(예: `CIRCULATING WATER PUMP (2X50%)
+SUPPLIER NOTE 1 DN600 PI`), 그중 무엇이 기기명인지는 범례도 측정 가능한 관행도
+정하지 않습니다. 원문 그대로 두고 `label_is_raw` 로 표시합니다.
+
 ## 배관 추적 (Description 준비)
 
 Description 문장은 **만들지 않습니다**. 이번 회차는 배관 연결 그래프를 만들고 그
