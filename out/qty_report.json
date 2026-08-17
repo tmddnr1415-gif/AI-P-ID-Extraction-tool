@@ -1324,5 +1324,15 @@
       }
     }
   ],
-  "needs_review": []
+  "needs_review": [
+    {
+      "kind": "SCOPE_OVERRIDE_UNRESOLVED",
+      "page_no": 38,
+      "drawing_no": "D00P-10PGB10-M05-0004",
+      "unit_code": "10",
+      "reason": "scope keyword ['PLANT COMMON'] found on this drawing: some items take a different multiplier from the sheet's x2, but attributing an item to the scoped equipment needs line tracing (design.md §7, Phase 2). Quantity left at the sheet multiplier.",
+      "symbols": 24,
+      "excel_qty": 45
+    }
+  ]
 }

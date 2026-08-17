@@ -87,8 +87,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 42.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -474,8 +474,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 59.5pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -631,8 +631,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 39.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -692,8 +692,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 39.7pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -891,8 +891,7 @@
    "BUTTERFLY": 3
   },
   "actuators": {
-   "NONE": 34,
-   "UNREAD": 4,
+   "NONE": 38,
    "MOTOR": 1
   }
  },
@@ -1178,8 +1177,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 66.3pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "LCV",
     "tag_rect": [
      1777.1,
@@ -1227,8 +1226,7 @@
    "BALL": 1
   },
   "actuators": {
-   "NONE": 11,
-   "UNREAD": 1,
+   "NONE": 12,
    "HYDRAULIC": 1
   }
  },
@@ -1457,8 +1455,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 74.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -1518,8 +1516,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 74.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -1579,8 +1577,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 74.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -1791,8 +1789,7 @@
   },
   "actuators": {
    "MOTOR": 6,
-   "NONE": 13,
-   "UNREAD": 3
+   "NONE": 16
   }
  },
  {
@@ -2768,8 +2765,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 59.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -3287,8 +3284,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 59.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -3393,9 +3390,8 @@
    "BALL": 2
   },
   "actuators": {
-   "NONE": 53,
-   "MOTOR": 8,
-   "UNREAD": 2
+   "NONE": 55,
+   "MOTOR": 8
   }
  },
  {
@@ -6452,8 +6448,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 73.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -6754,8 +6750,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 80.7pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -7730,9 +7726,8 @@
    "CHECK": 2
   },
   "actuators": {
-   "NONE": 51,
-   "MOTOR": 6,
-   "UNREAD": 2
+   "NONE": 53,
+   "MOTOR": 6
   }
  },
  {
@@ -7850,8 +7845,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 64.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -9259,9 +9254,8 @@
    "CHECK": 3
   },
   "actuators": {
-   "NONE": 55,
-   "MOTOR": 3,
-   "UNREAD": 1
+   "NONE": 56,
+   "MOTOR": 3
   }
  },
  {
@@ -11713,8 +11707,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 81.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "TCV",
     "tag_rect": [
      753.1,
@@ -11765,9 +11759,8 @@
    "GLOBE": 30
   },
   "actuators": {
-   "NONE": 36,
-   "MOTOR": 4,
-   "UNREAD": 1
+   "NONE": 37,
+   "MOTOR": 4
   }
  },
  {
@@ -14308,8 +14301,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 28.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -14387,8 +14380,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 62.3pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -15494,9 +15487,8 @@
    "BUTTERFLY": 5
   },
   "actuators": {
-   "NONE": 82,
-   "MOTOR": 3,
-   "UNREAD": 2
+   "NONE": 84,
+   "MOTOR": 3
   }
  },
  {
@@ -15604,8 +15596,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 81.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -16569,8 +16561,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 81.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -16740,8 +16732,7 @@
    "BALL": 2
   },
   "actuators": {
-   "NONE": 48,
-   "UNREAD": 2
+   "NONE": 50
   }
  },
  {
@@ -17212,7 +17203,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 7.5pt along the stem",
+    "actuator_evidence": "box with 2 strokes, no letter signature, 7.5pt along the stem",
     "tag": "PSV",
     "tag_rect": [
      584.4,
@@ -18362,8 +18353,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 77.5pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -19829,8 +19820,8 @@
    "GATE": 15
   },
   "actuators": {
-   "UNREAD": 2,
-   "NONE": 102,
+   "UNREAD": 1,
+   "NONE": 103,
    "MOTOR": 3
   }
  },
@@ -19885,8 +19876,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 69.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -19923,8 +19914,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 69.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -20084,8 +20075,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 89.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -20462,8 +20453,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 40.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -20487,8 +20478,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 78.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -20594,7 +20585,7 @@
     "axis": "V",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 2.5pt along the stem",
+    "actuator_evidence": "box with 2 strokes, no letter signature, 2.5pt along the stem",
     "tag": "PSV",
     "tag_rect": [
      1431.6,
@@ -21066,8 +21057,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 38.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -21141,8 +21132,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 53.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "XV",
     "tag_rect": [
      364.4,
@@ -22497,8 +22488,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 53.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "XV",
     "tag_rect": [
      599.0,
@@ -22923,8 +22914,8 @@
    "GLOBE": 97
   },
   "actuators": {
-   "NONE": 116,
-   "UNREAD": 9
+   "NONE": 124,
+   "UNREAD": 1
   }
  },
  {
@@ -23480,8 +23471,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "HYDRAULIC",
-    "actuator_evidence": "stroked 'H' in box, 25.5pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -23664,8 +23655,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 73.3pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -23707,9 +23698,8 @@
    "BALL": 25
   },
   "actuators": {
-   "HYDRAULIC": 2,
-   "NONE": 31,
-   "UNREAD": 1
+   "HYDRAULIC": 1,
+   "NONE": 33
   }
  },
  {
@@ -25292,8 +25282,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "text 'M' in circle, 26.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -25667,8 +25657,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "text 'M' in circle, 18.5pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -25955,8 +25945,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 19.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -25974,8 +25964,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 19.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -26570,8 +26560,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "NONE",
-    "actuator_evidence": "",
+    "actuator": "MOTOR",
+    "actuator_evidence": "text 'M' in circle, 26.9pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -26938,8 +26928,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "NONE",
-    "actuator_evidence": "",
+    "actuator": "MOTOR",
+    "actuator_evidence": "text 'M' in circle, 30.5pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -27464,9 +27454,8 @@
    "BALL": 57
   },
   "actuators": {
-   "NONE": 100,
-   "MOTOR": 4,
-   "UNREAD": 2
+   "NONE": 102,
+   "MOTOR": 4
   }
  },
  {
@@ -27502,7 +27491,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -27540,7 +27529,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -28053,7 +28042,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -28183,7 +28172,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -29416,7 +29405,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.7pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -29546,7 +29535,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.7pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30178,7 +30167,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.7pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30584,7 +30573,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.7pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30893,7 +30882,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -30931,7 +30920,7 @@
     "axis": "H",
     "state": "OPEN",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 10.6pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -32641,8 +32630,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 82.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -32687,8 +32676,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 81.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -32733,8 +32722,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 42.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -32779,8 +32768,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 42.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -33362,8 +33351,7 @@
    "BUTTERFLY": 14
   },
   "actuators": {
-   "NONE": 58,
-   "UNREAD": 4,
+   "NONE": 62,
    "MOTOR": 8
   }
  },
@@ -34367,8 +34355,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 41.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -35269,8 +35257,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 62.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1146.5,
@@ -35327,8 +35315,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 62.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1126.7,
@@ -36233,9 +36221,7 @@
    "BUTTERFLY": 3
   },
   "actuators": {
-   "NONE": 80,
-   "MOTOR": 1,
-   "UNREAD": 2
+   "NONE": 83
   }
  },
  {
@@ -36420,8 +36406,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 87.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -36470,8 +36456,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 51.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -36641,8 +36627,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 54.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1386.4,
@@ -36695,8 +36681,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 68.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1445.2,
@@ -36749,8 +36735,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 48.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37604,8 +37590,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "NONE",
-    "actuator_evidence": "",
+    "actuator": "MOTOR",
+    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37696,8 +37682,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "NONE",
-    "actuator_evidence": "",
+    "actuator": "MOTOR",
+    "actuator_evidence": "stroked 'M' in circle, 26.9pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -37790,8 +37776,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 51.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -38057,8 +38043,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 48.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -38381,8 +38367,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 27.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -38404,8 +38390,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 27.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -38473,8 +38459,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 16.7pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -38634,8 +38620,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 17.9pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -39375,9 +39361,8 @@
    "BUTTERFLY": 5
   },
   "actuators": {
-   "NONE": 110,
-   "MOTOR": 18,
-   "UNREAD": 3
+   "NONE": 119,
+   "MOTOR": 12
   }
  },
  {
@@ -39668,8 +39653,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 51.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -40277,8 +40262,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 51.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -41146,8 +41131,7 @@
    "BUTTERFLY": 13
   },
   "actuators": {
-   "NONE": 63,
-   "MOTOR": 2
+   "NONE": 65
   }
  },
  {
@@ -42179,8 +42163,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 54.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -42698,8 +42682,8 @@
     ],
     "axis": "H",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 54.2pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -43865,8 +43849,7 @@
    "BUTTERFLY": 8
   },
   "actuators": {
-   "NONE": 74,
-   "UNREAD": 2
+   "NONE": 76
   }
  },
  {
@@ -51804,8 +51787,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 56.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1252.6,
@@ -51879,8 +51862,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 56.1pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "PSV",
     "tag_rect": [
      1252.6,
@@ -51998,8 +51981,7 @@
    "BALL": 11
   },
   "actuators": {
-   "NONE": 32,
-   "UNREAD": 2
+   "NONE": 34
   }
  },
  {
@@ -55617,8 +55599,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 74.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -55642,8 +55624,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 74.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -55907,8 +55889,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 74.8pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -56363,8 +56345,8 @@
    "BALL": 1
   },
   "actuators": {
-   "NONE": 66,
-   "MOTOR": 5
+   "NONE": 69,
+   "MOTOR": 2
   }
  },
  {
@@ -58013,8 +57995,8 @@
     ],
     "axis": "V",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 82.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -58438,8 +58420,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 51.3pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -59716,9 +59698,8 @@
    "BALL": 3
   },
   "actuators": {
-   "NONE": 136,
-   "MOTOR": 3,
-   "UNREAD": 1
+   "NONE": 138,
+   "MOTOR": 2
   }
  },
  {
@@ -60973,8 +60954,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 47.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -60998,8 +60979,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 47.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -61263,8 +61244,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "MOTOR",
-    "actuator_evidence": "stroked 'M' in circle, 47.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -61626,8 +61607,8 @@
    "BALL": 1
   },
   "actuators": {
-   "NONE": 74,
-   "MOTOR": 5
+   "NONE": 77,
+   "MOTOR": 2
   }
  },
  {
@@ -67613,8 +67594,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 42.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -67633,8 +67614,7 @@
    "BALL": 1
   },
   "actuators": {
-   "NONE": 48,
-   "UNREAD": 1
+   "NONE": 49
   }
  },
  {
@@ -68560,8 +68540,8 @@
     ],
     "axis": "H",
     "state": "OPEN",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 42.6pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -68580,8 +68560,7 @@
    "BALL": 1
   },
   "actuators": {
-   "NONE": 42,
-   "UNREAD": 1
+   "NONE": 43
   }
  },
  {
@@ -68598,7 +68577,7 @@
     "axis": "H",
     "state": "CLOSED",
     "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 48.7pt along the stem",
+    "actuator_evidence": "empty box, no strokes inside, 4.6pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -68879,8 +68858,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "NONE",
-    "actuator_evidence": "",
+    "actuator": "UNREAD",
+    "actuator_evidence": "empty box, no strokes inside, 70.2pt along the stem",
     "tag": "",
     "tag_rect": [],
     "evidence": {
@@ -68898,8 +68877,8 @@
     ],
     "axis": "V",
     "state": "CLOSED",
-    "actuator": "UNREAD",
-    "actuator_evidence": "empty box, letter not read, 23.4pt along the stem",
+    "actuator": "NONE",
+    "actuator_evidence": "",
     "tag": "",
     "tag_rect": [],
     "evidence": {

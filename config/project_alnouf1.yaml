@@ -162,3 +162,86 @@ unit_multiplier_fallback:
 qty_scope_overrides:
   - keyword: 'PLANT COMMON'
     multiplier: 1
+
+# ---------------------------------------------------------------------------
+# Valve rules (spike 4).  Item numbers V1..V8 refer to out/valve_project_deps.md.
+#
+# Only the values judged PROJECT are here.  The body and actuator *shapes* are
+# LEGEND and stay in spike/detect_valves.py with the legend page cited at the
+# point of use: the bowtie, the globe's waist disc, the butterfly's vane ticks,
+# the open/closed fill convention and the actuator enclosure vocabulary are all
+# drawn on legend pages 2 and 3, so they do not move with the project.
+valves:
+  # V1, V2 — how far an actuator may stand from the body it drives, and how far
+  # off the stem axis.  Measured on drawing pages, not on the legend: p6 and p30
+  # put the motor circle 26.9 pt along the stem, p33 up to 80.  The legend draws
+  # the actuator at a fixed distance and never states a range.
+  actuator_reach: 90.0
+  actuator_offaxis: 12.0
+
+  # V3 — how far a tag bubble may sit from the valve it labels.  Measured from
+  # p6's MOV bubbles; a leader line can be drawn any length, so this is drafting
+  # practice, not a rule.
+  tag_reach: 190.0
+
+  # V4 — the valve deliverables' Excel template.  A different sheet and a
+  # different column order from the instrument list under `excel:` above; the
+  # two are separate client templates, not one.
+  excel:
+    sheet: '3.0_Valve List'
+    first_data_row: 8
+    columns:
+      'no': 1
+      pid_no: 2
+      valve_type: 3
+      qty: 4
+      system: 5
+      description: 12
+
+  # V5 — which body types each deliverable covers.  Taken from each file's own
+  # DESCRIPTION line, plus the observation that the master files ball-bodied
+  # MOVs under the gate/globe heading.
+  deliverables:
+    - tag: CZI
+      path: data/CZI_Butterfly_Valve.xlsx
+      bodies: [BUTTERFLY]
+    - tag: CZH
+      path: data/CZH_MOV_Gate_Globe.xlsx
+      bodies: [GATE, GLOBE, BALL]
+
+  # V6 — the deliverables' own VALVE TYPE vocabulary.  This is an operation
+  # mode, not a body: MOV and MOV_I are motor-operated, HOV hydraulic, CV a
+  # pneumatic control valve.  Nothing in the legend names these strings.
+  valve_type_actuator:
+    MOV: MOTOR
+    MOV_I: MOTOR
+    HOV: HYDRAULIC
+    CV: PNEUMATIC
+
+  # V7 — which tags make a pneumatic valve a modulating CV rather than an
+  # on-off XV.  The tag vocabulary is LEGEND (p3's CONTROL DEVICE column, p4's
+  # shutoff tags); the split between the two deliverables is this client's.
+  cv_tags: [FCV, LCV, PCV, TCV, CV]
+  xv_tags: [XV, HV]
+
+  # V8 — stroke signatures for actuator letters that are drawn rather than
+  # typed.  PROJECT, not LEGEND: the legend prints M, H, S and X as text, so
+  # the legend cannot tell you how this company's CAD stroke font builds them.
+  # The signatures were read off p26 (H, 3 strokes) and p33 (M, 4 strokes).
+  # A letter not listed here is reported UNREAD, never guessed.
+  stroked_letters:
+    M:
+      strokes: 4
+      parallel: 2
+      diagonal: 2
+      # Each diagonal spans the stems' full length and leans by less than this
+      # fraction of it.
+      diagonal_lean_max: 0.6
+      diagonal_length_tol: 0.25
+    H:
+      strokes: 3
+      parallel: 2
+      perpendicular: 1
+    X:
+      strokes: 2
+      diagonal: 2

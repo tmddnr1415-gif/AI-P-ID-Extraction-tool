@@ -52,9 +52,18 @@
 | `LAB` | 1 | 132 | 132 | +0 |
 | `EKG` | 3 | 9 | 9 | +0 |
 
-## NEEDS_REVIEW — 승수 미정의
+## NEEDS_REVIEW
 
-이번 문서에서는 없음 — 등장하는 unit_code 가 전부 범례 표에 있습니다. 정의에 없는 코드(예: `30`)가 나오면 수량을 비우고 사유와 함께 NEEDS_REVIEW 로 보냅니다. 추측값을 채우지 않습니다.
+**총 1건** (SCOPE_OVERRIDE_UNRESOLVED 1)
+
+| 종류 | 페이지 | 도면번호 | unit_code | 수량 | 사유 |
+|---|---|---|---|---|---|
+| `SCOPE_OVERRIDE_UNRESOLVED` | p38 | `D00P-10PGB10-M05-0004` | `10` | 시트 승수 유지 | scope keyword ['PLANT COMMON'] found on this drawing: some items take a different multiplier from the sheet's x2, but attributing an item to the scoped equipment needs line tracing (design.md §7, Phase 2). Quantity left at the sheet multiplier. |
+
+`MULTIPLIER_UNDEFINED` — unit_code 가 범례 표에 없는 경우입니다. 이번 문서에서는 **0건**(등장하는 코드가 전부 범례에 있음). 정의에 없는 코드(예: `30`)가 나오면 수량을 **비우고** 사유와 함께 보냅니다.
+
+`SCOPE_OVERRIDE_UNRESOLVED` — 도면 안에 승수 예외 키워드가 있지만 어느 항목이 그 설비에 속하는지 판정하지 못한 경우입니다. 설비 점선 박스 검출에 `brk_max_mark`(UNKNOWN 항목) 튜닝이 필요하므로 **건드리지 않고** 시트 승수를 유지한 채 검토로 보냅니다.
+
 
 ## 같은 도면 안의 승수 예외
 

@@ -141,6 +141,7 @@ def main() -> int:
 
         if mult is projectconfig.UNDEFINED:
             needs_review.append({
+                "kind": "MULTIPLIER_UNDEFINED",
                 "page_no": pno, "drawing_no": info["drawing_no"],
                 "unit_code": code,
                 "reason": f"unit code '{code}' is not in the legend's UNIT "
@@ -159,6 +160,27 @@ def main() -> int:
                          "note_refs": sorted(info["note_refs"]),
                          "by_type": {}})
             continue
+
+        if info["scope_keywords"]:
+            # A scope keyword says some items on this page take a different
+            # multiplier from the rest of it.  Deciding *which* items needs the
+            # equipment's dashed boundary box, and detecting that needs
+            # brk_max_mark, which out/project_deps.md still lists as UNKNOWN.
+            # Tuning an UNKNOWN to close a 0.3% gap is not a trade worth making,
+            # so the page keeps the sheet multiplier and the uncertainty is
+            # reported here instead of being silently absorbed.
+            needs_review.append({
+                "kind": "SCOPE_OVERRIDE_UNRESOLVED",
+                "page_no": pno, "drawing_no": info["drawing_no"],
+                "unit_code": code,
+                "reason": f"scope keyword {info['scope_keywords']} found on this "
+                          f"drawing: some items take a different multiplier from "
+                          f"the sheet's x{mult}, but attributing an item to the "
+                          f"scoped equipment needs line tracing (design.md §7, "
+                          f"Phase 2). Quantity left at the sheet multiplier.",
+                "symbols": sum(det_counts.values()),
+                "excel_qty": sum(exp_qty.values()),
+            })
 
         by_type = {t: {"symbols": n, "qty": n * mult, "excel_qty": exp_qty.get(t, 0)}
                    for t, n in det_counts.items()}
@@ -304,17 +326,26 @@ def write_report(path, um, rows, clean, flagged, needs_review, per_page):
     for d, s, n, g, e in sorted(tmp, reverse=True):
         L.append(f"| `{s}` | {n} | {g} | {e} | {g - e:+d} |")
 
-    L.append("\n## NEEDS_REVIEW — 승수 미정의\n")
-    if needs_review:
-        L.append("| 페이지 | 도면번호 | unit_code | 사유 |")
-        L.append("|---|---|---|---|")
-        for nr in needs_review:
-            L.append(f"| p{nr['page_no']} | `{nr['drawing_no']}` | `{nr['unit_code']}` "
-                     f"| {nr['reason']} |")
-    else:
-        L.append("이번 문서에서는 없음 — 등장하는 unit_code 가 전부 범례 표에 있습니다. "
-                 "정의에 없는 코드(예: `30`)가 나오면 수량을 비우고 사유와 함께 "
-                 "NEEDS_REVIEW 로 보냅니다. 추측값을 채우지 않습니다.")
+    L.append("\n## NEEDS_REVIEW\n")
+    kinds = collections.Counter(nr.get("kind", "?") for nr in needs_review)
+    L.append(f"**총 {len(needs_review)}건** "
+             f"({', '.join(f'{k} {v}' for k, v in sorted(kinds.items())) or '없음'})\n")
+    L.append("| 종류 | 페이지 | 도면번호 | unit_code | 수량 | 사유 |")
+    L.append("|---|---|---|---|---|---|")
+    for nr in needs_review:
+        qty = "공란" if nr.get("kind") == "MULTIPLIER_UNDEFINED" else "시트 승수 유지"
+        L.append(f"| `{nr.get('kind','?')}` | p{nr['page_no']} | `{nr['drawing_no']}` "
+                 f"| `{nr['unit_code']}` | {qty} | {nr['reason']} |")
+    if not needs_review:
+        L.append("| | | | | | 없음 |")
+    L.append("")
+    L.append("`MULTIPLIER_UNDEFINED` — unit_code 가 범례 표에 없는 경우입니다. "
+             "이번 문서에서는 **0건**(등장하는 코드가 전부 범례에 있음). 정의에 없는 "
+             "코드(예: `30`)가 나오면 수량을 **비우고** 사유와 함께 보냅니다.\n")
+    L.append("`SCOPE_OVERRIDE_UNRESOLVED` — 도면 안에 승수 예외 키워드가 있지만 "
+             "어느 항목이 그 설비에 속하는지 판정하지 못한 경우입니다. 설비 점선 박스 "
+             "검출에 `brk_max_mark`(UNKNOWN 항목) 튜닝이 필요하므로 **건드리지 않고** "
+             "시트 승수를 유지한 채 검토로 보냅니다.\n")
 
     L.append("\n## 같은 도면 안의 승수 예외\n")
     kw_pages = [r for r in rows if r["scope_keywords"]]
