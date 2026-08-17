@@ -47,6 +47,7 @@ import detect_symbols as ds        # noqa: E402
 import detect_all as da            # noqa: E402
 import detect_valves as dv         # noqa: E402
 import parse_notes as pn           # noqa: E402
+import pipe_graph                  # noqa: E402
 
 CFG = projectconfig.load()
 
@@ -268,6 +269,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     say(2, total, "measuring rules off the legend sheets")
     with clock.stage("legend_rules"):
         dv.LAYOUT, legend_derived = dv.derive_layout(pages)
+        pipe_style = pipe_graph.derive_line_styles(pages, CFG)
+        legend_derived["line_styles"] = pipe_style
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     say(3, total, "deriving unit multipliers from legend page 5")
@@ -350,6 +353,13 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             layers.setdefault(pno, collections.defaultdict(list))
             layers[pno]["EXCLUDED"].extend(marks)
 
+    # Pipe connectivity.  Every row gets what it is connected to, or the fact
+    # that it could not be traced.  No sentence is written from it - Description
+    # stays empty, and this is the input a later pass would need.
+    say(total - 1, total, "tracing pipe connectivity")
+    with clock.stage("pipe_graph"):
+        trace_stats = _trace_rows(rows, per_page, pipe_style.values, clock)
+
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
     # returned alongside the rows so the review count on screen is the whole
@@ -401,6 +411,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # Wall clock, not a finding: excluded from `fingerprint()` on purpose,
         # because it is the one key that must differ between two runs.
         "timings": clock.report(),
+        "pipe_trace": trace_stats,
         "pdf": str(pdf_path),
         "pages": [
             {"page_no": p.page_no, "width": p.width, "height": p.height,
@@ -574,6 +585,120 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
                 "qty_source": f"{mult.source} — {mult.note}" if mult.note else mult.source,
             }))
     return out
+
+
+def _trace_rows(rows, per_page, style, clock) -> dict:
+    """Attach a pipe trace to every row that has a rectangle.
+
+    One graph per page, then one walk per row.  The result goes in the row's
+    evidence as `trace` and is classified TRACED / MULTIPLE / FAILED so the
+    accuracy of this stage can be counted rather than asserted.
+    """
+    area = CFG.rect("regions.drawing_area")
+    stats = collections.Counter()
+    graphs = {}
+    by_page = collections.defaultdict(list)
+    for r in rows:
+        if r.rect:
+            by_page[r.page_no].append(r)
+    for pno, page_rows in sorted(by_page.items()):
+        info = per_page.get(pno)
+        if info is None:
+            continue
+        symbols = [(r.key, tuple(r.rect), r.type or r.valve_type) for r in page_rows]
+        with clock.stage("pipe_graph", pno):
+            g = pipe_graph.build(info["page_cache"], symbols, style, area)
+        graphs[pno] = g.stats()
+        by_key = {n.get("row_key"): nid for nid, n in g.nodes.items()
+                  if n["kind"] == "SYMBOL"}
+        for r in page_rows:
+            nid = by_key.get(r.key)
+            if nid is None:
+                r.evidence["trace"] = {"status": pipe_graph.FAILED,
+                                       "reason": "no graph node for this row"}
+                stats[pipe_graph.FAILED] += 1
+                continue
+            tr = pipe_graph.trace(g, nid)
+            tr["attached_by"] = g.nodes[nid].get("attached_by", "")
+            r.evidence["trace"] = tr
+            stats[tr["status"]] += 1
+    return {"per_status": dict(stats), "graphs": graphs}
+
+
+def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
+                radius: float = 60.0) -> dict:
+    """What is drawn around a point, for the correction history.
+
+    Called when a reviewer adds a row the engine missed and says where it is.
+    Everything here is a measurement of the drawing - paths and their dimensions,
+    the text nearby, and which detections the engine did make within reach, with
+    the rules each one hit.  **Nothing decides why the engine missed it**; that
+    question needs a body of these records, and answering it now from one would
+    be the guess this exists to avoid.
+    """
+    doc, pages = pidcache.load_pages(pdf_path)
+    pc = next((p for p in pages if p.page_no == page_no), None)
+    if pc is None:
+        return {"error": f"page {page_no} is not in this PDF"}
+    box = (x - radius, y - radius, x + radius, y + radius)
+
+    def near(rect):
+        return not (rect.x1 < box[0] or rect.x0 > box[2]
+                    or rect.y1 < box[1] or rect.y0 > box[3])
+
+    paths = []
+    for d in pc.drawings():
+        b = d["bbox"]
+        if not near(b):
+            continue
+        kinds = collections.Counter(i[0] for i in d["items"])
+        paths.append({
+            "rect": [round(v, 1) for v in (b.x0, b.y0, b.x1, b.y1)],
+            "w": round(b.width, 1), "h": round(b.height, 1),
+            "aspect": round(min(b.width, b.height) / max(b.width, b.height), 3)
+            if max(b.width, b.height) else None,
+            "items": dict(kinds), "filled": d.get("fill") is not None,
+        })
+    segs = [[round(p0.x, 1), round(p0.y, 1), round(p1.x, 1), round(p1.y, 1)]
+            for p0, p1 in pc.segments()
+            if box[0] <= p0.x <= box[2] and box[1] <= p0.y <= box[3]]
+    words = [{"text": t, "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)],
+              "dist": round(max(abs((r.x0 + r.x1) / 2 - x),
+                                abs((r.y0 + r.y1) / 2 - y)), 1)}
+             for r, t in pc.words if near(r)]
+    words.sort(key=lambda w: w["dist"])
+
+    # What the engine did see here, and under which rules.
+    dets, _scopes, _marks, _unver, unmapped, _boxes = ds.detect(pc, rules=ds.RULESET_V3)
+    detections = []
+    for d in dets:
+        if not near(d.bbox):
+            continue
+        detections.append({
+            "anchor": getattr(d, "anchor", ""),
+            "excel_type": da.excel_type_under(d, ds.RULESET_V3),
+            "included": da.included_under(d, ds.RULESET_V3, ACTIVE_SCOPE),
+            "rules_hit": list(getattr(d, "rules_hit", []) or []),
+            "exclude_rule": getattr(d, "exclude_rule", ""),
+            "rect": [round(v, 1) for v in (d.bbox.x0, d.bbox.y0, d.bbox.x1, d.bbox.y1)],
+            "evidence": dict(getattr(d, "evidence", {}) or {}),
+        })
+    unmapped_near = [u for u in unmapped
+                     if abs(u["center"][0] - x) <= radius
+                     and abs(u["center"][1] - y) <= radius]
+    return {
+        "page_no": page_no, "point": [round(x, 1), round(y, 1)], "radius": radius,
+        "paths": paths[:120], "path_count": len(paths),
+        "segments": segs[:400], "segment_count": len(segs),
+        "words": words[:40],
+        "detections": detections,
+        "unmapped_tokens": unmapped_near,
+        # The nearest *word*, not the nearest mark: these drawings write an
+        # unassigned tag as `.....`, and keying the countable pattern on a full
+        # stop would make every added row look like the same case.
+        "nearest_text": next((w["text"] for w in words
+                              if any(c.isalnum() for c in w["text"])), ""),
+    }
 
 
 def _notes_quotes(d) -> list:

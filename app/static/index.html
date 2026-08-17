@@ -32,6 +32,7 @@
     <nav id="tabs"></nav>
     <span class="spacer"></span>
     <span id="review-badge" class="badge"></span>
+    <span id="fb-badge" class="badge" title="수정 이력 — 규칙 개선용으로 저장됩니다"></span>
     <details id="scope" class="scope">
       <summary>출력 범위</summary>
       <!-- Filled from what the analysis actually produced: the drawings, the
@@ -64,6 +65,9 @@
         <span id="page-note" class="muted"></span>
       </div>
       <div id="stage"><div id="wrap"><img id="sheet" alt=""><svg id="ov"></svg></div></div>
+      <!-- Shown while the reviewer is pointing at where a missed item belongs. -->
+      <div id="pick-note" class="picknote hidden">놓친 항목의 위치를 도면에서 클릭하세요
+        <button id="pick-cancel" class="ghost mini">위치 없이 추가</button></div>
       <!-- Always on the drawing, so a colour never has to be remembered.  It
            sits outside #stage because #stage is the scroll container, and an
            absolutely positioned child of it scrolls away with the sheet.
@@ -74,6 +78,11 @@
           <label class="ovl-mode"><input type="checkbox" id="ovl-bytab">탭 색으로</label>
         </div>
         <div id="ovl-items"></div>
+        <label class="ovl-row" title="선택한 행의 배관 추적 경로를 도면에 표시">
+          <input type="checkbox" id="ovl-trace" checked>
+          <span class="swatch" style="background:#5ac8fa"></span>
+          <span class="ovl-label">배관 경로</span>
+        </label>
         <div class="ovl-foot muted">실선 계장 · 파선 밸브</div>
       </div>
     </section>

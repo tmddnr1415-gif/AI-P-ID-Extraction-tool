@@ -180,6 +180,12 @@ def stroke_index(segments, tol: float = 0.4, min_len: float = 0.9):
     return horiz, vert
 
 
+# Slack already inherent in the stroke index, which buckets coordinates to 0.1pt
+# and searches +-8 buckets.  The same value `detect_valves.INDEX_SLACK` documents,
+# kept here so callers of these helpers do not have to import that module for it.
+INDEX_SLACK = 0.8
+
+
 def covers(index, coord: float, lo: float, hi: float, cover: float = 1.2) -> bool:
     """Is `lo..hi` drawn at `coord`, allowing the side to be in pieces?
 

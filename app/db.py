@@ -79,8 +79,35 @@ CREATE TABLE IF NOT EXISTS revision (
     payload_json TEXT NOT NULL
 );
 
+-- Every correction a reviewer makes, with the evidence that was in front of the
+-- engine when it got it wrong.  This table is written and never read back by the
+-- app: it exists so that a later pass over a *finished* project can ask which
+-- rules keep failing, and that question is unanswerable after the fact unless
+-- the geometry is captured at the moment of the correction.  No judgement is
+-- stored - `pattern` is a mechanical key so occurrences can be counted later,
+-- not a diagnosis.
+CREATE TABLE IF NOT EXISTS feedback (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id       TEXT NOT NULL,
+    created_at   REAL NOT NULL,
+    kind         TEXT NOT NULL,          -- ADDED | REMOVED | EDITED
+    row_key      TEXT NOT NULL DEFAULT '',
+    page_no      INTEGER,
+    drawing_no   TEXT NOT NULL DEFAULT '',
+    rect_json    TEXT NOT NULL DEFAULT '[]',
+    field        TEXT NOT NULL DEFAULT '',   -- EDITED: which column
+    ai_value     TEXT NOT NULL DEFAULT '',   -- EDITED: what the engine said
+    user_value   TEXT NOT NULL DEFAULT '',   -- EDITED / ADDED: what a person said
+    reason       TEXT NOT NULL DEFAULT '',   -- optional, typed by the reviewer
+    pattern      TEXT NOT NULL DEFAULT '',   -- countable key, see _pattern()
+    basis_json   TEXT NOT NULL DEFAULT '{}', -- the row's whole evidence
+    geometry_json TEXT NOT NULL DEFAULT '{}' -- ADDED: what is drawn there
+);
+
 CREATE INDEX IF NOT EXISTS item_job_tab ON item(job_id, tab);
 CREATE INDEX IF NOT EXISTS item_job_page ON item(job_id, page_no);
+CREATE INDEX IF NOT EXISTS feedback_job ON feedback(job_id, kind);
+CREATE INDEX IF NOT EXISTS feedback_pattern ON feedback(job_id, pattern);
 """
 
 # Columns a reviewer may edit.  Description and Tag No. are in the list because
@@ -227,6 +254,35 @@ def store_result(con, job_id: str, result: dict) -> dict:
             "kept_edits": kept_edits, "vanished": gone}
 
 
+def _merged(r) -> dict:
+    """One item row as the reviewer sees it: engine values with edits laid over."""
+    ai = json.loads(r["ai_json"])
+    user = json.loads(r["user_json"])
+    merged = dict(ai)
+    merged.update({k: v for k, v in user.items() if v is not None})
+    return {
+        "key": r["key"], "tab": r["tab"], "page_no": r["page_no"],
+        "drawing_no": r["drawing_no"], "origin": r["origin"],
+        "rect": json.loads(r["rect_json"]),
+        "values": merged, "ai": ai, "user": user,
+        "evidence": json.loads(r["evidence_json"]),
+        "needs_review": r["needs_review"], "annotation": r["annotation"],
+        "conflict": json.loads(r["conflict_json"]),
+        "deleted": bool(r["deleted"]),
+        "added": bool(r["added"]), "removed": bool(r["removed"]),
+    }
+
+
+def get_row(con, job_id: str, key: str):
+    """One merged row.  `merged_rows` builds all 893 of them, which is right for
+    the grid and wasteful for an endpoint that needs only the row being edited -
+    and that waste showed up as a race: the PATCH took long enough that a
+    reviewer typing down a column had the next cell rebuilt under them."""
+    r = con.execute("SELECT * FROM item WHERE job_id=? AND key=?",
+                    (job_id, key)).fetchone()
+    return _merged(r) if r else None
+
+
 def merged_rows(con, job_id: str, tab: str = None) -> list:
     """Rows as the reviewer sees them: engine values with edits laid over."""
     sql = "SELECT * FROM item WHERE job_id=?"
@@ -237,24 +293,8 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
         else:
             sql += " AND tab=?"
             args.append(tab)
-    out = []
-    for r in con.execute(sql + " ORDER BY page_no, key", args).fetchall():
-        ai = json.loads(r["ai_json"])
-        user = json.loads(r["user_json"])
-        merged = dict(ai)
-        merged.update({k: v for k, v in user.items() if v is not None})
-        out.append({
-            "key": r["key"], "tab": r["tab"], "page_no": r["page_no"],
-            "drawing_no": r["drawing_no"], "origin": r["origin"],
-            "rect": json.loads(r["rect_json"]),
-            "values": merged, "ai": ai, "user": user,
-            "evidence": json.loads(r["evidence_json"]),
-            "needs_review": r["needs_review"], "annotation": r["annotation"],
-            "conflict": json.loads(r["conflict_json"]),
-            "deleted": bool(r["deleted"]),
-            "added": bool(r["added"]), "removed": bool(r["removed"]),
-        })
-    return out
+    return [_merged(r) for r in
+            con.execute(sql + " ORDER BY page_no, key", args).fetchall()]
 
 
 def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
@@ -347,6 +387,71 @@ def review_count(con, job_id: str) -> int:
     return con.execute(
         "SELECT COUNT(*) FROM item WHERE job_id=? AND removed=0"
         " AND (needs_review<>'' OR deleted=1)", (job_id,)).fetchone()[0]
+
+
+# --------------------------------------------------------------------------
+# Correction history
+# --------------------------------------------------------------------------
+
+def _pattern(kind: str, **kw) -> str:
+    """A countable key for one correction, derived mechanically.
+
+    The point is that "the same thing was wrong 12 times" can be counted later
+    without anybody having to interpret free text now.  Nothing here decides
+    *why* something was wrong:
+
+        EDITED|type|PIT>PDIT          a column changed from one value to another
+        REMOVED|PIT|VENDOR_MARK_BOX   a detection struck out, with the rule that
+                                      put it there
+        ADDED|FIELD|PT                a row a person created, keyed by the nearest
+                                      text the drawing has at that spot
+    """
+    if kind == "EDITED":
+        return f"EDITED|{kw.get('field', '')}|{kw.get('ai', '')}>{kw.get('user', '')}"
+    if kind == "REMOVED":
+        return f"REMOVED|{kw.get('what', '')}|{kw.get('rule', '')}"
+    return f"ADDED|{kw.get('tab', '')}|{kw.get('near', '')}"
+
+
+def record_feedback(con, job_id: str, kind: str, *, row_key: str = "",
+                    page_no: int = None, drawing_no: str = "", rect=None,
+                    field: str = "", ai_value="", user_value="",
+                    reason: str = "", basis: dict = None,
+                    geometry: dict = None, pattern_args: dict = None) -> int:
+    args = dict(pattern_args or {})
+    cur = con.execute(
+        "INSERT INTO feedback (job_id, created_at, kind, row_key, page_no,"
+        " drawing_no, rect_json, field, ai_value, user_value, reason, pattern,"
+        " basis_json, geometry_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (job_id, time.time(), kind, row_key, page_no, drawing_no,
+         json.dumps(list(rect or []), default=str), field,
+         "" if ai_value is None else str(ai_value),
+         "" if user_value is None else str(user_value),
+         reason, _pattern(kind, **args),
+         json.dumps(basis or {}, default=str, sort_keys=True),
+         json.dumps(geometry or {}, default=str, sort_keys=True)))
+    con.commit()
+    return cur.lastrowid
+
+
+def feedback_count(con, job_id: str) -> int:
+    return con.execute("SELECT COUNT(*) FROM feedback WHERE job_id=?",
+                       (job_id,)).fetchone()[0]
+
+
+def feedback_rows(con, job_id: str, limit: int = 200) -> list:
+    """The history itself.  Returned as stored - no grouping, no counting by
+    pattern: aggregating it is a later job, and doing it here would invite
+    treating the aggregate as a finding."""
+    out = []
+    for r in con.execute(
+            "SELECT * FROM feedback WHERE job_id=? ORDER BY id DESC LIMIT ?",
+            (job_id, limit)):
+        d = dict(r)
+        for k in ("rect_json", "basis_json", "geometry_json"):
+            d[k[:-5]] = json.loads(d.pop(k))
+        out.append(d)
+    return out
 
 
 # --------------------------------------------------------------------------

@@ -6,6 +6,15 @@
  * PDF on demand instead of a PNG written to disk beside the data.
  */
 const $ = (s) => document.querySelector(s);
+/* A typo'd or renamed id used to return null here, and the `addEventListener`
+ * that followed threw during load - which stopped every handler *below* it from
+ * binding at all.  The symptom was distant: clicking ＋행 did nothing because an
+ * unrelated checkbox in the legend was missing.  Now it says so. */
+const $req = (sel) => {
+  const n = document.querySelector(sel);
+  if (!n) throw new Error(`app.js: ${sel} is not in index.html`);
+  return n;
+};
 const TABS = [
   ["ALL", "전체"], ["FIELD", "Field"], ["BFV", "BFV"], ["MOV", "MOV"],
   ["PNEUMATIC", "Pneumatic"], ["REVIEW", "검토필요"],
@@ -29,6 +38,7 @@ const S = {
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
+  picking: false, feedback: 0, showTrace: true,
 };
 
 /* ---------------- upload ---------------- */
@@ -115,6 +125,7 @@ async function loadRows() {
   }
   await buildScope();
   S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
+  S.feedback = (await (await fetch(`/jobs/${S.job.id}/feedback?limit=1`)).json()).count;
   showAppliedRules();
   await showTemplates();
   buildTabs();
@@ -196,6 +207,11 @@ function setAllDrawings(on) {
 }
 
 function updateBadge() {
+  // Collection status only.  What the history *means* is a later question and
+  // deliberately not answered here.
+  const fb = $("#fb-badge");
+  fb.textContent = S.feedback ? `수정 이력 ${S.feedback}건 기록됨` : "";
+  fb.classList.toggle("hidden", !S.feedback);
   const rows = S.counts.REVIEW || 0;
   const doc = (S.jobReview && S.jobReview.job_review || []).length;
   const b = $("#review-badge");
@@ -378,9 +394,16 @@ async function saveEdit(row, field, td) {
   row.values[field] = value === "" ? row.ai[field] : (field === "qty" ? Number(value) : value);
   delete (row.conflict || {})[field];
   S.counts.REVIEW = out.review_count;
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   updateBadge();
-  renderGrid();
-  showEvidence(row);
+  // Update this cell in place instead of rebuilding the grid.  A save completes
+  // after the reviewer has already clicked into the next cell, and a full
+  // re-render at that moment replaced the element being typed into - the edit
+  // went to a detached node and vanished.
+  td.textContent = row.values[field] ?? "";
+  td.classList.toggle("edited", !!(row.user && field in row.user));
+  td.classList.remove("conflict");
+  if (S.sel === row.key) showEvidence(row);
 }
 
 /* ---------------- selection, both ways ----------------
@@ -404,6 +427,9 @@ function select(key, fromGrid, item) {
     tr.classList.toggle("sel", tr.dataset.key === key));
   document.querySelectorAll("rect.det").forEach(n =>
     n.classList.toggle("sel", n.dataset.key === key));
+  drawOverlay();          // the traced path belongs to the selected row
+  document.querySelectorAll("#body tr").forEach(tr =>
+    tr.classList.toggle("sel", tr.dataset.key === key));
   if (fromGrid) centreOnSymbol(key);
   else {
     const tr = document.querySelector(`#body tr[data-key="${key}"]`);
@@ -419,6 +445,7 @@ function deselect() {
   S.pending = null;
   document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
   document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
+  drawOverlay();
   $("#evidence").innerHTML =
     "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다.</p>";
 }
@@ -510,6 +537,27 @@ function showEvidence(row) {
       ? ` · (${row.rect.map(v => Math.round(v)).join(", ")})` : " · 좌표 없음"));
   add("귀속", row.origin);
   add("도면 주석", (e.annotations || []).join(" / "));
+
+ // --- pipe connectivity ----------------------------------------------------
+  const tr = e.trace || {};
+  if (tr.status) {
+    const names = (list) => (list || []).map(t =>
+      `${t.label || t.kind}${t.kind === "EQUIPMENT" ? " (기기)" : ""}`).join(" / ");
+    const label = { TRACED: "추적 성공", MULTIPLE: "후보 다수", FAILED: "추적 실패" };
+    add("배관 추적", `${label[tr.status] || tr.status}`
+      + (tr.attached_by ? ` — 심볼 접점: ${tr.attached_by === "leader"
+        ? "리드선" : "배관 위"}` : "")
+      + (tr.nodes_walked ? ` · 노드 ${tr.nodes_walked}개 탐색` : ""));
+    if ((tr.upstream || []).length) add("upstream 후보", names(tr.upstream));
+    if ((tr.downstream || []).length) add("downstream 후보", names(tr.downstream));
+    if ((tr.undirected || []).length) add("방향 미상 후보", names(tr.undirected));
+    if (tr.status === "FAILED") {
+      add("추적 실패 사유", tr.reason || (tr.budget_exhausted
+        ? "탐색 한도 초과 — 배관망이 너무 크게 연결돼 있습니다"
+        : "이 심볼에서 도달 가능한 커넥터·기기가 없습니다"));
+    }
+    add("Description", "이번 회차에서는 문장을 만들지 않습니다 (추적 결과만 기록)");
+  }
 
   // --- what was not decided -------------------------------------------------
   if (row.needs_review) add("검토 필요 — 판단 못한 이유", row.needs_review);
@@ -638,6 +686,7 @@ function drawOverlay() {
   if (!S.page || !S.natural) return;
   const scale = S.natural.w / (S.page.width || 1);
   ov.setAttribute("viewBox", `0 0 ${S.natural.w} ${S.natural.h}`);
+  drawTrace(ov, scale);
   for (const it of overlayItems(S.page)) {
     if (!itemVisible(it)) continue;
     const [x0, y0, x1, y1] = it.rect;
@@ -660,21 +709,76 @@ function drawOverlay() {
   buildOverlayLegend();
 }
 
-$("#ovl-bytab").addEventListener("change", ev => {
+/* The traced pipe path for the selected row, under the boxes so it never hides
+ * one.  Terminals are ringed and labelled: the walk stops at an off-page
+ * connector or a piece of equipment, and which one it stopped at is the whole
+ * result.  Nothing here writes a sentence - that is the next round's job. */
+function drawTrace(ov, scale) {
+  const row = S.rows.find(r => r.key === S.sel);
+  const tr = row && row.evidence && row.evidence.trace;
+  if (!tr || !S.showTrace) return;
+  const NS = "http://www.w3.org/2000/svg";
+  for (const run of tr.path || []) {
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", run[0] * scale); l.setAttribute("y1", run[1] * scale);
+    l.setAttribute("x2", run[2] * scale); l.setAttribute("y2", run[3] * scale);
+    l.setAttribute("class", "tracepath");
+    ov.appendChild(l);
+  }
+  const seen = [["upstream", "#3fb950"], ["downstream", "#ff9f0a"],
+                ["undirected", "#8b8f9a"]];
+  for (const [dir, colour] of seen) {
+    for (const t of tr[dir] || []) {
+      if (!t.rect || t.rect.length !== 4) continue;
+      const r = document.createElementNS(NS, "rect");
+      r.setAttribute("x", t.rect[0] * scale);
+      r.setAttribute("y", t.rect[1] * scale);
+      r.setAttribute("width", Math.max(4, (t.rect[2] - t.rect[0]) * scale));
+      r.setAttribute("height", Math.max(4, (t.rect[3] - t.rect[1]) * scale));
+      r.setAttribute("class", "terminal");
+      r.setAttribute("stroke", colour);
+      ov.appendChild(r);
+    }
+  }
+}
+
+$req("#ovl-bytab").addEventListener("change", ev => {
   S.byTab = ev.target.checked;
   drawOverlay();
 });
-// Clicking the sheet itself, away from any box, clears the selection.
-$("#stage").addEventListener("click", ev => {
+$req("#ovl-trace").addEventListener("change", ev => {
+  S.showTrace = ev.target.checked;
+  drawOverlay();
+});
+$req("#stage").addEventListener("click", ev => {
+  if (S.picking) {
+    const p = sheetPoint(ev);
+    endPick();
+    if (p) createRow(p);
+    return;
+  }
+  // Clicking the sheet itself, away from any box, clears the selection.
   if (ev.target.tagName.toLowerCase() !== "rect") deselect();
 });
+
+/* Screen point -> PDF point.  The sheet is rendered at a zoom the server chose
+ * and then CSS-scaled, so both factors have to come back out. */
+function sheetPoint(ev) {
+  const img = $("#sheet");
+  if (!img.naturalWidth || !S.page) return null;
+  const box = img.getBoundingClientRect();
+  const fx = (ev.clientX - box.left) / box.width;
+  const fy = (ev.clientY - box.top) / box.height;
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return null;
+  return [fx * S.page.width, fy * S.page.height];
+}
 document.addEventListener("keydown", ev => {
   if (ev.key === "Escape" && !ev.target.isContentEditable) deselect();
 });
 
 /* ---------------- filter, gate, export ---------------- */
-$("#filter").addEventListener("input", ev => { S.filter = ev.target.value; renderGrid(); });
-$("#origin-filter").addEventListener("change", ev => {
+$req("#filter").addEventListener("input", ev => { S.filter = ev.target.value; renderGrid(); });
+$req("#origin-filter").addEventListener("change", ev => {
   S.originFilter = ev.target.value; renderGrid();
 });
 const chosenOrigins = () =>
@@ -688,7 +792,7 @@ function scopeChanged() {
   S.revision = null;
 }
 
-$("#gate-check").addEventListener("change", async ev => {
+$req("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;
   if (!ev.target.checked) return;
   const origins = chosenOrigins();
@@ -717,7 +821,7 @@ $("#gate-check").addEventListener("change", async ev => {
     + (hold ? ", 검토 보류" : "") + ")";
 });
 
-$("#excel").addEventListener("click", () => {
+$req("#excel").addEventListener("click", () => {
   if (!S.revision) return;
   location.href = `/revisions/${S.revision}/excel`;
 });
@@ -728,43 +832,86 @@ async function refreshRows(selectKey) {
   if (selectKey) select(selectKey, true);
 }
 
-$("#row-add").addEventListener("click", async () => {
+/* A row the engine missed is only useful to a later rule pass if we know where
+ * on the drawing it should have been, so adding one asks for the place first and
+ * the server captures what is drawn there.  The pick can be skipped - the row is
+ * still created, and the record then simply has no geometry. */
+$req("#row-add").addEventListener("click", () => startPick());
+
+function startPick() {
+  S.picking = true;
+  $("#stage").classList.add("picking");
+  $("#pick-note").classList.remove("hidden");
+}
+
+function endPick() {
+  S.picking = false;
+  $("#stage").classList.remove("picking");
+  $("#pick-note").classList.add("hidden");
+}
+
+$req("#pick-cancel").addEventListener("click", async ev => {
+  ev.stopPropagation();
+  endPick();
+  await createRow(null);
+});
+
+async function createRow(point) {
   const src = S.rows.find(r => r.key === S.sel);
   const body = {
-    page_no: src ? src.page_no : (S.page ? S.page.page_no : 0),
+    page_no: point ? S.page.page_no
+      : (src ? src.page_no : (S.page ? S.page.page_no : 0)),
     tab: src ? src.tab : (S.tab === "ALL" || S.tab === "REVIEW" ? "FIELD" : S.tab),
     origin: src ? src.origin : "",
-    drawing_no: src ? src.drawing_no : (S.page ? S.page.drawing_no : ""),
+    drawing_no: point ? (S.page.drawing_no || "")
+      : (src ? src.drawing_no : (S.page ? S.page.drawing_no : "")),
     values: {},
+    point: point || undefined,
   };
   const r = await fetch(`/jobs/${S.job.id}/rows`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!r.ok) { alert("행 추가 실패"); return; }
-  await refreshRows((await r.json()).key);
-});
+  const out = await r.json();
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+  if (point) {
+    const g = out.geometry || {};
+    $("#pick-note").textContent =
+      `기록: (${Math.round(point[0])}, ${Math.round(point[1])}) 주변 도형 `
+      + `${g.path_count || 0}개 · 선분 ${g.segment_count || 0}개`
+      + (g.nearest_text ? ` · 인접 텍스트 "${g.nearest_text}"` : "");
+  }
+  await refreshRows(out.key);
+  updateBadge();
+}
 
-$("#row-copy").addEventListener("click", async () => {
+$req("#row-copy").addEventListener("click", async () => {
   if (!S.sel) { alert("복사할 행을 먼저 선택하세요."); return; }
   const r = await fetch(`/jobs/${S.job.id}/rows/${S.sel}/copy`, { method: "POST" });
   if (!r.ok) { alert("복사 실패"); return; }
   await refreshRows((await r.json()).key);
 });
 
-$("#row-delete").addEventListener("click", async () => {
+$req("#row-delete").addEventListener("click", async () => {
   if (!S.sel) { alert("삭제할 행을 먼저 선택하세요."); return; }
   const key = S.sel;
-  const r = await fetch(`/jobs/${S.job.id}/rows/${key}`, { method: "DELETE" });
+  // Optional, and optional on purpose: a reason left blank still records the
+  // rule and the measurements that produced the row.
+  const reason = window.prompt("삭제 사유 (선택 — 비워도 됩니다)", "") || "";
+  const r = await fetch(
+    `/jobs/${S.job.id}/rows/${key}?reason=${encodeURIComponent(reason)}`,
+    { method: "DELETE" });
   if (!r.ok) { alert("삭제 실패"); return; }
   const out = await r.json();
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   // A detection is struck out, not dropped: the next analysis would find it
   // again, and the reviewer's decision has to outlive that.
   S.sel = out.dropped ? null : key;
   await refreshRows(S.sel);
 });
 
-$("#reanalyse").addEventListener("click", async () => {
+$req("#reanalyse").addEventListener("click", async () => {
   await fetch(`/jobs/${S.job.id}/reanalyse`, { method: "POST" });
   $("#main").classList.add("hidden");
   watch(S.job.id);

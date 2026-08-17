@@ -60,6 +60,17 @@ button.ghost { background: transparent; border: 1px solid var(--line); color: va
   font-variant-numeric: tabular-nums;
 }
 .badge.warn { background: #f0a13222; color: var(--warn); }
+#fb-badge { background: #3fb95022; color: var(--ok); }
+
+/* while pointing at a missed item */
+#stage.picking { cursor: crosshair; }
+#stage.picking #ov { pointer-events: none; }
+.picknote {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 48px;
+  z-index: 8; background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 8px; padding: 7px 12px; display: flex; align-items: center;
+  gap: 10px; box-shadow: 0 6px 22px #000a;
+}
 
 /* ---------- split ---------- */
 #split { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
@@ -105,6 +116,16 @@ rect.det.sel {
   100% { stroke-width: 3;  opacity: 1; }
 }
 rect.det.pulse { animation: detpulse .55s ease-out 2; }
+
+/* the traced pipe path, under the boxes so it never hides one */
+line.tracepath {
+  stroke: #5ac8fa; stroke-width: 5; stroke-linecap: round; opacity: .75;
+  vector-effect: non-scaling-stroke; pointer-events: none;
+}
+rect.terminal {
+  fill: none; stroke-width: 2.5; stroke-dasharray: 6 3;
+  vector-effect: non-scaling-stroke; pointer-events: none;
+}
 
 /* ---------- overlay legend ---------- */
 #ovlegend {

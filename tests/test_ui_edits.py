@@ -138,10 +138,16 @@ def edited(page):
         "() => [...document.querySelectorAll('#tabs button')]"
         ".find(b => b.textContent.startsWith('Field')).click()")
     page.wait_for_timeout(500)
+    # Rows that are struck out are deliberately not editable, and this suite
+    # strikes one out in step 5 - so on a database it has already run against,
+    # taking "the first five rows" can pick one of its own casualties and the
+    # failure looks like an editing bug.  Take five live ones.
     keys = page.evaluate(
-        "[...document.querySelectorAll('#body tr')].slice(0, 5)"
-        ".map(tr => tr.dataset.key)")
-    assert len(keys) == 5, "need five Field rows to edit"
+        "[...document.querySelectorAll('#body tr')]"
+        ".filter(tr => !tr.classList.contains('deleted')"
+        "           && !tr.classList.contains('added'))"
+        ".slice(0, 5).map(tr => tr.dataset.key)")
+    assert len(keys) == 5, "need five live Field rows to edit"
     for key, (col, value) in zip(keys, EDITS):
         cell = _cell(page, key, col)
         cell.click()

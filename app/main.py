@@ -235,16 +235,41 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
 
 @app.post("/jobs/{job_id}/rows")
 async def add_row(job_id: str, payload: dict):
-    """Create a row a reviewer wants that the engine did not propose."""
-    if db.get_job(CON, job_id) is None:
+    """Create a row a reviewer wants that the engine did not propose.
+
+    When the reviewer also points at where it is on the drawing (`point`), the
+    geometry around that spot is captured with the record - see
+    `pipeline.probe_point`.  That is the whole reason this endpoint takes a
+    coordinate: a missed item is only useful to a later rule pass if what was
+    drawn there was written down at the time.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
         raise HTTPException(404, "no such job")
-    key = db.add_row(CON, job_id,
-                     int(payload.get("page_no") or 0),
+    page_no = int(payload.get("page_no") or 0)
+    values = payload.get("values") or {}
+    key = db.add_row(CON, job_id, page_no,
                      payload.get("tab") or "FIELD",
                      payload.get("origin") or "",
                      payload.get("drawing_no") or "",
-                     payload.get("values") or {})
-    return {"key": key, "review_count": db.review_count(CON, job_id)}
+                     values)
+    point = payload.get("point") or []
+    geometry = {}
+    if len(point) == 2 and page_no:
+        geometry = pipeline.probe_point(Path(job["pdf_path"]), page_no,
+                                        float(point[0]), float(point[1]))
+    db.record_feedback(
+        CON, job_id, "ADDED", row_key=key, page_no=page_no,
+        drawing_no=payload.get("drawing_no") or "",
+        rect=payload.get("rect") or point,
+        user_value=json.dumps(values, ensure_ascii=False, sort_keys=True),
+        reason=payload.get("reason") or "", geometry=geometry,
+        pattern_args={"tab": payload.get("tab") or "FIELD",
+                      "near": geometry.get("nearest_text", "")})
+    return {"key": key, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id),
+            "geometry": {k: geometry.get(k) for k in
+                         ("path_count", "segment_count", "nearest_text")}}
 
 
 @app.post("/jobs/{job_id}/rows/{key}/copy")
@@ -257,12 +282,28 @@ def copy_row(job_id: str, key: str):
 
 
 @app.delete("/jobs/{job_id}/rows/{key}")
-def delete_row(job_id: str, key: str):
+def delete_row(job_id: str, key: str, reason: str = ""):
+    """Strike out a detection.  Records which rule produced it and on what."""
+    before = db.get_row(CON, job_id, key)
     try:
         out = db.remove_row(CON, job_id, key)
     except KeyError:
         raise HTTPException(404, "no such row")
+    if before is not None:
+        ev = before.get("evidence") or {}
+        rules = ev.get("rules_hit") or []
+        db.record_feedback(
+            CON, job_id, "REMOVED", row_key=key, page_no=before["page_no"],
+            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
+            ai_value=json.dumps(before.get("ai") or {}, ensure_ascii=False,
+                                sort_keys=True),
+            reason=reason, basis=ev,
+            pattern_args={"what": (before["values"].get("type")
+                                   or ev.get("body") or ""),
+                          "rule": (ev.get("excluded_by") or ev.get("anchor")
+                                   or (rules[0] if rules else ""))})
     out["review_count"] = db.review_count(CON, job_id)
+    out["feedback_count"] = db.feedback_count(CON, job_id)
     return out
 
 
@@ -281,13 +322,25 @@ async def patch_row(job_id: str, key: str, payload: dict):
             value = int(value)
         except (TypeError, ValueError):
             raise HTTPException(400, "Q'ty must be a whole number")
+    before = db.get_row(CON, job_id, key)
     try:
         user = db.set_user_value(CON, job_id, key, field, value)
     except KeyError:
         raise HTTPException(404, "no such row")
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    return {"key": key, "user": user, "review_count": db.review_count(CON, job_id)}
+    if before is not None:
+        db.record_feedback(
+            CON, job_id, "EDITED", row_key=key, page_no=before["page_no"],
+            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
+            field=field, ai_value=(before.get("ai") or {}).get(field),
+            user_value=value, reason=payload.get("reason") or "",
+            basis=before.get("evidence") or {},
+            pattern_args={"field": field,
+                          "ai": (before.get("ai") or {}).get(field),
+                          "user": value})
+    return {"key": key, "user": user, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id)}
 
 
 # --------------------------------------------------------------------------
@@ -326,6 +379,15 @@ def make_snapshot(job_id: str, payload: dict = None):
             "review_held_back": hold,
             "rows": len(snap["rows"]),
             "review_count": db.review_count(CON, job_id)}
+
+
+@app.get("/jobs/{job_id}/feedback")
+def job_feedback(job_id: str, limit: int = 200):
+    """The correction history.  Stored, counted, and not interpreted."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return {"count": db.feedback_count(CON, job_id),
+            "records": db.feedback_rows(CON, job_id, limit)}
 
 
 @app.get("/jobs/{job_id}/drawings")
