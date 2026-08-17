@@ -161,6 +161,49 @@ supplier_interface_span:
   supplied_by: ""
   description: skip
 
+# Multi-signal bubble groups: several signals drawn as touching bubbles off one
+# physical instrument (measured on this document: 34 groups of LSHH+LSH+LSL, gap
+# 0.0-0.06pt, one lead line per group).
+#
+# `merge_quantity` is **off** and stays off until the client answers
+# `out/ls_bundle_question.md`.  The drawing says the bubbles are one assembly; the
+# client's own list writes one row per bubble - but on drawings that carry no such
+# group, so neither statement settles it and this tool will not decide.  Turned on,
+# the topmost bubble of each group carries the group's quantity and the others
+# carry 0; every row stays in the list either way, with the group and the original
+# quantity in its evidence.
+multi_signal_bundle:
+  merge_quantity: false
+
+# The client's Description wording, measured off its own finished list (557
+# Description lines) rather than assumed.  This is config and not a runtime
+# derivation for a plain reason: in real use there is no finished list to derive it
+# from - the user has a PDF and an empty form - so the client's wording convention
+# is a project fact like its vendor-mark dictionary.
+#
+# What was counted, on those 557 lines:
+#   * 81.3% begin with the word `UNIT`, and 444 of 557 with `UNIT #<n>`; the word
+#     `UNIT` is printed on no drawing, so it belongs to the template, not the sheet
+#   * the ISA variable word (legend p3's matrix, `isa_table`) appears in 538 of
+#     them; 357 lines end with it, 170 carry one token after it (A 58, B 51,
+#     ELEMENT 18, HIGH 11, C 8, digits 24) and 11 carry two (`HIGH HIGH`)
+#   * the middle segment runs 1-12 tokens, mode 5-6, and names equipment
+#   * all 52 drawing titles read `P&ID FOR <system> SYSTEM <qualifier>`, which is
+#     what `title_open` / `title_close` bracket
+#
+# The suffix and the middle are deliberately absent from the template: measured
+# against the drawings, A/B/C (129 instances) and HIGH/HIGH HIGH (22) appear
+# nowhere on the page their row belongs to, and 49.7% of middles share no word with
+# the drawing title.  `describe.py` reports those rows rather than filling them.
+description:
+  prefix: UNIT
+  unit_mark: "#"
+  title_open: [FOR]
+  title_close: [SYSTEM]
+  template: "UNIT #{unit} {system} {variable}"
+  measured_on: "발주처 계기 리스트 557행 (data/CZE_Field_Instrument.xlsx)"
+  note: "접미(A/B/C, HIGH HIGH)와 중간 서술은 도면에 없어 템플릿에 넣지 않았습니다"
+
 # P17 — words with no discriminating power when matching an Excel SYSTEM value
 # against a drawing title.
 matching:

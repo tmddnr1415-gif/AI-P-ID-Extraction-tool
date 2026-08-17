@@ -263,6 +263,19 @@ function showAppliedRules() {
       + (Object.keys(ds.by_reason || {}).length
         ? `<br><span class="muted">${Object.entries(ds.by_reason)
           .map(([k, v]) => `${k}: ${v}`).join("<br>")}</span>` : ""))
+    + row("Description 생성", (() => {
+      const b = (S.job.engine || {}).description_build || {};
+      const m = b.measured_accuracy || {};
+      if (!b.pattern) return "기록 없음";
+      return `${b.written ?? 0}행 작성 · ${b.blank ?? 0}행 공란`
+        + `<br><span class="muted">문형 <code>${b.pattern.template || ""}</code>`
+        + ` (${b.pattern.measured_on || ""})`
+        + `<br>변수어: 범례 p${(b.isa_table || {}).page_no} ISA 문자표`
+        + ` — 첫 문자 ${Object.keys((b.isa_table || {}).first || {}).length}개`
+        + `<br>발주처 ${m.lines_compared}행 대조: 완전일치 ${m.exact}행 · `
+        + `토큰 정밀도 ${m.token_precision}% / 재현율 ${m.token_recall}%`
+        + ` — 중간 서술과 접미는 도면에 없어 만들지 않습니다</span>`;
+    })())
     + row("배관 추적", `대상 ${pt.description_needed ?? 0}행 중 `
       + `성공 ${st.TRACED || 0} (${pt.rate_of_needed ?? 0}%) · `
       + `후보다수 ${st.MULTIPLE || 0} · 실패 ${st.FAILED || 0}`
@@ -582,6 +595,13 @@ function showEvidence(row) {
   } else if (needed === true) {
     add("Description 대상", "예 — 리스트와 Description 모두 대상");
   }
+  // Where each part of the sentence came from, and what is still missing.  The
+  // column is a partial line by construction, so the panel says so rather than
+  // letting it read as finished text.
+  if ((e.description_sources || []).length) {
+    add("Description 조립 근거", e.description_sources.join(" | "));
+  }
+  if (e.description_missing) add("Description 미완성 사유", e.description_missing);
 
  // --- pipe connectivity ----------------------------------------------------
   const tr = e.trace || {};

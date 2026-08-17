@@ -49,6 +49,8 @@ import detect_all as da            # noqa: E402
 import detect_valves as dv         # noqa: E402
 import parse_notes as pn           # noqa: E402
 import pipe_graph                  # noqa: E402
+import isa_table                   # noqa: E402
+import describe as desc            # noqa: E402
 
 CFG = projectconfig.load()
 
@@ -284,6 +286,10 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             pages, pipe_style.values, CFG.rect("regions.drawing_area"), CFG)
         legend_derived["connector_reach"] = reach
         pipe_style.values.update(reach.values)
+        # The words for each tag's measured variable, off legend p3's own
+        # identification matrix - the Description column is written in them.
+        isa = isa_table.derive(pages)
+        pattern = desc.derive_pattern(CFG)
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     say(3, total, "deriving unit multipliers from legend page 5")
@@ -319,7 +325,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "scope_keywords": scope_keywords,
             "page_cache": pc,
         }
-        rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords))
+        rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
+                                isa=isa, pat=pattern))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
@@ -431,6 +438,27 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         "pipe_trace": trace_stats,
         # The two axes, counted separately on purpose.  `scope` is what is in the
         # list; this is what will carry a Description.
+        # What the Description column carries, and on what authority.  Reported
+        # with the accuracy it was measured at, so nobody reads the column as
+        # finished text: see DESCRIPTION_PARTIAL.
+        "description_build": {
+            "written": sum(1 for r in rows if r.description),
+            "blank": sum(1 for r in rows if not r.description),
+            "isa_table": isa.as_dict(),
+            "pattern": {"template": pattern.evidence.get("template"),
+                        "measured_on": pattern.evidence.get("measured_on"),
+                        "source": pattern.source, "note": pattern.note},
+            "measured_accuracy": {
+                "lines_compared": 536,
+                "exact": 1,
+                "token_precision": 57.3,
+                "token_recall": 37.6,
+                "with_near_text_160pt": {"token_precision": 20.2,
+                                         "token_recall": 47.9},
+                "with_near_text_240pt": {"token_precision": 17.6,
+                                         "token_recall": 62.8},
+            },
+        },
         "description_scope": {
             "needed": sum(1 for r in rows if r.description_needed),
             "skipped": sum(1 for r in rows if not r.description_needed),
@@ -568,6 +596,18 @@ def _description_skip(d) -> str:
 # So the group is measured, shown and flagged, and the quantity is left alone.
 MULTI_SIGNAL_REASON = "다중 신호 버블 — 물리 수량 확인 필요"
 
+# Whether to consolidate a group's quantity onto one row.  **Off**, and it stays
+# off until the client answers `out/ls_bundle_question.md`: the drawing says the
+# three bubbles are one assembly, and the client's list says one row per bubble,
+# but the two statements are about different drawings, so neither settles it.
+#
+# Turned on, the topmost bubble of each group carries the group's whole quantity
+# and the rest carry 0, every row keeping its own line, its own evidence and the
+# flag.  Which row should hold the quantity is itself part of the question being
+# asked, so it is recorded in the evidence rather than presented as the answer.
+MULTI_SIGNAL_MERGE = bool((CFG.data.get("multi_signal_bundle") or {})
+                          .get("merge_quantity") or False)
+
 
 def _signal_groups(rows) -> list:
     """Bubbles the drawing stacks edge-to-edge, grouped, with the basis measured.
@@ -642,11 +682,99 @@ def _signal_groups(rows) -> list:
                 },
             }
             groups.append(group)
-            for r in grp:
+            for i, r in enumerate(grp):
                 r.evidence["signal_group"] = group
                 r.needs_review = "; ".join(
                     [s for s in (r.needs_review, MULTI_SIGNAL_REASON) if s])
+                if not MULTI_SIGNAL_MERGE:
+                    continue
+                total = sum(x.qty for x in grp if isinstance(x.qty, (int, float)))
+                r.qty = total if i == 0 else 0
+                r.evidence["qty_basis"] = (
+                    f"다중 신호 버블 묶음 합산 (config multi_signal_bundle."
+                    f"merge_quantity) — 묶음 {len(grp)}개 중 "
+                    + ("최상단 버블이 묶음 수량 " + str(total) + " 을 가집니다"
+                       if i == 0 else "합산되어 0 입니다")
+                    + f"; 원래 값 {group['basis']['qty_applied'][i]}")
+            group["basis"]["merged"] = MULTI_SIGNAL_MERGE
     return groups
+
+
+def ls_bundle_question(result: dict) -> str:
+    """The client-facing question about multi-signal bubbles, as markdown.
+
+    Written from one run's own measurements so the client is asked with the
+    drawing's coordinates in hand rather than a description of them.  It asks a
+    question; it does not propose an answer, because the two sources that could
+    settle it disagree in scope (see the body).
+    """
+    groups = result.get("signal_groups") or []
+    rows = {r["key"]: r for r in result["rows"]}
+    members = [m for g in groups for m in g["members"]]
+    per_page = collections.Counter(g["page_no"] for g in groups)
+    shapes = collections.Counter(
+        " + ".join(m["anchor"] for m in g["members"]) for g in groups)
+    qty_now = sum(rows[m["key"]]["qty"] for m in members
+                  if isinstance(rows[m["key"]].get("qty"), (int, float)))
+    L = ["# 다중 신호 버블 — 물리 수량 확인 요청", ""]
+    L.append("도면에서 세로로 **맞닿아** 그려진 계기 버블 묶음이 있습니다. "
+             "물리적으로 하나의 기기에서 나오는 여러 신호로 보이지만, "
+             "**도구는 수량을 합산하지 않았습니다** — 아래 두 근거가 서로 다른 "
+             "도면을 말하고 있어 이 도구가 판단할 수 없습니다.")
+    L.append("")
+    L.append("## 무엇을 물어보는지")
+    L.append("")
+    L.append(f"- 묶음 **{len(groups)}건**, 버블 **{len(members)}개**, "
+             f"현재 리스트에 **{len(members)}행** · Q'ty 합계 **{qty_now}**")
+    L.append(f"- 합산한다면 행이 {len(members)} → **{len(groups)}행** 이 됩니다 "
+             f"(수량 합계는 승수에 따라 재계산)")
+    L.append("- 현재 상태: 전 행 리스트 유지 + `다중 신호 버블 — 물리 수량 확인 필요` "
+             "로 검토 대기")
+    L.append("")
+    L.append("## 도면이 말하는 것 (측정)")
+    L.append("")
+    for shape, n in shapes.most_common():
+        L.append(f"- `{shape}` 구성 묶음 {n}건")
+    gaps = sorted({g for grp in groups for g in grp["basis"]["touching_gaps_pt"]})
+    L.append(f"- 버블 사이 세로 간격: **{', '.join(str(g) for g in gaps)}pt** "
+             f"(허용치 {groups[0]['basis']['slack_pt'] if groups else '-'}pt, "
+             f"`legend_rules.INDEX_SLACK`). 이 문서에서 가로로 겹치는 다른 버블 쌍의 "
+             f"최소 간격은 3pt 이고, 맞닿은 것은 이 묶음뿐입니다")
+    L.append("- 묶음마다 리드선이 **1개**이고, 그 리드선은 묶음의 버블 중 "
+             "**1개**에만 닿습니다")
+    L.append("")
+    L.append("## 문서가 답하지 않는 것")
+    L.append("")
+    L.append("- 범례 p3 `INSTRUMENT FOR SINGLE MEASURED VARIABLE AND ANY NUMBER OF "
+             "FUNCTIONS` 는 다기능 계기를 **버블 1개**로 그립니다. 범례에는 맞닿은 "
+             "묶음 표기가 **없습니다**")
+    L.append("- 발주처 계기 리스트는 LS 22행 = 도면 버블 22개로 **버블 1개당 1행**을 "
+             "쓰지만, 그 22행이 있는 도면에는 이 묶음이 **없습니다**. 묶음이 있는 "
+             "도면 5장은 리스트가 다루지 않습니다")
+    L.append("")
+    L.append("## 묶음 전체 목록")
+    L.append("")
+    L.append("| # | 도면 | 페이지 | 구성 | 좌표 (x0, y0, x1, y1) | 간격 pt |")
+    L.append("|---:|---|---:|---|---|---|")
+    for i, g in enumerate(sorted(groups, key=lambda g: (g["page_no"],
+                                                        g["members"][0]["rect"][0])), 1):
+        coords = " / ".join("(" + ", ".join(str(round(v)) for v in m["rect"]) + ")"
+                           for m in g["members"])
+        L.append(f"| {i} | `{g['drawing_no']}` | {g['page_no']} | "
+                 f"{' + '.join(m['anchor'] for m in g['members'])} | {coords} | "
+                 f"{', '.join(str(v) for v in g['basis']['touching_gaps_pt'])} |")
+    L.append("")
+    L.append(f"페이지별 묶음 수: "
+             f"{', '.join(f'p{p} {n}건' for p, n in sorted(per_page.items()))}")
+    L.append("")
+    L.append("## 답을 받으면")
+    L.append("")
+    L.append("`config multi_signal_bundle.merge_quantity` 를 켜면 묶음의 최상단 "
+             "버블이 묶음 수량을 갖고 나머지는 0 이 됩니다(행은 모두 유지). "
+             "어느 행이 수량을 가져야 하는지도 확인 대상입니다. "
+             "현재 값: "
+             f"`{'on' if MULTI_SIGNAL_MERGE else 'off'}`.")
+    return "\n".join(L) + "\n"
 
 
 def _excluded_marks(pc, meta, dets) -> list:
@@ -688,7 +816,47 @@ def _excluded_marks(pc, meta, dets) -> list:
     return out
 
 
-def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
+# What the Description column carries, and what it cannot.
+#
+# Measured against the client's own 536 attributed Description lines (README
+# "Description — 토큰 출처"): the three parts written here - the unit prefix, the
+# system name off the drawing title and the variable word off legend p3's ISA
+# matrix - reproduce 57.3% of the client's tokens with 37.6% recall, and exactly
+# **1** of 536 lines in full.  The rest of each line is the middle segment naming
+# the equipment, and it is not on the sheet in any usable place: 49.7% of middles
+# share no word with the drawing title, and half the client's tokens sit more than
+# 240 pt from the symbol they belong to, on a 2384 pt sheet.
+#
+# Adding that neighbourhood text was measured too, and it makes the line worse:
+# token precision falls 57.3% -> 20.2% at a 160 pt radius and -> 17.6% at 240 pt,
+# because what a 240 pt circle actually contains is drawing numbers, DN sizes, grid
+# references and ASME codes.  So the middle is not written, the row says so, and
+# the reviewer completes it.  Nothing here invents a word.
+DESCRIPTION_PARTIAL = (
+    "Description 부분 생성 — 단위·계통·변수만 도면에서 확인됨 (중간 서술과 접미는 "
+    "도면에 없음). 발주처 문장 기준 토큰 정밀도 57.3% / 재현율 37.6%, 완전 일치 "
+    "536행 중 1행. 검토 후 확정 필요")
+DESCRIPTION_NONE = "Description 근거 부족 — 공란으로 남겼습니다"
+
+
+def _describe_row(meta, tag: str, isa, pat) -> tuple:
+    """`(text, evidence, reason)` for one row's Description.
+
+    Written only when all three sourced parts are there.  A tag whose letter the
+    legend's matrix does not carry gets no line at all rather than a line missing
+    its variable, because a Description without the measured variable is the part
+    of the sentence a reviewer cannot check.
+    """
+    d = desc.describe(meta["unit_code"], meta["drawing_title"], tag, isa, pat)
+    if len(d["parts"]) < 3:
+        return "", {"description_sources": d["sources"],
+                    "description_missing": d["reason"]}, DESCRIPTION_NONE
+    return d["text"], {"description_sources": d["sources"],
+                       "description_missing": d["reason"]}, DESCRIPTION_PARTIAL
+
+
+def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
+                isa=None, pat=None) -> list:
     """Field instrument rows for one drawing (spike 2 + spike 3)."""
     out = []
     unit = meta["unit_code"]
@@ -707,6 +875,16 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
         r = d.bbox
         rect = (r.x0, r.y0, r.x1, r.y1)
         reasons = []
+        # The Description column, from the three sources that were measured.  An
+        # item we do not describe at all (other-party supply) gets no draft.
+        skip_desc = _description_skip(d)
+        if skip_desc:
+            description, desc_ev, desc_reason = "", {}, ""
+        else:
+            description, desc_ev, desc_reason = _describe_row(
+                meta, getattr(d, "anchor", "") or type_, isa, pat)
+            if desc_reason:
+                reasons.append(desc_reason)
         if undefined:
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
@@ -740,8 +918,9 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
             system=meta["drawing_title"],
             vendor_supply=_vendor_of(d),
             scope=_scope_of(d),
-            description_needed=not _description_skip(d),
-            description_note=_description_skip(d),
+            description=description,
+            description_needed=not skip_desc,
+            description_note=skip_desc,
             needs_review="; ".join(reasons),
             annotation=("reviewer markup on this drawing" if marked else ""),
             rect=rect,
@@ -751,8 +930,9 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=()) -> list:
                 # stores the editable columns and the evidence, so this is how the
                 # second axis reaches the reviewer's screen without pretending to
                 # be an editable value.
-                "description_needed": not _description_skip(d),
-                "description_note": _description_skip(d),
+                "description_needed": not skip_desc,
+                "description_note": skip_desc,
+                **desc_ev,
                 "annotations": [a.get("text", "") for a in annotations][:6],
                 "rules_hit": list(getattr(d, "rules_hit", [])),
                 "excluded_by": getattr(d, "exclude_rule", ""),
@@ -1018,6 +1198,16 @@ def _valve_rows(page_no, meta, res, mult) -> list:
             rect=rect,
             evidence={
                 "body": b.kind,
+                # No Description is written for a valve, and the reason is
+                # recorded rather than left as an empty cell: the wording would
+                # have to come from the client's valve master list, which has
+                # never been supplied, and legend p3's ISA matrix is about
+                # instrument tags - it says nothing about a gate or globe body.
+                "description_missing":
+                    "밸브 Description 문형의 기준이 될 발주처 마스터 밸브 리스트가 "
+                    "없습니다. 범례 p3 ISA 문자표는 계기 태그용이라 밸브 몸체에는 "
+                    "적용되지 않습니다",
+                "description_needed": True,
                 "body_basis": dict(b.evidence or {}),
                 "state": b.state,
                 "actuator": b.actuator,

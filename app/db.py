@@ -248,7 +248,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                  json.dumps({k: result.get(k) for k in
                              ("multipliers", "legend", "glyphs", "job_review",
                               "applied_rules", "timings", "pipe_trace",
-                              "description_scope")}, default=str),
+                              "description_scope", "description_build")},
+                            default=str),
                  job_id))
     con.commit()
     return {"rows": len(result["rows"]), "conflicts": conflicts,

@@ -80,6 +80,51 @@ def test_pneumatic_valves_are_found(first_run):
 
 
 @pytest.mark.slow
+def test_description_carries_only_sourced_parts(first_run):
+    """Every Description written is three sourced parts and says it is partial.
+
+    The column has to be delivered, and a rules-only line reproduces 1 of the
+    client's 536 lines in full (token precision 57.3%), so what it must never do is
+    read as finished: no row carries a Description without the flag and the
+    per-part sources, and the middle of the sentence - which is not on the sheet -
+    is never invented.
+    """
+    written = [r for r in first_run["rows"] if r["description"]]
+    assert written, "no Description was written at all"
+    isa = first_run["description_build"]["isa_table"]
+    assert isa["source"] == "LEGEND" and isa["first"], (
+        "the variable words must come from the legend's own ISA matrix")
+    for r in written:
+        assert pipeline.DESCRIPTION_PARTIAL in r["needs_review"], (
+            f"row {r['key']} has a Description but is not flagged as partial")
+        srcs = r["evidence"]["description_sources"]
+        assert len(srcs) == 3, f"row {r['key']} has {len(srcs)} sourced parts"
+        assert any("ISA" in s for s in srcs)
+        assert r["evidence"]["description_missing"]
+        # nothing invented: every word is in the unit code, the title or the table
+        allowed = set(desc_words(r, first_run))
+        assert set(r["description"].split()) <= allowed, (
+            f"row {r['key']} Description has words from no measured source: "
+            f"{set(r['description'].split()) - allowed}")
+    # an item we do not describe gets no draft either
+    for r in first_run["rows"]:
+        if r["evidence"].get("description_needed") is False:
+            assert not r["description"]
+
+
+def desc_words(row, run) -> set:
+    """Every word the row's three sources could legitimately contribute."""
+    page = next(p for p in run["pages"] if p["page_no"] == row["page_no"])
+    tb_row = next(t for t in run["titleblocks"] if t["page_no"] == row["page_no"])
+    isa = run["description_build"]["isa_table"]
+    out = {"UNIT", f"#{tb_row['unit_code']}"}
+    out |= set(str(page["title"]).upper().split())
+    for words in isa["first"].values():
+        out |= set(words)
+    return out
+
+
+@pytest.mark.slow
 def test_multi_signal_bubbles_are_flagged_never_merged(first_run):
     """Stacked bubbles are grouped and held open, and the quantity is untouched.
 
