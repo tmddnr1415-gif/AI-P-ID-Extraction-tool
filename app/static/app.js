@@ -26,6 +26,18 @@ const COLS = [
   ["qty", "Q'ty", true], ["system", "System", true],
   ["vendor_supply", "Vendor", true], ["scope", "Scope", true],
   ["tag_no", "Tag No.", true], ["description", "Description", true],
+  // Two columns that exist so a reviewer can see, without opening anything, which
+  // rows they have to write themselves.  `등급` is filterable from the toolbar.
+  ["description_grade", "등급", false], ["remark", "Remark", true],
+];
+// What each grade asks of the reviewer, shown in the review tab's grouping.
+const GRADES = [
+  ["CONFIRMED", "확정", "도면이 이름을 대는 것으로 채워졌습니다"],
+  ["LOW", "AI 제안", "후보에서 골랐으나 근거가 약합니다 — 확인 필요"],
+  ["PARTIAL", "부분", "단위·계통·변수만 확정 — 중간 서술을 직접 입력"],
+  ["NONE", "없음", "근거 없음 — 직접 입력"],
+  ["SKIP", "생략", "타사 공급"],
+  ["USER_ENTERED", "직접 입력", "사람이 입력했습니다"],
 ];
 // Layer colour by tab, stable so a kind keeps its colour across pages.
 const COLOR = {
@@ -38,7 +50,7 @@ const S = {
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
-  picking: false, feedback: 0, showTrace: true,
+  picking: false, feedback: 0, showTrace: true, gradeFilter: "",
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
@@ -321,6 +333,7 @@ function buildTabs() {
   for (const [key, label] of TABS) {
     const b = document.createElement("button");
     b.className = key === S.tab ? "on" : "";
+    b.dataset.tab = key;
     b.innerHTML = `${label}<span class="n">${S.counts[key] || 0}</span>`;
     b.onclick = () => { S.tab = key; buildTabs(); renderGrid(); drawOverlay(); };
     $("#tabs").appendChild(b);
@@ -333,6 +346,11 @@ function visibleRows() {
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
   else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
   if (S.originFilter) rows = rows.filter(r => r.origin === S.originFilter);
+  // Only on 검토필요, where the control that sets it is visible.  Left applied on
+  // other tabs it silently hid rows with nothing on screen to explain why.
+  if (S.tab === "REVIEW" && S.gradeFilter) {
+    rows = rows.filter(r => r.values.description_grade === S.gradeFilter);
+  }
   if (S.filter) {
     const q = S.filter.toLowerCase();
     rows = rows.filter(r => JSON.stringify(r.values).toLowerCase().includes(q)
@@ -346,7 +364,44 @@ function visibleRows() {
   });
 }
 
+/* The review tab's own grouping: which rows still need a Description written by
+ * hand, split by the reason the tool could not write one.  Clicking a group
+ * filters the grid to it, because "which of these 700 rows is mine to do" is the
+ * question a reviewer opens this tab with. */
+function renderDescriptionGroups() {
+  const bar = $("#desc-groups");
+  if (S.tab !== "REVIEW") { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  const counts = {};
+  for (const r of S.rows) {
+    const g = r.values.description_grade;
+    if (g) counts[g] = (counts[g] || 0) + 1;
+  }
+  const needed = GRADES.filter(([k]) => ["PARTIAL", "LOW", "NONE"].includes(k));
+  const total = needed.reduce((n, [k]) => n + (counts[k] || 0), 0);
+  bar.innerHTML = `<b>Description 입력 필요</b> <span class="n">${total}행</span>`
+    + needed.map(([k, label, why]) => `
+        <button class="grp${S.gradeFilter === k ? " on" : ""}" data-g="${k}"
+                title="${why}">${label} <span class="n">${counts[k] || 0}</span></button>`).join("")
+    + `<button class="grp${S.gradeFilter ? "" : " on"}" data-g="">전체</button>`;
+  bar.querySelectorAll("button.grp").forEach(b => {
+    b.onclick = () => {
+      S.gradeFilter = b.dataset.g === S.gradeFilter ? "" : (b.dataset.g || "");
+      renderGrid();
+    };
+  });
+}
+
+/* The Remark a reviewer should see.  A row a person has written needs no note
+ * about what the tool could not do, so it shows none - the grade already says
+ * USER_ENTERED, and the engine's original note stays in the row's evidence. */
+function remarkOf(row) {
+  return row.values.description_grade === "USER_ENTERED"
+    ? "" : (row.values.remark ?? "");
+}
+
 function renderGrid() {
+  renderDescriptionGroups();
   const head = $("#head");
   head.innerHTML = "";
   // The 귀속 column is dropped when every page has the same origin - see
@@ -388,6 +443,7 @@ function renderGrid() {
       const val = key === "page_no" ? r.page_no
         : key === "origin" ? r.origin
         : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
+        : key === "remark" ? remarkOf(r)
         : (r.values[key] ?? "");
       td.textContent = val;
       if (key === "origin") td.classList.add(`origin-${r.origin}`);
@@ -437,6 +493,49 @@ async function saveEdit(row, field, td) {
   td.classList.toggle("edited", !!(row.user && field in row.user));
   td.classList.remove("conflict");
   if (S.sel === row.key) showEvidence(row);
+}
+
+/* Writing a Description by hand.
+ *
+ * A reviewer picks a candidate phrase off the evidence panel, or types one, and
+ * the row becomes USER_ENTERED with an empty Remark - the tool stops asking about
+ * a row a person has answered.  The same text can be pushed to every row on the
+ * same drawing with the same TYPE, because 721 rows share 85 machine-written
+ * sentences and retyping the difference by hand is the actual work.
+ */
+async function setDescription(row, text, opts = {}) {
+  const patch = async (r, field, value) => {
+    const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field, value }),
+    });
+    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return false; }
+    const out = await res.json();
+    r.user = out.user;
+    r.values[field] = value;
+    S.counts.REVIEW = out.review_count;
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    return true;
+  };
+  const targets = opts.bulk
+    ? S.rows.filter(r => !r.deleted && !r.removed
+        && r.drawing_no === row.drawing_no && r.values.type === row.values.type)
+    : [row];
+  for (const r of targets) {
+    if (!await patch(r, "description", text)) return;
+    // The grade is a user value; the Remark is not patched to empty because an
+    // empty edit means "revert to what the engine said" (db.set_user_value), and
+    // reverting would put the old "직접 입력" note back.  A USER_ENTERED row simply
+    // shows no Remark - see remarkOf().
+    await patch(r, "description_grade", "USER_ENTERED");
+  }
+  updateBadge();
+  renderGrid();
+  const again = S.rows.find(r => r.key === row.key);
+  if (again) showEvidence(again);
+  if (opts.bulk) {
+    alert(`${targets.length}행에 적용했습니다 — ${row.drawing_no} / ${row.values.type}`);
+  }
 }
 
 /* ---------------- selection, both ways ----------------
@@ -602,6 +701,16 @@ function showEvidence(row) {
     add("Description 조립 근거", e.description_sources.join(" | "));
   }
   if (e.description_missing) add("Description 미완성 사유", e.description_missing);
+  if (row.values.description_grade) {
+    const g = GRADES.find(x => x[0] === row.values.description_grade);
+    add("Description 등급", g ? `${g[1]} — ${g[2]}` : row.values.description_grade);
+  }
+  if (remarkOf(row)) add("Remark", remarkOf(row));
+  if (e.description_selected) {
+    const sel = e.description_selected;
+    add("선택된 중간 서술", `“${sel.middle}” (${sel.kind})`
+      + (sel.why ? ` — ${sel.why}` : ""));
+  }
 
  // --- pipe connectivity ----------------------------------------------------
   const tr = e.trace || {};
@@ -644,7 +753,64 @@ function showEvidence(row) {
     `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
     + `(p${row.page_no})</h3>`
     + "<dl>" + pairs.map(([k, v]) =>
-      `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>";
+      `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
+    + candidatePicker(row);
+  bindCandidatePicker(row);
+}
+
+/* The phrases the drawing prints along this instrument's pipe, nearest first.
+ * Clicking one writes it into the Description between the system name and the
+ * variable - the place the client's own lines put it - so the reviewer picks
+ * rather than types. */
+function candidatePicker(row) {
+  const e = row.evidence || {};
+  const cands = e.candidates || [];
+  if (!cands.length && !row.values.description) return "";
+  const head = row.values.description || "";
+  const rows = cands.map((c, i) => `
+    <li><button class="cand" data-i="${i}">
+      <span class="cand-kind">${escape(c.kind)}</span>
+      <span class="cand-text">${escape(c.text)}</span>
+      <span class="muted">${Math.round(c.distance)}pt ${escape(c.direction)}</span>
+    </button></li>`).join("");
+  return `<div class="cands">
+      <h4>후보 텍스트 <span class="muted">— 배관을 따라 수집, 가까운 순</span></h4>
+      ${cands.length ? `<ol>${rows}</ol>`
+        : `<p class="muted">이 계기가 붙은 배관에 텍스트가 없습니다 — 직접 입력하세요</p>`}
+      <div class="cand-actions">
+        <input id="cand-input" type="text" value="${escape(head)}"
+               placeholder="Description 직접 입력">
+        <button id="cand-save" class="ghost">이 행에 적용</button>
+        <button id="cand-bulk" class="ghost"
+                title="같은 도면·같은 Type 의 모든 행에 적용">일괄 적용</button>
+      </div>
+    </div>`;
+}
+
+function bindCandidatePicker(row) {
+  const input = document.querySelector("#cand-input");
+  if (!input) return;
+  document.querySelectorAll("button.cand").forEach(b => {
+    b.onclick = () => {
+      const c = (row.evidence.candidates || [])[+b.dataset.i];
+      if (!c) return;
+      // Insert where the client puts it: after the system name, before the
+      // variable word the ISA table supplied.
+      const e = row.evidence || {};
+      const varWords = (e.description_sources || [])
+        .filter(x => x.startsWith("VARIABLE"))
+        .map(x => x.split("→").pop().trim())[0] || "";
+      const base = (row.values.description || "").trim();
+      input.value = varWords && base.endsWith(varWords)
+        ? `${base.slice(0, -varWords.length).trim()} ${c.text} ${varWords}`
+        : `${base} ${c.text}`.trim();
+      input.focus();
+    };
+  });
+  document.querySelector("#cand-save").onclick =
+    () => setDescription(row, input.value.trim());
+  document.querySelector("#cand-bulk").onclick =
+    () => setDescription(row, input.value.trim(), { bulk: true });
 }
 const escape = (s) => s.replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
 

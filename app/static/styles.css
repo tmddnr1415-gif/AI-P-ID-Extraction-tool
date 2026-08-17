@@ -236,3 +236,32 @@ dl.rules dd { margin: 0; }
 .ok { color: var(--ok); }
 
 tbody tr.added td:first-child { box-shadow: inset 2px 0 0 var(--ok); }
+
+/* ---------- Description review ---------- */
+.desc-groups {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 12px;
+}
+.desc-groups .grp {
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  color: inherit; padding: 2px 10px; cursor: pointer;
+}
+.desc-groups .grp.on { background: #0a84ff; border-color: #0a84ff; color: #fff; }
+.desc-groups .n { opacity: .7; margin-left: 4px; }
+.cands { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+.cands h4 { margin: 0 0 6px; font-size: 12px; }
+.cands ol { margin: 0 0 8px; padding-left: 18px; }
+.cands li { margin: 2px 0; }
+button.cand {
+  background: transparent; border: 1px solid var(--line); border-radius: 6px;
+  color: inherit; cursor: pointer; padding: 2px 8px; text-align: left;
+  display: inline-flex; gap: 8px; align-items: baseline; font-size: 12px;
+}
+button.cand:hover { border-color: #0a84ff; }
+.cand-kind { opacity: .6; font-size: 10px; text-transform: lowercase; }
+.cand-text { font-weight: 600; }
+.cand-actions { display: flex; gap: 6px; align-items: center; }
+.cand-actions input {
+  flex: 1; background: transparent; color: inherit; font: inherit;
+  border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px;
+}

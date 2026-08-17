@@ -204,6 +204,31 @@ description:
   measured_on: "발주처 계기 리스트 557행 (data/CZE_Field_Instrument.xlsx)"
   note: "접미(A/B/C, HIGH HIGH)와 중간 서술은 도면에 없어 템플릿에 넣지 않았습니다"
 
+  # The middle-segment selector.  It is a *chooser*: it is given the phrases the
+  # rules collected off the pipe the instrument is attached to and picks among
+  # them, and its answer is re-checked word by word against those same phrases
+  # before it reaches the column (app/engine/describe_llm.py).
+  #
+  # Off by default.  Turning it on needs ANTHROPIC_API_KEY in the environment; with
+  # the key absent the run reports it and every row is graded exactly as the rules
+  # alone grade it - the column never depends on a call having happened.
+  #
+  # Determinism: every call is keyed by a hash of its exact inputs and cached under
+  # cache_dir, so re-analysing the same PDF makes no calls and produces the same
+  # bytes.  (`temperature` is not sent: the current models reject it outright, and
+  # the cache is the stronger guarantee anyway.)
+  llm:
+    enabled: false
+    model: claude-opus-5
+    max_tokens: 512
+    cache_dir: app/_data/description_cache
+
+  # Finished lines that show the client's wording, per system name.  Used only to
+  # show the selector the *order* the client writes in; it may not take words from
+  # them.  Empty here: this project's finished list is an input to verification
+  # mode, not something a real run has.
+  examples: []
+
 # P17 — words with no discriminating power when matching an Excel SYSTEM value
 # against a drawing title.
 matching:

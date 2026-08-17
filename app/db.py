@@ -114,7 +114,7 @@ CREATE INDEX IF NOT EXISTS feedback_pattern ON feedback(job_id, pattern);
 # they are deliberately left empty by the engine (Phase 2 / not assigned on
 # these drawings), so a human filling them in is the expected case.
 EDITABLE = ("type", "qty", "system", "valve_type", "vendor_supply", "scope",
-            "description", "tag_no")
+            "description", "tag_no", "description_grade", "remark")
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -248,7 +248,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                  json.dumps({k: result.get(k) for k in
                              ("multipliers", "legend", "glyphs", "job_review",
                               "applied_rules", "timings", "pipe_trace",
-                              "description_scope", "description_build")},
+                              "description_scope", "description_build",
+                              "description_grades")},
                             default=str),
                  job_id))
     con.commit()

@@ -51,6 +51,8 @@ import parse_notes as pn           # noqa: E402
 import pipe_graph                  # noqa: E402
 import isa_table                   # noqa: E402
 import describe as desc            # noqa: E402
+import describe_candidates as dcand  # noqa: E402
+import describe_llm                # noqa: E402
 
 CFG = projectconfig.load()
 
@@ -126,6 +128,10 @@ class Row:
     # sentence will ever be written for it.  See `_description_skip`.
     description_needed: bool = True
     description_note: str = ""
+    # How much of the Description is evidenced, and what the reviewer must do
+    # about it.  See GRADES.
+    description_grade: str = ""
+    remark: str = ""
     needs_review: str = ""         # engine uncertainty, empty when fine
     annotation: str = ""           # reviewer markup on the drawing, page-level
     rect: tuple = ()
@@ -384,6 +390,15 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     with clock.stage("pipe_graph"):
         trace_stats = _trace_rows(rows, per_page, pipe_style.values, clock)
 
+    # Description: choose a middle where the drawing offers candidates, grade
+    # every row, and say in the Remark what the reviewer has to do about it.
+    say(total - 1, total, "assembling descriptions")
+    with clock.stage("description"):
+        selector = describe_llm.build(CFG)
+        examples = _client_examples(reference, tb_rows, pattern)
+        desc_stats = _finish_descriptions(rows, per_page, isa, pattern,
+                                          selector, examples)
+
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
     # returned alongside the rows so the review count on screen is the whole
@@ -459,6 +474,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                          "token_recall": 62.8},
             },
         },
+        "description_grades": desc_stats,
         "description_scope": {
             "needed": sum(1 for r in rows if r.description_needed),
             "skipped": sum(1 for r in rows if not r.description_needed),
@@ -700,6 +716,90 @@ def _signal_groups(rows) -> list:
     return groups
 
 
+def description_question(result: dict, token_stats: dict = None) -> str:
+    """What the client has to tell us before Description can be finished.
+
+    Four questions, each with the number of rows its answer would fill, so the
+    client can see what their reply is worth rather than being asked in the
+    abstract.  The counts come from the run and from the token decomposition of
+    their own finished list; nothing here is estimated.
+    """
+    rows = result["rows"]
+    grades = collections.Counter(r["description_grade"] for r in rows)
+    needs = sum(grades[g] for g in (GRADE_PARTIAL, GRADE_LOW, GRADE_NONE))
+    tok = token_stats or {}
+    L = ["# Description 작성 규칙 확인 요청", ""]
+    L.append(f"도면에서 확인되는 조각(단위·계통·변수)만으로 Description 을 세웠고, "
+             f"**{needs}행**이 사람 손을 기다리고 있습니다. 아래 네 가지를 알려주시면 "
+             f"그만큼이 규칙으로 채워집니다.")
+    L.append("")
+    L.append("| 등급 | 뜻 | 행 |")
+    L.append("|---|---|---:|")
+    for g, label, why in (
+            (GRADE_CONFIRMED, "확정", "도면이 이름을 대는 것으로 채워짐"),
+            (GRADE_LOW, "AI 제안", "후보에서 골랐으나 근거가 약함"),
+            (GRADE_PARTIAL, "부분", "중간 서술 미확인"),
+            (GRADE_NONE, "없음", "근거 없음"),
+            (GRADE_SKIP, "생략", "타사 공급")):
+        L.append(f"| {label} | {why} | {grades[g]} |")
+    L.append("")
+    L.append("## 1. 기기 명명 규칙 — 중간 서술")
+    L.append("")
+    L.append(f"발주처 문장의 중간 서술(예: `GENERATOR HYDROGEN GAS COOLER CCW RETURN`)은 "
+             f"평균 5~6낱말이고 기기를 지목합니다. 도면에서 이 낱말들이 나오는 곳을 "
+             f"전수 조사한 결과, 중간 서술의 **49.7%는 도면 제목과 한 낱말도 겹치지 "
+             f"않고**, 절반은 심볼에서 240pt 이상 떨어져 있습니다.")
+    L.append("")
+    L.append("**요청**: COOLER / BOILER / GENERATOR 계열 기기의 명명 규칙 — 도면의 "
+             "어떤 표기(장비 태그? 배관 라인 번호? 커넥터 문구?)에서 그 이름을 "
+             "가져오는지 한 계통만 예시로 보여주시면 나머지는 규칙으로 확장합니다.")
+    L.append(f"")
+    L.append(f"**영향**: 중간 서술이 비어 있는 **{grades[GRADE_PARTIAL] + grades[GRADE_NONE]}행**")
+    L.append("")
+    L.append("## 2. 위치 관계어 — DISCHARGE / SUCTION / INLET / OUTLET")
+    L.append("")
+    L.append("`DISCHARGE` 57건, `SUCTION` 40건, `OUTLET` 35건, `INLET` 29건이 발주처 "
+             "문장에 있으나 **해당 도면 어디에도 인쇄돼 있지 않습니다**. 펌프의 어느 "
+             "쪽인지는 배관 방향으로 판정해야 하는데, 이 도면들의 배관 추적률이 13% 라 "
+             "규칙으로는 닿지 않습니다.")
+    L.append("")
+    L.append("**요청**: 펌프·쿨러 기준 흡입/토출 판정을 도면에서 어떻게 읽는지 "
+             "(화살표? 기기 좌우? 라인 번호 규칙?)")
+    L.append("")
+    L.append(f"**영향**: 이 낱말이 들어가는 문장 **{tok.get('position_words', 161)}건**")
+    L.append("")
+    L.append("## 3. UNIT 접두어와 유닛 번호")
+    L.append("")
+    L.append("`UNIT` 이라는 낱말은 **어느 도면에도 인쇄되지 않습니다** (발주처 문장 "
+             "373건에 등장). 접두어 자체는 문형으로 처리했습니다. 다만 뒤의 번호가 "
+             "문제입니다 — 발주처는 한 도면 안에서 `#10` · `#11` · `#12` 를 섞어 쓰는데, "
+             "타이틀블록의 unit code 는 도면당 하나(예: 10)입니다.")
+    L.append("")
+    L.append("**요청**: `UNIT #11` 의 11 은 도면 안의 `HRSG#11` 같은 지역 표기에서 "
+             "가져오는 것이 맞는지, 아니면 다른 규칙인지")
+    L.append("")
+    L.append(f"**영향**: 유닛 번호가 시트 값과 다른 행 — 발주처 리스트 기준 "
+             f"{tok.get('unit_mismatch', 204)}행")
+    L.append("")
+    L.append("## 4. A / B / C 순번")
+    L.append("")
+    L.append("문장 끝의 `A` 58건, `B` 51건, `C` 8건, 숫자 24건이 도면에 없습니다. "
+             "같은 계통에 같은 계기가 여러 개일 때 붙는 순번으로 보입니다.")
+    L.append("")
+    L.append("**요청**: 순번 부여 기준 — 도면 좌표 순서(좌→우, 상→하)인지, 기기 "
+             "번호를 따르는지, 발주처가 별도로 정하는지")
+    L.append("")
+    L.append(f"**영향**: 접미가 붙는 문장 **{tok.get('suffix_rows', 141)}건**")
+    L.append("")
+    L.append("## 지금 상태")
+    L.append("")
+    L.append("답을 받기 전까지 도구는 도면에서 확인되는 조각만 씁니다. 확인되지 않은 "
+             "칸은 비워 두고 Remark 에 사유를 적으며, 화면의 `검토필요` 탭에서 "
+             "`Description 입력 필요` 그룹으로 묶어 보여줍니다. 후보 텍스트를 클릭해 "
+             "넣고, 같은 도면·같은 Type 에 일괄 적용할 수 있습니다.")
+    return "\n".join(L) + "\n"
+
+
 def ls_bundle_question(result: dict) -> str:
     """The client-facing question about multi-signal bubbles, as markdown.
 
@@ -832,6 +932,36 @@ def _excluded_marks(pc, meta, dets) -> list:
 # because what a 240 pt circle actually contains is drawing numbers, DN sizes, grid
 # references and ASME codes.  So the middle is not written, the row says so, and
 # the reviewer completes it.  Nothing here invents a word.
+# The grades, and what each one asks of the reviewer.  A grade is decided by
+# counting which pieces of the sentence have evidence - never by a score.
+#
+#   CONFIRMED     all four pieces sourced, and the middle came from something the
+#                 drawing *names*: an off-page connector or an equipment box.  That
+#                 is what the client's middle segment is
+#   PARTIAL       the three rule pieces are there and the middle is not.  The line
+#                 is kept; the Remark says why the middle is missing
+#   LOW           a middle was chosen, but from a line label rather than a named
+#                 thing - a size or a neighbouring tag can look like a name
+#   NONE          nothing can be written: no variable in the ISA table, or the
+#                 answer failed the gate.  Description stays blank
+#   SKIP          other-party supply; no Description is wanted at all
+#   USER_ENTERED  a person typed it.  Set by the edit path, never by the engine
+GRADE_CONFIRMED = "CONFIRMED"
+GRADE_PARTIAL = "PARTIAL"
+GRADE_LOW = "LOW"
+GRADE_NONE = "NONE"
+GRADE_SKIP = "SKIP"
+GRADE_USER = "USER_ENTERED"
+
+REMARK = {
+    GRADE_CONFIRMED: "",
+    GRADE_PARTIAL: "중간 서술 미확인 — 직접 입력",
+    GRADE_LOW: "AI 제안 — 확인 필요",
+    GRADE_NONE: "근거 없음 — 직접 입력",
+    GRADE_SKIP: "타사 공급 — Description 생략",
+    GRADE_USER: "",
+}
+
 DESCRIPTION_PARTIAL = (
     "Description 부분 생성 — 단위·계통·변수만 도면에서 확인됨 (중간 서술과 접미는 "
     "도면에 없음). 발주처 문장 기준 토큰 정밀도 57.3% / 재현율 37.6%, 완전 일치 "
@@ -853,6 +983,150 @@ def _describe_row(meta, tag: str, isa, pat) -> tuple:
                     "description_missing": d["reason"]}, DESCRIPTION_NONE
     return d["text"], {"description_sources": d["sources"],
                        "description_missing": d["reason"]}, DESCRIPTION_PARTIAL
+
+
+def _client_examples(reference, tb_rows, pat) -> dict:
+    """`{system core: {drawing_no: [finished lines]}}` to show the client's order.
+
+    Examples come from `config description.examples`, or from a finished list when
+    one is supplied (verification mode), and from nowhere else.  They are grouped
+    by the system name in the drawing title so a row is shown lines from its own
+    kind of system - and `_examples_for` then withholds the row's *own* drawing,
+    because measuring a selector against lines it was shown would measure nothing.
+    """
+    out = collections.defaultdict(lambda: collections.defaultdict(list))
+    for item in ((CFG.data.get("description") or {}).get("examples") or []):
+        out[str(item.get("system") or "")][""].append(str(item.get("text") or ""))
+    if reference is not None and Path(reference).exists():
+        excel, _t, _s = da.load_excel(Path(reference))
+        core_of = {}
+        for meta in tb_rows.values():
+            if meta["page_kind"] != "PID":
+                continue
+            words, _how = desc.system_words(meta["drawing_title"], pat)
+            core_of[meta["drawing_no"]] = " ".join(words)
+        for dn, rs in excel.items():
+            core = core_of.get(dn)
+            if core is None:
+                continue
+            for r in rs:
+                if r.get("description"):
+                    out[core][dn].append(str(r["description"]))
+    return {k: dict(v) for k, v in out.items()}
+
+
+def _examples_for(examples: dict, core: str, drawing_no: str, limit: int = 10) -> list:
+    """Up to `limit` lines from the same kind of system but a different drawing."""
+    out = []
+    for dn, lines in (examples.get(core) or {}).items():
+        if dn == drawing_no:
+            continue
+        out += lines
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
+    """Choose a middle for each row, grade every row, write the Remark.
+
+    The selector is offered a row only when the rules found candidates for it, and
+    its answer is re-checked here before it reaches the column - the two halves of
+    the same contract, kept together so neither can be skipped.  Rows the selector
+    is not offered (no candidates, or no selector configured) are graded exactly as
+    the rules alone grade them, which is why turning the selector off changes
+    grades but never breaks the column.
+    """
+    stats = collections.Counter()
+    grades = collections.Counter()
+    units_by_page = {}
+    for pno, info in per_page.items():
+        marks = {"".join(ch for ch in t if ch.isdigit())
+                 for _r, t in info["page_cache"].words if "#" in t}
+        code = str((info.get("unit_code") or "")).strip()
+        units_by_page[pno] = {m for m in marks if m} | ({code} if code else set())
+
+    for r in rows:
+        if not r.description_needed:
+            r.description_grade, r.remark = GRADE_SKIP, REMARK[GRADE_SKIP]
+            grades[GRADE_SKIP] += 1
+            continue
+        ev = r.evidence
+        cands = ev.get("candidates") or []
+        parts_ok = bool(r.description) and len(ev.get("description_sources") or []) >= 3
+        middle, kind, why = "", "", ""
+        if not parts_ok:
+            why = ev.get("description_missing") or ""
+        elif not cands:
+            why = "후보 0개"
+            stats["no_candidates"] += 1
+        else:
+            payload = describe_llm.prompt_for(
+                {"type": r.type, "variable": isa.words_for(ev.get("anchor") or r.type),
+                 "system": desc.system_words(r.system, pat)[0],
+                 "unit_code": (per_page.get(r.page_no) or {}).get("unit_code", "")},
+                cands,
+                _examples_for(examples, " ".join(desc.system_words(r.system, pat)[0]),
+                              r.drawing_no))
+            answer, reason = describe_llm.select(sel, payload)
+            if answer is None:
+                # The Remark is read by a reviewer deciding what to type, so it
+                # says what is missing in their terms; the configuration detail
+                # behind it goes to the evidence panel and the rules report.
+                why = ("후보 있음, AI 선택기 미사용" if not sel.enabled
+                       else reason)
+                ev["description_llm_reason"] = reason
+                stats["not_answered"] += 1
+            else:
+                middle, unit, bad = describe_llm.validate(
+                    answer, payload, units_by_page.get(r.page_no, set()))
+                if bad:
+                    stats["rejected"] += 1
+                    sel.stats["rejected"] += 1
+                    if len(sel.stats["rejections"]) < 40:
+                        sel.stats["rejections"].append(
+                            {"page_no": r.page_no, "type": r.type,
+                             "answer": answer.get("middle", ""), "reason": bad})
+                    middle, why = "", bad
+                else:
+                    stats["accepted"] += 1
+                    sel.stats["accepted"] += 1
+                    kind = next((c["kind"] for c in cands
+                                 if desc.tokens(c["text"]) == desc.tokens(middle)
+                                 or set(desc.tokens(middle)) <= set(desc.tokens(c["text"]))),
+                                dcand.PIPE_LABEL)
+                    ev["description_selected"] = {
+                        "middle": middle, "unit": unit, "kind": kind,
+                        "why": answer.get("why", ""), "used": answer.get("used", []),
+                    }
+                    # The template's own order: unit, system, middle, variable.
+                    parts = r.description.split()
+                    var = " ".join(isa.words_for(ev.get("anchor") or r.type))
+                    head = r.description[:-len(var)].strip() if var else r.description
+                    r.description = " ".join(x for x in (head, middle, var) if x)
+        r.description_grade, r.remark = _grade(
+            parts_ok, middle, kind, False, why)
+        if r.description_grade == GRADE_NONE:
+            r.description = ""
+        grades[r.description_grade] += 1
+    return {"grades": dict(grades), "selection": dict(stats),
+            "llm": {"enabled": sel.enabled, "reason": sel.reason,
+                    "model": sel.model, **sel.stats}}
+
+
+def _grade(parts_ok: bool, middle: str, middle_kind: str, skipped: bool,
+           reason: str) -> tuple:
+    """`(grade, remark)` from what has evidence.  No score, no threshold."""
+    if skipped:
+        return GRADE_SKIP, REMARK[GRADE_SKIP]
+    if not parts_ok:
+        return GRADE_NONE, REMARK[GRADE_NONE]
+    if not middle:
+        note = REMARK[GRADE_PARTIAL]
+        return GRADE_PARTIAL, f"{note} ({reason})" if reason else note
+    if middle_kind in dcand.NAMED_KINDS:
+        return GRADE_CONFIRMED, REMARK[GRADE_CONFIRMED]
+    return GRADE_LOW, f"{REMARK[GRADE_LOW]} — 근거: {middle_kind} “{middle}”"
 
 
 def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
@@ -970,6 +1244,7 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
     area = CFG.rect("regions.drawing_area")
     stats = collections.Counter()
     graphs = {}
+    traces = {}
     by_page = collections.defaultdict(list)
     skipped = 0
     for r in rows:
@@ -1000,6 +1275,12 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
             tr["attached_by"] = g.nodes[nid].get("attached_by", "")
             r.evidence["trace"] = tr
             stats[tr["status"]] += 1
+            traces[r.key] = tr
+        # The text the drawing prints along those runs: the Description
+        # candidates, collected by rule while the graph for this page is in hand.
+        cands = dcand.collect(info["page_cache"], g, area, traces)
+        for r in page_rows:
+            r.evidence["candidates"] = dcand.group_lines(cands.get(r.key) or [])[:12]
     walked = sum(stats.values())
     return {
         "per_status": dict(stats),

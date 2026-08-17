@@ -5,3 +5,4 @@ numpy
 fastapi
 uvicorn[standard]
 python-multipart
+anthropic>=0.122  # Description 중간 서술 선택기 전용 (config description.llm.enabled). 없으면 호출 없이 규칙 결과만 씁니다
