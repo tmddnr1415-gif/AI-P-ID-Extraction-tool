@@ -1,0 +1,7 @@
+pymupdf
+openpyxl
+PyYAML
+numpy
+fastapi
+uvicorn[standard]
+python-multipart

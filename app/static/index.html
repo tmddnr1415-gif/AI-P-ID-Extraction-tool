@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P&amp;ID 계기·밸브 리스트 추출</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div id="drop" class="drop">
+  <div class="drop-inner">
+    <h1>P&amp;ID PDF 를 여기에 놓으세요</h1>
+    <p>또는 <label class="link" for="file">파일 선택</label></p>
+    <input id="file" type="file" accept="application/pdf" hidden>
+    <p class="muted" id="drop-note">분석에는 도면 58장 기준 약 7분이 걸립니다.</p>
+    <div id="joblist" class="joblist"></div>
+  </div>
+</div>
+
+<div id="progress" class="progress hidden">
+  <div class="progress-inner">
+    <h2 id="prog-title">분석 중</h2>
+    <div class="bar"><div id="bar-fill"></div></div>
+    <p id="prog-msg" class="muted"></p>
+  </div>
+</div>
+
+<main id="main" class="hidden">
+  <header>
+    <span class="job" id="job-name"></span>
+    <nav id="tabs"></nav>
+    <span class="spacer"></span>
+    <span id="review-badge" class="badge"></span>
+    <label class="gate">
+      <input type="checkbox" id="gate-check">
+      전체 검토 완료
+    </label>
+    <button id="excel" disabled>Excel 출력</button>
+    <button id="reanalyse" class="ghost">재분석</button>
+  </header>
+
+  <div id="split">
+    <section id="left">
+      <div class="toolbar">
+        <select id="page-select"></select>
+        <button data-z="-1">&minus;</button>
+        <button data-z="0">맞춤</button>
+        <button data-z="1">+</button>
+        <span id="page-note" class="muted"></span>
+      </div>
+      <div id="stage"><div id="wrap"><img id="sheet" alt=""><svg id="ov"></svg></div></div>
+    </section>
+
+    <section id="right">
+      <div class="toolbar">
+        <input id="filter" type="search" placeholder="필터 — 도면번호 / Type / System">
+        <span id="count" class="muted"></span>
+      </div>
+      <div id="gridwrap">
+        <table id="grid">
+          <thead><tr id="head"></tr></thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+      <div id="evidence" class="evidence">
+        <p class="muted">행을 클릭하면 판정 근거가 여기에 표시됩니다.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1397,11 +1397,16 @@ TYPE_ACTUATOR = {str(k): str(v)
 # Reports
 # --------------------------------------------------------------------------
 
-def page_index() -> dict:
-    """drawing_no -> [page numbers], from the title block spike's CSV."""
+def page_index(titleblocks: Path = None) -> dict:
+    """drawing_no -> [page numbers], from the title block spike's CSV.
+
+    The path is a parameter only so the app can point at a per-job directory;
+    the default is the constant this held when it was a script, so every Phase 0
+    command line reproduces unchanged.
+    """
     import csv
     idx: dict[str, list] = collections.defaultdict(list)
-    with open(OUT / "titleblocks.csv", encoding="utf-8-sig") as fh:
+    with open(titleblocks or (OUT / "titleblocks.csv"), encoding="utf-8-sig") as fh:
         for row in csv.DictReader(fh):
             if row["analysis_scope"] != "True":
                 continue

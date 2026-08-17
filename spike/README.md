@@ -1,3 +1,9 @@
+> **이 문서는 Phase 0 검증 기록입니다.**
+> 여기 설명된 모듈은 Phase 1 진입과 함께 `spike/` → `app/engine/` 으로
+> **이동만** 했습니다(`git mv`, 검출 로직 변경 없음 — `git log --follow` 로 확인
+> 가능). 아래 본문의 `spike/xxx.py` 경로는 전부 `app/engine/xxx.py` 로 읽으시고,
+> 명령줄은 `python3 app/engine/detect_all.py ...` 처럼 그대로 쓰시면 됩니다.
+
 # Phase 0 검증 스파이크
 
 `docs/design.md` §15 Phase 0 / 부록 A 의 검증 스크립트.

@@ -106,11 +106,11 @@ def _retired_signature(strokes):
     return None
 
 
-def _drawing_sheets() -> set:
+def _drawing_sheets(titleblocks: Path = None) -> set:
     """Page numbers of actual P&ID sheets, from the title block spike."""
     import csv
     out = set()
-    with open(OUT / "titleblocks.csv", encoding="utf-8-sig") as fh:
+    with open(titleblocks or (OUT / "titleblocks.csv"), encoding="utf-8-sig") as fh:
         for row in csv.DictReader(fh):
             if row["page_kind"] == "PID" and row["analysis_scope"] == "True":
                 out.add(int(row["page_no"]))

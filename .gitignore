@@ -9,3 +9,6 @@ data/*.xlsx
 # `spike/detect_valves.py --viewer out/viewer`; only the overlay data and the
 # viewer itself are repo content.
 out/viewer/*.png
+
+# Runtime state: uploads, SQLite, generated workbooks.
+app/_data/
