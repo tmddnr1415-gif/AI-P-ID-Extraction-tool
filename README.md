@@ -107,12 +107,14 @@ python3 -m uvicorn app.main:app --reload --port 8000 2>&1 | tee -a logs/server.l
 ```
   page   6    4.31s   instruments 4.18s annotations 0.13s
   page   7    3.92s   instruments 3.80s annotations 0.12s
-analysis took 431.2s, by stage:
-  valves.bodies           148.30s   34.4%
-  titleblock_glyphs        85.19s   19.8%
-  instruments              79.40s   18.4%
-  ...
-  slowest pages: p16 12.4s, p14 11.0s, ...
+analysis took 425.8s, by stage:
+  instruments              190.72s   44.8%
+  titleblock_glyphs         79.61s   18.7%
+  valves.actuators          51.57s   12.1%
+  titleblocks               43.05s   10.1%
+  valves.bodies             40.64s    9.5%
+  legend_rules              14.83s    3.5%
+  slowest pages: p4 25.4s, p2 20.5s, p3 14.2s, p21 13.3s, p32 11.7s
 ```
 
 같은 내용이 `GET /jobs/{id}` 의 `engine.timings` 로도 남으니 나중에 비교할 수 있습니다.
@@ -150,9 +152,12 @@ PID_VERIFY_EXCEL=data/CZE_Field_Instrument.xlsx ./run.sh     # Windows: start.ba
       (`MATCHED` / `PDF_ONLY` 는 검증 모드에서만 나옵니다 — 위 "검증 모드" 참고)
 - [ ] **Pneumatic 탭** — 45행. 아무 행이나 눌러 근거 패널을 보면 액추에이터 근거가
       `legend p3 pneumatic dome, no letter drawn` 또는 `... cylinder ...` 이고,
-      `dome` 인 행의 태그는 TCV/FCV/PCV 계열, `cylinder` 인 행은 XV 계열입니다
-- [ ] **검토필요 배지** — `검토 필요 38행 + 문서 1건` (배지에 마우스를 올리면 문서 건 내용:
-      `SCOPE_OVERRIDE_UNRESOLVED`)
+      `dome` 인 행의 태그는 TCV/FCV/PCV 계열, `cylinder` 인 행은 XV 계열입니다.
+      내역: 돔 24 + 실린더 21, 산출물 CV 33 / XV 12
+- [ ] **검토필요 배지** — `검토 필요 40행 + 문서 1건`. 내역은 승수 예외 24 + 벤더마크
+      미정의 14 + **체크밸브에 액추에이터 2** 입니다. 마지막 2건은 이번에 추가된 공압
+      검출이 만든 것으로, 체크밸브(NRV)는 액추에이터를 달 수 없으므로 지우지 않고
+      검토로 올렸습니다 (배지에 마우스를 올리면 문서 건 내용: `SCOPE_OVERRIDE_UNRESOLVED`)
 - [ ] **적용 규칙 패널** — 상단 `적용 규칙` 클릭. 제외 스코프가 `glyph+text+box`,
       활성 제외규칙 3종, 비활성 `SCT_SUPPLIER_SCOPE`, 밸브 규칙 7종(`PNEUMATIC_SHELL`
       포함), 범례 유도에 `pneumatic: LEGEND`

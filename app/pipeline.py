@@ -521,6 +521,16 @@ def _scope_of(d) -> str:
 _VALVE_TAB = {dv.CLASS_BFV: TAB_BFV, dv.CLASS_MOV: TAB_MOV,
               dv.CLASS_CV: TAB_PNEUMATIC, dv.CLASS_XV: TAB_PNEUMATIC}
 
+# Bodies this tool treats as actuated valves.  Not a new rule: it is the set
+# `detect_valves.deliverable_class` already requires for a motor, plus the
+# butterfly it sends to its own deliverable.  A pneumatic actuator lands on
+# anything, because that branch never checked the body - and with the pneumatic
+# shapes now detected, two check valves came through as control valves: p7 has a
+# cylinder standing over a body tagged NRV, a non-return valve, which cannot be
+# actuated at all.  Those rows are flagged, not dropped: deciding they are wrong
+# is a detection change, and showing them to a reviewer is not.
+ACTUATED_BODIES = ("GATE", "GLOBE", "BALL", "BUTTERFLY")
+
 
 def _valve_rows(page_no, meta, res, mult) -> list:
     """Valve rows for one drawing (spike 4).
@@ -548,6 +558,12 @@ def _valve_rows(page_no, meta, res, mult) -> list:
         if unread:
             reasons.append("actuator enclosure found but its letter could not be "
                            "derived from this document")
+        if not unread and b.kind not in ACTUATED_BODIES:
+            reasons.append(
+                f"a {b.actuator} actuator was read onto a {b.kind} body, which "
+                f"this document's legend never draws with one"
+                + (f" (the tag bubble says {b.tag})" if b.tag else "")
+                + " - confirm before shipping")
         if undefined:
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         out.append(Row(
