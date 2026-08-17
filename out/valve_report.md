@@ -29,10 +29,9 @@ found from the symbol.
 
 | actuator | count |
 |---|---:|
-| NONE | 2774 |
+| NONE | 2790 |
 | MOTOR | 102 |
-| UNREAD | 14 |
-| HYDRAULIC | 6 |
+| HYDRAULIC | 4 |
 
 `NONE` means no actuator enclosure stands on the stem - a manual valve.
 `UNREAD` means an enclosure is there but the letter inside it could not
@@ -42,8 +41,8 @@ apart:
 
 | unread reason | count | meaning |
 |---|---:|---|
-| ACT_UNREAD_EMPTY | 12 | enclosure holds no strokes at all - most likely not an actuator |
-| ACT_UNREAD_STROKE | 2 | strokes are there but match no signature in `valves.stroked_letters` |
+| ACT_UNREAD_EMPTY | 0 | enclosure holds no strokes at all - most likely not an actuator |
+| ACT_UNREAD_STROKE | 0 | strokes are there but match no signature in `valves.stroked_letters` |
 
 ## 4. Against the valve deliverables
 
@@ -147,7 +146,7 @@ nothing in the actuated column and still be load-bearing.
 | MOV | CZH | 63 | 69 | 57 | 90.5% | 82.6% |
 | CV | *master needed* | - | 0 | - | - | - |
 | XV | *master needed* | - | 0 | - | - | - |
-| EXCLUDED | *master needed* | - | 2789 | - | - | - |
+| EXCLUDED | *master needed* | - | 2791 | - | - | - |
 
 ### BUTTERFLY roll call (all 21 rows)
 

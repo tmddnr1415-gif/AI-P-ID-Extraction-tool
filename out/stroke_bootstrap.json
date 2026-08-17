@@ -1,0 +1,824 @@
+{
+ "enclosures": 539,
+ "by_source": {
+  "UNREAD": 389,
+  "TEXT": 76,
+  "STROKE": 74
+ },
+ "by_letter": {
+  "STROKE:H": 4,
+  "STROKE:M": 69,
+  "STROKE:X": 1,
+  "TEXT:E/H": 1,
+  "TEXT:M": 75,
+  "UNREAD:?": 389
+ },
+ "pages_with_text": [
+  2,
+  3,
+  4,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  14,
+  16,
+  18,
+  20,
+  25,
+  30
+ ],
+ "pages_with_stroke": [
+  4,
+  26,
+  27,
+  28,
+  32,
+  33,
+  35,
+  46,
+  47,
+  49,
+  51
+ ],
+ "coexist_pages": [
+  {
+   "page_no": 4,
+   "text": [
+    "M"
+   ],
+   "stroke": [
+    "X"
+   ],
+   "n_text": 8,
+   "n_stroke": 1
+  }
+ ],
+ "bootstrap": {
+  "stroked_samples": 73,
+  "tagged_samples": 15,
+  "cross_representation": {
+   "trials": 73,
+   "correct": 69,
+   "distances": {
+    "H": {
+     "n": 4,
+     "min": 0.4633,
+     "median": 0.4633,
+     "max": 0.4633
+    },
+    "M": {
+     "n": 69,
+     "min": 0.4331,
+     "median": 0.4529,
+     "max": 0.4791
+    }
+   },
+   "confusion": {
+    "H->M": 4,
+    "M->M": 69
+   },
+   "library": {
+    "M": 65
+   }
+  },
+  "same_representation": {
+   "trials": 73,
+   "correct": 73,
+   "accuracy": 100.0
+  },
+  "cluster_sweep": [
+   {
+    "radius": 0.005,
+    "clusters": 13,
+    "pure": 13,
+    "auto_labelled": 8,
+    "needs_human": 5,
+    "rows": [
+     {
+      "size": 35,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 35
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 7,
+      "pages": [
+       33,
+       49
+      ],
+      "signature_says": {
+       "M": 7
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 6,
+      "pages": [
+       33,
+       47
+      ],
+      "signature_says": {
+       "M": 6
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 5,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "M": 5
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 5,
+      "pages": [
+       26,
+       28
+      ],
+      "signature_says": {
+       "M": 5
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 4,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "H": 4
+      },
+      "tags": {
+       "HV": 4
+      },
+      "auto_label": [
+       "H"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 3,
+      "pages": [
+       27,
+       28
+      ],
+      "signature_says": {
+       "M": 3
+      },
+      "tags": {
+       "MOV": 2
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 2,
+      "pages": [
+       33,
+       51
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       26
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       33
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       35
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       49
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   },
+   {
+    "radius": 0.01,
+    "clusters": 10,
+    "pure": 10,
+    "auto_labelled": 6,
+    "needs_human": 4,
+    "rows": [
+     {
+      "size": 50,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 50
+      },
+      "tags": {
+       "MOV": 3
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 5,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "M": 5
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 5,
+      "pages": [
+       26,
+       28
+      ],
+      "signature_says": {
+       "M": 5
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 4,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "H": 4
+      },
+      "tags": {
+       "HV": 4
+      },
+      "auto_label": [
+       "H"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 3,
+      "pages": [
+       27,
+       28
+      ],
+      "signature_says": {
+       "M": 3
+      },
+      "tags": {
+       "MOV": 2
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       26
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       33
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       35
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {},
+      "auto_label": [],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 1,
+      "pages": [
+       49
+      ],
+      "signature_says": {
+       "M": 1
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   },
+   {
+    "radius": 0.02,
+    "clusters": 4,
+    "pure": 4,
+    "auto_labelled": 4,
+    "needs_human": 0,
+    "rows": [
+     {
+      "size": 54,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 54
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 13,
+      "pages": [
+       26,
+       27,
+       28
+      ],
+      "signature_says": {
+       "M": 13
+      },
+      "tags": {
+       "MOV": 6
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 4,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "H": 4
+      },
+      "tags": {
+       "HV": 4
+      },
+      "auto_label": [
+       "H"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   },
+   {
+    "radius": 0.025,
+    "clusters": 4,
+    "pure": 4,
+    "auto_labelled": 4,
+    "needs_human": 0,
+    "rows": [
+     {
+      "size": 54,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 54
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 13,
+      "pages": [
+       26,
+       27,
+       28
+      ],
+      "signature_says": {
+       "M": 13
+      },
+      "tags": {
+       "MOV": 6
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 4,
+      "pages": [
+       26,
+       27
+      ],
+      "signature_says": {
+       "H": 4
+      },
+      "tags": {
+       "HV": 4
+      },
+      "auto_label": [
+       "H"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   },
+   {
+    "radius": 0.03,
+    "clusters": 3,
+    "pure": 2,
+    "auto_labelled": 3,
+    "needs_human": 0,
+    "rows": [
+     {
+      "size": 54,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 54
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 17,
+      "pages": [
+       26,
+       27,
+       28
+      ],
+      "signature_says": {
+       "H": 4,
+       "M": 13
+      },
+      "tags": {
+       "HV": 4,
+       "MOV": 6
+      },
+      "auto_label": [
+       "H",
+       "M"
+      ],
+      "pure": false,
+      "agrees": false
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   },
+   {
+    "radius": 0.05,
+    "clusters": 3,
+    "pure": 2,
+    "auto_labelled": 3,
+    "needs_human": 0,
+    "rows": [
+     {
+      "size": 54,
+      "pages": [
+       26,
+       27,
+       28,
+       32,
+       33,
+       35,
+       46,
+       47,
+       49,
+       51
+      ],
+      "signature_says": {
+       "M": 54
+      },
+      "tags": {
+       "MOV": 4
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     },
+     {
+      "size": 17,
+      "pages": [
+       26,
+       27,
+       28
+      ],
+      "signature_says": {
+       "H": 4,
+       "M": 13
+      },
+      "tags": {
+       "HV": 4,
+       "MOV": 6
+      },
+      "auto_label": [
+       "H",
+       "M"
+      ],
+      "pure": false,
+      "agrees": false
+     },
+     {
+      "size": 2,
+      "pages": [
+       46
+      ],
+      "signature_says": {
+       "M": 2
+      },
+      "tags": {
+       "MOV": 1
+      },
+      "auto_label": [
+       "M"
+      ],
+      "pure": true,
+      "agrees": true
+     }
+    ]
+   }
+  ]
+ }
+}

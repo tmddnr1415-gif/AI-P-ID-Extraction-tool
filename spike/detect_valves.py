@@ -685,7 +685,16 @@ def _actuator_shells(pc, lay: ValveLayout):
             continue
         if all(i[0] == "c" for i in items):
             shells.append(("circle", b))
-        elif all(i[0] in ("l", "qu", "re") for i in items) and len(items) >= 1:
+        elif all(i[0] in ("l", "qu", "re") for i in items) and (
+                any(i[0] in ("qu", "re") for i in items)
+                or sum(1 for i in items if i[0] == "l") >= 4):
+            # A box needs four sides.  Accepting a single `l` item let one
+            # diagonal stroke of the spring symbol pass as an enclosure whenever
+            # its bounding box came out square - that alone produced 12 of the
+            # 14 UNREAD actuators, all of them on check and three-way valves
+            # that cannot have an actuator at all.  Legend page 3 draws every
+            # box actuator closed: the hydraulic cylinder as six `l` items, and
+            # page 26 strokes its H box as a single `qu`.
             shells.append(("box", b))
     return shells
 

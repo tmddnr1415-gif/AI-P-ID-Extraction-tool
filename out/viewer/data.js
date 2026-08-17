@@ -944,22 +944,6 @@ window.PID_DATA = {
    "height": 2273,
    "layers": [
     {
-     "name": "act:HYDRAULIC",
-     "color": "#f58231",
-     "items": [
-      {
-       "rect": [
-        1741.7,
-        788.7,
-        1760.9,
-        794.4
-       ],
-       "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 12.2pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:BALL",
      "color": "#ffd8b1",
      "items": [
@@ -973,8 +957,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 12.2pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -19830,22 +19814,6 @@ window.PID_DATA = {
      ]
     },
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        581.4,
-        643.7,
-        591.3,
-        648.7
-       ],
-       "actuator": "UNREAD",
-       "evidence": "box with 2 strokes, no letter signature, 7.5pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:CHECK",
      "color": "#dcbeff",
      "items": [
@@ -19859,8 +19827,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "box with 2 strokes, no letter signature, 7.5pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "PSV",
        "tag_rect": [
         584.4,
@@ -22571,22 +22539,6 @@ window.PID_DATA = {
    "height": 2273,
    "layers": [
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        1554.1,
-        496.5,
-        1559.1,
-        506.4
-       ],
-       "actuator": "UNREAD",
-       "evidence": "box with 2 strokes, no letter signature, 2.5pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:CHECK",
      "color": "#dcbeff",
      "items": [
@@ -22834,8 +22786,8 @@ window.PID_DATA = {
        ],
        "axis": "V",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "box with 2 strokes, no letter signature, 2.5pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "PSV",
        "tag_rect": [
         1431.6,
@@ -25958,22 +25910,6 @@ window.PID_DATA = {
    "height": 2273,
    "layers": [
     {
-     "name": "act:HYDRAULIC",
-     "color": "#f58231",
-     "items": [
-      {
-       "rect": [
-        984.5,
-        315.2,
-        994.4,
-        320.2
-       ],
-       "actuator": "HYDRAULIC",
-       "evidence": "stroked 'H' in box, 7.5pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:BALL",
      "color": "#ffd8b1",
      "items": [
@@ -26568,8 +26504,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "HYDRAULIC",
-       "actuator_evidence": "stroked 'H' in box, 7.5pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -30733,52 +30669,6 @@ window.PID_DATA = {
      ]
     },
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        1144.7,
-        707.4,
-        1158.8,
-        714.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      },
-      {
-       "rect": [
-        1422.3,
-        707.4,
-        1436.5,
-        714.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      },
-      {
-       "rect": [
-        867.1,
-        707.4,
-        881.2,
-        714.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      },
-      {
-       "rect": [
-        589.4,
-        707.4,
-        603.7,
-        714.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:BALL",
      "color": "#ffd8b1",
      "items": [
@@ -31169,8 +31059,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -31207,8 +31097,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -31283,8 +31173,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -31321,8 +31211,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -32873,52 +32763,6 @@ window.PID_DATA = {
      ]
     },
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        751.3,
-        649.9,
-        765.5,
-        657.0
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.7pt along the stem"
-      },
-      {
-       "rect": [
-        473.7,
-        649.9,
-        487.9,
-        657.0
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.7pt along the stem"
-      },
-      {
-       "rect": [
-        1306.5,
-        649.9,
-        1320.7,
-        657.0
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.7pt along the stem"
-      },
-      {
-       "rect": [
-        1028.9,
-        649.9,
-        1043.0,
-        657.0
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.7pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:BUTTERFLY",
      "color": "#42d4f4",
      "items": [
@@ -33165,8 +33009,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -33203,8 +33047,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -33260,8 +33104,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -33298,8 +33142,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.7pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -34525,32 +34369,6 @@ window.PID_DATA = {
      ]
     },
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        538.6,
-        774.5,
-        552.7,
-        781.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      },
-      {
-       "rect": [
-        816.1,
-        774.5,
-        830.3,
-        781.5
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 10.6pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:BUTTERFLY",
      "color": "#42d4f4",
      "items": [
@@ -34693,8 +34511,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -34731,8 +34549,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "OPEN",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 10.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -74111,32 +73929,6 @@ window.PID_DATA = {
    "height": 2273,
    "layers": [
     {
-     "name": "act:UNREAD",
-     "color": "#bfef45",
-     "items": [
-      {
-       "rect": [
-        325.4,
-        692.4,
-        335.5,
-        698.6
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 4.6pt along the stem"
-      },
-      {
-       "rect": [
-        960.4,
-        683.2,
-        966.6,
-        693.3
-       ],
-       "actuator": "UNREAD",
-       "evidence": "empty box, no strokes inside, 70.2pt along the stem"
-      }
-     ]
-    },
-    {
      "name": "body:CHECK",
      "color": "#dcbeff",
      "items": [
@@ -74150,8 +73942,8 @@ window.PID_DATA = {
        ],
        "axis": "H",
        "state": "CLOSED",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 4.6pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
@@ -74340,8 +74132,8 @@ window.PID_DATA = {
        ],
        "axis": "V",
        "state": "CLOSED",
-       "actuator": "UNREAD",
-       "actuator_evidence": "empty box, no strokes inside, 70.2pt along the stem",
+       "actuator": "NONE",
+       "actuator_evidence": "",
        "tag": "",
        "tag_rect": [],
        "evidence": {
