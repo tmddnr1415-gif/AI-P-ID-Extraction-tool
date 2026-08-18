@@ -1056,7 +1056,9 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
         [info["page_cache"] for _p, info in sorted(per_page.items())], area)
     stats["line_pitch_pt"] = pitch
     for pno, info in sorted(per_page.items()):
-        found = dequip.find_labels(info["page_cache"], vocab, area, pitch)
+        found = dequip.find_labels(
+            info["page_cache"], vocab, area, pitch,
+            (CFG.data.get("description") or {}).get("equipment_modifiers"))
         found = dequip.group(found)
         out[pno] = found
         stats["instances"] += len(found)
@@ -1189,6 +1191,31 @@ def _local_unit(cands, marks_on_page, sheet_code: str, skip=()) -> tuple:
     return sheet_code, ""
 
 
+def _user_input_note(type_, middle: str, noun: str, system: str) -> str:
+    """Why a row still needs a person, where the drawing is known not to say.
+
+    These are not "we did not manage": each one was measured and the drawing does
+    not carry the answer.  The reasons and the counts behind them live in
+    `config description.user_input_reasons`, and a row only gets one when it is in
+    the class that was measured - a PDIT on a pump for the strainer, a PI on a
+    closed-cooling-water sheet for supply against return.
+    """
+    for rule in ((CFG.data.get("description") or {}).get("user_input_reasons") or ()):
+        types = [str(t).upper() for t in (rule.get("types") or ())]
+        if types and str(type_).upper() not in types:
+            continue
+        want_noun = str(rule.get("noun") or "").upper()
+        if want_noun and want_noun != str(noun).upper():
+            continue
+        want_system = str(rule.get("system") or "").upper()
+        if want_system and want_system != str(system).upper():
+            continue
+        if rule.get("needs_subject") and not middle:
+            continue
+        return str(rule.get("reason") or "")
+    return ""
+
+
 def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                          use_line_gate: bool = True) -> dict:
     """Write each row's Description from its best candidate, and grade every row.
@@ -1290,6 +1317,14 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                 }
         r.description_grade, r.remark = _grade(
             parts_ok, built["middle"], middle_kind, False, why)
+        note = _user_input_note(r.type, built["middle"],
+                                (subject.get("equipment") or {}).get("noun", "")
+                                if subject else "",
+                                " ".join(desc.system_words(r.system, pat)[0]))
+        if note:
+            ev["user_input_reason"] = note
+            stats["user_input"] += 1
+            r.remark = f"{r.remark} — {note}" if r.remark else note
         if r.description_grade == GRADE_NONE:
             r.description = ""
         grades[r.description_grade] += 1

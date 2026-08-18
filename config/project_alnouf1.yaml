@@ -230,7 +230,22 @@ description:
   # COOLER at all, while the drawings print one 50 times.
   equipment_words: [PUMP, COOLER, TANK, HEATER, HEX, EXCHANGER, SKID, CEP,
                     CONDENSER, STRAINER, FILTER, WATERBOX, DRUM, COMPRESSOR,
-                    VESSEL, SEPARATOR, SCRUBBER, ABSORBER]
+                    VESSEL, SEPARATOR, SCRUBBER, ABSORBER,
+                    # Added on two conditions together: the client names the thing
+                    # with this word, and the drawings print the word.  The legend's
+                    # EQUIPMENT table has none of them - a valve has its own legend
+                    # table and a header is piping - but the client's list treats
+                    # them as the thing an instrument is on.
+                    VALVE,      # 38 client subjects end in it, 27 more contain it;
+                                # printed 87 times across 21 sheets
+                    HEADER,     # 22 client subjects end in it, 10 more contain it;
+                                # printed 38 times across 18 sheets
+                    BOX]        # 4 client subjects end in it (`FLASH BOX`), 7 more
+                                # contain it; printed 23 times across 10 sheets
+                    # Left out on purpose: HOTWELL ends 6 client subjects but the
+                    # drawings print the word once in the whole document, and LINE
+                    # ends 4 but is printed 35 times as part of line numbers, where
+                    # it would name pipe runs rather than equipment.
 
   # Which word each side of a piece of equipment takes.  Counted in the client's
   # 557 lines, with no counter-example either way:
@@ -303,6 +318,52 @@ description:
   # is attached there.  PROJECT.
   position_by_system:
     CCW TI: RETURN                # 51 of 54 rows
+
+  # A noun that only names equipment in company.  The word in front decides, and
+  # the list is the client's own: it writes `BYPASS VALVE` 54 times, `LETDOWN` 3,
+  # `CONTROL` 3, `MODULATING` 2, `SHOTDOWN` 2, `BREAKER` 1 - and never the
+  # `BRETHER` (42 labels), `OFF` (59), `VENT` (29) or `SHUTOFF` (34) the drawings
+  # put in front of the same word.  For HEADER it writes DISCHARGE 16, STEAM 6,
+  # SEAL 4, RING 3, OUTLET 2, SUCTION 1, and never the drawings' `DRAIN HEADER`
+  # (39 labels), which is piping.  Without this the new words pull in annotations
+  # that outrank the real equipment by distance - measured: `WASTE OIL TANK LEVEL`
+  # came out as `FUEL OIL SUPPLY DRAIN HEADER LEVEL`.  PROJECT.
+  equipment_modifiers:
+    VALVE:  [BYPASS, LETDOWN, CONTROL, MODULATING, SHOTDOWN, SHUTDOWN, BREAKER]
+    HEADER: [DISCHARGE, STEAM, SEAL, RING, OUTLET, SUCTION]
+    BOX:    [WATER, FLASH]
+
+  # Rows the drawing is *measured* not to answer, so the reviewer is told why
+  # rather than being left to wonder.  Each was counted before it was written here.
+  user_input_reasons:
+    - types: [PDIT]
+      noun: PUMP
+      needs_subject: true
+      reason: >-
+        중간 심볼(SUCTION STRAINER)은 도면이 낱말로 인쇄하지 않습니다 — 발주처 13행이
+        모두 PDIT 이고, 그 13행이 있는 도면 4장 중 낱말이 인쇄된 것은 1장뿐이며 그
+        낱말도 계기·기기 사이가 아닌 시트 반대편 드레인 주석입니다 (회수 0/13).
+        직접 입력이 필요합니다
+    - types: [PI]
+      system: CCW
+      reason: >-
+        CCW 의 SUPPLY / RETURN 은 도면 기하로 구분되지 않습니다 — 발주처 PI 100행이
+        SUPPLY 49 / RETURN 51 이고 방향 칸 안에서도 반반입니다 (BELOW 31/30,
+        ABOVE 15/13). 직접 입력이 필요합니다
+
+  # What the client writes against a kind of equipment, counted on its 557 lines.
+  # An empty value means it writes none at all - and that has to be said, because
+  # the left/right rule above would otherwise give a tank an INLET it never has:
+  #   TANK    none 59/59 (100%)
+  #   VALVE   DOWNSTREAM 30/65, none 24, BODY 8, SUPPLY 2, OUTLET 1
+  #   HEADER  DISCHARGE  16/32, none 13, OUTLET 2, SUCTION 1
+  # PUMP and COOLER are left to the left/right rule, which already gets them right:
+  # PUMP DISCHARGE 70 / SUCTION 45 and COOLER RETURN 86 / SUPPLY 41 are two-sided,
+  # and which side an instrument is on is exactly what geometry can see.  PROJECT.
+  position_by_noun:
+    TANK: ""
+    VALVE: DOWNSTREAM
+    HEADER: DISCHARGE
 
   # Which types write the line's `TO ...` / `FROM ...` phrase.  Counted on the
   # client's 557 lines: LS writes one on 22 of 22 (100%), and every other type on

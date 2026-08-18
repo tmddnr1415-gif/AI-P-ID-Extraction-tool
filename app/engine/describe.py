@@ -93,6 +93,9 @@ class Pattern:
     system_abbreviations: dict = field(default_factory=dict)
     # `{(system abbreviation, type): word}` - a word a whole system uses.
     position_by_system: dict = field(default_factory=dict)
+    # `{noun: word}` - what the client writes against a kind of equipment, with an
+    # empty string for a kind it never gives a position word at all.
+    position_by_noun: dict = field(default_factory=dict)
     source: str = "CONFIG"
     note: str = ""
     evidence: dict = field(default_factory=dict)
@@ -124,6 +127,8 @@ def derive_pattern(cfg=None) -> Pattern:
         abb, _s, type_ = str(key).upper().rpartition(" ")
         if abb:
             by_system[(abb, type_)] = str(word).upper()
+    by_noun = {str(k).upper(): str(v or "").upper()
+               for k, v in (d.get("position_by_noun") or {}).items()}
     stop = frozenset(str(w).upper() for w in
                      ((cfg.data.get("matching") or {}).get("stopwords") or ()))
     return Pattern(
@@ -142,6 +147,7 @@ def derive_pattern(cfg=None) -> Pattern:
         position_by_side=sides,
         system_abbreviations=abbrev,
         position_by_system=by_system,
+        position_by_noun=by_noun,
         evidence={"template": d.get("template") or "", "measured_on": d.get("measured_on") or ""})
 
 
@@ -216,6 +222,11 @@ def _abbreviate(words, pat: Pattern) -> list:
     return [short] if short else list(words)
 
 
+# Which way a system phrase already said by the subject is removed.  Both were
+# measured; see the note above `assemble`.
+DEDUP_WHOLE = True
+
+
 def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
              subject: dict = None, suffix: str = "", type_: str = "",
              between: str = "") -> dict:
@@ -263,11 +274,21 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         # 49 SUPPLY against 51 RETURN in every direction, so nothing is attached
         # there (config description.position_by_system, with the counts).
         system = " ".join(system_words(title, pat)[0])
-        word = (pat.position_by_system.get((system, str(type_).upper()), "")
-                or eq.get("position_word")
-                or pat.position_by_side.get(
-                    (str(type_).upper(),
-                     str(subject.get("direction") or "").upper()), ""))
+        # A kind of equipment can settle the word on its own, and can settle that
+        # there is none: the client writes a position word against 0 of its 59 TANK
+        # lines, while a VALVE takes DOWNSTREAM on 30 of 65 and a HEADER DISCHARGE
+        # on 16 of 32.  Left and right only name a side; they do not know that a
+        # tank has no inlet worth writing down
+        # (config description.position_by_noun, with the counts).
+        noun = str(eq.get("noun") or "").upper()
+        if noun in pat.position_by_noun:
+            word = pat.position_by_noun[noun]
+        else:
+            word = (pat.position_by_system.get((system, str(type_).upper()), "")
+                    or eq.get("position_word")
+                    or pat.position_by_side.get(
+                        (str(type_).upper(),
+                         str(subject.get("direction") or "").upper()), ""))
         if word and (wants_position
                      or (system, str(type_).upper()) in pat.position_by_system):
             bits.append(word)
@@ -303,7 +324,12 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         # client always writes (454 of its 557 lines carry the mark).  The label's
         # own copy of the mark goes instead, so the line reads it once.
         head = [p for p in head
-                if p.startswith(pat.prefix) or not (set(tokens(p)) & seen)]
+                if p.startswith(pat.prefix) or not (set(tokens(p)) & seen)] \
+            if DEDUP_WHOLE else [
+                p if p.startswith(pat.prefix)
+                else " ".join(w for w in tokens(p) if w not in seen)
+                for p in head]
+        head = [p for p in head if p]
         marks = {w for p in head if p.startswith(pat.prefix) for w in tokens(p)
                  if w.startswith(pat.unit_mark)}
         if marks:

@@ -361,7 +361,29 @@ def find_components(pc, words: dict, drawing_area) -> list:
     return out
 
 
-def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list:
+def _modifier_ok(text: str, head: str, modifiers: dict) -> bool:
+    """Whether the word in front of a noun is one the client uses with it.
+
+    Some nouns name equipment only in company: the client writes `BYPASS VALVE`
+    54 times, `LETDOWN` 3, `CONTROL` 3, `MODULATING` 2 - and never `BRETHER`,
+    `OFF`, `VENT` or `SHUTOFF`, which is what the drawings put in front of VALVE
+    42, 59, 29 and 34 times.  The same for HEADER: `DISCHARGE` 16, `STEAM` 6,
+    `SEAL` 4, `RING` 3 against the drawings' `DRAIN HEADER` 39.  Without this the
+    word pulls in pipe annotations that outrank the real equipment by distance -
+    measured: `WASTE OIL TANK LEVEL` became `FUEL OIL SUPPLY DRAIN HEADER LEVEL`.
+    """
+    allowed = modifiers.get(head)
+    if not allowed:
+        return True
+    words = re.findall(r"[A-Z]+", text.upper())
+    for i, w in enumerate(words):
+        if w == head and i and words[i - 1] in allowed:
+            return True
+    return False
+
+
+def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
+                modifiers: dict = None) -> list:
     """Equipment named on one drawing, as whole label blocks.
 
     The drawings write an equipment name over several baselines - p33 prints
@@ -371,6 +393,8 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list
     line instead produced `FORWARDING PUMP` where the client writes `AUX FUEL OIL
     FORWARDING PUMP`, which is the difference between a name and a fragment.
     """
+    modifiers = {str(k).upper(): {str(w).upper() for w in v}
+                 for k, v in (modifiers or {}).items()}
     lines = collections.defaultdict(list)
     for r, t in pc.words:
         if not (drawing_area[0] <= r.x0 and r.x1 <= drawing_area[2]
@@ -404,6 +428,8 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list
             continue
         head = _head_noun(text, vocab)
         if not head:
+            continue
+        if not _modifier_ok(text, head, modifiers):
             continue
         name, note = clean_label(text)
         rect = (round(b["x0"], 1), round(b["y0"], 1),

@@ -153,7 +153,8 @@ def desc_words(row, run) -> set:
     # the rows behind it: its short form for a title phrase (`CCW`), the word a
     # whole system uses (`CCW TI` -> RETURN), and the word for a side that geometry
     # cannot name (`PIT ABOVE` -> DISCHARGE).
-    for table in ("system_abbreviations", "position_by_system", "position_by_side"):
+    for table in ("system_abbreviations", "position_by_system", "position_by_side",
+                  "position_by_noun"):
         out |= {str(w).upper() for w in
                 (pipeline.CFG.data.get("description") or {}).get(table, {}).values()}
     return out

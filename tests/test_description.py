@@ -236,9 +236,11 @@ def test_the_position_word_is_attached_only_for_the_types_that_use_one():
     import isa_table
     isa = isa_table.IsaTable(first={"P": ("PRESSURE",), "L": ("LEVEL",)}, page_no=3)
     pat = describe_pattern()
-    subject = {"text": "CLEAN DRAIN TANK", "kind": dcand.EQUIPMENT, "distance": 40.0,
+    # a cooler, whose two sides the client does name - a tank's it never does, and
+    # that is the other rule (`position_by_noun`), tested below
+    subject = {"text": "CLEAN DRAIN COOLER", "kind": dcand.EQUIPMENT, "distance": 40.0,
                "direction": dcand.LEFT,
-               "equipment": {"noun": "TANK", "ordinal": "",
+               "equipment": {"noun": "COOLER", "ordinal": "",
                              "position_word": "INLET", "evidence": {}}}
     on = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "PIT", isa,
                        pat, subject=subject, type_="PIT")
@@ -430,3 +432,54 @@ def test_a_system_can_carry_its_own_position_word():
     # its PI is an even split, 49 SUPPLY against 51 RETURN, so nothing is attached
     pi = desc.assemble("10", title, "PI", isa, pat, subject=subject, type_="PI")
     assert "RETURN" not in pi["text"] and "SUPPLY" not in pi["text"]
+
+
+def test_a_tank_takes_no_position_word_whatever_side_it_is_on():
+    """The client writes one against 0 of its 59 TANK lines, and DOWNSTREAM on a
+    valve where left/right would have said OUTLET."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"P": ("PRESSURE",)}, page_no=3)
+    pat = describe_pattern()
+    tank = {"text": "CLEAN DRAIN TANK", "kind": dcand.EQUIPMENT, "distance": 40.0,
+            "direction": dcand.LEFT,
+            "equipment": {"noun": "TANK", "ordinal": "",
+                          "position_word": "INLET", "evidence": {}}}
+    out = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "PIT", isa,
+                        pat, subject=tank, type_="PIT")
+    assert "INLET" not in out["text"]
+    valve = {"text": "HP BYPASS VALVE", "kind": dcand.EQUIPMENT, "distance": 40.0,
+             "direction": dcand.RIGHT,
+             "equipment": {"noun": "VALVE", "ordinal": "",
+                           "position_word": "OUTLET", "evidence": {}}}
+    out = desc.assemble("12", "P&ID FOR BYPASS STEAM SYSTEM GROUP 10", "PIT", isa,
+                        pat, subject=valve, type_="PIT")
+    assert "DOWNSTREAM" in out["text"] and "OUTLET" not in out["text"]
+
+
+def test_a_noun_that_only_names_equipment_in_company():
+    """The client writes BYPASS VALVE 54 times and BRETHER VALVE never; the
+    drawings print BRETHER VALVE 42 times."""
+    import types
+    class R:
+        def __init__(s, x0, y0, x1, y1): s.x0, s.y0, s.x1, s.y1 = x0, y0, x1, y1
+    # two labels on their own baselines, as they sit on different parts of a sheet
+    words = [(R(100, 100, 150, 112), "BYPASS"), (R(152, 100, 195, 112), "VALVE"),
+             (R(400, 400, 455, 412), "BRETHER"), (R(457, 400, 500, 412), "VALVE")]
+    pc = types.SimpleNamespace(words=words, page_no=11, segments=lambda: [])
+    area = (0.0, 0.0, 2384.0, 1684.0)
+    both = dequip.find_labels(pc, {"VALVE": "CLIENT"}, area, 15.3)
+    assert sorted(e.label for e in both) == ["BRETHER VALVE", "BYPASS VALVE"]
+    gated = dequip.find_labels(pc, {"VALVE": "CLIENT"}, area, 15.3,
+                               {"VALVE": ["BYPASS", "LETDOWN"]})
+    assert [e.label for e in gated] == ["BYPASS VALVE"]
+
+
+def test_a_row_the_drawing_cannot_answer_says_so():
+    """A PDIT on a pump and a PI on a CCW sheet each carry the measured reason."""
+    from app import pipeline
+    strainer = pipeline._user_input_note("PDIT", "CLEAN DRAIN PUMP A", "PUMP",
+                                         "CLEAN DRAIN")
+    assert "STRAINER" in strainer and "직접 입력" in strainer
+    ccw = pipeline._user_input_note("PI", "", "COOLER", "CCW")
+    assert "SUPPLY" in ccw and "RETURN" in ccw
+    assert pipeline._user_input_note("LIT", "SOME TANK", "TANK", "CLEAN DRAIN") == ""
