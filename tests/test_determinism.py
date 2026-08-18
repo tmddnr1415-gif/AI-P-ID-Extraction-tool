@@ -80,32 +80,41 @@ def test_pneumatic_valves_are_found(first_run):
 
 
 @pytest.mark.slow
-def test_description_carries_only_sourced_parts(first_run):
-    """Every Description written is three sourced parts and says it is partial.
+def test_description_words_all_come_from_the_drawing(first_run):
+    """No word in a Description is invented.
 
-    The column has to be delivered, and a rules-only line reproduces 1 of the
-    client's 536 lines in full (token precision 57.3%), so what it must never do is
-    read as finished: no row carries a Description without the flag and the
-    per-part sources, and the middle of the sentence - which is not on the sheet -
-    is never invented.
+    Every word must come from a source the run can point at: the sheet's unit
+    code, its title, legend p3's ISA table, or the candidate text the row was
+    actually built from - which is the drawing's own equipment label or its
+    `TO` / `FROM` line.  The grade has to match what was used, so a row cannot
+    claim CONFIRMED without an equipment subject behind it.
     """
     written = [r for r in first_run["rows"] if r["description"]]
     assert written, "no Description was written at all"
     isa = first_run["description_build"]["isa_table"]
-    assert isa["source"] == "LEGEND" and isa["first"], (
-        "the variable words must come from the legend's own ISA matrix")
+    assert isa["source"] == "LEGEND" and isa["first"]
     for r in written:
-        assert pipeline.DESCRIPTION_PARTIAL in r["needs_review"], (
-            f"row {r['key']} has a Description but is not flagged as partial")
-        srcs = r["evidence"]["description_sources"]
-        assert len(srcs) == 3, f"row {r['key']} has {len(srcs)} sourced parts"
-        assert any("ISA" in s for s in srcs)
-        assert r["evidence"]["description_missing"]
-        # nothing invented: every word is in the unit code, the title or the table
         allowed = set(desc_words(r, first_run))
-        assert set(r["description"].split()) <= allowed, (
-            f"row {r['key']} Description has words from no measured source: "
-            f"{set(r['description'].split()) - allowed}")
+        for c in (r["evidence"].get("candidates") or []):
+            allowed |= set(str(c["text"]).upper().split())
+            eq = c.get("equipment") or {}
+            if eq.get("ordinal"):
+                allowed.add(eq["ordinal"])
+            if eq.get("position_word"):
+                allowed.add(eq["position_word"])
+        if r["evidence"].get("instrument_ordinal"):
+            allowed.add(r["evidence"]["instrument_ordinal"])
+        extra = set(r["description"].upper().split()) - allowed
+        assert not extra, f"row {r['key']} has words from no source: {extra}"
+        assert r["evidence"]["description_sources"], "no sources recorded"
+        sel = r["evidence"].get("description_selected") or {}
+        if r["description_grade"] == pipeline.GRADE_CONFIRMED:
+            assert sel.get("kind") == "EQUIPMENT", (
+                "CONFIRMED must rest on equipment the drawing names")
+            assert r["evidence"]["description_axis"] == "EQUIPMENT"
+        elif r["description_grade"] == pipeline.GRADE_LOW:
+            assert sel.get("kind") == "CONNECTOR"
+            assert r["remark"], "a LOW row must say what it rests on"
     # an item we do not describe gets no draft either
     for r in first_run["rows"]:
         if r["evidence"].get("description_needed") is False:
@@ -113,7 +122,7 @@ def test_description_carries_only_sourced_parts(first_run):
 
 
 def desc_words(row, run) -> set:
-    """Every word the row's three sources could legitimately contribute."""
+    """Every word the row's rule-side sources could legitimately contribute."""
     page = next(p for p in run["pages"] if p["page_no"] == row["page_no"])
     tb_row = next(t for t in run["titleblocks"] if t["page_no"] == row["page_no"])
     isa = run["description_build"]["isa_table"]
@@ -122,6 +131,20 @@ def desc_words(row, run) -> set:
     for words in isa["first"].values():
         out |= set(words)
     return out
+
+
+@pytest.mark.slow
+def test_the_equipment_axis_wins_when_both_are_available(first_run):
+    """The reviewer's rule: equipment beats the line whenever both are there."""
+    both = 0
+    for r in first_run["rows"]:
+        kinds = {c["kind"] for c in (r["evidence"].get("candidates") or [])}
+        if {"EQUIPMENT", "CONNECTOR"} <= kinds and r["description"]:
+            both += 1
+            sel = r["evidence"].get("description_selected") or {}
+            assert sel.get("kind") == "EQUIPMENT", (
+                f"row {r['key']} had equipment and a line and chose the line")
+    assert both, "no row had both axes available"
 
 
 @pytest.mark.slow
