@@ -515,3 +515,24 @@ def test_the_name_is_what_comes_before_the_for():
     assert name == "FEEDWATER PUMP"
     name, _note = dequip.clean_label("SLOP OIL TANK FOR FORWARDING PUMP AREA (5m3)")
     assert name == "SLOP OIL TANK"
+
+
+def test_the_standard_dictionary_carries_no_direction_of_its_own():
+    """A confirmed set is applied only where the project names a member."""
+    import projectconfig
+    std = projectconfig.load_standard()
+    assert std.get("confirmed"), "the standard file should carry confirmed sets"
+    for name, forms in std["confirmed"].items():
+        assert isinstance(forms, list) and len(forms) >= 2, name
+    # nothing is applied without a choice, whatever the standard file says
+    assert dequip.derive_aliases(std["confirmed"], {}) == {}
+
+
+def test_a_row_the_drawing_cannot_answer_is_tagged_for_grouping():
+    """The review screen groups on a generated tag, not on the sentence."""
+    from app import pipeline
+    note = pipeline._user_input_note("PDIT", "CLEAN DRAIN PUMP A", "PUMP",
+                                     "CLEAN DRAIN")
+    assert note.startswith("[중간 심볼] ")
+    note = pipeline._user_input_note("PI", "", "COOLER", "CCW")
+    assert note.startswith("[CCW 방향] ")

@@ -1238,7 +1238,11 @@ def _user_input_note(type_, middle: str, noun: str, system: str) -> str:
             continue
         if rule.get("needs_subject") and not middle:
             continue
-        return str(rule.get("reason") or "")
+        # The tag is what the review screen groups on.  It is generated, not parsed
+        # back out of the sentence, so the grouping cannot drift from the reason.
+        tag = str(rule.get("tag") or "").strip()
+        reason = " ".join(str(rule.get("reason") or "").split())
+        return f"[{tag}] {reason}" if tag else reason
     return ""
 
 

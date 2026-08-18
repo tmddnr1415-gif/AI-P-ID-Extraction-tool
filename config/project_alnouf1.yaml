@@ -336,7 +336,33 @@ description:
   # The drawings print `FEEDWATER PUMP` 6 times and never the long form, so without
   # this the two corpora have no word in common for the same pump.  PROJECT.
   equipment_alias_choice:
-    boiler_feedwater_pump: BOILER FEED WATER PUMP
+    # Only a set the client actually uses as the *name* of something gets a
+    # choice; a set it only ever uses as a modifier (`HP STEAM`, `GT FUEL OIL`)
+    # is left out, because the head-position rule would never fire on it anyway.
+    # Counted over the client's own subjects, head position / modifier position:
+    boiler_feedwater_pump: BOILER FEED WATER PUMP   # 11 head vs BFP 5 head; --without: F1 73.1 -> 73.9
+    condensate_extraction_pump: CEP                 # CEP 3 head, long form 0; fired 0 times here
+    # `heat_exchanger` is left without a choice on purpose.  The set itself is
+    # confirmed standard and stays in the standard file, but choosing HEX for this
+    # client costs F1 74.3 -> 73.9: the client's 11 HEX heads are all on p31, whose
+    # drawing prints neither word, while the labels that do end in HEAT EXCHANGER
+    # are on sheets where the client writes it out (6 heads).  So the pair holds -
+    # this client just does not want it rewritten.
+    # Left without a choice - never a name in this client's list:
+    #   HRSG 0/29  GT 0/57  ST 0/34  HRH 0/32  CRH 0/11  TCA 0/12  LP 0/34
+    #   FGH 0/9  BD 0/13  ACW 0/4  BOP 0/0  MOV 0/0  PSV 0/0  EDG 0/0
+    #   HP 11 head and IP 11, but both are `... DISCHARGE HEADER HP`, a pressure
+    #   class rather than a piece of equipment, so no drawing label should be
+    #   rewritten to them either.
+
+  # This project's own abbreviations, kept out of the standard file: `CD` is this
+  # plant's system name for the clean drain system and not trade vocabulary, and
+  # `RO` doubles as an instrument tag, where rewriting it would be wrong.
+  # Counted on the client's list: CD 5 / CLEAN DRAIN 17, RO 4 / RESTRICTION
+  # ORIFICE 19 - both modifiers, never a name, so neither takes a choice either.
+  project_abbreviations:
+    clean_drain: [CD, CLEAN DRAIN]
+    restriction_orifice: [RO, RESTRICTION ORIFICE]
 
   # A noun that only names equipment in company.  The word in front decides, and
   # the list is the client's own: it writes `BYPASS VALVE` 54 times, `LETDOWN` 3,
@@ -358,6 +384,7 @@ description:
     - types: [PDIT]
       noun: PUMP
       needs_subject: true
+      tag: 중간 심볼
       reason: >-
         중간 심볼(SUCTION STRAINER)은 도면이 낱말로 인쇄하지 않습니다 — 발주처 13행이
         모두 PDIT 이고, 그 13행이 있는 도면 4장 중 낱말이 인쇄된 것은 1장뿐이며 그
@@ -365,6 +392,7 @@ description:
         직접 입력이 필요합니다
     - types: [PI]
       system: CCW
+      tag: CCW 방향
       reason: >-
         CCW 의 SUPPLY / RETURN 은 도면 기하로 구분되지 않습니다 — 발주처 PI 100행이
         SUPPLY 49 / RETURN 51 이고 방향 칸 안에서도 반반입니다 (BELOW 31/30,

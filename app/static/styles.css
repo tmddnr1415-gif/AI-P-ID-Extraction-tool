@@ -265,3 +265,9 @@ button.cand:hover { border-color: #0a84ff; }
   flex: 1; background: transparent; color: inherit; font: inherit;
   border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px;
 }
+
+/* The review bar's second group row: the rows a person has to answer because the
+   drawing does not, kept visually apart from the grade buttons. */
+.grp-sep { display: inline-block; width: 1px; height: 14px; margin: 0 10px -2px;
+           background: var(--line, #333); }
+button.grp.rsn { border-style: dashed; }

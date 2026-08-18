@@ -50,7 +50,7 @@ const S = {
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
-  picking: false, feedback: 0, showTrace: true, gradeFilter: "",
+  picking: false, feedback: 0, showTrace: true, gradeFilter: "", reasonFilter: "",
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
@@ -351,6 +351,9 @@ function visibleRows() {
   if (S.tab === "REVIEW" && S.gradeFilter) {
     rows = rows.filter(r => r.values.description_grade === S.gradeFilter);
   }
+  if (S.tab === "REVIEW" && S.reasonFilter) {
+    rows = rows.filter(r => reasonTag(r) === S.reasonFilter);
+  }
   if (S.filter) {
     const q = S.filter.toLowerCase();
     rows = rows.filter(r => JSON.stringify(r.values).toLowerCase().includes(q)
@@ -368,6 +371,14 @@ function visibleRows() {
  * hand, split by the reason the tool could not write one.  Clicking a group
  * filters the grid to it, because "which of these 700 rows is mine to do" is the
  * question a reviewer opens this tab with. */
+/* The engine puts a short tag in front of a Remark it wrote for a reason it
+ * measured - `[중간 심볼] ...`, `[CCW 방향] ...`.  The tag is generated rather than
+ * read back out of the sentence, so grouping on it cannot drift from the text. */
+function reasonTag(row) {
+  const m = /^\[([^\]]+)\]/.exec(String(row.values.remark || ""));
+  return m ? m[1] : "";
+}
+
 function renderDescriptionGroups() {
   const bar = $("#desc-groups");
   if (S.tab !== "REVIEW") { bar.classList.add("hidden"); return; }
@@ -384,9 +395,31 @@ function renderDescriptionGroups() {
         <button class="grp${S.gradeFilter === k ? " on" : ""}" data-g="${k}"
                 title="${why}">${label} <span class="n">${counts[k] || 0}</span></button>`).join("")
     + `<button class="grp${S.gradeFilter ? "" : " on"}" data-g="">전체</button>`;
+  // A second row for the rows the drawing is measured not to answer: those are
+  // not "the tool fell short", they are a known question for a person, and a
+  // reviewer wants them together rather than scattered through the grades.
+  const reasons = {};
+  for (const r of S.rows) {
+    const t = reasonTag(r);
+    if (t) reasons[t] = (reasons[t] || 0) + 1;
+  }
+  const keys = Object.keys(reasons).sort();
+  if (keys.length) {
+    const n = keys.reduce((a, k) => a + reasons[k], 0);
+    bar.innerHTML += `<span class="grp-sep"></span><b>도면에서 회수 불가</b>`
+      + ` <span class="n">${n}행</span>`
+      + keys.map(k => `
+        <button class="grp rsn${S.reasonFilter === k ? " on" : ""}" data-r="${k}"
+                title="직접 입력이 필요한 사유">${k} <span class="n">${reasons[k]}</span></button>`).join("")
+      + `<button class="grp rsn${S.reasonFilter ? "" : " on"}" data-r="">전체</button>`;
+  }
   bar.querySelectorAll("button.grp").forEach(b => {
     b.onclick = () => {
-      S.gradeFilter = b.dataset.g === S.gradeFilter ? "" : (b.dataset.g || "");
+      if (b.dataset.r !== undefined) {
+        S.reasonFilter = b.dataset.r === S.reasonFilter ? "" : (b.dataset.r || "");
+      } else {
+        S.gradeFilter = b.dataset.g === S.gradeFilter ? "" : (b.dataset.g || "");
+      }
       renderGrid();
     };
   });
