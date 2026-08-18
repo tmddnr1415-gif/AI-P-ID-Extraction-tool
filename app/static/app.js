@@ -800,9 +800,13 @@ function bindCandidatePicker(row) {
       const varWords = (e.description_sources || [])
         .filter(x => x.startsWith("VARIABLE"))
         .map(x => x.split("→").pop().trim())[0] || "";
+      // Insert where the client puts the subject: before the variable word,
+      // which is not always last - an instrument ordinal can follow it
+      // (`... LEVEL A`), so split on the variable rather than on the end.
       const base = (row.values.description || "").trim();
-      input.value = varWords && base.endsWith(varWords)
-        ? `${base.slice(0, -varWords.length).trim()} ${c.text} ${varWords}`
+      const at = varWords ? base.lastIndexOf(varWords) : -1;
+      input.value = at >= 0
+        ? `${base.slice(0, at).trim()} ${c.text} ${base.slice(at).trim()}`
         : `${base} ${c.text}`.trim();
       input.focus();
     };

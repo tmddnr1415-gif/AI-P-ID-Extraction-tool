@@ -135,3 +135,118 @@ def test_the_selector_only_ever_sees_candidate_text():
     # words, since that is the half a reader will look for
     assert "Use only words that appear in the candidate list" in describe_llm.SYSTEM
     assert describe_llm.INSUFFICIENT in describe_llm.SYSTEM
+
+
+# --------------------------------------------------------------------------
+# The two-axis subject rule: equipment first, the line second
+# --------------------------------------------------------------------------
+
+import describe_equipment as dequip  # noqa: E402
+import describe_candidates as dcand  # noqa: E402
+
+
+def test_a_route_line_is_not_equipment():
+    """`TO HRSG#12 BD TANK` says where the pipe goes, not what sits here.
+
+    Taken as equipment it collected an ordinal and a position word - `TO CLEAN
+    DRAIN TANK C INLET` - a phrase the client never writes, so route lines are left
+    to the line axis.
+    """
+    assert dequip.ROUTE_RE.match("TO HRSG#12 BD TANK")
+    assert dequip.ROUTE_RE.match("FROM METERING SYSTEM")
+    assert not dequip.ROUTE_RE.match("CLEAN DRAIN TANK")
+
+
+def test_the_count_note_and_the_plural_come_off_the_name():
+    """Both rules are the client's own: `(3X50%)` in 0 of 557 lines, PUMPS in 0."""
+    name, note = dequip.clean_label("GT FUEL OIL FORWARDING PUMPS (3X50%)")
+    assert name == "GT FUEL OIL FORWARDING PUMP"
+    assert note == "(3X50%)"
+    name, note = dequip.clean_label("CLEAN DRAIN TANK")
+    assert name == "CLEAN DRAIN TANK" and note == ""
+
+
+def test_position_words_follow_the_equipment_kind():
+    """PUMP -> SUCTION / DISCHARGE (115 of 115), anything else -> INLET / OUTLET."""
+    import projectconfig
+    pos = dcand.derive_position_words(projectconfig.load())
+    pump = dequip.Equipment(kind="PUMP", rect=(100, 100, 140, 140), page_no=1)
+    hx = dequip.Equipment(kind="EXCHANGER", rect=(100, 100, 140, 140), page_no=1)
+    assert dcand.position_word(pump, dcand.LEFT, pos) == "SUCTION"
+    assert dcand.position_word(pump, dcand.RIGHT, pos) == "DISCHARGE"
+    assert dcand.position_word(hx, dcand.LEFT, pos) == "INLET"
+    assert dcand.position_word(hx, dcand.RIGHT, pos) == "OUTLET"
+    # a side the client never writes a word for gets none
+    assert dcand.position_word(pump, dcand.ABOVE, pos) == ""
+
+
+def test_side_is_read_off_the_two_centres():
+    equip = (100.0, 100.0, 140.0, 140.0)
+    assert dcand.side_of((10, 110, 30, 130), equip) == dcand.LEFT
+    assert dcand.side_of((200, 110, 220, 130), equip) == dcand.RIGHT
+    assert dcand.side_of((110, 10, 130, 30), equip) == dcand.ABOVE
+
+
+def test_equipment_of_one_name_is_numbered_along_its_own_axis():
+    """A column of pumps is A to C top-down; a row of them left to right."""
+    col = [dequip.Equipment(kind="PUMP", label="CLEAN DRAIN PUMP", page_no=1,
+                            rect=(100, y, 200, y + 20)) for y in (300, 100, 200)]
+    dequip.group(col)
+    assert [e.ordinal for e in sorted(col, key=lambda e: e.rect[1])] == ["A", "B", "C"]
+    assert col[0].evidence["ordinal_axis"] == "top-to-bottom"
+    row = [dequip.Equipment(kind="PUMP", label="CCW PUMP", page_no=1,
+                            rect=(x, 100, x + 20, 120)) for x in (300, 100, 200)]
+    dequip.group(row)
+    assert [e.ordinal for e in sorted(row, key=lambda e: e.rect[0])] == ["A", "B", "C"]
+    assert row[0].evidence["ordinal_axis"] == "left-to-right"
+
+
+def test_a_single_piece_of_equipment_gets_no_ordinal():
+    one = [dequip.Equipment(kind="TANK", label="CLEAN DRAIN TANK", page_no=1,
+                            rect=(10, 10, 50, 50))]
+    dequip.group(one)
+    assert one[0].ordinal == ""
+
+
+def test_the_sentence_puts_each_part_where_the_client_puts_it():
+    """`UNIT #n | system | equipment ordinal position | variable | suffix`.
+
+    Counted in the client's 557 lines: the equipment ordinal follows its noun (172
+    lines), the variable comes last (357 of 538 end on it) and an instrument
+    ordinal follows the variable (117 lines).
+    """
+    import isa_table
+    isa = isa_table.IsaTable(first={"P": ("PRESSURE",)}, page_no=3)
+    pat = describe_pattern()
+    subject = {"text": "CLEAN DRAIN PUMP", "kind": dcand.EQUIPMENT, "distance": 40.0,
+               "direction": dcand.LEFT,
+               "equipment": {"noun": "PUMP", "ordinal": "A",
+                             "position_word": "SUCTION", "evidence": {}}}
+    out = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "PIT", isa,
+                        pat, subject=subject, suffix="B")
+    assert out["text"] == "UNIT #10 CLEAN DRAIN CLEAN DRAIN PUMP A SUCTION PRESSURE B"
+    assert out["middle"] == "CLEAN DRAIN PUMP A SUCTION"
+    assert out["complete"] is True
+
+
+def describe_pattern():
+    import projectconfig
+    return desc.derive_pattern(projectconfig.load())
+
+
+def test_no_subject_leaves_the_rules_only_line_unchanged():
+    import isa_table
+    isa = isa_table.IsaTable(first={"P": ("PRESSURE",)}, page_no=3)
+    out = desc.assemble("10", "P&ID FOR HP STEAM SYSTEM GROUP 10", "PIT", isa,
+                        describe_pattern())
+    assert out["text"] == "UNIT #10 HP STEAM PRESSURE"
+    assert out["middle"] == "" and out["complete"] is False
+
+
+def test_the_equipment_layer_does_not_use_the_pipe_graph():
+    """This round's rule: both axes are geometric, neither walks the graph."""
+    for name in ("describe_equipment.py", "describe_candidates.py"):
+        src = (ROOT / "app" / "engine" / name).read_text(encoding="utf-8")
+        for line in src.splitlines():
+            if line.strip().startswith(("import ", "from ")):
+                assert "pipe_graph" not in line, f"{name}: {line.strip()}"

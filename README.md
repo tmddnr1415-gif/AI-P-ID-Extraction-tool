@@ -293,6 +293,99 @@ MATCH LINE / CONNECTOR 행이 없고, 정의된 인터페이스 심볼은 `SUPPL
 SUPPLIER NOTE 1 DN600 PI`), 그중 무엇이 기기명인지는 범례도 측정 가능한 관행도
 정하지 않습니다. 원문 그대로 두고 `label_is_raw` 로 표시합니다.
 
+## Description — 기기 축과 라인 축 (사용자 확정 규칙)
+
+실사용자가 판정 규칙을 확정했고, 그대로 구현했습니다.
+
+    계기 주변에 기기가 있는가?
+      있음 → 기기 기준.  기기 왼쪽 = INLET/SUCTION, 오른쪽 = OUTLET/DISCHARGE
+                          같은 이름 기기가 여러 대면 위→아래 A/B/C
+      없음 → 라인 기준.  FROM/TO 커넥터 텍스트
+    둘 다 있으면 기기가 이긴다.
+
+### 기기 검출 — 범례 형상은 쓸 수 없었습니다
+
+범례 p2 EQUIPMENT 표를 런타임에 읽어 **17개 기기 심볼**의 형상을 측정했습니다
+(라벨 열 x=292.9 는 표가 스스로 정렬한 위치, 행 구분은 표 자신의 행 간격).
+
+| 유도된 심볼 (17) |
+| --- |
+| HORIZONTAL CENTRIFUGAL PUMP · VERTICAL PUMP · RING SECTION CENTRIFUGAL PUMP · VARIABLE SPEED DRIVE · HYDRAULIC COUPLING · POSITIVE DISPLACEMENT PUMP · PLATE TYPE HEAT EXCHANGER · PRESSURE VESSELS (TANK, RECEIVERS, DRYERS, SEPARATORS) · RECIPROCATING AIR COMPRESSOR · ROTARY AIR COMPRESSOR · MIXER / AGITATOR · CHEMICAL STORAGE DRUM · PRESSURIZED GAS BOTTLE · FUME SCRUBBER · CO2 ABSORBER · DAMPENER · CALIBRATION CYLINDER |
+
+**그런데 그 형상으로는 도면에서 기기를 찾을 수 없습니다.** 범례는 원심펌프를
+40.5×38.5 로 그리고 p26 의 같은 펌프는 46.2×44.0 입니다. 20장에서 같은 경로 서명끼리
+크기비를 재 보니 ×0.42 · ×0.84 · ×1.61 · ×2.00 으로 흩어지고, 그 비율에서 맞은 것들은
+계기 버블과 밸브 원이었습니다 — **단일 축척이 없습니다.** 정확 일치로는 펌프 0개,
+대신 5.0×9.9 짜리 작은 경로가 161건 오검출됐습니다.
+
+그래서 **기기는 도면이 인쇄한 이름으로 찾습니다.** 어휘는 범례 equipment 표의 낱말
+47개(LEGEND) + 발주처 557행이 순번을 붙이는 명사 11개(CLIENT: PUMP 76 · COOLER 48 ·
+TANK 26 · HEATER 9 · HEX 9 · EXCHANGER 9 · SKID 8 · CEP 3 …). COOLER 는 범례에 없지만
+도면이 50번 인쇄하고 발주처가 134번 씁니다.
+
+| 기기 검출 | 값 |
+| --- | ---: |
+| 인스턴스 | **332** (이전 회차 박스 183) |
+| 기기가 있는 도면 | 47 / 52 |
+| 순번이 붙은 것 | 73 |
+| 대수 표기 `(3X50%)` 분리 | 3 |
+| 명사별 | PUMP 71 · COOLER 44 · TANK 23 · CEP 22 · CONDENSER 16 · SKID 14 · COMPRESSOR 13 · HEATER 10 · DRUM 9 |
+
+`TO …` / `FROM …` 로 시작하는 줄은 기기가 아니라 경로이므로 제외합니다 — 넣었더니
+`TO CLEAN DRAIN TANK C INLET` 처럼 목적지에 순번과 위치어가 붙었습니다.
+
+### 557행에서 유도한 규칙 (임의 규칙 없음)
+
+| 규칙 | 근거 (발주처 557행) |
+| --- | --- |
+| 펌프는 SUCTION / DISCHARGE | PUMP 앞뒤 115건 중 115건, 반례 0 |
+| 그 외 기기는 INLET / OUTLET | WATERBOX·EXCHANGER·SKID·HEATER·HEX·COOLER·CONDENSER 57건 중 57건 |
+| 기기 순번은 명사 **바로 뒤** | 중간 위치 172행 (`PUMP A SUCTION …`), 앞 낱말 PUMP 76 · COOLER 48 · TANK 26 |
+| 계기 순번은 **맨 끝** | 끝 위치 117행 (`… PRESSURE A`) |
+| 복수형은 단수로 | PUMPS 0 / PUMP 138, TANKS 0 / TANK 59, STRAINERS 0 |
+| `(3X50%)` 는 이름에서 분리 | 대수 표기가 등장하는 Description 0행 |
+
+### 대조 결과 — 536행 (규칙만 → 두 축)
+
+| | 규칙만 (지난 회차) | **두 축 (이번)** |
+| --- | ---: | ---: |
+| 완전일치 | 1 | **0** |
+| 부분일치 | 535 | 504 |
+| 토큰 정밀도 | 57.3% | **43.9%** |
+| 토큰 재현율 | 37.6% | **58.0%** |
+| **F1** | 45.4 | **50.0** |
+| 서로 다른 문장 | 85 | **650** |
+
+조각별 정확도:
+
+| 조각 | 맞음 / 대상 | |
+| --- | ---: | ---: |
+| 변수어 (ISA 문자표) | 500 / 506 | **98.8%** |
+| 기기명 | 277 / 366 | **75.7%** |
+| 순번 (전체) | 121 / 269 | 45.0% |
+| └ 끝 위치 (계기 순번) | 69 / 115 | 60.0% |
+| └ 중간 위치 (기기 순번) | 64 / 154 | 41.6% |
+| 위치어 (161건) | 50 / 158 | **31.6%** |
+| └ SUCTION | 21 / 37 | 56.8% |
+| └ INLET | 8 / 27 | 29.6% |
+| └ OUTLET | 7 / 31 | 22.6% |
+| └ DISCHARGE | 14 / 63 | 22.2% |
+
+정밀도가 57.3% → 43.9% 로 떨어진 것은 **낱말을 더 쓰기 때문**입니다. 발주처는 위치어를
+557행 중 158행(28%)에만 쓰는데, 확정된 규칙은 기기의 좌우에 있으면 항상 붙입니다.
+재현율(+20.4pp)과 문장 다양성(85 → 650)은 그 대가로 얻은 것입니다.
+
+기기 거리 한계는 실측 분포의 90퍼센타일 **749.2pt**(788개 측정)입니다. 60~1200pt 로
+훑어 본 결과 F1 은 500pt 부근에서 50.1 로 최고이고 그 뒤로 평평합니다 — 거리는
+지배 변수가 아닙니다.
+
+| 등급 | 행 |
+| --- | ---: |
+| CONFIRMED (기기 기준) | **590** |
+| LOW (라인 기준) | 131 |
+| NONE (ISA 문자표에 없는 태그 — RO 등) | 169 |
+| SKIP (타사 공급) | 2 |
+
 ## Description — 후보 수집과 선택기 (규칙이 모으고, 모델은 고르기만)
 
 규칙만으로는 문장을 완성할 수 없다는 것이 지난 회차에 수치로 확인됐습니다. 이번에는

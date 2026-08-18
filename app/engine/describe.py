@@ -107,6 +107,60 @@ def system_words(title: str, pat: Pattern) -> list:
     return rest, "TITLE_STOPWORDS"
 
 
+def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
+             subject: dict = None, suffix: str = "") -> dict:
+    """The client's sentence shape, with a subject in the middle when there is one.
+
+    Order is the one counted in the client's 557 lines:
+
+        UNIT #<n>  <system>  <subject> [<ordinal>] [<position word>]  <variable> [<suffix>]
+
+    - 81.3% of lines begin `UNIT #<n>`
+    - the equipment's ordinal follows its noun (172 lines: `PUMP A SUCTION ...`)
+    - the variable word comes last, and 357 of 538 lines end on it
+    - an instrument ordinal goes after the variable (117 lines: `... PRESSURE A`)
+
+    `subject` is a candidate from `describe_candidates`; without one this is the
+    rules-only line the previous round produced, unchanged.
+    """
+    base = describe(unit_code, title, tag, isa, pat)
+    var = " ".join(isa.words_for(tag)) if isa is not None else ""
+    parts = list(base["parts"])
+    sources = list(base["sources"])
+    middle = ""
+    if subject:
+        eq = subject.get("equipment") or {}
+        bits = [subject.get("text", "").strip()]
+        if eq.get("ordinal"):
+            bits.append(eq["ordinal"])
+        if eq.get("position_word"):
+            bits.append(eq["position_word"])
+        middle = " ".join(b for b in bits if b)
+        if eq:
+            sources.append(
+                f"SUBJECT: 도면 기기 라벨 “{subject.get('text','')}”"
+                + (f" (순번 {eq['ordinal']}, {eq.get('evidence',{}).get('ordinal_axis','')})"
+                   if eq.get("ordinal") else "")
+                + (f", 계기가 기기의 {subject.get('direction','')} → "
+                   f"{eq['position_word']}" if eq.get("position_word") else "")
+                + f", 거리 {subject.get('distance')}pt")
+        else:
+            sources.append(f"SUBJECT: 라인 표기 “{subject.get('text','')}” "
+                           f"({subject.get('kind')}, {subject.get('distance')}pt)")
+    # variable last, then the instrument's own ordinal
+    head = [p for p in parts if p != var]
+    line = " ".join(x for x in (" ".join(head), middle, var, suffix) if x)
+    return {
+        "text": " ".join(line.split()),
+        "parts": parts,
+        "middle": middle,
+        "suffix": suffix,
+        "sources": sources,
+        "complete": bool(middle),
+        "reason": "" if middle else base["reason"],
+    }
+
+
 def describe(unit_code: str, title: str, tag: str, isa, pat: Pattern) -> dict:
     """One row's Description, or an empty one with the reason it is empty.
 

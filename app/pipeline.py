@@ -52,6 +52,7 @@ import pipe_graph                  # noqa: E402
 import isa_table                   # noqa: E402
 import describe as desc            # noqa: E402
 import describe_candidates as dcand  # noqa: E402
+import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
 
 CFG = projectconfig.load()
@@ -296,6 +297,10 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # identification matrix - the Description column is written in them.
         isa = isa_table.derive(pages)
         pattern = desc.derive_pattern(CFG)
+        # The equipment table off legend p2, and the nouns that name equipment.
+        equip_symbols = dequip.derive_symbols(pages, CFG)
+        equip_vocab = dequip.derive_vocabulary(equip_symbols, CFG)
+        positions = dcand.derive_position_words(CFG)
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     say(3, total, "deriving unit multipliers from legend page 5")
@@ -390,6 +395,15 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     with clock.stage("pipe_graph"):
         trace_stats = _trace_rows(rows, per_page, pipe_style.values, clock)
 
+    # Equipment, and the two-axis candidates the reviewer's rule asks for:
+    # equipment first, the line second.  No pipe graph is involved on either axis.
+    say(total - 1, total, "finding equipment")
+    with clock.stage("equipment"):
+        equip_by_page, equip_stats = _equipment_pass(per_page, equip_symbols,
+                                                     equip_vocab, pattern)
+    with clock.stage("candidates"):
+        cand_stats = _candidate_pass(rows, per_page, equip_by_page, positions)
+
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
     say(total - 1, total, "assembling descriptions")
@@ -474,6 +488,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                          "token_recall": 62.8},
             },
         },
+        "equipment": equip_stats,
+        "candidates": cand_stats,
         "description_grades": desc_stats,
         "description_scope": {
             "needed": sum(1 for r in rows if r.description_needed),
@@ -1027,15 +1043,107 @@ def _examples_for(examples: dict, core: str, drawing_no: str, limit: int = 10) -
     return out[:limit]
 
 
-def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
-    """Choose a middle for each row, grade every row, write the Remark.
+def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
+    """Equipment named on every drawing, numbered within its own group."""
+    out, stats = {}, collections.Counter()
+    for pno, info in sorted(per_page.items()):
+        found = dequip.find_labels(info["page_cache"], vocab,
+                                   CFG.rect("regions.drawing_area"))
+        found = dequip.group(found)
+        out[pno] = found
+        stats["instances"] += len(found)
+        stats["pages_with_equipment"] += 1 if found else 0
+        for e in found:
+            stats[f"noun:{e.kind}"] += 1
+            if e.ordinal:
+                stats["numbered"] += 1
+            if e.count_note:
+                stats["with_count_note"] += 1
+    report = {
+        "legend_symbols": [{"name": s.name, "anchor": list(s.anchor),
+                            "kinds": [list(k) for k in s.kinds]} for s in symbols],
+        "vocabulary": vocab,
+        "instances": stats["instances"],
+        "numbered": stats["numbered"],
+        "with_count_note": stats["with_count_note"],
+        "pages_with_equipment": stats["pages_with_equipment"],
+        "by_noun": {k[5:]: v for k, v in stats.items() if k.startswith("noun:")},
+        # Why shapes are not used to find instances - measured, see
+        # describe_equipment's module note.
+        "shape_matching": "not used: legend symbol sizes do not recur on the "
+                          "sheets (pump 40.5x38.5 in the legend, 46.2x44.0 on p26; "
+                          "ratios across 20 pages scatter x0.42-x2.00)",
+    }
+    return out, report
 
-    The selector is offered a row only when the rules found candidates for it, and
-    its answer is re-checked here before it reaches the column - the two halves of
-    the same contract, kept together so neither can be skipped.  Rows the selector
-    is not offered (no candidates, or no selector configured) are graded exactly as
-    the rules alone grade them, which is why turning the selector off changes
-    grades but never breaks the column.
+
+def _candidate_pass(rows, per_page, equip_by_page, positions) -> dict:
+    """Two-axis candidates for every row, and the distance the cut was made at.
+
+    The equipment distance limit is measured, not chosen: every instrument's
+    distance to the nearest equipment on its own sheet is collected first, and the
+    limit is that distribution's 90th percentile.  Both the limit and the
+    distribution are reported.
+    """
+    area = CFG.rect("regions.drawing_area")
+    by_page = collections.defaultdict(list)
+    for r in rows:
+        if r.rect and r.description_needed:
+            by_page[r.page_no].append(r)
+
+    nearest = []
+    for pno, page_rows in by_page.items():
+        for e in equip_by_page.get(pno, ()):
+            pass
+        for r in page_rows:
+            cx, cy = (r.rect[0] + r.rect[2]) / 2, (r.rect[1] + r.rect[3]) / 2
+            ds = [max(abs((e.rect[0] + e.rect[2]) / 2 - cx),
+                      abs((e.rect[1] + e.rect[3]) / 2 - cy))
+                  for e in equip_by_page.get(pno, ())]
+            if ds:
+                nearest.append(min(ds))
+    limit = dcand.distance_limit(nearest)
+
+    stats = collections.Counter()
+    hist = collections.Counter()
+    for d in nearest:
+        hist[int(d // 100) * 100] += 1
+    for pno, page_rows in sorted(by_page.items()):
+        info = per_page[pno]
+        triples = [(r.key, tuple(r.rect), r.type) for r in page_rows]
+        cands = dcand.collect(info["page_cache"], triples,
+                              equip_by_page.get(pno, ()), area, positions, limit)
+        ordinals = dcand.instrument_ordinals(triples, cands)
+        for r in page_rows:
+            got = cands.get(r.key) or []
+            r.evidence["candidates"] = got
+            r.evidence["instrument_ordinal"] = ordinals.get(r.key, "")
+            kinds = {c["kind"] for c in got}
+            stats["rows"] += 1
+            stats["equipment_axis"] += 1 if dcand.EQUIPMENT in kinds else 0
+            stats["line_axis"] += 1 if (dcand.EQUIPMENT not in kinds
+                                        and dcand.CONNECTOR in kinds) else 0
+            stats["no_candidate"] += 1 if not (kinds & set(dcand.NAMED_KINDS)) else 0
+    return {
+        "rows": stats["rows"],
+        "equipment_axis": stats["equipment_axis"],
+        "line_axis": stats["line_axis"],
+        "no_candidate": stats["no_candidate"],
+        "distance_limit_pt": limit,
+        "distance_note": "instrument-to-nearest-equipment, 90th percentile of "
+                         f"{len(nearest)} measured distances",
+        "distance_histogram_100pt": dict(sorted(hist.items())),
+    }
+
+
+def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
+    """Write each row's Description from its best candidate, and grade every row.
+
+    The subject is chosen by the reviewer's rule, not by preference: equipment
+    when the drawing names equipment near the instrument, the line's `TO` / `FROM`
+    text when it does not.  The selector is offered only what is left over - rows
+    that have candidates but no equipment - and its answer is still re-validated
+    (`describe_llm.validate`) before it reaches the column.
     """
     stats = collections.Counter()
     grades = collections.Counter()
@@ -1053,59 +1161,40 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
             continue
         ev = r.evidence
         cands = ev.get("candidates") or []
-        parts_ok = bool(r.description) and len(ev.get("description_sources") or []) >= 3
-        middle, kind, why = "", "", ""
-        if not parts_ok:
-            why = ev.get("description_missing") or ""
-        elif not cands:
-            why = "후보 0개"
-            stats["no_candidates"] += 1
+        info = per_page.get(r.page_no) or {}
+        tag = ev.get("anchor") or r.type
+        parts_ok = len(ev.get("description_sources") or []) >= 3
+        subject = next((c for c in cands if c["kind"] == dcand.EQUIPMENT), None)
+        axis = "EQUIPMENT" if subject else ""
+        why, middle_kind = "", ""
+        if subject is None:
+            subject = next((c for c in cands if c["kind"] == dcand.CONNECTOR), None)
+            axis = "LINE" if subject else ""
+        if subject is None:
+            why = "후보 0개" if not cands else "이름을 대는 후보 없음"
+            stats["no_candidates" if not cands else "no_named_candidate"] += 1
         else:
-            payload = describe_llm.prompt_for(
-                {"type": r.type, "variable": isa.words_for(ev.get("anchor") or r.type),
-                 "system": desc.system_words(r.system, pat)[0],
-                 "unit_code": (per_page.get(r.page_no) or {}).get("unit_code", "")},
-                cands,
-                _examples_for(examples, " ".join(desc.system_words(r.system, pat)[0]),
-                              r.drawing_no))
-            answer, reason = describe_llm.select(sel, payload)
-            if answer is None:
-                # The Remark is read by a reviewer deciding what to type, so it
-                # says what is missing in their terms; the configuration detail
-                # behind it goes to the evidence panel and the rules report.
-                why = ("후보 있음, AI 선택기 미사용" if not sel.enabled
-                       else reason)
-                ev["description_llm_reason"] = reason
-                stats["not_answered"] += 1
-            else:
-                middle, unit, bad = describe_llm.validate(
-                    answer, payload, units_by_page.get(r.page_no, set()))
-                if bad:
-                    stats["rejected"] += 1
-                    sel.stats["rejected"] += 1
-                    if len(sel.stats["rejections"]) < 40:
-                        sel.stats["rejections"].append(
-                            {"page_no": r.page_no, "type": r.type,
-                             "answer": answer.get("middle", ""), "reason": bad})
-                    middle, why = "", bad
-                else:
-                    stats["accepted"] += 1
-                    sel.stats["accepted"] += 1
-                    kind = next((c["kind"] for c in cands
-                                 if desc.tokens(c["text"]) == desc.tokens(middle)
-                                 or set(desc.tokens(middle)) <= set(desc.tokens(c["text"]))),
-                                dcand.PIPE_LABEL)
-                    ev["description_selected"] = {
-                        "middle": middle, "unit": unit, "kind": kind,
-                        "why": answer.get("why", ""), "used": answer.get("used", []),
-                    }
-                    # The template's own order: unit, system, middle, variable.
-                    parts = r.description.split()
-                    var = " ".join(isa.words_for(ev.get("anchor") or r.type))
-                    head = r.description[:-len(var)].strip() if var else r.description
-                    r.description = " ".join(x for x in (head, middle, var) if x)
+            middle_kind = subject["kind"]
+            stats[axis.lower() + "_axis"] += 1
+
+        # An instrument ordinal goes at the very end, and only when this row would
+        # otherwise read the same as another on the same subject.
+        suffix = ev.get("instrument_ordinal", "") if subject else ""
+        built = desc.assemble(info.get("unit_code", ""), r.system, tag, isa, pat,
+                              subject=subject, suffix=suffix)
+        if parts_ok:
+            r.description = built["text"]
+            ev["description_sources"] = built["sources"]
+            ev["description_axis"] = axis
+            if subject:
+                ev["description_selected"] = {
+                    "middle": built["middle"], "kind": subject["kind"],
+                    "axis": axis, "distance": subject["distance"],
+                    "direction": subject["direction"],
+                    "equipment": subject.get("equipment") or {},
+                }
         r.description_grade, r.remark = _grade(
-            parts_ok, middle, kind, False, why)
+            parts_ok, built["middle"], middle_kind, False, why)
         if r.description_grade == GRADE_NONE:
             r.description = ""
         grades[r.description_grade] += 1
@@ -1124,8 +1213,12 @@ def _grade(parts_ok: bool, middle: str, middle_kind: str, skipped: bool,
     if not middle:
         note = REMARK[GRADE_PARTIAL]
         return GRADE_PARTIAL, f"{note} ({reason})" if reason else note
-    if middle_kind in dcand.NAMED_KINDS:
+    if middle_kind == dcand.EQUIPMENT:
+        # The drawing names the equipment and the instrument sits beside it: every
+        # piece of the sentence has a source on the sheet.
         return GRADE_CONFIRMED, REMARK[GRADE_CONFIRMED]
+    # A route (`TO CLEAN DRAIN TANK`) names where the pipe goes, not what the
+    # instrument is on, so it is offered rather than asserted.
     return GRADE_LOW, f"{REMARK[GRADE_LOW]} — 근거: {middle_kind} “{middle}”"
 
 
@@ -1276,11 +1369,6 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
             r.evidence["trace"] = tr
             stats[tr["status"]] += 1
             traces[r.key] = tr
-        # The text the drawing prints along those runs: the Description
-        # candidates, collected by rule while the graph for this page is in hand.
-        cands = dcand.collect(info["page_cache"], g, area, traces)
-        for r in page_rows:
-            r.evidence["candidates"] = dcand.group_lines(cands.get(r.key) or [])[:12]
     walked = sum(stats.values())
     return {
         "per_status": dict(stats),

@@ -223,6 +223,26 @@ description:
     max_tokens: 512
     cache_dir: app/_data/description_cache
 
+  # Equipment nouns the client's own list puts an ordinal after, with the counts
+  # that put them here: PUMP 76, COOLER 48, TANK 26, HEATER 9, HEX 9, EXCHANGER 9,
+  # SKID 8, CEP 3.  They are config rather than a runtime derivation because a real
+  # run has no finished list - and the legend's equipment table does not name a
+  # COOLER at all, while the drawings print one 50 times.
+  equipment_words: [PUMP, COOLER, TANK, HEATER, HEX, EXCHANGER, SKID, CEP,
+                    CONDENSER, STRAINER, FILTER, WATERBOX, DRUM, COMPRESSOR,
+                    VESSEL, SEPARATOR, SCRUBBER, ABSORBER]
+
+  # Which word each side of a piece of equipment takes.  Counted in the client's
+  # 557 lines, with no counter-example either way:
+  #   pump-like nouns  SUCTION 45 / DISCHARGE 70   (115 of 115)
+  #   everything else  INLET   27 / OUTLET    30   (57 of 57 - WATERBOX, EXCHANGER,
+  #                                                 SKID, HEATER, HEX, COOLER,
+  #                                                 CONDENSER)
+  position_words:
+    pump: {left: SUCTION, right: DISCHARGE}
+    other: {left: INLET, right: OUTLET}
+    pump_nouns: [PUMP, CEP, BFP]
+
   # Finished lines that show the client's wording, per system name.  Used only to
   # show the selector the *order* the client writes in; it may not take words from
   # them.  Empty here: this project's finished list is an input to verification
