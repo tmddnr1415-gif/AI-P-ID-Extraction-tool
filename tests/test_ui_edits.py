@@ -326,6 +326,16 @@ def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job
 
     req = urllib.request.Request(f"{server}/jobs/{job_id}/reanalyse", method="POST")
     urllib.request.urlopen(req).read()
+    # The POST queues the job before it answers, so the first read has to show the
+    # new run rather than the finished one before it.  Checking that first is what
+    # makes the wait below a wait for *this* analysis: without it a `done` left
+    # over from the previous run would end the loop immediately and the rows read
+    # afterwards would be the old ones.  Re-analysis writes no revision of its own,
+    # so the status is the only thing there is to watch.
+    state = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}").read())
+    assert state["status"] in ("queued", "running"), (
+        f"step 7: after POST /reanalyse the job reads {state['status']!r}, so the "
+        f"wait below would not be waiting for this run")
     for _ in range(180):
         state = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}").read())
         if state["status"] in ("done", "failed"):

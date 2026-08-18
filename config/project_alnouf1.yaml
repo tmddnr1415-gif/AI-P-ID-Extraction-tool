@@ -283,6 +283,37 @@ description:
   # sentences from 8 to 20.  PROJECT: the client's habit, not a legend derivation.
   end_ordinal_types: [PIT, TIT, FIT, PDIT]
 
+  # The client's own short form for a drawing title's system phrase.  Found by
+  # taking each title phrase's initials and counting both forms in that sheet's
+  # client lines: `CLOSED COOLING WATER` appears as `CCW` on 127 lines and is never
+  # written out, `AUX. COOLING WATER` as `ACW` on 4.  Every other title phrase the
+  # client writes in full - HP STEAM 12/12, LP STEAM 12/12, CRH STEAM 11/11,
+  # CLEAN DRAIN 9/9, POTABLE WATER SUPPLY 4/4 - so this is the whole dictionary the
+  # counting found, not a rule that initials replace phrases.  There is no reverse
+  # direction: no client line writes out a phrase the title abbreviates.  PROJECT.
+  system_abbreviations:
+    CLOSED COOLING WATER: CCW     # 127 rows
+    AUX. COOLING WATER: ACW       # 4 rows
+
+  # A word a whole system uses, whatever side the instrument is drawn on.  On the
+  # closed cooling water sheets the client writes RETURN on 51 of its 54 TI lines
+  # and on no TI line writes SUPPLY.  Its PI is an even split - 49 SUPPLY against
+  # 51 RETURN, and split evenly again inside every direction cell (BELOW 31/30,
+  # ABOVE 15/13) - so geometry cannot tell supply from return for a PI and nothing
+  # is attached there.  PROJECT.
+  position_by_system:
+    CCW TI: RETURN                # 51 of 54 rows
+
+  # Which types write the line's `TO ...` / `FROM ...` phrase.  Counted on the
+  # client's 557 lines: LS writes one on 22 of 22 (100%), and every other type on
+  # 14 of 535 (2.6%) - PIT 4, TIT 4, FIT 3, PI 1, RO 1, FE 1, spread over five
+  # sheets with no condition in common, against PDIT 0/52, TI 0/59, LIT 0/29,
+  # LI 0/10, FS 0/3.  So the phrase is not a general fallback for "no equipment
+  # named": it is how a level switch says which tank it protects.  32 of the 36
+  # also carry an equipment noun, which is why it is a phrase inside the subject
+  # rather than a substitute for one.  PROJECT.
+  line_phrase_types: [LS]
+
   # Where geometry has nothing to say - an instrument above or below its subject -
   # and the client's own lines still have a majority word.  Counted on the 518
   # matched lines after the subject was corrected this round; only cells with at

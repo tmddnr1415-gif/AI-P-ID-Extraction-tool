@@ -402,3 +402,31 @@ def test_a_prefix_set_is_only_made_of_names_that_share_a_tail():
                                 eq("SLOP OIL TRANSFER PUMP")])
     assert list(sets) == [("FUEL", "OIL", "FORWARDING", "PUMP")]
     assert sorted(sets[("FUEL", "OIL", "FORWARDING", "PUMP")]) == ["AUX", "GT"]
+
+
+def test_the_title_phrase_is_written_the_way_the_client_writes_it():
+    """`CLOSED COOLING WATER` is `CCW` on 127 client lines and never written out."""
+    pat = describe_pattern()
+    words, _how = desc.system_words(
+        "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (3 OF 7)", pat)
+    assert words == ["CCW"]
+    # a phrase the client writes in full stays in full - HP STEAM, 12 lines of 12
+    words, _how = desc.system_words("P&ID FOR HP STEAM SYSTEM GROUP 10", pat)
+    assert words == ["HP", "STEAM"]
+
+
+def test_a_system_can_carry_its_own_position_word():
+    """Every CCW TI the client writes is on the RETURN - 51 lines of 54."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"T": ("TEMPERATURE",), "P": ("PRESSURE",)},
+                             page_no=3)
+    pat = describe_pattern()
+    subject = {"text": "#10 ST HYDRAULIC OIL COOLER", "kind": dcand.EQUIPMENT,
+               "distance": 90.0, "direction": "BELOW",
+               "equipment": {"noun": "COOLER", "ordinal": "A", "position_word": ""}}
+    title = "P&ID FOR CLOSED COOLING WATER SYSTEM GROUP 10 (3 OF 7)"
+    ti = desc.assemble("10", title, "TI", isa, pat, subject=subject, type_="TI")
+    assert "RETURN" in ti["text"]
+    # its PI is an even split, 49 SUPPLY against 51 RETURN, so nothing is attached
+    pi = desc.assemble("10", title, "PI", isa, pat, subject=subject, type_="PI")
+    assert "RETURN" not in pi["text"] and "SUPPLY" not in pi["text"]

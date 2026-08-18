@@ -258,7 +258,8 @@ def _page_origins(pages, tb_rows, per_page, reference: Path = None) -> dict:
 
 
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
-            reference: Path = None, use_prefix: bool = True) -> dict:
+            reference: Path = None, use_prefix: bool = True,
+            use_line_gate: bool = True) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -415,7 +416,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         selector = describe_llm.build(CFG)
         examples = _client_examples(reference, tb_rows, pattern)
         desc_stats = _finish_descriptions(rows, per_page, isa, pattern,
-                                          selector, examples)
+                                          selector, examples, use_line_gate)
 
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
@@ -1188,7 +1189,8 @@ def _local_unit(cands, marks_on_page, sheet_code: str, skip=()) -> tuple:
     return sheet_code, ""
 
 
-def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
+def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
+                         use_line_gate: bool = True) -> dict:
     """Write each row's Description from its best candidate, and grade every row.
 
     The subject is chosen by the reviewer's rule, not by preference: equipment
@@ -1199,6 +1201,11 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
     """
     stats = collections.Counter()
     grades = collections.Counter()
+    line_types = frozenset(
+        str(t).upper() for t in
+        ((CFG.data.get("description") or {}).get("line_phrase_types") or ()))
+    if not use_line_gate:
+        line_types = None
     units_by_page = {}
     for pno, info in per_page.items():
         marks = {"".join(ch for ch in t if ch.isdigit())
@@ -1220,8 +1227,20 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
         axis = "EQUIPMENT" if subject else ""
         why, middle_kind = "", ""
         if subject is None:
-            subject = next((c for c in cands if c["kind"] == dcand.CONNECTOR), None)
-            axis = "LINE" if subject else ""
+            # The line phrase is written by one type and no other.  Counted on the
+            # client's 557 lines: LS writes `TO ...` on 22 of 22, every other type
+            # on 14 of 535 (2.6%) and those 14 are one-off phrases with no shared
+            # condition.  Where the drawing names no equipment, the sentence is
+            # left without a middle rather than given a route the client would not
+            # have written - the same call as the position word, where attaching
+            # nothing beat attaching something.
+            if line_types is None or str(r.type).upper() in line_types:
+                subject = next((c for c in cands
+                                if c["kind"] == dcand.CONNECTOR), None)
+                axis = "LINE" if subject else ""
+            else:
+                stats["line_phrase_withheld"] += 1 if any(
+                    c["kind"] == dcand.CONNECTOR for c in cands) else 0
         if subject is None:
             why = "후보 0개" if not cands else "이름을 대는 후보 없음"
             stats["no_candidates" if not cands else "no_named_candidate"] += 1

@@ -89,6 +89,10 @@ class Pattern:
     # `{(type, side): word}` where the client's own lines have a majority word for
     # an instrument on that side of its subject.
     position_by_side: dict = field(default_factory=dict)
+    # `{phrase: abbreviation}` - the drawing title's words as the client writes them.
+    system_abbreviations: dict = field(default_factory=dict)
+    # `{(system abbreviation, type): word}` - a word a whole system uses.
+    position_by_system: dict = field(default_factory=dict)
     source: str = "CONFIG"
     note: str = ""
     evidence: dict = field(default_factory=dict)
@@ -113,6 +117,13 @@ def derive_pattern(cfg=None) -> Pattern:
         type_, _s, side = str(key).upper().partition(" ")
         if side:
             sides[(type_, side)] = str(word).upper()
+    abbrev = {" ".join(tokens(str(k))): str(v).upper()
+              for k, v in (d.get("system_abbreviations") or {}).items()}
+    by_system = {}
+    for key, word in (d.get("position_by_system") or {}).items():
+        abb, _s, type_ = str(key).upper().rpartition(" ")
+        if abb:
+            by_system[(abb, type_)] = str(word).upper()
     stop = frozenset(str(w).upper() for w in
                      ((cfg.data.get("matching") or {}).get("stopwords") or ()))
     return Pattern(
@@ -129,6 +140,8 @@ def derive_pattern(cfg=None) -> Pattern:
         end_ordinal_types=end_types,
         alarm_suffix=alarms,
         position_by_side=sides,
+        system_abbreviations=abbrev,
+        position_by_system=by_system,
         evidence={"template": d.get("template") or "", "measured_on": d.get("measured_on") or ""})
 
 
@@ -183,9 +196,24 @@ def system_words(title: str, pat: Pattern) -> list:
     open_i = next((i for i, t in enumerate(toks) if t in pat.title_open), None)
     close_i = next((i for i, t in enumerate(toks) if t in pat.title_close), None)
     if open_i is not None and close_i is not None and open_i + 1 < close_i:
-        return toks[open_i + 1:close_i], "TITLE_BRACKETED"
+        return _abbreviate(toks[open_i + 1:close_i], pat), "TITLE_BRACKETED"
     rest = [t for t in toks if t not in pat.stopwords and not t.isdigit()]
-    return rest, "TITLE_STOPWORDS"
+    return _abbreviate(rest, pat), "TITLE_STOPWORDS"
+
+
+def _abbreviate(words, pat: Pattern) -> list:
+    """The client's own short form for a title phrase, where it has one.
+
+    Found by taking each title phrase's initials and counting both forms in the
+    client's lines for that sheet.  Two phrases out of thirty-five come back
+    short - `CLOSED COOLING WATER` is `CCW` on 127 lines and never written out,
+    `AUX. COOLING WATER` is `ACW` on 4 - and every other title phrase the client
+    writes in full: HP STEAM 12 of 12, CRH STEAM 11 of 11, CLEAN DRAIN 9 of 9.
+    So this is a two-entry dictionary the counting found, not a rule that
+    initials replace phrases.
+    """
+    short = pat.system_abbreviations.get(" ".join(words))
+    return [short] if short else list(words)
 
 
 def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
@@ -229,9 +257,19 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         # the client mostly writes nothing there.  Where its own lines do have a
         # majority word for a type on a side, that word is used and nothing else
         # is invented (config description.position_by_side, with the counts).
-        word = eq.get("position_word") or pat.position_by_side.get(
-            (str(type_).upper(), str(subject.get("direction") or "").upper()), "")
-        if word and wants_position:
+        # A whole system can have its own word: on the closed cooling water
+        # sheets every TI the client writes is on the RETURN - 51 lines of 54 -
+        # whichever side of the cooler it is drawn on.  Its PI is an even split,
+        # 49 SUPPLY against 51 RETURN in every direction, so nothing is attached
+        # there (config description.position_by_system, with the counts).
+        system = " ".join(system_words(title, pat)[0])
+        word = (pat.position_by_system.get((system, str(type_).upper()), "")
+                or eq.get("position_word")
+                or pat.position_by_side.get(
+                    (str(type_).upper(),
+                     str(subject.get("direction") or "").upper()), ""))
+        if word and (wants_position
+                     or (system, str(type_).upper()) in pat.position_by_system):
             bits.append(word)
             eq = dict(eq, position_word=word)
         # What sits between the instrument and the equipment - `SUCTION STRAINER`
