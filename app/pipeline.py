@@ -300,6 +300,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # The equipment table off legend p2, and the nouns that name equipment.
         equip_symbols = dequip.derive_symbols(pages, CFG)
         equip_vocab = dequip.derive_vocabulary(equip_symbols, CFG)
+        component_words = dequip.derive_component_words(pages)
         positions = dcand.derive_position_words(CFG)
 
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
@@ -402,7 +403,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         equip_by_page, equip_stats = _equipment_pass(per_page, equip_symbols,
                                                      equip_vocab, pattern)
     with clock.stage("candidates"):
-        cand_stats = _candidate_pass(rows, per_page, equip_by_page, positions)
+        cand_stats = _candidate_pass(rows, per_page, equip_by_page, positions,
+                                     pipe_style.values, component_words)
 
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
@@ -1077,7 +1079,8 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
     return out, report
 
 
-def _candidate_pass(rows, per_page, equip_by_page, positions) -> dict:
+def _candidate_pass(rows, per_page, equip_by_page, positions, style,
+                    component_words) -> dict:
     """Two-axis candidates for every row, and the distance the cut was made at.
 
     The equipment distance limit is measured, not chosen: every instrument's
@@ -1103,6 +1106,11 @@ def _candidate_pass(rows, per_page, equip_by_page, positions) -> dict:
             if ds:
                 nearest.append(min(ds))
     limit = dcand.distance_limit(nearest)
+    # How far a run may sit from an equipment label and still count as reaching
+    # it.  Measured over the whole document, not chosen - see the function.
+    reach = dcand.derive_equipment_reach(
+        [info["page_cache"] for _p, info in sorted(per_page.items())],
+        equip_by_page, style)
 
     stats = collections.Counter()
     hist = collections.Counter()
@@ -1111,25 +1119,40 @@ def _candidate_pass(rows, per_page, equip_by_page, positions) -> dict:
     for pno, page_rows in sorted(by_page.items()):
         info = per_page[pno]
         triples = [(r.key, tuple(r.rect), r.type) for r in page_rows]
+        comps = dequip.find_components(info["page_cache"], component_words, area)
         cands = dcand.collect(info["page_cache"], triples,
-                              equip_by_page.get(pno, ()), area, positions, limit)
-        ordinals = dcand.instrument_ordinals(triples, cands)
+                              equip_by_page.get(pno, ()), area, positions, limit,
+                              style=style, components=comps,
+                              reach=reach.values["equipment_reach"],
+                              between_types=CFG.data.get("description", {})
+                              .get("between_symbol_types") or ())
+        stats["component_words"] += len(comps)
+        ordinals = dcand.instrument_ordinals(triples, cands,
+                                             equip_by_page.get(pno, ()))
         for r in page_rows:
             got = cands.get(r.key) or []
             r.evidence["candidates"] = got
-            r.evidence["instrument_ordinal"] = ordinals.get(r.key, "")
+            ordinal, where = ordinals.get(r.key, ("", ""))
+            r.evidence["instrument_ordinal"] = ordinal
+            r.evidence["ordinal_place"] = where
             kinds = {c["kind"] for c in got}
             stats["rows"] += 1
             stats["equipment_axis"] += 1 if dcand.EQUIPMENT in kinds else 0
+            stats["connected"] += 1 if any(c.get("connected") for c in got) else 0
             stats["line_axis"] += 1 if (dcand.EQUIPMENT not in kinds
                                         and dcand.CONNECTOR in kinds) else 0
             stats["no_candidate"] += 1 if not (kinds & set(dcand.NAMED_KINDS)) else 0
     return {
         "rows": stats["rows"],
         "equipment_axis": stats["equipment_axis"],
+        "connected_subject": stats["connected"],
         "line_axis": stats["line_axis"],
         "no_candidate": stats["no_candidate"],
+        "component_words": stats["component_words"],
         "distance_limit_pt": limit,
+        "equipment_reach_pt": reach.values["equipment_reach"],
+        "equipment_reach": {"source": reach.source, "note": reach.note,
+                            **(reach.evidence or {})},
         "distance_note": "instrument-to-nearest-equipment, 90th percentile of "
                          f"{len(nearest)} measured distances",
         "distance_histogram_100pt": dict(sorted(hist.items())),
@@ -1179,9 +1202,19 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
 
         # An instrument ordinal goes at the very end, and only when this row would
         # otherwise read the same as another on the same subject.
-        suffix = ev.get("instrument_ordinal", "") if subject else ""
+        ordinal = ev.get("instrument_ordinal", "") if subject else ""
+        place = ev.get("ordinal_place", "END")
+        if subject is not None and ordinal and place == "MIDDLE":
+            # the letter numbers the equipment unit, so it belongs beside its noun
+            eq = dict(subject.get("equipment") or {})
+            eq["ordinal"] = ordinal
+            subject = dict(subject, equipment=eq)
         built = desc.assemble(info.get("unit_code", ""), r.system, tag, isa, pat,
-                              subject=subject, suffix=suffix)
+                              subject=subject,
+                              suffix=ordinal if place != "MIDDLE" else "",
+                              type_=r.type,
+                              between=((subject.get("equipment") or {}).get("between", "")
+                                       if subject else ""))
         if parts_ok:
             r.description = built["text"]
             ev["description_sources"] = built["sources"]
@@ -1191,6 +1224,8 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
                     "middle": built["middle"], "kind": subject["kind"],
                     "axis": axis, "distance": subject["distance"],
                     "direction": subject["direction"],
+                    "connected": bool(subject.get("connected")),
+                    "connected_by": subject.get("connected_by", ""),
                     "equipment": subject.get("equipment") or {},
                 }
         r.description_grade, r.remark = _grade(

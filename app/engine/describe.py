@@ -69,6 +69,21 @@ class Pattern:
     title_open: tuple = ("FOR",)
     title_close: tuple = ("SYSTEM",)
     stopwords: frozenset = frozenset()
+    # Sheets whose unit code the client leaves off the line (measured: unit 00).
+    unit_prefix_skip: tuple = ()
+    # The client's own spelling for a variable, where it differs from the legend's.
+    variable_words: dict = field(default_factory=dict)
+    # The instrument types whose lines carry a position word in the majority.
+    position_word_types: frozenset = frozenset()
+    # Equipment nouns whose lines always carry a position word (measured: 115 of
+    # the client's 158 sit against a pump).  Kept for the record; the type gate
+    # below replaced it, because by noun the rule cost PI and TI 13pp of
+    # precision - see `position_word_types`.
+    pump_nouns: frozenset = frozenset()
+    # The instrument types whose lines end in a letter.  Measured over the 557:
+    # PIT 44/106, TIT 36/97, FIT 26/31, PDIT 6/52, LIT 5/29 do; PI 0/111,
+    # TI 0/59, LS 0/22, RO 0/19, FE 0/18, LI 0/10, FS 0/3 never do.
+    end_ordinal_types: frozenset = frozenset()
     source: str = "CONFIG"
     note: str = ""
     evidence: dict = field(default_factory=dict)
@@ -77,6 +92,15 @@ class Pattern:
 def derive_pattern(cfg=None) -> Pattern:
     cfg = cfg or projectconfig.load()
     d = (cfg.data.get("description") or {})
+    skip = tuple(str(c) for c in (d.get("unit_prefix_skip_codes") or ()))
+    variables = {str(k).upper(): tuple(str(w).upper() for w in v)
+                 for k, v in (d.get("variable_words") or {}).items()}
+    pos_types = frozenset(str(t).upper()
+                          for t in (d.get("position_word_types") or ()))
+    pumps = frozenset(str(t).upper() for t in
+                      ((d.get("position_words") or {}).get("pump_nouns") or ()))
+    end_types = frozenset(str(t).upper()
+                          for t in (d.get("end_ordinal_types") or ()))
     stop = frozenset(str(w).upper() for w in
                      ((cfg.data.get("matching") or {}).get("stopwords") or ()))
     return Pattern(
@@ -86,7 +110,29 @@ def derive_pattern(cfg=None) -> Pattern:
         title_close=tuple(str(w).upper() for w in (d.get("title_close") or ("SYSTEM",))),
         stopwords=stop,
         note=str(d.get("note") or ""),
+        unit_prefix_skip=skip,
+        variable_words=variables,
+        position_word_types=pos_types,
+        pump_nouns=pumps,
+        end_ordinal_types=end_types,
         evidence={"template": d.get("template") or "", "measured_on": d.get("measured_on") or ""})
+
+
+def variable_words(tag: str, isa, pat: Pattern) -> tuple:
+    """The words the client uses for this tag's variable.
+
+    The legend's matrix is the source, except where the client demonstrably
+    spells it differently - `DIFFERENTIAL PRESSURE` 52 lines against the matrix's
+    `PRESSURE DIFFERENTIAL` 0 - and for tags the matrix does not carry at all,
+    such as `RO`.  Both live in `config description.variable_words` with their
+    counts, marked PROJECT because they are the client's wording, not a legend
+    derivation.
+    """
+    up = str(tag).upper()
+    for n in (4, 3, 2, 1):
+        if up[:n] in pat.variable_words:
+            return pat.variable_words[up[:n]]
+    return isa.words_for(tag) if isa is not None else ()
 
 
 def system_words(title: str, pat: Pattern) -> list:
@@ -108,7 +154,8 @@ def system_words(title: str, pat: Pattern) -> list:
 
 
 def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
-             subject: dict = None, suffix: str = "") -> dict:
+             subject: dict = None, suffix: str = "", type_: str = "",
+             between: str = "") -> dict:
     """The client's sentence shape, with a subject in the middle when there is one.
 
     Order is the one counted in the client's 557 lines:
@@ -124,7 +171,7 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
     rules-only line the previous round produced, unchanged.
     """
     base = describe(unit_code, title, tag, isa, pat)
-    var = " ".join(isa.words_for(tag)) if isa is not None else ""
+    var = " ".join(variable_words(tag, isa, pat))
     parts = list(base["parts"])
     sources = list(base["sources"])
     middle = ""
@@ -133,8 +180,21 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         bits = [subject.get("text", "").strip()]
         if eq.get("ordinal"):
             bits.append(eq["ordinal"])
-        if eq.get("position_word"):
+        # The client attaches a position word by *type*, not by geometry and not
+        # by equipment noun.  Measured over its 557 lines: FS 3/3, PIT 75/106,
+        # PDIT 35/52, FIT 13/31, FE 7/18, TIT 31/97 carry one; PI 7/111,
+        # TI 7/59, RO 1/19 and LIT / LS / LI 0/61 effectively never do.  Going by
+        # the equipment noun instead - "a pump's line always carries one" - put
+        # SUCTION on PI and TI rows the client leaves bare, which is why the type
+        # decides on its own (config description.position_word_types).
+        wants_position = (str(type_).upper() in pat.position_word_types
+                          if type_ else True)
+        if eq.get("position_word") and wants_position:
             bits.append(eq["position_word"])
+        # What sits between the instrument and the equipment - `SUCTION STRAINER`
+        # in 13 of the client's lines, always before the variable word.
+        if between:
+            bits.append(between)
         middle = " ".join(b for b in bits if b)
         if eq:
             sources.append(
@@ -147,8 +207,33 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         else:
             sources.append(f"SUBJECT: 라인 표기 “{subject.get('text','')}” "
                            f"({subject.get('kind')}, {subject.get('distance')}pt)")
-    # variable last, then the instrument's own ordinal
+    # The client does not repeat itself: only 29 of its 557 lines carry the same
+    # word twice.  So a system word already inside the subject - `FUEL OIL SUPPLY`
+    # in front of `FUEL OIL STORAGE TANK` - is dropped rather than said twice.
     head = [p for p in parts if p != var]
+    if middle:
+        # The system name is a phrase, not a bag of words: `FUEL OIL SUPPLY` in
+        # front of `FUEL OIL STORAGE TANK` is dropped whole rather than trimmed to
+        # `SUPPLY`, which is not something the client ever writes.
+        seen = set(tokens(middle))
+        # The unit prefix is never dropped: the drawing prints `#10 CLEAN DRAIN
+        # TANK` on the label and the client still writes `UNIT #10 CLEAN DRAIN
+        # TANK`, so matching on `#10` and dropping the prefix loses a word the
+        # client always writes (454 of its 557 lines carry the mark).  The label's
+        # own copy of the mark goes instead, so the line reads it once.
+        head = [p for p in head
+                if p.startswith(pat.prefix) or not (set(tokens(p)) & seen)]
+        marks = {w for p in head if p.startswith(pat.prefix) for w in tokens(p)
+                 if w.startswith(pat.unit_mark)}
+        if marks:
+            middle = " ".join(w for w in middle.split() if w not in marks)
+    # A trailing letter is written only by the types that write one.  The client
+    # repeats itself rather than disambiguate on PI (0 of 111 lines end in a
+    # letter, and 24 of them are exact repeats of another line on the same
+    # sheet), so a letter added there is a word the client never wrote.
+    if suffix and type_ and pat.end_ordinal_types \
+            and str(type_).upper() not in pat.end_ordinal_types:
+        suffix = ""
     line = " ".join(x for x in (" ".join(head), middle, var, suffix) if x)
     return {
         "text": " ".join(line.split()),
@@ -172,20 +257,28 @@ def describe(unit_code: str, title: str, tag: str, isa, pat: Pattern) -> dict:
     flags the row.
     """
     parts, sources, reasons = [], [], []
-    if unit_code:
+    if unit_code and str(unit_code) not in pat.unit_prefix_skip:
         parts.append(f"{pat.prefix} {pat.unit_mark}{unit_code}")
         sources.append(f"UNIT: 도면 타이틀블록 unit code {unit_code} + 템플릿 접두어")
+    elif unit_code:
+        sources.append(f"UNIT: unit code {unit_code} 는 발주처가 접두어를 쓰지 않는 "
+                       f"코드입니다 (실측 98행 중 98행 생략)")
     sysw, how = system_words(title, pat)
     if sysw:
         parts.append(" ".join(sysw))
         sources.append(f"SYSTEM: 도면 제목 “{title}” ({how})")
     else:
         reasons.append(NO_SYSTEM)
-    var = isa.words_for(tag) if isa is not None else ()
+    var = variable_words(tag, isa, pat)
     if var:
         parts.append(" ".join(var))
-        sources.append(f"VARIABLE: 범례 p{getattr(isa, 'page_no', '?')} ISA "
-                       f"문자표 — {tag[:2]} → {' '.join(var)}")
+        client = str(tag).upper()[:4] in pat.variable_words or \
+            str(tag).upper()[:2] in pat.variable_words
+        sources.append(
+            (f"VARIABLE: 발주처 표기 — {tag} → {' '.join(var)} "
+             f"(config description.variable_words)") if client else
+            (f"VARIABLE: 범례 p{getattr(isa, 'page_no', '?')} ISA "
+             f"문자표 — {tag[:2]} → {' '.join(var)}"))
     else:
         reasons.append(NO_VARIABLE)
     # The middle is never assembled; see the module docstring for the measurement.

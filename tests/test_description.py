@@ -223,10 +223,51 @@ def test_the_sentence_puts_each_part_where_the_client_puts_it():
                "equipment": {"noun": "PUMP", "ordinal": "A",
                              "position_word": "SUCTION", "evidence": {}}}
     out = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "PIT", isa,
-                        pat, subject=subject, suffix="B")
-    assert out["text"] == "UNIT #10 CLEAN DRAIN CLEAN DRAIN PUMP A SUCTION PRESSURE B"
+                        pat, subject=subject, suffix="B", type_="PIT")
+    # the system name is not repeated: the subject already carries CLEAN DRAIN, and
+    # only 29 of the client's 557 lines say any word twice
+    assert out["text"] == "UNIT #10 CLEAN DRAIN PUMP A SUCTION PRESSURE B"
     assert out["middle"] == "CLEAN DRAIN PUMP A SUCTION"
     assert out["complete"] is True
+
+
+def test_the_position_word_is_attached_only_for_the_types_that_use_one():
+    """PIT carries one in 70.8% of the client's lines; LIT in 0 of 29."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"P": ("PRESSURE",), "L": ("LEVEL",)}, page_no=3)
+    pat = describe_pattern()
+    subject = {"text": "CLEAN DRAIN TANK", "kind": dcand.EQUIPMENT, "distance": 40.0,
+               "direction": dcand.LEFT,
+               "equipment": {"noun": "TANK", "ordinal": "",
+                             "position_word": "INLET", "evidence": {}}}
+    on = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "PIT", isa,
+                       pat, subject=subject, type_="PIT")
+    off = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM GROUP 10", "LIT", isa,
+                        pat, subject=subject, type_="LIT")
+    assert "INLET" in on["text"]
+    assert "INLET" not in off["text"]
+
+
+def test_the_ordinal_sits_where_the_duty_note_says():
+    """Three pumps and three instruments -> the letter numbers the pump (middle).
+
+    Two instruments on one pump set -> it numbers the instrument (end).  The duty
+    note the drawing prints beside the label is what separates the two cases.
+    """
+    trio = [dequip.Equipment(kind="PUMP", label="GT FUEL OIL FORWARDING PUMP",
+                             page_no=33, rect=(100, 100, 200, 140),
+                             count_note="3X50%")]
+    rows = [(f"k{i}", (100.0, 200.0 + i * 50, 140.0, 220.0 + i * 50), "PDIT")
+            for i in range(3)]
+    cands = {k: [{"kind": dcand.EQUIPMENT, "text": "GT FUEL OIL FORWARDING PUMP"}]
+             for k, _r, _t in rows}
+    out = dcand.instrument_ordinals(rows, cands, trio)
+    assert [out[k][0] for k, _r, _t in rows] == ["A", "B", "C"]
+    assert {w for _o, w in out.values()} == {"MIDDLE"}
+    # two instruments against a three-unit set: the letter is the instrument's
+    pair = rows[:2]
+    out2 = dcand.instrument_ordinals(pair, cands, trio)
+    assert {w for _o, w in out2.values()} == {"END"}
 
 
 def describe_pattern():
@@ -250,3 +291,50 @@ def test_the_equipment_layer_does_not_use_the_pipe_graph():
         for line in src.splitlines():
             if line.strip().startswith(("import ", "from ")):
                 assert "pipe_graph" not in line, f"{name}: {line.strip()}"
+
+
+def test_a_trailing_letter_only_goes_on_the_types_that_write_one():
+    """LIT repeats its sentence rather than letter it: 20 repeats against 5 ends."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"L": ("LEVEL",), "P": ("PRESSURE",)}, page_no=3)
+    pat = describe_pattern()
+    subject = {"text": "FUEL OIL STORAGE TANK A", "kind": dcand.EQUIPMENT,
+               "distance": 100.0, "direction": "ABOVE",
+               "equipment": {"noun": "TANK", "ordinal": "", "position_word": ""}}
+    lit = desc.assemble("00", "P&ID FOR FUEL OIL SYSTEM", "LIT", isa, pat,
+                        subject=subject, suffix="B", type_="LIT")
+    assert lit["text"] == "FUEL OIL STORAGE TANK A LEVEL"
+    pit = desc.assemble("00", "P&ID FOR FUEL OIL SYSTEM", "PIT", isa, pat,
+                        subject=subject, suffix="B", type_="PIT")
+    assert pit["text"].endswith("PRESSURE B")
+
+
+def test_the_unit_prefix_survives_a_label_that_repeats_it():
+    """`#10 CLEAN DRAIN TANK` on the drawing is still `UNIT #10 CLEAN DRAIN TANK`."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"L": ("LEVEL",)}, page_no=3)
+    subject = {"text": "#10 CLEAN DRAIN TANK", "kind": dcand.EQUIPMENT,
+               "distance": 80.0, "direction": "LEFT",
+               "equipment": {"noun": "TANK", "ordinal": "", "position_word": ""}}
+    out = desc.assemble("10", "P&ID FOR CLEAN DRAIN SYSTEM", "LIT", isa,
+                        describe_pattern(), subject=subject, type_="LIT")
+    assert out["text"] == "UNIT #10 CLEAN DRAIN TANK LEVEL"
+
+
+def test_only_a_pdit_is_offered_an_intermediate_symbol():
+    """All 13 of the client's intermediate symbols are a PDIT's SUCTION STRAINER."""
+    import types
+    e = types.SimpleNamespace(rect=(400.0, 100.0, 500.0, 130.0), label="PUMP A",
+                              kind="PUMP", ordinal="A", count_note="", evidence={})
+    comps = [{"rect": (250.0, 100.0, 270.0, 130.0), "word": "STRAINER",
+              "text": "SUCTION STRAINER"}]
+    rows = [("pdit", (100.0, 100.0, 130.0, 130.0), "PDIT"),
+            ("pit", (100.0, 200.0, 130.0, 230.0), "PIT")]
+    pc = types.SimpleNamespace(words=[], segments=lambda: [], page_no=33)
+    pos = {"pump_nouns": ("PUMP",),
+           "pump": {dcand.LEFT: "SUCTION", dcand.RIGHT: "DISCHARGE"},
+           "other": {dcand.LEFT: "INLET", dcand.RIGHT: "OUTLET"}}
+    out = dcand.collect(pc, rows, [e], (0.0, 0.0, 2384.0, 1684.0), pos, limit=None,
+                        components=comps, between_types=("PDIT",))
+    assert (out["pdit"][0]["equipment"]["between"]) == "SUCTION STRAINER"
+    assert (out["pit"][0]["equipment"]["between"]) == ""

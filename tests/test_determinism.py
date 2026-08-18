@@ -130,6 +130,13 @@ def desc_words(row, run) -> set:
     out |= set(str(page["title"]).upper().split())
     for words in isa["first"].values():
         out |= set(words)
+    # The client's own spelling for a variable, where the legend's matrix does not
+    # carry the tag at all - `FE` -> `FLOW ELEMENT`, `RO` -> `RESTRICTION ORIFICE`.
+    # It is a declared source (`config description.variable_words`, counted on the
+    # client's 557 lines) and the row records it in `description_sources`.
+    for words in (pipeline.CFG.data.get("description") or {}).get(
+            "variable_words", {}).values():
+        out |= {str(w).upper() for w in words}
     return out
 
 

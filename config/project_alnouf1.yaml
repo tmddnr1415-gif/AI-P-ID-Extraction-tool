@@ -243,6 +243,54 @@ description:
     other: {left: INLET, right: OUTLET}
     pump_nouns: [PUMP, CEP, BFP]
 
+  # Drawings whose unit code the client does not print.  Counted: unit 00 lines
+  # omit the `UNIT #nn` prefix 98 times and carry it 14; unit 10 carries it 383 of
+  # 388 and unit 11 56 of 57.  So the plant-common sheets are written without it.
+  unit_prefix_skip_codes: ["00"]
+
+  # How the client words a variable the ISA table spells differently.  `PD` reads
+  # `PRESSURE DIFFERENTIAL` in legend p3's matrix and the client writes
+  # `DIFFERENTIAL PRESSURE` - 52 lines to 0.  `RO` is not in the matrix at all;
+  # the client writes `RESTRICTION ORIFICE` (19 lines).  PROJECT-dependent: these
+  # are the client's spelling, not a legend derivation.
+  variable_words:
+    PD: [DIFFERENTIAL, PRESSURE]
+    RO: [RESTRICTION, ORIFICE]
+    FE: [FLOW, ELEMENT]
+
+  # Which instrument types take a position word at all.  The client attaches one to
+  # 158 of 557 lines, and the split is by type, not by geometry:
+  #   PIT 70.8% (75/106)   PDIT 67.3% (35/52)   FS 100% (3/3)
+  #   FIT 41.9%  FE 38.9%  TIT 32.0%  TI 11.9%  PI 6.3%  RO 5.3%
+  #   LIT 0% (0/29)  LS 0% (0/22)  LI 0% (0/10)
+  # Listed are the types that carry one on more than a third of their own lines.
+  # TIT sits just under the line at 32.0% and was measured both ways: attaching one
+  # to TIT gave 8 exact sentences, leaving it off gave 20, because the client's TIT
+  # lines are mostly a plain tank or cooler temperature.  Level and plain-indicator
+  # types are left out for the same reason - they never write one.
+  position_word_types: [PIT, PDIT, FS, FIT, FE]
+
+  # Which instrument types end their line in a letter.  Counted over the same 557:
+  #   PIT 44/106   TIT 36/97   FIT 26/31   PDIT 6/52   LIT 5/29
+  #   PI 0/111  TI 0/59  LS 0/22  RO 0/19  FE 0/18  LI 0/10  FS 0/3
+  # A type gets one only when it letters the end more often than it repeats itself.
+  # Exact repeats of another line on the same sheet, against end-letters:
+  #   PIT 19 repeats / 44 letters   TIT 20 / 36   FIT 0 / 26   PDIT 0 / 6  -> letter
+  #   LIT 20 / 5   PI 24 / 0   TI 12 / 0   RO 11 / 0   LS 4 / 0   FE 0 / 0  -> none
+  # 110 of the 557 lines (19.7%) are exact repeats, so on those types the client
+  # deliberately writes the same sentence twice rather than disambiguate, and a
+  # trailing letter is a word it never wrote.  Leaving LIT off moved exact
+  # sentences from 8 to 20.  PROJECT: the client's habit, not a legend derivation.
+  end_ordinal_types: [PIT, TIT, FIT, PDIT]
+
+  # Which types name what sits between the instrument and the equipment.  The
+  # client does this on 13 of its 557 lines, and all 13 are PDIT reading
+  # `SUCTION STRAINER` - no other type names an intermediate symbol at all.  The
+  # detector reads the word off the drawing, so on a sheet that draws the strainer
+  # without labelling it - p33, where the client writes it six times - nothing is
+  # offered and nothing is invented.  PROJECT: the client's habit.
+  between_symbol_types: [PDIT]
+
   # Finished lines that show the client's wording, per system name.  Used only to
   # show the selector the *order* the client writes in; it may not take words from
   # them.  Empty here: this project's finished list is an input to verification

@@ -280,7 +280,10 @@ def _dedupe(items) -> list:
 # A count note the drawing writes beside an equipment name.  Stripped from the
 # name because the client never writes one: `(3X50%)` and its kind appear in 0 of
 # the 557 finished Description lines.
-COUNT_NOTE = re.compile(r"\(\s*\d+\s*X\s*\d+\s*%?\s*\)")
+COUNT_NOTE = re.compile(r"\(?\s*\d+\s*X\s*\d+\s*%\s*\)?")
+# Whatever else the drawing puts in brackets - a size, a capacity - the
+# client leaves out: 0 of its 557 lines carry a bracket.
+BRACKET = re.compile(r"\([^)]*\)?")
 
 # A line the drawing opens with its own preposition is a route, not a name: `TO
 # HRSG#12 BD TANK` says where the pipe goes.  Taking it as equipment put an
@@ -316,12 +319,57 @@ def derive_vocabulary(symbols, cfg=None, extra=()) -> dict:
     return out
 
 
-def find_labels(pc, vocab: dict, drawing_area) -> list:
-    """Equipment named on one drawing: text lines carrying an equipment noun.
+def derive_component_words(pages) -> dict:
+    """The line components the legend names, for the middle of a description.
 
-    A line is the words sharing a baseline, joined in reading order - the drawing
-    writes `GT FUEL OIL FORWARDING PUMPS (3X50%)` as one line and that whole line
-    is the name.
+    The client writes `... PUMP A SUCTION STRAINER DIFFERENTIAL PRESSURE` - a thing
+    that sits between the instrument and the equipment - in 13 of its 557 lines, and
+    the words it uses (`STRAINER`) are ones the legend's own tables print.  So the
+    vocabulary is read off the legend rather than listed here.
+
+    Measured limit, reported rather than worked around: the drawings print
+    `STRAINER` on 6 sheets (13, 22, 30, 32, 49, 55) and *not* on p33, which is
+    where the client writes it six times.  There it is drawn as a symbol with no
+    text, and matching the legend's strainer shape returns glyph-sized noise - the
+    same failure this round measured for equipment shapes.  So this finds the ones
+    the drawing names and reports the rest as unavailable.
+    """
+    out = {}
+    for pc in pages:
+        if not pc.analysis_scope:
+            continue
+        for _r, t in pc.words:
+            u = t.upper().strip(".,()")
+            if u in ("STRAINER", "FILTER", "TRAP"):
+                out.setdefault(u, "LEGEND" if pc.page_no <= 5 else "DRAWING")
+    return out
+
+
+def find_components(pc, words: dict, drawing_area) -> list:
+    """Where the drawing prints one of those component words."""
+    out = []
+    for r, t in pc.words:
+        u = t.upper().strip(".,()")
+        base = u[:-1] if u.endswith("S") and u[:-1] in words else u
+        if base not in words:
+            continue
+        if not (drawing_area[0] <= r.x0 and r.x1 <= drawing_area[2]):
+            continue
+        out.append({"text": base,
+                    "rect": (round(r.x0, 1), round(r.y0, 1),
+                             round(r.x1, 1), round(r.y1, 1))})
+    return out
+
+
+def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list:
+    """Equipment named on one drawing, as whole label blocks.
+
+    The drawings write an equipment name over several baselines - p33 prints
+    `AUX. FUEL OIL` / `FORWARDING PUMP` / `2X100%` as three lines of one label -
+    so lines are joined into a block when they sit within the page's own line
+    pitch of each other and their horizontal extents overlap.  Taking a single
+    line instead produced `FORWARDING PUMP` where the client writes `AUX FUEL OIL
+    FORWARDING PUMP`, which is the difference between a name and a fragment.
     """
     lines = collections.defaultdict(list)
     for r, t in pc.words:
@@ -329,27 +377,87 @@ def find_labels(pc, vocab: dict, drawing_area) -> list:
                 and drawing_area[1] <= r.y0 and r.y1 <= drawing_area[3]):
             continue
         lines[round((r.y0 + r.y1) / 2, 1)].append((r.x0, r, t))
+    # Splitting a baseline wherever the word gap exceeded the page's line pitch
+    # was tried and measured: it cut `#10 ST HYDRAULIC OIL COOLER` into
+    # `HYDRAULIC` and `COOLER`, and cost 4.3pp of recall for 3.4pp of precision.
+    # Two labels printed side by side still merge; see CLAUDE.md.
+    rows = [_row(y, sorted(lines[y], key=lambda it: it[0])) for y in sorted(lines)]
+    pitch = line_pitch if line_pitch else _line_pitch(rows)
+    blocks = _blocks(rows, pitch)
+
     out = []
-    for y in sorted(lines):
-        items = sorted(lines[y], key=lambda it: it[0])
-        text = " ".join(t for _x, _r, t in items).strip()
+    for b in blocks:
+        text = " ".join(b["texts"]).strip()
         if ROUTE_RE.match(text.upper()):
             continue
         head = _head_noun(text, vocab)
         if not head:
             continue
-        x0 = min(r.x0 for _x, r, _t in items)
-        y0 = min(r.y0 for _x, r, _t in items)
-        x1 = max(r.x1 for _x, r, _t in items)
-        y1 = max(r.y1 for _x, r, _t in items)
         name, note = clean_label(text)
+        rect = (round(b["x0"], 1), round(b["y0"], 1),
+                round(b["x1"], 1), round(b["y1"], 1))
         out.append(Equipment(
-            kind=head, page_no=pc.page_no,
-            rect=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)),
-            label=name, label_rect=(round(x0, 1), round(y0, 1),
-                                    round(x1, 1), round(y1, 1)),
+            kind=head, page_no=pc.page_no, rect=rect, label=name, label_rect=rect,
             count_note=note,
-            evidence={"raw": text, "noun": head, "noun_source": vocab.get(head, "")}))
+            evidence={"raw": text, "noun": head, "noun_source": vocab.get(head, ""),
+                      "lines": len(b["texts"]), "line_pitch": round(pitch, 1)}))
+    return out
+
+
+def _row(y, items) -> dict:
+    """One printed line: its text and the box the words actually occupy."""
+    return {"y": y,
+            "text": " ".join(t for _x, _r, t in items).strip(),
+            "x0": min(r.x0 for _x, r, _t in items),
+            "x1": max(r.x1 for _x, r, _t in items),
+            "y0": min(r.y0 for _x, r, _t in items),
+            "y1": max(r.y1 for _x, r, _t in items)}
+
+
+def _line_pitch(rows) -> float:
+    """The page's own baseline spacing: the gap that repeats between text lines."""
+    gaps = collections.Counter()
+    for i in range(len(rows) - 1):
+        g = round(rows[i + 1]["y"] - rows[i]["y"], 1)
+        if 0 < g < 60:
+            gaps[g] += 1
+    return max(gaps.items(), key=lambda kv: (kv[1], -kv[0]))[0] if gaps else 12.0
+
+
+def _blocks(rows, pitch) -> list:
+    """Consecutive lines of one label: stacked, centred on each other, not routes.
+
+    Horizontal *overlap* alone was too loose on a dense sheet - it glued a size
+    label to the route line under it (`DN25 TO EDG DAY TANK`).  A label's lines are
+    centred on one another, so the test is on their centres, and a route line never
+    joins anything.
+    """
+    out = []
+    for r in rows:
+        joined = False
+        if ROUTE_RE.match(r["text"].upper()):
+            out.append({"texts": [r["text"]], "x0": r["x0"], "x1": r["x1"],
+                        "y0": r["y0"], "y1": r["y1"], "y": r["y"]})
+            continue
+        for b in out:
+            if ROUTE_RE.match(b["texts"][0].upper()):
+                continue
+            centre_r = (r["x0"] + r["x1"]) / 2
+            centre_b = (b["x0"] + b["x1"]) / 2
+            narrower = min(r["x1"] - r["x0"], b["x1"] - b["x0"])
+            if (0 < r["y"] - b["y"] <= pitch * 1.5
+                    and abs(centre_r - centre_b) <= narrower / 2):
+                b["texts"].append(r["text"])
+                b["x0"] = min(b["x0"], r["x0"])
+                b["x1"] = max(b["x1"], r["x1"])
+                b["y0"] = min(b["y0"], r["y0"])
+                b["y1"] = max(b["y1"], r["y1"])
+                b["y"] = r["y"]
+                joined = True
+                break
+        if not joined:
+            out.append({"texts": [r["text"]], "x0": r["x0"], "x1": r["x1"],
+                        "y0": r["y0"], "y1": r["y1"], "y": r["y"]})
     return out
 
 
@@ -365,14 +473,21 @@ def _head_noun(text: str, vocab: dict) -> str:
 
 
 def clean_label(text: str) -> tuple:
-    """`(name, count note)`, by the two rules the client's own list settles.
+    """`(name, count note)`, by the rules the client's own list settles.
 
     * a duty note is dropped - `(3X50%)` appears in 0 of 557 Description lines
     * a plural head noun becomes singular - the client writes PUMP 138 / PUMPS 0,
       TANK 59 / TANKS 0, STRAINER 13 / STRAINERS 0, HEATER 9 / HEATERS 0
+    * anything else in brackets goes with it - the client writes no bracket at
+      all: `(` appears in 0 of the 557 lines, so the drawing's `(5m3)` size note
+      is not something the client would have written down
+    * an abbreviation loses its full stop - `.` appears in 0 of the 557 lines,
+      against `AUX.` on the drawing, so `AUX. FUEL OIL` is written `AUX FUEL OIL`
     """
     note = " ".join(COUNT_NOTE.findall(text)).strip()
     name = COUNT_NOTE.sub(" ", text)
+    name = BRACKET.sub(" ", name)
+    name = name.replace(".", "")
     name = " ".join(name.split())
     words = name.split()
     if words and words[-1].upper().endswith("S") and len(words[-1]) > 3:
