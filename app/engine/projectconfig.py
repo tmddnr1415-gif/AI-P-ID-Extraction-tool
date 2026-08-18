@@ -103,6 +103,21 @@ def load(path: str | Path = "config/project_alnouf1.yaml") -> ProjectConfig:
     return ProjectConfig(p, data)
 
 
+def load_standard(path: str | Path = "config/plant_standard_abbr.yaml") -> dict:
+    """The trade dictionary: abbreviations that hold on any power plant.
+
+    Kept in its own file and loaded separately from the project config, because it
+    is the one part of the configuration meant to be carried to the next project
+    unchanged.  Missing is not an error - a project that has not been given one
+    simply applies no aliases.
+    """
+    p = Path(path)
+    if not p.exists():
+        return {}
+    data = yaml.safe_load(p.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
+
+
 # --------------------------------------------------------------------------
 # Unit multiplier, derived from the legend
 # --------------------------------------------------------------------------

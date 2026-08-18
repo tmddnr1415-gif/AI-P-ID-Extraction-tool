@@ -1,0 +1,59 @@
+# Power-plant abbreviations that mean the same thing on any project.
+#
+# This is the third layer.  The other two are: rules derived from the document's
+# own legend (in code), and this client's choices measured on its finished list
+# (`project_*.yaml`).  What lives here is neither - it is trade vocabulary, true
+# of any combined-cycle plant, and it is meant to be copied to the next project
+# unchanged.  So nothing project-specific belongs in this file.
+#
+# A set is a list of forms that name the same thing.  No direction is fixed here:
+# which form to write is the client's habit, and that choice is made in the
+# project file (`description.equipment_alias_choice`) with the rows behind it.
+#
+# `confirmed` is applied.  `candidates` is not - it is what the counting turned up
+# for a person with plant experience to confirm or reject.  The counts beside each
+# are from this document: (drawn = printed lines on the drawings, client = lines in
+# the finished Description list).
+
+confirmed:
+  # Confirmed by the user against plant practice: on a power plant a feedwater
+  # pump is a boiler feedwater pump, and BFP is its abbreviation.
+  #   drawn: FEEDWATER PUMP 6, BFP 13   client: BOILER FEED WATER PUMP 33, BFP 29
+  # The drawings never print the long form and the client never writes the
+  # drawings' short one, which is why no distance rule could bridge them.
+  boiler_feedwater_pump:
+    - BFP
+    - BOILER FEED PUMP
+    - BOILER FEEDWATER PUMP
+    - BOILER FEED WATER PUMP
+    - FEEDWATER PUMP
+
+candidates:
+  # Awaiting confirmation.  Each line records what this document shows, including
+  # which way the two corpora lean, so a reviewer can judge without re-counting.
+  # The long form is printed on a drawing:
+  closed_cooling_water:      [CCW, CLOSED COOLING WATER]      # drawn 34/10  client 138/0   client shortens
+  aux_cooling_water:         [ACW, AUXILIARY COOLING WATER, AUX. COOLING WATER]
+                                                              # drawn 2/4    client 4/0     client shortens
+  condensate_extraction_pump: [CEP, CONDENSATE EXTRACTION PUMP]  # drawn 31/1  client 6/3   both
+  restriction_orifice:       [RO, RESTRICTION ORIFICE]        # drawn 28/1   client 4/19    client expands
+  motor_operated_valve:      [MOV, MOTOR OPERATED VALVE]      # drawn 73/1   client 0/0     unused
+  pressure_safety_valve:     [PSV, PRESSURE SAFETY VALVE]     # drawn 54/0   client 0/0     unused
+  heat_exchanger:            [HEX, HEAT EXCHANGER]            # drawn 0/6    client 11/11   both
+  clean_drain:               [CD, CLEAN DRAIN]                # drawn 1/27   client 5/17    both
+  blowdown:                  [BD, BLOWDOWN, BLOW DOWN]        # drawn 8/8    client 8/5     both
+  fuel_gas_heater:           [FGH, FUEL GAS HEATER]           # drawn 13/2   client 0/9     client expands
+  # No long form is printed anywhere in this document or written in the client's
+  # list - the trade never spells these out, which is the strongest sign that they
+  # belong in a standard dictionary rather than a project one:
+  heat_recovery_steam_generator: [HRSG, HEAT RECOVERY STEAM GENERATOR]  # drawn 112  client 29
+  gas_turbine:               [GT, GAS TURBINE]                # drawn 117/1  client 57/0
+  steam_turbine:             [ST, STEAM TURBINE]              # drawn 35/0   client 34/0
+  cold_reheat:               [CRH, COLD REHEAT]               # drawn 9/1    client 11/0
+  hot_reheat:                [HRH, HOT REHEAT]                # drawn 20/1   client 32/0
+  turbine_cooling_air:       [TCA, TURBINE COOLING AIR]       # drawn 9/0    client 12/0
+  high_pressure:             [HP, HIGH PRESSURE]              # drawn 29/1   client 56/0
+  intermediate_pressure:     [IP, INTERMEDIATE PRESSURE]      # drawn 15/0   client 11/0
+  low_pressure:              [LP, LOW PRESSURE]               # drawn 33/1   client 34/0
+  balance_of_plant:          [BOP, BALANCE OF PLANT]          # drawn 16/0   client 0/0
+  emergency_diesel_generator: [EDG, EMERGENCY DIESEL GENERATOR]  # drawn 3/0 client 0/0

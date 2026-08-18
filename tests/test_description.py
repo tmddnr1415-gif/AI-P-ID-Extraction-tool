@@ -483,3 +483,35 @@ def test_a_row_the_drawing_cannot_answer_says_so():
     ccw = pipeline._user_input_note("PI", "", "COOLER", "CCW")
     assert "SUPPLY" in ccw and "RETURN" in ccw
     assert pipeline._user_input_note("LIT", "SOME TANK", "TANK", "CLEAN DRAIN") == ""
+
+
+def test_a_standard_abbreviation_is_only_applied_where_the_project_chose_a_form():
+    """The trade dictionary fixes no direction; the project file does."""
+    standard = {"boiler_feedwater_pump": ["BFP", "BOILER FEEDWATER PUMP",
+                                          "FEEDWATER PUMP"],
+                "closed_cooling_water": ["CCW", "CLOSED COOLING WATER"]}
+    # only the set the project chose a form for is applied
+    aliases = dequip.derive_aliases(
+        standard, {"boiler_feedwater_pump": "BOILER FEEDWATER PUMP"})
+    assert aliases == {"BFP": "BOILER FEEDWATER PUMP",
+                       "FEEDWATER PUMP": "BOILER FEEDWATER PUMP"}
+    assert dequip.derive_aliases(standard, {}) == {}
+
+
+def test_an_abbreviation_is_rewritten_only_when_it_is_the_name_itself():
+    """`BFP A/B COOLER` is a cooler; the client writes BFP there and the long form
+    only where the pump itself is the subject."""
+    aliases = {"BFP": "BOILER FEED WATER PUMP",
+               "FEEDWATER PUMP": "BOILER FEED WATER PUMP"}
+    assert dequip.apply_alias("FEEDWATER PUMP", aliases) == (
+        "BOILER FEED WATER PUMP", "FEEDWATER PUMP")
+    assert dequip.apply_alias("BFP A/B COOLER", aliases) == ("BFP A/B COOLER", "")
+
+
+def test_the_name_is_what_comes_before_the_for():
+    """`FEEDWATER PUMP FOR HRSG UNIT #11 (2X50% PER HRSG)` names a pump."""
+    name, note = dequip.clean_label(
+        "FEEDWATER PUMP FOR HRSG UNIT #11 (A/B) (2X50% PER HRSG)")
+    assert name == "FEEDWATER PUMP"
+    name, _note = dequip.clean_label("SLOP OIL TANK FOR FORWARDING PUMP AREA (5m3)")
+    assert name == "SLOP OIL TANK"

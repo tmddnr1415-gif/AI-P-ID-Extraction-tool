@@ -319,6 +319,25 @@ description:
   position_by_system:
     CCW TI: RETURN                # 51 of 54 rows
 
+  # On a sheet that names at most this many pieces of equipment, the instrument's
+  # distance to it is not used to rule it out - there is nothing to choose between.
+  # 0 turns it off.  Measured on the two sheets that qualify in this document:
+  # p20 names two and all 33 client lines use one of them; p31 names one (the bare
+  # word `PUMP`) and 0 of its 15 lines use it.  See the `--without` number in the
+  # round report before raising this.  PROJECT.
+  sole_equipment_sheet_max: 2
+
+  # Which member of a confirmed standard set this client writes.  The set itself
+  # lives in `config/plant_standard_abbr.yaml` and fixes no direction; this is the
+  # direction, and it is a project fact measured on the client's own list:
+  #   BOILER FEED WATER PUMP  33 rows (p20, every line on that sheet)
+  #   BFP                     29 rows - but always as a modifier (`BFP A/B COOLER`),
+  #                           never as the name of the pump itself
+  # The drawings print `FEEDWATER PUMP` 6 times and never the long form, so without
+  # this the two corpora have no word in common for the same pump.  PROJECT.
+  equipment_alias_choice:
+    boiler_feedwater_pump: BOILER FEED WATER PUMP
+
   # A noun that only names equipment in company.  The word in front decides, and
   # the list is the client's own: it writes `BYPASS VALVE` 54 times, `LETDOWN` 3,
   # `CONTROL` 3, `MODULATING` 2, `SHOTDOWN` 2, `BREAKER` 1 - and never the

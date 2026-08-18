@@ -57,6 +57,11 @@ import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
 
 CFG = projectconfig.load()
+# The trade dictionary: power-plant abbreviations that hold on any project, kept
+# apart from this client's choices so it can be carried to the next one unchanged.
+# Only its `confirmed` sets are applied, and only where the project file says which
+# member this client writes.
+STANDARD = projectconfig.load_standard()
 
 # The exclusion set Phase 0 scored on.  `included_under` takes the rules that
 # are *active* - not the ones that are disabled - and passing
@@ -407,7 +412,10 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     with clock.stage("candidates"):
         cand_stats = _candidate_pass(rows, per_page, equip_by_page, positions,
                                      pipe_style.values, component_words,
-                                     use_prefix=use_prefix)
+                                     use_prefix=use_prefix,
+                                     few_equipment=int(
+                                         (CFG.data.get("description") or {})
+                                         .get("sole_equipment_sheet_max") or 0))
 
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
@@ -1052,18 +1060,24 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
     """Equipment named on every drawing, numbered within its own group."""
     out, stats = {}, collections.Counter()
     area = CFG.rect("regions.drawing_area")
+    aliases = dequip.derive_aliases(
+        (STANDARD or {}).get("confirmed") or {},
+        (CFG.data.get("description") or {}).get("equipment_alias_choice") or {})
+    stats["aliases"] = len(aliases)
     pitch = dequip.derive_line_pitch(
         [info["page_cache"] for _p, info in sorted(per_page.items())], area)
     stats["line_pitch_pt"] = pitch
     for pno, info in sorted(per_page.items()):
         found = dequip.find_labels(
             info["page_cache"], vocab, area, pitch,
-            (CFG.data.get("description") or {}).get("equipment_modifiers"))
+            (CFG.data.get("description") or {}).get("equipment_modifiers"), aliases)
         found = dequip.group(found)
         out[pno] = found
         stats["instances"] += len(found)
         stats["pages_with_equipment"] += 1 if found else 0
         for e in found:
+            if (e.evidence or {}).get("alias_of"):
+                stats["alias_applied"] += 1
             stats[f"noun:{e.kind}"] += 1
             if e.ordinal:
                 stats["numbered"] += 1
@@ -1088,7 +1102,8 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
 
 
 def _candidate_pass(rows, per_page, equip_by_page, positions, style,
-                    component_words, use_prefix: bool = True) -> dict:
+                    component_words, use_prefix: bool = True,
+                    few_equipment: int = 0) -> dict:
     """Two-axis candidates for every row, and the distance the cut was made at.
 
     The equipment distance limit is measured, not chosen: every instrument's
@@ -1128,8 +1143,19 @@ def _candidate_pass(rows, per_page, equip_by_page, positions, style,
         info = per_page[pno]
         triples = [(r.key, tuple(r.rect), r.type) for r in page_rows]
         comps = dequip.find_components(info["page_cache"], component_words, area)
+        # A sheet that names only one or two pieces of equipment has nothing for
+        # the distance limit to choose between: the limit exists to stop an
+        # instrument borrowing a name from the far side of a crowded sheet.  On
+        # p20 the pump is captioned once at the foot of the sheet, 700 pt from the
+        # instruments, and all 33 of the client's lines on it name that pump.
+        # Measured on the two sheets that qualify, though - p31's sole label is the
+        # bare word `PUMP` and 0 of its 15 lines use it - so this is reported with
+        # its own `--without` number rather than assumed.
+        page_limit = None if (few_equipment
+                              and len({e.label for e in equip_by_page.get(pno, ())})
+                              <= few_equipment) else limit
         cands = dcand.collect(info["page_cache"], triples,
-                              equip_by_page.get(pno, ()), area, positions, limit,
+                              equip_by_page.get(pno, ()), area, positions, page_limit,
                               style=style, components=comps,
                               reach=reach.values["equipment_reach"],
                               between_types=CFG.data.get("description", {})

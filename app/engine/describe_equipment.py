@@ -284,6 +284,9 @@ COUNT_NOTE = re.compile(r"\(?\s*\d+\s*X\s*\d+\s*%\s*\)?")
 # Whatever else the drawing puts in brackets - a size, a capacity - the
 # client leaves out: 0 of its 557 lines carry a bracket.
 BRACKET = re.compile(r"\([^)]*\)?")
+# `FEEDWATER PUMP FOR HRSG UNIT #11` names a pump; the client writes 1 `FOR` in
+# its 557 lines, so the tail is where the drawing says which unit, not the name.
+FOR_TAIL = re.compile(r"\bFOR\b.*$")
 
 # A line the drawing opens with its own preposition is a route, not a name: `TO
 # HRSG#12 BD TANK` says where the pipe goes.  Taking it as equipment put an
@@ -361,6 +364,44 @@ def find_components(pc, words: dict, drawing_area) -> list:
     return out
 
 
+def derive_aliases(standard: dict, choice: dict) -> dict:
+    """`{printed form: the form to write}` for the sets a person has confirmed.
+
+    Two layers meet here.  `standard` is trade vocabulary - on any power plant a
+    feedwater pump is a boiler feedwater pump - and is meant to be carried to the
+    next project unchanged, so it fixes no direction.  `choice` is this client's
+    habit, measured on its own list, and names which member of a set it writes.
+    A set with no choice recorded is not applied at all.
+    """
+    out = {}
+    for name, forms in (standard or {}).items():
+        want = str((choice or {}).get(name) or "").upper().strip()
+        if not want:
+            continue
+        for form in forms:
+            f = " ".join(str(form).upper().split())
+            if f and f != want:
+                out[f] = want
+    return out
+
+
+def apply_alias(name: str, aliases: dict) -> tuple:
+    """`(name, the form it was written under)` - only when the alias is the head.
+
+    A short form in front of another noun is a modifier, not the thing itself, and
+    the client writes it differently there: it names the pump `BOILER FEED WATER
+    PUMP` on all 33 lines where the pump is the subject, and `BFP` on all 24 where
+    something else is - `BFP A/B COOLER`, `BFP A/B MOTOR COOLER`.  Rewriting a
+    modifier as well cost 1.5 F1 when it was measured, so the match has to end the
+    name.  The longest match wins.
+    """
+    up = " ".join(str(name).upper().split())
+    for form in sorted(aliases, key=len, reverse=True):
+        if re.search(rf"(?<![A-Z]){re.escape(form)}$", up):
+            return (up[:len(up) - len(form)] + aliases[form]).strip(), form
+    return name, ""
+
+
 def _modifier_ok(text: str, head: str, modifiers: dict) -> bool:
     """Whether the word in front of a noun is one the client uses with it.
 
@@ -383,7 +424,7 @@ def _modifier_ok(text: str, head: str, modifiers: dict) -> bool:
 
 
 def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
-                modifiers: dict = None) -> list:
+                modifiers: dict = None, aliases: dict = None) -> list:
     """Equipment named on one drawing, as whole label blocks.
 
     The drawings write an equipment name over several baselines - p33 prints
@@ -432,12 +473,14 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
         if not _modifier_ok(text, head, modifiers):
             continue
         name, note = clean_label(text)
+        name, alias_of = apply_alias(name, aliases or {})
         rect = (round(b["x0"], 1), round(b["y0"], 1),
                 round(b["x1"], 1), round(b["y1"], 1))
         out.append(Equipment(
             kind=head, page_no=pc.page_no, rect=rect, label=name, label_rect=rect,
             count_note=note,
             evidence={"raw": text, "noun": head, "noun_source": vocab.get(head, ""),
+                      "alias_of": alias_of,
                       "lines": len(b["texts"]), "line_pitch": round(pitch, 1)}))
     return out
 
@@ -589,11 +632,18 @@ def clean_label(text: str) -> tuple:
       is not something the client would have written down
     * an abbreviation loses its full stop - `.` appears in 0 of the 557 lines,
       against `AUX.` on the drawing, so `AUX. FUEL OIL` is written `AUX FUEL OIL`
+    * a `FOR ...` tail goes with them - the client writes one in 1 of its 557
+      lines, against the drawings' `FEEDWATER PUMP FOR HRSG UNIT #11`, where the
+      name of the pump is the part in front
     """
     note = " ".join(COUNT_NOTE.findall(text)).strip()
-    name = COUNT_NOTE.sub(" ", text)
-    name = BRACKET.sub(" ", name)
+    # Brackets go first, whole: a caption can carry two of them - `(A/B)` and
+    # `(2X50% PER HRSG)` - and taking the duty note out first splits the second
+    # one, leaving `PER HRSG)` glued to the name.
+    name = BRACKET.sub(" ", text)
+    name = COUNT_NOTE.sub(" ", name)
     name = name.replace(".", "")
+    name = FOR_TAIL.sub(" ", name)
     name = " ".join(name.split())
     words = name.split()
     if words and words[-1].upper().endswith("S") and len(words[-1]) > 3:
