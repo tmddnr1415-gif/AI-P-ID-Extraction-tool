@@ -47,6 +47,8 @@ NAMED_KINDS = (EQUIPMENT, CONNECTOR)
 
 UNIT_MARK_CHAR = "#"
 CONNECTOR_RE = re.compile(r"^(TO|FROM)\b(.+)$")
+# `GT#11` carries the prefix `GT`; the unit number is not part of it.
+PREFIX_WORD = re.compile(r"[A-Z][A-Z\-]*")
 
 # The sides, in the drawing's own axes.
 LEFT, RIGHT, ABOVE, BELOW = "LEFT", "RIGHT", "ABOVE", "BELOW"
@@ -272,9 +274,84 @@ def between_symbol(rect, equip_rect, components, slack: float = 0.0) -> str:
     return best
 
 
+def prefix_groups(equipment) -> dict:
+    """`{prefix: [equipment, ...]}` for names on one sheet that differ only in front.
+
+    The drawing itself says which names are a set: `AUX FUEL OIL FORWARDING PUMP`
+    and `GT FUEL OIL FORWARDING PUMP` share every word but the first.  The client's
+    own list writes the same pairs - 25 of its subjects share a tail of two or more
+    words with a different head, `AUX`/`GT`, `HP`/`LP`/`HRH`/`CRH`, `ST LUBE`/`ST
+    HYDRAULIC` among them - so the head is a system prefix, not part of the name.
+
+    Only names that actually share a tail on this sheet are grouped, which keeps
+    the prefix rule from touching anything it cannot disambiguate.
+    """
+    items = [(e, tuple(str(e.label).upper().split())) for e in equipment
+             if len(str(e.label).split()) >= 3]
+    groups = collections.defaultdict(dict)
+    for i, (ea, wa) in enumerate(items):
+        for eb, wb in items[i + 1:]:
+            n = 0
+            while n < min(len(wa), len(wb)) - 1 and wa[-1 - n] == wb[-1 - n]:
+                n += 1
+            if n < 2:
+                continue
+            ha, hb = wa[:len(wa) - n], wb[:len(wb) - n]
+            if not ha or not hb or ha == hb or len(ha) > 2 or len(hb) > 2:
+                continue
+            key = wa[-n:]
+            groups[key][ha[0]] = ea
+            groups[key][hb[0]] = eb
+    out = {}
+    for key, members in groups.items():
+        if len(members) >= 2:
+            out[key] = members
+    return out
+
+
+def prefix_subject(rect, best, lines, groups) -> tuple:
+    """`(equipment, prefix)` when the line text names one member of a prefix set.
+
+    The evidence has to beat what it overrides, so only text the instrument sits
+    *closer to* than to the equipment it would otherwise take is read - on p33 the
+    header at y=736 is 238 pt from `TO GT#11` and 256 pt from the label it would
+    otherwise borrow, while the header at y=263 has no line text nearer than its
+    equipment at all and is left alone.  A prefix that names no equipment on this
+    sheet is not evidence about this sheet, and two prefixes at once are no
+    evidence either: both hold, and the caller keeps the distance answer.
+
+    Only the `TO` / `FROM` route text is read.  Reading every line of text instead
+    let the equipment's own printed label answer the question it was being asked -
+    `AUX. FUEL OIL` sits 255 pt from the header it does not serve - and two
+    prefixes at once meant the rule never fired.
+    """
+    if best is None:
+        return None, ""
+    label = tuple(str(best.label).upper().split())
+    members = next((m for key, m in groups.items()
+                    if len(label) > len(key) and label[-len(key):] == key), None)
+    if not members:
+        return None, ""
+    cx, cy = (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
+    limit = max(abs((best.rect[0] + best.rect[2]) / 2 - cx),
+                abs((best.rect[1] + best.rect[3]) / 2 - cy))
+    seen = set()
+    for rct, text in lines:
+        d = max(abs((rct[0] + rct[2]) / 2 - cx), abs((rct[1] + rct[3]) / 2 - cy))
+        if d >= limit:
+            continue
+        for word in PREFIX_WORD.findall(str(text).upper()):
+            if word in members:
+                seen.add(word)
+    if len(seen) != 1:
+        return None, ""
+    word = seen.pop()
+    return (members[word], word) if members[word] is not best else (None, "")
+
+
 def collect(pc, rows, equipment, drawing_area, pos, limit: float = None,
             style: dict = None, components=(), reach: float = None,
-            between_types=()) -> dict:
+            between_types=(), use_prefix: bool = True) -> dict:
     """`{row_key: [candidate, ...]}` for the instruments on one page.
 
     `rows` is `[(key, rect, type)]`; `equipment` is what `describe_equipment.find_labels`
@@ -286,6 +363,7 @@ def collect(pc, rows, equipment, drawing_area, pos, limit: float = None,
     runs, leaders = local_runs(pc, style) if style else ([], [])
     out = {}
     between_types = frozenset(str(t).upper() for t in between_types)
+    groups = prefix_groups(equipment) if use_prefix else {}
     for key, rect, _type in rows:
         # Only the types that write an intermediate symbol are offered one.  The
         # client names one on 13 of its 557 lines and every one of them is a PDIT
@@ -332,6 +410,21 @@ def collect(pc, rows, equipment, drawing_area, pos, limit: float = None,
         # connected equipment first, then equipment by distance, then the line
         cands.sort(key=lambda c: (c["kind"] != EQUIPMENT,
                                   not c.get("connected"), c["distance"]))
+        # The system prefix speaks last and only where the names differ by one:
+        # `TO GT#11` printed nearer than the label the distance picked moves the
+        # subject to that set's `GT` member.
+        if groups and cands and cands[0]["kind"] == EQUIPMENT:
+            head = next((e for e in equipment
+                         if e.label == cands[0]["text"]
+                         and list(e.rect) == cands[0]["rect"]), None)
+            pick, word = prefix_subject(rect, head, conns, groups)
+            if pick is not None:
+                for i, c in enumerate(cands):
+                    if (c["kind"] == EQUIPMENT and c["text"] == pick.label
+                            and list(c["rect"]) == list(pick.rect)):
+                        c["by_prefix"] = word
+                        cands.insert(0, cands.pop(i))
+                        break
         out[key] = cands[:12]
     return out
 

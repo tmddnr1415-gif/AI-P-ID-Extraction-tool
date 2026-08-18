@@ -338,3 +338,67 @@ def test_only_a_pdit_is_offered_an_intermediate_symbol():
                         components=comps, between_types=("PDIT",))
     assert (out["pdit"][0]["equipment"]["between"]) == "SUCTION STRAINER"
     assert (out["pit"][0]["equipment"]["between"]) == ""
+
+
+def test_two_labels_on_one_baseline_are_separated_by_the_word_that_repeats():
+    """`#10 ST` printed four times is four coolers, not one long name."""
+    import types
+    class R:
+        def __init__(s, x0, y0, x1, y1): s.x0, s.y0, s.x1, s.y1 = x0, y0, x1, y1
+    words = [(R(508, 788, 538, 800), "#10"), (R(526, 788, 545, 800), "ST"),
+             (R(649, 788, 679, 800), "#10"), (R(667, 788, 686, 800), "ST"),
+             (R(497, 800, 550, 813), "HYDRAULIC"),
+             (R(638, 800, 687, 813), "HYDRAULIC"),
+             (R(819, 800, 838, 813), "#10"), (R(837, 800, 850, 813), "ST"),
+             (R(851, 800, 876, 813), "LUBE"), (R(877, 800, 893, 813), "OIL"),
+             (R(894, 800, 933, 813), "COOLER"),
+             (R(1234, 800, 1251, 813), "#10"), (R(1252, 800, 1265, 813), "ST"),
+             (R(1266, 800, 1325, 813), "GENERATOR"),
+             (R(1326, 800, 1365, 813), "COOLER"),
+             (R(1650, 800, 1667, 813), "#10"), (R(1668, 800, 1681, 813), "ST"),
+             (R(1682, 800, 1720, 813), "STATOR"),
+             (R(1721, 800, 1756, 813), "WATER"),
+             (R(1757, 800, 1796, 813), "COOLER"),
+             (R(495, 813, 511, 826), "OIL"), (R(512, 813, 551, 826), "COOLER"),
+             (R(636, 813, 652, 826), "OIL"), (R(653, 813, 692, 826), "COOLER")]
+    pc = types.SimpleNamespace(words=words, page_no=37, segments=lambda: [])
+    found = dequip.find_labels(pc, {"COOLER": "LEGEND"},
+                               (0.0, 0.0, 2384.0, 1684.0), 15.3)
+    names = sorted(e.label for e in found)
+    assert names == ["#10 ST GENERATOR COOLER", "#10 ST HYDRAULIC OIL COOLER",
+                     "#10 ST HYDRAULIC OIL COOLER", "#10 ST LUBE OIL COOLER",
+                     "#10 ST STATOR WATER COOLER"], names
+
+
+def test_the_line_pitch_is_measured_over_the_whole_set():
+    """A sparse sheet's own modal gap is 2.0 pt, which is not a line pitch."""
+    class R:
+        def __init__(s, x0, y0, x1, y1): s.x0, s.y0, s.x1, s.y1 = x0, y0, x1, y1
+    import types
+    sparse = types.SimpleNamespace(page_no=1, words=[
+        (R(10, 100, 40, 110), "A"), (R(60, 102, 90, 112), "B")])
+    dense = types.SimpleNamespace(page_no=2, words=[
+        (R(10, y, 40, y + 10), "X") for y in (100, 115, 130, 145, 160)])
+    pitch = dequip.derive_line_pitch([sparse, dense], (0.0, 0.0, 500.0, 500.0))
+    assert pitch == 15.0
+
+
+def test_a_switch_reads_its_own_alarm_letters():
+    """`LSHH` is `LEVEL HIGH HIGH` in 11 of the client's lines, `LSH` `LEVEL HIGH`."""
+    import isa_table
+    isa = isa_table.IsaTable(first={"L": ("LEVEL",)}, page_no=3)
+    pat = describe_pattern()
+    assert desc.variable_words("LSHH", isa, pat) == ("LEVEL", "HIGH", "HIGH")
+    assert desc.variable_words("LSH", isa, pat) == ("LEVEL", "HIGH")
+    assert desc.variable_words("LS", isa, pat) == ("LEVEL",)
+
+
+def test_a_prefix_set_is_only_made_of_names_that_share_a_tail():
+    import types
+    def eq(label):
+        return types.SimpleNamespace(label=label, rect=(0.0, 0.0, 1.0, 1.0))
+    sets = dcand.prefix_groups([eq("AUX FUEL OIL FORWARDING PUMP"),
+                                eq("GT FUEL OIL FORWARDING PUMP"),
+                                eq("SLOP OIL TRANSFER PUMP")])
+    assert list(sets) == [("FUEL", "OIL", "FORWARDING", "PUMP")]
+    assert sorted(sets[("FUEL", "OIL", "FORWARDING", "PUMP")]) == ["AUX", "GT"]

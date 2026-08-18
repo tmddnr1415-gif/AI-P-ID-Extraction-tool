@@ -84,6 +84,11 @@ class Pattern:
     # PIT 44/106, TIT 36/97, FIT 26/31, PDIT 6/52, LIT 5/29 do; PI 0/111,
     # TI 0/59, LS 0/22, RO 0/19, FE 0/18, LI 0/10, FS 0/3 never do.
     end_ordinal_types: frozenset = frozenset()
+    # What a switch's trailing H / L letters read as, off the client's own lines.
+    alarm_suffix: dict = field(default_factory=dict)
+    # `{(type, side): word}` where the client's own lines have a majority word for
+    # an instrument on that side of its subject.
+    position_by_side: dict = field(default_factory=dict)
     source: str = "CONFIG"
     note: str = ""
     evidence: dict = field(default_factory=dict)
@@ -101,6 +106,13 @@ def derive_pattern(cfg=None) -> Pattern:
                       ((d.get("position_words") or {}).get("pump_nouns") or ()))
     end_types = frozenset(str(t).upper()
                           for t in (d.get("end_ordinal_types") or ()))
+    alarms = {str(k).upper(): tuple(str(w).upper() for w in v)
+              for k, v in (d.get("alarm_suffix") or {}).items()}
+    sides = {}
+    for key, word in (d.get("position_by_side") or {}).items():
+        type_, _s, side = str(key).upper().partition(" ")
+        if side:
+            sides[(type_, side)] = str(word).upper()
     stop = frozenset(str(w).upper() for w in
                      ((cfg.data.get("matching") or {}).get("stopwords") or ()))
     return Pattern(
@@ -115,6 +127,8 @@ def derive_pattern(cfg=None) -> Pattern:
         position_word_types=pos_types,
         pump_nouns=pumps,
         end_ordinal_types=end_types,
+        alarm_suffix=alarms,
+        position_by_side=sides,
         evidence={"template": d.get("template") or "", "measured_on": d.get("measured_on") or ""})
 
 
@@ -129,10 +143,31 @@ def variable_words(tag: str, isa, pat: Pattern) -> tuple:
     derivation.
     """
     up = str(tag).upper()
+    base = ()
     for n in (4, 3, 2, 1):
         if up[:n] in pat.variable_words:
-            return pat.variable_words[up[:n]]
-    return isa.words_for(tag) if isa is not None else ()
+            base = pat.variable_words[up[:n]]
+            break
+    if not base:
+        base = tuple(isa.words_for(tag)) if isa is not None else ()
+    return tuple(base) + alarm_words(up, base, pat)
+
+
+def alarm_words(tag: str, base, pat: Pattern) -> tuple:
+    """`HIGH HIGH` / `HIGH` off the end of a switch's own tag.
+
+    The legend's succeeding-letter table stops at `S SWITCH` - it defines no `H`
+    or `L` modifier at all - so the words come from the client's own list, where
+    `LSHH` reads `LEVEL HIGH HIGH` in 11 lines and `LSH` reads `LEVEL HIGH` in 11.
+    The drawing already tells us which is which: the bubble is tagged `LSHH`,
+    `LSH` or `LSL`, and that tag is what the row carries.
+    """
+    if not pat.alarm_suffix or not base:
+        return ()
+    for n in (2, 1):
+        if len(tag) > n and tag[-n:] in pat.alarm_suffix:
+            return pat.alarm_suffix[tag[-n:]]
+    return ()
 
 
 def system_words(title: str, pat: Pattern) -> list:
@@ -189,8 +224,16 @@ def assemble(unit_code: str, title: str, tag: str, isa, pat: Pattern,
         # decides on its own (config description.position_word_types).
         wants_position = (str(type_).upper() in pat.position_word_types
                           if type_ else True)
-        if eq.get("position_word") and wants_position:
-            bits.append(eq["position_word"])
+        # Geometry answers left and right - a pump's suction is on one side and
+        # its discharge on the other.  It says nothing about above and below, and
+        # the client mostly writes nothing there.  Where its own lines do have a
+        # majority word for a type on a side, that word is used and nothing else
+        # is invented (config description.position_by_side, with the counts).
+        word = eq.get("position_word") or pat.position_by_side.get(
+            (str(type_).upper(), str(subject.get("direction") or "").upper()), "")
+        if word and wants_position:
+            bits.append(word)
+            eq = dict(eq, position_word=word)
         # What sits between the instrument and the equipment - `SUCTION STRAINER`
         # in 13 of the client's lines, always before the variable word.
         if between:

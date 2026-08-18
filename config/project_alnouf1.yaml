@@ -283,6 +283,20 @@ description:
   # sentences from 8 to 20.  PROJECT: the client's habit, not a legend derivation.
   end_ordinal_types: [PIT, TIT, FIT, PDIT]
 
+  # Where geometry has nothing to say - an instrument above or below its subject -
+  # and the client's own lines still have a majority word.  Counted on the 518
+  # matched lines after the subject was corrected this round; only cells with at
+  # least 10 lines and one word over half are listed, which is why the table is
+  # three entries and not twelve:
+  #   PIT ABOVE  -> DISCHARGE  21/35 (60%)      PDIT ABOVE -> SUCTION  6/10 (60%)
+  #   PDIT LEFT  -> SUCTION    18/26 (69%)
+  # Every other cell's majority is "no word at all" - PI ABOVE 29/29, PI BELOW
+  # 61/64, TI BELOW 44/47 - so nothing is attached there.  PROJECT.
+  position_by_side:
+    PIT ABOVE: DISCHARGE
+    PDIT ABOVE: SUCTION
+    PDIT LEFT: SUCTION
+
   # Which types name what sits between the instrument and the equipment.  The
   # client does this on 13 of its 557 lines, and all 13 are PDIT reading
   # `SUCTION STRAINER` - no other type names an intermediate symbol at all.  The
@@ -290,6 +304,20 @@ description:
   # without labelling it - p33, where the client writes it six times - nothing is
   # offered and nothing is invented.  PROJECT: the client's habit.
   between_symbol_types: [PDIT]
+
+  # What a switch's trailing H / L letters read as.  The legend's succeeding-letter
+  # table (p3) stops at `S SWITCH` and defines no H or L modifier, so this comes
+  # from the client's own lines: `LSHH` -> `LEVEL HIGH HIGH` 11 rows, `LSH` ->
+  # `LEVEL HIGH` 11 rows.  The drawing supplies which is which - the bubble is
+  # tagged LSHH / LSH / LSL and that tag is what the row carries.
+  # LL and L carry **0 rows of evidence** in this client list (it has no LSL line
+  # at all); they are written here to complete the pair the client did show, and
+  # any row that uses them should be checked.  PROJECT, not a legend derivation.
+  alarm_suffix:
+    HH: [HIGH, HIGH]      # 11 rows
+    H:  [HIGH]            # 11 rows
+    LL: [LOW, LOW]        # 0 rows - completion, unverified
+    L:  [LOW]             # 0 rows - completion, unverified
 
   # Finished lines that show the client's wording, per system name.  Used only to
   # show the selector the *order* the client writes in; it may not take words from

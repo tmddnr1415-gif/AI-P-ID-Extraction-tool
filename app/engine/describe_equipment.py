@@ -377,12 +377,24 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list
                 and drawing_area[1] <= r.y0 and r.y1 <= drawing_area[3]):
             continue
         lines[round((r.y0 + r.y1) / 2, 1)].append((r.x0, r, t))
-    # Splitting a baseline wherever the word gap exceeded the page's line pitch
-    # was tried and measured: it cut `#10 ST HYDRAULIC OIL COOLER` into
-    # `HYDRAULIC` and `COOLER`, and cost 4.3pp of recall for 3.4pp of precision.
-    # Two labels printed side by side still merge; see CLAUDE.md.
-    rows = [_row(y, sorted(lines[y], key=lambda it: it[0])) for y in sorted(lines)]
-    pitch = line_pitch if line_pitch else _line_pitch(rows)
+    # Two labels printed side by side share a baseline.  What separates them is
+    # not a gap - splitting on the word gap was tried and measured, and it cut
+    # `#10 ST HYDRAULIC OIL COOLER` in half - it is repetition: a drawing that
+    # prints four coolers in a row prints `#10 ST` four times, so a word that has
+    # already appeared in the line being built starts the next label.
+    # The baseline pitch is measured before any splitting: it is the gap between
+    # printed lines, and counting it over the split pieces collapses it to a word
+    # gap and stops the block joining that reads a name off three baselines.
+    pitch = line_pitch if line_pitch else _line_pitch(
+        [_row(y, sorted(lines[y], key=lambda it: it[0])) for y in sorted(lines)])
+    rows = []
+    for y in sorted(lines):
+        pieces = _split_repeats(sorted(lines[y], key=lambda it: it[0]))
+        starts = {p[0][2].upper() for p in pieces if p}
+        for piece in pieces:
+            for part in _split_starts(piece, starts):
+                rows.append(_row(y, part))
+
     blocks = _blocks(rows, pitch)
 
     out = []
@@ -404,6 +416,39 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None) -> list
     return out
 
 
+def _split_repeats(items) -> list:
+    """One baseline into label-sized pieces, cut where a word repeats.
+
+    Two labels printed side by side share a baseline.  What separates them is not
+    a gap - splitting on the word gap was measured and it cut `#10 ST HYDRAULIC
+    OIL COOLER` in half - it is repetition: a drawing that prints four coolers in
+    a row prints `#10 ST` four times, so a word already used in the piece being
+    built starts the next one.
+    """
+    out, run, seen = [], [], set()
+    for it in items:
+        word = it[2].upper()
+        if word in seen:
+            out.append(run)
+            run, seen = [], set()
+        run.append(it)
+        seen.add(word)
+    if run:
+        out.append(run)
+    return out
+
+
+def _split_starts(items, starts) -> list:
+    """Cut again at a word that opens another label on the same baseline.
+
+    `#10` opens three of the four coolers, so the `#10` sitting inside a fourth
+    piece is that label's start and not part of the piece before it.
+    """
+    cut = [i for i in range(1, len(items)) if items[i][2].upper() in starts]
+    edges = [0] + cut + [len(items)]
+    return [items[a:b] for a, b in zip(edges, edges[1:]) if items[a:b]]
+
+
 def _row(y, items) -> dict:
     """One printed line: its text and the box the words actually occupy."""
     return {"y": y,
@@ -414,8 +459,43 @@ def _row(y, items) -> dict:
             "y1": max(r.y1 for _x, r, _t in items)}
 
 
+def derive_line_pitch(pages, drawing_area) -> float:
+    """The set's own baseline spacing, measured over every sheet at once.
+
+    Measuring it per page is not safe: a sparse sheet such as p37 prints only 36
+    lines and its most frequent gap is 2.0 pt, which is a rounding artefact rather
+    than a line pitch, and a pitch that small stops a name being read off the three
+    baselines it is printed on.  The drawings are one set in one text style, so the
+    gap that repeats across the whole document is the measurement.
+    """
+    heights = collections.Counter()
+    ys_by_page = []
+    for pc in pages:
+        ys = set()
+        for r, _t in pc.words:
+            if not (drawing_area[0] <= r.x0 and r.x1 <= drawing_area[2]
+                    and drawing_area[1] <= r.y0 and r.y1 <= drawing_area[3]):
+                continue
+            heights[round(r.y1 - r.y0, 1)] += 1
+            ys.add(round((r.y0 + r.y1) / 2, 1))
+        ys_by_page.append(sorted(ys))
+    if not heights:
+        return 12.0
+    # A line cannot be closer to the next than the letters are tall, so the text's
+    # own height is the floor.  Without it the mode is 0.1 pt - two words on one
+    # baseline whose centres round apart - which is not a line pitch.
+    floor = max(heights.items(), key=lambda kv: kv[1])[0]
+    gaps = collections.Counter()
+    for ys in ys_by_page:
+        for a, b in zip(ys, ys[1:]):
+            g = round(b - a, 1)
+            if floor <= g < 60:
+                gaps[g] += 1
+    return max(gaps.items(), key=lambda kv: (kv[1], -kv[0]))[0] if gaps else 12.0
+
+
 def _line_pitch(rows) -> float:
-    """The page's own baseline spacing: the gap that repeats between text lines."""
+    """One page's baseline spacing: the gap that repeats between text lines."""
     gaps = collections.Counter()
     for i in range(len(rows) - 1):
         g = round(rows[i + 1]["y"] - rows[i]["y"], 1)

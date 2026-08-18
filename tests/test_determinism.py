@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -127,6 +128,11 @@ def desc_words(row, run) -> set:
     tb_row = next(t for t in run["titleblocks"] if t["page_no"] == row["page_no"])
     isa = run["description_build"]["isa_table"]
     out = {"UNIT", f"#{tb_row['unit_code']}"}
+    # The unit number may be the one printed beside the instrument rather than the
+    # one on the title block.  The row records which text it was read off, and only
+    # a number out of that text is allowed.
+    mark = row["evidence"].get("unit_mark_source") or ""
+    out |= {f"#{n}" for n in re.findall(r"#\s*(\d{1,2})\b", mark)}
     out |= set(str(page["title"]).upper().split())
     for words in isa["first"].values():
         out |= set(words)
@@ -136,6 +142,12 @@ def desc_words(row, run) -> set:
     # client's 557 lines) and the row records it in `description_sources`.
     for words in (pipeline.CFG.data.get("description") or {}).get(
             "variable_words", {}).values():
+        out |= {str(w).upper() for w in words}
+    # A switch's own trailing letters: `LSHH` reads `LEVEL HIGH HIGH`.  The legend
+    # defines no H or L modifier, so the words are declared in
+    # `config description.alarm_suffix` with the client's counts beside them.
+    for words in (pipeline.CFG.data.get("description") or {}).get(
+            "alarm_suffix", {}).values():
         out |= {str(w).upper() for w in words}
     return out
 

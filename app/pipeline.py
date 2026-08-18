@@ -27,6 +27,7 @@ import collections
 import contextlib
 import hashlib
 import json
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -257,7 +258,7 @@ def _page_origins(pages, tb_rows, per_page, reference: Path = None) -> dict:
 
 
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
-            reference: Path = None) -> dict:
+            reference: Path = None, use_prefix: bool = True) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -404,7 +405,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                                      equip_vocab, pattern)
     with clock.stage("candidates"):
         cand_stats = _candidate_pass(rows, per_page, equip_by_page, positions,
-                                     pipe_style.values, component_words)
+                                     pipe_style.values, component_words,
+                                     use_prefix=use_prefix)
 
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
@@ -1048,9 +1050,12 @@ def _examples_for(examples: dict, core: str, drawing_no: str, limit: int = 10) -
 def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
     """Equipment named on every drawing, numbered within its own group."""
     out, stats = {}, collections.Counter()
+    area = CFG.rect("regions.drawing_area")
+    pitch = dequip.derive_line_pitch(
+        [info["page_cache"] for _p, info in sorted(per_page.items())], area)
+    stats["line_pitch_pt"] = pitch
     for pno, info in sorted(per_page.items()):
-        found = dequip.find_labels(info["page_cache"], vocab,
-                                   CFG.rect("regions.drawing_area"))
+        found = dequip.find_labels(info["page_cache"], vocab, area, pitch)
         found = dequip.group(found)
         out[pno] = found
         stats["instances"] += len(found)
@@ -1080,7 +1085,7 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
 
 
 def _candidate_pass(rows, per_page, equip_by_page, positions, style,
-                    component_words) -> dict:
+                    component_words, use_prefix: bool = True) -> dict:
     """Two-axis candidates for every row, and the distance the cut was made at.
 
     The equipment distance limit is measured, not chosen: every instrument's
@@ -1125,7 +1130,8 @@ def _candidate_pass(rows, per_page, equip_by_page, positions, style,
                               style=style, components=comps,
                               reach=reach.values["equipment_reach"],
                               between_types=CFG.data.get("description", {})
-                              .get("between_symbol_types") or ())
+                              .get("between_symbol_types") or (),
+                              use_prefix=use_prefix)
         stats["component_words"] += len(comps)
         ordinals = dcand.instrument_ordinals(triples, cands,
                                              equip_by_page.get(pno, ()))
@@ -1139,6 +1145,7 @@ def _candidate_pass(rows, per_page, equip_by_page, positions, style,
             stats["rows"] += 1
             stats["equipment_axis"] += 1 if dcand.EQUIPMENT in kinds else 0
             stats["connected"] += 1 if any(c.get("connected") for c in got) else 0
+            stats["by_prefix"] += 1 if (got and got[0].get("by_prefix")) else 0
             stats["line_axis"] += 1 if (dcand.EQUIPMENT not in kinds
                                         and dcand.CONNECTOR in kinds) else 0
             stats["no_candidate"] += 1 if not (kinds & set(dcand.NAMED_KINDS)) else 0
@@ -1146,6 +1153,7 @@ def _candidate_pass(rows, per_page, equip_by_page, positions, style,
         "rows": stats["rows"],
         "equipment_axis": stats["equipment_axis"],
         "connected_subject": stats["connected"],
+        "prefix_subject": stats["by_prefix"],
         "line_axis": stats["line_axis"],
         "no_candidate": stats["no_candidate"],
         "component_words": stats["component_words"],
@@ -1157,6 +1165,27 @@ def _candidate_pass(rows, per_page, equip_by_page, positions, style,
                          f"{len(nearest)} measured distances",
         "distance_histogram_100pt": dict(sorted(hist.items())),
     }
+
+
+_UNIT_MARK = re.compile(r"#\s*(\d{1,2})\b")
+
+
+def _local_unit(cands, marks_on_page, sheet_code: str, skip=()) -> tuple:
+    """The unit number printed nearest the instrument, or the sheet's own.
+
+    Only a number this page actually prints as a `#` mark counts, so a pipe size
+    or a note number cannot become a unit.  A sheet whose own code the client
+    leaves off the line entirely - unit 00, 98 lines of 98 - is never overridden:
+    borrowing a `#11` printed on it put a prefix on lines the client writes bare.
+    """
+    if str(sheet_code) in skip:
+        return sheet_code, ""
+    for c in sorted((c for c in cands if c["kind"] == dcand.UNIT_MARK),
+                    key=lambda c: c["distance"]):
+        for num in _UNIT_MARK.findall(str(c["text"])):
+            if num in marks_on_page:
+                return num, str(c["text"])
+    return sheet_code, ""
 
 
 def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
@@ -1209,7 +1238,19 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples) -> dict:
             eq = dict(subject.get("equipment") or {})
             eq["ordinal"] = ordinal
             subject = dict(subject, equipment=eq)
-        built = desc.assemble(info.get("unit_code", ""), r.system, tag, isa, pat,
+        # The unit number is the one printed beside the instrument, not the one on
+        # the title block.  A steam sheet coded #10 draws HRSG #11 and #12 side by
+        # side and the client writes the HRSG the instrument is on: measured over
+        # the 438 client lines that carry a mark, the nearest printed mark is right
+        # on 173 lines the sheet code gets wrong and wrong on 31 it gets right -
+        # net 142.  With no mark printed near the instrument the sheet code stands.
+        unit_code, mark = _local_unit(cands, units_by_page.get(r.page_no) or set(),
+                                      info.get("unit_code", ""),
+                                      pat.unit_prefix_skip)
+        ev["unit_mark_source"] = mark
+        if unit_code != info.get("unit_code", ""):
+            stats["local_unit"] += 1
+        built = desc.assemble(unit_code, r.system, tag, isa, pat,
                               subject=subject,
                               suffix=ordinal if place != "MIDDLE" else "",
                               type_=r.type,
