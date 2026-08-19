@@ -310,20 +310,14 @@ def review_codes(row: dict) -> list:
     ev = row.get("evidence") or {}
     out = list(ev.get("review_codes") or [])
     grade = (row.get("values") or {}).get("description_grade") or ""
-    # `DESCRIPTION_INCOMPLETE` is raised while the row is built, before the
-    # Description pass has run; the grade is what the row ended up with.  A row
-    # the pass then completed is not an outstanding question, so the earlier flag
-    # is dropped here rather than being shown as work that is not there.  (The
-    # engine's own `needs_review` sentence still carries the older wording - see
-    # the round report; correcting it moves the fingerprint and belongs to a round
-    # that is allowed to.)
-    if grade in ("CONFIRMED", "USER_ENTERED", "SKIP"):
-        out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
+    # The engine now raises `DESCRIPTION_INCOMPLETE` from the final grade, so the
+    # screen no longer has to second-guess it; the grade code is the finer-grained
+    # name for the same question and is what the panel groups on.
     if grade in ("PARTIAL", "LOW", "NONE"):
         code = f"DESC_GRADE_{grade}"
         if code not in out:
             out.append(code)
-        out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
+    out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
     if row.get("deleted"):
         out.append("ROW_DELETED")
     return list(dict.fromkeys(out))

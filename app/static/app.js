@@ -537,14 +537,14 @@ function visibleRows() {
   if (S.code) rows = rows.filter(r => rowCodes(r).includes(S.code));
   else if (S.axis) rows = rows.filter(r => rowCodes(r).some(c => codeAxis(c) === S.axis));
   if (S.onlyReview) rows = rows.filter(r => openCodes(r, states).length);
-  // Only on 검토필요, where the control that sets it is visible.  Left applied on
-  // other tabs it silently hid rows with nothing on screen to explain why.
-  if (S.tab === "REVIEW" && S.gradeFilter) {
+  // These used to be limited to 검토필요, because applied elsewhere they hid rows
+  // with nothing on screen to say why.  Now every condition in force is a chip
+  // above the grid, so the reason is always visible and the filter can work on
+  // any tab - which is what a shared link setting `gradeFilter` expects.
+  if (S.gradeFilter) {
     rows = rows.filter(r => r.values.description_grade === S.gradeFilter);
   }
-  if (S.tab === "REVIEW" && S.reasonFilter) {
-    rows = rows.filter(r => reasonTag(r) === S.reasonFilter);
-  }
+  if (S.reasonFilter) rows = rows.filter(r => reasonTag(r) === S.reasonFilter);
   if (S.filter) {
     const q = S.filter.toLowerCase();
     rows = rows.filter(r => JSON.stringify(r.values).toLowerCase().includes(q)
@@ -1455,7 +1455,10 @@ async function refreshRows(selectKey) {
  * on the drawing it should have been, so adding one asks for the place first and
  * the server captures what is drawn there.  The pick can be skipped - the row is
  * still created, and the record then simply has no geometry. */
-$req("#row-add").addEventListener("click", () => startPick());
+$req("#row-add").addEventListener("click", () => {
+  clearFiltersForNewRow();
+  startPick();
+});
 
 function startPick() {
   S.picking = true;
@@ -1505,10 +1508,23 @@ async function createRow(point) {
   updateBadge();
 }
 
+/* A row you just made has to be on screen.  The review filters are deliberately
+ * sticky across tabs now, and a new row carries none of the reasons they select
+ * on, so making one clears them - otherwise the row is created into a view that
+ * cannot show it and the button looks broken. */
+function clearFiltersForNewRow() {
+  if (!(S.axis || S.code || S.gradeFilter || S.reasonFilter || S.onlyReview)) return;
+  S.axis = ""; S.code = ""; S.gradeFilter = ""; S.reasonFilter = "";
+  S.onlyReview = false;
+  const only = $("#only-review"); if (only) only.checked = false;
+  syncUrl(); renderReviewPanel();
+}
+
 $req("#row-copy").addEventListener("click", async () => {
   if (!S.sel) { alert("복사할 행을 먼저 선택하세요."); return; }
   const r = await fetch(`/jobs/${S.job.id}/rows/${S.sel}/copy`, { method: "POST" });
   if (!r.ok) { alert("복사 실패"); return; }
+  clearFiltersForNewRow();
   await refreshRows((await r.json()).key);
 });
 

@@ -177,7 +177,20 @@ supplier_interface_span:
 # carry 0; every row stays in the list either way, with the group and the original
 # quantity in its evidence.
 multi_signal_bundle:
-  merge_quantity: false
+  # Confirmed by the user against plant practice: one physical level switch that
+  # reports LSHH, LSH and LSL is one device, not three, so a touching stack folds
+  # to a single row.  The test for "touching" is the drawing's own - a vertical
+  # gap no larger than the stroke index's slack, which selects exactly the 34
+  # stacks at 0.0 pt and nothing else (the next-closest overlapping pair anywhere
+  # in the document is 3 pt apart).  The client's own 22 level-switch rows are on
+  # sheets where the bubbles do *not* touch, so none of them is affected -
+  # measured before this was turned on, and again after.
+  merge_quantity: true
+  # What the surviving row is called.  All 22 of the client's level-switch rows
+  # put `LS` in the TYPE column and none says `LSHH` or `LSH`; the high/low
+  # distinction is written into the Description instead (`LEVEL HIGH HIGH` 11,
+  # `LEVEL HIGH` 11).
+  merged_type: LS
 
 # The client's Description wording, measured off its own finished list (557
 # Description lines) rather than assumed.  This is config and not a runtime

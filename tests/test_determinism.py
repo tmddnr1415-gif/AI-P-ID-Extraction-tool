@@ -175,28 +175,53 @@ def test_the_equipment_axis_wins_when_both_are_available(first_run):
 
 
 @pytest.mark.slow
-def test_multi_signal_bubbles_are_flagged_never_merged(first_run):
-    """Stacked bubbles are grouped and held open, and the quantity is untouched.
+def test_a_stack_of_signal_bubbles_is_one_physical_instrument(first_run):
+    """One switch reporting LSHH, LSH and LSL is one row, not three.
 
-    A reviewer confirmed the LSHH / LSH / LSL stack is one physical switch.  The
-    document does not say so - legend p3 draws a multi-function instrument as a
-    single bubble and never draws a stack, and the client's own list covers none
-    of the five drawings that carry one - so the group is reported and the
-    quantity is left exactly as the multiplier put it.
+    The user confirmed it against plant practice; the drawing cannot say it -
+    legend p3 draws a multi-function instrument as a single bubble and never
+    draws a stack.  So the grouping stays a measurement (touching, stacked, same
+    variable) and only the *answer* to it comes from config.
     """
     groups = first_run["signal_groups"]
     assert groups, "no stacked bubble group found on a document that has 34"
-    members = [m for g in groups for m in g["members"]]
     by_key = {r["key"]: r for r in first_run["rows"]}
     for g in groups:
         assert len(set(m["anchor"][:1] for m in g["members"])) == 1
         assert all(gap <= g["basis"]["slack_pt"]
                    for gap in g["basis"]["touching_gaps_pt"])
-        for m in g["members"]:
-            row = by_key[m["key"]]
-            assert pipeline.MULTI_SIGNAL_REASON in row["needs_review"]
-    # every member still carries its own quantity: nothing was summed or dropped
-    assert len({m["key"] for m in members}) == len(members)
+        kept = [m for m in g["members"] if m["key"] in by_key]
+        if not pipeline.MULTI_SIGNAL_MERGE:
+            assert len(kept) == len(g["members"])
+            for m in kept:
+                assert pipeline.MULTI_SIGNAL_REASON in by_key[m["key"]]["needs_review"]
+            continue
+        # merged: one row survives, named what the client names it, carrying the
+        # multiplier for one device and the signals it stands for
+        assert len(kept) == 1, f"{len(kept)} rows survived a {len(g['members'])}-bubble stack"
+        row = by_key[kept[0]["key"]]
+        assert row["type"] == pipeline.MULTI_SIGNAL_TYPE
+        assert row["evidence"]["signal_members"] == [m["anchor"] for m in g["members"]]
+        assert pipeline.MULTI_SIGNAL_REASON not in (row["needs_review"] or "")
+        assert row["qty"] == g["basis"]["qty_applied"][0], (
+            "the surviving row must carry one device's multiplier, not the sum")
+
+
+@pytest.mark.slow
+def test_merging_a_stack_leaves_every_other_row_alone(first_run):
+    """The client's own 22 level-switch rows are on sheets with no stack at all."""
+    groups = first_run["signal_groups"]
+    folded = {m["key"] for g in groups for m in g["members"][1:]}
+    kept = {r["key"] for r in first_run["rows"]}
+    assert not (folded & kept), "a folded bubble is still in the row set"
+    stacked_pages = {g["page_no"] for g in groups}
+    others = [r for r in first_run["rows"]
+              if r["type"] == pipeline.MULTI_SIGNAL_TYPE
+              and r["page_no"] not in stacked_pages]
+    assert others, "no un-stacked level switch left to check"
+    for r in others:
+        assert not (r["evidence"] or {}).get("signal_members"), (
+            "a switch on a sheet with no stack was folded")
 
 
 @pytest.mark.slow

@@ -369,8 +369,12 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     for r in rows:
         r.origin = origins.get(r.page_no, ORIGIN_DRAWING)
 
-    # Bubbles the drawing stacks edge-to-edge.  Flagged, never merged.
-    signal_groups = _signal_groups(rows)
+    # Bubbles the drawing stacks edge-to-edge.  Whether they are one instrument
+    # or several is a question about the plant, not about the drawing, so it is
+    # answered in config; `_signal_groups` returns the rows the answer folds away.
+    signal_groups, folded = _signal_groups(rows)
+    if folded:
+        rows = [r for r in rows if r.key not in folded]
 
     say(total - 1, total, "building overlays")
     for r in rows:
@@ -650,11 +654,16 @@ MULTI_SIGNAL_REASON = "다중 신호 버블 — 물리 수량 확인 필요"
 # and the rest carry 0, every row keeping its own line, its own evidence and the
 # flag.  Which row should hold the quantity is itself part of the question being
 # asked, so it is recorded in the evidence rather than presented as the answer.
+# What the surviving row is called.  The client's own list settles it: all 22 of
+# its level-switch rows put `LS` in the TYPE column and never `LSHH` or `LSH`; the
+# high/low distinction is written in the Description instead.
+MULTI_SIGNAL_TYPE = str((CFG.data.get("multi_signal_bundle") or {})
+                        .get("merged_type") or "")
 MULTI_SIGNAL_MERGE = bool((CFG.data.get("multi_signal_bundle") or {})
                           .get("merge_quantity") or False)
 
 
-def _signal_groups(rows) -> list:
+def _signal_groups(rows) -> tuple:
     """Bubbles the drawing stacks edge-to-edge, grouped, with the basis measured.
 
     The three tests are the ones the drawing itself answers, and none of them is a
@@ -677,7 +686,7 @@ def _signal_groups(rows) -> list:
         anchor = str(r.evidence.get("anchor") or "")
         if r.rect and anchor:
             by_page[r.page_no].append((anchor, r))
-    groups = []
+    groups, folded = [], set()
     for pno, members in sorted(by_page.items()):
         parent = list(range(len(members)))
 
@@ -727,24 +736,36 @@ def _signal_groups(rows) -> list:
                 },
             }
             groups.append(group)
+            signals = " + ".join(str(r.evidence.get("anchor") or r.type)
+                                 for r in grp)
+            group["basis"]["signals"] = signals
             for i, r in enumerate(grp):
                 r.evidence["signal_group"] = group
-                r.needs_review = "; ".join(
-                    [s for s in (r.needs_review, MULTI_SIGNAL_REASON) if s])
-                r.evidence.setdefault("review_codes", []).append(
-                    "MULTI_SIGNAL_BUNDLE")
                 if not MULTI_SIGNAL_MERGE:
+                    # Left as they are: every bubble is its own row and the
+                    # question goes to the reviewer.
+                    r.needs_review = "; ".join(
+                        [s for s in (r.needs_review, MULTI_SIGNAL_REASON) if s])
+                    r.evidence.setdefault("review_codes", []).append(
+                        "MULTI_SIGNAL_BUNDLE")
                     continue
-                total = sum(x.qty for x in grp if isinstance(x.qty, (int, float)))
-                r.qty = total if i == 0 else 0
+                if i:
+                    folded.add(r.key)
+                    continue
+                # One physical switch, so one row.  Its Q'ty is the sheet's own
+                # multiplier for one device - the same number a single bubble
+                # would carry - not the sum of the signals, which would order one
+                # switch three times.
+                r.type = MULTI_SIGNAL_TYPE or r.type
                 r.evidence["qty_basis"] = (
-                    f"다중 신호 버블 묶음 합산 (config multi_signal_bundle."
-                    f"merge_quantity) — 묶음 {len(grp)}개 중 "
-                    + ("최상단 버블이 묶음 수량 " + str(total) + " 을 가집니다"
-                       if i == 0 else "합산되어 0 입니다")
-                    + f"; 원래 값 {group['basis']['qty_applied'][i]}")
+                    f"맞닿은 신호 버블 {len(grp)}개 = 물리 기기 1개 "
+                    f"({signals}); Q'ty 는 1 x 시트 승수 {r.qty} "
+                    f"(config multi_signal_bundle.merge_quantity)")
+                r.evidence["signal_members"] = [m["anchor"] or m["type"]
+                                                for m in group["members"]]
             group["basis"]["merged"] = MULTI_SIGNAL_MERGE
-    return groups
+            group["basis"]["folded_rows"] = len(grp) - 1 if MULTI_SIGNAL_MERGE else 0
+    return groups, folded
 
 
 def description_question(result: dict, token_stats: dict = None) -> str:
@@ -900,11 +921,14 @@ def ls_bundle_question(result: dict) -> str:
     L.append("")
     L.append("## 답을 받으면")
     L.append("")
-    L.append("`config multi_signal_bundle.merge_quantity` 를 켜면 묶음의 최상단 "
-             "버블이 묶음 수량을 갖고 나머지는 0 이 됩니다(행은 모두 유지). "
-             "어느 행이 수량을 가져야 하는지도 확인 대상입니다. "
-             "현재 값: "
-             f"`{'on' if MULTI_SIGNAL_MERGE else 'off'}`.")
+    L.append("**답을 받았습니다.** 하나의 물리 Level Switch 에 LSHH·LSH·LSL 신호가 "
+             "표기된 것이므로 물리 수량은 1입니다. `config multi_signal_bundle."
+             "merge_quantity` 를 켜서 맞닿은 묶음은 **한 행으로 접고**, 그 행의 "
+             "TYPE 은 발주처 리스트가 22행 전부에 쓰는 `LS` 로, Q'ty 는 1 x 시트 "
+             "승수로 둡니다. 접힌 행은 근거 패널에 원래 구성(예: `LSHH + LSH + "
+             "LSL` 3신호 = 물리 1개)을 남깁니다. "
+             f"현재 값: `{'on' if MULTI_SIGNAL_MERGE else 'off'}`, TYPE "
+             f"`{MULTI_SIGNAL_TYPE or '(변경 없음)'}`.")
     return "\n".join(L) + "\n"
 
 
@@ -993,11 +1017,18 @@ REMARK = {
     GRADE_USER: "",
 }
 
-DESCRIPTION_PARTIAL = (
-    "Description 부분 생성 — 단위·계통·변수만 도면에서 확인됨 (중간 서술과 접미는 "
-    "도면에 없음). 발주처 문장 기준 토큰 정밀도 57.3% / 재현율 37.6%, 완전 일치 "
-    "536행 중 1행. 검토 후 확정 필요")
-DESCRIPTION_NONE = "Description 근거 부족 — 공란으로 남겼습니다"
+# What a row's Description still needs, written from the grade the Description
+# pass ended with rather than from the draft it started with.  The earlier wording
+# was raised while the row was built - before the pass ran - and stayed on 746
+# rows the pass then completed, quoting a precision figure from three rounds ago.
+DESCRIPTION_REVIEW = {
+    GRADE_PARTIAL: ("Description 부분 생성 — 단위·계통·변수까지는 도면에서 "
+                    "확인됐고 중간 서술은 확인되지 않았습니다. 검토 후 확정 필요"),
+    GRADE_LOW: ("Description 중간 서술을 후보에서 골랐으나 근거가 약합니다 — "
+                "확인 필요"),
+    GRADE_NONE: "Description 근거 부족 — 공란으로 남겼습니다",
+}
+DESCRIPTION_NONE = DESCRIPTION_REVIEW[GRADE_NONE]
 
 
 def _describe_row(meta, tag: str, isa, pat) -> tuple:
@@ -1011,9 +1042,9 @@ def _describe_row(meta, tag: str, isa, pat) -> tuple:
     d = desc.describe(meta["unit_code"], meta["drawing_title"], tag, isa, pat)
     if len(d["parts"]) < 3:
         return "", {"description_sources": d["sources"],
-                    "description_missing": d["reason"]}, DESCRIPTION_NONE
+                    "description_missing": d["reason"]}, ""
     return d["text"], {"description_sources": d["sources"],
-                       "description_missing": d["reason"]}, DESCRIPTION_PARTIAL
+                       "description_missing": d["reason"]}, ""
 
 
 def _client_examples(reference, tb_rows, pat) -> dict:
@@ -1362,6 +1393,21 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                     ev["review_codes"].append(code)
             stats["user_input"] += 1
             r.remark = f"{r.remark} — {note}" if r.remark else note
+        # Now that the grade is known, say what this row still needs - and take
+        # off any earlier draft sentence, so `needs_review` and the grade cannot
+        # disagree with each other.
+        keep = [x for x in (r.needs_review or "").split("; ")
+                if x and x not in DESCRIPTION_REVIEW.values()]
+        want = DESCRIPTION_REVIEW.get(r.description_grade, "")
+        if want:
+            keep.append(want)
+            ev.setdefault("review_codes", [])
+            if "DESCRIPTION_INCOMPLETE" not in ev["review_codes"]:
+                ev["review_codes"].append("DESCRIPTION_INCOMPLETE")
+        else:
+            ev["review_codes"] = [c for c in (ev.get("review_codes") or [])
+                                  if c != "DESCRIPTION_INCOMPLETE"]
+        r.needs_review = "; ".join(keep)
         if r.description_grade == GRADE_NONE:
             r.description = ""
         grades[r.description_grade] += 1
@@ -1416,11 +1462,11 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
         if skip_desc:
             description, desc_ev, desc_reason = "", {}, ""
         else:
-            description, desc_ev, desc_reason = _describe_row(
+            # The reason is not raised here: what the row still needs depends on
+            # the grade the Description pass ends with, and that pass has not run
+            # yet.  `_finish_descriptions` writes it once the answer is known.
+            description, desc_ev, _draft_reason = _describe_row(
                 meta, getattr(d, "anchor", "") or type_, isa, pat)
-            if desc_reason:
-                reasons.append(desc_reason)
-                codes.append("DESCRIPTION_INCOMPLETE")
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
