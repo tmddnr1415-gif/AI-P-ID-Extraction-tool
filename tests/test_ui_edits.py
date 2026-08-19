@@ -37,6 +37,9 @@ from playwright.sync_api import sync_playwright, expect  # noqa: E402
 
 CHROMIUM = os.environ.get("CHROMIUM_PATH", "/opt/pw-browsers/chromium")
 
+# The drawing set these steps were written against.
+PDF_NAME = "pid_total.pdf"
+
 # The five edits the scenario makes, as (column, new value).
 EDITS = [
     ("qty", "7"),
@@ -87,7 +90,12 @@ def job_id(server):
     done = [j for j in jobs if j["status"] == "done"]
     if not done:
         pytest.skip("no completed analysis to review")
-    return done[0]["id"]
+    # These steps are written against this repository's own drawing set, so the
+    # job is chosen by the PDF rather than by whichever analysis ran last.  The
+    # database holds more than one project now, and taking the newest job made
+    # step 5 and step 11 fail against a document they were never about.
+    own = [j for j in done if j["pdf_name"] == PDF_NAME]
+    return (own or done)[0]["id"]
 
 
 @pytest.fixture(scope="module")

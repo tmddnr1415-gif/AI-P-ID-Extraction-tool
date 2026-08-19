@@ -262,6 +262,16 @@ broken_line:
 # against a chain-dashed break, which is the same construction.
 # 30.0 -> 42.4, 2.0 -> 2.8, 1.5 -> 2.1.
 sct_scope:
+  # MEASURED - the label sits on the box's right edge for 2 of p7's 5 SCT labels,
+  # and reading the vertical it stands beside as the box's *left* edge gives those
+  # two a zero-width box.  Built from both horizontal edges instead, p7's 5 labels
+  # resolve to the 2 spans they actually mark.
+  #
+  # Opt-in, and deliberately not switched on for AL NOUF1 in the same change:
+  # 8 of that project's 13 boxes are zero-width for the same reason, and giving
+  # them their real width moves 12 rows to SKIP through the Description skip path.
+  # That is a change to a measured result and belongs in its own round.
+  box_from_both_edges: true
   text_tol: 42.4
   drop_x_tol: 2.8
   drop_end_tol: 2.1
@@ -299,6 +309,22 @@ multi_signal_bundle:
 # legend sheet 2 of 4's ISA matrix at run time, which this project prints in
 # full (and in more detail than AL NOUF1's: it defines the alarm modifiers).
 description:
+  # MEASURED - the equipment axis is switched off, and this is the measurement
+  # that switched it off.  With the legend vocabulary on, 43 of the 55 field rows
+  # graded CONFIRMED on a subject read out of a detail box's title:
+  #
+  #   UNIT #10 STEAM TURBINE DRAIN 7-12 DETAIL OF PRESSURE SAFETY VALVE PRESSURE A
+  #   UNIT #10 HP STEAM HEADER DETAIL OF PRESSURE SAFETY VALVE : D TEMPERATURE B
+  #
+  # Every one of them traces to the noun `SAFETY`, which the legend contributes
+  # from its `EYE WASHER & SAFETY SHOWER` row and which these sheets print in
+  # `DETAIL OF PRESSURE SAFETY VALVE`.  All 43 subjects are one of two captions;
+  # none names equipment.  AL NOUF1 gates words like that with modifiers counted
+  # in its client's 557 lines, and this project has no list to count.  So it
+  # asserts no subject and stops at UNIT + system + variable, which is what the
+  # rows are entitled to.
+  equipment_axis: none
+
   # No client corpus, so no counted rule.  Each empty table below is a rule that
   # AL NOUF1 earned from measurement and this project has not.
   position_word_types: []
@@ -359,6 +385,22 @@ matching:
 # sheets that have them; the count is reported so the cost is visible.
 review_markup:
   script_ranges: ['a-z']
+  # MEASURED - the lower-case range alone catches 31 runs on these 9 sheets, of
+  # which 11 are the reviewers' notes (`to be deleted` x4, `only one PSV will be
+  # applied`, `XV will be applied instead of manual valve` x3) and 20 are the
+  # legend's own lower case (`FO or FC` x4, `RTD or K`, `(Cr-Mo)`, `etc.` and the
+  # rest of sheet 4 of 4's material list).
+  #
+  # Requiring the highlight separates them exactly: all 11 notes sit inside a
+  # filled rectangle and none of the 20 does.  The test is "filled with neither
+  # ink nor paper", not "filled with this colour" - the fills here happen to be
+  # (1.0, 0.92, 0.85) but the rule is that a drawing marks in black on white, so a
+  # rectangle filled with a third colour is something added over it.
+  #
+  # Absent on AL NOUF1, where the script range is already the discriminator - its
+  # reviewers write Hangul and its drawings print none - and where adding this
+  # would drop markup that is currently found.
+  requires_fill: true
 
 # Q'ty multipliers.
 #

@@ -115,11 +115,23 @@ def derive(pages, cfg=None) -> IsaTable:
         return IsaTable(source="MISSING",
                         note=f"'{FIRST_ROW} {LETTER_ROW}' heading not found")
 
-    # Where the columns are.  The `FIRST LETTER` heading is centred over the pair
-    # of columns rather than sitting above either one, so the columns are found in
-    # the body of the table instead: below the heading and left of the
-    # `SUCCEEDING LETTERS` block, the token x positions fall into clear columns,
-    # and the first three are the letter, its meaning, and the first composed tag.
+    # Which column is the FIRST LETTER column.
+    #
+    # Not by where its tokens fall.  Taking the leftmost cluster of x offsets is
+    # what a reader does looking at one sheet, and it breaks on the next one: a
+    # sheet that prints its border grid letters outside the frame offers them as a
+    # column, and a sheet that sets a `SYMBOL` sub-heading over the column offers
+    # that too, 11 pt from the letters it is supposed to find.
+    #
+    # By what the column *is* instead.  The matrix has one row per first letter and
+    # prints each letter once; a succeeding-letter column carries an entry only on
+    # the rows where that combination exists, so its set of letters is a subset of
+    # the first letters.  The FIRST LETTER column is therefore the column with the
+    # most distinct entries, and it is the only one that never repeats one.  Both
+    # are properties of the table's own meaning, so there is no tolerance here to
+    # widen and nothing tuned to either document: on AL NOUF1's legend the winner
+    # holds 25 distinct against 20-21 for the next columns, on SADARA's 25 against
+    # 6-21, and the 25 are the same 25 letters.
     succ = next((r for r, t in pc.words if t == SUCCEEDING_ROW), None)
     right_limit = succ.x0 if succ is not None else head.x1 + 700
     body = [(r, t) for r, t in pc.words
@@ -128,17 +140,38 @@ def derive(pages, cfg=None) -> IsaTable:
         return IsaTable(source="MISSING",
                         note=f"nothing printed under the {FIRST_ROW} "
                              f"{LETTER_ROW} heading on p{pc.page_no}")
-    cols = _columns([r.x0 for r, _t in body])
-    if len(cols) < 2:
+    column = _letter_column(body)
+    if column is None:
         return IsaTable(source="MISSING",
-                        note=f"the table under {FIRST_ROW} {LETTER_ROW} on "
-                             f"p{pc.page_no} shows {len(cols)} column(s), not the "
-                             f"letter and meaning columns this reads")
-    letter_x, meaning_lo = cols[0], cols[1]
+                        note=f"no column under {FIRST_ROW} {LETTER_ROW} on "
+                             f"p{pc.page_no} enumerates a set of first letters")
+    # A text line belongs to a letter when the line's centre falls inside that
+    # letter's own line box.  Not a tolerance: the letter and its meaning are set
+    # on one baseline, so the meaning's centre lies within the letter's ascender-
+    # to-descender span by construction.  It has to be a span rather than an equal
+    # test because the two are different words - on SADARA's sheet `A` centres at
+    # 273.2 and `ANALYSIS` at 274.1, a 0.9 pt difference that an exact key misses
+    # and that no amount of rounding fixes reliably.
+    letter_box = [(r.y0, r.y1, t) for r, t in column]
+    letter_x1 = max(r.x1 for r, _t in column)
+
+    def letter_at(y):
+        return next((t for y0, y1, t in letter_box if y0 <= y <= y1), None)
 
     lines = collections.defaultdict(list)
     for r, t in body:
         lines[round((r.y0 + r.y1) / 2, 1)].append((r.x0, r.x1, t))
+
+    # The meaning column starts where the first letter's cell ends: the leftmost
+    # word printed to the right of the letter column on a row that has a letter.
+    meaning_lo = min((x0 for y, items in lines.items() if letter_at(y)
+                      for x0, _x1, t in items
+                      if x0 > letter_x1 and any(c.isalpha() for c in t)),
+                     default=None)
+    if meaning_lo is None:
+        return IsaTable(source="MISSING",
+                        note=f"the matrix on p{pc.page_no} prints no meaning "
+                             f"beside its first letters")
 
     # Where the meaning column ends: the matrix repeats each row's letter at the
     # head of its first tag column (`A ANALYSIS ... A E ...`), so the leftmost such
@@ -147,13 +180,10 @@ def derive(pages, cfg=None) -> IsaTable:
     # `MOISTURE OR HUMIDITY`) and cutting it short silently loses them.
     meaning_hi = None
     for y, items in lines.items():
-        items = sorted(items)
-        letter = next((t for x0, _x1, t in items
-                       if abs(x0 - letter_x) <= 8 and 1 <= len(t) <= 2
-                       and t.isalpha() and t.isupper()), None)
+        letter = letter_at(y)
         if letter is None:
             continue
-        for x0, _x1, t in items:
+        for x0, _x1, t in sorted(items):
             if x0 > meaning_lo + 8 and t.upper().startswith(letter) and len(t) <= 5:
                 meaning_hi = x0 if meaning_hi is None else min(meaning_hi, x0)
                 break
@@ -166,9 +196,7 @@ def derive(pages, cfg=None) -> IsaTable:
     keyed = []
     for y in sorted(lines):
         items = sorted(lines[y])
-        letter = next((t for x0, _x1, t in items
-                       if abs(x0 - letter_x) <= 8 and 1 <= len(t) <= 2
-                       and t.isalpha() and t.isupper()), None)
+        letter = letter_at(y)
         words = [t for x0, _x1, t in items
                  if meaning_lo - 8 <= x0 < meaning_hi - 8
                  and any(c.isalpha() for c in t)
@@ -182,19 +210,26 @@ def derive(pages, cfg=None) -> IsaTable:
     # lines.  A meaning line with no letter belongs to the nearest letter row, and
     # "nearest" is measured against the table's own row pitch rather than a chosen
     # tolerance: half the median distance between consecutive letter rows.
-    letter_ys = [k["y"] for k in keyed if k["letter"]]
+    #
+    # Both the pitch and each row's position come from the letter column itself,
+    # not from the text lines.  A letter's line box can hold more than one text
+    # line - on SADARA's sheet the composed tags sit 1.1 pt below the letter and
+    # key as their own line - and counting those as rows collapses the median gap
+    # from a row pitch to a line spacing, which switches the wrap off entirely and
+    # loses `D DENSITY OR SPECIFIC GRAVITY`.  The letter column has exactly one
+    # entry per row by definition, so it is the thing to measure.
+    letter_ys = [(r.y0 + r.y1) / 2 for r, _t in column]
     pitch = 0.0
     if len(letter_ys) > 2:
         gaps = sorted(letter_ys[i + 1] - letter_ys[i]
                       for i in range(len(letter_ys) - 1))
         pitch = gaps[len(gaps) // 2]
     first: dict = {}
-    order: dict = {}
+    order = {t: (r.y0 + r.y1) / 2 for r, t in column}
     for k in keyed:
         if k["letter"]:
             first.setdefault(k["letter"], [])
             first[k["letter"]] += k["words"]
-            order[k["letter"]] = k["y"]
     for k in keyed:
         if k["letter"] or not k["words"]:
             continue
@@ -237,6 +272,51 @@ def derive(pages, cfg=None) -> IsaTable:
                     note=f"legend p{pc.page_no} identification matrix: "
                          f"{len(first)} first letters, "
                          f"{len(succeeding)} succeeding letters")
+
+
+def _letter_column(body) -> list | None:
+    """The FIRST LETTER column of the matrix: `[(rect, letter), ...]`, top to bottom.
+
+    A candidate entry is a one- or two-character upper-case token, which is what
+    the column holds and nothing else does - the matrix's first letters are A..Z
+    plus the one two-letter row `PD`, while a sub-heading like `SYMBOL` is six
+    characters and a composed tag in a later column is three or more (`AAL`,
+    `PDAH`).
+
+    Candidates are grouped into columns by their centres, allowing one character
+    width - measured off the candidates themselves, not chosen.  A cell centres
+    its letter, so one column's centres vary by a fraction of a character, while
+    two columns of this table stand 250 pt apart; the allowance is therefore not a
+    threshold anything turns on.
+
+    The winner is the column with the most distinct letters.  That is the
+    definition of the column rather than a property of these sheets: the matrix
+    prints one row per first letter, so the FIRST LETTER column enumerates them
+    all, and every succeeding-letter column holds a letter only on the rows where
+    that combination exists.  A tie goes to the leftmost, because the table's own
+    heading puts the first letter first.
+    """
+    cand = [(r, t) for r, t in body
+            if 1 <= len(t) <= 2 and t.isalpha() and t.isupper()]
+    if not cand:
+        return None
+    widths = sorted(r.width for r, _t in cand)
+    allow = widths[len(widths) // 2]
+    groups: list = []
+    for r, t in sorted(cand, key=lambda rt: (rt[0].x0 + rt[0].x1) / 2):
+        cx = (r.x0 + r.x1) / 2
+        if groups and cx - groups[-1][0] <= allow:
+            groups[-1][1].append((r, t))
+        else:
+            groups.append((cx, [(r, t)]))
+    best = None
+    for cx, members in groups:
+        distinct = len({t for _r, t in members})
+        if best is None or distinct > best[0]:
+            best = (distinct, cx, members)
+    if best is None or best[0] < 2:
+        return None
+    return sorted(best[2], key=lambda rt: rt[0].y0)
 
 
 def _columns(xs, slack: float = 8.0) -> list:

@@ -584,3 +584,52 @@ def test_the_folded_rows_sentence_form_is_a_setting_with_three_named_options():
     cfg = projectconfig.load().data.get("multi_signal_bundle") or {}
     assert cfg.get("description_signal") in ("representative", "none", "all")
     assert pipeline.MULTI_SIGNAL_DESCRIPTION == cfg["description_signal"]
+
+
+def test_the_isa_letter_column_is_found_by_what_it_holds():
+    """The FIRST LETTER column, not the leftmost cluster of x offsets.
+
+    The matrix prints one row per first letter and each letter once; a
+    succeeding-letter column carries an entry only where that combination exists.
+    So the first-letter column is the one with the most distinct entries, and that
+    is a property of the table rather than of a sheet - which matters because the
+    x distribution is not: a sheet whose border grid letters sit outside the frame
+    offers those as a column, and a `SYMBOL` sub-heading offers itself 11 pt from
+    the letters it is supposed to find.
+    """
+    import isa_table
+    import pymupdf
+
+    def word(x, y, t, w=8.0, h=14.0):
+        return (pymupdf.Rect(x, y, x + w, y + h), t)
+
+    body = []
+    # the sheet's own grid letters, outside the table
+    for i, t in enumerate("ABCDEF"):
+        body.append(word(10, 100 + i * 30, t))
+    # a sub-heading sitting over the column
+    body.append(word(100, 60, "SYMBOL", w=40))
+    # the FIRST LETTER column and one succeeding column beside it
+    for i, t in enumerate("ABCDEFGHIJKLM"):
+        body.append(word(112, 100 + i * 30, t))
+        if t not in "HJ":                      # not every row has this function
+            body.append(word(400, 100 + i * 30, t))
+    col = isa_table._letter_column(body)
+    assert col is not None
+    assert [t for _r, t in col] == list("ABCDEFGHIJKLM")
+
+
+def test_both_legends_yield_the_same_isa_letters():
+    """The two documents print the same matrix, so they must read the same.
+
+    This is the guard on the letter-column change: the words it produces are the
+    Description's variable words, so one letter moving moves the score.
+    """
+    import json
+    from pathlib import Path
+    expected = json.loads(Path("tests/data/isa_first_letters.json").read_text())
+    import isa_table
+    import pidcache
+    _doc, pages = pidcache.load_pages(Path("data/pid_total.pdf"))
+    got = {k: list(v) for k, v in isa_table.derive(pages).first.items()}
+    assert got == expected

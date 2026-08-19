@@ -346,10 +346,30 @@ def derive_vocabulary(symbols, cfg=None, extra=()) -> dict:
               drawings print it 50 times and the legend never names it
     """
     out = {}
-    for s in symbols:
-        for w in re.findall(r"[A-Z]+", s.name.upper()):
-            if len(w) >= 3:
-                out.setdefault(w, "LEGEND")
+    # The legend axis, which a project may decline.
+    #
+    # Every word of an equipment label joins the vocabulary, so a label like
+    # `EYE WASHER & SAFETY SHOWER` contributes `SAFETY`, and `PLATE TYPE HEAT
+    # EXCHANGER` contributes `TYPE` and `PLATE`.  On AL NOUF1 that is harmless -
+    # its client corpus supplies the modifiers that gate the loose words and its
+    # drawings never print them where an instrument could claim them.  On a
+    # project with no corpus it is not: SADARA's sheets title their detail boxes
+    # `DETAIL OF PRESSURE SAFETY VALVE`, `SAFETY` matched, and 43 of 55 field rows
+    # were handed a subject that names a caption rather than a piece of equipment.
+    #
+    # Deciding that on the project's behalf is what `equipment_axis: none` is: a
+    # project that cannot say which words name equipment asserts no subject at
+    # all, and its rows stop at UNIT + system + variable.  Absent, the legend is
+    # read exactly as before.
+    axis = "legend"
+    if cfg is not None:
+        axis = str((cfg.data.get("description") or {})
+                   .get("equipment_axis") or "legend").lower()
+    if axis != "none":
+        for s in symbols:
+            for w in re.findall(r"[A-Z]+", s.name.upper()):
+                if len(w) >= 3:
+                    out.setdefault(w, "LEGEND")
     words = list(extra)
     if cfg is not None:
         words += list((cfg.data.get("description") or {}).get("equipment_words") or [])

@@ -213,6 +213,10 @@ class Layout:
     scope_text_tol: float = 30.0
     drop_x_tol: float = 2.0
     drop_end_tol: float = 1.5
+    # Whether a dashed scope box is built from both of its horizontal edges or
+    # from the vertical the label stands beside.  Off by default: see
+    # `find_sct_scopes`.
+    scope_box_both_edges: bool = False
 
 
 def _layout_from_config(cfg=CFG) -> Layout:
@@ -248,6 +252,8 @@ def _layout_from_config(cfg=CFG) -> Layout:
         scope_text_tol=float(cfg.get("sct_scope.text_tol")),
         drop_x_tol=float(cfg.get("sct_scope.drop_x_tol")),
         drop_end_tol=float(cfg.get("sct_scope.drop_end_tol")),
+        scope_box_both_edges=bool(
+            (cfg.data.get("sct_scope") or {}).get("box_from_both_edges")),
         **{k: float(brk[k]) if k != "brk_min_marks" else int(brk[k])
            for k in ("brk_max_mark", "brk_max_gap", "brk_bridge",
                      "brk_min_marks", "brk_min_span", "brk_corner_tol")
@@ -654,6 +660,21 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
         label = f"SCT {partner}".strip()
 
         # A closed chain-dashed rectangle whose edge passes by the SCT text.
+        #
+        # The label may sit on either side of the box, so with
+        # `sct_scope.box_from_both_edges` the box is built from the two horizontal
+        # runs that close it rather than from the vertical the label happens to
+        # stand next to.  Reading the vertical as the left edge is what a sheet
+        # with all its labels on the left teaches, and it collapses a box to zero
+        # width the first time a label is set on the right - 2 of the 5 labels on
+        # SADARA's turbine sheet, and 8 of AL NOUF1's own 13 boxes.
+        #
+        # It is opt-in even so, because on AL NOUF1 those 8 zero-width boxes are
+        # not inert: `pipeline` reads the scope regions for the Description skip
+        # even though the exclusion rule itself is disabled, so giving them their
+        # real width moves 12 rows from a written Description to SKIP and changes a
+        # measured result.  Fixing that is a decision about AL NOUF1's numbers, not
+        # a side effect of adding a project.
         box = None
         for vx, vy0, vy1, _ in v_runs:
             if abs(vx - sx) > lay.scope_text_tol or not (vy0 - 5 <= sy <= vy1 + 5):
@@ -664,11 +685,17 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
             # the dash lengths it is a distance on paper, so it moves with the
             # sheet (see `_layout_from_config`).
             ct = lay.brk_corner_tol
-            tops = [h for h in h_runs if abs(h[0] - vy0) < ct and h[1] <= vx <= h[2] + ct]
-            bots = [h for h in h_runs if abs(h[0] - vy1) < ct and h[1] <= vx <= h[2] + ct]
+            tops = [h for h in h_runs
+                    if abs(h[0] - vy0) < ct and h[1] - ct <= vx <= h[2] + ct]
+            bots = [h for h in h_runs
+                    if abs(h[0] - vy1) < ct and h[1] - ct <= vx <= h[2] + ct]
             if tops and bots:
                 x1 = max(max(h[2] for h in tops), max(h[2] for h in bots))
-                box = pymupdf.Rect(vx, vy0, x1, vy1)
+                if not lay.scope_box_both_edges:
+                    box = pymupdf.Rect(vx, vy0, x1, vy1)
+                    break
+                x0 = min(min(h[1] for h in tops), min(h[1] for h in bots))
+                box = pymupdf.Rect(min(x0, vx), vy0, max(x1, vx), vy1)
                 break
         if box is not None:
             scopes.append(ScopeRegion("BOX", label, rect=box, anchor=(sx, sy)))
@@ -680,7 +707,31 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
                 scopes.append(ScopeRegion("PIPE_BREAK", label, run=(hy, hx0, hx1, n),
                                           anchor=(sx, sy)))
                 break
-    return scopes
+    # Several labels can name one span - SADARA's turbine box carries three - and
+    # a span is one scope however many times it is labelled.  Identical regions are
+    # folded and the labels kept together, so the count on screen is a count of
+    # spans rather than of words.
+    if not lay.scope_box_both_edges:
+        return scopes
+    folded: list[ScopeRegion] = []
+    for sc in scopes:
+        same = next((o for o in folded if o.kind == sc.kind
+                     and _same_region(o, sc)), None)
+        if same is None:
+            folded.append(sc)
+        elif sc.label and sc.label not in same.label:
+            same.label = f"{same.label} / {sc.label}"
+    return folded
+
+
+def _same_region(a, b) -> bool:
+    """Two scope regions that are the same span, however they were labelled."""
+    if a.rect is not None and b.rect is not None:
+        return (abs(a.rect.x0 - b.rect.x0) < 1 and abs(a.rect.y0 - b.rect.y0) < 1
+                and abs(a.rect.x1 - b.rect.x1) < 1 and abs(a.rect.y1 - b.rect.y1) < 1)
+    if a.run is not None and b.run is not None:
+        return all(abs(x - y) < 1 for x, y in zip(a.run[:3], b.run[:3]))
+    return False
 
 
 def vertical_index(pc) -> dict:

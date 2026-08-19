@@ -43,6 +43,8 @@ import re
 import sys
 from pathlib import Path
 
+import pymupdf
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from detect_symbols import (  # noqa: E402
@@ -73,10 +75,50 @@ MARK_TEXT_RE = re.compile(r"^\({1,2}\*{1,3}\)?$")
 # Excel has not absorbed.  Diagnostic only — nothing acts on it.
 HANGUL_RE = re.compile("[" + "".join(CFG.get("review_markup.script_ranges")) + "]")
 
+# Whether the markup has to sit on a highlight as well as read in the review
+# script.  A script range is enough when the script is the discriminator - AL
+# NOUF1's reviewers write Hangul and its drawings print none - and it is not when
+# the script is the drawing's own: SADARA's reviewers write English lower case,
+# and `[a-z]` also catches its legend's `FO or FC`, `(Cr-Mo)`, `RTD or K` and
+# `etc.`, 20 false positives against 11 real notes.
+#
+# The highlight separates them exactly.  Every one of the 11 sits inside a filled
+# rectangle and none of the 20 does; a drawing marks in ink and leaves paper, so a
+# rectangle filled with neither is something added on top.  Off unless a project
+# asks: requiring it on AL NOUF1 would silently drop markup that is already found
+# and counted.
+REQUIRE_FILL = bool((CFG.data.get("review_markup") or {}).get("requires_fill"))
+# Ink and paper.  Not a palette: these are the two colours a drawing uses for its
+# own marks, and the test is "filled with neither", not "filled with peach".
+_INK = ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
 
-def review_annotations(pc, lay_x=1960.0):
+
+def _highlights(pc) -> list:
+    """Rectangles filled with something that is neither ink nor paper."""
+    out = []
+    m = pc.page.rotation_matrix
+    for dr in pc.page.get_drawings():
+        fill = dr.get("fill")
+        if fill is None or tuple(round(v, 2) for v in fill) in _INK:
+            continue
+        out.append(pymupdf.Rect(dr["rect"]) * m)
+    return out
+
+
+def review_annotations(pc, lay_x=None):
+    # Where the drawing ends and the title block begins is a configured region,
+    # not a number written here; AL NOUF1's is 1960.0, which is what this used to
+    # hard-code, so nothing moves for it.
+    if lay_x is None:
+        lay_x = CFG.rect("regions.drawing_area")[2]
     out, cur, last = [], [], None
-    ann = sorted([(r, t) for r, t in pc.words if HANGUL_RE.search(t)],
+    words = pc.words
+    if REQUIRE_FILL:
+        boxes = _highlights(pc)
+        words = [(r, t) for r, t in words
+                 if any(b.x0 <= (r.x0 + r.x1) / 2 <= b.x1
+                        and b.y0 <= (r.y0 + r.y1) / 2 <= b.y1 for b in boxes)]
+    ann = sorted([(r, t) for r, t in words if HANGUL_RE.search(t)],
                  key=lambda z: (round(z[0].y0 / 8), z[0].x0))
     for r, t in ann:
         key = round(r.y0 / 8)
@@ -91,7 +133,7 @@ def review_annotations(pc, lay_x=1960.0):
     for grp in out:
         r0 = grp[0][0]
         # pull in the latin words on the same line, so "PIT 삭제" survives intact
-        line = [(r, t) for r, t in pc.words
+        line = [(r, t) for r, t in words
                 if abs((r.y0 + r.y1) / 2 - (r0.y0 + r0.y1) / 2) < 6
                 and abs(r.x0 - r0.x0) < 260]
         line.sort(key=lambda z: z[0].x0)
