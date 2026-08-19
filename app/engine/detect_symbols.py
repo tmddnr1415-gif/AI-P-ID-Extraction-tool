@@ -185,6 +185,7 @@ class Layout:
     # geometry.
     cap_span: tuple = (7.0, 50.0)       # long side of a cap
     cap_ratio: tuple = (1.6, 2.4)       # long/short of a cap
+    brk_corner_tol: float = 3.0         # how far a dashed box's corner may miss
     side_tol: float = 0.8               # how close a side must run to the cap edge
     side_slack: float = 1.5             # how far a side may fall short of the caps
     anchor_slack: float = 3.0
@@ -223,6 +224,14 @@ def _layout_from_config(cfg=CFG) -> Layout:
     prints.  Neither changes with the project.
     """
     box = cfg.get("vendor_marks.package_box")
+    # Broken-line geometry.  These were left as dataclass defaults because legend
+    # page 2 draws the line styles and a style does not move with the project -
+    # but it does move with the *sheet*: on an A0 print of the same drawing office's
+    # form the chain-dash long mark measures 21.25 pt against the 20.0 here, so
+    # every dashed boundary on that project fell out of the filter.  A project may
+    # therefore supply them; with the block absent the defaults are unchanged, which
+    # is the case for every project that has run so far.
+    brk = cfg.data.get("broken_line") or {}
     return Layout(
         drawing_area=cfg.rect("regions.drawing_area"),
         notes_area=cfg.rect("regions.notes_area"),
@@ -239,6 +248,10 @@ def _layout_from_config(cfg=CFG) -> Layout:
         scope_text_tol=float(cfg.get("sct_scope.text_tol")),
         drop_x_tol=float(cfg.get("sct_scope.drop_x_tol")),
         drop_end_tol=float(cfg.get("sct_scope.drop_end_tol")),
+        **{k: float(brk[k]) if k != "brk_min_marks" else int(brk[k])
+           for k in ("brk_max_mark", "brk_max_gap", "brk_bridge",
+                     "brk_min_marks", "brk_min_span", "brk_corner_tol")
+           if k in brk},
     )
 
 
@@ -645,8 +658,14 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
         for vx, vy0, vy1, _ in v_runs:
             if abs(vx - sx) > lay.scope_text_tol or not (vy0 - 5 <= sy <= vy1 + 5):
                 continue
-            tops = [h for h in h_runs if abs(h[0] - vy0) < 3 and h[1] <= vx + 3 <= h[2]]
-            bots = [h for h in h_runs if abs(h[0] - vy1) < 3 and h[1] <= vx + 3 <= h[2]]
+            # The corner: a horizontal run must reach the vertical one's x.  Both
+            # ends are dashed, so the last mark stops short of the true corner by
+            # up to a line weight - `brk_corner_tol` is that allowance, and like
+            # the dash lengths it is a distance on paper, so it moves with the
+            # sheet (see `_layout_from_config`).
+            ct = lay.brk_corner_tol
+            tops = [h for h in h_runs if abs(h[0] - vy0) < ct and h[1] <= vx <= h[2] + ct]
+            bots = [h for h in h_runs if abs(h[0] - vy1) < ct and h[1] <= vx <= h[2] + ct]
             if tops and bots:
                 x1 = max(max(h[2] for h in tops), max(h[2] for h in bots))
                 box = pymupdf.Rect(vx, vy0, x1, vy1)

@@ -30,6 +30,7 @@ Two jobs:
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -93,8 +94,17 @@ class ProjectConfig:
         return tuple(float(x) for x in v)
 
 
-def load(path: str | Path = "config/project_alnouf1.yaml") -> ProjectConfig:
-    p = Path(path)
+# Which project profile a run uses.  Every module reads its config at import
+# time and there is no argument to thread through them, so the choice is an
+# environment variable and the default is unchanged - with `PID_PROJECT_CONFIG`
+# unset this loads exactly the file it always loaded.  Selecting a profile is
+# not the same thing as having one: a second project still has to supply every
+# value, because nothing in this file falls back.
+DEFAULT_CONFIG = "config/project_alnouf1.yaml"
+
+
+def load(path: str | Path = None) -> ProjectConfig:
+    p = Path(path or os.environ.get("PID_PROJECT_CONFIG") or DEFAULT_CONFIG)
     if not p.exists():
         raise ConfigError(f"project config not found: {p}")
     data = yaml.safe_load(p.read_text(encoding="utf-8"))

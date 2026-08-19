@@ -125,6 +125,27 @@ def _project_name(words) -> str:
     return " ".join(t for _, t in cand).strip()
 
 
+# Some CAD exports stamp the sheet's frame more than once, so the same word
+# arrives several times at the same coordinates.  Dropping the repeats is not a
+# judgement about the drawing - two words at identical coordinates *are* one word
+# - but it is still off unless a project asks for it, because a project whose
+# repeats are meaningful must not have them silently removed.  With the key
+# absent this is a no-op and the word list is byte-for-byte what PyMuPDF returned.
+_DEDUP_WORDS = bool((_CFG.data.get("text") or {}).get("dedup_exact_duplicates"))
+
+
+def _dedup(words):
+    """Keep the first of each (rounded rect, text); order is otherwise unchanged."""
+    seen, out = set(), []
+    for r, t in words:
+        key = (round(r.x0, 2), round(r.y0, 2), round(r.x1, 2), round(r.y1, 2), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((r, t))
+    return out
+
+
 def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]:
     """Open the PDF and build a rotation-normalised, scope-tagged page cache."""
     doc = pymupdf.open(pdf_path)
@@ -134,6 +155,8 @@ def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]
         page = doc[i]
         m = page.rotation_matrix
         words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]
+        if _DEDUP_WORDS:
+            words = _dedup(words)
         pages.append(
             PageCache(
                 page=page,
