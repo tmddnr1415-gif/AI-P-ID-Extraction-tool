@@ -138,19 +138,31 @@ def _layout_from_config(cfg=CFG) -> Layout:
     threshold, character segmentation — which carries no project semantics.
     """
     tb = "title_block."
+    d = Layout()
+    # A profile may leave the cells out because the sheet states them and
+    # `derive_layout` reads them; the dataclass default then stands in until the
+    # pipeline overwrites it, and `cfg.misses` records that it did.
+    def rect(name, fallback):
+        v = cfg.get_or(tb + name, None)
+        return tuple(float(x) for x in v) if v else fallback
+
+    def num(name, fallback):
+        v = cfg.get_or(tb + name, None)
+        return float(v) if v is not None else fallback
+
     return Layout(
-        dwg_no_region=cfg.rect(tb + "dwg_no_region"),
-        title_region=cfg.rect(tb + "title_region"),
-        title_min_height=float(cfg.get(tb + "title_min_height")),
-        title_line_tol=float(cfg.get(tb + "title_line_tol")),
-        rev_box=cfg.rect(tb + "rev_box"),
-        sheet_box=cfg.rect(tb + "sheet_box"),
-        hist_rule_x0_max=float(cfg.get(tb + "hist_rule_x0_max")),
-        hist_rule_x1_min=float(cfg.get(tb + "hist_rule_x1_min")),
-        hist_rule_y=cfg.pair(tb + "hist_rule_y"),
-        hist_rev_col=cfg.pair(tb + "hist_rev_col"),
-        hist_date_col=cfg.pair(tb + "hist_date_col"),
-        hist_row_inset=float(cfg.get(tb + "hist_row_inset")),
+        dwg_no_region=rect("dwg_no_region", d.dwg_no_region),
+        title_region=rect("title_region", d.title_region),
+        title_min_height=num("title_min_height", d.title_min_height),
+        title_line_tol=num("title_line_tol", d.title_line_tol),
+        rev_box=rect("rev_box", d.rev_box),
+        sheet_box=rect("sheet_box", d.sheet_box),
+        hist_rule_x0_max=num("hist_rule_x0_max", d.hist_rule_x0_max),
+        hist_rule_x1_min=num("hist_rule_x1_min", d.hist_rule_x1_min),
+        hist_rule_y=rect("hist_rule_y", d.hist_rule_y),
+        hist_rev_col=rect("hist_rev_col", d.hist_rev_col),
+        hist_date_col=rect("hist_date_col", d.hist_date_col),
+        hist_row_inset=num("hist_row_inset", d.hist_row_inset),
     )
 
 

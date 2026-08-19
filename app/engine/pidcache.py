@@ -34,8 +34,28 @@ import projectconfig  # noqa: E402
 # Title block PROJECT NAME cell.  Project-dependent (out/project_deps.md P5),
 # so it comes from the project config rather than a constant here.
 _CFG = projectconfig.load()
-PROJECT_NAME_REGION = _CFG.rect("title_block.project_name_region")
-PROJECT_NAME_MIN_HEIGHT = float(_CFG.get("title_block.project_name_min_height"))
+# A profile that leaves the cell out is saying the sheet states it, and it does -
+# `derive_layout` finds it by the form's own `PROJECT NAME` caption.  Until the
+# pages are open there is nothing to measure, so the name is left unread and
+# `rename_projects` fills it in once the cell is known.
+PROJECT_NAME_REGION = _CFG.get_or("title_block.project_name_region", None)
+PROJECT_NAME_MIN_HEIGHT = _CFG.get_or("title_block.project_name_min_height", None)
+
+
+def rename_projects(pages, region, min_height) -> None:
+    """Re-read every page's PROJECT NAME once the cell has been measured.
+
+    Same rule as at load: the name most pages carry is the project, and a page
+    naming a different one is out of scope.  Run again rather than duplicated,
+    so a document whose cell was measured is judged exactly as one whose cell was
+    configured.
+    """
+    global PROJECT_NAME_REGION, PROJECT_NAME_MIN_HEIGHT
+    PROJECT_NAME_REGION, PROJECT_NAME_MIN_HEIGHT = region, min_height
+    for pc in pages:
+        pc.project_name = _project_name(pc.words)
+        pc.analysis_scope, pc.scope_reason = True, ""
+    _scope_by_project(pages)
 
 # A page whose /Rotate is 0 has this as its rotation matrix, and multiplying a
 # point by it is a no-op.  Compared as a tuple because Matrix has no __eq__ that
@@ -115,6 +135,8 @@ class PageCache:
 
 
 def _project_name(words) -> str:
+    if PROJECT_NAME_REGION is None or PROJECT_NAME_MIN_HEIGHT is None:
+        return ""
     x0, y0, x1, y1 = PROJECT_NAME_REGION
     cand = [
         (r, t) for r, t in words
@@ -169,19 +191,23 @@ def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]
             )
         )
 
-    # Majority PROJECT NAME defines the project; anything else is out of scope.
+    _scope_by_project(pages)
+    return doc, pages
+
+
+def _scope_by_project(pages) -> None:
+    """Majority PROJECT NAME defines the project; anything else is out of scope."""
     counts: dict[str, int] = {}
     for pc in pages:
         if pc.project_name:
             counts[pc.project_name] = counts.get(pc.project_name, 0) + 1
-    if counts:
-        main = max(counts, key=counts.get)
-        for pc in pages:
-            if pc.project_name and pc.project_name != main:
-                pc.analysis_scope = False
-                pc.scope_reason = f"FOREIGN_PROJECT:{pc.project_name}"
-
-    return doc, pages
+    if not counts:
+        return
+    main = max(counts, key=counts.get)
+    for pc in pages:
+        if pc.project_name and pc.project_name != main:
+            pc.analysis_scope = False
+            pc.scope_reason = f"FOREIGN_PROJECT:{pc.project_name}"
 
 
 def in_region(r: pymupdf.Rect, region: tuple) -> bool:

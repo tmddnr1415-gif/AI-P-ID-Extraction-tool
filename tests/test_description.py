@@ -633,3 +633,28 @@ def test_both_legends_yield_the_same_isa_letters():
     _doc, pages = pidcache.load_pages(Path("data/pid_total.pdf"))
     got = {k: list(v) for k, v in isa_table.derive(pages).first.items()}
     assert got == expected
+
+
+def test_a_profile_written_for_another_project_does_not_impose_its_paper():
+    """The rule that decides whether the sheet or the profile states the geometry.
+
+    A profile carries two kinds of thing: the client's facts, which no drawing can
+    state, and the sheet's, which every drawing states.  It is trusted for the
+    second only when it was written for the document in hand and actually carries
+    it - anything else and the paper in front of us is the authority.
+    """
+    from app import pipeline
+    assert pipeline._configured("regions.drawing_area")
+    assert not pipeline._configured("regions.no_such_key")
+
+
+def test_the_derived_layout_reports_where_every_value_came_from():
+    """A measured value is only usable if it can be checked against the paper."""
+    import derive_layout
+    lay = derive_layout.Layout()
+    lay.add("regions.drawing_area", [1, 2, 3, 4], "border rules at ...")
+    lay.add("broken_line.brk_max_mark", 9.9, "not isolated", source="UNAVAILABLE")
+    assert lay.values() == {"regions.drawing_area": [1, 2, 3, 4]}
+    d = lay.as_dict()
+    assert [i["source"] for i in d["items"]] == ["DERIVED", "UNAVAILABLE"]
+    assert all(i["evidence"] for i in d["items"])

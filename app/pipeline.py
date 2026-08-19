@@ -51,6 +51,7 @@ import detect_valves as dv         # noqa: E402
 import parse_notes as pn           # noqa: E402
 import pipe_graph                  # noqa: E402
 import isa_table                   # noqa: E402
+import derive_layout               # noqa: E402
 import describe as desc            # noqa: E402
 import describe_candidates as dcand  # noqa: E402
 import describe_equipment as dequip  # noqa: E402
@@ -262,6 +263,129 @@ def _page_origins(pages, tb_rows, per_page, reference: Path = None) -> dict:
     return origins
 
 
+
+# --------------------------------------------------------------------------
+# Fitting the profile to the sheet
+# --------------------------------------------------------------------------
+def _document_code(pages) -> str:
+    """The project code the drawings themselves carry.
+
+    Read before anything is configured, so it cannot use the title block's
+    coordinates: the drawing number's shape is distinctive enough to find
+    anywhere on the sheet, and its first segment is the project.  The answer is
+    the code most pages agree on.
+    """
+    rx = re.compile(CFG.get("formats.drawing_no"))
+    seen = collections.Counter()
+    for pc in pages:
+        codes = {t.split("-")[0] for _r, t in pc.words if rx.match(t)}
+        seen.update(codes)
+    return seen.most_common(1)[0][0] if seen else ""
+
+
+def _configured(dotted: str) -> bool:
+    """Whether the loaded profile states this key itself."""
+    node = CFG.data
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return False
+        node = node[part]
+    return True
+
+
+def _fit_layout(pages) -> dict:
+    """Measure the sheet, and use the measurement where the profile is a stranger.
+
+    A project profile carries two different kinds of thing.  One is the client's:
+    the Excel template, the words their finished list uses, the letters their
+    deliverable puts in a TYPE column.  The other is the sheet's: where the frame
+    is, where the title block's cells are, whether the vendor mark is drawn or
+    typed.  Only the first is worth configuring, and the second is measured here.
+
+    Which one wins is decided by whether the profile is this document's.  The
+    profile names a project code and the drawings carry one; when they agree the
+    profile was written for these sheets and its numbers stand, so a document that
+    has been measured before measures the same again.  When they differ the
+    profile describes someone else's paper and the sheet in hand is the better
+    authority, so the measurement is used and every value it moved is recorded.
+    """
+    derived = derive_layout.derive(pages, CFG)
+    code = _document_code(pages)
+    profile = str(CFG.data.get("project", {}).get("code") or "")
+    same = bool(code) and code == profile
+    # A profile either carries this sheet's geometry or it carries none.
+    #
+    # AL NOUF1's carries it: every region and cell in that file was measured
+    # against those drawings and every number this tool reports was measured with
+    # it.  Handing such a profile a fresh measurement is not an improvement, it is
+    # a change to a validated result, and it belongs in a round of its own.  So a
+    # profile that states the drawing area, for the document it was written for, is
+    # left entirely alone - including in what it leaves unsaid.
+    #
+    # A profile that states no geometry is asking to be measured, which is what a
+    # client-only profile looks like.  And a profile written for another project
+    # has no standing here at all: its paper is not this paper.
+    states_geometry = _configured("regions.drawing_area")
+    fitted = not same or not states_geometry
+    values = ({k: v for k, v in derived.values().items()
+               if not same or not _configured(k)} if fitted else {})
+    moved = CFG.overlay(values)
+    if moved:
+        _reconfigure(pages)
+    out = derived.as_dict()
+    out.update({
+        "document_code": code,
+        "profile": CFG.path.name,
+        "profile_code": profile,
+        "applied": bool(moved),
+        "states_geometry": states_geometry,
+        "reason": (f"the profile is this document's ({code}) and carries its "
+                   f"geometry, so it stands as written and the sheet was measured "
+                   f"only to report it"
+                   if same and states_geometry else
+                   f"the profile is this document's ({code}) but states no "
+                   f"geometry, so the sheet supplies it"
+                   if same else
+                   f"the profile is for {profile or '(no code)'} and the drawings "
+                   f"say {code or '(none)'}, so the sheet's own measurements are "
+                   f"used"),
+        "moved": [{"key": k, "was": w, "now": n} for k, w, n in moved],
+    })
+    return out
+
+
+def _reconfigure(pages) -> None:
+    """Rebuild what the modules read from config at import, and re-dedupe.
+
+    Every reader takes its layout once, at import, from a config that had not seen
+    the document yet.  Once it has, they are rebuilt from the same functions -
+    there is no second code path, only the same one run again with better numbers.
+    """
+    ds.LAYOUT = ds._layout_from_config(CFG)
+    ds.KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
+                                 for pair in CFG.get("vendor_marks.glyph_sizes"))
+    tb.LAYOUT = tb._layout_from_config(CFG)
+    # The valve layout is rebuilt from the same function; the legend derivation
+    # that runs later starts from it, so it has to carry the new drawing area or
+    # every valve outside the old one is dropped before the legend is consulted.
+    dv.LAYOUT = dv._layout(CFG)
+    da.HANGUL_RE = re.compile(
+        "[" + "".join(CFG.get("review_markup.script_ranges")) + "]")
+    da.REQUIRE_FILL = bool(
+        (CFG.data.get("review_markup") or {}).get("requires_fill"))
+    # The word cache was built before the duplicate test had run.  Rebuilding it
+    # here rather than reloading the pages keeps one definition of the rule.
+    if (CFG.data.get("text") or {}).get("dedup_exact_duplicates"):
+        for pc in pages:
+            pc.words = pidcache._dedup(pc.words)
+    # The project name was read - or not read - before the cell was known.
+    region = CFG.data.get("title_block", {}).get("project_name_region")
+    height = CFG.data.get("title_block", {}).get("project_name_min_height")
+    if region and height:
+        pidcache.rename_projects(pages, tuple(float(v) for v in region),
+                                 float(height))
+
+
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True) -> dict:
@@ -279,14 +403,17 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     with clock.stage("open_pdf"):
         doc, pages = pidcache.load_pages(pdf_path)
+    with clock.stage("layout"):
+        layout = _fit_layout(pages)
     total = len(pages) + 6
     say(1, total, "reading title blocks")
 
     with clock.stage("titleblock_glyphs"):
-        library = tb.build_glyph_library(pages)
+        library = tb.build_glyph_library(pages, tb.LAYOUT)
     with clock.stage("titleblocks"):
         tb_rows = {r["page_no"]: r
-                   for r in (tb.extract_page(pd, library) for pd in pages)}
+                   for r in (tb.extract_page(pd, library, tb.LAYOUT)
+                             for pd in pages)}
 
     say(2, total, "measuring rules off the legend sheets")
     with clock.stage("legend_rules"):
@@ -327,7 +454,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         meta = tb_rows[pc.page_no]
         with clock.stage("instruments", pc.page_no):
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
-                pc, rules=ds.RULESET_V3)
+                pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
+                allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
         with clock.stage("annotations", pc.page_no):
             annotations = da.review_annotations(pc)
         # The same body-text scan parse_notes.py does: a scope keyword says some
@@ -466,6 +594,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     for line in clock.summary_lines():
         clock.log(line)
     applied = {
+        "layout": layout,
         "instrument_ruleset": ds.RULESET_V3.name,
         "exclusion_scope_name": da.BASELINE_SCOPE_NAME,
         "exclusion_rules_active": sorted(ACTIVE_SCOPE),
@@ -1716,7 +1845,9 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
     words.sort(key=lambda w: w["dist"])
 
     # What the engine did see here, and under which rules.
-    dets, _scopes, _marks, _unver, unmapped, _boxes = ds.detect(pc, rules=ds.RULESET_V3)
+    dets, _scopes, _marks, _unver, unmapped, _boxes = ds.detect(
+        pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
+        allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
     detections = []
     for d in dets:
         if not near(d.bbox):

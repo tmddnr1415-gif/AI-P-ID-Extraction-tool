@@ -446,7 +446,31 @@ function showAppliedRules() {
   if (ds.supplier_span_label) SUPPLIER_SPAN_LABEL = ds.supplier_span_label;
   const pt = (S.job.engine || {}).pipe_trace || {};
   const st = pt.per_status || {};
+  // Where this run's geometry came from.  A profile that was written for another
+  // project is not an error and not a silent substitution: the sheet is measured
+  // and every value that moved is named here, so a reviewer can see whether the
+  // tool fitted itself to the drawing or was handed the numbers.
+  const L = a.layout || {};
+  const layoutRow = () => {
+    if (!L.reason) return "";
+    const moved = (L.moved || []).map(m =>
+      `<code>${escape(m.key)}</code> ${escape(JSON.stringify(m.was))} → `
+      + `<b>${escape(JSON.stringify(m.now))}</b>`).join("<br>");
+    const items = (L.items || []).map(it =>
+      `<code>${escape(it.key)}</code> <b>${escape(JSON.stringify(it.value))}</b>`
+      + ` <span class="muted">[${it.source}] ${escape(it.evidence || "")}</span>`)
+      .join("<br>");
+    return row("도면 유도 레이아웃",
+      `${L.applied ? "<b>도면에서 측정한 값을 사용</b>" : "프로필 값을 사용"}`
+      + ` <span class="muted">— ${escape(L.reason)}</span>`
+      + (moved ? `<br><br><b>바뀐 값 ${(L.moved || []).length}개</b><br>${moved}` : "")
+      + (items ? `<br><br><b>측정 내역</b><br><span class="muted">${items}</span>` : "")
+      + ((L.notes || []).length
+        ? `<br><span class="muted">${(L.notes || []).map(escape).join("<br>")}</span>`
+        : ""));
+  };
   $("#rules-body").innerHTML = "<dl class='rules'>"
+    + layoutRow()
     + row("계기 룰셋", a.instrument_ruleset)
     + row("제외 스코프", `<b>${a.exclusion_scope_name}</b>`)
     + row("활성 제외규칙", (a.exclusion_rules_active || []).join("<br>") || "-")

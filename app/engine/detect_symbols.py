@@ -161,7 +161,7 @@ ANCHORS = RULESET_V3.anchors
 # Used only to *notice* a mark on a page whose own legend is missing, never to
 # interpret one — that stays page-scoped (docs/design.md §10.1).
 KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
-                          for pair in CFG.get("vendor_marks.glyph_sizes"))
+                          for pair in (CFG.get_or("vendor_marks.glyph_sizes", []) or []))
 
 # Shape of an ISA function-letter tag, used only to spot anchors the dictionary
 # above is missing.  Matching this does not make something a detection.
@@ -227,7 +227,10 @@ def _layout_from_config(cfg=CFG) -> Layout:
     and the broken-line parameters describe the line styles legend page 2
     prints.  Neither changes with the project.
     """
-    box = cfg.get("vendor_marks.package_box")
+    d = Layout()
+    box = cfg.get_or("vendor_marks.package_box",
+                     {"edge_cover": d.box_edge_cover,
+                      "mark_margin": d.box_mark_margin})
     # Broken-line geometry.  These were left as dataclass defaults because legend
     # page 2 draws the line styles and a style does not move with the project -
     # but it does move with the *sheet*: on an A0 print of the same drawing office's
@@ -237,21 +240,21 @@ def _layout_from_config(cfg=CFG) -> Layout:
     # is the case for every project that has run so far.
     brk = cfg.data.get("broken_line") or {}
     return Layout(
-        drawing_area=cfg.rect("regions.drawing_area"),
-        notes_area=cfg.rect("regions.notes_area"),
-        notes_text_x_max=float(cfg.get("regions.notes_text_x_max")),
-        mark_blob=cfg.pair("vendor_marks.blob_span"),
-        mark_glyph_span=cfg.pair("vendor_marks.glyph_span"),
-        mark_cluster_gap=float(cfg.get("vendor_marks.cluster_gap")),
-        mark_above=float(cfg.get("vendor_marks.above")),
-        mark_x_slack=float(cfg.get("vendor_marks.x_slack")),
-        note_mark_row_tol=float(cfg.get("vendor_marks.note_row_tol")),
-        note_line_gap=float(cfg.get("vendor_marks.note_line_gap")),
+        drawing_area=tuple(cfg.get_or("regions.drawing_area", d.drawing_area)),
+        notes_area=tuple(cfg.get_or("regions.notes_area", d.notes_area)),
+        notes_text_x_max=float(cfg.get_or("regions.notes_text_x_max", d.notes_text_x_max)),
+        mark_blob=tuple(cfg.get_or("vendor_marks.blob_span", d.mark_blob)),
+        mark_glyph_span=tuple(cfg.get_or("vendor_marks.glyph_span", d.mark_glyph_span)),
+        mark_cluster_gap=float(cfg.get_or("vendor_marks.cluster_gap", d.mark_cluster_gap)),
+        mark_above=float(cfg.get_or("vendor_marks.above", d.mark_above)),
+        mark_x_slack=float(cfg.get_or("vendor_marks.x_slack", d.mark_x_slack)),
+        note_mark_row_tol=float(cfg.get_or("vendor_marks.note_row_tol", d.note_mark_row_tol)),
+        note_line_gap=float(cfg.get_or("vendor_marks.note_line_gap", d.note_line_gap)),
         box_edge_cover=float(box["edge_cover"]),
         box_mark_margin=float(box["mark_margin"]),
-        scope_text_tol=float(cfg.get("sct_scope.text_tol")),
-        drop_x_tol=float(cfg.get("sct_scope.drop_x_tol")),
-        drop_end_tol=float(cfg.get("sct_scope.drop_end_tol")),
+        scope_text_tol=float(cfg.get_or("sct_scope.text_tol", d.scope_text_tol)),
+        drop_x_tol=float(cfg.get_or("sct_scope.drop_x_tol", d.drop_x_tol)),
+        drop_end_tol=float(cfg.get_or("sct_scope.drop_end_tol", d.drop_end_tol)),
         scope_box_both_edges=bool(
             (cfg.data.get("sct_scope") or {}).get("box_from_both_edges")),
         **{k: float(brk[k]) if k != "brk_min_marks" else int(brk[k])

@@ -1,108 +1,57 @@
-# Project-dependent values for SADARA COGENERATION (1A46).
+# SADARA COGENERATION (1A46) - what this project's *client* says.
 #
-# Second project profile.  Selected with `PID_PROJECT_CONFIG=config/project_sadara.yaml`;
-# with that variable unset nothing here is read and AL NOUF1 runs exactly as before.
+# The geometry that used to be here is gone.  Where the frame is, where the title
+# block's cells are, how tall its lettering is, whether the export stamps itself
+# twice, whether the vendor mark is drawn or typed, which script the reviewers
+# write in - none of that is a fact about a client, it is a fact about the sheet,
+# and `derive_layout` reads all of it off the pages at run time.  What it measured
+# and what it changed is in the run's own record (`applied_rules.layout`) and on
+# the 적용 규칙 panel, so a value that came from the paper can be checked against
+# the paper.
 #
-# The same rule as the AL NOUF1 file applies: there are no defaults, and a lookup
-# that misses does not fall back to a guess - the caller records NEEDS_REVIEW and
-# leaves the value empty.
+# What is left is what a drawing cannot state:
 #
-# Every number below is one of three things, and each entry says which:
-#   MEASURED   read off this document (page count and sample size given)
-#   SCALED     AL NOUF1's value x the measured sheet ratio (x1.4136, y1.4157),
-#              and then *checked against a measurement* - the check is quoted
-#   CARRIED    taken from AL NOUF1 unchanged because this project has supplied
-#              nothing to derive it from.  Marked so it is not mistaken for a fact.
+#   the client's Excel template and its column numbers
+#   the letters their deliverable puts in a TYPE column
+#   the words their finished Description list uses
+#   which valve lists exist and what bodies each covers
+#   the KKS conventions this project agreed
 #
-# The sheet ratio itself is measured, not chosen: A0 3370 x 2384 against
-# A1 2384 x 1684 is 3370/2384 = 1.4136 across and 2384/1684 = 1.4157 down.
+# Most of it is empty for 1A46, because no list has been supplied.  Empty is the
+# honest state: the engine runs, the fields it cannot fill stay blank, and each
+# one carries the reason.
 #
-# What the ratio does NOT scale: the *lettering*.  AL NOUF1 sets its title and
-# project name at 24.2 pt and its revision dates at 12.8; this project sets them
-# at 14.2-15.9, 19.8 and 9.9 - smaller in absolute points on a larger sheet.  So
-# every height threshold and every title-block column position below is measured
-# rather than scaled, and the three cells where scaling would have failed are
-# named at the point of use.
+# Selecting this file is still `PID_PROJECT_CONFIG=config/project_sadara.yaml`,
+# but it is no longer required: with no profile at all the sheet is measured and
+# the run produces the same 75 rows.  What the profile adds is the client half.
+#
+# Precedence, so this is not ambiguous: a key this file does not state is taken
+# from the sheet.  A key it does state stands, because `project.code` matches the
+# code the drawings carry - had it not, the sheet would win, which is what stops a
+# profile written for another project from imposing its paper size on this one.
 
 project:
   code: 1A46
   name: SADARA COGENERATION PROJECT
 
-# MEASURED - all 9 pages are 3370 x 2384 pt (ISO A0) and all 9 carry rotation
-# 270, which `pidcache` normalises.  AL NOUF1 is A1 2384 x 1684 with 2 rotated.
-sheet:
-  width_pt: 3370.0
-  height_pt: 2384.0
-
-# SCALED, with one MEASURED correction.
-#
-#   drawing_area x0,y0,y1 and notes_area: AL NOUF1's [38, 35, 1960, 1650] and
-#   [1960, 35, 2384, 1250] times the sheet ratio.
-#
-#   the x boundary between them is NOT scaled: the title-block column's left
-#   frame line is drawn at x = 2727.0 on all 9 pages (a full-height rule, 16
-#   segments per page), where the scale would have put it at 2771 - 44 pt inside
-#   the title block.  2727 is the measurement.
-#
-#   notes_text_x_max 3293.7 is AL NOUF1's 2330 scaled; the notes column's right
-#   frame rule measures 3288 and its text ends at 3303 (the sheet's own grid
-#   letters), so the scaled value sits between the two as intended.
-regions:
-  drawing_area: [53.7, 49.6, 2727.0, 2335.9]
-  notes_area: [2727.0, 49.6, 3370.0, 1769.6]
-  notes_text_x_max: 3293.7
-
-# Title block cells.  The form is the same drawing office's (SAMSUNG C&T) and
-# the cells sit at the same *fractions* of the sheet, so the regions scale; the
-# lettering does not, so the height thresholds and the two history columns are
-# measured.  Each line records the check.
+# The title-block cells are derived; these four are not, and are measured here.
+# The revision history is a table of rows rather than a captioned cell, so there
+# is no caption to anchor it to - `derive_layout` finds cells by the words the
+# form prints above them, and the history block prints its captions in a single
+# row across the top rather than above each value.
 title_block:
-  # SCALED [1950,1560,2384,1600] -> checked: the drawing number measures
-  # x 2872-3021, y 2243-2258 on all 9 pages, inside this box.
-  dwg_no_region: [2756.5, 2208.5, 3370.0, 2265.1]
-  # MEASURED - the scaled box [2770.7, 2123.6, 3370.0, 2228.3] reaches up into
-  # the PROJECT NAME band and made every title read
-  # 'SADARA COGENERATION PROJECT P&ID FOR ...'.  The block rules its own bands:
-  # full-width rules at y 2095, 2158, 2222, 2266 on all 9 pages, so PROJECT NAME
-  # is 2095-2158 and DRAWING TITLE is 2158-2222.  Checked: the title measures
-  # x 2916-3109, y 2188-2202, inside this cell and only this cell.
-  title_region: [2770.7, 2158.0, 3370.0, 2222.0]
-  # MEASURED - scaling AL NOUF1's 15.0 gives 21.2 and would reject every title
-  # on this project: the title is set at 14.2 pt on 10 words and 15.8-15.9 on 37
-  # across the 9 pages.  14.0 is below the smallest of those.
-  title_min_height: 14.0
-  # SCALED 6.0 -> 8.5.  A tolerance on how far apart two words may sit and still
-  # count as one title line; it scales with the lettering pitch, not the sheet,
-  # but 8.5 is above the 14.2 pt line's own spread so it is not the binding term.
+  # SCALED 6.0 -> 8.5 by the sheet ratio.  How far apart two words may sit and
+  # still count as one title line.
   title_line_tol: 8.5
-  # MEASURED from the same two rules - the PROJECT NAME band is y 2095-2158.
-  # Checked: 'SADARA COGENERATION PROJECT' measures x 2831-3079, y 2126-2146.
-  project_name_region: [2770.7, 2095.0, 3370.0, 2158.0]
-  # MEASURED - the project name is 19.8 pt on all 27 words across the 9 pages;
-  # the scaled 21.2 would reject it.  19.0 is below the measurement.
-  project_name_min_height: 19.0
-  # SCALED [2296,1583,2326,1597] -> checked: the revision letter measures
-  # x 3251.9-3263.3, y 2244.9-2260.8.
-  rev_box: [3245.6, 2241.1, 3288.0, 2260.9]
-  # SCALED [2248,1583,2286,1597] -> checked: '1/3' measures x 3188.7-3206.3,
-  # y 2246.2-2260.4.
-  sheet_box: [3177.7, 2241.1, 3231.4, 2260.9]
-  # MEASURED - the revision-history rules run x 2727.0 to 3288.0 on every page
-  # (12 segments per rule, rows every 24 pt).  The 5 pt allowance on each side
-  # is the one AL NOUF1 uses (its column edge is 1969.6 and its threshold 1975).
+  # MEASURED - the revision-history rules run x 2727.0 to 3288.0 on every page,
+  # rows every 24 pt at y 1646..1839.
   hist_rule_x0_max: 2732.0
   hist_rule_x1_min: 3280.0
-  # MEASURED - history rules at y 1646, 1670, 1694, 1718, 1742, 1766, 1790,
-  # 1814, 1839.  Scaling AL NOUF1's [1200, 1390] gives [1698.8, 1967.8], which
-  # would cut off the top four rows and run past the table into the logo bands.
   hist_rule_y: [1640.0, 1845.0]
-  # MEASURED - the revision letters measure x 2743.1-2750.4 and the dates
-  # x 2775.5-2836.2 over 22 dates on 9 pages.  Scaling AL NOUF1's date column
-  # gives [2815.9, 2926.1], which starts 40 pt to the right of the dates.
-  # Bounds are the measured envelope rounded outward to 5 pt.
+  # MEASURED - revision letters at x 2743.1-2750.4, dates at x 2775.5-2836.2 over
+  # 22 dates on 9 pages.
   hist_rev_col: [2740.0, 2755.0]
   hist_date_col: [2775.0, 2840.0]
-  # SCALED 1.2 -> 1.7.
   hist_row_inset: 1.7
 
 # MEASURED - the drawing number is the same shape as AL NOUF1's and the same
@@ -118,19 +67,6 @@ formats:
   unit_code_segment: 1
   unit_code_chars: [0, 2]
   system_code_chars: [2, 5]
-
-# MEASURED - this CAD export stamps the title-block frame four times: on every
-# page exactly 75 words repeat at identical coordinates, and the drawing body
-# carries repeats of its own (p7 `DRAIN 8` and `DRAIN 9` twice each, p9 `MOV`
-# twice, plus the border grid letters four times).  Left in, they read as extra
-# anchors and made the index sheet's title come out as
-# 'PIPING PIPING AND AND INSTRUMENTATION INSTRUMENTATION DIAGRAM DIAGRAM INDEX INDEX'.
-#
-# The key is off by default and absent from the AL NOUF1 file: that document has
-# 28 exact-duplicate words on 8 of its 58 pages, and removing them would change a
-# result that is already measured.
-text:
-  dedup_exact_duplicates: true
 
 # CARRIED - this project has supplied no instrument list and no blank form, so
 # there is nothing to measure a template from.  The block is AL NOUF1's, kept
@@ -203,13 +139,7 @@ anchors:
 # p6 and p7 assign (*) and (**) to *opposite* suppliers, which is exactly why
 # the meaning is read per sheet at run time and never configured.
 #
-# MEASURED - `glyph_sizes` is empty because this project draws no asterisks: a
-# search of the four process sheets for stroked glyph clusters at any size
-# returns no marks, while `(*)` / `(**)` appear as selectable text 4, 11, 3 and 2
-# times in the drawing body of p6, p7, p8, p9.  The detector already accepts both
-# notations; an empty list simply switches off the branch that has nothing to find.
 vendor_marks:
-  glyph_sizes: []
   # CARRIED - shape tolerances for the drawn notation.  With `glyph_sizes` empty
   # they are unreachable; they are kept so the loader has its keys.
   blob_span: [1.5, 8.0]
@@ -261,17 +191,11 @@ broken_line:
 # process sheets draw it: `SCT` labels appear 1 time on p6 and 5 times on p7,
 # against a chain-dashed break, which is the same construction.
 # 30.0 -> 42.4, 2.0 -> 2.8, 1.5 -> 2.1.
+#
+# Which edge of a dashed box a label stands on is derived, not stated here: this
+# document puts 5 of 5 on a right edge and AL NOUF1 puts 47 on a left and 42 on a
+# right, and the sheet is what says so.
 sct_scope:
-  # MEASURED - the label sits on the box's right edge for 2 of p7's 5 SCT labels,
-  # and reading the vertical it stands beside as the box's *left* edge gives those
-  # two a zero-width box.  Built from both horizontal edges instead, p7's 5 labels
-  # resolve to the 2 spans they actually mark.
-  #
-  # Opt-in, and deliberately not switched on for AL NOUF1 in the same change:
-  # 8 of that project's 13 boxes are zero-width for the same reason, and giving
-  # them their real width moves 12 rows to SKIP through the Description skip path.
-  # That is a change to a measured result and belongs in its own round.
-  box_from_both_edges: true
   text_tol: 42.4
   drop_x_tol: 2.8
   drop_end_tol: 2.1
@@ -383,24 +307,9 @@ matching:
 # sheets' own lower-case words (`etc.`, `(Cr-Mo)`, `Special`, `Designated` on
 # sheet 4 of 4) are also caught.  Those sit outside the drawing area on the
 # sheets that have them; the count is reported so the cost is visible.
-review_markup:
-  script_ranges: ['a-z']
-  # MEASURED - the lower-case range alone catches 31 runs on these 9 sheets, of
-  # which 11 are the reviewers' notes (`to be deleted` x4, `only one PSV will be
-  # applied`, `XV will be applied instead of manual valve` x3) and 20 are the
-  # legend's own lower case (`FO or FC` x4, `RTD or K`, `(Cr-Mo)`, `etc.` and the
-  # rest of sheet 4 of 4's material list).
-  #
-  # Requiring the highlight separates them exactly: all 11 notes sit inside a
-  # filled rectangle and none of the 20 does.  The test is "filled with neither
-  # ink nor paper", not "filled with this colour" - the fills here happen to be
-  # (1.0, 0.92, 0.85) but the rule is that a drawing marks in black on white, so a
-  # rectangle filled with a third colour is something added over it.
-  #
-  # Absent on AL NOUF1, where the script range is already the discriminator - its
-  # reviewers write Hangul and its drawings print none - and where adding this
-  # would drop markup that is currently found.
-  requires_fill: true
+# The reviewers' script and whether it needs a highlight are derived: this
+# document writes lower case 39 times on a highlight and 24 times off one, so
+# the highlight is what separates a note from the drawing's own lettering.
 
 # Q'ty multipliers.
 #

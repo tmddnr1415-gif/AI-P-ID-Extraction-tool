@@ -275,7 +275,8 @@ def _layout(cfg=CFG) -> ValveLayout:
     at the point of use, so they do not move with the project.
     """
     return ValveLayout(
-        drawing_area=cfg.rect("regions.drawing_area"),
+        drawing_area=tuple(cfg.get_or("regions.drawing_area",
+                                      ValveLayout().drawing_area)),
         act_reach=float(cfg.get("valves.actuator_reach")),
         act_offaxis=float(cfg.get("valves.actuator_offaxis")),
         tag_reach=float(cfg.get("valves.tag_reach")),

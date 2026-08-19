@@ -81,6 +81,41 @@ class ProjectConfig:
             return UNDEFINED
         return table[key]
 
+    def get_or(self, dotted: str, default):
+        """The configured value, or the caller's own, with the miss recorded.
+
+        For the layout readers, which are built at import - before any document
+        has been opened - from a profile that may deliberately leave the sheet's
+        geometry out, because the sheet states it and `derive_layout` reads it.
+        The default here is the reader's own measured constant, and the pipeline
+        overwrites it once the pages are open; either way `misses` says the
+        profile was silent, so nothing is guessed without a record.
+        """
+        try:
+            return self.get(dotted)
+        except ConfigError:
+            self.misses.append(f"{dotted} (not stated; measured from the sheet)")
+            return default
+
+    def overlay(self, values: dict) -> list:
+        """Write measured values over the profile, and say which moved.
+
+        Used when the profile loaded is not this document's - the geometry in it
+        then describes someone else's sheet, and what the sheet in hand states
+        about itself is the better answer.  Returns `[(key, was, now)]`.
+        """
+        moved = []
+        for dotted, value in values.items():
+            parts = dotted.split(".")
+            node = self.data
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            was = node.get(parts[-1], UNDEFINED)
+            if was != value:
+                moved.append((dotted, None if was is UNDEFINED else was, value))
+            node[parts[-1]] = value
+        return moved
+
     def rect(self, dotted: str) -> tuple:
         v = self.get(dotted)
         if not (isinstance(v, list) and len(v) == 4):

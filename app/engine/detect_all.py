@@ -73,7 +73,8 @@ MARK_TEXT_RE = re.compile(r"^\({1,2}\*{1,3}\)?$")
 # (삭제 = delete, 추가 = add, 위치이동 = relocate, 복원 = restore).  It matters twice
 # over: its text is picked up by the anchor scanner, and it records revisions the
 # Excel has not absorbed.  Diagnostic only — nothing acts on it.
-HANGUL_RE = re.compile("[" + "".join(CFG.get("review_markup.script_ranges")) + "]")
+HANGUL_RE = re.compile(
+    "[" + "".join(CFG.get_or("review_markup.script_ranges", ["\uac00-\ud7a3"])) + "]")
 
 # Whether the markup has to sit on a highlight as well as read in the review
 # script.  A script range is enough when the script is the discriminator - AL
@@ -110,7 +111,9 @@ def review_annotations(pc, lay_x=None):
     # not a number written here; AL NOUF1's is 1960.0, which is what this used to
     # hard-code, so nothing moves for it.
     if lay_x is None:
-        lay_x = CFG.rect("regions.drawing_area")[2]
+        import detect_symbols as _ds
+        lay_x = tuple(CFG.get_or("regions.drawing_area",
+                                 _ds.LAYOUT.drawing_area))[2]
     out, cur, last = [], [], None
     words = pc.words
     if REQUIRE_FILL:
