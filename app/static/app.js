@@ -31,8 +31,19 @@ const COLS = [
   ["description_grade", "등급", false], ["remark", "Remark", true],
 ];
 // What each grade asks of the reviewer, shown in the review tab's grouping.
+//
+// The top grade says where the words came from, not that they are the client's
+// words, and the label says so.  Against the client's own list, 455 of these rows
+// have a counterpart: 27 match it token for token and 338 (74.3%) name the same
+// piece of equipment.  Nothing in the run separates the two - agreement sits
+// between 63% and 80% in every band of distance, runner-up margin, candidate
+// count, direction and noun source - so there is no line to draw that would make
+// a smaller, surer grade, and inventing a threshold would be a guess.  Saying the
+// number is what can honestly be done.
 const GRADES = [
-  ["CONFIRMED", "확정", "도면이 이름을 대는 것으로 채워졌습니다"],
+  ["CONFIRMED", "도면 근거 있음",
+   "이름·계통·변수를 모두 도면에서 읽었습니다 — 발주처 표기와 같다는 뜻은 아닙니다 "
+   + "(대조 가능한 455행 중 주어 일치 74.3%, 문장 완전일치 27행)"],
   ["LOW", "AI 제안", "후보에서 골랐으나 근거가 약합니다 — 확인 필요"],
   ["PARTIAL", "부분", "단위·계통·변수만 확정 — 중간 서술을 직접 입력"],
   ["NONE", "없음", "근거 없음 — 직접 입력"],
@@ -743,9 +754,19 @@ async function setDescription(row, text, opts = {}) {
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     return true;
   };
+  // Bulk applies to the rows this one is indistinguishable from: same drawing,
+  // same Type, and the same sentence standing in the column right now.  The
+  // sentence has to be part of it.  Drawing and Type alone put the 58 PARTIAL
+  // rows into 17 groups, not the 25 the reviewer sees, because one drawing's TIT
+  // rows can belong to three different units - and worse, on p11 that group also
+  // contains 7 rows the engine already filled from the drawing, which one click
+  // would have overwritten (p10 TIT: 10 of them).  Matching the sentence too
+  // gives exactly the 25 groups and touches nothing outside the one on screen.
+  const was = row.values.description || "";
   const targets = opts.bulk
     ? S.rows.filter(r => !r.deleted && !r.removed
-        && r.drawing_no === row.drawing_no && r.values.type === row.values.type)
+        && r.drawing_no === row.drawing_no && r.values.type === row.values.type
+        && (r.values.description || "") === was)
     : [row];
   for (const r of targets) {
     if (!await patch(r, "description", text)) return;
@@ -755,12 +776,18 @@ async function setDescription(row, text, opts = {}) {
     // shows no Remark - see remarkOf().
     await patch(r, "description_grade", "USER_ENTERED");
   }
+  // Writing the sentence answers `DESC_GRADE_PARTIAL` for every row it filled, so
+  // the review panel's counts move with it.  They are computed server-side from
+  // the merged grade, so they have to be re-read rather than adjusted here.
+  S.review = await (await fetch(`/jobs/${S.job.id}/review`)).json();
   updateBadge();
+  renderReviewPanel();
   renderGrid();
   const again = S.rows.find(r => r.key === row.key);
   if (again) showEvidence(again);
   if (opts.bulk) {
-    alert(`${targets.length}행에 적용했습니다 — ${row.drawing_no} / ${row.values.type}`);
+    alert(`${targets.length}행에 적용했습니다 — ${row.drawing_no} / `
+      + `${row.values.type} / “${was}”`);
   }
 }
 
@@ -987,19 +1014,28 @@ function showEvidence(row) {
   add("도면 주석", (e.annotations || []).join(" / "));
 
   // --- multi-signal bubble group --------------------------------------------
-  // Three bubbles drawn edge-to-edge are three signals off one physical
-  // instrument.  The group is shown; the quantity is not touched, because neither
-  // the legend nor the client's own list says what the physical count is.
+  // Bubbles drawn edge-to-edge are several signals off one physical instrument.
+  // The user confirmed that against plant practice, so the stack is one row and
+  // the panel says which signals it stands for - the reviewer is signing off on a
+  // fold, and has to be able to see what was folded.
   const grp = e.signal_group;
   if (grp) {
+    const members = e.signal_members || grp.members.map(m => m.anchor || m.type);
     add("다중 신호 버블", `${grp.members.length}개 버블이 한 묶음으로 그려져 있습니다 — `
-      + grp.members.map(m => m.anchor || m.type).join(" / "));
+      + members.join(" / "));
     add("묶음 근거", `테두리 간격 ${(grp.basis.touching_gaps_pt || []).join(", ")}pt `
       + `(허용 ${grp.basis.slack_pt}pt, legend_rules.INDEX_SLACK) · `
       + `첫 문자 '${grp.basis.shared_first_letter}' 공통 · 세로 정렬`);
-    add("적용된 수량", `${(grp.basis.qty_applied || []).join(" + ")} — `
-      + "합산하지 않았습니다. 범례 p3 은 다기능 계기를 버블 1개로 그리고 "
-      + "묶음 표기를 정의하지 않으며, 발주처 리스트는 이 도면들을 다루지 않습니다");
+    if (grp.basis.merged) {
+      add("합산 판정", `물리 기기 1개로 접었습니다 — 버블 ${grp.members.length}개 중 `
+        + `${grp.basis.folded_rows}행이 이 행에 흡수됐습니다 `
+        + `(config multi_signal_bundle.merge_quantity)`);
+      add("접기 전 수량", `${(grp.basis.qty_applied || []).join(" + ")} → `
+        + `${row.values.qty} (1 x 시트 승수)`);
+    } else {
+      add("적용된 수량", `${(grp.basis.qty_applied || []).join(" + ")} — `
+        + "합산하지 않았습니다 (config multi_signal_bundle.merge_quantity: false)");
+    }
   }
 
   // --- Description axis (separate from scope) --------------------------------
@@ -1081,6 +1117,17 @@ function showEvidence(row) {
  * Clicking one writes it into the Description between the system name and the
  * variable - the place the client's own lines put it - so the reviewer picks
  * rather than types. */
+/* The rows this one is indistinguishable from - the reach of `일괄 적용`, shown
+ * before it is pressed rather than reported after.  The 58 PARTIAL rows fall into
+ * 25 such groups; drawing and Type alone would give 17 and would also sweep up
+ * rows the engine had already filled. */
+function sameSentence(row) {
+  const text = row.values.description || "";
+  return S.rows.filter(r => !r.deleted && !r.removed
+    && r.drawing_no === row.drawing_no && r.values.type === row.values.type
+    && (r.values.description || "") === text);
+}
+
 function candidatePicker(row) {
   const e = row.evidence || {};
   const cands = e.candidates || [];
@@ -1101,8 +1148,14 @@ function candidatePicker(row) {
                placeholder="Description 직접 입력">
         <button id="cand-save" class="ghost">이 행에 적용</button>
         <button id="cand-bulk" class="ghost"
-                title="같은 도면·같은 Type 의 모든 행에 적용">일괄 적용</button>
+                title="같은 도면·같은 Type 이고 지금 같은 문장인 행에 모두 적용">일괄 적용</button>
       </div>
+      ${sameSentence(row).length > 1
+        ? `<p class="muted">이 문장을 그대로 쓰는 행이 `
+          + `<b>${sameSentence(row).length}행</b> 있습니다 — `
+          + `${escape(row.drawing_no)} / ${escape(row.values.type || "")}. `
+          + `일괄 적용은 그 ${sameSentence(row).length}행만 바꿉니다.</p>`
+        : ""}
     </div>`;
 }
 

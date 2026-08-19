@@ -208,10 +208,18 @@ def _remark(row: dict, values: dict):
     act on.  A row nobody flagged and nobody touched gets an empty cell.
     """
     codes = row.get("review_codes") or []
+    # A folded signal stack is not a flag - nobody has to decide anything - but
+    # the row now stands for bubbles the reader can count on the drawing and will
+    # not find in the list.  So it says which signals it covers, on every row,
+    # whether or not anything else was flagged.
+    members = (row.get("evidence") or {}).get("signal_members") or []
+    fold = (f"맞닿은 신호 버블 {len(members)}개 = 물리 기기 1개 "
+            f"({' / '.join(members)})") if len(members) > 1 else None
     if not codes:
         # Nothing was flagged: whatever the reviewer typed in the Remark box is
-        # theirs and goes through untouched.
-        return values.get("remark") or None
+        # theirs and goes through untouched, with the fold noted beside it.
+        typed = values.get("remark") or None
+        return " · ".join([p for p in (fold, typed) if p]) or None
     states = row.get("review_state") or {}
     labels = row.get("review_label") or {}
     parts = []
@@ -222,7 +230,7 @@ def _remark(row: dict, values: dict):
                      f"{REVIEW_STATE_KO.get(state, state)}")
     # A cell is read at a glance, so it carries the question and the answer.  The
     # engine's full reasoning is on the review screen, where there is room for it.
-    return " · ".join(parts)
+    return " · ".join(([fold] if fold else []) + parts)
 
 
 REVIEW_STATE_KO = {"CONFIRMED": "확인함", "EDITED": "수정함", "HELD": "보류",

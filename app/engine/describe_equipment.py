@@ -277,6 +277,19 @@ def _dedupe(items) -> list:
 # found by the labels the drawing prints instead, which it does 116 times for
 # `PUMP` alone across 30 sheets.
 
+def _drawing_no_pattern() -> str:
+    """The title block's drawing-number pattern, loosened to match inside a line.
+
+    `formats.drawing_no` is anchored because the title block parser reads a whole
+    cell.  Here the same number turns up in the middle of a connector annotation,
+    so the anchors become word boundaries.  Nothing else about the pattern
+    changes, and there is still only the one definition.
+    """
+    import projectconfig
+    pat = projectconfig.load().get("formats.drawing_no")
+    return r"\b" + pat.lstrip("^").rstrip("$") + r"\b"
+
+
 # A count note the drawing writes beside an equipment name.  Stripped from the
 # name because the client never writes one: `(3X50%)` and its kind appear in 0 of
 # the 557 finished Description lines.
@@ -287,6 +300,29 @@ BRACKET = re.compile(r"\([^)]*\)?")
 # `FEEDWATER PUMP FOR HRSG UNIT #11` names a pump; the client writes 1 `FOR` in
 # its 557 lines, so the tail is where the drawing says which unit, not the name.
 FOR_TAIL = re.compile(r"\bFOR\b.*$")
+
+# An off-page connector prints where the pipe continues: the destination's name,
+# then that sheet's drawing number, then its grid cell - `HRSG#11 HP BYPASS VALVE
+# / D00P-10MAN10-M05-0001 / (H-2)`.  The name is real equipment, so the label is
+# kept; the drawing number is a sheet reference and goes.  The pattern is the
+# title block's own `formats.drawing_no`, unanchored so it matches inside a line
+# rather than as a whole cell - one definition, read at import from the config
+# the title block parser reads.  The drawings write 26 of them into 23 labels on
+# 13 sheets; the client writes 0 in its 557 Description lines.
+DRAWING_NO = re.compile(_drawing_no_pattern())
+# The sheet's own annotations, on the same evidence - each counted on the labels
+# this document yields and checked against those 557 lines, where every one of
+# them is absent:
+#   * a bore, `CCW EXPANSION TANK MAKE #20 UP DN50` - 1 label, client 0
+#   * a note reference, `BALL STRAINER WITH PDIT NOTE 3` - 2 labels, client 0
+#   * a grid cell, `(H-2)` - 0 labels, because it is always bracketed and
+#     `BRACKET` has already taken it; the pattern is here so an unbracketed one
+#     would not survive either
+#   * an ASME/ANSI/API code or a flange class - 0 labels and 0 client lines, so
+#     nothing is written for them: a rule with no case to answer is a guess.
+BORE = re.compile(r"\bDN\s?\d{1,4}\b")
+NOTE_REF = re.compile(r"\bNOTES?\.?\s*\d+\b")
+GRID_CELL = re.compile(r"(?<![A-Z0-9])[A-H]-[0-9](?![0-9A-Z])")
 
 # A line the drawing opens with its own preposition is a route, not a name: `TO
 # HRSG#12 BD TANK` says where the pipe goes.  Taking it as equipment put an
@@ -642,6 +678,11 @@ def clean_label(text: str) -> tuple:
     # one, leaving `PER HRSG)` glued to the name.
     name = BRACKET.sub(" ", text)
     name = COUNT_NOTE.sub(" ", name)
+    # The sheet's own annotations, before the full stop goes: `M05` survives that
+    # edit but `D00P-10MAN10-M05-0001` is the same number either way, and taking
+    # it out first keeps the pattern the title block parser's.
+    for pat in (DRAWING_NO, BORE, NOTE_REF, GRID_CELL):
+        name = pat.sub(" ", name)
     name = name.replace(".", "")
     name = FOR_TAIL.sub(" ", name)
     name = " ".join(name.split())

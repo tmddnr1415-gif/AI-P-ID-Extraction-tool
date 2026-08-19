@@ -539,3 +539,48 @@ def test_a_row_the_drawing_cannot_answer_is_tagged_for_grouping():
     assert note.startswith("[중간 심볼] ")
     _code, note = pipeline._user_input_note("PI", "", "COOLER", "CCW")
     assert note.startswith("[CCW 방향] ")
+
+
+def test_an_off_page_connectors_sheet_reference_is_not_part_of_the_name():
+    """`HRSG#11 HP BYPASS VALVE / D00P-10MAN10-M05-0001 / (H-2)` names a valve.
+
+    The three lines are one off-page connector: where the pipe goes, the sheet it
+    goes to, and the cell on that sheet.  The first line is equipment and stays;
+    the other two are a reference and go.  The drawings write 26 of these numbers
+    into 23 labels on 13 sheets, and the client writes 0 in its 557 Description
+    lines - so nothing the client uses is being removed.
+    """
+    name, _note = dequip.clean_label(
+        "HRSG#11 HP BYPASS VALVE D00P-10MAN10-M05-0001 (H-2)")
+    assert name == "HRSG#11 HP BYPASS VALVE"
+
+
+def test_the_sheet_reference_pattern_is_the_title_blocks_own():
+    """One definition, read from the config the title block parser reads."""
+    import projectconfig
+    anchored = projectconfig.load().get("formats.drawing_no")
+    assert dequip.DRAWING_NO.pattern == r"\b" + anchored.lstrip("^").rstrip("$") + r"\b"
+    assert dequip.DRAWING_NO.search("D00P-10MAN10-M05-0001")
+
+
+def test_a_bore_and_a_note_reference_go_the_same_way():
+    """Both are the sheet's annotations, and the client writes neither."""
+    assert dequip.clean_label("CCW EXPANSION TANK MAKE #20 UP DN50")[0] == (
+        "CCW EXPANSION TANK MAKE #20 UP")
+    assert dequip.clean_label("BALL STRAINER WITH PDIT NOTE 3")[0] == (
+        "BALL STRAINER WITH PDIT")
+
+
+def test_the_folded_rows_sentence_form_is_a_setting_with_three_named_options():
+    """The client's list cannot settle it, so the choice is written down.
+
+    Its 22 level-switch rows are 11 pairs - one `LEVEL HIGH HIGH` and one
+    `LEVEL HIGH` per subject - so it writes one signal per row and never two, and
+    `representative` is the form that matches.  The other two are named so a
+    project that wants them does not have to edit code.
+    """
+    import projectconfig
+    from app import pipeline
+    cfg = projectconfig.load().data.get("multi_signal_bundle") or {}
+    assert cfg.get("description_signal") in ("representative", "none", "all")
+    assert pipeline.MULTI_SIGNAL_DESCRIPTION == cfg["description_signal"]

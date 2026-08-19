@@ -645,15 +645,16 @@ def _description_skip(d) -> str:
 # So the group is measured, shown and flagged, and the quantity is left alone.
 MULTI_SIGNAL_REASON = "다중 신호 버블 — 물리 수량 확인 필요"
 
-# Whether to consolidate a group's quantity onto one row.  **Off**, and it stays
-# off until the client answers `out/ls_bundle_question.md`: the drawing says the
-# three bubbles are one assembly, and the client's list says one row per bubble,
-# but the two statements are about different drawings, so neither settles it.
+# Whether a group folds to one row.  **On**: the user answered the question in
+# `out/ls_bundle_question.md` from plant practice - one switch reporting LSHH, LSH
+# and LSL is one device - and that is a fact about the instrument, not about these
+# drawings, so it settles what neither the legend nor the client's list could.
 #
-# Turned on, the topmost bubble of each group carries the group's whole quantity
-# and the rest carry 0, every row keeping its own line, its own evidence and the
-# flag.  Which row should hold the quantity is itself part of the question being
-# asked, so it is recorded in the evidence rather than presented as the answer.
+# The stack keeps its first bubble's row; the rest are dropped, and the row's
+# quantity is one device x the sheet multiplier rather than the sum, which would
+# have ordered one switch three times.  The signals it stands for are written into
+# its evidence and into the workbook's REMARK, so the fold is legible from the
+# deliverable and not only from this file.
 # What the surviving row is called.  The client's own list settles it: all 22 of
 # its level-switch rows put `LS` in the TYPE column and never `LSHH` or `LSH`; the
 # high/low distinction is written in the Description instead.
@@ -661,6 +662,17 @@ MULTI_SIGNAL_TYPE = str((CFG.data.get("multi_signal_bundle") or {})
                         .get("merged_type") or "")
 MULTI_SIGNAL_MERGE = bool((CFG.data.get("multi_signal_bundle") or {})
                           .get("merge_quantity") or False)
+# Which signal the folded row's Description speaks for.  `representative` is the
+# stack's first bubble - the form the client writes, since all 22 of its
+# level-switch rows carry one signal each and none carries two.  `none` drops the
+# alarm letters; `all` names every folded signal.  Neither appears in the client's
+# list, so both are off and the setting is where a project says otherwise.
+MULTI_SIGNAL_DESCRIPTION = str((CFG.data.get("multi_signal_bundle") or {})
+                               .get("description_signal") or "representative")
+if MULTI_SIGNAL_DESCRIPTION not in ("representative", "none", "all"):
+    raise SystemExit("multi_signal_bundle.description_signal must be one of "
+                     "representative / none / all, not "
+                     f"{MULTI_SIGNAL_DESCRIPTION!r}")
 
 
 def _signal_groups(rows) -> tuple:
@@ -763,6 +775,19 @@ def _signal_groups(rows) -> tuple:
                     f"(config multi_signal_bundle.merge_quantity)")
                 r.evidence["signal_members"] = [m["anchor"] or m["type"]
                                                 for m in group["members"]]
+                # Which signal the one surviving Description speaks for.  The
+                # client's list cannot settle this - it has no line naming two
+                # signals - so the choice is config, and every option is a form
+                # that can be written down and read back (see
+                # `multi_signal_bundle.description_signal`).
+                if MULTI_SIGNAL_DESCRIPTION == "none":
+                    # Drop the alarm letters, leaving the bare switch tag: the
+                    # sentence then says LEVEL and nothing about high or low.
+                    base = str(r.evidence.get("anchor") or r.type)
+                    r.evidence["description_tag"] = base.rstrip("HL") or base
+                elif MULTI_SIGNAL_DESCRIPTION == "all":
+                    r.evidence["description_tags"] = list(
+                        r.evidence["signal_members"])
             group["basis"]["merged"] = MULTI_SIGNAL_MERGE
             group["basis"]["folded_rows"] = len(grp) - 1 if MULTI_SIGNAL_MERGE else 0
     return groups, folded
@@ -788,7 +813,8 @@ def description_question(result: dict, token_stats: dict = None) -> str:
     L.append("| 등급 | 뜻 | 행 |")
     L.append("|---|---|---:|")
     for g, label, why in (
-            (GRADE_CONFIRMED, "확정", "도면이 이름을 대는 것으로 채워짐"),
+            (GRADE_CONFIRMED, "도면 근거 있음",
+             "이름·계통·변수를 모두 도면에서 읽음 (발주처 표기와 같다는 뜻은 아님)"),
             (GRADE_LOW, "AI 제안", "후보에서 골랐으나 근거가 약함"),
             (GRADE_PARTIAL, "부분", "중간 서술 미확인"),
             (GRADE_NONE, "없음", "근거 없음"),
@@ -866,22 +892,44 @@ def ls_bundle_question(result: dict) -> str:
     per_page = collections.Counter(g["page_no"] for g in groups)
     shapes = collections.Counter(
         " + ".join(m["anchor"] for m in g["members"]) for g in groups)
+    # Only the surviving rows are in the result - the folded members were dropped
+    # - so the quantity is summed over the rows that are actually in the list.
     qty_now = sum(rows[m["key"]]["qty"] for m in members
-                  if isinstance(rows[m["key"]].get("qty"), (int, float)))
-    L = ["# 다중 신호 버블 — 물리 수량 확인 요청", ""]
-    L.append("도면에서 세로로 **맞닿아** 그려진 계기 버블 묶음이 있습니다. "
-             "물리적으로 하나의 기기에서 나오는 여러 신호로 보이지만, "
-             "**도구는 수량을 합산하지 않았습니다** — 아래 두 근거가 서로 다른 "
-             "도면을 말하고 있어 이 도구가 판단할 수 없습니다.")
+                  if m["key"] in rows
+                  and isinstance(rows[m["key"]].get("qty"), (int, float)))
+    L = ["# 다중 신호 버블 — 물리 수량 (답변 받음) 과 문형 (미결)", ""]
+    L.append("도면에서 세로로 **맞닿아** 그려진 계기 버블 묶음입니다. 물리 수량은 "
+             "실사용자가 확인해 줬고 — 하나의 Level Switch 가 LSHH·LSH·LSL 을 "
+             "보고하는 것이므로 기기는 1개 — 그대로 적용했습니다. 남은 질문은 "
+             "**한 행이 된 그 행의 Description 문형** 하나입니다.")
     L.append("")
-    L.append("## 무엇을 물어보는지")
+    L.append("## 적용한 것")
     L.append("")
-    L.append(f"- 묶음 **{len(groups)}건**, 버블 **{len(members)}개**, "
-             f"현재 리스트에 **{len(members)}행** · Q'ty 합계 **{qty_now}**")
-    L.append(f"- 합산한다면 행이 {len(members)} → **{len(groups)}행** 이 됩니다 "
-             f"(수량 합계는 승수에 따라 재계산)")
-    L.append("- 현재 상태: 전 행 리스트 유지 + `다중 신호 버블 — 물리 수량 확인 필요` "
-             "로 검토 대기")
+    L.append(f"- 묶음 **{len(groups)}건**, 버블 **{len(members)}개** → "
+             f"리스트 **{len(groups)}행** · 그 행들의 Q'ty 합계 **{qty_now}** "
+             f"(각 행 1 x 시트 승수)")
+    L.append("- 남은 행의 TYPE 은 발주처 리스트가 LS 22행 전부에 쓰는 `LS`")
+    L.append("- 접힌 신호는 근거 패널과 산출물 REMARK 열에 그대로 적혀 있어, "
+             "도면의 버블 수와 행을 대조할 수 있습니다")
+    L.append("")
+    L.append("## 남은 질문 — 접힌 행의 Description")
+    L.append("")
+    L.append("발주처 리스트에는 **한 행이 두 신호를 말하는 문형이 없습니다**. "
+             "LS 22행은 11쌍이고, 한 주어에 `... LEVEL HIGH HIGH` 한 행과 "
+             "`... LEVEL HIGH` 한 행을 따로 씁니다 (각 Q'ty 2). 즉 발주처가 "
+             "직접 쓴 곳에서는 **신호 하나에 한 행**입니다. 그래서 접힌 행은 "
+             "묶음의 첫 신호로 쓰고 있습니다 — 셋 중 발주처가 실제로 쓰는 유일한 "
+             "형태입니다.")
+    L.append("")
+    L.append("| 선택지 | 예 | 발주처 557행에서의 사용 |")
+    L.append("|---|---|---:|")
+    L.append("| `representative` (적용 중) | `... LEVEL HIGH HIGH` | 11행 |")
+    L.append("| `all` | `... LEVEL HIGH HIGH HIGH LOW` | 0행 |")
+    L.append("| `none` | `... LEVEL` | 0행 |")
+    L.append("")
+    L.append(f"현재 값: `config multi_signal_bundle.description_signal: "
+             f"{MULTI_SIGNAL_DESCRIPTION}`. 다른 것을 원하시면 이 값만 바꾸면 "
+             f"됩니다.")
     L.append("")
     L.append("## 도면이 말하는 것 (측정)")
     L.append("")
@@ -919,7 +967,7 @@ def ls_bundle_question(result: dict) -> str:
     L.append(f"페이지별 묶음 수: "
              f"{', '.join(f'p{p} {n}건' for p, n in sorted(per_page.items()))}")
     L.append("")
-    L.append("## 답을 받으면")
+    L.append("## 수량 질문에 받은 답")
     L.append("")
     L.append("**답을 받았습니다.** 하나의 물리 Level Switch 에 LSHH·LSH·LSL 신호가 "
              "표기된 것이므로 물리 수량은 1입니다. `config multi_signal_bundle."
@@ -1312,7 +1360,10 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
         ev = r.evidence
         cands = ev.get("candidates") or []
         info = per_page.get(r.page_no) or {}
-        tag = ev.get("anchor") or r.type
+        # A folded signal stack writes one sentence for several bubbles, and
+        # `multi_signal_bundle.description_signal` says which signal it speaks
+        # for.  Untouched rows have neither key and read their own anchor.
+        tag = ev.get("description_tag") or ev.get("anchor") or r.type
         parts_ok = len(ev.get("description_sources") or []) >= 3
         subject = next((c for c in cands if c["kind"] == dcand.EQUIPMENT), None)
         axis = "EQUIPMENT" if subject else ""
@@ -1366,6 +1417,17 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                               type_=r.type,
                               between=((subject.get("equipment") or {}).get("between", "")
                                        if subject else ""))
+        if ev.get("description_tags"):
+            # `description_signal: all` - the sentence names every folded signal.
+            # Built by re-reading the alarm words of each one off the same table,
+            # so the extra words come from the client's counts like the first
+            # signal's do, not from a new rule.
+            extra = []
+            for sig in ev["description_tags"][1:]:
+                for w in desc.alarm_words(str(sig).upper(), (True,), pat):
+                    extra.append(w)
+            if extra:
+                built = dict(built, text=" ".join([built["text"]] + extra))
         if parts_ok:
             r.description = built["text"]
             ev["description_sources"] = built["sources"]
@@ -1428,7 +1490,14 @@ def _grade(parts_ok: bool, middle: str, middle_kind: str, skipped: bool,
         return GRADE_PARTIAL, f"{note} ({reason})" if reason else note
     if middle_kind == dcand.EQUIPMENT:
         # The drawing names the equipment and the instrument sits beside it: every
-        # piece of the sentence has a source on the sheet.
+        # piece of the sentence has a source on the sheet.  That is all this grade
+        # claims, and it is worth being exact about what it does not claim - of the
+        # 455 of these rows the client's list also covers, 27 match it word for
+        # word and 338 name the same equipment.  A narrower, surer grade was looked
+        # for and is not there: agreement runs 63-80% in every band of distance,
+        # runner-up margin, candidate count, direction and noun source, so no
+        # threshold separates the right ones from the wrong ones.  Rather than
+        # invent one, the grade keeps its rule and its label says what it means.
         return GRADE_CONFIRMED, REMARK[GRADE_CONFIRMED]
     # A route (`TO CLEAN DRAIN TANK`) names where the pipe goes, not what the
     # instrument is on, so it is offered rather than asserted.

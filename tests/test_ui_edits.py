@@ -424,3 +424,58 @@ def test_step10_deciding_a_reason_moves_the_progress(page, server, job_id):
     assert done_after != done_before, "deciding a reason did not move the count"
     page.click("#evidence button.rstate")           # toggle it back off
     page.wait_for_timeout(1200)
+
+
+@pytest.mark.ui
+def test_step11_bulk_apply_fills_its_group_and_nothing_else(page, server, job_id):
+    """`일괄 적용` writes the rows this one is indistinguishable from - no more.
+
+    The reach has to include the sentence.  Drawing and Type alone put the PARTIAL
+    rows into fewer, larger groups than the reviewer sees, and those groups also
+    contain rows the engine already filled from the drawing - one click would
+    overwrite them.  So this drives the real button on the largest PARTIAL group
+    and checks both halves: every row of the group filled, every other row of the
+    same drawing and Type untouched.
+    """
+    import urllib.request
+    page.on("dialog", lambda d: d.accept())
+    page.goto(f"{server}/#{job_id}?gradeFilter=PARTIAL")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1500)
+    target = page.evaluate("""() => {
+      const by = {};
+      for (const r of S.rows.filter(r => r.values.description_grade === 'PARTIAL')) {
+        const k = [r.drawing_no, r.values.type, r.values.description].join('|');
+        (by[k] = by[k] || []).push(r);
+      }
+      const best = Object.values(by).sort((a, b) => b.length - a.length)[0] || [];
+      return best.length ? {keys: best.map(r => r.key), n: best.length,
+                            dwg: best[0].drawing_no, type: best[0].values.type,
+                            was: best[0].values.description} : null;
+    }""")
+    assert target and target["n"] > 1, "no PARTIAL group with more than one row"
+    page.evaluate("k => select(k, true)", target["keys"][0])
+    page.wait_for_timeout(1200)
+    text = "UI 일괄 확인 " + target["was"]
+    page.fill("#cand-input", text)
+    page.click("#cand-bulk")
+    page.wait_for_timeout(2500)
+    rows = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/rows?tab=ALL").read())
+    rows = rows["rows"] if isinstance(rows, dict) else rows
+    filled = [r for r in rows if (r["values"].get("description") or "") == text]
+    assert sorted(r["key"] for r in filled) == sorted(target["keys"]), (
+        "the bulk apply did not land on exactly its own group")
+    others = [r for r in rows if r["drawing_no"] == target["dwg"]
+              and r["values"].get("type") == target["type"]
+              and r["key"] not in target["keys"]]
+    assert all(r["values"].get("description_grade") != "USER_ENTERED"
+               for r in others), "rows outside the group were overwritten"
+    # Put the group back, so the next run starts where this one did.
+    for key in target["keys"]:
+        for field in ("description", "description_grade"):
+            req = urllib.request.Request(
+                f"{server}/jobs/{job_id}/rows/{key}", method="PATCH",
+                data=json.dumps({"field": field, "value": ""}).encode(),
+                headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req).read()

@@ -169,13 +169,13 @@ supplier_interface_span:
 # physical instrument (measured on this document: 34 groups of LSHH+LSH+LSL, gap
 # 0.0-0.06pt, one lead line per group).
 #
-# `merge_quantity` is **off** and stays off until the client answers
-# `out/ls_bundle_question.md`.  The drawing says the bubbles are one assembly; the
-# client's own list writes one row per bubble - but on drawings that carry no such
-# group, so neither statement settles it and this tool will not decide.  Turned on,
-# the topmost bubble of each group carries the group's quantity and the others
-# carry 0; every row stays in the list either way, with the group and the original
-# quantity in its evidence.
+# `merge_quantity` is **on**: the user confirmed against plant practice that one
+# switch reporting LSHH, LSH and LSL is one device.  The stack folds to its first
+# bubble's row and the rest are dropped, so 102 bubbles become 34 rows; the folded
+# signals stay in that row's evidence and in the workbook's REMARK, so a reader
+# can count the bubbles on the sheet against the row.  The client's own list could
+# not settle this - the 22 level-switch rows it does carry are on sheets where the
+# bubbles do not touch - and none of them is affected, measured before and after.
 multi_signal_bundle:
   # Confirmed by the user against plant practice: one physical level switch that
   # reports LSHH, LSH and LSL is one device, not three, so a touching stack folds
@@ -191,6 +191,25 @@ multi_signal_bundle:
   # distinction is written into the Description instead (`LEVEL HIGH HIGH` 11,
   # `LEVEL HIGH` 11).
   merged_type: LS
+  # Which signal the folded row's Description speaks for.
+  #
+  # The client's own list has no multi-signal form to copy.  Its 22 level-switch
+  # rows are 11 pairs - the same subject written twice, once `... LEVEL HIGH HIGH`
+  # and once `... LEVEL HIGH`, each with Q'ty 2 - so where the client wrote a
+  # stack it wrote one row per signal and never listed two signals in one line.
+  # That is a wording convention, not a quantity: those 22 rows are on sheets
+  # where the bubbles do not touch, and the user's ruling is that a touching stack
+  # is one physical switch.  So the row count comes from the drawing and the
+  # wording comes from the client, and the client's wording for one row is one
+  # signal.  `representative` writes the first signal of the stack, which is the
+  # form the client uses; the alternatives are here because this is the one part
+  # of the fold their list cannot settle:
+  #   representative - `... LEVEL HIGH HIGH` (the stack's first signal)  [in use]
+  #   all            - every signal in one line, a form the client writes 0 times
+  #   none           - no alarm suffix at all, likewise 0 times
+  # Whichever is chosen, the Remark and the evidence panel name every folded
+  # signal, so the reader can count the bubbles on the sheet against the row.
+  description_signal: representative
 
 # The client's Description wording, measured off its own finished list (557
 # Description lines) rather than assumed.  This is config and not a runtime
