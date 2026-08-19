@@ -15,12 +15,14 @@ and reuses `app/_data/app.db`, so it does not re-analyse.
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import socket
 import subprocess
 import sys
 import time
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -487,3 +489,146 @@ def test_step11_bulk_apply_fills_its_group_and_nothing_else(page, server, job_id
                 data=json.dumps({"field": field, "value": ""}).encode(),
                 headers={"Content-Type": "application/json"})
             urllib.request.urlopen(req).read()
+
+
+def test_step12_a_row_can_be_reported_in_two_answers(page, server, job_id):
+    """C-1: press 신고 on a row, choose an axis, write one line, done.
+
+    The point of the test is what it does *not* do: it never types a coordinate,
+    a rule name or a value, and the stored record has them anyway.  If the dialog
+    ever starts asking for one of those, this fails.
+    """
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1200)
+    page.evaluate("() => closeModal()")
+    before = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/reports").read())["count"]
+
+    key = page.evaluate("() => S.rows.find(r => !r.deleted && !r.removed).key")
+    page.click(f"#body tr[data-key='{key}'] button.mini-rep")
+    page.wait_for_selector("#modal:not(.hidden)")
+    # exactly two inputs are asked for
+    assert page.locator(".rep-what input[type=radio]").count() == 5
+    assert page.locator("#modal-body input[type=text], #modal-body textarea").count() == 1
+    page.check(".rep-what input[value='DESCRIPTION']")
+    page.fill("#rep-detail", "UI 신고 확인 — 발주처 표기와 다릅니다")
+    page.click("#rep-save")
+    page.wait_for_selector("#modal", state="hidden")
+
+    out = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/reports").read())
+    assert out["count"] == before + 1
+    rec = out["reports"][0]
+    assert rec["what"] == "DESCRIPTION"
+    assert rec["detail"].startswith("UI 신고 확인")
+    cap = rec["capture"]["row"]
+    assert cap["identity"]["row_key"] == key
+    assert cap["identity"]["page_no"] and rec["drawing_no"]
+    assert "ai_values" in cap and "evidence" in cap and "applied_rules" in cap
+    assert rec["capture"]["fingerprint"] and rec["capture"]["build"]["version"]
+    assert page.locator("#report-n").inner_text() == str(out["count"])
+
+    # C-3: the list shows it, and withdrawing it puts the count back
+    page.click("#report-list")
+    page.wait_for_selector(".rep-row")
+    assert page.locator(".rep-row").count() == out["count"]
+    page.once("dialog", lambda d: d.accept())
+    page.locator(f".rep-row[data-id='{rec['id']}'] .rep-del").click()
+    page.wait_for_timeout(800)
+    assert json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/reports").read())["count"] == before
+    page.click("#rep-close")
+
+
+def test_step13_an_undetected_position_is_reportable_from_the_drawing(
+        page, server, job_id):
+    """C-2: right-click bare drawing files a report with the geometry there.
+
+    A missed item has no row to report against, which is the whole difficulty:
+    the record has to say what *was* drawn at that point instead.
+    """
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1500)
+    # `goto` to the same URL only changes the hash, so the document is not
+    # reloaded and whatever the previous step left armed is still armed - step 5
+    # ends inside the '＋행' point-picking mode, which swallows clicks on the
+    # sheet by design.  Put the page back to rest explicitly.
+    page.evaluate("() => { closeModal(); endPick(); }")
+    before = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/reports").read())["count"]
+
+    # Right-click a spot with no detection on it.  Two things make this awkward
+    # with the mouse and neither is about the feature: the sheet is far larger
+    # than the viewport, so most of it cannot be clicked without scrolling, and a
+    # click that lands on an overlay box is a *different* report (SYMBOL, not
+    # MISSED).  So the empty spot is worked out from the overlay's own boxes and
+    # a real contextmenu event is dispatched at it - the same handler, the same
+    # `ev.clientX/clientY` arithmetic, without driving the scrollbars.
+    fired = page.evaluate("""() => {
+      const boxes = overlayItems(S.page).map(i => i.rect);
+      const clear = (x, y) => !boxes.some(([a, b, c, d]) =>
+        x > a - 30 && x < c + 30 && y > b - 30 && y < d + 30);
+      const img = document.querySelector('#sheet');
+      const r = img.getBoundingClientRect();
+      for (let fx = 0.2; fx < 0.9; fx += 0.05)
+        for (let fy = 0.2; fy < 0.9; fy += 0.05) {
+          if (!clear(S.page.width * fx, S.page.height * fy)) continue;
+          img.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true, cancelable: true,
+            clientX: r.left + r.width * fx, clientY: r.top + r.height * fy}));
+          return [fx, fy];
+        }
+      return null;
+    }""")
+    assert fired, "every part of this sheet carries a detection"
+    page.wait_for_selector("#modal:not(.hidden)")
+    assert "검출되지 않은 위치" in page.locator("#modal-title").inner_text()
+    page.fill("#rep-detail", "UI 미검출 신고 확인")
+    page.click("#rep-save")
+    page.wait_for_selector("#modal", state="hidden", timeout=60_000)
+
+    out = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/reports").read())
+    assert out["count"] == before + 1
+    rec = out["reports"][0]
+    assert rec["kind"] == "MISSED" and rec["row_key"] == ""
+    missed = rec["capture"]["missed"]
+    assert len(missed["point"]) == 2
+    geom = missed["geometry"]
+    assert "paths" in geom and "words" in geom and "detections" in geom
+    urllib.request.urlopen(urllib.request.Request(
+        f"{server}/reports/{rec['id']}", method="DELETE")).read()
+
+
+def test_step14_the_diagnostic_export_says_its_size_and_what_it_leaves_out(
+        page, server, job_id, tmp_path):
+    """D: one button, and the screen states the size and the exclusions."""
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1200)
+    page.evaluate("() => closeModal()")
+    page.click("#diag")
+    page.wait_for_selector("#modal:not(.hidden)", timeout=120_000)
+    body = page.locator("#modal-body").inner_text()
+    assert "MB" in body and "bytes" in body
+    assert "빠진 것" in body and "PDF" in body
+    href = page.locator("#diag-dl").get_attribute("href")
+    raw = urllib.request.urlopen(server + href).read()
+    z = zipfile.ZipFile(io.BytesIO(raw))
+    names = set(z.namelist())
+    assert "MANIFEST.json" in names and "analysis/derived_layout.json" in names
+    assert not [n for n in names if n.lower().endswith((".pdf", ".xlsx"))]
+    page.click("#diag-close")
+
+
+def test_step15_the_screen_names_the_build(page, server, job_id):
+    """E: which exe this is, readable without opening anything."""
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#build-text", timeout=120_000)
+    page.wait_for_timeout(800)
+    text = page.locator("#build-text").inner_text()
+    info = json.loads(urllib.request.urlopen(server + "/version").read())
+    assert f"v{info['version']}" in text
+    assert info["built_at"] in text

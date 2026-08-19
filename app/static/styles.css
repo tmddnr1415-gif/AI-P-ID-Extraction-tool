@@ -331,3 +331,41 @@ button.ract-b.on { border-color: currentColor; font-weight: 600; }
 
 .empty-note, .open-review { margin: 6px 10px; font-size: 12px; }
 .open-review { opacity: .85; }
+
+/* ---------------- error reports & build line ----------------
+   The dialog asks two things and shows the rest, because the rest is already
+   known: re-typing a coordinate is how a report stops being filed. */
+.modal { position: fixed; inset: 0; background: #000a; display: grid;
+         place-items: center; z-index: 50; }
+.modal-box { width: min(720px, 92vw); max-height: 86vh; overflow: auto;
+             background: var(--panel); border: 1px solid var(--line);
+             border-radius: 10px; padding: 16px 18px; }
+.modal-box h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase;
+                letter-spacing: .04em; color: var(--muted); }
+.rep-what { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.rep-what label { display: inline-flex; align-items: center; gap: 5px;
+                  border: 1px solid var(--line); border-radius: 10px;
+                  padding: 3px 10px; cursor: pointer; }
+.rep-what input { margin: 0; }
+.rep-detail { width: 100%; background: transparent; color: inherit; font: inherit;
+              border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.rep-auto { margin: 12px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+.rep-auto dl { display: grid; grid-template-columns: 116px 1fr; gap: 2px 12px;
+               margin: 4px 0 0; font-size: 12px; }
+.rep-auto dt { color: var(--muted); }
+.rep-auto dd { margin: 0; word-break: break-word; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end;
+                 margin-top: 14px; }
+.modal-actions button { padding: 4px 14px; }
+.rep-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
+           padding: 8px 0; border-top: 1px solid var(--line); }
+.rep-row .meta { color: var(--muted); font-size: 12px; }
+.rep-row .acts { display: flex; gap: 6px; align-items: start; }
+.badge-n { display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 8px;
+           background: #e5484d22; color: var(--bad); font-variant-numeric: tabular-nums; }
+.badge-n.zero { background: transparent; color: var(--muted); }
+button.mini-rep { border: 0; background: transparent; color: var(--muted);
+                  cursor: pointer; font: inherit; padding: 0 3px; }
+button.mini-rep:hover { color: var(--bad); }
+.build { position: fixed; right: 8px; bottom: 4px; font-size: 11px;
+         pointer-events: none; opacity: .75; }

@@ -52,6 +52,8 @@
       <summary>템플릿</summary>
       <div class="scope-body" id="tmpl-body"></div>
     </details>
+    <button id="report-list" class="ghost" title="접수한 오류 신고">신고 <span id="report-n" class="badge-n">0</span></button>
+    <button id="diag" class="ghost" title="이 PC 안에서만 만들어지는 진단 파일">진단 내보내기</button>
     <button id="reanalyse" class="ghost">재분석</button>
   </header>
 
@@ -139,6 +141,20 @@
     </section>
   </div>
 </main>
+
+<!-- One dialog for both report flows - a row's 신고 button and a right-click on
+     the drawing - because they file the same record and asking two different
+     questions for one record is how the two drift apart. -->
+<div id="modal" class="modal hidden">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <h3 id="modal-title">오류 신고</h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Which build this is.  A report is only usable if the exe it came from can be
+     named, and this is where a person reads it off. -->
+<footer id="build" class="build"><span id="build-text" class="muted"></span></footer>
 
 <script src="/static/app.js"></script>
 </body>

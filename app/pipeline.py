@@ -728,6 +728,27 @@ SUPPLIER_SPAN_LABEL = str(SUPPLIER_SPAN.get("label")
                           or "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위")
 SUPPLIER_SPAN_PARTY = str(SUPPLIER_SPAN.get("supplied_by") or "")
 
+# Whether the span blanks the Description of what stands inside it.
+#
+# MEASURED on AL NOUF1 against the client's own 557 finished lines.  Every row the
+# span reaches on a drawing the client's list actually covers is a row the client
+# wrote a Description for:
+#
+#   p20 D00P-11LAB00-M05-0001  RO x2 at (1083.9, 804.2) and (1083.9, 1294.7)
+#       -> xls rows 225-226, "UNIT #11 BOILER FEED WATER PUMP A/B RESTRICTION ORIFICE"
+#   p14 D00P-10LCM10-M05-0001  LIT x2 inside the closed box round #10 CLEAN DRAIN TANK
+#       -> xls rows 136-137, "UNIT #10 CLEAN DRAIN TANK LEVEL A/B"
+#
+# Four for four against, none for.  `detect_symbols.DEFAULT_DISABLED` already
+# took the scope axis off the span for the same reason and named the same two RO
+# bubbles; the Description axis was still honouring it, so the two axes were
+# reading one fact two ways.  They now agree.
+#
+# `keep` is the default because blanking is the action: a written sentence that
+# is wrong is visible and correctable, a blank filed as "another party's scope"
+# reads as settled.  A project that has counted the opposite sets `skip`.
+SUPPLIER_SPAN_SKIPS = str(SUPPLIER_SPAN.get("description") or "keep") == "skip"
+
 # Rows that stay in the list but get no Description, and why.  This is the second
 # axis, deliberately not mixed with `scope`: a confirmed other-party supply item
 # is still delivered as a line of the list - the reviewer confirmed that is the
@@ -738,7 +759,7 @@ SUPPLIER_SPAN_PARTY = str(SUPPLIER_SPAN.get("supplied_by") or "")
 # not define is not a confirmation of anything, so those rows keep their
 # Description, keep their trace and keep their review flag.
 DESCRIPTION_SKIP_RULES = {
-    "SCT_SUPPLIER_SCOPE": SUPPLIER_SPAN_LABEL,
+    **({"SCT_SUPPLIER_SCOPE": SUPPLIER_SPAN_LABEL} if SUPPLIER_SPAN_SKIPS else {}),
     "VENDOR_MARK_GLYPH": "벤더 마크 — 타사 공급 범위",
     "VENDOR_MARK_TEXT": "벤더 마크(텍스트형) — 타사 공급 범위",
     "VENDOR_MARK_BOX": "벤더 패키지 박스 안 — 타사 공급 범위",

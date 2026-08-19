@@ -672,12 +672,23 @@ def find_sct_scopes(pc, lay: Layout = LAYOUT) -> list[ScopeRegion]:
         # width the first time a label is set on the right - 2 of the 5 labels on
         # SADARA's turbine sheet, and 8 of AL NOUF1's own 13 boxes.
         #
-        # It is opt-in even so, because on AL NOUF1 those 8 zero-width boxes are
-        # not inert: `pipeline` reads the scope regions for the Description skip
-        # even though the exclusion rule itself is disabled, so giving them their
-        # real width moves 12 rows from a written Description to SKIP and changes a
-        # measured result.  Fixing that is a decision about AL NOUF1's numbers, not
-        # a side effect of adding a project.
+        # It stays opt-in, and AL NOUF1 does not take it.  The geometry is right
+        # there too - all 8 of its zero-width boxes are genuinely closed on four
+        # chain-dashed sides, and each carries the two-arrow marker that says which
+        # side is whose (`SCT ->` outward, `<- SUPPLIER` into the box), checked by
+        # eye on p14, p24, p42 and p58.  What the widened boxes would change is the
+        # Description axis, and that was adjudicated against the client's list:
+        #
+        #   p14  the box closes round #10 CLEAN DRAIN TANK and holds the sheet's
+        #        only two LIT - which are xls rows 136-137, Descriptions written.
+        #   p42  the box holds the whole compressed-air sheet, 12 detections, and
+        #        the client has 0 rows for that drawing - but it has 0 rows for 15
+        #        other sheets that carry no box at all, so it says nothing here.
+        #
+        # One sheet can adjudicate and it says the instruments stay described.  The
+        # answer was to stop the span deciding that axis (`SUPPLIER_SPAN_SKIPS`),
+        # not to widen the boxes: AL NOUF1's fingerprint and F1 are unchanged, and
+        # a project whose labels stand on the right still gets a closed box.
         box = None
         for vx, vy0, vy1, _ in v_runs:
             if abs(vx - sx) > lay.scope_text_tol or not (vy0 - 5 <= sy <= vy1 + 5):

@@ -32,14 +32,17 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import db, excel_out, pipeline           # noqa: E402
-from app.pipeline import CFG                       # noqa: E402
+from app import db, excel_out, paths, pipeline, version   # noqa: E402
+from app.pipeline import CFG                              # noqa: E402
 
-DATA_DIR = Path(__file__).resolve().parent / "_data"
+# Two roots, and the difference matters once this is an exe: `paths.resource()`
+# is inside the bundle and is deleted when the process ends, `paths.data_dir()`
+# is the folder beside the exe that the user keeps.  See app/paths.py.
+DATA_DIR = paths.data_dir()
 UPLOADS = DATA_DIR / "uploads"
 OUTPUTS = DATA_DIR / "outputs"
 DB_PATH = DATA_DIR / "app.db"
-STATIC = Path(__file__).resolve().parent / "static"
+STATIC = paths.resource("app", "static")
 
 app = FastAPI(title="P&ID extraction")
 CON = db.connect(DB_PATH)
@@ -534,6 +537,276 @@ def job_feedback(job_id: str, limit: int = 200):
             "records": db.feedback_rows(CON, job_id, limit)}
 
 
+# --------------------------------------------------------------------------
+# Error reports
+# --------------------------------------------------------------------------
+#
+# The reviewer is asked for two things and no more: which axis is wrong, and one
+# line saying why or what the right value is.  Everything else that makes the
+# report actionable - where the row is, what the engine decided, which rules it
+# hit, what the reviewer had already changed - is gathered here, because it is
+# all on the server already and re-typing it is how a report stops being filed.
+
+REPORT_WHAT_LABELS = {
+    "SCOPE": "Scope 판정",
+    "QTY": "Q'ty",
+    "TYPE": "Type / Valve Type",
+    "DESCRIPTION": "Description",
+    "OTHER": "기타",
+}
+
+
+def _capture_row(job_id: str, key: str) -> dict:
+    """Everything the engine has to say about one row, as it stands right now."""
+    row = db.get_row(CON, job_id, key)
+    if row is None:
+        return {}
+    ev = row.get("evidence") or {}
+    vals = row.get("values") or {}
+    return {
+        "identity": {
+            "row_key": key, "tab": row.get("tab"), "page_no": row.get("page_no"),
+            "drawing_no": row.get("drawing_no"), "rect": row.get("rect"),
+            "type": vals.get("type"), "valve_type": vals.get("valve_type"),
+            "tag_no": vals.get("tag_no"), "origin": row.get("origin"),
+        },
+        "ai_values": row.get("ai") or {},
+        "user_values": {k: v for k, v in (row.get("user") or {}).items()
+                        if v is not None},
+        "evidence": ev,
+        "applied_rules": list(ev.get("rules_hit") or []),
+        "review_codes": review_codes(row),
+        "review_state": db.review_states(CON, job_id).get(key, {}),
+        "needs_review": row.get("needs_review") or "",
+        "annotation": row.get("annotation") or "",
+        "flags": {"deleted": row.get("deleted"), "added": row.get("added"),
+                  "removed": row.get("removed")},
+    }
+
+
+def _capture_point(job_id: str, page_no: int, point) -> dict:
+    """What is drawn where the reviewer says something was missed.
+
+    The same probe the '＋행' flow already uses, so an undetected position is
+    recorded in the one shape a later rule pass can read.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None or not page_no or len(point or []) != 2:
+        return {}
+    return {"point": [float(point[0]), float(point[1])],
+            "geometry": pipeline.probe_point(Path(job["pdf_path"]), page_no,
+                                             float(point[0]), float(point[1]))}
+
+
+def _capture_context(job_id: str) -> dict:
+    job = db.get_job(CON, job_id)
+    engine = json.loads(job["engine_json"] or "{}") if job else {}
+    return {
+        "job_id": job_id,
+        "pdf_name": job["pdf_name"] if job else "",
+        "pdf_sha256": job["pdf_sha256"] if job else "",
+        "fingerprint": job["fingerprint"] if job else "",
+        "layout": engine.get("applied_rules", {}).get("layout", {}),
+        "build": version.info(),
+    }
+
+
+@app.post("/jobs/{job_id}/reports")
+def create_report(job_id: str, payload: dict):
+    """File one report.  `what` and `detail` are the person's; the rest is taken."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    kind = str(payload.get("kind") or "ROW").upper()
+    what = str(payload.get("what") or "").upper()
+    detail = str(payload.get("detail") or "").strip()
+    key = str(payload.get("row_key") or "")
+    page_no = int(payload.get("page_no") or 0) or None
+    capture = dict(_capture_context(job_id))
+    if key:
+        capture["row"] = _capture_row(job_id, key)
+        ident = capture["row"].get("identity") or {}
+        page_no = page_no or ident.get("page_no")
+    point = payload.get("point") or []
+    if point:
+        capture["missed"] = _capture_point(job_id, page_no or 0, point)
+    rect = payload.get("rect") or (capture.get("row", {})
+                                   .get("identity", {}).get("rect")) or point
+    drawing_no = str(payload.get("drawing_no")
+                     or (capture.get("row", {}).get("identity", {})
+                         .get("drawing_no") or ""))
+    if not drawing_no and page_no:
+        # A report about a place rather than a row still belongs to a drawing,
+        # and the sheet knows its own number - asking the reporter for it would
+        # be the third question this dialog is not allowed to ask.
+        found = CON.execute(
+            "SELECT drawing_no FROM pid_page WHERE job_id=? AND page_no=?",
+            (job_id, page_no)).fetchone()
+        drawing_no = (found["drawing_no"] or "") if found else ""
+    try:
+        rid = db.add_report(CON, job_id, kind, what, detail, row_key=key,
+                            page_no=page_no, drawing_no=drawing_no, rect=rect,
+                            capture=capture)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"id": rid, "report_count": db.report_count(CON, job_id)}
+
+
+@app.get("/jobs/{job_id}/reports")
+def job_reports(job_id: str):
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return {"count": db.report_count(CON, job_id),
+            "labels": REPORT_WHAT_LABELS,
+            "reports": db.list_reports(CON, job_id)}
+
+
+@app.patch("/reports/{report_id}")
+def edit_report(report_id: int, payload: dict):
+    try:
+        out = db.update_report(
+            CON, report_id,
+            what=(str(payload["what"]).upper() if "what" in payload else None),
+            detail=(str(payload["detail"]) if "detail" in payload else None))
+    except KeyError:
+        raise HTTPException(404, "no such report")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return out
+
+
+@app.delete("/reports/{report_id}")
+def remove_report(report_id: int):
+    try:
+        db.delete_report(CON, report_id)
+    except KeyError:
+        raise HTTPException(404, "no such report")
+    return {"ok": True}
+
+
+@app.get("/version")
+def build_version():
+    return version.info()
+
+
+# --------------------------------------------------------------------------
+# Diagnostic export
+# --------------------------------------------------------------------------
+#
+# One button, one file, and a fixed answer to "what is in it".
+#
+# What goes in is everything needed to work out why this machine decided what it
+# decided: the reports, the analysis as stored, the reviewer's edits, the
+# correction history, the rules that were in force and - the part that only a
+# remote run can supply - the layout values *derived from that PC's own PDF*.
+# Two things stay out on purpose and are named in the manifest so their absence
+# is visible rather than assumed: the drawing PDF and the client's workbook.
+# Neither is ours to move, and neither is needed to read the decisions.
+
+DIAGNOSTICS = DATA_DIR / "diagnostics"
+DIAGNOSTIC_EXCLUDED = [
+    "도면 원본 PDF (파일명과 SHA-256 만 기록)",
+    "발주처 양식·리스트 원본 (.xlsx)",
+]
+
+
+def _log_tail(limit: int = 2_000_000) -> bytes:
+    """The server log, newest end first if it is long.  Missing is not an error."""
+    log = paths.log_path()
+    if not log.exists():
+        return b"(logs/server.log is not on this machine)\n"
+    raw = log.read_bytes()
+    if len(raw) <= limit:
+        return raw
+    return (f"(truncated: last {limit} of {len(raw)} bytes)\n"
+            .encode("utf-8") + raw[-limit:])
+
+
+def _diagnostic_zip(job_id: str) -> dict:
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    info = version.info()
+    engine = json.loads(job["engine_json"] or "{}")
+    applied = engine.get("applied_rules") or {}
+    layout = applied.get("layout") or {}
+    rows = db.merged_rows(CON, job_id, "ALL")
+    states = db.review_states(CON, job_id)
+    for row in rows:
+        row["review_codes"] = review_codes(row)
+    edits = [{"key": r["key"], "page_no": r["page_no"],
+              "drawing_no": r["drawing_no"],
+              "user": {k: v for k, v in (r["user"] or {}).items() if v is not None},
+              "ai": r["ai"], "review_state": states.get(r["key"], {}),
+              "added": r["added"], "removed": r["removed"]}
+             for r in rows
+             if any(v is not None for v in (r["user"] or {}).values())
+             or r["added"] or r["removed"] or states.get(r["key"])]
+    reports = db.list_reports(CON, job_id)
+    feedback = db.feedback_rows(CON, job_id, limit=100_000)
+    pages = [dict(r) for r in CON.execute(
+        "SELECT job_id,page_no,drawing_no,title,page_kind,in_scope,scope_reason,"
+        "width,height FROM pid_page WHERE job_id=? ORDER BY page_no", (job_id,))]
+
+    def dump(obj) -> str:
+        return json.dumps(obj, ensure_ascii=False, indent=1, default=str)
+
+    stamp = (info["built_at"] or "unknown").replace("-", "")
+    name = f"pid_diag_v{info['version']}_{stamp}_{job_id}.zip"
+    DIAGNOSTICS.mkdir(parents=True, exist_ok=True)
+    path = DIAGNOSTICS / name
+
+    files = {
+        "reports.json": dump({"count": len(reports), "reports": reports,
+                              "labels": REPORT_WHAT_LABELS}),
+        "analysis/rows.json": dump(rows),
+        "analysis/pages.json": dump(pages),
+        "analysis/engine.json": dump(engine),
+        "analysis/derived_layout.json": dump(layout),
+        "analysis/applied_rules.json": dump(applied),
+        "edits.json": dump(edits),
+        "feedback.json": dump({"count": len(feedback), "records": feedback}),
+    }
+    manifest = {
+        "build": info,
+        "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "job": {"id": job_id, "pdf_name": job["pdf_name"],
+                "pdf_sha256": job["pdf_sha256"],
+                "fingerprint": job["fingerprint"],
+                "status": job["status"]},
+        "counts": {"rows": len(rows), "reports": len(reports),
+                   "edits": len(edits), "feedback": len(feedback),
+                   "pages": len(pages),
+                   "derived_layout_measured": sum(
+                       1 for i in (layout.get("items") or [])
+                       if i.get("source") == "DERIVED"),
+                   "derived_layout_applied": len(layout.get("moved") or [])},
+        "excluded": DIAGNOSTIC_EXCLUDED,
+        "contents": sorted(list(files) + ["logs/server.log", "MANIFEST.json"]),
+    }
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("MANIFEST.json", dump(manifest))
+        for inner, text in files.items():
+            z.writestr(inner, text)
+        z.writestr("logs/server.log", _log_tail())
+    return {"filename": name, "bytes": path.stat().st_size,
+            "counts": manifest["counts"], "excluded": DIAGNOSTIC_EXCLUDED,
+            "contents": manifest["contents"], "build": info}
+
+
+@app.post("/jobs/{job_id}/diagnostic")
+def make_diagnostic(job_id: str):
+    """Build the export and say how big it is; the browser fetches it after."""
+    return _diagnostic_zip(job_id)
+
+
+@app.get("/jobs/{job_id}/diagnostic/{filename}")
+def get_diagnostic(job_id: str, filename: str):
+    path = DIAGNOSTICS / Path(filename).name
+    if not path.exists() or job_id not in path.name:
+        raise HTTPException(404, "that export has not been built")
+    return FileResponse(path, media_type="application/zip", filename=path.name)
+
+
 @app.get("/jobs/{job_id}/drawings")
 def job_drawings(job_id: str):
     """Drawings in this job with their row and review counts, grouped by system."""
@@ -603,6 +876,10 @@ TEMPLATES = DATA_DIR / "templates"
 # repository does not carry these - `data/*.xlsx` is gitignored - so on a fresh
 # clone every deliverable starts out with no template and says so.  An *empty*
 # form is enough: only the layout is read, and the data area is rewritten.
+# The packaged build carries none of these - `build.bat` ships code and config
+# and nothing of the client's - so on an exe every deliverable starts with no
+# template until one is uploaded, and says so.  A source checkout still finds
+# them beside the project if they are there.
 _BUILTIN = {
     "FIELD": ROOT / "data" / "CZE_Field_Instrument.xlsx",
     "BFV": ROOT / "data" / "CZI_Butterfly_Valve.xlsx",

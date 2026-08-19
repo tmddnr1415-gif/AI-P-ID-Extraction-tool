@@ -123,6 +123,34 @@ CREATE TABLE IF NOT EXISTS review_state (
     PRIMARY KEY (job_id, row_key, code)
 );
 CREATE INDEX IF NOT EXISTS review_state_job ON review_state(job_id, code);
+
+-- An error report: "this is wrong, and here is why".
+--
+-- Distinct from `feedback`, which is written by the act of correcting and never
+-- read back.  A report is written on purpose, is meant to be looked at again -
+-- listed, edited, withdrawn - and is what leaves the machine in the diagnostic
+-- export.  So it is its own table with its own lifecycle.
+--
+-- Two of these columns are typed by a person and no more: `what` (which axis is
+-- wrong) and `detail` (why, or what the right value is).  Everything else is
+-- captured by the server at the moment the button is pressed, because a report
+-- filed without the evidence that was on screen is a report nobody can act on -
+-- and asking a reviewer to copy it out by hand is how it stops being filed.
+CREATE TABLE IF NOT EXISTS report (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      TEXT NOT NULL,
+    created_at  REAL NOT NULL,
+    updated_at  REAL NOT NULL,
+    kind        TEXT NOT NULL,              -- ROW | SYMBOL | MISSED
+    what        TEXT NOT NULL,              -- SCOPE | QTY | TYPE | DESCRIPTION | OTHER
+    detail      TEXT NOT NULL DEFAULT '',   -- the one line a person writes
+    row_key     TEXT NOT NULL DEFAULT '',
+    page_no     INTEGER,
+    drawing_no  TEXT NOT NULL DEFAULT '',
+    rect_json   TEXT NOT NULL DEFAULT '[]',
+    capture_json TEXT NOT NULL DEFAULT '{}' -- everything gathered automatically
+);
+CREATE INDEX IF NOT EXISTS report_job ON report(job_id, id);
 """
 
 # Columns a reviewer may edit.  Description and Tag No. are in the list because
@@ -502,6 +530,83 @@ def feedback_rows(con, job_id: str, limit: int = 200) -> list:
             d[k[:-5]] = json.loads(d.pop(k))
         out.append(d)
     return out
+
+
+# --------------------------------------------------------------------------
+# Error reports
+# --------------------------------------------------------------------------
+
+REPORT_WHAT = ("SCOPE", "QTY", "TYPE", "DESCRIPTION", "OTHER")
+REPORT_KINDS = ("ROW", "SYMBOL", "MISSED")
+
+
+def add_report(con, job_id: str, kind: str, what: str, detail: str, *,
+               row_key: str = "", page_no: int = None, drawing_no: str = "",
+               rect=None, capture: dict = None) -> int:
+    """File one report.  Rejects an unknown axis rather than storing a typo."""
+    if kind not in REPORT_KINDS:
+        raise ValueError(f"unknown report kind '{kind}'")
+    if what not in REPORT_WHAT:
+        raise ValueError(f"unknown report subject '{what}'")
+    now = time.time()
+    cur = con.execute(
+        "INSERT INTO report (job_id, created_at, updated_at, kind, what, detail,"
+        " row_key, page_no, drawing_no, rect_json, capture_json)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (job_id, now, now, kind, what, detail, row_key, page_no, drawing_no,
+         json.dumps(list(rect or []), default=str),
+         json.dumps(capture or {}, default=str, sort_keys=True)))
+    con.commit()
+    return cur.lastrowid
+
+
+def report_count(con, job_id: str) -> int:
+    return con.execute("SELECT COUNT(*) FROM report WHERE job_id=?",
+                       (job_id,)).fetchone()[0]
+
+
+def list_reports(con, job_id: str) -> list:
+    out = []
+    for r in con.execute("SELECT * FROM report WHERE job_id=? ORDER BY id DESC",
+                         (job_id,)):
+        d = dict(r)
+        d["rect"] = json.loads(d.pop("rect_json"))
+        d["capture"] = json.loads(d.pop("capture_json"))
+        out.append(d)
+    return out
+
+
+def get_report(con, report_id: int):
+    r = con.execute("SELECT * FROM report WHERE id=?", (report_id,)).fetchone()
+    if r is None:
+        return None
+    d = dict(r)
+    d["rect"] = json.loads(d.pop("rect_json"))
+    d["capture"] = json.loads(d.pop("capture_json"))
+    return d
+
+
+def update_report(con, report_id: int, what: str = None, detail: str = None):
+    """Change what a person wrote.  The capture is never rewritten - it is what
+    the engine said at the time, and editing it would make the record a story."""
+    cur = get_report(con, report_id)
+    if cur is None:
+        raise KeyError(report_id)
+    if what is not None and what not in REPORT_WHAT:
+        raise ValueError(f"unknown report subject '{what}'")
+    con.execute("UPDATE report SET what=?, detail=?, updated_at=? WHERE id=?",
+                (what if what is not None else cur["what"],
+                 detail if detail is not None else cur["detail"],
+                 time.time(), report_id))
+    con.commit()
+    return get_report(con, report_id)
+
+
+def delete_report(con, report_id: int) -> None:
+    if get_report(con, report_id) is None:
+        raise KeyError(report_id)
+    con.execute("DELETE FROM report WHERE id=?", (report_id,))
+    con.commit()
 
 
 # --------------------------------------------------------------------------

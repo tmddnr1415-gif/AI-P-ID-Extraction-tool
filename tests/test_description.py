@@ -658,3 +658,43 @@ def test_the_derived_layout_reports_where_every_value_came_from():
     d = lay.as_dict()
     assert [i["source"] for i in d["items"]] == ["DERIVED", "UNAVAILABLE"]
     assert all(i["evidence"] for i in d["items"])
+
+
+def test_the_supplier_span_names_a_party_and_does_not_blank_a_description():
+    """The two axes of the SCT span, kept apart and both settled by the client.
+
+    The span is real geometry and it is detected either way.  What was in question
+    is whether it may blank the Description of an instrument standing inside it,
+    and AL NOUF1's finished list answered: four rows for four against - the two RO
+    bubbles on p20 (xls 225-226) and the two LIT on p14 (xls 136-137) all carry a
+    client-written Description.  So the default is `keep`, and `skip` stays
+    reachable for a project that counts the opposite.
+    """
+    from app import pipeline
+    assert pipeline.SUPPLIER_SPAN_SKIPS is False
+    assert "SCT_SUPPLIER_SCOPE" not in pipeline.DESCRIPTION_SKIP_RULES
+    # the vendor-mark notations are untouched: they are a different fact
+    assert set(pipeline.DESCRIPTION_SKIP_RULES) == {
+        "VENDOR_MARK_GLYPH", "VENDOR_MARK_TEXT", "VENDOR_MARK_BOX"}
+
+    class Det:
+        rules_hit = ["SCT_SUPPLIER_SCOPE"]
+
+    assert pipeline._description_skip(Det()) == ""
+    Det.rules_hit = ["VENDOR_MARK_GLYPH"]
+    assert pipeline._description_skip(Det()).startswith(
+        pipeline.DESCRIPTION_SKIP_NOTE)
+
+
+def test_a_scope_box_is_closed_on_four_sides_before_it_is_a_box():
+    """Both constructions read a rectangle; only the wide one survives a right label.
+
+    `box_from_both_edges` is what turns the zero-width reading into the rectangle
+    that is actually printed.  It is a geometry switch, not a scope judgement -
+    AL NOUF1 leaves it off and its numbers do not move either way.
+    """
+    import detect_symbols as ds
+    assert ds.LAYOUT.scope_box_both_edges is False
+    wide = ds.Layout(**{**ds.LAYOUT.__dict__, "scope_box_both_edges": True})
+    assert wide.scope_box_both_edges is True
+    assert wide.scope_text_tol == ds.LAYOUT.scope_text_tol

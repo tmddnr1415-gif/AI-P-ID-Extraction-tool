@@ -12,3 +12,10 @@ out/viewer/*.png
 
 # Runtime state: uploads, SQLite, generated workbooks.
 app/_data/
+
+# Packaging output and the date stamp `build.bat` writes into the build.  The
+# stamp is generated, never committed: a checked-in build date would claim a
+# release that never happened.
+build/
+dist/
+app/_build.json

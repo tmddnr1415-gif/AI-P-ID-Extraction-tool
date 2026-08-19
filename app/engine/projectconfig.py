@@ -138,8 +138,22 @@ class ProjectConfig:
 DEFAULT_CONFIG = "config/project_alnouf1.yaml"
 
 
+def _bundled(rel: str) -> Path:
+    """A shipped file, found whether this is a checkout or a packaged exe.
+
+    A relative path is relative to the *build*, not to wherever the user happened
+    to double-click from, so it is resolved against the resource root.  An
+    absolute path - which is what `PID_PROJECT_CONFIG` gives - is left alone.
+    """
+    p = Path(rel)
+    if p.is_absolute() or p.exists():
+        return p
+    from app import paths                      # local: keeps engine/ importable alone
+    return paths.resource(*p.parts)
+
+
 def load(path: str | Path = None) -> ProjectConfig:
-    p = Path(path or os.environ.get("PID_PROJECT_CONFIG") or DEFAULT_CONFIG)
+    p = _bundled(str(path or os.environ.get("PID_PROJECT_CONFIG") or DEFAULT_CONFIG))
     if not p.exists():
         raise ConfigError(f"project config not found: {p}")
     data = yaml.safe_load(p.read_text(encoding="utf-8"))
@@ -156,7 +170,7 @@ def load_standard(path: str | Path = "config/plant_standard_abbr.yaml") -> dict:
     unchanged.  Missing is not an error - a project that has not been given one
     simply applies no aliases.
     """
-    p = Path(path)
+    p = _bundled(str(path))
     if not p.exists():
         return {}
     data = yaml.safe_load(p.read_text(encoding="utf-8"))

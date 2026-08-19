@@ -163,7 +163,13 @@ sct_scope:
 supplier_interface_span:
   label: "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위"
   supplied_by: ""
-  description: skip
+  # MEASURED against the client's own 557 lines: every row this span reaches on a
+  # drawing the list covers is a row the client wrote a Description for - the two
+  # RO bubbles on p20 (xls 225-226) and, once the box is closed from both edges,
+  # the two LIT on p14 (xls 136-137).  Four for four against, none for.  So the
+  # span names who supplies the pipe; it does not decide whether we describe the
+  # instrument.  See `pipeline.SUPPLIER_SPAN_SKIPS`.
+  description: keep
 
 # Multi-signal bubble groups: several signals drawn as touching bubbles off one
 # physical instrument (measured on this document: 34 groups of LSHH+LSH+LSL, gap

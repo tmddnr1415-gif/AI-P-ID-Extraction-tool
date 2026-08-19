@@ -208,7 +208,11 @@ sct_scope:
 supplier_interface_span:
   label: "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위"
   supplied_by: ""
-  description: skip
+  # No finished list for this project, so nothing is counted here and the default
+  # stands: the span is recorded and named, and the Description is still written.
+  # AL NOUF1 counted the same question and found four rows for four against
+  # blanking (see its profile), which is the only evidence there is.
+  description: keep
 
 # MEASURED - no touching signal stacks exist in this excerpt.  The level
 # switches on p7 and p9 are drawn as separate `LSH` and `LSHH` bubbles standing

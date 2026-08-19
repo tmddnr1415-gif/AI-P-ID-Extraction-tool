@@ -61,7 +61,8 @@ const S = {
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
-  picking: false, feedback: 0, showTrace: true, gradeFilter: "", reasonFilter: "",
+  picking: false, feedback: 0, reports: 0, showTrace: true, gradeFilter: "",
+  reasonFilter: "",
   // The review filters.  They stack: axis narrows to a decision, code to one
   // reason inside it, and the tab / drawing / grade are the axes the grid
   // already had.  All of them ride in the URL so a reload or a shared link
@@ -174,6 +175,8 @@ async function loadRows() {
   S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
   S.review = S.jobReview;
   S.feedback = (await (await fetch(`/jobs/${S.job.id}/feedback?limit=1`)).json()).count;
+  S.reports = (await (await fetch(`/jobs/${S.job.id}/reports`)).json()).count;
+  updateReportBadge();
   showAppliedRules();
   await showTemplates();
   buildTabs();
@@ -724,6 +727,17 @@ function renderGrid() {
     if (r.annotation) f.innerHTML += '<span class="flag" title="도면에 검토 주석">▲</span>';
     if (r.added) f.innerHTML += '<span class="flag ok" title="검토자 추가 행">＋</span>';
     if (r.removed) f.innerHTML += '<span class="flag" title="검토자 삭제 — 출력 제외">✕</span>';
+    // One click from any row to a report, because a reviewer notices the error
+    // while looking at the grid and will not go hunting for a menu.
+    const rep = document.createElement("button");
+    rep.className = "mini-rep";
+    rep.textContent = "신고";
+    rep.title = "이 행의 판정이 틀렸다고 신고합니다";
+    rep.onclick = (ev) => {
+      ev.stopPropagation();
+      reportDialog({ rowKey: r.key, pageNo: r.page_no });
+    };
+    f.appendChild(rep);
     tr.appendChild(f);
     tr.onclick = () => select(r.key, true);
     body.appendChild(tr);
@@ -1127,7 +1141,9 @@ function showEvidence(row) {
   }
   $("#evidence").innerHTML =
     `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
-    + `(p${row.page_no})</h3>`
+    + `(p${row.page_no})`
+    + `<button id="ev-report" class="mini-rep" title="이 판정이 틀렸다고 신고합니다">신고</button>`
+    + `</h3>`
     + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
@@ -1135,6 +1151,8 @@ function showEvidence(row) {
   bindCandidatePicker(row);
   bindReviewControls(row);
   bindAxisActions(row);
+  const evb = $("#ev-report");
+  if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
 }
 
 /* The phrases the drawing prints along this instrument's pipe, nearest first.
@@ -1350,6 +1368,13 @@ function drawOverlay() {
       : (SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93"));
     r.dataset.key = it.key;
     r.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+    // Right-click on the symbol itself: the same dialog the grid opens, so the
+    // reviewer reports from wherever they noticed it.
+    r.oncontextmenu = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      select(it.key, false, it);
+      reportDialog({ rowKey: it.key, pageNo: S.page.page_no, fromDrawing: true });
+    };
     ov.appendChild(r);
   }
   buildOverlayLegend();
@@ -1448,6 +1473,22 @@ $req("#stage").addEventListener("click", ev => {
   }
   // Clicking the sheet itself, away from any box, clears the selection.
   if (ev.target.tagName.toLowerCase() !== "rect") deselect();
+});
+
+/* Right-click on bare drawing: something is here and the engine did not find it.
+ *
+ * The overlay boxes stop this event themselves, so reaching here means the point
+ * carries no detection - which is exactly the case that has no row to report
+ * against.  The point goes with the record and the server probes the geometry
+ * around it, the same probe the '＋행' flow uses, because "nothing was detected
+ * at (x, y)" is only actionable if what *was* drawn there was written down. */
+$req("#stage").addEventListener("contextmenu", ev => {
+  if (S.picking || !S.page) return;
+  if (ev.target.tagName.toLowerCase() === "rect") return;   // handled on the box
+  const p = sheetPoint(ev);
+  if (!p) return;
+  ev.preventDefault();
+  reportDialog({ pageNo: S.page.page_no, point: p, what: "OTHER" });
 });
 
 /* Screen point -> PDF point.  The sheet is rendered at a zoom the server chose
@@ -1628,3 +1669,217 @@ $req("#reanalyse").addEventListener("click", async () => {
   $("#main").classList.add("hidden");
   watch(S.job.id);
 });
+
+/* ---------------- error reports ----------------
+ *
+ * A report asks a person for two things: which axis is wrong, and one line
+ * saying why or what the right value is.  Everything else - the drawing, the
+ * page, the coordinates, the TYPE and tag, the whole judgement evidence, the
+ * rules that fired, the engine's values and the reviewer's - is taken by the
+ * server at the moment the button is pressed.  It is shown in the dialog so the
+ * reporter can see what is going with it, and it is not editable: it is what the
+ * engine said, and letting it be rewritten would turn the record into a story.
+ */
+const REPORT_WHAT = [
+  ["SCOPE", "Scope 판정"], ["QTY", "Q'ty"], ["TYPE", "Type / Valve Type"],
+  ["DESCRIPTION", "Description"], ["OTHER", "기타"],
+];
+
+function closeModal() {
+  $("#modal").classList.add("hidden");
+  $("#modal-body").innerHTML = "";
+}
+$req("#modal").addEventListener("click", ev => {
+  if (ev.target.id === "modal") closeModal();
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && !$("#modal").classList.contains("hidden")) closeModal();
+});
+
+function openModal(title, html) {
+  $("#modal-title").textContent = title;
+  $("#modal-body").innerHTML = html;
+  $("#modal").classList.remove("hidden");
+}
+
+/* What the report will carry, written out before it is sent.  Read off what the
+ * screen already has, so the dialog opens without a round trip; the server
+ * captures the same facts again from its own copy when it stores the record. */
+function reportPreview(opts) {
+  const row = opts.rowKey && S.rows.find(r => r.key === opts.rowKey);
+  const pg = S.pages.find(p => p.page_no === (opts.pageNo || (row || {}).page_no)) || {};
+  const pairs = [];
+  const add = (k, v) => { if (v !== undefined && v !== null && v !== "") pairs.push([k, v]); };
+  add("도면", `${pg.drawing_no || "(도면번호 없음)"} · p${opts.pageNo || (row || {}).page_no || "?"}`);
+  if (row) {
+    add("좌표", (row.rect || []).map(v => Math.round(v)).join(", ") || "좌표 없음");
+    add("Type", row.values.type || row.values.valve_type || "(없음)");
+    add("Tag No.", row.values.tag_no || "(미부여)");
+    add("Q'ty · Scope", `${row.values.qty ?? ""} · ${row.values.scope || ""}`);
+    add("Description", row.values.description || "(비어 있음)");
+    add("적용 규칙", (row.evidence.rules_hit || []).join(", ") || "제외 규칙 해당 없음");
+    const edited = Object.entries(row.user || {}).filter(([, v]) => v !== null);
+    add("사람이 고친 값", edited.map(([f, v]) => `${f} = ${v}`).join(" | ") || "없음");
+  }
+  if (opts.point) {
+    add("클릭 위치", opts.point.map(v => Math.round(v)).join(", "));
+    add("검출", "이 위치에는 검출된 항목이 없습니다 — 주변 도형을 함께 저장합니다");
+  }
+  add("판정 지문", (S.job && S.job.fingerprint || "").slice(0, 8) || "(없음)");
+  return `<div class="rep-auto"><b class="muted">함께 저장되는 내용 (자동)</b><dl>`
+    + pairs.map(([k, v]) => `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("")
+    + `</dl></div>`;
+}
+
+function reportDialog(opts) {
+  const title = opts.rowKey ? "오류 신고 — 이 행"
+    : opts.point ? "오류 신고 — 검출되지 않은 위치" : "오류 신고";
+  openModal(title,
+    `<p class="muted">두 가지만 적으시면 됩니다.</p>
+     <b>무엇이 틀렸습니까</b>
+     <div class="rep-what">${REPORT_WHAT.map(([v, l], i) =>
+       `<label><input type="radio" name="rep-what" value="${v}"${i === 0 && !opts.what ? " checked" : (opts.what === v ? " checked" : "")}>${l}</label>`).join("")}</div>
+     <b>왜 틀렸습니까 / 올바른 값</b>
+     <input id="rep-detail" type="text" class="rep-detail" placeholder="한 줄로 적어 주세요" value="${escape(opts.detail || "")}">
+     ${reportPreview(opts)}
+     <div class="modal-actions">
+       <button id="rep-cancel" class="ghost">취소</button>
+       <button id="rep-save">신고 접수</button>
+     </div>`);
+  $("#rep-detail").focus();
+  $("#rep-cancel").onclick = closeModal;
+  const save = async () => {
+    const what = (document.querySelector('input[name="rep-what"]:checked') || {}).value;
+    const detail = $("#rep-detail").value.trim();
+    if (!detail) { alert("왜 틀렸는지 한 줄만 적어 주세요."); return; }
+    const body = {
+      kind: opts.point ? "MISSED" : (opts.fromDrawing ? "SYMBOL" : "ROW"),
+      what, detail, row_key: opts.rowKey || "",
+      page_no: opts.pageNo || null, point: opts.point || null,
+    };
+    const r = await fetch(`/jobs/${S.job.id}/reports`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) { alert((await r.json()).detail || "신고 저장 실패"); return; }
+    S.reports = (await r.json()).report_count;
+    updateReportBadge();
+    closeModal();
+  };
+  $("#rep-save").onclick = save;
+  $("#rep-detail").addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); save(); }
+  });
+}
+
+function updateReportBadge() {
+  const n = $("#report-n");
+  if (!n) return;
+  n.textContent = S.reports || 0;
+  n.classList.toggle("zero", !S.reports);
+}
+
+async function loadReports() {
+  if (!S.job) return { count: 0, reports: [] };
+  const out = await (await fetch(`/jobs/${S.job.id}/reports`)).json();
+  S.reports = out.count;
+  updateReportBadge();
+  return out;
+}
+
+/* The list screen: read it back, fix a wording, withdraw one.  The capture is
+ * shown but never editable - see the note on the dialog. */
+async function showReportList() {
+  const out = await loadReports();
+  const labels = out.labels || {};
+  const body = out.reports.length
+    ? out.reports.map(r => {
+        const cap = r.capture || {};
+        const ident = (cap.row || {}).identity || {};
+        const where = `${r.drawing_no || "(도면번호 없음)"} · p${r.page_no ?? "?"}`
+          + (ident.type ? ` · ${ident.type}` : "")
+          + (r.kind === "MISSED" ? " · 미검출 위치" : "");
+        return `<div class="rep-row" data-id="${r.id}">
+          <div><b>${escape(labels[r.what] || r.what)}</b> — ${escape(r.detail)}
+            <div class="meta">${escape(where)} · ${new Date(r.created_at * 1000)
+              .toLocaleString("ko-KR")}</div></div>
+          <div class="acts">
+            <button class="ghost mini rep-edit">수정</button>
+            <button class="ghost mini rep-del">삭제</button>
+          </div></div>`;
+      }).join("")
+    : `<p class="muted">접수된 신고가 없습니다.</p>`;
+  openModal(`오류 신고 ${out.count}건`,
+    body + `<div class="modal-actions"><button id="rep-close" class="ghost">닫기</button></div>`);
+  $("#rep-close").onclick = closeModal;
+  document.querySelectorAll(".rep-del").forEach(b => b.onclick = async (ev) => {
+    const id = ev.target.closest(".rep-row").dataset.id;
+    if (!window.confirm("이 신고를 삭제할까요?")) return;
+    await fetch(`/reports/${id}`, { method: "DELETE" });
+    showReportList();
+  });
+  document.querySelectorAll(".rep-edit").forEach(b => b.onclick = async (ev) => {
+    const id = ev.target.closest(".rep-row").dataset.id;
+    const rec = out.reports.find(r => String(r.id) === String(id));
+    const detail = window.prompt("사유 / 올바른 값", rec.detail);
+    if (detail === null) return;
+    await fetch(`/reports/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ detail }),
+    });
+    showReportList();
+  });
+}
+
+$req("#report-list").addEventListener("click", showReportList);
+
+/* ---------------- diagnostic export ----------------
+ * Built on this machine, written beside the data, and downloaded from there.
+ * Nothing leaves the PC until the person saves the file somewhere themselves. */
+$req("#diag").addEventListener("click", async () => {
+  const btn = $("#diag");
+  btn.disabled = true;
+  btn.textContent = "만드는 중…";
+  try {
+    const r = await fetch(`/jobs/${S.job.id}/diagnostic`, { method: "POST" });
+    if (!r.ok) { alert("진단 파일을 만들지 못했습니다."); return; }
+    const out = await r.json();
+    const mb = (out.bytes / 1048576).toFixed(2);
+    const c = out.counts || {};
+    openModal("진단 내보내기",
+      `<p><b>${escape(out.filename)}</b> — ${mb} MB (${out.bytes.toLocaleString()} bytes)</p>
+       <div class="rep-auto"><b class="muted">담긴 것</b><dl>
+         <dt>신고</dt><dd>${c.reports ?? 0}건</dd>
+         <dt>분석 결과</dt><dd>${c.rows ?? 0}행 · ${c.pages ?? 0}장</dd>
+         <dt>사용자 수정</dt><dd>${c.edits ?? 0}건</dd>
+         <dt>수정 이력</dt><dd>${c.feedback ?? 0}건</dd>
+         <dt>유도된 layout</dt><dd>이 PDF 에서 실측 ${c.derived_layout_measured ?? 0}개 ·
+           프로필을 덮어쓴 값 ${c.derived_layout_applied ?? 0}개</dd>
+         <dt>그 밖에</dt><dd>applied_rules · fingerprint · 버전 · 빌드일 · logs/server.log</dd>
+       </dl></div>
+       <div class="rep-auto"><b class="muted">빠진 것 (의도적으로)</b>
+         <ul>${(out.excluded || []).map(x => `<li>${escape(x)}</li>`).join("")}</ul></div>
+       <div class="modal-actions">
+         <button id="diag-close" class="ghost">닫기</button>
+         <a id="diag-dl" class="ghost" style="padding:4px 14px;border:1px solid var(--line);border-radius:6px;text-decoration:none;color:inherit"
+            href="/jobs/${S.job.id}/diagnostic/${encodeURIComponent(out.filename)}"
+            download="${escape(out.filename)}">저장</a>
+       </div>`);
+    $("#diag-close").onclick = closeModal;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "진단 내보내기";
+  }
+});
+
+/* ---------------- which build this is ---------------- */
+(async () => {
+  try {
+    const v = await (await fetch("/version")).json();
+    $("#build-text").textContent =
+      `v${v.version} · ${v.built_at || "날짜 없음"}`
+      + (v.kind === "exe" ? "" : " (source)");
+    $("#build-text").title =
+      `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`;
+  } catch (e) { /* the footer is a label, not a feature */ }
+})();
