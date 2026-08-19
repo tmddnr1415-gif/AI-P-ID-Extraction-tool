@@ -477,12 +477,15 @@ def test_a_noun_that_only_names_equipment_in_company():
 def test_a_row_the_drawing_cannot_answer_says_so():
     """A PDIT on a pump and a PI on a CCW sheet each carry the measured reason."""
     from app import pipeline
-    strainer = pipeline._user_input_note("PDIT", "CLEAN DRAIN PUMP A", "PUMP",
-                                         "CLEAN DRAIN")
+    code, strainer = pipeline._user_input_note(
+        "PDIT", "CLEAN DRAIN PUMP A", "PUMP", "CLEAN DRAIN")
+    assert code == "DESC_BETWEEN_SYMBOL"
     assert "STRAINER" in strainer and "직접 입력" in strainer
-    ccw = pipeline._user_input_note("PI", "", "COOLER", "CCW")
+    code, ccw = pipeline._user_input_note("PI", "", "COOLER", "CCW")
+    assert code == "DESC_CCW_DIRECTION"
     assert "SUPPLY" in ccw and "RETURN" in ccw
-    assert pipeline._user_input_note("LIT", "SOME TANK", "TANK", "CLEAN DRAIN") == ""
+    assert pipeline._user_input_note(
+        "LIT", "SOME TANK", "TANK", "CLEAN DRAIN") == ("", "")
 
 
 def test_a_standard_abbreviation_is_only_applied_where_the_project_chose_a_form():
@@ -531,8 +534,8 @@ def test_the_standard_dictionary_carries_no_direction_of_its_own():
 def test_a_row_the_drawing_cannot_answer_is_tagged_for_grouping():
     """The review screen groups on a generated tag, not on the sentence."""
     from app import pipeline
-    note = pipeline._user_input_note("PDIT", "CLEAN DRAIN PUMP A", "PUMP",
-                                     "CLEAN DRAIN")
+    _code, note = pipeline._user_input_note("PDIT", "CLEAN DRAIN PUMP A", "PUMP",
+                                            "CLEAN DRAIN")
     assert note.startswith("[중간 심볼] ")
-    note = pipeline._user_input_note("PI", "", "COOLER", "CCW")
+    _code, note = pipeline._user_input_note("PI", "", "COOLER", "CCW")
     assert note.startswith("[CCW 방향] ")

@@ -108,6 +108,21 @@ CREATE INDEX IF NOT EXISTS item_job_tab ON item(job_id, tab);
 CREATE INDEX IF NOT EXISTS item_job_page ON item(job_id, page_no);
 CREATE INDEX IF NOT EXISTS feedback_job ON feedback(job_id, kind);
 CREATE INDEX IF NOT EXISTS feedback_pattern ON feedback(job_id, pattern);
+
+-- What a reviewer has decided about one flagged row.  A row can be flagged for
+-- more than one reason and each is decided on its own, so the key is (row, code).
+-- `OPEN` is not stored: absence is open, which keeps the table the size of the
+-- work actually done rather than the size of the work outstanding.
+CREATE TABLE IF NOT EXISTS review_state (
+    job_id      TEXT NOT NULL,
+    row_key     TEXT NOT NULL,
+    code        TEXT NOT NULL,
+    state       TEXT NOT NULL,          -- CONFIRMED | EDITED | HELD
+    note        TEXT NOT NULL DEFAULT '',
+    updated_at  REAL NOT NULL,
+    PRIMARY KEY (job_id, row_key, code)
+);
+CREATE INDEX IF NOT EXISTS review_state_job ON review_state(job_id, code);
 """
 
 # Columns a reviewer may edit.  Description and Tag No. are in the list because
@@ -386,6 +401,38 @@ def set_user_value(con, job_id: str, key: str, field: str, value):
     return user
 
 
+REVIEW_STATES = ("CONFIRMED", "EDITED", "HELD")
+
+
+def set_review_state(con, job_id: str, row_key: str, code: str, state: str,
+                     note: str = "") -> None:
+    """Record one decision.  An empty state clears it back to open."""
+    if not state:
+        con.execute("DELETE FROM review_state WHERE job_id=? AND row_key=? AND code=?",
+                    (job_id, row_key, code))
+    else:
+        if state not in REVIEW_STATES:
+            raise ValueError(f"unknown review state {state!r}")
+        con.execute(
+            "INSERT INTO review_state (job_id, row_key, code, state, note, updated_at)"
+            " VALUES (?,?,?,?,?,?)"
+            " ON CONFLICT(job_id, row_key, code) DO UPDATE SET"
+            " state=excluded.state, note=excluded.note, updated_at=excluded.updated_at",
+            (job_id, row_key, code, state, note, time.time()))
+    con.commit()
+
+
+def review_states(con, job_id: str) -> dict:
+    """`{row_key: {code: {"state", "note"}}}` for one job."""
+    out: dict = {}
+    for r in con.execute(
+            "SELECT row_key, code, state, note FROM review_state WHERE job_id=?",
+            (job_id,)):
+        out.setdefault(r["row_key"], {})[r["code"]] = {
+            "state": r["state"], "note": r["note"]}
+    return out
+
+
 def review_count(con, job_id: str) -> int:
     return con.execute(
         "SELECT COUNT(*) FROM item WHERE job_id=? AND removed=0"
@@ -513,6 +560,12 @@ def snapshot(con, job_id: str, label: str = "", origins=None,
             and not r["removed"]
             and (wanted is None or r["drawing_no"] in wanted)
             and not (hold_review and (r["needs_review"] or r["deleted"]))]
+    # The review state travels with the snapshot: a delivered workbook has to be
+    # able to say, per row, what was asked and what was decided, and a snapshot
+    # taken later must not pick up decisions made after it.
+    states = review_states(con, job_id)
+    for r in rows:
+        r["review_state"] = states.get(r["key"], {})
     job = get_job(con, job_id)
     payload = {
         "origins_included": list(origins),
@@ -538,6 +591,17 @@ def list_revisions(con, job_id: str):
     return con.execute(
         "SELECT id, created_at, label, row_count, review_count FROM revision"
         " WHERE job_id=? ORDER BY id DESC", (job_id,)).fetchall()
+
+
+def replace_revision(con, revision_id: int, payload: dict) -> None:
+    """Write a snapshot back after the API has annotated it.
+
+    A snapshot is what a delivered workbook is answerable to, so it is written
+    once and then only ever completed - never edited after a workbook exists.
+    """
+    con.execute("UPDATE revision SET payload_json=? WHERE id=?",
+                (json.dumps(payload, ensure_ascii=False, default=str), revision_id))
+    con.commit()
 
 
 def get_revision(con, revision_id: int):

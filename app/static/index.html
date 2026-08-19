@@ -107,14 +107,24 @@
     </section>
 
     <section id="right">
+      <!-- Always visible: what is left to decide, by the axis it is decided on.
+           Filled by app.js renderReviewPanel(). -->
+      <div id="review-panel" class="review-panel"></div>
+      <div id="review-codes" class="review-codes hidden"></div>
       <div class="toolbar">
         <input id="filter" type="search" placeholder="필터 — 도면번호 / Type / System">
         <select id="origin-filter"><option value="">귀속 전체</option></select>
+        <label class="only-review"><input id="only-review" type="checkbox"> 검토 필요만</label>
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>
         <span id="count" class="muted"></span>
       </div>
+      <!-- The filters actually in force, each removable on its own. -->
+      <div id="chips" class="chips hidden"></div>
+      <!-- Set by app.js: why the grid is empty, and what is still unanswered. -->
+      <p id="empty-note" class="muted empty-note hidden"></p>
+      <p id="open-review" class="muted open-review hidden"></p>
       <!-- Filled by app.js renderDescriptionGroups(); only shown on 검토필요. -->
       <div id="desc-groups" class="desc-groups hidden"></div>
       <div id="gridwrap">

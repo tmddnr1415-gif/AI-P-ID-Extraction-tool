@@ -271,3 +271,63 @@ button.cand:hover { border-color: #0a84ff; }
 .grp-sep { display: inline-block; width: 1px; height: 14px; margin: 0 10px -2px;
            background: var(--line, #333); }
 button.grp.rsn { border-style: dashed; }
+
+/* ---------------- review axes ----------------
+   Always on screen: what is left to decide, grouped by the decision rather than
+   by the deliverable.  The bar under each axis is its progress, so the panel
+   answers "how much of this is done" without a second click. */
+.review-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+                padding: 6px 10px; border-bottom: 1px solid var(--line, #333); }
+.review-panel > b { margin-right: 4px; }
+.review-panel .n { opacity: .7; font-variant-numeric: tabular-nums; }
+button.axis { display: inline-flex; align-items: center; gap: 6px;
+              padding: 3px 9px; border-radius: 12px; cursor: pointer;
+              border: 1px solid var(--line, #333); background: transparent;
+              color: inherit; font: inherit; }
+button.axis.on { border-color: currentColor; font-weight: 600; }
+button.axis.clear { border-style: dashed; opacity: .8; }
+button.axis .bar { display: inline-block; width: 34px; height: 4px;
+                   border-radius: 2px; background: var(--line, #333); }
+button.axis .bar i { display: block; height: 100%; border-radius: 2px;
+                     background: currentColor; }
+.review-codes { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px;
+                border-bottom: 1px solid var(--line, #333); }
+button.rcode { padding: 3px 9px; border-radius: 10px; cursor: pointer;
+               border: 1px dashed var(--line, #333); background: transparent;
+               color: inherit; font: inherit; }
+button.rcode.on { border-style: solid; font-weight: 600; }
+button.rcode .n.done { opacity: .55; }
+
+/* The filters actually in force.  Each carries its own ×, because clearing one
+   condition should not throw away the other three. */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
+        border-radius: 10px; border: 1px solid var(--line, #333); font-size: 12px; }
+.chip button { border: 0; background: transparent; color: inherit; cursor: pointer;
+               font: inherit; line-height: 1; padding: 0 2px; }
+label.only-review { display: inline-flex; align-items: center; gap: 4px;
+                    font-size: 12px; white-space: nowrap; }
+
+/* One flagged reason per line in the evidence panel, with what was decided. */
+.review-item { margin: 6px 0 10px; }
+.ritem { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+         padding: 3px 0; }
+.ritem .raxis { font-size: 11px; opacity: .7; border: 1px solid var(--line, #333);
+                border-radius: 8px; padding: 1px 6px; }
+.ritem .rlabel { flex: 1 1 220px; }
+button.rstate { padding: 2px 8px; border-radius: 8px; cursor: pointer;
+                border: 1px solid var(--line, #333); background: transparent;
+                color: inherit; font: inherit; font-size: 12px; }
+button.rstate.on { border-color: currentColor; font-weight: 600; }
+
+/* The action that answers this row's reason, next to the reason itself. */
+.ractions { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; }
+.ract { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.ract > span { opacity: .75; min-width: 96px; }
+button.ract-b { padding: 2px 8px; border-radius: 8px; cursor: pointer;
+                border: 1px solid var(--line, #333); background: transparent;
+                color: inherit; font: inherit; font-size: 12px; }
+button.ract-b.on { border-color: currentColor; font-weight: 600; }
+
+.empty-note, .open-review { margin: 6px 10px; font-size: 12px; }
+.open-review { opacity: .85; }

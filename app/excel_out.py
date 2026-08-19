@@ -193,7 +193,40 @@ def _value_for(name: str, row: dict, values: dict):
         # Column C's MOV / MOV_I / HOV vocabulary; the app does not produce it,
         # so it is left for a reviewer rather than guessed from the actuator.
         return values.get("valve_type_code") or None
+    if name == "remark":
+        return _remark(row, values)
     return values.get(name) or None
+
+
+def _remark(row: dict, values: dict):
+    """The client's REMARK column: why this row was flagged, and what was decided.
+
+    The column is the client's own - both templates print REMARK in row 6 - so
+    this is filling a column they asked for rather than adding one.  What goes in
+    is the axis the reason belongs to, the reason, and the reviewer's decision,
+    because a remark that says only "확인 필요" is not something the client can
+    act on.  A row nobody flagged and nobody touched gets an empty cell.
+    """
+    codes = row.get("review_codes") or []
+    if not codes:
+        # Nothing was flagged: whatever the reviewer typed in the Remark box is
+        # theirs and goes through untouched.
+        return values.get("remark") or None
+    states = row.get("review_state") or {}
+    labels = row.get("review_label") or {}
+    parts = []
+    for code in codes:
+        axis = (row.get("review_axis") or {}).get(code) or "검토"
+        state = (states.get(code) or {}).get("state") or "미처리"
+        parts.append(f"[{axis}] {labels.get(code, code)} → "
+                     f"{REVIEW_STATE_KO.get(state, state)}")
+    # A cell is read at a glance, so it carries the question and the answer.  The
+    # engine's full reasoning is on the review screen, where there is room for it.
+    return " · ".join(parts)
+
+
+REVIEW_STATE_KO = {"CONFIRMED": "확인함", "EDITED": "수정함", "HELD": "보류",
+                   "미처리": "미처리"}
 
 
 def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:

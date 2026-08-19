@@ -186,18 +186,159 @@ def _sse(payload: dict) -> str:
 
 @app.get("/jobs/{job_id}/rows")
 def rows(job_id: str, tab: str = "ALL"):
-    return db.merged_rows(CON, job_id, tab)
+    """The grid's rows, each carrying the review codes it is flagged under.
+
+    The codes ride on the row rather than being fetched separately, because the
+    screen filters on them on every click and a second round trip per click is
+    latency the reviewer feels.
+    """
+    out = db.merged_rows(CON, job_id, tab)
+    states = db.review_states(CON, job_id)
+    for row in out:
+        row["review_codes"] = review_codes(row)
+        row["review_state"] = states.get(row["key"], {})
+    return out
 
 
 @app.get("/jobs/{job_id}/review")
 def job_review(job_id: str):
-    """Findings that belong to the document rather than to any single row."""
+    """Every reason a person has to look, filed under the axis it belongs to.
+
+    The axis answers "what am I being asked to decide", which is a different
+    question from "which deliverable is this row in" - the tabs already answer
+    that one.  Counts come with `done` so the screen can show progress rather
+    than a number that never moves.
+    """
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
     engine = json.loads(job["engine_json"] or "{}")
-    return {"job_review": engine.get("job_review", []),
-            "row_review": db.review_count(CON, job_id)}
+    rows = db.merged_rows(CON, job_id, "ALL")
+    states = db.review_states(CON, job_id)
+    axes = pipeline.CFG.data.get("review_axes") or {}
+    by_code = {str(k).upper(): str(v).upper()
+               for k, v in (axes.get("codes") or {}).items()}
+    order = [str(a).upper() for a in (axes.get("order") or ())]
+    labels = {str(k).upper(): str(v) for k, v in (axes.get("labels") or {}).items()}
+
+    counts: dict = {}
+    for row in rows:
+        for code in review_codes(row):
+            axis = by_code.get(code, "OTHER")
+            slot = counts.setdefault((axis, code), {"open": 0, "done": 0,
+                                                    "states": {}, "keys": []})
+            st = (states.get(row["key"], {}).get(code) or {}).get("state") or ""
+            if st:
+                slot["done"] += 1
+                slot["states"][st] = slot["states"].get(st, 0) + 1
+            else:
+                slot["open"] += 1
+            slot["keys"].append(row["key"])
+    # Reviewer markup is one fact per drawing, not one per row: 534 rows on the
+    # marked-up sheets would drown every other reason on the screen, and there is
+    # only one thing to decide per drawing - what the client meant by it.
+    marked = sorted({row.get("drawing_no") or "" for row in rows
+                     if row.get("annotation")} - {""})
+    for drawing in marked:
+        axis = by_code.get("REVIEWER_MARKUP", "OTHER")
+        slot = counts.setdefault((axis, "REVIEWER_MARKUP"),
+                                 {"open": 0, "done": 0, "states": {}, "keys": []})
+        slot["open"] += 1
+    # the document-level findings are their own axis entries, one per finding
+    for finding in engine.get("job_review", []):
+        code = str(finding.get("kind") or "OTHER").upper()
+        axis = by_code.get(code, "OTHER")
+        slot = counts.setdefault((axis, code), {"open": 0, "done": 0,
+                                                "states": {}, "keys": []})
+        slot["open"] += 1
+
+    seen = [a for a in order if any(k[0] == a for k in counts)]
+    seen += sorted({k[0] for k in counts} - set(seen))
+    out = []
+    for axis in seen:
+        codes = [{"code": c, "label": REVIEW_LABELS.get(c, c), **v}
+                 for (a, c), v in sorted(counts.items()) if a == axis]
+        out.append({"axis": axis, "label": labels.get(axis, axis),
+                    "open": sum(c["open"] for c in codes),
+                    "done": sum(c["done"] for c in codes),
+                    "codes": codes})
+    return {"axes": out,
+            "labels": REVIEW_LABELS,
+            "job_review": engine.get("job_review", []),
+            "row_review": db.review_count(CON, job_id),
+            "states": states}
+
+
+# What each code asks of the reviewer, in one line.  Kept beside the API rather
+# than in the browser so a caller that is not the app sees the same wording.
+REVIEW_LABELS = {
+    "VENDOR_MARK_UNDEFINED": "벤더마크가 이 도면 NOTES 에 정의되지 않음 — 포함/제외 판단",
+    "SCOPE_OVERRIDE_UNRESOLVED": "시트 승수의 예외 문구가 있음 — 어느 항목이 예외인지 판단",
+    "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",
+    "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
+    "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
+    "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",
+    "DESC_CCW_DIRECTION": "CCW SUPPLY/RETURN 을 도면 기하로 구분할 수 없음 — 직접 입력",
+    "DESC_GRADE_PARTIAL": "단위·계통·변수만 확정 — 중간 서술을 직접 입력",
+    "DESC_GRADE_LOW": "후보에서 골랐으나 근거가 약함 — 확인 필요",
+    "DESC_GRADE_NONE": "근거 없음 — 직접 입력",
+    "IP_TOKEN_AS_ACTUATOR": "'I/P' 토큰을 액추에이터로 읽음 — 확인 필요",
+    "ACTUATOR_LETTER_UNREAD": "액추에이터 외함은 찾았으나 문자를 읽지 못함",
+    "ACTUATOR_ON_UNEXPECTED_BODY": "그 몸체 계열을 다루는 산출물이 없음 — 검출 확인",
+    "UNLABELED_GLYPH_CLUSTER": "글리프 무리에 라벨이 없음",
+    "MIXED_TAG_GLYPH_CLUSTER": "한 글리프 무리에 태그가 섞임",
+    "ROW_DELETED": "사용자가 지운 행",
+    "ORIGIN_REFERENCE_MISSING": "검증용 대조 리스트가 그 경로에 없음",
+    "REVIEWER_MARKUP": "도면에 개정 표기가 있음 — 발주처 확인 대상",
+}
+
+
+def review_axis_map() -> dict:
+    axes = pipeline.CFG.data.get("review_axes") or {}
+    return {str(k).upper(): str(v).upper()
+            for k, v in (axes.get("codes") or {}).items()}
+
+
+def review_codes(row: dict) -> list:
+    """The codes one row is flagged under, including the ones read off its grade.
+
+    A grade is a review reason in its own right - `PARTIAL` means a person still
+    has to write the middle of the sentence - but it is stored as a grade rather
+    than as a code, so it is turned into one here instead of being duplicated
+    into the engine's output.
+    """
+    ev = row.get("evidence") or {}
+    out = list(ev.get("review_codes") or [])
+    grade = (row.get("values") or {}).get("description_grade") or ""
+    # `DESCRIPTION_INCOMPLETE` is raised while the row is built, before the
+    # Description pass has run; the grade is what the row ended up with.  A row
+    # the pass then completed is not an outstanding question, so the earlier flag
+    # is dropped here rather than being shown as work that is not there.  (The
+    # engine's own `needs_review` sentence still carries the older wording - see
+    # the round report; correcting it moves the fingerprint and belongs to a round
+    # that is allowed to.)
+    if grade in ("CONFIRMED", "USER_ENTERED", "SKIP"):
+        out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
+    if grade in ("PARTIAL", "LOW", "NONE"):
+        code = f"DESC_GRADE_{grade}"
+        if code not in out:
+            out.append(code)
+        out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
+    if row.get("deleted"):
+        out.append("ROW_DELETED")
+    return list(dict.fromkeys(out))
+
+
+@app.patch("/jobs/{job_id}/rows/{key}/review/{code}")
+def set_review(job_id: str, key: str, code: str, payload: dict):
+    """Record what the reviewer decided about one flagged reason."""
+    try:
+        db.set_review_state(CON, job_id, key, code,
+                            str(payload.get("state") or ""),
+                            str(payload.get("note") or ""))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True}
 
 
 @app.get("/jobs/{job_id}/pages")
@@ -374,6 +515,15 @@ def make_snapshot(job_id: str, payload: dict = None):
     hold = bool(payload.get("hold_review"))
     rev = db.snapshot(CON, job_id, label, origins, drawings, hold)
     snap = db.get_revision(CON, rev)
+    # The workbook's REMARK column needs the codes and the axis they belong to,
+    # and both are computed here rather than stored on the row, so they are
+    # written into the frozen payload while it is being made.
+    axis_of = review_axis_map()
+    for row in snap["rows"]:
+        row["review_codes"] = review_codes(row)
+        row["review_axis"] = {c: axis_of.get(c, "OTHER") for c in row["review_codes"]}
+        row["review_label"] = {c: REVIEW_LABELS.get(c, c) for c in row["review_codes"]}
+    db.replace_revision(CON, rev, snap)
     return {"revision_id": rev, "origins": origins,
             "drawings": snap["drawings_included"],
             "review_held_back": hold,

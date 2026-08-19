@@ -353,3 +353,74 @@ def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job
             f"step 7: {col} changed to {after[key]['user'][col]!r}"
         assert after[key]["ai"] == before[key]["ai"], \
             f"step 7: ai_values for {key} should be refreshed identically"
+
+
+@pytest.mark.ui
+def test_step8_review_panel_groups_every_reason_by_axis(page, server, job_id):
+    """The panel is the screen's answer to 'what am I being asked to decide'.
+
+    Every reason has to appear under exactly one axis, and the axis totals have to
+    add up to the reason totals - a screen that quietly drops a reason is worse
+    than no screen.
+    """
+    import urllib.request
+    review = json.loads(
+        urllib.request.urlopen(f"{server}/jobs/{job_id}/review").read())
+    assert review["axes"], "no review axes came back"
+    for axis in review["axes"]:
+        assert axis["open"] + axis["done"] == sum(
+            c["open"] + c["done"] for c in axis["codes"]), axis["axis"]
+    buttons = page.eval_on_selector_all(
+        "#review-panel button.axis:not(.clear)", "els => els.length")
+    assert buttons == len(review["axes"]), "an axis is missing from the panel"
+
+
+@pytest.mark.ui
+def test_step9_a_reason_filters_the_grid_and_survives_a_reload(page, server, job_id):
+    """Axis -> reason -> grid, with the filters in the URL so a link keeps them."""
+    # The page fixture is shared, so start from a known view rather than from
+    # whatever the test before this one left selected.
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1200)
+    page.click("#review-panel button.axis:not(.clear)")
+    page.wait_for_timeout(500)
+    assert page.eval_on_selector_all("#review-codes button.rcode", "e => e.length")
+    page.click("#review-codes button.rcode")
+    page.wait_for_timeout(500)
+    chips = page.eval_on_selector_all(".chip", "els => els.map(e => e.textContent)")
+    assert any("축" in c for c in chips) and any("사유" in c for c in chips)
+    assert "axis=" in page.evaluate("location.hash")
+    before = page.eval_on_selector_all("#body tr", "e => e.length")
+    page.goto(page.evaluate("location.href"))
+    page.wait_for_selector("#chips .chip", timeout=120_000)
+    page.wait_for_timeout(1500)
+    assert page.eval_on_selector_all("#body tr", "e => e.length") == before
+
+
+@pytest.mark.ui
+def test_step10_deciding_a_reason_moves_the_progress(page, server, job_id):
+    """`확인함` is work: judging the value right is a review, and it has to count."""
+    import urllib.request
+    # Enter through the URL rather than by clicking: it is the contract a shared
+    # link relies on, and it puts the test in a known view whatever ran before.
+    review = json.loads(
+        urllib.request.urlopen(f"{server}/jobs/{job_id}/review").read())
+    axis = next(a for a in review["axes"] if a["open"])
+    code = axis["codes"][0]["code"]
+    page.goto(f"{server}/#{job_id}?axis={axis['axis']}&code={code}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(1500)
+    page.click("#body tr")
+    page.wait_for_timeout(900)
+    before = json.loads(
+        urllib.request.urlopen(f"{server}/jobs/{job_id}/review").read())
+    done_before = sum(a["done"] for a in before["axes"])
+    page.click("#evidence button.rstate")           # 확인함
+    page.wait_for_timeout(1200)
+    after = json.loads(
+        urllib.request.urlopen(f"{server}/jobs/{job_id}/review").read())
+    done_after = sum(a["done"] for a in after["axes"])
+    assert done_after != done_before, "deciding a reason did not move the count"
+    page.click("#evidence button.rstate")           # toggle it back off
+    page.wait_for_timeout(1200)

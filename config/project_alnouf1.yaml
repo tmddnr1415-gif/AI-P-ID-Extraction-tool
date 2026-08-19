@@ -75,6 +75,10 @@ excel:
     # belong.
     tag_no: 5
     vendor_supply: 37
+    # The client's own REMARK column (row 6 prints it at AO).  The app writes the
+    # review axis, the reason code and what the reviewer decided, so a flagged row
+    # arrives with its question and its answer rather than a blank cell.
+    remark: 41
 
 # P1, P2 — drawing tag -> Excel TYPE.
 #
@@ -384,6 +388,7 @@ description:
     - types: [PDIT]
       noun: PUMP
       needs_subject: true
+      code: DESC_BETWEEN_SYMBOL
       tag: 중간 심볼
       reason: >-
         중간 심볼(SUCTION STRAINER)은 도면이 낱말로 인쇄하지 않습니다 — 발주처 13행이
@@ -392,6 +397,7 @@ description:
         직접 입력이 필요합니다
     - types: [PI]
       system: CCW
+      code: DESC_CCW_DIRECTION
       tag: CCW 방향
       reason: >-
         CCW 의 SUPPLY / RETURN 은 도면 기하로 구분되지 않습니다 — 발주처 PI 100행이
@@ -527,6 +533,7 @@ valves:
       qty: 4
       system: 5
       description: 12
+      remark: 39          # the client's own REMARK column (row 6)
       # Row 6 prints 'TAG NUMBER' at K; row 7 sub-heads 'ACTUATOR' at Y and
       # 'BODY' at AA under the merged TYPE group.  The app writes the body it
       # read (GATE / GLOBE / BUTTERFLY) and the actuator it read (MOTOR /
@@ -608,3 +615,61 @@ valves:
       cylinder_side: 14.16
       cylinder_aspect: 1.003
       cylinder_divider: 0.5
+
+# --------------------------------------------------------------------------
+# Review axes — why a person has to look
+# --------------------------------------------------------------------------
+#
+# Every reason the engine can raise is filed under one axis, because "what am I
+# being asked to decide" is the question a reviewer opens the screen with, and it
+# is a different question from "which deliverable is this row in".  The axes are
+# ordered by what it costs to get wrong: a scope call decides whether the row is
+# ordered at all, a quantity call decides how many, and a Description is wording.
+#
+# A code that is not listed here is shown under `OTHER` rather than hidden - the
+# screen must never quietly drop a reason.
+review_axes:
+  order: [SCOPE, QUANTITY, DESCRIPTION, DETECTION, SOURCE]
+  labels:
+    SCOPE: 스코프 판정
+    QUANTITY: 수량
+    DESCRIPTION: Description
+    DETECTION: 검출
+    SOURCE: 입력 자료
+    OTHER: 미분류
+  codes:
+    # --- scope: does this row belong in the deliverable at all
+    VENDOR_MARK_UNDEFINED: SCOPE          # 벤더마크가 NOTES 에 정의되지 않음
+    SCOPE_OVERRIDE_UNRESOLVED: SCOPE      # PLANT COMMON 등 시트 승수 예외
+    # --- quantity: how many are ordered
+    MULTI_SIGNAL_BUNDLE: QUANTITY         # 맞닿은 신호 버블의 물리 수량
+    MULTIPLIER_UNDEFINED: QUANTITY        # unit code 에 승수가 없음
+    # --- description: wording to finish
+    DESCRIPTION_INCOMPLETE: DESCRIPTION
+    DESC_BETWEEN_SYMBOL: DESCRIPTION
+    DESC_CCW_DIRECTION: DESCRIPTION
+    DESC_GRADE_PARTIAL: DESCRIPTION
+    DESC_GRADE_LOW: DESCRIPTION
+    DESC_GRADE_NONE: DESCRIPTION
+    # --- detection: is the row itself right
+    IP_TOKEN_AS_ACTUATOR: DETECTION
+    ACTUATOR_LETTER_UNREAD: DETECTION
+    ACTUATOR_ON_UNEXPECTED_BODY: DETECTION
+    UNLABELED_GLYPH_CLUSTER: DETECTION
+    MIXED_TAG_GLYPH_CLUSTER: DETECTION
+    ROW_DELETED: DETECTION                # 사용자가 지운 행
+    # --- source: the inputs, not the reading of them
+    ORIGIN_REFERENCE_MISSING: SOURCE
+    REVIEWER_MARKUP: SOURCE               # 도면에 개정 표기가 있음
+  # Codes whose axis was *not* obvious.  They are listed above with a decision and
+  # the reasoning, so the choice can be argued with rather than guessed at:
+  #   MULTIPLIER_UNDEFINED  -> QUANTITY.  It reads as a scope question ("is this
+  #     sheet in scope"), but what it actually leaves undecided is the row's Q'ty,
+  #     which is written as blank.  Filed where the missing value is.
+  #   ACTUATOR_ON_UNEXPECTED_BODY -> DETECTION.  It changes which deliverable the
+  #     row lands in, so it touches scope too; filed under detection because the
+  #     question asked is "did we read this symbol right", and the scope follows
+  #     from the answer rather than being the decision.
+  #   REVIEWER_MARKUP -> SOURCE.  It is a fact about the drawing (client and
+  #     drawing disagree), not a doubt about the row - `out/revision_gap.md` says
+  #     not to correct it by rule.

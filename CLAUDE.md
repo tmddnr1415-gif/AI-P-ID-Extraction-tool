@@ -24,7 +24,7 @@
 | 글리프 문자 | H 4 / M 32 |
 | 행 수 | 892 (FIELD 748 / MOV 76 / PNEUMATIC 45 / BFV 23) |
 | 분석 시간 | 58장 약 3분 40초 |
-| 테스트 | 빠른 53 · UI 8 · slow 9 (전부 통과) |
+| 테스트 | 빠른 53 · UI 11 · slow 9 (전부 통과) |
 | `fingerprint` | **be1abf03** |
 
 **Description 지표 (2026-08 회차)**
@@ -323,6 +323,9 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/engine/pipe_graph.py` | 배관 그래프 — **Description 경로에서는 쓰지 않습니다** |
 | `app/pipeline.py` | 오케스트레이션 + 등급/Remark |
 | `app/db.py` · `app/main.py` · `app/static/` | 저장·API·검토 UI |
+| `config/project_alnouf1.yaml` 의 `review_axes` | 검토 사유 → 축(스코프/수량/Description/검출/자료) 배정. 미등록 코드는 `OTHER` 로 보이며 숨기지 않음 |
+| `app/main.py` 의 `review_codes`·`REVIEW_LABELS` | 행별 검토 사유 코드와 한 줄 설명. `/jobs/{id}/review` 가 축별로 집계 |
+| `review_state` 테이블 | 미처리/확인함/수정함/보류. 없으면 미처리 — 한 일만 저장 |
 | `app/engine/describe_equipment.py` 의 `derive_aliases`·`apply_alias` | ①표준 세트 + ②표기 선택 → 라벨 별칭. 머리 위치일 때만 적용 |
 | `config/plant_standard_abbr.yaml` | **①업계 표준 약어 — 프로젝트 무관, 그대로 재사용.** 18세트 확정. 방향은 여기 없음 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |

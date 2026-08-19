@@ -51,6 +51,11 @@ const S = {
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
   picking: false, feedback: 0, showTrace: true, gradeFilter: "", reasonFilter: "",
+  // The review filters.  They stack: axis narrows to a decision, code to one
+  // reason inside it, and the tab / drawing / grade are the axes the grid
+  // already had.  All of them ride in the URL so a reload or a shared link
+  // lands on the same view.
+  axis: "", code: "", drawing: "", onlyReview: false, review: null,
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
@@ -107,17 +112,34 @@ function watch(jobId) {
   };
 }
 
+function hashParts() {
+  const raw = location.hash.slice(1);
+  const i = raw.indexOf("?");
+  return i < 0 ? [raw, ""] : [raw.slice(0, i), raw.slice(i + 1)];
+}
 window.addEventListener("hashchange", () => {
-  if (location.hash.length > 1) open(location.hash.slice(1));
+  const [id, query] = hashParts();
+  if (id && (!S.job || S.job.id !== id)) { open(id); return; }
+  // Same job, different filters: a shared link has to apply its view without a
+  // reload, and the state has to follow the URL rather than the other way round -
+  // otherwise navigating back to the bare job id leaves the old filters in place
+  // and the next click toggles them off instead of on.
+  S.tab = "ALL"; S.axis = ""; S.code = ""; S.drawing = ""; S.gradeFilter = "";
+  S.reasonFilter = ""; S.originFilter = ""; S.filter = ""; S.onlyReview = false;
+  readUrl(query);
+  const only = $("#only-review"); if (only) only.checked = S.onlyReview;
+  const box = $("#filter"); if (box) box.value = S.filter;
+  buildTabs(); renderReviewPanel(); renderGrid();
 });
-if (location.hash.length > 1) open(location.hash.slice(1));
+if (location.hash.length > 1) open(hashParts()[0]);
 
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
   if (job.status !== "done") { watch(jobId); return; }
   S.job = job;
-  location.hash = jobId;
+  readUrl(hashParts()[1]);
+  if (location.hash.slice(1).split("?")[0] !== jobId) location.hash = jobId;
   drop.classList.add("hidden");
   $("#progress").classList.add("hidden");
   $("#main").classList.remove("hidden");
@@ -139,12 +161,173 @@ async function loadRows() {
   }
   await buildScope();
   S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
+  S.review = S.jobReview;
   S.feedback = (await (await fetch(`/jobs/${S.job.id}/feedback?limit=1`)).json()).count;
   showAppliedRules();
   await showTemplates();
   buildTabs();
   updateBadge();
+  renderReviewPanel();
   renderGrid();
+}
+
+$("#only-review").onchange = (e) => {
+  S.onlyReview = e.target.checked;
+  syncUrl(); renderGrid();
+};
+
+/* A filter that matches nothing must say so.  An empty table with four chips
+ * above it reads as "there is nothing here", which is a different statement. */
+function updateEmptyNote() {
+  const box = $("#empty-note");
+  if (!box) return;
+  const n = visibleRows().length;
+  box.classList.toggle("hidden", n > 0);
+  if (!n) box.textContent = "이 조건에 맞는 행이 없습니다 — 위의 조건 칩을 하나씩 해제해 보세요.";
+}
+
+function showOpenReview() {
+  const box = $("#open-review");
+  if (!box) return;
+  const open = ((S.review && S.review.axes) || []).reduce((n, a) => n + a.open, 0);
+  if (!open) { box.textContent = ""; box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.textContent = "미처리 검토 " + open + "건 — "
+    + (S.review.axes || []).filter(a => a.open)
+        .map(a => `${a.label} ${a.open}`).join(" · ")
+    + ` (Remark 열에 "미처리"로 나갑니다)`;
+}
+
+/* ---------------- review axes ----------------
+ * Which decision is outstanding, and how much of it is done.  The tabs answer
+ * "which deliverable"; this answers "what am I being asked to decide", which is
+ * the question someone opens the screen with. */
+function axisRows(axis, code) {
+  const states = (S.review && S.review.states) || {};
+  return S.rows.filter(r => {
+    const codes = rowCodes(r);
+    if (!codes.length) return false;
+    if (code) return codes.includes(code);
+    if (!axis) return true;
+    return codes.some(c => codeAxis(c) === axis);
+  }).filter(r => !S.onlyReview || openCodes(r, states).length);
+}
+
+function codeAxis(code) {
+  const map = (S.review && S.review.axisOf) || {};
+  return map[code] || "OTHER";
+}
+
+/* The codes on one row, as the API computed them.  Kept on the row itself so the
+ * grid can filter without asking the server again on every click. */
+function rowCodes(row) {
+  return (row.review_codes || []);
+}
+
+function openCodes(row, states) {
+  const done = states[row.key] || {};
+  return rowCodes(row).filter(c => !done[c]);
+}
+
+function renderReviewPanel() {
+  showOpenReview();
+  const bar = $("#review-panel");
+  if (!S.review || !S.review.axes) { bar.innerHTML = ""; return; }
+  S.review.axisOf = {};
+  for (const a of S.review.axes) {
+    for (const c of a.codes) S.review.axisOf[c.code] = a.axis;
+  }
+  const total = S.review.axes.reduce((n, a) => n + a.open + a.done, 0);
+  const done = S.review.axes.reduce((n, a) => n + a.done, 0);
+  bar.innerHTML = `<b>검토</b> <span class="n">${done}/${total}</span>`
+    + S.review.axes.map(a => {
+        const all = a.open + a.done;
+        const pct = all ? Math.round(100 * a.done / all) : 0;
+        return `<button class="axis${S.axis === a.axis ? " on" : ""}"
+                  data-axis="${a.axis}" title="${a.label} — 처리 ${a.done} / 남음 ${a.open}">
+                  ${a.label} <span class="n">${a.open}</span>
+                  <span class="bar"><i style="width:${pct}%"></i></span></button>`;
+      }).join("")
+    + (S.axis || S.code ? `<button class="axis clear" data-axis="">해제</button>` : "");
+  bar.querySelectorAll("button.axis").forEach(b => {
+    b.onclick = () => {
+      S.axis = b.dataset.axis === S.axis ? "" : b.dataset.axis;
+      S.code = "";
+      syncUrl(); renderReviewPanel(); renderGrid();
+    };
+  });
+  renderReviewCodes();
+}
+
+function renderReviewCodes() {
+  const box = $("#review-codes");
+  const axis = S.review && S.review.axes.find(a => a.axis === S.axis);
+  if (!axis) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.innerHTML = axis.codes.map(c => `
+      <button class="rcode${S.code === c.code ? " on" : ""}" data-code="${c.code}"
+              title="${c.label}">${c.label}
+        <span class="n">${c.open}</span>
+        ${c.done ? `<span class="n done">완료 ${c.done}</span>` : ""}</button>`).join("");
+  box.querySelectorAll("button.rcode").forEach(b => {
+    b.onclick = () => {
+      S.code = b.dataset.code === S.code ? "" : b.dataset.code;
+      syncUrl(); renderReviewCodes(); renderGrid(); renderChips();
+    };
+  });
+}
+
+/* Every filter in force, each removable on its own.  Without this the grid can
+ * be showing four rows for a reason that is two clicks back in the history. */
+function renderChips() {
+  const box = $("#chips");
+  const chips = [];
+  if (S.tab !== "ALL") chips.push(["tab", `탭 ${S.tab}`]);
+  if (S.axis) chips.push(["axis", `축 ${(S.review.axes.find(a => a.axis === S.axis) || {}).label || S.axis}`]);
+  if (S.code) chips.push(["code", `사유 ${S.code}`]);
+  if (S.drawing) chips.push(["drawing", `도면 ${S.drawing}`]);
+  if (S.gradeFilter) chips.push(["gradeFilter", `등급 ${S.gradeFilter}`]);
+  if (S.reasonFilter) chips.push(["reasonFilter", `사유 ${S.reasonFilter}`]);
+  if (S.originFilter) chips.push(["originFilter", `귀속 ${S.originFilter}`]);
+  if (S.onlyReview) chips.push(["onlyReview", "검토 필요만"]);
+  if (S.filter) chips.push(["filter", `검색 ${S.filter}`]);
+  box.classList.toggle("hidden", !chips.length);
+  box.innerHTML = chips.map(([k, label]) =>
+    `<span class="chip">${label}<button data-k="${k}" title="이 조건만 해제">×</button></span>`).join("");
+  box.querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.k;
+      if (k === "tab") S.tab = "ALL";
+      else if (k === "onlyReview") { S.onlyReview = false; $("#only-review").checked = false; }
+      else if (k === "filter") { S.filter = ""; $("#filter").value = ""; }
+      else if (k === "originFilter") { S.originFilter = ""; $("#origin-filter").value = ""; }
+      else S[k] = "";
+      if (k === "axis") S.code = "";
+      syncUrl(); buildTabs(); renderReviewPanel(); renderGrid();
+    };
+  });
+}
+
+/* The view lives in the URL after the job id, so a reload or a link keeps it. */
+function syncUrl() {
+  const q = new URLSearchParams();
+  for (const k of ["tab", "axis", "code", "drawing", "gradeFilter",
+                   "reasonFilter", "originFilter", "filter"]) {
+    if (S[k] && S[k] !== "ALL") q.set(k, S[k]);
+  }
+  if (S.onlyReview) q.set("onlyReview", "1");
+  const qs = q.toString();
+  const next = S.job.id + (qs ? "?" + qs : "");
+  if (location.hash.slice(1) !== next) history.replaceState(null, "", "#" + next);
+}
+
+function readUrl(query) {
+  const q = new URLSearchParams(query || "");
+  for (const k of ["tab", "axis", "code", "drawing", "gradeFilter",
+                   "reasonFilter", "originFilter", "filter"]) {
+    if (q.has(k)) S[k] = q.get(k);
+  }
+  S.onlyReview = q.get("onlyReview") === "1";
 }
 
 /* Page origin.  MATCHED and PDF_ONLY only exist when the app was given a
@@ -346,6 +529,14 @@ function visibleRows() {
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
   else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
   if (S.originFilter) rows = rows.filter(r => r.origin === S.originFilter);
+  if (S.drawing) rows = rows.filter(r => r.values.pid_no === S.drawing
+                                      || r.drawing_no === S.drawing);
+  // The review filters work on every tab, not only 검토필요: the axis is what the
+  // reviewer is doing, and it should survive switching deliverable.
+  const states = (S.review && S.review.states) || {};
+  if (S.code) rows = rows.filter(r => rowCodes(r).includes(S.code));
+  else if (S.axis) rows = rows.filter(r => rowCodes(r).some(c => codeAxis(c) === S.axis));
+  if (S.onlyReview) rows = rows.filter(r => openCodes(r, states).length);
   // Only on 검토필요, where the control that sets it is visible.  Left applied on
   // other tabs it silently hid rows with nothing on screen to explain why.
   if (S.tab === "REVIEW" && S.gradeFilter) {
@@ -435,6 +626,8 @@ function remarkOf(row) {
 
 function renderGrid() {
   renderDescriptionGroups();
+  renderChips();
+  updateEmptyNote();
   const head = $("#head");
   head.innerHTML = "";
   // The 귀속 column is dropped when every page has the same origin - see
@@ -660,6 +853,96 @@ function showExcluded(item) {
  * off - what it could not decide.  Order matters: scope first, because that is
  * what decides whether the row exists at all.
  */
+/* One flagged reason and what the reviewer decided about it.  "확인함" counts as
+ * work done: judging that the engine's value is right is a review, and a screen
+ * that only counts edits tells the reviewer their afternoon did not happen. */
+const REVIEW_STATES = [["CONFIRMED", "확인함", "값이 맞다고 판단"],
+                       ["EDITED", "수정함", "값을 고침"],
+                       ["HELD", "보류", "지금 정할 수 없음"]];
+
+function reviewControls(row) {
+  const codes = row.review_codes || [];
+  if (!codes.length) return "";
+  const state = row.review_state || {};
+  const labels = (S.review && S.review.labels) || {};
+  return `<div class="review-item"><b>검토 항목</b>` + codes.map(c => {
+    const cur = (state[c] || {}).state || "";
+    const axis = codeAxis(c);
+    const axisLabel = ((S.review.axes || []).find(a => a.axis === axis) || {}).label || axis;
+    return `<div class="ritem" data-code="${c}">
+        <span class="raxis">${axisLabel}</span>
+        <span class="rlabel">${labels[c] || c}</span>
+        ${REVIEW_STATES.map(([k, t, why]) =>
+          `<button class="rstate${cur === k ? " on" : ""}" data-code="${c}"
+                   data-state="${k}" title="${why}">${t}</button>`).join("")}
+      </div>`;
+  }).join("") + `</div>`;
+}
+
+function bindReviewControls(row) {
+  document.querySelectorAll("#evidence button.rstate").forEach(b => {
+    b.onclick = async () => {
+      const code = b.dataset.code;
+      const cur = ((row.review_state || {})[code] || {}).state || "";
+      const next = cur === b.dataset.state ? "" : b.dataset.state;
+      await fetch(`/jobs/${S.job.id}/rows/${row.key}/review/${code}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: next }),
+      });
+      row.review_state = row.review_state || {};
+      if (next) row.review_state[code] = { state: next, note: "" };
+      else delete row.review_state[code];
+      S.review = await (await fetch(`/jobs/${S.job.id}/review`)).json();
+      renderReviewPanel();
+      renderGrid();
+      showEvidence(row);
+    };
+  });
+}
+
+/* What the reviewer does about this row, put where the reason is.  Each action
+ * writes an editable column - the same ones the grid edits - so nothing here
+ * changes what the engine decided, only what the deliverable says. */
+function axisActions(row) {
+  const codes = row.review_codes || [];
+  const out = [];
+  if (codes.includes("VENDOR_MARK_UNDEFINED")
+      || codes.includes("SCOPE_OVERRIDE_UNRESOLVED")) {
+    const cur = row.values.vendor_supply || "";
+    out.push(`<div class="ract"><span>스코프</span>
+      <button class="ract-b${cur === "" ? " on" : ""}" data-act="scope" data-v="">포함</button>
+      <button class="ract-b${cur === "VENDOR" ? " on" : ""}" data-act="scope" data-v="VENDOR">벤더 공급(제외)</button>
+      </div>`);
+  }
+  const grp = (row.evidence || {}).signal_group;
+  if (codes.includes("MULTI_SIGNAL_BUNDLE") && grp) {
+    // `members` is the count of bubbles that touch; whether they are one
+    // physical instrument or several is the question, so both answers are here.
+    const n = Array.isArray(grp.members) ? grp.members.length : (grp.members || 0);
+    const gaps = ((grp.basis || {}).touching_gaps_pt || []).join(", ");
+    out.push(`<div class="ract"><span>묶음 ${n}개${gaps ? ` (간격 ${gaps}pt)` : ""}</span>
+      <button class="ract-b" data-act="qty" data-v="1">합산 1</button>
+      ${n ? `<button class="ract-b" data-act="qty" data-v="${n}">개별 ${n}</button>` : ""}
+      </div>`);
+  }
+  return out.length ? `<div class="ractions">${out.join("")}</div>` : "";
+}
+
+function bindAxisActions(row) {
+  document.querySelectorAll("#evidence button.ract-b").forEach(b => {
+    b.onclick = async () => {
+      const field = b.dataset.act === "scope" ? "vendor_supply" : "qty";
+      await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field, value: b.dataset.v }),
+      });
+      await loadRows();
+      const again = S.rows.find(r => r.key === row.key);
+      if (again) showEvidence(again);
+    };
+  });
+}
+
 function showEvidence(row) {
   const e = row.evidence || {};
   const pairs = [];
@@ -785,10 +1068,13 @@ function showEvidence(row) {
   $("#evidence").innerHTML =
     `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
     + `(p${row.page_no})</h3>`
+    + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
     + candidatePicker(row);
   bindCandidatePicker(row);
+  bindReviewControls(row);
+  bindAxisActions(row);
 }
 
 /* The phrases the drawing prints along this instrument's pipe, nearest first.
@@ -1103,9 +1389,11 @@ document.addEventListener("keydown", ev => {
 });
 
 /* ---------------- filter, gate, export ---------------- */
-$req("#filter").addEventListener("input", ev => { S.filter = ev.target.value; renderGrid(); });
+$req("#filter").addEventListener("input", ev => {
+  S.filter = ev.target.value; syncUrl(); renderGrid();
+});
 $req("#origin-filter").addEventListener("change", ev => {
-  S.originFilter = ev.target.value; renderGrid();
+  S.originFilter = ev.target.value; syncUrl(); renderGrid();
 });
 const chosenOrigins = () =>
   [...document.querySelectorAll(".origin:checked")].map(c => c.value);
@@ -1142,6 +1430,11 @@ $req("#gate-check").addEventListener("change", async ev => {
   const out = await r.json();
   S.revision = out.revision_id;
   window.__rev = out.revision_id;      // read by tests/test_ui_edits.py
+  // Say what is still open, and do not stand in the way.  Whether an unanswered
+  // question is a reason to hold the workbook back is the reviewer's call - but
+  // they should not learn about it from the client.  A blocking dialog was tried
+  // and rejected: it turns "you should know" into "you may not proceed".
+  showOpenReview();
   $("#excel").disabled = false;
   $("#excel").textContent = `Excel 출력 (rev ${out.revision_id}, ${out.rows}행`
     + (hold ? ", 검토 보류" : "") + ")";

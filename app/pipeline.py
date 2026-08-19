@@ -731,6 +731,8 @@ def _signal_groups(rows) -> list:
                 r.evidence["signal_group"] = group
                 r.needs_review = "; ".join(
                     [s for s in (r.needs_review, MULTI_SIGNAL_REASON) if s])
+                r.evidence.setdefault("review_codes", []).append(
+                    "MULTI_SIGNAL_BUNDLE")
                 if not MULTI_SIGNAL_MERGE:
                     continue
                 total = sum(x.qty for x in grp if isinstance(x.qty, (int, float)))
@@ -1217,7 +1219,7 @@ def _local_unit(cands, marks_on_page, sheet_code: str, skip=()) -> tuple:
     return sheet_code, ""
 
 
-def _user_input_note(type_, middle: str, noun: str, system: str) -> str:
+def _user_input_note(type_, middle: str, noun: str, system: str) -> tuple:
     """Why a row still needs a person, where the drawing is known not to say.
 
     These are not "we did not manage": each one was measured and the drawing does
@@ -1242,8 +1244,9 @@ def _user_input_note(type_, middle: str, noun: str, system: str) -> str:
         # back out of the sentence, so the grouping cannot drift from the reason.
         tag = str(rule.get("tag") or "").strip()
         reason = " ".join(str(rule.get("reason") or "").split())
-        return f"[{tag}] {reason}" if tag else reason
-    return ""
+        return (str(rule.get("code") or ""),
+                f"[{tag}] {reason}" if tag else reason)
+    return "", ""
 
 
 def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
@@ -1347,12 +1350,16 @@ def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                 }
         r.description_grade, r.remark = _grade(
             parts_ok, built["middle"], middle_kind, False, why)
-        note = _user_input_note(r.type, built["middle"],
-                                (subject.get("equipment") or {}).get("noun", "")
-                                if subject else "",
-                                " ".join(desc.system_words(r.system, pat)[0]))
+        code, note = _user_input_note(
+            r.type, built["middle"],
+            (subject.get("equipment") or {}).get("noun", "") if subject else "",
+            " ".join(desc.system_words(r.system, pat)[0]))
         if note:
             ev["user_input_reason"] = note
+            if code:
+                ev.setdefault("review_codes", [])
+                if code not in ev["review_codes"]:
+                    ev["review_codes"].append(code)
             stats["user_input"] += 1
             r.remark = f"{r.remark} — {note}" if r.remark else note
         if r.description_grade == GRADE_NONE:
@@ -1405,6 +1412,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
         # The Description column, from the three sources that were measured.  An
         # item we do not describe at all (other-party supply) gets no draft.
         skip_desc = _description_skip(d)
+        codes = []
         if skip_desc:
             description, desc_ev, desc_reason = "", {}, ""
         else:
@@ -1412,14 +1420,18 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                 meta, getattr(d, "anchor", "") or type_, isa, pat)
             if desc_reason:
                 reasons.append(desc_reason)
+                codes.append("DESCRIPTION_INCOMPLETE")
         if undefined:
+            codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
         if "VENDOR_MARK_UNDEFINED" in (getattr(d, "rules_hit", []) or []):
+            codes.append("VENDOR_MARK_UNDEFINED")
             reasons.append("a vendor mark is drawn on this symbol but this "
                            "drawing's NOTES do not define what it means, so "
                            "whether it is vendor supply is undecided")
         if scope_keywords:
+            codes.append("SCOPE_OVERRIDE_UNRESOLVED")
             reasons.append(
                 f"SCOPE_OVERRIDE_UNRESOLVED: {', '.join(scope_keywords)} appears "
                 f"on this drawing, so some items take a different multiplier "
@@ -1452,6 +1464,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
             annotation=("reviewer markup on this drawing" if marked else ""),
             rect=rect,
             evidence={
+                "review_codes": codes,
                 "anchor": getattr(d, "anchor", ""),
                 # Carried in the evidence as well as on the row: the database
                 # stores the editable columns and the evidence, so this is how the
@@ -1695,16 +1708,19 @@ def _valve_rows(page_no, meta, res, mult) -> list:
         if cls == dv.CLASS_EXCLUDED and not unread:
             continue
         rect = (b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1)
-        reasons = []
+        reasons, codes = [], []
         if any(m in b.actuator_evidence for m in IP_TOKEN_EVIDENCE):
+            codes.append("IP_TOKEN_AS_ACTUATOR")
             reasons.append(
                 "an 'I/P' token was taken as this valve's actuator, but every "
                 "such token in this document is part of an equipment name "
                 "(e.g. 'IP TURBINE'), not a positioner - confirm before shipping")
         if unread:
+            codes.append("ACTUATOR_LETTER_UNREAD")
             reasons.append("actuator enclosure found but its letter could not be "
                            "derived from this document")
         if not unread and b.kind not in ACTUATED_BODIES:
+            codes.append("ACTUATOR_ON_UNEXPECTED_BODY")
             reasons.append(
                 f"a {b.actuator} actuator was read onto a {b.kind} body, and no "
                 f"deliverable covers that body family "
@@ -1712,6 +1728,7 @@ def _valve_rows(page_no, meta, res, mult) -> list:
                 + (f"; the tag bubble says {b.tag}" if b.tag else "")
                 + " - confirm before shipping")
         if undefined:
+            codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         out.append(Row(
             key=_key(meta["drawing_no"], page_no, "V", b.kind,
@@ -1726,6 +1743,7 @@ def _valve_rows(page_no, meta, res, mult) -> list:
             needs_review="; ".join(reasons),
             rect=rect,
             evidence={
+                "review_codes": codes,
                 "body": b.kind,
                 # No Description is written for a valve, and the reason is
                 # recorded rather than left as an empty cell: the wording would
