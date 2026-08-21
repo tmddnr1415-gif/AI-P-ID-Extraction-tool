@@ -19,3 +19,8 @@ app/_data/
 build/
 dist/
 app/_build.json
+
+# The client's lists, normalised.  Derived from data/*.xlsx and therefore the
+# same client material those are gitignored for - it stays on the machine that
+# made it.  Rebuild with the round's parser when it is needed.
+out/alnouf1_truth.csv
