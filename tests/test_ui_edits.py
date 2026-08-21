@@ -632,3 +632,226 @@ def test_step15_the_screen_names_the_build(page, server, job_id):
     info = json.loads(urllib.request.urlopen(server + "/version").read())
     assert f"v{info['version']}" in text
     assert info["built_at"] in text
+
+
+def test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only(page, server, job_id):
+    """[A] The four ways of zooming agree, and the keys stay off the grid.
+
+    Ctrl+wheel has to hold the point under the cursor still - zooming to the
+    middle and then hunting for the symbol again is the thing this replaces - and
+    Ctrl +/-/0 must not fire while a reviewer is typing, which is why they are
+    handled on the viewer rather than on the document.
+    """
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(2000)
+    page.evaluate("() => { closeModal(); endPick(); }")
+
+    # The page fixture is shared and selecting a row zooms in to read the bubble
+    # (`SYMBOL_ZOOM`), so the viewer is not necessarily at rest.  Press 맞춤 to
+    # establish the fitted magnification rather than assuming it.
+    page.click("[data-z='0']")
+    page.wait_for_timeout(200)
+    fitted = page.evaluate("() => S.zoom")
+    stage = page.evaluate("() => document.querySelector('#stage').clientWidth")
+    natural = page.evaluate("() => S.natural.w")
+    assert abs(fitted - (stage - 16) / natural) < 1e-9, "맞춤 is not what fit() computes"
+
+    page.click("#stage")
+    assert page.evaluate("() => document.activeElement.id") == "stage"
+
+    # Scrolled to the origin first, so the cursor is over the sheet.  Below 1:1
+    # the scroll extent stays the sheet's unscaled size while the sheet paints
+    # smaller, so the viewer can be parked in the blank space beyond it - a
+    # property of the existing transform-based zoom, not of this test - and a
+    # zoom anchored out there is clamped by the browser rather than applied.
+    page.evaluate("""() => { const st = document.querySelector('#stage');
+                             st.scrollLeft = 0; st.scrollTop = 0; }""")
+    page.wait_for_timeout(150)
+    box = page.locator("#stage").bounding_box()
+    cx, cy = box["x"] + box["width"] * 0.7, box["y"] + box["height"] * 0.3
+    under = """([cx, cy]) => {
+      const st = document.querySelector('#stage');
+      const r = st.getBoundingClientRect();
+      return [(st.scrollLeft + cx - r.left) / S.zoom,
+              (st.scrollTop + cy - r.top) / S.zoom];
+    }"""
+    before = page.evaluate(under, [cx, cy])
+    page.evaluate("""([cx, cy]) => document.querySelector('#stage').dispatchEvent(
+      new WheelEvent('wheel', {deltaY: -120, ctrlKey: true, clientX: cx,
+                               clientY: cy, bubbles: true, cancelable: true}))""",
+                  [cx, cy])
+    page.wait_for_timeout(200)
+    after = page.evaluate(under, [cx, cy])
+    zoomed = page.evaluate("() => S.zoom")
+    step = page.evaluate("() => ZOOM_STEP")
+    assert abs(zoomed / fitted - step) < 1e-6, "the wheel does not use the buttons' step"
+    # Sub-point, not sub-pixel: scroll offsets are integers, and one device pixel
+    # is several sheet points at this magnification.
+    assert abs(after[0] - before[0]) < 4 and abs(after[1] - before[1]) < 4, \
+        f"the point under the cursor moved: {before} -> {after}"
+
+    page.keyboard.press("Control+Minus")
+    page.wait_for_timeout(150)
+    assert abs(page.evaluate("() => S.zoom") - fitted) < 1e-6
+    page.keyboard.press("Control+Equal")
+    page.wait_for_timeout(150)
+    assert abs(page.evaluate("() => S.zoom") - zoomed) < 1e-6
+    page.keyboard.press("Control+0")
+    page.wait_for_timeout(150)
+    assert abs(page.evaluate("() => S.zoom") - fitted) < 1e-9, "Ctrl+0 is not 맞춤"
+
+    # not while the reviewer is typing
+    page.evaluate("() => { S.zoom = 0.5; applyZoom(); }")
+    page.click("#filter")
+    page.keyboard.press("Control+Equal")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => S.zoom") == 0.5, \
+        "the viewer took a key while the search box had focus"
+    page.fill("#filter", "")
+
+    # kept across pages, and `open()` - which is where re-analysis lands - refits
+    page.click("#stage")
+    page.evaluate("() => { S.zoom = 0.42; applyZoom(); }")
+    other = page.evaluate("() => S.pages.find(p => p.page_no !== S.page.page_no).page_no")
+    page.select_option("#page-select", str(other))
+    page.wait_for_timeout(3000)
+    assert page.evaluate("() => S.zoom") == 0.42, "changing page threw the zoom away"
+    page.evaluate("j => open(j)", job_id)
+    page.wait_for_timeout(4000)
+    assert abs(page.evaluate("() => S.zoom") - fitted) < 1e-9, \
+        "opening a job did not start fitted"
+
+
+def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
+        page, server, job_id):
+    """[B] Seven dropdowns, ANDed with each other and with the filters that
+    already existed, visible as chips, and reproduced by the URL.
+
+    The two defects this class of filter has had before are both checked: a
+    condition that outlives a move back to the bare job id, and one that applies
+    on a tab where nothing on screen says why the grid is short.
+    """
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(2000)
+    page.evaluate("() => { closeModal(); endPick(); }")
+    blank = page.evaluate("() => BLANK")
+    total = page.evaluate("() => S.rows.length")
+
+    cols = page.eval_on_selector_all("button.colf", "e => e.map(b => b.dataset.col)")
+    assert cols == ["page_no", "pid_no", "type", "valve_type", "qty",
+                    "system", "vendor_supply"]
+
+    def choose(col, values):
+        page.click(f"button.colf[data-col='{col}']")
+        page.wait_for_selector("#colmenu:not(.hidden)")
+        page.click("#cm-none")
+        page.evaluate("""([vals]) => {
+          for (const c of document.querySelectorAll('#colmenu .cm-v'))
+            if (vals.includes(c._value)) c.checked = true;
+        }""", [values])
+        page.click("#cm-apply")
+        page.wait_for_timeout(400)
+
+    # the list is derived from the data, and its counts are the data's counts
+    page.click("button.colf[data-col='type']")
+    page.wait_for_selector("#colmenu:not(.hidden)")
+    listed = page.eval_on_selector_all("#colmenu .cm-v", "e => e.map(c => c._value)")
+    counts = page.eval_on_selector_all("#colmenu .cm-list .n", "e => e.map(n => +n.textContent)")
+    assert listed and len(listed) == len(counts)
+    for value, n in zip(listed, counts):
+        real = page.evaluate(
+            """([v, blank]) => S.rows.filter(r =>
+                 (String(cellValue(r, 'type') ?? '') || blank) === v).length""",
+            [value, blank])
+        assert real == n, f"{value}: dropdown says {n}, the data says {real}"
+    page.keyboard.press("Escape")
+
+    choose("type", ["PIT"])
+    shown = page.eval_on_selector_all("#body tr", "e => e.length")
+    assert shown == page.evaluate("() => S.rows.filter(r => r.values.type === 'PIT').length")
+    assert page.locator("th.filtered").count() == 1, "the filtered header is not marked"
+    assert page.locator("#count").inner_text() == f"표시 {shown} / 전체 {total}"
+
+    choose("page_no", ["6"])
+    n_and = page.eval_on_selector_all("#body tr", "e => e.length")
+    assert n_and == page.evaluate(
+        "() => S.rows.filter(r => r.values.type === 'PIT' && r.page_no === 6).length")
+
+    # ANDed with the tab, the grade and the free-text box as well
+    page.evaluate("""() => { S.tab = 'FIELD'; S.gradeFilter = 'PARTIAL';
+                             S.filter = 'HP STEAM'; syncUrl(); buildTabs(); renderGrid(); }""")
+    page.wait_for_timeout(400)
+    n_all = page.eval_on_selector_all("#body tr", "e => e.length")
+    assert n_all == page.evaluate("""() => S.rows.filter(r => r.tab === 'FIELD'
+      && r.values.type === 'PIT' && r.page_no === 6
+      && r.values.description_grade === 'PARTIAL'
+      && SEARCH_COLS.some(k => String(cellValue(r, k)).toLowerCase()
+                                 .includes('hp steam'))).length""")
+    chips = page.eval_on_selector_all(".chip", "e => e.map(c => c.textContent)")
+    assert any("Page" in c for c in chips) and any("Type" in c for c in chips), \
+        "a filtered column left no chip to clear it from"
+
+    # the URL carries them, and reproduces the grid
+    url = page.evaluate("() => location.hash")
+    assert "col.type=PIT" in url and "col.page_no=6" in url
+    page.goto(f"{server}/{url}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(2000)
+    assert page.eval_on_selector_all("#body tr", "e => e.length") == n_all
+    assert page.evaluate("() => S.colFilters.type") == ["PIT"]
+
+    # the blank choice survives the round trip - it is most of Vendor
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr")
+    page.wait_for_timeout(1500)
+    choose("vendor_supply", [blank])
+    blank_rows = page.eval_on_selector_all("#body tr", "e => e.length")
+    assert blank_rows == page.evaluate(
+        "() => S.rows.filter(r => !(r.values.vendor_supply || '')).length")
+    page.goto(f"{server}/{page.evaluate('() => location.hash')}")
+    page.wait_for_selector("#body tr")
+    page.wait_for_timeout(2000)
+    assert page.evaluate("() => S.colFilters.vendor_supply") == [blank]
+
+    # back to the bare job id leaves nothing standing - the defect that was
+    # fixed once already for the other filters
+    page.evaluate("j => { location.hash = j; }", job_id)
+    page.wait_for_timeout(1500)
+    assert page.evaluate("() => Object.keys(S.colFilters).length") == 0
+    assert page.locator(".chip").count() == 0
+    assert page.locator("th.filtered").count() == 0
+    assert page.eval_on_selector_all("#body tr", "e => e.length") == total
+
+
+def test_step18_the_search_box_looks_in_the_columns_it_names(page, server, job_id):
+    """The drawing number is searchable, and a column name is not a match.
+
+    Both were faults of searching `JSON.stringify(row.values)`: the drawing
+    number is not in `values` at all, and stringifying an object puts its key
+    names into the haystack.
+    """
+    page.goto(f"{server}/#{job_id}")
+    page.wait_for_selector("#body tr", timeout=120_000)
+    page.wait_for_timeout(2000)
+    page.evaluate("() => { closeModal(); endPick(); }")
+    total = page.evaluate("() => S.rows.length")
+
+    # A drawing that has rows: the first *page* with a number is the drawing-list
+    # sheet, which has none, and searching it correctly finds nothing.
+    dwg = page.evaluate("() => cellValue(S.rows[0], 'pid_no')")
+    assert dwg
+    page.fill("#filter", dwg)
+    page.wait_for_timeout(500)
+    hits = page.eval_on_selector_all("#body tr", "e => e.length")
+    assert hits > 0, f"searching the drawing number {dwg} still finds nothing"
+    assert hits == page.evaluate(
+        "d => S.rows.filter(r => cellValue(r, 'pid_no') === d).length", dwg)
+
+    for name in ("type", "qty", "description_grade"):
+        page.fill("#filter", name)
+        page.wait_for_timeout(400)
+        assert page.eval_on_selector_all("#body tr", "e => e.length") < total, \
+            f"the column name {name!r} still matches every row"
+    page.fill("#filter", "")

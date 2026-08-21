@@ -404,7 +404,7 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 
 ```bash
 pytest -q -m "not slow and not ui"    # 69건, 10초
-pytest -q -m ui                       # 15건, 5분 (playwright + chromium 필요)
+pytest -q -m ui                       # 19건, 8분 (playwright + chromium 필요)
 pytest -q -m slow                     # 전 문서 분석 포함, 각 4분
 ```
 
@@ -438,6 +438,8 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `config/plant_standard_abbr.yaml` | **①업계 표준 약어 — 프로젝트 무관, 그대로 재사용.** 18세트 확정. 방향은 여기 없음 |
 | `app/engine/describe_equipment.py` 의 `DRAWING_NO`·`BORE`·`NOTE_REF`·`GRID_CELL` | 라벨에서 떼는 도면 주석. 도면번호 패턴은 `formats.drawing_no` 를 앵커만 떼어 재사용 (정의는 한 곳) |
 | `app/static/app.js` 의 `sameSentence` | `일괄 적용` 의 사정거리 — 도면·TYPE·**지금 같은 문장**. 누르기 전에 몇 행인지 화면에 씁니다 |
+| `app/static/app.js` 의 `cellValue`·`FILTER_COLS` | 그리드·정렬·검색·컬럼 필터가 셀을 읽는 **단 하나의 접근자**. `pid_no` 는 행이 아니라 페이지에 있습니다 |
+| `app/static/app.js` 의 `zoomBy`·`ZOOM_STEP` | 커서 기준 확대. 배율 1.3 은 `+`/`-` 버튼 값 재사용이고 상·하한은 없습니다 |
 | `config` `multi_signal_bundle.description_signal` | 접힌 LS 행의 문형 (`representative` / `all` / `none`). 발주처 표기는 `representative` 뿐 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |

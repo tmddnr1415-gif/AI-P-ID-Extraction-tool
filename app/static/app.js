@@ -57,10 +57,13 @@ const COLOR = {
 };
 
 const S = {
-  job: null, tab: "ALL", rows: [], pages: [], page: null, zoom: 1,
+  job: null, tab: "ALL", rows: [], pages: [], page: null, zoom: null,
   sel: null, sort: { col: "page_no", dir: 1 }, filter: "", counts: {},
   originFilter: "", originCounts: {}, showOrigin: false,
   ovOff: new Set(), byTab: false, pending: null, drawings: [],
+  // Per-column value filters: {column: [value, ...]}.  Absent means "no filter",
+  // which is not the same as "every value ticked" - see setColumnFilter().
+  colFilters: {},
   picking: false, feedback: 0, reports: 0, showTrace: true, gradeFilter: "",
   reasonFilter: "",
   // The review filters.  They stack: axis narrows to a decision, code to one
@@ -138,6 +141,11 @@ window.addEventListener("hashchange", () => {
   // and the next click toggles them off instead of on.
   S.tab = "ALL"; S.axis = ""; S.code = ""; S.drawing = ""; S.gradeFilter = "";
   S.reasonFilter = ""; S.originFilter = ""; S.filter = ""; S.onlyReview = false;
+  // Cleared here as well, and not only inside `readUrl`: navigating back to the
+  // bare job id has to leave *nothing* standing, which is the defect that was
+  // fixed once already for the other filters.
+  S.colFilters = {};
+  closeColumnMenu();
   readUrl(query);
   const only = $("#only-review"); if (only) only.checked = S.onlyReview;
   const box = $("#filter"); if (box) box.value = S.filter;
@@ -150,6 +158,8 @@ async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
   if (job.status !== "done") { watch(jobId); return; }
   S.job = job;
+  S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
+
   readUrl(hashParts()[1]);
   if (location.hash.slice(1).split("?")[0] !== jobId) location.hash = jobId;
   drop.classList.add("hidden");
@@ -305,12 +315,24 @@ function renderChips() {
   if (S.originFilter) chips.push(["originFilter", `귀속 ${S.originFilter}`]);
   if (S.onlyReview) chips.push(["onlyReview", "검토 필요만"]);
   if (S.filter) chips.push(["filter", `검색 ${S.filter}`]);
+  // One chip per filtered column, carrying its own ×.  The header mark says
+  // *that* a column is filtered; the chip says what to, and is where it gets
+  // cleared from without hunting for the right dropdown.
+  for (const key of FILTER_COLS) {
+    const chosen = colChosen(key);
+    if (!chosen) continue;
+    const label = (COLS.find(([k]) => k === key) || [key, key])[1];
+    const shown = chosen.map(v => v === BLANK ? "(공란)" : v);
+    const text = shown.length <= 2 ? shown.join(", ") : `${shown[0]} 외 ${shown.length - 1}`;
+    chips.push([`col:${key}`, `${label} ${text}`]);
+  }
   box.classList.toggle("hidden", !chips.length);
   box.innerHTML = chips.map(([k, label]) =>
     `<span class="chip">${label}<button data-k="${k}" title="이 조건만 해제">×</button></span>`).join("");
   box.querySelectorAll("button").forEach(b => {
     b.onclick = () => {
       const k = b.dataset.k;
+      if (k.startsWith("col:")) { setColumnFilter(k.slice(4), null); return; }
       if (k === "tab") S.tab = "ALL";
       else if (k === "onlyReview") { S.onlyReview = false; $("#only-review").checked = false; }
       else if (k === "filter") { S.filter = ""; $("#filter").value = ""; }
@@ -330,6 +352,14 @@ function syncUrl() {
     if (S[k] && S[k] !== "ALL") q.set(k, S[k]);
   }
   if (S.onlyReview) q.set("onlyReview", "1");
+  // Column filters ride in the URL like every other condition, so a shared link
+  // reproduces the grid.  Values are joined with '|' rather than ',' because a
+  // System name may contain a comma; the blank choice travels as an empty
+  // element, which survives the round trip ('|PIT' -> ['', 'PIT']).
+  for (const key of FILTER_COLS) {
+    const chosen = colChosen(key);
+    if (chosen) q.set("col." + key, chosen.map(v => v === BLANK ? "" : v).join("|"));
+  }
   const qs = q.toString();
   const next = S.job.id + (qs ? "?" + qs : "");
   if (location.hash.slice(1) !== next) history.replaceState(null, "", "#" + next);
@@ -342,6 +372,12 @@ function readUrl(query) {
     if (q.has(k)) S[k] = q.get(k);
   }
   S.onlyReview = q.get("onlyReview") === "1";
+  S.colFilters = {};
+  for (const key of FILTER_COLS) {
+    if (!q.has("col." + key)) continue;
+    const vals = q.get("col." + key).split("|").map(v => v === "" ? BLANK : v);
+    if (vals.length) S.colFilters[key] = vals;
+  }
 }
 
 /* Page origin.  MATCHED and PDF_ONLY only exist when the app was given a
@@ -562,7 +598,75 @@ function buildTabs() {
 }
 
 /* ---------------- grid ---------------- */
-function visibleRows() {
+
+/* Which columns carry a dropdown, and the fact that the grid, the sort, the
+ * filter and the value list all read a cell the same way.
+ *
+ * `pid_no` is the reason this function exists: the drawing number is not on the
+ * row and never has been - it belongs to the page - so every place that wanted
+ * it was looking it up separately, and the top search box was looking in the
+ * wrong object entirely (see `#filter` below).  One accessor, four callers, no
+ * chance of them disagreeing about what a cell says. */
+const FILTER_COLS = ["page_no", "pid_no", "type", "valve_type", "qty",
+                     "system", "vendor_supply"];
+const BLANK = "\u0000blank";        // the '(공란)' choice, kept out of value space
+
+function cellValue(row, key) {
+  if (key === "page_no") return row.page_no;
+  if (key === "origin") return row.origin;
+  if (key === "pid_no") {
+    return (S.pages.find(p => p.page_no === row.page_no) || {}).drawing_no
+      || row.drawing_no || "";
+  }
+  if (key === "remark") return remarkOf(row);
+  return row.values[key] ?? "";
+}
+
+/* The choices a column offers, taken from the data rather than written down.
+ *
+ * The list is built from the rows that pass every *other* condition, which is
+ * what a spreadsheet does: a value that would show nothing is not offered, and
+ * on the MOV tab the Valve Type list is the MOV valve types.  Blank is a choice
+ * of its own because on Vendor and Valve Type it is most of the column, and
+ * "the ones with nothing in them" is a real question about those two. */
+function columnValues(key) {
+  const seen = new Map();
+  for (const r of visibleRows(key)) {
+    const v = cellValue(r, key);
+    const k = (v === "" || v === null || v === undefined) ? BLANK : String(v);
+    seen.set(k, (seen.get(k) || 0) + 1);
+  }
+  const numeric = key === "page_no" || key === "qty";
+  return [...seen.entries()]
+    .sort((a, b) => a[0] === BLANK ? 1 : b[0] === BLANK ? -1
+      : numeric ? Number(a[0]) - Number(b[0])
+      : (a[0] > b[0] ? 1 : a[0] < b[0] ? -1 : 0));
+}
+
+function colChosen(key) {
+  return S.colFilters[key] || null;
+}
+
+function anyColFilter() {
+  return FILTER_COLS.some(k => colChosen(k));
+}
+
+function passesColumns(row, except) {
+  for (const key of FILTER_COLS) {
+    if (key === except) continue;
+    const chosen = colChosen(key);
+    if (!chosen) continue;
+    const v = cellValue(row, key);
+    const k = (v === "" || v === null || v === undefined) ? BLANK : String(v);
+    if (!chosen.includes(k)) return false;
+  }
+  return true;
+}
+
+/* `except` leaves one column's own filter out, so that column's dropdown can
+ * offer every value still reachable rather than only the ones already ticked -
+ * otherwise unticking would be the only move a filtered column ever allowed. */
+function visibleRows(except) {
   let rows = S.rows;
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
   else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
@@ -583,18 +687,33 @@ function visibleRows() {
     rows = rows.filter(r => r.values.description_grade === S.gradeFilter);
   }
   if (S.reasonFilter) rows = rows.filter(r => reasonTag(r) === S.reasonFilter);
+  // The column dropdowns AND with everything above and with each other.
+  if (anyColFilter()) rows = rows.filter(r => passesColumns(r, except));
   if (S.filter) {
+    // Searched over the cells the grid actually shows, one by one.
+    //
+    // It used to search `JSON.stringify(row.values)`, which had two faults.  The
+    // drawing number is not in `values` - it is on the page - so `필터 — 도면번호`
+    // matched nothing, ever; and stringifying an object puts the *key names* and
+    // the JSON punctuation into the haystack, so a query like `type` or `qty`
+    // matched all 826 rows.  Reading the cells removes both.
     const q = S.filter.toLowerCase();
-    rows = rows.filter(r => JSON.stringify(r.values).toLowerCase().includes(q)
-      || String(r.page_no).includes(q));
+    rows = rows.filter(r => SEARCH_COLS.some(
+      k => String(cellValue(r, k)).toLowerCase().includes(q)));
   }
   const { col, dir } = S.sort;
   return rows.slice().sort((a, b) => {
-    const av = col === "page_no" ? a.page_no : col === "origin" ? a.origin : (a.values[col] ?? "");
-    const bv = col === "page_no" ? b.page_no : col === "origin" ? b.origin : (b.values[col] ?? "");
+    const av = cellValue(a, col), bv = cellValue(b, col);
     return (av > bv ? 1 : av < bv ? -1 : 0) * dir;
   });
 }
+
+/* What the free-text box looks in.  Every column the grid renders as text, so
+ * the box is a search over what is on screen - including Description and Remark,
+ * which no dropdown can offer because their values are nearly all distinct. */
+const SEARCH_COLS = ["page_no", "pid_no", "origin", "type", "valve_type", "qty",
+                     "system", "vendor_supply", "scope", "tag_no", "description",
+                     "description_grade", "remark"];
 
 /* The review tab's own grouping: which rows still need a Description written by
  * hand, split by the reason the tool could not write one.  Clicking a group
@@ -685,6 +804,24 @@ function renderGrid() {
       S.sort = { col: key, dir: S.sort.col === key ? -S.sort.dir : 1 };
       renderGrid();
     };
+    if (FILTER_COLS.includes(key)) {
+      // The dropdown handle, and the whole of this column's filter state: a
+      // filtered column has to be recognisable from the header alone, or the
+      // grid is short and nothing on screen says why.
+      const chosen = colChosen(key);
+      const b = document.createElement("button");
+      b.className = "colf" + (chosen ? " on" : "");
+      b.dataset.col = key;
+      // Not a filled triangle: the sort indicator next to it is ▲/▼, and the two
+      // marks read as one arrow when they sit side by side on the same header.
+      b.textContent = chosen ? `▾${chosen.length}` : "▾";
+      b.title = chosen
+        ? `${label}: ${chosen.length}개 값만 표시 — 클릭해 변경`
+        : `${label} 값으로 거르기`;
+      b.onclick = (ev) => { ev.stopPropagation(); openColumnMenu(key, label, b); };
+      th.appendChild(b);
+      if (chosen) th.classList.add("filtered");
+    }
     head.appendChild(th);
   }
   const flags = document.createElement("th");
@@ -692,7 +829,11 @@ function renderGrid() {
   head.appendChild(flags);
 
   const rows = visibleRows();
-  $("#count").textContent = `${rows.length}행`;
+  // "표시 N / 전체 M" the moment anything is narrowing the grid, because a bare
+  // row count next to a filtered table reads as the size of the job.
+  $("#count").textContent = rows.length === S.rows.length
+    ? `${rows.length}행`
+    : `표시 ${rows.length} / 전체 ${S.rows.length}`;
   const body = $("#body");
   body.innerHTML = "";
   for (const r of rows) {
@@ -743,6 +884,83 @@ function renderGrid() {
     body.appendChild(tr);
   }
 }
+
+/* The dropdown itself.
+ *
+ * One panel, moved and refilled, rather than one per header: the list can run to
+ * fifty-odd drawing numbers and building seven of those on every render would be
+ * paid for on every keystroke in a cell.  Nothing is applied until 적용 is
+ * pressed, so a reviewer can tick five things without the grid rebuilding five
+ * times underneath them. */
+function openColumnMenu(key, label, button) {
+  const menu = $("#colmenu");
+  if (menu.dataset.col === key && !menu.classList.contains("hidden")) {
+    closeColumnMenu(); return;
+  }
+  const values = columnValues(key);
+  const chosen = colChosen(key);
+  const on = (v) => !chosen || chosen.includes(v);
+  menu.dataset.col = key;
+  menu.innerHTML =
+    `<div class="cm-head"><b>${escape(label)}</b>
+       <button class="ghost mini" id="cm-all">전체선택</button>
+       <button class="ghost mini" id="cm-none">해제</button></div>
+     <div class="cm-list">${values.map(([v, n]) => `
+       <label><input type="checkbox" class="cm-v"${on(v) ? " checked" : ""}>
+         <span class="cm-text">${v === BLANK ? "<i>(공란)</i>" : escape(v)}</span>
+         <span class="n">${n}</span></label>`).join("")}</div>
+     <div class="cm-foot">
+       <button class="ghost mini" id="cm-clear">이 컬럼 필터 해제</button>
+       <button id="cm-apply">적용</button></div>`;
+  const box = button.getBoundingClientRect();
+  menu.classList.remove("hidden");
+  // Placed after it is shown, so its real height is known and a dropdown near
+  // the bottom of the window opens upwards instead of off the screen.
+  const h = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(box.left, window.innerWidth - menu.offsetWidth - 4))}px`;
+  menu.style.top = `${box.bottom + h > window.innerHeight ? Math.max(4, box.top - h) : box.bottom + 2}px`;
+
+  // The value is put on the element rather than into an attribute: a System
+  // name is free text off the drawing and can hold a quote, and the blank
+  // sentinel is not a character an attribute should carry at all.
+  const boxes = () => [...menu.querySelectorAll(".cm-v")];
+  boxes().forEach((c, i) => { c._value = values[i][0]; });
+  $("#cm-all").onclick = () => boxes().forEach(c => { c.checked = true; });
+  $("#cm-none").onclick = () => boxes().forEach(c => { c.checked = false; });
+  $("#cm-clear").onclick = () => { setColumnFilter(key, null); closeColumnMenu(); };
+  $("#cm-apply").onclick = () => {
+    const picked = boxes().filter(c => c.checked).map(c => c._value);
+    // Everything ticked is not a filter, it is the absence of one - storing it
+    // would leave a chip and a header mark standing over a grid that is not
+    // being narrowed.
+    setColumnFilter(key, picked.length === boxes().length ? null : picked);
+    closeColumnMenu();
+  };
+}
+
+function closeColumnMenu() {
+  const menu = $("#colmenu");
+  menu.classList.add("hidden");
+  menu.dataset.col = "";
+  menu.innerHTML = "";
+}
+
+function setColumnFilter(key, values) {
+  if (values && values.length) S.colFilters[key] = values;
+  else delete S.colFilters[key];
+  syncUrl();
+  renderGrid();
+}
+
+document.addEventListener("mousedown", ev => {
+  const menu = $("#colmenu");
+  if (menu.classList.contains("hidden")) return;
+  if (menu.contains(ev.target) || ev.target.closest(".colf")) return;
+  closeColumnMenu();
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") closeColumnMenu();
+});
 
 async function saveEdit(row, field, td) {
   const value = td.textContent.trim();
@@ -1252,7 +1470,11 @@ function showPage(page) {
   $("#page-note").textContent = page.in_scope ? "" : `분석 제외: ${page.scope_reason}`;
   const img = $("#sheet");
   img.onload = () => {
-    fit();
+    // The magnification is the reviewer's, not the page's: moving to the next
+    // sheet keeps it, and only opening a job (which is also what re-analysis
+    // ends in) starts fitted again.  See `open()`.
+    measure();
+    if (S.zoom) applyZoom(); else fit();
     drawOverlay();
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
@@ -1260,19 +1482,87 @@ function showPage(page) {
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
 }
 
-function fit() {
+/* The sheet's own size, and the frame it is drawn into.  Split out of `fit()`
+ * because changing page has to re-measure without also throwing away the zoom
+ * the reviewer set: they are two different things and only one of them is a
+ * property of the new page. */
+function measure() {
   const img = $("#sheet");
   S.natural = { w: img.naturalWidth, h: img.naturalHeight };
   $("#wrap").style.width = `${S.natural.w}px`;
   $("#wrap").style.height = `${S.natural.h}px`;
+}
+
+function fit() {
+  measure();
   S.zoom = ($("#stage").clientWidth - 16) / S.natural.w;
   applyZoom();
 }
 function applyZoom() { $("#wrap").style.transform = `scale(${S.zoom})`; }
+
+/* The zoom step is the one the '+' / '-' buttons already used - 1.3 per click,
+ * and 1/1.3 back - so the wheel and the keys land on exactly the magnifications
+ * the buttons do.  There is no minimum or maximum in this code and none is
+ * introduced here: the buttons have never clamped, and a bound picked now would
+ * be a number with nothing behind it.  `ZOOM_STEP` exists so the four ways of
+ * zooming cannot drift apart, not to add a value. */
+const ZOOM_STEP = 1.3;
+
+/* Zoom about a point rather than about the middle.
+ *
+ * `#wrap` is scaled with `transform-origin: 0 0` inside `#stage`, which is the
+ * scroll container, so the document coordinate under the cursor is
+ * `(scroll + offset) / zoom`.  Keeping that coordinate under the same screen
+ * offset after the scale is one line of arithmetic, and it is the difference
+ * between zooming *into* a symbol and zooming into the middle of the sheet and
+ * then hunting for it again.  With no anchor given the viewport centre is used,
+ * which is what the buttons and the keyboard do.
+ */
+function zoomBy(factor, anchor) {
+  const stage = $("#stage");
+  // Nothing to zoom until the sheet has loaded and been measured.  `S.zoom` is
+  // null between opening a job and the image arriving, and multiplying that
+  // would put NaN into the transform.
+  if (!S.natural || !S.zoom) return;
+  const box = stage.getBoundingClientRect();
+  const ax = anchor ? anchor.x - box.left : stage.clientWidth / 2;
+  const ay = anchor ? anchor.y - box.top : stage.clientHeight / 2;
+  const docX = (stage.scrollLeft + ax) / S.zoom;
+  const docY = (stage.scrollTop + ay) / S.zoom;
+  S.zoom *= factor;
+  applyZoom();
+  stage.scrollLeft = docX * S.zoom - ax;
+  stage.scrollTop = docY * S.zoom - ay;
+}
+
 $(".toolbar").addEventListener("click", ev => {
   const z = ev.target.dataset.z;
   if (z === undefined) return;
-  if (z === "0") fit(); else { S.zoom *= z === "1" ? 1.3 : 1 / 1.3; applyZoom(); }
+  if (z === "0") fit(); else zoomBy(z === "1" ? ZOOM_STEP : 1 / ZOOM_STEP);
+});
+
+/* Ctrl + wheel zooms about the cursor; a bare wheel is left alone, so the sheet
+ * still scrolls the way every other scrollable thing on the page does.  The
+ * listener is not passive because the browser's own page zoom has to be
+ * prevented, and only for the modified case. */
+$req("#stage").addEventListener("wheel", ev => {
+  if (!ev.ctrlKey && !ev.metaKey) return;
+  ev.preventDefault();
+  zoomBy(ev.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, { x: ev.clientX, y: ev.clientY });
+}, { passive: false });
+
+/* Ctrl + '+' / '-' / '0', but only while the viewer holds focus.
+ *
+ * The listener sits on `#stage` (which carries `tabindex` so it can be focused)
+ * rather than on the document, so a reviewer typing in a Description cell or in
+ * the filter box keeps the browser's own zoom and its own text handling.  That
+ * is the whole reason it is not a document-level handler.
+ */
+$req("#stage").addEventListener("keydown", ev => {
+  if (!ev.ctrlKey && !ev.metaKey) return;
+  if (ev.key === "+" || ev.key === "=") { ev.preventDefault(); zoomBy(ZOOM_STEP); }
+  else if (ev.key === "-") { ev.preventDefault(); zoomBy(1 / ZOOM_STEP); }
+  else if (ev.key === "0") { ev.preventDefault(); fit(); }
 });
 
 /* ---------------- overlay ----------------
