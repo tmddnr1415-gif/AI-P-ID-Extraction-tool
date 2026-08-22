@@ -71,6 +71,40 @@ def _emit(job_id: str, payload: dict) -> None:
             q.put(payload)
 
 
+# What the screen says when an analysis fails.  Deliberately short: this list may
+# only grow from causes that were measured on a real file that failed.
+_FAILED_GENERIC = ("이 PDF 를 분석하지 못했습니다. 사유를 특정하지 못했습니다.")
+
+
+def _failure_reason(pdf: Path) -> str:
+    """A sentence built from what the file contains, not from the exception.
+
+    A message derived from the exception is the exception, reworded - which is
+    what the failure screen used to show.  So this ignores the exception entirely
+    and re-opens the PDF read-only to count two things that a person can act on:
+    how many pages it has, and whether any of them carry text at all.  When
+    neither says anything definite the generic sentence is used; a plausible
+    cause is never invented.
+    """
+    import pymupdf                      # local, like the page renderer's import
+    try:
+        doc = pymupdf.open(pdf)
+        pages = doc.page_count
+        # Twenty pages is enough to answer "does this document have text";
+        # reading all of a 58-sheet set to say so would make a failed upload slow.
+        looked = min(pages, 20)
+        words = sum(len(doc[i].get_text("words")) for i in range(looked))
+        doc.close()
+    except Exception:                                # noqa: BLE001
+        return "이 파일을 PDF 로 열지 못했습니다. 파일이 손상되었을 수 있습니다."
+    if pages == 0:
+        return "이 PDF 에는 쪽이 하나도 없습니다."
+    if words == 0:
+        return ("이 PDF 에는 읽을 수 있는 글자가 없습니다 — 스캔 이미지이거나 "
+                "빈 문서로 보입니다. 이 도구는 글자가 들어 있는 벡터 PDF 만 읽습니다.")
+    return _FAILED_GENERIC
+
+
 def _worker() -> None:
     while True:
         job_id = _JOBS.get()
@@ -94,10 +128,15 @@ def _worker() -> None:
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
                            "summary": summary})
         except Exception as exc:                     # noqa: BLE001
+            # The original goes to the log untouched, and to `error_detail` for
+            # the diagnostic export.  What reaches the screen is a sentence a
+            # person can act on - never the exception, reworded.
             traceback.print_exc()
-            db.set_progress(CON, job_id, 0.0, f"{type(exc).__name__}: {exc}", "failed")
+            detail = traceback.format_exc()
+            reason = _failure_reason(Path(row["pdf_path"]))
+            db.set_progress(CON, job_id, 0.0, reason, "failed", error_detail=detail)
             _emit(job_id, {"progress": 0.0, "status": "failed",
-                           "message": f"{type(exc).__name__}: {exc}"})
+                           "message": reason})
         finally:
             _JOBS.task_done()
 
@@ -134,9 +173,23 @@ def reanalyse(job_id: str):
     return {"job_id": job_id, "queued": True}
 
 
+def _job_public(row) -> dict:
+    """A job as the browser may see it: everything except the raw traceback.
+
+    `error_detail` stays server-side.  Not rendering it would be enough to keep it
+    off the screen, but it would still be in the response, one devtools tab away
+    from being read as the answer - and the point of the message column is that
+    the answer is the sentence, not the traceback.  It travels in the diagnostic
+    export instead, which is what a developer asks for by name.
+    """
+    out = dict(row)
+    out.pop("error_detail", None)
+    return out
+
+
 @app.get("/jobs")
 def jobs():
-    return [dict(r) for r in db.list_jobs(CON)]
+    return [_job_public(r) for r in db.list_jobs(CON)]
 
 
 @app.get("/jobs/{job_id}")
@@ -144,7 +197,7 @@ def job(job_id: str):
     row = db.get_job(CON, job_id)
     if row is None:
         raise HTTPException(404, "no such job")
-    out = dict(row)
+    out = _job_public(row)
     out["engine"] = json.loads(out.pop("engine_json") or "{}")
     out["review_count"] = db.review_count(CON, job_id)
     out["revisions"] = [dict(r) for r in db.list_revisions(CON, job_id)]
@@ -766,13 +819,23 @@ def _diagnostic_zip(job_id: str) -> dict:
         "edits.json": dump(edits),
         "feedback.json": dump({"count": len(feedback), "records": feedback}),
     }
+    # A failed analysis carries the traceback here rather than on screen.  It is
+    # the one thing a developer needs and the one thing a reviewer cannot use, so
+    # it goes in the export and not in the message.
+    detail = job["error_detail"] if "error_detail" in job.keys() else ""
+    if detail:
+        files["error.txt"] = (
+            f"status: {job['status']}\n"
+            f"shown to the user: {job['message']}\n\n{detail}")
     manifest = {
         "build": info,
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "job": {"id": job_id, "pdf_name": job["pdf_name"],
                 "pdf_sha256": job["pdf_sha256"],
                 "fingerprint": job["fingerprint"],
-                "status": job["status"]},
+                "status": job["status"],
+                "message": job["message"],
+                "error_detail_included": bool(detail)},
         "counts": {"rows": len(rows), "reports": len(reports),
                    "edits": len(edits), "feedback": len(feedback),
                    "pages": len(pages),
@@ -911,6 +974,18 @@ def _templates() -> dict:
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (STATIC / "index.html").read_text(encoding="utf-8")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """The tab icon, served locally.
+
+    `index.html` links `/static/favicon.svg`, so a browser that reads the link
+    never asks for this.  Some ask anyway - which is where the 404 in the console
+    came from - so the well-known path answers too, with the same file.  Nothing
+    is fetched from anywhere: this build has to run with no network at all.
+    """
+    return FileResponse(STATIC / "favicon.svg", media_type="image/svg+xml")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

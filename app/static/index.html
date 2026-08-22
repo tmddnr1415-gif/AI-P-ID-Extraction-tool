@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>P&amp;ID 계기·밸브 리스트 추출</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -23,6 +24,14 @@
     <h2 id="prog-title">분석 중</h2>
     <div class="bar"><div id="bar-fill"></div></div>
     <p id="prog-msg" class="muted"></p>
+    <!-- Shown only when an analysis fails.  Without these the failure screen has
+         no way out at all: #drop and #main are both hidden, so the only route
+         back was editing the URL by hand. -->
+    <p id="prog-hint" class="muted hidden"></p>
+    <div id="prog-actions" class="prog-actions hidden">
+      <button id="prog-home">첫 화면으로</button>
+    </div>
+    <div id="prog-jobs" class="joblist hidden"></div>
   </div>
 </div>
 

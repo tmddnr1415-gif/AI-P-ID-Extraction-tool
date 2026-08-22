@@ -33,6 +33,9 @@ body {
 .progress-inner { width: min(560px, 80vw); }
 .bar { height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; }
 #bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+/* The failure screen's way out.  Placement only - what these look like is the
+   next round's question. */
+.prog-actions { margin-top: 12px; }
 
 /* ---------- shell ---------- */
 main { height: 100%; display: flex; flex-direction: column; }
@@ -192,7 +195,10 @@ td[contenteditable]:focus { background: #4c8dff22; }
   flex: none; height: 232px; overflow: auto; border-top: 1px solid var(--line);
   padding: 10px 12px; background: var(--panel);
 }
-.evidence h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+/* Title and its 신고 button are siblings, not one string.  The row carries the
+   margin the h3 used to have, so the spacing below the title is unchanged. */
+.ev-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+.evidence h3 { margin: 0; font-size: 12px; text-transform: uppercase;
   letter-spacing: .08em; color: var(--muted); }
 .evidence dl { display: grid; grid-template-columns: 128px 1fr; gap: 3px 12px; margin: 0; }
 .evidence dt { color: var(--muted); }

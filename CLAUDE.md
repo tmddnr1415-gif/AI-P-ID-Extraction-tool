@@ -23,8 +23,9 @@
 | 액추에이터 | MOTOR 102 / PNEUMATIC 58 / HYDRAULIC 4 / **UNREAD 0** |
 | 글리프 문자 | H 4 / M 32 |
 | 행 수 | **824** (FIELD 680 / MOV 76 / PNEUMATIC 45 / BFV 23) — LS 묶음 합산 후 |
+| **정확도 (교집합 도면 · 취소선 제외 · 항목 단위)** | **재현율 99.2% / 정밀도 84.1%** (사람 599 / 프로그램 706 / TP 594) |
 | 분석 시간 | 58장 약 3분 40초 |
-| 테스트 | 빠른 53 · UI 11 · slow 9 (전부 통과) |
+| 테스트 | 빠른 71 · UI 20 · slow 10 (전부 통과) |
 | LS 다중 신호 | 34묶음 102버블 → **34행** (물리 1개). 발주처 LS 22행은 맞닿지 않아 **영향 0** |
 | `fingerprint` | **a38fe8ac** (이번 회차에도 움직이지 않았습니다 — 지문은 검출·수량·스코프의 해시이고, 이번 변경은 Description 두 행과 화면·패키징입니다) |
 
@@ -50,6 +51,19 @@
 
 `fingerprint` 는 엔진 판정 전체의 해시입니다. 검출을 바꾸지 않았는데 바뀌면 원인을
 반드시 규명하세요 (보통 `needs_review` 문구나 `legend` 기록이 늘어난 경우입니다).
+
+**정확도는 다시 잴 수 있어야 회귀 항목입니다.** 표에 적어만 두면 UI 를 고치다
+파이프라인이 흔들려도 알아차리지 못합니다. 절차는 `spike/accuracy.py` 에 있습니다:
+
+```bash
+python3 spike/accuracy.py                 # 파이프라인을 직접 돌려서
+python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
+```
+
+모수는 교집합 도면 · 취소선 제외 · P&ID No. 가 빈 행 제외이고, 일치 수는 칸마다
+`min(사람, 프로그램)` 입니다 — 발주처 리스트에 좌표가 없고 우리 행에 발주처 NO 가
+없어 **1:1 대응이 성립하지 않기 때문**입니다. `data/*.xlsx` 가 없는 기계에서는
+그렇게 말하고 멈춥니다.
 
 ## 2. 진행 원칙 — 어기면 되돌려야 합니다
 
@@ -461,7 +475,11 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `config` `multi_signal_bundle.description_signal` | 접힌 LS 행의 문형 (`representative` / `all` / `none`). 발주처 표기는 `representative` 뿐 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |
-| `app/paths.py` | 읽는 뿌리(번들 안, 종료 시 삭제)와 쓰는 뿌리(exe 옆 `pid_data/`)를 가릅니다. 섞으면 결과가 사라집니다 |
+| `app/paths.py` | 읽는 뿌리(번들 안, 종료 시 삭제)와 쓰는 뿌리(exe 옆 `pid_data/`)를 가릅니다. 섞으면 결과가 사라집니다. `PID_DATA_DIR` 로 쓰는 뿌리를 덮어쓸 수 있고, UI 테스트가 그것으로 사본에서 돕니다 |
+| `app/main.py` 의 `_failure_reason` | 분석 실패 때 **화면에 갈 문장**. 예외를 보지 않고 PDF 를 다시 열어 쪽 수와 글자 수만 셉니다 — 예외를 바꿔 쓴 문장은 예외이기 때문입니다. 특정 못 하면 일반 문구 |
+| `job.error_detail` 열 · 진단 zip 의 `error.txt` | 예외 원문이 사는 곳. 화면에도 `/jobs` 응답에도 나가지 않습니다 (`_job_public`) |
+| `app/static/app.js` 의 `showFailure`·`toFirstScreen` | 실패 화면의 사유·다음 행동·첫 화면 버튼·이전 분석 목록. 이것이 없으면 `#drop` 도 `#main` 도 숨겨져 나갈 길이 URL 편집뿐입니다 |
+| `spike/accuracy.py` · `spike/client_lists.py` | 정확도 회귀를 다시 재는 절차. 발주처 자료가 있는 기계에서만 돕니다 |
 | `app/version.py` · `app/_build.json` | 버전은 손으로, 빌드일은 `build.bat` 이 새깁니다. 커밋하지 않습니다 |
 | `app/desktop.py` | exe 진입점. 빈 포트 선택 · 브라우저 열기 · **오류 시 창을 붙잡고 사유 출력** |
 | `pid_extract.spec` · `build.bat` | 무엇을 넣고 무엇을 뺐는지가 주석에 있습니다 (`data/` 는 절대 안 들어감) |

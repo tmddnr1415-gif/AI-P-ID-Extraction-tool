@@ -113,6 +113,12 @@ listJobs();
 function watch(jobId) {
   drop.classList.add("hidden");
   $("#progress").classList.remove("hidden");
+  // A previous failure leaves its hint, buttons and job list on this panel; a new
+  // analysis has to start from a clean one or the reviewer reads last time's exit
+  // routes over this run's progress bar.
+  $("#prog-title").textContent = "분석 중";
+  ["#prog-hint", "#prog-actions", "#prog-jobs"].forEach(
+    sel => $(sel).classList.add("hidden"));
   const src = new EventSource(`/jobs/${jobId}/events`);
   src.onmessage = (ev) => {
     const d = JSON.parse(ev.data);
@@ -121,11 +127,55 @@ function watch(jobId) {
     if (d.status === "done") { src.close(); open(jobId); }
     if (d.status === "failed") {
       src.close();
-      $("#prog-title").textContent = "분석 실패";
-      $("#prog-msg").textContent = d.message;
+      showFailure(d.message);
     }
   };
 }
+
+/* A failed analysis used to leave the reviewer with nothing: #drop and #main are
+ * both hidden while #progress is up, so the screen had a title, a numpy exception
+ * and no control of any kind.  The only way out was editing the URL.
+ *
+ * `message` is now a sentence the server built from what the file contains - the
+ * traceback is in the log and the diagnostic export, not here. */
+async function showFailure(message) {
+  $("#bar-fill").style.width = "0%";
+  $("#prog-title").textContent = "분석 실패";
+  $("#prog-msg").textContent = message || "사유를 특정하지 못했습니다.";
+  const hint = $("#prog-hint");
+  hint.textContent = "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.";
+  hint.classList.remove("hidden");
+  $("#prog-actions").classList.remove("hidden");
+  // The previous analyses, listed here rather than only on the first screen, so
+  // getting back to work does not need a second navigation.
+  const box = $("#prog-jobs");
+  try {
+    const jobs = await (await fetch("/jobs")).json();
+    const others = jobs.filter(j => j.status === "done");
+    box.innerHTML = others.length
+      ? "<p class='muted'>이전 분석</p>" + others.map(j =>
+          `<a href="#${j.id}">${escape(j.pdf_name)} `
+          + `<span class="muted">${escape(j.status)}</span></a>`).join("")
+      : "<p class='muted'>이전 분석이 없습니다.</p>";
+    box.classList.remove("hidden");
+  } catch (e) {
+    box.classList.add("hidden");
+  }
+}
+
+function toFirstScreen() {
+  $("#progress").classList.add("hidden");
+  $("#prog-hint").classList.add("hidden");
+  $("#prog-actions").classList.add("hidden");
+  $("#prog-jobs").classList.add("hidden");
+  $("#main").classList.add("hidden");
+  $("#drop").classList.remove("hidden");
+  $("#prog-title").textContent = "분석 중";
+  $("#prog-msg").textContent = "";
+  if (location.hash) history.replaceState(null, "", location.pathname);
+  listJobs();
+}
+$req("#prog-home").addEventListener("click", toFirstScreen);
 
 function hashParts() {
   const raw = location.hash.slice(1);
@@ -1357,11 +1407,16 @@ function showEvidence(row) {
     add("사람이 고친 값", Object.entries(row.user)
       .map(([f, v]) => `${f} = ${v}`).join(" | "));
   }
+  // The button used to sit *inside* the h3, so the heading read
+  // "판정 근거 — LS (p7)신고" - one string, no separator, and a screen reader
+  // announcing the button as part of the title.  It is a sibling now; the row
+  // that holds them carries the margin the h3 used to have.
   $("#evidence").innerHTML =
-    `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
-    + `(p${row.page_no})`
+    `<div class="ev-head">`
+    + `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
+    + `(p${row.page_no})</h3>`
     + `<button id="ev-report" class="mini-rep" title="이 판정이 틀렸다고 신고합니다">신고</button>`
-    + `</h3>`
+    + `</div>`
     + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"

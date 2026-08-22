@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS job (
     progress     REAL NOT NULL DEFAULT 0,
     message      TEXT NOT NULL DEFAULT '',
     fingerprint  TEXT NOT NULL DEFAULT '',
-    engine_json  TEXT NOT NULL DEFAULT '{}'   -- multipliers, legend, glyphs
+    engine_json  TEXT NOT NULL DEFAULT '{}',  -- multipliers, legend, glyphs
+    error_detail TEXT NOT NULL DEFAULT ''     -- the traceback, for the log and
+                                              -- the diagnostic export only
 );
 
 CREATE TABLE IF NOT EXISTS pid_page (
@@ -160,12 +162,26 @@ EDITABLE = ("type", "qty", "system", "valve_type", "vendor_supply", "scope",
             "description", "tag_no", "description_grade", "remark")
 
 
+# Columns added after a database already existed in the field.  `CREATE TABLE IF
+# NOT EXISTS` leaves an existing table exactly as it is, so these have to be added
+# by hand.  Additive only: nothing here drops, renames or retypes a column, so an
+# older build reading a newer file still finds everything it knew about.
+_ADDED_COLUMNS = (
+    ("job", "error_detail", "TEXT NOT NULL DEFAULT ''"),
+)
+
+
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(path, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
+    for table, column, decl in _ADDED_COLUMNS:
+        have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    con.commit()
     return con
 
 
@@ -182,9 +198,19 @@ def create_job(con, job_id: str, pdf_name: str, pdf_sha: str, pdf_path: Path):
 
 
 def set_progress(con, job_id: str, progress: float, message: str,
-                 status: str = "running"):
+                 status: str = "running", error_detail: str = None):
+    """`message` is what a person reads.  `error_detail` is the raw text.
+
+    They are separate columns because they have different audiences: the message
+    goes on screen, the detail goes to the log and the diagnostic export.  Putting
+    a traceback in `message` is what the failure screen used to show, and it told
+    the reviewer nothing they could act on.
+    """
     con.execute("UPDATE job SET progress=?, message=?, status=? WHERE id=?",
                 (progress, message, status, job_id))
+    if error_detail is not None:
+        con.execute("UPDATE job SET error_detail=? WHERE id=?",
+                    (error_detail, job_id))
     con.commit()
 
 

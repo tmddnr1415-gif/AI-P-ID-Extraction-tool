@@ -10,7 +10,11 @@ Each of the seven steps asserts separately and names itself in the failure, so a
 red run says which interaction broke rather than "the UI is wrong".
 
 Run with `pytest -q -m ui`.  Needs a server; it starts its own on a free port
-and reuses `app/_data/app.db`, so it does not re-analyse.
+and drives it against a *copy* of `app/_data/app.db`, so it does not re-analyse
+and does not write to the database the deliverables are built from.  The copy is
+made per session, pointed at with `PID_DATA_DIR`, and deleted afterwards;
+`test_zzz_the_suite_left_the_real_database_alone` checks the original came
+through byte for byte.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -58,17 +63,46 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="module")
-def server():
-    """A server on its own port, reusing whatever is already analysed."""
-    db = ROOT / "app" / "_data" / "app.db"
-    if not db.exists():
+REAL_DB = ROOT / "app" / "_data" / "app.db"
+
+
+def _sha(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else ""
+
+
+@pytest.fixture(scope="session")
+def real_db_before():
+    """The untouched database's digest, taken before anything starts."""
+    if not REAL_DB.exists():
         pytest.skip("no analysis in app/_data/app.db; run ./run.sh and upload a PDF")
+    return _sha(REAL_DB)
+
+
+@pytest.fixture(scope="session")
+def data_root(real_db_before, tmp_path_factory):
+    """A throwaway writing root holding a copy of the analysis.
+
+    Only `app.db` is copied.  The uploaded PDF is not: the job row stores its
+    absolute path, so the server opens the original where it already is, and
+    opening a file to render a page does not change it.  Everything the run
+    *writes* - exports, diagnostics, revisions - lands in here and goes away.
+    """
+    root = tmp_path_factory.mktemp("pid_data")
+    shutil.copyfile(REAL_DB, root / "app.db")
+    yield root
+    shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def server(data_root):
+    """A server on its own port, driven against the copy."""
     port = _free_port()
+    env = dict(os.environ, PID_DATA_DIR=str(data_root))
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app",
          "--host", "127.0.0.1", "--port", str(port)],
-        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     base = f"http://127.0.0.1:{port}"
     import urllib.request
     for _ in range(120):
@@ -893,3 +927,30 @@ def test_step18_the_search_box_looks_in_the_columns_it_names(page, server, job_i
         assert page.eval_on_selector_all("#body tr", "e => e.length") < total, \
             f"the column name {name!r} still matches every row"
     page.fill("#filter", "")
+
+
+def test_zzz_the_suite_left_the_real_database_alone(real_db_before, data_root):
+    """The steps above ran against a copy; the real database must be untouched.
+
+    This is the check the round asked for, and it is placed last on purpose - the
+    name sorts after every step so it sees the whole suite's damage, if any.  It
+    compares bytes rather than row counts because the failure this guards against
+    is not "a row appeared" but "anything at all was written": a revision
+    snapshot, a feedback entry, a review mark, a `user_json` update.
+
+    Until the copy existed, a single `-m ui` run left six overwritten cells, one
+    hand-added row and two snapshots in the file the deliverables are built from,
+    and nothing in the repository showed it - `app/_data/` is gitignored, so
+    `git status` stayed clean the whole time.
+    """
+    assert _sha(REAL_DB) == real_db_before, (
+        "app/_data/app.db changed while the UI suite ran; the server was not "
+        "pointed at the copy")
+    copy = data_root / "app.db"
+    assert copy.exists(), "the copy the server ran against is missing"
+    assert copy.resolve() != REAL_DB.resolve(), "the copy is the original"
+    # And the copy did change - otherwise the suite proved nothing, because a
+    # server that never wrote anywhere would also leave the original alone.
+    assert _sha(copy) != real_db_before, (
+        "the copy is byte-identical to the original: the steps above wrote "
+        "nothing, so this test cannot tell isolation from inactivity")
