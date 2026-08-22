@@ -71,6 +71,9 @@ const S = {
   // already had.  All of them ride in the URL so a reload or a shared link
   // lands on the same view.
   axis: "", code: "", drawing: "", onlyReview: false, review: null,
+  // 프로젝트와 리비전.  `rev` 는 이 분석의 대조 결과 요약이다.
+  project: "", projects: [], rev: null, onlyChanged: false,
+  deletedRows: [], revByKey: {},
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
@@ -94,11 +97,98 @@ $("#file").addEventListener("change", ev => {
 async function upload(file) {
   const fd = new FormData();
   fd.append("pdf", file);
+  // 프로젝트를 고른 경우에만 실린다.  안 고르면 예전과 같은 한 번짜리 분석.
+  if (S.project) {
+    fd.append("project", S.project);
+    fd.append("compared_with", $("#rev-base").value || "");
+  }
   const r = await fetch("/jobs", { method: "POST", body: fd });
   if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
   const { job_id } = await r.json();
   watch(job_id);
 }
+
+/* ---------------- projects and revisions ----------------
+ *
+ * 투입 순서는 프로젝트 -> 리비전 -> PDF 다.  Rev.A 는 이름을 새로 적어 만들고,
+ * 그 뒤로는 목록에서 고른다.  비교 대상 기본값은 직전 리비전이고, Rev.C 부터는
+ * 그 이전 아무 리비전이나 고를 수 있다.  직전이 없으면 비교 없이 진행하고
+ * 그 사실을 화면에 적는다. */
+async function loadProjects(select) {
+  const list = await (await fetch("/projects")).json();
+  S.projects = list;
+  const pick = $("#proj-pick");
+  pick.innerHTML = '<option value="">(프로젝트 없이 한 번만 분석)</option>'
+    + list.map(p => `<option value="${escape(p.name)}">${escape(p.name)}`
+      + ` — 다음 ${escape(nextRev(p))}</option>`).join("");
+  if (select) pick.value = select;
+  chooseProject(pick.value);
+}
+
+function nextRev(p) {
+  const n = (p.revisions || []).length;
+  return "Rev." + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.min(n, 25)];
+}
+
+function chooseProject(name) {
+  S.project = name || "";
+  const p = S.projects.find(x => x.name === name);
+  const box = $("#proj-rev");
+  const base = $("#rev-base");
+  if (!p) {
+    box.classList.add("hidden");
+    $("#proj-msg").textContent = "";
+    return;
+  }
+  const revs = (p.revisions || []).map(r => r.revision);
+  const next = nextRev(p);
+  box.classList.remove("hidden");
+  base.innerHTML = revs.length
+    ? revs.slice().reverse().map(r => `<option value="${escape(r)}">${escape(r)}</option>`).join("")
+    : '<option value="">(비교 대상 없음)</option>';
+  base.disabled = revs.length < 2;          // Rev.B 는 선택지가 하나뿐이다
+  base.value = revs.length ? revs[revs.length - 1] : "";
+  $("#rev-note").textContent = revs.length
+    ? (revs.length === 1 ? "직전 리비전 하나뿐입니다" : "기본값은 직전 리비전입니다")
+    : "이 프로젝트의 첫 리비전입니다 — 비교하지 않고 진행합니다";
+  $("#proj-msg").textContent =
+    `이 PDF 는 ${p.name} 의 ${next} 가 됩니다.`;
+}
+
+$req("#proj-pick").addEventListener("change", ev => chooseProject(ev.target.value));
+$req("#proj-new-btn").addEventListener("click", () => {
+  $("#proj-new").classList.remove("hidden");
+  $("#proj-name").focus();
+});
+$req("#proj-cancel").addEventListener("click", () => {
+  $("#proj-new").classList.add("hidden");
+  $("#proj-msg").textContent = "";
+});
+$req("#proj-save").addEventListener("click", async () => {
+  const name = $("#proj-name").value.trim();
+  if (!name) { $("#proj-msg").textContent = "이름을 입력하세요."; return; }
+  const fd = new FormData();
+  fd.append("name", name);
+  const r = await fetch("/projects", { method: "POST", body: fd });
+  const out = await r.json();
+  if (!r.ok) {
+    // 같은 이름이 있으면 덮어쓰지 않는다 - 서버가 거절하고 그 사유를 적는다.
+    $("#proj-msg").textContent = out.detail || "프로젝트를 만들지 못했습니다.";
+    return;
+  }
+  $("#proj-new").classList.add("hidden");
+  $("#proj-name").value = "";
+  await loadProjects(out.name);
+});
+
+async function showAudit() {
+  try {
+    const a = await (await fetch("/audit")).json();
+    $("#audit-line").textContent = a.lines.join("  ·  ");
+  } catch (e) { /* 감사는 부가 정보다 - 실패해도 화면을 막지 않는다 */ }
+}
+loadProjects();
+showAudit();
 
 async function listJobs() {
   const jobs = await (await fetch("/jobs")).json();
@@ -209,6 +299,12 @@ async function open(jobId) {
   if (job.status !== "done") { watch(jobId); return; }
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
+  // 개정 스위치는 그 분석의 것이다.  다른 분석으로 넘어갈 때 남아 있으면
+  // 바뀐 행이 없는 리비전에서 화면이 텅 빈 채로 열린다.
+  S.onlyChanged = false;
+  S.deletedRows = [];
+  S.revByKey = {};
+  const oc = $("#only-changed"); if (oc) oc.checked = false;
 
   readUrl(hashParts()[1]);
   if (location.hash.slice(1).split("?")[0] !== jobId) location.hash = jobId;
@@ -217,13 +313,114 @@ async function open(jobId) {
   $("#main").classList.remove("hidden");
   $("#job-name").textContent = job.pdf_name;
   S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
+  await loadRevision();
   await loadRows();
   buildPageSelect();
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
 }
 
+/* 이 분석이 어느 리비전이고 무엇과 비교했는지.  머리에 "Rev.C vs Rev.A" 로
+ * 적는다 - 결과만 보고 무엇과 비교했는지 알 수 없으면 안 된다. */
+async function loadRevision() {
+  try {
+    S.rev = await (await fetch(`/jobs/${S.job.id}/revision`)).json();
+  } catch (e) { S.rev = null; }
+  const el = $("#rev-label");
+  if (!S.rev || !S.rev.revision) { el.classList.add("hidden"); return; }
+  const c = S.rev.counts || {};
+  const bits = [];
+  if (c.ADDED) bits.push(`추가 ${c.ADDED}`);
+  if (c.MODIFIED) bits.push(`수정 ${c.MODIFIED}`);
+  if (c.DELETED_CANDIDATE) bits.push(`삭제 후보 ${c.DELETED_CANDIDATE}`);
+  if (c.DELETED) bits.push(`삭제 확정 ${c.DELETED}`);
+  el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
+  el.classList.remove("hidden");
+  // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
+  const w = $("#only-changed-wrap");
+  if (w) w.classList.toggle("hidden", !S.rev.compared_with);
+  renderDeletedCandidates();
+}
+
+/* 삭제 후보 한 건의 근거.  좌표 · 반경 · 가장 가까웠던 후보까지 거리 셋이
+ * 있어야 "도면에서 지워졌다" 와 "이번에 못 뽑았다" 를 사람이 가를 수 있다. */
+function showDeletedEvidence(d) {
+  // 근거 셋을 맨 위에 둔다.  패널이 232px 이라 아래로 밀리면 스크롤해야 보이고,
+  // 정작 판단에 쓰는 값이 그 셋이다.
+  const rows = [
+    ["상태", d.confirmed ? "삭제 확정 — 산출물에 취소선으로 나갑니다"
+      : "삭제 후보 — 확정 전에는 산출물에 나가지 않습니다"],
+    ["직전 리비전 좌표", `(${d.anchor.join(", ")})`],
+    ["매칭 반경", `${d.radius}pt — ${d.radius_source === "DRAWING_BUBBLE"
+      ? "이 도면 버블 긴변" : d.radius_source}`],
+    ["가장 가까웠던 같은 TYPE 후보",
+     d.nearest_distance === null ? "그 도면에 같은 TYPE 이 하나도 없음"
+       : `${d.nearest_distance}pt 떨어져 있었습니다`],
+    ["안정 ID", `${d.id} · ${d.type || "TYPE 없음"} · ${d.drawing_no} (p${d.page_no})`],
+    ["직전 Description", d.description || "(없음)"],
+  ];
+  $("#evidence").innerHTML =
+    `<div class="ev-head"><h3>삭제 후보 — ${escape(d.id)}</h3></div>`
+    + `<p class="muted">이번 분석에서 짝을 찾지 못했습니다. 도면에서 지워진 것인지,`
+    + ` 이번에 못 뽑은 것인지는 기계가 가르지 못합니다 — 아래 근거를 보고`
+    + ` 확정하세요.</p>`
+    + "<dl>" + rows.map(([k, v]) =>
+      `<dt>${escape(k)}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>";
+}
+
+function renderDeletedCandidates() {
+  // 삭제 후보는 그리드 행으로 서고 근거는 근거 패널이 보인다.  별도 패널을 두면
+  // 같은 것을 두 번 그리면서 그리드 높이를 149px 까지 밀어낸다 - 실측하고 뺐다.
+  const box = $("#del-cands");
+  if (!box) return;
+  box.classList.add("hidden");
+  box.innerHTML = "";
+  return;
+  const list = ((S.rev || {}).deleted_candidates) || [];
+  if (!list.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `<h3>삭제 후보 ${list.filter(d => !d.confirmed).length}`
+    + ` / 확정 ${list.filter(d => d.confirmed).length}</h3>`
+    + `<p class="muted">직전 리비전에 있던 항목이 이번 분석에서 짝을 찾지 못했습니다.`
+    + ` 도면에서 지워진 것인지, 이번에 못 뽑은 것인지는 사람이 확인해야 합니다.</p>`
+    + list.map(d => `<div class="del-cand${d.confirmed ? " done" : ""}">`
+      + `<b>${escape(d.id)}</b> <span class="muted">${escape(d.type || "")}`
+      + ` · p${d.page_no || "?"} · ${escape(d.drawing_no || "")}</span>`
+      + `<div class="muted">${escape(d.description || "(설명 없음)")}</div>`
+      + `<div class="muted">근거 — Rev 좌표 (${d.anchor.join(", ")})`
+      + ` · 매칭 반경 ${d.radius}pt (${escape(d.radius_source)})`
+      + ` · 가장 가까웠던 후보 ${d.nearest_distance === null ? "없음"
+          : d.nearest_distance + "pt"}</div>`
+      + `<button data-id="${escape(d.id)}" data-on="${d.confirmed ? 0 : 1}">`
+      + `${d.confirmed ? "확정 취소" : "삭제로 확정"}</button></div>`).join("");
+  box.querySelectorAll("button").forEach(b => b.addEventListener("click", async () => {
+    await fetch(`/jobs/${S.job.id}/deleted/${encodeURIComponent(b.dataset.id)}`
+      + `/confirm?confirmed=${b.dataset.on === "1"}`, { method: "POST" });
+    await loadRevision();
+  }));
+}
+
 async function loadRows() {
   S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
+  // 오버레이가 행 상태를 키로 찾을 수 있게.  도면에는 추가·수정만 그린다 -
+  // 삭제된 것은 이번 도면에 심볼이 없어 그릴 좌표가 없다.
+  S.revByKey = {};
+  for (const r of S.rows) {
+    const st = (r.rev || {}).state;
+    if (st === "ADDED" || st === "MODIFIED") S.revByKey[r.key] = st;
+  }
+  // 삭제 후보도 리스트에 세운다 - 세 상태가 한 화면에 보여야 한다.  도면에는
+  // 그리지 않는다: 이번 리비전에 그 심볼이 없으므로 그릴 좌표가 없다.
+  S.deletedRows = ((S.rev || {}).deleted_candidates || []).map(d => ({
+    key: `del:${d.id}`, tab: d.tab || "FIELD", page_no: d.page_no || 0,
+    drawing_no: d.drawing_no || "", origin: "", rect: [],
+    values: { ...(d.values || {}), type: d.type || "",
+              description: d.description || "" },
+    ai: {}, user: {}, evidence: {}, needs_review: "", annotation: "",
+    conflict: {}, deleted: true, added: false, removed: false,
+    review_codes: [], review_state: {},
+    rev: { id: d.id, state: d.confirmed ? "DELETED" : "DELETED_CANDIDATE" },
+    delCand: d,
+  }));
   S.counts = { ALL: S.rows.length, REVIEW: 0 };
   S.originCounts = {};
   for (const r of S.rows) {
@@ -245,6 +442,10 @@ async function loadRows() {
   renderGrid();
 }
 
+$("#only-changed").onchange = (e) => {
+  S.onlyChanged = e.target.checked;
+  renderGrid();
+};
 $("#only-review").onchange = (e) => {
   S.onlyReview = e.target.checked;
   syncUrl(); renderGrid();
@@ -717,7 +918,10 @@ function passesColumns(row, except) {
  * offer every value still reachable rather than only the ones already ticked -
  * otherwise unticking would be the only move a filtered column ever allowed. */
 function visibleRows(except) {
-  let rows = S.rows;
+  // 삭제 후보는 그 리비전에만 있는 행이므로 본 목록 뒤에 붙인다.  본 목록의
+  // 개수(S.rows.length)는 그대로 두어야 "824행" 이 흔들리지 않는다.
+  let rows = S.deletedRows && S.deletedRows.length
+    ? S.rows.concat(S.deletedRows) : S.rows;
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
   else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
   if (S.originFilter) rows = rows.filter(r => r.origin === S.originFilter);
@@ -729,6 +933,10 @@ function visibleRows(except) {
   if (S.code) rows = rows.filter(r => rowCodes(r).includes(S.code));
   else if (S.axis) rows = rows.filter(r => rowCodes(r).some(c => codeAxis(c) === S.axis));
   if (S.onlyReview) rows = rows.filter(r => openCodes(r, states).length);
+  if (S.onlyChanged) {
+    rows = rows.filter(r => ["ADDED", "MODIFIED", "DELETED_CANDIDATE", "DELETED"]
+      .includes((r.rev || {}).state));
+  }
   // These used to be limited to 검토필요, because applied elsewhere they hid rows
   // with nothing on screen to say why.  Now every condition in force is a chip
   // above the grid, so the reason is always visible and the filter can work on
@@ -881,9 +1089,11 @@ function renderGrid() {
   const rows = visibleRows();
   // "표시 N / 전체 M" the moment anything is narrowing the grid, because a bare
   // row count next to a filtered table reads as the size of the job.
-  $("#count").textContent = rows.length === S.rows.length
-    ? `${rows.length}행`
-    : `표시 ${rows.length} / 전체 ${S.rows.length}`;
+  const nDel = (S.deletedRows || []).length;
+  const tail = nDel ? ` (+ 삭제 후보 ${nDel})` : "";
+  $("#count").textContent = (rows.length === S.rows.length + nDel
+    ? `${S.rows.length}행`
+    : `표시 ${rows.length} / 전체 ${S.rows.length}`) + tail;
   const body = $("#body");
   body.innerHTML = "";
   for (const r of rows) {
@@ -892,6 +1102,15 @@ function renderGrid() {
     if (r.added) tr.dataset.added = "1";
     if (r.deleted || r.removed) tr.classList.add("deleted");
     if (r.added) tr.classList.add("added");
+    // 개정 상태.  BASELINE(Rev.A) 과 UNCHANGED 는 아무 표기도 붙이지 않는다.
+    const st = (r.rev || {}).state;
+    if (st === "ADDED" || st === "MODIFIED") {
+      tr.classList.add(st === "ADDED" ? "rev-added" : "rev-modified");
+      tr.dataset.rev = st;
+    } else if (st === "DELETED_CANDIDATE" || st === "DELETED") {
+      tr.classList.add("rev-deleted");
+      tr.dataset.rev = st;
+    }
     if (S.sel === r.key) tr.classList.add("sel");
     for (const [key, , editable] of cols) {
       const td = document.createElement("td");
@@ -917,6 +1136,25 @@ function renderGrid() {
     if (r.needs_review) f.innerHTML += '<span class="flag bad" title="검토 필요">●</span>';
     if (r.annotation) f.innerHTML += '<span class="flag" title="도면에 검토 주석">▲</span>';
     if (r.added) f.innerHTML += '<span class="flag ok" title="검토자 추가 행">＋</span>';
+    // 삭제 후보는 확정 버튼을 달고 나온다.  자동으로 굳지 않는다.
+    if (r.delCand) {
+      const b = document.createElement("button");
+      b.className = "mini-rep del-confirm";
+      b.textContent = r.delCand.confirmed ? "확정 취소" : "삭제 확정";
+      b.title = `Rev 좌표 (${r.delCand.anchor.join(", ")}) · 반경 `
+        + `${r.delCand.radius}pt (${r.delCand.radius_source}) · 가장 가까웠던 후보 `
+        + (r.delCand.nearest_distance === null ? "없음"
+           : r.delCand.nearest_distance + "pt");
+      b.onclick = async (ev) => {
+        ev.stopPropagation();
+        await fetch(`/jobs/${S.job.id}/deleted/`
+          + `${encodeURIComponent(r.delCand.id)}/confirm`
+          + `?confirmed=${!r.delCand.confirmed}`, { method: "POST" });
+        await loadRevision();
+        await loadRows();
+      };
+      f.appendChild(b);
+    }
     if (r.removed) f.innerHTML += '<span class="flag" title="검토자 삭제 — 출력 제외">✕</span>';
     // One click from any row to a report, because a reviewer notices the error
     // while looking at the grid and will not go hunting for a menu.
@@ -1107,7 +1345,10 @@ const SYMBOL_ZOOM = 2.2;      // enough to read a 22pt bubble on a 2384pt sheet
 
 function select(key, fromGrid, item) {
   S.sel = key;
-  const row = S.rows.find(r => r.key === key);
+  // 삭제 후보는 `S.rows` 가 아니라 `S.deletedRows` 에 산다 (이번 리비전에 그
+  // 심볼이 없으므로 검출 행이 아니다).  둘 다 봐야 근거 패널이 열린다.
+  const row = S.rows.find(r => r.key === key)
+    || (S.deletedRows || []).find(r => r.key === key);
   if (fromGrid && row && (!S.page || S.page.page_no !== row.page_no)) {
     // The page render is async; centre once the overlay for it exists.
     S.pending = key;
@@ -1277,6 +1518,10 @@ function bindAxisActions(row) {
 }
 
 function showEvidence(row) {
+  // 삭제 후보는 이번 리비전에 심볼이 없는 행이다.  근거 패널이 보여야 하는 것은
+  // 검출 근거가 아니라 **왜 짝을 못 찾았는가** 이고, 그것이 사람이 '검출 실패'
+  // 와 '실제 삭제' 를 가르는 재료다.
+  if (row.delCand) { showDeletedEvidence(row.delCand); return; }
   const e = row.evidence || {};
   const pairs = [];
   const add = (k, v) => { if (v !== undefined && v !== null && v !== "") pairs.push([k, v]); };
@@ -1704,9 +1949,14 @@ function drawOverlay() {
     r.setAttribute("y", y0 * scale);
     r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
     r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
+    // 개정 표기는 scope 색을 덮어쓰지 않는다.  두 축이 같은 테두리를 두고
+    // 다투면 어느 쪽도 못 읽으므로, scope 는 색을 그대로 쓰고 개정은 **형태**로
+    // 말한다 - 굵은 테두리 + 점선.  색만으로 구분하지 않는 이유이기도 하다.
+    const rev = (S.revByKey || {})[it.key];
     r.setAttribute("class", "det"
       + (it.kind === "VALVE" ? " valve" : "")
       + (it.row === false ? " excluded" : "")
+      + (rev === "ADDED" ? " rev-added" : rev === "MODIFIED" ? " rev-modified" : "")
       + (S.sel === it.key ? " sel" : ""));
     r.setAttribute("stroke", S.byTab
       ? (COLOR[it.tab] || "#8e8e93")

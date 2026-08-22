@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import db, excel_out, paths, pipeline, version   # noqa: E402
+from app import audit, db, excel_out, paths, pipeline, revisions, version  # noqa: E402
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -125,6 +125,13 @@ def _worker() -> None:
                                       reference=VERIFY_AGAINST)
             result["fingerprint"] = pipeline.fingerprint(result)
             summary = db.store_result(CON, job_id, result)
+            # 프로젝트에 묶인 분석이면 여기서 바로 대조한다.  묶이지 않았으면
+            # 예전과 똑같이 동작한다 - 리비전은 얹는 것이지 대체하는 것이 아니다.
+            try:
+                summary["revision"] = _run_comparison(job_id)
+            except Exception as exc:                 # noqa: BLE001
+                traceback.print_exc()
+                summary["revision"] = {"error": str(exc)}
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
                            "summary": summary})
         except Exception as exc:                     # noqa: BLE001
@@ -149,18 +156,41 @@ threading.Thread(target=_worker, daemon=True).start()
 # --------------------------------------------------------------------------
 
 @app.post("/jobs")
-async def create_job(pdf: UploadFile = File(...)):
+async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
+                     compared_with: str = Form("")):
+    """PDF 하나를 받는다.  `project` 가 오면 그 프로젝트의 다음 리비전이 된다.
+
+    프로젝트 없이 올려도 예전과 똑같이 동작한다 - 리비전은 기존 흐름 위에
+    얹히는 것이지 그것을 대체하지 않는다.
+    """
     raw = await pdf.read()
     if not raw[:5] == b"%PDF-":
         raise HTTPException(400, "that file is not a PDF")
+    revision = ""
+    if project:
+        try:
+            meta = revisions.load_project(DATA_DIR, project)
+        except (KeyError, ValueError):
+            raise HTTPException(404, f"프로젝트 '{project}' 가 없습니다")
+        revision = revisions.next_revision(meta)
+        choices = revisions.compare_choices(meta)
+        if compared_with and compared_with not in choices:
+            raise HTTPException(400, f"비교 대상 '{compared_with}' 는 이 프로젝트에 "
+                                     f"없습니다 (있는 것: {choices})")
+        if not compared_with:
+            compared_with = revisions.default_compare_target(meta)
     sha = hashlib.sha256(raw).hexdigest()
     job_id = uuid.uuid4().hex[:12]
     UPLOADS.mkdir(parents=True, exist_ok=True)
     path = UPLOADS / f"{job_id}_{Path(pdf.filename).name}"
     path.write_bytes(raw)
     db.create_job(CON, job_id, Path(pdf.filename).name, sha, path)
+    if project:
+        db.set_job_revision(CON, job_id, project, revision, compared_with)
     _JOBS.put(job_id)
-    return {"job_id": job_id, "pdf_name": Path(pdf.filename).name, "sha256": sha}
+    return {"job_id": job_id, "pdf_name": Path(pdf.filename).name, "sha256": sha,
+            "project": project, "revision": revision,
+            "compared_with": compared_with}
 
 
 @app.post("/jobs/{job_id}/reanalyse")
@@ -185,6 +215,141 @@ def _job_public(row) -> dict:
     out = dict(row)
     out.pop("error_detail", None)
     return out
+
+
+# --------------------------------------------------------------------------
+# 프로젝트와 리비전
+# --------------------------------------------------------------------------
+
+def _run_comparison(job_id: str) -> dict:
+    """이 분석을 그 프로젝트의 장부와 맞춘다.  프로젝트가 없으면 아무것도 안 한다."""
+    job = db.get_job(CON, job_id)
+    if job is None or not job["project"]:
+        return {}
+    name, revision = job["project"], job["revision"]
+    compared = job["compared_with"] or ""
+    reg_path = revisions.project_dir(DATA_DIR, name) / "id_registry.json"
+    registry = revisions.Registry.load(reg_path)
+    # 대조가 보는 것은 검토자가 보는 값이다 - 엔진 값에 편집이 얹힌 뒤.
+    rows = [dict(r["values"], key=r["key"], tab=r["tab"],
+                 drawing_no=r["drawing_no"], page_no=r["page_no"], rect=r["rect"])
+            for r in db.merged_rows(CON, job_id, "ALL") if not r["removed"]]
+    result = revisions.compare(rows, registry, revision, compared_with=compared)
+    # 산출물의 NO 도 ID 와 같은 원리로 단조 증가한다.  ID 부여는 도면 단위
+    # 좌표순이고 NO 는 산출물 단위 순서이므로, 번호는 따로 한 번 더 매긴다.
+    for r in rows:
+        st = result["states"].get(r["key"])
+        if st:
+            r["stable_id"] = st["id"]
+    numbers = revisions.assign_excel_numbers(rows, registry)
+    for key, st in result["states"].items():
+        st["excel_no"] = numbers.get(key, 0)
+    registry.save(reg_path)
+    db.store_revision_result(CON, job_id, result)
+    entry = revisions.record_revision(
+        DATA_DIR, name, revision, job_id=job_id, pdf_name=job["pdf_name"],
+        compared_with=compared, result=result)
+    return {"project": name, "revision": revision, "compared_with": compared,
+            "label": entry["label"], "counts": result["counts"],
+            "radii": result["radii"]}
+
+
+@app.get("/projects")
+def list_projects():
+    return revisions.list_projects(DATA_DIR)
+
+
+@app.post("/projects")
+def create_project(name: str = Form(...)):
+    """Rev.A 를 여는 자리.  같은 이름이 있으면 덮어쓰지 않고 거절한다."""
+    try:
+        meta = revisions.create_project(DATA_DIR, name)
+    except FileExistsError:
+        raise HTTPException(409, f"'{name}' 프로젝트가 이미 있습니다. "
+                                 f"덮어쓰지 않습니다 - 다른 이름을 쓰거나 "
+                                 f"그 프로젝트를 골라 다음 리비전으로 올리세요.")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return _project_public(meta)
+
+
+def _project_public(meta: dict) -> dict:
+    """화면이 필요한 것: 다음 리비전 이름과 고를 수 있는 비교 대상."""
+    return {**meta,
+            "next_revision": revisions.next_revision(meta),
+            "compare_choices": revisions.compare_choices(meta),
+            "default_compare": revisions.default_compare_target(meta)}
+
+
+@app.get("/projects/{name}")
+def get_project(name: str):
+    try:
+        return _project_public(revisions.load_project(DATA_DIR, name))
+    except (KeyError, ValueError):
+        raise HTTPException(404, f"프로젝트 '{name}' 가 없습니다")
+
+
+@app.post("/jobs/{job_id}/revision")
+def set_revision(job_id: str, project: str = Form(...),
+                 compared_with: str = Form("")):
+    """이미 분석된 결과를 프로젝트의 다음 리비전으로 얹고 바로 대조한다.
+
+    비교 대상을 바꿔 다시 보고 싶을 때도 여기로 온다 - 재분석 없이 대조만
+    다시 한다.  같은 job 을 다시 대조하면 이전 대조 결과는 갈아 끼워진다.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    try:
+        meta = revisions.load_project(DATA_DIR, project)
+    except (KeyError, ValueError):
+        raise HTTPException(404, f"프로젝트 '{project}' 가 없습니다")
+    existing = [r for r in meta.get("revisions") or [] if r["job_id"] == job_id]
+    revision = existing[0]["revision"] if existing else revisions.next_revision(meta)
+    choices = [r for r in revisions.compare_choices(meta) if r != revision]
+    if compared_with and compared_with not in choices:
+        raise HTTPException(400, f"비교 대상 '{compared_with}' 는 이 프로젝트에 "
+                                 f"없습니다 (있는 것: {choices})")
+    if not compared_with and choices:
+        compared_with = choices[-1]
+    db.set_job_revision(CON, job_id, project, revision, compared_with)
+    return _run_comparison(job_id)
+
+
+@app.get("/jobs/{job_id}/revision")
+def job_revision(job_id: str):
+    """이 분석이 어느 리비전이고 무엇과 비교했는지, 그리고 삭제 후보."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    cands = db.deleted_candidates(CON, job_id)
+    states = db.revision_states(CON, job_id)
+    counts = {}
+    for st in states.values():
+        counts[st["state"]] = counts.get(st["state"], 0) + 1
+    counts[revisions.DELETED_CANDIDATE] = sum(1 for c in cands if not c["confirmed"])
+    counts[revisions.DELETED] = sum(1 for c in cands if c["confirmed"])
+    label = (f"{job['revision']} vs {job['compared_with']}"
+             if job["compared_with"] else
+             (f"{job['revision']} (비교 대상 없음)" if job["revision"] else ""))
+    return {"project": job["project"], "revision": job["revision"],
+            "compared_with": job["compared_with"], "label": label,
+            "counts": counts, "deleted_candidates": cands}
+
+
+@app.post("/jobs/{job_id}/deleted/{stable_id}/confirm")
+def confirm_deleted(job_id: str, stable_id: str, confirmed: bool = True):
+    """삭제 후보를 사람이 확정한다.  확정 전에는 Excel 에 삭제 표기가 안 나간다."""
+    try:
+        return db.confirm_deleted(CON, job_id, stable_id, confirmed)
+    except KeyError:
+        raise HTTPException(404, "그런 삭제 후보가 없습니다")
+
+
+@app.get("/audit")
+def audit_now():
+    """세기만 한다.  아무것도 지우지 않는다 - `docs/db_hygiene.md` (가)."""
+    return audit.run(CON, DATA_DIR)
 
 
 @app.get("/jobs")
@@ -250,9 +415,11 @@ def rows(job_id: str, tab: str = "ALL"):
     """
     out = db.merged_rows(CON, job_id, tab)
     states = db.review_states(CON, job_id)
+    rev = db.revision_states(CON, job_id)
     for row in out:
         row["review_codes"] = review_codes(row)
         row["review_state"] = states.get(row["key"], {})
+        row["rev"] = rev.get(row["key"], {})
     return out
 
 
@@ -844,6 +1011,7 @@ def _diagnostic_zip(job_id: str) -> dict:
                        if i.get("source") == "DERIVED"),
                    "derived_layout_applied": len(layout.get("moved") or [])},
         "excluded": DIAGNOSTIC_EXCLUDED,
+        "audit": audit.run(CON, DATA_DIR),
         "contents": sorted(list(files) + ["logs/server.log", "MANIFEST.json"]),
     }
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
@@ -879,7 +1047,10 @@ def job_drawings(job_id: str):
 
 
 @app.get("/jobs/{job_id}/revisions")
-def revisions(job_id: str):
+def job_snapshots(job_id: str):
+    # 이름이 `revisions` 였다가 바뀌었다.  같은 모듈이 `app.revisions` 를
+    # import 하므로 함수 이름이 모듈을 가려서, 프로젝트를 만들 때 500 이 났다.
+    # 여기서 말하는 것은 개정 리비전이 아니라 **산출 스냅샷**이기도 하다.
     return [dict(r) for r in db.list_revisions(CON, job_id)]
 
 
@@ -989,3 +1160,18 @@ def favicon():
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+# 감사기 상시 실행 — `docs/db_hygiene.md` 의 (가).  세기만 하고 지우지 않는다.
+# 기동 때 한 번 로그에 남기고, 산출물을 만들 때 MANIFEST 에 같은 값을 싣는다.
+def _audit_on_start() -> None:
+    try:
+        report = audit.run(CON, DATA_DIR)
+    except Exception as exc:                         # noqa: BLE001
+        print(f"[감사] 실행하지 못했습니다: {exc}", flush=True)
+        return
+    for line in report["lines"]:
+        print(f"[감사] {line}", flush=True)
+
+
+_audit_on_start()

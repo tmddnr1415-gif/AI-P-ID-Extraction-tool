@@ -29,6 +29,15 @@ from copy import copy
 from pathlib import Path
 
 import openpyxl
+from openpyxl.styles import Font, PatternFill
+
+# 개정 표기.  세 곳(리스트 · 도면 · Excel)이 같은 낱말과 같은 색을 쓰도록
+# 상태 이름은 `app/revisions.py` 것을 그대로 받아 쓴다.
+REVISION_FILL = {
+    "ADDED": PatternFill("solid", fgColor="FFF2A8"),      # 노랑
+    "MODIFIED": PatternFill("solid", fgColor="CDEFD3"),   # 연녹
+}
+DELETED_FILL = PatternFill("solid", fgColor="F6C9C6")     # 붉은 기 — 취소선과 같이
 
 # One entry per deliverable: which rows go in it and where its template's data
 # lives.  Sheet name and column numbers are the client's, so they come from the
@@ -103,6 +112,32 @@ def _clear_row(ws, row: int, last_col: int) -> None:
         ws.cell(row, c).value = None
 
 
+def _mark_revision(ws, r: int, last_col: int, row: dict, marked: dict) -> None:
+    """개정 표기.  Rev.A 는 여기서 아무것도 하지 않는다.
+
+    상태가 없거나 BASELINE·UNCHANGED 이면 칠하지 않는다 - Rev.A 산출물에
+    음영과 취소선이 하나도 없어야 한다는 조건이 그것이다.  삭제는 **사용자가
+    확정한 것만** 여기 들어온다 (`deleted_confirmed`); 확정 전 '삭제 후보' 는
+    산출물에 나가지 않는다.
+    """
+    state = (row.get("rev") or {}).get("state") or ""
+    if row.get("deleted_confirmed"):
+        for c in range(1, last_col + 1):
+            cell = ws.cell(r, c)
+            cell.fill = DELETED_FILL
+            f = cell.font
+            cell.font = Font(name=f.name, size=f.size, bold=f.bold,
+                             italic=f.italic, color=f.color, strike=True)
+        marked["DELETED"] += 1
+        return
+    fill = REVISION_FILL.get(state)
+    if fill is None:
+        return
+    for c in range(1, last_col + 1):
+        ws.cell(r, c).fill = fill
+    marked[state] += 1
+
+
 def _apply_style(ws, row: int, style) -> None:
     """Give one row the data region's formatting, column by column."""
     for i, st in enumerate(style, start=1):
@@ -147,17 +182,22 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
         for i in range(extra):
             _apply_style(ws, last_row + 1 + i, style)
 
+    marked = {"ADDED": 0, "MODIFIED": 0, "DELETED": 0}
     for i, row in enumerate(rows):
         r = first_row + i
         values = row["values"]
         # Every column first, so nothing of the template's own data survives
         # under a row that is now a different instrument, then our values on top.
         _clear_row(ws, r, last_col)
-        ws.cell(r, no_col).value = i + 1
+        # NO: the row's own number when the revision layer has given it one,
+        # otherwise the position.  A row that has a number keeps it for good -
+        # see `revisions.assign_excel_numbers` for why it is never re-issued.
+        ws.cell(r, no_col).value = row.get("excel_no") or (i + 1)
         for name, col in cols.items():
             if name == "no":
                 continue
             ws.cell(r, int(col)).value = _value_for(name, row, values)
+        _mark_revision(ws, r, last_col, row, marked)
 
     # Anything left over from the template's own data is cleared, not deleted:
     # deleting would drag the note block up with it.
@@ -196,6 +236,7 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
     wb.save(out_path)
     return {"kind": kind, "sheet": sheet, "rows": wanted,
             "template_rows": template_rows, "path": str(out_path),
+            "revision_marks": marked,
             "unmapped_values": unmapped}
 
 
@@ -337,12 +378,20 @@ def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
         if origins and row.get("origin") and row["origin"] not in origins:
             continue
         by_tab.setdefault(row["tab"], []).append(row)
+    # 확정된 삭제 행은 원래 자리에 남는다 - 표 끝으로 모으지 않는다.  자리를
+    # 정하는 것은 그 행이 처음 받은 NO 이고, 아래 정렬이 그것을 쓴다.
+    for row in snapshot.get("deleted_rows") or []:
+        by_tab.setdefault(row["tab"], []).append(row)
 
     written, skipped = [], []
     for kind, spec in DELIVERABLES.items():
         rows = [r for tab in spec["tabs"] for r in by_tab.get(tab, [])]
-        rows.sort(key=lambda r: (r["values"].get("system") or "",
-                                 r["page_no"], r["key"]))
+        # 번호를 받은 행은 그 번호가 자리를 정한다.  아직 못 받은 행(리비전을
+        # 안 쓰는 분석)은 예전 순서 그대로 - 그래야 리비전 이전과 이후의
+        # Rev.A 산출물이 같은 순서로 나온다.
+        rows.sort(key=lambda r: (0, r["excel_no"], "", 0, "")
+                  if r.get("excel_no") else
+                  (1, 0, r["values"].get("system") or "", r["page_no"], r["key"]))
         template = templates.get(kind)
         name = f"{kind.lower()}_{Path(snapshot['pdf_name']).stem}.xlsx"
         try:

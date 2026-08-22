@@ -480,6 +480,13 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `job.error_detail` 열 · 진단 zip 의 `error.txt` | 예외 원문이 사는 곳. 화면에도 `/jobs` 응답에도 나가지 않습니다 (`_job_public`) |
 | `app/static/app.js` 의 `showFailure`·`toFirstScreen` | 실패 화면의 사유·다음 행동·첫 화면 버튼·이전 분석 목록. 이것이 없으면 `#drop` 도 `#main` 도 숨겨져 나갈 길이 URL 편집뿐입니다 |
 | `spike/accuracy.py` · `spike/client_lists.py` | 정확도 회귀를 다시 재는 절차. 발주처 자료가 있는 기계에서만 돕니다 |
+| `app/revisions.py` | 프로젝트 저장소 · 안정 ID(`10LBA10-001`) · 리비전 대조. **ID 는 Rev.A 에서 한 번만 부여하고 재정렬하지 않습니다** — 좌표순 재부여는 1건 추가를 "1건 추가 + 40건 수정" 으로 만듭니다 |
+| `app/revisions.py` 의 `match_radius` | 매칭 반경. **그 도면 자신의 버블 긴변 중앙값**이고 코드에 상수가 없습니다 (실측 54.4/68.0/85.0/85.1pt). 못 재면 같은 TYPE 최근접의 절반 |
+| `app/revisions.py` 의 `compare` | 상태 판정. 자리 이동만으로는 '수정' 이 아니고 `moved_pt` 로 기록만 합니다 — 임계값에 근거가 없기 때문. 삭제는 `DELETED_CANDIDATE` 까지이고 사람이 확정해야 굳습니다 |
+| `app/audit.py` | 데이터 디렉터리를 **세기만** 합니다. 삭제 코드가 없습니다 (`docs/db_hygiene.md` 의 (가)만 승인됨). 기동 시 로그 · 진단 MANIFEST · `GET /audit` |
+| `revision_state` · `deleted_candidate` 테이블 | 대조 결과와 삭제 후보. `job.project`/`revision`/`compared_with` 와 함께 `_ADDED_COLUMNS` 로 가산 마이그레이션 |
+| `docs/revision_provision.md` | 확정 사항 + 이번 회차 구현 + **미구현 목록** + 확인 대기 3건 |
+| `docs/db_hygiene.md` | DB 위생 방침 후보와 실측 (고아 출력 43 · DB 168MB 중 91%가 죽은 페이지) |
 | `app/version.py` · `app/_build.json` | 버전은 손으로, 빌드일은 `build.bat` 이 새깁니다. 커밋하지 않습니다 |
 | `app/desktop.py` | exe 진입점. 빈 포트 선택 · 브라우저 열기 · **오류 시 창을 붙잡고 사유 출력** |
 | `pid_extract.spec` · `build.bat` | 무엇을 넣고 무엇을 뺐는지가 주석에 있습니다 (`data/` 는 절대 안 들어감) |

@@ -38,6 +38,28 @@ CREATE TABLE IF NOT EXISTS job (
                                               -- the diagnostic export only
 );
 
+-- 한 리비전의 대조 결과.  행마다 상태 하나.
+CREATE TABLE IF NOT EXISTS revision_state (
+    job_id       TEXT NOT NULL,
+    row_key      TEXT NOT NULL,
+    stable_id    TEXT NOT NULL DEFAULT '',
+    state        TEXT NOT NULL DEFAULT '',   -- BASELINE|UNCHANGED|ADDED|MODIFIED
+    excel_no     INTEGER NOT NULL DEFAULT 0, -- 그 행이 처음 받은 산출물 NO
+    moved_pt     REAL NOT NULL DEFAULT 0,
+    changed_json TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (job_id, row_key)
+);
+
+-- 매칭이 안 된 직전 리비전의 ID.  '삭제' 가 아니라 '삭제 후보' 다: 검출 실패와
+-- 실제 삭제를 기계가 가르지 못하므로 사람이 확정해야 굳는다.
+CREATE TABLE IF NOT EXISTS deleted_candidate (
+    job_id       TEXT NOT NULL,
+    stable_id    TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    confirmed    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (job_id, stable_id)
+);
+
 CREATE TABLE IF NOT EXISTS pid_page (
     job_id       TEXT NOT NULL,
     page_no      INTEGER NOT NULL,
@@ -168,6 +190,12 @@ EDITABLE = ("type", "qty", "system", "valve_type", "vendor_supply", "scope",
 # older build reading a newer file still finds everything it knew about.
 _ADDED_COLUMNS = (
     ("job", "error_detail", "TEXT NOT NULL DEFAULT ''"),
+    # 어느 프로젝트의 어느 리비전인가, 그리고 무엇과 비교했는가.  세 값이 다
+    # job 에 붙는 이유는 하나의 분석이 곧 하나의 리비전이기 때문이다.
+    ("job", "project", "TEXT NOT NULL DEFAULT ''"),
+    ("job", "revision", "TEXT NOT NULL DEFAULT ''"),
+    ("job", "compared_with", "TEXT NOT NULL DEFAULT ''"),
+    ("revision_state", "excel_no", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 
@@ -695,9 +723,31 @@ def snapshot(con, job_id: str, label: str = "", origins=None,
     # able to say, per row, what was asked and what was decided, and a snapshot
     # taken later must not pick up decisions made after it.
     states = review_states(con, job_id)
+    rev = revision_states(con, job_id)
     for r in rows:
         r["review_state"] = states.get(r["key"], {})
+        r["rev"] = rev.get(r["key"], {})
+        r["excel_no"] = (r["rev"] or {}).get("excel_no") or None
     job = get_job(con, job_id)
+    # 사용자가 확정한 삭제만 산출물로 간다.  '삭제 후보' 는 검출 실패와 실제
+    # 삭제를 기계가 가르지 못한다는 뜻이므로, 확정 전에는 표기하지 않는다.
+    deleted_rows = []
+    for d in deleted_candidates(con, job_id):
+        if not d.get("confirmed"):
+            continue
+        deleted_rows.append({
+            "key": f"deleted:{d['id']}", "tab": d.get("tab") or "FIELD",
+            "page_no": d.get("page_no") or 0,
+            "drawing_no": d.get("drawing_no") or "",
+            "origin": "", "rect": [], "excel_no": d.get("excel_no"),
+            "values": dict(d.get("values") or {},
+                           description=d.get("description") or ""),
+            "ai": {}, "user": {}, "evidence": {}, "needs_review": "",
+            "annotation": "", "conflict": {}, "deleted": False,
+            "added": False, "removed": False,
+            "deleted_confirmed": True, "stable_id": d["id"],
+            "rev": {"id": d["id"], "state": "DELETED"},
+        })
     payload = {
         "origins_included": list(origins),
         "drawings_included": sorted(wanted) if wanted else None,
@@ -707,7 +757,14 @@ def snapshot(con, job_id: str, label: str = "", origins=None,
         "pdf_sha256": job["pdf_sha256"],
         "fingerprint": job["fingerprint"],
         "engine": json.loads(job["engine_json"]),
+        "project": job["project"], "revision": job["revision"],
+        "compared_with": job["compared_with"],
+        "revision_label": (f"{job['revision']} vs {job['compared_with']}"
+                           if job["compared_with"] else
+                           (f"{job['revision']} (비교 대상 없음)"
+                            if job["revision"] else "")),
         "rows": rows,
+        "deleted_rows": deleted_rows,
     }
     cur = con.execute(
         "INSERT INTO revision (job_id, created_at, label, row_count, review_count,"
@@ -738,3 +795,67 @@ def replace_revision(con, revision_id: int, payload: dict) -> None:
 def get_revision(con, revision_id: int):
     r = con.execute("SELECT * FROM revision WHERE id=?", (revision_id,)).fetchone()
     return json.loads(r["payload_json"]) if r else None
+
+
+# --------------------------------------------------------------------------
+# 리비전 대조 결과
+# --------------------------------------------------------------------------
+
+def set_job_revision(con, job_id: str, project: str, revision: str,
+                     compared_with: str) -> None:
+    con.execute("UPDATE job SET project=?, revision=?, compared_with=? WHERE id=?",
+                (project, revision, compared_with, job_id))
+    con.commit()
+
+
+def store_revision_result(con, job_id: str, result: dict) -> None:
+    """대조 결과를 갈아 끼운다.  같은 job 을 다시 대조하면 이전 것은 지워진다."""
+    con.execute("DELETE FROM revision_state WHERE job_id=?", (job_id,))
+    con.execute("DELETE FROM deleted_candidate WHERE job_id=?", (job_id,))
+    for key, st in result["states"].items():
+        con.execute(
+            "INSERT INTO revision_state (job_id,row_key,stable_id,state,"
+            "excel_no,moved_pt,changed_json) VALUES (?,?,?,?,?,?,?)",
+            (job_id, key, st.get("id", ""), st.get("state", ""),
+             int(st.get("excel_no") or 0), float(st.get("moved_pt") or 0),
+             json.dumps(st.get("changed") or [], ensure_ascii=False)))
+    for d in result["deleted_candidates"]:
+        con.execute(
+            "INSERT INTO deleted_candidate (job_id,stable_id,payload_json,confirmed)"
+            " VALUES (?,?,?,0)",
+            (job_id, d["id"], json.dumps(d, ensure_ascii=False)))
+    con.commit()
+
+
+def revision_states(con, job_id: str) -> dict:
+    return {r["row_key"]: {"id": r["stable_id"], "state": r["state"],
+                           "excel_no": r["excel_no"], "moved_pt": r["moved_pt"],
+                           "changed": json.loads(r["changed_json"])}
+            for r in con.execute(
+                "SELECT * FROM revision_state WHERE job_id=?", (job_id,))}
+
+
+def deleted_candidates(con, job_id: str) -> list:
+    out = []
+    for r in con.execute(
+            "SELECT * FROM deleted_candidate WHERE job_id=? ORDER BY stable_id",
+            (job_id,)):
+        d = json.loads(r["payload_json"])
+        d["confirmed"] = bool(r["confirmed"])
+        out.append(d)
+    return out
+
+
+def confirm_deleted(con, job_id: str, stable_id: str, confirmed: bool) -> dict:
+    """사람이 '삭제 후보' 를 확정하거나 되돌린다.  확정 전에는 산출물에 안 나간다."""
+    row = con.execute("SELECT payload_json FROM deleted_candidate"
+                      " WHERE job_id=? AND stable_id=?",
+                      (job_id, stable_id)).fetchone()
+    if row is None:
+        raise KeyError(stable_id)
+    con.execute("UPDATE deleted_candidate SET confirmed=? WHERE job_id=? AND stable_id=?",
+                (1 if confirmed else 0, job_id, stable_id))
+    con.commit()
+    d = json.loads(row["payload_json"])
+    d["confirmed"] = confirmed
+    return d
