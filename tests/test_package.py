@@ -194,3 +194,129 @@ def test_the_build_says_which_build_it_is():
     assert i["kind"] in ("exe", "source")
     assert i["built_at"]
     assert version.label().startswith(f"v{i['version']}")
+
+
+# --------------------------------------------------------------------------
+# the deliverable carries our rows and nothing of the template's
+# --------------------------------------------------------------------------
+
+def _form(rows=3, cols=12, data_first=8):
+    """A miniature of the client's form: title rows, header, data, note block."""
+    import openpyxl
+    from openpyxl.styles import Border, Font, PatternFill, Side
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "2.0_Instrument List"
+    ws["A1"] = "INSTRUMENT LIST"
+    ws["A2"] = "Project : TEST"
+    ws["A6"] = "NO"
+    ws.cell(6, 6).value = "SYSTEM"
+    ws.cell(6, 7).value = "P&ID No."
+    ws.cell(6, 8).value = "TYPE"
+    ws.cell(6, 9).value = "Q'ty"
+    ws.cell(6, 10).value = "DESCRIPTION"
+    ws.cell(6, 11).value = "Design table No."
+    ws.cell(6, 12).value = "Operating condition"
+    thin = Side(style="thin")
+    for i in range(rows):
+        r = data_first + i
+        ws.cell(r, 1).value = i + 1
+        ws.cell(r, 7).value = f"OLD-DRAWING-{i}"
+        ws.cell(r, 8).value = "PIT"
+        ws.cell(r, 11).value = f"A{i}"          # unmapped: the design data
+        ws.cell(r, 12).value = 187.3 + i        # unmapped: the design data
+        for c in range(1, cols + 1):
+            ws.cell(r, c).border = Border(left=thin, right=thin, top=thin,
+                                          bottom=thin)
+        ws.cell(r, 11).fill = PatternFill("solid", fgColor="FF92D050")
+        ws.cell(r, 7).font = Font(strike=True)
+    ws.cell(data_first + rows + 1, 1).value = "Note)"
+    ws.cell(data_first + rows + 2, 1).value = "1. REFER TO THE SPECIFICATION."
+    ws.merged_cells.ranges.add("A1:E1")
+    ws.column_dimensions["G"].width = 24.5
+    return wb
+
+
+def test_a_deliverable_carries_no_value_from_the_template(tmp_path):
+    """The defect this pins: 14,121 cells of the client's own design data went
+    out under our rows because only the mapped columns were cleared.
+
+    Row 8 of the client's list was an HP steam PIT; row 8 of ours is an ACW pump
+    PDIT.  Everything the config does not map - the design table, the operating
+    condition, the pipe material - stayed at row 8 and described the wrong
+    instrument.
+    """
+    import openpyxl
+    from app import excel_out
+
+    src = tmp_path / "form.xlsx"
+    _form().save(src)
+
+    class Cfg:
+        def get(self, key):
+            assert key == "excel"
+            return {"sheet": "2.0_Instrument List", "first_data_row": 8,
+                    "columns": {"no": 1, "system": 6, "pid_no": 7, "type": 8,
+                                "qty": 9, "description": 10}}
+
+    rows = [{"key": "k1", "tab": "FIELD", "page_no": 1,
+             "drawing_no": "NEW-DRAWING", "values": {"type": "PDIT", "qty": 2,
+                                                     "system": "ACW",
+                                                     "description": "ACW PUMP"},
+             "user": {}, "evidence": {}, "review_codes": []}]
+    out = tmp_path / "out.xlsx"
+    excel_out.write_deliverable(src, out, rows, Cfg(), "FIELD")
+
+    ws = openpyxl.load_workbook(out)["2.0_Instrument List"]
+    assert ws.cell(8, 7).value == "NEW-DRAWING"
+    assert ws.cell(8, 8).value == "PDIT"
+    # the unmapped columns carry nothing at all
+    assert ws.cell(8, 11).value is None, "the template's Design table No. survived"
+    assert ws.cell(8, 12).value is None, "the template's operating condition survived"
+    # and the rows the new data did not reach are empty across every column
+    for r in (9, 10):
+        for c in range(1, 13):
+            assert ws.cell(r, c).value is None, f"row {r} col {c} not cleared"
+    # the form itself is untouched
+    assert ws["A1"].value == "INSTRUMENT LIST"
+    assert ws.cell(6, 11).value == "Design table No."
+    assert ws.cell(12, 1).value == "Note)"
+    assert round(ws.column_dimensions["G"].width, 1) == 24.5
+    # and the data row kept its borders
+    assert ws.cell(8, 1).border.left.style == "thin"
+
+
+def test_the_blank_form_keeps_the_form_and_drops_the_working_marks(tmp_path):
+    """A blank form is the client's form with the data region emptied.
+
+    The shading question was settled by measurement rather than by the brief:
+    AL NOUF1's three workbooks carry no grey attribute shading at all.  What is
+    there is green FF92D050 and yellow FFFF00 on scattered cells and whole rows,
+    not aligned with the strikethrough rows - the client's own working marks.
+    They go, because a Rev.A deliverable has to open with no shading on it.
+    """
+    import openpyxl
+    from app import excel_out
+
+    src = tmp_path / "form.xlsx"
+    _form().save(src)
+    out = tmp_path / "blank.xlsx"
+    info = excel_out.blank_form(src, out, "2.0_Instrument List")
+
+    assert info["data_rows"] == 3 and info["values_cleared"] > 0
+    assert info["fills_cleared"] == 3 and info["strikes_cleared"] == 3
+
+    ws = openpyxl.load_workbook(out)["2.0_Instrument List"]
+    for r in (8, 9, 10):
+        for c in range(1, 13):
+            cell = ws.cell(r, c)
+            assert cell.value is None
+            assert cell.fill.patternType is None, "shading survived into Rev.A"
+            assert not cell.font.strike, "strikethrough survived into Rev.A"
+            assert cell.border.left.style == "thin", "the border was taken too"
+    # rows 1-7 and the note block are the form and stay
+    assert ws["A1"].value == "INSTRUMENT LIST"
+    assert ws.cell(6, 12).value == "Operating condition"
+    assert ws.cell(12, 1).value == "Note)"
+    assert ws.cell(13, 1).value == "1. REFER TO THE SPECIFICATION."
+    assert round(ws.column_dimensions["G"].width, 1) == 24.5

@@ -873,17 +873,21 @@ async def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
 TEMPLATES = DATA_DIR / "templates"
 
 # Output forms found beside the project, used when none has been uploaded.  The
-# repository does not carry these - `data/*.xlsx` is gitignored - so on a fresh
-# clone every deliverable starts out with no template and says so.  An *empty*
-# form is enough: only the layout is read, and the data area is rewritten.
-# The packaged build carries none of these - `build.bat` ships code and config
-# and nothing of the client's - so on an exe every deliverable starts with no
-# template until one is uploaded, and says so.  A source checkout still finds
-# them beside the project if they are there.
+# repository does not carry these - `data/` is gitignored - so on a fresh clone
+# every deliverable starts out with no template and says so.  The packaged build
+# carries none of them either: `build.bat` ships code and config and nothing of
+# the client's, so on an exe every deliverable waits for an upload and says so.
+#
+# These are *blank* forms, not the client's filled-in lists.  Filling a filled-in
+# form left the client's own values standing in every column the config does not
+# map, under rows that are now different instruments - 14,121 cells on AL NOUF1,
+# so an ACW pump row went out carrying 601.9 degC and P92 chrome steel.  The
+# empty copy is made by `excel_out.blank_form`; `python3 -m app.forms` writes
+# all three.
 _BUILTIN = {
-    "FIELD": ROOT / "data" / "CZE_Field_Instrument.xlsx",
-    "BFV": ROOT / "data" / "CZI_Butterfly_Valve.xlsx",
-    "MOV": ROOT / "data" / "CZH_MOV_Gate_Globe.xlsx",
+    "FIELD": ROOT / "data" / "blank" / "FIELD.xlsx",
+    "BFV": ROOT / "data" / "blank" / "BFV.xlsx",
+    "MOV": ROOT / "data" / "blank" / "MOV.xlsx",
 }
 
 

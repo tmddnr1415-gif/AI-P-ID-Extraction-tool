@@ -88,15 +88,25 @@ def _last_data_row(ws, first_row: int, no_col: int) -> int:
     return last
 
 
-def _clear_row(ws, row: int, columns) -> None:
-    for c in columns:
+def _clear_row(ws, row: int, last_col: int) -> None:
+    """Empty one data row across *every* column, not only the mapped ones.
+
+    Clearing only the mapped columns is what let the template's own values ride
+    out under our rows: a column the config does not map kept whatever the
+    client had at that row number, and that row is now a different instrument.
+    Measured on AL NOUF1 before this changed: 14,121 cells in 65 columns, so an
+    ACW pump row carried 601.9 degC, P92 chrome steel and STEAM.
+
+    Values only.  Borders, alignment and number formats are the form's and stay.
+    """
+    for c in range(1, last_col + 1):
         ws.cell(row, c).value = None
 
 
-def _copy_style(ws, src_row: int, dst_row: int, columns) -> None:
-    for c in columns:
-        s, d = ws.cell(src_row, c), ws.cell(dst_row, c)
-        d._style = copy(s._style)
+def _apply_style(ws, row: int, style) -> None:
+    """Give one row the data region's formatting, column by column."""
+    for i, st in enumerate(style, start=1):
+        ws.cell(row, i)._style = copy(st)
 
 
 def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
@@ -118,21 +128,31 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
     ws = wb[sheet]
 
     no_col = int(cols["no"])
-    used = sorted(int(v) for v in cols.values())
+    last_col = ws.max_column
     last_row = _last_data_row(ws, first_row, no_col)
     template_rows = last_row - first_row + 1
     style_row = last_row if template_rows > 0 else first_row
+
+    # The row's formatting is read *before* any insertion.  A blank form has no
+    # row whose NO column holds an integer, so `template_rows` is 0 and every row
+    # is inserted at `first_row` - which pushes the one formatted row out of the
+    # way before it can be copied from, and the data region comes out with no
+    # borders at all.  Taking the style first makes the blank form work.
+    style = [ws.cell(style_row, c)._style for c in range(1, last_col + 1)]
 
     wanted = len(rows)
     if wanted > template_rows:
         extra = wanted - template_rows
         ws.insert_rows(last_row + 1, extra)
         for i in range(extra):
-            _copy_style(ws, style_row, last_row + 1 + i, used)
+            _apply_style(ws, last_row + 1 + i, style)
 
     for i, row in enumerate(rows):
         r = first_row + i
         values = row["values"]
+        # Every column first, so nothing of the template's own data survives
+        # under a row that is now a different instrument, then our values on top.
+        _clear_row(ws, r, last_col)
         ws.cell(r, no_col).value = i + 1
         for name, col in cols.items():
             if name == "no":
@@ -142,7 +162,7 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
     # Anything left over from the template's own data is cleared, not deleted:
     # deleting would drag the note block up with it.
     for r in range(first_row + wanted, max(last_row, first_row + wanted) + 1):
-        _clear_row(ws, r, used)
+        _clear_row(ws, r, last_col)
 
     if ws.auto_filter.ref:
         # Extend the filter over the new row count, keeping the template's own
@@ -235,6 +255,73 @@ def _remark(row: dict, values: dict):
 
 REVIEW_STATE_KO = {"CONFIRMED": "확인함", "EDITED": "수정함", "HELD": "보류",
                    "미처리": "미처리"}
+
+
+# --------------------------------------------------------------------------
+# Blank forms
+# --------------------------------------------------------------------------
+#
+# A template is a *form*, and the client's own list is a filled-in one.  Filling
+# a filled-in form is what produced 14,121 cells of somebody else's design data
+# riding out under our rows, so the form is emptied once and that empty copy is
+# what the app fills.
+#
+# What is emptied is the data region's values, all columns.  What is kept is
+# everything else: rows 1-7, the note block, the five side sheets, the merged
+# ranges, the column widths, the autofilter, and the data region's borders,
+# alignment and number formats.
+#
+# Two things in the data region are *also* cleared, and this is a decision rather
+# than housekeeping - see `KEEP_WORKING_MARKS`.
+
+# Whether the client's own working marks stay in the blank form.
+#
+# Measured on AL NOUF1's three workbooks: there is no grey attribute shading in
+# any of them.  The only fills in the data region are green FF92D050 and yellow
+# FFFF00, they sit on scattered single cells and whole rows rather than on
+# columns, and they do not line up with the strikethrough rows.  They are the
+# client's own working annotation - the kind the round called "손으로 넣은 음영,
+# 발주처 규칙이 아니다" - and a deliverable that carried them would open with
+# shading and strikethrough on rows they were never about.
+#
+# So they are cleared, which is what "Rev.A 출력에는 음영·취소선이 하나도 없어야
+# 한다" requires.  Set this True to keep them instead; nothing else changes.
+KEEP_WORKING_MARKS = False
+
+
+def blank_form(src: Path, out: Path, sheet: str, first_row: int = 8,
+               no_col: int = 1) -> dict:
+    """Copy a workbook and empty its data region, keeping the form."""
+    from openpyxl.styles import Font, PatternFill
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, out)
+    wb = openpyxl.load_workbook(out)
+    ws = wb[sheet]
+    last_row = _last_data_row(ws, first_row, no_col)
+    last_col = ws.max_column
+    cleared = fills = strikes = 0
+    for r in range(first_row, last_row + 1):
+        for c in range(1, last_col + 1):
+            cell = ws.cell(r, c)
+            if cell.value not in (None, ""):
+                cell.value = None
+                cleared += 1
+            if KEEP_WORKING_MARKS:
+                continue
+            if cell.fill is not None and cell.fill.patternType is not None:
+                cell.fill = PatternFill(fill_type=None)
+                fills += 1
+            if cell.font is not None and cell.font.strike:
+                f = copy(cell.font)
+                f.strike = False
+                cell.font = f
+                strikes += 1
+    wb.save(out)
+    return {"src": str(src), "out": str(out), "sheet": sheet,
+            "data_rows": last_row - first_row + 1, "columns": last_col,
+            "values_cleared": cleared, "fills_cleared": fills,
+            "strikes_cleared": strikes}
 
 
 def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
