@@ -237,14 +237,26 @@ def test_step5_survives_row_add_copy_delete(page, edited, server, job_id):
     page.evaluate("k => document.querySelector(`#body tr[data-key='${k}']`).click()",
                   keys[0])
     page.wait_for_timeout(200)
-    page.click("#row-copy")
-    page.wait_for_timeout(500)
-    page.click("#row-add")
-    page.wait_for_timeout(500)
-    added = page.evaluate(
+    before = page.evaluate(
         "() => [...document.querySelectorAll('#body tr')]"
         ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
-    assert len(added) >= 2, "step 5: copy and add did not produce new rows"
+    page.click("#row-copy")
+    page.wait_for_timeout(500)
+    # '＋행' only arms the point pick - the row is created when the reviewer says
+    # where it belongs, or cancels the pick.  Clicking the button and counting
+    # rows straight after asserts a step the UI does not have; this test used to
+    # pass that way only because the database still held rows an earlier run had
+    # left behind, which is the same trap [0-1] found in the deliverable.
+    page.click("#row-add")
+    page.wait_for_selector("#pick-note:not(.hidden)")
+    page.click("#pick-cancel")
+    page.wait_for_timeout(500)
+    added = [k for k in page.evaluate(
+        "() => [...document.querySelectorAll('#body tr')]"
+        ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
+        if k not in before]
+    assert len(added) == 2, (
+        f"step 5: copy and add produced {len(added)} rows, not 2")
     page.evaluate("k => document.querySelector(`#body tr[data-key='${k}']`).click()",
                   added[0])
     page.wait_for_timeout(200)
