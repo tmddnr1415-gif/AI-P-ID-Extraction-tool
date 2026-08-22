@@ -196,9 +196,18 @@ td[contenteditable]:focus { background: #4c8dff22; }
   padding: 10px 12px; background: var(--panel);
 }
 /* Title and its 신고 button are siblings, not one string.  The row carries the
-   margin the h3 used to have, so the spacing below the title is unchanged. */
+   margin the h3 used to have.
+
+   The size is on both selectors on purpose.  Inside the h3 the button's
+   `font: inherit` took the *title's* 12px, so its line box was 18px like the
+   title's; as a sibling it would take the body's instead and the flex row would
+   grow to that taller line box - which pushes everything below down by 1.5px.
+   Measured: 19.5px row against an 18px title.  Sharing the declaration keeps the
+   gap under the title exactly what it was. */
 .ev-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
-.evidence h3 { margin: 0; font-size: 12px; text-transform: uppercase;
+.evidence h3,
+.ev-head > button.mini-rep { font-size: 12px; }
+.evidence h3 { margin: 0; text-transform: uppercase;
   letter-spacing: .08em; color: var(--muted); }
 .evidence dl { display: grid; grid-template-columns: 128px 1fr; gap: 3px 12px; margin: 0; }
 .evidence dt { color: var(--muted); }
