@@ -206,6 +206,9 @@ _ADDED_COLUMNS = (
     ("job", "sheets_total", "INTEGER NOT NULL DEFAULT 0"),
     ("job", "started_at", "REAL NOT NULL DEFAULT 0"),
     ("job", "finished_at", "REAL NOT NULL DEFAULT 0"),
+    # 58쪽 중 52장을 걷는다면 나머지 6장이 어디로 갔는지가 여기 있다.
+    # 쪽 번호까지 들고 있으므로 화면에서 묶어 숨길 필요가 없다.
+    ("job", "sheet_plan", "TEXT NOT NULL DEFAULT ''"),
 )
 
 
@@ -257,6 +260,13 @@ def set_progress(con, job_id: str, progress: float, message: str,
     if error_detail is not None:
         con.execute("UPDATE job SET error_detail=? WHERE id=?",
                     (error_detail, job_id))
+    con.commit()
+
+
+def set_sheet_plan(con, job_id: str, plan: dict) -> None:
+    """어느 쪽을 걷고 어느 쪽을 왜 안 걷는지.  한 번 적히고 바뀌지 않는다."""
+    con.execute("UPDATE job SET sheet_plan=? WHERE id=?",
+                (json.dumps(plan, ensure_ascii=False, sort_keys=True), job_id))
     con.commit()
 
 

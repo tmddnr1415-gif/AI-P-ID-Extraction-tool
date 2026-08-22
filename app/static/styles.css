@@ -103,6 +103,13 @@ h1, h2, h3 { font-weight: 600; }
   transition: width .3s; }
 .prog-sheets { margin: 10px 0 2px; font-size: var(--t-l); }
 #prog-msg { margin: 0; }
+/* 걷지 않는 쪽 — 쪽 번호까지 적는다.  묶어서 숨기지 않는다. */
+.prog-skip { margin: 12px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.prog-skip summary { cursor: pointer; color: var(--muted);
+                     font-size: var(--t-s); }
+.skip-row { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; }
+.skip-why { min-width: 120px; }
+.skip-n { min-width: 40px; color: var(--muted); }
 /* The failure screen's way out.  Placement only - what these look like is the
    next round's question. */
 .prog-actions { margin-top: 12px; }

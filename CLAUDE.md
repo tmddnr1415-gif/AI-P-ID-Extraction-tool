@@ -25,7 +25,7 @@
 | 행 수 | **824** (FIELD 680 / MOV 76 / PNEUMATIC 45 / BFV 23) — LS 묶음 합산 후 |
 | **정확도 (교집합 도면 · 취소선 제외 · 항목 단위)** | **재현율 99.2% / 정밀도 84.1%** (사람 599 / 프로그램 706 / TP 594) |
 | 분석 시간 | 58장 약 3분 40초 |
-| 테스트 | 빠른 71 · UI 20 · slow 10 (전부 통과) |
+| 테스트 | 빠른 **83** · UI 20 · slow 10 (전부 통과) — 빠른 12건이 리비전(`tests/test_revisions.py`) |
 | LS 다중 신호 | 34묶음 102버블 → **34행** (물리 1개). 발주처 LS 22행은 맞닿지 않아 **영향 0** |
 | `fingerprint` | **a38fe8ac** (이번 회차에도 움직이지 않았습니다 — 지문은 검출·수량·스코프의 해시이고, 이번 변경은 Description 두 행과 화면·패키징입니다) |
 
@@ -435,8 +435,8 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 **테스트**
 
 ```bash
-pytest -q -m "not slow and not ui"    # 69건, 10초
-pytest -q -m ui                       # 19건, 8분 (playwright + chromium 필요)
+pytest -q -m "not slow and not ui"    # 83건, 8초
+pytest -q -m ui                       # 20건, 7분 (playwright + chromium 필요)
 pytest -q -m slow                     # 전 문서 분석 포함, 각 4분
 ```
 

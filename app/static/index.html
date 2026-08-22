@@ -63,8 +63,13 @@
     <!-- 놓은 즉시 나오는 값.  PDF 에서 직접 센 쪽수이고, 못 세면 못 셌다고 쓴다. -->
     <p id="prog-pages" class="prog-pages"></p>
     <div class="bar"><div id="bar-fill"></div></div>
-    <!-- 분모는 분석 대상 장수이고 한 번 적힌 뒤 바뀌지 않는다. -->
+    <!-- 분모는 분석 대상 장수이고 한 번 적힌 뒤 바뀌지 않는다.  넣은 쪽수(58)는
+         위 줄에 계속 남아 있고, 걷지 않는 쪽은 아래 펼침에 쪽 번호까지 적힌다. -->
     <p id="prog-sheets" class="prog-sheets"></p>
+    <details id="prog-skip" class="prog-skip hidden">
+      <summary></summary>
+      <div id="prog-skip-body"></div>
+    </details>
     <p id="prog-msg" class="muted small"></p>
     <!-- Shown only when an analysis fails.  Without these the failure screen has
          no way out at all: #drop and #main are both hidden, so the only route

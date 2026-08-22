@@ -80,6 +80,7 @@ const S = {
   // 프로젝트와 리비전.  `rev` 는 이 분석의 대조 결과 요약이다.
   project: "", projects: [], rev: null, onlyChanged: false, setupDone: false,
   deletedRows: [], revByKey: {}, loading: false,
+  pageCount: null, sheetTargets: null,
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
@@ -302,13 +303,22 @@ function minsec(sec) {
   return n >= 60 ? `${Math.floor(n / 60)}분 ${n % 60}초` : `${n}초`;
 }
 
-function showPages(n) {
+/* 넣은 쪽수와 분석 대상 장수는 **둘 다** 화면에 남는다.
+ *
+ * 분석 대상은 업로드 시점에 알 수 없다: 어느 쪽이 범례이고 어느 쪽이 도면인지는
+ * 타이틀블록을 읽어야 정해지고, 그 단계는 사전 측정(185초) 뒤에 온다.  그래서
+ * 처음에는 쪽수만 적고 "아직 정해지지 않았다"고 쓴 다음, 정해지는 순간 같은
+ * 자리에 "58장 중 분석 대상 52장"으로 바뀐다.  추정하지 않는다. */
+function showPages(n, targets) {
   const line = $("#prog-pages");
-  if (n == null) return;
-  // 0 은 "0쪽"이 아니라 "못 셌다"이다.  추정값으로 채우지 않는다.
-  line.textContent = n > 0
-    ? `${n}장을 읽었습니다.`
-    : "이 PDF 의 쪽수를 읽지 못했습니다.";
+  if (n == null && targets == null) return;
+  if (n != null) S.pageCount = n;
+  if (targets != null) S.sheetTargets = targets;
+  const p = S.pageCount;
+  if (!p) { line.textContent = "이 PDF 의 쪽수를 읽지 못했습니다."; return; }
+  line.textContent = S.sheetTargets
+    ? `${p}장 중 분석 대상 ${S.sheetTargets}장`
+    : `${p}장을 읽었습니다 — 분석 대상은 도면을 읽어 봐야 정해집니다.`;
 }
 
 function showSheets(done, total) {
@@ -317,9 +327,30 @@ function showSheets(done, total) {
   line.textContent = `도면 ${total}장 중 ${done}장 완료`;
 }
 
+/* 걷지 않는 쪽을 쪽 번호까지 적는다.  묶어서 숨기지 않는다 - 58장을 건넨
+ * 사람에게 52 만 보이면 나머지 여섯 장이 어디로 갔는지 알 길이 없다. */
+function showSkipped(plan) {
+  const box = $("#prog-skip");
+  if (!box) return;
+  if (!plan || !plan.skipped || !plan.skipped.length) {
+    box.classList.add("hidden"); return;
+  }
+  const n = plan.skipped.reduce((a, g) => a + g.pages.length, 0);
+  const unknown = (plan.unknown || []).length;
+  box.querySelector("summary").textContent =
+    `분석하지 않는 ${n}장 — 사유 보기` + (unknown ? ` (사유 미상 ${unknown}장 포함)` : "");
+  $("#prog-skip-body").innerHTML = plan.skipped.map(g =>
+    `<div class="skip-row"><span class="skip-why">${escape(g.why)}</span>`
+    + `<span class="skip-n">${g.pages.length}장</span>`
+    + `<span class="muted small">p${g.pages.join(" · p")}</span></div>`).join("");
+  box.classList.remove("hidden");
+}
+
 function watch(jobId, pageCount) {
   drop.classList.add("hidden");
   $("#progress").classList.remove("hidden");
+  S.pageCount = null; S.sheetTargets = null;
+  $("#prog-skip").classList.add("hidden");
   // A previous failure leaves its hint, buttons and job list on this panel; a new
   // analysis has to start from a clean one or the reviewer reads last time's exit
   // routes over this run's progress bar.
@@ -334,8 +365,10 @@ function watch(jobId, pageCount) {
     const d = JSON.parse(ev.data);
     $("#bar-fill").style.width = `${Math.round(d.progress * 100)}%`;
     $("#prog-msg").textContent = stageWords(d.message);
-    if (d.page_count != null && !$("#prog-pages").textContent) showPages(d.page_count);
+    if (d.page_count != null) showPages(d.page_count, null);
+    if (d.sheets_total) showPages(null, d.sheets_total);
     if (d.sheets_total != null) showSheets(d.sheets_done || 0, d.sheets_total);
+    if (d.sheet_plan) showSkipped(d.sheet_plan);
     if (d.status === "done") { src.close(); open(jobId); }
     if (d.status === "failed") {
       src.close();
@@ -395,6 +428,8 @@ function toFirstScreen() {
   $("#prog-msg").textContent = "";
   $("#prog-sheets").textContent = "";
   $("#prog-pages").textContent = "";
+  $("#prog-skip").classList.add("hidden");
+  S.pageCount = null; S.sheetTargets = null;
   if (location.hash) history.replaceState(null, "", location.pathname);
   listJobs();
 }
@@ -448,9 +483,21 @@ async function open(jobId) {
   $("#job-name").textContent = job.pdf_name;
   // 몇 장을 얼마나 걸려 읽었는지.  둘 다 잰 값이고, 없으면 그 칸은 비운다.
   const meta = [];
-  if (job.page_count) meta.push(`${job.page_count}장`);
-  if (job.sheets_total) meta.push(`분석 ${job.sheets_done || 0}/${job.sheets_total}장`);
+  if (job.page_count && job.sheets_total) {
+    meta.push(`${job.page_count}장 중 분석 ${job.sheets_total}장`);
+  } else if (job.page_count) {
+    meta.push(`${job.page_count}장`);
+  }
   if (job.elapsed_s) meta.push(minsec(job.elapsed_s));
+  const plan = job.sheet_plan;
+  if (plan && plan.skipped && plan.skipped.length) {
+    const n = plan.skipped.reduce((a, g) => a + g.pages.length, 0);
+    meta.push(`제외 ${n}장`);
+    $("#job-meta").title = plan.skipped
+      .map(g => `${g.why} ${g.pages.length}장 (p${g.pages.join(", p")})`).join("\n");
+  } else {
+    $("#job-meta").title = "";
+  }
   $("#job-meta").textContent = meta.join(" · ");
   S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
   await loadRevision();

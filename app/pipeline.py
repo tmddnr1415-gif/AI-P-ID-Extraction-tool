@@ -395,9 +395,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     attribute drawings against, and it is the only thing in this pipeline that
     needs one.  Real runs pass nothing.
     """
-    def say(done, total, msg, sheets=None):
+    def say(done, total, msg, sheets=None, plan=None):
         if progress:
-            progress(done, total, msg, sheets)
+            progress(done, total, msg, sheets, plan)
 
     clock = timings or Timings()
 
@@ -455,7 +455,35 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # is the number of sheets this run will walk, which is not the same as the
     # document's page count: the legend and the drawing list are pages too, and
     # counting them in would make the last sheet finish at less than the whole.
-    say(3, total, f"{len(targets)} sheets to read", sheets=(0, len(targets)))
+    #
+    # The pages it does *not* walk are listed with the reason each was left out,
+    # one page at a time.  A person who handed over 58 sheets and is shown 52 has
+    # to be able to see where the other six went, and a page whose reason is not
+    # one of the known ones is counted as "reason unknown" rather than folded into
+    # a bucket that sounds decided.
+    skipped = {}
+    unknown = []
+    for pc in pages:
+        if pc in targets:
+            continue
+        kind = tb_rows[pc.page_no]["page_kind"]
+        if kind == "LEGEND":
+            why = "범례"
+        elif kind == "DRAWING_LIST":
+            why = "도면 목록"
+        elif not pc.analysis_scope:
+            why = "분석 범위 밖" + (f" ({pc.scope_reason})" if pc.scope_reason else "")
+        elif kind and kind != "PID":
+            why = f"도면이 아님 ({kind})"
+        else:
+            why = "사유 미상"
+            unknown.append(pc.page_no)
+        skipped.setdefault(why, []).append(pc.page_no)
+    plan = {"pages": len(pages), "targets": len(targets),
+            "skipped": [{"why": w, "pages": ps} for w, ps in sorted(skipped.items())],
+            "unknown": unknown}
+    say(3, total, f"{len(targets)} sheets to read", sheets=(0, len(targets)),
+        plan=plan)
 
     rows: list[Row] = []
     layers: dict[int, dict] = {}

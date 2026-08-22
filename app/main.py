@@ -122,6 +122,15 @@ def _failure_reason(pdf: Path) -> str:
     return _FAILED_GENERIC
 
 
+def _plan(row):
+    """저장된 장수 계획.  없으면 None - "아직 안 정해졌다"이지 "없다"가 아니다."""
+    try:
+        raw = row["sheet_plan"]
+    except (KeyError, IndexError):
+        return None
+    return json.loads(raw) if raw else None
+
+
 def _elapsed(row) -> float:
     """Seconds the analysis took, or 0 when it has not finished one yet."""
     try:
@@ -144,12 +153,15 @@ def _worker() -> None:
                            "status": "running", "sheets_done": 0,
                            "sheets_total": 0})
 
-            def progress(done, total, message, sheets=None):
+            def progress(done, total, message, sheets=None, plan=None):
                 frac = done / max(total, 1)
                 db.set_progress(CON, job_id, frac, message, sheets=sheets)
                 out = {"progress": frac, "message": message, "status": "running"}
                 if sheets is not None:
                     out["sheets_done"], out["sheets_total"] = sheets
+                if plan is not None:
+                    db.set_sheet_plan(CON, job_id, plan)
+                    out["sheet_plan"] = plan
                 _emit(job_id, out)
 
             result = pipeline.analyse(Path(row["pdf_path"]), progress=progress,
@@ -167,6 +179,7 @@ def _worker() -> None:
             fin = db.get_job(CON, job_id)
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
                            "summary": summary,
+                           "sheet_plan": _plan(fin),
                            "page_count": fin["page_count"],
                            "sheets_done": fin["sheets_done"],
                            "sheets_total": fin["sheets_total"],
@@ -185,6 +198,7 @@ def _worker() -> None:
             # "몇 장째에서 멈췄나" 가 사용자가 확인할 수 있는 유일한 단서다.
             _emit(job_id, {"progress": 0.0, "status": "failed",
                            "message": reason,
+                           "sheet_plan": _plan(fin),
                            "page_count": fin["page_count"],
                            "sheets_done": fin["sheets_done"],
                            "sheets_total": fin["sheets_total"],
@@ -263,6 +277,8 @@ def _job_public(row) -> dict:
     out.pop("error_detail", None)
     # 걸린 시간은 두 시각의 차이지 별도 사실이 아니므로 여기서 만든다.
     out["elapsed_s"] = _elapsed(row)
+    out["sheet_plan"] = _plan(row)
+    out.pop("sheet_plan_json", None)
     return out
 
 
@@ -434,6 +450,7 @@ def events(job_id: str):
                         "page_count": row["page_count"],
                         "sheets_done": row["sheets_done"],
                         "sheets_total": row["sheets_total"],
+                        "sheet_plan": _plan(row),
                         "elapsed_s": _elapsed(row)})
         try:
             while True:
