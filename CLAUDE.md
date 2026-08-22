@@ -332,6 +332,22 @@
    근거 패널과 **산출물 REMARK 열 34행**에 그대로 나갑니다.
 10. **UNKNOWN 6종** (`out/valve_project_deps.md`) — Phase 3.
 11. **Tag No.** — 도면이 `.....` 로 미부여. 발주처 규칙 필요.
+12. **PI 48건 — 판별자 없음** (`out/pi_discriminator.md`). 계장 신호선 가설은
+    **기각**: 이 문서의 모든 선이 `width=0` · `dashes='[] 0'` 이라 선 속성으로는
+    구분되지 않고, 범례가 쓰는 기하(ELECTRIC = 토막 7.2 + 틈 3.6 등)로 국소
+    탐색한 결과 파선은 계상되는 PI 24.8% ↔ 계상 안 되는 PI **0%** 로 **방향이
+    반대**입니다. 확인된 구조: 갈림은 버블이 아니라 **도면 단위**입니다
+    (PI 가 있는 교집합 17장 중 전부 셈 9 · 전혀 안 셈 8 · **부분 0**).
+    유일하게 방향이 맞는 축은 **벤더 별표**(계상 PI 0.0% ↔ 미계상 PI 43.8%,
+    PIT·TIT·TI·LIT·FIT 는 0~1%)이지만 회수율이 **30.4%**(48 중 21)라 채택하지
+    않았습니다. "유닛코드 00 도면에서는 PI·RO 를 안 센다"(PI 7/7 · RO 3/3)는
+    **AL NOUF1 도면번호 체계 관찰**이므로 범용 규칙이 아니고, 반례도 있습니다
+    (`10PGB10-M05-0001`). SADARA 정답지 미제공으로 범용성은 **미측정**입니다.
+13. **밸브 VALVE TYPE 은 채울 수 있습니다** (`out/valve_operation_mode.md`).
+    HYDRAULIC→HOV(4/4) · PNEUMATIC→CV(**n=1**) 은 액추에이터로 결정되고,
+    갈리는 것은 MOTOR 하나인데 도면이 `INCH` 를 인쇄합니다 — 8회 전부 MOTOR
+    밸브 긴변 1배 안이고, **INCH 가 있는 도면 4장 = MOV_I 가 있는 도면 4장,
+    반례 0**. TAG NUMBER 와 DESCRIPTION 은 공란이 정답입니다(§4-8 · §4-11).
 
 ## 5. 발주처 확인 대기 항목
 
@@ -340,6 +356,8 @@
 | `out/description_question.md` | 기기 명명 규칙 · 위치 관계어 · UNIT 접두어 · A/B/C 순번 (각 항목이 몇 행을 채우는지 포함) |
 | `out/ls_bundle_question.md` | 수량은 답을 받아 적용했고, **접힌 행의 Description 문형** 하나만 남음 |
 | 마스터 밸브 리스트 | 밸브 Description 문형 기준 (미수령) |
+| `out/valve_operation_mode.md` | PNEUMATIC → MODULATING 의 근거가 발주처 **1행**뿐입니다. 우리 PNEUMATIC 탭 46행을 그 1행으로 판정해도 되는지 |
+| `out/pi_discriminator.md` | PI 를 어느 도면에서 세고 어느 도면에서 안 세는지의 기준. 도면에서 유도되지 않았습니다 |
 
 ## 5-1. 마감 현황 — 824행이 사람에게 무엇을 요구하나
 

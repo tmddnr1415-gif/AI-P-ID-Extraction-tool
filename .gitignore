@@ -29,3 +29,11 @@ out/alnouf1_truth.csv
 # Emptied of data but still the client's form, so they stay out like the
 # workbooks they came from.
 data/blank/
+
+# Round measurements that transcribe the client's own lists - the same client
+# material `data/*.xlsx` is gitignored for, only rearranged.  `page_diff.xlsx`
+# carries the client's per-drawing counts and its VALVE TYPE column;
+# `description_identifiability.md` carries 385 of its Description sentences
+# verbatim.  Rebuild them from `data/` when they are needed.
+out/page_diff.xlsx
+out/description_identifiability.md
