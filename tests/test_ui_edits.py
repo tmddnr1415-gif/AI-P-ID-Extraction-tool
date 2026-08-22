@@ -226,6 +226,36 @@ def test_step4_survives_tab_switching(page, edited):
             f"step 4: {col} lost after Field -> MOV -> Field -> 전체"
 
 
+# What the grid was showing, for a failure message that says more than a count.
+_ADD_STATE = """() => ({
+  tab: S.tab, page: S.page && S.page.page_no, sel: S.sel,
+  search: S.filter || null, origin: S.originFilter || null,
+  drawing: S.drawing || null, grade: S.gradeFilter, reason: S.reasonFilter,
+  onlyReview: S.onlyReview, rows_in_state: S.rows.length,
+  added_in_state: S.rows.filter(r => r.added).map(r => r.key),
+  added_in_dom: [...document.querySelectorAll('#body tr')]
+    .filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key),
+})"""
+
+# Both row-creating buttons finish with a round trip and a re-render, so the test
+# waits for the rows rather than for a stopwatch.  A fixed 500ms read the *previous*
+# render often enough to look like '＋행' does nothing - the server had the row and
+# the grid did not have it yet.
+_ADDED_KEYS = ("() => [...document.querySelectorAll('#body tr')]"
+               ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
+
+
+def _wait_for_added(page, want: int) -> None:
+    """Wait until the grid shows `want` reviewer-added rows; never assert here."""
+    try:
+        page.wait_for_function(
+            "n => [...document.querySelectorAll('#body tr')]"
+            ".filter(tr => tr.dataset.added === '1').length >= n",
+            arg=want, timeout=15_000)
+    except Exception:
+        pass          # the caller's assertion reports what is actually there
+
+
 def test_step5_survives_row_add_copy_delete(page, edited, server, job_id):
     """Adding, duplicating and dropping rows must not disturb other rows.
 
@@ -237,11 +267,9 @@ def test_step5_survives_row_add_copy_delete(page, edited, server, job_id):
     page.evaluate("k => document.querySelector(`#body tr[data-key='${k}']`).click()",
                   keys[0])
     page.wait_for_timeout(200)
-    before = page.evaluate(
-        "() => [...document.querySelectorAll('#body tr')]"
-        ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
+    before = page.evaluate(_ADDED_KEYS)
     page.click("#row-copy")
-    page.wait_for_timeout(500)
+    _wait_for_added(page, len(before) + 1)
     # '＋행' only arms the point pick - the row is created when the reviewer says
     # where it belongs, or cancels the pick.  Clicking the button and counting
     # rows straight after asserts a step the UI does not have; this test used to
@@ -250,13 +278,11 @@ def test_step5_survives_row_add_copy_delete(page, edited, server, job_id):
     page.click("#row-add")
     page.wait_for_selector("#pick-note:not(.hidden)")
     page.click("#pick-cancel")
-    page.wait_for_timeout(500)
-    added = [k for k in page.evaluate(
-        "() => [...document.querySelectorAll('#body tr')]"
-        ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
-        if k not in before]
+    _wait_for_added(page, len(before) + 2)
+    added = [k for k in page.evaluate(_ADDED_KEYS) if k not in before]
     assert len(added) == 2, (
-        f"step 5: copy and add produced {len(added)} rows, not 2")
+        "step 5: copy and add produced "
+        f"{len(added)} rows, not 2 — {page.evaluate(_ADD_STATE)}")
     page.evaluate("k => document.querySelector(`#body tr[data-key='${k}']`).click()",
                   added[0])
     page.wait_for_timeout(200)
