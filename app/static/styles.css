@@ -1,38 +1,108 @@
 :root {
-  color-scheme: light dark;
-  --bg: #101114; --panel: #17181c; --line: #2a2c33; --fg: #e9eaee;
-  --muted: #8b8f9a; --accent: #4c8dff; --warn: #f0a132; --bad: #e5484d;
-  --ok: #3fb950;
+  color-scheme: dark;
+  /* 따뜻한 중립 배경.  회색을 노란쪽으로 조금 밀어 (색상 30-40도, 채도 낮음)
+     종이 옆에 두었을 때 화면이 차갑게 튀지 않게 했다.  도면이 흰 종이라
+     밝은 배경으로 가면 뷰어와 껍데기의 경계가 사라지고, 오버레이 색들도 흰
+     종이를 전제로 고른 값이라 전부 다시 재야 한다 - 그래서 어두운 쪽이다.
+
+     실측 대비 (WCAG 2.1):
+       본문 #f2eee7 on #1b1917 . . . 15.16  AA
+       흐린 글자 #a9a094 on bg  . . .  6.80  AA
+       강조 #4ea0ff on bg . . . . . .  6.51  AA
+       흰 글자 on 강조채움 #0b6fd6 . .  4.93  AA
+       조작 테두리 #7a6f61 on bg  . .  3.57  1.4.11 통과
+     구분선(--line)은 장식이라 대비 요구가 없고, 조작의 경계는 --edge 다. */
+  --bg: #1b1917; --panel: #232019; --panel-2: #2b2721;
+  --line: #332f28; --edge: #7a6f61;
+  --fg: #f2eee7; --muted: #a9a094;
+  /* 강조색은 하나다.  값은 도면 오버레이의 "출력 포함"과 같은 파랑이라,
+     제품 전체에 파랑이 하나만 존재한다 (예전에는 #4c8dff 와 #0a84ff 둘이었다). */
+  --accent: #4ea0ff; --accent-fill: #0b6fd6;
+  --warn: #e8a33d; --bad: #f2706e; --ok: #6fc48a;
+  /* 개정 세 상태 - 탈채도판.  글자·기호·왼쪽 띠가 같이 말하므로 색은 셋째
+     단서다 (흑백으로 찍어도 읽힌다). */
+  --rev-add: #d9a441; --rev-mod: #79b585; --rev-del: #e08a84;
+  --r-s: 4px; --r-m: 8px; --r-l: 12px;
+  /* 글자 크기는 네 단계뿐이다: 12 / 13 / 15 / 20. */
+  --t-s: 12px; --t-m: 13px; --t-l: 15px; --t-xl: 20px;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
-  font: 13px/1.5 -apple-system, "Segoe UI", "Noto Sans KR", system-ui, sans-serif;
+  font: var(--t-m)/1.6 -apple-system, "Segoe UI", "Noto Sans KR", system-ui,
+        sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
+.small { font-size: var(--t-s); }
 .spacer { flex: 1; }
+h1, h2, h3 { font-weight: 600; }
 
-/* ---------- drop screen ---------- */
-.drop { height: 100%; display: grid; place-items: center; }
-.drop.over .drop-inner { border-color: var(--accent); background: #4c8dff14; }
-.drop-inner {
-  border: 2px dashed var(--line); border-radius: 14px;
-  padding: 56px 72px; text-align: center; transition: .15s;
+/* ---------- 첫 화면 (두 단) ----------
+   왼쪽에서 "어디에 넣을지"가 정해져야 오른쪽이 열린다.  좁은 창에서는 세로로
+   쌓이고 왼쪽 단이 위에 온다 - 순서가 곧 절차이기 때문이다. */
+.drop { height: 100%; overflow: auto; display: grid; place-items: center;
+  padding: 32px 24px; }
+.intake {
+  display: grid; grid-template-columns: minmax(320px, 400px) minmax(360px, 480px);
+  gap: 28px; align-items: start; width: 100%; max-width: 920px;
 }
-.drop h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+@media (max-width: 900px) {
+  .intake { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
+.setup, .intake-right { min-width: 0; }
+.setup {
+  border: 1px solid var(--line); border-radius: var(--r-l);
+  padding: 18px 20px 16px; background: var(--panel);
+}
+.step { display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+  font-size: var(--t-l); }
+.step-n {
+  display: inline-grid; place-items: center; width: 20px; height: 20px;
+  border: 1px solid var(--edge); border-radius: 999px;
+  font-size: var(--t-s); color: var(--muted);
+}
+.field { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.field label { min-width: 62px; color: var(--muted); font-size: var(--t-s); }
+.field select, .field input[type=text] { flex: 1; min-width: 0; }
+.summary {
+  margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--line);
+  font-size: var(--t-m); min-height: 21px;
+}
+
+.drop-zone {
+  border: 1px dashed var(--edge); border-radius: var(--r-l);
+  padding: 28px 24px 16px; text-align: center; transition: .15s;
+  background: var(--panel);
+}
+.drop-zone.over { border-color: var(--accent); border-style: solid; }
+/* 잠긴 상태는 흐려지는 것으로 끝나지 않는다 - 왜 잠겼는지가 아래에 적힌다. */
+.drop-zone.disabled { opacity: .5; border-style: dotted; }
+.drop-zone.disabled .drop-target { pointer-events: none; }
+.drop-head { font-size: var(--t-l); margin: 0 0 6px; }
+.drop-target p { margin: 4px 0; }
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
-.joblist { margin-top: 24px; text-align: left; }
-.joblist a { display: block; color: var(--fg); text-decoration: none;
-  padding: 5px 8px; border-radius: 6px; }
-.joblist a:hover { background: var(--panel); }
+#drop-lock { margin: 12px 0 0; padding-top: 10px;
+  border-top: 1px solid var(--line); }
+.joblist { margin-top: 20px; text-align: left; }
+.joblist a { display: flex; justify-content: space-between; gap: 12px;
+  color: var(--fg); text-decoration: none; padding: 6px 10px;
+  border-radius: var(--r-s); border: 1px solid transparent; }
+.joblist a:hover { border-color: var(--edge); }
 
 /* ---------- progress ---------- */
-.progress { height: 100%; display: grid; place-items: center; }
-.progress-inner { width: min(560px, 80vw); }
-.bar { height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; }
-#bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.progress { height: 100%; display: grid; place-items: center; padding: 24px; }
+.progress-inner { width: min(560px, 84vw); }
+#prog-title { font-size: var(--t-xl); margin: 0 0 4px; }
+.prog-pages { margin: 0 0 16px; color: var(--muted); }
+.bar { height: 6px; background: var(--panel-2); border-radius: 3px;
+  overflow: hidden; border: 1px solid var(--line); }
+#bar-fill { height: 100%; width: 0; background: var(--accent);
+  transition: width .3s; }
+.prog-sheets { margin: 10px 0 2px; font-size: var(--t-l); }
+#prog-msg { margin: 0; }
 /* The failure screen's way out.  Placement only - what these look like is the
    next round's question. */
 .prog-actions { margin-top: 12px; }
@@ -44,26 +114,37 @@ header {
   background: var(--panel); border-bottom: 1px solid var(--line); flex: none;
 }
 .job { font-weight: 600; }
+.job-meta { color: var(--muted); font-size: var(--t-s); }
 nav { display: flex; gap: 2px; }
 nav button {
   background: transparent; border: 1px solid transparent; color: var(--muted);
-  padding: 4px 12px; border-radius: 6px; cursor: pointer; font: inherit;
+  padding: 4px 12px; border-radius: var(--r-m); cursor: pointer; font: inherit;
 }
-nav button.on { background: var(--bg); color: var(--fg); border-color: var(--line); }
-nav button .n { color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+nav button.on { background: var(--bg); color: var(--fg); border-color: var(--edge); }
+nav button .n { color: var(--muted); margin-left: 6px; }
+/* 기본은 선이다.  채워진 버튼은 화면마다 하나 - 그 화면의 주된 행동에만. */
 button {
-  background: var(--accent); border: 0; color: #fff; padding: 5px 14px;
-  border-radius: 6px; cursor: pointer; font: inherit;
+  background: transparent; border: 1px solid var(--edge); color: var(--fg);
+  padding: 4px 13px; border-radius: var(--r-m); cursor: pointer; font: inherit;
 }
-button:disabled { background: #34363d; color: var(--muted); cursor: not-allowed; }
-button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#excel:not(:disabled), #proj-save, #prog-home {
+  background: var(--accent-fill); border-color: var(--accent-fill); color: #fff;
+}
+button:disabled { background: transparent; border-color: var(--line);
+  color: var(--muted); cursor: not-allowed; }
+button.ghost { background: transparent; border: 1px solid var(--line);
+  color: var(--fg); }
+button.ghost:hover { border-color: var(--edge); }
 .gate { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+/* 배지는 채우지 않고 두른다 - 색은 테두리와 글자에만 실린다. */
 .badge {
-  padding: 3px 10px; border-radius: 999px; background: #34363d;
-  font-variant-numeric: tabular-nums;
+  padding: 2px 9px; border-radius: 999px; background: transparent;
+  border: 1px solid var(--line); color: var(--muted); font-size: var(--t-s);
 }
-.badge.warn { background: #f0a13222; color: var(--warn); }
-#fb-badge { background: #3fb95022; color: var(--ok); }
+.badge.warn { border-color: var(--warn); color: var(--warn); }
+#fb-badge { border-color: var(--ok); color: var(--ok); }
 
 /* while pointing at a missed item */
 #stage.picking { cursor: crosshair; }
@@ -72,7 +153,7 @@ button.ghost { background: transparent; border: 1px solid var(--line); color: va
   position: absolute; left: 50%; transform: translateX(-50%); top: 48px;
   z-index: 8; background: var(--panel); border: 1px solid var(--accent);
   border-radius: 8px; padding: 7px 12px; display: flex; align-items: center;
-  gap: 10px; box-shadow: 0 6px 22px #000a;
+  gap: 10px; box-shadow: none;
 }
 
 /* ---------- split ---------- */
@@ -83,15 +164,19 @@ button.ghost { background: transparent; border: 1px solid var(--line); color: va
   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
   border-bottom: 1px solid var(--line); flex: none;
 }
-.toolbar button { padding: 3px 10px; background: #2a2c33; }
+.toolbar button { padding: 2px 10px; }
 select, input[type=search], input[type=text] {
-  background: #202228; color: var(--fg); border: 1px solid var(--line);
-  border-radius: 6px; padding: 4px 8px; font: inherit;
+  background: var(--panel-2); color: var(--fg); border: 1px solid var(--edge);
+  border-radius: var(--r-m); padding: 4px 8px; font: inherit;
 }
+select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+select:disabled { color: var(--muted); border-color: var(--line); }
 input[type=search] { flex: 1; }
 
 /* ---------- viewer ---------- */
-#stage { flex: 1; overflow: auto; position: relative; background: #0b0c0e; }
+#stage { flex: 1; overflow: auto; position: relative; background: #141210; }
 /* The viewer is focusable so it can own Ctrl +/-/0 (app.js).  The focus ring is
    drawn inside, so it says "the keys go here" without moving the sheet. */
 #stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -169,31 +254,55 @@ rect.terminal {
 
 /* ---------- grid ---------- */
 #gridwrap { flex: 1; overflow: auto; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; }
 th, td {
-  text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line);
+  text-align: left; padding: 4px 9px; border-bottom: 1px solid var(--line);
   white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.45;
 }
 th {
   position: sticky; top: 0; background: var(--panel); cursor: pointer;
-  font-weight: 600; z-index: 1;
+  font-weight: 600; font-size: var(--t-s); color: var(--muted); z-index: 1;
+  border-bottom: 1px solid var(--edge);
 }
-th .dir { color: var(--muted); }
+th .dir { color: var(--accent); }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: #ffffff08; }
-tbody tr.sel { background: #4c8dff26; }
+tbody tr.sel { background: rgba(78, 160, 255, .16);
+               box-shadow: inset 0 0 0 1px var(--accent); }
 tbody tr.deleted td { text-decoration: line-through; color: var(--muted); }
+/* 사람이 고친 칸.  색만으로 말하지 않는다 - 연필이 붙는다. */
 td.edited { color: var(--ok); }
+td.edited::after { content: " ✎"; color: var(--ok); font-size: var(--t-s); }
 td.conflict { color: var(--bad); font-weight: 600; }
 td[contenteditable] { outline: none; }
-td[contenteditable]:focus { background: #4c8dff22; }
+td[contenteditable]:focus { background: rgba(78, 160, 255, .16);
+                            box-shadow: inset 0 0 0 1px var(--accent); }
 .flag { color: var(--warn); }
 .flag.bad { color: var(--bad); }
+.flag.ok { color: var(--ok); }
+
+/* ---------- 등급 배지 ----------
+   모양(글리프) · 글자 · 색 세 가지가 같이 실린다.  흑백으로 찍어도, 색을
+   구분하지 못해도 앞의 둘이 남는다 - 색만으로 등급을 가르지 않는다. */
+.gradge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0 8px 0 6px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: var(--t-s);
+  color: var(--muted); line-height: 1.45;
+}
+.gradge .gm { font-style: normal; font-size: 10px; }
+.gradge.g-CONFIRMED { border-color: var(--edge); color: var(--fg); }
+.gradge.g-CONFIRMED .gm { color: var(--ok); }
+.gradge.g-LOW { border-style: dashed; border-color: var(--warn); color: var(--warn); }
+.gradge.g-PARTIAL { border-color: var(--warn); }
+.gradge.g-NONE { border-style: dotted; }
+.gradge.g-SKIP { opacity: .7; }
+.gradge.g-USER_ENTERED { border-color: var(--ok); color: var(--ok); }
 
 /* ---------- evidence ---------- */
 .evidence {
-  flex: none; height: 232px; overflow: auto; border-top: 1px solid var(--line);
-  padding: 10px 12px; background: var(--panel);
+  flex: none; height: 232px; overflow: auto; border-top: 1px solid var(--edge);
+  padding: 12px 14px; background: var(--panel);
 }
 /* Title and its 신고 button are siblings, not one string.  The row carries the
    margin the h3 used to have.
@@ -209,7 +318,8 @@ td[contenteditable]:focus { background: #4c8dff22; }
 .ev-head > button.mini-rep { font-size: 12px; }
 .evidence h3 { margin: 0; text-transform: uppercase;
   letter-spacing: .08em; color: var(--muted); }
-.evidence dl { display: grid; grid-template-columns: 128px 1fr; gap: 3px 12px; margin: 0; }
+.evidence dl { display: grid; grid-template-columns: 128px 1fr; gap: 5px 14px;
+               margin: 0; }
 .evidence dt { color: var(--muted); }
 .evidence dd { margin: 0; word-break: break-word; }
 .evidence pre { white-space: pre-wrap; margin: 6px 0 0; color: var(--muted); }
@@ -225,7 +335,7 @@ td[contenteditable]:focus { background: #4c8dff22; }
 .scope-body {
   position: absolute; right: 0; top: 32px; z-index: 20; width: 380px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 12px; box-shadow: 0 8px 28px #0008;
+  padding: 12px; box-shadow: none;
 }
 .scope-body { max-height: 72vh; overflow: auto; }
 .scope-body label { padding: 5px 0; gap: 8px; }
@@ -243,7 +353,8 @@ label.hold { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px
 .sysgroup .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 11px; }
 td.origin-PDF_ONLY { color: var(--warn); }
-td.origin-REVISION_GAP { color: #c77dff; }
+/* 귀속은 세 값뿐이고 셋 다 글자로 적히므로, 색은 눈에 띄게 하는 보조다. */
+td.origin-REVISION_GAP { color: #c9a2e6; }
 
 dl.rules { display: grid; grid-template-columns: 108px 1fr; gap: 4px 12px; margin: 0; }
 dl.rules dt { color: var(--muted); }
@@ -264,7 +375,8 @@ tbody tr.added td:first-child { box-shadow: inset 2px 0 0 var(--ok); }
   background: transparent; border: 1px solid var(--line); border-radius: 999px;
   color: inherit; padding: 2px 10px; cursor: pointer;
 }
-.desc-groups .grp.on { background: #0a84ff; border-color: #0a84ff; color: #fff; }
+.desc-groups .grp.on { background: transparent; border-color: var(--accent);
+                       color: var(--accent); font-weight: 600; }
 .desc-groups .n { opacity: .7; margin-left: 4px; }
 .cands { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
 .cands h4 { margin: 0 0 6px; font-size: 12px; }
@@ -275,7 +387,7 @@ button.cand {
   color: inherit; cursor: pointer; padding: 2px 8px; text-align: left;
   display: inline-flex; gap: 8px; align-items: baseline; font-size: 12px;
 }
-button.cand:hover { border-color: #0a84ff; }
+button.cand:hover { border-color: var(--accent); }
 .cand-kind { opacity: .6; font-size: 10px; text-transform: lowercase; }
 .cand-text { font-weight: 600; }
 .cand-actions { display: flex; gap: 6px; align-items: center; }
@@ -347,13 +459,18 @@ button.ract-b { padding: 2px 8px; border-radius: 8px; cursor: pointer;
                 color: inherit; font: inherit; font-size: 12px; }
 button.ract-b.on { border-color: currentColor; font-weight: 600; }
 
-.empty-note, .open-review { margin: 6px 10px; font-size: 12px; }
+/* 빈 상태는 "없다"로 끝내지 않는다 - 왜 비었는지가 같은 칸에 있다. */
+.empty-note, .open-review { margin: 6px 10px; font-size: var(--t-s); }
 .open-review { opacity: .85; }
+.empty-note {
+  border: 1px dashed var(--line); border-radius: var(--r-m);
+  padding: 10px 12px; margin: 10px; color: var(--muted);
+}
 
 /* ---------------- error reports & build line ----------------
    The dialog asks two things and shows the rest, because the rest is already
    known: re-typing a coordinate is how a report stops being filed. */
-.modal { position: fixed; inset: 0; background: #000a; display: grid;
+.modal { position: fixed; inset: 0; background: #0f0d0bcc; display: grid;
          place-items: center; z-index: 50; }
 .modal-box { width: min(720px, 92vw); max-height: 86vh; overflow: auto;
              background: var(--panel); border: 1px solid var(--line);
@@ -379,9 +496,9 @@ button.ract-b.on { border-color: currentColor; font-weight: 600; }
            padding: 8px 0; border-top: 1px solid var(--line); }
 .rep-row .meta { color: var(--muted); font-size: 12px; }
 .rep-row .acts { display: flex; gap: 6px; align-items: start; }
-.badge-n { display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 8px;
-           background: #e5484d22; color: var(--bad); font-variant-numeric: tabular-nums; }
-.badge-n.zero { background: transparent; color: var(--muted); }
+.badge-n { display: inline-block; min-width: 16px; padding: 0 5px;
+           border-radius: 999px; border: 1px solid var(--bad); color: var(--bad); }
+.badge-n.zero { border-color: var(--line); color: var(--muted); }
 button.mini-rep { border: 0; background: transparent; color: var(--muted);
                   cursor: pointer; font: inherit; padding: 0 3px; }
 button.mini-rep:hover { color: var(--bad); }
@@ -403,7 +520,7 @@ button.colf.on { opacity: 1; color: var(--accent); font-weight: 700;
 .colmenu {
   position: fixed; z-index: 40; min-width: 210px; max-width: 420px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  box-shadow: 0 8px 24px #0008; padding: 8px 10px; font-size: 12px;
+  box-shadow: none; padding: 8px 10px; font-size: 12px;
 }
 .cm-head { display: flex; align-items: center; gap: 6px; padding-bottom: 6px;
            border-bottom: 1px solid var(--line); }
@@ -427,19 +544,30 @@ button.colf.on { opacity: 1; color: var(--accent); font-weight: 700;
    색만으로 구분하지 않는다: 리스트는 색 + 왼쪽 굵은 띠 + NO 앞 기호, 도면은
    색이 아니라 테두리 형태로 말한다.  scope 색(#0a84ff 포함 · #ff9f0a 벤더
    제외)의 의미 대응은 그대로 두고 건드리지 않는다. */
-tr.rev-added   { background: rgba(255, 214, 10, .13); box-shadow: inset 3px 0 0 #ffd60a; }
-tr.rev-modified{ background: rgba(48, 209, 88, .11); box-shadow: inset 3px 0 0 #30d158; }
-tr.rev-added td:first-child::before    { content: "＋ "; color: #ffd60a; }
-tr.rev-modified td:first-child::before { content: "≠ "; color: #30d158; }
-tr.rev-deleted { background: rgba(255, 69, 58, .10); box-shadow: inset 3px 0 0 var(--bad); }
+tr.rev-added   { background: rgba(217, 164,  65, .09);
+                 box-shadow: inset 3px 0 0 var(--rev-add); }
+tr.rev-modified{ background: rgba(121, 181, 133, .09);
+                 box-shadow: inset 3px 0 0 var(--rev-mod); }
+tr.rev-added td:first-child::before    { content: "＋ "; color: var(--rev-add); }
+tr.rev-modified td:first-child::before { content: "≠ "; color: var(--rev-mod); }
+tr.rev-deleted { background: rgba(224, 138, 132, .08);
+                 box-shadow: inset 3px 0 0 var(--rev-del); }
 tr.rev-deleted td { text-decoration: line-through; }
-tr.deleted td:first-child::before      { content: "－ "; color: var(--bad); }
-button.del-confirm { border: 1px solid var(--line); border-radius: 4px;
+tr.deleted td:first-child::before      { content: "－ "; color: var(--rev-del); }
+button.del-confirm { border: 1px solid var(--line); border-radius: var(--r-s);
                      padding: 0 6px; margin-left: 4px; }
 
-/* 도면 위에서는 형태가 말한다 — scope 색과 겹쳐도 읽히도록. */
-rect.det.rev-added    { stroke-width: 3; stroke-dasharray: 6 3; }
-rect.det.rev-modified { stroke-width: 3; stroke-dasharray: 2 3; }
+/* 도면 위에서 개정은 **자기 도형**을 갖는다.
+   예전에는 같은 테두리의 굵기·파선을 덮어써서, 추가된 밸브는 밸브의 파선(5 3)
+   을 잃고 벤더 제외 항목은 "제외는 얇게"(1.1)를 잃었다 - 규칙 순서상 개정이
+   이겼기 때문이다.  이제 개정은 검출 상자 바깥에 4px 떨어진 링으로 그려지고,
+   상자 자체의 색(scope) · 파선(종류) · 굵기(제외)는 그대로 남는다. */
+rect.revring {
+  fill: none; vector-effect: non-scaling-stroke; pointer-events: none;
+  stroke-width: 2;
+}
+rect.revring.rev-added    { stroke: var(--rev-add); stroke-dasharray: 7 4; }
+rect.revring.rev-modified { stroke: var(--rev-mod); stroke-dasharray: 2 3; }
 
 .rev-label { color: var(--muted); }
 .proj { margin: 10px 0 14px; }

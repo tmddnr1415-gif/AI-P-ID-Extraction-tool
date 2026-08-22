@@ -475,6 +475,14 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `config` `multi_signal_bundle.description_signal` | 접힌 LS 행의 문형 (`representative` / `all` / `none`). 발주처 표기는 `representative` 뿐 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |
+| `app/static/index.html` 의 `.intake` | 첫 화면 두 단. 왼쪽(프로젝트·비교 대상)이 정해져야 오른쪽(드롭)이 열립니다. 900px 아래에서는 세로로 쌓이고 왼쪽이 위 |
+| `app/static/app.js` 의 `setSetupDone`·`chooseProject`·`revSummary` | 잠금 규칙과 늘 보이는 한 줄 요약(`Rev.C vs Rev.A`). Rev.A 는 비교 상자를 숨기고, Rev.B 는 Rev.A 로 고정합니다 |
+| `pipeline.analyse` 의 `say(..., sheets=)` · `db.set_progress(sheets=)` | 진행 장수. 분모는 **분석 대상 도면 수**(이 문서 52)이지 쪽수(58)가 아니고, 대상이 확정된 순간 한 번 실린 뒤 바뀌지 않습니다 |
+| `app/main.py` 의 `_count_pages` | 업로드 직후 PDF 에서 센 쪽수. 58장 19MB 에서 **2.1~2.9ms**. 0 은 "0쪽"이 아니라 "못 셌다" |
+| `app/static/app.js` 의 `STAGE_KO`·`stageWords` | 파이프라인 단계 이름 → 화면 말. **모르는 값은 그대로 씁니다.** 예전에는 `starting` 이 영어 그대로 나갔고 80초 표본 중 79번이 그것이었습니다 |
+| `app/static/styles.css` 의 `rect.revring` | 개정은 검출 상자 **바깥 링**으로 그립니다. 예전처럼 상자의 굵기·파선을 덮어쓰면 추가된 밸브가 밸브의 파선을 잃습니다 |
+| `app/static/app.js` 의 `GRADE_MARK` · `.gradge` | 등급 배지 — 모양·글자·색 셋이 같이 실립니다. 색만으로 구분하지 않습니다 |
+| `docs/ui_visual.md` | 이번 회차의 실측 대비표 · 세 색 층 규칙 · 진행 표시의 근거 · 판단 대기 후보 3건 |
 | `app/paths.py` | 읽는 뿌리(번들 안, 종료 시 삭제)와 쓰는 뿌리(exe 옆 `pid_data/`)를 가릅니다. 섞으면 결과가 사라집니다. `PID_DATA_DIR` 로 쓰는 뿌리를 덮어쓸 수 있고, UI 테스트가 그것으로 사본에서 돕니다 |
 | `app/main.py` 의 `_failure_reason` | 분석 실패 때 **화면에 갈 문장**. 예외를 보지 않고 PDF 를 다시 열어 쪽 수와 글자 수만 셉니다 — 예외를 바꿔 쓴 문장은 예외이기 때문입니다. 특정 못 하면 일반 문구 |
 | `job.error_detail` 열 · 진단 zip 의 `error.txt` | 예외 원문이 사는 곳. 화면에도 `/jobs` 응답에도 나가지 않습니다 (`_job_public`) |

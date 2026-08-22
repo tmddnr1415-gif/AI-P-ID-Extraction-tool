@@ -395,17 +395,24 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     attribute drawings against, and it is the only thing in this pipeline that
     needs one.  Real runs pass nothing.
     """
-    def say(done, total, msg):
+    def say(done, total, msg, sheets=None):
         if progress:
-            progress(done, total, msg)
+            progress(done, total, msg, sheets)
 
     clock = timings or Timings()
 
+    # Two reports before the sheet loop can start, because the two stages under
+    # them are the longest thing this pipeline does and neither of them used to
+    # say anything at all: the screen read "starting" from the moment the file
+    # was dropped until the first sheet was finished.  Nothing here changes what
+    # runs or in what order - these only name the stage that is already running.
+    say(0, 1, "opening the document")
     with clock.stage("open_pdf"):
         doc, pages = pidcache.load_pages(pdf_path)
+    total = len(pages) + 6
+    say(0, total, "measuring the sheet")
     with clock.stage("layout"):
         layout = _fit_layout(pages)
-    total = len(pages) + 6
     say(1, total, "reading title blocks")
 
     with clock.stage("titleblock_glyphs"):
@@ -444,13 +451,20 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]
+    # The denominator, published the moment it is decided and never revised.  It
+    # is the number of sheets this run will walk, which is not the same as the
+    # document's page count: the legend and the drawing list are pages too, and
+    # counting them in would make the last sheet finish at less than the whole.
+    say(3, total, f"{len(targets)} sheets to read", sheets=(0, len(targets)))
 
     rows: list[Row] = []
     layers: dict[int, dict] = {}
     per_page: dict[int, dict] = {}
 
     for i, pc in enumerate(targets, 1):
-        say(3 + i, total, f"page {pc.page_no} of {len(pages)}")
+        # `i - 1` because this is said before the sheet is read, not after.
+        say(3 + i, total, f"page {pc.page_no} of {len(pages)}",
+            sheets=(i - 1, len(targets)))
         meta = tb_rows[pc.page_no]
         with clock.stage("instruments", pc.page_no):
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
@@ -477,7 +491,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
-    say(total - 2, total, "valve bodies and actuators")
+    say(total - 2, total, "valve bodies and actuators",
+        sheets=(len(targets), len(targets)))
 
     def valve_step(page_no, name, dt):
         """Timing hook for the valve stage, which runs all pages in one call."""

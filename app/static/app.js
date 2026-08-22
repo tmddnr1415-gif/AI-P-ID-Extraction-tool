@@ -40,6 +40,12 @@ const COLS = [
 // count, direction and noun source - so there is no line to draw that would make
 // a smaller, surer grade, and inventing a threshold would be a guess.  Saying the
 // number is what can honestly be done.
+// 등급을 색으로만 구분하지 않기 위한 글리프.  흑백으로 인쇄해도, 색을 구분하지
+// 못해도 배지의 모양과 글자가 등급을 말한다 - 색은 셋째 단서다.
+const GRADE_MARK = {
+  CONFIRMED: "●", LOW: "◇", PARTIAL: "◐", NONE: "○", SKIP: "×",
+  USER_ENTERED: "✎",
+};
 const GRADES = [
   ["CONFIRMED", "도면 근거 있음",
    "이름·계통·변수를 모두 도면에서 읽었습니다 — 발주처 표기와 같다는 뜻은 아닙니다 "
@@ -72,27 +78,45 @@ const S = {
   // lands on the same view.
   axis: "", code: "", drawing: "", onlyReview: false, review: null,
   // 프로젝트와 리비전.  `rev` 는 이 분석의 대조 결과 요약이다.
-  project: "", projects: [], rev: null, onlyChanged: false,
-  deletedRows: [], revByKey: {},
+  project: "", projects: [], rev: null, onlyChanged: false, setupDone: false,
+  deletedRows: [], revByKey: {}, loading: false,
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
 };
 
-/* ---------------- upload ---------------- */
+/* ---------------- upload ----------------
+ *
+ * 왼쪽 단이 정해지기 전에는 PDF 를 받지 않는다.  프로젝트와 비교 대상은 분석이
+ * 시작된 뒤에는 고칠 수 없는 값이고, 안 고른 채 놓으면 그 분석은 어느 프로젝트
+ * 에도 속하지 않은 채로 끝나기 때문이다.  "프로젝트 없이 한 번만"도 하나의
+ * 선택지로 두어, 예전 흐름이 사라지지 않으면서도 고르는 행위는 남게 했다. */
 const drop = $("#drop");
-["dragenter", "dragover"].forEach(e => drop.addEventListener(e, ev => {
-  ev.preventDefault(); drop.classList.add("over");
+const dropZone = $req("#drop-zone");
+["dragenter", "dragover"].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault();
+  if (S.setupDone) dropZone.classList.add("over");
 }));
-["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => {
-  ev.preventDefault(); drop.classList.remove("over");
+["dragleave", "drop"].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.remove("over");
 }));
-drop.addEventListener("drop", ev => {
+dropZone.addEventListener("drop", ev => {
+  if (!S.setupDone) return;
   const f = ev.dataTransfer.files[0];
   if (f) upload(f);
 });
 $("#file").addEventListener("change", ev => {
   if (ev.target.files[0]) upload(ev.target.files[0]);
 });
+
+/* 왼쪽 단이 정해졌는가.  정해질 때까지 오른쪽은 잠겨 있고, 왜 잠겼는지를 쓴다. */
+function setSetupDone(done, why) {
+  S.setupDone = !!done;
+  dropZone.classList.toggle("disabled", !S.setupDone);
+  $("#file").disabled = !S.setupDone;
+  const lock = $("#drop-lock");
+  lock.textContent = why || "";
+  lock.classList.toggle("hidden", S.setupDone);
+}
 
 async function upload(file) {
   const fd = new FormData();
@@ -104,8 +128,8 @@ async function upload(file) {
   }
   const r = await fetch("/jobs", { method: "POST", body: fd });
   if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
-  const { job_id } = await r.json();
-  watch(job_id);
+  const job = await r.json();
+  watch(job.job_id, job.page_count);
 }
 
 /* ---------------- projects and revisions ----------------
@@ -118,10 +142,14 @@ async function loadProjects(select) {
   const list = await (await fetch("/projects")).json();
   S.projects = list;
   const pick = $("#proj-pick");
-  pick.innerHTML = '<option value="">(프로젝트 없이 한 번만 분석)</option>'
+  // 첫 항목은 고르지 않은 상태다.  "프로젝트 없이 한 번만"은 그 자체로 하나의
+  // 선택지이지 기본값이 아니다 - 기본값이면 아무것도 안 고른 사람이 프로젝트
+  // 밖에서 분석을 끝내게 된다.
+  pick.innerHTML = '<option value="__unset__">(고르세요)</option>'
+    + '<option value="">프로젝트 없이 한 번만 분석</option>'
     + list.map(p => `<option value="${escape(p.name)}">${escape(p.name)}`
       + ` — 다음 ${escape(nextRev(p))}</option>`).join("");
-  if (select) pick.value = select;
+  pick.value = select != null ? select : "__unset__";
   chooseProject(pick.value);
 }
 
@@ -131,29 +159,56 @@ function nextRev(p) {
 }
 
 function chooseProject(name) {
-  S.project = name || "";
-  const p = S.projects.find(x => x.name === name);
+  const unset = name === "__unset__";
+  S.project = unset ? "" : (name || "");
+  const p = S.projects.find(x => x.name === S.project);
   const box = $("#proj-rev");
   const base = $("#rev-base");
-  if (!p) {
+  if (unset) {
     box.classList.add("hidden");
+    $("#rev-note").textContent = "";
     $("#proj-msg").textContent = "";
+    setSetupDone(false, "왼쪽에서 프로젝트를 먼저 고르세요.");
+    return;
+  }
+  if (!p) {                                 // 프로젝트 없이 한 번만
+    box.classList.add("hidden");
+    $("#rev-note").textContent = "";
+    $("#proj-msg").textContent = "프로젝트 없이 한 번만 분석합니다 — 개정 대조 없음";
+    setSetupDone(true);
     return;
   }
   const revs = (p.revisions || []).map(r => r.revision);
   const next = nextRev(p);
-  box.classList.remove("hidden");
+  // 비교 상자는 비교할 것이 있을 때만 나온다.  Rev.A 에는 대상이 없고, 없는
+  // 것을 고르라고 내밀면 고를 수 있는 것처럼 읽힌다.
+  box.classList.toggle("hidden", revs.length === 0);
   base.innerHTML = revs.length
     ? revs.slice().reverse().map(r => `<option value="${escape(r)}">${escape(r)}</option>`).join("")
-    : '<option value="">(비교 대상 없음)</option>';
+    : "";
   base.disabled = revs.length < 2;          // Rev.B 는 선택지가 하나뿐이다
   base.value = revs.length ? revs[revs.length - 1] : "";
-  $("#rev-note").textContent = revs.length
-    ? (revs.length === 1 ? "직전 리비전 하나뿐입니다" : "기본값은 직전 리비전입니다")
-    : "이 프로젝트의 첫 리비전입니다 — 비교하지 않고 진행합니다";
-  $("#proj-msg").textContent =
-    `이 PDF 는 ${p.name} 의 ${next} 가 됩니다.`;
+  $("#rev-note").textContent = revs.length === 0
+    ? "이 프로젝트의 첫 리비전입니다 — 비교하지 않고 진행합니다"
+    : revs.length === 1
+      ? "비교 대상은 Rev.A 하나뿐이라 바꿀 수 없습니다"
+      : "기본값은 직전 리비전이고, 그 이전 것으로 바꿀 수 있습니다";
+  setSetupDone(true);
+  revSummary(p, next);
 }
+
+/* 무엇이 무엇과 비교되는지 한 줄.  고르기 전에도, 고른 뒤에도 늘 보인다. */
+function revSummary(p, next) {
+  const base = $("#rev-base");
+  const target = base.value;
+  $("#proj-msg").textContent = target
+    ? `${p.name} · ${next} vs ${target}`
+    : `${p.name} · ${next} (비교 대상 없음)`;
+}
+$req("#rev-base").addEventListener("change", () => {
+  const p = S.projects.find(x => x.name === S.project);
+  if (p) revSummary(p, nextRev(p));
+});
 
 $req("#proj-pick").addEventListener("change", ev => chooseProject(ev.target.value));
 $req("#proj-new-btn").addEventListener("click", () => {
@@ -178,7 +233,7 @@ $req("#proj-save").addEventListener("click", async () => {
   }
   $("#proj-new").classList.add("hidden");
   $("#proj-name").value = "";
-  await loadProjects(out.name);
+  await loadProjects(out.name);           // 만든 프로젝트가 곧 선택이다
 });
 
 async function showAudit() {
@@ -190,34 +245,101 @@ async function showAudit() {
 loadProjects();
 showAudit();
 
+/* 이전 분석 한 줄: 상태 · 장수 · 걸린 시간.  전부 저장된 값이다. */
+function jobLine(j) {
+  const bits = [j.status === "done" ? "완료" : j.status === "failed" ? "실패" : j.status];
+  if (j.page_count) bits.push(`${j.page_count}장`);
+  if (j.elapsed_s) bits.push(minsec(j.elapsed_s));
+  return bits.join(" · ");
+}
+
 async function listJobs() {
   const jobs = await (await fetch("/jobs")).json();
   $("#joblist").innerHTML = jobs.length
-    ? "<p class='muted'>이전 분석</p>" + jobs.map(j =>
-        `<a href="#${j.id}">${j.pdf_name} <span class="muted">${j.status}</span></a>`).join("")
+    ? "<p class='muted small'>이전 분석</p>" + jobs.map(j =>
+        `<a href="#${j.id}">${escape(j.pdf_name)}`
+        + `<span class="muted small">${escape(jobLine(j))}</span></a>`).join("")
     : "";
 }
 listJobs();
 
-/* ---------------- progress ---------------- */
-function watch(jobId) {
+/* ---------------- progress ----------------
+ *
+ * 이 화면이 말하는 세 값은 전부 문서에서 나온 것이다.  쪽수는 업로드 직후 서버가
+ * PDF 에서 세고, 분석 장수의 분모는 파이프라인이 대상 도면을 확정한 순간 한 번
+ * 실려 오고, 소요 시간은 시작·종료 시각의 차이다.  남은 시간은 적지 않는다 -
+ * 이 문서에서 단계별 소요가 60배까지 차이나므로(도면 한 장 0.3초 ↔ 사전 측정
+ * 185초) 어떤 외삽도 추측이 된다. */
+
+// 파이프라인이 보내는 단계 이름을 화면 말로 옮긴 것.  모르는 값은 그대로 쓴다 -
+// 없는 뜻을 지어내지 않는다.
+const STAGE_KO = {
+  "queued": "차례를 기다리는 중",
+  "starting": "시작하는 중",
+  "opening the document": "문서를 여는 중",
+  "measuring the sheet": "도면 치수를 재는 중 — 이 단계가 가장 깁니다",
+  "reading title blocks": "타이틀블록을 읽는 중",
+  "measuring rules off the legend sheets": "범례에서 규칙을 재는 중",
+  "deriving unit multipliers from legend page 5": "유닛 승수를 유도하는 중",
+  "valve bodies and actuators": "밸브 몸체·액추에이터를 찾는 중",
+  "building overlays": "도면 표시를 만드는 중",
+  "tracing pipe connectivity": "배관 연결을 따라가는 중",
+  "finding equipment": "기기를 찾는 중",
+  "assembling descriptions": "Description 을 조립하는 중",
+  "done": "완료",
+};
+
+function stageWords(msg) {
+  if (!msg) return "";
+  if (STAGE_KO[msg]) return STAGE_KO[msg];
+  if (/^page \d+ of \d+$/.test(msg)) return "도면을 읽는 중";
+  if (/^\d+ sheets to read$/.test(msg)) return "읽을 도면을 세는 중";
+  return msg;
+}
+
+function minsec(sec) {
+  const n = Math.round(sec || 0);
+  return n >= 60 ? `${Math.floor(n / 60)}분 ${n % 60}초` : `${n}초`;
+}
+
+function showPages(n) {
+  const line = $("#prog-pages");
+  if (n == null) return;
+  // 0 은 "0쪽"이 아니라 "못 셌다"이다.  추정값으로 채우지 않는다.
+  line.textContent = n > 0
+    ? `${n}장을 읽었습니다.`
+    : "이 PDF 의 쪽수를 읽지 못했습니다.";
+}
+
+function showSheets(done, total) {
+  const line = $("#prog-sheets");
+  if (!total) { line.textContent = ""; return; }
+  line.textContent = `도면 ${total}장 중 ${done}장 완료`;
+}
+
+function watch(jobId, pageCount) {
   drop.classList.add("hidden");
   $("#progress").classList.remove("hidden");
   // A previous failure leaves its hint, buttons and job list on this panel; a new
   // analysis has to start from a clean one or the reviewer reads last time's exit
   // routes over this run's progress bar.
   $("#prog-title").textContent = "분석 중";
+  $("#prog-sheets").textContent = "";
+  $("#prog-pages").textContent = "";
+  showPages(pageCount);
   ["#prog-hint", "#prog-actions", "#prog-jobs"].forEach(
     sel => $(sel).classList.add("hidden"));
   const src = new EventSource(`/jobs/${jobId}/events`);
   src.onmessage = (ev) => {
     const d = JSON.parse(ev.data);
     $("#bar-fill").style.width = `${Math.round(d.progress * 100)}%`;
-    $("#prog-msg").textContent = d.message || "";
+    $("#prog-msg").textContent = stageWords(d.message);
+    if (d.page_count != null && !$("#prog-pages").textContent) showPages(d.page_count);
+    if (d.sheets_total != null) showSheets(d.sheets_done || 0, d.sheets_total);
     if (d.status === "done") { src.close(); open(jobId); }
     if (d.status === "failed") {
       src.close();
-      showFailure(d.message);
+      showFailure(d.message, d);
     }
   };
 }
@@ -228,10 +350,19 @@ function watch(jobId) {
  *
  * `message` is now a sentence the server built from what the file contains - the
  * traceback is in the log and the diagnostic export, not here. */
-async function showFailure(message) {
+async function showFailure(message, d) {
   $("#bar-fill").style.width = "0%";
   $("#prog-title").textContent = "분석 실패";
   $("#prog-msg").textContent = message || "사유를 특정하지 못했습니다.";
+  // 어디까지 갔는지.  실패한 분석에서 사람이 확인할 수 있는 것은 이것뿐이다.
+  const far = $("#prog-sheets");
+  if (d && d.sheets_total) {
+    far.textContent = `도면 ${d.sheets_total}장 중 ${d.sheets_done || 0}장까지 읽고 멈췄습니다`
+      + (d.elapsed_s ? ` (${minsec(d.elapsed_s)})` : "");
+  } else if (d) {
+    far.textContent = "도면을 한 장도 읽기 전에 멈췄습니다"
+      + (d.elapsed_s ? ` (${minsec(d.elapsed_s)})` : "");
+  }
   const hint = $("#prog-hint");
   hint.textContent = "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.";
   hint.classList.remove("hidden");
@@ -262,6 +393,8 @@ function toFirstScreen() {
   $("#drop").classList.remove("hidden");
   $("#prog-title").textContent = "분석 중";
   $("#prog-msg").textContent = "";
+  $("#prog-sheets").textContent = "";
+  $("#prog-pages").textContent = "";
   if (location.hash) history.replaceState(null, "", location.pathname);
   listJobs();
 }
@@ -296,7 +429,8 @@ if (location.hash.length > 1) open(hashParts()[0]);
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
-  if (job.status !== "done") { watch(jobId); return; }
+  if (job.status !== "done") { watch(jobId, job.page_count); return; }
+  S.loading = true;
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
   // 개정 스위치는 그 분석의 것이다.  다른 분석으로 넘어갈 때 남아 있으면
@@ -312,10 +446,18 @@ async function open(jobId) {
   $("#progress").classList.add("hidden");
   $("#main").classList.remove("hidden");
   $("#job-name").textContent = job.pdf_name;
+  // 몇 장을 얼마나 걸려 읽었는지.  둘 다 잰 값이고, 없으면 그 칸은 비운다.
+  const meta = [];
+  if (job.page_count) meta.push(`${job.page_count}장`);
+  if (job.sheets_total) meta.push(`분석 ${job.sheets_done || 0}/${job.sheets_total}장`);
+  if (job.elapsed_s) meta.push(minsec(job.elapsed_s));
+  $("#job-meta").textContent = meta.join(" · ");
   S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
   await loadRevision();
   await loadRows();
   buildPageSelect();
+  S.loading = false;
+  updateEmptyNote();
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
 }
 
@@ -456,9 +598,23 @@ $("#only-review").onchange = (e) => {
 function updateEmptyNote() {
   const box = $("#empty-note");
   if (!box) return;
+  // 아직 안 불러온 것과 조건에 맞는 것이 없는 것은 다른 상태다.  같은 자리에
+  // 다른 문장을 쓴다 - 빈 표만 보여 주면 둘이 구분되지 않는다.
+  if (S.loading) {
+    box.classList.remove("hidden");
+    box.textContent = "행을 불러오는 중입니다…";
+    return;
+  }
   const n = visibleRows().length;
   box.classList.toggle("hidden", n > 0);
-  if (!n) box.textContent = "이 조건에 맞는 행이 없습니다 — 위의 조건 칩을 하나씩 해제해 보세요.";
+  if (!n) {
+    const narrowed = S.filter || S.gradeFilter || S.axis || S.code || S.drawing
+      || S.originFilter || S.onlyReview || S.onlyChanged
+      || Object.keys(S.colFilters).length;
+    box.textContent = narrowed
+      ? "이 조건에 맞는 행이 없습니다 — 위의 조건 칩을 하나씩 해제해 보세요."
+      : "이 분석에는 행이 없습니다.";
+  }
 }
 
 function showOpenReview() {
@@ -1119,8 +1275,22 @@ function renderGrid() {
         : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
         : key === "remark" ? remarkOf(r)
         : (r.values[key] ?? "");
-      td.textContent = val;
+      if (key === "description_grade" && val) {
+        // 배지 하나에 모양·글자·색이 같이 실린다.  모양과 글자만으로도 읽힌다.
+        const g = GRADES.find(x => x[0] === val);
+        const b = document.createElement("span");
+        b.className = `gradge g-${val}`;
+        b.innerHTML = `<i class="gm">${GRADE_MARK[val] || "·"}</i>`
+          + `<span>${escape(g ? g[1] : val)}</span>`;
+        b.title = g ? g[2] : val;
+        td.appendChild(b);
+      } else {
+        td.textContent = val;
+      }
       if (key === "origin") td.classList.add(`origin-${r.origin}`);
+      // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친
+      // 칸에는 연필이 붙는다.  "직접 입력" 등급과 같은 기호를 쓰는 것은 같은
+      // 사실을 말하기 때문이다.
       if (r.user && key in r.user) td.classList.add("edited");
       if (r.conflict && key in r.conflict) td.classList.add("conflict");
       if (editable && !r.deleted && !r.removed) {
@@ -1949,18 +2119,34 @@ function drawOverlay() {
     r.setAttribute("y", y0 * scale);
     r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
     r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
-    // 개정 표기는 scope 색을 덮어쓰지 않는다.  두 축이 같은 테두리를 두고
-    // 다투면 어느 쪽도 못 읽으므로, scope 는 색을 그대로 쓰고 개정은 **형태**로
-    // 말한다 - 굵은 테두리 + 점선.  색만으로 구분하지 않는 이유이기도 하다.
+    // 세 축이 한 테두리를 두고 다투지 않게 갈라 놓는다:
+    //   색      = scope (#0a84ff 포함 · #ff9f0a 벤더 제외) — 의미 그대로
+    //   파선    = 종류 (밸브)
+    //   바깥 링 = 개정 (추가 · 수정)
+    // 개정을 같은 테두리의 굵기·파선으로 말하면 밸브의 파선과 "제외는 얇게"가
+    // 둘 다 지워진다.  실제로 그랬다: `.det.rev-added` 가 뒤에 있어 `.det.valve`
+    // 와 `.det.excluded` 를 이겼다.  그래서 개정은 자기 도형을 따로 그린다.
     const rev = (S.revByKey || {})[it.key];
     r.setAttribute("class", "det"
       + (it.kind === "VALVE" ? " valve" : "")
       + (it.row === false ? " excluded" : "")
-      + (rev === "ADDED" ? " rev-added" : rev === "MODIFIED" ? " rev-modified" : "")
       + (S.sel === it.key ? " sel" : ""));
-    r.setAttribute("stroke", S.byTab
+    const stroke = S.byTab
       ? (COLOR[it.tab] || "#8e8e93")
-      : (SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93"));
+      : (SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93");
+    r.setAttribute("stroke", stroke);
+    if (rev === "ADDED" || rev === "MODIFIED") {
+      const pad = 4;
+      const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      ring.setAttribute("x", x0 * scale - pad);
+      ring.setAttribute("y", y0 * scale - pad);
+      ring.setAttribute("width", Math.max(2, (x1 - x0) * scale) + pad * 2);
+      ring.setAttribute("height", Math.max(2, (y1 - y0) * scale) + pad * 2);
+      ring.setAttribute("class", "revring "
+        + (rev === "ADDED" ? "rev-added" : "rev-modified"));
+      ring.dataset.rev = rev;
+      ov.appendChild(ring);
+    }
     r.dataset.key = it.key;
     r.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
     // Right-click on the symbol itself: the same dialog the grid opens, so the

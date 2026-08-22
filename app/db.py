@@ -196,6 +196,16 @@ _ADDED_COLUMNS = (
     ("job", "revision", "TEXT NOT NULL DEFAULT ''"),
     ("job", "compared_with", "TEXT NOT NULL DEFAULT ''"),
     ("revision_state", "excel_no", "INTEGER NOT NULL DEFAULT 0"),
+    # 몇 장짜리 문서인가, 그중 몇 장을 읽었는가, 얼마나 걸렸는가.  네 값 다
+    # 화면에 그대로 나가므로 추정하지 않는다: `page_count` 는 업로드 직후 PDF
+    # 에서 세고 (못 세면 0 이고, 0 은 "모른다"이지 "0쪽"이 아니다),
+    # `sheets_total` 은 파이프라인이 분석 대상을 확정한 순간 한 번 적힌 뒤
+    # 끝날 때까지 바뀌지 않는다.
+    ("job", "page_count", "INTEGER NOT NULL DEFAULT 0"),
+    ("job", "sheets_done", "INTEGER NOT NULL DEFAULT 0"),
+    ("job", "sheets_total", "INTEGER NOT NULL DEFAULT 0"),
+    ("job", "started_at", "REAL NOT NULL DEFAULT 0"),
+    ("job", "finished_at", "REAL NOT NULL DEFAULT 0"),
 )
 
 
@@ -226,19 +236,44 @@ def create_job(con, job_id: str, pdf_name: str, pdf_sha: str, pdf_path: Path):
 
 
 def set_progress(con, job_id: str, progress: float, message: str,
-                 status: str = "running", error_detail: str = None):
+                 status: str = "running", error_detail: str = None,
+                 sheets: tuple = None):
     """`message` is what a person reads.  `error_detail` is the raw text.
 
     They are separate columns because they have different audiences: the message
     goes on screen, the detail goes to the log and the diagnostic export.  Putting
     a traceback in `message` is what the failure screen used to show, and it told
     the reviewer nothing they could act on.
+
+    `sheets` is `(done, total)` for the sheet loop, stored rather than only
+    emitted because a listener that connects late - or a failure screen asked how
+    far it got - reads this row, not the event that has already gone past.
     """
     con.execute("UPDATE job SET progress=?, message=?, status=? WHERE id=?",
                 (progress, message, status, job_id))
+    if sheets is not None:
+        con.execute("UPDATE job SET sheets_done=?, sheets_total=? WHERE id=?",
+                    (int(sheets[0]), int(sheets[1]), job_id))
     if error_detail is not None:
         con.execute("UPDATE job SET error_detail=? WHERE id=?",
                     (error_detail, job_id))
+    con.commit()
+
+
+def set_page_count(con, job_id: str, pages: int) -> None:
+    """How many pages the uploaded PDF has, counted from the file itself."""
+    con.execute("UPDATE job SET page_count=? WHERE id=?", (int(pages), job_id))
+    con.commit()
+
+
+def mark_started(con, job_id: str) -> None:
+    con.execute("UPDATE job SET started_at=?, finished_at=0, sheets_done=0"
+                " WHERE id=?", (time.time(), job_id))
+    con.commit()
+
+
+def mark_finished(con, job_id: str) -> None:
+    con.execute("UPDATE job SET finished_at=? WHERE id=?", (time.time(), job_id))
     con.commit()
 
 
