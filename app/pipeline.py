@@ -1271,8 +1271,12 @@ REMARK = {
 DESCRIPTION_REVIEW = {
     GRADE_PARTIAL: ("Description 부분 생성 — 단위·계통·변수까지는 도면에서 "
                     "확인됐고 중간 서술은 확인되지 않았습니다. 검토 후 확정 필요"),
-    GRADE_LOW: ("Description 중간 서술을 배관이 향하는 곳의 표기에서 골랐습니다 "
-                "— 기기 이름이 아니므로 확인 필요"),
+    # 이 문장은 `needs_review` 로 들어가고, `needs_review` 는 fingerprint 가
+    # 해시하는 아홉 칸 중 하나다.  손대면 검출이 그대로여도 지문이 움직인다 -
+    # 실제로 a38fe8ac -> 0ac5d2e6 이 됐고, 원인은 이 12행뿐이었다.  이번 회차에
+    # 승인된 것은 등급 라벨(REMARK[GRADE_LOW])이고 이 문장이 아니므로 되돌린다.
+    GRADE_LOW: ("Description 중간 서술을 후보에서 골랐으나 근거가 약합니다 — "
+                "확인 필요"),
     GRADE_NONE: "Description 근거 부족 — 공란으로 남겼습니다",
 }
 DESCRIPTION_NONE = DESCRIPTION_REVIEW[GRADE_NONE]
