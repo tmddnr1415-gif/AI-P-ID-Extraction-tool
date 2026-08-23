@@ -146,6 +146,27 @@ layout   185.1s      <- 첫 장을 읽기 전에 끝나야 하는 단계
 축약형이 `padding-left: 164px` (거위 자리)를 지워 안내 문구가 그림 위로 흘러듦 —
 축약형에 합침.  ③ 하단 장면이 기본 뷰포트에서 잘림 — 여백을 줄여 한 화면에 담음.
 
+## 4-2. 4회차 — 래스터 삽화 패키지 (실측)
+
+**출처·라이선스**: `app/static/img/r-*.svg` 6개는 사용자가 제작·제공한 자산이다
+(`PID_UI_ClaudeCode_SVG_Package.zip`, 2026-08).  외부 소스·스톡 없음.  각 파일은
+PNG 래스터를 base64 로 감싼 SVG 이므로 **표시 크기를 원본 픽셀보다 키우지 않는다**
+(흐려진다) — 아래 표가 그 상한이다.
+
+| 파일 | 원본 PNG | 표시 | 자리 | 밀려난 선화 |
+| --- | --- | --- | --- | --- |
+| `r-brand.svg` | 260×110 | 190×80 | 첫 화면 브랜드 | `logo-reader.svg` |
+| `r-goose-upload.svg` | 270×320 | 124×147 | 드롭 카드 왼쪽 (말풍선 주인) | `goose-blueprint.svg` |
+| `r-goose-sign.svg` | 216×198 | 높이 120 로 축소 후 아래 84px 만 표시 | 머리줄 오른쪽 끝 | `goose-sign.svg` |
+| `r-goose-magnifier.svg` | 165×235 | 88×125 | 뷰어 구석 | `goose-magnifier.svg` |
+| `r-goose-flowers.svg` | 272×154 | 높이 110 | 근거 패널 배경 | `vase-flowers.svg` |
+| `r-flower-pot.svg` | 96×97 | 34×34 | 위생 통계 줄 옆 (신규) | — |
+
+밀려난 선화 5개는 **삭제하지 않고 참조만 끊었다** (전부 0회).  선화 유지 6개:
+`paper-texture` · `grass-border` · `clouds` · `corner-branch` · `logo-mark-simple`
+· `scene-desk`.  레퍼런스 5장(`target_*`·`style_ref_*`)은 `app/static/` 과 exe
+어디에도 넣지 않았다.
+
 ## 5. 판단이 필요한 것 — 후보만
 
 1. **밝은 배경**.  지금은 따뜻한 어두운 쪽입니다.  밝게 가려면 뷰어 배경(흰 종이와

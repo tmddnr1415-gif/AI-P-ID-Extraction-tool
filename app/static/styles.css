@@ -69,12 +69,13 @@ h1, h2, h3 { font-weight: 600; }
   opacity: .85; pointer-events: none;
 }
 .drop-zone {
-  position: relative; min-height: 250px;
+  position: relative; min-height: 264px;
 }
+/* 래스터 PNG 270x320 (세로형).  표시 124x147 은 원본 이하다. */
 .drop-zone::before {
-  content: ""; position: absolute; left: 10px; bottom: 12px;
-  width: 126px; height: 126px; pointer-events: none; z-index: 0;
-  background: url("img/goose-blueprint.svg") no-repeat left bottom / contain;
+  content: ""; position: absolute; left: 14px; bottom: 12px;
+  width: 124px; height: 147px; pointer-events: none; z-index: 0;
+  background: url("img/r-goose-upload.svg") no-repeat left bottom / contain;
 }
 /* 글이 그림 위에 온다.  장식이 글자를 가리면 그것은 장식이 아니라 결함이다 -
    실제로 안내 문구의 "도면 58장 기준" 이 거위 뒤로 들어가 있었다. */
@@ -94,11 +95,11 @@ h1, h2, h3 { font-weight: 600; }
 }
 
 /* 결과 화면 — 머리글 왼쪽 그림, 뷰어 왼쪽 아래 거위, 바깥 모서리 가지 */
-/* 이 그림은 160x120 에 2.4px 선이라 44px 로 줄이면 무늬가 된다 - 실제로 그랬다.
-   읽히는 크기는 80px 부터이고, 그만한 자리는 첫 화면에만 있다. */
+/* 래스터(PNG 260x110)라 표시 크기를 원본보다 키우지 않는다 - 흐려진다.
+   190x80 은 원본 이하이고, 4회차에 선화 logo-reader 를 이것으로 교체했다. */
 .brand-mark {
-  width: 96px; height: 72px; flex: none;
-  background: url("img/logo-reader.svg") no-repeat center bottom / contain;
+  width: 190px; height: 80px; flex: none;
+  background: url("img/r-brand.svg") no-repeat left bottom / contain;
 }
 .first-brand {
   grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 12px;
@@ -108,8 +109,8 @@ h1, h2, h3 { font-weight: 600; }
    그 위에 얹으면 범례를 가린다 - 실제로 가렸다. */
 #left::after {
   content: ""; position: absolute; right: 14px; bottom: 6px;
-  width: 108px; height: 108px; opacity: .45; pointer-events: none; z-index: 0;
-  background: url("img/goose-magnifier.svg") no-repeat right bottom / contain;
+  width: 88px; height: 125px; opacity: .9; pointer-events: none; z-index: 0;
+  background: url("img/r-goose-magnifier.svg") no-repeat right bottom / contain;
 }
 /* 가지는 창의 바깥 모서리에 붙는다 - 그 자리에는 데이터가 없다.
    결과 화면의 **우상단은 쓸 수 없다**: 머리줄이 불투명하게 폭 전체를 덮으므로
@@ -133,6 +134,7 @@ main::after {
   .drop::before, main::after, .brand-mark, .bubble { display: none; }
   header.head { padding-right: 14px; }
   header.head::after { display: none; }
+  .intake-audit { padding-left: 0; background: none; }
   .drop-zone { padding-left: 24px; }
 }
 
@@ -199,7 +201,7 @@ main::after {
 #drop-lock { margin: 12px 0 0; padding-top: 10px;
   border-top: 1px solid var(--line); }
 .bubble {
-  position: absolute; left: 4px; bottom: 146px; margin: 0; width: 148px;
+  position: absolute; left: 4px; bottom: 168px; margin: 0; width: 148px;
   background: var(--paper-card); border: 1px solid var(--ink-soft);
   border-radius: var(--r-m); padding: 7px 10px; font-size: var(--t-s);
   line-height: 1.45; color: var(--ink-strong); text-align: left; z-index: 1;
@@ -216,7 +218,9 @@ main::after {
               border-radius: var(--r-m); background: var(--paper-card);
               font-size: var(--t-s); color: var(--muted); }
 .audit-full div { padding: 1px 0; }
-.intake-audit { grid-column: 1 / -1; margin: 4px 4px 0; }
+.intake-audit { grid-column: 1 / -1; margin: 4px 4px 0; padding-left: 42px;
+  background: url("img/r-flower-pot.svg") no-repeat left center / 34px 34px;
+  min-height: 36px; display: flex; align-items: center; }
 .joblist { grid-column: 1 / -1; margin-top: 0; text-align: left; }
 .joblist a { display: flex; justify-content: space-between; gap: 12px;
   color: var(--fg); text-decoration: none; padding: 4px 10px;
@@ -277,11 +281,13 @@ header button, header summary, .gate { white-space: nowrap; }
 }
 /* GOOD JOB 거위.  머리줄 오른쪽 끝의 예약 폭 안에만 산다 - 내용은
    padding-right 가 막아 절대 그 밑으로 들어가지 않는다. */
-header.head { padding-right: 118px; }
+header.head { padding-right: 132px; }
 header.head::after {
   content: ""; position: absolute; right: 8px; top: 2px;
-  width: 95px; height: 84px; pointer-events: none;
-  background: url("img/goose-sign.svg") no-repeat center / contain;
+  width: 118px; height: 84px; pointer-events: none;
+  /* 래스터 PNG 216x198.  높이 120 으로 축소해 아랫부분 84px 만 보인다 -
+     나무 꼭대기는 잘리고 거위와 팻말이 남는다.  머리줄은 88px 그대로다. */
+  background: url("img/r-goose-sign.svg") no-repeat center bottom / auto 120px;
 }
 .head-actions { border-top: 1px solid var(--line); padding-top: 5px; }
 
@@ -499,8 +505,10 @@ td[contenteditable]:focus { background: rgba(26, 95, 180, .10);
   padding: 12px 14px;
   /* 화병은 패널의 배경이다.  글자가 항상 그림 위에 그려지므로 긴 근거가
      와도 가려지는 쪽은 글자가 아니라 그림이다. */
-  background: var(--panel) url("img/vase-flowers.svg")
-              no-repeat right 14px bottom 6px / auto 104px;
+  /* 래스터 PNG 272x154, 표시 높이 110 (원본 이하).  배경이므로 글자가 항상
+     그림 위에 그려진다. */
+  background: var(--panel) url("img/r-goose-flowers.svg")
+              no-repeat right 14px bottom 6px / auto 110px;
 }
 /* Title and its 신고 button are siblings, not one string.  The row carries the
    margin the h3 used to have.
