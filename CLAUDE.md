@@ -482,7 +482,7 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/static/app.js` 의 `STAGE_KO`·`stageWords` | 파이프라인 단계 이름 → 화면 말. **모르는 값은 그대로 씁니다.** 예전에는 `starting` 이 영어 그대로 나갔고 80초 표본 중 79번이 그것이었습니다 |
 | `app/static/styles.css` 의 `rect.revring` | 개정은 검출 상자 **바깥 링**으로 그립니다. 예전처럼 상자의 굵기·파선을 덮어쓰면 추가된 밸브가 밸브의 파선을 잃습니다 |
 | `app/static/app.js` 의 `GRADE_MARK` · `.gradge` | 등급 배지 — 모양·글자·색 셋이 같이 실립니다. 색만으로 구분하지 않습니다 |
-| `app/static/img/*.svg` | 삽화 7개(8.5KB). **전부 CSS 배경**이라 DOM 에 없고 스크린리더가 읽지 않으며 클릭 대상도 아닙니다. 없으면 레이아웃 그대로 크림 단색으로 떨어집니다 (실측 확인) |
+| `app/static/img/*.svg` | 삽화 12개(18.1KB). **전부 CSS 배경**이라 DOM 에 없고 스크린리더가 읽지 않으며 클릭 대상도 아닙니다. 없으면 레이아웃 그대로 크림 단색으로 떨어집니다 (실측 확인) |
 | `app/static/styles.css` 의 `:root` | 크림 토큰. `--ink` 는 **선 전용**이고 글자는 `--ink-strong`/`--ink-soft`. 어두운 판의 개정 3색은 크림 위에서 전부 미달(2.01/2.15/2.31)이라 다시 골랐습니다 |
 | `app/static/index.html` 의 `header.head` | 머리줄 두 층 — 위는 지표(신원·탭·배지), 아래는 동작. 층을 합치면 15행이 13행으로 줄어듭니다 |
 | `app/static/app.js` 의 `auditProblems` | 위생 통계에서 0 인 항목을 접습니다. 전부 0 이면 "이상 없음" 한 줄, 아니면 0 아닌 것만 펼칩니다 |

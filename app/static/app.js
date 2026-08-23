@@ -201,13 +201,13 @@ function chooseProject(name) {
   revSummary(p, next);
 }
 
-/* 무엇이 무엇과 비교되는지 한 줄.  고르기 전에도, 고른 뒤에도 늘 보인다. */
+/* 선택 결과 한 줄.  고르기 전에도, 고른 뒤에도 늘 보인다. */
 function revSummary(p, next) {
   const base = $("#rev-base");
   const target = base.value;
   $("#proj-msg").textContent = target
-    ? `${p.name} · ${next} vs ${target}`
-    : `${p.name} · ${next} (비교 대상 없음)`;
+    ? `이 PDF 는 ${p.name} 의 ${next} 가 됩니다 — 비교 대상 ${target}`
+    : `이 PDF 는 ${p.name} 의 ${next} 가 됩니다 (비교 대상 없음)`;
 }
 $req("#rev-base").addEventListener("change", () => {
   const p = S.projects.find(x => x.name === S.project);
@@ -749,7 +749,7 @@ function renderReviewPanel() {
     + S.review.axes.map(a => {
         const all = a.open + a.done;
         const pct = all ? Math.round(100 * a.done / all) : 0;
-        return `<button class="axis${S.axis === a.axis ? " on" : ""}"
+        return `<button class="axis${S.axis === a.axis ? " on" : ""}${a.open ? " has-open" : " zero"}"
                   data-axis="${a.axis}" title="${a.label} — 처리 ${a.done} / 남음 ${a.open}">
                   ${a.label} <span class="n">${a.open}</span>
                   <span class="bar"><i style="width:${pct}%"></i></span></button>`;
@@ -946,10 +946,10 @@ function updateBadge() {
   const b = $("#review-badge");
   // Document-level findings are counted too: a reviewer's load is not only the
   // rows that happen to have a rectangle.
-  // 행 수는 검토필요 탭이 이미 말한다.  같은 숫자를 옆에 또 쓰지 않고, 배지는
-  // 탭이 셀 수 없는 것만 맡는다 - 사각형이 없는 문서 단위 지적.
-  b.textContent = doc ? `문서 지적 ${doc}건` : "";
-  b.classList.toggle("hidden", !doc);
+  // 문서 단위 지적은 검토필요 탭의 보조줄이 됐다 (buildTabs).  여기 또 쓰면
+  // 같은 숫자가 두 곳이므로 이 배지는 완전히 접는다.
+  b.textContent = "";
+  b.classList.add("hidden");
   b.title = (S.jobReview && S.jobReview.job_review || [])
     .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
   b.classList.toggle("warn", rows + doc > 0);
@@ -1072,11 +1072,23 @@ async function showTemplates() {
 /* ---------------- tabs ---------------- */
 function buildTabs() {
   $("#tabs").innerHTML = "";
+  // 문서 단위 지적은 검토필요 탭의 보조줄로 들어간다.  행 수는 탭이, 문서
+  // 건수는 보조줄이 - 같은 숫자를 두 곳에 쓰지 않는다는 규칙 그대로다.
+  const doc = ((S.jobReview && S.jobReview.job_review) || []).length;
   for (const [key, label] of TABS) {
     const b = document.createElement("button");
-    b.className = key === S.tab ? "on" : "";
+    b.className = (key === S.tab ? "on" : "")
+      + (key === "ALL" ? " tab-all" : "")
+      + (key === "REVIEW" ? " tab-review" : "");
     b.dataset.tab = key;
-    b.innerHTML = `${label}<span class="n">${S.counts[key] || 0}</span>`;
+    b.innerHTML = key === "REVIEW" && doc
+      ? `<span class="tab-line">${label}<span class="n">${S.counts[key] || 0}</span></span>`
+        + `<span class="tab-sub">+ 문서 ${doc}건</span>`
+      : `${label}<span class="n">${S.counts[key] || 0}</span>`;
+    if (key === "REVIEW" && doc) {
+      b.title = ((S.jobReview && S.jobReview.job_review) || [])
+        .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
+    }
     b.onclick = () => { S.tab = key; buildTabs(); renderGrid(); drawOverlay(); };
     $("#tabs").appendChild(b);
   }

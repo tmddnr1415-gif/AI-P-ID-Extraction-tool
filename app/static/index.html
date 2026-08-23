@@ -10,13 +10,12 @@
 <body>
 
 <div id="drop" class="drop">
-  <!-- 두 단.  왼쪽에서 "어디에 넣을지"가 정해져야 오른쪽이 열린다: 프로젝트와
-       비교 대상은 분석이 시작된 뒤에는 고칠 수 없는 값이라, 넣고 나서 묻는 것이
-       아니라 넣기 전에 물어야 한다.  좁은 창에서는 세로로 쌓이고 왼쪽이 위다. -->
+  <!-- 목업식 배치 (3회차에서 확정): 카드 **하나** 안에 왼쪽 선택 · 오른쪽 점선
+       드롭 영역이 나란히 있다.  2회차의 두 카드 구조에서 바꾼 이유는 절차가
+       하나이기 때문이다 - "어디에 넣을지 정하고 놓는다"는 한 카드의 일이고,
+       카드가 둘이면 서로 딴 일처럼 읽힌다.  선택이 끝나야 오른쪽이 열리는
+       잠금 규칙은 그대로다.  좁은 창에서는 세로로 쌓이고 왼쪽이 위다. -->
   <div class="intake">
-    <!-- 첫 화면의 머리글.  결과 화면 머리줄에는 그림을 두지 않는다: 그 줄의
-         자연 높이는 29px 이고, 선이 읽히는 크기(60px 이상)로 키우면 머리줄이
-         한 단 커져 표에서 한 행이 사라진다.  여기에는 자리가 있다. -->
     <div class="first-brand">
       <span class="brand-mark" aria-hidden="true"></span>
       <span class="brand">
@@ -24,46 +23,51 @@
         <span class="brand-sub">P&amp;ID EXTRACTOR</span>
       </span>
     </div>
-    <section class="setup">
-      <h2 class="step"><span class="step-n">1</span>어디에 넣을지</h2>
-      <div class="field">
-        <label for="proj-pick">프로젝트</label>
-        <select id="proj-pick"></select>
-        <button id="proj-new-btn" class="ghost" type="button">새 프로젝트</button>
-      </div>
-      <div id="proj-new" class="field hidden">
-        <label for="proj-name">이름</label>
-        <input id="proj-name" type="text" placeholder="예: AL NOUF1">
-        <button id="proj-save" type="button">만들기</button>
-        <button id="proj-cancel" class="ghost" type="button">취소</button>
-      </div>
-      <div id="proj-rev" class="field hidden">
-        <label for="rev-base">비교 대상</label>
-        <select id="rev-base"></select>
-      </div>
-      <p id="rev-note" class="muted small"></p>
-      <!-- 무엇과 비교하게 되는지가 한 줄로 늘 보인다 - 고르고 나서도. -->
-      <p id="proj-msg" class="summary"></p>
-    </section>
 
-    <section class="intake-right">
-      <h2 class="step"><span class="step-n">2</span>도면 PDF</h2>
+    <section class="intake-card">
+      <div class="setup">
+        <h2 class="step"><span class="step-n">1</span>어디에 넣을지</h2>
+        <div class="field">
+          <label for="proj-pick">프로젝트</label>
+          <select id="proj-pick"></select>
+          <button id="proj-new-btn" class="ghost" type="button">새 프로젝트</button>
+        </div>
+        <div id="proj-new" class="field hidden">
+          <label for="proj-name">이름</label>
+          <input id="proj-name" type="text" placeholder="예: AL NOUF1">
+          <button id="proj-save" type="button">만들기</button>
+          <button id="proj-cancel" class="ghost" type="button">취소</button>
+        </div>
+        <div id="proj-rev" class="field hidden">
+          <label for="rev-base">비교 대상</label>
+          <select id="rev-base"></select>
+        </div>
+        <p id="rev-note" class="muted small"></p>
+        <!-- 선택 결과 한 줄.  고르고 나서도 늘 보인다. -->
+        <p id="proj-msg" class="summary"></p>
+        <!-- 잰 값이다.  58장 19MB 문서가 서버에서 5분 10초였고 그중 3분 5초가
+             첫 장을 읽기 전의 사전 측정이다.  남은 시간은 적지 않는다. -->
+        <p class="muted small" id="drop-note">도면 58장 기준 5분 남짓 걸립니다.
+          처음 3분은 도면 치수를 재는 단계라 장수가 늘지 않습니다.</p>
+      </div>
+
       <div id="drop-zone" class="drop-zone disabled">
+        <h2 class="step"><span class="step-n">2</span>도면 PDF</h2>
+        <!-- 말풍선.  안내이지 장식이 아니므로 DOM 텍스트다 - 스크린리더가 읽는다.
+             거위(CSS 배경) 위에 붙고, 거위와 함께 좁은 창에서 사라진다. -->
+        <p class="bubble" id="drop-bubble">P&amp;ID 를 넣어주면<br>분석을 시작할게요</p>
         <div class="drop-target">
           <p class="drop-head">여기에 PDF 를 놓으세요</p>
           <p class="muted">또는 <label class="link" for="file">파일 선택</label></p>
           <input id="file" type="file" accept="application/pdf" hidden>
         </div>
         <p id="drop-lock" class="muted small">왼쪽에서 프로젝트를 먼저 고르세요.</p>
-        <!-- 잰 값이다.  58장 19MB 문서를 서버에 올려 결과가 열릴 때까지 5분 10초였고,
-             그중 3분 5초는 첫 장을 읽기 전의 사전 측정 단계다 (그래서 초반에 장수가
-             한동안 0 이다).  남은 시간은 적지 않는다 - 단계별 소요가 60배 차이난다. -->
-        <p class="muted small" id="drop-note">도면 58장 기준 5분 남짓 걸립니다.
-          처음 3분은 도면 치수를 재는 단계라 장수가 늘지 않습니다.</p>
       </div>
-      <div id="joblist" class="joblist"></div>
-      <p id="audit-line" class="muted small"></p>
     </section>
+
+    <!-- 카드 아래 위생 통계 한 줄, 그 아래 이전 분석. -->
+    <p id="audit-line" class="small intake-audit"></p>
+    <div id="joblist" class="joblist"></div>
   </div>
 </div>
 
@@ -99,6 +103,9 @@
        무엇을 할 수 있는지. -->
   <header class="head">
     <div class="head-id">
+      <!-- 44px 용 단순화 로고.  logo-reader 는 이 크기에서 무늬가 되므로
+           (2회차 실측) 요소를 줄이고 선을 3.2px 로 굵힌 판을 따로 쓴다. -->
+      <span class="head-mark" aria-hidden="true"></span>
       <span class="brand">
         <b>SAMSUNG C&amp;T</b>
         <span class="brand-sub">P&amp;ID EXTRACTOR</span>

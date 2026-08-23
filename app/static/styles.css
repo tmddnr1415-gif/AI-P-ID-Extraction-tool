@@ -69,13 +69,11 @@ h1, h2, h3 { font-weight: 600; }
   opacity: .85; pointer-events: none;
 }
 .drop-zone {
-  position: relative;
-  /* 거위가 설 자리.  왼쪽 여백은 삽화가 없어도 그대로 있는다. */
-  padding-left: 164px;
+  position: relative; min-height: 250px;
 }
 .drop-zone::before {
-  content: ""; position: absolute; left: 6px; bottom: 10px;
-  width: 138px; height: 138px; pointer-events: none; z-index: 0;
+  content: ""; position: absolute; left: 10px; bottom: 12px;
+  width: 126px; height: 126px; pointer-events: none; z-index: 0;
   background: url("img/goose-blueprint.svg") no-repeat left bottom / contain;
 }
 /* 글이 그림 위에 온다.  장식이 글자를 가리면 그것은 장식이 아니라 결함이다 -
@@ -88,7 +86,12 @@ h1, h2, h3 { font-weight: 600; }
 }
 /* 빌드 표기는 풀 띠 위로 올린다 - 신고를 받으려면 읽을 수 있어야 한다. */
 .build { z-index: 3; }
-.intake { position: relative; z-index: 1; }
+.intake { position: relative; z-index: 1; padding-bottom: 8px; }
+.intake::after {
+  content: ""; display: block; grid-column: 1 / -1; height: 150px;
+  margin-top: 2px; pointer-events: none;
+  background: url("img/scene-desk.svg") no-repeat center bottom / contain;
+}
 
 /* 결과 화면 — 머리글 왼쪽 그림, 뷰어 왼쪽 아래 거위, 바깥 모서리 가지 */
 /* 이 그림은 160x120 에 2.4px 선이라 44px 로 줄이면 무늬가 된다 - 실제로 그랬다.
@@ -120,15 +123,16 @@ main::after {
 }
 .drop::before {
   content: ""; position: fixed; right: 0; top: 0;
-  width: 120px; height: 120px; z-index: 0; pointer-events: none; opacity: .38;
-  background: url("img/corner-branch.svg") no-repeat center / contain;
-  transform: scaleX(-1);
+  width: 234px; height: 180px; z-index: 0; pointer-events: none; opacity: .8;
+  background: url("img/tree-corner.svg") no-repeat right top / contain;
 }
 
 /* 768px 에서는 거위와 구름을 숨기고 풀 띠만 남긴다 */
 @media (max-width: 900px) {
-  .intake::before, .drop-zone::before, #left::after,
-  .drop::before, main::after, .brand-mark { display: none; }
+  .intake::before, .intake::after, .drop-zone::before, #left::after,
+  .drop::before, main::after, .brand-mark, .bubble { display: none; }
+  header.head { padding-right: 14px; }
+  header.head::after { display: none; }
   .drop-zone { padding-left: 24px; }
 }
 
@@ -136,19 +140,28 @@ main::after {
    왼쪽에서 "어디에 넣을지"가 정해져야 오른쪽이 열린다.  좁은 창에서는 세로로
    쌓이고 왼쪽 단이 위에 온다 - 순서가 곧 절차이기 때문이다. */
 .drop { height: 100%; overflow: auto; display: grid; place-items: center;
-  padding: 32px 24px; }
+  padding: 18px 24px 0; }
 .intake {
   display: grid; grid-template-columns: minmax(340px, 460px) minmax(340px, 460px);
-  gap: 28px; align-items: start; width: 100%; max-width: 960px;
+  gap: 14px 28px; align-items: start; width: 100%; max-width: 960px;
 }
 @media (max-width: 900px) {
   .intake { grid-template-columns: minmax(0, 1fr); gap: 20px; }
 }
-.setup, .intake-right { min-width: 0; }
-.setup {
-  border: 1px solid var(--line); border-radius: var(--r-l);
-  padding: 18px 20px 16px; background: var(--panel);
+/* 카드 하나 안에 좌(선택) · 우(드롭).  카드가 곧 절차 하나다. */
+.intake-card {
+  grid-column: 1 / -1; display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  background: var(--paper-card); border: 1px solid var(--line);
+  border-radius: var(--r-l); overflow: hidden;
 }
+@media (max-width: 900px) {
+  .intake-card { grid-template-columns: minmax(0, 1fr); }
+  .setup { border-right: 0; border-bottom: 1px solid var(--line); }
+  .drop-zone { padding-left: 24px; min-height: 0; }
+}
+.setup { min-width: 0; padding: 18px 20px 16px;
+  border-right: 1px solid var(--line); }
 .step { display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
   font-size: var(--t-l); }
 .step-n {
@@ -167,10 +180,14 @@ main::after {
   font-size: var(--t-m); min-height: 21px;
 }
 
+/* 점선 상자는 카드의 오른쪽 반이다.  카드 테두리와 이중이 되지 않게
+   안쪽으로 띄운다. */
 .drop-zone {
-  border: 1px dashed var(--edge); border-radius: var(--r-l);
-  padding: 28px 24px 16px; text-align: center; transition: .15s;
-  background: var(--panel);
+  border: 1px dashed var(--edge); border-radius: var(--r-m);
+  /* 왼쪽 164px 는 거위와 말풍선의 자리다.  축약형이 이 값을 지우면 안내
+     문구가 그림 위로 흘러든다 - 실제로 그랬다. */
+  margin: 14px; padding: 24px 24px 14px 164px; text-align: center;
+  transition: .15s; background: transparent;
 }
 .drop-zone.over { border-color: var(--accent); border-style: solid; }
 /* 잠긴 상태는 흐려지는 것으로 끝나지 않는다 - 왜 잠겼는지가 아래에 적힌다. */
@@ -181,15 +198,28 @@ main::after {
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
 #drop-lock { margin: 12px 0 0; padding-top: 10px;
   border-top: 1px solid var(--line); }
+.bubble {
+  position: absolute; left: 4px; bottom: 146px; margin: 0; width: 148px;
+  background: var(--paper-card); border: 1px solid var(--ink-soft);
+  border-radius: var(--r-m); padding: 7px 10px; font-size: var(--t-s);
+  line-height: 1.45; color: var(--ink-strong); text-align: left; z-index: 1;
+}
+.bubble::before, .bubble::after {
+  content: ""; position: absolute; left: 26px;
+  border: 8px solid transparent; pointer-events: none;
+}
+.bubble::before { bottom: -16px; border-top-color: var(--ink-soft); }
+.bubble::after  { bottom: -14px; border-top-color: var(--paper-card); }
 .audit { margin: 0; }
 .audit summary { cursor: pointer; color: var(--muted); font-size: var(--t-s); }
 .audit-full { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line);
               border-radius: var(--r-m); background: var(--paper-card);
               font-size: var(--t-s); color: var(--muted); }
 .audit-full div { padding: 1px 0; }
-.joblist { margin-top: 20px; text-align: left; }
+.intake-audit { grid-column: 1 / -1; margin: 4px 4px 0; }
+.joblist { grid-column: 1 / -1; margin-top: 0; text-align: left; }
 .joblist a { display: flex; justify-content: space-between; gap: 12px;
-  color: var(--fg); text-decoration: none; padding: 6px 10px;
+  color: var(--fg); text-decoration: none; padding: 4px 10px;
   border-radius: var(--r-s); border: 1px solid transparent; }
 .joblist a:hover { border-color: var(--edge); }
 
@@ -239,6 +269,20 @@ header button, header summary, .gate { white-space: nowrap; }
 /* 사내 공식 로고 파일은 받지 않았다.  흉내내 그리지 않고 글자로만 조판한다. */
 .brand-sub { font-size: var(--t-s); color: var(--muted); letter-spacing: .10em; }
 .head-sep { width: 1px; height: 22px; background: var(--line); }
+/* 44px 로고.  줄 높이는 그대로 두고 그림만 위아래 여백으로 넘친다 -
+   키우면 15행이 14행이 된다 (2회차 실측). */
+.head-mark {
+  width: 44px; height: 44px; flex: none; margin: -8px 0;
+  background: url("img/logo-mark-simple.svg") no-repeat center / contain;
+}
+/* GOOD JOB 거위.  머리줄 오른쪽 끝의 예약 폭 안에만 산다 - 내용은
+   padding-right 가 막아 절대 그 밑으로 들어가지 않는다. */
+header.head { padding-right: 118px; }
+header.head::after {
+  content: ""; position: absolute; right: 8px; top: 2px;
+  width: 95px; height: 84px; pointer-events: none;
+  background: url("img/goose-sign.svg") no-repeat center / contain;
+}
 .head-actions { border-top: 1px solid var(--line); padding-top: 5px; }
 
 .job { font-weight: 600; }
@@ -250,6 +294,20 @@ nav button {
 }
 nav button.on { background: var(--bg); color: var(--fg); border-color: var(--edge); }
 nav button .n { color: var(--muted); margin-left: 6px; }
+/* 목업의 지표 상자: 전체는 테두리 상자, 검토필요는 강조 테두리 + 보조줄.
+   가운데 산출물 넷은 지금대로 숫자만이다. */
+nav button.tab-all { border-color: var(--edge); color: var(--fg); }
+/* 보조줄이 있어도 줄 높이는 다른 탭과 같아야 한다 - 세로로 자라면 머리줄이
+   88px 를 넘어 표에서 한 행이 사라진다 (금지 사항).  두 줄을 30px 안에 눌러
+   담고, 남는 몇 px 는 위아래 여백으로 넘친다. */
+nav button.tab-review { border-color: var(--warn); color: var(--fg);
+  display: inline-flex; flex-direction: column; align-items: center;
+  justify-content: center; line-height: 1.15; padding-top: 0;
+  padding-bottom: 0; height: 30px; }
+nav button.tab-review .n { color: var(--warn); }
+.tab-line { display: block; }
+.tab-sub { display: block; font-size: 10px; line-height: 1.1;
+           color: var(--warn); }
 /* 기본은 선이다.  채워진 버튼은 화면마다 하나 - 그 화면의 주된 행동에만. */
 button {
   background: transparent; border: 1px solid var(--edge); color: var(--fg);
@@ -438,7 +496,11 @@ td[contenteditable]:focus { background: rgba(26, 95, 180, .10);
 /* ---------- evidence ---------- */
 .evidence {
   flex: none; height: 232px; overflow: auto; border-top: 1px solid var(--edge);
-  padding: 12px 14px; background: var(--panel);
+  padding: 12px 14px;
+  /* 화병은 패널의 배경이다.  글자가 항상 그림 위에 그려지므로 긴 근거가
+     와도 가려지는 쪽은 글자가 아니라 그림이다. */
+  background: var(--panel) url("img/vase-flowers.svg")
+              no-repeat right 14px bottom 6px / auto 104px;
 }
 /* Title and its 신고 button are siblings, not one string.  The row carries the
    margin the h3 used to have.
@@ -546,10 +608,14 @@ button.grp.rsn { border-style: dashed; }
                 padding: 6px 10px; border-bottom: 1px solid var(--line, #333); }
 .review-panel > b { margin-right: 4px; }
 .review-panel .n { opacity: .7; font-variant-numeric: tabular-nums; }
+/* 알약.  값이 0 인 축은 테두리만, 남은 것이 있는 축은 옅은 채움 - 훑어볼 때
+   "일이 남은 곳"이 형태로 먼저 갈린다.  막대는 그 축의 처리율 그대로다. */
 button.axis { display: inline-flex; align-items: center; gap: 6px;
-              padding: 3px 9px; border-radius: 12px; cursor: pointer;
-              border: 1px solid var(--line, #333); background: transparent;
+              padding: 3px 11px; border-radius: 999px; cursor: pointer;
+              border: 1px solid var(--edge); background: transparent;
               color: inherit; font: inherit; }
+button.axis.has-open { background: var(--paper-sunk); }
+button.axis.zero { border-color: var(--line); color: var(--muted); }
 button.axis.on { border-color: currentColor; font-weight: 600; }
 button.axis.clear { border-style: dashed; opacity: .8; }
 button.axis .bar { display: inline-block; width: 34px; height: 4px;
