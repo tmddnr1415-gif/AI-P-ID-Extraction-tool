@@ -71,11 +71,14 @@ h1, h2, h3 { font-weight: 600; }
 .drop-zone {
   position: relative; min-height: 264px;
 }
-/* 래스터 PNG 270x320 (세로형).  표시 124x147 은 원본 이하다. */
+/* 래스터 PNG 270x320.  원본 위 78px 에는 말풍선이, 오른쪽 25px 에는 목업 UI
+   글자 조각이 구워져 있다.  말풍선은 우리 CSS 말풍선과 이중이 되고 글자
+   조각은 화면 문구가 아니므로, 배율 0.6 (축소) 에 두 축을 잘라 거위와
+   도면만 남긴다: 세로 y78.. (스케일 -47px), 가로 ..245 (상자 폭 147). */
 .drop-zone::before {
-  content: ""; position: absolute; left: 14px; bottom: 12px;
-  width: 124px; height: 147px; pointer-events: none; z-index: 0;
-  background: url("img/r-goose-upload.svg") no-repeat left bottom / contain;
+  content: ""; position: absolute; left: 12px; bottom: 12px;
+  width: 147px; height: 145px; pointer-events: none; z-index: 0;
+  background: url("img/r-goose-upload.svg") no-repeat 0 -47px / 162px 192px;
 }
 /* 글이 그림 위에 온다.  장식이 글자를 가리면 그것은 장식이 아니라 결함이다 -
    실제로 안내 문구의 "도면 58장 기준" 이 거위 뒤로 들어가 있었다. */
@@ -95,11 +98,14 @@ h1, h2, h3 { font-weight: 600; }
 }
 
 /* 결과 화면 — 머리글 왼쪽 그림, 뷰어 왼쪽 아래 거위, 바깥 모서리 가지 */
-/* 래스터(PNG 260x110)라 표시 크기를 원본보다 키우지 않는다 - 흐려진다.
-   190x80 은 원본 이하이고, 4회차에 선화 logo-reader 를 이것으로 교체했다. */
+/* 래스터 PNG 260x110.  원본에는 "BRITAIN HENGE" 워드마크가 구워져 있는데
+   그 복제는 금지 사항이라, 왼쪽 88px(사람+고양이)만 잘라 보인다 - 글자는
+   x=95 부터 시작하므로 크롭 경계 안에 들어오지 않는다.  브랜드는 옆의
+   SAMSUNG C&T 활자 그대로다.  배율 0.727 (축소, 늘림 아님). */
 .brand-mark {
-  width: 190px; height: 80px; flex: none;
-  background: url("img/r-brand.svg") no-repeat left bottom / contain;
+  width: 64px; height: 80px; flex: none;
+  background: url("img/r-brand.svg") no-repeat 0 0 / 189px 80px;
+  border-radius: var(--r-s);
 }
 .first-brand {
   grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 12px;
