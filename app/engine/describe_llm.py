@@ -26,6 +26,24 @@ enforced in code rather than asked for in the prompt:
 
 No key configured means no calls and no failure: the run reports LLM_UNAVAILABLE
 and every row is graded exactly as the rules-only path grades it.
+
+**AS OF THIS ROUND THIS MODULE IS NOT WIRED IN.  IT IS NOT "OFF" - IT IS
+UNCONNECTED.**
+
+`pipeline.analyse` calls `build()` and reports what it returns (`enabled`,
+`reason`, `model`, `stats`), and nothing else here is reached: `select()` has no
+caller in this repository outside `tests/test_description.py`.  So turning
+`description.llm.enabled` on in a profile, with a key in the environment, still
+produces zero calls - the switch has nothing behind it.  Two independent
+measurements say so: a full 58-sheet analysis with every non-loopback socket
+connect and DNS lookup intercepted recorded **0 outbound attempts**, and the
+packaged exe excludes the `anthropic` package outright (`pid_extract.spec`), so
+the string `api.anthropic.com` does not occur in the 73 MB binary.
+
+This was left as it is on purpose rather than being connected or deleted:
+connecting it would build a switch that cannot work in the exe, and deleting it
+would throw away work that an in-house model would need again.  What was missing
+was not code but the truth being written down, which is what this note is.
 """
 
 from __future__ import annotations
@@ -109,7 +127,10 @@ def build(cfg=None, cache_dir: Path = None) -> Selector:
                        or "app/_data/description_cache"),
     )
     if not d.get("enabled"):
-        sel.reason = "config description.llm.enabled 가 꺼져 있습니다"
+        # 이 문구는 화면과 보고서에 그대로 나간다.  "꺼져 있다" 만 쓰면 켜면
+        # 된다는 뜻으로 읽히는데, 켜도 호출부가 없어 아무 일도 일어나지 않는다.
+        sel.reason = ("config description.llm.enabled 가 꺼져 있습니다 "
+                      "(그리고 호출부가 연결돼 있지 않아, 켜도 호출되지 않습니다)")
         return sel
     if not (os.environ.get("ANTHROPIC_API_KEY")
             or os.environ.get("ANTHROPIC_AUTH_TOKEN")):

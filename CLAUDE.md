@@ -482,6 +482,11 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/static/app.js` 의 `STAGE_KO`·`stageWords` | 파이프라인 단계 이름 → 화면 말. **모르는 값은 그대로 씁니다.** 예전에는 `starting` 이 영어 그대로 나갔고 80초 표본 중 79번이 그것이었습니다 |
 | `app/static/styles.css` 의 `rect.revring` | 개정은 검출 상자 **바깥 링**으로 그립니다. 예전처럼 상자의 굵기·파선을 덮어쓰면 추가된 밸브가 밸브의 파선을 잃습니다 |
 | `app/static/app.js` 의 `GRADE_MARK` · `.gradge` | 등급 배지 — 모양·글자·색 셋이 같이 실립니다. 색만으로 구분하지 않습니다 |
+| `app/static/img/*.svg` | 삽화 7개(8.5KB). **전부 CSS 배경**이라 DOM 에 없고 스크린리더가 읽지 않으며 클릭 대상도 아닙니다. 없으면 레이아웃 그대로 크림 단색으로 떨어집니다 (실측 확인) |
+| `app/static/styles.css` 의 `:root` | 크림 토큰. `--ink` 는 **선 전용**이고 글자는 `--ink-strong`/`--ink-soft`. 어두운 판의 개정 3색은 크림 위에서 전부 미달(2.01/2.15/2.31)이라 다시 골랐습니다 |
+| `app/static/index.html` 의 `header.head` | 머리줄 두 층 — 위는 지표(신원·탭·배지), 아래는 동작. 층을 합치면 15행이 13행으로 줄어듭니다 |
+| `app/static/app.js` 의 `auditProblems` | 위생 통계에서 0 인 항목을 접습니다. 전부 0 이면 "이상 없음" 한 줄, 아니면 0 아닌 것만 펼칩니다 |
+| `app/engine/describe_llm.py` 머리 주석 | **꺼져 있는 것이 아니라 연결돼 있지 않습니다** — `select()` 를 부르는 곳이 테스트 말고 없습니다. config 를 켜도 호출되지 않습니다 |
 | `docs/ui_visual.md` | 이번 회차의 실측 대비표 · 세 색 층 규칙 · 진행 표시의 근거 · 판단 대기 후보 3건 |
 | `app/paths.py` | 읽는 뿌리(번들 안, 종료 시 삭제)와 쓰는 뿌리(exe 옆 `pid_data/`)를 가릅니다. 섞으면 결과가 사라집니다. `PID_DATA_DIR` 로 쓰는 뿌리를 덮어쓸 수 있고, UI 테스트가 그것으로 사본에서 돕니다 |
 | `app/main.py` 의 `_failure_reason` | 분석 실패 때 **화면에 갈 문장**. 예외를 보지 않고 PDF 를 다시 열어 쪽 수와 글자 수만 셉니다 — 예외를 바꿔 쓴 문장은 예외이기 때문입니다. 특정 못 하면 일반 문구 |

@@ -1,35 +1,44 @@
 :root {
-  color-scheme: dark;
-  /* 따뜻한 중립 배경.  회색을 노란쪽으로 조금 밀어 (색상 30-40도, 채도 낮음)
-     종이 옆에 두었을 때 화면이 차갑게 튀지 않게 했다.  도면이 흰 종이라
-     밝은 배경으로 가면 뷰어와 껍데기의 경계가 사라지고, 오버레이 색들도 흰
-     종이를 전제로 고른 값이라 전부 다시 재야 한다 - 그래서 어두운 쪽이다.
+  color-scheme: light;
+  /* 크림 종이 톤.  값은 삽화(app/static/img/*.svg)가 쓰는 색에서 왔고, UI 를
+     거기에 맞춰 톤이 하나로 붙게 했다.
 
-     실측 대비 (WCAG 2.1):
-       본문 #f2eee7 on #1b1917 . . . 15.16  AA
-       흐린 글자 #a9a094 on bg  . . .  6.80  AA
-       강조 #4ea0ff on bg . . . . . .  6.51  AA
-       흰 글자 on 강조채움 #0b6fd6 . .  4.93  AA
-       조작 테두리 #7a6f61 on bg  . .  3.57  1.4.11 통과
-     구분선(--line)은 장식이라 대비 요구가 없고, 조작의 경계는 --edge 다. */
-  --bg: #1b1917; --panel: #232019; --panel-2: #2b2721;
-  --line: #332f28; --edge: #7a6f61;
-  --fg: #f2eee7; --muted: #a9a094;
-  /* 강조색은 하나다.  값은 도면 오버레이의 "출력 포함"과 같은 파랑이라,
-     제품 전체에 파랑이 하나만 존재한다 (예전에는 #4c8dff 와 #0a84ff 둘이었다). */
-  --accent: #4ea0ff; --accent-fill: #0b6fd6;
-  --warn: #e8a33d; --bad: #f2706e; --ok: #6fc48a;
-  /* 개정 세 상태 - 탈채도판.  글자·기호·왼쪽 띠가 같이 말하므로 색은 셋째
-     단서다 (흑백으로 찍어도 읽힌다). */
-  --rev-add: #d9a441; --rev-mod: #79b585; --rev-del: #e08a84;
-  --r-s: 4px; --r-m: 8px; --r-l: 12px;
+     대비는 전부 실측했다 (WCAG 2.1, 배경 #f7f2e6):
+       본문 #4a3f33 . . . . . . . . 9.17   AA
+       보조 글자 #6b5f4f  . . . . . 5.57   AA
+       강조 #1a5fb4 . . . . . . . . 5.63   AA   흰 글자 on 강조 6.29 AA
+       조작 테두리 #867760  . . . . 3.90   1.4.11 통과
+       개정 추가 #8d6210  . . . . . 4.84   AA
+       개정 수정 #377349  . . . . . 5.07   AA
+       개정 삭제 #ab3f3a  . . . . . 5.37   AA
+
+     **--ink 는 선 전용이다.**  #7a6a58 은 크림 위에서 4.66 로 본문에 못 쓸
+     값은 아니지만 삽화의 선 색이라, 글자에 쓰면 그림과 글이 같은 무게가 된다.
+     글자는 --ink-strong / --ink-soft 를 쓴다.
+
+     어두운 판의 개정 3색을 그대로 옮기면 전부 묻힌다 - 실측 2.01 / 2.15 / 2.31.
+     그래서 셋 다 크림 위에서 다시 골랐다. */
+  --paper: #f7f2e6; --paper-card: #fffdf6; --paper-sunk: #efe8d8;
+  --ink: #7a6a58; --ink-strong: #4a3f33; --ink-soft: #6b5f4f;
+  --leaf: #7f9268; --leaf-fill: #a8bc8e; --beak: #e2a45c; --cap: #8fa87c;
+
+  /* 예전 이름은 그대로 두고 값만 옮긴다 - 규칙 400여 줄이 이 이름을 쓴다. */
+  --bg: var(--paper); --panel: var(--paper-card); --panel-2: var(--paper-sunk);
+  --line: #ddd2ba; --edge: #867760;
+  --fg: var(--ink-strong); --muted: var(--ink-soft);
+  --accent: #1a5fb4; --accent-fill: #1a5fb4;
+  --warn: #8a600f; --bad: #ab3f3a; --ok: #2f6b46;
+  --rev-add: #8d6210; --rev-mod: #377349; --rev-del: #ab3f3a;
+  --r-s: 4px; --r-m: 8px; --r-l: 16px;
   /* 글자 크기는 네 단계뿐이다: 12 / 13 / 15 / 20. */
   --t-s: 12px; --t-m: 13px; --t-l: 15px; --t-xl: 20px;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-  margin: 0; background: var(--bg); color: var(--fg);
+  margin: 0; color: var(--fg);
+  /* 종이 결은 타일 한 장.  없으면 단색 크림으로 떨어진다 - 색을 먼저 적는다. */
+  background: var(--paper) url("img/paper-texture.svg") repeat 0 0 / 120px 120px;
   font: var(--t-m)/1.6 -apple-system, "Segoe UI", "Noto Sans KR", system-ui,
         sans-serif;
   font-variant-numeric: tabular-nums;
@@ -39,6 +48,89 @@ body {
 .small { font-size: var(--t-s); }
 .spacer { flex: 1; }
 h1, h2, h3 { font-weight: 600; }
+
+/* ---------------- 삽화 ----------------
+   전부 장식이다.  배경으로 넣어 DOM 에 없고, 따라서 스크린리더가 읽지 않고
+   클릭 대상도 되지 않는다.  데이터 영역(리스트 · 도면 · 표) 위에는 하나도
+   놓지 않는다 - 첫 화면의 빈 여백과 결과 화면의 바깥 모서리만 쓴다.
+
+   파일이 없어도 레이아웃은 그대로다: 크기를 가진 것은 의사 요소가 아니라
+   그것을 담은 실제 상자이고, 의사 요소는 그 상자 위에 얹히기만 한다. */
+.deco { pointer-events: none; }
+.setup::before, .intake-right::after, .drop-zone::before,
+#left::after, header::before, main::before, main::after {
+  pointer-events: none;
+}
+
+/* 첫 화면 — 구름은 위 여백, 거위는 드롭 영역 왼쪽, 풀 띠는 아래 */
+.intake::before {
+  content: ""; display: block; grid-column: 1 / -1; height: 58px;
+  background: url("img/clouds.svg") no-repeat center top / 300px auto;
+  opacity: .85; pointer-events: none;
+}
+.drop-zone {
+  position: relative;
+  /* 거위가 설 자리.  왼쪽 여백은 삽화가 없어도 그대로 있는다. */
+  padding-left: 164px;
+}
+.drop-zone::before {
+  content: ""; position: absolute; left: 6px; bottom: 10px;
+  width: 138px; height: 138px; pointer-events: none; z-index: 0;
+  background: url("img/goose-blueprint.svg") no-repeat left bottom / contain;
+}
+/* 글이 그림 위에 온다.  장식이 글자를 가리면 그것은 장식이 아니라 결함이다 -
+   실제로 안내 문구의 "도면 58장 기준" 이 거위 뒤로 들어가 있었다. */
+.drop-zone > * { position: relative; z-index: 1; }
+.drop::after {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
+  background: url("img/grass-border.svg") repeat-x bottom / auto 52px;
+  pointer-events: none; z-index: 0;
+}
+/* 빌드 표기는 풀 띠 위로 올린다 - 신고를 받으려면 읽을 수 있어야 한다. */
+.build { z-index: 3; }
+.intake { position: relative; z-index: 1; }
+
+/* 결과 화면 — 머리글 왼쪽 그림, 뷰어 왼쪽 아래 거위, 바깥 모서리 가지 */
+/* 이 그림은 160x120 에 2.4px 선이라 44px 로 줄이면 무늬가 된다 - 실제로 그랬다.
+   읽히는 크기는 80px 부터이고, 그만한 자리는 첫 화면에만 있다. */
+.brand-mark {
+  width: 96px; height: 72px; flex: none;
+  background: url("img/logo-reader.svg") no-repeat center bottom / contain;
+}
+.first-brand {
+  grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 12px;
+  margin: 0 0 4px;
+}
+/* 뷰어 왼쪽 아래가 아니라 오른쪽 아래다.  왼쪽 아래에는 표시 범례가 있고,
+   그 위에 얹으면 범례를 가린다 - 실제로 가렸다. */
+#left::after {
+  content: ""; position: absolute; right: 14px; bottom: 6px;
+  width: 108px; height: 108px; opacity: .45; pointer-events: none; z-index: 0;
+  background: url("img/goose-magnifier.svg") no-repeat right bottom / contain;
+}
+/* 가지는 창의 바깥 모서리에 붙는다 - 그 자리에는 데이터가 없다.
+   결과 화면의 **우상단은 쓸 수 없다**: 머리줄이 불투명하게 폭 전체를 덮으므로
+   그 아래로 내리면 도면 위에 얹히고, 그것은 데이터 영역이다.  그래서 결과
+   화면은 우하단 하나만 쓰고, 우상단 자리는 첫 화면이 가져간다. */
+main::after {
+  content: ""; position: fixed; right: 0; bottom: 0;
+  width: 108px; height: 108px; z-index: 0; pointer-events: none; opacity: .4;
+  background: url("img/corner-branch.svg") no-repeat center / contain;
+  transform: scale(-1, -1);
+}
+.drop::before {
+  content: ""; position: fixed; right: 0; top: 0;
+  width: 120px; height: 120px; z-index: 0; pointer-events: none; opacity: .38;
+  background: url("img/corner-branch.svg") no-repeat center / contain;
+  transform: scaleX(-1);
+}
+
+/* 768px 에서는 거위와 구름을 숨기고 풀 띠만 남긴다 */
+@media (max-width: 900px) {
+  .intake::before, .drop-zone::before, #left::after,
+  .drop::before, main::after, .brand-mark { display: none; }
+  .drop-zone { padding-left: 24px; }
+}
 
 /* ---------- 첫 화면 (두 단) ----------
    왼쪽에서 "어디에 넣을지"가 정해져야 오른쪽이 열린다.  좁은 창에서는 세로로
@@ -89,6 +181,12 @@ h1, h2, h3 { font-weight: 600; }
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
 #drop-lock { margin: 12px 0 0; padding-top: 10px;
   border-top: 1px solid var(--line); }
+.audit { margin: 0; }
+.audit summary { cursor: pointer; color: var(--muted); font-size: var(--t-s); }
+.audit-full { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line);
+              border-radius: var(--r-m); background: var(--paper-card);
+              font-size: var(--t-s); color: var(--muted); }
+.audit-full div { padding: 1px 0; }
 .joblist { margin-top: 20px; text-align: left; }
 .joblist a { display: flex; justify-content: space-between; gap: 12px;
   color: var(--fg); text-decoration: none; padding: 6px 10px;
@@ -119,16 +217,30 @@ h1, h2, h3 { font-weight: 600; }
 
 /* ---------- shell ---------- */
 main { height: 100%; display: flex; flex-direction: column; }
-header {
-  display: flex; align-items: center; gap: 8px 12px; padding: 8px 12px;
+/* 세 층: 무엇을 보고 있나 / 어느 산출물인가 / 무엇을 할 수 있나.
+   각 층 안에서는 여전히 줄바꿈을 허용한다 - 막아 두면 flex 가 버튼에서 폭을
+   빼앗아 글자가 한 자씩 세로로 쌓인다 (지난 회차에 실제로 그랬다). */
+header.head {
+  display: flex; flex-direction: column; gap: 5px; padding: 6px 14px;
   background: var(--panel); border-bottom: 1px solid var(--line); flex: none;
-  /* 1440px 에서 머리줄의 조작이 열 개를 넘는다.  줄바꿈을 막아 두면 flex 가
-     각 버튼을 눌러 글자가 한 자씩 세로로 쌓인다 - 실제로 그렇게 나왔다.
-     눌리는 대신 다음 줄로 내려간다. */
-  flex-wrap: wrap;
+  position: relative; z-index: 2;
 }
-header > * { flex: none; }
+.head-id, .head-tabs, .head-actions {
+  display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap;
+}
+.head-id > *, .head-tabs > *, .head-actions > * { flex: none; }
 header button, header summary, .gate { white-space: nowrap; }
+.head-id { gap: 8px; flex: 1 1 auto; }
+.head-id .spacer { flex: 1 1 auto; }
+.brand { display: flex; flex-direction: column; line-height: 1.15; }
+.brand b { font-size: var(--t-m); letter-spacing: .04em; }
+.first-brand .brand b { font-size: var(--t-xl); }
+.first-brand .brand-sub { font-size: var(--t-m); }
+/* 사내 공식 로고 파일은 받지 않았다.  흉내내 그리지 않고 글자로만 조판한다. */
+.brand-sub { font-size: var(--t-s); color: var(--muted); letter-spacing: .10em; }
+.head-sep { width: 1px; height: 22px; background: var(--line); }
+.head-actions { border-top: 1px solid var(--line); padding-top: 5px; }
+
 .job { font-weight: 600; }
 .job-meta { color: var(--muted); font-size: var(--t-s); }
 nav { display: flex; gap: 2px; }
@@ -192,7 +304,7 @@ select:disabled { color: var(--muted); border-color: var(--line); }
 input[type=search] { flex: 1; }
 
 /* ---------- viewer ---------- */
-#stage { flex: 1; overflow: auto; position: relative; background: #141210; }
+#stage { flex: 1; overflow: auto; position: relative; background: var(--paper-sunk); }
 /* The viewer is focusable so it can own Ctrl +/-/0 (app.js).  The focus ring is
    drawn inside, so it says "the keys go here" without moving the sheet. */
 #stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -212,8 +324,9 @@ rect.det {
 rect.det.valve { stroke-dasharray: 5 3; }
 rect.det.excluded { stroke-width: 1.1; }
 rect.det.sel {
-  stroke: #fff; stroke-width: 3; stroke-dasharray: none;
-  filter: drop-shadow(0 0 3px #000);
+  /* 도면은 흰 종이다.  예전의 흰 테두리는 종이 위에서 사라졌다. */
+  stroke: #4a3f33; stroke-width: 3; stroke-dasharray: none;
+  filter: drop-shadow(0 0 3px #fffdf6);
 }
 /* One pulse on selection: enough to find the box on a 2384pt sheet, and over
    before it becomes a distraction. */
@@ -254,7 +367,7 @@ rect.terminal {
 #ovlegend {
   /* Anchored to the panel, not to the sheet: it must not scroll away. */
   position: absolute; left: 10px; bottom: 10px; z-index: 5; width: 186px;
-  background: #17181cec; border: 1px solid var(--line); border-radius: 8px;
+  background: #fffdf6f2; border: 1px solid var(--edge); border-radius: var(--r-m);
   padding: 8px 10px; backdrop-filter: blur(4px); font-size: 12px;
 }
 .ovl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -276,15 +389,22 @@ th, td {
   white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
   line-height: 1.45;
 }
+/* 헤더는 작고 굵게, 본문은 읽기 크기로.  예전에는 둘 다 13px 이라 어디까지가
+   제목인지 색 하나로만 갈렸다. */
 th {
   position: sticky; top: 0; background: var(--panel); cursor: pointer;
-  font-weight: 600; font-size: var(--t-s); color: var(--muted); z-index: 1;
-  border-bottom: 1px solid var(--edge);
+  font-weight: 700; font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); z-index: 1;
+  border-bottom: 1px solid var(--edge); padding-top: 6px; padding-bottom: 6px;
+}
+/* ⑤ 숫자 열은 등폭.  824 · 680 · 2547 의 자릿수가 맞아야 세로로 읽힌다. */
+td, th, .badge, .n, #count, .job-meta, .prog-sheets {
+  font-variant-numeric: tabular-nums;
 }
 th .dir { color: var(--accent); }
 tbody tr { cursor: pointer; }
-tbody tr:hover { background: #ffffff08; }
-tbody tr.sel { background: rgba(78, 160, 255, .16);
+tbody tr:hover { background: #00000008; }
+tbody tr.sel { background: rgba(26, 95, 180, .10);
                box-shadow: inset 0 0 0 1px var(--accent); }
 tbody tr.deleted td { text-decoration: line-through; color: var(--muted); }
 /* 사람이 고친 칸.  색만으로 말하지 않는다 - 연필이 붙는다. */
@@ -292,7 +412,7 @@ td.edited { color: var(--ok); }
 td.edited::after { content: " ✎"; color: var(--ok); font-size: var(--t-s); }
 td.conflict { color: var(--bad); font-weight: 600; }
 td[contenteditable] { outline: none; }
-td[contenteditable]:focus { background: rgba(78, 160, 255, .16);
+td[contenteditable]:focus { background: rgba(26, 95, 180, .10);
                             box-shadow: inset 0 0 0 1px var(--accent); }
 .flag { color: var(--warn); }
 .flag.bad { color: var(--bad); }
@@ -370,7 +490,7 @@ label.hold { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px
   font-size: 11px; }
 td.origin-PDF_ONLY { color: var(--warn); }
 /* 귀속은 세 값뿐이고 셋 다 글자로 적히므로, 색은 눈에 띄게 하는 보조다. */
-td.origin-REVISION_GAP { color: #c9a2e6; }
+td.origin-REVISION_GAP { color: #6b3fa0; }
 
 dl.rules { display: grid; grid-template-columns: 108px 1fr; gap: 4px 12px; margin: 0; }
 dl.rules dt { color: var(--muted); }
@@ -486,7 +606,7 @@ button.ract-b.on { border-color: currentColor; font-weight: 600; }
 /* ---------------- error reports & build line ----------------
    The dialog asks two things and shows the rest, because the rest is already
    known: re-typing a coordinate is how a report stops being filed. */
-.modal { position: fixed; inset: 0; background: #0f0d0bcc; display: grid;
+.modal { position: fixed; inset: 0; background: #4a3f3399; display: grid;
          place-items: center; z-index: 50; }
 .modal-box { width: min(720px, 92vw); max-height: 86vh; overflow: auto;
              background: var(--panel); border: 1px solid var(--line);
@@ -518,8 +638,10 @@ button.ract-b.on { border-color: currentColor; font-weight: 600; }
 button.mini-rep { border: 0; background: transparent; color: var(--muted);
                   cursor: pointer; font: inherit; padding: 0 3px; }
 button.mini-rep:hover { color: var(--bad); }
-.build { position: fixed; right: 8px; bottom: 4px; font-size: 11px;
-         pointer-events: none; opacity: .75; }
+.build { position: fixed; right: 10px; bottom: 6px; font-size: var(--t-s);
+         pointer-events: none; color: var(--muted);
+         background: var(--paper-card); border: 1px solid var(--line);
+         border-radius: var(--r-s); padding: 1px 7px; }
 
 /* ---------------- column filters ----------------
    The handle sits in the header so a narrowed column is recognisable without
@@ -560,13 +682,13 @@ button.colf.on { opacity: 1; color: var(--accent); font-weight: 700;
    색만으로 구분하지 않는다: 리스트는 색 + 왼쪽 굵은 띠 + NO 앞 기호, 도면은
    색이 아니라 테두리 형태로 말한다.  scope 색(#0a84ff 포함 · #ff9f0a 벤더
    제외)의 의미 대응은 그대로 두고 건드리지 않는다. */
-tr.rev-added   { background: rgba(217, 164,  65, .09);
+tr.rev-added   { background: rgba(141, 98, 16, .09);
                  box-shadow: inset 3px 0 0 var(--rev-add); }
-tr.rev-modified{ background: rgba(121, 181, 133, .09);
+tr.rev-modified{ background: rgba(55, 115, 73, .09);
                  box-shadow: inset 3px 0 0 var(--rev-mod); }
 tr.rev-added td:first-child::before    { content: "＋ "; color: var(--rev-add); }
 tr.rev-modified td:first-child::before { content: "≠ "; color: var(--rev-mod); }
-tr.rev-deleted { background: rgba(224, 138, 132, .08);
+tr.rev-deleted { background: rgba(171, 63, 58, .08);
                  box-shadow: inset 3px 0 0 var(--rev-del); }
 tr.rev-deleted td { text-decoration: line-through; }
 tr.deleted td:first-child::before      { content: "－ "; color: var(--rev-del); }

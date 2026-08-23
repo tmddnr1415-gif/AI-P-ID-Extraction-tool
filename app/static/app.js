@@ -50,7 +50,10 @@ const GRADES = [
   ["CONFIRMED", "도면 근거 있음",
    "이름·계통·변수를 모두 도면에서 읽었습니다 — 발주처 표기와 같다는 뜻은 아닙니다 "
    + "(대조 가능한 455행 중 주어 일치 74.3%, 문장 완전일치 27행)"],
-  ["LOW", "AI 제안", "후보에서 골랐으나 근거가 약합니다 — 확인 필요"],
+  // 모델이 만든 것이 아니다 - 배관이 향하는 곳의 표기(오프페이지 커넥터)에서
+  // 골랐다는 뜻이다.  이름이 그 사실을 말하게 한다.
+  ["LOW", "도착지 표기에서 유추", "배관이 향하는 곳의 표기에서 골랐습니다 — "
+   + "기기 이름이 아니므로 확인 필요"],
   ["PARTIAL", "부분", "단위·계통·변수만 확정 — 중간 서술을 직접 입력"],
   ["NONE", "없음", "근거 없음 — 직접 입력"],
   ["SKIP", "생략", "타사 공급"],
@@ -237,10 +240,35 @@ $req("#proj-save").addEventListener("click", async () => {
   await loadProjects(out.name);           // 만든 프로젝트가 곧 선택이다
 });
 
+/* 위생 통계는 한 문장으로 이어 붙이면 아홉 개 숫자가 한 줄이 된다.  대부분의
+ * 날에는 그 아홉 개가 전부 0 이고, 0 을 아홉 번 읽는 것은 읽는 일이 아니다.
+ * 그래서 0 이 아닌 항목만 펼치고, 전부 0 이면 "이상 없음" 한 줄로 접는다.
+ * 접힌 줄을 열면 원문이 그대로 나온다 - 숨기는 것이 아니라 접는 것이다. */
+function auditProblems(lines) {
+  const out = [];
+  for (const part of lines.join(" · ").split(" · ")) {
+    const t = part.trim();
+    if (!t) continue;
+    const m = /([0-9]+(?:\.[0-9]+)?)\s*(행|개|칸|MB)?$/.exec(t);
+    if (m && parseFloat(m[1]) === 0) continue;      // 0 인 항목은 접는다
+    out.push(t);
+  }
+  return out;
+}
+
 async function showAudit() {
   try {
     const a = await (await fetch("/audit")).json();
-    $("#audit-line").textContent = a.lines.join("  ·  ");
+    const box = $("#audit-line");
+    // "산출 대상 N행 / job M개" 는 규모이지 이상이 아니다.
+    const bad = auditProblems(a.lines).filter(t => !/^산출 대상|^job /.test(t));
+    const full = `<div class="audit-full">`
+      + a.lines.map(l => `<div>${escape(l)}</div>`).join("") + `</div>`;
+    box.innerHTML = bad.length
+      ? `<details class="audit" open><summary>데이터 위생 — 확인할 항목 `
+        + `${bad.length}건</summary>${full}</details>`
+      : `<details class="audit"><summary>데이터 위생 — 이상 없음`
+        + `</summary>${full}</details>`;
   } catch (e) { /* 감사는 부가 정보다 - 실패해도 화면을 막지 않는다 */ }
 }
 loadProjects();
@@ -670,10 +698,10 @@ function showOpenReview() {
   const open = ((S.review && S.review.axes) || []).reduce((n, a) => n + a.open, 0);
   if (!open) { box.textContent = ""; box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
-  box.textContent = "미처리 검토 " + open + "건 — "
-    + (S.review.axes || []).filter(a => a.open)
-        .map(a => `${a.label} ${a.open}`).join(" · ")
-    + ` (Remark 열에 "미처리"로 나갑니다)`;
+  // 축별 숫자는 바로 위 검토 축 줄이 축마다 이미 말한다.  여기서 그 목록을 다시
+  // 늘어놓으면 같은 다섯 숫자가 위아래로 두 번 나온다 - 실제로 그랬다.  남길 것은
+  // 축 줄이 말하지 않는 것 하나뿐이다: 미처리로 두면 산출물에 무엇이 찍히는가.
+  box.textContent = `미처리 ${open}건은 Remark 열에 "미처리"로 나갑니다.`;
 }
 
 /* ---------------- review axes ----------------
@@ -918,7 +946,10 @@ function updateBadge() {
   const b = $("#review-badge");
   // Document-level findings are counted too: a reviewer's load is not only the
   // rows that happen to have a rectangle.
-  b.textContent = doc ? `검토 필요 ${rows}행 + 문서 ${doc}건` : `검토 필요 ${rows}건`;
+  // 행 수는 검토필요 탭이 이미 말한다.  같은 숫자를 옆에 또 쓰지 않고, 배지는
+  // 탭이 셀 수 없는 것만 맡는다 - 사각형이 없는 문서 단위 지적.
+  b.textContent = doc ? `문서 지적 ${doc}건` : "";
+  b.classList.toggle("hidden", !doc);
   b.title = (S.jobReview && S.jobReview.job_review || [])
     .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
   b.classList.toggle("warn", rows + doc > 0);

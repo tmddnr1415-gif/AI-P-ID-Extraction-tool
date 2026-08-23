@@ -260,6 +260,16 @@ description:
   # bytes.  (`temperature` is not sent: the current models reject it outright, and
   # the cache is the stronger guarantee anyway.)
   llm:
+    # 호출부가 연결돼 있지 않습니다 — 켜도 동작하지 않습니다.
+    #
+    # `pipeline.analyse` 는 `describe_llm.build()` 로 셀렉터를 만들어 상태만
+    # 보고하고, `describe_llm.select()` 를 부르는 곳은 이 저장소에 테스트 말고
+    # 없습니다.  게다가 exe 는 `anthropic` 패키지를 아예 제외해 빌드합니다
+    # (`pid_extract.spec`).  실측: 소켓을 가로챈 전량 분석에서 외부 연결 시도
+    # 0건, 73MB 바이너리에서 `api.anthropic.com` 0회.
+    #
+    # 그래서 이 값을 true 로 바꾸는 것만으로는 아무 일도 일어나지 않습니다.
+    # 실제로 쓰려면 호출부를 잇는 회차가 따로 필요합니다.
     enabled: false
     model: claude-opus-5
     max_tokens: 512

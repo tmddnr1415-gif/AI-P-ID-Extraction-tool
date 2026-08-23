@@ -1008,7 +1008,8 @@ def description_question(result: dict, token_stats: dict = None) -> str:
     for g, label, why in (
             (GRADE_CONFIRMED, "도면 근거 있음",
              "이름·계통·변수를 모두 도면에서 읽음 (발주처 표기와 같다는 뜻은 아님)"),
-            (GRADE_LOW, "AI 제안", "후보에서 골랐으나 근거가 약함"),
+            (GRADE_LOW, "도착지 표기에서 유추",
+             "배관이 향하는 곳의 표기에서 골랐음 — 기기 이름이 아님"),
             (GRADE_PARTIAL, "부분", "중간 서술 미확인"),
             (GRADE_NONE, "없음", "근거 없음"),
             (GRADE_SKIP, "생략", "타사 공급")):
@@ -1252,7 +1253,12 @@ GRADE_USER = "USER_ENTERED"
 REMARK = {
     GRADE_CONFIRMED: "",
     GRADE_PARTIAL: "중간 서술 미확인 — 직접 입력",
-    GRADE_LOW: "AI 제안 — 확인 필요",
+    # "AI 제안" 이라고 쓰던 자리다.  이 등급에는 모델이 관여하지 않는다:
+    # `_grade` 가 중간 서술의 출처가 기기 상자가 아니라 오프페이지 커넥터일 때
+    # 붙이는 규칙 하나이고, 낱말은 전부 그 도면에 인쇄돼 있다.  폐쇄망 배포처에서
+    # "외부 호출이 있나" 로 읽히던 이름이라, 무엇을 보고 정했는지를 그대로 쓴다.
+    # 판정 로직은 건드리지 않았다 - 문자열만 바뀐다.
+    GRADE_LOW: "도착지 표기에서 유추 — 확인 필요",
     GRADE_NONE: "근거 없음 — 직접 입력",
     GRADE_SKIP: "타사 공급 — Description 생략",
     GRADE_USER: "",
@@ -1265,8 +1271,8 @@ REMARK = {
 DESCRIPTION_REVIEW = {
     GRADE_PARTIAL: ("Description 부분 생성 — 단위·계통·변수까지는 도면에서 "
                     "확인됐고 중간 서술은 확인되지 않았습니다. 검토 후 확정 필요"),
-    GRADE_LOW: ("Description 중간 서술을 후보에서 골랐으나 근거가 약합니다 — "
-                "확인 필요"),
+    GRADE_LOW: ("Description 중간 서술을 배관이 향하는 곳의 표기에서 골랐습니다 "
+                "— 기기 이름이 아니므로 확인 필요"),
     GRADE_NONE: "Description 근거 부족 — 공란으로 남겼습니다",
 }
 DESCRIPTION_NONE = DESCRIPTION_REVIEW[GRADE_NONE]
