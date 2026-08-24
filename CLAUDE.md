@@ -338,6 +338,12 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
    신호는 REMARK 34행과 근거 패널에 남고, 설정값을 채울 자리 자체가 없다.
 6. LS 8행의 `LEVEL SWITCH` 문형은 사용자가 5회차 정정을 철회하며 **유지 확정**
    (물리 계기 하나 = 계기명, 신호명 아님).
+7. 후보 잡음 필터는 승인됐고 **탈출구가 조건**이다 — 걸러낸 것을 버리지 않고
+   "전체 후보 보기"로 펼친다 (p6 15건 ↔ 전체 46건).
+8. **7회차 확정 사항**: `needs_review` 는 **화면에서만** 감춘다.  데이터는 그대로
+   (지문 대상 · 엔진 판정 기록).  근거 패널은 `엔진 판정: 확인 필요 → 사용자
+   확정됨` 으로 둘 다 보이고, 검토 카운트에서 확정 행을 미처리에서 뺀다.
+   ④ 확정 경로와 기존 손입력 경로를 **함께** 고친다.
 
 **국소 연결의 실측 한계 (2회차 전에 측정)**: 리드선 → 첫 배관 런까지는 788행 전부
 성공합니다. 그러나 그 런이 기기까지 닿는 경우는 **44/890 (4.9%)** 이고, 그중 최근접
@@ -530,6 +536,7 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/main.py` 의 `axis_candidates`·`confirm_axis`·`axis_override_map` | 후보 세 층(도면에서 읽은 텍스트만) · ② 문형 생성 + user_values 저장 · 행별 확정/승계 지도 |
 | `app/main.py` 의 `_run_comparison` 승계 훅 | Rev.B 에서 같은 안정 ID 매칭 행에 확정 문장 승계. 사람이 고친 행은 덮지 않음 |
 | `app/static/app.js` 의 `fromToPicker`·`bindFromToPicker` | ④ 행 근거 패널의 지정 UI. 같은 런 ④ 행에는 제안만 — 행마다 사람이 누른다 |
+| `app/main.py` 의 `_axis_text_noise` · `texts_filtered` | 후보 잡음 필터(§3 제거 패턴 재사용)와 **탈출구**. 거른 것은 버리지 않고 "전체 후보 보기" 로 펼친다 — 정답이 주석 덩어리에 섞여 인쇄되기 때문 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |
 | `app/static/index.html` 의 `.intake` | 첫 화면 두 단. 왼쪽(프로젝트·비교 대상)이 정해져야 오른쪽(드롭)이 열립니다. 900px 아래에서는 세로로 쌓이고 왼쪽이 위 |

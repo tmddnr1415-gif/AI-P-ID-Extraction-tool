@@ -843,9 +843,14 @@ def _axis_candidates(job, page_no: int) -> dict:
     area = CFG.rect("regions.drawing_area")
     conns = sorted({t.strip() for _r, t in dcand._connector_lines(pc, area)})
     conn_set = set(conns)
-    texts = sorted({t.strip() for _r, t in dcand._line_text(pc, area)
-                    if t.strip() and t.strip() not in conn_set
-                    and not _axis_text_noise(t)})
+    seen_texts = sorted({t.strip() for _r, t in dcand._line_text(pc, area)
+                         if t.strip() and t.strip() not in conn_set})
+    # 거른 것도 버리지 않고 따로 돌려준다 - 필터가 삼킨 후보를 볼 탈출구다.
+    # p6 의 `HP TURBINE IP TURBINE` 처럼 정답이 덩어리로 인쇄되는 일이 있고,
+    # 그런 덩어리가 언젠가 필터에 걸릴 수 있다.  화면의 "전체 후보 보기" 가
+    # 이 목록을 펼친다.
+    texts = [t for t in seen_texts if not _axis_text_noise(t)]
+    hidden = [t for t in seen_texts if _axis_text_noise(t)]
     equip = set()
     for r in db.merged_rows(CON, job["id"], "ALL"):
         if r["page_no"] != page_no:
@@ -860,7 +865,8 @@ def _axis_candidates(job, page_no: int) -> dict:
                 equip.add(str(e["name"]).strip())
         if ax.get("equip"):
             equip.add(str(ax["equip"]).strip())
-    return {"connectors": conns, "equipment": sorted(equip), "texts": texts}
+    return {"connectors": conns, "equipment": sorted(equip), "texts": texts,
+            "texts_filtered": hidden}
 
 
 def _axis_same_run(job_id: str, row: dict) -> list:
@@ -944,7 +950,10 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
         raise HTTPException(400, "FROM 과 TO 를 모두 고르거나 둘 다 비우세요")
 
     cands = _axis_candidates(job, row["page_no"])
-    pool = cands["connectors"] + cands["equipment"] + cands["texts"]
+    # 출처 판정에는 걸러낸 텍스트까지 넣는다 - 토글로 고른 것도 도면이 인쇄한
+    # 문구이므로 `자유입력` 이라고 적으면 사실이 아니다.
+    pool = (cands["connectors"] + cands["equipment"] + cands["texts"]
+            + cands.get("texts_filtered", []))
     source_from = axis_overrides.classify_source(from_text, pool)
     source_to = axis_overrides.classify_source(to_text, pool)
     type_ = (row["values"].get("type")

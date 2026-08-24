@@ -812,3 +812,6 @@ button.ftc {
 button.ftc:hover { background: rgba(122, 106, 88, .12); }
 button.ftc:disabled { opacity: .55; cursor: default; }
 #fromto input { width: 100%; }
+/* 걸러낸 후보 층 — 펼쳤을 때 "이건 주석이다" 가 보여야 하므로 한 단 흐리게.
+   색만으로 구분하지 않도록 이름표("걸러낸 텍스트")를 함께 단다. */
+.ft-group.ft-dim button.ftc { border-style: dashed; opacity: .75; }

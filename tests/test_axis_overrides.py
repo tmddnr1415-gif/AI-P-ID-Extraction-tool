@@ -92,3 +92,22 @@ def test_candidate_noise_filter_keeps_names(monkeypatch):
         assert main._axis_text_noise(t), f"잡음인데 남았습니다: {t!r}"
     for t in names:
         assert not main._axis_text_noise(t), f"이름인데 걸렸습니다: {t!r}"
+
+
+def test_filtered_candidates_are_kept_not_dropped():
+    """필터가 삼킨 후보는 버리지 않고 따로 돌려준다 (화면의 "전체 후보 보기").
+
+    정답이 주석 덩어리에 섞여 인쇄되는 일이 있으므로(p6 의
+    `HP TURBINE IP TURBINE`), 거르되 볼 수 있어야 한다.  여기서는 필터의
+    두 갈래가 서로 배타적이고 합이 원본과 같은지만 본다 - 페이지를 읽지 않는
+    빠른 시험이다.
+    """
+    from app import main
+    seen = ["HP TURBINE IP TURBINE", "DN300", "(G-8)", "CEP", "PT PT",
+            "D00P-10MAN10-M05-0001", "#10 SURFACE CONDENSER"]
+    kept = [t for t in seen if not main._axis_text_noise(t)]
+    hidden = [t for t in seen if main._axis_text_noise(t)]
+    assert set(kept) | set(hidden) == set(seen)
+    assert not (set(kept) & set(hidden))
+    assert "HP TURBINE IP TURBINE" in kept and "CEP" in kept
+    assert "DN300" in hidden and "(G-8)" in hidden

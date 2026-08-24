@@ -1991,7 +1991,9 @@ function fromToPicker(row) {
   if (ax.axis !== "④" || e.description_needed === false) return "";
   const ov = (S.axisOv || {})[row.key];
   return `<div class="cands" id="fromto">
-      <h4>FROM/TO 지정 <span class="muted">— 판정 불가(④) 행을 사람이 확정합니다</span></h4>
+      <h4>FROM/TO 지정 <span class="muted">— 판정 불가(④) 행을 사람이 확정합니다</span>
+        <button id="ft-all" class="ghost mini-rep" aria-pressed="false"
+          title="도면번호·치수·그리드 셀 같은 주석은 기본으로 접혀 있습니다. 정답이 그런 덩어리에 섞여 인쇄된 경우를 위해 펼쳐 볼 수 있습니다">전체 후보 보기</button></h4>
       <p class="muted" id="ft-status">${ov
         ? `확정됨: FROM ${escape(bareName(ov.from))} → TO ${escape(bareName(ov.to))}`
         : "후보를 불러오는 중…"}</p>
@@ -2012,31 +2014,54 @@ function fromToPicker(row) {
 function bindFromToPicker(row) {
   const box = document.querySelector("#fromto");
   if (!box) return;
+  // 네 번째 층은 필터가 걸러낸 것이다.  기본으로 접혀 있고 토글로 펼친다 -
+  // 버리지 않는 이유는 정답이 주석 덩어리에 섞여 인쇄되는 일이 있기 때문이다.
   const groups = [["커넥터 문구", "connectors"], ["기기 라벨", "equipment"],
-                  ["도면 텍스트", "texts"]];
+                  ["도면 텍스트", "texts"], ["걸러낸 텍스트", "texts_filtered"]];
+  let showAll = false, cache = null;
   const renderCands = (data, side) => {
     const holder = box.querySelector(`#ft-${side}-cands`);
-    holder.innerHTML = groups.map(([label, k]) => (data[k] || []).length
-      ? `<div class="ft-group"><span class="cand-kind">${label}</span>`
-        + data[k].map(t => `<button class="ftc" data-side="${side}"
-            data-t="${escape(t)}">${escape(t)}</button>`).join("") + `</div>`
-      : "").join("");
+    holder.innerHTML = groups.map(([label, k]) => {
+      if (k === "texts_filtered" && !showAll) return "";
+      return (data[k] || []).length
+        ? `<div class="ft-group${k === "texts_filtered" ? " ft-dim" : ""}">`
+          + `<span class="cand-kind">${label}</span>`
+          + data[k].map(t => `<button class="ftc" data-side="${side}"
+              data-t="${escape(t)}">${escape(t)}</button>`).join("") + `</div>`
+        : "";
+    }).join("");
     holder.querySelectorAll("button.ftc").forEach(b => {
       b.onclick = () => { box.querySelector(`#ft-${b.dataset.side}`).value = b.dataset.t; };
     });
   };
+  const say = (data) => {
+    const st = box.querySelector("#ft-status");
+    if (!st || ((S.axisOv || {})[row.key])) return;
+    const n = (data.connectors || []).length + (data.equipment || []).length
+      + (data.texts || []).length
+      + (showAll ? (data.texts_filtered || []).length : 0);
+    st.textContent = `후보 ${n}건 — 커넥터 ${(data.connectors || []).length} · `
+      + `기기 라벨 ${(data.equipment || []).length} · `
+      + `도면 텍스트 ${(data.texts || []).length}`
+      + ((data.texts_filtered || []).length
+        ? (showAll ? ` · 걸러낸 텍스트 ${(data.texts_filtered || []).length}`
+                   : ` · 접어 둔 주석 ${(data.texts_filtered || []).length}건`)
+        : "");
+  };
   fetch(`/jobs/${S.job.id}/rows/${row.key}/axis_candidates`)
     .then(r => r.json()).then(data => {
-      const st = box.querySelector("#ft-status");
-      if (st && !((S.axisOv || {})[row.key])) {
-        st.textContent = `후보 ${((data.connectors || []).length)
-          + ((data.equipment || []).length) + ((data.texts || []).length)}건 `
-          + `— 커넥터 ${(data.connectors || []).length} · 기기 라벨 `
-          + `${(data.equipment || []).length} · 도면 텍스트 ${(data.texts || []).length}`;
-      }
+      cache = data;
+      say(data);
       renderCands(data, "from");
       renderCands(data, "to");
     });
+  const allBtn = box.querySelector("#ft-all");
+  if (allBtn) allBtn.onclick = () => {
+    showAll = !showAll;
+    allBtn.setAttribute("aria-pressed", String(showAll));
+    allBtn.textContent = showAll ? "주석 다시 접기" : "전체 후보 보기";
+    if (cache) { say(cache); renderCands(cache, "from"); renderCands(cache, "to"); }
+  };
   const apply = async (targetRow, fromText, toText) => {
     const res = await fetch(`/jobs/${S.job.id}/rows/${targetRow.key}/axis`, {
       method: "POST", headers: { "Content-Type": "application/json" },
