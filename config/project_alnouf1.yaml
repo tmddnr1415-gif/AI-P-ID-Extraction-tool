@@ -238,6 +238,14 @@ multi_signal_bundle:
 # nowhere on the page their row belongs to, and 49.7% of middles share no word with
 # the drawing title.  `describe.py` reports those rows rather than filling them.
 description:
+  # 5회차 판정 트리의 적용 폭.  mixed = 판정이 선 행(①기기 직결·②FROM-TO·
+  # ③다분기)만 판정 트리의 문형으로 쓰고, ④(판정 불가)는 현행 문장을 유지
+  # (사용자 결정 (나), 2026-08).  근거: 1부 체크포인트 실측 — 판정 성립
+  # 190/824, ④ 620행(75.2%).  ④가 많은 원인은 도면의 선분 단절이고(무제한
+  # 순회로도 FROM/TO 짝 10.4% — docs/from_to_axis.md), 트리 그대로(④ 공란)는
+  # 현행 문장(F1 74.6)을 버리는 후퇴라 mixed 를 채택했다.  비우면 판정만
+  # 기록하고 문장은 바꾸지 않는다.
+  axis_mode: mixed
   prefix: UNIT
   unit_mark: "#"
   title_open: [FOR]

@@ -37,3 +37,6 @@ data/blank/
 # verbatim.  Rebuild them from `data/` when they are needed.
 out/page_diff.xlsx
 out/description_identifiability.md
+
+# 5회차 라벨링 워크북 — 발주처 문장(FN 시트)이 들어 있어 리포에 넣지 않음
+out/label_nouf1.xlsx

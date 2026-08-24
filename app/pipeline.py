@@ -56,6 +56,7 @@ import describe as desc            # noqa: E402
 import describe_candidates as dcand  # noqa: E402
 import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
+import describe_axis as daxis      # noqa: E402
 
 CFG = projectconfig.load()
 # The trade dictionary: power-plant abbreviations that hold on any project, kept
@@ -592,6 +593,16 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                          (CFG.data.get("description") or {})
                                          .get("sole_equipment_sheet_max") or 0))
 
+    # The five-way description axis (5회차 판정 트리): which one line the
+    # instrument taps, and what that line's two ends actually reach.  Verdicts
+    # are recorded on every row; whether a verdict rewrites the sentence is the
+    # config's call (`description.axis_mode`), applied after `_finish_descriptions`
+    # so the current sentence is still there to keep.
+    say(total - 1, total, "judging description axes")
+    with clock.stage("describe_axis"):
+        axis_stats = _axis_pass(rows, per_page, equip_by_page, pipe_style.values,
+                                cand_stats.get("equipment_reach_pt"))
+
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
     say(total - 1, total, "assembling descriptions")
@@ -600,6 +611,11 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         examples = _client_examples(reference, tb_rows, pattern)
         desc_stats = _finish_descriptions(rows, per_page, isa, pattern,
                                           selector, examples, use_line_gate)
+        axis_stats.update(_apply_axis(rows))
+        # 등급 집계는 적용 뒤의 실제 행에서 다시 센다 - 축 적용이 등급을
+        # 바꾸므로, 적용 전 집계를 그대로 실으면 화면·보고가 행과 어긋난다.
+        desc_stats["grades"] = dict(collections.Counter(
+            r.description_grade for r in rows))
 
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
@@ -679,6 +695,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         },
         "equipment": equip_stats,
         "candidates": cand_stats,
+        "description_axis": axis_stats,
         "description_grades": desc_stats,
         "description_scope": {
             "needed": sum(1 for r in rows if r.description_needed),
@@ -1383,6 +1400,100 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
                           "ratios across 20 pages scatter x0.42-x2.00)",
     }
     return out, report
+
+
+AXIS_APPLY = (daxis.AX_EQUIP, daxis.AX_FROMTO, daxis.AX_BRANCH)
+
+
+def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
+    """모든 행에 판정축(⓪~④)과 문장 초안을 기록한다.  문장 적용은 별도다.
+
+    `style` 은 `pipe_style.values` 그대로다 — `connector_reach`(이 문서 실측)가
+    이미 들어 있다.  벤더 행은 ⓪(현행 유지)로 표시만 하고 판정하지 않는다.
+    """
+    area = CFG.rect("regions.drawing_area")
+    by_page = collections.defaultdict(list)
+    dist = collections.Counter()
+    for r in rows:
+        if not r.rect:
+            continue
+        if r.vendor_supply:
+            r.evidence["axis"] = {"axis": daxis.AX_VENDOR, "source": "현행유지",
+                                  "ev": {"why": "벤더 공급 — 현행 유지"}}
+            dist[daxis.AX_VENDOR] += 1
+            continue
+        by_page[r.page_no].append(r)
+    conn_reach = style.get("connector_reach")
+    items = []
+    for pno, page_rows in sorted(by_page.items()):
+        info = per_page.get(pno) or {}
+        pc = info.get("page_cache")
+        if pc is None:
+            continue
+        triples = [(r.key, tuple(r.rect), r.type or r.valve_type)
+                   for r in page_rows]
+        verdicts = daxis.judge_page(pc, triples, equip_by_page.get(pno, ()),
+                                    area, style, conn_reach, eq_reach)
+        for r in page_rows:
+            v = verdicts.get(r.key)
+            if v is None:
+                continue
+            r.evidence["axis"] = v
+            dist[v["axis"]] += 1
+            items.append((r.key, pno, r.type or r.valve_type, tuple(r.rect), v))
+    suffixes = daxis.assign_suffixes(items)
+    by_key = {r.key: r for r in rows}
+    for key, _pno, type_, _rect, v in items:
+        v["suffix"] = suffixes.get(key, "")
+        v["sentence"] = daxis.sentence(v, type_, v["suffix"])
+        v["attribution"] = daxis.attribution(v)
+    # ④→② 전환율 - 라인 탭 문형이 성립한 비율.  이후 회차에서 도면 벽(선분
+    # 단절) 개선을 재는 축이다: ② / (② + ④).
+    n2, n4 = dist.get(daxis.AX_FROMTO, 0), dist.get(daxis.AX_UNKNOWN, 0)
+    return {"distribution": {k: dist[k] for k in sorted(dist)},
+            "fromto_conversion_pct": round(100 * n2 / (n2 + n4), 1)
+                                     if (n2 + n4) else None}
+
+
+def _apply_axis(rows) -> dict:
+    """`description.axis_mode: mixed` — 판정이 선 행(①②③)만 판정 트리의
+    문형으로 바꾸고, ④는 현행 문장을 그대로 둔다 (5회차 사용자 결정 (나)).
+
+    바꾼 행은 현행 문장·등급을 `evidence["axis"]["old_description"]` 에 보존하고
+    `source` 를 `신규문형`/`현행유지` 로 남긴다 — 라벨링 워크북의 "문형 출처"
+    열이 이것을 읽는다.  등급은 CONFIRMED(도면 근거 있음 - 탭한 런과 그 끝점이
+    근거다)로, Remark 는 판정축과 귀속점으로 바꾼다.  `needs_review` 의
+    Description 검토 문구는 등급과 어긋나지 않게 걷어낸다 - 지문이 움직이는
+    유일한 경로이고, 824행 전수 대조로 그 범위를 증명한다.
+    """
+    mode = str(((CFG.data.get("description") or {}).get("axis_mode"))
+               or "").strip().lower()
+    stats = collections.Counter()
+    for r in rows:
+        v = r.evidence.get("axis") or {}
+        ax = v.get("axis")
+        if not ax:
+            continue
+        if mode != "mixed" or ax not in AXIS_APPLY or not r.description_needed                 or not v.get("sentence"):
+            v.setdefault("source", "현행유지")
+            continue
+        v["old_description"] = r.description
+        v["old_grade"] = r.description_grade
+        v["source"] = "신규문형"
+        r.description = v["sentence"]
+        r.description_grade = GRADE_CONFIRMED
+        r.remark = f"판정축 {ax} · 귀속 {v.get('attribution', '')}"
+        keep = [x for x in (r.needs_review or "").split("; ")
+                if x and x not in DESCRIPTION_REVIEW.values()]
+        r.needs_review = "; ".join(keep)
+        r.evidence["review_codes"] = [
+            c for c in (r.evidence.get("review_codes") or [])
+            if c != "DESCRIPTION_INCOMPLETE"]
+        stats["applied"] += 1
+        stats[f"applied_{ax}"] += 1
+        if str(r.type).upper() == "LS":
+            stats["applied_ls"] += 1
+    return {"mode": mode or "off", **{k: stats[k] for k in sorted(stats)}}
 
 
 def _candidate_pass(rows, per_page, equip_by_page, positions, style,
