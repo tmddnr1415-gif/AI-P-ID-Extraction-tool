@@ -91,17 +91,25 @@ def build(run_path, baseline_path=None, out_path=None):
     ws.freeze_panes = "A2"
 
     ws2 = wb.create_sheet("누락(FN)")
-    ws2.append(["P&ID No.", "TYPE", "발주처 Description", "발주처 행"])
+    # 이 시트의 모수는 발주처 FIELD 전체(취소선 제외)다 - 회귀 기준선(FN 5,
+    # 교집합 도면 · 칸 단위 min)과 정의가 다르므로 "구분" 열로 가른다.
+    # 상세는 docs/from_to_axis.md 의 "FN 두 정의".
+    ws2.append(["P&ID No.", "TYPE", "발주처 Description", "발주처 행", "구분"])
     for c in ws2[1]:
         c.font = Font(bold=True)
         c.fill = HEAD_FILL
+    our_pids = {str(r.get("drawing_no") or "").strip()
+                for r in rows if r.get("tab") == "FIELD"}
     if have_client:
         for c in sorted(fn_rows, key=lambda c: (c["pid"], str(c["type"]),
                                                 c.get("row") or 0)):
-            ws2.append([c["pid"], c["type"], c.get("desc") or "", c.get("row")])
+            kind = ("교집합 도면 — 회귀 FN 과 같은 칸" if c["pid"] in our_pids
+                    else "대상 외 — 이 도면에 우리 행이 없음")
+            ws2.append([c["pid"], c["type"], c.get("desc") or "",
+                        c.get("row"), kind])
     else:
-        ws2.append(["발주처 리스트가 이 기계에 없어 비웠습니다", "", "", ""])
-    for col, w in zip("ABCD", (24, 8, 52, 9)):
+        ws2.append(["발주처 리스트가 이 기계에 없어 비웠습니다", "", "", "", ""])
+    for col, w in zip("ABCDE", (24, 8, 52, 9, 30)):
         ws2.column_dimensions[col].width = w
 
     ws3 = wb.create_sheet("집계")

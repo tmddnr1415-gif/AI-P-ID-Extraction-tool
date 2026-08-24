@@ -317,6 +317,28 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
 6. **④→② 전환율 5.4%** — 새 회차 지표.  ② / (② + ④).  도면 벽(선분 단절)
    개선의 측정 축입니다 (`docs/from_to_axis.md`).
 
+**그 다음 회차 — ④ 618행의 사용자 확정 경로 (6회차)**
+
+1. 자동 추적은 세 실측(13.1% · 4.9% · 10.4%)으로 막혔으므로, ④ 행은 **사람이
+   FROM/TO 를 한 번 확정하고 리비전 사이에 재사용**한다.  근거 패널의 지정
+   UI 후보는 그 도면에서 이미 읽은 텍스트 세 층뿐(커넥터 문구 · 기기 라벨 ·
+   도면 텍스트)이고, 출처를 후보선택/후보선택(부분)/자유입력으로 기록한다.
+2. 저장은 `projects/{프로젝트}/axis_overrides.json`, 키는 **안정 ID**.  같은 값
+   재확정은 confirmed_at 을 유지해 **두 번 저장하면 같은 파일**이다.  다음
+   리비전에서 같은 ID 가 매칭되면 자동 승계하고(근거 패널 "확정 승계"),
+   사람이 이미 고친 행은 덮지 않는다.  같은 런의 다른 ④ 행에는 **제안만** 한다.
+3. 확정은 user_values 로 저장돼 ai_values 를 덮지 않고, 감사기의 "사람이 도면
+   값을 덮어쓴 칸"에 자동으로 잡힌다.  p6 실확정: `FROM HRSG#12` (커넥터 후보)
+   + `HP TURBINE` (도면 텍스트 `HP TURBINE IP TURBINE` 의 일부 → 후보선택(부분))
+   → `FROM HRSG#12 TO HP TURBINE TEMPERATURE TRANSMITTER`.
+4. **FN 두 정의 확정** — 워크북 시트2의 22행 = 발주처 FIELD 전체 모수(행 단위),
+   회귀 기준선 FN 5 = 교집합 도면 · 칸 단위 min.  22 = 교집합 밖 18 + 교집합 안
+   4(기준선 FIELD 몫과 같은 칸).  검출 변화 아님 (`docs/from_to_axis.md`).
+5. **경보 설정값** — CZE 양식 41열에 Alarm Set Point 계열 열이 **없다**.  접힌
+   신호는 REMARK 34행과 근거 패널에 남고, 설정값을 채울 자리 자체가 없다.
+6. LS 8행의 `LEVEL SWITCH` 문형은 사용자가 5회차 정정을 철회하며 **유지 확정**
+   (물리 계기 하나 = 계기명, 신호명 아님).
+
 **국소 연결의 실측 한계 (2회차 전에 측정)**: 리드선 → 첫 배관 런까지는 788행 전부
 성공합니다. 그러나 그 런이 기기까지 닿는 경우는 **44/890 (4.9%)** 이고, 그중 최근접
 기기와 다른 답을 낸 것은 **7건**, F1 변화는 **0.0** 입니다. 라벨-런 간격 허용치를
@@ -504,6 +526,10 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/static/app.js` 의 `cellValue`·`FILTER_COLS` | 그리드·정렬·검색·컬럼 필터가 셀을 읽는 **단 하나의 접근자**. `pid_no` 는 행이 아니라 페이지에 있습니다 |
 | `app/static/app.js` 의 `zoomBy`·`ZOOM_STEP` | 커서 기준 확대. 배율 1.3 은 `+`/`-` 버튼 값 재사용이고 상·하한은 없습니다 |
 | `config` `multi_signal_bundle.description_signal` | 접힌 LS 행의 문형 (`representative` / `all` / `none`). 발주처 표기는 `representative` 뿐 |
+| `app/axis_overrides.py` | ④ 행 FROM/TO 확정의 저장·문형·승계. 키는 안정 ID · 정렬 고정 · 같은 값 재저장은 같은 파일 |
+| `app/main.py` 의 `axis_candidates`·`confirm_axis`·`axis_override_map` | 후보 세 층(도면에서 읽은 텍스트만) · ② 문형 생성 + user_values 저장 · 행별 확정/승계 지도 |
+| `app/main.py` 의 `_run_comparison` 승계 훅 | Rev.B 에서 같은 안정 ID 매칭 행에 확정 문장 승계. 사람이 고친 행은 덮지 않음 |
+| `app/static/app.js` 의 `fromToPicker`·`bindFromToPicker` | ④ 행 근거 패널의 지정 UI. 같은 런 ④ 행에는 제안만 — 행마다 사람이 누른다 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |
 | `app/static/index.html` 의 `.intake` | 첫 화면 두 단. 왼쪽(프로젝트·비교 대상)이 정해져야 오른쪽(드롭)이 열립니다. 900px 아래에서는 세로로 쌓이고 왼쪽이 위 |

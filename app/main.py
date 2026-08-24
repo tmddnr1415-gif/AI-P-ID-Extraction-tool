@@ -16,6 +16,7 @@ import io
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -32,7 +33,8 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import audit, db, excel_out, paths, pipeline, revisions, version  # noqa: E402
+from app import (audit, axis_overrides, db, excel_out, paths, pipeline,  # noqa: E402
+                 revisions, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -311,6 +313,18 @@ def _run_comparison(job_id: str) -> dict:
         st["excel_no"] = numbers.get(key, 0)
     registry.save(reg_path)
     db.store_revision_result(CON, job_id, result)
+    # ④ 행의 FROM/TO 확정 승계 - 같은 안정 ID 가 매칭되면 Rev.A 의 확정 문장을
+    # 잇는다.  ID 가 안 물리면 승계하지 않고, 이 리비전에서 사람이 이미 고친
+    # 행도 덮지 않는다 (axis_overrides.inherit 의 규칙).
+    ov_path = axis_overrides.path_for(DATA_DIR, name)
+    overrides = axis_overrides.load(ov_path)
+    if overrides:
+        rows_by_key = {r["key"]: r for r in db.merged_rows(CON, job_id, "ALL")}
+        for key, ov in axis_overrides.inherit(
+                overrides, result["states"], rows_by_key, job_id):
+            db.set_user_value(CON, job_id, key, "description", ov["sentence"])
+            db.set_user_value(CON, job_id, key, "description_grade",
+                              "USER_ENTERED")
     entry = revisions.record_revision(
         DATA_DIR, name, revision, job_id=job_id, pdf_name=job["pdf_name"],
         compared_with=compared, result=result)
@@ -769,6 +783,230 @@ async def patch_row(job_id: str, key: str, payload: dict):
                           "user": value})
     return {"key": key, "user": user, "review_count": db.review_count(CON, job_id),
             "feedback_count": db.feedback_count(CON, job_id)}
+
+
+# --------------------------------------------------------------------------
+# ④ 행의 FROM/TO 사용자 확정 (6회차)
+# --------------------------------------------------------------------------
+# 자동 추적의 세 실측(13.1% · 4.9% · 10.4%)이 막은 자리를 사람이 확정한다.
+# 후보는 그 도면에서 이미 읽은 텍스트뿐이고(커넥터 문구 · 기기 라벨 · 도면
+# 텍스트), 확정 전에는 현행 문장이 그대로 남는다.
+
+_AXIS_PAGES: dict = {}          # job_id -> {page_no: PageCache}.  최근 1개 job 만.
+
+
+def _axis_page(job, page_no: int):
+    import pidcache
+    jid = job["id"]
+    if jid not in _AXIS_PAGES:
+        _AXIS_PAGES.clear()          # 한 번에 한 job 이면 충분하다 - 화면도 그렇다
+        doc, pages = pidcache.load_pages(job["pdf_path"])
+        _AXIS_PAGES[jid] = {p.page_no: p for p in pages}
+    return _AXIS_PAGES[jid].get(page_no)
+
+
+# 도면 텍스트 층에서 거르는 것 — **이미 측정된 제거 패턴의 재사용**이다.
+# `describe_equipment` 가 기기 라벨에서 떼는 것과 같은 것들(도면번호 · DN 치수 ·
+# 그리드 셀 · NOTE 참조)이고, 여기에 이 페이지에서 실제로 본 두 가지를 더한다:
+# 점선 리더(`.....`)와 심볼 글자(`PT PT` · `TT TT TT` — 버블 안의 ISA 문자).
+# 거르기만 하고 아무것도 만들지 않는다: p6 은 38건 중 잡음을 뺀 나머지가 남고
+# `HP TURBINE IP TURBINE` · `LP TURBINE` · `HRSG` · `STG#10` 은 그대로 남는다.
+_AXIS_DIMENSION_IN = re.compile(r"\b\d{2,4}\s*[Xx]\s*\d{2,4}\b")
+_AXIS_CODE_IN = re.compile(r"\b(ASME|ANSI|API|B31(\.\d+)?|SEC\.?\s?[IVX]+)\b")
+
+
+def _axis_text_noise(text: str) -> bool:
+    import describe_equipment as dequip
+    t = " ".join(str(text or "").split())
+    if not t:
+        return True
+    if dequip.DRAWING_NO.search(t) or dequip.NOTE_REF.search(t):
+        return True
+    # 패턴에 걸리는 부분을 떼어낸 뒤 남는 낱말로 판정한다 - `DN 50` 처럼 띄어
+    # 쓴 형태도 그래야 걸린다.  남은 낱말이 전부 점선이거나 두 글자 이하
+    # 알파벳(버블 안 ISA 글자)이면 이름이 아니다.  세 글자부터는 남긴다:
+    # 이 문서의 `CEP` · `SCT` · `MOV` 가 그 길이의 실제 이름이다.
+    for pat in (dequip.BORE, dequip.GRID_CELL, _AXIS_DIMENSION_IN, _AXIS_CODE_IN):
+        t = pat.sub(" ", t)
+    words = [w for w in t.split() if any(ch.isalnum() for ch in w)]
+    if not words:
+        return True
+    return all(w.isalpha() and len(w) <= 2 for w in words)
+
+
+def _axis_candidates(job, page_no: int) -> dict:
+    """그 페이지에서 이미 읽은 텍스트 세 층.  없는 것을 만들지 않는다."""
+    import describe_candidates as dcand
+    pc = _axis_page(job, page_no)
+    if pc is None:
+        return {"connectors": [], "equipment": [], "texts": []}
+    area = CFG.rect("regions.drawing_area")
+    conns = sorted({t.strip() for _r, t in dcand._connector_lines(pc, area)})
+    conn_set = set(conns)
+    texts = sorted({t.strip() for _r, t in dcand._line_text(pc, area)
+                    if t.strip() and t.strip() not in conn_set
+                    and not _axis_text_noise(t)})
+    equip = set()
+    for r in db.merged_rows(CON, job["id"], "ALL"):
+        if r["page_no"] != page_no:
+            continue
+        ev = r.get("evidence") or {}
+        for c in ev.get("candidates") or []:
+            if c.get("kind") == "EQUIPMENT" and c.get("text"):
+                equip.add(str(c["text"]).strip())
+        ax = ev.get("axis") or {}
+        for e in (ax.get("ev") or {}).get("ends") or []:
+            if e and e.get("kind") == "EQUIP" and e.get("name"):
+                equip.add(str(e["name"]).strip())
+        if ax.get("equip"):
+            equip.add(str(ax["equip"]).strip())
+    return {"connectors": conns, "equipment": sorted(equip), "texts": texts}
+
+
+def _axis_same_run(job_id: str, row: dict) -> list:
+    """같은 런으로 판정된 다른 ④ 행 — 일괄 '제안' 대상.  런 판정 자체가 실패한
+    행(run 없음)은 제안하지 않는다."""
+    run = ((row.get("evidence") or {}).get("axis") or {}).get("ev", {}).get("run")
+    if not run:
+        return []
+    out = []
+    for r in db.merged_rows(CON, job_id, "ALL"):
+        if (r["key"] == row["key"] or r["page_no"] != row["page_no"]
+                or r.get("deleted") or r.get("removed")):
+            continue
+        ax = (r.get("evidence") or {}).get("axis") or {}
+        if ax.get("axis") != "④" or (ax.get("ev") or {}).get("run") != run:
+            continue
+        if (r.get("user") or {}).get("description"):
+            continue
+        out.append({"key": r["key"], "type": r["values"].get("type")
+                    or r["values"].get("valve_type") or "",
+                    "description": r["values"].get("description") or ""})
+    return out
+
+
+@app.get("/jobs/{job_id}/rows/{key}/axis_candidates")
+def axis_candidates(job_id: str, key: str):
+    job = db.get_job(CON, job_id)
+    row = db.get_row(CON, job_id, key)
+    if job is None or row is None:
+        raise HTTPException(404, "no such row")
+    out = _axis_candidates(job, row["page_no"])
+    out["same_run"] = _axis_same_run(job_id, row)
+    return out
+
+
+@app.get("/jobs/{job_id}/axis_overrides")
+def axis_override_map(job_id: str):
+    """이 job 의 행들에 걸린 확정 — {row_key: entry+inherited}.  근거 패널이
+    "FROM/TO 확정"과 "Rev.A 확정 승계"를 이걸로 그린다."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    if not job["project"]:
+        return {}
+    data = axis_overrides.load(
+        axis_overrides.path_for(DATA_DIR, job["project"]))
+    states = db.revision_states(CON, job_id)
+    out = {}
+    for key, st in states.items():
+        entry = data.get(st.get("id") or "")
+        if entry:
+            out[key] = dict(entry, stable_id=st["id"],
+                            inherited=entry.get("origin_job") != job_id)
+    return out
+
+
+@app.post("/jobs/{job_id}/rows/{key}/axis")
+async def confirm_axis(job_id: str, key: str, payload: dict):
+    """FROM/TO 확정 → ② 문형 생성 → user_values 저장 (+프로젝트 장부).
+
+    빈 from/to 는 확정 해제다: 편집을 걷어내 현행(엔진) 문장으로 되돌린다.
+    """
+    job = db.get_job(CON, job_id)
+    row = db.get_row(CON, job_id, key)
+    if job is None or row is None:
+        raise HTTPException(404, "no such row")
+    states = db.revision_states(CON, job_id)
+    stable_id = (states.get(key) or {}).get("id") or ""
+    from_text = str(payload.get("from_text") or "").strip()
+    to_text = str(payload.get("to_text") or "").strip()
+
+    if not from_text and not to_text:
+        db.set_user_value(CON, job_id, key, "description", None)
+        db.set_user_value(CON, job_id, key, "description_grade", None)
+        if stable_id and job["project"]:
+            axis_overrides.clear(
+                axis_overrides.path_for(DATA_DIR, job["project"]), stable_id)
+        return {"cleared": True,
+                "review_count": db.review_count(CON, job_id)}
+    if not from_text or not to_text:
+        raise HTTPException(400, "FROM 과 TO 를 모두 고르거나 둘 다 비우세요")
+
+    cands = _axis_candidates(job, row["page_no"])
+    pool = cands["connectors"] + cands["equipment"] + cands["texts"]
+    source_from = axis_overrides.classify_source(from_text, pool)
+    source_to = axis_overrides.classify_source(to_text, pool)
+    type_ = (row["values"].get("type")
+             or row["values"].get("valve_type") or "")
+
+    # Suffix - 기존 규칙 그대로: 같은 페이지 · 같은 TYPE · 같은 (from, to) 가
+    # 2행 이상일 때 위→아래 · 왼→오.  묶음은 이 확정과 같은 값의 기존 확정들.
+    _d, src = pipeline.daxis._strip_conn(from_text)
+    _d, dst = pipeline.daxis._strip_conn(to_text)
+    group = [(key, tuple(row["rect"] or (0, 0, 0, 0)))]
+    ovmap = {}
+    if job["project"]:
+        ovmap = axis_overrides.load(
+            axis_overrides.path_for(DATA_DIR, job["project"]))
+    ids_here = {k: (st.get("id") or "") for k, st in states.items()}
+    for r in db.merged_rows(CON, job_id, "ALL"):
+        if r["key"] == key or r["page_no"] != row["page_no"]:
+            continue
+        rt = r["values"].get("type") or r["values"].get("valve_type") or ""
+        if rt != type_:
+            continue
+        e = ovmap.get(ids_here.get(r["key"], ""))
+        if e:
+            _d, es = pipeline.daxis._strip_conn(e.get("from", ""))
+            _d, ed = pipeline.daxis._strip_conn(e.get("to", ""))
+            if (es, ed) == (src, dst):
+                group.append((r["key"], tuple(r["rect"] or (0, 0, 0, 0))))
+            continue
+        ax = (r.get("evidence") or {}).get("axis") or {}
+        if (ax.get("axis") == "②" and ax.get("src") == src
+                and ax.get("dst") == dst):
+            group.append((r["key"], tuple(r["rect"] or (0, 0, 0, 0))))
+    suffix = axis_overrides.suffix_for(group, key)
+    sentence = axis_overrides.sentence_for(from_text, to_text, type_, suffix)
+
+    before = db.get_row(CON, job_id, key)
+    db.set_user_value(CON, job_id, key, "description", sentence)
+    db.set_user_value(CON, job_id, key, "description_grade", "USER_ENTERED")
+    db.record_feedback(
+        CON, job_id, "EDITED", row_key=key, page_no=row["page_no"],
+        drawing_no=row.get("drawing_no") or "", rect=row.get("rect"),
+        field="description",
+        ai_value=(before.get("ai") or {}).get("description"),
+        user_value=sentence,
+        reason=f"판정축 FROM/TO 확정 — FROM {source_from} · TO {source_to}",
+        basis={"from": from_text, "to": to_text},
+        pattern_args={"field": "description",
+                      "ai": (before.get("ai") or {}).get("description"),
+                      "user": sentence})
+    saved = False
+    if stable_id and job["project"]:
+        axis_overrides.record(
+            axis_overrides.path_for(DATA_DIR, job["project"]), stable_id,
+            from_text=from_text, to_text=to_text, source_from=source_from,
+            source_to=source_to, type_=type_, sentence=sentence,
+            origin_job=job_id)
+        saved = True
+    return {"sentence": sentence, "suffix": suffix,
+            "source_from": source_from, "source_to": source_to,
+            "stable_id": stable_id, "saved_to_project": saved,
+            "suggestions": _axis_same_run(job_id, row),
+            "review_count": db.review_count(CON, job_id)}
 
 
 # --------------------------------------------------------------------------

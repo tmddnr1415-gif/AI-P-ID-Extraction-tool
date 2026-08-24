@@ -618,6 +618,11 @@ function renderDeletedCandidates() {
 
 async function loadRows() {
   S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
+  // ④ 행의 FROM/TO 확정 장부 - 근거 패널의 "FROM/TO 확정"·"확정 승계" 표시용.
+  // 프로젝트가 없는 job 은 빈 객체가 온다.
+  try {
+    S.axisOv = await (await fetch(`/jobs/${S.job.id}/axis_overrides`)).json();
+  } catch (e) { S.axisOv = {}; }
   // 오버레이가 행 상태를 키로 찾을 수 있게.  도면에는 추가·수정만 그린다 -
   // 삭제된 것은 이번 도면에 심볼이 없어 그릴 좌표가 없다.
   S.revByKey = {};
@@ -1912,6 +1917,20 @@ function showEvidence(row) {
     add("사람이 고친 값", Object.entries(row.user)
       .map(([f, v]) => `${f} = ${v}`).join(" | "));
   }
+  // --- ④ 행의 FROM/TO 확정 (6회차) --------------------------------------
+  const ov = (S.axisOv || {})[row.key];
+  if (ov) {
+    add("FROM/TO 확정", `FROM ${bareName(ov.from)} → TO ${bareName(ov.to)} `
+      + `(FROM ${ov.source_from} · TO ${ov.source_to})`);
+    if (ov.inherited) add("확정 출처", "이전 리비전 확정 승계 — 같은 안정 ID "
+      + `${ov.stable_id} 가 매칭돼 자동으로 이어받았습니다`);
+  }
+  const ax = e.axis || {};
+  if (ax.axis) {
+    add("판정축", `${ax.axis}` + (ax.source === "신규문형"
+      ? ` — 신규문형 (귀속 ${ax.attribution || ""})`
+      : ax.axis === "④" ? " — 판정 불가, 현행 문장 유지" : ""));
+  }
   // The button used to sit *inside* the h3, so the heading read
   // "판정 근거 — LS (p7)신고" - one string, no separator, and a screen reader
   // announcing the button as part of the title.  It is a sibling now; the row
@@ -1925,8 +1944,10 @@ function showEvidence(row) {
     + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
+    + fromToPicker(row)
     + candidatePicker(row);
   bindCandidatePicker(row);
+  bindFromToPicker(row);
   bindReviewControls(row);
   bindAxisActions(row);
   const evb = $("#ev-report");
@@ -1946,6 +1967,144 @@ function sameSentence(row) {
   return S.rows.filter(r => !r.deleted && !r.removed
     && r.drawing_no === row.drawing_no && r.values.type === row.values.type
     && (r.values.description || "") === text);
+}
+
+/* ---------------- ④ 행의 FROM/TO 지정 (6회차) ----------------
+ *
+ * 자동 추적의 세 실측(배관 그래프 13.1% · 국소 연결 4.9% · 무제한 순회 10.4%)이
+ * 막은 자리를 사람이 확정한다.  후보는 그 도면에서 이미 읽은 텍스트 세 층
+ * (커넥터 문구 · 기기 라벨 · 도면 텍스트)뿐이고, 고르면 입력칸에 실려 다듬을
+ * 수 있다 - 후보 그대로면 "후보선택", 일부만 쓰면 "후보선택(부분)", 후보에
+ * 없으면 "자유입력"으로 서버가 출처를 기록한다.  확정 전에는 현행 문장이
+ * 그대로 남고, 같은 런의 다른 ④ 행에는 "같은 값 적용"을 제안만 한다.
+ */
+/* 후보 문구는 도면 원문이라 `FROM HRSG#12` 처럼 방향어를 이미 달고 있다.
+ * 문장 조립이 그것을 벗기듯(describe_axis._strip_conn) 화면 표시도 벗긴다 -
+ * 안 그러면 "FROM FROM HRSG#12" 로 읽힌다. */
+function bareName(text) {
+  return String(text || "").replace(/^\s*(FROM|TO)\b\s*/i, "").trim();
+}
+
+function fromToPicker(row) {
+  const e = row.evidence || {};
+  const ax = e.axis || {};
+  if (ax.axis !== "④" || e.description_needed === false) return "";
+  const ov = (S.axisOv || {})[row.key];
+  return `<div class="cands" id="fromto">
+      <h4>FROM/TO 지정 <span class="muted">— 판정 불가(④) 행을 사람이 확정합니다</span></h4>
+      <p class="muted" id="ft-status">${ov
+        ? `확정됨: FROM ${escape(bareName(ov.from))} → TO ${escape(bareName(ov.to))}`
+        : "후보를 불러오는 중…"}</p>
+      <div class="cand-actions"><input id="ft-from" type="text" placeholder="FROM — 후보를 고르거나 입력"
+        value="${escape(ov ? ov.from : "")}"></div>
+      <div id="ft-from-cands"></div>
+      <div class="cand-actions"><input id="ft-to" type="text" placeholder="TO — 후보를 고르거나 입력"
+        value="${escape(ov ? ov.to : "")}"></div>
+      <div id="ft-to-cands"></div>
+      <div class="cand-actions">
+        <button id="ft-save" class="ghost">FROM/TO 확정 — ② 문형 생성</button>
+        ${ov ? `<button id="ft-clear" class="ghost" title="확정을 걷어내고 현행 문장으로 되돌립니다">확정 해제</button>` : ""}
+      </div>
+      <div id="ft-suggest"></div>
+    </div>`;
+}
+
+function bindFromToPicker(row) {
+  const box = document.querySelector("#fromto");
+  if (!box) return;
+  const groups = [["커넥터 문구", "connectors"], ["기기 라벨", "equipment"],
+                  ["도면 텍스트", "texts"]];
+  const renderCands = (data, side) => {
+    const holder = box.querySelector(`#ft-${side}-cands`);
+    holder.innerHTML = groups.map(([label, k]) => (data[k] || []).length
+      ? `<div class="ft-group"><span class="cand-kind">${label}</span>`
+        + data[k].map(t => `<button class="ftc" data-side="${side}"
+            data-t="${escape(t)}">${escape(t)}</button>`).join("") + `</div>`
+      : "").join("");
+    holder.querySelectorAll("button.ftc").forEach(b => {
+      b.onclick = () => { box.querySelector(`#ft-${b.dataset.side}`).value = b.dataset.t; };
+    });
+  };
+  fetch(`/jobs/${S.job.id}/rows/${row.key}/axis_candidates`)
+    .then(r => r.json()).then(data => {
+      const st = box.querySelector("#ft-status");
+      if (st && !((S.axisOv || {})[row.key])) {
+        st.textContent = `후보 ${((data.connectors || []).length)
+          + ((data.equipment || []).length) + ((data.texts || []).length)}건 `
+          + `— 커넥터 ${(data.connectors || []).length} · 기기 라벨 `
+          + `${(data.equipment || []).length} · 도면 텍스트 ${(data.texts || []).length}`;
+      }
+      renderCands(data, "from");
+      renderCands(data, "to");
+    });
+  const apply = async (targetRow, fromText, toText) => {
+    const res = await fetch(`/jobs/${S.job.id}/rows/${targetRow.key}/axis`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from_text: fromText, to_text: toText }),
+    });
+    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return null; }
+    const out = await res.json();
+    if (out.cleared) {
+      delete targetRow.user.description;
+      delete targetRow.user.description_grade;
+      const eng = (targetRow.ai || {}).description;
+      targetRow.values.description = eng === undefined
+        ? targetRow.values.description : eng;
+      targetRow.values.description_grade = (targetRow.ai || {}).description_grade
+        || targetRow.values.description_grade;
+      delete (S.axisOv || {})[targetRow.key];
+    } else {
+      targetRow.user.description = out.sentence;
+      targetRow.user.description_grade = "USER_ENTERED";
+      targetRow.values.description = out.sentence;
+      targetRow.values.description_grade = "USER_ENTERED";
+      if (out.saved_to_project) {
+        S.axisOv = S.axisOv || {};
+        S.axisOv[targetRow.key] = { from: fromText, to: toText,
+          source_from: out.source_from, source_to: out.source_to,
+          stable_id: out.stable_id, inherited: false };
+      }
+    }
+    return out;
+  };
+  const saveBtn = box.querySelector("#ft-save");
+  if (saveBtn) saveBtn.onclick = async () => {
+    const f = box.querySelector("#ft-from").value.trim();
+    const t = box.querySelector("#ft-to").value.trim();
+    if (!f || !t) { alert("FROM 과 TO 를 모두 고르거나 입력하세요"); return; }
+    const out = await apply(row, f, t);
+    if (!out) return;
+    renderGrid();
+    const sug = box.querySelector("#ft-suggest");
+    // 같은 런의 다른 ④ 행 - 제안까지다.  행마다 사람이 누른다.
+    if ((out.suggestions || []).length) {
+      sug.innerHTML = `<p class="muted">같은 런으로 판정된 ④ 행이 `
+        + `<b>${out.suggestions.length}행</b> 있습니다 — 같은 값 적용?</p>`
+        + out.suggestions.map(s => `<button class="ftc ft-sg" data-key="${s.key}">
+            ${escape(s.type)} — ${escape(s.description || "(공란)")}</button>`).join("");
+      sug.querySelectorAll("button.ft-sg").forEach(b => {
+        b.onclick = async () => {
+          const r2 = S.rows.find(x => x.key === b.dataset.key);
+          if (!r2) return;
+          const o2 = await apply(r2, f, t);
+          if (o2) { b.disabled = true; b.textContent += " ✓"; renderGrid(); }
+        };
+      });
+    } else {
+      sug.innerHTML = `<p class="muted">확정했습니다 — “${escape(out.sentence)}”`
+        + `${out.saved_to_project ? " · 프로젝트 장부에 저장" : ""}</p>`;
+    }
+    const again = S.rows.find(r2 => r2.key === row.key);
+    if (again && !(out.suggestions || []).length) showEvidence(again);
+  };
+  const clearBtn = box.querySelector("#ft-clear");
+  if (clearBtn) clearBtn.onclick = async () => {
+    const out = await apply(row, "", "");
+    if (!out) return;
+    renderGrid();
+    const again = S.rows.find(r2 => r2.key === row.key);
+    if (again) showEvidence(again);
+  };
 }
 
 function candidatePicker(row) {
