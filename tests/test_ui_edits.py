@@ -433,8 +433,14 @@ def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job
             f"step 7: the edit to {col} was lost by re-analysis"
         assert str(after[key]["user"][col]) == value, \
             f"step 7: {col} changed to {after[key]['user'][col]!r}"
-        # 검출 쪽 엔진 값은 재분석에도 그대로여야 한다.  Description 계열
-        # 네 칸은 뺀다: 이 스위트는 실 DB 의 **사본**으로 돌고(머리 주석),
+        # 검출 쪽 엔진 값은 재분석에도 그대로여야 한다.
+        #
+        # **면제된 것은 아래 DESC_COLS 네 칸뿐이다** (description ·
+        # description_grade · remark · needs_review).  이 시험이 다시 깨지면
+        # 그것은 면제 밖의 칸 - type · qty · scope · valve_type · rect 같은
+        # 검출 쪽 값 - 이 재분석에서 달라졌다는 뜻이고, 그것은 회귀다.
+        #
+        # 네 칸을 뺀 이유: 이 스위트는 실 DB 의 **사본**으로 돌고(머리 주석),
         # 그 사본에 저장된 분석은 지금 코드보다 앞선 회차의 것이라 문장 규칙이
         # 바뀌면 당연히 달라진다 - 7회차의 ②a·②b 가 그런 경우다
         # (`UNIT #11 HP STEAM PRESSURE` → `TO HRSG#11 BD TANK PRESSURE

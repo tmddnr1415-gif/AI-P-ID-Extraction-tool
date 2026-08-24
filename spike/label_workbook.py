@@ -26,6 +26,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "spike"))
 
 HEAD_FILL = PatternFill("solid", fgColor="EFE7D2")
+# 확정 우선순위 1번 시트 — 자동 판정이 막힌 것이 네 번의 실측으로 확정된 도면.
+PRIORITY_SHEET = "D00P-10LBA10-M05-0001"
+
 AX_FILL = {"④": "F6DEDE", "①": "E3EDDF", "②": "DFE7F0",
            "②a": "E7EDF4", "②b": "E7EDF4",      # 한쪽만 성립 (7회차)
            "③": "EAE2F0", "⓪": "EEEEEE"}
@@ -62,8 +65,8 @@ def build(run_path, baseline_path=None, out_path=None):
     ws = wb.active
     ws.title = "추출 824행"
     head = ["페이지", "P&ID No.", "산출물", "TYPE", "Q'ty", "Description(최종)",
-            "문형 출처", "판정축", "귀속점", "판정 초안", "사람 판정(O/X)",
-            "메모", "현행(교체 전) 문장", "발주처 대응행", "key"]
+            "문형 출처", "판정축", "귀속점", "확정 우선순위", "판정 초안",
+            "사람 판정(O/X)", "메모", "현행(교체 전) 문장", "발주처 대응행", "key"]
     ws.append(head)
     for c in ws[1]:
         c.font = Font(bold=True)
@@ -76,18 +79,27 @@ def build(run_path, baseline_path=None, out_path=None):
         d = draft.get(r["key"], ("", "", None))
         old = (ax.get("old_description")
                if ax.get("source") == "신규문형" else "")
+        # 확정 우선순위 — 자동으로는 더 나아지지 않는 시트를 1번으로 세운다.
+        # p6 (D00P-10LBA10-M05-0001) 이 그 시트다: 네 번의 실측(13.1% · 4.9% ·
+        # 10.4% · 양쪽 실패 540행)이 모두 같은 답을 냈고, 사용자 확정 경로가
+        # 유일한 길이다 (docs/from_to_axis.md).  사람의 시간을 여기부터 쓴다.
+        prio = ("1 — p6 자동 불가 · 사용자 확정 대상"
+                if (r.get("drawing_no") == PRIORITY_SHEET
+                    and source != "신규문형") else "")
         ws.append([r["page_no"], r.get("drawing_no") or "", r["tab"],
                    r.get("type") or r.get("valve_type") or "",
                    r.get("qty"), r.get("description") or "",
                    source, ax.get("axis") or "", ax.get("attribution") or "",
-                   d[0], "", "", old or "", d[1],
+                   prio, d[0], "", "", old or "", d[1],
                    r["key"]])
         if ax.get("axis"):
             ws.cell(ws.max_row, 8).fill = PatternFill(
                 "solid", fgColor=AX_FILL.get(ax["axis"], "FFFFFF"))
-        dv.add(ws.cell(ws.max_row, 11))
-    for col, w in zip("ABCDEFGHIJKLMNO",
-                      (7, 22, 10, 7, 5, 46, 10, 7, 26, 9, 12, 18, 40, 40, 18)):
+        if prio:
+            ws.cell(ws.max_row, 10).fill = PatternFill("solid", fgColor="F6E9C9")
+        dv.add(ws.cell(ws.max_row, 12))
+    for col, w in zip("ABCDEFGHIJKLMNOP",
+                      (7, 22, 10, 7, 5, 46, 10, 7, 26, 26, 9, 12, 18, 40, 40, 18)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
 

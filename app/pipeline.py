@@ -1482,6 +1482,19 @@ def _apply_axis(rows) -> dict:
         if mode != "mixed" or ax not in AXIS_APPLY or not r.description_needed                 or not v.get("sentence"):
             v.setdefault("source", "현행유지")
             continue
+        # 한쪽만 성립한 문형(②a·②b)은 **현행 문장이 없을 때만** 쓴다 (8회차).
+        # 판정 기준은 현행 문장의 유무 하나다 - 도착지 어휘로 가르지 않는다
+        # (드레인·BD 같은 목록은 프로젝트 종속 어휘가 된다).  읽힌 반쪽은 라인이
+        # 어디서 오고 어디로 가는지만 말하므로, 계통을 담은 현행 문장을 밀어낼
+        # 만큼 낫다고 말할 수 없다.  현행이 공란인 행에서는 없던 이름이 생기므로
+        # 명백히 낫다.  판정 자체는 `evidence["axis"]` 에 그대로 남는다 -
+        # 적용만 하지 않는다 (④→② 전환율은 판정 기준이라 값이 유지된다).
+        if ax in (daxis.AX_FROM_ONLY, daxis.AX_TO_ONLY) and r.description:
+            v["source"] = "현행유지"
+            v["withheld"] = "현행 문장 있음 — 한쪽만 성립 문형을 쓰지 않음"
+            stats["withheld"] += 1
+            stats[f"withheld_{ax}"] += 1
+            continue
         v["old_description"] = r.description
         v["old_grade"] = r.description_grade
         v["source"] = "신규문형"

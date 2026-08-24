@@ -203,3 +203,83 @@ NONE 61 (직전 662/47/12/103) — NONE 42행이 문장을 갖게 됐고 그 대
   사람 O/X 로 한다.**
 - **되돌릴 수 있게 두었다**: 바뀐 78행의 현행 문장·등급은
   `evidence["axis"]["old_description"]`/`old_grade` 에 그대로 있다.
+
+## p6 (D00P-10LBA10-M05-0001) 은 자동으로 되지 않는다 — 확정 기록
+
+이 시트는 회차마다 예시로 돌아왔고, 네 번의 실측이 모두 같은 답을 냈다.
+
+| 실측 | 값 | 회차 |
+| --- | --- | --- |
+| 배관 그래프 추적 성공 | 13.1% | 배관 그래프 회차 |
+| 국소 연결(리드선→런→기기) | 4.9% | 국소 연결 회차 |
+| 무제한 순회 · FROM/TO 짝 | 10.4% | 5회차 |
+| **양쪽 실패 (판정축 ④ 중)** | **540행 / 824** | 7회차 |
+
+p6 의 계기 20행(FIELD 12 · MOV 8)에서 자동 판정이 문장을 만든 것은 도착지
+한쪽뿐인 ②b 7행이고, 그마저 8회차 규칙(현행 문장이 있으면 쓰지 않는다)으로
+대부분 현행 문장을 유지한다.  나머지는 **양끝 모두 무명** — 탭한 라인의 두
+끝이 커넥터·기기 어디에도 닿지 않는다.  원인은 좌표 오차가 아니라 도면의
+선분 단절이다: `FROM HRSG#12` 커넥터는 (98,542) 에 있고 계기가 탭한 메인
+스팀 라인 조각은 x 624.7~873.5 라, 그 사이를 엘보 여러 번으로 460pt 가야
+한다.  그 경로는 min_run(16.97pt) 미만 스터브에서 끊겨 있다.
+
+**따라서 p6 은 사용자 확정 경로가 유일한 길이다.**  6회차의 FROM/TO 지정
+UI(`app/axis_overrides.py` · 근거 패널)가 그 경로이고, 한 번 확정하면 안정
+ID 로 다음 리비전에 승계된다.  실확정 예:
+`FROM HRSG#12`(커넥터 후보) + `HP TURBINE`(도면 텍스트 `HP TURBINE IP
+TURBINE` 의 일부) → `FROM HRSG#12 TO HP TURBINE TEMPERATURE TRANSMITTER`.
+
+라벨링 워크북(`out/label_nouf1.xlsx`)의 **확정 우선순위** 열이 이 시트의
+행들을 1번으로 표시한다 — 자동으로는 더 나아지지 않으므로 사람의 시간을
+여기부터 쓰는 것이 맞다.
+
+## 8회차 — ②a · ②b 는 현행 문장이 없을 때만 쓴다
+
+7회차는 한쪽만 성립한 78행 전부에 새 문형을 썼다.  8회차에 그중 **현행 문장이
+있는 행을 되돌린다**.  판정 기준은 **현행 문장의 유무 하나**다 — 도착지 어휘로
+가르지 않는다 (드레인·BD 같은 목록은 프로젝트 종속 어휘가 된다).
+
+근거: 읽힌 반쪽은 라인이 **어디서 오고 어디로 가는지**만 말한다.  현행 문장은
+계통(UNIT · 계통명 · 변수어)을 담고 있어, 반쪽 문형이 그것을 밀어낼 만큼 낫다고
+말할 수 없다.  반대로 현행이 공란인 행에서는 없던 이름이 생기므로 명백히 낫다.
+
+**판정은 그대로 기록하고 적용만 하지 않는다** — `evidence["axis"]` 에 축(②a/②b)과
+`withheld` 사유가 남고, 문형 출처는 `현행유지` 다.  즉 ④→② 전환율(도면 벽의
+측정 축)은 판정 기준이므로 **17.3% 그대로**다.
+
+### 실측
+
+| | 판정 | 적용 | 되돌림 |
+| --- | ---: | ---: | ---: |
+| ②a 출발만 | 9 | **4** | 5 |
+| ②b 도착만 | 69 | **38** | 31 |
+| 합계 | 78 | **42** | **36** |
+
+되돌린 36행은 **전부 6회차 문장과 글자 그대로 같다** (전수 확인).  적용된 42행은
+**전부 현행이 공란이던 밸브 행**이다 (MOV 31 · BFV 4 · PNEUMATIC 3 · GLOBE·GATE
+4) — 그래서 발주처 FIELD 541행 대조 지표는 6회차 값으로 정확히 돌아온다:
+식별 가능성 **39.6%** · 완전일치 **24** · F1(참고) **69.3**
+(7회차 36.8% / 19 / 66.8).  지표가 근거는 아니지만, 되돌림이 되돌리려던 것을
+정확히 되돌렸다는 확인은 된다.
+
+되돌림 시제:
+
+| 7회차 | 8회차 (복귀) |
+| --- | --- |
+| `TO HRSG#11 BD TANK PRESSURE TRANSMITTER` | `UNIT #11 HP STEAM PRESSURE` |
+| `TO HRSG#11 CRH TEMPERATURE TRANSMITTER` | `UNIT #11 CRH STEAM TEMPERATURE` |
+| `TO FLASH BOX HRSG#11 BD TANK LEVEL SWITCH A` | `UNIT #11 CRH STEAM TO FLASH BOX HRSG#11 BD TANK LEVEL HIGH` |
+| `FROM BFP IP DISCHARGE DIFFERENTIAL PRESSURE TRANSMITTER` | `UNIT #12 HP BYPASS VALVE DOWNSTREAM DIFFERENTIAL PRESSURE` |
+| `FROM #12 TCA EMERGENCY DUMP RESTRICTION ORIFICE` | `UNIT #10 CONDENSATE GRUOP CONDENSER RESTRICTION ORIFICE` |
+
+살아남은 시제: `FROM HRSG #11 IP ECO OUTLET GLOBE VALVE A/B` ·
+`FROM DESALINATION PLANT GATE VALVE` · `FROM POTABLE WATER GATE VALVE` ·
+`TO CLEAN DRAIN TANK GLOBE VALVE` — 전부 없던 이름이 생긴 행이다.
+
+지문 **b577bae0 → 91ba3e33** (새 기준선).  824행 전수 대조: 불변 칸 위반 **0** ·
+움직인 행 **36 = 되돌린 행과 정확히 일치** · 칸은 description 36 · remark 36 ·
+description_grade 9 · needs_review 9.  6회차(7b34064e) 기준으로 다시 대조하면
+움직인 행 **42** 이고 전부 신규문형 적용 행이다.
+
+등급: CONFIRMED **704** · PARTIAL 47 · LOW 12 · NONE 61
+(6회차 662/47/12/103 · 7회차 713/42/8/61).
