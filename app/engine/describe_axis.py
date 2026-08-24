@@ -31,7 +31,9 @@ import describe_candidates as dcand  # noqa: E402
 
 AX_VENDOR = "⓪"       # 벤더 공급 — 생략 (현행 유지)
 AX_EQUIP = "①"        # 기기 직결
-AX_FROMTO = "②"       # 라인 탭 · TO 단일
+AX_FROMTO = "②"       # 라인 탭 · 양끝 성립
+AX_FROM_ONLY = "②a"   # 라인 탭 · 출발만 읽힘
+AX_TO_ONLY = "②b"     # 라인 탭 · 도착만 읽힘
 AX_BRANCH = "③"       # 라인 탭 · TO 다분기 → 상류 DISCHARGE
 AX_UNKNOWN = "④"      # 판정 불가 — 공란
 
@@ -473,9 +475,19 @@ def judge_row(rect, runs, leaders, connectors, equipment, *,
             return {"axis": AX_EQUIP, "equip": equips[0]["name"], "ev": ev}
         ev["why"] = "양끝 기기 — 방향 미상"
         return {"axis": AX_UNKNOWN, "ev": ev, "note": "②형이나 방향 단서 없음"}
+    # 한쪽만 읽힌 경우 — 그 반쪽을 버리지 않는다 (7회차).  읽힌 이름은 도면이
+    # 인쇄한 커넥터 문구이고, 없는 반대쪽을 지어내지 않는다.  실측: ④ 618행 중
+    # 출발만 9 · 도착만 69 (`docs/from_to_axis.md`).
+    if len(froms) == 1 and not tos:
+        return {"axis": AX_FROM_ONLY, "src": froms[0]["name"], "ev": ev}
+    if len(tos) == 1 and not froms:
+        return {"axis": AX_TO_ONLY, "dst": tos[0]["name"], "ev": ev}
     if froms or tos:
-        e = (froms or tos)[0]
-        ev["why"] = f"한쪽 끝만 판정 (분기 {tees})"
+        # 같은 방향 커넥터가 둘 — 두 끝이 다 `TO …` 이거나 다 `FROM …` 이다.
+        # 하나를 고르는 것은 도면에 없는 선택이므로 고르지 않는다 (실측 4행:
+        # p12 TIT 2 · p16 FE·FIT 2).  현행 문장을 유지한다.
+        ev["why"] = (f"같은 방향 커넥터 {len(froms) or len(tos)}개 — 어느 쪽인지 "
+                     f"도면이 말하지 않음")
         return {"axis": AX_UNKNOWN, "ev": ev}
     ev["why"] = "양끝 모두 무명"
     return {"axis": AX_UNKNOWN, "ev": ev}
@@ -489,6 +501,10 @@ def sentence(verdict, type_: str, suffix: str = "") -> str:
         return f"{verdict['equip']} {full}{tail}"
     if ax == AX_FROMTO:
         return f"FROM {verdict['src']} TO {verdict['dst']} {full}{tail}"
+    if ax == AX_FROM_ONLY:
+        return f"FROM {verdict['src']} {full}{tail}"
+    if ax == AX_TO_ONLY:
+        return f"TO {verdict['dst']} {full}{tail}"
     if ax == AX_BRANCH:
         up = verdict["up"]
         # 이음매 중복 제거 - FROM 중복 제거와 같은 규칙: 문구가 이미 담고 있는
@@ -504,6 +520,10 @@ def attribution(verdict) -> str:
         return verdict["equip"]
     if ax == AX_FROMTO:
         return f"{verdict['src']}→{verdict['dst']}"
+    if ax == AX_FROM_ONLY:
+        return f"{verdict['src']}→"
+    if ax == AX_TO_ONLY:
+        return f"→{verdict['dst']}"
     if ax == AX_BRANCH:
         return f"{verdict['up']}→(다분기)"
     return ""
@@ -544,7 +564,8 @@ def assign_suffixes(items) -> dict:
     groups = collections.defaultdict(list)
     for key, pno, type_, rect, v in items:
         att = attribution(v)
-        if att and v["axis"] in (AX_EQUIP, AX_FROMTO, AX_BRANCH):
+        if att and v["axis"] in (AX_EQUIP, AX_FROMTO, AX_FROM_ONLY,
+                                 AX_TO_ONLY, AX_BRANCH):
             groups[(pno, att, type_)].append((key, rect))
     out = {}
     for members in groups.values():

@@ -1402,7 +1402,8 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
     return out, report
 
 
-AXIS_APPLY = (daxis.AX_EQUIP, daxis.AX_FROMTO, daxis.AX_BRANCH)
+AXIS_APPLY = (daxis.AX_EQUIP, daxis.AX_FROMTO, daxis.AX_FROM_ONLY,
+              daxis.AX_TO_ONLY, daxis.AX_BRANCH)
 
 
 def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
@@ -1449,7 +1450,11 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
         v["attribution"] = daxis.attribution(v)
     # ④→② 전환율 - 라인 탭 문형이 성립한 비율.  이후 회차에서 도면 벽(선분
     # 단절) 개선을 재는 축이다: ② / (② + ④).
-    n2, n4 = dist.get(daxis.AX_FROMTO, 0), dist.get(daxis.AX_UNKNOWN, 0)
+    # ④→② 전환율 — 7회차에 **정의를 넓혔다**: 라인 탭 문형이 성립한 비율이므로
+    # 한쪽만 성립(②a·②b)도 성립으로 센다.  (②+②a+②b) / (②+②a+②b+④).
+    n2 = (dist.get(daxis.AX_FROMTO, 0) + dist.get(daxis.AX_FROM_ONLY, 0)
+          + dist.get(daxis.AX_TO_ONLY, 0))
+    n4 = dist.get(daxis.AX_UNKNOWN, 0)
     return {"distribution": {k: dist[k] for k in sorted(dist)},
             "fromto_conversion_pct": round(100 * n2 / (n2 + n4), 1)
                                      if (n2 + n4) else None}

@@ -147,3 +147,60 @@ def test_suffix_only_within_same_attribution_and_type():
              ("k3", 16, "RO", (10, 90, 20, 99), v3)]
     got = ax.assign_suffixes(items)
     assert got == {"k2": "A", "k1": "B"}   # 위→아래, 혼자면 없음
+
+
+def test_one_sided_from_keeps_the_half_it_read():
+    """출발만 읽히면 ②a — 없는 도착지를 지어내지 않고 읽은 반쪽만 쓴다 (7회차)."""
+    rect = (200, 95, 240, 125)
+    runs = [("H", 110, 20, 199), ("H", 110, 241, 400)]
+    conns = [((0, 100, 18, 120), "FROM HRSG #11 IP ECO OUTLET")]
+    v = ax.judge_row(rect, runs, [], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45)
+    assert v["axis"] == ax.AX_FROM_ONLY and v["src"] == "HRSG #11 IP ECO OUTLET"
+    assert ax.sentence(v, "GLOBE") == "FROM HRSG #11 IP ECO OUTLET GLOBE VALVE"
+    assert ax.attribution(v) == "HRSG #11 IP ECO OUTLET→"
+
+
+def test_one_sided_to_keeps_the_half_it_read():
+    """도착만 읽히면 ②b.  LS 는 확정대로 LEVEL SWITCH 로 끝난다."""
+    rect = (200, 95, 240, 125)
+    runs = [("H", 110, 20, 199), ("H", 110, 241, 400)]
+    conns = [((402, 100, 470, 120), "TO CLEAN DRAIN TANK")]
+    v = ax.judge_row(rect, runs, [], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45)
+    assert v["axis"] == ax.AX_TO_ONLY and v["dst"] == "CLEAN DRAIN TANK"
+    assert ax.sentence(v, "GLOBE") == "TO CLEAN DRAIN TANK GLOBE VALVE"
+    assert ax.sentence(v, "LS") == "TO CLEAN DRAIN TANK LEVEL SWITCH"
+    assert ax.attribution(v) == "→CLEAN DRAIN TANK"
+
+
+def test_branch_still_wins_over_one_sided_from():
+    """분기가 둘 이상이면 ③ 이 먼저다 — ②a 가 ③ 을 가로채지 않는다."""
+    rect = (200, 95, 240, 125)
+    runs = [("H", 110, 20, 199), ("H", 110, 241, 500),
+            ("V", 300, 110, 180), ("V", 380, 110, 180)]
+    conns = [((0, 100, 18, 120), "FROM CEP DISCHARGE")]
+    v = ax.judge_row(rect, runs, [], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45)
+    assert v["axis"] == ax.AX_BRANCH
+
+
+def test_suffix_groups_include_one_sided_axes():
+    v1 = {"axis": ax.AX_TO_ONLY, "dst": "CLEAN DRAIN TANK"}
+    v2 = {"axis": ax.AX_TO_ONLY, "dst": "CLEAN DRAIN TANK"}
+    got = ax.assign_suffixes([("k1", 6, "GLOBE", (10, 50, 20, 60), v1),
+                              ("k2", 6, "GLOBE", (10, 10, 20, 20), v2)])
+    assert got == {"k2": "A", "k1": "B"}
+
+
+def test_two_same_direction_connectors_stay_unknown():
+    """양 끝이 다 `TO …` 면 어느 쪽인지 도면이 말하지 않는다 — 고르지 않는다."""
+    rect = (200, 95, 240, 125)
+    runs = [("H", 110, 20, 199), ("H", 110, 241, 400)]
+    conns = [((0, 100, 18, 120), "TO CLEAN DRAIN TANK"),
+             ((402, 100, 480, 120), "TO ST #10 GLAND SEAL HEADER")]
+    v = ax.judge_row(rect, runs, [], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45)
+    assert v["axis"] == ax.AX_UNKNOWN
+    assert "같은 방향" in v["ev"]["why"]
+    assert ax.sentence(v, "TIT") == ""

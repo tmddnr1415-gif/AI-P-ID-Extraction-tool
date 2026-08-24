@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "spike"))
 
 HEAD_FILL = PatternFill("solid", fgColor="EFE7D2")
 AX_FILL = {"④": "F6DEDE", "①": "E3EDDF", "②": "DFE7F0",
+           "②a": "E7EDF4", "②b": "E7EDF4",      # 한쪽만 성립 (7회차)
            "③": "EAE2F0", "⓪": "EEEEEE"}
 
 
