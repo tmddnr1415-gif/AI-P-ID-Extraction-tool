@@ -98,6 +98,213 @@ def _near_equip(p, equipment, reach):
     return [e for _d, e in got]
 
 
+def _run_pt_d(run, p) -> float:
+    """점 → 런(선분) 체비쇼프 거리."""
+    axis, coord, lo, hi = run
+    if axis == "H":
+        dx = max(lo - p[0], 0.0, p[0] - hi); dy = abs(coord - p[1])
+    else:
+        dy = max(lo - p[1], 0.0, p[1] - hi); dx = abs(coord - p[0])
+    return max(dx, dy)
+
+
+def _covers(run, other, slack) -> bool:
+    """run 이 other(같은 축) 를 품는가 — 인출선 자신을 런 목록에서 걸러낼 때."""
+    return (run[0] == other[0] and abs(run[1] - other[1]) <= slack
+            and run[2] <= other[2] + slack and run[3] >= other[3] - slack)
+
+
+def _own_body(item, rect, slack) -> bool:
+    """심볼 자기 몸통 획 — rect 를 벗어나지 않는 획은 바깥 세계를 증언하지 못한다.
+
+    p6 PIT 의 좌우 변(x=656.5 · 679.2, span 452.3~497.6)과 p16 RO 의 상하 변이
+    런 목록에 그대로 들어와 "중심에 런 2개 동률" ④ 를 만들던 원인.  치수 상수
+    없음 — 판정은 rect 포함 여부(±join_slack)뿐이다.
+    """
+    axis, coord, lo, hi = item
+    if axis == "H":
+        return (rect[1] - slack <= coord <= rect[3] + slack
+                and lo >= rect[0] - slack and hi <= rect[2] + slack)
+    return (rect[0] - slack <= coord <= rect[2] + slack
+            and lo >= rect[1] - slack and hi <= rect[3] + slack)
+
+
+def _crossings(L, runs, slack):
+    """인출선 L 이 **가로지르는** 직교 런들 — (교차점, run).  근접이 아니라 교차다.
+
+    인출선이 라인을 5pt 쯤 지나쳐 그려져도(측정: p16 RO 4.9pt) 교차는 교차다.
+    """
+    axis, c, lo, hi = L
+    got = []
+    for r in runs:
+        if r[0] == axis:
+            continue
+        if (r[2] - slack <= c <= r[3] + slack
+                and lo - slack <= r[1] <= hi + slack):
+            pt = (c, r[1]) if axis == "V" else (r[1], c)
+            got.append((pt, r))
+    return got
+
+
+def _gap_pair(runs, axis, at, cross, slack):
+    """같은 축·같은 좌표의 두 런이 `at` 를 사이에 두고 마주보면 — 심볼/탭에서
+    끊긴 **한 라인**이다.  병합해 돌려준다.  좌표 `cross` 는 그 라인의 위치."""
+    for i, a in enumerate(runs):
+        if a[0] != axis or abs(a[1] - cross) > slack:
+            continue
+        for b in runs[i + 1:]:
+            if b[0] != axis or abs(b[1] - a[1]) > slack:
+                continue
+            left, right = (a, b) if a[3] <= b[3] else (b, a)
+            if left[3] - slack <= at <= right[2] + slack:
+                return (axis, (a[1] + b[1]) / 2,
+                        min(a[2], b[2]), max(a[3], b[3]))
+    return None
+
+
+def standard_break(runs, join_slack):
+    """표준 끊김 폭의 실측 — 교차 홉·흐름 화살표가 직선을 끊는 폭.
+
+    같은 축·같은 좌표(±join_slack)의 마주보는 런 간격을 1pt 칸으로 세면
+    이 문서는 17~18pt 에 2,644건(43%)의 봉우리가 서고 **19pt 칸이 0** 이다
+    (두 번째 봉우리 35pt 는 인라인 밸브 몸통 — 다리를 놓지 않는다).
+    다리 상한 = 최빈 칸 직후의 첫 빈 칸 경계.  분포에서 유도하므로 상수가 없고,
+    문서마다 다시 잰다.  유도 실패(봉우리 없음)면 None — 다리를 놓지 않는다.
+    """
+    import collections
+    hist = collections.Counter()
+    by = collections.defaultdict(list)
+    for a, c, lo, hi in runs:
+        by[(a, round(c, 0))].append((lo, hi))
+    for segs in by.values():
+        segs.sort()
+        for (l0, h0), (l1, h1) in zip(segs, segs[1:]):
+            g = l1 - h0
+            if 0 < g < 60:
+                hist[round(g)] += 1
+    if not hist:
+        return None
+    mode, n = max(hist.items(), key=lambda kv: (kv[1], -kv[0]))
+    if n < 10:                       # 봉우리라 부를 수 없는 산발
+        return None
+    for g in range(mode + 1, 60):
+        if hist.get(g, 0) == 0:
+            return g - 0.5
+    return None
+
+
+def bridge_collinear(runs, join_slack, limit):
+    """표준 끊김(< limit)으로 나뉜 콜리니어 런을 **한 직선**으로 병합한다.
+
+    같은 축·같은 좌표의 직선이 홉·화살표로 끊긴 것은 같은 라인이다 — 그래프
+    순회가 아니라 직선의 복원이다.  꺾임(엘보)은 병합하지 않는다.
+    """
+    if not limit:
+        return list(runs)
+    import collections
+    by = collections.defaultdict(list)
+    for r in runs:
+        by[(r[0], round(r[1], 0))].append(r)
+    out = []
+    for segs in by.values():
+        segs.sort(key=lambda r: r[2])
+        cur = list(segs[0])
+        for r in segs[1:]:
+            if r[2] - cur[3] < limit and abs(r[1] - cur[1]) <= join_slack:
+                cur[3] = max(cur[3], r[3])
+            else:
+                out.append(tuple(cur))
+                cur = list(r)
+        out.append(tuple(cur))
+    return out
+
+
+def pick_tap(rect, runs, leaders, join_slack, reach=None):
+    """계기가 탭한 **그 런 하나**.  (run, how) 또는 (None, 사유).
+
+    판정 트리의 "그 라인 런 하나만 따라간다"의 구현.  순서와 근거:
+      0. 자기 몸통 획 제외 — rect 를 벗어나지 않는 획(_own_body).
+      1. 인출선(한 끝만 rect) 이 가로지르는 직교 런 — 먼 끝에 가장 가까운 교차.
+         라인이 탭에서 끊겨 있으면(같은 좌표 두 런이 인출선을 사이에 두고
+         마주봄) 병합한 한 라인이 탭이다.
+      2. 관통 라인 — 같은 좌표 두 런이 rect 를 사이에 두고 마주보면(인라인
+         심볼·밸브) 그 병합 라인이 탭이다.
+      3. rect 에 닿는 런 중 수직거리 최근접.  동률(join_slack 안)이 같은
+         좌표의 콜리니어면 병합하고, 아니면 그때만 "둘 이상에 걸침" ④.
+    모든 허용 오차는 join_slack(범례 유도) 하나다.
+    """
+    cx, cy = (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
+    body = lambda r: _own_body(r, rect, join_slack)
+    outs = [r for r in runs if not body(r)]
+
+    # 1. 인출선 착지 — 교차 우선, 끊긴 라인 병합, 마지막으로 먼 끝 근접
+    for L in sorted((l for l in leaders if not body(l)),
+                    key=lambda l: min(_pt_rect_d(p, rect) for p in _ends(l))):
+        p0, p1 = _ends(L)
+        ins = [(_pt_rect_d(p, rect) <= join_slack) for p in (p0, p1)]
+        if ins[0] == ins[1]:
+            continue
+        far = p1 if ins[0] else p0
+        cross = [(pt, r) for pt, r in _crossings(L, outs, join_slack)
+                 if not _covers(r, L, join_slack)]
+        if cross:
+            cross.sort(key=lambda x: (max(abs(x[0][0] - far[0]),
+                                          abs(x[0][1] - far[1])),
+                                      x[1][0], x[1][1]))
+            return cross[0][1], "leader"
+        at = L[1]                     # 인출선의 고정 좌표
+        # 끊긴 라인: 인출선 span 안의 좌표에서 마주보는 콜리니어 쌍
+        for r in outs:
+            if r[0] == L[0]:
+                continue
+            if L[2] - join_slack <= r[1] <= L[3] + join_slack:
+                pair = _gap_pair(outs, r[0], at, r[1], join_slack)
+                if pair:
+                    return pair, "leader-gap"
+        cands = [r for r in outs
+                 if _run_pt_d(r, far) <= join_slack and not _covers(r, L, join_slack)]
+        if cands:
+            cands.sort(key=lambda r: (_run_pt_d(r, far), r[0] != L[0], r[1]))
+            return cands[0], "leader"
+
+    # 2. 관통 라인 (인라인 심볼·밸브)
+    for axis, at, c_lo, c_hi in (("H", (rect[0] + rect[2]) / 2, rect[1], rect[3]),
+                                 ("V", (rect[1] + rect[3]) / 2, rect[0], rect[2])):
+        best = None
+        for r in outs:
+            if r[0] != axis or not (c_lo - join_slack <= r[1] <= c_hi + join_slack):
+                continue
+            pair = _gap_pair(outs, axis, at, r[1], join_slack)
+            if pair:
+                d = abs(pair[1] - (c_lo + c_hi) / 2)
+                if best is None or d < best[0]:
+                    best = (d, pair)
+        if best:
+            return best[1], "inline"
+
+    # 3. 닿는 런 최근접 — 콜리니어 동률은 병합
+    touch = list({(r[0], round(r[1], 1), r[2], r[3]): r for r in outs
+                  if _touch(r, rect, join_slack)}.values())
+    if not touch and reach:
+        # 스터브(< min_run)가 버려져 버블이 라인에서 떠 보일 수 있다 —
+        # 그 길이 상한 안에서만 닿음을 다시 본다.  reach = min_run (범례 유도).
+        touch = list({(r[0], round(r[1], 1), r[2], r[3]): r for r in outs
+                      if _touch(r, rect, reach)}.values())
+    if not touch:
+        return None, "런 없음"
+    touch.sort(key=lambda r: (_run_pt_d(r, (cx, cy)), r[0], r[1]))
+    d0 = _run_pt_d(touch[0], (cx, cy))
+    tied = [r for r in touch if _run_pt_d(r, (cx, cy)) - d0 <= join_slack]
+    if len(tied) == 1:
+        return tied[0], "run"
+    if all(r[0] == tied[0][0] and abs(r[1] - tied[0][1]) <= join_slack
+           for r in tied[1:]):
+        merged = (tied[0][0], tied[0][1],
+                  min(r[2] for r in tied), max(r[3] for r in tied))
+        return merged, "run"
+    return None, f"중심에 런 {len(tied)}개 동률"
+
+
 def _strip_conn(text: str) -> tuple:
     """커넥터 원문 → (방향, 명칭).  선두 FROM/TO 를 벗긴다 (중복 제거 규칙)."""
     m = CONNECTOR_RE.match(text.upper().strip())
@@ -108,109 +315,126 @@ def _strip_conn(text: str) -> tuple:
 
 # ---------------------------------------------------------------- 판정
 def judge_row(rect, runs, leaders, connectors, equipment, *,
-              join_slack, conn_reach, eq_reach) -> dict:
-    """한 행의 판정.  국소: 이 페이지의 목록만 보고, 순회하지 않는다."""
+              join_slack, conn_reach, eq_reach, min_run=None) -> dict:
+    """한 행의 판정.  국소: 이 페이지의 목록만 보고, 순회하지 않는다.
+
+    `min_run` 은 런 병합이 버린 스터브의 길이 상한(범례 유도, 이 문서 16.97pt).
+    끝점과 직교 런 사이 간격이 그보다 짧으면 "버려진 스터브가 있던 자리"와
+    구별되지 않으므로, 승계 접합 판정의 허용치로 쓴다.  측정: 양끝 무명 행의
+    끝점→직교 런 간격 p25=9.7 · p50=21.4pt — join_slack(0.8) 만으로는 17% 뿐.
+    """
+    junction = min_run if min_run else join_slack
     ev = {"how": "", "run": None, "ends": [], "touch": []}
 
-    # 1. 탭한 런
-    mine = [r for r in runs if _touch(r, rect, join_slack)]
-    ev["how"] = "run"
-    if not mine:                               # 인출선 한 단계
-        for axis, coord, lo, hi in leaders:
-            p0, p1 = _ends((axis, coord, lo, hi))
-            ins = [(_pt_rect_d(p, rect) <= join_slack) for p in (p0, p1)]
-            if ins[0] == ins[1]:
-                continue
-            far = p1 if ins[0] else p0
-            box = (far[0] - join_slack, far[1] - join_slack,
-                   far[0] + join_slack, far[1] + join_slack)
-            mine = [r for r in runs if _touch(r, box, join_slack)]
-            if mine:
-                ev["how"] = "leader"
-                break
-            # 인출선이 런이 아니라 기기 라벨 근방에 떨어짐 → 기기 직결
-            eqs = _near_equip(far, equipment, eq_reach)
+    # 1. 탭한 런 — 그 하나를 정한다
+    run, how = pick_tap(rect, runs, leaders, join_slack, junction)
+    if run is None:
+        if how == "런 없음":
+            # 인출선이 런이 아니라 기기 라벨 근방에 떨어졌나 → 기기 직결
+            for L in leaders:
+                p0, p1 = _ends(L)
+                ins = [(_pt_rect_d(p, rect) <= join_slack) for p in (p0, p1)]
+                if ins[0] == ins[1]:
+                    continue
+                far = p1 if ins[0] else p0
+                eqs = _near_equip(far, equipment, eq_reach)
+                if eqs:
+                    ev["how"] = "leader→equipment"
+                    return {"axis": AX_EQUIP, "equip": eqs[0].label, "ev": ev}
+            eqs = _near_equip(((rect[0]+rect[2])/2, (rect[1]+rect[3])/2),
+                              equipment, eq_reach)
             if eqs:
-                ev["how"] = "leader→equipment"
+                ev["how"] = "bubble→equipment"
                 return {"axis": AX_EQUIP, "equip": eqs[0].label, "ev": ev}
-    if not mine:
-        eqs = _near_equip(((rect[0]+rect[2])/2, (rect[1]+rect[3])/2),
-                          equipment, eq_reach)
-        if eqs:
-            ev["how"] = "bubble→equipment"
-            return {"axis": AX_EQUIP, "equip": eqs[0].label, "ev": ev}
-        ev["why"] = "런 없음"
+        ev["why"] = how
         return {"axis": AX_UNKNOWN, "ev": ev}
-    if len({(r[0], round(r[1])) for r in mine}) > 1:
-        ev["why"] = f"런 {len(mine)}개에 걸침"
-        return {"axis": AX_UNKNOWN, "ev": ev}
-    run = mine[0]
+    ev["how"] = how
     ev["run"] = [run[0], round(run[1], 1), round(run[2], 1), round(run[3], 1)]
 
     # 2. 런이 기기 라벨에 닿는가 (윤곽/직결 근사)
     run_eq = [e for e in equipment if _touch(run, e.rect, eq_reach)]
 
-    # 3. 끝점 판정 (+ 직교 런 1단계 승계)
-    ends = []
-    for p in _ends(run):
-        found = None
+    # 3. 끝점 판정.  계기 쪽 끝(스템의 버블 쪽)은 계속하지 않는다.
+    #    허공에 뜬 끝이 직교 런의 몸통에 닿으면(T 자) 그 런이 모선이다 —
+    #    모선의 **두 끝**을 이어받는다 (딱 한 번, 더 걷지 않는다).
+    def read_end(p):
         texts = _near_texts(p, connectors, conn_reach)
         if texts:
             d, name = _strip_conn(texts[0])
-            found = {"kind": "CONN", "dir": d, "name": name,
-                     "at": [round(p[0]), round(p[1])]}
-        else:
-            eqs = _near_equip(p, equipment, eq_reach)
-            if eqs:
-                found = {"kind": "EQUIP", "dir": "", "name": eqs[0].label,
-                         "at": [round(p[0]), round(p[1])]}
-            else:
-                # 직교 런 1단계 — 모선 승계.  걷지 않는다: 그 런의 두 끝만 본다.
-                for r2 in runs:
-                    if r2[0] == run[0]:
-                        continue
-                    if _pt_rect_d(p, (r2[1], r2[2], r2[1], r2[3])
-                                  if r2[0] == "V" else
-                                  (r2[2], r2[1], r2[3], r2[1])) > join_slack:
-                        continue
-                    for q in _ends(r2):
-                        texts = _near_texts(q, connectors, conn_reach)
-                        if texts:
-                            d, name = _strip_conn(texts[0])
-                            found = {"kind": "CONN", "dir": d, "name": name,
-                                     "at": [round(q[0]), round(q[1])],
-                                     "inherited": True}
-                            break
-                        eqs = _near_equip(q, equipment, eq_reach)
-                        if eqs:
-                            found = {"kind": "EQUIP", "dir": "",
-                                     "name": eqs[0].label,
-                                     "at": [round(q[0]), round(q[1])],
-                                     "inherited": True}
-                            break
-                    if found:
-                        break
-        ends.append(found)
-    ev["ends"] = ends
+            return {"kind": "CONN", "dir": d, "name": name,
+                    "at": [round(p[0]), round(p[1])]}
+        eqs = _near_equip(p, equipment, eq_reach)
+        if eqs:
+            return {"kind": "EQUIP", "dir": "", "name": eqs[0].label,
+                    "at": [round(p[0]), round(p[1])]}
+        return None
 
-    # 4. 다분기: 내 런의 **안쪽**에 끝점을 대는 직교 런 수 (T 자 분기)
-    a0, a1 = _ends(run)
-    tees = 0
-    for r2 in runs:
-        if r2[0] == run[0]:
+    def trunk_at(p, exclude):
+        cands = []
+        for r2 in runs:
+            if r2[0] == exclude[0] and _covers(exclude, r2, join_slack):
+                continue
+            if r2[0] == run[0]:
+                continue
+            d = _run_pt_d(r2, p)
+            if d <= junction:
+                cands.append((d, r2[3] - r2[2], r2))
+        if not cands:
+            return None
+        cands.sort(key=lambda x: (x[0], -x[1]))     # 가깝고 긴 것이 모선
+        return cands[0][2]
+
+    named = []
+    for p in _ends(run):
+        if _pt_rect_d(p, rect) <= junction and how in ("run", "leader"):
+            continue                                 # 계기 쪽 끝
+        got = read_end(p)
+        if got:
+            named.append(got)
             continue
-        for q in _ends(r2):
-            if (_touch(run, (q[0] - join_slack, q[1] - join_slack,
-                             q[0] + join_slack, q[1] + join_slack), 0)
-                    and _pt_rect_d(q, (a0[0], a0[1], a0[0], a0[1])) > join_slack
-                    and _pt_rect_d(q, (a1[0], a1[1], a1[0], a1[1])) > join_slack):
-                tees += 1
-                break
+        trunk = trunk_at(p, run)
+        if trunk is not None:
+            ev.setdefault("trunk", []).append(
+                [trunk[0], round(trunk[1], 1), round(trunk[2], 1), round(trunk[3], 1)])
+            for q in _ends(trunk):
+                got = read_end(q)
+                if got:
+                    got["inherited"] = True
+                    named.append(got)
+    ev["ends"] = named
+
+    # 4. 다분기: 내 런(과 모선)의 **안쪽**에 끝점을 대는 직교 런 수 (T 자 분기)
+    def tee_count(r):
+        a0, a1 = _ends(r)
+        n = 0
+        for r2 in runs:
+            if r2[0] == r[0]:
+                continue
+            for q in _ends(r2):
+                if (_touch(r, (q[0] - junction, q[1] - junction,
+                               q[0] + junction, q[1] + junction), 0)
+                        and _pt_rect_d(q, (a0[0], a0[1], a0[0], a0[1])) > junction
+                        and _pt_rect_d(q, (a1[0], a1[1], a1[0], a1[1])) > junction):
+                    n += 1
+                    break
+        return n
+    tees = tee_count(run)
     ev["tees"] = tees
 
     # 5. 분류
-    named = [e for e in ends if e]
+    # 중복 이름 정리 (모선 승계로 같은 커넥터가 두 번 잡힐 수 있음)
+    seen, uniq = set(), []
+    for e in named:
+        k = (e["kind"], e["dir"], e["name"])
+        if k not in seen:
+            seen.add(k)
+            uniq.append(e)
+    named = uniq
     conns = [e for e in named if e["kind"] == "CONN"]
+    equips = [e for e in named if e["kind"] == "EQUIP"]
+    froms = [e for e in conns if e["dir"] == "FROM"]
+    tos = [e for e in conns if e["dir"] == "TO"]
+
     if run_eq and not conns:
         # 런이 라벨에 직접 닿고 끝점이 커넥터가 아니다 → 기기 직결.
         # 중첩(안쪽 라벨 우선): 닿은 라벨이 여럿이면 계기에 가장 가까운 것.
@@ -220,31 +444,28 @@ def judge_row(rect, runs, leaders, connectors, equipment, *,
                                    e.label))
         ev["touch"] = [e.label for e in run_eq[:3]]
         return {"axis": AX_EQUIP, "equip": run_eq[0].label, "ev": ev}
-    if len(named) == 2:
-        d0, d1 = named[0]["dir"], named[1]["dir"]
-        if d0 == "FROM" or d1 == "TO":
-            src, dst = named[0], named[1]
-        elif d1 == "FROM" or d0 == "TO":
-            src, dst = named[1], named[0]
-        else:
-            # 두 끝 다 기기 — 방향 단서 없음.  지어내지 않는다.
-            ev["why"] = "양끝 기기 — 방향 미상"
-            return {"axis": AX_UNKNOWN, "ev": ev,
-                    "note": "②형이나 방향 단서 없음"}
-        return {"axis": AX_FROMTO, "src": src["name"], "dst": dst["name"],
-                "ev": ev}
-    if len(named) == 1:
-        e = named[0]
-        up = e["dir"] in ("", "FROM")        # FROM 커넥터거나 기기면 상류로
-        if tees >= 2 and up:
-            return {"axis": AX_BRANCH, "up": e["name"], "ev": ev}
-        if e["dir"] == "TO" and run_eq:
-            # 한쪽 TO + 런이 기기 라벨에 닿음 → FROM 은 그 기기
-            return {"axis": AX_FROMTO, "src": run_eq[0].label,
-                    "dst": e["name"], "ev": ev}
-        if e["dir"] == "FROM" and run_eq:
-            return {"axis": AX_FROMTO, "src": e["name"],
-                    "dst": run_eq[0].label, "ev": ev}
+
+    if froms and len(tos) >= 2:
+        return {"axis": AX_BRANCH, "up": froms[0]["name"], "ev": ev}
+    if froms and tos:
+        return {"axis": AX_FROMTO, "src": froms[0]["name"],
+                "dst": tos[0]["name"], "ev": ev}
+    if froms and (equips or run_eq):
+        dst = equips[0]["name"] if equips else run_eq[0].label
+        return {"axis": AX_FROMTO, "src": froms[0]["name"], "dst": dst, "ev": ev}
+    if tos and (equips or run_eq):
+        src = equips[0]["name"] if equips else run_eq[0].label
+        return {"axis": AX_FROMTO, "src": src, "dst": tos[0]["name"], "ev": ev}
+    if froms and tees >= 2:
+        return {"axis": AX_BRANCH, "up": froms[0]["name"], "ev": ev}
+    if len(equips) >= 1 and not conns:
+        # 끝점이 기기뿐 — 방향 단서 없이 기기 하나면 직결로 본다
+        if len(equips) == 1:
+            return {"axis": AX_EQUIP, "equip": equips[0]["name"], "ev": ev}
+        ev["why"] = "양끝 기기 — 방향 미상"
+        return {"axis": AX_UNKNOWN, "ev": ev, "note": "②형이나 방향 단서 없음"}
+    if froms or tos:
+        e = (froms or tos)[0]
         ev["why"] = f"한쪽 끝만 판정 (분기 {tees})"
         return {"axis": AX_UNKNOWN, "ev": ev}
     ev["why"] = "양끝 모두 무명"
