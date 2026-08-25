@@ -29,6 +29,7 @@ FILE_NAME = "axis_overrides.json"
 SOURCE_PICK = "후보선택"
 SOURCE_PICK_PART = "후보선택(부분)"
 SOURCE_FREE = "자유입력"
+SOURCE_WORKBOOK = "후보선택(워크북)"   # 10회차 — 후보 병렬 워크북에서 고른 것
 
 
 def path_for(data_dir: Path, project: str) -> Path:
@@ -91,13 +92,23 @@ def suffix_for(rows_same_group: list, this_key: str) -> str:
 
 def record(path: Path, stable_id: str, *, from_text: str, to_text: str,
            source_from: str, source_to: str, type_: str, sentence: str,
-           origin_job: str) -> dict:
+           origin_job: str, candidate: str = "", applies_to: str = "",
+           reason: str = "") -> dict:
     """한 확정을 장부에 적는다.  같은 값의 재확정은 confirmed_at 을 유지한다 —
-    두 번 저장하면 같은 파일이라는 결정성 요건이 여기서 성립한다."""
+    두 번 저장하면 같은 파일이라는 결정성 요건이 여기서 성립한다.
+
+    `candidate`·`applies_to`·`reason` 은 후보 병렬 워크북(10회차)에서 온 값이다.
+    적용 범위와 이유는 규칙 유도의 재료이므로 장부에 같이 남긴다 — 선택만
+    남기면 "왜 그 축인가"가 사라진다.
+    """
     data = load(path)
     entry = {"from": from_text, "to": to_text,
              "source_from": source_from, "source_to": source_to,
              "type": type_, "sentence": sentence, "origin_job": origin_job}
+    for k, v in (("candidate", candidate), ("applies_to", applies_to),
+                 ("reason", reason)):
+        if v:
+            entry[k] = v
     old = data.get(stable_id)
     if old and all(old.get(k) == v for k, v in entry.items()
                    if k != "origin_job"):

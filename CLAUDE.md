@@ -596,6 +596,8 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/main.py` 의 `_run_comparison` 승계 훅 | Rev.B 에서 같은 안정 ID 매칭 행에 확정 문장 승계. 사람이 고친 행은 덮지 않음 |
 | `app/static/app.js` 의 `fromToPicker`·`bindFromToPicker` | ④ 행 근거 패널의 지정 UI. 같은 런 ④ 행에는 제안만 — 행마다 사람이 누른다 |
 | `app/main.py` 의 `_axis_text_noise` · `texts_filtered` | 후보 잡음 필터(§3 제거 패턴 재사용)와 **탈출구**. 거른 것은 버리지 않고 "전체 후보 보기" 로 펼친다 — 정답이 주석 덩어리에 섞여 인쇄되기 때문 |
+| `spike/candidate_workbook.py` | 후보 병렬 워크북 `out/candidates_nouf1.xlsx` (10회차). 축을 고르지 않고 나란히 놓는다. 조건 열의 한계값은 전부 그 문서에서 유도 |
+| `spike/read_candidates.py` | 워크북의 '선택 후보'를 6회차 `axis_overrides` 로 적는다. '작성 예시' 행은 건너뛰고, 안정 ID 가 안 물리면 적지 않고 센다 |
 | `docs/new_project_checklist.md` | 새 프로젝트에서 무엇이 따라오고 무엇을 다시 재는지 (필수 3 · 발주처 리스트 필요 12 · 선택 2) |
 | `config/project_alnouf1.yaml` | ②표기 선택 + ③프로젝트 고유값 전부. 각 항목에 근거 수치 주석 |
 | `app/static/index.html` 의 `.intake` | 첫 화면 두 단. 왼쪽(프로젝트·비교 대상)이 정해져야 오른쪽(드롭)이 열립니다. 900px 아래에서는 세로로 쌓이고 왼쪽이 위 |

@@ -1920,8 +1920,16 @@ function showEvidence(row) {
   // --- ④ 행의 FROM/TO 확정 (6회차) --------------------------------------
   const ov = (S.axisOv || {})[row.key];
   if (ov) {
-    add("FROM/TO 확정", `FROM ${bareName(ov.from)} → TO ${bareName(ov.to)} `
-      + `(FROM ${ov.source_from} · TO ${ov.source_to})`);
+    // 워크북에서 고른 확정은 FROM/TO 가 아니라 **문장**이 온다 (10회차).
+    // 그때 "FROM  → TO " 를 찍으면 빈칸만 보이므로, 있는 것을 말한다.
+    if (ov.from || ov.to) {
+      add("FROM/TO 확정", `FROM ${bareName(ov.from)} → TO ${bareName(ov.to)} `
+        + `(FROM ${ov.source_from} · TO ${ov.source_to})`);
+    } else if (ov.sentence) {
+      add("확정 문장", `${ov.sentence} (${ov.source_from}`
+        + (ov.candidate ? ` · 후보${ov.candidate}` : "")
+        + (ov.applies_to ? ` · ${ov.applies_to}` : "") + ")");
+    }
     if (ov.inherited) add("확정 출처", "이전 리비전 확정 승계 — 같은 안정 ID "
       + `${ov.stable_id} 가 매칭돼 자동으로 이어받았습니다`);
   }
