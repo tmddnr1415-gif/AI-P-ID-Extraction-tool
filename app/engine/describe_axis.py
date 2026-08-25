@@ -179,6 +179,39 @@ def _gap_pair(runs, axis, at, cross, slack):
     return None
 
 
+def _mid_branches(run, runs, junction, rect, join_slack) -> list:
+    """탭한 런의 **몸통**에 끝을 대는 직교 런들 (T 자 가지).
+
+    현행 규칙은 이 가지들을 분기 수로 세기만 하고 읽지 않는다.  p6 실측:
+    계기가 탭한 세로 라인(x=844.4)의 중간 y=724.4 에서 커넥터로 가는 가로
+    라인이 갈라지는데, 그 라인의 끝은 커넥터에서 11.6pt 다.
+
+    평평한 루프 하나다 — 여기서 만든 목록을 다시 훑지 않으므로 깊이가 1을
+    넘을 수 없다.  계기 자신의 인출선(자기 rect 에 닿는 것)은 뺀다.
+    """
+    a0, a1 = _ends(run)
+    out = []
+    for r2 in runs:
+        if r2[0] == run[0]:
+            continue
+        for q in _ends(r2):
+            on_body = (abs(q[0] - run[1]) <= junction
+                       and run[2] - junction <= q[1] <= run[3] + junction) \
+                if run[0] == "V" else \
+                (abs(q[1] - run[1]) <= junction
+                 and run[2] - junction <= q[0] <= run[3] + junction)
+            if not on_body:
+                continue
+            if (_pt_rect_d(q, (a0[0], a0[1], a0[0], a0[1])) <= junction
+                    or _pt_rect_d(q, (a1[0], a1[1], a1[0], a1[1])) <= junction):
+                continue                     # 끝점 — 이미 모선 승계가 본 자리
+            if _touch(r2, rect, join_slack):
+                continue                     # 계기 자신의 인출선
+            out.append(r2)
+            break
+    return out
+
+
 def standard_break(runs, join_slack):
     """표준 끊김 폭의 실측 — 교차 홉·흐름 화살표가 직선을 끊는 폭.
 
@@ -418,6 +451,44 @@ def judge_row(rect, runs, leaders, connectors, equipment, *,
                 if got:
                     got["inherited"] = True
                     named.append(got)
+
+    # 3-b. 끝점이 아무것도 못 읽었을 때만, **탭한 런의 몸통**에 붙는 직교 런을
+    #      한 단계 읽는다 (9회차).  깊이는 끝점 승계와 같은 **1** 이다:
+    #      끝점 승계가 "끝에서 한 번"이라면 이것은 "몸통에서 한 번"이고,
+    #      읽은 가지에서 다시 갈라지는 것은 보지 않는다.
+    #
+    #      깊이 1 을 코드로 보장하는 방식:
+    #        · `_mid_branches` 는 `runs` 를 **한 번 훑는 평평한 루프**다.
+    #          자기가 만든 목록을 다시 훑지 않는다 (재귀·큐·방문 집합 없음).
+    #        · 가지에서 읽는 것은 `read_end` 뿐이고, `read_end` 는 텍스트와
+    #          기기만 본다 — 런으로 넘어가는 경로가 그 함수에 없다.
+    #        · 그래서 이 블록이 만들 수 있는 최대 경로는 `탭한 런 → 가지 → 이름`
+    #          이며, 구조상 그보다 길어질 수 없다.
+    #
+    #      갈리지 않을 때는 고르지 않는다: 서로 다른 이름이 둘 이상 읽히면
+    #      어느 가지가 이 계기의 계통인지 도면이 말하지 않으므로 ④ 로 남긴다.
+    # `run_eq` 가 있으면 이 계기는 기기 직결(①)로 이미 답이 선다 - 실패한 행을
+    # 회수하려는 규칙이 답이 있는 행을 덮으면 안 된다 (실측: 이 조건이 없으면
+    # ① 11행이 ②b 로 끌려간다).  그래서 **끝점도 못 읽고 기기에도 안 닿은**
+    # 행에서만 몸통을 본다.
+    if not named and not run_eq:
+        branches = _mid_branches(run, runs, junction, rect, join_slack)
+        ev["mid_branches"] = len(branches)
+        found = []
+        for br in branches:
+            for q in _ends(br):
+                got = read_end(q)
+                if got:
+                    got = dict(got, via="mid")
+                    found.append(got)
+        uniq = list({(g["kind"], g["dir"], g["name"]): g for g in found}.values())
+        if uniq:
+            ev["via_mid"] = True        # 이번 단계에서 새로 읽은 이름이라는 표시
+        if len(uniq) > 1:
+            ev["why"] = f"중간 접합에서 이름이 {len(uniq)}개 — 어느 가지인지 미상"
+            ev["mid_names"] = [g["name"] for g in uniq]
+            return {"axis": AX_UNKNOWN, "ev": ev}
+        named = uniq
     ev["ends"] = named
 
     # 4. 다분기: 내 런(과 모선)의 **안쪽**에 끝점을 대는 직교 런 수 (T 자 분기)

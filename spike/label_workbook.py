@@ -66,7 +66,8 @@ def build(run_path, baseline_path=None, out_path=None):
     ws.title = "추출 824행"
     head = ["페이지", "P&ID No.", "산출물", "TYPE", "Q'ty", "Description(최종)",
             "문형 출처", "판정축", "귀속점", "확정 우선순위", "판정 초안",
-            "사람 판정(O/X)", "메모", "현행(교체 전) 문장", "발주처 대응행", "key"]
+            "사람 판정(O/X)", "메모", "현행(교체 전) 문장", "보류된 신규문형",
+            "발주처 대응행", "key"]
     ws.append(head)
     for c in ws[1]:
         c.font = Font(bold=True)
@@ -86,20 +87,28 @@ def build(run_path, baseline_path=None, out_path=None):
         prio = ("1 — p6 자동 불가 · 사용자 확정 대상"
                 if (r.get("drawing_no") == PRIORITY_SHEET
                     and source != "신규문형") else "")
+        # 판정은 섰는데 현행 문장이 있어 적용하지 않은 행(8회차 규칙).  그 문장을
+        # 보여 줘야 사람이 "현행이 틀렸다"고 판단해 뒤집을 수 있다 - p6 TT 처럼
+        # 현행 문장이 틀린 경우가 있고, 틀림 판정은 자동으로 할 수 없다.
+        held = ax.get("sentence") or "" if ax.get("withheld") else ""
+        if held:
+            source = "현행유지(보류)"
         ws.append([r["page_no"], r.get("drawing_no") or "", r["tab"],
                    r.get("type") or r.get("valve_type") or "",
                    r.get("qty"), r.get("description") or "",
                    source, ax.get("axis") or "", ax.get("attribution") or "",
-                   prio, d[0], "", "", old or "", d[1],
+                   prio, d[0], "", "", old or "", held, d[1],
                    r["key"]])
         if ax.get("axis"):
             ws.cell(ws.max_row, 8).fill = PatternFill(
                 "solid", fgColor=AX_FILL.get(ax["axis"], "FFFFFF"))
         if prio:
             ws.cell(ws.max_row, 10).fill = PatternFill("solid", fgColor="F6E9C9")
+        if held:
+            ws.cell(ws.max_row, 15).fill = PatternFill("solid", fgColor="EFEAF5")
         dv.add(ws.cell(ws.max_row, 12))
-    for col, w in zip("ABCDEFGHIJKLMNOP",
-                      (7, 22, 10, 7, 5, 46, 10, 7, 26, 26, 9, 12, 18, 40, 40, 18)):
+    for col, w in zip("ABCDEFGHIJKLMNOPQ",
+                      (7, 22, 10, 7, 5, 46, 10, 7, 26, 26, 9, 12, 18, 40, 44, 40, 18)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
 

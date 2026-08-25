@@ -1489,7 +1489,13 @@ def _apply_axis(rows) -> dict:
         # 만큼 낫다고 말할 수 없다.  현행이 공란인 행에서는 없던 이름이 생기므로
         # 명백히 낫다.  판정 자체는 `evidence["axis"]` 에 그대로 남는다 -
         # 적용만 하지 않는다 (④→② 전환율은 판정 기준이라 값이 유지된다).
-        if ax in (daxis.AX_FROM_ONLY, daxis.AX_TO_ONLY) and r.description:
+        # 9회차: 중간 접합에서 **새로 읽은** 이름도 같은 기준을 받는다.  축이
+        # ① 로 서더라도 이번 단계가 만든 문장이므로, 계통을 담은 현행 문장을
+        # 밀어내지 않는다 (실측 2행: `UNIT #10 AUX STEAM HEADER DISCHARGE
+        # PRESSURE C` → `#10 AUX STEAM HEADER PRESSURE TRANSMITTER` 는 UNIT
+        # 접두어와 위치어를 잃는다).  사람이 뒤집을 수 있게 워크북에 남긴다.
+        via_mid = bool((v.get("ev") or {}).get("via_mid"))
+        if (ax in (daxis.AX_FROM_ONLY, daxis.AX_TO_ONLY) or via_mid) and r.description:
             v["source"] = "현행유지"
             v["withheld"] = "현행 문장 있음 — 한쪽만 성립 문형을 쓰지 않음"
             stats["withheld"] += 1

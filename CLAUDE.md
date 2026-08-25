@@ -381,6 +381,27 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
    같은 답이므로 사용자 확정 경로가 유일한 길이다.  워크북의 **확정 우선순위**
    열이 p6 행을 1번으로 세운다 (`docs/from_to_axis.md`).
 
+**그 다음 회차 — 중간 접합(T) 한 단계 읽기 (9회차)**
+
+1. 탭한 런의 **몸통**에 붙는 가지를 한 단계 읽는다.  깊이는 늘지 않는다
+   (끝에서 한 번 → 몸통에서 한 번).  코드로 보장: `_mid_branches` 는 `runs` 를
+   한 번 훑는 평평한 루프이고, 가지에서 하는 일은 `read_end`(텍스트·기기만
+   봄) 뿐이라 런으로 넘어가는 경로가 없다.  `test_mid_branch_does_not_step_twice`
+   가 두 단계 뒤의 커넥터를 못 읽는 것을 확인한다.
+2. **끝점도 못 읽고 기기에도 안 닿은 행에서만** 본다 — 이 조건이 없으면 기기
+   직결(①) 11행이 ②b 로 끌려간다 (실측).
+3. **갈리지 않으면 고르지 않는다** — 서로 다른 이름이 둘 이상이면 ④ 유지
+   (실측 1행: p20 TIT `HRSG #11 IP EOCNOMIZER` ↔ `SPRAY FOR HP BYPASS # 11`).
+4. 판정 **17행** 이동 (④→②b 15 · ④→① 2) · ④ 540 → **523** ·
+   ④→② 전환율 17.3% → **19.7%**.  **적용은 0행** — 17행 모두 현행 문장이
+   있어 8회차 기준으로 보류.  **지문 91ba3e33 유지 · 824행 움직인 칸 0.**
+5. 8회차 기준을 **축과 무관하게** 적용한다 — 중간 접합에서 새로 읽은 이름은
+   ①로 서더라도 현행 문장을 밀어내지 않는다 (실측 2행이 UNIT 접두어·위치어를
+   잃었다).  보류 문장은 워크북 **보류된 신규문형** 열(53행)에 실어 사람이
+   뒤집을 수 있게 한다.  p6 클라우드 TT 2행이 그 예:
+   `UNIT #12 HP STEAM TEMPERATURE` ↔ `TO HRSG#12 BD TANK TEMPERATURE
+   TRANSMITTER A/B` (도면 근거는 §p6 절).
+
 **국소 연결의 실측 한계 (2회차 전에 측정)**: 리드선 → 첫 배관 런까지는 788행 전부
 성공합니다. 그러나 그 런이 기기까지 닿는 경우는 **44/890 (4.9%)** 이고, 그중 최근접
 기기와 다른 답을 낸 것은 **7건**, F1 변화는 **0.0** 입니다. 라벨-런 간격 허용치를
@@ -551,6 +572,8 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/engine/describe.py` | 문형 조립 (config `description`) |
 | `app/engine/describe_llm.py` | 중간 서술 선택기 (기본 꺼짐, 6개 제약 코드 강제) |
 | `app/engine/describe_axis.py` | 5회차 판정축 — 탭 선정(`pick_tap`)·표준 끊김 다리(`standard_break`)·판정(`judge_row`)·문형(`sentence`). §2.3 경계는 tests/test_describe_axis.py 가 소스 검사로 강제 |
+| `app/engine/describe_axis.py` 의 `_mid_branches` | 탭한 런의 몸통에 붙는 T 가지를 **한 번** 훑는 평평한 루프. 깊이 1 보장 — 가지에서 `read_end` 만 부르고 런으로 넘어가지 않는다 |
+| `app/pipeline.py` `_apply_axis` 의 `via_mid` | 중간 접합에서 새로 읽은 이름은 축과 무관하게 8회차 기준(현행 문장 있으면 보류)을 받는다 |
 | `config` `description.axis_mode` | 판정축 적용 폭 — `mixed`(AL NOUF1) / 비움(기록만). 근거 수치는 config 주석 |
 | `pipeline` `_axis_pass`·`_apply_axis` | 판정 기록(모든 행) → 혼합 적용(성립 행만). 현행 문장은 `evidence["axis"]["old_description"]` 에 보존 |
 | `spike/desc_metrics.py` | 식별 가능성(주)·토큰 F1(참고) 채점기 — 원본 소실로 재구현, 같은 채점기로 현행·신규를 재고 차이만 읽는다 |

@@ -204,3 +204,80 @@ def test_two_same_direction_connectors_stay_unknown():
     assert v["axis"] == ax.AX_UNKNOWN
     assert "같은 방향" in v["ev"]["why"]
     assert ax.sentence(v, "TIT") == ""
+
+
+def test_mid_branch_is_read_once(monkeypatch):
+    """탭한 런의 **몸통**에 붙는 가지를 한 단계 읽는다 (9회차).
+
+    p6 실측 구조를 합성으로 옮긴 것: 계기는 세로 라인에 탭하고, 커넥터로 가는
+    가로 라인은 그 세로의 **중간**에 T 로 붙는다.  세로의 두 끝은 아무것도
+    읽지 못한다.
+    """
+    rect = (100, 100, 130, 130)
+    leader = ("H", 115, 130, 200)          # 버블 → 오른쪽, 세로 라인에 착지
+    stem = ("V", 200, 50, 400)             # 탭한 세로 라인 (양 끝 무명)
+    branch = ("H", 300, 20, 200)           # 중간 y=300 에서 왼쪽으로 갈라짐
+    conns = [((0, 292, 18, 308), "TO HRSG#12 BD TANK")]
+    v = ax.judge_row(rect, [stem, branch], [leader], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
+    assert v["axis"] == ax.AX_TO_ONLY and v["dst"] == "HRSG#12 BD TANK"
+    assert v["ev"]["ends"][0]["via"] == "mid"
+    assert v["ev"]["mid_branches"] == 1
+
+
+def test_mid_branch_does_not_step_twice():
+    """가지에서 또 갈라지는 것은 따라가지 않는다 — 깊이는 1 이다."""
+    rect = (100, 100, 130, 130)
+    leader = ("H", 115, 130, 200)
+    stem = ("V", 200, 50, 400)
+    branch = ("H", 300, 120, 200)          # 중간 가지, 끝(120,300)은 무명
+    second = ("V", 120, 300, 600)          # 그 가지에서 또 갈라지는 라인
+    conns = [((0, 592, 18, 608), "TO CLEAN DRAIN TANK")]   # 두 단계 뒤에 있음
+    v = ax.judge_row(rect, [stem, branch, second], [leader], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
+    assert v["axis"] == ax.AX_UNKNOWN, "두 단계를 걸으면 안 된다"
+
+
+def test_two_mid_branches_with_different_names_stay_unknown():
+    """가지가 둘이고 이름이 다르면 고르지 않는다 — ④ 로 남긴다."""
+    rect = (100, 100, 130, 130)
+    leader = ("H", 115, 130, 200)
+    stem = ("V", 200, 50, 500)
+    b1 = ("H", 300, 20, 200)
+    b2 = ("H", 400, 20, 200)
+    conns = [((0, 292, 18, 308), "TO HRSG#12 BD TANK"),
+             ((0, 392, 18, 408), "TO CLEAN DRAIN TANK")]
+    v = ax.judge_row(rect, [stem, b1, b2], [leader], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
+    assert v["axis"] == ax.AX_UNKNOWN
+    assert "중간 접합에서 이름이 2개" in v["ev"]["why"]
+    assert set(v["ev"]["mid_names"]) == {"HRSG#12 BD TANK", "CLEAN DRAIN TANK"}
+
+
+def test_mid_branch_only_when_ends_read_nothing():
+    """끝점이 읽힌 행은 건드리지 않는다 — 기존 ②·②a·②b 판정 불변."""
+    rect = (200, 95, 240, 125)
+    runs = [("H", 110, 20, 199), ("H", 110, 241, 400), ("V", 300, 110, 300)]
+    conns = [((0, 100, 18, 120), "FROM HRSG#12"),
+             ((402, 100, 460, 120), "TO HP BYPASS#12"),
+             ((280, 292, 340, 308), "TO SOMEWHERE ELSE")]
+    v = ax.judge_row(rect, runs, [], conns, [],
+                     join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
+    assert v["axis"] == ax.AX_FROMTO
+    assert v["src"] == "HRSG#12" and v["dst"] == "HP BYPASS#12"
+
+
+def test_mid_branch_does_not_override_equipment_direct():
+    """기기 직결(①)로 답이 서는 행은 중간 접합이 덮지 않는다 (9회차 실측:
+    이 조건이 없으면 ① 11행이 ②b 로 끌려갔다)."""
+    class Eq2:
+        def __init__(self, label, rect): self.label, self.rect = label, rect
+    rect = (100, 100, 130, 130)
+    leader = ("H", 115, 130, 200)
+    stem = ("V", 200, 50, 400)
+    branch = ("H", 300, 20, 200)
+    conns = [((0, 292, 18, 308), "TO CLEAN DRAIN TANK")]
+    tank = Eq2("HOTWELL", (180, 40, 400, 60))      # 탭한 런이 라벨에 닿는다
+    v = ax.judge_row(rect, [stem, branch], [leader], conns, [tank],
+                     join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
+    assert v["axis"] == ax.AX_EQUIP and v["equip"] == "HOTWELL"
