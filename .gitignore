@@ -41,3 +41,7 @@ out/description_identifiability.md
 # 5회차 라벨링 워크북 — 발주처 문장(FN 시트)이 들어 있어 리포에 넣지 않음
 out/label_nouf1.xlsx
 out/candidates_nouf1.xlsx
+
+# 회사 PC 이관용 Windows 휠 (75MB) — 저장소에 담지 않습니다.
+# 만드는 법: docs/offline_setup_windows.md · docs/transfer_manifest.md
+wheels/
