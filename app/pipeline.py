@@ -65,14 +65,20 @@ CFG = projectconfig.load()
 # member this client writes.
 STANDARD = projectconfig.load_standard()
 
-# The exclusion set Phase 0 scored on.  `included_under` takes the rules that
-# are *active* - not the ones that are disabled - and passing
-# `detect_symbols.DEFAULT_DISABLED` here meant the three vendor-mark rules were
-# never applied, so every vendor-supply symbol came through as a deliverable
-# row.  This is the `v3_glyph_text_box` variant, the one out/failure_report.md
-# calls the baseline at 97.0 / 87.0; SCT stays out of it for the reason
-# detect_symbols.DEFAULT_DISABLED records.
-ACTIVE_SCOPE = da.active_scope(da.BASELINE_SCOPE_NAME)
+# The exclusion set.  `included_under` takes the rules that are *active* - not
+# the ones that are disabled - and passing `detect_symbols.DEFAULT_DISABLED`
+# here meant the three vendor-mark rules were never applied, so every
+# vendor-supply symbol came through as a deliverable row.
+#
+# 10회차: 발주처 요구로 이 이름이 config 로 나왔다.  "벤더 공급으로 현재 벤더
+# 제외 처리된 항목도 추출 대상에 넣는다" — 벤더 마크는 이제 행을 **지우지 않고**
+# SCOPE 열에 공급자를 적는다(`_scope_of`).  검출은 그대로다: 마크를 읽는 규칙도,
+# 그 의미를 페이지 NOTES 에서 읽는 것도 변하지 않았고, 읽은 결과를 제외에 쓰느냐
+# 표기에 쓰느냐만 바뀌었다.  이전 기준선으로 돌리려면 config 를
+# `glyph+text+box` 로 되돌리면 된다 (근거 수치는 config 주석).
+ACTIVE_SCOPE = da.active_scope(
+    str((CFG.data.get("scope") or {}).get("exclusion_rules")
+        or da.BASELINE_SCOPE_NAME))
 
 # Valve rules to switch off for this project, by name from `detect_valves
 # .ALL_RULES`.  Empty by default: every measured rule applies.  This exists so a
@@ -553,9 +559,12 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if not r.rect:
             continue
         layers.setdefault(r.page_no, collections.defaultdict(list))
+        # 벤더를 먼저 본다.  10회차부터 SCOPE 열은 벤더가 아닌 행에 전부
+        # `SCT` 를 적으므로(사용자 확정 규칙 ④), SCT 를 먼저 보면 주황(벤더)이
+        # 영영 나오지 않는다.  `vendor_supply` 는 예전 그대로 마크 유무만 말한다.
         scope = (SCOPE_REVIEW if r.needs_review else
-                 SCOPE_SCT if r.scope == "SCT" else
-                 SCOPE_VENDOR if r.vendor_supply == "VENDOR" else SCOPE_INCLUDED)
+                 SCOPE_VENDOR if r.vendor_supply == "VENDOR" else
+                 SCOPE_SCT if r.scope == "SCT" else SCOPE_INCLUDED)
         layers[r.page_no][r.tab].append({
             "key": r.key, "rect": [round(v, 1) for v in r.rect],
             "label": r.type or r.valve_type, "needs_review": bool(r.needs_review),
@@ -762,6 +771,12 @@ SCOPE_INCLUDED = "INCLUDED"          # our supply, in a deliverable
 SCOPE_VENDOR = "VENDOR_EXCLUDED"     # a vendor mark is drawn on the symbol
 SCOPE_SCT = "SCT"                    # inside a supplier-scope box
 SCOPE_REVIEW = "REVIEW"              # a row whose judgement is held open
+
+# SCOPE **열**의 값 (10회차).  위 네 개는 오버레이 색 이름이고 CSS/JS 가 그
+# 문자열을 그대로 쓴다 — 열 표기는 사람이 읽는 산출물 값이라 따로 둔다.
+# 섞어 쓰면 색 이름을 바꾸는 순간 발주처 산출물의 글자가 같이 바뀐다.
+COL_VENDOR = "VENDOR"                # 타사 공급.  이름을 읽었으면 VENDOR(이름)
+COL_SCT = "SCT"                      # 별표가 없거나 SCT 공급 구간
 KIND_INSTRUMENT = "INSTRUMENT"
 KIND_VALVE = "VALVE"
 
@@ -818,11 +833,22 @@ SUPPLIER_SPAN_SKIPS = str(SUPPLIER_SPAN.get("description") or "keep") == "skip"
 # `VENDOR_MARK_UNDEFINED` is deliberately absent: a mark this drawing's NOTES do
 # not define is not a confirmation of anything, so those rows keep their
 # Description, keep their trace and keep their review flag.
+#
+# 10회차: 벤더 마크가 붙은 항목이 이제 **행으로 나온다** (config
+# `scope.exclusion_rules: none`).  그 행들의 Description 을 계속 비울지는
+# 발주처 판단이 필요한 문제라 여기서 정하지 않고 config 로 뺐다 — 기본값은
+# 지금까지의 동작(비움)이다.  근거가 없어서 그렇다: SCT 구간 때는 발주처
+# 리스트에 그 행들이 있어서 "문장을 쓴다"를 셀 수 있었지만(4행 전부),
+# 벤더 마크 204행은 발주처 CZE 에 **대응 행이 사실상 없다**(204행을 넣어도
+# TP 가 594 → 595, +1).  세어 볼 대상이 없으니 뒤집을 근거도 없다.
+_VENDOR_DESC = str((CFG.data.get("scope") or {}).get("vendor_description")
+                   or "skip") == "skip"
 DESCRIPTION_SKIP_RULES = {
     **({"SCT_SUPPLIER_SCOPE": SUPPLIER_SPAN_LABEL} if SUPPLIER_SPAN_SKIPS else {}),
-    "VENDOR_MARK_GLYPH": "벤더 마크 — 타사 공급 범위",
-    "VENDOR_MARK_TEXT": "벤더 마크(텍스트형) — 타사 공급 범위",
-    "VENDOR_MARK_BOX": "벤더 패키지 박스 안 — 타사 공급 범위",
+    **({"VENDOR_MARK_GLYPH": "벤더 마크 — 타사 공급 범위",
+        "VENDOR_MARK_TEXT": "벤더 마크(텍스트형) — 타사 공급 범위",
+        "VENDOR_MARK_BOX": "벤더 패키지 박스 안 — 타사 공급 범위"}
+       if _VENDOR_DESC else {}),
 }
 DESCRIPTION_SKIP_NOTE = "타사 공급 — Description 생략"
 
@@ -1448,6 +1474,14 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
         v["suffix"] = suffixes.get(key, "")
         v["sentence"] = daxis.sentence(v, type_, v["suffix"])
         v["attribution"] = daxis.attribution(v)
+        # 10회차 — ④ 행이 라인 전후단에서 읽은 최근접 커넥터의 문장.  판정은
+        # ④ 그대로이고(축·전환율 불변), 문형만 한쪽 성립형(②a/②b)을 빌린다.
+        near = v.get("nearest")
+        if near:
+            half = ({"axis": daxis.AX_FROM_ONLY, "src": near["name"]}
+                    if near["dir"] == "FROM"
+                    else {"axis": daxis.AX_TO_ONLY, "dst": near["name"]})
+            near["sentence"] = daxis.sentence(half, type_, v["suffix"])
     # ④→② 전환율 - 라인 탭 문형이 성립한 비율.  이후 회차에서 도면 벽(선분
     # 단절) 개선을 재는 축이다: ② / (② + ④).
     # ④→② 전환율 — 7회차에 **정의를 넓혔다**: 라인 탭 문형이 성립한 비율이므로
@@ -1478,6 +1512,35 @@ def _apply_axis(rows) -> dict:
         v = r.evidence.get("axis") or {}
         ax = v.get("axis")
         if not ax:
+            continue
+        # 10회차 1차 — ④ 행 중 **현행이 공란인** 행만, 라인 전후단에서 읽은
+        # 최근접 커넥터 문구로 채운다 (사용자 요구: 피드백 12·13·14장).
+        #
+        # 2차(계통 문장이 들어 있는 ④ 행을 최근접 커넥터로 **교체**)는 하지
+        # 않는다: 8회차가 정한 기준 — 현행 문장이 있으면 한쪽만 성립한 문형으로
+        # 밀어내지 않는다 — 이 그대로 적용되고, 계통 ↔ 배수 목적지 맞바꿈은
+        # 이미 후퇴로 측정돼 있다(§5.3).  대상 행수는 `withheld_nearest` 로
+        # 세어서 보고하고, 적용 여부는 발주처가 정한다.
+        near = v.get("nearest") or {}
+        if (mode == "mixed" and ax == daxis.AX_UNKNOWN and near.get("sentence")
+                and r.description_needed):
+            if r.description:
+                v["withheld_nearest"] = "현행 문장 있음 — 최근접 커넥터로 덮지 않음"
+                stats["withheld_nearest"] += 1
+                v.setdefault("source", "현행유지")
+                continue
+            v["old_description"] = r.description
+            v["old_grade"] = r.description_grade
+            v["source"] = "신규문형(최근접)"
+            r.description = near["sentence"]
+            # 커넥터 문구는 배관이 어디로 가는지를 말하지, 이 계기가 무엇에
+            # 붙어 있는지를 말하지 않는다 — 그래서 확정이 아니라 제안이다.
+            # 같은 이유로 이미 GRADE_LOW 를 쓰던 자리가 있다(`_grade` 의 route).
+            r.description_grade = GRADE_LOW
+            r.remark = (f"라인 최근접 커넥터({near['side']}단, "
+                        f"{near['gap']}pt) “{near['text']}”")
+            stats["applied_nearest"] += 1
+            stats[f"applied_nearest_{near['dir']}"] += 1
             continue
         if mode != "mixed" or ax not in AXIS_APPLY or not r.description_needed                 or not v.get("sentence"):
             v.setdefault("source", "현행유지")
@@ -2118,9 +2181,67 @@ def _vendor_of(d) -> str:
     return ""
 
 
+# 공급자 이름을 그 장 NOTES 원문에서 떼는 자리 규칙 (10회차, config).
+# 이름 자체(HRSG · ST SUPPLIER)는 코드에도 config 에도 없다 — 프로젝트마다
+# 다르기 때문이고, 값은 페이지 NOTES 에서 런타임에 읽는다.
+_SUPPLIER_RE = re.compile(
+    str((CFG.data.get("scope") or {}).get("supplier_from_notes")
+        or r"\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$"))
+
+
+def _supplier_name(meaning: str) -> str:
+    """NOTES 정의문에서 공급자 이름.  형태가 다르면 빈 문자열 — 지어내지 않는다."""
+    m = _SUPPLIER_RE.search(" ".join(str(meaning or "").split()))
+    return " ".join(m.group("name").split()) if m else ""
+
+
 def _scope_of(d) -> str:
+    """SCOPE 열 — 이 항목을 누가 공급하는가 (사용자 확정 규칙, 10회차).
+
+      ② 별표가 있고 그 장 NOTES 가 그 별표를 정의하면 → `VENDOR(<이름>)`
+      ③ 별표는 있으나 그 장 NOTES 가 정의하지 않으면 → `VENDOR`
+      ④ 별표가 없거나 SCT 공급 구간이면          → `SCT`
+
+    별표 개수 ↔ 정의줄의 대응은 **그 장 안에서만** 유효하다: 의미는
+    `detect_symbols.read_mark_dictionary` 가 그 페이지 NOTES 에서만 읽고
+    (docs/design.md §10.1), 여기서는 그것을 그대로 옮겨 적을 뿐이다.
+    파싱이 실패하면 ③으로 떨어진다 — 이름을 지어내지 않는다.
+    """
     hits = set(getattr(d, "rules_hit", []) or [])
-    return "SCT" if "SCT_SUPPLIER_SCOPE" in hits else ""
+    if hits & set(da.VENDOR_RULES) or "VENDOR_MARK_UNDEFINED" in hits:
+        mark = (getattr(d, "evidence", {}) or {}).get("vendor_mark") or {}
+        name = _supplier_name(mark.get("meaning") or "")
+        return f"{COL_VENDOR}({name})" if name else COL_VENDOR
+    return COL_SCT
+
+
+# TYPE 표기 (10회차) — 출력 전용.  판정값은 건드리지 않는다.
+#
+# 사용자 요구(p6 육안 검토): "상기 MOV의 Type은 단순 GLOBE가 아닌 MOV(GLOBE)로
+# 표기. 다른 Valve들도 마찬가지임 / PCV 또한 ... PCV(GLOBE)로 표기".
+#
+# 왜 저장하지 않고 함수인가: §8 의 측정 단위가 `(P&ID No., 산출물, TYPE) 별 행
+# 개수`이고, TYPE 문자열이 바뀌면 발주처 리스트와 매칭이 안 돼 정밀도·재현율이
+# 통째로 무의미해진다.  그래서 판정값(`type`)은 한 글자도 바꾸지 않고, 화면과
+# Excel 이 읽을 때만 이 함수를 통과시킨다.  저장 필드를 하나 더 두면 검토자가
+# TYPE 을 고쳤을 때 둘이 어긋나는데, 함수는 그럴 수가 없다.
+#
+# 접두는 **도면 버블에 인쇄된 기능 문자**뿐이다 (`evidence["tag"]`, 범례 p3·p4 의
+# 밸브 어휘).  액추에이터 판정값(MOTOR 등)은 도면이 인쇄한 낱말이 아니므로
+# 접두로 승격시키지 않는다 — 그것은 근거 생성이다.
+#
+# 실측(824행 기준): 태그가 붙은 밸브 77행 중 MOV 48 · XV 12 · TCV 8 · HV 4 ·
+# PCV 2 · FCV 2 · NRV 1.  태그가 없는 67행은 접두 없이 몸체 이름 그대로 나간다
+# ([C] 의 M 심볼 단독 인식 행이 여기 해당한다 — 도면에 `MOV` 글자가 없는데
+# `MOV(` 를 붙이는 것은 근거 생성이라 붙이지 않고, 표기를 어떻게 할지는 발주처
+# 확인 대기 항목이다).
+def type_display(values: dict, evidence: dict = None) -> str:
+    """산출물·화면이 쓰는 TYPE 표기.  대조·측정은 `values["type"]` 로만 한다."""
+    kind = str((values or {}).get("type") or "")
+    tag = str(((evidence or {}) or {}).get("tag") or "").strip().upper()
+    if kind and tag and tag in ds.VALVE_ANCHORS:
+        return f"{tag}({kind})"
+    return kind
 
 
 # Valve deliverable -> grid tab.

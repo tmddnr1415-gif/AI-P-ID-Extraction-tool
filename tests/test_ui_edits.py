@@ -48,10 +48,20 @@ CHROMIUM = os.environ.get("CHROMIUM_PATH", "/opt/pw-browsers/chromium")
 PDF_NAME = "pid_total.pdf"
 
 # The five edits the scenario makes, as (column, new value).
+# 편집 → 산출물 경로를 확인할 다섯 칸.  전부 **발주처 서식에 열이 있는** 칸이어야
+# 한다 - 열이 없는 칸의 편집은 셀에 닿지 않는 것이 정답이고, 그쪽은
+# `test_step6_reports_unmappable_edits` 가 따로 본다.
+#
+# 10회차에 `vendor_supply` → `scope` 로 바꿨다.  발주처 계기 서식의 공급 관련
+# 열은 AK('Scope of Supply') 하나뿐인데, 그 열이 읽는 값이 이번 회차에
+# `vendor_supply`(마크가 있었나 없었나)에서 `scope`(SCT / VENDOR(이름) /
+# VENDOR)로 바뀌었기 때문이다.  `vendor_supply` 는 화면·근거 패널·오버레이
+# 색에 그대로 남고, 그 칸의 편집은 이제 MANIFEST 의 unmapped_values 에
+# 이름으로 남는다.
 EDITS = [
     ("qty", "7"),
     ("type", "UI-TYPE-A"),
-    ("vendor_supply", "UI-VENDOR"),
+    ("scope", "UI-SCOPE"),
     ("tag_no", "UI-TAG-01"),
     ("description", "UI 편집 확인"),
 ]
@@ -450,7 +460,17 @@ def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job
                      "needs_review")
         trim = lambda d: {k: v for k, v in (d or {}).items()
                           if k not in DESC_COLS}
-        assert trim(after[key]["ai"]) == trim(before[key]["ai"]), \
+        a, b = trim(after[key]["ai"]), trim(before[key]["ai"])
+        # 10회차: `scope` 는 **비어 있던 칸이 채워지는 것만** 허용한다.
+        #
+        # 면제가 아니라 방향 제한이다.  그 회차에 SCOPE 열의 정의가 바뀌어
+        # (벤더가 아닌 행에 전부 `SCT` 를 적는다) 사본 DB 의 옛 분석에는 없던
+        # 값이 생긴다.  그러나 **이미 판정이 있던 scope 가 다른 값으로 바뀌는
+        # 것은 여전히 회귀**이므로, 옛 값이 비어 있었을 때만 넘어간다.
+        # 회사 PC 가 새 코드로 한 번 분석하고 나면 이 예외는 지워도 된다.
+        if a.get("scope") != b.get("scope") and not b.get("scope"):
+            a = dict(a); a["scope"] = b.get("scope")
+        assert a == b, \
             f"step 7: 검출 쪽 ai_values 가 재분석에서 달라졌습니다 ({key})"
 
 

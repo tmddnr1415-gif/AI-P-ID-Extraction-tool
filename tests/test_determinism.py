@@ -96,6 +96,28 @@ def test_description_words_all_come_from_the_drawing(first_run):
     assert isa["source"] == "LEGEND" and isa["first"]
     for r in written:
         axisv = r["evidence"].get("axis") or {}
+        if axisv.get("source") == "신규문형(최근접)":
+            # 10회차 — 라인 전후단 최근접 커넥터.  낱말의 출처는 후보 목록이
+            # 아니라 도면이 그 선 옆에 인쇄한 `TO`/`FROM` 문구다.  등급이
+            # LOW 인 것과 Remark 가 거리·원문을 말하는 것이 이 규칙의 계약이다
+            # (커넥터는 배관이 어디로 가는지를 말하지 이 계기가 무엇에 붙어
+            # 있는지를 말하지 않으므로 확정이 아니라 제안이다).
+            import describe_axis as ax
+            near = axisv["nearest"]
+            allowed = {"FROM", "TO"}
+            allowed |= set(ax.isa_fullname(r["type"] or r["valve_type"]).split())
+            allowed |= set(str(near["name"]).upper().split())
+            if axisv.get("suffix"):
+                allowed.add(str(axisv["suffix"]).upper())
+            extra = set(r["description"].upper().split()) - allowed
+            assert not extra, f"nearest row {r['key']} words from no source: {extra}"
+            assert r["description_grade"] == pipeline.GRADE_LOW, \
+                "최근접 커넥터는 제안이지 확정이 아니다"
+            assert r["remark"].startswith("라인 최근접 커넥터"), \
+                "LOW 행은 무엇에 기댔는지 말해야 한다"
+            assert not axisv.get("old_description"), \
+                "현행 문장이 있던 행은 최근접 커넥터로 덮지 않는다 (8회차 기준)"
+            continue
         if axisv.get("source") == "신규문형":
             # 5회차 판정축 문형(혼합 적용): 낱말의 출처는 후보 목록이 아니라
             # 판정 근거다 - 탭한 런의 끝점이 닿은 커넥터/기기 이름, ISA 풀네임,
@@ -184,9 +206,12 @@ def test_the_equipment_axis_wins_when_both_are_available(first_run):
     """The reviewer's rule: equipment beats the line whenever both are there."""
     both = 0
     for r in first_run["rows"]:
-        if (r["evidence"].get("axis") or {}).get("source") == "신규문형":
-            # 5회차 판정축 문형: 문장이 후보 선호 규칙이 아니라 판정 트리에서
-            # 나온다.  근거는 evidence["axis"] 가 들고 있고, 낱말 검사는
+        if str((r["evidence"].get("axis") or {}).get("source") or ""
+               ).startswith("신규문형"):
+            # 문장이 후보 선호 규칙이 아니라 도면 기하에서 나온 행.
+            #   · `신규문형`       5회차 판정축 (탭한 런의 끝점)
+            #   · `신규문형(최근접)` 10회차 라인 전후단 최근접 커넥터
+            # 둘 다 근거는 evidence["axis"] 가 들고 있고, 낱말 검사는
             # test_description_words_all_come_from_the_drawing 쪽이 한다.
             continue
         kinds = {c["kind"] for c in (r["evidence"].get("candidates") or [])}

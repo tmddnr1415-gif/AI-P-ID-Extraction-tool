@@ -504,6 +504,10 @@ def rows(job_id: str, tab: str = "ALL"):
         row["review_codes"] = review_codes(row)
         row["review_state"] = states.get(row["key"], {})
         row["rev"] = rev.get(row["key"], {})
+        # 화면에 보이는 TYPE 표기.  규칙은 서버에만 두고 화면은 결과만 읽는다
+        # (`pipeline.type_display` — 판정값 `values["type"]` 은 불변).
+        row["type_display"] = pipeline.type_display(row["values"],
+                                                    row.get("evidence"))
     return out
 
 

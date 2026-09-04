@@ -31,6 +31,8 @@ from pathlib import Path
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 
+from app import pipeline           # TYPE 표기(`type_display`) 한 곳에서만 만든다
+
 # 개정 표기.  세 곳(리스트 · 도면 · Excel)이 같은 낱말과 같은 색을 쓰도록
 # 상태 이름은 `app/revisions.py` 것을 그대로 받아 쓴다.
 REVISION_FILL = {
@@ -217,8 +219,9 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
 
     # A value a reviewer typed that this deliverable's form has no column for.
     # It cannot be written anywhere, so it is named rather than dropped in
-    # silence - e.g. Vendor Supply, which the instrument form carries as 'Scope
-    # of Supply' and the valve form does not carry at all.
+    # silence - e.g. Vendor Supply, which no form carries a column for (the
+    # instrument form's 'Scope of Supply' takes `scope` since the 10th round,
+    # because that is the value the client asked that column to hold).
     mapped = set(cols) | {"body", "actuator"}
     unmapped: dict[str, int] = {}
     for row in rows:
@@ -247,7 +250,10 @@ def _value_for(name: str, row: dict, values: dict):
         return row.get("drawing_no") or None
     # The client's own column names, mapped to what the app read.
     if name == "body":
-        return values.get("type") or None          # GATE / GLOBE / BUTTERFLY
+        # 10회차: 도면이 버블에 인쇄한 기능 문자가 있으면 `MOV(GLOBE)` 로 적는다
+        # (사용자 요구).  판정값은 그대로이고 여기서 표기만 만든다 —
+        # `pipeline.type_display` 머리 주석에 왜 저장 필드가 아닌지 적어 두었다.
+        return pipeline.type_display(values, row.get("evidence")) or None
     if name == "actuator":
         return values.get("valve_type") or None    # MOTOR / HYDRAULIC
     if name == "valve_type":
@@ -256,6 +262,8 @@ def _value_for(name: str, row: dict, values: dict):
         return values.get("valve_type_code") or None
     if name == "remark":
         return _remark(row, values)
+    if name == "type":
+        return pipeline.type_display(values, row.get("evidence")) or None
     return values.get(name) or None
 
 

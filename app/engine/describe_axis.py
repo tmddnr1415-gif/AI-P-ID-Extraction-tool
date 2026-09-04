@@ -474,6 +474,12 @@ def judge_row(rect, runs, leaders, connectors, equipment, *,
     if not named and not run_eq:
         branches = _mid_branches(run, runs, junction, rect, join_slack)
         ev["mid_branches"] = len(branches)
+        # 10회차 — 이 가지들의 좌표를 남긴다.  최근접 커넥터(`nearest_conn`)가
+        # "그 계기가 붙은 라인"에 이것들도 넣기 때문이다.  깊이는 그대로 1 이다:
+        # 여기 담기는 것은 `_mid_branches` 가 한 번 훑어 찾은 가지 자체이고,
+        # 그 가지에서 다시 가지를 찾는 코드는 어디에도 없다.
+        ev["mid_runs"] = [[b[0], round(b[1], 1), round(b[2], 1), round(b[3], 1)]
+                          for b in branches]
         found = []
         for br in branches:
             for q in _ends(br):
@@ -601,6 +607,70 @@ def attribution(verdict) -> str:
 
 
 # ---------------------------------------------------------------- 페이지 판정
+def _rect_gap(a, b) -> float:
+    """두 사각형 사이 체비쇼프 간격 (겹치면 0).  §5.1 과 같은 거리자다."""
+    dx = max(a[0] - b[2], b[0] - a[2], 0.0)
+    dy = max(a[1] - b[3], b[1] - a[3], 0.0)
+    return max(dx, dy)
+
+
+def nearest_conn(rect, run, trunks, connectors, conn_reach):
+    """계기가 붙은 라인의 **전단·후단**에서 가장 가까운 커넥터 문구 하나.
+
+    사용자 확정 정의(10회차): "계기 심볼(버블)을 기준으로, 그 계기가 붙은
+    라인의 전단(upstream) · 후단(downstream) 양쪽을 보고 그 중 가장 가까운
+    커넥터 문구 하나를 고른다".
+
+    §5.4 와의 관계 — 기각된 것은 **배관 선분을 따라가는 순회**다(배관 그래프
+    13.1% · 국소 연결 4.9% · 무제한 순회 10.4%).  이것은 순회가 아니라 좌표
+    거리이고, 보는 선은 `judge_row` 가 이미 고른 **탭한 런 하나**와 그 런이
+    끝점에서 이어받은 모선(`trunks`)뿐이다 — 깊이는 판정과 같은 **1**이고,
+    여기서 다시 런을 찾는 코드가 없다(재귀·큐·방문 집합 없음).
+
+    허용치는 새로 만들지 않는다: 커넥터를 인정하는 반경은 판정이 쓰는
+    `conn_reach`(이 문서의 커넥터 218개 실측 70.2pt) 그대로다.  달라지는 것은
+    **모양**뿐이다 — 판정은 런의 두 끝점에서 원을 그리고(`read_end`), 여기서는
+    런이라는 **선분 전체**에서 잰다.  커넥터는 라인의 이름표라 라인 옆에
+    인쇄되지 끝점에만 있지 않기 때문이고, 이것이 "라인에서 가장 가까운"이라는
+    요구를 그대로 옮긴 것이다.
+
+    동률·복수 후보는 §5.1 정렬(반올림 정수 좌표 · 위→아래 · 왼→오)로 하나를
+    고른다.  임의 선택은 없다.
+    """
+    lines = [run] + [t for t in (trunks or []) if t]
+    cx, cy = (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
+    got = []
+    for crect, text in connectors:
+        d, name = _strip_conn(text)
+        if not d:
+            continue                       # `TO`/`FROM` 이 아닌 문구는 커넥터가 아니다
+        # "라인의 **전단·후단**" — 축을 따라가는 방향으로는 끝을 두지 않는다.
+        # 이 문서의 런은 엘보와 버려진 스터브에서 끊겨 있어(§5.4 실측), 탭한
+        # 런의 길이는 계통의 길이가 아니라 조각의 길이다.  그래서 런이 정하는
+        # 것은 **어느 선인가**(축과 좌표)이고, 그 선의 어디까지 보느냐는
+        # "가장 가까운 하나"가 정한다.  축과 **직교하는** 방향의 허용치는
+        # 판정과 같은 `conn_reach`(실측 70.2pt) 그대로다 — 완화한 것이 아니라
+        # 두 방향을 나눈 것이다.
+        mx, my = (crect[0] + crect[2]) / 2, (crect[1] + crect[3]) / 2
+        on = min((abs(L[1] - (my if L[0] == "H" else mx)) for L in lines),
+                 default=None)
+        if on is None or on > conn_reach:
+            continue
+        # 전단/후단 — 런의 축을 따라 계기보다 앞인가 뒤인가.  방향 이름을 짓지
+        # 않고 좌표 그대로 적는다(도면에 상류·하류라고 쓰여 있지 않다).
+        axis = run[0]
+        side = ("앞" if ((crect[0] + crect[2]) / 2 < cx if axis == "H"
+                         else (crect[1] + crect[3]) / 2 < cy) else "뒤")
+        got.append((_rect_gap(rect, crect), round(crect[1]), round(crect[0]),
+                    text, d, name, side, round(on, 1)))
+    if not got:
+        return None
+    got.sort()                              # 거리 → 위→아래 → 왼→오 → 문구
+    gap, _y, _x, text, d, name, side, on = got[0]
+    return {"dir": d, "name": name, "text": text, "side": side,
+            "gap": round(gap, 1), "on_run": on, "candidates": len(got)}
+
+
 def judge_page(pc, triples, equipment, drawing_area, style,
                conn_reach, eq_reach) -> dict:
     """한 페이지의 `[(key, rect, type)]` 전부를 판정한다 → `{key: verdict}`.
@@ -621,6 +691,17 @@ def judge_page(pc, triples, equipment, drawing_area, style,
                       eq_reach=eq_reach or join_slack,
                       min_run=style.get("min_run"))
         v["standard_break"] = br
+        # 10회차 — 판정이 ④ 로 끝난 행에서만, 탭한 런의 전단·후단에서 가장
+        # 가까운 커넥터를 **기록**한다.  적용은 파이프라인이 정한다(공란 행만).
+        # 판정 트리는 건드리지 않는다: 축도 이유도 그대로이고 키가 하나 는다.
+        if v["axis"] == AX_UNKNOWN and (v.get("ev") or {}).get("run"):
+            ev = v["ev"]
+            run = tuple(ev["run"])
+            trunks = [tuple(t) for t in (ev.get("trunk") or [])]
+            trunks += [tuple(t) for t in (ev.get("mid_runs") or [])]
+            near = nearest_conn(tuple(rect), run, trunks, conns, conn_reach)
+            if near:
+                v["nearest"] = near
         out[key] = v
     return out
 

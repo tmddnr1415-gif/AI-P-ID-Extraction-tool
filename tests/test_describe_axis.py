@@ -281,3 +281,73 @@ def test_mid_branch_does_not_override_equipment_direct():
     v = ax.judge_row(rect, [stem, branch], [leader], conns, [tank],
                      join_slack=JS, conn_reach=70, eq_reach=45, min_run=17.0)
     assert v["axis"] == ax.AX_EQUIP and v["equip"] == "HOTWELL"
+
+
+# --------------------------------------------------------------------------
+# 10회차 — 라인 전후단 최근접 커넥터 (`nearest_conn`)
+# --------------------------------------------------------------------------
+
+def test_nearest_conn_reads_both_sides_of_the_line():
+    """전단·후단 양쪽을 보고, 버블에서 더 가까운 쪽 하나를 고른다."""
+    rect = (200, 95, 240, 125)
+    run = ("H", 110, 20, 400)
+    conns = [((0, 100, 18, 120), "FROM UPSTREAM PLACE"),      # 왼쪽 182pt
+             ((260, 100, 320, 120), "TO DOWNSTREAM PLACE")]   # 오른쪽 20pt
+    got = ax.nearest_conn(rect, run, [], conns, 70)
+    assert got["dir"] == "TO" and got["name"] == "DOWNSTREAM PLACE"
+    assert got["side"] == "뒤" and got["candidates"] == 2
+
+
+def test_nearest_conn_is_bounded_across_the_line_not_along_it():
+    """축과 **직교**하는 방향은 conn_reach 로 막고, 축을 따라가는 방향은 막지
+    않는다 — 이 문서의 런은 엘보에서 끊겨 조각의 길이가 계통의 길이가 아니다."""
+    rect = (200, 95, 240, 125)
+    run = ("H", 110, 190, 250)                    # 60pt 짜리 스터브
+    far_on_line = [((2000, 100, 2100, 120), "TO FAR PLACE")]
+    got = ax.nearest_conn(rect, run, [], far_on_line, 70)
+    assert got is not None and got["name"] == "FAR PLACE"     # 축을 따라서는 닿는다
+
+    off_line = [((260, 300, 320, 320), "TO OFF LINE PLACE")]  # 직교 190pt
+    assert ax.nearest_conn(rect, run, [], off_line, 70) is None
+
+
+def test_nearest_conn_ignores_text_that_is_not_a_connector():
+    rect = (200, 95, 240, 125)
+    run = ("H", 110, 20, 400)
+    conns = [((250, 100, 300, 120), "CLEAN DRAIN TANK")]      # TO/FROM 없음
+    assert ax.nearest_conn(rect, run, [], conns, 70) is None
+
+
+def test_nearest_conn_tie_break_is_deterministic():
+    """같은 거리면 §5.1 정렬(위→아래 · 왼→오)로 하나를 고른다.  임의 선택 없음."""
+    rect = (200, 95, 240, 125)
+    run = ("H", 110, 0, 500)
+    a = ((100, 100, 160, 120), "TO ALPHA")       # 왼쪽 40pt
+    b = ((280, 100, 340, 120), "TO BETA")        # 오른쪽 40pt
+    first = ax.nearest_conn(rect, run, [], [a, b], 70)
+    second = ax.nearest_conn(rect, run, [], [b, a], 70)
+    assert first == second and first["name"] == "ALPHA"
+
+
+def test_nearest_conn_does_not_walk_the_pipe():
+    """§2.2 상시 금지 — 순회하지 않는다.  주어진 선(탭한 런 · 모선 · 중간 가지)
+    바깥의 런은 보지 않으므로, 두 단계 떨어진 커넥터는 읽히지 않는다."""
+    rect = (200, 95, 240, 125)
+    run = ("H", 110, 20, 400)
+    second_hop = ("V", 400, 110, 900)            # 이 런은 넘겨주지 않는다
+    conns = [((380, 880, 460, 900), "TO TWO HOPS AWAY")]
+    assert ax.nearest_conn(rect, run, [], conns, 70) is None
+    # 한 단계(모선)로 넘겨주면 그때는 읽힌다 — 깊이 1 은 허용된 범위다
+    got = ax.nearest_conn(rect, run, [second_hop], conns, 70)
+    assert got is not None and got["name"] == "TWO HOPS AWAY"
+
+
+def test_nearest_conn_source_has_no_traversal_machinery():
+    """경계를 소스로 강제한다 (§2.3 과 같은 방식)."""
+    import inspect
+    src = inspect.getsource(ax.nearest_conn)
+    for banned in ("while ", "def ", "append(L", "recurs"):
+        if banned == "def ":
+            assert src.count("def ") == 1, "내부 함수를 두지 않는다"
+            continue
+        assert banned not in src, f"{banned!r} 가 들어왔다"

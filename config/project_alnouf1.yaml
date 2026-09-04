@@ -69,12 +69,15 @@ excel:
     qty: 9
     description: 10
     # Columns the app also fills, located by the header text the client prints
-    # in row 6: 'TAG' at E and 'Scope of Supply' at AK.  There is no separate
-    # column for the SCT supplier-interface flag, so that one stays in the app
-    # (grid and evidence panel) rather than being written somewhere it does not
-    # belong.
+    # in row 6: 'TAG' at E and 'Scope of Supply' at AK.
+    #
+    # 10회차: AK(37) 가 읽는 값을 `vendor_supply` 에서 `scope` 로 바꿨다.
+    # 사용자 요구가 그 열의 값을 정해 줬기 때문이다 — SCT / VENDOR(이름) /
+    # VENDOR.  `vendor_supply` 는 마크가 있었나 없었나(VENDOR / UNDEFINED /
+    # 공란)만 말해서 SCT 공급분을 아예 비워 두었는데, `scope` 는 네 규칙을 다
+    # 담는다.  `vendor_supply` 는 화면·근거 패널·오버레이 색에 그대로 남는다.
     tag_no: 5
-    vendor_supply: 37
+    scope: 37
     # The client's own REMARK column (row 6 prints it at AO).  The app writes the
     # review axis, the reason code and what the reviewer decided, so a flagged row
     # arrives with its question and its answer rather than a blank cell.
@@ -112,8 +115,67 @@ anchors:
     FS: FS
     RO: RO
     FE: FE
+    # 10회차 — TW(Thermowell) 를 FIELD 행으로 낸다.
+    #
+    # 사용자 요구(p6 육안 검토): "TW 가 출력되지 않음. TW 도 출력되어야 함".
+    # 실측: TW 앵커 15개(p6 4 · p7 4 · p8 4 · p9 3), 전부 버블 검증을 통과한
+    # 상태로 `not_field` 에 걸려 category=OTHER 로 빠지고 있었다 — 검출 실패가
+    # 아니라 명시적 제외였다.
+    #
+    # 주의: 발주처 CZE 리스트에는 TW 행이 **0행**이다 (계상 TYPE 12종:
+    # PI PIT TIT TI PDIT FIT LIT LS FE RO LI FS).  그러므로 이 15행은 정답지
+    # 대조에서 전부 FP 로 잡히고 정밀도를 깎는다.  계상 여부는 발주처가 정할
+    # 문제이므로 판정하지 않고 요구대로 내되, 되돌리려면 이 두 줄을 지우고
+    # `not_field: [TW]` 로 돌리면 된다.
+    #
+    # TW 는 TT 와 짝을 이루는 별개 기기이므로 LS 다중신호처럼 묶지 않는다.
+    TW: TW
   # Recognised on the drawing but never a row in this deliverable.
-  not_field: [TW]
+  not_field: []
+
+# P10b — 스코프 축 (10회차).
+#
+# 사용자 요구(p6 육안 검토): "벤더 공급으로 현재 '벤더 제외' 처리된 항목도
+# 추출 대상에 넣는다".  벤더 마크를 읽는 규칙은 그대로 두고, 그 결과를 **행
+# 삭제**가 아니라 **SCOPE 열 표기**로 쓴다.
+#
+# exclusion_rules — detect_all.COMBOS 의 이름.  none / glyph / glyph+text /
+#   glyph+text+box / all+sct.
+#   · glyph+text+box : 9회차까지의 기준선.  벤더 마크가 있는 190 검출을 행에서
+#                      지운다 (실측 내역: PI 92 · TT 31 · LIT 24 · PT 21 ·
+#                      FT 4 · RO 4 · PIT 3 · PDT 3 · PDIT 3 · FE 2 · TI 1 ·
+#                      LI 1 · TIT 1).
+#   · none           : 10회차 채택.  지우지 않고 SCOPE 로 말한다.
+#   SCT 는 어느 쪽에서도 켜지 않는다 — detect_symbols.DEFAULT_DISABLED 가 적은
+#   근거(p20 RO 2개가 발주처 리스트에 있음) 그대로다.
+scope:
+  exclusion_rules: none
+
+  # SCOPE 열 표기 (사용자 확정 규칙, 10회차)
+  #   ② 그 장 NOTES 가 별표를 정의하면 → VENDOR(<이름>)
+  #   ③ 별표는 있으나 그 장 NOTES 가 정의하지 않으면 → VENDOR
+  #   ④ 별표가 없거나 SCT 공급이면 → SCT
+  #
+  # supplier_from_notes — NOTES 원문에서 공급자 이름을 떼는 패턴.
+  #   공급자명(HRSG · ST SUPPLIER)은 코드에도 config 에도 **적지 않는다**:
+  #   다른 프로젝트는 다른 이름을 쓰기 때문이고, 이름은 그 장 NOTES 원문에서
+  #   런타임에 읽는다.  여기 있는 것은 "어디부터가 이름인가"라는 자리 규칙뿐이다.
+  #
+  #   AL NOUF1 p6 NOTES 원문 (실측):
+  #     *   DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG.
+  #     **  DENOTES EQUIPMENT WILL BE SUPPLIED BY ST SUPPLIER.
+  #   → 마지막 낱말 `BY` 뒤부터 문장 끝(마침표)까지가 이름이다.
+  #   이 문서의 마크 정의문 전수(2종)가 이 형태이고, 형태가 다르면 이름을
+  #   지어내지 않고 ③(그냥 VENDOR)으로 떨어진다.
+  supplier_from_notes: '\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$'
+
+  # 벤더 마크가 붙은 행의 Description — `skip`(비움) / `keep`(문장을 쓴다).
+  # 기본값은 `skip`, 즉 10회차 이전과 같은 동작이다.  뒤집을 근거가 없어서
+  # 그렇다: SCT 구간 때는 발주처 리스트에 대응 행이 있어 "발주처는 문장을
+  # 쓴다"를 셀 수 있었지만(4행 전부), 벤더 마크 204행은 발주처 CZE 에 대응이
+  # 없다 — 204행을 다 넣어도 TP 가 594 → 595 로 +1 이다.  발주처가 이 행들에
+  # 문장을 요구하면 `keep` 으로 바꾼다.
+  vendor_description: skip
 
 # P11..P15 — vendor marks.
 #

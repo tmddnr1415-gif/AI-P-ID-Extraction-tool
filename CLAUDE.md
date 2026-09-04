@@ -13,6 +13,23 @@
 | 배관 그래프 (Description 준비) | 완료했으나 **추적률 13.1%** 로 실용성 없음 |
 | Description 생성 (거리 문형) | F1 74.6 · 완전일치 34 — ④(판정 불가) 618행이 이 문형을 유지 |
 | **Description 판정축 (5회차)** | **혼합 적용** — 판정 성립 192행(①125 ②35 ③32)만 `FROM-TO/기기 직결` 문형, ④는 현행 유지. ④→② 전환율 **5.4%** (`docs/from_to_axis.md`) |
+| **p6 육안 피드백 반영 (10회차)** | TW 계상 · 벤더 공급분 계상 · SCOPE 열 · TYPE 표기 · 라인 최근접 커넥터. **정밀도 84.1% → 70.5%** 이고 원인은 벤더 계상 하나 — 발주처 확인 대기 (`docs/round10_feedback.md`) |
+
+**⚠ 아래 표는 9회차까지의 기준선이고, 10회차가 다섯 값을 옮겼습니다.**
+10회차 값은 `docs/round10_feedback.md` §8 이 기준선이며, 그중 **정밀도 하락
+13.6pp 는 전부 "벤더 공급분을 계상한다"는 요구 하나에서 나옵니다** (204행을
+넣어 TP +1 · FP +136).  발주처가 계상하지 않기로 하면 config
+`scope.exclusion_rules: glyph+text+box` 한 줄로 아래 표로 돌아갑니다.
+
+| 항목 | 9회차 기준선 | 10회차 |
+| --- | --- | --- |
+| `fingerprint` | 91ba3e33 | **3a57b6b2** (움직인 칸은 `scope` 하나 + 새 행 205) |
+| 행 수 | 824 | **1029** (FIELD 885 / MOV 76 / PNEUMATIC 45 / BFV 23) |
+| Q'ty 합계 | 1595 | **1911** |
+| 등급 | 704 / 47 / 12 / 61 · SKIP 0 | **704 / 48 / 51 / 22 · SKIP 204** |
+| 정확도 | 99.2% / 84.1% | **99.3% / 70.5%** |
+| 글리프 · Description F1 · 식별 가능성 · ④→② 전환율 | H4/M32 · 69.3 · 39.6% · 19.7% | **전부 불변** |
+| 테스트 | 빠른 116 | **빠른 130** (신규 14) |
 
 **확정 지표 (회귀 기준선 — 매 회차 재확인 필수)**
 
@@ -410,6 +427,56 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
 (순회는 금지 사항). 즉 국소 연결은 **규격대로 구현했고, 이 문서에서의 천장이 4.9%**
 입니다. 나머지는 최근접 거리 폴백입니다.
 
+**그 다음 회차 — p6 육안 피드백 반영 (10회차)**
+
+전문은 `docs/round10_feedback.md` 입니다.  여기에는 **다음 회차가 반드시
+알아야 할 것**만 적습니다.
+
+1. **TW 는 검출 실패가 아니라 명시적 제외였다.**  `not_field: [TW]` 하나였고
+   버블 검증은 15개 전부 통과하고 있었다.  다만 **발주처 CZE 에 TW 는 0행**
+   이라 15행이 전부 FP 다.  계상 여부는 발주처 판단이다.
+2. **M 심볼 단독 인식은 이미 되고 있었다 — 코드를 고치지 않았다.**  밸브는
+   처음부터 기하로만 잡는다(범례 p2 몸체 · p3 액추에이터).  실측: 밸브 144행
+   중 **67행이 버블 태그 없이** 심볼만으로 잡힌 것이고, p6 의 MOV 8행 중 4행이
+   그렇다.  범례 p3 원문 `M ROTARY MOTOR (SHOWN TYPICALLY WITH ELECTRIC
+   SIGNAL)`.  MOTOR FP 는 **16 → 16**.
+3. **NRV 는 두 제외 사이로 빠진다.**  `NRV` 텍스트는 VALVE 앵커라 FIELD 에서
+   빠지고, 체크 밸브는 액추에이터가 없어 `deliverable_class` 첫 줄에서 빠진다.
+   전 도면 CHECK 몸체 **264개 중 261개가 `actuator=NONE`**.  §12 의 "CHECK 2"
+   와 **같은 문제의 반대편**이다 — 행이 된 2개는 액추에이터가 잘못 읽힌
+   것이고 그중 하나가 p7 의 `NRV` 태그 몸체다.  대응 리스트가 없어(CZF 미수령)
+   산출물 배분은 후보만 냈다.
+4. **정밀도 −13.6pp 의 원인은 하나다.**  벤더 제외분 204행을 넣으니 TP 가
+   594 → **595** (+1), FP 가 113 → **249** (+136).  발주처 CZE 는 벤더
+   공급분을 계상하지 않는다 — 이보다 분명한 대조는 없다.  되돌리기는
+   config 한 줄(`scope.exclusion_rules`).
+5. **공급자 이름은 그 장 NOTES 에서 런타임에 읽는다.**  코드에도 config 에도
+   이름이 없고, 자리 규칙(`\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$`)만 있다.
+   11종이 도면에서 나왔다(HRSG 40 · ST SUPPLIER 34 · SEAWATER INTAKE
+   FACILITY SUPPLIER 28 …).  p52·53·54·56 은 `BY` 가 아니라 `SUPPLIED FROM
+   SUMP` 라 62행이 이름 없이 `VENDOR` 로 떨어진다 — 규칙을 넓힐지는 발주처 몫.
+6. **TYPE 표기는 저장하지 않는다.**  `pipeline.type_display()` 함수 하나이고
+   화면 응답과 Excel 이 읽을 때만 통과한다.  §8 의 대조 단위가 TYPE 문자열이라
+   저장하면 측정이 무의미해지고, 저장 필드를 두면 검토자가 TYPE 을 고쳤을 때
+   둘이 갈린다.  소스 검사 테스트가 `_field_rows`·`_valve_rows`·`_axis_pass`
+   ·`_apply_axis` 에 이 함수가 없음을 강제한다.
+7. **라인 최근접 커넥터는 순회가 아니다 — 거리다.**  탭한 런과 그 모선·중간
+   가지에서 축과 **직교**하는 거리만 conn_reach(70.2pt)로 막고, 축을
+   **따라가는** 방향은 막지 않는다.  런이 조각이기 때문이다(§3 의 선분 단절).
+   실측: 이 구분이 없으면 524행 중 10행만 걸린다.
+   **⚠ 적용 39행의 버블→커넥터 간격이 p50 573pt · max 1429pt** 다.  "가장
+   가까운"은 맞지만 "가까운" 것은 아니다 — 그 선에 다른 커넥터가 없어서 이긴
+   것이다.  그래서 등급은 CONFIRMED 가 아니라 **LOW** 이고 Remark 에 거리와
+   원문을 적는다.
+8. **피드백 12장(p6 클라우드 TT)의 답은 `TO CLEAN DRAIN TANK` 가 아니다.**
+   그 TT 가 탭한 런은 x=844.4 이고 p6 의 `TO CLEAN DRAIN TANK` 세 곳은
+   x=1601~1781 이라 직교 거리가 757~937pt (반경의 10배 이상)다.  9회차의
+   중간 접합이 이미 읽은 답 `TO HRSG#12 BD TANK` 가 도면이 주는 답이고,
+   그것을 현행 문장 대신 쓸지가 **2차 판단**이다 (④ 112행 + 8·9회차 보류 53행).
+9. **Description 지표는 하나도 안 움직였다** (F1 69.3 · 식별 39.6% ·
+   완전일치 24).  찬 39행이 전부 밸브 행이고 CZH/CZI 에는 Description 열이
+   없기 때문이다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -572,6 +639,10 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/engine/describe.py` | 문형 조립 (config `description`) |
 | `app/engine/describe_llm.py` | 중간 서술 선택기 (기본 꺼짐, 6개 제약 코드 강제) |
 | `app/engine/describe_axis.py` | 5회차 판정축 — 탭 선정(`pick_tap`)·표준 끊김 다리(`standard_break`)·판정(`judge_row`)·문형(`sentence`). §2.3 경계는 tests/test_describe_axis.py 가 소스 검사로 강제 |
+| `app/engine/describe_axis.py` 의 `nearest_conn` | 10회차 — 라인 전후단 최근접 커넥터. **축 직교 방향만** conn_reach 로 막고 축 방향은 막지 않는다 (런이 조각이라). 순회 아님 — 새 런을 찾는 코드가 함수에 없다 |
+| `app/pipeline.py` 의 `type_display` | TYPE 표기(`MOV(GLOBE)`). **출력 전용 함수**이고 저장 필드가 아니다 — §8 의 대조 단위가 `values["type"]` 이기 때문 |
+| `app/pipeline.py` 의 `_scope_of`·`_supplier_name` | SCOPE 열 네 규칙. 공급자 이름은 그 장 NOTES 원문에서 런타임에 읽고 코드·config 에 이름을 두지 않는다 |
+| `config` `scope.exclusion_rules` | 벤더 마크를 **행 삭제**에 쓸지 **표기**에 쓸지. `none`(10회차) / `glyph+text+box`(9회차까지). 정밀도 13.6pp 가 이 한 줄에 걸려 있다 |
 | `app/engine/describe_axis.py` 의 `_mid_branches` | 탭한 런의 몸통에 붙는 T 가지를 **한 번** 훑는 평평한 루프. 깊이 1 보장 — 가지에서 `read_end` 만 부르고 런으로 넘어가지 않는다 |
 | `app/pipeline.py` `_apply_axis` 의 `via_mid` | 중간 접합에서 새로 읽은 이름은 축과 무관하게 8회차 기준(현행 문장 있으면 보류)을 받는다 |
 | `config` `description.axis_mode` | 판정축 적용 폭 — `mixed`(AL NOUF1) / 비움(기록만). 근거 수치는 config 주석 |

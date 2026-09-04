@@ -1121,6 +1121,12 @@ function cellValue(row, key) {
       || row.drawing_no || "";
   }
   if (key === "remark") return remarkOf(row);
+  /* TYPE 표기 — 도면이 버블에 인쇄한 기능 문자가 있으면 `MOV(GLOBE)`.
+   * 판정값(row.values.type)은 그대로이고 보이는 글자만 다르다.  규칙은
+   * 서버(`pipeline.type_display`)에만 있고 여기는 그 결과를 받아 쓴다 —
+   * 밸브 어휘를 화면에도 적으면 두 곳이 갈린다.  `type_display` 가 없는 응답
+   * (이전 분석 등)에서는 판정값 그대로다. */
+  if (key === "type") return row.type_display ?? row.values.type ?? "";
   return row.values[key] ?? "";
 }
 
