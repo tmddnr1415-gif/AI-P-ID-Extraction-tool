@@ -133,7 +133,7 @@ async function upload(file) {
   const r = await fetch("/jobs", { method: "POST", body: fd });
   if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
   const job = await r.json();
-  watch(job.job_id, job.page_count);
+  watch(job.job_id, job.page_count, job);
 }
 
 /* ---------------- projects and revisions ----------------
@@ -322,8 +322,32 @@ function stageWords(msg) {
   if (!msg) return "";
   if (STAGE_KO[msg]) return STAGE_KO[msg];
   if (/^page \d+ of \d+$/.test(msg)) return "도면을 읽는 중";
+  const m = /^measuring sheet (\d+) of (\d+)$/.exec(msg);
+  if (m) return `도면 치수를 재는 중 — ${m[1]} / ${m[2]}쪽`;
   if (/^\d+ sheets to read$/.test(msg)) return "읽을 도면을 세는 중";
   return msg;
+}
+
+/* 경과 시간 — 초마다 바뀌는 **참인 값** 하나.
+ *
+ * 남은 시간은 여전히 적지 않는다 (§7.2: 단계별 소요가 60배까지 차이나므로
+ * 어떤 외삽도 추측이 된다).  경과는 외삽이 아니라 관측이고, 그래서 서버가
+ * 조용한 구간에서도 화면이 멈춘 것이 아님을 말할 수 있다 — 12회차 캡처가
+ * 13초와 60초 화면이 **바이트까지 같은 것**을 잡았고, 그 구간이 치수 재기
+ * 190초의 뒤쪽 절반이다. */
+let _tick = null;
+function startElapsed() {
+  stopElapsed();
+  const t0 = Date.now();
+  const line = $("#prog-elapsed");
+  const paint = () => {
+    if (line) line.textContent = `경과 ${minsec((Date.now() - t0) / 1000)}`;
+  };
+  paint();
+  _tick = setInterval(paint, 1000);
+}
+function stopElapsed() {
+  if (_tick) { clearInterval(_tick); _tick = null; }
 }
 
 function minsec(sec) {
@@ -349,10 +373,68 @@ function showPages(n, targets) {
     : `${p}장을 읽었습니다 — 분석 대상은 도면을 읽어 봐야 정해집니다.`;
 }
 
+/* 진행 눈금 — **분모는 분석 대상 장수**이고 넣은 쪽수는 그 옆에 함께 적는다.
+ *
+ * 사용자 원문은 `1/58` 이었다.  그런데 이 문서는 58쪽 중 52장만 분석 대상이라
+ * (도면 목록 1 · 범례 4 · 범위 밖 1), `n/58` 로 세면 진행이 52/58 에서 끝나
+ * "여섯 장이 안 끝났다"로 읽힌다.  그래서 비율은 52 로 세고 58 을 같은 줄에
+ * 남긴다 — 두 숫자가 다 보이므로 어느 쪽도 감춰지지 않는다.  `/58` 로
+ * 되돌리려면 이 함수 한 곳만 고치면 된다. */
 function showSheets(done, total) {
   const line = $("#prog-sheets");
   if (!total) { line.textContent = ""; return; }
-  line.textContent = `도면 ${total}장 중 ${done}장 완료`;
+  const p = S.pageCount;
+  const tail = p ? `  ·  넣은 PDF ${p}쪽 중 제외 ${Math.max(p - total, 0)}쪽` : "";
+  line.textContent = `분석 ${done} / ${total}장${tail}`;
+}
+
+/* 무엇을 분석하고 있는지 — 프로젝트와 파일명.  둘 다 업로드 응답 값 그대로다. */
+function showWhat(project, pdfName) {
+  const line = $("#prog-what");
+  if (!line) return;
+  const bits = [];
+  if (project) bits.push(`PJT ${project}`);
+  if (pdfName) bits.push(pdfName);
+  line.textContent = bits.join("  ·  ");
+}
+
+/* 지금 읽고 있는 도서 번호.  파이프라인이 장마다 보내 주는 값이고, 없으면
+ * 줄을 비운다 — 직전 장의 번호를 남겨 두면 멈춘 것처럼 읽힌다. */
+function showNow(drawingNo) {
+  const line = $("#prog-now");
+  if (line) line.textContent = drawingNo ? `현재 도서  ${drawingNo}` : "";
+}
+
+/* 완료 화면 — 무엇을 받았는지.
+ *
+ * "완료" 한 마디로는 결과를 알 수 없고, 11회차부터 **화면에 있는 행과 발주처
+ * 양식에 나가는 행이 다르다**.  빠지는 행은 사유별로 적는다 — 왜 빠졌는지
+ * 화면에서 알 수 있어야 한다(근거 패널과 같은 이유). */
+function showDone(summary, elapsed) {
+  const box = $("#prog-done");
+  if (!box) return;
+  const sc = (summary || {}).scope;
+  if (!sc) { box.classList.add("hidden"); return; }
+  const reasons = Object.entries(sc.by_reason || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([why, n]) => `<div class="dn-row"><span>${escape(why || "(판정 없음)")}`
+      + `</span><span class="n">${n}행</span></div>`).join("");
+  const tabs = Object.entries(sc.by_tab || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([tab, n]) => `${tab} ${n}`).join("  ·  ");
+  box.innerHTML =
+    `<div class="dn-head">분석 완료${elapsed ? ` — ${minsec(elapsed)}` : ""}</div>`
+    + `<div class="dn-row big"><span>추출한 행</span>`
+    + `<span class="n">${sc.total}행</span></div>`
+    + `<div class="dn-row big"><span>발주처 양식에 나가는 행</span>`
+    + `<span class="n">${sc.delivered}행</span></div>`
+    + (tabs ? `<div class="dn-sub">${escape(tabs)}</div>` : "")
+    + (sc.held ? `<div class="dn-row big"><span>발주처 양식에서 빠지는 행</span>`
+        + `<span class="n">${sc.held}행</span></div>${reasons}` : "")
+    + (sc.legacy_no_scope
+        ? `<div class="dn-note">SCOPE 판정이 없는 행 ${sc.legacy_no_scope}행 — `
+          + `이 열이 생기기 전의 분석입니다</div>` : "");
+  box.classList.remove("hidden");
 }
 
 /* 걷지 않는 쪽을 쪽 번호까지 적는다.  묶어서 숨기지 않는다 - 58장을 건넨
@@ -374,11 +456,19 @@ function showSkipped(plan) {
   box.classList.remove("hidden");
 }
 
-function watch(jobId, pageCount) {
+function watch(jobId, pageCount, what) {
   drop.classList.add("hidden");
   $("#progress").classList.remove("hidden");
   S.pageCount = null; S.sheetTargets = null;
+  S.watching = jobId;
   $("#prog-skip").classList.add("hidden");
+  $("#prog-done").classList.add("hidden");
+  showWhat((what || {}).project, (what || {}).pdf_name);
+  showNow("");
+  startElapsed();
+  const cb = $("#prog-cancel");
+  cb.disabled = false; cb.textContent = "분석 취소";
+  $("#prog-cancelwrap").classList.remove("hidden");
   // A previous failure leaves its hint, buttons and job list on this panel; a new
   // analysis has to start from a clean one or the reviewer reads last time's exit
   // routes over this run's progress bar.
@@ -397,9 +487,48 @@ function watch(jobId, pageCount) {
     if (d.sheets_total) showPages(null, d.sheets_total);
     if (d.sheets_total != null) showSheets(d.sheets_done || 0, d.sheets_total);
     if (d.sheet_plan) showSkipped(d.sheet_plan);
-    if (d.status === "done") { src.close(); open(jobId); }
+    if (d.drawing_no !== undefined) showNow(d.drawing_no);
+    if (d.status === "done") {
+      src.close();
+      // 완료 요약을 먼저 보이고, 누르면 그리드로 간다.  바로 넘어가면 결과를
+      // 읽을 틈이 없다 - "분석 완료 사유를 명확히" 가 그 요구다.
+      $("#prog-cancelwrap").classList.add("hidden");
+      stopElapsed();
+      // 완료 상자가 소요 시간을 적으므로 위의 경과 줄은 지운다 - 같은 값을
+      // 두 곳에 쓰면 둘이 1~2초 어긋나 보인다 (실제로 5분 58초 ↔ 6분 0초).
+      // 남기는 쪽은 **서버가 잰 값**이다.
+      $("#prog-elapsed").textContent = "";
+      $("#prog-title").textContent = "분석 완료";
+      $("#prog-msg").textContent = "";
+      showNow("");
+      showDone(d.summary, d.elapsed_s);
+      $("#prog-actions").classList.remove("hidden");
+      $("#prog-home").textContent = "결과 보기";
+      $("#prog-home").onclick = () => { $("#prog-home").onclick = null; open(jobId); };
+    }
+    if (d.status === "cancelled") {
+      src.close();
+      $("#prog-cancelwrap").classList.add("hidden");
+      stopElapsed();
+      $("#prog-title").textContent = "분석 취소됨";
+      $("#prog-msg").textContent =
+        "저장된 것은 없습니다 — 행 0건, 번호도 쓰지 않았습니다. "
+        + "같은 PDF 를 다시 올리면 처음부터 분석합니다.";
+      showNow("");
+      $("#bar-fill").style.width = "0%";
+      $("#prog-sheets").textContent = "";
+      // 실패 화면과 같은 탈출구를 준다 - #drop 도 #main 도 숨겨져 있으므로
+      // 여기서 길을 주지 않으면 URL 을 고치는 수밖에 없다 (§7.2).
+      const hint = $("#prog-hint");
+      hint.textContent = "다시 분석하려면 첫 화면에서 PDF 를 올리세요.";
+      hint.classList.remove("hidden");
+      $("#prog-actions").classList.remove("hidden");
+      $("#prog-home").textContent = "첫 화면으로";
+    }
     if (d.status === "failed") {
       src.close();
+      $("#prog-cancelwrap").classList.add("hidden");
+      stopElapsed();
       showFailure(d.message, d);
     }
   };
@@ -457,7 +586,12 @@ function toFirstScreen() {
   $("#prog-sheets").textContent = "";
   $("#prog-pages").textContent = "";
   $("#prog-skip").classList.add("hidden");
-  S.pageCount = null; S.sheetTargets = null;
+  $("#prog-done").classList.add("hidden");
+  $("#prog-cancelwrap").classList.add("hidden");
+  $("#prog-what").textContent = "";
+  $("#prog-now").textContent = "";
+  $("#prog-home").textContent = "첫 화면으로";
+  S.pageCount = null; S.sheetTargets = null; S.watching = null;
   if (location.hash) history.replaceState(null, "", location.pathname);
   listJobs();
 }
@@ -492,7 +626,7 @@ if (location.hash.length > 1) open(hashParts()[0]);
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
-  if (job.status !== "done") { watch(jobId, job.page_count); return; }
+  if (job.status !== "done") { watch(jobId, job.page_count, job); return; }
   S.loading = true;
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
@@ -1388,6 +1522,13 @@ function renderGrid() {
       } else {
         td.textContent = val;
       }
+      // 잘리는 칸은 마우스를 올리면 전문이 보인다.  `max-width: 260px` 위에서
+      // 최장 SCOPE 값(`VENDOR(SEAWATER INTAKE FACILITY SUPPLIER)`, 40자)은
+      // 어느 폭으로도 한 줄에 안 들어가므로, 열을 넓히는 대신 **읽을 방법**을
+      // 준다 — 밀도(§7.2 의 29.0px / 15행)를 깨지 않는 유일한 방법이다.
+      // SCOPE 열은 그 위에 폭을 따로 준다 (styles.css `.col-scope`).
+      if (val !== "" && val !== null && val !== undefined) td.title = String(val);
+      if (key === "scope") td.classList.add("col-scope");
       if (key === "origin") td.classList.add(`origin-${r.origin}`);
       // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친
       // 칸에는 연필이 붙는다.  "직접 입력" 등급과 같은 기호를 쓰는 것은 같은
@@ -1798,13 +1939,35 @@ function showEvidence(row) {
   const add = (k, v) => { if (v !== undefined && v !== null && v !== "") pairs.push([k, v]); };
   const hits = e.rules_hit || [];
 
-  // --- scope: included or not, by which rule, in the NOTES' own words -------
+  // --- scope: who supplies it, and where the row does and does not go -------
+  //
+  // 두 질문을 **나눠서** 말한다 (12회차).  11회차부터 발주처 양식은
+  // SCOPE=SCT 만 담으므로, 한 문장으로 "리스트에 포함됩니다" 라고 하면
+  // 화면에는 있고 Excel 에는 없는 행이 거짓말을 하게 된다 — 11회차 캡처가
+  // 실제로 그것을 잡았다.
+  //
+  //   추출 결과   1029행 기준.  삭제 표시된 행만 빠진다
+  //   발주처 양식  SCOPE=SCT 기준.  값이 없으면 "판정한 적 없음"이다
+  //
+  // 문구는 그 행의 실제 SCOPE 값에서 만든다.  고정 문자열이 아니다.
+  const scopeVal = String(row.values.scope || "").trim();
+  const supplier = scopeVal.startsWith(SCOPE_VENDOR_PREFIX)
+    ? (scopeVal.slice(SCOPE_VENDOR_PREFIX.length).replace(/^\(|\)$/g, "")
+       || "이름 미상")
+    : "";
   const scopeName = row.needs_review ? "검토 필요"
-    : row.values.scope === "SCT" ? SUPPLIER_SPAN_LABEL
-    : row.values.vendor_supply === "VENDOR" ? "벤더 공급"
-    : row.values.vendor_supply === "UNDEFINED" ? "벤더 마크 (정의 없음)"
-    : "포함";
-  add("스코프 판정", `${scopeName} — 이 행은 리스트에 ${row.removed ? "제외" : "포함"}됩니다`);
+    : scopeVal === SCOPE_DELIVERED ? "SCT 공급"
+    : supplier ? `VENDOR 공급 — ${supplier}`
+    : scopeVal ? scopeVal
+    : "판정 없음";
+  add("공급 주체", scopeName);
+  add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
+                              : "이 행은 추출 결과에 있습니다");
+  add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)"
+    : scopeVal === SCOPE_DELIVERED ? "나갑니다"
+    : scopeVal ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
+    : "판정한 적 없음 — 다시 분석하면 정해집니다 "
+      + "(SCOPE 열이 생기기 전의 분석입니다)");
   add("적용 규칙", hits.length ? hits.join(", ") : "제외 규칙 해당 없음");
   add("제외 사유", e.excluded_by);
   // The NOTES line that defined this drawing's vendor mark, verbatim.  Quoted,
@@ -2345,11 +2508,35 @@ $req("#stage").addEventListener("keydown", ev => {
  * project's wording, and the server sends it with the result. */
 let SUPPLIER_SPAN_LABEL = "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위";
 
+/* SCOPE 열의 값 — 서버(`pipeline.COL_VENDOR` · `COL_SCT`)와 같은 글자여야 한다.
+ * 근거 패널과 범례가 같은 값을 읽으므로 한 곳에만 적는다. */
+const SCOPE_DELIVERED = "SCT";
+const SCOPE_VENDOR_PREFIX = "VENDOR";
+
+/* 오버레이 범례 — **라벨과 세는 대상이 같아야 한다** (12회차).
+ *
+ * 11회차 캡처가 어긋남을 잡았다: p6 범례가 `공급자 인터페이스 구간 18` 이라고
+ * 했는데 그 18 은 SCT **행 수**(계기 12 + 밸브 6)였다.  `SCT` 라는 오버레이
+ * 키가 두 가지를 뜻하게 됐기 때문이다 — 원래는 `SCT_SUPPLIER_SCOPE` 규칙(파선
+ * 브레이커 구간, 이 문서에서 2행)이었는데, 10회차에 SCOPE **열**이 생기면서
+ * 우리 공급 전체(780행)가 같은 키를 받았다.
+ *
+ * 두 안 중 (a) 를 택했다 — 세는 대상은 SCOPE 열 그대로 두고 라벨을 거기 맞춘다.
+ * (b)(세는 대상을 파선 구간으로 되돌리기)는 발주처가 요구한 표기와 어긋난다:
+ * 피드백 5장이 "파랑 = SCT 공급 범위 · 주황 = VENDOR 공급 (BM 당사)" 라고
+ * 못박았고, 그것은 열 값을 세라는 뜻이다.  파선 구간 자체는 근거 패널의
+ * `적용 규칙`(`SCT_SUPPLIER_SCOPE`)에 그대로 남는다.
+ *
+ * 색: 발주처 요구대로 SCT 가 파랑이다.  이전에는 파랑이 `INCLUDED`, 보라가
+ * `SCT` 였다 — 값만 옮겼고 **색 자체는 새로 고르지 않았다**(발주처가 이미 본
+ * 색이다). */
 const SCOPE = [
-  ["INCLUDED", "포함", "#0a84ff", "우리 공급 범위 — 리스트에 나옴"],
-  ["VENDOR_EXCLUDED", "벤더 제외", "#ff9f0a", "기기에 벤더 마크 → 리스트에서 제외"],
-  ["SCT", "공급자 인터페이스 구간", "#bf5af2",
-   "브레이커 구간 안 — 배관 및 기기 공급자 범위. 행은 리스트에 남고 Description 만 생략"],
+  ["SCT", "SCT 공급 범위", "#0a84ff",
+   "SCOPE 열이 SCT — 우리 공급. 발주처 양식에 나갑니다"],
+  ["VENDOR_EXCLUDED", "VENDOR 공급 (BM 당사)", "#ff9f0a",
+   "SCOPE 열이 VENDOR — 타사 공급. 화면에는 남고 발주처 양식에는 나가지 않습니다"],
+  ["INCLUDED", "판정 없음", "#bf5af2",
+   "SCOPE 열이 비어 있습니다 — 이 열이 생기기 전의 분석. 다시 분석하면 정해집니다"],
   ["REVIEW", "검토 필요", "#ff453a", "판정 보류 — 근거 패널의 사유 확인"],
 ];
 const SCOPE_COLOR = Object.fromEntries(SCOPE.map(([k, , c]) => [k, c]));
@@ -2408,7 +2595,7 @@ function drawOverlay() {
     r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
     r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
     // 세 축이 한 테두리를 두고 다투지 않게 갈라 놓는다:
-    //   색      = scope (#0a84ff 포함 · #ff9f0a 벤더 제외) — 의미 그대로
+    //   색      = SCOPE 열 (#0a84ff SCT 공급 · #ff9f0a VENDOR 공급) — 의미 그대로
     //   파선    = 종류 (밸브)
     //   바깥 링 = 개정 (추가 · 수정)
     // 개정을 같은 테두리의 굵기·파선으로 말하면 밸브의 파선과 "제외는 얇게"가
@@ -2533,7 +2720,57 @@ document.querySelectorAll(".ovl-tr").forEach(c => {
     drawOverlay();
   });
 });
+/* 드래그로 도면 옮기기 (12회차, 피드백 4장).
+ *
+ * `#stage` 는 `overflow: auto` 인 상자이고 `#wrap` 이 그 안에서 확대된다.
+ * 그래서 옮기는 것은 좌표 변환이 아니라 **스크롤**이다 — 오버레이 좌표계를
+ * 건드리지 않으므로 확대·검출 상자·클릭 판정이 전부 그대로다.
+ *
+ * 클릭과 드래그를 가르는 것은 **움직인 거리**다.  `PAN_SLOP` 이하로 움직였으면
+ * 클릭으로 보고 계기를 고른다.  값 4px 은 임의값이 아니라 브라우저가 `click`
+ * 을 취소하는 기본 문턱(대부분 3~5px)과 같은 자리에 둔 것이고, 이 값 하나만
+ * 여기 있다.  마우스를 뗀 뒤 판정하므로 "누르자마자 선택" 이 사라지지 않는다.
+ *
+ * 오른쪽 버튼(미검출 신고)과 픽 모드는 건드리지 않는다 — 왼쪽 버튼만 본다. */
+const PAN_SLOP = 4;
+let _pan = null;
+
+$req("#stage").addEventListener("pointerdown", ev => {
+  if (ev.button !== 0 || S.picking) return;
+  const stage = $("#stage");
+  _pan = { x: ev.clientX, y: ev.clientY, moved: 0,
+           sl: stage.scrollLeft, st: stage.scrollTop, id: ev.pointerId };
+});
+
+$req("#stage").addEventListener("pointermove", ev => {
+  if (!_pan || ev.pointerId !== _pan.id) return;
+  const dx = ev.clientX - _pan.x, dy = ev.clientY - _pan.y;
+  _pan.moved = Math.max(_pan.moved, Math.abs(dx), Math.abs(dy));
+  if (_pan.moved <= PAN_SLOP) return;
+  const stage = $("#stage");
+  if (!stage.hasPointerCapture(ev.pointerId)) {
+    stage.setPointerCapture(ev.pointerId);
+    stage.classList.add("panning");
+  }
+  ev.preventDefault();
+  stage.scrollLeft = _pan.sl - dx;
+  stage.scrollTop = _pan.st - dy;
+});
+
+function _panEnd(ev) {
+  if (!_pan) return;
+  const stage = $("#stage");
+  if (stage.hasPointerCapture(ev.pointerId)) stage.releasePointerCapture(ev.pointerId);
+  stage.classList.remove("panning");
+  // 끌었으면 그 다음 `click` 은 선택이 아니다 - 삼켜서 계기가 안 바뀌게 한다.
+  S.panned = _pan.moved > PAN_SLOP;
+  _pan = null;
+}
+$req("#stage").addEventListener("pointerup", _panEnd);
+$req("#stage").addEventListener("pointercancel", _panEnd);
+
 $req("#stage").addEventListener("click", ev => {
+  if (S.panned) { S.panned = false; return; }
   if (S.picking) {
     const p = sheetPoint(ev);
     endPick();
@@ -2592,6 +2829,32 @@ function scopeChanged() {
   $("#excel").textContent = "Excel 출력";
   S.revision = null;
 }
+
+/* 분석 취소 (12회차).
+ *
+ * 서버는 표시만 하고, 실제로 멈추는 것은 진행 보고 콜백이다 — 그래서 누른
+ * 직후가 아니라 **지금 읽는 장이 끝나는 순간** 멈춘다.  한 장이 0.3초쯤이므로
+ * 사람이 기다린다고 느낄 시간은 아니고, 그 사이에 DB 에 쓰이는 것은 진행률뿐
+ * 이라 저장된 결과가 반쯤 남는 일이 없다. */
+$req("#prog-cancel").addEventListener("click", async () => {
+  const id = S.watching;
+  if (!id) return;
+  const btn = $("#prog-cancel");
+  btn.disabled = true;
+  // 즉시 멈추지 않는다는 것을 그대로 적는다.  취소는 진행 보고에서만 걸리므로
+  // 지금 돌고 있는 계산이 끝나야 듣는다 — 도면을 읽는 중이면 1초 안쪽이고,
+  // 치수 재기의 뒤쪽 구간(실측 129초)에서는 그 계산이 끝날 때까지 기다린다.
+  btn.textContent = "취소하는 중 — 지금 단계가 끝나면 멈춥니다";
+  try {
+    const r = await fetch(`/jobs/${id}/cancel`, { method: "POST" });
+    if (!r.ok) {
+      alert((await r.json()).detail || "취소하지 못했습니다");
+      btn.disabled = false; btn.textContent = "분석 취소";
+    }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "분석 취소";
+  }
+});
 
 $req("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;
@@ -2736,7 +2999,7 @@ $req("#row-delete").addEventListener("click", async () => {
 $req("#reanalyse").addEventListener("click", async () => {
   await fetch(`/jobs/${S.job.id}/reanalyse`, { method: "POST" });
   $("#main").classList.add("hidden");
-  watch(S.job.id);
+  watch(S.job.id, S.job.page_count, S.job);
 });
 
 /* ---------------- error reports ----------------

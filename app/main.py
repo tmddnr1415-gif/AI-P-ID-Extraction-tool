@@ -142,6 +142,61 @@ def _elapsed(row) -> float:
     return round(b - a, 1) if a and b and b >= a else 0.0
 
 
+def _scope_summary(rows: list) -> dict:
+    """완료 화면이 읽는 결과 요약 (12회차).
+
+    "분석이 끝났다" 만으로는 사람이 무엇을 받았는지 알 수 없고, 11회차부터는
+    **화면에 있는 행과 발주처 양식에 나가는 행이 다르다**.  그 차이를 여기서
+    세어 완료 화면이 사유까지 말할 수 있게 한다.
+
+    세는 기준은 산출 필터와 **같은 함수**다 (`excel_out.in_client_scope`) —
+    화면이 말하는 수와 파일에 들어가는 수가 갈리면 안 된다.
+    """
+    out = {"total": len(rows), "delivered": 0, "held": 0,
+           "by_reason": {}, "by_tab": {}, "held_types": {}}
+    for r in rows:
+        scope = str(r.get("scope") or "").strip()
+        wrapped = {"values": {"scope": scope}}
+        if excel_out.in_client_scope(wrapped):
+            out["delivered"] += 1
+            out["by_tab"][r["tab"]] = out["by_tab"].get(r["tab"], 0) + 1
+        else:
+            out["held"] += 1
+            out["by_reason"][scope] = out["by_reason"].get(scope, 0) + 1
+            t = str(r.get("type") or "")
+            out["held_types"][t] = out["held_types"].get(t, 0) + 1
+    out["legacy_no_scope"] = sum(
+        1 for r in rows if not str(r.get("scope") or "").strip())
+    return out
+
+
+class Cancelled(Exception):
+    """사람이 분석을 취소했다.  `progress()` 에서 올라온다."""
+
+
+# 취소를 기다리는 job 들.  화면이 버튼을 누르면 여기 들어오고, 진행 보고
+# 콜백이 다음 장으로 넘어갈 때 그것을 보고 멈춘다.
+#
+# **부분 결과가 남지 않는다** — `pipeline.analyse` 는 아무것도 저장하지 않고,
+# 행을 쓰는 것은 그 뒤의 `db.store_result` 하나뿐이며, 안정 ID 를 부여하는
+# `_run_comparison` 은 그보다 더 뒤다.  그래서 취소한 분석은 행 0 · 안정 ID
+# 소비 0 이고, 리비전 이름도 프로젝트 장부에 남지 않는다(`next_revision` 은
+# 장부 길이에서 계산되고 장부는 `_run_comparison` 에서만 늘어난다).
+# §7.3 의 "Rev.A 에서 한 번만 부여하고 회수하지 않는다" 와 충돌하지 않는다.
+_CANCEL: set = set()
+_CANCEL_LOCK = threading.Lock()
+
+
+def _cancel_requested(job_id: str) -> bool:
+    with _CANCEL_LOCK:
+        return job_id in _CANCEL
+
+
+def _cancel_clear(job_id: str) -> None:
+    with _CANCEL_LOCK:
+        _CANCEL.discard(job_id)
+
+
 def _worker() -> None:
     while True:
         job_id = _JOBS.get()
@@ -149,18 +204,29 @@ def _worker() -> None:
         if row is None:
             continue
         try:
+            # 큐에서 기다리는 동안 취소했을 수 있다 - 시작하기 전에 본다.
+            if _cancel_requested(job_id):
+                raise Cancelled()
             db.mark_started(CON, job_id)
             db.set_progress(CON, job_id, 0.0, "starting", sheets=(0, 0))
             _emit(job_id, {"progress": 0.0, "message": "starting",
                            "status": "running", "sheets_done": 0,
                            "sheets_total": 0})
 
-            def progress(done, total, message, sheets=None, plan=None):
+            def progress(done, total, message, sheets=None, plan=None,
+                         drawing=None):
+                # 취소는 여기서만 걸린다.  파이프라인은 장마다 이 콜백을 부르고,
+                # 그 사이에는 아무것도 저장하지 않으므로 여기서 끊으면 DB 는
+                # 손대지 않은 상태 그대로다.
+                if _cancel_requested(job_id):
+                    raise Cancelled()
                 frac = done / max(total, 1)
                 db.set_progress(CON, job_id, frac, message, sheets=sheets)
                 out = {"progress": frac, "message": message, "status": "running"}
                 if sheets is not None:
                     out["sheets_done"], out["sheets_total"] = sheets
+                if drawing:
+                    out["drawing_no"] = drawing
                 if plan is not None:
                     db.set_sheet_plan(CON, job_id, plan)
                     out["sheet_plan"] = plan
@@ -179,12 +245,24 @@ def _worker() -> None:
                 summary["revision"] = {"error": str(exc)}
             db.mark_finished(CON, job_id)
             fin = db.get_job(CON, job_id)
+            summary["scope"] = _scope_summary(result["rows"])
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
                            "summary": summary,
                            "sheet_plan": _plan(fin),
                            "page_count": fin["page_count"],
                            "sheets_done": fin["sheets_done"],
                            "sheets_total": fin["sheets_total"],
+                           "elapsed_s": _elapsed(fin)})
+        except Cancelled:
+            # 취소는 실패가 아니다.  사유도 트레이스도 없고, 남은 것도 없다.
+            _cancel_clear(job_id)
+            db.set_progress(CON, job_id, 0.0, "사용자가 분석을 취소했습니다",
+                            "cancelled", sheets=(0, 0))
+            db.mark_finished(CON, job_id)
+            fin = db.get_job(CON, job_id)
+            _emit(job_id, {"progress": 0.0, "status": "cancelled",
+                           "message": "사용자가 분석을 취소했습니다",
+                           "page_count": fin["page_count"],
                            "elapsed_s": _elapsed(fin)})
         except Exception as exc:                     # noqa: BLE001
             # The original goes to the log untouched, and to `error_detail` for
@@ -206,6 +284,7 @@ def _worker() -> None:
                            "sheets_total": fin["sheets_total"],
                            "elapsed_s": _elapsed(fin)})
         finally:
+            _cancel_clear(job_id)
             _JOBS.task_done()
 
 
@@ -254,6 +333,27 @@ async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
     return {"job_id": job_id, "pdf_name": Path(pdf.filename).name, "sha256": sha,
             "project": project, "revision": revision,
             "compared_with": compared_with, "page_count": pages}
+
+
+@app.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str):
+    """분석을 취소한다 (12회차).
+
+    표시만 해 두고, 실제로 멈추는 것은 진행 보고 콜백이다 — 파이프라인이
+    다음 장으로 넘어갈 때 이 표시를 보고 예외를 올린다.  그 사이에 DB 에
+    쓰이는 것은 진행률뿐이라, 취소한 분석은 **행 0 · 안정 ID 소비 0** 이다.
+
+    이미 끝난 분석은 취소할 수 없다 — 지우는 것과 다른 일이다.
+    """
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, "no such job")
+    if row["status"] not in ("queued", "running"):
+        raise HTTPException(409, f"이 분석은 '{row['status']}' 상태라 "
+                                 f"취소할 수 없습니다")
+    with _CANCEL_LOCK:
+        _CANCEL.add(job_id)
+    return {"job_id": job_id, "cancelling": True}
 
 
 @app.post("/jobs/{job_id}/reanalyse")

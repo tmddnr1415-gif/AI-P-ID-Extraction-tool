@@ -451,6 +451,28 @@ rect.terminal {
 .ovl-foot { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line);
   font-size: 11px; }
 
+/* 진행 화면의 새 세 줄과 완료 요약 (12회차). */
+/* 도면은 끌어서 옮길 수 있다 (12회차).  손 모양으로 그것을 알린다 —
+   끄는 동안에만 grabbing 이고, 검출 상자 위에서는 손가락(선택)이 이긴다. */
+#stage { cursor: grab; }
+#stage.panning { cursor: grabbing; }
+#stage rect.det { cursor: pointer; }
+
+button.danger { border-color: #c0271d; color: #c0271d; }
+button.danger:hover:not(:disabled) { background: #c0271d; color: #fff; }
+
+.prog-what { margin: 2px 0 10px; color: var(--ink-soft); font-size: 13px; }
+.prog-now  { margin: 6px 0 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.prog-done { margin: 14px 0 4px; text-align: left; border: 1px solid var(--line);
+             border-radius: 8px; padding: 10px 12px; background: var(--panel); }
+.prog-done .dn-head { font-weight: 700; margin-bottom: 6px; }
+.prog-done .dn-row { display: flex; justify-content: space-between; gap: 12px;
+                     font-size: 13px; padding: 2px 0; }
+.prog-done .dn-row.big { font-weight: 600; }
+.prog-done .dn-row .n { font-variant-numeric: tabular-nums; }
+.prog-done .dn-sub,
+.prog-done .dn-note { font-size: 12px; color: var(--muted); padding: 2px 0; }
+
 /* ---------- grid ---------- */
 #gridwrap { flex: 1; overflow: auto; }
 table { border-collapse: collapse; width: 100%; }
@@ -467,6 +489,18 @@ th {
   text-transform: uppercase; color: var(--muted); z-index: 1;
   border-bottom: 1px solid var(--edge); padding-top: 6px; padding-bottom: 6px;
 }
+/* SCOPE 열 — 값이 길다.  이 문서의 최장값은
+   `VENDOR(SEAWATER INTAKE FACILITY SUPPLIER)` 40자이고, 다른 열과 같은
+   260px 안에서는 `VENDOR(ST SUPP…` 로 잘렸다 (11회차 캡처).
+
+   열 폭만 넓히면 260px → 약 330px 이 필요해 다른 열이 밀리므로, 두 가지를
+   같이 쓴다: 폭을 재는 대신 **글자를 조금 줄여** 한 줄에 담고(12px · 자간
+   -0.01em), 그래도 넘치면 `title` 로 전문이 보인다(app.js).  행 높이는
+   건드리지 않으므로 §7.2 의 밀도(29.0px / 15행)가 유지된다. */
+td.col-scope {
+  max-width: 330px; font-size: 12px; letter-spacing: -.01em;
+}
+
 /* ⑤ 숫자 열은 등폭.  824 · 680 · 2547 의 자릿수가 맞아야 세로로 읽힌다. */
 td, th, .badge, .n, #count, .job-meta, .prog-sheets {
   font-variant-numeric: tabular-nums;

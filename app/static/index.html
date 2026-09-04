@@ -74,9 +74,17 @@
 <div id="progress" class="progress hidden">
   <div class="progress-inner">
     <h2 id="prog-title">분석 중</h2>
+    <!-- 무엇을 분석하고 있는지.  프로젝트 이름과 PDF 파일명은 업로드 응답에서
+         그대로 온다 — 화면이 지어내는 값이 아니다. -->
+    <p id="prog-what" class="prog-what"></p>
     <!-- 놓은 즉시 나오는 값.  PDF 에서 직접 센 쪽수이고, 못 세면 못 셌다고 쓴다. -->
     <p id="prog-pages" class="prog-pages"></p>
     <div class="bar"><div id="bar-fill"></div></div>
+    <!-- 지금 읽고 있는 도서 번호.  파이프라인이 장마다 보내 준다. -->
+    <p id="prog-now" class="prog-now"></p>
+    <!-- 경과 시간.  남은 시간은 적지 않는다 — 이 문서는 단계별 소요가 60배까지
+         차이나므로 어떤 외삽도 추측이 된다.  경과는 관측한 값이다. -->
+    <p id="prog-elapsed" class="prog-now muted"></p>
     <!-- 분모는 분석 대상 장수이고 한 번 적힌 뒤 바뀌지 않는다.  넣은 쪽수(58)는
          위 줄에 계속 남아 있고, 걷지 않는 쪽은 아래 펼침에 쪽 번호까지 적힌다. -->
     <p id="prog-sheets" class="prog-sheets"></p>
@@ -89,8 +97,16 @@
          no way out at all: #drop and #main are both hidden, so the only route
          back was editing the URL by hand. -->
     <p id="prog-hint" class="muted hidden"></p>
+    <!-- 완료 요약.  "완료" 한 마디로는 무엇을 받았는지 알 수 없고, 11회차부터
+         화면에 있는 행과 발주처 양식에 나가는 행이 다르다. -->
+    <div id="prog-done" class="prog-done hidden"></div>
     <div id="prog-actions" class="prog-actions hidden">
       <button id="prog-home">첫 화면으로</button>
+    </div>
+    <!-- 분석 중에만 보인다.  누르면 그 자리에서 멈추고 아무것도 저장하지
+         않는다 (행 0 · 안정 ID 소비 0). -->
+    <div id="prog-cancelwrap" class="prog-actions hidden">
+      <button id="prog-cancel" class="danger">분석 취소</button>
     </div>
     <div id="prog-jobs" class="joblist hidden"></div>
   </div>

@@ -403,9 +403,11 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     attribute drawings against, and it is the only thing in this pipeline that
     needs one.  Real runs pass nothing.
     """
-    def say(done, total, msg, sheets=None, plan=None):
+    def say(done, total, msg, sheets=None, plan=None, drawing=None):
+        # `drawing` 은 12회차에 늘었다 — 화면이 "지금 어느 도서를 읽는 중인가"를
+        # 말할 수 있어야 하기 때문이다.  보고용이고 판정에 쓰이지 않는다.
         if progress:
-            progress(done, total, msg, sheets, plan)
+            progress(done, total, msg, sheets, plan, drawing)
 
     clock = timings or Timings()
 
@@ -418,8 +420,32 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     with clock.stage("open_pdf"):
         doc, pages = pidcache.load_pages(pdf_path)
     total = len(pages) + 6
-    say(0, total, "measuring the sheet")
+    # 치수를 재기 전에 **선분 캐시를 미리 채운다** (12회차).
+    #
+    # 값이 달라지는 일은 없다: `pidcache.segments()` 는 그 페이지의 선분을 한 번
+    # 만들어 두고 두 번째부터 그대로 돌려주는 캐시이고, 여기서 하는 일은
+    # 그 첫 번째를 앞으로 당기는 것뿐이다.  `_fit_layout` 은 어차피 전 페이지의
+    # 선분을 읽는다 — 걸리는 시간의 합도 같다.
+    #
+    # 왜 당기는가: 치수 재기가 이 파이프라인에서 가장 긴 단계인데(실측 190초,
+    # 전체의 60%) **그 안에서 진행 보고가 한 번도 나가지 않았다.**  13초와
+    # 60초에 뜬 화면이 바이트까지 같았고(12회차 캡처), 같은 이유로 그 사이에는
+    # 취소 버튼도 듣지 않았다 — 취소는 진행 보고에서만 걸리기 때문이다.
+    # 캐시를 여기서 채우면 장마다 보고가 나가고, 그 자리가 곧 취소 지점이 된다.
+    #
+    # 실측(58쪽): 선분 캐시 95.8초 · 그 뒤의 치수 계산 129.0초.  즉 이 구간이
+    # 침묵의 절반가량을 덮고, 나머지는 화면의 경과 시간 표시가 맡는다.
     with clock.stage("layout"):
+        for i, pc in enumerate(pages, 1):
+            # 이 구간은 진행 막대의 **첫 한 칸**을 나눠 쓴다.  막대의 분모는
+            # `len(pages) + 6` 이고 치수 재기는 그중 한 칸인데, 실제로는 전체
+            # 시간의 60% 다.  칸에 시간 가중치를 주는 것은 외삽이라 하지 않고
+            # (§7.2), 대신 그 한 칸 안에서 쪽수만큼 잘게 움직이게 한다 —
+            # 막대가 죽어 있지 않다는 것만 말하고 남은 시간을 말하지 않는다.
+            say(i / len(pages), total, f"measuring sheet {i} of {len(pages)}",
+                sheets=(0, 0))
+            pc.segments()
+        say(0, total, "measuring the sheet")
         layout = _fit_layout(pages)
     say(1, total, "reading title blocks")
 
@@ -499,9 +525,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     for i, pc in enumerate(targets, 1):
         # `i - 1` because this is said before the sheet is read, not after.
-        say(3 + i, total, f"page {pc.page_no} of {len(pages)}",
-            sheets=(i - 1, len(targets)))
         meta = tb_rows[pc.page_no]
+        say(3 + i, total, f"page {pc.page_no} of {len(pages)}",
+            sheets=(i - 1, len(targets)), drawing=meta["drawing_no"])
         with clock.stage("instruments", pc.page_no):
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
                 pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
@@ -575,12 +601,18 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if not r.rect:
             continue
         layers.setdefault(r.page_no, collections.defaultdict(list))
-        # 벤더를 먼저 본다.  10회차부터 SCOPE 열은 벤더가 아닌 행에 전부
-        # `SCT` 를 적으므로(사용자 확정 규칙 ④), SCT 를 먼저 보면 주황(벤더)이
-        # 영영 나오지 않는다.  `vendor_supply` 는 예전 그대로 마크 유무만 말한다.
+        # 오버레이 색은 **SCOPE 열 하나**에서 나온다 (12회차).
+        #
+        # 11회차까지는 `vendor_supply` 를 먼저 봤는데, 그 값은 계기에만 붙고
+        # 밸브에는 없다(11회차 §3).  그래서 벤더 공급 밸브 2행이 주황으로도
+        # 파랑으로도 못 가고 `INCLUDED` 로 떨어졌고, p6 범례가 그것을
+        # `포함 2` 라고 셌다 — 11회차 캡처가 잡은 어긋남이다.
+        #
+        # SCOPE 열은 계기·밸브에 똑같이 있으므로 하나로 갈린다.  값이 없는 행은
+        # `INCLUDED`(화면 라벨 "판정 없음") — SCOPE 열이 생기기 전의 분석이다.
         scope = (SCOPE_REVIEW if r.needs_review else
-                 SCOPE_VENDOR if r.vendor_supply == "VENDOR" else
-                 SCOPE_SCT if r.scope == "SCT" else SCOPE_INCLUDED)
+                 SCOPE_VENDOR if str(r.scope or "").startswith(COL_VENDOR) else
+                 SCOPE_SCT if r.scope == COL_SCT else SCOPE_INCLUDED)
         layers[r.page_no][r.tab].append({
             "key": r.key, "rect": [round(v, 1) for v in r.rect],
             "label": r.type or r.valve_type, "needs_review": bool(r.needs_review),
