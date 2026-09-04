@@ -388,6 +388,12 @@ class Body:
     actuator: str = "NONE"          # ... | GLYPH (letter not yet derived)
     glyph: object = None            # normalised bitmap, not serialised
     actuator_evidence: str = ""
+    # 액추에이터 심볼이 차지한 사각형 (11회차).  판정에 쓰이지 않는다 - 벤더
+    # 별표가 **그 심볼 위**에 찍히기 때문에 SCOPE 를 읽을 자리로만 쓴다.
+    # 실측(p6): 별표 y=526 · M 원 y0=534.4(8.4pt 위) · 몸체 y0=563.5(37.5pt 위).
+    # 계기와 같은 허용치(mark_above 25.0pt)가 심볼 기준으로는 맞고 몸체
+    # 기준으로는 안 맞는다 - 값을 늘리는 대신 재는 자리를 바로잡았다.
+    actuator_rect: tuple = ()
     tag: str = ""                   # MOV / HOV / ... when a bubble is attached
     tag_rect: tuple = ()
     evidence: dict = field(default_factory=dict)
@@ -401,6 +407,8 @@ class Body:
             "state": self.state,
             "actuator": self.actuator,
             "actuator_evidence": self.actuator_evidence,
+            "actuator_rect": [round(v, 1) for v in self.actuator_rect]
+                             if self.actuator_rect else [],
             "tag": self.tag,
             "tag_rect": [round(v, 1) for v in self.tag_rect] if self.tag_rect else [],
             "evidence": self.evidence,
@@ -1205,6 +1213,7 @@ def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
             continue
         best.actuator = kind
         best.glyph = glyph
+        best.actuator_rect = (rect.x0, rect.y0, rect.x1, rect.y1)
         best.actuator_evidence = f"{why}, {round(best_d, 1)}pt along the stem"
 
 

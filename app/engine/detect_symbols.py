@@ -816,6 +816,61 @@ class Detection:
         }
 
 
+def package_box_marks(boxes, marks, lay: Layout = LAYOUT) -> list:
+    """`[(box, stars)]` — 경계에 찍힌 마크는 상자 **안 전체**에 걸린다.
+
+    (page 6 marks the HRSG flow package that way, not its bubbles.)
+    """
+    out = []
+    m = lay.box_mark_margin
+    for b in boxes:
+        outer = pymupdf.Rect(b.x0 - m, b.y0 - m, b.x1 + m, b.y1 + m)
+        inner = pymupdf.Rect(b.x0 + 5, b.y0 + 5, b.x1 - 5, b.y1 - 5)
+        stars = sum(k.stars for k in marks
+                    if outer.x0 <= k.x <= outer.x1 and outer.y0 <= k.y <= outer.y1
+                    and not (inner.x0 <= k.x <= inner.x1 and inner.y0 <= k.y <= inner.y1))
+        if stars:
+            out.append((b, stars))
+    return out
+
+
+def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT):
+    """이 사각형에 걸린 벤더 마크 → `(rules_hit, evidence)`.  없으면 `([], None)`.
+
+    11회차에 `detect()` 안에서 꺼냈다.  움직인 것은 **위치뿐**이고 판정은 한
+    글자도 바뀌지 않았다 (계기 지문 3a57b6b2 가 그대로인 것이 증거다).
+    꺼낸 이유는 밸브 행의 SCOPE 를 같은 규칙으로 채우기 위해서다 — 밸브용으로
+    한 벌 더 쓰면 다음 회차에 두 규칙이 갈린다.
+
+    의미는 **그 페이지 NOTES 에서만** 온다 (docs/design.md §10.1).  같은 글리프가
+    시트마다 다른 것을 뜻하므로, 그 장이 정의하지 않은 마크는 판단을 미루고
+    `VENDOR_MARK_UNDEFINED` 로 표시만 한다 — 추측하지 않는다.
+    """
+    cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
+    near = [
+        k for k in marks
+        if rect.x0 - lay.mark_x_slack <= k.x <= rect.x1 + lay.mark_x_slack
+        and rect.y0 - lay.mark_above <= k.y <= rect.y0
+    ]
+    stars = sum(k.stars for k in near)
+    source, forms = "SYMBOL", {k.form for k in near}
+    if not stars:
+        for b, st in box_marks:
+            if b.x0 <= cx <= b.x1 and b.y0 <= cy <= b.y1:
+                stars, source, forms = st, "PACKAGE_BOX", {"BOX"}
+                break
+    if not stars:
+        return [], None
+    meaning = mark_dict.get(stars)
+    evidence = {"stars": stars, "source": source,
+                "meaning": meaning or "UNDEFINED ON THIS PAGE"}
+    if meaning is None:
+        return ["VENDOR_MARK_UNDEFINED"], evidence
+    return ["VENDOR_MARK_BOX" if source == "PACKAGE_BOX"
+            else "VENDOR_MARK_TEXT" if "TEXT" in forms
+            else "VENDOR_MARK_GLYPH"], evidence
+
+
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES):
     bubbles = find_bubbles(pc, lay)
@@ -825,18 +880,7 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)
 
-    # A mark on a package boundary applies to everything inside the boundary
-    # (page 6 marks the HRSG flow package that way, not its bubbles).
-    box_marks = []
-    m = lay.box_mark_margin
-    for b in boxes:
-        outer = pymupdf.Rect(b.x0 - m, b.y0 - m, b.x1 + m, b.y1 + m)
-        inner = pymupdf.Rect(b.x0 + 5, b.y0 + 5, b.x1 - 5, b.y1 - 5)
-        stars = sum(k.stars for k in marks
-                    if outer.x0 <= k.x <= outer.x1 and outer.y0 <= k.y <= outer.y1
-                    and not (inner.x0 <= k.x <= inner.x1 and inner.y0 <= k.y <= inner.y1))
-        if stars:
-            box_marks.append((b, stars))
+    box_marks = package_box_marks(boxes, marks, lay)
 
     if disabled is None:
         disabled = rules.disabled
@@ -883,37 +927,16 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             det.excel_type = rules.field_type_map[t]
 
         # -- vendor mark (page-scoped meaning) -------------------------
-        near = [
-            k for k in marks
-            if bubble.x0 - lay.mark_x_slack <= k.x <= bubble.x1 + lay.mark_x_slack
-            and bubble.y0 - lay.mark_above <= k.y <= bubble.y0
-        ]
-        stars = sum(k.stars for k in near)
-        source, forms = "SYMBOL", {k.form for k in near}
-        if not stars:
-            for b, st in box_marks:
-                if b.x0 <= cx <= b.x1 and b.y0 <= cy <= b.y1:
-                    stars, source, forms = st, "PACKAGE_BOX", {"BOX"}
-                    break
-
-        if stars:
-            meaning = mark_dict.get(stars)
-            det.evidence["vendor_mark"] = {
-                "stars": stars, "source": source,
-                "meaning": meaning or "UNDEFINED ON THIS PAGE",
-            }
-            if meaning is None:
-                # The mark dictionary is page-scoped (docs/design.md §10.1): the
-                # same glyph means different things on different sheets, so an
-                # undefined mark must not be acted on.  Hold the judgement and
-                # flag it rather than guess.
-                det.rules_hit.append("VENDOR_MARK_UNDEFINED")
-            else:
-                rule = ("VENDOR_MARK_BOX" if source == "PACKAGE_BOX"
-                        else "VENDOR_MARK_TEXT" if "TEXT" in forms
-                        else "VENDOR_MARK_GLYPH")
-                det.rules_hit.append(rule)
-                if det.included and rule not in disabled:
+        # 이름은 `mark_rules` 다 — `rules` 는 이 함수의 **매개변수**(Ruleset)이고,
+        # 여기서 덮으면 다음 낱말에서 `rules.anchors` 가 터진다 (실제로 그랬다).
+        mark_rules, vmark = read_vendor_mark(bubble, marks, box_marks,
+                                             mark_dict, lay)
+        if vmark:
+            det.evidence["vendor_mark"] = vmark
+            det.rules_hit.extend(mark_rules)
+            for rule in mark_rules:
+                if (rule != "VENDOR_MARK_UNDEFINED" and det.included
+                        and rule not in disabled):
                     det.included = False
                     det.exclude_rule = rule
 

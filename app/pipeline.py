@@ -41,6 +41,7 @@ if str(ENGINE) not in sys.path:
     # importing them as `app.engine.x` as well would create a second set.
     sys.path.insert(0, str(ENGINE))
 
+import pymupdf             # noqa: E402
 import pidcache            # noqa: E402
 import projectconfig       # noqa: E402
 import legend_rules        # noqa: E402
@@ -505,6 +506,10 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
                 pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
                 allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
+        with clock.stage("instruments", pc.page_no):
+            _marks = ds.find_marks(pc, ds.LAYOUT,
+                                   ds.read_mark_dictionary(pc, ds.LAYOUT)[1],
+                                   allow_sizes=ds.KNOWN_GLYPH_SIZES)
         with clock.stage("annotations", pc.page_no):
             annotations = da.review_annotations(pc)
         # The same body-text scan parse_notes.py does: a scope keyword says some
@@ -520,6 +525,16 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "annotations": annotations,
             "scope_keywords": scope_keywords,
             "page_cache": pc,
+            # 11회차 — 밸브 행의 SCOPE 를 계기와 **같은 규칙**으로 채우기 위한
+            # 이 페이지의 마크 재료.  `ds.detect()` 도 같은 것을 안에서 만들지만
+            # 돌려주지 않고, 반환 튜플을 늘리면 `detect_all` 을 포함한 다섯
+            # 호출부가 전부 바뀐다 - 이번 회차는 검출을 건드리지 않기로 했으므로
+            # 같은 함수를 같은 인자로 한 번 더 부른다.  값은 정의상 같고(순수
+            # 함수 · 같은 페이지 캐시), 비용은 실측 `instruments` 단계 10.0초에
+            # 얹히는 정도다.
+            "marks": _marks,
+            "mark_dict": mark_dict,
+            "box_marks": ds.package_box_marks(boxes, _marks, ds.LAYOUT),
         }
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern))
@@ -541,7 +556,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         meta = tb_rows.get(page_no)
         if not meta or meta["page_kind"] != "PID":
             continue
-        rows.extend(_valve_rows(page_no, meta, res, mult))
+        rows.extend(_valve_rows(page_no, meta, res, mult,
+                                per_page.get(page_no)))
 
     origins = _page_origins(pages, tb_rows, per_page, reference)
     for r in rows:
@@ -2267,7 +2283,20 @@ ACTUATED_BODIES = frozenset(
     kind for _tag, _path, families in dv.DELIVERABLES for kind in families)
 
 
-def _valve_rows(page_no, meta, res, mult) -> list:
+class _MarkedRect:
+    """`_scope_of` 가 읽는 모양만 맞춘 껍데기.
+
+    SCOPE 판정은 10회차 `_scope_of` 하나뿐이고 밸브용 사본을 만들지 않는다.
+    그 함수가 보는 것은 `rules_hit` 와 `evidence["vendor_mark"]` 둘뿐이라,
+    밸브 몸체에서 읽은 마크를 그 모양으로 싸서 그대로 넘긴다.
+    """
+
+    def __init__(self, rules, vmark):
+        self.rules_hit = list(rules)
+        self.evidence = {"vendor_mark": vmark} if vmark else {}
+
+
+def _valve_rows(page_no, meta, res, mult, page=None) -> list:
     """Valve rows for one drawing (spike 4).
 
     Bodies with nothing on the stem are manual or self-acting and belong to no
@@ -2285,6 +2314,20 @@ def _valve_rows(page_no, meta, res, mult) -> list:
             continue
         rect = (b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1)
         reasons, codes = [], []
+        # SCOPE — 계기와 같은 규칙, 같은 함수 (11회차).  10회차까지 밸브 행이
+        # 공란이었던 이유는 마크 판정이 `detect_symbols.detect()` 안, 즉 계기
+        # 경로에만 있었기 때문이다.  밸브 검출기는 마크를 읽지 않는다.
+        page = page or {}
+        # 별표를 어느 사각형 **위**에서 찾는가 — 액추에이터가 있으면 그 심볼,
+        # 없으면 몸체다.  도면은 별표를 그 항목의 심볼 위에 찍는데, 작동 밸브에서
+        # 맨 위에 그려진 심볼은 몸체가 아니라 액추에이터다.  실측(p6 GATE 2개):
+        # 별표 y=526 · M 원 y0=534.4 (8.4pt 위, 허용치 25.0 안) · 몸체 y0=563.5
+        # (37.5pt 위, 허용치 밖).  허용치를 늘리지 않고 재는 자리를 바로잡았다.
+        mark_rect = (pymupdf.Rect(*b.actuator_rect) if b.actuator_rect
+                     else b.rect)
+        marked = _MarkedRect(*ds.read_vendor_mark(
+            mark_rect, page.get("marks") or (), page.get("box_marks") or (),
+            page.get("mark_dict") or {}, ds.LAYOUT))
         if any(m in b.actuator_evidence for m in IP_TOKEN_EVIDENCE):
             codes.append("IP_TOKEN_AS_ACTUATOR")
             reasons.append(
@@ -2316,6 +2359,13 @@ def _valve_rows(page_no, meta, res, mult) -> list:
             qty=None if undefined else factor,
             system=meta["drawing_title"],
             valve_type=b.actuator if not unread else "",
+            # SCOPE 열만 채운다.  `vendor_supply` 는 일부러 비워 둔다 -
+            # 그 값을 쓰면 `_axis_pass` 가 그 행을 ⓪(벤더 · 현행 유지)로 돌려
+            # **Description 이 지워진다** (실측 1행: p7 CHECK 의
+            # `TO HRSG#11 CRH CHECK VALVE` 가 사라졌다).  이번 회차는
+            # Description 을 건드리지 않기로 했으므로 열 채움에서 멈춘다.
+            # 밸브에도 `vendor_supply` 를 쓸지는 발주처 판단 사항이다.
+            scope=_scope_of(marked),
             needs_review="; ".join(reasons),
             rect=rect,
             evidence={

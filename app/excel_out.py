@@ -192,9 +192,18 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
         # under a row that is now a different instrument, then our values on top.
         _clear_row(ws, r, last_col)
         # NO: the row's own number when the revision layer has given it one,
-        # otherwise the position.  A row that has a number keeps it for good -
-        # see `revisions.assign_excel_numbers` for why it is never re-issued.
-        ws.cell(r, no_col).value = row.get("excel_no") or (i + 1)
+        # NO 는 **이 파일 안에서** 1부터 이어진다 (11회차).
+        #
+        # `excel_no`(리비전을 넘어 고정되는 번호)는 위 정렬에서 **자리**를 정하는
+        # 데 그대로 쓰이고, 여기 찍히는 숫자만 달라진다.  발주처 양식이 이제
+        # SCOPE=SCT 만 담으므로(`in_client_scope`), 고정 번호를 그대로 찍으면
+        # 1 · 3 · 7 처럼 구멍 난 표가 나간다 — 발주처가 받는 것은 리스트이지
+        # 우리 내부 대장이 아니다.
+        #
+        # §7.3 의 "확정 삭제 행은 원래 NO 를 유지한다"와 다른 이야기다: 그쪽은
+        # 리비전 사이의 정체성이고, 이것은 한 파일의 출력 범위다.  삭제 행은
+        # 여전히 `excel_no` 가 정한 **자리**에 남는다.
+        ws.cell(r, no_col).value = i + 1
         for name, col in cols.items():
             if name == "no":
                 continue
@@ -373,6 +382,48 @@ def blank_form(src: Path, out: Path, sheet: str, first_row: int = 8,
             "strikes_cleared": strikes}
 
 
+# 발주처 양식에 담기는 SCOPE (11회차, 사용자 결정).
+#
+# "검출은 전부 한다 · 표기는 SCOPE 열이 한다 · **출력은 SCT 만**".  화면 · DB ·
+# 검토 UI 는 1029행 전량을 그대로 들고 있고, 여기서만 거른다 — 발주처 양식은
+# 발주처가 발주한 범위의 문서이고, 타사 공급분은 그 문서에 들어갈 자리가 없다.
+#
+# 왜 검출 단계에서 지우지 않는가: 지우면 도면에 그려진 것과 화면이 어긋나
+# 검토자가 "이건 왜 없나"를 물을 수 없게 된다.  10회차가 벤더 마크를 행 삭제가
+# 아니라 열 표기로 옮긴 것과 같은 판단이다.
+#
+# 안정 ID 는 **1029행 전량에 부여된 그대로**다.  걸러진 행의 ID 를 회수하거나
+# 다시 매기지 않는다 (`app/revisions.py` — Rev.A 에서 한 번만 부여).  거르는
+# 것은 출력 범위이지 행의 정체가 아니다.
+SCOPE_DELIVERED = "SCT"
+
+
+def in_client_scope(row: dict) -> bool:
+    """이 행이 발주처 양식에 들어가는가.
+
+    `SCT` 면 담고, **다른 값이 적혀 있으면** 뺀다.  값이 **아예 없는** 행은
+    담는다 — "타사 공급"이 아니라 "아직 판정한 적 없음"이기 때문이다.
+
+    빈 값을 빼지 않는 이유는 실측으로 드러났다: SCOPE 열이 없던 회차에 저장된
+    분석(회사 PC 의 기존 결과가 그렇다)은 모든 행의 scope 가 빈 문자열이라,
+    빈 값을 빼면 **발주처 양식 네 개가 통째로 빈 파일로 나간다** (UI 스위트가
+    실 DB 사본으로 돌다가 `rows: 0` 으로 잡아냈다).  없는 판정을 "타사 공급"
+    으로 읽는 것은 근거 없는 값 생성이다.
+
+    담긴 옛 행이 몇 개인지는 MANIFEST 의 `legacy_no_scope_rows` 에 실려 나가고,
+    거기에 숫자가 있으면 **다시 분석해야 한다**는 뜻이다.
+    """
+    scope = str((row.get("values") or {}).get("scope") or "").strip()
+    return scope in ("", SCOPE_DELIVERED)
+
+
+def scope_state(row: dict) -> str:
+    """`in_client_scope` 가 어느 갈래로 판정했는지 — 집계용."""
+    scope = str((row.get("values") or {}).get("scope") or "").strip()
+    return ("delivered" if scope == SCOPE_DELIVERED
+            else "legacy" if not scope else "out_of_scope")
+
+
 def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
     """Write every deliverable a template was supplied for."""
     # The snapshot was already filtered to the chosen origins when it was
@@ -380,10 +431,15 @@ def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
     # thing a delivered workbook is answerable to.
     origins = set(snapshot.get("origins_included") or [])
     by_tab: dict[str, list] = {}
+    scope_counts: dict[str, int] = {}
     for row in snapshot["rows"]:
         if row.get("deleted"):
             continue
         if origins and row.get("origin") and row["origin"] not in origins:
+            continue
+        state = scope_state(row)
+        scope_counts[state] = scope_counts.get(state, 0) + 1
+        if not in_client_scope(row):
             continue
         by_tab.setdefault(row["tab"], []).append(row)
     # 확정된 삭제 행은 원래 자리에 남는다 - 표 끝으로 모으지 않는다.  자리를
@@ -407,4 +463,9 @@ def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
                 Path(template) if template else None, out_dir / name, rows, cfg, kind))
         except TemplateMissing as exc:
             skipped.append({"kind": kind, "rows": len(rows), "reason": str(exc)})
-    return {"written": written, "skipped": skipped}
+    return {"written": written, "skipped": skipped,
+            "scope_filter": SCOPE_DELIVERED,
+            "out_of_scope_rows": scope_counts.get("out_of_scope", 0),
+            # 0 이 아니면 그 분석은 SCOPE 열이 생기기 전 것이다 — 다시 분석해야
+            # 발주처 양식이 제 범위로 나온다.
+            "legacy_no_scope_rows": scope_counts.get("legacy", 0)}

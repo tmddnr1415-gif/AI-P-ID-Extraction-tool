@@ -53,15 +53,20 @@ PDF_NAME = "pid_total.pdf"
 # `test_step6_reports_unmappable_edits` 가 따로 본다.
 #
 # 10회차에 `vendor_supply` → `scope` 로 바꿨다.  발주처 계기 서식의 공급 관련
-# 열은 AK('Scope of Supply') 하나뿐인데, 그 열이 읽는 값이 이번 회차에
+# 열은 AK('Scope of Supply') 하나뿐인데, 그 열이 읽는 값이 그 회차에
 # `vendor_supply`(마크가 있었나 없었나)에서 `scope`(SCT / VENDOR(이름) /
 # VENDOR)로 바뀌었기 때문이다.  `vendor_supply` 는 화면·근거 패널·오버레이
-# 색에 그대로 남고, 그 칸의 편집은 이제 MANIFEST 의 unmapped_values 에
-# 이름으로 남는다.
+# 색에 그대로 남고, 그 칸의 편집은 MANIFEST 의 unmapped_values 에 이름으로 남는다.
+#
+# 11회차에 `scope` → `system` 으로 다시 바꿨다.  `scope` 는 이제 **출력 범위를
+# 정하는 값**이라(발주처 양식은 SCT 만 담는다), 거기에 아무 문자열이나 넣으면
+# 그 행이 파일에서 빠지는 것이 **정답**이다 — "편집이 셀에 닿는가"를 그 칸으로
+# 물으면 규칙과 시험이 서로 반대를 말한다.  그 동작은
+# `test_step6_scope_edit_removes_the_row_from_the_client_workbook` 이 따로 본다.
 EDITS = [
     ("qty", "7"),
     ("type", "UI-TYPE-A"),
-    ("scope", "UI-SCOPE"),
+    ("system", "UI-SYSTEM"),
     ("tag_no", "UI-TAG-01"),
     ("description", "UI 편집 확인"),
 ]
@@ -341,7 +346,11 @@ def test_step6_edits_reach_the_excel(page, edited, server, job_id, tmp_path):
     """Gate, export, and find the five edited values in the workbook cells."""
     import urllib.request
     page.check("#gate-check")
-    page.wait_for_timeout(1500)
+    # 고정 대기(1500ms)가 아니라 **조건**을 기다린다.  게이트를 누르면 1029행짜리
+    # 스냅샷을 서버가 쓰는데, 그 시간이 장비와 부하에 따라 1.5초를 넘나든다 —
+    # 실측으로 같은 코드가 통과했다 실패했다 했다.  기다리는 대상이 분명하므로
+    # 시간을 늘리는 대신 조건으로 바꾼다.
+    page.wait_for_function("() => window.__rev", timeout=60000)
     rev = page.evaluate("() => window.__rev || null")
     assert rev, "step 6: checking the gate did not produce a revision"
 
@@ -408,6 +417,69 @@ def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
     assert mov_entry.get("unmapped_values", {}).get("vendor_supply"), (
         "step 6b: a Vendor edit on a valve row vanished without being reported; "
         f"manifest said {mov_entry.get('unmapped_values')}")
+
+
+def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
+        page, edited, server, job_id, tmp_path):
+    """SCOPE 는 값이 아니라 **출력 범위**다 (11회차).
+
+    발주처 양식은 SCOPE=SCT 만 담는다.  그래서 어떤 행의 SCOPE 를 SCT 가 아닌
+    값으로 고치면 그 행은 파일에서 빠지고, 빠진 수가 MANIFEST 에 적힌다 —
+    조용히 사라지지 않는 것이 조건이다.
+
+    값이 **아예 없는** 행은 반대로 담긴다: SCOPE 열이 생기기 전에 저장된
+    분석이 그렇고, 없는 판정을 "타사 공급"으로 읽으면 발주처 양식 네 개가
+    통째로 빈 파일이 된다 (이 스위트가 실제로 그렇게 잡아냈다).
+    """
+    import urllib.request
+    # 탭은 `dataset.tab` 으로 고른다 — 화면 글자는 'Field' 이고 키는 'FIELD' 라,
+    # 라벨로 찾으면 조용히 `undefined` 가 된다 (실제로 그랬다).
+    page.evaluate(
+        """() => document.querySelector('#tabs button[data-tab="FIELD"]').click()""")
+    page.wait_for_timeout(600)
+    key = page.evaluate(
+        "() => (document.querySelector('#body tr') || {}).dataset?.key || null")
+    if not key:
+        pytest.skip("no FIELD rows")
+
+    def export(label):
+        req = urllib.request.Request(
+            f"{server}/jobs/{job_id}/snapshot", method="POST",
+            data=json.dumps({"label": label}).encode(),
+            headers={"Content-Type": "application/json"})
+        rev = json.loads(urllib.request.urlopen(req).read())["revision_id"]
+        data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+        zp = tmp_path / f"{label}.zip"
+        zp.write_bytes(data)
+        with zipfile.ZipFile(zp) as z:
+            man = json.loads(z.read("MANIFEST.json"))
+        field = next(w for w in man["written"] if w["kind"] == "FIELD")
+        return man, field["rows"]
+
+    before_man, before_rows = export("scope-before")
+    assert before_rows, "필터가 발주처 양식을 통째로 비웠다"
+
+    cell = _cell(page, key, "scope")
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.keyboard.type("UI-OUT-OF-SCOPE")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(400)
+
+    after_man, after_rows = export("scope-after")
+    assert after_rows == before_rows - 1, (
+        f"SCOPE 를 SCT 아닌 값으로 고쳤는데 행이 그대로다 "
+        f"({before_rows} → {after_rows})")
+    assert after_man.get("out_of_scope_rows", 0) > before_man.get(
+        "out_of_scope_rows", 0), "빠진 행이 MANIFEST 에 안 적혔다"
+
+    # 되돌린다 - 뒤따르는 시험(step7)이 같은 행을 본다.
+    cell = _cell(page, key, "scope")
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.keyboard.type("SCT")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(400)
 
 
 def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job_id):

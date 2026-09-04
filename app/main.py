@@ -1400,8 +1400,18 @@ def revision_excel(revision_id: int):
             "engine_fingerprint": snap["fingerprint"],
             "written": result["written"],
             "skipped": result["skipped"],
+            # 11회차 — 발주처 양식은 SCOPE=SCT 만 담는다.  뺀 행이 몇 개인지
+            # 여기 적힌다 (조용히 사라지지 않는 것이 이 필터의 조건이다).
+            "scope_filter": result.get("scope_filter"),
+            "out_of_scope_rows": result.get("out_of_scope_rows", 0),
+            "legacy_no_scope_rows": result.get("legacy_no_scope_rows", 0),
             "note": "unmapped_values lists edits with no column in that "
-                    "deliverable's form; they are stored but not written",
+                    "deliverable's form; they are stored but not written. "
+                    "out_of_scope_rows counts rows left out because their "
+                    "SCOPE is not SCT; legacy_no_scope_rows counts rows with "
+                    "no SCOPE at all (an analysis from before the column "
+                    "existed) - those are still written, and a non-zero "
+                    "number means the drawing set should be re-analysed",
         }, indent=1))
     buf.seek(0)
     return StreamingResponse(
