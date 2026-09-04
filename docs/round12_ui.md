@@ -176,6 +176,18 @@ bounding box 를 읽어 그 열을 컨테이너 가운데로 들여놓고 잘랐
 말합니다(`취소하는 중 — 지금 단계가 끝나면 멈춥니다`).  단위 신호를 만들려면
 `derive_layout` 안에 콜백을 넣어야 하는데 그것은 이번 회차의 금지 범위입니다.
 
+**재캡처 결과** (고친 코드로 다시 뜬 것, 같은 실행):
+
+| 시점 | 파일 | md5 |
+| --- | --- | --- |
+| 13초 | `after/c1_progress_013s.png` | `dbe779315e7f` |
+| 60초 | `after/c1_progress_060s.png` | `ff316f8e7cd0` |
+| 200초 | `after/c1_progress_200s.png` | `4cb0e99c5225` |
+
+**셋이 서로 다릅니다.**  고치기 전에는 13초와 60초가 `772644abffe1` 로
+바이트까지 같았습니다.  같은 실행의 취소 캡처는 `status=cancelled · rows=0 ·
+projects/ 없음` 이고, 완주 캡처는 `fingerprint=69ad281f · ROWS 1029` 입니다.
+
 ### C-1 화면 — 넣은 것
 
 ```
@@ -221,7 +233,7 @@ PJT AL NOUF1  ·  pid_total.pdf          ← 프로젝트 · 파일명 (업로�
 먼저 보이고 `결과 보기` 를 누르면 넘어갑니다.
 
 ```
-분석 완료 — 6분 17초
+분석 완료 — 6분 21초
 추출한 행                    1029행
 발주처 양식에 나가는 행          780행
   FIELD 667 · MOV 66 · PNEUMATIC 25 · BFV 22
@@ -336,3 +348,39 @@ SADARA + 테스트 3종.  기준선은 11회차 HEAD(`0115769`) 입니다.
 
 교훈은 §2-4 그대로입니다 — **옮겨 적은 값은 회귀 기준선이 아닙니다.**
 1029행이 벤더분을 포함하게 된 회차라면 교차검증 문서도 같이 늘었어야 합니다.
+
+---
+
+## 6. 캡처 (F) — 실제 렌더만, 격리된 데이터 디렉터리에서
+
+| 항목 | 수정 전 | 수정 후 | 무엇을 증명하나 |
+| --- | --- | --- | --- |
+| B-1 SCT 행 근거 패널 | `before/b1_evidence_sct.png` | `after/b1_evidence_sct.png` | 세 줄로 갈림 |
+| B-1 VENDOR 행 근거 패널 | `before/b1_evidence_vendor.png` | `after/b1_evidence_vendor.png` | `벤더 공급 — 이 행은 리스트에 포함됩니다`(거짓) → 공급 주체 / 추출 결과 / **발주처 양식: 나가지 않습니다** |
+| B-2 오버레이 범례 | `before/b2_overlay_legend.png` | `after/b2_overlay_legend.png` | `포함 0 · 벤더 제외 28 · 공급자 인터페이스 구간 18` → `SCT 공급 범위 18 · VENDOR 공급 (BM 당사) 28 · 판정 없음 0 · 검토 필요 0` |
+| B-3 도면 전체 | `before/b3_legend_labels.png` | `after/b3_legend_labels.png` | p6 전면 |
+| B-4 SCOPE 열 | `before/b4_scope_column.png` · `b4_scope_crop.png` | `after/…` | 잘린 칸 **6/14 → 0/14**, 툴팁 없음 → 전문 |
+| C-1 진행 13 / 60 / 200초 | (기능 없음) | `after/c1_progress_013s · _060s · _200s.png` | md5 `dbe779315e7f` / `ff316f8e7cd0` / `4cb0e99c5225` — **셋이 다름** |
+| C-2 취소 | (기능 없음) | `after/c2_cancel.png` · `c2_cancel_button.png` | `status=cancelled · rows=0 · projects/ 없음` |
+| C-3 완료 | (기능 없음) | `after/c3_complete.png` | 추출 1029 / 나감 780 / 빠짐 249 사유별 · 경과는 **한 곳만** |
+| D-1 팬 | `before/d1_pan_before.png` = `after` 와 **md5 동일**(움직이지 않음) | `after/d1_pan_before.png` ≠ `after/d1_pan_after.png` | `[400,300] → [620,440]`, 선택 유지 True |
+
+**B-1 의 세 번째 표본(SCOPE 공란)은 없습니다** — 이번 분석의 1029행에 SCOPE 가
+빈 행이 0행이기 때문입니다.  없는 표본을 만들지 않았습니다.
+
+**캡처 규율** (§2.3 그대로):
+
+- 전부 `PID_DATA_DIR` 로 격리한 디렉터리에서 실제 서버를 띄워 실제로 렌더한
+  것입니다 (`_prog` · `_prog2`).  합성 이미지가 없습니다.
+- 캡처 시점의 지문은 **69ad281f**, 행 1029.
+- 실제 DB `app/_data/app.db` 의 sha256 은 회차 전후로
+  `df9875e5a84f929a7188400d488cb1b6d33e163f8715c7a18707e142887d2324` 로
+  **바이트까지 같습니다**.
+- 수정 전 캡처는 `git stash` 로 11회차 HEAD 코드로 되돌린 뒤 **같은 분석
+  결과**를 상대로 떴습니다 — 데이터가 아니라 화면만 다릅니다.
+
+**캡처가 잡은 결함 셋** (전부 이 회차에서 고쳤습니다):
+
+1. 13초 · 60초 진행 화면이 바이트까지 같음 → 진행 신호 없는 구간 (§3 C-1)
+2. 완료 화면의 경과 시간이 두 곳에 서로 다르게 찍힘 (§3 C-3)
+3. 첫 B-4 자르기가 SCOPE 열을 빗나감 → bounding box 로 다시 자름 (§2 B-4)
