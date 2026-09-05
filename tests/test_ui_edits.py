@@ -63,6 +63,33 @@ PDF_NAME = "pid_total.pdf"
 # 그 행이 파일에서 빠지는 것이 **정답**이다 — "편집이 셀에 닿는가"를 그 칸으로
 # 물으면 규칙과 시험이 서로 반대를 말한다.  그 동작은
 # `test_step6_scope_edit_removes_the_row_from_the_client_workbook` 이 따로 본다.
+def _confirm_author(page, name="UI 시험"):
+    """편집마다 뜨는 작성자 확인 줄을 넘긴다 (13회차 [D]).
+
+    팀 여럿이 한 서버를 쓰는데 편집 이력에 사람을 가리키는 칸이 없어서 넣은
+    것이다.  인증이 아니라 자기신고이고, 화면이 "자칭"이라고 적는다.  시험이
+    이 줄을 넘겨야 저장이 일어난다 - 그것이 실제 사용자가 겪는 순서다.
+    """
+    bar = page.query_selector(".author-bar")
+    if bar is None:
+        page.wait_for_selector(".author-bar", timeout=4000)
+        bar = page.query_selector(".author-bar")
+    box = bar.query_selector("input")
+    box.fill(name)
+    bar.query_selector("button.ok").click()
+    page.wait_for_selector(".author-bar", state="detached", timeout=4000)
+
+
+def _type_edit(page, cell, value):
+    """한 칸을 고치고 작성자까지 확인한다."""
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.keyboard.type(value)
+    page.keyboard.press("Enter")
+    _confirm_author(page)
+    page.wait_for_timeout(250)
+
+
 EDITS = [
     ("qty", "7"),
     ("type", "UI-TYPE-A"),
@@ -208,12 +235,7 @@ def edited(page):
         ".slice(0, 5).map(tr => tr.dataset.key)")
     assert len(keys) == 5, "need five live Field rows to edit"
     for key, (col, value) in zip(keys, EDITS):
-        cell = _cell(page, key, col)
-        cell.click()
-        page.keyboard.press("Control+A")
-        page.keyboard.type(value)
-        page.keyboard.press("Enter")
-        page.wait_for_timeout(250)
+        _type_edit(page, _cell(page, key, col), value)
     made = {k: (c, v) for k, (c, v) in zip(keys, EDITS)}
     for key, (col, value) in made.items():
         assert _cell(page, key, col).text_content().strip() == value, (
@@ -396,11 +418,7 @@ def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
         "() => (document.querySelector('#body tr') || {}).dataset?.key || null")
     if not key:
         pytest.skip("no MOV rows to test the unmapped path with")
-    cell = _cell(page, key, "vendor_supply")
-    cell.click()
-    page.keyboard.press("Control+A")
-    page.keyboard.type("UI-UNMAPPABLE")
-    page.keyboard.press("Enter")
+    _type_edit(page, _cell(page, key, "vendor_supply"), "UI-UNMAPPABLE")
     page.wait_for_timeout(400)
 
     req = urllib.request.Request(
@@ -459,11 +477,7 @@ def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
     before_man, before_rows = export("scope-before")
     assert before_rows, "필터가 발주처 양식을 통째로 비웠다"
 
-    cell = _cell(page, key, "scope")
-    cell.click()
-    page.keyboard.press("Control+A")
-    page.keyboard.type("UI-OUT-OF-SCOPE")
-    page.keyboard.press("Enter")
+    _type_edit(page, _cell(page, key, "scope"), "UI-OUT-OF-SCOPE")
     page.wait_for_timeout(400)
 
     after_man, after_rows = export("scope-after")
@@ -474,11 +488,7 @@ def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
         "out_of_scope_rows", 0), "빠진 행이 MANIFEST 에 안 적혔다"
 
     # 되돌린다 - 뒤따르는 시험(step7)이 같은 행을 본다.
-    cell = _cell(page, key, "scope")
-    cell.click()
-    page.keyboard.press("Control+A")
-    page.keyboard.type("SCT")
-    page.keyboard.press("Enter")
+    _type_edit(page, _cell(page, key, "scope"), "SCT")
     page.wait_for_timeout(400)
 
 

@@ -236,6 +236,10 @@ def _worker() -> None:
                                       reference=VERIFY_AGAINST)
             result["fingerprint"] = pipeline.fingerprint(result)
             summary = db.store_result(CON, job_id, result)
+            # 도면이 스스로 말한 개정을 문서 하나로 접어 둔다 (13회차 [E]).
+            # 접기 전 장별 값은 `pid_page` 에 그대로 남아 있고, 화면은 둘 다
+            # 보인다 - 대표값만 두면 "53장 중 3장만 C" 라는 사실이 사라진다.
+            summary["doc_rev"] = _store_doc_rev(job_id)
             # 프로젝트에 묶인 분석이면 여기서 바로 대조한다.  묶이지 않았으면
             # 예전과 똑같이 동작한다 - 리비전은 얹는 것이지 대체하는 것이 아니다.
             try:
@@ -366,6 +370,22 @@ def reanalyse(job_id: str):
     return {"job_id": job_id, "queued": True}
 
 
+DOC_REV_RULE = CFG.get_or("revision.document_rule", "max")
+
+
+def _store_doc_rev(job_id: str) -> dict:
+    """장별 개정을 문서 하나로 접어 job 에 적는다.
+
+    규칙은 config 에서 온다 (`revision.document_rule`).  **도면에서 유도되지
+    않는 값이므로** 그 사실이 config 주석에 실측 분포와 함께 적혀 있고, 여기서는
+    고르지 않는다.  접은 값과 분포를 함께 돌려준다.
+    """
+    pages = db.page_revisions(CON, job_id)
+    folded = revisions.document_revision(pages, DOC_REV_RULE)
+    db.set_doc_rev(CON, job_id, folded.get("rev") or "")
+    return folded
+
+
 def _job_public(row) -> dict:
     """A job as the browser may see it: everything except the raw traceback.
 
@@ -425,17 +445,143 @@ def _run_comparison(job_id: str) -> dict:
             db.set_user_value(CON, job_id, key, "description", ov["sentence"])
             db.set_user_value(CON, job_id, key, "description_grade",
                               "USER_ENTERED")
+    carried = _carry_edits(job_id, name, compared, result["states"])
     entry = revisions.record_revision(
         DATA_DIR, name, revision, job_id=job_id, pdf_name=job["pdf_name"],
         compared_with=compared, result=result)
     return {"project": name, "revision": revision, "compared_with": compared,
             "label": entry["label"], "counts": result["counts"],
-            "radii": result["radii"]}
+            "radii": result["radii"], "carried": carried,
+            "sheet_revisions": _sheet_rev_compare(job_id, name, compared)}
+
+
+def _job_of_revision(name: str, revision: str) -> str:
+    """그 프로젝트의 그 리비전을 분석한 job.  장부에서 찾는다."""
+    if not revision:
+        return ""
+    try:
+        meta = revisions.load_project(DATA_DIR, name)
+    except (KeyError, ValueError):
+        return ""
+    for r in meta.get("revisions") or []:
+        if r["revision"] == revision:
+            return r.get("job_id") or ""
+    return ""
+
+
+def _carry_edits(job_id: str, project: str, compared_with: str,
+                 states: dict) -> dict:
+    """이전 리비전의 편집을 이 리비전으로 잇는다 (13회차 [D]).
+
+    **짝은 안정 ID 로 짓는다** — 좌표나 행 키가 아니다.  §7.3 이 ID 를
+    "Rev.A 에서 한 번만 부여하고 재정렬하지 않는" 것으로 정의해 둔 이유가
+    그것이고, 여기서 그 ID 를 쓰는 것이지 새로 매기지 않는다.
+
+    세 가지를 지킨다:
+      · 추출값(`ai_json`)은 건드리지 않는다.  지문·축1·축2·Q'ty 축은 그 층만
+        읽으므로 승계가 측정에 새지 않는다.
+      · **이번 리비전에서 사람이 이미 고친 칸은 덮지 않는다.**  승계는 빈
+        자리를 채우는 것이다.
+      · 이어받은 칸에서 **엔진의 답이 그 사이 달라졌으면** 값을 고르지 않고
+        둘 다 들고 검토로 올린다 — 재분석이 하는 것과 같은 규칙이다.
+    """
+    prev_job = _job_of_revision(project, compared_with)
+    if not prev_job or prev_job == job_id:
+        return {"from": compared_with, "matched": 0, "filled": 0, "conflicts": 0}
+    prev_user = db.user_values_of(CON, prev_job)
+    if not prev_user:
+        return {"from": compared_with, "matched": 0, "filled": 0, "conflicts": 0}
+    prev_ai = db.ai_values_of(CON, prev_job)
+    now_ai = db.ai_values_of(CON, job_id)
+    # 이전 리비전의 행 키 -> 안정 ID.  이번 리비전의 안정 ID -> 행 키.
+    prev_ids = {key: st.get("id") or ""
+                for key, st in db.revision_states(CON, prev_job).items()}
+    now_by_id = {}
+    for key, st in states.items():
+        if st.get("id"):
+            now_by_id[st["id"]] = key
+    carry, conflicts, matched = {}, {}, 0
+    for prev_key, fields in prev_user.items():
+        sid = prev_ids.get(prev_key)
+        key = now_by_id.get(sid) if sid else None
+        if not key:
+            continue
+        matched += 1
+        carry[key] = fields
+        was, now = prev_ai.get(prev_key, {}), now_ai.get(key, {})
+        clash = {f: {"was_ai": was.get(f), "now_ai": now.get(f), "user": v}
+                 for f, v in fields.items() if was.get(f) != now.get(f)}
+        if clash:
+            conflicts[key] = clash
+    filled = db.carry_user_values(CON, job_id, carry) if carry else 0
+    # 이어받은 칸도 **이력에 남긴다** (13회차 캡처가 잡은 결함).
+    #
+    # 승계만 하고 이력을 안 남기면 새 리비전의 행은 ✎ 로 "사람이 고쳤다" 고
+    # 말하면서 **누가 언제 고쳤는지는 말하지 못한다** — 화면이 아는 것보다
+    # 적게 말하는 것이고, 팀 공유 중에는 그것이 곧 되짚을 수 없다는 뜻이다.
+    # 원래 고친 사람의 이름을 그대로 잇고, 사유에 어느 리비전에서 왔는지 적는다.
+    # 지어내는 값이 없다 - 이름도 값도 이전 리비전의 것 그대로다.
+    for prev_key, fields in prev_user.items():
+        sid = prev_ids.get(prev_key)
+        key = now_by_id.get(sid) if sid else None
+        if not key or key not in carry:
+            continue
+        who = db.last_authors(CON, prev_job, prev_key)
+        row = db.get_row(CON, job_id, key)
+        for field, value in fields.items():
+            if field not in db.EDITABLE:
+                continue
+            db.record_feedback(
+                CON, job_id, "EDITED", row_key=key,
+                page_no=(row or {}).get("page_no"),
+                drawing_no=(row or {}).get("drawing_no") or "",
+                rect=(row or {}).get("rect"), field=field,
+                ai_value=(now_ai.get(key) or {}).get(field), user_value=value,
+                reason=f"{compared_with} 에서 이어받음",
+                author=(who.get(field) or {}).get("author") or "",
+                pattern_args={"field": field,
+                              "ai": (now_ai.get(key) or {}).get(field),
+                              "user": value})
+    if conflicts:
+        db.flag_carry_conflicts(CON, job_id, conflicts)
+    return {"from": compared_with, "matched": matched, "filled": filled,
+            "conflicts": len(conflicts)}
+
+
+def _sheet_rev_compare(job_id: str, project: str, compared_with: str) -> dict:
+    """장 단위 개정 대조.  도면번호로 짝을 짓는다 — 임의값이 없다."""
+    prev_job = _job_of_revision(project, compared_with)
+    if not prev_job or prev_job == job_id:
+        return {}
+    return revisions.compare_sheet_revisions(
+        db.page_revisions(CON, job_id), db.page_revisions(CON, prev_job))
 
 
 @app.get("/projects")
-def list_projects():
-    return revisions.list_projects(DATA_DIR)
+def list_projects(deep: bool = False):
+    return [_project_public(m, deep=deep) for m in revisions.list_projects(DATA_DIR)]
+
+
+@app.get("/home")
+def home():
+    """첫 화면이 읽는 것 하나 — 프로젝트와, 프로젝트에 안 묶인 분석.
+
+    단위가 **프로젝트**다 (13회차 [C]).  이전에는 job 목록뿐이라 한 프로젝트의
+    Rev.A·B·C 가 평평하게 흩어졌고, 목록이 PDF 파일명만 말해서 같은 파일로
+    올린 두 분석을 구분할 수 없었다.  프로젝트에 안 묶인 분석은 버리지 않고
+    따로 묶어 그대로 보인다 - "프로젝트 없이 한 번만 분석" 은 지금도 있는
+    선택지이고, 그렇게 만든 결과가 목록에서 사라지면 안 된다.
+    """
+    projects = [_project_public(m, deep=True)
+                for m in revisions.list_projects(DATA_DIR)]
+    projects.sort(key=lambda p: (p.get("latest") or {}).get("analysed_at") or 0,
+                  reverse=True)
+    claimed = {r.get("job_id") for p in projects for r in p["revisions"]}
+    loose = [_job_public(j) for j in db.list_jobs(CON) if j["id"] not in claimed]
+    for j in loose:
+        j["rows"] = db.row_count(CON, j["id"])
+        j["edits"] = db.edited_cell_count(CON, j["id"])
+    return {"projects": projects, "loose": loose}
 
 
 @app.post("/projects")
@@ -452,12 +598,39 @@ def create_project(name: str = Form(...)):
     return _project_public(meta)
 
 
-def _project_public(meta: dict) -> dict:
-    """화면이 필요한 것: 다음 리비전 이름과 고를 수 있는 비교 대상."""
-    return {**meta,
-            "next_revision": revisions.next_revision(meta),
-            "compare_choices": revisions.compare_choices(meta),
-            "default_compare": revisions.default_compare_target(meta)}
+def _project_public(meta: dict, *, deep: bool = False) -> dict:
+    """화면이 필요한 것: 다음 리비전 이름과 고를 수 있는 비교 대상.
+
+    `deep` 이면 각 리비전에 그 분석의 실물(분석 일시 · 행 수 · 지문 · 문서
+    개정 · 상태)을 붙인다.  첫 화면 목록이 그것을 쓴다 — 13회차 조사에서
+    같은 `pid_total.pdf` 두 분석을 화면에서 구분할 수 없었던 것이 그 이유다.
+    장부(`project.json`)에는 job_id 밖에 없으므로 값은 job 표에서 읽는다.
+    """
+    out = {**meta,
+           "next_revision": revisions.next_revision(meta),
+           "compare_choices": revisions.compare_choices(meta),
+           "default_compare": revisions.default_compare_target(meta)}
+    if not deep:
+        return out
+    revs = []
+    for r in out.get("revisions") or []:
+        job = db.get_job(CON, r.get("job_id") or "")
+        extra = {}
+        if job is not None:
+            extra = {"status": job["status"],
+                     "analysed_at": job["finished_at"] or job["created_at"],
+                     "page_count": job["page_count"],
+                     "elapsed_s": _elapsed(job),
+                     "fingerprint": job["fingerprint"],
+                     "doc_rev": job["doc_rev"],
+                     "rows": db.row_count(CON, job["id"]),
+                     "edits": db.edited_cell_count(CON, job["id"])}
+        revs.append({**r, **extra})
+    # 최근순.  같은 프로젝트 안에서도 사람이 마지막에 만진 것이 위에 온다.
+    revs.sort(key=lambda r: r.get("analysed_at") or 0, reverse=True)
+    out["revisions"] = revs
+    out["latest"] = revs[0] if revs else None
+    return out
 
 
 @app.get("/projects/{name}")
@@ -868,6 +1041,10 @@ async def patch_row(job_id: str, key: str, payload: dict):
             value = int(value)
         except (TypeError, ValueError):
             raise HTTPException(400, "Q'ty must be a whole number")
+    # 누가 고쳤나 (13회차 [D]).  인증이 아니라 자기신고다 - 이 앱에는 로그인도
+    # 사용자 테이블도 없고, 없는 신원을 지어내지 않는다.  비어 있으면 비어 있는
+    # 채로 적고 화면이 "이름 없음" 이라고 쓴다 - 서버가 이름을 만들지 않는다.
+    author = " ".join(str(payload.get("author") or "").split())[:60]
     before = db.get_row(CON, job_id, key)
     try:
         user = db.set_user_value(CON, job_id, key, field, value)
@@ -881,12 +1058,27 @@ async def patch_row(job_id: str, key: str, payload: dict):
             drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
             field=field, ai_value=(before.get("ai") or {}).get(field),
             user_value=value, reason=payload.get("reason") or "",
-            basis=before.get("evidence") or {},
+            basis=before.get("evidence") or {}, author=author,
             pattern_args={"field": field,
                           "ai": (before.get("ai") or {}).get(field),
                           "user": value})
     return {"key": key, "user": user, "review_count": db.review_count(CON, job_id),
-            "feedback_count": db.feedback_count(CON, job_id)}
+            "feedback_count": db.feedback_count(CON, job_id),
+            "history": db.row_edit_history(CON, job_id, key)}
+
+
+@app.get("/jobs/{job_id}/rows/{key}/history")
+def row_history(job_id: str, key: str):
+    """이 행을 누가 · 언제 · 무엇에서 무엇으로 고쳤나 (13회차 [D]).
+
+    `feedback` 은 편집을 처음부터 전부 남기고 있었다 - 없던 것은 **누구**
+    하나뿐이다.  되읽지 않는 표라고 적혀 있었으나, 그것은 "집계해서 규칙을
+    고치는 데 쓰지 않는다"는 뜻이고 한 행의 이력을 사람에게 보이는 것은
+    그 판단과 어긋나지 않는다.
+    """
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return {"key": key, "history": db.row_edit_history(CON, job_id, key)}
 
 
 # --------------------------------------------------------------------------

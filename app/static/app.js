@@ -219,6 +219,33 @@ $req("#proj-new-btn").addEventListener("click", () => {
   $("#proj-new").classList.remove("hidden");
   $("#proj-name").focus();
 });
+
+/* 같은 이름이 이미 있으면 **적기 전에** 알린다 (13회차 [C]).
+ *
+ * 서버는 예전부터 409 로 거절해 왔다 - 덮어쓰지 않는 것이 맞다.  문제는 그
+ * 사실을 [만들기] 를 누른 뒤에야 알게 되는 것이고, 진짜 하려던 일이 대개
+ * "그 프로젝트에 개정본을 더하는 것" 이라는 점이다.  그래서 막지 않고
+ * **그쪽으로 가는 버튼을 같이 준다.**  §7.3 의 안정 ID 계보가 프로젝트
+ * 단위 약속이므로, 같은 도면을 새 이름으로 또 올리면 계보가 갈라진다. */
+function sameNameHint() {
+  const typed = $("#proj-name").value.trim().toLowerCase();
+  const box = $("#proj-dup");
+  const hit = (S.projects || []).find(p => (p.name || "").toLowerCase() === typed);
+  if (!typed || !hit) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const n = (hit.revisions || []).length;
+  box.innerHTML =
+    `<b>${escape(hit.name)}</b> 프로젝트가 이미 있습니다 (리비전 ${n}개). `
+    + `같은 이름으로 새로 만들 수는 없습니다 — 기존 것을 덮어쓰지 않기 때문입니다.`
+    + `<button type="button" id="proj-dup-use">그 프로젝트에 개정본으로 추가</button>`;
+  box.classList.remove("hidden");
+  $("#proj-dup-use").onclick = () => {
+    $("#proj-new").classList.add("hidden");
+    box.classList.add("hidden");
+    $("#proj-pick").value = hit.name;
+    chooseProject(hit.name);
+  };
+}
+$req("#proj-name").addEventListener("input", sameNameHint);
 $req("#proj-cancel").addEventListener("click", () => {
   $("#proj-new").classList.add("hidden");
   $("#proj-msg").textContent = "";
@@ -275,22 +302,92 @@ loadProjects();
 showAudit();
 
 /* 이전 분석 한 줄: 상태 · 장수 · 걸린 시간.  전부 저장된 값이다. */
+/* 분석 상태의 화면 말.  **모르는 값은 그대로 쓴다** - 없는 뜻을 지어내지
+ * 않는다.  `cancelled` 가 12회차에 생겼는데 이 표에 빠져 있어서 첫 화면에
+ * 영어로 나가고 있었다 (13회차 조사가 잡았다). */
+const JOB_STATUS_KO = {
+  done: "완료", failed: "실패", cancelled: "취소됨",
+  running: "분석 중", queued: "차례 기다리는 중",
+};
+
+function whenWords(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+    + `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function jobLine(j) {
-  const bits = [j.status === "done" ? "완료" : j.status === "failed" ? "실패" : j.status];
+  const bits = [JOB_STATUS_KO[j.status] || j.status];
+  if (j.rows) bits.push(`${j.rows}행`);
   if (j.page_count) bits.push(`${j.page_count}장`);
-  if (j.elapsed_s) bits.push(minsec(j.elapsed_s));
+  if (j.analysed_at || j.finished_at || j.created_at)
+    bits.push(whenWords(j.analysed_at || j.finished_at || j.created_at));
+  if (j.edits) bits.push(`수정 ${j.edits}칸`);
   return bits.join(" · ");
 }
 
-async function listJobs() {
-  const jobs = await (await fetch("/jobs")).json();
-  $("#joblist").innerHTML = jobs.length
-    ? "<p class='muted small'>이전 분석</p>" + jobs.map(j =>
-        `<a href="#${j.id}">${escape(j.pdf_name)}`
-        + `<span class="muted small">${escape(jobLine(j))}</span></a>`).join("")
-    : "";
+/* 개정 판정 배지.  넷뿐이고 추정하지 않는다 - 못 읽으면 못 읽었다고 쓴다. */
+const REV_VERDICT = {
+  NEWER: ["개정본", "rv-new"],
+  SAME: ["같은 개정", "rv-same"],
+  OLDER: ["이전 개정", "rv-old"],
+  UNKNOWN: ["개정 판별 불가", "rv-unknown"],
+};
+
+/* 이 리비전이 직전 리비전보다 나중인가.  **문서 대표 Rev 끼리** 견준다.
+ * 대표값을 접는 규칙은 도면에서 유도되지 않아 config 에 있고(사용자 확정
+ * `max`), 그래서 배지 옆에 그 규칙이 접기 전 무엇이었는지도 함께 적는다. */
+function revVerdict(now, before) {
+  const n = (now || "").trim(), b = (before || "").trim();
+  if (!n) return "UNKNOWN";
+  if (!b) return "";                       // 견줄 대상이 없다 - 첫 리비전
+  return n > b ? "NEWER" : n === b ? "SAME" : "OLDER";
 }
-listJobs();
+
+function revRow(r, prevDocRev) {
+  const v = revVerdict(r.doc_rev, prevDocRev);
+  const badge = v && REV_VERDICT[v]
+    ? `<span class="rvbadge ${REV_VERDICT[v][1]}">${REV_VERDICT[v][0]}</span>` : "";
+  const doc = r.doc_rev
+    ? `도면 Rev.${escape(r.doc_rev)}`
+    : `<span class="muted">도면 개정 못 읽음</span>`;
+  return `<a href="#${escape(r.job_id)}" class="revrow">`
+    + `<span class="rv-name"><b>${escape(r.revision)}</b> ${doc} ${badge}</span>`
+    + `<span class="muted small">${escape(jobLine(r))}</span></a>`;
+}
+
+async function listHome() {
+  const home = await (await fetch("/home")).json();
+  const box = $("#joblist");
+  const parts = [];
+  if (home.projects.length) {
+    parts.push("<p class='muted small'>저장된 프로젝트 — 눌러서 다시 엽니다 "
+      + "(재분석하지 않습니다)</p>");
+    for (const p of home.projects) {
+      const revs = p.revisions || [];
+      // 최근순으로 왔으므로 "직전"은 배열의 다음 항목이다.
+      const rows = revs.map((r, i) => revRow(r, (revs[i + 1] || {}).doc_rev)).join("");
+      const head = revs.length
+        ? `${revs.length}개 리비전 · 최신 ${escape(revs[0].revision)}`
+        : "분석 없음";
+      parts.push(`<details class="pjt" ${revs.length ? "open" : ""}>`
+        + `<summary><b>${escape(p.name)}</b>`
+        + `<span class="muted small">${escape(head)}</span></summary>`
+        + rows + "</details>");
+    }
+  }
+  if (home.loose.length) {
+    parts.push("<p class='muted small'>프로젝트에 묶이지 않은 분석</p>"
+      + home.loose.map(j =>
+          `<a href="#${j.id}">${escape(j.pdf_name)}`
+          + `<span class="muted small">${escape(jobLine(j))}</span></a>`).join(""));
+  }
+  box.innerHTML = parts.join("");
+}
+const listJobs = listHome;      // 예전 이름으로 부르는 곳이 있다
+listHome();
 
 /* ---------------- progress ----------------
  *
@@ -433,8 +530,60 @@ function showDone(summary, elapsed) {
         + `<span class="n">${sc.held}행</span></div>${reasons}` : "")
     + (sc.legacy_no_scope
         ? `<div class="dn-note">SCOPE 판정이 없는 행 ${sc.legacy_no_scope}행 — `
-          + `이 열이 생기기 전의 분석입니다</div>` : "");
+          + `이 열이 생기기 전의 분석입니다</div>` : "")
+    + revisionLines(summary || {});
   box.classList.remove("hidden");
+}
+
+/* 개정과 승계 — 완료 화면에서도 말한다 (13회차).
+ *
+ * 첫 화면 목록이 이미 구분해 보이지만, 방금 분석을 건 사람은 결과 화면을
+ * 먼저 본다.  대표 Rev 하나만 적지 않고 **접기 전 분포**를 같이 적는다:
+ * 이 문서는 장마다 Rev 가 다르고(A~D), 대표값을 접는 규칙은 도면에서
+ * 유도되지 않아 config 에 있기 때문이다. */
+function revisionLines(summary) {
+  const out = [];
+  const dr = summary.doc_rev;
+  if (dr && dr.rev) {
+    const dist = Object.entries(dr.distribution || {})
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([r, n]) => `${r} ${n}장`).join(" · ");
+    out.push(`<div class="dn-row big"><span>도면이 말하는 개정</span>`
+      + `<span class="n">Rev.${escape(dr.rev)}</span></div>`
+      + `<div class="dn-sub">${escape(dr.why || "")}${dist ? ` — ${escape(dist)}` : ""}</div>`);
+  } else if (dr) {
+    out.push(`<div class="dn-row big"><span>도면이 말하는 개정</span>`
+      + `<span class="n">읽지 못함</span></div>`);
+  }
+  const rev = summary.revision || {};
+  const c = rev.carried;
+  if (c && c.matched) {
+    out.push(`<div class="dn-row big"><span>이전 리비전에서 이어받은 수정</span>`
+      + `<span class="n">${c.filled}칸</span></div>`
+      + `<div class="dn-sub">${escape(c.from || "")} 의 ${c.matched}행과 짝이 맞았습니다`
+      + (c.conflicts ? ` · 그중 ${c.conflicts}행은 이번 도면이 다르게 읽어 검토로 올렸습니다` : "")
+      + `</div>`);
+  }
+  const sr = rev.sheet_revisions;
+  if (sr && (sr.raised || sr.lowered || sr.ambiguous)) {
+    const bits = [];
+    if ((sr.raised || []).length) bits.push(`${sr.raised.length}장 개정`);
+    if (sr.unchanged) bits.push(`${sr.unchanged}장 그대로`);
+    if ((sr.lowered || []).length) bits.push(`${sr.lowered.length}장 역행`);
+    if (sr.new_sheets) bits.push(`${sr.new_sheets}장 신규`);
+    if (sr.unreadable) bits.push(`${sr.unreadable}장 판별 불가`);
+    // 도면번호가 장을 유일하게 가리키지 않는 경우.  판정하지 않았다는 사실을
+    // 숨기지 않는다 - 이 문서에는 그런 도면번호가 3개 있다.
+    if ((sr.ambiguous || []).length)
+      bits.push(`${sr.ambiguous.length}개 도면번호는 장이 여럿이라 판정 안 함`);
+    out.push(`<div class="dn-row big"><span>장 단위 개정 대조</span>`
+      + `<span class="n">${escape(bits.join(" · "))}</span></div>`
+      + ((sr.raised || []).length
+         ? `<div class="dn-sub">${escape(sr.raised.slice(0, 4).map(
+             r => `${r.drawing_no} ${r.before}→${r.now}`).join(" · "))}`
+           + `${sr.raised.length > 4 ? " …" : ""}</div>` : ""));
+  }
+  return out.join("");
 }
 
 /* 걷지 않는 쪽을 쪽 번호까지 적는다.  묶어서 숨기지 않는다 - 58장을 건넨
@@ -1662,13 +1811,64 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape") closeColumnMenu();
 });
 
+/* ---------------- 작성자 (13회차 [D]) ----------------
+ *
+ * 팀 여럿이 같은 서버를 쓴다.  그런데 편집 이력(`feedback`)에 **누구**를
+ * 가리키는 칸이 하나도 없었다 (13회차 조사).  인증을 만들 자리가 아니므로
+ * 자기신고로 하되, 사용자가 "매 편집마다 이름 확인"을 택했다.
+ *
+ * 그래서 **확인은 매번 하고 타자는 한 번만** 친다: 지난 이름이 채워진 채로
+ * 뜨고 Enter 로 넘어간다.  비워서 넘기면 비운 채로 저장되고 화면이
+ * "이름 없음" 이라고 적는다 - 서버도 화면도 이름을 지어내지 않는다. */
+const AUTHOR_KEY = "pid.author";
+
+function lastAuthor() {
+  try { return localStorage.getItem(AUTHOR_KEY) || ""; } catch (e) { return ""; }
+}
+function rememberAuthor(name) {
+  try { localStorage.setItem(AUTHOR_KEY, name); } catch (e) { /* 사생활 모드 */ }
+}
+
+/* 한 번에 하나만 뜬다.  뜬 동안 그리드를 다시 그리지 않는다 - 12회차의
+ * "저장이 끝나기 전에 다음 칸으로 넘어간다" 와 같은 문제를 만들지 않기 위해
+ * 이 줄은 그리드 밖(fixed)에 산다. */
+function askAuthor(what) {
+  return new Promise(resolve => {
+    const bar = document.createElement("div");
+    bar.className = "author-bar";
+    bar.innerHTML =
+      `<span class="muted small">${escape(what)} — 누가 고쳤나요?</span>`
+      + `<input type="text" placeholder="이름 (자칭)" >`
+      + `<button type="button" class="ok">확인</button>`
+      + `<button type="button" class="ghost cancel">취소</button>`;
+    document.body.appendChild(bar);
+    const box = bar.querySelector("input");
+    box.value = lastAuthor();
+    box.select();
+    const done = v => { bar.remove(); resolve(v); };
+    bar.querySelector(".ok").onclick = () => {
+      const v = box.value.trim();
+      rememberAuthor(v);
+      done(v);
+    };
+    bar.querySelector(".cancel").onclick = () => done(null);
+    box.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") { ev.preventDefault(); bar.querySelector(".ok").click(); }
+      if (ev.key === "Escape") { ev.preventDefault(); done(null); }
+    });
+    box.focus();
+  });
+}
+
 async function saveEdit(row, field, td) {
   const value = td.textContent.trim();
   const current = row.values[field] ?? "";
   if (String(current) === value) return;
+  const author = await askAuthor(`${field} 수정`);
+  if (author === null) { td.textContent = current; return; }   // 취소
   const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ field, value }),
+    body: JSON.stringify({ field, value, author }),
   });
   if (!r.ok) { alert((await r.json()).detail || "저장 실패"); td.textContent = current; return; }
   const out = await r.json();
@@ -1939,6 +2139,19 @@ function showEvidence(row) {
   const add = (k, v) => { if (v !== undefined && v !== null && v !== "") pairs.push([k, v]); };
   const hits = e.rules_hit || [];
 
+  /* 편집값과 엔진 근거를 **구분해서** 말한다 (13회차).
+   *
+   * 13회차 조사가 잡은 것: 한 행을 고치고 나면 패널이 `수량 7`(편집값)과
+   * `수량 근거 1 symbol x 2`(엔진 근거)를 나란히 놓고 둘을 구분하지 않아
+   * 서로 모순되게 읽혔다.  12회차가 스코프 축에서 고친 것과 같은 종류다.
+   * 값을 바꾸지 않고 **어디서 온 값인지**를 붙인다. */
+  const wasEdited = f => !!(row.user && f in row.user);
+  const mark = (f, v) => wasEdited(f)
+    ? `${v}  ✎ 사람이 고침 (도면 근거는 ${
+        row.ai && row.ai[f] !== undefined && row.ai[f] !== null && row.ai[f] !== ""
+          ? row.ai[f] : "비어 있음"})`
+    : v;
+
   // --- scope: who supplies it, and where the row does and does not go -------
   //
   // 두 질문을 **나눠서** 말한다 (12회차).  11회차부터 발주처 양식은
@@ -1960,7 +2173,7 @@ function showEvidence(row) {
     : supplier ? `VENDOR 공급 — ${supplier}`
     : scopeVal ? scopeVal
     : "판정 없음";
-  add("공급 주체", scopeName);
+  add("공급 주체", mark("scope", scopeName));
   add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
                               : "이 행은 추출 결과에 있습니다");
   add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)"
@@ -1975,13 +2188,14 @@ function showEvidence(row) {
   add("NOTES 원문", (e.notes_text || []).map(t => `“${t}”`).join(" / "));
 
   // --- quantity -------------------------------------------------------------
-  add("수량", row.values.qty);
+  add("수량", mark("qty", row.values.qty));
   add("수량 근거", e.qty_basis);
   add("승수 출처", e.qty_source);
 
   // --- classification -------------------------------------------------------
   add("앵커", e.anchor);
-  add("Type 판정", row.values.type && `${row.values.type}${e.anchor ? ` ← 앵커 ${e.anchor}` : ""}`);
+  add("Type 판정", row.values.type
+    && mark("type", `${row.values.type}${e.anchor ? ` ← 앵커 ${e.anchor}` : ""}`));
   add("Body 판정", e.body && `${e.body} — ${JSON.stringify(e.body_basis || {})}`);
   add("개폐 상태", e.state);
   add("액추에이터", e.actuator);
@@ -2121,14 +2335,46 @@ function showEvidence(row) {
     + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
+    + `<div id="ev-hist"></div>`
     + fromToPicker(row)
     + candidatePicker(row);
   bindCandidatePicker(row);
   bindFromToPicker(row);
   bindReviewControls(row);
   bindAxisActions(row);
+  showHistory(row);
   const evb = $("#ev-report");
   if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
+}
+
+/* 누가 · 언제 · 무엇에서 무엇으로 (13회차 [D]).
+ *
+ * 편집 이력은 `feedback` 표에 처음부터 전부 있었고 없던 것은 **누구** 하나였다.
+ * 그것을 채웠으니 이제 보인다.  이름은 자기신고이므로 화면이 그렇게 적는다 -
+ * 인증된 신원인 것처럼 보이면 안 된다.  이름 없이 저장된 편집은 "이름 없음"
+ * 이라고 쓰고, 없는 이름을 지어내지 않는다. */
+async function showHistory(row) {
+  const box = $("#ev-hist");
+  if (!box) return;
+  let hist = [];
+  try {
+    const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}/history`);
+    if (r.ok) hist = (await r.json()).history || [];
+  } catch (e) { return; }
+  if (!hist.length) { box.innerHTML = ""; return; }
+  // 패널을 다시 그리는 사이에 응답이 오면 엉뚱한 행에 붙는다.
+  if (S.sel !== row.key) return;
+  box.innerHTML = `<p class="muted small hist-head">수정 이력 ${hist.length}건 `
+    + `— 이름은 <b>자칭</b>입니다 (이 앱에는 로그인이 없습니다)</p>`
+    + `<div class="hist">` + hist.map(h =>
+        `<div class="hist-row">`
+        + `<span class="hist-who">${escape(h.author || "이름 없음")}</span>`
+        + `<span class="hist-when">${escape(whenWords(h.at))}</span>`
+        + `<span class="hist-what">${escape(h.field)} : `
+        + `${escape(h.from === "" ? "(비어 있음)" : h.from)} → `
+        + `${escape(h.to === "" ? "(지움)" : h.to)}`
+        + `${h.reason ? ` — ${escape(h.reason)}` : ""}</span></div>`).join("")
+    + `</div>`;
 }
 
 /* The phrases the drawing prints along this instrument's pipe, nearest first.

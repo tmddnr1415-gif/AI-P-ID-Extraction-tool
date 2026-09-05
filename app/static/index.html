@@ -38,6 +38,9 @@
           <button id="proj-save" type="button">만들기</button>
           <button id="proj-cancel" class="ghost" type="button">취소</button>
         </div>
+        <!-- 같은 이름이 이미 있을 때.  막지 않고 그쪽으로 가는 길을 같이 준다
+             — 대개 하려던 일이 "그 프로젝트에 개정본 더하기" 이기 때문이다. -->
+        <p id="proj-dup" class="dup-hint hidden"></p>
         <div id="proj-rev" class="field hidden">
           <label for="rev-base">비교 대상</label>
           <select id="rev-base"></select>

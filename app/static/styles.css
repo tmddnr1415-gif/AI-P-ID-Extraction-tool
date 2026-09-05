@@ -849,3 +849,55 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 /* 걸러낸 후보 층 — 펼쳤을 때 "이건 주석이다" 가 보여야 하므로 한 단 흐리게.
    색만으로 구분하지 않도록 이름표("걸러낸 텍스트")를 함께 단다. */
 .ft-group.ft-dim button.ftc { border-style: dashed; opacity: .75; }
+
+/* ---------- 첫 화면 프로젝트 목록 (13회차) ----------
+ *
+ * 단위가 job 이 아니라 **프로젝트**다.  이전 목록은 PDF 파일명만 말해서 같은
+ * `pid_total.pdf` 로 올린 두 분석을 구분할 수 없었다 (13회차 조사).  행 높이와
+ * 글자 크기는 기존 `.joblist a` 를 그대로 물려받으므로 §7.2 의 밀도가 유지된다. */
+.pjt { border: 1px solid var(--line); border-radius: var(--r-s);
+  margin: 0 0 6px; padding: 2px 0; }
+.pjt > summary { cursor: pointer; list-style: none; display: flex;
+  justify-content: space-between; gap: 12px; padding: 5px 10px; }
+.pjt > summary::-webkit-details-marker { display: none; }
+.pjt > summary::before { content: "▸"; color: var(--ink-soft);
+  margin-right: 6px; }
+.pjt[open] > summary::before { content: "▾"; }
+.pjt > summary:hover { background: var(--panel-2); }
+.revrow { padding-left: 26px !important; }
+.rv-name { display: flex; align-items: baseline; gap: 8px; }
+
+/* 개정 판정 배지 — 모양·글자·색 셋이 같이 실린다.  색만으로 구분하지 않는다
+   (§7.2 의 등급 배지와 같은 규칙). */
+.rvbadge { font-size: var(--t-s); padding: 0 6px; border-radius: 999px;
+  border: 1px solid currentColor; white-space: nowrap; }
+.rv-new { color: #1f6f3f; }         /* 크림 위 대비 5.4 */
+.rv-same { color: var(--ink-soft); }
+.rv-old { color: #a8511a; }         /* 크림 위 대비 4.6 */
+.rv-unknown { color: var(--ink-soft); border-style: dashed; }
+
+/* ---------- 작성자 확인 줄 (13회차) ----------
+ *
+ * 인증이 아니라 자기신고다.  이름을 **매 편집마다 확인**하되 다시 치게 하지는
+ * 않는다 - 지난 이름이 채워져 있고 Enter 로 넘긴다. */
+.author-bar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: 60; display: flex; align-items: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--edge);
+  border-radius: var(--r-m); padding: 8px 12px; box-shadow: var(--shadow); }
+.author-bar input { width: 160px; }
+.author-bar .muted { white-space: nowrap; }
+
+/* 행 편집 이력 — 누가 · 언제 · 무엇에서 무엇으로. */
+.hist { margin: 6px 0 0; }
+.hist-row { display: flex; gap: 8px; align-items: baseline;
+  font-size: var(--t-s); padding: 2px 0; border-top: 1px solid var(--line); }
+.hist-who { min-width: 92px; }
+.hist-when { min-width: 108px; color: var(--ink-soft); }
+.hist-what { color: var(--ink-soft); }
+
+/* 같은 이름 프로젝트 안내 (13회차).  경고가 아니라 안내다 - 붉은색을 쓰지
+   않는다.  §7.2 의 색 세 층에서 이것은 '상태' 가 아니라 '말' 이다. */
+.dup-hint { margin: 4px 0 0; padding: 8px 10px; font-size: var(--t-s);
+  border: 1px dashed var(--edge); border-radius: var(--r-s);
+  background: var(--panel-2); }
+.dup-hint button { margin-left: 8px; }

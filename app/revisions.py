@@ -417,6 +417,122 @@ def _save_project(data_dir: Path, meta: dict) -> None:
         encoding="utf-8")
 
 
+# 문서 대표 개정 — 장마다 다른 Rev 를 하나로 접는 규칙 (13회차).
+#
+# **이 규칙은 도면에서 유도되지 않는다.**  AL NOUF1 58장을 세 후보로 재면 답이
+# 갈린다: 사전순 최댓값 `D`(1장) · 최빈값 `B`(19장) · 1쪽 도면목록 `B`.
+# rev_date 는 9장에만 있고 가장 늦은 날짜(24.NOV.2025)에 C 3장과 D 1장이 섞여
+# 갈라지지 않는다.  그래서 셋 다 근거가 되지 못하고, **사용자가 실무 기준으로
+# `max`(가장 앞서간 장이 문서 Rev)를 확정했다.**  프로젝트마다 다를 수 있으므로
+# config `revision.document_rule` 로 갈아 끼운다 - 코드에 박지 않는다.
+#
+# 사전순 비교가 개정 순서와 같은 것은 형식이 `^[A-Z][0-9]?$` 이기 때문이다:
+# A < A1 < B < C < D.  형식이 다른 문서에서는 이 함수가 정렬을 바꿔야 한다.
+DOC_REV_RULES = ("max", "mode", "first_sheet")
+
+
+def document_revision(pages: list, rule: str = "max") -> dict:
+    """장별 Rev 를 문서 하나로 접는다.  접은 값과 **접기 전 분포**를 함께 준다.
+
+    분포를 같이 돌려주는 이유는, 대표값 하나만 보이면 "53장 중 3장만 C" 라는
+    사실이 사라지기 때문이다.  화면은 둘 다 적는다.
+    """
+    pid = [p for p in pages if (p.get("page_kind") or "") == "PID"]
+    seen = [str(p.get("rev") or "").strip() for p in (pid or pages)]
+    revs = [r for r in seen if r]
+    dist = {}
+    for r in revs:
+        dist[r] = dist.get(r, 0) + 1
+    out = {"rule": rule, "sheets": len(pid or pages), "read": len(revs),
+           "unread": len(seen) - len(revs), "distribution": dist}
+    if not revs:
+        out["rev"] = ""
+        out["why"] = "어느 장에서도 개정을 읽지 못했습니다"
+        return out
+    if rule == "mode":
+        out["rev"] = max(sorted(dist), key=lambda r: (dist[r], r))
+        out["why"] = f"가장 많은 장의 개정 ({dist[out['rev']]}/{len(revs)}장)"
+    elif rule == "first_sheet":
+        first = sorted(pages, key=lambda p: p.get("page_no") or 0)
+        got = [str(p.get("rev") or "").strip() for p in first
+               if str(p.get("rev") or "").strip()]
+        out["rev"] = got[0] if got else ""
+        out["why"] = "첫 장의 개정"
+    else:
+        out["rev"] = max(revs)
+        out["why"] = (f"가장 앞서간 장의 개정 ({dist[out['rev']]}/{len(revs)}장이 "
+                      f"{out['rev']})")
+    return out
+
+
+def compare_document_revision(now: str, before: str) -> dict:
+    """이 PDF 가 이전 리비전보다 나중인가.  판정은 네 가지뿐이고 추정하지 않는다."""
+    n, b = (now or "").strip(), (before or "").strip()
+    if not n or not b:
+        return {"verdict": "UNKNOWN", "now": n, "before": b,
+                "label": ("이 도면의 개정을 읽지 못했습니다" if not n
+                          else "이전 리비전의 개정 기록이 없습니다")}
+    if n > b:
+        return {"verdict": "NEWER", "now": n, "before": b,
+                "label": f"개정본입니다 — {b} 다음 {n}"}
+    if n == b:
+        return {"verdict": "SAME", "now": n, "before": b,
+                "label": f"같은 개정입니다 — 둘 다 {n}"}
+    return {"verdict": "OLDER", "now": n, "before": b,
+            "label": f"이전 개정입니다 — 등록된 것은 {b} 인데 이 도면은 {n}"}
+
+
+def _sheets_by_drawing(pages: list) -> dict:
+    """도면번호 -> 그 번호를 쓰는 PID 장들."""
+    out = {}
+    for p in pages:
+        if (p.get("page_kind") or "") != "PID":
+            continue
+        out.setdefault(str(p.get("drawing_no") or ""), []).append(p)
+    return out
+
+
+def compare_sheet_revisions(now: list, before: list) -> dict:
+    """장 단위 대조 — 도면번호로 짝을 짓는다.  대표값과 달리 임의값이 없다.
+
+    **⚠ 도면번호가 장을 유일하게 가리키지 않는다.**  AL NOUF1 실측: 같은
+    도면번호를 쓰는 PID 장이 3쌍 있고 그 장들의 개정이 서로 다르다
+    (`D00P-10LBG10-M05-0001` p12 `B` ↔ p15 `A` · `D00P-00GHC10-M05-0001`
+    p46 `C` ↔ p47 `B` · `D00P-00GMA10-M05-0001` p52 `A` ↔ p55 `B`).
+    한쪽만 골라 비교하면 **같은 PDF 를 두 번 넣어도 "개정 2장 · 역행 1장"이
+    나온다** — 13회차 캡처가 실제로 그것을 잡았다.
+
+    그래서 그런 도면번호는 **판정하지 않고 `ambiguous` 로 센다.**  어느 장이
+    어느 장의 후속인지는 도면번호로 알 수 없고, 짝을 지어 주는 규칙을 만들면
+    그것이 곧 임의값이다 (§2.1 ③).  쪽 번호로 짝을 짓는 것도 안 된다: 개정
+    때 장 순서가 바뀌는 것이 개정의 흔한 모습이다.
+    """
+    prev_by = _sheets_by_drawing(before)
+    now_by = _sheets_by_drawing(now)
+    up, same, down, unknown, added, ambiguous = [], 0, [], 0, 0, []
+    for dn, sheets in sorted(now_by.items()):
+        prev_sheets = prev_by.get(dn)
+        if not prev_sheets:
+            added += len(sheets)
+            continue
+        if len(sheets) > 1 or len(prev_sheets) > 1:
+            ambiguous.append({"drawing_no": dn, "now_sheets": len(sheets),
+                              "before_sheets": len(prev_sheets)})
+            continue
+        r = str(sheets[0].get("rev") or "").strip()
+        b = str(prev_sheets[0].get("rev") or "").strip()
+        if not r or not b:
+            unknown += 1
+        elif r > b:
+            up.append({"drawing_no": dn, "before": b, "now": r})
+        elif r == b:
+            same += 1
+        else:
+            down.append({"drawing_no": dn, "before": b, "now": r})
+    return {"raised": up, "unchanged": same, "lowered": down,
+            "unreadable": unknown, "new_sheets": added, "ambiguous": ambiguous}
+
+
 def next_revision(meta: dict) -> str:
     """다음 리비전 이름.  A 부터 순서대로, 건너뛰지 않는다."""
     n = len(meta.get("revisions") or [])

@@ -209,6 +209,22 @@ _ADDED_COLUMNS = (
     # 58쪽 중 52장을 걷는다면 나머지 6장이 어디로 갔는지가 여기 있다.
     # 쪽 번호까지 들고 있으므로 화면에서 묶어 숨길 필요가 없다.
     ("job", "sheet_plan", "TEXT NOT NULL DEFAULT ''"),
+    # 도면이 스스로 말하는 개정 (13회차).  `extract_titleblocks` 는 처음부터
+    # 이 값을 읽고 있었는데(58장 전부 신뢰도 HIGH) 저장하는 곳이 없어 분석이
+    # 끝나면 다시 볼 수 없었다.  판정에는 쓰이지 않는다 - 지문에도 들어가지
+    # 않고, 화면이 "이 PDF 가 개정본인가"를 말할 때만 읽는다.
+    ("pid_page", "rev", "TEXT NOT NULL DEFAULT ''"),
+    ("pid_page", "rev_method", "TEXT NOT NULL DEFAULT ''"),
+    ("pid_page", "rev_confidence", "TEXT NOT NULL DEFAULT ''"),
+    ("pid_page", "rev_date", "TEXT NOT NULL DEFAULT ''"),
+    # 문서 한 장으로 접은 값.  이 문서는 장마다 Rev 가 다르므로(A 15 · A1 1 ·
+    # B 19 · C 16 · D 7) 접는 규칙이 필요하고, 그 규칙은 도면에서 유도되지
+    # 않는다 - 사용자가 "가장 앞서간 장이 문서 Rev" 로 확정했다(13회차).
+    # 접은 값만 두지 않고 장별 값도 위에 그대로 남긴다.
+    ("job", "doc_rev", "TEXT NOT NULL DEFAULT ''"),
+    # 누가 고쳤나.  인증이 아니라 자기신고다 - 이 앱에는 로그인도 사용자
+    # 테이블도 없고, 없는 것을 지어내지 않는다.  화면이 "자칭"이라고 적는다.
+    ("feedback", "author", "TEXT NOT NULL DEFAULT ''"),
 )
 
 
@@ -311,13 +327,22 @@ def store_result(con, job_id: str, result: dict) -> dict:
     not resolved here: both values are kept and the row goes to review.
     """
     con.execute("DELETE FROM pid_page WHERE job_id=?", (job_id,))
+    # 장별 개정은 파이프라인이 이미 읽어 `titleblocks` 로 넘겨준다 (13회차).
+    # 여기서 하는 일은 그것을 쪽 행에 옮겨 적는 것뿐이고, 값을 만들거나 고치지
+    # 않는다 - 읽지 못한 장은 빈 문자열로 남고 빈 문자열은 "모른다"는 뜻이다.
+    tb = {t["page_no"]: t for t in (result.get("titleblocks") or [])}
     for p in result["pages"]:
+        t = tb.get(p["page_no"], {})
         con.execute(
             "INSERT INTO pid_page (job_id,page_no,drawing_no,title,page_kind,"
-            "in_scope,scope_reason,width,height,layers_json) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "in_scope,scope_reason,width,height,layers_json,"
+            "rev,rev_method,rev_confidence,rev_date)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (job_id, p["page_no"], p["drawing_no"], p["title"], p["page_kind"],
              int(p["in_scope"]), p["scope_reason"], p["width"], p["height"],
-             json.dumps(result["layers"].get(str(p["page_no"]), {}), sort_keys=True)))
+             json.dumps(result["layers"].get(str(p["page_no"]), {}), sort_keys=True),
+             str(t.get("rev") or ""), str(t.get("rev_method") or ""),
+             str(t.get("rev_confidence") or ""), str(t.get("rev_date") or "")))
 
     existing = {r["key"]: r for r in con.execute(
         "SELECT * FROM item WHERE job_id=?", (job_id,)).fetchall()}
@@ -594,21 +619,48 @@ def record_feedback(con, job_id: str, kind: str, *, row_key: str = "",
                     page_no: int = None, drawing_no: str = "", rect=None,
                     field: str = "", ai_value="", user_value="",
                     reason: str = "", basis: dict = None,
-                    geometry: dict = None, pattern_args: dict = None) -> int:
+                    geometry: dict = None, pattern_args: dict = None,
+                    author: str = "") -> int:
     args = dict(pattern_args or {})
     cur = con.execute(
         "INSERT INTO feedback (job_id, created_at, kind, row_key, page_no,"
         " drawing_no, rect_json, field, ai_value, user_value, reason, pattern,"
-        " basis_json, geometry_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " basis_json, geometry_json, author)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (job_id, time.time(), kind, row_key, page_no, drawing_no,
          json.dumps(list(rect or []), default=str), field,
          "" if ai_value is None else str(ai_value),
          "" if user_value is None else str(user_value),
          reason, _pattern(kind, **args),
          json.dumps(basis or {}, default=str, sort_keys=True),
-         json.dumps(geometry or {}, default=str, sort_keys=True)))
+         json.dumps(geometry or {}, default=str, sort_keys=True),
+         " ".join(str(author or "").split())[:60]))
     con.commit()
     return cur.lastrowid
+
+
+def last_authors(con, job_id: str, row_key: str) -> dict:
+    """그 행의 각 칸을 마지막으로 고친 사람.  승계할 때 이름을 잇기 위한 것이다."""
+    out = {}
+    for r in con.execute(
+            "SELECT field, author, created_at FROM feedback WHERE job_id=?"
+            " AND row_key=? AND kind='EDITED' ORDER BY id", (job_id, row_key)):
+        out[r["field"]] = {"author": r["author"], "at": r["created_at"]}
+    return out
+
+
+def row_edit_history(con, job_id: str, row_key: str, limit: int = 40) -> list:
+    """한 행의 편집 이력 — 누가 · 언제 · 어느 칸 · 무엇에서 무엇으로.
+
+    근거 스냅숏(`basis_json`)은 빼고 돌려준다: 화면이 묻는 것은 "누가 고쳤나"
+    이고, 근거는 이미 근거 패널이 따로 보이고 있다.
+    """
+    return [{"at": r["created_at"], "author": r["author"], "field": r["field"],
+             "from": r["ai_value"], "to": r["user_value"], "reason": r["reason"]}
+            for r in con.execute(
+                "SELECT created_at, author, field, ai_value, user_value, reason"
+                " FROM feedback WHERE job_id=? AND row_key=? AND kind='EDITED'"
+                " ORDER BY id DESC LIMIT ?", (job_id, row_key, limit))]
 
 
 def feedback_count(con, job_id: str) -> int:
@@ -845,6 +897,114 @@ def get_revision(con, revision_id: int):
 # --------------------------------------------------------------------------
 # 리비전 대조 결과
 # --------------------------------------------------------------------------
+
+def row_count(con, job_id: str) -> int:
+    """살아 있는 행 수.  검토자가 지운 행은 빼고 센다 - 목록이 말하는 수와
+    화면에 뜨는 수가 갈리면 안 된다."""
+    return con.execute("SELECT COUNT(*) FROM item WHERE job_id=? AND removed=0"
+                       " AND deleted=0", (job_id,)).fetchone()[0]
+
+
+def edited_cell_count(con, job_id: str) -> int:
+    """사람이 고친 **칸**의 수 (행이 아니라).  첫 화면이 "손댄 적 있는 분석"을
+    구분할 수 있어야 한다."""
+    n = 0
+    for r in con.execute("SELECT user_json FROM item WHERE job_id=?"
+                         " AND user_json<>'{}'", (job_id,)):
+        n += len([v for v in json.loads(r["user_json"]).values()
+                  if v not in (None, "")])
+    return n
+
+
+def page_revisions(con, job_id: str) -> list:
+    """장별 개정 — 도면이 스스로 말한 값 그대로 (13회차).
+
+    분석 대상이 아닌 쪽(범례 · 도면 목록)도 함께 돌려준다.  대표값은 PID 장만
+    보고 접지만, 사람이 화면에서 확인할 때는 전부 보여야 한다.
+    """
+    return [dict(r) for r in con.execute(
+        "SELECT page_no, drawing_no, page_kind, in_scope, rev, rev_method,"
+        " rev_confidence, rev_date FROM pid_page WHERE job_id=? ORDER BY page_no",
+        (job_id,))]
+
+
+def set_doc_rev(con, job_id: str, doc_rev: str) -> None:
+    con.execute("UPDATE job SET doc_rev=? WHERE id=?", (doc_rev or "", job_id))
+    con.commit()
+
+
+def carry_user_values(con, job_id: str, values: dict) -> int:
+    """이전 리비전의 편집을 이 리비전 행에 얹는다 (13회차 [D]).
+
+    `values` 는 `{행 키: {열: 값}}`.  **이미 이 리비전에서 사람이 고친 칸은
+    건드리지 않는다** — 승계는 빈 자리를 채우는 것이지 덮어쓰는 것이 아니다.
+    `ai_json` 도 건드리지 않으므로 추출값 층은 그대로다.
+
+    돌려주는 것은 실제로 채운 칸의 수다.  화면이 "N칸을 이어받았습니다" 라고
+    적을 수 있어야 하고, 그 수가 0 이면 0 이라고 적어야 한다.
+    """
+    filled = 0
+    for key, fields in values.items():
+        row = con.execute("SELECT user_json FROM item WHERE job_id=? AND key=?",
+                          (job_id, key)).fetchone()
+        if row is None:
+            continue
+        user = json.loads(row["user_json"])
+        for field, value in fields.items():
+            if field not in EDITABLE or value in (None, ""):
+                continue
+            if field in user:               # 이 리비전에서 이미 고친 칸
+                continue
+            user[field] = value
+            filled += 1
+        con.execute("UPDATE item SET user_json=? WHERE job_id=? AND key=?",
+                    (json.dumps(user, sort_keys=True), job_id, key))
+    con.commit()
+    return filled
+
+
+def user_values_of(con, job_id: str) -> dict:
+    """그 리비전에서 사람이 고친 칸 전부.  `{행 키: {열: 값}}`."""
+    out = {}
+    for r in con.execute("SELECT key, user_json FROM item WHERE job_id=?"
+                         " AND user_json<>'{}'", (job_id,)):
+        vals = {k: v for k, v in json.loads(r["user_json"]).items()
+                if v not in (None, "")}
+        if vals:
+            out[r["key"]] = vals
+    return out
+
+
+def ai_values_of(con, job_id: str) -> dict:
+    """그 리비전에서 엔진이 읽은 값 전부.  승계한 칸이 그 사이 바뀌었는지
+    보려면 두 리비전의 이 값을 견줘야 한다."""
+    return {r["key"]: json.loads(r["ai_json"])
+            for r in con.execute("SELECT key, ai_json FROM item WHERE job_id=?",
+                                 (job_id,))}
+
+
+def flag_carry_conflicts(con, job_id: str, conflicts: dict) -> None:
+    """승계한 칸에서 엔진의 답이 이전 리비전과 달라진 것을 검토로 올린다.
+
+    재분석의 `store_result` 가 하는 것과 **같은 규칙**이다 (§13-D): 값을 고르지
+    않고 둘 다 들고 사람에게 보인다.  다른 것은 비교 상대뿐이다 - 저기서는
+    같은 job 의 이전 분석이고, 여기서는 이전 리비전이다.
+    """
+    for key, fields in conflicts.items():
+        row = con.execute("SELECT needs_review, conflict_json FROM item"
+                          " WHERE job_id=? AND key=?", (job_id, key)).fetchone()
+        if row is None:
+            continue
+        conflict = json.loads(row["conflict_json"])
+        conflict.update(fields)
+        note = ("이전 리비전에서 이어받은 " + ", ".join(sorted(fields))
+                + " 칸을 이번 도면이 다르게 읽었습니다")
+        review = "; ".join(filter(None, [row["needs_review"], note]))
+        con.execute("UPDATE item SET conflict_json=?, needs_review=?"
+                    " WHERE job_id=? AND key=?",
+                    (json.dumps(conflict, sort_keys=True), review, job_id, key))
+    con.commit()
+
 
 def set_job_revision(con, job_id: str, project: str, revision: str,
                      compared_with: str) -> None:
