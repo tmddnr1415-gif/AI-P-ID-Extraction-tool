@@ -1,73 +1,73 @@
 [감사] 산출 대상 1029행 / job 1개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
-[감사] 고아 업로드 0 · 고아 출력 2 · 고아 진단 0 · DB 31.7 MB 중 죽은 페이지 5.5 MB · 정리하면 되찾는 용량 6.0 MB
+[감사] 고아 업로드 0 · 고아 출력 1 · 고아 진단 0 · DB 42.1 MB 중 죽은 페이지 5.5 MB · 정리하면 되찾는 용량 5.8 MB
 [감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
-INFO:     Started server process [2269]
+INFO:     Started server process [3550]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8833 (Press CTRL+C to quit)
-INFO:     127.0.0.1:57012 - "GET /jobs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57016 - "GET /jobs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57024 - "GET /jobs/84d03e4ff7c4/rows?tab=FIELD HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57040 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57044 - "PATCH /jobs/84d03e4ff7c4/rows/eee32316f600b193 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /static/styles.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57066 - "GET /static/app.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57066 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57090 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57082 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57066 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /projects HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /home HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57066 - "GET /version HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /static/favicon.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57090 - "GET /audit HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/pages HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57090 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57082 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57066 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/revision HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/rows?tab=ALL HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/axis_overrides HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/drawings HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/review HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/feedback?limit=1 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/reports HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /templates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "PATCH /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57098 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/axis_candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/axis_candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/026e63953e146e2d/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "PATCH /jobs/84d03e4ff7c4/rows/026e63953e146e2d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/026e63953e146e2d/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/page/56.png?zoom=1.6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/axis_candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "PATCH /jobs/84d03e4ff7c4/rows/eee32316f600b193 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/axis_candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "PATCH /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "GET /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "PATCH /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38070 - "GET /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee/history HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57104 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52598 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52606 - "POST /jobs/84d03e4ff7c4/snapshot HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60236 - "GET /revisions/3/excel HTTP/1.1" 200 OK
+INFO:     Uvicorn running on http://127.0.0.1:8871 (Press CTRL+C to quit)
+INFO:     127.0.0.1:48918 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48930 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48946 - "GET /jobs/84d03e4ff7c4/rows?tab=FIELD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45204 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45218 - "PATCH /jobs/84d03e4ff7c4/rows/eee32316f600b193 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45222 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45222 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45254 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45268 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45236 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45254 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45236 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45254 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45222 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45268 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45222 - "GET /jobs/84d03e4ff7c4/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45236 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45254 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45268 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "PATCH /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45234 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/0496c0be022bd8d2/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/026e63953e146e2d/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "PATCH /jobs/84d03e4ff7c4/rows/026e63953e146e2d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/026e63953e146e2d/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/page/56.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "PATCH /jobs/84d03e4ff7c4/rows/eee32316f600b193 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/eee32316f600b193/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "PATCH /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/rows/0e96b25afd3ef9aa/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "GET /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "PATCH /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49560 - "GET /jobs/84d03e4ff7c4/rows/03847a39c0ee64ee/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45244 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48858 - "GET /jobs/84d03e4ff7c4/scope_summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48862 - "POST /jobs/84d03e4ff7c4/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48874 - "GET /revisions/4/excel HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [2269]
+INFO:     Finished server process [3550]
