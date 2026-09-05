@@ -212,8 +212,68 @@ def _values(page, keys, col):
         }""", [keys, col])
 
 
+SCOPE_DELIVERED = "SCT"
+
+
+def _scope_of(row) -> str:
+    """이 행의 지금 SCOPE - 사람이 고친 값이 있으면 그것.
+
+    화면(`scopeFacts`)·서버(`excel_out.in_client_scope`)와 **같은 세 갈래**로
+    가른다: `SCT` 는 양식에 나가고, 다른 값은 안 나가고, 빈 값은 "판정한 적
+    없음" 이라 나간다.
+    """
+    user = row.get("user") or {}
+    return str(user.get("scope") or row["values"].get("scope") or "").strip()
+
+
+def _scope_state(row) -> str:
+    v = _scope_of(row)
+    return "delivered" if v == SCOPE_DELIVERED else "vendor" if v else "legacy"
+
+
 @pytest.fixture(scope="module")
-def edited(page):
+def field_rows(server, job_id):
+    """FIELD 행을 SCOPE 갈래로 나눠 둔다 - **순서가 아니라 상태로 고르기 위해.**
+
+    14회차에 이 스위트가 처음으로 10회차 이후 데이터에서 돌았고, `edited` 가
+    "첫 다섯 행" 을 집던 탓에 두 시험이 깨졌다: 새 분석에서는 그 다섯 중
+    3행이 `VENDOR(HRSG)` 였고, 11회차부터 발주처 양식은 SCT 만 담으므로 그
+    행에 넣은 편집은 파일에 닿지 않는다.  제품이 맞고 시험의 가정이 틀렸다.
+    """
+    rows = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/rows?tab=FIELD").read())
+    live = [r for r in rows if not r.get("deleted") and not r.get("added")]
+    out = {"delivered": [], "vendor": [], "legacy": []}
+    for r in live:
+        out[_scope_state(r)].append(r)
+    return out
+
+
+def test_step0_the_suite_runs_against_scope_aware_data(field_rows):
+    """★ 이 스위트가 **어떤 데이터에서 도는지** 시험이 먼저 말한다 (14회차).
+
+    11·12·13 회차의 `UI 21` 은 전부 10회차 이전 DB 에서 나온 값이었다 - 그
+    DB 는 SCOPE 가 전부 빈칸이라 `legacy` 로 분류되고, 그러면 SCT 필터가
+    실질적으로 아무 행도 거르지 않는다.  필터를 시험한다고 적어 둔 시험이
+    필터가 꺼진 것과 같은 데이터에서만 돌고 있었던 것이고, 파일 동일성으로는
+    잡히지 않는 종류였다.
+
+    그래서 전제를 코드로 못박는다: **양식에 나가는 행과 안 나가는 행이 둘 다
+    있어야** 아래 시험들이 무엇인가를 시험한 것이 된다.  건너뛰지 않고
+    실패시키는 이유는, 건너뛰기가 바로 그 침묵을 세 회차 동안 만들었기
+    때문이다.
+    """
+    assert field_rows["delivered"], (
+        "이 DB 에는 SCOPE=SCT 인 FIELD 행이 없다 - 필터가 무엇을 통과시키는지 "
+        "시험할 수 없다")
+    assert field_rows["vendor"], (
+        "이 DB 에는 SCOPE 가 SCT 가 아닌 FIELD 행이 없다 - 10회차 이전 분석"
+        "(SCOPE 전부 빈칸)으로 보인다.  다시 분석한 결과에서 돌려야 이 스위트가 "
+        "발주처 양식 필터를 실제로 시험한다")
+
+
+@pytest.fixture(scope="module")
+def edited(page, field_rows):
     """Step 1 - edit five rows, one column each, and read back what stuck."""
     # Field rows only.  The five columns exercised here all exist in the
     # instrument form; the valve form has no Vendor column at all, so editing a
@@ -228,12 +288,19 @@ def edited(page):
     # strikes one out in step 5 - so on a database it has already run against,
     # taking "the first five rows" can pick one of its own casualties and the
     # failure looks like an editing bug.  Take five live ones.
+    #
+    # **SCOPE=SCT 인 행만 고른다** (14회차).  step6 두 시험이 "고친 값이 발주처
+    # 양식 칸에 있는가" 를 보는데, 양식은 SCT 만 담으므로 벤더 행을 집으면 그
+    # 시험이 제품의 정상 동작을 실패로 읽는다.  나가지 않는 쪽은 아래
+    # `test_step6_edit_on_a_vendor_row_*` 가 따로 시험한다.
+    want = {r["key"] for r in field_rows["delivered"]}
     keys = page.evaluate(
-        "[...document.querySelectorAll('#body tr')]"
+        "want => [...document.querySelectorAll('#body tr')]"
         ".filter(tr => !tr.classList.contains('deleted')"
-        "           && !tr.classList.contains('added'))"
-        ".slice(0, 5).map(tr => tr.dataset.key)")
-    assert len(keys) == 5, "need five live Field rows to edit"
+        "           && !tr.classList.contains('added')"
+        "           && want.includes(tr.dataset.key))"
+        ".slice(0, 5).map(tr => tr.dataset.key)", sorted(want))
+    assert len(keys) == 5, "need five live SCT Field rows to edit"
     for key, (col, value) in zip(keys, EDITS):
         _type_edit(page, _cell(page, key, col), value)
     made = {k: (c, v) for k, (c, v) in zip(keys, EDITS)}
@@ -438,7 +505,7 @@ def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
 
 
 def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
-        page, edited, server, job_id, tmp_path):
+        page, edited, field_rows, server, job_id, tmp_path):
     """SCOPE 는 값이 아니라 **출력 범위**다 (11회차).
 
     발주처 양식은 SCOPE=SCT 만 담는다.  그래서 어떤 행의 SCOPE 를 SCT 가 아닌
@@ -455,10 +522,12 @@ def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
     page.evaluate(
         """() => document.querySelector('#tabs button[data-tab="FIELD"]').click()""")
     page.wait_for_timeout(600)
-    key = page.evaluate(
-        "() => (document.querySelector('#body tr') || {}).dataset?.key || null")
-    if not key:
-        pytest.skip("no FIELD rows")
+    # **범위 안에 있는 행**을 고른다 (14회차).  이미 범위 밖인 행의 SCOPE 를
+    # 또 바꾸면 당연히 행수가 안 줄고(실측 667 → 667), 그것은 필터가 아니라
+    # 시험의 가정이 틀린 것이다.
+    key = next((r["key"] for r in field_rows["delivered"]
+                if r["key"] not in edited), None)
+    assert key, "SCOPE=SCT 인 FIELD 행이 있어야 이 시험이 성립한다"
 
     def export(label):
         req = urllib.request.Request(
@@ -490,6 +559,99 @@ def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
     # 되돌린다 - 뒤따르는 시험(step7)이 같은 행을 본다.
     _type_edit(page, _cell(page, key, "scope"), "SCT")
     page.wait_for_timeout(400)
+
+
+def _field_rows_in_export(server, job_id, tmp_path, label):
+    """지금 상태로 발주처 양식을 만들어 (MANIFEST, FIELD 행수, 담긴 문자열) 을 준다."""
+    import urllib.request
+    req = urllib.request.Request(
+        f"{server}/jobs/{job_id}/snapshot", method="POST",
+        data=json.dumps({"label": label}).encode(),
+        headers={"Content-Type": "application/json"})
+    rev = json.loads(urllib.request.urlopen(req).read())["revision_id"]
+    data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+    zp = tmp_path / f"{label}.zip"
+    zp.write_bytes(data)
+    import openpyxl
+    cells = set()
+    with zipfile.ZipFile(zp) as z:
+        man = json.loads(z.read("MANIFEST.json"))
+        for name in [n for n in z.namelist() if n.endswith(".xlsx")]:
+            z.extract(name, tmp_path)
+            wb = openpyxl.load_workbook(tmp_path / name)
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    for cell in row:
+                        if isinstance(cell, str):
+                            cells.add(cell)
+    field = next((w for w in man["written"] if w["kind"] == "FIELD"), None)
+    return man, (field or {}).get("rows"), cells
+
+
+def test_step6_edit_on_a_vendor_row_does_not_reach_the_client_workbook(
+        page, edited, field_rows, server, job_id, tmp_path):
+    """SCOPE 가 SCT 가 아닌 행의 편집은 발주처 양식에 **안 실린다 — 그것이 정상이다.**
+
+    11회차부터 발주처 양식은 SCT 만 담는다.  그래서 벤더 행에 넣은 값이 파일에
+    없는 것은 결함이 아니라 필터가 일한 것이고, 이 시험은 그 사실을 못박는다.
+    화면·DB 에는 그대로 남아야 한다 - 값이 사라지는 것과 파일에 안 나가는 것은
+    다른 일이고, 나중에 그 행의 SCOPE 가 SCT 로 바뀌면 값은 그때 나간다.
+
+    (14회차에 깨진 두 시험의 **반대편**이다.  깨진 쪽은 SCT 행을 고르게 고쳤고,
+    이쪽은 벤더 행을 일부러 골라 안 나가는 것을 확인한다.)
+    """
+    import urllib.request
+    row = field_rows["vendor"][0]
+    key, mark = row["key"], "UI-VENDOR-EDIT"
+    page.evaluate(
+        """() => document.querySelector('#tabs button[data-tab="FIELD"]').click()""")
+    page.wait_for_timeout(600)
+    _type_edit(page, _cell(page, key, "tag_no"), mark)
+    page.wait_for_timeout(400)
+
+    # 화면과 DB 에는 남는다
+    rows = {r["key"]: r for r in json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/rows?tab=ALL").read())}
+    assert rows[key]["values"]["tag_no"] == mark, "벤더 행 편집이 저장되지 않았다"
+    assert _scope_state(rows[key]) == "vendor", "이 시험은 벤더 행이어야 성립한다"
+
+    # 파일에는 없다
+    man, _rows, cells = _field_rows_in_export(server, job_id, tmp_path, "vendor-edit")
+    assert mark not in cells, (
+        "SCOPE 가 SCT 가 아닌 행의 편집이 발주처 양식에 실렸다 - 필터가 새고 있다")
+    assert man.get("out_of_scope_rows", 0) > 0, (
+        "빠진 행이 MANIFEST 에 안 적혔다 - 조용히 사라지면 안 된다")
+
+
+def test_step6_a_row_with_no_scope_is_written_not_dropped(
+        page, edited, field_rows, server, job_id, tmp_path):
+    """SCOPE 가 **빈** 행은 담긴다 — "판정한 적 없음" 은 "타사 공급" 이 아니다.
+
+    회사 PC 는 반영 직후 822행이 이 상태다(10회차 이전 분석).  없는 판정을
+    타사 공급으로 읽으면 발주처 양식 네 개가 통째로 빈 파일이 되고, 이 스위트가
+    예전에 실제로 그것을 잡았다.
+
+    새로 분석한 결과에는 빈 SCOPE 행이 없으므로(전 행이 판정된다) 한 행의
+    SCOPE 를 지워 그 상태를 만든다.  판정을 지우는 것은 사람이 할 수 있는
+    편집이고, `legacy` 갈래는 값이 비었다는 사실 하나로 정해진다.
+    """
+    import urllib.request
+    row = next(r for r in field_rows["delivered"] if r["key"] not in edited)
+    key = row["key"]
+    urllib.request.urlopen(urllib.request.Request(
+        f"{server}/jobs/{job_id}/rows/{key}",
+        data=json.dumps({"field": "scope", "value": "  ",
+                         "author": "UI 시험"}).encode(), method="PATCH",
+        headers={"Content-Type": "application/json"})).read()
+    fresh = {r["key"]: r for r in json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}/rows?tab=ALL").read())}
+    if _scope_state(fresh[key]) != "legacy":
+        pytest.skip("SCOPE 를 비울 수 없는 행이다 - 빈 값이 엔진 값으로 되돌아온다")
+
+    man, rows_n, _cells = _field_rows_in_export(server, job_id, tmp_path, "legacy-row")
+    assert man.get("legacy_no_scope_rows", 0) >= 1, (
+        "SCOPE 가 빈 행이 MANIFEST 의 legacy_no_scope_rows 에 안 세어졌다")
+    assert rows_n, "발주처 양식이 통째로 비었다 - 없는 판정을 타사 공급으로 읽고 있다"
 
 
 def test_step7_reanalysis_keeps_edits_and_refreshes_ai(page, edited, server, job_id):

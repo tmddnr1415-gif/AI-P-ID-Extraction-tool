@@ -784,6 +784,26 @@ def rows(job_id: str, tab: str = "ALL"):
     return out
 
 
+@app.get("/jobs/{job_id}/scope_summary")
+def scope_summary_now(job_id: str):
+    """지금 이 순간 발주처 양식에 나가는 행 수 — **사람이 고친 값까지 반영**한다.
+
+    완료 화면의 숫자는 분석이 끝난 순간의 것이라, 그 뒤에 누가 SCOPE 를 고치면
+    화면과 파일이 갈린다.  편집 안내가 "780행 → 779행" 이라고 말하려면 그 값이
+    산출 필터와 같은 판정에서 나와야 하므로, 완료 화면이 쓰는 `_scope_summary`
+    를 **그대로** 부른다 (그 함수가 `excel_out.in_client_scope` 를 쓴다).
+
+    삭제 표시된 행은 뺀다 — `excel_out.write_all` 이 그 행을 먼저 거르므로,
+    빼지 않으면 이 수와 실제 파일의 행수가 갈린다.
+    """
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    rows = [{"scope": r["values"].get("scope"), "tab": r["tab"],
+             "type": r["values"].get("type")}
+            for r in db.merged_rows(CON, job_id) if not r.get("deleted")]
+    return _scope_summary(rows)
+
+
 @app.get("/jobs/{job_id}/review")
 def job_review(job_id: str):
     """Every reason a person has to look, filed under the axis it belongs to.

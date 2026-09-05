@@ -1832,12 +1832,15 @@ function rememberAuthor(name) {
 /* 한 번에 하나만 뜬다.  뜬 동안 그리드를 다시 그리지 않는다 - 12회차의
  * "저장이 끝나기 전에 다음 칸으로 넘어간다" 와 같은 문제를 만들지 않기 위해
  * 이 줄은 그리드 밖(fixed)에 산다. */
-function askAuthor(what) {
+function askAuthor(what, hint) {
+  // 이름을 묻는 순간 앞 편집의 안내는 지운다 - 그것은 이미 다른 행 이야기다.
+  document.querySelectorAll(".edit-note").forEach(n => n.remove());
   return new Promise(resolve => {
     const bar = document.createElement("div");
-    bar.className = "author-bar";
+    bar.className = "author-bar" + (hint ? " with-hint" : "");
     bar.innerHTML =
-      `<span class="muted small">${escape(what)} — 누가 고쳤나요?</span>`
+      (hint ? `<span class="ab-hint">${escape(hint)}</span>` : "")
+      + `<span class="muted small">${escape(what)} — 누가 고쳤나요?</span>`
       + `<input type="text" placeholder="이름 (자칭)" >`
       + `<button type="button" class="ok">확인</button>`
       + `<button type="button" class="ghost cancel">취소</button>`;
@@ -1860,11 +1863,85 @@ function askAuthor(what) {
   });
 }
 
+/* 편집이 발주처 양식에 어떻게 닿는지 — 고친 **그 순간** 말한다 (14회차).
+ *
+ * 12회차의 근거 패널은 행을 **누른** 사람에게만 말한다.  칸을 바로 고치는
+ * 사람은 패널을 안 볼 수 있고, 갈음 검증에서 드러난 것이 정확히 그 경우다:
+ * 벤더 행의 값을 고쳐도 발주처 양식에는 안 실리는데 화면이 조용했다.
+ *
+ * **막지 않는다.**  화면·DB 에는 남아야 하고, 그 행의 SCOPE 가 나중에 SCT 로
+ * 바뀔 수도 있다.  알리기만 한다.
+ *
+ * 판정은 `scopeFacts` 하나에서 온다(근거 패널과 같은 함수).  행수는 서버의
+ * `/scope_summary` 에서 오고, 그 응답은 산출 필터와 같은 판정을 쓴다 - 화면이
+ * 말하는 수와 파일에 들어가는 수가 갈리면 안 된다. */
+function editNotice(text, tone) {
+  // 한 번에 한 줄만 둔다.  14회차 캡처가 잡은 것: 앞 편집의 "나갑니다" 가
+  // 남아 있는 채로 다음 행의 "나가지 않습니다" 가 떠서, **서로 반대인 두
+  // 문장이 동시에** 화면에 있었다.  둘 다 각자의 행에 대해서는 맞는 말이라
+  // 더 나쁘다 - 어느 행 이야기인지 화면이 말하지 않는다.
+  document.querySelectorAll(".edit-note").forEach(n => n.remove());
+  const bar = document.createElement("div");
+  bar.className = "edit-note" + (tone ? ` ${tone}` : "");
+  bar.textContent = text;
+  document.body.appendChild(bar);
+  setTimeout(() => bar.classList.add("go"), 4200);
+  setTimeout(() => bar.remove(), 4900);
+  return bar;
+}
+
+async function formRowCount() {
+  try {
+    const r = await fetch(`/jobs/${S.job.id}/scope_summary`);
+    if (!r.ok) return null;
+    return (await r.json()).delivered;
+  } catch (e) { return null; }       // 숫자는 곁들이는 말이다 - 없으면 뺀다
+}
+
+/* 편집 뒤 한 줄.  SCOPE 를 고쳤으면 그 행이 양식에 드나든 것을 세어 말하고,
+ * 다른 칸을 고쳤으면 그 행이 애초에 양식 밖인지를 말한다. */
+async function noticeAfterEdit(row, field, before, after) {
+  const was = scopeFacts(before, { needsReview: row.needs_review });
+  const now = scopeFacts(after, { needsReview: row.needs_review });
+  if (field === "scope" && was.inForm !== now.inForm) {
+    const n = await formRowCount();
+    const moved = now.inForm ? "발주처 양식에 들어갑니다" : "발주처 양식에서 빠집니다";
+    editNotice(`${moved}${n === null ? "" : ` — 지금 ${n}행`}`,
+               now.inForm ? "in" : "out");
+    return;
+  }
+  if (field === "scope") {           // 갈래가 안 바뀐 SCOPE 편집
+    editNotice(`${now.supplierName} — ${now.formLine}`, now.inForm ? "in" : "out");
+    return;
+  }
+  // 세 갈래 모두 말한다.  "나간다" 도 사실이고, 그것을 안 적으면 침묵이
+  // "나간다" 를 뜻하게 된다 - 지금 고친 결함이 정확히 그 구조였다.
+  if (now.state === "vendor") {
+    editNotice(`저장했습니다. 이 행은 SCOPE=${now.value} 라 발주처 양식에는 `
+               + "나가지 않습니다 (화면에는 남습니다)", "out");
+  } else if (now.state === "unjudged") {
+    editNotice("저장했습니다. 이 행은 SCOPE 를 판정한 적이 없습니다 — "
+               + "다시 분석하면 정해집니다", "unjudged");
+  } else {
+    editNotice("저장했습니다. 이 행은 발주처 양식에 나갑니다", "in");
+  }
+}
+
 async function saveEdit(row, field, td) {
   const value = td.textContent.trim();
   const current = row.values[field] ?? "";
   if (String(current) === value) return;
-  const author = await askAuthor(`${field} 수정`);
+  const scopeBefore = row.values.scope;
+  // 저장하기 **전에** 알린다 - 이 행이 발주처 양식 밖이면 고친 값이 파일에
+  // 닿지 않는다는 것을 그 순간 아는 편이 낫다.  막지는 않는다.
+  const before = scopeFacts(scopeBefore, { needsReview: row.needs_review });
+  const hint = field === "scope" ? ""
+    : before.state === "vendor"
+      ? `이 행은 SCOPE=${before.value} 라 발주처 양식에는 나가지 않습니다`
+      : before.state === "unjudged"
+        ? "이 행은 SCOPE 를 판정한 적이 없습니다 (다시 분석하면 정해집니다)"
+        : "";
+  const author = await askAuthor(`${field} 수정`, hint);
   if (author === null) { td.textContent = current; return; }   // 취소
   const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -1886,6 +1963,7 @@ async function saveEdit(row, field, td) {
   td.classList.toggle("edited", !!(row.user && field in row.user));
   td.classList.remove("conflict");
   if (S.sel === row.key) showEvidence(row);
+  noticeAfterEdit(row, field, scopeBefore, row.values.scope);
 }
 
 /* Writing a Description by hand.
@@ -2163,24 +2241,12 @@ function showEvidence(row) {
   //   발주처 양식  SCOPE=SCT 기준.  값이 없으면 "판정한 적 없음"이다
   //
   // 문구는 그 행의 실제 SCOPE 값에서 만든다.  고정 문자열이 아니다.
-  const scopeVal = String(row.values.scope || "").trim();
-  const supplier = scopeVal.startsWith(SCOPE_VENDOR_PREFIX)
-    ? (scopeVal.slice(SCOPE_VENDOR_PREFIX.length).replace(/^\(|\)$/g, "")
-       || "이름 미상")
-    : "";
-  const scopeName = row.needs_review ? "검토 필요"
-    : scopeVal === SCOPE_DELIVERED ? "SCT 공급"
-    : supplier ? `VENDOR 공급 — ${supplier}`
-    : scopeVal ? scopeVal
-    : "판정 없음";
-  add("공급 주체", mark("scope", scopeName));
+  // 판정은 `scopeFacts` 하나에서 온다 — 편집 안내도 같은 함수를 읽는다(14회차).
+  const facts = scopeFacts(row.values.scope, { needsReview: row.needs_review });
+  add("공급 주체", mark("scope", facts.supplierName));
   add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
                               : "이 행은 추출 결과에 있습니다");
-  add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)"
-    : scopeVal === SCOPE_DELIVERED ? "나갑니다"
-    : scopeVal ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
-    : "판정한 적 없음 — 다시 분석하면 정해집니다 "
-      + "(SCOPE 열이 생기기 전의 분석입니다)");
+  add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)" : facts.formLine);
   add("적용 규칙", hits.length ? hits.join(", ") : "제외 규칙 해당 없음");
   add("제외 사유", e.excluded_by);
   // The NOTES line that defined this drawing's vendor mark, verbatim.  Quoted,
@@ -2758,6 +2824,45 @@ let SUPPLIER_SPAN_LABEL = "공급자 인터페이스 구간 — 배관 및 기�
  * 근거 패널과 범례가 같은 값을 읽으므로 한 곳에만 적는다. */
 const SCOPE_DELIVERED = "SCT";
 const SCOPE_VENDOR_PREFIX = "VENDOR";
+
+/* SCOPE 한 값이 무엇을 뜻하는가 — **화면에서 이 판정을 하는 곳은 여기 하나다**
+ * (14회차).
+ *
+ * 12회차에 근거 패널이 세 질문을 나눠 답하게 됐는데, 그 판정이 패널 안에만
+ * 있었다.  그래서 **편집하는 순간**에는 아무 말도 못 했다: 팀원이 벤더 행의
+ * 값을 고쳐도 발주처 양식에는 안 실리는데 화면이 그 사실을 말하지 않았다
+ * (갈음 검증에서 실제로 드러났다 — 첫 다섯 FIELD 행 중 3행이 VENDOR 였다).
+ *
+ * 판정을 두 벌 만들면 언젠가 갈리므로, 패널·편집 안내·SCOPE 변경 안내가
+ * 전부 이 함수 하나를 읽는다.  서버 쪽 한 벌은 `excel_out.in_client_scope`
+ * 이고 이 함수는 그것과 **같은 세 갈래**다:
+ *
+ *     SCT        →  delivered   양식에 나간다
+ *     그 밖의 값   →  vendor      양식에 안 나간다 (타사 공급)
+ *     빈 값       →  unjudged    양식에 나간다 — "판정한 적 없음"이라서
+ *
+ * 마지막 갈래가 뒤집힌 것처럼 보이지만 서버가 그렇게 판정한다(11회차):
+ * 없는 판정을 "타사 공급"으로 읽으면 발주처 양식 네 개가 통째로 빈 파일이
+ * 된다.  회사 PC 는 재분석 전까지 822행이 이 상태다. */
+function scopeFacts(scopeVal, opts = {}) {
+  const v = String(scopeVal ?? "").trim();
+  const supplier = v.startsWith(SCOPE_VENDOR_PREFIX)
+    ? (v.slice(SCOPE_VENDOR_PREFIX.length).replace(/^\(|\)$/g, "") || "이름 미상")
+    : "";
+  const state = v === SCOPE_DELIVERED ? "delivered" : v ? "vendor" : "unjudged";
+  const supplierName = opts.needsReview ? "검토 필요"
+    : state === "delivered" ? "SCT 공급"
+    : supplier ? `VENDOR 공급 — ${supplier}`
+    : state === "vendor" ? v
+    : "판정 없음";
+  const inForm = state !== "vendor";      // 서버의 in_client_scope 와 같은 갈래
+  const formLine = state === "delivered" ? "나갑니다"
+    : state === "vendor"
+      ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
+      : "판정한 적 없음 — 다시 분석하면 정해집니다 "
+        + "(SCOPE 열이 생기기 전의 분석입니다)";
+  return { value: v, state, supplier, supplierName, inForm, formLine };
+}
 
 /* 오버레이 범례 — **라벨과 세는 대상이 같아야 한다** (12회차).
  *

@@ -901,3 +901,30 @@ button.ftc:disabled { opacity: .55; cursor: default; }
   border: 1px dashed var(--edge); border-radius: var(--r-s);
   background: var(--panel-2); }
 .dup-hint button { margin-left: 8px; }
+
+/* 편집 안내 (14회차) — 고친 값이 발주처 양식에 어떻게 닿는지 한 줄.
+ *
+ * 작성자 확인 줄(`.author-bar`)과 같은 자리에 서므로 그 위로 올린다: 이름을
+ * 먼저 묻고 저장한 **뒤에** 뜨는 순서라 둘이 동시에 있지는 않지만, 겹칠 때
+ * 가려지지 않게 z-index 를 하나 높인다.
+ *
+ * 색은 §7.2 의 세 층 중 '말' 이다 — 상태색(개정 3색)을 쓰지 않는다.  왼쪽
+ * 띠 하나로만 갈래를 표시하고 글자는 항상 `--ink-strong` 이다: 색만으로
+ * 뜻을 나르지 않는다(등급 배지와 같은 규칙). */
+.edit-note { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: 61; max-width: 620px; background: var(--panel);
+  border: 1px solid var(--edge); border-left: 4px solid var(--edge);
+  border-radius: var(--r-m); padding: 9px 13px;
+  font-size: var(--t-s); color: var(--ink-strong); box-shadow: var(--shadow);
+  transition: opacity .6s ease; }
+.edit-note.in       { border-left-color: var(--ok); }
+.edit-note.out      { border-left-color: var(--warn); }
+.edit-note.unjudged { border-left-color: var(--accent); }
+.edit-note.go { opacity: 0; }
+
+/* 작성자 줄에 붙는 한 줄 안내 (14회차) — 저장하기 전에 말한다.
+   두 줄이 되므로 세로로 쌓고, 힌트는 이름 칸보다 작게 둔다. */
+.author-bar.with-hint { flex-direction: column; align-items: stretch; gap: 6px; }
+.author-bar.with-hint > span, .author-bar.with-hint > button { align-self: flex-start; }
+.ab-hint { font-size: var(--t-s); color: var(--ink-strong);
+  border-left: 3px solid var(--warn); padding-left: 8px; max-width: 560px; }
