@@ -1,0 +1,94 @@
+{
+ "첫화면_리비전": {
+  "revision": "Rev.A",
+  "doc_rev": "D",
+  "rows": 1029,
+  "edits": 3,
+  "status": "done"
+ },
+ "MANIFEST": {
+  "revision_id": 2,
+  "pdf_name": "pid_total.pdf",
+  "pdf_sha256": "883f75aa805f480f9c58de823f8a725fb731a9ea93f3c11729b5fedb2dd6e481",
+  "engine_fingerprint": "69ad281f29e0c5ec450f90c6056a2709d9eb7ee2a2921690709d2f4329a5047c",
+  "written": [
+   {
+    "kind": "FIELD",
+    "sheet": "2.0_Instrument List",
+    "rows": 667,
+    "template_rows": 0,
+    "path": "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/pack/site/_data/outputs/rev2/field_pid_total.xlsx",
+    "revision_marks": {
+     "ADDED": 0,
+     "MODIFIED": 0,
+     "DELETED": 0
+    },
+    "unmapped_values": {}
+   },
+   {
+    "kind": "BFV",
+    "sheet": "3.0_Valve List",
+    "rows": 22,
+    "template_rows": 0,
+    "path": "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/pack/site/_data/outputs/rev2/bfv_pid_total.xlsx",
+    "revision_marks": {
+     "ADDED": 0,
+     "MODIFIED": 0,
+     "DELETED": 0
+    },
+    "unmapped_values": {}
+   },
+   {
+    "kind": "MOV",
+    "sheet": "3.0_Valve List",
+    "rows": 66,
+    "template_rows": 0,
+    "path": "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/pack/site/_data/outputs/rev2/mov_pid_total.xlsx",
+    "revision_marks": {
+     "ADDED": 0,
+     "MODIFIED": 0,
+     "DELETED": 0
+    },
+    "unmapped_values": {}
+   }
+  ],
+  "skipped": [
+   {
+    "kind": "PNEUMATIC",
+    "rows": 25,
+    "reason": "PNEUMATIC: no template uploaded.  This tool fills the client's own workbook; it does not invent a layout, so nothing is written."
+   },
+   {
+    "kind": "MASTER",
+    "rows": 113,
+    "reason": "MASTER: no template uploaded.  This tool fills the client's own workbook; it does not invent a layout, so nothing is written."
+   }
+  ],
+  "scope_filter": "SCT",
+  "out_of_scope_rows": 249,
+  "legacy_no_scope_rows": 0,
+  "note": "unmapped_values lists edits with no column in that deliverable's form; they are stored but not written. out_of_scope_rows counts rows left out because their SCOPE is not SCT; legacy_no_scope_rows counts rows with no SCOPE at all (an analysis from before the column existed) - those are still written, and a non-zero number means the drawing set should be re-analysed"
+ },
+ "양식_시트크기": {
+  "field_pid_total.xlsx": [
+   1247,
+   42
+  ],
+  "bfv_pid_total.xlsx": [
+   66,
+   40
+  ],
+  "mov_pid_total.xlsx": [
+   149,
+   39
+  ]
+ },
+ "첫화면_문구": [
+  "저장된 프로젝트 — 눌러서 다시 엽니다 (재분석하지 않습니다)",
+  "",
+  "회사PC재현",
+  "1개 리비전 · 최신 Rev.A",
+  "Rev.A",
+  "도면 Rev.D"
+ ]
+}
