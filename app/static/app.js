@@ -353,10 +353,74 @@ function revRow(r, prevDocRev) {
   const doc = r.doc_rev
     ? `도면 Rev.${escape(r.doc_rev)}`
     : `<span class="muted">도면 개정 못 읽음</span>`;
-  return `<a href="#${escape(r.job_id)}" class="revrow">`
+  return `<div class="revwrap"><a href="#${escape(r.job_id)}" class="revrow">`
     + `<span class="rv-name"><b>${escape(r.revision)}</b> ${doc} ${badge}</span>`
-    + `<span class="muted small">${escape(jobLine(r))}</span></a>`;
+    + `<span class="muted small">${escape(jobLine(r))}</span></a>`
+    + delButton(r.job_id) + `</div>`;
 }
+
+/* 이전 기록 삭제 (17회차 [E]).
+ *
+ * ⚠ 되돌릴 수 없고, 이 호스트에는 팀원 여러 명의 프로젝트가 함께 있다.
+ * 그래서 화면이 하는 일은 셋이다: (1) 지우기 **전에** 무엇이 사라지는지
+ * 서버에서 받아 보여 준다, (2) 확인을 두 번 받는다 — 누른 것 + 분석 id 를
+ * 그대로 옮겨 적는 것, (3) 이름을 묻는다 (13회차 자기신고 그대로, 비우면
+ * 비운 채로 저장되고 화면이 "자칭" 이라고 적는다).
+ *
+ * 지우는 단위는 **분석 하나**다.  프로젝트 전체를 지우는 버튼은 없다 — 그
+ * 폴더에 안정 ID 장부가 있고 그것이 사라지면 번호가 1부터 다시 나간다
+ * (docs/round17_delete.md). */
+function delButton(jobId) {
+  return `<button class="ghost mini del-job" data-job="${escape(jobId)}"`
+    + ` title="이 분석 기록을 지웁니다 — 되돌릴 수 없습니다">삭제</button>`;
+}
+
+async function askDelete(jobId) {
+  let pv;
+  try {
+    pv = await (await fetch(`/jobs/${jobId}/deletion_preview`)).json();
+  } catch (e) { alert("무엇이 사라지는지 확인하지 못했습니다."); return; }
+  const bits = [
+    `분석  ${pv.pdf_name}${pv.project ? `  ·  ${pv.project} ${pv.revision}` : ""}`,
+    `추출한 행        ${pv.rows}행`,
+    `사람이 고친 칸    ${pv.edited_cells}칸`,
+    `검토 표시        ${pv.review_marks}건`,
+    `수정 이력        ${pv.feedback}건`,
+    `오류 신고        ${pv.reports}건`,
+    `산출물 스냅샷     ${pv.revision_snapshots}개`,
+    `업로드 PDF       ${pv.pdf_shared_with.length
+        ? "남깁니다 (다른 분석도 같은 파일을 씁니다)" : "함께 지웁니다"}`,
+    `안정 ID 장부      ${pv.id_registry}`,
+  ];
+  if (!confirm("지우면 아래가 사라집니다. 되돌릴 수 없습니다.\n\n"
+      + bits.join("\n") + "\n\n계속할까요?")) return;
+  const typed = prompt("실수로 지워지지 않게, 이 분석의 id 를 그대로 옮겨 적으세요:\n"
+    + jobId);
+  if (typed === null) return;
+  const author = prompt("누가 지웁니까? (비워도 됩니다 — 화면이 '자칭' 이라고 적습니다)",
+    localStorage.getItem("pid.author") || "") ?? "";
+  if (author) { try { localStorage.setItem("pid.author", author); } catch (e) {} }
+  const body = new FormData();
+  body.append("confirm", typed);
+  body.append("author", author);
+  const res = await fetch(`/jobs/${jobId}`, { method: "DELETE", body });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    alert("지우지 못했습니다: " + (d.detail || res.status));
+    return;
+  }
+  const out = await res.json();
+  alert(`지웠습니다 — ${out.rows}행 · 편집 ${out.edited_cells}칸`
+    + (out.pdf_removed ? " · 업로드 PDF 도 지웠습니다" : ""));
+  listHome();
+}
+
+document.addEventListener("click", ev => {
+  const b = ev.target.closest && ev.target.closest(".del-job");
+  if (!b) return;
+  ev.preventDefault();
+  askDelete(b.dataset.job);
+});
 
 async function listHome() {
   const home = await (await fetch("/home")).json();
@@ -381,8 +445,9 @@ async function listHome() {
   if (home.loose.length) {
     parts.push("<p class='muted small'>프로젝트에 묶이지 않은 분석</p>"
       + home.loose.map(j =>
-          `<a href="#${j.id}">${escape(j.pdf_name)}`
-          + `<span class="muted small">${escape(jobLine(j))}</span></a>`).join(""));
+          `<div class="revwrap"><a href="#${j.id}">${escape(j.pdf_name)}`
+          + `<span class="muted small">${escape(jobLine(j))}</span></a>`
+          + delButton(j.id) + `</div>`).join(""));
   }
   box.innerHTML = parts.join("");
 }

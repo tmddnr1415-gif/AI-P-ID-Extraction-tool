@@ -969,3 +969,11 @@ button.ftc:disabled { opacity: .55; cursor: default; }
   line-height: 1.45; background: #fff; border: 1px solid var(--rule);
   border-radius: 4px; padding: 6px 8px; white-space: pre-wrap;
 }
+
+/* 이전 기록 삭제 (17회차 [E]) — 목록 한 줄 오른쪽 끝의 작은 버튼.
+   행 전체가 링크이므로 버튼을 그 안에 두면 누를 때마다 분석이 열린다.
+   그래서 링크와 버튼을 형제로 두고 감싼다. */
+.revwrap { display: flex; align-items: center; gap: 6px; }
+.revwrap > a { flex: 1 1 auto; }
+.revwrap > .del-job { flex: 0 0 auto; opacity: .55; }
+.revwrap:hover > .del-job { opacity: 1; }

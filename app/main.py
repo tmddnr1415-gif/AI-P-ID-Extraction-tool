@@ -749,6 +749,67 @@ def jobs():
     return [_job_public(r) for r in db.list_jobs(CON)]
 
 
+# 이전 기록 삭제 (17회차 [E]).
+#
+# ⚠ **되돌릴 수 없고, 이 호스트에는 팀원 여러 명의 프로젝트가 함께 있다.**
+# 그래서 세 가지를 지킨다:
+#   1. 지우기 전에 무엇이 사라지는지 먼저 보여 준다 (`deletion_preview`)
+#   2. 확인을 두 번 받는다 — 화면의 확인 + 요청 본문의 `confirm` 문자열
+#   3. 누가 언제 무엇을 지웠는지 남긴다 (`deletion_log`, 13회차 자기신고 그대로)
+#
+# **지우는 단위는 분석 하나(job)뿐이다.**  프로젝트 전체를 지우는 길은 만들지
+# 않았다 — 그 폴더에 안정 ID 장부가 있고, 그것이 사라지면 같은 이름으로 다시
+# 만든 프로젝트가 번호를 1부터 다시 발급해 §7.3("Rev.A 에서 한 번만 부여")이
+# 깨진다.  분석 하나를 지우는 것은 그 불변식을 깨지 않는다: `Registry.next_seq`
+# 가 장부 전체의 최대 순번 + 1 을 쓰고 상태를 보지 않기 때문이다.
+# 근거와 실측은 `docs/round17_delete.md`.
+@app.get("/jobs/{job_id}/deletion_preview")
+def deletion_preview(job_id: str):
+    try:
+        return db.deletion_preview(CON, job_id)
+    except KeyError:
+        raise HTTPException(404, "no such job")
+
+
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
+    """분석 하나를 지운다.  `confirm` 이 그 분석의 id 와 같아야 한다."""
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, "no such job")
+    if confirm.strip() != job_id:
+        raise HTTPException(
+            400, "확인 값이 분석 id 와 다릅니다 — 실수로 지워지지 않게 하는 "
+                 "장치입니다")
+    if row["status"] in ("queued", "running"):
+        raise HTTPException(409, "분석 중인 것은 지울 수 없습니다. 먼저 취소하세요")
+    summary = db.delete_job(CON, job_id, author=author.strip())
+    # 업로드 PDF 는 그 분석만 쓰고 있을 때에만 지운다 - 다른 분석이 같은 파일을
+    # 가리키면 그 분석이 도면을 못 연다.  지웠는지는 응답이 말한다.
+    removed_pdf = False
+    if not summary["pdf_shared_with"]:
+        pdf = Path(summary["pdf_path"])
+        try:
+            if pdf.exists() and pdf.parent.resolve() == UPLOADS.resolve():
+                pdf.unlink()
+                removed_pdf = True
+        except OSError:
+            removed_pdf = False
+    summary["pdf_removed"] = removed_pdf
+    return summary
+
+
+@app.get("/deletions")
+def deletions():
+    """지운 기록의 기록.  행은 사라져도 이것은 남는다."""
+    out = []
+    for r in db.deletion_log(CON):
+        r = dict(r)
+        r["summary"] = json.loads(r.pop("summary_json") or "{}")
+        out.append(r)
+    return out
+
+
 @app.get("/jobs/{job_id}")
 def job(job_id: str):
     row = db.get_job(CON, job_id)

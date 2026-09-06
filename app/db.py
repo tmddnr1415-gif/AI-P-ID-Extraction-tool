@@ -175,6 +175,23 @@ CREATE TABLE IF NOT EXISTS report (
     capture_json TEXT NOT NULL DEFAULT '{}' -- everything gathered automatically
 );
 CREATE INDEX IF NOT EXISTS report_job ON report(job_id, id);
+
+-- 지운 기록의 기록 (17회차 [E]).
+--
+-- 지우는 것은 되돌릴 수 없고, 이 파일에는 팀원 여러 명의 프로젝트가 함께 있다.
+-- 그래서 **무엇을 지웠는지는 남긴다** — 행은 사라져도 "누가 언제 무엇을
+-- 몇 행 지웠나" 는 남아야 다음 사람이 빈 자리를 설명할 수 있다.
+-- 작성자는 13회차와 같은 자기신고이고, 화면이 "자칭" 이라고 적는다.
+CREATE TABLE IF NOT EXISTS deletion_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    at          REAL NOT NULL,
+    author      TEXT NOT NULL DEFAULT '',
+    job_id      TEXT NOT NULL,
+    project     TEXT NOT NULL DEFAULT '',
+    revision    TEXT NOT NULL DEFAULT '',
+    pdf_name    TEXT NOT NULL DEFAULT '',
+    summary_json TEXT NOT NULL DEFAULT '{}'  -- 사라진 것의 수 (행·편집·검토 …)
+);
 """
 
 # Columns a reviewer may edit.  Description and Tag No. are in the list because
@@ -1069,3 +1086,84 @@ def confirm_deleted(con, job_id: str, stable_id: str, confirmed: bool) -> dict:
     d = json.loads(row["payload_json"])
     d["confirmed"] = confirmed
     return d
+
+
+# --------------------------------------------------------------------------
+# 삭제 (17회차 [E])
+# --------------------------------------------------------------------------
+#
+# **지우는 것은 분석 하나(job)뿐이다.**  프로젝트 전체를 지우는 길은 만들지
+# 않았다 — `revisions.Registry` 의 안정 ID 장부(`id_registry.json`)가 프로젝트
+# 폴더에 있고, 그것이 사라지면 같은 이름으로 다시 만든 프로젝트가 번호를 1부터
+# 다시 발급한다.  §7.3 이 "ID 는 Rev.A 에서 한 번만 부여" 라고 정한 것이 거기서
+# 깨지고, 이미 나간 Excel 의 NO 와 충돌한다.  근거는 `docs/round17_delete.md`.
+#
+# 분석 하나를 지우는 것은 그 불변식을 **깨지 않는다**: `Registry.next_seq` 가
+# 장부 전체의 최대 순번 + 1 을 쓰고 **상태를 보지 않으므로**(그 함수의 주석이
+# "삭제된 번호도 최대값 계산에 넣는다" 라고 적어 두었다) 번호가 재사용되지
+# 않는다.  그래서 이 함수는 `app/_data/projects/…` 의 어떤 파일도 건드리지
+# 않는다 — DB 안의 그 분석만 지운다.
+_JOB_TABLES = ("item", "revision_state", "deleted_candidate", "pid_page",
+               "revision", "feedback", "review_state", "report")
+
+
+def deletion_preview(con, job_id: str) -> dict:
+    """지우면 무엇이 사라지는가.  세기만 하고 아무것도 바꾸지 않는다."""
+    job = get_job(con, job_id)
+    if job is None:
+        raise KeyError(job_id)
+    counts = {}
+    for t in _JOB_TABLES:
+        counts[t] = con.execute(
+            f"SELECT COUNT(*) FROM {t} WHERE job_id = ?", (job_id,)).fetchone()[0]
+    edited = 0
+    for (uj,) in con.execute(
+            "SELECT user_json FROM item WHERE job_id = ? AND user_json != '{}'",
+            (job_id,)):
+        try:
+            edited += len(json.loads(uj) or {})
+        except ValueError:
+            pass
+    return {
+        "job_id": job_id,
+        "pdf_name": job["pdf_name"],
+        "project": job["project"] or "",
+        "revision": job["revision"] or "",
+        "created_at": job["created_at"],
+        "rows": counts["item"],
+        "edited_cells": edited,
+        "review_marks": counts["review_state"],
+        "feedback": counts["feedback"],
+        "reports": counts["report"],
+        "revision_snapshots": counts["revision"],
+        "pages": counts["pid_page"],
+        "pdf_path": job["pdf_path"],
+        # 같은 PDF 를 다른 분석도 쓰고 있으면 파일은 지울 수 없다.
+        "pdf_shared_with": [r["id"] for r in con.execute(
+            "SELECT id FROM job WHERE pdf_path = ? AND id != ?",
+            (job["pdf_path"], job_id))],
+        # 안정 ID 장부는 건드리지 않는다 — 지워도 번호가 재사용되지 않는다.
+        "id_registry": "건드리지 않습니다 (번호는 재사용되지 않습니다)",
+    }
+
+
+def delete_job(con, job_id: str, author: str = "") -> dict:
+    """분석 하나를 지운다.  되돌릴 수 없다.  무엇을 지웠는지는 남긴다."""
+    summary = deletion_preview(con, job_id)
+    for t in _JOB_TABLES:
+        con.execute(f"DELETE FROM {t} WHERE job_id = ?", (job_id,))
+    con.execute("DELETE FROM job WHERE id = ?", (job_id,))
+    con.execute(
+        "INSERT INTO deletion_log (at, author, job_id, project, revision,"
+        " pdf_name, summary_json) VALUES (?,?,?,?,?,?,?)",
+        (time.time(), author or "", job_id, summary["project"],
+         summary["revision"], summary["pdf_name"],
+         json.dumps(summary, ensure_ascii=False, sort_keys=True)))
+    con.commit()
+    return summary
+
+
+def deletion_log(con, limit: int = 50) -> list:
+    return [dict(r) for r in con.execute(
+        "SELECT id, at, author, job_id, project, revision, pdf_name, summary_json"
+        " FROM deletion_log ORDER BY id DESC LIMIT ?", (limit,))]

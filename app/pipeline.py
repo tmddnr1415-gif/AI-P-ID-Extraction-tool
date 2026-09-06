@@ -764,6 +764,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         desc_stats = _finish_descriptions(rows, per_page, isa, pattern,
                                           selector, examples, use_line_gate)
         axis_stats.update(_apply_axis(rows))
+        desc_stats.update(_position_from_connectors(rows, isa, pattern))
+        desc_stats.update(_disambiguate_duplicates(rows))
         # 등급 집계는 적용 뒤의 실제 행에서 다시 센다 - 축 적용이 등급을
         # 바꾸므로, 적용 전 집계를 그대로 실으면 화면·보고가 행과 어긋난다.
         desc_stats["grades"] = dict(collections.Counter(
@@ -1901,6 +1903,152 @@ def _user_input_note(type_, middle: str, noun: str, system: str) -> tuple:
     return "", ""
 
 
+# 커넥터 짝이 말하는 위치어 (17회차 C-4).
+#
+# 사용자 요구(2차 피드백 18장): "Description 으로 기준으로 가까운쪽
+# Supply / Return 구분 요망".
+#
+# §4-4 와 `review_axes` 의 `DESC_CCW_DIRECTION` 은 "CCW 의 SUPPLY / RETURN 은
+# 도면 기하로 구분되지 않는다" 고 적어 두었다 — 발주처 PI 100행이 SUPPLY 49 /
+# RETURN 51 이고 방향 칸 안에서도 반반이기 때문이다.  그런데 **오프페이지
+# 커넥터는 어느 쪽 관인지 말한다**: 같은 계기 주위에 `... SUPPLY` 커넥터와
+# `... RETURN` 커넥터가 둘 다 있으면, 그 계기가 어느 관에 달렸는지는 둘 중
+# 어느 쪽이 가까운가가 답한다.
+#
+# 규칙은 셋이고 전부 이 저장소가 이미 쓰는 것이다:
+#   · **짝이 아니면 고르지 않는다** — 서로 다른 위치어를 말하는 커넥터가 둘
+#     이상 있을 때만 발동한다 (9회차 "갈리지 않으면 고르지 않는다").
+#   · **이미 위치어가 있는 문장은 밀어내지 않는다** (8회차 기준).
+#   · 낱말 목록은 코드가 아니라 config 에 있고 발주처 557행에서 센 값이다
+#     (`description.position_pair_words`).
+#
+# 실측(1029행 기준선): 둘 다 있는 행 25 · 그 중 현재 문장에 두 낱말이 하나도
+# 없는 행 16 · **현재 문장이 가까운 쪽과 어긋나는 행 0**.  즉 기존 답을
+# 뒤집지 않고 빈 자리만 채운다.
+def _position_from_connectors(rows, isa, pattern) -> dict:
+    """커넥터가 짝으로 말할 때만 위치어를 채운다."""
+    words = {str(w).upper() for w in
+             (CFG.data.get("description", {}).get("position_pair_words") or ())}
+    if not words:
+        return {"connector_position_rows": 0}
+    filled = 0
+    for r in rows:
+        text = (r.description or "").strip()
+        if not text:
+            continue
+        tokens = text.upper().split()
+        if words & set(tokens):
+            continue                     # 8회차 — 있는 위치어를 밀어내지 않는다
+        seen = {}
+        for c in (r.evidence.get("candidates") or ()):
+            if c.get("kind") != dcand.CONNECTOR:
+                continue
+            d = c.get("distance")
+            if d is None:
+                continue
+            for w in str(c.get("text", "")).upper().split():
+                if w in words and (w not in seen or d < seen[w]):
+                    seen[w] = d
+        if len(seen) < 2:
+            continue                     # 짝이 아니면 고르지 않는다
+        best = min(seen, key=seen.get)
+        var = " ".join(desc.variable_words(r.type, isa, pattern))
+        placed = _insert_before_variable(text, var, best)
+        if placed is None:
+            continue
+        r.description = placed
+        r.evidence["connector_position"] = {
+            "word": best, "distance": round(seen[best], 1),
+            "others": {w: round(v, 1) for w, v in sorted(seen.items()) if w != best},
+            "basis": "오프페이지 커넥터 짝 중 가까운 쪽",
+        }
+        srcs = r.evidence.setdefault("description_sources", [])
+        if isinstance(srcs, list):
+            srcs.append(
+                f"POSITION: 커넥터 짝 중 가까운 쪽 — {best} {seen[best]:.1f}pt "
+                + " · ".join(f"{w} {v:.1f}pt" for w, v in sorted(seen.items())
+                             if w != best))
+        filled += 1
+    return {"connector_position_rows": filled}
+
+
+def _insert_before_variable(text: str, var: str, word: str):
+    """`... <위치어> <변수어> [<순번>]` 자리에 넣는다.  자리를 못 찾으면 None.
+
+    문형은 `desc.sentence`(describe.py) 의 것 그대로다 — 변수어가 마지막이고, 순번이
+    있으면 그 뒤에 한 글자로 붙는다 (발주처 117행).  그래서 뒤에서부터 변수어
+    구를 찾아 그 **앞**에 놓는다.  못 찾으면 아무 데도 넣지 않는다 — 자리를
+    모르면서 문장 끝에 붙이면 발주처가 쓰지 않는 문형이 된다.
+    """
+    if not var:
+        return None
+    toks = text.split()
+    vt = var.split()
+    n = len(vt)
+    upper = [t.upper() for t in toks]
+    for i in range(len(toks) - n, -1, -1):
+        if upper[i:i + n] == [v.upper() for v in vt]:
+            return " ".join(toks[:i] + [word] + toks[i:])
+    return None
+
+
+# 중복 문장에 순번을 붙인다 (17회차 C-1).
+#
+# 사용자 요구(2차 피드백 3장): "참조할만한 Line 이 없어 Description 이 중복되는
+# 항목들은 PID 위에서 아래로 그리고 좌에서 우로 기준으로 Description 끝에
+# Suffix A,B,C,D,E ... 를 넣어줘라".
+#
+# **이미 있는 것과 없는 것**:  `describe_candidates.instrument_ordinals` 가
+# 순번을 이미 매긴다 — 다만 그 규칙은 *같은 기기에 붙은 같은 TYPE* 을 묶으므로
+# 주어(기기)를 못 찾은 행에는 아무것도 주지 않는다.  ④(판정 불가) 행이 규칙만
+# 으로 만든 문장(`UNIT + 계통 + 변수어`)을 쓰면 한 도면 안에서 글자 그대로 같은
+# 문장이 여럿 생긴다.  실측: **92묶음 · 268행** (그 중 이미 끝 글자가 순번인 행
+# 0).  그 268행이 여기서 처음 구분된다.
+#
+# 묶는 단위가 **도면**인 이유: 산출물의 행은 P&ID No. 를 함께 실으므로 다른
+# 도면의 같은 문장은 이미 구분된다.  좌표도 도면 안에서만 뜻이 있다.
+#
+# 정렬은 요구 원문 그대로 위→아래 · 좌→우 이고, 좌표를 반올림 정수로 쓴다 —
+# `instrument_ordinals` 가 쓰는 것과 같은 결정성 규칙이다.
+#
+# **좌표 `(F:7)` 는 붙이지 않는다.**  이 문서의 테두리 그리드는 인쇄돼 있지만
+# (렌더 확인: 왼쪽 H→A · 위 8→1) **텍스트가 아니고**(테두리 60pt 안 낱말 0개),
+# 글리프로 읽으려 해도 이 문서의 글리프 라이브러리는 개정 문자에서 만들어져
+# `1 A B C D` 뿐이다 — E~H 도 2~8 도 없다.  칸만 기하로 나누고 이름을 붙이면
+# 그것이 곧 지어낸 값이므로(§2.1 ③) 붙이지 않고 사유를 남긴다.
+def _disambiguate_duplicates(rows) -> dict:
+    """한 도면 안에서 글자 그대로 같은 문장에 A · B · C … 를 붙인다."""
+    only = {str(t).upper() for t in
+            (CFG.data.get("description", {}).get("duplicate_suffix_types") or ())}
+    groups = collections.defaultdict(list)
+    for r in rows:
+        text = (r.description or "").strip()
+        if text and (not only or str(r.type).upper() in only):
+            groups[(r.drawing_no, text)].append(r)
+    touched = 0
+    for (_dwg, text), members in groups.items():
+        if len(members) < 2:
+            continue
+        # 위→아래, 그 다음 좌→우.  같은 자리에 둘이 있으면 안정 키로 가른다.
+        members.sort(key=lambda r: (round(r.rect[1]) if r.rect else 0,
+                                    round(r.rect[0]) if r.rect else 0, r.key))
+        for i, r in enumerate(members):
+            if i >= 26:
+                break
+            letter = chr(ord("A") + i)
+            r.description = f"{text} {letter}"
+            r.evidence.setdefault("duplicate_suffix", {})
+            r.evidence["duplicate_suffix"] = {
+                "letter": letter, "of": len(members), "sentence": text,
+                "order": "위→아래 · 좌→우",
+                "coordinate": "붙이지 않음 — 이 도면의 테두리 그리드가 "
+                              "텍스트가 아니고 글리프 사전에 E~H·2~8 이 없다",
+            }
+            touched += 1
+    return {"duplicate_groups": sum(1 for m in groups.values() if len(m) > 1),
+            "duplicate_rows": touched}
+
+
 def _finish_descriptions(rows, per_page, isa, pat, sel, examples,
                          use_line_gate: bool = True) -> dict:
     """Write each row's Description from its best candidate, and grade every row.
@@ -2407,13 +2555,34 @@ def _scope_of(d) -> str:
 # ([C] 의 M 심볼 단독 인식 행이 여기 해당한다 — 도면에 `MOV` 글자가 없는데
 # `MOV(` 를 붙이는 것은 근거 생성이라 붙이지 않고, 표기를 어떻게 할지는 발주처
 # 확인 대기 항목이다).
+# 발주처가 화면·산출물에서 보고 싶어 하는 TYPE 이름 (17회차 [D]).
+#
+# 사용자 요구(2차 피드백 8·9장): "AT 는 Analyzer 로 출력되어야 함" ·
+# "AIT 는 Analyzer 로 출력되어야 함".
+#
+# **AT·AIT 를 특별 취급하지 않는다.**  범례 p3 의 ISA 문자표를 런타임에 읽으면
+# 첫 글자 `A` 는 `ANALYSIS` 이고, `isa_table.words_for` 가 `AT` 와 `AIT` 를
+# **둘 다** 그 한 항목으로 읽는다 (실측).  즉 "A 로 시작하는 태그" 라는 ISA
+# 규칙에서 유도되는 것이지 두 낱말을 나열하는 것이 아니다.  다만 발주처가 쓰는
+# 낱말은 ISA 의 `ANALYSIS` 가 아니라 `Analyzer` 이므로, 그 **표기 선택**은
+# ②층(config `description.type_display_names`)에 둔다 — ①층(범례)과 섞지 않는다.
+#
+# ⚠ 오늘 이 표는 **한 행도 바꾸지 않는다**: `AT`·`AIT` 가 `anchors.type_map` 에
+# 없어 앵커가 아니고, 그래서 행이 0 이다 (도면 낱말은 AT 12회/9장 · AIT 4회/1장
+# 이고 그 중 버블 안에 있는 것이 6개).  검출을 늘리는 것은 행 수를 바꾸므로
+# 이 회차 범위 밖이다 — 근거는 `out/round17_gate_b.md` 옆의 [D] 절에 있다.
+_TYPE_DISPLAY = {str(k).upper(): str(v) for k, v in
+                 (CFG.data.get("description", {}).get("type_display_names")
+                  or {}).items()}
+
+
 def type_display(values: dict, evidence: dict = None) -> str:
     """산출물·화면이 쓰는 TYPE 표기.  대조·측정은 `values["type"]` 로만 한다."""
     kind = str((values or {}).get("type") or "")
     tag = str(((evidence or {}) or {}).get("tag") or "").strip().upper()
     if kind and tag and tag in ds.VALVE_ANCHORS:
         return f"{tag}({kind})"
-    return kind
+    return _TYPE_DISPLAY.get(kind.upper(), kind)
 
 
 # Valve deliverable -> grid tab.
