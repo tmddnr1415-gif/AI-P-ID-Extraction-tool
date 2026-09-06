@@ -661,6 +661,15 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
    저장소(`revisions.project_dir`) · 프로젝트↔분석 연결(`job.project`) ·
    결정성(두 프로세스의 범례 값 **전 항목 동일**) · 그리고 캐시하면 **안 되는**
    두 가지를 가려낸 것.
+10. **⚠ 캡처가 결함 셋을 잡았다 (여덟 회차 연속).**  (가) `page_kind ==
+   LEGEND` 로 "대조할지" 를 가른 것이 틀렸다 — 다시 그린 범례 장은 종류가
+   바뀌는데 유도는 **인쇄된 머리말**로 그 장을 찾아 제대로 읽고 있었다.
+   갈림을 없애고 **언제나 재되 적용은 프로필**로 바꿨다.  (나) "범례 4장"
+   이라고 적던 것을 **"값을 읽은 3장"** 으로 고쳤다 (p4 는 어느 항목의
+   근거도 아니다).  (다) 범례 없는 개정본의 띠가 같은 사실을 **세 번**
+   말하고 있었다.  그리고 (다)를 고치는 중에 **문장을 `engine_json` 에
+   저장해 두면 고칠 수 없다**는 것이 드러나 `compare_note` 를 지우고 사실
+   셋(`legend_sheets`·`uncompared`·`compared`)만 남겼다.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
@@ -908,6 +917,7 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `app/main.py` 의 `scope_summary_now` | 지금 양식에 나가는 행 수 (편집 반영). 완료 화면이 쓰는 `_scope_summary` 를 그대로 부르고 삭제 행은 뺀다 — `write_all` 이 그 행을 먼저 거르므로 |
 | `tests/test_ui_edits.py` 의 `field_rows`·`test_step0_...scope_aware_data` | UI 스위트가 **어떤 데이터에서 도는지**를 시험이 먼저 말한다. 행은 순서가 아니라 SCOPE 상태로 고른다. 전제가 깨지면 **건너뛰지 않고 실패**한다 (건너뛰기가 세 회차 동안 침묵을 만들었다) |
 | `config/project_sadara.yaml` | SADARA 교차검증의 기준선(82행)은 이 파일을 **안 쓴** 값이다 — 프로필 자동 맞춤은 없고 미지정이면 alnouf1 이다. 지정하면 75행 |
+| `legend_profile.read_pages`·`uncompared` | "몇 장을 읽었나" 는 **읽은 쪽**이 답한다 (`page_kind` 로 세지 않는다). 못 읽은 항목은 `diff` 에서 빼고 **"모른다"** 로 말한다 — "같다" 로 세면 개정본마다 거짓 경보가 뜨고 진짜 변경이 묻힌다 |
 | `app/legend_profile.py` | 15회차 — 프로젝트 범례 프로필의 자리·담기·되쓰기·대조. **범례 장에서 나온 여덟 항목만** 담는다. 엔진 모듈은 `_engine()` 으로 **맨 이름**으로 가져온다 (`app.engine.x` 로 가져오면 `Derived` 가 두 클래스가 된다) |
 | `legend_profile.capture` 의 JSON 정규화 | 저장한 것과 다시 읽은 것이 같아야 한다. JSON 은 튜플을 배열로, dict 키를 문자열로 바꾸므로(`dash_histogram` 7.2 → "7.2") 그 변환을 담을 때 한 번 겪게 한다 |
 | `pipeline.analyse` 의 `measure_legend` | 재는가 안 재는가. **프로필이 없으면 반드시 잰다** · 프로필이 있어도 범례 장이 있으면 **대조를 위해** 잰다(적용은 프로필) · 둘 다 없을 때만 안 잰다 |
@@ -991,6 +1001,14 @@ python app/engine/detect_valves.py --report out/valve/report.md
 - **SADARA 회귀는 `PID_PROJECT_CONFIG` 를 지정하지 않고 잽니다** (82행
   `0767ba79`). 지정하면 75행이고 그것은 기준선이 아닙니다. 프로필 자동 맞춤은
   없습니다 — 미지정이면 alnouf1 고정입니다.
+- **화면이 말할 문장을 데이터에 저장하지 마세요.** 15회차에 `compare_note`
+  를 `engine_json` 에 넣었더니 문구를 고쳐도 옛 분석이 옛 문장을 계속
+  말했습니다. 저장하는 것은 **사실**이고(`legend_sheets`·`uncompared`
+  ·`compared`), 문장은 화면 쪽 판정 함수가 그때 만듭니다.
+- **"무엇이 있는지" 를 파생 분류로 가르지 마세요.** `page_kind == LEGEND`
+  로 "범례가 있나" 를 물었더니, 다시 그린 범례 장이 종류를 잃어 **범례가
+  있는데도 대조를 건너뛰는 길**이 생겼습니다. 실제로 읽는 코드가 무엇으로
+  찾는지(여기서는 인쇄된 머리말)를 그대로 쓰세요.
 - **캐시해도 되는 값과 캐시하면 안 되는 값을 먼저 가르세요.** 15회차의
   `legend_rules` 단계는 열 가지를 유도하는데 **범례 장에서 나오는 것은 여덟**
   이고, `connector_reach`(도면 218개)와 `layout` 19건(도면 58장)은 다음

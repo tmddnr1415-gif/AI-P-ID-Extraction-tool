@@ -1,13 +1,13 @@
-# 갈음 꾸러미 — aac64ba..HEAD (10 + 11 + 12 + 13 + 14 회차 **누적**)
+# 갈음 꾸러미 — aac64ba..HEAD (10 + 11 + 12 + 13 + 14 + 15 회차 **누적**)
 #
 # 회사 PC 경로: C:\Users\SAMSUNG\.claude\pid\AI-P-ID-Extraction-tool\
-# 회사 PC 현재 커밋: aac64ba — 다섯 회차 모두 미반영이므로 이 꾸러미 하나로 끝납니다.
+# 회사 PC 현재 커밋: aac64ba — 여섯 회차 모두 미반영이므로 이 꾸러미 하나로 끝납니다.
 #   handover_10 · 11 · 12 를 따로 넣을 필요가 없습니다.
 #
 # ⚠ app\_data\ 는 이 목록에 없고, 있어서도 안 됩니다.
 #    (app.db · app.db-wal · app.db-shm · uploads\ — 팀원 전원의 도면 ·
 #     분석 결과 · 리비전 이력 · 편집값.  한 번 덮으면 복구가 안 됩니다.)
-#    확인: 아래 25줄 중 `app/_data/` 로 시작하는 줄 = 0 (목록·zip 두 시점 검사)
+#    확인: 아래 29줄 중 `app/_data/` 로 시작하는 줄 = 0 (목록·zip 두 시점 검사)
 #
 # ★ 수동 삭제가 필요한 파일: 0개 — 없음
 #    (삭제·이름변경이 하나도 없으므로 zip 을 덮어쓰는 것으로 끝납니다)
@@ -16,21 +16,23 @@
 # DB 스키마는 3개 표에 6열이 늘었고, **여는 순간 자동으로 적용됩니다** (가산 전용).
 #
 # 담지 않은 것 (저장소에는 있지만 배포 대상이 아님):
-#   out/ 아래 84개 — 갈음 산출물과 실행결과 캡처 (보고용)
+#   out/ 아래 104개 — 갈음 산출물과 실행결과 캡처 (보고용)
 
 # 코드  상대경로                          | 회차        | 무엇을 왜
-[M] CLAUDE.md                         | 10·11·12·13·14 | 기준선 표에 다섯 회차 열, 두 측정축, 회차별 절과 코드 지도
-[M] app/db.py                         | 13          | pid_page.rev 4열 · job.doc_rev · feedback.author 가산 · 승계/이력 함수
+[M] CLAUDE.md                         | 10~15       | 기준선 표에 여섯 회차 열, 두 측정축, 회차별 절과 코드 지도
+[M] README.md                         | 15          | 테스트 건수 갱신 · app/legend_profile 구조 한 줄
+[M] app/db.py                         | 13·15       | pid_page.rev 4열 · job.doc_rev · feedback.author 가산 · 승계/이력 함수 · engine_json 에 legend_profile
 [M] app/engine/describe_axis.py       | 10          | nearest_conn — 라인 전후단 최근접 커넥터
 [M] app/engine/detect_symbols.py      | 11          | read_vendor_mark · package_box_marks 를 detect() 에서 꺼냄 (판정 불변)
-[M] app/engine/detect_valves.py       | 11          | Body.actuator_rect — 벤더 별표를 어느 사각형 위에서 찾을지
+[M] app/engine/detect_valves.py       | 11·15       | Body.actuator_rect — 벤더 별표 위치 · derive_layout(derived=) 되쓰기 인자 (측정 코드 불변)
 [M] app/excel_out.py                  | 10·11       | BODY/TYPE 이 type_display 를 읽음 · 발주처 양식이 SCOPE=SCT 만 담음
-[M] app/main.py                       | 10·11·12·13·14 | type_display · MANIFEST 계수 · 취소/완료 · GET /home · 편집 승계 · 작성자 · GET /scope_summary
-[M] app/pipeline.py                   | 10·11·12    | SCOPE 네 규칙 · 밸브 SCOPE · 진행 신호 · 오버레이 색
+[A] app/legend_profile.py             | 15          | 프로젝트 범례 프로필 — 담기·되쓰기·대조 (신규)
+[M] app/main.py                       | 10~15       | type_display · 취소/완료 · GET /home · 편집 승계 · 작성자 · scope_summary · 범례 프로필 로드/저장 · _legend_facts · adopt
+[M] app/pipeline.py                   | 10·11·12·15 | SCOPE 네 규칙 · 밸브 SCOPE · 진행 신호 · 오버레이 색 · 범례 프로필 적용/대조 · LegendUnavailable
 [M] app/revisions.py                  | 13          | document_revision(대표 Rev) · compare_sheet_revisions(장 단위)
-[M] app/static/app.js                 | 10·12·13·14 | type_display · 근거패널/범례/진행/취소/팬 · 프로젝트 목록 · 작성자 · 이력 · **scopeFacts + 편집 안내**
-[M] app/static/index.html             | 12·13       | 진행 화면 4줄과 취소 버튼 · 동명 프로젝트 안내 자리
-[M] app/static/styles.css             | 12·13·14    | SCOPE 열 폭 · 진행/팬 · 프로젝트 목록 · 개정 배지 · 작성자 줄 · 편집 안내
+[M] app/static/app.js                 | 10·12·13·14·15 | type_display · 근거패널/진행/취소/팬 · 프로젝트 목록 · 작성자 · scopeFacts + 편집 안내 · **범례 프로필 띠와 갱신 선택**
+[M] app/static/index.html             | 12·13·15    | 진행 화면 4줄과 취소 버튼 · 동명 프로젝트 안내 자리 · 범례 프로필 띠 자리
+[M] app/static/styles.css             | 12·13·14·15 | SCOPE 열 폭 · 진행/팬 · 프로젝트 목록 · 개정 배지 · 작성자 줄 · 편집 안내 · 범례 프로필 띠
 [M] config/project_alnouf1.yaml       | 10·13       | TW 를 type_map · scope 절 · revision.document_rule (근거 수치 주석 포함)
 [A] docs/round10_feedback.md          | 10          | 10회차 측정 전문 (신규)
 [A] docs/round11_scope_axis.md        | 11          | 11회차 측정 전문 (신규)
@@ -38,9 +40,11 @@
 [A] docs/round12_ui.md                | 12          | 12회차 측정 전문 (신규)
 [A] docs/round13_persistence.md       | 13          | 13회차 측정 전문 (신규)
 [A] docs/round14_edit_scope.md        | 14          | 14회차 측정 전문 (신규)
+[A] docs/round15_legend_profile.md    | 15          | 15회차 측정 전문 (신규)
 [M] spike/accuracy.py                 | 11          | 측정축 두 개(전량 · SCT). keep 하나만 축마다 다름
 [M] tests/test_describe_axis.py       | 10          | nearest_conn 시험 6건 — 순회하지 않음을 소스 검사로 강제
 [M] tests/test_determinism.py         | 10          | 신규문형(최근접) 행의 계약
+[A] tests/test_legend_profile.py      | 15          | 범례 프로필 20건 — 없으면 유도 · 프로젝트 격리 · 되쓰기 동일 · 유도 실패 기록 · 자동 갱신 없음 (신규)
 [A] tests/test_revision_carry.py      | 13          | 개정 판별 · 편집 승계 · 지문이 편집 층을 안 읽음 (신규, 13건)
 [A] tests/test_scope_and_type.py      | 10·11       | SCOPE 네 규칙 · 공급자명 비하드코딩 · TYPE 표기 불변 · 두 축 (신규)
 [M] tests/test_ui_edits.py            | 10·11·13·14 | 편집 시험 칸 · 작성자 줄 · **SCOPE 상태로 행 선택** + 세 갈래 시험 3건 신규 (21 → 24)
