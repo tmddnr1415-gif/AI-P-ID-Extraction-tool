@@ -744,6 +744,7 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
 | 마스터 밸브 리스트 | 밸브 Description 문형 기준 (미수령) |
 | `out/valve_operation_mode.md` | PNEUMATIC → MODULATING 의 근거가 발주처 **1행**뿐입니다. 우리 PNEUMATIC 탭 46행을 그 1행으로 판정해도 되는지 |
 | `out/pi_discriminator.md` | PI 를 어느 도면에서 세고 어느 도면에서 안 세는지의 기준. 도면에서 유도되지 않았습니다 |
+| `config` `valves.legend_fallback` (15회차) | 이 세 항목의 기본값이 **범례 값과 같은 숫자**라, 범례 p3 가 빠진 개정본에서 값으로는 아무 것도 달라지지 않고 `source` 로만 잡힙니다. 비워서 "범례가 없으면 시끄럽게 멈추게" 할지, 지금처럼 조용히 같은 값으로 갈지는 **실무 판단**입니다 (프로필이 있는 프로젝트에서는 어느 쪽이든 프로필이 이깁니다) |
 
 ## 5-1. 마감 현황 — 824행이 사람에게 무엇을 요구하나
 

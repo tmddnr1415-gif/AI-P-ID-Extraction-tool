@@ -481,8 +481,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                              for pd in pages)}
 
     # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
-    # 범례를 그대로 쓴다.  `page_kinds` 를 여기로 올린 것은 **범례 장이 이
-    # PDF 에 있는가**를 그 판단에 써야 하기 때문이고, 값을 만들지는 않는다.
+    # 범례를 그대로 쓴다.  `page_kinds` 는 `derive_unit_multipliers` 가 읽던
+    # 그대로이고, 여기로 올라온 것은 아래 블록이 그 앞에 서기 때문이다 —
+    # 값을 만들지 않는다 (한 줄짜리 dict 축약이고 tb_rows 를 그대로 편다).
     page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
     profile = legend_profile if isinstance(legend_profile, dict) else None
 
