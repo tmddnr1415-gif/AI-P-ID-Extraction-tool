@@ -105,11 +105,27 @@ def test_description_words_all_come_from_the_drawing(first_run):
         # 그대로 걸린다.  붙인 사유는 evidence 와 `description_sources` 가
         # 말하며, 아래에서 그것도 함께 확인한다.
         dup = r["evidence"].get("duplicate_suffix") or {}
-        dup_letter = {str(dup["letter"]).upper()} if dup.get("letter") else set()
-        if dup_letter:
-            assert any(str(s).startswith("SUFFIX:")
-                       for s in (r["evidence"].get("description_sources") or ())), \
+        extra_allowed = set()
+        if dup.get("letter"):
+            extra_allowed.add(str(dup["letter"]).upper())
+            # 붙였으면 왜 붙였는지도 있어야 한다 — 이 확인은 **접미에만**
+            # 걸린다 (아래 위치어는 도면에서 온 낱말이라 사유가 다르다).
+            assert any(str(t).startswith("SUFFIX:")
+                       for t in (r["evidence"].get("description_sources") or ())), \
                 f"row {r['key']}: 접미를 붙였는데 사유가 기록되지 않았다"
+        # 17회차 C-4 — 커넥터 짝이 말한 위치어.  이 낱말은 **도면에서 왔다**
+        # (그 계기 주위의 오프페이지 커넥터 문구), 그래서 예외가 아니라
+        # 출처 확인이다: 그 행의 CONNECTOR 후보 문구 안에 실제로 있는지 본다.
+        # 판정축 문형 행은 아래에서 `allowed` 를 판정 근거만으로 세우므로
+        # 여기서 함께 실어 준다.
+        cpos = r["evidence"].get("connector_position") or {}
+        if cpos.get("word"):
+            word = str(cpos["word"]).upper()
+            assert any(c.get("kind") == "CONNECTOR"
+                       and word in str(c.get("text", "")).upper().split()
+                       for c in (r["evidence"].get("candidates") or ())), \
+                f"row {r['key']}: 위치어 {word} 를 말한 커넥터 후보가 없다"
+            extra_allowed.add(word)
         if axisv.get("source") == "신규문형(최근접)":
             # 10회차 — 라인 전후단 최근접 커넥터.  낱말의 출처는 후보 목록이
             # 아니라 도면이 그 선 옆에 인쇄한 `TO`/`FROM` 문구다.  등급이
@@ -123,7 +139,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
             allowed |= set(str(near["name"]).upper().split())
             if axisv.get("suffix"):
                 allowed.add(str(axisv["suffix"]).upper())
-            extra = set(r["description"].upper().split()) - allowed - dup_letter
+            extra = set(r["description"].upper().split()) - allowed - extra_allowed
             assert not extra, f"nearest row {r['key']} words from no source: {extra}"
             assert r["description_grade"] == pipeline.GRADE_LOW, \
                 "최근접 커넥터는 제안이지 확정이 아니다"
@@ -144,7 +160,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
                          axisv.get("suffix")):
                 if name:
                     allowed |= set(str(name).upper().split())
-            extra = set(r["description"].upper().split()) - allowed - dup_letter
+            extra = set(r["description"].upper().split()) - allowed - extra_allowed
             assert not extra, f"axis row {r['key']} words from no source: {extra}"
             assert r["description_grade"] == pipeline.GRADE_CONFIRMED
             assert r["remark"].startswith("판정축")
@@ -160,7 +176,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
                 allowed.add(eq["position_word"])
         if r["evidence"].get("instrument_ordinal"):
             allowed.add(r["evidence"]["instrument_ordinal"])
-        extra = set(r["description"].upper().split()) - allowed - dup_letter
+        extra = set(r["description"].upper().split()) - allowed - extra_allowed
         assert not extra, f"row {r['key']} has words from no source: {extra}"
         assert r["evidence"]["description_sources"], "no sources recorded"
         sel = r["evidence"].get("description_selected") or {}

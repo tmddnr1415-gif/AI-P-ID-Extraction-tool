@@ -764,7 +764,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         desc_stats = _finish_descriptions(rows, per_page, isa, pattern,
                                           selector, examples, use_line_gate)
         axis_stats.update(_apply_axis(rows))
-        desc_stats.update(_position_from_connectors(rows, isa, pattern))
+        desc_stats.update(_position_from_connectors(
+            rows, isa, pattern, pipe_style.values.get("connector_reach")))
         desc_stats.update(_disambiguate_duplicates(rows))
         # 등급 집계는 적용 뒤의 실제 행에서 다시 센다 - 축 적용이 등급을
         # 바꾸므로, 적용 전 집계를 그대로 실으면 화면·보고가 행과 어긋난다.
@@ -1918,14 +1919,28 @@ def _user_input_note(type_, middle: str, noun: str, system: str) -> tuple:
 # 규칙은 셋이고 전부 이 저장소가 이미 쓰는 것이다:
 #   · **짝이 아니면 고르지 않는다** — 서로 다른 위치어를 말하는 커넥터가 둘
 #     이상 있을 때만 발동한다 (9회차 "갈리지 않으면 고르지 않는다").
+#   · **★ 그리고 갈려야 고른다.**  둘의 거리 차가 `connector_reach`(이 문서의
+#     커넥터 218개에서 런타임에 잰 70.2pt) 보다 작으면 도면이 둘을 구분한 것이
+#     아니다.  슬라이스가 아니라 **분리 요구치**로 쓴다 — 오프페이지 커넥터는
+#     시트 가장자리에 모여 있어 거리가 공통 오프셋에 지배되고, 그때 차이는
+#     정보를 담지 않는다 (실측: p18 의 두 커넥터가 1195.4pt ↔ 1213.7pt 인데
+#     y 로는 487pt 떨어져 있다 — 같은 왼쪽 가장자리라 둘 다 ~1200pt 다).
 #   · **이미 위치어가 있는 문장은 밀어내지 않는다** (8회차 기준).
 #   · 낱말 목록은 코드가 아니라 config 에 있고 발주처 557행에서 센 값이다
 #     (`description.position_pair_words`).
 #
+# **분리 요구치를 이 문서에서 확인했다.**  짝이 선 31행의 "2위와의 차" 는
+# 12.8 · 18.3 · 18.4 · 18.7 · 18.8 · 24.6 · 24.7 · 27.1 · 41.4 …  그리고
+# **190.8 · 224.9 · 318.2 · 352.3 · 364.5 · 405.5 · 467.6 · 501.8 · 519.4 ·
+# 580.9 · 629.1 · 655.3 · 778.6 · 804.4** 로 갈린다 — **41.4 와 190.8 사이가
+# 비어 있다.**  그래서 문턱을 그 빈 띠 안 어디에 두어도 결과가 같고
+# (18행 유지 · 13행 보류), `connector_reach` 70.2 는 그 안이다.  p9 상자
+# 허용치를 25.9 로 두어도 상자 수가 같았던 것과 같은 확인이다 (16회차).
+#
 # 실측(1029행 기준선): 둘 다 있는 행 25 · 그 중 현재 문장에 두 낱말이 하나도
 # 없는 행 16 · **현재 문장이 가까운 쪽과 어긋나는 행 0**.  즉 기존 답을
 # 뒤집지 않고 빈 자리만 채운다.
-def _position_from_connectors(rows, isa, pattern) -> dict:
+def _position_from_connectors(rows, isa, pattern, conn_reach=None) -> dict:
     """커넥터가 짝으로 말할 때만 위치어를 채운다."""
     words = {str(w).upper() for w in
              (CFG.data.get("description", {}).get("position_pair_words") or ())}
@@ -1951,7 +1966,19 @@ def _position_from_connectors(rows, isa, pattern) -> dict:
                     seen[w] = d
         if len(seen) < 2:
             continue                     # 짝이 아니면 고르지 않는다
-        best = min(seen, key=seen.get)
+        order = sorted(seen, key=seen.get)
+        best, runner = order[0], order[1]
+        gap = seen[runner] - seen[best]
+        if conn_reach and gap <= conn_reach:
+            # 갈리지 않았다.  판정은 기록하고 적용만 하지 않는다 (8회차 방식).
+            r.evidence["connector_position_withheld"] = {
+                "word": best, "distance": round(seen[best], 1),
+                "runner_up": runner, "runner_distance": round(seen[runner], 1),
+                "gap": round(gap, 1), "needs_gap": round(conn_reach, 1),
+                "why": "두 커넥터의 거리 차가 connector_reach 보다 작다 — "
+                       "도면이 둘을 구분하지 않았다",
+            }
+            continue
         var = " ".join(desc.variable_words(r.type, isa, pattern))
         placed = _insert_before_variable(text, var, best)
         if placed is None:
