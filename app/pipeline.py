@@ -2044,6 +2044,16 @@ def _disambiguate_duplicates(rows) -> dict:
                 "coordinate": "붙이지 않음 — 이 도면의 테두리 그리드가 "
                               "텍스트가 아니고 글리프 사전에 E~H·2~8 이 없다",
             }
+            # 이 글자는 **도면에 없다**.  검토자가 요구한 구분자이므로 그렇게
+            # 적는다 — 근거 패널이 도면 값과 같은 얼굴로 보이면 안 된다.
+            # `tests/test_determinism.py` 의 §2.1 ③ 시험이 이 줄을 확인한다.
+            srcs = r.evidence.setdefault("description_sources", [])
+            if isinstance(srcs, list):
+                srcs.append(
+                    f"SUFFIX: 도면에 없는 낱말 — 이 도면 안에서 글자 그대로 같은 "
+                    f"문장 {len(members)}행을 가르려고 붙인 구분자 "
+                    f"(위→아래 · 좌→우 {i + 1}번째 = {letter}).  "
+                    f"테두리 그리드 좌표는 읽히지 않아 붙이지 않았습니다")
             touched += 1
     return {"duplicate_groups": sum(1 for m in groups.values() if len(m) > 1),
             "duplicate_rows": touched}

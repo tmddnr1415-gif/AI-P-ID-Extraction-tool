@@ -96,6 +96,20 @@ def test_description_words_all_come_from_the_drawing(first_run):
     assert isa["source"] == "LEGEND" and isa["first"]
     for r in written:
         axisv = r["evidence"].get("axis") or {}
+        # 17회차 C-1 — 중복 문장을 가르는 접미 한 글자.  **이 글자는 도면에
+        # 없다.**  검토자가 요구한 구분자이지 도면이 말한 값이 아니므로
+        # (2차 피드백 3장: "Description 이 중복되는 항목들은 … 끝에 Suffix
+        # A,B,C,D,E … 를 넣어줘라"), 이 시험의 §2.1 ③ 계약에 대한 **명시적
+        # 예외**다.  예외는 최대한 좁게 둔다 — 그 행 자신의
+        # `duplicate_suffix.letter` **한 글자만** 허용하고 나머지 낱말은
+        # 그대로 걸린다.  붙인 사유는 evidence 와 `description_sources` 가
+        # 말하며, 아래에서 그것도 함께 확인한다.
+        dup = r["evidence"].get("duplicate_suffix") or {}
+        dup_letter = {str(dup["letter"]).upper()} if dup.get("letter") else set()
+        if dup_letter:
+            assert any(str(s).startswith("SUFFIX:")
+                       for s in (r["evidence"].get("description_sources") or ())), \
+                f"row {r['key']}: 접미를 붙였는데 사유가 기록되지 않았다"
         if axisv.get("source") == "신규문형(최근접)":
             # 10회차 — 라인 전후단 최근접 커넥터.  낱말의 출처는 후보 목록이
             # 아니라 도면이 그 선 옆에 인쇄한 `TO`/`FROM` 문구다.  등급이
@@ -109,7 +123,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
             allowed |= set(str(near["name"]).upper().split())
             if axisv.get("suffix"):
                 allowed.add(str(axisv["suffix"]).upper())
-            extra = set(r["description"].upper().split()) - allowed
+            extra = set(r["description"].upper().split()) - allowed - dup_letter
             assert not extra, f"nearest row {r['key']} words from no source: {extra}"
             assert r["description_grade"] == pipeline.GRADE_LOW, \
                 "최근접 커넥터는 제안이지 확정이 아니다"
@@ -130,7 +144,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
                          axisv.get("suffix")):
                 if name:
                     allowed |= set(str(name).upper().split())
-            extra = set(r["description"].upper().split()) - allowed
+            extra = set(r["description"].upper().split()) - allowed - dup_letter
             assert not extra, f"axis row {r['key']} words from no source: {extra}"
             assert r["description_grade"] == pipeline.GRADE_CONFIRMED
             assert r["remark"].startswith("판정축")
@@ -146,7 +160,7 @@ def test_description_words_all_come_from_the_drawing(first_run):
                 allowed.add(eq["position_word"])
         if r["evidence"].get("instrument_ordinal"):
             allowed.add(r["evidence"]["instrument_ordinal"])
-        extra = set(r["description"].upper().split()) - allowed
+        extra = set(r["description"].upper().split()) - allowed - dup_letter
         assert not extra, f"row {r['key']} has words from no source: {extra}"
         assert r["evidence"]["description_sources"], "no sources recorded"
         sel = r["evidence"].get("description_selected") or {}
