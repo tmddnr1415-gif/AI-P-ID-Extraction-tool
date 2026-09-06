@@ -365,6 +365,43 @@ class Mark(NamedTuple):
 MARK_TEXT_RE = re.compile(r"^\(?(\*{1,3})\)?")
 
 
+# 잉크와 종이.  팔레트가 아니라 **도면이 자기 표시에 쓰는 두 색**이고, 검사는
+# "이 둘 중 어느 것도 아닌 색으로 그려졌는가" 다.  `detect_all._INK` 과 같은
+# 값이고 같은 뜻이다 — 그쪽은 검토자가 칠한 형광을 가르는 데 쓰고, 여기서는
+# 개정 클라우드처럼 도면 위에 덧그려진 빨간 표기를 가르는 데 쓴다.
+_INK = ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
+
+
+def _is_ink(d) -> bool:
+    """이 path 가 잉크(또는 종이)로만 그려졌는가."""
+    for key in ("color", "fill"):
+        c = d.get(key)
+        if c is not None and tuple(round(v, 2) for v in c) not in _INK:
+            return False
+    return True
+
+
+def _is_stroke_glyph(d) -> bool:
+    """이 path 가 별표를 이루는 획인가 — **칠 없는 곧은 선**.
+
+    16회차 실측.  이 문서의 별표는 획 여섯 개(가로 5.7 · 세로 5.7 · 대각
+    4.02x4.02 두 개가 각각 두 번)로 그려지고 **전부 `fill=None` 이며 항목이
+    전부 직선(`l`)** 이다.  근거는 범례다 — NOTES 정의줄이 인쇄한 별표
+    **38개가 38개 다** 그 모양이다 (`*` 가 무엇인지 도면 스스로가 말하는
+    자리이므로 이보다 확실한 표본이 없다).
+
+    걸러지는 것은 밸브의 검은 점 같은 **칠한 원**이다: 곡선 네 개(`c`)로
+    그린 지름 4.26 원 + 해칭 슬라이버들이라 크기만 보면 별표와 구분되지
+    않는다.  실측으로 p9 의 체크밸브 점이 그 옆 패키지 상자의 테두리 띠에
+    들어가 상자의 별표를 `*`(HRSG) 에서 `**`(ST SUPPLIER) 로 바꿔 놓고
+    있었다.  전 도면: 마크 986 → 795 (칠했거나 곡선인 191개 제외) ·
+    범례를 읽은 장 27 그대로 · 상자 78 그대로.
+    """
+    if d.get("fill") is not None:
+        return False
+    return all(it[0] == "l" for it in d["items"])
+
+
 def _glyph_clusters(pc, lay: Layout = LAYOUT):
     """Small square-ish vector blobs, merged into single glyphs.
 
@@ -375,7 +412,20 @@ def _glyph_clusters(pc, lay: Layout = LAYOUT):
     """
     lo, hi, gap = lay.mark_blob, lay.mark_glyph_span, lay.mark_cluster_gap
     seen, blobs = set(), []
-    for r in pc.rects():
+    for d in pc.drawings():
+        # 16회차 — **도면이 자기 표시에 쓰는 색은 잉크와 종이 둘뿐이다.**
+        # `detect_all._INK` 이 이미 쓰고 있는 개념 그대로다: 그 밖의 색으로
+        # 칠해진 것은 도면의 표시가 아니라 위에 덧그린 것이다.  개정 클라우드와
+        # 개정 삼각형은 빨강(1,0,0)으로 그려지고 그 호가 별표와 같은 크기라,
+        # 이 걸림이 없으면 개정 표시가 벤더 별표로 읽힌다 (실측: p35 의 TIT 가
+        # 별표 없이 `VENDOR(PUMP SUPPLIER)` 가 된 것이 그것이다).
+        # 전 도면 실측: 글리프 마크 1,031개 중 잉크가 아닌 것 118개.
+        # 그리고 별표는 **칠 없는 곧은 선**이다 (`_is_stroke_glyph`) — 범례가
+        # 인쇄한 38개가 38개 다 그렇다.  이 걸림이 없으면 밸브의 검은 점이
+        # 같은 크기의 마크로 잡힌다.
+        if not _is_ink(d) or not _is_stroke_glyph(d):
+            continue
+        r = d["bbox"]
         w, h = r.width, r.height
         if not (lo[0] <= max(w, h) <= lo[1]) or min(w, h) <= 0.5:
             continue
@@ -834,7 +884,15 @@ def package_box_marks(boxes, marks, lay: Layout = LAYOUT) -> list:
     return out
 
 
-def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT):
+def _x_gap(rect, x: float) -> float:
+    """마크의 x 가 이 사각형에서 얼마나 떨어져 있나 (안이면 0)."""
+    if rect.x0 <= x <= rect.x1:
+        return 0.0
+    return min(abs(x - rect.x0), abs(x - rect.x1))
+
+
+def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
+                     others=()):
     """이 사각형에 걸린 벤더 마크 → `(rules_hit, evidence)`.  없으면 `([], None)`.
 
     11회차에 `detect()` 안에서 꺼냈다.  움직인 것은 **위치뿐**이고 판정은 한
@@ -852,6 +910,18 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT):
         if rect.x0 - lay.mark_x_slack <= k.x <= rect.x1 + lay.mark_x_slack
         and rect.y0 - lay.mark_above <= k.y <= rect.y0
     ]
+    # 16회차 — **한 마크는 버블 하나에만 붙는다.**  x 창이 `mark_x_slack` 만큼
+    # 좌우로 늘어나 있어서 나란히 선 두 버블의 창이 겹치고, 그 사이에 찍힌
+    # 마크가 **둘 다에** 세어졌다.  실측: p25 의 PT 는 자기 별표 1개 + 옆
+    # TT 의 별표 1개를 합쳐 `**` 가 되고, 그 장 NOTES 는 `*` 만 정의하므로
+    # `UNDEFINED` 로 떨어졌다 (TT 는 같은 별표로 GT SUPPLIER 가 됐다).
+    # 그래서 **더 가까운 버블이 따로 있으면 그 마크는 이 사각형의 것이 아니다.**
+    # 창을 좁히지 않는다 — 좁히면 자기 별표가 떨어져 나가는 버블이 생긴다.
+    if others:
+        near = [k for k in near
+                if not any(_x_gap(o, k.x) < _x_gap(rect, k.x)
+                           and o.y0 - lay.mark_above <= k.y <= o.y0
+                           for o in others)]
     stars = sum(k.stars for k in near)
     source, forms = "SYMBOL", {k.form for k in near}
     if not stars:
@@ -930,7 +1000,9 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
         # 이름은 `mark_rules` 다 — `rules` 는 이 함수의 **매개변수**(Ruleset)이고,
         # 여기서 덮으면 다음 낱말에서 `rules.anchors` 가 터진다 (실제로 그랬다).
         mark_rules, vmark = read_vendor_mark(bubble, marks, box_marks,
-                                             mark_dict, lay)
+                                             mark_dict, lay,
+                                             others=[b for b in bubbles
+                                                     if b is not bubble])
         if vmark:
             det.evidence["vendor_mark"] = vmark
             det.rules_hit.extend(mark_rules)
