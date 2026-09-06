@@ -1,0 +1,48 @@
+[감사] 산출 대상 824행 / job 1개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 5.4 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [1864]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8902 (Press CTRL+C to quit)
+INFO:     127.0.0.1:40790 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40794 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40810 - "GET /jobs/f67dc33702d9/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50558 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50592 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50576 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50602 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50558 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50602 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50592 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50592 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50592 - "GET /jobs/f67dc33702d9 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50592 - "GET /jobs/f67dc33702d9/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50558 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50602 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50576 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /jobs/f67dc33702d9/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56090 - "POST /jobs/f67dc33702d9/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56096 - "GET /revisions/1/excel HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1864]
