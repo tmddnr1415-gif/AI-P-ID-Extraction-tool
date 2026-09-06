@@ -33,8 +33,8 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import (audit, axis_overrides, db, excel_out, paths, pipeline,  # noqa: E402
-                 revisions, version)
+from app import (audit, axis_overrides, db, excel_out, legend_profile, paths,  # noqa: E402
+                 pipeline, revisions, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -232,9 +232,27 @@ def _worker() -> None:
                     out["sheet_plan"] = plan
                 _emit(job_id, out)
 
+            # 15회차 — 그 프로젝트가 이미 읽어 둔 범례가 있으면 넘긴다.
+            # **없으면 `None` 이고, `None` 이면 파이프라인이 반드시 유도한다.**
+            # 프로젝트에 안 묶인 분석은 언제나 `None` 이다 - 프로필은 프로젝트
+            # 폴더 안에만 살고, 다른 프로젝트가 공유할 길이 없다.
+            profile = legend_profile.load(DATA_DIR, row["project"])
             result = pipeline.analyse(Path(row["pdf_path"]), progress=progress,
-                                      reference=VERIFY_AGAINST)
+                                      reference=VERIFY_AGAINST,
+                                      legend_profile=profile)
             result["fingerprint"] = pipeline.fingerprint(result)
+            # 새 프로젝트면 이번에 읽은 범례를 그 프로젝트 것으로 남긴다.
+            # 이미 프로필이 있으면 **덮지 않는다** - 범례가 달라졌다면 그것은
+            # `legend_profile.changes` 로 사람에게 가고, 갱신은 사람이 고른다.
+            lp_out = result.get("legend_profile") or {}
+            if row["project"] and profile is None and lp_out.get("profile"):
+                saved = dict(lp_out["profile"])
+                saved.setdefault("source_meta", {})
+                saved["source_meta"].update({"job_id": job_id,
+                                             "revision": row["revision"],
+                                             "project": row["project"]})
+                legend_profile.save(DATA_DIR, row["project"], saved)
+                lp_out["saved"] = True
             summary = db.store_result(CON, job_id, result)
             # 도면이 스스로 말한 개정을 문서 하나로 접어 둔다 (13회차 [E]).
             # 접기 전 장별 값은 `pid_page` 에 그대로 남아 있고, 화면은 둘 다
@@ -250,6 +268,10 @@ def _worker() -> None:
             db.mark_finished(CON, job_id)
             fin = db.get_job(CON, job_id)
             summary["scope"] = _scope_summary(result["rows"])
+            # 15회차 — 이 결과가 어느 범례로 나왔나.  완료 화면도 말한다:
+            # 방금 분석을 건 사람은 결과 화면을 먼저 보고, 재사용 여부를
+            # 거기서 못 보면 다음에 볼 자리가 없다.
+            summary["legend"] = _legend_facts(fin)
             _emit(job_id, {"progress": 1.0, "message": "done", "status": "done",
                            "summary": summary,
                            "sheet_plan": _plan(fin),
@@ -267,6 +289,24 @@ def _worker() -> None:
             _emit(job_id, {"progress": 0.0, "status": "cancelled",
                            "message": "사용자가 분석을 취소했습니다",
                            "page_count": fin["page_count"],
+                           "elapsed_s": _elapsed(fin)})
+        except pipeline.LegendUnavailable as exc:
+            # 15회차 — 이 실패는 파이프라인이 **직접 검사한 조건**이고 문장도
+            # 거기서 썼다.  그래서 `_failure_reason` 을 거치지 않는다: 그 함수는
+            # *알 수 없는* 실패에 쓰는 것이고, 아는 실패까지 일반 문구로 덮으면
+            # 사람이 무엇을 하면 되는지 알 수 없다.
+            traceback.print_exc()
+            reason = str(exc)
+            db.set_progress(CON, job_id, 0.0, reason, "failed",
+                            error_detail=traceback.format_exc())
+            db.mark_finished(CON, job_id)
+            fin = db.get_job(CON, job_id)
+            _emit(job_id, {"progress": 0.0, "status": "failed",
+                           "message": reason,
+                           "sheet_plan": _plan(fin),
+                           "page_count": fin["page_count"],
+                           "sheets_done": fin["sheets_done"],
+                           "sheets_total": fin["sheets_total"],
                            "elapsed_s": _elapsed(fin)})
         except Exception as exc:                     # noqa: BLE001
             # The original goes to the log untouched, and to `error_detail` for
@@ -802,6 +842,129 @@ def scope_summary_now(job_id: str):
              "type": r["values"].get("type")}
             for r in db.merged_rows(CON, job_id) if not r.get("deleted")]
     return _scope_summary(rows)
+
+
+# --------------------------------------------------------------------------
+# 범례 프로필 — 무엇으로 분석했나, 그리고 범례가 달라졌나 (15회차)
+# --------------------------------------------------------------------------
+
+def _legend_facts(job) -> dict:
+    """이 분석이 어느 범례로 나왔는지.  **화면에서 이 판정을 하는 곳은 여기 하나.**
+
+    옛 분석(15회차 이전)에는 이 칸이 없다.  없는 것을 "유도했음" 으로 읽으면
+    그것이 곧 지어내기이므로, `mode: unknown` 으로 그대로 말한다.
+    """
+    engine = json.loads(job["engine_json"] or "{}") if job else {}
+    lp = engine.get("legend_profile") or {}
+    stored = legend_profile.load(DATA_DIR, job["project"]) if job else None
+    mode = lp.get("mode") or "unknown"
+    changes = lp.get("changes") or []
+    if mode == "unknown":
+        line = ("이 분석은 범례 프로필이 생기기 전(15회차 이전)에 돌았습니다 — "
+                "범례를 재서 왔는지 기록이 없습니다")
+    elif mode == "derived":
+        # "범례 4장" 이 아니라 "값을 읽은 3장" 이다.  이 문서는 범례가 4장인데
+        # 값을 내놓은 장은 3장이고(p4 는 어느 항목의 근거도 아니다), 4라고
+        #적으면 화면이 세지 않은 것을 세었다고 말하게 된다.
+        line = ("이 문서의 범례를 직접 읽어 분석했습니다"
+                + (f" (값을 읽은 범례 {len(lp.get('legend_sheets') or [])}장)"
+                   if lp.get("legend_sheets") else ""))
+    else:
+        # 왜 대조를 못 했는지는 바로 옆 `compare_note` 가 말한다.  같은 사실을
+        # 두 번 적으면 띠가 길어지고 읽는 사람은 두 문장을 대조하게 된다
+        # (14회차 "한 번에 한 줄만" 과 같은 이유).
+        line = "이 프로젝트가 앞서 읽어 둔 범례를 그대로 썼습니다"
+    sheets = lp.get("legend_sheets") or []
+    missing = lp.get("uncompared") or []
+    if mode != "reused":
+        note = ""
+    elif not lp.get("compared"):
+        note = ("이 PDF 에 범례가 없어 **대조하지 못했습니다** — "
+                "프로필과 같다고 단정하지 않습니다")
+    else:
+        note = f"이 PDF 에서 값을 읽은 범례 {len(sheets)}장과 대조했습니다"
+        if missing:
+            note += (f" — {len(missing)}항목은 이 PDF 에 없어 "
+                     f"**대조하지 못했습니다**")
+    return {"mode": mode,
+            "measured": bool(lp.get("measured")),
+            "compared": bool(lp.get("compared")),
+            # 이번 PDF 가 읽지 못해 대조하지 못한 항목.  "같다" 가 아니다.
+            "uncompared": lp.get("uncompared") or [],
+            # 문장은 **여기서** 만든다 (파이프라인에 저장하지 않는다).
+            "compare_note": note,
+            "legend_sheets": lp.get("legend_sheets") or [],
+            "summary": lp.get("summary") or {},
+            "changes": changes,
+            "change_count": len(changes),
+            "can_adopt": bool(changes and lp.get("measured_profile")),
+            "has_stored_profile": stored is not None,
+            "stored_summary": legend_profile.summary(stored) if stored else {},
+            # 무엇을 저장했는지 사람이 읽을 수 있어야 한다 ([C]).  항목명 · 값 ·
+            # 유도 근거를 그대로 편 줄이고, 화면은 접어 두었다가 펼친다.
+            "stored_lines": legend_profile.describe(stored) if stored else [],
+            "stored_path": (str(legend_profile.profile_path(
+                DATA_DIR, job["project"])) if stored else ""),
+            "line": line}
+
+
+@app.get("/jobs/{job_id}/legend_profile")
+def job_legend_profile(job_id: str):
+    """이 분석이 어느 범례로 나왔나 + 프로필과 다른 곳."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    out = _legend_facts(job)
+    out["project"] = job["project"]
+    out["revision"] = job["revision"]
+    return out
+
+
+@app.post("/jobs/{job_id}/legend_profile/adopt")
+def adopt_legend_profile(job_id: str, keys: str = Form("")):
+    """범례가 달라진 곳을 프로필에 반영한다 — **사람이 눌렀을 때만.**
+
+    `keys` 가 비면 달라진 항목 전부, 아니면 쉼표로 나눈 항목만 갱신한다
+    (§7.3 의 삭제 후보와 같은 철학: 기계가 확정하지 않는다).  갱신하지 않은
+    항목은 옛 값 그대로 남고, 무엇을 갱신했는지 돌려준다.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    if not job["project"]:
+        raise HTTPException(400, "이 분석은 프로젝트에 묶여 있지 않아 "
+                                 "프로필이 없습니다")
+    engine = json.loads(job["engine_json"] or "{}")
+    lp = engine.get("legend_profile") or {}
+    fresh = lp.get("measured_profile")
+    if not fresh:
+        raise HTTPException(400, "이 분석에는 프로필과 다른 범례가 없습니다 — "
+                                 "갱신할 것이 없습니다")
+    stored = legend_profile.load(DATA_DIR, job["project"])
+    if stored is None:
+        raise HTTPException(404, "이 프로젝트에 저장된 범례 프로필이 없습니다")
+    changed = sorted({c["item"] for c in (lp.get("changes") or [])})
+    want = [k.strip() for k in keys.split(",") if k.strip()] or changed
+    taken = [k for k in want if k in changed]
+    if not taken:
+        raise HTTPException(400, f"갱신할 항목이 없습니다 (달라진 항목: "
+                                 f"{', '.join(changed) or '없음'})")
+    merged = json.loads(json.dumps(stored))
+    for key in taken:
+        merged["items"][key] = fresh["items"][key]
+    merged["failed"] = [k for k in legend_profile.ITEMS
+                        if (merged["items"].get(k) or {}).get("source")
+                        not in legend_profile.DERIVED_SOURCES]
+    merged["saved_at"] = time.time()
+    meta = dict(merged.get("source_meta") or {})
+    meta.update({"adopted_from_job": job_id, "adopted_items": taken,
+                 "adopted_revision": job["revision"]})
+    merged["source_meta"] = meta
+    legend_profile.save(DATA_DIR, job["project"], merged)
+    return {"adopted": taken, "kept": [k for k in changed if k not in taken],
+            "summary": legend_profile.summary(merged),
+            "note": "다음 분석부터 이 값을 씁니다. 이번 분석 결과는 "
+                    "바뀌지 않습니다 — 다시 분석해야 반영됩니다"}
 
 
 @app.get("/jobs/{job_id}/review")

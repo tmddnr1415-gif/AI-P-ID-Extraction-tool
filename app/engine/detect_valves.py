@@ -305,15 +305,20 @@ PNEUMATIC_SIZE_BAND = (0.75, 1.25)
 INDEX_SLACK = 0.8
 
 
-def derive_layout(pages, lay: ValveLayout = None, cfg=CFG):
+def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     """Replace the measured constants with values read off the legend.
 
     Returns `(layout, provenance)`.  Anything the legend cannot supply keeps the
     config value and says so in the provenance, so a failed derivation is
     visible rather than silently absorbed.
+
+    `derived` 는 15회차에 늘었다.  프로젝트 범례 프로필에서 되살린 유도 결과를
+    **그대로** 넘기는 자리이고, 넘어오면 이 문서의 범례를 다시 읽지 않는다.
+    측정 코드는 한 줄도 바뀌지 않았다 - 재는 대신 **이미 잰 것을 받는** 것이며,
+    아래의 `kw` 조립은 두 경우 모두 같은 코드가 한다 (같은 값 -> 같은 layout).
     """
     lay = lay or LAYOUT
-    derived = legend_rules.derive_all(pages, cfg)
+    derived = derived if derived is not None else legend_rules.derive_all(pages, cfg)
     bf, st, pn = derived["butterfly"], derived["actuator_stem"], derived["pneumatic"]
     kw = {}
     if pn.values:

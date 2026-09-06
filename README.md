@@ -231,9 +231,9 @@ Excel 은 **스냅샷에서만** 생성됩니다. 라이브 데이터에서 바�
 ## 테스트
 
 ```bash
-python3 -m pytest -q -m "not slow and not ui"   # 병합·충돌·신고·패키징 규칙 (69건, 10초)
-python3 -m pytest -q -m ui                      # 실제 브라우저 시나리오 (19건, 8분)
-python3 -m pytest -q                            # 전부, 결정론성 포함 (약 16분)
+python3 -m pytest -q -m "not slow and not ui"   # 병합·충돌·신고·패키징 규칙 (170건, 14초)
+python3 -m pytest -q -m ui                      # 실제 브라우저 시나리오 (24건, 약 31분)
+python3 -m pytest -q -m slow                    # 전 문서 분석 포함 (10건, 약 35분)
 ```
 
 `-m ui` 는 `app/_data/app.db` 의 기존 분석을 재사용하므로 재분석하지 않습니다.
@@ -249,6 +249,8 @@ app/excel_out 발주처 워크북을 열어 데이터 영역만 교체
 app/main      FastAPI: 업로드 / 진행률 SSE / 행 편집 / 스냅샷 / Excel
 app/static    리뷰 UI (빌드 도구 없음)
 app/paths     읽는 뿌리(번들 안)와 쓰는 뿌리(exe 옆)를 가름
+app/legend_profile  프로젝트 범례 프로필: Rev.A 가 읽은 범례를 저장하고
+              같은 프로젝트의 개정본이 그대로 씀 (15회차)
 app/version   버전(손으로) + 빌드일(build.bat 이 새김)
 app/desktop   exe 진입점: 포트 선택 · 브라우저 열기 · 오류 시 창 유지
 pid_extract.spec / build.bat   패키징 레시피와 그 근거

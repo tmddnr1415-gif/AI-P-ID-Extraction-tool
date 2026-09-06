@@ -416,7 +416,12 @@ def store_result(con, job_id: str, result: dict) -> dict:
                              ("multipliers", "legend", "glyphs", "job_review",
                               "applied_rules", "timings", "pipe_trace",
                               "description_scope", "description_build",
-                              "description_grades")},
+                              "description_grades",
+                              # 15회차 - 이 분석이 범례를 재서 왔는지 물려받아
+                              # 왔는지, 그리고 프로필과 어디가 다른지.  화면이
+                              # 이것을 읽어 "어느 규칙으로 나온 결과인가" 를
+                              # 말한다.  지문에는 들어가지 않는다.
+                              "legend_profile")},
                             default=str),
                  job_id))
     con.commit()

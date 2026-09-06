@@ -928,3 +928,44 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .author-bar.with-hint > span, .author-bar.with-hint > button { align-self: flex-start; }
 .ab-hint { font-size: var(--t-s); color: var(--ink-strong);
   border-left: 3px solid var(--warn); padding-left: 8px; max-width: 560px; }
+
+/* 범례 프로필 줄 (15회차) — 이 결과가 어느 범례로 나왔나.
+   머리 바로 아래, 그리드 위.  평소에는 한 줄이고, 개정본의 범례가 프로필과
+   다를 때만 펼쳐져 고를 것을 보인다.  색은 §7.2 의 세 층 규칙을 따른다:
+   기본은 종이색 위 옅은 띠, 다를 때만 경고 층으로 올린다. */
+.legend-bar {
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2, #f7f4ec);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.legend-bar.changed { background: #fdf4e3; border-bottom-color: #d9a441; }
+.legend-bar .lb-main { display: flex; gap: 10px; align-items: baseline;
+                       flex-wrap: wrap; }
+.legend-bar .lb-tag {
+  font-weight: 600; letter-spacing: -.01em; padding: 1px 7px; border-radius: 9px;
+  border: 1px solid var(--rule); color: var(--ink-strong); background: #fff;
+}
+.legend-bar .lb-tag.reused { border-color: #6b8f71; color: #3f6147; }
+.legend-bar .lb-tag.derived { border-color: #6a7f9c; color: #3f5673; }
+.legend-bar .lb-line { color: var(--ink-strong); }
+.legend-bar .lb-n, .legend-bar .lb-note { color: var(--ink-soft); }
+.legend-bar .lb-changes { margin-top: 6px; }
+.legend-bar .lb-warn { color: #7a5210; margin-bottom: 4px; }
+.legend-bar .lb-item { margin: 3px 0 3px 2px; }
+.legend-bar .lb-item label { font-weight: 600; color: var(--ink-strong); }
+.legend-bar .lb-cells { margin: 2px 0 0 20px; color: var(--ink-soft); }
+.legend-bar .lb-cells code { font-size: 11px; }
+.legend-bar .lb-cells s { opacity: .7; }
+.legend-bar .lb-act { margin-top: 6px; display: flex; gap: 8px;
+                      align-items: center; flex-wrap: wrap; }
+.legend-bar .lb-said { color: #3f6147; }
+.legend-bar .lb-saved { margin-top: 4px; }
+.legend-bar .lb-saved summary { cursor: pointer; color: var(--ink-strong); }
+.legend-bar .lb-path { color: var(--ink-soft); font-size: 11px; margin: 3px 0; }
+.legend-bar .lb-saved pre {
+  margin: 0; max-height: 260px; overflow: auto; font-size: 11px;
+  line-height: 1.45; background: #fff; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 6px 8px; white-space: pre-wrap;
+}

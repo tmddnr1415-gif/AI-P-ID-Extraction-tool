@@ -531,8 +531,30 @@ function showDone(summary, elapsed) {
     + (sc.legacy_no_scope
         ? `<div class="dn-note">SCOPE 판정이 없는 행 ${sc.legacy_no_scope}행 — `
           + `이 열이 생기기 전의 분석입니다</div>` : "")
+    + legendDoneLines(summary || {})
     + revisionLines(summary || {});
   box.classList.remove("hidden");
+}
+
+/* 범례를 재서 왔나 물려받아 왔나 — 완료 화면에서도 말한다 (15회차).
+ *
+ * 문장은 서버의 `_legend_facts` 가 쓴 것을 그대로 쓴다.  화면이 같은 판단을
+ * 다시 하지 않는다. */
+function legendDoneLines(summary) {
+  const f = summary.legend;
+  if (!f || f.mode === "unknown") return "";
+  const n = (f.summary && f.summary.item_count) || 0;
+  let out = `<div class="dn-row big"><span>범례</span>`
+    + `<span class="n">${f.mode === "reused" ? "재사용" : "이 문서에서 유도"}</span></div>`
+    + `<div class="dn-sub">${escape(f.line || "")}`
+    + (n ? ` — ${n}항목` : "") + `</div>`;
+  if (f.change_count) {
+    out += `<div class="dn-note">이 개정본의 범례가 프로필과 ${f.change_count}칸 `
+      + `다릅니다 — 자동으로 갱신하지 않았습니다. 결과 화면 위쪽에서 고르세요</div>`;
+  } else if (f.mode === "reused" && !f.compared) {
+    out += `<div class="dn-note">${escape(f.compare_note || "")}</div>`;
+  }
+  return out;
 }
 
 /* 개정과 승계 — 완료 화면에서도 말한다 (13회차).
@@ -811,12 +833,104 @@ async function open(jobId) {
   }
   $("#job-meta").textContent = meta.join(" · ");
   S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
+  await loadLegendProfile();
   await loadRevision();
   await loadRows();
   buildPageSelect();
   S.loading = false;
   updateEmptyNote();
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
+}
+
+/* 이 결과가 어느 범례로 나왔나 — 재사용인가 유도인가 (15회차).
+ *
+ * 판정은 서버의 `_legend_facts` **하나**가 한다.  화면이 같은 판단을 다시
+ * 하면 언젠가 갈린다 (11·14 회차가 같은 실패를 두 번 잡았다).  여기서 하는
+ * 일은 서버가 준 문장을 놓는 것과, 달라진 항목이 있을 때 **고르게 하는**
+ * 것뿐이다 — 자동으로 갱신하지 않는다.
+ */
+async function loadLegendProfile() {
+  const bar = $("#legend-bar");
+  if (!bar) return;
+  let f = null;
+  try {
+    f = await (await fetch(`/jobs/${S.job.id}/legend_profile`)).json();
+  } catch (e) { f = null; }
+  S.legend = f;
+  if (!f || f.mode === "unknown" && !f.has_stored_profile) {
+    bar.classList.add("hidden"); bar.innerHTML = ""; return;
+  }
+  const n = (f.summary && f.summary.item_count) || 0;
+  const failed = ((f.summary && f.summary.failed) || []).length;
+  const bits = [`<span class="lb-tag ${f.mode}">`
+    + `${f.mode === "reused" ? "범례 재사용" : f.mode === "derived"
+        ? "범례 유도" : "기록 없음"}</span>`,
+    `<span class="lb-line">${escape(f.line || "")}</span>`];
+  if (n) bits.push(`<span class="lb-n">${n}항목`
+    + (failed ? ` · 유도 실패 ${failed}` : "") + `</span>`);
+  if (f.compare_note) bits.push(`<span class="lb-note">${escape(f.compare_note)}</span>`);
+  // 일부만 대조된 경우에만 적는다.  하나도 대조 못 한 경우는 바로 앞
+  // `compare_note` 가 이미 그렇게 말했다 — 같은 말을 두 번 적지 않는다.
+  if (f.compared && (f.uncompared || []).length) {
+    bits.push(`<span class="lb-note">대조 못 한 항목 ${f.uncompared.length}`
+      + ` — 이 PDF 에 그 범례가 없습니다 (같다고 보지 않습니다)</span>`);
+  }
+  let html = `<div class="lb-main">${bits.join("")}</div>`;
+  if ((f.stored_lines || []).length) {
+    html += `<details class="lb-saved"><summary>저장된 범례 프로필 보기</summary>`
+      + `<div class="lb-path">${escape(f.stored_path || "")}</div>`
+      + `<pre>${escape((f.stored_lines || []).join("\n"))}</pre></details>`;
+  }
+  if (f.change_count) html += legendChangeBlock(f);
+  bar.innerHTML = html;
+  bar.classList.remove("hidden");
+  bar.classList.toggle("changed", !!f.change_count);
+  bindLegendAdopt();
+}
+
+/* 달라진 곳 — 무엇이 무엇에서 무엇으로.  **자동 갱신은 없다.** */
+function legendChangeBlock(f) {
+  const byItem = {};
+  (f.changes || []).forEach(c => {
+    (byItem[c.item] = byItem[c.item] || {label: c.label, rows: []}).rows.push(c);
+  });
+  const rows = Object.entries(byItem).map(([key, g]) =>
+    `<div class="lb-item"><label><input type="checkbox" class="lb-pick" `
+    + `value="${escape(key)}" checked> ${escape(g.label)}</label>`
+    + `<div class="lb-cells">` + g.rows.slice(0, 6).map(c =>
+        `<div><code>${escape(c.key)}</code> `
+        + `<s>${escape(String(c.was === null ? "(없음)" : c.was))}</s> → `
+        + `<b>${escape(String(c.now === null ? "(없음)" : c.now))}</b></div>`).join("")
+    + (g.rows.length > 6 ? `<div>… 그 밖에 ${g.rows.length - 6}칸</div>` : "")
+    + `</div></div>`).join("");
+  return `<div class="lb-changes">`
+    + `<div class="lb-warn">이 개정본의 범례가 저장된 프로필과 `
+    + `<b>${f.change_count}칸</b> 다릅니다. 이번 분석은 <b>프로필</b>로 했습니다 — `
+    + `자동으로 갱신하지 않았습니다.</div>`
+    + rows
+    + `<div class="lb-act">`
+    + `<button id="lb-adopt"${f.can_adopt ? "" : " disabled"}>고른 항목을 새 범례로 갱신</button>`
+    + `<button id="lb-keep" class="ghost">옛 프로필 유지</button>`
+    + `<span id="lb-said" class="lb-said"></span></div></div>`;
+}
+
+function bindLegendAdopt() {
+  const adopt = $("#lb-adopt"), keep = $("#lb-keep"), said = $("#lb-said");
+  if (keep) keep.onclick = () => {
+    said.textContent = "옛 프로필을 그대로 씁니다. 프로필 파일은 바뀌지 않았습니다.";
+  };
+  if (adopt) adopt.onclick = async () => {
+    const picked = [...document.querySelectorAll(".lb-pick")]
+      .filter(c => c.checked).map(c => c.value);
+    if (!picked.length) { said.textContent = "고른 항목이 없습니다."; return; }
+    const body = new FormData(); body.append("keys", picked.join(","));
+    const res = await fetch(`/jobs/${S.job.id}/legend_profile/adopt`,
+                            {method: "POST", body});
+    const out = await res.json();
+    if (!res.ok) { said.textContent = out.detail || "갱신하지 못했습니다."; return; }
+    said.textContent = `${out.adopted.join(", ")} 갱신했습니다 — ${out.note}`;
+    adopt.disabled = true;
+  };
 }
 
 /* 이 분석이 어느 리비전이고 무엇과 비교했는지.  머리에 "Rev.C vs Rev.A" 로

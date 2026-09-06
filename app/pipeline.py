@@ -59,6 +59,24 @@ import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
 import describe_axis as daxis      # noqa: E402
 
+# 15회차 — 프로젝트 범례 프로필.  엔진 모듈이 아니라 저장 계층이므로 `app.` 로
+# 가져온다.  그 모듈 자신은 엔진을 **맨 이름**으로 다시 가져오므로(`_engine`)
+# 여기 있는 것들과 같은 한 벌을 쓴다.
+from app import legend_profile as legend_profile_store  # noqa: E402
+
+class LegendUnavailable(RuntimeError):
+    """범례도 없고 프로필도 없어 판정 기준을 세울 수 없다 (15회차).
+
+    **예외를 바꿔 쓴 문장이 아니다.**  파이프라인이 직접 검사한 조건이고,
+    문장은 여기서 쓴다 - `app/main.py` 의 `_failure_reason` 이 예외를 보지 않는
+    것과 충돌하지 않는다 (그쪽은 *알 수 없는* 실패를 다룬다).
+
+    실측(15회차 [B]4): 범례 4장을 뺀 PDF 로 돌리면 `line_styles` 가 빈 값이 되고
+    (`valves.legend_fallback` 에 그 항목이 없다) 그대로 다음 단계로 넘어가
+    `KeyError: 'min_run'` 으로 죽었다.  사유를 말하지 않는 실패였다.
+    """
+
+
 CFG = projectconfig.load()
 # The trade dictionary: power-plant abbreviations that hold on any project, kept
 # apart from this client's choices so it can be carried to the next one unchanged.
@@ -396,12 +414,18 @@ def _reconfigure(pages) -> None:
 
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
-            use_line_gate: bool = True) -> dict:
+            use_line_gate: bool = True, legend_profile: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
     attribute drawings against, and it is the only thing in this pipeline that
     needs one.  Real runs pass nothing.
+
+    `legend_profile` 은 15회차에 늘었다.  그 프로젝트가 이미 읽어 둔 범례 값
+    한 벌이고, 넘어오면 이 문서의 범례를 **다시 학습하지 않고** 그대로 쓴다.
+    `None` 이면 예전과 똑같이 전부 유도한다 - 프로젝트에 묶이지 않은 분석은
+    언제나 이 길로 간다.  결과의 `legend_profile` 키가 어느 길이었는지,
+    이번 범례와 프로필이 어디서 다른지를 말한다.
     """
     def say(done, total, msg, sheets=None, plan=None, drawing=None):
         # `drawing` 은 12회차에 늘었다 — 화면이 "지금 어느 도서를 읽는 중인가"를
@@ -456,32 +480,102 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                    for r in (tb.extract_page(pd, library, tb.LAYOUT)
                              for pd in pages)}
 
+    # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
+    # 범례를 그대로 쓴다.  `page_kinds` 를 여기로 올린 것은 **범례 장이 이
+    # PDF 에 있는가**를 그 판단에 써야 하기 때문이고, 값을 만들지는 않는다.
+    page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
+    profile = legend_profile if isinstance(legend_profile, dict) else None
+
+    # **언제나 잰다.**  프로필이 있어도 잰다 - 적용하는 값은 프로필이고, 잰 것은
+    # 대조에만 쓴다.  조용히 옛 규칙을 쓰는 것이 이 회차에서 가장 위험한 실패
+    # 방식이기 때문이다 (지문은 정상으로 나오고 행 수도 그럴듯하다).
+    #
+    # 처음에는 "이 PDF 에 범례 장이 있을 때만" 재려고 `page_kind == LEGEND` 로
+    # 갈랐는데, **15회차 캡처가 그 갈림이 틀렸음을 잡았다**: 범례 p2 를 다시
+    # 그린 PDF 에서 그 장의 타이틀블록이 밀려 `page_kind` 가 LEGEND 가 아니게
+    # 됐지만, 유도는 **인쇄된 머리말**로 그 장을 찾아 값을 제대로 읽었다.
+    # 즉 페이지 종류로 가르면 범례가 있는데도 대조를 건너뛰는 길이 생긴다.
+    # 재는 값은 1.77초이고(§2), 못 읽은 항목은 `uncompared` 가 "모른다"로
+    # 말한다 - "같다"로 세지 않는다.
     say(2, total, "measuring rules off the legend sheets")
     with clock.stage("legend_rules"):
-        dv.LAYOUT, legend_derived = dv.derive_layout(pages)
-        pipe_style = pipe_graph.derive_line_styles(pages, CFG)
+        _lay, m_derived = dv.derive_layout(pages)
+        m_style = pipe_graph.derive_line_styles(pages, CFG)
+        # `connector_reach` 를 섞기 **전** 값이 범례가 말한 것이다.
+        m_style_values = dict(m_style.values)
+        # The words for each tag's measured variable, off legend p3's own
+        # identification matrix - the Description column is written in them.
+        m_isa = isa_table.derive(pages)
+        # The equipment table off legend p2, and the nouns that name equipment.
+        m_equip = dequip.derive_symbols(pages, CFG)
+        # 중간 부품 낱말은 어느 경우에도 이번 도면에서 읽는다.  범례 몫만
+        # 프로필이 주고, 도면 몫은 이 개정본의 도면이 준다.
+        fresh_words = dequip.derive_component_words(pages)
+
+        if profile is None:
+            dv.LAYOUT, legend_derived = _lay, m_derived
+            pipe_style = m_style
+            isa, equip_symbols = m_isa, m_equip
+            component_words = fresh_words
+        else:
+            legend_derived = legend_profile_store.restore_derived(profile)
+            # 되살린 유도 결과로 layout 을 **같은 코드**가 조립한다.
+            dv.LAYOUT, _ = dv.derive_layout(pages, derived=legend_derived)
+            pipe_style = legend_profile_store.restore_line_styles(profile)
+            isa = legend_profile_store.restore_isa(profile)
+            equip_symbols = legend_profile_store.restore_equipment(profile)
+            component_words = legend_profile_store.merge_component_words(
+                profile, fresh_words)
+
+        # 판정 기준이 서지 않으면 **여기서 사유를 말하고 멈춘다.**  조용히
+        # 기본값으로 도는 길은 없다: `line_styles` 는 `valves.legend_fallback` 에
+        # 항목 자체가 없어 빈 값이 되고, 빈 값으로 한 줄만 더 가면 다음 호출이
+        # `KeyError: 'min_run'` 으로 죽는다 (15회차 [B]4 실측).  그래서 그
+        # 호출 **앞**에 선다 - 뒤에 세우면 이 검사에 닿기 전에 죽는다.
+        if not pipe_style.values.get("min_run"):
+            raise LegendUnavailable(
+                "이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 "
+                "저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 "
+                "분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 "
+                "장이 없어도 분석할 수 있습니다.")
+
         legend_derived["line_styles"] = pipe_style
         # The off-page connector is not in the legend, so how far its text sits
         # from the pipe is measured off this document instead - see
         # `pipe_graph.derive_connector_reach`, which says so in its provenance.
+        # 프로필에 담지 않는 이유도 그것이다: 다음 개정본의 **도면**이 답한다.
         reach = pipe_graph.derive_connector_reach(
             pages, pipe_style.values, CFG.rect("regions.drawing_area"), CFG)
         legend_derived["connector_reach"] = reach
         pipe_style.values.update(reach.values)
-        # The words for each tag's measured variable, off legend p3's own
-        # identification matrix - the Description column is written in them.
-        isa = isa_table.derive(pages)
         pattern = desc.derive_pattern(CFG)
-        # The equipment table off legend p2, and the nouns that name equipment.
-        equip_symbols = dequip.derive_symbols(pages, CFG)
         equip_vocab = dequip.derive_vocabulary(equip_symbols, CFG)
-        component_words = dequip.derive_component_words(pages)
         positions = dcand.derive_position_words(CFG)
 
-    page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
+
     say(3, total, "deriving unit multipliers from legend page 5")
     with clock.stage("unit_multipliers"):
-        mult = projectconfig.derive_unit_multipliers(pages, CFG, page_kinds)
+        m_mult = projectconfig.derive_unit_multipliers(pages, CFG, page_kinds)
+        mult = (legend_profile_store.restore_multipliers(profile)
+                if profile is not None else m_mult)
+
+    # 이번에 잰 것을 프로필 한 벌로 묶는다.  새 프로젝트면 이것이 저장되고,
+    # 프로필이 이미 있으면 **대조 대상**이 된다 (자동 갱신하지 않는다).
+    measured_profile = legend_profile_store.capture(
+        butterfly=m_derived["butterfly"], actuator_stem=m_derived["actuator_stem"],
+        pneumatic=m_derived["pneumatic"],
+        line_styles=legend_rules.Derived(values=m_style_values,
+                                         source=m_style.source,
+                                         note=m_style.note,
+                                         evidence=dict(m_style.evidence)),
+        isa=m_isa, equip_symbols=m_equip, component_words=fresh_words,
+        multipliers=m_mult,
+        meta={"pdf": Path(pdf_path).name, "pages": len(pages)})
+    # 이번 PDF 가 실제로 읽은 장 · 읽지 못한 항목.  페이지 종류로 세지 않는다.
+    legend_sheets = legend_profile_store.read_pages(measured_profile)
+    legend_missing = legend_profile_store.uncompared(measured_profile)
+    legend_changes = (legend_profile_store.diff(profile, measured_profile)
+                      if profile is not None else [])
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]
@@ -781,6 +875,35 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         },
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
+        # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
+        # 들어가지 않는다 (`fingerprint` 는 `legend`·`multipliers`·행만 본다):
+        # 같은 값을 쓴 두 경로가 다른 지문을 내면 프로필이 값을 정확히 담았는지
+        # 확인할 길이 없어진다.  대신 화면과 로그가 이 칸을 읽어 말한다.
+        "legend_profile": {
+            "mode": "reused" if profile is not None else "derived",
+            # 이 PDF 가 **실제로 읽은** 장.  `page_kind` 로 세지 않는다 (15회차
+            # 캡처가 그 차이를 잡았다 - 다시 그린 범례 장은 종류가 바뀐다).
+            "legend_sheets": legend_sheets,
+            "measured": True,
+            "compared": bool(profile is not None
+                             and len(legend_missing) < len(
+                                 legend_profile_store.ITEMS)),
+            # 못 읽은 항목은 "같다" 가 아니라 **"모른다"** 다.
+            "uncompared": legend_missing,
+            # 문장은 여기 두지 않는다.  저장해 두면 문구를 고쳐도 옛 분석은
+            # 옛 문장을 계속 말하게 되고, 화면이 무엇을 근거로 그렇게 말하는지
+            # 두 벌이 된다.  화면이 읽는 문장은 `main._legend_facts` 가 **이
+            # 세 값(legend_sheets · uncompared · compared)에서 그때 만든다.**
+            "changes": legend_changes,
+            "summary": legend_profile_store.summary(
+                profile if profile is not None else measured_profile),
+            # 저장은 호출자가 한다 (`app/main.py`).  파이프라인은 파일을 쓰지
+            # 않는다 - 취소한 분석이 아무것도 남기지 않는 것과 같은 이유다.
+            "profile": profile if profile is not None else measured_profile,
+            # 대조로 갈린 곳이 있을 때만 싣는다.  사람이 "새 범례로 갱신" 을
+            # 고르면 이것이 새 프로필이 된다.
+            "measured_profile": (measured_profile if legend_changes else None),
+        },
         "job_review": job_review,
         "origins": origins,
         "glyphs": {
