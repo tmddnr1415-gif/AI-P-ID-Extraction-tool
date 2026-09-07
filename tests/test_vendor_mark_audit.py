@@ -229,3 +229,78 @@ def test_the_audit_catches_a_detector_that_was_made_blind_sideways(monkeypatch):
     assert caught, (
         "마크 창을 위 하나로 되돌렸는데도 검사가 아무것도 못 잡았다 — "
         "이 검사는 자리 축에서 검출기와 같은 재료를 쓰고 있다 (18회차가 그랬다)")
+
+
+# 렌더로 확인한 **주인이 따로 있는 검출** — 버블 25pt 안에 잉크 획 글리프가
+# 있는데 그 검출이 벤더가 아닌 것.  값은 (페이지, 건수) 이고 근거 캡처는
+# `out/round19/8_캡처/` 에 있다.
+#
+#   p3   1   FE 아래 24.8pt                            (버블 것이 아님)
+#   p7   5   PCV·MOV 의 **액추에이터**(돔 · M 원) 옆     p7_wide.png
+#   p33  3   LG 옆 **사각 심볼**(삼각형 2개)의 것        p33_LI.png
+#   p35  2   왼쪽 **밸브** 위의 별표 (옆 21.0pt)         p35_LIT21.png
+#   p37  1   액추에이터의 **네모친 별표 심볼**            p37_TCV.png
+#   p46  1   위쪽 **밸브** 아래 (옆 14.1pt)              p46_RO14.png
+#   p47  1   같음                                        —
+#   p49  1   같음                                        —
+#
+# ⚠ 이 목록은 "없다" 가 아니라 **"있고, 그 주인이 따로 있다"** 이다.
+#   16·18회차가 "전수 0건" 이라고 적은 자리에 이 숫자를 둔다.
+#   기준선(18회차 HEAD)에서는 **112건** 이었다.
+UNCLAIMED_EXPLAINED = {3: 1, 7: 5, 33: 3, 35: 2, 37: 1, 46: 1, 47: 1, 49: 1}
+
+
+def unclaimed_glyph_detections(pc, lay):
+    """버블 둘레에 글리프가 있는데 **벤더로 판정되지 않은** 검출.
+
+    ★ 19회차 신설.  `test_no_asterisk_in_a_mark_position_is_silently_dropped`
+    는 **알아봤는가**(`find_marks` 가 세었나)를 묻고, 이것은 **붙었는가**를
+    묻는다.  둘은 다른 질문이고, 4차 피드백이 지목한 p25·p30 은 **알아보기는
+    했는데 안 붙은** 경우였다 — 그래서 18회차의 시험이 통과하면서도 별표가
+    SCT 로 남았다.  같은 실수를 막으려면 두 질문을 다 물어야 한다.
+    """
+    import detect_symbols as ds
+    dets, *_ = ds.detect(pc, lay=lay, rules=ds.RULESET_V3,
+                         allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
+    if not dets:
+        return []
+    all_bubbles = ds.find_bubbles(pc, lay)
+    pair = []
+    for b in all_bubbles:
+        for d in dets:
+            if (b.x0 - 1 <= d.center[0] <= b.x1 + 1
+                    and b.y0 - 1 <= d.center[1] <= b.y1 + 1):
+                pair.append((b, d))
+                break
+    if not pair:
+        return []
+    with_glyph = {(round(b.x0, 1), round(b.y0, 1))
+                  for _c, b, _x, _y in glyphs_near_bubbles(
+                      pc, lay, [b for b, _ in pair])}
+    return [(round(b.x0, 1), round(b.y0, 1))
+            for b, d in pair
+            if (round(b.x0, 1), round(b.y0, 1)) in with_glyph
+            and not d.evidence.get("vendor_mark")]
+
+
+@pytest.mark.slow
+def test_every_glyph_beside_a_bubble_is_claimed_or_explained():
+    """버블 옆의 글리프가 **아무에게도 안 붙는** 일이 조용히 늘지 않는다.
+
+    16·18회차는 이 자리에 "전수 0건" 을 적었다.  그 값은 판정 함수에게
+    되물어 나온 것이었고, 실제로는 기준선에서 **112건**이 붙지 않고 있었다.
+    지금 남은 것은 `UNCLAIMED_EXPLAINED` 뿐이고 그 한 건씩을 렌더로 확인했다 —
+    전부 밸브 · 액추에이터 · 옆 사각 심볼의 마크다.
+    """
+    import detect_symbols as ds
+    lay = ds.LAYOUT
+    got = {}
+    for pc in _pages():
+        if not pc.analysis_scope:
+            continue
+        m = unclaimed_glyph_detections(pc, lay)
+        if m:
+            got[pc.page_no] = len(m)
+    assert got == UNCLAIMED_EXPLAINED, (
+        "붙지 않은 글리프의 내역이 달라졌다 — 실측 " + str(got)
+        + " · 렌더로 확인해 둔 것 " + str(UNCLAIMED_EXPLAINED))
