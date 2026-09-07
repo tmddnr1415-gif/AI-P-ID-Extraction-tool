@@ -1,37 +1,89 @@
-기준 커밋  aac64ba → c24f954
-파일 수    34
+기준 커밋  aac64ba → bb3799d
+파일 수    40   (추가 21 · 수정 19 · 삭제 0 · 이름변경 0)
 
-4f5a0ad78228    115,212  CLAUDE.md
-ffc42683d79f     50,589  README.md
-ddf25c447195     54,150  app/db.py
-699013d7cc72     34,838  app/engine/describe_axis.py
-9a1d6e540351     58,640  app/engine/detect_symbols.py
-53a1e157acc2    118,312  app/engine/detect_valves.py
-4275c240de6a     22,086  app/excel_out.py
-8c8a69a13f72     19,952  app/legend_profile.py
-02afd4617c7b     95,187  app/main.py
-9a1a83160fc1    150,032  app/pipeline.py
-8359fc5a80f2     28,396  app/revisions.py
-b574843b6cab    181,222  app/static/app.js
-f76f4cf49172     15,696  app/static/index.html
-185f62b8d194     51,742  app/static/styles.css
-4a82655ba09f     49,083  config/project_alnouf1.yaml
-b18c025e4cf9      5,519  conftest.py
-e4e77191c62a     26,152  docs/round10_feedback.md
-d2a9aac45ff2     21,194  docs/round11_scope_axis.md
-f017ec2c1345      6,400  docs/round12_annotation_design.md
-ad76662df98b     21,586  docs/round12_ui.md
-399103ae7c8a     11,153  docs/round13_persistence.md
-f2c39e88a9aa      9,775  docs/round14_edit_scope.md
-aa4e7df820ff     15,765  docs/round15_legend_profile.md
-64bf8790e507     20,293  docs/round16_scope.md
-0b898cb7068b      4,744  docs/round17_delete.md
-d4c0ddae587f      5,011  docs/round17_test_isolation.md
-7678483cc5ac      5,831  spike/accuracy.py
-1b7cc61ce7f3      2,846  tests/test_data_isolation.py
-51332b356232     16,702  tests/test_describe_axis.py
-2dba8115a5a9     28,333  tests/test_determinism.py
-3ca361d2e27c     15,248  tests/test_legend_profile.py
-7320ff9a8d3c      9,957  tests/test_revision_carry.py
-cef1aefdf276      9,087  tests/test_scope_and_type.py
-95a92b745a1a     60,185  tests/test_ui_edits.py
+★ 회사 PC 에서 **수동으로 지울 파일은 없습니다** (삭제·이름변경 0건).
+  3_덮어쓸파일.zip 을 저장소 루트에 덮어쓰기만 하면 됩니다.
+
+----------------------------------------------------------------------------------------------------
+상태 | sha256(12) |    크기 | 경로 | 무엇을 왜 | 회차
+----------------------------------------------------------------------------------------------------
+[M] a77c4d97101e   125,714  CLAUDE.md
+      인수인계 문서 — 10~18회차 기록·회귀 기준선·코드 지도   [10~18회차]
+[M] 1085b138f45e    52,751  README.md
+      사용 설명 — SCOPE 열·양식 전량·SADARA 교차검증 절 추가   [10~18회차]
+[M] cd3eab7c45b7    54,529  app/db.py
+      편집 승계·작성자·개정 표·분석 삭제·미판정 심볼 저장   [13·17·18회차]
+[M] 2662f95f27fb    35,612  app/engine/describe_axis.py
+      판정축 ②a/②b·중간접합·ANGLE 이름 (ISA 조립으로 새던 것)   [7·8·9·18회차]
+[M] b0674fee1faf    61,647  app/engine/detect_symbols.py
+      벤더 마크 — 잉크/별표 판정·Block 상자·**그 장에서 크기 재측정**   [16·18회차]
+[M] 67d2c072ec28   127,597  app/engine/detect_valves.py
+      범례 p2 **ANGLE 몸체**·꼭짓점 기준 액추에이터·미판정 몸체 세기   [18회차]
+[M] 08447db47bb8    28,783  app/engine/pipe_graph.py
+      `dead_ends` 순서 비결정성 제거 (좌표 정렬)   [18 후속회차]
+[M] 833f6ae1dfbe    25,587  app/excel_out.py
+      발주처 양식 **전량 담기** 설정·공급주체와 출력범위 분리   [11·18회차]
+[A] 6c12858eac4c     5,864  app/global_symbols.py
+      전역 심볼 사전 — 사람이 확인한 것만·범례가 이김   [18회차]
+[A] 8c8a69a13f72    19,952  app/legend_profile.py
+      프로젝트 범례 프로필 — 저장·재사용·대조   [15회차]
+[M] 4db8084876ed   100,771  app/main.py
+      첫 화면(프로젝트 단위)·삭제·심볼 등록 API·미판정 목록·양식 범위 안내   [12~18회차]
+[M] 05db24c99ab9   152,390  app/pipeline.py
+      SCOPE 열·TYPE 표기·중복 문장 접미·커넥터 위치어·미판정 수집   [10~18회차]
+[M] 8359fc5a80f2    28,396  app/revisions.py
+      문서 대표 Rev·장 단위 대조(중복 도면번호는 판정 안 함)   [13회차]
+[M] 0147082d85f5   193,200  app/static/app.js
+      근거 패널 세 줄·편집 안내·심볼 등록 화면·**첫 화면 버튼**·일괄 적용 사정거리   [12~18회차]
+[M] e56ec7529b26    16,855  app/static/index.html
+      `← 첫 화면` 버튼 · `심볼` 버튼 · 첫 화면 두 단   [13·18회차]
+[M] 4052ef13967c    52,533  app/static/styles.css
+      SCOPE 열 폭·심볼 등록 화면 서식   [12·18회차]
+[M] 8ad8411d83f7    50,570  config/project_alnouf1.yaml
+      `client_form.scope_filter`·`brk_max_mark`·TYPE 표기 이름 등   [16·17·18회차]
+[A] b18c025e4cf9     5,519  conftest.py
+      **시험이 실 DB 를 못 열게 막는다** (세션 끝에 sha256 대조)   [17회차]
+[A] e4e77191c62a    26,152  docs/round10_feedback.md
+      10회차 측정 전문 (읽기용 · 코드 아님)   [10회차]
+[A] d2a9aac45ff2    21,194  docs/round11_scope_axis.md
+      11회차 측정 전문 (읽기용 · 코드 아님)   [11회차]
+[A] f017ec2c1345     6,400  docs/round12_annotation_design.md
+      12회차 측정 전문 (읽기용 · 코드 아님)   [12회차]
+[A] ad76662df98b    21,586  docs/round12_ui.md
+      12회차 측정 전문 (읽기용 · 코드 아님)   [12회차]
+[A] 399103ae7c8a    11,153  docs/round13_persistence.md
+      13회차 측정 전문 (읽기용 · 코드 아님)   [13회차]
+[A] f2c39e88a9aa     9,775  docs/round14_edit_scope.md
+      14회차 측정 전문 (읽기용 · 코드 아님)   [14회차]
+[A] aa4e7df820ff    15,765  docs/round15_legend_profile.md
+      15회차 측정 전문 (읽기용 · 코드 아님)   [15회차]
+[A] 64bf8790e507    20,293  docs/round16_scope.md
+      16회차 측정 전문 (읽기용 · 코드 아님)   [16회차]
+[A] 0b898cb7068b     4,744  docs/round17_delete.md
+      17회차 측정 전문 (읽기용 · 코드 아님)   [17회차]
+[A] d4c0ddae587f     5,011  docs/round17_test_isolation.md
+      17회차 측정 전문 (읽기용 · 코드 아님)   [17회차]
+[A] c625002eca2c     7,067  docs/round18_description.md
+      18회차 측정 전문 (읽기용 · 코드 아님)   [18회차]
+[A] f0ed4987a9a9     7,099  docs/round18_global_symbols.md
+      18회차 측정 전문 (읽기용 · 코드 아님)   [18회차]
+[M] 7678483cc5ac     5,831  spike/accuracy.py
+      측정축 둘 (전량 / SCT) — 정답지 모수는 같다   [11회차]
+[A] 1b7cc61ce7f3     2,846  tests/test_data_isolation.py
+      시험이 실 데이터에 안 닿는 것을 시험한다   [17회차]
+[M] 51332b356232    16,702  tests/test_describe_axis.py
+      판정축 §2.3 경계를 소스 검사로 강제   [5~9회차]
+[M] 2dba8115a5a9    28,333  tests/test_determinism.py
+      도면에 없는 낱말을 만들지 않는다 (§2.1③)   [1~17회차]
+[A] adbb3a855d52     6,323  tests/test_global_symbols.py
+      **자동 등록이 생기지 않는 것**을 소스 검사로 강제   [18회차]
+[A] 3ca361d2e27c    15,248  tests/test_legend_profile.py
+      범례 프로필 담기·되쓰기·대조   [15회차]
+[A] 7320ff9a8d3c     9,957  tests/test_revision_carry.py
+      Rev 사이 편집 승계 규칙   [13회차]
+[A] 705927db4ef7    15,099  tests/test_scope_and_type.py
+      SCOPE 열·TYPE 표기·양식 범위 설정·밸브 갈래 이름   [10·18회차]
+[M] 5c27aab15047    62,852  tests/test_ui_edits.py
+      검토 화면 전 과정 (**어떤 데이터에서 도는지**를 시험이 말한다)   [14·18회차]
+[A] 918d65a6e8c9     6,508  tests/test_vendor_mark_audit.py
+      **검사기를 검증하는 시험** — 변이 시험 포함   [18회차]
