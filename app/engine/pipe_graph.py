@@ -609,9 +609,21 @@ def trace(g: Graph, node_id: str) -> dict:
     # see in one glance whether the drawing really ends there or whether the run
     # continues and we lost it.  These are visited junctions with only one edge:
     # the drawing itself draws nothing beyond them.
-    dead_ends = [[g.nodes[nid]["x"], g.nodes[nid]["y"]]
-                 for nid in seen
-                 if g.nodes[nid]["kind"] == "JUNCTION" and len(g.adj[nid]) <= 1]
+    #
+    # ⚠ `seen` 은 집합이라 순회 순서가 **실행마다 다르다** (파이썬 문자열
+    # 해시가 프로세스마다 섞이기 때문).  좌표 집합 자체는 같지만 아래
+    # `[:40]` 이 그 중 어느 40개를 남길지가 갈리고, 근거 패널이 "끊긴 지점"
+    # 세 개를 앞에서 잘라 보여 주므로 **같은 도면을 두 번 열면 다른 좌표가
+    # 적힌다**.  17회차가 이것을 찾아 기록만 해 두었고(같은 코드 두 번에
+    # 282행이 달랐다) 여기서 고친다 — 지문·출력 열·Excel 에는 닿지 않는다.
+    #
+    # 정렬 기준은 좌표다.  방문 순서를 살릴 방법이 없고(집합이 이미 버렸다),
+    # 좌표는 이 목록이 실제로 쓰이는 방식(도면 위 표시)과 같은 단위다.
+    dead_ends = sorted(
+        ([g.nodes[nid]["x"], g.nodes[nid]["y"]]
+         for nid in seen
+         if g.nodes[nid]["kind"] == "JUNCTION" and len(g.adj[nid]) <= 1),
+        key=lambda p: (p[0], p[1]))
     return {
         "status": overall,
         "upstream": up, "downstream": down, "undirected": other,
