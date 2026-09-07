@@ -17,21 +17,37 @@
 버려진 별표는 검사에도 안 보인다.  그래서 검사는 언제나 0 을 낸다 — 검출기가
 무엇을 놓치든.
 
-## 이 파일의 검사는 무엇이 다른가
+## ★ 그런데 18회차의 이 검사도 한 축을 판정기와 공유하고 있었다 (19회차)
 
-`find_marks` 를 **부르지 않는다.**  잉크 획 글리프 뭉치(`_glyph_clusters`)를
-그대로 놓고, 그것이 **버블의 마크 자리**(config 실측값 `mark_above` 25.0 ·
-`mark_x_slack` 6.0)에 있는지만 본다.  크기는 보지 않는다 — 크기가 바로 검출기가
-틀린 지점이기 때문이다.
+4차 피드백이 **세 번째로** 같은 지적을 했다 (p25 · p27 · p30).  이 검사는
+그때도 0 을 냈다.  이유는 축이 **하나만** 독립이었기 때문이다:
 
-## 그리고 이 검사 자체를 검사한다
+    크기 축   `find_marks` 를 안 부른다              → 독립  ✔
+    자리 축   "마크 자리" 를 판정기와 **똑같은 식**   → 공유  ✘
+              (`b.y0 - mark_above <= cy <= b.y0` · `x±mark_x_slack`)
 
-`test_the_audit_catches_a_detector_that_was_made_blind` 가 검출기를 **일부러
-멀게 만들고** 검사가 그것을 잡는지 본다.  검사가 그때도 0 을 내면 그 검사는
-16회차의 것과 같은 종류이므로 믿을 수 없다.
+그 식은 **"별표는 버블 위에 찍힌다"** 를 가정한다.  p25 · p30 의 별표는
+버블 **옆**에 찍혀 있어서, 판정기도 검사기도 그것을 **보지 못했다**.
+변이 시험도 크기만 흔들었지 자리는 흔들지 않았다.
 
-**이것이 이 회차의 방법론이다 — 검사는 검출기와 다른 재료를 써야 하고,
-검사가 실패할 수 있다는 것을 보여야 한다.**
+## 이 파일의 검사는 무엇이 다른가 (19회차 개정)
+
+`find_marks` 를 **부르지 않고**, 자리도 판정기의 창을 쓰지 않는다.
+잉크 획 글리프 뭉치(`_glyph_clusters`)를 놓고 **방향을 가리지 않은 채**
+가장 가까운 버블에 붙인다 — 반경은 이 문서가 답한 값(`AUDIT_REACH`)이고
+판정기의 어느 창보다 **넓다**.  크기도 자리도 보지 않는다: 둘 다 검출기가
+틀렸던 축이기 때문이다.
+
+## 그리고 이 검사 자체를 두 축으로 검사한다
+
+  · `..._made_blind`          크기를 일부러 멀게 만들면 잡는가
+  · `..._made_blind_sideways` **자리를 옆으로 옮기면 잡는가** ← 19회차 신설
+
+검사가 그때도 0 을 내면 그 검사는 16·18회차의 것과 같은 종류이므로 믿을 수
+없다.
+
+**이것이 방법론이다 — 검사는 검출기와 **모든** 축에서 다른 재료를 써야 하고,
+축마다 검사가 실패할 수 있다는 것을 보여야 한다.**
 """
 
 from __future__ import annotations
@@ -49,19 +65,36 @@ PDF = ROOT / "data" / "pid_total.pdf"
 pytestmark = pytest.mark.skipif(not PDF.exists(), reason="sample PDF not present")
 
 
-def glyphs_in_mark_position(pc, lay, bubbles):
-    """마크 자리에 있는 잉크 획 글리프 — **크기를 보지 않는다.**"""
+# 검사의 반경.  **판정기의 어느 창보다 넓어야 한다** — 좁으면 검사가
+# 판정기의 눈이 된다 (18회차가 그랬다).  값은 이 문서가 답했다: 마크에서
+# 가장 가까운 버블까지의 체비쇼프 간격이 0~8pt 에 380개로 몰리고 **9~11pt 에
+# 13개, 12~13pt 는 0개**다.  그 빈 띠 바깥의 21pt 무리(65개)까지 덮도록
+# 판정기의 최대 창과 같은 25.0 을 쓴다 — 검사는 넓게 보고 사람이 가른다.
+AUDIT_REACH = 25.0
+
+
+def glyphs_near_bubbles(pc, lay, bubbles, reach=AUDIT_REACH):
+    """버블 둘레의 잉크 획 글리프 — **크기도 방향도 보지 않는다.**
+
+    ★ 19회차.  판정기의 창(`ds.in_mark_window`)을 **쓰지 않는다.**  그 창을
+    쓰면 검사가 판정기와 같은 눈이 되고, 그것이 18회차가 이 세 장을 못 잡은
+    이유다.  여기서는 방향을 가리지 않고 **가장 가까운 버블**에 붙인다.
+    """
     import detect_symbols as ds
     out = []
     for c in ds._glyph_clusters(pc, lay):
         if c.x1 > lay.drawing_area[2]:
             continue
         cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
+        best = None
         for b in bubbles:
-            if (b.x0 - lay.mark_x_slack <= cx <= b.x1 + lay.mark_x_slack
-                    and b.y0 - lay.mark_above <= cy <= b.y0):
-                out.append((c, b, cx, cy))
-                break
+            dx = max(b.x0 - cx, cx - b.x1, 0.0)
+            dy = max(b.y0 - cy, cy - b.y1, 0.0)
+            gap = max(dx, dy)
+            if gap <= reach and (best is None or gap < best[0]):
+                best = (gap, b)
+        if best is not None:
+            out.append((c, best[1], cx, cy))
     return out
 
 
@@ -97,7 +130,7 @@ def audit_page(pc, lay, *, sizes_override=None):
                               allow_sizes=(), bubbles=())
     counted = {(round(m.x, 1), round(m.y, 1)) for m in marks}
     missed = []
-    for c, b, cx, cy in glyphs_in_mark_position(pc, lay, bubbles):
+    for c, b, cx, cy in glyphs_near_bubbles(pc, lay, bubbles):
         if (round(cx, 1), round(cy, 1)) not in counted:
             missed.append({"x": round(cx, 1), "y": round(cy, 1),
                            "w": round(c.width, 2), "h": round(c.height, 2),
@@ -154,3 +187,45 @@ def test_the_audit_catches_a_detector_that_was_made_blind():
     assert caught > 0, (
         "검출기를 멀게 만들었는데도 검사가 아무것도 못 잡았다 — "
         "이 검사는 검출기와 같은 재료를 쓰고 있다")
+
+
+# 18회차까지의 마크 창 — 가로 6.0pt (`mark_x_slack`, 19회차에 사라진 값).
+# 시험이 옛 판정기를 재현하는 자리이므로 숫자를 여기 그대로 둔다.
+_OLD_X_SLACK = 6.0
+
+
+def _above_only(rect, x, y, lay):
+    """18회차까지의 마크 창 — **위 하나뿐**.
+
+    이것이 그때 판정기와 감사가 **함께** 쓰던 식이다.  옆에 찍힌 별표는
+    두 쪽 어디에도 안 보였고, 그래서 감사는 언제나 0 을 냈다.
+    """
+    return (rect.x0 - _OLD_X_SLACK <= x <= rect.x1 + _OLD_X_SLACK
+            and rect.y0 - lay.mark_above <= y <= rect.y0)
+
+
+@pytest.mark.slow
+def test_the_audit_catches_a_detector_that_was_made_blind_sideways(monkeypatch):
+    """**검사 자체를 검사한다 — 이번엔 자리 축이다 (19회차 신설).**
+
+    검출기의 마크 창을 18회차의 것(**위 하나뿐**)으로 되돌린다.  별표는
+    도면에 그대로 있고 크기도 그대로인데, 옆에 찍힌 것은 `drawn_mark_sizes`
+    가 못 보므로 크기가 인정되지 않아 `find_marks` 에서 떨어진다.
+
+    검사가 이것을 잡아야 한다.  못 잡으면 그 검사는 **자리 축에서 판정기와
+    같은 눈**이고, 그것이 18회차의 감사가 p25·p27·p30 을 세 번째 지적까지
+    못 잡은 이유다.
+    """
+    import detect_symbols as ds
+    lay = ds.LAYOUT
+    monkeypatch.setattr(ds, "in_mark_window", _above_only)
+    caught = {}
+    for pc in _pages():
+        if not pc.analysis_scope:
+            continue
+        m = audit_page(pc, lay)
+        if m:
+            caught[pc.page_no] = len(m)
+    assert caught, (
+        "마크 창을 위 하나로 되돌렸는데도 검사가 아무것도 못 잡았다 — "
+        "이 검사는 자리 축에서 검출기와 같은 재료를 쓰고 있다 (18회차가 그랬다)")
