@@ -618,6 +618,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     layers: dict[int, dict] = {}
     per_page: dict[int, dict] = {}
 
+    unjudged: list[dict] = []
     for i, pc in enumerate(targets, 1):
         # `i - 1` because this is said before the sheet is read, not after.
         meta = tb_rows[pc.page_no]
@@ -627,6 +628,22 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
                 pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
                 allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
+        # 18회차 — **판정하지 못한 것을 버리지 않고 모은다.**
+        #
+        # `ds.detect` 는 처음부터 이 둘을 냈는데 파이프라인이 받아서 **버렸다**.
+        # 그래서 "범례에 없어 판정 못 한 심볼" 을 물으면 답할 자리가 없었고,
+        # 18회차 [E] 의 ANGLE 밸브가 세 회차 동안 안 보인 이유가 그것이다.
+        # 여기서 모아 두면 등록 화면이 그것을 읽는다 (`GET /jobs/{id}/unjudged`).
+        for u in unmapped:
+            unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": pc.page_no,
+                             "label": u.get("token", ""),
+                             "center": u.get("center"),
+                             "why": "ISA 태그 모양인데 이 프로젝트 사전에 없음"})
+        for u in unverified:
+            unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": pc.page_no,
+                             "label": u.get("anchor", ""),
+                             "center": u.get("center"),
+                             "why": u.get("why") or "버블 기하 검증 실패"})
         with clock.stage("instruments", pc.page_no):
             _marks = ds.find_marks(pc, ds.LAYOUT,
                                    ds.read_mark_dictionary(pc, ds.LAYOUT)[1],
@@ -673,12 +690,29 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     valve_results, glyphs = dv.analyse_all(pages, VALVE_DISABLED,
                                            on_step=valve_step)
+    page_by_no = {pc.page_no: pc for pc in pages}
     for page_no, res in valve_results.items():
         meta = tb_rows.get(page_no)
         if not meta or meta["page_kind"] != "PID":
             continue
         rows.extend(_valve_rows(page_no, meta, res, mult,
                                 per_page.get(page_no)))
+        # 18회차 [D] — 밸브 쪽의 "봤지만 못 정한 것".
+        #
+        # 배관 끝막대 둘을 갖췄는데 범례 p2 의 어느 몸체 갈래도 아닌 중공
+        # 도형.  **여기서 판정하지 않는다** — `unclassified_bodies` 는 세기만
+        # 하고 `find_bodies` 는 그것을 부르지 않는다 (§2.1 ③).
+        vpc = page_by_no.get(page_no)
+        if vpc is not None:
+            for u in dv.unclassified_bodies(vpc, dv.LAYOUT, res["bodies"]):
+                r0 = u["rect"]
+                unjudged.append({
+                    "kind": "VALVE_BODY", "page_no": page_no,
+                    "label": f'{u["segments"]}선분 중공',
+                    "center": [round((r0[0] + r0[2]) / 2, 1),
+                               round((r0[1] + r0[3]) / 2, 1)],
+                    "rect": r0,
+                    "why": "배관 끝막대 둘을 갖췄는데 몸체 어휘에 없음"})
 
     origins = _page_origins(pages, tb_rows, per_page, reference)
     for r in rows:
@@ -910,6 +944,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         },
         "job_review": job_review,
         "origins": origins,
+        # 판정하지 못한 심볼.  **비어 있는 것과 없는 것은 다르다** — 옛 분석에는
+        # 이 칸이 아예 없고, 화면이 그 둘을 구분해서 말한다.
+        "unjudged_symbols": unjudged,
         "glyphs": {
             "letters": dict(sorted(glyphs.letters.items())),
             "clusters": glyphs.clusters,

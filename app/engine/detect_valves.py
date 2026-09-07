@@ -905,6 +905,53 @@ def _find_discs_between_bars(pc, horiz, vert, rounds, fills, diag, claimed,
 
 
 # --------------------------------------------------------------------------
+# 판정하지 못한 몸체 후보 (18회차 [D])
+# --------------------------------------------------------------------------
+#
+# ★ **세기만 한다.  판정하지 않는다.**  이 함수를 `find_bodies` 가 부르지
+# 않는 것이 이 파일에서 가장 중요한 사실이고, `tests/test_global_symbols.py`
+# 가 소스 검사로 그것을 강제한다.  부르는 순간 "무엇인지 모르는 도형" 이
+# 행이 되고, 그 뜻은 아무도 정하지 않은 것이 된다 (§2.1 ③).
+#
+# 무엇을 세는가: **배관 끝막대 둘을 갖췄는데** 몸체 어휘(GATE·GLOBE·
+# BUTTERFLY·BALL·CHECK·DIAPHRAGM·NEEDLE·ANGLE)의 어느 갈래도 아닌 중공 도형.
+# 끝막대 조건이 있어야 배관 위의 밸브 자리라는 뜻이 되고, 그것이 없으면
+# 도면의 온갖 주석 상자가 다 걸린다.
+#
+# 이것이 18회차 [D] 등록 화면이 읽는 목록의 밸브 쪽 절반이다.  계기 쪽
+# 절반은 `detect_symbols.detect` 가 처음부터 내던 `unmapped`·`unverified` 이고,
+# 파이프라인이 그것을 **받아서 버리고 있었다**.
+
+def unclassified_bodies(pc, lay: ValveLayout = LAYOUT, bodies=None) -> list[dict]:
+    """몸체가 되지 못한 중공 도형들.  `bodies` 는 이미 판정된 몸체들이다."""
+    claimed = [b.rect for b in (bodies or [])]
+    horiz, vert, _diag = _index_segments(pc, lay)
+    out = []
+    for d in pc.drawings():
+        if d.get("fill") is not None:
+            continue
+        items = [it for it in d["items"] if it[0] == "l"]
+        if len(items) != len(d["items"]) or not (3 <= len(items) <= 10):
+            continue
+        box_r = d["bbox"]
+        if not _in_area(box_r, lay.drawing_area):
+            continue
+        w, h = box_r.width, box_r.height
+        if not lay.body_short[0] <= min(w, h) <= lay.body_short[1]:
+            continue
+        if any(r.intersects(box_r) for r in claimed):
+            continue
+        axis = "H" if w > h else "V"
+        if _end_bars(horiz, vert,
+                     (box_r.x0, box_r.y0, box_r.x1, box_r.y1), axis, lay) != 3:
+            continue
+        out.append({"segments": len(items), "axis": axis,
+                    "rect": [round(v, 1) for v in
+                             (box_r.x0, box_r.y0, box_r.x1, box_r.y1)]})
+    return out
+
+
+# --------------------------------------------------------------------------
 # Actuator judgement (legend page 3, VALVES ACTUATORS)
 # --------------------------------------------------------------------------
 #

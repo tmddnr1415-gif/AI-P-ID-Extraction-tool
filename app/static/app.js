@@ -1128,6 +1128,7 @@ async function loadRows() {
   S.feedback = (await (await fetch(`/jobs/${S.job.id}/feedback?limit=1`)).json()).count;
   S.reports = (await (await fetch(`/jobs/${S.job.id}/reports`)).json()).count;
   updateReportBadge();
+  await loadUnjudged();
   showAppliedRules();
   await showTemplates();
   buildTabs();
@@ -3726,6 +3727,173 @@ async function showReportList() {
 }
 
 $req("#report-list").addEventListener("click", showReportList);
+
+/* ---------------- 전역 심볼 사전 (18회차 [D]) ----------------
+ *
+ * ★ 이 화면은 **묻기만 한다**.  그 심볼이 무엇인지는 사람이 적고, 화면도
+ * 서버도 추측하지 않는다 — 추측해서 채워 두면 사람은 그것을 확인하지 않고
+ * 넘긴다 (§2.1 ③).  그래서 TYPE·산출물 칸의 기본값이 비어 있고, "이것은
+ * 아마 XV 입니다" 같은 문장이 없다.
+ *
+ * 우선순위도 화면이 말한다: 그 프로젝트 범례가 정의한 것이 있으면 사전은
+ * 지고, 사전은 **범례에 없는 것만** 채운다.
+ *
+ * 목록은 분석할 때 모아 둔 것을 그대로 읽는다 (`GET /jobs/{id}/unjudged`).
+ * 여기서 다시 세지 않는다 — 58장을 다시 읽으면 3분이 걸린다. */
+
+function updateSymbolBadge() {
+  const n = $("#symbol-n");
+  if (!n) return;
+  n.textContent = S.unjudged || 0;
+  n.classList.toggle("zero", !S.unjudged);
+}
+
+async function loadUnjudged() {
+  if (!S.job) return { known: false, items: [] };
+  const out = await (await fetch(`/jobs/${S.job.id}/unjudged`)).json();
+  S.unjudged = (out.items || []).length;
+  S.unjudgedKnown = !!out.known;
+  updateSymbolBadge();
+  return out;
+}
+
+/* 같은 모양이 여러 장에 나오면 한 줄로 묶는다 - 사람이 같은 판단을 열 번
+ * 하지 않게.  묶는 키는 **종류 + 라벨**이고, 그것이 곧 등록 키가 된다. */
+function groupUnjudged(items) {
+  const by = new Map();
+  for (const it of items) {
+    const key = `${it.kind}:${(it.label || "(이름 없음)")}`;
+    if (!by.has(key)) by.set(key, { key, kind: it.kind, label: it.label || "",
+                                    why: it.why || "", pages: [], items: [] });
+    const g = by.get(key);
+    g.items.push(it);
+    if (!g.pages.includes(it.page_no)) g.pages.push(it.page_no);
+  }
+  return [...by.values()].sort((a, b) => b.items.length - a.items.length);
+}
+
+async function showSymbolRegister() {
+  const [un, dict] = await Promise.all([
+    loadUnjudged(),
+    (await fetch("/symbols/global")).json(),
+  ]);
+  const groups = groupUnjudged(un.items || []);
+  const known = (dict.symbols || []);
+
+  const head = un.known
+    ? `<p class="muted small">이 분석이 <b>판정하지 못한</b> 심볼 ${(un.items || []).length}건
+       · ${groups.length}종류입니다. 무엇인지 <b>사람이 적어야</b> 등록됩니다 —
+       화면도 서버도 뜻을 짐작하지 않습니다.</p>`
+    : `<p class="muted small">${escape(un.note || "이 분석에는 미판정 목록이 없습니다.")}</p>`;
+
+  const dictLine =
+    `<p class="muted small">전역 사전 ${known.length}건 ·
+     <b>${dict.enabled ? "켜짐" : "꺼짐"}</b>
+     <button id="sym-toggle" class="ghost mini">${dict.enabled ? "끄기" : "켜기"}</button>
+     <br>${escape(dict.note || "")}<br>저장 위치: ${escape(dict.path || "")}</p>`;
+
+  const list = groups.length
+    ? groups.map(g => `<div class="sym-row" data-key="${escape(g.key)}">
+        <div><b>${escape(g.label || "(이름 없음)")}</b>
+          <span class="muted small">${escape(g.kind)}</span>
+          <div class="meta">${escape(g.why)} · ${g.items.length}건 ·
+            p${g.pages.slice(0, 6).join(", p")}${g.pages.length > 6 ? " …" : ""}</div></div>
+        <div class="acts"><button class="ghost mini sym-add">등록…</button></div>
+      </div>`).join("")
+    : `<p class="muted">판정하지 못한 심볼이 없습니다.</p>`;
+
+  const mine = known.length
+    ? `<h4 class="small">등록된 심볼</h4>` + known.map(sy =>
+        `<div class="sym-row" data-id="${escape(sy.id)}">
+          <div><b>${escape(sy.name)}</b>
+            <span class="muted small">${escape(sy.kind)}${sy.type ? " · " + escape(sy.type) : ""}</span>
+            <div class="meta">${escape(sy.registered_by)} (자칭) ·
+              ${new Date((sy.registered_at || 0) * 1000).toLocaleString("ko-KR")}</div></div>
+          <div class="acts"><button class="ghost mini sym-del">삭제</button></div>
+        </div>`).join("")
+    : "";
+
+  openModal("심볼 등록",
+    head + dictLine + list + mine
+    + `<div class="modal-actions"><button id="sym-close" class="ghost">닫기</button></div>`);
+
+  $("#sym-close").onclick = closeModal;
+  $("#sym-toggle").onclick = async () => {
+    const body = new FormData();
+    body.append("on", dict.enabled ? "false" : "true");
+    await fetch("/symbols/global/enabled", { method: "POST", body });
+    showSymbolRegister();
+  };
+  document.querySelectorAll(".sym-del").forEach(b => b.onclick = async (ev) => {
+    const id = ev.target.closest(".sym-row").dataset.id;
+    if (!window.confirm("이 심볼을 전역 사전에서 지울까요?")) return;
+    await fetch(`/symbols/global/${encodeURIComponent(id)}`, { method: "DELETE" });
+    showSymbolRegister();
+  });
+  document.querySelectorAll(".sym-add").forEach(b => b.onclick = (ev) => {
+    const key = ev.target.closest(".sym-row").dataset.key;
+    symbolForm(groups.find(g => g.key === key));
+  });
+}
+
+/* 등록 폼 - **빈 칸으로 연다.**  이름을 못 적으면 등록되지 않는다: 서버도
+ * 같은 것을 요구하므로(`global_symbols.register`), 화면을 지나쳐도 막힌다. */
+function symbolForm(g) {
+  if (!g) return;
+  const sample = g.items[0] || {};
+  openModal(`심볼 등록 — ${g.label || "(이름 없음)"}`,
+    `<p class="muted small">p${g.pages.join(", p")} 에서 ${g.items.length}건 ·
+      ${escape(g.why)}<br>
+      <b>이 심볼이 무엇인지는 도면을 보고 사람이 적습니다.</b>
+      비워 두면 등록되지 않습니다.</p>
+     <div class="modal-field"><label>이름 (무엇인가)</label>
+       <input id="sym-name" type="text" placeholder="예: ANGLE VALVE"></div>
+     <div class="modal-field"><label>종류</label>
+       <select id="sym-kind">
+         <option value="VALVE_BODY"${g.kind === "VALVE_BODY" ? " selected" : ""}>밸브 몸체</option>
+         <option value="INSTRUMENT_TAG"${g.kind === "INSTRUMENT_TAG" ? " selected" : ""}>계기 태그</option>
+         <option value="ACTUATOR">액추에이터</option>
+       </select></div>
+     <div class="modal-field"><label>TYPE (비워도 됩니다)</label>
+       <input id="sym-type" type="text" value="${escape(g.label || "")}"></div>
+     <div class="modal-field"><label>산출물 배분 (비워도 됩니다)</label>
+       <input id="sym-deliv" type="text" placeholder="예: PNEUMATIC"></div>
+     <div class="modal-field"><label>비고</label>
+       <input id="sym-note" type="text" placeholder="어디를 보고 판단했는지"></div>
+     <div class="modal-actions">
+       <button id="sym-save">등록</button>
+       <button id="sym-back" class="ghost">취소</button>
+     </div>`);
+  $("#sym-back").onclick = showSymbolRegister;
+  $("#sym-save").onclick = async () => {
+    const name = $("#sym-name").value.trim();
+    if (!name) { alert("이 심볼이 무엇인지 적어야 등록됩니다."); return; }
+    // 13회차 작성자 기록을 그대로 쓴다 - 확인은 매번, 타자는 한 번.
+    const author = await askAuthor(`전역 심볼 등록 — ${name}`);
+    if (author === null) return;
+    const body = new FormData();
+    body.append("symbol_id", g.key);
+    body.append("kind", $("#sym-kind").value);
+    body.append("name", name);
+    body.append("type_value", $("#sym-type").value.trim());
+    body.append("deliverable", $("#sym-deliv").value.trim());
+    body.append("author", author);
+    body.append("source_page", String(sample.page_no || 0));
+    body.append("note", $("#sym-note").value.trim());
+    body.append("signature", JSON.stringify(
+      { label: g.label, why: g.why, center: sample.center || null,
+        rect: sample.rect || null }));
+    const r = await fetch("/symbols/global", { method: "POST", body });
+    if (!r.ok) {
+      const out = await r.json().catch(() => ({}));
+      alert(out.detail || "등록하지 못했습니다.");
+      return;
+    }
+    showSymbolRegister();
+  };
+}
+
+$req("#symbols").addEventListener("click", showSymbolRegister);
 
 /* ---------------- diagnostic export ----------------
  * Built on this machine, written beside the data, and downloaded from there.

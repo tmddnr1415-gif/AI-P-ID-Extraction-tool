@@ -33,8 +33,8 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app import (audit, axis_overrides, db, excel_out, legend_profile, paths,  # noqa: E402
-                 pipeline, revisions, version)
+from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
+                 legend_profile, paths, pipeline, revisions, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -812,6 +812,83 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
             removed_pdf = False
     summary["pdf_removed"] = removed_pdf
     return summary
+
+
+# --------------------------------------------------------------------------
+# 전역 심볼 사전 (18회차)
+# --------------------------------------------------------------------------
+#
+# ★ 여기가 **유일한 등록 경로**다.  파이프라인은 이 사전을 읽기만 하고,
+# 어디에도 자동으로 넣는 코드가 없다 (`global_symbols.register` 가 `author` 를
+# 요구하고, 그것을 부르는 곳이 아래 하나뿐이다).
+#
+# 왜 그렇게까지 하나: 전역 사전에 그 프로젝트에서만 통하는 심볼이 들어가면
+# **다음 프로젝트에서 오검출이 난다**.  오검출은 미검출보다 나쁘다 — 없는
+# 것은 눈에 띄지만 있는 것은 안 띈다.  §2.2 "표준 사전에 프로젝트 표기
+# 혼입" 금지가 이 이야기다.
+
+@app.get("/symbols/global")
+def global_symbol_list():
+    """등록된 것과 켜짐/꺼짐."""
+    data = global_symbols.load(DATA_DIR)
+    return {"enabled": data.get("enabled", True),
+            "symbols": list(data["symbols"].values()),
+            "path": str(global_symbols.path(DATA_DIR)),
+            "note": "프로젝트 범례가 정의한 것이 있으면 그것이 이깁니다. "
+                    "이 사전은 범례에 **없는** 심볼만 채웁니다."}
+
+
+@app.post("/symbols/global")
+def global_symbol_register(symbol_id: str = Form(...), kind: str = Form(...),
+                           name: str = Form(...), type_value: str = Form(""),
+                           deliverable: str = Form(""), author: str = Form(""),
+                           source_page: int = Form(0), note: str = Form(""),
+                           signature: str = Form("{}")):
+    """사람이 확인한 심볼 하나를 넣는다.  **이름 없이는 들어가지 않는다.**"""
+    try:
+        sig = json.loads(signature or "{}")
+    except ValueError:
+        sig = {}
+    try:
+        return global_symbols.register(
+            DATA_DIR, symbol_id=symbol_id, kind=kind, name=name,
+            type_value=type_value, deliverable=deliverable, signature=sig,
+            author=author, source_page=source_page, note=note)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.delete("/symbols/global/{symbol_id}")
+def global_symbol_remove(symbol_id: str):
+    if not global_symbols.remove(DATA_DIR, symbol_id):
+        raise HTTPException(404, "no such symbol")
+    return {"removed": symbol_id}
+
+
+@app.post("/symbols/global/enabled")
+def global_symbol_toggle(on: bool = Form(...)):
+    """오염되면 되돌려야 한다 — 끄면 사전이 없던 때와 **정확히 같아진다**."""
+    data = global_symbols.set_enabled(DATA_DIR, on)
+    return {"enabled": data["enabled"], "symbols": len(data["symbols"])}
+
+
+@app.get("/jobs/{job_id}/unjudged")
+def unjudged_symbols(job_id: str):
+    """이 분석이 **판정하지 못한** 심볼들 — 등록 화면이 읽는 목록.
+
+    분석할 때 모아 둔 것을 그대로 돌려준다.  여기서 다시 세지 않는다:
+    58장을 다시 읽으면 3분이 걸리고, 그러면 화면이 열리지 않는다.
+    옛 분석에는 이 칸이 없으므로 **빈 목록과 "모른다" 를 구분해서** 말한다.
+    """
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, "no such job")
+    eng = json.loads(row["engine_json"] or "{}")
+    if "unjudged_symbols" not in eng:
+        return {"known": False, "items": [],
+                "note": "이 분석은 미판정 심볼을 모으기 전(18회차 이전)의 것입니다. "
+                        "다시 분석하면 목록이 생깁니다."}
+    return {"known": True, "items": eng["unjudged_symbols"]}
 
 
 @app.get("/deletions")

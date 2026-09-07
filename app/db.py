@@ -438,7 +438,12 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 왔는지, 그리고 프로필과 어디가 다른지.  화면이
                               # 이것을 읽어 "어느 규칙으로 나온 결과인가" 를
                               # 말한다.  지문에는 들어가지 않는다.
-                              "legend_profile")},
+                              "legend_profile",
+                              # 18회차 [D] - 범례에 없어 판정하지 못한 심볼.
+                              # 등록 화면이 이것을 읽는다.  판정이 아니라
+                              # "판정하지 못했다" 는 기록이므로 지문에는
+                              # 들어가지 않는다.
+                              "unjudged_symbols")},
                             default=str),
                  job_id))
     con.commit()
