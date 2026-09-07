@@ -199,7 +199,17 @@ class Layout:
     box_mark_margin: float = 20.0        # how far outside a box its mark may sit
     note_line_gap: float = 20.0          # max y gap for a wrapped note line
     mark_above: float = 25.0
-    mark_x_slack: float = 6.0
+    # 19회차 — 별표가 버블 **옆**에 찍힌 장이 있다 (p25 · p27 · p30).
+    # 마크가 가로로 얼마나 떨어져 찍히는가.  이 문서가 답했다 — 마크 646개를
+    # 유클리드 최근접 버블에 붙여 가로 간격을 세면
+    #
+    #     0.00 ~ 8.58pt   386개   (8.49~8.58 에만 63개 — 옆자리 무리)
+    #     8.58 ~ 10.59    **0개**  ← 빈 띠
+    #    10.59            1개  ·  14.10~14.13  3개  ·  20.28 이상 나머지
+    #
+    # 문턱을 그 빈 띠 안 어디에 두어도 결과가 같으므로 임의값이 아니다
+    # (17회차 C-4 · 16회차 `brk_max_mark` 와 같은 논법).
+    mark_side: float = 10.0
     note_mark_row_tol: float = 6.0
 
     # Broken (dashed / chain-dashed) line runs.
@@ -247,7 +257,7 @@ def _layout_from_config(cfg=CFG) -> Layout:
         mark_glyph_span=tuple(cfg.get_or("vendor_marks.glyph_span", d.mark_glyph_span)),
         mark_cluster_gap=float(cfg.get_or("vendor_marks.cluster_gap", d.mark_cluster_gap)),
         mark_above=float(cfg.get_or("vendor_marks.above", d.mark_above)),
-        mark_x_slack=float(cfg.get_or("vendor_marks.x_slack", d.mark_x_slack)),
+        mark_side=float(cfg.get_or("vendor_marks.side", d.mark_side)),
         note_mark_row_tol=float(cfg.get_or("vendor_marks.note_row_tol", d.note_mark_row_tol)),
         note_line_gap=float(cfg.get_or("vendor_marks.note_line_gap", d.note_line_gap)),
         box_edge_cover=float(box["edge_cover"]),
@@ -400,6 +410,40 @@ def _is_stroke_glyph(d) -> bool:
     if d.get("fill") is not None:
         return False
     return all(it[0] == "l" for it in d["items"])
+
+
+def in_mark_window(rect, x, y, lay: Layout = LAYOUT) -> bool:
+    """마크 중심 `(x, y)` 가 이 사각형의 **마크 자리**에 있는가.
+
+    ★ 19회차 — **판정하는 곳을 여기 하나로 모았다.**  이 창은 그 전까지 세
+    군데(`read_vendor_mark` · `drawn_mark_sizes` · 소유자 가르기)에 같은 식이
+    베껴져 있었고, 그중 하나만 고치면 갈린다.  그리고 **18회차의 감사 시험도
+    같은 식을 네 번째로 베껴 갖고 있었다** — 그래서 감사가 판정기와 **같은
+    눈**으로 보게 되어, 크기 축은 독립이었는데 **자리 축은 독립이 아니었다.**
+    별표 SCOPE 지적이 세 번 반복된 이유가 그것이다.
+
+    **사각형 하나다.**  두 갈래로 쪼개 놓았다가 p52 에서 걸렸다 — 별표가
+    버블 위 테두리선에 **정확히 걸쳐** 찍혀서 중심이 `y0` 보다 0.00002pt
+    위에 있었고, 그것이 "위" 도 "옆" 도 아니게 됐다.  두 자리는 같은 자리의
+    두 얼굴이므로 경계를 만들지 않는다.
+
+        가로   `x0 - mark_side` ~ `x1 + mark_side`   (10.0 — 빈 띠 8.58~10.59)
+        세로   `y0 - mark_above` ~ `y1`              (25.0 — 11회차 실측)
+
+    **아래는 넣지 않는다.  이번엔 근거가 있다.**  25pt 안에서 버블 아래에
+    찍힌 마크를 전부 렌더로 확인했더니 **한 개도 그 버블의 것이 아니었다**:
+
+        p7  (+8.4pt)   `**` 가 PCV·MOV 의 **액추에이터**(돔 · M 원) 옆에 있다
+                       — 11회차 [B] 가 이미 잰 자리다.  버블에도 붙이면
+                       같은 별표를 두 번 세는 것이다
+        p33 (+7.2pt)   `*` 가 LG 버블이 아니라 옆 **사각 심볼**의 것이다
+        p20 (+17.1pt)  `*` 가 오른쪽 **밸브**의 것이다
+        p26·p27 (+49.6pt)  액추에이터 스템 **해칭**이다 (마크가 아니다)
+
+    아래 방향을 열면(B=8) 이 다섯 장에서 18건이 붙고 그중 옳은 것은 0 이다.
+    """
+    return (rect.x0 - lay.mark_side <= x <= rect.x1 + lay.mark_side
+            and rect.y0 - lay.mark_above <= y <= rect.y1)
 
 
 def _glyph_clusters(pc, lay: Layout = LAYOUT):
@@ -585,10 +629,10 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
     "범례 형상으로 도면 기기 검출" 실패가 이미 가르친 것과 같은 이야기다 —
     **범례는 뜻을 정하지 축척을 정하지 않는다** (그때 실측이 ×0.42~×2.00).
 
-    재는 방법은 **자리**다.  별표는 버블 바로 위 정해진 창에 찍히고
-    (`mark_above` 25.0 · `mark_x_slack` 6.0 — 둘 다 이미 실측된 값), 그 창에
-    들어온 잉크 획 글리프는 별표 말고 올 것이 없다.  그 자리에서 **두 번
-    이상** 나온 크기만 인정한다 — 한 번뿐인 것은 얼룩일 수 있다.
+    재는 방법은 **자리**다.  별표는 버블 둘레의 정해진 창에 찍히고
+    (`in_mark_window` — 판정기와 **같은 창**을 쓴다), 그 창에 들어온 잉크 획
+    글리프는 별표 말고 올 것이 없다.  그 자리에서 **두 번 이상** 나온 크기만
+    인정한다 — 한 번뿐인 것은 얼룩일 수 있다.
 
     ⚠ 순환이 아니다.  버블은 마크와 무관하게 기하로 찾고, 창은 config 의
       실측값이다.  그리고 **가산이다** — 지금 인정되는 크기를 빼지 않는다.
@@ -606,10 +650,7 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
         if c.x1 > lay.drawing_area[2]:
             continue
         cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
-        in_mark_position = any(
-            b.x0 - lay.mark_x_slack <= cx <= b.x1 + lay.mark_x_slack
-            and b.y0 - lay.mark_above <= cy <= b.y0
-            for b in bubbles)
+        in_mark_position = any(in_mark_window(b, cx, cy, lay) for b in bubbles)
         if in_mark_position:
             seen[(round(c.width, 1), round(c.height, 1))] += 1
     return [k for k, n in seen.items() if n >= 2]
@@ -957,22 +998,17 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
     `VENDOR_MARK_UNDEFINED` 로 표시만 한다 — 추측하지 않는다.
     """
     cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
-    near = [
-        k for k in marks
-        if rect.x0 - lay.mark_x_slack <= k.x <= rect.x1 + lay.mark_x_slack
-        and rect.y0 - lay.mark_above <= k.y <= rect.y0
-    ]
-    # 16회차 — **한 마크는 버블 하나에만 붙는다.**  x 창이 `mark_x_slack` 만큼
-    # 좌우로 늘어나 있어서 나란히 선 두 버블의 창이 겹치고, 그 사이에 찍힌
-    # 마크가 **둘 다에** 세어졌다.  실측: p25 의 PT 는 자기 별표 1개 + 옆
-    # TT 의 별표 1개를 합쳐 `**` 가 되고, 그 장 NOTES 는 `*` 만 정의하므로
-    # `UNDEFINED` 로 떨어졌다 (TT 는 같은 별표로 GT SUPPLIER 가 됐다).
+    near = [k for k in marks if in_mark_window(rect, k.x, k.y, lay)]
+    # 16회차 — **한 마크는 버블 하나에만 붙는다.**  창이 좌우로 늘어나 있어서
+    # 나란히 선 두 버블의 창이 겹치고, 그 사이에 찍힌 마크가 **둘 다에**
+    # 세어졌다.  실측: p25 의 PT 는 자기 별표 1개 + 옆 TT 의 별표 1개를 합쳐
+    # `**` 가 되고, 그 장 NOTES 는 `*` 만 정의하므로 `UNDEFINED` 로 떨어졌다.
     # 그래서 **더 가까운 버블이 따로 있으면 그 마크는 이 사각형의 것이 아니다.**
     # 창을 좁히지 않는다 — 좁히면 자기 별표가 떨어져 나가는 버블이 생긴다.
     if others:
         near = [k for k in near
                 if not any(_x_gap(o, k.x) < _x_gap(rect, k.x)
-                           and o.y0 - lay.mark_above <= k.y <= o.y0
+                           and in_mark_window(o, k.x, k.y, lay)
                            for o in others)]
     stars = sum(k.stars for k in near)
     source, forms = "SYMBOL", {k.form for k in near}
