@@ -570,18 +570,70 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
     return dictionary, glyph_size
 
 
-def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=()):
+def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
+    """이 장이 **도면에** 별표를 어느 크기로 그렸나 — 그 장에서 잰다 (18회차).
+
+    ★ 왜 필요한가.  `find_marks` 는 그 장 NOTES 정의줄이 인쇄한 별표 크기
+    (`glyph_size`)만 인정했다.  **그런데 정의줄의 크기와 도면의 크기가 같을
+    이유가 없다.**  실측 (27장 · 마크 자리의 뭉치 274개):
+
+        26장   정의줄 4.0 ↔ 도면 4.0  ·  정의줄 5.2 ↔ 도면 5.2   (같다)
+        p35    정의줄 **4.0** ↔ 도면 **7.8**                      (다르다)
+
+    그래서 p35 의 별표 5개가 전부 버려졌고, 그 장 NOTES 가 정의한
+    `1★ → SUPPLIED BY PUMP SUPPLIER` 가 아무 행에도 안 붙었다.  §3 의
+    "범례 형상으로 도면 기기 검출" 실패가 이미 가르친 것과 같은 이야기다 —
+    **범례는 뜻을 정하지 축척을 정하지 않는다** (그때 실측이 ×0.42~×2.00).
+
+    재는 방법은 **자리**다.  별표는 버블 바로 위 정해진 창에 찍히고
+    (`mark_above` 25.0 · `mark_x_slack` 6.0 — 둘 다 이미 실측된 값), 그 창에
+    들어온 잉크 획 글리프는 별표 말고 올 것이 없다.  그 자리에서 **두 번
+    이상** 나온 크기만 인정한다 — 한 번뿐인 것은 얼룩일 수 있다.
+
+    ⚠ 순환이 아니다.  버블은 마크와 무관하게 기하로 찾고, 창은 config 의
+      실측값이다.  그리고 **가산이다** — 지금 인정되는 크기를 빼지 않는다.
+
+    실측 효과: 27장 중 **p35 한 장만** 달라진다 (7.8×7.8 · 7.9×7.8 추가).
+    한 번뿐이라 기각되는 것은 p3 (5.2×5.8) · p4 · p40 · p41 이고, 그 중
+    p40 · p41 은 범례가 없어 `allow_sizes` 로 이미 인정되므로 잃는 것이 없다.
+    """
+    if bubbles is None:
+        bubbles = find_bubbles(pc, lay)
+    if not bubbles:
+        return []
+    seen = collections.Counter()
+    for c in _glyph_clusters(pc, lay):
+        if c.x1 > lay.drawing_area[2]:
+            continue
+        cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
+        in_mark_position = any(
+            b.x0 - lay.mark_x_slack <= cx <= b.x1 + lay.mark_x_slack
+            and b.y0 - lay.mark_above <= cy <= b.y0
+            for b in bubbles)
+        if in_mark_position:
+            seen[(round(c.width, 1), round(c.height, 1))] += 1
+    return [k for k, n in seen.items() if n >= 2]
+
+
+def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
+               bubbles=None):
     """Vendor marks in the drawing area, in whichever notation the page uses.
 
-    A drawn asterisk is only accepted when it matches the size this page's own
-    legend uses (`glyph_size`).  Without that, every small square blob on the
-    sheet — and there are hundreds — would read as a mark.  `allow_sizes` is
-    the fallback for pages with no legend: sizes seen in other pages' legends
-    are used to *notice* a mark, never to interpret it, which is what produces
-    VENDOR_MARK_UNDEFINED.
+    A drawn asterisk is accepted when it matches a size this page actually
+    uses: the one its own legend prints (`glyph_size`), **or** the one it draws
+    marks at (`drawn_mark_sizes`, 18회차).  Without such a check every small
+    square blob on the sheet — and there are hundreds — would read as a mark.
+    `allow_sizes` is the fallback for pages with no legend: sizes seen in other
+    pages' legends are used to *notice* a mark, never to interpret it, which is
+    what produces VENDOR_MARK_UNDEFINED.
     """
     out = []
     sizes = [glyph_size] if glyph_size else list(allow_sizes)
+    # 18회차 — 가산이다.  정의줄 크기를 빼지 않고 그 장이 실제로 그린 크기를
+    # 더한다.  뜻(별 개수 → 공급자)은 여전히 그 장 NOTES 에서만 온다 (§10.1).
+    for s in drawn_mark_sizes(pc, lay, bubbles):
+        if not any(abs(s[0] - w) <= 0.6 and abs(s[1] - h) <= 0.6 for w, h in sizes):
+            sizes.append(s)
     if sizes:
         for c in _glyph_clusters(pc, lay):
             if c.x1 > lay.drawing_area[2]:
@@ -945,7 +997,8 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES):
     bubbles = find_bubbles(pc, lay)
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)
-    marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes)
+    marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes,
+                       bubbles=bubbles)
     boxes = find_package_boxes(pc, lay)
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)
