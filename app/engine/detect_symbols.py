@@ -64,6 +64,7 @@ import argparse
 import collections
 import itertools
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass, field
@@ -977,11 +978,30 @@ def package_box_marks(boxes, marks, lay: Layout = LAYOUT) -> list:
     return out
 
 
-def _x_gap(rect, x: float) -> float:
-    """마크의 x 가 이 사각형에서 얼마나 떨어져 있나 (안이면 0)."""
-    if rect.x0 <= x <= rect.x1:
-        return 0.0
-    return min(abs(x - rect.x0), abs(x - rect.x1))
+def _mark_gap(rect, x: float, y: float) -> float:
+    """마크 `(x, y)` 가 이 사각형에서 얼마나 떨어져 있나 (안이면 0).
+
+    ★ 19회차 — **두 축을 다 본다.**  16회차의 `_x_gap` 은 가로만 봤고,
+    그때는 창도 가로로만 애매해서 그것으로 충분했다.  창이 세로로도 뻗자
+    **세로로 쌓인 버블**을 가르지 못하게 됐다 (p9: 버블 5개가 한 줄로 서고
+    가로 간격이 전부 5.64pt 로 같다).
+
+    그리고 **체비쇼프(max)로는 안 된다** — 두 경우가 서로 반대를 요구한다:
+
+        p25  나란한 PT·TT 사이의 별표.  세로 간격이 5.67 로 **같고**
+             가로가 0.09 ↔ 2.85 로 갈린다        → 가로가 답해야 한다
+        p9   세로로 쌓인 버블 옆의 `**`.  가로가 5.64 로 **같고**
+             세로가 0.0 ↔ 21.9 로 갈린다          → 세로가 답해야 한다
+
+    `max` 는 각각의 경우에서 갈리는 축을 **버린다** (p25 는 둘 다 5.67,
+    p9 는 둘 다 5.64 → 무승부 → 둘 다 가져간다).  유클리드는 두 축을 다
+    쓰므로 둘 다 맞는다.  실측: 전 도면 `UNDEFINED` 가 가로만 20 · 체비쇼프
+    16 · **유클리드 15** 이고, 렌더로 확인한 p25(별 1개) · p9(별 2개)를
+    동시에 맞히는 것은 유클리드뿐이다.
+    """
+    dx = max(rect.x0 - x, x - rect.x1, 0.0)
+    dy = max(rect.y0 - y, y - rect.y1, 0.0)
+    return math.hypot(dx, dy)
 
 
 def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
@@ -1005,9 +1025,11 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
     # `**` 가 되고, 그 장 NOTES 는 `*` 만 정의하므로 `UNDEFINED` 로 떨어졌다.
     # 그래서 **더 가까운 버블이 따로 있으면 그 마크는 이 사각형의 것이 아니다.**
     # 창을 좁히지 않는다 — 좁히면 자기 별표가 떨어져 나가는 버블이 생긴다.
+    # 19회차 — 그 "가깝다" 를 **두 축으로** 잰다 (`_mark_gap`).  가로만 보면
+    # 세로로 쌓인 p9 의 `**` 다섯 쌍이 위 버블 것과 섞여 3★·4★ 가 된다.
     if others:
         near = [k for k in near
-                if not any(_x_gap(o, k.x) < _x_gap(rect, k.x)
+                if not any(_mark_gap(o, k.x, k.y) < _mark_gap(rect, k.x, k.y)
                            and in_mark_window(o, k.x, k.y, lay)
                            for o in others)]
     stars = sum(k.stars for k in near)
