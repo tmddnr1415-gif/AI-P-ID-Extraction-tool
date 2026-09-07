@@ -2717,16 +2717,20 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
         # 공란이었던 이유는 마크 판정이 `detect_symbols.detect()` 안, 즉 계기
         # 경로에만 있었기 때문이다.  밸브 검출기는 마크를 읽지 않는다.
         page = page or {}
-        # 별표를 어느 사각형 **위**에서 찾는가 — 액추에이터가 있으면 그 심볼,
-        # 없으면 몸체다.  도면은 별표를 그 항목의 심볼 위에 찍는데, 작동 밸브에서
-        # 맨 위에 그려진 심볼은 몸체가 아니라 액추에이터다.  실측(p6 GATE 2개):
-        # 별표 y=526 · M 원 y0=534.4 (8.4pt 위, 허용치 25.0 안) · 몸체 y0=563.5
-        # (37.5pt 위, 허용치 밖).  허용치를 늘리지 않고 재는 자리를 바로잡았다.
+        # 별표를 어느 사각형 옆에서 찾는가 — **둘 다 본다** (19회차).
+        # 작동 밸브는 몸체와 액추에이터를 따로 그리고, 도면이 별표를 어느
+        # 쪽에 찍는지가 장마다 다르다:
+        #   p6  GATE   별표 y=526 · M 원 y0=534.4 (8.4pt) · 몸체 y0=563.5 (37.5pt)
+        #   p27 BFV    별표 x=480.5 · 몸체 x1=472.4 (8.1pt) · M 원은 30pt 밖
+        # 11회차는 앞의 실측만 보고 액추에이터 하나로 정했고, 그래서 p27 의
+        # 세 BFV 가 별표를 갖고도 SCT 로 남았다 (4차 피드백 9p).  `also` 로
+        # 두 창을 다 보되 마크는 한 번만 세어진다.
         mark_rect = (pymupdf.Rect(*b.actuator_rect) if b.actuator_rect
                      else b.rect)
+        also = (b.rect,) if b.actuator_rect else ()
         marked = _MarkedRect(*ds.read_vendor_mark(
             mark_rect, page.get("marks") or (), page.get("box_marks") or (),
-            page.get("mark_dict") or {}, ds.LAYOUT))
+            page.get("mark_dict") or {}, ds.LAYOUT, also=also))
         if any(m in b.actuator_evidence for m in IP_TOKEN_EVIDENCE):
             codes.append("IP_TOKEN_AS_ACTUATOR")
             reasons.append(

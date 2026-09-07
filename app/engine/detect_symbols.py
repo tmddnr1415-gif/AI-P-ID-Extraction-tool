@@ -1005,7 +1005,7 @@ def _mark_gap(rect, x: float, y: float) -> float:
 
 
 def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
-                     others=()):
+                     others=(), also=()):
     """이 사각형에 걸린 벤더 마크 → `(rules_hit, evidence)`.  없으면 `([], None)`.
 
     11회차에 `detect()` 안에서 꺼냈다.  움직인 것은 **위치뿐**이고 판정은 한
@@ -1016,9 +1016,18 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
     의미는 **그 페이지 NOTES 에서만** 온다 (docs/design.md §10.1).  같은 글리프가
     시트마다 다른 것을 뜻하므로, 그 장이 정의하지 않은 마크는 판단을 미루고
     `VENDOR_MARK_UNDEFINED` 로 표시만 한다 — 추측하지 않는다.
+
+    `also` 는 **같은 항목의 다른 심볼**이다 (19회차).  작동 밸브는 몸체와
+    액추에이터를 따로 그리는데, 도면이 별표를 어느 쪽 옆에 찍는지가 장마다
+    다르다 — p6 은 M 원 위(11회차 실측 8.4pt), p27 은 **몸체 옆**(8.1pt,
+    M 원에서는 30pt 밖).  한쪽만 보면 다른 쪽이 통째로 빠진다.  둘 중 어느
+    창에 들어와도 그 항목의 마크이고, `marks` 를 한 번만 훑으므로 두 창에
+    다 들어와도 **한 번만** 세어진다.
     """
     cx, cy = (rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2
-    near = [k for k in marks if in_mark_window(rect, k.x, k.y, lay)]
+    mine = (rect,) + tuple(also)
+    near = [k for k in marks
+            if any(in_mark_window(r, k.x, k.y, lay) for r in mine)]
     # 16회차 — **한 마크는 버블 하나에만 붙는다.**  창이 좌우로 늘어나 있어서
     # 나란히 선 두 버블의 창이 겹치고, 그 사이에 찍힌 마크가 **둘 다에**
     # 세어졌다.  실측: p25 의 PT 는 자기 별표 1개 + 옆 TT 의 별표 1개를 합쳐
@@ -1029,7 +1038,8 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
     # 세로로 쌓인 p9 의 `**` 다섯 쌍이 위 버블 것과 섞여 3★·4★ 가 된다.
     if others:
         near = [k for k in near
-                if not any(_mark_gap(o, k.x, k.y) < _mark_gap(rect, k.x, k.y)
+                if not any(_mark_gap(o, k.x, k.y)
+                           < min(_mark_gap(r, k.x, k.y) for r in mine)
                            and in_mark_window(o, k.x, k.y, lay)
                            for o in others)]
     stars = sum(k.stars for k in near)
