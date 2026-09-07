@@ -2182,12 +2182,12 @@ async function setDescription(row, text, opts = {}) {
   // contains 7 rows the engine already filled from the drawing, which one click
   // would have overwritten (p10 TIT: 10 of them).  Matching the sentence too
   // gives exactly the 25 groups and touches nothing outside the one on screen.
-  const was = row.values.description || "";
-  const targets = opts.bulk
-    ? S.rows.filter(r => !r.deleted && !r.removed
-        && r.drawing_no === row.drawing_no && r.values.type === row.values.type
-        && (r.values.description || "") === was)
-    : [row];
+  //
+  // ⚠ 18회차 [I]: 사정거리를 여기서 **다시 계산하고 있었다.**  화면이 누르기
+  // 전에 "N행 있습니다" 라고 말할 때는 `sameSentence` 를 쓰고, 실제로 누르면
+  // 이 복사본이 돌았다 — 접미(17회차 C-1)가 붙자 둘이 갈려서 화면은 3행이라고
+  // 하고 파일은 1행만 바뀌었다.  **판정하는 곳은 하나여야 한다** (11회차 교훈).
+  const targets = opts.bulk ? sameSentence(row) : [row];
   for (const r of targets) {
     if (!await patch(r, "description", text)) return;
     // The grade is a user value; the Remark is not patched to empty because an
@@ -2637,11 +2637,29 @@ async function showHistory(row) {
  * before it is pressed rather than reported after.  The 58 PARTIAL rows fall into
  * 25 such groups; drawing and Type alone would give 17 and would also sweep up
  * rows the engine had already filled. */
+/* ★ 18회차 [I]: 17회차 C-1 이 이 묶음을 **1행으로 만들어 놓고 있었다.**
+ * 묶음의 정의가 "지금 같은 문장" 인데, C-1 이 같은 도면 안의 중복 문장에
+ * A·B·C 를 붙이면서 그 같음이 사라졌다 - UI 스위트의
+ * `test_step11_bulk_apply_fills_its_group_and_nothing_else` 가 "1행보다 큰
+ * PARTIAL 묶음이 없다" 로 그것을 잡았다.  12회차가 센 25묶음이 25×1 이 된 것이다.
+ *
+ * 그래서 **접미를 뗀 문장**으로 묶는다.  떼는 값을 지어내지 않는다 - 엔진이
+ * `duplicate_suffix.sentence` 에 접미 전 원문을 그대로 남겨 두었고, 그것이
+ * 지금 문장과 실제로 이어지는지(원문 + 공백 + 그 한 글자)를 확인한 뒤에만
+ * 쓴다.  사람이 문장을 고쳤으면 그 확인이 깨지므로 고친 문장 그대로 묶인다. */
+function baseSentence(row) {
+  const text = (row.values || {}).description || "";
+  const dup = ((row.evidence || {}).duplicate_suffix) || null;
+  if (dup && dup.sentence && dup.letter
+      && text === `${dup.sentence} ${dup.letter}`) return dup.sentence;
+  return text;
+}
+
 function sameSentence(row) {
-  const text = row.values.description || "";
+  const text = baseSentence(row);
   return S.rows.filter(r => !r.deleted && !r.removed
     && r.drawing_no === row.drawing_no && r.values.type === row.values.type
-    && (r.values.description || "") === text);
+    && baseSentence(r) === text);
 }
 
 /* ---------------- ④ 행의 FROM/TO 지정 (6회차) ----------------

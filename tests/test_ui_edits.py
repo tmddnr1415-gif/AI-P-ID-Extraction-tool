@@ -105,7 +105,16 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-REAL_DB = ROOT / "app" / "_data" / "app.db"
+# 이 스위트가 **어떤 데이터에서 도는지** (14회차 원칙).
+#
+# 기본값은 이 PC 의 실 DB 이고, `PID_UI_DB` 로 다른 것을 지정할 수 있다.
+# 지정 경로가 필요한 이유는 §14 의 전제 때문이다 — 이 스위트는 **SCOPE 가
+# 채워진 분석**에서만 뜻이 있는데(11회차 이후), 실 DB 에 그런 분석이 없는
+# PC 가 있다.  그때 실 DB 를 갈아끼우면 §17 의 "시험은 실 데이터를 건드리지
+# 않는다" 가 깨지므로, **가리키는 곳만 바꾼다.**  어느 쪽이든 스위트는
+# 사본에서 돌고, `test_zzz` 가 원본이 바이트 그대로인지 확인한다.
+REAL_DB = Path(os.environ.get("PID_UI_DB")
+               or ROOT / "app" / "_data" / "app.db")
 
 
 def _sha(path: Path) -> str:
@@ -504,17 +513,25 @@ def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
         f"manifest said {mov_entry.get('unmapped_values')}")
 
 
-def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
+def test_step6_scope_edit_is_counted_and_follows_the_setting(
         page, edited, field_rows, server, job_id, tmp_path):
-    """SCOPE 는 값이 아니라 **출력 범위**다 (11회차).
+    """SCOPE 를 고치면 **세어지고**, 파일에서 빠지는지는 **설정이 정한다** (18회차).
 
-    발주처 양식은 SCOPE=SCT 만 담는다.  그래서 어떤 행의 SCOPE 를 SCT 가 아닌
-    값으로 고치면 그 행은 파일에서 빠지고, 빠진 수가 MANIFEST 에 적힌다 —
-    조용히 사라지지 않는 것이 조건이다.
+    11회차: 발주처 양식은 SCT 만 담았다 — SCOPE 를 바꾸면 행이 빠졌다.
+    18회차 [B]: 발주처 요구로 **전량을 담는 것이 기본**이 됐다 (계기를 당사가
+    공급하지 않아도 설치 Bulk material 은 당사 몫이라 물량이 필요하다).
+    그래서 이 시험이 못박는 것이 하나 바뀌고 하나 남는다:
 
-    값이 **아예 없는** 행은 반대로 담긴다: SCOPE 열이 생기기 전에 저장된
-    분석이 그렇고, 없는 판정을 "타사 공급"으로 읽으면 발주처 양식 네 개가
-    통째로 빈 파일이 된다 (이 스위트가 실제로 그렇게 잡아냈다).
+      · **바뀐 것** — 행이 빠지는지는 `client_form.scope_filter` 가 정한다.
+        기본(`all`)에서는 안 빠지고, `sct` 에서는 빠진다.  두 갈래의 판정은
+        `tests/test_scope_and_type.py` 가 단위로 시험한다.
+      · **남은 것** — 어느 쪽이든 **세어져서 MANIFEST 에 적힌다.**  공급
+        주체(`scope_state`)와 나가는지(`in_client_scope`)는 18회차부터 서로
+        다른 사실이고, 조용히 사라지지 않는 것이 여전히 조건이다.
+
+    값이 **아예 없는** 행은 어느 설정에서도 담긴다: 없는 판정을 "타사 공급"
+    으로 읽으면 발주처 양식 네 개가 통째로 빈 파일이 된다 (이 스위트가 실제로
+    그렇게 잡아냈다).
     """
     import urllib.request
     # 탭은 `dataset.tab` 으로 고른다 — 화면 글자는 'Field' 이고 키는 'FIELD' 라,
@@ -550,11 +567,16 @@ def test_step6_scope_edit_removes_the_row_from_the_client_workbook(
     page.wait_for_timeout(400)
 
     after_man, after_rows = export("scope-after")
-    assert after_rows == before_rows - 1, (
-        f"SCOPE 를 SCT 아닌 값으로 고쳤는데 행이 그대로다 "
-        f"({before_rows} → {after_rows})")
+    mode = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}").read()).get("form_scope")
+    expected = before_rows if mode == "all" else before_rows - 1
+    assert after_rows == expected, (
+        f"scope_filter={mode} 인데 행수가 {before_rows} → {after_rows} "
+        f"(기대 {expected})")
     assert after_man.get("out_of_scope_rows", 0) > before_man.get(
-        "out_of_scope_rows", 0), "빠진 행이 MANIFEST 에 안 적혔다"
+        "out_of_scope_rows", 0), (
+        "공급 주체가 바뀐 것이 MANIFEST 에 안 적혔다 — 나가든 안 나가든 "
+        "세어져야 한다")
 
     # 되돌린다 - 뒤따르는 시험(step7)이 같은 행을 본다.
     _type_edit(page, _cell(page, key, "scope"), "SCT")
@@ -588,17 +610,17 @@ def _field_rows_in_export(server, job_id, tmp_path, label):
     return man, (field or {}).get("rows"), cells
 
 
-def test_step6_edit_on_a_vendor_row_does_not_reach_the_client_workbook(
+def test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting(
         page, edited, field_rows, server, job_id, tmp_path):
-    """SCOPE 가 SCT 가 아닌 행의 편집은 발주처 양식에 **안 실린다 — 그것이 정상이다.**
+    """벤더 행의 편집이 양식에 닿는지 — **설정이 정하고, 화면이 그 말을 한다** (18회차).
 
-    11회차부터 발주처 양식은 SCT 만 담는다.  그래서 벤더 행에 넣은 값이 파일에
-    없는 것은 결함이 아니라 필터가 일한 것이고, 이 시험은 그 사실을 못박는다.
-    화면·DB 에는 그대로 남아야 한다 - 값이 사라지는 것과 파일에 안 나가는 것은
-    다른 일이고, 나중에 그 행의 SCOPE 가 SCT 로 바뀌면 값은 그때 나간다.
+    11회차에는 안 닿는 것이 정답이었다.  18회차 [B] 로 기본이 전량이 되면서
+    **닿는 것이 정답**이 됐다: 그 계기를 당사가 공급하지 않아도 설치 Bulk
+    material 은 당사가 공급하므로 물량을 세어야 한다.
 
-    (14회차에 깨진 두 시험의 **반대편**이다.  깨진 쪽은 SCT 행을 고르게 고쳤고,
-    이쪽은 벤더 행을 일부러 골라 안 나가는 것을 확인한다.)
+    시험이 지키는 것은 "닿는다/안 닿는다" 가 아니라 **설정과 파일이 같은 말을
+    한다** 는 것이다 — 그 둘이 갈리면 화면의 안내(`scopeFacts`)도 함께 갈린다.
+    어느 쪽이든 화면·DB 에는 값이 그대로 남고, 공급 주체는 MANIFEST 에 세어진다.
     """
     import urllib.request
     row = field_rows["vendor"][0]
@@ -615,12 +637,19 @@ def test_step6_edit_on_a_vendor_row_does_not_reach_the_client_workbook(
     assert rows[key]["values"]["tag_no"] == mark, "벤더 행 편집이 저장되지 않았다"
     assert _scope_state(rows[key]) == "vendor", "이 시험은 벤더 행이어야 성립한다"
 
-    # 파일에는 없다
+    # 파일에 있는가 없는가 — 설정이 답한다
     man, _rows, cells = _field_rows_in_export(server, job_id, tmp_path, "vendor-edit")
-    assert mark not in cells, (
-        "SCOPE 가 SCT 가 아닌 행의 편집이 발주처 양식에 실렸다 - 필터가 새고 있다")
+    mode = json.loads(urllib.request.urlopen(
+        f"{server}/jobs/{job_id}").read()).get("form_scope")
+    if mode == "all":
+        assert mark in cells, (
+            "전량 모드인데 벤더 행의 편집이 발주처 양식에 없다 - 화면이 "
+            "'나갑니다' 라고 말하면서 파일에는 없는 것이 가장 나쁜 갈림이다")
+    else:
+        assert mark not in cells, (
+            "SCT 모드인데 벤더 행의 편집이 발주처 양식에 실렸다 - 필터가 새고 있다")
     assert man.get("out_of_scope_rows", 0) > 0, (
-        "빠진 행이 MANIFEST 에 안 적혔다 - 조용히 사라지면 안 된다")
+        "타사 공급분이 MANIFEST 에 안 세어졌다 - 나가든 안 나가든 세어야 한다")
 
 
 def test_step6_a_row_with_no_scope_is_written_not_dropped(
@@ -805,18 +834,28 @@ def test_step11_bulk_apply_fills_its_group_and_nothing_else(page, server, job_id
     page.goto(f"{server}/#{job_id}?gradeFilter=PARTIAL")
     page.wait_for_selector("#body tr", timeout=120_000)
     page.wait_for_timeout(1500)
+    # ★ 묶음은 **제품이 쓰는 접근자**(`sameSentence`)로 고른다 (18회차 [I]).
+    #
+    # 예전에는 이 시험이 자기만의 키(도면|TYPE|문장 그대로)로 묶었고, 17회차
+    # C-1 이 중복 문장에 A·B·C 를 붙이자 그 키로는 **모든 묶음이 1행**이 되어
+    # 시험이 멈췄다.  제품은 접미를 뗀 문장으로 묶으므로, 시험이 자기 키를
+    # 들고 있으면 화면이 하는 말과 시험이 재는 것이 갈린다 (11회차 교훈).
     target = page.evaluate("""() => {
-      const by = {};
+      const seen = new Set();
+      let best = [];
       for (const r of S.rows.filter(r => r.values.description_grade === 'PARTIAL')) {
-        const k = [r.drawing_no, r.values.type, r.values.description].join('|');
-        (by[k] = by[k] || []).push(r);
+        if (seen.has(r.key)) continue;
+        const g = sameSentence(r);
+        g.forEach(x => seen.add(x.key));
+        if (g.length > best.length) best = g;
       }
-      const best = Object.values(by).sort((a, b) => b.length - a.length)[0] || [];
       return best.length ? {keys: best.map(r => r.key), n: best.length,
                             dwg: best[0].drawing_no, type: best[0].values.type,
                             was: best[0].values.description} : null;
     }""")
-    assert target and target["n"] > 1, "no PARTIAL group with more than one row"
+    assert target and target["n"] > 1, (
+        "1행보다 큰 PARTIAL 묶음이 없다 — `일괄 적용` 이 닿을 곳이 없다는 뜻이고, "
+        "17회차 C-1 의 접미가 묶음을 쪼갰을 때 실제로 이렇게 됐다")
     page.evaluate("k => select(k, true)", target["keys"][0])
     page.wait_for_timeout(1200)
     text = "UI 일괄 확인 " + target["was"]
