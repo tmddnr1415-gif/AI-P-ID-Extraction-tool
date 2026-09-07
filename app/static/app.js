@@ -839,6 +839,9 @@ function toFirstScreen() {
   listJobs();
 }
 $req("#prog-home").addEventListener("click", toFirstScreen);
+// 18회차 — 결과 화면에서도 같은 함수를 부른다.  판정도 초기화도 한 곳에만
+// 있어야 두 경로가 갈리지 않는다 (12회차 `toFirstScreen` 을 그대로 쓴다).
+$req("#to-home").addEventListener("click", toFirstScreen);
 
 function hashParts() {
   const raw = location.hash.slice(1);

@@ -143,6 +143,12 @@
       <span id="fb-badge" class="badge" title="수정 이력 — 규칙 개선용으로 저장됩니다"></span>
     </div>
     <div class="head-actions">
+    <!-- 결과 화면에서 첫 화면으로 (18회차 · 3차 피드백 1장).
+         `toFirstScreen()` 은 12회차부터 있었는데 **부르는 곳이 실패 화면의
+         버튼 하나뿐**이었다.  저장된 프로젝트를 눌러 결과로 들어오면 돌아갈
+         길이 URL 편집뿐이었다.  없는 것을 만든 것이 아니라 **있는 것에 길을
+         낸 것**이다.  맨 왼쪽은 "뒤로" 가 있으리라 기대되는 자리다. -->
+    <button id="to-home" class="ghost" title="분석 목록으로 돌아갑니다 (결과는 그대로 남습니다)">← 첫 화면</button>
     <details id="scope" class="scope">
       <summary>출력 범위</summary>
       <!-- Filled from what the analysis actually produced: the drawings, the

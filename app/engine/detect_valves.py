@@ -643,7 +643,138 @@ def find_bodies(pc, lay: ValveLayout = LAYOUT,
 
     bodies.extend(_find_discs_between_bars(pc, horiz, vert, rounds, fills,
                                            diag, claimed, spent, lay, disabled))
+    if "ANGLE_BODY" not in disabled:
+        bodies = _fold_angle_bodies(pc, bodies, lay)
     return bodies
+
+
+# 앵글 밸브 — 범례 page 2 `ANGLE` (18회차).
+#
+# ★ 왜 이것이 빠져 있었나.  범례 p2 의 밸브 표는 `GATE`(중공 나비넥타이) ·
+# `GLOBE`(나비 + 검은 원) 다음에 **`ANGLE`** 과 `THREE-WAY` 를 그린다.  검출기의
+# 몸체 어휘에는 앞의 둘만 있었고, 앵글은 **두 삼각형 중 하나만** 반쪽 나비넥타이
+# 로 보여 `CHECK` 가 됐다.
+#
+# 그 결과가 미검출이다.  `CHECK` 로 잡힌 rect 는 도형의 절반이라 그 중심이
+# **진짜 스템축에서 어긋나고**, `attach_actuators` 의 `act_offaxis`(범례에서
+# 유도된 0.83pt)가 **제대로 찾아 둔 공압 실린더를 거부**한다.  그러면
+# `actuator = NONE` 이 되고 `deliverable_class` 첫 줄에서 빠진다.
+#
+# 실측(58장):
+#     rect 중심에서 잰 off   4.86 · 4.86 · 4.86 · 4.88 · 4.94 · 4.99 · 5.01 · 5.02
+#     꼭짓점에서 잰 off      0.01 · 0.04 · 0.07
+#     허용치                 0.83   ← 건드리지 않는다.  **재는 점**이 틀렸다
+#
+# 16회차 벤더 별표 때와 같은 판단이다: "허용치는 건드리지 않고 읽는 사각형만
+# 바꿨다".
+#
+# 정의는 범례에서 나오고 **범례 자신의 그림이 이 정의에 걸린다** (p2 · p4).
+# 그것이 정의가 맞다는 증거다 — §2.1 ①.
+def _angle_figures(pc, lay: ValveLayout):
+    """꼭짓점을 공유하는 두 중공 삼각형 — 범례 p2 `ANGLE`.
+
+    두 삼각형이 한 점에서 만나므로 그 점에는 **네 개의 선분 끝점**이 모인다
+    (삼각형마다 두 변이 꼭짓점에서 끝난다).  세 개만 모이는 도형은 앵글이
+    아니라 다른 것이므로 세지 않는다 — 실측에서 그런 것이 섞여 있었다.
+
+    반환값은 `(도형 사각형, 꼭짓점, 흐름축)`.  흐름축은 두 삼각형이 차지한
+    두 방향이고, **스템은 남은 방향**에 선다.  액추에이터는 그 스템 위에
+    있으므로(범례 p3), 어긋남을 재는 기준은 rect 중심이 아니라 꼭짓점이다.
+    """
+    out = []
+    for d in pc.drawings():
+        if d.get("fill") is not None:
+            continue
+        items = [it for it in d["items"] if it[0] == "l"]
+        if len(items) != len(d["items"]) or len(items) != 6:
+            continue
+        box = d["bbox"]
+        if not _in_area(box, lay.drawing_area):
+            continue
+        if min(box.width, box.height) < lay.body_short[0]:
+            continue
+        ends = collections.Counter()
+        for it in items:
+            for pt in (it[1], it[2]):
+                ends[(round(pt.x, 1), round(pt.y, 1))] += 1
+        apex, n = ends.most_common(1)[0]
+        if n != 4:
+            continue
+        # 두 삼각형을 갈라낸다.  꼭짓점을 **빼고** 끝점을 공유하는 선분끼리
+        # 묶으면 정확히 둘로 나뉜다 — 삼각형의 밑변이 두 변을 잇기 때문이다.
+        #
+        # ⚠ 좌우·상하만 보는 검사로는 갈리지 않는다: 삼각형의 밑변은 꼭짓점을
+        #   **사이에 두고** 뻗으므로, 가로 삼각형 하나만 있어도 위·아래가 둘 다
+        #   참이 된다 (실측 p10 에서 이것 때문에 0건이 나왔다).
+        parent = list(range(len(items)))
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                shared = {(round(p.x, 1), round(p.y, 1))
+                          for p in (items[i][1], items[i][2])} & \
+                         {(round(p.x, 1), round(p.y, 1))
+                          for p in (items[j][1], items[j][2])}
+                if shared - {apex}:
+                    parent[find(i)] = find(j)
+        groups = collections.defaultdict(list)
+        for i in range(len(items)):
+            groups[find(i)].append(items[i])
+        if len(groups) != 2 or sorted(len(g) for g in groups.values()) != [3, 3]:
+            continue
+        # 각 삼각형의 무게중심이 꼭짓점에서 어느 쪽에 있나.  둘이 **직각**이면
+        # 앵글이고, 일직선이면 나비넥타이(GATE/GLOBE)라 여기서 걸러진다.
+        dirs = []
+        for g in groups.values():
+            pts = [(p.x, p.y) for it in g for p in (it[1], it[2])]
+            cx = sum(p[0] for p in pts) / len(pts) - apex[0]
+            cy = sum(p[1] for p in pts) / len(pts) - apex[1]
+            if abs(cx) < 0.5 and abs(cy) < 0.5:
+                dirs = []
+                break
+            dirs.append("H" if abs(cx) >= abs(cy) else "V")
+        if len(dirs) != 2 or dirs[0] == dirs[1]:
+            continue
+        # 흐름은 두 삼각형이 차지한 방향으로 지나가고 **스템은 남은 방향**에
+        # 선다.  가로 삼각형 + 세로 삼각형이면 스템은 세로다 (세로 삼각형의
+        # 반대쪽).  `axis` 는 `attach_actuators` 가 어느 좌표로 어긋남을 재는지를
+        # 정하는 값이고, 세로 스템이면 x 로 재야 하므로 "H" 다 (기존 규약 그대로).
+        axis = "H"
+        out.append((box, apex, axis))
+    return out
+
+
+def _fold_angle_bodies(pc, bodies: list[Body], lay: ValveLayout) -> list[Body]:
+    """앵글 도형 안의 반쪽 `CHECK` 들을 하나의 `ANGLE` 몸체로 접는다.
+
+    한 도형이 두 삼각형이므로 `CHECK` 가 **둘** 나오는 경우가 있다 (실측 p21).
+    접지 않으면 같은 밸브가 두 행이 된다.
+    """
+    figures = _angle_figures(pc, lay)
+    if not figures:
+        return bodies
+    out, taken = [], set()
+    for box, apex, axis in figures:
+        inside = [b for b in bodies
+                  if b.kind == "CHECK" and box.intersects(b.rect)
+                  and id(b) not in taken]
+        if not inside:
+            continue
+        for b in inside:
+            taken.add(id(b))
+        state = inside[0].state
+        out.append(Body("ANGLE", pymupdf.Rect(box), axis, state=state,
+                        evidence={"legend": "page 2 ANGLE",
+                                  "apex": [round(apex[0], 1), round(apex[1], 1)],
+                                  "halves": len(inside),
+                                  "size": [round(box.width, 1), round(box.height, 1)]}))
+    out.extend(b for b in bodies if id(b) not in taken)
+    return out
 
 
 def _triangles_filled(box, fills) -> bool:
@@ -1202,7 +1333,14 @@ def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
             # cases, so `--without ACT_CLEARANCE` moves nothing.
             if "ACT_CLEARANCE" not in disabled and rect.intersects(b.rect):
                 continue
-            cx, cy = (b.rect.x0 + b.rect.x1) / 2, (b.rect.y0 + b.rect.y1) / 2
+            # 18회차 — 앵글 밸브는 **꼭짓점**이 스템축이다.  rect 중심은 도형의
+            # 무게중심이라 스템에서 벗어나 있고, 그 어긋남이 `act_offaxis`
+            # (0.83pt)보다 크다.  허용치가 아니라 재는 점을 바로잡는다.
+            apex = (b.evidence or {}).get("apex")
+            if apex:
+                cx, cy = apex
+            else:
+                cx, cy = (b.rect.x0 + b.rect.x1) / 2, (b.rect.y0 + b.rect.y1) / 2
             if b.axis == "H":
                 off, along = abs(pt.x - cx), abs(pt.y - cy)
             else:

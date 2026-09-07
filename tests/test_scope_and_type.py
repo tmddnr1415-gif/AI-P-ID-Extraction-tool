@@ -225,3 +225,42 @@ def test_the_two_accuracy_axes_share_one_scoring_path():
     assert dict(accuracy.AXES)["전량"]({"scope": ""}) is True
     assert dict(accuracy.AXES)["SCT"]({"scope": "SCT"}) is True
     assert dict(accuracy.AXES)["SCT"]({"scope": "VENDOR(HRSG)"}) is False
+
+
+def test_the_angle_valve_definition_catches_the_legend_that_defines_it():
+    """앵글 밸브 규칙은 **범례에서 나왔고 범례가 그것을 확인해 준다** (18회차).
+
+    범례 page 2 의 밸브 표는 `GATE`(중공 나비넥타이) · `GLOBE`(나비 + 검은 원)
+    다음에 **`ANGLE`** 을 그린다.  검출기 어휘에 그것이 없어서 두 삼각형 중
+    하나만 `CHECK` 로 읽혔고, 그러면 rect 중심이 진짜 스템축에서 벗어나
+    `act_offaxis`(범례 유도 0.83pt)가 **제대로 찾아 둔 공압 실린더를 거부**한다.
+
+    이 시험이 지키는 것은 정의의 출처다: `_angle_figures` 의 정의가
+    **범례 자신의 ANGLE 그림**을 잡아야 한다.  못 잡으면 그 정의는 도면에
+    맞춘 것이지 범례에서 유도한 것이 아니다 (§2.1 ①).
+
+    소스 검사로 한다 — 이 시험은 PDF 없이도 돌아야 하고, 실물 확인은
+    `-m slow` 의 전량 분석이 한다.
+    """
+    from app.engine import detect_valves as dv
+    src = inspect.getsource(dv._angle_figures)
+    # 꼭짓점은 **네 개**의 선분 끝점이 모이는 점이다 (삼각형마다 두 변).
+    assert "!= 4" in src, "꼭짓점 조건이 사라졌다"
+    # 두 삼각형은 **직각**이어야 한다.  일직선이면 나비넥타이(GATE/GLOBE)다.
+    assert "dirs[0] == dirs[1]" in src, "직각 조건이 사라졌다"
+    # 페이지·도면번호·태그로 분기하지 않는다
+    for banned in ("page_no", "drawing_no", "XV", "FCV", "PCV"):
+        assert banned not in src, f"{banned} 로 분기하고 있다"
+
+
+def test_the_actuator_offset_is_measured_from_the_apex_not_the_rect():
+    """허용치를 늘리는 대신 **재는 점**을 바로잡았다 (18회차).
+
+    실측: rect 중심에서 잰 어긋남 4.86~5.02pt ↔ 꼭짓점에서 잰 것 0.01~0.07pt.
+    허용치 `act_offaxis` 는 0.83pt 이고 **건드리지 않았다** — 16회차 벤더
+    별표에서 "허용치는 건드리지 않고 읽는 사각형만 바꿨다" 와 같은 판단이다.
+    """
+    from app.engine import detect_valves as dv
+    src = inspect.getsource(dv.attach_actuators)
+    assert '.get("apex")' in src, "꼭짓점을 읽지 않는다"
+    assert "act_offaxis" in src, "허용치 검사가 사라졌다"
