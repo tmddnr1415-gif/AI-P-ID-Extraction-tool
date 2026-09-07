@@ -7,6 +7,7 @@
     `values["type"]` 은 한 글자도 바뀌지 않는다.
 """
 import inspect
+import re
 import sys
 from pathlib import Path
 
@@ -264,3 +265,30 @@ def test_the_actuator_offset_is_measured_from_the_apex_not_the_rect():
     src = inspect.getsource(dv.attach_actuators)
     assert '.get("apex")' in src, "꼭짓점을 읽지 않는다"
     assert "act_offaxis" in src, "허용치 검사가 사라졌다"
+
+
+def test_every_body_kind_the_detector_can_emit_has_a_valve_name():
+    """새 몸체 갈래가 **조용히 ISA 조립으로 흘러가지 않는다** (18회차 [F]).
+
+    `ANGLE` 이 그렇게 됐다 — 첫 글자 A(ANALYSIS) + 끝 글자 E(ELEMENT) 로
+    읽혀 8행이 `... ANALYSIS ELEMENT` 로 나갔다.  뜻이 없는 문장인데
+    **문법이 맞아서** 눈으로는 안 걸린다.  그래서 시험이 본다.
+
+    검출기가 낼 수 있는 갈래를 소스에서 세고, `BOWTIE_OTHER`("어느 갈래도
+    아님" 이라는 뜻이라 이름을 주면 없는 밸브를 만든다) 하나만 빼고
+    전부 `<갈래> VALVE` 가 되어야 한다.
+    """
+    from app.engine import describe_axis as dax
+    src = (Path(__file__).resolve().parents[1]
+           / "app" / "engine" / "detect_valves.py").read_text(encoding="utf-8")
+    emitted = set(re.findall(r'Body\("([A-Z_]+)"', src))
+    emitted |= set(re.findall(r'kind, ev = "([A-Z_]+)"', src))
+    emitted |= set(re.findall(r'"(BUTTERFLY)" if ticks', src))
+    emitted |= {"BALL"}                      # 같은 줄의 else 가지
+    unnamed = {k for k in emitted - {"BOWTIE_OTHER"}
+               if dax.isa_fullname(k) != f"{k} VALVE"}
+    assert not unnamed, (
+        f"밸브 몸체 갈래인데 밸브 이름이 안 나온다: "
+        + str({k: dax.isa_fullname(k) for k in sorted(unnamed)}))
+    # 그 반대 — "어느 갈래도 아님" 에 이름을 주지 않는다.
+    assert dax.isa_fullname("BOWTIE_OTHER") == "BOWTIE_OTHER"

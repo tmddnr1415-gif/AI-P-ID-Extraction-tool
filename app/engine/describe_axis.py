@@ -52,7 +52,17 @@ _SPECIAL = {"RO": "RESTRICTION ORIFICE", "TW": "THERMOWELL",
             "PSV": "PRESSURE SAFETY VALVE", "PRV": "PRESSURE RELIEF VALVE"}
 # 밸브 몸통 TYPE (산출물 MOV/BFV/PNEUMATIC 의 TYPE 열) — ISA 태그가 아니므로
 # 기계적으로 "<TYPE> VALVE".  **가안** — 보고에 명시.
-_VALVE_BODIES = ("GATE", "GLOBE", "CHECK", "BALL", "BUTTERFLY", "PLUG")
+#
+# ⚠ 18회차 [F]: 이 목록은 **검출기가 낼 수 있는 몸체 갈래 전부**여야 한다.
+# 빠지면 그 낱말이 아래 ISA 조립으로 흘러 **뜻이 없는 문장**이 된다 —
+# `ANGLE` 이 A(ANALYSIS) + E(ELEMENT) 로 읽혀 8행이
+# `... ANALYSIS ELEMENT` 로 나가고 있었다 ([E] 가 새 갈래를 만들면서 드러났다).
+# 여기 적힌 낱말은 전부 **범례 p2 가 인쇄한 것**이다 (한 세로줄 x=1024.2:
+# GLOBE 588.8 · ANGLE 628.4 · NEEDLE 826.9 · PLUG 866.5 · DIAPHRAGM 923.2).
+# `BOWTIE_OTHER` 는 범례 낱말이 아니라 "어느 갈래도 아님" 이라는 뜻이므로
+# 여기 넣지 않는다 — 그것에 이름을 주면 없는 밸브를 만드는 것이다.
+_VALVE_BODIES = ("GATE", "GLOBE", "CHECK", "BALL", "BUTTERFLY", "PLUG",
+                 "ANGLE", "NEEDLE", "DIAPHRAGM")
 
 
 def isa_fullname(type_: str) -> str:
