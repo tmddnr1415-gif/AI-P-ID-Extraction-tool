@@ -131,14 +131,56 @@ def test_vendor_mark_is_read_above_the_actuator_when_there_is_one():
     assert "b.actuator_rect" in src, "허용치를 늘리는 대신 재는 자리를 바로잡는다"
 
 
-def test_client_workbook_carries_only_the_scope_it_ordered():
+class _Cfg:
+    """설정 하나만 든 가짜 config — 시험이 **어느 설정에서 도는지** 말하게 한다."""
+
+    def __init__(self, mode):
+        self.data = {"client_form": {"scope_filter": mode}}
+
+
+def test_the_client_workbook_scope_is_a_setting_with_all_as_default():
+    """무엇을 담느냐는 발주처가 정한다 — 11회차 `sct`, 18회차 `all`.
+
+    11회차는 "타사 공급분은 발주처 문서에 자리가 없다"고 보고 SCT 만 담았다.
+    18회차에 발주처가 뒤집었다: 계기는 타사가 대도 **설치 자재(Bulk material)는
+    SCT 가 대므로** 물량을 뽑으려면 그 행이 리스트에 있어야 한다.
+
+    그래서 11회차 규칙을 **지우지 않고 껐다.**  이 시험이 두 모드를 다 지킨다 —
+    한쪽만 시험하면 되돌릴 수 있다는 말이 빈말이 된다.
+    """
     from app import excel_out
     row = lambda scope: {"values": {"scope": scope}}
-    assert excel_out.in_client_scope(row("SCT"))
-    assert not excel_out.in_client_scope(row("VENDOR"))
-    assert not excel_out.in_client_scope(row("VENDOR(HRSG)"))
+
+    # 기본값: 설정 파일이 무엇이든 알 수 없는 값이면 전량으로 떨어진다
+    assert excel_out.form_scope_mode(_Cfg("이상한값")) == excel_out.FORM_SCOPE_ALL
+
+    all_cfg = _Cfg(excel_out.FORM_SCOPE_ALL)
+    for scope in ("SCT", "VENDOR", "VENDOR(HRSG)", ""):
+        assert excel_out.in_client_scope(row(scope), all_cfg), (
+            f"전량 모드인데 {scope!r} 행이 빠졌다")
+
+    sct_cfg = _Cfg(excel_out.FORM_SCOPE_SCT)
+    assert excel_out.in_client_scope(row("SCT"), sct_cfg)
+    assert not excel_out.in_client_scope(row("VENDOR"), sct_cfg)
+    assert not excel_out.in_client_scope(row("VENDOR(HRSG)"), sct_cfg)
+    assert excel_out.in_client_scope(row(""), sct_cfg), "빈 값은 '판정 없음'이다"
+
+
+def test_scope_state_still_names_the_supplier_under_either_mode():
+    """`scope_state` 는 **공급 주체**를 세지 "양식에 나가는가"를 세지 않는다.
+
+    18회차에 그 둘이 갈렸다 — 전량 모드에서 벤더 행은 `out_of_scope` 이면서
+    동시에 양식에 나간다.  한 함수로 묶으면 "벤더 공급분이 몇 행인가"를 물을
+    수 없게 되고, 완료 화면이 260행을 "빠진다"고 거짓말한다.
+    """
+    from app import excel_out
+    row = lambda scope: {"values": {"scope": scope}}
     assert excel_out.scope_state(row("SCT")) == "delivered"
     assert excel_out.scope_state(row("VENDOR(HRSG)")) == "out_of_scope"
+    assert excel_out.scope_state(row("")) == "legacy"
+    # 그러면서도 전량 모드에서는 그 행이 나간다
+    assert excel_out.in_client_scope(row("VENDOR(HRSG)"),
+                                     _Cfg(excel_out.FORM_SCOPE_ALL))
 
 
 def test_a_row_with_no_scope_at_all_is_still_delivered():

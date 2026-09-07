@@ -151,12 +151,27 @@ def _scope_summary(rows: list) -> dict:
 
     세는 기준은 산출 필터와 **같은 함수**다 (`excel_out.in_client_scope`) —
     화면이 말하는 수와 파일에 들어가는 수가 갈리면 안 된다.
+
+    18회차에 **두 사실이 갈렸다.**  전량 모드에서는 "양식에 나가는가"와
+    "누가 공급하는가"가 더 이상 같은 질문이 아니다 — 벤더 공급분도 나간다.
+    그래서 세 가지를 따로 센다:
+
+        delivered / held   양식에 나가는가          (`in_client_scope`)
+        vendor             공급 주체가 타사인가      (SCOPE 열 값)
+        legacy_no_scope    판정한 적이 없는가
+
+    한 숫자로 접으면 완료 화면이 "260행이 빠집니다"라고 거짓말을 한다.
     """
     out = {"total": len(rows), "delivered": 0, "held": 0,
-           "by_reason": {}, "by_tab": {}, "held_types": {}}
+           "by_reason": {}, "by_tab": {}, "held_types": {},
+           "form_scope": excel_out.form_scope_mode(),
+           "vendor": 0, "vendor_by_reason": {}}
     for r in rows:
         scope = str(r.get("scope") or "").strip()
         wrapped = {"values": {"scope": scope}}
+        if excel_out.scope_state(wrapped) == "out_of_scope":
+            out["vendor"] += 1
+            out["vendor_by_reason"][scope] = out["vendor_by_reason"].get(scope, 0) + 1
         if excel_out.in_client_scope(wrapped):
             out["delivered"] += 1
             out["by_tab"][r["tab"]] = out["by_tab"].get(r["tab"], 0) + 1
@@ -819,6 +834,10 @@ def job(job_id: str):
     out["engine"] = json.loads(out.pop("engine_json") or "{}")
     out["review_count"] = db.review_count(CON, job_id)
     out["revisions"] = [dict(r) for r in db.list_revisions(CON, job_id)]
+    # 발주처 양식에 무엇이 담기는가 — 그리드가 그려지기 **전에** 알아야 한다
+    # (`scopeFacts` 가 행마다 이 문장을 만든다).  값은 지금 설정이고 저장된
+    # 것이 아니다: 산출은 지금 일어나므로 지금 설정이 맞는 답이다.
+    out["form_scope"] = excel_out.form_scope_mode()
     return out
 
 
@@ -1936,18 +1955,28 @@ def revision_excel(revision_id: int):
             "engine_fingerprint": snap["fingerprint"],
             "written": result["written"],
             "skipped": result["skipped"],
-            # 11회차 — 발주처 양식은 SCOPE=SCT 만 담는다.  뺀 행이 몇 개인지
-            # 여기 적힌다 (조용히 사라지지 않는 것이 이 필터의 조건이다).
+            # 18회차 — 담는 범위가 설정이다 (`client_form.scope_filter`).
+            # `all` 이면 뺀 행이 없고, `sct` 면 11회차대로 SCT 만 담는다.
+            # **뺀 행이 조용히 사라지지 않는 것**이 두 모드 공통의 조건이라
+            # 세 숫자를 그대로 싣는다.
+            "form_scope": result.get("form_scope"),
             "scope_filter": result.get("scope_filter"),
+            "held_rows": result.get("held_rows", 0),
             "out_of_scope_rows": result.get("out_of_scope_rows", 0),
             "legacy_no_scope_rows": result.get("legacy_no_scope_rows", 0),
             "note": "unmapped_values lists edits with no column in that "
                     "deliverable's form; they are stored but not written. "
-                    "out_of_scope_rows counts rows left out because their "
-                    "SCOPE is not SCT; legacy_no_scope_rows counts rows with "
-                    "no SCOPE at all (an analysis from before the column "
-                    "existed) - those are still written, and a non-zero "
-                    "number means the drawing set should be re-analysed",
+                    "form_scope is what the client form carries: 'all' (every "
+                    "row, the default from round 18 - the client asked for the "
+                    "vendor-supplied rows too, because SCT still supplies the "
+                    "bulk material to install them) or 'sct'. held_rows is how "
+                    "many rows were actually left out, which is 0 under 'all'. "
+                    "out_of_scope_rows counts rows whose SCOPE is not SCT - a "
+                    "count of the supplier, not of what was dropped. "
+                    "legacy_no_scope_rows counts rows with no SCOPE at all (an "
+                    "analysis from before the column existed) - those are "
+                    "always written, and a non-zero number means the drawing "
+                    "set should be re-analysed",
         }, indent=1))
     buf.seek(0)
     return StreamingResponse(

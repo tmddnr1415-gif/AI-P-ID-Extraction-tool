@@ -397,12 +397,55 @@ def blank_form(src: Path, out: Path, sheet: str, first_row: int = 8,
 # 것은 출력 범위이지 행의 정체가 아니다.
 SCOPE_DELIVERED = "SCT"
 
+# ── 18회차 — 담는 범위가 설정이 됐다 ────────────────────────────────────────
+#
+# **요구가 뒤집혔다** (3차 피드백 2장):
+#
+#   "발주처 양식에서 빠지는 행 항목도 모두 발주처 양식에 추가 반영 요망.
+#    사유는 Instrument 를 당사(SCT)가 공급하지 않더라도 설치에 필요한
+#    Bulk material 은 SCT 가 공급해야 하므로 물량 산출해야 함."
+#
+# 즉 11회차의 판단("타사 공급분은 발주처 문서에 자리가 없다")이 **일부만
+# 맞았다** — 계기 자체는 타사가 대지만 그 계기를 설치하는 자재(임펄스 라인 ·
+# 밸브 · 케이블 · 지지대)는 우리가 대므로, 물량이 나오려면 그 행이 리스트에
+# 있어야 한다.  **어느 쪽이 옳으냐가 아니라 그 문서의 용도가 무엇이냐**의
+# 문제이고, 그것은 발주처가 정한다.
+#
+# 그래서 **11회차 코드를 지우지 않고 설정으로 만들었다.**  발주처가 다시
+# SCT 만 원하면 config 한 줄로 돌아간다.
+#
+#     client_form.scope_filter: all   (18회차 기본 — 1029행 전량)
+#                               sct   (11회차 — SCOPE=SCT 만)
+#
+# **측정축은 건드리지 않는다** (§2.2).  출력에 무엇을 담느냐와 정답지가 무엇을
+# 계상했느냐는 다른 문제다 — 발주처 CZE 는 여전히 벤더 공급분을 계상하지
+# 않으므로 축2(SCT)가 품질 지표라는 사실은 그대로다.
+FORM_SCOPE_ALL = "all"
+FORM_SCOPE_SCT = "sct"
 
-def in_client_scope(row: dict) -> bool:
+
+def form_scope_mode(cfg=None) -> str:
+    """발주처 양식에 무엇을 담는가 — **이 판정을 하는 곳은 여기 하나**.
+
+    화면(`scopeFacts`) · 완료 화면(`_scope_summary`) · 산출(`write_all`)이
+    전부 이 값을 읽는다.  값이 두 곳에 있으면 언젠가 갈린다.
+    """
+    data = getattr(cfg or pipeline.CFG, "data", {}) or {}
+    v = str((data.get("client_form") or {}).get("scope_filter")
+            or FORM_SCOPE_ALL).strip().lower()
+    # 모르는 값은 기본으로 떨어뜨린다 — 오타 하나로 발주처 양식이 조용히
+    # 반쪽이 되는 것보다 전량이 낫다 (빠진 행은 눈에 안 띄지만 더 있는 행은
+    # 띈다).
+    return v if v in (FORM_SCOPE_ALL, FORM_SCOPE_SCT) else FORM_SCOPE_ALL
+
+
+def in_client_scope(row: dict, cfg=None) -> bool:
     """이 행이 발주처 양식에 들어가는가.
 
-    `SCT` 면 담고, **다른 값이 적혀 있으면** 뺀다.  값이 **아예 없는** 행은
-    담는다 — "타사 공급"이 아니라 "아직 판정한 적 없음"이기 때문이다.
+    **기본은 전량이다** (18회차).  `scope_filter: sct` 로 두면 아래 11회차
+    규칙이 그대로 돈다 — `SCT` 면 담고, **다른 값이 적혀 있으면** 뺀다.
+    값이 **아예 없는** 행은 담는다 — "타사 공급"이 아니라 "아직 판정한 적
+    없음"이기 때문이다.
 
     빈 값을 빼지 않는 이유는 실측으로 드러났다: SCOPE 열이 없던 회차에 저장된
     분석(회사 PC 의 기존 결과가 그렇다)은 모든 행의 scope 가 빈 문자열이라,
@@ -413,12 +456,20 @@ def in_client_scope(row: dict) -> bool:
     담긴 옛 행이 몇 개인지는 MANIFEST 의 `legacy_no_scope_rows` 에 실려 나가고,
     거기에 숫자가 있으면 **다시 분석해야 한다**는 뜻이다.
     """
+    if form_scope_mode(cfg) == FORM_SCOPE_ALL:
+        return True
     scope = str((row.get("values") or {}).get("scope") or "").strip()
     return scope in ("", SCOPE_DELIVERED)
 
 
 def scope_state(row: dict) -> str:
-    """`in_client_scope` 가 어느 갈래로 판정했는지 — 집계용."""
+    """그 행의 SCOPE 가 **어떤 값인가** — 집계용.
+
+    ⚠ 이것은 "양식에 나가는가"가 아니다 (18회차부터 갈렸다).  전량 모드에서는
+    `out_of_scope` 인 행도 양식에 나간다 — 이 함수는 **공급 주체**를 세고,
+    나가는지는 `in_client_scope` 가 답한다.  둘을 한 함수로 묶으면 "벤더
+    공급분이 몇 행인가"를 물을 수 없게 된다.
+    """
     scope = str((row.get("values") or {}).get("scope") or "").strip()
     return ("delivered" if scope == SCOPE_DELIVERED
             else "legacy" if not scope else "out_of_scope")
@@ -439,7 +490,7 @@ def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
             continue
         state = scope_state(row)
         scope_counts[state] = scope_counts.get(state, 0) + 1
-        if not in_client_scope(row):
+        if not in_client_scope(row, cfg):
             continue
         by_tab.setdefault(row["tab"], []).append(row)
     # 확정된 삭제 행은 원래 자리에 남는다 - 표 끝으로 모으지 않는다.  자리를
@@ -463,9 +514,17 @@ def write_all(snapshot: dict, templates: dict, out_dir: Path, cfg) -> dict:
                 Path(template) if template else None, out_dir / name, rows, cfg, kind))
         except TemplateMissing as exc:
             skipped.append({"kind": kind, "rows": len(rows), "reason": str(exc)})
+    mode = form_scope_mode(cfg)
     return {"written": written, "skipped": skipped,
-            "scope_filter": SCOPE_DELIVERED,
+            # 무엇을 담았는가.  `all` 이면 걸러낸 행이 없다 (18회차 기본).
+            "form_scope": mode,
+            "scope_filter": SCOPE_DELIVERED if mode == FORM_SCOPE_SCT else "",
+            # ⚠ 이 둘은 **SCOPE 값의 분포**이지 "빠진 행 수"가 아니다.
+            # 전량 모드에서는 `out_of_scope_rows` 행도 양식에 들어간다 —
+            # 빠진 행 수는 `held_rows` 가 답한다.
             "out_of_scope_rows": scope_counts.get("out_of_scope", 0),
             # 0 이 아니면 그 분석은 SCOPE 열이 생기기 전 것이다 — 다시 분석해야
             # 발주처 양식이 제 범위로 나온다.
-            "legacy_no_scope_rows": scope_counts.get("legacy", 0)}
+            "legacy_no_scope_rows": scope_counts.get("legacy", 0),
+            "held_rows": (scope_counts.get("out_of_scope", 0)
+                          if mode == FORM_SCOPE_SCT else 0)}

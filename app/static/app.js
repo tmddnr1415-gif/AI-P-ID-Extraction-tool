@@ -591,8 +591,15 @@ function showDone(summary, elapsed) {
     + `<div class="dn-row big"><span>발주처 양식에 나가는 행</span>`
     + `<span class="n">${sc.delivered}행</span></div>`
     + (tabs ? `<div class="dn-sub">${escape(tabs)}</div>` : "")
+    // 18회차 — **두 사실을 나눠 말한다.**  전량 모드에서는 벤더 공급분도
+    // 양식에 나가므로 "빠지는 행"이 0 이다.  그때 260행을 "빠진다"고 적으면
+    // 거짓말이고, 아예 안 적으면 공급 주체를 구분한다는 사실이 사라진다.
     + (sc.held ? `<div class="dn-row big"><span>발주처 양식에서 빠지는 행</span>`
         + `<span class="n">${sc.held}행</span></div>${reasons}` : "")
+    + (!sc.held && sc.vendor
+        ? `<div class="dn-note">그 중 타사 공급분 ${sc.vendor}행도 함께 나갑니다 — `
+          + `설치 자재(Bulk material)는 SCT 공급이라 물량 산출에 필요합니다. `
+          + `공급 주체는 SCOPE 열이 계속 구분합니다</div>` : "")
     + (sc.legacy_no_scope
         ? `<div class="dn-note">SCOPE 판정이 없는 행 ${sc.legacy_no_scope}행 — `
           + `이 열이 생기기 전의 분석입니다</div>` : "")
@@ -2094,16 +2101,14 @@ async function noticeAfterEdit(row, field, before, after) {
     return;
   }
   // 세 갈래 모두 말한다.  "나간다" 도 사실이고, 그것을 안 적으면 침묵이
-  // "나간다" 를 뜻하게 된다 - 지금 고친 결함이 정확히 그 구조였다.
-  if (now.state === "vendor") {
-    editNotice(`저장했습니다. 이 행은 SCOPE=${now.value} 라 발주처 양식에는 `
-               + "나가지 않습니다 (화면에는 남습니다)", "out");
-  } else if (now.state === "unjudged") {
-    editNotice("저장했습니다. 이 행은 SCOPE 를 판정한 적이 없습니다 — "
-               + "다시 분석하면 정해집니다", "unjudged");
-  } else {
-    editNotice("저장했습니다. 이 행은 발주처 양식에 나갑니다", "in");
-  }
+  // "나간다" 를 뜻하게 된다 - 14회차에 고친 결함이 정확히 그 구조였다.
+  //
+  // 18회차 — 문장을 여기서 다시 쓰지 않고 `scopeFacts` 의 것을 그대로 쓴다.
+  // 전량 모드에서는 벤더 행도 나가므로, 여기 "나가지 않습니다" 를 박아 두면
+  // 근거 패널과 편집 안내가 **서로 다른 말**을 한다.
+  editNotice(`저장했습니다. 이 행은 발주처 양식에 ${now.formLine}`,
+             now.inForm ? (now.state === "vendor" ? "unjudged" : "in")
+                        : "out");
 }
 
 async function saveEdit(row, field, td) {
@@ -2114,12 +2119,10 @@ async function saveEdit(row, field, td) {
   // 저장하기 **전에** 알린다 - 이 행이 발주처 양식 밖이면 고친 값이 파일에
   // 닿지 않는다는 것을 그 순간 아는 편이 낫다.  막지는 않는다.
   const before = scopeFacts(scopeBefore, { needsReview: row.needs_review });
-  const hint = field === "scope" ? ""
-    : before.state === "vendor"
-      ? `이 행은 SCOPE=${before.value} 라 발주처 양식에는 나가지 않습니다`
-      : before.state === "unjudged"
-        ? "이 행은 SCOPE 를 판정한 적이 없습니다 (다시 분석하면 정해집니다)"
-        : "";
+  // 18회차 — 여기도 `scopeFacts` 가 쓴 문장을 그대로 쓴다.  저장 전과 저장
+  // 후가 다른 말을 하면 안 되고, 전량 모드에서는 벤더 행도 나간다.
+  const hint = field === "scope" || before.state === "delivered" ? ""
+    : `이 행은 발주처 양식에 ${before.formLine}`;
   const author = await askAuthor(`${field} 수정`, hint);
   if (author === null) { td.textContent = current; return; }   // 취소
   const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
@@ -3003,6 +3006,9 @@ let SUPPLIER_SPAN_LABEL = "공급자 인터페이스 구간 — 배관 및 기�
  * 근거 패널과 범례가 같은 값을 읽으므로 한 곳에만 적는다. */
 const SCOPE_DELIVERED = "SCT";
 const SCOPE_VENDOR_PREFIX = "VENDOR";
+// 서버 `excel_out.FORM_SCOPE_SCT` 와 같은 문자열.  화면은 이 값을 **판정하지
+// 않고 받아 쓴다** — 필터를 실제로 거는 곳은 서버 하나다 (18회차).
+const SCOPE_FILTER_SCT = "sct";
 
 /* SCOPE 한 값이 무엇을 뜻하는가 — **화면에서 이 판정을 하는 곳은 여기 하나다**
  * (14회차).
@@ -3034,13 +3040,25 @@ function scopeFacts(scopeVal, opts = {}) {
     : supplier ? `VENDOR 공급 — ${supplier}`
     : state === "vendor" ? v
     : "판정 없음";
-  const inForm = state !== "vendor";      // 서버의 in_client_scope 와 같은 갈래
-  const formLine = state === "delivered" ? "나갑니다"
-    : state === "vendor"
-      ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
-      : "판정한 적 없음 — 다시 분석하면 정해집니다 "
-        + "(SCOPE 열이 생기기 전의 분석입니다)";
-  return { value: v, state, supplier, supplierName, inForm, formLine };
+  // 18회차 — 양식이 무엇을 담는지는 **설정**이고 서버가 말해 준다
+  // (`/jobs/{id}` 의 `form_scope`).  화면이 그것을 스스로 정하면 서버가
+  // 실제로 쓰는 필터와 갈린다.  모르면 전량으로 본다 — 기본값이 그것이고,
+  // 옛 응답(그 필드가 없는)에서 "빠집니다"라고 겁주지 않는다.
+  const allRows = (S.job && S.job.form_scope) !== SCOPE_FILTER_SCT;
+  const inForm = allRows || state !== "vendor";
+  const formLine = allRows
+    ? (state === "delivered" ? "나갑니다"
+       : state === "vendor"
+         ? `나갑니다 — 양식은 전량을 담습니다 (공급은 ${supplier || v}, `
+           + "설치 자재는 SCT 몫이라 물량 산출에 필요합니다)"
+         : "나갑니다 — SCOPE 를 판정한 적은 없습니다 "
+           + "(이 열이 생기기 전의 분석입니다)")
+    : (state === "delivered" ? "나갑니다"
+       : state === "vendor"
+         ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
+         : "판정한 적 없음 — 다시 분석하면 정해집니다 "
+           + "(SCOPE 열이 생기기 전의 분석입니다)");
+  return { value: v, state, supplier, supplierName, inForm, formLine, allRows };
 }
 
 /* 오버레이 범례 — **라벨과 세는 대상이 같아야 한다** (12회차).
@@ -3060,15 +3078,26 @@ function scopeFacts(scopeVal, opts = {}) {
  * 색: 발주처 요구대로 SCT 가 파랑이다.  이전에는 파랑이 `INCLUDED`, 보라가
  * `SCT` 였다 — 값만 옮겼고 **색 자체는 새로 고르지 않았다**(발주처가 이미 본
  * 색이다). */
+// 18회차 — 설명이 **공급 주체**를 말하고, 양식에 나가는지는 그 뒤에 붙인다.
+// 이 열이 세는 것은 공급 주체이고(11회차 라벨 규칙), 양식 범위는 설정이라
+// 달라진다.  둘을 한 문장에 못박아 두면 설정을 바꾼 순간 범례가 거짓말한다.
 const SCOPE = [
-  ["SCT", "SCT 공급 범위", "#0a84ff",
-   "SCOPE 열이 SCT — 우리 공급. 발주처 양식에 나갑니다"],
+  ["SCT", "SCT 공급 범위", "#0a84ff", "SCOPE 열이 SCT — 우리 공급"],
   ["VENDOR_EXCLUDED", "VENDOR 공급 (BM 당사)", "#ff9f0a",
-   "SCOPE 열이 VENDOR — 타사 공급. 화면에는 남고 발주처 양식에는 나가지 않습니다"],
+   "SCOPE 열이 VENDOR — 계기는 타사 공급, 설치 자재는 SCT 공급"],
   ["INCLUDED", "판정 없음", "#bf5af2",
    "SCOPE 열이 비어 있습니다 — 이 열이 생기기 전의 분석. 다시 분석하면 정해집니다"],
   ["REVIEW", "검토 필요", "#ff453a", "판정 보류 — 근거 패널의 사유 확인"],
 ];
+
+/* 범례 설명 뒤에 "양식에 나가는가" 한 마디를 붙인다.  판정은 `scopeFacts`
+ * 하나에서 오고 여기서 다시 하지 않는다 (12회차 규칙). */
+function scopeTip(key, tip) {
+  const sample = key === "SCT" ? SCOPE_DELIVERED
+    : key === "VENDOR_EXCLUDED" ? "VENDOR" : "";
+  if (key === "REVIEW") return tip;
+  return `${tip}. 발주처 양식에 ${scopeFacts(sample).formLine}`;
+}
 const SCOPE_COLOR = Object.fromEntries(SCOPE.map(([k, , c]) => [k, c]));
 
 function overlayItems(page) {
@@ -3096,7 +3125,7 @@ function buildOverlayLegend() {
     counts[k] = (counts[k] || 0) + 1;
   }
   $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) => `
-    <label class="ovl-row" title="${why}">
+    <label class="ovl-row" title="${escape(scopeTip(key, why))}">
       <input type="checkbox" class="ovl" value="${key}"
              ${S.ovOff.has(key) ? "" : "checked"}>
       <span class="swatch" style="background:${colour}"></span>
