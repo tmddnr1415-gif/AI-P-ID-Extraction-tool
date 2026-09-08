@@ -1,91 +1,160 @@
-﻿파일 목록 — 회사 PC 반영본 (10~20회차 누적)
-================================================================
+회사 PC 업데이트 꾸러미 r21 — 파일 목록
+==============================================================================
 
-기준 커밋   aac64ba  →  ec43fbd (20회차 HEAD)
-파일 수     40  (추가 21 · 수정 19 · 삭제 0 · 이동 0)
+기준: 회사 PC 현재 커밋 aac64ba  →  이번 꾸러미 818ce7c
+10 ~ 21 회차 누적입니다. 앞의 꾸러미를 따로 넣을 필요 없습니다.
 
-※ 삭제하거나 옮길 파일은 없습니다.
-※ app\_data\ (app.db · uploads) 는 이 꾸러미에 들어 있지 않습니다.
+[A] 새로 생기는 파일 23개   [M] 덮어쓸 파일 20개
+[D] 수동 삭제할 파일 0개   [R] 이름이 바뀐 파일 0개
 
-----------------------------------------------------------------
+  ->  삭제하거나 옮길 파일이 없습니다. zip 을 저장소 루트에 덮어쓰기만 하면 됩니다.
 
-[덮어씀] CLAUDE.md
-          인수인계 문서 — 10~20회차 내용   (10~20회차)
-[덮어씀] README.md
-          사용 설명 갱신   (10~20회차)
-[덮어씀] app/db.py
-          편집 영속 · 승계 · 삭제 · 작성자 열   (13·17회차)
-[덮어씀] app/engine/describe_axis.py
-          밸브 몸체 낱말(ANGLE 등) · 판정축   (18회차)
-[덮어씀] app/engine/detect_symbols.py
-          ★ SCOPE 별표 판정 — 잉크·크기·자리·소유자   (16·18·19회차)
-[덮어씀] app/engine/detect_valves.py
-          ANGLE 몸체 · 미분류 몸체 수집   (18회차)
-[덮어씀] app/engine/pipe_graph.py
-          dead_ends 정렬 (비결정성 제거)   (18회차)
-[덮어씀] app/excel_out.py
-          발주처 양식 전량/SCT 필터 · 공급주체 분리   (11·18회차)
-[새 파일] app/global_symbols.py
-          전역 심볼 사전 (등록 화면까지)   (18회차)
-[새 파일] app/legend_profile.py
-          범례 프로필 저장·재사용·대조   (15회차)
-[덮어씀] app/main.py
-          첫 화면 · 편집 · 삭제 · 심볼 등록 · 범례 띠   (13~18회차)
-[덮어씀] app/pipeline.py
-          SCOPE 열 · TYPE 표기 · 중복 접미 · 미판정 수집   (10~18회차)
-[덮어씀] app/revisions.py
-          문서 Rev · 장 단위 대조 · 안정 ID   (13회차)
-[덮어씀] app/static/app.js
-          첫 화면 · 근거 패널 · 편집 안내 · 일괄 적용   (12~18회차)
-[덮어씀] app/static/index.html
-          첫 화면 두 단 · 돌아가기 버튼 · 등록 화면   (12~18회차)
-[덮어씀] app/static/styles.css
-          SCOPE 열 폭 · 배지 · 띠   (12~18회차)
-[덮어씀] config/project_alnouf1.yaml
-          스코프 규칙 · 양식 필터 · TYPE 표기   (10~18회차)
-[새 파일] conftest.py
-          ★ 시험이 실 데이터에 닿지 않게 막는다   (17회차)
-[새 파일] docs/round10_feedback.md
-          회차 기록 문서
-[새 파일] docs/round11_scope_axis.md
-          회차 기록 문서
-[새 파일] docs/round12_annotation_design.md
-          회차 기록 문서
-[새 파일] docs/round12_ui.md
-          회차 기록 문서
-[새 파일] docs/round13_persistence.md
-          회차 기록 문서
-[새 파일] docs/round14_edit_scope.md
-          회차 기록 문서
-[새 파일] docs/round15_legend_profile.md
-          회차 기록 문서
-[새 파일] docs/round16_scope.md
-          회차 기록 문서
-[새 파일] docs/round17_delete.md
-          회차 기록 문서
-[새 파일] docs/round17_test_isolation.md
-          회차 기록 문서
-[새 파일] docs/round18_description.md
-          회차 기록 문서
-[새 파일] docs/round18_global_symbols.md
-          회차 기록 문서
-[덮어씀] spike/accuracy.py
-          측정축 둘 (전량 · SCT)   (11회차)
-[새 파일] tests/test_data_isolation.py
-          회차 기록 문서
-[덮어씀] tests/test_describe_axis.py
-          회차 기록 문서
-[덮어씀] tests/test_determinism.py
-          회차 기록 문서
-[새 파일] tests/test_global_symbols.py
-          회차 기록 문서
-[새 파일] tests/test_legend_profile.py
-          회차 기록 문서
-[새 파일] tests/test_revision_carry.py
-          회차 기록 문서
-[새 파일] tests/test_scope_and_type.py
-          회차 기록 문서
-[덮어씀] tests/test_ui_edits.py
-          회차 기록 문서
-[새 파일] tests/test_vendor_mark_audit.py
-          회차 기록 문서
+------------------------------------------------------------------------------
+[M] CLAUDE.md
+      인수인계 문서 — 10~21회차 전부 반영 (회귀 표 · 코드 지도 · 회차 절)
+      회차 10~21
+[M] README.md
+      사용 설명 · 근거 수치 갱신
+      회차 10~18
+[M] app/db.py
+      SCOPE·리비전·편집이력·작성자·삭제 로그 열 추가 (가산 마이그레이션) · job.stopped_stage
+      회차 11~21
+[M] app/engine/describe_axis.py
+      판정축 — 중간 접합 한 단계 · 라인 최근접 커넥터 · 밸브 몸체 낱말
+      회차 9~18
+[M] app/engine/detect_symbols.py
+      ★ SCOPE 별표 판정 — 마크 창 하나 · 유클리드 소유자 · 잉크 걸림 · 그 장에서 크기 재측정
+      회차 16·18·19
+[M] app/engine/detect_valves.py
+      범례 ANGLE 몸체 · 미판정 몸체 수집
+      회차 18
+[M] app/engine/extract_titleblocks.py
+      ★ 0픽셀에 .min() 을 부르지 않음 · frame_report · 이력 행 캐시를 쪽 객체로
+      회차 21
+[M] app/engine/pipe_graph.py
+      dead_ends 순서 결정성 (좌표 정렬)
+      회차 17 뒤
+[M] app/excel_out.py
+      발주처 양식 전량/SCT 필터 · scope_state 와 in_client_scope 분리
+      회차 11·18
+[A] app/global_symbols.py
+      전역 심볼 사전 (등록 화면까지 · 검출에 닿지 않음)
+      회차 18
+[A] app/legend_profile.py
+      프로젝트 범례 프로필 — 저장·재사용·대조
+      회차 15
+[M] app/main.py
+      첫 화면 프로젝트 단위 · 편집 승계 · SCOPE 요약 · 삭제 · 심볼 등록 · ★ 실패 단계·예외 원문 경로
+      회차 13~21
+[M] app/pipeline.py
+      SCOPE 열 · 판정축 적용 · 중복 접미 · 범례 프로필 · 미판정 수집 · ★ TitleBlockUnreadable
+      회차 10~21
+[M] app/revisions.py
+      문서 대표 Rev · 장 단위 대조 (같은 도면번호 여럿이면 판정 안 함)
+      회차 13
+[M] app/static/app.js
+      SCOPE 색·범례 · 근거 패널 세 줄 · 편집 안내 · 첫 화면 · ★ 실패 화면 단계 표시와 예외 원문 접기
+      회차 11~21
+[M] app/static/index.html
+      첫 화면 두 단 · 완료/실패 화면 · ★ 예외 원문 접기 블록
+      회차 12~21
+[M] app/static/styles.css
+      SCOPE 열 폭 · 개정 링 · 등급 배지
+      회차 11~13
+[M] config/project_alnouf1.yaml
+      SCOPE 규칙 · 양식 필터 · brk_max_mark · TYPE 표기 · Description 항목
+      회차 10~18
+[A] conftest.py
+      ★ 시험이 실 데이터에 닿지 않게 막음 (세션 끝에서 sha256 대조)
+      회차 17
+[A] docs/round10_feedback.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 10
+[A] docs/round11_scope_axis.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 11
+[A] docs/round12_annotation_design.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 12
+[A] docs/round12_ui.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 12
+[A] docs/round13_persistence.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 13
+[A] docs/round14_edit_scope.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 14
+[A] docs/round15_legend_profile.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 15
+[A] docs/round16_scope.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 16
+[A] docs/round17_delete.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 17
+[A] docs/round17_test_isolation.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 17
+[A] docs/round18_description.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 18
+[A] docs/round18_global_symbols.md
+      이 회차의 측정 전문 (근거 수치가 여기 있습니다)
+      회차 18
+[M] spike/accuracy.py
+      측정축 둘 (전량 · SCT) — 정의는 AXES 하나
+      회차 11
+[A] tests/test_data_isolation.py
+      실 데이터 격리 시험
+      회차 17
+[M] tests/test_describe_axis.py
+      판정축 경계 소스 검사
+      회차 9~18
+[M] tests/test_determinism.py
+      결정성 · 도면에 없는 낱말 금지
+      회차 17·18
+[A] tests/test_failure_stage.py
+      ★ 실패 화면이 단계를 말하는가 · 예외 원문 접기
+      회차 21
+[A] tests/test_global_symbols.py
+      전역 심볼 사전 (자동 등록 금지 강제)
+      회차 18
+[A] tests/test_legend_profile.py
+      범례 프로필
+      회차 15
+[A] tests/test_revision_carry.py
+      편집 승계
+      회차 13
+[A] tests/test_scope_and_type.py
+      SCOPE 판정 · TYPE 표기
+      회차 11~18
+[A] tests/test_titleblock_frame.py
+      ★ 0픽셀 clip 다섯 모양 · 문서 사이 캐시 누수 · 시끄럽게 멈춤
+      회차 21
+[M] tests/test_ui_edits.py
+      UI 스위트 (PID_UI_DB · SCOPE 있는 데이터에서만 뜻이 있음)
+      회차 14~18
+[A] tests/test_vendor_mark_audit.py
+      검사기를 검증하는 시험 (독립 검사 + 변이 시험)
+      회차 18·19
+------------------------------------------------------------------------------
+
+app/_data/ (분석 결과 · 업로드 PDF · DB) 는 이 꾸러미에 들어 있지 않습니다.
+회사 PC 의 기존 데이터는 그대로 남습니다.
+
+20회차 꾸러미와의 차이 — 이번에 더 들어간 것
+------------------------------------------------------------------------------
+  [M] CLAUDE.md                                인수인계 문서 — 10~21회차 전부 반영 (회귀 표 · 코드 지도 · 회차 절)
+  [M] app/db.py                                SCOPE·리비전·편집이력·작성자·삭제 로그 열 추가 (가산 마이그레이션) · job.stopped_stage
+  [M] app/engine/extract_titleblocks.py        ★ 0픽셀에 .min() 을 부르지 않음 · frame_report · 이력 행 캐시를 쪽 객체로
+  [M] app/main.py                              첫 화면 프로젝트 단위 · 편집 승계 · SCOPE 요약 · 삭제 · 심볼 등록 · ★ 실패 단계·예외 원문 경로
+  [M] app/pipeline.py                          SCOPE 열 · 판정축 적용 · 중복 접미 · 범례 프로필 · 미판정 수집 · ★ TitleBlockUnreadable
+  [M] app/static/app.js                        SCOPE 색·범례 · 근거 패널 세 줄 · 편집 안내 · 첫 화면 · ★ 실패 화면 단계 표시와 예외 원문 접기
+  [M] app/static/index.html                    첫 화면 두 단 · 완료/실패 화면 · ★ 예외 원문 접기 블록
+  [A] tests/test_failure_stage.py              ★ 실패 화면이 단계를 말하는가 · 예외 원문 접기
+  [A] tests/test_titleblock_frame.py           ★ 0픽셀 clip 다섯 모양 · 문서 사이 캐시 누수 · 시끄럽게 멈춤
+
+  즉 20회차 꾸러미(40파일)에 3파일이 늘어 43파일입니다.
+  늘어난 셋은 전부 21회차 — 분석 실패 때 사유를 말하게 한 것입니다.
