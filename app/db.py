@@ -226,6 +226,18 @@ _ADDED_COLUMNS = (
     # 58쪽 중 52장을 걷는다면 나머지 6장이 어디로 갔는지가 여기 있다.
     # 쪽 번호까지 들고 있으므로 화면에서 묶어 숨길 필요가 없다.
     ("job", "sheet_plan", "TEXT NOT NULL DEFAULT ''"),
+    # 실패했을 때 **어느 단계에서** 멈췄는가 (21회차).
+    #
+    # 새로 만드는 값이 아니다: 파이프라인은 단계마다 `set_progress` 로 그 이름을
+    # `message` 에 적고 있었고, 실패 처리가 같은 칸을 사유로 덮어써서 그 사실이
+    # 사라지고 있었다.  덮기 **전에** 옮겨 적기만 한다.
+    #
+    # 담는 것은 파이프라인이 쓴 **원문 그대로**(`measuring sheet 37 of 60`)이고
+    # 화면 문장이 아니다 - 15회차가 `compare_note` 로 겪은 것과 같은 이유다:
+    # 문장을 저장하면 문구를 고쳐도 옛 분석이 옛 문장을 계속 말한다.  한국어로
+    # 옮기는 것은 화면의 `stageWords()` 가 이미 하고 있고, 모르는 값은 그대로
+    # 쓴다.
+    ("job", "stopped_stage", "TEXT NOT NULL DEFAULT ''"),
     # 도면이 스스로 말하는 개정 (13회차).  `extract_titleblocks` 는 처음부터
     # 이 값을 읽고 있었는데(58장 전부 신뢰도 HIGH) 저장하는 곳이 없어 분석이
     # 끝나면 다시 볼 수 없었다.  판정에는 쓰이지 않는다 - 지문에도 들어가지
@@ -293,6 +305,17 @@ def set_progress(con, job_id: str, progress: float, message: str,
     if error_detail is not None:
         con.execute("UPDATE job SET error_detail=? WHERE id=?",
                     (error_detail, job_id))
+    con.commit()
+
+
+def set_stopped_stage(con, job_id: str, stage: str) -> None:
+    """실패했을 때 마지막으로 돌던 단계 이름을 적는다 (21회차).
+
+    `set_progress` 와 따로 있는 이유는 **시점**이다: 사유를 적는 순간 `message`
+    는 이미 덮여 있으므로, 부르는 쪽이 덮기 전에 읽어 두었다가 여기로 넘긴다.
+    값은 파이프라인이 쓴 원문 그대로이고 화면 문장이 아니다.
+    """
+    con.execute("UPDATE job SET stopped_stage=? WHERE id=?", (str(stage or ""), job_id))
     con.commit()
 
 

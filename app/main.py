@@ -124,6 +124,27 @@ def _failure_reason(pdf: Path) -> str:
     return _FAILED_GENERIC
 
 
+def _stopped_stage(job_id: str) -> str:
+    """실패 직전에 파이프라인이 마지막으로 말한 **단계 이름** (21회차).
+
+    새로 만드는 값이 아니다.  파이프라인은 단계마다 `set_progress` 로 그 이름을
+    `job.message` 에 적고 있었고(`measuring sheet 37 of 60` 처럼), 실패 처리가
+    같은 칸을 사유 문장으로 덮어써서 **그 사실이 사라지고 있었다.**  17분을
+    기다린 끝에 "사유를 특정하지 못했습니다" 만 남은 화면이 그것이다.
+
+    그래서 덮기 **전에** 한 번 읽어 둔다.  옮겨 적는 것은 파이프라인이 쓴 원문
+    그대로이고 화면 문장이 아니다 — 한국어로 옮기는 것은 `stageWords()` 가
+    이미 하고 있고, 모르는 값은 그대로 쓴다 (§8 · 15회차 `compare_note`).
+    """
+    row = db.get_job(CON, job_id)
+    if row is None:
+        return ""
+    try:
+        return str(row["message"] or "")
+    except (KeyError, IndexError):
+        return ""
+
+
 def _plan(row):
     """저장된 장수 계획.  없으면 None - "아직 안 정해졌다"이지 "없다"가 아니다."""
     try:
@@ -312,13 +333,16 @@ def _worker() -> None:
             # 사람이 무엇을 하면 되는지 알 수 없다.
             traceback.print_exc()
             reason = str(exc)
+            stage = _stopped_stage(job_id)          # 덮기 전에 읽는다
             db.set_progress(CON, job_id, 0.0, reason, "failed",
                             error_detail=traceback.format_exc())
+            db.set_stopped_stage(CON, job_id, stage)
             db.mark_finished(CON, job_id)
             fin = db.get_job(CON, job_id)
             _emit(job_id, {"progress": 0.0, "status": "failed",
                            "message": reason,
                            "sheet_plan": _plan(fin),
+                           "stopped_stage": stage,
                            "page_count": fin["page_count"],
                            "sheets_done": fin["sheets_done"],
                            "sheets_total": fin["sheets_total"],
@@ -329,8 +353,10 @@ def _worker() -> None:
             # person can act on - never the exception, reworded.
             traceback.print_exc()
             detail = traceback.format_exc()
+            stage = _stopped_stage(job_id)          # 덮기 전에 읽는다
             reason = _failure_reason(Path(row["pdf_path"]))
             db.set_progress(CON, job_id, 0.0, reason, "failed", error_detail=detail)
+            db.set_stopped_stage(CON, job_id, stage)
             db.mark_finished(CON, job_id)
             fin = db.get_job(CON, job_id)
             # 어디까지 갔는지.  진행률은 0 으로 떨어뜨리지만 장수는 남긴다 -
@@ -338,6 +364,7 @@ def _worker() -> None:
             _emit(job_id, {"progress": 0.0, "status": "failed",
                            "message": reason,
                            "sheet_plan": _plan(fin),
+                           "stopped_stage": stage,
                            "page_count": fin["page_count"],
                            "sheets_done": fin["sheets_done"],
                            "sheets_total": fin["sheets_total"],

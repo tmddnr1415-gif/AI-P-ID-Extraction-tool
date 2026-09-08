@@ -787,14 +787,25 @@ async function showFailure(message, d) {
   $("#bar-fill").style.width = "0%";
   $("#prog-title").textContent = "분석 실패";
   $("#prog-msg").textContent = message || "사유를 특정하지 못했습니다.";
-  // 어디까지 갔는지.  실패한 분석에서 사람이 확인할 수 있는 것은 이것뿐이다.
+  /* 어디까지 갔는지 — 21회차부터 **어느 단계에서** 멈췄는지도 말한다.
+   *
+   * 그 전에는 "도면을 한 장도 읽기 전에 멈췄습니다" 가 전부였는데, 그 문장이
+   * 덮는 구간이 실제로는 여섯 단계다 (문서 열기 · 치수 재기 · 타이틀블록 ·
+   * 범례 규칙 · 유닛 승수 · 대상 선별).  17분을 기다린 사람에게 그 여섯 중
+   * 어디인지를 말해 주지 않으면 다음에 할 일이 서지 않는다.
+   *
+   * 단계 이름은 서버가 **사실 그대로**(`measuring sheet 37 of 60`) 보내고,
+   * 한국어 문장은 여기서 `stageWords()` 가 만든다 — 모르는 값은 그대로 쓴다. */
   const far = $("#prog-sheets");
+  const stage = d && d.stopped_stage ? stageWords(d.stopped_stage) : "";
+  const took = d && d.elapsed_s ? ` (${minsec(d.elapsed_s)})` : "";
   if (d && d.sheets_total) {
     far.textContent = `도면 ${d.sheets_total}장 중 ${d.sheets_done || 0}장까지 읽고 멈췄습니다`
-      + (d.elapsed_s ? ` (${minsec(d.elapsed_s)})` : "");
+      + took + (stage ? ` — 마지막 단계: ${stage}` : "");
   } else if (d) {
-    far.textContent = "도면을 한 장도 읽기 전에 멈췄습니다"
-      + (d.elapsed_s ? ` (${minsec(d.elapsed_s)})` : "");
+    far.textContent = stage
+      ? `도면을 읽기 전, ${stage} 단계에서 멈췄습니다${took}`
+      : "도면을 한 장도 읽기 전에 멈췄습니다" + took;
   }
   const hint = $("#prog-hint");
   hint.textContent = "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.";
