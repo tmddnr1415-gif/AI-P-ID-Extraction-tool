@@ -52,3 +52,4 @@ out/tc2/*.json
 out/tc2/*.png
 out/regression_3p/
 out/round23/ui_db/
+out/round23/tests.done
