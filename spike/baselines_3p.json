@@ -1,0 +1,34 @@
+{
+  "AL NOUF1": {
+    "rows": 1037,
+    "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
+    "qty_sum": 1931,
+    "score": 94.8,
+    "axes": {
+      "전량": {
+        "recall": 99.3,
+        "precision": 70.5,
+        "fp": 249,
+        "fn": 4
+      },
+      "SCT": {
+        "recall": 99.3,
+        "precision": 94.4,
+        "fp": 35,
+        "fn": 4
+      }
+    }
+  },
+  "SADARA": {
+    "rows": 82,
+    "fingerprint": "0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1",
+    "qty_sum": 0,
+    "score": 74.8
+  },
+  "TC2": {
+    "rows": 607,
+    "fingerprint": "c46b10fae42f288e14c02c06c69f3fc87f96d88e93785af87fa9e899bbfc037d",
+    "qty_sum": 345,
+    "score": 64.8
+  }
+}

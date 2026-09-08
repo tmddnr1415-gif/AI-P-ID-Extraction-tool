@@ -11,6 +11,13 @@
     ① 도면번호   그 칸에 번호가 인쇄된 장 중 읽어낸 장
     ② 개정(REV)  전체 장 중 개정을 신뢰도 HIGH 로 읽어낸 장
     ③ 태그→행    도면이 인쇄한 (장, 태그) 짝 중 그 장에 해당 행이 선 것
+                 ⚠ 첫 정의는 인쇄된 낱말과 행의 TYPE 을 **글자 그대로** 비교했다.
+                 도면은 `TT`·`PT`·`LSH` 로 쓰고 엔진은 `anchors.type_map` 으로
+                 `TIT`·`PIT`·`LS` 로 바꿔 행을 내므로, 그 정의는 엔진이 아니라
+                 채점기의 이름 대조를 재고 있었다 (AL NOUF1 185/336).
+                 **엔진이 읽는 그 사전을 채점기도 읽는다.**  밸브 태그는 계기
+                 갈래에서 빼고 밸브 갈래에서만 센다 (전에는 양쪽에서 세어
+                 계기 쪽에서 반드시 틀렸다).
     ④ 수량       Q'ty 가 정해진 행 / 전체 행
     ⑤ 심볼 판정  행이 된 검출 / (행이 된 검출 + 판정 못 한 심볼)
     ⑥ 파라미터   그 도면에서 잰 파라미터 / 잴 수 있어야 하는 파라미터
@@ -48,6 +55,21 @@ VALVE_TABS = ("MOV", "BFV", "PNEUMATIC")
 METRICS = ("도면번호", "개정", "태그→행", "수량", "심볼판정", "파라미터")
 
 
+def _inside(rect, area):
+    if not area:
+        return True
+    return (area[0] <= rect[0] and rect[2] <= area[2]
+            and area[1] <= rect[1] and rect[3] <= area[3])
+
+
+def _drawing_area(result):
+    lay = (result.get("applied_rules") or {}).get("layout") or {}
+    for it in lay.get("items") or []:
+        if it.get("key") == "regions.drawing_area":
+            return it.get("value")
+    return None
+
+
 def _dwg_cell(result):
     """유도된 도면번호 칸.  없으면 None."""
     lay = (result.get("applied_rules") or {}).get("layout") or {}
@@ -77,8 +99,14 @@ def denominators(result, pages_words):
     return n, ""
 
 
-def measure(result, pages_words, anchors):
-    """여섯 지표와 총점.  `anchors` 는 계기 태그 낱말 집합."""
+def measure(result, pages_words, anchors, type_map=None):
+    """여섯 지표와 총점.
+
+    `anchors` 는 검출기가 아는 태그 낱말, `type_map` 은 **엔진이 쓰는 그
+    사전**(`anchors.type_map`)이다 — 인쇄된 낱말이 어느 TYPE 의 행이 되어야
+    하는지는 그 사전이 정하므로, 채점기도 같은 것을 읽어야 한다.
+    """
+    type_map = type_map or {}
     tbs = result["titleblocks"]
     rows = result["rows"]
     out = {}
@@ -92,8 +120,8 @@ def measure(result, pages_words, anchors):
              and t.get("rev_confidence") == "HIGH")
     out["개정"] = (hi, len(tbs), "")
 
-    # ③ (장, 태그) 짝.  계기 태그는 그 장에 같은 TYPE 의 FIELD 행이 있으면 맞은
-    # 것으로, 밸브 태그는 그 장에 밸브 행이 있으면 맞은 것으로 센다.
+    # ③ (장, 태그) 짝.  도면 영역 안의 낱말만 본다 — 검출기 자신이 그 밖은
+    # 심볼이 아니라고 정하기 때문이다 (`detect` 의 `_inside(... drawing_area)`).
     field_by_page, valve_pages = {}, set()
     for r in rows:
         p = r.get("page_no")
@@ -102,12 +130,13 @@ def measure(result, pages_words, anchors):
         elif r.get("tab") in VALVE_TABS:
             valve_pages.add(p)
     pid_pages = {t["page_no"] for t in tbs if t["page_kind"] == "PID"}
+    area = _drawing_area(result)
     hit = tot = 0
     for p in sorted(pid_pages):
-        seen = {t for _r, t in (pages_words.get(p) or [])}
-        for t in sorted(seen & set(anchors)):
+        seen = {t for r, t in (pages_words.get(p) or []) if _inside(r, area)}
+        for t in sorted(seen & set(anchors) - set(VALVE_TAGS)):
             tot += 1
-            hit += 1 if t in field_by_page.get(p, ()) else 0
+            hit += 1 if type_map.get(t, t) in field_by_page.get(p, ()) else 0
         for t in sorted(seen & set(VALVE_TAGS)):
             tot += 1
             hit += 1 if p in valve_pages else 0

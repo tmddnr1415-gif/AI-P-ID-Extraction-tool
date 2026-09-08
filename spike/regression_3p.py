@@ -41,9 +41,10 @@ OUT_JSON = ROOT / "out" / "regression_3p.json"
 RUNS = ROOT / "out" / "regression_3p"
 
 
-def anchors() -> frozenset:
+def anchors():
+    """검출기가 아는 태그 낱말과, 그 낱말이 어느 TYPE 이 되는지의 사전."""
     from app.engine import detect_symbols as ds
-    return ds.RULESET_V3.anchors
+    return ds.RULESET_V3.anchors, dict(ds._V3_FIELD_TYPE_MAP)
 
 
 def run_one(proj, reuse: bool) -> dict:
@@ -71,7 +72,8 @@ def score(proj, blob) -> dict:
     result = blob["result"]
     rows = result["rows"]
     words = {int(k): [(tuple(r), t) for r, t in v] for k, v in blob["words"].items()}
-    metrics, total = identification.measure(result, words, anchors())
+    anc, tmap = anchors()
+    metrics, total = identification.measure(result, words, anc, tmap)
     out = {
         "name": proj["name"],
         "rows": len(rows),
@@ -133,11 +135,10 @@ def table(res) -> str:
             lines.append("%-*s  실패 — %s" % (w, r["name"], r["error"][:60]))
             continue
         lines.append("%-*s %6d %10s %8d %7.0f %6.1fG %6.1f" %
-                     (w, r["name"], r["rows"], r["fingerprint"], r["qty_sum"],
+                     (w, r["name"], r["rows"], (r["fingerprint"] or "")[:8], r["qty_sum"],
                       r["seconds"] or 0, r["max_rss_gb"] or 0, r["score"]))
     lines.append("")
     lines.append("축3 내역 (지표별 맞춘 수 / 분모)")
-    head = "%-*s " % (w, "") + " ".join("%>10s" % m for m in identification.METRICS)
     lines.append("%-*s %s" % (w, "", "  ".join("%-11s" % m for m in identification.METRICS)))
     for r in res:
         if r.get("error"):
@@ -166,7 +167,7 @@ def main() -> int:
         r = res[-1]
         print("   %s" % (r.get("error") or
                          "행 %d · 지문 %s · 축3 %.1f점" %
-                         (r["rows"], r["fingerprint"], r["score"])), flush=True)
+                         (r["rows"], (r["fingerprint"] or "")[:8], r["score"])), flush=True)
 
     print()
     print(table(res))
