@@ -42,12 +42,19 @@ def main() -> int:
     result = blob.get("result", blob)
     con = db.connect(dest)
     job = "uidb%012x" % (abs(hash(str(src))) & 0xFFFFFFFFFFFF)
+    # 재분석 시험(step7)이 돌려면 **실제로 열 수 있는 PDF** 를 가리켜야 한다.
+    # 없는 경로를 적으면 재분석이 실패하고, 그것은 제품이 아니라 이 픽스처의 결함이다.
+    pdf = Path(result.get("pdf") or "")
+    if not pdf.exists():
+        pdf = ROOT / "data" / "pid_total.pdf"
+    import hashlib
+    sha = hashlib.sha256(pdf.read_bytes()).hexdigest() if pdf.exists() else ""
     con.execute(
         "INSERT INTO job (id, pdf_name, pdf_sha256, pdf_path, created_at, status,"
         " progress, message, fingerprint, project, revision)"
         " VALUES (?,?,?,?,datetime('now'),'done',1.0,'',?,?,?)",
-        (job, Path(result["pdf"]).name if result.get("pdf") else "analysis.pdf",
-         "", "", result.get("fingerprint") or "", "UIDB", "A"))
+        (job, pdf.name or "analysis.pdf", sha, str(pdf),
+         result.get("fingerprint") or "", "UIDB", "A"))
     con.commit()
     summary = db.store_result(con, job, result)
     con.commit()
