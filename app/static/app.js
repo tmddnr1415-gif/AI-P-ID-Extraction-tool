@@ -772,7 +772,7 @@ function watch(jobId, pageCount, what) {
       src.close();
       $("#prog-cancelwrap").classList.add("hidden");
       stopElapsed();
-      showFailure(d.message, d);
+      showFailure(d.message, d, jobId);
     }
   };
 }
@@ -783,7 +783,7 @@ function watch(jobId, pageCount, what) {
  *
  * `message` is now a sentence the server built from what the file contains - the
  * traceback is in the log and the diagnostic export, not here. */
-async function showFailure(message, d) {
+async function showFailure(message, d, jobId) {
   $("#bar-fill").style.width = "0%";
   $("#prog-title").textContent = "분석 실패";
   $("#prog-msg").textContent = message || "사유를 특정하지 못했습니다.";
@@ -811,6 +811,31 @@ async function showFailure(message, d) {
   hint.textContent = "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.";
   hint.classList.remove("hidden");
   $("#prog-actions").classList.remove("hidden");
+  /* 예외 원문 — 접어 두되 버리지 않는다 (21회차).
+   *
+   * 예전에는 진단 내보내기 zip 안에만 있었다.  "그대로 노출하지 않는다" 는
+   * 뜻으로는 맞았지만, 회사 PC 에서 실패한 사람이 개발자에게 보낼 것을
+   * 만들려면 zip 을 내려받아 풀어야 했다 — 이번 회차의 원본 예외도 사용자가
+   * 터미널에서 떠다 준 것이다.
+   *
+   * 펼치기 전에는 받아 오지 않는다.  기본 응답(`_job_public`)은 그대로다. */
+  const err = $("#prog-error");
+  const errBody = $("#prog-error-body");
+  errBody.textContent = "";
+  err.open = false;
+  err.classList.toggle("hidden", !jobId);
+  if (jobId) {
+    err.ontoggle = async () => {
+      if (!err.open || errBody.textContent) return;
+      errBody.textContent = "불러오는 중…";
+      try {
+        const r = await (await fetch(`/jobs/${jobId}/error_detail`)).json();
+        errBody.textContent = r.detail || "예외 원문이 저장되지 않았습니다.";
+      } catch (e) {
+        errBody.textContent = "예외 원문을 불러오지 못했습니다.";
+      }
+    };
+  }
   // The previous analyses, listed here rather than only on the first screen, so
   // getting back to work does not need a second navigation.
   const box = $("#prog-jobs");

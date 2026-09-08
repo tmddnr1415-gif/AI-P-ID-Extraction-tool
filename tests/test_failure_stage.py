@@ -128,3 +128,35 @@ def test_every_stage_name_the_pipeline_writes_has_a_korean_word():
     pipe = (ROOT / "app" / "pipeline.py").read_text(encoding="utf-8")
     for name in before_sheets:
         assert name in pipe, f"파이프라인이 {name} 을 쓰지 않는다"
+
+
+# --------------------------------------------------------------------------
+# 예외 원문 — 접어 두되 버리지 않는다 (21회차)
+# --------------------------------------------------------------------------
+def test_the_default_job_payload_still_has_no_traceback():
+    """기본 응답은 예전 그대로다 — 화면의 답은 사유 문장이지 트레이스백이 아니다."""
+    src = (ROOT / "app/main.py").read_text(encoding="utf-8")
+    body = src.split("def _job_public(")[1].split("\ndef ")[0]
+    assert 'out.pop("error_detail", None)' in body
+
+
+def test_there_is_one_named_route_for_the_traceback():
+    """펼치는 것은 사람이 누르는 행위이므로 길이 따로 있어야 한다."""
+    src = (ROOT / "app/main.py").read_text(encoding="utf-8")
+    assert src.count('@app.get("/jobs/{job_id}/error_detail")') == 1
+    route = src.split('@app.get("/jobs/{job_id}/error_detail")')[1].split("\n@app.")[0]
+    assert 'row["error_detail"]' in route
+    assert "404" in route                      # 없는 분석은 없다고 말한다
+
+
+def test_the_screen_does_not_fetch_it_until_the_fold_is_opened():
+    """접혀 있는 동안에는 받아 오지 않는다 — 그래야 '접어 둔' 것이다."""
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+    assert '<details id="prog-error"' in html
+    block = js.split("const err = $(\"#prog-error\");")[1].split("\n  const box")[0]
+    assert "err.ontoggle" in block             # 펼칠 때만 돈다
+    assert "if (!err.open" in block            # 접을 때는 아무것도 안 한다
+    assert "error_detail" in block
+    # 두 번 펼쳐도 두 번 받지 않는다.
+    assert "errBody.textContent) return" in block

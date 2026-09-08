@@ -481,6 +481,10 @@ def _job_public(row) -> dict:
     from being read as the answer - and the point of the message column is that
     the answer is the sentence, not the traceback.  It travels in the diagnostic
     export instead, which is what a developer asks for by name.
+
+    21회차에 **접어 둔 채로 볼 수 있는 길**이 하나 늘었다
+    (`GET /jobs/{id}/error_detail`).  이 함수는 그대로다 - 기본 응답에는 여전히
+    안 실린다.  펼치는 것은 사람이 누르는 행위이고, 그때만 따로 받아 온다.
     """
     out = dict(row)
     out.pop("error_detail", None)
@@ -1011,6 +1015,25 @@ def rows(job_id: str, tab: str = "ALL"):
         row["type_display"] = pipeline.type_display(row["values"],
                                                     row.get("evidence"))
     return out
+
+
+@app.get("/jobs/{job_id}/error_detail")
+def error_detail(job_id: str):
+    """실패한 분석의 **예외 원문**.  화면이 접어 둔 채로 두고, 펼칠 때만 받는다.
+
+    21회차 — 그 전에는 이 값이 진단 내보내기 zip 안에만 있었다.  그것은
+    "그대로 노출하지 않는다" 는 뜻으로는 맞았지만, 회사 PC 에서 실패한 사람이
+    개발자에게 보낼 것을 만들려면 zip 을 내려받아 풀어야 했다 — 실제로 이번
+    회차의 원본 예외도 사용자가 **터미널에서** 떠다 준 것이다.
+
+    그래서 길만 하나 열되 기본 응답(`_job_public`)은 그대로 둔다: 이 값은
+    누르지 않으면 오지 않고, 화면의 답은 여전히 사유 문장이다.
+    """
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, "그런 분석이 없습니다")
+    detail = row["error_detail"] if "error_detail" in row.keys() else ""
+    return {"job_id": job_id, "status": row["status"], "detail": detail or ""}
 
 
 @app.get("/jobs/{job_id}/scope_summary")
