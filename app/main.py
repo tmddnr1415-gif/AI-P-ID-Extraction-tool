@@ -1017,6 +1017,98 @@ def rows(job_id: str, tab: str = "ALL"):
     return out
 
 
+@app.get("/jobs/{job_id}/measured_config")
+def measured_config(job_id: str):
+    """이 분석이 **그 도면에서 잰** 기하를 프로젝트 설정 조각으로 돌려준다 (22회차).
+
+    ## 왜 필요한가
+
+    새 회사 양식(예: TC2)을 이 도구로 읽으려면 그 양식의 좌표를 담은
+    `config/project_<이름>.yaml` 이 있어야 한다.  그런데 그 좌표를 **재는 코드는
+    이미 있다** — `derive_layout` 이 도면번호·제목·프로젝트명 칸을 그 도면이
+    인쇄한 캡션으로 찾고, 종이 크기와 도면 영역도 잰다.
+
+    없던 것은 **사람이 그 값을 볼 길**이었다.  22회차 현장 사고 때 그 값이
+    예외 문장에 우연히 섞여 나온 것이 유일한 통로였다.  여기서 제대로 낸다.
+
+    ## 무엇을 내지 않는가
+
+    **잰 것만 낸다.**  이력 표 기하(`hist_*`)는 `derive_layout` 이 재지 않는다 —
+    그 표는 칸마다 캡션이 없어 앵커가 없기 때문이다 (`project_sadara.yaml` 의
+    주석이 그렇게 적어 두었다).  그래서 여기서도 내지 않고, **사람이 재야 하는
+    항목**으로 이름만 적어 둔다.  없는 값을 지어내지 않는다 (§2.1 ③).
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "그런 분석이 없습니다")
+    engine = json.loads(job["engine_json"] or "{}")
+    # ★ 저장은 **이미 되고 있었다** — `applied_rules` 안이다 (`pipeline` 의
+    # `applied` dict).  없던 것은 그것을 꺼내 보는 길뿐이었다.
+    # 13·15·16·18회차와 같다 — 없는 것을 만들기 전에 있는 것을 찾는다.
+    layout = (engine.get("applied_rules") or {}).get("layout") or {}
+    # `items` 가 이 분석이 **잰** 것 전부다 (`key`/`value`/`source`/`evidence`).
+    # `moved` 는 그중 프로필과 달랐던 것만이라, 프로필과 우연히 같은 값이 빠진다 —
+    # 설정을 만들 때는 **잰 것 전부**가 필요하므로 `items` 를 쓴다.
+    values = {it["key"]: it["value"] for it in (layout.get("items") or [])
+              if isinstance(it, dict) and "key" in it}
+    if not layout:
+        raise HTTPException(
+            404, "이 분석에는 잰 기하가 없습니다. 다시 분석하면 담깁니다.")
+
+    # 프로젝트 설정 파일에 그대로 붙일 수 있는 모양으로 접는다.
+    tree: dict = {}
+    for dotted, value in sorted(values.items()):
+        node = tree
+        parts = dotted.split(".")
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = value
+    return {
+        "job_id": job_id,
+        "pdf_name": job["pdf_name"],
+        "document_code": layout.get("document_code"),
+        "profile": layout.get("profile"),
+        "profile_code": layout.get("profile_code"),
+        "applied": layout.get("applied"),
+        "reason": layout.get("reason"),
+        "measured": tree,
+        "measured_yaml": _as_yaml(tree),
+        "evidence": {it["key"]: it.get("evidence")
+                     for it in (layout.get("items") or [])
+                     if isinstance(it, dict) and "key" in it},
+        "notes": layout.get("notes") or [],
+        "must_measure_by_hand": [
+            "title_block.hist_rule_x0_max", "title_block.hist_rule_x1_min",
+            "title_block.hist_rule_y", "title_block.hist_rev_col",
+            "title_block.hist_date_col", "title_block.hist_row_inset",
+        ],
+        "note": ("`measured` 는 이 도면에서 **잰** 값입니다. "
+                 "`must_measure_by_hand` 는 이 도구가 재지 못하는 항목이라 "
+                 "사람이 도면에서 재어 넣어야 합니다 — 개정 이력 표는 칸마다 "
+                 "캡션이 없어 앵커가 없습니다."),
+    }
+
+
+def _as_yaml(tree: dict, indent: int = 0) -> str:
+    """설정 파일에 붙일 수 있는 최소 YAML.  **값을 바꾸지 않고 줄만 만든다.**
+
+    라이브러리를 쓰지 않는 이유는 하나다 - 이 함수가 내는 것은 사람이 눈으로
+    확인하고 붙일 조각이지 다시 읽어들일 문서가 아니고, 숫자 표기가 조용히
+    바뀌면(1.0 -> 1) 그것이 곧 값의 변형이다.
+    """
+    out = []
+    pad = "  " * indent
+    for key, value in tree.items():
+        if isinstance(value, dict):
+            out.append(f"{pad}{key}:")
+            out.append(_as_yaml(value, indent + 1))
+        elif isinstance(value, (list, tuple)):
+            out.append(f"{pad}{key}: [{', '.join(repr(v) for v in value)}]")
+        else:
+            out.append(f"{pad}{key}: {value!r}")
+    return "\n".join(x for x in out if x)
+
+
 @app.get("/jobs/{job_id}/error_detail")
 def error_detail(job_id: str):
     """실패한 분석의 **예외 원문**.  화면이 접어 둔 채로 두고, 펼칠 때만 받는다.

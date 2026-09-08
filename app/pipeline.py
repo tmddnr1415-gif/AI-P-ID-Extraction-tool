@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import copy
 import hashlib
 import json
 import re
@@ -427,12 +428,12 @@ def _fit_layout(pages) -> dict:
     return out
 
 
-def _reconfigure(pages) -> None:
-    """Rebuild what the modules read from config at import, and re-dedupe.
+def _rebind_config() -> None:
+    """config 에서 나오는 모듈 값들을 지금 CFG 로 다시 만든다 (쪽을 보지 않는다).
 
-    Every reader takes its layout once, at import, from a config that had not seen
-    the document yet.  Once it has, they are rebuilt from the same functions -
-    there is no second code path, only the same one run again with better numbers.
+    `_reconfigure` 의 앞부분을 떼어낸 것이고 하는 일은 같다.  따로 뗀 이유는
+    **분석이 끝난 뒤 config 를 되돌릴 때도 같은 코드가 필요하기 때문**이다
+    (`_own_config`).  두 벌을 두면 언젠가 갈린다.
     """
     ds.LAYOUT = ds._layout_from_config(CFG)
     ds.KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
@@ -446,6 +447,31 @@ def _reconfigure(pages) -> None:
         "[" + "".join(CFG.get("review_markup.script_ranges")) + "]")
     da.REQUIRE_FILL = bool(
         (CFG.data.get("review_markup") or {}).get("requires_fill"))
+    # ★ `pidcache` 도 전역 둘을 들고 있다 (22회차).
+    #
+    # `rename_projects` 가 `global PROJECT_NAME_REGION, PROJECT_NAME_MIN_HEIGHT`
+    # 로 **모듈 전역에 영구히** 쓴다.  낯선 양식을 한 번 분석하면 그 값이 남고,
+    # 그 다음 문서를 `load_pages` 할 때 프로젝트명을 **남의 자리**에서 읽는다.
+    # 그러면 `analysis_scope` 가 달라지고, 그것을 보는
+    # `derive_connector_reach` 가 세는 장이 달라진다.
+    #
+    # 실측(22회차): 낯선 문서 뒤 AL NOUF1 을 돌리면 행 1037개는 전부 같은데
+    # 커넥터 개수가 **218 -> 219** 로 달라져 `legend` 의 기록 문장이 바뀌고,
+    # 지문이 `fb85b039` -> `f21626fd` 로 움직였다.  값(70.2)은 같았다 —
+    # **판정이 아니라 세는 대상이 달라진 것**이고, 그래서 더 위험하다.
+    tb_cfg = CFG.data.get("title_block") or {}
+    pidcache.PROJECT_NAME_REGION = tb_cfg.get("project_name_region")
+    pidcache.PROJECT_NAME_MIN_HEIGHT = tb_cfg.get("project_name_min_height")
+
+
+def _reconfigure(pages) -> None:
+    """Rebuild what the modules read from config at import, and re-dedupe.
+
+    Every reader takes its layout once, at import, from a config that had not seen
+    the document yet.  Once it has, they are rebuilt from the same functions -
+    there is no second code path, only the same one run again with better numbers.
+    """
+    _rebind_config()
     # The word cache was built before the duplicate test had run.  Rebuilding it
     # here rather than reloading the pages keeps one definition of the rule.
     if (CFG.data.get("text") or {}).get("dedup_exact_duplicates"):
@@ -462,6 +488,53 @@ def _reconfigure(pages) -> None:
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None) -> dict:
+    """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
+    않게** 한다 (22회차).
+
+    ## 왜 필요한가 — 현장에서 이것 때문에 실패했습니다
+
+    `_fit_layout` 은 프로필이 그 문서의 것이 **아니면** 잰 값을
+    `CFG.overlay(...)` 로 **모듈 전역 `CFG.data` 에 제자리 기록**한다.  되돌리는
+    코드가 없었으므로, 한 서버 프로세스에서 낯선 양식을 한 번 분석하면 그 문서의
+    기하가 **영구히** 남았다.
+
+    실측(22회차) — 낯선 문서 한 번에 일곱 칸이 바뀐다:
+
+        regions.drawing_area        [38, 35, 1960, 1650] -> [80.6, 72.9, 2726.7, 2311.2]
+        sheet.width_pt / height_pt  2384 / 1684          -> 3370 / 2384
+        title_block.dwg_no_region   [1950, 1560, 2384, 1600] -> [2726.7, ...]
+        title_block.title_region · rev_box · sheet_box
+
+    그 다음 문서가 AL NOUF1 이면 `same=True · states_geometry=True` 라
+    **다시 재지 않고** 앞 문서가 남긴 값을 쓴다.  회사 PC 에서 AL NOUF1 이
+    `TitleBlockUnreadable` 로 죽은 것이 정확히 이것이었다 — 예외 문장이
+    도면번호 칸을 `[963.8, 785.9, 1162.3, 805.5]`(그 전에 분석한 다른 양식의
+    값)로 적고 있었다.  재현도 했다: 낯선 문서 뒤 AL NOUF1 을 돌리면 같은 줄에서
+    같은 예외가 난다.
+
+    ## 무엇을 바꾸지 않는가
+
+    **한 문서만 도는 프로세스에서는 아무것도 달라지지 않는다.**  되돌리기는
+    결과를 만든 **뒤**에 일어나므로 이 함수가 내는 값은 이전과 같다 — AL NOUF1
+    지문 `fb85b039` · 1037행 불변 (전량 재측정으로 확인).
+
+    실패해도 되돌린다 (`finally`).  그러지 않으면 낯선 양식이 죽은 뒤 그 잔재가
+    남아, 그 다음 분석이 이유 없이 이상해진다.
+    """
+    snapshot = copy.deepcopy(CFG.data)
+    try:
+        return _analyse(pdf_path, progress=progress, timings=timings,
+                        reference=reference, use_prefix=use_prefix,
+                        use_line_gate=use_line_gate, legend_profile=legend_profile)
+    finally:
+        if CFG.data != snapshot:
+            CFG.data = snapshot
+            _rebind_config()
+
+
+def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
+             reference: Path = None, use_prefix: bool = True,
+             use_line_gate: bool = True, legend_profile: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
