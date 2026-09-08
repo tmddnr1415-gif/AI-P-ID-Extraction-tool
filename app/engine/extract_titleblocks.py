@@ -182,12 +182,25 @@ _UC_FROM, _UC_TO = (int(v) for v in CFG.get("formats.unit_code_chars"))
 # Coordinates arrive already normalised for page rotation from pidcache
 # (docs/design.md §4 설계결정 5), so nothing below needs a rotated-page case.
 # --------------------------------------------------------------------------
-_HIST_ROWS: dict[int, list[tuple[float, float]]] = {}
-
-
 def history_rows(pd: PageCache, lay: Layout = LAYOUT) -> list[tuple[float, float]]:
-    """Revision history row bands (y0, y1), bottom-most row first."""
-    if pd.page_no not in _HIST_ROWS:
+    """Revision history row bands (y0, y1), bottom-most row first.
+
+    캐시는 **그 쪽 객체 자신**이 들고 있다 (21회차).  예전에는 모듈 전역 dict 를
+    `page_no` 하나로 키를 삼았고 지우는 곳이 없어서, 서버 프로세스가 살아 있는
+    동안 **두 번째 문서가 첫 번째 문서의 이력 행을 물려받았다.**
+
+    실측(21회차): SADARA 9장을 혼자 읽으면 이력 행이 9장 전부 0행인데, 같은
+    프로세스에서 AL NOUF1 을 먼저 읽고 나면 9장 전부가 AL NOUF1 의 7행
+    (1358.0~1374.8 …)을 받는다 — **9장 중 9장이 다르다.**  죽지 않고 값만
+    틀리는 조용한 폴백이라(15회차 [B]2 와 같은 모양) 서버에서는 "무엇을 먼저
+    분석했느냐"에 따라 새 프로젝트의 결과가 달라진다.
+
+    `_rects`·`_segments` 와 같은 자리에 같은 방식으로 둔다 — 그러면 문서 사이로
+    샐 길이 없다.  한 문서만 도는 프로세스에서는 값이 정확히 같으므로 AL NOUF1
+    기준선(fb85b039 · 1037행)은 움직이지 않는다.
+    """
+    cached = getattr(pd, "_hist_rows", None)
+    if cached is None:
         ys = {
             round(r.y0, 1) for r in pd.rects()
             if abs(r.height) < 1.0
@@ -196,8 +209,9 @@ def history_rows(pd: PageCache, lay: Layout = LAYOUT) -> list[tuple[float, float
             and lay.hist_rule_y[0] < r.y0 < lay.hist_rule_y[1]
         }
         rules = sorted(ys)
-        _HIST_ROWS[pd.page_no] = list(zip(rules, rules[1:]))[::-1]
-    return _HIST_ROWS[pd.page_no]
+        cached = list(zip(rules, rules[1:]))[::-1]
+        pd._hist_rows = cached
+    return cached
 
 
 # --------------------------------------------------------------------------
@@ -218,6 +232,28 @@ def _ink_mask(page, clip: pymupdf.Rect, lay: Layout):
         alpha=False,
     )
     a = np.frombuffer(pm.samples, dtype=np.uint8).reshape(pm.height, pm.width)
+    # 0픽셀이면 "잉크가 없다"이지 "여기에 무엇이 있는지 모른다"가 아니다 (21회차).
+    #
+    # `get_pixmap` 은 clip 을 페이지와 교집합하므로, 교집합이 비면 0xN 또는 Nx0
+    # 픽스맵을 낸다.  그 배열에 `.min()` 을 부르면
+    # `ValueError: zero-size array to reduction operation minimum` 으로 죽는다 —
+    # 실제로 새 프로젝트 PDF 가 여기서 죽었고, 화면에는 사유가 남지 않았다.
+    #
+    # **이 검사는 사유를 말하지 않는다.**  여기서 문장을 쓰면 그것이 곧
+    # 조용한 폴백이 된다 (15회차 [B]2 — `unit_multipliers` 가 조용히 줄어
+    # Q'ty 만 틀렸다).  이 함수는 한 칸을 읽는 함수이고 한 칸이 비는 것은
+    # 정상이므로 None 을 내고, **문서 전체가 안 읽히는 경우**는
+    # `frame_report` 가 사실로 재고 파이프라인이 `TitleBlockUnreadable` 로
+    # 시끄럽게 멈춘다.
+    #
+    # 실측(21회차): 이 조건은 다섯 모양에서 똑같이 재현된다 — clip 이 페이지
+    # 오른쪽/아래로 완전히 벗어난 둘, 높이 0, 높이 음수, 그리고 **이력 행이
+    # 2*hist_row_inset(2.4pt) 보다 얇은 경우**.  마지막 것은 페이지 크기와
+    # 무관하고, 원본 예외의 스택이 가리킨 자리(이력 행 갈래)와 일치한다.
+    # AL NOUF1 의 이력 행은 406개 전부 16.7~16.8pt 라 이 문서로는 절대 걸리지
+    # 않는다 — 20회차 동안 안 보인 이유다.
+    if a.size == 0:
+        return None
     darkest = int(a.min())
     if darkest > lay.blank_above:
         return None
@@ -513,6 +549,53 @@ def extract_page(pd: PageCache, library: dict, lay: Layout = LAYOUT) -> dict:
         "rotation": pd.source_rotation,
         "status": status,
         "issues": ";".join(issues),
+    }
+
+
+def frame_report(pages: list[PageCache], lay: Layout = LAYOUT) -> dict:
+    """이 도면틀이 이 문서에 맞는가 — **사실만 낸다, 문장은 쓰지 않는다** (21회차).
+
+    타이틀블록 칸(`dwg_no_region` 등)은 유도되는 값이 아니라 **상수**다.  기본값은
+    AL NOUF1 의 A1 양식에서 잰 것이고, `title_block.` 로 프로젝트마다 덮어쓸 수
+    있다 (`_layout_from_config`).  즉 다른 회사의 양식이 오면 이 칸들은 그 도면의
+    엉뚱한 자리를 가리키거나 아예 종이 밖을 가리킨다.
+
+    종이 밖을 가리키면 `page.get_pixmap(clip=...)` 이 0픽셀을 내고, 그것을 읽던
+    `_ink_mask` 가 죽었다.  죽지 않게 고친 뒤에도 **읽히는 것이 없다**는 사실은
+    남으므로, 그 사실을 여기서 재고 판단은 파이프라인이 한다.
+
+    화면에 갈 문장은 여기서 쓰지 않는다 — 저장된 문장은 고칠 수 없기 때문이다
+    (15회차 `compare_note`).
+    """
+    cells = {
+        "dwg_no_region": lay.dwg_no_region,
+        "title_region": lay.title_region,
+        "rev_box": lay.rev_box,
+        "sheet_box": lay.sheet_box,
+    }
+    sizes: dict[tuple, int] = {}
+    off: dict[str, list] = {name: [] for name in cells}
+    thin: list = []
+    for pd in pages:
+        page_rect = pymupdf.Rect(0, 0, pd.width, pd.height)
+        sizes[(round(pd.width, 1), round(pd.height, 1))] = \
+            sizes.get((round(pd.width, 1), round(pd.height, 1)), 0) + 1
+        for name, rect in cells.items():
+            if (page_rect & pymupdf.Rect(*rect)).is_empty:
+                off[name].append(pd.page_no)
+        for y0, y1 in history_rows(pd, lay):
+            if (y1 - lay.hist_row_inset) - (y0 + lay.hist_row_inset) <= 0:
+                thin.append({"page_no": pd.page_no, "height": round(y1 - y0, 2)})
+    return {
+        "pages": len(pages),
+        "page_sizes": [{"size": list(k), "pages": v}
+                       for k, v in sorted(sizes.items())],
+        "cells": {name: {"rect": list(rect),
+                         "off_page_pages": off[name],
+                         "off_page": len(off[name])}
+                  for name, rect in cells.items()},
+        "thin_history_rows": thin,
+        "hist_row_inset": lay.hist_row_inset,
     }
 
 

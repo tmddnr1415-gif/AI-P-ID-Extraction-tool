@@ -326,11 +326,16 @@ def _worker() -> None:
                            "message": "사용자가 분석을 취소했습니다",
                            "page_count": fin["page_count"],
                            "elapsed_s": _elapsed(fin)})
-        except pipeline.LegendUnavailable as exc:
+        except (pipeline.LegendUnavailable,
+                pipeline.TitleBlockUnreadable) as exc:
             # 15회차 — 이 실패는 파이프라인이 **직접 검사한 조건**이고 문장도
             # 거기서 썼다.  그래서 `_failure_reason` 을 거치지 않는다: 그 함수는
             # *알 수 없는* 실패에 쓰는 것이고, 아는 실패까지 일반 문구로 덮으면
             # 사람이 무엇을 하면 되는지 알 수 없다.
+            #
+            # 21회차에 `TitleBlockUnreadable` 이 같은 자리에 붙었다.  두 예외의
+            # 처리가 글자 그대로 같으므로 갈래를 늘리지 않고 튜플로 받는다 —
+            # 처리가 갈리면 그때 나눈다.
             traceback.print_exc()
             reason = str(exc)
             stage = _stopped_stage(job_id)          # 덮기 전에 읽는다

@@ -77,6 +77,45 @@ class LegendUnavailable(RuntimeError):
     """
 
 
+class TitleBlockUnreadable(RuntimeError):
+    """이 PDF 의 어느 장에서도 도면번호를 읽지 못했다 (21회차).
+
+    **예외를 바꿔 쓴 문장이 아니다.**  `LegendUnavailable` 과 같은 자리 —
+    파이프라인이 직접 검사한 조건이고 문장도 여기서 쓴다.
+
+    타이틀블록 칸은 유도되는 값이 아니라 **상수**다 (`title_block.` 로 프로젝트
+    마다 덮어쓴다).  다른 회사의 양식이 오면 그 칸들이 그 도면의 엉뚱한 자리나
+    종이 밖을 가리키고, 그러면 `page_kind` 가 한 장도 PID 가 되지 않아
+    `targets` 가 비고 **행 0개로 조용히 성공한다.**  15회차 [B]2 가 잰 것과 같은
+    모양의 조용한 폴백이라(그쪽은 Q'ty 만 틀렸다) 여기서 시끄럽게 멈춘다.
+    """
+
+
+def _frame_reason(pages) -> str:
+    """`TitleBlockUnreadable` 의 문장.  **사실은 `tb.frame_report` 가 재고 여기서
+    문장으로 만든다** — 저장하지 않으므로 다음에 문구를 고치면 옛 분석에도 새
+    문장이 나간다 (15회차 `compare_note` 교훈).
+
+    두 자리에서 같은 문장을 쓴다: 쪽 크기만으로 이미 판가름나는 이른 검사와,
+    타이틀블록을 다 읽고도 한 장도 못 읽은 늦은 검사.  판정이 같으므로 문장도
+    하나다.
+    """
+    fr = tb.frame_report(pages, tb.LAYOUT)
+    cell = fr["cells"]["dwg_no_region"]
+    sizes = " · ".join(f"{s['size'][0]}x{s['size'][1]}pt {s['pages']}장"
+                       for s in fr["page_sizes"])
+    where = (f"{fr['pages']}장 전부에서 종이 밖입니다"
+             if cell["off_page"] == fr["pages"]
+             else (f"{cell['off_page']}장에서 종이 밖입니다"
+                   if cell["off_page"] else "종이 안이지만 비어 있습니다"))
+    return (f"이 PDF 의 {fr['pages']}장 어디에서도 도면번호를 읽지 못했습니다. "
+            f"도면번호 칸의 자리를 {list(cell['rect'])} 로 보고 있는데 {where} "
+            f"(이 문서의 쪽 크기: {sizes}). 이 자리는 도면에서 유도되는 "
+            f"값이 아니라 프로젝트 설정 `title_block` 에 적는 상수입니다 — "
+            f"이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣어야 "
+            f"합니다.")
+
+
 CFG = projectconfig.load()
 # The trade dictionary: power-plant abbreviations that hold on any project, kept
 # apart from this client's choices so it can be carried to the next one unchanged.
@@ -444,6 +483,23 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     with clock.stage("open_pdf"):
         doc, pages = pidcache.load_pages(pdf_path)
     total = len(pages) + 6
+
+    # **읽을 수 없는 양식이면 여기서 끝낸다** (21회차 — 빨리 실패하게 한다).
+    #
+    # 사용자가 겪은 것은 17분을 기다린 끝의 실패였다.  실패 자체는 아래
+    # `titleblocks` 뒤 검사가 잡지만, 거기까지 가려면 선분 캐시(실측 95.8초)와
+    # 치수 계산(129.0초)을 다 지나야 한다.  그런데 도면번호 칸이 **모든 장에서
+    # 종이 밖**이면 그 계산은 어차피 버려진다 — `parse_drawing_no` 는 그 칸 안의
+    # 낱말만 보므로 종이 밖이면 낱말이 0개이고, 아래 검사가 반드시 걸린다.
+    #
+    # 즉 이 검사는 **판정을 바꾸지 않고 자리만 앞으로 당긴다.**  드는 비용은
+    # 쪽 크기 비교 몇 번(마이크로초)이고, 페이지 내용을 읽지 않는다.
+    # 종이 **안**인데 비어 있는 경우는 여기서 알 수 없으므로 아래 검사가 맡는다.
+    page_rects = [pymupdf.Rect(0, 0, pc.width, pc.height) for pc in pages]
+    dwg_cell = pymupdf.Rect(*tb.LAYOUT.dwg_no_region)
+    if pages and all((pr & dwg_cell).is_empty for pr in page_rects):
+        raise TitleBlockUnreadable(_frame_reason(pages))
+
     # 치수를 재기 전에 **선분 캐시를 미리 채운다** (12회차).
     #
     # 값이 달라지는 일은 없다: `pidcache.segments()` 는 그 페이지의 선분을 한 번
@@ -479,6 +535,18 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         tb_rows = {r["page_no"]: r
                    for r in (tb.extract_page(pd, library, tb.LAYOUT)
                              for pd in pages)}
+
+    # 한 장도 도면번호를 읽지 못했으면 이 양식은 이 문서의 것이 아니다 (21회차).
+    #
+    # 문턱이 없다 — **0** 이다.  한 장이라도 읽히면 나머지는 지금까지처럼
+    # 장마다 사유가 붙어 `skipped` 로 세어진다.  0 은 다르다: 그 뒤로 가면
+    # `targets` 가 비어 루프가 아예 돌지 않고, 행 0개가 성공으로 저장된다.
+    #
+    # 검사는 `build_glyph_library` **뒤**에 선다 — 앞에 세우면 글리프로만
+    # 읽히는 REV 를 못 읽은 채 판단하게 된다.  대신 사유를 만드는 `frame_report`
+    # 는 이 갈래에서만 부른다 (정상 경로에는 비용이 0이다).
+    if not any(r["drawing_no"] for r in tb_rows.values()):
+        raise TitleBlockUnreadable(_frame_reason(pages))
 
     # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
     # 범례를 그대로 쓴다.  `page_kinds` 는 `derive_unit_multipliers` 가 읽던
