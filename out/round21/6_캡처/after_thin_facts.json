@@ -1,9 +1,9 @@
 {
   "done_box": "",
   "title": "분석 실패",
-  "msg": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 2384.0x1684.0pt 12장). 이 자리는 도면에서 유도되는 값이 아니라 프로젝트 설정 `title_block` 에 적는 상수입니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣어야 합니다.",
+  "msg": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 2384.0x1684.0pt 12장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
   "sheets": "도면을 읽기 전, 타이틀블록을 읽는 중 단계에서 멈췄습니다",
   "hint": "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.",
   "fold": true,
-  "fold_body_head": "Traceback (most recent call last):\n  File \"/home/user/AI-P-ID-Extraction-tool/app/main.py\", line 276, in _worker\n    result = pipeline.analyse(Path(row[\"pdf_path\"]), progress=progress,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 549, in analyse\n    raise TitleBlockUnreadable(_frame_reason(pages))\napp.pipe"
+  "fold_body_head": "Traceback (most recent call last):\n  File \"/home/user/AI-P-ID-Extraction-tool/app/main.py\", line 276, in _worker\n    result = pipeline.analyse(Path(row[\"pdf_path\"]), progress=progress,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 554, in analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\n"
 }

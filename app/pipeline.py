@@ -91,14 +91,15 @@ class TitleBlockUnreadable(RuntimeError):
     """
 
 
-def _frame_reason(pages) -> str:
+def _frame_reason(pages, layout: dict | None = None) -> str:
     """`TitleBlockUnreadable` 의 문장.  **사실은 `tb.frame_report` 가 재고 여기서
     문장으로 만든다** — 저장하지 않으므로 다음에 문구를 고치면 옛 분석에도 새
     문장이 나간다 (15회차 `compare_note` 교훈).
 
-    두 자리에서 같은 문장을 쓴다: 쪽 크기만으로 이미 판가름나는 이른 검사와,
-    타이틀블록을 다 읽고도 한 장도 못 읽은 늦은 검사.  판정이 같으므로 문장도
-    하나다.
+    `layout` 은 `_fit_layout` 이 돌려준 것이다.  그 안의 `moved` 가 **이 도면에서
+    그 칸을 재는 데 성공했는지**를 말한다 — 성공했는지에 따라 사람이 할 일이
+    다르므로 문장도 갈린다.  넘어오지 않으면 그 문장은 아예 쓰지 않는다
+    (모르는 것을 안다고 쓰지 않는다).
     """
     fr = tb.frame_report(pages, tb.LAYOUT)
     cell = fr["cells"]["dwg_no_region"]
@@ -108,12 +109,19 @@ def _frame_reason(pages) -> str:
              if cell["off_page"] == fr["pages"]
              else (f"{cell['off_page']}장에서 종이 밖입니다"
                    if cell["off_page"] else "종이 안이지만 비어 있습니다"))
+    moved = {m["key"] for m in (layout or {}).get("moved", [])}
+    if layout is None:
+        how = ""
+    elif "title_block.dwg_no_region" in moved:
+        how = (" 이 자리는 이 도면에서 재서 얻은 값인데도 읽히지 않았습니다 — "
+               "재는 규칙이 이 양식에 맞지 않습니다.")
+    else:
+        how = (" 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 "
+               "값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 "
+               "프로젝트 설정에 넣으면 됩니다.")
     return (f"이 PDF 의 {fr['pages']}장 어디에서도 도면번호를 읽지 못했습니다. "
             f"도면번호 칸의 자리를 {list(cell['rect'])} 로 보고 있는데 {where} "
-            f"(이 문서의 쪽 크기: {sizes}). 이 자리는 도면에서 유도되는 "
-            f"값이 아니라 프로젝트 설정 `title_block` 에 적는 상수입니다 — "
-            f"이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣어야 "
-            f"합니다.")
+            f"(이 문서의 쪽 크기: {sizes}).{how}")
 
 
 CFG = projectconfig.load()
@@ -484,21 +492,18 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         doc, pages = pidcache.load_pages(pdf_path)
     total = len(pages) + 6
 
-    # **읽을 수 없는 양식이면 여기서 끝낸다** (21회차 — 빨리 실패하게 한다).
+    # ⚠ 여기에 "도면번호 칸이 모든 장에서 종이 밖이면 곧장 멈춘다" 는 이른 검사를
+    # 한 번 넣었다가 **스스로 뒤집었다** (21회차).
     #
-    # 사용자가 겪은 것은 17분을 기다린 끝의 실패였다.  실패 자체는 아래
-    # `titleblocks` 뒤 검사가 잡지만, 거기까지 가려면 선분 캐시(실측 95.8초)와
-    # 치수 계산(129.0초)을 다 지나야 한다.  그런데 도면번호 칸이 **모든 장에서
-    # 종이 밖**이면 그 계산은 어차피 버려진다 — `parse_drawing_no` 는 그 칸 안의
-    # 낱말만 보므로 종이 밖이면 낱말이 0개이고, 아래 검사가 반드시 걸린다.
+    # 넣은 근거는 "판정을 바꾸지 않고 자리만 앞으로 당긴다" 였는데, 그 전제가
+    # 틀렸다: `tb.LAYOUT` 의 네 칸(도면번호·제목·REV·SHEET)은 **상수가 아니라
+    # 아래 `_fit_layout` 이 그 도면에서 유도한다.**  실측 — SADARA 9장에서
+    # `derive_layout.derive` 가 `title_block.*` 를 **7개** 낸다
+    # (`dwg_no_region [2726.7, 2224.8, 3289.1, 2280.1]` 등).
     #
-    # 즉 이 검사는 **판정을 바꾸지 않고 자리만 앞으로 당긴다.**  드는 비용은
-    # 쪽 크기 비교 몇 번(마이크로초)이고, 페이지 내용을 읽지 않는다.
-    # 종이 **안**인데 비어 있는 경우는 여기서 알 수 없으므로 아래 검사가 맡는다.
-    page_rects = [pymupdf.Rect(0, 0, pc.width, pc.height) for pc in pages]
-    dwg_cell = pymupdf.Rect(*tb.LAYOUT.dwg_no_region)
-    if pages and all((pr & dwg_cell).is_empty for pr in page_rects):
-        raise TitleBlockUnreadable(_frame_reason(pages))
+    # 즉 이 자리에서 보는 칸은 **아직 그 도면의 것이 아니다.**  종이가 작은
+    # 문서에서 유도가 성공했을 것을 여기서 미리 잘라내면, 될 분석을 못 하게
+    # 만든다.  빨리 실패하는 것보다 **틀리지 않는 것이 먼저다.**
 
     # 치수를 재기 전에 **선분 캐시를 미리 채운다** (12회차).
     #
@@ -546,7 +551,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # 읽히는 REV 를 못 읽은 채 판단하게 된다.  대신 사유를 만드는 `frame_report`
     # 는 이 갈래에서만 부른다 (정상 경로에는 비용이 0이다).
     if not any(r["drawing_no"] for r in tb_rows.values()):
-        raise TitleBlockUnreadable(_frame_reason(pages))
+        raise TitleBlockUnreadable(_frame_reason(pages, layout))
 
     # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
     # 범례를 그대로 쓴다.  `page_kinds` 는 `derive_unit_multipliers` 가 읽던

@@ -140,21 +140,46 @@ def test_the_pipeline_stops_with_a_reason_when_no_sheet_is_read():
     src = (ROOT / "app/pipeline.py").read_text(encoding="utf-8")
     assert "class TitleBlockUnreadable(RuntimeError):" in src
 
-    # 검사는 **두 자리**다.  이른 것은 쪽 크기만으로 판가름나는 경우를 선분
-    # 캐시(95.8초) 앞에서 끊고, 늦은 것은 종이 안인데 비어 있는 경우를 잡는다.
+    # ★ 검사는 **한 자리**다.  이른 검사(쪽 크기만 보고 곧장 끊기)를 넣었다가
+    # 스스로 뒤집었다 — `tb.LAYOUT` 의 네 칸은 상수가 아니라 `_fit_layout` 이
+    # 그 도면에서 유도한다 (SADARA 실측 7개).  유도 **전**의 칸으로 자르면
+    # 될 분석을 못 하게 만든다.
     sites = [i for i in range(len(src))
              if src.startswith("raise TitleBlockUnreadable(", i)]
-    assert len(sites) == 2, sites
-    warm = src.index("선분 캐시를 미리 채운다")
+    assert len(sites) == 1, sites
+    fit = src.index("layout = _fit_layout(pages)")
     lib = src.index("tb.build_glyph_library(")
     targets = src.index("targets = [pc for pc in pages")
-    assert sites[0] < warm                      # 긴 계산 앞에서 끊는다
-    # 글리프로만 읽히는 REV 가 있으므로 라이브러리 뒤에 서야 하고,
+    # 칸이 유도된 뒤에 서야 하고, 글리프로만 읽히는 REV 뒤에 서야 하고,
     # `targets` 가 비어 조용히 성공하기 전에 서야 한다.
-    assert lib < sites[1] < targets
-    # 두 자리가 같은 판정을 하므로 문장도 하나다.
-    assert src.count("TitleBlockUnreadable(_frame_reason(pages))") == 2
-    assert "title_block" in src[src.index("def _frame_reason("):][:1600]
+    assert fit < lib < sites[0] < targets
+    reason = src[src.index("def _frame_reason("):][:2400]
+    assert "title_block" in reason
+    # 잰 값인가 설정값인가에 따라 사람이 할 일이 다르므로 문장이 갈린다.
+    assert 'title_block.dwg_no_region" in moved' in reason
+    assert "if layout is None" in reason        # 모르면 그 문장을 안 쓴다
+
+
+def test_the_title_block_cells_are_derived_but_the_history_table_is_not():
+    """★ 이 갈림이 21회차의 핵심이다.
+
+    `derive_layout` 은 도면번호 · 제목 · REV · SHEET 칸을 **그 도면에서 유도**
+    한다 (SADARA 실측 7개).  그러나 **이력 표 기하는 유도하지 않는다** —
+    `hist_rule_*` · `hist_rev_col` · `hist_row_inset` 은 AL NOUF1 상수 그대로다.
+
+    그래서 다른 회사 양식에서 `history_rows` 는 **그 표가 아닌 선**을 읽고,
+    그 사이 간격이 `2 x hist_row_inset` 보다 좁으면 0픽셀 clip 이 나온다.
+    TC2 가 죽은 자리가 정확히 거기다.
+    """
+    src = (ROOT / "app/engine/derive_layout.py").read_text(encoding="utf-8")
+    derived = {k for k in
+               ("dwg_no_region", "title_region", "project_name_region",
+                "rev_box", "sheet_box")
+               if f"title_block.{k}" in src or f'"{k}"' in src}
+    assert "dwg_no_region" in derived and "rev_box" in derived
+    for never in ("hist_rule_x0_max", "hist_rule_x1_min", "hist_rule_y",
+                  "hist_rev_col", "hist_date_col", "hist_row_inset"):
+        assert f"title_block.{never}" not in src, never
 
     main = (ROOT / "app/main.py").read_text(encoding="utf-8")
     assert "pipeline.TitleBlockUnreadable" in main
@@ -223,3 +248,5 @@ def test_the_whole_pipeline_stops_instead_of_returning_zero_rows(tmp_path):
     assert "1191.0x842.0pt" in msg           # 이 문서의 쪽 크기
     assert "[1950.0, 1560.0, 2384.0, 1600.0]" in msg   # 어느 자리를 보고 있었는지
     assert "title_block" in msg              # 무엇을 하면 되는지
+    # 이 합성 PDF 에는 재는 규칙이 찾는 캡션이 없으므로 설정값 갈래여야 한다.
+    assert "재지 못해" in msg

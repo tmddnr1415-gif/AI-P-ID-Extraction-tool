@@ -30,7 +30,7 @@
 | **정확도 — 축1 전량** | 99.2% / 84.1% | **99.3% / 70.5%** | 99.3% / 70.5% (불변) | 불변 | 불변 | 불변 | 불변 | 불변 | 불변 | 불변 | 불변 | 불변 | 불변 |
 | **정확도 — 축2 SCT** (11회차 신설) | — | — | **99.2% / 86.8%** | 불변 | 불변 | 불변 | 불변 | **99.3% / 88.4%** (FP 90→78 · FN 5→4) | 불변 (FP 78 · FN 4) | **99.3% / 89.1%** (FP 78→73 · FN 4) | **99.3% / 94.4%** (FP 73→**35** · FN 4) | 불변 (FP 35 내역을 전수로 갈랐습니다 — §20회차) | 불변 (FP 35 · FN 4) |
 | 글리프 · Description F1 · 식별 가능성 · ④→② 전환율 | H4/M32 · 69.3 · 39.6% · 19.7% | **전부 불변** | 전부 불변 | 전부 불변 | 전부 불변 | 전부 불변 | 전부 불변 | H4/M32 · **69.4** · 39.6% · 19.7% | H4/M32 · **68.7** · **41.6%** · 19.7% (F1 은 내리고 식별은 오릅니다 — §17회차) | 전부 불변 (밸브 8행만 늘어 FIELD 채점에 안 닿습니다) | H4/M32 · **68.8** · **40.5%** · 19.7% (식별은 내립니다 — 벤더가 된 42행의 문장이 지워집니다) | 전부 불변 | 전부 불변 |
-| 테스트 | 빠른 116 | 빠른 130 | **빠른 137 · UI 21 · slow 10** | 빠른 **137** · UI 21 · slow 10 | 빠른 **150** · UI 21 · slow 10 (13회차 표에 149 로 적혀 있었으나 실측 150 — 14회차 [A] 에서 갱신) | 빠른 150 · **UI 24** · slow 10 (UI 는 **SCOPE 있는 데이터** 기준) | 빠른 **170** · UI 24 · slow 10 | 빠른 170 · UI 24 · slow 10 | 빠른 **173** · UI 24 · slow 10 | 빠른 **188** · UI 24 · slow **12** | 빠른 188 · UI 24 · slow **14** | 같음 (전부 통과) | 빠른 **206** · UI 24 · slow 14 |
+| 테스트 | 빠른 116 | 빠른 130 | **빠른 137 · UI 21 · slow 10** | 빠른 **137** · UI 21 · slow 10 | 빠른 **150** · UI 21 · slow 10 (13회차 표에 149 로 적혀 있었으나 실측 150 — 14회차 [A] 에서 갱신) | 빠른 150 · **UI 24** · slow 10 (UI 는 **SCOPE 있는 데이터** 기준) | 빠른 **170** · UI 24 · slow 10 | 빠른 170 · UI 24 · slow 10 | 빠른 **173** · UI 24 · slow 10 | 빠른 **188** · UI 24 · slow **12** | 빠른 188 · UI 24 · slow **14** | 같음 (전부 통과) | 빠른 **207** · UI 24 · slow 14 (전부 통과) |
 | 발주처 양식 행수 | 824 기준 | 885 / 76 / 23 | **667 / 66 / 22** (SCT 만 · CZF 25행은 양식 미수령) | 같음 | 같음 | 같음 | 같음 | **656 / 66 / 22** (SCT→VENDOR 11행이 빠졌습니다) | 같음 | **885 / 76 / 23** (전량 — [B] · SCT 로 두면 651/66/22) | **885 / 76 / 23** (불변 — SCT 로 두면 **607/63/18**) | 같음 (**꾸러미에서 실제 xlsx 를 열어 셌습니다**) | 같음 (885 / 76 / 23 — 실제 xlsx 의 NO 열을 셈) |
 
 **축이 둘인 이유**: 축1(전량)은 "발주처가 안 세는 것을 얼마나 넣었나"까지 재고,
@@ -1035,11 +1035,19 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
 4. **AL NOUF1 은 이 갈래에 닿을 수 없습니다** — 이력 행 406개(58장)가 전부
    16.7~16.8pt (값이 두 개뿐: 16.8×250 · 16.7×156), 문턱의 약 7배입니다.
    20회차 동안 안 보인 이유입니다.
-5. **★ 근본 원인은 타이틀블록 칸이 유도가 아니라 상수라는 것입니다.**
-   `extract_titleblocks` 에 `derive_*` 가 없고 `Layout` 20필드가 전부 AL NOUF1
-   A1 양식의 실측값입니다.  `project_sadara.yaml` 도 7개만 덮고 네 칸은 AL
-   NOUF1 값을 물려받습니다 — **SADARA 가 안 죽는 이유는 양식이 맞아서가 아니라
-   종이(3370×2384)가 더 커서** clip 이 어쨌든 종이 안에 떨어지기 때문입니다.
+5. **★ 근본 원인 — 네 칸은 유도되고 이력 표 기하만 상수입니다.**
+   (처음에 "타이틀블록은 전부 상수" 라고 적었다가 **스스로 뒤집었습니다.**
+   `config/project_sadara.yaml` 의 주석이 *"The title-block cells are derived;
+   these four are not"* 라고 이미 말하고 있었고 처음 읽을 때 흘렸습니다.)
+   `_fit_layout` → `derive_layout.derive` 가 그 도면에서 잽니다 — SADARA 실측
+   **7개**(`dwg_no_region` `[2726.7, 2224.8, 3289.1, 2280.1]` · `title_region` ·
+   `project_name_region` · `rev_box` · `sheet_box` · 두 `*_min_height`).
+   **그런데 `hist_rule_x0_max`·`hist_rule_x1_min`·`hist_rule_y`·`hist_rev_col`
+   ·`hist_date_col`·`hist_row_inset` 여섯은 그 목록에 없습니다.**  그래서
+   `history_rows` 는 다른 회사 양식에서도 **AL NOUF1 의 좌표 띠**에 걸리는 가로
+   선을 이력 괘선으로 보고, 그렇게 주워 온 선들 사이 간격이 2.4pt 이하이면
+   0픽셀이 됩니다.  **§11 범용성이 시험받은 자리가 여기입니다 — 칸은 유도되는데
+   표는 안 됩니다.**
 6. **17분의 정체**: 죽는 자리는 `titleblock_glyphs`(도면 읽기 **전**)이고
    그 앞에 `layout` **246.79초(전체 441.2초의 55.9%)** 가 있습니다.  닿기까지
    249.9초가 이미 지나갑니다.  화면이 장수를 못 말한 것도 같은 이유입니다 —
@@ -1051,9 +1059,16 @@ python3 spike/accuracy.py run.json        # 이미 있는 결과 json 으로
    읽으면 `page_kind` 가 한 장도 PID 가 아니고 `targets` 가 빕니다.  그래서
    `pipeline.TitleBlockUnreadable` 로 시끄럽게 멈춥니다 (`LegendUnavailable`
    과 같은 자리 · **문턱 없이 0** · 사실은 `tb.frame_report` 가 재고 문장은
-   저장하지 않음).  검사는 **두 자리 · 판정은 하나**(`_frame_reason`):
-   `open_pdf` 직후(모든 장에서 종이 밖)와 `titleblocks` 뒤(종이 안인데 못 읽음).
-   이른 검사는 판정을 바꾸지 않고 자리만 당깁니다 — **A3 60장에서 0.21초.**
+   저장하지 않음).  사유 문장은 `_fit_layout` 의 `moved` 를 보고 **그 칸을 재는
+   데 성공했는지**에 따라 갈립니다 — 사람이 할 일이 다르기 때문입니다.
+   **⚠ 스스로 뒤집은 것**: `open_pdf` 직후에 이른 검사를 넣었다가 뺐습니다.
+   근거가 *"판정을 바꾸지 않고 자리만 당긴다"* 였는데 **5번 때문에 전제가
+   틀립니다** — 그 자리에서 보는 칸은 아직 그 도면의 것이 아니고, 종이가 작은
+   문서에서 유도가 성공했을 것을 미리 잘라내면 될 분석을 못 하게 만듭니다.
+   **빨리 실패하는 것보다 틀리지 않는 것이 먼저입니다.**  그래서
+   **"빨리 실패하게 한다" 는 못 이뤘습니다** — 조밀한 60장에서는 `layout`
+   (246.79초)을 다 지난 뒤에 멈춥니다.  이룬 것은 *언제·왜 멈췄는지를 말하는
+   것*뿐입니다.
 9. **⚠ 같이 찾은 별개 결함 — 이력 행 캐시가 문서 사이로 샜습니다.**
    `history_rows` 의 캐시가 모듈 전역 dict 이고 키가 `page_no` 하나, 지우는
    곳이 없었습니다.  실측: SADARA 9장을 혼자 읽으면 이력 행 0행인데 같은
@@ -1224,9 +1239,9 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 **테스트**
 
 ```bash
-pytest -q -m "not slow and not ui"    # 206건, 15초
+pytest -q -m "not slow and not ui"    # 207건, 17초
 pytest -q -m ui                       # 24건 (playwright + chromium 필요 · **SCOPE 있는 데이터**에서만 뜻이 있습니다 — `PID_UI_DB` 로 가리킵니다)
-pytest -q -m slow                     # 12건 · 전 문서 분석 포함, 13분
+pytest -q -m slow                     # 14건 · 전 문서 분석 포함, 23분
 ```
 
 **회귀 스크립트**
@@ -1374,7 +1389,8 @@ python app/engine/detect_valves.py --report out/valve/report.md
 | `tests/test_ui_edits.py` 의 `REAL_DB` · `PID_UI_DB` | 이 스위트가 **어떤 데이터에서 도는지**.  실 DB 에 SCOPE 있는 분석이 없는 PC 에서는 가리키는 곳만 바꾼다 — 실 DB 를 갈아끼우면 17회차 격리가 깨진다 |
 | `extract_titleblocks._ink_mask` 의 `a.size == 0` | **0픽셀에 `.min()` 을 부르지 않는다** (21회차).  `get_pixmap(clip=...)` 은 clip 을 페이지와 교집합하므로 교집합이 비면 0픽셀이 나온다.  **여기서 사유를 말하지 않는다** — 한 칸이 비는 것은 정상이고, 여기서 문장을 쓰면 그것이 조용한 폴백이 된다 |
 | `extract_titleblocks.frame_report` | 이 도면틀이 이 문서에 맞는가 — **사실만 낸다, 문장은 쓰지 않는다**.  쪽 크기 · 네 칸이 종이 밖인 장 · 안쪽 여백보다 얇은 이력 행.  문장은 `pipeline._frame_reason` 이 그때 만든다 (15회차 `compare_note`) |
-| `pipeline.TitleBlockUnreadable` · `_frame_reason` | 한 장도 도면번호를 못 읽었을 때.  `LegendUnavailable` 과 같은 자리 — **문턱이 없고 0 이다.**  예외만 막으면 `targets` 가 비어 **행 0개로 조용히 성공**한다.  검사는 **두 자리**(`open_pdf` 직후 · `titleblocks` 뒤)이고 **판정은 하나**다 — 이른 것은 판정을 바꾸지 않고 자리만 당긴다 (A3 60장 **0.21초**) |
+| `pipeline.TitleBlockUnreadable` · `_frame_reason` | 한 장도 도면번호를 못 읽었을 때.  `LegendUnavailable` 과 같은 자리 — **문턱이 없고 0 이다.**  예외만 막으면 `targets` 가 비어 **행 0개로 조용히 성공**한다.  검사는 **`titleblocks` 뒤 한 자리**다 — `open_pdf` 직후의 이른 검사를 넣었다가 뺐다 (그 자리의 `tb.LAYOUT` 은 아직 `_fit_layout` 이 유도하기 **전** 값이라, 유도가 성공했을 문서를 미리 잘라낸다).  문장은 `moved` 를 보고 **잰 값인가 설정값인가**로 갈린다 |
+| `derive_layout` 의 `title_block.*` ↔ `hist_*` | **네 칸은 유도되고 이력 표 기하는 안 된다** (21회차).  SADARA 실측 7개(`dwg_no_region`·`title_region`·`project_name_region`·`rev_box`·`sheet_box`·두 `*_min_height`)가 나오지만 `hist_rule_*`·`hist_rev_col`·`hist_date_col`·`hist_row_inset` 은 AL NOUF1 상수 그대로다.  그래서 다른 양식에서 `history_rows` 가 **그 표가 아닌 선**을 읽고, 그 사이가 `2×hist_row_inset`(2.4pt) 보다 좁으면 0픽셀 clip 이 된다 |
 | `extract_titleblocks.history_rows` 의 `pd._hist_rows` | 캐시는 **그 쪽 객체 자신**이 든다 (21회차).  전역 dict 를 `page_no` 하나로 키 삼던 때는 **두 번째 문서가 첫 문서의 이력 행을 물려받았다** — SADARA 9장이 혼자면 0행인데 AL NOUF1 뒤에 읽으면 9장 전부 AL NOUF1 의 7행 |
 | `job.stopped_stage` · `app/main.py` 의 `_stopped_stage` | 실패 직전 파이프라인이 마지막으로 말한 **단계 이름**.  새 값이 아니라 `set_progress` 가 `job.message` 에 적던 것을 **덮기 전에** 읽어 둔 것이다.  담는 것은 **원문**이고 한국어는 화면 `stageWords()` 가 만든다 |
 | `GET /jobs/{id}/error_detail` · `#prog-error` | 예외 원문 — **접어 두되 버리지 않는다** (21회차).  기본 응답(`_job_public`)은 그대로이고 **펼치기 전에는 받아 오지도 않는다**.  그 전에는 진단 zip 을 풀어야만 볼 수 있었다 |
