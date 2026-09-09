@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import collections
 import re
+import statistics
 import sys
 
 import pymupdf
@@ -287,6 +288,78 @@ def _title_block(pages, column, right_edge) -> dict:
 # --------------------------------------------------------------------------
 # Dash geometry
 # --------------------------------------------------------------------------
+def _equal_gap_runs(ys, rel_tol=0.05):
+    """간격이 서로 같은 괘선이 연달아 있는 구간들 — `(y0, y1, 행높이, 행수)`.
+
+    `rel_tol` 은 **비율**이다 (절대 pt 가 아니다).  같은 표의 행은 같은 높이로
+    그려지고, 실측 편차는 AL NOUF1 16.77±0.01 · SADARA 24.03~24.05 ·
+    TC2 8.40~8.52 로 1.5% 안이다.  5%는 그보다 넉넉하고, 이웃 띠(서명란)와는
+    2~3배 차이라 그 사이 어디에 두어도 같은 답이 나온다.
+    """
+    out, i = [], 0
+    gaps = [ys[k + 1] - ys[k] for k in range(len(ys) - 1)]
+    while i < len(gaps):
+        j = i
+        while j + 1 < len(gaps) and abs(gaps[j + 1] - gaps[i]) <= rel_tol * gaps[i]:
+            j += 1
+        if j > i:                       # 간격 둘 = 괘선 셋 = 행 둘
+            out.append((ys[i], ys[j + 1],
+                        statistics.median(gaps[i:j + 1]), j - i + 1))
+        i = j + 1
+    return out
+
+
+def _history_table(pages, column, edge, inset) -> dict:
+    """개정 이력 표 — **표의 모양이 말한다.**
+
+    이 여섯 칸은 20회차까지 AL NOUF1 실측값이 코드에 박혀 있었고, 그래서 종이가
+    다른 문서에서는 좌표 띠가 통째로 종이 밖이 되어 이력 행을 한 줄도 못 찾았다
+    (TC2 REV 0/60).  여기서 그 도면이 답하게 한다.
+
+    무엇으로 찾는가 — 셋 다 모양이고 절대 pt 가 없다:
+
+    ① 이력 띠   타이틀블록 열을 가로지르는 괘선 중 **간격이 서로 같은 띠**,
+                그중 **행이 더 촘촘한 쪽**.  세 문서 모두 그 열에 띠가 둘이고
+                (이력 표 + 서명란) 행 높이가 2~3배 갈린다:
+                AL NOUF1 16.77 ↔ 44.52 · SADARA 24.04 ↔ 63.81 · TC2 8.52 ↔ 22.56.
+    ② 열        그 띠를 세로로 가로지르는 괘선.  1열이 REV, 2열이 DATE 다.
+                캡션을 인쇄하는 문서에서는 캡션이 그 열 안에 들어가 서로를
+                확인해 준다 (SADARA `REV.` 2735.7~2757.9 ⊂ 1열 2726.7~2766.8 ·
+                TC2 967.0~974.8 ⊂ 963.8~978.0).
+    ③ 오른쪽 끝 시트 가장자리가 **아니라** 노트 열의 안쪽 괘선이다 — AL NOUF1 의
+                이력 괘선은 2330.3 에서 멈추고 시트는 2345.3 이다.
+
+    ★ 캡션으로 찾지 않는 이유: **AL NOUF1 은 `REV. DATE DESCRIPTION` 을 인쇄하지
+    않는다** (그 문서가 찾는 캡션은 dwg_no · project_name · project_no · title 넷).
+    캡션을 1차로 삼으면 기준선 문서가 빠진다.
+
+    장마다 재고 **가장 흔한 답**을 쓴다 — 한 장이 비어도 표는 같기 때문이다.
+    """
+    seen: dict = {}
+    for pc in pages:
+        ys = sorted({round(r.y0, 2) for r in pc.rects()
+                     if abs(r.height) < 1.0
+                     and r.x0 <= column + inset and r.x1 >= edge - inset})
+        runs = _equal_gap_runs(ys)
+        if not runs:
+            continue
+        y0, y1, gap, _n = min(runs, key=lambda b: b[2])      # 촘촘한 쪽
+        vx = sorted({round(r.x0, 2) for r in pc.rects()
+                     if abs(r.width) < 1.0
+                     and r.y0 <= y0 + gap and r.y1 >= y1 - gap
+                     and column - inset <= r.x0 <= edge + inset})
+        if len(vx) < 3:
+            continue
+        key = (round(y0, 2), round(y1, 2), round(gap, 2),
+               tuple(round(v, 2) for v in vx))
+        seen[key] = seen.get(key, 0) + 1
+    if not seen:
+        return {}
+    (y0, y1, gap, vx), votes = max(seen.items(), key=lambda kv: kv[1])
+    return {"y0": y0, "y1": y1, "gap": gap, "vx": list(vx),
+            "votes": votes, "pages": len(pages)}
+
+
 def _dash_geometry(pages, drawing_area) -> dict:
     """The dash geometry of the lines that matter: the scope boundaries.
 
@@ -547,6 +620,49 @@ def derive(pages, cfg=None) -> Layout:
     if tb.get("_captions"):
         lay.notes.append("title block captions found: "
                          + ", ".join(sorted(tb["_captions"])))
+
+    # 개정 이력 표 — 20회차까지 여섯 칸이 전부 AL NOUF1 실측 상수였고, 그래서 종이가
+    # 다른 문서에서는 좌표 띠가 통째로 종이 밖이 됐다 (TC2 REV 0/60).  표의 모양이
+    # 답하게 한다.  `hist_row_inset` 만은 여기서 정하지 않는다 — 아래 참조.
+    inset = 1.2
+    if cfg is not None:
+        try:
+            inset = float(cfg.get("title_block.hist_row_inset"))
+        except Exception:
+            inset = 1.2
+    table_right = inner[-1] if inner else right
+    hist = _history_table(pages, column, table_right, inset)
+    if not hist:
+        lay.notes.append("no revision-history table found in the title-block "
+                         "column: no run of equally spaced rules crosses it")
+    else:
+        y0, y1, gap, vx = hist["y0"], hist["y1"], hist["gap"], hist["vx"]
+        rows = int(round((y1 - y0) / gap))
+        lay.add("title_block.hist_rule_y",
+                [round(y0 - gap / 2, 1), round(y1 + gap / 2, 1)],
+                f"the run of equally spaced rules crossing the title-block "
+                f"column: {rows + 1} rules {gap:.2f} pt apart, the same on "
+                f"{hist['votes']} of {hist['pages']} sheets; widened by half a "
+                f"row, which no other rule of this table can be inside")
+        lay.add("title_block.hist_rule_x0_max", round((vx[0] + vx[1]) / 2, 1),
+                f"midway into the table's first column (the rules start at "
+                f"{vx[0]:.1f}, the first vertical rule is at {vx[1]:.1f})")
+        lay.add("title_block.hist_rule_x1_min", round((vx[-2] + vx[-1]) / 2, 1),
+                f"midway into the table's last column (last vertical rule "
+                f"{vx[-2]:.1f}, the table ends at {vx[-1]:.1f})")
+        lay.add("title_block.hist_rev_col",
+                [round(vx[0] + inset, 1), round(vx[1] - inset, 1)],
+                "the table's first column, inset by hist_row_inset so the "
+                "vertical rules themselves stay out of the cell")
+        lay.add("title_block.hist_date_col",
+                [round(vx[1] + inset, 1), round(vx[2] - inset, 1)],
+                "the table's second column, inset the same way")
+        # `hist_row_inset` 은 유도하지 않는다.  그것은 도면이 그린 것이 아니라
+        # **렌더 여백**이다 — 행을 자를 때 괘선 자체가 clip 에 들어가지 않게 하는
+        # 값이고, 도면에는 대응하는 선이 없다.  22회차 [7] 과 같은 자리:
+        # 재지 못하는 것은 지어내지 않고 이름만 남긴다.
+        lay.notes.append("hist_row_inset is not derived: it is a render margin, "
+                         "not a drawn feature; the sheet states nothing about it")
 
     # The dash geometry is measured and reported but NOT adopted.  Every way of
     # picking the runs tried here either lets an ordinary broken line in or
