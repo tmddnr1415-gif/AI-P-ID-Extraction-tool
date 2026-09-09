@@ -160,27 +160,67 @@ def test_the_pipeline_stops_with_a_reason_when_no_sheet_is_read():
     assert "if layout is None" in reason        # 모르면 그 문장을 안 쓴다
 
 
-def test_the_title_block_cells_are_derived_but_the_history_table_is_not():
-    """★ 이 갈림이 21회차의 핵심이다.
+def test_the_title_block_cells_and_the_history_table_are_both_derived():
+    """★ 24회차가 이 갈림을 없앴다 (21회차에는 반대였다).
 
-    `derive_layout` 은 도면번호 · 제목 · REV · SHEET 칸을 **그 도면에서 유도**
-    한다 (SADARA 실측 7개).  그러나 **이력 표 기하는 유도하지 않는다** —
-    `hist_rule_*` · `hist_rev_col` · `hist_row_inset` 은 AL NOUF1 상수 그대로다.
+    21회차에는 도면번호 · 제목 · REV · SHEET 칸만 유도되고 **이력 표 기하는
+    AL NOUF1 상수**였다.  그래서 다른 회사 양식에서 `history_rows` 는 그 표가
+    아닌 선을 읽었고 TC2 는 REV 를 한 장도 못 읽었다 (0/60).
 
-    그래서 다른 회사 양식에서 `history_rows` 는 **그 표가 아닌 선**을 읽고,
-    그 사이 간격이 `2 x hist_row_inset` 보다 좁으면 0픽셀 clip 이 나온다.
-    TC2 가 죽은 자리가 정확히 거기다.
+    24회차는 여섯 중 **다섯을 표의 모양에서** 유도한다.  남은 하나
+    `hist_row_inset` 은 **그리지 않은 값**이라 유도하지 않는다 — 그것은 칸을
+    읽을 때 안쪽으로 물리는 여백이고 도면은 그것에 대해 아무 말도 하지 않는다.
     """
     src = (ROOT / "app/engine/derive_layout.py").read_text(encoding="utf-8")
-    derived = {k for k in
-               ("dwg_no_region", "title_region", "project_name_region",
-                "rev_box", "sheet_box")
-               if f"title_block.{k}" in src or f'"{k}"' in src}
-    assert "dwg_no_region" in derived and "rev_box" in derived
-    for never in ("hist_rule_x0_max", "hist_rule_x1_min", "hist_rule_y",
-                  "hist_rev_col", "hist_date_col", "hist_row_inset"):
-        assert f"title_block.{never}" not in src, never
+    for key in ("dwg_no_region", "title_region", "project_name_region",
+                "rev_box", "sheet_box"):
+        assert f'"{key}"' in src or f"title_block.{key}" in src, key
+    for key in ("hist_rule_x0_max", "hist_rule_x1_min", "hist_rule_y",
+                "hist_rev_col", "hist_date_col"):
+        assert f'lay.add("title_block.{key}"' in src, key
+    # 재지 못하는 것은 지어내지 않는다 — 읽기만 하고 내지는 않는다.
+    assert 'lay.add("title_block.hist_row_inset"' not in src
+    assert "hist_row_inset is not derived" in src
 
+
+def test_the_derived_band_leaves_the_caption_row_out():
+    """머리글 행(`REV. DATE DESCRIPTION`)은 개정 행이 아니다.
+
+    세 문서 다 그 행을 개정 행보다 **4.2~4.7% 높게** 그린다 (TC2 p37 만 2.8%).
+    개정 행끼리의 편차는 최대 1.4% 이고 그 사이가 비어 있어(`spike/hist_gaps.py`
+    전수), 허용치를 그 빈 띠 안 어디에 두어도 답이 같다.
+
+    5% 로 두면 머리글 행이 띠 안으로 들어오고, `build_glyph_library` 가 그것을
+    rank 0 으로 세어 **개정 문자 A 를 B 로 이름 붙인다** — 값이 조용히 한 칸
+    밀린다.  그래서 이 시험은 세 문서의 실측 간격을 그대로 쓴다.
+    """
+    import sys
+    sys.path.insert(0, str(ROOT / "app" / "engine"))
+    import derive_layout as dl
+
+    def band(gaps):
+        ys, y = [0.0], 0.0
+        for g in gaps:
+            y += g
+            ys.append(round(y, 2))
+        runs = dl._equal_gap_runs(ys)
+        assert runs, gaps
+        y0, y1, gap, n = min(runs, key=lambda b: b[2])
+        return n
+
+    # AL NOUF1 실측: 16.74/16.80 이 번갈아 일곱, 머리글 17.52 (+4.7%)
+    assert band([16.74, 16.80, 16.74, 16.80, 16.74, 16.80, 16.74, 17.52]) == 7
+    # SADARA 실측: 24.05 일곱, 머리글 25.10 (+4.4%)
+    assert band([24.10, 24.00, 24.10, 24.00, 24.10, 24.00, 24.00, 25.10]) == 7
+    # TC2 실측: 8.52/8.40, 머리글 8.90 (+4.5%) — 그리고 p37 의 8.76 (+2.8%)
+    assert band([8.52, 8.52, 8.52, 8.40, 8.52, 8.52, 8.52, 8.90]) == 7
+    assert band([8.52, 8.52, 8.52, 8.40, 8.52, 8.52, 8.52, 8.76]) == 7
+    # 1.4% 안의 흔들림은 같은 표다 — 갈라내지 않는다.
+    assert band([8.52, 8.40, 8.52, 8.40, 8.52, 8.40, 8.52]) == 7
+
+
+def test_the_pipeline_stops_loudly_when_no_sheet_yields_a_drawing_number():
+    """예외만 막으면 `targets` 가 비어 **행 0개로 조용히 성공**한다 (21회차)."""
     main = (ROOT / "app/main.py").read_text(encoding="utf-8")
     assert "pipeline.TitleBlockUnreadable" in main
     # `_failure_reason` (알 수 없는 실패용 일반 문구)을 거치지 않는다.
