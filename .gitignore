@@ -53,3 +53,8 @@ out/tc2/*.png
 out/regression_3p/
 out/round23/ui_db/
 out/round23/tests.done
+
+# 24회차 — UI 스위트용 DB(발주처 행 1037개)와 도면 렌더.  측정 로그와 보고서는
+# 커밋하고, 도면 그림과 행 데이터는 담지 않는다 (`data/*.pdf` 와 같은 이유).
+out/round24/ui.db
+out/round24/7_캡처/*.png
