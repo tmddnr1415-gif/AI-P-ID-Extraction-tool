@@ -24,8 +24,8 @@
 | A 메모리 판단 | **답 받음 — 16GB 이상 · HEAD `84f90df` 로 진행** (10~25회차 누적) |
 | B 기준선 | **통과** — 세 프로젝트 전 항목 기준선과 같음 (`out/round25/harness_r25.log` · `6_regression_3p.json`) |
 | C 목록 | **완료** — A 47 · M 21 · D 0 · R 0 (`out/handover_final.txt`) · `app/_data` 목록·zip 두 시점 0건 |
-| D 적용 검증 | 진행 중 — 1234 (옛 코드 분석) |
-| E 산출물 | A 답 뒤 |
+| D 적용 검증 | **14단계 전부 통과** (`out/round25/verify/README.md`) · 실 DB sha256 불변 · RSS 7.90GB |
+| E 산출물 | **완료** — `out/PID_update_2026-09-09_r25.zip` 661,737 B · sha256 `a5c1a29cbb8a3736…` |
 
 ## A 메모리 판단 — 사실
 
@@ -80,3 +80,21 @@
 그리고 zip 이름을 따로 다시 훑어 0건.
 
 `3_FILES_TO_OVERWRITE.zip` 656,060 bytes · sha256 `e71fd12faaf3173ba2e9ee48c7e73c8d7d935645b324ad6322330cca42f869c2`
+
+## D 적용 검증 — 14단계 (전문 `out/round25/verify/README.md`)
+
+2 옛 코드 824행(466.3초) · 3 편집 5 · 5 68파일 HEAD 와 바이트 동일 · 6 824행 편집 5/5 생존 ·
+7 결과 → 첫 화면 버튼 · 8 **1037 · 1931 · fb85b039** · 승계 5/5 · 9 **885/76/23**(실제 xlsx) ·
+10 축1 99.3/70.5 · 축2 99.3/94.4 · 11 빠른 216+3skip · UI 24 · slow 14 · 12 실 DB 동일 ·
+13 `TitleBlockUnreadable` failed 0행 5.0초 · **14 RSS 7.9GB**.
+
+## E 산출물
+
+| 파일 | 크기 | 파일 수 | sha256 |
+|---|---:|---:|---|
+| `out/PID_update_2026-09-09_r25.zip` | 661,737 | 3 | `a5c1a29cbb8a3736be345169a22ebef18514e50ea29dc60099834aba610ddbe0` |
+| 안쪽 `3_덮어쓸파일.zip` | 656,060 | 68 | `e71fd12faaf3173ba2e9ee48c7e73c8d7d935645b324ad6322330cca42f869c2` |
+
+검증에서 발견한 결함: 없음 (14단계 전부 기대값).  적은 것 하나 — 안쪽 zip 이 아니라
+검증 도구 쪽: `error_detail_head` 를 400자로 자르니 예외 클래스명이 잘려 보이지 않아
+DB 에서 직접 확인했다 (`TitleBlockUnreadable` 맞음).
