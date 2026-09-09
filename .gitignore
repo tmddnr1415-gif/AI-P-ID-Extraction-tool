@@ -58,3 +58,10 @@ out/round23/tests.done
 # 커밋하고, 도면 그림과 행 데이터는 담지 않는다 (`data/*.pdf` 와 같은 이유).
 out/round24/ui.db
 out/round24/7_캡처/*.png
+out/round24/verify/*.png
+out/round24/verify/db_backup/
+out/round24/verify/deliverables.zip
+out/round24/verify/verify_rows.json
+out/round24/verify/server.log
+out/round24/verify/synthetic_hist.pdf
+out/round24/3_FILES_TO_OVERWRITE.zip
