@@ -21,10 +21,10 @@
 
 | 단계 | 상태 |
 | --- | --- |
-| A 메모리 판단 | 사실 수집 완료 · **사용자 답 대기** (메모리 값 · (a)/(b)) |
+| A 메모리 판단 | **답 받음 — 16GB 이상 · HEAD `84f90df` 로 진행** (10~25회차 누적) |
 | B 기준선 | **통과** — 세 프로젝트 전 항목 기준선과 같음 (`out/round25/harness_r25.log` · `6_regression_3p.json`) |
-| C 목록 | A 답 뒤 |
-| D 적용 검증 | A 답 뒤 |
+| C 목록 | **완료** — A 47 · M 21 · D 0 · R 0 (`out/handover_final.txt`) · `app/_data` 목록·zip 두 시점 0건 |
+| D 적용 검증 | 진행 중 — 1234 (옛 코드 분석) |
 | E 산출물 | A 답 뒤 |
 
 ## A 메모리 판단 — 사실
@@ -66,3 +66,17 @@
 23회차 값이고, 저장된 기준선(82.0 · 75.3)과 실측이 같다 — 어긋남이 아니라 표의 드리프트.
 초 수는 직전 실측(649 · 608)보다 80초 안팎 길지만 같은 기계 부하 차이이고 RSS 는 소수 둘째
 자리까지 같다.
+
+## C 파일 목록 — 기준 `aac64ba..84f90df`
+
+`git diff --name-status` 전체 449 (A 427 · M 22 · D 0 · R 0).  그중 **소스만**
+(`app/` `config/` `docs/` `spike/` `tests/` `conftest.py` `CLAUDE.md` `README.md`)
+**68파일 — [A] 47 · [M] 21 · [D] 0 · [R] 0.  수동 삭제 목록: 없음.**
+`out/` 381개는 회차 산출물이라 담지 않는다.  r24(62파일)보다 6개 늘었다 —
+`detect_symbols.py` 는 이미 M 이었고, 새로 `tests/test_star_marks.py` ·
+`spike/legend_star.py` · `spike/mark_probe.py` · `spike/mark_shape.py` 등이다.
+
+`app/_data/` 검사 — 목록 시점 0건 · zip 시점 0건 (`spike/pack_handover_r25.py` `forbidden()`),
+그리고 zip 이름을 따로 다시 훑어 0건.
+
+`3_FILES_TO_OVERWRITE.zip` 656,060 bytes · sha256 `e71fd12faaf3173ba2e9ee48c7e73c8d7d935645b324ad6322330cca42f869c2`
