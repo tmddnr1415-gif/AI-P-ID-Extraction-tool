@@ -688,6 +688,216 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
         m = MARK_TEXT_RE.match(t)
         if m and r.x1 <= lay.drawing_area[2] and t.strip("()*") == "":
             out.append(Mark((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, len(m.group(1)), "TEXT"))
+    # 25회차 — 획을 따로 그린 별표 (§9).  가산이고, 위에서 찾은 자리는 건너뛴다.
+    out.extend(star_marks(pc, lay, bubbles, existing=tuple(out)))
+    return out
+
+
+# --------------------------------------------------------------------------
+# 별표를 **획의 관계**로 읽는다 (25회차 · §9)
+# --------------------------------------------------------------------------
+def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
+    """짧은 곧은 잉크 획 중 **중점이 한 점에 모이고 방향이 둘 이상**인 무리.
+
+    돌려주는 것은 `(rect, 획 수, 방향 수)` 의 목록이다.
+
+    왜 이것이 별표인가 — **두 문서가 같은 답을 냈다** (25회차 실측):
+    AL NOUF1 정의줄 별표 34개는 전부 (2획 · 2방향 · 중점 퍼짐 0.0),
+    TC2 본문 별표는 (4획 · 한 점 · 2.8~2.9pt).  `_glyph_clusters` 는 path
+    **하나하나에** "납작하면 버림 · 3~8pt" 를 뭉치기 전에 걸어서, 획을 따로
+    그린 문서(TC2: 대각선 둘 + 세로획 + 가로획이 각각 path)에서는 가로·세로획이
+    먼저 사라지고 남은 대각선 둘은 하한에 못 미쳐 **후보에도 못 들었다.**
+    여기서는 획을 먼저 모으고, 모인 뒤에 무엇인지 본다.
+
+    ★ 숫자를 코드에 새로 적지 않는다 (§9 ②).
+      · `maxlen` 은 부르는 쪽이 **그 장에서** 준다 (버블의 짧은 변 — 별표는
+        버블보다 작다).  0 이면 아무것도 내지 않는다.
+      · 중점이 "한 점" 인지의 허용치는 **획 길이의 비율**(1/4)이다 — 절대 pt 가
+        아니라서 A1·A3 를 같이 넘는다 (§9 ⑥).  실측 퍼짐은 두 문서 다 0.0 이고
+        1/4 은 "다음으로 가까운 다른 획" (TC2 의 나란한 해칭 획 간격이 획 길이와
+        같다) 과의 사이 어디에 두어도 같다.
+    """
+    if not maxlen or maxlen <= 0:
+        return []
+    m = pc.page.rotation_matrix
+    segs = []
+    for d in pc.drawings():
+        if not _is_ink(d) or not _is_stroke_glyph(d):
+            continue
+        b = d["bbox"]
+        if max(b.width, b.height) > maxlen:
+            continue
+        if region is not None and not region.intersects(b):
+            continue
+        for it in d["items"]:
+            if it[0] != "l":
+                continue
+            a, c = it[1] * m, it[2] * m
+            ln = math.hypot(c.x - a.x, c.y - a.y)
+            if ln <= 0 or ln > maxlen:
+                continue
+            segs.append(((a.x + c.x) / 2, (a.y + c.y) / 2, ln,
+                         int(math.degrees(math.atan2(c.y - a.y, c.x - a.x)) % 180 // 15),
+                         a, c))
+    if len(segs) < 2:
+        return []
+    cell = maxlen
+    grid = collections.defaultdict(list)
+    for i, s in enumerate(segs):
+        grid[(int(s[0] // cell), int(s[1] // cell))].append(i)
+    # ★ 별표의 획 끝은 아무 것에도 닿지 않는다.  밸브 나비의 두 대각선도 중심에서
+    # 교차하므로 "중점이 한 점" 만으로는 나비와 별표가 같다 (25회차 접촉 시트 —
+    # 더한 것의 대부분이 나비였다).  가르는 것은 **끝점**이다: 나비의 대각선은
+    # 삼각형 꼭짓점에서 밑변·이웃 변과 만나고, 별표의 획은 허공에서 끝난다.
+    # 닿았는지의 허용치도 획 길이의 비율(1/4)이다.
+    # 인덱스는 쪽 객체가 든다 (`_hist_rows` 와 같은 자리) — `find_marks` 가 장마다
+    # 두 번 불리고 그 안에서 정의줄·본문 둘이 부르므로, 안 그러면 네 번 만든다.
+    cache = getattr(pc, "_ink_index", None)
+    if cache is None or cache[0] != cell:
+        cache = (cell, _ink_index(pc, m, cell))
+        pc._ink_index = cache
+    touch = cache[1]
+    used, out = set(), []
+    for i, s in enumerate(segs):
+        if i in used:
+            continue
+        gx, gy = int(s[0] // cell), int(s[1] // cell)
+        near = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for j in grid.get((gx + dx, gy + dy), ()):
+                    if j in used:
+                        continue
+                    t = segs[j]
+                    tol = 0.25 * min(s[2], t[2])
+                    if math.hypot(t[0] - s[0], t[1] - s[1]) <= tol:
+                        near.append(j)
+        if len(near) < 2 or len({segs[j][3] for j in near}) < 2:
+            continue
+        own = {(round(segs[j][4].x, 2), round(segs[j][4].y, 2),
+                round(segs[j][5].x, 2), round(segs[j][5].y, 2)) for j in near}
+        if any(_touches(touch, segs[j][4], 0.25 * segs[j][2], own, cell)
+               or _touches(touch, segs[j][5], 0.25 * segs[j][2], own, cell)
+               for j in near):
+            continue
+        used.update(near)
+        xs = [p.x for j in near for p in (segs[j][4], segs[j][5])]
+        ys = [p.y for j in near for p in (segs[j][4], segs[j][5])]
+        out.append((pymupdf.Rect(min(xs), min(ys), max(xs), max(ys)),
+                    len(near), len({segs[j][3] for j in near})))
+    return out
+
+
+def _ink_index(pc, m, cell):
+    """그 장의 모든 그림 항목을 선분으로 펴서 격자에 담는다 (칠한 것도 포함 —
+    별표는 칠한 나비에도 안 닿는다).  곡선은 시작·끝을 잇는 현으로 본다."""
+    grid = collections.defaultdict(list)
+    for d in pc.drawings():
+        for it in d["items"]:
+            if it[0] == "l":
+                a, b = it[1] * m, it[2] * m
+            elif it[0] == "c":
+                a, b = it[1] * m, it[4] * m
+            elif it[0] == "qu":
+                q = it[1]
+                a, b = q.ul * m, q.lr * m
+            elif it[0] == "re":
+                r = it[1] * m
+                for a, b in ((r.tl, r.tr), (r.tr, r.br), (r.br, r.bl), (r.bl, r.tl)):
+                    _index_put(grid, a, b, cell)
+                continue
+            else:
+                continue
+            _index_put(grid, a, b, cell)
+    return grid
+
+
+def _index_put(grid, a, b, cell):
+    key = (round(a.x, 2), round(a.y, 2), round(b.x, 2), round(b.y, 2))
+    for gx in range(int(min(a.x, b.x) // cell), int(max(a.x, b.x) // cell) + 1):
+        for gy in range(int(min(a.y, b.y) // cell), int(max(a.y, b.y) // cell) + 1):
+            grid[(gx, gy)].append((a, b, key))
+
+
+def _touches(grid, p, tol, own, cell):
+    """점 `p` 가 자기 무리 밖의 어떤 선분에 `tol` 안으로 닿는가."""
+    gx, gy = int(p.x // cell), int(p.y // cell)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for a, b, key in grid.get((gx + dx, gy + dy), ()):
+                if key in own:
+                    continue
+                vx, vy = b.x - a.x, b.y - a.y
+                L2 = vx * vx + vy * vy
+                if L2 == 0:
+                    d = math.hypot(p.x - a.x, p.y - a.y)
+                else:
+                    t = max(0.0, min(1.0, ((p.x - a.x) * vx + (p.y - a.y) * vy) / L2))
+                    d = math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy))
+                if d <= tol:
+                    return True
+    return False
+
+
+def definition_star(pc, lay: Layout = LAYOUT, maxlen: float = 0.0):
+    """그 장 NOTES 정의줄이 별표를 **획으로** 그렸으면 그 (획 수, 크기) — 없으면 None.
+
+    §9 ① — 도면이 "별표란 이렇게 생긴 것" 을 스스로 말하는 자리다.  AL NOUF1 은
+    18장이 (2획 · 4.0×4.0) 으로 그리고, TC2 는 9장 전부 텍스트 `*`/`(*)` 라 None
+    이다 (그러면 본문 실물 ④ 로 간다 — 억지로 읽지 않는다).
+    """
+    lines = _notes_lines(pc, lay)
+    if not lines:
+        return None
+    notes = pymupdf.Rect(*lay.notes_area)
+    for r, n, _d in star_groups(pc, lay, maxlen, region=notes):
+        cy = (r.y0 + r.y1) / 2
+        for ln in lines:
+            if ln["y"] - 4 <= cy <= ln["y1"] + 4 and r.x1 <= ln["x0"] + 1:
+                return n, (round(r.width, 1), round(r.height, 1))
+    return None
+
+
+def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
+    """본문 별표 — 획의 관계로 찾고, 크기는 **그 장에서** 배운다 (18회차 규칙 그대로).
+
+    ① 상한은 그 장 버블의 짧은 변 (별표는 버블보다 작다 — 도면이 말하는 값).
+    ② 버블 마크 창에 **두 번 이상** 나온 크기만 인정한다 (`drawn_mark_sizes` 와
+       같은 근거 — 한 번뿐인 것은 얼룩일 수 있다).  정의줄이 획으로 그렸으면
+       획 수도 맞아야 한다.
+    ③ **가산이다** — 이미 찾은 마크(`existing`)가 있는 자리는 건너뛴다.  그래서
+       `_glyph_clusters` 가 잘 읽는 문서(AL NOUF1)에서는 아무것도 달라지지 않는다.
+    """
+    if bubbles is None:
+        bubbles = find_bubbles(pc, lay)
+    if not bubbles:
+        return []
+    short = sorted(min(b.width, b.height) for b in bubbles)
+    maxlen = short[len(short) // 2]
+    groups = [g for g in star_groups(pc, lay, maxlen)
+              if g[0].x1 <= lay.drawing_area[2]]
+    if not groups:
+        return []
+    defn = definition_star(pc, lay, maxlen)
+    if defn:
+        groups = [g for g in groups if g[1] == defn[0]]
+    seen = collections.Counter()
+    for r, _n, _d in groups:
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        if any(in_mark_window(b, cx, cy, lay) for b in bubbles):
+            seen[(round(r.width, 1), round(r.height, 1))] += 1
+    learned = {k for k, n in seen.items() if n >= 2}
+    if not learned:
+        return []
+    out = []
+    for r, _n, _d in groups:
+        if (round(r.width, 1), round(r.height, 1)) not in learned:
+            continue
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        span = max(r.width, r.height)
+        if any(abs(k.x - cx) <= span and abs(k.y - cy) <= span for k in existing):
+            continue
+        out.append(Mark(cx, cy, 1, "GLYPH"))
     return out
 
 

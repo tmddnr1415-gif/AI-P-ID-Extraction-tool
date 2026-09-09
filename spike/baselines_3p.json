@@ -1,5 +1,5 @@
 {
-  "_": "24회차 기준선.  이력 표 다섯 칸이 유도로 바뀌면서 축3 이 셋 다 올랐다 — TC2 64.8 → 82.0 (개정 0/60 → 60/60 이 +16.7 · 파라미터 5칸이 +0.5) · AL NOUF1 94.8 → 95.0 · SADARA 74.8 → 75.3 (둘 다 파라미터 몫). 행 · 지문 · Q'ty · 축1 · 축2 는 셋 다 불변이다.",
+  "_": "25회차 기준선.  별표를 획의 관계로 읽으면서 TC2 지문이 c46b10fa → a94bb2ad 로 움직였다 (SCOPE 는 지문 대상 · 행 607 · Q'ty 345 · 축3 82.0 불변).  AL NOUF1 fb85b039·1037·1931·95.0 과 SADARA 0767ba79·82·75.3 은 불변이다.  ⚠ 잉크 인덱스 비용: AL NOUF1 649초·7.8GB · TC2 608초·8.9GB.",
   "AL NOUF1": {
     "rows": 1037,
     "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
@@ -28,7 +28,7 @@
   },
   "TC2": {
     "rows": 607,
-    "fingerprint": "c46b10fae42f288e14c02c06c69f3fc87f96d88e93785af87fa9e899bbfc037d",
+    "fingerprint": "a94bb2ad70c0bc919826fed565eebc99f50ede341cdcfaa61b4d049fd7d25489",
     "qty_sum": 345,
     "score": 82.0
   }

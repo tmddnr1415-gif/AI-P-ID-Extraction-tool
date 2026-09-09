@@ -65,3 +65,4 @@ out/round24/verify/verify_rows.json
 out/round24/verify/server.log
 out/round24/verify/synthetic_hist.pdf
 out/round24/3_FILES_TO_OVERWRITE.zip
+out/round25/7_캡처/*.png
