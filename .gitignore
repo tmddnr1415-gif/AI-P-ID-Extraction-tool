@@ -73,3 +73,6 @@ out/round25/verify/deliverables.zip
 out/round25/verify/verify_rows.json
 out/round25/verify/server.log
 out/round25/verify/synthetic_hist.pdf
+out/round25/ui.db
+out/round25/*.done
+out/round25/*.rc
