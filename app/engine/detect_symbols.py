@@ -761,11 +761,14 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
     # 닿았는지의 허용치도 획 길이의 비율(1/4)이다.
     # 인덱스는 쪽 객체가 든다 (`_hist_rows` 와 같은 자리) — `find_marks` 가 장마다
     # 두 번 불리고 그 안에서 정의줄·본문 둘이 부르므로, 안 그러면 네 번 만든다.
-    cache = getattr(pc, "_ink_index", None)
-    if cache is None or cache[0] != cell:
-        cache = (cell, _ink_index(pc, m, cell))
-        pc._ink_index = cache
-    touch = cache[1]
+    #
+    # ★ 26회차 — **격자 칸이 달라도 다시 만들지 않는다.**  25회차는 캐시 키에
+    # `cell`(=`maxlen`)을 넣었는데, 정의줄(줄 높이 4.2)과 본문(버블 짧은 변 11.4)
+    # 은 상한이 다르므로 장마다 인덱스를 **두 번** 만들고 있었다 (AL NOUF1 최대
+    # RSS 7.85 → 9.4GB).  격자는 이웃을 좁히는 자리일 뿐이고 거리 판정은 정확하므로,
+    # 칸이 허용치보다 작으면 `_touches` 가 그만큼 **더 넓게 훑으면 된다** — 결과는
+    # 같고 만드는 횟수만 준다.
+    icell, touch = _ink_cache(pc, m, cell)
     used, out = set(), []
     for i, s in enumerate(segs):
         if i in used:
@@ -785,8 +788,8 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
             continue
         own = {(round(segs[j][4].x, 2), round(segs[j][4].y, 2),
                 round(segs[j][5].x, 2), round(segs[j][5].y, 2)) for j in near}
-        if any(_touches(touch, segs[j][4], 0.25 * segs[j][2], own, cell)
-               or _touches(touch, segs[j][5], 0.25 * segs[j][2], own, cell)
+        if any(_touches(touch, segs[j][4], 0.25 * segs[j][2], own, icell)
+               or _touches(touch, segs[j][5], 0.25 * segs[j][2], own, icell)
                for j in near):
             continue
         used.update(near)
@@ -795,6 +798,27 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
         out.append((pymupdf.Rect(min(xs), min(ys), max(xs), max(ys)),
                     len(near), len({segs[j][3] for j in near})))
     return out
+
+
+# 인덱스를 든 **직전 장**.  값을 나르는 자리가 아니라 **놓는 자리**다 — 다음 장이
+# 인덱스를 만들 때 앞 장의 것을 떨군다.  25회차는 장마다 인덱스를 만들어 쪽 객체에
+# 그대로 두었고, 60장이면 60개가 살아 있어 최대 RSS 가 +3GB 였다 (TC2 11.0GB).
+# 실제로 쓰는 것은 **지금 보는 한 장**뿐이다.  문서 사이로 새는 값이 아니므로
+# 22회차의 격리 규칙에 걸리지 않는다 (`global` 문도 쓰지 않는다).
+_INK_LAST = []
+
+
+def _ink_cache(pc, m, cell):
+    """그 장의 잉크 인덱스 — 장마다 한 번 만들고, 다음 장이 만들 때 놓는다."""
+    cache = getattr(pc, "_ink_index", None)
+    if cache is None:
+        for prev in _INK_LAST:
+            if prev is not pc:
+                prev._ink_index = None
+        _INK_LAST[:] = [pc]
+        cache = (cell, _ink_index(pc, m, cell))
+        pc._ink_index = cache
+    return cache
 
 
 def _ink_index(pc, m, cell):
@@ -829,10 +853,16 @@ def _index_put(grid, a, b, cell):
 
 
 def _touches(grid, p, tol, own, cell):
-    """점 `p` 가 자기 무리 밖의 어떤 선분에 `tol` 안으로 닿는가."""
+    """점 `p` 가 자기 무리 밖의 어떤 선분에 `tol` 안으로 닿는가.
+
+    훑는 이웃 칸 수는 **허용치와 격자 칸에서 나온다** — 격자를 어느 칸으로
+    만들었든 `tol` 반경을 덮는다 (26회차: 인덱스를 한 번만 만들기 위해서다).
+    """
     gx, gy = int(p.x // cell), int(p.y // cell)
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
+    rings = int(tol // cell) + 1
+    span = range(-rings, rings + 1)
+    for dx in span:
+        for dy in span:
             for a, b, key in grid.get((gx + dx, gy + dy), ()):
                 if key in own:
                     continue

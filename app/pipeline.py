@@ -2776,6 +2776,14 @@ def _scope_of(d) -> str:
     if hits & set(da.VENDOR_RULES) or "VENDOR_MARK_UNDEFINED" in hits:
         mark = (getattr(d, "evidence", {}) or {}).get("vendor_mark") or {}
         name = _supplier_name(mark.get("meaning") or "")
+        # 26회차 — **표시가 가리키는 공급자가 우리면 우리 공급이다.**
+        # TC2 p12 의 NOTES 는 그 표시를 `BY SCT` 라고 정의한다.  그것을
+        # `VENDOR(SCT)` 로 적으면 "타사 공급 = 우리" 라는 모순이 되고, 발주처
+        # 양식에서도 빠진다.  별표는 "누가 공급하는가" 를 가리키는 것이지
+        # "타사" 를 뜻하는 것이 아니다 — 도면이 이름을 적었으면 그 이름을 읽는다.
+        # 실측: TC2 2행(p12).  AL NOUF1 · SADARA 에는 이 이름이 0행이다.
+        if name and name.upper() == COL_SCT:
+            return COL_SCT
         return f"{COL_VENDOR}({name})" if name else COL_VENDOR
     return COL_SCT
 
