@@ -249,9 +249,28 @@ def test_the_recall_check_catches_the_definition_line_gate(monkeypatch):
 
 
 def _tc2_page6_marks():
+    """★ config 를 **되돌린다** (22회차).
+
+    이 시험은 TC2 의 좌표를 전역 `CFG` 에 얹는데, 되돌리지 않으면 같은
+    프로세스에서 뒤에 도는 AL NOUF1 시험이 **남의 좌표로** 돈다.  실제로
+    26회차 slow 스위트에서 벤더 마크 감사 두 건이 그렇게 깨졌다 — 제품이
+    아니라 이 시험의 결함이었다 (`analyse` 는 `finally` 로 되돌린다).
+    """
+    import copy
+
     sys.path.insert(0, str(ROOT))
     import derive_layout as dl
     from app import pipeline
+    snapshot = copy.deepcopy(pipeline.CFG.data)
+    try:
+        return _tc2_page6_marks_inner(dl, pipeline)
+    finally:
+        if pipeline.CFG.data != snapshot:
+            pipeline.CFG.data = snapshot
+            pipeline._rebind_config()
+
+
+def _tc2_page6_marks_inner(dl, pipeline):
     _doc, pages = pidcache.load_pages(TC2)
     pipeline.CFG.overlay(dl.derive(pages, pipeline.CFG).values())
     pipeline._rebind_config()
