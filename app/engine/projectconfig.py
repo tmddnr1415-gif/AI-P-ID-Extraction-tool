@@ -181,6 +181,11 @@ def load_standard(path: str | Path = "config/plant_standard_abbr.yaml") -> dict:
 # Unit multiplier, derived from the legend
 # --------------------------------------------------------------------------
 HEADING = ("UNIT", "IDENTIFICATION", "NUMBERS")
+
+# 승수표가 **이 도면에서** 나왔는가 아닌가.  이름이 한 곳에 있어야 파이프라인이
+# "이 값은 남의 도면에서 왔다" 를 문자열 비교로 묻지 않는다 (26회차).
+SOURCE_LEGEND = "LEGEND"
+SOURCE_CONFIG = "CONFIG_FALLBACK"
 _CODE_RE = re.compile(r"^\d{1,2}$")
 
 # How a row's label maps to a replication scope.  These three phrasings are the
@@ -271,12 +276,12 @@ def derive_unit_multipliers(pages, cfg: ProjectConfig, legend_kinds=("LEGEND",),
             counts[sc] = counts.get(sc, 0) + 1
         table = {code: counts[sc] for code, sc in scopes.items()}
         return UnitMultipliers(
-            "LEGEND", table, scopes, labels,
+            SOURCE_LEGEND, table, scopes, labels,
             note=(f"legend p{pc.page_no}: "
                   + ", ".join(f"{sc}x{n}" for sc, n in sorted(counts.items()))))
 
     fallback = cfg.data.get("unit_multiplier_fallback") or {}
     return UnitMultipliers(
-        "CONFIG_FALLBACK", {str(k): int(v) for k, v in fallback.items()}, {}, {},
+        SOURCE_CONFIG, {str(k): int(v) for k, v in fallback.items()}, {}, {},
         note="legend UNIT IDENTIFICATION NUMBERS table not found; "
              "using unit_multiplier_fallback from the project config")

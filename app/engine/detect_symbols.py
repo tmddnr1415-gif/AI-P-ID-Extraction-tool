@@ -567,6 +567,9 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
     lines = _notes_lines(pc, lay)
     clusters = [c for c in _glyph_clusters(pc, lay)
                 if lay.notes_area[0] <= c.x0 <= lay.notes_text_x_max]
+    # 26회차 — 정의줄의 별표를 **획으로** 그린 문서 (TC2 `* By SE`).  덩어리도
+    # 텍스트도 아닐 때만 본다 — 가산이고, 앞의 두 갈래를 바꾸지 않는다.
+    ink_stars = definition_stars(pc, lay, lines)
 
     entries = []            # (line_index, stars, text_after_mark, glyph_size)
     for i, ln in enumerate(lines):
@@ -588,6 +591,12 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
                     tail = w[m.end():]
                     rest = " ".join(([tail] if tail else []) + ln["words"][j + 1:])
                     break
+            if not stars and i in ink_stars:
+                # 획으로 그린 별표는 **뜻만** 준다.  `size` 를 주지 않는 것이
+                # 중요하다 — 그 크기는 정의줄의 것이고 본문의 것이 아니다
+                # (TC2 정의줄 1.8pt ↔ 본문 2.9pt).  `find_marks` 가 그 크기로
+                # 덩어리를 찾게 두면 그 장이 안 그리는 크기를 받아들이게 된다.
+                stars, rest = ink_stars[i], ln["text"]
         if stars:
             entries.append({"line": i, "stars": stars, "text": rest, "size": size})
 
@@ -839,23 +848,38 @@ def _touches(grid, p, tol, own, cell):
     return False
 
 
-def definition_star(pc, lay: Layout = LAYOUT, maxlen: float = 0.0):
-    """그 장 NOTES 정의줄이 별표를 **획으로** 그렸으면 그 (획 수, 크기) — 없으면 None.
+def definition_stars(pc, lay: Layout = LAYOUT, lines=None):
+    """NOTES 정의줄이 별표를 **획으로** 그린 자리 → `{줄 번호: 별 개수}`.
 
-    §9 ① — 도면이 "별표란 이렇게 생긴 것" 을 스스로 말하는 자리다.  AL NOUF1 은
-    18장이 (2획 · 4.0×4.0) 으로 그리고, TC2 는 9장 전부 텍스트 `*`/`(*)` 라 None
-    이다 (그러면 본문 실물 ④ 로 간다 — 억지로 읽지 않는다).
+    §9 ① — 도면이 *"이 표시는 이런 뜻"* 이라고 스스로 말하는 자리다.  25회차는
+    본문 별표만 획으로 읽게 고치고 **이 자리를 그대로 두었다**.  그 결과 TC2 는
+    정의줄의 `* By SE` 가 안 보여 사전이 비었고(`read_mark_dictionary` → `{}`),
+    별표를 찾아도 이름 없는 `VENDOR` 가 됐다 (26회차 · `out/round25_tc2_scope_defect.md`).
+
+    상한은 **그 줄들의 글자 높이**다 — 정의줄의 별표는 그 줄에 인쇄된 한 글자이지
+    그보다 크지 않다.  코드에 pt 를 적지 않는다 (실측: TC2 줄 높이 중앙값 4.20pt
+    에서 정의줄 별표 1.8×1.7 하나가 잡힌다).
+
+    별 개수는 **그 줄 왼쪽에 선 뭉치의 수**다 — `*` 하나면 1, `**` 면 2.  글리프
+    한 덩어리로 그린 문서(AL NOUF1)에서 세는 방법과 같다.
     """
-    lines = _notes_lines(pc, lay)
+    if lines is None:
+        lines = _notes_lines(pc, lay)
     if not lines:
-        return None
+        return {}
+    heights = sorted(ln["y1"] - ln["y"] for ln in lines)
+    maxlen = heights[len(heights) // 2]
+    if maxlen <= 0:
+        return {}
     notes = pymupdf.Rect(*lay.notes_area)
-    for r, n, _d in star_groups(pc, lay, maxlen, region=notes):
+    out = collections.Counter()
+    for r, _n, _d in star_groups(pc, lay, maxlen, region=notes):
         cy = (r.y0 + r.y1) / 2
-        for ln in lines:
+        for i, ln in enumerate(lines):
             if ln["y"] - 4 <= cy <= ln["y1"] + 4 and r.x1 <= ln["x0"] + 1:
-                return n, (round(r.width, 1), round(r.height, 1))
-    return None
+                out[i] += 1
+                break
+    return dict(out)
 
 
 def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
@@ -863,10 +887,24 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
 
     ① 상한은 그 장 버블의 짧은 변 (별표는 버블보다 작다 — 도면이 말하는 값).
     ② 버블 마크 창에 **두 번 이상** 나온 크기만 인정한다 (`drawn_mark_sizes` 와
-       같은 근거 — 한 번뿐인 것은 얼룩일 수 있다).  정의줄이 획으로 그렸으면
-       획 수도 맞아야 한다.
+       같은 근거 — 한 번뿐인 것은 얼룩일 수 있다).
     ③ **가산이다** — 이미 찾은 마크(`existing`)가 있는 자리는 건너뛴다.  그래서
        `_glyph_clusters` 가 잘 읽는 문서(AL NOUF1)에서는 아무것도 달라지지 않는다.
+
+    ★ 26회차 — **정의줄의 획 수로 본문을 거르지 않는다.**  25회차는 "정의줄이
+    획으로 그렸으면 획 수도 맞아야 한다" 를 조건으로 두었는데, 두 문서 실측이
+    그것을 뒤집는다: **같은 문서가 같은 기호를 두 가지로 그린다.**
+
+        TC2       정의줄 2획 1.8×1.7pt  ↔  본문 4획 2.9×2.9pt
+        AL NOUF1  정의줄 2획 4.0×4.0pt  ↔  본문 4획
+
+    그 조건이 버린 것은 TC2 **174개 / 254개(68.5%)** 이고, 하필 **정의줄이 있는
+    장** — 즉 별표의 뜻을 아는 장 — 에서만 버렸다 (`out/round25_tc2_scope_defect.md`).
+    AL NOUF1 이 멀쩡했던 것은 조건이 옳아서가 아니라 그 문서는 별표를 한 path 에
+    그려 옛 경로가 이미 잡고 ③의 중복 제거에 걸렸기 때문이다.
+
+    **정의줄은 별표의 뜻을 정하지 모양·획 수·크기를 정하지 않는다** — 18회차의
+    *범례는 뜻을 정하지 축척을 정하지 않는다* 와 같은 문장이다.
     """
     if bubbles is None:
         bubbles = find_bubbles(pc, lay)
@@ -878,9 +916,6 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
               if g[0].x1 <= lay.drawing_area[2]]
     if not groups:
         return []
-    defn = definition_star(pc, lay, maxlen)
-    if defn:
-        groups = [g for g in groups if g[1] == defn[0]]
     seen = collections.Counter()
     for r, _n, _d in groups:
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2

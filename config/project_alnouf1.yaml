@@ -903,6 +903,7 @@ review_axes:
     # --- quantity: how many are ordered
     MULTI_SIGNAL_BUNDLE: QUANTITY         # 맞닿은 신호 버블의 물리 수량
     MULTIPLIER_UNDEFINED: QUANTITY        # unit code 에 승수가 없음
+    MULTIPLIER_FROM_CONFIG: QUANTITY      # 승수가 이 도면이 아니라 설정에서 왔음 (26회차)
     # --- description: wording to finish
     DESCRIPTION_INCOMPLETE: DESCRIPTION
     DESC_BETWEEN_SYMBOL: DESCRIPTION

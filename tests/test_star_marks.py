@@ -74,3 +74,55 @@ def test_no_absolute_size_in_the_star_rule():
     assert "if not maxlen or maxlen <= 0" in src   # 상한이 없으면 아무것도 안 낸다
     src2 = inspect.getsource(ds.star_marks)
     assert "min(b.width, b.height)" in src2        # 상한 = 그 장 버블의 짧은 변
+
+
+# --------------------------------------------------------------------------
+# 26회차 — 정의줄과 본문이 **다르게 그린** 문서 (TC2 실측 모양)
+# --------------------------------------------------------------------------
+def _sheet_like_tc2(tmp_path):
+    """정의줄은 2획 별표 + `By SE`, 본문은 4획 별표 두 개가 버블 위에.
+
+    실측 그대로다 — TC2 는 정의줄을 (2획 1.8×1.7pt), 본문을 (4획 2.9×2.9pt) 로
+    그린다.  25회차는 "정의줄 획 수와 같아야 한다" 를 조건으로 두어 **본문
+    별표를 전부 버렸다** (254개 중 174개 · `out/round25_tc2_scope_defect.md`).
+    """
+    doc = pymupdf.open()
+    page = doc.new_page(width=2384, height=1684)      # 기본 Layout 의 종이
+    page.insert_text(pymupdf.Point(2000, 104), "By SE", fontsize=8)
+    _star(page, 1990, 100, 0.9)                        # 정의줄 별표 — 2획이 되게
+    page.draw_line(pymupdf.Point(1989.1, 100), pymupdf.Point(1990.9, 100), width=0.3)
+    for cx in (300, 500):
+        _star(page, cx, 300, 1.4)                      # 본문 별표 — 4획
+    path = tmp_path / "tc2like.pdf"
+    doc.save(path)
+    doc.close()
+    _d, pages = pidcache.load_pages(path)
+    return pages[0]
+
+
+def _bubbles_under(cxs, cy):
+    return [pymupdf.Rect(cx - 17, cy + 6, cx + 17, cy + 17.4) for cx in cxs]
+
+
+def test_the_body_star_survives_a_definition_line_drawn_differently(tmp_path):
+    """★ 26회차 회귀 — 정의줄의 획 수로 본문을 거르지 않는다."""
+    pc = _sheet_like_tc2(tmp_path)
+    marks = ds.star_marks(pc, ds.LAYOUT, bubbles=_bubbles_under((300, 500), 300))
+    assert len(marks) == 2
+
+
+def test_a_definition_star_drawn_with_strokes_is_read_into_the_dictionary(tmp_path):
+    """★ 26회차 — `* By SE` 를 획으로 그려도 뜻을 읽는다 (사전이 비면 이름이 없다)."""
+    pc = _sheet_like_tc2(tmp_path)
+    dictionary, glyph_size = ds.read_mark_dictionary(pc, ds.LAYOUT)
+    assert dictionary == {1: "By SE"}
+    # 획으로 그린 정의줄은 **뜻만** 준다 — 그 크기는 본문의 크기가 아니다.
+    assert glyph_size is None
+
+
+def test_the_supplier_name_is_read_whatever_the_case(tmp_path):
+    """도면이 `By SE` 라고 소문자로 적어도 이름은 `SE` 다 (자리 규칙은 그대로)."""
+    sys.path.insert(0, str(ROOT))
+    from app import pipeline
+    assert pipeline._supplier_name("By SE") == "SE"
+    assert pipeline._supplier_name("DENOTES EQUIPMENT WILL BE SUPPLIED BY HRSG.") == "HRSG"

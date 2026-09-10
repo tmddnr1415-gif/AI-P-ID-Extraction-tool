@@ -1237,6 +1237,24 @@ def _description_skip(d) -> str:
 #     drawings that carry the stacks, so it never ruled on them either.
 #
 # So the group is measured, shown and flagged, and the quantity is left alone.
+# 26회차 — 승수표가 **이 도면에서 나오지 않았을 때** 하는 말.
+#
+# `derive_unit_multipliers` 는 그 문서의 범례에서 UNIT IDENTIFICATION NUMBERS 표를
+# 찾지 못하면 프로젝트 config 의 `unit_multiplier_fallback` 으로 떨어진다.  그런데
+# 프로필이 정해지지 않은 문서는 **AL NOUF1 config** 로 도는 것이 기본이라(14회차 [8]),
+# 그 폴백은 곧 *남의 도면에서 잰 값*이 된다.
+#
+# 실측(TC2 60장): 이 문서에는 그 표가 **한 장에도 없다**.  그래서 유닛코드 `31` 은
+# UNDEFINED 로 시끄럽게 비었지만(262행), `00` 은 AL NOUF1 표의 `00: 1` 에 걸려
+# **345행이 조용히 Q'ty 1** 을 받고 있었다.  숫자가 맞을 수도 있지만 그 근거는 이
+# 도면에 없다 — §9 ④ "못 읽으면 조용히 진행하지 않는다".
+#
+# 값을 버리지 않고 **어디서 왔는지 말한다**: 버리면 쓸 수 있었을 수를 잃고,
+# 말하지 않으면 남의 도면 값을 이 도면의 값으로 읽게 된다.
+_BORROWED_MULTIPLIER = (
+    "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "
+    "왔습니다 (이 PDF 에 UNIT IDENTIFICATION NUMBERS 표가 없습니다) — 확인 필요")
+
 MULTI_SIGNAL_REASON = "다중 신호 버블 — 물리 수량 확인 필요"
 
 # Whether a group folds to one row.  **On**: the user answered the question in
@@ -2452,6 +2470,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
     unit = meta["unit_code"]
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
+    borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
     marked = bool(annotations)
     for d in dets:
         type_ = da.excel_type_under(d, ds.RULESET_V3)
@@ -2481,6 +2500,9 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
+        elif borrowed:
+            codes.append("MULTIPLIER_FROM_CONFIG")
+            reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
         if "VENDOR_MARK_UNDEFINED" in (getattr(d, "rules_hit", []) or []):
             codes.append("VENDOR_MARK_UNDEFINED")
             reasons.append("a vendor mark is drawn on this symbol but this "
@@ -2724,9 +2746,12 @@ def _vendor_of(d) -> str:
 # 공급자 이름을 그 장 NOTES 원문에서 떼는 자리 규칙 (10회차, config).
 # 이름 자체(HRSG · ST SUPPLIER)는 코드에도 config 에도 없다 — 프로젝트마다
 # 다르기 때문이고, 값은 페이지 NOTES 에서 런타임에 읽는다.
+# 26회차 — 대소문자는 값이 아니라 **활자**다.  TC2 는 같은 자리에 `* By SE` 라고
+# 소문자로 인쇄하고(AL NOUF1 은 전부 대문자), 그 차이로 이름을 못 읽으면 도면이
+# 적어 둔 이름을 버리는 것이 된다.  자리 규칙은 그대로이고 활자만 무시한다.
 _SUPPLIER_RE = re.compile(
     str((CFG.data.get("scope") or {}).get("supplier_from_notes")
-        or r"\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$"))
+        or r"\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$"), re.IGNORECASE)
 
 
 def _supplier_name(meaning: str) -> str:
@@ -2852,6 +2877,7 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
     unit = meta["unit_code"]
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
+    borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
     for b in res["bodies"]:
         cls = dv.deliverable_class(b)
         unread = b.actuator == "UNREAD"
@@ -2898,6 +2924,9 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
+        elif borrowed:
+            codes.append("MULTIPLIER_FROM_CONFIG")
+            reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
         out.append(Row(
             key=_key(meta["drawing_no"], page_no, "V", b.kind,
                      *[round(v, 1) for v in rect]),

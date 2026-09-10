@@ -8,7 +8,6 @@
 
     ① star_groups            획의 관계로 알아본 뭉치
     ② 그중 버블 마크 창 안    자리까지 맞는 것 (= 그 장이 별표를 찍은 자리)
-    ③ 정의줄 획 수 통과       definition_star 의 획 수와 같은 것만 남긴다
     ④ 크기 두 번 이상         그 장에서 배운 크기
     ⑤ star_marks 결과         실제로 더해지는 마크
     ⑥ find_marks 전체         기존 경로까지 합친 것
@@ -54,8 +53,10 @@ def main() -> int:
         inwin = [g for g in groups
                  if any(ds.in_mark_window(b, (g[0].x0 + g[0].x1) / 2,
                                           (g[0].y0 + g[0].y1) / 2, L) for b in bubbles)]
-        defn = ds.definition_star(pc, L, maxlen)
-        after_n = [g for g in inwin if not defn or g[1] == defn[0]]
+        # 26회차 — 정의줄 획수 게이트는 없어졌다.  자리를 남겨 두어 옛 로그와
+        # 열이 맞게 한다 (③ = ② 가 된다).
+        defn = None
+        after_n = list(inwin)
         seen = collections.Counter((round(g[0].width, 1), round(g[0].height, 1))
                                    for g in after_n)
         learned = {k for k, n in seen.items() if n >= 2}
