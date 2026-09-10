@@ -1,6 +1,15 @@
-# 회사 PC 꾸러미 r26 — 파일 목록 (기준 aac64ba..HEAD · 소스만)
-# [A] 새로 53 · [M] 덮어쓰기 22 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
+﻿회사 PC 업데이트 꾸러미 r26 — 파일 목록
+==============================================================================
 
+기준: 회사 PC 현재 커밋 aac64ba  ->  이번 꾸러미 (26회차)
+10 ~ 26 회차 누적입니다. r25 를 넣으셨어도 이것으로 덮어쓰면 됩니다.
+
+[A] 새로 생기는 파일 53개   [M] 덮어쓸 파일 22개
+[D] 수동 삭제할 파일 0개   [R] 이름이 바뀐 파일 0개
+
+app\_data\ (app.db · uploads) 는 들어 있지 않습니다.
+
+── [M] 덮어쓸 파일 ──
 [M] CLAUDE.md
 [M] README.md
 [M] app/db.py
@@ -23,6 +32,8 @@
 [M] tests/test_describe_axis.py
 [M] tests/test_determinism.py
 [M] tests/test_ui_edits.py
+
+── [A] 새로 생기는 파일 ──
 [A] app/global_symbols.py
 [A] app/legend_profile.py
 [A] conftest.py

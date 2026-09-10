@@ -76,3 +76,12 @@ out/round25/verify/synthetic_hist.pdf
 out/round25/ui.db
 out/round25/*.done
 out/round25/*.rc
+out/round26/3_FILES_TO_OVERWRITE.zip
+out/round26/verify/*.png
+out/round26/verify/db_backup/
+out/round26/verify/deliverables.zip
+out/round26/verify/verify_rows.json
+out/round26/verify/server.log
+out/round26/verify/synthetic_hist.pdf
+out/round26/*.done
+out/round26/*.rc

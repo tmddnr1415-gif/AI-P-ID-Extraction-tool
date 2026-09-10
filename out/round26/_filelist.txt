@@ -54,6 +54,7 @@ A spike/mark_probe.py
 A spike/mark_shape.py
 A spike/pack_handover_r24.py
 A spike/pack_handover_r25.py
+A spike/pack_handover_r26.py
 A spike/pack_round23.py
 A spike/projects_3p.json
 A spike/regression_3p.py
@@ -61,6 +62,7 @@ A spike/star_gate_probe.py
 A spike/star_recall.py
 A spike/verify_r24.py
 A spike/verify_r25.py
+A spike/verify_r26.py
 A tests/test_config_isolation.py
 A tests/test_data_isolation.py
 A tests/test_failure_stage.py
