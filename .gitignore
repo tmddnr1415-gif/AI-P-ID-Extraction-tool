@@ -85,3 +85,5 @@ out/round26/verify/server.log
 out/round26/verify/synthetic_hist.pdf
 out/round26/*.done
 out/round26/*.rc
+out/round26/tc2_p9/*.png
+out/round26/tc2_p9/server.log
