@@ -16,6 +16,6 @@ UAD      149 · db1a77d1 · Q'ty 149 · 축3 83.0 · MULTIPLIER_FROM_CONFIG 149
 | [B] 지정 경로 | **완료** — `app/unit_multipliers.py` · `_note_factor(user=)` · API 셋 · 검토 화면 패널 |
 | [B-4] 게이트 | **완료** — 4단계 전부 통과 (`gate_*.json`).  ★ AL NOUF1 에 전 유닛 `x9` 를 넣고도 움직인 칸 0 |
 | [C] 경보 접미 | **완료(측정만)** — AL NOUF1 위험 2건이 **사람이 쓴 검토 메모**였다 (`5_alarm_suffix.md`) |
-| [D] 회귀 | **완료** — 네 프로젝트 전부 기준선과 같음 (`9_전수대조.txt`) · 빠른 시험 **266** · 실 DB sha256 불변 |
+| [D] 회귀 | **완료** — 네 프로젝트 전부 기준선과 같음 (`9_전수대조.txt`) · 빠른 시험 **266** · **UI 24** · 실 DB sha256 불변 |
 | [E] 출력 | **완료** — `out/round31_result.zip` · `docs/program_overview.md` 신규 · `docs/state_and_roadmap.md` 갱신 |
 | [F] UI 자기검증 | **완료** — 띄워서 눌러 결함 **넷** (`out/round31/8_UI검증/README.md`) · 시험 4건 추가 |
