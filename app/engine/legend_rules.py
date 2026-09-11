@@ -45,6 +45,7 @@ from pathlib import Path
 import pymupdf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pidcache  # noqa: E402
 import projectconfig  # noqa: E402
 
 
@@ -80,19 +81,29 @@ class Derived:
 
 
 def _page_with(pages, heading: str):
-    """The legend sheet carrying a heading, by its printed words."""
+    """The legend sheet carrying a heading, by its printed words.
+
+    ⚠ 한 조각이 여러 낱말을 담을 수 있다 (28회차) — 획 글꼴로 그린 범례는
+    `VALVES ACTUATORS` 를 주석 하나로 싣는다.  `pidcache.tokens` 가 조각 안을
+    낱말로 읽는다 (자리는 조각의 것).
+    """
     want = heading.split()
     for pc in pages:
         if not pc.analysis_scope:
             continue
-        words = [t for _, t in pc.words]
+        words = [t for _, t in pidcache.tokens(pc.words)]
         if all(w in words for w in want):
             return pc
     return None
 
 
 def _label(pc, text: str):
+    """그 라벨이 인쇄된 자리.  조각이 여러 낱말이면 **조각의 사각형**을 준다 —
+    그 안 어디인지는 도면이 말하지 않고, 심볼은 라벨 조각의 왼쪽에 그려진다."""
     for r, t in pc.words:
+        if t == text:
+            return r
+    for r, t in pidcache.tokens(pc.words):
         if t == text:
             return r
     return None

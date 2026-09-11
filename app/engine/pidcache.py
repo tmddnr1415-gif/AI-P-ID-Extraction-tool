@@ -224,6 +224,27 @@ def _shx_words(entries) -> list:
     return list(entries)
 
 
+def tokens(words):
+    """낱말 조각을 **낱말 단위로** 읽는다 — 자리는 그 조각의 사각형 그대로.
+
+    획(SHX) 글꼴 주석은 `VALVES ACTUATORS` 처럼 여러 낱말을 한 조각에 담는다.
+    쪼개서 자리를 나누면 그 자리는 지어낸 값이 되고(§2.1 ③), 한 줄인지 접힌
+    덩어리인지 가를 빈 띠도 이 문서들에 없다 — 짧은 변으로 갈라도 한 줄짜리
+    `1A5J-…-0002 (C-2)`(두 줄 15pt)와 한 낱말(최대 14pt)이 겹친다.
+
+    그래서 **자리는 조각의 것을 그대로 쓰고 글자만 낱말로 읽는다.**  이름으로
+    무언가를 찾는 쪽(범례 머리말 · 행 라벨)이 쓰는 함수이고, 자리를 재는 쪽은
+    조각 사각형이 곧 그 낱말이 인쇄된 자리의 상한이라는 것을 알고 쓴다.
+    """
+    for r, t in words:
+        parts = t.split()
+        if len(parts) == 1:
+            yield r, t
+            continue
+        for part in parts:
+            yield r, part
+
+
 def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]:
     """Open the PDF and build a rotation-normalised, scope-tagged page cache."""
     doc = pymupdf.open(pdf_path)
