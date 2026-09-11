@@ -1277,6 +1277,90 @@ function renderReviewPanel() {
     };
   });
   renderReviewCodes();
+  loadMultipliers();
+}
+
+/* ---------------------------------------------------------------------------
+ * 유닛 승수 — 도면이 말하지 않을 때 **사람이 한 번 답하는 자리** (31회차)
+ *
+ * 행마다 묻지 않는다.  SADARA 는 유닛 `10` 하나에 82행이고, 82번 묻는 화면은
+ * 자리를 만든 것이 아니라 일을 만든 것이다.  그래서 **유닛코드로 묶고**
+ * 누르기 전에 적용 범위(몇 장 · 몇 행)와 Q'ty 전/후를 먼저 보인다.
+ *
+ * 넣어도 지금 결과는 바뀌지 않는다 — 다시 분석해야 반영된다.  15회차
+ * `adopt_legend_profile` 과 같은 규율이다: 바꿨다고 말하면서 바꾸지 않으면
+ * 화면이 거짓말을 한다.
+ * ------------------------------------------------------------------------- */
+async function loadMultipliers() {
+  const box = $("#mult-panel");
+  if (!box || !S.job || !S.job.id) return;
+  let out;
+  try {
+    out = await (await fetch(`/jobs/${S.job.id}/multipliers`)).json();
+  } catch (e) { return; }
+  S.mult = out;
+  const groups = out.groups || [];
+  if (!groups.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `<b>수량 승수</b> <span class="muted">도면이 말하지 않은 유닛 —
+      사람이 한 번 답하면 그 유닛의 모든 행에 적용됩니다</span>`
+    + groups.map(g => {
+        const set = g.set;
+        const after = set ? g.rows * (set.multiplier || 0) : null;
+        return `<div class="mgroup" data-unit="${g.unit}">
+          <div class="mhead">유닛 <b>${g.unit || "(빈칸)"}</b>
+            <span class="muted">${g.sheets}장 ${g.rows}행에 적용됩니다
+              (${g.pages.map(p => "p" + p).join(", ")})</span></div>
+          <div class="mwhy muted">${(g.codes || []).join(" · ")}</div>
+          ${set ? `<div class="mset">지정됨 <b>x${set.multiplier}</b>
+              — ${set.author || "이름 없음"} · ${(set.set_at || "").slice(0, 10)}
+              ${set.note ? " · " + set.note : ""}
+              <button class="mclear">되돌리기</button></div>` : ""}
+          <div class="mform">
+            <label>승수 <input class="mval" type="number" min="1" step="1"
+                   value="${set ? set.multiplier : ""}" placeholder="예: 4"></label>
+            <label>근거 <input class="mnote" type="text"
+                   placeholder="예: 발주처 회신 2026-09-11" value="${set ? (set.note || "") : ""}"></label>
+            <button class="mset-btn">지정</button>
+            <span class="mpreview muted">Q'ty ${g.qty_now}
+              ${after !== null ? ` → <b>${after}</b>` : " → ?"}</span>
+          </div></div>`;
+      }).join("");
+  box.querySelectorAll(".mgroup").forEach(el => {
+    const unit = el.dataset.unit;
+    const val = el.querySelector(".mval");
+    const pv = el.querySelector(".mpreview");
+    const g = groups.find(x => x.unit === unit) || { rows: 0, qty_now: 0 };
+    /* 넣기 전에 무엇이 바뀌는지 보인다 — 누르고 나서 아는 것이 아니다. */
+    if (val) val.oninput = () => {
+      const n = parseInt(val.value, 10);
+      pv.innerHTML = `Q'ty ${g.qty_now}` +
+        (n >= 1 ? ` → <b>${g.rows * n}</b> (${g.rows}행 x ${n})` : " → ?");
+    };
+    const btn = el.querySelector(".mset-btn");
+    if (btn) btn.onclick = async () => {
+      const n = parseInt(val.value, 10);
+      if (!(n >= 1)) { editNotice("승수는 1 이상의 정수입니다", "out"); return; }
+      /* 13회차 작성자 기록 — 팀이 공유하는 값이므로 누가 넣었는지가 값의 일부다. */
+      const who = await askAuthor("승수 지정", `유닛 ${unit} → x${n}`);
+      if (who === null) return;
+      const body = new FormData();
+      body.append("unit", unit); body.append("multiplier", String(n));
+      body.append("author", who || "");
+      body.append("note", el.querySelector(".mnote").value || "");
+      const r = await fetch(`/jobs/${S.job.id}/multipliers`, { method: "POST", body });
+      if (!r.ok) { editNotice((await r.json()).detail || "저장하지 못했습니다", "out"); return; }
+      editNotice(`유닛 ${unit} → x${n} 지정했습니다 — **다시 분석하면** ${g.rows}행에 적용됩니다`, "in");
+      loadMultipliers();
+    };
+    const clr = el.querySelector(".mclear");
+    if (clr) clr.onclick = async () => {
+      await fetch(`/jobs/${S.job.id}/multipliers/${encodeURIComponent(unit)}`,
+                  { method: "DELETE" });
+      editNotice(`유닛 ${unit} 지정을 되돌렸습니다`, "out");
+      loadMultipliers();
+    };
+  });
 }
 
 function renderReviewCodes() {

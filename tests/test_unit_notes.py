@@ -103,14 +103,14 @@ def test_the_legend_wins_when_it_answers():
     from app import pipeline
     note = (8, ["3-1"], "…")
     # 범례가 답한 경우 — 그대로 둔다
-    assert pipeline._note_factor(2, False, False, note) == (2, False, False, False)
+    assert pipeline._note_factor(2, False, False, note) == (2, False, False, False, False)
     # 범례에 없는 코드 — 노트가 답한다
     assert pipeline._note_factor(projectconfig.UNDEFINED, True, False, note) \
-        == (8, False, False, True)
+        == (8, False, False, True, False)
     # 남의 설정에서 빌려온 값 — 노트가 이긴다 (§9 ①)
-    assert pipeline._note_factor(1, False, True, note) == (8, False, False, True)
+    assert pipeline._note_factor(1, False, True, note) == (8, False, False, True, False)
     # 노트가 없으면 아무 것도 달라지지 않는다
-    assert pipeline._note_factor(1, False, True, None) == (1, False, True, False)
+    assert pipeline._note_factor(1, False, True, None) == (1, False, True, False, False)
 
 
 # --------------------------------------------------------------------------
@@ -199,4 +199,4 @@ def test_the_range_reason_is_raised_only_where_the_note_would_have_been_used():
     assert not pipeline._note_ambiguous(None, True, False)
     # 범위 문단은 배수를 주지 않는다 — 빈칸 + 사유가 답이다
     assert pipeline._note_factor(projectconfig.UNDEFINED, True, False, amb) \
-        == (projectconfig.UNDEFINED, True, False, False)
+        == (projectconfig.UNDEFINED, True, False, False, False)

@@ -496,7 +496,8 @@ def _reconfigure(pages) -> None:
 
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
-            use_line_gate: bool = True, legend_profile: dict = None) -> dict:
+            use_line_gate: bool = True, legend_profile: dict = None,
+            unit_multipliers: dict = None) -> dict:
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
@@ -534,7 +535,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     try:
         return _analyse(pdf_path, progress=progress, timings=timings,
                         reference=reference, use_prefix=use_prefix,
-                        use_line_gate=use_line_gate, legend_profile=legend_profile)
+                        use_line_gate=use_line_gate, legend_profile=legend_profile,
+                        unit_multipliers=unit_multipliers)
     finally:
         if CFG.data != snapshot:
             CFG.data = snapshot
@@ -543,7 +545,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
-             use_line_gate: bool = True, legend_profile: dict = None) -> dict:
+             use_line_gate: bool = True, legend_profile: dict = None,
+             unit_multipliers: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -718,6 +721,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을 화면과 근거 패널이
     # 볼 수 있게 `result["unit_notes"]` 로 따로 낸다.
     unit_notes: dict = {}
+    # 31회차 — 사람이 지정한 승수.  **파이프라인은 파일을 읽지 않는다** —
+    # 15회차 `legend_profile` 과 같은 모양으로 부르는 쪽이 읽어서 넘긴다.
+    # 그래서 회귀 하네스(`spike/analyse_one.py`)는 아무 것도 안 넘기고,
+    # **사람 값이 없는 상태의 불변이 구조적으로 보장된다.**
+    user_mult = {str(k): int(v) for k, v in
+                 ((unit_multipliers or {}).get("table") or {}).items()}
+    user_mult_note = {str(k): str(v) for k, v in
+                      ((unit_multipliers or {}).get("who") or {}).items()}
 
     # 이번에 잰 것을 프로필 한 벌로 묶는다.  새 프로젝트면 이것이 저장되고,
     # 프로필이 이미 있으면 **대조 대상**이 된다 (자동 갱신하지 않는다).
@@ -849,7 +860,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max, cfg=CFG)
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern,
-                                note=unit_notes[pc.page_no]))
+                                note=unit_notes[pc.page_no],
+                                user_mult=user_mult, user_mult_note=user_mult_note))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
@@ -871,7 +883,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             continue
         rows.extend(_valve_rows(page_no, meta, res, mult,
                                 per_page.get(page_no),
-                                note=unit_notes.get(page_no)))
+                                note=unit_notes.get(page_no),
+                                user_mult=user_mult, user_mult_note=user_mult_note))
         # 18회차 [D] — 밸브 쪽의 "봤지만 못 정한 것".
         #
         # 배관 끝막대 둘을 갖췄는데 범례 p2 의 어느 몸체 갈래도 아닌 중공
@@ -1118,6 +1131,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 글자로 읽은 획 뭉치 (장 → [(x, y, 갈래)]).  **지문 밖**이다.
         # 버린 것을 세어 두는 자리이고, 화면·보고서가 이것을 읽는다.
         "face_marks": {str(k): v for k, v in sorted(face_marks.items())},
+        # 31회차 — 이 분석에 쓰인 **사람 지정 승수**.  `multipliers` 에 넣으면
+        # 그 칸이 지문 대상이라 도면이 답한 문서까지 흔들린다 — 밖에 둔다.
+        "user_multipliers": {"table": dict(sorted(user_mult.items())),
+                             "who": dict(sorted(user_mult_note.items()))},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
@@ -1312,15 +1329,21 @@ def _description_skip(d) -> str:
 #
 # 값을 버리지 않고 **어디서 왔는지 말한다**: 버리면 쓸 수 있었을 수를 잃고,
 # 말하지 않으면 남의 도면 값을 이 도면의 값으로 읽게 된다.
-def _note_factor(factor, undefined, borrowed, note):
+def _note_factor(factor, undefined, borrowed, note, user=None):
     """그 장 NOTES 가 말한 배수를 **범례가 답하지 못할 때만** 쓴다 (27회차).
+    사람이 지정한 값은 그 다음이다 (31회차).
 
     읽는 순서는 §9 ① ~ ⑤ 그대로다:
 
         ① 그 문서의 범례 UNIT IDENTIFICATION NUMBERS 표   ← 이기면 여기서 끝
         ② 그 장의 NOTES ("… IDENTICAL / SIMILAR … UNIT 3-2, 4-1, …")
-        ③ 프로젝트 설정 폴백 (= 남의 도면에서 잰 값)
-        ④ 아무 것도 없으면 빈칸 + 사유
+        ③ **사람이 지정한 값** (31회차 `app/unit_multipliers.py`)
+        ④ 프로젝트 설정 폴백 (= 남의 도면에서 잰 값)
+        ⑤ 아무 것도 없으면 빈칸 + 사유
+
+    ★ **사람은 범례도 노트도 이기지 못한다.**  `undefined` 도 `borrowed` 도
+    아니면 도면이 답한 것이므로 `user` 를 보지 않는다 — AL NOUF1 의
+    `Q'ty 1931` 이 사람 값에 흔들리지 않는 이유가 이 한 줄이다.
 
     그래서 **범례가 답하는 문서는 한 칸도 달라지지 않는다** — AL NOUF1 의
     `source=LEGEND` 표는 그 문서의 코드 일곱을 전부 덮는다 (지문 `fb85b039` 불변).
@@ -1332,8 +1355,10 @@ def _note_factor(factor, undefined, borrowed, note):
     """
     n = (note or (None, [], ""))[0]
     if n and (undefined or borrowed):
-        return n, False, False, True
-    return factor, undefined, borrowed, False
+        return n, False, False, True, False
+    if user and (undefined or borrowed):
+        return int(user), False, False, False, True
+    return factor, undefined, borrowed, False, False
 
 
 def _note_ambiguous(note, undefined, borrowed) -> bool:
@@ -1349,6 +1374,13 @@ def _note_ambiguous(note, undefined, borrowed) -> bool:
 _NOTE_RANGE = (
     "이 장의 NOTES 가 유닛을 **범위**로 적어(`%s`) 몇 개인지 도면이 열거하지 "
     "않았습니다 — 두 끝만 세면 틀린 수가 되므로 수량을 정하지 않았습니다")
+
+# 31회차 — 사람이 지정한 값.  **도면 값과 같은 얼굴로 보이면 안 된다** —
+# 17회차 `SUFFIX:` 사유와 같은 규율이다.
+_USER_MULT_CODE = "MULTIPLIER_BY_USER"
+
+_USER_MULTIPLIER = (
+    "unit code '%s' 의 승수 x%s 는 도면이 아니라 **사람이 지정한 값**입니다 (%s)")
 
 _BORROWED_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "
@@ -2563,15 +2595,16 @@ def _grade(parts_ok: bool, middle: str, middle_kind: str, skipped: bool,
 
 
 def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
-                isa=None, pat=None, note=None) -> list:
+                isa=None, pat=None, note=None, user_mult=None,
+                user_mult_note=None) -> list:
     """Field instrument rows for one drawing (spike 2 + spike 3)."""
     out = []
     unit = meta["unit_code"]
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
-    factor, undefined, borrowed, from_note = _note_factor(
-        factor, undefined, borrowed, note)
+    factor, undefined, borrowed, from_note, from_user = _note_factor(
+        factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
     note_range = _note_ambiguous(note, undefined, borrowed)
     marked = bool(annotations)
     for d in dets:
@@ -2604,6 +2637,10 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
         elif from_note:
             pass          # 도면이 그 장 NOTES 에 적어 둔 값이다 — 검토 사유가 아니다
+        elif from_user:
+            codes.append(_USER_MULT_CODE)
+            reasons.append(_USER_MULTIPLIER % (unit, factor,
+                                               (user_mult_note or {}).get(unit, "")))
         elif note_range:
             codes.append("MULTIPLIER_NOTE_RANGE")
             reasons.append(_NOTE_RANGE % ((note or (0, [], ""))[2][:120],))
@@ -2671,9 +2708,13 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                 "qty_basis": (f"1 symbol x {factor} ("
                               + (f"NOTES: {', '.join((note or (0, [], ''))[1])}"
                                  if from_note else
+                                 f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
+                                 if from_user else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
+                               else f"USER — {(user_mult_note or {}).get(unit, '')}"
+                               if from_user
                                else (f"{mult.source} — {mult.note}"
                                      if mult.note else mult.source)),
             }))
@@ -2985,7 +3026,8 @@ class _MarkedRect:
         self.evidence = {"vendor_mark": vmark} if vmark else {}
 
 
-def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
+def _valve_rows(page_no, meta, res, mult, page=None, note=None,
+                user_mult=None, user_mult_note=None) -> list:
     """Valve rows for one drawing (spike 4).
 
     Bodies with nothing on the stem are manual or self-acting and belong to no
@@ -2997,8 +3039,8 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
-    factor, undefined, borrowed, from_note = _note_factor(
-        factor, undefined, borrowed, note)
+    factor, undefined, borrowed, from_note, from_user = _note_factor(
+        factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
     note_range = _note_ambiguous(note, undefined, borrowed)
     for b in res["bodies"]:
         cls = dv.deliverable_class(b)
@@ -3048,6 +3090,10 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         elif from_note:
             pass
+        elif from_user:
+            codes.append(_USER_MULT_CODE)
+            reasons.append(_USER_MULTIPLIER % (unit, factor,
+                                               (user_mult_note or {}).get(unit, "")))
         elif note_range:
             codes.append("MULTIPLIER_NOTE_RANGE")
             reasons.append(_NOTE_RANGE % ((note or (0, [], ""))[2][:120],))
@@ -3095,9 +3141,13 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
                 "qty_basis": (f"1 symbol x {factor} ("
                               + (f"NOTES: {', '.join((note or (0, [], ''))[1])}"
                                  if from_note else
+                                 f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
+                                 if from_user else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
+                               else f"USER — {(user_mult_note or {}).get(unit, '')}"
+                               if from_user
                                else (f"{mult.source} — {mult.note}"
                                      if mult.note else mult.source)),
             }))

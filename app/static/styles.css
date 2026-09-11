@@ -988,3 +988,18 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .revwrap > a { flex: 1 1 auto; }
 .revwrap > .del-job { flex: 0 0 auto; opacity: .55; }
 .revwrap:hover > .del-job { opacity: 1; }
+
+/* 유닛 승수 패널 (31회차) — 검토 사유 줄 바로 아래.  비어 있으면 통째로
+   숨는다(`.hidden`), 그래서 도면이 승수를 말한 문서에서는 아예 안 보인다. */
+.mult-panel { margin: 6px 0 8px; padding: 8px 10px; border: 1px solid var(--line);
+              border-radius: 6px; background: var(--card); font-size: 12px; }
+.mult-panel > b { margin-right: 6px; }
+.mult-panel .muted { color: var(--ink-soft); }
+.mult-panel .mgroup { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.mult-panel .mhead b { font-size: 13px; }
+.mult-panel .mwhy { font-size: 11px; }
+.mult-panel .mset { margin: 4px 0; }
+.mult-panel .mform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+.mult-panel .mform input[type=number] { width: 72px; }
+.mult-panel .mform input[type=text] { width: 220px; }
+.mult-panel button { font-size: 12px; }

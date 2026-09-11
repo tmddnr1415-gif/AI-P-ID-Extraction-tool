@@ -11,7 +11,7 @@
         "PNEUMATIC": 53,
         "BFV": 23
       },
-      "seconds": 546.3,
+      "seconds": 535.6,
       "max_rss_gb": 4.9,
       "identification": {
         "도면번호": [
@@ -71,7 +71,7 @@
         "MOV": 14,
         "REVIEW": 6
       },
-      "seconds": 58.5,
+      "seconds": 57.3,
       "max_rss_gb": 0.94,
       "identification": {
         "도면번호": [
@@ -117,7 +117,7 @@
         "BFV": 1,
         "PNEUMATIC": 15
       },
-      "seconds": 406.8,
+      "seconds": 396.9,
       "max_rss_gb": 7.22,
       "identification": {
         "도면번호": [
@@ -162,7 +162,7 @@
         "FIELD": 146,
         "PNEUMATIC": 3
       },
-      "seconds": 330.1,
+      "seconds": 318.3,
       "max_rss_gb": 3.18,
       "identification": {
         "도면번호": [

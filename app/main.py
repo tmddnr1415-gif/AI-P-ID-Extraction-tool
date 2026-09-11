@@ -34,7 +34,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
-                 legend_profile, paths, pipeline, revisions, version)
+                 legend_profile, paths, pipeline, revisions, unit_multipliers,
+                 version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -273,9 +274,14 @@ def _worker() -> None:
             # 프로젝트에 안 묶인 분석은 언제나 `None` 이다 - 프로필은 프로젝트
             # 폴더 안에만 살고, 다른 프로젝트가 공유할 길이 없다.
             profile = legend_profile.load(DATA_DIR, row["project"])
+            # 31회차 — 그 프로젝트에서 **사람이 지정한 승수**가 있으면 넘긴다.
+            # 없으면 빈 값이고, 빈 값은 이 기능이 없던 때와 정확히 같다.
+            # 파이프라인은 파일을 읽지 않는다 (15회차 프로필과 같은 모양).
             result = pipeline.analyse(Path(row["pdf_path"]), progress=progress,
                                       reference=VERIFY_AGAINST,
-                                      legend_profile=profile)
+                                      legend_profile=profile,
+                                      unit_multipliers=_user_multipliers(
+                                          row["project"]))
             result["fingerprint"] = pipeline.fingerprint(result)
             # 새 프로젝트면 이번에 읽은 범례를 그 프로젝트 것으로 남긴다.
             # 이미 프로필이 있으면 **덮지 않는다** - 범례가 달라졌다면 그것은
@@ -862,6 +868,116 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
 # **다음 프로젝트에서 오검출이 난다**.  오검출은 미검출보다 나쁘다 — 없는
 # 것은 눈에 띄지만 있는 것은 안 띈다.  §2.2 "표준 사전에 프로젝트 표기
 # 혼입" 금지가 이 이야기다.
+
+# --------------------------------------------------------------------------
+# 유닛 승수 — 도면이 말하지 않을 때 **사람이 한 번 답하는 자리** (31회차)
+# --------------------------------------------------------------------------
+def _user_multipliers(project: str) -> dict:
+    """파이프라인에 넘길 모양 `{"table": {유닛: 배수}, "who": {유닛: "이름 · 메모"}}`.
+
+    **읽는 곳은 여기 하나다.**  프로젝트에 안 묶인 분석이면 빈 값이고,
+    빈 값은 이 기능이 없던 때와 **정확히 같다**.
+    """
+    project = (project or "").strip()
+    if not project:
+        return {}
+    data = unit_multipliers.load(DATA_DIR, project)
+    table = unit_multipliers.table(DATA_DIR, project)
+    who = {}
+    for unit, rec in (data.get("units") or {}).items():
+        if unit not in table:
+            continue
+        bits = [rec.get("author") or "이름 없음", rec.get("set_at", "")[:10]]
+        if rec.get("note"):
+            bits.append(rec["note"])
+        who[unit] = " · ".join(b for b in bits if b)
+    return {"table": table, "who": who}
+
+
+def _multiplier_targets(job_id: str) -> dict:
+    """이 분석에서 **승수를 묻고 있는 행**을 유닛코드로 묶는다.
+
+    행마다 묻지 않는다 — SADARA 는 유닛 `10` 하나에 82행이다.
+    """
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    eng = json.loads(job["engine_json"] or "{}")
+    pages = {int(t["page_no"]): t for t in (eng.get("titleblocks") or [])}
+    rows = db.rows_for(CON, job_id)
+    want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG",
+            "MULTIPLIER_NOTE_RANGE", unit_multipliers.REVIEW_CODE}
+    groups: dict = {}
+    for r in rows:
+        ev = json.loads(r["evidence_json"] or "{}")
+        codes = set(ev.get("review_codes") or [])
+        if not (codes & want):
+            continue
+        unit = (pages.get(r["page_no"], {}) or {}).get("unit_code", "")
+        g = groups.setdefault(unit, {"unit": unit, "rows": 0, "pages": set(),
+                                     "codes": set(), "qty_now": 0})
+        g["rows"] += 1
+        g["pages"].add(r["page_no"])
+        g["codes"] |= (codes & want)
+        try:
+            g["qty_now"] += int(r["qty"] or 0)
+        except (TypeError, ValueError):
+            pass
+    saved = unit_multipliers.load(DATA_DIR, job["project"] or "")
+    out = []
+    for unit, g in sorted(groups.items()):
+        rec = (saved.get("units") or {}).get(unit) or {}
+        out.append({"unit": unit, "rows": g["rows"],
+                    "pages": sorted(g["pages"]),
+                    "sheets": len(g["pages"]),
+                    "codes": sorted(g["codes"]),
+                    "qty_now": g["qty_now"],
+                    "set": rec or None})
+    return {"project": job["project"] or "", "groups": out,
+            "enabled": saved.get("enabled", True),
+            "note": "범례나 그 장 NOTES 가 답한 유닛은 여기 없습니다 — "
+                    "사람은 도면을 이기지 않습니다."}
+
+
+@app.get("/jobs/{job_id}/multipliers")
+def multiplier_targets(job_id: str):
+    return _multiplier_targets(job_id)
+
+
+@app.post("/jobs/{job_id}/multipliers")
+def multiplier_set(job_id: str, unit: str = Form(...),
+                   multiplier: int = Form(...), author: str = Form(""),
+                   note: str = Form("")):
+    """한 유닛코드의 승수를 지정한다.  **다시 분석해야 반영된다.**
+
+    지금 결과를 그 자리에서 고치지 않는 이유는 15회차 `adopt_legend_profile`
+    과 같다 — 수량은 검출 결과이지 편집 칸이 아니고, 바꿨다고 말하면서
+    바꾸지 않으면 화면이 거짓말을 한다.
+    """
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    try:
+        rec = unit_multipliers.set_unit(DATA_DIR, job["project"] or "",
+                                        unit=unit, multiplier=multiplier,
+                                        author=author, note=note, job_id=job_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"unit": unit, "record": rec,
+            "targets": _multiplier_targets(job_id),
+            "applies": "다시 분석하면 이 유닛의 모든 행에 적용됩니다"}
+
+
+@app.delete("/jobs/{job_id}/multipliers/{unit}")
+def multiplier_clear(job_id: str, unit: str):
+    """되돌린다 — 지운 뒤에는 지정하지 않았던 때와 같아진다."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    if not unit_multipliers.clear_unit(DATA_DIR, job["project"] or "", unit):
+        raise HTTPException(404, "no such unit")
+    return {"cleared": unit, "targets": _multiplier_targets(job_id)}
+
 
 @app.get("/symbols/global")
 def global_symbol_list():
