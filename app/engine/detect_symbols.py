@@ -286,8 +286,68 @@ def _inside(x, y, region) -> bool:
     return x0 <= x <= x1 and y0 <= y <= y1
 
 
-def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
-    """Instrument bubbles, measured rather than assumed.
+class Outline(NamedTuple):
+    """한 버블의 **그려진 윤곽** — 사각형이 아니라 스타디움 (30회차 · §10-10).
+
+    `find_bubbles` 는 처음부터 이 셋을 알고 있었다 (마주 본 호 캡 둘 + 곧은
+    옆면).  바깥 사각형만 돌려주느라 버렸을 뿐이다 — **찾고 있는데 안 쓰던
+    것**의 열한 번째다 (§9 3③).
+
+    반지름을 가정하지 않는다.  캡의 실제 사각형을 그대로 쓴다 —
+    AL NOUF1 의 캡 비율은 ≈2.0(반원)이지만 TC2 는 34x11 ≈3.1 이다.
+    """
+    rect: pymupdf.Rect
+    axis: str            # H(가로 스타디움) | V(세로)
+    cap_a: pymupdf.Rect  # 왼쪽/위 캡
+    cap_b: pymupdf.Rect  # 오른쪽/아래 캡
+
+
+def on_bubble_face(x: float, y: float, outlines) -> bool:
+    """이 점이 어느 버블의 **그려진 윤곽 안**인가 (30회차 · §10-10).
+
+    ★ 왜 필요한가.  UAD 는 글자를 SHX(획)로 그리므로 버블 **안에 인쇄된
+    태그**의 글자 한 덩이가 `_glyph_clusters` 에 별표 크기의 획 뭉치로 잡힌다.
+    실측: p23 `00GKB01CL001B` 가 좌표 (215.58, 260.03) 의 "마크" 로 VENDOR 가
+    됐는데 렌더에는 **그 버블에도 옆 버블에도 별표가 없다** — 거기 있는 것은
+    태그의 글자다.
+
+    ★ 왜 바깥 사각형으로는 안 되는가.  버블은 둥근 스타디움이고 **바깥
+    사각형의 네 모서리는 빈 자리**인데, 도면은 바로 거기에 별표를 찍는다
+    (AL NOUF1 p55 렌더 · 29회차 `out/round29/9_nouf1_p55_*.png`).  사각형으로
+    판정하면 AL NOUF1 7행 · TC2 10행의 **진짜 별표**를 글자로 읽는다.
+
+    실측 (네 문서 전수 · 창 안 마크 기준):
+
+        AL NOUF1  윤곽 밖 339 · 윤곽 안 **0** · 윤곽 못 찾음 7(전부 밸브)
+        SADARA    윤곽 밖 4   · 윤곽 안 **0**
+        TC2       윤곽 밖 198 · 윤곽 안 **0**
+        UAD       윤곽 밖 120 · 윤곽 안 **17**
+
+    즉 이 규칙이 움직이는 것은 UAD 뿐이다.  **윤곽을 못 찾으면 걸지 않는다**
+    (밸브 몸체는 스타디움이 아니다) — 모르는 것을 글자로 읽지 않는다.
+    """
+    for rect, axis, a, b in outlines:
+        if not (rect.x0 <= x <= rect.x1 and rect.y0 <= y <= rect.y1):
+            continue
+        if axis == "H":
+            cy, ry = (rect.y0 + rect.y1) / 2, (rect.y1 - rect.y0) / 2
+            if a.x1 <= x <= b.x0:
+                return True
+            for cx, rx in ((a.x1, a.width), (b.x0, b.width)):
+                if rx > 0 and ry > 0 and ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
+                    return True
+        else:
+            cx, rx = (rect.x0 + rect.x1) / 2, (rect.x1 - rect.x0) / 2
+            if a.y1 <= y <= b.y0:
+                return True
+            for cy, ry in ((a.y1, a.height), (b.y0, b.height)):
+                if rx > 0 and ry > 0 and ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
+                    return True
+    return False
+
+
+def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
+    """Instrument bubbles, measured rather than assumed — **윤곽까지** 낸다.
 
     A bubble is two arc caps facing each other with *straight sides joining
     them*.  Requiring both sides is what makes this size-free: an adjacent pair
@@ -332,7 +392,7 @@ def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
                     return True
         return False
 
-    bubbles: list[pymupdf.Rect] = []
+    bubbles: list[Outline] = []
 
     # Horizontal stadiums: tall caps sharing a y extent, sides run horizontally.
     groups: dict[tuple, list] = collections.defaultdict(list)
@@ -342,7 +402,8 @@ def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
         g.sort(key=lambda r: r.x0)
         for a, b in zip(g, g[1:]):
             if spans(h_seg, a.y0, a.x1, b.x0) and spans(h_seg, a.y1, a.x1, b.x0):
-                bubbles.append(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1))
+                bubbles.append(Outline(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1),
+                                       "H", a, b))
 
     # Vertical stadiums: wide caps sharing an x extent, sides run vertically.
     groups = collections.defaultdict(list)
@@ -352,9 +413,18 @@ def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
         g.sort(key=lambda r: r.y0)
         for a, b in zip(g, g[1:]):
             if spans(v_seg, a.x0, a.y1, b.y0) and spans(v_seg, a.x1, a.y1, b.y0):
-                bubbles.append(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1))
+                bubbles.append(Outline(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1),
+                                       "V", a, b))
 
     return bubbles
+
+
+def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
+    """버블의 바깥 사각형만 — 부르는 곳 대부분이 그것만 쓴다.
+
+    윤곽까지 필요한 곳(`on_bubble_face`)은 `bubble_outlines` 를 부른다.
+    """
+    return [o.rect for o in bubble_outlines(pc, lay)]
 
 
 def bubble_sizes(bubbles) -> collections.Counter:
@@ -674,7 +744,8 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
     return dictionary, glyph_size
 
 
-def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
+def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None, outlines=None,
+                     rejected=None):
     """이 장이 **도면에** 별표를 어느 크기로 그렸나 — 그 장에서 잰다 (18회차).
 
     ★ 왜 필요한가.  `find_marks` 는 그 장 NOTES 정의줄이 인쇄한 별표 크기
@@ -701,8 +772,10 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
     한 번뿐이라 기각되는 것은 p3 (5.2×5.8) · p4 · p40 · p41 이고, 그 중
     p40 · p41 은 범례가 없어 `allow_sizes` 로 이미 인정되므로 잃는 것이 없다.
     """
+    if outlines is None:
+        outlines = bubble_outlines(pc, lay)
     if bubbles is None:
-        bubbles = find_bubbles(pc, lay)
+        bubbles = [o.rect for o in outlines]
     if not bubbles:
         return []
     seen = collections.Counter()
@@ -710,6 +783,14 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
         if c.x1 > lay.drawing_area[2]:
             continue
         cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
+        # 30회차 — 심볼의 **얼굴 위**에 있는 획 뭉치는 그 심볼의 글자다.
+        # 여기서도 걸러야 한다: 걸러지지 않으면 글자가 크기를 가르쳐
+        # (`n >= 2`) 그 크기의 얼룩이 다른 자리에서 마크로 인정된다.
+        if on_bubble_face(cx, cy, outlines):
+            # 얼굴 뭉치는 정의상 그 버블의 창 안이므로 **여기가 전수 기록 자리**다.
+            if rejected is not None:
+                rejected.append((round(cx, 2), round(cy, 2), "GLYPH"))
+            continue
         in_mark_position = any(in_mark_window(b, cx, cy, lay) for b in bubbles)
         if in_mark_position:
             seen[(round(c.width, 1), round(c.height, 1))] += 1
@@ -717,7 +798,7 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None):
 
 
 def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
-               bubbles=None):
+               bubbles=None, outlines=None, rejected=None):
     """Vendor marks in the drawing area, in whichever notation the page uses.
 
     A drawn asterisk is accepted when it matches a size this page actually
@@ -729,10 +810,14 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
     what produces VENDOR_MARK_UNDEFINED.
     """
     out = []
+    if outlines is None:
+        outlines = bubble_outlines(pc, lay)
+    if bubbles is None:
+        bubbles = [o.rect for o in outlines]
     sizes = [glyph_size] if glyph_size else list(allow_sizes)
     # 18회차 — 가산이다.  정의줄 크기를 빼지 않고 그 장이 실제로 그린 크기를
     # 더한다.  뜻(별 개수 → 공급자)은 여전히 그 장 NOTES 에서만 온다 (§10.1).
-    for s in drawn_mark_sizes(pc, lay, bubbles):
+    for s in drawn_mark_sizes(pc, lay, bubbles, outlines, rejected=rejected):
         if not any(abs(s[0] - w) <= 0.6 and abs(s[1] - h) <= 0.6 for w, h in sizes):
             sizes.append(s)
     if sizes:
@@ -741,14 +826,21 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
                 continue
             for w, h in sizes:
                 if abs(c.width - w) <= 0.6 and abs(c.height - h) <= 0.6:
-                    out.append(Mark((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2, 1, "GLYPH"))
+                    cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
+                    # 30회차 — 심볼의 그려진 얼굴 위면 그 심볼의 글자다 (§10-10).
+                    # **획으로 그린 것에만 건다** — 활자 `*` 는 자리와 무관하게
+                    # 별표라는 것을 우리가 *아는* 반면, 획 뭉치는 *추론*이다.
+                    if on_bubble_face(cx, cy, outlines):
+                        break     # 세는 곳은 `drawn_mark_sizes` 하나다
+                    out.append(Mark(cx, cy, 1, "GLYPH"))
                     break
     for r, t in pc.words:
         m = MARK_TEXT_RE.match(t)
         if m and r.x1 <= lay.drawing_area[2] and t.strip("()*") == "":
             out.append(Mark((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, len(m.group(1)), "TEXT"))
     # 25회차 — 획을 따로 그린 별표 (§9).  가산이고, 위에서 찾은 자리는 건너뛴다.
-    out.extend(star_marks(pc, lay, bubbles, existing=tuple(out)))
+    out.extend(star_marks(pc, lay, bubbles, existing=tuple(out),
+                          outlines=outlines, rejected=rejected))
     return out
 
 
@@ -962,7 +1054,8 @@ def definition_stars(pc, lay: Layout = LAYOUT, lines=None):
     return dict(out)
 
 
-def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
+def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=(),
+               outlines=None, rejected=None):
     """본문 별표 — 획의 관계로 찾고, 크기는 **그 장에서** 배운다 (18회차 규칙 그대로).
 
     ① 상한은 그 장 버블의 짧은 변 (별표는 버블보다 작다 — 도면이 말하는 값).
@@ -986,8 +1079,10 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
     **정의줄은 별표의 뜻을 정하지 모양·획 수·크기를 정하지 않는다** — 18회차의
     *범례는 뜻을 정하지 축척을 정하지 않는다* 와 같은 문장이다.
     """
+    if outlines is None:
+        outlines = bubble_outlines(pc, lay)
     if bubbles is None:
-        bubbles = find_bubbles(pc, lay)
+        bubbles = [o.rect for o in outlines]
     if not bubbles:
         return []
     short = sorted(min(b.width, b.height) for b in bubbles)
@@ -999,6 +1094,8 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
     seen = collections.Counter()
     for r, _n, _d in groups:
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        if on_bubble_face(cx, cy, outlines):
+            continue          # 30회차 — 심볼의 글자는 크기를 가르치지 않는다
         if any(in_mark_window(b, cx, cy, lay) for b in bubbles):
             seen[(round(r.width, 1), round(r.height, 1))] += 1
     learned = {k for k, n in seen.items() if n >= 2}
@@ -1011,6 +1108,10 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=()):
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         span = max(r.width, r.height)
         if any(abs(k.x - cx) <= span and abs(k.y - cy) <= span for k in existing):
+            continue
+        if on_bubble_face(cx, cy, outlines):
+            if rejected is not None:
+                rejected.append((round(cx, 2), round(cy, 2), "STAR"))
             continue
         out.append(Mark(cx, cy, 1, "GLYPH"))
     return out
@@ -1387,11 +1488,14 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
 
 
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
-           disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES):
-    bubbles = find_bubbles(pc, lay)
+           disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
+           face_rejected=None):
+    outlines = bubble_outlines(pc, lay)
+    bubbles = [o.rect for o in outlines]
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)
     marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes,
-                       bubbles=bubbles)
+                       bubbles=bubbles, outlines=outlines,
+                       rejected=face_rejected)
     boxes = find_package_boxes(pc, lay)
     scopes = find_sct_scopes(pc, lay)
     v_index = vertical_index(pc)

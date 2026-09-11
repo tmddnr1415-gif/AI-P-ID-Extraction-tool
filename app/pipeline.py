@@ -440,6 +440,14 @@ def _rebind_config() -> None:
     ds.KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
                                  for pair in CFG.get("vendor_marks.glyph_sizes"))
     tb.LAYOUT = tb._layout_from_config(CFG)
+    # 30회차 — 타이틀블록의 **형식 정규식 셋도** 지금 CFG 로 다시 만든다.
+    # `formats.revision` 은 이제 유도 대상이다(이력 표 REV 열).  여기서 다시
+    # 만들지 않으면 유도값을 config 에 얹어도 import 때 compile 된 옛 정규식이
+    # 계속 쓰인다 — 22회차가 `pidcache` 전역에서 겪은 것과 같은 함정이고,
+    # 나머지 둘은 지금 유도되지 않으므로 값이 같다(덫만 없앤다).
+    tb.DWG_NO_RE = re.compile(CFG.get("formats.drawing_no"))
+    tb.DATE_RE = re.compile(CFG.get("formats.date"))
+    tb.REV_TEXT_RE = re.compile(CFG.get("formats.revision"))
     # The valve layout is rebuilt from the same function; the legend derivation
     # that runs later starts from it, so it has to carry the new drawing area or
     # every valve outside the old one is dropped before the legend is consulted.
@@ -770,15 +778,24 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     per_page: dict[int, dict] = {}
 
     unjudged: list[dict] = []
+    # 30회차 — 심볼의 그려진 얼굴 위라 마크가 아니라 글자로 읽은 획 뭉치.
+    face_marks: dict[int, list] = {}
     for i, pc in enumerate(targets, 1):
         # `i - 1` because this is said before the sheet is read, not after.
         meta = tb_rows[pc.page_no]
         say(3 + i, total, f"page {pc.page_no} of {len(pages)}",
             sheets=(i - 1, len(targets)), drawing=meta["drawing_no"])
+        face_rejected: list = []
         with clock.stage("instruments", pc.page_no):
             dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
                 pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
-                allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
+                allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES,
+                face_rejected=face_rejected)
+        # 30회차 — 심볼의 그려진 얼굴 위에 있어 **마크가 아니라 글자**로 읽은
+        # 획 뭉치.  버린 것을 세어 둔다 (§2.1 ③ — 판정을 조용히 하지 않는다).
+        # 지문 밖이다: `result["face_marks"]` 는 해싱 재료가 아니다.
+        if face_rejected:
+            face_marks[pc.page_no] = face_rejected
         # 18회차 — **판정하지 못한 것을 버리지 않고 모은다.**
         #
         # `ds.detect` 는 처음부터 이 둘을 냈는데 파이프라인이 받아서 **버렸다**.
@@ -1097,6 +1114,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                 "units_count": v[0] or 0}
                        for k, v in sorted(unit_notes.items())
                        if v[0] or (len(v) > 3 and v[3])},
+        # 30회차 — 심볼의 **그려진 얼굴 위**에 있어 마크가 아니라 그 심볼의
+        # 글자로 읽은 획 뭉치 (장 → [(x, y, 갈래)]).  **지문 밖**이다.
+        # 버린 것을 세어 두는 자리이고, 화면·보고서가 이것을 읽는다.
+        "face_marks": {str(k): v for k, v in sorted(face_marks.items())},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는

@@ -593,6 +593,64 @@ def _scope_label_side(pages, drawing_area) -> dict:
 # --------------------------------------------------------------------------
 # The whole measurement
 # --------------------------------------------------------------------------
+def _history_rev_marks(pages, hist, inset, cfg) -> set[str]:
+    """이력 표 REV 열이 **활자로** 인쇄한 개정 표기들.
+
+    머리글 행을 섞지 않으려고 같은 행의 DATE 열이 날짜인 행만 받는다.
+    획으로 그린 문서(AL NOUF1 · TC2 · SADARA)는 빈 집합을 돌려준다 — 그러면
+    설정값이 그대로 쓰인다 (§9 ⑤: 못 읽으면 지어내지 않는다).
+    """
+    date_re = None
+    if cfg is not None:
+        try:
+            date_re = re.compile(cfg.get("formats.date"))
+        except Exception:
+            date_re = None
+    if date_re is None:
+        return set()
+    y0, y1, gap, vx = hist["y0"], hist["y1"], hist["gap"], hist["vx"]
+    if len(vx) < 3:
+        return set()
+    rev = (vx[0] + inset, vx[1] - inset)
+    date = (vx[1] + inset, vx[2] - inset)
+    out: set[str] = set()
+    for pd in pages:
+        rows: dict[int, dict] = {}
+        for r, t in pd.words:
+            cy = (r.y0 + r.y1) / 2
+            if not (y0 - gap <= cy <= y1 + gap):
+                continue
+            band = int(round((cy - y0) / gap)) if gap else 0
+            cx = (r.x0 + r.x1) / 2
+            if rev[0] <= cx <= rev[1]:
+                rows.setdefault(band, {}).setdefault("rev", []).append(t)
+            elif date[0] <= cx <= date[1]:
+                rows.setdefault(band, {}).setdefault("date", []).append(t)
+        for cell in rows.values():
+            if not any(date_re.match(t) for t in cell.get("date", ())):
+                continue
+            for t in cell.get("rev", ()):
+                out.add(t)
+    return out
+
+
+def _revision_pattern(marks: set[str]) -> str:
+    """읽은 표기들을 그대로 받아들이는 정규식 — 넓히지 않는다.
+
+    모양(글자·숫자 달리기)이 하나면 그 모양만 받고, 여럿이면 읽은 표기를
+    그대로 나열한다.  **읽지 않은 모양을 추측으로 더하지 않는다** (§2.1 ③).
+    """
+    shapes = {("".join("D" if c.isdigit() else "L" if c.isalpha() else "X"
+                       for c in m)) for m in marks}
+    if shapes == {"D"}:
+        return r"^[0-9]$"
+    if shapes == {"L"}:
+        return r"^[A-Z]$"
+    if shapes == {"D", "DD"} or shapes == {"DD"}:
+        return r"^[0-9]{1,2}$"
+    return "^(?:%s)$" % "|".join(re.escape(m) for m in sorted(marks))
+
+
 def derive(pages, cfg=None) -> Layout:
     """Everything the sheet states about its own layout."""
     lay = Layout()
@@ -688,6 +746,26 @@ def derive(pages, cfg=None) -> Layout:
         # 재지 못하는 것은 지어내지 않고 이름만 남긴다.
         lay.notes.append("hist_row_inset is not derived: it is a render margin, "
                          "not a drawn feature; the sheet states nothing about it")
+        # 30회차 — **개정 표기가 어떻게 생겼는지도 도면이 말한다.**
+        # `formats.revision` 은 AL NOUF1 에서 옮겨 적은 값(`^[A-Z][0-9]?$`)이고,
+        # UAD 는 개정을 **숫자**로 매긴다.  그래서 REV 칸에 `6` 이 활자로
+        # 인쇄돼 있는데도 `has_titleblock_text` 가 못 받아 글리프 경로로
+        # 흘렀고, 그 경로는 이력 행을 A·B·C 로 이름 붙이므로 `G1` 이라는
+        # 없는 값을 냈다 (32장 전부 신뢰도 LOW → 축3 개정 0/32).
+        #
+        # 읽는 곳은 **이력 표의 REV 열**이다 — 그 표가 바로 이 문서가 쓰는
+        # 개정 표기의 목록이다.  머리글 행(`REV.` · `DATE`)을 섞지 않으려고
+        # **DATE 열이 실제 날짜인 행만** 받는다 (`formats.date` 재사용).
+        marks = _history_rev_marks(pages, hist, inset, cfg)
+        if marks:
+            lay.add("formats.revision", _revision_pattern(marks),
+                    "the revision marks this document actually prints in the "
+                    "history table's REV column, on rows whose DATE column "
+                    "holds a date: " + ", ".join(sorted(marks)[:8]))
+        else:
+            lay.notes.append("formats.revision is not derived: the history "
+                             "table's REV column carries no text on any sheet "
+                             "(the marks are drawn as strokes)")
 
     # The dash geometry is measured and reported but NOT adopted.  Every way of
     # picking the runs tried here either lets an ordinary broken line in or
