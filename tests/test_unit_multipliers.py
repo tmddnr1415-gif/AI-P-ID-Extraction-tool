@@ -133,3 +133,57 @@ def test_the_pipeline_never_opens_the_file():
     assert "unit_multipliers.load" not in src
     assert "unit_multipliers.table" not in src
     assert "unit_multipliers" in inspect.signature(pipeline.analyse).parameters
+
+
+# --------------------------------------------------------------------------
+# ⑤ 화면이 묻는 단위 — **행이 아니라 유닛코드**
+# --------------------------------------------------------------------------
+def _tiny_job(tmp_path):
+    """저장된 SADARA 결과로 임시 DB 하나.  실 DB 는 건드리지 않는다 (17회차)."""
+    import os, time, json as J
+    src = ROOT / "out" / "regression_3p" / "SADARA.json"
+    if not src.exists():
+        pytest.skip("SADARA 결과 json 이 없는 기계")
+    os.environ["PID_DATA_DIR"] = str(tmp_path)
+    from app import db
+    result = J.loads(src.read_text())["result"]
+    con = db.connect(tmp_path / "app.db")
+    job = "tmult0000001"
+    con.execute("INSERT INTO job (id,pdf_name,pdf_sha256,pdf_path,created_at,"
+                "status,progress,message,fingerprint,project,revision)"
+                " VALUES (?,?,?,?,?,'done',1.0,'','','SADARA','A')",
+                (job, "x.pdf", "x", "x", time.time()))
+    con.commit()
+    db.store_result(con, job, result)
+    con.commit()
+    return con, job
+
+
+def test_the_screen_asks_once_per_unit_code_not_once_per_row(tmp_path):
+    """SADARA 는 유닛 `10` 하나에 82행이다 — **82번 묻지 않는다.**
+
+    ⚠ 이 시험이 있는 이유: 31회차에 이 API 가 행 접근자 때문에 두 번 깨졌고
+    (`db.rows_for` 없음 · `r["qty"]` 없음), 화면은 조용히 빈 채로 떴다.
+    """
+    con, job = _tiny_job(tmp_path)
+    from app import main
+    main.CON, main.DATA_DIR = con, tmp_path
+    out = main._multiplier_targets(job)
+    assert len(out["groups"]) == 1, out["groups"]
+    g = out["groups"][0]
+    assert g["unit"] == "10"          # 도면번호에서 나온다 (parse_unit_code)
+    assert g["rows"] == 82 and g["sheets"] == 4
+    assert g["codes"] == ["MULTIPLIER_UNDEFINED"]
+    assert g["set"] is None
+
+
+def test_setting_and_clearing_shows_up_in_the_same_answer(tmp_path):
+    con, job = _tiny_job(tmp_path)
+    from app import main
+    main.CON, main.DATA_DIR = con, tmp_path
+    um.set_unit(tmp_path, "SADARA", unit="10", multiplier=4, author="sc.y",
+                note="시험", job_id=job)
+    g = main._multiplier_targets(job)["groups"][0]
+    assert g["set"] and g["set"]["multiplier"] == 4 and g["set"]["author"] == "sc.y"
+    um.clear_unit(tmp_path, "SADARA", "10")
+    assert main._multiplier_targets(job)["groups"][0]["set"] is None

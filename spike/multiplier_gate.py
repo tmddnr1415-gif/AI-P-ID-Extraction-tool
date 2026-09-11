@@ -23,6 +23,8 @@ os.environ.pop("PID_PROJECT_CONFIG", None)
 sys.path.insert(0, str(ROOT))
 
 from app import pipeline  # noqa: E402
+sys.path.insert(0, str(ROOT / "spike"))
+import identification  # noqa: E402
 
 PROJECTS = {p["name"]: p for p in
             json.loads((ROOT / "spike" / "projects_3p.json").read_text())["projects"]}
@@ -71,13 +73,27 @@ def main() -> int:
     print(f"   Q'ty 합계 {qty_o} → {qty_n} · 값이 있는 행 {filled_o} → {filled_n}")
     print(f"   움직인 칸(지문 대상 열): {moved or '없음'}")
     print(f"   승수 사유: {codes or '없음'}")
+    # 축3 을 다시 잰다 — 하네스와 **같은 채점기**를 쓴다 (측정 정의 불변).
+    from app.engine import detect_symbols as ds
+    anc, tmap = ds.RULESET_V3.anchors, dict(ds._V3_FIELD_TYPE_MAP)
+    words = {pc["page_no"]: [] for pc in out.get("pages", [])} or {}
+    try:
+        base_words = json.loads((ROOT / "out" / "regression_3p" /
+                                 (name.replace(" ", "_") + ".json")).read_text())["words"]
+        words = {int(k): [(tuple(w[0]), w[-1]) for w in v] for k, v in base_words.items()}
+    except Exception:
+        pass
+    metrics, total = identification.measure(out, words, anc, tmap)
+    print(f"   축3 {total} · {{{', '.join(f'{k} {v[0]}/{v[1]}' for k, v in metrics.items())}}}")
     dest = ROOT / "out" / "round31" / f"gate_{name.replace(' ', '_')}.json"
     dest.write_text(json.dumps({"project": name, "table": table,
                                 "rows": len(out["rows"]),
                                 "fingerprint": out["fingerprint"],
                                 "qty_before": qty_o, "qty_after": qty_n,
                                 "filled_before": filled_o, "filled_after": filled_n,
-                                "moved": moved, "codes": codes},
+                                "moved": moved, "codes": codes,
+                                "score": total,
+                                "metrics": {k: list(v) for k, v in metrics.items()}},
                                ensure_ascii=False, indent=1), encoding="utf-8")
     return 0
 

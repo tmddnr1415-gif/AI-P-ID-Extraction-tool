@@ -902,25 +902,29 @@ def _multiplier_targets(job_id: str) -> dict:
     job = db.get_job(CON, job_id)
     if not job:
         raise HTTPException(404, "no such job")
-    eng = json.loads(job["engine_json"] or "{}")
-    pages = {int(t["page_no"]): t for t in (eng.get("titleblocks") or [])}
-    rows = db.rows_for(CON, job_id)
+    # 유닛코드는 **도면번호에서 나온다** — 엔진이 쓰는 그 함수를 그대로 쓴다
+    # (`engine_json` 은 타이틀블록을 담지 않는다.  두 벌을 두면 언젠가 갈린다).
+    pages = {int(p["page_no"]): (pipeline.tb.parse_unit_code(p["drawing_no"]) or "")
+             for p in db.page_revisions(CON, job_id)}
+    rows = db.merged_rows(CON, job_id)
     want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG",
             "MULTIPLIER_NOTE_RANGE", unit_multipliers.REVIEW_CODE}
     groups: dict = {}
     for r in rows:
-        ev = json.loads(r["evidence_json"] or "{}")
+        ev = r.get("evidence") or {}
+        if isinstance(ev, str):
+            ev = json.loads(ev or "{}")
         codes = set(ev.get("review_codes") or [])
         if not (codes & want):
             continue
-        unit = (pages.get(r["page_no"], {}) or {}).get("unit_code", "")
+        unit = pages.get(r["page_no"], "")
         g = groups.setdefault(unit, {"unit": unit, "rows": 0, "pages": set(),
                                      "codes": set(), "qty_now": 0})
         g["rows"] += 1
         g["pages"].add(r["page_no"])
         g["codes"] |= (codes & want)
         try:
-            g["qty_now"] += int(r["qty"] or 0)
+            g["qty_now"] += int((r.get("values") or {}).get("qty") or 0)
         except (TypeError, ValueError):
             pass
     saved = unit_multipliers.load(DATA_DIR, job["project"] or "")
@@ -1465,6 +1469,7 @@ REVIEW_LABELS = {
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
     "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
+    "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
     "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
     "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",
     "DESC_CCW_DIRECTION": "CCW SUPPLY/RETURN 을 도면 기하로 구분할 수 없음 — 직접 입력",
