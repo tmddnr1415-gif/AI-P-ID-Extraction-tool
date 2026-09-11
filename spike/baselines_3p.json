@@ -1,10 +1,10 @@
 {
-  "_": "27회차 기준선.  그 장 NOTES 의 '같은 유닛 몇 개' 를 수량에 쓰면서 TC2 가 536d3baa → fbee907d → e909cf7c 로 움직였다 (Q'ty 345 → 2599 → 3047 · 축3 82.0 → 89.2 · 행 607 불변).  마지막 걸음은 어휘를 config 로 내면서 더한 TYPICAL 로, TC2 6장이 더 선 것이다 (p23·p24·p51·p52·p54·p55 — 전부 'IS APPLICABLE FOR … AND IS TYPICAL FOR …').  AL NOUF1 fb85b039·1037·1931·95.0 과 SADARA 0767ba79·82·75.3 은 불변이다.  메모리: AL NOUF1 4.9GB · TC2 7.2GB.",
+  "_": "30회차 기준선.  [B] 심볼의 **그려진 윤곽** 위 획 뭉치를 마크로 읽지 않게 하면서 UAD 가 31231bd7 → db1a77d1 로 움직였다 (SCOPE 18행 · 행 149 불변).  [D] 개정 표기를 이력 표 REV 열에서 유도하면서 UAD 개정 0/32 → 23/32 · 축3 71.0 → 83.0.  ⚠ AL NOUF1 95.0 → 95.1 · SADARA 75.3 → 75.4 는 **판정이 아니라 축3 ⑥(파라미터)의 분자·분모가 하나씩 는 것**이다 — `formats.revision` 이 유도 항목이 됐고(두 문서 다 기록만 되고 적용되지 않는다), 행은 네 문서 전수 대조에서 AL NOUF1·SADARA·TC2 **움직인 칸 0**.  AL NOUF1 fb85b039·1037·1931·축1 99.3/70.5·축2 99.3/94.4 불변.  메모리: AL NOUF1 4.9GB · TC2 7.2GB.",
   "AL NOUF1": {
     "rows": 1037,
     "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
     "qty_sum": 1931,
-    "score": 95.0,
+    "score": 95.1,
     "axes": {
       "전량": {
         "recall": 99.3,
@@ -24,7 +24,7 @@
     "rows": 82,
     "fingerprint": "0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1",
     "qty_sum": 0,
-    "score": 75.3
+    "score": 75.4
   },
   "TC2": {
     "rows": 607,
@@ -34,8 +34,8 @@
   },
   "UAD": {
     "rows": 149,
-    "fingerprint": "31231bd7edb04f25d7d97c4311950cd726fa591b497db401a90b5641411fdfc9",
+    "fingerprint": "db1a77d18876d286c71e1ae55aa3b592149f87c79fa9f58615ba4bb85946086c",
     "qty_sum": 149,
-    "score": 71.0
+    "score": 83.0
   }
 }
