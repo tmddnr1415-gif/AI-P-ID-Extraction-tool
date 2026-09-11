@@ -245,6 +245,109 @@ def _rows_near_heading(pc, y_span=260.0):
     return rows
 
 
+# ---------------------------------------------------------------------------
+# 그 장 NOTES 가 말하는 "이 도면은 유닛 몇 개에 같이 쓰인다" (27회차)
+# ---------------------------------------------------------------------------
+#
+# 도면이 스스로 말하는 자리다 (§9 ②).  실측 문형 넷 — 전부 같은 뜻이다:
+#
+#   AL NOUF1  THIS P&ID IS FOR GROUP #10, CONFIGURATION IS IDENTICAL FOR GROUP #20.
+#   AL NOUF1  THIS P&ID IS FOR UNIT#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.
+#   TC2       THIS P&ID IS FOR UNIT 3-1. AND, SIMILAR SCHEME IS APPLICABLE TO
+#             UNIT 3-2, UNIT 4-1, … UNIT 6-2.
+#   TC2       … INSTRUMENTS SHALL BE IDENTICAL TO UNIT 3-1 AS SHOWN IN THIS P&ID.
+#
+# **세는 것이지 해석하지 않는다** — 그 문단이 열거한 유닛 표기의 개수가 곧 배수다.
+# 문장 모양으로 찾지 않는 이유는 위 넷이 서로 다르기 때문이고, `IDENTICAL` 과
+# `SIMILAR` 를 같게 보는 것은 사용자가 실무 기준으로 확인해 준 것이다.
+#
+# ⚠ 이 값은 **범례 표가 답하지 못할 때만** 쓴다 (`pipeline._field_rows`).
+# AL NOUF1 은 대조 가능한 24장 중 23장에서 노트와 범례가 같고 p15 한 장만
+# 어긋난다 (노트 4 ↔ 범례 2) — 어느 쪽이 옳은지는 도면이 두 말을 하므로,
+# 이미 답이 있는 문서의 판정을 흔들지 않는다.
+_SAME_WORD = re.compile(r"\b(IDENTICAL|SIMILAR|SAME)\b")
+_UNIT_NUM = r"\d{1,2}(?:\s*-\s*\d{1,2})?"
+# 낱말 뒤의 **꼬리까지** 읽는다 — `UNIT#12,21,22` 에서 꼬리를 버리면 4를 2로 센다
+# (옛 스파이크 `parse_notes.GROUP_REF` 의 주석이 경고해 둔 자리다).
+_UNIT_HEAD = re.compile(r"(?:GROUP|UNIT|TRAIN)S?\s*(?:NO\.?|#)?\s*(%s)" % _UNIT_NUM)
+_UNIT_TAIL = re.compile(r"\s*(?:,|&|AND)\s*#?\s*(%s)" % _UNIT_NUM)
+# 낱말 없이 이어지는 목록.  실측 두 문형 —
+#   `… TYPICAL FOR UNIT 3-1 & 3-2, SIMILAR … APPLICABLE FOR 4-1 & 4-2, 5-1 & 5-2 AND 6-1 & 6-2`
+#   `… COMMON FOR UNITS NO.3-1 & 3-2. … DUPLICATED FOR UNIT 4-1 & 4-2, 5-1 & 5-2, 6-1 & 6-2`
+# 앞의 것은 뒤 여섯이 낱말 없이 나오고 뒤의 것은 앞 둘이 그렇다.  **낱말에 걸린
+# 표기가 `3-1` 꼴일 때만** 같은 꼴을 더 줍는다 — 두 자리 맨숫자(`20 DIAMETERS`
+# ·`ONE (1)`)까지 주우면 아무 숫자나 유닛이 된다.  한 자리-한 자리로 좁혀서
+# 도면번호(`M05-0002`)와 날짜(`2026-08-21`)에 걸리지 않는다.
+_UNIT_BARE = re.compile(r"(?<![\w-])(\d-\d)(?![\w-])")
+_NUMBERED = re.compile(r"^\d+\.")
+
+
+def _unit_tokens(text: str) -> list:
+    """그 문단이 열거한 유닛 표기 (등장 순서, 중복 포함)."""
+    out = []
+    for m in _UNIT_HEAD.finditer(text):
+        out.append(m.group(1))
+        pos = m.end()
+        while True:
+            t = _UNIT_TAIL.match(text, pos)   # `^` 를 쓰면 안 된다 — match(pos) 가 그 자리다
+            if not t:
+                break
+            out.append(t.group(1))
+            pos = t.end()
+    out = [re.sub(r"\s+", "", t) for t in out]
+    if any(_UNIT_BARE.fullmatch(t) for t in out):
+        out += _UNIT_BARE.findall(text)
+    return out
+
+
+def _note_paragraphs(pc, area, x_max) -> list:
+    """그 장 NOTES 를 문단으로.
+
+    줄은 **같은 y** 끼리만 묶는다 — `detect_symbols._notes_lines` 의 7pt 버킷은
+    줄 간격이 9.3~11.2pt 인 문서에서도 **두 줄을 한 줄로 묶어** 낱말을 섞는다
+    (TC2 p7 실측: `5. UNIT THIS 5-2, P&ID UNIT IS FOR 6-1, …`).  같은 자리에
+    같은 낱말이 또 있으면 덧인쇄이므로 하나로 본다 (TC2 p10·p12 는 NOTES 를
+    **두 번** 인쇄한다).
+    """
+    x0, y0, _x1, y1 = area
+    rows, seen = {}, set()
+    for r, t in pc.words:
+        if not (x0 <= r.x0 <= x_max and y0 <= r.y0 <= y1):
+            continue
+        key = (round(r.x0, 1), round(r.y0, 1), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.setdefault(round(r.y0, 1), []).append((r.x0, t))
+    paras, cur = [], ""
+    for y in sorted(rows):
+        line = " ".join(t for _x, t in sorted(rows[y]))
+        if _NUMBERED.match(line.strip()):
+            if cur:
+                paras.append(cur)
+            cur = line
+        elif cur:
+            cur += " " + line
+        else:
+            cur = line
+    if cur:
+        paras.append(cur)
+    return paras
+
+
+def note_unit_span(pc, area, x_max):
+    """`(배수, 유닛 표기, 그 문단)` — 그 장 NOTES 가 말하지 않으면 `(None, [], "")`."""
+    best = (None, [], "")
+    for para in _note_paragraphs(pc, area, x_max):
+        up = re.sub(r"\s+", " ", para.upper())
+        if not _SAME_WORD.search(up):
+            continue
+        toks = list(dict.fromkeys(_unit_tokens(up)))
+        if len(toks) >= 2 and (best[0] is None or len(toks) > best[0]):
+            best = (len(toks), toks, up.strip())
+    return best
+
+
 def derive_unit_multipliers(pages, cfg: ProjectConfig, legend_kinds=("LEGEND",),
                             page_kinds: dict | None = None) -> UnitMultipliers:
     """Read the legend's unit table; fall back to config only if that fails."""

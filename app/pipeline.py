@@ -705,6 +705,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         m_mult = projectconfig.derive_unit_multipliers(pages, CFG, page_kinds)
         mult = (legend_profile_store.restore_multipliers(profile)
                 if profile is not None else m_mult)
+    # 장별 "유닛 몇 개" 노트.  지문에 들어가지 않는다 (`fingerprint` 는
+    # `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을 화면과 근거 패널이
+    # 볼 수 있게 `result["unit_notes"]` 로 따로 낸다.
+    unit_notes: dict = {}
 
     # 이번에 잰 것을 프로필 한 벌로 묶는다.  새 프로젝트면 이것이 저장되고,
     # 프로필이 이미 있으면 **대조 대상**이 된다 (자동 갱신하지 않는다).
@@ -820,8 +824,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "mark_dict": mark_dict,
             "box_marks": ds.package_box_marks(boxes, _marks, ds.LAYOUT),
         }
+        # 27회차 — 그 장 NOTES 가 "이 도면은 유닛 몇 개에 같이 쓰인다" 고 말하면
+        # 그것을 읽어 둔다.  **쓰는 것은 범례 표가 답하지 못할 때뿐**이고(아래
+        # `_field_rows`), 읽는 것은 언제나 읽어 근거 패널이 보여 줄 수 있게 한다.
+        unit_notes[pc.page_no] = projectconfig.note_unit_span(
+            pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max)
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
-                                isa=isa, pat=pattern))
+                                isa=isa, pat=pattern,
+                                note=unit_notes[pc.page_no]))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
@@ -842,7 +852,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if not meta or meta["page_kind"] != "PID":
             continue
         rows.extend(_valve_rows(page_no, meta, res, mult,
-                                per_page.get(page_no)))
+                                per_page.get(page_no),
+                                note=unit_notes.get(page_no)))
         # 18회차 [D] — 밸브 쪽의 "봤지만 못 정한 것".
         #
         # 배관 끝막대 둘을 갖췄는데 범례 p2 의 어느 몸체 갈래도 아닌 중공
@@ -1057,6 +1068,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "source": mult.source, "note": mult.note,
             "table": {k: v for k, v in sorted(mult.table.items())},
         },
+        # 27회차 — 장별 "이 도면은 유닛 몇 개에 같이 쓰인다" 노트.  **지문 밖**이다
+        # (`fingerprint` 는 `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을
+        # 화면이 보여 줄 수 있게 두되, 이미 답이 있는 문서의 지문을 흔들지 않는다.
+        "unit_notes": {str(k): {"units": v[1], "text": v[2]}
+                       for k, v in sorted(unit_notes.items()) if v[0]},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
@@ -1251,6 +1267,30 @@ def _description_skip(d) -> str:
 #
 # 값을 버리지 않고 **어디서 왔는지 말한다**: 버리면 쓸 수 있었을 수를 잃고,
 # 말하지 않으면 남의 도면 값을 이 도면의 값으로 읽게 된다.
+def _note_factor(factor, undefined, borrowed, note):
+    """그 장 NOTES 가 말한 배수를 **범례가 답하지 못할 때만** 쓴다 (27회차).
+
+    읽는 순서는 §9 ① ~ ⑤ 그대로다:
+
+        ① 그 문서의 범례 UNIT IDENTIFICATION NUMBERS 표   ← 이기면 여기서 끝
+        ② 그 장의 NOTES ("… IDENTICAL / SIMILAR … UNIT 3-2, 4-1, …")
+        ③ 프로젝트 설정 폴백 (= 남의 도면에서 잰 값)
+        ④ 아무 것도 없으면 빈칸 + 사유
+
+    그래서 **범례가 답하는 문서는 한 칸도 달라지지 않는다** — AL NOUF1 의
+    `source=LEGEND` 표는 그 문서의 코드 일곱을 전부 덮는다 (지문 `fb85b039` 불변).
+    반대로 TC2 는 그 표가 60장 어디에도 없어 지금까지 유닛코드 `31` 262행이
+    빈칸이고 `00` 345행이 남의 설정값을 받고 있었다.
+
+    ⚠ 노트가 **설정 폴백보다 세다**.  설정 폴백은 그 도면이 한 말이 아니기
+    때문이다 (§9 ①의 "다른 프로젝트 값으로 폴백하지 않는다").
+    """
+    n = (note or (None, [], ""))[0]
+    if n and (undefined or borrowed):
+        return n, False, False, True
+    return factor, undefined, borrowed, False
+
+
 _BORROWED_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "
     "왔습니다 (이 PDF 에 UNIT IDENTIFICATION NUMBERS 표가 없습니다) — 확인 필요")
@@ -2464,13 +2504,15 @@ def _grade(parts_ok: bool, middle: str, middle_kind: str, skipped: bool,
 
 
 def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
-                isa=None, pat=None) -> list:
+                isa=None, pat=None, note=None) -> list:
     """Field instrument rows for one drawing (spike 2 + spike 3)."""
     out = []
     unit = meta["unit_code"]
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
+    factor, undefined, borrowed, from_note = _note_factor(
+        factor, undefined, borrowed, note)
     marked = bool(annotations)
     for d in dets:
         type_ = da.excel_type_under(d, ds.RULESET_V3)
@@ -2500,6 +2542,8 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
+        elif from_note:
+            pass          # 도면이 그 장 NOTES 에 적어 둔 값이다 — 검토 사유가 아니다
         elif borrowed:
             codes.append("MULTIPLIER_FROM_CONFIG")
             reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
@@ -2561,10 +2605,14 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                 # means.  Empty when the page defines no meaning, which is what
                 # VENDOR_MARK_UNDEFINED is.
                 "notes_text": _notes_quotes(d),
-                "qty_basis": (f"1 symbol x {factor} (unit code {unit}, "
-                              f"{mult.source})" if not undefined else
-                              f"unit code {unit} undefined"),
-                "qty_source": f"{mult.source} — {mult.note}" if mult.note else mult.source,
+                "qty_basis": (f"1 symbol x {factor} ("
+                              + (f"NOTES: {', '.join((note or (0, [], ''))[1])}"
+                                 if from_note else
+                                 f"unit code {unit}, {mult.source}") + ")"
+                              if not undefined else f"unit code {unit} undefined"),
+                "qty_source": ((note or (0, [], ""))[2][:200] if from_note
+                               else (f"{mult.source} — {mult.note}"
+                                     if mult.note else mult.source)),
             }))
     return out
 
@@ -2874,7 +2922,7 @@ class _MarkedRect:
         self.evidence = {"vendor_mark": vmark} if vmark else {}
 
 
-def _valve_rows(page_no, meta, res, mult, page=None) -> list:
+def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
     """Valve rows for one drawing (spike 4).
 
     Bodies with nothing on the stem are manual or self-acting and belong to no
@@ -2886,6 +2934,8 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
     factor = mult.multiplier(unit)
     undefined = factor is projectconfig.UNDEFINED
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
+    factor, undefined, borrowed, from_note = _note_factor(
+        factor, undefined, borrowed, note)
     for b in res["bodies"]:
         cls = dv.deliverable_class(b)
         unread = b.actuator == "UNREAD"
@@ -2932,6 +2982,8 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
+        elif from_note:
+            pass
         elif borrowed:
             codes.append("MULTIPLIER_FROM_CONFIG")
             reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
@@ -2973,10 +3025,14 @@ def _valve_rows(page_no, meta, res, mult, page=None) -> list:
                 "actuator_basis": b.actuator_evidence,
                 "tag": b.tag,
                 "deliverable": cls,
-                "qty_basis": (f"1 symbol x {factor} (unit code {unit}, "
-                              f"{mult.source})" if not undefined else
-                              f"unit code {unit} undefined"),
-                "qty_source": f"{mult.source} — {mult.note}" if mult.note else mult.source,
+                "qty_basis": (f"1 symbol x {factor} ("
+                              + (f"NOTES: {', '.join((note or (0, [], ''))[1])}"
+                                 if from_note else
+                                 f"unit code {unit}, {mult.source}") + ")"
+                              if not undefined else f"unit code {unit} undefined"),
+                "qty_source": ((note or (0, [], ""))[2][:200] if from_note
+                               else (f"{mult.source} — {mult.note}"
+                                     if mult.note else mult.source)),
             }))
     return out
 
