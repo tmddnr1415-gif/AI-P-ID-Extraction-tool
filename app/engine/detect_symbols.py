@@ -546,6 +546,45 @@ def _notes_lines(pc, lay: Layout = LAYOUT):
     return lines
 
 
+# 한 조각에 정의가 여러 개 들어오는 경우 (28회차 · 획 글꼴 도면).
+#
+# 획(SHX) 글꼴 도면은 NOTES 한 덩어리를 **주석 하나**로 싣는다.  UAD p23 실측:
+#
+#   '* SUPPLIED BY PUMP SUPPLIER SUPPLIED BY PUMP SUPPLIER ** SUPPLIED BY TANK
+#    SUPPLIER SUPPLIED BY TANK SUPPLIER *** SUPPLIED BY SCT … **** …'
+#
+# 이것을 한 줄로 읽으면 `*` 의 뜻이 덩어리 전체가 되어 SCOPE 열에
+# `VENDOR(PUMP SUPPLIER SUPPLIED BY PUMP SUPPLIER ** SUPPLIED BY TANK …)` 가
+# 찍힌다 (실측 8행).  **정의는 다음 표시에서 끝난다** — 표시는 도면이 그은
+# 구분자이고, 그것으로 자르는 것은 읽기이지 판정이 아니다.
+_MARK_IN_TEXT = re.compile(r"(?<!\S)\(?(\*{1,6})\)?(?=\s|\w)")
+
+
+def _mark_sections(text: str):
+    """`(별표 수 또는 None, 글)` 목록.  첫 조각은 이미 표시를 뗀 머리다."""
+    out, last, stars = [], 0, None
+    for m in _MARK_IN_TEXT.finditer(text):
+        if m.start() == 0:              # 머리의 표시는 부르는 쪽이 이미 뗐다
+            continue
+        out.append((stars, text[last:m.start()].strip()))
+        stars, last = len(m.group(1)), m.end()
+    out.append((stars, text[last:].strip()))
+    return [(st, t) for st, t in out if t]
+
+
+def _undouble(text: str) -> str:
+    """덧인쇄로 **그대로 두 번** 적힌 글을 한 번으로.
+
+    획 글꼴 덩어리는 같은 줄을 두 번 담아 온다 (`SUPPLIED BY PUMP SUPPLIER
+    SUPPLIED BY PUMP SUPPLIER`).  낱말 수가 짝수이고 앞뒤 절반이 **글자까지
+    같을 때만** 접는다 — 그보다 느슨하게 하면 도면이 실제로 반복한 말을 지운다.
+    """
+    w = text.split()
+    if len(w) >= 2 and len(w) % 2 == 0 and w[:len(w) // 2] == w[len(w) // 2:]:
+        return " ".join(w[:len(w) // 2])
+    return text
+
+
 def read_mark_dictionary(pc, lay: Layout = LAYOUT):
     """Page-scoped mark legend: {asterisk count -> meaning}.
 
@@ -598,7 +637,18 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
                 # 덩어리를 찾게 두면 그 장이 안 그리는 크기를 받아들이게 된다.
                 stars, rest = ink_stars[i], ln["text"]
         if stars:
-            entries.append({"line": i, "stars": stars, "text": rest, "size": size})
+            # 한 조각(획 글꼴 덩어리)에 정의가 여럿 들어 있으면 표시마다 가른다.
+            # 조각이 **한 낱말**로 들어온 줄에서만 덧인쇄를 접는다 — 여러 낱말로
+            # 들어온 보통 줄은 도면이 적은 그대로 둔다.
+            block = len(ln["words"]) == 1
+            sections = _mark_sections(rest or "")
+            if not sections:
+                entries.append({"line": i, "stars": stars, "text": rest, "size": size})
+            for n, (extra, txt) in enumerate(sections):
+                if block:
+                    txt = _undouble(txt)
+                entries.append({"line": i, "stars": extra or stars, "text": txt,
+                                "size": size if n == 0 else None})
 
     dictionary, glyph_size = {}, None
     entry_lines = {e["line"] for e in entries}
