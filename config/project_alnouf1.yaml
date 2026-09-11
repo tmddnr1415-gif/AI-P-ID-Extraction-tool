@@ -750,6 +750,29 @@ unit_multiplier_fallback:
   '10': 2
   '11': 4
 
+# 그 장 NOTES 의 "같은 유닛 몇 개" 를 읽는 어휘 (27회차).
+#
+# **이것은 이 프로젝트의 값이 아니라 영어 낱말이다** — 그래서 세 문서가 쓰는
+# 낱말이 기본값으로 코드에 있고(`projectconfig._DEFAULT_*`), 여기 적으면 그것을
+# 대신한다.  넷째 프로젝트가 `BLOCK`·`PHASE` 로 유닛을 부르면 코드를 고치지 않고
+# 한 줄 더하면 된다.  **지어낸 낱말은 넣지 않는다** — 그 문서가 실제로 인쇄한
+# 낱말만 적는다 (§2.1 ③ · §9 ②).
+#
+# 실측 문형 (세 프로젝트):
+#   AL NOUF1  THIS P&ID IS FOR GROUP #10, CONFIGURATION IS IDENTICAL FOR GROUP #20.
+#   AL NOUF1  THIS P&ID IS FOR UNIT#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.
+#   TC2       THIS P&ID IS FOR UNIT 3-1. AND, SIMILAR SCHEME IS APPLICABLE TO
+#             UNIT 3-2, UNIT 4-1, … UNIT 6-2.
+#   TC2       … TYPICAL FOR UNIT 3-1 & 3-2, SIMILAR … FOR 4-1 & 4-2, …
+#
+# `range_words` 는 세는 것이 아니라 **세지 않는** 낱말이다: `UNIT 3-1 THRU 6-2`
+# 는 두 끝만 인쇄돼 있어 사이에 무엇이 있는지 도면이 말하지 않는다.  그런
+# 문단은 수량을 정하지 않고 `MULTIPLIER_NOTE_RANGE` 로 검토에 올린다.
+qty_note:
+  same_words: [IDENTICAL, SIMILAR, SAME, TYPICAL]
+  unit_words: [GROUP, UNIT, TRAIN]
+  range_words: [THRU, THROUGH, '~']
+
 # Scope keywords that override the unit multiplier for an individual item.
 # Verified on D00P-10PGB10-M05-0004, where 'AUXILIARY BOILER COOLER' carries
 # '(PLANT COMMON)' directly beneath it and its 3 Excel rows are Q'ty 1 on a
@@ -904,6 +927,7 @@ review_axes:
     MULTI_SIGNAL_BUNDLE: QUANTITY         # 맞닿은 신호 버블의 물리 수량
     MULTIPLIER_UNDEFINED: QUANTITY        # unit code 에 승수가 없음
     MULTIPLIER_FROM_CONFIG: QUANTITY      # 승수가 이 도면이 아니라 설정에서 왔음 (26회차)
+    MULTIPLIER_NOTE_RANGE: QUANTITY       # 노트가 유닛을 범위로 적어 셀 수 없음 (27회차)
     # --- description: wording to finish
     DESCRIPTION_INCOMPLETE: DESCRIPTION
     DESC_BETWEEN_SYMBOL: DESCRIPTION

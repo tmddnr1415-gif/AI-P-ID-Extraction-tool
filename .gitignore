@@ -87,3 +87,6 @@ out/round26/*.done
 out/round26/*.rc
 out/round26/tc2_p9/*.png
 out/round26/tc2_p9/server.log
+out/round27/*.done
+out/round27/*.rc
+out/round27/*.log

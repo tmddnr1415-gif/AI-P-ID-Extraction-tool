@@ -1348,6 +1348,7 @@ REVIEW_LABELS = {
     "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
     "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
+    "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
     "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",
     "DESC_CCW_DIRECTION": "CCW SUPPLY/RETURN 을 도면 기하로 구분할 수 없음 — 직접 입력",

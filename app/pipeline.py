@@ -828,7 +828,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 그것을 읽어 둔다.  **쓰는 것은 범례 표가 답하지 못할 때뿐**이고(아래
         # `_field_rows`), 읽는 것은 언제나 읽어 근거 패널이 보여 줄 수 있게 한다.
         unit_notes[pc.page_no] = projectconfig.note_unit_span(
-            pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max)
+            pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max, cfg=CFG)
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern,
                                 note=unit_notes[pc.page_no]))
@@ -1071,8 +1071,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 27회차 — 장별 "이 도면은 유닛 몇 개에 같이 쓰인다" 노트.  **지문 밖**이다
         # (`fingerprint` 는 `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을
         # 화면이 보여 줄 수 있게 두되, 이미 답이 있는 문서의 지문을 흔들지 않는다.
-        "unit_notes": {str(k): {"units": v[1], "text": v[2]}
-                       for k, v in sorted(unit_notes.items()) if v[0]},
+        "unit_notes": {str(k): {"units": v[1], "text": v[2],
+                                "counted": bool(v[0]),
+                                "units_count": v[0] or 0}
+                       for k, v in sorted(unit_notes.items())
+                       if v[0] or (len(v) > 3 and v[3])},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
@@ -1290,6 +1293,20 @@ def _note_factor(factor, undefined, borrowed, note):
         return n, False, False, True
     return factor, undefined, borrowed, False
 
+
+def _note_ambiguous(note, undefined, borrowed) -> bool:
+    """노트가 범위 표기(`3-1 THRU 6-2`)라 셀 수 없는가.
+
+    **셀 수 없을 때만 뜻이 있다** — 범례가 이미 답한 문서에서는 노트를 아예
+    쓰지 않으므로 사유도 올리지 않는다 (AL NOUF1 은 여기에 닿지 않는다).
+    """
+    return bool(note is not None and len(note) > 3 and note[3]
+                and (undefined or borrowed))
+
+
+_NOTE_RANGE = (
+    "이 장의 NOTES 가 유닛을 **범위**로 적어(`%s`) 몇 개인지 도면이 열거하지 "
+    "않았습니다 — 두 끝만 세면 틀린 수가 되므로 수량을 정하지 않았습니다")
 
 _BORROWED_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "
@@ -2513,6 +2530,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
     factor, undefined, borrowed, from_note = _note_factor(
         factor, undefined, borrowed, note)
+    note_range = _note_ambiguous(note, undefined, borrowed)
     marked = bool(annotations)
     for d in dets:
         type_ = da.excel_type_under(d, ds.RULESET_V3)
@@ -2544,6 +2562,9 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
         elif from_note:
             pass          # 도면이 그 장 NOTES 에 적어 둔 값이다 — 검토 사유가 아니다
+        elif note_range:
+            codes.append("MULTIPLIER_NOTE_RANGE")
+            reasons.append(_NOTE_RANGE % ((note or (0, [], ""))[2][:120],))
         elif borrowed:
             codes.append("MULTIPLIER_FROM_CONFIG")
             reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
@@ -2936,6 +2957,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
     borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
     factor, undefined, borrowed, from_note = _note_factor(
         factor, undefined, borrowed, note)
+    note_range = _note_ambiguous(note, undefined, borrowed)
     for b in res["bodies"]:
         cls = dv.deliverable_class(b)
         unread = b.actuator == "UNREAD"
@@ -2984,6 +3006,9 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None) -> list:
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         elif from_note:
             pass
+        elif note_range:
+            codes.append("MULTIPLIER_NOTE_RANGE")
+            reasons.append(_NOTE_RANGE % ((note or (0, [], ""))[2][:120],))
         elif borrowed:
             codes.append("MULTIPLIER_FROM_CONFIG")
             reasons.append(_BORROWED_MULTIPLIER % (unit, factor))

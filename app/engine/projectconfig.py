@@ -30,8 +30,10 @@ Two jobs:
 
 from __future__ import annotations
 
+import functools
 import os
 import re
+from collections import namedtuple
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -265,11 +267,21 @@ def _rows_near_heading(pc, y_span=260.0):
 # AL NOUF1 은 대조 가능한 24장 중 23장에서 노트와 범례가 같고 p15 한 장만
 # 어긋난다 (노트 4 ↔ 범례 2) — 어느 쪽이 옳은지는 도면이 두 말을 하므로,
 # 이미 답이 있는 문서의 판정을 흔들지 않는다.
-_SAME_WORD = re.compile(r"\b(IDENTICAL|SIMILAR|SAME)\b")
+#
+# **어휘는 영어 낱말이지 이 프로젝트의 값이 아니다.**  그래도 config
+# (`qty_note`) 에서 늘릴 수 있게 두었다 — 넷째 프로젝트가 `BLOCK`·`PHASE` 로
+# 쓰면 코드를 고치지 않고 한 줄 더한다.  기본값에는 **실제로 본 낱말만** 둔다
+# (§9 ② · §2.1 ③ — 지어낸 낱말은 기본값이 될 수 없다).
+_DEFAULT_SAME = ("IDENTICAL", "SIMILAR", "SAME", "TYPICAL")
+_DEFAULT_UNIT = ("GROUP", "UNIT", "TRAIN")
+# 범위 표기.  `UNIT 3-1 THRU 6-2` 는 여덟을 뜻할 수도 있지만 **그 도면이 여덟을
+# 열거하지 않았다** — 두 끝 사이에 무엇이 있는지 이 문서는 말하지 않는다.
+# 그래서 세지 않고 **검토로 올린다** (§9 ④).  두 끝을 주워 `2` 로 세는 것이
+# 가장 나쁘다 — 틀린 수가 맞는 얼굴을 한다.
+_DEFAULT_RANGE = ("THRU", "THROUGH", "~")
 _UNIT_NUM = r"\d{1,2}(?:\s*-\s*\d{1,2})?"
 # 낱말 뒤의 **꼬리까지** 읽는다 — `UNIT#12,21,22` 에서 꼬리를 버리면 4를 2로 센다
 # (옛 스파이크 `parse_notes.GROUP_REF` 의 주석이 경고해 둔 자리다).
-_UNIT_HEAD = re.compile(r"(?:GROUP|UNIT|TRAIN)S?\s*(?:NO\.?|#)?\s*(%s)" % _UNIT_NUM)
 _UNIT_TAIL = re.compile(r"\s*(?:,|&|AND)\s*#?\s*(%s)" % _UNIT_NUM)
 # 낱말 없이 이어지는 목록.  실측 두 문형 —
 #   `… TYPICAL FOR UNIT 3-1 & 3-2, SIMILAR … APPLICABLE FOR 4-1 & 4-2, 5-1 & 5-2 AND 6-1 & 6-2`
@@ -282,10 +294,42 @@ _UNIT_BARE = re.compile(r"(?<![\w-])(\d-\d)(?![\w-])")
 _NUMBERED = re.compile(r"^\d+\.")
 
 
-def _unit_tokens(text: str) -> list:
+#: `(배수, 유닛 표기, 그 문단, 범위표기라서 셀 수 없음)`.  앞 셋의 자리는
+#: 27회차 첫 구현과 같다 — 읽는 쪽이 `note[0]`·`note[1]`·`note[2]` 를 그대로 쓴다.
+UnitNote = namedtuple("UnitNote", "count units text ambiguous")
+_NO_NOTE = UnitNote(None, [], "", False)
+
+
+def _word_re(words) -> re.Pattern:
+    """낱말 하나라도 나오면 걸리는 패턴.  `~` 같은 기호도 그대로 받는다."""
+    body = "|".join(re.escape(w) for w in words if str(w).strip())
+    return re.compile(r"(?<!\w)(?:%s)(?!\w)" % (body or r"(?!)"))
+
+
+@functools.lru_cache(maxsize=None)
+def _note_patterns(same: tuple, unit: tuple, rng: tuple):
+    return (_word_re(same),
+            re.compile(r"(?:%s)S?\s*(?:NO\.?|#)?\s*(%s)"
+                       % ("|".join(re.escape(w) for w in unit), _UNIT_NUM)),
+            _word_re(rng))
+
+
+def note_vocabulary(cfg=None):
+    """`qty_note` 어휘 → 컴파일된 패턴 셋.  없으면 실측 기본값."""
+    blk = ((getattr(cfg, "data", None) or {}).get("qty_note") or {}) if cfg else {}
+    def words(key, default):
+        got = blk.get(key)
+        return tuple(str(w).upper() for w in got) if got else default
+    return _note_patterns(words("same_words", _DEFAULT_SAME),
+                          words("unit_words", _DEFAULT_UNIT),
+                          words("range_words", _DEFAULT_RANGE))
+
+
+def _unit_tokens(text: str, head=None) -> list:
     """그 문단이 열거한 유닛 표기 (등장 순서, 중복 포함)."""
+    head = head if head is not None else note_vocabulary()[1]
     out = []
-    for m in _UNIT_HEAD.finditer(text):
+    for m in head.finditer(text):
         out.append(m.group(1))
         pos = m.end()
         while True:
@@ -335,16 +379,27 @@ def _note_paragraphs(pc, area, x_max) -> list:
     return paras
 
 
-def note_unit_span(pc, area, x_max):
-    """`(배수, 유닛 표기, 그 문단)` — 그 장 NOTES 가 말하지 않으면 `(None, [], "")`."""
-    best = (None, [], "")
+def note_unit_span(pc, area, x_max, cfg=None) -> "UnitNote":
+    """그 장 NOTES 가 말하는 "같은 유닛 몇 개".  안 말하면 `_NO_NOTE`.
+
+    범위 표기(`3-1 THRU 6-2`)가 섞이면 **세지 않고** `ambiguous` 로 올린다 —
+    그 도면이 열거한 것은 두 끝뿐이고 사이에 무엇이 있는지는 말하지 않았다.
+    """
+    same_re, head_re, range_re = note_vocabulary(cfg)
+    best = _NO_NOTE
     for para in _note_paragraphs(pc, area, x_max):
-        up = re.sub(r"\s+", " ", para.upper())
-        if not _SAME_WORD.search(up):
+        up = re.sub(r"\s+", " ", para.upper()).strip()
+        if not same_re.search(up):
             continue
-        toks = list(dict.fromkeys(_unit_tokens(up)))
-        if len(toks) >= 2 and (best[0] is None or len(toks) > best[0]):
-            best = (len(toks), toks, up.strip())
+        toks = list(dict.fromkeys(_unit_tokens(up, head_re)))
+        if len(toks) < 2:
+            continue
+        if range_re.search(up):
+            if not best.ambiguous and best.count is None:
+                best = UnitNote(None, toks, up, True)
+            continue
+        if best.count is None or len(toks) > best.count:
+            best = UnitNote(len(toks), toks, up, False)
     return best
 
 
