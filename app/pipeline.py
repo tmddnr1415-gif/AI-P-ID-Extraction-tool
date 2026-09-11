@@ -1380,7 +1380,7 @@ _NOTE_RANGE = (
 _USER_MULT_CODE = "MULTIPLIER_BY_USER"
 
 _USER_MULTIPLIER = (
-    "unit code '%s' 의 승수 x%s 는 도면이 아니라 **사람이 지정한 값**입니다 (%s)")
+    "unit code '%s' 의 승수 x%s 는 도면이 아니라 사람이 지정한 값입니다 (%s)")
 
 _BORROWED_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "

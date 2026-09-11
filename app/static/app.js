@@ -1302,11 +1302,19 @@ async function loadMultipliers() {
   const groups = out.groups || [];
   if (!groups.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
   box.classList.remove("hidden");
+  /* 이 분석이 프로젝트에 안 묶여 있으면 **저장할 자리가 없다** — 누르고 나서
+   * 400 으로 알리지 않고 먼저 말한다 (31회차 UI 자기검증).  승수는 프로젝트의
+   * 사실이므로 job 하나에 매달아 둘 수 없다. */
+  const bound = !!out.project;
   box.innerHTML = `<b>수량 승수</b> <span class="muted">도면이 말하지 않은 유닛 —
       사람이 한 번 답하면 그 유닛의 모든 행에 적용됩니다</span>`
+    + (bound ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
+         승수를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
     + groups.map(g => {
         const set = g.set;
         const after = set ? g.rows * (set.multiplier || 0) : null;
+        /* 유닛코드가 비어 있으면 열쇠가 없다 — 그 도면의 도면번호를 못 읽은 것이다. */
+        const keyed = !!g.unit;
         return `<div class="mgroup" data-unit="${g.unit}">
           <div class="mhead">유닛 <b>${g.unit || "(빈칸)"}</b>
             <span class="muted">${g.sheets}장 ${g.rows}행에 적용됩니다
@@ -1315,16 +1323,19 @@ async function loadMultipliers() {
           ${set ? `<div class="mset">지정됨 <b>x${set.multiplier}</b>
               — ${set.author || "이름 없음"} · ${(set.set_at || "").slice(0, 10)}
               ${set.note ? " · " + set.note : ""}
-              <button class="mclear">되돌리기</button></div>` : ""}
-          <div class="mform">
+              <button class="mclear">되돌리기</button>
+              <div class="mpending">아직 이 결과에는 반영되지 않았습니다 —
+                다시 분석하면 ${g.rows}행에 적용됩니다</div></div>` : ""}
+          ${keyed && bound ? `<div class="mform">
             <label>승수 <input class="mval" type="number" min="1" step="1"
                    value="${set ? set.multiplier : ""}" placeholder="예: 4"></label>
             <label>근거 <input class="mnote" type="text"
                    placeholder="예: 발주처 회신 2026-09-11" value="${set ? (set.note || "") : ""}"></label>
             <button class="mset-btn">지정</button>
-            <span class="mpreview muted">Q'ty ${g.qty_now}
-              ${after !== null ? ` → <b>${after}</b>` : " → ?"}</span>
-          </div></div>`;
+            <span class="mpreview muted">지금 Q'ty ${g.qty_now}
+              ${after !== null ? ` · 다시 분석하면 <b>${after}</b>` : " · 다시 분석하면 ?"}</span>
+          </div>` : (keyed ? "" : `<div class="mwhy muted">이 장들의 도면번호에서
+             유닛코드를 읽지 못해 지정할 열쇠가 없습니다</div>`)}</div>`;
       }).join("");
   box.querySelectorAll(".mgroup").forEach(el => {
     const unit = el.dataset.unit;
@@ -1334,8 +1345,9 @@ async function loadMultipliers() {
     /* 넣기 전에 무엇이 바뀌는지 보인다 — 누르고 나서 아는 것이 아니다. */
     if (val) val.oninput = () => {
       const n = parseInt(val.value, 10);
-      pv.innerHTML = `Q'ty ${g.qty_now}` +
-        (n >= 1 ? ` → <b>${g.rows * n}</b> (${g.rows}행 x ${n})` : " → ?");
+      /* "→" 만 쓰면 이미 바뀐 것처럼 읽힌다.  바뀌는 것은 **다시 분석한 뒤**다. */
+      pv.innerHTML = `지금 Q'ty ${g.qty_now}` +
+        (n >= 1 ? ` · 다시 분석하면 <b>${g.rows * n}</b> (${g.rows}행 x ${n})` : " · 다시 분석하면 ?");
     };
     const btn = el.querySelector(".mset-btn");
     if (btn) btn.onclick = async () => {
@@ -1350,7 +1362,9 @@ async function loadMultipliers() {
       body.append("note", el.querySelector(".mnote").value || "");
       const r = await fetch(`/jobs/${S.job.id}/multipliers`, { method: "POST", body });
       if (!r.ok) { editNotice((await r.json()).detail || "저장하지 못했습니다", "out"); return; }
-      editNotice(`유닛 ${unit} → x${n} 지정했습니다 — **다시 분석하면** ${g.rows}행에 적용됩니다`, "in");
+      /* `editNotice` 는 textContent 다 — 마크다운 별표를 쓰면 별표가 그대로 보인다
+       * (31회차 UI 자기검증 캡처가 잡았다). */
+      editNotice(`유닛 ${unit} → x${n} 지정했습니다 — 다시 분석하면 ${g.rows}행에 적용됩니다`, "in");
       loadMultipliers();
     };
     const clr = el.querySelector(".mclear");

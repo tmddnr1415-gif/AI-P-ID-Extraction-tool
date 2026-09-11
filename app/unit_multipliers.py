@@ -62,7 +62,7 @@ VERSION = 1
 
 # 검토 사유 — 범례에서 온 것과 구분한다 (`MULTIPLIER_FROM_CONFIG` 와 나란히).
 REVIEW_CODE = "MULTIPLIER_BY_USER"
-REASON = ("unit code '%s' 의 승수 x%s 는 도면이 아니라 **사람이 지정한 값**"
+REASON = ("unit code '%s' 의 승수 x%s 는 도면이 아니라 사람이 지정한 값"
           "입니다 (%s · %s) — 근거를 함께 보관합니다")
 
 

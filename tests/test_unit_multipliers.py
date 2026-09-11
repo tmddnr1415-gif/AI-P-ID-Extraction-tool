@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import inspect
 import pathlib
+import re
 import sys
 
 import pytest
@@ -187,3 +188,61 @@ def test_setting_and_clearing_shows_up_in_the_same_answer(tmp_path):
     assert g["set"] and g["set"]["multiplier"] == 4 and g["set"]["author"] == "sc.y"
     um.clear_unit(tmp_path, "SADARA", "10")
     assert main._multiplier_targets(job)["groups"][0]["set"] is None
+
+
+# ---------------------------------------------------------------------------
+# 화면이 하는 말 — 31회차 **UI 자기검증**이 캡처로 잡은 넷을 못박는다.
+#
+# 넷 다 "코드는 도는데 화면이 사실과 다른 말을 한다" 는 부류이고, 이 저장소가
+# 열 회차 넘게 같은 방법(실제로 띄워 찍고 글자를 읽기)으로 잡아 온 것이다.
+# ---------------------------------------------------------------------------
+
+def test_reason_text_carries_no_markdown_into_the_grid():
+    """사유 문장은 REMARK 열과 근거 패널에 **글자 그대로** 나간다.
+
+    캡처: `**사람이 지정한 값**` 이 별표째 보였다.  이웃 사유
+    (`_BORROWED_MULTIPLIER`)는 처음부터 맨 문장이다 — 한쪽만 마크다운이면
+    같은 열에서 두 문체가 섞인다.
+    """
+    from app import pipeline
+    assert "**" not in um.REASON
+    assert "**" not in pipeline._USER_MULTIPLIER
+    assert "**" not in pipeline._BORROWED_MULTIPLIER      # 원래부터 맨 문장
+
+
+def test_edit_notice_arguments_carry_no_markdown():
+    """`editNotice` 는 `textContent` 다 — 별표를 쓰면 별표가 보인다."""
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    # 정의(`function editNotice(...)`)는 호출이 아니다 — 빼고 센다.
+    calls = re.findall(r"(?<!function )editNotice\((.*?)\);", js, re.S)
+    assert calls, "editNotice 호출을 못 찾았습니다 — 시험이 낡았습니다"
+    bad = [c.strip()[:70] for c in calls if "**" in c]
+    assert not bad, bad
+
+
+def test_the_panel_says_the_value_is_not_applied_yet():
+    """지정한 값은 **다음 분석부터** 적용된다.
+
+    안내 줄은 4.9초 뒤 사라지므로 그 사실은 패널에 **상주**해야 한다
+    (15회차 `adopt_legend_profile` 과 같은 규율 — 바꿨다고 말하면서 바꾸지
+    않으면 화면이 거짓말을 한다).
+    """
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    assert "mpending" in js
+    assert "아직 이 결과에는 반영되지 않았습니다" in js
+    # 미리보기도 "→" 하나로 끝내지 않는다 — 이미 바뀐 것처럼 읽힌다.
+    assert "다시 분석하면" in js
+
+
+def test_an_analysis_with_no_project_is_told_before_it_clicks():
+    """프로젝트에 안 묶인 분석에는 저장할 자리가 없다 (승수는 프로젝트의 사실).
+
+    누른 뒤 400 으로 알리지 않고 폼 대신 사유를 낸다.
+    """
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    assert "const bound = !!out.project" in js
+    assert "프로젝트에 묶여 있지 않아" in js
+    # 서버 쪽 문장은 저장 함수가 쥐고 있다 (두 벌을 두지 않는다)
+    with pytest.raises(ValueError) as e:
+        um.set_unit("/tmp", "", unit="10", multiplier=2, author="x")
+    assert "프로젝트" in str(e.value)

@@ -1003,3 +1003,6 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .mult-panel .mform input[type=number] { width: 72px; }
 .mult-panel .mform input[type=text] { width: 220px; }
 .mult-panel button { font-size: 12px; }
+/* 지정한 값은 **다음 분석부터** 적용된다 — 그 사실이 화면에 상주해야 한다
+   (안내 줄은 4.9초 뒤 사라진다). */
+.mult-panel .mpending { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
