@@ -187,7 +187,12 @@ def _column_lines(pages, column) -> list:
         lines = collections.defaultdict(list)
         seen = set()
         for r, t in pc.words:
-            if r.x0 < column:
+            # 낱말이 그 열 **안에 있는가** — 왼쪽 모서리가 아니라 **중심**으로 가른다
+            # (28회차).  UAD 는 캡션을 세로 괘선에 바짝 붙여 인쇄해서 `PROJECT DWG
+            # NO.` 의 x0 가 984.0 · 괘선이 984.1 이다.  모서리로 가르면 **0.1pt**
+            # 차이로 표제란 캡션 셋이 통째로 빠지고(실측: 찾은 캡션 1개),
+            # 허용치를 더하면 그 숫자가 곧 임의값이 된다 (§2.2).
+            if (r.x0 + r.x1) / 2 < column:
                 continue
             # Duplicates are dropped here whatever the cache is set to do: this
             # measurement runs before that setting is known, and a caption stamped
@@ -206,10 +211,15 @@ def _column_lines(pages, column) -> list:
 
 
 def _caption_rows(lines) -> dict:
-    """Where each caption line sits: `{name: (y_top, y_bottom)}`."""
+    """Where each caption line sits: `{name: (y_top, y_bottom)}`.
+
+    ⚠ 한 조각이 여러 낱말을 담을 수 있다 (28회차).  획(SHX) 글꼴로 그린 글자는
+    PDF 에 주석 하나로 들어오고 그 주석은 `PROJECT DWG NO.` 를 **통째로** 담는다
+    — 쪼개 놓으면 그 자리는 지어낸 값이 되므로 쪼개지 않고 여기서 낱말로 읽는다.
+    """
     out = {}
     for y, items in lines:
-        words = [t.upper() for _x, t, *_rest in items]
+        words = [w.upper() for _x, t, *_rest in items for w in t.split()]
         for name, caption in CAPTIONS.items():
             if name in out:
                 continue

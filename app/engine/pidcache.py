@@ -168,6 +168,62 @@ def _dedup(words):
     return out
 
 
+# --------------------------------------------------------------------------
+# 획(SHX) 글꼴로 그린 글자 — 도형으로 인쇄되고, 같은 자리에 주석으로 남는다
+# --------------------------------------------------------------------------
+# AutoCAD 는 TrueType 글자만 PDF 텍스트로 내보내고 **SHX(획) 글꼴은 선으로
+# 그린다**.  그러면서 그 글자를 담은 주석을 같은 자리에 함께 남기고, 그
+# 주석의 **작성자 칸에 `AutoCAD SHX Text` 라고 적는다** — 즉 도면이 "이건
+# 내가 그린 글자다" 라고 스스로 말한다 (§9 ①~③).
+#
+# 사람이 붙인 검토 메모와는 **그 칸 하나로 갈린다**: 실측 네 문서 —
+#   AL NOUF1  FreeText · 작성자 `sc.y`        · 64건 (`I/O 만 반영` 따위)
+#   SADARA    FreeText · 작성자 `hyomi.kang`  · 24건
+#   TC2       Square   · 작성자 `AutoCAD SHX Text` · 909건
+#   UAD       Square   · 작성자 `AutoCAD SHX Text` · 10,729건
+# 종류(Square/FreeText)로 가르지 않는다 — **작성자가 누구인지**가 답이고,
+# 사람 이름으로 적힌 메모를 도면의 글자로 읽으면 검토 메모가 태그가 된다.
+#
+# ⚠ UAD 는 32장 중 29장이 이 갈래다 (텍스트 낱말 3,590 ↔ 주석 글자 10,729).
+# 이것을 안 읽으면 도면번호도 태그도 한 글자도 못 읽는다 — 28회차가 고친 것.
+SHX_AUTHOR = "AutoCAD SHX Text"
+
+
+def _shx_entries(page, m) -> list:
+    """`(사각형, 글자)` — 그 장이 SHX 주석으로 남긴 글자.  없으면 빈 목록."""
+    out = []
+    try:
+        annots = list(page.annots() or [])
+    except Exception:
+        return out
+    for a in annots:
+        info = a.info or {}
+        if (info.get("title") or "").strip() != SHX_AUTHOR:
+            continue
+        text = " ".join((info.get("content") or "").split())
+        if not text:
+            continue
+        out.append((pymupdf.Rect(a.rect) * m, text))
+    return out
+
+
+def _shx_words(entries) -> list:
+    """SHX 주석을 낱말로 — **쪼개지 않는다.**
+
+    주석이 주는 것은 덩어리 사각형 **하나**뿐이다.  여러 낱말을 낱말 길이에
+    비례해 나눠 놓을 수는 있지만 그 자리는 잰 값이 아니라 **지어낸 값**이고
+    (§2.1 ③), 한 줄인지 여러 줄로 접힌 덩어리인지를 가를 근거도 이 문서에
+    없다 — 한 낱말짜리 주석으로 글자폭을 재어 갈라 보면 한 줄 캡션(1.25~1.54)과
+    접힌 덩어리가 **1.3~3.0 구간에서 576건 겹친다** (빈 띠가 없으므로 문턱을
+    그 안에 두면 임의값이다 · §2.2).
+
+    그래서 덩어리는 덩어리로 둔다.  캡션을 낱말 단위로 찾는 쪽
+    (`derive_layout._caption_rows`)이 낱말로 쪼개 읽는다 — 글자를 읽는 쪽이
+    쪼개는 것은 판정이 아니라 읽기다.
+    """
+    return list(entries)
+
+
 def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]:
     """Open the PDF and build a rotation-normalised, scope-tagged page cache."""
     doc = pymupdf.open(pdf_path)
@@ -177,6 +233,7 @@ def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]
         page = doc[i]
         m = page.rotation_matrix
         words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]
+        words += _shx_words(_shx_entries(page, m))
         if _DEDUP_WORDS:
             words = _dedup(words)
         pages.append(

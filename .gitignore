@@ -92,3 +92,8 @@ out/round27/*.rc
 out/round27/*.log
 out/round27/3_FILES_TO_OVERWRITE.zip
 out/PID_update_2026-09-11_r27.zip
+out/round28/*.log
+out/round28/*.rc
+out/round28/*.done
+out/round28/*.png
+out/round28/*.json
