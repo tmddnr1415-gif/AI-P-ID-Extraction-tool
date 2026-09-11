@@ -90,3 +90,5 @@ out/round26/tc2_p9/server.log
 out/round27/*.done
 out/round27/*.rc
 out/round27/*.log
+out/round27/3_FILES_TO_OVERWRITE.zip
+out/PID_update_2026-09-11_r27.zip

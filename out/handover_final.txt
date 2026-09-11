@@ -1,5 +1,5 @@
-# 회사 PC 꾸러미 r26 — 파일 목록 (기준 aac64ba..HEAD · 소스만)
-# [A] 새로 53 · [M] 덮어쓰기 22 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
+# 회사 PC 꾸러미 r27 — 파일 목록 (기준 aac64ba..HEAD · 소스만)
+# [A] 새로 58 · [M] 덮어쓰기 22 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
 
 [M] CLAUDE.md
 [M] README.md
@@ -55,17 +55,21 @@
 [A] spike/legend_star.py
 [A] spike/mark_probe.py
 [A] spike/mark_shape.py
+[A] spike/note_vocab_delta.py
 [A] spike/pack_handover_r24.py
 [A] spike/pack_handover_r25.py
 [A] spike/pack_handover_r26.py
+[A] spike/pack_handover_r27.py
 [A] spike/pack_round23.py
 [A] spike/projects_3p.json
 [A] spike/regression_3p.py
 [A] spike/star_gate_probe.py
 [A] spike/star_recall.py
+[A] spike/unit_notes.py
 [A] spike/verify_r24.py
 [A] spike/verify_r25.py
 [A] spike/verify_r26.py
+[A] spike/verify_r27.py
 [A] tests/test_config_isolation.py
 [A] tests/test_data_isolation.py
 [A] tests/test_failure_stage.py
@@ -75,4 +79,5 @@
 [A] tests/test_scope_and_type.py
 [A] tests/test_star_marks.py
 [A] tests/test_titleblock_frame.py
+[A] tests/test_unit_notes.py
 [A] tests/test_vendor_mark_audit.py
