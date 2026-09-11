@@ -11,7 +11,7 @@
         "PNEUMATIC": 53,
         "BFV": 23
       },
-      "seconds": 833.4,
+      "seconds": 793.6,
       "max_rss_gb": 4.9,
       "identification": {
         "도면번호": [
@@ -71,7 +71,7 @@
         "MOV": 14,
         "REVIEW": 6
       },
-      "seconds": 87.1,
+      "seconds": 85.5,
       "max_rss_gb": 0.94,
       "identification": {
         "도면번호": [
@@ -110,14 +110,14 @@
     {
       "name": "TC2",
       "rows": 607,
-      "fingerprint": "fbee907dc297d29e42b8a43c93398eb7b27e4e0c8458b413a1e79ba2517a6546",
-      "qty_sum": 2599,
+      "fingerprint": "e909cf7c728420c2dff6e37a2ca674d201e60b01d9a0117a45a69b4d5a80242b",
+      "qty_sum": 3047,
       "tabs": {
         "FIELD": 591,
         "BFV": 1,
         "PNEUMATIC": 15
       },
-      "seconds": 608.4,
+      "seconds": 632.7,
       "max_rss_gb": 7.22,
       "identification": {
         "도면번호": [
@@ -136,7 +136,7 @@
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          593,
+          607,
           607,
           ""
         ],
@@ -151,7 +151,7 @@
           ""
         ]
       },
-      "score": 88.8
+      "score": 89.2
     }
   ],
   "metrics": [

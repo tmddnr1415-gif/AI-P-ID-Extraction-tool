@@ -1,5 +1,5 @@
 {
-  "_": "25회차 기준선.  별표를 획의 관계로 읽으면서 TC2 지문이 c46b10fa → a94bb2ad 로 움직였다 (SCOPE 는 지문 대상 · 행 607 · Q'ty 345 · 축3 82.0 불변).  AL NOUF1 fb85b039·1037·1931·95.0 과 SADARA 0767ba79·82·75.3 은 불변이다.  ⚠ 잉크 인덱스 비용: AL NOUF1 649초·7.8GB · TC2 608초·8.9GB.",
+  "_": "27회차 기준선.  그 장 NOTES 의 '같은 유닛 몇 개' 를 수량에 쓰면서 TC2 가 536d3baa → fbee907d → e909cf7c 로 움직였다 (Q'ty 345 → 2599 → 3047 · 축3 82.0 → 89.2 · 행 607 불변).  마지막 걸음은 어휘를 config 로 내면서 더한 TYPICAL 로, TC2 6장이 더 선 것이다 (p23·p24·p51·p52·p54·p55 — 전부 'IS APPLICABLE FOR … AND IS TYPICAL FOR …').  AL NOUF1 fb85b039·1037·1931·95.0 과 SADARA 0767ba79·82·75.3 은 불변이다.  메모리: AL NOUF1 4.9GB · TC2 7.2GB.",
   "AL NOUF1": {
     "rows": 1037,
     "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
@@ -28,8 +28,8 @@
   },
   "TC2": {
     "rows": 607,
-    "fingerprint": "fbee907dc297d29e42b8a43c93398eb7b27e4e0c8458b413a1e79ba2517a6546",
-    "qty_sum": 2599,
-    "score": 88.8
+    "fingerprint": "e909cf7c728420c2dff6e37a2ca674d201e60b01d9a0117a45a69b4d5a80242b",
+    "qty_sum": 3047,
+    "score": 89.2
   }
 }
