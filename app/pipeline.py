@@ -59,6 +59,7 @@ import describe_candidates as dcand  # noqa: E402
 import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
 import describe_axis as daxis      # noqa: E402
+import tags as tagsys              # noqa: E402
 
 # 15회차 — 프로젝트 범례 프로필.  엔진 모듈이 아니라 저장 계층이므로 `app.` 로
 # 가져온다.  그 모듈 자신은 엔진을 **맨 이름**으로 다시 가져오므로(`_engine`)
@@ -995,6 +996,23 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                            "keywords": info["scope_keywords"],
                            "reason": "scope keyword found; which items it covers "
                                      "needs line tracing (Phase 2)"}})
+    # §10 증거 등급 — **도면이 태그를 인쇄했으면 그것으로 읽는다** (28회차).
+    #
+    # 가산이다: 2급(기하) 경로는 그대로 돌고, 여기서 태그가 붙는 것뿐이다.
+    # 판정은 `tags.assign` 하나가 하고 프로젝트·크기·파일명을 보지 않는다 —
+    # AL NOUF1 · SADARA · TC2 는 체계가 없어 **한 행도 붙지 않는다** (실측 0).
+    tag_map, tier_facts = tagsys.assign(
+        [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
+        {pc.page_no: pc.words for pc in pages})
+    for i, r in enumerate(rows):
+        tag = tag_map.get(i)
+        if not tag:
+            continue
+        r.tag_no = tag
+        r.evidence.setdefault("tag", {}).update(
+            {"value": tag, "source": "DRAWING", "shape": tagsys.shape(tag),
+             "rule": tier_facts["rule"]})
+
     say(total, total, "done")
     for line in clock.summary_lines():
         clock.log(line)
@@ -1012,6 +1030,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     }
     return {
         "applied_rules": applied,
+        # §10 — 이 문서가 무엇을 주는가.  **지문 밖**이다 (`fingerprint` 는
+        # 행 아홉 칸 · `multipliers` · `legend` · 글리프만 본다).
+        "evidence_tier": tier_facts,
         # Wall clock, not a finding: excluded from `fingerprint()` on purpose,
         # because it is the one key that must differ between two runs.
         "timings": clock.report(),
