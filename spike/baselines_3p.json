@@ -28,8 +28,14 @@
   },
   "TC2": {
     "rows": 607,
-    "fingerprint": "e909cf7c728420c2dff6e37a2ca674d201e60b01d9a0117a45a69b4d5a80242b",
+    "fingerprint": "c0a2d29d049b2b9518a4e7e022db0b825f8f5409cca5a63aeb79429aba4f9f54",
     "qty_sum": 3047,
-    "score": 89.2
+    "score": 89.1
+  },
+  "UAD": {
+    "rows": 149,
+    "fingerprint": "31231bd7edb04f25d7d97c4311950cd726fa591b497db401a90b5641411fdfc9",
+    "qty_sum": 149,
+    "score": 71.0
   }
 }

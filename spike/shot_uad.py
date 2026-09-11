@@ -41,10 +41,15 @@ def main() -> int:
     result = blob.get("result", blob)
     con = db.connect(db_path)
     job = "shotuad00001"
-    con.execute("INSERT INTO job(id, filename, pdf_path, status, created_at, project,"
-                " revision) VALUES(?,?,?,?,datetime('now'),?,?)",
-                (job, "UAD_binding.pdf", str(ROOT / "data" / "UAD_binding.pdf"),
-                 "done", "UAD", "A"))
+    pdf = ROOT / "data" / "UAD_binding.pdf"
+    import hashlib
+    sha = hashlib.sha256(pdf.read_bytes()).hexdigest() if pdf.exists() else ""
+    con.execute(
+        "INSERT INTO job (id, pdf_name, pdf_sha256, pdf_path, created_at, status,"
+        " progress, message, fingerprint, project, revision)"
+        " VALUES (?,?,?,?,?,'done',1.0,'',?,?,?)",
+        (job, pdf.name, sha, str(pdf), time.time(),
+         result.get("fingerprint", ""), "UAD", "A"))
     con.commit()
     db.store_result(con, job, result)
     con.commit()
@@ -66,16 +71,36 @@ def main() -> int:
                 time.sleep(1)
         from playwright.sync_api import sync_playwright
         with sync_playwright() as pw:
-            br = pw.chromium.launch()
+            # 이 환경의 브라우저는 `/opt/pw-browsers` 에 있다 (내려받지 않는다)
+            exe = None
+            for cand in ("/opt/pw-browsers/chromium/chrome-linux/chrome",
+                         "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"):
+                if Path(cand).exists():
+                    exe = cand
+                    break
+            br = pw.chromium.launch(executable_path=exe) if exe else pw.chromium.launch()
             pg = br.new_page(viewport={"width": 1600, "height": 1000})
             pg.goto("http://127.0.0.1:%d/" % port)
             pg.wait_for_timeout(1500)
             pg.screenshot(path=str(outdir / "1_첫화면.png"))
-            row = pg.query_selector("a.revrow")
+            row = (pg.query_selector("a.revrow")
+                   or pg.query_selector("text=UAD_binding.pdf"))
             if row:
                 row.click()
                 pg.wait_for_timeout(6000)
                 pg.screenshot(path=str(outdir / "2_결과화면.png"))
+                # TAG·SCOPE 열은 오른쪽에 있다 — 그 열의 bounding box 를 읽어
+                # 가로 스크롤을 맞춘다 (§8 — 화면 비율로 어림해 자르지 않는다)
+                hdr = pg.query_selector("th:has-text('TAG')")
+                if hdr:
+                    pg.evaluate("el => el.scrollIntoView({inline:'center'})", hdr)
+                    pg.wait_for_timeout(600)
+                    pg.screenshot(path=str(outdir / "3_TAG열.png"))
+                sc = pg.query_selector("th:has-text('SCOPE')")
+                if sc:
+                    pg.evaluate("el => el.scrollIntoView({inline:'center'})", sc)
+                    pg.wait_for_timeout(600)
+                    pg.screenshot(path=str(outdir / "4_SCOPE열.png"))
                 cell = pg.query_selector("td.col-tag_no, td.col-tag")
                 if cell:
                     cell.click()
