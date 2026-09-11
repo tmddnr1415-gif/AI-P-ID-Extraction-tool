@@ -46,6 +46,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pidcache
 import legend_rules  # noqa: E402
 import projectconfig  # noqa: E402
 
@@ -90,9 +91,13 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
         return legend_rules._fallback(
             cfg, "line_styles", f"no legend sheet prints '{SIGNAL_ROW}'")
     label = None
-    for r, t in pc.words:
+    # ⚠ 획 글꼴 범례는 `ELECTRIC SIGNAL` 을 **한 조각**으로 싣는다 (28회차) —
+    # 낱말로 읽되 자리는 조각의 것을 쓴다.  파선은 라벨 **왼쪽**에 그려지므로
+    # 조각의 x0 가 곧 그 행의 글자가 시작하는 자리다.
+    row_words = list(pidcache.tokens(pc.words))
+    for r, t in row_words:
         if t == "SIGNAL":
-            row = [w for _r, w in pc.words
+            row = [w for _r, w in row_words
                    if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6]
             if "ELECTRIC" in row:
                 label = r

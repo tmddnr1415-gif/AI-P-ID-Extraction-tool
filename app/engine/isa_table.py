@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import legend_rules  # noqa: E402
+import pidcache  # noqa: E402
 
 # The words the table prints as its own headings.
 FIRST_ROW = "FIRST"
@@ -103,10 +104,13 @@ def derive(pages, cfg=None) -> IsaTable:
         return IsaTable(source="MISSING",
                         note=f"no legend sheet prints '{FIRST_ROW} {LETTER_ROW}'")
     head = None
-    for r, t in pc.words:
+    # ⚠ 획 글꼴 범례는 `FIRST LETTER` 를 **한 조각**으로 싣는다 (28회차) —
+    # 낱말로 읽되 자리는 그 조각의 것을 쓴다 (표의 칸은 조각이 시작하는 자리부터다).
+    head_words = list(pidcache.tokens(pc.words))
+    for r, t in head_words:
         if t != FIRST_ROW:
             continue
-        row = [w for _r, w in pc.words
+        row = [w for _r, w in head_words
                if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6]
         if LETTER_ROW in row:
             head = r
@@ -132,7 +136,7 @@ def derive(pages, cfg=None) -> IsaTable:
     # widen and nothing tuned to either document: on AL NOUF1's legend the winner
     # holds 25 distinct against 20-21 for the next columns, on SADARA's 25 against
     # 6-21, and the 25 are the same 25 letters.
-    succ = next((r for r, t in pc.words if t == SUCCEEDING_ROW), None)
+    succ = next((r for r, t in head_words if t == SUCCEEDING_ROW), None)
     right_limit = succ.x0 if succ is not None else head.x1 + 700
     body = [(r, t) for r, t in pc.words
             if r.y0 > head.y1 and r.x0 < right_limit]

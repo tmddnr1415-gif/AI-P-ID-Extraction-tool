@@ -91,9 +91,33 @@ def _page_with(pages, heading: str):
     for pc in pages:
         if not pc.analysis_scope:
             continue
-        words = [t for _, t in pidcache.tokens(pc.words)]
-        if all(w in words for w in want):
+        if _line_with(pc, want) is not None:
             return pc
+    return None
+
+
+def _line_with(pc, want):
+    """그 머리말이 **한 줄에 나란히** 인쇄된 자리 — 없으면 None.
+
+    낱말이 그 장 아무 데나 있으면 되는 것으로 두면 안 된다 (28회차 실측):
+    UAD 는 p2 에 `FIRST ISSUE`, p3 에 `OF OTHER LETTER SYMBOLS)` 가 있어
+    `FIRST LETTER` 를 **p3** 에서 찾은 것으로 치고, 정작 표가 있는 p4 를
+    건너뛰었다.  머리말은 한 줄에 이어 인쇄된 낱말들이다.
+
+    같은 줄은 **글자 높이의 절반**으로 묶는다 — 그 줄에 인쇄된 글자 자신이
+    답하는 값이라 문서가 달라도 따라간다 (절대 pt 를 새로 적지 않는다).
+    """
+    rows = {}
+    for r, t in pidcache.tokens(pc.words):
+        half = max(r.height, 1.0) / 2
+        key = round((r.y0 + r.y1) / 2 / half)
+        rows.setdefault(key, []).append((r.x0, t, r))
+    for items in rows.values():
+        items.sort(key=lambda it: it[0])
+        texts = [t for _x, t, _r in items]
+        for i in range(len(texts) - len(want) + 1):
+            if texts[i:i + len(want)] == want:
+                return items[i][2]
     return None
 
 
