@@ -1,0 +1,802 @@
+{
+ "ds.cap_span": [
+  "㉣",
+  "재현 루프 멈춤 #4 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.brk_corner_tol": [
+  "㉣",
+  "재현 루프 멈춤 #19 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.side_tol": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — 탐침 10장 경로에서 읽히지 않는다"
+ ],
+ "ds.side_slack": [
+  "㉣",
+  "재현 루프 멈춤 #5 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.anchor_slack": [
+  "㉣",
+  "재현 루프 멈춤 #21 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.mark_blob": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.blob_span`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.mark_glyph_span": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.glyph_span`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.mark_cluster_gap": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.cluster_gap`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.box_mark_margin": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.package_box.mark_margin`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.note_line_gap": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.note_line_gap`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.mark_above": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.above`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.mark_side": [
+  "㉣",
+  "재현 루프 멈춤 #10 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.note_mark_row_tol": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`vendor_marks.note_row_tol`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.brk_max_mark": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`broken_line.brk_max_mark`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.brk_max_gap": [
+  "㉣",
+  "재현 루프 멈춤 #14 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.brk_bridge": [
+  "㉣",
+  "재현 루프 멈춤 #15 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.brk_min_marks": [
+  "㉣",
+  "재현 루프 멈춤 #13 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.brk_min_span": [
+  "㉣",
+  "재현 루프 멈춤 #16 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "ds.scope_text_tol": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`sct_scope.text_tol`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.drop_x_tol": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`sct_scope.drop_x_tol`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.drop_end_tol": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — dataclass 기본값을 **config 잎(`sct_scope.drop_end_tol`)이 덮는다**. 죽은 기본값(같은 수가 두 곳에 있다)"
+ ],
+ "ds.scope_box_both_edges": [
+  "㉠",
+  "묶음 `ds dataclass 나머지` 지워도 199/`0087c236` — 탐침 10장 경로에서 읽히지 않는다"
+ ],
+ "dv.seg_span": [
+  "㉣",
+  "묶음 `dv dataclass(15)` 이 이 상수에서 멈춤 — 유도 없음"
+ ],
+ "dv.body_short": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.arc_above": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.tick_span": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.tick_reach": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.bar_reach": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.bar_min": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.act_box": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.bar_axis_tol": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.bar_cover": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.centre_tol": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.stem_slack": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.act_reach": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.act_offaxis": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "dv.tag_reach": [
+  "미실측",
+  "묶음 `dv dataclass(15)` 이 `dv.seg_span` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "tb.title_line_tol": [
+  "㉠",
+  "묶음 `tb.title_line_tol` 지워도 199/`0087c236` — 탐침 10장 경로에서 읽히지 않는다"
+ ],
+ "tb.zoom": [
+  "㉣",
+  "재현 루프 멈춤 #1 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.formats.drawing_no": [
+  "㉣",
+  "재현 루프 멈춤 #2 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.formats.date": [
+  "㉣",
+  "재현 루프 멈춤 #3 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.formats.revision": [
+  "㉡",
+  "`_fit_layout` 이 얹는다 (`^[A-Z][0-9]?$` → `^[A-Z]$`) — strip 훅이 건너뛰어 **지운 적이 없다**. 유도가 이미 덮는 값인데 목록은 A/B 로 적었다. 탐침 지문은 같고, 58장은 §0-1"
+ ],
+ "cfg.formats.unit_code_segment": [
+  "미실측",
+  "어느 묶음에도 들지 않았고 되살리기 사슬에도 닿지 않았다"
+ ],
+ "cfg.formats.unit_code_chars": [
+  "미실측",
+  "어느 묶음에도 들지 않았고 되살리기 사슬에도 닿지 않았다"
+ ],
+ "cfg.formats.system_code_chars": [
+  "미실측",
+  "어느 묶음에도 들지 않았고 되살리기 사슬에도 닿지 않았다"
+ ],
+ "cfg.excel.sheet": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.first_data_row": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.system": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.pid_no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.type": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.qty": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.description": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.tag_no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.scope": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.excel.columns.remark": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.anchors.type_map.TT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.PT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.PDT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.DPIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.FT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LG": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.TI": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.PI": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LI": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.FI": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.TIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.PIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.PDIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.FIT": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LS": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LSH": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LSHH": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.LSL": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.FS": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.RO": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.FE": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.type_map.TW": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.anchors.not_field": [
+  "시험불가",
+  "묶음 `anchors(25)` 지워도 199/`0087c236` — 그러나 `anchors.type_map` 은 import 때 `_V3_FIELD_TYPE_MAP` 으로 굳어 유도 뒤 지우기가 닿지 않는다. **이 방법으로는 판정할 수 없다**"
+ ],
+ "cfg.revision.document_rule": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.client_form.scope_filter": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.scope.exclusion_rules": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.scope.supplier_from_notes": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.scope.vendor_description": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.vendor_marks.glyph_sizes": [
+  "㉡",
+  "`_fit_layout` 이 얹는다 (`[[4.0, 4.0], [5.2, 5.2]]` → `[[4.0, 4.0]]`) — strip 훅이 건너뛰어 **지운 적이 없다**. 유도가 이미 덮는 값인데 목록은 A/B 로 적었다. 탐침 지문은 같고, 58장은 §0-1"
+ ],
+ "cfg.vendor_marks.blob_span": [
+  "㉣",
+  "재현 루프 멈춤 #6 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.glyph_span": [
+  "㉣",
+  "재현 루프 멈춤 #8 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.cluster_gap": [
+  "㉣",
+  "재현 루프 멈춤 #7 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.above": [
+  "㉣",
+  "재현 루프 멈춤 #11 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.x_slack": [
+  "㉠",
+  "묶음 `vendor_marks.x_slack+note_row_tol` 지워도 199/`0087c236` — 탐침 10장 경로에서 읽히지 않는다"
+ ],
+ "cfg.vendor_marks.note_row_tol": [
+  "㉠",
+  "묶음 `vendor_marks.x_slack+note_row_tol` 지워도 199/`0087c236` — 탐침 10장 경로에서 읽히지 않는다"
+ ],
+ "cfg.vendor_marks.note_line_gap": [
+  "㉣",
+  "재현 루프 멈춤 #9 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.package_box.edge_cover": [
+  "㉣",
+  "재현 루프 멈춤 #17 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.vendor_marks.package_box.mark_margin": [
+  "㉣",
+  "재현 루프 멈춤 #20 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.broken_line.brk_max_mark": [
+  "㉣",
+  "재현 루프 멈춤 #12 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.sct_scope.text_tol": [
+  "㉣",
+  "재현 루프 멈춤 #18 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.sct_scope.drop_x_tol": [
+  "㉣",
+  "재현 루프 멈춤 #22 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.sct_scope.drop_end_tol": [
+  "㉣",
+  "재현 루프 멈춤 #23 — 유도가 얹힌 뒤에도 이 값을 읽는다. 되살려야 진행"
+ ],
+ "cfg.supplier_interface_span.label": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.supplier_interface_span.supplied_by": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.supplier_interface_span.description": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.multi_signal_bundle.merge_quantity": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.multi_signal_bundle.merged_type": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.multi_signal_bundle.description_signal": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.axis_mode": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.prefix": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.unit_mark": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.title_open": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.title_close": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.template": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.measured_on": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.note": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_words": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_words.pump.left": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_words.pump.right": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_words.other.left": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_words.other.right": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_words.pump_nouns": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.unit_prefix_skip_codes": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.variable_words.PD": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.variable_words.RO": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.variable_words.FE": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_word_types": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.end_ordinal_types": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.system_abbreviations.CLOSED COOLING WATER": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.system_abbreviations.AUX. COOLING WATER": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_system.CCW TI": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.sole_equipment_sheet_max": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_alias_choice.boiler_feedwater_pump": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_alias_choice.condensate_extraction_pump": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.project_abbreviations.clean_drain": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.project_abbreviations.restriction_orifice": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_modifiers.VALVE": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_modifiers.HEADER": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.equipment_modifiers.BOX": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.user_input_reasons": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_noun.TANK": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_noun.VALVE": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_noun.HEADER": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_pair_words": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.type_display_names.AT": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.type_display_names.AIT": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.duplicate_suffix_types": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.line_phrase_types": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_side.PIT ABOVE": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_side.PDIT ABOVE": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.position_by_side.PDIT LEFT": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.between_symbol_types": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.alarm_suffix.HH": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.alarm_suffix.H": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.alarm_suffix.LL": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.alarm_suffix.L": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.description.examples": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.unit_multiplier_fallback.00": [
+  "㉡",
+  "묶음 `unit_multiplier_fallback(3)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.unit_multiplier_fallback.10": [
+  "㉡",
+  "묶음 `unit_multiplier_fallback(3)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.unit_multiplier_fallback.11": [
+  "㉡",
+  "묶음 `unit_multiplier_fallback(3)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.qty_note.same_words": [
+  "㉣",
+  "상한 20 에서 멈춘 뒤 다음 차례(24번째) — 되살리지 못했다"
+ ],
+ "cfg.qty_note.unit_words": [
+  "㉠",
+  "config 값 = 코드 기본값 (`projectconfig._DEFAULT_*`). 묶음 토글은 sentinel 의 `if got` 에서 멈췄지만 **키를 실제로 빼면** 코드가 같은 낱말을 쓴다 — 코드 대조로 판정"
+ ],
+ "cfg.qty_note.range_words": [
+  "㉠",
+  "config 값 = 코드 기본값 (`projectconfig._DEFAULT_*`). 묶음 토글은 sentinel 의 `if got` 에서 멈췄지만 **키를 실제로 빼면** 코드가 같은 낱말을 쓴다 — 코드 대조로 판정"
+ ],
+ "cfg.qty_scope_overrides": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.actuator_reach": [
+  "미실측",
+  "묶음 `valves.actuator_reach/offaxis/tag_reach(3)` 이 `cfg.valves.tag_reach` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "cfg.valves.actuator_offaxis": [
+  "미실측",
+  "묶음 `valves.actuator_reach/offaxis/tag_reach(3)` 이 `cfg.valves.tag_reach` 에서 먼저 멈춰 이 상수까지 닿지 않았다 (상한 20 · 4시간 안에 개별 실측 못 함)"
+ ],
+ "cfg.valves.tag_reach": [
+  "㉣",
+  "묶음 `valves.actuator_reach/offaxis/tag_reach(3)` 이 이 상수에서 멈춤 — 유도 없음"
+ ],
+ "cfg.valves.excel.sheet": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.first_data_row": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.pid_no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.valve_type": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.qty": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.system": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.description": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.remark": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.tag_no": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.actuator": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.excel.columns.body": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.deliverables": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.valve_type_actuator.MOV": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.valve_type_actuator.MOV_I": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.valve_type_actuator.HOV": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.valve_type_actuator.CV": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.cv_tags": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.xv_tags": [
+  "㉣-D",
+  "런타임 D 표 — 덩이로 미리 되살렸다(개별 실측은 `description.unit_prefix_skip_codes` 1개 · 1차 4번째 멈춤). 도면에 없는 값이라 유도가 있을 수 없다 — 사람·발주처"
+ ],
+ "cfg.valves.legend_fallback.butterfly.tick_length": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.butterfly.tick_reach_radii": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.butterfly.bar_reach_radii": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.butterfly.bar_min_radii": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.butterfly.circle_diameter": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.actuator_stem.stem_gap": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.actuator_stem.stem_offaxis": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.actuator_stem.stem_length": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.actuator_stem.centre_to_body": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.dome_flat": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.dome_depth": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.dome_aspect": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.cylinder_side": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.cylinder_aspect": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.valves.legend_fallback.pneumatic.cylinder_divider": [
+  "㉡",
+  "묶음 `valves.legend_fallback(15)` 지워도 199/`0087c236` — 범례(p2·p3·p5)가 답하므로 폴백은 읽히지 않는다"
+ ],
+ "cfg.project.code": [
+  "—",
+  "프로필 열쇠. 표식 문자열로 바꿔 낯선 프로필 경로를 강제했다 (판정 대상 아님)"
+ ]
+}
