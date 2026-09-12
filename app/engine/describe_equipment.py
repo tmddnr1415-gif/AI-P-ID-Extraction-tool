@@ -285,8 +285,11 @@ def _drawing_no_pattern() -> str:
     so the anchors become word boundaries.  Nothing else about the pattern
     changes, and there is still only the one definition.
     """
-    import projectconfig
-    pat = projectconfig.load().get("formats.drawing_no")
+    # 37회차 — 파일이 아니라 **지금 묶인** 정규식을 읽는다.  `formats.drawing_no`
+    # 는 유도 항목이 됐고 `_rebind_config` 이 `tb.DWG_NO_RE` 를 다시 만든다;
+    # 파일을 다시 읽으면 낯선 양식에서 유도값을 놓친다 (36회차 3_type_map.md 의 17).
+    import extract_titleblocks as tb
+    pat = tb.DWG_NO_RE.pattern
     return r"\b" + pat.lstrip("^").rstrip("$") + r"\b"
 
 

@@ -634,6 +634,50 @@ def _history_rev_marks(pages, hist, inset, cfg) -> set[str]:
     return out
 
 
+def _drawing_no_shapes(pages, region) -> dict:
+    """도면번호 칸에 인쇄된 낱말의 **모양** → {모양: 장 집합} (37회차).
+
+    모양은 붙임표로 나눈 자리마다 (글자 L · 숫자 D · 섞임 A) + 길이다 —
+    `D02J-00GEN00-M05-0001` → `A4-A7-A3-D4`.  칸 안에서 붙임표와 숫자를 가진
+    낱말만 본다.  네 문서 실측(`spike/dwgno_survey.py`)에서 그 칸에는 도면번호
+    말고 다른 낱말이 없었다.
+    """
+    x0, y0, x1, y1 = region
+    seen: dict = {}
+    for pc in pages:
+        for r, t in pc.words:
+            xm = (r.x0 + getattr(r, "x1", r.x0)) / 2
+            if not (x0 <= xm <= x1 and y0 <= r.y0 <= y1):
+                continue
+            if "-" not in t or not any(c.isdigit() for c in t):
+                continue
+            segs = t.split("-")
+            if len(segs) < 2 or not all(s.isalnum() for s in segs):
+                continue
+            shape = "-".join(("D" if s.isdigit() else "L" if s.isalpha() else "A") + str(len(s)) for s in segs)
+            seen.setdefault(shape, set()).add(pc.page_no)
+    return seen
+
+
+def _drawing_no_pattern(shapes: dict, min_sheets: int = 2) -> str | None:
+    """읽은 모양들을 그대로 받는 정규식 — 넓히지 않는다 (37회차).
+
+    **두 장 이상**에서 인쇄된 모양만 받는다 (18회차 규칙 — 한 장의 낱말 하나는
+    모양이 아니라 사고일 수 있다).  AL NOUF1 · SADARA 는 모양이 하나(A4-A7-A3-D4),
+    TC2 는 둘(56장 + `D02J-31PGB0-M05-0001` 4장)이다.  읽지 않은 모양을 추측으로
+    더하지 않는다 (§2.1 ③).  config 의 표기와 같은 글자(`[A-Z0-9]`·`\\d`)를 쓴다.
+    """
+    kinds = {"L": "[A-Z]", "D": "\\d", "A": "[A-Z0-9]"}
+    keep = sorted((k for k, pg in shapes.items() if len(pg) >= min_sheets),
+                  key=lambda k: (-len(shapes[k]), k))
+    if not keep:
+        return None
+    alts = []
+    for shape in keep:
+        alts.append("-".join("%s{%s}" % (kinds[seg[0]], seg[1:]) for seg in shape.split("-")))
+    return "^%s$" % "|".join(alts) if len(alts) == 1 else "^(?:%s)$" % "|".join(alts)
+
+
 def _revision_pattern(marks: set[str]) -> str:
     """읽은 표기들을 그대로 받아들이는 정규식 — 넓히지 않는다.
 
@@ -695,6 +739,22 @@ def derive(pages, cfg=None) -> Layout:
             lay.add(f"title_block.{name}_min_height", tb[f"{name}_min_height"],
                     "midway between the caption's lettering and the value's, "
                     "measured in this cell")
+    # 37회차 — **도면번호의 모양도 도면이 말한다.**  `formats.drawing_no` 는
+    # AL NOUF1 에서 옮겨 적은 값이라 TC2 의 `D02J-31PGB0-M05-0001`(둘째 자리가
+    # 6자 · 4장)을 안 받았고, 그 네 장은 행 0 이었다 (25·26회차가 적어 둔 자리).
+    # 읽는 곳은 위에서 캡션으로 찾은 **도면번호 칸 자신**이다 — 그 칸이 곧 이
+    # 문서가 쓰는 도면번호의 목록이다.
+    if "dwg_no_region" in tb:
+        shapes = _drawing_no_shapes(pages, tb["dwg_no_region"])
+        pat = _drawing_no_pattern(shapes)
+        if pat:
+            lay.add("formats.drawing_no", pat,
+                    "the shapes this document prints in its own DWG NO. cell on two "
+                    "or more sheets: " + ", ".join(f"{k} x{len(v)}" for k, v in
+                                                   sorted(shapes.items(), key=lambda t: -len(t[1]))))
+        else:
+            lay.notes.append("formats.drawing_no is not derived: no hyphenated "
+                             "number appears in the DWG NO. cell on two sheets")
     for key in ("rev_box", "sheet_box"):
         if key in tb:
             lay.add(f"title_block.{key}", tb[key],
