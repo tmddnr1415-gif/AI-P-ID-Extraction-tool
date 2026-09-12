@@ -202,19 +202,22 @@ class Layout:
     cap_span: tuple = (7.0, 50.0)       # long side of a cap
     cap_ratio: tuple = (1.6, 2.4)       # long/short of a cap
     brk_corner_tol: float = 3.0         # how far a dashed box's corner may miss
-    side_tol: float = 0.8               # how close a side must run to the cap edge
     side_slack: float = 1.5             # how far a side may fall short of the caps
     anchor_slack: float = 3.0
 
     # Vendor asterisk marks sit just above the bubble.
-    mark_blob: tuple = (1.5, 8.0)        # a raw path fragment of a mark
-    mark_glyph_span: tuple = (3.0, 8.0)  # a whole clustered mark
-    mark_cluster_gap: float = 2.0        # below the 4.5pt gap between two marks
+    # ★ 36회차 — `None` 인 필드는 **config 잎이 언제나 덮는** 자리라 기본값이 죽은
+    # 값이었다 (같은 수가 두 곳 · 35회차 ㉠ 11).  `_layout_from_config` 가 `cfg.get`
+    # 으로 **필수**로 읽고, 없으면 시작 때 시끄럽게 멈춘다 (§9 4).  `side_tol` ·
+    # `note_mark_row_tol` 은 읽는 곳이 없어 필드째 지웠다.
+    mark_blob: tuple = None              # config `vendor_marks.blob_span` (필수 · 36회차)
+    mark_glyph_span: tuple = None        # config `vendor_marks.glyph_span`
+    mark_cluster_gap: float = None       # config `vendor_marks.cluster_gap`
     notes_text_x_max: float = 2330.0     # right edge of the notes text column
     box_edge_cover: float = 0.35         # how much of a box edge must be drawn
-    box_mark_margin: float = 20.0        # how far outside a box its mark may sit
-    note_line_gap: float = 20.0          # max y gap for a wrapped note line
-    mark_above: float = 25.0
+    box_mark_margin: float = None        # config `vendor_marks.package_box.mark_margin`
+    note_line_gap: float = None          # config `vendor_marks.note_line_gap`
+    mark_above: float = None             # config `vendor_marks.above`
     # 19회차 — 별표가 버블 **옆**에 찍힌 장이 있다 (p25 · p27 · p30).
     # 마크가 가로로 얼마나 떨어져 찍히는가.  이 문서가 답했다 — 마크 646개를
     # 유클리드 최근접 버블에 붙여 가로 간격을 세면
@@ -226,23 +229,22 @@ class Layout:
     # 문턱을 그 빈 띠 안 어디에 두어도 결과가 같으므로 임의값이 아니다
     # (17회차 C-4 · 16회차 `brk_max_mark` 와 같은 논법).
     mark_side: float = 10.0
-    note_mark_row_tol: float = 6.0
 
     # Broken (dashed / chain-dashed) line runs.
-    brk_max_mark: float = 20.0
+    brk_max_mark: float = None           # config `broken_line.brk_max_mark`
     brk_max_gap: float = 6.0
     brk_bridge: float = 26.0
     brk_min_marks: int = 6
     brk_min_span: float = 40.0
 
     # Tying a scope marker to its geometry, and an instrument to a pipe run.
-    scope_text_tol: float = 30.0
-    drop_x_tol: float = 2.0
-    drop_end_tol: float = 1.5
+    scope_text_tol: float = None         # config `sct_scope.text_tol`
+    drop_x_tol: float = None             # config `sct_scope.drop_x_tol`
+    drop_end_tol: float = None           # config `sct_scope.drop_end_tol`
     # Whether a dashed scope box is built from both of its horizontal edges or
     # from the vertical the label stands beside.  Off by default: see
     # `find_sct_scopes`.
-    scope_box_both_edges: bool = False
+    scope_box_both_edges: bool = None    # config `sct_scope.box_from_both_edges` (bool 로 읽는다)
 
 
 def _layout_from_config(cfg=CFG) -> Layout:
@@ -254,9 +256,8 @@ def _layout_from_config(cfg=CFG) -> Layout:
     prints.  Neither changes with the project.
     """
     d = Layout()
-    box = cfg.get_or("vendor_marks.package_box",
-                     {"edge_cover": d.box_edge_cover,
-                      "mark_margin": d.box_mark_margin})
+    box = dict(cfg.get("vendor_marks.package_box"))     # mark_margin 은 필수 (36회차)
+    box.setdefault("edge_cover", d.box_edge_cover)       # 비율(E) — 기본값이 산다
     # Broken-line geometry.  These were left as dataclass defaults because legend
     # page 2 draws the line styles and a style does not move with the project -
     # but it does move with the *sheet*: on an A0 print of the same drawing office's
@@ -264,23 +265,23 @@ def _layout_from_config(cfg=CFG) -> Layout:
     # every dashed boundary on that project fell out of the filter.  A project may
     # therefore supply them; with the block absent the defaults are unchanged, which
     # is the case for every project that has run so far.
-    brk = cfg.data.get("broken_line") or {}
+    brk = dict(cfg.data.get("broken_line") or {})
+    brk["brk_max_mark"] = cfg.get("broken_line.brk_max_mark")   # 필수 (36회차 — 기본값 20.0 을 지웠다)
     return Layout(
         drawing_area=tuple(cfg.get_or("regions.drawing_area", d.drawing_area)),
         notes_area=tuple(cfg.get_or("regions.notes_area", d.notes_area)),
         notes_text_x_max=float(cfg.get_or("regions.notes_text_x_max", d.notes_text_x_max)),
-        mark_blob=tuple(cfg.get_or("vendor_marks.blob_span", d.mark_blob)),
-        mark_glyph_span=tuple(cfg.get_or("vendor_marks.glyph_span", d.mark_glyph_span)),
-        mark_cluster_gap=float(cfg.get_or("vendor_marks.cluster_gap", d.mark_cluster_gap)),
-        mark_above=float(cfg.get_or("vendor_marks.above", d.mark_above)),
+        mark_blob=tuple(cfg.get("vendor_marks.blob_span")),
+        mark_glyph_span=tuple(cfg.get("vendor_marks.glyph_span")),
+        mark_cluster_gap=float(cfg.get("vendor_marks.cluster_gap")),
+        mark_above=float(cfg.get("vendor_marks.above")),
         mark_side=float(cfg.get_or("vendor_marks.side", d.mark_side)),
-        note_mark_row_tol=float(cfg.get_or("vendor_marks.note_row_tol", d.note_mark_row_tol)),
-        note_line_gap=float(cfg.get_or("vendor_marks.note_line_gap", d.note_line_gap)),
+        note_line_gap=float(cfg.get("vendor_marks.note_line_gap")),
         box_edge_cover=float(box["edge_cover"]),
         box_mark_margin=float(box["mark_margin"]),
-        scope_text_tol=float(cfg.get_or("sct_scope.text_tol", d.scope_text_tol)),
-        drop_x_tol=float(cfg.get_or("sct_scope.drop_x_tol", d.drop_x_tol)),
-        drop_end_tol=float(cfg.get_or("sct_scope.drop_end_tol", d.drop_end_tol)),
+        scope_text_tol=float(cfg.get("sct_scope.text_tol")),
+        drop_x_tol=float(cfg.get("sct_scope.drop_x_tol")),
+        drop_end_tol=float(cfg.get("sct_scope.drop_end_tol")),
         scope_box_both_edges=bool(
             (cfg.data.get("sct_scope") or {}).get("box_from_both_edges")),
         **{k: float(brk[k]) if k != "brk_min_marks" else int(brk[k])

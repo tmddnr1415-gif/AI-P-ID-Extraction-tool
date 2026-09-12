@@ -103,7 +103,7 @@ class Layout:
     # page 48, the highest that row sits anywhere in the set).
     title_region: tuple = (1960.0, 1500.0, 2384.0, 1574.0)
     title_min_height: float = 15.0
-    title_line_tol: float = 6.0
+    title_line_tol: float = None        # config `title_block.title_line_tol` (필수 · 36회차)
 
     # REV and SHEET cells, inset to exclude the cell borders
     # (rule at y=1580.7, frame at x=2330.4, dividers at x=2245.8 / 2287.9).
@@ -154,7 +154,7 @@ def _layout_from_config(cfg=CFG) -> Layout:
         dwg_no_region=rect("dwg_no_region", d.dwg_no_region),
         title_region=rect("title_region", d.title_region),
         title_min_height=num("title_min_height", d.title_min_height),
-        title_line_tol=num("title_line_tol", d.title_line_tol),
+        title_line_tol=float(cfg.get(tb + "title_line_tol")),
         rev_box=rect("rev_box", d.rev_box),
         sheet_box=rect("sheet_box", d.sheet_box),
         hist_rule_x0_max=num("hist_rule_x0_max", d.hist_rule_x0_max),
