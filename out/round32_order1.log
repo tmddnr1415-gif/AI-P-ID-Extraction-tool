@@ -50,3 +50,58 @@
   page  56    0.48s   instruments 0.48s annotations 0.00s
   page  57    0.17s   instruments 0.17s annotations 0.00s
   page  58    0.16s   instruments 0.16s annotations 0.00s
+analysis took 671.6s, by stage:
+  layout                   368.70s   54.9%
+  instruments              177.08s   26.4%
+  valves.actuators          52.12s    7.8%
+  titleblock_glyphs         16.25s    2.4%
+  titleblocks               15.97s    2.4%
+  pipe_graph                10.72s    1.6%
+  candidates                 7.22s    1.1%
+  valves.bodies              7.12s    1.1%
+  describe_axis              5.86s    0.9%
+  legend_rules               4.66s    0.7%
+  valves.tags                3.26s    0.5%
+  open_pdf                   2.32s    0.3%
+  equipment                  0.28s    0.0%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 14.0s, p4 9.3s, p2 8.9s, p14 3.4s, p33 2.2s
+{"name": "AL_NOUF1", "rows": 1037, "fingerprint": "fb85b039", "qty": 1931, "seconds": 672.0, "max_rss_gb_so_far": 4.9}
+  page   1    0.35s   annotations 0.26s instruments 0.09s
+  page   6    0.48s   annotations 0.27s instruments 0.20s
+  page   7    0.60s   annotations 0.36s instruments 0.24s
+  page   8    0.55s   annotations 0.33s instruments 0.23s
+  page   9    0.63s   annotations 0.37s instruments 0.26s
+analysis took 77.6s, by stage:
+  layout                    39.64s   51.1%
+  instruments               18.10s   23.3%
+  valves.actuators          12.34s   15.9%
+  titleblock_glyphs          2.15s    2.8%
+  annotations                1.59s    2.0%
+  titleblocks                1.08s    1.4%
+  valves.bodies              0.63s    0.8%
+  pipe_graph                 0.50s    0.6%
+  open_pdf                   0.40s    0.5%
+  legend_rules               0.32s    0.4%
+  describe_axis              0.30s    0.4%
+  valves.tags                0.26s    0.3%
+  candidates                 0.22s    0.3%
+  equipment                  0.04s    0.1%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 4.9s, p7 3.9s, p8 3.0s, p2 1.3s, p6 1.2s
+{"name": "SADARA", "rows": 82, "fingerprint": "0767ba79", "qty": 0, "seconds": 77.9, "max_rss_gb_so_far": 4.9}
+  page   6    0.48s   instruments 0.48s annotations 0.00s
+  page   7    0.42s   instruments 0.42s annotations 0.00s
+  page   8    0.41s   instruments 0.41s annotations 0.00s
+  page   9    0.47s   instruments 0.47s annotations 0.00s
+  page  10    0.58s   instruments 0.58s annotations 0.00s
+  page  11    0.46s   instruments 0.46s annotations 0.00s
+  page  12    0.44s   instruments 0.44s annotations 0.00s
+  page  13    0.42s   instruments 0.42s annotations 0.00s
+  page  14    0.41s   instruments 0.41s annotations 0.00s
+  page  15    0.54s   instruments 0.54s annotations 0.00s

@@ -49,6 +49,9 @@ def pick_pages(rows, want: int = 8) -> list[int]:
 
 def main() -> int:
     name, src, outdir = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
+    # 32회차 [D-2] — 합성 도면도 같은 도구로 찍는다.  네 번째 인자로 PDF
+    # 자리를 받는다 (합성은 `projects_3p.json` 에 없다).
+    pdf_override = Path(sys.argv[4]) if len(sys.argv) > 4 else None
     outdir.mkdir(parents=True, exist_ok=True)
     data = Path(tempfile.mkdtemp(prefix="shotov-"))
     os.environ["PID_DATA_DIR"] = str(data)
@@ -62,7 +65,7 @@ def main() -> int:
 
     con = db.connect(data / "app.db")
     job = "shotov" + name.replace(" ", "").lower()[:6].ljust(6, "0")
-    pdf = ROOT / PDFS[name]
+    pdf = pdf_override if pdf_override else ROOT / PDFS[name]
     sha = hashlib.sha256(pdf.read_bytes()).hexdigest() if pdf.exists() else ""
     con.execute(
         "INSERT INTO job (id, pdf_name, pdf_sha256, pdf_path, created_at, status,"
