@@ -122,3 +122,50 @@ analysis took 677.3s, by stage:
   page  58    0.46s   instruments 0.46s annotations 0.00s
   page  59    0.20s   instruments 0.20s annotations 0.00s
   page  60    0.21s   instruments 0.21s annotations 0.00s
+analysis took 508.4s, by stage:
+  layout                   273.29s   53.8%
+  instruments              178.88s   35.2%
+  titleblocks               21.14s    4.2%
+  valves.actuators           7.51s    1.5%
+  titleblock_glyphs          5.72s    1.1%
+  valves.bodies              4.71s    0.9%
+  pipe_graph                 4.38s    0.9%
+  open_pdf                   3.19s    0.6%
+  describe_axis              2.72s    0.5%
+  candidates                 2.50s    0.5%
+  valves.tags                2.40s    0.5%
+  legend_rules               1.68s    0.3%
+  equipment                  0.19s    0.0%
+  description                0.03s    0.0%
+  unit_multipliers           0.02s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p42 1.2s, p12 1.1s, p38 1.0s, p16 1.0s, p36 1.0s
+{"stage": "TC2 직후", "rows": 607, "fingerprint": "c0a2d29d", "seconds": 512.0, "VmHWM": 7.38, "VmRSS": 0.75}
+{"stage": "TC2 결과 놓고 gc", "VmHWM": 7.38, "VmRSS": 0.71}
+  page   1    2.42s   annotations 2.33s instruments 0.09s
+  page   6    0.44s   annotations 0.26s instruments 0.18s
+  page   7    2.70s   annotations 2.45s instruments 0.24s
+  page   8    0.57s   annotations 0.34s instruments 0.23s
+  page   9    2.83s   annotations 2.57s instruments 0.26s
+analysis took 80.9s, by stage:
+  layout                    41.41s   51.2%
+  instruments               13.05s   16.1%
+  valves.actuators          12.51s   15.5%
+  annotations                7.95s    9.8%
+  titleblock_glyphs          2.17s    2.7%
+  titleblocks                1.08s    1.3%
+  valves.bodies              0.64s    0.8%
+  pipe_graph                 0.51s    0.6%
+  open_pdf                   0.39s    0.5%
+  legend_rules               0.33s    0.4%
+  describe_axis              0.31s    0.4%
+  valves.tags                0.26s    0.3%
+  candidates                 0.23s    0.3%
+  equipment                  0.04s    0.0%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 7.1s, p7 6.0s, p8 3.1s, p1 2.5s, p2 1.4s
+{"stage": "SADARA 직후", "rows": 82, "fingerprint": "0767ba79", "seconds": 81.2, "VmHWM": 7.38, "VmRSS": 0.75}
+{"stage": "SADARA 결과 놓고 gc", "VmHWM": 7.38, "VmRSS": 0.74}
