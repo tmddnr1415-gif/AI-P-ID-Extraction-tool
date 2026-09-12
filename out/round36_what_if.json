@@ -1,0 +1,110 @@
+{
+ "AL NOUF1": {
+  "legend_answers": true,
+  "rows": 1037,
+  "cases": {
+   "현행 (넷 다 같게)": {
+    "qty": 1931,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 24
+   },
+   "SIMILAR 제외": {
+    "qty": 1931,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 24
+   },
+   "IDENTICAL 만": {
+    "qty": 1931,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 24
+   }
+  }
+ },
+ "TC2": {
+  "legend_answers": false,
+  "rows": 607,
+  "cases": {
+   "현행 (넷 다 같게)": {
+    "qty": 3047,
+    "undefined_rows": 0,
+    "note_rows": 404,
+    "config_rows": 203,
+    "note_pages": 29
+   },
+   "SIMILAR 제외": {
+    "qty": 1263,
+    "undefined_rows": 223,
+    "note_rows": 181,
+    "config_rows": 426,
+    "note_pages": 13
+   },
+   "IDENTICAL 만": {
+    "qty": 739,
+    "undefined_rows": 237,
+    "note_rows": 59,
+    "config_rows": 548,
+    "note_pages": 4
+   }
+  }
+ },
+ "UAD": {
+  "legend_answers": false,
+  "rows": 149,
+  "cases": {
+   "현행 (넷 다 같게)": {
+    "qty": 149,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 149,
+    "note_pages": 0
+   },
+   "SIMILAR 제외": {
+    "qty": 149,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 149,
+    "note_pages": 0
+   },
+   "IDENTICAL 만": {
+    "qty": 149,
+    "undefined_rows": 0,
+    "note_rows": 0,
+    "config_rows": 149,
+    "note_pages": 0
+   }
+  }
+ },
+ "SADARA": {
+  "legend_answers": true,
+  "rows": 82,
+  "cases": {
+   "현행 (넷 다 같게)": {
+    "qty": 0,
+    "undefined_rows": 82,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 0
+   },
+   "SIMILAR 제외": {
+    "qty": 0,
+    "undefined_rows": 82,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 0
+   },
+   "IDENTICAL 만": {
+    "qty": 0,
+    "undefined_rows": 82,
+    "note_rows": 0,
+    "config_rows": 0,
+    "note_pages": 0
+   }
+  }
+ }
+}
