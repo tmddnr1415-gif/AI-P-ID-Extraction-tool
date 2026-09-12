@@ -110,3 +110,5 @@ out/round32/*.done
 # 35회차 — 진행 중 로그·완료 표식은 산출물이 아니다 (32회차와 같은 규칙)
 out/round35*.log
 out/round35*.done
+out/round36*.log
+out/round36*.done
