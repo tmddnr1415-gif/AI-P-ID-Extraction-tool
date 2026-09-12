@@ -4,3 +4,24 @@
   page   7    1.53s   annotations 1.30s instruments 0.23s
   page   8    1.53s   annotations 1.32s instruments 0.22s
   page   9    1.65s   annotations 1.40s instruments 0.26s
+analysis took 72.7s, by stage:
+  layout                    39.39s   54.2%
+  valves.actuators          11.97s   16.5%
+  instruments                9.90s   13.6%
+  annotations                5.50s    7.6%
+  titleblock_glyphs          2.09s    2.9%
+  titleblocks                1.04s    1.4%
+  valves.bodies              0.64s    0.9%
+  open_pdf                   0.53s    0.7%
+  pipe_graph                 0.52s    0.7%
+  describe_axis              0.30s    0.4%
+  legend_rules               0.30s    0.4%
+  candidates                 0.24s    0.3%
+  valves.tags                0.23s    0.3%
+  equipment                  0.04s    0.1%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 5.9s, p7 4.7s, p8 4.0s, p1 1.4s, p2 1.2s
+{"stage": "SADARA 직후", "rows": 82, "fingerprint": "0767ba79", "seconds": 73.1, "VmHWM": 0.94, "VmRSS": 0.35}
+{"stage": "SADARA 결과 놓고 gc", "VmHWM": 0.94, "VmRSS": 0.34}
