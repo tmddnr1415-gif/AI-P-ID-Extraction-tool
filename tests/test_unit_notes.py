@@ -130,13 +130,11 @@ def test_the_vocabulary_comes_from_config_not_from_code():
     """
     text = ("THIS P&ID IS FOR BLOCK 1, AND THE ARRANGEMENT IS EQUIVALENT FOR"
             " BLOCK 2, BLOCK 3.")
-    same, head, _rng = projectconfig.note_vocabulary(None)
-    assert not same.search(text)                      # 기본 어휘로는 안 걸린다
-    assert projectconfig._unit_tokens(text, head) == []
+    head, _rng = projectconfig.note_vocabulary(None)
+    assert projectconfig._unit_tokens(text, head) == []   # 기본 어휘로는 안 걸린다
 
-    cfg = _Cfg(same_words=["EQUIVALENT"], unit_words=["BLOCK"])
-    same, head, _rng = projectconfig.note_vocabulary(cfg)
-    assert same.search(text)
+    cfg = _Cfg(unit_words=["BLOCK"])
+    head, _rng = projectconfig.note_vocabulary(cfg)
     assert list(dict.fromkeys(projectconfig._unit_tokens(text, head))) \
         == ["1", "2", "3"]
 
@@ -146,7 +144,9 @@ def test_the_shipped_config_lists_the_words_the_three_documents_print():
     import yaml
     data = yaml.safe_load((ROOT / "config" / "project_alnouf1.yaml").read_text())
     block = data["qty_note"]
-    assert set(block["same_words"]) >= {"IDENTICAL", "SIMILAR"}
+    # 36회차 — "같다" 낱말은 판정에서 뺐고 config 에도 두지 않는다 (외워둔 값 −4).
+    # 네 문서에서 그 문지기가 거른 문단이 0개였다 (`out/round36_multiplier_vocab.md`).
+    assert "same_words" not in block
     assert set(block["unit_words"]) >= {"GROUP", "UNIT"}
     assert set(block["range_words"]) >= {"THRU", "THROUGH"}
 
@@ -154,7 +154,7 @@ def test_the_shipped_config_lists_the_words_the_three_documents_print():
 def test_a_word_only_the_config_adds_does_not_leak_into_the_default():
     """config 를 준 호출이 **다음 호출의 기본값**을 바꾸지 않는다 (캐시 키)."""
     projectconfig.note_vocabulary(_Cfg(unit_words=["BLOCK"]))
-    _same, head, _rng = projectconfig.note_vocabulary(None)
+    head, _rng = projectconfig.note_vocabulary(None)
     assert projectconfig._unit_tokens("FOR BLOCK 1, BLOCK 2", head) == []
 
 

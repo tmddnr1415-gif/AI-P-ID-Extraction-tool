@@ -448,6 +448,22 @@ def _rebind_config() -> None:
     tb.DWG_NO_RE = re.compile(CFG.get("formats.drawing_no"))
     tb.DATE_RE = re.compile(CFG.get("formats.date"))
     tb.REV_TEXT_RE = re.compile(CFG.get("formats.revision"))
+    # 36회차 — import 때 굳는 값 전수(`out/round36/3_type_map.md`).  아래 넷은
+    # **유도·overlay 가 값을 바꿀 수 있는 키**라 여기서 다시 만든다:
+    #   · `anchors.*` → 검출 룰셋.  35회차가 "시험불가 25" 로 센 자리 — 잎을 바꿔도
+    #     import 때 굳은 `RULESET_V3` 를 검출이 읽었다.
+    #   · `formats.unit_code_*` · `formats.system_code_chars` → 유닛·계통 코드 자리
+    #   · `text.dedup_exact_duplicates` → `_fit_layout` 이 유도해 얹는 항목
+    # 나머지 import 시점 상수(D 등급 — 양식·어휘·실무 판단)는 어느 유도도 건드리지
+    # 않으므로 CFG 와 갈릴 길이 없다.  목록은 같은 문서에 있다.
+    ds.RULESET_V3 = ds.ruleset_v3(CFG)
+    ds.FIELD_TYPE_MAP = ds.RULESET_V3.field_type_map
+    ds.NOT_FIELD_INSTRUMENT = ds.RULESET_V3.not_field
+    ds.ANCHORS = ds.RULESET_V3.anchors
+    tb._UC_SEG = int(CFG.get("formats.unit_code_segment"))
+    tb._UC_FROM, tb._UC_TO = (int(v) for v in CFG.get("formats.unit_code_chars"))
+    da._SC_FROM, da._SC_TO = (int(v) for v in CFG.get("formats.system_code_chars"))
+    pidcache._DEDUP_WORDS = bool((CFG.data.get("text") or {}).get("dedup_exact_duplicates"))
     # The valve layout is rebuilt from the same function; the legend derivation
     # that runs later starts from it, so it has to carry the new drawing area or
     # every valve outside the old one is dropped before the legend is consulted.

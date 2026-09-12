@@ -272,7 +272,13 @@ def _rows_near_heading(pc, y_span=260.0):
 # (`qty_note`) 에서 늘릴 수 있게 두었다 — 넷째 프로젝트가 `BLOCK`·`PHASE` 로
 # 쓰면 코드를 고치지 않고 한 줄 더한다.  기본값에는 **실제로 본 낱말만** 둔다
 # (§9 ② · §2.1 ③ — 지어낸 낱말은 기본값이 될 수 없다).
-_DEFAULT_SAME = ("IDENTICAL", "SIMILAR", "SAME", "TYPICAL")
+#
+# ★ 36회차 — "같다" 는 낱말(IDENTICAL·SIMILAR·SAME·TYPICAL)은 **판정에서 뺐다.**
+# 네 문서 실측(`out/round36_multiplier_vocab.md`): 유닛 표기를 둘 이상 열거한
+# 번호 붙은 NOTES 문단 66개 중 그 낱말이 없는 것이 **0개** 라 그 문지기는 한 문단도
+# 거르지 않았고, 범례는 `TYPICAL` 을 정반대 뜻(`TYPICAL SYMBOL`)으로 쓴다.
+# 판정은 **번호 붙은 NOTES 문단 + 유닛 표기 둘 이상** 만으로 한다.  문단이 무슨
+# 낱말로 "같다" 고 했는지는 근거 패널이 원문(`text`)으로 보여 준다.
 _DEFAULT_UNIT = ("GROUP", "UNIT", "TRAIN")
 # 범위 표기.  `UNIT 3-1 THRU 6-2` 는 여덟을 뜻할 수도 있지만 **그 도면이 여덟을
 # 열거하지 않았다** — 두 끝 사이에 무엇이 있는지 이 문서는 말하지 않는다.
@@ -307,27 +313,25 @@ def _word_re(words) -> re.Pattern:
 
 
 @functools.lru_cache(maxsize=None)
-def _note_patterns(same: tuple, unit: tuple, rng: tuple):
-    return (_word_re(same),
-            re.compile(r"(?:%s)S?\s*(?:NO\.?|#)?\s*(%s)"
+def _note_patterns(unit: tuple, rng: tuple):
+    return (re.compile(r"(?:%s)S?\s*(?:NO\.?|#)?\s*(%s)"
                        % ("|".join(re.escape(w) for w in unit), _UNIT_NUM)),
             _word_re(rng))
 
 
 def note_vocabulary(cfg=None):
-    """`qty_note` 어휘 → 컴파일된 패턴 셋.  없으면 실측 기본값."""
+    """`qty_note` 어휘 → `(유닛 머리 패턴, 범위 낱말 패턴)`.  없으면 실측 기본값."""
     blk = ((getattr(cfg, "data", None) or {}).get("qty_note") or {}) if cfg else {}
     def words(key, default):
         got = blk.get(key)
         return tuple(str(w).upper() for w in got) if got else default
-    return _note_patterns(words("same_words", _DEFAULT_SAME),
-                          words("unit_words", _DEFAULT_UNIT),
+    return _note_patterns(words("unit_words", _DEFAULT_UNIT),
                           words("range_words", _DEFAULT_RANGE))
 
 
 def _unit_tokens(text: str, head=None) -> list:
     """그 문단이 열거한 유닛 표기 (등장 순서, 중복 포함)."""
-    head = head if head is not None else note_vocabulary()[1]
+    head = head if head is not None else note_vocabulary()[0]
     out = []
     for m in head.finditer(text):
         out.append(m.group(1))
@@ -385,11 +389,11 @@ def note_unit_span(pc, area, x_max, cfg=None) -> "UnitNote":
     범위 표기(`3-1 THRU 6-2`)가 섞이면 **세지 않고** `ambiguous` 로 올린다 —
     그 도면이 열거한 것은 두 끝뿐이고 사이에 무엇이 있는지는 말하지 않았다.
     """
-    same_re, head_re, range_re = note_vocabulary(cfg)
+    head_re, range_re = note_vocabulary(cfg)
     best = _NO_NOTE
     for para in _note_paragraphs(pc, area, x_max):
         up = re.sub(r"\s+", " ", para.upper()).strip()
-        if not same_re.search(up):
+        if not _NUMBERED.match(up):        # 번호 붙은 NOTES 문단만 (36회차)
             continue
         toks = list(dict.fromkeys(_unit_tokens(up, head_re)))
         if len(toks) < 2:

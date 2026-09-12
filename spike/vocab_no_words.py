@@ -9,7 +9,7 @@ sys.path.insert(0, ".")
 from app.engine import pidcache, projectconfig as pcfg
 
 def span_nowords(pc, area, xmax):
-    _same, head, rng = pcfg.note_vocabulary()
+    head, rng = pcfg.note_vocabulary()   # 36회차부터 2-tuple
     best = None
     for para in pcfg._note_paragraphs(pc, area, xmax):
         up = re.sub(r"\s+", " ", para.upper()).strip()

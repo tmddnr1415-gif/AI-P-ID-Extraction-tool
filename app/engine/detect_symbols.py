@@ -110,8 +110,7 @@ _V2_NOT_FIELD = frozenset({"TW", "FT"})
 # page 3's FIRST LETTER x SUCCEEDING LETTERS matrix defines TT, FE, LG and the
 # rest — but the correspondence to the Excel TYPE column is not in the legend at
 # all (it prints no TIT, FIT or LI), so it is a convention of this deliverable.
-_V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get("anchors.type_map").items()}
-_V3_NOT_FIELD = frozenset(str(x) for x in CFG.get("anchors.not_field"))
+# (36회차) 표는 아래 `ruleset_v3(CFG)` 가 만든다 — import 시점 사본을 따로 두지 않는다.
 
 # Valve anchors -> the valve deliverables, not this list.
 #
@@ -150,12 +149,28 @@ DEFAULT_DISABLED = frozenset({"SCT_SUPPLIER_SCOPE"})
 RULESET_V1 = Ruleset("v1-page6", _V1_FIELD_TYPE_MAP, _V1_NOT_FIELD, disabled=frozenset())
 RULESET_V2 = Ruleset("v2-excel-verified", _V2_FIELD_TYPE_MAP, _V2_NOT_FIELD,
                      disabled=DEFAULT_DISABLED)
-RULESET_V3 = Ruleset("v3-anchor-audit", _V3_FIELD_TYPE_MAP, _V3_NOT_FIELD,
-                     disabled=DEFAULT_DISABLED)
 
-# Back-compat aliases used by the single-page script.
-FIELD_TYPE_MAP = _V3_FIELD_TYPE_MAP
-NOT_FIELD_INSTRUMENT = _V3_NOT_FIELD
+
+def ruleset_v3(cfg) -> "Ruleset":
+    """`anchors.type_map` / `anchors.not_field` → 배포 룰셋 (36회차).
+
+    import 때 한 번 만들고 **`pipeline._rebind_config` 이 지금 CFG 로 다시 만든다.**
+    35회차가 이 표를 "시험불가 25" 로 센 이유가 그것이다 — 유도 뒤에 잎을 바꿔도
+    import 때 굳은 표를 검출이 계속 읽었다.  22회차 `pidcache` 전역 · 30회차
+    `tb.*_RE` 와 같은 덫이고, 만드는 코드가 한 곳이어야 두 벌이 갈리지 않는다.
+    """
+    return Ruleset("v3-anchor-audit",
+                   {str(k): str(v) for k, v in cfg.get("anchors.type_map").items()},
+                   frozenset(str(x) for x in cfg.get("anchors.not_field")),
+                   disabled=DEFAULT_DISABLED)
+
+
+RULESET_V3 = ruleset_v3(CFG)
+
+# Back-compat aliases used by the single-page script.  `_rebind_config` 이
+# 룰셋을 다시 만들 때 이 셋도 같이 바꾼다 — 같은 표를 가리켜야 한다.
+FIELD_TYPE_MAP = RULESET_V3.field_type_map
+NOT_FIELD_INSTRUMENT = RULESET_V3.not_field
 ANCHORS = RULESET_V3.anchors
 
 # Glyph sizes seen in the mark legends of the pages that draw their marks.

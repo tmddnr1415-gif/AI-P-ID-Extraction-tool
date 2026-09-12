@@ -768,8 +768,10 @@ unit_multiplier_fallback:
 # `range_words` 는 세는 것이 아니라 **세지 않는** 낱말이다: `UNIT 3-1 THRU 6-2`
 # 는 두 끝만 인쇄돼 있어 사이에 무엇이 있는지 도면이 말하지 않는다.  그런
 # 문단은 수량을 정하지 않고 `MULTIPLIER_NOTE_RANGE` 로 검토에 올린다.
+# ★ 36회차 — `same_words`(IDENTICAL·SIMILAR·SAME·TYPICAL) 는 지웠다.  판정은
+# **번호 붙은 NOTES 문단 + 유닛 표기 둘 이상** 만으로 하고, 네 문서 실측에서 그
+# 낱말 문지기가 거른 문단은 0개였다 (`out/round36_multiplier_vocab.md`).
 qty_note:
-  same_words: [IDENTICAL, SIMILAR, SAME, TYPICAL]
   unit_words: [GROUP, UNIT, TRAIN]
   range_words: [THRU, THROUGH, '~']
 
