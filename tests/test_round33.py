@@ -53,7 +53,7 @@ def test_evidence_tag_key_has_one_writer_per_meaning():
     곳은 `_attach_tags` 하나다 — 열쇠 하나에 뜻 하나."""
     src = (ROOT / "app" / "pipeline.py").read_text()
     assert len(re.findall(r'"tag": b\.tag', src)) == 1
-    assert len(re.findall(r'evidence\["tag_no"\]', src)) == 1
+    assert len(re.findall(r'r\.evidence\["tag_no"\] = ', src)) == 1
     assert 'setdefault("tag"' not in src
 
 

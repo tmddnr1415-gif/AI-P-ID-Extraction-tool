@@ -927,8 +927,15 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         #
         # SCOPE 열은 계기·밸브에 똑같이 있으므로 하나로 갈린다.  값이 없는 행은
         # `INCLUDED`(화면 라벨 "판정 없음") — SCOPE 열이 생기기 전의 분석이다.
-        scope = (SCOPE_REVIEW if r.needs_review else
-                 SCOPE_VENDOR if str(r.scope or "").startswith(COL_VENDOR) else
+        #
+        # 33회차 — 검토 사유는 여기서 **읽지 않는다**.  2026-08-17 첫 설계는
+        # "판정을 보류한 행" 을 네 번째 갈래(`REVIEW`)로 두어 눈에 띄게 했는데,
+        # 31회차 승수 사유가 SADARA 82/82 · UAD 149/149 에 붙자 도면이 한 색이
+        # 되고 범례가 `SCT 0` 이라고 말했다 — 그 행들은 SCT 다.  "누가
+        # 공급하는가" 와 "사람이 봐야 하는가" 는 다른 축이고, 후자는 바로 아래
+        # `needs_review`·`reason` 에 처음부터 따로 실려 있었다 (화면이 모서리
+        # 표식으로 그린다).  한 칸이 두 축을 접지 않는다.
+        scope = (SCOPE_VENDOR if str(r.scope or "").startswith(COL_VENDOR) else
                  SCOPE_SCT if r.scope == COL_SCT else SCOPE_INCLUDED)
         layers[r.page_no][r.tab].append({
             "key": r.key, "rect": [round(v, 1) for v in r.rect],
@@ -1027,21 +1034,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                            "reason": "scope keyword found; which items it covers "
                                      "needs line tracing (Phase 2)"}})
     # §10 증거 등급 — **도면이 태그를 인쇄했으면 그것으로 읽는다** (28회차).
-    #
-    # 가산이다: 2급(기하) 경로는 그대로 돌고, 여기서 태그가 붙는 것뿐이다.
-    # 판정은 `tags.assign` 하나가 하고 프로젝트·크기·파일명을 보지 않는다 —
-    # AL NOUF1 · SADARA · TC2 는 체계가 없어 **한 행도 붙지 않는다** (실측 0).
-    tag_map, tier_facts = tagsys.assign(
-        [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
-        {pc.page_no: pc.words for pc in pages})
-    for i, r in enumerate(rows):
-        tag = tag_map.get(i)
-        if not tag:
-            continue
-        r.tag_no = tag
-        r.evidence.setdefault("tag", {}).update(
-            {"value": tag, "source": "DRAWING", "shape": tagsys.shape(tag),
-             "rule": tier_facts["rule"]})
+    tier_facts = _attach_tags(rows, pages)
 
     say(total, total, "done")
     for line in clock.summary_lines():
@@ -1206,7 +1199,6 @@ IP_TOKEN_EVIDENCE = ("I/P positioner on stem",)
 SCOPE_INCLUDED = "INCLUDED"          # our supply, in a deliverable
 SCOPE_VENDOR = "VENDOR_EXCLUDED"     # a vendor mark is drawn on the symbol
 SCOPE_SCT = "SCT"                    # inside a supplier-scope box
-SCOPE_REVIEW = "REVIEW"              # a row whose judgement is held open
 
 # SCOPE **열**의 값 (10회차).  위 네 개는 오버레이 색 이름이고 CSS/JS 가 그
 # 문자열을 그대로 쓴다 — 열 표기는 사람이 읽는 산출물 값이라 따로 둔다.
@@ -3176,6 +3168,34 @@ def _glyph_alarms(glyphs) -> list:
                           "the cluster's letter is not trustworthy",
             })
     return out
+
+
+def _attach_tags(rows: list, pages: list) -> dict:
+    """1급 — 도면이 인쇄한 태그를 행에 붙인다.  **여기 하나가 만든다.**
+
+    가산이다: 2급(기하) 경로는 그대로 돌고, 여기서 태그가 붙는 것뿐이다.
+    판정은 `tags.assign` 하나가 하고 프로젝트·크기·파일명을 보지 않는다 —
+    AL NOUF1 · SADARA · TC2 는 체계가 없어 **한 행도 붙지 않는다** (실측 0).
+
+    근거는 `evidence["tag_no"]` 에 싣는다 (행 필드 `tag_no` 와 같은 이름).
+    `evidence["tag"]` 는 **다른 것**이다 — 밸브에 붙은 버블 글자(`MOV`·`HOV`,
+    문자열)이고 `type_display` 가 그 뜻으로 읽는다.  29회차가 태그 번호의
+    근거를 그 열쇠에 dict 로 넣었고, 버블 글자가 있는 밸브에 태그가 붙는
+    순간 `.update` 가 문자열을 만나 분석이 죽었다 (33회차 · 합성 ⑧b —
+    UAD 가 안 죽은 것은 밸브 3행에 태그가 안 붙은 우연).  열쇠 하나에 뜻 하나.
+    """
+    tag_map, tier_facts = tagsys.assign(
+        [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
+        {pc.page_no: pc.words for pc in pages})
+    for i, r in enumerate(rows):
+        tag = tag_map.get(i)
+        if not tag:
+            continue
+        r.tag_no = tag
+        r.evidence["tag_no"] = {"value": tag, "source": "DRAWING",
+                                "shape": tagsys.shape(tag),
+                                "rule": tier_facts["rule"]}
+    return tier_facts
 
 
 def fingerprint(result: dict) -> str:
