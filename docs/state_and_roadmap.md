@@ -229,7 +229,8 @@ UAD        149행 · db1a77d1
 | 마크 **소유자** | `detect_symbols._mark_gap` (유클리드) |
 | 마크가 **심볼 글자인가** | `detect_symbols.on_bubble_face` (30회차) |
 | SCOPE 한 값의 뜻 (화면) | `app.js` `scopeFacts` / (서버) `excel_out.in_client_scope` |
-| 오버레이 색 | `pipeline._layers` — SCOPE 열과 **같은 값**을 읽는다 |
+| 오버레이 색 | `pipeline._layers` — SCOPE 열과 **같은 값**을 읽는다.  ★ 33회차부터 **검토 사유는 여기서 읽지 않는다** — 항목의 `needs_review`·`reason` 에 따로 실리고 화면(`app.js drawOverlay`)이 모서리 ● 표식으로 그린다.  옛 저장의 `REVIEW` 는 `itemScope()` 가 그리드 SCOPE 열에서 되찾는다 |
+| 1급 태그 붙이기 | `pipeline._attach_tags` **하나**.  근거는 `evidence["tag_no"]` (행 필드와 같은 이름).  `evidence["tag"]` 는 **다른 것** — 밸브의 버블 글자(문자열, `type_display` 가 읽는다).  33회차가 이 둘이 한 열쇠를 쓰다 죽던 것을 갈랐다 |
 | 일괄 적용 사정거리 | `app.js` `sameSentence` |
 | config 재바인딩 | `pipeline._rebind_config` (`_reconfigure` 와 되돌리기가 공유) |
 | 측정축 정의 | `spike/accuracy.py` `AXES` (축1·축2) · `spike/identification.py` (축3) |

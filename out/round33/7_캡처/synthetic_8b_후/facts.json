@@ -1,0 +1,33 @@
+{
+ "project": "SYN8B",
+ "pages": [
+  5,
+  6
+ ],
+ "shots": [
+  {
+   "page": 5,
+   "drawing": "D00P-10LBA10-M05-0001",
+   "grid_rows": 46,
+   "svg_nodes": 46,
+   "legend": [
+    "SCT 공급 범위 18",
+    "VENDOR 공급 (BM 당사) 28",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 6,
+   "drawing": "D00P-10LBC40-M05-0001",
+   "grid_rows": 32,
+   "svg_nodes": 47,
+   "legend": [
+    "SCT 공급 범위 15",
+    "VENDOR 공급 (BM 당사) 17",
+    "판정 없음 0",
+    "검토 필요 (그중) 1"
+   ]
+  }
+ ]
+}
