@@ -299,6 +299,54 @@ _UNIT_TAIL = re.compile(r"\s*(?:,|&|AND)\s*#?\s*(%s)" % _UNIT_NUM)
 _UNIT_BARE = re.compile(r"(?<![\w-])(\d-\d)(?![\w-])")
 _NUMBERED = re.compile(r"^\d+\.")
 
+# ★ 36회차 [D] — 유닛 표기의 **꼴**은 그 도면이 말한다.  장마다 도면번호에 유닛
+# 자리(`extract_titleblocks.parse_unit_code` 가 읽는 두 자리)가 있고, 그 장의
+# NOTES 는 **자기 코드**를 어떤 꼴로 적는다: AL NOUF1 은 코드 `10` 을 `GROUP#10`
+# 으로(25장), TC2 는 코드 `31` 을 `UNIT 3-1` 로(18장).  유닛 낱말 뒤에서 그렇게
+# 배운 꼴(`#DD` · `D-D` · `NO.DD`)은 같은 문단에서 낱말 없이 나와도 유닛이다 —
+# TC2 p33·p34 `TYPICAL FOR 3-1 & 3-2 SIMILAR P&ID … FOR 4-1 & 4-2` 가 그것이고,
+# 옆 장 p35 는 같은 문장에 `UNIT` 이 있어 x8 이었는데 두 장은 x1 이었다.
+#
+# **맨 숫자(`DD`)는 배우지 않는다** — 문단 번호(`10.`)·날짜(`26.08.21`)와
+# 구분할 길이 없다 (AL NOUF1 실측: 코드 10 의 맨 꼴 1건이 `10. LOCATION OF …`).
+# 표식(`#` · `NO.` · 붙임표)이 있는 꼴만 배운다.  이것은 값이 아니라 거절 규칙이다.
+# 꼴을 코드에 나열하지 않는다 — `_FORM_MAKERS` 는 "이 문서의 코드 c 를 이 꼴로
+# 찾는 패턴" 을 만드는 것이고, 어느 꼴을 쓸지는 문서가 정한다 (`out/round36/5_unit_token.md`).
+_FORM_MAKERS = {
+    "#DD":   lambda c: r"#\s*(%s)(?!\d)" % re.escape(c),
+    "NO.DD": lambda c: r"NO\.?\s*(%s)(?!\d)" % re.escape(c),
+    "D-D":   lambda c: r"(?<![\w-])(%s\s*-\s*%s)(?![\w-])" % (re.escape(c[0]), re.escape(c[1:])),
+}
+_FORM_TOKEN = {          # 배운 꼴로 문단의 **모든** 표기를 줍는 패턴
+    "#DD":   re.compile(r"#\s*(\d{2})(?!\d)"),
+    "NO.DD": re.compile(r"NO\.?\s*(\d{2})(?!\d)"),
+    "D-D":   re.compile(r"(?<![\w-])(\d\s*-\s*\d)(?![\w-])"),
+}
+
+
+def learn_unit_forms(pages, area, x_max, code_of: dict, cfg=None, min_sheets: int = 2) -> dict:
+    """문서가 자기 유닛코드를 NOTES 에서 어떤 꼴로 적는가 → {꼴: 장 수}.
+
+    유닛 낱말(`unit_words`) 바로 뒤에 **그 장의 코드**가 그 꼴로 인쇄된 번호 문단이
+    `min_sheets` 장 이상이면 그 꼴을 배운다 (18회차 "두 번 이상" 규칙).  코드가
+    두 자리가 아니거나 낱말 없이 나오면 배우지 않는다.
+    """
+    blk = ((getattr(cfg, "data", None) or {}).get("qty_note") or {}) if cfg else {}
+    words = tuple(str(w).upper() for w in (blk.get("unit_words") or _DEFAULT_UNIT))
+    head_words = "|".join(re.escape(w) for w in words)
+    seen = {}
+    for pc in pages:
+        c = code_of.get(pc.page_no)
+        if not c or len(c) != 2 or not c.isdigit():
+            continue
+        paras = [re.sub(r"\s+", " ", p.upper()).strip() for p in _note_paragraphs(pc, area, x_max)]
+        paras = [p for p in paras if _NUMBERED.match(p)]
+        for form, mk in _FORM_MAKERS.items():
+            pat = re.compile(r"(?:%s)S?\s*%s" % (head_words, mk(c)))
+            if any(pat.search(p) for p in paras):
+                seen.setdefault(form, set()).add(pc.page_no)
+    return {f: len(pg) for f, pg in seen.items() if len(pg) >= min_sheets}
+
 
 #: `(배수, 유닛 표기, 그 문단, 범위표기라서 셀 수 없음)`.  앞 셋의 자리는
 #: 27회차 첫 구현과 같다 — 읽는 쪽이 `note[0]`·`note[1]`·`note[2]` 를 그대로 쓴다.
@@ -329,8 +377,12 @@ def note_vocabulary(cfg=None):
                           words("range_words", _DEFAULT_RANGE))
 
 
-def _unit_tokens(text: str, head=None) -> list:
-    """그 문단이 열거한 유닛 표기 (등장 순서, 중복 포함)."""
+def _unit_tokens(text: str, head=None, forms=()) -> list:
+    """그 문단이 열거한 유닛 표기 (등장 순서, 중복 포함).
+
+    `forms` 는 `learn_unit_forms` 가 그 문서에서 배운 꼴이다 — 그 꼴이면 유닛
+    낱말 없이 나온 표기도 줍는다 (36회차).  없으면 27회차 그대로다.
+    """
     head = head if head is not None else note_vocabulary()[0]
     out = []
     for m in head.finditer(text):
@@ -345,7 +397,11 @@ def _unit_tokens(text: str, head=None) -> list:
     out = [re.sub(r"\s+", "", t) for t in out]
     if any(_UNIT_BARE.fullmatch(t) for t in out):
         out += _UNIT_BARE.findall(text)
-    return out
+    for f in forms:
+        pat = _FORM_TOKEN.get(f)
+        if pat:
+            out += pat.findall(text)
+    return [re.sub(r"\s+", "", t) for t in out]
 
 
 def _note_paragraphs(pc, area, x_max) -> list:
@@ -383,7 +439,7 @@ def _note_paragraphs(pc, area, x_max) -> list:
     return paras
 
 
-def note_unit_span(pc, area, x_max, cfg=None) -> "UnitNote":
+def note_unit_span(pc, area, x_max, cfg=None, forms=()) -> "UnitNote":
     """그 장 NOTES 가 말하는 "같은 유닛 몇 개".  안 말하면 `_NO_NOTE`.
 
     범위 표기(`3-1 THRU 6-2`)가 섞이면 **세지 않고** `ambiguous` 로 올린다 —
@@ -395,7 +451,7 @@ def note_unit_span(pc, area, x_max, cfg=None) -> "UnitNote":
         up = re.sub(r"\s+", " ", para.upper()).strip()
         if not _NUMBERED.match(up):        # 번호 붙은 NOTES 문단만 (36회차)
             continue
-        toks = list(dict.fromkeys(_unit_tokens(up, head_re)))
+        toks = list(dict.fromkeys(_unit_tokens(up, head_re, forms)))
         if len(toks) < 2:
             continue
         if range_re.search(up):

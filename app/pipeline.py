@@ -770,6 +770,13 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]
+    # 36회차 [D] — 이 문서가 유닛코드를 NOTES 에서 어떤 꼴로 적는지 먼저 배운다.
+    # 재료는 둘 다 이미 읽은 것이다: 도면번호의 유닛 자리(`tb.parse_unit_code`)와
+    # 그 장의 NOTES 문단.  결과는 지문 밖(`result["unit_forms"]`)에 남긴다.
+    unit_forms = projectconfig.learn_unit_forms(
+        targets, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max,
+        {pc.page_no: tb.parse_unit_code(tb_rows[pc.page_no].get("drawing_no")) for pc in targets},
+        cfg=CFG)
     # The denominator, published the moment it is decided and never revised.  It
     # is the number of sheets this run will walk, which is not the same as the
     # document's page count: the legend and the drawing list are pages too, and
@@ -877,7 +884,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 그것을 읽어 둔다.  **쓰는 것은 범례 표가 답하지 못할 때뿐**이고(아래
         # `_field_rows`), 읽는 것은 언제나 읽어 근거 패널이 보여 줄 수 있게 한다.
         unit_notes[pc.page_no] = projectconfig.note_unit_span(
-            pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max, cfg=CFG)
+            pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max, cfg=CFG,
+            forms=tuple(unit_forms))
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern,
                                 note=unit_notes[pc.page_no],
@@ -1135,6 +1143,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 27회차 — 장별 "이 도면은 유닛 몇 개에 같이 쓰인다" 노트.  **지문 밖**이다
         # (`fingerprint` 는 `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을
         # 화면이 보여 줄 수 있게 두되, 이미 답이 있는 문서의 지문을 흔들지 않는다.
+        "unit_forms": unit_forms,        # 36회차 — 이 문서가 유닛코드를 적는 꼴 {꼴: 장 수} (지문 밖)
         "unit_notes": {str(k): {"units": v[1], "text": v[2],
                                 "counted": bool(v[0]),
                                 "units_count": v[0] or 0}
