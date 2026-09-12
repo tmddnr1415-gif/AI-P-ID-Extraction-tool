@@ -110,6 +110,10 @@ def main() -> int:
                 pg.wait_for_timeout(1200)
                 left = pg.query_selector("#left")
                 left.screenshot(path=str(outdir / f"p{no}_overlay.png"))
+                # 33회차 [C] — 범례 패널만 따로 (전/후 대조용)
+                lg = pg.query_selector("#ovlegend")
+                if lg:
+                    lg.screenshot(path=str(outdir / f"p{no}_legend.png"))
                 # 그 장의 행만 — 검색 상자로 도면번호를 건다 (사람이 하는 그대로)
                 dwg = pg.eval_on_selector(
                     "#page-select", "el => el.options[el.selectedIndex].textContent")

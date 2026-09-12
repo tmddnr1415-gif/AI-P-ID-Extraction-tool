@@ -9,7 +9,20 @@
    "    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
    "AttributeError: 'str' object has no attribute 'update'"
   ],
-  "seconds": 121.1,
+  "seconds": 138.9,
   "max_rss_gb": 1.36
+ },
+ {
+  "pdf": "8b_before.json",
+  "status": "stopped",
+  "error_type": "FileNotFoundError",
+  "error": "no such file: 'out/round33/synthetic/8b_before.json'",
+  "trace_tail": [
+   "  File \"/usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py\", line 3001, in __init__",
+   "    raise FileNotFoundError(f\"no such file: '{filename}'\")",
+   "pymupdf.FileNotFoundError: no such file: 'out/round33/synthetic/8b_before.json'"
+  ],
+  "seconds": 0.5,
+  "max_rss_gb": 0.07
  }
 ]
