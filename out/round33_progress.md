@@ -14,6 +14,6 @@ UAD      149 · db1a77d1 · Q'ty 149 · 축3 83.0
 | [A] 기준선 4종 + ⑧b 사망 재현 | **완료** — 넷 다 기준선과 같음 · ⑧b `AttributeError` 138.9초 재현 (죽는 행 p5 MOV `'MOV'` ← `14LBA14CP039`) |
 | [B] 죽는 버그 | **수정** — 원래 설계는 밸브 쪽(문자열).  `_attach_tags` 하나 · `evidence["tag_no"]`.  게이트는 [E] 에서 |
 | [C] 색 | **수정** — 의도였고 전제가 죽었다 (2026-08-17 `920a5558`).  색 = SCOPE · 검토 = 모서리 ● · 범례 `검토 필요 (그중)`.  캡처는 [E] 뒤 |
-| [D] 메모리 | **실측 중** — `spike/mem_probe.py` (VmRSS/VmHWM).  ★ 32회차의 ru_maxrss 결론은 정정 대상 |
+| [D] 메모리 | **정정 + 수정** — VmRSS 로 재니 최고 7.38G 뒤 0.75G 로 **돌아온다** (32회차는 ru_maxrss 를 읽었다).  잔류 183MB 는 마지막 장의 잉크 인덱스(tracemalloc) → `release_ink` 를 `analyse` 의 finally 에.  고치기 전/후 SADARA→UAD 실측 중.  ⚠ tracemalloc UAD 는 OOM |
 | [E] 회귀 | 대기 |
 | [F] 출력 | 대기 |
