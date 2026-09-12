@@ -1,0 +1,34 @@
+[
+ {
+  "name": "AL_NOUF1",
+  "rows": 1037,
+  "fingerprint": "fb85b039",
+  "qty": 1931,
+  "seconds": 672.0,
+  "max_rss_gb_so_far": 4.9
+ },
+ {
+  "name": "SADARA",
+  "rows": 82,
+  "fingerprint": "0767ba79",
+  "qty": 0,
+  "seconds": 77.9,
+  "max_rss_gb_so_far": 4.9
+ },
+ {
+  "name": "TC2",
+  "rows": 607,
+  "fingerprint": "c0a2d29d",
+  "qty": 3047,
+  "seconds": 481.5,
+  "max_rss_gb_so_far": 7.48
+ },
+ {
+  "name": "UAD",
+  "rows": 149,
+  "fingerprint": "db1a77d1",
+  "qty": 149,
+  "seconds": 407.7,
+  "max_rss_gb_so_far": 7.48
+ }
+]
