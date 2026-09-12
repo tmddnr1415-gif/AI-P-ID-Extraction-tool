@@ -10,3 +10,28 @@
   page  24    1.40s   instruments 1.40s annotations 0.00s
   page  25    2.77s   instruments 2.77s annotations 0.00s
   page  26    5.88s   instruments 5.88s annotations 0.00s
+  page  27    4.28s   instruments 4.28s annotations 0.00s
+  page  28    1.50s   instruments 1.50s annotations 0.00s
+  page  29    5.84s   instruments 5.84s annotations 0.00s
+  page  30    9.06s   instruments 9.06s annotations 0.00s
+  page  31    5.03s   instruments 5.03s annotations 0.00s
+analysis took 409.4s, by stage:
+  instruments              205.78s   50.3%
+  layout                   137.95s   33.7%
+  valves.actuators          18.88s    4.6%
+  open_pdf                  13.37s    3.3%
+  valves.bodies              9.60s    2.3%
+  titleblocks                9.55s    2.3%
+  titleblock_glyphs          5.44s    1.3%
+  pipe_graph                 2.77s    0.7%
+  candidates                 1.75s    0.4%
+  valves.tags                1.50s    0.4%
+  describe_axis              1.28s    0.3%
+  legend_rules               1.13s    0.3%
+  equipment                  0.40s    0.1%
+  description                0.01s    0.0%
+  annotations                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p30 17.8s, p7 15.2s, p19 8.4s, p29 7.7s, p23 7.0s
+{"name": "UAD", "rows": 149, "fingerprint": "db1a77d1", "qty": 149, "seconds": 410.6, "max_rss_gb_so_far": 3.18}
