@@ -400,7 +400,7 @@ circle.revbadge { fill: var(--bad); stroke: #fffdf6; stroke-width: 1.2;
 text.revbadge-t { fill: #fffdf6; font-weight: 700; text-anchor: middle;
   dominant-baseline: central; pointer-events: none;
   font-family: ui-sans-serif, system-ui, sans-serif; }
-.swatch.badge { border-radius: 50%; }
+.ovl-row .swatch.badge { border-radius: 50%; }   /* .ovl-row .swatch 보다 세게 */
 rect.det.excluded { stroke-width: 1.1; }
 rect.det.sel {
   /* 도면은 흰 종이다.  예전의 흰 테두리는 종이 위에서 사라졌다. */

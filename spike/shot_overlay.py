@@ -108,6 +108,13 @@ def main() -> int:
                 pg.wait_for_timeout(2500)
                 pg.click("button[data-z='0']")          # 맞춤 — 넷을 같은 조건으로
                 pg.wait_for_timeout(1200)
+                # 도면 래스터가 실리기 전에 찍으면 빈 종이가 나온다 (33회차 ⑧b p6).
+                for _ in range(40):
+                    if pg.eval_on_selector(
+                            "#sheet", "e => e.complete && e.naturalWidth > 0"):
+                        break
+                    pg.wait_for_timeout(500)
+                pg.wait_for_timeout(600)
                 left = pg.query_selector("#left")
                 left.screenshot(path=str(outdir / f"p{no}_overlay.png"))
                 # 33회차 [C] — 범례 패널만 따로 (전/후 대조용)
