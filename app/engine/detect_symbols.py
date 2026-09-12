@@ -950,6 +950,21 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
 _INK_LAST = []
 
 
+def release_ink() -> None:
+    """분석이 끝나면 마지막 장의 잉크 인덱스를 놓는다 (33회차 [D]).
+
+    `_INK_LAST` 는 *놓는 자리*이지만 **맨 마지막 장**은 놓아 줄 다음 장이 없어
+    분석이 끝난 뒤에도 그 쪽 객체를 붙들고 있었다 — 그 쪽 객체는 `.page` 로
+    PyMuPDF 문서 전체를 붙든다.  tracemalloc 실측(SADARA 분석 뒤): 파이썬 쪽 잔류
+    183MB 중 `detect_symbols.py` 82MB(격자 1.42M 블록) · `pymupdf` 85MB ·
+    `pidcache.py` 16MB — 전부 그 한 장의 것이다.  `pipeline.analyse` 의 `finally`
+    가 부른다.  결과는 이미 만들어진 뒤라 지문에 닿지 않는다.
+    """
+    for prev in _INK_LAST:
+        prev._ink_index = None
+    _INK_LAST[:] = []
+
+
 def _ink_cache(pc, m, cell):
     """그 장의 잉크 인덱스 — 장마다 한 번 만들고, 다음 장이 만들 때 놓는다."""
     cache = getattr(pc, "_ink_index", None)

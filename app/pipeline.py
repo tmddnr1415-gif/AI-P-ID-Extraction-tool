@@ -541,6 +541,10 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if CFG.data != snapshot:
             CFG.data = snapshot
             _rebind_config()
+        # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
+        # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
+        # 한 서버 프로세스가 앞 문서의 마지막 장을 다음 분석 내내 들고 있다.
+        ds.release_ink()
 
 
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,

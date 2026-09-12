@@ -1,3 +1,27 @@
 {"stage": "start", "VmHWM": 0.06, "VmRSS": 0.06}
   page   1    3.48s   annotations 2.99s instruments 0.49s
   page   6    2.85s   annotations 1.78s instruments 1.07s
+  page   7    5.08s   annotations 3.49s instruments 1.58s
+  page   8    4.83s   annotations 3.35s instruments 1.47s
+  page   9    5.23s   annotations 3.56s instruments 1.68s
+analysis took 259.1s, by stage:
+  layout                   128.60s   49.6%
+  instruments               51.42s   19.8%
+  valves.actuators          41.23s   15.9%
+  annotations               15.17s    5.9%
+  valves.bodies              4.21s    1.6%
+  pipe_graph                 4.08s    1.6%
+  valves.tags                3.26s    1.3%
+  titleblock_glyphs          2.68s    1.0%
+  describe_axis              1.99s    0.8%
+  titleblocks                1.87s    0.7%
+  legend_rules               1.87s    0.7%
+  candidates                 1.67s    0.6%
+  open_pdf                   0.54s    0.2%
+  equipment                  0.43s    0.2%
+  description                0.03s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 20.2s, p7 17.1s, p8 13.7s, p6 5.8s, p2 5.5s
+{"stage": "SADARA 직후", "rows": 82, "fingerprint": "0767ba79", "seconds": 261.9, "VmHWM": 2.86, "VmRSS": 1.96, "py_mb": 184.4, "top": [{"file": "app/engine/detect_symbols.py", "mb": 82.1, "blocks": 1422615}, {"file": "/usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py", "mb": 64.3, "blocks": 1742170}, {"file": "/usr/local/lib/python3.11/dist-packages/pymupdf/extra.py", "mb": 20.6, "blocks": 773364}, {"file": "app/engine/pidcache.py", "mb": 15.9, "blocks": 124387}, {"file": "app/engine/describe_candidates.py", "mb": 0.4, "blocks": 6148}, {"file": "app/pipeline.py", "mb": 0.4, "blocks": 3907}, {"file": "app/engine/pipe_graph.py", "mb": 0.3, "blocks": 6753}, {"file": "app/engine/describe_axis.py", "mb": 0.2, "blocks": 4694}]}
+{"stage": "SADARA 결과 놓고 gc", "VmHWM": 2.86, "VmRSS": 1.96, "py_mb": 182.8, "top": [{"file": "app/engine/detect_symbols.py", "mb": 82.1, "blocks": 1422467}, {"file": "/usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py", "mb": 64.2, "blocks": 1740861}, {"file": "/usr/local/lib/python3.11/dist-packages/pymupdf/extra.py", "mb": 20.6, "blocks": 773022}, {"file": "app/engine/pidcache.py", "mb": 15.9, "blocks": 124378}, {"file": "<frozen importlib._bootstrap_external>", "mb": 0.0, "blocks": 122}, {"file": "/usr/local/lib/python3.11/dist-packages/pymupdf/mupdf.py", "mb": 0.0, "blocks": 309}, {"file": "/usr/lib/python3.11/copy.py", "mb": 0.0, "blocks": 108}, {"file": "<frozen importlib._bootstrap>", "mb": 0.0, "blocks": 20}]}

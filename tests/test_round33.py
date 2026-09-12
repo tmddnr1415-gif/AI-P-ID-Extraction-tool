@@ -68,3 +68,23 @@ def test_overlay_layer_scope_reads_scope_only():
     # 색 갈래는 셋뿐이고 검토는 그 밖의 표식이다
     block = js[js.index("const SCOPE = ["):js.index("];", js.index("const SCOPE = ["))]
     assert block.count('["') == 3
+
+
+def test_release_ink_drops_the_last_page_index(monkeypatch):
+    """분석이 끝나면 마지막 장의 잉크 인덱스를 놓는다 — `_INK_LAST` 가 쪽 객체를
+    붙들면 그 쪽이 PyMuPDF 문서 전체를 붙든다 (33회차 [D] tracemalloc 실측)."""
+    from app.engine import detect_symbols as ds
+
+    class _PC:
+        _ink_index = None
+        def drawings(self):
+            return []
+
+    pc = _PC()
+    monkeypatch.setattr(ds, "_ink_index", lambda pc, m, cell: {"grid": 1})
+    ds._ink_cache(pc, None, 10.0)
+    assert ds._INK_LAST == [pc] and pc._ink_index is not None
+    ds.release_ink()
+    assert ds._INK_LAST == [] and pc._ink_index is None
+    src = (ROOT / "app" / "pipeline.py").read_text()
+    assert src.count("ds.release_ink()") == 1   # 부르는 곳은 analyse 의 finally 하나
