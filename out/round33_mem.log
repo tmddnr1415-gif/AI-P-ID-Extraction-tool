@@ -1,1 +1,124 @@
 {"stage": "start", "VmHWM": 0.06, "VmRSS": 0.06}
+  page   6    0.29s   instruments 0.29s annotations 0.00s
+  page   7    0.28s   instruments 0.28s annotations 0.00s
+  page   8    0.26s   instruments 0.26s annotations 0.00s
+  page   9    0.26s   instruments 0.26s annotations 0.00s
+  page  10    0.27s   instruments 0.27s annotations 0.00s
+  page  11    0.48s   instruments 0.48s annotations 0.00s
+  page  12    0.22s   instruments 0.22s annotations 0.00s
+  page  13    0.39s   instruments 0.39s annotations 0.00s
+  page  14    0.27s   instruments 0.27s annotations 0.00s
+  page  15    0.37s   instruments 0.37s annotations 0.00s
+  page  16    0.61s   instruments 0.61s annotations 0.00s
+  page  17    0.49s   instruments 0.49s annotations 0.00s
+  page  18    0.41s   instruments 0.41s annotations 0.00s
+  page  19    0.45s   instruments 0.45s annotations 0.00s
+  page  20    0.32s   instruments 0.32s annotations 0.00s
+  page  21    0.51s   instruments 0.51s annotations 0.00s
+  page  22    0.41s   instruments 0.41s annotations 0.00s
+  page  23    0.42s   instruments 0.42s annotations 0.00s
+  page  24    0.48s   instruments 0.48s annotations 0.00s
+  page  25    0.50s   instruments 0.50s annotations 0.00s
+  page  26    0.57s   instruments 0.57s annotations 0.00s
+  page  27    0.58s   instruments 0.58s annotations 0.00s
+  page  28    0.49s   instruments 0.49s annotations 0.00s
+  page  29    0.16s   instruments 0.16s annotations 0.00s
+  page  30    0.31s   instruments 0.31s annotations 0.00s
+  page  31    0.43s   instruments 0.43s annotations 0.00s
+  page  32    0.50s   instruments 0.50s annotations 0.00s
+  page  33    0.60s   instruments 0.60s annotations 0.00s
+  page  34    0.38s   instruments 0.38s annotations 0.00s
+  page  35    0.49s   instruments 0.49s annotations 0.00s
+  page  36    0.42s   instruments 0.42s annotations 0.00s
+  page  37    0.46s   instruments 0.46s annotations 0.00s
+  page  38    0.46s   instruments 0.46s annotations 0.00s
+  page  39    0.44s   instruments 0.44s annotations 0.00s
+  page  40    0.49s   instruments 0.49s annotations 0.00s
+  page  41    0.48s   instruments 0.48s annotations 0.00s
+  page  42    0.45s   instruments 0.45s annotations 0.00s
+  page  43    0.41s   instruments 0.41s annotations 0.00s
+  page  44    0.17s   instruments 0.17s annotations 0.00s
+  page  45    0.18s   instruments 0.18s annotations 0.00s
+  page  46    0.49s   instruments 0.49s annotations 0.00s
+  page  47    0.53s   instruments 0.53s annotations 0.00s
+  page  49    0.47s   instruments 0.47s annotations 0.00s
+  page  50    0.19s   instruments 0.19s annotations 0.00s
+  page  51    0.42s   instruments 0.42s annotations 0.00s
+  page  52    0.50s   instruments 0.50s annotations 0.00s
+  page  53    0.48s   instruments 0.48s annotations 0.00s
+  page  54    0.46s   instruments 0.46s annotations 0.00s
+  page  55    0.39s   instruments 0.39s annotations 0.00s
+  page  56    0.48s   instruments 0.48s annotations 0.00s
+  page  57    0.17s   instruments 0.17s annotations 0.00s
+  page  58    0.16s   instruments 0.16s annotations 0.00s
+analysis took 677.3s, by stage:
+  layout                   373.91s   55.2%
+  instruments              177.64s   26.2%
+  valves.actuators          52.23s    7.7%
+  titleblocks               16.12s    2.4%
+  titleblock_glyphs         16.10s    2.4%
+  pipe_graph                10.65s    1.6%
+  candidates                 7.14s    1.1%
+  valves.bodies              7.10s    1.0%
+  describe_axis              5.76s    0.9%
+  legend_rules               4.82s    0.7%
+  valves.tags                3.33s    0.5%
+  open_pdf                   2.15s    0.3%
+  equipment                  0.29s    0.0%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 13.9s, p4 9.3s, p2 9.0s, p14 3.5s, p33 2.3s
+{"stage": "AL_NOUF1 직후", "rows": 1037, "fingerprint": "fb85b039", "seconds": 677.7, "VmHWM": 4.9, "VmRSS": 0.58}
+{"stage": "AL_NOUF1 결과 놓고 gc", "VmHWM": 4.9, "VmRSS": 0.5}
+  page   6    0.44s   instruments 0.44s annotations 0.00s
+  page   7    0.42s   instruments 0.42s annotations 0.00s
+  page   8    0.41s   instruments 0.41s annotations 0.00s
+  page   9    0.42s   instruments 0.42s annotations 0.00s
+  page  10    0.57s   instruments 0.57s annotations 0.00s
+  page  11    0.45s   instruments 0.45s annotations 0.00s
+  page  12    0.44s   instruments 0.44s annotations 0.00s
+  page  13    0.43s   instruments 0.43s annotations 0.00s
+  page  14    0.41s   instruments 0.41s annotations 0.00s
+  page  15    0.55s   instruments 0.55s annotations 0.00s
+  page  16    0.60s   instruments 0.60s annotations 0.00s
+  page  17    0.48s   instruments 0.48s annotations 0.00s
+  page  18    0.45s   instruments 0.45s annotations 0.00s
+  page  19    0.20s   instruments 0.20s annotations 0.00s
+  page  20    0.41s   instruments 0.41s annotations 0.00s
+  page  21    0.40s   instruments 0.40s annotations 0.00s
+  page  22    0.50s   instruments 0.50s annotations 0.00s
+  page  23    0.58s   instruments 0.58s annotations 0.00s
+  page  24    0.51s   instruments 0.51s annotations 0.00s
+  page  29    0.41s   instruments 0.41s annotations 0.00s
+  page  30    0.42s   instruments 0.42s annotations 0.00s
+  page  31    0.42s   instruments 0.42s annotations 0.00s
+  page  32    0.44s   instruments 0.44s annotations 0.00s
+  page  33    0.42s   instruments 0.42s annotations 0.00s
+  page  34    0.43s   instruments 0.43s annotations 0.00s
+  page  35    0.22s   instruments 0.22s annotations 0.00s
+  page  36    0.54s   instruments 0.54s annotations 0.00s
+  page  37    0.41s   instruments 0.41s annotations 0.00s
+  page  38    0.46s   instruments 0.46s annotations 0.00s
+  page  39    0.21s   instruments 0.21s annotations 0.00s
+  page  40    0.41s   instruments 0.41s annotations 0.00s
+  page  42    0.45s   instruments 0.45s annotations 0.00s
+  page  43    0.39s   instruments 0.39s annotations 0.00s
+  page  44    0.45s   instruments 0.45s annotations 0.00s
+  page  45    0.40s   instruments 0.40s annotations 0.00s
+  page  46    0.43s   instruments 0.43s annotations 0.00s
+  page  47    0.41s   instruments 0.41s annotations 0.00s
+  page  48    0.21s   instruments 0.21s annotations 0.00s
+  page  49    0.50s   instruments 0.50s annotations 0.00s
+  page  50    0.49s   instruments 0.49s annotations 0.00s
+  page  51    0.51s   instruments 0.51s annotations 0.00s
+  page  52    0.51s   instruments 0.51s annotations 0.00s
+  page  53    0.44s   instruments 0.44s annotations 0.00s
+  page  54    0.47s   instruments 0.47s annotations 0.00s
+  page  55    0.46s   instruments 0.46s annotations 0.00s
+  page  56    0.40s   instruments 0.40s annotations 0.00s
+  page  57    0.43s   instruments 0.43s annotations 0.00s
+  page  58    0.46s   instruments 0.46s annotations 0.00s
+  page  59    0.20s   instruments 0.20s annotations 0.00s
+  page  60    0.21s   instruments 0.21s annotations 0.00s

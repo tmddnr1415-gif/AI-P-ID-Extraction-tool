@@ -50,7 +50,8 @@ def main() -> int:
                 main_on = pg.eval_on_selector("#main", "e => !e.classList.contains('hidden')")
                 if "실패" in title:
                     state = "failed"; break
-                if main_on:
+                # 12회차 완료 화면은 결과(#main) **앞**에 선다 — 제목으로 본다
+                if main_on or "완료" in title:
                     state = "done"; break
                 pg.wait_for_timeout(2000)
             pg.wait_for_timeout(1500)
