@@ -237,8 +237,6 @@ vendor_marks:
   cluster_gap: 2.0
   # P13 — where a mark sits relative to the bubble it applies to.
   above: 25.0
-  x_slack: 6.0
-  note_row_tol: 6.0
   note_line_gap: 20.0
   # P15 — package boundary box carrying a mark for everything inside it.
   package_box:
@@ -772,8 +770,6 @@ unit_multiplier_fallback:
 # **번호 붙은 NOTES 문단 + 유닛 표기 둘 이상** 만으로 하고, 네 문서 실측에서 그
 # 낱말 문지기가 거른 문단은 0개였다 (`out/round36_multiplier_vocab.md`).
 qty_note:
-  unit_words: [GROUP, UNIT, TRAIN]
-  range_words: [THRU, THROUGH, '~']
 
 # Scope keywords that override the unit multiplier for an individual item.
 # Verified on D00P-10PGB10-M05-0004, where 'AUXILIARY BOILER COOLER' carries
@@ -876,12 +872,8 @@ valves:
   disabled_rules: []
 
   legend_fallback:
-    butterfly:
-      tick_length: 3.0
-      tick_reach_radii: 1.498
-      bar_reach_radii: 2.822
-      bar_min_radii: 2.378
-      circle_diameter: 6.06
+    # 36회차 — `butterfly` 폴백 5칸은 지웠다: 네 프로젝트 전부 범례 p2 가 답한다 (source=LEGEND).
+    #           없으면 `legend_rules` 가 UNAVAILABLE 로 사유를 남기고 멈춘다 (§9 4).
     actuator_stem:
       stem_gap: 0.0
       stem_offaxis: 0.03

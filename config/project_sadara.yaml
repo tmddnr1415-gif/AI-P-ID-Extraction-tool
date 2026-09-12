@@ -149,10 +149,8 @@ vendor_marks:
   # off centre (6.0 -> 8.5).  Checked: the `(**)` marks on p6 stand 8.9 pt tall
   # and sit directly over the `TIT` word of their bubble.
   above: 35.4
-  x_slack: 8.5
   # SCALED 6.0 -> 8.5 and 20.0 -> 28.3.  The notes here wrap at 12-14 pt line
   # pitch, inside the 28.3 allowance.
-  note_row_tol: 8.5
   note_line_gap: 28.3
   package_box:
     # CARRIED - the fraction of a box edge that must be drawn is a ratio, so it
