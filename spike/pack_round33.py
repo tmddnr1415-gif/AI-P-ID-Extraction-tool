@@ -34,7 +34,11 @@ EXCLUDED = [
 
 def main() -> int:
     zpath = OUT / "round33_result.zip"
-    shots = sorted((R / "7_캡처").rglob("*.png"))
+    # 색_전후 는 오버레이·범례 캡처만 담는다 — 행 그리드 캡처는 색과 무관하고
+    # 28장 × 2 × 3 이면 36MB 가 된다 (전 은 round32_result.zip 에 전부 있다).
+    shots = sorted(p for p in (R / "7_캡처").rglob("*.png")
+                   if "색_전후" not in p.parts
+                   or p.name.endswith(("_overlay.png", "_legend.png", "_zoom.png")))
     facts = sorted((R / "7_캡처").rglob("facts.json"))
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         names = []
