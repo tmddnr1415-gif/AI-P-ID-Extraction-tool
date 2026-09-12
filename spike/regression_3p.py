@@ -44,7 +44,7 @@ RUNS = ROOT / "out" / "regression_3p"
 def anchors():
     """검출기가 아는 태그 낱말과, 그 낱말이 어느 TYPE 이 되는지의 사전."""
     from app.engine import detect_symbols as ds
-    return ds.RULESET_V3.anchors, dict(ds._V3_FIELD_TYPE_MAP)
+    return ds.RULESET_V3.anchors, dict(ds.RULESET_V3.field_type_map)
 
 
 def run_one(proj, reuse: bool) -> dict:

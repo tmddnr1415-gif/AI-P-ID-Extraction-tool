@@ -75,7 +75,7 @@ def main() -> int:
     print(f"   승수 사유: {codes or '없음'}")
     # 축3 을 다시 잰다 — 하네스와 **같은 채점기**를 쓴다 (측정 정의 불변).
     from app.engine import detect_symbols as ds
-    anc, tmap = ds.RULESET_V3.anchors, dict(ds._V3_FIELD_TYPE_MAP)
+    anc, tmap = ds.RULESET_V3.anchors, dict(ds.RULESET_V3.field_type_map)
     words = {pc["page_no"]: [] for pc in out.get("pages", [])} or {}
     try:
         base_words = json.loads((ROOT / "out" / "regression_3p" /
