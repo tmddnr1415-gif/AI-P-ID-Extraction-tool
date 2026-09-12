@@ -2586,7 +2586,14 @@ function showEvidence(row) {
   add("개폐 상태", e.state);
   add("액추에이터", e.actuator);
   add("액추에이터 근거", e.actuator_basis);
-  add("태그 버블", e.tag);
+  // `evidence.tag` 는 밸브에 붙은 버블 글자(MOV/HOV — 문자열)다.  33회차 이전
+  // 분석은 1급 태그 판정을 같은 열쇠에 dict 로 넣어 두었으므로 그것도 받는다.
+  add("태그 버블", typeof e.tag === "string" ? e.tag : undefined);
+  const tagNo = e.tag_no || (e.tag && typeof e.tag === "object" ? e.tag : null);
+  if (tagNo && tagNo.value) {
+    add("Tag No. 근거", `${tagNo.value} — 도면 인쇄 (모양 ${tagNo.shape || ""})`);
+    add("Tag No. 규칙", tagNo.rule);
+  }
   add("산출물", e.deliverable);
   add("검출 근거", e.detail && JSON.stringify(e.detail));
 
@@ -3243,8 +3250,19 @@ const SCOPE = [
    "SCOPE 열이 VENDOR — 계기는 타사 공급, 설치 자재는 SCT 공급"],
   ["INCLUDED", "판정 없음", "#bf5af2",
    "SCOPE 열이 비어 있습니다 — 이 열이 생기기 전의 분석. 다시 분석하면 정해집니다"],
-  ["REVIEW", "검토 필요", "#ff453a", "판정 보류 — 근거 패널의 사유 확인"],
 ];
+/* 33회차 — 검토 필요는 **색이 아니라 표식**이다.
+ *
+ * 32회차 [B] 가 잡은 것: 색이 SCOPE 를 읽되 `needs_review` 가 먼저였다
+ * (`pipeline._layers`, 2026-08-17 부터).  검토 행이 드물 때는 "판정을 보류한
+ * 행을 눈에 띄게" 였는데, 31회차 승수 사유가 SADARA 82/82 · UAD 149/149 에
+ * 붙자 도면이 한 색이 되고 범례가 `SCT 0` 이라고 말했다 — 그 행들은 SCT 다.
+ * "누가 공급하는가" 와 "사람이 봐야 하는가" 는 다른 축이므로 하나가 다른
+ * 하나를 덮으면 안 된다.  색은 SCOPE, 검토는 상자 모서리의 붉은 ● 표식 —
+ * §7.2 (색 + 형태 + 라벨).  세 색 칸의 합 = 상자 수 = 그리드 행 수이고,
+ * 검토 칸은 **그중** 몇인가를 센다. */
+const REVIEW_MARK = ["REVIEW", "검토 필요 (그중)", "#ff453a",
+                     "판정 보류 — 상자 모서리의 ● 표식. 근거 패널의 사유 확인"];
 
 /* 범례 설명 뒤에 "양식에 나가는가" 한 마디를 붙인다.  판정은 `scopeFacts`
  * 하나에서 오고 여기서 다시 하지 않는다 (12회차 규칙). */
@@ -3256,6 +3274,18 @@ function scopeTip(key, tip) {
 }
 const SCOPE_COLOR = Object.fromEntries(SCOPE.map(([k, , c]) => [k, c]));
 
+/* 상자 하나의 SCOPE 갈래.  33회차 이전 분석은 검토 행을 `REVIEW` 로 저장해
+ * 두어 공급 주체를 잃었으므로, 그런 항목은 **그리드 행의 SCOPE 열**에서 되찾는다
+ * (같은 접근자 `cellValue` 가 읽는 값이다).  새 분석은 `scope` 가 곧 갈래다. */
+function itemScope(it) {
+  const k = it.scope || "INCLUDED";
+  if (k !== "REVIEW") return k;
+  const row = (S.rows || []).find(r => r.key === it.key);
+  const v = row ? String(cellValue(row, "scope") || "") : "";
+  return v === SCOPE_DELIVERED ? "SCT"
+    : v.startsWith(SCOPE_VENDOR_PREFIX) ? "VENDOR_EXCLUDED" : "INCLUDED";
+}
+
 function overlayItems(page) {
   const out = [];
   for (const [tab, items] of Object.entries(page.layers || {})) {
@@ -3265,7 +3295,7 @@ function overlayItems(page) {
 }
 
 function itemVisible(it) {
-  if (S.ovOff.has(it.scope || "INCLUDED")) return false;
+  if (S.ovOff.has(itemScope(it))) return false;
   if (S.tab === "REVIEW") return !!it.needs_review;
   if (S.tab === "ALL") return true;
   // A deliverable tab shows its own rows, and keeps the excluded symbols on
@@ -3276,18 +3306,23 @@ function itemVisible(it) {
 function buildOverlayLegend() {
   const items = S.page ? overlayItems(S.page) : [];
   const counts = {};
+  let review = 0;
   for (const it of items) {
-    const k = it.scope || "INCLUDED";
+    const k = itemScope(it);
     counts[k] = (counts[k] || 0) + 1;
+    if (it.needs_review) review++;
   }
-  $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) => `
+  const row = (key, label, colour, why, n, swatch) => `
     <label class="ovl-row" title="${escape(scopeTip(key, why))}">
       <input type="checkbox" class="ovl" value="${key}"
              ${S.ovOff.has(key) ? "" : "checked"}>
-      <span class="swatch" style="background:${colour}"></span>
+      <span class="swatch ${swatch}" style="background:${colour}"></span>
       <span class="ovl-label">${label}</span>
-      <span class="n">${counts[key] || 0}</span>
-    </label>`).join("");
+      <span class="n">${n}</span>
+    </label>`;
+  $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) =>
+    row(key, label, colour, why, counts[key] || 0, "")).join("")
+    + row(...REVIEW_MARK, review, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
     drawOverlay();
@@ -3323,8 +3358,30 @@ function drawOverlay() {
       + (S.sel === it.key ? " sel" : ""));
     const stroke = S.byTab
       ? (COLOR[it.tab] || "#8e8e93")
-      : (SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93");
+      : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
     r.setAttribute("stroke", stroke);
+    // 검토 필요는 색을 바꾸지 않고 **모서리 표식**으로 말한다 (33회차).  표식은
+    // 자기 층이라 범례에서 따로 끄고, 상자와 같은 키로 클릭이 통한다.
+    if (it.needs_review && !S.ovOff.has(REVIEW_MARK[0])) {
+      const rad = Math.max(4, (y1 - y0) * scale * 0.2);
+      const cx = x1 * scale, cy = y0 * scale;
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
+      dot.setAttribute("class", "revbadge");
+      const bang = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      bang.setAttribute("x", cx); bang.setAttribute("y", cy);
+      bang.setAttribute("font-size", rad * 1.5);
+      bang.setAttribute("class", "revbadge-t");
+      bang.textContent = "!";
+      const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = `검토 필요 — ${it.reason || ""}`;
+      dot.appendChild(tip);
+      for (const el of [dot, bang]) {
+        el.dataset.key = it.key;
+        el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+      }
+      ov.appendChild(dot); ov.appendChild(bang);
+    }
     if (rev === "ADDED" || rev === "MODIFIED") {
       const pad = 4;
       const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");

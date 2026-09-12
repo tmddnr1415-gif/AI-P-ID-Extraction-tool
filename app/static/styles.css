@@ -392,6 +392,15 @@ rect.det {
   stroke-width: 1.6; vector-effect: non-scaling-stroke; cursor: pointer;
 }
 rect.det.valve { stroke-dasharray: 5 3; }
+/* 33회차 — 검토 필요 표식.  색은 SCOPE 가 갖고, 검토는 모서리의 붉은 ● 다.
+   테두리로 말하면 밸브의 파선·개정 링과 한 자리를 다툰다 (같은 이유로
+   개정도 자기 도형을 따로 그린다). */
+circle.revbadge { fill: var(--bad); stroke: #fffdf6; stroke-width: 1.2;
+  vector-effect: non-scaling-stroke; cursor: pointer; }
+text.revbadge-t { fill: #fffdf6; font-weight: 700; text-anchor: middle;
+  dominant-baseline: central; pointer-events: none;
+  font-family: ui-sans-serif, system-ui, sans-serif; }
+.swatch.badge { border-radius: 50%; }
 rect.det.excluded { stroke-width: 1.1; }
 rect.det.sel {
   /* 도면은 흰 종이다.  예전의 흰 테두리는 종이 위에서 사라졌다. */
