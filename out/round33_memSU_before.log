@@ -25,3 +25,42 @@ analysis took 72.7s, by stage:
   slowest pages: p9 5.9s, p7 4.7s, p8 4.0s, p1 1.4s, p2 1.2s
 {"stage": "SADARA 직후", "rows": 82, "fingerprint": "0767ba79", "seconds": 73.1, "VmHWM": 0.94, "VmRSS": 0.35}
 {"stage": "SADARA 결과 놓고 gc", "VmHWM": 0.94, "VmRSS": 0.34}
+  page   6    4.51s   instruments 4.50s annotations 0.00s
+  page   7    6.98s   instruments 6.98s annotations 0.00s
+  page   8    4.44s   instruments 4.44s annotations 0.00s
+  page   9    4.40s   instruments 4.40s annotations 0.00s
+  page  10    1.14s   instruments 1.14s annotations 0.00s
+  page  19    7.36s   instruments 7.36s annotations 0.00s
+  page  20    5.80s   instruments 5.80s annotations 0.00s
+  page  21   11.58s   instruments 11.58s annotations 0.00s
+  page  23    6.18s   instruments 6.18s annotations 0.00s
+  page  24    1.39s   instruments 1.39s annotations 0.00s
+  page  25    2.76s   instruments 2.76s annotations 0.00s
+  page  26    5.77s   instruments 5.77s annotations 0.00s
+  page  27    4.17s   instruments 4.17s annotations 0.00s
+  page  28    1.44s   instruments 1.44s annotations 0.00s
+  page  29    5.86s   instruments 5.86s annotations 0.00s
+  page  30    9.08s   instruments 9.08s annotations 0.00s
+  page  31    5.06s   instruments 5.06s annotations 0.00s
+analysis took 423.9s, by stage:
+  instruments              210.82s   49.7%
+  layout                   154.35s   36.4%
+  valves.actuators          18.61s    4.4%
+  open_pdf                  13.14s    3.1%
+  titleblocks                9.25s    2.2%
+  titleblock_glyphs          5.41s    1.3%
+  valves.bodies              3.39s    0.8%
+  pipe_graph                 2.75s    0.6%
+  candidates                 1.81s    0.4%
+  valves.tags                1.52s    0.4%
+  describe_axis              1.31s    0.3%
+  legend_rules               1.15s    0.3%
+  equipment                  0.39s    0.1%
+  description                0.01s    0.0%
+  annotations                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p21 12.4s, p30 11.7s, p7 9.7s, p19 8.3s, p29 7.7s
+{"stage": "UAD 직후", "rows": 149, "fingerprint": "db1a77d1", "seconds": 425.2, "VmHWM": 3.34, "VmRSS": 0.52}
+{"stage": "UAD 결과 놓고 gc", "VmHWM": 3.34, "VmRSS": 0.5}
+→ /home/user/AI-P-ID-Extraction-tool/out/round33/mem_SADARA-UAD.json
