@@ -1,0 +1,68 @@
+{
+ "AL NOUF1": {
+  "codes": [
+   "00",
+   "10",
+   "11"
+  ],
+  "own_code_in_notes": [
+   {
+    "code": "10",
+    "form": "#DD",
+    "sheets": 20,
+    "example": "p6: 1. THIS P&ID IS FOR GROUP#10, CONFIGURATION IS IDENTICAL FOR GROUP#20."
+   },
+   {
+    "code": "11",
+    "form": "#DD",
+    "sheets": 5,
+    "example": "p13: 1. THIS P&ID IS FOR UNIT#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22."
+   },
+   {
+    "code": "10",
+    "form": "bare DD",
+    "sheets": 1,
+    "example": "p16: 10. LOCATION OF RUTURE DISC WILL BE DECIDED BASED ON OEM'S EQUIPMENT."
+   }
+  ]
+ },
+ "SADARA": {
+  "codes": [
+   "10"
+  ],
+  "own_code_in_notes": [
+   {
+    "code": "10",
+    "form": "bare DD",
+    "sheets": 1,
+    "example": "p7: 10. THE WARM-UP LINE WILL BE DESIGNED AS SYMMETRICAL."
+   }
+  ]
+ },
+ "TC2": {
+  "codes": [
+   "00",
+   "31"
+  ],
+  "own_code_in_notes": [
+   {
+    "code": "00",
+    "form": "NO.DD",
+    "sheets": 26,
+    "example": "p23: 1. REFER TO SYMBOL & LEGEND DWG.NO. 00GEN00-M05-0002~0005."
+   },
+   {
+    "code": "31",
+    "form": "D-D",
+    "sheets": 18,
+    "example": "p6: 1. THIS P&ID IS FOR UNIT 3-1. AND, SIMILAR SCHEME IS APPLICABLE TO UNIT 3-2, UNIT 4-1, UNIT 4-2, UNIT 5-1, UNIT 5-2, UNI"
+   }
+  ]
+ },
+ "UAD": {
+  "codes": [
+   "00"
+  ],
+  "own_code_in_notes": []
+ }
+}

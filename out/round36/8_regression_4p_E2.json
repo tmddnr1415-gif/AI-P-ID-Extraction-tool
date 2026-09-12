@@ -11,7 +11,7 @@
         "PNEUMATIC": 53,
         "BFV": 23
       },
-      "seconds": 542.2,
+      "seconds": 542.9,
       "max_rss_gb": 4.9,
       "identification": {
         "도면번호": [
@@ -71,7 +71,7 @@
         "MOV": 14,
         "REVIEW": 6
       },
-      "seconds": 57.0,
+      "seconds": 58.8,
       "max_rss_gb": 0.94,
       "identification": {
         "도면번호": [
@@ -110,14 +110,14 @@
     {
       "name": "TC2",
       "rows": 607,
-      "fingerprint": "018315ef63be7f11f895050e69a5fc0ee83d7d53ad2fbecba616146aa92dc8b5",
-      "qty_sum": 3167,
+      "fingerprint": "c0a2d29d049b2b9518a4e7e022db0b825f8f5409cca5a63aeb79429aba4f9f54",
+      "qty_sum": 3047,
       "tabs": {
         "FIELD": 591,
         "BFV": 1,
         "PNEUMATIC": 15
       },
-      "seconds": 399.2,
+      "seconds": 395.3,
       "max_rss_gb": 7.22,
       "identification": {
         "도면번호": [
@@ -162,7 +162,7 @@
         "FIELD": 146,
         "PNEUMATIC": 3
       },
-      "seconds": 324.6,
+      "seconds": 325.5,
       "max_rss_gb": 3.18,
       "identification": {
         "도면번호": [
