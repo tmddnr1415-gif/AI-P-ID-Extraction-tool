@@ -143,12 +143,15 @@ def test_the_shipped_config_lists_the_words_the_three_documents_print():
     """실제 프로필이 그 낱말을 담고 있는가 — 기본값과 어긋나면 조용히 갈린다."""
     import yaml
     data = yaml.safe_load((ROOT / "config" / "project_alnouf1.yaml").read_text())
-    block = data["qty_note"]
+    block = data.get("qty_note") or {}
     # 36회차 — "같다" 낱말은 판정에서 뺐고 config 에도 두지 않는다 (외워둔 값 −4).
     # 네 문서에서 그 문지기가 거른 문단이 0개였다 (`out/round36_multiplier_vocab.md`).
+    # `unit_words`·`range_words` 도 config 에서 지웠다 — 코드 기본값과 같은 값을 두
+    # 곳에 두지 않는다 (35회차 ㉠).  프로필은 **늘릴 때만** 적는다.
     assert "same_words" not in block
-    assert set(block["unit_words"]) >= {"GROUP", "UNIT"}
-    assert set(block["range_words"]) >= {"THRU", "THROUGH"}
+    assert "unit_words" not in block and "range_words" not in block
+    assert set(projectconfig._DEFAULT_UNIT) >= {"GROUP", "UNIT"}
+    assert set(projectconfig._DEFAULT_RANGE) >= {"THRU", "THROUGH"}
 
 
 def test_a_word_only_the_config_adds_does_not_leak_into_the_default():

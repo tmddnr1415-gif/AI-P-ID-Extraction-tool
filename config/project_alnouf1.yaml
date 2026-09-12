@@ -769,7 +769,7 @@ unit_multiplier_fallback:
 # ★ 36회차 — `same_words`(IDENTICAL·SIMILAR·SAME·TYPICAL) 는 지웠다.  판정은
 # **번호 붙은 NOTES 문단 + 유닛 표기 둘 이상** 만으로 하고, 네 문서 실측에서 그
 # 낱말 문지기가 거른 문단은 0개였다 (`out/round36_multiplier_vocab.md`).
-qty_note:
+# 프로필은 **늘릴 때만** 적는다 — 예: `qty_note: {unit_words: [BLOCK]}`.  기본값(GROUP·UNIT·TRAIN / THRU·THROUGH·~)은 코드에 있다.
 
 # Scope keywords that override the unit multiplier for an individual item.
 # Verified on D00P-10PGB10-M05-0004, where 'AUXILIARY BOILER COOLER' carries
