@@ -97,3 +97,12 @@ out/round28/*.rc
 out/round28/*.done
 out/round28/*.png
 out/round28/*.json
+
+# 32회차 — 합성 시험 도면은 **AL NOUF1 의 쪽을 재료로** 만든다 (범례 4장 +
+# P&ID 2장).  즉 발주처 도면의 내용이 그대로 들어가므로 `data/*.pdf` 와 같은
+# 규칙을 받는다.  만드는 법은 `spike/make_synthetic.py` 이고 그 스크립트와
+# README 는 커밋한다.
+tests/data/synthetic/*.pdf
+out/round32/7_캡처/**/*.png
+out/round32/*.log
+out/round32/*.done
