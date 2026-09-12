@@ -1,0 +1,24 @@
+{
+ "restored": [],
+ "runs": [
+  {
+   "iter": 0,
+   "restored_before": [],
+   "ok": true,
+   "rows": 199,
+   "fingerprint": "0087c236",
+   "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+   "qty": 398,
+   "seconds": 175.1,
+   "derived": 23,
+   "moved": 0,
+   "legend_sources": {
+    "butterfly": "LEGEND",
+    "actuator_stem": "LEGEND",
+    "pneumatic": "LEGEND",
+    "line_styles": "LEGEND",
+    "connector_reach": "MEASURED"
+   }
+  }
+ ]
+}
