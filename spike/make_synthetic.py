@@ -83,6 +83,31 @@ def _scale_without_history(pages, size) -> pymupdf.Document:
     return doc
 
 
+def _tagged_copy(rows_json: Path) -> pymupdf.Document:
+    """★ 원본 크기 그대로 + 버블 안에 태그를 활자로 인쇄 (⑧b).
+
+    ⑧(A4+태그)은 타이틀블록에서 먼저 멈춰 **태그를 시험하지 못했다** — 크기와
+    태그 두 축을 한 파일에서 바꾼 것이 잘못이었다.  여기서는 **태그 한 축만**
+    바꾼다: 범례 4장 + P&ID 2장을 그대로 옮기고 검출 사각형 안에 태그를 찍는다.
+    """
+    blob = json.loads(rows_json.read_text())
+    res = blob.get("result", blob)
+    doc = _copy(LEGEND + PID)
+    at = {6: 4, 7: 5}                          # 원본 쪽 → 합성 쪽 index
+    seq = {6: 0, 7: 0}
+    for r in res["rows"]:
+        pno = int(r["page_no"])
+        if pno not in at:
+            continue
+        seq[pno] += 1
+        rect = r["rect"]
+        page = doc[at[pno]]
+        tag = "%02dLBA%02dCP%03d" % (10 + at[pno], 10 + seq[pno] % 7, seq[pno])
+        page.insert_text((rect[0] + 2.0, (rect[1] + rect[3]) / 2 + 4.0),
+                         tag, fontsize=7.0, fontname="helv")
+    return doc
+
+
 def _with_tags(size, rows_json: Path) -> pymupdf.Document:
     """A4 로 줄이고 **버블 안에 태그를 활자로 인쇄**한다 (⑧).
 
@@ -138,6 +163,8 @@ def main() -> int:
          "이력 표 띠를 안 그림")
     save(_with_tags((842.0, 595.0), ROOT / "out" / "regression_3p" / "AL_NOUF1.json"),
          "08_a4_tagged.pdf", "A4 + 버블 안에 태그 활자")
+    save(_tagged_copy(ROOT / "out" / "regression_3p" / "AL_NOUF1.json"),
+         "08b_tagged_same_size.pdf", "원본 크기 + 버블 안에 태그 활자 (태그 한 축만)")
 
     (OUT / "README.md").write_text(
         "# 합성 시험 도면 (32회차 [D])\n\n"
