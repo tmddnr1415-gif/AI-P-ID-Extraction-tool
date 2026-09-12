@@ -5,9 +5,12 @@ set -e
 cd "$(dirname "$0")/.."
 D="out/round33/7_캡처/색_전후"
 mkdir -p "$D"
+# shot_overlay 는 projects_3p.json 의 이름("AL NOUF1", 띄어쓰기)으로 PDF 를 찾고,
+# 결과 json 은 밑줄 이름이다.
 for P in AL_NOUF1 SADARA TC2 UAD; do
+  NAME="${P/_/ }"
   rm -rf "$D/${P}_전"; cp -r "out/round32/7_캡처/$P" "$D/${P}_전"
-  timeout 900 python3 spike/shot_overlay.py "$P" "out/regression_3p/$P.json" "$D/${P}_후"
+  timeout 900 python3 spike/shot_overlay.py "$NAME" "out/regression_3p/$P.json" "$D/${P}_후"
 done
 mkdir -p "$D/범례패널"
 for P in SADARA UAD; do
