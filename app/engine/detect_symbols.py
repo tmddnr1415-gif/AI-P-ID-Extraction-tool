@@ -61,7 +61,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import bisect
 import collections
 import itertools
 import json
@@ -439,6 +438,64 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
 
 def _dash_pieces(pc, max_len: float) -> list:
     """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
+    `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox) — 끝점은 float 튜플."""
+    out = []
+    for d in pc.drawings():
+        its = d["items"]
+        if not its or d.get("closePath") or any(i[0] != "l" for i in its):
+            continue
+        r = pymupdf.Rect(d["rect"])
+        if max(r.width, r.height) > max_len or (r.width < 0.01 and r.height < 0.01):
+            continue
+        a, b = its[0][1], its[-1][2]
+        ax, ay, bx, by = float(a[0]), float(a[1]), float(b[0]), float(b[1])
+        if ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5 < 0.3:
+            continue
+        out.append(((ax, ay), (bx, by), r))
+    return out
+
+
+def _endpoint_grid(pieces, cell: float):
+    """끝점을 `cell` 칸 격자에 담는다.  (좌표, 토막 번호).  창 크기를 칸 크기로 두면
+    이웃 3×3 칸이 창을 덮는다 — x 축 하나로만 창을 잡으면 세로선이 많은 장(AL NOUF1
+    해칭)에서 한 점이 수천 점과 비교돼 장당 40초가 걸렸다 (40회차 실측)."""
+    g: dict = collections.defaultdict(list)
+    for i, (a, b, _r) in enumerate(pieces):
+        g[(int(a[0] // cell), int(a[1] // cell))].append((a, i))
+        g[(int(b[0] // cell), int(b[1] // cell))].append((b, i))
+    return g
+
+
+def _grid_near(g, q, cell: float):
+    cx, cy = int(q[0] // cell), int(q[1] // cell)
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for item in g.get((cx + dx, cy + dy), ()):
+                yield item
+
+
+def _endpoint_gap_mode(pieces) -> float:
+    """토막 끝점에서 가장 가까운 *다른* 토막 끝점까지의 거리 중 **양수 최빈값** —
+    그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다."""
+    W = 6.0
+    g = _endpoint_grid(pieces, W)
+    hist: collections.Counter = collections.Counter()
+    for cell_pts in list(g.values()):
+        for q, i in cell_pts:
+            best = None
+            for p2, j in _grid_near(g, q, W):
+                if j == i:
+                    continue
+                dd = ((q[0] - p2[0]) ** 2 + (q[1] - p2[1]) ** 2) ** 0.5
+                if dd < W and (best is None or dd < best):
+                    best = dd
+            if best is not None and best > 0.3:
+                hist[round(best, 1)] += 1
+    return hist.most_common(1)[0][0] if hist else 0.0
+
+
+
+    """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
     `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox)"""
     out = []
     for d in pc.drawings():
@@ -453,29 +510,6 @@ def _dash_pieces(pc, max_len: float) -> list:
             continue
         out.append((a, b, r))
     return out
-
-
-def _endpoint_gap_mode(pieces) -> float:
-    """토막 끝점에서 가장 가까운 *다른* 토막 끝점까지의 거리 중 **양수 최빈값** —
-    그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다."""
-    pts = []
-    for i, (a, b, _r) in enumerate(pieces):
-        pts.append((a, i)); pts.append((b, i))
-    pts.sort(key=lambda t: t[0].x)
-    xs = [q.x for q, _ in pts]
-    hist: collections.Counter = collections.Counter()
-    for q, i in pts:
-        lo, hi = bisect.bisect_left(xs, q.x - 6.0), bisect.bisect_right(xs, q.x + 6.0)
-        best = None
-        for p2, j in pts[lo:hi]:
-            if j == i:
-                continue
-            dd = abs(q - p2)
-            if dd < 6.0 and (best is None or dd < best):
-                best = dd
-        if best is not None and best > 0.3:
-            hist[round(best, 1)] += 1
-    return hist.most_common(1)[0][0] if hist else 0.0
 
 
 def dashed_bubble_outlines(pc, solid: list) -> list:
@@ -519,18 +553,14 @@ def dashed_bubble_outlines(pc, solid: list) -> list:
             a = parent[a]
         return a
 
-    pts = []
-    for i, (a, b, _r) in enumerate(pieces):
-        pts.append((a, i)); pts.append((b, i))
-    pts.sort(key=lambda t: t[0].x)
-    xs = [q.x for q, _ in pts]
-    for q, i in pts:
-        lo, hi = bisect.bisect_left(xs, q.x - tol), bisect.bisect_right(xs, q.x + tol)
-        for p2, j in pts[lo:hi]:
-            if j != i and abs(q - p2) <= tol:
-                ri, rj = find(i), find(j)
-                if ri != rj:
-                    parent[rj] = ri
+    g = _endpoint_grid(pieces, tol)
+    for cell_pts in list(g.values()):
+        for q, i in cell_pts:
+            for p2, j in _grid_near(g, q, tol):
+                if j != i and ((q[0] - p2[0]) ** 2 + (q[1] - p2[1]) ** 2) ** 0.5 <= tol:
+                    ri, rj = find(i), find(j)
+                    if ri != rj:
+                        parent[rj] = ri
     comp: dict[int, list] = collections.defaultdict(list)
     for i in range(n):
         comp[find(i)].append(i)
