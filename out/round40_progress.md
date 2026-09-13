@@ -18,3 +18,6 @@
 | 10:28 | [D-2] 엔진 패치 적용 (`detect_symbols` +130 · `pipeline` +9 · `main` +1 · alnouf1.yaml +1).  시험 픽스처 결함 둘 고침(`closePath` 기본 True · `draw_sector` 가 부채꼴 변을 그림) → 4/4.  `Outline` 다섯째 필드가 `on_bubble_face` 의 4-언팩을 깨뜨림 → 속성 접근으로 고침.  빠른 시험 **311 통과** | 완료 |
 | 10:31 | [H] 수정 후 회귀 체인 예약 (`F40_*` · 전수 체인이 끝나면 AL NOUF1→SADARA→TC2→UAD) | 대기 |
 | 10:31 | [G] 장 노트 — UAD 10·24·28 · TC2 7·16·27·36·47 · AL NOUF1 7·16·26·36·47 (14장) 작성.  p47 에서 ㉣ 1 (별표 창 밖 14pt — p46 과 같은 도면번호 쌍) | 진행 |
+| 10:36 | [C] 전수 넷 완료 (AL NOUF1 124초/4.48G · TC2 218초/7.08G · UAD 89초/1.89G · SADARA 22초/0.62G).  ★ 유령 원형 몸체 TC2 534 · UAD 228 · SADARA 8 · AL NOUF1 0 — 37회차 2pt 선과 SADARA 유령 8 은 **같은 뿌리**(`_round_bodies` 가 바 거리를 안 본다).  `3_body_census.md` | 완료 |
+| 10:36 | [H] F40 체인 실제 시작 확인 (`F40_al_nouf1.log` 에 "분석 …") | 진행 |
+| 10:40 | [E]/[F] 재검토 `5_EF_보류.md` — ★ THREE-WAY 는 네 범례 전부가 인쇄한다 (어휘가 아니라 범례 항목 · ANGLE 과 같은 길) · [G] SADARA 1 · UAD 7·20 노트 (17장) | 완료 |
