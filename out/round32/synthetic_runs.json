@@ -1,0 +1,138 @@
+[
+ {
+  "pdf": "01_a0.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 3370.0x2384.0pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 3370.0x2384.0pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 59.1,
+  "max_rss_gb": 1.31
+ },
+ {
+  "pdf": "02_a4.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 6장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 842.0x595.0pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 6장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 842.0x595.0pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 30.2,
+  "max_rss_gb": 1.21
+ },
+ {
+  "pdf": "03a_rotate90.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 5장에서 종이 밖입니다 (이 문서의 쪽 크기: 1684.0x2384.0pt 5장 · 2384.0x1684.0pt 1장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 5장에서 종이 밖입니다 (이 문서의 쪽 크기: 1684.0x2384.0pt 5장 · 2384.0x1684.0pt 1장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 57.7,
+  "max_rss_gb": 1.87
+ },
+ {
+  "pdf": "03b_rotate180.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 1장에서 종이 밖입니다 (이 문서의 쪽 크기: 1684.0x2384.0pt 1장 · 2384.0x1684.0pt 5장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 1장에서 종이 밖입니다 (이 문서의 쪽 크기: 1684.0x2384.0pt 1장 · 2384.0x1684.0pt 5장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 81.1,
+  "max_rss_gb": 1.87
+ },
+ {
+  "pdf": "04_tight_lines.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 6장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 476.8x336.8pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 6장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 6장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 476.8x336.8pt 6장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 30.2,
+  "max_rss_gb": 1.21
+ },
+ {
+  "pdf": "05_legend_last.pdf",
+  "status": "done",
+  "rows": 78,
+  "qty": 156,
+  "fingerprint": "2601598c",
+  "pages_with_rows": 2,
+  "tier": 2,
+  "tagged_rows": 0,
+  "derived_items": 21,
+  "legend_sources": {},
+  "timings": {},
+  "seconds": 105.2,
+  "max_rss_gb": 1.41
+ },
+ {
+  "pdf": "06_no_legend.pdf",
+  "status": "stopped",
+  "error_type": "LegendUnavailable",
+  "error": "이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 장이 없어도 분석할 수 있습니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 715, in _analyse",
+   "    raise LegendUnavailable(",
+   "app.pipeline.LegendUnavailable: 이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 장이 없어도 분석할 수 있습니다."
+  ],
+  "seconds": 13.9,
+  "max_rss_gb": 0.47
+ },
+ {
+  "pdf": "07_no_history.pdf",
+  "status": "done",
+  "rows": 46,
+  "qty": 92,
+  "fingerprint": "fdc5aa79",
+  "pages_with_rows": 1,
+  "tier": 2,
+  "tagged_rows": 0,
+  "derived_items": 20,
+  "legend_sources": {},
+  "timings": {},
+  "seconds": 417.9,
+  "max_rss_gb": 3.78
+ },
+ {
+  "pdf": "08_a4_tagged.pdf",
+  "status": "stopped",
+  "error_type": "TitleBlockUnreadable",
+  "error": "이 PDF 의 2장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 2장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 842.0x595.0pt 2장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "trace_tail": [
+   "  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 659, in _analyse",
+   "    raise TitleBlockUnreadable(_frame_reason(pages, layout))",
+   "app.pipeline.TitleBlockUnreadable: 이 PDF 의 2장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 2장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 842.0x595.0pt 2장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다."
+  ],
+  "seconds": 2.3,
+  "max_rss_gb": 0.25
+ },
+ {
+  "pdf": "08b_tagged_same_size.pdf",
+  "status": "done",
+  "rows": 78,
+  "qty": 156,
+  "fingerprint": "7a81f296",
+  "pages_with_rows": 2,
+  "tier": 1,
+  "tagged_rows": 38,
+  "derived_items": 21,
+  "legend_sources": {},
+  "timings": {},
+  "seconds": 100.2,
+  "max_rss_gb": 1.36
+ }
+]

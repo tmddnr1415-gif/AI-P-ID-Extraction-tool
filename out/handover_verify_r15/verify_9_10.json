@@ -1,0 +1,74 @@
+{
+ "8_서버_기동초": 1.5,
+ "9_프로젝트": [
+  "회사PC재현"
+ ],
+ "9_리비전": [
+  {
+   "revision": "Rev.A",
+   "rows": 824,
+   "status": "done",
+   "edits": 3,
+   "doc_rev": "",
+   "fingerprint": "91ba3e33e4ad9865aa90ecce5afb0601cc1eb62a10dccfaed14abfc951fda3d6"
+  }
+ ],
+ "10_옛_job": "32edab15a872",
+ "10_행수": 824,
+ "10_불러오기초": 0.77,
+ "10_SCOPE_값있는행": 2,
+ "10_SCOPE_빈행": 822,
+ "10_사람이_고친행": 1,
+ "10_사람이_고친칸": 3,
+ "9_첫화면_문구": [
+  "저장된 프로젝트 — 눌러서 다시 엽니다 (재분석하지 않습니다)",
+  "",
+  "회사PC재현",
+  "1개 리비전 · 최신 Rev.A",
+  "Rev.A",
+  "도면 개정 못 읽음"
+ ],
+ "10_화면_행수": 824,
+ "10_SCOPE_열_존재": [
+  "Page ▲▾",
+  "P&ID No.▾",
+  "귀속",
+  "Type▾",
+  "Valve Type▾",
+  "Q'ty▾",
+  "System▾",
+  "Vendor▾",
+  "Scope",
+  "Tag No.",
+  "Description",
+  "등급",
+  "Remark",
+  ""
+ ],
+ "10_SCOPE_칸_앞5행": [
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\""
+ ],
+ "JS_오류": [],
+ "E1_snapshot": {
+  "revision_id": 1,
+  "id": null,
+  "rows": 824
+ },
+ "E1_MANIFEST": {
+  "total_rows": null,
+  "written_rows": null,
+  "out_of_scope_rows": 0,
+  "legacy_no_scope_rows": 822,
+  "scope_filter": "SCT"
+ },
+ "E1_zip안": [
+  "field_pid_total.xlsx",
+  "bfv_pid_total.xlsx",
+  "mov_pid_total.xlsx",
+  "MANIFEST.json"
+ ]
+}

@@ -1,0 +1,2508 @@
+{
+ "AL NOUF1": {
+  "region": [
+   1950.0,
+   1560.0,
+   2384.0,
+   1600.0
+  ],
+  "shapes": {
+   "A4-A7-A3-D4": 58
+  },
+  "examples": {
+   "A4-A7-A3-D4": [
+    1,
+    "D00P-00GEN00-M05-0001"
+   ]
+  },
+  "pages": [
+   {
+    "page": 1,
+    "words": [
+     "D00P-00GEN00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GEN00-M05-0001"
+    ],
+    "engine_read": "D00P-00GEN00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 2,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "A",
+     "1/1",
+     "D00P-00GEN00-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00GEN00-M05-0002"
+    ],
+    "engine_read": "D00P-00GEN00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 3,
+    "words": [
+     "D00P-00GEN00-M05-0003"
+    ],
+    "candidates": [
+     "D00P-00GEN00-M05-0003"
+    ],
+    "engine_read": "D00P-00GEN00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 4,
+    "words": [
+     "D00P-00GEN00-M05-0004"
+    ],
+    "candidates": [
+     "D00P-00GEN00-M05-0004"
+    ],
+    "engine_read": "D00P-00GEN00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 5,
+    "words": [
+     "D00P-00GEN00-M05-0005"
+    ],
+    "candidates": [
+     "D00P-00GEN00-M05-0005"
+    ],
+    "engine_read": "D00P-00GEN00-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 6,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "C",
+     "1/1",
+     "D00P-10LBA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBA10-M05-0001"
+    ],
+    "engine_read": "D00P-10LBA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 7,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "A",
+     "1/1",
+     "D00P-10LBC40-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBC40-M05-0001"
+    ],
+    "engine_read": "D00P-10LBC40-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 8,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "C",
+     "1/1",
+     "D00P-10LBC50-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBC50-M05-0001"
+    ],
+    "engine_read": "D00P-10LBC50-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 9,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "A",
+     "1/1",
+     "D00P-10LBA30-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBA30-M05-0001"
+    ],
+    "engine_read": "D00P-10LBA30-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 10,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "C",
+     "1/1",
+     "D00P-10MAN10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10MAN10-M05-0001"
+    ],
+    "engine_read": "D00P-10MAN10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 11,
+    "words": [
+     "D00P-10MAN10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-10MAN10-M05-0002"
+    ],
+    "engine_read": "D00P-10MAN10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 12,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "B",
+     "1/1",
+     "D00P-10LBG10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBG10-M05-0001"
+    ],
+    "engine_read": "D00P-10LBG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 13,
+    "words": [
+     "D00P-11LCQ10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11LCQ10-M05-0001"
+    ],
+    "engine_read": "D00P-11LCQ10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 14,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "B",
+     "1/1",
+     "D00P-10LCM10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LCM10-M05-0001"
+    ],
+    "engine_read": "D00P-10LCM10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 15,
+    "words": [
+     "D00P-10LBG10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LBG10-M05-0001"
+    ],
+    "engine_read": "D00P-10LBG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 16,
+    "words": [
+     "D00P-10LCA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10LCA10-M05-0001"
+    ],
+    "engine_read": "D00P-10LCA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 17,
+    "words": [
+     "D00P-10LCA10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-10LCA10-M05-0002"
+    ],
+    "engine_read": "D00P-10LCA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 18,
+    "words": [
+     "D00P-10MAJ10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10MAJ10-M05-0001"
+    ],
+    "engine_read": "D00P-10MAJ10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 19,
+    "words": [
+     "D00P-10PUE00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10PUE00-M05-0001"
+    ],
+    "engine_read": "D00P-10PUE00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 20,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "A",
+     "1/1",
+     "D00P-11LAB00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11LAB00-M05-0001"
+    ],
+    "engine_read": "D00P-11LAB00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 21,
+    "words": [
+     "D00P-11LAC10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11LAC10-M05-0001"
+    ],
+    "engine_read": "D00P-11LAC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 22,
+    "words": [
+     "D00P-00EKG10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00EKG10-M05-0001"
+    ],
+    "engine_read": "D00P-00EKG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 23,
+    "words": [
+     "D00P-00EKG10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00EKG10-M05-0002"
+    ],
+    "engine_read": "D00P-00EKG10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 24,
+    "words": [
+     "D00P-00EKG10-M05-0003"
+    ],
+    "candidates": [
+     "D00P-00EKG10-M05-0003"
+    ],
+    "engine_read": "D00P-00EKG10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 25,
+    "words": [
+     "D00P-11EKG10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11EKG10-M05-0001"
+    ],
+    "engine_read": "D00P-11EKG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 26,
+    "words": [
+     "D00P-00PAB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00PAB10-M05-0001"
+    ],
+    "engine_read": "D00P-00PAB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 27,
+    "words": [
+     "D00P-00PAB10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00PAB10-M05-0002"
+    ],
+    "engine_read": "D00P-00PAB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 28,
+    "words": [
+     "D00P-00PAB10-M05-0003"
+    ],
+    "candidates": [
+     "D00P-00PAB10-M05-0003"
+    ],
+    "engine_read": "D00P-00PAB10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 29,
+    "words": [
+     "D00P-00PAB10-M05-0004"
+    ],
+    "candidates": [
+     "D00P-00PAB10-M05-0004"
+    ],
+    "engine_read": "D00P-00PAB10-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 30,
+    "words": [
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "SHEET",
+     "REV.",
+     "D",
+     "1/1",
+     "D00P-10PAC10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10PAC10-M05-0001"
+    ],
+    "engine_read": "D00P-10PAC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 31,
+    "words": [
+     "D00P-10PCB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10PCB10-M05-0001"
+    ],
+    "engine_read": "D00P-10PCB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 32,
+    "words": [
+     "D00P-00EGD00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00EGD00-M05-0001"
+    ],
+    "engine_read": "D00P-00EGD00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 33,
+    "words": [
+     "D00P-00EGD00-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00EGD00-M05-0002"
+    ],
+    "engine_read": "D00P-00EGD00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 34,
+    "words": [
+     "D00P-11EGD00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11EGD00-M05-0001"
+    ],
+    "engine_read": "D00P-11EGD00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 35,
+    "words": [
+     "D00P-10PGB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0001"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 36,
+    "words": [
+     "D00P-10PGB10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0002"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 37,
+    "words": [
+     "D00P-10PGB10-M05-0003"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0003"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 38,
+    "words": [
+     "D00P-10PGB10-M05-0004"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0004"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 39,
+    "words": [
+     "D00P-10PGB10-M05-0005"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0005"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 40,
+    "words": [
+     "D00P-10PGB10-M05-0006"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0006"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0006",
+    "matches_config": true
+   },
+   {
+    "page": 41,
+    "words": [
+     "D00P-10PGB10-M05-0007"
+    ],
+    "candidates": [
+     "D00P-10PGB10-M05-0007"
+    ],
+    "engine_read": "D00P-10PGB10-M05-0007",
+    "matches_config": true
+   },
+   {
+    "page": 42,
+    "words": [
+     "D00P-10QFA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10QFA10-M05-0001"
+    ],
+    "engine_read": "D00P-10QFA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 43,
+    "words": [
+     "D00P-10QFB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-10QFB10-M05-0001"
+    ],
+    "engine_read": "D00P-10QFB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 44,
+    "words": [
+     "D00P-00SCB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00SCB10-M05-0001"
+    ],
+    "engine_read": "D00P-00SCB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 45,
+    "words": [
+     "D00P-00QJA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00QJA10-M05-0001"
+    ],
+    "engine_read": "D00P-00QJA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 46,
+    "words": [
+     "D00P-00GHC10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GHC10-M05-0001"
+    ],
+    "engine_read": "D00P-00GHC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 47,
+    "words": [
+     "D00P-00GHC10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GHC10-M05-0001"
+    ],
+    "engine_read": "D00P-00GHC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 48,
+    "words": [
+     "D00P-00GHC10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00GHC10-M05-0002"
+    ],
+    "engine_read": "D00P-00GHC10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 49,
+    "words": [
+     "D00P-00GHB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GHB10-M05-0001"
+    ],
+    "engine_read": "D00P-00GHB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 50,
+    "words": [
+     "D00P-00GHB10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00GHB10-M05-0002"
+    ],
+    "engine_read": "D00P-00GHB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 51,
+    "words": [
+     "D00P-00GKB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GKB10-M05-0001"
+    ],
+    "engine_read": "D00P-00GKB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 52,
+    "words": [
+     "D00P-00GMA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GMA10-M05-0001"
+    ],
+    "engine_read": "D00P-00GMA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 53,
+    "words": [
+     "D00P-00GMB10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GMB10-M05-0001"
+    ],
+    "engine_read": "D00P-00GMB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 54,
+    "words": [
+     "D00P-00GMB10-M05-0002"
+    ],
+    "candidates": [
+     "D00P-00GMB10-M05-0002"
+    ],
+    "engine_read": "D00P-00GMB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 55,
+    "words": [
+     "D00P-00GMA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GMA10-M05-0001"
+    ],
+    "engine_read": "D00P-00GMA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 56,
+    "words": [
+     "D00P-00GQA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00GQA10-M05-0001"
+    ],
+    "engine_read": "D00P-00GQA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 57,
+    "words": [
+     "D00P-00QCA00-M05-0001"
+    ],
+    "candidates": [
+     "D00P-00QCA00-M05-0001"
+    ],
+    "engine_read": "D00P-00QCA00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 58,
+    "words": [
+     "D00P-11QUA10-M05-0001"
+    ],
+    "candidates": [
+     "D00P-11QUA10-M05-0001"
+    ],
+    "engine_read": "D00P-11QUA10-M05-0001",
+    "matches_config": true
+   }
+  ]
+ },
+ "SADARA": {
+  "region": [
+   2726.7,
+   2224.8,
+   3289.1,
+   2280.1
+  ],
+  "shapes": {
+   "A4-A7-A3-D4": 9
+  },
+  "examples": {
+   "A4-A7-A3-D4": [
+    1,
+    "1A46-00GEN00-M05-0001"
+   ]
+  },
+  "pages": [
+   {
+    "page": 1,
+    "words": [
+     "1/1",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT",
+     "NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A46-00GEN00-M05-0001"
+    ],
+    "engine_read": "1A46-00GEN00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 2,
+    "words": [
+     "1A46-00GEN00-M05-0002",
+     "1/4",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT",
+     "NO."
+    ],
+    "candidates": [
+     "1A46-00GEN00-M05-0002"
+    ],
+    "engine_read": "1A46-00GEN00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 3,
+    "words": [
+     "1A46-00GEN00-M05-0003",
+     "2/4",
+     "A",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "1A46-00GEN00-M05-0003"
+    ],
+    "engine_read": "1A46-00GEN00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 4,
+    "words": [
+     "1A46-00GEN00-M05-0004",
+     "3/4",
+     "A",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "1A46-00GEN00-M05-0004"
+    ],
+    "engine_read": "1A46-00GEN00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 5,
+    "words": [
+     "1A46-00GEN00-M05-0005",
+     "4/4",
+     "B",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF."
+    ],
+    "candidates": [
+     "1A46-00GEN00-M05-0005"
+    ],
+    "engine_read": "1A46-00GEN00-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 6,
+    "words": [
+     "1A46-10LBA10-M05-0001",
+     "1/3",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT",
+     "NO."
+    ],
+    "candidates": [
+     "1A46-10LBA10-M05-0001"
+    ],
+    "engine_read": "1A46-10LBA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 7,
+    "words": [
+     "1A46-10LBA10-M05-0002",
+     "2/3",
+     "D",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "1A46-10LBA10-M05-0002"
+    ],
+    "engine_read": "1A46-10LBA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 8,
+    "words": [
+     "1A46-10LBA10-M05-0003",
+     "1/3",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING"
+    ],
+    "candidates": [
+     "1A46-10LBA10-M05-0003"
+    ],
+    "engine_read": "1A46-10LBA10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 9,
+    "words": [
+     "1A46-10LBA20-M05-0001",
+     "1/1",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING"
+    ],
+    "candidates": [
+     "1A46-10LBA20-M05-0001"
+    ],
+    "engine_read": "1A46-10LBA20-M05-0001",
+    "matches_config": true
+   }
+  ]
+ },
+ "TC2": {
+  "region": [
+   963.8,
+   785.9,
+   1162.3,
+   805.5
+  ],
+  "shapes": {
+   "A4-A7-A3-D4": 56,
+   "A4-A6-A3-D4": 4
+  },
+  "examples": {
+   "A4-A7-A3-D4": [
+    1,
+    "D02J-00GEN00-M05-0001"
+   ],
+   "A4-A6-A3-D4": [
+    25,
+    "D02J-31PGB0-M05-0001"
+   ]
+  },
+  "pages": [
+   {
+    "page": 1,
+    "words": [
+     "D02J-00GEN00-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GEN00-M05-0001"
+    ],
+    "engine_read": "D02J-00GEN00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 2,
+    "words": [
+     "D02J-00GEN00-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GEN00-M05-0002"
+    ],
+    "engine_read": "D02J-00GEN00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 3,
+    "words": [
+     "D02J-00GEN00-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GEN00-M05-0003"
+    ],
+    "engine_read": "D02J-00GEN00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 4,
+    "words": [
+     "D02J-00GEN00-M05-0004",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GEN00-M05-0004"
+    ],
+    "engine_read": "D02J-00GEN00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 5,
+    "words": [
+     "D02J-00GEN00-M05-0005",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GEN00-M05-0005"
+    ],
+    "engine_read": "D02J-00GEN00-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 6,
+    "words": [
+     "D02J-31LBA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBA10-M05-0001"
+    ],
+    "engine_read": "D02J-31LBA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 7,
+    "words": [
+     "D02J-31LBC40-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBC40-M05-0001"
+    ],
+    "engine_read": "D02J-31LBC40-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 8,
+    "words": [
+     "D02J-31LBB50-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBB50-M05-0001"
+    ],
+    "engine_read": "D02J-31LBB50-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 9,
+    "words": [
+     "D02J-31LBA30-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBA30-M05-0001"
+    ],
+    "engine_read": "D02J-31LBA30-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 10,
+    "words": [
+     "D02J-31MAN10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31MAN10-M05-0001"
+    ],
+    "engine_read": "D02J-31MAN10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 11,
+    "words": [
+     "D02J-31LBG10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBG10-M05-0001"
+    ],
+    "engine_read": "D02J-31LBG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 12,
+    "words": [
+     "D02J-31LBM10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LBM10-M05-0001"
+    ],
+    "engine_read": "D02J-31LBM10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 13,
+    "words": [
+     "D02J-31LCQ10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LCQ10-M05-0001"
+    ],
+    "engine_read": "D02J-31LCQ10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 14,
+    "words": [
+     "D02J-31LCQ10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LCQ10-M05-0002"
+    ],
+    "engine_read": "D02J-31LCQ10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 15,
+    "words": [
+     "D02J-31LCA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LCA10-M05-0001"
+    ],
+    "engine_read": "D02J-31LCA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 16,
+    "words": [
+     "D02J-31LCA10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LCA10-M05-0002"
+    ],
+    "engine_read": "D02J-31LCA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 17,
+    "words": [
+     "D02J-31LCA10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LCA10-M05-0003"
+    ],
+    "engine_read": "D02J-31LCA10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 18,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-31LCA10-M05-0005"
+    ],
+    "engine_read": "D02J-31LCA10-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 19,
+    "words": [
+     "D02J-31MAJ10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31MAJ10-M05-0001"
+    ],
+    "engine_read": "D02J-31MAJ10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 20,
+    "words": [
+     "D02J-31MAJ10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31MAJ10-M05-0002"
+    ],
+    "engine_read": "D02J-31MAJ10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 21,
+    "words": [
+     "D02J-31MAL10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31MAL10-M05-0001"
+    ],
+    "engine_read": "D02J-31MAL10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 22,
+    "words": [
+     "D02J-31LAB00-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31LAB00-M05-0001"
+    ],
+    "engine_read": "D02J-31LAB00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 23,
+    "words": [
+     "D02J-00PAB10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00PAB10-M05-0001"
+    ],
+    "engine_read": "D02J-00PAB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 24,
+    "words": [
+     "D02J-31PAB10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31PAB10-M05-0002"
+    ],
+    "engine_read": "D02J-31PAB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 25,
+    "words": [
+     "D02J-31PGB0-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31PGB0-M05-0001"
+    ],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 26,
+    "words": [
+     "D02J-31PGB0-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31PGB0-M05-0002"
+    ],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 27,
+    "words": [
+     "D02J-31PGB0-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31PGB0-M05-0003"
+    ],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 28,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-31PGB0-M05-0004"
+    ],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 29,
+    "words": [
+     "D02J-00EKG10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00EKG10-M05-0001"
+    ],
+    "engine_read": "D02J-00EKG10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 30,
+    "words": [
+     "D02J-00EKG00-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00EKG00-M05-0002"
+    ],
+    "engine_read": "D02J-00EKG00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 31,
+    "words": [
+     "D02J-00EKG00-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00EKG00-M05-0003"
+    ],
+    "engine_read": "D02J-00EKG00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 32,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-00EKG00-M05-0004"
+    ],
+    "engine_read": "D02J-00EKG00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 33,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-00QFA10-M05-0001"
+    ],
+    "engine_read": "D02J-00QFA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 34,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-00QFA10-M05-0002"
+    ],
+    "engine_read": "D02J-00QFA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 35,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "D02J-00QFA10-M05-0003"
+    ],
+    "engine_read": "D02J-00QFA10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 36,
+    "words": [
+     "D02J-00GHC10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0003"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 37,
+    "words": [
+     "D02J-00GHC10-M05-0004",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT",
+     "NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0004"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 38,
+    "words": [
+     "D02J-00GHC10-M05-0005",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0005"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 39,
+    "words": [
+     "D02J-00GHC10-M05-0006",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0006"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0006",
+    "matches_config": true
+   },
+   {
+    "page": 40,
+    "words": [
+     "D02J-00GHC10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0001"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 41,
+    "words": [
+     "D02J-00GHC10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GHC10-M05-0002"
+    ],
+    "engine_read": "D02J-00GHC10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 42,
+    "words": [
+     "D02J-00GKB10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0001"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 43,
+    "words": [
+     "D02J-00GKB10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0002"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 44,
+    "words": [
+     "D02J-00GKB10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0003"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 45,
+    "words": [
+     "D02J-00GKB10-M05-0004",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0004"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 46,
+    "words": [
+     "D02J-00GKB10-M05-0005",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0005"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 47,
+    "words": [
+     "D02J-00GKB10-M05-0006",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GKB10-M05-0006"
+    ],
+    "engine_read": "D02J-00GKB10-M05-0006",
+    "matches_config": true
+   },
+   {
+    "page": 48,
+    "words": [
+     "D02J-31QJA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31QJA10-M05-0001"
+    ],
+    "engine_read": "D02J-31QJA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 49,
+    "words": [
+     "D02J-31QJA10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31QJA10-M05-0002"
+    ],
+    "engine_read": "D02J-31QJA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 50,
+    "words": [
+     "D02J-31QJA10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31QJA10-M05-0003"
+    ],
+    "engine_read": "D02J-31QJA10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 51,
+    "words": [
+     "D02J-00GMA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMA10-M05-0001"
+    ],
+    "engine_read": "D02J-00GMA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 52,
+    "words": [
+     "D02J-00GMA10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMA10-M05-0002"
+    ],
+    "engine_read": "D02J-00GMA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 53,
+    "words": [
+     "D02J-00GMA10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMA10-M05-0003"
+    ],
+    "engine_read": "D02J-00GMA10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 54,
+    "words": [
+     "D02J-00GMB10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMB10-M05-0001"
+    ],
+    "engine_read": "D02J-00GMB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 55,
+    "words": [
+     "D02J-00GMB10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMB10-M05-0002"
+    ],
+    "engine_read": "D02J-00GMB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 56,
+    "words": [
+     "D02J-00GMB10-M05-0003",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GMB10-M05-0003"
+    ],
+    "engine_read": "D02J-00GMB10-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 57,
+    "words": [
+     "D02J-00GQA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GQA10-M05-0001"
+    ],
+    "engine_read": "D02J-00GQA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 58,
+    "words": [
+     "D02J-00GQA10-M05-0002",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-00GQA10-M05-0002"
+    ],
+    "engine_read": "D02J-00GQA10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 59,
+    "words": [
+     "D02J-31QCA10-M05-0001",
+     "SCALE",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT",
+     "NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "D02J-31QCA10-M05-0001"
+    ],
+    "engine_read": "D02J-31QCA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 60,
+    "words": [
+     "D02J-31QUA10-M05-0001",
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO."
+    ],
+    "candidates": [
+     "D02J-31QUA10-M05-0001"
+    ],
+    "engine_read": "D02J-31QUA10-M05-0001",
+    "matches_config": true
+   }
+  ]
+ },
+ "UAD": {
+  "region": [
+   984.1,
+   784.0,
+   1171.8,
+   807.0
+  ],
+  "shapes": {
+   "A4-A7-A3-D4": 25,
+   "A4-A7-A3-D3": 1
+  },
+  "examples": {
+   "A4-A7-A3-D4": [
+    2,
+    "1A5J-00GEN00-M05-0002"
+   ],
+   "A4-A7-A3-D3": [
+    32,
+    "1A5J-00MBA10-M05-001"
+   ]
+  },
+  "pages": [
+   {
+    "page": 1,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 2,
+    "words": [
+     "1A5J-00GEN00-M05-0002",
+     "1A5J-00GEN00-M05-0002",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO."
+    ],
+    "candidates": [
+     "1A5J-00GEN00-M05-0002",
+     "1A5J-00GEN00-M05-0002"
+    ],
+    "engine_read": "1A5J-00GEN00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 3,
+    "words": [
+     "1A5J-00GEN00-M05-0003",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00GEN00-M05-0003"
+    ],
+    "engine_read": "1A5J-00GEN00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 4,
+    "words": [
+     "1A5J-00GEN00-M05-0004",
+     "1A5J-00GEN00-M05-0004",
+     "NONE",
+     "3",
+     "1/1",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO."
+    ],
+    "candidates": [
+     "1A5J-00GEN00-M05-0004",
+     "1A5J-00GEN00-M05-0004"
+    ],
+    "engine_read": "1A5J-00GEN00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 5,
+    "words": [
+     "1A5J-00GEN00-M05-0005",
+     "1A5J-00GEN00-M05-0005",
+     "NONE",
+     "4/4",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00GEN00-M05-0005",
+     "1A5J-00GEN00-M05-0005"
+    ],
+    "engine_read": "1A5J-00GEN00-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 6,
+    "words": [
+     "1A5J-00EKG00-M05-0001",
+     "NONE",
+     "1/5",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00EKG00-M05-0001"
+    ],
+    "engine_read": "1A5J-00EKG00-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 7,
+    "words": [
+     "1A5J-00EKG00-M05-0002",
+     "NONE",
+     "2/5",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00EKG00-M05-0002"
+    ],
+    "engine_read": "1A5J-00EKG00-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 8,
+    "words": [
+     "1A5J-00EKG00-M05-0003",
+     "NONE",
+     "3/5",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00EKG00-M05-0003"
+    ],
+    "engine_read": "1A5J-00EKG00-M05-0003",
+    "matches_config": true
+   },
+   {
+    "page": 9,
+    "words": [
+     "1A5J-00EKG00-M05-0004",
+     "NONE",
+     "4/5",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00EKG00-M05-0004"
+    ],
+    "engine_read": "1A5J-00EKG00-M05-0004",
+    "matches_config": true
+   },
+   {
+    "page": 10,
+    "words": [
+     "1A5J-00EKG00-M05-0005",
+     "NONE",
+     "5/5",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00EKG00-M05-0005"
+    ],
+    "engine_read": "1A5J-00EKG00-M05-0005",
+    "matches_config": true
+   },
+   {
+    "page": 11,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 12,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 13,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 14,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 15,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 16,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 17,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 18,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 19,
+    "words": [
+     "NONE",
+     "1/2",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J",
+     "1A5J-00GHB10-M05-0001"
+    ],
+    "candidates": [
+     "1A5J-00GHB10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GHB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 20,
+    "words": [
+     "NONE",
+     "2/2",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "SHEET"
+    ],
+    "candidates": [
+     "1A5J-00GHB10-M05-0002"
+    ],
+    "engine_read": "1A5J-00GHB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 21,
+    "words": [
+     "NONE",
+     "1/2",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "SHEET"
+    ],
+    "candidates": [
+     "1A5J-00GHC10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GHC10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 22,
+    "words": [],
+    "candidates": [],
+    "engine_read": "",
+    "matches_config": false
+   },
+   {
+    "page": 23,
+    "words": [
+     "1A5J-00GKB10-M05-0001",
+     "NONE",
+     "1/2",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00GKB10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GKB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 24,
+    "words": [
+     "1A5J-00GKB10-M05-0002",
+     "NONE",
+     "2/2",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00GKB10-M05-0002"
+    ],
+    "engine_read": "1A5J-00GKB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 25,
+    "words": [
+     "NONE",
+     "1",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J",
+     "1A5J-00QFA10-M05-0001"
+    ],
+    "candidates": [
+     "1A5J-00QFA10-M05-0001"
+    ],
+    "engine_read": "1A5J-00QFA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 26,
+    "words": [
+     "NONE",
+     "6",
+     "1/2",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00QFB10-M05-0001"
+    ],
+    "engine_read": "1A5J-00QFB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 27,
+    "words": [
+     "SCALE",
+     "PROJECT",
+     "DWG",
+     "NO.",
+     "REF.",
+     "DRAWING",
+     "NO.",
+     "PROJECT"
+    ],
+    "candidates": [
+     "1A5J-00QFB10-M05-0002"
+    ],
+    "engine_read": "1A5J-00QFB10-M05-0002",
+    "matches_config": true
+   },
+   {
+    "page": 28,
+    "words": [
+     "1A5J-00QJA10-M05-0001",
+     "1A5J-00QJA10-M05-0001",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO."
+    ],
+    "candidates": [
+     "1A5J-00QJA10-M05-0001",
+     "1A5J-00QJA10-M05-0001"
+    ],
+    "engine_read": "1A5J-00QJA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 29,
+    "words": [
+     "1A5J-00GMB10-M05-0001",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE"
+    ],
+    "candidates": [
+     "1A5J-00GMB10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GMB10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 30,
+    "words": [
+     "1A5J-00GMA10-M05-0001",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00GMA10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GMA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 31,
+    "words": [
+     "1A5J-00GQA10-M05-0001",
+     "NONE",
+     "1/1",
+     "SCALE",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "1A5J"
+    ],
+    "candidates": [
+     "1A5J-00GQA10-M05-0001"
+    ],
+    "engine_read": "1A5J-00GQA10-M05-0001",
+    "matches_config": true
+   },
+   {
+    "page": 32,
+    "words": [
+     "NONE",
+     "1/1",
+     "SCALE",
+     "PROJECT DWG NO.",
+     "REF. DRAWING NO.",
+     "PROJECT NO.",
+     "REF.CODE",
+     "SHEET"
+    ],
+    "candidates": [
+     "1A5J-00MBA10-M05-001"
+    ],
+    "engine_read": "",
+    "matches_config": false
+   }
+  ]
+ }
+}

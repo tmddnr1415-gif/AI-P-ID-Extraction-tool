@@ -1,0 +1,456 @@
+# SADARA COGENERATION (1A46) - what this project's *client* says.
+#
+# The geometry that used to be here is gone.  Where the frame is, where the title
+# block's cells are, how tall its lettering is, whether the export stamps itself
+# twice, whether the vendor mark is drawn or typed, which script the reviewers
+# write in - none of that is a fact about a client, it is a fact about the sheet,
+# and `derive_layout` reads all of it off the pages at run time.  What it measured
+# and what it changed is in the run's own record (`applied_rules.layout`) and on
+# the 적용 규칙 panel, so a value that came from the paper can be checked against
+# the paper.
+#
+# What is left is what a drawing cannot state:
+#
+#   the client's Excel template and its column numbers
+#   the letters their deliverable puts in a TYPE column
+#   the words their finished Description list uses
+#   which valve lists exist and what bodies each covers
+#   the KKS conventions this project agreed
+#
+# Most of it is empty for 1A46, because no list has been supplied.  Empty is the
+# honest state: the engine runs, the fields it cannot fill stay blank, and each
+# one carries the reason.
+#
+# Selecting this file is still `PID_PROJECT_CONFIG=config/project_sadara.yaml`,
+# but it is no longer required: with no profile at all the sheet is measured and
+# the run produces the same 75 rows.  What the profile adds is the client half.
+#
+# Precedence, so this is not ambiguous: a key this file does not state is taken
+# from the sheet.  A key it does state stands, because `project.code` matches the
+# code the drawings carry - had it not, the sheet would win, which is what stops a
+# profile written for another project from imposing its paper size on this one.
+
+project:
+  code: 1A46
+  name: SADARA COGENERATION PROJECT
+
+# The title-block cells are derived; these four are not, and are measured here.
+# The revision history is a table of rows rather than a captioned cell, so there
+# is no caption to anchor it to - `derive_layout` finds cells by the words the
+# form prints above them, and the history block prints its captions in a single
+# row across the top rather than above each value.
+title_block:
+  # SCALED 6.0 -> 8.5 by the sheet ratio.  How far apart two words may sit and
+  # still count as one title line.
+  title_line_tol: 8.5
+  # MEASURED - the revision-history rules run x 2727.0 to 3288.0 on every page,
+  # rows every 24 pt at y 1646..1839.
+  hist_rule_x0_max: 2732.0
+  hist_rule_x1_min: 3280.0
+  hist_rule_y: [1640.0, 1845.0]
+  # MEASURED - revision letters at x 2743.1-2750.4, dates at x 2775.5-2836.2 over
+  # 22 dates on 9 pages.
+  hist_rev_col: [2740.0, 2755.0]
+  hist_date_col: [2775.0, 2840.0]
+  hist_row_inset: 1.7
+
+# MEASURED - the drawing number is the same shape as AL NOUF1's and the same
+# regex parses 9 of 9 pages: `1A46-00GEN00-M05-0001`, `1A46-10LBA10-M05-0002`.
+# The unit code sits in the same place, and legend sheet 4 of 4 prints what the
+# codes mean: COGENERATION PLANT COMMON 00, ST UNIT 10, GT/HRSG UNIT 11,
+# AUX. BOILER UNIT 12, OUTSIDE THE BOUNDARY LIMIT (OSBL) 50.
+# Dates read `19.MAR.2026`, which the AL NOUF1 date regex already accepts.
+formats:
+  drawing_no: '^[A-Z0-9]{4}-[A-Z0-9]{7}-[A-Z0-9]{3}-\d{4}$'
+  date: '^\d{1,2}\.\s?[A-Z]{3}\.\d{4}$'
+  revision: '^[A-Z][0-9]?$'
+  unit_code_segment: 1
+  unit_code_chars: [0, 2]
+  system_code_chars: [2, 5]
+
+# CARRIED - this project has supplied no instrument list and no blank form, so
+# there is nothing to measure a template from.  The block is AL NOUF1's, kept
+# only so the loader has the keys it requires; no workbook is produced without a
+# template file on disk, and none exists for 1A46.  **Do not read these as facts
+# about SADARA's deliverable.**
+excel:
+  sheet: '2.0_Instrument List'
+  first_data_row: 8
+  columns:
+    'no': 1
+    system: 6
+    pid_no: 7
+    type: 8
+    qty: 9
+    description: 10
+    tag_no: 5
+    vendor_supply: 37
+    remark: 41
+
+# CARRIED - the tag vocabulary is LEGEND (sheet 2 of 4 prints the same ISA
+# FIRST LETTER x SUCCEEDING LETTERS matrix, in fact a superset: it adds the
+# ALARM ANNUCIATOR LOW / HIGH / HIGH & LOW columns and a PD row that AL NOUF1's
+# legend does not have).  What is carried is the *correspondence to an Excel
+# TYPE column*, and this project has no Excel to correspond to.
+#
+# The drawings also print tags this map does not carry - PSV, PCV, TCV, XV, NRV,
+# HS, ZI, ZS, PDI, PS.  They are deliberately absent rather than invented: with
+# no client list there is no basis for what TYPE string they would take, so the
+# engine reports them as unmapped instead of guessing.
+anchors:
+  type_map:
+    TT: TIT
+    PT: PIT
+    LT: LIT
+    PDT: PDIT
+    DPIT: PDIT
+    FT: FIT
+    LG: LI
+    TI: TI
+    PI: PI
+    LI: LI
+    FI: FI
+    TIT: TIT
+    PIT: PIT
+    LIT: LIT
+    PDIT: PDIT
+    FIT: FIT
+    LS: LS
+    LSH: LS
+    LSHH: LS
+    LSL: LS
+    FS: FS
+    RO: RO
+    FE: FE
+  not_field: [TW]
+
+# Vendor marks.
+#
+# The notation is the same family as AL NOUF1's - an asterisk above the symbol,
+# with each sheet's own NOTES saying what it means - but it is printed as TEXT
+# here, not drawn:
+#
+#   p6  2. (*) SYMBOL INDICATES COMPONENTS FURNISHED BY HRSG SUPPLIER.
+#       3. (**) SYMBOL INDICATES COMPONENTS FURNISHED BY ST OEM.
+#   p7  2. (**) ... BY ST SUPPLIER.   3. (*) ... BY HRSG SUPPLIER.
+#   p8  3. (*) ... BY BYPASS VALVE SUPPLIER.  5. (**) ... BY QMS SUPPLIER
+#   p9  same as p8, plus 7. THESE VALVES ARE SUPPLIED BY STG OEM.
+#
+# p6 and p7 assign (*) and (**) to *opposite* suppliers, which is exactly why
+# the meaning is read per sheet at run time and never configured.
+#
+vendor_marks:
+  # CARRIED - shape tolerances for the drawn notation.  With `glyph_sizes` empty
+  # they are unreachable; they are kept so the loader has its keys.
+  blob_span: [1.5, 8.0]
+  glyph_span: [3.0, 8.0]
+  cluster_gap: 2.0
+  # SCALED - how far above its symbol a mark may sit (25.0 -> 35.4) and how far
+  # off centre (6.0 -> 8.5).  Checked: the `(**)` marks on p6 stand 8.9 pt tall
+  # and sit directly over the `TIT` word of their bubble.
+  above: 35.4
+  # SCALED 6.0 -> 8.5 and 20.0 -> 28.3.  The notes here wrap at 12-14 pt line
+  # pitch, inside the 28.3 allowance.
+  note_line_gap: 28.3
+  package_box:
+    # CARRIED - the fraction of a box edge that must be drawn is a ratio, so it
+    # does not scale.  The margin does: 20.0 -> 28.3.
+    edge_cover: 0.35
+    mark_margin: 28.3
+
+# MEASURED - the broken-line geometry, which the code otherwise leaves as a
+# LEGEND value on the grounds that a line style does not move with the project.
+# It does move with the sheet.  The chain-dashed package boundary around the
+# steam turbine on p7 is drawn at x=1851.4 as 99 marks of 21.25 pt (long dash)
+# and 1.41 pt (dot) separated by 3.54 pt gaps.  AL NOUF1's `brk_max_mark` is
+# 20.0, so every one of those 21.25 pt dashes was rejected and the box was never
+# found - all 5 of p7's SCT labels resolved to nothing while p6's, which marks a
+# *pipe break* rather than a box, worked.
+#
+# Scaled by the sheet ratio: 20.0 -> 28.3, 6.0 -> 8.5, 26.0 -> 36.8, 40.0 -> 56.6.
+# The mark count is a count, so it does not scale.  Checked: 28.3 admits the
+# 21.25 pt dash and 8.5 admits the 3.54 pt gap.
+broken_line:
+  brk_max_mark: 28.3
+  brk_max_gap: 8.5
+  brk_bridge: 36.8
+  brk_min_marks: 6
+  brk_min_span: 56.6
+  # MEASURED - with the dash tolerance scaled, p7's package boundary is found as
+  # runs (vertical x 1298.8 and 1851.4, horizontal y 576.6 and 1316.6, a closed
+  # rectangle round the steam turbine) but its corners do not quite meet: the
+  # horizontal run's last mark stops at x 1850.7 against a vertical at 1851.4,
+  # and the join test allowed 3.0 pt while the overshoot is 3.7.  Scaled with the
+  # rest of the dash geometry, 3.0 -> 4.2, which closes it.
+  brk_corner_tol: 4.2
+
+# SCALED - the SCT supplier-interface span.  Legend sheet 1 of 4 defines the
+# same symbol AL NOUF1's does (`SCT / SUPPLIER - SUPPLIER INTERFACE`), and the
+# process sheets draw it: `SCT` labels appear 1 time on p6 and 5 times on p7,
+# against a chain-dashed break, which is the same construction.
+# 30.0 -> 42.4, 2.0 -> 2.8, 1.5 -> 2.1.
+#
+# Which edge of a dashed box a label stands on is derived, not stated here: this
+# document puts 5 of 5 on a right edge and AL NOUF1 puts 47 on a left and 42 on a
+# right, and the sheet is what says so.
+sct_scope:
+  text_tol: 42.4
+  drop_x_tol: 2.8
+  drop_end_tol: 2.1
+
+# The span's name and who supplies it.  `supplied_by` is blank for the same
+# reason it is blank on AL NOUF1: this tool cannot measure who supplies a span.
+# Here the sheets do name the parties in their NOTES (HRSG SUPPLIER / ST OEM /
+# BYPASS VALVE SUPPLIER / QMS SUPPLIER), but which of them owns a given SCT span
+# is not something the drawing states, so it stays empty.
+supplier_interface_span:
+  label: "공급자 인터페이스 구간 — 배관 및 기기 공급자 범위"
+  supplied_by: ""
+  # No finished list for this project, so nothing is counted here and the default
+  # stands: the span is recorded and named, and the Description is still written.
+  # AL NOUF1 counted the same question and found four rows for four against
+  # blanking (see its profile), which is the only evidence there is.
+  description: keep
+
+# MEASURED - no touching signal stacks exist in this excerpt.  The level
+# switches on p7 and p9 are drawn as separate `LSH` and `LSHH` bubbles standing
+# apart in the drain-configuration detail, not edge to edge, so there is nothing
+# to fold.  The setting is off rather than absent so that turning it on later is
+# a decision someone makes with a measurement in hand.
+multi_signal_bundle:
+  merge_quantity: false
+  merged_type: ""
+  description_signal: representative
+
+# Description.
+#
+# MEASURED - this project has supplied no finished Description list, and every
+# wording rule in the AL NOUF1 file is a count taken from that client's 557
+# lines.  Carrying those counts over would be asserting one client's habits
+# about another, so the wording tables are **empty on purpose**: the engine will
+# build `UNIT + system + variable` from the drawing and stop there, which is the
+# honest output for a project with no answer key.
+#
+# The variable words themselves are not configured here either - they come from
+# legend sheet 2 of 4's ISA matrix at run time, which this project prints in
+# full (and in more detail than AL NOUF1's: it defines the alarm modifiers).
+description:
+  # MEASURED - the equipment axis is switched off, and this is the measurement
+  # that switched it off.  With the legend vocabulary on, 43 of the 55 field rows
+  # graded CONFIRMED on a subject read out of a detail box's title:
+  #
+  #   UNIT #10 STEAM TURBINE DRAIN 7-12 DETAIL OF PRESSURE SAFETY VALVE PRESSURE A
+  #   UNIT #10 HP STEAM HEADER DETAIL OF PRESSURE SAFETY VALVE : D TEMPERATURE B
+  #
+  # Every one of them traces to the noun `SAFETY`, which the legend contributes
+  # from its `EYE WASHER & SAFETY SHOWER` row and which these sheets print in
+  # `DETAIL OF PRESSURE SAFETY VALVE`.  All 43 subjects are one of two captions;
+  # none names equipment.  AL NOUF1 gates words like that with modifiers counted
+  # in its client's 557 lines, and this project has no list to count.  So it
+  # asserts no subject and stops at UNIT + system + variable, which is what the
+  # rows are entitled to.
+  equipment_axis: none
+
+  # No client corpus, so no counted rule.  Each empty table below is a rule that
+  # AL NOUF1 earned from measurement and this project has not.
+  position_word_types: []
+  end_ordinal_types: []
+  alarm_suffix: {}
+  position_by_side: {}
+  position_by_system: {}
+  position_by_noun: {}
+  line_phrase_types: []
+  system_abbreviations: {}
+  equipment_words: []
+  equipment_modifiers: {}
+  between_symbol_types: []
+  sole_equipment_sheet_max: 0
+  equipment_alias_choice: {}
+  project_abbreviations: {}
+  variable_words: {}
+  unit_prefix_skip: []
+  trim_words: []
+  user_input_reasons: {}
+  examples: []
+
+# The ISA matrix is NOT derived on this project, and no config value fixes it.
+#
+# Legend sheet 2 of 4 prints the matrix in full - more of it than AL NOUF1's, in
+# fact - but `isa_table.derive` finds the letter column from the x distribution
+# of everything under the `FIRST LETTER` heading, and on this sheet two things
+# sit in that band that do not on AL NOUF1's: the sheet's border grid letters
+# (A..F at x 66.4-66.8, outside the frame at x 81) and the `SYMBOL` sub-heading
+# at x 119.0.  The row letters themselves are centred at x 129-132.  Bounding the
+# search at the frame removes the grid letters but then `SYMBOL` becomes the
+# letter column, 11 pt from the letters against a tolerance of 8, so the table
+# still comes back MISSING - the fix is in the parser (exclude the sub-heading
+# row, or find the column from the letters rather than from every token), not in
+# a value.  That is a code change and this round does not make one, so the key is
+# not written here and the effect is reported instead:
+#
+#   every row grades NONE with 2 of the 3 sources present (UNIT and SYSTEM) and
+#   an empty Description, because the variable word has no source.  Nothing is
+#   invented to fill it.
+
+# CARRIED - title-matching stopwords.  Language-level, not project-level.
+matching:
+  stopwords: [PID, 'P&ID', FOR, SYSTEM, THE, OF, AND, TO, A, B, C, '1', '2', '3', OR]
+
+# MEASURED - the reviewers on this project annotate in English lower case, not
+# Korean.  The four process sheets carry `to be deleted` (p7, 4 runs),
+# `only one PSV will be applied` (p7), `XV will be applied instead of manual
+# valve` (p8 and p9) - set in lower case against a filled callout box, while
+# every drawing word proper is upper case.  AL NOUF1's Hangul range finds none
+# of it.
+#
+# `script_ranges` is a character class, so `a-z` selects exactly the lower-case
+# axis.  The fill-colour half of the discriminator is NOT expressible here - it
+# would need a code change, which this round does not make - so the legend
+# sheets' own lower-case words (`etc.`, `(Cr-Mo)`, `Special`, `Designated` on
+# sheet 4 of 4) are also caught.  Those sit outside the drawing area on the
+# sheets that have them; the count is reported so the cost is visible.
+# The reviewers' script and whether it needs a highlight are derived: this
+# document writes lower case 39 times on a highlight and 24 times off one, so
+# the highlight is what separates a note from the drawing's own lettering.
+
+# Q'ty multipliers.
+#
+# MEASURED - **there is no multiplier to be had from this excerpt, and none is
+# invented.**  Legend sheet 4 of 4 prints a UNIT IDENTIFICATION NUMBERS table,
+# so the derivation runs, but the table is a *naming* table:
+#
+#     COGENERATION PLANT COMMON            00
+#     ST UNIT                              10
+#     GT / HRSG UNIT                       11
+#     AUX. BOILER UNIT                     12
+#     OUTSIDE THE BOUNDARY LIMIT(OSBL)     50
+#
+# Only the first row states a replication scope (PLANT COMMON).  The others name
+# a unit without saying how many there are, where AL NOUF1's legend writes
+# `FIRST GROUP #1 GTG / HRSG` and can be counted.  Nor does any sheet carry a
+# replication note: `IDENTICAL FOR`, `PER UNIT`, `PER GROUP`, `2X` and
+# `MULTIPL` return 0 hits across all 9 pages.
+#
+# So the fallback table is deliberately **empty**.  A code with no multiplier
+# yields no quantity: the row's Q'ty is left blank and flagged
+# MULTIPLIER_UNDEFINED, which is the designed behaviour (docs/design.md 8.3) and
+# the correct one here - the drawings for units 10/11/12 exist, but how many of
+# each the plant has is not on these 9 sheets.
+unit_multiplier_fallback: {}
+
+# CARRIED - no scope keyword of this kind was found on the 9 sheets, so the list
+# is empty rather than carrying AL NOUF1's `PLANT COMMON` rule, which was
+# verified against that project's own Excel.
+qty_scope_overrides: []
+
+# Valve rules.
+#
+# The body and actuator shapes are LEGEND and stay in the code: sheets 1 and 2
+# of 4 draw the same bowtie bodies, the same open/closed fill convention and the
+# same actuator vocabulary (ROTARY MOTOR `M`, HYDRAULIC CYLINDER `H`, SOLENOID
+# `S`, UNCLASSIFIED `X`), and sheet 3 of 4 adds ON-OFF / INCHING / MODULATING
+# typicals that AL NOUF1's legend does not have.
+valves:
+  # MEASURED, and deliberately not scaled.  On these four process sheets a motor
+  # circle stands 37.5 pt from its body centre in 15 of 19 cases and at most
+  # 74.9 pt; AL NOUF1's 90.0 already covers that, and scaling it to 127 would
+  # only admit more false pairings.  The tighter value is kept because it is the
+  # one the measurement supports.
+  actuator_reach: 90.0
+  actuator_offaxis: 12.0
+  # MEASURED, same reasoning: the leader from an `MOV` tag bubble to its
+  # actuator measures 51.5 to 87.8 pt over 18 pairs, well inside 190.
+  tag_reach: 190.0
+
+  # CARRIED - see the note on `excel:` above.  No valve deliverable template
+  # exists for this project, so nothing is written and these keys only satisfy
+  # the loader.
+  excel:
+    sheet: '3.0_Valve List'
+    first_data_row: 8
+    columns:
+      'no': 1
+      pid_no: 2
+      valve_type: 3
+      qty: 4
+      system: 5
+      description: 12
+      remark: 39
+      tag_no: 11
+      actuator: 25
+      body: 27
+
+  # MEASURED - no master valve list was supplied, so there is no deliverable to
+  # compare against and none is declared.  The valve rows are still produced and
+  # classified; they simply have no answer key.
+  deliverables: []
+
+  # CARRIED - the client's VALVE TYPE vocabulary.  Unused with no deliverable.
+  valve_type_actuator:
+    MOV: MOTOR
+    MOV_I: MOTOR
+    HOV: HYDRAULIC
+    CV: PNEUMATIC
+
+  # MEASURED - the tags this project's sheets actually print for the two kinds.
+  # Control valves: PCV (7 on p9, 1 on p7), TCV (2 on p9, 1 on p8).  Shutoff:
+  # XV (2 on p9, 1 on p8).  `NRV` is printed too but is a non-return valve, a
+  # body type rather than an operation mode, so it is not listed as either.
+  cv_tags: [FCV, LCV, PCV, TCV, CV]
+  xv_tags: [XV, HV]
+
+  disabled_rules: []
+
+  # CARRIED - the legend fallbacks are AL NOUF1's measurements and are wrong for
+  # this project's larger symbols.  They are reachable only when a legend sheet
+  # cannot be read; this project supplies all four legend sheets, so the run-time
+  # derivation (`legend_rules.derive_all`) is what applies, and any use of this
+  # block is logged with its reason - which is the signal to re-measure.
+  legend_fallback:
+    butterfly:
+      tick_length: 3.0
+      tick_reach_radii: 1.498
+      bar_reach_radii: 2.822
+      bar_min_radii: 2.378
+      circle_diameter: 6.06
+    actuator_stem:
+      stem_gap: 0.0
+      stem_offaxis: 0.03
+      stem_length: 19.86
+      centre_to_body: 26.97
+    pneumatic:
+      dome_flat: 14.22
+      dome_depth: 7.11
+      dome_aspect: 0.5
+      cylinder_side: 14.16
+      cylinder_aspect: 1.003
+      cylinder_divider: 0.5
+
+# CARRIED - the review axes are the app's own taxonomy, not project data.  The
+# same reason codes are raised whatever the project, so the same filing applies.
+review_axes:
+  order: [SCOPE, QUANTITY, DESCRIPTION, DETECTION, SOURCE]
+  labels:
+    SCOPE: 스코프 판정
+    QUANTITY: 수량
+    DESCRIPTION: Description
+    DETECTION: 검출
+    SOURCE: 입력 자료
+  codes:
+    SCOPE_OVERRIDE_UNRESOLVED: SCOPE
+    VENDOR_MARK_UNDEFINED: SCOPE
+    SCT_SUPPLIER_SCOPE: SCOPE
+    MULTIPLIER_UNDEFINED: QUANTITY
+    MULTI_SIGNAL_BUNDLE: QUANTITY
+    DESCRIPTION_INCOMPLETE: DESCRIPTION
+    DESC_GRADE_PARTIAL: DESCRIPTION
+    DESC_GRADE_LOW: DESCRIPTION
+    DESC_GRADE_NONE: DESCRIPTION
+    DESC_CCW_DIRECTION: DESCRIPTION
+    DESC_BETWEEN_SYMBOL: DESCRIPTION
+    ACTUATOR_ON_UNEXPECTED_BODY: DETECTION
+    IP_TOKEN_AS_ACTUATOR: DETECTION
+    UNLABELED_GLYPH_CLUSTER: DETECTION
+    ROW_DELETED: DETECTION
+    REVIEWER_MARKUP: SOURCE
+    ORIGIN_REFERENCE_MISSING: SOURCE

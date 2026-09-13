@@ -1,0 +1,15 @@
+  page   5    0.27s   instruments 0.27s annotations 0.00s
+  page   6    0.26s   instruments 0.26s annotations 0.00s
+EXC AttributeError 'str' object has no attribute 'update'
+  File "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/probe8b.py", line 5, in <module>
+    pipeline.analyse("tests/data/synthetic/08b_tagged_same_size.pdf")
+  File "/home/user/AI-P-ID-Extraction-tool/app/pipeline.py", line 536, in analyse
+    return _analyse(pdf_path, progress=progress, timings=timings,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/pipeline.py", line 1042, in _analyse
+    r.evidence.setdefault("tag", {}).update(
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+dying row: {'page_no': 5, 'tab': 'MOV', 'type': 'GLOBE', 'valve_type': 'MOTOR', 'evidence_tag': 'MOV', 'new_tag': '14LBA14CP039'}
+tagged valve rows: 8 [(59, 'MOV', 'MOV', '14LBA14CP039'), (60, 'MOV', '', '14LBA15CP040'), (61, 'MOV', '', '14LBA16CP041'), (62, 'MOV', '', '14LBA10CP042'), (63, 'MOV', 'MOV', '14LBA11CP043'), (64, 'MOV', '', '14LBA12CP044')]
+tagged instrument rows: 30 of 78
