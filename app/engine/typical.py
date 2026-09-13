@@ -159,6 +159,10 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
         text = " ".join(s for _x, s in line).strip()
         captions.append((m, text))
     if not captions:
+        # 상자(캡션)가 없는 장 — 본문에 글자 원이 있어도 Typical 이 아니다.  그 사실을 기록한다 (보정 프롬프트 ④).
+        for m in t.marks:
+            if m.kind == "line":
+                t.unpaired[m.id] = t.unpaired.get(m.id, 0) + 1
         return t
     hs = [(a, b) for a, b in segs if abs(a.y - b.y) < 0.4]
     # 상자를 한 도형(사각형·사변형)으로 그린 문서와 선 넷으로 그린 문서가 있다 — TC2 는

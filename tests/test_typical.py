@@ -149,6 +149,10 @@ def test_box_crossed_by_piping_is_not_an_island():
 def test_unpaired_marks_are_listed_not_counted():
     t = typical.analyse(_tc2_like(), AREA, ceiling=11.4)
     assert t.unpaired == {"M": 1} and "M" not in t.refs                     # 캡션 없는 라인 표식 — 기록만
+    pc = _tc2_like()                                                        # 캡션(상자)이 없는 장 — 본문 글자만
+    pc.words = [(r, s) for r, s in pc.words if r.y0 < 650]
+    t = typical.analyse(pc, AREA, ceiling=11.4)
+    assert t.details == [] and t.refs == {} and t.unpaired == {"D": 3, "M": 1}
 
 
 # --- 합성 도면: 같은 구조에 글자만 바꾼다 (32회차 방식 — pymupdf 로 그린 PDF 를 pidcache 로 읽는다)
