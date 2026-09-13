@@ -945,7 +945,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # Bubbles the drawing stacks edge-to-edge.  Whether they are one instrument
     # or several is a question about the plant, not about the drawing, so it is
     # answered in config; `_signal_groups` returns the rows the answer folds away.
-    signal_groups, folded = _signal_groups(rows)
+    signal_groups, folded = _signal_groups(rows, isa)
     if folded:
         rows = [r for r in rows if r.key not in folded]
 
@@ -1454,8 +1454,43 @@ if MULTI_SIGNAL_DESCRIPTION not in ("representative", "none", "all"):
                      f"{MULTI_SIGNAL_DESCRIPTION!r}")
 
 
-def _signal_groups(rows) -> tuple:
+def _is_switch(anchor: str, isa) -> bool:
+    """Does this document's ISA table read the tag's function letter as SWITCH?
+
+    The variable letters are whatever the table's first-letter column matches
+    (`PD` before `P`, as `IsaTable.readings_for` tries); the letter after them is
+    the function.  `LSHH` -> `L` + `S` -> the table's `S` column -> `SWITCH`.
+    `FIT` -> `F` + `I` -> `INDICATOR` -> not a switch.  No table, or a letter the
+    table does not print: not a switch - nothing is folded on a guess.
+    """
+    if isa is None or not anchor:
+        return False
+    head = ""
+    for n in (2, 1):
+        if anchor[:n].upper() in (isa.first or {}):
+            head = anchor[:n]
+            break
+    if not head or len(anchor) <= len(head):
+        return False
+    func = anchor[len(head)].upper()
+    words = tuple(w.upper() for w in (isa.succeeding or {}).get(func, ()))
+    return "SWITCH" in words
+
+
+def _signal_groups(rows, isa=None) -> tuple:
     """Bubbles the drawing stacks edge-to-edge, grouped, with the basis measured.
+
+    39회차: a stack folds only when every member is a *switch* by the drawing's
+    own ISA table (`isa.succeeding[<first function letter>]` prints `SWITCH`).
+    The user's ruling that a touching stack is one physical device was given for
+    level switches - one device reporting several set points - and the rule as
+    first written tested only the shared variable letter.  TC2 stacks `FIT` /
+    `FIT` / `FE` the same way (7 stacks, p6 · p9 · p10 ×2 · p11 · p17 · p18) and
+    those are three devices: two transmitters and one primary element, each with
+    its own tap.  `_is_switch` reads the letter's meaning from the legend
+    of this document, not from a list in code; a document whose table does not
+    print `SWITCH` for the letter folds nothing.  AL NOUF1's 34 stacks are all
+    `LSHH+LSH+LSL`, so its rows and fingerprint do not move (measured).
 
     The three tests are the ones the drawing itself answers, and none of them is a
     distance someone chose:
@@ -1491,6 +1526,8 @@ def _signal_groups(rows) -> tuple:
             for j in range(i + 1, len(members)):
                 (ai, ri), (aj, rj) = members[i], members[j]
                 if ai[0] != aj[0]:
+                    continue
+                if not (_is_switch(ai, isa) and _is_switch(aj, isa)):
                     continue
                 a, b = ri.rect, rj.rect
                 overlap = min(a[2], b[2]) - max(a[0], b[0])
