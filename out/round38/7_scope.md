@@ -33,6 +33,14 @@ PDIT 22 위의 PDIA 는 같은 모양인데도 SCT 인 이유는 그 `+` 획들�
 * UAD: [H] 뒤 p23 PDIT 21·23 → SCT 로 바뀌는지, 그 밖에 움직인 행이 무엇인지 장별로 낸다 (§5 에 채운다).
 * TC2: 별표가 4획이라 SCOPE 가 **한 칸도** 안 움직여야 한다 — [H] 로 확인한다.
 
-## 5. 전/후 (회귀 뒤 채움)
+## 5. 전/후 ([H] 실측 · 행 단위 전수 대조)
 
-(대기)
+| 프로젝트 | 지문 | 움직인 칸 | 내역 |
+| --- | --- | --- | --- |
+| **AL NOUF1** | `fb85b039` 그대로 | **0** | SCOPE 열은 지문 대상 — 한 칸도 안 움직였다.  "Nouf1 8장 `*` 있는데 SCT" 는 지목 장 번호를 받으면 19회차 감사에 건다 |
+| TC2 | `8a478417` → `2ce3e724` ([D] Typical `qty` 10칸) | SCOPE **0** · vendor_supply **0** | TC2 별표는 4획·방향 3~4 라 `min_dirs=3` 에 안 걸린다 — 예측대로 |
+| **UAD** | `db1a77d1` → **`eb1ee3ee`** | `scope` **2** · `vendor_supply` **5** | **p23 PDIT 00GKB21CP001 · 00GKB23CP001 `VENDOR(PUMP SUPPLIER)` → `SCT`** (§1 의 지목 — 도면과 맞다).  p19 PDIT 00GHB22CP001 · PI 00GHB22CP501 · PI 00GHB32CP501 은 `vendor_supply` `VENDOR` → 빈칸이고 **SCOPE 는 SCT 그대로** (30회차 [B]4 가 렌더로 "p19 는 별표가 아예 없다" 고 적어 둔 장 — 방향 둘짜리 획 뭉치가 별표로 세어지고 있었다) |
+| SADARA | `0767ba79` 그대로 | 0 | — |
+
+SCOPE 집계(UAD): SCT 92 → **94** · VENDOR(PUMP SUPPLIER) 25 → **23** · VENDOR 30 · VENDOR(TANK ACCESSORIES SUPPLIER) 2.
+p29 PI 10행은 그대로 VENDOR — 도면이 `*` 를 찍는다(§1).  p30 의 이름 없는 `VENDOR` 12행(`**` 미정의)도 그대로 — 그 장 NOTES 몫(사용자 질문 6).

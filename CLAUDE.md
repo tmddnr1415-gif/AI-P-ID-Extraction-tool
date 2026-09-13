@@ -1730,6 +1730,39 @@ AL NOUF1·SADARA·UAD 지문 불변 (축3 분모만 하나씩 는다 — 30회�
 우연**이고 그 결함(기준선 TC2 p10 에 이미 1행)을 고친 뒤 다시 잰다.  `tb.zoom` 은 실측 실패 0(픽셀 문턱까지 19배) → 조사.
 **[D]** `report.md` + 회사 PC 꾸러미 r37 (`spike/pack_handover_r37.py` · aac64ba 기준 130파일 · 풀어서 HEAD 와 소스 대조 0).  시험 283.
 
+**그 다음 회차 — 입찰/실행 모드 · 다중 양식 · Typical 참조 (38회차)**
+
+`out/round38_result.zip` (0_요약 · 1_보고서 · 2_progress · 3_mode · 4_uad_forms · 5_typical · 6_tc2_missing · 7_scope · 8_nouf1 · 9_regression.json · 10_캡처).
+**AL NOUF1 `fb85b039` · 1037 · 1931 · 축3 95.1 불변 · SADARA 불변.  TC2 만 [D] 로 `8a478417` → `2ce3e724` (Q'ty 3783 → **3991** · `qty` 10칸 · SCOPE 0) · UAD 만 [F] 로 `db1a77d1` → `eb1ee3ee` (p23 PDIT 2행 → SCT · 행·Q'ty 그대로).**  시험 283 → **297**.
+
+1. **[B] 선언은 실측을 덮되 조용하지 않다.**  `tags.assign`(29회차)이 이미 "이 도면이 1급인가" 를 재고 있었고(문서 단위), 없던 것은
+   **선언 자리**였다 — 프로젝트 장부 `mode{value,author,set_at}` · 첫 화면 라디오(자동/입찰/실행) · `PATCH /projects/{name}/mode`.
+   방법은 하나 — `pipeline._attach_tags(declared_mode=)` 가 1급 경로를 켜고 끈다(`effective = declared or measured`).  실측은 언제나 돌고
+   결과에 남으며(`evidence_tier.tags_available`), 다르면 `conflict` + 붉은 띠 + "실측대로 바꾸기 — 다음 분석부터".
+   **게이트**: UAD 를 `bid` 로 선언해도 `db1a77d1` · 149 · 태그 0 · 후보 128(14장).  ★ `store_result` 화이트리스트에 `evidence_tier` 가
+   **29회차부터 빠져 있었다** — 계산은 되는데 저장이 안 돼 화면이 못 읽었다 (열다섯 번째).
+2. **[C] UAD p11~17 은 다중 양식이 아니다** (`out/round38_uad_forms.md`).  32장이 한 양식(FICHTNER)이고 p11~15·p22 는 글자가 **획뿐**
+   (텍스트 0 · SHX 주석 0), p16~18 은 **타이틀블록만** 획(본문 TrueType — 30회차 "계기 목록 시트" 는 **오기**), p32 는 도면번호 꼬리 3자리
+   (37회차 유도는 두 장 이상만).  장 단위 양식 판정은 원인이 아니라 **만들지 않았다** → 범위(획 사전 전체 ㉠ / 타이틀블록만 ㉡ / 보류 ㉢)는
+   사용자 판단 · 권장 ㉡.
+3. **[D] Typical 참조** (`out/round38_typical.md` · `app/engine/typical.py` · `pipeline._apply_typical` 곱하는 곳 하나).  실측 TC2 54장:
+   라인 표식 **21 · 5장** · 상세 7 · 짝 7/7 · 상세 없는 표식 `G` 8 · 모터 `M` 원 18.  규칙은 전부 모양 — 원(호 4개 · 정사각)의 지름 상한은
+   **그 장 버블 짧은 변** · 캡션 = **아무 선도 닿지 않는 원** + 같은 줄 두 낱말 이상 · 상자 = 캡션을 담는 후보 중 **가장 작은 것** ·
+   참조 = 상자 밖 같은 id · 같은 id 캡션 둘이면 `TYPICAL_AMBIGUOUS`.  `D`·`D1` 을 나열하지 않는다.  [H] TC2: 상세 안 행 12 · 곱한 행 12 · 모호 0 · +208 = [D-2] 예측 그대로.  근거 패널 `1 symbol x 8 (NOTES: …) x 4 (Typical D 표식 4개 × 상세 한 벌)`.
+   ★ **스스로 뒤집은 것 셋** — `:` 캡션(p8 놓침) · 가로선 상자(사변형 못 잡음) · **첫 [H] 가 AL NOUF1 을 `da28465e`·Q'ty +8 로 옮겼다**
+   (모터 `M` 원 Ø14.2 < 버블 22.6 · 오른쪽 `LO VS` 가 캡션).  "양쪽에서 들어오는 선" 으로 고치니 TC2 참조가 0 — TC2 라인 표식은 **리더
+   하나**가 닿고 모터 `M` 과 모양이 같다.  가르는 것은 모양이 아니라 **캡션 짝**이다.  Typical × 유닛 승수 합성은 **사용자 질문 2**.
+4. **[E] TC2 MOV 0행의 원인은 하나 — `ValveLayout.act_box=(9.0,34.0)` 절대 pt** (`6_tc2_missing.md` · 코드 0줄).  TC2 `M` 원 Ø7.08 이 하한
+   9 아래이고, 그 하한은 AL NOUF1 이 글로브 허리 원반(7.1)을 **빼려고** 둔 값이다.  범례 `actuator_stem` 이 `CONFIG_FALLBACK` 이라
+   잴 수 있는 것(원 지름)을 잴 수 없는 것(스템)과 함께 버린다.  다음 회차: 원 지름을 범례에서 따로 재고 창을 비율로 (질문 8).
+5. **[F] 옛 결과인지 먼저 갈랐다** (`7_scope.md`).  UAD p23 PDIT 21·23 은 **현재도 틀렸다** — "별표" 는 위 `PDIA++,+` 버블의 `+` 획(방향 둘)
+   이고 그 버블은 패널 사각형 안이라 30회차 윤곽이 안 잡혔다.  p29 PI 는 활자 `*` 가 실제로 있어 **우리 값이 맞다**.  고친 것은
+   `star_groups(min_dirs)` — 본문 별표만 **방향 셋 이상**(26회차 검사 채널과 같은 기준 · 정의줄은 둘 그대로 — TC2 정의줄이 2획).  [H] UAD: p23 PDIT 21·23 → SCT · p19 세 행 `vendor_supply` VENDOR → 빈칸(SCOPE 는 SCT 그대로 · 30회차가 '별표 없음' 으로 렌더한 장) · 그 밖 0.  AL NOUF1·TC2 SCOPE 0칸.
+6. **[G] Nouf1 잔여 7 은 원인만** (`8_nouf1.md` · 코드 0줄) — p8 MOV 는 발주처 5 ↔ 우리 6(질문 3) · PCV 는 `unclassified_bodies` 조건 확장이
+   다음 · AIT 는 질문 4 · PRV 는 `_is_dome` 세로 런 · XV·범례 심볼은 장 번호·등록 화면.
+7. **실행 규율을 지켰다** — 한 명령 20분 안 · 회귀는 프로젝트마다 따로(nohup + 완료 표식 · 대기 15분 상한) · `pgrep -f` 자기 판정 없음.
+   ⚠ 두 번 잃었다: `CFG.rect` 튜플로 AL NOUF1 회귀가 1장에서 죽음(7분) · 중복 실행이 메모리 13G(한 번 죽임).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -1878,7 +1911,7 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 **테스트**
 
 ```bash
-pytest -q -m "not slow and not ui"    # 266건, 13초
+pytest -q -m "not slow and not ui"    # 297건, 13초
 pytest -q -m ui                       # 24건 (playwright + chromium 필요 · **SCOPE 있는 데이터**에서만 뜻이 있습니다 — `PID_UI_DB` 로 가리키고, 없으면 `spike/build_ui_db.py` 로 세웁니다)
 pytest -q -m slow                     # 16건 · 전 문서 분석 포함, **46분** (25회차 잉크 인덱스로 23분 → 46분 · `timeout 2400` 이면 13/14 에서 잘린다)
 ```
