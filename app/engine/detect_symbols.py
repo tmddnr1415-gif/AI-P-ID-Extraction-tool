@@ -568,6 +568,23 @@ def dashed_bubble_outlines(pc, solid: list) -> list:
         if not (any(r.x0 <= R.x0 + slack for r in rects) and any(r.x1 >= R.x1 - slack for r in rects)
                 and any(r.y0 <= R.y0 + slack for r in rects) and any(r.y1 >= R.y1 - slack for r in rects)):
             continue
+        # 캡이 있어야 한다 — 스타디움의 양 끝은 **축 가운데**를 지나는 호다.  나란한 파선 둘
+        # (전기 신호선 한 쌍이 버블로 들어가는 자리 · UAD p21 실측)도 네 변 조건은 넘지만
+        # 양 끝의 가운데가 비어 있다.  모양 조건이지 상수가 아니다.
+        cx, cy = (R.x0 + R.x1) / 2, (R.y0 + R.y1) / 2
+        # 호의 꼭대기가 틈에 걸릴 수 있으므로 가운데에서 틈(slack)만큼은 봐준다 —
+        # 나란한 두 선은 버블 폭(짧은 변)의 절반만큼 떨어져 있어 그 안에 못 든다.
+        if R.width >= R.height:
+            caps = (any(r.x0 <= R.x0 + slack and r.y0 - slack <= cy <= r.y1 + slack for r in rects)
+                    and any(r.x1 >= R.x1 - slack and r.y0 - slack <= cy <= r.y1 + slack for r in rects))
+        else:
+            caps = (any(r.y0 <= R.y0 + slack and r.x0 - slack <= cx <= r.x1 + slack for r in rects)
+                    and any(r.y1 >= R.y1 - slack and r.x0 - slack <= cx <= r.x1 + slack for r in rects))
+        if not caps:
+            continue
+        # 버블은 버블 위에 서지 않는다 — 실선 버블과 겹치는 후보는 그 버블에 붙은 선이다.
+        if any(R.intersects(o.rect) for o in solid):
+            continue
         if R.width >= R.height:
             cap_a = pymupdf.Rect(R.x0, R.y0, R.x0 + R.height / 2, R.y1)
             cap_b = pymupdf.Rect(R.x1 - R.height / 2, R.y0, R.x1, R.y1)
