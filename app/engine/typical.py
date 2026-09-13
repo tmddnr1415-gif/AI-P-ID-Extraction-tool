@@ -91,36 +91,61 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
         return t
     words = [(pymupdf.Rect(r), s) for r, s in pc.words]
     segs = pc.segments()
-    # 캡션 — 오른쪽 지름 두 배 안에서 같은 줄로 글이 이어진다
+
+    def on_a_line(r: pymupdf.Rect) -> bool:
+        """라인 표식은 배관 위에 앉는다 — 원의 중심을 지나는 선분이 있다.  캡션 표식은 없다."""
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        for a, b in segs:
+            if abs(a.y - b.y) < 0.4 and abs(a.y - cy) <= r.height / 2 \
+                    and min(a.x, b.x) <= r.x0 and max(a.x, b.x) >= r.x1:
+                return True
+            if abs(a.x - b.x) < 0.4 and abs(a.x - cx) <= r.width / 2 \
+                    and min(a.y, b.y) <= r.y0 and max(a.y, b.y) >= r.y1:
+                return True
+        return False
+
+    # 캡션 — 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상 이어지고, 배관 위가 아니다
     captions = []
     for m in t.marks:
         r, d = m.rect, m.d
         right = [(w, s) for w, s in words
                  if 0 <= w.x0 - r.x1 <= 2 * d and w.y0 < r.y1 and w.y1 > r.y0]
-        if not right:
+        if not right or on_a_line(r):
             continue
         line = sorted([(w.x0, s) for w, s in words
                        if w.y0 < r.y1 and w.y1 > r.y0 and r.x1 <= w.x0 <= area.x1],
                       key=lambda x: x[0])
+        if len(line) < 2:
+            continue
         text = " ".join(s for _x, s in line).strip()
         captions.append((m, text))
     if not captions:
         return t
     hs = [(a, b) for a, b in segs if abs(a.y - b.y) < 0.4]
+    # 상자를 한 도형(사각형·사변형)으로 그린 문서와 선 넷으로 그린 문서가 있다 — TC2 는
+    # 한 장 안에서도 섞여 있다 (p7 D2 는 사변형 하나 · D1 은 선 넷).  도형이 있으면 그것이
+    # 상자이고(캡션 표식을 담는 가장 작은 것), 없으면 긴 가로선 둘로 세운다.
+    quads = [d["bbox"] for d in pc.drawings()
+             if d["items"] and all(i[0] in ("qu", "re", "l") for i in d["items"])
+             and any(i[0] in ("qu", "re") for i in d["items"])]
     for m, text in captions:
         r, d = m.rect, m.d
         cx = (r.x0 + r.x1) / 2
+        cands = [pymupdf.Rect(q) for q in quads
+                 if q.contains(r) and q.width >= 6 * d and q.height >= 4 * d
+                 and q.width <= area.width * 0.7 and q.height <= area.height * 0.7]
         long_ = [h for h in hs if abs(h[0].x - h[1].x) >= 10 * d
                  and min(h[0].x, h[1].x) <= cx <= max(h[0].x, h[1].x)]
         above = sorted([h for h in long_ if h[0].y < r.y0], key=lambda h: -h[0].y)[:1]
         below = sorted([h for h in long_ if h[0].y > r.y1], key=lambda h: h[0].y)[:1]
-        box = None
         if above and below:
             x0 = max(min(above[0][0].x, above[0][1].x), min(below[0][0].x, below[0][1].x))
             x1 = min(max(above[0][0].x, above[0][1].x), max(below[0][0].x, below[0][1].x))
             y0, y1 = above[0][0].y, below[0][0].y
             if x1 - x0 >= 6 * d and y1 - y0 >= 4 * d:
-                box = pymupdf.Rect(x0, y0, x1, y1)
+                cands.append(pymupdf.Rect(x0, y0, x1, y1))
+        # 캡션을 담는 가장 작은 것이 상자다 — 시트 틀·큰 패키지 상자는 그보다 크다.
+        box = min(cands, key=lambda q: q.get_area()) if cands else None
         t.details.append(Detail(m.id, text, r, box))
     ids = [det.id for det in t.details]
     t.ambiguous = {i for i in ids if ids.count(i) > 1}

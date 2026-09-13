@@ -52,7 +52,7 @@ def test_a_circle_as_big_as_a_bubble_is_not_a_mark():
 
 def test_two_captions_with_the_same_id_are_ambiguous_not_multiplied():
     pc = _tc2_like()
-    pc.words += [((598, 708, 602, 712), "D"), ((607, 708, 630, 712), "OTHER")]
+    pc.words += [((598, 708, 602, 712), "D"), ((607, 708, 630, 712), "OTHER"), ((632, 708, 660, 712), "DETAIL")]
     pc._c.append((600, 710, 7.1))
     t = typical.analyse(pc, AREA, ceiling=11.4)
     assert t.ambiguous == {"D"}
@@ -74,7 +74,7 @@ def test_apply_multiplies_only_rows_inside_the_detail_box():
 
 def test_ambiguous_rows_are_flagged_not_multiplied():
     pc = _tc2_like()
-    pc.words += [((598, 708, 602, 712), "D"), ((607, 708, 630, 712), "OTHER")]
+    pc.words += [((598, 708, 602, 712), "D"), ((607, 708, 630, 712), "OTHER"), ((632, 708, 660, 712), "DETAIL")]
     pc._c.append((600, 710, 7.1))
     t = typical.analyse(pc, AREA, ceiling=11.4)
     r = _Row(1, (600, 700, 630, 712), 8)
