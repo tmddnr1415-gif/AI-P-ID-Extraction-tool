@@ -1418,6 +1418,9 @@ _USER_MULT_CODE = "MULTIPLIER_BY_USER"
 _USER_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 도면이 아니라 사람이 지정한 값입니다 (%s)")
 
+_DASHED_BUBBLE = (
+    "버블이 파선으로 그려져 있음 — 이 도면 범례는 파선 버블의 뜻을 정의하지 "
+    "않으므로 공급 범위(SCOPE)를 확인 필요")
 _BORROWED_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 이 도면의 범례가 아니라 프로젝트 설정에서 "
     "왔습니다 (이 PDF 에 UNIT IDENTIFICATION NUMBERS 표가 없습니다) — 확인 필요")
@@ -2763,6 +2766,12 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
         elif borrowed:
             codes.append("MULTIPLIER_FROM_CONFIG")
             reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
+        if (getattr(d, "evidence", None) or {}).get("bubble_style") == "DASHED":
+            # 40회차 — 파선으로 그린 버블.  이 문서의 범례는 파선 *배관* 만 정의하고
+            # (`PIPING BY OTHER THAN SAMSUNG`) 파선 *버블* 의 뜻은 적지 않는다.
+            # 뜻을 지어내지 않고 검토로 올린다 (§9 ⑤).
+            codes.append("BUBBLE_DASHED")
+            reasons.append(_DASHED_BUBBLE)
         if "VENDOR_MARK_UNDEFINED" in (getattr(d, "rules_hit", []) or []):
             codes.append("VENDOR_MARK_UNDEFINED")
             reasons.append("a vendor mark is drawn on this symbol but this "

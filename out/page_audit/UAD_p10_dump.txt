@@ -1,0 +1,3 @@
+page 10 kind=PID dwg=1A5J-00EKG00-M05-0005 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=0
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(41, 725, 'PDC'), (253, 725, 'PMC'), (424, 338, 'SUPPLIER'), (426, 660, 'SUPPLIER'), (427, 449, 'SUPPLIER'), (427, 556, 'SUPPLIER'), (446, 315, 'SCT'), (448, 636, 'SCT'), (449, 426, 'SCT'), (449, 533, 'SCT'), (654, 340, 'SUPPLIER'), (660, 363, 'SUPPLIER'), (676, 316, 'SCT'), (684, 385, 'SCT'), (707, 449, 'SUPPLIER'), (728, 426, 'SCT'), (859, 429, 'SUPPLIER'), (881, 405, 'SCT')] 
+unjudged on page: []

@@ -1,0 +1,20 @@
+page 7 kind=PID dwg=D02J-31LBC40-M05-0001 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=17
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[290, 241, 324, 252] desc='' rev=''
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[290, 263, 324, 275] desc='' rev=''
+  FIELD     PIT    q=8 scope=SCT                          tag= rect=[290, 286, 324, 297] desc='UNIT #31 COLD REHEAT STEAM PRESSURE' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[290, 309, 324, 320] desc='' rev=''
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[290, 331, 324, 343] desc='' rev=''
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[371, 486, 405, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE A' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[407, 486, 441, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE B' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     PIT    q=8 scope=SCT                          tag= rect=[465, 486, 499, 497] desc='HP BYPASS VALVE DISCHARGE PRESSURE TRANS' rev=''
+  FIELD     PIT    q=8 scope=SCT                          tag= rect=[503, 486, 537, 497] desc='HP BYPASS VALVE DISCHARGE PRESSURE TRANS' rev=''
+  FIELD     TIT    q=8 scope=SCT                          tag= rect=[540, 486, 574, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE C' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[735, 486, 769, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE D' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[771, 486, 805, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE E' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TIT    q=8 scope=SCT                          tag= rect=[806, 486, 840, 497] desc='UNIT #31 COLD REHEAT STEAM TEMPERATURE F' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     LS     q=8 scope=SCT                          tag= rect=[510, 702, 544, 713] desc='UNIT #31 COLD REHEAT STEAM TO CONDENSER ' rev='Description 중간 서술을 후보에서 골랐으나 근'
+  FIELD     LS     q=16 scope=SCT                          tag= rect=[738, 702, 772, 713] desc='UNIT #31 COLD REHEAT STEAM TO CONDENSER ' rev='Description 중간 서술을 후보에서 골랐으나 근'
+  FIELD     LS     q=8 scope=SCT                          tag= rect=[585, 709, 619, 720] desc='UNIT #31 COLD REHEAT STEAM TO CONDENSER ' rev='Description 중간 서술을 후보에서 골랐으나 근'
+  FIELD     LS     q=16 scope=SCT                          tag= rect=[813, 709, 847, 720] desc='UNIT #31 COLD REHEAT STEAM TO CONDENSER ' rev='Description 중간 서술을 후보에서 골랐으나 근'
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(239, 187, 'SE'), (239, 203, 'SCT'), (271, 525, 'DN'), (283, 161, 'HP'), (309, 501, 'NRV'), (367, 161, 'IP'), (447, 525, 'DN'), (476, 161, 'LP'), (524, 659, 'COLD'), (536, 659, 'REHEAT'), (552, 659, 'TYPICAL'), (566, 747, 'DN'), (569, 659, 'DRAIN'), (582, 659, 'CONFIGURATION'), (582, 765, 'LO'), (614, 765, 'FO'), (615, 535, 'MOD'), (632, 501, 'MOV'), (636, 757, 'DN'), (654, 751, 'TO'), (660, 751, 'CONDENSER'), (674, 501, 'MOV'), (686, 751, 'FLASH'), (699, 751, 'BOX'), (728, 525, 'DN'), (752, 659, 'COLD'), (764, 659, 'REHEAT'), (780, 659, 'TYPICAL'), (794, 747, 'DN'), (797, 659, 'DRAIN'), (810, 659, 'CONFIGURATION'), (810, 765, 'LO'), (828, 523, 'SCT'), (840, 765, 'INCH'), (847, 523, 'SE'), (864, 757, 'DN'), (879, 520, 'TO'), (879, 559, 'TO'), (882, 745, 'TO'), (882, 751, 'BLOWDOWN'), (884, 486, 'FROM'), (885, 520, 'HRSG'), (885, 559, 'COMMON'), (888, 745, 'CLEAN'), (897, 486, 'HP'), (897, 520, 'COLD'), (902, 745, 'DRAIN'), (903, 486, 'BYPASS'), (906, 751, 'TANK'), (909, 520, 'REHEATER'), (914, 559, 'STEAM'), (915, 745, 'TANK,'), (919, 486, 'VALVE'), (927, 745, 'FLASH'), (928, 559, 'HEADER'), (940, 745, 'TANK'), (952, 745, 'OR')] 
+unjudged on page: [('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None)]

@@ -61,6 +61,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import itertools
 import json
@@ -317,6 +318,7 @@ class Outline(NamedTuple):
     axis: str            # H(가로 스타디움) | V(세로)
     cap_a: pymupdf.Rect  # 왼쪽/위 캡
     cap_b: pymupdf.Rect  # 오른쪽/아래 캡
+    style: str = "SOLID" # SOLID | DASHED (40회차 — 파선으로 그린 버블)
 
 
 def on_bubble_face(x: float, y: float, outlines) -> bool:
@@ -343,7 +345,8 @@ def on_bubble_face(x: float, y: float, outlines) -> bool:
     즉 이 규칙이 움직이는 것은 UAD 뿐이다.  **윤곽을 못 찾으면 걸지 않는다**
     (밸브 몸체는 스타디움이 아니다) — 모르는 것을 글자로 읽지 않는다.
     """
-    for rect, axis, a, b in outlines:
+    for o in outlines:
+        rect, axis, a, b = o.rect, o.axis, o.cap_a, o.cap_b   # 40회차: 다섯째 필드 style
         if not (rect.x0 <= x <= rect.x1 and rect.y0 <= y <= rect.y1):
             continue
         if axis == "H":
@@ -432,6 +435,129 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
                                        "V", a, b))
 
     return bubbles
+
+
+def _dash_pieces(pc, max_len: float) -> list:
+    """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
+    `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox)"""
+    out = []
+    for d in pc.drawings():
+        its = d["items"]
+        if not its or d.get("closePath") or any(i[0] != "l" for i in its):
+            continue
+        r = pymupdf.Rect(d["rect"])
+        if max(r.width, r.height) > max_len or (r.width < 0.01 and r.height < 0.01):
+            continue
+        a, b = pymupdf.Point(its[0][1]), pymupdf.Point(its[-1][2])
+        if abs(a - b) < 0.3:
+            continue
+        out.append((a, b, r))
+    return out
+
+
+def _endpoint_gap_mode(pieces) -> float:
+    """토막 끝점에서 가장 가까운 *다른* 토막 끝점까지의 거리 중 **양수 최빈값** —
+    그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다."""
+    pts = []
+    for i, (a, b, _r) in enumerate(pieces):
+        pts.append((a, i)); pts.append((b, i))
+    pts.sort(key=lambda t: t[0].x)
+    xs = [q.x for q, _ in pts]
+    hist: collections.Counter = collections.Counter()
+    for q, i in pts:
+        lo, hi = bisect.bisect_left(xs, q.x - 6.0), bisect.bisect_right(xs, q.x + 6.0)
+        best = None
+        for p2, j in pts[lo:hi]:
+            if j == i:
+                continue
+            dd = abs(q - p2)
+            if dd < 6.0 and (best is None or dd < best):
+                best = dd
+        if best is not None and best > 0.3:
+            hist[round(best, 1)] += 1
+    return hist.most_common(1)[0][0] if hist else 0.0
+
+
+def dashed_bubble_outlines(pc, solid: list) -> list:
+    """**파선으로 그린 버블** (40회차 · UAD 벤더 스키드 안 계기 48행).
+
+    UAD 는 스키드 안 계기의 버블을 파선으로 그리고, 그 파선은 캡·옆면 할 것 없이
+    2~3pt 짜리 **직선 폴리라인 토막**이다 (`c` 항목이 하나도 없다 — p6 실측:
+    캡 토막 `llll` 3.1x1.6 · 옆면 토막 `lll` 0.6x2.5).  `bubble_outlines` 는
+    `c` 로 그린 캡 둘을 찾으므로 이 버블을 볼 수 없다.
+
+    상수 없이 그 장에서 읽는다:
+      토막 상한   = 그 장 실선 버블의 짧은 변 (토막이 버블보다 클 수 없다)
+      틈          = 토막 끝점 최근접 거리의 양수 최빈값 (그 장의 파선 주기)
+      잇기        = 끝점이 틈의 1.5배 안이면 같은 고리 (틈 하나 반)
+      크기        = 고리 bbox 가 그 장 **가장 흔한 실선 버블 크기** 와 틈 둘 안에서 같다
+                    (양 끝에서 토막이 하나씩 빠질 수 있다)
+      닫힘        = 네 변 근처(틈 둘 안)에 전부 토막이 있다
+    실선 버블이 없는 장은 크기 기준이 없으므로 아무것도 내지 않는다 — 지어내지
+    않는다.  AL NOUF1 · SADARA · TC2 는 파선 버블이 0 이라 (전수) 이 함수가 더하는
+    것이 없다.
+    """
+    if not solid:
+        return []
+    sizes = collections.Counter((round(o.rect.width, 1), round(o.rect.height, 1))
+                                for o in solid)
+    dom_w, dom_h = sizes.most_common(1)[0][0]
+    short, long_ = min(dom_w, dom_h), max(dom_w, dom_h)
+    pieces = _dash_pieces(pc, short)
+    if len(pieces) < 6:
+        return []
+    gap = _endpoint_gap_mode(pieces)
+    if gap <= 0:
+        return []
+    tol = gap * 1.5
+    n = len(pieces)
+    parent = list(range(n))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    pts = []
+    for i, (a, b, _r) in enumerate(pieces):
+        pts.append((a, i)); pts.append((b, i))
+    pts.sort(key=lambda t: t[0].x)
+    xs = [q.x for q, _ in pts]
+    for q, i in pts:
+        lo, hi = bisect.bisect_left(xs, q.x - tol), bisect.bisect_right(xs, q.x + tol)
+        for p2, j in pts[lo:hi]:
+            if j != i and abs(q - p2) <= tol:
+                ri, rj = find(i), find(j)
+                if ri != rj:
+                    parent[rj] = ri
+    comp: dict[int, list] = collections.defaultdict(list)
+    for i in range(n):
+        comp[find(i)].append(i)
+    slack = 2 * gap
+    out = []
+    for idxs in comp.values():
+        if len(idxs) < 6:
+            continue
+        R = pymupdf.Rect(pieces[idxs[0]][2])
+        for i in idxs[1:]:
+            R |= pieces[i][2]
+        s_, l_ = min(R.width, R.height), max(R.width, R.height)
+        if abs(s_ - short) > slack or abs(l_ - long_) > slack:
+            continue
+        rects = [pieces[i][2] for i in idxs]
+        if not (any(r.x0 <= R.x0 + slack for r in rects) and any(r.x1 >= R.x1 - slack for r in rects)
+                and any(r.y0 <= R.y0 + slack for r in rects) and any(r.y1 >= R.y1 - slack for r in rects)):
+            continue
+        if R.width >= R.height:
+            cap_a = pymupdf.Rect(R.x0, R.y0, R.x0 + R.height / 2, R.y1)
+            cap_b = pymupdf.Rect(R.x1 - R.height / 2, R.y0, R.x1, R.y1)
+            out.append(Outline(R, "H", cap_a, cap_b, "DASHED"))
+        else:
+            cap_a = pymupdf.Rect(R.x0, R.y0, R.x1, R.y0 + R.width / 2)
+            cap_b = pymupdf.Rect(R.x0, R.y1 - R.width / 2, R.x1, R.y1)
+            out.append(Outline(R, "V", cap_a, cap_b, "DASHED"))
+    return out
 
 
 def find_bubbles(pc, lay: Layout = LAYOUT) -> list[pymupdf.Rect]:
@@ -1527,6 +1653,9 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
            face_rejected=None):
     outlines = bubble_outlines(pc, lay)
+    # 파선 버블은 실선 버블 **뒤에** 더한다 — 실선이 크기 기준을 준다 (40회차).
+    outlines = outlines + dashed_bubble_outlines(pc, outlines)
+    dashed = {id(o.rect) for o in outlines if o.style == "DASHED"}
     bubbles = [o.rect for o in outlines]
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)
     marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes,
@@ -1564,6 +1693,8 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             continue
         bubble = hit[0]
         det = Detection(anchor=t, bbox=bubble, center=(cx, cy))
+        if id(bubble) in dashed:
+            det.evidence["bubble_style"] = "DASHED"
 
         # -- category / type mapping -----------------------------------
         if t in rules.valves:

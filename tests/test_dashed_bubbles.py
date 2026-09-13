@@ -17,7 +17,7 @@ def _stadium_dashes(page, x0, y0, w, h, dash=2.4, gap=1.8):
     for y in (y0, y0 + h):
         x = x0 + r
         while x + dash <= x0 + w - r:
-            sh = page.new_shape(); sh.draw_polyline([(x, y), (x + dash / 2, y), (x + dash, y)]); sh.finish(width=0.3); sh.commit()
+            sh = page.new_shape(); sh.draw_polyline([(x, y), (x + dash / 2, y), (x + dash, y)]); sh.finish(width=0.3, closePath=False); sh.commit()
             x += dash + gap
     # 캡 둘 — 호를 3점 폴리라인 토막으로
     for cx, a0 in ((x0 + r, math.pi / 2), (x0 + w - r, -math.pi / 2)):
@@ -27,7 +27,7 @@ def _stadium_dashes(page, x0, y0, w, h, dash=2.4, gap=1.8):
         while a < a0 + math.pi:
             pts = [(cx + r * math.cos(a + k * step * 0.4 * (dash / (dash + gap))),
                     cy + r * math.sin(a + k * step * 0.4 * (dash / (dash + gap)))) for k in range(3)]
-            sh = page.new_shape(); sh.draw_polyline(pts); sh.finish(width=0.3); sh.commit()
+            sh = page.new_shape(); sh.draw_polyline(pts); sh.finish(width=0.3, closePath=False); sh.commit()
             a += step
 
 
@@ -41,7 +41,7 @@ def _solid_stadium(page, x0, y0, w, h):
         sh = page.new_shape()
         # 반원 캡 (베지어 둘)
         c = (cx, y0 + r)
-        sh.draw_sector(c, (cx, y0), 180 if side < 0 else -180)
+        sh.draw_sector(c, (cx, y0), 180 if side < 0 else -180, fullSector=False)
         sh.finish(width=0.3, closePath=False); sh.commit()
 
 
