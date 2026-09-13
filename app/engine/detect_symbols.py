@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import numpy as np
 import itertools
 import json
 import math
@@ -455,61 +456,49 @@ def _dash_pieces(pc, max_len: float) -> list:
     return out
 
 
-def _endpoint_grid(pieces, cell: float):
-    """끝점을 `cell` 칸 격자에 담는다.  (좌표, 토막 번호).  창 크기를 칸 크기로 두면
-    이웃 3×3 칸이 창을 덮는다 — x 축 하나로만 창을 잡으면 세로선이 많은 장(AL NOUF1
-    해칭)에서 한 점이 수천 점과 비교돼 장당 40초가 걸렸다 (40회차 실측)."""
-    g: dict = collections.defaultdict(list)
+def _endpoint_cells(pieces, cell: float):
+    """끝점 배열(N×2) · 토막 번호(N) · 칸 번호 → 그 칸의 점 인덱스.  창 크기를 칸 크기로
+    두면 이웃 3×3 칸이 창을 덮는다.  x 축 하나로 창을 잡으면 세로선이 많은 장(AL NOUF1
+    해칭)에서 한 점이 수천 점과 비교돼 장당 42초, 파이썬 격자로도 획 글자(SHX)가 빽빽한
+    TC2 에서 장당 80초였다 (40회차 실측) — 칸 안 거리 계산은 numpy 로 한다."""
+    n = len(pieces)
+    P = np.empty((2 * n, 2)); idx = np.empty(2 * n, dtype=np.int64)
     for i, (a, b, _r) in enumerate(pieces):
-        g[(int(a[0] // cell), int(a[1] // cell))].append((a, i))
-        g[(int(b[0] // cell), int(b[1] // cell))].append((b, i))
-    return g
+        P[2 * i] = a; P[2 * i + 1] = b; idx[2 * i] = i; idx[2 * i + 1] = i
+    cx = np.floor(P[:, 0] / cell).astype(np.int64); cy = np.floor(P[:, 1] / cell).astype(np.int64)
+    cells: dict = collections.defaultdict(list)
+    for k in range(2 * n):
+        cells[(int(cx[k]), int(cy[k]))].append(k)
+    cells = {c: np.asarray(v) for c, v in cells.items()}
+    return P, idx, cells
 
 
-def _grid_near(g, q, cell: float):
-    cx, cy = int(q[0] // cell), int(q[1] // cell)
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            for item in g.get((cx + dx, cy + dy), ()):
-                yield item
+def _neighbour_pairs(P, idx, cells, cell: float):
+    """칸마다 (그 칸의 점, 이웃 3×3 칸의 점) 거리 행렬을 내고, 같은 토막끼리는 뺀다.
+    yields (그 칸 점 인덱스 배열, 이웃 점 인덱스 배열, 거리 행렬)"""
+    for (cx, cy), ks in cells.items():
+        nb = [cells[(cx + dx, cy + dy)] for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+              if (cx + dx, cy + dy) in cells]
+        js = np.concatenate(nb)
+        D = np.sqrt(((P[ks][:, None, :] - P[js][None, :, :]) ** 2).sum(axis=2))
+        D[idx[ks][:, None] == idx[js][None, :]] = np.inf
+        yield ks, js, D
 
 
 def _endpoint_gap_mode(pieces) -> float:
     """토막 끝점에서 가장 가까운 *다른* 토막 끝점까지의 거리 중 **양수 최빈값** —
     그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다."""
+    if not pieces:
+        return 0.0
     W = 6.0
-    g = _endpoint_grid(pieces, W)
+    P, idx, cells = _endpoint_cells(pieces, W)
     hist: collections.Counter = collections.Counter()
-    for cell_pts in list(g.values()):
-        for q, i in cell_pts:
-            best = None
-            for p2, j in _grid_near(g, q, W):
-                if j == i:
-                    continue
-                dd = ((q[0] - p2[0]) ** 2 + (q[1] - p2[1]) ** 2) ** 0.5
-                if dd < W and (best is None or dd < best):
-                    best = dd
-            if best is not None and best > 0.3:
-                hist[round(best, 1)] += 1
+    for _ks, _js, D in _neighbour_pairs(P, idx, cells, W):
+        best = D.min(axis=1)
+        best = best[(best < W) & (best > 0.3)]
+        for v in best.tolist():
+            hist[round(v, 1)] += 1
     return hist.most_common(1)[0][0] if hist else 0.0
-
-
-
-    """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
-    `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox)"""
-    out = []
-    for d in pc.drawings():
-        its = d["items"]
-        if not its or d.get("closePath") or any(i[0] != "l" for i in its):
-            continue
-        r = pymupdf.Rect(d["rect"])
-        if max(r.width, r.height) > max_len or (r.width < 0.01 and r.height < 0.01):
-            continue
-        a, b = pymupdf.Point(its[0][1]), pymupdf.Point(its[-1][2])
-        if abs(a - b) < 0.3:
-            continue
-        out.append((a, b, r))
-    return out
 
 
 def dashed_bubble_outlines(pc, solid: list) -> list:
@@ -553,14 +542,13 @@ def dashed_bubble_outlines(pc, solid: list) -> list:
             a = parent[a]
         return a
 
-    g = _endpoint_grid(pieces, tol)
-    for cell_pts in list(g.values()):
-        for q, i in cell_pts:
-            for p2, j in _grid_near(g, q, tol):
-                if j != i and ((q[0] - p2[0]) ** 2 + (q[1] - p2[1]) ** 2) ** 0.5 <= tol:
-                    ri, rj = find(i), find(j)
-                    if ri != rj:
-                        parent[rj] = ri
+    P, idx, cells = _endpoint_cells(pieces, tol)
+    for ks, js, D in _neighbour_pairs(P, idx, cells, tol):
+        a_, b_ = np.nonzero(D <= tol)
+        for i, j in zip(idx[ks[a_]].tolist(), idx[js[b_]].tolist()):
+            ri, rj = find(i), find(j)
+            if ri != rj:
+                parent[rj] = ri
     comp: dict[int, list] = collections.defaultdict(list)
     for i in range(n):
         comp[find(i)].append(i)
