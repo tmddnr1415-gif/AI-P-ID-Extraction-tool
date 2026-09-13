@@ -441,15 +441,16 @@ def _dash_pieces(pc, max_len: float) -> list:
     """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
     `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox) — 끝점은 float 튜플."""
     out = []
+    m = pc.page.rotation_matrix          # 낱말과 같은 표시 좌표로 (회전 장 — UAD·TC2·SADARA 는 270°)
     for d in pc.drawings():
         its = d["items"]
         if not its or d.get("closePath") or any(i[0] != "l" for i in its):
             continue
-        r = pymupdf.Rect(d["rect"])
+        r = pymupdf.Rect(d["bbox"])      # `bbox` 가 표시 좌표, `rect` 는 회전 전
         if max(r.width, r.height) > max_len or (r.width < 0.01 and r.height < 0.01):
             continue
-        a, b = its[0][1], its[-1][2]
-        ax, ay, bx, by = float(a[0]), float(a[1]), float(b[0]), float(b[1])
+        a, b = pymupdf.Point(its[0][1]) * m, pymupdf.Point(its[-1][2]) * m
+        ax, ay, bx, by = float(a.x), float(a.y), float(b.x), float(b.y)
         if ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5 < 0.3:
             continue
         out.append(((ax, ay), (bx, by), r))
