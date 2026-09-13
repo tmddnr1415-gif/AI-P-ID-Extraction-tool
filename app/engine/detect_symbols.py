@@ -457,49 +457,98 @@ def _dash_pieces(pc, max_len: float) -> list:
     return out
 
 
-def _endpoint_cells(pieces, cell: float):
-    """끝점 배열(N×2) · 토막 번호(N) · 칸 번호 → 그 칸의 점 인덱스.  창 크기를 칸 크기로
-    두면 이웃 3×3 칸이 창을 덮는다.  x 축 하나로 창을 잡으면 세로선이 많은 장(AL NOUF1
-    해칭)에서 한 점이 수천 점과 비교돼 장당 42초, 파이썬 격자로도 획 글자(SHX)가 빽빽한
-    TC2 에서 장당 80초였다 (40회차 실측) — 칸 안 거리 계산은 numpy 로 한다."""
+def _unique_endpoints(pieces):
+    """끝점을 **유일점**으로 접는다 (41회차).
+
+    돌려주는 것: 유일점 좌표 U (K×2) · 끝점 → 유일점 번호 inv (2N) · 유일점을 가진 토막 수
+    owners (K) · 유일점의 한 주인(토막 번호, 주인이 하나일 때만 뜻이 있음) owner1 (K).
+    TC2 p2 실측 — 끝점 41,852 중 유일점 8,283(20%).  SHX 획은 꼭짓점을 공유하므로
+    같은 자리의 끝점이 수백 개다.  거리 0 은 어떤 허용치에서도 이웃이라 먼저 합쳐도 답은
+    같고, 쌍의 수가 22.8M → 640k 로 준다."""
     n = len(pieces)
     P = np.empty((2 * n, 2)); idx = np.empty(2 * n, dtype=np.int64)
     for i, (a, b, _r) in enumerate(pieces):
         P[2 * i] = a; P[2 * i + 1] = b; idx[2 * i] = i; idx[2 * i + 1] = i
-    cx = np.floor(P[:, 0] / cell).astype(np.int64); cy = np.floor(P[:, 1] / cell).astype(np.int64)
+    U, inv = np.unique(P, axis=0, return_inverse=True)
+    inv = inv.reshape(-1)
+    owners = np.bincount(inv, minlength=len(U))
+    owner1 = np.full(len(U), -1, dtype=np.int64); owner1[inv] = idx
+    return U, inv, owners, owner1
+
+
+def _cell_pairs(U, cell: float):
+    """유일점을 `cell` 칸 격자에 담고 이웃 3×3 칸 사이의 거리 행렬을 낸다.
+    yields (그 칸 점 번호, 이웃 점 번호, 거리 행렬).  창 크기를 칸 크기로 두면 이웃 3×3 칸이
+    창을 덮는다 — x 축 하나로 창을 잡으면 세로선이 많은 장에서 장당 42초였다 (40회차)."""
+    cx = np.floor(U[:, 0] / cell).astype(np.int64); cy = np.floor(U[:, 1] / cell).astype(np.int64)
     cells: dict = collections.defaultdict(list)
-    for k in range(2 * n):
+    for k in range(len(U)):
         cells[(int(cx[k]), int(cy[k]))].append(k)
     cells = {c: np.asarray(v) for c, v in cells.items()}
-    return P, idx, cells
-
-
-def _neighbour_pairs(P, idx, cells, cell: float):
-    """칸마다 (그 칸의 점, 이웃 3×3 칸의 점) 거리 행렬을 내고, 같은 토막끼리는 뺀다.
-    yields (그 칸 점 인덱스 배열, 이웃 점 인덱스 배열, 거리 행렬)"""
-    for (cx, cy), ks in cells.items():
-        nb = [cells[(cx + dx, cy + dy)] for dx in (-1, 0, 1) for dy in (-1, 0, 1)
-              if (cx + dx, cy + dy) in cells]
+    for (a, b), ks in cells.items():
+        nb = [cells[(a + dx, b + dy)] for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+              if (a + dx, b + dy) in cells]
         js = np.concatenate(nb)
-        D = np.sqrt(((P[ks][:, None, :] - P[js][None, :, :]) ** 2).sum(axis=2))
-        D[idx[ks][:, None] == idx[js][None, :]] = np.inf
+        D = np.sqrt(((U[ks][:, None, :] - U[js][None, :, :]) ** 2).sum(axis=2))
         yield ks, js, D
 
 
 def _endpoint_gap_mode(pieces) -> float:
     """토막 끝점에서 가장 가까운 *다른* 토막 끝점까지의 거리 중 **양수 최빈값** —
-    그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다."""
+    그 장의 파선 틈.  0 은 한 글자를 이루는 획들이 서로 맞닿은 것이라 뺀다.
+
+    유일점으로 센다 (41회차): 주인이 둘 이상인 유일점의 끝점은 다른 토막의 끝점이 거리 0 에
+    있으므로 최빈에 안 든다.  주인이 하나인 유일점은 자기 토막의 반대쪽 끝점(그 점도 주인이
+    하나일 때)만 빼고 가장 가까운 유일점을 잰다 — 옛 계산과 같은 값이다."""
     if not pieces:
         return 0.0
     W = 6.0
-    P, idx, cells = _endpoint_cells(pieces, W)
+    U, inv, owners, owner1 = _unique_endpoints(pieces)
+    # 토막 i 의 두 끝점 유일점 번호
+    e0, e1 = inv[0::2], inv[1::2]
+    # 주인이 하나인 유일점 u 에 대해 "빼야 할 상대 점" (자기 토막의 반대쪽 끝점, 그것도 주인 하나일 때)
+    mate = np.full(len(U), -1, dtype=np.int64)
+    single = owners == 1
+    for u_arr, v_arr in ((e0, e1), (e1, e0)):
+        sel = single[u_arr] & single[v_arr]
+        mate[u_arr[sel]] = v_arr[sel]
     hist: collections.Counter = collections.Counter()
-    for _ks, _js, D in _neighbour_pairs(P, idx, cells, W):
+    for ks, js, D in _cell_pairs(U, W):
+        D = D.copy()
+        D[ks[:, None] == js[None, :]] = np.inf                 # 자기 자신
+        m = mate[ks]
+        D[(m[:, None] >= 0) & (m[:, None] == js[None, :])] = np.inf   # 자기 토막의 반대쪽 끝점
         best = D.min(axis=1)
-        best = best[(best < W) & (best > 0.3)]
-        for v in best.tolist():
+        keep = single[ks] & (best < W) & (best > 0.3)
+        for v in best[keep].tolist():
             hist[round(v, 1)] += 1
     return hist.most_common(1)[0][0] if hist else 0.0
+
+
+def _link_pieces(pieces, tol: float):
+    """토막을 잇는다 — 어느 끝점이든 `tol` 안이면 같은 성분.  유일점 라벨 전파(최솟값 +
+    pointer jumping) 로 하고, 토막은 자기 두 끝점을 잇는다.  성분 번호 → 토막 번호 목록."""
+    U, inv, _owners, _o1 = _unique_endpoints(pieces)
+    I, J = [], []
+    for ks, js, D in _cell_pairs(U, tol):
+        a_, b_ = np.nonzero(D <= tol)
+        I.append(ks[a_]); J.append(js[b_])
+    I = np.concatenate(I) if I else np.empty(0, dtype=np.int64)
+    J = np.concatenate(J) if J else np.empty(0, dtype=np.int64)
+    e0, e1 = inv[0::2], inv[1::2]
+    I = np.concatenate([I, e0]); J = np.concatenate([J, e1])     # 토막 자신이 잇는 변
+    lab = np.arange(len(U))
+    while True:
+        old = lab
+        m = np.minimum(lab[I], lab[J])
+        lab = lab.copy(); np.minimum.at(lab, I, m); np.minimum.at(lab, J, m)
+        lab = lab[lab]
+        if np.array_equal(old, lab):
+            break
+    comp: dict[int, list] = collections.defaultdict(list)
+    for i, l in enumerate(lab[e0].tolist()):
+        comp[l].append(i)
+    return comp
 
 
 def dashed_bubble_outlines(pc, solid: list) -> list:
@@ -534,25 +583,7 @@ def dashed_bubble_outlines(pc, solid: list) -> list:
     if gap <= 0:
         return []
     tol = gap * 1.5
-    n = len(pieces)
-    parent = list(range(n))
-
-    def find(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    P, idx, cells = _endpoint_cells(pieces, tol)
-    for ks, js, D in _neighbour_pairs(P, idx, cells, tol):
-        a_, b_ = np.nonzero(D <= tol)
-        for i, j in zip(idx[ks[a_]].tolist(), idx[js[b_]].tolist()):
-            ri, rj = find(i), find(j)
-            if ri != rj:
-                parent[rj] = ri
-    comp: dict[int, list] = collections.defaultdict(list)
-    for i in range(n):
-        comp[find(i)].append(i)
+    comp = _link_pieces(pieces, tol)
     slack = 2 * gap
     out = []
     for idxs in comp.values():

@@ -163,7 +163,7 @@ def _circle_of(shapes):
     return best
 
 
-def _straight_items(d, stroke_only: bool = False):
+def _straight_items(d, stroke_only: bool = False, m=None):
     """Straight segments of a path, as ((x0,y0),(x1,y1)).
 
     `stroke_only` keeps just single-segment unfilled paths.  A filled disc is
@@ -171,13 +171,26 @@ def _straight_items(d, stroke_only: bool = False):
     `l` items, and without this filter those slivers swamp the two vane ticks
     they surround - the legend's BUTTERFLY row yields 36 candidate "ticks"
     instead of 2.
+
+    ★ `m` 은 그 쪽의 `rotation_matrix` 다 (41회차).  `d["items"]` 의 점은 **회전
+    전** 좌표이고 `d["bbox"]` 와 낱말은 표시 좌표라, 270° 로 회전된 문서
+    (SADARA · TC2 · UAD)에서는 원 중심(표시 좌표)과 획(회전 전 좌표)이 서로
+    다른 자리에 있었다 — 그래서 끝막대를 못 찾고 멀리 있는 표 괘선을 잡아
+    `bar_reach_radii` 가 87 · 84 · 116 (AL NOUF1 2.8) 이 됐고, 그 값이
+    `_find_discs_between_bars` 의 거리 조건을 사실상 꺼서 유령 원형 몸체
+    TC2 534 · UAD 228 · SADARA 8 을 만들었다.  회전 0 문서는 항등 행렬이라
+    한 점도 안 움직인다.
     """
     if stroke_only and (d.get("fill") is not None or len(d["items"]) != 1):
         return []
     out = []
     for it in d["items"]:
         if it[0] == "l":
-            out.append((it[1], it[2]))
+            if m is not None:
+                a, b = pymupdf.Point(it[1]) * m, pymupdf.Point(it[2]) * m
+                out.append(((a.x, a.y), (b.x, b.y)))
+            else:
+                out.append((it[1], it[2]))
     return out
 
 
@@ -293,11 +306,14 @@ def derive_butterfly(pages, cfg) -> Derived:
                          "no disc found on the BUTTERFLY row")
     cx, cy = (circle.x0 + circle.x1) / 2, (circle.y0 + circle.y1) / 2
     radius = max(circle.width, circle.height) / 2
+    m = pc.page.rotation_matrix            # 획을 표시 좌표로 (41회차)
 
     # Ticks: short slanted strokes whose midpoint sits just off the rim.
+    # ★ 행 띠에 이웃 심볼의 사선이 섞일 수 있으므로(UAD 범례는 띠 안에 도형
+    # 96개) 테두리에 **가장 가까운 둘**만 그 심볼의 틱으로 본다.
     ticks = []
     for d in shapes:
-        for p0, p1 in _straight_items(d, stroke_only=True):
+        for p0, p1 in _straight_items(d, stroke_only=True, m=m):
             dx, dy = abs(p1[0] - p0[0]), abs(p1[1] - p0[1])
             if dx < 0.3 or dy < 0.3:
                 continue                       # axial: an end bar, not a tick
@@ -309,16 +325,30 @@ def derive_butterfly(pages, cfg) -> Derived:
     if len(ticks) < 2:
         return _fallback(cfg, "butterfly",
                          f"BUTTERFLY row has {len(ticks)} vane ticks, expected 2")
+    ticks = sorted(ticks, key=lambda t: abs(t[1] - radius))[:2]
 
-    # End bars: axial runs standing off the circle on both sides.
-    bars = []
+    # End bars: axial runs standing off the circle on both sides.  ★ 심볼의
+    # 끝막대는 원 **밖**에 · 원의 높이 **안**에 서고, 양쪽에서 **가장 가까운**
+    # 것이다 (`_find_discs_between_bars` 의 `_nearest_bars` 와 같은 뜻).  `max`
+    # 로 잡으면 같은 띠의 표 괘선이 끝막대가 된다.
+    sides: dict = {"L": [], "R": [], "U": [], "D": []}
     for d in shapes:
-        for p0, p1 in _straight_items(d, stroke_only=True):
+        for p0, p1 in _straight_items(d, stroke_only=True, m=m):
             dx, dy = abs(p1[0] - p0[0]), abs(p1[1] - p0[1])
+            mx, my = (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2
             if dx < 0.3 and dy > radius:
-                bars.append(abs((p0[0] + p1[0]) / 2 - cx))
-            elif dy < 0.3 and dx > radius and abs((p0[1] + p1[1]) / 2 - cy) > radius:
-                bars.append(abs((p0[1] + p1[1]) / 2 - cy))
+                off = mx - cx
+                if abs(off) > radius and abs(my - cy) <= radius:
+                    sides["R" if off > 0 else "L"].append(abs(off))
+            elif dy < 0.3 and dx > radius:
+                off = my - cy
+                if abs(off) > radius and abs(mx - cx) <= radius:
+                    sides["D" if off > 0 else "U"].append(abs(off))
+    bars = []
+    for a, b in (("L", "R"), ("U", "D")):
+        if sides[a] and sides[b]:
+            bars = [min(sides[a]), min(sides[b])]
+            break
     if len(bars) < 2:
         return _fallback(cfg, "butterfly",
                          f"BUTTERFLY row has {len(bars)} end bars, expected 2")
@@ -332,10 +362,13 @@ def derive_butterfly(pages, cfg) -> Derived:
         if ball_circle is not None:
             bcx = (ball_circle.x0 + ball_circle.x1) / 2
             brad = max(ball_circle.width, ball_circle.height) / 2
+            bcy = (ball_circle.y0 + ball_circle.y1) / 2
             ball_bars = [abs((p0[0] + p1[0]) / 2 - bcx)
                          for d in ball_shapes
-                         for p0, p1 in _straight_items(d, stroke_only=True)
-                         if abs(p1[0] - p0[0]) < 0.3 and abs(p1[1] - p0[1]) > brad]
+                         for p0, p1 in _straight_items(d, stroke_only=True, m=m)
+                         if abs(p1[0] - p0[0]) < 0.3 and abs(p1[1] - p0[1]) > brad
+                         and abs((p0[0] + p1[0]) / 2 - bcx) > brad        # 원 밖
+                         and abs((p0[1] + p1[1]) / 2 - bcy) <= brad]      # 원 높이 안
             if ball_bars:
                 ball_ratio = min(ball_bars) / brad
 
@@ -386,8 +419,9 @@ def derive_actuator_stem(pages, cfg) -> Derived:
                 enclosures.append(b)
 
     verticals = []
+    m = pc.page.rotation_matrix            # 획을 표시 좌표로 (41회차)
     for d in pc.drawings():
-        for p0, p1 in _straight_items(d):
+        for p0, p1 in _straight_items(d, m=m):
             if abs(p1[0] - p0[0]) < 0.2 and abs(p1[1] - p0[1]) > 1.0:
                 verticals.append((p0[0], min(p0[1], p1[1]), max(p0[1], p1[1])))
 

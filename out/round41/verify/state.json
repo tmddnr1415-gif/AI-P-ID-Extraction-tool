@@ -1,0 +1,34 @@
+{
+ "real_db_sha_start": "643748dc0efe16816cb1b723941cb0fc6af1de9e183c15eab6d5dba726ecd40a",
+ "git_wt": "aac64ba",
+ "s2": {
+  "job": "0f7cde48ec7a",
+  "status": "done",
+  "rows": 824,
+  "sec": 335.3,
+  "peak_G": 5.08,
+  "scope_values": [
+   ""
+  ],
+  "edit_keys": [
+   "0496c0be022bd8d2",
+   "0e96b25afd3ef9aa",
+   "0f51c8b8fb6d6dea",
+   "1d9e879dd5342fe2",
+   "311eac50402e48c3"
+  ]
+ },
+ "s3": {
+  "edited": 5,
+  "qty9_now": 5
+ },
+ "s4": {
+  "backup": "/home/user/AI-P-ID-Extraction-tool/out/round41/verify/db_backup",
+  "files": [
+   "app.db",
+   "app.db-shm",
+   "app.db-wal",
+   "uploads"
+  ]
+ }
+}
