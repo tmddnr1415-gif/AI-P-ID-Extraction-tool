@@ -88,3 +88,26 @@ def test_gap_is_read_from_the_page_not_a_constant(page_with_both):
     pieces = ds._dash_pieces(page_with_both, 11.4)
     gap = ds._endpoint_gap_mode(pieces)
     assert 1.5 <= gap <= 2.2      # 합성 파선의 틈 1.8 — 페이지에서 읽힌다
+
+
+def test_rotated_page_puts_dashed_bubbles_where_the_words_are(tmp_path):
+    """★ 40회차 결함 — 파선 토막을 `d["rect"]`(회전 전)로 읽으면 270° 장(UAD)에서
+    사각형이 낱말과 다른 자리에 서서 검출이 0 이 된다.  회전 장에서도 파선 윤곽이
+    회전 0 장과 같은 **표시 좌표**에 서야 한다."""
+    doc = pymupdf.open(); page = doc.new_page(width=600, height=400)
+    for i in range(3):
+        _solid_stadium(page, 60 + i * 60, 60, 34, 11)
+    _stadium_dashes(page, 300, 200, 34, 11)
+    page.set_rotation(270)
+    path = tmp_path / "rot.pdf"; doc.save(path); doc.close()
+    from app.engine import pidcache
+    _d, pages = pidcache.load_pages(str(path))
+    pc = pages[0]
+    solid = ds.bubble_outlines(pc)
+    dashed = ds.dashed_bubble_outlines(pc, solid)
+    assert len(dashed) == 1
+    # 표시 좌표에서의 자리: 회전 270° 는 (x, y) → (y, W - x) 꼴이므로 스타디움이 세로가 된다
+    r = dashed[0].rect
+    assert dashed[0].axis == "V" and abs(r.height - 34) < 3 and abs(r.width - 11) < 3
+    exp = pymupdf.Rect(300, 200, 334, 211) * pc.page.rotation_matrix
+    assert abs(r.x0 - exp.x0) < 3 and abs(r.y0 - exp.y0) < 3
