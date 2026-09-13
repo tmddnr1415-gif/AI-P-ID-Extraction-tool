@@ -40,3 +40,16 @@
 - 06:14 [H] **UAD 149 · `db1a77d1` → `eb1ee3ee` · Q'ty 149 · 축3 83.1 · 417초 · 3.2G**.  전수 대조: 움직인 칸 `vendor_supply` 5 · `scope` 2 — **p23 PDIT 00GKB21/23CP001 `VENDOR(PUMP SUPPLIER)` → `SCT`** ([F] 예측 그대로 · 도면과 맞다) · p19 PDIT 00GHB22CP001 · PI 00GHB22CP501 · PI 00GHB32CP501 은 `vendor_supply` VENDOR → 빈칸(SCOPE 는 SCT 그대로 — 30회차 렌더가 "p19 는 별표가 아예 없다" 고 적어 둔 장).  SCOPE 집계 SCT 92→94 · VENDOR(PUMP SUPPLIER) 25→23 · VENDOR 30 · TANK 2.  검토 사유 분포 불변 · Typical 0.
 - 06:16 [H] **SADARA 82 · `0767ba79` · 75.4 — 같다.**  네 프로젝트 [H] 끝 (사슬 `ALL`).  움직인 것은 TC2([D] 예측대로)와 UAD([F] 예측대로)뿐이고 AL NOUF1·SADARA 는 시작·끝 같다.
 - 06:18 `spike/regression_3p.py --reuse` 로 새 기준선(TC2 `2ce3e724`/3991 · UAD `eb1ee3ee`) 확인 — "기준선과 같습니다".  [I] 문서: `0_요약` · `1_보고서` · `7_scope` §5 · `3_mode` 게이트 행 · `docs/state_and_roadmap.md`(§2 · §5 · §8 7~10) · `CLAUDE.md` 38회차 · zip.  slow 16 은 안 돌렸다 (46분 · 20분 상한).  회사 PC 꾸러미는 만들지 않았다.
+- 06:24 **보정 프롬프트 수신 — [D] 를 글자가 아니라 구조로.**  실측: TC2 상세 상자는 섬이다(p6·p8·p9 넘는 선 0 · p7 의 1~2 는 자기 변) · **p11 `D` 의 현행 상자는 선 기반 후보가 잘못 뽑힌 것**(배관 13개 가로지름 · 진짜 상자는 옆 사변형 `[732,670,964,816]`) · `find_package_boxes` 는 TC2 p6~p11 에서 상세 상자 0개(체인 파선만) · 글자 정규식 없이도 그 다섯 장의 한-낱말 원은 전부 같다(other 0).
+- 06:35 구현: 정규식 삭제 · 섬 조건(`is_island`) · `unpaired` 기록 · 근거 문구 `( D1 ) 상세 한 벌 × 본문 표식 3개`.  게이트 시험 5 (소스 글자 0 · 목록·config 없음 · 섬 · 짝 없음 기록 · **합성 PDF 글자 D1/T1/TYP-A/1/A → 전부 배수 3 · 같은 상자**).  TC2 p6~p11 참조 불변 · p11 `D` 상자만 사변형으로.  빠른 시험 **302**.  커밋 뒤 [H2] AL NOUF1 시작 (상한 30분).
+- 06:38 [H2] **AL NOUF1 1037 · `fb85b039` · 1931 · 축3 95.1 · 723초 — 보정 뒤에도 기준선과 같다.**  사슬이 TC2 → UAD → SADARA 로 이어진다.
+- 06:48 [H2] **TC2 684 · `2ce3e724` · 3991 · 90.4 — 보정 전 [H] 와 같다** (p11 `D` 상자만 섬 조건으로 사변형이 됐고 그 안에 행이 0 이라 Q'ty 불변).  UAD 시작.
+- 06:55 [H2] **UAD 149 · `eb1ee3ee` · 149 · 83.1 — 보정 전 [H] 와 같다.**  SADARA 시작.
+- 06:56 [H2] **SADARA 82 · `0767ba79` — 같다.**  보정 뒤 네 프로젝트 전부 [H] 와 같은 값 (`H2_*.json`).
+- 06:58 짝 없음 기록을 상자 없는 장까지 넓혔다 (판정 불변 · `result["typical"].unpaired` 기록만 · 시험 302).  커밋 뒤 [H3] 네 프로젝트를 한 번 더 (AL NOUF1 → TC2 → UAD → SADARA).
+- 07:02 네 프로젝트 전수 짝 표(`out/round38_typical.md` §7): 짝 TC2 7 · 상자 없는 글자 원 **SADARA `D` 34**(p6~p9) · 모터 `M` 네 문서 · AL NOUF1 p51 `A`·`B`.  보고서·요약·CLAUDE.md·roadmap 갱신 (질문 9 추가).
+- 07:02 네 프로젝트 전수 짝 표(`out/round38_typical.md` §7): 짝 TC2 7 · 상자 없는 글자 원 **SADARA `D` 34**(p6~p9) · 모터 `M` 네 문서 · AL NOUF1 p51 `A`·`B`.  보고서·요약·CLAUDE.md·roadmap 갱신 (질문 9 추가).
+- 07:02 네 프로젝트 전수 짝 표(`out/round38_typical.md` §7): 짝 TC2 7 · 상자 없는 글자 원 **SADARA `D` 34**(p6~p9) · 모터 `M` 네 문서 · AL NOUF1 p51 `A`·`B`.  보고서·요약·CLAUDE.md·roadmap 갱신 (질문 9 추가).
+- 07:09 [H3] **AL NOUF1 1037 · `fb85b039` · 1931 · 95.1 · 708초 — 같다.**  사슬 TC2 → UAD → SADARA.
+- 07:18 [H3] **TC2 684 · `2ce3e724` · 3991 — 같다.**  UAD 시작.
+- 07:26 [H3] **UAD 149 · `eb1ee3ee` · SADARA 82 · `0767ba79` — 같다.**  보정 뒤 두 회귀(H2·H3) 모두 네 프로젝트가 보정 전 [H] 와 같다.  H2/H3 전수 짝 표 동일.  [I] zip 재생성 · 커밋 · 푸시.

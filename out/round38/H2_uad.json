@@ -1,50 +1,49 @@
 {
   "projects": [
     {
-      "name": "SADARA",
-      "rows": 82,
-      "fingerprint": "0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1",
-      "qty_sum": 0,
+      "name": "UAD",
+      "rows": 149,
+      "fingerprint": "eb1ee3ee19b976f7f70df8b495880bbf558159d61f87cd2193a43897258de942",
+      "qty_sum": 149,
       "tabs": {
-        "FIELD": 62,
-        "MOV": 14,
-        "REVIEW": 6
+        "FIELD": 146,
+        "PNEUMATIC": 3
       },
-      "seconds": 80.2,
-      "max_rss_gb": 0.94,
+      "seconds": 411.4,
+      "max_rss_gb": 3.18,
       "identification": {
         "도면번호": [
-          9,
-          9,
+          21,
+          22,
           ""
         ],
         "개정": [
-          9,
-          9,
+          23,
+          32,
           ""
         ],
         "태그→행": [
-          33,
-          33,
+          37,
+          50,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          0,
-          82,
+          149,
+          149,
           ""
         ],
         "심볼판정": [
-          82,
-          126,
+          149,
+          211,
           ""
         ],
         "파라미터": [
-          28,
-          32,
+          26,
+          30,
           ""
         ]
       },
-      "score": 75.4
+      "score": 83.1
     }
   ],
   "metrics": [

@@ -1733,7 +1733,7 @@ AL NOUF1·SADARA·UAD 지문 불변 (축3 분모만 하나씩 는다 — 30회�
 **그 다음 회차 — 입찰/실행 모드 · 다중 양식 · Typical 참조 (38회차)**
 
 `out/round38_result.zip` (0_요약 · 1_보고서 · 2_progress · 3_mode · 4_uad_forms · 5_typical · 6_tc2_missing · 7_scope · 8_nouf1 · 9_regression.json · 10_캡처).
-**AL NOUF1 `fb85b039` · 1037 · 1931 · 축3 95.1 불변 · SADARA 불변.  TC2 만 [D] 로 `8a478417` → `2ce3e724` (Q'ty 3783 → **3991** · `qty` 10칸 · SCOPE 0) · UAD 만 [F] 로 `db1a77d1` → `eb1ee3ee` (p23 PDIT 2행 → SCT · 행·Q'ty 그대로).**  시험 283 → **297**.
+**AL NOUF1 `fb85b039` · 1037 · 1931 · 축3 95.1 불변 · SADARA 불변.  TC2 만 [D] 로 `8a478417` → `2ce3e724` (Q'ty 3783 → **3991** · `qty` 10칸 · SCOPE 0) · UAD 만 [F] 로 `db1a77d1` → `eb1ee3ee` (p23 PDIT 2행 → SCT · 행·Q'ty 그대로).**  시험 283 → **302**.
 
 1. **[B] 선언은 실측을 덮되 조용하지 않다.**  `tags.assign`(29회차)이 이미 "이 도면이 1급인가" 를 재고 있었고(문서 단위), 없던 것은
    **선언 자리**였다 — 프로젝트 장부 `mode{value,author,set_at}` · 첫 화면 라디오(자동/입찰/실행) · `PATCH /projects/{name}/mode`.
@@ -1752,6 +1752,12 @@ AL NOUF1·SADARA·UAD 지문 불변 (축3 분모만 하나씩 는다 — 30회�
    ★ **스스로 뒤집은 것 셋** — `:` 캡션(p8 놓침) · 가로선 상자(사변형 못 잡음) · **첫 [H] 가 AL NOUF1 을 `da28465e`·Q'ty +8 로 옮겼다**
    (모터 `M` 원 Ø14.2 < 버블 22.6 · 오른쪽 `LO VS` 가 캡션).  "양쪽에서 들어오는 선" 으로 고치니 TC2 참조가 0 — TC2 라인 표식은 **리더
    하나**가 닿고 모터 `M` 과 모양이 같다.  가르는 것은 모양이 아니라 **캡션 짝**이다.  Typical × 유닛 승수 합성은 **사용자 질문 2**.
+   ★ **보정 프롬프트(글자가 아니라 구조로)** — 첫 구현의 원 안 낱말 정규식 `^[A-Z][A-Z0-9]{0,2}$` 는 TC2 의 `D`·`D1` 에 맞춘 값이라
+   **지웠다**.  표식 목록은 장마다 그 장의 캡션에서 만들고(전역·config 없음), 상자는 캡션을 담는 후보 중 **독립 섬**(안에서 밖으로
+   나가는 선분 0) 중 최소 — TC2 p11 `D` 의 선 기반 후보는 배관 13개에 가로질려 섬이 아니었다.  16회차 PACKAGE_BOX 는 체인 파선만
+   잡아 재사용 못 한다(TC2 p6~p11 에서 0개).  게이트 시험: 소스 문자열 상수에 `D`·`D1`·`T1`·`TYP*`·`TYPICAL` 0(AST) · 모듈 목록 0 ·
+   합성 PDF 글자 `D1/T1/TYP-A/1/A` 전부 배수 3.  네 프로젝트 전수 짝: TC2 7 · **SADARA `D` 원 34개는 상자가 없어 Typical 아님**
+   (글자로 판정했다면 틀렸을 사례 · 질문 9).  보정 뒤 회귀 넷 다 보정 전과 같다.
 4. **[E] TC2 MOV 0행의 원인은 하나 — `ValveLayout.act_box=(9.0,34.0)` 절대 pt** (`6_tc2_missing.md` · 코드 0줄).  TC2 `M` 원 Ø7.08 이 하한
    9 아래이고, 그 하한은 AL NOUF1 이 글로브 허리 원반(7.1)을 **빼려고** 둔 값이다.  범례 `actuator_stem` 이 `CONFIG_FALLBACK` 이라
    잴 수 있는 것(원 지름)을 잴 수 없는 것(스템)과 함께 버린다.  다음 회차: 원 지름을 범례에서 따로 재고 창을 비율로 (질문 8).
@@ -1911,7 +1917,7 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 **테스트**
 
 ```bash
-pytest -q -m "not slow and not ui"    # 297건, 13초
+pytest -q -m "not slow and not ui"    # 302건, 15초
 pytest -q -m ui                       # 24건 (playwright + chromium 필요 · **SCOPE 있는 데이터**에서만 뜻이 있습니다 — `PID_UI_DB` 로 가리키고, 없으면 `spike/build_ui_db.py` 로 세웁니다)
 pytest -q -m slow                     # 16건 · 전 문서 분석 포함, **46분** (25회차 잉크 인덱스로 23분 → 46분 · `timeout 2400` 이면 13/14 에서 잘린다)
 ```
