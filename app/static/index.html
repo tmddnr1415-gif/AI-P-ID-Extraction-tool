@@ -46,6 +46,17 @@
           <select id="rev-base"></select>
         </div>
         <p id="rev-note" class="muted small"></p>
+        <!-- 38회차 — 입찰 / 실행.  §10 증거 등급을 사람이 미리 말하는 자리.
+             안 고르면 도면 실측이 정하고 그 사실을 결과 화면이 적는다. -->
+        <div id="mode-field" class="field mode-field">
+          <label>도면 종류</label>
+          <span class="mode-pick" role="radiogroup" aria-label="도면 종류">
+            <label><input type="radio" name="mode" value="" checked> 자동</label>
+            <label><input type="radio" name="mode" value="bid"> 입찰</label>
+            <label><input type="radio" name="mode" value="epc"> 실행</label>
+          </span>
+        </div>
+        <p id="mode-note" class="muted small">자동 — 태그가 인쇄된 장이 있으면 실행, 없으면 입찰로 읽고 그렇게 적습니다.</p>
         <!-- 선택 결과 한 줄.  고르고 나서도 늘 보인다. -->
         <p id="proj-msg" class="summary"></p>
         <!-- 잰 값이다.  58장 19MB 문서가 서버에서 5분 10초였고 그중 3분 5초가
@@ -191,6 +202,7 @@
        머리 바로 아래에 적는다.  "조용히 옛 규칙으로 분석했다" 가 이 회차에서
        가장 위험한 실패 방식이고, 그것은 화면에 자리가 없으면 반드시 일어난다. -->
   <div id="legend-bar" class="legend-bar hidden"></div>
+  <div id="mode-bar" class="legend-bar mode-bar hidden"></div>
 
   <div id="split">
     <section id="left">

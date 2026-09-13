@@ -129,6 +129,8 @@ async function upload(file) {
   if (S.project) {
     fd.append("project", S.project);
     fd.append("compared_with", $("#rev-base").value || "");
+  } else if (S.mode) {
+    fd.append("mode", S.mode);              // 프로젝트 없는 분석의 선언
   }
   const r = await fetch("/jobs", { method: "POST", body: fd });
   if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
@@ -156,6 +158,37 @@ async function loadProjects(select) {
   pick.value = select != null ? select : "__unset__";
   chooseProject(pick.value);
 }
+
+/* 38회차 — 입찰 / 실행 선언.  프로젝트가 있으면 장부에 저장(작성자 함께)하고
+ * 없으면 이번 업로드에만 실린다.  방법은 하나(1급 경로 켜고 끄기)라 화면도
+ * 라디오 하나다.  "자동" 은 선언을 비우는 것이지 세 번째 방법이 아니다. */
+const MODE_WORD = { "": "자동", bid: "입찰", epc: "실행" };
+const MODE_NOTE = {
+  "": "자동 — 태그가 인쇄된 장이 있으면 실행, 없으면 입찰로 읽고 그렇게 적습니다.",
+  bid: "입찰 — 태그가 인쇄되지 않은 도면. 범례·NOTES·기하로 식별합니다 (태그가 보이면 결과 화면이 말합니다).",
+  epc: "실행 — 태그가 인쇄된 도면. 태그로 귀속하고 범례·NOTES 도 함께 씁니다 (SCOPE·수량은 여전히 별표·NOTES).",
+};
+function modeRadio() { return document.querySelector('input[name="mode"]:checked'); }
+function showMode(v) {
+  const r = document.querySelector(`input[name="mode"][value="${v || ""}"]`);
+  if (r) r.checked = true;
+  $("#mode-note").textContent = MODE_NOTE[v || ""];
+}
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", async () => {
+  const v = modeRadio().value;
+  S.mode = v;
+  $("#mode-note").textContent = MODE_NOTE[v];
+  const p = S.projects && S.projects.find(x => x.name === S.project);
+  if (!p) return;                            // 프로젝트 없으면 업로드에만 실린다
+  const author = await askAuthor(`${p.name} 도면 종류 → ${MODE_WORD[v]}`);
+  if (author === null) { showMode(p.mode && p.mode.value || ""); S.mode = p.mode && p.mode.value || ""; return; }
+  const fd = new FormData(); fd.append("mode", v); fd.append("author", author || "");
+  const res = await fetch(`/projects/${encodeURIComponent(p.name)}/mode`, { method: "PATCH", body: fd });
+  if (!res.ok) { $("#mode-note").textContent = "저장하지 못했습니다."; return; }
+  const meta = await res.json();
+  p.mode = meta.mode || null;
+  $("#mode-note").textContent = MODE_NOTE[v] + (v ? ` 저장됨 — 다음 분석부터 적용` : " 선언을 지웠습니다 — 다음 분석부터 자동");
+}));
 
 function nextRev(p) {
   const n = (p.revisions || []).length;
@@ -197,6 +230,9 @@ function chooseProject(name) {
     : revs.length === 1
       ? "비교 대상은 Rev.A 하나뿐이라 바꿀 수 없습니다"
       : "기본값은 직전 리비전이고, 그 이전 것으로 바꿀 수 있습니다";
+  // 이 프로젝트의 선언을 라디오에 보인다 — 개정본은 같은 값을 승계한다.
+  S.mode = (p.mode && p.mode.value) || "";
+  showMode(S.mode);
   setSetupDone(true);
   revSummary(p, next);
 }
@@ -945,6 +981,7 @@ async function open(jobId) {
   $("#job-meta").textContent = meta.join(" · ");
   S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
   await loadLegendProfile();
+  await loadModeBar();
   await loadRevision();
   await loadRows();
   buildPageSelect();
@@ -960,6 +997,38 @@ async function open(jobId) {
  * 일은 서버가 준 문장을 놓는 것과, 달라진 항목이 있을 때 **고르게 하는**
  * 것뿐이다 — 자동으로 갱신하지 않는다.
  */
+/* 38회차 — 이 분석이 어느 모드로 돌았나.  서버(`_mode_facts`)가 쓴 문장을
+ * 놓기만 한다.  선언과 실측이 다르면 그 띠가 붉고 바꾸는 버튼이 붙는다 —
+ * 바꿔도 이번 결과는 그대로이고 다음 분석부터다 (15·31회차 규율). */
+async function loadModeBar() {
+  const bar = $("#mode-bar");
+  if (!bar) return;
+  let f = null;
+  try { f = await (await fetch(`/jobs/${S.job.id}/mode`)).json(); } catch (e) { f = null; }
+  if (!f || !f.recorded) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+  const tag = f.effective === "epc" ? "실행 · 1급+2급" : "입찰 · 2급";
+  let html = `<div class="lb-main"><span class="lb-tag ${f.conflict ? "conflict" : f.effective}">${tag}</span>`
+    + `<span class="lb-line">${escape(f.line || "")}</span>`;
+  if (f.conflict && f.project) {
+    const to = f.conflict === "declared_bid_tags_found" ? "epc" : "bid";
+    html += `<button type="button" class="ghost small" id="mode-switch" data-to="${to}">`
+      + `프로젝트 모드를 실측대로(${MODE_WORD[to]}) 바꾸기 — 다음 분석부터</button>`;
+  }
+  html += `</div>`;
+  bar.innerHTML = html;
+  bar.classList.remove("hidden");
+  bar.classList.toggle("changed", !!f.conflict);
+  const b = $("#mode-switch");
+  if (b) b.addEventListener("click", async () => {
+    const author = await askAuthor(`${f.project} 도면 종류 → ${MODE_WORD[b.dataset.to]}`);
+    if (author === null) return;
+    const fd = new FormData(); fd.append("mode", b.dataset.to); fd.append("author", author || "");
+    const res = await fetch(`/projects/${encodeURIComponent(f.project)}/mode`, { method: "PATCH", body: fd });
+    b.textContent = res.ok ? `바꿨습니다 — 다음 분석부터 ${MODE_WORD[b.dataset.to]}` : "바꾸지 못했습니다";
+    b.disabled = true;
+  });
+}
+
 async function loadLegendProfile() {
   const bar = $("#legend-bar");
   if (!bar) return;

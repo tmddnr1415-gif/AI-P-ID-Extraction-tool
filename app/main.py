@@ -281,7 +281,8 @@ def _worker() -> None:
                                       reference=VERIFY_AGAINST,
                                       legend_profile=profile,
                                       unit_multipliers=_user_multipliers(
-                                          row["project"]))
+                                          row["project"]),
+                                      declared_mode=_declared_mode(row))
             result["fingerprint"] = pipeline.fingerprint(result)
             # 새 프로젝트면 이번에 읽은 범례를 그 프로젝트 것으로 남긴다.
             # 이미 프로필이 있으면 **덮지 않는다** - 범례가 달라졌다면 그것은
@@ -394,7 +395,7 @@ threading.Thread(target=_worker, daemon=True).start()
 
 @app.post("/jobs")
 async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
-                     compared_with: str = Form("")):
+                     compared_with: str = Form(""), mode: str = Form("")):
     """PDF 하나를 받는다.  `project` 가 오면 그 프로젝트의 다음 리비전이 된다.
 
     프로젝트 없이 올려도 예전과 똑같이 동작한다 - 리비전은 기존 흐름 위에
@@ -426,6 +427,11 @@ async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
     db.set_page_count(CON, job_id, pages)
     if project:
         db.set_job_revision(CON, job_id, project, revision, compared_with)
+    elif mode:
+        # 프로젝트 없이 올린 분석의 선언.  프로젝트가 있으면 장부의 선언을 쓴다.
+        if mode not in revisions.MODES:
+            raise HTTPException(400, f"mode 는 {revisions.MODES} 중 하나입니다")
+        db.set_job_mode(CON, job_id, mode)
     _JOBS.put(job_id)
     return {"job_id": job_id, "pdf_name": Path(pdf.filename).name, "sha256": sha,
             "project": project, "revision": revision,
@@ -730,6 +736,33 @@ def _project_public(meta: dict, *, deep: bool = False) -> dict:
     return out
 
 
+@app.patch("/projects/{name}/mode")
+def set_project_mode(name: str, mode: str = Form(""), author: str = Form("")):
+    """입찰/실행 선언.  작성자와 시각을 함께 적는다 (13회차 자기신고).
+
+    적용은 **다음 분석부터**다 — 이미 돈 분석은 그대로다.  빈 `mode` 는
+    선언을 지운다(자동 판정).
+    """
+    try:
+        meta = revisions.set_mode(DATA_DIR, name, mode, author)
+    except KeyError:
+        raise HTTPException(404, f"프로젝트 '{name}' 가 없습니다")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return _project_public(meta)
+
+
+@app.get("/jobs/{job_id}/mode")
+def job_mode(job_id: str):
+    """이 분석이 어느 모드로 돌았나 (선언 · 실측 · 불일치)."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    out = _mode_facts(job)
+    out["project"] = job["project"]
+    return out
+
+
 @app.get("/projects/{name}")
 def get_project(name: str):
     try:
@@ -872,6 +905,56 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
 # --------------------------------------------------------------------------
 # 유닛 승수 — 도면이 말하지 않을 때 **사람이 한 번 답하는 자리** (31회차)
 # --------------------------------------------------------------------------
+def _declared_mode(row) -> str:
+    """이 분석의 입찰/실행 선언 — 프로젝트 장부가 먼저, 없으면 job 의 칸.
+
+    둘 다 비면 `""` 이고, 그러면 파이프라인이 도면 실측으로 정한다 (선언을
+    강제하지 않는다 — 지금까지 쓰던 사람이 막히면 안 된다).
+    """
+    project = row["project"] if row else ""
+    if project:
+        try:
+            return revisions.declared_mode(revisions.load_project(DATA_DIR, project))
+        except (KeyError, ValueError):
+            return ""
+    try:
+        return str(row["mode"] or "")
+    except (KeyError, IndexError):
+        return ""
+
+
+def _mode_facts(job) -> dict:
+    """이 분석이 어느 모드로 돌았나 — **화면에서 이 판정을 하는 곳은 여기 하나.**"""
+    engine = json.loads(job["engine_json"] or "{}") if job else {}
+    t = engine.get("evidence_tier") or {}
+    declared = t.get("declared") if "declared" in t else _declared_mode(job)
+    measured = t.get("measured") or ("epc" if t.get("tier") == 1 else "bid" if t else "")
+    effective = t.get("effective") or declared or measured
+    conflict = t.get("conflict") or ""
+    pages = t.get("pages_tagged") or []
+    words = {"bid": "입찰", "epc": "실행", "": "기록 없음"}
+    if not t:
+        line = "이 분석은 입찰/실행 모드가 생기기 전에 돌았습니다 — 기록이 없습니다"
+    elif conflict == "declared_bid_tags_found":
+        line = (f"입찰로 고르셨는데 {len(pages)}장에서 태그가 보입니다 "
+                f"(태그 후보 {t.get('tags_available', 0)}행). 선언대로 태그 없이 "
+                f"읽었습니다 — 실측대로 가려면 프로젝트 모드를 실행으로 바꾸고 다시 분석하세요")
+    elif conflict == "declared_epc_no_tags":
+        line = ("실행으로 고르셨는데 태그를 찾지 못했습니다. 범례·NOTES·기하로 "
+                "식별합니다 (2급)")
+    elif declared:
+        line = (f"{words[declared]}(선언)으로 읽었습니다 — 실측도 같습니다"
+                + (f" (태그 {len(pages)}장 · {t.get('tagged_rows', 0)}행)" if effective == "epc" else ""))
+    else:
+        line = (f"자동 판정: {words[measured]}"
+                + (f" (태그 {len(pages)}장 · {t.get('tagged_rows', 0)}행)" if measured == "epc"
+                   else " (태그가 인쇄된 장이 없습니다)"))
+    return {"declared": declared or "", "measured": measured, "effective": effective,
+            "conflict": conflict, "pages_tagged": pages,
+            "tagged_rows": t.get("tagged_rows", 0), "tags_available": t.get("tags_available", 0),
+            "line": line, "recorded": bool(t)}
+
+
 def _user_multipliers(project: str) -> dict:
     """파이프라인에 넘길 모양 `{"table": {유닛: 배수}, "who": {유닛: "이름 · 메모"}}`.
 

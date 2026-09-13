@@ -212,6 +212,9 @@ _ADDED_COLUMNS = (
     ("job", "project", "TEXT NOT NULL DEFAULT ''"),
     ("job", "revision", "TEXT NOT NULL DEFAULT ''"),
     ("job", "compared_with", "TEXT NOT NULL DEFAULT ''"),
+    # 38회차 — 프로젝트에 안 묶인 분석의 입찰/실행 선언.  프로젝트가 있으면
+    # 그 장부(`project.json`)의 선언이 이기고 이 칸은 비어 있다.
+    ("job", "mode", "TEXT NOT NULL DEFAULT ''"),
     ("revision_state", "excel_no", "INTEGER NOT NULL DEFAULT 0"),
     # 몇 장짜리 문서인가, 그중 몇 장을 읽었는가, 얼마나 걸렸는가.  네 값 다
     # 화면에 그대로 나가므로 추정하지 않는다: `page_count` 는 업로드 직후 PDF
@@ -1053,6 +1056,11 @@ def flag_carry_conflicts(con, job_id: str, conflicts: dict) -> None:
         con.execute("UPDATE item SET conflict_json=?, needs_review=?"
                     " WHERE job_id=? AND key=?",
                     (json.dumps(conflict, sort_keys=True), review, job_id, key))
+    con.commit()
+
+
+def set_job_mode(con, job_id: str, mode: str) -> None:
+    con.execute("UPDATE job SET mode=? WHERE id=?", (mode or "", job_id))
     con.commit()
 
 

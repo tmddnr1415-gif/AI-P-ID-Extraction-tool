@@ -513,7 +513,7 @@ def _reconfigure(pages) -> None:
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None,
-            unit_multipliers: dict = None) -> dict:
+            unit_multipliers: dict = None, declared_mode: str = None) -> dict:
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
@@ -552,7 +552,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         return _analyse(pdf_path, progress=progress, timings=timings,
                         reference=reference, use_prefix=use_prefix,
                         use_line_gate=use_line_gate, legend_profile=legend_profile,
-                        unit_multipliers=unit_multipliers)
+                        unit_multipliers=unit_multipliers, declared_mode=declared_mode)
     finally:
         if CFG.data != snapshot:
             CFG.data = snapshot
@@ -566,7 +566,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
              use_line_gate: bool = True, legend_profile: dict = None,
-             unit_multipliers: dict = None) -> dict:
+             unit_multipliers: dict = None, declared_mode: str = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -1062,7 +1062,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                            "reason": "scope keyword found; which items it covers "
                                      "needs line tracing (Phase 2)"}})
     # §10 증거 등급 — **도면이 태그를 인쇄했으면 그것으로 읽는다** (28회차).
-    tier_facts = _attach_tags(rows, pages)
+    tier_facts = _attach_tags(rows, pages, declared_mode=declared_mode)
 
     say(total, total, "done")
     for line in clock.summary_lines():
@@ -3199,7 +3199,7 @@ def _glyph_alarms(glyphs) -> list:
     return out
 
 
-def _attach_tags(rows: list, pages: list) -> dict:
+def _attach_tags(rows: list, pages: list, declared_mode: str = None) -> dict:
     """1급 — 도면이 인쇄한 태그를 행에 붙인다.  **여기 하나가 만든다.**
 
     가산이다: 2급(기하) 경로는 그대로 돌고, 여기서 태그가 붙는 것뿐이다.
@@ -3216,6 +3216,25 @@ def _attach_tags(rows: list, pages: list) -> dict:
     tag_map, tier_facts = tagsys.assign(
         [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
         {pc.page_no: pc.words for pc in pages})
+    # 38회차 — 입찰(bid) / 실행(epc) 선언.  **방법은 하나다: 1급 경로를 켜고
+    # 끄는 것뿐이다.**  실측(`tags.assign`)은 선언과 무관하게 언제나 하고,
+    # 선언이 없으면 실측이 정한다.  선언과 실측이 다르면 `conflict` 에 적는다 —
+    # 선언이 실측을 조용히 덮어 틀린 결과를 내면 안 된다 (§9 4).
+    measured = "epc" if tier_facts["tier"] == 1 else "bid"
+    declared = (declared_mode or "").strip().lower() or ""
+    effective = declared or measured
+    conflict = ""
+    if declared and declared != measured:
+        conflict = ("declared_bid_tags_found" if declared == "bid"
+                    else "declared_epc_no_tags")
+    tier_facts.update({"declared": declared, "measured": measured,
+                       "effective": effective, "conflict": conflict,
+                       "tags_available": len(tag_map)})
+    if effective != "epc":
+        # 입찰 — 태그를 붙이지 않는다.  찾은 사실(`tags_available` ·
+        # `pages_tagged`)은 남겨 화면이 "N장에서 태그가 보입니다" 를 말한다.
+        tier_facts["tagged_rows"] = 0
+        return tier_facts
     for i, r in enumerate(rows):
         tag = tag_map.get(i)
         if not tag:

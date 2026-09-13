@@ -33,6 +33,7 @@ SYSTEM 명은 쓰지 않는다 — 한 계통이 여러 장에 걸쳐 있어 순
 from __future__ import annotations
 
 import json
+import time
 import re
 import unicodedata
 from pathlib import Path
@@ -407,6 +408,36 @@ def create_project(data_dir: Path, name: str) -> dict:
     Registry({"version": 1, "project": meta["name"], "revisions": [], "ids": {}}
              ).save(d / "id_registry.json")
     return meta
+
+
+# 38회차 — 입찰 / 실행 선언.  §10 증거 등급을 **사람이 미리 말하는 것**이다.
+#   bid  입찰 — 태그가 인쇄되지 않은 도면.  1급(태그) 경로를 끈다.
+#   epc  실행 — 태그가 인쇄된 도면.  1급 + 2급을 함께 쓴다.
+#   ""   선언 없음 — 도면 실측(`tags.assign`)이 정한다.
+# 선언은 기대값이고 실측이 사실이다.  둘이 다르면 파이프라인이 `evidence_tier`
+# 에 그 사실을 적고 화면이 말한다 — 조용히 덮지 않는다.
+MODES = ("bid", "epc")
+
+
+def set_mode(data_dir: Path, name: str, mode: str, author: str) -> dict:
+    """프로젝트의 입찰/실행 선언.  `mode=""` 는 선언을 지운다(자동 판정)."""
+    mode = (mode or "").strip().lower()
+    if mode and mode not in MODES:
+        raise ValueError(f"mode 는 {MODES} 중 하나이거나 비워야 합니다: {mode!r}")
+    meta = load_project(data_dir, name)
+    if mode:
+        meta["mode"] = {"value": mode, "author": (author or "").strip(),
+                        "set_at": time.time()}
+    else:
+        meta.pop("mode", None)
+    _save_project(data_dir, meta)
+    return meta
+
+
+def declared_mode(meta: dict | None) -> str:
+    """선언된 모드 문자열 (`bid` · `epc` · 없으면 `""`)."""
+    m = (meta or {}).get("mode") or {}
+    return str(m.get("value") or "") if isinstance(m, dict) else ""
 
 
 def _save_project(data_dir: Path, meta: dict) -> None:

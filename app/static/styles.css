@@ -1015,3 +1015,11 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 /* 지정한 값은 **다음 분석부터** 적용된다 — 그 사실이 화면에 상주해야 한다
    (안내 줄은 4.9초 뒤 사라진다). */
 .mult-panel .mpending { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+
+/* 38회차 — 입찰/실행 */
+.mode-pick { display: inline-flex; gap: 14px; }
+.mode-pick label { min-width: 0; color: var(--ink-strong); cursor: pointer; }
+.mode-bar .lb-tag.epc { border-color: #6a7f9c; color: #3f5673; }
+.mode-bar .lb-tag.bid { border-color: #8a8a7a; color: #5a5a4a; }
+.mode-bar .lb-tag.conflict { border-color: #b3554d; color: #8a2f28; }
+.mode-bar button.small { font-size: 12px; padding: 2px 8px; margin-left: 10px; }
