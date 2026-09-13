@@ -1,49 +1,65 @@
 {
   "projects": [
     {
-      "name": "UAD",
-      "rows": 149,
-      "fingerprint": "eb1ee3ee19b976f7f70df8b495880bbf558159d61f87cd2193a43897258de942",
-      "qty_sum": 149,
+      "name": "AL NOUF1",
+      "rows": 1037,
+      "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
+      "qty_sum": 1931,
       "tabs": {
-        "FIELD": 146,
-        "PNEUMATIC": 3
+        "FIELD": 885,
+        "MOV": 76,
+        "PNEUMATIC": 53,
+        "BFV": 23
       },
-      "seconds": 418.2,
-      "max_rss_gb": 3.18,
+      "seconds": 714.0,
+      "max_rss_gb": 4.9,
       "identification": {
         "도면번호": [
-          21,
-          22,
+          58,
+          58,
           ""
         ],
         "개정": [
-          23,
-          32,
+          58,
+          58,
           ""
         ],
         "태그→행": [
-          37,
-          50,
+          247,
+          272,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          149,
-          149,
+          1037,
+          1037,
           ""
         ],
         "심볼판정": [
-          149,
-          211,
+          1037,
+          1206,
           ""
         ],
         "파라미터": [
-          26,
           30,
+          32,
           ""
         ]
       },
-      "score": 83.1
+      "score": 95.1,
+      "axes": {
+        "전량": {
+          "recall": 99.3,
+          "precision": 70.5,
+          "fp": 249,
+          "fn": 4
+        },
+        "SCT": {
+          "recall": 99.3,
+          "precision": 94.4,
+          "fp": 35,
+          "fn": 4
+        }
+      }
     }
   ],
   "metrics": [
