@@ -196,10 +196,11 @@ class Layout:
     # Instrument bubble: a stadium built from two arc caps joined by straight
     # sides.  Sizes are NOT fixed — this document uses at least two families
     # (68.0 x 22.6 and 85.1 x 28.4) plus rarer ones, so the detector measures
-    # them per page instead.  These bounds only say "an arc cap is roughly a
-    # 2:1 rounded end of a plausible size"; the stadium length falls out of the
-    # geometry.
-    cap_span: tuple = (7.0, 50.0)       # long side of a cap
+    # them per page instead.  The only bound is the cap's *shape* ("an arc cap
+    # is roughly a 2:1 rounded end"); the stadium length falls out of the
+    # geometry.  37회차: 캡의 크기 창 `cap_span (7, 50)` 은 지웠다 — 네 문서에서
+    # 창을 해제해도 행·지문·미판정·축3 가 한 칸도 안 움직였다 (크기는 판정이
+    # 아니라 모양이 판정한다 · `out/round37_windows.md`).
     cap_ratio: tuple = (1.6, 2.4)       # long/short of a cap
     brk_corner_tol: float = 3.0         # how far a dashed box's corner may miss
     side_slack: float = 1.5             # how far a side may fall short of the caps
@@ -385,8 +386,6 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
         if w <= 0 or h <= 0:
             continue
         short, long_ = min(w, h), max(w, h)
-        if not lay.cap_span[0] <= long_ <= lay.cap_span[1]:
-            continue
         if not lay.cap_ratio[0] <= long_ / short <= lay.cap_ratio[1]:
             continue
         (caps_tall if h > w else caps_wide).append(r)

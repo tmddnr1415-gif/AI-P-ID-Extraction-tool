@@ -29,8 +29,6 @@ def caps_of(pc, lay):
         if w <= 0 or h <= 0:
             continue
         short, long_ = min(w, h), max(w, h)
-        if not lay.cap_span[0] <= long_ <= lay.cap_span[1]:
-            continue
         if not lay.cap_ratio[0] <= long_ / short <= lay.cap_ratio[1]:
             continue
         (tall if h > w else wide).append(r)
