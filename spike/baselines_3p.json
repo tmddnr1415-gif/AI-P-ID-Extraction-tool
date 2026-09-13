@@ -1,5 +1,5 @@
 {
- "_": "38회차 기준선.  [D] Typical 참조(app/engine/typical.py · pipeline._apply_typical) 로 TC2 가 8a478417 → 2ce3e724 · Q'ty 3783 → 3991 (qty 10칸 · p6 TIT×2 ×4 · p7 LS×2 ×2 · p8 TIT×2 ×2 · p9 LS×2 ×3 · p11 LS×2 ×7 · 행 684 · 축3 90.4 그대로).  [F] 본문 별표는 방향 셋 이상(star_groups min_dirs=3) 으로 UAD 가 db1a77d1 → eb1ee3ee (p23 PDIT 00GKB21/23CP001 VENDOR(PUMP SUPPLIER) → SCT · p19 세 행 vendor_supply VENDOR → 빈칸 · 행 149 · Q'ty 149 · 축3 83.1 그대로).  AL NOUF1 fb85b039·1037·1931·95.1 · SADARA 0767ba79·82·75.4 불변.  [B] 입찰/실행 선언은 지문 밖(태그)만 켜고 끈다 — UAD 를 bid 로 선언해도 db1a77d1(당시) 그대로.  ← 37회차 문장: 37회차 기준선.  formats.drawing_no 를 그 도면의 DWG NO. 칸에서 유도(두 장 이상 인쇄된 모양) — TC2 p25~28 4장(A4-A6-A3-D4)이 살아 607→684행 · 018315ef→8a478417 · Q'ty 3167→3783 · 도면번호 56/60→60/60 · 축3 89.1→90.4.  UAD 83.0→83.1 · AL NOUF1 30/32 · SADARA 28/32 는 축3 ⑥ 파라미터의 분모가 하나 는 것(유도 항목 기록 · 30회차 [9]와 같음)이고 지문·행은 셋 다 불변.  ← 36회차 문장: 36회차 기준선.  [D] 유닛 표기의 꼴을 그 도면에서 배우면서(learn_unit_forms) TC2 p33·p34 40행이 x1→x4 — c0a2d29d → 018315ef · Q'ty 3047 → 3167 · MULTIPLIER_FROM_CONFIG 203 → 163.  행 607 · 축3 89.1 그대로.  AL NOUF1 fb85b039·1037·1931 · SADARA 0767ba79·82 · UAD db1a77d1·149 불변.  [B] anchors 룰셋 재바인딩 · [C] 승수 낱말 문지기 제거 · [E] 삭제 24 는 넷 다 한 칸도 안 옮겼다.  ← 30회차 문장: 30회차 기준선.  [B] 심볼의 **그려진 윤곽** 위 획 뭉치를 마크로 읽지 않게 하면서 UAD 가 31231bd7 → db1a77d1 로 움직였다 (SCOPE 18행 · 행 149 불변).  [D] 개정 표기를 이력 표 REV 열에서 유도하면서 UAD 개정 0/32 → 23/32 · 축3 71.0 → 83.0.  ⚠ AL NOUF1 95.0 → 95.1 · SADARA 75.3 → 75.4 는 **판정이 아니라 축3 ⑥(파라미터)의 분자·분모가 하나씩 는 것**이다 — `formats.revision` 이 유도 항목이 됐고(두 문서 다 기록만 되고 적용되지 않는다), 행은 네 문서 전수 대조에서 AL NOUF1·SADARA·TC2 **움직인 칸 0**.  AL NOUF1 fb85b039·1037·1931·축1 99.3/70.5·축2 99.3/94.4 불변.  메모리: AL NOUF1 4.9GB · TC2 7.2GB.",
+ "_": "39회차 기준선.  맞닿은 버블 묶음을 그 문서의 ISA 표가 SWITCH 로 읽는 기능 글자에만 접게 하면서(pipeline._is_switch) TC2 의 FIT/FIT/FE 7묶음(p6·p9·p10×2·p11·p17·p18)이 풀려 684 → 699행 · 2ce3e724 → 6583a866 · Q'ty 3991 → 4111 · 축3 90.4 → 91.1.  AL NOUF1 fb85b039·1037·1931·95.1 · SADARA 0767ba79·82·75.4 · UAD eb1ee3ee·149·83.1 불변(묶음이 전부 스위치이거나 없다).  ← 38회차 문장: 38회차 기준선.  [D] Typical 참조(app/engine/typical.py · pipeline._apply_typical) 로 TC2 가 8a478417 → 2ce3e724 · Q'ty 3783 → 3991 (qty 10칸 · p6 TIT×2 ×4 · p7 LS×2 ×2 · p8 TIT×2 ×2 · p9 LS×2 ×3 · p11 LS×2 ×7 · 행 684 · 축3 90.4 그대로).  [F] 본문 별표는 방향 셋 이상(star_groups min_dirs=3) 으로 UAD 가 db1a77d1 → eb1ee3ee (p23 PDIT 00GKB21/23CP001 VENDOR(PUMP SUPPLIER) → SCT · p19 세 행 vendor_supply VENDOR → 빈칸 · 행 149 · Q'ty 149 · 축3 83.1 그대로).  AL NOUF1 fb85b039·1037·1931·95.1 · SADARA 0767ba79·82·75.4 불변.  [B] 입찰/실행 선언은 지문 밖(태그)만 켜고 끈다 — UAD 를 bid 로 선언해도 db1a77d1(당시) 그대로.  ← 37회차 문장: 37회차 기준선.  formats.drawing_no 를 그 도면의 DWG NO. 칸에서 유도(두 장 이상 인쇄된 모양) — TC2 p25~28 4장(A4-A6-A3-D4)이 살아 607→684행 · 018315ef→8a478417 · Q'ty 3167→3783 · 도면번호 56/60→60/60 · 축3 89.1→90.4.  UAD 83.0→83.1 · AL NOUF1 30/32 · SADARA 28/32 는 축3 ⑥ 파라미터의 분모가 하나 는 것(유도 항목 기록 · 30회차 [9]와 같음)이고 지문·행은 셋 다 불변.  ← 36회차 문장: 36회차 기준선.  [D] 유닛 표기의 꼴을 그 도면에서 배우면서(learn_unit_forms) TC2 p33·p34 40행이 x1→x4 — c0a2d29d → 018315ef · Q'ty 3047 → 3167 · MULTIPLIER_FROM_CONFIG 203 → 163.  행 607 · 축3 89.1 그대로.  AL NOUF1 fb85b039·1037·1931 · SADARA 0767ba79·82 · UAD db1a77d1·149 불변.  [B] anchors 룰셋 재바인딩 · [C] 승수 낱말 문지기 제거 · [E] 삭제 24 는 넷 다 한 칸도 안 옮겼다.  ← 30회차 문장: 30회차 기준선.  [B] 심볼의 **그려진 윤곽** 위 획 뭉치를 마크로 읽지 않게 하면서 UAD 가 31231bd7 → db1a77d1 로 움직였다 (SCOPE 18행 · 행 149 불변).  [D] 개정 표기를 이력 표 REV 열에서 유도하면서 UAD 개정 0/32 → 23/32 · 축3 71.0 → 83.0.  ⚠ AL NOUF1 95.0 → 95.1 · SADARA 75.3 → 75.4 는 **판정이 아니라 축3 ⑥(파라미터)의 분자·분모가 하나씩 는 것**이다 — `formats.revision` 이 유도 항목이 됐고(두 문서 다 기록만 되고 적용되지 않는다), 행은 네 문서 전수 대조에서 AL NOUF1·SADARA·TC2 **움직인 칸 0**.  AL NOUF1 fb85b039·1037·1931·축1 99.3/70.5·축2 99.3/94.4 불변.  메모리: AL NOUF1 4.9GB · TC2 7.2GB.",
  "AL NOUF1": {
   "rows": 1037,
   "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
@@ -27,10 +27,10 @@
   "score": 75.4
  },
  "TC2": {
-  "rows": 684,
-  "fingerprint": "2ce3e724b54c9cdd567763f5fc202ec8fc866c39631c7223d2bf6729cf1902c7",
-  "qty_sum": 3991,
-  "score": 90.4
+  "rows": 699,
+  "fingerprint": "6583a8661fedae0eecccc04b101f30868cabafdaa76881acc3caa1bab20d7565",
+  "qty_sum": 4111,
+  "score": 91.1
  },
  "UAD": {
   "rows": 149,

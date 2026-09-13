@@ -1,50 +1,50 @@
 {
   "projects": [
     {
-      "name": "SADARA",
-      "rows": 82,
-      "fingerprint": "0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1",
-      "qty_sum": 0,
+      "name": "TC2",
+      "rows": 699,
+      "fingerprint": "6583a8661fedae0eecccc04b101f30868cabafdaa76881acc3caa1bab20d7565",
+      "qty_sum": 4111,
       "tabs": {
-        "FIELD": 62,
-        "MOV": 14,
-        "REVIEW": 6
+        "FIELD": 683,
+        "BFV": 1,
+        "PNEUMATIC": 15
       },
-      "seconds": 78.9,
-      "max_rss_gb": 0.94,
+      "seconds": 530.9,
+      "max_rss_gb": 7.22,
       "identification": {
         "도면번호": [
-          9,
-          9,
+          60,
+          60,
           ""
         ],
         "개정": [
-          9,
-          9,
+          60,
+          60,
           ""
         ],
         "태그→행": [
-          33,
-          33,
+          200,
+          266,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          0,
-          82,
+          699,
+          699,
           ""
         ],
         "심볼판정": [
-          82,
-          126,
+          699,
+          820,
           ""
         ],
         "파라미터": [
-          28,
-          32,
+          25,
+          29,
           ""
         ]
       },
-      "score": 75.4
+      "score": 91.1
     }
   ],
   "metrics": [
