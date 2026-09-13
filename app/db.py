@@ -469,7 +469,13 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 등록 화면이 이것을 읽는다.  판정이 아니라
                               # "판정하지 못했다" 는 기록이므로 지문에는
                               # 들어가지 않는다.
-                              "unjudged_symbols")},
+                              "unjudged_symbols",
+                              # 29회차 [D] 의 증거 등급이 여기 빠져 있었다 — 38회차 [B] 의
+                              # 모드 띠가 그것을 읽어야 해서 드러났다.  선언 · 실측 ·
+                              # 불일치 사실이 이제 저장된다 (지문 밖).
+                              "evidence_tier",
+                              # 38회차 [D] — Typical 참조 사실(장 → 표식·상세·참조 수)과 집계.
+                              "typical", "typical_stats")},
                             default=str),
                  job_id))
     con.commit()
