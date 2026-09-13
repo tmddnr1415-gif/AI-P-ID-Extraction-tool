@@ -81,10 +81,11 @@ def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
     return out
 
 
-def analyse(pc, area: pymupdf.Rect, ceiling: float | None) -> Typical:
+def analyse(pc, area, ceiling: float | None) -> Typical:
     t = Typical()
     if not ceiling or ceiling <= 0:
         return t
+    area = pymupdf.Rect(*area) if not isinstance(area, pymupdf.Rect) else area
     t.marks = circle_marks(pc, area, ceiling)
     if not t.marks:
         return t

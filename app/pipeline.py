@@ -892,7 +892,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 여기서는 사실만 읽고, 곱하는 곳은 `_apply_typical` 하나다.
         _short = [min(d.bbox.width, d.bbox.height) for d in dets if getattr(d, "bbox", None)]
         typical_by_page[pc.page_no] = typical.analyse(
-            pc, CFG.rect("regions.drawing_area"), min(_short) if _short else None)
+            pc, pymupdf.Rect(*CFG.rect("regions.drawing_area")),
+            min(_short) if _short else None)
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern,
                                 note=unit_notes[pc.page_no],
