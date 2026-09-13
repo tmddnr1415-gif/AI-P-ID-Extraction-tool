@@ -2,16 +2,16 @@
   "projects": [
     {
       "name": "TC2",
-      "rows": 699,
-      "fingerprint": "6583a8661fedae0eecccc04b101f30868cabafdaa76881acc3caa1bab20d7565",
-      "qty_sum": 4111,
+      "rows": 707,
+      "fingerprint": "c396892aa735e9e84f9b022cecc62d6a6e28bc99a6c985f6ddb8570148f41238",
+      "qty_sum": 4159,
       "tabs": {
         "FIELD": 683,
-        "BFV": 1,
-        "PNEUMATIC": 15
+        "PNEUMATIC": 20,
+        "BFV": 4
       },
-      "seconds": 1673.6,
-      "max_rss_gb": 8.89,
+      "seconds": 623.4,
+      "max_rss_gb": 7.45,
       "identification": {
         "도면번호": [
           60,
@@ -24,18 +24,18 @@
           ""
         ],
         "태그→행": [
-          200,
+          201,
           266,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          699,
-          699,
+          707,
+          707,
           ""
         ],
         "심볼판정": [
-          699,
-          820,
+          707,
+          828,
           ""
         ],
         "파라미터": [
@@ -44,7 +44,7 @@
           ""
         ]
       },
-      "score": 91.1
+      "score": 91.2
     }
   ],
   "metrics": [

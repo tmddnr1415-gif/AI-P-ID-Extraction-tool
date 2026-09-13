@@ -1,0 +1,112 @@
+{
+ "before_A41": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 762,
+   "rss": "4.9G",
+   "score": 95.1,
+   "same": true
+  },
+  "SADARA": {
+   "rows": 82,
+   "fp": "0767ba79",
+   "qty": 0,
+   "sec": 95,
+   "rss": "0.9G",
+   "score": 75.4,
+   "same": true
+  },
+  "TC2": {
+   "rows": 699,
+   "fp": "6583a866",
+   "qty": 4111,
+   "sec": 1718,
+   "rss": "8.9G",
+   "score": 91.1,
+   "same": true
+  },
+  "UAD": {
+   "rows": 184,
+   "fp": "e8d19f8f",
+   "qty": 184,
+   "sec": 441,
+   "rss": "3.2G",
+   "score": 87.9,
+   "same": true
+  }
+ },
+ "after_D41": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 794,
+   "rss": "4.9G",
+   "score": 95.1,
+   "same": true
+  },
+  "SADARA": {
+   "rows": 86,
+   "fp": "53531ef6",
+   "qty": 0,
+   "sec": 85,
+   "rss": "0.9G",
+   "score": 76.0,
+   "same": false
+  },
+  "TC2": {
+   "rows": 707,
+   "fp": "c396892a",
+   "qty": 4159,
+   "sec": 623,
+   "rss": "7.5G",
+   "score": 91.2,
+   "same": false
+  },
+  "UAD": {
+   "rows": 184,
+   "fp": "877de403",
+   "qty": 184,
+   "sec": 438,
+   "rss": "3.2G",
+   "score": 87.5,
+   "same": false
+  }
+ },
+ "verify": {
+  "real_db_sha_start": "643748dc0efe16816cb1b723941cb0fc6af1de9e183c15eab6d5dba726ecd40a",
+  "git_wt": "aac64ba",
+  "s2": {
+   "job": "0f7cde48ec7a",
+   "status": "done",
+   "rows": 824,
+   "sec": 335.3,
+   "peak_G": 5.08,
+   "scope_values": [
+    ""
+   ],
+   "edit_keys": [
+    "0496c0be022bd8d2",
+    "0e96b25afd3ef9aa",
+    "0f51c8b8fb6d6dea",
+    "1d9e879dd5342fe2",
+    "311eac50402e48c3"
+   ]
+  },
+  "s3": {
+   "edited": 5,
+   "qty9_now": 5
+  },
+  "s4": {
+   "backup": "/home/user/AI-P-ID-Extraction-tool/out/round41/verify/db_backup",
+   "files": [
+    "app.db",
+    "app.db-shm",
+    "app.db-wal",
+    "uploads"
+   ]
+  }
+ }
+}
