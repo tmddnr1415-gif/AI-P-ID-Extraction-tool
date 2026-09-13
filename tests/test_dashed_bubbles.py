@@ -111,3 +111,46 @@ def test_rotated_page_puts_dashed_bubbles_where_the_words_are(tmp_path):
     assert dashed[0].axis == "V" and abs(r.height - 34) < 3 and abs(r.width - 11) < 3
     exp = pymupdf.Rect(300, 200, 334, 211) * pc.page.rotation_matrix
     assert abs(r.x0 - exp.x0) < 3 and abs(r.y0 - exp.y0) < 3
+
+
+def test_unique_endpoint_linking_matches_pairwise_rule():
+    """41회차 — 유일점으로 접어도 "어느 끝점이든 tol 안이면 같은 성분" 과 같은 성분이 나온다.
+    꼭짓점을 공유하는 토막(SHX 획 꼴)과 떨어진 토막을 섞어 두 방법을 맞댄다."""
+    import random
+    rng = random.Random(41)
+    pieces = []
+    for _ in range(60):
+        x, y = rng.uniform(0, 100), rng.uniform(0, 100)
+        pieces.append(((x, y), (x + 1.0, y), pymupdf.Rect(x, y, x + 1, y + 0.01)))
+        pieces.append(((x, y), (x, y + 1.0), pymupdf.Rect(x, y, x + 0.01, y + 1)))   # 같은 꼭짓점
+    tol = 1.2
+    comp = ds._link_pieces(pieces, tol)
+    got = sorted(sorted(v) for v in comp.values())
+    # 기준: 쌍별 규칙을 그대로 (느리지만 정의 그대로)
+    n = len(pieces); parent = list(range(n))
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]; a = parent[a]
+        return a
+    for i in range(n):
+        for j in range(i + 1, n):
+            if any(math.hypot(p[0] - q[0], p[1] - q[1]) <= tol for p in pieces[i][:2] for q in pieces[j][:2]):
+                parent[find(j)] = find(i)
+    ref = {}
+    for i in range(n):
+        ref.setdefault(find(i), []).append(i)
+    assert got == sorted(sorted(v) for v in ref.values())
+
+
+def test_gap_mode_ignores_shared_vertices_like_before():
+    """주인이 둘 이상인 유일점의 끝점은 다른 토막이 거리 0 에 있으므로 최빈에 안 든다 —
+    옛 계산(끝점마다 가장 가까운 다른 토막 끝점 · 0.3 초과)과 같은 값."""
+    pieces = []
+    for k in range(10):                       # 파선 열: 길이 2 · 틈 1.5
+        x = k * 3.5
+        pieces.append(((x, 0.0), (x + 2.0, 0.0), pymupdf.Rect(x, 0, x + 2, 0.01)))
+    for k in range(5):                        # 꼭짓점을 공유하는 획 쌍 (글자)
+        x, y = 50 + k * 4, 20.0
+        pieces.append(((x, y), (x + 1, y), pymupdf.Rect(x, y, x + 1, y + 0.01)))
+        pieces.append(((x, y), (x, y + 1), pymupdf.Rect(x, y, x + 0.01, y + 1)))
+    assert ds._endpoint_gap_mode(pieces) == 1.5
