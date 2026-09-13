@@ -31,8 +31,14 @@ def _tc2_like():
              ((198, 298, 202, 302), "D"), ((398, 298, 402, 302), "D"), ((498, 298, 502, 302), "D"),
              ((298, 398, 302, 402), "M")]
     circles = [(600, 660, 7.1), (200, 300, 7.1), (400, 300, 7.1), (500, 300, 7.1), (300, 400, 7.1)]
-    hlines = [(500, 900, 650), (500, 900, 800), (0, 900, 300)]
-    return _PC(words, circles, hlines)
+    # 라인 표식 둘은 선 위에 그려져 있고(지나가는 선), 하나(500,300)는 TC2 처럼 배관에서 내려온
+    # 리더 하나에 매달려 있다.  모터 M 도 스템 하나가 닿는다 — 갈리는 것은 모양이 아니라 캡션 짝이다.
+    hlines = [(500, 900, 650), (500, 900, 800), (0, 450, 300)]
+    pc = _PC(words, circles, hlines)
+    pc.segments = lambda: [(pymupdf.Point(x0, y), pymupdf.Point(x1, y)) for x0, x1, y in pc._h] + [
+        (pymupdf.Point(500, 296.5), pymupdf.Point(500, 280)),      # D 리더
+        (pymupdf.Point(300, 403.5), pymupdf.Point(300, 430))]      # M 스템
+    return pc
 
 
 def test_marks_captions_boxes_and_refs_are_read_by_shape():

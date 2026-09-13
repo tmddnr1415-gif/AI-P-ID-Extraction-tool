@@ -9,14 +9,18 @@
   · 원의 지름 상한은 **그 장 계기 버블의 짧은 변** (버블보다 작다).  글자는 낱말 하나 · 1~3자 · 글자로 시작.
     `D`·`D1` 같은 꼴을 나열하지 않는다 — 모터 `M` 원도 같은 모양으로 잡히고, **같은 장에 캡션이 있는
     id 만 참조**라는 짝 규칙이 거른다.
-  · 캡션 표식 = 오른쪽으로 지름 두 배 안에서 같은 줄로 글이 이어지는 표식.  라인 표식은 오른쪽에 글이 없다.
-    (p8 은 `:` 없이 `D HRH TYPICAL …` 이라 `:` 나 낱말로 찾지 않는다.)
+  · 캡션 표식 = **아무 선도 닿지 않는** 원 + 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상 이어진다.
+    (p8 은 `:` 없이 `D HRH TYPICAL …` 이라 `:` 나 낱말로 찾지 않는다.)  선이 닿는 원은 캡션이 아니다 —
+    AL NOUF1 의 모터 `M` 원은 스템이 닿고 오른쪽에 `LO VS` 가 인쇄돼 있어 이 조건이 없으면 캡션이 된다.
+  · 라인 표식 = 선이 닿는 원 (TC2 실측: 배관에서 내려온 짧은 리더 하나 · 지나가는 선은 0).  모터 `M`
+    원도 같은 모양이지만 **같은 장에 `M` 캡션이 없으므로** 짝 규칙에서 참조가 되지 않는다.
   · 상자 = 캡션 x 를 덮는 가장 가까운 긴 가로선(지름의 10배 이상) 위·아래 하나씩과 그 x 겹침.
   · 참조 = 상자 밖의 같은 id 표식.  같은 id 의 캡션이 한 장에 둘이면 어느 상자인지 도면이 말하지 않으므로
     곱하지 않고 `ambiguous` 로 낸다.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -30,6 +34,7 @@ class Mark:
     id: str
     rect: pymupdf.Rect
     d: float
+    kind: str = "free"          # free — 아무 선도 안 닿는다(캡션 자리) · line — 배관이 지나간다(참조 자리)
 
 
 @dataclass
@@ -62,10 +67,21 @@ class Typical:
                 "refs": dict(self.refs), "ambiguous": sorted(self.ambiguous)}
 
 
+def _dist(p: pymupdf.Point, a: pymupdf.Point, b: pymupdf.Point) -> float:
+    """점 p 에서 선분 ab 까지의 거리."""
+    dx, dy = b.x - a.x, b.y - a.y
+    l2 = dx * dx + dy * dy
+    if l2 == 0:
+        return math.hypot(p.x - a.x, p.y - a.y)
+    t = max(0.0, min(1.0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
+    return math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+
+
 def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
     """원 안에 짧은 낱말 하나 — 지름은 `ceiling`(그 장 버블 짧은 변) 미만."""
     words = [(pymupdf.Rect(r), t) for r, t in pc.words]
     out = []
+    segs = pc.segments()
     for d in pc.drawings():
         items = d["items"]
         if len(items) != 4 or any(i[0] != "c" for i in items):
@@ -76,8 +92,22 @@ def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
         if not (cb.width < ceiling and area.contains(cb)):
             continue
         inside = [(r, t) for r, t in words if cb.contains(r.tl) and cb.contains(r.br)]
-        if len(inside) == 1 and SHORT.match(inside[0][1]):
-            out.append(Mark(inside[0][1], pymupdf.Rect(cb), cb.width))
+        if len(inside) != 1 or not SHORT.match(inside[0][1]):
+            continue
+        # 원에 선이 닿는가로 둘을 가른다 (25회차 별표의 "자유 끝점" 과 같은 눈):
+        #   · 아무 선도 안 닿는다 → 캡션 자리 (free)
+        #   · 선이 닿는다 → 라인 표식 자리 (line).  TC2 실측(p6·p7): 라인 표식은 배관에서 내려온
+        #     리더 **하나**가 닿고 지나가는 선은 없다 — 모터 `M` 원(스템 하나)과 모양이 같아서
+        #     "양쪽에서 들어오는 선" 으로는 갈리지 않는다 (그 규칙은 참조를 0 으로 만들었다).
+        #     둘을 가르는 것은 모양이 아니라 **짝**이다 — 같은 장에 같은 id 의 캡션이 있어야 참조다.
+        #   AL NOUF1 p18·p20 의 `M` 원은 스템이 닿으므로 캡션이 될 수 없다 (Q'ty 가 움직였던 원인).
+        #   닿는다 = 한 끝이 원 안에 있다(리더) **또는** 원 가운데를 지나간다(원을 선 위에 그린 문서).
+        pad = pymupdf.Rect(cb.x0 - 0.5, cb.y0 - 0.5, cb.x1 + 0.5, cb.y1 + 0.5)
+        centre, rad = pymupdf.Point((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2), cb.width / 2
+        touched = any(pad.contains(a) != pad.contains(b) or _dist(centre, a, b) < rad
+                      for a, b in segs)
+        kind = "line" if touched else "free"
+        out.append(Mark(inside[0][1], pymupdf.Rect(cb), cb.width, kind))
     return out
 
 
@@ -92,17 +122,6 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
     words = [(pymupdf.Rect(r), s) for r, s in pc.words]
     segs = pc.segments()
 
-    def on_a_line(r: pymupdf.Rect) -> bool:
-        """라인 표식은 배관 위에 앉는다 — 원의 중심을 지나는 선분이 있다.  캡션 표식은 없다."""
-        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
-        for a, b in segs:
-            if abs(a.y - b.y) < 0.4 and abs(a.y - cy) <= r.height / 2 \
-                    and min(a.x, b.x) <= r.x0 and max(a.x, b.x) >= r.x1:
-                return True
-            if abs(a.x - b.x) < 0.4 and abs(a.x - cx) <= r.width / 2 \
-                    and min(a.y, b.y) <= r.y0 and max(a.y, b.y) >= r.y1:
-                return True
-        return False
 
     # 캡션 — 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상 이어지고, 배관 위가 아니다
     captions = []
@@ -110,7 +129,7 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
         r, d = m.rect, m.d
         right = [(w, s) for w, s in words
                  if 0 <= w.x0 - r.x1 <= 2 * d and w.y0 < r.y1 and w.y1 > r.y0]
-        if not right or on_a_line(r):
+        if not right or m.kind != "free":
             continue
         line = sorted([(w.x0, s) for w, s in words
                        if w.y0 < r.y1 and w.y1 > r.y0 and r.x1 <= w.x0 <= area.x1],
@@ -152,7 +171,7 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
     boxes = [det.box for det in t.details if det.box is not None]
     cap_rects = [det.mark for det in t.details]
     for m in t.marks:
-        if m.id not in ids or m.rect in cap_rects:
+        if m.id not in ids or m.rect in cap_rects or m.kind != "line":
             continue
         if any(b.contains(m.rect) for b in boxes):
             continue                         # 상자 안 표식은 그 상자의 것
