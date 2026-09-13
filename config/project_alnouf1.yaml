@@ -922,6 +922,7 @@ review_axes:
     MULTIPLIER_UNDEFINED: QUANTITY        # unit code 에 승수가 없음
     MULTIPLIER_FROM_CONFIG: QUANTITY      # 승수가 이 도면이 아니라 설정에서 왔음 (26회차)
     MULTIPLIER_NOTE_RANGE: QUANTITY       # 노트가 유닛을 범위로 적어 셀 수 없음 (27회차)
+    TYPICAL_AMBIGUOUS: QUANTITY           # 같은 Typical 표식의 상세가 한 장에 둘 (38회차)
     MULTIPLIER_BY_USER: QUANTITY          # 도면이 답하지 않아 사람이 지정함 (31회차)
     # --- description: wording to finish
     DESCRIPTION_INCOMPLETE: DESCRIPTION

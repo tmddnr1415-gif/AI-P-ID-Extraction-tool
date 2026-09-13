@@ -1552,6 +1552,7 @@ REVIEW_LABELS = {
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
     "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
+    "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
     "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
     "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
     "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",

@@ -6,6 +6,7 @@
   · 밸브 나비의 두 대각선도 중심에서 교차한다 → "한 점에서 만난다" 만으로는 별표와
     같다.  가르는 것은 **획 끝이 아무 데도 닿지 않는다** 는 것이다.
 """
+import inspect
 import sys
 from pathlib import Path
 
@@ -52,6 +53,20 @@ def test_a_star_drawn_stroke_by_stroke_is_one_group(tmp_path):
     rect, strokes, dirs = groups[0]
     assert strokes == 4 and dirs >= 2
     assert abs(rect.width - 2.8) < 0.2 and abs(rect.height - 2.8) < 0.2
+
+
+def _plus(page, cx, cy, r):
+    """경보 접미 `+` — 획 둘 · 방향 둘 (UAD p23 `PDIA++,+`)."""
+    page.draw_line(pymupdf.Point(cx - r, cy), pymupdf.Point(cx + r, cy), width=0.3)
+    page.draw_line(pymupdf.Point(cx, cy - r), pymupdf.Point(cx, cy + r), width=0.3)
+
+
+def test_a_plus_sign_is_not_a_star(tmp_path):
+    """획 둘이 한 점에서 만나도 방향이 둘뿐이면 글자(`+`·`x`)다 (38회차 [F])."""
+    pc = _page_with(tmp_path, lambda pg: (_plus(pg, 100, 100, 1.4), _star(pg, 300, 100, 1.4)))
+    groups = ds.star_groups(pc, ds.LAYOUT, maxlen=11.0, min_dirs=3)
+    assert len(groups) == 1 and groups[0][0].x0 > 200          # 별표만 남는다
+    assert "min_dirs=3" in inspect.getsource(ds.star_marks)     # 본문 마크는 이 기준으로 돈다
 
 
 def test_a_valve_bowtie_is_not_a_star(tmp_path):

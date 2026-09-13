@@ -862,7 +862,8 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
 # --------------------------------------------------------------------------
 # 별표를 **획의 관계**로 읽는다 (25회차 · §9)
 # --------------------------------------------------------------------------
-def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
+def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
+                min_dirs: int = 2):
     """짧은 곧은 잉크 획 중 **중점이 한 점에 모이고 방향이 둘 이상**인 무리.
 
     돌려주는 것은 `(rect, 획 수, 방향 수)` 의 목록이다.
@@ -941,7 +942,12 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None):
                     tol = 0.25 * min(s[2], t[2])
                     if math.hypot(t[0] - s[0], t[1] - s[1]) <= tol:
                         near.append(j)
-        if len(near) < 2 or len({segs[j][3] for j in near}) < 2:
+        # `min_dirs` — 본문 별표(`star_marks`)는 방향 **셋 이상**을 요구한다 (38회차 [F]).
+        # 둘이면 `+` 나 `x` 다: UAD p23 의 `PDIA++,+` 경보 접미 `+` 가 획 둘로 그려져
+        # 별표로 읽혔고, 그 버블은 패널 사각형 안이라 윤곽(30회차)도 못 찾았다.  실측 본문
+        # 별표는 네 문서 전부 방향 3~4 (26회차 재현율 채널이 이미 그 기준이다).  정의줄
+        # (`definition_stars`)은 그대로 둘이다 — TC2 정의줄 별표가 실제로 2획이다 (26회차).
+        if len(near) < 2 or len({segs[j][3] for j in near}) < min_dirs:
             continue
         own = {(round(segs[j][4].x, 2), round(segs[j][4].y, 2),
                 round(segs[j][5].x, 2), round(segs[j][5].y, 2)) for j in near}
@@ -1117,7 +1123,7 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=(),
         return []
     short = sorted(min(b.width, b.height) for b in bubbles)
     maxlen = short[len(short) // 2]
-    groups = [g for g in star_groups(pc, lay, maxlen)
+    groups = [g for g in star_groups(pc, lay, maxlen, min_dirs=3)
               if g[0].x1 <= lay.drawing_area[2]]
     if not groups:
         return []

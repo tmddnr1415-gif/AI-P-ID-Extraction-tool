@@ -45,6 +45,7 @@ if str(ENGINE) not in sys.path:
 import pymupdf             # noqa: E402
 import pidcache            # noqa: E402
 import projectconfig       # noqa: E402
+import typical             # noqa: E402  — 38회차 Typical 참조
 import legend_rules        # noqa: E402
 import extract_titleblocks as tb   # noqa: E402
 import detect_symbols as ds        # noqa: E402
@@ -741,6 +742,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을 화면과 근거 패널이
     # 볼 수 있게 `result["unit_notes"]` 로 따로 낸다.
     unit_notes: dict = {}
+    typical_by_page: dict = {}
     # 31회차 — 사람이 지정한 승수.  **파이프라인은 파일을 읽지 않는다** —
     # 15회차 `legend_profile` 과 같은 모양으로 부르는 쪽이 읽어서 넘긴다.
     # 그래서 회귀 하네스(`spike/analyse_one.py`)는 아무 것도 안 넘기고,
@@ -886,6 +888,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         unit_notes[pc.page_no] = projectconfig.note_unit_span(
             pc, ds.LAYOUT.notes_area, ds.LAYOUT.notes_text_x_max, cfg=CFG,
             forms=tuple(unit_forms))
+        # 38회차 — Typical 참조.  원 표식의 지름 상한은 **그 장 버블의 짧은 변**이다.
+        # 여기서는 사실만 읽고, 곱하는 곳은 `_apply_typical` 하나다.
+        _short = [min(d.bbox.width, d.bbox.height) for d in dets if getattr(d, "bbox", None)]
+        typical_by_page[pc.page_no] = typical.analyse(
+            pc, CFG.rect("regions.drawing_area"), min(_short) if _short else None)
         rows.extend(_field_rows(pc, meta, dets, mult, annotations, scope_keywords,
                                 isa=isa, pat=pattern,
                                 note=unit_notes[pc.page_no],
@@ -1029,6 +1036,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         desc_stats["grades"] = dict(collections.Counter(
             r.description_grade for r in rows))
 
+    # 38회차 — Typical 참조: 상세 상자 안 행에 참조 표식 수를 곱한다 (곱하는 곳은 하나).
+    typical_stats = _apply_typical(rows, typical_by_page)
+
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
     # returned alongside the rows so the review count on screen is the whole
@@ -1144,6 +1154,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # (`fingerprint` 는 `multipliers`·행·`legend`·글리프만 본다) — 읽은 사실을
         # 화면이 보여 줄 수 있게 두되, 이미 답이 있는 문서의 지문을 흔들지 않는다.
         "unit_forms": unit_forms,        # 36회차 — 이 문서가 유닛코드를 적는 꼴 {꼴: 장 수} (지문 밖)
+        # 38회차 — Typical 참조 사실 (장 → 표식·상세·참조 수).  Q'ty 는 지문 안이므로 곱한
+        # 결과는 지문에 들어가고, 이 사실 자체는 지문 밖이다.
+        "typical": {str(k): v.as_dict() for k, v in typical_by_page.items() if v.marks},
+        "typical_stats": typical_stats,
         "unit_notes": {str(k): {"units": v[1], "text": v[2],
                                 "counted": bool(v[0]),
                                 "units_count": v[0] or 0}
@@ -2396,6 +2410,49 @@ def _insert_before_variable(text: str, var: str, word: str):
 # 글리프로 읽으려 해도 이 문서의 글리프 라이브러리는 개정 문자에서 만들어져
 # `1 A B C D` 뿐이다 — E~H 도 2~8 도 없다.  칸만 기하로 나누고 이름을 붙이면
 # 그것이 곧 지어낸 값이므로(§2.1 ③) 붙이지 않고 사유를 남긴다.
+_TYPICAL_AMBIGUOUS = ("이 장에 같은 Typical 표식(%s)의 상세가 둘 이상이라 어느 상자인지 도면이 "
+                      "말하지 않습니다 — 수량을 곱하지 않았습니다. 확인 필요")
+
+
+def _apply_typical(rows, typical_by_page: dict) -> dict:
+    """상세 상자 안 행의 Q'ty 에 참조 표식 수를 곱한다 — **여기 하나가 곱한다** (38회차 [D]).
+
+    상자 자체는 한 번만 센다: 상자 안 계기를 N 배 하는 것이지 상자를 N 번 세는 것이
+    아니다.  유닛 승수(27·36회차)는 이미 `qty` 에 들어 있으므로 곱은 그 위에 얹힌다 —
+    두 인수는 `qty_basis` 에 따로 적혀 하나만 쓰기로 정해지면 인수 하나를 빼면 된다
+    (피드백 14장: *"Typical 물량을 … 계산한다. 또한 Note Unit 수량 정의에 따라 승수를
+    반영한다"*).  참조가 0 이면 그대로(x1) 두고 사유만 남긴다.
+    """
+    stats = {"rows_in_detail": 0, "rows_multiplied": 0, "rows_ambiguous": 0,
+             "pages": sum(1 for t in typical_by_page.values() if t.details)}
+    for r in rows:
+        t = typical_by_page.get(r.page_no)
+        if t is None or not t.details:
+            continue
+        hit = t.factor_for(pymupdf.Rect(*r.rect))
+        if hit is None:
+            continue
+        det, n = hit
+        stats["rows_in_detail"] += 1
+        fact = {"id": det.id, "caption": det.caption, "refs": n,
+                "box": [round(v, 1) for v in det.box], "ambiguous": det.id in t.ambiguous}
+        r.evidence["typical"] = fact
+        if det.id in t.ambiguous:
+            stats["rows_ambiguous"] += 1
+            r.evidence.setdefault("review_codes", []).append("TYPICAL_AMBIGUOUS")
+            r.needs_review = "; ".join([x for x in [r.needs_review] if x]
+                                       + [_TYPICAL_AMBIGUOUS % det.id])
+            continue
+        if n >= 1 and r.qty is not None:
+            r.qty = r.qty * n
+            stats["rows_multiplied"] += 1
+            r.evidence["qty_basis"] = (str(r.evidence.get("qty_basis", ""))
+                                       + f" x {n} (Typical {det.id} 표식 {n}개 × 상세 한 벌)")
+        elif n == 0:
+            fact["note"] = "이 장에 참조 표식이 없어 x1 그대로"
+    return stats
+
+
 def _disambiguate_duplicates(rows) -> dict:
     """한 도면 안에서 글자 그대로 같은 문장에 A · B · C … 를 붙인다."""
     only = {str(t).upper() for t in
