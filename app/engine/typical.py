@@ -1,32 +1,38 @@
-"""Typical 참조 — 라인 위의 원 표식이 같은 장의 상세 상자 한 벌을 가리킨다 (38회차 [D]).
+"""Typical 참조 — 도면이 스스로 선언한 짝을 읽는다 (38회차 [D] · 보정 프롬프트).
 
-도면이 그리는 것 (TC2 실측 · `out/round38_typical.md`):
-  · 표식: 배관 라인 위 작은 원(호 4개 한 도형 · 정사각) 안에 짧은 낱말 하나 (`D` · `D1` · `D2`).
-  · 상세: 같은 장에 같은 원 표식 + 제목이 붙은 사각 상자.  안에 계기 한 벌이 그려져 있다.
-  · 뜻: 그 라인에는 상세에 그려진 한 벌이 있다 → 상자 안 계기의 수량 = 표식 수 × 1.
+    상세 상자 캡션   (글자) …제목…        ← 상자가 먼저 선언한다.  글자가 무엇이든 상관없다
+    본문 라인 표식   동그라미 안에 같은 글자  ← 같은 장에서 짝이 맞으면 그것이 표식이다
 
-읽는 규칙 — 전부 모양이고 절대 pt 를 두지 않는다 (§9 6):
-  · 원의 지름 상한은 **그 장 계기 버블의 짧은 변** (버블보다 작다).  글자는 낱말 하나 · 1~3자 · 글자로 시작.
-    `D`·`D1` 같은 꼴을 나열하지 않는다 — 모터 `M` 원도 같은 모양으로 잡히고, **같은 장에 캡션이 있는
-    id 만 참조**라는 짝 규칙이 거른다.
-  · 캡션 표식 = **아무 선도 닿지 않는** 원 + 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상 이어진다.
-    (p8 은 `:` 없이 `D HRH TYPICAL …` 이라 `:` 나 낱말로 찾지 않는다.)  선이 닿는 원은 캡션이 아니다 —
-    AL NOUF1 의 모터 `M` 원은 스템이 닿고 오른쪽에 `LO VS` 가 인쇄돼 있어 이 조건이 없으면 캡션이 된다.
-  · 라인 표식 = 선이 닿는 원 (TC2 실측: 배관에서 내려온 짧은 리더 하나 · 지나가는 선은 0).  모터 `M`
-    원도 같은 모양이지만 **같은 장에 `M` 캡션이 없으므로** 짝 규칙에서 참조가 되지 않는다.
-  · 상자 = 캡션 x 를 덮는 가장 가까운 긴 가로선(지름의 10배 이상) 위·아래 하나씩과 그 x 겹침.
-  · 참조 = 상자 밖의 같은 id 표식.  같은 id 의 캡션이 한 장에 둘이면 어느 상자인지 도면이 말하지 않으므로
-    곱하지 않고 `ambiguous` 로 낸다.
+★ 표식 목록을 코드가 갖지 않는다 — 장마다 그 장에서 만든다.  글자를 판정 조건으로 쓰지 않고
+  (정규식도 없다 · `tests/test_typical.py` 가 소스에서 그 글자들을 찾으면 실패한다), 다른 장의
+  같은 글자는 다른 뜻일 수 있으므로 짝은 장 단위다.  낱말(TYPICAL · DETAIL …)도 판정에 쓰지 않는다 —
+  근거로 기록만 한다.
+
+읽는 규칙 — 전부 모양·관계이고 절대 pt 를 두지 않는다 (§9 6):
+  · 표식 후보 = 호 4개로 그린 정사각(±15%) 원 안에 **낱말 하나가 통째로** 들어 있고, 지름이 **그 장
+    계기 버블의 짧은 변보다 작은** 것.  계기 버블(두 줄 · 배관에 붙음)과 가르는 것도 글자가 아니라 구조다.
+  · 캡션 표식 = **아무 선도 닿지 않는** 원 + 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상.
+    선이 닿는 원은 캡션이 아니다 — AL NOUF1 의 모터 `M` 원은 스템이 닿고 오른쪽에 글이 있어 이 조건이
+    없으면 캡션이 된다 (첫 [H] 가 그렇게 움직였다).
+  · 라인 표식 = 선이 닿는 원 (TC2 실측: 배관에서 내려온 리더 하나 · 지나가는 선 0).  모터 원도 같은
+    모양이지만 **같은 장에 그 글자의 캡션이 없으므로** 참조가 되지 않는다.
+  · 상자 = 캡션 표식을 담는 후보(한 도형 사각·사변형 / 긴 가로선 둘) 중 **독립 섬인 것 중 가장 작은 것**.
+    독립 섬 = 안에서 시작해 밖으로 나가는 선분이 하나도 없다 (본문 배관과 이어지지 않는다).
+    TC2 p11 실측: 선 기반 후보 하나가 배관 13개에 가로질려 있었고 진짜 상자는 그 옆의 사변형이었다.
+    16회차 PACKAGE_BOX 는 재사용하지 못한다 — 그것은 **체인 파선**(brk_* · 마크 6개 이상)만 잡고 상세
+    상자는 실선 사변형/실선 넷이다 (TC2 p6~p11 에서 0개 반환 실측).
+  · 참조 = 상자 밖의 같은 글자 라인 표식.  같은 글자의 캡션이 한 장에 둘이면 어느 상자인지 도면이
+    말하지 않으므로 곱하지 않고 `ambiguous` 로 낸다.
+  · 짝이 안 맞는 것은 버리지 않고 낸다 — 캡션 없는 라인 표식(`unpaired`) · 본문 표식 0 인 캡션
+    (`refs` 0).  사람이 보게 한다.
 """
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass, field
 
 import pymupdf
 
-SHORT = re.compile(r"^[A-Z][A-Z0-9]{0,2}$")
 
 
 @dataclass
@@ -51,6 +57,7 @@ class Typical:
     details: list = field(default_factory=list)
     refs: dict = field(default_factory=dict)        # id -> 참조 표식 수 (캡션이 있는 id 만)
     ambiguous: set = field(default_factory=set)     # 같은 장에 캡션이 둘 이상인 id
+    unpaired: dict = field(default_factory=dict)    # id -> 캡션이 없는 라인 표식 수 (짝 없음 — 기록만)
 
     def factor_for(self, rect: pymupdf.Rect):
         """`rect` 가 어느 상세 상자 안이면 (상세, 참조 수) — 아니면 None."""
@@ -64,7 +71,8 @@ class Typical:
                 "details": [{"id": d.id, "caption": d.caption,
                              "box": [round(v, 1) for v in d.box] if d.box else None}
                             for d in self.details],
-                "refs": dict(self.refs), "ambiguous": sorted(self.ambiguous)}
+                "refs": dict(self.refs), "ambiguous": sorted(self.ambiguous),
+                "unpaired": dict(self.unpaired)}
 
 
 def _dist(p: pymupdf.Point, a: pymupdf.Point, b: pymupdf.Point) -> float:
@@ -77,8 +85,20 @@ def _dist(p: pymupdf.Point, a: pymupdf.Point, b: pymupdf.Point) -> float:
     return math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
 
 
+def is_island(box: pymupdf.Rect, segs) -> bool:
+    """안에서 시작해 밖으로 나가는 선분이 없다 — 본문 배관과 이어지지 않은 상자.
+
+    상자 변 위의 선분(자기 테두리)은 어느 쪽 끝도 *엄격히* 안이 아니므로 걸리지 않는다."""
+    def strictly_in(p):
+        return box.x0 < p.x < box.x1 and box.y0 < p.y < box.y1
+    def strictly_out(p):
+        return p.x < box.x0 or p.x > box.x1 or p.y < box.y0 or p.y > box.y1
+    return not any((strictly_in(a) and strictly_out(b)) or (strictly_in(b) and strictly_out(a))
+                   for a, b in segs)
+
+
 def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
-    """원 안에 짧은 낱말 하나 — 지름은 `ceiling`(그 장 버블 짧은 변) 미만."""
+    """원 안에 낱말 하나가 통째로 — 지름은 `ceiling`(그 장 버블 짧은 변) 미만.  글자는 보지 않는다."""
     words = [(pymupdf.Rect(r), t) for r, t in pc.words]
     out = []
     segs = pc.segments()
@@ -92,7 +112,7 @@ def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
         if not (cb.width < ceiling and area.contains(cb)):
             continue
         inside = [(r, t) for r, t in words if cb.contains(r.tl) and cb.contains(r.br)]
-        if len(inside) != 1 or not SHORT.match(inside[0][1]):
+        if len(inside) != 1:
             continue
         # 원에 선이 닿는가로 둘을 가른다 (25회차 별표의 "자유 끝점" 과 같은 눈):
         #   · 아무 선도 안 닿는다 → 캡션 자리 (free)
@@ -163,15 +183,20 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
             y0, y1 = above[0][0].y, below[0][0].y
             if x1 - x0 >= 6 * d and y1 - y0 >= 4 * d:
                 cands.append(pymupdf.Rect(x0, y0, x1, y1))
-        # 캡션을 담는 가장 작은 것이 상자다 — 시트 틀·큰 패키지 상자는 그보다 크다.
-        box = min(cands, key=lambda q: q.get_area()) if cands else None
+        # 캡션을 담는 **독립 섬** 중 가장 작은 것이 상자다 — 시트 틀·큰 패키지 상자는 그보다 크고,
+        # 배관이 가로지르는 후보는 섬이 아니다 (TC2 p11 실측 — 선 기반 후보에 13개 선이 걸쳤다).
+        islands = [q for q in cands if is_island(q, segs)]
+        box = min(islands, key=lambda q: q.get_area()) if islands else None
         t.details.append(Detail(m.id, text, r, box))
     ids = [det.id for det in t.details]
     t.ambiguous = {i for i in ids if ids.count(i) > 1}
     boxes = [det.box for det in t.details if det.box is not None]
     cap_rects = [det.mark for det in t.details]
     for m in t.marks:
-        if m.id not in ids or m.rect in cap_rects or m.kind != "line":
+        if m.rect in cap_rects or m.kind != "line":
+            continue
+        if m.id not in ids:
+            t.unpaired[m.id] = t.unpaired.get(m.id, 0) + 1     # 짝 없는 라인 표식 — 기록만
             continue
         if any(b.contains(m.rect) for b in boxes):
             continue                         # 상자 안 표식은 그 상자의 것

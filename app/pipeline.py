@@ -2448,7 +2448,7 @@ def _apply_typical(rows, typical_by_page: dict) -> dict:
             r.qty = r.qty * n
             stats["rows_multiplied"] += 1
             r.evidence["qty_basis"] = (str(r.evidence.get("qty_basis", ""))
-                                       + f" x {n} (Typical {det.id} 표식 {n}개 × 상세 한 벌)")
+                                       + f" x {n} (( {det.id} ) 상세 한 벌 × 본문 표식 {n}개)")
         elif n == 0:
             fact["note"] = "이 장에 참조 표식이 없어 x1 그대로"
     return stats
