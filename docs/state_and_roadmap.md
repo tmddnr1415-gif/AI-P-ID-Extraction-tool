@@ -64,7 +64,7 @@ LLM 을 쓰지 않는다.  판정에 쓰는 값은 그 도면의 **범례 · NOT
 | AL NOUF1 | 45 | 27 | 152 | `DESCRIPTION_INCOMPLETE` 104 · `DESC_CCW_DIRECTION` 100 |
 | SADARA | 4 | 4 | 82 | **`MULTIPLIER_UNDEFINED` 82 (전량)** |
 | TC2 | 44 | 26 | 245 | **`MULTIPLIER_FROM_CONFIG` 203** |
-| UAD | 14 | 14 | 149 | **`MULTIPLIER_FROM_CONFIG` 149 (전량)** |
+| UAD | 14 | 14 | 184 | **`MULTIPLIER_FROM_CONFIG` 184 (전량)** · `BUBBLE_DASHED` 35 (40회차) |
 
 **★ 세 프로젝트에서 사람 몫의 1위가 전부 승수다.**  검출을 더 고쳐도 이 숫자는
 안 내려간다.
