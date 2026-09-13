@@ -26,3 +26,8 @@
 - 04:40 [C-2] 보고 `out/round38_uad_forms.md` — **다중 양식이 아니다.**  32장이 한 양식(FICHTNER)이고 p11~15·p22 는 글자가 획뿐(텍스트 0 · SHX 주석 0), p16~18 은 타이틀블록만 획(본문 TrueType · 30회차 "계기 목록 시트" 는 오기), p32 는 도면번호 꼬리 3자리.  [C-3] 장 단위 양식 판정은 원인이 아니라 만들지 않는다 → 범위 다시 잡기(획 사전 ㉠/㉡/보류 ㉢) 는 사용자 판단.
 - 04:45 [B] 구현 — `revisions.set_mode/declared_mode/MODES` · `pipeline._attach_tags(declared_mode=)` (실측은 언제나, 선언은 1급 켜고 끄기만, 다르면 `conflict`) · `db job.mode` · `POST /jobs mode` · `PATCH /projects/{name}/mode` · `GET /jobs/{id}/mode` (`_mode_facts` 한 곳) · 첫 화면 라디오(자동/입찰/실행 · 작성자) · 결과 화면 `#mode-bar` (불일치면 붉은 띠 + "실측대로 바꾸기 — 다음 분석부터").  `tests/test_mode.py` 7건 · 빠른 시험 290.
 - 04:49 [D-2] `spike/typical_survey.py` TC2 60장 시작 (원 4호 + 짧은 낱말 · 캡션 `X :` · 상자는 긴 가로선 둘 + 세로선).  첫 장들: p6 D×4 상세 1 · p7 D1×1 D2×2 상세 2 · **모터 `M` 원도 잡힌다 — 그 장에 캡션이 없으므로 참조가 아니다(짝 규칙이 거른다)**.
+- 04:52 [B] 게이트 — UAD 를 `bid` 로 선언해 분석: **지문 `db1a77d1` · 149행 · Q'ty 149 그대로** · 태그 붙은 행 0 · `conflict=declared_bid_tags_found` (태그 후보 128행 · 14장) — 선언이 실측을 덮되 조용하지 않다.  AL NOUF1·TC2·SADARA 는 태그 0 이라 선언과 무관하게 불변(구조).
+- 05:00 [D-2] TC2 60장 전수(중복 실행이 메모리를 13G 까지 밀어 한 번 죽였다 — 한 개만 다시) → `out/round38_typical.md`: 라인 표식 18 · 상세 6 · 짝 6/6 · 모터 M 원 18개는 캡션이 없어 참조 아님.  UAD·SADARA·AL NOUF1 은 캡션 0.
+- 05:08 [F] UAD p23 독립 재계산(유도 오버레이 포함): PDIT 00GKB21/23CP001 의 "별표" 는 **위 PDIA 버블의 `++,+` 경보 접미 `+` 획**(방향 둘) 이고 그 버블(패널 사각형 안)은 윤곽이 안 잡혔다.  p29 의 PI 는 활자 `*` 가 실제로 붙어 있다(렌더) → VENDOR 가 도면과 맞다.
+- 05:14 [D-3] `app/engine/typical.py` + `pipeline._apply_typical` (곱하는 곳 하나) · `TYPICAL_AMBIGUOUS` · 시험 6.  [F] `star_groups(min_dirs)` — 본문 별표만 방향 셋 이상(정의줄은 둘 그대로 — TC2 정의줄이 2획) · 시험 1.  빠른 시험 **297**.
+- 05:16 [H] AL NOUF1 회귀 시작 (최종 엔진).
