@@ -1,50 +1,49 @@
 {
   "projects": [
     {
-      "name": "TC2",
-      "rows": 707,
-      "fingerprint": "c396892aa735e9e84f9b022cecc62d6a6e28bc99a6c985f6ddb8570148f41238",
-      "qty_sum": 4159,
+      "name": "UAD",
+      "rows": 192,
+      "fingerprint": "e8bf8fbfe95cd3f622088ee45bb894540be68c7154a4a00b267eb6f6c894ada6",
+      "qty_sum": 192,
       "tabs": {
-        "FIELD": 683,
-        "PNEUMATIC": 20,
-        "BFV": 4
+        "FIELD": 181,
+        "PNEUMATIC": 11
       },
-      "seconds": 623.4,
-      "max_rss_gb": 7.45,
+      "seconds": 352.8,
+      "max_rss_gb": 3.22,
       "identification": {
         "도면번호": [
-          60,
-          60,
+          21,
+          22,
           ""
         ],
         "개정": [
-          60,
-          60,
+          23,
+          32,
           ""
         ],
         "태그→행": [
-          201,
-          266,
+          43,
+          50,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          707,
-          707,
+          192,
+          192,
           ""
         ],
         "심볼판정": [
-          707,
-          828,
+          192,
+          347,
           ""
         ],
         "파라미터": [
-          25,
-          29,
+          26,
+          30,
           ""
         ]
       },
-      "score": 91.2
+      "score": 82.6
     }
   ],
   "metrics": [
