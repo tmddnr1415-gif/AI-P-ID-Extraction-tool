@@ -1174,6 +1174,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                              "who": dict(sorted(user_mult_note.items()))},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
+        # 43회차 — 몸체 짧은 변의 창이 어디서 왔나.  **지문 밖**이다 (`legend`
+        # 에 항목을 더하면 값이 같아도 지문이 움직인다).
+        "valve_layout": {"body_short": [round(v, 3) for v in dv.LAYOUT.body_short],
+                         "source": dv.LAYOUT.body_short_source,
+                         "basis": dv.LAYOUT.body_short_basis},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
         # 들어가지 않는다 (`fingerprint` 는 `legend`·`multipliers`·행만 본다):
         # 같은 값을 쓴 두 경로가 다른 지문을 내면 프로필이 값을 정확히 담았는지

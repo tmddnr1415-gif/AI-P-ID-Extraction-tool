@@ -102,6 +102,7 @@ import re
 import sys
 import time
 import dataclasses
+import math
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -182,6 +183,8 @@ class ValveLayout:
 
     seg_span: tuple = (1.0, 60.0)       # segment lengths worth looking at
     body_short: tuple = (5.0, 30.0)     # short side of a valve body
+    body_short_source: str = "CONFIG"   # 43회차 — LEGEND 면 그 문서 범례가 그린 나비에서
+    body_short_basis: float = 0.0       # 범례 나비 짧은 변 (LEGEND 일 때)
     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
     bar_axis_tol: float = 0.8           # how close an end bar is to the end
     bar_cover: float = 1.2              # how far a bar may fall short
@@ -304,6 +307,14 @@ PNEUMATIC_SIZE_BAND = (0.75, 1.25)
 # gives as exactly zero.
 INDEX_SLACK = 0.8
 
+# 43회차 — 몸체 짧은 변의 창.  `ValveLayout.body_short=(5.0, 30.0)` 은 AL NOUF1
+# 범례가 그린 나비 9.9pt 둘레의 창(×0.5 · ×3.0)을 **절대 pt 로 옮겨 적은 값**
+# 이었다.  A3 문서(TC2 · UAD)는 나비를 4.6~5.0pt 로 그려 그 창의 아래 끝에
+# 걸리고, 4.68pt 짜리는 통째로 빠졌다(TC2 p10 13개 · 그중 공압 3).  창은 그
+# 문서 범례의 LINE VALVES 장이 그린 나비(짧은 변의 최빈값)에 대는 배율이고,
+# 배율 자체는 AL NOUF1 의 창과 같다 — 새 값이 아니라 같은 창을 범례에 맨 것.
+BODY_SHORT_BAND = (0.5, 3.0)
+
 
 def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     """Replace the measured constants with values read off the legend.
@@ -357,6 +368,16 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         # The legend lays its own actuator out at `centre_to_body`; a drawing at
         # another scale needs headroom, and REACH_FACTOR is that headroom.
         kw["act_reach"] = float(st.values["centre_to_body"]) * REACH_FACTOR
+    # 43회차 — 몸체 짧은 변의 창을 그 문서 범례가 그린 나비에 맨다.  `derived`
+    # (지문 재료인 legend 기록)에는 넣지 않는다 — 값이 같아도 항목이 늘면 이미
+    # 답이 있는 문서의 지문이 움직인다.  출처는 layout 자신이 들고 파이프라인이
+    # `result["valve_layout"]`(지문 밖)로 낸다.
+    basis, why = legend_bowtie_short(pages, dataclasses.replace(lay, **kw))
+    if basis:
+        kw["body_short"] = (basis * BODY_SHORT_BAND[0], basis * BODY_SHORT_BAND[1])
+        kw["body_short_source"], kw["body_short_basis"] = "LEGEND", basis
+    else:
+        kw["body_short_source"] = "CONFIG_FALLBACK: " + why
     return dataclasses.replace(lay, **kw), derived
 
 
@@ -566,6 +587,157 @@ def _arc_above(box, axis, rounds, lay: ValveLayout):
     return None
 
 
+def _bbox_groups(diag) -> dict:
+    """Diagonals sharing a bounding box are the two halves of a bowtie."""
+    grouped: dict[tuple, list] = collections.defaultdict(list)
+    for p0, p1 in diag:
+        key = (round(min(p0.x, p1.x), 1), round(min(p0.y, p1.y), 1),
+               round(max(p0.x, p1.x), 1), round(max(p0.y, p1.y), 1))
+        grouped[key].append((p0, p1))
+    return grouped
+
+
+def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dict:
+    """43회차 — 대각선이 **토막으로 흩어져** 그려진 나비.
+
+    같은 bbox 를 공유하는 두 대각선(`_bbox_groups`)만이 나비인 것이 아니다.
+    TC2 는 나비 가운데에 점을 찍고 대각선을 그 점에서 끊어 **네 토막**으로,
+    UAD 는 여섯~여덟 토막으로 그리며, SADARA·UAD 의 범례 자신도 나비를 그렇게
+    그린다(범례 LINE VALVES 장에서 X4·X6 실측).  그래서 정의는 그대로 두고
+    — 두 기울기의 대각선이 몸체 가운데에서 교차하고 양 끝에 끝막대가 선다 —
+    그 대각선이 **한 선 위의 토막들**이어도 되게 한다.
+
+    새 상수는 없다: 교점·토막 접촉 허용치는 `centre_tol`, 한 선 위 판정은
+    `INDEX_SLACK`, 이웃 창은 몸체 짧은 변 상한, 크기·비·끝막대는 지금 있는 것.
+    모양을 맞추는 것이 아니라 교점에서 끝점이 맞닿아 이어지는 **관계**로
+    모은다 (32회차 p12 의 "끝점 4 · 직각 두 쌍" 은 이 관계가 없어 2,208건이
+    걸렸다).  같은 bbox 묶음이 이미 낸 상자(`taken`)는 다시 내지 않는다.
+    """
+    segs = []
+    for p0, p1 in diag:
+        if abs(p1.x - p0.x) < 1e-6:
+            continue
+        m = (p1.y - p0.y) / (p1.x - p0.x)
+        segs.append((p0, p1, 1 if m > 0 else -1, m, p0.y - m * p0.x,
+                     ((p0.x + p1.x) / 2, (p0.y + p1.y) / 2)))
+    cell = float(short_span[1])
+    grid: dict[tuple, list] = collections.defaultdict(list)
+    for i, s in enumerate(segs):
+        grid[(int(s[5][0] // cell), int(s[5][1] // cell))].append(i)
+    tol = lay.centre_tol
+    norm = {i: math.hypot(s[3], 1.0) for i, s in enumerate(segs)}
+
+    def on_line(pt, s, i):
+        return abs(s[3] * pt.x - pt.y + s[4]) / norm[i] <= INDEX_SLACK
+
+    def on_seg(s, cx, cy):
+        return (min(s[0].x, s[1].x) - tol <= cx <= max(s[0].x, s[1].x) + tol
+                and min(s[0].y, s[1].y) - tol <= cy <= max(s[0].y, s[1].y) + tol)
+
+    out: dict[tuple, list] = {}
+    seen_c: set[tuple] = set()
+    for i, a in enumerate(segs):
+        gx, gy = int(a[5][0] // cell), int(a[5][1] // cell)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for j in grid.get((gx + dx, gy + dy), ()):
+                    if j <= i:
+                        continue
+                    b = segs[j]
+                    if a[2] == b[2] or a[3] == b[3]:
+                        continue
+                    cx = (b[4] - a[4]) / (a[3] - b[3])
+                    cy = a[3] * cx + a[4]
+                    if not (on_seg(a, cx, cy) and on_seg(b, cx, cy)):
+                        continue
+                    ck = (round(cx), round(cy))
+                    if ck in seen_c:
+                        continue
+                    seen_c.add(ck)
+                    cgx, cgy = int(cx // cell), int(cy // cell)
+                    near = [(k, segs[k]) for ex in (-1, 0, 1) for ey in (-1, 0, 1)
+                            for k in grid.get((cgx + ex, cgy + ey), ())]
+                    on = [(k, s) for k, s in near
+                          if (on_line(s[0], a, i) and on_line(s[1], a, i))
+                          or (on_line(s[0], b, j) and on_line(s[1], b, j))]
+                    # 교점에서 끝점이 맞닿아 이어지는 토막만 (사슬)
+                    keep, frontier, rest = [], [(cx, cy)], on
+                    while frontier:
+                        fx, fy = frontier.pop()
+                        nxt = []
+                        for k, s in rest:
+                            d0 = math.hypot(s[0].x - fx, s[0].y - fy)
+                            d1 = math.hypot(s[1].x - fx, s[1].y - fy)
+                            if min(d0, d1) <= tol:
+                                keep.append(s)
+                                far = s[1] if d0 < d1 else s[0]
+                                frontier.append((far.x, far.y))
+                            else:
+                                nxt.append((k, s))
+                        rest = nxt
+                    if not keep or len({s[2] for s in keep}) < 2:
+                        continue
+                    x0 = min(min(s[0].x, s[1].x) for s in keep)
+                    y0 = min(min(s[0].y, s[1].y) for s in keep)
+                    x1 = max(max(s[0].x, s[1].x) for s in keep)
+                    y1 = max(max(s[0].y, s[1].y) for s in keep)
+                    w, h = x1 - x0, y1 - y0
+                    short, long_ = min(w, h), max(w, h)
+                    if short <= 0 or not short_span[0] <= short <= short_span[1]:
+                        continue
+                    if not lay.body_ratio[0] <= long_ / short <= lay.body_ratio[1]:
+                        continue
+                    if abs(cx - (x0 + x1) / 2) > tol or abs(cy - (y0 + y1) / 2) > tol:
+                        continue
+                    key = (round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1))
+                    if key in taken or key in out:
+                        continue
+                    if any(abs(key[0] - k[0]) < tol and abs(key[1] - k[1]) < tol
+                           and abs(key[2] - k[2]) < tol and abs(key[3] - k[3]) < tol
+                           for k in taken):
+                        continue
+                    axis = "H" if w > h else "V"
+                    if _end_bars(horiz, vert, key, axis, lay) != 3:
+                        continue
+                    out[key] = [(s[0], s[1]) for s in keep]
+    return out
+
+
+def _bowtie_groups(diag, horiz, vert, lay: ValveLayout, short_span) -> dict:
+    """같은 bbox 묶음 + 흩어진 토막 묶음 — find_bodies 와 범례 측정이 같은 함수를 쓴다."""
+    grouped = _bbox_groups(diag)
+    grouped.update(_split_groups(diag, horiz, vert, lay, short_span, set(grouped)))
+    return grouped
+
+
+def legend_bowtie_short(pages, lay: ValveLayout):
+    """43회차 — 그 문서 범례의 LINE VALVES 장이 그린 나비의 짧은 변 (최빈값).
+
+    범례 장에서 끝막대를 갖춘 나비 묶음을 크기 창 없이(선분 길이 창만) 모아
+    짧은 변의 최빈값을 낸다.  못 찾으면 None — 설정값을 쓰되 출처를 남긴다.
+    """
+    pc = legend_rules._page_with(pages, legend_rules.LINE_VALVE_HEADING)
+    if pc is None:
+        return None, f"no legend sheet prints '{legend_rules.LINE_VALVE_HEADING}'"
+    horiz, vert, diag = _index_segments(pc, lay)
+    shorts = []
+    for box, lines in _bowtie_groups(diag, horiz, vert, lay, (1.0, float(lay.seg_span[1]))).items():
+        w, h = box[2] - box[0], box[3] - box[1]
+        short, long_ = min(w, h), max(w, h)
+        if short <= 0 or not lay.body_ratio[0] <= long_ / short <= lay.body_ratio[1]:
+            continue
+        if len({1 if (p1.x - p0.x) * (p1.y - p0.y) > 0 else -1 for p0, p1 in lines}) < 2:
+            continue
+        axis = "H" if w > h else "V"
+        if _end_bars(horiz, vert, box, axis, lay) != 3:
+            continue
+        shorts.append(round(short, 1))
+    if not shorts:
+        return None, "LINE VALVES sheet draws no bowtie with both end bars"
+    mode = collections.Counter(shorts).most_common(1)[0][0]
+    return mode, f"{len(shorts)} bowtie(s) on the LINE VALVES sheet, short side mode {mode}"
+
+
 def find_bodies(pc, lay: ValveLayout = LAYOUT,
                 disabled=frozenset()) -> list[Body]:
     """Every line-valve body on the page, classified per legend page 2."""
@@ -573,12 +745,7 @@ def find_bodies(pc, lay: ValveLayout = LAYOUT,
     rounds = _round_paths(pc, lay)
     fills = _filled_paths(pc, lay)
 
-    # Diagonals sharing a bounding box are the two halves of a bowtie.
-    grouped: dict[tuple, list] = collections.defaultdict(list)
-    for p0, p1 in diag:
-        key = (round(min(p0.x, p1.x), 1), round(min(p0.y, p1.y), 1),
-               round(max(p0.x, p1.x), 1), round(max(p0.y, p1.y), 1))
-        grouped[key].append((p0, p1))
+    grouped = _bowtie_groups(diag, horiz, vert, lay, lay.body_short)
 
     bodies: list[Body] = []
     claimed: set[tuple] = set()

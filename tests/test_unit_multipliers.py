@@ -173,7 +173,8 @@ def test_the_screen_asks_once_per_unit_code_not_once_per_row(tmp_path):
     assert len(out["groups"]) == 1, out["groups"]
     g = out["groups"][0]
     assert g["unit"] == "10"          # 도면번호에서 나온다 (parse_unit_code)
-    assert g["rows"] == 82 and g["sheets"] == 4
+    # 41회차 [C](범례 회전 보정)로 SADARA 82 → 86행 (MOV/BFV MOTOR 4행 회복) — 승수 대상은 그 행들 전부
+    assert g["rows"] == 86 and g["sheets"] == 4
     assert g["codes"] == ["MULTIPLIER_UNDEFINED"]
     assert g["set"] is None
 
