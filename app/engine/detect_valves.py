@@ -185,6 +185,7 @@ class ValveLayout:
     body_short: tuple = (5.0, 30.0)     # short side of a valve body
     body_short_source: str = "CONFIG"   # 43회차 — LEGEND 면 그 문서 범례가 그린 나비에서
     body_short_basis: float = 0.0       # 범례 나비 짧은 변 (LEGEND 일 때)
+    disc_min: float = 0.0               # 43회차 [B-2] — 원형 몸체 원 지름 하한 (범례 원 × DISC_MIN_RATIO · 0 이면 옛 규칙)
     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
     bar_axis_tol: float = 0.8           # how close an end bar is to the end
     bar_cover: float = 1.2              # how far a bar may fall short
@@ -315,6 +316,15 @@ INDEX_SLACK = 0.8
 # 배율 자체는 AL NOUF1 의 창과 같다 — 새 값이 아니라 같은 창을 범례에 맨 것.
 BODY_SHORT_BAND = (0.5, 3.0)
 
+# 43회차 [B-2] — 원형 몸체(BALL·BUTTERFLY)의 원은 범례가 그린 원보다 이만큼은
+# 커야 한다.  실측(원 지름 / 범례 원 지름 · 네 문서 몸체 단위): 접합점·흐름
+# 화살촉의 지름 2pt 원이 UAD 0.49~0.69 · TC2 0.67, 진짜 몸체는 SADARA 0.96 ·
+# AL NOUF1 1.01~ · UAD 1.01~ — **0.69 와 0.96 사이가 비어 있어** 문턱을 그 안
+# 어디에 두어도 답이 같다.  값은 다른 크기 창과 같은 0.75 를 쓴다.  상한은
+# 두지 않는다 (SADARA 는 범례의 1.9배로 그린다 — 범례는 뜻을 정하지 축척을
+# 정하지 않는다).  범례 원을 못 재면 이전 규칙(몸체 짧은 변 하한의 0.4배)대로.
+DISC_MIN_RATIO = 0.75
+
 
 def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     """Replace the measured constants with values read off the legend.
@@ -359,6 +369,8 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         kw["tick_reach"] = float(bf.values["tick_reach_radii"])
         kw["bar_reach"] = float(bf.values["bar_reach_radii"]) * BAR_RADII_BAND[1]
         kw["bar_min"] = float(bf.values["bar_min_radii"]) * BAR_RADII_BAND[0]
+        if bf.values.get("circle_diameter"):
+            kw["disc_min"] = float(bf.values["circle_diameter"]) * DISC_MIN_RATIO
     if st.values:
         # The legend draws the stem on the enclosure's centre line and starting
         # on its edge, so both tolerances are its measured value plus the index
@@ -1025,7 +1037,7 @@ def _find_discs_between_bars(pc, horiz, vert, rounds, fills, diag, claimed,
         if id(b) in spent:
             continue
         w, h = b.width, b.height
-        if not lay.body_short[0] * 0.4 <= max(w, h) <= lay.body_short[1]:
+        if not (lay.disc_min or lay.body_short[0] * 0.4) <= max(w, h) <= lay.body_short[1]:
             continue
         aspect = min(w, h) / max(w, h)
         if not lay.disc_aspect[0] <= aspect <= lay.disc_aspect[1]:
