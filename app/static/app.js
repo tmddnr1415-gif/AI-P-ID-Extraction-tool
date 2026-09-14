@@ -453,6 +453,52 @@ function delButton(jobId) {
     + ` title="이 분석 기록을 지웁니다 — 되돌릴 수 없습니다">삭제</button>`;
 }
 
+/* 46회차 [C] — 프로젝트 통째 삭제.  분석 하나 삭제와 **같은 규율**이다:
+ * 먼저 무엇이 사라지는지 보이고 · 이름을 옮겨 적게 하고 · 누가 지웠는지 남긴다.
+ * 다른 점 하나는 **안정 ID 장부는 남는다**는 사실을 먼저 말하는 것이다 (§7.3). */
+async function askDeleteProject(name) {
+  let pv;
+  try {
+    pv = await (await fetch(`/projects/${encodeURIComponent(name)}/deletion_preview`)).json();
+  } catch (e) { alert("무엇이 사라지는지 확인하지 못했습니다."); return; }
+  const mine = (localStorage.getItem("pid.author") || "").trim();
+  const others = (pv.authors || []).filter(a => a && a !== mine);
+  const bits = [
+    `프로젝트  ${pv.project}`,
+    `분석            ${pv.job_count}개`,
+    `추출한 행        ${pv.rows}행`,
+    `사람이 고친 칸    ${pv.edited_cells}칸`,
+    `수정 이력        ${pv.feedback}건`,
+    `산출물 스냅샷     ${pv.revision_snapshots}개`,
+    `업로드 PDF       ${(pv.uploads_to_remove || []).length}개 함께 지웁니다`,
+    `안정 ID 장부      남깁니다 (같은 이름으로 다시 만들면 이어받습니다)`,
+  ];
+  if (others.length) {
+    bits.unshift(`⚠ 다른 사람이 만든 기록이 있습니다 — ${others.join(", ")}`);
+  }
+  if (!confirm("지우면 아래가 사라집니다. 되돌릴 수 없습니다.\n\n"
+      + bits.join("\n") + "\n\n계속할까요?")) return;
+  const typed = prompt("실수로 지워지지 않게, 프로젝트 이름을 그대로 옮겨 적으세요:\n"
+    + pv.project);
+  if (typed === null) return;
+  const author = prompt("누가 지웁니까? (비워도 됩니다 — 화면이 '자칭' 이라고 적습니다)",
+    mine) ?? "";
+  if (author) { try { localStorage.setItem("pid.author", author); } catch (e) {} }
+  const body = new FormData();
+  body.append("confirm", typed);
+  body.append("author", author);
+  const res = await fetch(`/projects/${encodeURIComponent(name)}`, { method: "DELETE", body });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    alert(d.detail || "지우지 못했습니다.");
+    return;
+  }
+  // 새로고침 없이 사라진다 — 목록과 고르는 상자와 위생 경고를 함께 다시 읽는다.
+  await listHome();
+  await loadProjects();
+  await showAudit();
+}
+
 async function askDelete(jobId) {
   let pv;
   try {
@@ -500,6 +546,14 @@ document.addEventListener("click", ev => {
   askDelete(b.dataset.job);
 });
 
+$req("#joblist").addEventListener("click", ev => {
+  const b = ev.target.closest(".del-project");
+  if (!b) return;
+  ev.preventDefault();
+  ev.stopPropagation();                  // <summary> 가 접히지 않게
+  askDeleteProject(b.dataset.project);
+});
+
 async function listHome() {
   const home = await (await fetch("/home")).json();
   const box = $("#joblist");
@@ -516,8 +570,10 @@ async function listHome() {
         : "분석 없음";
       parts.push(`<details class="pjt" ${revs.length ? "open" : ""}>`
         + `<summary><b>${escape(p.name)}</b>`
-        + `<span class="muted small">${escape(head)}</span></summary>`
-        + rows + "</details>");
+        + `<span class="muted small">${escape(head)}</span>`
+        + `<button class="ghost mini del-project" data-project="${escape(p.name)}"`
+        + ` title="이 프로젝트를 통째로 지웁니다 — 되돌릴 수 없습니다">프로젝트 삭제</button>`
+        + `</summary>` + rows + "</details>");
     }
   }
   if (home.loose.length) {

@@ -891,6 +891,79 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
     return summary
 
 
+# 프로젝트 통째 삭제 (46회차 [C]).
+#
+# 17회차는 이 길을 **일부러 만들지 않았다** — 프로젝트 폴더에 안정 ID 장부가
+# 있고 그것이 사라지면 같은 이름으로 다시 만든 프로젝트가 번호를 1부터 다시
+# 내어 §7.3 이 깨지기 때문이다.  사용자가 "첫 화면에서 완전히 사라지게" 를
+# 요구했으므로 **그 불변식을 지키면서** 연다:
+#
+#   · 분석·행·편집·마크업·리비전·업로드 PDF·출력 폴더는 지운다
+#   · **안정 ID 장부만 `projects/_deleted/<이름>-<시각>/` 로 옮긴다**
+#     (그 폴더에는 `project.json` 이 없으므로 첫 화면에 보이지 않는다)
+#   · 같은 이름으로 다시 만들면 그 장부를 **이어받는다**
+#   · 누가 언제 지웠는지는 분석마다 `deletion_log` 에 남는다
+@app.get("/projects/{name}/deletion_preview")
+def project_deletion_preview(name: str):
+    """지우기 전에 보여 줄 것.  **아무것도 바꾸지 않는다.**"""
+    try:
+        revisions.load_project(DATA_DIR, name)
+    except KeyError:
+        raise HTTPException(404, "no such project")
+    pre = db.project_deletion_preview(CON, revisions.safe_name(name))
+    pre["id_registry_kept"] = True
+    pre["note"] = ("안정 ID 장부는 남깁니다 — 같은 이름으로 다시 만들어도 번호가 "
+                   "겹치지 않게 하기 위해서입니다 (§7.3). 그 밖의 것은 전부 "
+                   "지워지고 되돌릴 수 없습니다.")
+    return pre
+
+
+@app.delete("/projects/{name}")
+def delete_project(name: str, author: str = Form(""), confirm: str = Form("")):
+    """프로젝트를 지운다.  `confirm` 이 프로젝트 이름과 같아야 한다."""
+    try:
+        revisions.load_project(DATA_DIR, name)
+    except KeyError:
+        raise HTTPException(404, "no such project")
+    safe = revisions.safe_name(name)
+    if confirm.strip() != safe:
+        raise HTTPException(
+            400, "확인 값이 프로젝트 이름과 다릅니다 — 실수로 지워지지 않게 "
+                 "하는 장치입니다")
+    running = [r["id"] for r in db.list_jobs(CON)
+               if (r["project"] or "") == safe
+               and r["status"] in ("queued", "running")]
+    if running:
+        raise HTTPException(409, "분석 중인 것이 있습니다. 먼저 취소하세요")
+    summary = db.delete_project(CON, safe, author=author.strip())
+    # 업로드 PDF — 다른 분석이 같은 파일을 가리키면 남긴다 (분석 삭제와 같은 규칙).
+    removed = []
+    for path in summary["uploads_to_remove"]:
+        p = Path(path)
+        try:
+            if p.exists() and p.parent.resolve() == UPLOADS.resolve():
+                p.unlink()
+                removed.append(p.name)
+        except OSError:
+            pass
+    summary["uploads_removed"] = removed
+    # 출력 폴더 — 이제 어느 리비전도 가리키지 않으므로 고아가 된다.  남기면
+    # [B] 위생 경고가 그대로 뜬다.
+    import shutil
+    gone = []
+    outs = DATA_DIR / "outputs"
+    live = {f"rev{r[0]}" for r in CON.execute("SELECT id FROM revision")}
+    if outs.is_dir():
+        for d in sorted(outs.iterdir()):
+            if d.is_dir() and audit.REV_DIR.match(d.name) and d.name not in live:
+                shutil.rmtree(d, ignore_errors=True)
+                gone.append(d.name)
+    summary["outputs_removed"] = gone
+    summary["registry"] = revisions.bury_project(DATA_DIR, safe,
+                                                 author=author.strip())
+    return summary
+
+
 # --------------------------------------------------------------------------
 # 전역 심볼 사전 (18회차)
 # --------------------------------------------------------------------------

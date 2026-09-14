@@ -1248,6 +1248,44 @@ def delete_job(con, job_id: str, author: str = "") -> dict:
     return summary
 
 
+def project_deletion_preview(con, project: str) -> dict:
+    """그 프로젝트를 지우면 무엇이 사라지는가.  **세기만 한다** (46회차 [C]).
+
+    분석 하나짜리 `deletion_preview` 를 그 프로젝트의 모든 분석에 돌려 합친다 —
+    세는 코드를 두 벌 두지 않는다.
+    """
+    jobs = [r["id"] for r in con.execute(
+        "SELECT id FROM job WHERE project = ? ORDER BY created_at", (project,))]
+    each = [deletion_preview(con, j) for j in jobs]
+    uploads = sorted({e["pdf_path"] for e in each if not e["pdf_shared_with"]})
+    authors = sorted({r[0] for r in con.execute(
+        "SELECT DISTINCT author FROM feedback f JOIN job j ON j.id = f.job_id"
+        " WHERE j.project = ? AND author != ''", (project,))})
+    return {
+        "project": project,
+        "jobs": each,
+        "job_count": len(each),
+        "rows": sum(e["rows"] for e in each),
+        "edited_cells": sum(e["edited_cells"] for e in each),
+        "feedback": sum(e["feedback"] for e in each),
+        "revision_snapshots": sum(e["revision_snapshots"] for e in each),
+        "uploads_to_remove": uploads,
+        "authors": authors,
+    }
+
+
+def delete_project(con, project: str, author: str = "") -> dict:
+    """그 프로젝트의 분석을 **하나씩** 지운다.  되돌릴 수 없다.
+
+    `delete_job` 을 그대로 부르므로 `deletion_log` 에 분석마다 한 줄이 남는다 —
+    지운 단위를 나중에 세려면 그 로그가 답이다.
+    """
+    summary = project_deletion_preview(con, project)
+    for e in summary["jobs"]:
+        delete_job(con, e["job_id"], author=author)
+    return summary
+
+
 def deletion_log(con, limit: int = 50) -> list:
     return [dict(r) for r in con.execute(
         "SELECT id, at, author, job_id, project, revision, pdf_name, summary_json"

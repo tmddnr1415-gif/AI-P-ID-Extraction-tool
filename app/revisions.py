@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import time
 import re
+from datetime import datetime, timezone
 import unicodedata
 from pathlib import Path
 
@@ -397,6 +398,27 @@ def load_project(data_dir: Path, name: str) -> dict:
     return json.loads(meta.read_text(encoding="utf-8"))
 
 
+DELETED_DIR = "_deleted"
+
+
+def tombstones(data_dir: Path, name: str) -> list:
+    """그 이름으로 지워진 프로젝트의 **안정 ID 장부** 무덤들 (최신 순).
+
+    프로젝트를 지워도 장부는 남긴다 — §7.3 이 "Rev.A 에서 한 번만 부여하고
+    회수하지 않는다" 이므로, 같은 이름으로 다시 만든 프로젝트가 번호를 1부터
+    다시 내면 이미 발주처에 나간 산출물과 번호가 겹친다.  무덤은 `project.json`
+    을 갖지 않으므로 `list_projects` 에 보이지 않는다(첫 화면에서 사라진다).
+    """
+    root = projects_root(Path(data_dir)) / DELETED_DIR
+    if not root.is_dir():
+        return []
+    pre = safe_name(name) + "-"
+    out = [d for d in root.iterdir()
+           if d.is_dir() and d.name.startswith(pre)
+           and (d / "id_registry.json").exists()]
+    return sorted(out, key=lambda d: d.name, reverse=True)
+
+
 def create_project(data_dir: Path, name: str) -> dict:
     """Rev.A 를 여는 자리.  같은 이름이 있으면 덮어쓰지 않고 거절한다."""
     d = project_dir(data_dir, name)
@@ -405,9 +427,45 @@ def create_project(data_dir: Path, name: str) -> dict:
     d.mkdir(parents=True, exist_ok=True)
     meta = {"name": safe_name(name), "revisions": []}
     _save_project(data_dir, meta)
-    Registry({"version": 1, "project": meta["name"], "revisions": [], "ids": {}}
-             ).save(d / "id_registry.json")
+    # 같은 이름이 지워진 적이 있으면 **그 장부를 이어받는다** (§7.3).
+    # 값을 지어내지 않는다 — 지울 때 그대로 옮겨 둔 파일을 그대로 읽는다.
+    old = tombstones(data_dir, name)
+    reg = (Registry.load(old[0] / "id_registry.json") if old
+           else Registry({"version": 1, "project": meta["name"],
+                          "revisions": [], "ids": {}}))
+    reg.data["project"] = meta["name"]
+    if old:
+        reg.data.setdefault("inherited_from", []).append(old[0].name)
+    reg.save(d / "id_registry.json")
     return meta
+
+
+def bury_project(data_dir: Path, name: str, *, author: str = "", at: str = "") -> dict:
+    """프로젝트 폴더를 지우되 **안정 ID 장부만 무덤으로 옮긴다**.
+
+    되돌릴 수 없다.  무엇을 옮겼는지·누가 지웠는지를 무덤에 함께 적는다.
+    """
+    import shutil
+    d = project_dir(data_dir, name)
+    if not d.is_dir():
+        return {"buried": False, "reason": "그 이름의 프로젝트 폴더가 없습니다"}
+    stamp = at or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    grave = projects_root(Path(data_dir)) / DELETED_DIR / f"{safe_name(name)}-{stamp}"
+    grave.mkdir(parents=True, exist_ok=True)
+    kept = []
+    reg = d / "id_registry.json"
+    if reg.exists():
+        shutil.copy2(reg, grave / "id_registry.json")
+        kept.append("id_registry.json")
+    (grave / "deleted.json").write_text(json.dumps(
+        {"project": safe_name(name), "deleted_at": stamp,
+         "author": author or "", "kept": kept,
+         "why": "안정 ID 는 회수하지 않는다 (§7.3) — 같은 이름으로 다시 만들면 "
+                "이 장부를 이어받는다"},
+        ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    removed = sorted(p.name for p in d.iterdir())
+    shutil.rmtree(d)
+    return {"buried": True, "grave": str(grave), "kept": kept, "removed": removed}
 
 
 # 38회차 — 입찰 / 실행 선언.  §10 증거 등급을 **사람이 미리 말하는 것**이다.
