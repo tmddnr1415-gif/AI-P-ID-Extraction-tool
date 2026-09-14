@@ -1,1 +1,16 @@
 · TC2 분석 …
+   행 811 · 지문 98a8dfc7 · 축3 92.4점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+TC2    811   98a8dfc7     4875     497    7.5G   92.4
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+TC2 60/60        60/60        239/266      811/811      811/1035     25/29      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TC2 rows: 기준선 731 → 지금 811
+   TC2 fingerprint: 기준선 cecd745d36b4fb403c74694e9cc01c5b5ac256381bd2e0ae8f125df22324e3bc → 지금 98a8dfc7f18ddaba14fc075b83f8118b5125a588532a272d2fa1abc2cfb9b07d
+   TC2 qty_sum: 기준선 4277 → 지금 4875
+   TC2 score: 기준선 90.2 → 지금 92.4
