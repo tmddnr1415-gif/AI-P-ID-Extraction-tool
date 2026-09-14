@@ -286,6 +286,23 @@ def _remark(row: dict, values: dict):
     act on.  A row nobody flagged and nobody touched gets an empty cell.
     """
     codes = row.get("review_codes") or []
+    # 44회차 — 사용자 마크업의 표시는 **이 열의 앞머리**다.  세 후보 중 남은
+    # 하나다: 행 칠하기는 §7.1 "Rev.A 산출물에 음영이 없어야 한다" 와 충돌하고,
+    # 별도 시트는 발주처 양식을 바꾼다.  시각은 적지 않는다 — 같은 마크업이면
+    # 같은 바이트여야 한다 (결정성).  `MANUAL_*` 코드는 아래 사유 목록에서 뺀다:
+    # "→ 미처리" 로 읽히면 사람이 이미 본 행에 검토 사유가 붙은 꼴이 된다.
+    ev = row.get("evidence") or {}
+    lead = []
+    if row.get("added"):
+        who = (ev.get("markup") or {}).get("author") or ""
+        lead.append("사용자 추가" + (f" · {who}" if who else ""))
+    rj = row.get("reject") or {}
+    if rj:
+        who = rj.get("author") or ""
+        lead.append("사용자 표시: 오검출 의심"
+                    + (f" ({rj.get('note')})" if rj.get("note") else "")
+                    + (f" · {who}" if who else ""))
+    codes = [c for c in codes if not str(c).startswith("MANUAL_")]
     # A folded signal stack is not a flag - nobody has to decide anything - but
     # the row now stands for bubbles the reader can count on the drawing and will
     # not find in the list.  So it says which signals it covers, on every row,
@@ -297,7 +314,7 @@ def _remark(row: dict, values: dict):
         # Nothing was flagged: whatever the reviewer typed in the Remark box is
         # theirs and goes through untouched, with the fold noted beside it.
         typed = values.get("remark") or None
-        return " · ".join([p for p in (fold, typed) if p]) or None
+        return " · ".join([p for p in (*lead, fold, typed) if p]) or None
     states = row.get("review_state") or {}
     labels = row.get("review_label") or {}
     parts = []
@@ -308,7 +325,7 @@ def _remark(row: dict, values: dict):
                      f"{REVIEW_STATE_KO.get(state, state)}")
     # A cell is read at a glance, so it carries the question and the answer.  The
     # engine's full reasoning is on the review screen, where there is room for it.
-    return " · ".join(([fold] if fold else []) + parts)
+    return " · ".join(lead + ([fold] if fold else []) + parts)
 
 
 REVIEW_STATE_KO = {"CONFIRMED": "확인함", "EDITED": "수정함", "HELD": "보류",

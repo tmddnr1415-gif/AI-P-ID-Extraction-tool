@@ -939,6 +939,8 @@ review_axes:
     UNLABELED_GLYPH_CLUSTER: DETECTION
     MIXED_TAG_GLYPH_CLUSTER: DETECTION
     ROW_DELETED: DETECTION                # 사용자가 지운 행
+    MANUAL_ADD: DETECTION                 # 사용자가 도면에서 추가한 행 (44회차)
+    MANUAL_REJECT: DETECTION              # 사용자가 오검출로 표시한 행 (44회차)
     # --- source: the inputs, not the reading of them
     ORIGIN_REFERENCE_MISSING: SOURCE
     REVIEWER_MARKUP: SOURCE               # 도면에 개정 표기가 있음

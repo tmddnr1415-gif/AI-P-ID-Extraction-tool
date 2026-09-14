@@ -246,6 +246,10 @@ _ADDED_COLUMNS = (
     # 끝나면 다시 볼 수 없었다.  판정에는 쓰이지 않는다 - 지문에도 들어가지
     # 않고, 화면이 "이 PDF 가 개정본인가"를 말할 때만 읽는다.
     ("pid_page", "rev", "TEXT NOT NULL DEFAULT ''"),
+    # 44회차 — 사람이 "오검출" 로 표시한 검출 행의 사유.  `removed` 는 "Excel
+    # 에서 뺀다" 는 뜻 하나만 갖고, 왜 뺐는지(㉢ 오검출 · ㉣ 값 틀림 · 미지정
+    # 심볼)와 누가·언제는 여기 산다.  행은 지워지지 않는다 (`remove_row`).
+    ("item", "reject_json", "TEXT NOT NULL DEFAULT '{}'"),
     ("pid_page", "rev_method", "TEXT NOT NULL DEFAULT ''"),
     ("pid_page", "rev_confidence", "TEXT NOT NULL DEFAULT ''"),
     ("pid_page", "rev_date", "TEXT NOT NULL DEFAULT ''"),
@@ -499,6 +503,9 @@ def _merged(r) -> dict:
         "conflict": json.loads(r["conflict_json"]),
         "deleted": bool(r["deleted"]),
         "added": bool(r["added"]), "removed": bool(r["removed"]),
+        # 44회차 — 오검출 표시.  옛 DB(열이 없던 파일)는 빈 dict 다.
+        "reject": (json.loads(r["reject_json"] or "{}")
+                   if "reject_json" in r.keys() else {}),
     }
 
 
@@ -527,7 +534,8 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
 
 
 def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
-            drawing_no: str = "", values: dict = None, source_key: str = None) -> str:
+            drawing_no: str = "", values: dict = None, source_key: str = None,
+            rect=None, evidence: dict = None, needs_review: str = None) -> str:
     """A row a reviewer created, by hand or by copying one.
 
     It has no `ai_values` - the engine never proposed it - so every value in it
@@ -538,17 +546,26 @@ def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
     import uuid
     key = "u" + uuid.uuid4().hex[:15]
     values = dict(values or {})
+    # 44회차 — 마크업 행은 도면 위 사각형을 갖는다 (표시 좌표 · pt).  옛 `＋행`
+    # 경로는 rect 없이 오고 그때는 예전처럼 `[]` 다.  근거(`evidence`)에는
+    # 제안값과 출처(`scope_source` · `qty_source`) · 작성자가 실린다 — 그 칸은
+    # 지문·축이 읽지 않는 자리다.  `needs_review` 를 넘기면 그 문장을 쓰고,
+    # 안 넘기면 예전 문장 그대로다 (마크업은 사람이 이미 본 행이라 빈 문자열).
+    ev = {"added_by": "reviewer"}
+    if source_key:
+        ev["copied_from"] = source_key
+    ev.update(evidence or {})
     con.execute(
         "INSERT INTO item (job_id,key,tab,page_no,drawing_no,origin,rect_json,"
         "ai_json,user_json,evidence_json,needs_review,annotation,conflict_json,"
-        "deleted,added,removed) VALUES (?,?,?,?,?,?,'[]',?,?,?,?,'','{}',0,1,0)",
+        "deleted,added,removed) VALUES (?,?,?,?,?,?,?,?,?,?,?,'','{}',0,1,0)",
         (job_id, key, tab, page_no, drawing_no, origin,
+         json.dumps([round(float(v), 1) for v in (rect or [])]),
          json.dumps({k: None for k in EDITABLE}, sort_keys=True),
          json.dumps(values, sort_keys=True),
-         json.dumps({"added_by": "reviewer",
-                     "copied_from": source_key} if source_key else
-                    {"added_by": "reviewer"}, sort_keys=True),
-         "reviewer-added row: no detection stands behind it"))
+         json.dumps(ev, sort_keys=True, default=str),
+         ("reviewer-added row: no detection stands behind it"
+          if needs_review is None else needs_review)))
     con.commit()
     return key
 
@@ -565,12 +582,17 @@ def copy_row(con, job_id: str, key: str) -> str:
                    src["drawing_no"], merged, source_key=key)
 
 
-def remove_row(con, job_id: str, key: str) -> dict:
+def remove_row(con, job_id: str, key: str, reject: dict = None,
+               exclude: bool = True) -> dict:
     """Strike a row out.  Reviewer-created rows go for good; detections do not.
 
     A detection is never really deleted, because the next analysis would just
     bring it back and the reviewer's decision would be lost.  It is marked
     `removed`, which keeps it visible and out of the export.
+
+    44회차 — `reject` 는 사람이 적은 사유(㉢ 오검출 · ㉣ 값 틀림 · 미지정
+    심볼 · 기타)와 누가·언제다.  `exclude=False` 면 **표시만** 한다 — 행은
+    Excel 에 그대로 나가고 `reject` 만 남는다 (요구: "Excel 제외 선택").
     """
     row = con.execute("SELECT added FROM item WHERE job_id=? AND key=?",
                       (job_id, key)).fetchone()
@@ -580,13 +602,34 @@ def remove_row(con, job_id: str, key: str) -> dict:
         con.execute("DELETE FROM item WHERE job_id=? AND key=?", (job_id, key))
         con.commit()
         return {"key": key, "dropped": True}
-    con.execute("UPDATE item SET removed=1 WHERE job_id=? AND key=?", (job_id, key))
+    con.execute("UPDATE item SET removed=?, reject_json=? WHERE job_id=? AND key=?",
+                (1 if exclude else 0,
+                 json.dumps(reject or {}, ensure_ascii=False, sort_keys=True,
+                            default=str), job_id, key))
     con.commit()
-    return {"key": key, "removed": True}
+    return {"key": key, "removed": bool(exclude), "flagged": bool(reject)}
 
 
 def restore_row(con, job_id: str, key: str) -> None:
-    con.execute("UPDATE item SET removed=0 WHERE job_id=? AND key=?", (job_id, key))
+    """되돌린다 — `removed` 와 오검출 표시를 함께 지운다."""
+    con.execute("UPDATE item SET removed=0, reject_json='{}' WHERE job_id=? AND key=?",
+                (job_id, key))
+    con.commit()
+
+
+def set_row_revision_state(con, job_id: str, key: str, stable_id: str,
+                           state: str = "", excel_no: int = 0) -> None:
+    """한 행의 안정 ID 를 적는다 (44회차 — 마크업 행).
+
+    `store_revision_result` 는 분석 직후 **전부 갈아 끼우는** 함수라 뒤에 생긴
+    행에는 쓸 수 없다.  여기는 한 행만 넣고 다른 행은 건드리지 않는다.
+    """
+    con.execute(
+        "INSERT INTO revision_state (job_id,row_key,stable_id,state,excel_no,"
+        "moved_pt,changed_json) VALUES (?,?,?,?,?,0,'[]')"
+        " ON CONFLICT(job_id,row_key) DO UPDATE SET stable_id=excluded.stable_id,"
+        " state=excluded.state, excel_no=excluded.excel_no",
+        (job_id, key, stable_id or "", state or "", int(excel_no or 0)))
     con.commit()
 
 

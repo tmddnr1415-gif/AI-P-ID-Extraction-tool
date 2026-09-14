@@ -74,6 +74,9 @@ const S = {
   // which is not the same as "every value ticked" - see setColumnFilter().
   colFilters: {},
   picking: false, feedback: 0, reports: 0, showTrace: true, gradeFilter: "",
+  // 44회차 — 마크업 모드.  `rowByKey` 는 오버레이가 행 상태(추가·오검출)를
+  // 키로 찾는 지도이고 `markupSummary` 는 서버 집계(`GET /jobs/{id}/markup`).
+  markup: false, rowByKey: {}, markupSummary: null,
   reasonFilter: "",
   // The review filters.  They stack: axis narrows to a decision, code to one
   // reason inside it, and the tab / drawing / grade are the axes the grid
@@ -1195,6 +1198,11 @@ function renderDeletedCandidates() {
 
 async function loadRows() {
   S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
+  S.rowByKey = Object.fromEntries(S.rows.map(r => [r.key, r]));
+  try {
+    S.markupSummary = await (await fetch(`/jobs/${S.job.id}/markup`)).json();
+  } catch (e) { S.markupSummary = null; }
+  updateMarkupNote();
   // ④ 행의 FROM/TO 확정 장부 - 근거 패널의 "FROM/TO 확정"·"확정 승계" 표시용.
   // 프로젝트가 없는 job 은 빈 객체가 온다.
   try {
@@ -2110,6 +2118,22 @@ function renderGrid() {
       f.appendChild(b);
     }
     if (r.removed) f.innerHTML += '<span class="flag" title="검토자 삭제 — 출력 제외">✕</span>';
+    // 44회차 — 오검출 표시(Excel 유지)와 되돌리기.  표시된 행은 어느 쪽이든
+    // 사람이 되돌릴 수 있어야 한다 — API 는 처음부터 있었고 버튼이 없었다.
+    if (r.reject && Object.keys(r.reject).length && !r.removed) {
+      f.innerHTML += `<span class="flag" title="오검출 의심 표시 — Excel 유지 · ${escape(r.reject.class || "")} ${escape(r.reject.note || "")}">✕?</span>`;
+    }
+    if (r.removed || (r.reject && Object.keys(r.reject).length)) {
+      const b = document.createElement("button");
+      b.className = "mini-rep"; b.textContent = "되돌리기";
+      b.title = "오검출 표시를 지우고 행을 되살립니다";
+      b.onclick = async (ev) => {
+        ev.stopPropagation();
+        await fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" });
+        await refreshRows(r.key);
+      };
+      f.appendChild(b);
+    }
     // One click from any row to a report, because a reviewer notices the error
     // while looking at the grid and will not go hunting for a menu.
     const rep = document.createElement("button");
@@ -2636,6 +2660,32 @@ function showEvidence(row) {
   add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
                               : "이 행은 추출 결과에 있습니다");
   add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)" : facts.formLine);
+  // 44회차 — 사용자 마크업.  어느 칸이 도면 값이고 어느 칸이 사람 값인지,
+  // 그리고 제안 때 도면이 무엇을 말했는지를 그대로 적는다.
+  const mk = e.markup;
+  if (row.added) {
+    add("사용자 추가", mk
+      ? `${mk.author || "이름 없음"} (자칭) · ${mk.at ? new Date(mk.at * 1000).toLocaleString("ko-KR") : ""}`
+        + ` · 사유 ${mk.class || ""}${mk.note ? ` · ${mk.note}` : ""}`
+      : "＋행 으로 만든 행 (사각형 없음)");
+    if (mk) {
+      const pr = mk.proposal || {};
+      add("SCOPE 출처", mk.scope_source === "DRAWING"
+        ? `도면 (별표·NOTES 를 읽음${pr.scope_evidence && pr.scope_evidence.text ? ` — ${pr.scope_evidence.text}` : ""})`
+        : `사람 값${pr.scope_source === "DRAWING" ? ` (도면 제안 ${pr.scope} 을 바꿈)` : " (도면에서 못 읽음)"}`);
+      add("수량 출처", mk.qty_source === "DRAWING"
+        ? `도면 — ${pr.qty_basis || ""}`
+        : `사람 값 (${pr.qty_basis || "도면에서 못 읽음"})`);
+      add("안정 ID", mk.stable_id || "없음 — 프로젝트에 묶이지 않은 분석");
+      if (pr.anchor) add("Type 제안", `사각형 안 낱말 ${pr.anchor}`);
+    }
+  }
+  if (row.reject && Object.keys(row.reject).length) {
+    add("오검출 표시", `${row.reject.class || ""}${row.reject.note ? ` · ${row.reject.note}` : ""} — `
+      + `${row.reject.author || "이름 없음"} (자칭)`
+      + (row.reject.at ? ` · ${new Date(row.reject.at * 1000).toLocaleString("ko-KR")}` : "")
+      + (row.removed ? " · Excel 제외" : " · Excel 유지"));
+  }
   add("적용 규칙", hits.length ? hits.join(", ") : "제외 규칙 해당 없음");
   add("제외 사유", e.excluded_by);
   // The NOTES line that defined this drawing's vendor mark, verbatim.  Quoted,
@@ -2793,6 +2843,9 @@ function showEvidence(row) {
     + `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
     + `(p${row.page_no})</h3>`
     + `<button id="ev-report" class="mini-rep" title="이 판정이 틀렸다고 신고합니다">신고</button>`
+    + (row.added && row.rect && row.rect.length === 4
+       ? `<button id="ev-elsewhere" class="mini-rep" title="같은 마크업을 다른 장에도 — 장마다 다시 읽어 제안하고 고른 장에만 넣습니다">다른 장에도…</button>`
+       : "")
     + `</div>`
     + reviewControls(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
@@ -2807,6 +2860,8 @@ function showEvidence(row) {
   showHistory(row);
   const evb = $("#ev-report");
   if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
+  const ewb = $("#ev-elsewhere");
+  if (ewb) ewb.onclick = () => markupElsewhere(row);
 }
 
 /* 누가 · 언제 · 무엇에서 무엇으로 (13회차 [D]).
@@ -3332,6 +3387,14 @@ const SCOPE = [
  * 검토 칸은 **그중** 몇인가를 센다. */
 const REVIEW_MARK = ["REVIEW", "검토 필요 (그중)", "#ff453a",
                      "판정 보류 — 상자 모서리의 ● 표식. 근거 패널의 사유 확인"];
+/* 44회차 — 사용자 마크업도 색이 아니라 **표식**이다 (E-1 (b)).  색은 SCOPE 가
+ * 그대로 갖고, 추가 행은 점선 테두리 + 왼쪽 위 초록 ✚, 오검출 표시는 오른쪽
+ * 아래 회색 ✕ 다.  검토 ● 는 오른쪽 위 — 세 표식이 서로 다른 모서리라 겹치지
+ * 않는다.  둘 다 "(그중)" 으로 센다 — 세 색 칸의 합은 그대로다. */
+const MANUAL_MARK = ["MANUAL", "사용자 추가 (그중)", "#34c759",
+                     "사람이 도면에서 추가한 행 — 점선 테두리와 왼쪽 위 ✚. 색은 SCOPE 그대로"];
+const REJECT_MARK = ["REJECT", "오검출 표시 (그중)", "#8e8e93",
+                     "사람이 오검출로 표시한 행 — 오른쪽 아래 ✕. 행은 남고 Excel 제외는 선택"];
 
 /* 범례 설명 뒤에 "양식에 나가는가" 한 마디를 붙인다.  판정은 `scopeFacts`
  * 하나에서 오고 여기서 다시 하지 않는다 (12회차 규칙). */
@@ -3355,10 +3418,35 @@ function itemScope(it) {
     : v.startsWith(SCOPE_VENDOR_PREFIX) ? "VENDOR_EXCLUDED" : "INCLUDED";
 }
 
+/* 44회차 — 오버레이 항목 = 분석 때의 층(`page.layers`) **+ 사용자 추가 행**.
+ *
+ * 추가 행은 `pid_page.layers_json` 에 없다(그 층은 분석 때 한 번 적힌다).  그래서
+ * 여기서 `S.rows` 의 `added` 행을 **같은 얼굴**로 합친다 — 색 갈래는 그리드
+ * SCOPE 열과 같은 값(`scopeKeyOf`)에서 온다.  세 색 칸의 합 = 상자 수 =
+ * 그리드 행 수 (33회차 등식)가 추가 행까지 포함해 그대로 성립한다.
+ * 오검출 표시(`reject`·`removed`)는 층 항목이 그대로 있으므로 상자도 행도
+ * 남고, 표식만 더한다.  등식 불변. */
+function scopeKeyOf(v) {
+  v = String(v || "");
+  return v === SCOPE_DELIVERED ? "SCT"
+    : v.startsWith(SCOPE_VENDOR_PREFIX) ? "VENDOR_EXCLUDED" : "INCLUDED";
+}
+
 function overlayItems(page) {
   const out = [];
   for (const [tab, items] of Object.entries(page.layers || {})) {
-    for (const it of items) out.push({ ...it, tab });
+    for (const it of items) {
+      const row = S.rowByKey[it.key];
+      out.push({ ...it, tab,
+                 rejected: !!(row && (row.removed || (row.reject && Object.keys(row.reject).length))) });
+    }
+  }
+  for (const r of S.rows) {
+    if (!r.added || r.page_no !== page.page_no || !(r.rect && r.rect.length === 4)) continue;
+    out.push({ key: r.key, rect: r.rect, label: r.values.type || r.values.valve_type || "",
+               needs_review: !!r.needs_review, scope: scopeKeyOf(r.values.scope),
+               kind: r.tab === "FIELD" ? "INSTRUMENT" : "VALVE", row: true,
+               reason: r.needs_review, tab: r.tab, manual: true });
   }
   return out;
 }
@@ -3375,11 +3463,13 @@ function itemVisible(it) {
 function buildOverlayLegend() {
   const items = S.page ? overlayItems(S.page) : [];
   const counts = {};
-  let review = 0;
+  let review = 0, manual = 0, rejected = 0;
   for (const it of items) {
     const k = itemScope(it);
     counts[k] = (counts[k] || 0) + 1;
     if (it.needs_review) review++;
+    if (it.manual) manual++;
+    if (it.rejected) rejected++;
   }
   const row = (key, label, colour, why, n, swatch) => `
     <label class="ovl-row" title="${escape(scopeTip(key, why))}">
@@ -3391,7 +3481,9 @@ function buildOverlayLegend() {
     </label>`;
   $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) =>
     row(key, label, colour, why, counts[key] || 0, "")).join("")
-    + row(...REVIEW_MARK, review, "badge");
+    + row(...REVIEW_MARK, review, "badge")
+    + row(...MANUAL_MARK, manual, "badge")
+    + row(...REJECT_MARK, rejected, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
     drawOverlay();
@@ -3424,6 +3516,8 @@ function drawOverlay() {
     r.setAttribute("class", "det"
       + (it.kind === "VALVE" ? " valve" : "")
       + (it.row === false ? " excluded" : "")
+      + (it.manual ? " manual" : "")
+      + (it.rejected ? " rejected" : "")
       + (S.sel === it.key ? " sel" : ""));
     const stroke = S.byTab
       ? (COLOR[it.tab] || "#8e8e93")
@@ -3451,6 +3545,37 @@ function drawOverlay() {
       }
       ov.appendChild(dot); ov.appendChild(bang);
     }
+    // 44회차 — 사용자 추가 ✚(왼쪽 위) · 오검출 ✕(오른쪽 아래).  검토 ● 와
+    // 모서리가 다르다.  범례에서 따로 끌 수 있고 상자와 같은 키로 클릭이 통한다.
+    const badge = (cx, cy, cls, glyph, tip) => {
+      const rad = Math.max(4, (y1 - y0) * scale * 0.2);
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
+      dot.setAttribute("class", cls);
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("x", cx); t.setAttribute("y", cy);
+      t.setAttribute("font-size", rad * 1.5);
+      t.setAttribute("class", "revbadge-t");
+      t.textContent = glyph;
+      const ti = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      ti.textContent = tip;
+      dot.appendChild(ti);
+      for (const el of [dot, t]) {
+        el.dataset.key = it.key;
+        el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+      }
+      ov.appendChild(dot); ov.appendChild(t);
+    };
+    if (it.manual && !S.ovOff.has(MANUAL_MARK[0])) {
+      const mk = ((S.rowByKey[it.key] || {}).evidence || {}).markup || {};
+      badge(x0 * scale, y0 * scale, "manbadge", "+",
+            `사용자 추가 — ${mk.author || "이름 없음"}`);
+    }
+    if (it.rejected && !S.ovOff.has(REJECT_MARK[0])) {
+      const rj = (S.rowByKey[it.key] || {}).reject || {};
+      badge(x1 * scale, y1 * scale, "rejbadge", "×",
+            `오검출 표시 — ${rj.class || "삭제"}${rj.note ? " · " + rj.note : ""}`);
+    }
     if (rev === "ADDED" || rev === "MODIFIED") {
       const pad = 4;
       const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -3464,7 +3589,12 @@ function drawOverlay() {
       ov.appendChild(ring);
     }
     r.dataset.key = it.key;
-    r.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+    r.onclick = (ev) => {
+      ev.stopPropagation();
+      select(it.key, false, it);
+      // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
+      if (S.markup && it.row !== false) rejectDialog(it);
+    };
     // Right-click on the symbol itself: the same dialog the grid opens, so the
     // reviewer reports from wherever they noticed it.
     r.oncontextmenu = (ev) => {
@@ -3573,11 +3703,330 @@ document.querySelectorAll(".ovl-tr").forEach(c => {
  * 여기 있다.  마우스를 뗀 뒤 판정하므로 "누르자마자 선택" 이 사라지지 않는다.
  *
  * 오른쪽 버튼(미검출 신고)과 픽 모드는 건드리지 않는다 — 왼쪽 버튼만 본다. */
+/* ---------------- 마크업 모드 (44회차) ----------------
+ *
+ * 빈 자리를 **드래그**하면 사각형이 되고, 그 사각형이 "누락 행" 이 된다.  좌표는
+ * `sheetPoint` 그대로(표시 좌표 pt · 검출 rect 와 같은 좌표계).  저장 전에
+ * 서버가 그 자리에서 별표·NOTES·낱말·같은 장의 수량을 **먼저 읽어** 제안하고
+ * (§9 ①②), 사람은 채워진 값을 바꾸거나 빈칸을 적는다.  어느 칸이 도면 값이고
+ * 어느 칸이 사람 값인지(`scope_source` · `qty_source`)를 같이 보낸다.
+ * 기존 상자를 누르면 오검출 표시다 (`rejectDialog`).  팬은 이 모드에서 꺼진다. */
+let _rubber = null;
+
+$req("#markup-toggle").addEventListener("click", () => setMarkup(!S.markup));
+
+function setMarkup(on) {
+  S.markup = !!on;
+  if (S.markup && S.picking) endPick();
+  $("#stage").classList.toggle("markup", S.markup);
+  $("#markup-toggle").classList.toggle("on", S.markup);
+  $("#markup-toggle").setAttribute("aria-pressed", S.markup ? "true" : "false");
+  updateMarkupNote();
+}
+
+function updateMarkupNote() {
+  const n = $("#markup-note");
+  if (!n) return;
+  const m = S.markupSummary || {};
+  const tail = (m.added || m.rejected)
+    ? ` · 이 분석: 추가 ${m.added || 0}${m.scope_user ? ` (SCOPE 사람 값 ${m.scope_user}` : ""}${
+        m.qty_user ? `${m.scope_user ? " · " : " ("}수량 사람 값 ${m.qty_user}` : ""}${
+        (m.scope_user || m.qty_user) ? ")" : ""} · 오검출 표시 ${m.rejected || 0}`
+    : "";
+  n.textContent = S.markup
+    ? `마크업: 빈 자리를 드래그하면 누락 행 · 상자를 누르면 오검출 표시${tail}`
+    : (tail ? tail.slice(3) : "");
+  n.classList.toggle("hidden", !S.markup && !tail);
+}
+
+$req("#stage").addEventListener("pointerdown", ev => {
+  if (!S.markup || ev.button !== 0) return;
+  if (ev.target.tagName.toLowerCase() === "rect") return;     // 상자는 자기 onclick
+  const p = sheetPoint(ev);
+  if (!p) return;
+  _rubber = { x: ev.clientX, y: ev.clientY, p0: p, id: ev.pointerId, el: null };
+  ev.preventDefault();
+}, true);
+
+$req("#stage").addEventListener("pointermove", ev => {
+  if (!_rubber || ev.pointerId !== _rubber.id) return;
+  const p = sheetPoint(ev);
+  if (!p) return;
+  const stage = $("#stage");
+  if (!stage.hasPointerCapture(ev.pointerId)) stage.setPointerCapture(ev.pointerId);
+  const ov = $("#ov");
+  const scale = S.natural.w / (S.page.width || 1);
+  if (!_rubber.el) {
+    _rubber.el = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    _rubber.el.setAttribute("class", "rubber");
+    ov.appendChild(_rubber.el);
+  }
+  const [x0, y0, x1, y1] = normRect(_rubber.p0, p);
+  _rubber.el.setAttribute("x", x0 * scale); _rubber.el.setAttribute("y", y0 * scale);
+  _rubber.el.setAttribute("width", (x1 - x0) * scale);
+  _rubber.el.setAttribute("height", (y1 - y0) * scale);
+  ev.preventDefault();
+}, true);
+
+function normRect(a, b) {
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]),
+          Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+}
+
+async function _rubberEnd(ev) {
+  if (!_rubber || ev.pointerId !== _rubber.id) return;
+  const stage = $("#stage");
+  if (stage.hasPointerCapture(ev.pointerId)) stage.releasePointerCapture(ev.pointerId);
+  const r = _rubber; _rubber = null;
+  if (r.el) r.el.remove();
+  const p = sheetPoint(ev) || r.p0;
+  const rect = normRect(r.p0, p);
+  // 드래그가 아니라 클릭이면(4px 이하 — 팬과 같은 문턱) 아무것도 만들지 않는다.
+  if (Math.abs(ev.clientX - r.x) <= PAN_SLOP && Math.abs(ev.clientY - r.y) <= PAN_SLOP) {
+    S.panned = true;          // 뒤따르는 click 이 선택을 지우지 않게
+    return;
+  }
+  S.panned = true;
+  await markupDialog(rect);
+}
+$req("#stage").addEventListener("pointerup", _rubberEnd, true);
+$req("#stage").addEventListener("pointercancel", ev => {
+  if (_rubber && ev.pointerId === _rubber.id) { if (_rubber.el) _rubber.el.remove(); _rubber = null; }
+}, true);
+
+const MARKUP_CLASSES = [
+  ["MISSING", "㉡ 미검출 — 도면에 있는데 행이 없음"],
+  ["FALSE_POSITIVE", "㉢ 오검출 — 행이 있는데 도면에 없음"],
+  ["WRONG_VALUE", "㉣ 값 틀림 — 행은 맞는데 칸이 틀림"],
+  ["UNKNOWN_SYMBOL", "미지정 심볼 — 범례에 없어 사람이 정함"],
+  ["OTHER", "기타"],
+];
+const SCOPE_CHOICES = [SCOPE_DELIVERED, "VENDOR"];
+
+function _sourceLine(src, evidence, what) {
+  if (src === "DRAWING") return `<span class="src drawing">도면에서 읽음 — ${escape(evidence || "")}</span>`;
+  return `<span class="src user">도면에서 못 읽음 — ${escape(evidence || `${what} 을(를) 직접 적으세요`)}</span>`;
+}
+
+async function markupDialog(rect) {
+  const page = S.page;
+  const body = { page_no: page.page_no, rect };
+  let prop = {};
+  try {
+    const r = await fetch(`/jobs/${S.job.id}/markup/propose`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    if (r.ok) prop = await r.json();
+    else prop = { error: (await r.json()).detail || r.statusText };
+  } catch (e) { prop = { error: String(e) }; }
+  const scopeEv = prop.scope_evidence || {};
+  const scopeVal = prop.scope || "";
+  const scopeOpts = [...new Set([...SCOPE_CHOICES, scopeVal].filter(Boolean))];
+  const tabOpts = ["FIELD", "MOV", "BFV", "PNEUMATIC"];
+  const tab0 = prop.tab || (S.tab === "ALL" || S.tab === "REVIEW" ? "FIELD" : S.tab);
+  const words = (prop.words || []).map(w => w.text).filter(Boolean);
+  openModal("누락 행 추가 — 마크업",
+    `<p class="muted small">${escape(page.drawing_no || "(도면번호 없음)")} · p${page.page_no}
+       · 사각형 (${rect.map(v => Math.round(v)).join(", ")})
+       ${prop.error ? `<br><b class="bad">제안값을 읽지 못했습니다: ${escape(prop.error)}</b>` : ""}</p>
+     <div class="mk-form">
+       <label>산출물 <select id="mk-tab">${tabOpts.map(t => `<option${t === tab0 ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+       <label>Type <input id="mk-type" type="text" value="${escape(prop.type || "")}" placeholder="예: PIT">
+         ${prop.anchor ? `<span class="src drawing">사각형 안 낱말 ${escape(prop.anchor)} — 앵커 사전에 있음</span>`
+           : `<span class="src user">사각형 안 낱말: ${escape(words.slice(0, 8).join(" ") || "없음")}${(prop.candidates || []).length > 1 ? ` · 앵커 후보 ${escape(prop.candidates.join(", "))} — 하나를 고르세요` : ""}</span>`}</label>
+       <label>SCOPE <select id="mk-scope"><option value="">(빈칸)</option>${
+         scopeOpts.map(v => `<option value="${escape(v)}"${v === scopeVal ? " selected" : ""}>${escape(v)}</option>`).join("")}</select>
+         <input id="mk-scope-name" type="text" placeholder="VENDOR 이면 공급자 이름 (선택)" class="mini">
+         ${_sourceLine(prop.scope_source, scopeEv.text, "SCOPE")}</label>
+       <label>Q'ty <input id="mk-qty" type="number" min="0" step="1" value="${prop.qty ?? ""}">
+         ${_sourceLine(prop.qty_source, prop.qty_basis, "수량")}</label>
+       <label>Description <input id="mk-desc" type="text" placeholder="(선택)"></label>
+       <label>사유 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
+       <label>메모 <input id="mk-note" type="text" placeholder="(선택) 한 줄"></label>
+       <label>작성자 <input id="mk-author" type="text" value="${escape(lastAuthor())}" placeholder="이름 (자칭)"></label>
+     </div>
+     <div class="modal-actions">
+       <button id="mk-cancel" class="ghost">취소</button>
+       <button id="mk-save">행 추가</button>
+     </div>`);
+  $("#mk-cancel").onclick = closeModal;
+  $("#mk-save").onclick = async () => {
+    const scopeSel = $("#mk-scope").value;
+    const name = $("#mk-scope-name").value.trim();
+    const scope = scopeSel === "VENDOR" && name ? `VENDOR(${name})` : scopeSel;
+    const qtyRaw = $("#mk-qty").value.trim();
+    const values = {};
+    const type = $("#mk-type").value.trim();
+    if (type) values.type = type;
+    if (scope) values.scope = scope;
+    if (qtyRaw !== "") values.qty = Number(qtyRaw);
+    const desc = $("#mk-desc").value.trim();
+    if (desc) { values.description = desc; values.description_grade = "USER_ENTERED"; }
+    const author = $("#mk-author").value.trim();
+    rememberAuthor(author);
+    // 출처: 제안값을 그대로 두었으면 도면, 바꿨거나 빈칸을 채웠으면 사람.
+    const scope_source = (prop.scope_source === "DRAWING" && scope === scopeVal) ? "DRAWING" : "USER";
+    const qty_source = (prop.qty_source === "DRAWING" && qtyRaw !== "" && Number(qtyRaw) === prop.qty) ? "DRAWING" : "USER";
+    const payload = {
+      page_no: page.page_no, tab: $("#mk-tab").value, drawing_no: page.drawing_no || "",
+      rect, values, author, scope_source, qty_source,
+      reason_class: $("#mk-class").value, note: $("#mk-note").value.trim(),
+      proposal: { type: prop.type || "", anchor: prop.anchor || "", scope: scopeVal,
+                  scope_source: prop.scope_source || "", scope_evidence: scopeEv,
+                  qty: prop.qty ?? null, qty_source: prop.qty_source || "",
+                  qty_basis: prop.qty_basis || "", words: words.slice(0, 20) },
+    };
+    const r = await fetch(`/jobs/${S.job.id}/rows`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload) });
+    if (!r.ok) { alert((await r.json()).detail || "행 추가 실패"); return; }
+    const out = await r.json();
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    closeModal();
+    clearFiltersForNewRow();
+    await refreshRows(out.key);
+    updateBadge();
+    const facts = scopeFacts(scope, {});
+    editNotice(`추가했습니다 (${out.stable_id ? `ID ${out.stable_id}` : out.id_note || "ID 없음"}) · `
+      + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
+      + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
+      + `발주처 양식에 ${facts.formLine}`, "in");
+  };
+  $("#mk-type").focus();
+}
+
+/* 오검출 표시 — 기존 상자를 마크업 모드에서 눌렀을 때 ([D-3] · [D-4]).
+ * 행은 지워지지 않는다.  Excel 제외는 선택이고 되돌릴 수 있다. */
+function rejectDialog(it) {
+  const row = S.rowByKey[it.key];
+  if (!row) return;
+  const already = row.removed || (row.reject && Object.keys(row.reject).length);
+  openModal("오검출 표시 — 이 상자",
+    `<p class="muted small">${escape(row.drawing_no || "")} · p${row.page_no} · ${escape(row.values.type || row.values.valve_type || "")}
+       · (${(row.rect || []).map(v => Math.round(v)).join(", ")})
+       ${already ? `<br><b>이미 표시된 행입니다 — ${escape((row.reject || {}).class || "삭제")} ${escape((row.reject || {}).note || "")}</b>` : ""}</p>
+     <div class="mk-form">
+       <label>사유 <select id="rj-class">${MARKUP_CLASSES.filter(([v]) => v !== "MISSING").map(([v, l]) => `<option value="${v}">${escape(l)}</option>`).join("")}</select></label>
+       <div id="rj-wrong" class="hidden">
+         <label>칸 <select id="rj-field">${["type", "qty", "scope", "system", "valve_type", "tag_no", "description"].map(f => `<option>${f}</option>`).join("")}</select></label>
+         <label>올바른 값 <input id="rj-value" type="text"></label>
+         <p class="muted small">값 틀림은 행을 빼지 않고 그 칸을 고칩니다 — 편집 이력에 남고 Excel 에는 고친 값이 나갑니다.</p>
+       </div>
+       <label id="rj-exclude-wrap"><input id="rj-exclude" type="checkbox" checked> Excel 에서 제외 (행은 화면에 남습니다)</label>
+       <label>메모 <input id="rj-note" type="text" placeholder="(선택) 한 줄"></label>
+       <label>작성자 <input id="rj-author" type="text" value="${escape(lastAuthor())}" placeholder="이름 (자칭)"></label>
+     </div>
+     <div class="modal-actions">
+       ${already ? `<button id="rj-restore" class="ghost">되돌리기</button>` : ""}
+       <button id="rj-cancel" class="ghost">취소</button>
+       <button id="rj-save">표시</button>
+     </div>`);
+  const cls = $("#rj-class");
+  const sync = () => {
+    const wrong = cls.value === "WRONG_VALUE";
+    $("#rj-wrong").classList.toggle("hidden", !wrong);
+    $("#rj-exclude-wrap").classList.toggle("hidden", wrong);
+    $("#rj-save").textContent = wrong ? "칸 고치기" : "표시";
+  };
+  cls.onchange = sync; sync();
+  $("#rj-cancel").onclick = closeModal;
+  if ($("#rj-restore")) $("#rj-restore").onclick = async () => {
+    await fetch(`/jobs/${S.job.id}/rows/${row.key}/restore`, { method: "POST" });
+    closeModal(); await refreshRows(row.key);
+  };
+  $("#rj-save").onclick = async () => {
+    const author = $("#rj-author").value.trim();
+    rememberAuthor(author);
+    const note = $("#rj-note").value.trim();
+    if (cls.value === "WRONG_VALUE") {
+      const field = $("#rj-field").value, value = $("#rj-value").value.trim();
+      if (!value) { alert("올바른 값을 적어 주세요."); return; }
+      const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field, value, author, reason: `WRONG_VALUE: ${note}` }) });
+      if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return; }
+      closeModal(); await refreshRows(row.key); return;
+    }
+    const q = new URLSearchParams({ reason: note, reason_class: cls.value, author,
+                                    exclude: $("#rj-exclude").checked ? "true" : "false" });
+    const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}?${q}`, { method: "DELETE" });
+    if (!r.ok) { alert("표시 실패"); return; }
+    const out = await r.json();
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    closeModal();
+    await refreshRows(out.dropped ? null : row.key);
+    if (cls.value === "UNKNOWN_SYMBOL") {
+      editNotice("미지정 심볼로 표시했습니다 — 무엇으로 볼지는 [심볼] 화면에서 등록합니다", "unjudged");
+    } else {
+      editNotice($("#rj-exclude") && $("#rj-exclude").checked
+        ? "오검출로 표시했습니다 — Excel 에서 빠집니다 (되돌릴 수 있습니다)"
+        : "오검출 의심으로 표시했습니다 — Excel 에는 그대로 나갑니다", "out");
+    }
+  };
+}
+
+/* 같은 마크업을 다른 장에도 — **제안만** 한다 (31회차 규율).  장마다 서버가
+ * 다시 읽어 제안하고 사람이 고른 장에만 넣는다.  자동 복제가 아니다. */
+async function markupElsewhere(row) {
+  const pages = S.pages.filter(p => p.in_scope && p.page_no !== row.page_no && p.page_kind === "PID");
+  if (!pages.length) { alert("다른 분석 대상 장이 없습니다."); return; }
+  const mk = (row.evidence || {}).markup || {};
+  openModal("같은 마크업을 다른 장에도",
+    `<p class="muted small">고른 장마다 같은 자리 (${(row.rect || []).map(v => Math.round(v)).join(", ")}) 에
+       같은 값(Type ${escape(row.values.type || "")} · Description)으로 행을 만듭니다.
+       SCOPE 와 Q'ty 는 **그 장에서 다시 읽어** 채우고, 못 읽으면 이 행의 값을 사람 값으로 둡니다.</p>
+     <div class="mk-pages">${pages.map(p => `<label><input type="checkbox" value="${p.page_no}"> p${p.page_no} ${escape(p.drawing_no || "")}</label>`).join("")}</div>
+     <div class="modal-actions"><button id="me-cancel" class="ghost">취소</button><button id="me-save">고른 장에 추가</button></div>`);
+  $("#me-cancel").onclick = closeModal;
+  $("#me-save").onclick = async () => {
+    const chosen = [...document.querySelectorAll(".mk-pages input:checked")].map(c => +c.value);
+    if (!chosen.length) { alert("장을 고르세요."); return; }
+    let made = 0, lastKey = null;
+    for (const pno of chosen) {
+      const pg = S.pages.find(p => p.page_no === pno);
+      let prop = {};
+      try {
+        const r = await fetch(`/jobs/${S.job.id}/markup/propose`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page_no: pno, rect: row.rect }) });
+        if (r.ok) prop = await r.json();
+      } catch (e) { prop = {}; }
+      const values = { ...Object.fromEntries(Object.entries(row.values).filter(([k, v]) => v !== null && v !== "" && k !== "scope" && k !== "qty")) };
+      const scope = prop.scope_source === "DRAWING" && prop.scope ? prop.scope : (row.values.scope || "");
+      const qty = prop.qty_source === "DRAWING" && prop.qty != null ? prop.qty : row.values.qty;
+      if (scope) values.scope = scope;
+      if (qty !== null && qty !== undefined && qty !== "") values.qty = qty;
+      const r2 = await fetch(`/jobs/${S.job.id}/rows`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page_no: pno, tab: row.tab, drawing_no: pg.drawing_no || "",
+          rect: row.rect, values, author: mk.author || lastAuthor(),
+          scope_source: prop.scope_source === "DRAWING" && prop.scope ? "DRAWING" : "USER",
+          qty_source: prop.qty_source === "DRAWING" && prop.qty != null ? "DRAWING" : "USER",
+          reason_class: mk.class || "MISSING", note: `p${row.page_no} 마크업에서 같이 적용`,
+          proposal: prop.error ? {} : { type: prop.type, scope: prop.scope, scope_source: prop.scope_source,
+                                        qty: prop.qty, qty_source: prop.qty_source, qty_basis: prop.qty_basis } }) });
+      if (r2.ok) { made++; lastKey = (await r2.json()).key; }
+    }
+    closeModal();
+    await refreshRows(lastKey);
+    editNotice(`${made}장에 추가했습니다 — 장마다 SCOPE·Q'ty 출처는 근거 패널에 있습니다`, "in");
+  };
+}
+
+/* 피드백 내보내기 — 서버가 zip 을 만들고 브라우저가 받는다. */
+$req("#feedback-export").addEventListener("click", () => {
+  if (!S.job) return;
+  const by = window.prompt("내보내는 사람 이름 (자칭 · 비워도 됩니다)", lastAuthor()) ;
+  if (by === null) return;
+  rememberAuthor(by.trim());
+  window.location.href = `/jobs/${S.job.id}/feedback_export?by=${encodeURIComponent(by.trim())}`;
+});
+
 const PAN_SLOP = 4;
 let _pan = null;
 
 $req("#stage").addEventListener("pointerdown", ev => {
-  if (ev.button !== 0 || S.picking) return;
+  if (ev.button !== 0 || S.picking || S.markup) return;
   const stage = $("#stage");
   _pan = { x: ev.clientX, y: ev.clientY, moved: 0,
            sl: stage.scrollLeft, st: stage.scrollTop, id: ev.pointerId };

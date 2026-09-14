@@ -34,8 +34,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
-                 legend_profile, paths, pipeline, revisions, unit_multipliers,
-                 version)
+                 legend_profile, markup, paths, pipeline, revisions,
+                 unit_multipliers, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -1347,7 +1347,8 @@ def scope_summary_now(job_id: str):
         raise HTTPException(404, "no such job")
     rows = [{"scope": r["values"].get("scope"), "tab": r["tab"],
              "type": r["values"].get("type")}
-            for r in db.merged_rows(CON, job_id) if not r.get("deleted")]
+            for r in db.merged_rows(CON, job_id)
+            if not r.get("deleted") and not r.get("removed")]
     return _scope_summary(rows)
 
 
@@ -1569,6 +1570,10 @@ REVIEW_LABELS = {
     "ROW_DELETED": "사용자가 지운 행",
     "ORIGIN_REFERENCE_MISSING": "검증용 대조 리스트가 그 경로에 없음",
     "REVIEWER_MARKUP": "도면에 개정 표기가 있음 — 발주처 확인 대상",
+    # 44회차 — 사람이 만든 행 · 사람이 오검출로 표시한 행.  둘 다 검토 사유가
+    # 아니라 **사람이 이미 본 행**이라는 표시다 (`needs_review` 는 비어 있다).
+    "MANUAL_ADD": "사용자가 도면에서 추가한 행 — 검출이 아니라 사람의 값",
+    "MANUAL_REJECT": "사용자가 오검출로 표시한 행 — 사유는 근거 패널에 있음",
 }
 
 
@@ -1599,6 +1604,12 @@ def review_codes(row: dict) -> list:
     out = [c for c in out if c != "DESCRIPTION_INCOMPLETE"]
     if row.get("deleted"):
         out.append("ROW_DELETED")
+    # 44회차 — 사람이 만든 행과 오검출 표시.  저장된 코드가 아니라 행의 상태에서
+    # 매번 만든다 (`ROW_DELETED` 와 같은 방식) — 되돌리면 같이 사라진다.
+    if row.get("added"):
+        out.append(markup.CODE_ADD)
+    if row.get("reject") or row.get("removed"):
+        out.append(markup.CODE_REJECT)
     return list(dict.fromkeys(out))
 
 
@@ -1656,18 +1667,63 @@ async def add_row(job_id: str, payload: dict):
     `pipeline.probe_point`.  That is the whole reason this endpoint takes a
     coordinate: a missed item is only useful to a later rule pass if what was
     drawn there was written down at the time.
+
+    44회차 — 마크업.  `rect`(표시 좌표 pt) 가 오면 그 행은 **도면 위 사각형**을
+    갖고 오버레이에 그려진다.  값은 사람이 확정한 것이고, 무엇을 도면에서
+    읽어 제안했는지(`proposal`)와 어느 칸이 사람 값인지(`scope_source` ·
+    `qty_source`)를 근거에 남긴다.  안정 ID 는 프로젝트가 있을 때 같은 장부에서
+    받는다 (`markup.assign_stable_id`).  추출값 층(`ai_json`)은 전부 None 이다.
     """
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
     page_no = int(payload.get("page_no") or 0)
     values = payload.get("values") or {}
-    key = db.add_row(CON, job_id, page_no,
-                     payload.get("tab") or "FIELD",
+    rect = payload.get("rect") or []
+    author = " ".join(str(payload.get("author") or "").split())[:60]
+    tab = payload.get("tab") or "FIELD"
+    evidence, needs_review = None, None
+    if len(rect) == 4 and page_no:
+        if values.get("qty") not in (None, ""):
+            try:
+                values["qty"] = int(values["qty"])
+            except (TypeError, ValueError):
+                raise HTTPException(400, "Q'ty must be a whole number")
+        klass = str(payload.get("reason_class") or "MISSING").upper()
+        if klass not in markup.CLASSES:
+            raise HTTPException(400, f"unknown reason class {klass!r}")
+        evidence = {"markup": {
+            "rect": [round(float(v), 1) for v in rect],
+            "author": author, "at": time.time(), "class": klass,
+            "note": str(payload.get("note") or "")[:500],
+            "scope_source": (str(payload.get("scope_source") or markup.SOURCE_USER)
+                             .upper()),
+            "qty_source": (str(payload.get("qty_source") or markup.SOURCE_USER)
+                           .upper()),
+            "proposal": payload.get("proposal") or {},
+        }}
+        needs_review = ""          # 사람이 만든 행은 사람이 이미 본 행이다
+    key = db.add_row(CON, job_id, page_no, tab,
                      payload.get("origin") or "",
                      payload.get("drawing_no") or "",
-                     values)
+                     values, rect=rect if len(rect) == 4 else None,
+                     evidence=evidence, needs_review=needs_review)
+    ident = {}
+    if evidence is not None:
+        ident = markup.assign_stable_id(
+            DATA_DIR, CON, job, key,
+            dict(values, tab=tab, page_no=page_no, rect=rect,
+                 drawing_no=payload.get("drawing_no") or ""))
+        if ident.get("stable_id"):
+            row = db.get_row(CON, job_id, key)
+            ev = dict(row["evidence"]); ev["markup"]["stable_id"] = ident["stable_id"]
+            CON.execute("UPDATE item SET evidence_json=? WHERE job_id=? AND key=?",
+                        (json.dumps(ev, sort_keys=True, default=str), job_id, key))
+            CON.commit()
     point = payload.get("point") or []
+    if len(rect) == 4 and not point:
+        point = [(float(rect[0]) + float(rect[2])) / 2,
+                 (float(rect[1]) + float(rect[3])) / 2]
     geometry = {}
     if len(point) == 2 and page_no:
         geometry = pipeline.probe_point(Path(job["pdf_path"]), page_no,
@@ -1675,15 +1731,64 @@ async def add_row(job_id: str, payload: dict):
     db.record_feedback(
         CON, job_id, "ADDED", row_key=key, page_no=page_no,
         drawing_no=payload.get("drawing_no") or "",
-        rect=payload.get("rect") or point,
+        rect=rect or point,
         user_value=json.dumps(values, ensure_ascii=False, sort_keys=True),
-        reason=payload.get("reason") or "", geometry=geometry,
-        pattern_args={"tab": payload.get("tab") or "FIELD",
-                      "near": geometry.get("nearest_text", "")})
+        reason=payload.get("reason") or payload.get("note") or "",
+        geometry=geometry, author=author,
+        pattern_args={"tab": tab, "near": geometry.get("nearest_text", "")})
     return {"key": key, "review_count": db.review_count(CON, job_id),
             "feedback_count": db.feedback_count(CON, job_id),
+            "stable_id": ident.get("stable_id", ""), "excel_no": ident.get("excel_no", 0),
+            "id_note": ident.get("why", ""),
+            "markup": markup.summary(CON, job_id) if evidence is not None else None,
             "geometry": {k: geometry.get(k) for k in
                          ("path_count", "segment_count", "nearest_text")}}
+
+
+@app.post("/jobs/{job_id}/markup/propose")
+async def markup_propose(job_id: str, payload: dict):
+    """마크업 사각형 하나의 제안값 — **아무것도 쓰지 않는다** (§9 ①②).
+
+    별표·NOTES 는 `pipeline.propose_at` 이 파이프라인과 같은 함수로 읽고,
+    수량은 같은 장의 행이 받은 값을 옮기며, TYPE 은 사각형 안 낱말이 앵커
+    사전에 있을 때만 낸다.  못 읽은 칸은 빈칸이고 화면이 사람에게 묻는다.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    page_no = int(payload.get("page_no") or 0)
+    rect = payload.get("rect") or []
+    if not page_no or len(rect) != 4:
+        raise HTTPException(400, "page_no and a 4-number rect are required")
+    return markup.propose(CON, job, page_no, rect)
+
+
+@app.get("/jobs/{job_id}/markup")
+def markup_summary(job_id: str):
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return {"classes": markup.CLASSES, **markup.summary(CON, job_id)}
+
+
+FEEDBACK_DIR = DATA_DIR / "feedback"
+
+
+@app.get("/jobs/{job_id}/feedback_export")
+def feedback_export(job_id: str, by: str = ""):
+    """피드백 zip — `feedback.json` · `feedback.md` · `조각/` · `장/` (44회차 [F]).
+
+    있는 표(`item` 의 추가·오검출 · `feedback` 의 편집 · `report`)를 꺼내는
+    것이고 새 사실을 만들지 않는다.  마크업은 내보낸 뒤에도 그대로 남는다.
+    도면 내용이 들어가므로 저장소에 커밋하지 않는다.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    info = markup.export_zip(CON, job, FEEDBACK_DIR, DATA_DIR, by=by)
+    return FileResponse(info["path"], media_type="application/zip",
+                        filename=info["name"],
+                        headers={"X-Feedback-Items": str(info["items"]),
+                                 "X-Feedback-Clips": str(info["clips"])})
 
 
 @app.post("/jobs/{job_id}/rows/{key}/copy")
@@ -1696,11 +1801,25 @@ def copy_row(job_id: str, key: str):
 
 
 @app.delete("/jobs/{job_id}/rows/{key}")
-def delete_row(job_id: str, key: str, reason: str = ""):
-    """Strike out a detection.  Records which rule produced it and on what."""
+def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
+               author: str = "", exclude: bool = True):
+    """Strike out a detection.  Records which rule produced it and on what.
+
+    44회차 — 오검출 표시.  `reason_class` 는 ㉢ 오검출 · ㉣ 값 틀림 · 미지정
+    심볼 · 기타 중 하나이고 `exclude=false` 면 Excel 에는 그대로 두고 표시만
+    남긴다.  **행은 지워지지 않는다** (검출 행은 `removed` 표시뿐이고 되돌릴
+    수 있다).  사람이 만든 행(`added`)만 실제로 없어진다.
+    """
     before = db.get_row(CON, job_id, key)
+    klass = str(reason_class or "").upper()
+    if klass and klass not in markup.CLASSES:
+        raise HTTPException(400, f"unknown reason class {klass!r}")
+    author = " ".join(str(author or "").split())[:60]
+    reject = ({"class": klass or "FALSE_POSITIVE", "note": reason[:500],
+               "author": author, "at": time.time()}
+              if (klass or author or not exclude) else None)
     try:
-        out = db.remove_row(CON, job_id, key)
+        out = db.remove_row(CON, job_id, key, reject=reject, exclude=exclude)
     except KeyError:
         raise HTTPException(404, "no such row")
     if before is not None:
@@ -1711,13 +1830,14 @@ def delete_row(job_id: str, key: str, reason: str = ""):
             drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
             ai_value=json.dumps(before.get("ai") or {}, ensure_ascii=False,
                                 sort_keys=True),
-            reason=reason, basis=ev,
+            reason=(f"{klass}: " if klass else "") + reason, basis=ev, author=author,
             pattern_args={"what": (before["values"].get("type")
                                    or ev.get("body") or ""),
                           "rule": (ev.get("excluded_by") or ev.get("anchor")
                                    or (rules[0] if rules else ""))})
     out["review_count"] = db.review_count(CON, job_id)
     out["feedback_count"] = db.feedback_count(CON, job_id)
+    out["markup"] = markup.summary(CON, job_id)
     return out
 
 

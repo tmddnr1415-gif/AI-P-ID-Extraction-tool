@@ -1023,3 +1023,31 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .mode-bar .lb-tag.bid { border-color: #8a8a7a; color: #5a5a4a; }
 .mode-bar .lb-tag.conflict { border-color: #b3554d; color: #8a2f28; }
 .mode-bar button.small { font-size: 12px; padding: 2px 8px; margin-left: 10px; }
+
+
+/* ---------- 44회차 — 사용자 마크업 ---------- */
+/* 마크업 모드: 빈 자리 드래그 = 누락 행.  팬은 꺼지고 커서가 십자다. */
+#stage.markup { cursor: crosshair; }
+#markup-toggle.on { background: var(--accent); color: #fffdf6; border-color: var(--accent); }
+#markup-note { font-size: var(--t-s); }
+rect.rubber { fill: rgba(52, 199, 89, .12); stroke: #34c759; stroke-width: 1.5;
+  stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* 사용자 추가 행: 색은 SCOPE 그대로, 테두리만 점선 (밸브 파선 5 3 과 다른 1.5 2.5).
+   오검출 표시: 흐리게.  둘 다 모서리 표식이 같이 붙는다 (색 + 형태 + 라벨). */
+rect.det.manual { stroke-dasharray: 1.5 2.5; }
+rect.det.rejected { opacity: .55; }
+circle.manbadge { fill: #34c759; stroke: #fffdf6; stroke-width: 1.2;
+  vector-effect: non-scaling-stroke; cursor: pointer; }
+circle.rejbadge { fill: #8e8e93; stroke: #fffdf6; stroke-width: 1.2;
+  vector-effect: non-scaling-stroke; cursor: pointer; }
+/* 대화상자 폼 */
+.mk-form { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }
+.mk-form label { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; align-items: center; }
+.mk-form label .src { grid-column: 2; font-size: var(--t-s); color: var(--muted); }
+.mk-form label .src.drawing { color: var(--ok); }
+.mk-form label .src.user { color: var(--warn); }
+.mk-form input.mini { grid-column: 2; }
+.mk-form select, .mk-form input[type=text], .mk-form input[type=number] { min-width: 0; }
+.mk-form .hidden { display: none; }
+.mk-pages { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; max-height: 40vh; overflow: auto; margin: 8px 0; }
+.mk-pages label { font-size: var(--t-s); }
