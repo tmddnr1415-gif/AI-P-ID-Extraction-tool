@@ -1051,3 +1051,11 @@ circle.rejbadge { fill: #8e8e93; stroke: #fffdf6; stroke-width: 1.2;
 .mk-form .hidden { display: none; }
 .mk-pages { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; max-height: 40vh; overflow: auto; margin: 8px 0; }
 .mk-pages label { font-size: var(--t-s); }
+
+/* 46회차 — 위생 경고가 가리키는 것을 이름으로 편다.  총계만 보이면 팀원이
+   확인할 길이 없다. */
+.audit-detail { margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
+.audit-detail b { color: var(--ink-strong); }
+.audit-detail ul { margin: 4px 0 6px 16px; padding: 0; }
+.audit-detail li { margin: 1px 0; }
+.audit-detail p { margin: 2px 0 0; }

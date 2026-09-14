@@ -322,6 +322,41 @@ function auditProblems(lines) {
   return out;
 }
 
+/* 위생 경고가 가리키는 것이 **무엇인지** — 서버가 이미 내고 있던 값만 편다.
+ * 판정을 여기서 새로 하지 않는다 (문장은 `audit.summary` 가 쥔다). */
+function auditDetail(a) {
+  const out = [];
+  const rows = a.hand_added || [];
+  if (rows.length) {
+    const li = rows.map(r => {
+      const who = r.author ? `${escape(r.author)}${r.at ? " · " + escape(r.at.slice(0, 10)) : ""}`
+                           : "작성자 기록 없음 (마크업 이전에 만든 행)";
+      const what = [r.type, r.scope].filter(Boolean).map(escape).join(" · ");
+      return `<li>${escape(r.pdf_name)}${r.project ? " · " + escape(r.project) : ""}`
+        + ` · p${r.page_no} · ${what || "값 없음"} · ${who}`
+        + `${r.reason_class ? " · " + escape(r.reason_class) : ""}</li>`;
+    }).join("");
+    out.push(`<div class="audit-detail"><b>도면 근거 없는 행 ${rows.length}</b>`
+      + `<ul>${li}</ul>`
+      + `<p>사람이 넣은 행입니다 — 검토자가 추가한 것이면 그대로 두고, `
+      + `시험 흔적이면 그 분석에서 지우십시오. 산출물에는 REMARK 에 `
+      + `<i>사용자 추가</i> 로 나갑니다.</p></div>`);
+  }
+  const L = a.leftovers || {};
+  const files = [["고아 출력", L.orphan_outputs], ["고아 업로드", L.orphan_uploads],
+                 ["고아 진단", L.orphan_diagnostics]]
+    .filter(([, v]) => (v || []).length);
+  if (files.length) {
+    out.push(`<div class="audit-detail">` + files.map(([name, v]) =>
+      `<b>${name} ${v.length}</b><ul>`
+      + v.map(x => `<li>${escape(x)}</li>`).join("") + `</ul>`).join("")
+      + `<p>어느 분석도 가리키지 않는 파일입니다. 디스크만 차지하고 결과에는 `
+      + `닿지 않습니다 — 지우는 것은 되돌릴 수 없으므로 확인 뒤 손으로 지우거나, `
+      + `그 프로젝트를 삭제할 때 함께 지워집니다.</p></div>`);
+  }
+  return out.join("");
+}
+
 async function showAudit() {
   try {
     const a = await (await fetch("/audit")).json();
@@ -330,11 +365,15 @@ async function showAudit() {
     const bad = auditProblems(a.lines).filter(t => !/^산출 대상|^job /.test(t));
     const full = `<div class="audit-full">`
       + a.lines.map(l => `<div>${escape(l)}</div>`).join("") + `</div>`;
+    // 46회차 — 합계 옆에 **무엇인지**를 적는다.  서버가 이미 job 단위 개수와
+    // 고아 파일 이름을 내고 있었는데(`provenance.jobs`·`leftovers.orphan_*`)
+    // 화면이 총계만 보여, 팀원이 "5행" 을 보고도 확인할 길이 없었다.
+    const detail = auditDetail(a);
     box.innerHTML = bad.length
       ? `<details class="audit" open><summary>데이터 위생 — 확인할 항목 `
-        + `${bad.length}건</summary>${full}</details>`
+        + `${bad.length}건</summary>${full}${detail}</details>`
       : `<details class="audit"><summary>데이터 위생 — 이상 없음`
-        + `</summary>${full}</details>`;
+        + `</summary>${full}${detail}</details>`;
   } catch (e) { /* 감사는 부가 정보다 - 실패해도 화면을 막지 않는다 */ }
 }
 loadProjects();

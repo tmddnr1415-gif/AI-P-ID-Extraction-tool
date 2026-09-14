@@ -59,6 +59,51 @@ def provenance(con) -> dict:
             "hand_added_rows": sum(j["hand_added_rows"] for j in jobs)}
 
 
+def hand_added(con) -> list:
+    """도면 근거 없는 행을 **한 행씩** 낸다 (46회차 [B]).
+
+    `provenance` 는 job 단위 개수만 냈고 화면은 그 합만 보였다 — 그래서
+    "5행" 이 시험 흔적인지 검토자 입력인지 가릴 길이 화면에 없었다.
+    **세는 코드는 그대로 두고 이미 있는 것을 꺼낸다** (§9 3③).
+
+    지우지 않는다.  이 모듈에는 여전히 삭제가 없다.
+    """
+    out = []
+    for r in con.execute(
+            "SELECT i.job_id, i.key, i.page_no, i.user_json, i.evidence_json,"
+            "       j.pdf_name, j.project"
+            "  FROM item i JOIN job j ON j.id = i.job_id"
+            " WHERE i.added=1 AND i.removed=0 AND i.deleted=0"
+            " ORDER BY i.job_id, i.page_no, i.key"):
+        try:
+            vals = json.loads(r["user_json"] or "{}")
+        except Exception:
+            vals = {}
+        try:
+            ev = json.loads(r["evidence_json"] or "{}")
+        except Exception:
+            ev = {}
+        mk = ev.get("markup") or {}
+        out.append({
+            "job_id": r["job_id"],
+            "pdf_name": r["pdf_name"],
+            "project": r["project"] or "",
+            "page_no": r["page_no"],
+            "key": r["key"],
+            "type": vals.get("type") or "",
+            "scope": vals.get("scope") or "",
+            "qty": vals.get("qty"),
+            # 44회차 마크업이면 누가·언제·무슨 분류로 넣었는지가 남아 있다.
+            # 그보다 옛 `＋행` 은 아무 것도 없고, **그 빈칸 자체가 사실**이다.
+            "author": mk.get("author") or "",
+            "at": mk.get("at") or "",
+            "reason_class": mk.get("class") or "",
+            "note": mk.get("note") or "",
+            "from_markup": bool(mk),
+        })
+    return out
+
+
 def leftovers(con, data_dir: Path) -> dict:
     """참조가 끊긴 파일과 DB 안의 죽은 페이지.  세기만 한다."""
     referenced = {os.path.basename(r[0]) for r in con.execute("SELECT pdf_path FROM job")}
@@ -106,7 +151,11 @@ def leftovers(con, data_dir: Path) -> dict:
 def run(con, data_dir: Path) -> dict:
     prov = provenance(con)
     left = leftovers(con, data_dir)
-    return {"provenance": prov, "leftovers": left, "lines": summary(prov, left)}
+    return {"provenance": prov, "leftovers": left,
+            # 46회차 — 합계 옆에 **무엇인지**를 함께 낸다.  화면이 총계만
+            # 보이면 사람이 확인할 수가 없다.
+            "hand_added": hand_added(con),
+            "lines": summary(prov, left)}
 
 
 def summary(prov: dict, left: dict) -> list[str]:
