@@ -137,3 +137,4 @@ out/round44/*.log
 out/round44/h44.done
 out/round44/verify/*.log
 out/round44/verify/state.json
+out/round44/verify/forms*.zip
