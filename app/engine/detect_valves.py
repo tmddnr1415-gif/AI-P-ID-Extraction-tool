@@ -185,6 +185,8 @@ class ValveLayout:
     body_short: tuple = (5.0, 30.0)     # short side of a valve body
     body_short_source: str = "CONFIG"   # 43회차 — LEGEND 면 그 문서 범례가 그린 나비에서
     body_short_basis: float = 0.0       # 범례 나비 짧은 변 (LEGEND 일 때)
+    act_box_source: str = "CONFIG"      # 47회차 — LEGEND 면 그 문서 범례의 액추에이터 원에서
+    act_box_basis: float = 0.0          # 범례 액추에이터 원 지름 (LEGEND 일 때)
     disc_min: float = 0.0               # 43회차 [B-2] — 원형 몸체 원 지름 하한 (범례 원 × DISC_MIN_RATIO · 0 이면 옛 규칙)
     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
     bar_axis_tol: float = 0.8           # how close an end bar is to the end
@@ -316,6 +318,15 @@ INDEX_SLACK = 0.8
 # 배율 자체는 AL NOUF1 의 창과 같다 — 새 값이 아니라 같은 창을 범례에 맨 것.
 BODY_SHORT_BAND = (0.5, 3.0)
 
+# 47회차 — 액추에이터 울타리 크기 창을 **그 문서 범례가 그린 원**에 맨다.
+#
+# 두 비는 AL NOUF1 의 설정값을 그 문서 범례의 원으로 나눈 것이다
+# (9.0 / 14.22 = 0.633 · 34.0 / 14.22 = 2.391).  즉 **외워둔 절대 pt 한 쌍을
+# 비로 바꾼 것**이고, 값의 출처는 여전히 AL NOUF1 이지만 다른 종이에서는
+# 그 문서의 범례가 크기를 준다 (43회차 `BODY_SHORT_BAND` 와 같은 방식).
+# AL NOUF1 에서는 14.22 x (0.633, 2.391) = (9.0, 34.0) 으로 **그대로 재현**된다.
+ACT_BOX_BAND = (0.633, 2.391)
+
 # 43회차 [B-2] — 원형 몸체(BALL·BUTTERFLY)의 원은 범례가 그린 원보다 이만큼은
 # 커야 한다.  실측(원 지름 / 범례 원 지름 · 네 문서 몸체 단위): 접합점·흐름
 # 화살촉의 지름 2pt 원이 UAD 0.49~0.69 · TC2 0.67, 진짜 몸체는 SADARA 0.96 ·
@@ -384,6 +395,15 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     # (지문 재료인 legend 기록)에는 넣지 않는다 — 값이 같아도 항목이 늘면 이미
     # 답이 있는 문서의 지문이 움직인다.  출처는 layout 자신이 들고 파이프라인이
     # `result["valve_layout"]`(지문 밖)로 낸다.
+    # 47회차 — 액추에이터 원 크기도 같은 자리에서 그 문서 범례에 맨다.
+    # `derived`(지문 재료)에 넣지 않는 이유는 아래 43회차 주석과 같다.
+    act, act_why = legend_actuator_circle(pages, lay)
+    if act:
+        kw["act_box"] = (round(act * ACT_BOX_BAND[0], 2),
+                         round(act * ACT_BOX_BAND[1], 2))
+        kw["act_box_source"], kw["act_box_basis"] = "LEGEND", act
+    else:
+        kw["act_box_source"] = "CONFIG_FALLBACK: " + act_why
     basis, why = legend_bowtie_short(pages, dataclasses.replace(lay, **kw))
     if basis:
         kw["body_short"] = (basis * BODY_SHORT_BAND[0], basis * BODY_SHORT_BAND[1])
@@ -748,6 +768,59 @@ def legend_bowtie_short(pages, lay: ValveLayout):
         return None, "LINE VALVES sheet draws no bowtie with both end bars"
     mode = collections.Counter(shorts).most_common(1)[0][0]
     return mode, f"{len(shorts)} bowtie(s) on the LINE VALVES sheet, short side mode {mode}"
+
+
+def legend_actuator_circle(pages, lay: ValveLayout = None):
+    """47회차 — 그 문서 범례가 **액추에이터 원을 몇 pt 로 그리는가**.
+
+    ## 왜 필요한가 — 6차 피드백의 최다 지적이 이것이다
+
+    `act_box` 하한 **9.0pt** 는 AL NOUF1 에서 잰 값이다: 그 범례는 모터·E/H 원을
+    **14.22pt** 로 그리고, 글로브 허리 원반 **7.1pt** 를 빼려고 그 사이에 문턱을
+    두었다.  그런데 A3 로 그린 문서는 같은 모터 원을 **7.08pt**(TC2) ·
+    **7.02pt**(UAD) 로 그린다 — 즉 **AL NOUF1 의 허리 원반과 크기가 같다.**
+    하나의 절대 pt 로는 두 문서를 함께 맞출 수 없고 (23회차 §6 — 절대 pt 는
+    축척을 넘지 못한다), 그래서 TC2 의 MOV 는 전부 0행이었다 (38회차 [E] 규명).
+
+    ## 무엇을 재는가
+
+    범례의 `ACTUATORS` 열에서 **두 번 이상 그려진 원 지름**.  두 번 이상을
+    요구하는 것은 18·25회차와 같은 규율이다 — 한 번만 나오는 크기는 그 장의
+    다른 그림일 수 있다.  실측:
+
+        AL NOUF1 p3  14.22 x2      (다음 크기 5.7 x1)
+        TC2      p4   7.08 x2      (2.76 x1 · 3.54 x1)
+        UAD      p4   7.02 x2      (2.82 x1)
+        SADARA   p3   되풀이 없음  (15.52 x1 · 17.71 x1) -> None, 설정값을 쓴다
+
+    못 찾으면 `None` 이고 그 사유를 함께 낸다 — 조용히 폴백하지 않는다.
+    """
+    lay = lay or LAYOUT
+    pc = legend_rules._page_with(pages, legend_rules.ACTUATOR_HEADING)
+    if pc is None:
+        return None, f"no legend sheet prints '{legend_rules.ACTUATOR_HEADING}'"
+    head = legend_rules._label(pc, "ACTUATORS")
+    column = (head.x0 - 260, head.x0 + 40) if head else (0.0, 1e9)
+    sizes = []
+    for d in pc.drawings():
+        b, items = d["bbox"], d["items"]
+        if not items or not (column[0] <= b.x0 and b.x1 <= column[1]):
+            continue
+        if not all(i[0] == "c" for i in items):
+            continue
+        short, long_ = min(b.width, b.height), max(b.width, b.height)
+        if long_ <= 0 or short / long_ < 0.85:
+            continue
+        sizes.append(round(short, 2))
+    if not sizes:
+        return None, "the ACTUATORS column draws no circle"
+    repeated = [s for s, n in collections.Counter(sizes).items() if n >= 2]
+    if not repeated:
+        return None, ("no circle size is drawn twice in the ACTUATORS column "
+                      f"({sorted(set(sizes))})")
+    best = max(repeated)
+    return best, (f"{len(sizes)} circle(s) in the ACTUATORS column; "
+                  f"{best} is drawn {sizes.count(best)} times")
 
 
 def find_bodies(pc, lay: ValveLayout = LAYOUT,

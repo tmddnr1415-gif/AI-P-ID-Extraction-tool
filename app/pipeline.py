@@ -1244,7 +1244,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 에 항목을 더하면 값이 같아도 지문이 움직인다).
         "valve_layout": {"body_short": [round(v, 3) for v in dv.LAYOUT.body_short],
                          "source": dv.LAYOUT.body_short_source,
-                         "basis": dv.LAYOUT.body_short_basis},
+                         "basis": dv.LAYOUT.body_short_basis,
+                         # 47회차 — 액추에이터 울타리 창도 같은 자리에 적는다
+                         "act_box": [round(v, 3) for v in dv.LAYOUT.act_box],
+                         "act_box_source": dv.LAYOUT.act_box_source,
+                         "act_box_basis": dv.LAYOUT.act_box_basis},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
         # 들어가지 않는다 (`fingerprint` 는 `legend`·`multipliers`·행만 본다):
         # 같은 값을 쓴 두 경로가 다른 지문을 내면 프로필이 값을 정확히 담았는지
