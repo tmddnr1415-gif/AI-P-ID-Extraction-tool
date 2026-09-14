@@ -4,7 +4,11 @@
 프로세스에서 셋을 이어 돌리면 위험하고, 나눠야 각각의 최대 RSS 를 따로 잴 수
 있다.  분석 자체는 `pipeline.analyse` 하나이고 여기서 아무것도 바꾸지 않는다.
 
-    python3 spike/analyse_one.py <pdf> <out.json>
+    python3 spike/analyse_one.py <pdf> <out.json> [장도면번호.json]
+
+세 번째 인자는 45회차에 늘었다 — `{"12": "1A5J-...", ...}` 꼴로 **사람이 적은
+장 도면번호**를 넘긴다.  **하네스는 넘기지 않는다**: 사람 값이 없는 상태의
+불변이 구조적으로 보장되어야 하기 때문이다 (31회차 승수와 같은 규율).
 """
 import json
 import os
@@ -19,11 +23,14 @@ sys.path.insert(0, str(ROOT))
 
 def main() -> int:
     pdf, out = sys.argv[1], sys.argv[2]
+    sheets = None
+    if len(sys.argv) > 3:
+        sheets = json.loads(Path(sys.argv[3]).read_text())
     from app import pipeline
 
     t0 = time.time()
     timings: dict = {}
-    result = pipeline.analyse(pdf, timings=timings)
+    result = pipeline.analyse(pdf, timings=timings, sheet_numbers=sheets)
     took = time.time() - t0
     result["fingerprint"] = pipeline.fingerprint(result)
 

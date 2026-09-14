@@ -514,7 +514,8 @@ def _reconfigure(pages) -> None:
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None,
-            unit_multipliers: dict = None, declared_mode: str = None) -> dict:
+            unit_multipliers: dict = None, declared_mode: str = None,
+            sheet_numbers: dict = None) -> dict:
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
@@ -553,7 +554,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             return _analyse(pdf_path, progress=progress, timings=timings,
                             reference=reference, use_prefix=use_prefix,
                             use_line_gate=use_line_gate, legend_profile=legend_profile,
-                            unit_multipliers=unit_multipliers, declared_mode=declared_mode)
+                            unit_multipliers=unit_multipliers, declared_mode=declared_mode,
+                            sheet_numbers=sheet_numbers)
         finally:
             # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
             # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
@@ -582,7 +584,8 @@ def _own_config():
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
              use_line_gate: bool = True, legend_profile: dict = None,
-             unit_multipliers: dict = None, declared_mode: str = None) -> dict:
+             unit_multipliers: dict = None, declared_mode: str = None,
+             sheet_numbers: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -673,6 +676,34 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # 는 이 갈래에서만 부른다 (정상 경로에는 비용이 0이다).
     if not any(r["drawing_no"] for r in tb_rows.values()):
         raise TitleBlockUnreadable(_frame_reason(pages, layout))
+
+    # 45회차 — **획으로 그린 타이틀블록은 사람이 한 번 적는다** (§9 ⑤ · §10 3급).
+    #
+    # 검사 **뒤**에 선다.  앞에 세우면 사람이 적은 한 줄이 "이 양식은 이 문서의
+    # 것이 아니다" 를 덮어 버린다 — 21회차가 시끄럽게 멈추라고 만든 자리를
+    # 조용하게 만드는 것이다.  여기서는 **읽힌 장이 이미 있는 문서**의 남은
+    # 장만 채운다.
+    #
+    # 도면이 이긴다: `drawing_no` 가 이미 읽힌 장은 건드리지 않는다.
+    _sheets_in = sheet_numbers or {}
+    user_sheets = {int(k): str(v) for k, v in
+                   ((_sheets_in.get("table") or {}) if isinstance(_sheets_in, dict)
+                    and "table" in _sheets_in else _sheets_in).items()
+                   if str(v or "").strip()}
+    sheet_who = {int(k): str(v) for k, v in
+                 ((_sheets_in.get("who") or {}) if isinstance(_sheets_in, dict) else {}).items()}
+    sheet_when = {int(k): str(v) for k, v in
+                  ((_sheets_in.get("when") or {}) if isinstance(_sheets_in, dict) else {}).items()}
+    filled_sheets = {}
+    for page_no, row in tb_rows.items():
+        if row.get("drawing_no") or page_no not in user_sheets:
+            continue
+        value = user_sheets[page_no].strip()
+        row["drawing_no"] = value
+        row["unit_code"] = tb.parse_unit_code(value) or row.get("unit_code", "")
+        row["page_kind"] = tb.classify_page(row.get("drawing_title"), value)
+        row["drawing_no_source"] = "USER"
+        filled_sheets[page_no] = value
 
     # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
     # 범례를 그대로 쓴다.  `page_kinds` 는 `derive_unit_multipliers` 가 읽던
@@ -964,6 +995,21 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     if folded:
         rows = [r for r in rows if r.key not in folded]
 
+    # 45회차 — 그 장의 P&ID No. 가 도면에서 읽은 값이 아니라 사람이 적은 값이면
+    # 행이 그렇게 말한다.  **행을 만드는 자리가 아니라 여기 한 곳**에서 붙인다 —
+    # `_field_rows`·`_valve_rows` 둘 다 고치면 두 벌이 되고 언젠가 갈린다.
+    for r in rows:
+        if r.page_no not in filled_sheets:
+            continue
+        who = (sheet_who or {}).get(r.page_no, "")
+        when = (sheet_when or {}).get(r.page_no, "")
+        codes = r.evidence.setdefault("review_codes", [])
+        if _USER_SHEET_CODE not in codes:
+            codes.append(_USER_SHEET_CODE)
+        reason = _USER_SHEET_NO % (r.page_no, filled_sheets[r.page_no],
+                                   who or "이름 없음", when or "시각 없음")
+        r.needs_review = "; ".join(x for x in (r.needs_review, reason) if x)
+
     say(total - 1, total, "building overlays")
     for r in rows:
         if not r.rect:
@@ -1187,6 +1233,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 그 칸이 지문 대상이라 도면이 답한 문서까지 흔들린다 — 밖에 둔다.
         "user_multipliers": {"table": dict(sorted(user_mult.items())),
                              "who": dict(sorted(user_mult_note.items()))},
+        # 45회차 — 사람이 적은 장 도면번호.  **읽은 사실이지 판정이 아니다** —
+        # 값 자체는 행의 `drawing_no` 로 들어가 지문에 잡히고, 여기에는 어느
+        # 장을 누가 채웠는지가 남는다 (근거 패널·감사용).
+        "user_sheet_numbers": {"table": dict(sorted(filled_sheets.items())),
+                               "who": dict(sorted(sheet_who.items()))},
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 43회차 — 몸체 짧은 변의 창이 어디서 왔나.  **지문 밖**이다 (`legend`
@@ -1437,6 +1488,16 @@ _USER_MULT_CODE = "MULTIPLIER_BY_USER"
 
 _USER_MULTIPLIER = (
     "unit code '%s' 의 승수 x%s 는 도면이 아니라 사람이 지정한 값입니다 (%s)")
+
+# 45회차 — 그 장의 도면번호를 사람이 적은 경우.  같은 규율이고, 문장은
+# `app/sheet_numbers.py` 의 REASON 과 **같은 뜻을 한 곳에서만** 쓴다 —
+# 파이프라인은 app 모듈을 가져오지 않으므로(엔진은 맨 이름으로 import 한다)
+# 코드 문자열만 여기 둔다.
+_USER_SHEET_CODE = "DRAWING_NO_BY_USER"
+
+_USER_SHEET_NO = (
+    "%d 장의 도면번호 '%s' 는 도면에서 읽은 값이 아니라 사람이 적은 값입니다 "
+    "(%s · %s) — 이 장의 타이틀블록은 글자가 아니라 획으로 그려져 있습니다")
 
 _DASHED_BUBBLE = (
     "버블이 파선으로 그려져 있음 — 이 도면 범례는 파선 버블의 뜻을 정의하지 "

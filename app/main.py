@@ -35,7 +35,7 @@ sys.path.insert(0, str(ROOT))
 
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
                  legend_profile, markup, paths, pipeline, revisions,
-                 unit_multipliers, version)
+                 unit_multipliers, sheet_numbers, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -281,6 +281,8 @@ def _worker() -> None:
                                       reference=VERIFY_AGAINST,
                                       legend_profile=profile,
                                       unit_multipliers=_user_multipliers(
+                                          row["project"]),
+                                      sheet_numbers=_user_sheet_numbers(
                                           row["project"]),
                                       declared_mode=_declared_mode(row))
             result["fingerprint"] = pipeline.fingerprint(result)
@@ -955,6 +957,34 @@ def _mode_facts(job) -> dict:
             "line": line, "recorded": bool(t)}
 
 
+def _user_sheet_numbers(project: str) -> dict:
+    """파이프라인에 넘길 모양 `{"table": {장: 도면번호}, "who": ..., "when": ...}`.
+
+    **읽는 곳은 여기 하나다** (31회차 `_user_multipliers` 와 같은 규율).
+    프로젝트에 안 묶인 분석이면 빈 값이고, 빈 값은 이 기능이 없던 때와
+    **정확히 같다** — 도면에서 읽힌 장은 어차피 덮지 않는다.
+    """
+    project = (project or "").strip()
+    if not project:
+        return {}
+    data = sheet_numbers.load(DATA_DIR, project)
+    table = sheet_numbers.table(DATA_DIR, project)
+    who, when = {}, {}
+    for page, rec in (data.get("sheets") or {}).items():
+        try:
+            no = int(page)
+        except (TypeError, ValueError):
+            continue
+        if no not in table:
+            continue
+        bits = [rec.get("author") or "이름 없음"]
+        if rec.get("note"):
+            bits.append(rec["note"])
+        who[no] = " · ".join(bits)
+        when[no] = (rec.get("set_at") or "")[:10]
+    return {"table": table, "who": who, "when": when}
+
+
 def _user_multipliers(project: str) -> dict:
     """파이프라인에 넘길 모양 `{"table": {유닛: 배수}, "who": {유닛: "이름 · 메모"}}`.
 
@@ -1064,6 +1094,73 @@ def multiplier_clear(job_id: str, unit: str):
     if not unit_multipliers.clear_unit(DATA_DIR, job["project"] or "", unit):
         raise HTTPException(404, "no such unit")
     return {"cleared": unit, "targets": _multiplier_targets(job_id)}
+
+
+def _sheet_number_targets(job_id: str) -> dict:
+    """도면번호가 비어 있는 장 — **사람이 적을 자리**만 낸다 (45회차).
+
+    읽힌 장은 목록에 넣지 않는다.  사람은 도면을 이기지 않으므로 적어도
+    쓰이지 않고, 자리를 내면 "고칠 수 있다" 는 거짓말이 된다.
+    """
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    engine = json.loads(job["engine_json"] or "{}")
+    pages = engine.get("pages") or []
+    saved = sheet_numbers.load(DATA_DIR, job["project"] or "")
+    applied = (engine.get("user_sheet_numbers") or {}).get("table") or {}
+    out = []
+    for p in pages:
+        no = int(p.get("page_no") or 0)
+        if p.get("drawing_no") and str(no) not in {str(k) for k in applied}:
+            continue
+        if p.get("drawing_no") and str(no) in {str(k) for k in applied}:
+            pass                      # 사람이 적어 채워진 장 — 되돌릴 수 있게 낸다
+        rec = (saved.get("sheets") or {}).get(str(no)) or {}
+        out.append({"page_no": no,
+                    "drawing_no": p.get("drawing_no") or "",
+                    "page_kind": p.get("page_kind") or "",
+                    "from_user": str(no) in {str(k) for k in applied},
+                    "set": rec or None})
+    return {"project": job["project"] or "", "sheets": out,
+            "enabled": saved.get("enabled", True),
+            "note": "도면에서 읽힌 장은 여기 없습니다 — 사람은 도면을 이기지 "
+                    "않습니다.  적은 값은 **다시 분석해야** 반영됩니다."}
+
+
+@app.get("/jobs/{job_id}/sheet_numbers")
+def sheet_number_targets(job_id: str):
+    return _sheet_number_targets(job_id)
+
+
+@app.post("/jobs/{job_id}/sheet_numbers")
+def sheet_number_set(job_id: str, page: int = Form(...),
+                     drawing_no: str = Form(...), author: str = Form(""),
+                     note: str = Form("")):
+    """한 장의 도면번호를 적는다.  **다시 분석해야 반영된다.**"""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    try:
+        rec = sheet_numbers.set_sheet(DATA_DIR, job["project"] or "",
+                                      page=page, drawing_no=drawing_no,
+                                      author=author, note=note, job_id=job_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"page": page, "record": rec,
+            "targets": _sheet_number_targets(job_id),
+            "applies": "다시 분석하면 이 장이 분석 대상이 됩니다"}
+
+
+@app.delete("/jobs/{job_id}/sheet_numbers/{page}")
+def sheet_number_clear(job_id: str, page: int):
+    """되돌린다 — 지운 뒤에는 적지 않았던 때와 같아진다."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    if not sheet_numbers.clear_sheet(DATA_DIR, job["project"] or "", page):
+        raise HTTPException(404, "no such sheet")
+    return {"cleared": page, "targets": _sheet_number_targets(job_id)}
 
 
 @app.get("/symbols/global")
@@ -1556,6 +1653,7 @@ REVIEW_LABELS = {
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
     "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
+    "DRAWING_NO_BY_USER": "이 장의 타이틀블록이 획으로 그려져 도면번호를 사람이 적었음 — 누가·언제는 근거 패널에 있음",
     "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
     "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",
     "DESC_CCW_DIRECTION": "CCW SUPPLY/RETURN 을 도면 기하로 구분할 수 없음 — 직접 입력",
