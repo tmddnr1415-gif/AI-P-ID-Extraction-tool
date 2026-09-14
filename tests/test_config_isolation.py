@@ -122,7 +122,9 @@ def test_the_guard_is_one_place_and_wraps_the_whole_analysis():
     # 44회차 — 둘째 사용자(마크업 제안)도 **같은 한 벌**을 쓴다.  자기 되돌리기를
     # 들고 있으면 안 된다.
     propose = src.split("def propose_at(")[1].split("\ndef ")[0]
-    assert "with _own_config():" in propose
+    # 46회차에 제안이 잉크 인덱스 해제를 함께 걸면서 `with` 가 두 항목이 됐다.
+    # 검사의 뜻은 "제 되돌리기를 따로 들지 않는다" 이므로 자리만 본다.
+    assert "with _own_config()" in propose
     assert "CFG.data = " not in propose
     # `_rebind_config` 는 `_reconfigure` 도 쓴다 — 두 벌이 아니다
     recfg = src.split("def _reconfigure(")[1].split("\ndef ")[0]

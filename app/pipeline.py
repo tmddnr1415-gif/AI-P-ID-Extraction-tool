@@ -2993,6 +2993,51 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
     }
 
 
+# 46회차 — 같은 장에 사각형을 여러 개 그리는 것이 실제 사용 모습이다.
+# 장 하나에서 나오는 값(윤곽 · 마크 사전 · 마크 · 패키지 상자)은 **그 장과
+# config 만의 함수**이므로 한 장치 들고 있는다.  **한 장만** 든다 — 33회차
+# `_INK_LAST` 와 같은 규율이고, 다음 장을 읽을 때 앞 장을 놓는다.
+_PROPOSE_CACHE: dict = {}
+
+
+def _propose_page(pdf_path, page_no, layout_moved):
+    """그 장의 제안 재료 한 벌.  **값을 만들지 않는다 — 같은 함수를 부른다.**"""
+    key = (str(pdf_path), int(page_no),
+           json.dumps(layout_moved or [], sort_keys=True, default=str))
+    hit = _PROPOSE_CACHE.get("entry")
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
+    pc = pages[0] if pages else None
+    if pc is None:
+        return None
+    lay = ds.LAYOUT
+    outlines = ds.bubble_outlines(pc, lay)
+    outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
+    bubbles = [o.rect for o in outlines]
+    mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
+    marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
+                          bubbles=bubbles, outlines=outlines)
+    boxes = ds.find_package_boxes(pc, lay)
+    box_marks = ds.package_box_marks(boxes, marks, lay)
+    made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
+            "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
+            "box_marks": box_marks}
+    _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
+    return made
+
+
+class _ProposeCleanup:
+    """제안이 끝나면 그 장의 잉크 인덱스를 놓는다 (33회차 [D] 규율).
+
+    `analyse` 는 `finally` 에서 `ds.release_ink()` 를 부른다.  제안도 같은
+    캐시를 쓰므로 놓지 않으면 마지막 장과 그 PyMuPDF 문서를 서버가 계속 든다.
+    """
+
+    def close(self) -> None:
+        ds.release_ink()
+
+
 def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
     """마크업 사각형 자리에서 **도면이 말하는 것**을 읽는다 (44회차 · §9 ①②).
 
@@ -3016,25 +3061,23 @@ def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
     못 찾은 것과 없는 것을 가를 수 없기 때문이다.
     """
     import types
-    with _own_config():
+    with _own_config(), contextlib.closing(_ProposeCleanup()):
         if layout_moved:
             CFG.overlay({m["key"]: m["now"] for m in layout_moved
                          if isinstance(m, dict) and "key" in m and "now" in m})
             _rebind_config()
-        doc, pages = pidcache.load_pages(pdf_path)
-        pc = next((p for p in pages if p.page_no == page_no), None)
-        if pc is None:
+        # 46회차 — **그 장만 연다.**  사각형 하나마다 58~60장을 다 여는 것이
+        # 실측 1.9~8.6초였다.  `only=` 는 `propose_at` 전용이고 분석 경로는
+        # 쓰지 않는다 (`_scope_by_project` 가 다수결이기 때문 — pidcache 주석).
+        made = _propose_page(pdf_path, page_no, layout_moved)
+        if made is None:
             return {"error": f"page {page_no} is not in this PDF"}
+        pc = made["pc"]
         box = pymupdf.Rect(*[float(v) for v in rect])
         lay = ds.LAYOUT
-        outlines = ds.bubble_outlines(pc, lay)
-        outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
-        bubbles = [o.rect for o in outlines]
-        mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
-        marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
-                              bubbles=bubbles, outlines=outlines)
-        boxes = ds.find_package_boxes(pc, lay)
-        box_marks = ds.package_box_marks(boxes, marks, lay)
+        outlines, bubbles = made["outlines"], made["bubbles"]
+        mark_dict, marks = made["mark_dict"], made["marks"]
+        boxes, box_marks = made["boxes"], made["box_marks"]
         # 이웃 버블은 `others` 로 넘긴다 — 나란한 버블의 별표가 이 사각형에
         # 세어지지 않게 (16회차 규칙 그대로).
         others = tuple(b for b in bubbles if not b.intersects(box))

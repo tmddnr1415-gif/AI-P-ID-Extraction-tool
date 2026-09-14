@@ -245,12 +245,27 @@ def tokens(words):
             yield r, part
 
 
-def load_pages(pdf_path: str | Path) -> tuple[pymupdf.Document, list[PageCache]]:
-    """Open the PDF and build a rotation-normalised, scope-tagged page cache."""
+def load_pages(pdf_path: str | Path, only=None
+               ) -> tuple[pymupdf.Document, list[PageCache]]:
+    """Open the PDF and build a rotation-normalised, scope-tagged page cache.
+
+    `only` 는 46회차에 늘었다 — **그 장만** 캐시로 세운다 (장 번호 1부터).
+    쓰는 곳은 마크업 제안(`pipeline.propose_at`) 하나다: 사람이 사각형을 하나
+    그릴 때마다 58~60장을 다 여는 것이 실측 1.9~8.6초였다.
+
+    ⚠ **분석 경로는 절대 쓰지 않는다.**  `_scope_by_project` 는 *다수결*이라
+    한 장만 넣으면 그 장이 곧 다수가 되어 44회차 [C](남의 프로젝트 장 빼기)가
+    무력해진다.  제안은 이미 분석이 받아들인 장 위에서만 도는 일이므로
+    그것으로 충분하지만, 분석에 쓰면 조용히 틀린다.
+    `tests/test_markup_speed.py` 가 `_analyse` 에 `only=` 가 없음을 강제한다.
+    """
     doc = pymupdf.open(pdf_path)
 
+    want = None if only is None else {int(x) for x in only}
     pages: list[PageCache] = []
     for i in range(doc.page_count):
+        if want is not None and (i + 1) not in want:
+            continue
         page = doc[i]
         m = page.rotation_matrix
         words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]

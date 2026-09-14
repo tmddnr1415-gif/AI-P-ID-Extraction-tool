@@ -87,4 +87,18 @@ def test_release_ink_drops_the_last_page_index(monkeypatch):
     ds.release_ink()
     assert ds._INK_LAST == [] and pc._ink_index is None
     src = (ROOT / "app" / "pipeline.py").read_text()
-    assert src.count("ds.release_ink()") == 1   # 부르는 곳은 analyse 의 finally 하나
+    # 46회차 — 장을 여는 입구가 둘이 됐다: 분석(`analyse` 의 finally)과
+    # 마크업 제안(`_ProposeCleanup.close`).  **입구마다 반드시 놓는다**가
+    # 33회차의 뜻이므로, 수가 아니라 **어디서 부르는지**를 못박는다.
+    # ⚠ 글자로 세면 **문서 문자열에 적힌 설명**까지 세어진다 (46회차에 3이 나왔다).
+    # 부르는 곳은 AST 로 센다.
+    import ast as _ast
+    tree = _ast.parse(src)
+    calls = [n for n in _ast.walk(tree)
+             if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Attribute)
+             and n.func.attr == "release_ink"]
+    assert len(calls) == 2
+    guard = src.split("def analyse(")[1].split("\ndef ")[0]
+    assert "ds.release_ink()" in guard and "finally:" in guard
+    cleanup = src.split("class _ProposeCleanup:")[1].split("\ndef ")[0]
+    assert "ds.release_ink()" in cleanup
