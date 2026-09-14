@@ -1295,6 +1295,7 @@ def _box_count(page):
 def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, server, job_id):
     """빈 자리를 드래그하면 누락 행이 되고, 목록에 ＋ 로 서고, 범례의 세 색 칸 합은
     상자 수와 같게 유지되며 "(그중) 사용자 추가" 가 1 이 된다 (33회차 등식 + 44회차)."""
+    errors0 = len(page.errors)          # 앞 단계의 오류는 이 시험의 것이 아니다
     before = _legend_counts(page)
     boxes0 = _box_count(page)
     assert sum(before.get(k, 0) for k in ("SCT", "VENDOR_EXCLUDED", "INCLUDED")) == boxes0
@@ -1338,17 +1339,21 @@ def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, serve
     # 서버 집계도 같은 말을 한다
     mk = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/markup").read())
     assert mk["added_with_rect"] >= 1
-    assert not page.errors, page.errors
+    assert page.errors[errors0:] == [], page.errors[errors0:]
 
 
 def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(page, server, job_id):
     """상자를 누르면 오검출 표시 — 행은 남고 (그중) 오검출 표시가 1 늘며 ✕ 표식이 붙는다."""
     if not page.evaluate("() => document.getElementById('stage').classList.contains('markup')"):
         page.click("#markup-toggle")
+    errors0 = len(page.errors)
     before = _legend_counts(page)
     rows_before = page.evaluate("() => document.querySelectorAll('#body tr').length")
     box = page.locator("#ov rect.det:not(.manual):not(.excluded)").first
     key = box.get_attribute("data-key")
+    # 앞 단계가 새 행으로 확대해 두어 첫 상자가 화면 밖일 수 있다 — `force` 는
+    # 스크롤을 건너뛰므로 먼저 보이게 한 뒤 누른다 (캡처 검증에서 잡은 것).
+    box.scroll_into_view_if_needed()
     box.click(force=True)
     page.wait_for_selector("#rj-save", timeout=8000)
     page.fill("#rj-note", "UI 오검출 시험")
@@ -1377,4 +1382,4 @@ def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(pa
     r = next(x for x in json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/rows").read()) if x["key"] == key)
     assert r["reject"] == {} and r["removed"] is False
     page.click("#markup-toggle")
-    assert not page.errors, page.errors
+    assert page.errors[errors0:] == [], page.errors[errors0:]

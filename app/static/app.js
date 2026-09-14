@@ -2388,6 +2388,10 @@ async function saveEdit(row, field, td) {
  * sentences and retyping the difference by hand is the actual work.
  */
 async function setDescription(row, text, opts = {}) {
+  // 44회차 UI 시험이 잡은 옛 결함 — 일괄 적용의 마무리 alert 가 정의되지 않은
+  // `was` 를 읽어 ReferenceError 를 냈다 (적용은 이미 끝난 뒤라 눈에 안 띄었다).
+  // 묶음이 공유하던 문장은 고치기 **전**에 잡아 둔다.
+  const was = row.values.description ?? "";
   const patch = async (r, field, value) => {
     const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
