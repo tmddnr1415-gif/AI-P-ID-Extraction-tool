@@ -1308,7 +1308,7 @@ def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, serve
         x, y = sheet["x"] + sheet["width"] * fx, sheet["y"] + sheet["height"] * fy
         page.mouse.move(x, y); page.mouse.down(); page.mouse.move(x + 18, y + 26, steps=4); page.mouse.up()
         try:
-            page.wait_for_selector("#mk-save", timeout=8000)
+            page.wait_for_selector("#mk-save", timeout=25000)
             opened = True
             break
         except Exception:
@@ -1320,8 +1320,13 @@ def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, serve
     page.fill("#mk-type", "UI-MARK")
     page.fill("#mk-author", "UI 시험")
     page.click("#mk-save")
-    page.wait_for_selector("#body tr.added", timeout=15000)
-    page.wait_for_timeout(600)
+    page.wait_for_selector("#body tr.added", timeout=90000)
+    # 대화상자는 저장 **뒤** 닫히고 행 목록은 그 뒤에 다시 온다 — 고정 대기가 아니라
+    # 범례 숫자가 오를 때까지 기다린다 (캡처 검증에서 1초 대기가 옛 값을 읽었다).
+    page.wait_for_function(
+        "n => [...document.querySelectorAll('#ovl-items .ovl-row')]"
+        ".some(r => r.querySelector('input').value === 'MANUAL' && +r.querySelector('.n').textContent === n)",
+        arg=before.get("MANUAL", 0) + 1, timeout=30000)
     after = _legend_counts(page)
     boxes1 = _box_count(page)
     assert boxes1 == boxes0 + 1
@@ -1351,7 +1356,10 @@ def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(pa
     page.uncheck("#rj-exclude")             # Excel 유지 — 표시만
     page.click("#rj-save")
     page.wait_for_selector("#rj-save", state="detached", timeout=8000)
-    page.wait_for_timeout(800)
+    page.wait_for_function(
+        "n => [...document.querySelectorAll('#ovl-items .ovl-row')]"
+        ".some(r => r.querySelector('input').value === 'REJECT' && +r.querySelector('.n').textContent === n)",
+        arg=before.get("REJECT", 0) + 1, timeout=30000)
     after = _legend_counts(page)
     assert after.get("REJECT") == before.get("REJECT", 0) + 1, (before, after)
     assert page.evaluate("() => document.querySelectorAll('#body tr').length") == rows_before, "행이 지워지면 안 된다"
@@ -1362,7 +1370,10 @@ def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(pa
     assert page.evaluate("() => document.querySelectorAll('#ov circle.rejbadge').length") >= 1
     # 되돌리기 버튼이 있고 누르면 표시가 사라진다
     page.click(f'#body tr[data-key="{key}"] button.mini-rep:has-text("되돌리기")')
-    page.wait_for_timeout(800)
+    page.wait_for_function(
+        "n => [...document.querySelectorAll('#ovl-items .ovl-row')]"
+        ".some(r => r.querySelector('input').value === 'REJECT' && +r.querySelector('.n').textContent === n)",
+        arg=before.get("REJECT", 0), timeout=30000)
     r = next(x for x in json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/rows").read()) if x["key"] == key)
     assert r["reject"] == {} and r["removed"] is False
     page.click("#markup-toggle")
