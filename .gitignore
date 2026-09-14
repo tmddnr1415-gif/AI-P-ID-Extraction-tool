@@ -133,3 +133,7 @@ out/round44*.done
 
 # 44회차 — 캡처(도면 렌더·조각·feedback zip)는 결과 zip 에만 담고 저장소에는 넣지 않는다 (43회차와 같은 규칙)
 out/round44/9_캡처/
+out/round44/*.log
+out/round44/h44.done
+out/round44/verify/*.log
+out/round44/verify/state.json
