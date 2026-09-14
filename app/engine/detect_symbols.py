@@ -651,6 +651,21 @@ class Mark(NamedTuple):
     form: str            # GLYPH | TEXT
 
 
+# 두 크기를 **같은 크기**라고 부르는 자 (47회차 [B]).
+#
+# 새 값이 아니다 — `find_marks` 가 처음부터 이 값으로 크기를 맞추고 있었고
+# 여기서는 **이름만 준다**.  이름이 필요한 이유는 *재는 곳과 맞추는 곳이 같은
+# 자를 써야* 하기 때문이다: `star_marks` 는 크기를 **배울 때** `round(...,1)`
+# 이라는 반올림 칸을 썼고(눈금 0.05pt) 맞출 때도 그 칸을 썼다.  한 물리 크기가
+# 칸 경계에 걸리면 **같은 별표가 여러 칸으로 갈려** "두 번 그려졌다" 를 못 센다.
+#
+# 실측 (`spike/star_size_split.py` · 네 문서 전수):
+#     TC2 p9  한 장에 별표 11개인데 2.76~2.88 이 네 칸으로 갈리고
+#             (2.9,2.9) 이 1표라 그 별표 하나만 조용히 빠진다
+#     TC2 24건 · UAD 3건 · AL NOUF1 7건 · SADARA 0건
+# 46회차 정답지가 그중 TC2 p9 한 건을 **도면을 세어** 독립으로 찾아냈다.
+MARK_SIZE_TOL = 0.6
+
 MARK_TEXT_RE = re.compile(r"^\(?(\*{1,3})\)?")
 
 
@@ -1026,14 +1041,16 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
     # 18회차 — 가산이다.  정의줄 크기를 빼지 않고 그 장이 실제로 그린 크기를
     # 더한다.  뜻(별 개수 → 공급자)은 여전히 그 장 NOTES 에서만 온다 (§10.1).
     for s in drawn_mark_sizes(pc, lay, bubbles, outlines, rejected=rejected):
-        if not any(abs(s[0] - w) <= 0.6 and abs(s[1] - h) <= 0.6 for w, h in sizes):
+        if not any(abs(s[0] - w) <= MARK_SIZE_TOL and abs(s[1] - h) <= MARK_SIZE_TOL
+                   for w, h in sizes):
             sizes.append(s)
     if sizes:
         for c in _glyph_clusters(pc, lay):
             if c.x1 > lay.drawing_area[2]:
                 continue
             for w, h in sizes:
-                if abs(c.width - w) <= 0.6 and abs(c.height - h) <= 0.6:
+                if (abs(c.width - w) <= MARK_SIZE_TOL
+                        and abs(c.height - h) <= MARK_SIZE_TOL):
                     cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
                     # 30회차 — 심볼의 그려진 얼굴 위면 그 심볼의 글자다 (§10-10).
                     # **획으로 그린 것에만 건다** — 활자 `*` 는 자리와 무관하게
@@ -1283,6 +1300,26 @@ def definition_stars(pc, lay: Layout = LAYOUT, lines=None):
     return dict(out)
 
 
+def _drawn_twice(key, seen) -> bool:
+    """이 크기가 그 장의 마크 자리에 **두 번 이상** 나왔는가 (18·25회차 규칙).
+
+    ★ 47회차 [B] — 세는 단위가 반올림 칸이 아니라 **맞추기 허용치**다.
+    한 물리 크기가 칸 경계에 걸리면 같은 별표가 여러 칸으로 갈리고, 갈려 나온
+    1표짜리 칸의 별표만 조용히 빠진다.  TC2 p9 은 별표를 **11개** 그렸는데
+    2.76~2.88 이 (2.8,2.9)5 · (2.8,2.8)2 · (2.9,2.8)3 · (2.9,2.9)1 로 갈려
+    마지막 하나가 마크가 되지 못했고, 같은 줄의 TIT 셋 중 하나만 `SCT` 로
+    나갔다 — **행 수도 지문도 정상으로 보인다** (46회차 [E] ㉣).
+
+    규칙 자체는 안 바꿨다: 한 번뿐인 크기는 여전히 얼룩이다 (UAD p5 는 그 장에
+    별표가 정말 하나뿐이라 그대로 기각된다 — 실측).  바뀐 것은 **"같은 크기"
+    를 판정하는 자**이고, 그 자는 `find_marks` 가 이미 쓰던 `MARK_SIZE_TOL`
+    이다.  그래서 이 규칙은 맞추기가 어차피 같다고 볼 크기들만 합친다.
+    """
+    return sum(n for k, n in seen.items()
+               if abs(k[0] - key[0]) <= MARK_SIZE_TOL
+               and abs(k[1] - key[1]) <= MARK_SIZE_TOL) >= 2
+
+
 def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=(),
                outlines=None, rejected=None):
     """본문 별표 — 획의 관계로 찾고, 크기는 **그 장에서** 배운다 (18회차 규칙 그대로).
@@ -1327,12 +1364,11 @@ def star_marks(pc, lay: Layout = LAYOUT, bubbles=None, existing=(),
             continue          # 30회차 — 심볼의 글자는 크기를 가르치지 않는다
         if any(in_mark_window(b, cx, cy, lay) for b in bubbles):
             seen[(round(r.width, 1), round(r.height, 1))] += 1
-    learned = {k for k, n in seen.items() if n >= 2}
-    if not learned:
+    if not seen:
         return []
     out = []
     for r, _n, _d in groups:
-        if (round(r.width, 1), round(r.height, 1)) not in learned:
+        if not _drawn_twice((round(r.width, 1), round(r.height, 1)), seen):
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         span = max(r.width, r.height)
