@@ -2655,7 +2655,8 @@ function showEvidence(row) {
   //
   // 문구는 그 행의 실제 SCOPE 값에서 만든다.  고정 문자열이 아니다.
   // 판정은 `scopeFacts` 하나에서 온다 — 편집 안내도 같은 함수를 읽는다(14회차).
-  const facts = scopeFacts(row.values.scope, { needsReview: row.needs_review });
+  const facts = scopeFacts(row.values.scope, { needsReview: row.needs_review,
+                                               manualBlank: !!(row.added && e.markup) });
   add("공급 주체", mark("scope", facts.supplierName));
   add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
                               : "이 행은 추출 결과에 있습니다");
@@ -3322,10 +3323,14 @@ function scopeFacts(scopeVal, opts = {}) {
     ? (v.slice(SCOPE_VENDOR_PREFIX.length).replace(/^\(|\)$/g, "") || "이름 미상")
     : "";
   const state = v === SCOPE_DELIVERED ? "delivered" : v ? "vendor" : "unjudged";
+  // 44회차 — 사람이 추가한 행의 빈 SCOPE 는 "옛 분석의 판정 없음" 이 아니라 **사람이
+  // 비워 둔 칸**이다.  판정(state · inForm)은 같고 문장만 다르다 — 이 함수 안에서.
+  const manualBlank = !!opts.manualBlank && state === "unjudged";
   const supplierName = opts.needsReview ? "검토 필요"
     : state === "delivered" ? "SCT 공급"
     : supplier ? `VENDOR 공급 — ${supplier}`
     : state === "vendor" ? v
+    : manualBlank ? "SCOPE 비워 둠 — 별표를 못 읽어 사람이 정할 칸"
     : "판정 없음";
   // 18회차 — 양식이 무엇을 담는지는 **설정**이고 서버가 말해 준다
   // (`/jobs/{id}` 의 `form_scope`).  화면이 그것을 스스로 정하면 서버가
@@ -3338,11 +3343,15 @@ function scopeFacts(scopeVal, opts = {}) {
        : state === "vendor"
          ? `나갑니다 — 양식은 전량을 담습니다 (공급은 ${supplier || v}, `
            + "설치 자재는 SCT 몫이라 물량 산출에 필요합니다)"
+         : manualBlank
+           ? "나갑니다 — SCOPE 는 비워 두었습니다 (적으면 그 값으로 판정됩니다)"
          : "나갑니다 — SCOPE 를 판정한 적은 없습니다 "
            + "(이 열이 생기기 전의 분석입니다)")
     : (state === "delivered" ? "나갑니다"
        : state === "vendor"
          ? `나가지 않습니다 — 발주처 양식은 ${SCOPE_DELIVERED} 만 담습니다`
+         : manualBlank
+           ? "나갑니다 — 빈 값은 판정 없음으로 담깁니다 (SCOPE 를 적으면 그 값으로 판정됩니다)"
          : "판정한 적 없음 — 다시 분석하면 정해집니다 "
            + "(SCOPE 열이 생기기 전의 분석입니다)");
   return { value: v, state, supplier, supplierName, inForm, formLine, allRows };
@@ -3886,12 +3895,10 @@ async function markupDialog(rect) {
     clearFiltersForNewRow();
     await refreshRows(out.key);
     updateBadge();
-    const facts = scopeFacts(scope, {});
-    // 빈 SCOPE 는 "판정한 적 없음(옛 분석)" 이 아니라 **사람이 비워 둔 것**이다 — 문장을
-    // 그렇게 쓴다.  나가는지는 같은 판정(`scopeFacts.inForm`)을 그대로 읽는다.
-    const formLine = scope ? facts.formLine
-      : (facts.inForm ? "나갑니다 — SCOPE 는 비워 두었습니다 (별표를 못 읽어 사람이 정할 칸)"
-                      : "나가지 않습니다 — SCOPE 가 비어 있습니다");
+    // 빈 SCOPE 는 "판정한 적 없음(옛 분석)" 이 아니라 **사람이 비워 둔 것**이다 — 문장은
+    // `scopeFacts` 한 곳이 쓴다 (근거 패널과 같은 문장).
+    const facts = scopeFacts(scope, { manualBlank: true });
+    const formLine = facts.formLine;
     editNotice(`추가했습니다 (${out.stable_id ? `ID ${out.stable_id}` : out.id_note || "ID 없음"}) · `
       + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
       + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
