@@ -3887,10 +3887,15 @@ async function markupDialog(rect) {
     await refreshRows(out.key);
     updateBadge();
     const facts = scopeFacts(scope, {});
+    // 빈 SCOPE 는 "판정한 적 없음(옛 분석)" 이 아니라 **사람이 비워 둔 것**이다 — 문장을
+    // 그렇게 쓴다.  나가는지는 같은 판정(`scopeFacts.inForm`)을 그대로 읽는다.
+    const formLine = scope ? facts.formLine
+      : (facts.inForm ? "나갑니다 — SCOPE 는 비워 두었습니다 (별표를 못 읽어 사람이 정할 칸)"
+                      : "나가지 않습니다 — SCOPE 가 비어 있습니다");
     editNotice(`추가했습니다 (${out.stable_id ? `ID ${out.stable_id}` : out.id_note || "ID 없음"}) · `
       + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
       + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
-      + `발주처 양식에 ${facts.formLine}`, "in");
+      + `발주처 양식에 ${formLine}`, "in");
   };
   $("#mk-type").focus();
 }
