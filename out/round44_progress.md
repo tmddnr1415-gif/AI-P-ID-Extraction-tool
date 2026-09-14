@@ -10,3 +10,4 @@
 | 01:23 | [D/E/F] db·main·markup.py·excel_out·app.js·html·css 1차 커밋 (pipeline.propose_at 은 체인 뒤) |
 | 01:31 | 빠른 시험 324 통과 (315+9) · verify44 준비 · worktree wt44(aac64ba) |
 | 01:33 | [A] 기준선 4종 재현 — 넷 다 "기준선과 같습니다" (A44) · [G] 최종 코드 회귀 체인 G44 시작 |
+| 02:05 | [G] 최종 코드 회귀 4종 완료 — 넷 다 기준선과 같음 (8_regression.json) · [H] 체인 시작 (UI 스위트 → 꾸러미 → 17단계) |
