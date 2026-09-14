@@ -1,114 +1,6 @@
 {
   "projects": [
     {
-      "name": "AL NOUF1",
-      "rows": 1037,
-      "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
-      "qty_sum": 1931,
-      "tabs": {
-        "FIELD": 885,
-        "MOV": 76,
-        "PNEUMATIC": 53,
-        "BFV": 23
-      },
-      "seconds": 757.4,
-      "max_rss_gb": 4.91,
-      "identification": {
-        "도면번호": [
-          58,
-          58,
-          ""
-        ],
-        "개정": [
-          58,
-          58,
-          ""
-        ],
-        "태그→행": [
-          247,
-          272,
-          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
-        ],
-        "수량": [
-          1037,
-          1037,
-          ""
-        ],
-        "심볼판정": [
-          1037,
-          1287,
-          ""
-        ],
-        "파라미터": [
-          30,
-          32,
-          ""
-        ]
-      },
-      "score": 94.2,
-      "axes": {
-        "전량": {
-          "recall": 99.3,
-          "precision": 70.5,
-          "fp": 249,
-          "fn": 4
-        },
-        "SCT": {
-          "recall": 99.3,
-          "precision": 94.4,
-          "fp": 35,
-          "fn": 4
-        }
-      }
-    },
-    {
-      "name": "SADARA",
-      "rows": 86,
-      "fingerprint": "53531ef68969c58f352ee38c829eaaa7b2a44638fe3bc493a6d4c9a3b6d7c9cf",
-      "qty_sum": 0,
-      "tabs": {
-        "FIELD": 62,
-        "MOV": 16,
-        "REVIEW": 6,
-        "BFV": 2
-      },
-      "seconds": 75.8,
-      "max_rss_gb": 0.94,
-      "identification": {
-        "도면번호": [
-          9,
-          9,
-          ""
-        ],
-        "개정": [
-          9,
-          9,
-          ""
-        ],
-        "태그→행": [
-          33,
-          33,
-          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
-        ],
-        "수량": [
-          0,
-          86,
-          ""
-        ],
-        "심볼판정": [
-          86,
-          128,
-          ""
-        ],
-        "파라미터": [
-          29,
-          32,
-          ""
-        ]
-      },
-      "score": 76.3
-    },
-    {
       "name": "TC2",
       "rows": 731,
       "fingerprint": "cecd745d36b4fb403c74694e9cc01c5b5ac256381bd2e0ae8f125df22324e3bc",
@@ -118,7 +10,7 @@
         "PNEUMATIC": 44,
         "BFV": 4
       },
-      "seconds": 593.9,
+      "seconds": 492.8,
       "max_rss_gb": 7.45,
       "identification": {
         "도면번호": [
@@ -153,51 +45,6 @@
         ]
       },
       "score": 90.2
-    },
-    {
-      "name": "UAD",
-      "rows": 192,
-      "fingerprint": "e8bf8fbfe95cd3f622088ee45bb894540be68c7154a4a00b267eb6f6c894ada6",
-      "qty_sum": 192,
-      "tabs": {
-        "FIELD": 181,
-        "PNEUMATIC": 11
-      },
-      "seconds": 407.0,
-      "max_rss_gb": 3.22,
-      "identification": {
-        "도면번호": [
-          21,
-          22,
-          ""
-        ],
-        "개정": [
-          23,
-          32,
-          ""
-        ],
-        "태그→행": [
-          43,
-          50,
-          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
-        ],
-        "수량": [
-          192,
-          192,
-          ""
-        ],
-        "심볼판정": [
-          192,
-          347,
-          ""
-        ],
-        "파라미터": [
-          26,
-          30,
-          ""
-        ]
-      },
-      "score": 82.6
     }
   ],
   "metrics": [
