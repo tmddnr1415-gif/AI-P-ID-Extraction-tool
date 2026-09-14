@@ -2092,8 +2092,8 @@ build.bat --clean        REM PyInstaller 캐시부터 지우고
 **테스트**
 
 ```bash
-pytest -q -m "not slow and not ui"    # 302건, 15초
-pytest -q -m ui                       # 24건 (playwright + chromium 필요 · **SCOPE 있는 데이터**에서만 뜻이 있습니다 — `PID_UI_DB` 로 가리키고, 없으면 `spike/build_ui_db.py` 로 세웁니다)
+pytest -q -m "not slow and not ui"    # 324건, 32초 (44회차)
+pytest -q -m ui                       # 26건 (playwright + chromium 필요 · **SCOPE 있는 데이터**에서만 뜻이 있습니다 — `PID_UI_DB` 로 가리키고, 없으면 `spike/build_ui_db.py` 로 세웁니다)
 pytest -q -m slow                     # 16건 · 전 문서 분석 포함, **46분** (25회차 잉크 인덱스로 23분 → 46분 · `timeout 2400` 이면 13/14 에서 잘린다)
 ```
 
