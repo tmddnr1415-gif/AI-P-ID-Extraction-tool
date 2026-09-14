@@ -1,0 +1,78 @@
+[감사] 산출 대상 3584행 / job 5개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 20.8 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+INFO:     Started server process [2340]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:58879 (Press CTRL+C to quit)
+INFO:     127.0.0.1:41778 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41794 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41818 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41834 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41818 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41850 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41818 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41834 - "GET /jobs/uidb8f30b41ea57f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41850 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41850 - "GET /jobs/uidb8f30b41ea57f/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41834 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41818 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41860 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41850 - "GET /jobs/uidb8f30b41ea57f/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/uidb8f30b41ea57f/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41850 - "GET /jobs/uidb8f30b41ea57f/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "POST /jobs/uidb8f30b41ea57f/markup/propose HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "POST /jobs/uidb8f30b41ea57f/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows/u1020bc6c5d3f4a8/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows/u1020bc6c5d3f4a8/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows/168b1efddf558213/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "DELETE /jobs/uidb8f30b41ea57f/rows/168b1efddf558213?reason=%EC%BA%A1%EC%B2%98%EC%9A%A9+%EC%98%A4%EA%B2%80%EC%B6%9C+%ED%91%9C%EC%8B%9C&reason_class=FALSE_POSITIVE&author=%EC%BA%A1%EC%B2%98+%EA%B2%80%EC%A6%9D&exclude=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56152 - "GET /jobs/uidb8f30b41ea57f/rows/168b1efddf558213/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49366 - "GET /jobs/uidb8f30b41ea57f/feedback_export?by=%EC%BA%A1%EC%B2%98 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49370 - "GET /jobs/uidb8f30b41ea57f/markup HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2340]

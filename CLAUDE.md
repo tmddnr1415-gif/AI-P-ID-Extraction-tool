@@ -1883,6 +1883,67 @@ AL NOUF1·SADARA·UAD 지문 불변 (축3 분모만 하나씩 는다 — 30회�
    밸브 행 없음(AL NOUF1 p37).  나머지 ㉡ 는 전부 알려진 원인(클라우드 MOV · PRV · act_box · 경보 접미 · 획뿐인 장).
 6. 스스로 뒤집은 것: "토막이라 못 잡는다" → 절대 pt 창 · "SADARA 제어 밸브 = 삼각형 둘" → ANGLE+DESUPERHEATER · "p10 TCV 가 행이 된다" → 끝막대 없음.
 
+**그 다음 회차 — 사용자 마크업 · 피드백 내보내기 · 꾸러미 r44 (44회차, 화면 회차 · 검출 0줄)**
+
+`out/round44_result.zip` (0_요약 · 1_보고서 · 2_progress · 3_survey · 4_p48 · 5_markup · 6_color_count_excel ·
+7_feedback_spec · 8_regression.json · 9_캡처) · 꾸러미 `out/PID_update_2026-09-14_r44.zip`.
+**네 프로젝트 전부 불변** — AL NOUF1 `fb85b039` · 1037 · 1931 · 축2 94.4 · 축3 94.2 · SADARA `53531ef6` · 86 ·
+TC2 `cecd745d` · 731 · UAD `e8bf8fbf` · 192 ([A] 기준선 · [G] 최종 코드 둘 다).  시험 315 → **324** · UI 24 → **26**.
+
+1. **★ 열일곱 번째 — 요구 여섯 중 넷이 이미 서버에 있었다** ([B] `out/round44_survey.md`).  `＋행` 은 지점을
+   받아 `probe_point` 로 주변 기하를 적고 있었고, `삭제` 는 검출 행을 **지우지 않고 `removed` 표시**만 하며,
+   `feedback` 표는 ADDED/REMOVED/EDITED 를 근거·좌표·작성자까지 남기고 있었다.  없던 것은 **사각형**(`rect_json`
+   이 `'[]'`) · 제안값 · 출처 · 오버레이 표시 · 복원 **버튼**(API 는 있었다) · zip 으로 꺼내는 길이었다.
+   새로 만든 것은 잇는 코드 여섯 — `pipeline.propose_at` · `app/markup.py` · `POST /rows` 확장 · `DELETE` 사유
+   분류 · 화면 마크업 모드 · `GET /feedback_export`.
+2. **[C] p48 은 38회차가 아니라 다수결이 가른다.**  `pidcache._scope_by_project` — PROJECT NAME 칸이 다수(57)와
+   다른 1장을 `FOREIGN_PROJECT:PORT DICKSON 1400MW CCGT` 로 범위 밖.  행 0 · 축3 분모 기여 0(실측).  **양식은
+   같고 프로젝트가 다르다** — 43회차의 "PORT DICKSON 양식" 은 오기.  ★ p47 이 AL NOUF1 `(1 OF 2)` 이고 p48 이
+   PORT DICKSON `(2/2)` 라 **AL NOUF1 의 진짜 (2/2) 는 이 PDF 에 없다** (실무 확인).  30회차의 `A1` 한 장이
+   이 장이다.
+3. **★ 제안은 도면을 먼저 읽는다 (§9 ①②).**  `pipeline.propose_at` 은 `ds.detect` 앞부분과 **같은 함수·같은
+   인자**(윤곽 → 마크 사전 → 마크 → 패키지 상자 → `read_vendor_mark(others=)`) → `_scope_of`.  사본 없음.
+   config 는 그 분석이 얹었던 `applied_rules.layout.moved` 를 같은 `CFG.overlay` 로 얹고 되돌린다 —
+   되돌리기는 `_own_config` **한 벌**(analyse 에서 떼어냈다 · `test_config_isolation` 이 둘째 사용자까지 본다).
+   **별표가 없으면 SCT 가 아니라 빈칸** — 검출 행의 "별표 없음 = SCT" 는 그 심볼의 별표 자리를 다 본 뒤의
+   규칙이고, 사람이 그린 사각형에서는 못 찾은 것과 없는 것을 가를 수 없다.  실측 p6: VENDOR(HRSG) FIT 자리 →
+   `VENDOR(HRSG)`·DRAWING·별표 1 / SCT PIT 자리 → `""`·USER.  수량은 **같은 장 행이 받은 값**(갈리면 빈칸+사유),
+   TYPE 은 사각형 안 낱말이 앵커 사전에 하나 있을 때만(`PT → PIT` 는 엔진 사전으로).
+4. **출처를 화면이 계산해 보내고 서버는 받은 것을 적는다** — 제안값을 그대로 두면 `DRAWING`, 바꾸거나
+   채우면 `USER`.  `evidence_json.markup{scope_source, qty_source, proposal, author, at, class, note, stable_id}`.
+   `EDITABLE` 은 늘리지 않았다.  ⚠ 그리드에서 나중에 SCOPE 를 고치면 `scope_source` 는 그대로다 — 연필
+   표식(`mark()`)이 따로 말한다.  합치는 것은 다음 회차 후보.
+5. **안정 ID 는 같은 장부다** (§7.3).  `markup.assign_stable_id` 가 `Registry.assign`(`next_seq` = 최대+1 ·
+   회수 없음)을 부르고 `origin: user` 를 적는다.  상태는 `compare()` 규칙(BASELINE/ADDED).  다음 리비전에서
+   엔진이 그 자리를 찾으면 같은 ID 를 잇는다.  프로젝트 없으면 ID 없이 그렇게 말한다.
+6. **오검출은 지우지 않는다.**  `item.reject_json`(가산 열) + `removed`(Excel 제외를 골랐을 때만).  ㉢/㉣/
+   미지정/기타 · 작성자 · 시각.  ㉣ 값 틀림은 칸 편집(PATCH · 사유 `WRONG_VALUE:`)으로 잇는다.  되돌리기
+   버튼은 있던 API 에 단 것.  `review_codes()` 가 상태에서 `MANUAL_ADD`·`MANUAL_REJECT` 를 매번 만든다
+   (`ROW_DELETED` 와 같은 방식 — 되돌리면 같이 사라진다).
+7. **색은 (b) — SCOPE 그대로, 표시는 모서리** (E-1).  추가 = 점선 `1.5 2.5` + 왼쪽 위 초록 ✚ · 오검출 =
+   흐리게 + 오른쪽 아래 회색 ✕ · 검토 = 오른쪽 위 붉은 ● (33회차).  세 모서리가 다르다.  범례에 "(그중)
+   사용자 추가 / 오검출 표시" — `overlayItems` 가 추가 행을 층 항목과 **같은 얼굴로 합쳐** 세 색 칸 합 =
+   상자 수 등식 불변 (캡처 p6: 18+28+1 = 47 · UI 시험이 전·후 둘 다 잰다).
+8. **Excel 은 REMARK 앞머리** (E-3).  행 칠하기는 §7.1 "Rev.A 무음영" 과 충돌, 별도 시트는 양식 변경.
+   `사용자 추가 · <작성자>` / `사용자 표시: 오검출 의심 (메모) · <작성자>` — **시각 없음**(결정성) ·
+   `MANUAL_*` 는 사유 목록에서 뺀다("→ 미처리" 로 읽히지 않게).  추가 행은 자기 SCOPE 값으로 같은
+   필터를 지난다.  마크업 없으면 `_remark` 는 예전과 같다 (`None`).
+9. **★ 축5 는 더하지 않는다 — 판단만** (`6_color_count_excel.md`).  표본이 0 장이고(축은 정의로 서지 않는다 ·
+   최소 표본은 한 프로젝트 전 장), 정의가 축2 와 겹치며(AL NOUF1 에서 둘이 다르면 어느 쪽이 정답인지 또
+   물어야 한다), 피드백 zip 의 `items` 가 이미 표본 축적이다.  자리는 정답지 없는 프로젝트(SADARA·TC2·UAD).
+10. **측정은 구조적으로 안 움직인다** — 축1·2·3 채점기는 결과 json 만 읽고 DB·markup 을 모른다
+    (`tests/test_markup.py` 소스 검사 + 재분석 뒤 지문·`ai_json` 실측).  회귀 하네스는 매번 새 분석이라 DB 의
+    마크업이 닿을 길이 없다.
+11. **★ 캡처가 잡은 것** — 첫 캡처가 오검출 뒤 범례를 **1초 고정 대기**로 읽어 옛 값(0)을 냈다.  대화상자는
+    저장 **뒤** 닫히고 행 목록은 그 뒤에 온다.  시험·캡처 둘 다 **범례 숫자가 오를 때까지** 기다리게 바꿨다.
+    또 빈 SCOPE 로 추가한 행의 안내가 "판정한 적 없음(옛 분석)" 이라고 말해 문장을 갈랐다.
+12. **`scope_summary_now` 가 `removed` 행을 세고 있었다** — 화면 "지금 N행" 이 Excel 과 갈리던 것(마크업이
+    드러냈다).  `deleted` 만 빼던 것을 `removed` 도 뺀다.
+13. **⚠ 비용** — 제안 한 번에 `load_pages` 전체(AL NOUF1 약 8초 · TC2 더).  `probe_point` 도 같은 비용이었다.
+    한 장만 여는 인자는 엔진(`pidcache`)에 손대는 일이라 이번 회차에 안 했다 — 다음 회차 후보.
+14. **하지 않은 것** — 검출 · `_layers` · `store_result` · 지문 · `EDITABLE` · 발주처 양식 열 · 43회차 보류 ·
+    42회차 설계 · 실무 판단.  {{G44}}  {{H44}}
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
