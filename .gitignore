@@ -115,3 +115,18 @@ out/round36*.done
 out/round37*.log
 out/round37*.done
 out/round37/3_FILES_TO_OVERWRITE.zip
+
+# 44회차 — 피드백 내보내기 zip 과 회차 산출물 중 도면 내용이 든 것.  feedback zip 에는
+# 도면 조각 그림과 장 렌더가 들어간다 (`data/*.pdf` 와 같은 규칙).
+out/feedback_*.zip
+out/round44/feedback_*.zip
+out/round44/verify/*.png
+out/round44/verify/db_backup/
+out/round44/verify/deliverables.zip
+out/round44/verify/verify_rows.json
+out/round44/verify/server*.log
+out/round44/verify/synthetic_hist.pdf
+out/round44/verify/feedback_*.zip
+out/round44/3_FILES_TO_OVERWRITE.zip
+out/round44*.log
+out/round44*.done

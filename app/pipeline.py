@@ -548,20 +548,35 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     실패해도 되돌린다 (`finally`).  그러지 않으면 낯선 양식이 죽은 뒤 그 잔재가
     남아, 그 다음 분석이 이유 없이 이상해진다.
     """
+    with _own_config():
+        try:
+            return _analyse(pdf_path, progress=progress, timings=timings,
+                            reference=reference, use_prefix=use_prefix,
+                            use_line_gate=use_line_gate, legend_profile=legend_profile,
+                            unit_multipliers=unit_multipliers, declared_mode=declared_mode)
+        finally:
+            # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
+            # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
+            # 한 서버 프로세스가 앞 문서의 마지막 장을 다음 분석 내내 들고 있다.
+            ds.release_ink()
+
+
+@contextlib.contextmanager
+def _own_config():
+    """config 를 빌려 쓰고 **반드시** 되돌린다 — 되돌리는 코드는 이 한 벌뿐이다.
+
+    44회차에 `propose_at`(마크업 제안)이 두 번째 사용자가 되면서 `analyse` 안에
+    있던 것을 떼어냈다.  하는 일은 그대로다: 들어갈 때 `CFG.data` 를 복사해 두고,
+    나올 때(실패해도) 달라졌으면 되돌리고 `_rebind_config` 한다.  갈래마다 되돌리기를
+    따로 두면 언젠가 새는 갈래가 생긴다 (`tests/test_config_isolation.py`).
+    """
     snapshot = copy.deepcopy(CFG.data)
     try:
-        return _analyse(pdf_path, progress=progress, timings=timings,
-                        reference=reference, use_prefix=use_prefix,
-                        use_line_gate=use_line_gate, legend_profile=legend_profile,
-                        unit_multipliers=unit_multipliers, declared_mode=declared_mode)
+        yield
     finally:
         if CFG.data != snapshot:
             CFG.data = snapshot
             _rebind_config()
-        # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
-        # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
-        # 한 서버 프로세스가 앞 문서의 마지막 장을 다음 분석 내내 들고 있다.
-        ds.release_ink()
 
 
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
@@ -2915,6 +2930,76 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
         "rate_of_all_rows": round(100 * stats[pipe_graph.TRACED] / (walked + skipped), 1)
         if walked + skipped else 0.0,
     }
+
+
+def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
+    """마크업 사각형 자리에서 **도면이 말하는 것**을 읽는다 (44회차 · §9 ①②).
+
+    사람이 SCOPE 를 적기 전에 그 자리의 별표·NOTES 를 먼저 읽어 제안한다.
+    읽는 순서는 파이프라인이 행에 쓰는 것과 **같은 함수·같은 인자**다 —
+    `ds.detect` 의 앞부분(버블 윤곽 → 마크 사전 → 마크 → 패키지 상자)과
+    `read_vendor_mark` · `_scope_of`.  사본을 두지 않고, 판정하는 곳은 여전히
+    `_scope_of` 하나다.  **아무것도 저장하지 않는다.**
+
+    config 는 그 분석이 쓴 상태로 잠시 묶는다: `_fit_layout` 이 낯선 문서에
+    얹은 값(`applied_rules.layout.moved`)을 같은 `CFG.overlay` 로 얹고
+    `_rebind_config` 한 뒤, 끝나면 되돌린다 (22회차 `_own_config` 와 같은 틀).
+    범례 유도값은 `ds.LAYOUT` 에 들어가지 않으므로(인자로만 흐른다) 여기서
+    다시 재지 않는다 — 별표 크기는 `find_marks` 가 그 장에서 런타임에 잰다.
+
+    돌려주는 것: `scope`(SCT / VENDOR / VENDOR(이름)) · `scope_source`
+    (DRAWING = 별표를 읽어 판정 · USER = 그 자리에 별표가 없어 사람이 적을 것)
+    · `scope_evidence`(별표 수 · 정의줄 원문 · 규칙) · `words`(사각형과 겹치는
+    낱말) · `stars` · `notes`.  별표가 없으면 SCT 가 아니라 **빈칸**이다 —
+    "별표 없음 = SCT" 는 검출 행의 규칙이지, 사람이 그린 사각형에서는 별표를
+    못 찾은 것과 없는 것을 가를 수 없기 때문이다.
+    """
+    import types
+    with _own_config():
+        if layout_moved:
+            CFG.overlay({m["key"]: m["now"] for m in layout_moved
+                         if isinstance(m, dict) and "key" in m and "now" in m})
+            _rebind_config()
+        doc, pages = pidcache.load_pages(pdf_path)
+        pc = next((p for p in pages if p.page_no == page_no), None)
+        if pc is None:
+            return {"error": f"page {page_no} is not in this PDF"}
+        box = pymupdf.Rect(*[float(v) for v in rect])
+        lay = ds.LAYOUT
+        outlines = ds.bubble_outlines(pc, lay)
+        outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
+        bubbles = [o.rect for o in outlines]
+        mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
+        marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
+                              bubbles=bubbles, outlines=outlines)
+        boxes = ds.find_package_boxes(pc, lay)
+        box_marks = ds.package_box_marks(boxes, marks, lay)
+        # 이웃 버블은 `others` 로 넘긴다 — 나란한 버블의 별표가 이 사각형에
+        # 세어지지 않게 (16회차 규칙 그대로).
+        others = tuple(b for b in bubbles if not b.intersects(box))
+        rules_hit, mark_ev = ds.read_vendor_mark(box, marks, box_marks, mark_dict,
+                                                 lay, others=others)
+        shim = types.SimpleNamespace(rules_hit=list(rules_hit or []),
+                                     evidence={"vendor_mark": mark_ev} if mark_ev else {})
+        stars = int((mark_ev or {}).get("stars") or 0)
+        scope = _scope_of(shim) if (rules_hit or mark_ev) else ""
+        words = [{"text": t, "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]}
+                 for r, t in pidcache.tokens(pc.words) if r.intersects(box)]
+        notes = [f"[{k}] {v}" for k, v in sorted((mark_dict or {}).items())][:12]
+        return {
+            "scope": scope,
+            "scope_source": "DRAWING" if (rules_hit or mark_ev) else "USER",
+            "scope_evidence": {
+                "stars": stars, "rules": list(rules_hit or []),
+                "meaning": (mark_ev or {}).get("meaning") or "",
+                "source": (mark_ev or {}).get("source") or "",
+                "text": (f"별표 {stars}개 · {(mark_ev or {}).get('meaning') or '이 장 NOTES 에 정의 없음'}"
+                         if (rules_hit or mark_ev) else
+                         f"이 사각형 옆에 별표 없음 · 이 장 NOTES 정의 {len(mark_dict or {})}줄"),
+            },
+            "stars": stars, "notes": notes, "words": words,
+            "marks_on_page": len(marks), "boxes_on_page": len(boxes),
+        }
 
 
 def probe_point(pdf_path: Path, page_no: int, x: float, y: float,

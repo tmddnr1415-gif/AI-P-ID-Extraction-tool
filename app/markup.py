@@ -114,7 +114,11 @@ def propose(con, job, page_no: int, rect) -> dict:
         (job["id"], page_no)).fetchone()
     drawing_no = page["drawing_no"] if page else ""
     rect = [float(v) for v in rect]
-    read = pipeline.propose_at(Path(job["pdf_path"]), page_no, rect)
+    # 그 분석이 낯선 문서에 얹었던 좌표(22회차 `applied_rules.layout.moved`)를
+    # 같이 넘겨 **분석 때와 같은 config** 로 읽는다.
+    engine = json.loads(job["engine_json"] or "{}") if "engine_json" in job.keys() else {}
+    moved = ((engine.get("applied_rules") or {}).get("layout") or {}).get("moved") or []
+    read = pipeline.propose_at(Path(job["pdf_path"]), page_no, rect, layout_moved=moved)
     out = {"page_no": page_no, "drawing_no": drawing_no, "rect": rect}
     out.update(_type_from_words(read.get("words") or []))
     out.update({k: read.get(k) for k in ("scope", "scope_source", "scope_evidence",
