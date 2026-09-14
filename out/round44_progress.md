@@ -7,3 +7,6 @@
 | 01:01 | [A] 기준선 4종 체인 시작 (순차 · a44_chain.sh) | 진행 |
 | 01:09 | [B] 조사 완료 — out/round44_survey.md (요구 6 중 4 가 이미 있음 · 새로 만드는 것 6 = 전부 잇는 코드) |
 | 01:11 | [C] p48 확인 — out/round44_p48.md (다수결 규칙 `_scope_by_project` · 57/1 · 양식 같고 프로젝트 다름 · 코드 0줄) |
+| 01:23 | [D/E/F] db·main·markup.py·excel_out·app.js·html·css 1차 커밋 (pipeline.propose_at 은 체인 뒤) |
+| 01:31 | 빠른 시험 324 통과 (315+9) · verify44 준비 · worktree wt44(aac64ba) |
+| 01:33 | [A] 기준선 4종 재현 — 넷 다 "기준선과 같습니다" (A44) · [G] 최종 코드 회귀 체인 G44 시작 |

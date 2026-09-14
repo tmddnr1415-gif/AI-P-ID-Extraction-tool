@@ -22,6 +22,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -1274,3 +1275,95 @@ def test_zzz_the_suite_left_the_real_database_alone(real_db_before, data_root):
     assert _sha(copy) != real_db_before, (
         "the copy is byte-identical to the original: the steps above wrote "
         "nothing, so this test cannot tell isolation from inactivity")
+
+
+# --------------------------------------------------------------------------
+# 44회차 — 마크업: 드래그로 누락 행 · 상자 클릭으로 오검출 · 범례 등식
+# --------------------------------------------------------------------------
+
+def _legend_counts(page):
+    """범례의 (키, 수) — 세 색 칸과 (그중) 셋."""
+    return page.evaluate(
+        """() => Object.fromEntries([...document.querySelectorAll('#ovl-items .ovl-row')]
+             .map(r => [r.querySelector('input').value, +r.querySelector('.n').textContent]))""")
+
+
+def _box_count(page):
+    return page.evaluate("() => document.querySelectorAll('#ov rect.det').length")
+
+
+def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, server, job_id):
+    """빈 자리를 드래그하면 누락 행이 되고, 목록에 ＋ 로 서고, 범례의 세 색 칸 합은
+    상자 수와 같게 유지되며 "(그중) 사용자 추가" 가 1 이 된다 (33회차 등식 + 44회차)."""
+    before = _legend_counts(page)
+    boxes0 = _box_count(page)
+    assert sum(before.get(k, 0) for k in ("SCT", "VENDOR_EXCLUDED", "INCLUDED")) == boxes0
+    page.click("#markup-toggle")
+    expect(page.locator("#stage")).to_have_class(re.compile(r"\bmarkup\b"))
+    sheet = page.locator("#sheet").bounding_box()
+    # 빈 자리를 찾는다 — 상자 위에서는 드래그가 시작되지 않으므로 대화상자가 뜰 때까지
+    # 몇 자리를 시도한다.  자리는 화면 분율이고 값은 시험용이다.
+    opened = False
+    for fx, fy in ((0.55, 0.62), (0.40, 0.70), (0.62, 0.35), (0.30, 0.45), (0.70, 0.75)):
+        x, y = sheet["x"] + sheet["width"] * fx, sheet["y"] + sheet["height"] * fy
+        page.mouse.move(x, y); page.mouse.down(); page.mouse.move(x + 18, y + 26, steps=4); page.mouse.up()
+        try:
+            page.wait_for_selector("#mk-save", timeout=8000)
+            opened = True
+            break
+        except Exception:
+            continue
+    assert opened, "드래그로 마크업 대화상자가 열리지 않았다"
+    # 제안값 출처가 화면에 적혀 있다 — 도면에서 읽었든 못 읽었든 말한다
+    src_text = page.locator(".mk-form .src").all_text_contents()
+    assert any("도면에서" in t for t in src_text), src_text
+    page.fill("#mk-type", "UI-MARK")
+    page.fill("#mk-author", "UI 시험")
+    page.click("#mk-save")
+    page.wait_for_selector("#body tr.added", timeout=15000)
+    page.wait_for_timeout(600)
+    after = _legend_counts(page)
+    boxes1 = _box_count(page)
+    assert boxes1 == boxes0 + 1
+    assert sum(after.get(k, 0) for k in ("SCT", "VENDOR_EXCLUDED", "INCLUDED")) == boxes1, after
+    assert after.get("MANUAL") == before.get("MANUAL", 0) + 1, after
+    # 도면에는 점선 상자와 ✚ 표식
+    assert page.evaluate("() => document.querySelectorAll('#ov rect.det.manual').length") >= 1
+    assert page.evaluate("() => document.querySelectorAll('#ov circle.manbadge').length") >= 1
+    # 서버 집계도 같은 말을 한다
+    mk = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/markup").read())
+    assert mk["added_with_rect"] >= 1
+    assert not page.errors, page.errors
+
+
+def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(page, server, job_id):
+    """상자를 누르면 오검출 표시 — 행은 남고 (그중) 오검출 표시가 1 늘며 ✕ 표식이 붙는다."""
+    if not page.evaluate("() => document.getElementById('stage').classList.contains('markup')"):
+        page.click("#markup-toggle")
+    before = _legend_counts(page)
+    rows_before = page.evaluate("() => document.querySelectorAll('#body tr').length")
+    box = page.locator("#ov rect.det:not(.manual):not(.excluded)").first
+    key = box.get_attribute("data-key")
+    box.click(force=True)
+    page.wait_for_selector("#rj-save", timeout=8000)
+    page.fill("#rj-note", "UI 오검출 시험")
+    page.fill("#rj-author", "UI 시험")
+    page.uncheck("#rj-exclude")             # Excel 유지 — 표시만
+    page.click("#rj-save")
+    page.wait_for_selector("#rj-save", state="detached", timeout=8000)
+    page.wait_for_timeout(800)
+    after = _legend_counts(page)
+    assert after.get("REJECT") == before.get("REJECT", 0) + 1, (before, after)
+    assert page.evaluate("() => document.querySelectorAll('#body tr').length") == rows_before, "행이 지워지면 안 된다"
+    row = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/rows").read())
+    r = next(x for x in row if x["key"] == key)
+    assert r["reject"]["class"] == "FALSE_POSITIVE" and r["removed"] is False
+    assert "MANUAL_REJECT" in r["review_codes"]
+    assert page.evaluate("() => document.querySelectorAll('#ov circle.rejbadge').length") >= 1
+    # 되돌리기 버튼이 있고 누르면 표시가 사라진다
+    page.click(f'#body tr[data-key="{key}"] button.mini-rep:has-text("되돌리기")')
+    page.wait_for_timeout(800)
+    r = next(x for x in json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/rows").read()) if x["key"] == key)
+    assert r["reject"] == {} and r["removed"] is False
+    page.click("#markup-toggle")
+    assert not page.errors, page.errors
