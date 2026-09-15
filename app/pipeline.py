@@ -859,6 +859,32 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     say(3, total, f"{len(targets)} sheets to read", sheets=(0, len(targets)),
         plan=plan)
 
+    say(3, total, "valve bodies and actuators", sheets=(0, len(targets)))
+
+    def valve_step(page_no, name, dt):
+        """Timing hook for the valve stage, which runs all pages in one call."""
+        clock.stages["valves." + name] += dt
+        if page_no is not None:
+            clock.pages.setdefault(page_no, {})["valves." + name] = dt
+
+    # 48회차 — 밸브를 **계기보다 먼저** 읽는다.  판정은 한 글자도 바뀌지 않고
+    # (`analyse_all` 은 계기 결과를 보지 않는다) 행 순서도 그대로다 — 행을
+    # 만드는 `_valve_rows` 루프는 있던 자리에 그대로 있다.  옮긴 이유 하나:
+    # **별표 소유권 경쟁에 밸브를 넣으려면 계기를 읽을 때 밸브 자리를 이미
+    # 알고 있어야 한다.**  여기서 읽어 두면 추가 계산이 0 이다 (한 장을 두 번
+    # 읽으면 밸브 단계가 두 배가 된다).
+    valve_results, glyphs = dv.analyse_all(pages, VALVE_DISABLED,
+                                           on_step=valve_step)
+    # 그 장에서 별표를 가질 수 있는 밸브 사각형들.  `_valve_rows` 와 **같은
+    # 함수**(`dv.mark_rects`)로 고른다 — 경쟁에서 쓴 사각형과 마크를 읽을 때
+    # 보는 사각형이 다르면 이긴 마크를 놓친다.
+    # 항목마다 `(별표를 읽는 사각형들, 그 항목의 태그 버블 | None)`.  태그
+    # 버블을 함께 넘기는 이유는 그 버블이 자기가 이름 붙인 밸브의 별표를
+    # 뺏으면 안 되기 때문이다 (AL NOUF1 p7 의 `**` — `dv.item_rects` 참조).
+    valve_rects: dict[int, list] = {
+        pno: [dv.item_rects(b) for b in res["bodies"]]
+        for pno, res in valve_results.items()}
+
     rows: list[Row] = []
     layers: dict[int, dict] = {}
     per_page: dict[int, dict] = {}
@@ -873,10 +899,12 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             sheets=(i - 1, len(targets)), drawing=meta["drawing_no"])
         face_rejected: list = []
         with clock.stage("instruments", pc.page_no):
-            dets, scopes, mark_dict, unverified, unmapped, boxes = ds.detect(
-                pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
-                allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES,
-                face_rejected=face_rejected)
+            dets, scopes, mark_dict, unverified, unmapped, boxes, bubbles = (
+                ds.detect(
+                    pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
+                    allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES,
+                    face_rejected=face_rejected,
+                    rivals=valve_rects.get(pc.page_no, ())))
         # 30회차 — 심볼의 그려진 얼굴 위에 있어 **마크가 아니라 글자**로 읽은
         # 획 뭉치.  버린 것을 세어 둔다 (§2.1 ③ — 판정을 조용히 하지 않는다).
         # 지문 밖이다: `result["face_marks"]` 는 해싱 재료가 아니다.
@@ -919,14 +947,17 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "page_cache": pc,
             # 11회차 — 밸브 행의 SCOPE 를 계기와 **같은 규칙**으로 채우기 위한
             # 이 페이지의 마크 재료.  `ds.detect()` 도 같은 것을 안에서 만들지만
-            # 돌려주지 않고, 반환 튜플을 늘리면 `detect_all` 을 포함한 다섯
-            # 호출부가 전부 바뀐다 - 이번 회차는 검출을 건드리지 않기로 했으므로
-            # 같은 함수를 같은 인자로 한 번 더 부른다.  값은 정의상 같고(순수
-            # 함수 · 같은 페이지 캐시), 비용은 실측 `instruments` 단계 10.0초에
-            # 얹히는 정도다.
+            # 돌려주지 않아 같은 함수를 같은 인자로 한 번 더 부른다.  값은
+            # 정의상 같고(순수 함수 · 같은 페이지 캐시), 비용은 실측
+            # `instruments` 단계 10.0초에 얹히는 정도다.  (48회차에 반환 튜플에
+            # `bubbles` 를 더했지만 `marks` 는 그대로 두었다 — 마크는 여기서
+            # `allow_sizes` 만 주고 부르는 쪽과 인자가 달라 같은 목록이 아니다.)
             "marks": _marks,
             "mark_dict": mark_dict,
             "box_marks": ds.package_box_marks(boxes, _marks, ds.LAYOUT),
+            # 48회차 — 밸브가 별표 소유권 경쟁을 할 상대.  계기가 쓴 것과
+            # **같은 목록**이다 (파선 버블 포함) — 따로 세우면 갈린다.
+            "bubbles": bubbles,
         }
         # 27회차 — 그 장 NOTES 가 "이 도면은 유닛 몇 개에 같이 쓰인다" 고 말하면
         # 그것을 읽어 둔다.  **쓰는 것은 범례 표가 답하지 못할 때뿐**이고(아래
@@ -947,17 +978,6 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
-    say(total - 2, total, "valve bodies and actuators",
-        sheets=(len(targets), len(targets)))
-
-    def valve_step(page_no, name, dt):
-        """Timing hook for the valve stage, which runs all pages in one call."""
-        clock.stages["valves." + name] += dt
-        if page_no is not None:
-            clock.pages.setdefault(page_no, {})["valves." + name] = dt
-
-    valve_results, glyphs = dv.analyse_all(pages, VALVE_DISABLED,
-                                           on_step=valve_step)
     page_by_no = {pc.page_no: pc for pc in pages}
     for page_no, res in valve_results.items():
         meta = tb_rows.get(page_no)
@@ -3154,7 +3174,7 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
     words.sort(key=lambda w: w["dist"])
 
     # What the engine did see here, and under which rules.
-    dets, _scopes, _marks, _unver, unmapped, _boxes = ds.detect(
+    dets, _scopes, _marks, _unver, unmapped, _boxes, _bub = ds.detect(
         pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
         allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
     detections = []
@@ -3365,7 +3385,17 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
     factor, undefined, borrowed, from_note, from_user = _note_factor(
         factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
     note_range = _note_ambiguous(note, undefined, borrowed)
-    for b in res["bodies"]:
+    # 48회차 — 별표 소유권 경쟁의 상대.  **이 장의 다른 밸브 전부 + 버블 전부**
+    # 다.  16회차가 세운 "한 마크는 심볼 하나에만 붙는다" 는 규칙은 맞았고
+    # 경쟁자 목록만 버블끼리로 좁혀져 있었다 — 그래서 밸브 옆 별표를 버블이
+    # 가져가고(TC2 3 · UAD 24) 버블 옆 별표를 밸브가 가져갔다(TC2 32 · UAD 24).
+    # 판정은 여전히 `read_vendor_mark` 하나이고 거리도 19회차 유클리드 그대로다.
+    # 이 밸브의 태그 버블은 남이 아니다 — `dv.item_rects` 가 그 이유를 적는다.
+    items = [dv.item_rects(b) for b in res["bodies"]]
+    body_rects = [rs for rs, _t in items]
+    own_tag = [t for _rs, t in items]
+    page_bubbles = list((page or {}).get("bubbles") or ())
+    for bi, b in enumerate(res["bodies"]):
         cls = dv.deliverable_class(b)
         unread = b.actuator == "UNREAD"
         if cls == dv.CLASS_EXCLUDED and not unread:
@@ -3384,12 +3414,17 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
         # 11회차는 앞의 실측만 보고 액추에이터 하나로 정했고, 그래서 p27 의
         # 세 BFV 가 별표를 갖고도 SCT 로 남았다 (4차 피드백 9p).  `also` 로
         # 두 창을 다 보되 마크는 한 번만 세어진다.
-        mark_rect = (pymupdf.Rect(*b.actuator_rect) if b.actuator_rect
-                     else b.rect)
-        also = (b.rect,) if b.actuator_rect else ()
+        mark_rect, *also = dv.mark_rects(b)
+        tag = own_tag[bi]
+        others = [o for o in page_bubbles
+                  if tag is None
+                  or not (tag.x0 <= (o.x0 + o.x1) / 2 <= tag.x1
+                          and tag.y0 <= (o.y0 + o.y1) / 2 <= tag.y1)]
+        others += [r for j, rs in enumerate(body_rects) if j != bi for r in rs]
         marked = _MarkedRect(*ds.read_vendor_mark(
             mark_rect, page.get("marks") or (), page.get("box_marks") or (),
-            page.get("mark_dict") or {}, ds.LAYOUT, also=also))
+            page.get("mark_dict") or {}, ds.LAYOUT, also=tuple(also),
+            others=others))
         if any(m in b.actuator_evidence for m in IP_TOKEN_EVIDENCE):
             codes.append("IP_TOKEN_AS_ACTUATOR")
             reasons.append(

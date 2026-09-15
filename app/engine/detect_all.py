@@ -377,7 +377,8 @@ def main() -> int:
     per_page = {}
     size_dist = collections.Counter()
     for i, pc in enumerate(targets, 1):
-        dets, scopes, mark_dict, unverified, unmapped, boxes = detect(pc, rules=RULESET_V3)
+        dets, scopes, mark_dict, unverified, unmapped, boxes, _bub = detect(
+            pc, rules=RULESET_V3)
         _, glyph_size = read_mark_dictionary(pc)
         marks = find_marks(pc, glyph_size=glyph_size, allow_sizes=KNOWN_GLYPH_SIZES)
         sizes = bubble_sizes(find_bubbles(pc))

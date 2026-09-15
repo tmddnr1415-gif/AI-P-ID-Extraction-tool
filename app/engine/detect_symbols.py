@@ -1695,6 +1695,23 @@ def _mark_gap(rect, x: float, y: float) -> float:
     return math.hypot(dx, dy)
 
 
+def _rival_rects(rivals, bubble) -> list:
+    """이 버블에게 남인 사각형들 (48회차).
+
+    `rivals` 의 한 항목은 `(사각형들, 태그 버블 | None)` 이고, 태그 버블이
+    **이 버블**이면 그 항목은 남이 아니라 같은 항목이다 — 도면이 그렇게
+    이름 붙였다.  자리로 가른다 (사각형 동일성이 아니라 중심 포함) — 두 갈래가
+    버블 사각형을 각자 세우므로 같은 값이라고 가정하지 않는다.
+    """
+    cx, cy = (bubble.x0 + bubble.x1) / 2, (bubble.y0 + bubble.y1) / 2
+    out = []
+    for rects, tag in rivals:
+        if tag is not None and tag.x0 <= cx <= tag.x1 and tag.y0 <= cy <= tag.y1:
+            continue
+        out.extend(rects)
+    return out
+
+
 def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
                      others=(), also=()):
     """이 사각형에 걸린 벤더 마크 → `(rules_hit, evidence)`.  없으면 `([], None)`.
@@ -1754,7 +1771,21 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
 
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
-           face_rejected=None):
+           face_rejected=None, rivals=()):
+    """`rivals` 는 **다른 갈래의 심볼**이 차지한 자리다 (48회차) — 항목마다
+    `(사각형들, 그 항목의 태그 버블 또는 None)` 이다.
+
+    16회차가 "한 마크는 심볼 하나에만 붙는다" 를 세웠는데 그 경쟁이 **버블
+    끼리만** 이었다.  밸브는 계기 검출 뒤에 서므로 여기서는 알 수 없고, 그래서
+    버블 옆 별표를 밸브가 가져가거나(32건 TC2) 밸브 옆 별표를 버블이 가져가는
+    (3건 TC2 · 24건 UAD) 일이 남아 있었다 — 47회차 [B] 가 p15 LIT · p25 LI
+    에서 그것을 드러냈다.  판정은 그대로 `read_vendor_mark` 하나이고
+    (`_mark_gap` 유클리드 · 19회차), 여기서는 **경쟁자 목록만** 넓힌다.
+
+    태그 버블은 자기가 이름 붙인 밸브의 경쟁자가 아니다 — 도면이 그 둘을 한
+    항목으로 그렸기 때문이고(`detect_valves.attach_tags` 가 이미 짝짓는다),
+    남으로 보면 AL NOUF1 p7 처럼 `**` 한 쌍이 둘로 쪼개진다.
+    """
     outlines = bubble_outlines(pc, lay)
     # 파선 버블은 실선 버블 **뒤에** 더한다 — 실선이 크기 기준을 준다 (40회차).
     outlines = outlines + dashed_bubble_outlines(pc, outlines)
@@ -1822,7 +1853,8 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
         mark_rules, vmark = read_vendor_mark(bubble, marks, box_marks,
                                              mark_dict, lay,
                                              others=[b for b in bubbles
-                                                     if b is not bubble])
+                                                     if b is not bubble]
+                                             + _rival_rects(rivals, bubble))
         if vmark:
             det.evidence["vendor_mark"] = vmark
             det.rules_hit.extend(mark_rules)
@@ -1873,7 +1905,11 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             unmapped.append({"token": t, "center": [round(cx, 1), round(cy, 1)]})
 
     detections.sort(key=lambda d: (round(d.center[1] / 15), d.center[0]))
-    return detections, scopes, mark_dict, unverified, unmapped, boxes
+    # 48회차 — `bubbles` 도 돌려준다.  밸브 쪽이 별표 소유권 경쟁을 하려면
+    # **그 장의 버블 전부**를 알아야 하는데, 지금까지는 이 함수 안에만 있었다.
+    # 계기 검출과 같은 목록이어야 한다 (파선 버블 포함 · 40회차) — 파이프라인이
+    # 따로 세우면 두 벌이 되고 언젠가 갈린다.
+    return detections, scopes, mark_dict, unverified, unmapped, boxes, bubbles
 
 
 # --------------------------------------------------------------------------
@@ -2083,7 +2119,8 @@ def main() -> int:
         r.strip() for r in args.without.split(",") if r.strip())
     if disabled:
         print(f"\n   exclusion rules off for this run: {', '.join(sorted(disabled))}")
-    detections, scopes, mark_dict, unverified, unmapped, boxes = detect(pc, disabled=disabled)
+    (detections, scopes, mark_dict, unverified, unmapped, boxes,
+     _bubbles) = detect(pc, disabled=disabled)
     excel_rows = load_excel_rows(Path(args.compare), drawing_no) if args.compare else []
     metrics = report(pc, drawing_no, detections, scopes, mark_dict, unverified, excel_rows)
 

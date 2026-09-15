@@ -148,6 +148,37 @@ CV_TAGS = frozenset(str(t) for t in CFG.get("valves.cv_tags"))
 XV_TAGS = frozenset(str(t) for t in CFG.get("valves.xv_tags"))
 
 
+def mark_rects(body) -> tuple:
+    """이 밸브가 별표를 갖는다면 그것이 있을 사각형들 (19회차 `also` 와 같은 선택).
+
+    액추에이터가 있으면 `(액추에이터 창, 몸체)`, 없으면 `(몸체,)` 다.  도면이
+    별표를 어느 쪽에 찍는지가 장마다 다르기 때문이다 (p6 M 원 8.4pt ↔ p27
+    몸체 8.1pt).  **행을 만드는 쪽과 소유권 경쟁(48회차)이 같은 사각형을
+    봐야 한다** — 두 벌을 두면 경쟁에서 이긴 마크를 읽을 때 놓친다.
+    """
+    if body.actuator_rect:
+        return (pymupdf.Rect(*body.actuator_rect), body.rect)
+    return (body.rect,)
+
+
+def item_rects(body) -> tuple:
+    """별표 소유권 경쟁에서 이 밸브 **한 항목** — `(읽는 사각형들, 태그 버블)`.
+
+    읽는 자리(`mark_rects`)와 태그 버블이 갈려 있다: 태그 버블 옆 별표를
+    밸브 것으로 *읽지는* 않지만, 그 버블이 자기가 이름 붙인 밸브의 별표를
+    **뺏어서도 안 된다.**
+
+    ★ 48회차 실측 — AL NOUF1 p7 의 NRV.  `**`(ST SUPPLIER) 두 획이 밸브
+    울타리 바로 위에 가운데 맞춰 찍혀 있고, 그 오른쪽 4.7pt 에 `NRV` 태그
+    버블이 선다.  버블을 남으로 보면 오른쪽 별 하나만 버블이 가져가
+    `**` 가 `*`+`*` 로 **쪼개지고**, 그 장 NOTES 가 정의한 뜻이 ST SUPPLIER
+    에서 HRSG 로 바뀐다 (둘 다 틀린 답이 된다).  도면은 그 버블이 그 밸브의
+    이름이라고 이미 말하고 있다 — `attach_tags` 가 `tag_rect` 에 적어 둔다.
+    """
+    return (mark_rects(body),
+            pymupdf.Rect(*body.tag_rect) if body.tag_rect else None)
+
+
 def deliverable_class(body: "Body") -> str:
     """Which valve deliverable this detection belongs to."""
     if body.actuator in ("NONE", "UNREAD"):
