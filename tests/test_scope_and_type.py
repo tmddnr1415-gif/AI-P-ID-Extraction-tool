@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "app" / "engine"))
 from app import pipeline
+import detect_valves as dv
 
 
 # --------------------------------------------------------------------------
@@ -127,9 +128,15 @@ def test_valve_scope_does_not_touch_the_description_axis():
 def test_vendor_mark_is_read_above_the_actuator_when_there_is_one():
     """별표는 그 항목의 **심볼 위**에 찍힌다.  작동 밸브에서 맨 위 심볼은
     몸체가 아니라 액추에이터다 (실측 p6: 별표 y=526 · M 원 y0=534.4 ·
-    몸체 y0=563.5, 허용치 mark_above 25.0pt)."""
-    src = inspect.getsource(pipeline._valve_rows)
-    assert "b.actuator_rect" in src, "허용치를 늘리는 대신 재는 자리를 바로잡는다"
+    몸체 y0=563.5, 허용치 mark_above 25.0pt).
+
+    48회차에 그 고르기가 `detect_valves.mark_rects` 한 곳으로 옮겨갔다 —
+    소유권 경쟁과 행 만들기가 **같은 사각형**을 봐야 하기 때문이다.  시험은
+    코드를 따라가되 주장은 그대로다: 허용치를 늘리지 않고 재는 자리를 고친다.
+    """
+    src = inspect.getsource(dv.mark_rects)
+    assert "actuator_rect" in src, "허용치를 늘리는 대신 재는 자리를 바로잡는다"
+    assert "dv.mark_rects(b)" in inspect.getsource(pipeline._valve_rows)
 
 
 class _Cfg:
