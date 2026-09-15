@@ -294,7 +294,20 @@ def derive(pages, cfg=None) -> IsaTable:
     # that row, centred over the column - so a word joins the column whose header
     # letter is nearest its own centre.
     succeeding: dict = {}
-    header = next((r for r, t in pc.words
+    # ★ 50회차 — 머리말은 **이름으로 찾는 것**이므로 `pidcache.tokens` 로 읽는다.
+    # 같은 함수가 쪽을 두 가지로 읽고 있었다: FIRST LETTER 머리말은 위에서
+    # `tokens()` 로 찾는데(28회차) 여기만 raw `pc.words` 였다.  획(SHX) 글꼴
+    # 범례는 `TYPICAL SYMBOL` 을 **한 조각**으로 싣기 때문에 `t == "TYPICAL"`
+    # 이 영영 맞지 않고, 그러면 이 블록이 통째로 비어 succeeding 이 0 이 된다.
+    # 실측(UAD 저장 결과): `legend p4 identification matrix: 25 first letters,
+    # **0 succeeding letters**` — first 는 되고 succeeding 만 0 이다.
+    #
+    # ⚠ 자리를 재는 아래 두 줄은 **바꾸지 않는다.**  조각은 여러 낱말이 한
+    # 사각형을 나눠 쓰므로 `tokens()` 로 읽으면 중심이 전부 같아지고, 그것으로
+    # 열을 가르면 지어낸 자리가 된다 (`pidcache.tokens` 머리 주석).  열이
+    # 갈리지 않으면 `span` 이 0 이 되어 아무것도 안 담긴다 — 조용히 틀리는
+    # 대신 지금처럼 비는 쪽이다.
+    header = next((r for r, t in pidcache.tokens(pc.words)
                    if t == "TYPICAL" and head.y1 < r.y0 < head.y1 + 120), None)
     if header is not None:
         hy = (header.y0 + header.y1) / 2

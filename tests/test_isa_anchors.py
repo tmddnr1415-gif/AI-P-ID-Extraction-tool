@@ -187,3 +187,28 @@ def test_the_rule_on_the_real_documents(name, path, total, taken, rejected):
     assert dict(took) == taken, f"{name} — 받아들이는 낱말이 달라졌다"
     assert dict(left) == rejected, f"{name} — 걸러내는 낱말이 달라졌다"
     assert sum(took.values()) == total
+
+
+def test_the_succeeding_block_heading_is_found_in_a_stroke_font_legend(tmp_path):
+    """획 글꼴 범례는 `TYPICAL SYMBOL` 을 한 조각으로 싣는다 (28회차).
+
+    같은 함수가 쪽을 두 가지로 읽고 있었다 — FIRST LETTER 머리말은
+    `pidcache.tokens` 로 찾는데 SUCCEEDING 블록만 raw `pc.words` 였다.
+    그래서 UAD 는 `25 first letters, 0 succeeding letters` 로 읽혔다.
+    """
+    import isa_table as it
+    chunk = [(pymupdf.Rect(100, 50, 260, 62), "TYPICAL SYMBOL")]
+    plain = [(pymupdf.Rect(100, 50, 180, 62), "TYPICAL")]
+    for words, label in ((chunk, "획 글꼴(한 조각)"), (plain, "활자(낱말)")):
+        found = next((r for r, t in pidcache.tokens(words) if t == "TYPICAL"), None)
+        assert found is not None, label
+    # raw 로 읽으면 조각은 못 찾는다 — 그것이 있던 결함이다
+    assert next((r for r, t in chunk if t == "TYPICAL"), None) is None
+
+
+def test_the_heading_lookup_uses_the_token_accessor():
+    """자리 재기는 그대로 두고 **이름 찾기만** 바꿨다는 것을 소스로 못박는다."""
+    src = (ROOT / "app" / "engine" / "isa_table.py").read_text()
+    i = src.index('if t == "TYPICAL"')
+    seg = src[max(0, i - 200):i]
+    assert "pidcache.tokens(pc.words)" in seg
