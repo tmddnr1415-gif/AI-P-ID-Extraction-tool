@@ -1,12 +1,14 @@
-# 회사 PC 꾸러미 r44 — 파일 목록 (기준 aac64ba..f7b3d90 · 소스만)
-# [A] 새로 119 · [M] 덮어쓰기 29 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
+# 회사 PC 꾸러미 r48 — 파일 목록 (기준 aac64ba..912d5c4 · 소스만)
+# [A] 새로 133 · [M] 덮어쓰기 31 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
 
 [M] CLAUDE.md
 [M] README.md
+[M] app/audit.py
 [M] app/db.py
 [M] app/engine/derive_layout.py
 [M] app/engine/describe_axis.py
 [M] app/engine/describe_equipment.py
+[M] app/engine/detect_all.py
 [M] app/engine/detect_symbols.py
 [M] app/engine/detect_valves.py
 [M] app/engine/extract_titleblocks.py
@@ -35,6 +37,7 @@
 [A] app/global_symbols.py
 [A] app/legend_profile.py
 [A] app/markup.py
+[A] app/sheet_numbers.py
 [A] app/unit_multipliers.py
 [A] conftest.py
 [A] docs/new_form_checklist.md
@@ -58,6 +61,7 @@
 [A] spike/baselines_3p.json
 [A] spike/build_ui_db.py
 [A] spike/constant_survey.py
+[A] spike/crop_rows.py
 [A] spike/dwgno_survey.py
 [A] spike/hist_cols_probe.py
 [A] spike/hist_gaps.py
@@ -69,6 +73,7 @@
 [A] spike/legend_probe.py
 [A] spike/legend_star.py
 [A] spike/make_synthetic.py
+[A] spike/mark_owner_probe.py
 [A] spike/mark_probe.py
 [A] spike/mark_shape.py
 [A] spike/mem_probe.py
@@ -85,6 +90,7 @@
 [A] spike/pack_handover_r37.py
 [A] spike/pack_handover_r41.py
 [A] spike/pack_handover_r44.py
+[A] spike/pack_handover_r48.py
 [A] spike/pack_round23.py
 [A] spike/pack_round31.py
 [A] spike/pack_round32.py
@@ -101,12 +107,15 @@
 [A] spike/regression_3p.py
 [A] spike/run_synthetic.py
 [A] spike/shot_overlay.py
+[A] spike/shot_pages.py
 [A] spike/shot_result.py
 [A] spike/shot_round33.sh
 [A] spike/shot_uad.py
 [A] spike/shot_upload.py
 [A] spike/star_gate_probe.py
 [A] spike/star_recall.py
+[A] spike/star_recall_probe.py
+[A] spike/star_size_split.py
 [A] spike/tag_vs_geometry.py
 [A] spike/tier_survey.py
 [A] spike/typical_survey.py
@@ -126,6 +135,8 @@
 [A] spike/vocab_what_if.py
 [A] spike/window_survey.py
 [A] tests/data/synthetic/README.md
+[A] tests/test_actuator_box.py
+[A] tests/test_audit_detail.py
 [A] tests/test_bubble_face.py
 [A] tests/test_config_isolation.py
 [A] tests/test_dashed_bubbles.py
@@ -135,11 +146,16 @@
 [A] tests/test_global_symbols.py
 [A] tests/test_legend_profile.py
 [A] tests/test_legend_rotation.py
+[A] tests/test_mark_owner.py
+[A] tests/test_mark_size_split.py
 [A] tests/test_markup.py
+[A] tests/test_markup_speed.py
 [A] tests/test_mode.py
+[A] tests/test_project_delete.py
 [A] tests/test_revision_carry.py
 [A] tests/test_round33.py
 [A] tests/test_scope_and_type.py
+[A] tests/test_sheet_numbers.py
 [A] tests/test_signal_bundle.py
 [A] tests/test_star_marks.py
 [A] tests/test_titleblock_frame.py
