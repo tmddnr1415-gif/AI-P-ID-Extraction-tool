@@ -1,0 +1,17 @@
+## TC2_260821.pdf (60쪽) · 유도값 20칸 얹음
+   drawing_area (30.1, 26.7, 963.8, 816.3) · notes_area (963.8, 26.7, 1191.0, 816.3) · notes_text_x_max 1162.3
+   mark_above 25.0 · mark_side 10.0 · glyph_sizes ()
+  p10  사전 -                                      정의줄크기 None         도면크기 [(7.4, 7.4)]     버블  48 마크  2{'GLYPH': 2} 붙음  2
+  p14  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  12 마크  0 붙음  0
+  p16  사전 -                                      정의줄크기 None         도면크기 [(7.2, 7.0)]     버블  15 마크  6{'GLYPH': 6} 붙음  3
+  p23  사전 -                                      정의줄크기 None         도면크기 [(5.9, 4.9), (5.8, 4.9)] 버블  18 마크  4{'GLYPH': 4} 붙음  2
+  p24  사전 -                                      정의줄크기 None         도면크기 [(5.9, 5.0)]     버블  17 마크  4{'GLYPH': 4} 붙음  1
+  p25  사전 {1: '(*) INDICATES INDICATES LOOSE LOOSE ITEMS ITEMS TO TO BE BE SUPPLIED SUPPLIED BY BY RESPECTIVE RESPECTIVE EQUIPMENT EQUIPMENT VENDOR. VENDOR.'} 정의줄크기 None         도면크기 [(2.8, 3.4)]     버블  34 마크 14{'GLYPH': 2, 'TEXT': 12} 붙음  2
+  p26  사전 {1: '(*) SYMBOL SYMBOL INDICATES INDICATES ITEMS ITEMS TO TO BE BE SUPPLIED SUPPLIED BY BY ST ST OEM. OEM. THIS THIS P&ID P&ID IS IS BASED BASED ON ON CONFIGURATION CONFIGURATION WITH WITH ONE ONE (1) (1) COMBINED COMBINED CYCLE CYCLE POWER POWER GENERATION GENERATION UNIT UNIT WHICH WHICH CONSISTING COMMON CONSISTING COMMON FACILITIES. FACILITIES. OF OF ONE ONE (1) (1) GTG, GTG, ONE ONE (1) (1) HRSG, HRSG, ONE ONE (1) (1) STG STG AND AND BOP BOP EQUIPMENT EQUIPMENT AS AS'} 정의줄크기 None         도면크기 -                버블  29 마크  0 붙음  0
+  p36  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 [(3.8, 3.4)]     버블  27 마크  2{'GLYPH': 2} 붙음  2
+  p38  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  24 마크  0 붙음  0
+  p40  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  10 마크  0 붙음  0
+  p41  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  23 마크  0 붙음  0
+  p42  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  29 마크  0 붙음  0
+  p44  사전 {1: 'THIS WILL BE IN EQUIPMENT VENDOR SCOPE.'} 정의줄크기 None         도면크기 -                버블  18 마크  0 붙음  0
+합계: {'장': 60, '사전': 9, '버블': 1076, '마크': 32, '붙음': 12}

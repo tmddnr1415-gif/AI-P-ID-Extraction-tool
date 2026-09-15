@@ -1,0 +1,29 @@
+{
+  "_": "회귀 하네스가 도는 프로젝트 목록.  다섯째는 여기 한 항목만 더한다.",
+  "projects": [
+    {
+      "name": "AL NOUF1",
+      "pdf": "data/pid_total.pdf",
+      "client_lists": true,
+      "note": "목표선.  발주처 리스트가 있는 유일한 프로젝트라 축1·축2 를 잰다"
+    },
+    {
+      "name": "SADARA",
+      "pdf": "app/_data/uploads/2391ee0f1ea6_sadara_1A46.pdf",
+      "client_lists": false,
+      "note": "교차검증.  PID_PROJECT_CONFIG 를 지정하지 않는다 (14회차 [8])"
+    },
+    {
+      "name": "TC2",
+      "pdf": "data/TC2_260821.pdf",
+      "client_lists": false,
+      "note": "새 회사 양식 (A3 · /Rotate 270).  22회차부터 완주한다"
+    },
+    {
+      "name": "UAD",
+      "pdf": "data/UAD_binding.pdf",
+      "client_lists": false,
+      "note": "28회차 신규 — 획(SHX) 글꼴 도면 · 태그가 인쇄된 1급 문서 (A3 · /Rotate 270)"
+    }
+  ]
+}

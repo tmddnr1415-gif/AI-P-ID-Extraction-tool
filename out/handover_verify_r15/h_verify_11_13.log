@@ -1,0 +1,65 @@
+=== 7~10 서버 기동 · 첫 화면 · 옛 프로젝트 열기 ===
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/r15/verify.py", line 56, in <module>
+    pg.wait_for_selector("#grid tbody tr", timeout=30000)
+  File "/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py", line 9033, in wait_for_selector
+    self._sync(
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_page.py", line 427, in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py", line 394, in wait_for_selector
+    await self._channel.send(
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 76, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 632, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("#grid tbody tr") to be visible
+
+
+=== 11 재분석 (새 코드) ===
+{
+ "11_전_행수": 824,
+ "11_전_편집": {
+  "key": "0496c0be022bd8d2",
+  "user": {
+   "description": "회사PC 옛 편집",
+   "qty": 3,
+   "tag_no": "OLD-1"
+  }
+ },
+ "11_분석초": 359,
+ "11_상태": "done",
+ "11_지문": "69ad281f",
+ "11_doc_rev": "D",
+ "11_화면_행수": 1029,
+ "JS_오류": [],
+ "11_후_행수": 1029,
+ "11_Qty합": 1912,
+ "11_SCOPE_값있는행": 1029,
+ "11_옛편집_남았나": {
+  "description": "회사PC 옛 편집",
+  "qty": 3,
+  "tag_no": "OLD-1"
+ },
+ "11_사람이_고친칸": 3
+}
+
+=== 12 옛 DB 에서 프로필이 생겼나 ===
+total 1572
+drwxr-xr-x 2 root root    4096 Sep  6 07:55 .
+drwxr-xr-x 3 root root    4096 Sep  6 07:38 ..
+-rw-r--r-- 1 root root 1581692 Sep  6 07:55 id_registry.json
+-rw-r--r-- 1 root root    9675 Sep  6 07:55 legend_profile.json
+-rw-r--r-- 1 root root     364 Sep  6 07:55 project.json
+
+=== 13 적용된 나무에서 빠른 테스트 ===
+........sss............................................................. [ 42%]
+........................................................................ [ 84%]
+..........................                                               [100%]
+167 passed, 3 skipped, 34 deselected in 11.07s

@@ -1,0 +1,15 @@
+# Windows 검증용 — 회사 PC 에서 "제대로 옮겨졌는지" 확인할 때만 필요합니다.
+# 앱 실행에는 필요 없습니다 (requirements-win.txt 만으로 돕니다).
+#
+#   pip install --no-index --find-links wheels -r requirements-win-test.txt
+#   pytest -q -m "not slow and not ui"      # 8초, 이것만으로 이관 확인이 됩니다
+#
+# UI 테스트(20건)는 playwright **와 크로미움 브라우저**가 둘 다 있어야 합니다.
+# 브라우저는 PyPI 휠이 아니라 별도 다운로드(약 150MB)라 `pip download` 로는
+# 따라오지 않고, 오프라인 PC 에서는 `playwright install` 도 실패합니다.
+# 옮기려면 개인 PC 에서 브라우저 폴더까지 복사해야 합니다 —
+# `docs/offline_setup_windows.md` §UI 테스트 참조.  옮기지 않겠다면 이 파일에서
+# playwright 줄을 지우세요.
+
+pytest==9.1.1
+playwright==1.62.0        # 브라우저는 별도 (위 주석 참조)

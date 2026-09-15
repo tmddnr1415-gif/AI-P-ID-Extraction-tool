@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="">
+  <g fill="none" stroke="#7a6a58" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- body -->
+    <path d="M62 148 C48 134 52 108 74 100 C98 91 132 96 144 114 C155 131 148 152 126 158 C104 164 76 162 62 148 Z" fill="#fffdf6"/>
+    <!-- tail -->
+    <path d="M144 116 l16 -9 -5 15"/>
+    <!-- neck -->
+    <path d="M76 102 C66 82 64 60 74 46" fill="none"/>
+    <path d="M92 100 C84 80 82 60 90 46" fill="none"/>
+    <!-- head -->
+    <ellipse cx="82" cy="40" rx="17" ry="15" fill="#fffdf6"/>
+    <!-- beak -->
+    <path d="M66 40 l-16 5 16 6 z" fill="#e2a45c" stroke="#a8763c"/>
+    <!-- eye -->
+    <circle cx="80" cy="36" r="2.2" fill="#4a3f33" stroke="none"/>
+    <!-- cap -->
+    <path d="M65 30 C68 18 96 16 100 28 L64 32 z" fill="#8fa87c" stroke="#5f7250"/>
+    <path d="M64 31 l-13 3" stroke="#5f7250"/>
+    <!-- legs -->
+    <path d="M92 160 l-2 16 M86 176 h14"/>
+    <path d="M116 160 l2 16 M112 176 h14"/>
+    <!-- wing -->
+    <path d="M96 118 C108 110 128 112 134 124"/>
+    <!-- rolled drawing -->
+    <g transform="rotate(-14 60 120)">
+      <rect x="18" y="96" width="70" height="52" rx="3" fill="#fbf6e9"/>
+      <path d="M26 108 h54 M26 118 h54 M26 128 h34" stroke-width="1.6" opacity=".65"/>
+      <circle cx="44" cy="118" r="4.5" stroke-width="1.6"/>
+      <circle cx="68" cy="128" r="4.5" stroke-width="1.6"/>
+      <path d="M18 96 l-6 4 v52 l6 -4" fill="#f3ecdb"/>
+    </g>
+  </g>
+</svg>

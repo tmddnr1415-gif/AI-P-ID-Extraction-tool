@@ -1,0 +1,11 @@
+== /tmp/alnouf1_result.json
+  n_client: 541
+  paired: 520
+  missing: 21
+  exact: 19
+  identifiable: 219
+  identifiable_pct: 40.5
+  token_precision: 69.1
+  token_recall: 68.4
+  token_f1: 68.8
+  blocked_top: [('위치어', 194), ('위치어 · 기기·계통', 57), ('기기·계통', 30), ('변수어 · 기기·계통', 9), ('변수어 · 위치어', 6), ('변수어 · 위치어 · 기기·계통', 4), ('변수어', 1)]

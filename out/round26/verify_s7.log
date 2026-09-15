@@ -1,0 +1,3 @@
+7 첫 화면 → 결과(1037행 보임) → 첫 화면 (#main 감춤=True · #drop 보임=True)
+  캡처 md5 {'s7_1_home.png': '451ab2546800', 's7_2_rows.png': '2aea82a7b521', 's7_3_back.png': '451ab2546800'}
+→ /home/user/AI-P-ID-Extraction-tool/out/round26/verify/stage7.json

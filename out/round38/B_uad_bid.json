@@ -1,0 +1,48 @@
+{
+ "pdf": "data/UAD_binding.pdf",
+ "declared_mode": "bid",
+ "fingerprint": "db1a77d18876d286c71e1ae55aa3b592149f87c79fa9f58615ba4bb85946086c",
+ "rows": 149,
+ "qty_sum": 149,
+ "tagged_rows": 0,
+ "evidence_tier": {
+  "tier": 1,
+  "tagged_rows": 0,
+  "rows": 149,
+  "shapes": [
+   "D2L3D2L2D3",
+   "D2L3D2L2D3L1",
+   "D2L3D2",
+   "L3D1"
+  ],
+  "shape_counts": {
+   "D2L3D2L2D3": 103,
+   "D2L3D2L2D3L1": 25,
+   "D2L3D2": 5,
+   "L3D1": 3
+  },
+  "pages_tagged": [
+   6,
+   7,
+   8,
+   9,
+   19,
+   20,
+   21,
+   23,
+   25,
+   26,
+   27,
+   29,
+   30,
+   31
+  ],
+  "rule": "코드가 한 검출에만 나오고, 그 모양이 두 검출·두 장 이상에서 되풀이될 때만 태그로 본다",
+  "declared": "bid",
+  "measured": "epc",
+  "effective": "bid",
+  "conflict": "declared_bid_tags_found",
+  "tags_available": 128
+ },
+ "seconds": 1035.8
+}
