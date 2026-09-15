@@ -212,3 +212,32 @@ def test_the_heading_lookup_uses_the_token_accessor():
     i = src.index('if t == "TYPICAL"')
     seg = src[max(0, i - 200):i]
     assert "pidcache.tokens(pc.words)" in seg
+
+
+# ---------------------------------------------------------------- 미판정 사유
+#
+# 50회차 — "버블 기하 검증 실패" 한 문장 아래에 **서로 다른 두 실패**가 접혀
+# 있었다 (실측: AL NOUF1 44건 · TC2 59건).  `detect()` 가 이미 세고 있던 수를
+# 파이프라인이 버리지 않게 했으므로, 그 수가 문장으로 나오는지 못박는다.
+
+def test_no_bubble_and_overlapping_bubbles_say_different_things():
+    from app import pipeline
+    zero = pipeline._bubble_why(0)
+    two = pipeline._bubble_why(2)
+    assert zero != two
+    assert "버블이 없" in zero
+    assert "2" in two
+
+
+def test_an_old_result_without_the_count_keeps_the_old_sentence():
+    """수가 없으면 지어내지 않는다 — 옛 결과에는 이 칸이 없다."""
+    from app import pipeline
+    assert pipeline._bubble_why(None) == "버블 기하 검증 실패"
+
+
+def test_detect_counts_the_bubbles_it_matched():
+    """수는 파이프라인이 만든 값이 아니라 `detect()` 가 세어 둔 것이다."""
+    import inspect
+    from app.engine import detect_symbols as ds
+    src = inspect.getsource(ds.detect)
+    assert '"bubbles_matched": len(hit)' in src

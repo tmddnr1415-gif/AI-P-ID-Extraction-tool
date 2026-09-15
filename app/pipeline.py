@@ -581,6 +581,28 @@ def _own_config():
             _rebind_config()
 
 
+def _bubble_why(n) -> str:
+    """앵커 낱말이 행이 되지 못한 사유 — **세어 둔 수를 그대로 말한다.**
+
+    `detect()` 는 처음부터 그 낱말이 몇 개의 버블에 걸렸는지를 세어
+    (`len(hit)`) `unverified` 에 담고 있었는데, 파이프라인이 그 칸을 버리고
+    "버블 기하 검증 실패" 한 문장으로 접고 있었다.  두 경우는 **고칠 자리가
+    서로 다르다**:
+
+      0 — 그 자리에 버블이 없다.  낱말이 버블 밖 주석이거나(실측: TC2 의
+          `CHEMICAL SUMP PIT` 47건), 버블을 검출기가 못 세운 것이다
+          (40회차 UAD 파선 버블이 그 예).
+      2 이상 — 버블이 겹쳐 어느 것의 글자인지 도면이 갈라 주지 않는다.
+
+    수가 없으면(옛 결과) 예전 문장 그대로다 — 없는 수를 지어내지 않는다.
+    """
+    if n is None:
+        return "버블 기하 검증 실패"
+    if n == 0:
+        return "이 자리에 버블이 없습니다 (버블 밖 낱말이거나 버블을 못 세웠습니다)"
+    return f"버블 {n}개에 걸쳐 어느 것의 글자인지 갈리지 않습니다"
+
+
 def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
              use_line_gate: bool = True, legend_profile: dict = None,
@@ -937,11 +959,12 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             # 찾은 것이고 `2` 이상이면 버블이 겹친 것이라 고칠 자리가 서로 다른데,
             # 지금까지는 둘 다 "버블 기하 검증 실패" 한 문장으로 접혀 있었다
             # (실측: AL NOUF1 44건 · TC2 59건이 이 한 문장 아래 있다).
+            _n = u.get("bubbles_matched")
             unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": pc.page_no,
                              "label": u.get("anchor", ""),
                              "center": u.get("center"),
-                             "bubbles_matched": u.get("bubbles_matched"),
-                             "why": u.get("why") or "버블 기하 검증 실패"})
+                             "bubbles_matched": _n,
+                             "why": u.get("why") or _bubble_why(_n)})
         with clock.stage("instruments", pc.page_no):
             _marks = ds.find_marks(pc, ds.LAYOUT,
                                    ds.read_mark_dictionary(pc, ds.LAYOUT)[1],
@@ -3335,10 +3358,11 @@ def _scope_of(d) -> str:
 # 낱말은 ISA 의 `ANALYSIS` 가 아니라 `Analyzer` 이므로, 그 **표기 선택**은
 # ②층(config `description.type_display_names`)에 둔다 — ①층(범례)과 섞지 않는다.
 #
-# ⚠ 오늘 이 표는 **한 행도 바꾸지 않는다**: `AT`·`AIT` 가 `anchors.type_map` 에
-# 없어 앵커가 아니고, 그래서 행이 0 이다 (도면 낱말은 AT 12회/9장 · AIT 4회/1장
-# 이고 그 중 버블 안에 있는 것이 6개).  검출을 늘리는 것은 행 수를 바꾸므로
-# 이 회차 범위 밖이다 — 근거는 `out/round17_gate_b.md` 옆의 [D] 절에 있다.
+# ⚠ 17~49회차 동안 이 표는 **한 행도 바꾸지 않았다**: `AT`·`AIT` 가
+# `anchors.type_map` 에 없어 앵커가 아니었고, 그래서 행이 0 이었다.  50회차가
+# 앵커의 권한을 사전에서 **그 도면의 ISA 문자표**로 옮기면서 `A` + `I` + `T` 가
+# 그 표만으로 서고, 이 표가 비로소 발동한다 — 실측 AL NOUF1 AIT 4 · AT 2,
+# TC2 AIT 8.  즉 낱말을 나열해서가 아니라 ISA 규칙에서 유도된 것이다.
 _TYPE_DISPLAY = {str(k).upper(): str(v) for k, v in
                  (CFG.data.get("description", {}).get("type_display_names")
                   or {}).items()}
