@@ -91,6 +91,50 @@ class IsaTable:
         readings = self.readings_for(tag)
         return readings[0] if readings else ()
 
+    def decompose(self, tag: str):
+        """`AIT` → `('A', 'IT')`.  이 표가 정의하지 않은 글자가 하나라도 있으면 `None`.
+
+        ★ 50회차 — 이것이 **앵커 사전을 대신한다.**  지금까지 "무엇이 계기인가" 는
+        `anchors.type_map` 24종을 손으로 적어 정한 것이었고(§9 의 "외워둔 값"),
+        그래서 도면이 버블에 인쇄한 `AIT`·`PP`·`ZS`·`PDI` 가 행이 되지 못했다.
+        그런데 **그 답은 이미 이 표에 있다** — 범례가 FIRST LETTER 로 측정 변수를,
+        SUCCEEDING LETTERS 로 기능을 정의한다.  한 낱말의 모든 글자가 그 두 열로
+        풀리면 그것은 이 도면이 정의한 계기 태그다.
+
+        규칙은 표가 인쇄한 것 그대로이고 더하는 것이 없다:
+
+          * 머리는 **두 글자를 먼저** 본다 (`PD` 가 `P` 보다 먼저 — `readings_for`
+            와 같은 순서).  `PDIT` 는 `PD` + `IT`, `TIT` 는 `T` + `IT`.
+          * 나머지 글자는 **전부** SUCCEEDING 열에 있어야 한다.  하나라도 없으면
+            푸는 것이 아니라 못 푸는 것이다 — 지어내지 않는다 (§2.1 ③).
+          * 뒤 글자가 하나도 없으면 태그가 아니다.  한 글자는 측정 변수의 이름일
+            뿐이고, 도면은 `M`(모터)·`V` 처럼 계기가 아닌 한 글자를 쓴다.
+
+        실측(`spike/isa_anchor_sim.py`) — 이 규칙이 **스스로 걸러내는 것**:
+        `NOTE`(N 이 FIRST LETTER 에 없음) · `TO`·`ZSO`(O 가 SUCCEEDING 에 없음) ·
+        `VBV`·`SSV`·`BRPV`(B·V 없음) · `M`·`V`(한 글자).  경보 수식자가 붙은
+        `ZSO`·`PDIA` 는 **표가 그 글자를 정의하지 않으므로 여기서 풀리지 않는다** —
+        미판정으로 남기고 세는 쪽이 지어내는 것보다 낫다.
+        """
+        t = (tag or "").strip().upper()
+        if not (2 <= len(t) <= 5) or not t.isalpha():
+            return None
+        for n in (2, 1):
+            head, rest = t[:n], t[n:]
+            if head in self.first and rest and all(c in self.succeeding for c in rest):
+                return head, rest
+        return None
+
+    def anchors(self, tokens) -> dict:
+        """이 표로 풀리는 낱말만 남긴 `{낱말: (머리, 뒤)}`."""
+        out = {}
+        for t in tokens:
+            if t not in out:
+                parts = self.decompose(t)
+                if parts:
+                    out[t] = parts
+        return out
+
     def as_dict(self) -> dict:
         return {"page_no": self.page_no, "source": self.source, "note": self.note,
                 "first": {k: list(v) for k, v in sorted(self.first.items())},

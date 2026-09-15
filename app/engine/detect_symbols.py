@@ -129,10 +129,22 @@ class Ruleset:
     not_field: frozenset
     valves: frozenset = VALVE_ANCHORS
     disabled: frozenset = frozenset()   # scope rules switched off
+    # 50회차 — 이 도면의 ISA 문자표로 풀리는 낱말도 앵커로 본다 (§9).
+    # `False` 로 두면 24종 사전만 쓰던 때와 **정확히 같아진다**.
+    derive_from_isa: bool = True
 
     @property
     def anchors(self) -> frozenset:
         return frozenset(self.field_type_map) | self.not_field | self.valves
+
+    def type_of(self, tag: str) -> str:
+        """출력 TYPE — 설정이 답하면 설정이 이기고, 없으면 도면이 인쇄한 그대로.
+
+        `TT → TIT` 처럼 **이 발주처가 다른 이름으로 부르는 것**은 ②층(설정)이
+        정한다.  설정에 없는 낱말(`AIT`·`PP`·`ZS`)은 도면이 쓴 글자를 그대로
+        쓴다 — 없는 이름을 지어내지 않는다.
+        """
+        return self.field_type_map.get(tag, tag)
 
 
 # SCT_SUPPLIER_SCOPE is off by default.
@@ -163,7 +175,8 @@ def ruleset_v3(cfg) -> "Ruleset":
     return Ruleset("v3-anchor-audit",
                    {str(k): str(v) for k, v in cfg.get("anchors.type_map").items()},
                    frozenset(str(x) for x in cfg.get("anchors.not_field")),
-                   disabled=DEFAULT_DISABLED)
+                   disabled=DEFAULT_DISABLED,
+                   derive_from_isa=bool(cfg.get_or("anchors.derive_from_isa", True)))
 
 
 RULESET_V3 = ruleset_v3(CFG)
@@ -1771,7 +1784,7 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
 
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
-           face_rejected=None, rivals=()):
+           face_rejected=None, rivals=(), isa=None):
     """`rivals` 는 **다른 갈래의 심볼**이 차지한 자리다 (48회차) — 항목마다
     `(사각형들, 그 항목의 태그 버블 또는 None)` 이다.
 
@@ -1806,9 +1819,17 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
 
     detections: list[Detection] = []
     unverified: list[dict] = []
+    # 50회차 — 무엇이 계기 태그인가를 **그 도면의 ISA 문자표**가 답한다 (§9 ①).
+    # 24종 사전은 "이 발주처가 그 태그를 뭐라고 부르나"(`TT → TIT`)에만 남고,
+    # "계기인가" 는 범례가 인쇄한 FIRST / SUCCEEDING 열로 판정한다.  사전에만
+    # 기대던 때는 도면이 버블에 인쇄한 `AIT`·`PP`·`ZS`·`PDI` 가 행이 되지 못하고
+    # `unmapped` 로만 남았다 (실측 AL NOUF1 32 · TC2 25).
+    derived: dict = {}
+    if rules.derive_from_isa and isa is not None and getattr(isa, "first", None):
+        derived = isa.anchors({t for _r, t in pc.words if t not in rules.anchors})
 
     for r, t in pc.words:
-        if t not in rules.anchors:
+        if t not in rules.anchors and t not in derived:
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
 
@@ -1845,7 +1866,17 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             det.evidence["note"] = f"{t} never appears in the field instrument list"
         else:
             det.category = "FIELD_INSTRUMENT"
-            det.excel_type = rules.field_type_map[t]
+            det.excel_type = rules.type_of(t)
+        if t in derived and t not in rules.anchors:
+            head, rest = derived[t]
+            det.evidence["anchor_source"] = {
+                "rule": "ISA_TABLE",
+                "page_no": getattr(isa, "page_no", 0),
+                "first": f"{head} = " + " ".join(isa.first.get(head, ())),
+                "succeeding": [f"{c} = " + " ".join(isa.succeeding.get(c, ()))
+                               for c in rest],
+            }
+            det.rules_hit.append("ANCHOR_FROM_ISA_TABLE")
 
         # -- vendor mark (page-scoped meaning) -------------------------
         # 이름은 `mark_rules` 다 — `rules` 는 이 함수의 **매개변수**(Ruleset)이고,
@@ -1891,7 +1922,7 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
     # candidates for TYPE_MAPPING_MISS when a drawing comes up short.
     unmapped: list[dict] = []
     for r, t in pc.words:
-        if t in rules.anchors or not ISA_LIKE_RE.match(t):
+        if t in rules.anchors or t in derived or not ISA_LIKE_RE.match(t):
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         if not _inside(cx, cy, lay.drawing_area):

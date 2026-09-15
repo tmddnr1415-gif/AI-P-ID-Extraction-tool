@@ -98,6 +98,22 @@ excel:
 # no client list there is no basis for what TYPE string they would take, so the
 # engine reports them as unmapped instead of guessing.
 anchors:
+  # 50회차 — **무엇이 계기 태그인가는 그 도면의 ISA 문자표가 답한다** (§9 ①).
+  #
+  # 아래 `type_map` 은 "이 발주처가 그 태그를 뭐라고 부르나"(`TT → TIT`)만
+  # 정한다.  "계기인가" 는 범례가 인쇄한 FIRST LETTER / SUCCEEDING LETTERS 열로
+  # 판정한다 (`isa_table.decompose`).  사전에만 기대던 때는 도면이 버블에
+  # 인쇄한 낱말이 행이 되지 못하고 미판정으로만 남았다 — 실측(저장된 결과의
+  # `unjudged_symbols` · `spike/isa_anchor_sim.py`):
+  #
+  #   AL NOUF1 +32  (PP 8 · ZSC 7 · ZT 6 · ZS 5 · AIT 4 · AT 2)
+  #   TC2      +25  (PP 12 · AIT 8 · PDI 3 · PS 2)
+  #
+  # 표가 스스로 걸러내는 것: `NOTE`(N 이 FIRST LETTER 에 없음) · `ZSO`·`TO`
+  # (O 가 SUCCEEDING 에 없음) · `VBV`·`SSV`·`BRPV` · 한 글자 `M`·`V`.
+  #
+  # `false` 로 두면 24종 사전만 쓰던 때와 **정확히 같아진다** (시험이 강제).
+  derive_from_isa: true
   type_map:
     TT: TIT
     PT: PIT

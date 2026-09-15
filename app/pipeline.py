@@ -892,6 +892,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     unjudged: list[dict] = []
     # 30회차 — 심볼의 그려진 얼굴 위라 마크가 아니라 글자로 읽은 획 뭉치.
     face_marks: dict[int, list] = {}
+    # 50회차 — ISA 표가 앵커로 인정한 낱말의 장부 (지문 밖).
+    isa_anchor_log: dict = {"total": 0, "by_token": {}, "by_page": {},
+                            "enabled": bool(getattr(ds.RULESET_V3, "derive_from_isa", False))}
     for i, pc in enumerate(targets, 1):
         # `i - 1` because this is said before the sheet is read, not after.
         meta = tb_rows[pc.page_no]
@@ -904,12 +907,20 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                     pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
                     allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES,
                     face_rejected=face_rejected,
-                    rivals=valve_rects.get(pc.page_no, ())))
+                    rivals=valve_rects.get(pc.page_no, ()),
+                    isa=isa))
         # 30회차 — 심볼의 그려진 얼굴 위에 있어 **마크가 아니라 글자**로 읽은
         # 획 뭉치.  버린 것을 세어 둔다 (§2.1 ③ — 판정을 조용히 하지 않는다).
         # 지문 밖이다: `result["face_marks"]` 는 해싱 재료가 아니다.
         if face_rejected:
             face_marks[pc.page_no] = face_rejected
+        for _d in dets:
+            _src = (getattr(_d, "evidence", {}) or {}).get("anchor_source")
+            if _src:
+                isa_anchor_log["by_token"][_d.anchor] = \
+                    isa_anchor_log["by_token"].get(_d.anchor, 0) + 1
+                isa_anchor_log["by_page"].setdefault(pc.page_no, []).append(_d.anchor)
+                isa_anchor_log["total"] += 1
         # 18회차 — **판정하지 못한 것을 버리지 않고 모은다.**
         #
         # `ds.detect` 는 처음부터 이 둘을 냈는데 파이프라인이 받아서 **버렸다**.
@@ -1302,6 +1313,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         "origins": origins,
         # 판정하지 못한 심볼.  **비어 있는 것과 없는 것은 다르다** — 옛 분석에는
         # 이 칸이 아예 없고, 화면이 그 둘을 구분해서 말한다.
+        # 50회차 — ISA 문자표로 앵커가 된 낱말을 **세어서 남긴다**.  사전에 없던
+        # 낱말이 행이 되는 것이므로 조용히 늘어나면 안 된다 (§2.1 ③ · §9 ④).
+        # 지문 밖이다 — 행 자체가 지문에 들어가므로 여기서 또 해싱하지 않는다.
+        "isa_anchors": isa_anchor_log,
         "unjudged_symbols": unjudged,
         "glyphs": {
             "letters": dict(sorted(glyphs.letters.items())),
