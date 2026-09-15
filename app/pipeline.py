@@ -933,9 +933,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                              "center": u.get("center"),
                              "why": "ISA 태그 모양인데 이 프로젝트 사전에 없음"})
         for u in unverified:
+            # 50회차 — **몇 개에 걸렸는지**를 버리지 않는다.  `0` 이면 버블을 못
+            # 찾은 것이고 `2` 이상이면 버블이 겹친 것이라 고칠 자리가 서로 다른데,
+            # 지금까지는 둘 다 "버블 기하 검증 실패" 한 문장으로 접혀 있었다
+            # (실측: AL NOUF1 44건 · TC2 59건이 이 한 문장 아래 있다).
             unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": pc.page_no,
                              "label": u.get("anchor", ""),
                              "center": u.get("center"),
+                             "bubbles_matched": u.get("bubbles_matched"),
                              "why": u.get("why") or "버블 기하 검증 실패"})
         with clock.stage("instruments", pc.page_no):
             _marks = ds.find_marks(pc, ds.LAYOUT,
