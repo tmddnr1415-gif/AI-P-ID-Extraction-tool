@@ -119,11 +119,40 @@ def compare(now, base) -> list:
         for k in CHECK:
             if k in b and r.get(k) != b[k]:
                 bad.append("%s %s: 기준선 %s → 지금 %s" % (r["name"], k, b[k], r.get(k)))
-        for ax, want in (b.get("axes") or {}).items():
-            got = (r.get("axes") or {}).get(ax)
-            if got != want:
-                bad.append("%s 축[%s]: 기준선 %s → 지금 %s" % (r["name"], ax, want, got))
+        bad.extend(axis_alarms(r, b))
     return bad
+
+
+# 52회차 — ★ 축1·축2 는 **게이트가 아니라 참고 지표**다 (사용자 확정:
+# *"발주처 xlsx 와 달라도 된다"*).  51회차 프롬프트가 이미 그렇게 정했다 —
+# *"축2 는 없애지 않는다.  발주처와 얼마나 다른지는 알아야 한다. 참고 지표로
+# 남는다 · 축2 가 내려가는 것은 실패가 아니다.  발주처가 안 센 것이다."*
+#
+# 지우지 않는 이유: 그 축이 **발주처 리스트와 얼마나 다른가**를 재는 유일한
+# 자이고, 도면을 잘못 읽어 수치가 무너지는 것과 발주처가 안 세는 항목을 더
+# 넣어 내려가는 것은 **다른 일**이다.  전자를 잡으려고 **바닥값**만 남긴다.
+#
+# 바닥값 85% 도 사용자가 정했다 (51회차 프롬프트: *"다만 85% 아래로 내려가면
+# 멈추고 보고한다 — 뭔가 잘못 잡은 것이다"*).  **이 값은 우리가 고른 것이
+# 아니므로 우리가 바꾸지 않는다.**
+AXIS_FLOOR_KEY = "axes_floor"
+
+
+def axis_alarms(now, base) -> list:
+    """축1·축2 — 달라졌다고 실패시키지 않고, **바닥 아래일 때만** 실패한다."""
+    got = now.get("axes")
+    if got is None:                      # 발주처 xlsx 가 없는 기계 — 못 쟀다
+        return []
+    out = []
+    for ax, floor in (base.get(AXIS_FLOOR_KEY) or {}).items():
+        val = (got.get(ax) or {}).get("precision")
+        if val is None:
+            continue
+        if val < floor:
+            out.append("%s 축[%s] 정밀도 %.1f%% — 바닥 %.1f%% 아래입니다.  "
+                       "멈추고 원인을 보세요 (뭔가 잘못 잡은 것입니다)"
+                       % (now["name"], ax, val, floor))
+    return out
 
 
 def table(res) -> str:
@@ -137,6 +166,15 @@ def table(res) -> str:
         lines.append("%-*s %6d %10s %8d %7.0f %6.1fG %6.1f" %
                      (w, r["name"], r["rows"], (r["fingerprint"] or "")[:8], r["qty_sum"],
                       r["seconds"] or 0, r["max_rss_gb"] or 0, r["score"]))
+    ref = [r for r in res if not r.get("error") and r.get("axes")]
+    if ref:
+        lines.append("")
+        lines.append("축1·축2 (참고 — 게이트가 아닙니다 · 발주처 리스트와 얼마나 다른가)")
+        for r in ref:
+            for ax, v in r["axes"].items():
+                lines.append("%-*s %s 재현율 %.1f%% · 정밀도 %.1f%% (FP %d · FN %d)"
+                             % (w, r["name"], ax, v["recall"], v["precision"],
+                                v["fp"], v["fn"]))
     lines.append("")
     lines.append("축3 내역 (지표별 맞춘 수 / 분모)")
     lines.append("%-*s %s" % (w, "", "  ".join("%-11s" % m for m in identification.METRICS)))
@@ -174,9 +212,16 @@ def main() -> int:
 
     base = json.loads(BASELINES.read_text()) if BASELINES.exists() else {}
     if a.write_baseline:
-        base.update({r["name"]: {k: r[k] for k in CHECK if k in r}
-                     | ({"axes": r["axes"]} if "axes" in r else {})
-                     for r in res if not r.get("error")})
+        for r in res:
+            if r.get("error"):
+                continue
+            keep = base.get(r["name"]) or {}
+            new = {k: r[k] for k in CHECK if k in r}
+            if "axes" in r:
+                new["axes_reference"] = r["axes"]      # 참고 · 대조하지 않는다
+            if AXIS_FLOOR_KEY in keep:                 # 바닥값은 사람이 정한다
+                new[AXIS_FLOOR_KEY] = keep[AXIS_FLOOR_KEY]
+            base[r["name"]] = new
         BASELINES.write_text(json.dumps(base, ensure_ascii=False, indent=2) + "\n")
         print("\n기준선을 저장했습니다: %s" % BASELINES)
 
