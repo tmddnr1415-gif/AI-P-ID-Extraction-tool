@@ -53,6 +53,7 @@
 """
 from __future__ import annotations
 
+import collections
 import json
 import pathlib
 import sys
@@ -97,6 +98,17 @@ def score(res: dict) -> dict:
         out["축4"] = None
         return out
     den_v = len(tags)
+    # ★ 분모에서 아무것도 빼지 않는다.  `PSV`·`PRV`·`BPRV`(자력식 안전밸브)는
+    # 발주처 산출물 범위 밖이지만(23회차) **도면은 그것을 인쇄했다** — 빼면
+    # 분모를 손봐 수치를 좋게 만드는 것이다 (§2.2).  대신 태그별로 갈라 적어
+    # "안 뽑힌 것이 왜 안 뽑혔나" 를 보이게 한다.
+    per = {}
+    claimed = collections.Counter(
+        str(((r.get("evidence") or {}).get("tag") or "")).upper()
+        for r in rows if r.get("valve_type"))
+    for t, n in collections.Counter(x.get("tag") for x in tags).items():
+        per[t] = [claimed.get(t, 0), n]
+    out["밸브_태그별"] = dict(sorted(per.items(), key=lambda kv: -kv[1][1]))
     out["밸브_분모"] = den_v
     out["축4_밸브"] = round(100.0 * tagged / den_v, 1) if den_v else 0.0
     num, den = inst_rows + tagged, den_i + den_v
@@ -127,6 +139,11 @@ def main() -> int:
         print("%-10s %5d/%-5d %5.1f%% %s %s   %d · %d"
               % (name, s["계기_분자"], s["계기_분모"], s["축4_계기"], v, tot,
                  s["밸브행_태그없음"], s["미판정몸체(분모아님)"]))
+    for name, s2 in out.items():
+        if s2.get("밸브_태그별"):
+            print("\n  %s 밸브 태그별 (가져간 행 / 버블에 인쇄된 태그)" % name)
+            print("   " + "  ".join("%s %d/%d" % (t, v[0], v[1])
+                                    for t, v in s2["밸브_태그별"].items()))
     print("\n계기 분모 = 버블이 선 계기 태그 · 밸브 분모 = 그 도면이 버블에 인쇄한 밸브 태그")
     print("★ 미판정 몸체는 분모가 아니다 (렌더 확인: 기기 노즐) · "
           "태그 없는 밸브 행은 대응 분모가 없어 축 밖이다")
