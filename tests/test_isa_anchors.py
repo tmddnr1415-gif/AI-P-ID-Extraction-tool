@@ -241,3 +241,76 @@ def test_detect_counts_the_bubbles_it_matched():
     from app.engine import detect_symbols as ds
     src = inspect.getsource(ds.detect)
     assert '"bubbles_matched": len(hit)' in src
+
+
+# ------------------------------------------------- 51회차 — 앵커가 행까지 가는가
+#
+# ★ 50회차는 `detect()` 만 고치고 **파이프라인이 행을 만들 때 보는 함수**를
+# 안 고쳤다.  그래서 표가 인정한 32개 검출이 서고도 한 행도 되지 않았다
+# (예측 1069 ↔ 실측 1037).  같은 질문에 답하는 곳이 둘이면 갈린다.
+
+def test_a_derived_anchor_carries_a_type_all_the_way_to_the_row(sheet):
+    """`excel_type_under` 가 사전에 없는 유도 앵커에 TYPE 을 준다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+    got = _detect(sheet, rules, TABLE)
+    for tag in ("AIT", "PP"):
+        d = got[tag]
+        assert da.excel_type_under(d, rules) == tag
+        assert da.included_under(d, rules, da.active_scope("none")) is True
+
+
+def test_the_dictionary_is_still_the_naming_authority(sheet):
+    """사전이 답하면 사전이 이긴다 — 유도가 그것을 덮지 않는다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+    got = _detect(sheet, rules, TABLE)
+    assert da.excel_type_under(got["TT"], rules) == "TIT"
+
+
+def test_a_word_without_the_table_marker_gets_no_type():
+    """근거가 없으면 낱말을 TYPE 으로 쓰지 않는다 — 낱말 목록으로 가르지 않는다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+
+    class Bare:
+        anchor = "DN"
+        rules_hit = []
+    assert da.excel_type_under(Bare, rules) is None
+
+
+def test_the_marker_name_lives_in_one_place():
+    """`detect()` 가 달고 `detect_all` 이 읽는 표시 — 두 벌을 두지 않는다."""
+    from app.engine import detect_all as da
+    assert da.ANCHOR_FROM_ISA is ds.ANCHOR_FROM_ISA
+    import inspect
+    assert '"ANCHOR_FROM_ISA_TABLE"' not in inspect.getsource(da.excel_type_under)
+
+
+# ------------------------------------- 51회차 — 유도된 낱말은 버블이 섰을 때만 센다
+
+def _plain(tmp_path, words):
+    """버블 없이 낱말만 인쇄한 장."""
+    doc = pymupdf.open(); page = doc.new_page(width=700, height=400)
+    for i, w in enumerate(words):
+        page.insert_text((120 + i * 110, 200), w, fontsize=9)
+    path = tmp_path / "plain.pdf"; doc.save(path); doc.close()
+    _d, pages = pidcache.load_pages(str(path))
+    return pages[0]
+
+
+def test_a_derived_word_with_no_bubble_is_not_reported(tmp_path):
+    """ISA 표가 `DN` 을 분해한다는 것은 `DN` 이 계기라는 증거가 아니다."""
+    pc = _plain(tmp_path, ["DN", "GT", "VS"])
+    dets, _s, _m, unverified, unmapped, *_ = ds.detect(
+        pc, lay=ds.LAYOUT, rules=_rules(), isa=TABLE)
+    assert dets == []
+    assert [u["anchor"] for u in unverified] == []
+
+
+def test_a_dictionary_anchor_with_no_bubble_is_still_reported(tmp_path):
+    """사전 앵커가 버블 없이 인쇄된 것은 보고할 값어치가 있다 — 계속 센다."""
+    pc = _plain(tmp_path, ["TT"])
+    _d, _s, _m, unverified, *_ = ds.detect(
+        pc, lay=ds.LAYOUT, rules=_rules(), isa=TABLE)
+    assert [(u["anchor"], u["bubbles_matched"]) for u in unverified] == [("TT", 0)]

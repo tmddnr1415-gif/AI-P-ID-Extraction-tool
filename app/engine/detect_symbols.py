@@ -121,6 +121,10 @@ _V2_NOT_FIELD = frozenset({"TW", "FT"})
 VALVE_ANCHORS = frozenset({"MOV", "HOV", "HV", "XV", "CV", "FCV", "TCV", "PCV",
                            "LCV", "NRV", "PSV", "PRV", "BPRV"})
 
+# 그 도면의 ISA 문자표가 앵커로 인정했다는 표시 (50회차).  **이름은 한 곳에
+# 둔다** — `detect()` 가 달고 `detect_all.excel_type_under()` 가 읽는다.
+ANCHOR_FROM_ISA = "ANCHOR_FROM_ISA_TABLE"
+
 
 @dataclass(frozen=True)
 class Ruleset:
@@ -1843,8 +1847,21 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             and b.y0 - lay.anchor_slack <= cy <= b.y1 + lay.anchor_slack
         ]
         if len(hit) != 1:
-            unverified.append({"anchor": t, "center": [round(cx, 1), round(cy, 1)],
-                               "bubbles_matched": len(hit)})
+            # 51회차 — **유도된 낱말은 버블이 섰을 때만 기록한다.**
+            #
+            # 사전 앵커가 "인쇄됐는데 버블이 없다" 는 것은 보고할 값어치가
+            # 있다 (`PIT` 가 그 자리에 있는데 버블을 못 세운 것일 수 있다).
+            # 그러나 ISA 표가 `DN` 을 분해한다는 것은 `DN` 이 계기라는 증거가
+            # 아니다 — **버블이 증거다**.  표의 글자가 알파벳을 거의 덮으므로
+            # 평범한 도면 낱말이 전부 분해된다 (AL NOUF1 실측: `DN` 129 ·
+            # `GT` 112 · `VS` 96 · `SCT` 88 · `HRSG` 84 · `AIR` 49 · `LINE` 20
+            # · `UNIT` 13 · `FIRE` 10 …).  기록하면 사람이 보는 미판정 목록이
+            # 87 → 1164 가 되고 축3 심볼판정 분모가 1287 → 2201 로 늘어
+            # 94.2 → 88.6 이 된다 — 검출은 한 행도 안 바뀌는데도 그렇다.
+            if t in rules.anchors:
+                unverified.append({"anchor": t,
+                                   "center": [round(cx, 1), round(cy, 1)],
+                                   "bubbles_matched": len(hit)})
             continue
         bubble = hit[0]
         det = Detection(anchor=t, bbox=bubble, center=(cx, cy))
@@ -1876,7 +1893,7 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
                 "succeeding": [f"{c} = " + " ".join(isa.succeeding.get(c, ()))
                                for c in rest],
             }
-            det.rules_hit.append("ANCHOR_FROM_ISA_TABLE")
+            det.rules_hit.append(ANCHOR_FROM_ISA)
 
         # -- vendor mark (page-scoped meaning) -------------------------
         # 이름은 `mark_rules` 다 — `rules` 는 이 함수의 **매개변수**(Ruleset)이고,

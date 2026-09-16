@@ -48,6 +48,7 @@ import pymupdf
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from detect_symbols import (  # noqa: E402
+    ANCHOR_FROM_ISA,
     KNOWN_GLYPH_SIZES,
     RULESET_V1,
     RULESET_V2,
@@ -225,10 +226,27 @@ STOPWORDS = frozenset(str(w).upper() for w in CFG.get("matching.stopwords"))
 
 
 def excel_type_under(det, rules):
-    """The Excel TYPE this detection would carry under a given ruleset."""
+    """The Excel TYPE this detection would carry under a given ruleset.
+
+    51회차 — ★ 이 함수와 `detect()` 가 **같은 질문에 서로 다르게 답하고**
+    있었다.  50회차가 앵커의 권한을 사전에서 그 도면의 ISA 문자표로 옮기면서
+    `detect()` 는 `rules.type_of(t)`(사전에 없으면 인쇄된 낱말 그대로)를 쓰게
+    됐는데, **파이프라인이 행을 만들 때 보는 것은 이 함수**이고 여기는 사전
+    dict 를 그대로 봐 `None` 을 냈다.  `None` 이면 `included_under()` 가 False
+    라서, 표가 인정한 32개 검출(AIT 4 · AT 2 · PP 8 · ZS 5 · ZSC 7 · ZT 6)이
+    서고도 **한 행도 되지 않았다** (실측: 50회차 예측 1069 ↔ 실측 1037).
+
+    사전은 그대로 **이름 붙이기**의 권한이다 (`TT` → `TIT`).  사전이 답하지
+    못할 때만, **그 도면의 ISA 표가 이 검출을 앵커로 인정했다는 근거가 검출에
+    실려 있을 때만** 인쇄된 낱말을 그대로 TYPE 으로 쓴다 — 낱말 목록이 아니라
+    그 검출이 들고 있는 근거로 가른다.
+    """
     if det.anchor in rules.valves or det.anchor in rules.not_field:
         return None
-    return rules.field_type_map.get(det.anchor)
+    type_ = rules.field_type_map.get(det.anchor)
+    if type_ is None and ANCHOR_FROM_ISA in (getattr(det, "rules_hit", None) or ()):
+        return det.anchor
+    return type_
 
 
 def included_under(det, rules, active_scope: "ActiveScope") -> bool:
