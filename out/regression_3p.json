@@ -1,51 +1,51 @@
 {
   "projects": [
     {
-      "name": "SADARA",
-      "rows": 86,
-      "fingerprint": "53531ef68969c58f352ee38c829eaaa7b2a44638fe3bc493a6d4c9a3b6d7c9cf",
-      "qty_sum": 0,
+      "name": "AL NOUF1",
+      "rows": 1037,
+      "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
+      "qty_sum": 1931,
       "tabs": {
-        "FIELD": 62,
-        "MOV": 16,
-        "REVIEW": 6,
-        "BFV": 2
+        "FIELD": 885,
+        "MOV": 76,
+        "PNEUMATIC": 53,
+        "BFV": 23
       },
-      "seconds": 79.9,
-      "max_rss_gb": 0.94,
+      "seconds": 599.1,
+      "max_rss_gb": 4.92,
       "identification": {
         "도면번호": [
-          9,
-          9,
+          58,
+          58,
           ""
         ],
         "개정": [
-          9,
-          9,
+          58,
+          58,
           ""
         ],
         "태그→행": [
-          33,
-          33,
+          247,
+          272,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          0,
-          86,
+          1037,
+          1037,
           ""
         ],
         "심볼판정": [
-          86,
-          128,
+          1037,
+          2201,
           ""
         ],
         "파라미터": [
-          29,
+          30,
           32,
           ""
         ]
       },
-      "score": 76.3
+      "score": 88.6
     }
   ],
   "metrics": [
