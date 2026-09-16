@@ -17,9 +17,24 @@
         낱말이다 — 그 도면의 범례가 정의한 계기 심볼 안에 인쇄된 글자이므로
         "그 도면이 계기로 인쇄했다" 는 것이 도면 자신의 증거로 선다.
 
-    ㉯ **밸브 몸체**
-        행이 된 밸브  +  `unjudged` 중 `VALVE_BODY`(= `unclassified_bodies` —
-        배관 끝막대 둘을 갖췄는데 몸체 어휘에 없는 중공 도형).
+    ㉯ **그 도면이 버블에 인쇄한 밸브 태그** (`result["valve_tags"]`)
+        `detect()` 가 밸브 태그 낱말도 버블로 검증해 `category="VALVE"` 검출을
+        만들어 왔는데 파이프라인이 버리고 있었다 (51회차에 기록하게 했다).
+        버블은 그 도면의 범례가 정의한 심볼이므로 *"여기 밸브가 있다"* 는
+        **도면 자신의 선언**이다.
+        분자 = 그 태그를 밸브 행이 실제로 가져간 것 (`evidence["tag"]`).
+
+    ★ `unclassified_bodies`(미판정 `VALVE_BODY`)는 **분모가 아니다.**
+        첫 정의에서 분모로 삼았다가 **렌더로 뒤집었다** — AL NOUF1 82건의
+        표본을 열어 보니 `p6 [1279.0, 265.0, 1284.7, 289.9]` 은 `HP TURBINE`
+        기기 심볼의 **노즐(플랜지) 사각형**이었다.  "배관 끝막대 둘을 갖춘
+        중공 도형" 은 기기 노즐·플랜지·스펙 브레이크를 함께 담는 진단용
+        바구니이고, 분모로 삼으면 *"UAD 가 밸브 144개를 내야 한다"* 는 거짓
+        목표가 선다 (실제 밸브 행은 11).  따로 세어 보고만 한다.
+
+    ★ 태그 없이 기하로만 선 밸브 행은 **분자·분모 어디에도 넣지 않는다.**
+        대응하는 분모가 없다 (AL NOUF1 152행 중 68행).  따로 적는다 — 이
+        축이 못 보는 몫이고, 그 사실을 감추지 않는다.
 
     ★ 분모에 **넣지 않는** 것 — 버블이 0개이거나 2개 이상인 낱말
         `bubbles_matched == 0` 은 버블 밖 낱말일 수 있고(실측: TC2 의
@@ -56,33 +71,46 @@ def score(res: dict) -> dict:
     valve_rows = sum(1 for r in rows if r.get("valve_type"))
     inst_rows = len(rows) - valve_rows
 
-    miss_inst = miss_valve = outside = 0
+    miss_inst = outside = bodies = 0
     for u in res.get("unjudged_symbols", []):
         kind = u.get("kind")
         if kind == "VALVE_BODY":
-            miss_valve += 1
+            bodies += 1                      # ★ 분모가 아니다 — 세기만 한다
         elif kind == "INSTRUMENT_TAG":
             if "사전에 없" in (u.get("why") or ""):
                 miss_inst += 1
             else:
                 outside += 1
 
-    den_i, den_v = inst_rows + miss_inst, valve_rows + miss_valve
-    den = den_i + den_v
-    num = inst_rows + valve_rows
-    return {"계기_분자": inst_rows, "계기_분모": den_i,
-            "밸브_분자": valve_rows, "밸브_분모": den_v,
-            "분자": num, "분모": den,
-            "축4": round(100.0 * num / den, 1) if den else 0.0,
-            "밖": outside}
+    den_i = inst_rows + miss_inst
+    tags = res.get("valve_tags")
+    tagged = sum(1 for r in rows
+                 if r.get("valve_type") and ((r.get("evidence") or {}).get("tag")))
+    out = {"계기_분자": inst_rows, "계기_분모": den_i,
+           "축4_계기": round(100.0 * inst_rows / den_i, 1) if den_i else 0.0,
+           "밸브행": valve_rows, "밸브행_태그있음": tagged,
+           "밸브행_태그없음": valve_rows - tagged,
+           "미판정몸체(분모아님)": bodies, "버블밖낱말(분모아님)": outside}
+    if tags is None:                         # 51회차 이전 결과에는 이 칸이 없다
+        out["밸브_분모"] = None
+        out["축4_밸브"] = None
+        out["축4"] = None
+        return out
+    den_v = len(tags)
+    out["밸브_분모"] = den_v
+    out["축4_밸브"] = round(100.0 * tagged / den_v, 1) if den_v else 0.0
+    num, den = inst_rows + tagged, den_i + den_v
+    out["분자"], out["분모"] = num, den
+    out["축4"] = round(100.0 * num / den, 1) if den else 0.0
+    return out
 
 
 def main() -> int:
     args = sys.argv[1:]
     items = ([(pathlib.Path(a).stem, a) for a in args] if args else
              [(n, p) for n, p in STORED])
-    print("%-10s %7s %7s %7s  %7s %7s  %6s   %s"
-          % ("프로젝트", "분자", "분모", "축4", "계기", "밸브", "밖", ""))
+    print("%-10s %16s %16s %8s   %s"
+          % ("프로젝트", "축4-계기", "축4-밸브태그", "축4", "태그없는 밸브행 · 미판정몸체"))
     out = {}
     for name, p in items:
         f = ROOT / p
@@ -93,11 +121,15 @@ def main() -> int:
         res = res.get("result", res)
         s = score(res)
         out[name] = s
-        print("%-10s %7d %7d %6.1f%%  %3d/%-3d %3d/%-3d  %6d"
-              % (name, s["분자"], s["분모"], s["축4"],
-                 s["계기_분자"], s["계기_분모"], s["밸브_분자"], s["밸브_분모"], s["밖"]))
-    print("\n분모 = 버블이 선 계기 태그 + 그 도면이 그린 밸브 몸체 · "
-          "`밖` = 버블이 0개이거나 2개 이상인 낱말 (분모에 안 넣음)")
+        v = ("%4d/%-4d %5.1f%%" % (s["밸브행_태그있음"], s["밸브_분모"], s["축4_밸브"])
+             if s["밸브_분모"] is not None else "        (미측정)")
+        tot = ("%6.1f%%" % s["축4"]) if s["축4"] is not None else "     —"
+        print("%-10s %5d/%-5d %5.1f%% %s %s   %d · %d"
+              % (name, s["계기_분자"], s["계기_분모"], s["축4_계기"], v, tot,
+                 s["밸브행_태그없음"], s["미판정몸체(분모아님)"]))
+    print("\n계기 분모 = 버블이 선 계기 태그 · 밸브 분모 = 그 도면이 버블에 인쇄한 밸브 태그")
+    print("★ 미판정 몸체는 분모가 아니다 (렌더 확인: 기기 노즐) · "
+          "태그 없는 밸브 행은 대응 분모가 없어 축 밖이다")
     (ROOT / "out" / "round51").mkdir(parents=True, exist_ok=True)
     (ROOT / "out" / "round51" / "axis4.json").write_text(
         json.dumps(out, ensure_ascii=False, indent=1))

@@ -914,6 +914,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     unjudged: list[dict] = []
     # 30회차 — 심볼의 그려진 얼굴 위라 마크가 아니라 글자로 읽은 획 뭉치.
     face_marks: dict[int, list] = {}
+    # 51회차 — 그 도면이 버블에 인쇄한 밸브 태그 (지문 밖 · 축4 밸브 분모).
+    valve_tags: list = []
     # 50회차 — ISA 표가 앵커로 인정한 낱말의 장부 (지문 밖).
     isa_anchor_log: dict = {"total": 0, "by_token": {}, "by_page": {},
                             "enabled": bool(getattr(ds.RULESET_V3, "derive_from_isa", False))}
@@ -943,6 +945,21 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                     isa_anchor_log["by_token"].get(_d.anchor, 0) + 1
                 isa_anchor_log["by_page"].setdefault(pc.page_no, []).append(_d.anchor)
                 isa_anchor_log["total"] += 1
+            # 51회차 — **그 도면이 버블에 인쇄한 밸브 태그를 버리지 않는다.**
+            #
+            # `detect()` 는 밸브 태그 낱말도 버블로 검증한 뒤 `category="VALVE"`
+            # 인 검출을 만들어 왔는데(`included=False`), 파이프라인이 그것을
+            # 받아서 **버렸다** — 18회차 `unmapped`·`unverified` 와 같은 자리다.
+            # 축4(완전 추출)의 밸브 쪽 분모가 바로 이것이다: *그 도면이 "여기
+            # 밸브가 있다" 고 스스로 선언한 자리*.  인쇄 횟수를 세면 같은 태그를
+            # 버블과 신호선에 두 번 찍은 것과 NOTES 문장의 낱말이 섞이지만
+            # (AL NOUF1 실측 133 ↔ 버블 검증), 버블은 그 도면의 범례가 정의한
+            # 심볼이라 증거가 선다.  **지문 밖이다** — 행을 만들지 않는다.
+            if getattr(_d, "category", "") == "VALVE":
+                _r = _d.bbox
+                valve_tags.append({"page_no": pc.page_no, "tag": _d.anchor,
+                                   "rect": [round(v, 1) for v in
+                                            (_r.x0, _r.y0, _r.x1, _r.y1)]})
         # 18회차 — **판정하지 못한 것을 버리지 않고 모은다.**
         #
         # `ds.detect` 는 처음부터 이 둘을 냈는데 파이프라인이 받아서 **버렸다**.
@@ -1345,6 +1362,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 낱말이 행이 되는 것이므로 조용히 늘어나면 안 된다 (§2.1 ③ · §9 ④).
         # 지문 밖이다 — 행 자체가 지문에 들어가므로 여기서 또 해싱하지 않는다.
         "isa_anchors": isa_anchor_log,
+        # 51회차 — 축4 의 밸브 쪽 분모.  지문 밖이다.
+        "valve_tags": valve_tags,
         "unjudged_symbols": unjudged,
         "glyphs": {
             "letters": dict(sorted(glyphs.letters.items())),

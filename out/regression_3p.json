@@ -2,16 +2,16 @@
   "projects": [
     {
       "name": "AL NOUF1",
-      "rows": 1037,
-      "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
-      "qty_sum": 1931,
+      "rows": 1069,
+      "fingerprint": "117b2d61c93a338424474042406a2bf868e352115884f9349d0a7d7b918c40cc",
+      "qty_sum": 2022,
       "tabs": {
-        "FIELD": 885,
+        "FIELD": 917,
         "MOV": 76,
         "PNEUMATIC": 53,
         "BFV": 23
       },
-      "seconds": 599.1,
+      "seconds": 606.3,
       "max_rss_gb": 4.92,
       "identification": {
         "도면번호": [
@@ -30,13 +30,13 @@
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          1037,
-          1037,
+          1069,
+          1069,
           ""
         ],
         "심볼판정": [
-          1037,
-          2201,
+          1069,
+          1287,
           ""
         ],
         "파라미터": [
@@ -45,7 +45,7 @@
           ""
         ]
       },
-      "score": 88.6
+      "score": 94.6
     }
   ],
   "metrics": [
