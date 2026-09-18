@@ -1147,6 +1147,59 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             layers.setdefault(pno, collections.defaultdict(list))
             layers[pno]["EXCLUDED"].extend(marks)
 
+    # 9차 피드백 [B] — Typical 표식을 **보인다** (*"D or D1 도 식별 표기
+    # (하이라이트) 를 한다"*).
+    #
+    # 38회차 [D] 가 이미 읽어 `result["typical"]` 에 담고 `store_result` 가
+    # 저장까지 하는데, 화면에 놓는 자리가 없었다 — §9 3③ 의 또 한 번이다.
+    # 여기서 새로 세지 않는다: `typical_by_page` 가 든 그 값을 그대로 놓는다.
+    #
+    # 행이 아니므로 SCOPE 색 칸에 섞지 않는다.  화면이 자기 칸으로 세고
+    # (`TYPICAL_MARK`), 33회차 등식은 "칸 합 = 상자 수" 로 그대로 성립한다.
+    for pno, t in typical_by_page.items():
+        if not (t.marks or t.details):
+            continue
+        layers.setdefault(pno, collections.defaultdict(list))
+        captions = {d.id for d in t.details}
+        for mk in t.marks:
+            r = mk.rect
+            n = t.refs.get(mk.id)
+            if mk.id in t.ambiguous:
+                why = (f"Typical 표식 '{mk.id}' — 이 장에 같은 글자의 상세 캡션이 "
+                       f"둘 이상이라 어느 상세인지 도면이 말하지 않습니다 (곱하지 않았습니다)")
+            elif mk.kind == "free":
+                why = (f"Typical 상세 캡션 '{mk.id}'"
+                       + (f" — 본문 참조 {n}개" if n else " — 본문 참조 0개"))
+            elif mk.id in captions:
+                why = (f"Typical 참조 '{mk.id}' — 이 장의 상세 한 벌을 가리킵니다"
+                       + (f" (참조 {n}개)" if n else ""))
+            else:
+                why = (f"Typical 표식 '{mk.id}' — 이 장에 같은 글자의 상세 캡션이 "
+                       f"없어 짝이 서지 않았습니다")
+            layers[pno]["TYPICAL"].append({
+                "key": _key(tb_rows[pno]["drawing_no"], pno, "TY", mk.id,
+                            *[round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]),
+                "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)],
+                "label": mk.id, "scope": SCOPE_INCLUDED, "kind": KIND_INSTRUMENT,
+                "needs_review": False, "row": False, "typical": True,
+                "reason": why,
+            })
+        for d in t.details:
+            if d.box is None:
+                continue
+            b = d.box
+            n = t.refs.get(d.id, 0)
+            layers[pno]["TYPICAL"].append({
+                "key": _key(tb_rows[pno]["drawing_no"], pno, "TYBOX", d.id,
+                            *[round(v, 1) for v in (b.x0, b.y0, b.x1, b.y1)]),
+                "rect": [round(v, 1) for v in (b.x0, b.y0, b.x1, b.y1)],
+                "label": f"{d.id} 상세", "scope": SCOPE_INCLUDED,
+                "kind": KIND_INSTRUMENT, "needs_review": False, "row": False,
+                "typical": True,
+                "reason": (f"Typical 상세 상자 '{d.id}' — 캡션 \u201c{d.caption}\u201d · "
+                           f"본문 참조 {n}개.  이 상자 안의 행 수량이 그만큼 곱해집니다"),
+            })
+
     # Pipe connectivity.  Every row gets what it is connected to, or the fact
     # that it could not be traced.  No sentence is written from it - Description
     # stays empty, and this is the input a later pass would need.

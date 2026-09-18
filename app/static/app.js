@@ -2635,6 +2635,22 @@ function pulse(key) {
 
 function showExcluded(item) {
   if (!item) return;
+  // 9차 피드화 [B] — Typical 표식은 **제외된 심볼이 아니다.**  그 자리에 품목이
+  // 있는 것이 아니라 "이 자리는 저 상세와 같다" 는 도면의 말이고, SCOPE 도 제외
+  // 규칙도 걸리지 않는다.  54회차 캡처가 잡았다 — 패널이 "스코프 판정: 판정 없음
+  // — SCOPE 열이 비어 있습니다(이 열이 생기기 전의 분석)" 라고 **없는 사실**을
+  // 말하고 있었다.
+  if (item.typical) {
+    $("#evidence").innerHTML =
+      `<h3>Typical 표식 — ${escape(item.label || "")} (p${S.page.page_no})</h3><dl>`
+      + `<dt>무엇인가</dt><dd>${escape(item.reason || "")}</dd>`
+      + `<dt>위치</dt><dd>${escape(S.page.drawing_no || "")} · p${S.page.page_no}`
+      + ` · (${item.rect.map(v => Math.round(v)).join(", ")})</dd>`
+      + `<dt>리스트 반영</dt><dd>이 표식 자체는 행이 아닙니다 — 상세 상자 안의`
+      + ` 행 수량이 참조 수만큼 곱해집니다 (근거는 그 행의 <b>수량 근거</b>)</dd>`
+      + `</dl>`;
+    return;
+  }
   const label = (SCOPE.find(s => s[0] === item.scope) || [, item.scope, "", ""]);
   const notes = (item.notes_text || []).map(t => `“${t}”`).join(" / ");
   $("#evidence").innerHTML =
@@ -3644,6 +3660,12 @@ const MANUAL_MARK = ["MANUAL", "사용자 추가", "#34c759",
                      "사람이 도면에서 추가한 행 — 녹색 선과 왼쪽 위 ✚"];
 const REJECT_MARK = ["REJECT", "오검출 표시 (그중)", "#8e8e93",
                      "사람이 오검출로 표시한 행 — 오른쪽 아래 ✕. 행은 남고 Excel 제외는 선택"];
+/* 9차 피드백 [B] — Typical 표식(`D` · `D1` …)과 상세 상자.  **행이 아니다** —
+ * 그 자리에 품목이 있는 것이 아니라 "이 자리는 저 상세와 같다" 는 도면의 말이고,
+ * 수량은 그 상세 안의 행이 받는다 (38회차 [D]).  그래서 SCOPE 색 칸에 섞지 않고
+ * 자기 칸을 갖는다 — 33회차 등식(칸 합 = 상자 수)은 그대로다. */
+const TYPICAL_MARK = ["TYPICAL", "Typical 표식 (행 아님)", "#5e5ce6",
+                      "도면이 선언한 Typical 표식과 상세 상자 — 상자 안의 행 수량이 참조 수만큼 곱해집니다"];
 
 /* 범례 설명 뒤에 "양식에 나가는가" 한 마디를 붙인다.  판정은 `scopeFacts`
  * 하나에서 오고 여기서 다시 하지 않는다 (12회차 규칙). */
@@ -3709,8 +3731,11 @@ function overlayItems(page) {
 function itemVisible(it) {
   // 53회차 — 사용자 추가는 자기 색 칸이므로 그 칸을 끄면 상자도 숨는다
   // (범례 라벨과 세는 대상과 그리는 대상이 같아야 한다 — 11회차 캡처).
-  if (it.manual) { if (S.ovOff.has(MANUAL_MARK[0])) return false; }
+  if (it.typical) { if (S.ovOff.has(TYPICAL_MARK[0])) return false; }
+  else if (it.manual) { if (S.ovOff.has(MANUAL_MARK[0])) return false; }
   else if (S.ovOff.has(itemScope(it))) return false;
+  // Typical 표식은 어느 산출물 탭에도 속하지 않는다 — 검토 탭 말고는 늘 보인다.
+  if (it.typical) return S.tab !== "REVIEW";
   if (S.tab === "REVIEW") return !!it.needs_review;
   if (S.tab === "ALL") return true;
   // A deliverable tab shows its own rows, and keeps the excluded symbols on
@@ -3721,11 +3746,12 @@ function itemVisible(it) {
 function buildOverlayLegend() {
   const items = S.page ? overlayItems(S.page) : [];
   const counts = {};
-  let review = 0, manual = 0, rejected = 0;
+  let review = 0, manual = 0, rejected = 0, typical = 0;
   for (const it of items) {
     // 53회차 — 사용자 추가는 **자기 칸**이다 (상자도 녹색으로 그린다).  SCOPE
     // 칸에도 세면 한 상자가 두 번 세어져 33회차 등식이 깨진다.
-    if (it.manual) manual++;
+    if (it.typical) typical++;
+    else if (it.manual) manual++;
     else counts[itemScope(it)] = (counts[itemScope(it)] || 0) + 1;
     if (it.needs_review) review++;
     if (it.rejected) rejected++;
@@ -3741,6 +3767,7 @@ function buildOverlayLegend() {
   $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) =>
     row(key, label, colour, why, counts[key] || 0, "")).join("")
     + row(...MANUAL_MARK, manual, "")
+    + row(...TYPICAL_MARK, typical, "")
     + row(...REVIEW_MARK, review, "badge")
     + row(...REJECT_MARK, rejected, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
@@ -3773,6 +3800,7 @@ function drawOverlay() {
     // 와 `.det.excluded` 를 이겼다.  그래서 개정은 자기 도형을 따로 그린다.
     const rev = (S.revByKey || {})[it.key];
     r.setAttribute("class", "det"
+      + (it.typical ? " typical" : "")
       + (it.kind === "VALVE" ? " valve" : "")
       + (it.row === false ? " excluded" : "")
       + (it.manual ? " manual" : "")
@@ -3786,8 +3814,8 @@ function drawOverlay() {
     // 고친다: 사용자 추가는 "(그중)" 이 아니라 자기 색 칸이 되고, 합은
     // `SCT + VENDOR + 판정없음 + 사용자추가 = 상자 수` 다.
     // 탭 색 보기(`S.byTab`)에서는 탭이 색을 정하므로 건드리지 않는다.
-    const stroke = S.byTab
-      ? (COLOR[it.tab] || "#8e8e93")
+    const stroke = it.typical ? TYPICAL_MARK[2]
+      : S.byTab ? (COLOR[it.tab] || "#8e8e93")
       : it.manual ? MANUAL_MARK[2]
       : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
     r.setAttribute("stroke", stroke);

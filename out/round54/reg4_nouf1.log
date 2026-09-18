@@ -1,0 +1,15 @@
+· AL NOUF1 분석 …
+   행 1137 · 지문 c3f63cde · 축3 94.8점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1137   c3f63cde     2140     650    4.9G   94.8
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        247/272      1137/1137    1137/1354    30/32      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   AL NOUF1 rows: 기준선 1149 → 지금 1137
+   AL NOUF1 fingerprint: 기준선 1f40cc928b8fd87cd0195b0ed83c1e383c1f5d72a315bfedc80adc2cd8ea6ac7 → 지금 c3f63cded7506f6249ac850f69f97547ebe7fed5d9e0be416a8d56c06f67cd4d
+   AL NOUF1 qty_sum: 기준선 2172 → 지금 2140

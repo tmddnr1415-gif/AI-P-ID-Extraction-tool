@@ -248,12 +248,17 @@ def test_the_recall_check_catches_the_definition_line_gate(monkeypatch):
     """
     real = ds.star_groups
 
-    def gated(pc, lay=ds.LAYOUT, maxlen=0.0, region=None):
-        groups = real(pc, lay, maxlen, region)
+    # ⚠ 54회차 — 이 대역은 `star_groups` 의 인자를 **그대로** 받아야 한다.
+    # 38회차가 `min_dirs` 를 더한 뒤로 대역의 서명이 낡아 있었는데, TC2 PDF 가
+    # 없는 기계에서는 이 시험이 건너뛰어져 드러나지 않았다 (14회차 [1] 과 같은
+    # 모양 — 시험이 도는 조건이 시험을 가렸다).
+    def gated(pc, lay=ds.LAYOUT, maxlen=0.0, region=None, min_dirs=2):
+        groups = real(pc, lay, maxlen, region, min_dirs=min_dirs)
         if region is not None:
             return groups
-        defn = [g for g in real(pc, lay, maxlen,
-                                region=__import__("pymupdf").Rect(*lay.notes_area))]
+        defn = real(pc, lay, maxlen,
+                    region=__import__("pymupdf").Rect(*lay.notes_area),
+                    min_dirs=min_dirs)
         return [g for g in groups if not defn or g[1] == defn[0][1]]
 
     monkeypatch.setattr(ds, "star_groups", gated)
@@ -299,3 +304,53 @@ def _tc2_page6_marks_inner(dl, pipeline):
     printed = [c for c in _midpoint_clusters(pc, short[len(short) // 2])
                if any(ds.in_mark_window(b, c[0], c[1], lay) for b in bubbles)]
     return marks, printed
+
+
+# --------------------------------------------------------------------------
+# 54회차 — 9차 피드백 [C]: `**` 를 나란히 찍고 버블 바로 위에 붙인 장
+# --------------------------------------------------------------------------
+def test_two_stars_side_by_side_are_both_read(tmp_path):
+    """★ 별표 옆의 별표는 "다른 잉크" 가 아니다 (TC2 p12 `**`).
+
+    실측: 왼쪽 별 중심 (525.36, 580.04) · 오른쪽 (529.64, 580.04) · 팔 길이 3.96 ·
+    두 별 사이 가장 가까운 끝점 간격 **0.24pt** 인데 허용치는 0.99pt 다.  그래서
+    서로를 "닿은 것" 으로 보고 **둘 다** 버렸다.  25회차 규칙이 가르려던 것은
+    밸브 나비이지 옆 별표가 아니다 — 후보 무리 전체를 제외 집합으로 본다.
+    """
+    def draw(pg):
+        _star(pg, 100, 100, 1.4)
+        _star(pg, 104.28, 100, 1.4)      # 실측 간격 그대로
+    pc = _page_with(tmp_path, draw)
+    groups = ds.star_groups(pc, ds.LAYOUT, maxlen=11.0, min_dirs=3)
+    assert len(groups) == 2, groups
+
+
+def test_a_star_just_above_the_bubble_it_marks_is_read(tmp_path):
+    """★ 별표는 자기가 가리키는 버블 바로 위에 찍힌다 — 그 변은 꼭짓점이 아니다.
+
+    실측 (TC2 p12 · PI 버블): 별 아래 팔 끝에서 버블 윗변까지 **0.96pt**, 허용치
+    1.02pt.  그 변의 **끝점**까지는 9.1pt 로 멀다.  25회차가 적어 둔 이유
+    (*나비의 대각선은 삼각형 꼭짓점에서 만난다*)대로 **끝점**으로 재면 살아난다.
+    """
+    def draw(pg):
+        _star(pg, 100, 100, 1.4)
+        # 버블 윗변 — 별의 아래 팔 끝(y=101.4)에서 0.96pt 아래, 길이 22.56
+        pg.draw_line(pymupdf.Point(88.7, 102.36), pymupdf.Point(111.3, 102.36), width=0.3)
+    pc = _page_with(tmp_path, draw)
+    groups = ds.star_groups(pc, ds.LAYOUT, maxlen=11.0, min_dirs=3)
+    assert len(groups) == 1, groups
+
+
+def test_the_bowtie_is_still_not_a_star_under_the_endpoint_rule(tmp_path):
+    """가르려던 것은 그대로 걸린다 — 밑변·이웃 변은 대각선 끝과 **끝점을 공유**한다."""
+    pc = _page_with(tmp_path, lambda pg: _bowtie(pg, 200, 100, 8, 4))
+    assert ds.star_groups(pc, ds.LAYOUT, maxlen=30.0) == []
+
+
+def test_the_touch_rule_measures_to_endpoints_not_along_the_line():
+    """§9 — 규칙이 무엇을 재는지 소스가 말한다 (허용치는 그대로 획 길이의 1/4)."""
+    src = inspect.getsource(ds._touches)
+    assert "math.hypot(p.x - a.x, p.y - a.y) <= tol" in src
+    assert "math.hypot(p.x - b.x, p.y - b.y) <= tol" in src
+    # 선분 위 최근접점을 재던 코드는 남아 있지 않다
+    assert "t * vx" not in src

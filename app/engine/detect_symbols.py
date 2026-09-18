@@ -1154,7 +1154,21 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     # 칸이 허용치보다 작으면 `_touches` 가 그만큼 **더 넓게 훑으면 된다** — 결과는
     # 같고 만드는 횟수만 준다.
     icell, touch = _ink_cache(pc, m, cell)
-    used, out = set(), []
+    # ★ 54회차 — **두 번 훑는다.**  먼저 무리를 다 모으고, 그 다음에 끝점을 본다.
+    #
+    # 9차 피드백 [C]: TC2 p12 는 `**` 를 별표 **둘을 나란히** 찍어 그린다.  실측
+    # (p12 PI 버블 위): 왼쪽 별 중심 (525.36, 580.04) · 오른쪽 (529.64, 580.04) ·
+    # 팔 길이 3.96 · 두 별 사이 가장 가까운 끝점 간격 **0.24pt**.  허용치는 획
+    # 길이의 1/4 = 0.99pt 이므로 서로의 팔을 "다른 잉크" 로 보고 **둘 다** 버렸다.
+    # 그 장은 `[1] BY SCT` · `[2] PUMP SUPPLIER'S SCOPE` 를 제대로 읽어 두고도
+    # `**` 를 한 번도 못 세어 19행이 전부 SCT 로 나갔다.
+    #
+    # 25회차 규칙(*별표의 획은 허공에서 끝난다*)은 그대로다 — 가르려던 것은
+    # **밸브 나비**이고, 나비의 대각선은 삼각형 꼭짓점에서 밑변·이웃 변과 만난다.
+    # 옆 별표의 팔은 그 "다른 것" 이 아니다.  그래서 제외 집합(`own`)을 자기 무리에서
+    # **후보 무리 전체**로 넓힌다.  나비가 후보가 되지 않는 것은 방향 수가 가르고
+    # (`min_dirs`), 후보가 되지 못한 획은 예전과 똑같이 "다른 잉크" 로 남는다.
+    used, groups = set(), []
     for i, s in enumerate(segs):
         if i in used:
             continue
@@ -1176,13 +1190,17 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
         # (`definition_stars`)은 그대로 둘이다 — TC2 정의줄 별표가 실제로 2획이다 (26회차).
         if len(near) < 2 or len({segs[j][3] for j in near}) < min_dirs:
             continue
-        own = {(round(segs[j][4].x, 2), round(segs[j][4].y, 2),
-                round(segs[j][5].x, 2), round(segs[j][5].y, 2)) for j in near}
-        if any(_touches(touch, segs[j][4], 0.25 * segs[j][2], own, icell)
-               or _touches(touch, segs[j][5], 0.25 * segs[j][2], own, icell)
+        used.update(near)
+        groups.append(near)
+    own_all = {(round(segs[j][4].x, 2), round(segs[j][4].y, 2),
+                round(segs[j][5].x, 2), round(segs[j][5].y, 2))
+               for near in groups for j in near}
+    out = []
+    for near in groups:
+        if any(_touches(touch, segs[j][4], 0.25 * segs[j][2], own_all, icell)
+               or _touches(touch, segs[j][5], 0.25 * segs[j][2], own_all, icell)
                for j in near):
             continue
-        used.update(near)
         xs = [p.x for j in near for p in (segs[j][4], segs[j][5])]
         ys = [p.y for j in near for p in (segs[j][4], segs[j][5])]
         out.append((pymupdf.Rect(min(xs), min(ys), max(xs), max(ys)),
@@ -1258,10 +1276,28 @@ def _index_put(grid, a, b, cell):
 
 
 def _touches(grid, p, tol, own, cell):
-    """점 `p` 가 자기 무리 밖의 어떤 선분에 `tol` 안으로 닿는가.
+    """점 `p` 가 자기 무리 밖의 어떤 선분의 **끝점**에 `tol` 안으로 닿는가.
 
     훑는 이웃 칸 수는 **허용치와 격자 칸에서 나온다** — 격자를 어느 칸으로
     만들었든 `tol` 반경을 덮는다 (26회차: 인덱스를 한 번만 만들기 위해서다).
+
+    ★ 54회차 — **닿는 자리는 꼭짓점이지 선분의 한가운데가 아니다.**
+
+    25회차가 이 조건을 넣은 이유는 한 문장으로 적혀 있다: *나비의 대각선은
+    삼각형 **꼭짓점**에서 밑변·이웃 변과 만나고, 별표의 획은 허공에서 끝난다.*
+    꼭짓점은 여러 선분의 **끝점**이 모이는 자리다.  그런데 구현은 "선분의
+    어디든" 으로 재고 있었고, 그래서 별표가 **자기가 가리키는 버블의 윗변**에
+    가까이 찍힌 장에서 별표가 통째로 사라졌다.
+
+    실측 (TC2 p12 · PI 버블 위의 `**`): 별 아래 팔 끝 (525.36, 582.08) ↔
+    버블 윗변 `(516.24,583.04)-(538.80,583.04)` 까지 **0.96pt**, 허용치는
+    획 길이의 1/4 = 1.02pt.  그 변의 끝점까지는 9.1pt 로 멀다.  즉 별표는
+    선분의 **한가운데 옆**을 지나갈 뿐 꼭짓점에 닿지 않는다.  그 장은
+    `[1] BY SCT` · `[2] PUMP SUPPLIER'S SCOPE` 를 제대로 읽어 두고도 `**` 를
+    한 번도 세지 못해 19행이 전부 SCT 로 나갔다 (9차 피드백 [C]).
+
+    가르려던 나비는 그대로 걸린다 — 삼각형의 밑변과 이웃 변은 대각선 끝과
+    **끝점을 공유**한다.  전수 실측: TC2 마크 509 → 529 (+20 · 사라진 것 0).
     """
     gx, gy = int(p.x // cell), int(p.y // cell)
     rings = int(tol // cell) + 1
@@ -1271,14 +1307,8 @@ def _touches(grid, p, tol, own, cell):
             for a, b, key in grid.get((gx + dx, gy + dy), ()):
                 if key in own:
                     continue
-                vx, vy = b.x - a.x, b.y - a.y
-                L2 = vx * vx + vy * vy
-                if L2 == 0:
-                    d = math.hypot(p.x - a.x, p.y - a.y)
-                else:
-                    t = max(0.0, min(1.0, ((p.x - a.x) * vx + (p.y - a.y) * vy) / L2))
-                    d = math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy))
-                if d <= tol:
+                if (math.hypot(p.x - a.x, p.y - a.y) <= tol
+                        or math.hypot(p.x - b.x, p.y - b.y) <= tol):
                     return True
     return False
 

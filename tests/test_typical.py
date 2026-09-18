@@ -194,3 +194,51 @@ def test_synthetic_sheets_give_the_same_factor_whatever_the_letters_are(tmp_path
                       sorted(t.unpaired))
     for ident in ids:
         assert got[ident] == (3, [400, 500, 780, 700], ["M"]), (ident, got[ident])
+
+
+# --------------------------------------------------------------------------
+# 54회차 — 9차 피드백 [B]: 표식을 **보인다**
+# --------------------------------------------------------------------------
+def test_typical_marks_are_put_on_the_overlay_as_their_own_layer():
+    """38회차가 읽어 둔 값을 화면이 받을 자리가 없었다 (§9 3③).
+
+    행이 아니므로 SCOPE 색 칸에 섞지 않는다 — 파이프라인이 `layers[장]["TYPICAL"]`
+    에 `row: False` · `typical: True` 로 놓고, 화면이 자기 칸으로 센다.
+    """
+    src = inspect.getsource(P)
+    assert 'layers[pno]["TYPICAL"].append(' in src
+    assert '"typical": True' in src
+    # 그 층은 새로 세지 않는다 — 이미 읽어 둔 `typical_by_page` 를 그대로 놓는다.
+    assert "for pno, t in typical_by_page.items():" in src
+
+
+def test_the_screen_counts_typical_in_its_own_legend_row():
+    """33회차 등식 — 칸 합 = 상자 수.  Typical 을 SCOPE 칸에 세면 깨진다."""
+    js = (ROOT / "app" / "static" / "app.js").read_text()
+    assert "TYPICAL_MARK" in js
+    assert "if (it.typical) typical++;" in js
+    assert "+ row(...TYPICAL_MARK, typical, \"\")" in js
+    # 색은 자기 칸의 값과 같은 곳에서 온다 (색과 칸이 다른 값을 읽으면 갈린다)
+    assert "it.typical ? TYPICAL_MARK[2]" in js
+
+
+def test_typical_layer_items_are_not_rows():
+    """`row: False` — 그 자리에 품목이 있는 것이 아니라 '저 상세와 같다' 는 말이다."""
+    src = inspect.getsource(P)
+    block = src[src.index('layers[pno]["TYPICAL"].append('):]
+    assert '"row": False' in block[:1200]
+
+
+def test_a_typical_mark_is_not_described_as_an_excluded_symbol():
+    """★ 54회차 캡처가 잡았다 — 패널이 **없는 사실**을 말하고 있었다.
+
+    표식을 누르면 *"제외된 심볼 … 스코프 판정: 판정 없음 — SCOPE 열이 비어
+    있습니다(이 열이 생기기 전의 분석)"* 이 떴다.  Typical 표식에는 SCOPE 도
+    제외 규칙도 걸리지 않는다 — 그 자리에 품목이 있는 것이 아니다.
+    """
+    js = (ROOT / "app" / "static" / "app.js").read_text()
+    body = js[js.index("function showExcluded("):]
+    body = body[:body.index("\n}\n")]
+    assert "if (item.typical) {" in body
+    # 그 갈래는 SCOPE 라벨을 읽기 **전**에 돌아간다
+    assert body.index("if (item.typical) {") < body.index("SCOPE.find(")

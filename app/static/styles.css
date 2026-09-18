@@ -1094,3 +1094,12 @@ rect.tagbub { fill: none; stroke-width: 1.2; stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke; pointer-events: none; opacity: .85; }
 line.tagbub-l { stroke-width: 1; stroke-dasharray: 2 3;
   vector-effect: non-scaling-stroke; pointer-events: none; opacity: .6; }
+
+/* 9차 피드백 [B] — Typical 표식과 상세 상자.  행이 아니므로 검출 상자와 **다른
+ * 얼굴**이다: 긴 파선 + 옅은 채움.  색은 자기 범례 칸(`TYPICAL_MARK`)과 같은
+ * 값을 JS 가 stroke 로 넣는다 (색과 칸이 서로 다른 값을 읽으면 언젠가 갈린다). */
+rect.det.typical {
+  stroke-width: 1.6;
+  stroke-dasharray: 7 3;
+  fill: rgba(94, 92, 230, .07);
+}

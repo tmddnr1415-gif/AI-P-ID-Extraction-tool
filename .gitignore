@@ -138,3 +138,8 @@ out/round44/h44.done
 out/round44/verify/*.log
 out/round44/verify/state.json
 out/round44/verify/forms*.zip
+
+# 54회차 — 회귀 결과 json(7MB x5)과 UI 감사용 임시 DB 는 담지 않는다.
+# 보고서·로그·렌더만 남긴다 (`out/round54/1_보고서.md` 가 숫자를 갖고 있다).
+out/round54/*.json
+out/round54/ui/*.db

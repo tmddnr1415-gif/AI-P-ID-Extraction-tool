@@ -965,6 +965,11 @@ def _angle_figures(pc, lay: ValveLayout):
     있으므로(범례 p3), 어긋남을 재는 기준은 rect 중심이 아니라 꼭짓점이다.
     """
     out = []
+    # 54회차 — 획의 좌표는 **회전 전**이고 `bbox` 는 표시 좌표다.  꼭짓점을
+    # 그대로 내면 `attach_actuators` 가 다른 좌표계에서 어긋남을 재게 된다
+    # (41회차 [C] 가 `legend_rules._straight_items` 에서 겪은 것과 같은 덫).
+    # 회전 0 인 문서(AL NOUF1)에서는 항등이라 아무것도 달라지지 않는다.
+    m = pc.page.rotation_matrix
     for d in pc.drawings():
         if d.get("fill") is not None:
             continue
@@ -976,6 +981,7 @@ def _angle_figures(pc, lay: ValveLayout):
             continue
         if min(box.width, box.height) < lay.body_short[0]:
             continue
+        items = [(it[0], it[1] * m, it[2] * m) for it in items]
         ends = collections.Counter()
         for it in items:
             for pt in (it[1], it[2]):
@@ -1046,11 +1052,21 @@ def _fold_angle_bodies(pc, bodies: list[Body], lay: ValveLayout) -> list[Body]:
         inside = [b for b in bodies
                   if b.kind == "CHECK" and box.intersects(b.rect)
                   and id(b) not in taken]
-        if not inside:
-            continue
+        # ★ 54회차 — **반쪽 `CHECK` 가 없어도 앵글은 앵글이다** (9차 피드백 [A]).
+        #
+        # 18회차는 이 갈래를 "반쪽을 접는" 자리로만 썼다.  그래서 AL NOUF1 처럼
+        # 두 삼각형이 각각 배관 끝막대를 갖는 문서에서만 몸체가 섰고, 끝막대 없이
+        # 배관 모서리에 바로 앉은 문서에서는 **범례가 정의한 모양을 찾아 놓고 버렸다.**
+        # TC2 실측: `_angle_figures` 6개 중 4개가 `CHECK` 0개라 버려졌고, 그중
+        # p10 의 둘이 9차 피드백이 지목한 `XV`(HRH·LP BYPASS 옆)다.
+        #
+        # 근거는 그 문서의 범례다 — TC2 p2 `LINE VALVES` 의 `ANGLE` 이 이 도형
+        # (한 객체 · 중공 · 6선 · 꼭짓점에 끝점 4개)으로 그려져 있고, 도면이
+        # 같은 도형을 같은 크기로 그린다 (실측 legend 7.4x7.5 ↔ p10 7.4x7.5).
+        # `CHECK` 반쪽이 있으면 예전처럼 접고, 없으면 도형 하나가 곧 몸체다.
         for b in inside:
             taken.add(id(b))
-        state = inside[0].state
+        state = inside[0].state if inside else "OPEN"
         out.append(Body("ANGLE", pymupdf.Rect(box), axis, state=state,
                         evidence={"legend": "page 2 ANGLE",
                                   "apex": [round(apex[0], 1), round(apex[1], 1)],
@@ -1714,15 +1730,148 @@ def bubble_tags(pc, lay: ValveLayout = LAYOUT):
     return out
 
 
-def attach_tags(pc, bodies: list[Body], lay: ValveLayout = LAYOUT) -> list[tuple]:
-    """Give each tag bubble to its nearest unclaimed body.
+def _leader_index(pc, cell: float):
+    """이 장의 직선을 **끝점이 든 칸**으로 색인한다.
 
-    The leader line from bubble to body is drawn as a plain segment among tens
-    of thousands of others, so this spike uses nearest-body instead of tracing
-    it, and reports the distance as evidence.
+    지시선은 버블 테두리에 한쪽 끝이 있으므로 그 칸만 보면 된다.  칸은 그 장
+    버블의 긴 변이라 절대 pt 가 아니다 (§9 ⑥).
+    """
+    m = pc.page.rotation_matrix
+    grid: dict = collections.defaultdict(list)
+    if cell <= 0:
+        return grid
+    for d in pc.drawings():
+        for it in d["items"]:
+            if it[0] != "l":
+                continue
+            a, c = it[1] * m, it[2] * m
+            seg = (a, c)
+            for p in (a, c):
+                grid[(int(p.x // cell), int(p.y // cell))].append(seg)
+    return grid
+
+
+def _leader(grid, cell: float, bub, slack: float):
+    """버블 테두리를 **한 번만** 넘는 가장 긴 직선의 바깥 끝 — `(길이, 점)` 또는 None.
+
+    ★ 도면은 버블에서 그 밸브까지 선을 하나 긋는다.  그것을 읽는 것은 **한
+    걸음**이지 순회가 아니다 (§2.3 — `describe_axis.pick_tap` 과 같은 자리이고,
+    이 함수는 찾은 끝에서 다시 선을 찾지 않는다).
+
+    `slack` 은 **그려진 테두리와 캡 사각형의 차이**다 — 실측 0.14~0.24pt 이고
+    선 굵기에서 나오므로 종이 크기와 무관하다.  `detect_symbols.Layout.side_slack`
+    (*how far a side may fall short of the caps*) 이 같은 차이를 이미 다루고 있어
+    그 값을 그대로 쓴다 — 새 값이 아니다 (47회차 `MARK_SIZE_TOL` 과 같은 자리).
+    """
+    r = pymupdf.Rect(bub.x0 - slack, bub.y0 - slack, bub.x1 + slack, bub.y1 + slack)
+    best = None
+    seen = set()
+    for gx in range(int(r.x0 // cell), int(r.x1 // cell) + 1):
+        for gy in range(int(r.y0 // cell), int(r.y1 // cell) + 1):
+            for seg in grid.get((gx, gy), ()):
+                if id(seg) in seen:
+                    continue
+                seen.add(id(seg))
+                a, c = seg
+                a_in, c_in = r.contains(a), r.contains(c)
+                if a_in == c_in:
+                    continue
+                ln = ((c.x - a.x) ** 2 + (c.y - a.y) ** 2) ** 0.5
+                if ln <= slack:
+                    continue
+                if best is None or ln > best[0]:
+                    best = (ln, c if a_in else a)
+    return best
+
+
+def _body_at(bodies: list[Body], pt):
+    """지시선 끝이 가리키는 몸체 — **그 몸체 자신의 크기**만큼 넉넉히 본다.
+
+    지시선은 밸브의 **스템 끝**에서 멈추지 몸체 사각형 안까지 들어오지 않는다.
+    실측 (AL NOUF1 p26 `MOV`): 지시선 끝 (667.1, 556.4) ↔ 몸체
+    `[659.6, 556.6, 665.7, 573.6]` — 오른쪽으로 **1.4pt** 밖이다.  포함만 보면
+    자기 밸브를 놓치고, 그러면 글리프 사전이 그 무리의 이름표를 잃는다
+    (실측: 글자 `H 4 / M 32` → `M 17`).
+
+    허용치를 새로 두지 않는다 — **그 도형의 짧은 변**으로 넓힌다 (도형마다
+    그 도면에서 잰 값이다 · §9 ⑥).  여러 몸체가 걸리면 가장 가까운 것.
+    """
+    def near(r):
+        pad = min(r[2] - r[0], r[3] - r[1])
+        return (r[0] - pad <= pt.x <= r[2] + pad
+                and r[1] - pad <= pt.y <= r[3] + pad)
+
+    # 몸체를 먼저 보고, 없으면 **그 몸체의 액추에이터**를 본다.  도면은 지시선을
+    # 모터 원까지만 긋기도 한다 — 실측 (AL NOUF1 p46 `MOV`): 세로 버블에서 곧장
+    # 아래로 내려온 지시선이 `M` 원에서 끝나고 밸브는 그 아래 스템 끝에 있다.
+    # 그 `M` 원은 이미 그 밸브의 것으로 짝지어져 있으므로(`attach_actuators`)
+    # 새 짐작이 아니다.
+    for probe in ("rect", "actuator_rect"):
+        best, best_d = None, None
+        for b in bodies:
+            if b.tag:
+                continue
+            r = b.rect if probe == "rect" else getattr(b, "actuator_rect", ())
+            if not r:
+                continue
+            r = (r.x0, r.y0, r.x1, r.y1) if hasattr(r, "x0") else tuple(r)
+            if not near(r):
+                continue
+            cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+            d = ((cx - pt.x) ** 2 + (cy - pt.y) ** 2) ** 0.5
+            if best_d is None or d < best_d:
+                best, best_d = b, d
+        if best is not None:
+            return best
+    return None
+
+
+def attach_tags(pc, bodies: list[Body], lay: ValveLayout = LAYOUT) -> list[tuple]:
+    """Give each tag bubble the body **the drawing's leader line points into**.
+
+    ★ 54회차 (9차 피드백 [A]) — 이 함수는 지시선을 읽지 않고 **가장 가까운 몸체**
+    를 주고 있었고, 그 반경 `tag_reach` 는 AL NOUF1 p6 에서 잰 **절대 pt 190.0**
+    이었다 (§9 위반 — 38·47회차의 `act_box` 와 같은 자리).  A3 로 그린 붐비는
+    장에서는 그 반경 안에 밸브가 열 개 넘게 들어와, 태그가 자기 밸브가 아닌
+    옆 밸브를 집는다.
+
+    실측 (TC2 p10 · `XV` 스프레이 워터 블록 밸브): 자기 밸브까지 34.1pt 인데
+    유량계 배열의 다른 밸브가 29.6pt 라 그쪽을 집었다.  `PCV`(HP BY PASS VALVE)
+    는 자기 밸브가 33pt 인데 검출되지 않아 **103.6pt 떨어진 남의 밸브**를 집었다.
+    17회차 C-4 가 적어 둔 문장 그대로다 — *"가장 가까운" 이 "가까운" 은 아니다.*
+
+    그런데 도면은 답을 그려 두고 있다.  전수 실측: 태그 버블에서 테두리를 한 번
+    넘는 직선이 **AL NOUF1 198개 중 197개 · TC2 149개 중 149개**에 있다.
+
+    규칙:
+      · 지시선이 들어간 몸체가 있으면 그 몸체다 (포함 판정 — 허용치가 없다).
+      · 지시선은 있는데 그 끝에 몸체가 없으면 **아무 몸체도 주지 않는다** —
+        그 태그는 53회차 [B-3] 의 `VALVE_TAG_NO_BODY` 행이 되어 버블 자리에
+        서고, 모양 칸은 비고 사유가 남는다 (§2.1 ③ — 없는 모양을 지어내지 않는다).
+      · 지시선이 아예 없으면 옛 규칙(최근접)이 그대로 돈다.
     """
     tags = bubble_tags(pc, lay)
+    if not tags:
+        return tags
+    cell = max(max(b.width, b.height) for _t, b in tags)
+    grid = _leader_index(pc, cell)
+    rest = []
     for text, bub in tags:
+        led = _leader(grid, cell, bub, ds.LAYOUT.side_slack)
+        if led is None:
+            rest.append((text, bub))
+            continue
+        ln, far = led
+        hit = _body_at(bodies, far)
+        if hit is None:
+            continue
+        bx, by = (bub.x0 + bub.x1) / 2, (bub.y0 + bub.y1) / 2
+        cx, cy = (hit.rect.x0 + hit.rect.x1) / 2, (hit.rect.y0 + hit.rect.y1) / 2
+        hit.tag = text
+        hit.tag_rect = (bub.x0, bub.y0, bub.x1, bub.y1)
+        hit.evidence["tag_distance"] = round(((cx - bx) ** 2 + (cy - by) ** 2) ** 0.5, 1)
+        hit.evidence["tag_leader"] = round(ln, 1)
+    for text, bub in rest:
         bx, by = (bub.x0 + bub.x1) / 2, (bub.y0 + bub.y1) / 2
         best, best_d = None, None
         for b in bodies:
