@@ -1311,11 +1311,21 @@ def sheet_notes(job_id: str, page_no: int):
         return {"known": True, "found": False,
                 "note": "이 장의 NOTES 에는 '이 도면이 유닛 몇 개에 같이 쓰이는가' "
                         "를 말하는 문단이 없습니다."}
+    # ★ 읽은 것과 **쓴 것**은 다르다.  `unit_notes.counted` 는 *그 문단에서 수를
+    # 셌다* 는 뜻이지 *그 값을 수량에 썼다* 가 아니다 — §9 읽는 순서가
+    # ①범례 → ②NOTES 라서, 범례 승수표가 답한 문서(AL NOUF1)는 노트를 읽고도
+    # 쓰지 않는다.  둘을 같이 적으면 화면이 사실과 다른 말을 한다 (53회차
+    # 자기검증이 잡았다).  **쓴 것은 행이 말한다** — `qty_basis` 에 `NOTES:` 가
+    # 들어가면 그 장은 노트로 곱한 것이다 (`_note_factor` 가 그때만 그렇게 적는다).
+    used = any("NOTES:" in str((r.get("evidence") or {}).get("qty_basis") or "")
+               for r in db.merged_rows(CON, job_id)
+               if r.get("page_no") == page_no)
     return {"known": True, "found": True,
             "text": got.get("text") or "",
             "units": got.get("units") or [],
             "factor": got.get("units_count"),
             "counted": bool(got.get("counted")),
+            "used": used,
             "source": (eng.get("multipliers") or {}).get("source") or ""}
 
 
@@ -1876,6 +1886,35 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
                              headers={"Cache-Control": "public, max-age=3600"})
 
 
+def _engine_near(job_id: str, page_no: int) -> tuple:
+    """엔진이 그 장에서 **실제로 낸 것** — 다시 세지 않고 저장된 것을 읽는다.
+
+    53회차 [G].  `pipeline.probe_point` 가 이것을 `ds.detect` 재실행으로 구하고
+    있었고 A1 장에서 5.1~9.8초였다 (8차 피드백 s8 의 남은 원인).  같은 답이
+    이미 두 곳에 있다 — 그 장의 행과 18회차 `unjudged_symbols` — 그리고 그것이
+    *엔진이 낸 것*이라 다시 돌린 값보다 정확하다.
+    """
+    dets = []
+    for r in db.merged_rows(CON, job_id):
+        if r.get("page_no") != page_no or not r.get("rect"):
+            continue
+        ev = r.get("evidence") or {}
+        dets.append({"anchor": ev.get("anchor") or ev.get("tag") or "",
+                     "excel_type": r.get("type") or "",
+                     "included": True,
+                     "rect": [round(float(v), 1) for v in r["rect"]],
+                     "rules": list(ev.get("rules_hit") or []),
+                     "review_codes": list(ev.get("review_codes") or [])})
+    eng = json.loads((db.get_job(CON, job_id) or {"engine_json": "{}"})["engine_json"] or "{}")
+    un = [u for u in (eng.get("unjudged_symbols") or [])
+          if u.get("page_no") == page_no and u.get("center")]
+    # ★ 제안(`markup.propose`)이 쓰는 것과 **같은 값**이어야 한다 — 그 장 캐시의
+    # 열쇠에 이것이 들어가므로, 다르면 제안이 데워 둔 캐시를 못 쓰고 그 장을
+    # 처음부터 다시 읽는다 (실측 5.3초).  53회차 자기검증이 그것을 잡았다.
+    moved = ((eng.get("applied_rules") or {}).get("layout") or {}).get("moved") or []
+    return dets, un, moved
+
+
 @app.post("/jobs/{job_id}/rows")
 async def add_row(job_id: str, payload: dict):
     """Create a row a reviewer wants that the engine did not propose.
@@ -1944,8 +1983,11 @@ async def add_row(job_id: str, payload: dict):
                  (float(rect[1]) + float(rect[3])) / 2]
     geometry = {}
     if len(point) == 2 and page_no:
+        _dets, _un, _moved = _engine_near(job_id, page_no)
         geometry = pipeline.probe_point(Path(job["pdf_path"]), page_no,
-                                        float(point[0]), float(point[1]))
+                                        float(point[0]), float(point[1]),
+                                        layout_moved=_moved,
+                                        near_detections=_dets, near_unmapped=_un)
     db.record_feedback(
         CON, job_id, "ADDED", row_key=key, page_no=page_no,
         drawing_no=payload.get("drawing_no") or "",
@@ -2459,9 +2501,13 @@ def _capture_point(job_id: str, page_no: int, point) -> dict:
     job = db.get_job(CON, job_id)
     if job is None or not page_no or len(point or []) != 2:
         return {}
+    _dets, _un, _moved = _engine_near(job_id, page_no)
     return {"point": [float(point[0]), float(point[1])],
             "geometry": pipeline.probe_point(Path(job["pdf_path"]), page_no,
-                                             float(point[0]), float(point[1]))}
+                                             float(point[0]), float(point[1]),
+                                             layout_moved=_moved,
+                                             near_detections=_dets,
+                                             near_unmapped=_un)}
 
 
 def _capture_context(job_id: str) -> dict:

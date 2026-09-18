@@ -3225,7 +3225,10 @@ def _propose_page(pdf_path, page_no, layout_moved):
     box_marks = ds.package_box_marks(boxes, marks, lay)
     made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
             "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
-            "box_marks": box_marks}
+            "box_marks": box_marks,
+            # 53회차 [G] — `probe_point` 가 쓸 자리.  **여기서 채우지 않는다** —
+            # 제안은 이것이 없어도 되고, 채우면 제안이 5초 느려진다.
+            "detect": None}
     _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
     return made
 
@@ -3310,7 +3313,8 @@ def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
 
 
 def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
-                radius: float = 60.0) -> dict:
+                radius: float = 60.0, layout_moved=None,
+                near_detections=None, near_unmapped=None) -> dict:
     """What is drawn around a point, for the correction history.
 
     Called when a reviewer adds a row the engine missed and says where it is.
@@ -3327,11 +3331,10 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
     # 한 점 둘레를 재는 것이지 분석이 아니므로 `_scope_by_project`(다수결)에
     # 기대지 않는다.  분석 경로가 `only=` 를 쓰면 안 된다는 규율은 그대로이고
     # `tests/test_markup_speed.py` 가 `_analyse` 를 검사한다.
-    doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
-    pc = next((p for p in pages if p.page_no == page_no), None)
-    if pc is None:
-        doc.close()
+    made = _propose_page(pdf_path, page_no, layout_moved)
+    if made is None:
         return {"error": f"page {page_no} is not in this PDF"}
+    pc = made["pc"]
     box = (x - radius, y - radius, x + radius, y + radius)
 
     def near(rect):
@@ -3360,30 +3363,23 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
              for r, t in pc.words if near(r)]
     words.sort(key=lambda w: w["dist"])
 
-    # What the engine did see here, and under which rules.
-    dets, _scopes, _marks, _unver, unmapped, _boxes, _bub = ds.detect(
-        pc, lay=ds.LAYOUT, rules=ds.RULESET_V3,
-        allow_glyph_sizes=ds.KNOWN_GLYPH_SIZES)
-    detections = []
-    for d in dets:
-        if not near(d.bbox):
-            continue
-        detections.append({
-            "anchor": getattr(d, "anchor", ""),
-            "excel_type": da.excel_type_under(d, ds.RULESET_V3),
-            "included": da.included_under(d, ds.RULESET_V3, ACTIVE_SCOPE),
-            "rules_hit": list(getattr(d, "rules_hit", []) or []),
-            "exclude_rule": getattr(d, "exclude_rule", ""),
-            "rect": [round(v, 1) for v in (d.bbox.x0, d.bbox.y0, d.bbox.x1, d.bbox.y1)],
-            "evidence": dict(getattr(d, "evidence", {}) or {}),
-        })
-    unmapped_near = [u for u in unmapped
+    # 53회차 [G] — **엔진이 여기서 무엇을 봤는가는 다시 세지 않는다.**
+    #
+    # 8차 피드백 s8(*"행추가를 누르면 너무 오래 걸린다"*)의 남은 원인이 여기
+    # 있었다: 이 함수가 `ds.detect` 를 한 장 통째로 다시 돌렸고 A1 장에서
+    # **5.1~9.8초**다.  그런데 그 답은 이미 있다 — 그 장의 행(`rect`·
+    # `rules_hit`)과 미판정 심볼(18회차 `unjudged_symbols`)을 서버가 들고 있고,
+    # 그것이 *엔진이 실제로 낸 것*이라 다시 돌린 값보다 정확하다(다시 돌리면
+    # 저장된 결과와 갈릴 수 있다).  그래서 **부르는 쪽이 넣어 준다**.
+    # §9 3③ — 도면이 말해주고 코드가 이미 찾아 뒀는데 쓰지 않던 자리다.
+    detections = list(near_detections or ())
+
+    unmapped_near = [u for u in (near_unmapped or ())
                      if abs(u["center"][0] - x) <= radius
                      and abs(u["center"][1] - y) <= radius]
-    # 53회차 — 여기까지 오면 돌려줄 값이 전부 맨 숫자·글자라 문서를 놓아도
-    # 된다.  놓지 않으면 행을 더할 때마다 문서 하나가 남는다 (46회차 [D] 가
-    # 제안 쪽에서 잉크 인덱스를 놓게 한 것과 같은 자리).
-    doc.close()
+    # 문서는 닫지 않는다 — 이제 **제안 캐시가 들고 있는 그 장**이고, 다음 장을
+    # 열 때 그 캐시가 놓는다 (한 장만 든다).  여기서 닫으면 같은 장에 두 번째
+    # 행을 더할 때 닫힌 문서를 읽는다.
     return {
         "page_no": page_no, "point": [round(x, 1), round(y, 1)], "radius": radius,
         "paths": paths[:120], "path_count": len(paths),

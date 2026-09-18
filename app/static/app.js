@@ -3383,6 +3383,7 @@ function showPage(page) {
   };
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
   showSheetNotes(page.page_no);
+  if (S.markup) prewarmMarkup();          // 장이 바뀌면 그 장을 미리 읽는다
 }
 
 /* 53회차 [E] — 이 장의 NOTES 판독 (8차 피드백 s3).
@@ -3405,18 +3406,20 @@ async function showSheetNotes(pageNo) {
     band.classList.remove("hidden");
     return;
   }
-  const used = d.counted
-    ? "이 장의 수량 배수로 **썼습니다**"
-    : `이 장의 수량은 **범례 승수표**가 정했습니다 (${escape(d.source || "LEGEND")}) — `
-      + "도면이 두 곳에서 말하면 범례가 이깁니다";
+  // 읽은 것과 **쓴 것**을 갈라 말한다 — 판정은 서버가 준 `used` 하나다.
+  const used = d.used
+    ? "이 장의 수량 배수로 <b>썼습니다</b>"
+    : `이 장의 수량은 <b>범례 승수표</b>가 정했습니다 (${escape(d.source || "LEGEND")}) — `
+      + "도면이 두 곳에서 말하면 범례가 이깁니다. 위 해석은 <b>읽기만 한 값</b>입니다";
   $("#notes-sum").textContent =
-    `NOTES 판독 — 유닛 ${d.units.join(" · ")} → 배수 x${d.factor}`;
+    `NOTES 판독 — 유닛 ${d.units.join(" · ")} → 배수 x${d.factor}`
+    + (d.used ? " (적용됨)" : " (읽기만 — 범례가 정함)");
   $("#notes-body").innerHTML =
     `<p class="nq">${escape(d.text)}</p>`
     + `<p class="small"><b>식별 값</b> ${escape(d.units.join(", "))} `
     + `(${d.units.length}개) &nbsp;·&nbsp; <b>해석</b> 이 도면은 유닛 ${d.units.length}개에 `
     + `같이 쓰이므로 심볼 1개당 x${d.factor}</p>`
-    + `<p class="small muted">${used.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</p>`;
+    + `<p class="small muted">${used}</p>`;
   band.classList.remove("hidden");
 }
 
@@ -4011,6 +4014,35 @@ function setMarkup(on) {
   $("#markup-toggle").classList.toggle("on", S.markup);
   $("#markup-toggle").setAttribute("aria-pressed", S.markup ? "true" : "false");
   updateMarkupNote();
+  if (S.markup) prewarmMarkup();
+}
+
+/* 53회차 [G] — 마크업을 켜면 **그 장을 미리 읽어 둔다** (8차 피드백 s8:
+ * *"마크업 이후 → 누락 행 추가까지의 시간이 너무 오래 걸린다"*).
+ *
+ * 값이 비싼 것이 아니라 **그 장을 처음 읽는 것**이 비싸다 (A1 장 약 5초:
+ * 버블 윤곽 · 파선 버블 · 마크 · 패키지 상자).  한 번 읽으면 그 장 안에서는
+ * 0.1초다 (실측 제안 5265 → 88ms · 행추가 199ms).  그래서 사람이 사각형을
+ * 그리기 **전에** 읽어 둔다 — 마크업을 켜는 순간이 그 자리다.
+ *
+ * 새 서버 코드를 만들지 않는다: 제안 경로를 그대로 부르되 답을 버린다.
+ * 캐시 열쇠가 같아야 뜻이 있으므로 **같은 엔드포인트**여야 한다.
+ * 실패해도 조용하다 — 미리 읽기는 거들 뿐이고 못 해도 예전만큼 걸린다. */
+let _prewarmed = null;
+async function prewarmMarkup() {
+  if (!S.job || !S.page) return;
+  const tag = `${S.job.id}:${S.page.page_no}`;
+  if (_prewarmed === tag) return;
+  _prewarmed = tag;
+  const n = $("#markup-note");
+  const was = n ? n.textContent : "";
+  if (n) n.textContent = "도면을 읽는 중… (처음 한 번만 걸립니다)";
+  try {
+    await fetch(`/jobs/${S.job.id}/markup/propose`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ page_no: S.page.page_no, rect: [0, 0, 1, 1] }) });
+  } catch (e) { _prewarmed = null; }
+  if (n && n.textContent.startsWith("도면을 읽는 중")) { n.textContent = was; updateMarkupNote(); }
 }
 
 function updateMarkupNote() {
