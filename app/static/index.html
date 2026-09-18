@@ -222,6 +222,13 @@
         <span id="page-note" class="muted"></span>
         <span id="markup-note" class="muted small hidden"></span>
       </div>
+      <!-- 53회차 [E] — 이 장의 NOTES 에서 무엇을 읽었고 어떻게 해석했는지
+           (8차 피드백 s3).  사실은 서버(`GET /jobs/{id}/notes/{page}`)가 주고
+           문장은 app.js 가 만든다. -->
+      <details id="notes-band" class="notesband hidden">
+        <summary><span id="notes-sum"></span></summary>
+        <div id="notes-body"></div>
+      </details>
       <!-- `tabindex` so the viewer can hold focus: Ctrl +/-/0 are handled on this
            element, which is how they stay out of the way while the reviewer is
            typing in a cell or in the filter box.  See app.js zoomBy(). -->

@@ -1281,6 +1281,44 @@ def global_symbol_toggle(on: bool = Form(...)):
     return {"enabled": data["enabled"], "symbols": len(data["symbols"])}
 
 
+@app.get("/jobs/{job_id}/notes/{page_no}")
+def sheet_notes(job_id: str, page_no: int):
+    """그 장의 NOTES 에서 **무엇을 읽었고 그것을 어떻게 해석했는가** (53회차 [E]).
+
+    8차 피드백 s3 원문: *"식별 값도 표기한다.  해석된 내용을 표기 한다."*
+    27회차가 이 사실을 이미 읽어 `result["unit_notes"]` 에 담고 있었는데
+    **저장 화이트리스트에 없어 화면이 볼 수 없었다** — 38회차 [B] 의
+    `evidence_tier` 와 같은 결함이다.
+
+    돌려주는 것은 사실 셋이고 문장은 화면이 만든다 (15회차 규율):
+      `text`   도면이 인쇄한 원문
+      `units`  거기서 읽은 유닛 표기 (식별 값)
+      `factor` 그 개수 = 이 장의 수량 배수 (해석)
+    그리고 그 해석을 **실제로 썼는지** — 범례 승수표가 답한 문서에서는
+    노트를 쓰지 않는다 (§9 읽는 순서: ①범례 → ②NOTES).  `counted` 가 그것이다.
+    """
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, "no such job")
+    eng = json.loads(row["engine_json"] or "{}")
+    if "unit_notes" not in eng:
+        return {"known": False,
+                "note": "이 분석은 NOTES 판독을 저장하기 전(53회차 이전)의 "
+                        "것입니다. 다시 분석하면 보입니다."}
+    got = (eng["unit_notes"] or {}).get(str(page_no)) \
+        or (eng["unit_notes"] or {}).get(page_no)
+    if not got:
+        return {"known": True, "found": False,
+                "note": "이 장의 NOTES 에는 '이 도면이 유닛 몇 개에 같이 쓰이는가' "
+                        "를 말하는 문단이 없습니다."}
+    return {"known": True, "found": True,
+            "text": got.get("text") or "",
+            "units": got.get("units") or [],
+            "factor": got.get("units_count"),
+            "counted": bool(got.get("counted")),
+            "source": (eng.get("multipliers") or {}).get("source") or ""}
+
+
 @app.get("/jobs/{job_id}/unjudged")
 def unjudged_symbols(job_id: str):
     """이 분석이 **판정하지 못한** 심볼들 — 등록 화면이 읽는 목록.
@@ -1726,6 +1764,15 @@ REVIEW_LABELS = {
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
     "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
+    # 53회차 [B] — 8차 피드백 s4·s5·s6 (한 뿌리)
+    "TAGGED_VALVE_NO_ACTUATOR":
+        "도면이 버블에 이름을 붙인 밸브인데 액추에이터를 그리지 않아 어느 산출물인지 "
+        "도면이 말하지 않음 — 탭을 고르지 않고 올림",
+    "VALVE_TAG_NO_BODY":
+        "도면이 밸브 태그 버블을 인쇄했는데 그 밸브 몸체를 못 찾음 — 품목은 있고 모양을 못 읽음",
+    "VALVE_TAG_SIGNALS":
+        "이 밸브 버블에 맞닿은 신호 버블(ZSC·ZSO·ZT 등)을 이 행으로 접음 — 물리 품목은 하나",
+
     "DRAWING_NO_BY_USER": "이 장의 타이틀블록이 획으로 그려져 도면번호를 사람이 적었음 — 누가·언제는 근거 패널에 있음",
     "DESCRIPTION_INCOMPLETE": "Description 중간 서술이 도면에서 확인되지 않음",
     "DESC_BETWEEN_SYMBOL": "중간 심볼(SUCTION STRAINER)이 도면에 낱말로 없음 — 직접 입력",

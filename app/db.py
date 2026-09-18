@@ -479,7 +479,14 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 불일치 사실이 이제 저장된다 (지문 밖).
                               "evidence_tier",
                               # 38회차 [D] — Typical 참조 사실(장 → 표식·상세·참조 수)과 집계.
-                              "typical", "typical_stats")},
+                              "typical", "typical_stats",
+                              # 53회차 [E] — 그 장 NOTES 에서 읽은 "이 도면은 유닛
+                              # 몇 개에 같이 쓰이는가" (27회차가 계산해 놓고
+                              # **저장하지 않아** 화면이 못 읽었다 — 38회차
+                              # `evidence_tier` 와 같은 결함).  8차 피드백 s3 이
+                              # *"식별 값도 표기한다 · 해석된 내용을 표기한다"* 다.
+                              # 지문 밖이다 (`multipliers` 에 넣으면 지문이 움직인다).
+                              "unit_notes")},
                             default=str),
                  job_id))
     con.commit()

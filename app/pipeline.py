@@ -1071,6 +1071,27 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     if folded:
         rows = [r for r in rows if r.key not in folded]
 
+    # 53회차 [B-2] — 밸브 태그 버블에 쌓인 신호 버블은 그 밸브로 접는다.
+    # 접힌 신호는 **지워지지 않는다** — 밸브 행의 근거와 REMARK 에 남는다
+    # (5회차 LS 묶음이 접힌 신호를 REMARK 로 내보낸 것과 같은 자리).
+    tag_signals, folded_sig = _valve_tag_signals(
+        rows, {pno: [(b.x0, b.y0, b.x1, b.y1) for b in (info.get("bubbles") or ())]
+               for pno, info in per_page.items()})
+    if folded_sig:
+        rows = [r for r in rows if r.key not in folded_sig]
+    for r in rows:
+        chain = tag_signals.get(r.key)
+        if not chain:
+            continue
+        names = [a for a, _row in chain]
+        r.evidence["tag_signals"] = names
+        codes = r.evidence.setdefault("review_codes", [])
+        if _TAG_SIGNAL_CODE not in codes:
+            codes.append(_TAG_SIGNAL_CODE)
+        r.needs_review = "; ".join(x for x in (
+            r.needs_review, _TAG_SIGNAL % (", ".join(names),
+                                           r.evidence.get("tag") or "")) if x)
+
     # 45회차 — 그 장의 P&ID No. 가 도면에서 읽은 값이 아니라 사람이 적은 값이면
     # 행이 그렇게 말한다.  **행을 만드는 자리가 아니라 여기 한 곳**에서 붙인다 —
     # `_field_rows`·`_valve_rows` 둘 다 고치면 두 벌이 되고 언젠가 갈린다.
@@ -1570,6 +1591,27 @@ _NOTE_RANGE = (
 
 # 31회차 — 사람이 지정한 값.  **도면 값과 같은 얼굴로 보이면 안 된다** —
 # 17회차 `SUFFIX:` 사유와 같은 규율이다.
+# 53회차 [B-1] — 도면이 버블에 이름을 붙였는데 액추에이터를 안 그린 밸브.
+#
+# 행은 낸다 (도면이 "여기 계장 품목이 있다" 고 선언했다).  그러나 **어느
+# 산출물인지는 액추에이터가 정하는데 그것이 없으므로 탭을 고르지 않는다** —
+# `_VALVE_TAB` 이 못 찾아 검토로 가고, 이 사유가 왜인지 말한다.
+# 53회차 [B-2] — 그 밸브에 딸린 신호 버블을 접었다는 표시.
+# 53회차 [B-3] — 태그 버블은 있는데 그 밸브 몸체를 못 찾은 자리.
+_TAG_NO_BODY_CODE = "VALVE_TAG_NO_BODY"
+_TAG_NO_BODY = (
+    "도면이 이 자리에 '%s' 버블을 인쇄했는데 그 밸브 몸체를 찾지 못했습니다 "
+    "— 품목은 있고 모양을 못 읽었습니다.  몸체·액추에이터 칸을 비우고 검토로 "
+    "올립니다 (없는 모양을 지어내지 않습니다)")
+_TAG_SIGNAL_CODE = "VALVE_TAG_SIGNALS"
+_TAG_SIGNAL = ("이 밸브 버블에 맞닿아 인쇄된 신호 버블 %s 를 이 행으로 접었습니다 "
+               "(물리 품목은 '%s' 하나입니다)")
+_TAGGED_NO_ACTUATOR_CODE = "TAGGED_VALVE_NO_ACTUATOR"
+_TAGGED_NO_ACTUATOR = (
+    "도면이 이 밸브를 '%s' 로 이름 붙였는데(버블) 액추에이터를 그리지 않았습니다 "
+    "— 몸체는 %s 입니다.  어느 산출물인지 도면이 말하지 않으므로 탭을 고르지 "
+    "않고 검토로 올립니다")
+
 _USER_MULT_CODE = "MULTIPLIER_BY_USER"
 
 _USER_MULTIPLIER = (
@@ -1645,6 +1687,80 @@ def _is_switch(anchor: str, isa) -> bool:
     func = anchor[len(head)].upper()
     words = tuple(w.upper() for w in (isa.succeeding or {}).get(func, ()))
     return "SWITCH" in words
+
+
+def _valve_tag_signals(rows, bubbles_by_page=None) -> tuple:
+    """밸브 태그 버블에 맞닿아 쌓인 계기 버블은 **그 밸브의 신호**다 (53회차).
+
+    8차 피드백 s6 원문: *"ZSC, ZSO 는 SIGNAL 이다.  XV 가 물리적 XV 에 대한 식별
+    LABEL 이다.  XV 가 식별되어야 한다."*  p21 은 `ZSC` / `ZSO` / `XV` 세 버블을
+    세로로 맞대어 인쇄하는데, 51회차가 ISA 문자표로 앵커를 유도하면서 `ZSC` ·
+    `ZT` 가 계기 행이 되고 정작 밸브는 액추에이터가 없어 행이 없었다 — 도면이
+    말한 것과 정반대다.
+
+    규칙은 5회차 사용자 확정(*맞닿은 버블 묶음은 물리 하나*)의 확장이고, 무엇이
+    대표인가만 도면이 답한다: **그 묶음에 밸브 태그 버블이 있으면 그 밸브가
+    물리 항목**이고 나머지는 그 밸브의 신호다.  밸브 태그인지는 그 도면의
+    `TAG_ANCHORS`(범례 밸브 어휘)가 정하지 코드의 낱말 목록이 아니다.
+
+    맞닿음·겹침 판정은 `_signal_groups` 와 **같은 두 자**를 쓴다 (새 상수 0):
+    세로 틈 <= `legend_rules.INDEX_SLACK` · 가로 겹침 >= 좁은 쪽의 절반.
+    다른 점은 셋이다 — 같은 변수 글자를 요구하지 않고(ZSO ↔ XV), 스위치일 것을
+    요구하지 않으며(ZT 는 TRANSMITTER), **연쇄로 잇는다** (ZSC 는 ZSO 를 거쳐야
+    XV 에 닿는다).
+
+    돌려주는 것: `(밸브행 key -> 접힌 [(앵커, 행)] , 접힌 행 key 집합)`.
+    접힌 행은 사라지지 않고 밸브 행의 근거와 REMARK 에 남는다.
+    """
+    by_page = collections.defaultdict(lambda: ([], []))
+    for r in rows:
+        if not r.rect:
+            continue
+        tr = (r.evidence or {}).get("tag_rect")
+        if tr:                                   # 밸브 행 — 태그 버블 자리
+            by_page[r.page_no][0].append((tuple(tr), r))
+        elif (r.evidence or {}).get("anchor"):   # 계기 행 — 버블 자리
+            by_page[r.page_no][1].append((str(r.evidence["anchor"]), r))
+
+    def touching(a, b) -> bool:
+        overlap = min(a[2], b[2]) - max(a[0], b[0])
+        if overlap < 0.5 * min(a[2] - a[0], b[2] - b[0]):
+            return False
+        return max(a[1], b[1]) - min(a[3], b[3]) <= legend_rules.INDEX_SLACK
+
+    owned, folded = {}, set()
+    for pno, (valves, insts) in sorted(by_page.items()):
+        # ★ 연쇄는 **그 장의 버블 전부**를 타고 오른다 — 행이 있는 버블만 타면
+        # 중간에서 끊긴다.  p21 은 `ZSC` / `ZSO` / `XV` 를 쌓아 두는데 `ZSO` 는
+        # 범례 SUCCEEDING 표에 `O` 가 없어 행이 되지 않고(51회차 [12]), 그래서
+        # 첫 구현이 `XV` 에서 `ZSC` 까지 닿지 못해 7행이 그대로 남았다 (실측).
+        # 버블은 그 도면의 범례가 정의한 심볼이므로 행의 유무와 무관하게 있다.
+        stones = [tuple(b) for b in ((bubbles_by_page or {}).get(pno) or ())]
+        for trect, vrow in valves:
+            chain, frontier, seen = [], [trect], {trect}
+            left = list(insts)
+            while frontier:
+                cur = frontier.pop()
+                nxt = []
+                for item in left:
+                    _anchor, irow = item
+                    if irow.key in folded:
+                        continue
+                    if touching(cur, tuple(irow.rect)):
+                        chain.append(item)
+                        folded.add(irow.key)
+                        nxt.append(tuple(irow.rect))
+                left = [it for it in left if it[1].key not in folded]
+                # 행이 없는 버블도 디딤돌로 쓴다 (값은 안 읽고 자리만 쓴다).
+                for st in stones:
+                    if st in seen or not touching(cur, st):
+                        continue
+                    seen.add(st)
+                    nxt.append(st)
+                frontier.extend(nxt)
+            if chain:
+                owned[vrow.key] = chain
+    return owned, folded
 
 
 def _signal_groups(rows, isa=None) -> tuple:
@@ -3010,6 +3126,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                                else (f"{mult.source} — {mult.note}"
                                      if mult.note else mult.source)),
             }))
+
     return out
 
 
@@ -3203,9 +3320,17 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
     question needs a body of these records, and answering it now from one would
     be the guess this exists to avoid.
     """
-    doc, pages = pidcache.load_pages(pdf_path)
+    # 53회차 [G] — **그 장만 연다** (8차 피드백 s8: *"행추가를 누르면 너무
+    # 오래 걸린다"*).  46회차가 제안(`propose_at`)은 `only=` 로 고쳤는데 행을
+    # 실제로 더할 때 부르는 이 함수는 그대로 남아 PDF 전체를 다시 열고 있었다
+    # (실측 `load_pages` 1.9 / 2.3 / 8.6초).  여기도 제안과 같은 갈래다 —
+    # 한 점 둘레를 재는 것이지 분석이 아니므로 `_scope_by_project`(다수결)에
+    # 기대지 않는다.  분석 경로가 `only=` 를 쓰면 안 된다는 규율은 그대로이고
+    # `tests/test_markup_speed.py` 가 `_analyse` 를 검사한다.
+    doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
     pc = next((p for p in pages if p.page_no == page_no), None)
     if pc is None:
+        doc.close()
         return {"error": f"page {page_no} is not in this PDF"}
     box = (x - radius, y - radius, x + radius, y + radius)
 
@@ -3255,6 +3380,10 @@ def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
     unmapped_near = [u for u in unmapped
                      if abs(u["center"][0] - x) <= radius
                      and abs(u["center"][1] - y) <= radius]
+    # 53회차 — 여기까지 오면 돌려줄 값이 전부 맨 숫자·글자라 문서를 놓아도
+    # 된다.  놓지 않으면 행을 더할 때마다 문서 하나가 남는다 (46회차 [D] 가
+    # 제안 쪽에서 잉크 인덱스를 놓게 한 것과 같은 자리).
+    doc.close()
     return {
         "page_no": page_no, "point": [round(x, 1), round(y, 1)], "radius": radius,
         "paths": paths[:120], "path_count": len(paths),
@@ -3461,7 +3590,27 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
     for bi, b in enumerate(res["bodies"]):
         cls = dv.deliverable_class(b)
         unread = b.actuator == "UNREAD"
-        if cls == dv.CLASS_EXCLUDED and not unread:
+        # 53회차 [B-1] — **도면이 이름을 붙인 밸브는 품목이다.**
+        #
+        # 8차 피드백 s4(p8 MOV) · s5(p12 PCV) · s6(p21 XV·PCV·FCV)는 서로 다른
+        # 지적이 아니라 이 한 줄이었다.  `deliverable_class` 의 첫 줄이
+        # *액추에이터가 없으면 산출물이 아니다* 라고 말하는데, 그 규칙은 **태그가
+        # 없는 몸체**를 위한 것이다 — 이 문서의 수동 밸브가 그렇게 많다
+        # (전수 실측: 태그 없는 몸체 2,711 중 2,653 이 그 규칙으로 빠진다).
+        #
+        # 그런데 **버블에 태그를 인쇄한 밸브는 다르다.**  버블은 그 도면의 범례가
+        # 정의한 심볼이고, 그 안의 이름은 도면이 *"이것은 계장 품목이다"* 라고
+        # 스스로 선언한 것이다.  수동 밸브에는 그 버블을 붙이지 않는다.
+        # 전수 실측 — 인쇄된 밸브 태그 198개 중 산출물이 된 것 91, 짝은 맞는데
+        # 빠진 것 **94**(액추에이터 NONE 88 · GLYPH 5 · MOTOR 1), 짝이 안 된 것 13.
+        #
+        # 규칙이 좁다는 증거는 위의 2,653 이다 — 태그가 없으면 하나도 안 는다.
+        #
+        # ★ 탭은 지어내지 않는다.  어느 산출물인지는 액추에이터가 정하는데
+        # 도면이 그것을 안 그렸으므로, `_VALVE_TAB` 이 못 찾아 **검토**로 간다
+        # (§9 ④ · §2.1 ③).  사유를 아래에서 행에 적는다.
+        tagged = bool(getattr(b, "tag", "") or "")
+        if cls == dv.CLASS_EXCLUDED and not unread and not tagged:
             continue
         rect = (b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1)
         reasons, codes = [], []
@@ -3506,6 +3655,11 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
                 f"({', '.join(sorted(ACTUATED_BODIES))})"
                 + (f"; the tag bubble says {b.tag}" if b.tag else "")
                 + " - confirm before shipping")
+        # 53회차 [B-1] — 도면이 이름은 붙였는데 액추에이터를 안 그린 밸브.
+        # **조용히 빠지지도, 조용히 어느 탭에 들어가지도 않는다** (§9 ④).
+        if tagged and cls == dv.CLASS_EXCLUDED and not unread:
+            codes.append(_TAGGED_NO_ACTUATOR_CODE)
+            reasons.append(_TAGGED_NO_ACTUATOR % (b.tag, b.kind))
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
@@ -3530,7 +3684,9 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
             type=b.kind,
             qty=None if undefined else factor,
             system=meta["drawing_title"],
-            valve_type=b.actuator if not unread else "",
+            # 53회차 — `NONE` 은 값이 아니라 "못 읽었다" 이므로 칸을 비운다.
+            # (그 갈래의 행은 이번 회차에 처음 생기므로 기존 행은 안 움직인다.)
+            valve_type=("" if (unread or b.actuator == "NONE") else b.actuator),
             # SCOPE 열만 채운다.  `vendor_supply` 는 일부러 비워 둔다 -
             # 그 값을 쓰면 `_axis_pass` 가 그 행을 ⓪(벤더 · 현행 유지)로 돌려
             # **Description 이 지워진다** (실측 1행: p7 CHECK 의
@@ -3558,6 +3714,13 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
                 "actuator": b.actuator,
                 "actuator_basis": b.actuator_evidence,
                 "tag": b.tag,
+                # 53회차 — 그 태그가 인쇄된 **버블의 자리**.  `attach_tags` 가
+                # 처음부터 몸체에 적어 두었는데(48회차가 소유권 경쟁에 쓴다)
+                # 행에는 싣지 않아 화면도 측정도 볼 수 없었다.  세 곳이 쓴다:
+                # [B-2] 신호 버블 접기 · 오버레이가 버블에도 상자를 그리기 ·
+                # 축4 짝 대조.  **지문 밖이다** (`evidence` 는 해싱 재료가 아니다).
+                "tag_rect": (list(b.tag_rect) if getattr(b, "tag_rect", None)
+                             else None),
                 "deliverable": cls,
                 "qty_basis": (f"1 symbol x {factor} ("
                               + (f"NOTES: {', '.join((note or (0, [], ''))[1])}"
@@ -3571,6 +3734,68 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
                                if from_user
                                else (f"{mult.source} — {mult.note}"
                                      if mult.note else mult.source)),
+            }))
+    # ── 53회차 [B-3] — **몸체를 못 찾은 태그 버블도 행이 된다.**
+    #
+    # 8차 피드백 s5 (p12 `AUX. STEAM LETDOWN VALVE #10` 의 `PCV`) 가 여기다.
+    # 그 자리의 몸체는 범례 p2 의 `ANGLE` + `DESUPERHEATER` 를 **여섯 객체로
+    # 흩어 그리고 아래 삼각형을 두 번 칠해** 20·43회차가 두 번 다 잡지 못했고,
+    # `attach_tags` 의 최근접 몸체가 256.7pt(한계 190) 밖이라 짝도 못 맞았다.
+    #
+    # 그런데 **버블은 있다.**  도면이 "여기 PCV 가 있다" 고 인쇄했으므로 품목은
+    # 있는 것이고, 못 읽은 것은 *어떻게 생겼는가* 뿐이다.  그래서 행을 내고
+    # 모양 칸을 비우고 사유를 적는다 — 없는 몸체를 지어내지 않는다 (§2.1 ③).
+    #
+    # ★ 이것이 **범용성의 자리**이기도 하다: 몸체 기하는 양식마다 그리는 법이
+    # 달라 계속 깨지지만(40·41·43회차), 버블과 그 안의 태그는 그 도면의 범례가
+    # 정의하는 것이라 축척·양식을 넘는다 (§9 6).
+    #
+    # 전수 실측(AL NOUF1): 인쇄된 밸브 태그 198 · 짝 맞아 행이 된 것 91 ·
+    # 짝은 맞는데 빠진 것 94([B-1]) · **짝이 아예 안 된 것 13**(p3 3 · p12 2 ·
+    # p19 8) — 이 갈래가 그 13이다.
+    claimed = {tuple(round(v, 1) for v in b.tag_rect)
+               for b in res["bodies"] if getattr(b, "tag_rect", None)}
+    for text, bub in (res.get("tags") or ()):
+        rect = (bub.x0, bub.y0, bub.x1, bub.y1)
+        if tuple(round(v, 1) for v in rect) in claimed:
+            continue
+        codes = [_TAG_NO_BODY_CODE]
+        reasons = [_TAG_NO_BODY % text]
+        if undefined:
+            codes.append("MULTIPLIER_UNDEFINED")
+            reasons.append(f"unit code '{unit}' has no multiplier in the legend")
+        out.append(Row(
+            key=_key(meta["drawing_no"], page_no, "VT", text,
+                     *[round(v, 1) for v in rect]),
+            tab=TAB_REVIEW,
+            page_no=page_no,
+            drawing_no=meta["drawing_no"],
+            # 모양을 모르므로 **몸체 칸을 비운다.**  화면·산출물의 TYPE 표기는
+            # `evidence["tag"]` 를 보고 태그 이름을 내는 표기 함수가 맡는다
+            # (그 함수를 행 만드는 코드가 부르면 판정값이 오염되므로 여기서는
+            # 부르지 않는다 — `tests/test_scope_and_type.py` 가 강제한다).
+            type="",
+            qty=None if undefined else factor,
+            system=meta["drawing_title"],
+            valve_type="",
+            scope=_scope_of(_MarkedRect(*ds.read_vendor_mark(
+                pymupdf.Rect(*rect), page.get("marks") or (),
+                page.get("box_marks") or (), page.get("mark_dict") or {},
+                ds.LAYOUT))),
+            needs_review="; ".join(reasons),
+            rect=rect,
+            evidence={
+                "review_codes": codes,
+                "tag": text,
+                "tag_rect": [round(v, 1) for v in rect],
+                "body": "",
+                "actuator": "",
+                "description_needed": True,
+                "description_missing":
+                    "밸브 Description 문형의 기준이 될 발주처 마스터 밸브 "
+                    "리스트가 없습니다",
+                "qty_basis": (f"1 symbol x {factor}" if not undefined
+                              else f"unit code {unit} undefined"),
             }))
     return out
 

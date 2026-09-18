@@ -67,9 +67,25 @@ STORED = [("AL NOUF1", "out/round20/run_base.json"),
 VALVE_TABS = ("MOV", "BFV", "PNEUMATIC")
 
 
+def is_valve_row(r) -> bool:
+    """밸브 경로가 낸 행인가.
+
+    ⚠ 53회차에 이 판별을 고쳤다 — **분모는 그대로다** (§8).  이전에는
+    `valve_type`(액추에이터)이 차 있는가로 갈랐는데, 53회차부터 *도면이 이름은
+    붙였지만 액추에이터를 안 그린* 밸브가 행이 되고 그 칸이 **비어 있다**.
+    그대로 두면 그 행들이 계기로 세어져 채점기가 엔진이 옳게 한 일을 틀렸다고
+    센다 (23회차 [2] 와 같은 실패).
+
+    밸브 행은 `evidence["body"]` 를 갖는다 — 값이 빈 문자열이어도 **열쇠가
+    있는 것**이 밸브 경로를 지났다는 표시다.  계기 행에는 그 열쇠가 없다.
+    """
+    ev = r.get("evidence") or {}
+    return "body" in ev or bool(r.get("valve_type"))
+
+
 def score(res: dict) -> dict:
     rows = res.get("rows", [])
-    valve_rows = sum(1 for r in rows if r.get("valve_type"))
+    valve_rows = sum(1 for r in rows if is_valve_row(r))
     inst_rows = len(rows) - valve_rows
 
     miss_inst = outside = bodies = 0
@@ -86,7 +102,7 @@ def score(res: dict) -> dict:
     den_i = inst_rows + miss_inst
     tags = res.get("valve_tags")
     tagged = sum(1 for r in rows
-                 if r.get("valve_type") and ((r.get("evidence") or {}).get("tag")))
+                 if is_valve_row(r) and ((r.get("evidence") or {}).get("tag")))
     out = {"계기_분자": inst_rows, "계기_분모": den_i,
            "축4_계기": round(100.0 * inst_rows / den_i, 1) if den_i else 0.0,
            "밸브행": valve_rows, "밸브행_태그있음": tagged,
@@ -105,7 +121,7 @@ def score(res: dict) -> dict:
     per = {}
     claimed = collections.Counter(
         str(((r.get("evidence") or {}).get("tag") or "")).upper()
-        for r in rows if r.get("valve_type"))
+        for r in rows if is_valve_row(r))
     for t, n in collections.Counter(x.get("tag") for x in tags).items():
         per[t] = [claimed.get(t, 0), n]
     out["밸브_태그별"] = dict(sorted(per.items(), key=lambda kv: -kv[1][1]))

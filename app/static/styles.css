@@ -619,7 +619,18 @@ dl.rules dd { margin: 0; }
 .tmpl-row input[type=file] { grid-column: 1 / -1; font-size: 11px; }
 .ok { color: var(--ok); }
 
-tbody tr.added td:first-child { box-shadow: inset 2px 0 0 var(--ok); }
+/* 53회차 [G] — 사용자가 추가한 행은 **녹색 형광 음영** (8차 피드백 s8).
+   도면의 녹색 선(마크업 상자)과 같은 색이라 둘이 한 눈에 이어진다.
+   ⚠ `tr.sel` 이 이 파일에서 **앞**에 있어 같은 특이도로는 이 규칙이 이긴다 —
+   선택 표시를 잃지 않도록 선택된 추가 행은 따로 적는다. */
+tbody tr.added { background: rgba(52, 199, 89, .16); }
+tbody tr.added.sel { background: rgba(26, 95, 180, .10); }
+tbody tr.added td:first-child { box-shadow: inset 3px 0 0 #34c759; }
+tbody tr.added.justadded { animation: justadded 1.8s ease-out 1; }
+@keyframes justadded {
+  0%   { background: rgba(52, 199, 89, .55); }
+  100% { background: rgba(52, 199, 89, .16); }
+}
 
 /* ---------- Description review ---------- */
 .desc-groups {
@@ -1059,3 +1070,27 @@ circle.rejbadge { fill: #8e8e93; stroke: #fffdf6; stroke-width: 1.2;
 .audit-detail ul { margin: 4px 0 6px 16px; padding: 0; }
 .audit-detail li { margin: 1px 0; }
 .audit-detail p { margin: 2px 0 0; }
+
+/* 53회차 [F] — 근거 패널의 공급 주체 편집 (8차 피드백 s7).  색은 여전히
+   `itemScope` 하나가 정하고, 여기는 값을 고르는 자리일 뿐이다. */
+.ract.scopeed { flex-wrap: wrap; row-gap: 4px; }
+.ract.scopeed .sc-ven { display: inline-flex; gap: 4px; align-items: center; }
+.ract.scopeed select, .ract.scopeed input {
+  font: inherit; font-size: 12px; padding: 1px 4px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--paper);
+  color: var(--ink-strong); max-width: 220px;
+}
+
+/* 53회차 [E] — 그 장 NOTES 판독 띠 (8차 피드백 s3). */
+.notesband { margin: 4px 0 0; padding: 4px 8px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--paper-card); font-size: var(--t-s); }
+.notesband summary { cursor: pointer; color: var(--ink-strong); }
+.notesband .nq { margin: 6px 0; padding: 6px 8px; background: var(--paper-sunk);
+  border-radius: 4px; white-space: pre-wrap; color: var(--ink-soft); }
+.notesband p.small { margin: 4px 0; }
+
+/* 53회차 [B] — 고른 밸브 행의 태그 버블.  장식이라 세지 않고 클릭도 안 받는다. */
+rect.tagbub { fill: none; stroke-width: 1.2; stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke; pointer-events: none; opacity: .85; }
+line.tagbub-l { stroke-width: 1; stroke-dasharray: 2 3;
+  vector-effect: non-scaling-stroke; pointer-events: none; opacity: .6; }

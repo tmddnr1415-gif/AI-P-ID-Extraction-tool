@@ -494,9 +494,7 @@ async function askDeleteProject(name) {
     return;
   }
   // 새로고침 없이 사라진다 — 목록과 고르는 상자와 위생 경고를 함께 다시 읽는다.
-  await listHome();
-  await loadProjects();
-  await showAudit();
+  await afterDelete();
 }
 
 async function askDelete(jobId) {
@@ -536,7 +534,33 @@ async function askDelete(jobId) {
   const out = await res.json();
   alert(`지웠습니다 — ${out.rows}행 · 편집 ${out.edited_cells}칸`
     + (out.pdf_removed ? " · 업로드 PDF 도 지웠습니다" : ""));
-  listHome();
+  await afterDelete();
+}
+
+/* 53회차 [H] — 무엇을 지우든 **화면 셋을 함께** 다시 읽는다.
+ *
+ * 8차 피드백 s1: *"저장된 프로젝트가 삭제되면 프로젝트 선택 란에서 해당 이력도
+ * 같이 삭제되어야 한다."*  원인은 분석 삭제(`askDelete`)가 `listHome()` 만
+ * 부르고 고르는 상자를 그대로 둔 것이다 — 리비전을 지워도 상자는 "다음 Rev.B"
+ * 라고 계속 말한다.  프로젝트 삭제 쪽은 셋을 다 부르고 있었으므로, **갈라져
+ * 있던 것을 한 함수로 되돌린다** (두 벌을 두면 또 갈린다).
+ *
+ * 고르고 있던 프로젝트가 사라졌으면 **말없이 다른 값으로 넘어가지 않는다** —
+ * `loadProjects(없는 이름)` 은 브라우저가 value 를 ""(프로젝트 없이 한 번만)로
+ * 떨어뜨리므로, 사람이 고른 적 없는 설정으로 조용히 바뀐다. */
+async function afterDelete() {
+  const was = S.project;
+  await listHome();
+  const live = await (await fetch("/projects")).json();
+  const still = was && live.some(p => p.name === was);
+  await loadProjects(still ? was : undefined);
+  if (was && !still) {
+    // 고르는 상자 옆 줄에 **그 사실을 적는다** — 조용히 다른 값으로 넘어가면
+    // 사람이 고르지 않은 설정으로 분석이 돌아간다.
+    $("#proj-msg").textContent =
+      `'${was}' 프로젝트가 없어져 선택을 지웠습니다 — 다시 고르세요.`;
+  }
+  await showAudit();
 }
 
 document.addEventListener("click", ev => {
@@ -2471,6 +2495,9 @@ async function saveEdit(row, field, td) {
   td.classList.toggle("edited", !!(row.user && field in row.user));
   td.classList.remove("conflict");
   if (S.sel === row.key) showEvidence(row);
+  // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).
+  // 색을 정하는 곳은 그대로 `itemScope` 하나이고, 여기서는 다시 그리라고만 한다.
+  if (field === "scope") drawOverlay();
   noticeAfterEdit(row, field, scopeBefore, row.values.scope);
 }
 
@@ -2702,6 +2729,78 @@ function axisActions(row) {
       </div>`);
   }
   return out.length ? `<div class="ractions">${out.join("")}</div>` : "";
+}
+
+/* 53회차 [F] — 공급 주체를 바로 고르는 자리 (8차 피드백 s7).
+ *
+ * 요구 둘: *"SCOPE 를 변경하면 SCT, VENDOR 에 따라 색상이 변하게 하라"* 와
+ * *"VENDOR 로 선택했을 때 괄호 안에 어느 VENDOR 인지 작성하거나 **추출된
+ * VENDOR 목록들 중에서 선택**할 수 있도록"*.
+ *
+ * 목록은 **그 도면에서 나온 것만** 쓴다 — 공급자 이름은 그 장 NOTES 가 정하고
+ * (10회차) 코드에도 config 에도 이름을 두지 않는다는 규칙 그대로다.  그래서
+ * 후보는 지금 결과의 `VENDOR(...)` 값을 모은 것이고, 그 도면이 한 번도 말하지
+ * 않은 이름은 목록에 없다.  직접 적는 칸은 남겨 둔다 — 도면이 안 쓴 이름을
+ * 사람이 아는 경우가 있고, 그때 값의 출처는 사람이다(편집 이력에 남는다). */
+function vendorNames() {
+  const out = new Set();
+  for (const r of (S.rows || [])) {
+    const v = String(cellValue(r, "scope") || "");
+    const m = /^VENDOR\((.+)\)$/.exec(v);
+    if (m && m[1].trim()) out.add(m[1].trim());
+  }
+  return [...out].sort();
+}
+
+function scopeEditor(row) {
+  const cur = String(cellValue(row, "scope") || "");
+  const isVen = cur.startsWith(SCOPE_VENDOR_PREFIX);
+  const name = (/^VENDOR\((.+)\)$/.exec(cur) || [, ""])[1];
+  const names = vendorNames();
+  return `<div class="ractions"><div class="ract scopeed"><span>공급 주체</span>
+    <button class="ract-b sc-b${cur === SCOPE_DELIVERED ? " on" : ""}" data-sc="SCT">SCT</button>
+    <button class="ract-b sc-b${isVen ? " on" : ""}" data-sc="VENDOR">VENDOR</button>
+    <span class="sc-ven${isVen ? "" : " hidden"}">
+      <select id="sc-name"><option value="">(이름 없음)</option>${
+        names.map(n => `<option value="${escape(n)}"${n === name ? " selected" : ""}>${escape(n)}</option>`).join("")
+      }<option value="__other__">직접 입력…</option></select>
+      <input id="sc-other" class="hidden" placeholder="VENDOR 이름" value="">
+    </span></div>
+    <p class="muted small">이 도면에서 읽은 VENDOR ${names.length}종 · 고르면 바로 저장되고 왼쪽 색이 따라갑니다</p>
+    </div>`;
+}
+
+function bindScopeEditor(row) {
+  const wrap = document.querySelector("#evidence .scopeed");
+  if (!wrap) return;
+  const sel = wrap.querySelector("#sc-name");
+  const other = wrap.querySelector("#sc-other");
+  const ven = wrap.querySelector(".sc-ven");
+  const save = async value => {
+    const td = document.querySelector(`#body tr[data-key="${CSS.escape(row.key)}"] td.col-scope`);
+    if (td) { td.textContent = value; await saveEdit(row, "scope", td); return; }
+    // 그리드에 그 칸이 안 보이는 경우(필터·스크롤)도 같은 경로로 저장한다.
+    const shim = document.createElement("td");
+    shim.textContent = value;
+    await saveEdit(row, "scope", shim);
+    renderGrid();
+  };
+  wrap.querySelectorAll("button.sc-b").forEach(b => {
+    b.onclick = async () => {
+      if (b.dataset.sc === "SCT") { ven.classList.add("hidden"); await save(SCOPE_DELIVERED); return; }
+      ven.classList.remove("hidden");
+      await save(SCOPE_VENDOR_PREFIX);      // 이름은 그 다음에 고른다
+    };
+  });
+  if (sel) sel.onchange = async () => {
+    if (sel.value === "__other__") { other.classList.remove("hidden"); other.focus(); return; }
+    other.classList.add("hidden");
+    await save(sel.value ? `${SCOPE_VENDOR_PREFIX}(${sel.value})` : SCOPE_VENDOR_PREFIX);
+  };
+  if (other) other.onchange = async () => {
+    const v = other.value.trim();
+    await save(v ? `${SCOPE_VENDOR_PREFIX}(${v})` : SCOPE_VENDOR_PREFIX);
+  };
 }
 
 function bindAxisActions(row) {
@@ -2947,7 +3046,7 @@ function showEvidence(row) {
        ? `<button id="ev-elsewhere" class="mini-rep" title="같은 마크업을 다른 장에도 — 장마다 다시 읽어 제안하고 고른 장에만 넣습니다">다른 장에도…</button>`
        : "")
     + `</div>`
-    + reviewControls(row) + axisActions(row)
+    + reviewControls(row) + scopeEditor(row) + axisActions(row)
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
     + `<div id="ev-hist"></div>`
@@ -2957,6 +3056,7 @@ function showEvidence(row) {
   bindFromToPicker(row);
   bindReviewControls(row);
   bindAxisActions(row);
+  bindScopeEditor(row);
   showHistory(row);
   const evb = $("#ev-report");
   if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
@@ -3282,6 +3382,42 @@ function showPage(page) {
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
   };
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
+  showSheetNotes(page.page_no);
+}
+
+/* 53회차 [E] — 이 장의 NOTES 판독 (8차 피드백 s3).
+ *
+ * 세 가지를 나눠 적는다: 도면이 **인쇄한 원문** · 거기서 읽은 **식별 값**
+ * (유닛 표기) · 그것의 **해석**(배수).  그리고 그 해석을 실제로 썼는지까지
+ * 적는다 — §9 읽는 순서가 ①범례 → ②NOTES 라서, 범례 승수표가 답한 문서에서는
+ * 노트를 읽고도 쓰지 않는다.  그 사실을 감추면 "왜 x2 가 아니지" 를 물을 수
+ * 없다.  판정은 서버가 준 `counted` 하나이고 여기서 다시 하지 않는다. */
+async function showSheetNotes(pageNo) {
+  const band = $("#notes-band");
+  band.classList.add("hidden");
+  let d;
+  try { d = await (await fetch(`/jobs/${S.job.id}/notes/${pageNo}`)).json(); }
+  catch (e) { return; }
+  if (!d || d.known === false) return;
+  if (!d.found) {
+    $("#notes-sum").textContent = "NOTES — 유닛 문단 없음";
+    $("#notes-body").innerHTML = `<p class="muted small">${escape(d.note || "")}</p>`;
+    band.classList.remove("hidden");
+    return;
+  }
+  const used = d.counted
+    ? "이 장의 수량 배수로 **썼습니다**"
+    : `이 장의 수량은 **범례 승수표**가 정했습니다 (${escape(d.source || "LEGEND")}) — `
+      + "도면이 두 곳에서 말하면 범례가 이깁니다";
+  $("#notes-sum").textContent =
+    `NOTES 판독 — 유닛 ${d.units.join(" · ")} → 배수 x${d.factor}`;
+  $("#notes-body").innerHTML =
+    `<p class="nq">${escape(d.text)}</p>`
+    + `<p class="small"><b>식별 값</b> ${escape(d.units.join(", "))} `
+    + `(${d.units.length}개) &nbsp;·&nbsp; <b>해석</b> 이 도면은 유닛 ${d.units.length}개에 `
+    + `같이 쓰이므로 심볼 1개당 x${d.factor}</p>`
+    + `<p class="small muted">${used.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</p>`;
+  band.classList.remove("hidden");
 }
 
 /* The sheet's own size, and the frame it is drawn into.  Split out of `fit()`
@@ -3499,8 +3635,10 @@ const REVIEW_MARK = ["REVIEW", "검토 필요 (그중)", "#ff453a",
  * 그대로 갖고, 추가 행은 점선 테두리 + 왼쪽 위 초록 ✚, 오검출 표시는 오른쪽
  * 아래 회색 ✕ 다.  검토 ● 는 오른쪽 위 — 세 표식이 서로 다른 모서리라 겹치지
  * 않는다.  둘 다 "(그중)" 으로 센다 — 세 색 칸의 합은 그대로다. */
-const MANUAL_MARK = ["MANUAL", "사용자 추가 (그중)", "#34c759",
-                     "사람이 도면에서 추가한 행 — 점선 테두리와 왼쪽 위 ✚. 색은 SCOPE 그대로"];
+/* 53회차 — 사용자 요구로 **자기 색 칸**이 됐다 (8차 s8).  "(그중)" 이 아니므로
+ * 세 색 칸이 넷이 되고, 합은 그대로 상자 수다 (33회차 등식 유지). */
+const MANUAL_MARK = ["MANUAL", "사용자 추가", "#34c759",
+                     "사람이 도면에서 추가한 행 — 녹색 선과 왼쪽 위 ✚"];
 const REJECT_MARK = ["REJECT", "오검출 표시 (그중)", "#8e8e93",
                      "사람이 오검출로 표시한 행 — 오른쪽 아래 ✕. 행은 남고 Excel 제외는 선택"];
 
@@ -3518,12 +3656,18 @@ const SCOPE_COLOR = Object.fromEntries(SCOPE.map(([k, , c]) => [k, c]));
  * 두어 공급 주체를 잃었으므로, 그런 항목은 **그리드 행의 SCOPE 열**에서 되찾는다
  * (같은 접근자 `cellValue` 가 읽는 값이다).  새 분석은 `scope` 가 곧 갈래다. */
 function itemScope(it) {
-  const k = it.scope || "INCLUDED";
-  if (k !== "REVIEW") return k;
+  // 53회차 [F] — **그리드의 지금 SCOPE 가 먼저다.**
+  //
+  // 8차 피드백 s7: *"사용자가 왼쪽에서 Label 을 클릭하고 오른쪽 SCOPE 를
+  // 변경하면 SCT, VENDOR 에 따라 색상이 변하게 하라."*  `it.scope` 는 **분석
+  // 때 적힌 층**이라 사람이 고친 값을 모른다.  이전에는 `REVIEW` 인 항목만
+  // 행에서 되찾았는데, 그러면 편집이 색에 닿지 않는다.
+  //
+  // 읽는 곳은 여전히 하나다 — `cellValue(row,"scope")` 는 그리드·필터·근거
+  // 패널이 쓰는 그 접근자다.  행이 없는 항목만 층 값으로 떨어진다.
   const row = (S.rows || []).find(r => r.key === it.key);
-  const v = row ? String(cellValue(row, "scope") || "") : "";
-  return v === SCOPE_DELIVERED ? "SCT"
-    : v.startsWith(SCOPE_VENDOR_PREFIX) ? "VENDOR_EXCLUDED" : "INCLUDED";
+  if (row) return scopeKeyOf(cellValue(row, "scope"));
+  return it.scope || "INCLUDED";
 }
 
 /* 44회차 — 오버레이 항목 = 분석 때의 층(`page.layers`) **+ 사용자 추가 행**.
@@ -3560,7 +3704,10 @@ function overlayItems(page) {
 }
 
 function itemVisible(it) {
-  if (S.ovOff.has(itemScope(it))) return false;
+  // 53회차 — 사용자 추가는 자기 색 칸이므로 그 칸을 끄면 상자도 숨는다
+  // (범례 라벨과 세는 대상과 그리는 대상이 같아야 한다 — 11회차 캡처).
+  if (it.manual) { if (S.ovOff.has(MANUAL_MARK[0])) return false; }
+  else if (S.ovOff.has(itemScope(it))) return false;
   if (S.tab === "REVIEW") return !!it.needs_review;
   if (S.tab === "ALL") return true;
   // A deliverable tab shows its own rows, and keeps the excluded symbols on
@@ -3573,10 +3720,11 @@ function buildOverlayLegend() {
   const counts = {};
   let review = 0, manual = 0, rejected = 0;
   for (const it of items) {
-    const k = itemScope(it);
-    counts[k] = (counts[k] || 0) + 1;
-    if (it.needs_review) review++;
+    // 53회차 — 사용자 추가는 **자기 칸**이다 (상자도 녹색으로 그린다).  SCOPE
+    // 칸에도 세면 한 상자가 두 번 세어져 33회차 등식이 깨진다.
     if (it.manual) manual++;
+    else counts[itemScope(it)] = (counts[itemScope(it)] || 0) + 1;
+    if (it.needs_review) review++;
     if (it.rejected) rejected++;
   }
   const row = (key, label, colour, why, n, swatch) => `
@@ -3589,8 +3737,8 @@ function buildOverlayLegend() {
     </label>`;
   $("#ovl-items").innerHTML = SCOPE.map(([key, label, colour, why]) =>
     row(key, label, colour, why, counts[key] || 0, "")).join("")
+    + row(...MANUAL_MARK, manual, "")
     + row(...REVIEW_MARK, review, "badge")
-    + row(...MANUAL_MARK, manual, "badge")
     + row(...REJECT_MARK, rejected, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
@@ -3627,10 +3775,43 @@ function drawOverlay() {
       + (it.manual ? " manual" : "")
       + (it.rejected ? " rejected" : "")
       + (S.sel === it.key ? " sel" : ""));
+    // 53회차 [G] — **사용자 마크업 상자는 녹색 선**이다 (8차 피드백 s8:
+    // *"사용자가 마크업 Block 을 녹색 Line 으로 표기하라"*).
+    //
+    // 44회차는 색을 SCOPE 에 두고 표식(모서리 ✚)만 더했다 — 그 판단을 사용자가
+    // 뒤집었으므로 따른다.  대신 **33회차 등식이 깨지지 않게** 범례를 같이
+    // 고친다: 사용자 추가는 "(그중)" 이 아니라 자기 색 칸이 되고, 합은
+    // `SCT + VENDOR + 판정없음 + 사용자추가 = 상자 수` 다.
+    // 탭 색 보기(`S.byTab`)에서는 탭이 색을 정하므로 건드리지 않는다.
     const stroke = S.byTab
       ? (COLOR[it.tab] || "#8e8e93")
+      : it.manual ? MANUAL_MARK[2]
       : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
     r.setAttribute("stroke", stroke);
+    // 53회차 [B] — 고른 밸브 행의 **태그 버블**을 가는 선으로 함께 보인다
+    // (8차 피드백 s6: 버블에 상자가 없어 "XV 가 식별되지 않는다" 로 읽혔다).
+    // 상자를 하나 더 세지 않는다 — 선택했을 때만 그리는 장식이라 33회차
+    // 등식(색 칸 합 = 상자 수)은 그대로다.
+    if (S.sel === it.key) {
+      const tr = ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
+      if (tr && (Math.round(tr[0]) !== Math.round(it.rect[0])
+                 || Math.round(tr[1]) !== Math.round(it.rect[1]))) {
+        const tb = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        tb.setAttribute("x", tr[0] * scale); tb.setAttribute("y", tr[1] * scale);
+        tb.setAttribute("width", Math.max(2, (tr[2] - tr[0]) * scale));
+        tb.setAttribute("height", Math.max(2, (tr[3] - tr[1]) * scale));
+        tb.setAttribute("class", "tagbub");
+        tb.setAttribute("stroke", stroke);
+        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        ln.setAttribute("x1", (tr[0] + tr[2]) / 2 * scale);
+        ln.setAttribute("y1", (tr[1] + tr[3]) / 2 * scale);
+        ln.setAttribute("x2", (x0 + x1) / 2 * scale);
+        ln.setAttribute("y2", (y0 + y1) / 2 * scale);
+        ln.setAttribute("class", "tagbub-l");
+        ln.setAttribute("stroke", stroke);
+        ov.appendChild(ln); ov.appendChild(tb);
+      }
+    }
     // 검토 필요는 색을 바꾸지 않고 **모서리 표식**으로 말한다 (33회차).  표식은
     // 자기 층이라 범례에서 따로 끄고, 상자와 같은 키로 클릭이 통한다.
     if (it.needs_review && !S.ovOff.has(REVIEW_MARK[0])) {
@@ -3992,7 +4173,7 @@ async function markupDialog(rect) {
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     closeModal();
     clearFiltersForNewRow();
-    await refreshRows(out.key);
+    await refreshRows(out.key, { toGrid: true });
     updateBadge();
     // 빈 SCOPE 는 "판정한 적 없음(옛 분석)" 이 아니라 **사람이 비워 둔 것**이다 — 문장은
     // `scopeFacts` 한 곳이 쓴다 (근거 패널과 같은 문장).
@@ -4297,9 +4478,20 @@ $req("#excel").addEventListener("click", () => {
 });
 
 /* ---------------- row add / copy / delete ---------------- */
-async function refreshRows(selectKey) {
+async function refreshRows(selectKey, opts = {}) {
   await loadRows();
-  if (selectKey) select(selectKey, true);
+  if (!selectKey) return;
+  // 53회차 [G] — 마크업으로 행을 더한 뒤에는 **오른쪽 목록이 그 행으로
+  // 간다** (8차 피드백 s8: *"마크업이 완료되면 오른쪽 화면은 추가된 행으로
+  // 이동 및 표기해라"*).  `select(key, true)` 는 도면 쪽만 가운데로 옮기고
+  // 목록은 그대로 두므로, 추가한 행이 1,000행 어딘가에 묻힌다.
+  select(selectKey, !opts.toGrid);
+  if (!opts.toGrid) return;
+  const tr = document.querySelector(`#body tr[data-key="${CSS.escape(selectKey)}"]`);
+  if (!tr) return;
+  tr.scrollIntoView({ block: "center" });
+  tr.classList.add("justadded");          // 잠깐 밝게 — 어디에 생겼는지 보인다
+  setTimeout(() => tr.classList.remove("justadded"), 2000);
 }
 
 /* A row the engine missed is only useful to a later rule pass if we know where
