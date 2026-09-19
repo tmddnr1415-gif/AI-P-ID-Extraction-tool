@@ -98,3 +98,27 @@ def test_the_page_is_prewarmed_when_markup_starts():
     fn = fn[:fn.index("\n}\n")]
     # 새 서버 코드를 만들지 않는다 — 같은 엔드포인트여야 캐시 열쇠가 같다
     assert "/markup/propose" in fn
+
+
+# ── 작성자 확인 줄은 한 번에 하나다 (54회차 뒤 화면 확인이 잡았다) ──────────
+#
+# 주석은 처음부터 "한 번에 하나만 뜬다" 라고 적고 있었는데 `done()` 말고는 줄을
+# 치우는 곳이 없어, 앞 칸에 이름을 적지 않은 채 다음 칸을 고치면 두 줄이 겹쳐
+# 쌓였다.  둘 다 "누가 고쳤나요?" 라고만 하고 어느 행 이야기인지 말하지 않는다 —
+# 14회차가 `.edit-note` 에서 고친 것과 같은 구조다.
+def test_one_author_bar_at_a_time():
+    assert "let _authorPending = null;" in JS
+    # 새 줄이 뜨기 전에 앞 줄을 닫는다
+    assert "_authorPending ? _authorPending() : null" in JS
+
+
+def test_the_dropped_author_bar_is_cancelled_not_just_removed():
+    # 지우기만 하면 그 편집의 await 가 영영 안 끝난다.  취소로 닫아야
+    # `saveEdit` 의 null 갈래가 칸을 원래 값으로 돌려놓는다.
+    assert "_authorPending = () => { done(null); return what; };" in JS
+    assert "_authorPending = null;" in JS.split("const done = v =>")[1][:120]
+
+
+def test_a_cancelled_edit_is_said_out_loud():
+    # 말없이 버리지 않는다 — 무엇이 취소됐는지 한 줄로 말한다.
+    assert "이름을 적지 않아 취소했습니다" in JS

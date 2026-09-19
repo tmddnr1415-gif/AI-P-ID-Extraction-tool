@@ -2367,10 +2367,23 @@ function rememberAuthor(name) {
 
 /* 한 번에 하나만 뜬다.  뜬 동안 그리드를 다시 그리지 않는다 - 12회차의
  * "저장이 끝나기 전에 다음 칸으로 넘어간다" 와 같은 문제를 만들지 않기 위해
- * 이 줄은 그리드 밖(fixed)에 산다. */
+ * 이 줄은 그리드 밖(fixed)에 산다.
+ *
+ * ★ "한 번에 하나" 를 **코드가 지키게** 한다.  이 주석은 처음부터 그렇게
+ * 적혀 있었지만 `done()` 말고는 줄을 치우는 곳이 없어, 앞 칸에 이름을 적지
+ * 않은 채 다음 칸을 고치면 **두 줄이 겹쳐 쌓였다** — 둘 다 "누가 고쳤나요?"
+ * 라고만 하고 어느 행 이야기인지 말하지 않아, 14회차가 `.edit-note` 에서
+ * 고친 것과 같은 구조다 (서로 다른 행의 말이 동시에 화면에 있다).
+ *
+ * 지우기만 하면 그 편집의 `await` 가 영영 안 끝나므로 **취소로 닫는다** —
+ * `saveEdit` 의 null 갈래가 칸을 원래 값으로 돌려놓고, 무엇이 취소됐는지
+ * 새 줄이 뜬 뒤에 한 줄로 말한다 (말없이 버리지 않는다). */
+let _authorPending = null;
 function askAuthor(what, hint) {
   // 이름을 묻는 순간 앞 편집의 안내는 지운다 - 그것은 이미 다른 행 이야기다.
+  const dropped = _authorPending ? _authorPending() : null;
   document.querySelectorAll(".edit-note").forEach(n => n.remove());
+  if (dropped) setTimeout(() => editNotice(`${dropped} 은 이름을 적지 않아 취소했습니다`, "out"), 0);
   return new Promise(resolve => {
     const bar = document.createElement("div");
     bar.className = "author-bar" + (hint ? " with-hint" : "");
@@ -2384,7 +2397,9 @@ function askAuthor(what, hint) {
     const box = bar.querySelector("input");
     box.value = lastAuthor();
     box.select();
-    const done = v => { bar.remove(); resolve(v); };
+    const done = v => { _authorPending = null; bar.remove(); resolve(v); };
+    // 앞 줄을 닫을 때 쓰는 손잡이.  무엇을 취소했는지 이름째 돌려준다.
+    _authorPending = () => { done(null); return what; };
     bar.querySelector(".ok").onclick = () => {
       const v = box.value.trim();
       rememberAuthor(v);
