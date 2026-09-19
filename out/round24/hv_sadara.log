@@ -1,0 +1,24 @@
+## 2391ee0f1ea6_sadara_1A46.pdf (9쪽)
+### 유도 대 설정
+   hist_rule_y        유도 [1633.9, 1826.3]         설정 [1200.0, 1390.0]        
+   hist_rule_x0_max   유도 2746.7                   설정 1975.0                  
+   hist_rule_x1_min   유도 3191.5                   설정 2320.0                  
+   hist_rev_col       유도 [2727.9, 2765.6]         설정 [1971.0, 1988.0]        
+   hist_date_col      유도 [2768.0, 2845.7]         설정 [1992.0, 2070.0]        
+   hist_row_inset     유도 None                     설정 1.2                       ← 유도하지 않음
+   note: hist_row_inset is not derived: it is a render margin, not a drawn feature; the sheet states nothing about it
+### 설정값 그대로
+   글리프 사전 {'1': 2}
+   이력 행 수 분포 {0: 9}
+   REV 읽힌 장 1/9 — {'(없음)': 8, '11': 1}
+   방법 {'NONE': 8, 'GLYPH': 1} · 신뢰도 {'NONE': 8, 'HIGH': 1}
+### 이력 칸만 유도값으로
+   글리프 사전 {'1': 2, 'A': 9, 'B': 9, 'C': 9, 'D': 9, 'E': 9, 'F': 9, 'G': 9}
+   이력 행 수 분포 {7: 9}
+   REV 읽힌 장 1/9 — {'(없음)': 8, '1C': 1}
+   방법 {'NONE': 8, 'GLYPH': 1} · 신뢰도 {'NONE': 8, 'LOW': 1}
+### 유도값 전체를 얹고 (낯선 양식 경로)
+   글리프 사전 {'A': 4, 'B': 1, 'D': 4}
+   이력 행 수 분포 {7: 9}
+   REV 읽힌 장 9/9 — {'A': 4, 'B': 1, 'D': 4}
+   방법 {'TEXT': 9} · 신뢰도 {'HIGH': 9}

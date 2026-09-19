@@ -1,0 +1,52 @@
+{
+ "project": "UAD",
+ "table": {
+  "00": 4
+ },
+ "rows": 149,
+ "fingerprint": "dd83ab8e9ff96bcb31e3c37dcd06ce446a9b658308150205714fe8a1c97e6c2b",
+ "qty_before": 149,
+ "qty_after": 596,
+ "filled_before": 149,
+ "filled_after": 149,
+ "moved": {
+  "qty": 149,
+  "needs_review": 149
+ },
+ "codes": {
+  "MULTIPLIER_BY_USER": 149
+ },
+ "score": 83.0,
+ "metrics": {
+  "도면번호": [
+   21,
+   22,
+   ""
+  ],
+  "개정": [
+   23,
+   32,
+   ""
+  ],
+  "태그→행": [
+   37,
+   50,
+   "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+  ],
+  "수량": [
+   149,
+   149,
+   ""
+  ],
+  "심볼판정": [
+   149,
+   211,
+   ""
+  ],
+  "파라미터": [
+   25,
+   29,
+   ""
+  ]
+ }
+}

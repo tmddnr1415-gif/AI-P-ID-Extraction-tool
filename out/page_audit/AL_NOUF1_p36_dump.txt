@@ -1,0 +1,15 @@
+page 36 kind=PID dwg=D00P-10PGB10-M05-0002 rev=None size=Rect(0.0, 0.0, 2384.0, 1684.0) rot=0 rows=12
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[430, 518, 516, 547] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[629, 518, 714, 547] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[1139, 518, 1224, 547] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[1337, 518, 1422, 547] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[610, 1117, 695, 1146] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[808, 1117, 894, 1146] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[1319, 1117, 1404, 1146] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+  FIELD     PI     q=2 scope=SCT                          tag= rect=[1517, 1117, 1602, 1146] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+  FIELD     TI     q=2 scope=SCT                          tag= rect=[610, 1166, 695, 1195] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     TI     q=2 scope=SCT                          tag= rect=[808, 1166, 894, 1195] desc='UNIT #10 CCW WATER BOX VACUUM PUMP COOLE' rev=''
+  FIELD     TI     q=2 scope=SCT                          tag= rect=[1319, 1166, 1404, 1195] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+  FIELD     TI     q=2 scope=SCT                          tag= rect=[1517, 1166, 1602, 1195] desc='UNIT #10 CCW CONDENSER VACUUM PUMP COOLE' rev=''
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(82, 122, 'ST'), (82, 226, 'ST'), (104, 122, 'BOP'), (104, 226, 'BOP'), (126, 122, 'CCW'), (126, 226, 'CCW'), (135, 1421, 'ST'), (135, 1477, 'ST'), (149, 122, 'SUPPLY'), (149, 226, 'SUPPLY'), (157, 1421, 'BOP'), (157, 1477, 'BOP'), (178, 1421, 'CCW'), (178, 1477, 'CCW'), (202, 1421, 'RETURN'), (202, 1477, 'RETURN'), (526, 777, 'VACUUM'), (537, 789, 'COOLER'), (543, 765, 'WATER'), (572, 777, 'PUMP'), (581, 765, 'BOX'), (630, 870, 'PSV'), (725, 777, 'VACUUM'), (736, 789, 'COOLER'), (741, 765, 'WATER'), (770, 777, 'PUMP'), (780, 765, 'BOX'), (828, 870, 'PSV'), (1235, 777, 'VACUUM'), (1246, 789, 'COOLER'), (1250, 765, 'CONDENSER'), (1280, 777, 'PUMP'), (1338, 873, 'PSV'), (1433, 777, 'VACUUM'), (1445, 789, 'COOLER'), (1448, 765, 'CONDENSER'), (1479, 777, 'PUMP'), (1537, 875, 'PSV'), (1794, 122, 'ST'), (1794, 207, 'ST'), (1816, 122, 'BOP'), (1816, 207, 'BOP'), (1838, 122, 'CCW'), (1838, 207, 'CCW'), (1847, 1477, 'ST'), (1847, 1545, 'ST'), (1861, 122, 'SUPPLY'), (1861, 207, 'SUPPLY'), (1869, 1477, 'BOP'), (1869, 1545, 'BOP'), (1890, 1477, 'CCW'), (1890, 1545, 'CCW'), (1914, 1477, 'RETURN'), (1914, 1545, 'RETURN')] 
+unjudged on page: []

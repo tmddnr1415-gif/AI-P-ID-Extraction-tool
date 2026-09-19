@@ -1,0 +1,89 @@
+  page   6    0.02s   instruments 0.02s annotations 0.00s
+  page   7    0.02s   instruments 0.02s annotations 0.00s
+  page   8    0.02s   instruments 0.02s annotations 0.00s
+  page   9    0.02s   instruments 0.02s annotations 0.00s
+  page  10    0.02s   instruments 0.02s annotations 0.00s
+  page  11    0.02s   instruments 0.02s annotations 0.00s
+  page  12    0.02s   instruments 0.02s annotations 0.00s
+  page  13    0.01s   instruments 0.01s annotations 0.00s
+  page  14    0.02s   instruments 0.02s annotations 0.00s
+  page  15    0.01s   instruments 0.01s annotations 0.00s
+  page  16    0.04s   instruments 0.04s annotations 0.00s
+  page  17    0.02s   instruments 0.02s annotations 0.00s
+  page  18    0.01s   instruments 0.01s annotations 0.00s
+  page  19    0.01s   instruments 0.01s annotations 0.00s
+  page  20    0.02s   instruments 0.02s annotations 0.00s
+  page  21    0.03s   instruments 0.03s annotations 0.00s
+  page  22    0.02s   instruments 0.02s annotations 0.00s
+  page  23    0.02s   instruments 0.02s annotations 0.00s
+  page  24    0.02s   instruments 0.02s annotations 0.00s
+  page  25    0.02s   instruments 0.02s annotations 0.00s
+  page  26    0.02s   instruments 0.02s annotations 0.00s
+  page  27    0.02s   instruments 0.02s annotations 0.00s
+  page  28    0.01s   instruments 0.01s annotations 0.00s
+  page  29    0.01s   instruments 0.01s annotations 0.00s
+  page  30    0.03s   instruments 0.03s annotations 0.00s
+  page  31    0.01s   instruments 0.01s annotations 0.00s
+  page  32    0.02s   instruments 0.02s annotations 0.00s
+  page  33    0.02s   instruments 0.02s annotations 0.00s
+  page  34    0.01s   instruments 0.01s annotations 0.00s
+  page  35    0.01s   instruments 0.01s annotations 0.00s
+  page  36    0.01s   instruments 0.01s annotations 0.00s
+  page  37    0.01s   instruments 0.01s annotations 0.00s
+  page  38    0.01s   instruments 0.01s annotations 0.00s
+  page  39    0.01s   instruments 0.01s annotations 0.00s
+  page  40    0.01s   instruments 0.01s annotations 0.00s
+  page  41    0.01s   instruments 0.01s annotations 0.00s
+  page  42    0.01s   instruments 0.01s annotations 0.00s
+  page  43    0.02s   instruments 0.02s annotations 0.00s
+  page  44    0.02s   instruments 0.02s annotations 0.00s
+  page  45    0.01s   instruments 0.01s annotations 0.00s
+  page  46    0.01s   instruments 0.01s annotations 0.00s
+  page  47    0.02s   instruments 0.02s annotations 0.00s
+  page  49    0.02s   instruments 0.02s annotations 0.00s
+  page  50    0.01s   instruments 0.01s annotations 0.00s
+  page  51    0.01s   instruments 0.01s annotations 0.00s
+  page  52    0.03s   instruments 0.03s annotations 0.00s
+  page  53    0.03s   instruments 0.03s annotations 0.00s
+  page  54    0.03s   instruments 0.03s annotations 0.00s
+  page  55    0.01s   instruments 0.01s annotations 0.00s
+  page  56    0.03s   instruments 0.03s annotations 0.00s
+  page  57    0.02s   instruments 0.02s annotations 0.00s
+  page  58    0.01s   instruments 0.01s annotations 0.00s
+analysis took 324.4s, by stage:
+  layout                   197.82s   61.0%
+  valves.actuators          48.41s   14.9%
+  titleblocks               16.13s    5.0%
+  titleblock_glyphs         16.13s    5.0%
+  instruments               10.66s    3.3%
+  pipe_graph                 8.91s    2.7%
+  valves.bodies              6.00s    1.8%
+  candidates                 5.96s    1.8%
+  describe_axis              5.21s    1.6%
+  legend_rules               4.01s    1.2%
+  valves.tags                2.62s    0.8%
+  open_pdf                   2.25s    0.7%
+  equipment                  0.24s    0.1%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 14.0s, p4 9.0s, p2 8.5s, p14 2.7s, p5 1.8s
+
+== 축 [전량]  (우리 쪽 모수 1029행)
+산출물        도면    사람    프로그램    TP      재현율      정밀도
+FIELD      34   523     753   520    99.4%    69.1%
+MOV        15    57      69    57   100.0%    82.6%
+BFV         4    19      22    18    94.7%    81.8%
+전체              599     844   595    99.3%    70.5%
+  FP 249  [('FIELD:PI', 74), ('FIELD:LIT', 37), ('FIELD:TIT', 32), ('FIELD:PIT', 28), ('FIELD:TW', 15), ('FIELD:RO', 14), ('MOV:MOTOR', 12), ('FIELD:PDIT', 10), ('FIELD:FIT', 8), ('FIELD:FE', 6), ('FIELD:LI', 6), ('BFV:MOTOR', 4), ('FIELD:LS', 2), ('FIELD:TI', 1)]
+  FN   4  [('FIELD:PIT', 2), ('FIELD:FE', 1), ('BFV:PNEUMATIC', 1)]
+
+== 축 [SCT]  (우리 쪽 모수 780행)
+산출물        도면    사람    프로그램    TP      재현율      정밀도
+FIELD      34   523     603   519    99.2%    86.1%
+MOV        15    57      59    57   100.0%    96.6%
+BFV         4    19      22    18    94.7%    81.8%
+전체              599     684   594    99.2%    86.8%
+  FP  90  [('FIELD:PI', 37), ('FIELD:LIT', 13), ('FIELD:RO', 10), ('FIELD:LI', 5), ('FIELD:PDIT', 4), ('FIELD:FIT', 4), ('FIELD:FE', 4), ('FIELD:PIT', 4), ('BFV:MOTOR', 4), ('FIELD:TIT', 2), ('MOV:MOTOR', 2), ('FIELD:TW', 1)]
+  FN   5  [('FIELD:PIT', 2), ('FIELD:TIT', 1), ('FIELD:FE', 1), ('BFV:PNEUMATIC', 1)]

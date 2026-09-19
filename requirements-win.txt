@@ -1,0 +1,52 @@
+# Windows x86_64 · Python 3.11 전용 — 오프라인(사내 PyPI 차단) 이관용
+#
+# `requirements.txt` 와 다른 점은 **하나**입니다: `uvicorn[standard]` 를 쓰지 않고
+# 그 부가 의존을 풀어 적었습니다.  이유는 pip 의 동작이고, 실측했습니다:
+#
+#   pip download --platform win_amd64 는 **환경 마커를 대상 플랫폼으로 다시
+#   평가하지 않습니다.**  `uvloop` 의 마커가 `sys_platform != "win32"` 라
+#   리눅스에서 받으면 uvloop 이 여전히 필수로 남고, uvloop 은 win_amd64 휠이
+#   없으므로 다음 오류로 **전체 다운로드가 실패**합니다:
+#     ERROR: Could not find a version that satisfies the requirement
+#            uvloop>=0.15.1; sys_platform != "win32" ... (from versions: none)
+#
+# uvicorn[standard] 의 부가 의존 6개 중 Windows 에서 빠지는 것은 **uvloop 뿐**이고
+# (uvicorn 0.52.3 의 Requires-Dist 로 확인), 나머지 다섯은 Windows 에도 그대로
+# 적용됩니다.  uvloop 이 없어도 uvicorn 은 asyncio 기본 루프로 돕니다 —
+# `app/desktop.py` 도 `uvicorn.run(app, ...)` 로 부를 뿐 `loop=` 를 지정하지
+# 않습니다.  성능 차이는 이 앱에서 의미가 없습니다: 요청은 로컬 1인 사용이고
+# 시간은 전부 PyMuPDF 파싱(58장 약 3분 40초)에 듭니다.
+#
+# 설치 (회사 PC · 오프라인):
+#   py -3.11 -m venv .venv
+#   .venv\Scripts\Activate.ps1
+#   pip install --no-index --find-links wheels -r requirements-win.txt
+#
+# 버전은 개인 PC(리눅스)에서 실제로 돌린 것과 같게 고정했습니다.  고정하지
+# 않으면 회사 PC 가 오프라인이라 "설치는 됐는데 버전이 다른" 상태를 만들 수
+# 있고, 그러면 지문 대조가 의미를 잃습니다.
+
+# --- 엔진 ---------------------------------------------------------------
+pymupdf==1.28.2           # C 확장 (MuPDF 바인딩)
+numpy==2.4.6              # C 확장
+openpyxl==3.1.5
+PyYAML==6.0.1
+
+# --- 서버 ---------------------------------------------------------------
+fastapi==0.141.1
+uvicorn==0.52.3           # [standard] 를 쓰지 않습니다 — 아래 다섯 줄이 그 내용
+python-multipart==0.0.32
+
+# uvicorn[standard] 의 부가 의존에서 uvloop 만 뺀 것 (Windows 미지원)
+httptools==0.8.0          # C 확장 · win_amd64 휠 있음
+websockets==17.0.1        # C 확장 · win_amd64 휠 있음
+watchfiles==1.2.0         # Rust 확장 · win_amd64 휠 있음 — start.bat 의 --reload 가 씁니다
+python-dotenv==1.2.3
+# uvloop                  ← 제외.  Windows 미지원 (sys_platform != "win32")
+
+# --- 선택 ---------------------------------------------------------------
+# Description 중간 서술 선택기 전용.  지금은 호출부가 연결돼 있지 않고
+# (`app/engine/describe_llm.py` 머리 주석), import 도 try 안에 있어 없어도
+# 서버는 돕니다.  사내망에서 api.anthropic.com 을 못 부르면 어차피 쓸 수 없으니
+# 필요 없으면 이 줄을 지우고 받으세요 (jiter 등 4개가 함께 빠집니다).
+anthropic==0.122.0

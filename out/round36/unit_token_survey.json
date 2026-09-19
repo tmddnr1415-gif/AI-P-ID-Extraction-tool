@@ -1,0 +1,1133 @@
+{
+ "AL NOUF1": {
+  "numbered_paras": 271,
+  "mult_source": "LEGEND",
+  "mult_table": {
+   "00": 1,
+   "10": 2,
+   "11": 4,
+   "12": 4,
+   "20": 2,
+   "21": 4,
+   "22": 4
+  },
+  "drawing_unit_codes": {
+   "10": 591,
+   "11": 101,
+   "00": 345
+  },
+  "forms": [
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 259,
+    "examples": [
+     "p2: …1. THIS DRAWING IS PREPARED FOR…",
+     "p3: …1. THIS DRAWING IS PREPARED FOR…",
+     "p4: …1. THIS DRAWING IS PREPARED FOR…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 50,
+    "examples": [
+     "p6: …1. THIS P&ID IS FOR GROUP#10, CONFIGURATION IS IDENTICAL F…",
+     "p6: …OUP#10, CONFIGURATION IS IDENTICAL FOR GROUP#20.…",
+     "p7: …1. THIS P&ID IS FOR GROUP#10, CONFIGURATION IS IDENTICAL F…"
+    ]
+   },
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 28,
+    "examples": [
+     "p6: …1. THIS P&ID IS FOR GROUP#10, C…",
+     "p7: …1. THIS P&ID IS FOR GROUP#10, C…",
+     "p8: …1. THIS P&ID IS FOR GROUP#10, C…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 8,
+    "examples": [
+     "p13: …T#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.…",
+     "p13: …1, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.…",
+     "p20: …T#11, CONFIGURATION IS IDENTICAL FOR UNIT#12,21,22.…"
+    ]
+   },
+   {
+    "shape": "#DD",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 8,
+    "examples": [
+     "p25: …1. THE FUEL GAS SUPPLY SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 …",
+     "p25: …Y SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 AND GT #22.…",
+     "p25: …TEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 AND GT #22.…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 4,
+    "examples": [
+     "p16: …10. LOCATION OF RUTURE DISC WILL…",
+     "p16: …11. STEAM BYPASS LINE AND DUMP S…",
+     "p16: …12. NUMBER / SIZE OF HOTWELL DRA…"
+    ]
+   },
+   {
+    "shape": "#DD",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 3,
+    "examples": [
+     "p15: …1. THIS P&ID IS IDENTICAL TO UNIT #11, #12, #21 AND #22. FOR INTERNAL US…",
+     "p15: …1. THIS P&ID IS IDENTICAL TO UNIT #11, #12, #21 AND #22. FOR INTERNAL USE…",
+     "p15: … P&ID IS IDENTICAL TO UNIT #11, #12, #21 AND #22. FOR INTERNAL USE…"
+    ]
+   },
+   {
+    "shape": "#DD",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 1,
+    "examples": [
+     "p15: …1. THIS P&ID IS IDENTICAL TO UNIT #11, #12, #21 AND #22. FOR INTERN…"
+    ]
+   }
+  ],
+  "non_unit_numbers": [
+   {
+    "pattern": "|N|. THIS D",
+    "n": 57,
+    "examples": [
+     "p2: …1. THIS DRAWING IS PREPARED FOR…",
+     "p3: …1. THIS DRAWING IS PREPARED FOR…"
+    ]
+   },
+   {
+    "pattern": "|N|. REFER",
+    "n": 55,
+    "examples": [
+     "p6: …1. REFER TO SYMBOL & LEGEND DWG…",
+     "p7: …1. REFER TO SYMBOL & LEGEND DWG…"
+    ]
+   },
+   {
+    "pattern": "|N|. LOCATI",
+    "n": 14,
+    "examples": [
+     "p16: …10. LOCATION OF RUTURE DISC WILL…",
+     "p20: …5. LOCATION AND NUMBER OF HIGH …"
+    ]
+   },
+   {
+    "pattern": "N-N~|N|",
+    "n": 11,
+    "examples": [
+     "p7: …MBOL & LEGEND DWG. NO. D00P-00GEN00-M05-0002~3…",
+     "p9: …MBOL & LEGEND DWG. NO. D00P-00GEN00-M05-0002~3…"
+    ]
+   },
+   {
+    "pattern": "|N|. DRAIN",
+    "n": 8,
+    "examples": [
+     "p6: …2. DRAIN POT AND WARM-UP LINE S…",
+     "p6: …3. DRAIN VALVES SHALL BE LOCATE…"
+    ]
+   },
+   {
+    "pattern": "|N|. MINIMU",
+    "n": 6,
+    "examples": [
+     "p17: …4. MINIMUM DISTANCE OR STRAIGHT…",
+     "p22: …5. MINIMUM SAFE DISTANCE FOR FU…"
+    ]
+   },
+   {
+    "pattern": "|N|. ALL PI",
+    "n": 6,
+    "examples": [
+     "p26: …3. ALL PIPING WILL BE DESIGNED …",
+     "p27: …3. ALL PIPING WILL BE DESIGNED …"
+    ]
+   },
+   {
+    "pattern": "|N|. FLOATI",
+    "n": 5,
+    "examples": [
+     "p52: …2. FLOATING TYPE LEVEL SWITCH…",
+     "p53: …1. FLOATING TYPE LEVEL SWITCH.…"
+    ]
+   },
+   {
+    "pattern": "|N|. ALLOW",
+    "n": 4,
+    "examples": [
+     "p10: …2. ALLOW MINIMUM 3M LENGTH FOR …",
+     "p10: …3. ALLOW MINIMUM 5M LENGTH FOR …"
+    ]
+   },
+   {
+    "pattern": "VENT IS |N| METERS",
+    "n": 4,
+    "examples": [
+     "p22: …. MINIMUM SAFE DISTANCE FOR FUEL GAS VENT IS 3 METERS ABOVE GROUND FLOOR LEV…",
+     "p23: …. MINIMUM SAFE DISTANCE FOR FUEL GAS VENT IS 3 METERS ABOVE GROUND FLOOR LEV…"
+    ]
+   },
+   {
+    "pattern": "|N|. ISOLAT",
+    "n": 4,
+    "examples": [
+     "p23: …1. ISOLATION VALVES SHALL BE BA…",
+     "p24: …1. ISOLATION VALVES SHALL BE BA…"
+    ]
+   },
+   {
+    "pattern": "|N|. (**) S",
+    "n": 4,
+    "examples": [
+     "p26: …5. (**) SYMBOL INDICATES COMPON…",
+     "p27: …5. (**) SYMBOL INDICATES COMPON…"
+    ]
+   },
+   {
+    "pattern": "|N|. VALVE",
+    "n": 3,
+    "examples": [
+     "p14: …2. VALVE LOCATED NEAR CONDENSER…",
+     "p14: …3. VALVE LOCATED IN INTAKE AREA…"
+    ]
+   },
+   {
+    "pattern": "|N|. VS MEA",
+    "n": 3,
+    "examples": [
+     "p16: …2. VS MEANS VACUUM SEAL VALVE. …",
+     "p20: …4. VS MEANS VACUUM SEAL VALVE. …"
+    ]
+   },
+   {
+    "pattern": "|N|. CONDEN",
+    "n": 3,
+    "examples": [
+     "p18: …2. CONDENSER AIR REMOVAL SKID C…",
+     "p19: …8. CONDENSER WATERBOX DRAIN AND…"
+    ]
+   },
+   {
+    "pattern": "|N|. FLANGE",
+    "n": 3,
+    "examples": [
+     "p20: …2. FLANGE CONNECTION FOR PUMP M…",
+     "p21: …2. FLANGE CONNECTION FOR PUMP M…"
+    ]
+   },
+   {
+    "pattern": "|N|. AUTOMA",
+    "n": 3,
+    "examples": [
+     "p26: …1. AUTOMATIC AIR RELEASE VALVE …",
+     "p27: …1. AUTOMATIC AIR RELEASE VALVE …"
+    ]
+   },
+   {
+    "pattern": "|N|. (*) SY",
+    "n": 3,
+    "examples": [
+     "p26: …4. (*) SYMBOL INDICATES COMPONE…",
+     "p27: …4. (*) SYMBOL INDICATES COMPONE…"
+    ]
+   },
+   {
+    "pattern": "|N|. TANK I",
+    "n": 3,
+    "examples": [
+     "p33: …1. TANK INTERNAL INLET PIPING S…",
+     "p46: …2. TANK INLET NOZZLE SHALL BE L…"
+    ]
+   },
+   {
+    "pattern": "|N|. FLOAT",
+    "n": 3,
+    "examples": [
+     "p46: …3. FLOAT AND TAPE TYPE LEVEL GU…",
+     "p47: …5. FLOAT AND TAPE TYPE LEVEL GA…"
+    ]
+   },
+   {
+    "pattern": "|N|. MANUAL",
+    "n": 2,
+    "examples": [
+     "p22: …7. MANUAL VENT SHALL BE USED FO…",
+     "p43: …1. MANUAL BALL VALVE TO BE CONS…"
+    ]
+   },
+   {
+    "pattern": "|N|. TEMPOR",
+    "n": 2,
+    "examples": [
+     "p22: …8. TEMPORARY STRAINER WILL BE R…",
+     "p49: …2. TEMPORARY STRAINER. REMOVE A…"
+    ]
+   },
+   {
+    "pattern": "|N|. THE FU",
+    "n": 2,
+    "examples": [
+     "p25: …1. THE FUEL GAS SUPPLY SYSTEM P…",
+     "p34: …1. THE FUEL OIL SUPPLY SYSTEM P…"
+    ]
+   },
+   {
+    "pattern": "FOR GT |#N| IS INDE",
+    "n": 2,
+    "examples": [
+     "p25: …1. THE FUEL GAS SUPPLY SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 …",
+     "p34: …1. THE FUEL OIL SUPPLY SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 …"
+    ]
+   },
+   {
+    "pattern": "L TO GT |#N|, #N AN",
+    "n": 2,
+    "examples": [
+     "p25: …Y SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 AND GT #22.…",
+     "p34: …Y SYSTEM P&ID FOR GT #11 IS INDENTICAL TO GT #12, #21 AND GT #22.…"
+    ]
+   }
+  ]
+ },
+ "SADARA": {
+  "numbered_paras": 55,
+  "mult_source": "LEGEND",
+  "mult_table": {
+   "00": 1
+  },
+  "drawing_unit_codes": {
+   "10": 82
+  },
+  "forms": [
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 61,
+    "examples": [
+     "p1: …T DWG NO. SHEET REV. 1A46-00GEN00-M05-0001 A 1/1 REF. DRAWING NO. PROJECT NO…",
+     "p1: …DWG NO. SHEET REV. 1A46-00GEN00-M05-0001 A 1/1 REF. DRAWING NO. PROJECT NO. …",
+     "p2: … DRAWING TITLE P&ID FOR SYMBOLS AND LEGENDS (1 OF 4) PROJECT DWG NO. SHEET R…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 25,
+    "examples": [
+     "p1: …19.MAR.2026 FOR PROPOSAL HM KANG…",
+     "p2: …19.MAR.2026 FOR PROPOSAL HM KANG…",
+     "p3: …19.MAR.2026 FOR PROPOSAL HM KANG…"
+    ]
+   }
+  ],
+  "non_unit_numbers": [
+   {
+    "pattern": "|N|.MAR.N",
+    "n": 13,
+    "examples": [
+     "p1: …19.MAR.2026 FOR PROPOSAL HM KANG…",
+     "p2: …19.MAR.2026 FOR PROPOSAL HM KANG…"
+    ]
+   },
+   {
+    "pattern": "|N|.JUN.N",
+    "n": 5,
+    "examples": [
+     "p5: …12.JUN.2026 FOR PROPOSAL HM KANG…",
+     "p6: …12.JUN.2026 HM KANG HM KANG SH J…"
+    ]
+   },
+   {
+    "pattern": "-N A |N|/N REF.",
+    "n": 4,
+    "examples": [
+     "p1: …T DWG NO. SHEET REV. 1A46-00GEN00-M05-0001 A 1/1 REF. DRAWING NO. PROJECT NO…",
+     "p2: …T DWG NO. SHEET REV. 1A46-00GEN00-M05-0002 A 1/4 REF. DRAWING NO. PROJECT NO…"
+    ]
+   },
+   {
+    "pattern": "N A N/|N| REF. DR",
+    "n": 4,
+    "examples": [
+     "p1: …DWG NO. SHEET REV. 1A46-00GEN00-M05-0001 A 1/1 REF. DRAWING NO. PROJECT NO. …",
+     "p2: …DWG NO. SHEET REV. 1A46-00GEN00-M05-0002 A 1/4 REF. DRAWING NO. PROJECT NO. …"
+    ]
+   },
+   {
+    "pattern": "EGENDS (|N| OF N) P",
+    "n": 4,
+    "examples": [
+     "p2: … DRAWING TITLE P&ID FOR SYMBOLS AND LEGENDS (1 OF 4) PROJECT DWG NO. SHEET R…",
+     "p3: … DRAWING TITLE P&ID FOR SYMBOLS AND LEGENDS (2 OF 4) PROJECT DWG NO. SHEET R…"
+    ]
+   },
+   {
+    "pattern": "S (N OF |N|) PROJEC",
+    "n": 4,
+    "examples": [
+     "p2: …ING TITLE P&ID FOR SYMBOLS AND LEGENDS (1 OF 4) PROJECT DWG NO. SHEET REV. 1…",
+     "p3: …ING TITLE P&ID FOR SYMBOLS AND LEGENDS (2 OF 4) PROJECT DWG NO. SHEET REV. 1…"
+    ]
+   },
+   {
+    "pattern": "|N|. SEE NA",
+    "n": 4,
+    "examples": [
+     "p6: …1. SEE 1A46-00GEN00-M05-0002/-0…",
+     "p7: …1. SEE 1A46-00GEN00-M05-0002/-0…"
+    ]
+   },
+   {
+    "pattern": "|N|. (*) SY",
+    "n": 4,
+    "examples": [
+     "p6: …2. (*) SYMBOL INDICATES COMPONE…",
+     "p7: …3. (*) SYMBOL INDICATES COMPONE…"
+    ]
+   },
+   {
+    "pattern": "|N|. (**) S",
+    "n": 4,
+    "examples": [
+     "p6: …3. (**) SYMBOL INDICATES COMPON…",
+     "p7: …2. (**) SYMBOL INDICATES COMPON…"
+    ]
+   },
+   {
+    "pattern": "|N|.MAY.N",
+    "n": 4,
+    "examples": [
+     "p6: …29.MAY.2026 JTR FOR PROPOSAL HM …",
+     "p7: …29.MAY.2026 JTR FOR PROPOSAL HM …"
+    ]
+   },
+   {
+    "pattern": "-N D |N|/N REF.",
+    "n": 4,
+    "examples": [
+     "p6: …T DWG NO. SHEET REV. 1A46-10LBA10-M05-0001 D 1/3 REF. DRAWING NO. PROJECT NO…",
+     "p7: …T DWG NO. SHEET REV. 1A46-10LBA10-M05-0002 D 2/3 REF. DRAWING NO. PROJECT NO…"
+    ]
+   },
+   {
+    "pattern": "N D N/|N| REF. DR",
+    "n": 4,
+    "examples": [
+     "p6: …DWG NO. SHEET REV. 1A46-10LBA10-M05-0001 D 1/3 REF. DRAWING NO. PROJECT NO. …",
+     "p7: …DWG NO. SHEET REV. 1A46-10LBA10-M05-0002 D 2/3 REF. DRAWING NO. PROJECT NO. …"
+    ]
+   },
+   {
+    "pattern": "|N|. LOCATI",
+    "n": 2,
+    "examples": [
+     "p6: …4. LOCATION AND NUMBER OF HIGH …",
+     "p7: …4. LOCATION AND NUMBER OF HIGH …"
+    ]
+   },
+   {
+    "pattern": "|N|. DRAIN",
+    "n": 2,
+    "examples": [
+     "p6: …6. DRAIN POT SHALL BE LOCATED A…",
+     "p7: …5. DRAIN LINE SHALL BE LOCATED …"
+    ]
+   },
+   {
+    "pattern": "|N|. THE WA",
+    "n": 2,
+    "examples": [
+     "p7: …10. THE WARM-UP LINE WILL BE DES…",
+     "p7: …11. THE WARM-UP LINE WILL BE CON…"
+    ]
+   },
+   {
+    "pattern": "|N|. STEAM",
+    "n": 2,
+    "examples": [
+     "p8: …2. STEAM TRAP WILL BE ARRANGED …",
+     "p9: …2. STEAM TRAP WILL BE ARRANGED …"
+    ]
+   },
+   {
+    "pattern": "|N|. MAIN M",
+    "n": 2,
+    "examples": [
+     "p8: …4. MAIN METERING DEVICE WILL BE…",
+     "p9: …4. MAIN METERING DEVICE WILL BE…"
+    ]
+   },
+   {
+    "pattern": "|N|. REFER",
+    "n": 2,
+    "examples": [
+     "p8: …6. REFER TO DETAIL SAFETY VALVE…",
+     "p9: …6. REFER TO DETAIL SAFETY VALVE…"
+    ]
+   },
+   {
+    "pattern": "|N|. THE IN",
+    "n": 1,
+    "examples": [
+     "p3: …1. THE INSTRUMENT LEGEND IS BAS…"
+    ]
+   },
+   {
+    "pattern": "TANDARD |N|.N. FOR",
+    "n": 1,
+    "examples": [
+     "p3: …E INSTRUMENT LEGEND IS BASED ON ISA STANDARD 5.1. FOR FURTHER DETAILS AND CL…"
+    ]
+   },
+   {
+    "pattern": "NDARD N.|N|. FOR FU",
+    "n": 1,
+    "examples": [
+     "p3: …INSTRUMENT LEGEND IS BASED ON ISA STANDARD 5.1. FOR FURTHER DETAILS AND CLAR…"
+    ]
+   },
+   {
+    "pattern": "|N|. THE LE",
+    "n": 1,
+    "examples": [
+     "p3: …2. THE LETTER \"A\" IS USED FOR A…"
+    ]
+   },
+   {
+    "pattern": "-N B |N|/N REF.",
+    "n": 1,
+    "examples": [
+     "p5: …T DWG NO. SHEET REV. 1A46-00GEN00-M05-0005 B 4/4 REF. DRAWING NO. PROJECT NO…"
+    ]
+   },
+   {
+    "pattern": "N B N/|N| REF. DR",
+    "n": 1,
+    "examples": [
+     "p5: …DWG NO. SHEET REV. 1A46-00GEN00-M05-0005 B 4/4 REF. DRAWING NO. PROJECT NO. …"
+    ]
+   },
+   {
+    "pattern": "|N|. THE MA",
+    "n": 1,
+    "examples": [
+     "p6: …5. THE MAIN STEAM TEMPERATURE D…"
+    ]
+   }
+  ]
+ },
+ "TC2": {
+  "numbered_paras": 414,
+  "mult_source": "CONFIG_FALLBACK",
+  "mult_table": {
+   "00": 1,
+   "10": 2,
+   "11": 4
+  },
+  "drawing_unit_codes": {
+   "31": 262,
+   "00": 345
+  },
+  "forms": [
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 365,
+    "examples": [
+     "p6: …1. REFER TO SYMBOL & LEGEND DWG…",
+     "p6: …3. LOCATION AND NUMBER OF HIGH …",
+     "p6: …4. THIS DRAWING IS PREPARED FOR…"
+    ]
+   },
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 309,
+    "examples": [
+     "p6: …2. THIS P&ID IS BASED ON CONFIG…",
+     "p6: …HIS P&ID IS BASED ON CONFIGURATION WITH ONE (1) COMBINED CYCLE POWER GENERAT…",
+     "p6: …WER GENERATION UNIT WHICH CONSISTING OF ONE (1) GTG, ONE (1) HRSG, ONE (1) S…"
+    ]
+   },
+   {
+    "shape": "D-D",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 225,
+    "examples": [
+     "p6: …1. THIS P&ID IS FOR UNIT 3-1. AND, SIMILAR SCHEME IS APPLI…",
+     "p6: …1. AND, SIMILAR SCHEME IS APPLICABLE TO UNIT 3-2, UNIT 4-1, UNIT 4-2, UNIT 5-1…",
+     "p6: …MILAR SCHEME IS APPLICABLE TO UNIT 3-2, UNIT 4-1, UNIT 4-2, UNIT 5-1, UNIT 5-2…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 117,
+    "examples": [
+     "p6: …SED IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. D…",
+     "p6: … IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE…",
+     "p6: … ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE DE…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 62,
+    "examples": [
+     "p7: …SED IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. D…",
+     "p7: … IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE…",
+     "p7: … ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE DE…"
+    ]
+   },
+   {
+    "shape": "D-D",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 47,
+    "examples": [
+     "p23: …1. THIS P&ID IS APPLICABLE FOR UNIT 3-1,3-2 AND IS TYPICAL FOR UNITS 4-1,…",
+     "p23: …R UNIT 3-1,3-2 AND IS TYPICAL FOR UNITS 4-1, 4-2, 5-1, 5-2, 6-1, AND 6-2.…",
+     "p23: …T 3-1,3-2 AND IS TYPICAL FOR UNITS 4-1, 4-2, 5-1, 5-2, 6-1, AND 6-2.…"
+    ]
+   },
+   {
+    "shape": "D-D",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 8,
+    "examples": [
+     "p33: …5. THE P & ID IS TYPICAL FOR 3-1 & 3-2 SIMILAR P & ID SHALL BE…",
+     "p33: …5. THE P & ID IS TYPICAL FOR 3-1 & 3-2 SIMILAR P & ID SHALL BE APPLI…",
+     "p33: …& 3-2 SIMILAR P & ID SHALL BE APPLICABLE FOR 4-1 & 4-2. NOTES…"
+    ]
+   },
+   {
+    "shape": "NO.D-D",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 4,
+    "examples": [
+     "p31: …1. THIS P&ID IS IDENTICAL FOR UNIT NO. 5-1, 5-2 & UNIT NO. 6-1, 6-2.…",
+     "p31: …ID IS IDENTICAL FOR UNIT NO. 5-1, 5-2 & UNIT NO. 6-1, 6-2.…",
+     "p38: …2. THIS P&ID IS COMMON FOR UNITS NO.3-1 & 3-2. AN IDENTICAL SYSTEM SH…"
+    ]
+   },
+   {
+    "shape": "D",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 2,
+    "examples": [
+     "p30: …9. THIS P&ID IS APPLICABLE FOR UNIT 3 & 4, SAME WILL BE APPLICABLE …",
+     "p30: …UNIT 3 & 4, SAME WILL BE APPLICABLE FOR UNIT 5& 6. FOR INTERNAL USE THIS DRA…"
+    ]
+   },
+   {
+    "shape": "NO.D",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 1,
+    "examples": [
+     "p29: …7. COLD VENT STACK IS IDENTICAL FOR UNIT NO. 5&6. FOR INTERNAL USE THIS DRAW…"
+    ]
+   }
+  ],
+  "non_unit_numbers": [
+   {
+    "pattern": "|N|. REFER",
+    "n": 54,
+    "examples": [
+     "p6: …1. REFER TO SYMBOL & LEGEND DWG…",
+     "p7: …1. REFER TO SYMBOL & LEGEND DWG…"
+    ]
+   },
+   {
+    "pattern": "|N|. LOCATI",
+    "n": 53,
+    "examples": [
+     "p6: …3. LOCATION AND NUMBER OF HIGH …",
+     "p7: …3. LOCATION AND NUMBER OF HIGH …"
+    ]
+   },
+   {
+    "pattern": "|N|. THIS D",
+    "n": 52,
+    "examples": [
+     "p6: …4. THIS DRAWING IS PREPARED FOR…",
+     "p7: …4. THIS DRAWING IS PREPARED FOR…"
+    ]
+   },
+   {
+    "pattern": "|N|.N.N F",
+    "n": 31,
+    "examples": [
+     "p13: …26.08.21 FOR INTERNAL USE A REV.…",
+     "p14: …26.08.21 FOR INTERNAL USE A . . …"
+    ]
+   },
+   {
+    "pattern": "N.|N|.N FOR",
+    "n": 31,
+    "examples": [
+     "p13: …26.08.21 FOR INTERNAL USE A REV. DA…",
+     "p14: …26.08.21 FOR INTERNAL USE A . . . D…"
+    ]
+   },
+   {
+    "pattern": "N.N.|N| FOR INT",
+    "n": 31,
+    "examples": [
+     "p13: …26.08.21 FOR INTERNAL USE A REV. DATE …",
+     "p14: …26.08.21 FOR INTERNAL USE A . . . DESC…"
+    ]
+   },
+   {
+    "pattern": "|N|. DELETE",
+    "n": 18,
+    "examples": [
+     "p15: …6. DELETED.…",
+     "p16: …2. DELETED.…"
+    ]
+   },
+   {
+    "pattern": "SYSTEM (|N|/N) PROJ",
+    "n": 16,
+    "examples": [
+     "p25: … TITLE P&ID FOR CLOSED COOLING WATER SYSTEM (1/4) PROJECT DWG NO. SHEET REV.…",
+     "p29: …E II DRAWING TITLE P&ID FOR FUEL GAS SYSTEM (1/4) PROJECT DWG NO. SHEET REV.…"
+    ]
+   },
+   {
+    "pattern": "STEM (N/|N|) PROJEC",
+    "n": 16,
+    "examples": [
+     "p25: …ITLE P&ID FOR CLOSED COOLING WATER SYSTEM (1/4) PROJECT DWG NO. SHEET REV. A…",
+     "p29: …II DRAWING TITLE P&ID FOR FUEL GAS SYSTEM (1/4) PROJECT DWG NO. SHEET REV. A…"
+    ]
+   },
+   {
+    "pattern": "|N|. FLOATI",
+    "n": 8,
+    "examples": [
+     "p51: …1. FLOATING TYPE LEVEL SWITCH…",
+     "p52: …1. FLOATING TYPE LEVEL SWITCH…"
+    ]
+   },
+   {
+    "pattern": "ET REV. |N| A DNJ-",
+    "n": 6,
+    "examples": [
+     "p42: …ATER SYSTEM (1/6) PROJECT DWG NO. SHEET REV. 1 A D02J-00GKB10-M05-0001 REF. …",
+     "p43: …ATER SYSTEM (2/6) PROJECT DWG NO. SHEET REV. 2 A D02J-00GKB10-M05-0002 REF. …"
+    ]
+   },
+   {
+    "pattern": "|N|. ALL HI",
+    "n": 5,
+    "examples": [
+     "p26: …2. ALL HIGH POINTS SHALL HAVE V…",
+     "p27: …2. ALL HIGH POINTS SHALL HAVE V…"
+    ]
+   },
+   {
+    "pattern": "P TO DN |N|. FOR LA",
+    "n": 5,
+    "examples": [
+     "p33: …HALL BE CARRIED OUT AS SCREWED ONES UP TO DN 50. FOR LARGER PIPE SIZE, FLANGE…",
+     "p33: … UTILIZED FOR THE ISOLATION PURPOSE UP TO DN 50. FOR LARGER PIPE SIZE, GATE V…"
+    ]
+   },
+   {
+    "pattern": "ET REV. |N|/N A DN",
+    "n": 5,
+    "examples": [
+     "p33: … AIR SYSTEM (1/3) PROJECT DWG NO. SHEET REV. 1/3 A D02J-00QFA10-M05-0001 REF…",
+     "p34: … AIR SYSTEM (2/3) PROJECT DWG NO. SHEET REV. 2/3 A D02J-00QFA10-M05-0002 REF…"
+    ]
+   },
+   {
+    "pattern": "REV. N/|N| A DNJ-",
+    "n": 5,
+    "examples": [
+     "p33: …IR SYSTEM (1/3) PROJECT DWG NO. SHEET REV. 1/3 A D02J-00QFA10-M05-0001 REF. …",
+     "p34: …IR SYSTEM (2/3) PROJECT DWG NO. SHEET REV. 2/3 A D02J-00QFA10-M05-0002 REF. …"
+    ]
+   },
+   {
+    "pattern": "PANY. A |N|.N.N F",
+    "n": 4,
+    "examples": [
+     "p6: …SED IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. D…",
+     "p11: …SED IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. D…"
+    ]
+   },
+   {
+    "pattern": "Y. A N.|N|.N FOR",
+    "n": 4,
+    "examples": [
+     "p6: … IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE…",
+     "p11: … IN ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE…"
+    ]
+   },
+   {
+    "pattern": "A N.N.|N| FOR INT",
+    "n": 4,
+    "examples": [
+     "p6: … ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE DE…",
+     "p11: … ANY WAY DETRIMENTAL TO THE COMPANY. A 26.08.21 FOR INTERNAL USE REV. DATE DE…"
+    ]
+   },
+   {
+    "pattern": "|N|. MINIMU",
+    "n": 4,
+    "examples": [
+     "p10: …1. MINIMUM STRAIGHT RUN DOWNSTR…",
+     "p17: …5. MINIMUM DISTANCE OF STRAIGHT…"
+    ]
+   },
+   {
+    "pattern": "|N|. VS MEA",
+    "n": 4,
+    "examples": [
+     "p15: …1. VS MEANS VACUUM SEAL VALVE. …",
+     "p16: …1. VS MEANS VACUUM SEAL VALVE. …"
+    ]
+   },
+   {
+    "pattern": "|N|. NATURA",
+    "n": 4,
+    "examples": [
+     "p29: …1. NATURAL GAS PIPING SHALL BE …",
+     "p30: …1. NATURAL GAS PIPING SHALL BE …"
+    ]
+   },
+   {
+    "pattern": "|N|. ALL IS",
+    "n": 4,
+    "examples": [
+     "p29: …3. ALL ISOLATION VALVES SHALL B…",
+     "p30: …3. ALL ISOLATION VALVES SHALL B…"
+    ]
+   },
+   {
+    "pattern": "|N|. NN PUR",
+    "n": 4,
+    "examples": [
+     "p29: …5. N2 PURGE CONNECTION USING FL…",
+     "p30: …5. N2 PURGE CONNECTION USING FL…"
+    ]
+   },
+   {
+    "pattern": "|N|. MANUAL",
+    "n": 4,
+    "examples": [
+     "p29: …6. MANUAL VENT SHALL BE USED FO…",
+     "p30: …6. MANUAL VENT SHALL BE USED FO…"
+    ]
+   },
+   {
+    "pattern": "|N|. SEE DN",
+    "n": 3,
+    "examples": [
+     "p26: …1. SEE D02J-00GEN00-M05-0002/-0…",
+     "p27: …1. SEE D02J-00GEN00-M05-0002/-0…"
+    ]
+   }
+  ]
+ },
+ "UAD": {
+  "numbered_paras": 313,
+  "mult_source": "CONFIG_FALLBACK",
+  "mult_table": {
+   "00": 1,
+   "10": 2,
+   "11": 4
+  },
+  "drawing_unit_codes": {
+   "00": 149
+  },
+  "forms": [
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 960,
+    "examples": [
+     "p4: … FOR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 2 FOR CONSTRUCTION M.H.KIM Y.H.…",
+     "p4: …H.JEONG 2 FOR CONSTRUCTION M.H.KIM Y.H.JEONG 1 26.FEB.2025 I.S.LEE…",
+     "p4: …C.2024 FIRST ISSUE M.H.KIM I.S.LEE Y.H.JEONG 0 DATE DESCRIPTION PREPARED REV…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": false,
+    "n": 140,
+    "examples": [
+     "p4: …22.MAY.2025 FOR CONSTRUCTION W.H…",
+     "p4: …JEONG 2 FOR CONSTRUCTION M.H.KIM Y.H.JEONG 1 26.FEB.2025 I.S.LEE…",
+     "p4: …31.DEC.2024 FIRST ISSUE M.H.KIM …"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 7,
+    "examples": [
+     "p10: …ATION SHALL BE TAKEN FOR OTHER UNITS 00EKH02/03/04/05AN001 PIPING TAGGING OF …",
+     "p10: …ON SHALL BE TAKEN FOR OTHER UNITS 00EKH02/03/04/05AN001 PIPING TAGGING OF EKG…",
+     "p10: …F EKG31/EKV31 SHALL BE REPLACED BY EKG/EKV32/33/34/35 FOR RESPECTIVE UNITS. P…"
+    ]
+   },
+   {
+    "shape": "D",
+    "head_word_before": false,
+    "in_unit_paragraph": true,
+    "n": 3,
+    "examples": [
+     "p10: …3. THE INTERCONNECTION DETAILS …",
+     "p10: …THE INTERCONNECTION DETAILS IS SHOWN FOR ONE(1) FUEL GAS COMPRESSOR (00EKH01…",
+     "p32: …3. P&ID PROVIDED IS ONLY FOR GT…"
+    ]
+   },
+   {
+    "shape": "DD",
+    "head_word_before": true,
+    "in_unit_paragraph": true,
+    "n": 2,
+    "examples": [
+     "p32: …3. P&ID PROVIDED IS ONLY FOR GT UNIT 11. IDENTICAL ARRANGEMENT IS APP…",
+     "p32: …NTICAL ARRANGEMENT IS APPLICABLE FOR GT UNIT 12,13 & 14.…"
+    ]
+   }
+  ],
+  "non_unit_numbers": [
+   {
+    "pattern": "|N|.N P&ID",
+    "n": 129,
+    "examples": [
+     "p6: …1.1 P&ID FOR SYMBOL & LEGEND (1…",
+     "p6: …1.2 P&ID FOR SYMBOL & LEGEND (2…"
+    ]
+   },
+   {
+    "pattern": "N.|N| P&ID FO",
+    "n": 115,
+    "examples": [
+     "p6: …1.1 P&ID FOR SYMBOL & LEGEND (1/4…",
+     "p6: …1.2 P&ID FOR SYMBOL & LEGEND (2/4…"
+    ]
+   },
+   {
+    "pattern": "LEGEND (|N|/N) - NA",
+    "n": 38,
+    "examples": [
+     "p6: …1.1 P&ID FOR SYMBOL & LEGEND (1/4) - 1A5J-00GEN00-M05-0002…",
+     "p6: …1.2 P&ID FOR SYMBOL & LEGEND (2/4) - 1A5J-00GEN00-M05-0003…"
+    ]
+   },
+   {
+    "pattern": "GEND (N/|N|) - NANJ",
+    "n": 38,
+    "examples": [
+     "p6: …1.1 P&ID FOR SYMBOL & LEGEND (1/4) - 1A5J-00GEN00-M05-0002…",
+     "p6: …1.2 P&ID FOR SYMBOL & LEGEND (2/4) - 1A5J-00GEN00-M05-0003…"
+    ]
+   },
+   {
+    "pattern": "LEGEND (|N|/N)- NAN",
+    "n": 31,
+    "examples": [
+     "p6: …1.3 P&ID FOR SYMBOL & LEGEND (3/4)- 1A5J-00GEN00-M05-0004…",
+     "p7: …1.3 P&ID FOR SYMBOL & LEGEND (3/4)- 1A5J-00GEN00-M05-0004…"
+    ]
+   },
+   {
+    "pattern": "GEND (N/|N|)- NANJ-",
+    "n": 31,
+    "examples": [
+     "p6: …1.3 P&ID FOR SYMBOL & LEGEND (3/4)- 1A5J-00GEN00-M05-0004…",
+     "p7: …1.3 P&ID FOR SYMBOL & LEGEND (3/4)- 1A5J-00GEN00-M05-0004…"
+    ]
+   },
+   {
+    "pattern": "H.JEONG |N| FOR CON",
+    "n": 20,
+    "examples": [
+     "p4: … FOR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 2 FOR CONSTRUCTION M.H.KIM Y.H.…",
+     "p6: …6 FOR CONSTRUCTION W.J.LIM I.S.LEE Y.H.JEONG 7 FOR CONSTRUCTION W.J.LIM I.S.…"
+    ]
+   },
+   {
+    "pattern": "SYSTEM (|N|/N) - NA",
+    "n": 20,
+    "examples": [
+     "p6: …P&ID FOR COMPRESSED AIR DISTRIBUTION SYSTEM (1/2) - 1A5J-00GKB10-M05-0001…",
+     "p6: …1.6 PFD FOR FUEL GAS SYSTEM (1/2) - 1A5J-00EKG00-M29-0001…"
+    ]
+   },
+   {
+    "pattern": "STEM (N/|N|) - NANJ",
+    "n": 20,
+    "examples": [
+     "p6: …ID FOR COMPRESSED AIR DISTRIBUTION SYSTEM (1/2) - 1A5J-00GKB10-M05-0001…",
+     "p6: …1.6 PFD FOR FUEL GAS SYSTEM (1/2) - 1A5J-00EKG00-M29-0001…"
+    ]
+   },
+   {
+    "pattern": "N N/N |N| PROJECT",
+    "n": 18,
+    "examples": [
+     "p4: … LEGEND SHEET REV. 1A5J-00GEN00-M05-0004 1/1 3 PROJECT NO. REF. DRAWING NO. …",
+     "p6: …(1/5) A SHEET REV. 1A5J-00EKG00-M05-0001 1/5 5 PROJECT NO. REF. DRAWING NO. …"
+    ]
+   },
+   {
+    "pattern": "|N|.N SCT D",
+    "n": 18,
+    "examples": [
+     "p6: …1.0 SCT DRAWINGS/DOCUMENTS :…",
+     "p7: …1.0 SCT DRAWINGS : F…"
+    ]
+   },
+   {
+    "pattern": "|N|.N VENDO",
+    "n": 18,
+    "examples": [
+     "p6: …2.0 VENDOR DRAWINGS:…",
+     "p7: …2.0 VENDOR DRAWINGS:…"
+    ]
+   },
+   {
+    "pattern": "N.|N| VENDOR",
+    "n": 18,
+    "examples": [
+     "p6: …2.0 VENDOR DRAWINGS:…",
+     "p7: …2.0 VENDOR DRAWINGS:…"
+    ]
+   },
+   {
+    "pattern": "N-N |N|/N N PRO",
+    "n": 17,
+    "examples": [
+     "p4: …OL & LEGEND SHEET REV. 1A5J-00GEN00-M05-0004 1/1 3 PROJECT NO. REF. DRAWING …",
+     "p6: …TEM (1/5) A SHEET REV. 1A5J-00EKG00-M05-0001 1/5 5 PROJECT NO. REF. DRAWING …"
+    ]
+   },
+   {
+    "pattern": "-N N/|N| N PROJE",
+    "n": 17,
+    "examples": [
+     "p4: … & LEGEND SHEET REV. 1A5J-00GEN00-M05-0004 1/1 3 PROJECT NO. REF. DRAWING NO…",
+     "p6: …M (1/5) A SHEET REV. 1A5J-00EKG00-M05-0001 1/5 5 PROJECT NO. REF. DRAWING NO…"
+    ]
+   },
+   {
+    "pattern": "N.|N| PFD FOR",
+    "n": 16,
+    "examples": [
+     "p6: …1.6 PFD FOR FUEL GAS SYSTEM (1/2)…",
+     "p6: …1.7 PFD FOR FUEL GAS SYSTEM (2/2)…"
+    ]
+   },
+   {
+    "pattern": "|N|.N PFD F",
+    "n": 15,
+    "examples": [
+     "p6: …1.6 PFD FOR FUEL GAS SYSTEM (1/…",
+     "p6: …1.7 PFD FOR FUEL GAS SYSTEM (2/…"
+    ]
+   },
+   {
+    "pattern": "N.|N| SYSTEM",
+    "n": 15,
+    "examples": [
+     "p6: …1.11 SYSTEM DESCRIPTION FOR FUEL G…",
+     "p7: …1.14 SYSTEM DESCRIPTION FOR FUEL G…"
+    ]
+   },
+   {
+    "pattern": "N.|N| CALCULA",
+    "n": 14,
+    "examples": [
+     "p6: …1.8 CALCULATION FOR FUEL GAS SYST…",
+     "p7: …1.8 CALCULATION FOR FUEL GAS SYST…"
+    ]
+   },
+   {
+    "pattern": "|N|.N CALCU",
+    "n": 13,
+    "examples": [
+     "p6: …1.8 CALCULATION FOR FUEL GAS SY…",
+     "p7: …1.8 CALCULATION FOR FUEL GAS SY…"
+    ]
+   },
+   {
+    "pattern": "H.JEONG |N| N.NOV.",
+    "n": 13,
+    "examples": [
+     "p6: …ONG 6 16.JAN.2026 FOR CONSTRUCTION Y.H.JEONG 5 20.NOV.2025 W.J.LIM I.S.LEE…",
+     "p8: …L TO THE COMPANY. FOR CONSTRUCTION Y.H.JEONG 5 20.NOV.2025 W.J.LIM I.S.LEE…"
+    ]
+   },
+   {
+    "pattern": "JEONG N |N|.NOV.N",
+    "n": 13,
+    "examples": [
+     "p6: …G 6 16.JAN.2026 FOR CONSTRUCTION Y.H.JEONG 5 20.NOV.2025 W.J.LIM I.S.LEE…",
+     "p8: …TO THE COMPANY. FOR CONSTRUCTION Y.H.JEONG 5 20.NOV.2025 W.J.LIM I.S.LEE…"
+    ]
+   },
+   {
+    "pattern": "|N|.OCT.N",
+    "n": 13,
+    "examples": [
+     "p6: …02.OCT.2025 FOR CONSTRUCTION W.H…",
+     "p7: …02.OCT.2025 FOR CONSTRUCTION W.H…"
+    ]
+   },
+   {
+    "pattern": "H.JEONG |N| N.AUG.",
+    "n": 12,
+    "examples": [
+     "p6: … FOR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 3 12.AUG.2025…",
+     "p7: … FOR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 3 12.AUG.2025…"
+    ]
+   },
+   {
+    "pattern": "JEONG N |N|.AUG.N",
+    "n": 12,
+    "examples": [
+     "p6: …OR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 3 12.AUG.2025…",
+     "p7: …OR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG 3 12.AUG.2025…"
+    ]
+   }
+  ]
+ }
+}

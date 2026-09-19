@@ -1,0 +1,66 @@
+{
+  "project": "AL_NOUF1",
+  "printed_valve_tags": {
+    "FCV": 7,
+    "LCV": 4,
+    "PRV": 4,
+    "BPRV": 3,
+    "PSV": 71,
+    "MOV": 59,
+    "HV": 7,
+    "PCV": 8,
+    "NRV": 1,
+    "TCV": 13,
+    "XV": 21
+  },
+  "printed_total": 198,
+  "paired_kept": {
+    "PRV": 2,
+    "BPRV": 1,
+    "FCV": 4,
+    "MOV": 49,
+    "PCV": 4,
+    "NRV": 1,
+    "XV": 18,
+    "TCV": 8,
+    "HV": 4
+  },
+  "paired_kept_total": 91,
+  "paired_excluded": {
+    "PRV": 2,
+    "PSV": 60,
+    "LCV": 4,
+    "HV": 3,
+    "PCV": 3,
+    "MOV": 10,
+    "TCV": 5,
+    "BPRV": 1,
+    "FCV": 3,
+    "XV": 3
+  },
+  "paired_excluded_total": 94,
+  "paired_excluded_why": {
+    "NONE": 88,
+    "MOTOR": 1,
+    "GLYPH": 5
+  },
+  "unpaired_by_page": {
+    "p3": 3,
+    "p12": 2,
+    "p19": 8
+  },
+  "unpaired_total": 13,
+  "untagged_bodies": 2711,
+  "untagged_excluded": 2653,
+  "tag_stacks": 18,
+  "tag_stack_detail": {
+    "XV <- ZSO": 5,
+    "FCV <- ZT": 4,
+    "PCV <- ZT": 3,
+    "PSV <- PSV": 2,
+    "MOV <- ZSOC": 1,
+    "MOV <- ZOC": 1,
+    "MOV <- ZT": 1,
+    "FCV <- DPIT": 1
+  }
+}

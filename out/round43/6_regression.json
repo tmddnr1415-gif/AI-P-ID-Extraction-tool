@@ -1,0 +1,66 @@
+{
+ "before_A43": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 667,
+   "rss": 4.91
+  },
+  "SADARA": {
+   "rows": 86,
+   "fp": "53531ef6",
+   "qty": 0,
+   "sec": 72,
+   "rss": 0.94
+  },
+  "TC2": {
+   "rows": 707,
+   "fp": "c396892a",
+   "qty": 4159,
+   "sec": 523,
+   "rss": 7.45
+  },
+  "UAD": {
+   "rows": 184,
+   "fp": "877de403",
+   "qty": 184,
+   "sec": 363,
+   "rss": 3.22
+  }
+ },
+ "after_E43": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 648,
+   "rss": 4.93,
+   "score": 94.2
+  },
+  "SADARA": {
+   "rows": 86,
+   "fp": "53531ef6",
+   "qty": 0,
+   "sec": 68,
+   "rss": 0.94,
+   "score": 76.3
+  },
+  "TC2": {
+   "rows": 731,
+   "fp": "cecd745d",
+   "qty": 4277,
+   "sec": 510,
+   "rss": 7.45,
+   "score": 90.2
+  },
+  "UAD": {
+   "rows": 192,
+   "fp": "e8bf8fbf",
+   "qty": 192,
+   "sec": 353,
+   "rss": 3.22,
+   "score": 82.6
+  }
+ }
+}
