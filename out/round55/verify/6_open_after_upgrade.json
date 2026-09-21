@@ -1,7 +1,7 @@
 {
- "ok": false,
- "out": "",
- "err": "Traceback (most recent call last):\n  File \"<string>\", line 5, in <module>\nImportError: cannot import name 'DATA_DIR' from 'app.paths' (/tmp/v55_tree/app/paths.py)",
- "sec": 0.0,
- "at": "2026-09-21 06:19:16"
+ "ok": true,
+ "out": "{\"rows\": 824, \"edits_alive\": 5, \"remarks\": [\"\\uac80\\uc99d \\ud3b8\\uc9d1 0\", \"\\uac80\\uc99d \\ud3b8\\uc9d1 1\", \"\\uac80\\uc99d \\ud3b8\\uc9d1 2\", \"\\uac80\\uc99d \\ud3b8\\uc9d1 3\", \"\\uac80\\uc99d \\ud3b8\\uc9d1 4\"], \"values_show_it\": 5}",
+ "err": "",
+ "sec": 0.1,
+ "at": "2026-09-21 06:36:56"
 }
