@@ -126,7 +126,7 @@ for i, k in enumerate(keys):
 con.commit()
 got = [r for r in db.merged_rows(con, job) if r["key"] in keys]
 print(json.dumps({"rows": len(res["rows"]), "edited": sum(
-    1 for r in got if (r.get("user_values") or {}).get("remark", "").startswith("검증 편집"))}))
+    1 for r in got if (r.get("user") or {}).get("remark", "").startswith("검증 편집"))}))
 """
 
 
@@ -145,9 +145,10 @@ from app.paths import data_dir
 DATA_DIR = data_dir()
 con = db.connect(DATA_DIR / "app.db")
 rows = db.merged_rows(con, "v55oldjob0001")
-kept = [r for r in rows if (r.get("user_values") or {}).get("remark", "").startswith("검증 편집")]
+kept = [r for r in rows if (r.get("user") or {}).get("remark", "").startswith("검증 편집")]
 print(json.dumps({"rows": len(rows), "edits_alive": len(kept),
-                  "remarks": sorted((r["user_values"]["remark"]) for r in kept)}))
+                  "remarks": sorted(r["user"]["remark"] for r in kept),
+                  "values_show_it": sum(1 for r in kept if r["values"]["remark"] == r["user"]["remark"])}))
 """
 
 
