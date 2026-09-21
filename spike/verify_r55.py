@@ -39,6 +39,7 @@ sys.path.insert(0, %r)
 from app import pipeline
 t = time.time()
 res = pipeline.analyse(%r)
+res["fingerprint"] = pipeline.fingerprint(res)
 rows = res["rows"]
 print(json.dumps({"rows": len(rows), "fp": res.get("fingerprint"),
                   "qty": sum((r.get("qty") or 0) for r in rows),
