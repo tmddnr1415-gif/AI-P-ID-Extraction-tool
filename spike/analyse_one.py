@@ -36,10 +36,18 @@ def main() -> int:
 
     # 낱말은 축3 ①·③ 의 분모다.  결과에는 없으므로 여기서 함께 담는다 —
     # 하네스가 PDF 를 다시 여는 것을 피하기 위해서다 (58장 재독 3분).
-    from app.engine import pidcache
-    doc, pages = pidcache.load_pages(pdf)
-    words = {pc.page_no: [([round(v, 2) for v in (r.x0, r.y0, r.x1, r.y1)], t)
-                          for r, t in pc.words] for pc in pages}
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(Path(pdf)):
+        # 55회차 — DXF 는 낱말을 `dxf_reader` 가 준다 (표시 좌표 · PDF 와 같은 모양)
+        sheets, _meta = dxf_reader.open_set(Path(pdf))
+        words = {sh.no: [([round(v, 2) for v in w.rect], w.text)
+                         for w in dxf_reader.words(sh) if not w.hidden]
+                 for sh in sheets if not sh.error}
+    else:
+        from app.engine import pidcache
+        doc, pages = pidcache.load_pages(pdf)
+        words = {pc.page_no: [([round(v, 2) for v in (r.x0, r.y0, r.x1, r.y1)], t)
+                              for r, t in pc.words] for pc in pages}
 
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as fh:

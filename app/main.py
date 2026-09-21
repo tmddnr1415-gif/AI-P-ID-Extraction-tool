@@ -86,6 +86,12 @@ def _count_pages(pdf: Path) -> int:
     That is why it happens on the upload request rather than being guessed from
     the file size - a page count shown to a person has to be the document's own.
     """
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(pdf):           # 55회차 — DXF 는 장 수
+        try:
+            return len(dxf_reader.list_inputs(pdf)[0])
+        except Exception:                            # noqa: BLE001
+            return 0
     import pymupdf                      # local, like the page renderer's import
     try:
         doc = pymupdf.open(pdf)
@@ -396,16 +402,25 @@ threading.Thread(target=_worker, daemon=True).start()
 # --------------------------------------------------------------------------
 
 @app.post("/jobs")
-async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
-                     compared_with: str = Form(""), mode: str = Form("")):
-    """PDF 하나를 받는다.  `project` 가 오면 그 프로젝트의 다음 리비전이 된다.
+async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
+                     compared_with: str = Form(""), mode: str = Form(""),
+                     input_kind: str = Form("")):
+    """PDF 하나, 또는 DXF(zip 하나 · 개별 .dxf 여러 장)를 받는다 (55회차).
 
-    프로젝트 없이 올려도 예전과 똑같이 동작한다 - 리비전은 기존 흐름 위에
-    얹히는 것이지 그것을 대체하지 않는다.
+    `project` 가 오면 그 프로젝트의 다음 리비전이 된다.  프로젝트 없이 올려도
+    예전과 똑같이 동작한다 - 리비전은 기존 흐름 위에 얹히는 것이지 그것을
+    대체하지 않는다.
+
+    입력 종류는 **파일이 말한다** (`%PDF-` · `PK` · .dxf) — 화면의 선택은 힌트다.
+    DXF 여러 장은 zip 하나로 묶어 저장한다: 저장 경로 하나가 곧 분석 하나라는
+    옛 구조를 그대로 두기 위해서다.  같은 프로젝트에 PDF 와 DXF 를 섞지 않는다 —
+    그 프로젝트의 첫 입력 종류와 다르면 400.
     """
-    raw = await pdf.read()
-    if not raw[:5] == b"%PDF-":
-        raise HTTPException(400, "that file is not a PDF")
+    files = [f for f in (pdf or []) if f is not None and f.filename]
+    if not files:
+        raise HTTPException(400, "파일이 없습니다")
+    blobs = [(Path(f.filename).name, await f.read()) for f in files]
+    kind, raw, name = _pack_input(blobs, input_kind)
     revision = ""
     if project:
         try:
@@ -421,10 +436,16 @@ async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
             compared_with = revisions.default_compare_target(meta)
     sha = hashlib.sha256(raw).hexdigest()
     job_id = uuid.uuid4().hex[:12]
+    if project:
+        prev = _project_input_kind(project)
+        if prev and prev != kind:
+            raise HTTPException(400, f"프로젝트 '{project}' 는 {prev} 로 시작했습니다 — "
+                                     f"같은 프로젝트에 {kind} 를 섞지 않습니다")
     UPLOADS.mkdir(parents=True, exist_ok=True)
-    path = UPLOADS / f"{job_id}_{Path(pdf.filename).name}"
+    path = UPLOADS / f"{job_id}_{name}"
     path.write_bytes(raw)
-    db.create_job(CON, job_id, Path(pdf.filename).name, sha, path)
+    db.create_job(CON, job_id, name, sha, path)
+    CON.execute("UPDATE job SET input_kind=? WHERE id=?", (kind, job_id)); CON.commit()
     pages = _count_pages(path)
     db.set_page_count(CON, job_id, pages)
     if project:
@@ -435,9 +456,51 @@ async def create_job(pdf: UploadFile = File(...), project: str = Form(""),
             raise HTTPException(400, f"mode 는 {revisions.MODES} 중 하나입니다")
         db.set_job_mode(CON, job_id, mode)
     _JOBS.put(job_id)
-    return {"job_id": job_id, "pdf_name": Path(pdf.filename).name, "sha256": sha,
-            "project": project, "revision": revision,
+    return {"job_id": job_id, "pdf_name": name, "sha256": sha,
+            "project": project, "revision": revision, "input_kind": kind,
             "compared_with": compared_with, "page_count": pages}
+
+
+def _probe_or_none(path: Path, page_no: int, *args, **kw) -> dict:
+    """`pipeline.probe_point` — DXF 입력이면 기하를 다시 세지 않고 그 사실만 적는다 (55회차)."""
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(path):
+        return {"input_kind": "DXF", "note": "DXF 입력 — 지점 주변 기하 채집은 이 회차에 없다"}
+    return pipeline.probe_point(path, page_no, *args, **kw)
+
+
+def _pack_input(blobs: list, hint: str = "") -> tuple:
+    """`(종류, 바이트, 저장 이름)`.  파일이 말하는 것으로 가른다."""
+    import zipfile
+    if len(blobs) == 1 and blobs[0][1][:5] == b"%PDF-":
+        return "PDF", blobs[0][1], blobs[0][0]
+    if len(blobs) == 1 and blobs[0][1][:2] == b"PK":
+        try:
+            with zipfile.ZipFile(io.BytesIO(blobs[0][1])) as z:
+                if not any(n.lower().endswith(".dxf") for n in z.namelist()):
+                    raise HTTPException(400, "zip 안에 .dxf 가 없습니다")
+        except zipfile.BadZipFile:
+            raise HTTPException(400, "zip 을 열 수 없습니다")
+        return "DXF", blobs[0][1], blobs[0][0]
+    dxf = [(n, b) for n, b in blobs if n.lower().endswith(".dxf")]
+    if dxf and len(dxf) == len(blobs):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for n, b in dxf:
+                z.writestr(n, b)
+        stem = Path(dxf[0][0]).stem[:40]
+        return "DXF", buf.getvalue(), (f"{stem}_and_{len(dxf)}_dxf.zip" if len(dxf) > 1
+                                       else f"{stem}.zip")
+    if hint.upper() == "DXF":
+        raise HTTPException(400, "DXF 로 골랐는데 .dxf 나 zip 이 아닙니다")
+    raise HTTPException(400, "that file is not a PDF (PDF 하나 · DXF zip 하나 · .dxf 여러 장만 받습니다)")
+
+
+def _project_input_kind(project: str) -> str:
+    """그 프로젝트의 첫 분석이 무엇으로 시작했나 — 섞지 않기 위해 본다."""
+    row = CON.execute("SELECT input_kind FROM job WHERE project=? AND input_kind<>'' "
+                      "ORDER BY created_at LIMIT 1", (project,)).fetchone()
+    return (row["input_kind"] if row else "") or ""
 
 
 @app.post("/jobs/{job_id}/cancel")
@@ -1874,6 +1937,11 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     row = db.get_job(CON, job_id)
     if row is None:
         raise HTTPException(404, "no such job")
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(Path(row["pdf_path"])):
+        data = _dxf_page_png(job_id, Path(row["pdf_path"]), page_no)
+        return StreamingResponse(io.BytesIO(data), media_type="image/png",
+                                 headers={"Cache-Control": "public, max-age=3600"})
     import pymupdf
     doc = pymupdf.open(row["pdf_path"])
     if not 1 <= page_no <= doc.page_count:
@@ -1884,6 +1952,34 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     doc.close()
     return StreamingResponse(io.BytesIO(data), media_type="image/png",
                              headers={"Cache-Control": "public, max-age=3600"})
+
+
+_DXF_RENDER_LOCK = threading.Lock()
+
+
+def _dxf_page_png(job_id: str, path: Path, page_no: int) -> bytes:
+    """DXF 장 배경 — 한 번 그려 디스크에 둔다 (장당 약 6초 · `app/engine/dxf_render.py`).
+
+    좌표 변환은 렌더러 하나에 있고, 화면은 이미지 폭 ↔ `page.width` 의 비로만 놓는다.
+    """
+    from app.engine import dxf_reader, dxf_render
+    cache = OUTPUTS / "dxf_render" / job_id
+    cache.mkdir(parents=True, exist_ok=True)
+    f = cache / f"p{page_no}.png"
+    if f.exists():
+        return f.read_bytes()
+    with _DXF_RENDER_LOCK:
+        if f.exists():
+            return f.read_bytes()
+        sheets, _meta = dxf_reader.open_set(path)
+        sheet = next((sh for sh in sheets if sh.no == page_no), None)
+        if sheet is None:
+            raise HTTPException(404, "no such page")
+        if sheet.error:
+            raise HTTPException(422, f"이 장은 읽지 못했습니다 — {sheet.error}")
+        data = dxf_render.render_png(sheet)
+        f.write_bytes(data)
+        return data
 
 
 def _engine_near(job_id: str, page_no: int) -> tuple:
@@ -1984,7 +2080,7 @@ async def add_row(job_id: str, payload: dict):
     geometry = {}
     if len(point) == 2 and page_no:
         _dets, _un, _moved = _engine_near(job_id, page_no)
-        geometry = pipeline.probe_point(Path(job["pdf_path"]), page_no,
+        geometry = _probe_or_none(Path(job["pdf_path"]), page_no,
                                         float(point[0]), float(point[1]),
                                         layout_moved=_moved,
                                         near_detections=_dets, near_unmapped=_un)
@@ -2503,7 +2599,7 @@ def _capture_point(job_id: str, page_no: int, point) -> dict:
         return {}
     _dets, _un, _moved = _engine_near(job_id, page_no)
     return {"point": [float(point[0]), float(point[1])],
-            "geometry": pipeline.probe_point(Path(job["pdf_path"]), page_no,
+            "geometry": _probe_or_none(Path(job["pdf_path"]), page_no,
                                              float(point[0]), float(point[1]),
                                              layout_moved=_moved,
                                              near_detections=_dets,

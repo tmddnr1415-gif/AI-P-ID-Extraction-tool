@@ -43,5 +43,12 @@
     "qty_sum": 198,
     "score": 83.3,
     "_": "⚠ 54회차에 못 쟀다 — 이 작업 환경에 UAD PDF 가 없다.  48회차 값이다."
+  },
+  "UAD-DXF": {
+    "rows": 449,
+    "fingerprint": "003078d741c5586c7da24fea996d026f975f71c5f6c8de3c05c8e421e5a1a5de",
+    "qty_sum": 449,
+    "score": null,
+    "_": "55회차 첫 기준선 — UAD DXF 32장 (data/uad_dxf.zip · sha256 32922234…).  1급 11장 · 2급 6장 · 기하 4장.  축3 는 안 잰다.  ⚠ 회사 PC 에서 python3 spike/regression_3p.py --only UAD-DXF 로 재확인."
   }
 }

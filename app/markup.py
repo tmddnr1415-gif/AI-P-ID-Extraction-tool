@@ -108,6 +108,14 @@ def _qty_from_page(con, job_id: str, page_no: int) -> dict:
 
 def propose(con, job, page_no: int, rect) -> dict:
     """마크업 사각형 하나에 대한 제안값.  **아무것도 쓰지 않는다.**"""
+    # 55회차 — DXF 입력은 이 회차에 제안을 만들지 않는다 (도면을 다시 읽는 함수가
+    # PDF 전용이다).  사람이 적는다 — 출처는 USER 로 남는다.
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
+        return {"scope": "", "scope_source": "USER", "qty": None, "qty_source": "USER",
+                "words": [], "stars": [], "notes": [], "type": "", "anchor": "",
+                "candidates": [], "input_kind": "DXF",
+                "note": "DXF 입력 — 사각형 자리의 별표·낱말 제안은 다음 회차 (사람이 적습니다)"}
     from app import pipeline
     page = con.execute(
         "SELECT drawing_no, width, height FROM pid_page WHERE job_id=? AND page_no=?",

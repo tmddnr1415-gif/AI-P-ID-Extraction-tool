@@ -1103,3 +1103,7 @@ rect.det.typical {
   stroke-dasharray: 7 3;
   fill: rgba(94, 92, 230, .07);
 }
+
+/* 55회차 — 입력 종류 라디오 (PDF / DXF).  드롭 상자 위 한 줄. */
+.input-kind { display: flex; gap: 14px; justify-content: center; margin: 0 0 6px; font-size: 13px; }
+.input-kind label { cursor: pointer; }

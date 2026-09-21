@@ -519,6 +519,9 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
+    55회차 — 입력이 DXF(zip · 폴더 · .dxf)면 `app.dxf_pipeline.analyse` 로 간다.
+    PDF 경로는 이 갈림 한 줄 말고는 손대지 않았다 (이 회차의 게이트).
+
     ## 왜 필요한가 — 현장에서 이것 때문에 실패했습니다
 
     `_fit_layout` 은 프로필이 그 문서의 것이 **아니면** 잰 값을
@@ -549,6 +552,13 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     실패해도 되돌린다 (`finally`).  그러지 않으면 낯선 양식이 죽은 뒤 그 잔재가
     남아, 그 다음 분석이 이유 없이 이상해진다.
     """
+    from app.engine import dxf_reader as _dxf
+    if _dxf.is_dxf_input(Path(pdf_path)):
+        from app import dxf_pipeline
+        return dxf_pipeline.analyse(Path(pdf_path), progress=progress, timings=timings,
+                                    declared_mode=declared_mode,
+                                    unit_multipliers=unit_multipliers,
+                                    sheet_numbers=sheet_numbers)
     with _own_config():
         try:
             return _analyse(pdf_path, progress=progress, timings=timings,

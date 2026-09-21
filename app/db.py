@@ -215,6 +215,9 @@ _ADDED_COLUMNS = (
     # 38회차 — 프로젝트에 안 묶인 분석의 입찰/실행 선언.  프로젝트가 있으면
     # 그 장부(`project.json`)의 선언이 이기고 이 칸은 비어 있다.
     ("job", "mode", "TEXT NOT NULL DEFAULT ''"),
+    # 55회차 — 입력 종류 (PDF | DXF).  DXF 는 zip 하나로 저장되고 `pdf_path` 가
+    # 그 zip 을 가리킨다 (이름은 옛 것 그대로 — 열이 바뀌면 옛 DB 가 못 읽는다).
+    ("job", "input_kind", "TEXT NOT NULL DEFAULT 'PDF'"),
     ("revision_state", "excel_no", "INTEGER NOT NULL DEFAULT 0"),
     # 몇 장짜리 문서인가, 그중 몇 장을 읽었는가, 얼마나 걸렸는가.  네 값 다
     # 화면에 그대로 나가므로 추정하지 않는다: `page_count` 는 업로드 직후 PDF

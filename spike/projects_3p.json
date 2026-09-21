@@ -24,6 +24,12 @@
       "pdf": "data/UAD_binding.pdf",
       "client_lists": false,
       "note": "28회차 신규 — 획(SHX) 글꼴 도면 · 태그가 인쇄된 1급 문서 (A3 · /Rotate 270)"
+    },
+    {
+      "name": "UAD-DXF",
+      "pdf": "data/uad_dxf.zip",
+      "client_lists": false,
+      "note": "55회차 신규 — 같은 UAD 도면의 DXF 32장 (zip).  `pipeline.analyse` 가 DXF 로 갈라 `dxf_pipeline` 로 간다.  축3 는 재지 않는다 (score null)"
     }
   ]
 }

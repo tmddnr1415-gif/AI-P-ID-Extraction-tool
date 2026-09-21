@@ -73,7 +73,12 @@ def score(proj, blob) -> dict:
     rows = result["rows"]
     words = {int(k): [(tuple(r), t) for r, t in v] for k, v in blob["words"].items()}
     anc, tmap = anchors()
-    metrics, total = identification.measure(result, words, anc, tmap)
+    if result.get("input_kind") == "DXF":
+        # 55회차 — DXF 첫 기준선.  축3 채점기는 PDF 의 낱말·타이틀 자리를 전제하므로
+        # 여기서는 재지 않는다 (`score: None` · 대조 대상은 rows · fingerprint · qty_sum).
+        metrics, total = {}, None
+    else:
+        metrics, total = identification.measure(result, words, anc, tmap)
     out = {
         "name": proj["name"],
         "rows": len(rows),
@@ -117,7 +122,7 @@ def compare(now, base) -> list:
             bad.append("%s — %s" % (r["name"], r["error"]))
             continue
         for k in CHECK:
-            if k in b and r.get(k) != b[k]:
+            if k in b and b[k] is not None and r.get(k) != b[k]:
                 bad.append("%s %s: 기준선 %s → 지금 %s" % (r["name"], k, b[k], r.get(k)))
         bad.extend(axis_alarms(r, b))
     return bad

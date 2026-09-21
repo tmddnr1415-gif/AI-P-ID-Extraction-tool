@@ -71,9 +71,16 @@
              거위(CSS 배경) 위에 붙고, 거위와 함께 좁은 창에서 사라진다. -->
         <p class="bubble" id="drop-bubble">P&amp;ID 를 넣어주면<br>분석을 시작할게요</p>
         <div class="drop-target">
-          <p class="drop-head">여기에 PDF 를 놓으세요</p>
+          <!-- 55회차 — 입력 종류.  PDF 는 이전과 같고, DXF 는 zip 하나 또는 개별 .dxf
+               여러 장을 받는다.  서버는 파일이 말하는 종류로 가르므로 이 선택은
+               힌트이고, 화면이 받는 파일 종류와 안내 문장만 바꾼다. -->
+          <p class="input-kind" id="input-kind">
+            <label><input type="radio" name="input_kind" value="PDF" checked> PDF</label>
+            <label><input type="radio" name="input_kind" value="DXF"> DXF (zip 또는 여러 파일)</label>
+          </p>
+          <p class="drop-head" id="drop-head">여기에 PDF 를 놓으세요</p>
           <p class="muted">또는 <label class="link" for="file">파일 선택</label></p>
-          <input id="file" type="file" accept="application/pdf" hidden>
+          <input id="file" type="file" accept="application/pdf,.pdf" hidden>
         </div>
         <p id="drop-lock" class="muted small">왼쪽에서 프로젝트를 먼저 고르세요.</p>
       </div>

@@ -108,12 +108,28 @@ const dropZone = $req("#drop-zone");
 }));
 dropZone.addEventListener("drop", ev => {
   if (!S.setupDone) return;
-  const f = ev.dataTransfer.files[0];
-  if (f) upload(f);
+  const fs = [...ev.dataTransfer.files];
+  if (fs.length) upload(fs);
 });
 $("#file").addEventListener("change", ev => {
-  if (ev.target.files[0]) upload(ev.target.files[0]);
+  const fs = [...ev.target.files];
+  if (fs.length) upload(fs);
 });
+
+/* 55회차 — 입력 종류.  서버는 파일이 말하는 종류로 가르므로 여기서는 받는 파일
+ * 종류(accept · multiple)와 안내 문장만 바꾼다.  DXF 는 zip 하나 또는 .dxf 여러 장. */
+function inputKind() {
+  const r = document.querySelector('input[name="input_kind"]:checked');
+  return r ? r.value : "PDF";
+}
+document.querySelectorAll('input[name="input_kind"]').forEach(r => r.addEventListener("change", () => {
+  const dxf = inputKind() === "DXF";
+  const f = $("#file");
+  f.accept = dxf ? ".dxf,.zip,application/zip" : "application/pdf,.pdf";
+  f.multiple = dxf;
+  $("#drop-head").textContent = dxf ? "여기에 DXF zip 하나 또는 .dxf 여러 장을 놓으세요"
+                                    : "여기에 PDF 를 놓으세요";
+}));
 
 /* 왼쪽 단이 정해졌는가.  정해질 때까지 오른쪽은 잠겨 있고, 왜 잠겼는지를 쓴다. */
 function setSetupDone(done, why) {
@@ -125,9 +141,11 @@ function setSetupDone(done, why) {
   lock.classList.toggle("hidden", S.setupDone);
 }
 
-async function upload(file) {
+async function upload(files) {
   const fd = new FormData();
-  fd.append("pdf", file);
+  const list = Array.isArray(files) ? files : [files];
+  for (const f of list) fd.append("pdf", f);        // 필드 이름은 옛 것 그대로 — 서버가 종류를 가른다
+  fd.append("input_kind", inputKind());
   // 프로젝트를 고른 경우에만 실린다.  안 고르면 예전과 같은 한 번짜리 분석.
   if (S.project) {
     fd.append("project", S.project);
@@ -1082,7 +1100,7 @@ async function open(jobId) {
   drop.classList.add("hidden");
   $("#progress").classList.add("hidden");
   $("#main").classList.remove("hidden");
-  $("#job-name").textContent = job.pdf_name;
+  $("#job-name").textContent = job.pdf_name + (job.input_kind === "DXF" ? "  [DXF]" : "");
   // 몇 장을 얼마나 걸려 읽었는지.  둘 다 잰 값이고, 없으면 그 칸은 비운다.
   const meta = [];
   if (job.page_count && job.sheets_total) {
