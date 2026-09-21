@@ -100,7 +100,64 @@ def step_realdb():
     save("17_realdb", sha256=hashlib.sha256(REAL.read_bytes()).hexdigest())
 
 
-STEPS = {"old": step_old_analyse, "unpack": step_unpack, "new": step_new_analyse,
+
+EDIT_CODE = """
+import json, sys, time
+sys.path.insert(0, %r)
+from app import db, revisions
+from app.paths import DATA_DIR
+res = json.load(open(%r))
+con = db.connect(DATA_DIR / "app.db")
+job = "v55oldjob0001"
+revisions.create_project(DATA_DIR, "AL NOUF1")
+con.execute("INSERT OR REPLACE INTO job (id, pdf_name, pdf_sha256, pdf_path, created_at,"
+            " status, progress, message, fingerprint, project, revision)"
+            " VALUES (?,?,?,?,?,'done',1.0,'',?,?,?)",
+            (job, "pid_total.pdf", "x" * 64, %r, time.time(),
+             res.get("fingerprint", ""), "AL NOUF1", "A"))
+con.commit()
+db.store_result(con, job, res)
+con.commit()
+keys = [r["key"] for r in res["rows"][:5]]
+for i, k in enumerate(keys):
+    db.set_user_value(con, job, k, "remark", "검증 편집 %%d" %% i)
+con.commit()
+got = [r for r in db.merged_rows(con, job) if r["key"] in keys]
+print(json.dumps({"rows": len(res["rows"]), "edited": sum(
+    1 for r in got if (r.get("user_values") or {}).get("remark", "").startswith("검증 편집"))}))
+"""
+
+
+def step_edits():
+    """②③ 옛 분석본을 DB 에 넣고 다섯 칸을 사람이 고친 것으로 만든다."""
+    code = EDIT_CODE % (str(TREE), "/tmp/v55_old.json", str(ROOT / "data" / "pid_total.pdf"))
+    p, sec, _ = run([sys.executable, "-c", code], TREE)
+    save("2_edits", ok=p.returncode == 0, out=p.stdout.strip()[-200:], err=p.stderr.strip()[-400:])
+
+
+OPEN_CODE = """
+import json, sys
+sys.path.insert(0, %r)
+from app import db
+from app.paths import DATA_DIR
+con = db.connect(DATA_DIR / "app.db")
+rows = db.merged_rows(con, "v55oldjob0001")
+kept = [r for r in rows if (r.get("user_values") or {}).get("remark", "").startswith("검증 편집")]
+print(json.dumps({"rows": len(rows), "edits_alive": len(kept),
+                  "remarks": sorted((r["user_values"]["remark"]) for r in kept)}))
+"""
+
+
+def step_open():
+    """⑥⑦ 새 코드로 그 분석을 다시 연다 — 행도 편집도 살아 있는가 (재분석 없이)."""
+    code = OPEN_CODE % str(TREE)
+    p, sec, _ = run([sys.executable, "-c", code], TREE)
+    save("6_open_after_upgrade", ok=p.returncode == 0, out=p.stdout.strip()[-300:],
+         err=p.stderr.strip()[-400:], sec=round(sec, 1))
+
+
+STEPS = {"old": step_old_analyse, "edits": step_edits, "unpack": step_unpack,
+         "open": step_open, "new": step_new_analyse,
          "dxf": step_dxf_zip, "tests": step_tests, "realdb": step_realdb}
 
 if __name__ == "__main__":
