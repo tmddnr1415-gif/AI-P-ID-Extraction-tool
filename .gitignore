@@ -155,3 +155,4 @@ out/round55/UAD_DXF.json
 data/uad_dxf/
 data/*.zip
 data/*.dxf
+out/uad_dxf_p11_p15/*.png
