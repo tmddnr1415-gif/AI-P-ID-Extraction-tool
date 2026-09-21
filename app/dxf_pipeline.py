@@ -354,11 +354,15 @@ def _isa_type(v: str, isa) -> str | None:
 def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
             unit_multipliers: dict = None, sheet_numbers: dict = None, **_ignored) -> dict:
     t0 = time.perf_counter()
-    log = (timings.log if timings is not None else (lambda m: print(m, flush=True)))
+    # `timings` 는 파이프라인의 `Timings` 이거나 하네스가 넘기는 빈 dict 다 (PDF 경로의
+    # `clock = timings or Timings()` 와 같은 관용).  둘 다 받는다.
+    log = getattr(timings, "log", None) or (lambda m: print(m, flush=True))
 
     def say(frac, msg, sheets=None):
+        # 진행 콜백은 PDF 경로와 같은 서명이다 — `progress(done, total, message, sheets, plan, drawing)`.
+        # (첫 판이 `(frac, msg)` 둘만 넘겨 화면 업로드가 6초 만에 죽었다 — 실측.)
         if progress:
-            progress(frac, msg, sheets=sheets) if _accepts_sheets(progress) else progress(frac, msg)
+            progress(frac, 1.0, msg, sheets, None, None)
 
     say(0.0, "opening the DXF set")
     sheets, meta = R.open_set(Path(path))
@@ -470,7 +474,7 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         rows.extend(out["rows"]); unjudged.extend(out["unjudged"])
         tiers[sh.no] = out["tier"]; breaker.extend(out["breaker"])
         valve_tags.extend(out["valve_tags"])
-        if timings is not None:
+        if hasattr(timings, "page_done"):
             timings.page_done(sh.no)
 
     # ── 태그 (1급) — 속성이 준 것은 그대로, 나머지는 tags.assign ─────────
@@ -485,12 +489,9 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
             "label": r.type or r.valve_type, "needs_review": bool(r.needs_review),
             "scope": scope, "kind": P.KIND_VALVE if r.evidence.get("body") else P.KIND_INSTRUMENT,
             "row": True, "reason": r.needs_review, "description_needed": r.description_needed})
-    for u in unjudged:
-        layers.setdefault(u["page_no"], collections.defaultdict(list))["EXCLUDED"].append({
-            "key": P._key(u["page_no"], "UNJUDGED", *u["rect"]), "rect": [round(v, 1) for v in u["rect"]],
-            "label": u.get("label") or u.get("block") or "?", "needs_review": False,
-            "scope": "EXCLUDED", "kind": P.KIND_INSTRUMENT, "row": False, "reason": u["why"]})
-
+    # 미판정 심볼은 오버레이 층에 넣지 않는다 — 넣으면 상자는 그려지는데 어느 색 칸에도
+    # 안 세어져 33회차 등식(칸 합 = 상자 수)이 깨진다 (첫 캡처 p12: 행 17 · 상자 37).
+    # 등록 화면은 `unjudged_symbols` 를 직접 읽는다 (18회차).
     say(0.95, "assembling the result", sheets=(len(sheets), len(sheets)))
     mult_table = {}
     for r in rows:
@@ -542,19 +543,16 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
                 "scope_breaks": breaker,
                 "drawing_no_pattern": pat or ""},
         "description_grades": dict(collections.Counter(r.description_grade for r in rows)),
+        # 화면·저장이 읽는 PDF 결과의 나머지 열쇠 — 이 회차에 값이 없는 것은 **빈 값**으로 둔다
+        # (`main.job_review` 가 `engine.get("job_review", [])` 를 돌리므로 None 이면 500).
+        "job_review": [], "origins": {}, "equipment": {}, "candidates": {},
+        "description_axis": {}, "description_build": {}, "description_scope": {},
+        "pipe_trace": {}, "valve_layout": {},
         "applied_rules": {"layout": {"items": [], "moved": []}},
         "timings": {"total_seconds": round(time.perf_counter() - t0, 2)},
     }
     log(f"DXF: rows {len(rows)} · unjudged {len(unjudged)} · {result['timings']['total_seconds']}s")
     return result
-
-
-def _accepts_sheets(fn) -> bool:
-    try:
-        import inspect
-        return "sheets" in inspect.signature(fn).parameters
-    except (TypeError, ValueError):
-        return False
 
 
 def _shape(v: str) -> str:

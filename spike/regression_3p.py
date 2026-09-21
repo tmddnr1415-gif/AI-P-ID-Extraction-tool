@@ -170,7 +170,7 @@ def table(res) -> str:
             continue
         lines.append("%-*s %6d %10s %8d %7.0f %6.1fG %6.1f" %
                      (w, r["name"], r["rows"], (r["fingerprint"] or "")[:8], r["qty_sum"],
-                      r["seconds"] or 0, r["max_rss_gb"] or 0, r["score"]))
+                      r["seconds"] or 0, r["max_rss_gb"] or 0, r["score"] if r["score"] is not None else float("nan")))
     ref = [r for r in res if not r.get("error") and r.get("axes")]
     if ref:
         lines.append("")
@@ -188,6 +188,9 @@ def table(res) -> str:
             continue
         cells = []
         for m in identification.METRICS:
+            if m not in r["identification"]:          # 55회차 — DXF 는 축3 를 안 잰다
+                cells.append("%-11s" % "—")
+                continue
             a, b, _n = r["identification"][m]
             cells.append("%-11s" % ("%d/%d" % (a, b)))
         lines.append("%-*s %s" % (w, r["name"], "  ".join(cells)))
@@ -209,8 +212,9 @@ def main() -> int:
         res.append(run_one(p, a.reuse))
         r = res[-1]
         print("   %s" % (r.get("error") or
-                         "행 %d · 지문 %s · 축3 %.1f점" %
-                         (r["rows"], (r["fingerprint"] or "")[:8], r["score"])), flush=True)
+                         "행 %d · 지문 %s · 축3 %s" %
+                         (r["rows"], (r["fingerprint"] or "")[:8],
+                          ("%.1f점" % r["score"]) if r["score"] is not None else "— (DXF · 안 잰다)")), flush=True)
 
     print()
     print(table(res))

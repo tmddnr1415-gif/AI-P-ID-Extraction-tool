@@ -2506,6 +2506,47 @@ UAD `fff7ef15` → `9783173e` (24행) 이 움직였습니다.**  시험 368 → 
    더한 뒤로 서명이 안 맞는데, TC2 PDF 가 없는 기계에서는 **건너뛰어져** 드러나지
    않았다 (14회차 [1] 과 같은 모양).
 
+**그 다음 회차 — DXF 입력 경로 · PDF 와 나란히 (55회차)**
+
+전문 `out/round55/1_보고서.md` · 진행 `out/round55_progress.md` · 32장 인벤토리
+`out/round55/round55_dxf_inventory.md` · 범례 사전 `round55_legend_blocks.md` · 기능 표
+`round55_features.md` · 20종 `round55_census20.md` · DXF↔PDF `round55_dxf_vs_pdf.md` ·
+32장 그림 `out/round55_uad_dxf/` · 묶음 `out/round55_result.zip`.
+**PDF 경로는 `pipeline.analyse` 의 갈림 한 줄 말고 한 줄도 바꾸지 않았다 — AL NOUF1
+`c3f63cde` · 1137 · 2140 · 축3 94.8 · TC2 `68b09eb2` · 901 · 5556 회귀 "기준선과 같습니다".**
+시험 434 → **456**.  (프롬프트의 "52회차" 는 저장소 번호와 겹쳐 55 로 적었다.)
+
+1. **★ 새 입구 셋, 판정 함수는 PDF 것을 부른다.**  `app/engine/dxf_reader.py`(읽기만 · 낱말·
+   심볼·닫힌 도형·선·타이틀 캡션 아래 칸 · **y 뒤집기는 `Sheet.to_page` 한 곳**) →
+   `app/dxf_pipeline.py`(판정 → 기존 `Row`·`layers`·`unjudged_symbols` 모양) →
+   `app/engine/dxf_render.py`(배경 PNG · 픽셀 = 모델 × 3).  `_scope_of` · `_supplier_name` ·
+   `type_display` · `deliverable_class` · `tags.assign` · `isa_table.derive` · `_drawing_no_pattern`
+   을 그대로 부르므로 화면·저장·Excel·마크업·승수·도면번호 지정이 입력 종류를 모른다.
+2. **★ 블록·레이어 이름은 코드에 없다** (`tests/test_dxf.py` 가 AST 로 이 문서의 이름 19개를
+   막는다).  뜻은 범례 장의 **구획 머리말**(가장 큰 글자 · `LINE VALVES` · `VALVES ACTUATORS` ·
+   `GENERAL INSTRUMENTS` …)과 **옆 캡션**에서, 계기 여부는 **블록 정의의 속성 쌍**에서, 어느 속성이
+   TYPE 이고 태그인지는 **값의 분포**에서(ISA 표로 풀림 + 태그 짝 · 코드 모양 두 장 이상), 거를 층은
+   **레이어 표의 off/frozen/noplot** 에서 온다.
+3. **UAD DXF 32장 → 449행 · 지문 `003078d7`** (1급 11장 · 2급 6장 · 기하 4장).  PDF 로 0행이던
+   p11~p14 가 26·17·26·28행.  태그로 짝지으면 PDF(45회차 301행)와 **㉠192 · ㉡171 · ㉢34**.
+   ㉡ 은 PDF 판정을 고칠 목록이고 **고치지 않았다**.
+4. **★ "EXPLODE 된 세 장" 은 PDF 임포트였다.**  020·022·027 은 엔티티 82~88% 가 `PDF_*` 층 —
+   AutoCAD PDFIMPORT 흔적이라 **글자가 획이 됐다** (022 ISA 꼴 TEXT 0).  026 만 진짜 풀린 기하.
+   폴백(범례 계기 원 크기의 닫힌 도형 + 안의 글자)은 026 12 · 027 9 · p8 5 · p9 4 행이고, PDF 가
+   p8·p9 에서 18·16 을 내므로 **닫히지 않은 폴리라인 버블을 폴백이 못 센다** (다음 회차).
+5. **두 체계가 아니라 셋이다** — ① 블록+속성 ② `AS_INST` 블록만+TEXT(p16~18 · 범례에 없다 →
+   범례 계기 원과 같은 반지름을 그린 블록으로 2급 · 사유 `DXF_BLOCK_NOT_IN_LEGEND`) ③ 임포트/풀린 기하.
+6. **모델스페이스 ATTDEF 는 풀린 속성이다** — 보이는 글자가 태그 이름 (p11 에 317개 · p8 의 `LIT`·`PDIT`).
+7. **★ ISA 표 succeeding 0 (50회차 미결) 의 원인은 조각이 아니라 표의 판**이다 — UAD 범례는
+   `TYPICAL SYMBOL` 머리줄 대신 `( ) AL`·`( ) K` 칸 한 줄을 찍는다.  그 판을 읽는 규칙은 PDF 경로 불변
+   게이트라 **DXF 쪽**(`isa_succeeding_from_cells`)에 두었다 → 대기: `isa_table.derive` 로 옮긴다.
+8. **스코프 경계선 블록(좌/우 속성 `SCT/SUPPLIER` · `AG/UG`)은 사실로만** 남긴다 (`dxf.scope_breaks`).
+   SCOPE 는 별표 + NOTES 정의줄 그대로 (§10-7).
+9. **안 만든 것**: Description(행마다 사유) · Typical/신호묶음/파선 · 마크업 **제안값**(사각형·추가는 된다)
+   · 행추가 지점 기하.  회귀 하네스에 `UAD-DXF` 항목(축3 는 안 잰다 · score null).
+10. **⚠ 스스로 뒤집은 것 일곱** — `out/round55_progress.md`.  ⚠ 한 세트 렌더가 장마다 zip 을 다시 열어
+   60초였다 → 세트 캐시 하나(`main._dxf_sheets`).  ⚠ `pkill -f` 자기참조로 셸 하나를 죽였다 (§8 규칙 그대로).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -2890,6 +2931,11 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `detect_symbols._touches` 의 끝점 판정 | **54회차** — 닿는 자리는 선분의 **한가운데가 아니라 끝점**이다.  25회차가 이 조건을 넣은 이유가 *나비의 대각선은 삼각형 **꼭짓점**에서 만난다* 였고 꼭짓점은 끝점이 모이는 자리다.  별표가 **자기가 가리키는 버블 윗변** 0.96pt 위에 찍히면(허용치 1.02pt) 통째로 사라지던 것을 고친다 |
 | `detect_symbols.star_groups` 의 두 번 훑기 | **54회차** — 무리를 **다 모은 뒤** 끝점을 본다.  `**` 를 나란히 찍는 문서에서 두 별 사이 끝점 간격이 **0.24pt**(허용치 0.99pt)라 서로를 "다른 잉크" 로 보고 둘 다 버렸다 |
 | `pipeline` 의 `layers[장]["TYPICAL"]` · `app.js` 의 `TYPICAL_MARK` | **54회차** — Typical 표식·상세 상자를 화면에 그린다.  **행이 아니므로** SCOPE 색 칸에 섞지 않고 자기 칸으로 센다 (33회차 등식 *칸 합 = 상자 수* 유지).  값은 38회차가 이미 읽어 저장해 둔 `result["typical"]` 그대로다 |
+| `app/engine/dxf_reader.py` | **55회차** — DXF 를 읽기만 한다.  장(zip·폴더·개별) · 낱말(TEXT·MTEXT·ATTRIB·**풀린 ATTDEF**·프레임 블록 안 글자) · 심볼(글자 없는 기하만의 사각형) · 닫힌 도형 · 선 · 타이틀 캡션 아래 칸.  **y 뒤집기는 `Sheet.to_page` 하나** |
+| `app/dxf_pipeline.py` | **55회차** — DXF 판정.  범례 구획 머리말+캡션 → 블록 사전 · 속성 역할(값의 분포) · 1급/2급/기하 행 · 별표 SCOPE.  판정 함수는 PDF 것을 **부른다** (`_scope_of`·`deliverable_class`·`tags.assign`·`isa_table.derive`).  블록·레이어 이름 0 (`tests/test_dxf.py` AST) |
+| `app/engine/dxf_render.py` · `main._dxf_page_png`·`_dxf_sheets` | DXF 배경 PNG — 픽셀 = 모델 × 3 · 장 범위를 정확히 덮는다 · 디스크 캐시 · **세트 캐시 하나** (장마다 zip 을 다시 열면 60초) |
+| `pipeline.analyse` 의 `is_dxf_input` 갈림 | **PDF 경로에 손댄 유일한 자리** (55회차) — DXF 면 `dxf_pipeline.analyse`, 아니면 옛 그대로 |
+| `job.input_kind` · `main._pack_input`·`_project_input_kind` | PDF/DXF/zip 을 파일 머리로 가른다 · .dxf 여러 장은 zip 하나로 · **같은 프로젝트에 두 종류를 섞지 않는다** |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

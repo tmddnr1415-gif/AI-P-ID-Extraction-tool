@@ -147,3 +147,11 @@ out/round54/excel/det_*/
 out/round54/excel/sct/
 out/round54/excel/TC2/
 out/round54/excel/AL_NOUF1/
+
+# 55회차 — UAD DXF 32장 그림 (33MB).  묶음 PDF·표·README 만 커밋한다 · 결과 zip 은 첨부로 낸다
+out/round55_uad_dxf/*.png
+out/round55_result.zip
+out/round55/UAD_DXF.json
+data/uad_dxf/
+data/*.zip
+data/*.dxf

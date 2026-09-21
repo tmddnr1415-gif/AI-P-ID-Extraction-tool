@@ -57,6 +57,8 @@ try:
     # ① 원본 렌더 — 서버가 그린 것 그대로 (좌표 변환은 렌더러 하나)
     for p in res["pages"]:
         n = p["page_no"]
+        if (OUT / f"p{n:02d}_raw.png").exists():
+            continue                                    # 이미 그린 장은 다시 안 그린다
         t = time.perf_counter()
         raw = urllib.request.urlopen(f"http://127.0.0.1:{port}/jobs/{job}/page/{n}.png", timeout=300).read()
         (OUT / f"p{n:02d}_raw.png").write_bytes(raw)
@@ -78,7 +80,12 @@ try:
         pg.add_style_tag(content="#ovlegend { font-size: 11px; }")
         for p in res["pages"]:
             n = p["page_no"]
-            pg.select_option("#page-select", str(n)); pg.wait_for_timeout(3500)
+            pg.select_option("#page-select", str(n))
+            # 배경 그림이 **실제로 실릴 때까지** 기다린다 — 새 분석의 첫 렌더는 장당 6초라
+            # 고정 대기(3.5초)로는 `S.natural` 이 아직 없다 (실측: 둘째 실행이 거기서 죽었다).
+            pg.wait_for_function("() => S.page && S.page.page_no === %d && S.natural && S.natural.w > 0" % n,
+                                 timeout=90000)
+            pg.wait_for_timeout(1200)
             facts = pg.evaluate("""() => {
                 const legend = [...document.querySelectorAll('.ovl-row')]
                     .filter(r => !/\\(그중\\)/.test(r.innerText))
@@ -99,5 +106,5 @@ try:
         br.close()
 finally:
     srv.terminate()
-(OUT / "table.json").write_text(json.dumps(table, ensure_ascii=False, indent=1))
+    (OUT / "table.json").write_text(json.dumps(table, ensure_ascii=False, indent=1))
 print("→", OUT)

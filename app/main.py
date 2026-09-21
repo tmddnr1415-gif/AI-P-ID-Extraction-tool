@@ -1955,6 +1955,19 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
 
 
 _DXF_RENDER_LOCK = threading.Lock()
+_DXF_SET: dict = {}          # 마지막으로 연 DXF 세트 하나 — {"path": str, "sheets": [...]}
+
+
+def _dxf_sheets(path: Path) -> list:
+    """열어 둔 세트를 다시 쓴다.  zip 32장을 여는 데 50초가 걸리므로 장마다 다시 열면
+    한 장 그리는 데 60초가 된다 (실측 p1 59.5초).  한 세트만 들고 있는다."""
+    key = str(path)
+    if _DXF_SET.get("path") != key:
+        from app.engine import dxf_reader
+        sheets, _meta = dxf_reader.open_set(path)
+        _DXF_SET.clear()
+        _DXF_SET.update({"path": key, "sheets": sheets})
+    return _DXF_SET["sheets"]
 
 
 def _dxf_page_png(job_id: str, path: Path, page_no: int) -> bytes:
@@ -1971,8 +1984,7 @@ def _dxf_page_png(job_id: str, path: Path, page_no: int) -> bytes:
     with _DXF_RENDER_LOCK:
         if f.exists():
             return f.read_bytes()
-        sheets, _meta = dxf_reader.open_set(path)
-        sheet = next((sh for sh in sheets if sh.no == page_no), None)
+        sheet = next((sh for sh in _dxf_sheets(path) if sh.no == page_no), None)
         if sheet is None:
             raise HTTPException(404, "no such page")
         if sheet.error:
