@@ -36,7 +36,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BASE = "aac64ba"                      # 회사 PC 가 마지막으로 맞춘 커밋
 ROUND = "r55"
 KEEP = ("app/", "config/", "docs/", "spike/", "tests/")
-KEEP_FILES = ("conftest.py", "CLAUDE.md", "README.md")
+KEEP_FILES = ("conftest.py", "CLAUDE.md", "README.md",
+              # 55회차 — 의존이 늘었다.  `requirements.txt` 를 빼면 회사 PC 가
+              # "무엇을 깔아야 하나" 를 파일로 갖지 못한다.
+              "requirements.txt", "requirements-win-dxf.txt")
 FORBIDDEN = ("app/_data/", "app/_data")
 OUT = ROOT / "out" / "round55"
 
