@@ -1,8 +1,8 @@
 {
  "ok": true,
- "out": "ARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)'] · legend blocks 129 · instrument 12 · valve 15 · actuator 9 · bubble Ø 8.0\nDXF: rows 449 · unjudged 534 · 66.19s\n{\"rows\": 449, \"fp\": null, \"qty\": 449, \"sec\": 66.5}",
+ "out": "T.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)'] · legend blocks 129 · instrument 12 · valve 15 · actuator 9 · bubble Ø 8.0\nDXF: rows 449 · unjudged 534 · 65.62s\n{\"rows\": 449, \"fp\": \"003078d741c5586c7da24fea996d026f975f71c5f6c8de3c05c8e421e5a1a5de\", \"qty\": 449, \"sec\": 66.0}",
  "err": "Ignoring BLOCK without name #574E.",
  "sec": 68,
  "rss_gb": 4.94,
- "at": "2026-09-21 06:34:30"
+ "at": "2026-09-21 06:51:57"
 }
