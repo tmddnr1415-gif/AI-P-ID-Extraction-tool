@@ -157,3 +157,5 @@ data/*.zip
 data/*.dxf
 out/uad_dxf_p11_p15/*.png
 out/*.done
+# 남의 wheel 이라 저장소에 두지 않습니다 — pip download 로 언제든 다시 만듭니다
+out/4_설치파일_wheels_part*.zip
