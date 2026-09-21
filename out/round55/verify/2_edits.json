@@ -1,0 +1,6 @@
+{
+ "ok": false,
+ "out": "",
+ "err": "Traceback (most recent call last):\n  File \"<string>\", line 5, in <module>\nImportError: cannot import name 'DATA_DIR' from 'app.paths' (/tmp/v55_tree/app/paths.py)",
+ "at": "2026-09-21 06:19:16"
+}

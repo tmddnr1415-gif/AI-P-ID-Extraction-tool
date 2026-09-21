@@ -105,7 +105,8 @@ EDIT_CODE = """
 import json, sys, time
 sys.path.insert(0, %r)
 from app import db, revisions
-from app.paths import DATA_DIR
+from app.paths import data_dir
+DATA_DIR = data_dir()
 res = json.load(open(%r))
 con = db.connect(DATA_DIR / "app.db")
 job = "v55oldjob0001"
@@ -139,7 +140,8 @@ OPEN_CODE = """
 import json, sys
 sys.path.insert(0, %r)
 from app import db
-from app.paths import DATA_DIR
+from app.paths import data_dir
+DATA_DIR = data_dir()
 con = db.connect(DATA_DIR / "app.db")
 rows = db.merged_rows(con, "v55oldjob0001")
 kept = [r for r in rows if (r.get("user_values") or {}).get("remark", "").startswith("검증 편집")]
