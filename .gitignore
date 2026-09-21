@@ -156,3 +156,4 @@ data/uad_dxf/
 data/*.zip
 data/*.dxf
 out/uad_dxf_p11_p15/*.png
+out/*.done
