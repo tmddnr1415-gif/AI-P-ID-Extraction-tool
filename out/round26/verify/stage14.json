@@ -1,0 +1,5 @@
+{
+  "job": "57fa471c5544",
+  "max_rss_gb": 4.95,
+  "how": "uvicorn 프로세스 /proc/<pid>/status VmHWM — 분석은 그 프로세스의 스레드"
+}

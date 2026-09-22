@@ -1,0 +1,52 @@
+{
+ "project": "SADARA",
+ "table": {
+  "10": 4
+ },
+ "rows": 82,
+ "fingerprint": "d80e34bc1c5478aa56fbd9a4cb31df9b07cf75b7989c35a25ce264507476fa56",
+ "qty_before": 0,
+ "qty_after": 328,
+ "filled_before": 0,
+ "filled_after": 82,
+ "moved": {
+  "qty": 82,
+  "needs_review": 82
+ },
+ "codes": {
+  "MULTIPLIER_BY_USER": 82
+ },
+ "score": 92.0,
+ "metrics": {
+  "도면번호": [
+   9,
+   9,
+   ""
+  ],
+  "개정": [
+   9,
+   9,
+   ""
+  ],
+  "태그→행": [
+   33,
+   33,
+   "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+  ],
+  "수량": [
+   82,
+   82,
+   ""
+  ],
+  "심볼판정": [
+   82,
+   126,
+   ""
+  ],
+  "파라미터": [
+   27,
+   31,
+   ""
+  ]
+ }
+}

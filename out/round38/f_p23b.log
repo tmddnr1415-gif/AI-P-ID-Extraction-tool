@@ -1,0 +1,11 @@
+point (621, 139) outline containing: [] | on_face: False
+point (621, 388) outline containing: [] | on_face: False
+point (620, 283) outline containing: [[606, 279, 635, 290]] | on_face: True
+outlines near x600-650: [[606, 159, 635, 170], [606, 279, 635, 290]]
+mark (621.5, 138.6, 1, 'GLYPH')
+mark (621.5, 388.3, 1, 'GLYPH')
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/r38/f_p23b.py", line 18, in <module>
+    if 600<cx<645 and 120<cy<420: print("star_group", [round(v,1) if isinstance(v,float) else v for v in g])
+       ^^^^^^^^^^
+TypeError: '<' not supported between instances of 'int' and 'Rect'

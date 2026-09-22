@@ -1,0 +1,8 @@
+{
+ "ok": true,
+ "out": "ons                0.01s    0.0%\n  valves.glyph_library       0.01s    0.0%\n  unit_multipliers           0.00s    0.0%\n  slowest pages: p3 21.5s, p16 14.4s, p4 12.8s, p2 8.9s, p14 5.8s\n{\"rows\": 1137, \"fp\": \"c3f63cded7506f6249ac850f69f97547ebe7fed5d9e0be416a8d56c06f67cd4d\", \"qty\": 2140, \"sec\": 822.1}",
+ "err": "",
+ "sec": 823,
+ "rss_gb": 4.94,
+ "at": "2026-09-21 06:50:49"
+}

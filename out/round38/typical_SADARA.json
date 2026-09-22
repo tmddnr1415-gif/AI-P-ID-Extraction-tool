@@ -1,0 +1,66 @@
+{
+ "project": "SADARA",
+ "drawing_area": [
+  80.6,
+  72.9,
+  2726.7,
+  2311.2
+ ],
+ "pages": [
+  {
+   "page_no": 1,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 6,
+   "circles": 6,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 7,
+   "circles": 29,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 8,
+   "circles": 26,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 9,
+   "circles": 42,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  }
+ ]
+}

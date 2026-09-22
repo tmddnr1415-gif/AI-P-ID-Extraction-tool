@@ -1,0 +1,1018 @@
+{
+ "five": {
+  "삭제": 38,
+  "조사": 20,
+  "유도 구현": 26,
+  "사람 지정": 91,
+  "결함": 25
+ },
+ "buckets": {
+  "㉮": 84,
+  "㉯": 45,
+  "㉰": 33
+ },
+ "F": {
+  "ds.cap_span": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "ds.brk_corner_tol": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "ds.side_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.side_slack": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "ds.anchor_slack": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "ds.mark_blob": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.mark_glyph_span": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.mark_cluster_gap": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.box_mark_margin": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.note_line_gap": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.mark_above": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.mark_side": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "ds.note_mark_row_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.brk_max_mark": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.brk_max_gap": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "ds.brk_bridge": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "ds.brk_min_marks": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "ds.brk_min_span": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "ds.scope_text_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.drop_x_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.drop_end_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "ds.scope_box_both_edges": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "dv.seg_span": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "dv.body_short": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.arc_above": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.tick_span": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.tick_reach": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.bar_reach": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.bar_min": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.act_box": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.bar_axis_tol": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.bar_cover": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.centre_tol": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.stem_slack": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.act_reach": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.act_offaxis": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "dv.tag_reach": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "tb.title_line_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "tb.zoom": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "cfg.formats.drawing_no": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "cfg.formats.date": [
+   "유도 구현",
+   "인쇄돼 있는데 안 찾는다 — 읽기 추가"
+  ],
+  "cfg.formats.revision": [
+   "조사",
+   "유도값 ≠ 설정값 (^[A-Z][0-9]?$ → ^[A-Z]$) — 지문은 같지만 지문 밖 열(REV·Description)을 58장에서 대조해야 한다"
+  ],
+  "cfg.formats.unit_code_segment": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "cfg.formats.unit_code_chars": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "cfg.formats.system_code_chars": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "cfg.excel.sheet": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.first_data_row": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.system": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.pid_no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.type": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.qty": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.description": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.tag_no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.scope": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.excel.columns.remark": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.anchors.type_map.TT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.PT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.PDT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.DPIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.FT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LG": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.TI": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.PI": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LI": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.FI": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.TIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.PIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.PDIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.FIT": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LS": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LSH": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LSHH": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.LSL": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.FS": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.RO": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.FE": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.type_map.TW": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.anchors.not_field": [
+   "결함",
+   "`anchors.*` 는 import 때 `_V3_FIELD_TYPE_MAP`/`RULESET_V3` 로 굳고 `_rebind_config` 이 다시 만들지 않는다 — 유도든 overlay 든 이 표에는 **닿을 수 없다** (22회차 격리의 빈 자리)"
+  ],
+  "cfg.revision.document_rule": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.client_form.scope_filter": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.scope.exclusion_rules": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.scope.supplier_from_notes": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.scope.vendor_description": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.vendor_marks.glyph_sizes": [
+   "삭제",
+   "58장 유도값 = 설정값 ([[4.0, 4.0], [5.2, 5.2]]) — 설정은 유도의 사본이다 (10장 탐침에서는 `[[4.0, 4.0]]` 로 달랐다 — 정의줄이 두 크기를 다 주는 장이 p10 뒤에 있다)"
+  ],
+  "cfg.vendor_marks.blob_span": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.glyph_span": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.cluster_gap": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.above": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.x_slack": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "cfg.vendor_marks.note_row_tol": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "cfg.vendor_marks.note_line_gap": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.package_box.edge_cover": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.vendor_marks.package_box.mark_margin": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.broken_line.brk_max_mark": [
+   "유도 구현",
+   "찾는데 안 쓴다 — 코드가 이미 잰 값을 잇는다"
+  ],
+  "cfg.sct_scope.text_tol": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.sct_scope.drop_x_tol": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.sct_scope.drop_end_tol": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.supplier_interface_span.label": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.supplier_interface_span.supplied_by": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.supplier_interface_span.description": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.multi_signal_bundle.merge_quantity": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.multi_signal_bundle.merged_type": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.multi_signal_bundle.description_signal": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.axis_mode": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.prefix": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.unit_mark": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.title_open": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.title_close": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.template": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.measured_on": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.note": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_words": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_words.pump.left": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_words.pump.right": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_words.other.left": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_words.other.right": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_words.pump_nouns": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.unit_prefix_skip_codes": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.variable_words.PD": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.variable_words.RO": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.variable_words.FE": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_word_types": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.end_ordinal_types": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.system_abbreviations.CLOSED COOLING WATER": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.system_abbreviations.AUX. COOLING WATER": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_system.CCW TI": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.sole_equipment_sheet_max": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_alias_choice.boiler_feedwater_pump": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_alias_choice.condensate_extraction_pump": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.project_abbreviations.clean_drain": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.project_abbreviations.restriction_orifice": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_modifiers.VALVE": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_modifiers.HEADER": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.equipment_modifiers.BOX": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.user_input_reasons": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_noun.TANK": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_noun.VALVE": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_noun.HEADER": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_pair_words": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.type_display_names.AT": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.type_display_names.AIT": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.duplicate_suffix_types": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.line_phrase_types": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_side.PIT ABOVE": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_side.PDIT ABOVE": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.position_by_side.PDIT LEFT": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.between_symbol_types": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.alarm_suffix.HH": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.alarm_suffix.H": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.alarm_suffix.LL": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.alarm_suffix.L": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.description.examples": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.unit_multiplier_fallback.00": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.unit_multiplier_fallback.10": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.unit_multiplier_fallback.11": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.qty_note.same_words": [
+   "유도 구현",
+   "?"
+  ],
+  "cfg.qty_note.unit_words": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "cfg.qty_note.range_words": [
+   "삭제",
+   "지워도 지문 불변 · 코드 기본값과 같다"
+  ],
+  "cfg.qty_scope_overrides": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.actuator_reach": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "cfg.valves.actuator_offaxis": [
+   "조사",
+   "개별 실측이 안 됐다 — 다음 회차가 묶음을 쪼개 잰다 (회당 약 2.5분)"
+  ],
+  "cfg.valves.tag_reach": [
+   "유도 구현",
+   "본문 실물에서 잰다 (분포 · 비율)"
+  ],
+  "cfg.valves.excel.sheet": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.first_data_row": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.pid_no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.valve_type": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.qty": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.system": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.description": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.remark": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.tag_no": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.actuator": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.excel.columns.body": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.deliverables": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.valve_type_actuator.MOV": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.valve_type_actuator.MOV_I": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.valve_type_actuator.HOV": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.valve_type_actuator.CV": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.cv_tags": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.xv_tags": [
+   "사람 지정",
+   "도면에 없다 — 프로필·사람 지정 화면(15·18·31회차 구조)"
+  ],
+  "cfg.valves.legend_fallback.butterfly.tick_length": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.butterfly.tick_reach_radii": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.butterfly.bar_reach_radii": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.butterfly.bar_min_radii": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.butterfly.circle_diameter": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.actuator_stem.stem_gap": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.actuator_stem.stem_offaxis": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.actuator_stem.stem_length": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.actuator_stem.centre_to_body": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.dome_flat": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.dome_depth": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.dome_aspect": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.cylinder_side": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.cylinder_aspect": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.valves.legend_fallback.pneumatic.cylinder_divider": [
+   "삭제",
+   "범례가 답한다 — 비우면 범례 없는 개정본이 **시끄럽게** 멈춘다 (§9 4 · 15회차 보류 항목의 답). 적용은 실무 판단"
+  ],
+  "cfg.project.code": [
+   "삭제",
+   "프로필 열쇠 — 지운 것은 실험 장치였다. 본선에서는 남긴다(E). 합계를 맞추려 여기 둔다"
+  ]
+ },
+ "B": {
+  "ds.cap_span": "㉯",
+  "ds.brk_corner_tol": "㉯",
+  "ds.side_tol": "㉯",
+  "ds.side_slack": "㉯",
+  "ds.anchor_slack": "㉯",
+  "ds.mark_blob": "㉯",
+  "ds.mark_glyph_span": "㉯",
+  "ds.mark_cluster_gap": "㉯",
+  "ds.box_mark_margin": "㉯",
+  "ds.note_line_gap": "㉯",
+  "ds.mark_above": "㉯",
+  "ds.mark_side": "㉯",
+  "ds.note_mark_row_tol": "㉯",
+  "ds.brk_max_mark": "㉯",
+  "ds.brk_max_gap": "㉯",
+  "ds.brk_bridge": "㉯",
+  "ds.brk_min_marks": "㉯",
+  "ds.brk_min_span": "㉯",
+  "ds.scope_text_tol": "㉯",
+  "ds.drop_x_tol": "㉯",
+  "ds.drop_end_tol": "㉯",
+  "ds.scope_box_both_edges": "㉯",
+  "dv.seg_span": "㉯",
+  "dv.body_short": "㉯",
+  "dv.arc_above": "㉯",
+  "dv.tick_span": "㉯",
+  "dv.tick_reach": "㉯",
+  "dv.bar_reach": "㉯",
+  "dv.bar_min": "㉯",
+  "dv.act_box": "㉯",
+  "dv.bar_axis_tol": "㉯",
+  "dv.bar_cover": "㉯",
+  "dv.centre_tol": "㉯",
+  "dv.stem_slack": "㉯",
+  "dv.act_reach": "㉯",
+  "dv.act_offaxis": "㉯",
+  "dv.tag_reach": "㉯",
+  "tb.title_line_tol": "㉯",
+  "tb.zoom": "㉯",
+  "cfg.formats.drawing_no": "㉯",
+  "cfg.formats.date": "㉯",
+  "cfg.formats.revision": "㉯",
+  "cfg.formats.unit_code_segment": "㉯",
+  "cfg.formats.unit_code_chars": "㉯",
+  "cfg.formats.system_code_chars": "㉯",
+  "cfg.excel.sheet": "㉰",
+  "cfg.excel.first_data_row": "㉰",
+  "cfg.excel.columns.no": "㉰",
+  "cfg.excel.columns.system": "㉰",
+  "cfg.excel.columns.pid_no": "㉰",
+  "cfg.excel.columns.type": "㉰",
+  "cfg.excel.columns.qty": "㉰",
+  "cfg.excel.columns.description": "㉰",
+  "cfg.excel.columns.tag_no": "㉰",
+  "cfg.excel.columns.scope": "㉰",
+  "cfg.excel.columns.remark": "㉰",
+  "cfg.anchors.type_map.TT": "㉮",
+  "cfg.anchors.type_map.PT": "㉮",
+  "cfg.anchors.type_map.LT": "㉮",
+  "cfg.anchors.type_map.PDT": "㉮",
+  "cfg.anchors.type_map.DPIT": "㉮",
+  "cfg.anchors.type_map.FT": "㉮",
+  "cfg.anchors.type_map.LG": "㉮",
+  "cfg.anchors.type_map.TI": "㉮",
+  "cfg.anchors.type_map.PI": "㉮",
+  "cfg.anchors.type_map.LI": "㉮",
+  "cfg.anchors.type_map.FI": "㉮",
+  "cfg.anchors.type_map.TIT": "㉮",
+  "cfg.anchors.type_map.PIT": "㉮",
+  "cfg.anchors.type_map.LIT": "㉮",
+  "cfg.anchors.type_map.PDIT": "㉮",
+  "cfg.anchors.type_map.FIT": "㉮",
+  "cfg.anchors.type_map.LS": "㉮",
+  "cfg.anchors.type_map.LSH": "㉮",
+  "cfg.anchors.type_map.LSHH": "㉮",
+  "cfg.anchors.type_map.LSL": "㉮",
+  "cfg.anchors.type_map.FS": "㉮",
+  "cfg.anchors.type_map.RO": "㉮",
+  "cfg.anchors.type_map.FE": "㉮",
+  "cfg.anchors.type_map.TW": "㉮",
+  "cfg.anchors.not_field": "㉮",
+  "cfg.revision.document_rule": "㉰",
+  "cfg.client_form.scope_filter": "㉰",
+  "cfg.scope.exclusion_rules": "㉰",
+  "cfg.scope.supplier_from_notes": "㉰",
+  "cfg.scope.vendor_description": "㉮",
+  "cfg.vendor_marks.glyph_sizes": "㉯",
+  "cfg.vendor_marks.blob_span": "㉯",
+  "cfg.vendor_marks.glyph_span": "㉯",
+  "cfg.vendor_marks.cluster_gap": "㉯",
+  "cfg.vendor_marks.above": "㉯",
+  "cfg.vendor_marks.x_slack": "㉯",
+  "cfg.vendor_marks.note_row_tol": "㉯",
+  "cfg.vendor_marks.note_line_gap": "㉯",
+  "cfg.vendor_marks.package_box.edge_cover": "㉯",
+  "cfg.vendor_marks.package_box.mark_margin": "㉯",
+  "cfg.broken_line.brk_max_mark": "㉯",
+  "cfg.sct_scope.text_tol": "㉯",
+  "cfg.sct_scope.drop_x_tol": "㉯",
+  "cfg.sct_scope.drop_end_tol": "㉯",
+  "cfg.supplier_interface_span.label": "㉰",
+  "cfg.supplier_interface_span.supplied_by": "㉰",
+  "cfg.supplier_interface_span.description": "㉰",
+  "cfg.multi_signal_bundle.merge_quantity": "㉰",
+  "cfg.multi_signal_bundle.merged_type": "㉮",
+  "cfg.multi_signal_bundle.description_signal": "㉮",
+  "cfg.description.axis_mode": "㉮",
+  "cfg.description.prefix": "㉮",
+  "cfg.description.unit_mark": "㉮",
+  "cfg.description.title_open": "㉮",
+  "cfg.description.title_close": "㉮",
+  "cfg.description.template": "㉮",
+  "cfg.description.measured_on": "㉮",
+  "cfg.description.note": "㉮",
+  "cfg.description.equipment_words": "㉮",
+  "cfg.description.position_words.pump.left": "㉮",
+  "cfg.description.position_words.pump.right": "㉮",
+  "cfg.description.position_words.other.left": "㉮",
+  "cfg.description.position_words.other.right": "㉮",
+  "cfg.description.position_words.pump_nouns": "㉮",
+  "cfg.description.unit_prefix_skip_codes": "㉮",
+  "cfg.description.variable_words.PD": "㉮",
+  "cfg.description.variable_words.RO": "㉮",
+  "cfg.description.variable_words.FE": "㉮",
+  "cfg.description.position_word_types": "㉮",
+  "cfg.description.end_ordinal_types": "㉮",
+  "cfg.description.system_abbreviations.CLOSED COOLING WATER": "㉮",
+  "cfg.description.system_abbreviations.AUX. COOLING WATER": "㉮",
+  "cfg.description.position_by_system.CCW TI": "㉮",
+  "cfg.description.sole_equipment_sheet_max": "㉮",
+  "cfg.description.equipment_alias_choice.boiler_feedwater_pump": "㉮",
+  "cfg.description.equipment_alias_choice.condensate_extraction_pump": "㉮",
+  "cfg.description.project_abbreviations.clean_drain": "㉮",
+  "cfg.description.project_abbreviations.restriction_orifice": "㉮",
+  "cfg.description.equipment_modifiers.VALVE": "㉮",
+  "cfg.description.equipment_modifiers.HEADER": "㉮",
+  "cfg.description.equipment_modifiers.BOX": "㉮",
+  "cfg.description.user_input_reasons": "㉮",
+  "cfg.description.position_by_noun.TANK": "㉮",
+  "cfg.description.position_by_noun.VALVE": "㉮",
+  "cfg.description.position_by_noun.HEADER": "㉮",
+  "cfg.description.position_pair_words": "㉮",
+  "cfg.description.type_display_names.AT": "㉮",
+  "cfg.description.type_display_names.AIT": "㉮",
+  "cfg.description.duplicate_suffix_types": "㉮",
+  "cfg.description.line_phrase_types": "㉮",
+  "cfg.description.position_by_side.PIT ABOVE": "㉮",
+  "cfg.description.position_by_side.PDIT ABOVE": "㉮",
+  "cfg.description.position_by_side.PDIT LEFT": "㉮",
+  "cfg.description.between_symbol_types": "㉮",
+  "cfg.description.alarm_suffix.HH": "㉮",
+  "cfg.description.alarm_suffix.H": "㉮",
+  "cfg.description.alarm_suffix.LL": "㉮",
+  "cfg.description.alarm_suffix.L": "㉮",
+  "cfg.description.examples": "㉮",
+  "cfg.unit_multiplier_fallback.00": "㉯",
+  "cfg.unit_multiplier_fallback.10": "㉯",
+  "cfg.unit_multiplier_fallback.11": "㉯",
+  "cfg.qty_note.same_words": "㉮",
+  "cfg.qty_note.unit_words": "㉮",
+  "cfg.qty_note.range_words": "㉮",
+  "cfg.qty_scope_overrides": "㉰",
+  "cfg.valves.actuator_reach": "㉯",
+  "cfg.valves.actuator_offaxis": "㉯",
+  "cfg.valves.tag_reach": "㉯",
+  "cfg.valves.excel.sheet": "㉰",
+  "cfg.valves.excel.first_data_row": "㉰",
+  "cfg.valves.excel.columns.no": "㉰",
+  "cfg.valves.excel.columns.pid_no": "㉰",
+  "cfg.valves.excel.columns.valve_type": "㉰",
+  "cfg.valves.excel.columns.qty": "㉰",
+  "cfg.valves.excel.columns.system": "㉰",
+  "cfg.valves.excel.columns.description": "㉰",
+  "cfg.valves.excel.columns.remark": "㉰",
+  "cfg.valves.excel.columns.tag_no": "㉰",
+  "cfg.valves.excel.columns.actuator": "㉰",
+  "cfg.valves.excel.columns.body": "㉰",
+  "cfg.valves.deliverables": "㉰",
+  "cfg.valves.valve_type_actuator.MOV": "㉮",
+  "cfg.valves.valve_type_actuator.MOV_I": "㉮",
+  "cfg.valves.valve_type_actuator.HOV": "㉮",
+  "cfg.valves.valve_type_actuator.CV": "㉮",
+  "cfg.valves.cv_tags": "㉮",
+  "cfg.valves.xv_tags": "㉮",
+  "cfg.valves.legend_fallback.butterfly.tick_length": "㉯",
+  "cfg.valves.legend_fallback.butterfly.tick_reach_radii": "㉯",
+  "cfg.valves.legend_fallback.butterfly.bar_reach_radii": "㉯",
+  "cfg.valves.legend_fallback.butterfly.bar_min_radii": "㉯",
+  "cfg.valves.legend_fallback.butterfly.circle_diameter": "㉯",
+  "cfg.valves.legend_fallback.actuator_stem.stem_gap": "㉯",
+  "cfg.valves.legend_fallback.actuator_stem.stem_offaxis": "㉯",
+  "cfg.valves.legend_fallback.actuator_stem.stem_length": "㉯",
+  "cfg.valves.legend_fallback.actuator_stem.centre_to_body": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.dome_flat": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.dome_depth": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.dome_aspect": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.cylinder_side": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.cylinder_aspect": "㉯",
+  "cfg.valves.legend_fallback.pneumatic.cylinder_divider": "㉯",
+  "cfg.project.code": "㉰"
+ }
+}

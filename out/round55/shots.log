@@ -1,0 +1,66 @@
+p1 raw 366,219B 58.7s
+p2 raw 400,526B 3.2s
+p3 raw 359,416B 2.8s
+p4 raw 541,624B 4.2s
+p5 raw 387,173B 2.6s
+p6 raw 574,162B 5.0s
+p7 raw 846,155B 6.2s
+p8 raw 630,559B 4.3s
+p9 raw 629,634B 5.2s
+p10 raw 414,592B 2.7s
+p11 raw 748,912B 5.3s
+p12 raw 827,417B 6.7s
+p13 raw 832,431B 6.3s
+p14 raw 946,660B 7.5s
+p15 raw 354,507B 3.4s
+p16 raw 1,050,345B 8.7s
+p17 raw 727,186B 9.4s
+p18 raw 670,599B 9.2s
+p19 raw 871,475B 6.6s
+p20 raw 650,029B 7.1s
+p21 raw 757,436B 5.8s
+p22 raw 549,178B 4.9s
+p23 raw 748,776B 5.8s
+p24 raw 451,651B 3.1s
+p25 raw 487,703B 3.4s
+p26 raw 571,997B 5.9s
+p27 raw 571,704B 4.0s
+p28 raw 421,768B 2.8s
+p29 raw 690,435B 4.5s
+p30 raw 908,369B 8.2s
+p31 raw 517,520B 3.7s
+p32 raw 526,749B 3.5s
+p1 overlay rows 0 boxes 0 legend 0
+p2 overlay rows 0 boxes 0 legend 0
+p3 overlay rows 0 boxes 0 legend 0
+p4 overlay rows 0 boxes 0 legend 0
+p5 overlay rows 0 boxes 0 legend 0
+p6 overlay rows 1 boxes 25 legend 1
+p7 overlay rows 16 boxes 33 legend 16
+p8 overlay rows 5 boxes 19 legend 5
+p9 overlay rows 4 boxes 18 legend 4
+p10 overlay rows 4 boxes 8 legend 4
+p11 overlay rows 26 boxes 42 legend 26
+p12 overlay rows 17 boxes 37 legend 17
+p13 overlay rows 26 boxes 37 legend 26
+p14 overlay rows 28 boxes 38 legend 28
+p15 overlay rows 8 boxes 16 legend 8
+p16 overlay rows 44 boxes 134 legend 44
+p17 overlay rows 49 boxes 99 legend 49
+p18 overlay rows 50 boxes 98 legend 50
+p19 overlay rows 16 boxes 50 legend 16
+p20 overlay rows 0 boxes 0 legend 0
+p21 overlay rows 28 boxes 54 legend 28
+p22 overlay rows 1 boxes 1 legend 1
+p23 overlay rows 33 boxes 65 legend 33
+p24 overlay rows 0 boxes 0 legend 0
+p25 overlay rows 9 boxes 24 legend 9
+p26 overlay rows 12 boxes 13 legend 12
+p27 overlay rows 9 boxes 9 legend 9
+p28 overlay rows 0 boxes 3 legend 0
+p29 overlay rows 15 boxes 42 legend 15
+p30 overlay rows 36 boxes 75 legend 36
+p31 overlay rows 12 boxes 37 legend 12
+p32 overlay rows 0 boxes 6 legend 0
+페이지 오류: 없음
+→ out/round55_uad_dxf

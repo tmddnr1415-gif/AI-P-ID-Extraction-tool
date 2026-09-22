@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 260" width="460" height="260" role="img" aria-label="">
+  <g fill="none" stroke="#7a6a58" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- ground -->
+    <path d="M10 238 C120 232 320 232 450 238" stroke="#9aa887" stroke-width="2.6"/>
+
+    <!-- easel legs -->
+    <g stroke="#a8763c">
+      <path d="M330 120 L312 238"/>
+      <path d="M406 120 L424 238"/>
+      <path d="M322 178 h92"/>
+    </g>
+    <!-- board -->
+    <rect x="316" y="60" width="104" height="82" rx="4" fill="#fbf6e9" stroke="#a8763c"/>
+    <text x="368" y="80" font-family="Georgia, 'Times New Roman', serif" font-size="13" font-weight="700"
+          fill="#7a6a58" text-anchor="middle" stroke="none">DATA</text>
+    <g stroke="#c9bda8" stroke-width="1.4">
+      <path d="M328 90 h80 M328 104 h80 M328 118 h80 M328 132 h80"/>
+      <path d="M348 88 v48 M368 88 v48 M388 88 v48"/>
+    </g>
+    <g stroke="#d08a4a" stroke-width="2.2">
+      <path d="M332 98 l4 4 6 -8"/>
+      <path d="M352 98 l4 4 6 -8"/>
+      <path d="M372 112 l4 4 6 -8"/>
+      <path d="M392 126 l4 4 6 -8"/>
+      <path d="M332 126 l4 4 6 -8"/>
+    </g>
+
+    <!-- goose with magnifier, centre -->
+    <path d="M186 214 C174 202 178 180 198 174 C220 167 250 172 260 188 C269 203 262 220 242 225 C223 230 198 226 186 214 Z" fill="#fffdf6"/>
+    <path d="M260 190 l14 -8 -4 13"/>
+    <path d="M200 176 C192 158 190 138 199 126"/>
+    <path d="M214 174 C207 156 206 138 213 126"/>
+    <ellipse cx="206" cy="120" rx="15" ry="13" fill="#fffdf6"/>
+    <path d="M192 120 l-14 4 14 5 z" fill="#e2a45c" stroke="#a8763c"/>
+    <circle cx="204" cy="116" r="2" fill="#4a3f33" stroke="none"/>
+    <path d="M191 111 C194 100 218 98 221 109 L190 113 z" fill="#8fa87c" stroke="#5f7250"/>
+    <path d="M190 112 l-11 3" stroke="#5f7250"/>
+    <path d="M212 226 l-2 12 M206 238 h12"/>
+    <path d="M234 226 l2 12 M230 238 h12"/>
+    <path d="M216 192 C226 185 243 187 249 197"/>
+    <circle cx="272" cy="146" r="20" fill="#f0f6fb" opacity=".9"/>
+    <circle cx="272" cy="146" r="20"/>
+    <path d="M258 160 L244 176" stroke="#a8763c" stroke-width="5"/>
+
+    <!-- desk with books -->
+    <g>
+      <rect x="86" y="196" width="86" height="10" rx="2" fill="#e6d9c2" stroke="#a8763c"/>
+      <path d="M96 206 v32 M162 206 v32" stroke="#a8763c"/>
+      <rect x="92" y="180" width="72" height="8" rx="2" fill="#c9d8e4" stroke="#7f97a8"/>
+      <rect x="98" y="170" width="62" height="8" rx="2" fill="#e8d3c0" stroke="#b58c6a"/>
+      <rect x="104" y="160" width="52" height="8" rx="2" fill="#d7e3c8" stroke="#7f9268"/>
+    </g>
+
+    <!-- cat -->
+    <g>
+      <path d="M32 238 C32 220 44 212 54 212 C64 212 76 220 76 238 Z" fill="#fffdf6"/>
+      <path d="M38 218 l-3 -12 10 6" fill="#fffdf6"/>
+      <path d="M68 218 l4 -12 -10 7" fill="#fffdf6"/>
+      <circle cx="46" cy="224" r="2" fill="#4a3f33" stroke="none"/>
+      <circle cx="61" cy="224" r="2" fill="#4a3f33" stroke="none"/>
+      <path d="M32 234 C20 232 14 222 19 214"/>
+    </g>
+
+    <!-- grass tufts -->
+    <g stroke="#7f9268" stroke-width="2">
+      <path d="M14 238 C14 230 17 226 19 222 M20 238 C20 231 24 227 27 224"/>
+      <path d="M282 238 C282 230 285 226 287 222 M290 238 C290 231 294 227 297 224"/>
+      <path d="M436 238 C436 230 439 226 441 222"/>
+    </g>
+    <g fill="#f2d0d6" stroke="#c98f9a" stroke-width="1.8">
+      <circle cx="120" cy="228" r="4"/>
+      <circle cx="300" cy="230" r="3.6"/>
+    </g>
+  </g>
+</svg>

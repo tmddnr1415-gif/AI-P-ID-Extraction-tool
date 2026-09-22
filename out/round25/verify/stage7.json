@@ -1,0 +1,11 @@
+{
+  "rows_in_grid": 1037,
+  "main_hidden": true,
+  "drop_shown": true,
+  "home_text": "SAMSUNG C&T\nP&ID EXTRACTOR\n1\n어디에 넣을지\n프로젝트\n(고르세요)\n프로젝트 없이 한 번만 분석\nAL NOUF1 — 다음 Rev.C\n새 프로젝트\n\n도면 58장 기준 5분 남짓 걸립니다. 처음 3분은 도면 치수를 재는 단계라 장수가 늘지 않습니다.\n\n2\n도면 PDF\n\nP&ID 를 넣어주면\n분석을 시작할게요\n\n여기에 PDF 를 놓으세요\n\n또는 파일 선택\n\n왼쪽에서 프로젝트를 먼저 고르세요.\n\n데이터 위생 — 확인할 항목 4건\n산출 대상 1861행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 10 · 도면 근거 없는 행 0\n고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 11.4 MB 중 죽은 페이지 0.1 MB · 정리하면 되찾는 용량 0.1 MB\n위 두 값이 0 이 아니면 ",
+  "shots": {
+    "s7_1_home.png": "d03361d2a118",
+    "s7_2_rows.png": "7c808a1cf9f1",
+    "s7_3_back.png": "d03361d2a118"
+  }
+}
