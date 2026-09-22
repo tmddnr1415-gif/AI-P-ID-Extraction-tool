@@ -2,16 +2,16 @@
   "projects": [
     {
       "name": "UAD-DXF",
-      "rows": 449,
-      "fingerprint": "003078d741c5586c7da24fea996d026f975f71c5f6c8de3c05c8e421e5a1a5de",
-      "qty_sum": 449,
+      "rows": 457,
+      "fingerprint": "46a9e1d542a5fd71054b8ed2d49f69b6562985e11756469f5402106330bc8e2f",
+      "qty_sum": 457,
       "tabs": {
         "PNEUMATIC": 23,
-        "FIELD": 366,
+        "FIELD": 374,
         "REVIEW": 52,
         "MOV": 8
       },
-      "seconds": 64.1,
+      "seconds": 77.2,
       "max_rss_gb": 0.51,
       "identification": {},
       "score": null

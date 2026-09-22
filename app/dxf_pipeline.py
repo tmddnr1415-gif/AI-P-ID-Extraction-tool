@@ -679,15 +679,27 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         n_attr += 1
         tagv = next((v for t, v in s.attrs.items() if t in tag_attr and v and v != "-"), "")
         core = _isa_type(tv, isa)
+        core_from = "ISA_TABLE" if core else ""
         anchor = tv.split()[0].upper()
         if anchor in rules.valves:
             tag_bubbles.append((s, anchor, tagv))
             valve_tags.append({"page_no": sh.no, "tag": anchor, "rect": list(s.rect)})
             continue
+        if core is None and anchor in rules.anchors:
+            # 그 도면의 ISA 문자표가 못 푸는 낱말이라도, **TYPE 자리에 인쇄된 그 낱말을
+            # 앵커 사전이 알면** 계기다.  낱말을 만드는 것이 아니라 도면이 TYPE 속성에
+            # 적어 둔 것을 읽는 것이고, PDF 경로가 같은 사전으로 같은 판정을 한다
+            # (UAD 를 PDF 로 읽으면 `RO` 가 행이 된다).  ISA 표를 먼저 묻는 순서는
+            # 그대로다 — 그 도면이 스스로 설명한 것이 사전보다 세다 (§9).
+            #
+            # 사전이 문을 넓히지 않는다는 증거는 실측이다: 이 문서에서 ISA 표가 거부한
+            # TYPE 속성 64건 중 사전이 아는 것은 `RO` 8건뿐이고, 펌프 캡션(42) ·
+            # ENDCAP(4) · EEE(2) · 태그 문자열(4) 은 그대로 미판정으로 남는다.
+            core, core_from = anchor, "ANCHOR_DICT"
         if core is None:
             unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": sh.no, "label": tv, "block": s.block,
                              "rect": list(s.rect), "center": list(_center(s.rect)),
-                             "why": "속성 TYPE 이 이 문서 ISA 표로 풀리지 않음"})
+                             "why": "속성 TYPE 이 이 문서 ISA 표로도 앵커 사전으로도 풀리지 않음"})
             continue
         if core in rules.not_field:
             unjudged.append({"kind": "INSTRUMENT_TAG", "page_no": sh.no, "label": tv, "block": s.block,
@@ -696,8 +708,9 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             continue
         type_ = rules.type_of(core)
         ev = {"anchor": tv, "tier": 1, "source": "DXF_ATTRIB", "block": s.block,
-              "attrs": {k: v for k, v in s.attrs.items() if v}, "rules_hit": ["DXF_BLOCK_ATTRIB"],
-              "isa": core, "layer": s.layer}
+              "attrs": {k: v for k, v in s.attrs.items() if v},
+              "rules_hit": ["DXF_BLOCK_ATTRIB"] + (["ANCHOR_FROM_DICT"] if core_from == "ANCHOR_DICT" else []),
+              "isa": core, "type_source": core_from, "layer": s.layer}
         make_row(P.TAB_FIELD, s.rect, type_, [], ev, tag_no=tagv)
 
     # ── 계기 (2급 · 범례 블록 + 안의 글자) ─────────────────────────────
