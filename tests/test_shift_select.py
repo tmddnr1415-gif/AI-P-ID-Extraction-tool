@@ -34,3 +34,20 @@ def test_band_end_clamps_to_sheet_edge():
     assert "sheetPointClamped(ev)" in end
     move = JS.split('addEventListener("pointermove", ev => {\n  if (!_band', 1)[1].split("}, true);", 1)[0]
     assert "sheetPointClamped(ev)" in move
+
+
+def test_ctrl_and_cmd_add_like_shift():
+    """hotfix13 — Ctrl(맥은 Cmd) + 클릭도 묶음에 더하거나 뺀다."""
+    helper = JS.split("function isAddClick(ev)", 1)[1].split("\n", 1)[0]
+    assert "ev.shiftKey" in helper and "ev.ctrlKey" in helper and "ev.metaKey" in helper
+    assert "if (isAddClick(ev) && it.row !== false) { toggleMulti(it.key); return; }" in JS
+    assert "if (isAddClick(ev)) { toggleMulti(r.key); return; }" in JS
+    # 더하기 키로 빈 자리를 빗맞혀도 묶음을 비우지 않는다
+    click = JS.split('$req("#stage").addEventListener("click", ev => {', 1)[1].split("});", 1)[0]
+    assert click.index("if (isAddClick(ev)) return;") < click.index("deselect()")
+    # 맥 Ctrl + 클릭은 contextmenu 로 온다 — 신고가 아니라 더하기
+    menu = JS.split("r.oncontextmenu = (ev) => {", 1)[1].split("};", 1)[0]
+    assert "ev.ctrlKey && ev.button === 0" in menu and "toggleMulti" in menu
+    # Firefox Ctrl + 누르기가 표 칸을 고르지 않게
+    guard = JS.split("function _noNativeShiftSelect", 1)[1].split("\n}\n", 1)[0]
+    assert "isAddClick(ev)" in guard

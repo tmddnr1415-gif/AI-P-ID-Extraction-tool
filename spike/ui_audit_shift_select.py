@@ -123,6 +123,34 @@ try:
             pg.wait_for_timeout(500)
             c = pg.evaluate(SEL_JS)
             note(f"③ 그리드 Shift+클릭: 선택 글자 {c['text']} · 묶음 {c['multi']}개")
+        # ④ hotfix13 — Ctrl + 클릭으로 도면 상자를 더하고 뺀다
+        pg.evaluate("() => { window.getSelection().removeAllRanges(); S.multi.clear(); drawOverlay(); }")
+        pg.wait_for_timeout(400)
+        keys = pg.evaluate("() => [...document.querySelectorAll('rect.det')]"
+                           ".map(n => n.dataset.key).filter(Boolean).slice(0, 3)")
+        if len(keys) >= 3:
+            loc = lambda k: pg.locator(f'rect.det[data-key="{k}"]').first
+            loc(keys[0]).click(force=True); pg.wait_for_timeout(400)
+            loc(keys[1]).click(force=True, modifiers=["Control"]); pg.wait_for_timeout(400)
+            loc(keys[2]).click(force=True, modifiers=["Control"]); pg.wait_for_timeout(400)
+            d1 = pg.evaluate(SEL_JS)
+            # 빈 자리를 Ctrl 로 빗맞혀도 묶음은 그대로
+            pg.mouse.move(st["x"] + 5, st["y"] + 5)
+            pg.keyboard.down("Control"); pg.mouse.click(st["x"] + st["width"] * 0.02, st["y"] + st["height"] * 0.97)
+            pg.keyboard.up("Control"); pg.wait_for_timeout(400)
+            d2 = pg.evaluate(SEL_JS)
+            loc(keys[1]).click(force=True, modifiers=["Control"]); pg.wait_for_timeout(400)
+            d3 = pg.evaluate(SEL_JS)
+            note(f"④ 클릭 1 + Ctrl+클릭 2 → 묶음 {d1['multi']}개 · Ctrl 로 빈 자리 → {d2['multi']}개 · "
+                 f"Ctrl+클릭으로 하나 빼기 → {d3['multi']}개 · 브라우저 선택 {d3['ranges']}개")
+            pg.screenshot(path=str(OUT / "3_ctrl_click.png"))
+            rows = pg.query_selector_all("#grid tbody tr")
+            if len(rows) >= 3:
+                pg.evaluate("() => { S.multi.clear(); drawOverlay(); markMultiRows(); }")
+                rows[0].click(); pg.wait_for_timeout(300)
+                rows[2].click(modifiers=["Control"]); pg.wait_for_timeout(500)
+                e = pg.evaluate(SEL_JS)
+                note(f"⑤ 그리드 Ctrl+클릭: 묶음 {e['multi']}개 · 선택 글자 {e['text']}")
         note("콘솔 오류: " + (" | ".join(errs[:4]) if errs else "없음"))
         br.close()
 finally:
@@ -130,6 +158,6 @@ finally:
 
 real_after = hashlib.sha256(REAL.read_bytes()).hexdigest() if REAL.exists() else ""
 note(f"실 DB sha256 — 같은가: {real_before == real_after}")
-(OUT / "README.md").write_text("# hotfix12 — Shift 누르기의 브라우저 선택 (화면 자기검증)\n\n"
+(OUT / "README.md").write_text("# hotfix12·13 — Shift/Ctrl 누르기 (화면 자기검증)\n\n"
                                + "\n".join("- " + s for s in FOUND) + "\n", encoding="utf-8")
 print("→", OUT)

@@ -2302,7 +2302,7 @@ function renderGrid() {
     tr.appendChild(f);
     // 56회차 — 그리드에서도 Shift 로 더한다 (도면과 같은 묶음 하나다).
     tr.onclick = (ev) => {
-      if (ev.shiftKey) { toggleMulti(r.key); return; }
+      if (isAddClick(ev)) { toggleMulti(r.key); return; }
       select(r.key, true);
     };
     body.appendChild(tr);
@@ -2626,7 +2626,13 @@ async function setDescription(row, text, opts = {}) {
  * symbol, centre it and pulse it.  From the drawing: select the row and scroll
  * the grid to it.  Escape, or a click on empty sheet, clears both.
  */
-const SYMBOL_ZOOM = 2.2;      // enough to read a 22pt bubble on a 2384pt sheet
+const SYMBOL_ZOOM = 2.2;
+
+/* hotfix13 — **더하기 키는 Shift 와 Ctrl(맥은 Cmd) 둘이다.**  요구: *"컨트롤 누르고
+ * 식별된 것 클릭하면 복수 선택"*.  탐색기·엑셀에서 손에 익은 쪽이 사람마다 달라
+ * 둘 다 받는다.  뜻은 하나 — 묶음에 더하거나 뺀다.  끌기(띠)는 Shift 만이다
+ * (Ctrl + 휠은 이미 확대다). */
+function isAddClick(ev) { return !!(ev && (ev.shiftKey || ev.ctrlKey || ev.metaKey)); }      // enough to read a 22pt bubble on a 2384pt sheet
 
 function select(key, fromGrid, item) {
   // 그냥 누르면 묶음은 풀린다 (더하려면 Shift).
@@ -2667,7 +2673,7 @@ function deselect() {
   document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
   drawOverlay();
   $("#evidence").innerHTML =
-    "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 를 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>";
+    "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 또는 <b>Ctrl</b> 을 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>";
 }
 
 function centreOnSymbol(key) {
@@ -2935,7 +2941,7 @@ function showMultiScope() {
   const pages = [...new Set(rows.map(r => r.page_no))].sort((a, b) => a - b);
   $("#evidence").innerHTML =
     `<h3>선택 ${rows.length}개 — 공급 주체를 한 번에</h3>`
-    + `<p class="muted small">p${pages.join(" · p")} · Shift + 클릭으로 더하거나 뺍니다</p>`
+    + `<p class="muted small">p${pages.join(" · p")} · Shift 또는 Ctrl + 클릭으로 더하거나 뺍니다</p>`
     + `<p class="small">지금 값 — ${Object.entries(by)
         .map(([k, n]) => `${escape(k)} ${n}`).join(" · ")}</p>`
     + `<div class="ractions"><div class="ract scopemulti"><span>바꿀 값</span>
@@ -4164,7 +4170,7 @@ function drawOverlay() {
       ev.stopPropagation();
       // 56회차 — Shift 를 누르고 누르면 **더한다**.  행이 아닌 것(제외 심볼)은
       // 고칠 SCOPE 칸 자체가 없으므로 묶음에 넣지 않는다.
-      if (ev.shiftKey && it.row !== false) { toggleMulti(it.key); return; }
+      if (isAddClick(ev) && it.row !== false) { toggleMulti(it.key); return; }
       select(it.key, false, it);
       // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
       if (S.markup && it.row !== false) rejectDialog(it);
@@ -4173,6 +4179,12 @@ function drawOverlay() {
     // reviewer reports from wherever they noticed it.
     r.oncontextmenu = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
+      // hotfix13 — 맥의 Ctrl + 클릭은 브라우저가 오른쪽 클릭으로 바꿔 보낸다
+      // (왼쪽 단추 · ctrlKey).  사람이 뜻한 것은 신고가 아니라 더하기다.
+      if (ev.ctrlKey && ev.button === 0) {
+        if (it.row !== false) toggleMulti(it.key);
+        return;
+      }
       select(it.key, false, it);
       reportDialog({ rowKey: it.key, pageNo: S.page.page_no, fromDrawing: true });
     };
@@ -4650,7 +4662,8 @@ let _band = null;
  * 막는 자리는 mousedown 하나다 — pointerdown 을 막으면 click(더하기)이 안 온다.
  * 이미 걸린 선택은 지운다.  그리드 행도 같다 (Shift + 클릭이 표 글자를 긁는다). */
 function _noNativeShiftSelect(ev) {
-  if (!ev.shiftKey || ev.button !== 0) return;
+  // hotfix13 — Ctrl 도 같다: Firefox 는 Ctrl + 누르기로 표 칸을 파랗게 고른다.
+  if (!isAddClick(ev) || ev.button !== 0) return;
   const t = ev.target;
   if (t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
   ev.preventDefault();
@@ -4779,6 +4792,8 @@ $req("#stage").addEventListener("click", ev => {
     return;
   }
   // Clicking the sheet itself, away from any box, clears the selection.
+  // 더하기 키를 누른 채 빗맞힌 것은 "비운다" 가 아니다 — 묶음을 지키고 넘긴다.
+  if (isAddClick(ev)) return;
   if (ev.target.tagName.toLowerCase() !== "rect") deselect();
 });
 
