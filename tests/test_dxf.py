@@ -237,3 +237,60 @@ def test_the_shape_the_server_actually_sends_is_accepted():
     assert P.user_multiplier_tables(
         {"table": {"00": 4}, "who": {"00": "누구 · 2026-09-27"}}) == (
         {"00": 4}, {"00": "누구 · 2026-09-27"})
+
+
+# ---------------------------------------------------------------------------
+# 호로 그린 버블 — 마주 본 캡 둘이 버블 하나다 (9차 DXF 피드백 2번)
+# ---------------------------------------------------------------------------
+
+def _stadium_sheet(tmp_path, *, vertical=False):
+    """반원 캡 둘 + 옆면으로 그린 버블 하나와 그 안의 글자."""
+    import ezdxf
+    doc = ezdxf.new("R2018")
+    msp = doc.modelspace()
+    r, gap = 4.0, 16.0
+    if vertical:
+        msp.add_arc((0, 0), r, 0, 180)
+        msp.add_arc((0, -gap), r, 180, 360)
+        msp.add_text("PIT").set_placement((0, -gap / 2))
+    else:
+        msp.add_arc((0, 0), r, 90, 270)
+        msp.add_arc((gap, 0), r, 270, 90)
+        msp.add_text("PIT").set_placement((gap / 2, 0))
+    f = tmp_path / ("v.dxf" if vertical else "h.dxf")
+    doc.saveas(f)
+    return f
+
+
+def test_opposing_arcs_become_one_bubble(tmp_path):
+    """호 하나가 아니라 **짝**이 버블이다 — 가로든 세로든."""
+    from app.engine import dxf_reader as R
+    for vertical in (False, True):
+        sheets, _m = R.open_set(_stadium_sheet(tmp_path, vertical=vertical))
+        loops = [l for l in R.loops(sheets[0]) if l.kind == "ARC"]
+        assert len(loops) == 1, f"호 짝이 버블 하나로 안 섰다 ({loops})"
+        w = loops[0].rect[2] - loops[0].rect[0]
+        h = loops[0].rect[3] - loops[0].rect[1]
+        assert {round(w), round(h)} == {24, 8}, (w, h)
+
+
+def test_a_lone_arc_still_gives_its_own_circle(tmp_path):
+    """짝이 없는 호는 제 원으로 둔다 — 버리지 않는다."""
+    import ezdxf
+    from app.engine import dxf_reader as R
+    doc = ezdxf.new("R2018")
+    doc.modelspace().add_arc((0, 0), 4.0, 0, 90)
+    f = tmp_path / "lone.dxf"
+    doc.saveas(f)
+    sheets, _m = R.open_set(f)
+    loops = [l for l in R.loops(sheets[0]) if l.kind == "ARC"]
+    assert len(loops) == 1
+    assert round(loops[0].rect[2] - loops[0].rect[0]) == 8
+
+
+def test_only_is_for_drawing_not_for_analysis():
+    """`open_set(only=)` 은 **그림**에만 쓴다 — 분석이 쓰면 장 종류·범례가 흔들린다."""
+    src = (ROOT / "app" / "dxf_pipeline.py").read_text(encoding="utf8")
+    assert "only=" not in src, "분석이 open_set(only=) 을 쓴다"
+    main = (ROOT / "app" / "main.py").read_text(encoding="utf8")
+    assert "open_set(path, only=page_no)" in main, "그림 경로가 한 장만 파지 않는다"

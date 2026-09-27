@@ -159,8 +159,15 @@ def _order(name: str) -> tuple:
     return (0, int(m.group(1)), name) if m else (1, 0, name)
 
 
-def open_set(path: Path) -> tuple:
-    """장 목록.  **한 장이 실패해도 나머지는 계속한다** — 실패 사유는 그 장에 붙는다."""
+def open_set(path: Path, only: int = None) -> tuple:
+    """장 목록.  **한 장이 실패해도 나머지는 계속한다** — 실패 사유는 그 장에 붙는다.
+
+    `only` 는 **그림 한 장을 그릴 때만** 쓴다 — 그 장만 파고 나머지는 이름·번호만
+    가진 껍데기로 둔다.  32장짜리 묶음에서 첫 그림이 뜨기까지 32장을 전부 파느라
+    몇 분이 걸리던 것을 한 장 값으로 줄인다.
+    ⚠ **분석은 이 인자를 쓰지 않는다** — 장 종류·범례·프로젝트 범위가 전체를 보고
+    정해지기 때문이다 (46회차 `load_pages(only=)` 와 같은 규율 · 시험이 강제한다).
+    """
     items, skipped = list_inputs(path)
     numbered = sum(1 for n, _ in items if LEADING_NO.match(n))
     if numbered == len(items) and items:
@@ -172,6 +179,9 @@ def open_set(path: Path) -> tuple:
     sheets = []
     for i, (name, raw) in enumerate(sorted(items, key=lambda it: _order(it[0])), 1):
         sh = Sheet(no=i, order_key=rule, file=name)
+        if only is not None and i != only:
+            sheets.append(sh)                     # 껍데기 — 번호와 파일명만
+            continue
         try:
             doc, auditor = recover.read(io.BytesIO(raw))
             sh.doc, sh.msp = doc, doc.modelspace()
@@ -289,6 +299,7 @@ def words(sh: Sheet) -> list:
     if "words" in sh._cache:
         return sh._cache["words"]
     out = []
+    arcs = []
     hidden = sh.hidden_layers
     for e in sh.msp:
         t = e.dxftype()
@@ -424,6 +435,7 @@ def loops(sh: Sheet) -> list:
     if "loops" in sh._cache:
         return sh._cache["loops"]
     out = []
+    arcs = []
     hidden = sh.hidden_layers
     for e in sh.msp:
         t = e.dxftype()
@@ -438,14 +450,85 @@ def loops(sh: Sheet) -> list:
                 out.append(Loop(sh.rect_of(_Ext(min(xs), min(ys), max(xs), max(ys))),
                                 "POLY", e.dxf.layer, len(pts), e.dxf.layer in hidden))
             elif t == "ARC":
-                ext = _bbox.extents([e], fast=True)
-                if ext.has_data:
-                    out.append(Loop(sh.rect_of(ext), "ARC", e.dxf.layer, 0,
-                                    e.dxf.layer in hidden))
+                arcs.append(e)                     # 아래에서 **마주 본 짝**으로 세운다
         except Exception:                                  # noqa: BLE001
             continue
+    out.extend(_arc_loops(sh, arcs, hidden))
     sh._cache["loops"] = out
     return out
+
+
+def _arc_loops(sh: Sheet, arcs: list, hidden: set) -> list:
+    """호를 **마주 본 캡 둘**로 짝지어 버블 하나로 세운다.
+
+    ★ 호 하나의 bbox 는 버블의 반쪽이다.  계기 버블을 반원 둘 + 곧은 옆면으로
+    그린 장에서, 호를 하나씩 보면 높이가 반으로 잡혀 크기 창에 못 든다.
+    실측(UAD p6): 반지름 4.0 짜리 호 **34개가 정확히 17쌍**이고 각 쌍은 중심이
+    한 축으로 나란히 16.0 떨어져 있다 — 24.0 × 8.0 짜리 버블 17개다.  짝을 못
+    지은 호는 제 원(중심 ± 반지름)으로 둔다.
+
+    **새 상수가 없다.**  짝의 조건은 모양뿐이다: 반지름이 같고(2%), 중심이 한
+    축으로 나란하며(반지름의 5%), 두 호가 **서로 반대쪽을 보는 것**(각 호의
+    가운데가 상대 중심의 반대편) — PDF 경로가 *마주 본 호 캡 둘*로 버블을
+    세우는 것과 같은 판단이다 (§10-10).  크기는 그 문서 범례가 그린 계기 원이
+    거른다.
+    """
+    import math
+    got, used = [], set()
+    info = []
+    for e in arcs:
+        try:
+            c = e.dxf.center
+            info.append((float(c.x), float(c.y), float(e.dxf.radius),
+                         float(e.dxf.start_angle), float(e.dxf.end_angle), e))
+        except Exception:                                  # noqa: BLE001
+            continue
+
+    def mid_dir(a):
+        s_, t_ = a[3], a[4]
+        if t_ < s_:
+            t_ += 360.0
+        m = math.radians((s_ + t_) / 2.0)
+        return math.cos(m), math.sin(m)
+
+    for i, a in enumerate(info):
+        if i in used:
+            continue
+        for j in range(i + 1, len(info)):
+            if j in used:
+                continue
+            b = info[j]
+            if abs(a[2] - b[2]) > 0.02 * max(a[2], b[2]) or a[2] <= 0:
+                continue
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            tol = 0.05 * a[2]
+            if abs(dy) <= tol and abs(dx) > tol:
+                axis = (1.0, 0.0)
+            elif abs(dx) <= tol and abs(dy) > tol:
+                axis = (0.0, 1.0)
+            else:
+                continue
+            sign = 1.0 if (dx * axis[0] + dy * axis[1]) > 0 else -1.0
+            ma, mb = mid_dir(a), mid_dir(b)
+            # a 는 짝의 반대쪽(-sign)을, b 는 그 반대(+sign)를 봐야 캡이다
+            if (ma[0] * axis[0] + ma[1] * axis[1]) * sign > -0.5:
+                continue
+            if (mb[0] * axis[0] + mb[1] * axis[1]) * sign < 0.5:
+                continue
+            r = a[2]
+            x0 = min(a[0], b[0]) - r; x1 = max(a[0], b[0]) + r
+            y0 = min(a[1], b[1]) - r; y1 = max(a[1], b[1]) + r
+            got.append(Loop(sh.rect_of(_Ext(x0, y0, x1, y1)), "ARC",
+                            a[5].dxf.layer, 0, a[5].dxf.layer in hidden))
+            used |= {i, j}
+            break
+    for i, a in enumerate(info):
+        if i in used:
+            continue
+        r = a[2]
+        got.append(Loop(sh.rect_of(_Ext(a[0] - r, a[1] - r, a[0] + r, a[1] + r)),
+                        "ARC", a[5].dxf.layer, 0, a[5].dxf.layer in hidden))
+    return got
 
 
 def lines(sh: Sheet) -> list:

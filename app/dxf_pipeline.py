@@ -745,7 +745,12 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             if lp.hidden:
                 continue
             w_ = lp.rect[2] - lp.rect[0]; h_ = lp.rect[3] - lp.rect[1]
-            if not (0.75 * bubble_d <= h_ <= 1.35 * bubble_d and 0.75 * bubble_d <= w_ <= 4.5 * bubble_d):
+            # ★ 방향을 가정하지 않는다 — **짧은 변**이 범례 계기 원만 하고 긴 변이
+            # 그 몇 배 안이면 버블이다.  예전에는 높이를 Ø 로, 폭을 긴 변으로 보아
+            # **세로로 선 버블**(8 × 24)이 전부 걸렸다 (UAD p6 에서 9개).
+            # 43회차가 밸브 몸체에서 배운 "짧은 변" 과 같은 판단이다.
+            short_, long_ = min(w_, h_), max(w_, h_)
+            if not (0.75 * bubble_d <= short_ <= 1.35 * bubble_d and long_ <= 4.5 * bubble_d):
                 continue
             if any(_overlap(lp.rect, u, 0.0) for u in used_rects):
                 continue
