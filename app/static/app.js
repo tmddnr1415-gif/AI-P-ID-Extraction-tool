@@ -3951,7 +3951,12 @@ function buildOverlayLegend() {
  * (11회차 — 색과 SCOPE 열은 같은 값을 읽는다).  무늬는 색마다 하나씩 그 자리에서
  * 만들고, `drawOverlay` 가 매번 `ov` 를 비우므로 `defs` 도 그때 다시 선다. */
 function isDxfJob() {
-  return !!(S.job && String(S.job.input_kind || "").toUpperCase() === "DXF");
+  // 두 곳을 본다 — 분석 기록(`job.input_kind`)과 **엔진이 결과에 적은 것**
+  // (`engine.input_kind` · `dxf_pipeline.INPUT_KIND`).  옛 분석은 job 열이
+  // 비어 있을 수 있고, 그때도 결과는 자기가 무엇이었는지 알고 있다.
+  const a = String((S.job || {}).input_kind || "").toUpperCase();
+  const b = String(((S.job || {}).engine || {}).input_kind || "").toUpperCase();
+  return a === "DXF" || b === "DXF";
 }
 
 function hatchFill(ov, colour) {
@@ -4627,11 +4632,14 @@ let _band = null;
 
 $req("#stage").addEventListener("pointerdown", ev => {
   if (ev.button !== 0 || !ev.shiftKey || S.markup || S.picking || !S.page) return;
-  if (ev.target.tagName.toLowerCase() === "rect") return;   // 상자는 자기 onclick
+  // ⚠ 상자 위에서 시작해도 띠를 연다.  붐비는 장에서는 빈 자리를 찾기가 더
+  // 어렵고, 처음 판이 상자 위를 빼는 바람에 "Shift 끌기가 안 된다" 로 보였다.
+  // 끌지 않았으면(4px 이하) 아무 것도 하지 않으므로 Shift + 클릭(더하기)은
+  // 그대로다 — `_bandEnd` 가 그때 `S.panned` 도 세우지 않는다.
   const p = sheetPoint(ev);
   if (!p) return;
   _band = { x: ev.clientX, y: ev.clientY, p0: p, id: ev.pointerId, el: null };
-  ev.preventDefault();
+  // preventDefault 는 여기서 하지 않는다 — 클릭(더하기)이 막힌다.
 }, true);
 
 $req("#stage").addEventListener("pointermove", ev => {
@@ -4661,8 +4669,8 @@ function _bandEnd(ev) {
   if (b.el) b.el.remove();
   const tiny = Math.abs(ev.clientX - b.x) <= PAN_SLOP
             && Math.abs(ev.clientY - b.y) <= PAN_SLOP;
+  if (tiny) return;                    // 끌지 않았으면 띠가 아니다 — 클릭을 살린다
   S.panned = true;                     // 뒤따르는 click 이 선택을 지우지 않게
-  if (tiny) return;                    // 끌지 않았으면 띠가 아니다
   const [x0, y0, x1, y1] = normRect(b.p0, sheetPoint(ev) || b.p0);
   let added = 0;
   for (const it of overlayItems(S.page)) {
@@ -5349,10 +5357,14 @@ $req("#diag").addEventListener("click", async () => {
 (async () => {
   try {
     const v = await (await fetch("/version")).json();
+    // 56회차 — 화면 파일 딱지를 같이 적는다.  꾸러미를 덮어썼는데 브라우저가
+    // 옛 `app.js` 를 캐시로 쓰고 있으면 그것을 알 길이 없었다 (현장 보고 두 번).
+    const ui = v.ui ? ` · 화면 ${v.ui.app_js}` : "";
     $("#build-text").textContent =
       `v${v.version} · ${v.built_at || "날짜 없음"}`
-      + (v.kind === "exe" ? "" : " (source)");
+      + (v.kind === "exe" ? "" : " (source)") + ui;
     $("#build-text").title =
-      `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`;
+      `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`
+      + (v.ui ? ` · app.js ${v.ui.app_js} · styles.css ${v.ui.styles_css}` : "");
   } catch (e) { /* the footer is a label, not a feature */ }
 })();

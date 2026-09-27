@@ -2706,7 +2706,15 @@ def remove_report(report_id: int):
 
 @app.get("/version")
 def build_version():
-    return version.info()
+    """버전 + **지금 브라우저가 받은 화면 파일의 딱지** (56회차).
+
+    꾸러미를 덮어썼는데 화면이 옛것이면 그것을 알 길이 없었다.  이제 바닥줄이
+    딱지를 같이 적으므로, 캡처 한 장으로 *서버 파일이 새것인가* 와 *화면이
+    그것을 받았는가* 를 가를 수 있다.
+    """
+    out = dict(version.info())
+    out["ui"] = {"app_js": _asset_tag("app.js"), "styles_css": _asset_tag("styles.css")}
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -2963,9 +2971,32 @@ def _templates() -> dict:
 # UI
 # --------------------------------------------------------------------------
 
+def _asset_tag(name: str) -> str:
+    """그 파일의 내용으로 만든 짧은 딱지 — 바뀌면 주소가 바뀐다."""
+    try:
+        return hashlib.sha256((STATIC / name).read_bytes()).hexdigest()[:8]
+    except OSError:
+        return "0"
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return (STATIC / "index.html").read_text(encoding="utf-8")
+    """화면.  ★ 56회차 — **자바스크립트·스타일 주소에 내용 딱지를 붙인다.**
+
+    붙이기 전에는 `/static/app.js` 가 언제나 같은 주소였다.  브라우저는 그것을
+    캐시하고, 꾸러미를 덮어써도 **예전 화면이 그대로 도는 일**이 실제로 있었다
+    (현장 보고 두 번: 빗금이 안 그려진다 · Shift 끌기가 안 된다 — 서버 파일은
+    새것인데 화면이 옛것이었다).  `Ctrl+Shift+R` 로 풀리지만, 그것을 사람이
+    기억해야 한다는 것이 결함이다.
+
+    이제 파일이 바뀌면 **주소가 바뀌므로** 캐시가 구조적으로 비켜간다.  HTML
+    자체는 캐시하지 않는다 — 그 안에 딱지가 들어 있기 때문이다.
+    """
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    html = html.replace("/static/app.js", f"/static/app.js?v={_asset_tag('app.js')}")
+    html = html.replace("/static/styles.css",
+                        f"/static/styles.css?v={_asset_tag('styles.css')}")
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)
