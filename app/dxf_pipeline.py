@@ -407,6 +407,10 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
     legend_sheets = [sh for sh in ok if tb_rows[sh.no]["page_kind"] == "LEGEND"]
     targets = [sh for sh in ok if tb_rows[sh.no]["page_kind"] == "PID"]
     log(f"DXF: legend sheets {[s.no for s in legend_sheets]} · PID sheets {len(targets)}")
+    # 56회차 [G1] — 프로필은 도면이 고른다 (PDF 경로와 같은 함수).
+    codes = collections.Counter(r["drawing_no"].split("-")[0]
+                                for r in tb_rows.values() if r["drawing_no"])
+    profile_info = P._select_profile(codes.most_common(1)[0][0] if codes else "")
 
     # ── 범례 — ISA 표 · 블록 사전 · 속성 역할 ────────────────────────────
     say(0.1, "reading the legend")
@@ -501,6 +505,8 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
             mult_table[q["unit"]] = q["factor"]
     result = {
         "input_kind": INPUT_KIND,
+        "profile": profile_info,
+        "borrowed": P._borrowed_ledger(profile_info, {"moved": []}),
         "pdf": str(path),
         "pages": [{"page_no": sh.no, "width": round(sh.width, 2), "height": round(sh.height, 2),
                    "drawing_no": tb_rows[sh.no]["drawing_no"], "title": tb_rows[sh.no]["drawing_title"],

@@ -1181,7 +1181,8 @@ async function loadLegendProfile() {
     f = await (await fetch(`/jobs/${S.job.id}/legend_profile`)).json();
   } catch (e) { f = null; }
   S.legend = f;
-  if (!f || f.mode === "unknown" && !f.has_stored_profile) {
+  const pr = (f && f.profile) || {}, bo = (f && f.borrowed) || {};
+  if (!f || f.mode === "unknown" && !f.has_stored_profile && !pr.path) {
     bar.classList.add("hidden"); bar.innerHTML = ""; return;
   }
   const n = (f.summary && f.summary.item_count) || 0;
@@ -1200,6 +1201,18 @@ async function loadLegendProfile() {
       + ` — 이 PDF 에 그 범례가 없습니다 (같다고 보지 않습니다)</span>`);
   }
   let html = `<div class="lb-main">${bits.join("")}</div>`;
+  // 56회차 [G1] — 어느 프로필로 돌았나.  "새 프로젝트" 면 무엇을 빌렸는지 편다.
+  if (pr.path) {
+    html += `<div class="lb-main"><span class="lb-tag ${pr.matched ? "matched" : "stranger"}">`
+      + `${pr.matched ? "프로필 일치" : "프로필 없음"}</span>`
+      + `<span class="lb-line">${escape(f.profile_line || "")}</span></div>`;
+    if ((bo.keys || []).length) {
+      const sec = Object.entries(bo.by_section || {}).map(([k, n]) => `${k} ${n}`).join(" · ");
+      html += `<details class="lb-saved"><summary>빌려 쓴 설정 ${bo.count}칸 — ${escape(sec)}</summary>`
+        + `<pre>${escape(bo.keys.join("\n"))}</pre>`
+        + `<div class="muted small">${escape(bo.not_counted || "")}</div></details>`;
+    }
+  }
   if ((f.stored_lines || []).length) {
     html += `<details class="lb-saved"><summary>저장된 범례 프로필 보기</summary>`
       + `<div class="lb-path">${escape(f.stored_path || "")}</div>`

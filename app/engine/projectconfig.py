@@ -51,6 +51,24 @@ class ProjectConfig:
     path: Path
     data: dict
     misses: list = field(default_factory=list)
+    # 56회차 [G1] — **읽기 장부.**  `recording` 이 켜진 동안 어느 잎을 읽었는지
+    # 순서대로 적는다.  프로필이 그 문서의 것이 아닐 때, 판정에 쓰인 설정값이
+    # 무엇이었는지를 결과가 말할 수 있게 하기 위한 것이다 (§9 ② — 외워둔 값은
+    # 쓰더라도 조용히 쓰지 않는다).  값을 바꾸지 않는다.
+    recording: bool = False
+    record: list = field(default_factory=list)
+    # 이 프로필 파일이 **스스로 적은** 잎.  자동 맞춤(56회차 [G1])으로 다른 프로필을
+    # 얹으면 `data` 에는 물려받은 잎이 섞이므로, "이 값이 이 파일의 것인가" 는
+    # `data` 가 아니라 여기가 답한다.
+    stated: set = field(default_factory=set)
+
+    def states(self, dotted: str) -> bool:
+        """이 프로필 파일이 그 잎(또는 그 가지)을 직접 적었는가."""
+        return dotted in self.stated or any(k.startswith(dotted + ".") for k in self.stated)
+
+    def _note(self, dotted: str) -> None:
+        if self.recording:
+            self.record.append(dotted)
 
     def get(self, dotted: str):
         """Fetch a configured value, or raise if the config omits it.
@@ -59,6 +77,7 @@ class ProjectConfig:
         column numbers).  Failing loudly at start-up beats detecting nothing and
         reporting a clean zero.
         """
+        self._note(dotted)
         node = self.data
         for part in dotted.split("."):
             if not isinstance(node, dict) or part not in node:
@@ -81,6 +100,7 @@ class ProjectConfig:
         if not isinstance(table, dict) or key not in table:
             self.misses.append(f"{dotted}[{key!r}]")
             return UNDEFINED
+        self._note(f"{dotted}.{key}")
         return table[key]
 
     def get_or(self, dotted: str, default):
@@ -154,6 +174,53 @@ def _bundled(rel: str) -> Path:
     return paths.resource(*p.parts)
 
 
+PROFILE_GLOB = "project_*.yaml"
+
+
+def leaves(data, prefix: str = "") -> list:
+    """점 표기 잎 키 전부 — `sheet.width_pt` 꼴."""
+    out = []
+    for k, v in (data or {}).items():
+        key = f"{prefix}{k}"
+        if isinstance(v, dict):
+            out.extend(leaves(v, key + "."))
+        else:
+            out.append(key)
+    return out
+
+
+def deep_update(base: dict, over: dict) -> dict:
+    """`over` 가 적은 잎이 이긴다 · 안 적은 가지는 `base` 그대로 (제자리)."""
+    for k, v in (over or {}).items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            deep_update(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+
+def profiles(config_dir: str | Path = "config") -> list:
+    """이 빌드가 가진 프로젝트 프로필 전부 — `[{path, code, name}]` (56회차 [G1]).
+
+    파일명이 아니라 파일 안의 `project.code` 로 문서와 맞춘다.  코드가 없는
+    파일은 목록에는 들되 어느 문서와도 맞지 않는다 (지어내지 않는다).
+    """
+    root = _bundled(str(config_dir))
+    out = []
+    if not root.is_dir():
+        return out
+    for p in sorted(root.glob(PROFILE_GLOB)):
+        try:
+            data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        except Exception:                                      # noqa: BLE001
+            continue
+        proj = data.get("project") if isinstance(data, dict) else None
+        proj = proj if isinstance(proj, dict) else {}
+        out.append({"path": p, "code": str(proj.get("code") or "").strip(),
+                    "name": str(proj.get("name") or "").strip()})
+    return out
+
+
 def load(path: str | Path = None) -> ProjectConfig:
     p = _bundled(str(path or os.environ.get("PID_PROJECT_CONFIG") or DEFAULT_CONFIG))
     if not p.exists():
@@ -161,7 +228,7 @@ def load(path: str | Path = None) -> ProjectConfig:
     data = yaml.safe_load(p.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ConfigError(f"{p}: expected a mapping at the top level")
-    return ProjectConfig(p, data)
+    return ProjectConfig(p, data, stated=set(leaves(data)))
 
 
 def load_standard(path: str | Path = "config/plant_standard_abbr.yaml") -> dict:

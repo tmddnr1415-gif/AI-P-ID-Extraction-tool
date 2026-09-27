@@ -24,6 +24,7 @@ row is "why".
 from __future__ import annotations
 
 import collections
+import os
 import contextlib
 import copy
 import hashlib
@@ -359,6 +360,107 @@ def _document_code(pages) -> str:
     return seen.most_common(1)[0][0] if seen else ""
 
 
+def _switch_profile(path) -> None:
+    """맞는 프로필을 **지금 실린 것 위에 얹는다** — 되돌리는 곳은 `_own_config` 하나다.
+
+    통째로 바꾸지 않는 이유: `project_sadara.yaml` 처럼 **발주처 몫만** 적은
+    프로필이 있다 (그 파일 머리말 — *a key this file does not state is taken
+    from the sheet*).  통째로 바꾸면 `_rebind_config` 이 `vendor_marks.glyph_sizes`
+    같은 필수 잎에서 죽는다 (첫 판이 그랬다).  얹으면 그 프로필이 적은 잎은
+    그것이 이기고, 안 적은 잎은 바탕(부팅 때 실린 것)에서 **물려받는다** — 그리고
+    물려받은 것은 장부가 "빌린 값" 으로 센다 (`_borrowed_ledger`).
+    """
+    loaded = projectconfig.load(path)
+    # 바탕은 **파일에서 다시 읽는다** — 지금 메모리의 `CFG.data` 가 아니라.  선택은
+    # `_fit_layout` 보다 앞이라 둘이 같지만, 파일이 곧 바탕이라는 것을 코드가 말한다
+    # (되돌리기용 사본은 `_own_config` 한 곳에서만 뜬다 — 그 시험이 세는 자리).
+    base = projectconfig.load(CFG.path)
+    merged = projectconfig.deep_update(base.data, loaded.data)
+    CFG.path, CFG.data, CFG.stated = loaded.path, merged, set(projectconfig.leaves(loaded.data))
+    _rebind_config()
+
+
+def _select_profile(document_code: str) -> dict:
+    """프로필은 **도면이 고른다** (56회차 [G1]).
+
+    예전에는 모르는 문서가 `PID_PROJECT_CONFIG` 미지정이면 AL NOUF1 설정으로
+    **조용히** 돌았다 (14회차 [8]).  이제 도면번호의 프로젝트 코드로
+    `config/project_*.yaml` 의 `project.code` 를 찾아 맞는 것을 고르고, 없으면
+    **"새 프로젝트"** 로 선언한다.  새 프로젝트도 값은 필요하므로 지금 실린
+    프로필(기본 AL NOUF1)에서 **빌려 쓰되, 무엇을 빌렸는지 장부에 남긴다**
+    (`_borrowed_ledger`).  판정 코드는 한 줄도 바뀌지 않는다 — 바뀌는 것은
+    "어느 파일이 실려 있는가" 와 "그 사실을 말하는가" 뿐이다.
+
+    `PID_PROJECT_CONFIG` 로 사람이 못박았으면 자동으로 바꾸지 않는다 (하네스·
+    시험이 그렇게 고정한다).  `PID_PROFILE_AUTO=0` 이면 끈다.
+    """
+    env_pinned = bool(os.environ.get("PID_PROJECT_CONFIG"))
+    auto = (os.environ.get("PID_PROFILE_AUTO", "1") != "0") and not env_pinned
+    cands = projectconfig.profiles()
+    match = next((c for c in cands if c["code"] and c["code"] == document_code), None)
+    base = CFG.path.name                      # 물려받는 바탕 — 부팅 때 실린 프로필
+    switched = False
+    if auto and match is not None and match["path"].resolve() != CFG.path.resolve():
+        _switch_profile(match["path"])
+        switched = True
+    code = str((CFG.data.get("project") or {}).get("code") or "")
+    matched = bool(document_code) and code == document_code
+    return {
+        "path": CFG.path.name,
+        "code": code,
+        "name": str((CFG.data.get("project") or {}).get("name") or ""),
+        "document_code": document_code,
+        "matched": matched,
+        "auto": auto,
+        "env_pinned": env_pinned,
+        "switched": switched,
+        # 값을 물려받는 바탕.  맞는 프로필이 없으면 지금 실린 것에서, 얹은
+        # 프로필(발주처 몫만 적은 것)이면 그 아래 깔린 것에서 빌린다.  바탕이
+        # 곧 자기 프로필(AL NOUF1)이면 빌릴 것이 없다.
+        "borrowed_from": "" if (matched and not switched) else base,
+        "candidates": [{"path": c["path"].name, "code": c["code"], "name": c["name"]}
+                       for c in cands],
+    }
+
+
+def _borrowed_ledger(profile: dict, layout: dict) -> dict:
+    """이 분석이 **남의 설정에서 읽어 쓴 잎** (56회차 [G1] · 지문 밖).
+
+    장부는 `CFG.record`(읽은 순서)이고, 그중 `_fit_layout` 이 도면에서 재서
+    덮어쓴 키(`layout.moved`)는 읽었어도 **값은 도면의 것**이라 뺀다.  프로필이
+    그 문서의 것이면 빌린 것이 없다.  ⚠ import 때 굳어 `_rebind_config` 이
+    다시 만들지 않는 값(36회차 표의 17개)은 이 장부에 안 잡힌다 — 그것은
+    장부의 한계이지 "안 빌렸다" 가 아니다.
+    """
+    reads = list(dict.fromkeys(CFG.record))
+    moved = {m.get("key") for m in (layout or {}).get("moved", []) or []}
+    matched = bool(profile.get("matched"))
+    # 빌린 값 = 읽었고 · 이 프로필 파일이 적지 않았고 · 도면이 대신 답하지 않았고 ·
+    #           값은 바탕 프로필에 있는 것.
+    # 코드 기본값 = 읽었는데 어느 프로필에도 없는 것 (`get_or` 의 미스) — 이것도
+    #           외워둔 값이지만 프로필에서 빌린 것은 아니라 따로 센다.
+    # 맞는 프로필이 아니면 그 파일이 적은 잎도 **이 문서의 것이 아니다** — 전부 빌린
+    # 값이다.  "적었으니 빌린 게 아니다" 는 얹은(맞는) 프로필에서만 성립한다.
+    borrowed, code_defaults = [], []
+    for k in reads:
+        if k in moved or (matched and CFG.states(k)):
+            continue
+        (borrowed if _configured(k) else code_defaults).append(k)
+    by_section = collections.Counter(k.split(".")[0] for k in borrowed)
+    return {
+        "profile": profile.get("path", ""),
+        "from": profile.get("borrowed_from", ""),
+        "matched": matched,
+        "read": len(reads),
+        "replaced_by_sheet": sorted(k for k in reads if k in moved),
+        "keys": borrowed,
+        "count": len(borrowed),
+        "code_defaults": code_defaults,
+        "by_section": dict(sorted(by_section.items())),
+        "not_counted": "import 때 굳는 값(36회차 표 17개)은 이 장부에 안 잡힌다",
+    }
+
+
 def _configured(dotted: str) -> bool:
     """Whether the loaded profile states this key itself."""
     node = CFG.data
@@ -605,10 +707,12 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     from app.engine import dxf_reader as _dxf
     if _dxf.is_dxf_input(Path(pdf_path)):
         from app import dxf_pipeline
-        return dxf_pipeline.analyse(Path(pdf_path), progress=progress, timings=timings,
-                                    declared_mode=declared_mode,
-                                    unit_multipliers=unit_multipliers,
-                                    sheet_numbers=sheet_numbers)
+        # 56회차 [G1] — DXF 도 프로필을 고르므로 **같은 되돌리기** 안에서 돈다.
+        with _own_config():
+            return dxf_pipeline.analyse(Path(pdf_path), progress=progress,
+                                        timings=timings, declared_mode=declared_mode,
+                                        unit_multipliers=unit_multipliers,
+                                        sheet_numbers=sheet_numbers)
     with _own_config():
         try:
             return _analyse(pdf_path, progress=progress, timings=timings,
@@ -633,11 +737,17 @@ def _own_config():
     따로 두면 언젠가 새는 갈래가 생긴다 (`tests/test_config_isolation.py`).
     """
     snapshot = copy.deepcopy(CFG.data)
+    path0, stated0 = CFG.path, set(CFG.stated)
+    # 56회차 [G1] — 이 분석 동안 읽은 설정 잎을 적는다 (`_borrowed_ledger`).
+    CFG.record, CFG.recording = [], True
     try:
         yield
     finally:
-        if CFG.data != snapshot:
+        CFG.recording = False
+        # 다른 프로필을 얹었을 수도 있다 (`_switch_profile`) — 파일·적은 잎도 되돌린다.
+        if CFG.data != snapshot or CFG.path != path0:
             CFG.data = snapshot
+            CFG.path, CFG.stated = path0, stated0
             _rebind_config()
 
 
@@ -696,6 +806,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     say(0, 1, "opening the document")
     with clock.stage("open_pdf"):
         doc, pages = pidcache.load_pages(pdf_path)
+    # 56회차 [G1] — **프로필은 도면이 고른다.**  `_fit_layout` 보다 앞이어야
+    # 한다 (그 함수가 `project.code` 로 "내 프로필인가" 를 가른다).  고른 뒤
+    # `_rebind_config` 을 한 번 부르는 이유: import 때 읽힌 잎도 장부에 들게.
+    profile_info = _select_profile(_document_code(pages))
+    _rebind_config()
     total = len(pages) + 6
 
     # ⚠ 여기에 "도면번호 칸이 모든 장에서 종이 밖이면 곧장 멈춘다" 는 이른 검사를
@@ -1462,6 +1577,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 장을 누가 채웠는지가 남는다 (근거 패널·감사용).
         "user_sheet_numbers": {"table": dict(sorted(filled_sheets.items())),
                                "who": dict(sorted(sheet_who.items()))},
+        # 56회차 [G1] — 어느 프로필로 돌았고 무엇을 남의 설정에서 빌렸나.
+        # 둘 다 **지문 밖**이다 (판정이 아니라 판정의 출처).
+        "profile": profile_info,
+        "borrowed": _borrowed_ledger(profile_info, layout),
         "legend": {k: {"source": d.source, "note": d.note, "values": d.values}
                    for k, d in legend_derived.items()},
         # 43회차 — 몸체 짧은 변의 창이 어디서 왔나.  **지문 밖**이다 (`legend`

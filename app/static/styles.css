@@ -1001,6 +1001,11 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 }
 .legend-bar .lb-tag.reused { border-color: #6b8f71; color: #3f6147; }
 .legend-bar .lb-tag.derived { border-color: #6a7f9c; color: #3f5673; }
+/* 56회차 [G1] — 프로필이 이 문서의 것인가.  "없음" 은 실패가 아니라 **새 프로젝트**
+   라는 사실이라 붉은색을 쓰지 않는다 — 다만 빌려 쓴 값이 있다는 것은 눈에 띄어야
+   하므로 호박색이다 (mode-bar 의 conflict 붉은색과 다르다). */
+.legend-bar .lb-tag.matched { border-color: #6a7f9c; color: #3f5673; }
+.legend-bar .lb-tag.stranger { border-color: #b8893a; color: #7a5716; }
 .legend-bar .lb-line { color: var(--ink-strong); }
 .legend-bar .lb-n, .legend-bar .lb-note { color: var(--ink-soft); }
 .legend-bar .lb-changes { margin-top: 6px; }

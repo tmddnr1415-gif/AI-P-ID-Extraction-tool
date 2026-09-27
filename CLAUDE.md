@@ -2547,6 +2547,43 @@ UAD `fff7ef15` → `9783173e` (24행) 이 움직였습니다.**  시험 368 → 
 10. **⚠ 스스로 뒤집은 것 일곱** — `out/round55_progress.md`.  ⚠ 한 세트 렌더가 장마다 zip 을 다시 열어
    60초였다 → 세트 캐시 하나(`main._dxf_sheets`).  ⚠ `pkill -f` 자기참조로 셸 하나를 죽였다 (§8 규칙 그대로).
 
+**그 다음 회차 — hotfix6~11 · 프로필은 도면이 고른다 (56회차)**
+
+전문 `out/round56/1_보고서.md` · 화면 자기검증 `out/round56/ui_*` · 꾸러미
+`out/PID_hotfix11_2026-09-27.zip` (hotfix1~10 누적).
+**AL NOUF1 `c3f63cde` · 1137 · 2140 · 축3 94.8 불변 · TC2 `4c508aa1` · 902 · 5564
+· UAD-DXF `a5d8b79c` · 494 (움직인 것은 이 회차 앞부분의 [B]·[E] 뿐).**  시험 491.
+
+1. **[A] TC2 XV — 공압 울타리 창도 범례 원의 배수** (`legend_rules.ENCLOSURE_BAND`
+   · 47회차 `ACT_BOX_BAND` 와 같은 길).  `(9.0, 40.0)` 은 AL NOUF1 원 14.22 에서 잰
+   절대 pt 였다.  칸막이 있는 상자는 실린더로 (`detect_valves._box_divider`).
+2. **[B] UAD p30 LS 12행 — 별표는 그 심볼의 이름이 아니다.**  `scope_for(_own_words)`
+   가 사각형 안 낱말을 빼며 모서리 별표를 삼켰다 (30회차 §10-10 의 반대 방향).
+   `stars` 는 `STAR_RE` 만 담으므로 라벨이 섞일 길이 애초에 없다 → 조건 삭제.
+3. **[C] 반투명 음영은 한 번도 칠해진 적이 없었다** — CSS `fill: transparent` 가
+   presentation attribute 를 이긴다.  인라인 style 로.  DXF 는 색이 많아 **빗금**
+   (`<pattern>` · 색마다 하나).  Shift-클릭 다중선택 · Shift-끌기 띠 선택 · 공급 주체
+   일괄 변경 (`S.multi` · `_band`).  DXF 글자는 픽셀 후처리(`dxf_render.darken_ink`)로
+   진하게 — ezdxf 속성 덮어쓰기는 글자 색에 안 닿는다.
+4. **[D] "안 된다" 두 건은 브라우저 캐시였다** → `?v=<sha8>` · `no-store` · 바닥줄
+   `화면 <tag>`.  분석이 느려진 것은 해상도(`PX_PER_UNIT`)가 아니다 (§13).
+5. **★ [G1] 프로필 자동 맞춤 + 빌린 값 장부** (사용자 선택 · *"범용성을 높이는
+   방향"*).  도면번호의 프로젝트 코드로 `config/project_*.yaml` 의 `project.code` 를
+   찾는다 (`pipeline._select_profile` · `_fit_layout` 앞).  맞는 프로필은 **얹는다**
+   (`_switch_profile` · `projectconfig.deep_update`) — 통째로 바꾸면 SADARA 파일이
+   `glyph_sizes` 없음으로 죽는다.  맞는 것이 없으면 "새 프로젝트" 로 말하고 기본
+   프로필에서 읽은 잎을 **장부**로 낸다 (`result["borrowed"]` · 지문 밖 ·
+   `ProjectConfig.record/stated` · `layout.moved` 는 도면이 답한 것이라 뺀다).
+   실측 TC2 **24칸** (도면이 대신 답한 15 제외) · UAD-DXF 4 · AL NOUF1 0.
+   ⚠ 장부는 `get/lookup` 을 지난 잎만 센다(40개) — **하한**이다.  ⚠ **SADARA 는
+   이제 `project_sadara.yaml` 로 돈다** — 14회차 실측 82 ↔ 75 이므로 반드시 움직이고,
+   이 환경에 PDF 가 없어 못 쟀다 (`--only SADARA --write-baseline` 회사 PC).
+   스위치 `PID_PROJECT_CONFIG`(못박음) · `PID_PROFILE_AUTO=0`(끔).  `_own_config` 가
+   파일·`stated` 까지 되돌리고 DXF 갈래도 그 안으로.
+6. **묻고 진행한다** — 사용자 지시(*"업데이트 전에 나한테 진행하냐고 물어보고"*).
+   남은 후보 G2(범례 머리말을 구조로) · G3(남은 절대 pt) · A~E 는 보고서 §14 에
+   목록으로 있고 **고르지 않았다**.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

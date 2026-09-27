@@ -1675,7 +1675,26 @@ def _legend_facts(job) -> dict:
         if missing:
             note += (f" — {len(missing)}항목은 이 PDF 에 없어 "
                      f"**대조하지 못했습니다**")
+    # 56회차 [G1] — 프로필 문장.  저장된 것은 사실(`profile`·`borrowed`)이고
+    # 문장은 **여기서** 만든다 (15회차 규율 — 문장을 저장하면 고칠 수 없다).
+    prof = engine.get("profile") or {}
+    bor = engine.get("borrowed") or {}
+    if not prof:
+        profile_line = "이 분석에는 프로필 기록이 없습니다 (56회차 이전)"
+    elif prof.get("matched"):
+        how = ("환경변수로 지정" if prof.get("env_pinned")
+               else "도면번호의 프로젝트 코드와 일치해 자동으로 골랐습니다")
+        profile_line = f"프로필 {prof.get('name') or prof.get('path')} ({prof.get('code')}) — {how}"
+    else:
+        who = prof.get("document_code") or ""
+        head = (f"이 문서(코드 {who})에 맞는 프로필이 없습니다 — 새 프로젝트" if who
+                else "도면번호에서 프로젝트 코드를 읽지 못해 프로필을 고를 수 없습니다")
+        n, rep = int(bor.get("count") or 0), len(bor.get("replaced_by_sheet") or [])
+        profile_line = (f"{head}. {prof.get('borrowed_from') or prof.get('path')} 의 설정 "
+                        f"{n}칸을 빌려 썼습니다"
+                        + (f" (도면이 대신 답한 {rep}칸은 뺐습니다)" if rep else ""))
     return {"mode": mode,
+            "profile": prof, "borrowed": bor, "profile_line": profile_line,
             "measured": bool(lp.get("measured")),
             "compared": bool(lp.get("compared")),
             # 이번 PDF 가 읽지 못해 대조하지 못한 항목.  "같다" 가 아니다.

@@ -489,6 +489,9 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # `evidence_tier` 와 같은 결함).  8차 피드백 s3 이
                               # *"식별 값도 표기한다 · 해석된 내용을 표기한다"* 다.
                               # 지문 밖이다 (`multipliers` 에 넣으면 지문이 움직인다).
+                              # 56회차 [G1] — 어느 프로필로 돌았고 무엇을 남의
+                              # 설정에서 빌렸나.  화면 띠가 읽는다 (지문 밖).
+                              "profile", "borrowed",
                               "unit_notes")},
                             default=str),
                  job_id))
