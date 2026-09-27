@@ -102,3 +102,25 @@ def test_release_ink_drops_the_last_page_index(monkeypatch):
     assert "ds.release_ink()" in guard and "finally:" in guard
     cleanup = src.split("class _ProposeCleanup:")[1].split("\ndef ")[0]
     assert "ds.release_ink()" in cleanup
+
+
+# --------------------------------------------------------------------------
+# 56회차 — 음영은 **인라인 스타일**로 칠한다 (CSS 가 표현 속성을 이긴다)
+# --------------------------------------------------------------------------
+
+def test_the_fill_is_an_inline_style_not_a_presentation_attribute():
+    """★ 9차 [3] 의 "반투명 음영" 은 한 번도 칠해진 적이 없었다.
+
+    `styles.css` 의 `rect.det` 이 `fill: transparent` 를 갖고 있고(상자 안쪽까지
+    클릭이 통하게 하려고 둔 것), **CSS 규칙은 표현 속성을 언제나 이긴다.**
+    그래서 `setAttribute("fill", …)` 은 화면에 닿지 않았다.  DXF 빗금이 한 줄도
+    안 그려지는 것을 파다가 드러났다 (같은 패턴을 살아 있는 페이지에 직접
+    그리면 멀쩡히 칠해진다).
+    """
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    js = (root / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    css = (root / "app" / "static" / "styles.css").read_text(encoding="utf-8")
+    assert "fill: transparent;" in css                 # 그 줄은 그대로 남는다
+    assert "r.style.fill =" in js                      # 칠하는 곳은 인라인이다
+    assert 'r.setAttribute("fill"' not in js           # 표현 속성으로 칠하지 않는다

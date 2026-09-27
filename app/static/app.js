@@ -3938,6 +3938,49 @@ function buildOverlayLegend() {
   }));
 }
 
+/* 56회차 — **DXF 는 빗금으로 칠한다** (현장 보고: *"식별 표기를 위해 표기된
+ * 네모난 박스 내부에 빗금을 쳐 달라"*).
+ *
+ * 왜 DXF 만인가: DXF 도면은 층마다 색이 다르다(파랑 배관 · 초록 신호 · 자홍
+ * 경계).  평평한 음영은 그 색들 위에서 "덧칠한 색" 과 구별되지 않지만, 빗금은
+ * **도면에 없는 무늬**라 무엇이 우리 표시인지 한눈에 갈린다.  PDF 도면은
+ * 검은 잉크뿐이라 평평한 음영으로 충분하고, 바꾸면 여덟 회차를 눈으로 맞춰 둔
+ * 화면이 같이 움직인다.
+ *
+ * 색은 **그대로 테두리와 같은 값**이다 — 빗금은 무늬이지 색이 아니다
+ * (11회차 — 색과 SCOPE 열은 같은 값을 읽는다).  무늬는 색마다 하나씩 그 자리에서
+ * 만들고, `drawOverlay` 가 매번 `ov` 를 비우므로 `defs` 도 그때 다시 선다. */
+function isDxfJob() {
+  return !!(S.job && String(S.job.input_kind || "").toUpperCase() === "DXF");
+}
+
+function hatchFill(ov, colour) {
+  const id = "hatch-" + String(colour).replace(/[^0-9a-zA-Z]/g, "");
+  if (!ov.querySelector("#" + id)) {
+    let defs = ov.querySelector("defs");
+    if (!defs) {
+      defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      ov.insertBefore(defs, ov.firstChild);
+    }
+    const pat = document.createElementNS("http://www.w3.org/2000/svg", "pattern");
+    pat.setAttribute("id", id);
+    pat.setAttribute("patternUnits", "userSpaceOnUse");
+    pat.setAttribute("width", HATCH_STEP); pat.setAttribute("height", HATCH_STEP);
+    pat.setAttribute("patternTransform", "rotate(45)");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("x1", 0); ln.setAttribute("y1", 0);
+    ln.setAttribute("x2", 0); ln.setAttribute("y2", HATCH_STEP);
+    ln.setAttribute("stroke", colour);
+    ln.setAttribute("stroke-width", HATCH_WIDTH);
+    pat.appendChild(ln);
+    defs.appendChild(pat);
+  }
+  return `url(#${id})`;
+}
+
+const HATCH_STEP = 7;     // 무늬 간격 (오버레이 좌표) — 확대하면 같이 커진다
+const HATCH_WIDTH = 1.6;  // 테두리와 같은 굵기라 한 벌로 읽힌다
+
 function drawOverlay() {
   const ov = $("#ov");
   ov.innerHTML = "";
@@ -3988,7 +4031,16 @@ function drawOverlay() {
     // 아주 옅게 깔면 도면 글자는 그대로 읽히면서 잡힌 자리가 한눈에 보인다.
     // 색은 테두리와 **같은 값**이다 — 색이 둘이면 SCOPE 가 두 말을 하게 된다.
     // 제외된 심볼(행이 아닌 것)은 칠하지 않는다: 잡은 것과 같은 얼굴이 된다.
-    if (it.row !== false) r.setAttribute("fill", stroke);
+    if (it.row !== false) {
+      // ★ 56회차 — **인라인 스타일로 칠한다.**  `styles.css` 의 `rect.det` 이
+      // `fill: transparent` 를 갖고 있고(상자 안쪽까지 클릭이 통하게 하려고 둔
+      // 것), CSS 규칙은 **표현 속성(`setAttribute('fill', …)`)을 이긴다**.
+      // 그래서 9차 [3] 의 "반투명 음영" 은 코드가 도는데도 **한 번도 칠해진 적이
+      // 없었다** — 패턴이 안 보이는 것을 파다가 드러났다 (살아 있는 페이지에
+      // 같은 패턴을 직접 그려 보니 멀쩡히 칠해진다: out/round56/patprobe).
+      r.style.fill = isDxfJob() ? hatchFill(ov, stroke) : stroke;
+      if (isDxfJob()) r.classList.add("hatch");
+    }
     // 53회차 [B] — 밸브 행의 **태그 버블**에도 가는 고리를 그린다
     // (8차 피드백 s6 · TC2 9차: 버블에 아무 표시가 없어 "XV·MOV·TCV·PCV 가
     // 식별되지 않는다" 로 읽힌다).  행의 상자는 **몸체** 위에 서므로, 도면에서
