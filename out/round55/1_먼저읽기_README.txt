@@ -48,14 +48,20 @@
    2. 서버 중지 — Ctrl + C
    3. ★ 설치 파일 넣기 (처음 한 번만)
         4_설치파일_wheels_part00.zip 과 part01.zip 을 **같은 폴더**에 풉니다.
-        풀면 wheels_r55 폴더 하나가 되고 그 안에 .whl 이 10개 있습니다.
-        cd C:\Users\SAMSUNG\.claude\pid\AI-P-ID-Extraction-tool
-        .\.venv\Scripts\python.exe -m pip install --no-index `
-            --find-links <wheels_r55 폴더 경로> ezdxf matplotlib
-        확인:
-        .\.venv\Scripts\python.exe -c "import ezdxf, matplotlib; print('ok')"
-        ※ "ok" 가 나와야 합니다.  numpy · packaging · typing_extensions 는 이미
-          깔려 있어 담지 않았습니다 (9/3 이관 때 들어간 버전과 같습니다).
+        풀면 wheels_r55 폴더 하나가 되고 그 안에 .whl 이 11개 있습니다.
+        ★ 그 폴더를 **이 프로그램 폴더 안으로 옮기면** 아래 명령이 짧아집니다.
+        ★ 경로를 타자하지 않는 법 — 탐색기로 프로그램 폴더를 열고 **주소창에
+          cmd 만 치고 Enter** 하면 그 폴더에서 명령창이 열립니다.  거기서:
+
+        dir wheels_r55\*.whl
+        .venv\Scripts\python.exe -m pip install --no-index --find-links wheels_r55 ezdxf matplotlib
+        .venv\Scripts\python.exe -c "import ezdxf, matplotlib; print('ok')"
+
+        ※ "ok" 가 나와야 합니다.
+        ※ numpy · typing_extensions 는 이미 깔려 있어 담지 않았습니다.
+        ⚠ packaging 은 9/3 목록에 적혀 있는데도 **앱 가상환경에는 없었습니다**
+          (그 목록에는 검증용까지 섞여 있습니다).  그래서 함께 담았습니다 —
+          이미 있으면 pip 이 알아서 건너뜁니다.
    4. 3_덮어쓸파일.zip 을 저장소 루트에 덮어쓰기 (같은 이름은 덮어씁니다)
    5. 삭제할 파일 없음 — 기준 aac64ba 이후 지워지거나 이름이 바뀐 파일이 없습니다
    6. 서버 시작

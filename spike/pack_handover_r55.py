@@ -118,7 +118,7 @@ def main() -> int:
     #    화면에 **그리지 못한다** (`app/engine/dxf_render.py` 는 함수 안에서
     #    matplotlib 을 부르므로, 없어도 서버는 뜨고 분석·Excel 은 된다).
     src = Path("/tmp/wheels_r55_all")
-    parts = {"part00": ["ezdxf-", "pyparsing-", "fonttools-"],
+    parts = {"part00": ["ezdxf-", "pyparsing-", "fonttools-", "packaging-"],
              "part01": ["matplotlib-", "pillow-", "contourpy-", "cycler-",
                         "kiwisolver-", "python_dateutil-", "six-"]}
     if src.exists():

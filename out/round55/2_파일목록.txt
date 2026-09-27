@@ -1,5 +1,5 @@
-# 회사 PC 꾸러미 r55 — 파일 목록 (기준 aac64ba..8a4f327 · 소스만)
-# [A] 새로 167 · [M] 덮어쓰기 32 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
+# 회사 PC 꾸러미 r55 — 파일 목록 (기준 aac64ba..965bf7c · 소스만)
+# [A] 새로 169 · [M] 덮어쓰기 32 · [D] 삭제 0 · [R] 이동 0 — 수동 삭제 목록: 없음
 
 [M] CLAUDE.md
 [M] README.md
@@ -121,6 +121,8 @@
 [A] spike/pack_round33.py
 [A] spike/pack_round35.py
 [A] spike/pack_round36.py
+[A] spike/pdf_vs_dxf_compose.py
+[A] spike/pdf_vs_dxf_shots.py
 [A] spike/projects_3p.json
 [A] spike/r35_apply.py
 [A] spike/r35_classify.py
