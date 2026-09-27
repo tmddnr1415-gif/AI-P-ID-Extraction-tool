@@ -3859,11 +3859,17 @@ function drawOverlay() {
     // 색은 테두리와 **같은 값**이다 — 색이 둘이면 SCOPE 가 두 말을 하게 된다.
     // 제외된 심볼(행이 아닌 것)은 칠하지 않는다: 잡은 것과 같은 얼굴이 된다.
     if (it.row !== false) r.setAttribute("fill", stroke);
-    // 53회차 [B] — 고른 밸브 행의 **태그 버블**을 가는 선으로 함께 보인다
-    // (8차 피드백 s6: 버블에 상자가 없어 "XV 가 식별되지 않는다" 로 읽혔다).
-    // 상자를 하나 더 세지 않는다 — 선택했을 때만 그리는 장식이라 33회차
-    // 등식(색 칸 합 = 상자 수)은 그대로다.
-    if (S.sel === it.key) {
+    // 53회차 [B] — 밸브 행의 **태그 버블**에도 가는 고리를 그린다
+    // (8차 피드백 s6 · TC2 9차: 버블에 아무 표시가 없어 "XV·MOV·TCV·PCV 가
+    // 식별되지 않는다" 로 읽힌다).  행의 상자는 **몸체** 위에 서므로, 도면에서
+    // 이름을 읽는 사람은 버블을 보는데 그 자리에 아무 것도 없었다.
+    //
+    // ★ 예전에는 **고른 행에만** 그렸다 — 누르기 전에는 안 보이니 "안 잡혔다"
+    // 와 구별되지 않는다.  이제 늘 그리고, 고른 행에서만 진해진다.
+    // 상자를 하나 더 세지 않는다 — `rect.det` 이 아니라 장식이라 33회차
+    // 등식(색 칸 합 = 상자 수)은 그대로다.  잇는 선은 고른 행에서만 그린다
+    // (전부 그리면 도면이 선으로 덮인다).
+    {
       const tr = ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
       if (tr && (Math.round(tr[0]) !== Math.round(it.rect[0])
                  || Math.round(tr[1]) !== Math.round(it.rect[1]))) {
@@ -3871,16 +3877,19 @@ function drawOverlay() {
         tb.setAttribute("x", tr[0] * scale); tb.setAttribute("y", tr[1] * scale);
         tb.setAttribute("width", Math.max(2, (tr[2] - tr[0]) * scale));
         tb.setAttribute("height", Math.max(2, (tr[3] - tr[1]) * scale));
-        tb.setAttribute("class", "tagbub");
+        tb.setAttribute("class", "tagbub" + (S.sel === it.key ? " sel" : ""));
         tb.setAttribute("stroke", stroke);
-        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        ln.setAttribute("x1", (tr[0] + tr[2]) / 2 * scale);
-        ln.setAttribute("y1", (tr[1] + tr[3]) / 2 * scale);
-        ln.setAttribute("x2", (x0 + x1) / 2 * scale);
-        ln.setAttribute("y2", (y0 + y1) / 2 * scale);
-        ln.setAttribute("class", "tagbub-l");
-        ln.setAttribute("stroke", stroke);
-        ov.appendChild(ln); ov.appendChild(tb);
+        if (S.sel === it.key) {
+          const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          ln.setAttribute("x1", (tr[0] + tr[2]) / 2 * scale);
+          ln.setAttribute("y1", (tr[1] + tr[3]) / 2 * scale);
+          ln.setAttribute("x2", (x0 + x1) / 2 * scale);
+          ln.setAttribute("y2", (y0 + y1) / 2 * scale);
+          ln.setAttribute("class", "tagbub-l");
+          ln.setAttribute("stroke", stroke);
+          ov.appendChild(ln);
+        }
+        ov.appendChild(tb);
       }
     }
     // 검토 필요는 색을 바꾸지 않고 **모서리 표식**으로 말한다 (33회차).  표식은
