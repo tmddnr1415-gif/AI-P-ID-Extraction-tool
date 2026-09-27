@@ -208,3 +208,32 @@ def test_geometry_fallback_and_no_attr_block_still_count(tmp_path):
     assert [w.text for w in inside] == ["PT"]
     syms = [s for s in R.symbols(sh) if s.block == "INSTR"]
     assert all(not any(s.attrs.values()) for s in syms)
+
+
+# ---------------------------------------------------------------------------
+# 사람이 지정한 승수 — 읽는 곳이 둘이면 갈린다 (현장 결함)
+#
+# `app/main.py` 의 `_user_multipliers` 는 **프로젝트에 묶인 분석에서만**
+# `{"table": …, "who": …}` 를 주고, 안 묶였으면 `{}` 를 준다.  DXF 경로가 그
+# 바깥 dict 를 `{유닛: 배수}` 로 착각해 읽어서, **프로젝트를 골라 올린 DXF 분석이
+# 전부** `KeyError: 'value'` 로 죽었다.  회귀 하네스는 이 인자를 안 넘기고
+# 55회차 업로드 시험은 프로젝트 없이 올려서 둘 다 그 자리를 안 지났다.
+# ---------------------------------------------------------------------------
+
+def test_user_multipliers_are_read_in_one_place():
+    """두 경로가 같은 접근자를 쓴다 — DXF 쪽에 사본이 없다."""
+    src = (ROOT / "app" / "dxf_pipeline.py").read_text(encoding="utf8")
+    assert "P.user_multiplier_tables(" in src, "DXF 경로가 공용 접근자를 안 쓴다"
+    assert '"value"' not in src.split("user_multiplier_tables")[0][-400:], \
+        "DXF 경로에 승수를 제 식으로 읽는 사본이 남아 있다"
+
+
+def test_the_shape_the_server_actually_sends_is_accepted():
+    """서버가 실제로 넘기는 세 모양이 전부 통해야 한다."""
+    from app import pipeline as P
+    assert P.user_multiplier_tables(None) == ({}, {})
+    # 프로젝트에 묶였지만 아직 아무도 지정하지 않은 상태 — 현장에서 죽던 모양
+    assert P.user_multiplier_tables({"table": {}, "who": {}}) == ({}, {})
+    assert P.user_multiplier_tables(
+        {"table": {"00": 4}, "who": {"00": "누구 · 2026-09-27"}}) == (
+        {"00": 4}, {"00": "누구 · 2026-09-27"})

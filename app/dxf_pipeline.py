@@ -445,8 +445,7 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
 
     # ── 승수 — ①범례표 없음 → ②NOTES(미구현) → ③사람 → ④설정 폴백 ─────
     fallback = {str(k): int(v) for k, v in (P.CFG.get("unit_multiplier_fallback") or {}).items()}
-    user_mult = {str(k): int(v["value"] if isinstance(v, dict) else v)
-                 for k, v in (unit_multipliers or {}).items()}
+    user_mult, user_mult_note = P.user_multiplier_tables(unit_multipliers)
 
     # ── 장마다 행 ────────────────────────────────────────────────────────
     rows, layers, unjudged, tiers, breaker, inv = [], {}, [], {}, [], []
@@ -525,7 +524,8 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         "glyphs": {"letters": {}},
         "unit_notes": {}, "unit_forms": {}, "typical": {}, "typical_stats": {},
         "face_marks": {}, "signal_groups": [],
-        "user_multipliers": {"table": dict(sorted(user_mult.items())), "who": {}},
+        "user_multipliers": {"table": dict(sorted(user_mult.items())),
+                             "who": dict(sorted(user_mult_note.items()))},
         "user_sheet_numbers": {"table": {}, "who": {}},
         "legend_profile": {"mode": "dxf", "legend_sheets": [s.no for s in legend_sheets],
                            "measured": True, "compared": False, "uncompared": []},

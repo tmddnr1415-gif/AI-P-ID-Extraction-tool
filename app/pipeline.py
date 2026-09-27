@@ -511,6 +511,23 @@ def _reconfigure(pages) -> None:
                                  float(height))
 
 
+
+def user_multiplier_tables(unit_multipliers) -> tuple[dict, dict]:
+    """사람이 지정한 승수를 읽는 **단 하나의 곳** — `{"table": …, "who": …}`.
+
+    모양은 `app/main.py` 의 `_user_multipliers` 가 정한다.  ⚠ 이 함수가 생긴
+    이유: DXF 경로가 같은 값을 **자기 식으로 한 번 더 읽고 있었고**(바깥 dict 를
+    `{유닛: 배수}` 로 착각), 프로젝트에 묶인 DXF 분석이 전부 `KeyError: 'value'`
+    로 죽었다.  회귀 하네스는 이 인자를 안 넘기고 55회차 업로드 시험은
+    **프로젝트 없이** 올려서 둘 다 그 자리를 지나가지 않았다 —
+    *같은 질문에 답하는 곳이 둘이면 갈린다.*
+    """
+    src = unit_multipliers or {}
+    table = {str(k): int(v) for k, v in (src.get("table") or {}).items()}
+    who = {str(k): str(v) for k, v in (src.get("who") or {}).items()}
+    return table, who
+
+
 def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None,
@@ -825,10 +842,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # 15회차 `legend_profile` 과 같은 모양으로 부르는 쪽이 읽어서 넘긴다.
     # 그래서 회귀 하네스(`spike/analyse_one.py`)는 아무 것도 안 넘기고,
     # **사람 값이 없는 상태의 불변이 구조적으로 보장된다.**
-    user_mult = {str(k): int(v) for k, v in
-                 ((unit_multipliers or {}).get("table") or {}).items()}
-    user_mult_note = {str(k): str(v) for k, v in
-                      ((unit_multipliers or {}).get("who") or {}).items()}
+    user_mult, user_mult_note = user_multiplier_tables(unit_multipliers)
 
     # 이번에 잰 것을 프로필 한 벌로 묶는다.  새 프로젝트면 이것이 저장되고,
     # 프로필이 이미 있으면 **대조 대상**이 된다 (자동 갱신하지 않는다).
