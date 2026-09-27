@@ -4643,6 +4643,23 @@ $req("#feedback-export").addEventListener("click", () => {
  */
 let _band = null;
 
+/* 56회차 hotfix12 — **Shift + 누르기는 브라우저에게도 뜻이 있다.**  기본 동작은
+ * "선택을 여기까지 넓힌다" 여서, 도면 위에서 누르면 그림(#sheet)과 오버레이가
+ * 통째로 선택되어 파랗게 칠해졌다 (현장 캡처: 장 전체가 파랗고 검출 상자가 안
+ * 보였다).  우리 띠·묶음과는 무관한 **브라우저 선택 표시**였다.
+ * 막는 자리는 mousedown 하나다 — pointerdown 을 막으면 click(더하기)이 안 온다.
+ * 이미 걸린 선택은 지운다.  그리드 행도 같다 (Shift + 클릭이 표 글자를 긁는다). */
+function _noNativeShiftSelect(ev) {
+  if (!ev.shiftKey || ev.button !== 0) return;
+  const t = ev.target;
+  if (t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+  ev.preventDefault();
+  const sel = window.getSelection && window.getSelection();
+  if (sel && sel.rangeCount) sel.removeAllRanges();
+}
+$req("#stage").addEventListener("mousedown", _noNativeShiftSelect, true);
+$req("#grid").addEventListener("mousedown", _noNativeShiftSelect, true);
+
 $req("#stage").addEventListener("pointerdown", ev => {
   if (ev.button !== 0 || !ev.shiftKey || S.markup || S.picking || !S.page) return;
   // ⚠ 상자 위에서 시작해도 띠를 연다.  붐비는 장에서는 빈 자리를 찾기가 더
@@ -4657,7 +4674,7 @@ $req("#stage").addEventListener("pointerdown", ev => {
 
 $req("#stage").addEventListener("pointermove", ev => {
   if (!_band || ev.pointerId !== _band.id) return;
-  const p = sheetPoint(ev);
+  const p = sheetPointClamped(ev);
   if (!p) return;
   const stage = $("#stage");
   if (!stage.hasPointerCapture(ev.pointerId)) stage.setPointerCapture(ev.pointerId);
@@ -4684,7 +4701,7 @@ function _bandEnd(ev) {
             && Math.abs(ev.clientY - b.y) <= PAN_SLOP;
   if (tiny) return;                    // 끌지 않았으면 띠가 아니다 — 클릭을 살린다
   S.panned = true;                     // 뒤따르는 click 이 선택을 지우지 않게
-  const [x0, y0, x1, y1] = normRect(b.p0, sheetPoint(ev) || b.p0);
+  const [x0, y0, x1, y1] = normRect(b.p0, sheetPointClamped(ev) || b.p0);
   let added = 0;
   for (const it of overlayItems(S.page)) {
     if (it.row === false || !itemVisible(it)) continue;
@@ -4790,6 +4807,18 @@ function sheetPoint(ev) {
   const fx = (ev.clientX - box.left) / box.width;
   const fy = (ev.clientY - box.top) / box.height;
   if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return null;
+  return [fx * S.page.width, fy * S.page.height];
+}
+/* hotfix12 — 띠의 **끝**은 그림 밖으로 나가도 가장자리에 붙는다.  `sheetPoint` 는
+ * 밖이면 null 이고, 그 null 이 띠를 시작점 하나로 줄여 "띠 안에 고를 것이
+ * 없습니다" 가 떴다 (도면 가장자리까지 끌면 손이 그림 밖에서 떨어지기 쉽다).
+ * 시작점은 여전히 그림 안이어야 한다 — 그것은 `sheetPoint` 가 지킨다. */
+function sheetPointClamped(ev) {
+  const img = $("#sheet");
+  if (!img.naturalWidth || !S.page) return null;
+  const box = img.getBoundingClientRect();
+  const fx = Math.min(1, Math.max(0, (ev.clientX - box.left) / box.width));
+  const fy = Math.min(1, Math.max(0, (ev.clientY - box.top) / box.height));
   return [fx * S.page.width, fy * S.page.height];
 }
 document.addEventListener("keydown", ev => {

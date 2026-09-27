@@ -239,7 +239,7 @@
       <!-- `tabindex` so the viewer can hold focus: Ctrl +/-/0 are handled on this
            element, which is how they stay out of the way while the reviewer is
            typing in a cell or in the filter box.  See app.js zoomBy(). -->
-      <div id="stage" tabindex="0"><div id="wrap"><img id="sheet" alt=""><svg id="ov"></svg></div></div>
+      <div id="stage" tabindex="0"><div id="wrap"><img id="sheet" alt="" draggable="false"><svg id="ov"></svg></div></div>
       <!-- Shown while the reviewer is pointing at where a missed item belongs. -->
       <div id="pick-note" class="picknote hidden">놓친 항목의 위치를 도면에서 클릭하세요
         <button id="pick-cancel" class="ghost mini">위치 없이 추가</button></div>

@@ -380,6 +380,11 @@ input[type=search] { flex: 1; }
 #stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 #wrap { position: relative; transform-origin: 0 0; }
 #sheet { display: block; background: #fff; }
+/* 56회차 hotfix12 — 도면은 글자·그림으로 **선택되지 않는다**.  Shift + 누르기의
+   브라우저 기본 동작(선택 넓히기)이 그림 전체를 파랗게 칠해 검출 상자를 가렸다.
+   끌어서 그림을 떼어 내는 것도 막는다 (팬·띠와 겹친다). */
+#stage, #stage * { -webkit-user-select: none; user-select: none; }
+#sheet { -webkit-user-drag: none; }
 #ov { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* Colour is the scope, the dash is the deliverable kind, so the two read
    independently.  Excluded symbols are drawn thinner: they are context, not
