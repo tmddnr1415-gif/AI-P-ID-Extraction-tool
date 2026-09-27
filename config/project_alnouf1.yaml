@@ -91,6 +91,18 @@ excel:
 # LI at all — those are the Excel's own spelling, so every row below is a
 # convention of this deliverable.
 anchors:
+  # 경보를 뜻하는 **뒤 글자** (9차 DXF 피드백 · 실사용자 2026-09-27 확정:
+  # *"마지막에 A 가 붙은 Alarm signal 들이 계기로 출력되는 문제"*).
+  #
+  # 판정 자체는 그 도면의 ISA 문자표가 한다 — 표가 태그를 머리 + 뒤 글자로 풀고
+  # (`LSA` → `L` + `SA`) 뒤 글자에 이 글자가 있으면 경보다.  머리의 `A` 는
+  # 측정 변수(ANALYSIS)라 안 걸린다: `AIT` = `A` + `IT` 는 계기로 남는다.
+  # 글자 자체를 여기 적는 이유는 **도면이 그 뜻을 낱말로 인쇄하지 않기 때문**이다
+  # (UAD 범례 p4 는 `( ) A` · `( ) AH` · `( ) AL` 칸만 찍는다) — 지어내지 않고
+  # 사람이 확정한 것을 적어 둔다 (§2.1 ③ · §9 ⑤).
+  # 비우면 이 규칙이 없던 때와 정확히 같아진다.
+  alarm_letters: [A]
+
   # 50회차 — **무엇이 계기 태그인가는 그 도면의 ISA 문자표가 답한다** (§9 ①).
   #
   # 아래 `type_map` 은 "이 발주처가 그 태그를 뭐라고 부르나"(`TT → TIT`)만
