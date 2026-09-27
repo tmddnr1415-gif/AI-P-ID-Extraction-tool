@@ -166,6 +166,35 @@ try:
         note(f"⑤ 상자 색 — {colours}")
         pg.screenshot(path=str(OUT / "3_적용후.png"))
 
+        # ── ⑦ Shift + 끌기 — 띠 안의 것이 전부 묶인다 ────────────────
+        clearMulti = "() => clearMulti()"
+        pg.evaluate(clearMulti)
+        pg.wait_for_timeout(400)
+        # 그 장 상자들을 전부 덮는 띠를 SVG 좌표로 계산해 빈 자리에서 끈다.
+        bb = pg.evaluate("""() => {
+            const ns = [...document.querySelectorAll('rect.det')];
+            const r = ns.map(n => n.getBoundingClientRect());
+            return {x0: Math.min(...r.map(v=>v.left)), y0: Math.min(...r.map(v=>v.top)),
+                    x1: Math.max(...r.map(v=>v.right)), y1: Math.max(...r.map(v=>v.bottom)),
+                    n: ns.length};
+        }""")
+        st = pg.eval_on_selector("#stage", "el => el.getBoundingClientRect().toJSON()")
+        x0 = max(bb["x0"] - 6, st["x"] + 4); y0 = max(bb["y0"] - 6, st["y"] + 4)
+        x1 = min(bb["x1"] + 6, st["x"] + st["width"] - 4)
+        y1 = min(bb["y1"] + 6, st["y"] + st["height"] - 4)
+        pg.keyboard.down("Shift")
+        pg.mouse.move(x0, y0); pg.mouse.down()
+        pg.mouse.move((x0 + x1) / 2, (y0 + y1) / 2, steps=6)
+        pg.mouse.move(x1, y1, steps=6)
+        pg.mouse.up()
+        pg.keyboard.up("Shift")
+        pg.wait_for_timeout(1200)
+        note("⑦ Shift + 끌기 — 화면의 상자 %d개 중 묶인 것 %d · 짙게 칠해진 상자 %d"
+             % (bb["n"], pg.evaluate("() => S.multi.size"),
+                pg.evaluate("() => document.querySelectorAll('rect.det.multi').length")))
+        note("⑦ 패널 — " + pg.inner_text("#evidence").splitlines()[0])
+        pg.screenshot(path=str(OUT / "4_띠선택.png"))
+
         # 작성자가 이력에 남았는가
         hist = pg.evaluate("""async (k) => {
             const r = await (await fetch(`/jobs/${S.job.id}/rows/${k}/history`)).json();

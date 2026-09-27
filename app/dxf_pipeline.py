@@ -604,9 +604,18 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
     used_rects = []
     n_attr = n_blk = n_geom = 0
 
-    def scope_for(rect, own_words=()):
-        near = [n for w, n in stars if _overlap(w.rect, rect, pad=w.height * 1.2)
-                and w not in own_words]
+    def scope_for(rect, _own_words=()):
+        # 56회차 — **별표는 그 심볼의 이름이 아니다.**
+        #
+        # 예전에는 심볼 사각형 안에 든 낱말(`_own_words`)을 별표 후보에서 뺐다.
+        # 그 장치는 *자기 라벨(ISA 글자 · 태그 코드)을 남의 표시로 읽지 않기*
+        # 위한 것인데, `stars` 는 `STAR_RE`(`*` · `(*)`)만 담으므로 라벨이 섞일
+        # 길이 애초에 없다.  그런데 도면은 별표를 **버블 모서리**에 찍고 그
+        # 자리는 바깥 사각형 **안**이라(30회차 §10-10 의 반대 방향), 그 장치가
+        # 진짜 별표를 삼켰다 — UAD p30 실측으로 `LS` 12행 **전부**가 자기
+        # 별표를 잃고 SCT 로 나갔다 (같은 장 `PI` 24행은 별표가 사각형 밖이라
+        # VENDOR 였다).  그래서 별표에는 그 장치를 걸지 않는다.
+        near = [n for w, n in stars if _overlap(w.rect, rect, pad=w.height * 1.2)]
         if not near:
             return P.COL_SCT, {}, []
         n = max(near)

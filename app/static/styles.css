@@ -1056,6 +1056,10 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 #stage.markup { cursor: crosshair; }
 #markup-toggle.on { background: var(--accent); color: #fffdf6; border-color: var(--accent); }
 #markup-note { font-size: var(--t-s); }
+/* 56회차 — Shift 로 끄는 **선택 띠**.  마크업의 녹색 띠(`rect.rubber`)와
+   색이 달라야 한다: 그것은 *행을 만든다* 이고 이것은 *고른다* 이다. */
+rect.band { fill: rgba(26, 95, 180, .12); stroke: #1a5fb4; stroke-width: 1.4;
+  stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 rect.rubber { fill: rgba(52, 199, 89, .12); stroke: #34c759; stroke-width: 1.5;
   stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 /* 사용자 추가 행: 색은 SCOPE 그대로, 테두리만 점선 (밸브 파선 5 3 과 다른 1.5 2.5).

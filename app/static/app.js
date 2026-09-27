@@ -4558,11 +4558,96 @@ $req("#feedback-export").addEventListener("click", () => {
   window.location.href = `/jobs/${S.job.id}/feedback_export?by=${encodeURIComponent(by.trim())}`;
 });
 
+/* 56회차 — **Shift 를 누른 채 끌면 그 안의 검출이 전부 묶인다.**
+ *
+ * 요구: *"마우스 왼쪽 누르고 블록을 지정하면 식별된 계기들이 다 선택될 수
+ * 있도록"*.  그냥 끄는 것은 **팬**이고 마크업 모드의 끌기는 **누락 행**이라
+ * 둘 다 이미 임자가 있다.  그래서 Shift 를 쓴다 — Shift + 클릭이 "더한다" 인
+ * 것과 같은 뜻이고, 손가락 하나로 둘을 익힌다.
+ *
+ * 무엇이 잡히는가: **지금 화면에 보이는 것**이다.  띠와 겹치는 상자 중
+ * `itemVisible`(범례에서 켠 층)을 지나고 행인 것(`row !== false`)만 — 화면에서
+ * 꺼 둔 층이 조용히 묶이면 사람이 고른 것과 바뀌는 것이 달라진다.
+ * 겹치기(교차)로 잡는다 — CAD 의 crossing window 와 같고, 상자가 작아 완전히
+ * 감싸려면 띠를 지나치게 크게 그려야 한다.
+ */
+let _band = null;
+
+$req("#stage").addEventListener("pointerdown", ev => {
+  if (ev.button !== 0 || !ev.shiftKey || S.markup || S.picking || !S.page) return;
+  if (ev.target.tagName.toLowerCase() === "rect") return;   // 상자는 자기 onclick
+  const p = sheetPoint(ev);
+  if (!p) return;
+  _band = { x: ev.clientX, y: ev.clientY, p0: p, id: ev.pointerId, el: null };
+  ev.preventDefault();
+}, true);
+
+$req("#stage").addEventListener("pointermove", ev => {
+  if (!_band || ev.pointerId !== _band.id) return;
+  const p = sheetPoint(ev);
+  if (!p) return;
+  const stage = $("#stage");
+  if (!stage.hasPointerCapture(ev.pointerId)) stage.setPointerCapture(ev.pointerId);
+  const scale = S.natural.w / (S.page.width || 1);
+  if (!_band.el) {
+    _band.el = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    _band.el.setAttribute("class", "band");
+    $("#ov").appendChild(_band.el);
+  }
+  const [x0, y0, x1, y1] = normRect(_band.p0, p);
+  _band.el.setAttribute("x", x0 * scale); _band.el.setAttribute("y", y0 * scale);
+  _band.el.setAttribute("width", (x1 - x0) * scale);
+  _band.el.setAttribute("height", (y1 - y0) * scale);
+  ev.preventDefault();
+}, true);
+
+function _bandEnd(ev) {
+  if (!_band || ev.pointerId !== _band.id) return;
+  const stage = $("#stage");
+  if (stage.hasPointerCapture(ev.pointerId)) stage.releasePointerCapture(ev.pointerId);
+  const b = _band; _band = null;
+  if (b.el) b.el.remove();
+  const tiny = Math.abs(ev.clientX - b.x) <= PAN_SLOP
+            && Math.abs(ev.clientY - b.y) <= PAN_SLOP;
+  S.panned = true;                     // 뒤따르는 click 이 선택을 지우지 않게
+  if (tiny) return;                    // 끌지 않았으면 띠가 아니다
+  const [x0, y0, x1, y1] = normRect(b.p0, sheetPoint(ev) || b.p0);
+  let added = 0;
+  for (const it of overlayItems(S.page)) {
+    if (it.row === false || !itemVisible(it)) continue;
+    const [a0, c0, a1, c1] = it.rect;
+    if (a1 < x0 || a0 > x1 || c1 < y0 || c0 > y1) continue;   // 안 겹친다
+    if (!S.multi.has(it.key)) { S.multi.add(it.key); added++; }
+  }
+  // 띠로 하나만 잡혔으면 그것은 묶음이 아니라 그 행을 고른 것이다.
+  if (S.multi.size === 1) {
+    const only = [...S.multi][0];
+    S.multi.clear();
+    const row = S.rows.find(r => r.key === only);
+    if (row) select(only, false);
+    return;
+  }
+  drawOverlay();
+  markMultiRows();
+  if (S.multi.size) showMultiScope();
+  editNotice(added
+    ? `띠 안의 ${added}개를 묶었습니다 — 모두 ${S.multi.size}개`
+    : "띠 안에 고를 것이 없습니다", added ? "in" : "out");
+}
+$req("#stage").addEventListener("pointerup", _bandEnd, true);
+$req("#stage").addEventListener("pointercancel", ev => {
+  if (_band && ev.pointerId === _band.id) {
+    if (_band.el) _band.el.remove();
+    _band = null;
+  }
+}, true);
+
 const PAN_SLOP = 4;
 let _pan = null;
 
 $req("#stage").addEventListener("pointerdown", ev => {
-  if (ev.button !== 0 || S.picking || S.markup) return;
+  // 56회차 — Shift 를 누른 채 끄는 것은 팬이 아니라 **선택 띠**다.
+  if (ev.button !== 0 || S.picking || S.markup || ev.shiftKey) return;
   const stage = $("#stage");
   _pan = { x: ev.clientX, y: ev.clientY, moved: 0,
            sl: stage.scrollLeft, st: stage.scrollTop, id: ev.pointerId };

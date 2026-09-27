@@ -387,3 +387,23 @@ def test_the_whole_picture_is_fixed_not_the_entities():
     assert "darken_ink(" in body                           # 고치는 자리는 그림이다
     # 실패 기록은 코드에 남는다 — 같은 길을 또 파지 않게.
     assert "push_property_override_function" in dxf_render.darken_ink.__doc__
+
+
+def test_a_star_inside_the_symbol_rect_still_counts():
+    """56회차 — **별표는 그 심볼의 이름이 아니다.**
+
+    심볼 사각형 안에 든 낱말을 별표 후보에서 빼던 장치가 진짜 별표를 삼켰다.
+    도면은 별표를 **버블 모서리**에 찍고 그 자리는 바깥 사각형 **안**이다
+    (30회차 §10-10 의 반대 방향).  UAD p30 실측: `LS` 12행 전부가 자기 별표를
+    잃고 SCT 로 나갔고, 같은 장 `PI` 24행은 별표가 사각형 밖이라 VENDOR 였다.
+
+    `stars` 는 `STAR_RE`(`*` · `(*)`)만 담으므로 라벨이 섞일 길이 애초에 없다.
+    """
+    import inspect
+    from app import dxf_pipeline
+    src = inspect.getsource(dxf_pipeline._sheet_rows)
+    i = src.index("def scope_for(")
+    block = src[i:i + 1400]
+    assert "not in own_words" not in block          # 그 장치는 별표에 안 건다
+    assert "stars if _overlap" in block             # 겹치면 그 심볼의 별표다
+    assert "STAR_RE" in inspect.getsource(dxf_pipeline)
