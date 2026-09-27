@@ -65,6 +65,25 @@ PNEUMATIC_LABEL = "PNEUMATIC"
 SYMBOL_BAND = 220.0
 ROW_HALF_HEIGHT = 14.0
 
+# 56회차 - 실린더 상자의 크기 창을 **그 문서 범례가 그린 돔**에 맨다.
+#
+# `closed_boxes` 의 기본 창 (9.0, 40.0) pt 는 AL NOUF1 (A1 용지) 범례에서 잰
+# 값이다.  A3 로 그린 도면은 같은 실린더 상자를 절반 크기로 그리므로 (TC2 7.08
+# ↔ AL NOUF1 14.22) 그 창의 **하한 9.0 아래로 떨어져** 범례에서 실린더를 한 개도
+# 못 찾고, `cylinder_side` 가 비면 `detect_valves._pneumatic_cylinders` 가 통째로
+# 꺼져 도면의 파일럿/실린더 상자 액추에이터를 **한 개도** 세우지 못한다
+# (실측: TC2 의 XV 10행 · FCV 3행이 `actuator=NONE` 으로 검토 탭에 남았다).
+#
+# 고치는 방법은 47회차 `ACT_BOX_BAND` 와 같다 - 절대 pt 를 그 문서가 같은
+# 시트에 그린 돔의 배수로 바꾼다.  AL NOUF1 의 돔은 14.22 이고 9.0/14.22 ·
+# 40.0/14.22 를 되곱하면 (9.0, 40.0) 이 **소수점까지 그대로** 나오므로 그 문서는
+# 구조적으로 움직이지 않는다.  돔을 못 재면 기본 창을 그대로 쓴다 - 없는 기준을
+# 지어내지 않는다.
+ENCLOSURE_SIDES = (9.0, 40.0)
+ENCLOSURE_BASIS = 14.22
+ENCLOSURE_BAND = (ENCLOSURE_SIDES[0] / ENCLOSURE_BASIS,
+                  ENCLOSURE_SIDES[1] / ENCLOSURE_BASIS)
+
 
 @dataclass
 class Derived:
@@ -524,9 +543,10 @@ def derive_pneumatic(pages, cfg) -> Derived:
 
     index = stroke_index(pc.segments())
     horiz, _vert = index
-    domes, cylinders = [], []
-    for lab, text in labels:
-        shapes = _row_shapes(pc, lab)
+    rows = [(lab, _row_shapes(pc, lab)) for lab, _t in labels]
+
+    domes = []
+    for lab, shapes in rows:
         for d in shapes:
             b = d["bbox"]
             items = d["items"]
@@ -539,10 +559,19 @@ def derive_pneumatic(pages, cfg) -> Derived:
             if covers(horiz, b.y1, b.x0, b.x1) or covers(horiz, b.y0, b.x0, b.x1):
                 domes.append((round(b.width, 2), round(b.height, 2),
                               [round(v, 1) for v in b]))
+
+    # 56회차 - 상자 창은 이 시트가 그린 돔의 배수다 (ENCLOSURE_BAND 주석 참조).
+    sides, basis = ENCLOSURE_SIDES, None
+    if domes:
+        basis = round(sum(w for w, _h, _r in domes) / len(domes), 3)
+        sides = (basis * ENCLOSURE_BAND[0], basis * ENCLOSURE_BAND[1])
+
+    cylinders = []
+    for lab, _shapes in rows:
         # The cylinder's box is not a path, so it is assembled from strokes
         # inside the row band.
         yc = (lab.y0 + lab.y1) / 2
-        for x0, y0, x1, y1, dividers in closed_boxes(index):
+        for x0, y0, x1, y1, dividers in closed_boxes(index, sides=sides):
             if not (lab.x0 - SYMBOL_BAND <= x0 and x1 <= lab.x0 - 8):
                 continue
             if not (yc - ROW_HALF_HEIGHT <= (y0 + y1) / 2 <= yc + ROW_HALF_HEIGHT):
@@ -580,6 +609,8 @@ def derive_pneumatic(pages, cfg) -> Derived:
             "rows": [t for _r, t in labels],
             "domes": domes,
             "cylinders": cylinders,
+            "enclosure_sides": [round(v, 3) for v in sides],
+            "enclosure_basis": basis,
         })
 
 

@@ -3870,7 +3870,9 @@ function drawOverlay() {
     // 등식(색 칸 합 = 상자 수)은 그대로다.  잇는 선은 고른 행에서만 그린다
     // (전부 그리면 도면이 선으로 덮인다).
     {
-      const tr = ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
+      // 56회차 — 층이 실어 주면 그것을 쓰고, 옛 분석이면 행에서 찾는다.
+      const tr = it.tag_rect
+        || ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
       if (tr && (Math.round(tr[0]) !== Math.round(it.rect[0])
                  || Math.round(tr[1]) !== Math.round(it.rect[1]))) {
         const tb = document.createElementNS("http://www.w3.org/2000/svg", "rect");

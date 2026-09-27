@@ -1196,6 +1196,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             "row": True,
             "reason": r.needs_review,
             "description_needed": r.description_needed,
+            # 56회차 — 태그 버블 자리를 **층에도** 싣는다.  53회차부터 행의
+            # 근거에 있었고 화면이 거기서 읽었는데, 그러면 오버레이가 그리드
+            # 응답(`S.rows`)이 이미 와 있고 그 안에 `evidence` 가 실려 있다는
+            # 두 조건에 매달린다.  층은 오버레이가 이미 들고 있는 것이라
+            # 조건이 없다.  상자를 하나 더 세지 않는다 (장식이고 `row` 가
+            # 아니다 — 33회차 등식 *색 칸 합 = 상자 수* 그대로).
+            "tag_rect": ([round(v, 1) for v in r.evidence["tag_rect"]]
+                         if (r.evidence or {}).get("tag_rect") else None),
         })
     # And the symbols that were excluded, which have no row to hang off.
     for pno, info in per_page.items():

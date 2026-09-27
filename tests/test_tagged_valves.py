@@ -115,3 +115,27 @@ def test_the_new_codes_are_named_on_the_screen():
     for code in (pipeline._TAGGED_NO_ACTUATOR_CODE, pipeline._TAG_SIGNAL_CODE,
                  pipeline._TAG_NO_BODY_CODE):
         assert code in main.REVIEW_LABELS, f"{code} 가 화면에서 이름이 없다"
+
+
+# --------------------------------------------------------------------------
+# 56회차 — 태그 버블 고리는 층이 싣는다
+# --------------------------------------------------------------------------
+
+def test_the_overlay_layer_carries_the_tag_bubble():
+    """고리가 **그리드 응답**에 매달리면 안 된다.
+
+    53회차부터 `tag_rect` 는 행의 근거에 있었고 화면이 거기서 읽었다.  그러면
+    오버레이가 (가) 그리드 응답이 이미 왔고 (나) 그 안에 `evidence` 가 실려
+    있다는 두 조건에 매달린다.  층은 오버레이가 이미 들고 있는 것이다.
+    """
+    src = (ROOT / "app" / "pipeline.py").read_text(encoding="utf-8")
+    i = src.index("layers[r.page_no][r.tab].append({")
+    block = src[i:i + 1600]
+    assert '"tag_rect"' in block
+    assert '"row": True' in block          # 여전히 장식이 아니라 그 행의 층이다
+
+
+def test_the_screen_prefers_the_layer_and_still_falls_back():
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    assert "const tr = it.tag_rect" in js
+    assert "(S.rowByKey[it.key] || {}).evidence || {}).tag_rect" in js

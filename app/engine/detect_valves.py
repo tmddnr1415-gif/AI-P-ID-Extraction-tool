@@ -1398,6 +1398,17 @@ def _actuator_shells(pc, lay: ValveLayout, disabled=frozenset()):
         elif all(i[0] in ("l", "qu", "re") for i in items) and (
                 any(i[0] in ("qu", "re") for i in items)
                 or sum(1 for i in items if i[0] == "l") >= 4):
+            # 56회차 - 가로지르는 칸막이가 있으면 글자 상자가 아니라 실린더다.
+            # 판정 기준을 새로 만들지 않았다: 범례가 이미 그렇게 말한다
+            # (`legend_rules.derive_pneumatic` - *"The divider is what separates
+            # it from the plain letter boxes on the same sheet (H, S, X), which
+            # are closed and undivided"*).  그 문장을 범례 장에서만 쓰고 도면
+            # 장에서는 쓰지 않아, TC2 의 파일럿 상자가 *글자를 기다리는 상자*로
+            # 읽히고 읽을 글자가 없어 `actuator=NONE` 으로 끝났다 (XV 10행).
+            # 크기 창은 47회차가 이미 범례 원에 매 둔 `act_box` 그대로다.
+            if index is not None and _box_divider(b, index[0], lay):
+                shells.append(("cylinder", b))
+                continue
             # A box needs four sides.  Accepting a single `l` item let one
             # diagonal stroke of the spring symbol pass as an enclosure whenever
             # its bounding box came out square - that alone produced 12 of the
@@ -1421,6 +1432,27 @@ def _pneumatic_index(pc, lay: ValveLayout):
     if not (lay.dome_flat or lay.cyl_side):
         return None
     return legend_rules.stroke_index(pc.segments())
+
+
+def _box_divider(b, horiz, lay: ValveLayout) -> bool:
+    """이 상자를 가로지르는 칸막이가 범례의 실린더 자리에 있는가.
+
+    범례가 잰 것만 쓴다 - 칸막이 위치의 허용 범위는 `cyl_divider` 이고, 그것을
+    못 쟀으면 판정하지 않는다 (없는 기준을 지어내지 않는다).
+    """
+    if not lay.cyl_divider:
+        return False
+    height = b.y1 - b.y0
+    if height <= 0:
+        return False
+    for y in horiz:
+        if not b.y0 + 0.5 < y < b.y1 - 0.5:
+            continue
+        if not lay.cyl_divider[0] <= (y - b.y0) / height <= lay.cyl_divider[1]:
+            continue
+        if legend_rules.covers(horiz, y, b.x0, b.x1):
+            return True
+    return False
 
 
 def _is_dome(b, items, lay: ValveLayout, horiz) -> bool:
