@@ -391,12 +391,20 @@ rect.det {
   fill: transparent; pointer-events: all;
   stroke-width: 1.6; vector-effect: non-scaling-stroke; cursor: pointer;
   /* 음영은 **투명도로만** 준다 — 색은 app.js 가 SCOPE 에서 정한 그 값이다.
-     0.13 은 도면의 가는 글자가 그대로 읽히는 선이다 (더 진하면 태그가 흐려진다). */
-  fill-opacity: 0.13;
+     ⚠ 56회차에 0.13 → 0.20 으로 올렸다.  DXF 도면은 층마다 색이 달라(파랑 배관 ·
+     초록 신호 · 자홍 경계) 0.13 은 그 색들 사이에서 보이지 않는다는 현장 보고가
+     있었다.  0.20 은 도면의 가는 글자가 **그대로 읽히는** 선이다 — 더 올리면
+     버블 안 태그가 흐려진다. */
+  fill-opacity: 0.20;
 }
 rect.det.excluded { fill-opacity: 0; }        /* 행이 아닌 것은 칠하지 않는다 */
-rect.det.sel { fill-opacity: 0.22; }          /* 고른 것만 조금 더 진하게 */
+rect.det.sel { fill-opacity: 0.30; }          /* 고른 것만 조금 더 진하게 */
 rect.det.valve { stroke-dasharray: 5 3; }
+/* 56회차 — Shift 로 함께 고른 것.  `sel`(한 행)과 **다른 얼굴**이어야 한다:
+   sel 은 테두리 색을 잉크로 바꿔 "지금 보는 행" 을 말하고, multi 는 SCOPE 색을
+   그대로 두고 음영만 짙게 해 "함께 바꿀 것들" 을 말한다.  색을 바꾸면 그 칸이
+   SCOPE 를 말하지 않게 된다 (11회차 — 색과 열은 같은 값을 읽는다). */
+rect.det.multi { fill-opacity: 0.40; stroke-width: 3; }
 /* 33회차 — 검토 필요 표식.  색은 SCOPE 가 갖고, 검토는 모서리의 붉은 ● 다.
    테두리로 말하면 밸브의 파선·개정 링과 한 자리를 다툰다 (같은 이유로
    개정도 자기 도형을 따로 그린다). */
@@ -522,6 +530,8 @@ td, th, .badge, .n, #count, .job-meta, .prog-sheets {
 th .dir { color: var(--accent); }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: #00000008; }
+tbody tr.multi { background: rgba(26, 95, 180, .16);
+  box-shadow: inset 3px 0 0 var(--accent, #1a5fb4); }
 tbody tr.sel { background: rgba(26, 95, 180, .10);
                box-shadow: inset 0 0 0 1px var(--accent); }
 tbody tr.deleted td { text-decoration: line-through; color: var(--muted); }

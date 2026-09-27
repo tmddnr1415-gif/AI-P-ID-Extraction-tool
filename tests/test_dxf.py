@@ -336,3 +336,54 @@ def test_a_printed_valve_tag_is_the_type_even_without_a_body():
     assert P.type_display({"type": ""}, {"tag": "PSV"}) == "PSV"
     assert P.type_display({"type": "GATE"}, {"tag": "MOV"}) == "MOV(GATE)"
     assert P.type_display({"type": ""}, {}) == ""          # 근거가 없으면 비운다
+
+
+# --------------------------------------------------------------------------
+# 56회차 — 흰 종이에서 읽히는 밝기로 (현장 보고: "PIT · LIT 가 안 보인다")
+# --------------------------------------------------------------------------
+
+def test_paper_is_left_alone():
+    """거의 흰 픽셀은 종이다 — 건드리지 않는다."""
+    import numpy as np
+    from PIL import Image
+    import io as _io
+    from app.engine import dxf_render
+    a = np.full((8, 8, 3), 255, dtype="uint8")
+    buf = _io.BytesIO(); Image.fromarray(a).save(buf, format="PNG")
+    out = np.asarray(Image.open(_io.BytesIO(dxf_render.darken_ink(buf.getvalue()))))
+    assert (out == 255).all()
+
+
+def test_light_ink_comes_down_and_keeps_its_hue():
+    """노랑·하늘색은 어두워지고 **색상은 남는다** — 층 색으로 읽는 값이다."""
+    import numpy as np
+    from PIL import Image
+    import io as _io
+    from app.engine import dxf_render
+    a = np.zeros((2, 3, 3), dtype="uint8")
+    a[:, 0] = (255, 255, 0)      # 노랑
+    a[:, 1] = (0, 255, 255)      # 하늘색
+    a[:, 2] = (0, 0, 0)          # 이미 어두운 잉크
+    buf = _io.BytesIO(); Image.fromarray(a).save(buf, format="PNG")
+    out = np.asarray(Image.open(_io.BytesIO(dxf_render.darken_ink(buf.getvalue()))))
+    y, c, k = out[0, 0], out[0, 1], out[0, 2]
+    assert y[0] == y[1] and y[2] == 0          # 노랑 그대로 (R=G, B=0)
+    assert c[0] == 0 and c[1] == c[2]          # 하늘색 그대로
+    assert max(y) < 255 and max(c) < 255       # 내려왔다
+    assert tuple(k) == (0, 0, 0)               # 검정은 한 칸도 안 움직인다
+
+
+def test_the_whole_picture_is_fixed_not_the_entities():
+    """★ 엔티티 단계 덮어쓰기는 **글자에 닿지 않았다** (56회차에 뒤집은 것).
+
+    `Frontend.push_property_override_function` 은 호출되는데(UAD p6 에서 TEXT
+    221 · MTEXT 101) 그려진 글자 색이 한 픽셀도 안 바뀐다.  그래서 고치는 자리는
+    그림이고, 그 사실이 코드에 남아 있어야 같은 길을 또 파지 않는다.
+    """
+    import inspect
+    from app.engine import dxf_render
+    body = inspect.getsource(dxf_render.render_png)
+    assert "push_property_override_function" not in body   # 그 길은 닫혀 있다
+    assert "darken_ink(" in body                           # 고치는 자리는 그림이다
+    # 실패 기록은 코드에 남는다 — 같은 길을 또 파지 않게.
+    assert "push_property_override_function" in dxf_render.darken_ink.__doc__

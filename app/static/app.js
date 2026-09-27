@@ -77,6 +77,10 @@ const S = {
   // 44회차 — 마크업 모드.  `rowByKey` 는 오버레이가 행 상태(추가·오검출)를
   // 키로 찾는 지도이고 `markupSummary` 는 서버 집계(`GET /jobs/{id}/markup`).
   markup: false, rowByKey: {}, markupSummary: null,
+  // 56회차 — Shift 로 도면 위에서 여러 개를 고른 것.  `sel` 은 그대로 **하나**다
+  // (근거 패널 · 배관 추적 · 가운데 맞추기가 전부 한 행을 전제한다).  여럿은
+  // *공급 주체를 한 번에 바꾸는* 일에만 쓰이므로 자기 칸에 따로 둔다.
+  multi: new Set(),
   reasonFilter: "",
   // The review filters.  They stack: axis narrows to a decision, code to one
   // reason inside it, and the tab / drawing / grade are the axes the grid
@@ -2283,9 +2287,15 @@ function renderGrid() {
     };
     f.appendChild(rep);
     tr.appendChild(f);
-    tr.onclick = () => select(r.key, true);
+    // 56회차 — 그리드에서도 Shift 로 더한다 (도면과 같은 묶음 하나다).
+    tr.onclick = (ev) => {
+      if (ev.shiftKey) { toggleMulti(r.key); return; }
+      select(r.key, true);
+    };
     body.appendChild(tr);
   }
+  // 묶음 표시는 다시 그린 뒤에도 남는다 — 판정하는 곳은 `S.multi` 하나다.
+  markMultiRows();
 }
 
 /* The dropdown itself.
@@ -2606,6 +2616,8 @@ async function setDescription(row, text, opts = {}) {
 const SYMBOL_ZOOM = 2.2;      // enough to read a 22pt bubble on a 2384pt sheet
 
 function select(key, fromGrid, item) {
+  // 그냥 누르면 묶음은 풀린다 (더하려면 Shift).
+  S.multi.clear();
   S.sel = key;
   // 삭제 후보는 `S.rows` 가 아니라 `S.deletedRows` 에 산다 (이번 리비전에 그
   // 심볼이 없으므로 검출 행이 아니다).  둘 다 봐야 근거 패널이 열린다.
@@ -2637,11 +2649,12 @@ function select(key, fromGrid, item) {
 function deselect() {
   S.sel = null;
   S.pending = null;
+  S.multi.clear();
   document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
   document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
   drawOverlay();
   $("#evidence").innerHTML =
-    "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다.</p>";
+    "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 를 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>";
 }
 
 function centreOnSymbol(key) {
@@ -2850,6 +2863,122 @@ function bindScopeEditor(row) {
     const v = other.value.trim();
     await save(v ? `${SCOPE_VENDOR_PREFIX}(${v})` : SCOPE_VENDOR_PREFIX);
   };
+}
+
+/* 56회차 — Shift 로 여러 개를 고르고 **공급 주체를 한 번에** 바꾼다.
+ *
+ * 요구(TC2 9차): *"Shift 를 누르면 왼쪽 P&ID 에서 여러 개를 클릭할 수 있고
+ * 한 번에 공급 주체를 바꿀 수 있도록"*.
+ *
+ * 세 가지를 지킨다:
+ *
+ *  ① `S.sel`(한 행)은 건드리지 않는다.  근거 패널 · 배관 추적 · 가운데 맞추기가
+ *    전부 한 행을 전제하고, 여럿을 그 칸에 밀어 넣으면 그 셋이 함께 흔들린다.
+ *  ② 저장하는 길은 **한 행짜리와 같은 PATCH** 다 (`field: "scope"`).  묶음
+ *    전용 엔드포인트를 만들면 편집 이력·검토 수·충돌 판정이 두 벌이 된다.
+ *  ③ 작성자는 **한 번만** 묻고 모든 행에 같이 적는다 (13회차 — 확인은 매번,
+ *    타자는 한 번).  묶음이라고 이름을 비우지 않는다.
+ */
+function multiRows() {
+  return [...S.multi].map(k => S.rows.find(r => r.key === k)).filter(Boolean);
+}
+
+function markMultiRows() {
+  document.querySelectorAll("#body tr").forEach(tr =>
+    tr.classList.toggle("multi", S.multi.has(tr.dataset.key)));
+}
+
+function toggleMulti(key) {
+  // 첫 Shift 클릭은 **이미 고른 행과 둘**을 뜻한다 — 사람이 하나를 눌러 보고
+  // "이것도" 라고 더하는 것이 이 동작의 실제 쓰임이다.
+  if (!S.multi.size && S.sel && S.sel !== key) S.multi.add(S.sel);
+  if (S.multi.has(key)) S.multi.delete(key); else S.multi.add(key);
+  if (S.multi.size === 1) S.multi.clear();     // 하나만 남으면 묶음이 아니다
+  drawOverlay();
+  markMultiRows();
+  if (S.multi.size) showMultiScope();
+  else if (S.sel) {
+    const row = S.rows.find(r => r.key === S.sel);
+    if (row) showEvidence(row);
+  } else deselect();
+}
+
+function clearMulti() {
+  S.multi.clear();
+  drawOverlay();
+  markMultiRows();
+  const row = S.sel && S.rows.find(r => r.key === S.sel);
+  if (row) showEvidence(row); else deselect();
+}
+
+function showMultiScope() {
+  const rows = multiRows();
+  const by = {};
+  for (const r of rows) {
+    const v = String(cellValue(r, "scope") || "") || "(비어 있음)";
+    by[v] = (by[v] || 0) + 1;
+  }
+  const names = vendorNames();
+  const pages = [...new Set(rows.map(r => r.page_no))].sort((a, b) => a - b);
+  $("#evidence").innerHTML =
+    `<h3>선택 ${rows.length}개 — 공급 주체를 한 번에</h3>`
+    + `<p class="muted small">p${pages.join(" · p")} · Shift + 클릭으로 더하거나 뺍니다</p>`
+    + `<p class="small">지금 값 — ${Object.entries(by)
+        .map(([k, n]) => `${escape(k)} ${n}`).join(" · ")}</p>`
+    + `<div class="ractions"><div class="ract scopemulti"><span>바꿀 값</span>
+        <button class="ract-b mc-b" data-mc="SCT">SCT</button>
+        <button class="ract-b mc-b" data-mc="VENDOR">VENDOR</button>
+        <select id="mc-name"><option value="">(이름 없음)</option>${
+          names.map(n => `<option value="${escape(n)}">${escape(n)}</option>`).join("")
+        }<option value="__other__">직접 입력…</option></select>
+        <input id="mc-other" class="hidden" placeholder="VENDOR 이름">
+      </div>
+      <p class="muted small">VENDOR 는 이름을 고른 뒤 적용됩니다 · 이 도면에서 읽은 ${names.length}종</p>
+      <div class="ract"><button class="ract-b" id="mc-clear">선택 해제</button></div>
+      </div>`;
+  const wrap = document.querySelector("#evidence .scopemulti");
+  const sel = wrap.querySelector("#mc-name");
+  const other = wrap.querySelector("#mc-other");
+  wrap.querySelectorAll("button.mc-b").forEach(b => {
+    b.onclick = () => {
+      if (b.dataset.mc === "SCT") return applyScopeToMulti(SCOPE_DELIVERED);
+      const v = other.classList.contains("hidden") ? sel.value : other.value.trim();
+      return applyScopeToMulti(v ? `${SCOPE_VENDOR_PREFIX}(${v})` : SCOPE_VENDOR_PREFIX);
+    };
+  });
+  sel.onchange = () => {
+    if (sel.value === "__other__") { other.classList.remove("hidden"); other.focus(); }
+    else other.classList.add("hidden");
+  };
+  document.querySelector("#mc-clear").onclick = clearMulti;
+}
+
+async function applyScopeToMulti(value) {
+  const rows = multiRows();
+  if (!rows.length) return;
+  const author = await askAuthor(`${rows.length}개 공급 주체 → ${value}`);
+  if (author === null) return;                       // 취소 — 한 행도 안 고친다
+  let done = 0;
+  for (const r of rows) {
+    if (String(cellValue(r, "scope") || "") === value) { done += 1; continue; }
+    const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "scope", value, author }),
+    });
+    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
+    const out = await res.json();
+    r.user = out.user;
+    r.values.scope = value;
+    S.counts.REVIEW = out.review_count;
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    done += 1;
+  }
+  updateBadge();
+  renderGrid();
+  markMultiRows();
+  drawOverlay();          // 색은 `itemScope` 하나가 정한다 — 여기서는 다시 그릴 뿐
+  editNotice(`${done}개 행의 공급 주체를 ${value} 로 바꿨습니다`);
+  showMultiScope();
 }
 
 function bindAxisActions(row) {
@@ -3838,6 +3967,7 @@ function drawOverlay() {
       + (it.row === false ? " excluded" : "")
       + (it.manual ? " manual" : "")
       + (it.rejected ? " rejected" : "")
+      + (S.multi.has(it.key) ? " multi" : "")
       + (S.sel === it.key ? " sel" : ""));
     // 53회차 [G] — **사용자 마크업 상자는 녹색 선**이다 (8차 피드백 s8:
     // *"사용자가 마크업 Block 을 녹색 Line 으로 표기하라"*).
@@ -3962,6 +4092,9 @@ function drawOverlay() {
     r.dataset.key = it.key;
     r.onclick = (ev) => {
       ev.stopPropagation();
+      // 56회차 — Shift 를 누르고 누르면 **더한다**.  행이 아닌 것(제외 심볼)은
+      // 고칠 SCOPE 칸 자체가 없으므로 묶음에 넣지 않는다.
+      if (ev.shiftKey && it.row !== false) { toggleMulti(it.key); return; }
       select(it.key, false, it);
       // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
       if (S.markup && it.row !== false) rejectDialog(it);

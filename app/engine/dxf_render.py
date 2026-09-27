@@ -13,7 +13,53 @@ from __future__ import annotations
 
 import io
 
-PX_PER_UNIT = 3.0        # A3(841 단위) → 2523px.  PDF 경로의 1191pt × 1.6 과 비슷한 밀도
+PX_PER_UNIT = 4.0        # A3(841 단위) → 3364px.  56회차에 3.0 에서 올렸다 —
+                         # 사람이 버블 안 글자를 읽으려고 크게 확대하는데 3.0 에서는
+                         # 한 획이 1px 이라 흐려진다 (그림은 장마다 한 번 그려 캐시된다).
+
+# 56회차 — **흰 종이에서 읽히지 않는 밝기의 글자는 읽힐 때까지 어둡게 한다.**
+#
+# 현장 보고: *"DXF 의 값, PIT · LIT 등이 너무 잘 안 보인다"*.  원인은 검출도
+# 글꼴도 아니라 **그 층의 색**이다 — UAD p6 실측으로 글자 색이 `#000000` 317 ·
+# `#ffff00` 57 · `#00ffff` 46 · `#00ff00` 34 · `#ffff7f` 18 … 이고, 노랑·하늘색
+# ·연두는 CAD 의 검은 바탕에서는 잘 보이지만 흰 종이에서는 거의 사라진다.
+#
+# 고치는 방법은 **색을 버리지 않는 것**이다: 색상은 그대로 두고 **밝기만**
+# 문턱까지 내린다.  이미 어두운 글자(검정 317건)는 한 칸도 안 움직인다.
+# 선에는 걸지 않는다 — 배관·신호·경계의 색은 사람이 그 색으로 읽는 값이고,
+# 읽기 어려운 것은 글자였지 선이 아니었다.
+INK_MAX_LUMA = 0.42      # sRGB 상대휘도.  흰 종이(1.0)에 대해 대비 약 2.2:1
+PAPER_LUMA = 0.96        # 이보다 밝으면 잉크가 아니라 종이다 — 건드리지 않는다
+
+
+def darken_ink(png: bytes, target: float = INK_MAX_LUMA) -> bytes:
+    """옅게 그려진 잉크만 **색상은 그대로 두고 밝기만** 문턱까지 내린다.
+
+    ⚠ 엔티티 단계에서 고치려다 **한 번 뒤집었다.**  `Frontend
+    .push_property_override_function` 으로 TEXT·MTEXT·ATTRIB 의 색을 바꿔 봤더니
+    호출은 되는데(UAD p6 에서 TEXT 221 · MTEXT 101 · ATTDEF 135 · ATTRIB 22)
+    그려진 글자 색은 **한 픽셀도 안 바뀐다** — 일부러 자홍으로 덮어써 확인했다.
+    그래서 그리고 난 **그림**에서 고친다: 어느 엔티티 종류든 빠지지 않는다.
+
+    종이(거의 흰색)는 건드리지 않고, 이미 어두운 잉크(검정 글자·검정 선)도
+    그대로다.  색상을 유지하므로 층 색으로 읽는 값(파랑 배관 · 자홍 경계)은
+    살아 있고, 흰 종이에서 사라지던 노랑·하늘색·연두만 읽히는 밝기로 내려온다.
+    """
+    import numpy as np
+    from PIL import Image
+
+    im = Image.open(io.BytesIO(png)).convert("RGB")
+    a = np.asarray(im).astype(np.float32) / 255.0
+    lum = 0.2126 * a[..., 0] + 0.7152 * a[..., 1] + 0.0722 * a[..., 2]
+    ink = (lum > target) & (lum < PAPER_LUMA)
+    if not ink.any():
+        return png
+    k = np.ones_like(lum)
+    k[ink] = target / lum[ink]
+    out = np.clip(a * k[..., None], 0.0, 1.0)
+    buf = io.BytesIO()
+    Image.fromarray((out * 255.0 + 0.5).astype("uint8")).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def render_png(sheet, px_per_unit: float = PX_PER_UNIT) -> bytes:
@@ -41,4 +87,4 @@ def render_png(sheet, px_per_unit: float = PX_PER_UNIT) -> bytes:
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=100, facecolor="white", pad_inches=0)
     plt.close(fig)
-    return buf.getvalue()
+    return darken_ink(buf.getvalue())
