@@ -242,3 +242,28 @@ def test_a_typical_mark_is_not_described_as_an_excluded_symbol():
     assert "if (item.typical) {" in body
     # 그 갈래는 SCOPE 라벨을 읽기 **전**에 돌아간다
     assert body.index("if (item.typical) {") < body.index("SCOPE.find(")
+
+
+# ---------------------------------------------------------------------------
+# 캡션이 없는 글자는 Typical 표식이 아니다 (TC2 현장 지적 · 2026-09-27)
+#
+# TC2 p6 은 상세 캡션이 `D`(": HP TYPICAL DRAIN CONFIGURATION") 하나뿐인데
+# 화면이 11개를 Typical 로 그리고 있었다 — 나머지 다섯은 **MOV 의 모터 `M` 원**
+# 이다.  배수에서는 이미 빠져 있었고(`unpaired`) 화면만 그리고 있었다.
+# 38회차가 적어 둔 *"가르는 것은 모양이 아니라 캡션 짝"* 이 화면에는 안 걸려
+# 있었다.  `M` 은 그대로 액추에이터이고 MOV 수량으로 나간다.
+# ---------------------------------------------------------------------------
+
+def test_the_overlay_only_draws_marks_that_have_a_caption():
+    """오버레이가 **캡션 있는 글자만** 그린다 — 판정하는 줄이 하나 있어야 한다."""
+    import ast
+    src = (ROOT / "app" / "pipeline.py").read_text(encoding="utf8")
+    assert 'if mk.kind != "free" and mk.id not in captions:' in src, \
+        "캡션 없는 표식을 거르는 줄이 없다"
+    ast.parse(src)
+
+
+def test_unpaired_marks_are_still_counted_not_lost():
+    """짝이 없는 글자는 **버리는 것이 아니라** 결과에 세어 남는다."""
+    src = (ROOT / "app" / "engine" / "typical.py").read_text(encoding="utf8")
+    assert "unpaired" in src, "짝 없는 표식을 세는 자리가 없다"

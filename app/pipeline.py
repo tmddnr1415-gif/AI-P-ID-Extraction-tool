@@ -1219,6 +1219,18 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         layers.setdefault(pno, collections.defaultdict(list))
         captions = {d.id for d in t.details}
         for mk in t.marks:
+            # ★ **캡션이 없는 글자는 Typical 표식이 아니다.**  이 도면에서 무엇이
+            # Typical 인지는 상세 캡션(`: HP TYPICAL DRAIN CONFIGURATION`)이 정하고,
+            # 같은 글자가 본문에 있어야 그것을 가리키는 참조다.  캡션이 없으면
+            # 도면은 그것을 Typical 이라고 한 적이 없다.
+            #
+            # 실측(TC2 p6): 짝이 선 것은 `D` 4개뿐인데 화면이 11개를 그리고 있었다 —
+            # 나머지 다섯은 **MOV 의 모터 `M` 원**이다.  38회차가 *"가르는 것은
+            # 모양이 아니라 캡션 짝"* 이라고 적어 두고 배수에서는 이미 뺐는데
+            # (`unpaired: {"M": 5}`), 화면만 그리고 있었다.  `M` 은 그대로
+            # 액추에이터이고 MOV 수량으로 나간다.
+            if mk.kind != "free" and mk.id not in captions:
+                continue
             r = mk.rect
             n = t.refs.get(mk.id)
             if mk.id in t.ambiguous:
@@ -1227,12 +1239,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             elif mk.kind == "free":
                 why = (f"Typical 상세 캡션 '{mk.id}'"
                        + (f" — 본문 참조 {n}개" if n else " — 본문 참조 0개"))
-            elif mk.id in captions:
+            else:
                 why = (f"Typical 참조 '{mk.id}' — 이 장의 상세 한 벌을 가리킵니다"
                        + (f" (참조 {n}개)" if n else ""))
-            else:
-                why = (f"Typical 표식 '{mk.id}' — 이 장에 같은 글자의 상세 캡션이 "
-                       f"없어 짝이 서지 않았습니다")
             layers[pno]["TYPICAL"].append({
                 "key": _key(tb_rows[pno]["drawing_no"], pno, "TY", mk.id,
                             *[round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]),
