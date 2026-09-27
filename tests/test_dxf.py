@@ -294,3 +294,45 @@ def test_only_is_for_drawing_not_for_analysis():
     assert "only=" not in src, "분석이 open_set(only=) 을 쓴다"
     main = (ROOT / "app" / "main.py").read_text(encoding="utf8")
     assert "open_set(path, only=page_no)" in main, "그림 경로가 한 장만 파지 않는다"
+
+
+# ---------------------------------------------------------------------------
+# 경보 신호는 계기가 아니다 (9차 DXF 피드백)
+# ---------------------------------------------------------------------------
+
+def _isa_for_alarm():
+    from app.engine import isa_table
+    return isa_table.IsaTable(
+        first={"L": ("LEVEL",), "A": ("ANALYSIS",), "T": ("TEMPERATURE",),
+               "P": ("PRESSURE",), "PD": ("PRESSURE", "DIFFERENTIAL")},
+        succeeding={"S": (), "A": (), "I": (), "T": (), "C": (), "Z": ()})
+
+
+def test_alarm_tags_are_not_instruments():
+    """뒤 글자에 경보 글자가 있으면 경보다 — 판정은 그 도면 ISA 표가 한다."""
+    from app import pipeline as P
+    isa = _isa_for_alarm()
+    for t in ("LSA", "PDIA", "TIA", "PIA", "LIA", "TICA", "LICAZ"):
+        assert P.is_alarm_tag(t, isa), t
+
+
+def test_the_leading_a_is_a_measured_variable_not_an_alarm():
+    """`AIT` 의 `A` 는 머리(ANALYSIS)다 — 계기로 남는다."""
+    from app import pipeline as P
+    isa = _isa_for_alarm()
+    for t in ("AIT", "AT", "LS", "TIT", "PIT", "LIT", "PDIT"):
+        assert not P.is_alarm_tag(t, isa), t
+
+
+def test_no_isa_table_means_no_alarm_judgement():
+    """표가 없으면 판정하지 않는다 — 지어내지 않는다."""
+    from app import pipeline as P
+    assert P.is_alarm_tag("LSA", None) is False
+
+
+def test_a_printed_valve_tag_is_the_type_even_without_a_body():
+    """몸체를 못 읽어도 도면이 버블에 붙인 이름이 TYPE 이다 (MOV·PSV·XV…)."""
+    from app import pipeline as P
+    assert P.type_display({"type": ""}, {"tag": "PSV"}) == "PSV"
+    assert P.type_display({"type": "GATE"}, {"tag": "MOV"}) == "MOV(GATE)"
+    assert P.type_display({"type": ""}, {}) == ""          # 근거가 없으면 비운다

@@ -512,6 +512,39 @@ def _reconfigure(pages) -> None:
 
 
 
+
+def alarm_letters() -> frozenset:
+    """경보를 뜻하는 **뒤 글자**.  기본 `A` (ISA 의 Alarm) · config 로 바꾼다.
+
+    도면이 이 낱말을 풀어 인쇄하지 않으므로(UAD 범례 p4 는 `( ) A`·`( ) AH`
+    ·`( ) AL` 칸만 찍는다) 코드가 짐작하지 않고 **설정에 적어 둔다** — 실사용자가
+    2026-09-27 에 *"마지막에 A 가 붙은 Alarm signal 이 계기로 출력되면 안 된다"*
+    고 확정한 것이다 (§2.1 ③ · §9 ⑤).
+    """
+    v = ((CFG.data.get("anchors") or {}).get("alarm_letters")) or ["A"]
+    return frozenset(str(x).strip().upper() for x in v if str(x).strip())
+
+
+def is_alarm_tag(tag: str, isa) -> bool:
+    """이 태그가 **경보 신호**인가 — 판정은 그 도면의 ISA 표가 한다.
+
+    표가 태그를 머리 + 뒤 글자로 풀고(`LSA` → `L` + `SA`), **뒤 글자**에 경보
+    글자가 있으면 경보다.  머리의 `A` 는 측정 변수(ANALYSIS)라 걸리지 않는다 —
+    `AIT` 는 `A` + `IT` 로 풀려 계기로 남는다.  표가 못 푸는 낱말(앵커 사전으로
+    선 `RO` 등)은 여기서 아무 것도 하지 않는다.
+    """
+    if isa is None:
+        return False
+    try:
+        got = isa.decompose(tag)
+    except Exception:                                      # noqa: BLE001
+        return False
+    if not got:
+        return False
+    _head, rest = got
+    return any(c in alarm_letters() for c in rest)
+
+
 def user_multiplier_tables(unit_multipliers) -> tuple[dict, dict]:
     """사람이 지정한 승수를 읽는 **단 하나의 곳** — `{"table": …, "who": …}`.
 
@@ -3595,6 +3628,13 @@ def type_display(values: dict, evidence: dict = None) -> str:
     tag = str(((evidence or {}) or {}).get("tag") or "").strip().upper()
     if kind and tag and tag in ds.VALVE_ANCHORS:
         return f"{tag}({kind})"
+    # ★ 몸체를 못 읽었어도 **도면이 버블에 이름을 붙였으면 그것이 TYPE 이다.**
+    # 53회차 [B-3] 이 그런 행을 만들어 두었는데 TYPE 칸이 비어 나가고 있었다 —
+    # 화면·산출물에서 `MOV`·`PSV`·`PCV`·`XV` 가 통째로 사라져 "밸브가 안 나온다"
+    # 로 읽힌다 (UAD DXF 실측 49행 중 PSV 38 · MOV 8 · PCV 1 · XV 1 · LCV 1).
+    # 모양 칸(VALVE TYPE)은 그대로 비운다 — 없는 것을 지어내지 않는다.
+    if not kind and tag and tag in ds.VALVE_ANCHORS:
+        return tag
     return _TYPE_DISPLAY.get(kind.upper(), kind)
 
 

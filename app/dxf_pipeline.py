@@ -37,6 +37,8 @@ from app.engine import derive_layout as dl
 
 INPUT_KIND = "DXF"
 GEOMETRY_CODE = "DXF_GEOMETRY_FALLBACK"
+# 경보 신호는 계기 행이 아니다 — 버리지 않고 미판정으로 세어 화면에 남긴다.
+ALARM_WHY = "경보 신호 — 그 도면 ISA 표가 뒤 글자에 경보 글자를 붙인 태그입니다 (계기 행으로 내지 않습니다)"
 OUTSIDE_LEGEND_CODE = "DXF_BLOCK_NOT_IN_LEGEND"
 STAR_RE = re.compile(r"^\(?(\*{1,4})\)?$")
 _LETTER_STRIP = re.compile(r"[^A-Z()/]")
@@ -706,6 +708,11 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
                              "rect": list(s.rect), "center": list(_center(s.rect)),
                              "why": "설정이 FIELD 가 아니라고 정한 낱말 (not_field)"})
             continue
+        if P.is_alarm_tag(core, isa):
+            unjudged.append({"kind": "ALARM_SIGNAL", "page_no": sh.no, "label": tv, "block": s.block,
+                             "rect": list(s.rect), "center": list(_center(s.rect)),
+                             "why": ALARM_WHY})
+            continue
         type_ = rules.type_of(core)
         ev = {"anchor": tv, "tier": 1, "source": "DXF_ATTRIB", "block": s.block,
               "attrs": {k: v for k, v in s.attrs.items() if v},
@@ -731,6 +738,10 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         if tv.text.split()[0].upper() in rules.valves:
             tag_bubbles.append((s, tv.text.split()[0].upper(),
                                 next((w.text for w in inside if tagsys._is_code(w.text)), "")))
+            continue
+        if P.is_alarm_tag(anchor, isa):
+            unjudged.append({"kind": "ALARM_SIGNAL", "page_no": sh.no, "label": tv.text, "block": s.block,
+                             "rect": list(s.rect), "center": list(_center(s.rect)), "why": ALARM_WHY})
             continue
         tagv = next((w.text for w in inside if w is not tv and tagsys._is_code(w.text)), "")
         ev = {"anchor": tv.text, "tier": 2, "source": "DXF_BLOCK_TEXT", "block": s.block,
@@ -761,6 +772,10 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             n_geom += 1
             anchor = _isa_type(tv.text, isa)
             if tv.text.split()[0].upper() in rules.valves:
+                continue
+            if P.is_alarm_tag(anchor, isa):
+                unjudged.append({"kind": "ALARM_SIGNAL", "page_no": sh.no, "label": tv.text,
+                                 "rect": list(lp.rect), "center": list(_center(lp.rect)), "why": ALARM_WHY})
                 continue
             tagv = next((w.text for w in inside if w is not tv and tagsys._is_code(w.text)), "")
             ev = {"anchor": tv.text, "tier": 2, "source": "DXF_GEOMETRY", "loop": lp.kind,
