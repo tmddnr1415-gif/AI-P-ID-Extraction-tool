@@ -503,10 +503,19 @@ def _fit_layout(pages) -> dict:
     # A profile that states no geometry is asking to be measured, which is what a
     # client-only profile looks like.  And a profile written for another project
     # has no standing here at all: its paper is not this paper.
-    states_geometry = _configured("regions.drawing_area")
+    #
+    # hotfix19 — "이 프로필이 적었는가" 는 **그 파일이** 답한다 (`CFG.states`), 병합된
+    # `CFG.data` 가 아니다.  56회차 [G1] 이 발주처 몫만 적은 프로필(`project_sadara.yaml`)
+    # 을 AL NOUF1 **위에 얹으면서** `data` 에 AL NOUF1 의 도면 영역·타이틀블록 칸이
+    # 섞였고, 여기서 `data` 를 물으니 "이 문서의 프로필이 기하를 적었다" 로 읽혀
+    # SADARA 45장을 **AL NOUF1 의 도면번호 칸 [1950, 1560, 2384, 1600]** 으로 읽다가
+    # 한 장도 못 읽고 멈췄다 (현장 실측).  G1 은 바로 이 질문을 위해 `stated` 를
+    # 만들어 두고 여기서 쓰지 않았다.  프로필이 바뀌지 않은 문서(AL NOUF1 · TC2 ·
+    # UAD)는 `stated` 가 그 파일의 잎 전부라 답이 같다.
+    states_geometry = CFG.states("regions.drawing_area")
     fitted = not same or not states_geometry
     values = ({k: v for k, v in derived.values().items()
-               if not same or not _configured(k)} if fitted else {})
+               if not same or not CFG.states(k)} if fitted else {})
     moved = CFG.overlay(values)
     if moved:
         _reconfigure(pages)
