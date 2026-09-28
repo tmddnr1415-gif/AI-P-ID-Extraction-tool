@@ -35,7 +35,7 @@ def test_client_only_profile_that_matches_still_takes_the_sheets_geometry(tmp_pa
         P._switch_profile(prof)
         assert P._configured("regions.drawing_area")          # 병합본에는 여전히 있다
         assert not P.CFG.states("regions.drawing_area")        # 그러나 이 파일은 적지 않았다
-        out = P._fit_layout([types.SimpleNamespace()])
+        out = P._fit_layout([types.SimpleNamespace(width=900.0, height=700.0)])
         assert "states no geometry" in out["reason"]
         assert P.CFG.get("title_block.dwg_no_region") == measured["title_block.dwg_no_region"]
         moved = {m["key"] for m in out["moved"]}
@@ -53,12 +53,31 @@ def test_own_profile_that_states_geometry_is_left_alone(monkeypatch):
     monkeypatch.setattr(P, "_reconfigure", lambda pages: None)
     with P._own_config():
         before = P.CFG.get("title_block.dwg_no_region")
-        out = P._fit_layout([types.SimpleNamespace()])
+        out = P._fit_layout([types.SimpleNamespace(width=P.CFG.get("sheet.width_pt"),
+                                                   height=P.CFG.get("sheet.height_pt"))])
         assert out["moved"] == [] and P.CFG.get("title_block.dwg_no_region") == before
 
 
 def test_fit_layout_asks_the_file_not_the_merged_data():
     import inspect
     src = inspect.getsource(P._fit_layout)
-    assert 'CFG.states("regions.drawing_area")' in src and "not CFG.states(k)" in src
+    assert 'CFG.states("regions.drawing_area")' in src and "CFG.states(k)" in src
     assert "_configured(" not in src.split('"""', 2)[2]
+
+
+def test_own_profile_on_other_paper_takes_the_sheets_geometry(monkeypatch):
+    """hotfix20 — 같은 프로젝트라도 종이가 다르면 좌표는 도면이 답한다 (형식은 프로필)."""
+    code = str(P.CFG.data["project"]["code"])
+    w, h = P.CFG.get("sheet.width_pt"), P.CFG.get("sheet.height_pt")
+    measured = {"sheet.width_pt": round(w * 1.4142, 1), "sheet.height_pt": round(h * 1.4142, 1),
+                "title_block.dwg_no_region": [1, 2, 3, 4], "formats.revision": "^[A-Z]$"}
+    monkeypatch.setattr(P.derive_layout, "derive", lambda pages, cfg: _FakeLayout(measured))
+    monkeypatch.setattr(P, "_document_code", lambda pages: code)
+    monkeypatch.setattr(P, "_reconfigure", lambda pages: None)
+    with P._own_config():
+        rev = P.CFG.get("formats.revision")
+        out = P._fit_layout([types.SimpleNamespace(width=measured["sheet.width_pt"],
+                                                   height=measured["sheet.height_pt"])])
+        assert out["other_paper"]["sheet"] == [measured["sheet.width_pt"], measured["sheet.height_pt"]]
+        assert P.CFG.get("title_block.dwg_no_region") == [1, 2, 3, 4]
+        assert P.CFG.get("formats.revision") == rev          # 모양은 종이와 무관 — 프로필이 선다

@@ -471,6 +471,63 @@ def _configured(dotted: str) -> bool:
     return True
 
 
+# hotfix20 — AL NOUF1(A1) 도면에서 잰 **절대 pt** 허용치들.  종이·축척이 다른
+# 문서에서는 그 문서의 길이 단위(`_document_unit`)를 곱해 쓴다.  AL NOUF1 은
+# 단위가 1.0 이라 한 칸도 안 바뀐다.  값이 config 에 없으면 오른쪽 기본값
+# (각 모듈 dataclass 의 기본값과 같은 수)을 곱한다.
+_UNIT_SCALED_KEYS = {
+    "vendor_marks.glyph_sizes": None,
+    "vendor_marks.blob_span": None,
+    "vendor_marks.glyph_span": None,
+    "vendor_marks.cluster_gap": None,
+    "vendor_marks.above": None,
+    "vendor_marks.side": 10.0,
+    "vendor_marks.note_line_gap": None,
+    "vendor_marks.package_box.mark_margin": None,
+    "broken_line.brk_max_mark": None,
+    "broken_line.brk_max_gap": 6.0,
+    "broken_line.brk_bridge": 26.0,
+    "broken_line.brk_min_span": 40.0,
+    "broken_line.brk_corner_tol": 3.0,
+    "sct_scope.text_tol": None,
+    "sct_scope.drop_x_tol": None,
+    "sct_scope.drop_end_tol": None,
+    "bubbles.side_slack": 1.5,
+    "bubbles.anchor_slack": 3.0,
+}
+
+
+def _cfg_at(dotted: str):
+    """병합된 config 의 그 잎 (없으면 None) — 기록(`CFG.record`)에 남기지 않고 읽는다."""
+    node = CFG.data
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+def _scale_value(v, unit: float):
+    if isinstance(v, (list, tuple)):
+        return [_scale_value(x, unit) for x in v]
+    return round(float(v) * unit, 3)
+
+
+def _document_unit(pages) -> tuple:
+    """이 문서의 길이 단위 — 그 문서 범례가 그린 **나비 밸브 원**의 지름 ÷ AL NOUF1 의
+    6.06pt (`legend_rules.BUTTERFLY_CIRCLE_BASIS`).  범례가 없거나 그 원을 못 재면
+    1.0 이고 사유를 낸다 (예전과 같은 값 · 조용히 추정하지 않는다)."""
+    try:
+        bf = legend_rules.derive_butterfly(pages, CFG)
+    except Exception as exc:                               # noqa: BLE001
+        return 1.0, f"butterfly legend not measured ({type(exc).__name__})"
+    u = legend_rules.legend_unit(bf)
+    cd = (bf.values or {}).get("circle_diameter")
+    if not cd:
+        return 1.0, "no butterfly circle on the legend - unit 1.0 (AL NOUF1 values as written)"
+    return u, f"legend butterfly circle {cd} pt / {legend_rules.BUTTERFLY_CIRCLE_BASIS} pt"
+
+
 def _fit_layout(pages) -> dict:
     """Measure the sheet, and use the measurement where the profile is a stranger.
 
@@ -487,10 +544,33 @@ def _fit_layout(pages) -> dict:
     profile describes someone else's paper and the sheet in hand is the better
     authority, so the measurement is used and every value it moved is recorded.
     """
-    derived = derive_layout.derive(pages, CFG)
     code = _document_code(pages)
     profile = str(CFG.data.get("project", {}).get("code") or "")
     same = bool(code) and code == profile
+    # hotfix20 — **이 문서의 길이 단위**와 그것으로 곱한 pt 허용치를 먼저 얹는다
+    # (아래 `derive` 가 별표 크기를 잴 때 그 허용치를 쓰기 때문).
+    unit, unit_why = _document_unit(pages)
+    W0, H0 = round(float(pages[0].width), 1), round(float(pages[0].height), 1)
+    sheet_cfg0 = CFG.data.get("sheet") or {}
+    pw0, ph0 = sheet_cfg0.get("width_pt"), sheet_cfg0.get("height_pt")
+    other_paper0 = bool(same and CFG.states("sheet.width_pt") and pw0 and ph0
+                        and (abs(W0 - float(pw0)) > 1.0 or abs(H0 - float(ph0)) > 1.0))
+    scaled = {}
+    if abs(unit - 1.0) > 1e-3:
+        for k, default in _UNIT_SCALED_KEYS.items():
+            # 이 문서의 프로필이 **이 종이에서** 적은 값은 그 문서의 것이다 — 곱하지 않는다.
+            if same and not other_paper0 and CFG.states(k):
+                continue
+            v = _cfg_at(k)
+            if v is None:
+                v = default
+            if v is None:
+                continue
+            scaled[k] = _scale_value(v, unit)
+    moved_unit = CFG.overlay(scaled) if scaled else []
+    if moved_unit:
+        _rebind_config()
+    derived = derive_layout.derive(pages, CFG)
     # A profile either carries this sheet's geometry or it carries none.
     #
     # AL NOUF1's carries it: every region and cell in that file was measured
@@ -513,20 +593,51 @@ def _fit_layout(pages) -> dict:
     # 만들어 두고 여기서 쓰지 않았다.  프로필이 바뀌지 않은 문서(AL NOUF1 · TC2 ·
     # UAD)는 `stated` 가 그 파일의 잎 전부라 답이 같다.
     states_geometry = CFG.states("regions.drawing_area")
+    # hotfix20 — **좌표는 그 종이의 것이다.**  같은 프로젝트라도 다른 크기로 낸
+    # 도면(A1 로 잰 프로필 ↔ A0 로 받은 PDF)에서 프로필의 좌표는 이 종이의 것이
+    # 아니다.  실측: AL NOUF1 12장을 A0(×1.414)로 다시 내면 도면번호 0/12 로 멈췄다
+    # (프로필의 A1 칸 [1950, 1560, 2384, 1600] 을 그대로 믿어서).  프로필이 적은
+    # 종이 크기와 이 문서의 쪽 크기를 대 보고, 다르면 좌표만 도면이 답하게 한다.
+    # 허용치는 `derive_layout._frame` 이 한 선의 여러 장 위치를 한 묶음으로 보는
+    # 폭(1pt)과 같다 — 표준 용지는 서로 40% 넘게 다르므로 그 사이가 비어 있다.
+    # 모양(`formats.*`)은 종이와 무관하므로 프로필이 적었으면 그대로 선다.
+    measured = derived.values()
+    mw, mh = measured.get("sheet.width_pt"), measured.get("sheet.height_pt")
+    sheet_cfg = CFG.data.get("sheet") or {}
+    pw, ph = sheet_cfg.get("width_pt"), sheet_cfg.get("height_pt")
+    other_paper = bool(same and CFG.states("sheet.width_pt") and mw and pw and mh and ph
+                       and (abs(float(mw) - float(pw)) > 1.0 or abs(float(mh) - float(ph)) > 1.0))
+    if other_paper:
+        states_geometry = False
     fitted = not same or not states_geometry
-    values = ({k: v for k, v in derived.values().items()
-               if not same or not CFG.states(k)} if fitted else {})
-    moved = CFG.overlay(values)
+
+    def _profile_keeps(k):
+        # 같은 프로젝트를 다른 종이로 낸 문서: 좌표는 도면이 답하고, 형식(`formats.*`)과
+        # **이 프로젝트가 적은 크기 허용치를 단위로 곱한 값**(`scaled`)은 프로필이 선다
+        # — 도면에서 다시 재면 한 장에서 한 번만 나온 크기를 잃는다 (AL NOUF1 A0/A2:
+        # 별표 크기 두 벌 중 하나 · 아무것도 못 찾으면 빈 목록).
+        return same and CFG.states(k) and (not other_paper or k.startswith("formats.")
+                                           or k in scaled)
+    values = ({k: v for k, v in measured.items() if not _profile_keeps(k)}
+              if fitted else {})
+    moved = moved_unit + CFG.overlay(values)
     if moved:
         _reconfigure(pages)
     out = derived.as_dict()
+    out["document_unit"] = {"unit": unit, "basis": unit_why,
+                            "scaled": sorted(scaled)}
     out.update({
         "document_code": code,
         "profile": CFG.path.name,
         "profile_code": profile,
         "applied": bool(moved),
         "states_geometry": states_geometry,
-        "reason": (f"the profile is this document's ({code}) and carries its "
+        "other_paper": ({"profile": [pw, ph], "sheet": [mw, mh]} if other_paper else None),
+        "reason": (f"the profile is this document's ({code}) but was measured on "
+                   f"{pw}x{ph} pt paper and this document is {mw}x{mh}, so the "
+                   f"sheet supplies the geometry and the profile keeps its formats"
+                   if other_paper else
+                   f"the profile is this document's ({code}) and carries its "
                    f"geometry, so it stands as written and the sheet was measured "
                    f"only to report it"
                    if same and states_geometry else

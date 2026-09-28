@@ -213,6 +213,13 @@ class ValveLayout:
     drawing_area: tuple = (38.0, 35.0, 1960.0, 1650.0)
 
     seg_span: tuple = (1.0, 60.0)       # segment lengths worth looking at
+    # hotfix20 — 이 문서의 **길이 단위**.  아래의 pt 허용치들(`centre_tol` ·
+    # `bar_cover` · `bar_axis_tol` · `arc_above` · `seg_span` · 선분 분류 문턱 ·
+    # `INDEX_SLACK`)은 AL NOUF1 범례(나비 짧은 변 9.9pt)에서 정한 값이다.
+    # `derive_layout` 이 그 문서 범례의 나비로 이 단위를 재고 허용치를 곱한다
+    # (AL NOUF1 = 1.0 → 소수점까지 그대로).  1.0 이면 예전과 같다.
+    unit: float = 1.0
+    unit_source: str = "CONFIG"
     body_short: tuple = (5.0, 30.0)     # short side of a valve body
     body_short_source: str = "CONFIG"   # 43회차 — LEGEND 면 그 문서 범례가 그린 나비에서
     body_short_basis: float = 0.0       # 범례 나비 짧은 변 (LEGEND 일 때)
@@ -349,6 +356,14 @@ INDEX_SLACK = 0.8
 # 배율 자체는 AL NOUF1 의 창과 같다 — 새 값이 아니라 같은 창을 범례에 맨 것.
 BODY_SHORT_BAND = (0.5, 3.0)
 
+# hotfix20 — 위 창과 아래 허용치들이 맨 자 — AL NOUF1 범례 LINE VALVES 장의 나비
+# 짧은 변 (43회차 실측 최빈 9.9pt).  `unit = 그 문서 범례의 나비 / 이 값`.
+# 같은 도면을 A0·A1·A2·A3 로 낸 PDF 에서 판정이 같아지게 하는 것이 목적이다
+# (실측: TC2 12장을 A2·A1 로 키우면 p10 글로브가 사라졌다 — 허리 원반에서
+# 끊긴 대각선 토막을 잇는 허용치 2.0pt 가 A3 에서는 틈 1.0 을, A1 에서는 틈
+# 2.0 을 만났다).
+BODY_SHORT_BASIS = 9.9
+
 # 47회차 — 액추에이터 울타리 크기 창을 **그 문서 범례가 그린 원**에 맨다.
 #
 # 두 비는 AL NOUF1 의 설정값을 그 문서 범례의 원으로 나눈 것이다
@@ -384,6 +399,19 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     derived = derived if derived is not None else legend_rules.derive_all(pages, cfg)
     bf, st, pn = derived["butterfly"], derived["actuator_stem"], derived["pneumatic"]
     kw = {}
+    # hotfix20 — 이 문서의 길이 단위를 **먼저** 잰다 (범례 나비 · 재는 자는 예전 그대로).
+    # 못 재면 1.0 (예전과 같음) 이고 사유를 남긴다.
+    basis0, why0 = legend_bowtie_short(pages, lay)
+    unit = round(basis0 / BODY_SHORT_BASIS, 4) if basis0 else 1.0
+    if basis0:
+        kw["unit"], kw["unit_source"] = unit, f"LEGEND: bowtie {basis0} / {BODY_SHORT_BASIS}"
+        kw["seg_span"] = (lay.seg_span[0] * unit, lay.seg_span[1] * unit)
+        kw["bar_axis_tol"] = lay.bar_axis_tol * unit
+        kw["bar_cover"] = lay.bar_cover * unit
+        kw["centre_tol"] = lay.centre_tol * unit
+        kw["arc_above"] = lay.arc_above * unit
+    else:
+        kw["unit_source"] = "CONFIG_FALLBACK: " + why0
     if pn.values:
         # Sizes get the band above.  Aspect and divider position are ratios, so
         # they do not move with the drawing's scale; their tolerance is the
@@ -394,13 +422,13 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         if flat:
             kw["dome_flat"] = (flat * PNEUMATIC_SIZE_BAND[0],
                                flat * PNEUMATIC_SIZE_BAND[1])
-            slack = INDEX_SLACK / flat
+            slack = INDEX_SLACK * unit / flat
             aspect = float(pn.values["dome_aspect"])
             kw["dome_aspect"] = (aspect - slack, aspect + slack)
         if side and pn.values.get("cylinder_divider") is not None:
             kw["cyl_side"] = (side * PNEUMATIC_SIZE_BAND[0],
                               side * PNEUMATIC_SIZE_BAND[1])
-            slack = INDEX_SLACK / side
+            slack = INDEX_SLACK * unit / side
             aspect = float(pn.values["cylinder_aspect"])
             kw["cyl_aspect"] = (aspect - slack, aspect + slack)
             div = float(pn.values["cylinder_divider"])
@@ -417,8 +445,8 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         # The legend draws the stem on the enclosure's centre line and starting
         # on its edge, so both tolerances are its measured value plus the index
         # slack rather than a chosen allowance.
-        kw["act_offaxis"] = float(st.values["stem_offaxis"]) + INDEX_SLACK
-        kw["stem_slack"] = float(st.values["stem_gap"]) + INDEX_SLACK
+        kw["act_offaxis"] = float(st.values["stem_offaxis"]) + INDEX_SLACK * unit
+        kw["stem_slack"] = float(st.values["stem_gap"]) + INDEX_SLACK * unit
         # The legend lays its own actuator out at `centre_to_body`; a drawing at
         # another scale needs headroom, and REACH_FACTOR is that headroom.
         kw["act_reach"] = float(st.values["centre_to_body"]) * REACH_FACTOR
@@ -435,7 +463,9 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         kw["act_box_source"], kw["act_box_basis"] = "LEGEND", act
     else:
         kw["act_box_source"] = "CONFIG_FALLBACK: " + act_why
-    basis, why = legend_bowtie_short(pages, dataclasses.replace(lay, **kw))
+    # 위에서 잰 값 그대로 (예전에도 이 측정에 닿는 칸은 `kw` 가 바꾸지 않았다 —
+    # 같은 자로 두 번 재던 것을 한 번으로).
+    basis, why = basis0, why0
     if basis:
         kw["body_short"] = (basis * BODY_SHORT_BAND[0], basis * BODY_SHORT_BAND[1])
         kw["body_short_source"], kw["body_short_basis"] = "LEGEND", basis
@@ -523,18 +553,20 @@ def _index_segments(pc, lay: ValveLayout):
         length = (dx * dx + dy * dy) ** 0.5
         if not lo <= length <= hi:
             continue
-        if dy < 0.4 and dx > 1.0:
+        flat, mn = 0.4 * lay.unit, 1.0 * lay.unit       # hotfix20 — 문서 단위
+        if dy < flat and dx > mn:
             horiz[round(p0.y, 1)].append((min(p0.x, p1.x), max(p0.x, p1.x)))
-        elif dx < 0.4 and dy > 1.0:
+        elif dx < flat and dy > mn:
             vert[round(p0.x, 1)].append((min(p0.y, p1.y), max(p0.y, p1.y)))
-        elif dx > 1.0 and dy > 1.0:
+        elif dx > mn and dy > mn:
             diag.append((p0, p1))
     return horiz, vert, diag
 
 
 def _covers(index, coord, lo, hi, lay: ValveLayout) -> bool:
     """Is there a straight run at `coord` spanning lo..hi (within slack)?"""
-    for step in range(-8, 9):
+    n = max(1, round(INDEX_SLACK * lay.unit / 0.1))         # hotfix20 — 문서 단위
+    for step in range(-n, n + 1):
         for s0, s1 in index.get(round(coord + step * 0.1, 1), ()):
             if s0 <= lo + lay.bar_cover and s1 >= hi - lay.bar_cover:
                 return True
@@ -611,7 +643,8 @@ def _waist_object(box, axis, rounds, fills, lay: ValveLayout):
         return None, False
     filled = any(abs((f.x0 + f.x1) / 2 - cx) <= lay.centre_tol
                  and abs((f.y0 + f.y1) / 2 - cy) <= lay.centre_tol
-                 and f.width <= best.width + 0.6 and f.height <= best.height + 0.6
+                 and f.width <= best.width + 0.6 * lay.unit
+                 and f.height <= best.height + 0.6 * lay.unit
                  for f in fills)
     return best, filled
 
@@ -626,7 +659,7 @@ def _wedge_at_waist(box, fills, lay: ValveLayout):
         if abs((f.y0 + f.y1) / 2 - cy) > lay.centre_tol:
             continue
         w, h = f.width, f.height
-        if w < 0.5 or h < 0.5:
+        if w < 0.5 * lay.unit or h < 0.5 * lay.unit:
             continue
         span = max(w, h)
         if not lay.waist_ratio[0] * short <= span <= lay.waist_ratio[1] * short:
@@ -641,11 +674,11 @@ def _arc_above(box, axis, rounds, lay: ValveLayout):
     """Legend page 2 DIAPHRAGM: an open arc riding on top of the bowtie."""
     cx = (box[0] + box[2]) / 2
     for b in rounds:
-        if abs((b.x0 + b.x1) / 2 - cx) > lay.centre_tol + 1.0:
+        if abs((b.x0 + b.x1) / 2 - cx) > lay.centre_tol + 1.0 * lay.unit:
             continue
         if b.height > b.width:          # an arc here is a shallow cap
             continue
-        if box[1] - lay.arc_above <= b.y1 <= box[1] + 1.0:
+        if box[1] - lay.arc_above <= b.y1 <= box[1] + 1.0 * lay.unit:
             return b
     return None
 
@@ -677,10 +710,18 @@ def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dic
     걸렸다).  같은 bbox 묶음이 이미 낸 상자(`taken`)는 다시 내지 않는다.
     """
     segs = []
+    # hotfix20 — 나비의 대각선은 **몸체 비가 허락하는 기울기**만 가진다: 가로 몸체면
+    # |기울기| = 짧은 변/긴 변 ∈ [1/r1, 1/r0], 세로 몸체면 [r0, r1] (r = `body_ratio`).
+    # 그 밖의 토막은 대각선이 아니다 — 닫힌(칠한) 글로브의 **칠이 수백 개의 얇은
+    # 삼각형으로 쪼개져** 그려진 도면(TC2 p10)에서 그 삼각형들의 거의 누운 변이
+    # 대각선으로 섞여 진짜 대각선의 사슬을 끊었다 (종이를 키우거나 줄이면 드러났다).
+    r0, r1 = lay.body_ratio
     for p0, p1 in diag:
         if abs(p1.x - p0.x) < 1e-6:
             continue
         m = (p1.y - p0.y) / (p1.x - p0.x)
+        if not (1.0 / r1 <= abs(m) <= 1.0 / r0 or r0 <= abs(m) <= r1):
+            continue
         segs.append((p0, p1, 1 if m > 0 else -1, m, p0.y - m * p0.x,
                      ((p0.x + p1.x) / 2, (p0.y + p1.y) / 2)))
     cell = float(short_span[1])
@@ -688,14 +729,20 @@ def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dic
     for i, s in enumerate(segs):
         grid[(int(s[5][0] // cell), int(s[5][1] // cell))].append(i)
     tol = lay.centre_tol
+    basis = lay.body_short_basis or (short_span[0] / BODY_SHORT_BAND[0])
+    first_tol = lay.waist_ratio[1] / 2.0 * basis
     norm = {i: math.hypot(s[3], 1.0) for i, s in enumerate(segs)}
 
     def on_line(pt, s, i):
-        return abs(s[3] * pt.x - pt.y + s[4]) / norm[i] <= INDEX_SLACK
+        return abs(s[3] * pt.x - pt.y + s[4]) / norm[i] <= INDEX_SLACK * lay.unit
+
+    # 교점도 허리를 건너 만난다 — 대각선이 원반 가장자리에서 끝나면 교점은 토막
+    # 밖, 허리 물체 반지름만큼 떨어진 곳에 있다 (TC2 p13 글로브: 1.6pt).
+    meet = max(tol, first_tol)
 
     def on_seg(s, cx, cy):
-        return (min(s[0].x, s[1].x) - tol <= cx <= max(s[0].x, s[1].x) + tol
-                and min(s[0].y, s[1].y) - tol <= cy <= max(s[0].y, s[1].y) + tol)
+        return (min(s[0].x, s[1].x) - meet <= cx <= max(s[0].x, s[1].x) + meet
+                and min(s[0].y, s[1].y) - meet <= cy <= max(s[0].y, s[1].y) + meet)
 
     out: dict[tuple, list] = {}
     seen_c: set[tuple] = set()
@@ -713,10 +760,15 @@ def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dic
                     cy = a[3] * cx + a[4]
                     if not (on_seg(a, cx, cy) and on_seg(b, cx, cy)):
                         continue
+                    # hotfix20 — "이 교점은 이미 봤다" 는 **그 교점에서 몸체가 섰을 때만**
+                    # 기록한다.  예전에는 첫 쌍을 시도하는 순간 기록해서, 그 첫 쌍이
+                    # 몸체 가운데를 지나가는 **지시선**과 나비 대각선의 쌍이면 진짜
+                    # 대각선 쌍이 같은 교점에서 다시 시도되지 못했다.  어느 쌍이 먼저
+                    # 오는지는 좌표 반올림·격자 칸에 달려 있어 **종이 크기만 바꿔도**
+                    # 갈렸다 (TC2 p10 글로브: A3 에서는 서고 A2·A1 에서는 사라짐).
                     ck = (round(cx), round(cy))
                     if ck in seen_c:
                         continue
-                    seen_c.add(ck)
                     cgx, cgy = int(cx // cell), int(cy // cell)
                     near = [(k, segs[k]) for ex in (-1, 0, 1) for ey in (-1, 0, 1)
                             for k in grid.get((cgx + ex, cgy + ey), ())]
@@ -724,17 +776,24 @@ def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dic
                           if (on_line(s[0], a, i) and on_line(s[1], a, i))
                           or (on_line(s[0], b, j) and on_line(s[1], b, j))]
                     # 교점에서 끝점이 맞닿아 이어지는 토막만 (사슬)
-                    keep, frontier, rest = [], [(cx, cy)], on
+                    # hotfix20 — **첫 고리는 허리를 건넌다.**  글로브·니들은 교점에
+                    # 원반/쐐기를 두고 대각선을 그 가장자리에서 끊는다 (TC2 p10·p17).
+                    # 그 틈은 허리 물체의 반지름이고, 범례가 허리 물체를 몸체 짧은
+                    # 변의 `waist_ratio[1]` 배까지로 정의하므로 첫 고리는 그 절반까지
+                    # 잇는다 (자는 그 문서 범례의 나비 — `basis`).  두 번째 고리부터는
+                    # 토막끼리 맞닿는 것이라 예전 `tol` 그대로다.
+                    keep, frontier, rest = [], [(cx, cy, True)], on
                     while frontier:
-                        fx, fy = frontier.pop()
+                        fx, fy, first = frontier.pop()
+                        reach = max(tol, first_tol) if first else tol
                         nxt = []
                         for k, s in rest:
                             d0 = math.hypot(s[0].x - fx, s[0].y - fy)
                             d1 = math.hypot(s[1].x - fx, s[1].y - fy)
-                            if min(d0, d1) <= tol:
+                            if min(d0, d1) <= reach:
                                 keep.append(s)
                                 far = s[1] if d0 < d1 else s[0]
-                                frontier.append((far.x, far.y))
+                                frontier.append((far.x, far.y, False))
                             else:
                                 nxt.append((k, s))
                         rest = nxt
@@ -763,6 +822,7 @@ def _split_groups(diag, horiz, vert, lay: ValveLayout, short_span, taken) -> dic
                     if _end_bars(horiz, vert, key, axis, lay) != 3:
                         continue
                     out[key] = [(s[0], s[1]) for s in keep]
+                    seen_c.add(ck)
     return out
 
 

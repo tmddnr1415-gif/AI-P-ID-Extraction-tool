@@ -90,6 +90,11 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
     if pc is None:
         return legend_rules._fallback(
             cfg, "line_styles", f"no legend sheet prints '{SIGNAL_ROW}'")
+    # hotfix20 — 이 행을 읽는 창(띠 6pt · 앞쪽 200pt · 토막 하한 1pt)은 AL NOUF1 범례에서
+    # 정한 pt 값이다.  그 문서 범례의 나비 원으로 잰 단위를 곱한다 (AL NOUF1 = 1.0).
+    # 실측: 같은 범례를 A0 로 키우면 창이 파선의 절반만 덮어 `dash_len` 이 1.0 이 됐다.
+    bf = legend_rules.derive_butterfly(pages, cfg)
+    unit = legend_rules.legend_unit(bf)
     label = None
     # ⚠ 획 글꼴 범례는 `ELECTRIC SIGNAL` 을 **한 조각**으로 싣는다 (28회차) —
     # 낱말로 읽되 자리는 조각의 것을 쓴다.  파선은 라벨 **왼쪽**에 그려지므로
@@ -98,7 +103,7 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
     for r, t in row_words:
         if t == "SIGNAL":
             row = [w for _r, w in row_words
-                   if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6]
+                   if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6 * unit]
             if "ELECTRIC" in row:
                 label = r
                 break
@@ -108,12 +113,12 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
 
     horiz, _vert = legend_rules.stroke_index(pc.segments(), min_len=0.4)
     yc = (label.y0 + label.y1) / 2
-    pieces = sorted((a, b) for y, runs in horiz.items() if abs(y - yc) < 6
-                    for a, b in runs if b < label.x0 and label.x0 - a < 200)
+    pieces = sorted((a, b) for y, runs in horiz.items() if abs(y - yc) < 6 * unit
+                    for a, b in runs if b < label.x0 and label.x0 - a < 200 * unit)
     lens = [b - a for a, b in pieces]
     gaps = [pieces[i + 1][0] - pieces[i][1] for i in range(len(pieces) - 1)]
-    dashes = sorted(L for L in lens if L > 1.0)
-    spaces = sorted(g for g in gaps if g > 1.0)
+    dashes = sorted(L for L in lens if L > 1.0 * unit)
+    spaces = sorted(g for g in gaps if g > 1.0 * unit)
     if len(dashes) < 3 or not spaces:
         return legend_rules._fallback(
             cfg, "line_styles",
@@ -121,7 +126,6 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
             f"and {len(spaces)} gap(s), too few to measure a pattern")
 
     # The shortest run that can join two things: the legend's own line valve.
-    bf = legend_rules.derive_butterfly(pages, cfg)
     valve = float(bf.values.get("circle_diameter") or 0) * 2.8 if bf.values else 0.0
     def repeated(values):
         """The length that repeats.  A dashed line is defined by its repetition,
@@ -138,7 +142,7 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
             # is the same 17.0 pt `detect_valves` measures for the body.
             "min_run": round(valve, 3) if valve else round(
                 sum(dashes) / len(dashes) * 2.4, 3),
-            "join_slack": legend_rules.INDEX_SLACK,
+            "join_slack": round(legend_rules.INDEX_SLACK * unit, 3),
         },
         evidence={"page_no": pc.page_no,
                   "dash_histogram": dict(collections.Counter(

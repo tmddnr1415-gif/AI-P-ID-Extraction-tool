@@ -385,7 +385,7 @@ def _history_table(pages, column, edge, inset) -> dict:
             "votes": votes, "pages": len(pages)}
 
 
-def _dash_geometry(pages, drawing_area) -> dict:
+def _dash_geometry(pages, drawing_area, unit: float = 1.0) -> dict:
     """The dash geometry of the lines that matter: the scope boundaries.
 
     Measuring every collinear run on the sheet does not work - hatching, a table's
@@ -415,11 +415,11 @@ def _dash_geometry(pages, drawing_area) -> dict:
             by = collections.defaultdict(list)
             for a, b in pc.segments():
                 if axis == 0:
-                    if abs(a.y - b.y) >= 0.4 or not (0.2 < abs(a.x - b.x) < 120):
+                    if abs(a.y - b.y) >= 0.4 * unit or not (0.2 * unit < abs(a.x - b.x) < 120 * unit):
                         continue
                     key, lo, hi, other = round(a.y, 1), min(a.x, b.x), max(a.x, b.x), a.y
                 else:
-                    if abs(a.x - b.x) >= 0.4 or not (0.2 < abs(a.y - b.y) < 120):
+                    if abs(a.x - b.x) >= 0.4 * unit or not (0.2 * unit < abs(a.y - b.y) < 120 * unit):
                         continue
                     key, lo, hi, other = round(a.x, 1), min(a.y, b.y), max(a.y, b.y), a.x
                 by[key].append((lo, hi, other))
@@ -438,14 +438,14 @@ def _dash_geometry(pages, drawing_area) -> dict:
                     continue
                 g = [round(ss[k + 1][0] - ss[k][1], 2) for k in range(len(ss) - 1)]
                 g = [v for v in g if v > 0]
-                if len(g) < 5 or max(g) - min(g) > 1.0:
+                if len(g) < 5 or max(g) - min(g) > 1.0 * unit:
                     continue
                 m = [round(b - a, 2) for a, b in ss]
                 # A dash pattern repeats: a plain dash is one mark length, a chain
                 # dash is a long one and a dot.  A run whose marks take many
                 # lengths is not a pattern, it is a line that happens to be broken
                 # up - which is how a 49 pt "mark" got in beside 3 pt ones.
-                if len({round(v) for v in m}) > 2:
+                if len({round(v / unit) for v in m}) > 2:
                     continue
                 marks += m
                 gaps += g
@@ -833,7 +833,12 @@ def derive(pages, cfg=None) -> Layout:
     # 18.6 pt on one and 7.6 pt on the other, where the boundaries they need are
     # 26.3 and 21.3.  A number that is wrong in both directions is not a
     # derivation, so the value stays configured and this records what was seen.
-    dash = _dash_geometry(pages, (left, top, column, bottom))
+    try:
+        import legend_rules as _lr
+        _unit = _lr.legend_unit(_lr.derive_butterfly(pages, cfg))
+    except Exception:                                      # noqa: BLE001
+        _unit = 1.0
+    dash = _dash_geometry(pages, (left, top, column, bottom), _unit)
     if dash:
         lay.add("broken_line.brk_max_mark", dash["brk_max_mark"],
                 f"marks in runs beside a scope label: longest {dash['_longest']}pt "

@@ -296,6 +296,10 @@ def _layout_from_config(cfg=CFG) -> Layout:
         mark_above=float(cfg.get("vendor_marks.above")),
         mark_side=float(cfg.get_or("vendor_marks.side", d.mark_side)),
         note_line_gap=float(cfg.get("vendor_marks.note_line_gap")),
+        # hotfix20 — 버블 모양 허용치도 config 로 덮을 수 있게 (`_fit_layout` 이 그 문서의
+        # 길이 단위로 곱한 값을 얹는다 · 없으면 예전 기본값 그대로).
+        side_slack=float(cfg.get_or("bubbles.side_slack", d.side_slack)),
+        anchor_slack=float(cfg.get_or("bubbles.anchor_slack", d.anchor_slack)),
         box_edge_cover=float(box["edge_cover"]),
         box_mark_margin=float(box["mark_margin"]),
         scope_text_tol=float(cfg.get("sct_scope.text_tol")),
@@ -757,8 +761,33 @@ def in_mark_window(rect, x, y, lay: Layout = LAYOUT) -> bool:
             and rect.y0 - lay.mark_above <= y <= rect.y1)
 
 
-def _glyph_clusters(pc, lay: Layout = LAYOUT):
+# hotfix20 — 별표는 **방향이 셋 이상인 획 뭉치**다.  `star_groups` 가 본문 별표에
+# 요구하는 값(38회차 `min_dirs=3`)과 같고, 26회차 재현율 채널이 "실제 별표 방향
+# 3~4 ↔ 해칭 1~2" 로 잰 값이다.  글리프 채널은 이 조건 없이 크기만 봤고, AL NOUF1
+# pt 로 적힌 크기 하한(3.0)이 절반 축척 문서에서 우연히 밸브 날개 틱(1획)·파선
+# 모서리(2획)를 걸러 주고 있었다 — 그 하한을 문서 단위로 곱하자 TC2 에서 틱이
+# 별표가 됐다 (p7 MOV · p25 PIT).  크기가 아니라 모양이 가른다.
+STAR_MIN_DIRS = 3
+
+
+def _stroke_dirs(d) -> set:
+    """path 의 곧은 획이 향한 방향 — 가로 · 세로 · 두 대각선의 네 갈래."""
+    out = set()
+    for it in d["items"]:
+        if it[0] != "l":
+            continue
+        dx, dy = it[2].x - it[1].x, it[2].y - it[1].y
+        if abs(dx) < 1e-6 and abs(dy) < 1e-6:
+            continue
+        a = math.degrees(math.atan2(dy, dx)) % 180.0
+        out.add(int(((a + 22.5) % 180.0) // 45.0))
+    return out
+
+
+def _glyph_clusters(pc, lay: Layout = LAYOUT, with_dirs: bool = False):
     """Small square-ish vector blobs, merged into single glyphs.
+
+    `with_dirs=True` 면 `(사각형, 방향 수)` 를 낸다 (hotfix20 — 별표 판정용).
 
     The asterisk is drawn differently on different sheets — one 4.0 pt path on
     page 6, four 2.6 pt paths on page 49 — so adjacent fragments are clustered
@@ -767,6 +796,10 @@ def _glyph_clusters(pc, lay: Layout = LAYOUT):
     """
     lo, hi, gap = lay.mark_blob, lay.mark_glyph_span, lay.mark_cluster_gap
     seen, blobs = set(), []
+    # hotfix20 — 방향은 **뭉치 자리의 모든 획**에서 센다.  아래 크기·비 걸림은
+    # 납작한 획(별표의 가로·세로 획은 높이 0)을 떨어뜨리므로, 살아남은 대각선
+    # 둘만으로 세면 AL NOUF1 p26 의 진짜 별표(8획 · 4방향)가 2방향이 된다.
+    strokes = []
     for d in pc.drawings():
         # 16회차 — **도면이 자기 표시에 쓰는 색은 잉크와 종이 둘뿐이다.**
         # `detect_all._INK` 이 이미 쓰고 있는 개념 그대로다: 그 밖의 색으로
@@ -782,6 +815,8 @@ def _glyph_clusters(pc, lay: Layout = LAYOUT):
             continue
         r = d["bbox"]
         w, h = r.width, r.height
+        if with_dirs and max(w, h) <= hi[1]:
+            strokes.append((+r, _stroke_dirs(d)))
         if not (lo[0] <= max(w, h) <= lo[1]) or min(w, h) <= 0.5:
             continue
         if not 0.55 <= w / h <= 1.8:
@@ -821,17 +856,29 @@ def _glyph_clusters(pc, lay: Layout = LAYOUT):
 
     groups = collections.defaultdict(list)
     for i in range(len(blobs)):
-        groups[find(i)].append(blobs[i])
+        groups[find(i)].append(i)
 
     out = []
-    for g in groups.values():
+    for idxs in groups.values():
+        g = [blobs[i] for i in idxs]
         bb = pymupdf.Rect(min(r.x0 for r in g), min(r.y0 for r in g),
                           max(r.x1 for r in g), max(r.y1 for r in g))
         if not hi[0] <= max(bb.width, bb.height) <= hi[1]:
             continue
         if not 0.75 <= bb.width / bb.height <= 1.35:
             continue
-        out.append(bb)
+        if with_dirs:
+            # 뭉치의 사각형은 살아남은 획(대각선)만의 것이라 가로·세로 획은 그보다
+            # 길게 뻗는다 (AL NOUF1 p26: 대각선 뭉치 5.2 ↔ 가로획 7.4).  뭉칠 때 쓴
+            # 간격(`cluster_gap`)만큼 넓혀 **겹치는** 획을 다 센다.
+            pad = pymupdf.Rect(bb.x0 - gap, bb.y0 - gap, bb.x1 + gap, bb.y1 + gap)
+            found = set()
+            for r, ds_ in strokes:
+                if r.x0 <= pad.x1 and r.x1 >= pad.x0 and r.y0 <= pad.y1 and r.y1 >= pad.y0:
+                    found |= ds_
+            out.append((bb, len(found)))
+        else:
+            out.append(bb)
     return out
 
 
@@ -1019,8 +1066,8 @@ def drawn_mark_sizes(pc, lay: Layout = LAYOUT, bubbles=None, outlines=None,
     if not bubbles:
         return []
     seen = collections.Counter()
-    for c in _glyph_clusters(pc, lay):
-        if c.x1 > lay.drawing_area[2]:
+    for c, ndirs in _glyph_clusters(pc, lay, with_dirs=True):
+        if c.x1 > lay.drawing_area[2] or ndirs < STAR_MIN_DIRS:
             continue
         cx, cy = (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2
         # 30회차 — 심볼의 **얼굴 위**에 있는 획 뭉치는 그 심볼의 글자다.
@@ -1062,8 +1109,8 @@ def find_marks(pc, lay: Layout = LAYOUT, glyph_size=None, allow_sizes=(),
                    for w, h in sizes):
             sizes.append(s)
     if sizes:
-        for c in _glyph_clusters(pc, lay):
-            if c.x1 > lay.drawing_area[2]:
+        for c, ndirs in _glyph_clusters(pc, lay, with_dirs=True):
+            if c.x1 > lay.drawing_area[2] or ndirs < STAR_MIN_DIRS:
                 continue
             for w, h in sizes:
                 if (abs(c.width - w) <= MARK_SIZE_TOL

@@ -414,7 +414,21 @@ def derive_butterfly(pages, cfg) -> Derived:
         })
 
 
-def derive_actuator_stem(pages, cfg) -> Derived:
+# hotfix20 — 아래 액추에이터 기둥 측정의 pt 값들(원 크기 창 8~40 · 기둥 폭 260 ·
+# 스템 탐색 2.0/4.0/…)은 AL NOUF1 범례에서 정한 값이다.  그 문서 범례의 **나비
+# 원 지름**(`derive_butterfly` · AL NOUF1 6.06pt)을 자로 삼아 곱한다 — AL NOUF1
+# 은 1.0 이라 소수점까지 그대로이고, A3 로 그린 범례(원 7.08pt)는 창 하한 8.0 에
+# 걸려 AL NOUF1 의 값으로 떨어지던 것이 제 범례에서 잰다.
+BUTTERFLY_CIRCLE_BASIS = 6.06
+
+
+def legend_unit(bf) -> float:
+    """그 문서 범례의 길이 단위 (AL NOUF1 = 1.0).  나비 원을 못 재면 1.0."""
+    cd = float((bf.values or {}).get("circle_diameter") or 0.0) if bf is not None else 0.0
+    return round(cd / BUTTERFLY_CIRCLE_BASIS, 4) if cd > 0 else 1.0
+
+
+def derive_actuator_stem(pages, cfg, unit: float = 1.0) -> Derived:
     """Measure the actuator-to-body stem convention off legend page 3."""
     pc = _page_with(pages, ACTUATOR_HEADING)
     if pc is None:
@@ -422,7 +436,7 @@ def derive_actuator_stem(pages, cfg) -> Derived:
                          f"no legend sheet prints '{ACTUATOR_HEADING}'")
 
     head = _label(pc, "ACTUATORS")
-    column = (head.x0 - 260, head.x0 + 40) if head else (0.0, 1e9)
+    column = (head.x0 - 260 * unit, head.x0 + 40 * unit) if head else (0.0, 1e9)
 
     # Enclosures in the symbol column: circles and closed boxes of actuator size.
     enclosures = []
@@ -430,7 +444,7 @@ def derive_actuator_stem(pages, cfg) -> Derived:
         b = d["bbox"]
         if not (column[0] <= b.x0 and b.x1 <= column[1]):
             continue
-        if not (8.0 <= min(b.width, b.height) <= 40.0):
+        if not (8.0 * unit <= min(b.width, b.height) <= 40.0 * unit):
             continue
         items = d["items"]
         if items and all(i[0] == "c" for i in items):
@@ -441,7 +455,7 @@ def derive_actuator_stem(pages, cfg) -> Derived:
     m = pc.page.rotation_matrix            # 획을 표시 좌표로 (41회차)
     for d in pc.drawings():
         for p0, p1 in _straight_items(d, m=m):
-            if abs(p1[0] - p0[0]) < 0.2 and abs(p1[1] - p0[1]) > 1.0:
+            if abs(p1[0] - p0[0]) < 0.2 * unit and abs(p1[1] - p0[1]) > 1.0 * unit:
                 verticals.append((p0[0], min(p0[1], p1[1]), max(p0[1], p1[1])))
 
     stems = []
@@ -449,10 +463,10 @@ def derive_actuator_stem(pages, cfg) -> Derived:
         cx = (b.x0 + b.x1) / 2
         best = None
         for x, y0, y1 in verticals:
-            if abs(x - cx) > 2.0:
+            if abs(x - cx) > 2.0 * unit:
                 continue
             gap = y0 - b.y1
-            if -0.3 <= gap <= 4.0 and (y1 - y0) > 2.0:      # starts on the edge
+            if -0.3 * unit <= gap <= 4.0 * unit and (y1 - y0) > 2.0 * unit:      # starts on the edge
                 if best is None or (y1 - y0) > best[0]:
                     best = (y1 - y0, abs(x - cx), gap)
         if best is not None:
@@ -627,9 +641,10 @@ def _fallback(cfg, key: str, why: str) -> Derived:
 
 def derive_all(pages, cfg=None) -> dict:
     cfg = cfg or projectconfig.load()
+    bf = derive_butterfly(pages, cfg)
     return {
-        "butterfly": derive_butterfly(pages, cfg),
-        "actuator_stem": derive_actuator_stem(pages, cfg),
+        "butterfly": bf,
+        "actuator_stem": derive_actuator_stem(pages, cfg, legend_unit(bf)),
         "pneumatic": derive_pneumatic(pages, cfg),
     }
 
