@@ -2427,17 +2427,36 @@ def axis_override_map(job_id: str):
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
-    if not job["project"]:
-        return {}
-    data = axis_overrides.load(
-        axis_overrides.path_for(DATA_DIR, job["project"]))
     states = db.revision_states(CON, job_id)
     out = {}
-    for key, st in states.items():
-        entry = data.get(st.get("id") or "")
-        if entry:
-            out[key] = dict(entry, stable_id=st["id"],
-                            inherited=entry.get("origin_job") != job_id)
+    if job["project"]:
+        data = axis_overrides.load(
+            axis_overrides.path_for(DATA_DIR, job["project"]))
+        for key, st in states.items():
+            entry = data.get(st.get("id") or "")
+            if entry:
+                out[key] = dict(entry, stable_id=st["id"],
+                                inherited=entry.get("origin_job") != job_id)
+    # hotfix25 — 안정 ID 가 없는 행(프로젝트 밖 · 대조 전)의 마크업 범위는 장부에 못 적히므로
+    # 마지막 FROM/TO 확정의 근거(`feedback.basis`)에서 돌려준다.  **지금 사람 값이 그 문장일
+    # 때만** — 확정을 해제했거나 칸을 다시 고친 뒤에는 옛 범위를 되살리지 않는다.
+    rows_by_key = {r["key"]: r for r in db.merged_rows(CON, job_id, "ALL")}
+    for fb in db.feedback_rows(CON, job_id, limit=5000):
+        key = fb.get("row_key") or ""
+        if fb.get("kind") != "EDITED" or fb.get("field") != "description" or key in out:
+            continue
+        basis = fb.get("basis") or {}
+        if not (basis.get("from_rect") or basis.get("to_rect")):
+            continue
+        r = rows_by_key.get(key)
+        if not r or (r.get("user") or {}).get("description") != fb.get("user_value"):
+            continue
+        out[key] = {"from": basis.get("from", ""), "to": basis.get("to", ""),
+                    "from_rect": basis.get("from_rect"), "to_rect": basis.get("to_rect"),
+                    "source_from": "마크업 범위" if basis.get("from") else "",
+                    "source_to": "마크업 범위" if basis.get("to") else "",
+                    "stable_id": (states.get(key) or {}).get("id") or "",
+                    "inherited": False, "from_feedback": True}
     return out
 
 
@@ -2608,7 +2627,9 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
             axis_overrides.path_for(DATA_DIR, job["project"]), stable_id,
             from_text=from_text, to_text=to_text, source_from=source_from,
             source_to=source_to, type_=type_, sentence=sentence,
-            origin_job=job_id)
+            origin_job=job_id,
+            from_rect=payload.get("from_rect") if via == "markup" else None,
+            to_rect=payload.get("to_rect") if via == "markup" else None)
         saved = True
     return {"sentence": sentence, "suffix": suffix,
             "source_from": source_from, "source_to": source_to,

@@ -99,7 +99,7 @@ def suffix_for(rows_same_group: list, this_key: str) -> str:
 def record(path: Path, stable_id: str, *, from_text: str, to_text: str,
            source_from: str, source_to: str, type_: str, sentence: str,
            origin_job: str, candidate: str = "", applies_to: str = "",
-           reason: str = "") -> dict:
+           reason: str = "", from_rect=None, to_rect=None) -> dict:
     """한 확정을 장부에 적는다.  같은 값의 재확정은 confirmed_at 을 유지한다 —
     두 번 저장하면 같은 파일이라는 결정성 요건이 여기서 성립한다.
 
@@ -111,8 +111,10 @@ def record(path: Path, stable_id: str, *, from_text: str, to_text: str,
     entry = {"from": from_text, "to": to_text,
              "source_from": source_from, "source_to": source_to,
              "type": type_, "sentence": sentence, "origin_job": origin_job}
+    # hotfix25 — 마크업으로 그은 범위 `[장, x0, y0, x1, y1]` 도 장부에 남긴다: 다음에 열어도
+    # 어느 범위의 글자를 읽었는지 도면에 다시 보인다.  후보 목록에서 고른 확정은 없다.
     for k, v in (("candidate", candidate), ("applies_to", applies_to),
-                 ("reason", reason)):
+                 ("reason", reason), ("from_rect", from_rect), ("to_rect", to_rect)):
         if v:
             entry[k] = v
     old = data.get(stable_id)

@@ -3147,6 +3147,11 @@ function showEvidence(row) {
   // --- quantity -------------------------------------------------------------
   add("수량", mark("qty", row.values.qty));
   add("수량 근거", e.qty_basis);
+  // hotfix25 — 격막 씰은 Remark 의 글자와 도면의 청록 상자가 **같은 값**을 말한다.
+  if (e.diaphragm_seal && Array.isArray(e.diaphragm_seal.rects)) {
+    add("Diaphragm Seal", `임펄스 라인에 격막 씰 ${e.diaphragm_seal.rects.length}개 — `
+      + `도면의 청록 상자 · Remark 에 "${e.diaphragm_seal.remark || "Diaphragm Seal"}"`);
+  }
   add("승수 출처", e.qty_source);
 
   // --- classification -------------------------------------------------------
@@ -3504,11 +3509,13 @@ async function _ftSave(row, author) {
     if (out.saved_to_project) {
       S.axisOv = S.axisOv || {};
       S.axisOv[row.key] = { from: st.from, to: st.to, source_from: out.source_from,
-                            source_to: out.source_to, stable_id: out.stable_id, inherited: false };
+                            source_to: out.source_to, stable_id: out.stable_id, inherited: false,
+                            from_rect: st.from_rect || null, to_rect: st.to_rect || null };
     }
     editNotice(`Description — “${out.sentence}”`, "in");
   }
   renderGrid();
+  drawOverlay();          // hotfix25 — 그은 From/To 범위가 도면에 남는다
   const again = S.rows.find(r => r.key === row.key);
   if (again && S.sel === row.key) showEvidence(again);
   return out;
@@ -3519,6 +3526,13 @@ async function descMarkupEnd(rect) {
   const row = mk && S.rows.find(r => r.key === mk.key);
   endFtMark();
   if (!row) return;
+  // hotfix25 — 범위는 **그 행의 장**에서만.  다른 장의 글자를 이 계기의 Description 으로
+  // 쓰면 도면이 말하지 않은 것을 적는 것이다 (§2.1 ③).
+  if (row.page_no !== S.page.page_no) {
+    editNotice(`이 행은 p${row.page_no} 의 계기입니다 — 그 장에서 범위를 그으세요 (지금 p${S.page.page_no})`, "out");
+    showEvidence(row);
+    return;
+  }
   const res = await fetch(`/jobs/${S.job.id}/axis_text`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ page_no: S.page.page_no, rect }),
@@ -3538,6 +3552,36 @@ async function descMarkupEnd(rect) {
   st[mk.side] = got.text;
   st[`${mk.side}_rect`] = [S.page.page_no, ...rect.map(v => Math.round(v * 10) / 10)];
   await _ftSave(row, who);
+}
+
+/* hotfix25 — 사람이 그은 From/To 범위를 **고른 행에서** 도면에 다시 그린다.
+ * 값은 이 세션의 `S.ftPending` 이 먼저이고, 없으면 프로젝트 장부(`S.axisOv`)다 —
+ * 장부에 적히므로 다음에 열어도, 다음 리비전에서도 어느 범위를 읽었는지 보인다.
+ * 범위는 `[장, x0, y0, x1, y1]` 이라 다른 장의 범위는 그리지 않는다. */
+function ftRects(row) {
+  const st = (S.ftPending || {})[row.key] || {};
+  const ov = (S.axisOv || {})[row.key] || {};
+  return [["from", st.from_rect || ov.from_rect], ["to", st.to_rect || ov.to_rect]]
+    .filter(([, r]) => Array.isArray(r) && r.length === 5 && r[0] === S.page.page_no);
+}
+
+function drawFromTo(ov, scale) {
+  const row = S.sel && S.rowByKey[S.sel];
+  if (!row || !S.page) return;
+  const ns = "http://www.w3.org/2000/svg";
+  for (const [side, r] of ftRects(row)) {
+    const [, x0, y0, x1, y1] = r;
+    const b = document.createElementNS(ns, "rect");
+    b.setAttribute("x", x0 * scale); b.setAttribute("y", y0 * scale);
+    b.setAttribute("width", Math.max(2, (x1 - x0) * scale));
+    b.setAttribute("height", Math.max(2, (y1 - y0) * scale));
+    b.setAttribute("class", `ftbox ${side}`);
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("x", x0 * scale); t.setAttribute("y", y0 * scale - 3);
+    t.setAttribute("class", `ftlabel ${side}`);
+    t.textContent = side === "from" ? "Description From" : "Description To";
+    ov.appendChild(b); ov.appendChild(t);
+  }
 }
 
 function fromToPicker(row) {
@@ -3781,6 +3825,13 @@ function showPage(page) {
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
   showSheetNotes(page.page_no);
   if (S.markup) prewarmMarkup();          // 장이 바뀌면 그 장을 미리 읽는다
+  // hotfix25 — From/To 범위는 그 행의 장에서만 긋는다.  장을 옮기면 대기를 풀고 말한다.
+  if (S.ftMark) {
+    const m = S.ftMark; endFtMark();
+    const r0 = S.rowByKey[m.key];
+    if (r0 && r0.page_no !== page.page_no)
+      editNotice(`장을 옮겨 ${m.side === "from" ? "From" : "To"} 범위 지정을 취소했습니다 — 그 행은 p${r0.page_no} 입니다`, "out");
+  }
 }
 
 /* 53회차 [E] — 이 장의 NOTES 판독 (8차 피드백 s3).
@@ -4047,6 +4098,13 @@ const REJECT_MARK = ["REJECT", "삭제·오검출 (그중)", "#d70015",
  * 자기 칸을 갖는다 — 33회차 등식(칸 합 = 상자 수)은 그대로다. */
 const TYPICAL_MARK = ["TYPICAL", "Typical 표식 (행 아님)", "#5e5ce6",
                       "도면이 선언한 Typical 표식과 상세 상자 — 상자 안의 행 수량이 참조 수만큼 곱해집니다"];
+/* hotfix25 — Diaphragm Seal.  **행이 아니다** — 그 계기의 임펄스 라인에 붙은 부속이고
+ * Remark 에 적힌다 (hotfix22~24).  글자로만 있으면 도면에서 "어느 것" 인지 안 보인다 —
+ * 사용자 요구는 늘 식별 **표기**였다.  값은 행의 근거(`evidence.diaphragm_seal.rects`)
+ * 에서 읽는다 — Remark 가 읽는 그 값이다 (11회차: 화면이 데이터와 같은 접근자를 읽는다).
+ * 자기 칸이라 33회차 등식(색 칸 합 = 상자 수)은 그대로다. */
+const SEAL_MARK = ["SEAL", "Diaphragm Seal (행 아님)", "#0d9488",
+                   "계기 임펄스 라인의 격막 씰 — 그 계기의 Remark 에 'Diaphragm Seal' 이 적힙니다. 누르면 그 계기 행이 골라집니다"];
 
 /* 범례 설명 뒤에 "양식에 나가는가" 한 마디를 붙인다.  판정은 `scopeFacts`
  * 하나에서 오고 여기서 다시 하지 않는다 (12회차 규칙). */
@@ -4106,12 +4164,24 @@ function overlayItems(page) {
                kind: r.tab === "FIELD" ? "INSTRUMENT" : "VALVE", row: true,
                reason: r.needs_review, tab: r.tab, manual: true });
   }
+  // hotfix25 — 격막 씰: 그 장 행의 근거에서 읽는다.  행이 아니므로 `row: false` 이고
+  // 열쇠는 **그 계기 행**이다 — 씰을 누르면 그 행이 골라진다.
+  for (const r of S.rows) {
+    if (r.page_no !== page.page_no) continue;
+    const ds = (r.evidence || {}).diaphragm_seal;
+    if (!ds || !Array.isArray(ds.rects)) continue;
+    ds.rects.forEach((rc, i) => out.push({
+      key: r.key, rect: rc, label: ds.remark || "Diaphragm Seal", seal: true, row: false,
+      kind: "INSTRUMENT", tab: r.tab, needs_review: false, sealIndex: i,
+      reason: `${ds.remark || "Diaphragm Seal"} — ${r.values.type || ""} 의 임펄스 라인` }));
+  }
   return out;
 }
 
 function itemVisible(it) {
   // 53회차 — 사용자 추가는 자기 색 칸이므로 그 칸을 끄면 상자도 숨는다
   // (범례 라벨과 세는 대상과 그리는 대상이 같아야 한다 — 11회차 캡처).
+  if (it.seal) return !S.ovOff.has(SEAL_MARK[0]) && S.tab !== "REVIEW";
   if (it.typical) { if (S.ovOff.has(TYPICAL_MARK[0])) return false; }
   else if (it.manual) { if (S.ovOff.has(MANUAL_MARK[0])) return false; }
   else if (S.ovOff.has(itemScope(it))) return false;
@@ -4127,11 +4197,12 @@ function itemVisible(it) {
 function buildOverlayLegend() {
   const items = S.page ? overlayItems(S.page) : [];
   const counts = {};
-  let review = 0, manual = 0, rejected = 0, typical = 0;
+  let review = 0, manual = 0, rejected = 0, typical = 0, seal = 0;
   for (const it of items) {
     // 53회차 — 사용자 추가는 **자기 칸**이다 (상자도 녹색으로 그린다).  SCOPE
     // 칸에도 세면 한 상자가 두 번 세어져 33회차 등식이 깨진다.
-    if (it.typical) typical++;
+    if (it.seal) seal++;
+    else if (it.typical) typical++;
     else if (it.manual) manual++;
     else counts[itemScope(it)] = (counts[itemScope(it)] || 0) + 1;
     if (it.needs_review) review++;
@@ -4149,6 +4220,7 @@ function buildOverlayLegend() {
     row(key, label, colour, why, counts[key] || 0, "")).join("")
     + row(...MANUAL_MARK, manual, "")
     + row(...TYPICAL_MARK, typical, "")
+    + row(...SEAL_MARK, seal, "")
     + row(...REVIEW_MARK, review, "badge")
     + row(...REJECT_MARK, rejected, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
@@ -4229,6 +4301,7 @@ function drawOverlay() {
     // 와 `.det.excluded` 를 이겼다.  그래서 개정은 자기 도형을 따로 그린다.
     const rev = (S.revByKey || {})[it.key];
     r.setAttribute("class", "det"
+      + (it.seal ? " seal" : "")
       + (it.typical ? " typical" : "")
       + (it.kind === "VALVE" ? " valve" : "")
       + (it.row === false ? " excluded" : "")
@@ -4244,7 +4317,8 @@ function drawOverlay() {
     // 고친다: 사용자 추가는 "(그중)" 이 아니라 자기 색 칸이 되고, 합은
     // `SCT + VENDOR + 판정없음 + 사용자추가 = 상자 수` 다.
     // 탭 색 보기(`S.byTab`)에서는 탭이 색을 정하므로 건드리지 않는다.
-    const stroke = it.typical ? TYPICAL_MARK[2]
+    const stroke = it.seal ? SEAL_MARK[2]
+      : it.typical ? TYPICAL_MARK[2]
       : S.byTab ? (COLOR[it.tab] || "#8e8e93")
       : it.manual ? MANUAL_MARK[2]
       : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
@@ -4275,7 +4349,7 @@ function drawOverlay() {
     // 상자를 하나 더 세지 않는다 — `rect.det` 이 아니라 장식이라 33회차
     // 등식(색 칸 합 = 상자 수)은 그대로다.  잇는 선은 고른 행에서만 그린다
     // (전부 그리면 도면이 선으로 덮인다).
-    {
+    if (!it.seal) {
       // 56회차 — 층이 실어 주면 그것을 쓰고, 옛 분석이면 행에서 찾는다.
       const tr = it.tag_rect
         || ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
@@ -4407,6 +4481,7 @@ function drawOverlay() {
     };
     ov.appendChild(r);
   }
+  drawFromTo(ov, scale);
   buildOverlayLegend();
 }
 

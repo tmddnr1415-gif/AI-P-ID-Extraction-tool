@@ -1172,6 +1172,21 @@ rect.det.typical {
   stroke-dasharray: 7 3;
   fill: rgba(94, 92, 230, .07);
 }
+/* hotfix25 — Diaphragm Seal.  청록 · 촘촘한 점선 — Typical(보라 · 긴 파선) · 밸브(파선 5 3)
+   · 사용자 추가(점선 1.5 2.5) 와 다른 얼굴.  옅게 칠해 작은 씰(A3 에서 10×5pt)이 보이게. */
+rect.det.seal {
+  stroke-width: 1.8;
+  stroke-dasharray: 2 1.5;
+  fill: rgba(13, 148, 136, .14);
+}
+rect.det.seal.sel { stroke: #0d9488; stroke-width: 3; }
+/* hotfix25 — 사람이 그은 Description From/To 범위 (고른 행에서만) */
+rect.ftbox { fill: rgba(217, 119, 6, .10); stroke: #d97706; stroke-width: 1.6;
+  stroke-dasharray: 6 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+rect.ftbox.to { stroke: #7c3aed; fill: rgba(124, 58, 237, .10); }
+text.ftlabel { font: 700 11px/1 ui-sans-serif, system-ui, sans-serif; fill: #d97706;
+  paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; pointer-events: none; }
+text.ftlabel.to { fill: #7c3aed; }
 
 /* 55회차 — 입력 종류 라디오 (PDF / DXF).  드롭 상자 위 한 줄. */
 .input-kind { display: flex; gap: 14px; justify-content: center; margin: 0 0 6px; font-size: 13px; }
