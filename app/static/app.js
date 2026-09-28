@@ -4966,9 +4966,54 @@ $req("#prog-cancel").addEventListener("click", async () => {
   }
 });
 
+/* hotfix15 — **Excel 은 지금의 데이터로 나간다.**  요구: *"마크업으로 추가된 항목은
+ * excel 에 나와야 하며, 취소/삭제된 항목은 excel 에서 삭제되어야 한다 · 사용자가 변경한
+ * Scope · Description · 수량도 모두 반영"*.
+ * 서버는 처음부터 그렇게 쓰고 있었다 — 스냅샷은 사람 편집이 덮은 값(`merged_rows`)을
+ * 담고 지운 행(`removed`)을 뺀다.  **어긋난 곳은 화면**이었다: 검토 완료를 체크한
+ * 순간 찍은 스냅샷을 Excel 단추가 계속 내려받아, 그 뒤의 편집·삭제·마크업이 파일에
+ * 없었다.  이제 체크 뒤에 데이터가 바뀌면(행을 바꾸는 요청이 성공하면) 스냅샷이 낡았다고
+ * 적고, Excel 단추가 같은 조건으로 **새로 찍은 뒤** 내려받는다. */
+S.snapParams = null;
+S.snapStale = false;
+
+async function takeSnapshot(params) {
+  const r = await fetch(`/jobs/${S.job.id}/snapshot`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(Object.assign({ label: new Date().toISOString() }, params)),
+  });
+  if (!r.ok) { alert((await r.json()).detail || "스냅샷 실패"); return null; }
+  const out = await r.json();
+  S.revision = out.revision_id;
+  S.snapStale = false;
+  window.__rev = out.revision_id;      // read by tests/test_ui_edits.py
+  $("#excel").textContent = `Excel 출력 (rev ${out.revision_id}, ${out.rows}행`
+    + (params.hold_review ? ", 검토 보류" : "") + ")";
+  return out;
+}
+
+function markSnapshotStale() {
+  if (!S.revision || S.snapStale) return;
+  S.snapStale = true;
+  $("#excel").textContent = "Excel 출력 (편집 반영 — 누르면 새로 만듭니다)";
+}
+
+// 행을 바꾸는 요청은 여러 곳에서 나간다 (칸 편집 · 공급 주체 · 삭제 · 되돌리기 · 마크업 ·
+// ＋행 · 복사 · 승수 · FROM/TO 확정).  한 곳에서 본다 — 곳마다 부르면 하나를 빠뜨린다.
+const _rawFetch = window.fetch.bind(window);
+const _MUTATES = /\/jobs\/[^/]+\/(rows|axis|axis_overrides|deleted|review|multipliers|sheet_numbers)(\/|\?|$)/;
+window.fetch = (url, opts) => {
+  const p = _rawFetch(url, opts);
+  const method = String((opts && opts.method) || "GET").toUpperCase();
+  if (method !== "GET" && _MUTATES.test(String(url))) {
+    p.then(r => { if (r.ok) markSnapshotStale(); }).catch(() => {});
+  }
+  return p;
+};
+
 $req("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;
-  if (!ev.target.checked) return;
+  if (!ev.target.checked) { S.snapParams = null; return; }
   const origins = chosenOrigins();
   if (S.showOrigin && !origins.length) {
     alert("귀속을 하나 이상 선택하세요."); ev.target.checked = false; return;
@@ -4978,30 +5023,24 @@ $req("#gate-check").addEventListener("change", async ev => {
     alert("도면을 하나 이상 선택하세요."); ev.target.checked = false; return;
   }
   const hold = !!($("#hold-review") || {}).checked;
-  const r = await fetch(`/jobs/${S.job.id}/snapshot`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label: new Date().toISOString(), origins,
-                           drawings, hold_review: hold }),
-  });
-  if (!r.ok) {
-    alert((await r.json()).detail || "스냅샷 실패");
-    ev.target.checked = false; $("#excel").disabled = true; return;
-  }
-  const out = await r.json();
-  S.revision = out.revision_id;
-  window.__rev = out.revision_id;      // read by tests/test_ui_edits.py
+  S.snapParams = { origins, drawings, hold_review: hold };
+  const out = await takeSnapshot(S.snapParams);
+  if (!out) { ev.target.checked = false; $("#excel").disabled = true; return; }
   // Say what is still open, and do not stand in the way.  Whether an unanswered
   // question is a reason to hold the workbook back is the reviewer's call - but
   // they should not learn about it from the client.  A blocking dialog was tried
   // and rejected: it turns "you should know" into "you may not proceed".
   showOpenReview();
   $("#excel").disabled = false;
-  $("#excel").textContent = `Excel 출력 (rev ${out.revision_id}, ${out.rows}행`
-    + (hold ? ", 검토 보류" : "") + ")";
 });
 
-$req("#excel").addEventListener("click", () => {
+$req("#excel").addEventListener("click", async () => {
   if (!S.revision) return;
+  if (S.snapStale && S.snapParams) {
+    const out = await takeSnapshot(S.snapParams);
+    if (!out) return;
+    editNotice(`체크 뒤의 편집·삭제·추가를 반영해 스냅샷을 새로 만들었습니다 (rev ${out.revision_id} · ${out.rows}행)`, "in");
+  }
   location.href = `/revisions/${S.revision}/excel`;
 });
 
