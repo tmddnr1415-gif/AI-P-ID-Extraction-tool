@@ -1197,3 +1197,47 @@ text.ftlabel.to { fill: #7c3aed; }
 /* hotfix23 — Description From/To 마크업 */
 #descmk .dm-val { font-size: 12px; margin-left: 8px; word-break: break-word; }
 #descmk button.on { outline: 2px solid var(--accent, #3b6fd8); }
+
+/* ---------- hotfix26 — 가독성 · 편의 ---------- */
+/* 범례 판: 라벨은 한 줄로, 폭은 내용만큼 (186px 고정에서 두 줄로 꺾이던 것).  접으면 요약 한 줄 */
+#ovlegend { width: auto; min-width: 186px; max-width: 260px; }
+.ovl-row .ovl-label { white-space: nowrap; }
+.ovl-head { display: flex; align-items: center; gap: 8px; }
+#ovl-fold { margin-left: auto; padding: 0 6px; font-size: 11px; line-height: 18px; }
+.ovl-sum { display: none; font-size: 11px; padding: 3px 0 0; white-space: nowrap; }
+#ovlegend.folded #ovl-items, #ovlegend.folded #ovl-trace, #ovlegend.folded .ovl-mode { display: none; }
+#ovlegend.folded .ovl-sum { display: block; }
+#ovlegend.folded { min-width: 0; }
+/* 정보 띠 — 기본 한 줄.  펼치면(.compact 없음) 예전 그대로 */
+#infobars { position: relative; }
+#infobars.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px;
+  padding-right: 68px; background: var(--paper-2, #f7f4ec); border-bottom: 1px solid var(--rule); }
+#infobars.compact .legend-bar { border-bottom: none; background: transparent; padding: 3px 10px;
+  display: inline-flex; flex-wrap: wrap; gap: 0 16px; max-width: 100%; }
+#infobars.compact .legend-bar.hidden { display: none; }
+#infobars.compact .legend-bar .lb-main { display: inline-flex; flex-wrap: nowrap; gap: 6px;
+  align-items: baseline; min-width: 0; }
+#infobars.compact .legend-bar .lb-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 24vw; }
+#infobars.compact .legend-bar .lb-n, #infobars.compact .legend-bar .lb-note { white-space: nowrap; }
+#infobars.compact details.lb-saved, #infobars.compact .lb-changes { display: none; }
+#infobars-toggle { position: absolute; right: 8px; top: 3px; font-size: 11px; padding: 0 7px; line-height: 18px; }
+#infobars:not(.compact) #infobars-toggle { top: 5px; }
+#infobars.empty #infobars-toggle { display: none; }
+/* 목록 첫 두 열 고정 — 옆으로 밀어도 장 · 도면번호가 남는다 (그리드 2132px ↔ 창 680px 실측) */
+#grid th:nth-child(1), #grid td:nth-child(1), #grid th:nth-child(2), #grid td:nth-child(2) {
+  position: sticky; left: 0; z-index: 2; background: var(--panel); }
+#grid th:nth-child(2), #grid td:nth-child(2) { left: var(--c1w, 79px); box-shadow: 1px 0 0 var(--line); }
+#grid thead th:nth-child(1), #grid thead th:nth-child(2) { z-index: 3; }
+/* 행 음영은 반투명이라 고정 열에서는 종이색 위에 같은 값을 미리 섞어 둔다 */
+tbody tr:hover td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 97%, #000); }
+tbody tr.sel td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 90%, #1a5fb4); }
+tbody tr.multi td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 84%, #1a5fb4); }
+tbody tr.useredit td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 80%, #ffd60a); }
+tbody tr.userdel td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 88%, #ff3b30); }
+tbody tr.added td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 84%, #34c759); }
+/* 근거 패널 구획 머리글 — 25항목이 한 줄로 흐르던 것 */
+.evidence dt.ev-sec { grid-column: 1 / -1; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line);
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-strong); font-weight: 700; }
+.evidence dd.ev-sec { display: none; }
+/* 근거 패널 높이 손잡이 */
+#gutter-r { height: 6px; }

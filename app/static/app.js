@@ -3079,7 +3079,11 @@ function showEvidence(row) {
   const e = row.evidence || {};
   const pairs = [];
   const add = (k, v) => { if (v !== undefined && v !== null && v !== "") pairs.push([k, v]); };
+  // hotfix26 — 구획 머리글.  25항목이 한 줄로 흘러 어디가 수량이고 어디가 Description 인지
+  // 눈으로 갈라야 했다.  값을 바꾸지 않고 사이에 제목만 둔다.
+  const sec = (t) => pairs.push(["§" + t, "§"]);
   const hits = e.rules_hit || [];
+  sec("공급 · 수량");
 
   /* 편집값과 엔진 근거를 **구분해서** 말한다 (13회차).
    *
@@ -3155,6 +3159,7 @@ function showEvidence(row) {
   add("승수 출처", e.qty_source);
 
   // --- classification -------------------------------------------------------
+  sec("검출 · 위치");
   add("앵커", e.anchor);
   add("Type 판정", row.values.type
     && mark("type", `${row.values.type}${e.anchor ? ` ← 앵커 ${e.anchor}` : ""}`));
@@ -3207,6 +3212,7 @@ function showEvidence(row) {
   }
 
   // --- Description axis (separate from scope) --------------------------------
+  sec("Description");
   const needed = e.description_needed;
   if (needed === false) {
     add("Description 대상", `아님 — ${e.description_note || ""}`);
@@ -3259,6 +3265,7 @@ function showEvidence(row) {
   }
 
   // --- what was not decided -------------------------------------------------
+  sec("검토 · 편집");
   if (row.needs_review) add("검토 필요 — 판단 못한 이유", row.needs_review);
   if (row.deleted) add("검토 필요", "재분석에서 이 검출이 사라졌습니다");
   if (row.conflict && Object.keys(row.conflict).length) {
@@ -3308,8 +3315,9 @@ function showEvidence(row) {
        : "")
     + `</div>`
     + reviewControls(row) + scopeEditor(row) + axisActions(row)
-    + "<dl>" + pairs.map(([k, v]) =>
-      `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
+    + "<dl>" + pairs.map(([k, v]) => k.startsWith("§")
+      ? `<dt class="ev-sec">${escape(k.slice(1))}</dt><dd class="ev-sec"></dd>`
+      : `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
     + `<div id="ev-hist"></div>`
     + descMarkupBlock(row)
     + fromToPicker(row)
@@ -4227,6 +4235,11 @@ function buildOverlayLegend() {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
     drawOverlay();
   }));
+  // hotfix26 — 접힌 판의 한 줄 요약.  세는 값은 위 칸들과 **같은 변수**다.
+  const sum = $("#ovl-sum");
+  if (sum) sum.textContent = `SCT ${counts.SCT || 0} · VENDOR ${counts.VENDOR_EXCLUDED || 0}`
+    + ` · 판정없음 ${counts.INCLUDED || 0}` + (manual ? ` · 추가 ${manual}` : "")
+    + (typical ? ` · Typical ${typical}` : "") + (seal ? ` · 씰 ${seal}` : "") + ` · 검토 ${review}`;
 }
 
 /* 56회차 — **DXF 는 빗금으로 칠한다** (현장 보고: *"식별 표기를 위해 표기된
@@ -5810,6 +5823,12 @@ function _splitApply(v) {
     else split.style.removeProperty("--left-w");
   }
   if (bars) bars.style.maxHeight = (v.bars === undefined || v.bars === null) ? "" : `${Math.round(v.bars)}px`;
+  // hotfix26 — 근거 패널 높이 (pid.split.ev).  없으면 CSS 기본(232px).
+  const ev = document.getElementById("evidence");
+  if (ev) {
+    if (v.ev) { ev.style.height = `${Math.round(v.ev)}px`; ev.style.maxHeight = "none"; }
+    else { ev.style.height = ""; ev.style.maxHeight = ""; }
+  }
 }
 function _dragGutter(g, axis, onMove) {
   if (!g) return;
@@ -5838,6 +5857,7 @@ function _dragGutter(g, axis, onMove) {
   const bars = document.getElementById("infobars");
   const gv = document.getElementById("gutter-v");
   const gh = document.getElementById("gutter-h");
+  const ge = document.getElementById("gutter-r");     // hotfix26 — 목록 ↔ 근거 패널
   if (!split) return;
   let state = _splitLoad();
   _splitApply(state);
@@ -5882,10 +5902,22 @@ function _dragGutter(g, axis, onMove) {
     clampLeft();
     refit();
   });
-  for (const g of [gv, gh]) {
+  _dragGutter(ge, "row", (e) => {
+    const ev = document.getElementById("evidence");
+    const rg = document.getElementById("right");
+    if (!ev || !rg) return;
+    // 위로 끌면 패널이 커진다.  하한 80 · 상한은 목록에 네 줄(120px)은 남게 —
+    // 목록과 패널이 나눠 갖는 높이 안에서만 (검토 칩 · 검색 줄은 그대로다)
+    const gw = document.getElementById("gridwrap");
+    const bottom = ev.getBoundingClientRect().bottom;
+    const share = ev.getBoundingClientRect().height + (gw ? gw.getBoundingClientRect().height : rg.clientHeight);
+    const h = Math.max(80, Math.min(bottom - e.clientY, share - 120));
+    state = { ...state, ev: h }; _splitApply(state); _splitSave(state);
+  });
+  for (const g of [gv, gh, ge]) {
     if (!g) continue;
     g.addEventListener("dblclick", () => {
-      state = g === gv ? { ...state, left: null } : { ...state, bars: null };
+      state = g === gv ? { ...state, left: null } : g === gh ? { ...state, bars: null } : { ...state, ev: null };
       _splitApply(state); _splitSave(state);
       window.dispatchEvent(new Event("resize"));
       refit();
@@ -5914,6 +5946,82 @@ document.querySelectorAll("details.scope").forEach((det) => {
 });
 window.addEventListener("resize", () => {
   document.querySelectorAll("details.scope[open]").forEach(placeScope);
+});
+
+// hotfix26 — 범례 판 접기 (pid.ovl.fold).  접히면 한 줄 요약만 남는다 (`buildOverlayLegend` 가 채운다).
+(function () {
+  const lg = document.getElementById("ovlegend"), b = document.getElementById("ovl-fold");
+  if (!lg || !b) return;
+  const apply = (f) => { lg.classList.toggle("folded", f); b.textContent = f ? "펼치기" : "접기"; };
+  let folded = false;
+  try { folded = localStorage.getItem("pid.ovl.fold") === "1"; } catch (e) {}
+  apply(folded);
+  b.addEventListener("click", () => {
+    folded = !folded; apply(folded);
+    try { localStorage.setItem("pid.ovl.fold", folded ? "1" : "0"); } catch (e) {}
+  });
+})();
+
+// hotfix26 — 정보 띠 접기 (pid.infobars.open).  기본은 한 줄.  범례가 달라졌거나 모드가
+// 충돌한 띠(.changed)가 있으면 접지 않는다 — 그 사실이 화면에 자리가 없으면 반드시 묻힌다 (15회차).
+function applyInfobars() {
+  const bars = document.getElementById("infobars"), t = document.getElementById("infobars-toggle");
+  if (!bars || !t) return;
+  let open = false;
+  try { open = localStorage.getItem("pid.infobars.open") === "1"; } catch (e) {}
+  const changed = !!bars.querySelector(".legend-bar.changed:not(.hidden)");
+  const any = !!bars.querySelector(".legend-bar:not(.hidden)");
+  bars.classList.toggle("compact", !open && !changed);
+  bars.classList.toggle("empty", !any);
+  t.textContent = (open || changed) ? "접기" : "자세히";
+  t.disabled = changed;
+  t.title = changed ? "범례가 달라졌거나 모드가 충돌해 접지 않습니다" : "분석 정보 띠 펼치기 / 접기";
+}
+(function () {
+  const t = document.getElementById("infobars-toggle");
+  if (!t) return;
+  t.addEventListener("click", () => {
+    let open = false;
+    try { open = localStorage.getItem("pid.infobars.open") === "1"; } catch (e) {}
+    try { localStorage.setItem("pid.infobars.open", open ? "0" : "1"); } catch (e) {}
+    applyInfobars();
+    window.dispatchEvent(new Event("resize"));
+  });
+  for (const id of ["legend-bar", "mode-bar"]) {
+    const el = document.getElementById(id);
+    if (el) new MutationObserver(() => applyInfobars())
+      .observe(el, { childList: true, attributes: true, attributeFilter: ["class"] });
+  }
+  applyInfobars();
+})();
+
+// hotfix26 — 목록 첫 두 열 고정: 둘째 열의 왼쪽 자리는 첫 열의 실제 폭이다 (열 폭은 내용이 정한다)
+(function () {
+  const head = document.getElementById("head"), grid = document.getElementById("grid");
+  if (!head || !grid) return;
+  const measure = () => {
+    const th = grid.querySelector("thead th");
+    if (th) grid.style.setProperty("--c1w", `${th.getBoundingClientRect().width}px`);
+  };
+  new MutationObserver(measure).observe(head, { childList: true });
+  window.addEventListener("resize", measure);
+  measure();
+})();
+
+// hotfix26 — ↑ ↓ 로 목록의 앞뒤 행을 고른다.  입력칸 · 선택상자에서는 잡지 않는다.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+  const t = ev.target, tag = ((t && t.tagName) || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select" || (t && t.isContentEditable)) return;
+  const st = document.getElementById("stage");
+  if (!S.job || !st || !st.offsetParent) return;
+  const trs = [...document.querySelectorAll("#body tr[data-key]")];
+  if (!trs.length) return;
+  let i = trs.findIndex(tr => tr.dataset.key === S.sel);
+  i = i < 0 ? (ev.key === "ArrowDown" ? 0 : trs.length - 1)
+    : Math.max(0, Math.min(trs.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)));
+  ev.preventDefault();
+  select(trs[i].dataset.key, true);
 });
 
 // hotfix23 — 최종 저장.  편집은 칸마다 곧바로 저장되고 있다 — 이 버튼은 "이 상태로 저장했다"

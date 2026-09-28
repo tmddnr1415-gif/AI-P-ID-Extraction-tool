@@ -212,9 +212,12 @@
        재사용인지 유도인지, 그리고 개정본의 범례가 프로필과 다른 곳이 있는지를
        머리 바로 아래에 적는다.  "조용히 옛 규칙으로 분석했다" 가 이 회차에서
        가장 위험한 실패 방식이고, 그것은 화면에 자리가 없으면 반드시 일어난다. -->
-  <div id="infobars">
+  <div id="infobars" class="compact">
   <div id="legend-bar" class="legend-bar hidden"></div>
   <div id="mode-bar" class="legend-bar mode-bar hidden"></div>
+  <!-- hotfix26 — 세 띠가 세 줄(85px)을 늘 차지했다.  기본은 한 줄로 접고, 펼치면 예전
+       그대로.  범례가 달라졌거나 모드가 충돌하면(.changed) 접지 않는다 — 15회차 규율. -->
+  <button type="button" id="infobars-toggle" class="ghost mini" title="분석 정보 띠 펼치기 / 접기">자세히</button>
   </div>
   <!-- hotfix17 — 경계를 끌어 도면 창을 키운다.  위 손잡이는 안내 띠 높이,
        가운데 손잡이는 도면 ↔ 목록 폭.  두 번 누르면 처음 크기로. -->
@@ -257,11 +260,16 @@
         <div class="ovl-head">
           <b>표시</b>
           <label class="ovl-mode"><input type="checkbox" id="ovl-bytab">탭 색으로</label>
+          <!-- hotfix26 — 판이 도면 창의 1/4 을 덮는다 (1366×768 실측 25%).  접으면 한 줄
+               요약만 남는다.  접힘은 이 브라우저가 기억한다 (pid.ovl.fold). -->
+          <button type="button" id="ovl-fold" class="ghost mini" title="범례 접기 / 펼치기">접기</button>
         </div>
+        <div id="ovl-sum" class="ovl-sum muted"></div>
         <div id="ovl-items"></div>
         <!-- The selected row's pipe, in four separable layers.  Most traces on
              this document fail, so the layer that matters most is the last one:
              where the run stops.  See app.js drawTrace(). -->
+        <div id="ovl-trace">
         <div class="ovl-head"><b>선택한 계기의 배관</b></div>
         <label class="ovl-row" title="선택한 행이 물려 있는 배관 전체">
           <input type="checkbox" class="ovl-tr" value="pipe" checked>
@@ -284,6 +292,7 @@
           <span class="ovl-label">끊긴 지점</span>
         </label>
         <div class="ovl-foot muted">실선 계장 · 파선 밸브 · 모서리 ● 검토 필요</div>
+        </div>
       </div>
     </section>
 
@@ -325,6 +334,10 @@
       </div>
       <!-- 삭제 후보.  자동 확정하지 않으므로 확인 버튼과 근거가 같이 있다. -->
       <div id="del-cands" class="del-cands hidden"></div>
+      <!-- hotfix26 — 목록 ↔ 근거 패널 경계 손잡이.  패널이 232px 고정이라 25항목 중
+           다섯 줄만 보였다 (1366×768 실측: 보이는 232 · 내용 1366).  위로 끌면 패널이
+           커지고 두 번 누르면 원래대로 (hotfix17 손잡이와 같은 규칙 · pid.split.ev). -->
+      <div id="gutter-r" class="gutter gutter-h" title="끌어서 근거 패널 높이 조절 · 두 번 누르면 원래대로"></div>
       <div id="evidence" class="evidence">
         <p class="muted">행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 또는 <b>Ctrl</b> 을 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>
       </div>
