@@ -378,7 +378,12 @@ input[type=search] { flex: 1; }
 /* The viewer is focusable so it can own Ctrl +/-/0 (app.js).  The focus ring is
    drawn inside, so it says "the keys go here" without moving the sheet. */
 #stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-#wrap { position: relative; transform-origin: 0 0; }
+/* hotfix16 — 도면을 흐름 밖에 둔다.  확대는 `transform: scale` 이고 transform 은
+   레이아웃 크기를 바꾸지 않아, 흐름 안에 있으면 **원래 그림 크기**(DXF 3364×2376px)가
+   늘 스크롤 범위였다 — 맞춤(×0.25)으로 833×588 이 보이는데 네 배 넓은 빈 공간을
+   스크롤했다 (현장 보고: 스크롤바가 도면에 비해 너무 크다).  흐름 밖의 transform 된
+   상자는 **보이는 크기만큼만** 스크롤 범위에 들어간다 (실측 849×728 · 확대하면 그만큼). */
+#wrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #sheet { display: block; background: #fff; }
 /* 56회차 hotfix12 — 도면은 글자·그림으로 **선택되지 않는다**.  Shift + 누르기의
    브라우저 기본 동작(선택 넓히기)이 그림 전체를 파랗게 칠해 검출 상자를 가렸다.

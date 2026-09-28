@@ -51,3 +51,8 @@ def test_ctrl_and_cmd_add_like_shift():
     # Firefox Ctrl + 누르기가 표 칸을 고르지 않게
     guard = JS.split("function _noNativeShiftSelect", 1)[1].split("\n}\n", 1)[0]
     assert "isAddClick(ev)" in guard
+
+
+def test_scroll_extent_follows_the_drawing_not_its_natural_size():
+    """hotfix16 — 확대는 transform 이라 흐름 안에 두면 원래 그림 크기가 스크롤 범위다."""
+    assert "#wrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; }" in CSS
