@@ -47,6 +47,7 @@ import pymupdf             # noqa: E402
 import pidcache            # noqa: E402
 import projectconfig       # noqa: E402
 import typical             # noqa: E402  — 38회차 Typical 참조
+import diaphragm_seal      # noqa: E402  — hotfix22 격막 씰 Remark
 import legend_rules        # noqa: E402
 import extract_titleblocks as tb   # noqa: E402
 import detect_symbols as ds        # noqa: E402
@@ -1577,6 +1578,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     # 38회차 — Typical 참조: 상세 상자 안 행에 참조 표식 수를 곱한다 (곱하는 곳은 하나).
     typical_stats = _apply_typical(rows, typical_by_page)
+    # hotfix22 — 압력 계기 임펄스 라인의 격막 씰 → Remark (범례가 모양을 정한다).
+    seal_stats = _attach_diaphragm_seals(rows, pages, tb_rows)
 
     alarms = _glyph_alarms(glyphs)
     # Findings that belong to the document rather than to any one row.  They are
@@ -1697,6 +1700,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 결과는 지문에 들어가고, 이 사실 자체는 지문 밖이다.
         "typical": {str(k): v.as_dict() for k, v in typical_by_page.items() if v.marks},
         "typical_stats": typical_stats,
+        "diaphragm_seal": seal_stats,
         "unit_notes": {str(k): {"units": v[1], "text": v[2],
                                 "counted": bool(v[0]),
                                 "units_count": v[0] or 0}
@@ -3203,6 +3207,60 @@ def _typical_point_rows(pc, meta, t, mult, note=None, user_mult=None, user_mult_
                           "qty_basis": (f"1 point x {factor} (Typical '{det.id}' 부품 점)"
                                         if not undefined else f"unit code {unit} undefined")}))
     return out
+
+
+SEAL_REMARK_DEFAULT = "Diaphragm Seal"
+
+
+def _attach_diaphragm_seals(rows, pages, tb_rows) -> dict:
+    """격막 씰이 임펄스 라인에 있는 계기의 Remark 에 `Diaphragm Seal` (hotfix22).
+
+    사용자: *"PIT, PT, PG, PI Line 에 Diaphragm Seal symbol 이 있으면 Remark 에
+    'Diaphragm Seal' 을 표기해줘."*  모양은 **그 문서 범례의 `DIAPHRAGM SEAL` 항목**에서
+    읽고(`diaphragm_seal.legend_shape`), 범례가 그 항목을 인쇄하지 않으면 아무것도 하지
+    않는다 — 다른 문서의 모양을 빌리지 않는다 (§9).  대상 TYPE 은 config
+    `diaphragm_seal.types` (사용자가 적은 넷).  씰과 버블은 곧은 선 하나 또는 꺾임 하나로
+    이어져야 한다 (`diaphragm_seal.link`).  근거는 `evidence["diaphragm_seal"]` · 지문 밖.
+    """
+    conf = CFG.data.get("diaphragm_seal") or {}
+    stats = {"legend": None, "seals": 0, "linked": 0, "rows": 0, "other_types": {}}
+    if conf.get("enabled", True) is False:
+        return stats
+    caption = str(conf.get("caption") or "DIAPHRAGM SEAL")
+    types = {str(t).upper() for t in (conf.get("types") or ("PIT", "PT", "PG", "PI"))}
+    text = str(conf.get("remark") or SEAL_REMARK_DEFAULT)
+    legend_pages = [pc for pc in pages if (tb_rows.get(pc.page_no) or {}).get("page_kind") == "LEGEND"]
+    shape = diaphragm_seal.legend_shape(legend_pages or pages, caption)
+    if shape is None:
+        return stats
+    stats["legend"] = {"page_no": shape.page_no, "rect": list(shape.rect),
+                       "size": [round(shape.long, 1), round(shape.short, 1)]}
+    by_page = collections.defaultdict(dict)
+    for r in rows:
+        if r.rect and r.tab == TAB_FIELD:
+            by_page[r.page_no][r.key] = r
+    other = collections.Counter()
+    for pc in pages:
+        prow = by_page.get(pc.page_no)
+        if not prow or (tb_rows.get(pc.page_no) or {}).get("page_kind") != "PID":
+            continue
+        seals = diaphragm_seal.find(pc, shape)
+        if not seals:
+            continue
+        stats["seals"] += len(seals)
+        hits = diaphragm_seal.link(pc, seals, {k: r.rect for k, r in prow.items()})
+        stats["linked"] += sum(1 for sl in seals if sl.bubbles)
+        for key, rects in hits.items():
+            r = prow[key]
+            if str(r.type).upper() not in types:
+                other[str(r.type)] += 1
+                continue
+            r.evidence["diaphragm_seal"] = {"rects": rects, "legend_page": shape.page_no,
+                                            "remark": text}
+            r.remark = f"{text} · {r.remark}" if r.remark else text
+            stats["rows"] += 1
+    stats["other_types"] = dict(other)
+    return stats
 
 
 def _apply_typical(rows, typical_by_page: dict) -> dict:

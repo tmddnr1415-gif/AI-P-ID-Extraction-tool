@@ -804,6 +804,17 @@ unit_multiplier_fallback:
 # 가늠할 수 없으면 x1 로 q'ty 를 산출한다"*).  행은 `MULTIPLIER_DEFAULT_ONE` 로
 # 그렇게 말한다.  `qty_note: {unknown_multiplier: null}` 이면 예전처럼 빈칸 + 사유.
 
+# hotfix22 — 압력 계기 임펄스 라인의 격막 씰 → Remark `Diaphragm Seal`.
+# 모양(사각형 크기 · 안의 물결)은 **그 문서 범례의 이 캡션 항목**에서 런타임에 읽는다
+# (AL NOUF1 p2 19.8×9.9pt · TC2 p2 10.0×4.9pt).  범례에 없으면 아무것도 하지 않는다.
+# `types` 는 사용자가 적은 넷 (2026-09-28).  실측으로 PDIT · FS · FE · FIT 에도 씰이
+# 이어져 있다 (AL NOUF1 PDIT 12 · FS 3 · FE 1 · FIT 1 · TC2 PDIT 2) — 넣을지는 사용자 판단.
+diaphragm_seal:
+  enabled: true
+  caption: DIAPHRAGM SEAL
+  types: [PIT, PT, PG, PI]
+  remark: Diaphragm Seal
+
 # Scope keywords that override the unit multiplier for an individual item.
 # Verified on D00P-10PGB10-M05-0004, where 'AUXILIARY BOILER COOLER' carries
 # '(PLANT COMMON)' directly beneath it and its 3 Excel rows are Q'ty 1 on a

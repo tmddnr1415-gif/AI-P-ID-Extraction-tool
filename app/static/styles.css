@@ -634,7 +634,10 @@ td[contenteditable]:focus { background: rgba(26, 95, 180, .10);
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   padding: 12px; box-shadow: none;
 }
-.scope-body { max-height: 72vh; overflow: auto; }
+.scope-body { max-height: 72vh; overflow: auto; max-width: calc(100vw - 16px); }
+/* hotfix22 — 열 때 화면 안쪽으로 붙인다 (`placeScope`).  `right:0` 하나로 두면
+   왼쪽 끝 버튼(출력 범위)의 380px 판이 화면 왼쪽 밖으로 잘렸다. */
+.scope-body.to-left { right: auto; left: 0; }
 .scope-body label { padding: 5px 0; gap: 8px; }
 .scope-body .n { margin-left: auto; color: var(--muted);
   font-variant-numeric: tabular-nums; }

@@ -302,6 +302,11 @@ def _remark(row: dict, values: dict):
         lead.append("사용자 표시: 오검출 의심"
                     + (f" ({rj.get('note')})" if rj.get("note") else "")
                     + (f" · {who}" if who else ""))
+    # hotfix22 — 격막 씰은 사유가 아니라 **사실**이다.  검토 사유가 있든 없든 앞머리에
+    # 적는다.  엔진 Remark 에 이미 적혀 사람 칸으로 흘러오면 두 번 쓰지 않는다.
+    seal = (ev.get("diaphragm_seal") or {}).get("remark") if isinstance(ev.get("diaphragm_seal"), dict) else None
+    if seal and seal not in str(values.get("remark") or "") or (seal and codes):
+        lead.append(seal)
     codes = [c for c in codes if not str(c).startswith("MANUAL_")]
     # A folded signal stack is not a flag - nobody has to decide anything - but
     # the row now stands for bubbles the reader can count on the drawing and will

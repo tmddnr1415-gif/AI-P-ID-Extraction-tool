@@ -5665,3 +5665,26 @@ function _dragGutter(g, axis, onMove) {
     });
   }
 })();
+
+// hotfix22 — 머리줄의 펼침 판(출력 범위 · 적용 규칙 · 템플릿)은 **열 때 화면 안쪽으로**
+// 붙인다.  CSS 는 `right:0` 로 오른쪽 끝을 버튼에 맞추는데, 버튼이 화면 왼쪽에 있으면
+// 380px 판이 왼쪽 밖으로 나가 잘렸다 (사용자 캡처: 출력 범위).  오른쪽으로 펼쳐도 넘치면
+// 왼쪽 정렬을 그대로 두고, 둘 다 넘치면 더 많이 보이는 쪽을 고른다.
+function placeScope(det) {
+  const body = det.querySelector(":scope > .scope-body");
+  if (!body || !det.open) return;
+  body.classList.remove("to-left");
+  const r = body.getBoundingClientRect();
+  if (r.left >= 8) return;
+  body.classList.add("to-left");
+  const r2 = body.getBoundingClientRect();
+  if (r2.right > window.innerWidth - 8 && (window.innerWidth - r2.left) < r.right) {
+    body.classList.remove("to-left");
+  }
+}
+document.querySelectorAll("details.scope").forEach((det) => {
+  det.addEventListener("toggle", () => placeScope(det));
+});
+window.addEventListener("resize", () => {
+  document.querySelectorAll("details.scope[open]").forEach(placeScope);
+});
