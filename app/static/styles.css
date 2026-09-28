@@ -1084,7 +1084,14 @@ rect.det.manual { stroke-dasharray: 1.5 2.5; }
 rect.det.rejected { opacity: .55; }
 circle.manbadge { fill: #34c759; stroke: #fffdf6; stroke-width: 1.2;
   vector-effect: non-scaling-stroke; cursor: pointer; }
-circle.rejbadge { fill: #8e8e93; stroke: #fffdf6; stroke-width: 1.2;
+/* hotfix14 — 지운 행: 붉은 파선 테두리 + 대각선 두 줄 (행을 눌러 되돌릴 수 있게
+   선은 클릭을 가로채지 않는다). */
+rect.delring { fill: none; stroke: #d70015; stroke-width: 2; stroke-dasharray: 4 2;
+  vector-effect: non-scaling-stroke; pointer-events: none; }
+line.delstrike { stroke: #d70015; stroke-width: 2; vector-effect: non-scaling-stroke;
+  pointer-events: none; }
+button.danger, .mini-rep.danger { color: #d70015; border-color: #d70015; }
+circle.rejbadge { fill: #d70015; stroke: #fffdf6; stroke-width: 1.2;
   vector-effect: non-scaling-stroke; cursor: pointer; }
 /* 대화상자 폼 */
 .mk-form { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }

@@ -2930,6 +2930,44 @@ function clearMulti() {
   if (row) showEvidence(row); else deselect();
 }
 
+/* hotfix14 — **잘못 추출된 행을 지운다** (요구: *"잘못 추출된 것은 삭제 가능하도록 ·
+ * 오른쪽에서 삭제하면 왼쪽 P&ID 에서 붉은 선으로 삭제되었음을 식별"*).
+ * 행은 지워지지 않고 `removed` 표시만 남는다 (44회차 — 다음 분석이 그 자리를 다시
+ * 찾아도 사람의 판단이 살아 있어야 한다).  Excel 에서는 빠지고 되돌릴 수 있다.
+ * 부르는 곳은 셋(목록 위 단추 · 근거 패널 · 묶음 패널)이고 하는 일은 여기 하나다. */
+async function deleteRows(keys) {
+  keys = keys.filter(k => S.rowByKey[k] && !S.rowByKey[k].removed);
+  if (!keys.length) { alert("지울 행이 없습니다 (이미 지운 행은 되돌리기로 살립니다)."); return; }
+  const reason = window.prompt(`${keys.length}개 행을 오검출로 지웁니다 — 사유 (선택 · 비워도 됩니다)`, "");
+  if (reason === null) return;
+  const author = await askAuthor(`${keys.length}개 행 삭제`);
+  if (author === null) return;
+  let done = 0;
+  for (const key of keys) {
+    const q = new URLSearchParams({ reason: reason.trim(), reason_class: "FALSE_POSITIVE",
+                                    author, exclude: "true" });
+    const r = await fetch(`/jobs/${S.job.id}/rows/${key}?${q}`, { method: "DELETE" });
+    if (!r.ok) { alert("삭제 실패"); break; }
+    const out = await r.json();
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    done += 1;
+  }
+  S.multi.clear();
+  await refreshRows(keys.length === 1 ? keys[0] : null);
+  // 고른 행이 없으면 `refreshRows` 는 목록만 다시 읽는다 — 붉은 표시가 다음 동작
+  // 뒤에야 서던 것을 그 자리에서 그린다 (자기검증이 잡았다).
+  if (keys.length === 1) drawOverlay(); else deselect();   // 묶음 패널은 이제 빈 묶음을 말한다
+  markMultiRows();
+  editNotice(`${done}개 행을 지웠습니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (되돌릴 수 있습니다)`, "out");
+}
+
+async function restoreRow(key) {
+  await fetch(`/jobs/${S.job.id}/rows/${key}/restore`, { method: "POST" });
+  await refreshRows(key);
+  drawOverlay();
+  editNotice("되돌렸습니다 — 다시 결과와 Excel 에 들어갑니다", "in");
+}
+
 function showMultiScope() {
   const rows = multiRows();
   const by = {};
@@ -2953,7 +2991,8 @@ function showMultiScope() {
         <input id="mc-other" class="hidden" placeholder="VENDOR 이름">
       </div>
       <p class="muted small">VENDOR 는 이름을 고른 뒤 적용됩니다 · 이 도면에서 읽은 ${names.length}종</p>
-      <div class="ract"><button class="ract-b" id="mc-clear">선택 해제</button></div>
+      <div class="ract"><button class="ract-b" id="mc-clear">선택 해제</button>
+        <button class="ract-b danger" id="mc-delete" title="고른 행을 오검출로 지웁니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다">선택 ${rows.length}개 삭제</button></div>
       </div>`;
   const wrap = document.querySelector("#evidence .scopemulti");
   const sel = wrap.querySelector("#mc-name");
@@ -2970,6 +3009,7 @@ function showMultiScope() {
     else other.classList.add("hidden");
   };
   document.querySelector("#mc-clear").onclick = clearMulti;
+  document.querySelector("#mc-delete").onclick = () => deleteRows(rows.map(r => r.key));
 }
 
 async function applyScopeToMulti(value) {
@@ -3239,6 +3279,9 @@ function showEvidence(row) {
     + `<h3>판정 근거 — ${escape(row.values.type || row.values.valve_type || "")} `
     + `(p${row.page_no})</h3>`
     + `<button id="ev-report" class="mini-rep" title="이 판정이 틀렸다고 신고합니다">신고</button>`
+    + (row.removed
+       ? `<button id="ev-restore" class="mini-rep" title="지운 행을 되살립니다">되돌리기</button>`
+       : `<button id="ev-delete" class="mini-rep danger" title="잘못 추출된 행 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다">삭제</button>`)
     + (row.added && row.rect && row.rect.length === 4
        ? `<button id="ev-elsewhere" class="mini-rep" title="같은 마크업을 다른 장에도 — 장마다 다시 읽어 제안하고 고른 장에만 넣습니다">다른 장에도…</button>`
        : "")
@@ -3259,6 +3302,10 @@ function showEvidence(row) {
   if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
   const ewb = $("#ev-elsewhere");
   if (ewb) ewb.onclick = () => markupElsewhere(row);
+  const edb = $("#ev-delete");
+  if (edb) edb.onclick = () => deleteRows([row.key]);
+  const erb = $("#ev-restore");
+  if (erb) erb.onclick = () => restoreRow(row.key);
 }
 
 /* 누가 · 언제 · 무엇에서 무엇으로 (13회차 [D]).
@@ -3839,8 +3886,8 @@ const REVIEW_MARK = ["REVIEW", "검토 필요 (그중)", "#ff453a",
  * 세 색 칸이 넷이 되고, 합은 그대로 상자 수다 (33회차 등식 유지). */
 const MANUAL_MARK = ["MANUAL", "사용자 추가", "#34c759",
                      "사람이 도면에서 추가한 행 — 녹색 선과 왼쪽 위 ✚"];
-const REJECT_MARK = ["REJECT", "오검출 표시 (그중)", "#8e8e93",
-                     "사람이 오검출로 표시한 행 — 오른쪽 아래 ✕. 행은 남고 Excel 제외는 선택"];
+const REJECT_MARK = ["REJECT", "삭제·오검출 (그중)", "#d70015",
+                     "사람이 지운(오검출) 행 — 붉은 파선 테두리와 대각선 ✕. 행은 남고 되돌릴 수 있으며 Excel 에서 빠집니다"];
 /* 9차 피드백 [B] — Typical 표식(`D` · `D1` …)과 상세 상자.  **행이 아니다** —
  * 그 자리에 품목이 있는 것이 아니라 "이 자리는 저 상세와 같다" 는 도면의 말이고,
  * 수량은 그 상세 안의 행이 받는다 (38회차 [D]).  그래서 SCOPE 색 칸에 섞지 않고
@@ -4149,6 +4196,23 @@ function drawOverlay() {
             `사용자 추가 — ${mk.author || "이름 없음"}`);
     }
     if (it.rejected && !S.ovOff.has(REJECT_MARK[0])) {
+      // hotfix14 — **지운 자리는 붉은 선으로 말한다.**  흐리게만 하면(44회차) 도면
+      // 색 위에서 "지웠다" 가 안 읽혔다.  붉은 파선 테두리 + 대각선 두 줄.  칸은
+      // 여전히 SCOPE 색이 센다 (33회차 등식) — 이 표시는 범례의 "(그중)" 칸이다.
+      const sx0 = x0 * scale, sy0 = y0 * scale, sx1 = x1 * scale, sy1 = y1 * scale;
+      const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      ring.setAttribute("x", sx0 - 2); ring.setAttribute("y", sy0 - 2);
+      ring.setAttribute("width", Math.max(2, sx1 - sx0) + 4);
+      ring.setAttribute("height", Math.max(2, sy1 - sy0) + 4);
+      ring.setAttribute("class", "delring");
+      ov.appendChild(ring);
+      for (const [ax, ay, bx, by] of [[sx0, sy0, sx1, sy1], [sx0, sy1, sx1, sy0]]) {
+        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        ln.setAttribute("x1", ax); ln.setAttribute("y1", ay);
+        ln.setAttribute("x2", bx); ln.setAttribute("y2", by);
+        ln.setAttribute("class", "delstrike");
+        ov.appendChild(ln);
+      }
       const rj = (S.rowByKey[it.key] || {}).reject || {};
       badge(x1 * scale, y1 * scale, "rejbadge", "×",
             `오검출 표시 — ${rj.class || "삭제"}${rj.note ? " · " + rj.note : ""}`);
@@ -4455,6 +4519,11 @@ async function markupDialog(rect) {
          ${_sourceLine(prop.scope_source, scopeEv.text, "SCOPE")}</label>
        <label>Q'ty <input id="mk-qty" type="number" min="0" step="1" value="${prop.qty ?? ""}">
          ${_sourceLine(prop.qty_source, prop.qty_basis, "수량")}</label>
+       <label>SYSTEM <input id="mk-system" type="text" value="${escape(prop.system || "")}" placeholder="그 장의 도면 제목">
+         ${_sourceLine(prop.system_source, prop.system_basis, "SYSTEM")}</label>
+       <label>TAG No. <input id="mk-tag" type="text" value="${escape(prop.tag_no || "")}" placeholder="예: 00EGD21CP501"
+         list="mk-tag-cands"><datalist id="mk-tag-cands">${(prop.tag_candidates || []).map(t => `<option value="${escape(t)}">`).join("")}</datalist>
+         ${_sourceLine(prop.tag_source, prop.tag_basis, "TAG")}</label>
        <label>Description <input id="mk-desc" type="text" placeholder="(선택)"></label>
        <label>사유 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
        <label>메모 <input id="mk-note" type="text" placeholder="(선택) 한 줄"></label>
@@ -4477,6 +4546,11 @@ async function markupDialog(rect) {
     if (qtyRaw !== "") values.qty = Number(qtyRaw);
     const desc = $("#mk-desc").value.trim();
     if (desc) { values.description = desc; values.description_grade = "USER_ENTERED"; }
+    // hotfix14 — SYSTEM 은 그 장의 값, TAG 는 사각형 안 코드 (제안값 · 사람이 고칠 수 있다)
+    const system = $("#mk-system").value.trim();
+    if (system) values.system = system;
+    const tagNo = $("#mk-tag").value.trim();
+    if (tagNo) values.tag_no = tagNo;
     const author = $("#mk-author").value.trim();
     rememberAuthor(author);
     // 출처: 제안값을 그대로 두었으면 도면, 바꿨거나 빈칸을 채웠으면 사람.
@@ -4489,7 +4563,10 @@ async function markupDialog(rect) {
       proposal: { type: prop.type || "", anchor: prop.anchor || "", scope: scopeVal,
                   scope_source: prop.scope_source || "", scope_evidence: scopeEv,
                   qty: prop.qty ?? null, qty_source: prop.qty_source || "",
-                  qty_basis: prop.qty_basis || "", words: words.slice(0, 20) },
+                  qty_basis: prop.qty_basis || "", words: words.slice(0, 20),
+                  system: prop.system || "", system_source: prop.system_source || "",
+                  tag_no: prop.tag_no || "", tag_source: prop.tag_source || "",
+                  tag_candidates: prop.tag_candidates || [] },
     };
     const r = await fetch(`/jobs/${S.job.id}/rows`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -4609,11 +4686,16 @@ async function markupElsewhere(row) {
           body: JSON.stringify({ page_no: pno, rect: row.rect }) });
         if (r.ok) prop = await r.json();
       } catch (e) { prop = {}; }
-      const values = { ...Object.fromEntries(Object.entries(row.values).filter(([k, v]) => v !== null && v !== "" && k !== "scope" && k !== "qty")) };
+      // SYSTEM · TAG 는 **그 장의** 것이다 — 원래 행의 값을 복사하면 다른 장에 남의
+      // 도면 제목과 남의 태그가 붙는다 (hotfix14).
+      const values = { ...Object.fromEntries(Object.entries(row.values).filter(([k, v]) =>
+        v !== null && v !== "" && !["scope", "qty", "system", "tag_no"].includes(k))) };
       const scope = prop.scope_source === "DRAWING" && prop.scope ? prop.scope : (row.values.scope || "");
       const qty = prop.qty_source === "DRAWING" && prop.qty != null ? prop.qty : row.values.qty;
       if (scope) values.scope = scope;
       if (qty !== null && qty !== undefined && qty !== "") values.qty = qty;
+      if (prop.system) values.system = prop.system;
+      if (prop.tag_source === "DRAWING" && prop.tag_no) values.tag_no = prop.tag_no;
       const r2 = await fetch(`/jobs/${S.job.id}/rows`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ page_no: pno, tab: row.tab, drawing_no: pg.drawing_no || "",
@@ -5018,21 +5100,10 @@ $req("#row-copy").addEventListener("click", async () => {
 });
 
 $req("#row-delete").addEventListener("click", async () => {
-  if (!S.sel) { alert("삭제할 행을 먼저 선택하세요."); return; }
-  const key = S.sel;
-  // Optional, and optional on purpose: a reason left blank still records the
-  // rule and the measurements that produced the row.
-  const reason = window.prompt("삭제 사유 (선택 — 비워도 됩니다)", "") || "";
-  const r = await fetch(
-    `/jobs/${S.job.id}/rows/${key}?reason=${encodeURIComponent(reason)}`,
-    { method: "DELETE" });
-  if (!r.ok) { alert("삭제 실패"); return; }
-  const out = await r.json();
-  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
-  // A detection is struck out, not dropped: the next analysis would find it
-  // again, and the reviewer's decision has to outlive that.
-  S.sel = out.dropped ? null : key;
-  await refreshRows(S.sel);
+  // hotfix14 — 묶음이 있으면 묶음을, 없으면 고른 행을 지운다.  하는 일은 `deleteRows` 하나.
+  const keys = S.multi.size ? [...S.multi] : (S.sel ? [S.sel] : []);
+  if (!keys.length) { alert("삭제할 행을 먼저 선택하세요."); return; }
+  await deleteRows(keys);
 });
 
 $req("#reanalyse").addEventListener("click", async () => {

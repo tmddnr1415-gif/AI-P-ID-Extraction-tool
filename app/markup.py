@@ -106,16 +106,105 @@ def _qty_from_page(con, job_id: str, page_no: int) -> dict:
             "qty_basis": f"같은 장의 수량이 갈립니다 ({detail}) — 어느 쪽인지 도면이 말하지 않아 직접 적는다"}
 
 
+def _system_from_page(con, job_id: str, page_no: int) -> dict:
+    """그 장의 SYSTEM — **같은 장 추출 행이 받은 값을 그대로 옮긴다** (hotfix14 ·
+    요구: *"마크업으로 추가된 item 의 SYSTEM 은 해당 PAGE 의 값을 그대로"*).
+    엔진은 SYSTEM 을 그 장 타이틀블록의 도면 제목에서 읽으므로(`meta["drawing_title"]`)
+    같은 장 행은 같은 값을 갖는다.  행이 없으면 저장된 그 장의 제목, 그것도 없으면
+    빈칸 — 지어내지 않는다.  갈리면 고르지 않는다."""
+    rows = [r for r in db.merged_rows(con, job_id)
+            if r["page_no"] == page_no and not r["added"] and not r["removed"]
+            and not r["deleted"]]
+    vals = collections.Counter(str((r.get("ai") or {}).get("system") or "").strip()
+                               for r in rows)
+    vals.pop("", None)
+    if len(vals) == 1:
+        v = next(iter(vals))
+        return {"system": v, "system_source": SOURCE_DRAWING,
+                "system_basis": f"같은 장 {vals[v]}행이 받은 값 (그 장 타이틀블록의 도면 제목)"}
+    if len(vals) > 1:
+        return {"system": "", "system_source": SOURCE_USER,
+                "system_basis": "같은 장 행의 SYSTEM 이 갈립니다 — 직접 적는다"}
+    page = con.execute("SELECT title FROM pid_page WHERE job_id=? AND page_no=?",
+                       (job_id, page_no)).fetchone()
+    title = (page["title"] or "").strip() if page else ""
+    if title:
+        return {"system": title, "system_source": SOURCE_DRAWING,
+                "system_basis": "그 장 타이틀블록의 도면 제목"}
+    return {"system": "", "system_source": SOURCE_USER,
+            "system_basis": "그 장에서 도면 제목을 읽지 못함 — 직접 적는다"}
+
+
+def _tag_from_words(con, job_id: str, words: list) -> dict:
+    """사각형 안 낱말 중 **그 문서의 태그 체계와 모양이 같은 코드** 하나.
+
+    태그 모양은 코드에 적지 않는다 — 이 분석이 이미 붙인 태그(`tag_no`)들의
+    모양(`tags.shape`, 29회차 · 글자·숫자 달리기)을 그 문서가 쓰는 체계로 본다.
+    그 체계가 없는 문서(태그를 인쇄하지 않는 도면)에서는 채우지 않는다.  둘 이상이면
+    고르지 않고 후보만 낸다 (§9 ④)."""
+    from app.engine import tags as tagsys
+    shapes = collections.Counter()
+    for r in db.merged_rows(con, job_id):
+        t = str((r.get("ai") or {}).get("tag_no") or "").strip()
+        if t and tagsys._is_code(t):
+            shapes[tagsys.shape(t)] += 1
+    if not shapes:
+        return {"tag_no": "", "tag_source": SOURCE_USER, "tag_candidates": [],
+                "tag_basis": "이 문서에서 읽은 태그 체계가 없음 (태그를 인쇄하지 않는 도면)"}
+    seen = []
+    for w in words:
+        for t in str(w.get("text") or "").split():
+            t = t.strip(" ,;:()").upper()
+            if t and tagsys._is_code(t) and tagsys.shape(t) in shapes and t not in seen:
+                seen.append(t)
+    if len(seen) == 1:
+        return {"tag_no": seen[0], "tag_source": SOURCE_DRAWING, "tag_candidates": seen,
+                "tag_basis": f"사각형 안 코드 {seen[0]} — 이 문서 태그 체계와 같은 모양"}
+    return {"tag_no": "", "tag_source": SOURCE_USER, "tag_candidates": seen,
+            "tag_basis": ("사각형 안 태그 후보가 여럿 — 하나를 고르세요" if seen
+                          else "사각형 안에 이 문서 태그 모양의 코드가 없음")}
+
+
+_DXF_WORDS: dict = {}
+
+
+def _dxf_words(path: Path, page_no: int) -> list:
+    """DXF 한 장의 낱말 (표시 좌표).  마지막 한 장만 들고 있는다."""
+    key = (str(path), page_no)
+    if _DXF_WORDS.get("key") != key:
+        from app.engine import dxf_reader
+        sheets, _meta = dxf_reader.open_set(path, only=page_no)
+        sh = next((x for x in sheets if x.no == page_no), None)
+        ws = [] if (sh is None or sh.error) else [
+            {"text": w.text, "rect": [round(v, 1) for v in w.rect]} for w in dxf_reader.words(sh)]
+        _DXF_WORDS.clear()
+        _DXF_WORDS.update({"key": key, "words": ws})
+    return _DXF_WORDS["words"]
+
+
+def _in_rect(w: dict, rect) -> bool:
+    x0, y0, x1, y1 = w["rect"]
+    return not (x1 < rect[0] or x0 > rect[2] or y1 < rect[1] or y0 > rect[3])
+
+
 def propose(con, job, page_no: int, rect) -> dict:
     """마크업 사각형 하나에 대한 제안값.  **아무것도 쓰지 않는다.**"""
     # 55회차 — DXF 입력은 이 회차에 제안을 만들지 않는다 (도면을 다시 읽는 함수가
     # PDF 전용이다).  사람이 적는다 — 출처는 USER 로 남는다.
     from app.engine import dxf_reader
     if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
-        return {"scope": "", "scope_source": "USER", "qty": None, "qty_source": "USER",
-                "words": [], "stars": [], "notes": [], "type": "", "anchor": "",
-                "candidates": [], "input_kind": "DXF",
-                "note": "DXF 입력 — 사각형 자리의 별표·낱말 제안은 다음 회차 (사람이 적습니다)"}
+        # hotfix14 — DXF 도 사각형 안 낱말을 읽는다 (TYPE · TAG) · SYSTEM · 수량은 그 장의
+        # 행이 받은 값.  별표(SCOPE) 제안은 아직 없다 — 사람이 적는다.
+        rect = [float(v) for v in rect]
+        words = [w for w in _dxf_words(Path(job["pdf_path"]), page_no) if _in_rect(w, rect)]
+        out = {"page_no": page_no, "rect": rect, "scope": "", "scope_source": "USER",
+               "words": words, "stars": [], "notes": [], "input_kind": "DXF",
+               "note": "DXF 입력 — 별표(SCOPE) 제안은 아직 없습니다 (사람이 적습니다)"}
+        out.update(_type_from_words(words))
+        out.update(_qty_from_page(con, job["id"], page_no))
+        out.update(_system_from_page(con, job["id"], page_no))
+        out.update(_tag_from_words(con, job["id"], words))
+        return out
     from app import pipeline
     page = con.execute(
         "SELECT drawing_no, width, height FROM pid_page WHERE job_id=? AND page_no=?",
@@ -132,6 +221,8 @@ def propose(con, job, page_no: int, rect) -> dict:
     out.update({k: read.get(k) for k in ("scope", "scope_source", "scope_evidence",
                                          "words", "stars", "notes")})
     out.update(_qty_from_page(con, job["id"], page_no))
+    out.update(_system_from_page(con, job["id"], page_no))
+    out.update(_tag_from_words(con, job["id"], read.get("words") or []))
     return out
 
 

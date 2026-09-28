@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import collections
+import math
 import re
 import time
 import types
@@ -440,6 +441,17 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
                 if any(abs(r - bubble_r) <= 0.25 * bubble_r for r in (g.get("radii") or [])):
                     outside[name] = g
     inst_outside = set(outside)
+    # hotfix14 — **TYPE 역할 속성을 가진 블록은 그 자체로 계기 버블이다.**  문서가
+    # 스스로 선언한 것이다 (그 블록 정의가 TYPE · 태그 속성 쌍을 갖는다 — 범례 p4
+    # 구조).  값이 비어 있고 글자가 블록 밖 낱말로 따로 적힌 인스턴스도 있어
+    # (UAD DXF p21 `MOV 00GHC02AA201`), 속성 경로도 범례 블록 경로도 못 잡았다.
+    type_named = set(roles["type"])
+    if type_named:
+        for sh in ok:
+            for s_ in R.symbols(sh):
+                if (not s_.anonymous and s_.block not in inst_blocks
+                        and any(t in type_named for t in s_.attrs)):
+                    inst_outside.add(s_.block)
     valve_blocks = {n: b for n, b in blocks.items() if b["kind"] == "valve"}
     act_blocks = {n: b for n, b in blocks.items() if b["kind"] == "actuator"}
     # 범례 계기 원의 크기 — 기하 폴백의 자 (범례가 그린 값 · 코드에 숫자 없음)
@@ -695,6 +707,20 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             continue
         n_attr += 1
         tagv = next((v for t, v in s.attrs.items() if t in tag_attr and v and v != "-"), "")
+        # hotfix14 — **칸 이름이 아니라 값으로 읽는다.**  작도자가 두 속성에 값을
+        # 거꾸로 넣은 인스턴스가 있다 (UAD DXF p12: TYPE 칸에 `00EGD21CP501`,
+        # 태그 칸에 `PI` — 화면에는 글자 위치대로 제대로 보인다).  칸 이름으로만
+        # 읽으면 "TYPE 이 ISA 표로 안 풀린다" 며 버린다.  그 도면의 ISA 표가 TYPE
+        # 칸 값을 못 풀고, 그 값이 코드 모양이며, 태그 칸 값을 ISA 표나 밸브·앵커
+        # 사전이 풀면 둘을 바꿔 읽는다 — 도면이 적은 두 글자를 그대로 쓴다.
+        swapped = False
+        if (tagv and _isa_type(tv, isa) is None and tagsys._is_code(tv)
+                and tv.split()[0].upper() not in rules.valves
+                and tv.split()[0].upper() not in rules.anchors
+                and (_isa_type(tagv, isa) is not None
+                     or tagv.split()[0].upper() in rules.valves
+                     or tagv.split()[0].upper() in rules.anchors)):
+            tv, tagv, swapped = tagv, tv, True
         core = _isa_type(tv, isa)
         core_from = "ISA_TABLE" if core else ""
         anchor = tv.split()[0].upper()
@@ -731,8 +757,10 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         type_ = rules.type_of(core)
         ev = {"anchor": tv, "tier": 1, "source": "DXF_ATTRIB", "block": s.block,
               "attrs": {k: v for k, v in s.attrs.items() if v},
-              "rules_hit": ["DXF_BLOCK_ATTRIB"] + (["ANCHOR_FROM_DICT"] if core_from == "ANCHOR_DICT" else []),
-              "isa": core, "type_source": core_from, "layer": s.layer}
+              "rules_hit": ["DXF_BLOCK_ATTRIB"] + (["ANCHOR_FROM_DICT"] if core_from == "ANCHOR_DICT" else [])
+                           + (["DXF_ATTRIB_ROLES_BY_VALUE"] if swapped else []),
+              "isa": core, "type_source": core_from, "layer": s.layer,
+              "attrs_swapped": swapped}
         make_row(P.TAB_FIELD, s.rect, type_, [], ev, tag_no=tagv)
 
     # ── 계기 (2급 · 범례 블록 + 안의 글자) ─────────────────────────────
@@ -743,6 +771,11 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             continue
         inside = [w for w in ws if _inside(_center(w.rect), s.rect, pad=0.5)]
         tv = next((w for w in inside if _isa_type(w.text, isa)), None)
+        if tv is None:
+            # 밸브 태그(`MOV`·`PSV` …)는 ISA 표가 아니라 밸브 사전이 안다 — 1급
+            # 속성 경로와 같은 순서로 묻는다.
+            tv = next((w for w in inside if w.text.strip()
+                       and w.text.split()[0].upper() in rules.valves), None)
         if tv is None:
             unjudged.append({"kind": "INSTRUMENT_BLOCK", "page_no": sh.no, "label": s.block, "block": s.block,
                              "rect": list(s.rect), "center": list(_center(s.rect)),
@@ -809,7 +842,18 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         for a, b, _layer in lines_:
             ina, inb = _inside(a, s.rect, pad=h_ * 0.3), _inside(b, s.rect, pad=h_ * 0.3)
             if ina != inb:
-                ends.append(b if ina else a)
+                ends.append((math.dist(a, b), b if ina else a))
+        # hotfix14 — **짧은 선부터 본다 · 다른 심볼에 닿으면 거기서 멈춘다.**
+        # 버블 모서리를 스치는 계장 신호선도 "테두리를 넘는 선" 이고, 그 먼 끝이
+        # 다른 밸브 옆에 닿으면 태그가 남의 밸브로 갔다 (UAD DXF p11: PSV
+        # `00EGD52AA191` 의 신호선 끝이 위쪽 게이트 밸브에 닿아 GATE 행이 됐고,
+        # 진짜 지시선 6.6 은 안전밸브 심볼로 가고 있었다).  지시선은 버블에서
+        # 그 심볼까지의 **한 걸음**이라 가장 짧고, 그 끝에 있는 것이 태그가
+        # 이름 붙인 것이다 — 그것이 몸체 어휘에 없는 심볼이면 몸체를 **주지 않는다**
+        # (53회차 [B-3] 버블 자리 행).  새 상수 없음: 넉넉함은 그 심볼 자신의 짧은 변.
+        ends.sort(key=lambda t: t[0])
+        ends = [pt for _len, pt in ends]
+        stop = False
         for pt in ends:
             for key, (b, bk, act, aev) in body_rows.items():
                 if key in claimed:
@@ -826,6 +870,16 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
                         if cand:
                             hit = cand[0]; break
             if hit is not None:
+                break
+            # 몸체도 액추에이터도 아닌 **다른 심볼**에 닿았다 — 태그가 가리키는 것은
+            # 그 심볼이다.  더 긴 선(신호선)으로 넘어가 남의 밸브를 집지 않는다.
+            for o in syms:
+                if o is s or o.anonymous:
+                    continue
+                opad = min(o.rect[2] - o.rect[0], o.rect[3] - o.rect[1])
+                if _inside(pt, o.rect, pad=opad):
+                    stop = True; break
+            if stop:
                 break
         if hit is None:
             # 53회차 [B-3] — 몸체를 못 읽은 태그 버블도 행이다.  모양 칸은 비운다.

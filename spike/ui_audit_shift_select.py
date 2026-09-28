@@ -151,6 +151,65 @@ try:
                 rows[2].click(modifiers=["Control"]); pg.wait_for_timeout(500)
                 e = pg.evaluate(SEL_JS)
                 note(f"⑤ 그리드 Ctrl+클릭: 묶음 {e['multi']}개 · 선택 글자 {e['text']}")
+        # ⑥ hotfix14 — 근거 패널에서 한 행 삭제 · 묶음 두 행 삭제 · 되돌리기
+        pg.on("dialog", lambda d: d.accept("오검출 시험"))
+        pg.evaluate("() => { S.multi.clear(); drawOverlay(); markMultiRows(); }")
+        k0 = pg.evaluate("() => [...document.querySelectorAll('rect.det')].map(n => n.dataset.key)"
+                         ".filter(k => k && S.rowByKey[k] && !S.rowByKey[k].removed)")
+        if len(k0) >= 3:
+            pg.locator(f'rect.det[data-key="{k0[0]}"]').first.click(force=True)
+            pg.wait_for_selector("#ev-delete", timeout=10000)
+            pg.click("#ev-delete")
+            pg.wait_for_selector(".author-bar .ok", timeout=10000)
+            pg.click(".author-bar .ok")
+            pg.wait_for_function(f"() => S.rowByKey['{k0[0]}'] && S.rowByKey['{k0[0]}'].removed", timeout=20000)
+            pg.wait_for_timeout(800)
+            one = pg.evaluate("() => ({strike: document.querySelectorAll('#ov line.delstrike').length,"
+                              " ring: document.querySelectorAll('#ov rect.delring').length,"
+                              " restore: !!document.querySelector('#ev-restore')})")
+            note(f"⑥ 근거 패널 삭제 1행 → 붉은 대각선 {one['strike']}줄 · 붉은 테두리 {one['ring']}개 · "
+                 f"되돌리기 단추 {one['restore']}")
+            pg.screenshot(path=str(OUT / "4_delete_one.png"))
+            pg.locator(f'rect.det[data-key="{k0[1]}"]').first.click(force=True, modifiers=["Control"])
+            pg.locator(f'rect.det[data-key="{k0[2]}"]').first.click(force=True, modifiers=["Control"])
+            pg.wait_for_selector("#mc-delete", timeout=10000)
+            pg.click("#mc-delete")
+            pg.wait_for_selector(".author-bar .ok", timeout=10000)
+            pg.click(".author-bar .ok")
+            pg.wait_for_function(f"() => S.rowByKey['{k0[2]}'] && S.rowByKey['{k0[2]}'].removed", timeout=20000)
+            pg.wait_for_timeout(800)
+            two = pg.evaluate("() => ({strike: document.querySelectorAll('#ov line.delstrike').length,"
+                              " removed: S.rows.filter(r => r.removed).length})")
+            note(f"⑥ 묶음 2행 삭제 → 지운 행 {two['removed']}개 · 붉은 대각선 {two['strike']}줄")
+            el = pg.query_selector("#stage")
+            pg.screenshot(path=str(OUT / "5_delete_multi.png"))
+            pg.locator(f'rect.det[data-key="{k0[0]}"]').first.click(force=True)
+            pg.wait_for_selector("#ev-restore", timeout=10000)
+            pg.click("#ev-restore")
+            pg.wait_for_function(f"() => S.rowByKey['{k0[0]}'] && !S.rowByKey['{k0[0]}'].removed", timeout=20000)
+            pg.wait_for_timeout(600)
+            back = pg.evaluate("() => document.querySelectorAll('#ov line.delstrike').length")
+            note(f"⑥ 한 행 되돌리기 → 붉은 대각선 {back}줄")
+        # ⑦ hotfix14 — 마크업 추가 행의 SYSTEM · TAG 제안 (p12 · 경보 버블 자리 = 행이 없는 곳)
+        pg.select_option("#page-select", "12")
+        pg.wait_for_selector("rect.det", timeout=120000)
+        pg.wait_for_timeout(1500)
+        rect = [471.0, 323.0, 499.0, 335.0]
+        prop = pg.evaluate("""async (rect) => { const r = await fetch(`/jobs/${S.job.id}/markup/propose`,
+            {method: 'POST', headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({page_no: 12, rect})}); return await r.json(); }""", rect)
+        note(f"⑦ 제안 — SYSTEM {prop.get('system')!r} [{prop.get('system_source')}] · "
+             f"TAG {prop.get('tag_no')!r} [{prop.get('tag_source')}] · 사각형 안 낱말 "
+             f"{[w['text'] for w in prop.get('words', [])][:6]}")
+        pg.evaluate("(rect) => markupDialog(rect)", rect)
+        pg.wait_for_selector("#mk-save", timeout=20000)
+        pg.wait_for_timeout(500)
+        pg.screenshot(path=str(OUT / "6_markup_system_tag.png"))
+        pg.click("#mk-save")
+        pg.wait_for_timeout(2500)
+        added = pg.evaluate("""() => S.rows.filter(r => r.added && r.page_no === 12)
+            .map(r => ({system: r.values.system, tag: r.values.tag_no, type: r.values.type}))""")
+        note(f"⑦ 추가된 행 — {added}")
         note("콘솔 오류: " + (" | ".join(errs[:4]) if errs else "없음"))
         br.close()
 finally:
