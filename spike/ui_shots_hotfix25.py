@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 src = Path(sys.argv[1]); pdf = Path(sys.argv[2]); OUT = Path(sys.argv[3])
+BEFORE = sys.argv[4] if len(sys.argv) > 4 else "HEAD"     # "전" 화면 파일을 꺼낼 git ref (커밋 뒤에는 HEAD~1)
 OUT.mkdir(parents=True, exist_ok=True)
 STATIC = ["app/static/app.js", "app/static/styles.css", "app/static/index.html"]
 FROM_BOX = [90, 535, 200, 565]            # AL NOUF1 p6 `FROM HRSG#12`
@@ -84,13 +85,19 @@ def shoot(tag: str, data: Path):
             pg.evaluate("() => document.querySelectorAll('details.pjt').forEach(d => d.open = true)")
             pg.query_selector("a.revrow").click(); pg.wait_for_timeout(8000)
 
+            def centre_on(box):
+                # 화면 좌표(getBoundingClientRect · 확대 변환 뒤)에서 스크롤 좌표로 — 확대가 transform 이든
+                # width 든 같은 답.  `offsetTop`·`clientHeight` 는 변환 전 값이라 틀렸다 (drag 가 y=-101 로 갔다).
+                # 앱의 `zoomBy`·`centreOnSymbol` 과 같은 산술: 스크롤 좌표 = 자연 픽셀 × S.zoom
+                pg.evaluate("""(b) => { const st = document.querySelector('#stage');
+                    const cx = (b[0]+b[2])/2 / S.page.width * S.natural.w * S.zoom;
+                    const cy = (b[1]+b[3])/2 / S.page.height * S.natural.h * S.zoom;
+                    st.scrollTo({left: Math.max(0, cx - st.clientWidth/2), top: Math.max(0, cy - st.clientHeight/2), behavior: 'instant'}); }""", box)
+
             def pick(key, zoom_box):
                 pg.evaluate(f"() => select('{key}', true)"); pg.wait_for_timeout(2500)
-                # 절대 좌표로 놓는다 — `select` 의 부드러운 스크롤이 아직 도는 중이면 delta 는 밀린다
-                pg.evaluate("""(b) => { const st = document.querySelector('#stage'); const img = document.querySelector('#sheet');
-                    const sx = img.offsetLeft + (b[0]+b[2])/2 / S.page.width * img.clientWidth;
-                    const sy = img.offsetTop + (b[1]+b[3])/2 / S.page.height * img.clientHeight;
-                    st.scrollTo({left: sx - st.clientWidth/2, top: sy - st.clientHeight/2, behavior: 'instant'}); }""", zoom_box)
+                pg.evaluate("() => window.scrollTo(0, 0)")
+                centre_on(zoom_box)
                 pg.wait_for_timeout(800)
 
             def stage_clip():
@@ -115,24 +122,33 @@ def shoot(tag: str, data: Path):
             pg.evaluate("() => { const e = document.querySelector('#evidence'); e.style.maxHeight = 'none'; e.style.overflow = 'visible'; }")
             pg.wait_for_timeout(300)
             pg.locator("#evidence dl").first.screenshot(path=str(OUT / f"{tag}_2_seal_evidence.png"))
-            # ③ From/To — 맞춤에서 한 단계 확대, 두 범위의 가운데를 보이게
+            # ③ From/To — 맞춤에서 두 단계 확대 (한 단계면 도면이 창에 다 들어와 스크롤이 안 되고,
+            # 그으려는 자리가 왼쪽 아래 범례 판 밑에 깔린다)
             pick(ft_row["key"], ft_row["rect"])
-            pg.evaluate("() => fit()"); pg.wait_for_timeout(300)
-            pg.evaluate("() => zoomBy(1.3)"); pg.wait_for_timeout(200)
+            for _ in range(3):
+                pg.evaluate("() => zoomBy(1 / 1.3)"); pg.wait_for_timeout(200)
+            # 왼쪽 아래 범례 판이 긋는 자리를 덮을 수 있다 — 긋는 동안만 숨긴다
+            pg.evaluate("() => { const l = document.querySelector('#ovlegend'); if (l) l.style.visibility = 'hidden'; }")
             if pg.query_selector("#dm-from"):
                 def drag(box):
-                    pt = pg.evaluate("""(b) => { const img = document.querySelector('#sheet'); const r = img.getBoundingClientRect();
-                        const fx = x => r.left + x / S.page.width * r.width, fy = y => r.top + y / S.page.height * r.height;
+                    # 근거 패널의 버튼을 누르면 브라우저가 문서 자체를 아래로 스크롤해 도면 창이 위로
+                    # 밀려난다 (y=81 · -103 로 찍혔다).  문서 스크롤을 되돌리고 나서 잰다.
+                    pg.evaluate("() => window.scrollTo(0, 0)")
+                    centre_on(box)
+                    pg.wait_for_timeout(500)
+                    pt = pg.evaluate("""(b) => { const st = document.querySelector('#stage'); const sr = st.getBoundingClientRect();
+                        const fx = x => sr.left + x / S.page.width * S.natural.w * S.zoom - st.scrollLeft;
+                        const fy = y => sr.top + y / S.page.height * S.natural.h * S.zoom - st.scrollTop;
                         return [fx(b[0]), fy(b[1]), fx(b[2]), fy(b[3])]; }""", box)
-                    pg.evaluate("""(b) => { const st = document.querySelector('#stage'); const sr = st.getBoundingClientRect();
-                        st.scrollLeft += ((b[0]+b[2])/2 - (sr.left + sr.width/2)); st.scrollTop += ((b[1]+b[3])/2 - (sr.top + sr.height/2)); }""", pt)
-                    pg.wait_for_timeout(400)
-                    pt = pg.evaluate("""(b) => { const img = document.querySelector('#sheet'); const r = img.getBoundingClientRect();
-                        const fx = x => r.left + x / S.page.width * r.width, fy = y => r.top + y / S.page.height * r.height;
-                        return [fx(b[0]), fy(b[1]), fx(b[2]), fy(b[3])]; }""", box)
+                    under = pg.evaluate("(p) => { const e = document.elementFromPoint(p[0], p[1]); return e ? e.tagName + '#' + e.id + '.' + (e.getAttribute('class') || '') : null; }", pt)
+                    note(f"[{tag}]   끌기 {[round(v) for v in pt]} · 그 자리 {under} · 대기 {pg.evaluate('() => S.ftMark')} · 확대 {pg.evaluate('() => S.zoom')}")
                     pg.mouse.move(pt[0], pt[1]); pg.mouse.down()
                     pg.mouse.move((pt[0] + pt[2]) / 2, (pt[1] + pt[3]) / 2, steps=5)
                     pg.mouse.move(pt[2], pt[3], steps=5); pg.mouse.up(); pg.wait_for_timeout(2500)
+                    if not pg.query_selector(".author-bar input"):
+                        notes_now = pg.evaluate("() => [...document.querySelectorAll('.edit-note')].map(e => e.textContent)")
+                        note(f"[{tag}]   이름 줄 없음 · 안내 {notes_now}")
+                        pg.screenshot(path=str(OUT / f"{tag}_x_drag_fail.png"))
                     pg.wait_for_selector(".author-bar input", timeout=8000)
                     pg.fill(".author-bar input", "감사자"); pg.click(".author-bar .ok"); pg.wait_for_timeout(2500)
                 pg.click("#dm-from"); pg.wait_for_timeout(400); drag(FROM_BOX)
@@ -141,6 +157,7 @@ def shoot(tag: str, data: Path):
                 note(f"[{tag}] From/To 뒤 Description: {d}")
                 ftb = pg.evaluate("() => [...document.querySelectorAll('rect.ftbox')].map(b => b.getAttribute('class'))")
                 note(f"[{tag}] 도면의 From/To 범위 상자: {ftb}")
+                pg.evaluate("() => { const l = document.querySelector('#ovlegend'); if (l) l.style.visibility = ''; }")
                 pick(ft_row["key"], [80, 520, 570, 730])
                 pg.screenshot(path=str(OUT / f"{tag}_3_fromto_sheet.png"), clip=stage_clip())
                 # 다시 열어도 남는가
@@ -172,7 +189,7 @@ def shoot(tag: str, data: Path):
 keep = {f: (ROOT / f).read_bytes() for f in STATIC}
 try:
     for f in STATIC:
-        (ROOT / f).write_bytes(subprocess.check_output(["git", "show", f"HEAD:{f}"], cwd=str(ROOT)))
+        (ROOT / f).write_bytes(subprocess.check_output(["git", "show", f"{BEFORE}:{f}"], cwd=str(ROOT)))
     shoot("before", make_data())
 finally:
     for f, b in keep.items():
