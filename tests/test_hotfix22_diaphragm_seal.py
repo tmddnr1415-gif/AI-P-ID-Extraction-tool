@@ -116,6 +116,20 @@ def test_pipeline_writes_the_remark_only_for_the_configured_types():
     assert st["rows"] == 1 and st["legend"]["page_no"] == 2
 
 
+def test_pdit_gets_the_remark_too():
+    """hotfix24 — 사용자 확정: *"PDIT 도 diaphragm seal 적용할거야"*."""
+    assert "PDIT" in (P.CFG.data.get("diaphragm_seal") or {}).get("types", [])
+
+    class R:
+        def __init__(s, key, type_, rect):
+            s.key, s.type, s.rect, s.tab, s.page_no = key, type_, rect, P.TAB_FIELD, 7
+            s.remark, s.evidence = "", {}
+    pc, bubbles = _sheet()
+    rows = [R("b", "PDIT", tuple(bubbles["b"]))]
+    st = P._attach_diaphragm_seals(rows, [_legend(), pc], {2: {"page_kind": "LEGEND"}, 7: {"page_kind": "PID"}})
+    assert rows[0].remark == "Diaphragm Seal" and st["rows"] == 1
+
+
 def test_excel_remark_says_it_once():
     ev = {"diaphragm_seal": {"remark": "Diaphragm Seal", "rects": [[0, 0, 1, 1]]}}
     no_code = excel_out._remark({"evidence": ev}, {"remark": "Diaphragm Seal · 도면 근거 있음"})

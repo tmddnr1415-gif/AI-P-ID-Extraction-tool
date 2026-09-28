@@ -3227,7 +3227,7 @@ def _attach_diaphragm_seals(rows, pages, tb_rows) -> dict:
     if conf.get("enabled", True) is False:
         return stats
     caption = str(conf.get("caption") or "DIAPHRAGM SEAL")
-    types = {str(t).upper() for t in (conf.get("types") or ("PIT", "PT", "PG", "PI"))}
+    types = {str(t).upper() for t in (conf.get("types") or ("PIT", "PT", "PG", "PI", "PDIT"))}
     text = str(conf.get("remark") or SEAL_REMARK_DEFAULT)
     legend_pages = [pc for pc in pages if (tb_rows.get(pc.page_no) or {}).get("page_kind") == "LEGEND"]
     shape = diaphragm_seal.legend_shape(legend_pages or pages, caption)
