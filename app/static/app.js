@@ -425,7 +425,17 @@ function jobLine(j) {
   if (j.analysed_at || j.finished_at || j.created_at)
     bits.push(whenWords(j.analysed_at || j.finished_at || j.created_at));
   if (j.edits) bits.push(`수정 ${j.edits}칸`);
+  if (j.last_save) bits.push(saveWords(j.last_save));
   return bits.join(" · ");
+}
+
+/* hotfix23 — 최종 저장 기록 한 줄.  이름은 자기신고 (13회차) — 없으면 "이름 없음". */
+function saveWords(sv) {
+  if (!sv) return "";
+  const what = [sv.edits ? `수정 ${sv.edits}칸` : "", sv.added ? `추가 ${sv.added}행` : "",
+                sv.removed ? `삭제 ${sv.removed}행` : ""].filter(Boolean).join(" · ");
+  return `최종 저장 ${whenWords(sv.at)} · ${sv.author || "이름 없음"}`
+    + (what ? ` (${what})` : "");
 }
 
 /* 개정 판정 배지.  넷뿐이고 추정하지 않는다 - 못 읽으면 못 읽었다고 쓴다. */
@@ -614,9 +624,12 @@ async function listHome() {
       const head = revs.length
         ? `${revs.length}개 리비전 · 최신 ${escape(revs[0].revision)}`
         : "분석 없음";
+      const saved = p.last_save
+        ? `<span class="saved small">${escape(saveWords(p.last_save))}`
+          + `${p.last_save.revision ? ` — ${escape(p.last_save.revision)}` : ""}</span>` : "";
       parts.push(`<details class="pjt" ${revs.length ? "open" : ""}>`
         + `<summary><b>${escape(p.name)}</b>`
-        + `<span class="muted small">${escape(head)}</span>`
+        + `<span class="muted small">${escape(head)}</span>` + saved
         + `<button class="ghost mini del-project" data-project="${escape(p.name)}"`
         + ` title="이 프로젝트를 통째로 지웁니다 — 되돌릴 수 없습니다">프로젝트 삭제</button>`
         + `</summary>` + rows + "</details>");
@@ -3293,9 +3306,11 @@ function showEvidence(row) {
     + "<dl>" + pairs.map(([k, v]) =>
       `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
     + `<div id="ev-hist"></div>`
+    + descMarkupBlock(row)
     + fromToPicker(row)
     + candidatePicker(row);
   bindCandidatePicker(row);
+  bindDescMarkup(row);
   bindFromToPicker(row);
   bindReviewControls(row);
   bindAxisActions(row);
@@ -3388,6 +3403,141 @@ function sameSentence(row) {
  * 안 그러면 "FROM FROM HRSG#12" 로 읽힌다. */
 function bareName(text) {
   return String(text || "").replace(/^\s*(FROM|TO)\b\s*/i, "").trim();
+}
+
+/* hotfix23 — Description From/To 마크업.
+ *
+ * 사용자: *"Tag 를 PID 에서 선택하거나 List 에서 선택하면 Description From 마크업을 해서 범위를
+ * 지정하면 그 범위에 있는 description 을 따고, To 마크업을 누르면 똑같이 따서 Description 이
+ * From-To 로 이어지도록 … 하나만 마크업하더라도 그 Description 이 나타나면 된다."*
+ *
+ * 엔진이 라인을 타고 쓴 문장은 그대로 두고(현행 기준), 사람이 범위를 그으면 **그 범위 안에
+ * 도면이 인쇄한 글자**를 서버가 읽어(`POST /jobs/{id}/axis_text`) 6회차 확정 경로
+ * (`POST …/axis`, via=markup)로 문장을 쓴다.  문형은 엔진 ② · ②a · ②b 와 같다.
+ * 목적은 *"어떤 system, line 의 계기인지 식별"* 이므로 읽은 글자를 다듬지 않는다 —
+ * 도면번호 · NOTE · 치수 줄만 뺀다 (뺀 줄은 화면에 적는다). */
+S.ftPending = S.ftPending || {};
+S.ftMark = null;
+
+function _ftState(row) {
+  if (!S.ftPending[row.key]) {
+    const ov = (S.axisOv || {})[row.key];
+    S.ftPending[row.key] = ov ? { from: bareName(ov.from), to: bareName(ov.to) } : { from: "", to: "" };
+  }
+  return S.ftPending[row.key];
+}
+
+function descMarkupBlock(row) {
+  if (row.removed) return "";
+  const st = _ftState(row);
+  const cur = (S.ftMark && S.ftMark.key === row.key) ? S.ftMark.side : "";
+  return `<div class="cands" id="descmk">
+      <h4>Description From/To 마크업 <span class="muted">— 도면에서 범위를 그으면 그 안의 글자로 Description 을 씁니다 · 하나만 그어도 됩니다</span></h4>
+      <div class="cand-actions">
+        <button id="dm-from" class="ghost${cur === "from" ? " on" : ""}" aria-pressed="${cur === "from"}">From 범위 지정</button>
+        <span class="dm-val" id="dm-from-v">${st.from ? escape(st.from) : '<span class="muted">(없음)</span>'}</span>
+      </div>
+      <div class="cand-actions">
+        <button id="dm-to" class="ghost${cur === "to" ? " on" : ""}" aria-pressed="${cur === "to"}">To 범위 지정</button>
+        <span class="dm-val" id="dm-to-v">${st.to ? escape(st.to) : '<span class="muted">(없음)</span>'}</span>
+      </div>
+      <div class="cand-actions">
+        ${(st.from || st.to) ? `<button id="dm-clear" class="ghost" title="From/To 를 지우고 엔진 문장으로 되돌립니다">From/To 지우기</button>` : ""}
+      </div>
+      <p class="muted" id="dm-note">${cur ? `도면에서 ${cur === "from" ? "From" : "To"} 범위를 끌어 지정하세요 — Esc 취소` : ""}</p>
+    </div>`;
+}
+
+function bindDescMarkup(row) {
+  const box = document.querySelector("#descmk");
+  if (!box) return;
+  const arm = side => {
+    if (S.markup) setMarkup(false);
+    S.ftMark = (S.ftMark && S.ftMark.key === row.key && S.ftMark.side === side) ? null
+      : { key: row.key, side };
+    $("#stage").classList.toggle("markup", !!S.ftMark);
+    showEvidence(row);
+  };
+  box.querySelector("#dm-from").onclick = () => arm("from");
+  box.querySelector("#dm-to").onclick = () => arm("to");
+  const clr = box.querySelector("#dm-clear");
+  if (clr) clr.onclick = async () => {
+    const who = await askAuthor("Description From/To 지우기");
+    if (who === null) return;
+    S.ftPending[row.key] = { from: "", to: "" };
+    await _ftSave(row, who);
+  };
+}
+
+function endFtMark() {
+  if (!S.ftMark) return;
+  S.ftMark = null;
+  $("#stage").classList.remove("markup");
+}
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && S.ftMark) {
+    const row = S.rows.find(r => r.key === S.ftMark.key);
+    endFtMark();
+    if (row) showEvidence(row);
+  }
+});
+
+async function _ftSave(row, author) {
+  const st = _ftState(row);
+  const res = await fetch(`/jobs/${S.job.id}/rows/${row.key}/axis`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ from_text: st.from, to_text: st.to, via: "markup", author,
+                           from_rect: st.from_rect || null, to_rect: st.to_rect || null }),
+  });
+  if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return null; }
+  const out = await res.json();
+  row.user = row.user || {};
+  if (out.cleared) {
+    delete row.user.description; delete row.user.description_grade;
+    const eng = (row.ai || {}).description;
+    if (eng !== undefined) row.values.description = eng;
+    delete (S.axisOv || {})[row.key];
+    editNotice("From/To 를 지웠습니다 — 엔진 문장으로 돌아갑니다", "in");
+  } else {
+    row.user.description = out.sentence; row.user.description_grade = "USER_ENTERED";
+    row.values.description = out.sentence; row.values.description_grade = "USER_ENTERED";
+    if (out.saved_to_project) {
+      S.axisOv = S.axisOv || {};
+      S.axisOv[row.key] = { from: st.from, to: st.to, source_from: out.source_from,
+                            source_to: out.source_to, stable_id: out.stable_id, inherited: false };
+    }
+    editNotice(`Description — “${out.sentence}”`, "in");
+  }
+  renderGrid();
+  const again = S.rows.find(r => r.key === row.key);
+  if (again && S.sel === row.key) showEvidence(again);
+  return out;
+}
+
+async function descMarkupEnd(rect) {
+  const mk = S.ftMark;
+  const row = mk && S.rows.find(r => r.key === mk.key);
+  endFtMark();
+  if (!row) return;
+  const res = await fetch(`/jobs/${S.job.id}/axis_text`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ page_no: S.page.page_no, rect }),
+  });
+  if (!res.ok) { alert((await res.json()).detail || "글자를 읽지 못했습니다"); showEvidence(row); return; }
+  const got = await res.json();
+  if (!got.text) {
+    editNotice("그은 범위 안에 읽을 글자가 없습니다" + ((got.dropped || []).length
+      ? ` (도면번호·주석 줄 ${got.dropped.length}개는 뺐습니다)` : ""), "out");
+    showEvidence(row);
+    return;
+  }
+  const who = await askAuthor(`Description ${mk.side === "from" ? "From" : "To"}`,
+                              `읽은 글자: ${got.text}`);
+  if (who === null) { showEvidence(row); return; }
+  const st = _ftState(row);
+  st[mk.side] = got.text;
+  st[`${mk.side}_rect`] = [S.page.page_no, ...rect.map(v => Math.round(v * 10) / 10)];
+  await _ftSave(row, who);
 }
 
 function fromToPicker(row) {
@@ -4422,8 +4572,9 @@ function updateMarkupNote() {
 }
 
 $req("#stage").addEventListener("pointerdown", ev => {
-  if (!S.markup || ev.button !== 0) return;
-  if (ev.target.tagName.toLowerCase() === "rect") return;     // 상자는 자기 onclick
+  if (!(S.markup || S.ftMark) || ev.button !== 0) return;
+  // 상자는 자기 onclick — 단 From/To 범위를 긋는 중이면 상자 위에서 시작해도 긋는다
+  if (!S.ftMark && ev.target.tagName.toLowerCase() === "rect") return;
   const p = sheetPoint(ev);
   if (!p) return;
   _rubber = { x: ev.clientX, y: ev.clientY, p0: p, id: ev.pointerId, el: null };
@@ -4469,6 +4620,7 @@ async function _rubberEnd(ev) {
     return;
   }
   S.panned = true;
+  if (S.ftMark) { await descMarkupEnd(rect); return; }
   await markupDialog(rect);
 }
 $req("#stage").addEventListener("pointerup", _rubberEnd, true);
@@ -4759,7 +4911,7 @@ $req("#stage").addEventListener("mousedown", _noNativeShiftSelect, true);
 $req("#grid").addEventListener("mousedown", _noNativeShiftSelect, true);
 
 $req("#stage").addEventListener("pointerdown", ev => {
-  if (ev.button !== 0 || !ev.shiftKey || S.markup || S.picking || !S.page) return;
+  if (ev.button !== 0 || !ev.shiftKey || S.markup || S.ftMark || S.picking || !S.page) return;
   // ⚠ 상자 위에서 시작해도 띠를 연다.  붐비는 장에서는 빈 자리를 찾기가 더
   // 어렵고, 처음 판이 상자 위를 빼는 바람에 "Shift 끌기가 안 된다" 로 보였다.
   // 끌지 않았으면(4px 이하) 아무 것도 하지 않으므로 Shift + 클릭(더하기)은
@@ -4835,7 +4987,7 @@ let _pan = null;
 
 $req("#stage").addEventListener("pointerdown", ev => {
   // 56회차 — Shift 를 누른 채 끄는 것은 팬이 아니라 **선택 띠**다.
-  if (ev.button !== 0 || S.picking || S.markup || ev.shiftKey) return;
+  if (ev.button !== 0 || S.picking || S.markup || S.ftMark || ev.shiftKey) return;
   const stage = $("#stage");
   _pan = { x: ev.clientX, y: ev.clientY, moved: 0,
            sl: stage.scrollLeft, st: stage.scrollTop, id: ev.pointerId };
@@ -5688,3 +5840,22 @@ document.querySelectorAll("details.scope").forEach((det) => {
 window.addEventListener("resize", () => {
   document.querySelectorAll("details.scope[open]").forEach(placeScope);
 });
+
+// hotfix23 — 최종 저장.  편집은 칸마다 곧바로 저장되고 있다 — 이 버튼은 "이 상태로 저장했다"
+// 를 누가 · 언제 남기는 것이고, 첫 화면이 프로젝트마다 마지막 기록을 보인다.
+(function () {
+  const btn = document.getElementById("save-final");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!S.job) return;
+    const who = await askAuthor("최종 저장");
+    if (who === null) return;
+    const r = await fetch(`/jobs/${S.job.id}/save`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author: who }),
+    });
+    if (!r.ok) { alert("저장 기록을 남기지 못했습니다"); return; }
+    const sv = await r.json();
+    editNotice(`저장했습니다 — ${saveWords(sv)}`, "in");
+  });
+})();

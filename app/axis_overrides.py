@@ -72,7 +72,13 @@ def sentence_for(from_text: str, to_text: str, type_: str,
     """판정 트리 ② 문형.  선두 FROM/TO 는 벗겨 중복을 막는다 (엔진과 같은 규칙)."""
     _d, src = daxis._strip_conn(str(from_text or ""))
     _d, dst = daxis._strip_conn(str(to_text or ""))
-    v = {"axis": daxis.AX_FROMTO, "src": src, "dst": dst}
+    # hotfix23 — 한쪽만 지정해도 문장이 선다 (사용자: *"하나만 마크업하더라도 그 Description 이
+    # 나타나면 된다"*).  문형은 엔진의 ②a · ②b 그대로다 (7회차).
+    ax = (daxis.AX_FROMTO if src and dst else daxis.AX_FROM_ONLY if src
+          else daxis.AX_TO_ONLY if dst else None)
+    if ax is None:
+        return ""
+    v = {"axis": ax, "src": src, "dst": dst}
     return daxis.sentence(v, type_, suffix)
 
 

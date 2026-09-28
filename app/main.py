@@ -749,7 +749,20 @@ def home():
     for j in loose:
         j["rows"] = db.row_count(CON, j["id"])
         j["edits"] = db.edited_cell_count(CON, j["id"])
+        j["last_save"] = db.last_save(CON, j["id"])
     return {"projects": projects, "loose": loose}
+
+
+@app.post("/jobs/{job_id}/save")
+def save_job(job_id: str, payload: dict = None):
+    """hotfix23 — 최종 저장.  편집은 칸마다 이미 DB 에 있다; 이것은 누가 · 언제 이 상태를
+    "저장했다" 고 선언했는지를 남긴다 (첫 화면이 프로젝트마다 마지막 것을 보인다).
+    이름은 자기신고다 (13회차) — 비우면 비운 채로 적고 화면이 "이름 없음" 이라고 쓴다."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    author = str((payload or {}).get("author") or "")
+    return db.record_save(CON, job_id, author)
 
 
 @app.post("/projects")
@@ -792,12 +805,16 @@ def _project_public(meta: dict, *, deep: bool = False) -> dict:
                      "fingerprint": job["fingerprint"],
                      "doc_rev": job["doc_rev"],
                      "rows": db.row_count(CON, job["id"]),
-                     "edits": db.edited_cell_count(CON, job["id"])}
+                     "edits": db.edited_cell_count(CON, job["id"]),
+                     "last_save": db.last_save(CON, job["id"])}
         revs.append({**r, **extra})
     # 최근순.  같은 프로젝트 안에서도 사람이 마지막에 만진 것이 위에 온다.
     revs.sort(key=lambda r: r.get("analysed_at") or 0, reverse=True)
     out["revisions"] = revs
     out["latest"] = revs[0] if revs else None
+    saves = [dict(r["last_save"], revision=r.get("revision"), job_id=r.get("job_id"))
+             for r in revs if r.get("last_save")]
+    out["last_save"] = max(saves, key=lambda x: x["at"]) if saves else None
     return out
 
 
@@ -2424,6 +2441,77 @@ def axis_override_map(job_id: str):
     return out
 
 
+_AXIS_TEXT_PAGE: dict = {}
+
+
+def _page_words(job, page_no: int) -> list:
+    """그 장의 낱말 [(사각형, 글자)] — PDF 는 그 한 장만 열고, DXF 는 그 한 장만 판다.
+
+    좌표는 행 사각형과 같은 **표시 좌표**다 (PDF `pidcache` · DXF `Sheet.to_page`)."""
+    key = (job["id"], int(page_no))
+    if _AXIS_TEXT_PAGE.get("key") == key:
+        return _AXIS_TEXT_PAGE["words"]
+    path = Path(job["pdf_path"])
+    words = []
+    if ("input_kind" in job.keys() and job["input_kind"] == "DXF"):
+        from app.engine import dxf_reader
+        for sh in _dxf_sheets(path, page_no):
+            if sh.no == page_no:
+                words = [(tuple(w.rect), w.text) for w in dxf_reader.words(sh)
+                         if not getattr(w, "hidden", False)]
+    else:
+        import pidcache
+        _doc, pages = pidcache.load_pages(path, only=(page_no,))
+        if pages:
+            words = [(tuple(r), t) for r, t in pages[0].words]
+    _AXIS_TEXT_PAGE.clear()
+    _AXIS_TEXT_PAGE.update({"key": key, "words": words})
+    return words
+
+
+def _text_in_rect(words, rect) -> dict:
+    """범위 안(가운데가 안) 낱말을 줄로 묶어 읽는 순서로.  주석 줄(도면번호 · NOTE · 치수 ·
+    그리드)은 빼되 버리지 않고 `dropped` 로 돌려준다 — `_axis_text_noise` 와 같은 거름망."""
+    x0, y0, x1, y1 = rect
+    inside = []
+    for r, t in words:
+        cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+        if x0 <= cx <= x1 and y0 <= cy <= y1 and str(t).strip():
+            inside.append((r, str(t).strip()))
+    if not inside:
+        return {"text": "", "lines": [], "dropped": []}
+    hs = sorted(max(r[3] - r[1], 0.1) for r, _t in inside)
+    tol = 0.5 * hs[len(hs) // 2]
+    lines = []
+    for r, t in sorted(inside, key=lambda w: ((w[0][1] + w[0][3]) / 2, w[0][0])):
+        cy = (r[1] + r[3]) / 2
+        if lines and abs(lines[-1][0] - cy) <= tol:
+            lines[-1][1].append((r[0], t))
+        else:
+            lines.append([cy, [(r[0], t)]])
+    texts = [" ".join(t for _x, t in sorted(ws)) for _cy, ws in lines]
+    keep = [t for t in texts if not _axis_text_noise(t)]
+    return {"text": " ".join(keep).strip(), "lines": keep,
+            "dropped": [t for t in texts if t not in keep]}
+
+
+@app.post("/jobs/{job_id}/axis_text")
+def axis_text(job_id: str, payload: dict):
+    """hotfix23 — 사람이 도면에 그은 범위 안의 글자.  Description From/To 마크업이 읽는다."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    try:
+        page_no = int(payload.get("page_no"))
+        rect = [float(v) for v in payload.get("rect")]
+        assert len(rect) == 4
+    except Exception:                                    # noqa: BLE001
+        raise HTTPException(400, "page_no 와 rect [x0,y0,x1,y1] 가 필요합니다")
+    out = _text_in_rect(_page_words(job, page_no), rect)
+    out["page_no"] = page_no
+    return out
+
+
 @app.post("/jobs/{job_id}/rows/{key}/axis")
 async def confirm_axis(job_id: str, key: str, payload: dict):
     """FROM/TO 확정 → ② 문형 생성 → user_values 저장 (+프로젝트 장부).
@@ -2447,16 +2535,23 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
                 axis_overrides.path_for(DATA_DIR, job["project"]), stable_id)
         return {"cleared": True,
                 "review_count": db.review_count(CON, job_id)}
-    if not from_text or not to_text:
-        raise HTTPException(400, "FROM 과 TO 를 모두 고르거나 둘 다 비우세요")
-
-    cands = _axis_candidates(job, row["page_no"])
-    # 출처 판정에는 걸러낸 텍스트까지 넣는다 - 토글로 고른 것도 도면이 인쇄한
-    # 문구이므로 `자유입력` 이라고 적으면 사실이 아니다.
-    pool = (cands["connectors"] + cands["equipment"] + cands["texts"]
-            + cands.get("texts_filtered", []))
-    source_from = axis_overrides.classify_source(from_text, pool)
-    source_to = axis_overrides.classify_source(to_text, pool)
+    author = str(payload.get("author") or "").strip()
+    via = str(payload.get("via") or "")
+    if via == "markup":
+        # hotfix23 — 사람이 도면에 그은 범위 안의 글자를 서버가 읽은 것이다 (`axis_text`).
+        # 후보 목록과 대조할 필요가 없다 — 도면이 인쇄한 글자 그대로이므로 출처는 범위다.
+        source_from = "마크업 범위" if from_text else ""
+        source_to = "마크업 범위" if to_text else ""
+    else:
+        if not from_text or not to_text:
+            raise HTTPException(400, "FROM 과 TO 를 모두 고르거나 둘 다 비우세요")
+        cands = _axis_candidates(job, row["page_no"])
+        # 출처 판정에는 걸러낸 텍스트까지 넣는다 - 토글로 고른 것도 도면이 인쇄한
+        # 문구이므로 `자유입력` 이라고 적으면 사실이 아니다.
+        pool = (cands["connectors"] + cands["equipment"] + cands["texts"]
+                + cands.get("texts_filtered", []))
+        source_from = axis_overrides.classify_source(from_text, pool)
+        source_to = axis_overrides.classify_source(to_text, pool)
     type_ = (row["values"].get("type")
              or row["values"].get("valve_type") or "")
 
@@ -2499,8 +2594,11 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
         field="description",
         ai_value=(before.get("ai") or {}).get("description"),
         user_value=sentence,
-        reason=f"판정축 FROM/TO 확정 — FROM {source_from} · TO {source_to}",
-        basis={"from": from_text, "to": to_text},
+        reason=f"판정축 FROM/TO 확정 — FROM {source_from or '없음'} · TO {source_to or '없음'}",
+        basis={"from": from_text, "to": to_text,
+               **({"from_rect": payload.get("from_rect")} if payload.get("from_rect") else {}),
+               **({"to_rect": payload.get("to_rect")} if payload.get("to_rect") else {})},
+        author=author,
         pattern_args={"field": "description",
                       "ai": (before.get("ai") or {}).get("description"),
                       "user": sentence})

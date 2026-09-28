@@ -22,8 +22,16 @@ from dataclasses import dataclass, field
 
 import pymupdf
 
-SIZE_TOL = 0.15          # 크기 허용치 — `typical.circle_marks` 의 정사각 ±15% 와 같은 값
-WAVE_SPAN = 0.5          # 곡선이 가로지르는 몫의 하한 (범례 실측 1.0 · 절반이면 다른 기호와 갈린다)
+# hotfix23 — **픽셀이 아니라 형태로** 본다 (사용자: *"사진으로 송부한 픽셀과 100% 일치할 필요
+# 없다. symbol 에 따라 형태를 띈다면 식별되어야 한다"*).  형태 = 닫힌 사각 + 그 안을 가로지르는
+# **곡선 물결**.  크기는 범례 크기에 매지 않고 비율로 본다 — AL NOUF1 p18 · p26 에는 범례보다
+# 15% 넘게 납작한 씰이 있다 (19.8×8.5 ↔ 범례 19.8×10.0 · 렌더 확인).
+ASPECT_TOL = 1.3         # 긴 변/짧은 변 비가 범례 비의 1/1.3 ~ 1.3 배
+SIZE_BAND = (0.5, 2.0)   # 긴 변이 범례 긴 변의 반 ~ 두 배 — 같은 도면의 다른 심볼 크기대
+WAVE_SPAN = 0.7          # 물결이 긴 변을 가로지르는 몫의 하한 (범례 실측 1.0).
+# 가르는 것 둘 (실측):  ① **곧은 지그재그**는 씰이 아니다 — AL NOUF1 범례 p2 는 같은 크기 네모에
+# 곧은 선 지그재그를 그려 바로 아래 줄 VORTEX BREAKER 로 쓴다.  그래서 물결은 곡선(`c`)만 센다.
+# ② **닫힌 원**은 물결이 아니다 — TC2 p27 은 네모 안에 원을 그린 다른 심볼이다 (곡선 넷 · 정원).
 
 
 @dataclass
@@ -55,9 +63,16 @@ def _closed_rect(items) -> bool:
     return all(pts.count(p) == 2 for p in pts)
 
 
+def _is_circle(d) -> bool:
+    b = d["bbox"]
+    return (len(d["items"]) == 4 and b.height > 0 and 0.85 <= b.width / b.height <= 1.15)
+
+
 def _curves(pc):
+    """물결 조각 — 칠 없는 곡선.  닫힌 원은 뺀다 (네모 안 원은 다른 심볼이다)."""
     return [pymupdf.Rect(d["bbox"]) for d in pc.drawings()
-            if d["items"] and all(i[0] == "c" for i in d["items"]) and d.get("fill") is None]
+            if d["items"] and all(i[0] == "c" for i in d["items"]) and d.get("fill") is None
+            and not _is_circle(d)]
 
 
 def _wave_span(rect: pymupdf.Rect, curves) -> float:
@@ -72,6 +87,35 @@ def _wave_span(rect: pymupdf.Rect, curves) -> float:
     else:
         lo, hi, full = min(c.y0 for c in inside), max(c.y1 for c in inside), rect.height
     return (hi - lo) / full if full > 0 else 0.0
+
+
+def _boxes(pc):
+    """(사각형, 그 안 물결 몫) — 사각형만 그린 path 와, 사각형과 물결을 **한 path** 로 그린 것."""
+    curves = None
+    for d in pc.drawings():
+        it = d["items"]
+        if not it:
+            continue
+        kinds = {i[0] for i in it}
+        b = pymupdf.Rect(d["bbox"])
+        if b.width <= 0 or b.height <= 0:
+            continue
+        if _closed_rect(it):
+            if curves is None:
+                curves = _curves(pc)
+            yield b, _wave_span(b, curves)
+        elif ("qu" in kinds or "re" in kinds) and "c" in kinds and kinds <= {"qu", "re", "c", "l"}:
+            # 한 path 안의 사각형과 곡선 — 둘 다 그 path 의 **자기 좌표**로 잰다 (회전 장에서
+            # `bbox` 는 표시 좌표이고 items 는 회전 전이다 · 41회차 [C] 와 같은 덫).  비는 회전에 불변.
+            box = [i[1] for i in it if i[0] in ("qu", "re")][0]
+            box = pymupdf.Rect(box.rect if hasattr(box, "rect") else box)
+            pts = [q for i in it if i[0] == "c" for q in i[1:]]
+            if pts and box.width > 0 and box.height > 0:
+                if box.width >= box.height:
+                    span = (max(q.x for q in pts) - min(q.x for q in pts)) / box.width
+                else:
+                    span = (max(q.y for q in pts) - min(q.y for q in pts)) / box.height
+                yield b, span
 
 
 def legend_shape(pages, caption: str) -> Shape | None:
@@ -98,12 +142,8 @@ def legend_shape(pages, caption: str) -> Shape | None:
             if nxt is not None and nxt[0].x0 - line[len(want) - 1][0].x1 < 2 * r0.height:
                 continue
             h = r0.height
-            curves = _curves(pc)
             best = None
-            for d in pc.drawings():
-                if not d["items"] or not _closed_rect(d["items"]):
-                    continue
-                b = pymupdf.Rect(d["bbox"])
+            for b, span in _boxes(pc):
                 # 같은 줄, 캡션 왼쪽, 그 사이에 다른 낱말이 없다 — 범례의 "심볼 열 | 캡션 열"
                 # 간격은 문서마다 다르다 (AL NOUF1 110pt · TC2 55pt) 그래서 거리로 막지 않는다.
                 if not (b.x1 <= r0.x0 and b.y0 < r0.y1 and b.y1 > r0.y0):
@@ -111,7 +151,7 @@ def legend_shape(pages, caption: str) -> Shape | None:
                 if any(b.x1 < r.x0 and r.x1 < r0.x0 and r.y0 < b.y1 and r.y1 > b.y0
                        for r, _t in words):
                     continue
-                if _wave_span(b, curves) < WAVE_SPAN:
+                if span < WAVE_SPAN:
                     continue
                 if best is None or b.x1 > best.x1:
                     best = b
@@ -122,20 +162,23 @@ def legend_shape(pages, caption: str) -> Shape | None:
 
 
 def find(pc, shape: Shape) -> list[Seal]:
-    """그 장에서 범례 크기의 사각형+물결."""
+    """그 장에서 범례와 **같은 형태**의 사각형+물결 (크기는 비율로 — `ASPECT_TOL` · `SIZE_BAND`)."""
     if shape is None:
         return []
-    curves = _curves(pc)
-    out = []
-    for d in pc.drawings():
-        if not d["items"] or not _closed_rect(d["items"]):
-            continue
-        b = pymupdf.Rect(d["bbox"])
+    ratio = shape.long / shape.short if shape.short else 0
+    out, seen = [], set()
+    for b, span in _boxes(pc):
         lo, sh = max(b.width, b.height), min(b.width, b.height)
-        if abs(lo - shape.long) > SIZE_TOL * shape.long or abs(sh - shape.short) > SIZE_TOL * shape.short:
+        if not (SIZE_BAND[0] * shape.long <= lo <= SIZE_BAND[1] * shape.long):
             continue
-        if _wave_span(b, curves) < WAVE_SPAN:
+        if not (ratio / ASPECT_TOL <= lo / sh <= ratio * ASPECT_TOL):
             continue
+        if span < WAVE_SPAN:
+            continue
+        key = tuple(round(v, 1) for v in b)
+        if key in seen:            # 같은 사각형을 두 번 그린 도면
+            continue
+        seen.add(key)
         out.append(Seal(b))
     return out
 

@@ -182,6 +182,18 @@ CREATE INDEX IF NOT EXISTS report_job ON report(job_id, id);
 -- 그래서 **무엇을 지웠는지는 남긴다** — 행은 사라져도 "누가 언제 무엇을
 -- 몇 행 지웠나" 는 남아야 다음 사람이 빈 자리를 설명할 수 있다.
 -- 작성자는 13회차와 같은 자기신고이고, 화면이 "자칭" 이라고 적는다.
+-- hotfix23 — 사람이 "최종 저장" 을 누른 기록.  편집은 칸마다 곧바로 저장되고 있으므로
+-- 이것은 **저장 동작이 아니라 선언**이다: 누가 · 언제 · 그때 몇 칸을 고쳐 둔 상태였는가.
+-- 첫 화면이 프로젝트마다 마지막 것을 보인다.
+CREATE TABLE IF NOT EXISTS save_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      TEXT NOT NULL,
+    at          REAL NOT NULL,
+    author      TEXT NOT NULL DEFAULT '',
+    edits       INTEGER NOT NULL DEFAULT 0,
+    added       INTEGER NOT NULL DEFAULT 0,
+    removed     INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS deletion_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     at          REAL NOT NULL,
@@ -1031,6 +1043,27 @@ def edited_cell_count(con, job_id: str) -> int:
     return n
 
 
+def record_save(con, job_id: str, author: str) -> dict:
+    """최종 저장 한 번 (hotfix23).  그 순간의 편집 상태를 센다 — 칸 · 추가 행 · 지운 행."""
+    edits = edited_cell_count(con, job_id)
+    added = con.execute("SELECT COUNT(*) FROM item WHERE job_id=? AND added=1",
+                        (job_id,)).fetchone()[0]
+    removed = con.execute("SELECT COUNT(*) FROM item WHERE job_id=? AND removed=1",
+                          (job_id,)).fetchone()[0]
+    at = time.time()
+    con.execute("INSERT INTO save_log (job_id, at, author, edits, added, removed)"
+                " VALUES (?,?,?,?,?,?)", (job_id, at, (author or "").strip(), edits, added, removed))
+    con.commit()
+    return {"at": at, "author": (author or "").strip(), "edits": edits,
+            "added": added, "removed": removed}
+
+
+def last_save(con, job_id: str) -> dict | None:
+    r = con.execute("SELECT at, author, edits, added, removed FROM save_log WHERE job_id=?"
+                    " ORDER BY at DESC, id DESC LIMIT 1", (job_id,)).fetchone()
+    return dict(r) if r else None
+
+
 def page_revisions(con, job_id: str) -> list:
     """장별 개정 — 도면이 스스로 말한 값 그대로 (13회차).
 
@@ -1202,7 +1235,7 @@ def confirm_deleted(con, job_id: str, stable_id: str, confirmed: bool) -> dict:
 # 않는다.  그래서 이 함수는 `app/_data/projects/…` 의 어떤 파일도 건드리지
 # 않는다 — DB 안의 그 분석만 지운다.
 _JOB_TABLES = ("item", "revision_state", "deleted_candidate", "pid_page",
-               "revision", "feedback", "review_state", "report")
+               "revision", "feedback", "review_state", "report", "save_log")
 
 
 def deletion_preview(con, job_id: str) -> dict:

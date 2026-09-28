@@ -1176,3 +1176,9 @@ rect.det.typical {
 /* 55회차 — 입력 종류 라디오 (PDF / DXF).  드롭 상자 위 한 줄. */
 .input-kind { display: flex; gap: 14px; justify-content: center; margin: 0 0 6px; font-size: 13px; }
 .input-kind label { cursor: pointer; }
+
+/* hotfix23 — 첫 화면의 최종 저장 기록 */
+.pjt summary .saved { color: var(--ink-strong); font-weight: 600; }
+/* hotfix23 — Description From/To 마크업 */
+#descmk .dm-val { font-size: 12px; margin-left: 8px; word-break: break-word; }
+#descmk button.on { outline: 2px solid var(--accent, #3b6fd8); }

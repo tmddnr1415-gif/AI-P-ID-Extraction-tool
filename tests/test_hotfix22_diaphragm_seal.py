@@ -80,12 +80,26 @@ def test_seals_link_by_one_segment_or_one_bend_at_any_scale():
         assert set(hit) == {"a", "b"}                            # 이어지지 않은 버블 c 는 없다
 
 
-def test_a_box_of_another_size_or_without_a_wave_is_not_a_seal():
+def test_shape_not_pixels_decides():
+    """hotfix23 — 픽셀이 아니라 형태 (사용자: *"100% 일치할 필요 없다 · 형태를 띈다면"*)."""
     sh = dsl.legend_shape([_legend()], "DIAPHRAGM SEAL")
     pc = _PC(7)
     pc._d.append({"items": [("qu", None)], "bbox": pymupdf.Rect(0, 0, 10, 5), "fill": None})   # 물결 없음
-    _seal(pc, 50, 50, 1.6)                                                                        # 크기 다름
-    assert dsl.find(pc, sh) == []
+    _seal(pc, 50, 50, 1.6)                                    # 크기 달라도 형태가 같다 → 씰
+    flat = pymupdf.Rect(100, 50, 110, 54)                     # 범례보다 20% 납작 (AL NOUF1 p18 모양)
+    pc._d.append({"items": [("qu", None)], "bbox": flat, "fill": None})
+    pc._d.append({"items": [("c",), ("c",)], "fill": None, "bbox": pymupdf.Rect(100, 51, 110, 53)})
+    _seal(pc, 200, 50, 3.0)                                   # 세 배 — 다른 심볼 크기대
+    zig = pymupdf.Rect(300, 50, 310, 55)                      # 곧은 지그재그 (VORTEX BREAKER)
+    pc._d.append({"items": [("qu", None)], "bbox": zig, "fill": None})
+    pc._d.append({"items": [("l", pymupdf.Point(300, 50), pymupdf.Point(305, 55)),
+                            ("l", pymupdf.Point(305, 55), pymupdf.Point(310, 50))],
+                  "fill": None, "bbox": zig})
+    circ = pymupdf.Rect(400, 50, 410, 55)                     # 네모 안 원 (TC2 p27 · 다른 심볼)
+    pc._d.append({"items": [("qu", None)], "bbox": circ, "fill": None})
+    pc._d.append({"items": [("c",)] * 4, "fill": None, "bbox": pymupdf.Rect(402.5, 50, 407.5, 55)})
+    got = sorted(round(s.rect.x0) for s in dsl.find(pc, sh))
+    assert got == [50, 100]
 
 
 def test_pipeline_writes_the_remark_only_for_the_configured_types():
