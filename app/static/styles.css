@@ -666,6 +666,13 @@ dl.rules dd { margin: 0; }
    ⚠ `tr.sel` 이 이 파일에서 **앞**에 있어 같은 특이도로는 이 규칙이 이긴다 —
    선택 표시를 잃지 않도록 선택된 추가 행은 따로 적는다. */
 tbody tr.added { background: rgba(52, 199, 89, .16); }
+/* hotfix18 — 사람이 한 일의 음영.  고른 행(.sel)은 테두리로 따로 보인다 */
+tbody tr.useredit { background: rgba(255, 214, 10, .20); }
+tbody tr.useredit td:first-child { box-shadow: inset 3px 0 0 #e0b400; }
+tbody tr.userdel { background: rgba(255, 59, 48, .12); }
+tbody tr.userdel td { text-decoration: line-through; text-decoration-color: #d70015; color: #8a3b36; }
+tbody tr.userdel td:first-child { box-shadow: inset 3px 0 0 #d70015; }
+tbody tr.useredit.sel, tbody tr.userdel.sel { outline: 2px solid rgba(26, 95, 180, .55); outline-offset: -2px; }
 tbody tr.added.sel { background: rgba(26, 95, 180, .10); }
 tbody tr.added td:first-child { box-shadow: inset 3px 0 0 #34c759; }
 tbody tr.added.justadded { animation: justadded 1.8s ease-out 1; }

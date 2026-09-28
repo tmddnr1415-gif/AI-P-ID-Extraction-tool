@@ -2196,7 +2196,7 @@ function renderGrid() {
     tr.dataset.key = r.key;
     if (r.added) tr.dataset.added = "1";
     if (r.deleted || r.removed) tr.classList.add("deleted");
-    if (r.added) tr.classList.add("added");
+    paintRowState(tr, r);
     // 개정 상태.  BASELINE(Rev.A) 과 UNCHANGED 는 아무 표기도 붙이지 않는다.
     const st = (r.rev || {}).state;
     if (st === "ADDED" || st === "MODIFIED") {
@@ -2550,6 +2550,7 @@ async function saveEdit(row, field, td) {
   td.textContent = row.values[field] ?? "";
   td.classList.toggle("edited", !!(row.user && field in row.user));
   td.classList.remove("conflict");
+  repaintRow(row);
   if (S.sel === row.key) showEvidence(row);
   // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).
   // 색을 정하는 곳은 그대로 `itemScope` 하나이고, 여기서는 다시 그리라고만 한다.
@@ -2581,6 +2582,7 @@ async function setDescription(row, text, opts = {}) {
     r.values[field] = value;
     S.counts.REVIEW = out.review_count;
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    repaintRow(r);
     return true;
   };
   // Bulk applies to the rows this one is indistinguishable from: same drawing,
@@ -3028,6 +3030,7 @@ async function applyScopeToMulti(value) {
     const out = await res.json();
     r.user = out.user;
     r.values.scope = value;
+    repaintRow(r);
     S.counts.REVIEW = out.review_count;
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     done += 1;
@@ -5536,6 +5539,32 @@ $req("#diag").addEventListener("click", async () => {
   } catch (e) { /* the footer is a label, not a feature */ }
 })();
 
+/* hotfix18 — 목록 행 음영은 **사람이 한 일**을 말한다.
+ *   사람이 삭제(오검출)     → 연한 붉은 음영 + 취소선   (`userdel`)
+ *   마크업으로 사람이 추가  → 연한 녹색 음영             (`added` — 마크업 상자와 같은 녹색)
+ *   사람이 칸을 고침        → 연한 노랑 음영             (`useredit`)
+ *   셋이 겹치면 이 순서가 이긴다 (삭제가 가장 먼저 보여야 한다).
+ *   판정은 행 데이터에서만 읽는다 — 그리드·근거 패널·오버레이가 같은 값을 본다. */
+function rowUserState(r) {
+  if (!r) return "";
+  if (r.removed || (r.reject && Object.keys(r.reject).length)) return "userdel";
+  if (r.added) return "added";
+  if (r.user && Object.values(r.user).some(v => v !== null && v !== undefined)) return "useredit";
+  return "";
+}
+function paintRowState(tr, r) {
+  if (!tr) return;
+  tr.classList.remove("userdel", "added", "useredit");
+  const st = rowUserState(r);
+  if (st) tr.classList.add(st);
+  if (r && r.added) tr.dataset.added = "1";
+}
+function repaintRow(r) {
+  if (!r) return;
+  const tr = document.querySelector(`#body tr[data-key="${CSS.escape(r.key)}"]`);
+  paintRowState(tr, r);
+}
+
 /* hotfix17 — 도면 창 경계를 끌어 크기를 바꾼다.
  *   가운데 손잡이(#gutter-v): 도면 ↔ 목록 폭.  위 손잡이(#gutter-h): 안내 띠 높이
  *   (위로 끌면 띠가 접히고 그만큼 도면이 커진다).  크기는 이 브라우저에만 기억하고
@@ -5586,10 +5615,36 @@ function _dragGutter(g, axis, onMove) {
   let state = _splitLoad();
   _splitApply(state);
   const MIN = 260;                       // 두 창 모두 이보다 좁아지지 않게 (#split 의 minmax 와 같은 값)
+  // hotfix18 — 끄는 동안 도면이 **창에 맞춰** 커진다 ("맞춤" 과 같은 함수 `fit`).
+  // 그리고 왼쪽 창은 도면이 창을 **꽉 채우는 폭**보다 넓어지지 않는다 — 그보다
+  // 넓히면 도면은 더 커질 수 없고(높이가 먼저 찬다) 오른쪽에 빈 띠만 생긴다.
+  // 그 폭은 도면 자신의 가로세로 비와 지금 창 높이에서 나온다 (숫자를 적지 않는다).
+  const leftCap = () => {
+    const st = document.getElementById("stage");
+    const lf = document.getElementById("left");
+    if (!st || !lf || !S.natural || !S.natural.w || !S.natural.h) return Infinity;
+    const over = lf.getBoundingClientRect().width - st.clientWidth;   // 창 테두리·세로 스크롤바
+    return over + (st.clientHeight - 16) * S.natural.w / S.natural.h + 16;
+  };
+  let raf = 0;
+  const refit = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      if (S.natural && S.natural.w && document.getElementById("sheet").src) fit();
+    });
+  };
+  const clampLeft = () => {
+    const r = split.getBoundingClientRect();
+    if (!state.left) return;
+    const left = Math.max(MIN, Math.min(state.left, r.width - MIN - 7, leftCap()));
+    if (left !== state.left) { state = { ...state, left }; _splitApply(state); _splitSave(state); }
+  };
   _dragGutter(gv, "col", (e) => {
     const r = split.getBoundingClientRect();
-    const left = Math.max(MIN, Math.min(e.clientX - r.left, r.width - MIN - 7));
+    const left = Math.max(MIN, Math.min(e.clientX - r.left, r.width - MIN - 7, leftCap()));
     state = { ...state, left }; _splitApply(state); _splitSave(state);
+    refit();
   });
   _dragGutter(gh, "row", (e) => {
     if (!bars) return;
@@ -5597,6 +5652,8 @@ function _dragGutter(g, axis, onMove) {
     const full = bars.scrollHeight;
     const h = Math.max(0, Math.min(e.clientY - top, full));
     state = { ...state, bars: h >= full ? null : h }; _splitApply(state); _splitSave(state);
+    clampLeft();
+    refit();
   });
   for (const g of [gv, gh]) {
     if (!g) continue;
@@ -5604,6 +5661,7 @@ function _dragGutter(g, axis, onMove) {
       state = g === gv ? { ...state, left: null } : { ...state, bars: null };
       _splitApply(state); _splitSave(state);
       window.dispatchEvent(new Event("resize"));
+      refit();
     });
   }
 })();
