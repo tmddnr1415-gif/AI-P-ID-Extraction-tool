@@ -1156,7 +1156,7 @@ def _multiplier_targets(job_id: str) -> dict:
     pages = {int(p["page_no"]): (pipeline.tb.parse_unit_code(p["drawing_no"]) or "")
              for p in db.page_revisions(CON, job_id)}
     rows = db.merged_rows(CON, job_id)
-    want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG",
+    want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG", "MULTIPLIER_DEFAULT_ONE",
             "MULTIPLIER_NOTE_RANGE", unit_multipliers.REVIEW_CODE}
     groups: dict = {}
     for r in rows:
@@ -1852,9 +1852,11 @@ REVIEW_LABELS = {
     "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
     "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
+    "MULTIPLIER_DEFAULT_ONE": "도면이 승수를 말하지 않아 Q'ty 를 x1 로 셌음 — 승수 패널에서 답하면 그 값이 이김",
     "BUBBLE_DASHED": "버블이 파선으로 그려짐 — 범례가 뜻을 정의하지 않음 · 공급 범위 확인",
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
+    "TYPICAL_POINT": "Typical 부품 점 (예: 스팀 트랩) — 본문 표식 하나를 한 행으로 셌음 · 공급 범위 확인",
     "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
     # 53회차 [B] — 8차 피드백 s4·s5·s6 (한 뿌리)
     "TAGGED_VALVE_NO_ACTUATOR":

@@ -1323,6 +1323,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                 isa=isa, pat=pattern,
                                 note=unit_notes[pc.page_no],
                                 user_mult=user_mult, user_mult_note=user_mult_note))
+        rows.extend(_typical_point_rows(pc, meta, typical_by_page[pc.page_no], mult,
+                                        note=unit_notes[pc.page_no], user_mult=user_mult,
+                                        user_mult_note=user_mult_note))
         layers.setdefault(pc.page_no, collections.defaultdict(list))
         clock.page_done(pc.page_no)
 
@@ -1483,8 +1486,21 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 why = (f"Typical 상세 캡션 '{mk.id}'"
                        + (f" — 본문 참조 {n}개" if n else " — 본문 참조 0개"))
             else:
-                why = (f"Typical 참조 '{mk.id}' — 이 장의 상세 한 벌을 가리킵니다"
-                       + (f" (참조 {n}개)" if n else ""))
+                owner = [d for d in t.details if any(pr == r for pr, _l in d.points)]
+                if owner and owner[0].nums:
+                    why = (f"Typical 참조 '{mk.id}' {mk.label} — 번호 {mk.num} 로 상세 "
+                           f"\u201c{owner[0].caption}\u201d 를 가리킵니다 (참조 {owner[0].refs}개)")
+                elif owner:
+                    why = (f"Typical 참조 '{mk.id}' — 이 장의 상세 한 벌을 가리킵니다"
+                           + (f" (참조 {owner[0].refs}개)" if owner[0].refs else ""))
+                elif any(d.nums for d in t.details if d.id == mk.id):
+                    why = (f"Typical 표식 '{mk.id}' {mk.label} — 번호"
+                           + (f" {mk.num} 가 어느 캡션의 번호에도 없어" if mk.num is not None
+                              else "가 없어")
+                           + " 짝이 없습니다 (곱하지 않았습니다)")
+                else:
+                    why = (f"Typical 참조 '{mk.id}' — 이 장의 상세 한 벌을 가리킵니다"
+                           + (f" (참조 {n}개)" if n else ""))
             layers[pno]["TYPICAL"].append({
                 "key": _key(tb_rows[pno]["drawing_no"], pno, "TY", mk.id,
                             *[round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]),
@@ -1497,7 +1513,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             if d.box is None:
                 continue
             b = d.box
-            n = t.refs.get(d.id, 0)
+            n = d.refs
             layers[pno]["TYPICAL"].append({
                 "key": _key(tb_rows[pno]["drawing_no"], pno, "TYBOX", d.id,
                             *[round(v, 1) for v in (b.x0, b.y0, b.x1, b.y1)]),
@@ -1506,7 +1522,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 "kind": KIND_INSTRUMENT, "needs_review": False, "row": False,
                 "typical": True,
                 "reason": (f"Typical 상세 상자 '{d.id}' — 캡션 \u201c{d.caption}\u201d · "
-                           f"본문 참조 {n}개.  이 상자 안의 행 수량이 그만큼 곱해집니다"),
+                           f"본문 참조 {n}개.  "
+                           + ("표식이 곧 그 부품이라 본문 점마다 한 행으로 셉니다 (상자 안은 곱하지 않음)"
+                              if d.component else "이 상자 안의 행 수량이 그만큼 곱해집니다")),
             })
 
     # Pipe connectivity.  Every row gets what it is connected to, or the fact
@@ -1939,6 +1957,29 @@ def _note_factor(factor, undefined, borrowed, note, user=None):
     if user and (undefined or borrowed):
         return int(user), False, False, False, True
     return factor, undefined, borrowed, False, False
+
+
+# hotfix21 — **승수를 가늠할 수 없으면 x1 로 센다** (사용자 확정 2026-09-28: *"Note 에
+# 승수를 가늠할 수 없으면 x1 로 q'ty 를 산출한다"*).  위 ⑤ "빈칸 + 사유" 를 바꾼다 —
+# 빈칸은 Excel 에서 0 으로 읽혀 합계를 통째로 잃는다 (SADARA 45장: 유닛 10 454행이 Q'ty 0).
+# **사유는 지우지 않는다** — x1 은 도면이 말한 값이 아니라 규칙이 채운 값이므로 행이
+# `MULTIPLIER_DEFAULT_ONE` 로 그렇게 말하고, 사람이 승수 패널에서 답하면 그 값이 이긴다.
+# 범례·노트·사람이 답한 문서는 이 자리에 오지 않는다 (AL NOUF1 · TC2 · UAD-DXF 해당 0행).
+DEFAULT_MULT_CODE = "MULTIPLIER_DEFAULT_ONE"
+DEFAULT_MULT_REASON = ("유닛코드 '%s' 의 승수를 도면(범례 · NOTES)이 말하지 않아 x1 로 셌습니다 "
+                       "— 사용자 규칙 (승수를 가늠할 수 없으면 x1) · 승수 패널에서 답하면 그 값이 이깁니다")
+
+
+def unknown_multiplier() -> int | None:
+    """승수를 모를 때 쓰는 값 — config `qty_note.unknown_multiplier` (기본 1).  `null` 이면 예전처럼 빈칸."""
+    v = (CFG.data.get("qty_note") or {}).get("unknown_multiplier", 1)
+    return None if v is None else int(v)
+
+
+def _default_multiplier(factor, undefined):
+    """`(factor, undefined, defaulted)` — 모르는 승수를 규칙 값으로 채울지."""
+    d = unknown_multiplier() if undefined else None
+    return (d, False, True) if d is not None else (factor, undefined, False)
 
 
 def _note_ambiguous(note, undefined, borrowed) -> bool:
@@ -3104,6 +3145,66 @@ _TYPICAL_AMBIGUOUS = ("이 장에 같은 Typical 표식(%s)의 상세가 둘 이
                       "말하지 않습니다 — 수량을 곱하지 않았습니다. 확인 필요")
 
 
+TYPICAL_POINT_CODE = "TYPICAL_POINT"
+_TYPICAL_POINT = ("Typical 부품 점 — 상세 '%s' 의 상자 안에 같은 표식이 부품으로 그려져 있어 본문 표식 "
+                  "하나를 한 행으로 셉니다.  공급 범위(별표)는 이 점에서 읽지 않았습니다")
+
+
+def _typical_point_rows(pc, meta, t, mult, note=None, user_mult=None, user_mult_note=None) -> list:
+    """부품 상세의 본문 표식을 **점마다 한 행**으로 낸다 (hotfix21 · SADARA `[ST]`).
+
+    사용자: *"ST 와 같은 Steam Trap 은 단순 계기 카운팅보다는 단순히 Steam Trap point
+    수량만 List 에 산출한다."*  무엇이 부품 상세인지는 도면이 정한다 — 상세 상자 안에
+    캡션과 같은 글자의 심볼이 **그려져 있으면**(`Detail.component`) 본문 표식은 그 부품이
+    놓인 자리다.  `D`(드레인 구성)는 상자 안에 `D` 가 없어 이 길에 오지 않고, 상자 안
+    행에 참조 수를 곱하는 38회차 길을 그대로 탄다.  TYPE 은 그 표식 글자, Description 은
+    표식 아래 이름표 원문(`STEAM TRAP 1`) — 둘 다 도면이 인쇄한 낱말이다."""
+    if t is None or not any(d.component for d in t.details):
+        return []
+    unit = meta["unit_code"]
+    factor = mult.multiplier(unit)
+    undefined = factor is projectconfig.UNDEFINED
+    borrowed = not undefined and mult.source == projectconfig.SOURCE_CONFIG
+    factor, undefined, borrowed, from_note, from_user = _note_factor(
+        factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
+    factor, undefined, defaulted = _default_multiplier(factor, undefined)
+    out = []
+    for det in t.details:
+        if not det.component:
+            continue
+        for rect0, label in det.points:
+            rect = tuple(round(v, 1) for v in (rect0.x0, rect0.y0, rect0.x1, rect0.y1))
+            codes, reasons = [TYPICAL_POINT_CODE], [_TYPICAL_POINT % det.id]
+            if undefined:
+                codes.append("MULTIPLIER_UNDEFINED")
+                reasons.append(f"unit code '{unit}' has no multiplier")
+            elif defaulted:
+                codes.append(DEFAULT_MULT_CODE)
+                reasons.append(DEFAULT_MULT_REASON % unit)
+            elif from_user:
+                codes.append(_USER_MULT_CODE)
+                reasons.append(_USER_MULTIPLIER % (unit, factor, (user_mult_note or {}).get(unit, "")))
+            elif borrowed:
+                codes.append("MULTIPLIER_FROM_CONFIG")
+                reasons.append(_BORROWED_MULTIPLIER % (unit, factor))
+            out.append(Row(
+                key=_key(meta["drawing_no"], pc.page_no, "TP", det.id, *rect),
+                tab=TAB_FIELD, page_no=pc.page_no, drawing_no=meta["drawing_no"],
+                type=det.id, qty=None if undefined else factor,
+                system=meta["drawing_title"], scope="",
+                description=label, description_needed=False,
+                description_note="Typical 부품 점 — 이름표 원문",
+                needs_review="; ".join(reasons), rect=rect,
+                evidence={"review_codes": codes, "anchor": det.id,
+                          "typical_point": {"id": det.id, "caption": det.caption,
+                                            "label": label, "points": det.refs,
+                                            "box": [round(v, 1) for v in det.box]},
+                          "description_sources": [f"DRAWING:{label}"] if label else [],
+                          "qty_basis": (f"1 point x {factor} (Typical '{det.id}' 부품 점)"
+                                        if not undefined else f"unit code {unit} undefined")}))
+    return out
+
+
 def _apply_typical(rows, typical_by_page: dict) -> dict:
     """상세 상자 안 행의 Q'ty 에 참조 표식 수를 곱한다 — **여기 하나가 곱한다** (38회차 [D]).
 
@@ -3127,6 +3228,11 @@ def _apply_typical(rows, typical_by_page: dict) -> dict:
         fact = {"id": det.id, "caption": det.caption, "refs": n,
                 "box": [round(v, 1) for v in det.box], "ambiguous": det.id in t.ambiguous}
         r.evidence["typical"] = fact
+        if det.component:
+            # hotfix21 — 부품 상세(`[ST]`)는 본문 점마다 한 행으로 이미 셌다
+            # (`_typical_point_rows`).  상자 안 행을 또 곱하면 같은 것을 두 번 센다.
+            fact["note"] = "부품 상세 — 본문 점 수량으로 셉니다 (x1 그대로)"
+            continue
         if det.id in t.ambiguous:
             stats["rows_ambiguous"] += 1
             r.evidence.setdefault("review_codes", []).append("TYPICAL_AMBIGUOUS")
@@ -3374,6 +3480,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
     factor, undefined, borrowed, from_note, from_user = _note_factor(
         factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
     note_range = _note_ambiguous(note, undefined, borrowed)
+    factor, undefined, defaulted = _default_multiplier(factor, undefined)
     marked = bool(annotations)
     for d in dets:
         type_ = da.excel_type_under(d, ds.RULESET_V3)
@@ -3403,6 +3510,9 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' is not in the legend's UNIT "
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
+        elif defaulted:
+            codes.append(DEFAULT_MULT_CODE)
+            reasons.append(DEFAULT_MULT_REASON % unit)
         elif from_note:
             pass          # 도면이 그 장 NOTES 에 적어 둔 값이다 — 검토 사유가 아니다
         elif from_user:
@@ -3484,6 +3594,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                                  if from_note else
                                  f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
                                  if from_user else
+                                 f"unit code {unit} — 승수 미상, 규칙 x1" if defaulted else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
@@ -3946,6 +4057,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
     factor, undefined, borrowed, from_note, from_user = _note_factor(
         factor, undefined, borrowed, note, user=(user_mult or {}).get(unit))
     note_range = _note_ambiguous(note, undefined, borrowed)
+    factor, undefined, defaulted = _default_multiplier(factor, undefined)
     # 48회차 — 별표 소유권 경쟁의 상대.  **이 장의 다른 밸브 전부 + 버블 전부**
     # 다.  16회차가 세운 "한 마크는 심볼 하나에만 붙는다" 는 규칙은 맞았고
     # 경쟁자 목록만 버블끼리로 좁혀져 있었다 — 그래서 밸브 옆 별표를 버블이
@@ -4032,6 +4144,9 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
+        elif defaulted:
+            codes.append(DEFAULT_MULT_CODE)
+            reasons.append(DEFAULT_MULT_REASON % unit)
         elif from_note:
             pass
         elif from_user:
@@ -4096,6 +4211,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
                                  if from_note else
                                  f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
                                  if from_user else
+                                 f"unit code {unit} — 승수 미상, 규칙 x1" if defaulted else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
@@ -4133,6 +4249,9 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
         if undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
+        elif defaulted:
+            codes.append(DEFAULT_MULT_CODE)
+            reasons.append(DEFAULT_MULT_REASON % unit)
         out.append(Row(
             key=_key(meta["drawing_no"], page_no, "VT", text,
                      *[round(v, 1) for v in rect]),

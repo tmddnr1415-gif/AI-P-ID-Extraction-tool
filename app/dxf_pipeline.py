@@ -680,7 +680,13 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
 
     def qty_and_codes(kind_codes):
         codes, reasons = list(kind_codes), []
-        if undefined:
+        default = P.unknown_multiplier() if undefined else None
+        if undefined and default is not None:
+            # hotfix21 — PDF 경로와 같은 규칙 (`pipeline._default_multiplier`)
+            codes.append(P.DEFAULT_MULT_CODE)
+            reasons.append(P.DEFAULT_MULT_REASON % unit)
+            q = default
+        elif undefined:
             codes.append("MULTIPLIER_UNDEFINED")
             reasons.append(f"유닛코드 {unit!r} 의 승수를 이 문서 어디에서도 읽지 못했습니다")
             q = None
@@ -701,7 +707,9 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         evidence["rules_hit"] = list(evidence.get("rules_hit", [])) + shit
         evidence["review_codes"] = codes
         evidence["multiplier"] = {"unit": unit, "factor": factor, "source": mult_src}
-        evidence["qty_basis"] = (f"1 symbol x {factor} ({mult_src})" if factor else "1 symbol · 승수 없음")
+        evidence["qty_basis"] = (f"1 symbol x {factor} ({mult_src})" if factor else
+                                 f"1 symbol x {q} (unit code {unit} — 승수 미상, 규칙 x{q})" if q else
+                                 "1 symbol · 승수 없음")
         evidence["page_no"] = sh.no
         r = P.Row(key=P._key(dwg, sh.no, tab, type_, *[round(v, 1) for v in page_rect]),
                   tab=tab, page_no=sh.no, drawing_no=dwg, origin="DRAWING", type=type_, qty=q,
