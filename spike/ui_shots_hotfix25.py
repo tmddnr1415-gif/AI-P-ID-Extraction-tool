@@ -159,6 +159,9 @@ def shoot(tag: str, data: Path):
                 note(f"[{tag}] 도면의 From/To 범위 상자: {ftb}")
                 pg.evaluate("() => { const l = document.querySelector('#ovlegend'); if (l) l.style.visibility = ''; }")
                 pick(ft_row["key"], [80, 520, 570, 730])
+                # `select` 가 확대를 SYMBOL_ZOOM 으로 올려 두 범위(가로 480pt)가 한 창에 안 든다 — 0.9 로 맞춘다
+                pg.evaluate("() => zoomBy(0.9 / S.zoom)"); pg.wait_for_timeout(300)
+                centre_on([80, 520, 570, 730]); pg.wait_for_timeout(500)
                 pg.screenshot(path=str(OUT / f"{tag}_3_fromto_sheet.png"), clip=stage_clip())
                 # 다시 열어도 남는가
                 pg.reload(); pg.wait_for_timeout(2500)
@@ -179,6 +182,8 @@ def shoot(tag: str, data: Path):
             else:
                 note(f"[{tag}] From/To 마크업 없음 (옛 화면)")
                 pick(ft_row["key"], [80, 520, 570, 730])
+                pg.evaluate("() => zoomBy(0.9 / S.zoom)"); pg.wait_for_timeout(300)
+                centre_on([80, 520, 570, 730]); pg.wait_for_timeout(500)
                 pg.screenshot(path=str(OUT / f"{tag}_3_fromto_sheet.png"), clip=stage_clip())
             note(f"[{tag}] 페이지 오류: " + (" | ".join(errs) if errs else "없음"))
             br.close()
