@@ -230,6 +230,24 @@ def classify_blocks(legend: dict, roles: dict) -> dict:
                      "captions": caps[:4], "sections": dict(d["sections"]),
                      "attdefs": d["attdefs"], "geometry": d["geometry"],
                      "bubble_radius": bubble_r}
+    # hotfix17 — **상태 기호는 그 밸브다.**  범례의 VALVE STATUS 구획은 밸브를
+    # 열림/닫힘으로 칠만 달리해 다시 그리고, 도면은 그 블록을 **그대로 배관에
+    # 놓는다** (UAD DXF p19 의 MOV 몸체가 `…(Open)` 상태 블록 — 그래서 지시선이
+    # 몸체에 닿고도 "몸체 아님" 이 되어 검토로 갔다).  칠을 뺀 윤곽이 범례의 밸브
+    # 블록 **하나의 몸체 종류**와 같을 때만 그 종류를 잇는다 — 여럿이 같으면
+    # 고르지 않는다.  이름은 보지 않는다.
+    by_outline = collections.defaultdict(set)
+    for n, b in out.items():
+        o = (b["geometry"] or {}).get("outline")
+        if b["kind"] == "valve" and b["body"] and o:
+            by_outline[o].add(b["body"])
+    for n, b in out.items():
+        o = (b["geometry"] or {}).get("outline")
+        if (b["kind"] == "other" and o and any("STATUS" in sec for sec in b["sections"])
+                and len(by_outline.get(o, ())) == 1):
+            b["kind"] = "valve"
+            b["body"] = next(iter(by_outline[o]))
+            b["body_from"] = "STATUS_OUTLINE"
     return out
 
 
@@ -432,13 +450,31 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
     # 이름이 아니라 블록 정의의 기하로 가르고, 행에는 사유를 단다.
     bubble_r = next((b.get("bubble_radius") for b in blocks.values() if b.get("bubble_radius")), 0.0)
     outside = {}
-    if bubble_r:
+    # hotfix17 — **모양은 무엇으로 그렸든 같다.**  작도자가 같은 버블을 줄마다 다른
+    # 블록으로 그렸고(UAD DXF p19: `555`·`QQ` 는 호, `11` 은 스플라인, `A$C…` 는 타원),
+    # 호의 반지름만 보던 판정이 스플라인·타원 버블을 떨어뜨렸다 — 같은 라벨의 한 줄만
+    # 식별된 원인.  범례 계기 블록이 그린 **크기**(짧은 변 · 긴 변, 방향 무관)와 같고
+    # 곡선을 가진 블록이면 버블 블록이다.  크기는 범례에서 읽고 코드에 숫자가 없다.
+    legend_sizes = [tuple(sorted(blocks[n]["geometry"]["size"])) for n in inst_blocks
+                    if (blocks[n].get("geometry") or {}).get("size")]
+    _CURVES = ("ARC", "CIRCLE", "ELLIPSE", "SPLINE")
+
+    def _bubble_shaped(g) -> bool:
+        size = g.get("size")
+        if not size or not legend_sizes or not any(k in (g.get("kinds") or {}) for k in _CURVES):
+            return False
+        a = tuple(sorted(size))
+        return any(abs(a[0] - b[0]) <= 0.1 * b[0] and abs(a[1] - b[1]) <= 0.1 * b[1]
+                   for b in legend_sizes)
+
+    if bubble_r or legend_sizes:
         for sh in ok:
             for name in {s.block for s in R.symbols(sh) if not s.anonymous}:
                 if name in blocks or name in outside:
                     continue
                 g = R.block_geometry(sh.doc, name)
-                if any(abs(r - bubble_r) <= 0.25 * bubble_r for r in (g.get("radii") or [])):
+                if (bubble_r and any(abs(r - bubble_r) <= 0.25 * bubble_r
+                                     for r in (g.get("radii") or []))) or _bubble_shaped(g):
                     outside[name] = g
     inst_outside = set(outside)
     # hotfix14 — **TYPE 역할 속성을 가진 블록은 그 자체로 계기 버블이다.**  문서가
@@ -770,19 +806,35 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         if any(_overlap(s.rect, u, 0.0) for u in used_rects):
             continue
         inside = [w for w in ws if _inside(_center(w.rect), s.rect, pad=0.5)]
+        # hotfix17 — 블록 정의 안에 든 글자도 그 버블에 인쇄된 글자다.
+        inside += [w for w in R.insert_words(sh, s) if _inside(_center(w.rect), s.rect, pad=0.5)]
         tv = next((w for w in inside if _isa_type(w.text, isa)), None)
         if tv is None:
             # 밸브 태그(`MOV`·`PSV` …)는 ISA 표가 아니라 밸브 사전이 안다 — 1급
             # 속성 경로와 같은 순서로 묻는다.
             tv = next((w for w in inside if w.text.strip()
                        and w.text.split()[0].upper() in rules.valves), None)
+        from_dict = False
+        if tv is None:
+            # hotfix17 — 1급 속성 경로와 **같은 순서**로 묻는다: ISA 표 → 밸브 사전 →
+            # 앵커 사전.  UAD p19 의 세로 버블 `RO` 3개는 ISA 표가 못 푸는 낱말이라
+            # 옆 줄의 같은 `RO`(속성으로 인쇄된 것)는 행이 되고 이 셋만 빠졌다 —
+            # 같은 라벨인데 버블을 그린 방식(속성 ↔ 블록 밖 글자)에 따라 갈렸다.
+            tv = next((w for w in inside if w.text.strip()
+                       and w.text.split()[0].upper() in rules.anchors), None)
+            from_dict = tv is not None
         if tv is None:
             unjudged.append({"kind": "INSTRUMENT_BLOCK", "page_no": sh.no, "label": s.block, "block": s.block,
                              "rect": list(s.rect), "center": list(_center(s.rect)),
                              "why": "범례가 계기로 그린 블록인데 안에 ISA 글자가 없음"})
             continue
         n_blk += 1
-        anchor = _isa_type(tv.text, isa)
+        anchor = _isa_type(tv.text, isa) or (tv.text.split()[0].upper() if from_dict else None)
+        if from_dict and anchor in rules.not_field:
+            unjudged.append({"kind": "INSTRUMENT_BLOCK", "page_no": sh.no, "label": tv.text, "block": s.block,
+                             "rect": list(s.rect), "center": list(_center(s.rect)),
+                             "why": "설정이 FIELD 가 아니라고 정한 낱말 (not_field)"})
+            continue
         if tv.text.split()[0].upper() in rules.valves:
             tag_bubbles.append((s, tv.text.split()[0].upper(),
                                 next((w.text for w in inside if tagsys._is_code(w.text)), "")))
@@ -793,7 +845,8 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
             continue
         tagv = next((w.text for w in inside if w is not tv and tagsys._is_code(w.text)), "")
         ev = {"anchor": tv.text, "tier": 2, "source": "DXF_BLOCK_TEXT", "block": s.block,
-              "rules_hit": ["DXF_BLOCK_TEXT"], "isa": anchor, "layer": s.layer,
+              "rules_hit": ["DXF_BLOCK_TEXT"] + (["ANCHOR_FROM_DICT"] if from_dict else []),
+              "isa": anchor, "layer": s.layer,
               "_own_words": tuple(inside), "in_legend": s.block in blocks}
         make_row(P.TAB_FIELD, s.rect, rules.type_of(anchor),
                  [] if s.block in blocks else [OUTSIDE_LEGEND_CODE], ev, tag_no=tagv)
@@ -853,7 +906,7 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         # (53회차 [B-3] 버블 자리 행).  새 상수 없음: 넉넉함은 그 심볼 자신의 짧은 변.
         ends.sort(key=lambda t: t[0])
         ends = [pt for _len, pt in ends]
-        stop = False
+        stop, stop_sym = False, None
         for pt in ends:
             for key, (b, bk, act, aev) in body_rows.items():
                 if key in claimed:
@@ -878,14 +931,28 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
                     continue
                 opad = min(o.rect[2] - o.rect[0], o.rect[3] - o.rect[1])
                 if _inside(pt, o.rect, pad=opad):
-                    stop = True; break
+                    stop = True; stop_sym = o; break
             if stop:
                 break
         if hit is None:
             # 53회차 [B-3] — 몸체를 못 읽은 태그 버블도 행이다.  모양 칸은 비운다.
+            # hotfix17 — 지시선 끝 기호에 **액추에이터 글자**(범례 액추에이터 표의 `M` ·
+            # `S` · `E/H` …)가 인쇄돼 있으면 그것은 도면이 말한 액추에이터다 (UAD DXF p19
+            # MOV: 지시선 LEADER 끝이 `M` 원).  몸체 종류는 말하지 않으므로 탭은 여전히
+            # 검토이고, VALVE TYPE 칸만 채운다 — 없는 몸체를 지어내지 않는다.
+            act_letter = ""
+            if stop_sym is not None:
+                texts = [v for v in stop_sym.attrs.values() if v] + [
+                    w.text for w in R.insert_words(sh, stop_sym)]
+                act_letter = next((t.strip().upper() for t in texts
+                                   if t.strip().upper() in dv.ACT_LETTERS), "")
+            act_kind = dv.ACT_LETTERS.get(act_letter, "")
             ev = {"tag": anchor, "tier": 1, "source": "DXF_ATTRIB", "block": s.block,
-                  "rules_hit": ["DXF_BLOCK_ATTRIB"], "body": "", "body_basis": "no leader hit"}
-            make_row(P.TAB_REVIEW, s.rect, "", [P._TAGGED_NO_ACTUATOR_CODE], ev, tag_no=tagv)
+                  "rules_hit": ["DXF_BLOCK_ATTRIB"] + (["DXF_LEADER_ACTUATOR_LETTER"] if act_kind else []),
+                  "body": "", "body_basis": "no leader hit",
+                  "actuator_letter": act_letter}
+            make_row(P.TAB_REVIEW, s.rect, "", [P._TAGGED_NO_ACTUATOR_CODE], ev, tag_no=tagv,
+                     valve_type=act_kind if act_kind not in ("", "UNCLASSIFIED") else "")
             continue
         claimed.add(hit)
         b, bk, act, aev = body_rows[hit]
@@ -924,6 +991,37 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         if len(other) == 2 and all(len(v) <= 12 and v.isupper() for v in other.values()):
             breaker.append({"page_no": sh.no, "rect": list(s.rect), "block": s.block,
                             "values": other})
+
+    # hotfix17 — **같은 태그를 인쇄한 버블 중 전송기가 있으면, 전송(T)도 검출(E)도 아닌
+    # 나머지는 그 루프의 기능 표시다** (UAD DXF p19: `FIT 00GHB00CF001` 과 같은 태그의
+    # `FIR` — 지시·기록은 DCS 가 하는 일이지 따로 있는 현장 계기가 아니다).  도면이 두
+    # 버블에 **같은 태그**를 찍은 것이 근거이고, 글자 뜻은 ISA 규약(두째 글자부터가
+    # 기능)을 그대로 쓴다.  경보(`A`)를 빼는 56회차 규칙과 같은 자리이고, 버리지 않고
+    # 미판정(`SIGNAL_FUNCTION`)으로 세어 화면에 남긴다.
+    by_tag = collections.defaultdict(list)
+    for r in rows:
+        if r.tab == P.TAB_FIELD and r.tag_no and r.type:
+            by_tag[r.tag_no].append(r)
+    drop = set()
+    for tag, grp in by_tag.items():
+        if len(grp) < 2:
+            continue
+        for r in grp:
+            fn = r.type[1:]
+            if "T" in fn or "E" in fn:
+                continue
+            owner = next((o for o in grp if o is not r and o.type[:1] == r.type[:1]
+                          and "T" in o.type[1:]), None)
+            if owner is None:
+                continue
+            drop.add(id(r))
+            unjudged.append({"kind": "SIGNAL_FUNCTION", "page_no": sh.no, "label": f"{r.type} {tag}",
+                             "block": (r.evidence or {}).get("block"), "rect": list(r.rect),
+                             "center": list(_center(r.rect)),
+                             "why": f"같은 태그 {tag} 의 {owner.type} 가 있는 루프의 기능 표시 "
+                                    f"(전송·검출이 아님) — 계기 행으로 내지 않습니다"})
+    if drop:
+        rows[:] = [r for r in rows if id(r) not in drop]
 
     tier = ("1급" if n_attr and n_attr >= n_blk + n_geom else
             "2급" if n_blk and n_blk >= n_geom else

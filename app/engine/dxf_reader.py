@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import collections
+import math
 import dataclasses
 import io
 import re
@@ -65,6 +66,7 @@ class Symbol:
     rotation: float
     hidden: bool = False
     anonymous: bool = False
+    handle: str = ""       # 그 INSERT 의 핸들 — 블록 안 글자를 읽을 때 (`insert_words`)
 
 
 @dataclasses.dataclass
@@ -256,32 +258,57 @@ def frame_inserts(sh: Sheet) -> list:
 # 낱말
 # --------------------------------------------------------------------------
 
-def _text_rect(sh: Sheet, e, height: float, text: str) -> tuple:
-    """글자 사각형 추정 — 정렬점을 존중한다.  폭은 글자 수 × 높이 × 0.75."""
+def _text_angle(e) -> float:
+    """글자의 회전 (도).  TEXT 는 `rotation`, MTEXT 는 `text_direction` 또는 `rotation`."""
+    try:
+        if e.dxftype() == "MTEXT":
+            return float(e.get_rotation())
+        return float(e.dxf.rotation or 0.0)
+    except Exception:                                      # noqa: BLE001
+        return 0.0
+
+
+def _text_rect(sh: Sheet, e, height: float, text: str, line: int = 0) -> tuple:
+    """글자 사각형 추정 — 정렬점과 **회전**을 존중한다.  폭은 글자 수 × 높이 × 0.75.
+
+    hotfix17 — 회전을 보지 않고 늘 가로로 놓고 있었다.  UAD DXF 글자의 31%(4,697개)가
+    90°/270° 이고, 세로로 선 버블 안 글자가 버블 밖 가로 띠로 계산되어 태그가 버블에
+    안 붙거나 옆 버블에 붙었다 (p19 FIT·PIT·TIT)."""
     w = max(len(text), 1) * height * 0.75
     h = height
     halign = int(getattr(e.dxf, "halign", 0) or 0)
     valign = int(getattr(e.dxf, "valign", 0) or 0)
+    # 기준점(ax, ay) 과 그 점에 대한 가로 사각형 (lx0, ly0, lx1, ly1)
     if e.dxftype() == "MTEXT":
-        x, y = e.dxf.insert.x, e.dxf.insert.y
+        ax, ay = e.dxf.insert.x, e.dxf.insert.y
         att = int(getattr(e.dxf, "attachment_point", 1) or 1)
         col = (att - 1) % 3
         row = (att - 1) // 3
-        x0 = x - (w / 2 if col == 1 else w if col == 2 else 0)
-        y1 = y + (h / 2 if row == 1 else h if row == 2 else 0)
-        return sh.rect_of(_Ext(x0, y1 - h, x0 + w, y1))
-    ap = getattr(e.dxf, "align_point", None)
-    if halign in (1, 2, 4) and ap is not None and (ap.x or ap.y):
-        x, y = ap.x, ap.y
-        x0 = x - (w / 2 if halign in (1, 4) else w)
-        y0 = y - (h / 2 if valign == 2 or halign == 4 else 0)
+        lx0 = -(w / 2 if col == 1 else w if col == 2 else 0)
+        ly1 = (h / 2 if row == 1 else h if row == 2 else 0)
+        box = (lx0, ly1 - h, lx0 + w, ly1)
     else:
-        x0, y0 = e.dxf.insert.x, e.dxf.insert.y
-        if valign == 2:
-            y0 -= h / 2
-        elif valign == 3:
-            y0 -= h
-    return sh.rect_of(_Ext(x0, y0, x0 + w, y0 + h))
+        ap = getattr(e.dxf, "align_point", None)
+        if halign in (1, 2, 4) and ap is not None and (ap.x or ap.y):
+            ax, ay = ap.x, ap.y
+            lx0 = -(w / 2 if halign in (1, 4) else w)
+            ly0 = -(h / 2 if valign == 2 or halign == 4 else 0)
+        else:
+            ax, ay = e.dxf.insert.x, e.dxf.insert.y
+            lx0 = 0.0
+            ly0 = -(h / 2) if valign == 2 else (-h if valign == 3 else 0.0)
+        box = (lx0, ly0, lx0 + w, ly0 + h)
+    if line:
+        # MTEXT 의 n 번째 줄 — 줄 간격은 글자 방향에 수직으로 (회전을 따라) 내려간다
+        box = (box[0], box[1] - line * h * 1.4, box[2], box[3] - line * h * 1.4)
+    a = math.radians(_text_angle(e))
+    if abs(a) < 1e-9:
+        return sh.rect_of(_Ext(ax + box[0], ay + box[1], ax + box[2], ay + box[3]))
+    c, s_ = math.cos(a), math.sin(a)
+    pts = [(ax + x * c - y * s_, ay + x * s_ + y * c)
+           for x, y in ((box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3]))]
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    return sh.rect_of(_Ext(min(xs), min(ys), max(xs), max(ys)))
 
 
 class _Ext:
@@ -313,9 +340,7 @@ def words(sh: Sheet) -> list:
             h = float(e.dxf.char_height or 1.0)
             lines = [ln.strip() for ln in e.plain_text().splitlines() if ln.strip()]
             for i, ln in enumerate(lines):
-                r = _text_rect(sh, e, h, ln)
-                dy = i * h * 1.4
-                out.append(Word((r[0], r[1] + dy, r[2], r[3] + dy), ln, e.dxf.layer,
+                out.append(Word(_text_rect(sh, e, h, ln, line=i), ln, e.dxf.layer,
                                 "MTEXT", h, e.dxf.layer in hidden))
         elif t == "INSERT":
             for a in e.attribs:
@@ -391,8 +416,42 @@ def symbols(sh: Sheet) -> list:
             layer=e.dxf.layer,
             attrs={a.dxf.tag: (a.dxf.text or "").strip() for a in e.attribs},
             rotation=float(e.dxf.rotation or 0.0),
-            hidden=e.dxf.layer in hidden, anonymous=name.startswith("*")))
+            hidden=e.dxf.layer in hidden, anonymous=name.startswith("*"),
+            handle=str(e.dxf.handle or "")))
     sh._cache["symbols"] = out
+    return out
+
+
+def insert_words(sh: Sheet, sym: "Symbol") -> list:
+    """그 INSERT 의 **블록 정의 안** 글자 (TEXT · MTEXT) — 삽입 변환을 거쳐 표시 좌표로.
+
+    hotfix17 — 버블 블록이 글자를 속성이 아니라 블록 안 글자로 담는 경우가 있다
+    (UAD DXF p19 `EEE`: `MOV` 가 블록 정의 안 MTEXT).  모델스페이스 글자만 읽으면
+    그 버블은 "안에 ISA 글자가 없다" 가 된다."""
+    if not sym.handle:
+        return []
+    try:
+        e = sh.doc.entitydb.get(sym.handle)
+    except Exception:                                      # noqa: BLE001
+        e = None
+    if e is None:
+        return []
+    out = []
+    try:
+        for v in e.virtual_entities():
+            t = v.dxftype()
+            if t == "TEXT":
+                s_ = (v.dxf.text or "").strip()
+                if s_:
+                    out.append(Word(_text_rect(sh, v, float(v.dxf.height or 1.0), s_), s_,
+                                    v.dxf.layer, "BLOCK", float(v.dxf.height or 1.0)))
+            elif t == "MTEXT":
+                h = float(v.dxf.char_height or 1.0)
+                lines = [ln.strip() for ln in v.plain_text().splitlines() if ln.strip()]
+                for i, ln in enumerate(lines):
+                    out.append(Word(_text_rect(sh, v, h, ln, line=i), ln, v.dxf.layer, "BLOCK", h))
+    except Exception:                                      # noqa: BLE001
+        return out
     return out
 
 
@@ -423,8 +482,45 @@ def block_geometry(doc, name: str) -> dict:
                 size = (round(float(ext.size.x), 3), round(float(ext.size.y), 3))
         except Exception:                                  # noqa: BLE001
             size = None
-    return {"radii": radii, "size": size,
+    return {"radii": radii, "size": size, "outline": _outline(b),
             "kinds": dict(collections.Counter(x.dxftype() for x in b))}
+
+
+def _outline(b) -> str:
+    """블록이 그린 **윤곽** — 선분과 원만, 칠(HATCH·SOLID)은 뺀다 (hotfix17).
+
+    범례의 VALVE STATUS 구획은 같은 밸브를 열림/닫힘으로 **칠만 달리해** 다시
+    그린다.  칠을 빼면 두 블록의 윤곽이 같고, 그 같음이 "이것은 저 밸브의 다른
+    상태" 라는 도면의 말이다.  좌표는 그 블록 자신의 크기로 나눠 두 자리로 적는다
+    (정의가 같은지 묻는 것이지 비슷한지 묻는 것이 아니다 — 새 허용치 없음).
+    """
+    segs, circ = [], []
+    for e in b:
+        t = e.dxftype()
+        try:
+            if t == "LINE":
+                segs.append(((e.dxf.start.x, e.dxf.start.y), (e.dxf.end.x, e.dxf.end.y)))
+            elif t == "LWPOLYLINE":
+                p = [(q[0], q[1]) for q in e.get_points("xy")]
+                if e.closed and p:
+                    p = p + [p[0]]
+                segs += list(zip(p, p[1:]))
+            elif t == "CIRCLE":
+                circ.append(((e.dxf.center.x, e.dxf.center.y), float(e.dxf.radius)))
+        except Exception:                                  # noqa: BLE001
+            continue
+    pts = [q for a, c in segs for q in (a, c)]
+    pts += [(q[0] - r, q[1] - r) for q, r in circ] + [(q[0] + r, q[1] + r) for q, r in circ]
+    if not pts:
+        return ""
+    x0 = min(q[0] for q in pts); y0 = min(q[1] for q in pts)
+    sc = max(max(q[0] for q in pts) - x0, max(q[1] for q in pts) - y0) or 1.0
+
+    def n(q):
+        return (round((q[0] - x0) / sc, 2), round((q[1] - y0) / sc, 2))
+    lines_ = sorted({tuple(sorted((n(a), n(c)))) for a, c in segs if n(a) != n(c)})
+    rings = sorted({(n(q), round(r / sc, 2)) for q, r in circ})
+    return repr((lines_, rings))
 
 
 # --------------------------------------------------------------------------
@@ -547,10 +643,12 @@ def lines(sh: Sheet) -> list:
                 if len(pts) >= 2:
                     out.append((sh.to_page(*pts[0]), sh.to_page(*pts[-1]), e.dxf.layer))
             elif t == "LEADER":
-                pts = list(e.vertices)
+                # hotfix17 — 꼭짓점이 Vec3 가 아니라 튜플로 오는 판이 있다.  `.x` 로 읽다
+                # 예외가 아래 `except` 에 삼켜져 **모든 LEADER 가 조용히 빠졌다** (UAD DXF
+                # p19 MOV 버블의 지시선이 LEADER 다).  인덱스로 읽는다.
+                pts = [(float(v[0]), float(v[1])) for v in e.vertices]
                 if len(pts) >= 2:
-                    out.append((sh.to_page(pts[0].x, pts[0].y),
-                                sh.to_page(pts[-1].x, pts[-1].y), e.dxf.layer))
+                    out.append((sh.to_page(*pts[0]), sh.to_page(*pts[-1]), e.dxf.layer))
         except Exception:                                  # noqa: BLE001
             continue
     sh._cache["lines"] = out

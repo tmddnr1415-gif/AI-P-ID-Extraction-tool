@@ -5535,3 +5535,75 @@ $req("#diag").addEventListener("click", async () => {
       + (v.ui ? ` · app.js ${v.ui.app_js} · styles.css ${v.ui.styles_css}` : "");
   } catch (e) { /* the footer is a label, not a feature */ }
 })();
+
+/* hotfix17 — 도면 창 경계를 끌어 크기를 바꾼다.
+ *   가운데 손잡이(#gutter-v): 도면 ↔ 목록 폭.  위 손잡이(#gutter-h): 안내 띠 높이
+ *   (위로 끌면 띠가 접히고 그만큼 도면이 커진다).  크기는 이 브라우저에만 기억하고
+ *   (localStorage — 없으면 기본 크기), 손잡이를 두 번 누르면 처음 크기로 돌아간다.
+ *   도면 좌표·확대·선택은 건드리지 않는다 — 스크롤 창의 크기만 바뀐다. */
+const SPLIT_KEY = "pid.split";
+function _splitLoad() {
+  try { return JSON.parse(localStorage.getItem(SPLIT_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+function _splitSave(v) { try { localStorage.setItem(SPLIT_KEY, JSON.stringify(v)); } catch (e) {} }
+function _splitApply(v) {
+  const split = document.getElementById("split");
+  const bars = document.getElementById("infobars");
+  if (split) {
+    if (v.left) split.style.setProperty("--left-w", `${Math.round(v.left)}px`);
+    else split.style.removeProperty("--left-w");
+  }
+  if (bars) bars.style.maxHeight = (v.bars === undefined || v.bars === null) ? "" : `${Math.round(v.bars)}px`;
+}
+function _dragGutter(g, axis, onMove) {
+  if (!g) return;
+  g.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    g.setPointerCapture(ev.pointerId);
+    g.classList.add("dragging");
+    document.body.classList.add("resizing", axis);
+    const move = (e) => onMove(e);
+    const up = () => {
+      g.classList.remove("dragging");
+      document.body.classList.remove("resizing", axis);
+      g.removeEventListener("pointermove", move);
+      g.removeEventListener("pointerup", up);
+      g.removeEventListener("pointercancel", up);
+      window.dispatchEvent(new Event("resize"));
+    };
+    g.addEventListener("pointermove", move);
+    g.addEventListener("pointerup", up);
+    g.addEventListener("pointercancel", up);
+  });
+}
+(function initSplit() {
+  const split = document.getElementById("split");
+  const bars = document.getElementById("infobars");
+  const gv = document.getElementById("gutter-v");
+  const gh = document.getElementById("gutter-h");
+  if (!split) return;
+  let state = _splitLoad();
+  _splitApply(state);
+  const MIN = 260;                       // 두 창 모두 이보다 좁아지지 않게 (#split 의 minmax 와 같은 값)
+  _dragGutter(gv, "col", (e) => {
+    const r = split.getBoundingClientRect();
+    const left = Math.max(MIN, Math.min(e.clientX - r.left, r.width - MIN - 7));
+    state = { ...state, left }; _splitApply(state); _splitSave(state);
+  });
+  _dragGutter(gh, "row", (e) => {
+    if (!bars) return;
+    const top = bars.getBoundingClientRect().top;
+    const full = bars.scrollHeight;
+    const h = Math.max(0, Math.min(e.clientY - top, full));
+    state = { ...state, bars: h >= full ? null : h }; _splitApply(state); _splitSave(state);
+  });
+  for (const g of [gv, gh]) {
+    if (!g) continue;
+    g.addEventListener("dblclick", () => {
+      state = g === gv ? { ...state, left: null } : { ...state, bars: null };
+      _splitApply(state); _splitSave(state);
+      window.dispatchEvent(new Event("resize"));
+    });
+  }
+})();

@@ -211,8 +211,13 @@
        재사용인지 유도인지, 그리고 개정본의 범례가 프로필과 다른 곳이 있는지를
        머리 바로 아래에 적는다.  "조용히 옛 규칙으로 분석했다" 가 이 회차에서
        가장 위험한 실패 방식이고, 그것은 화면에 자리가 없으면 반드시 일어난다. -->
+  <div id="infobars">
   <div id="legend-bar" class="legend-bar hidden"></div>
   <div id="mode-bar" class="legend-bar mode-bar hidden"></div>
+  </div>
+  <!-- hotfix17 — 경계를 끌어 도면 창을 키운다.  위 손잡이는 안내 띠 높이,
+       가운데 손잡이는 도면 ↔ 목록 폭.  두 번 누르면 처음 크기로. -->
+  <div id="gutter-h" class="gutter gutter-h" title="끌어서 도면 창 높이 조절 · 두 번 누르면 원래대로"></div>
 
   <div id="split">
     <section id="left">
@@ -281,6 +286,7 @@
       </div>
     </section>
 
+    <div id="gutter-v" class="gutter gutter-v" title="끌어서 도면 창 폭 조절 · 두 번 누르면 원래대로"></div>
     <section id="right">
       <!-- Always visible: what is left to decide, by the axis it is decided on.
            Filled by app.js renderReviewPanel(). -->
