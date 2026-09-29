@@ -2314,13 +2314,25 @@ _AXIS_PAGES: dict = {}          # job_id -> {page_no: PageCache}.  최근 1개 j
 
 
 def _axis_page(job, page_no: int):
+    """그 **한 장**만 연다 (hotfix27).
+
+    예전에는 첫 호출에 PDF 전체를 열어(TC2 60장 3.2초) ④ 행을 처음 누를 때마다 근거 패널이
+    멈춘 듯했다.  후보는 그 장의 글자만 쓰므로 그 장만 열면 된다 — 마크업 제안 · 범위 읽기가
+    이미 쓰는 `load_pages(only=)` 와 같은 길이다.  DXF 는 이 경로가 없다(PDF 쪽 캐시다)."""
     import pidcache
+    if "input_kind" in job.keys() and job["input_kind"] == "DXF":
+        return None
     jid = job["id"]
     if jid not in _AXIS_PAGES:
         _AXIS_PAGES.clear()          # 한 번에 한 job 이면 충분하다 - 화면도 그렇다
-        doc, pages = pidcache.load_pages(job["pdf_path"])
-        _AXIS_PAGES[jid] = {p.page_no: p for p in pages}
-    return _AXIS_PAGES[jid].get(page_no)
+        _AXIS_PAGES[jid] = {}
+    got = _AXIS_PAGES[jid]
+    if page_no not in got:
+        if len(got) >= 4:            # 장을 오가도 메모리가 쌓이지 않게
+            got.clear()
+        _doc, pages = pidcache.load_pages(job["pdf_path"], only=(int(page_no),))
+        got[page_no] = pages[0] if pages else None
+    return got[page_no]
 
 
 # 도면 텍스트 층에서 거르는 것 — **이미 측정된 제거 패턴의 재사용**이다.
@@ -2556,11 +2568,34 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
                 "review_count": db.review_count(CON, job_id)}
     author = str(payload.get("author") or "").strip()
     via = str(payload.get("via") or "")
-    if via == "markup":
+    # hotfix27 — 한 쪽은 긋고 한 쪽은 **직접 입력**할 수 있으므로 출처는 쪽마다 따로 온다
+    # (`via_from` · `via_to`).  없으면 옛 `via` 하나가 두 쪽을 말한다.
+    #   markup — 도면에 그은 범위 안의 글자 (서버가 `axis_text` 로 읽은 것)
+    #   manual — 사람이 친 글자.  도면에 없을 수 있으므로 **"직접 입력"** 이라고 적는다
+    #   keep   — 앞서 확정한 값을 안 건드렸다.  장부의 출처를 그대로 잇는다
+    # 셋 다 후보 목록과 대조하지 않는다 — 대조하려면 그 장을 통째로 읽어야 하고(TC2 3.2초)
+    # 출처가 이미 정해져 있다.
+    via_from = str(payload.get("via_from") or via)
+    via_to = str(payload.get("via_to") or via)
+    _SIDE_VIAS = ("markup", "manual", "keep")
+    if via == "markup" or (via_from in _SIDE_VIAS and via_to in _SIDE_VIAS):
         # hotfix23 — 사람이 도면에 그은 범위 안의 글자를 서버가 읽은 것이다 (`axis_text`).
         # 후보 목록과 대조할 필요가 없다 — 도면이 인쇄한 글자 그대로이므로 출처는 범위다.
-        source_from = "마크업 범위" if from_text else ""
-        source_to = "마크업 범위" if to_text else ""
+        prev = {}
+        if stable_id and job["project"]:
+            prev = axis_overrides.load(
+                axis_overrides.path_for(DATA_DIR, job["project"])).get(stable_id) or {}
+
+        def _side_source(text, side_via, side):
+            if not text:
+                return ""
+            if side_via == "markup":
+                return "마크업 범위"
+            if side_via == "keep" and prev.get(side) == text and prev.get(f"source_{side}"):
+                return prev[f"source_{side}"]
+            return "직접 입력"
+        source_from = _side_source(from_text, via_from, "from")
+        source_to = _side_source(to_text, via_to, "to")
     else:
         if not from_text or not to_text:
             raise HTTPException(400, "FROM 과 TO 를 모두 고르거나 둘 다 비우세요")
@@ -2615,8 +2650,10 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
         user_value=sentence,
         reason=f"판정축 FROM/TO 확정 — FROM {source_from or '없음'} · TO {source_to or '없음'}",
         basis={"from": from_text, "to": to_text,
-               **({"from_rect": payload.get("from_rect")} if payload.get("from_rect") else {}),
-               **({"to_rect": payload.get("to_rect")} if payload.get("to_rect") else {})},
+               **({"from_rect": payload.get("from_rect")}
+                  if payload.get("from_rect") and source_from == "마크업 범위" else {}),
+               **({"to_rect": payload.get("to_rect")}
+                  if payload.get("to_rect") and source_to == "마크업 범위" else {})},
         author=author,
         pattern_args={"field": "description",
                       "ai": (before.get("ai") or {}).get("description"),
@@ -2628,8 +2665,8 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
             from_text=from_text, to_text=to_text, source_from=source_from,
             source_to=source_to, type_=type_, sentence=sentence,
             origin_job=job_id,
-            from_rect=payload.get("from_rect") if via == "markup" else None,
-            to_rect=payload.get("to_rect") if via == "markup" else None)
+            from_rect=payload.get("from_rect") if source_from == "마크업 범위" else None,
+            to_rect=payload.get("to_rect") if source_to == "마크업 범위" else None)
         saved = True
     return {"sentence": sentence, "suffix": suffix,
             "source_from": source_from, "source_to": source_to,

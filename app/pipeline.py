@@ -2174,6 +2174,94 @@ def _valve_tag_signals(rows, bubbles_by_page=None) -> tuple:
     return owned, folded
 
 
+_VENDOR_UNDEFINED_REASON = ("a vendor mark is drawn on this symbol but this "
+                            "drawing's NOTES do not define what it means, so "
+                            "whether it is vendor supply is undecided")
+
+
+def _row_mark_rank(r) -> int:
+    """이 버블이 공급 주체에 대해 무엇을 말하나 — 2 정의된 별표 · 1 뜻 없는 별표 · 0 없음."""
+    hits = set(r.evidence.get("rules_hit") or [])
+    if hits & set(da.VENDOR_RULES):
+        return 2
+    if "VENDOR_MARK_UNDEFINED" in hits:
+        return 1
+    return 0
+
+
+def _bundle_scope(grp) -> dict:
+    """맞닿은 스위치 묶음의 공급 주체 — **어느 한 버블이라도 별표가 있으면 그 별표를 따른다.**
+
+    사용자 (hotfix27): *"LSHH, LSH, LSL 로 level signal 표기가 여러 개인 tag 에 대해서는
+    지속적으로 * 를 식별 못 한다 … 물리적 하나의 LS 에 3 개의 signal 을 표현한 것이고 3 개
+    signal 중 어느 한 곳이라도 * 가 있다면 scope 역시 * 를 따라야 한다 (LS 한정)"*.
+
+    원인: 별표는 **버블 하나**에 붙는다 (16회차 · 한 마크는 심볼 하나에만).  도면은 묶음의
+    별표를 아무 버블 옆에나 찍는데(사용자 캡처는 LSL 옆), 묶음을 접을 때 **맨 위 버블(LSHH)**
+    의 행만 남기고 그 행의 SCOPE 는 LSHH 자신의 별표만 보고 있었다 — 그래서 LSL 옆 별표가
+    물리 기기 하나의 공급 주체를 말하지 못했다.
+
+    규칙은 새 거리·새 상수를 만들지 않는다 — 별표를 **어느 버블이 가졌는가**는 이미 판정돼
+    있고(`read_vendor_mark`), 여기서는 그 판정을 묶음(= 물리 기기 하나, 5회차 사용자 확정)
+    전체로 넓힐 뿐이다.  이 묶음은 `_is_switch` 를 지난 것뿐이라 네 문서에서 전부 LS 다.
+
+    고르는 순서: 정의된 별표(VENDOR(이름)) > 뜻 없는 별표(VENDOR) > 없음(SCT).  별표를 가진
+    버블이 서로 다른 공급자를 말하면 고르지 않은 쪽이 있다는 것을 검토 사유로 남긴다.
+    """
+    ranked = sorted(((_row_mark_rank(r), -i, r) for i, r in enumerate(grp)),
+                    key=lambda t: (t[0], t[1]), reverse=True)
+    best_rank, _i, src = ranked[0]
+    if best_rank == 0:
+        return {}
+    marked = {r.scope for r in grp if _row_mark_rank(r)}
+    info = {"anchor": str(src.evidence.get("anchor") or src.type), "scope": src.scope,
+            "marked_members": [str(r.evidence.get("anchor") or r.type)
+                               for r in grp if _row_mark_rank(r)]}
+    if len(marked) > 1:
+        info["disagree"] = sorted(marked)
+    src_hits = [h for h in (src.evidence.get("rules_hit") or [])
+                if h in da.VENDOR_RULES or h == "VENDOR_MARK_UNDEFINED"]
+    src_mark = ((src.evidence.get("detail") or {}).get("vendor_mark"))
+    for r in grp:
+        if r is src:
+            continue
+        before = r.scope
+        if _row_mark_rank(r) < best_rank:
+            r.scope = src.scope
+            r.vendor_supply = src.vendor_supply
+            hits = r.evidence.setdefault("rules_hit", [])
+            for h in src_hits:
+                if h not in hits:
+                    hits.append(h)
+            if src_mark is not None:
+                r.evidence.setdefault("detail", {})["vendor_mark"] = src_mark
+            r.evidence["notes_text"] = list(src.evidence.get("notes_text") or [])
+            r.evidence["excluded_by"] = src.evidence.get("excluded_by", "")
+            # 타사 공급이면 Description 도 그 규칙을 따른다 (다른 벤더 행과 같게)
+            if not src.description_needed and r.description_needed:
+                r.description_needed = False
+                r.description_note = src.description_note
+                r.evidence["description_needed"] = False
+                r.evidence["description_note"] = src.description_note
+            if best_rank == 1:
+                codes = r.evidence.setdefault("review_codes", [])
+                if "VENDOR_MARK_UNDEFINED" not in codes:
+                    codes.append("VENDOR_MARK_UNDEFINED")
+                    r.needs_review = "; ".join(
+                        x for x in (r.needs_review, _VENDOR_UNDEFINED_REASON) if x)
+        r.evidence["bundle_scope"] = dict(info, own_scope=before)
+    if info.get("disagree"):
+        for r in grp:
+            codes = r.evidence.setdefault("review_codes", [])
+            if "VENDOR_MARK_UNDEFINED" not in codes:
+                codes.append("VENDOR_MARK_UNDEFINED")
+                r.needs_review = "; ".join(x for x in (
+                    r.needs_review, "signals of one switch carry different vendor marks "
+                    f"({', '.join(info['disagree'])}) — {info['anchor']}'s is used") if x)
+    src.evidence["bundle_scope"] = dict(info, own_scope=src.scope)
+    return info
+
+
 def _signal_groups(rows, isa=None) -> tuple:
     """Bubbles the drawing stacks edge-to-edge, grouped, with the basis measured.
 
@@ -2264,6 +2352,10 @@ def _signal_groups(rows, isa=None) -> tuple:
             signals = " + ".join(str(r.evidence.get("anchor") or r.type)
                                  for r in grp)
             group["basis"]["signals"] = signals
+            # hotfix27 — 공급 주체는 **묶음 전체**가 말한다.
+            adopted = _bundle_scope(grp)
+            if adopted:
+                group["basis"]["scope_from"] = adopted
             for i, r in enumerate(grp):
                 r.evidence["signal_group"] = group
                 if not MULTI_SIGNAL_MERGE:

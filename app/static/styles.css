@@ -1070,6 +1070,17 @@ button.ftc:disabled { opacity: .55; cursor: default; }
    숨는다(`.hidden`), 그래서 도면이 승수를 말한 문서에서는 아예 안 보인다. */
 .mult-panel { margin: 6px 0 8px; padding: 8px 10px; border: 1px solid var(--line);
               border-radius: 6px; background: var(--card); font-size: 12px; }
+/* hotfix27 — 유닛이 여럿이면 판이 목록 자리를 다 먹었다 (EPIC2 캡처).  기본 상한을 두고
+   넘치면 판 안에서 스크롤한다.  높이는 #gutter-m 으로 끌고, 접으면 머리줄 한 줄만. */
+.mult-panel { flex: none; max-height: 170px; overflow: auto; margin-bottom: 0; }
+.mult-panel .mtop { display: flex; align-items: baseline; gap: 8px; position: sticky; top: -8px;
+                    background: var(--card); padding: 2px 0; z-index: 1; }
+.mult-panel .mtop .msum { color: var(--ink-soft); flex: 1; }
+.mult-panel .mtop + .mgroup { margin-top: 4px; }
+.mult-panel .mtop .mfold { font-size: 11px; padding: 1px 8px; }
+.mult-panel.folded { height: auto !important; max-height: none !important; overflow: visible; }
+.mult-panel.folded .mwhy, .mult-panel.folded .mgroup { display: none; }
+#gutter-m { margin-bottom: 6px; }
 .mult-panel > b { margin-right: 6px; }
 .mult-panel .muted { color: var(--ink-soft); }
 .mult-panel .mgroup { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
@@ -1196,6 +1207,13 @@ text.ftlabel.to { fill: #7c3aed; }
 .pjt summary .saved { color: var(--ink-strong); font-weight: 600; }
 /* hotfix23 — Description From/To 마크업 */
 #descmk .dm-val { font-size: 12px; margin-left: 8px; word-break: break-word; }
+/* hotfix27 — From/To 는 입력칸.  라벨 · 칸 · [범위] 가 한 줄 */
+#descmk .dm-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+#descmk .dm-row label { flex: none; width: 44px; font-size: 12px; color: var(--ink-soft); }
+#descmk .dm-row input[type=text] { flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px; }
+#descmk .dm-row button { flex: none; font-size: 12px; padding: 2px 10px; }
+#descmk .dm-foot input#dm-who { flex: 0 1 140px; }
+#descmk #dm-note:empty { display: none; }
 #descmk button.on { outline: 2px solid var(--accent, #3b6fd8); }
 
 /* ---------- hotfix26 — 가독성 · 편의 ---------- */

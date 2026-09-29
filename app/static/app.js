@@ -1544,14 +1544,22 @@ async function loadMultipliers() {
   } catch (e) { return; }
   S.mult = out;
   const groups = out.groups || [];
-  if (!groups.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  if (!groups.length) { box.classList.add("hidden"); box.innerHTML = ""; _multGutter(); return; }
   box.classList.remove("hidden");
   /* 이 분석이 프로젝트에 안 묶여 있으면 **저장할 자리가 없다** — 누르고 나서
    * 400 으로 알리지 않고 먼저 말한다 (31회차 UI 자기검증).  승수는 프로젝트의
    * 사실이므로 job 하나에 매달아 둘 수 없다. */
   const bound = !!out.project;
-  box.innerHTML = `<b>수량 승수</b> <span class="muted">도면이 말하지 않은 유닛 —
-      사람이 한 번 답하면 그 유닛의 모든 행에 적용됩니다</span>`
+  /* hotfix27 — 유닛이 여럿이면(EPIC2: 00 · 10 · 11 · 12) 이 판이 목록 자리를 다
+   * 먹었다.  머리줄에 **접기**와 한 줄 요약을 두고, 판 아래 손잡이(#gutter-m)로
+   * 높이를 끈다.  접힘은 브라우저가 기억한다 (범례 판 접기와 같은 규칙). */
+  const nSet = groups.filter(g => g.set).length;
+  const folded = _multFolded();
+  box.classList.toggle("folded", folded);
+  box.innerHTML = `<div class="mtop"><b title="도면이 말하지 않은 유닛 — 사람이 한 번 답하면 그 유닛의 모든 행에 적용됩니다">수량 승수</b>
+      <span class="msum">유닛 ${groups.length}개 · 지정 ${nSet} · 미지정 ${groups.length - nSet}
+        · ${groups.reduce((a, g) => a + (g.rows || 0), 0)}행</span>
+      <button class="mfold ghost" title="접으면 요약 한 줄만 남습니다">${folded ? "펼치기" : "접기"}</button></div>`
     + (bound ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
          승수를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
     + groups.map(g => {
@@ -1581,6 +1589,11 @@ async function loadMultipliers() {
           </div>` : (keyed ? "" : `<div class="mwhy muted">이 장들의 도면번호에서
              유닛코드를 읽지 못해 지정할 열쇠가 없습니다</div>`)}</div>`;
       }).join("");
+  box.querySelector(".mfold").onclick = () => {
+    _multFolded(!box.classList.contains("folded"));
+    loadMultipliers();
+  };
+  _multGutter();
   box.querySelectorAll(".mgroup").forEach(el => {
     const unit = el.dataset.unit;
     const val = el.querySelector(".mval");
@@ -1619,6 +1632,21 @@ async function loadMultipliers() {
       loadMultipliers();
     };
   });
+}
+
+const MULT_FOLD_KEY = "pid.mult.fold";
+function _multFolded(v) {
+  try {
+    if (v === undefined) return localStorage.getItem(MULT_FOLD_KEY) === "1";
+    localStorage.setItem(MULT_FOLD_KEY, v ? "1" : "0");
+  } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
+  return !!v;
+}
+/* 판이 보이고 펼쳐져 있을 때만 손잡이를 둔다 — 접힌 한 줄을 끌 까닭이 없다. */
+function _multGutter() {
+  const box = $("#mult-panel"), g = document.getElementById("gutter-m");
+  if (!box || !g) return;
+  g.classList.toggle("hidden", box.classList.contains("hidden") || box.classList.contains("folded"));
 }
 
 function renderReviewCodes() {
@@ -3113,6 +3141,15 @@ function showEvidence(row) {
   const facts = scopeFacts(row.values.scope, { needsReview: row.needs_review,
                                                manualBlank: !!(row.added && e.markup) });
   add("공급 주체", mark("scope", facts.supplierName));
+  // hotfix27 — 맞닿은 스위치 묶음(물리 LS 1개)은 **어느 신호 버블의 별표든** 따른다.
+  // 이 행(맨 위 버블)에 별표가 없어도 VENDOR 인 까닭을 적는다.
+  if (e.bundle_scope && e.bundle_scope.anchor) {
+    const bs = e.bundle_scope;
+    add("묶음 별표", `물리 기기 1개의 신호 ${(bs.marked_members || []).join(" · ")} 에 별표 — `
+      + `묶음 전체가 ${bs.scope} 를 따릅니다`
+      + (bs.own_scope && bs.own_scope !== bs.scope ? ` (이 버블만 보면 ${bs.own_scope})` : "")
+      + (bs.disagree ? ` · ⚠ 신호마다 다른 별표 (${bs.disagree.join(", ")})` : ""));
+  }
   add("추출 결과", row.removed ? "이 행은 결과에서 빠졌습니다"
                               : "이 행은 추출 결과에 있습니다");
   add("발주처 양식", row.removed ? "빠집니다 (결과에서 빠진 행)" : facts.formLine);
@@ -3315,11 +3352,13 @@ function showEvidence(row) {
        : "")
     + `</div>`
     + reviewControls(row) + scopeEditor(row) + axisActions(row)
+    // hotfix27 — From/To 입력은 패널 **위쪽**에 둔다.  예전에는 25항목과 수정 이력 아래라
+    // 1366×768 에서 매번 스크롤해 내려가야 했다.
+    + descMarkupBlock(row)
     + "<dl>" + pairs.map(([k, v]) => k.startsWith("§")
       ? `<dt class="ev-sec">${escape(k.slice(1))}</dt><dd class="ev-sec"></dd>`
       : `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>"
     + `<div id="ev-hist"></div>`
-    + descMarkupBlock(row)
     + fromToPicker(row)
     + candidatePicker(row);
   bindCandidatePicker(row);
@@ -3432,52 +3471,114 @@ function bareName(text) {
 S.ftPending = S.ftPending || {};
 S.ftMark = null;
 
+/* 출처 문자열 → 이 쪽 값을 어디서 얻었나.  장부 값을 그대로 두면 `keep` 이라 서버가 옛 출처를
+ * 잇는다 (후보선택 값을 한 번도 안 건드렸는데 "직접 입력" 으로 바뀌지 않게). */
 function _ftState(row) {
   if (!S.ftPending[row.key]) {
     const ov = (S.axisOv || {})[row.key];
-    S.ftPending[row.key] = ov ? { from: bareName(ov.from), to: bareName(ov.to) } : { from: "", to: "" };
+    S.ftPending[row.key] = ov
+      ? { from: bareName(ov.from), to: bareName(ov.to),
+          from_rect: ov.from_rect || null, to_rect: ov.to_rect || null,
+          from_via: ov.from ? "keep" : "", to_via: ov.to ? "keep" : "" }
+      : { from: "", to: "", from_via: "", to_via: "" };
   }
   return S.ftPending[row.key];
 }
 
+/* hotfix27 — **가볍게 · 직접 입력도.**
+ *
+ * 사용자: *"From/To 마크업 너무 무겁고 오래 걸린다 가볍게해줘.  그리고 마크업하지 않고 사용자가
+ * From To 를 입력할 수 있도록도 해줘"*.  TC2 실측(spike/ui_time_fromto.py · out/hotfix27):
+ *   · 한 쪽마다 세 번 눌렀다 (버튼 · 끌기 · 이름 확인) — 이름 줄이 매번 떴다
+ *   · 확인 → Description 바뀜 1.1~1.4초 인데 서버 저장은 0.11초였다.  나머지는 화면이
+ *     **목록 전부(902행) · 도면 오버레이 전부 · 근거 패널 전부**를 다시 그리고 수정 이력까지
+ *     다시 받던 것이다
+ *   · 버튼을 누르는 것만으로도 근거 패널 전부를 다시 그렸다
+ * 그래서: 칸은 **입력칸**이고(그으면 읽은 글자가 칸에 들어가고, 쳐도 된다), 작성자는 이 판 안에
+ * 늘 보이는 칸이며(비어 있을 때만 이름 줄을 띄운다 — 이름을 지어내지 않는다), 저장 뒤에는
+ * **그 행의 두 칸 · 이 판 · 범위 상자**만 고친다. */
 function descMarkupBlock(row) {
   if (row.removed) return "";
   const st = _ftState(row);
   const cur = (S.ftMark && S.ftMark.key === row.key) ? S.ftMark.side : "";
+  const side = (k, label) => `
+      <div class="dm-row">
+        <label for="dm-${k}-in">${label}</label>
+        <input id="dm-${k}-in" type="text" value="${escape(st[k] || "")}"
+               placeholder="${label} — 직접 입력하거나 범위를 그으세요" autocomplete="off">
+        <button id="dm-${k}" class="ghost${cur === k ? " on" : ""}" aria-pressed="${cur === k}"
+                title="도면에서 끌어 범위를 그으면 그 안의 글자를 읽어 넣고 바로 적용합니다">범위</button>
+      </div>`;
   return `<div class="cands" id="descmk">
-      <h4>Description From/To 마크업 <span class="muted">— 도면에서 범위를 그으면 그 안의 글자로 Description 을 씁니다 · 하나만 그어도 됩니다</span></h4>
-      <div class="cand-actions">
-        <button id="dm-from" class="ghost${cur === "from" ? " on" : ""}" aria-pressed="${cur === "from"}">From 범위 지정</button>
-        <span class="dm-val" id="dm-from-v">${st.from ? escape(st.from) : '<span class="muted">(없음)</span>'}</span>
-      </div>
-      <div class="cand-actions">
-        <button id="dm-to" class="ghost${cur === "to" ? " on" : ""}" aria-pressed="${cur === "to"}">To 범위 지정</button>
-        <span class="dm-val" id="dm-to-v">${st.to ? escape(st.to) : '<span class="muted">(없음)</span>'}</span>
-      </div>
-      <div class="cand-actions">
-        ${(st.from || st.to) ? `<button id="dm-clear" class="ghost" title="From/To 를 지우고 엔진 문장으로 되돌립니다">From/To 지우기</button>` : ""}
+      <h4>Description From/To <span class="muted">— 직접 입력하거나 도면에서 범위를 그으세요 · 하나만 있어도 됩니다</span></h4>
+      ${side("from", "From")}
+      ${side("to", "To")}
+      <div class="dm-row dm-foot">
+        <label for="dm-who">작성자</label>
+        <input id="dm-who" type="text" value="${escape(S.ftWho ?? lastAuthor())}" placeholder="이름 (자칭)" autocomplete="off">
+        <button id="dm-apply" class="ghost" title="입력한 From/To 로 Description 을 씁니다 (Enter)">적용</button>
+        ${(st.from || st.to) ? `<button id="dm-clear" class="ghost" title="From/To 를 지우고 엔진 문장으로 되돌립니다">지우기</button>` : ""}
       </div>
       <p class="muted" id="dm-note">${cur ? `도면에서 ${cur === "from" ? "From" : "To"} 범위를 끌어 지정하세요 — Esc 취소` : ""}</p>
     </div>`;
 }
 
+/* 이 판만 다시 그린다 — 근거 패널 전부를 다시 그리면 수정 이력·후보를 다시 받는다. */
+function refreshDescMarkup(row) {
+  const old = document.querySelector("#descmk");
+  if (!old || S.sel !== row.key) return;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = descMarkupBlock(row);
+  const nu = tmp.firstElementChild;
+  if (nu) { old.replaceWith(nu); bindDescMarkup(row); }
+}
+
+/* 작성자 — 판 안의 칸이 채워져 있으면 그 이름으로, 비어 있으면 이름 줄을 띄운다. */
+async function _ftAuthor(what, hint) {
+  const box = document.querySelector("#dm-who");
+  const v = box ? box.value.trim() : "";
+  if (v) { rememberAuthor(v); S.ftWho = v; return v; }
+  const who = await askAuthor(what, hint);
+  if (who) S.ftWho = who;          // 이름 줄에 적은 이름이 판의 칸에도 들어간다
+  return who;
+}
+
 function bindDescMarkup(row) {
   const box = document.querySelector("#descmk");
   if (!box) return;
+  const st = _ftState(row);
   const arm = side => {
     if (S.markup) setMarkup(false);
     S.ftMark = (S.ftMark && S.ftMark.key === row.key && S.ftMark.side === side) ? null
       : { key: row.key, side };
     $("#stage").classList.toggle("markup", !!S.ftMark);
-    showEvidence(row);
+    refreshDescMarkup(row);
   };
   box.querySelector("#dm-from").onclick = () => arm("from");
   box.querySelector("#dm-to").onclick = () => arm("to");
+  for (const k of ["from", "to"]) {
+    const inp = box.querySelector(`#dm-${k}-in`);
+    // 친 글자는 그은 범위의 글자가 아니다 — 범위 상자를 걷고 출처를 "직접 입력" 으로.
+    inp.oninput = () => { st[k] = inp.value.trim(); st[`${k}_via`] = "manual"; st[`${k}_rect`] = null; };
+    inp.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); applyTyped(); } };
+  }
+  const applyTyped = async () => {
+    if (!st.from && !st.to) { editNotice("From 이나 To 중 하나는 적어야 합니다 — 지우려면 [지우기]", "out"); return; }
+    const who = await _ftAuthor("Description From/To");
+    if (who === null) return;
+    await _ftSave(row, who);
+  };
+  box.querySelector("#dm-apply").onclick = applyTyped;
+  // 판을 다시 그려도 친 이름이 남는다 (저장할 때 브라우저가 기억한다).
+  box.querySelector("#dm-who").oninput = ev => { S.ftWho = ev.target.value; };
+  box.querySelector("#dm-who").onkeydown = ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); applyTyped(); }
+  };
   const clr = box.querySelector("#dm-clear");
   if (clr) clr.onclick = async () => {
-    const who = await askAuthor("Description From/To 지우기");
+    const who = await _ftAuthor("Description From/To 지우기");
     if (who === null) return;
-    S.ftPending[row.key] = { from: "", to: "" };
+    S.ftPending[row.key] = { from: "", to: "", from_via: "", to_via: "" };
     await _ftSave(row, who);
   };
 }
@@ -3491,15 +3592,53 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape" && S.ftMark) {
     const row = S.rows.find(r => r.key === S.ftMark.key);
     endFtMark();
-    if (row) showEvidence(row);
+    if (row) refreshDescMarkup(row);
   }
 });
+
+/* 목록에서 그 행의 Description · 등급 두 칸만 고친다 (목록 전부를 다시 그리지 않는다). */
+function _paintDescCells(row) {
+  const tr = document.querySelector(`#body tr[data-key="${CSS.escape(row.key)}"]`);
+  if (!tr) return;
+  const cols = COLS.filter(([key]) => key !== "origin" || S.showOrigin);
+  cols.forEach(([key], i) => {
+    if (key !== "description" && key !== "description_grade") return;
+    const td = tr.children[i];
+    if (!td) return;
+    const val = row.values[key] ?? "";
+    if (key === "description_grade") {
+      td.innerHTML = "";
+      if (val) {
+        const g = GRADES.find(x => x[0] === val);
+        const b = document.createElement("span");
+        b.className = `gradge g-${val}`;
+        b.innerHTML = `<i class="gm">${GRADE_MARK[val] || "·"}</i><span>${escape(g ? g[1] : val)}</span>`;
+        b.title = g ? g[2] : val;
+        td.appendChild(b);
+      }
+    } else {
+      td.textContent = val;
+    }
+    td.title = val ? String(val) : "";
+    td.classList.toggle("edited", !!(row.user && key in row.user));
+  });
+  repaintRow(row);
+}
+
+/* 범위 상자만 다시 그린다 — 오버레이 전부(수백 상자)를 다시 만들지 않는다. */
+function _redrawFromTo() {
+  const ov = $("#ov");
+  if (!ov || !S.page || !S.natural) return;
+  ov.querySelectorAll("rect.ftbox, text.ftlabel").forEach(n => n.remove());
+  drawFromTo(ov, S.natural.w / (S.page.width || 1));
+}
 
 async function _ftSave(row, author) {
   const st = _ftState(row);
   const res = await fetch(`/jobs/${S.job.id}/rows/${row.key}/axis`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ from_text: st.from, to_text: st.to, via: "markup", author,
+                           via_from: st.from_via || "manual", via_to: st.to_via || "manual",
                            from_rect: st.from_rect || null, to_rect: st.to_rect || null }),
   });
   if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return null; }
@@ -3509,6 +3648,8 @@ async function _ftSave(row, author) {
     delete row.user.description; delete row.user.description_grade;
     const eng = (row.ai || {}).description;
     if (eng !== undefined) row.values.description = eng;
+    const engG = (row.ai || {}).description_grade;
+    if (engG !== undefined) row.values.description_grade = engG;
     delete (S.axisOv || {})[row.key];
     editNotice("From/To 를 지웠습니다 — 엔진 문장으로 돌아갑니다", "in");
   } else {
@@ -3520,12 +3661,18 @@ async function _ftSave(row, author) {
                             source_to: out.source_to, stable_id: out.stable_id, inherited: false,
                             from_rect: st.from_rect || null, to_rect: st.to_rect || null };
     }
+    // 저장된 값은 이제 장부의 값이다 — 다음 저장에서 안 건드린 쪽은 출처를 잇는다.
+    if (st.from) st.from_via = st.from_via === "markup" ? "markup" : "keep";
+    if (st.to) st.to_via = st.to_via === "markup" ? "markup" : "keep";
     editNotice(`Description — “${out.sentence}”`, "in");
   }
-  renderGrid();
-  drawOverlay();          // hotfix25 — 그은 From/To 범위가 도면에 남는다
-  const again = S.rows.find(r => r.key === row.key);
-  if (again && S.sel === row.key) showEvidence(again);
+  if (out.review_count !== undefined) { S.counts.REVIEW = out.review_count; updateBadge(); }
+  _paintDescCells(row);
+  _redrawFromTo();          // hotfix25 — 그은 From/To 범위가 도면에 남는다
+  if (S.sel === row.key) {
+    refreshDescMarkup(row);
+    showHistory(row);       // 이력 한 줄이 늘었다 — 이것만 다시 받는다
+  }
   return out;
 }
 
@@ -3538,27 +3685,29 @@ async function descMarkupEnd(rect) {
   // 쓰면 도면이 말하지 않은 것을 적는 것이다 (§2.1 ③).
   if (row.page_no !== S.page.page_no) {
     editNotice(`이 행은 p${row.page_no} 의 계기입니다 — 그 장에서 범위를 그으세요 (지금 p${S.page.page_no})`, "out");
-    showEvidence(row);
+    refreshDescMarkup(row);
     return;
   }
   const res = await fetch(`/jobs/${S.job.id}/axis_text`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ page_no: S.page.page_no, rect }),
   });
-  if (!res.ok) { alert((await res.json()).detail || "글자를 읽지 못했습니다"); showEvidence(row); return; }
+  if (!res.ok) { alert((await res.json()).detail || "글자를 읽지 못했습니다"); refreshDescMarkup(row); return; }
   const got = await res.json();
   if (!got.text) {
     editNotice("그은 범위 안에 읽을 글자가 없습니다" + ((got.dropped || []).length
       ? ` (도면번호·주석 줄 ${got.dropped.length}개는 뺐습니다)` : ""), "out");
-    showEvidence(row);
+    refreshDescMarkup(row);
     return;
   }
-  const who = await askAuthor(`Description ${mk.side === "from" ? "From" : "To"}`,
-                              `읽은 글자: ${got.text}`);
-  if (who === null) { showEvidence(row); return; }
   const st = _ftState(row);
   st[mk.side] = got.text;
+  st[`${mk.side}_via`] = "markup";
   st[`${mk.side}_rect`] = [S.page.page_no, ...rect.map(v => Math.round(v * 10) / 10)];
+  refreshDescMarkup(row);   // 읽은 글자가 칸에 먼저 보인다
+  const who = await _ftAuthor(`Description ${mk.side === "from" ? "From" : "To"}`,
+                              `읽은 글자: ${got.text}`);
+  if (who === null) return;   // 칸에 남아 있다 — [적용] 으로 다시 저장할 수 있다
   await _ftSave(row, who);
 }
 
@@ -4297,7 +4446,16 @@ function drawOverlay() {
   const scale = S.natural.w / (S.page.width || 1);
   ov.setAttribute("viewBox", `0 0 ${S.natural.w} ${S.natural.h}`);
   drawTrace(ov, scale);
-  for (const it of overlayItems(S.page)) {
+  // hotfix27 — **큰 상자를 먼저, 작은 상자를 나중에** 그린다.  SVG 는 나중에 그린 것이
+  // 위에 서서 클릭을 받는다.  Typical 상세 상자(`D HRH TYPICAL DRAIN CONFIGURATION`)는
+  // 층 목록 끝에 있어 **안쪽 TT · MOV 상자 위에** 덮였고, 칠이 투명해도 클릭을
+  // 가로채 그 행들을 누를 수 없었다.  면적 순서는 어느 층이 뒤에 오든 성립한다
+  // (상자 안에 든 것은 늘 그 상자보다 작다).  세는 것(`overlayItems`)은 그대로다.
+  const area = r => Math.abs((r[2] - r[0]) * (r[3] - r[1]));
+  const drawn = overlayItems(S.page).map((it, i) => [it, i])
+    .sort((a, b) => (area(b[0].rect) - area(a[0].rect)) || (a[1] - b[1]))
+    .map(p => p[0]);
+  for (const it of drawn) {
     if (!itemVisible(it)) continue;
     const [x0, y0, x1, y1] = it.rect;
     const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -5823,6 +5981,12 @@ function _splitApply(v) {
     else split.style.removeProperty("--left-w");
   }
   if (bars) bars.style.maxHeight = (v.bars === undefined || v.bars === null) ? "" : `${Math.round(v.bars)}px`;
+  // hotfix27 — 수량 승수 판 높이 (pid.split.mult).  없으면 CSS 기본(상한 170px).
+  const mp = document.getElementById("mult-panel");
+  if (mp) {
+    if (v.mult) { mp.style.height = `${Math.round(v.mult)}px`; mp.style.maxHeight = "none"; }
+    else { mp.style.height = ""; mp.style.maxHeight = ""; }
+  }
   // hotfix26 — 근거 패널 높이 (pid.split.ev).  없으면 CSS 기본(232px).
   const ev = document.getElementById("evidence");
   if (ev) {
@@ -5858,6 +6022,7 @@ function _dragGutter(g, axis, onMove) {
   const gv = document.getElementById("gutter-v");
   const gh = document.getElementById("gutter-h");
   const ge = document.getElementById("gutter-r");     // hotfix26 — 목록 ↔ 근거 패널
+  const gm = document.getElementById("gutter-m");     // hotfix27 — 수량 승수 판 ↔ 목록
   if (!split) return;
   let state = _splitLoad();
   _splitApply(state);
@@ -5914,10 +6079,22 @@ function _dragGutter(g, axis, onMove) {
     const h = Math.max(80, Math.min(bottom - e.clientY, share - 120));
     state = { ...state, ev: h }; _splitApply(state); _splitSave(state);
   });
-  for (const g of [gv, gh, ge]) {
+  // hotfix27 — 수량 승수 판 ↔ 목록.  아래로 끌면 판이 커지고 위로 끌면 줄어든다.
+  // 하한 60(머리줄 + 한 유닛 머리) · 상한은 목록에 네 줄(120px)은 남게 (ev 손잡이와 같은 규칙).
+  _dragGutter(gm, "row", (e) => {
+    const mp = document.getElementById("mult-panel");
+    const gw = document.getElementById("gridwrap");
+    if (!mp) return;
+    const top = mp.getBoundingClientRect().top;
+    const share = mp.getBoundingClientRect().height + (gw ? gw.getBoundingClientRect().height : 0);
+    const h = Math.max(60, Math.min(e.clientY - top, share - 120));
+    state = { ...state, mult: h }; _splitApply(state); _splitSave(state);
+  });
+  for (const g of [gv, gh, ge, gm]) {
     if (!g) continue;
     g.addEventListener("dblclick", () => {
-      state = g === gv ? { ...state, left: null } : g === gh ? { ...state, bars: null } : { ...state, ev: null };
+      state = g === gv ? { ...state, left: null } : g === gh ? { ...state, bars: null }
+        : g === gm ? { ...state, mult: null } : { ...state, ev: null };
       _splitApply(state); _splitSave(state);
       window.dispatchEvent(new Event("resize"));
       refit();
