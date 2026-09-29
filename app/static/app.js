@@ -1004,6 +1004,15 @@ async function showFailure(message, d, jobId) {
   hint.textContent = "다른 PDF 로 다시 시도하거나, 아래 이전 분석을 여세요.";
   hint.classList.remove("hidden");
   $("#prog-actions").classList.remove("hidden");
+  // hotfix29 — 타이틀블록을 못 읽고 멈춘 분석에는 **사람이 칸을 그어 주는 길**이 있다.
+  const tbBtn = $("#prog-tbfix");
+  const tbCase = !!(jobId && /도면번호를 읽지 못했습니다/.test(message || ""));
+  tbBtn.classList.toggle("hidden", !tbCase);
+  if (tbCase) {
+    hint.textContent = "이 양식의 도면번호 칸을 아래 [타이틀블록 칸 지정] 으로 알려 주면 그 칸으로 다시 분석할 수 있습니다.";
+    tbBtn.onclick = () => openTbFix(jobId);
+  }
+  $("#tbfix").classList.add("hidden");
   /* 예외 원문 — 접어 두되 버리지 않는다 (21회차).
    *
    * 예전에는 진단 내보내기 zip 안에만 있었다.  "그대로 노출하지 않는다" 는
@@ -5402,7 +5411,7 @@ function markSnapshotStale() {
 // 행을 바꾸는 요청은 여러 곳에서 나간다 (칸 편집 · 공급 주체 · 삭제 · 되돌리기 · 마크업 ·
 // ＋행 · 복사 · 승수 · FROM/TO 확정).  한 곳에서 본다 — 곳마다 부르면 하나를 빠뜨린다.
 const _rawFetch = window.fetch.bind(window);
-const _MUTATES = /\/jobs\/[^/]+\/(rows|axis|axis_overrides|deleted|review|multipliers|sheet_numbers)(\/|\?|$)/;
+const _MUTATES = /\/jobs\/[^/]+\/(rows|axis|axis_overrides|deleted|review|multipliers|sheet_numbers|titleblock)(\/|\?|$)/;
 window.fetch = (url, opts) => {
   const p = _rawFetch(url, opts);
   const method = String((opts && opts.method) || "GET").toUpperCase();
@@ -5545,6 +5554,161 @@ $req("#row-delete").addEventListener("click", async () => {
   if (!keys.length) { alert("삭제할 행을 먼저 선택하세요."); return; }
   await deleteRows(keys);
 });
+
+/* ---------------- hotfix29 — 타이틀블록 칸 지정 ----------------
+ *
+ * 새 양식마다 `TitleBlockUnreadable` 로 멈추면 프로그램의 실효성이 없다.  엔진이 캡션
+ * 표기 여러 벌과 구조로 칸을 찾고도 남는 문서에서는 **사람이 도면 위에 사각형 하나를
+ * 끌어** 그 칸을 알려 준다.  서버가 같은 종이 크기의 모든 장에서 그 칸을 읽어 미리
+ * 보여 주고, 저장은 프로젝트 단위(`title_block_cells.json`) · 작성자 필수 · 다시 분석해야
+ * 반영된다 (31회차 승수 · 45회차 도면번호 지정과 같은 규율).
+ *
+ * 좌표: 화면 픽셀 ÷ 확대율 = PDF pt (`/page/{n}.png?zoom=`).  `S` 를 건드리지 않는다 —
+ * 이 화면은 결과 화면 앞에 선다. */
+const TB = { job: null, page: 1, zoom: 0.5, cells: {}, derived: {}, state: null, drag: null };
+const TB_LABEL = { dwg_no_region: "도면번호", title_region: "제목", rev_box: "REV", sheet_box: "SHEET" };
+
+async function openTbFix(jobId) {
+  TB.job = jobId; TB.cells = {}; TB.derived = {}; TB.state = null;
+  const box = $("#tbfix");
+  box.classList.remove("hidden");
+  const msg = $("#tbfix-msg"); msg.textContent = "불러오는 중…"; msg.classList.remove("out");
+  $("#tbfix-preview").innerHTML = "";
+  $("#tbfix-who").value = lastAuthor();
+  let st;
+  try { st = await (await fetch(`/jobs/${jobId}/titleblock`)).json(); }
+  catch (e) { msg.textContent = "불러오지 못했습니다"; msg.classList.add("out"); return; }
+  if (!st.supported) { msg.textContent = st.note || "이 입력에는 쓸 수 없습니다"; msg.classList.add("out"); return; }
+  TB.state = st;
+  TB.page = st.suggested_page || 1;
+  $("#tbfix-page").max = st.page_count;
+  $("#tbfix-sizes").textContent = "쪽 크기 " + (st.sizes || []).map(z => `${z.size[0]}x${z.size[1]}pt ${z.pages}장`).join(" · ")
+    + ` — 다수 크기의 장 ${(st.form_pages || []).length}장에 적용됩니다`;
+  if (st.saved && st.saved.cells) TB.cells = { ...st.saved.cells };
+  TB.derived = st.derived || {};
+  msg.textContent = st.saved
+    ? `저장된 지정이 있습니다 (${st.saved.author || "이름 없음"} · ${(st.saved.set_at || "").slice(0, 10)}) — 다시 그으면 바뀝니다`
+    : (st.project ? "" : "⚠ 이 분석은 프로젝트에 묶여 있지 않아 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리세요");
+  if (!st.project) msg.classList.add("out");
+  tbRender();
+  box.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function tbRender() {
+  const img = $("#tbfix-img");
+  $("#tbfix-page").value = TB.page;
+  img.onload = tbDrawBoxes;
+  img.src = `/jobs/${TB.job}/page/${TB.page}.png?zoom=${TB.zoom}`;
+}
+
+function tbDrawBoxes() {
+  const holder = $("#tbfix-boxes");
+  holder.innerHTML = "";
+  const put = (name, r, cls) => {
+    const d = document.createElement("div");
+    d.className = `tbbox ${name} ${cls || ""}`;
+    d.style.left = `${r[0] * TB.zoom}px`; d.style.top = `${r[1] * TB.zoom}px`;
+    d.style.width = `${(r[2] - r[0]) * TB.zoom}px`; d.style.height = `${(r[3] - r[1]) * TB.zoom}px`;
+    d.innerHTML = `<span class="tblbl">${TB_LABEL[name] || name}${cls === "derived" ? " (도면이 답한 칸)" : ""}</span>`;
+    holder.appendChild(d);
+  };
+  for (const [name, r] of Object.entries(TB.derived)) if (!TB.cells[name]) put(name, r, "derived");
+  for (const [name, r] of Object.entries(TB.cells)) put(name, r, "");
+}
+
+function tbCell() { return (document.querySelector('input[name="tbfix-cell"]:checked') || {}).value || "dwg_no_region"; }
+
+function tbPoint(ev) {
+  const img = $("#tbfix-img");
+  const b = img.getBoundingClientRect();
+  return [(ev.clientX - b.left) / TB.zoom, (ev.clientY - b.top) / TB.zoom];
+}
+
+$req("#tbfix-stage").addEventListener("pointerdown", ev => {
+  if (ev.button !== 0 || !TB.job) return;
+  ev.preventDefault();
+  const p = tbPoint(ev);
+  const el = document.createElement("div");
+  el.className = `tbbox rubber ${tbCell()}`;
+  $("#tbfix-boxes").appendChild(el);
+  TB.drag = { p0: p, el, id: ev.pointerId };
+  $("#tbfix-stage").setPointerCapture(ev.pointerId);
+});
+$req("#tbfix-stage").addEventListener("pointermove", ev => {
+  if (!TB.drag) return;
+  const p = tbPoint(ev);
+  const r = [Math.min(TB.drag.p0[0], p[0]), Math.min(TB.drag.p0[1], p[1]),
+             Math.max(TB.drag.p0[0], p[0]), Math.max(TB.drag.p0[1], p[1])];
+  const el = TB.drag.el;
+  el.style.left = `${r[0] * TB.zoom}px`; el.style.top = `${r[1] * TB.zoom}px`;
+  el.style.width = `${(r[2] - r[0]) * TB.zoom}px`; el.style.height = `${(r[3] - r[1]) * TB.zoom}px`;
+});
+$req("#tbfix-stage").addEventListener("pointerup", async ev => {
+  if (!TB.drag) return;
+  const d = TB.drag; TB.drag = null;
+  d.el.remove();
+  const p = tbPoint(ev);
+  const r = [Math.min(d.p0[0], p[0]), Math.min(d.p0[1], p[1]), Math.max(d.p0[0], p[0]), Math.max(d.p0[1], p[1])]
+    .map(v => Math.round(v * 10) / 10);
+  if (r[2] - r[0] < 4 || r[3] - r[1] < 2) return;           // 클릭은 사각형이 아니다
+  const cell = tbCell();
+  TB.cells[cell] = r;
+  tbDrawBoxes();
+  await tbPreview(cell, r);
+});
+
+async function tbPreview(cell, rect) {
+  const out = $("#tbfix-preview");
+  out.innerHTML = `<span class="muted">${TB_LABEL[cell]} 칸을 같은 크기의 장 전부에서 읽는 중…</span>`;
+  let got;
+  try {
+    got = await (await fetch(`/jobs/${TB.job}/titleblock/preview`, { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cell, rect }) })).json();
+  } catch (e) { out.textContent = "읽지 못했습니다"; return; }
+  const rows = (got.pages || []).slice(0, 12).map(g =>
+    `<tr><td>p${g.page_no}</td><td>${g.text ? escape(g.text) : '<span class="muted">(비어 있음)</span>'}</td></tr>`).join("");
+  const more = (got.pages || []).length > 12 ? `<tr><td colspan="2" class="muted">… ${got.pages.length - 12}장 더</td></tr>` : "";
+  const bad = got.read < got.total;
+  out.innerHTML = `<p><b>${TB_LABEL[cell]}</b> — ${got.total}장 중 <b>${got.read}장</b>에서 읽힘 · 서로 다른 값 ${got.distinct}`
+    + (cell === "dwg_no_region" ? (got.pattern ? ` · 도면번호 형식 <code>${escape(got.pattern)}</code>` : ' · <span class="out">⚠ 두 장 이상에서 되풀이되는 번호 모양이 없습니다 — 사각형이 번호를 감싸는지 확인하세요</span>') : "")
+    + (bad && got.read ? ` · <span class="muted">안 읽힌 장은 그 자리가 비었거나 글자가 획으로 그려진 장입니다</span>` : "")
+    + `</p><table>${rows}${more}</table>`;
+}
+
+async function tbSave(thenRun) {
+  const msg = $("#tbfix-msg"); msg.classList.remove("out");
+  if (!TB.cells.dwg_no_region) { msg.textContent = "도면번호 칸을 먼저 그으세요"; msg.classList.add("out"); return false; }
+  const who = $("#tbfix-who").value.trim();
+  if (!who) { msg.textContent = "작성자를 적어야 저장됩니다 (팀이 공유하는 값입니다)"; msg.classList.add("out"); $("#tbfix-who").focus(); return false; }
+  rememberAuthor(who);
+  const r = await fetch(`/jobs/${TB.job}/titleblock`, { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cells: TB.cells, page_no: TB.page, author: who }) });
+  if (!r.ok) { msg.textContent = (await r.json()).detail || "저장하지 못했습니다"; msg.classList.add("out"); return false; }
+  const out = await r.json();
+  msg.textContent = thenRun ? "저장했습니다 — 다시 분석합니다" : `저장했습니다 — ${out.applies}`;
+  return true;
+}
+$req("#tbfix-save").addEventListener("click", () => tbSave(false));
+$req("#tbfix-save-run").addEventListener("click", async () => {
+  if (!(await tbSave(true))) return;
+  const id = TB.job;
+  $("#tbfix").classList.add("hidden");
+  await fetch(`/jobs/${id}/reanalyse`, { method: "POST" });
+  watch(id, null, {});
+});
+$req("#tbfix-clear").addEventListener("click", async () => {
+  await fetch(`/jobs/${TB.job}/titleblock`, { method: "DELETE" });
+  TB.cells = {}; tbDrawBoxes();
+  $("#tbfix-msg").textContent = "지정을 지웠습니다 — 다시 분석하면 도면이 답한 칸으로 돌아갑니다";
+});
+$req("#tbfix-close").addEventListener("click", () => $("#tbfix").classList.add("hidden"));
+$req("#tbfix-page").addEventListener("change", ev => {
+  const n = Math.max(1, Math.min(+ev.target.value || 1, (TB.state || {}).page_count || 1));
+  TB.page = n; tbRender();
+});
+$req("#tbfix-prev").addEventListener("click", () => { if (TB.page > 1) { TB.page--; tbRender(); } });
+$req("#tbfix-next").addEventListener("click", () => { if (TB.page < ((TB.state || {}).page_count || 1)) { TB.page++; tbRender(); } });
 
 $req("#reanalyse").addEventListener("click", async () => {
   await fetch(`/jobs/${S.job.id}/reanalyse`, { method: "POST" });

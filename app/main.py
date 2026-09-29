@@ -35,7 +35,7 @@ sys.path.insert(0, str(ROOT))
 
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
                  legend_profile, markup, paths, pipeline, revisions,
-                 unit_multipliers, sheet_numbers, version)
+                 unit_multipliers, sheet_numbers, title_block_cells, version)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -289,6 +289,8 @@ def _worker() -> None:
                                       unit_multipliers=_user_multipliers(
                                           row["project"]),
                                       sheet_numbers=_user_sheet_numbers(
+                                          row["project"]),
+                                      title_block_cells=_user_title_block(
                                           row["project"]),
                                       declared_mode=_declared_mode(row))
             result["fingerprint"] = pipeline.fingerprint(result)
@@ -1279,6 +1281,131 @@ def _sheet_number_targets(job_id: str) -> dict:
             "enabled": saved.get("enabled", True),
             "note": "도면에서 읽힌 장은 여기 없습니다 — 사람은 도면을 이기지 "
                     "않습니다.  적은 값은 **다시 분석해야** 반영됩니다."}
+
+
+def _user_title_block(project: str) -> dict:
+    """파이프라인에 넘길 사람이 그은 타이틀블록 칸.  **읽는 곳은 여기 하나다** — 프로젝트에
+    안 묶인 분석이면 빈 값이고, 빈 값은 이 기능이 없던 때와 정확히 같다."""
+    project = (project or "").strip()
+    if not project:
+        return {}
+    return title_block_cells.cells(DATA_DIR, project)
+
+
+_TB_PAGES: dict = {}          # job_id -> pages (낱말만 · 한 job)
+
+
+def _tb_pages(job):
+    """그 PDF 의 낱말 — 칸 지정 미리보기가 장마다 읽는다.  한 job 만 든다."""
+    import pidcache
+    jid = job["id"]
+    if _TB_PAGES.get("id") != jid:
+        _doc, pages = pidcache.load_pages(job["pdf_path"])
+        _TB_PAGES.clear()
+        _TB_PAGES.update({"id": jid, "doc": _doc, "pages": pages})
+    return _TB_PAGES["pages"]
+
+
+def _tb_form(pages):
+    """다수 크기의 장과 크기 표 — `derive_layout._form_pages` 와 같은 정의."""
+    import derive_layout
+    form, sizes = derive_layout._form_pages(pages)
+    return form, [{"size": [k[0], k[1]], "pages": v} for k, v in sorted(sizes.items(), key=lambda t: -t[1])]
+
+
+def _tb_read(pages, rect, codes_only=False):
+    """장마다 그 사각형 안 글자 (줄 순 · x 순).  코드 낱말만 볼 수도 있다."""
+    import derive_layout
+    from pidcache import in_region
+    out = []
+    for pc in pages:
+        ws = [(r, t) for r, t in pc.words if in_region(r, rect)
+              and (not codes_only or derive_layout._code_shape(t))]
+        ws.sort(key=lambda w: (round(w[0].y0), w[0].x0))
+        out.append({"page_no": pc.page_no, "text": " ".join(t for _r, t in ws)})
+    return out
+
+
+@app.get("/jobs/{job_id}/titleblock")
+def titleblock_state(job_id: str):
+    """칸 지정 화면이 읽는 것 하나 — 저장된 칸 · 쪽 크기 · 다수 크기의 첫 장 · 이번 분석이
+    도면에서 답한 칸."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
+        return {"supported": False, "note": "DXF 는 타이틀 캡션 아래 칸을 읽으므로 이 지정이 없습니다"}
+    pages = _tb_pages(job)
+    form, sizes = _tb_form(pages)
+    engine = json.loads(job["engine_json"] or "{}") if "engine_json" in job.keys() and job["engine_json"] else {}
+    lay = (engine.get("applied_rules") or {}).get("layout") or {}
+    derived = {m["key"].split(".", 1)[1]: m["now"] for m in (lay.get("moved") or [])
+               if m.get("key", "").startswith("title_block.") and m.get("source") != "USER"
+               and m["key"].split(".", 1)[1] in title_block_cells.CELLS}
+    saved = title_block_cells.load(DATA_DIR, job["project"] or "")
+    return {"supported": True, "project": job["project"] or "",
+            "page_count": len(pages), "sizes": sizes,
+            "form_size": [round(float(form[0].width), 1), round(float(form[0].height), 1)],
+            "form_pages": [pc.page_no for pc in form],
+            "suggested_page": form[0].page_no,
+            "saved": saved if saved.get("cells") else None,
+            "derived": derived,
+            "note": "그은 칸은 프로젝트에 저장되고 **다시 분석해야** 반영됩니다.  좌표는 그은 장의 "
+                    "종이 크기에서만 쓰입니다."}
+
+
+@app.post("/jobs/{job_id}/titleblock/preview")
+def titleblock_preview(job_id: str, payload: dict):
+    """그은 사각형을 같은 크기의 모든 장에서 읽어 본다 — 저장 전에 무엇이 읽히는지 보인다."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    try:
+        cell = str(payload.get("cell"))
+        rect = tuple(float(v) for v in payload.get("rect"))
+        assert len(rect) == 4 and cell in title_block_cells.CELLS
+    except Exception:                                    # noqa: BLE001
+        raise HTTPException(400, "cell 과 rect [x0,y0,x1,y1] 가 필요합니다")
+    import derive_layout
+    pages = _tb_pages(job)
+    form, _sizes = _tb_form(pages)
+    codes = cell == "dwg_no_region"
+    got = _tb_read(form, rect, codes_only=codes)
+    read = [g for g in got if g["text"]]
+    out = {"cell": cell, "pages": got, "read": len(read), "total": len(form),
+           "distinct": len({g["text"] for g in read})}
+    if codes:
+        shapes = derive_layout._drawing_no_shapes(form, rect)
+        out["pattern"] = derive_layout._drawing_no_pattern(shapes)
+        out["shapes"] = {k: len(v) for k, v in shapes.items()}
+    return out
+
+
+@app.post("/jobs/{job_id}/titleblock")
+def titleblock_save(job_id: str, payload: dict):
+    """칸을 프로젝트에 적는다.  **다시 분석해야 반영된다.**"""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    pages = _tb_pages(job)
+    form, _sizes = _tb_form(pages)
+    try:
+        data = title_block_cells.set_cells(
+            DATA_DIR, job["project"] or "", cells_in=payload.get("cells") or {},
+            size=[form[0].width, form[0].height], page_no=int(payload.get("page_no") or 0),
+            author=payload.get("author") or "", note=payload.get("note") or "", job_id=job_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"saved": data, "applies": "다시 분석하면 이 칸으로 타이틀블록을 읽습니다"}
+
+
+@app.delete("/jobs/{job_id}/titleblock")
+def titleblock_clear(job_id: str):
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    return {"cleared": title_block_cells.clear(DATA_DIR, job["project"] or "")}
 
 
 @app.get("/jobs/{job_id}/sheet_numbers")

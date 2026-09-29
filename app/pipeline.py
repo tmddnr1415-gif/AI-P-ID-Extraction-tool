@@ -57,6 +57,7 @@ import parse_notes as pn           # noqa: E402
 import pipe_graph                  # noqa: E402
 import isa_table                   # noqa: E402
 import derive_layout               # noqa: E402
+from app import title_block_cells  # noqa: E402  — hotfix29 사람이 그은 타이틀블록 칸
 import describe as desc            # noqa: E402
 import describe_candidates as dcand  # noqa: E402
 import describe_equipment as dequip  # noqa: E402
@@ -662,6 +663,54 @@ def _fit_layout(pages) -> dict:
     return out
 
 
+def _apply_user_cells(pages, layout: dict, user: dict | None) -> dict:
+    """사람이 그은 칸을 얹는다 — 같은 종이 크기에서만 · 도면번호 형식도 그 칸에서.
+
+    돌려주는 것은 사실 셋: 무엇을 얹었나(`applied`) · 왜 안 얹었나(`reason`) ·
+    누가 그었나(`who`).  얹은 키는 `layout["moved"]` 에 `source: USER` 로도 남아
+    `measured_config` · 근거 띠가 같은 장부를 읽는다.
+    """
+    out = {"applied": [], "reason": "", "who": ""}
+    if not user or not user.get("cells"):
+        return out
+    form, _sizes = derive_layout._form_pages(pages)
+    W, H = round(float(form[0].width), 1), round(float(form[0].height), 1)
+    size = user.get("size") or [None, None]
+    out["who"] = user.get("who") or ""
+    try:
+        sw, sh = float(size[0]), float(size[1])
+    except Exception:
+        out["reason"] = "saved cells carry no page size"
+        return out
+    if abs(sw - W) > 1.0 or abs(sh - H) > 1.0:
+        out["reason"] = (f"saved cells were drawn on {sw}x{sh} pt paper and this "
+                         f"document's sheets are {W}x{H} pt, so they are not applied")
+        return out
+    values = {}
+    for name, rect in user["cells"].items():
+        if name in title_block_cells.CELLS:
+            values[f"title_block.{name}"] = [float(v) for v in rect]
+    if "title_block.title_region" in values:
+        # 사람은 값 둘레만 긋는다 — 캡션/값을 크기로 가르는 문턱은 쓰지 않는다
+        values["title_block.title_min_height"] = 0.0
+    dwg = values.get("title_block.dwg_no_region")
+    if dwg:
+        pat = derive_layout._drawing_no_pattern(derive_layout._drawing_no_shapes(form, dwg))
+        if pat:
+            values["formats.drawing_no"] = pat
+        else:
+            out["reason"] = ("the drawn drawing-number cell holds no hyphenated number "
+                             "on two or more sheets, so formats.drawing_no is not derived from it")
+    moved = CFG.overlay(values)
+    if moved:
+        _reconfigure(pages)
+    out["applied"] = sorted(values)
+    layout.setdefault("moved", []).extend(
+        {"key": k, "was": w, "now": n, "source": "USER"} for k, w, n in moved)
+    layout["applied"] = True
+    return out
+
+
 def _rebind_config() -> None:
     """config 에서 나오는 모듈 값들을 지금 CFG 로 다시 만든다 (쪽을 보지 않는다).
 
@@ -797,7 +846,7 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None,
             unit_multipliers: dict = None, declared_mode: str = None,
-            sheet_numbers: dict = None) -> dict:
+            sheet_numbers: dict = None, title_block_cells: dict = None) -> dict:
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
@@ -842,14 +891,15 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             return dxf_pipeline.analyse(Path(pdf_path), progress=progress,
                                         timings=timings, declared_mode=declared_mode,
                                         unit_multipliers=unit_multipliers,
-                                        sheet_numbers=sheet_numbers)
+                                        sheet_numbers=sheet_numbers,
+                                        title_block_cells=title_block_cells)
     with _own_config():
         try:
             return _analyse(pdf_path, progress=progress, timings=timings,
                             reference=reference, use_prefix=use_prefix,
                             use_line_gate=use_line_gate, legend_profile=legend_profile,
                             unit_multipliers=unit_multipliers, declared_mode=declared_mode,
-                            sheet_numbers=sheet_numbers)
+                            sheet_numbers=sheet_numbers, title_block_cells=title_block_cells)
         finally:
             # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
             # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
@@ -907,7 +957,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
              use_line_gate: bool = True, legend_profile: dict = None,
              unit_multipliers: dict = None, declared_mode: str = None,
-             sheet_numbers: dict = None) -> dict:
+             sheet_numbers: dict = None, title_block_cells: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -983,6 +1033,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             pc.segments()
         say(0, total, "measuring the sheet")
         layout = _fit_layout(pages)
+        # hotfix29 — **사람이 도면 위에서 그은 타이틀블록 칸** (`app/title_block_cells.py`).
+        # 도면이 답한 칸 위에 얹는다 — 어디를 읽을지는 프로젝트가 적은 `title_block.*`
+        # 와 같은 자격이고, 같은 종이 크기에서만 얹는다 (좌표는 그 종이의 것).
+        layout["user_cells"] = _apply_user_cells(pages, layout, title_block_cells)
     say(1, total, "reading title blocks")
 
     with clock.stage("titleblock_glyphs"):

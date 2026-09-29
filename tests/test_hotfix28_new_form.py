@@ -26,7 +26,8 @@ A1 = (2384.0, 1684.0)
 A3 = (1191.0, 842.0)
 
 
-def _new_form(path: Path, n_sheets=6, n_covers=2, caption="DWG. NO.", numbers=None):
+def _new_form(path: Path, n_sheets=6, n_covers=2, caption="DWG. NO.", numbers=None,
+              inline=False, title_caption="SHEET TITLE"):
     """AL NOUF1 과 다른 양식: 타이틀블록이 오른쪽 아래 상자이고 캡션이 `DWG. NO.` 다.
 
     각 도면 장에 (가) 도면번호를 같은 자리에 (나) 프로젝트 번호를 같은 자리에 같은 값으로
@@ -45,11 +46,17 @@ def _new_form(path: Path, n_sheets=6, n_covers=2, caption="DWG. NO.", numbers=No
         pg.draw_line(pymupdf.Point(W - 420, 40), pymupdf.Point(W - 420, H - 40), width=0.8)  # 표제란 세로 괘선
         num = (numbers[i] if numbers else f"QFE-P1-PID-{i + 1:03d}")
         x = W - 400
-        pg.insert_text(pymupdf.Point(x, H - 300), caption, fontsize=9)
-        pg.insert_text(pymupdf.Point(x, H - 275), num, fontsize=16)
+        if inline:                                   # `DWG NO. : XXXX` 한 줄
+            pg.insert_text(pymupdf.Point(x, H - 275), caption, fontsize=9)
+            pg.insert_text(pymupdf.Point(x + 90, H - 275), num, fontsize=12)
+        else:
+            if caption:
+                pg.insert_text(pymupdf.Point(x, H - 300), caption, fontsize=9)
+            pg.insert_text(pymupdf.Point(x, H - 275), num, fontsize=16)
         pg.insert_text(pymupdf.Point(x, H - 240), "PROJECT NO.", fontsize=9)
         pg.insert_text(pymupdf.Point(x, H - 215), "QFE-2026-001", fontsize=14)   # 장마다 같은 값
-        pg.insert_text(pymupdf.Point(x, H - 180), "SHEET TITLE", fontsize=9)
+        if title_caption:
+            pg.insert_text(pymupdf.Point(x, H - 180), title_caption, fontsize=9)
         pg.insert_text(pymupdf.Point(x, H - 155), f"FUEL GAS SYSTEM {i + 1}", fontsize=14)
         # 오프페이지 커넥터 — 같은 모양의 번호가 도면 안 **다른 자리**에
         pg.insert_text(pymupdf.Point(200 + 90 * i, 300 + 40 * i), f"QFE-P1-PID-{(i + 2) % n_sheets + 1:03d}", fontsize=10)
@@ -69,7 +76,7 @@ def test_majority_size_pages_are_the_form():
 
 
 def test_drawing_number_cell_is_found_by_recurrence_without_a_caption(tmp_path):
-    pdf = _new_form(tmp_path / "qfe.pdf")
+    pdf = _new_form(tmp_path / "qfe.pdf", caption="", title_caption="")     # 캡션이 아예 없다
     _doc, pages = load_pages(pdf)
     lay = dl.derive(pages)
     vals = lay.values()
@@ -100,7 +107,7 @@ def test_the_caption_path_still_wins_when_the_form_prints_the_caption(tmp_path):
 
 def test_a_number_that_never_changes_or_never_recurs_is_not_the_cell(tmp_path):
     # 모든 장이 같은 번호 → 구분이 안 되므로 칸이 아니다 (값이 장마다 달라야 한다)
-    pdf = _new_form(tmp_path / "same.pdf", numbers=["QFE-P1-PID-001"] * 6)
+    pdf = _new_form(tmp_path / "same.pdf", numbers=["QFE-P1-PID-001"] * 6, caption="", title_caption="")
     _doc, pages = load_pages(pdf)
     lay = dl.derive(pages)
     assert "title_block.dwg_no_region" not in lay.values()
@@ -116,3 +123,62 @@ def test_failure_message_names_the_structural_miss():
     body = inspect.getsource(P._analyse)
     assert 'if not any((r.get("drawing_title") or "").strip() for r in tb_rows.values()):' in body
     assert 'row["page_kind"] = "LEGEND"' in body
+
+
+def _read(pages, region, codes_only=False):
+    """칸 안 낱말 (파이프라인처럼 도면번호는 코드 모양 낱말만 본다 — 캡션 낱말은 칸에 있어도 무해)."""
+    return [" ".join(t for r, t in sorted(pc.words, key=lambda w: (round(w[0].y0), w[0].x0))
+                     if in_region(r, region) and (not codes_only or dl._code_shape(t)))
+            for pc in pages[2:]]
+
+
+def test_caption_vocabulary_finds_other_spellings_before_structure(tmp_path):
+    """hotfix29 — `DWG. NO.` · `DRAWING NUMBER` · `DOC NO:` 는 전부 도면번호 캡션이다."""
+    for cap in ("DWG. NO.", "DRAWING NUMBER", "DOC NO:", "CLIENT DRG. NO."):
+        pdf = _new_form(tmp_path / f"v{abs(hash(cap))}.pdf", caption=cap)
+        _doc, pages = load_pages(pdf)
+        lay = dl.derive(pages)
+        item = lay.items["title_block.dwg_no_region"]
+        assert "caption vocabulary" in item.evidence, (cap, item.evidence)
+        assert all(v.startswith("QFE-P1-PID-") for v in _read(pages, tuple(item.value), True)), cap
+        assert any("captions found by vocabulary" in n and "dwg_no" in n for n in lay.notes)
+
+
+def test_inline_caption_takes_the_value_on_the_same_line(tmp_path):
+    pdf = _new_form(tmp_path / "inline.pdf", caption="DWG NO. :", inline=True)
+    _doc, pages = load_pages(pdf)
+    lay = dl.derive(pages)
+    item = lay.items["title_block.dwg_no_region"]
+    assert "same line" in item.evidence
+    got = _read(pages, tuple(item.value))
+    assert all(v.startswith("QFE-P1-PID-") for v in got) and "DWG" not in " ".join(got), got
+
+
+def test_title_cell_by_vocabulary_and_by_structure(tmp_path):
+    # `SHEET TITLE` 캡션 — 어휘로
+    pdf = _new_form(tmp_path / "t1.pdf")
+    _doc, pages = load_pages(pdf)
+    lay = dl.derive(pages)
+    it = lay.items["title_block.title_region"]
+    assert "caption vocabulary" in it.evidence
+    assert all("FUEL GAS SYSTEM" in v for v in _read(pages, tuple(it.value)))
+    # 캡션 없음 — 되풀이 자리 · 값이 장마다 다름 · 가장 큰 글자
+    pdf = _new_form(tmp_path / "t2.pdf", caption="", title_caption="")
+    _doc, pages = load_pages(pdf)
+    lay = dl.derive(pages)
+    it = lay.items["title_block.title_region"]
+    assert "no title caption" in it.evidence
+    region = tuple(it.value)
+    minh = lay.values()["title_block.title_min_height"]
+    for pc in pages[2:]:
+        big = [t for r, t in pc.words if in_region(r, region) and r.height >= minh]
+        assert "FUEL" in big and "GAS" in big and "QFE-2026-001" not in big, (pc.page_no, big)
+
+
+def test_the_exact_caption_pass_is_unchanged_for_the_reference_form():
+    """1차(정확 일치)의 결과는 2차가 있어도 같다 — 기존 문서 불변의 근거."""
+    lines = [(10.0, [(0.0, "PROJECT", 5.0, 8.0, 12.0, 30.0), (32.0, "DWG", 5.0, 8.0, 12.0, 45.0), (47.0, "NO.", 5.0, 8.0, 12.0, 60.0)]),
+             (30.0, [(0.0, "D00P-10LBA10-M05-0001", 9.0, 26.0, 34.0, 120.0)])]
+    caps = dl._caption_rows(lines)
+    assert set(caps) == {"dwg_no"}
+    assert dl._caption_rows_vocab(lines, caps) == {}            # 1차가 쓴 줄은 다시 쓰지 않는다

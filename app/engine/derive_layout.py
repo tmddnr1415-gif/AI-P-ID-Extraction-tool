@@ -231,6 +231,87 @@ def _caption_rows(lines) -> dict:
     return out
 
 
+# 2차 — 캡션 **어휘** (hotfix29).  1차(`CAPTIONS` 정확 일치)가 못 찾은 이름만 여기로
+# 온다.  양식마다 같은 칸을 `DWG. NO.` · `DRAWING NUMBER` · `DOC NO` · `SHEET TITLE` 로
+# 달리 부르고, 값을 캡션 **아래**가 아니라 **같은 줄 오른쪽**(`DWG NO. : XXXX`)에 두는
+# 양식도 있다.  `need` 의 묶음마다 낱말 하나씩이 줄 머리에 나와야 하고, `allow` 는 그
+# 사이에 끼어도 되는 낱말이다.  머리 뒤에 남는 낱말이 있으면 그것이 **같은 줄의 값**이다.
+# 낱말은 양식의 것이지 프로젝트 데이터가 아니다 (`CAPTIONS` 와 같은 자격).
+CAPTION_VOCAB = {
+    "dwg_no": ([{"DWG", "DWG.", "DRAWING", "DRG", "DRG.", "DOC", "DOC.", "DOCUMENT"},
+                {"NO", "NO.", "NO:", "NUMBER", "N°", "#"}],
+               {"PROJECT", "CLIENT", "CONTRACTOR", "OWNER", ":", "-"}),
+    "history": ([{"REV", "REV.", "REVISION"}, {"DATE"}, {"DESCRIPTION"}],
+                {"NO", "NO.", "BY", "CHK", "CHK.", "CHECKED", "APP", "APP.", "APPROVED",
+                 "DRAWN", "DRN", ":"}),
+    "project_no": ([{"PROJECT", "JOB", "CONTRACT"}, {"NO", "NO.", "NO:", "NUMBER", "#"}], {":"}),
+    "project_name": ([{"PROJECT"}, {"NAME", "TITLE"}], {":"}),
+    "title": ([{"TITLE"}], {"DRAWING", "DWG", "DWG.", "SHEET", "DOCUMENT", "DOC", "DOC.", ":"}),
+    "rev": ([{"REV", "REV.", "REV:", "REVISION"}], {"NO", "NO.", ":"}),
+    "sheet": ([{"SHEET", "SH", "SH.", "SHT", "SHT.", "SHEET:"}], {"NO", "NO.", ":"}),
+}
+
+
+def _vocab_match(words, name):
+    """줄 머리가 `name` 의 캡션인가 — (캡션 낱말 수, 값 낱말들) 또는 None."""
+    need, allow = CAPTION_VOCAB[name]
+    hit = [False] * len(need)
+    n = 0
+    for w in words:
+        k = next((i for i, g in enumerate(need) if w in g and not hit[i]), None)
+        if k is not None:
+            hit[k] = True
+        elif w in allow:
+            pass
+        else:
+            break
+        n += 1
+    if not all(hit):
+        return None
+    return n, words[n:]
+
+
+def _caption_rows_vocab(lines, taken: dict) -> dict:
+    """2차 — 어휘로 찾은 캡션 `{name: (y_top, y_bottom, x_after, inline_words)}`.
+
+    1차가 찾은 이름(`taken`)은 건드리지 않고, 1차가 이미 쓴 줄도 다시 쓰지 않는다 —
+    그래서 1차가 전부 찾는 문서(AL NOUF1 · TC2 · UAD · SADARA)는 여기서 아무 것도
+    바뀌지 않는다.  한 줄은 한 이름에만 간다 (`PROJECT TITLE` 은 project_name 이지
+    title 이 아니다 — 순서가 그것을 정한다).
+    """
+    used_y = {v[0] for v in taken.values()}
+    out = {}
+    for y, items in lines:
+        y0 = min(it[3] for it in items)
+        if y0 in used_y:
+            continue
+        toks = [(w.upper(), it) for it in items for w in it[1].split()]
+        words = [w for w, _it in toks]
+        for name in ("dwg_no", "history", "project_no", "project_name", "title", "rev", "sheet"):
+            if name in taken or name in out:
+                continue
+            m = _vocab_match(words, name)
+            if m is None:
+                continue
+            n, rest = m
+            # 캡션의 마지막 낱말이 든 조각의 오른쪽 끝 — 같은 줄 값은 그 뒤다.
+            # 값은 캡션보다 큰 글자로 찍히기 일쑤라 y 중심이 달라 **다른 줄로 묶여**
+            # 있을 수 있다 — 캡션의 세로 띠와 겹치고 오른쪽에 있는 낱말은 전부 값이다.
+            x_after = max(it[5] for _w, it in toks[:n])
+            y1 = max(it[4] for it in items)
+            beside = [it for yy, its in lines for it in its
+                      if it[0] >= x_after - 0.5 and it[4] > y0 and it[3] < y1 and it is not None
+                      and not (yy == y and it in items[:0])]
+            beside = [it for it in beside if not (it in items and it[0] < x_after)]
+            if beside:
+                rest = [w for it in sorted(beside) for w in it[1].split()]
+                y0 = min(y0, min(it[3] for it in beside))
+                y1 = max(y1, max(it[4] for it in beside))
+            out[name] = (y0, y1, x_after, rest)
+            break
+    return out
+
+
 def _cell(caps, lines, name, right):
     """The band a caption owns: from its own top to the next caption's top."""
     if name not in caps:
@@ -292,6 +373,58 @@ def _title_block(pages, column, right_edge) -> dict:
                      for it in items), default=0.0)
         if val_h > cap_h > 0:
             out[f"{name}_min_height"] = round((cap_h + val_h) / 2, 1)
+    # hotfix29 — 2차: 1차가 못 찾은 이름만 어휘로.  1차가 찾은 칸은 위에서 이미
+    # 정해졌고 여기서 바뀌지 않는다.
+    vocab = _caption_rows_vocab(lines, caps)
+    if vocab:
+        out["_captions_vocab"] = {k: [round(v[0], 1), round(v[1], 1)] for k, v in vocab.items()}
+        allcaps = dict(caps)
+        allcaps.update({k: (v[0], v[1]) for k, v in vocab.items()})
+        for name in ("project_name", "title", "dwg_no"):
+            if name in caps or name not in vocab:
+                continue
+            y0, y1, x_after, rest = vocab[name]
+            if rest:                       # 값이 같은 줄 오른쪽에
+                h = y1 - y0
+                out[f"{name}_region"] = [round(x_after, 1), round(y0 - h / 2, 1),
+                                         round(right_edge, 1), round(y1 + h / 2, 1)]
+                out[f"{name}_inline"] = True
+                if name != "dwg_no":
+                    out[f"{name}_min_height"] = 0.0
+                continue
+            band = _cell(allcaps, lines, name, right_edge)
+            if band is None:
+                continue
+            by0, by1 = band
+            # 아래에 캡션이 없으면 마지막 글줄의 **바닥**까지 (`_cell` 은 그 줄의 중심에서
+            # 끊는다 — 1차 문서는 그대로 두고 2차에서만 바닥까지 편다)
+            if not any(v[0] > y1 for v in allcaps.values()):
+                by1 = max(it[4] for yy, its in lines for it in its)
+            out[f"{name}_region"] = [round(column, 1), round(by0, 1),
+                                     round(right_edge, 1), round(by1, 1)]
+            cap_h = max((it[2] for y, items in lines if y0 <= y <= y1 for it in items), default=0.0)
+            val_h = max((it[2] for y, items in lines if y1 < y < by1 for it in items), default=0.0)
+            if val_h > cap_h > 0:
+                out[f"{name}_min_height"] = round((cap_h + val_h) / 2, 1)
+        # REV · SHEET — 1차는 도면번호 줄의 `REV.`/`SHEET` 머리만 봤다.  2차는 어휘로
+        # 찾은 캡션 줄에서: 같은 줄에 값이 있으면 그 오른쪽, 아니면 캡션 아래 띠.
+        for name, key in (("rev", "rev_box"), ("sheet", "sheet_box")):
+            if key in out or name not in vocab:
+                continue
+            y0, y1, x_after, rest = vocab[name]
+            h = y1 - y0
+            if rest:
+                out[key] = [round(x_after, 1), round(y0 - h / 2, 1),
+                            round(right_edge, 1), round(y1 + h / 2, 1)]
+            else:
+                band = _cell(allcaps, lines, name, right_edge)
+                if band is None:
+                    continue
+                b1 = band[1]
+                if not any(v[0] > y1 for v in allcaps.values()):
+                    b1 = max(it[4] for yy, its in lines for it in its)
+                cx0 = min(it[0] for y, items in lines if y0 <= y <= y1 for it in items)
+                out[key] = [round(cx0, 1), round(y1, 1), round(right_edge, 1), round(b1, 1)]
     return out
 
 
@@ -774,6 +907,56 @@ def _recurring_numbers(pages) -> list:
     return out
 
 
+def _recurring_title(pages, column, right, dwg_rect=None) -> dict | None:
+    """캡션 없는 양식의 제목 칸 — 되풀이 자리 · 장마다 다른 값 · 가장 큰 글자 (hotfix29).
+
+    표제란 열의 글줄을 장마다 y(1pt 묶음)로 모아, 다수 장에 있고 값이 둘 이상인 줄만
+    남긴다 (프로젝트명·캡션은 값이 같고, 날짜·개정은 작지만 다르다).  그중 글자가
+    가장 큰 줄이 제목이고, 같은 높이의 이웃 줄(두 줄 제목)을 같은 칸에 넣는다.
+    도면번호 칸과 겹치는 줄은 뺀다.  값의 문턱은 없다 — 제목의 높이와 그 다음으로
+    큰 되풀이 글줄 높이의 중간이 `title_min_height` 다 (캡션 규칙과 같은 정의).
+    """
+    rows: dict = {}
+    for pc in pages:
+        lines: dict = {}
+        for r, t in pc.words:
+            if (r.x0 + r.x1) / 2 < column:
+                continue
+            if dwg_rect and dwg_rect[0] <= (r.x0 + r.x1) / 2 <= dwg_rect[2] \
+                    and dwg_rect[1] <= (r.y0 + r.y1) / 2 <= dwg_rect[3]:
+                continue
+            lines.setdefault(round((r.y0 + r.y1) / 2), []).append((r, t))
+        for yk, ws in lines.items():
+            ws.sort(key=lambda w: w[0].x0)
+            text = " ".join(t for _r, t in ws)
+            h = max(r.y1 - r.y0 for r, _t in ws)
+            rows.setdefault(yk, []).append((pc.page_no, text, h, min(r.y0 for r, _t in ws), max(r.y1 for r, _t in ws)))
+    need = FORM_PAGES * len(pages)
+    cand = []
+    for yk, ents in rows.items():
+        pgs = {e[0] for e in ents}
+        if len(pgs) < need:
+            continue
+        vals = {e[1] for e in ents}
+        if len(vals) < 2:
+            continue
+        if all(_code_shape(e[1]) for e in ents):
+            continue
+        cand.append((yk, statistics.median(e[2] for e in ents), len(pgs),
+                     min(e[3] for e in ents), max(e[4] for e in ents)))
+    if not cand:
+        return None
+    top = max(cand, key=lambda c: (round(c[1], 1), c[2]))
+    band = [c for c in cand if abs(c[1] - top[1]) <= 0.1 * top[1]
+            and abs(c[0] - top[0]) <= 3 * top[1]]
+    y0 = min(c[3] for c in band); y1 = max(c[4] for c in band)
+    smaller = [c[1] for c in cand if c[1] < top[1] - 0.1 * top[1]]
+    min_h = round((max(smaller) + top[1]) / 2, 1) if smaller else 0.0
+    h = top[1]
+    return {"rect": [round(column, 1), round(y0 - h / 2, 1), round(right, 1), round(y1 + h / 2, 1)],
+            "height": round(h, 1), "min_height": min_h, "pages": top[2]}
+
+
 def _revision_pattern(marks: set[str]) -> str:
     """읽은 표기들을 그대로 받아들이는 정규식 — 넓히지 않는다.
 
@@ -834,17 +1017,27 @@ def derive(pages, cfg=None) -> Layout:
              else f"no inner rule; the sheet edge at x {right:.1f}"))
 
     tb = _title_block(pages, column, right)
+    vocab_found = tb.get("_captions_vocab") or {}
     for name, key in (("project_name", "title_block.project_name_region"),
                       ("title", "title_block.title_region"),
                       ("dwg_no", "title_block.dwg_no_region")):
         if f"{name}_region" in tb:
-            lay.add(key, tb[f"{name}_region"],
-                    f"the cell under the form's own `{' '.join(CAPTIONS[name])}` "
-                    f"caption, down to the next caption")
+            if name in vocab_found:
+                why = (f"the value printed on the same line, right of the form's "
+                       f"`{name}` caption (matched by caption vocabulary)"
+                       if tb.get(f"{name}_inline") else
+                       f"the cell under the form's `{name}` caption matched by caption "
+                       f"vocabulary (not the exact `{' '.join(CAPTIONS[name])}`), down "
+                       f"to the next caption")
+            else:
+                why = (f"the cell under the form's own `{' '.join(CAPTIONS[name])}` "
+                       f"caption, down to the next caption")
+            lay.add(key, tb[f"{name}_region"], why)
         if f"{name}_min_height" in tb and name != "dwg_no":
             lay.add(f"title_block.{name}_min_height", tb[f"{name}_min_height"],
                     "midway between the caption's lettering and the value's, "
-                    "measured in this cell")
+                    "measured in this cell" if tb[f"{name}_min_height"] else
+                    "the value shares the caption's line, so no size split applies")
     # 37회차 — **도면번호의 모양도 도면이 말한다.**  `formats.drawing_no` 는
     # AL NOUF1 에서 옮겨 적은 값이라 TC2 의 `D02J-31PGB0-M05-0001`(둘째 자리가
     # 6자 · 4장)을 안 받았고, 그 네 장은 행 0 이었다 (25·26회차가 적어 둔 자리).
@@ -888,10 +1081,32 @@ def derive(pages, cfg=None) -> Layout:
         if key in tb:
             lay.add(f"title_block.{key}", tb[key],
                     f"the column under the form's own `{key.split('_')[0].upper()}` "
-                    f"caption on the drawing-number row")
+                    f"caption on the drawing-number row"
+                    if key.split("_")[0] not in vocab_found else
+                    f"the value beside or under the form's `{key.split('_')[0]}` "
+                    f"caption matched by caption vocabulary")
     if tb.get("_captions"):
         lay.notes.append("title block captions found: "
                          + ", ".join(sorted(tb["_captions"])))
+    if vocab_found:
+        lay.notes.append("title block captions found by vocabulary: "
+                         + ", ".join(sorted(vocab_found)))
+    # hotfix29 — 3차: 캡션이 아예 없는 양식의 제목·REV 를 **구조**로.  도면번호 칸은
+    # 위에서 되풀이로 섰고, 제목은 *장마다 같은 자리에 되풀이되며 값이 장마다 다른
+    # 글줄 중 가장 큰 글자*, REV 는 *이력 표가 인쇄한 개정 표기만 값으로 갖는 되풀이
+    # 칸*이다.  캡션이 하나라도 그 칸을 찾은 문서는 여기 안 온다.
+    if "title_region" not in tb:
+        tt = _recurring_title(pages, column, right, tb.get("dwg_no_region"))
+        if tt:
+            lay.add("title_block.title_region", tt["rect"],
+                    f"no title caption is printed; taken as the recurring text row(s) "
+                    f"whose value changes from sheet to sheet with the largest lettering "
+                    f"({tt['height']} pt) in the title-block column, on {tt['pages']} sheets")
+            lay.add("title_block.title_min_height", tt["min_height"],
+                    "midway between that lettering and the next smaller recurring text")
+        else:
+            lay.notes.append("title block: no title caption and no recurring varying "
+                             "text row in the column — the title cell is not derived")
 
     # 개정 이력 표 — 20회차까지 여섯 칸이 전부 AL NOUF1 실측 상수였고, 그래서 종이가
     # 다른 문서에서는 좌표 띠가 통째로 종이 밖이 됐다 (TC2 REV 0/60).  표의 모양이

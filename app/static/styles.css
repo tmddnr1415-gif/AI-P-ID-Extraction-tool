@@ -254,6 +254,30 @@ main::after {
 /* The failure screen's way out.  Placement only - what these look like is the
    next round's question. */
 .prog-actions { margin-top: 12px; }
+/* hotfix29 — 타이틀블록 칸 지정.  진행 창(560px) 아래에 넓게 선다. */
+.tbfix { width: min(1240px, 96vw); margin-top: 18px; border: 1px solid var(--line);
+         border-radius: 8px; background: var(--card); padding: 10px 14px; }
+.tbfix h3 { margin: 0 0 8px; font-size: var(--t-l); }
+.tbfix-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0; }
+.tbfix-bar input[type=number] { width: 64px; }
+.tbfix-bar input[type=text] { width: 160px; }
+.tbfix-cells { display: inline-flex; gap: 10px; }
+#tbfix-stage { position: relative; overflow: auto; max-height: 62vh; border: 1px solid var(--line);
+               background: #fff; cursor: crosshair; user-select: none; }
+#tbfix-img { display: block; }
+#tbfix-boxes { position: absolute; inset: 0; pointer-events: none; }
+.tbbox { position: absolute; border: 2px solid #0a64d6; background: rgba(10, 100, 214, .10); }
+.tbbox.title_region { border-color: #7c3aed; background: rgba(124, 58, 237, .10); }
+.tbbox.rev_box { border-color: #d97706; background: rgba(217, 119, 6, .12); }
+.tbbox.sheet_box { border-color: #0d9488; background: rgba(13, 148, 136, .12); }
+.tbbox.derived { border-style: dashed; background: transparent; }
+.tbbox .tblbl { position: absolute; left: 0; top: -16px; font-size: 11px; background: inherit;
+                color: inherit; white-space: nowrap; }
+.tbbox.rubber { border-style: dotted; }
+#tbfix-preview { margin: 6px 0; max-height: 160px; overflow: auto; }
+#tbfix-preview table { border-collapse: collapse; }
+#tbfix-preview td { padding: 1px 8px; border-bottom: 1px solid var(--line); }
+#tbfix-msg.out { color: var(--bad); }
 
 /* ---------- shell ---------- */
 main { height: 100%; display: flex; flex-direction: column; }
