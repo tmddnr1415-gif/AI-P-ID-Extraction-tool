@@ -678,6 +678,102 @@ def _drawing_no_pattern(shapes: dict, min_sheets: int = 2) -> str | None:
     return "^%s$" % "|".join(alts) if len(alts) == 1 else "^(?:%s)$" % "|".join(alts)
 
 
+def _form_pages(pages) -> tuple:
+    """이 문서의 **양식 종이** — 가장 많은 장이 쓰는 쪽 크기의 장들 (hotfix28).
+
+    한 PDF 에 표지·목록·범례를 다른 크기로 섞어 낸 문서가 온다 (현장: A3 5장 +
+    A1 88장).  종이가 다르면 괘선의 자리도 다르므로 한 좌표로 잴 수 없고, 첫 장이
+    표지이면 `pages[0]` 의 크기로 잰 문턱이 본 도면과 어긋난다.  **다수가 곧
+    양식**이고(`FORM_PAGES` 와 같은 생각), 소수 장은 재지 않고 이름만 남긴다.
+    """
+    groups: dict = {}
+    for pc in pages:
+        groups.setdefault((round(float(pc.width), 1), round(float(pc.height), 1)), []).append(pc)
+    size = max(groups, key=lambda k: (len(groups[k]), k))
+    sizes = {k: len(v) for k, v in groups.items()}
+    return groups[size], sizes
+
+
+def _code_shape(t: str) -> str | None:
+    """`_drawing_no_shapes` 와 같은 판정 — 붙임표·숫자를 가진 낱말의 모양, 아니면 None."""
+    if "-" not in t or not any(c.isdigit() for c in t):
+        return None
+    segs = t.split("-")
+    if len(segs) < 2 or not all(s.isalnum() for s in segs):
+        return None
+    return "-".join(("D" if s.isdigit() else "L" if s.isalpha() else "A") + str(len(s))
+                    for s in segs)
+
+
+def _recurring_numbers(pages) -> list:
+    """캡션 없이 도면번호 칸을 찾는다 — **장마다 같은 자리에 되풀이되는 번호** (hotfix28).
+
+    양식이 `PROJECT DWG NO.` 캡션을 인쇄하지 않으면 `_title_block` 은 그 칸을 못
+    찾고, 그러면 AL NOUF1 의 좌표가 그대로 쓰여 한 장도 안 읽힌다 (현장: QFE 93장).
+    캡션 낱말을 더 외우는 대신 **구조**를 본다 — 도면번호는 (가) 붙임표·숫자를 가진
+    코드 낱말이고 (나) 양식이 정한 **같은 자리**에 장마다 인쇄되며 (다) 그 값이
+    장마다 **다르다**.  프로젝트 번호·문서 번호는 (가)(나)를 만족하지만 값이 같고,
+    오프페이지 커넥터의 도면번호는 (가)(다)를 만족하지만 자리가 장마다 다르다.
+
+    자리 묶음은 `_frame.keep` 과 같은 폭(한 점)이고, 가로는 그 낱말 자신의 높이
+    안이면 같은 자리다 (가운데 맞춤이면 길이에 따라 조금 움직인다).  상수는 새로
+    두지 않는다 — 다수 조건은 `FORM_PAGES` 그대로다.
+
+    돌려주는 것: 후보 목록, 좋은 것부터 — {rect, pages, values, shapes, y}.
+    순위는 ① 장마다 값이 다른 정도(distinct/pages · 같은 번호를 두 장이 쓰는
+    문서도 1에 가깝다) ② 인쇄된 장 수 ③ 아래쪽.  둘 이상이면 첫째를 쓰되 나머지를
+    근거에 적는다.
+    """
+    entries = []          # (yc, x0, shape, text, page_no, rect, height)
+    for pc in pages:
+        for r, t in pc.words:
+            shape = _code_shape(t)
+            if shape is None:
+                continue
+            entries.append(((r.y0 + r.y1) / 2, r.x0, shape, t, pc.page_no,
+                            (r.x0, r.y0, r.x1, r.y1), r.y1 - r.y0))
+    if not entries:
+        return []
+    entries.sort()
+    rows = []
+    for e in entries:
+        if rows and e[0] - rows[-1][-1][0] <= 1.0:
+            rows[-1].append(e)
+        else:
+            rows.append([e])
+    need = FORM_PAGES * len(pages)
+    out = []
+    for row in rows:
+        row.sort(key=lambda e: e[1])
+        cols = []
+        for e in row:
+            if cols and e[1] - cols[-1][-1][1] <= e[6]:
+                cols[-1].append(e)
+            else:
+                cols.append([e])
+        for col in cols:
+            by_page: dict = {}
+            for e in col:
+                by_page.setdefault(e[4], []).append(e)
+            if len(by_page) < need or any(len(v) > 1 for v in by_page.values()):
+                continue
+            values = {e[3] for e in col}
+            if len(values) < 2:
+                continue
+            xs0 = [e[5][0] for e in col]; ys0 = [e[5][1] for e in col]
+            xs1 = [e[5][2] for e in col]; ys1 = [e[5][3] for e in col]
+            h = max(e[6] for e in col)
+            out.append({
+                "rect": [round(min(xs0) - h, 1), round(min(ys0) - h / 2, 1),
+                         round(max(xs1) + h, 1), round(max(ys1) + h / 2, 1)],
+                "pages": sorted(by_page), "values": len(values),
+                "shapes": {e[2] for e in col}, "y": round(col[0][0], 1),
+                "unique": round(len(values) / len(by_page), 3),
+            })
+    out.sort(key=lambda c: (-c["unique"], -len(c["pages"]), -c["y"]))
+    return out
+
+
 def _revision_pattern(marks: set[str]) -> str:
     """읽은 표기들을 그대로 받아들이는 정규식 — 넓히지 않는다.
 
@@ -700,11 +796,21 @@ def derive(pages, cfg=None) -> Layout:
     lay = Layout()
     if not pages:
         return lay
+    # hotfix28 — 종이가 섞인 문서는 **다수 크기의 장**으로 잰다.  나머지는 재지
+    # 않고 이름만 남긴다 (그 장들은 도면번호 칸이 종이 밖이라 대상에서 빠진다).
+    all_pages = pages
+    pages, sizes = _form_pages(pages)
     W, H = pages[0].width, pages[0].height
-    lay.add("sheet.width_pt", round(W, 1),
-            f"page rectangle, identical on all {len(pages)} pages")
-    lay.add("sheet.height_pt", round(H, 1),
-            f"page rectangle, identical on all {len(pages)} pages")
+    same = (f"page rectangle, identical on all {len(pages)} pages" if len(sizes) == 1
+            else f"page rectangle of the {len(pages)} of {len(all_pages)} pages that share "
+                 f"the majority size; the others are " + ", ".join(
+                     f"{k[0]}x{k[1]} pt x{v}" for k, v in sorted(sizes.items()) if k != (round(float(W), 1), round(float(H), 1))))
+    lay.add("sheet.width_pt", round(W, 1), same)
+    lay.add("sheet.height_pt", round(H, 1), same)
+    if len(sizes) > 1:
+        lay.notes.append("mixed page sizes: " + ", ".join(
+            f"{k[0]}x{k[1]} pt x{v}" for k, v in sorted(sizes.items(), key=lambda t: -t[1]))
+            + f"; measured on the {len(pages)} majority-size pages only")
 
     fr = _frame(pages)
     if fr is None:
@@ -744,6 +850,29 @@ def derive(pages, cfg=None) -> Layout:
     # 6자 · 4장)을 안 받았고, 그 네 장은 행 0 이었다 (25·26회차가 적어 둔 자리).
     # 읽는 곳은 위에서 캡션으로 찾은 **도면번호 칸 자신**이다 — 그 칸이 곧 이
     # 문서가 쓰는 도면번호의 목록이다.
+    # hotfix28 — 캡션이 없는 양식.  `PROJECT DWG NO.` 를 안 찍는 양식에서는 위가
+    # 빈 채로 남고 AL NOUF1 좌표가 그대로 쓰여 한 장도 안 읽힌다.  캡션 낱말을 더
+    # 외우지 않고 **구조**로 찾는다 — 장마다 같은 자리에 되풀이되는 코드 번호 중
+    # 값이 장마다 다른 것 (`_recurring_numbers`).  캡션이 찾은 문서는 여기 안 온다.
+    if "dwg_no_region" not in tb:
+        cands = _recurring_numbers(pages)
+        if cands:
+            best = cands[0]
+            tb["dwg_no_region"] = best["rect"]
+            tb["_dwg_no_by"] = "recurrence"
+            lay.add("title_block.dwg_no_region", best["rect"],
+                    f"no DWG NO. caption is printed; taken as the cell where a "
+                    f"hyphenated number recurs at one position on {len(best['pages'])} "
+                    f"of {len(pages)} sheets with {best['values']} distinct values "
+                    f"(shapes {', '.join(sorted(best['shapes']))})"
+                    + (f"; {len(cands) - 1} other recurring number cell(s) ranked below "
+                       f"it at y " + ", ".join(str(c['y']) for c in cands[1:4])
+                       if len(cands) > 1 else ""))
+        else:
+            lay.notes.append("title block: no DWG NO. caption, and no hyphenated "
+                             "number recurs at one position on a majority of sheets "
+                             "with per-sheet values — the drawing-number cell could "
+                             "not be found by caption or by structure")
     if "dwg_no_region" in tb:
         shapes = _drawing_no_shapes(pages, tb["dwg_no_region"])
         pat = _drawing_no_pattern(shapes)

@@ -115,11 +115,20 @@ def _frame_reason(pages, layout: dict | None = None) -> str:
              else (f"{cell['off_page']}장에서 종이 밖입니다"
                    if cell["off_page"] else "종이 안이지만 비어 있습니다"))
     moved = {m["key"] for m in (layout or {}).get("moved", [])}
+    notes = " ".join(str(n) for n in (layout or {}).get("notes", []) or [])
     if layout is None:
         how = ""
     elif "title_block.dwg_no_region" in moved:
         how = (" 이 자리는 이 도면에서 재서 얻은 값인데도 읽히지 않았습니다 — "
                "재는 규칙이 이 양식에 맞지 않습니다.")
+    elif "could not be found by caption or by structure" in notes:
+        # hotfix28 — 캡션도 없고, 장마다 같은 자리에 되풀이되는 번호도 없다.
+        # 글자가 획으로만 그려진 타이틀블록(UAD p11~p18 꼴)이 여기로 온다.
+        how = (" 이 양식은 `PROJECT DWG NO.` 캡션을 찍지 않고, 붙임표가 든 번호가 "
+               "장마다 같은 자리에 되풀이되지도 않습니다 — 타이틀블록 글자가 "
+               "텍스트가 아니라 획으로 그려졌을 수 있습니다.  글자가 있는 장이라면 "
+               "이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣고, 획뿐이면 "
+               "장 도면번호를 사람이 적는 경로(`sheet_numbers`)가 남습니다.")
     else:
         how = (" 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 "
                "값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 "
@@ -994,6 +1003,25 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # 는 이 갈래에서만 부른다 (정상 경로에는 비용이 0이다).
     if not any(r["drawing_no"] for r in tb_rows.values()):
         raise TitleBlockUnreadable(_frame_reason(pages, layout))
+
+    # hotfix28 — 제목 칸을 못 찾은 양식에서 범례 장을 가른다.  `classify_page` 는
+    # 제목의 `SYMBOL`/`LEGEND` 낱말로 범례 장을 세는데, 캡션 없는 양식은 제목 칸이
+    # 없어 **모든 장이 PID** 가 되고 범례 장의 버블 예시가 행이 된다.  범례 장은
+    # 자기 머리말을 인쇄하므로(`LINE VALVES` · `VALVES ACTUATORS` · `FIRST LETTER`
+    # · `ELECTRIC SIGNAL` — 범례 유도가 이미 그 머리말로 그 장을 찾는다) 그것으로
+    # 가른다.  **제목을 한 장도 못 읽은 문서에서만** — 제목이 읽히는 문서
+    # (AL NOUF1 · TC2 · UAD · SADARA)는 이 갈래에 구조적으로 닿지 않는다.
+    if not any((r.get("drawing_title") or "").strip() for r in tb_rows.values()):
+        heads = [legend_rules.LINE_VALVE_HEADING, legend_rules.ACTUATOR_HEADING,
+                 f"{isa_table.FIRST_ROW} {isa_table.LETTER_ROW}", pipe_graph.SIGNAL_ROW]
+        for pc in pages:
+            row = tb_rows.get(pc.page_no) or {}
+            if row.get("page_kind") != "PID":
+                continue
+            hit = next((h for h in heads if legend_rules._line_with(pc, h.split()) is not None), None)
+            if hit:
+                row["page_kind"] = "LEGEND"
+                row["page_kind_basis"] = f"legend heading `{hit}` printed on the sheet (no title cell on this form)"
 
     # 45회차 — **획으로 그린 타이틀블록은 사람이 한 번 적는다** (§9 ⑤ · §10 3급).
     #
