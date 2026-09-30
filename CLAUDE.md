@@ -2658,6 +2658,31 @@ UAD `fff7ef15` → `9783173e` (24행) 이 움직였습니다.**  시험 368 → 
    비어 나온다(미리보기가 그것을 보여 준다).  그때는 45회차 장 도면번호 지정이 남는다.
    QFE PDF 는 이 환경에 없다.  빠른 시험 **588** 통과.
 
+**그 다음 — Typical 상세의 표식마다 행 하나 (hotfix30 · QFE 요구)**
+
+QFE 화면(hotfix29 로 분석이 통과한 첫 FICHTNER 양식 문서): *"Drain 3 에 대해 TIT 2 · MOV 1 이
+NOTE 승수 x2 로 · Description 에도 Drain 3 · Drain 4 는 별개로.  Detail of Typical Configuration
+이면 Description 에 Drain · Steam Trap 등이 언급되어야 한다."*  시험 `tests/test_typical.py` +5 (22).
+
+1. **바뀐 곳은 `_apply_typical` 하나다** (38회차가 "곱하는 곳 하나" 로 둔 자리).  표식 아래
+   이름표(`Mark.label` — hotfix21 이 SADARA `DRAIN 7` 을 위해 **이미 읽고 있었고** `Detail.points`
+   에 담아 두었다 · 열여덟 번째)가 있으면 상자 안 행을 **표식마다 한 행**으로 가른다.  Q'ty 는
+   유닛 승수 그대로(곱하지 않는다 — N 행이 곧 N 벌 · 총량은 ×N 과 같다), Description 은
+   `{이름표} {문장}` (`DRAIN 3 UNIT #11 HP STEAM TEMPERATURE A`) · `description_sources` 에
+   `DRAWING:DRAIN 3`.  키는 `_key(원래 키, "TPR", id, 순번, 표식 좌표)` 라 재분석에 안정.
+2. **이름표는 글자 낱말이 하나는 있는 줄이다** (`typical.is_name`).  첫 판이 "글이 있으면 이름표" 였고
+   TC2 p9 에서 표식 아래 점 하나(`.`)를 이름표로 읽어 LS·MOV **9행**을 갈랐다 (902 → 908 · 회귀가 잡았다).
+   `.` · `550X700`(관경) 은 이름표가 아니다.  **이름표가 하나도 없으면 전처럼 ×N 한 행이다** — TC2 의 `D`·`D1` 은 표식 아래 글이 없다
+   (실측 p7·p11 `points` 라벨 전부 `''`).  이름 없는 행 N 개는 가를 수 없다.  일부만 읽히면 가르되
+   못 읽은 행에 `TYPICAL_POINT_UNLABELLED`(QUANTITY 축) — 조용히 곱하기로 돌아가지 않는다.
+3. **AL NOUF1 은 이 갈래에 닿지 않는다** — 그 문서의 `D` 는 텍스트 낱말이 아니라(58장에 단일
+   낱말 `D` 0개) 원 표식이 애초에 안 잡히고 `details` 가 비어 있다(회귀 json 실측 p6~p14 전부
+   `details: []` · `unpaired M`).  그래서 AL NOUF1 · TC2 지문이 구조적으로 안 움직인다.
+4. **⚠ QFE 실물로는 못 돌렸다** (PDF 없음).  합성 PDF 로 표식 아래 `DRAIN 1·3·4` 가 읽히는 것과
+   가르기를 확인했다.  ⚠ 이름표는 **바로 아래 한 줄**만 — `(ONLY BLOCK #10)` 둘째 줄은 안 들어간다.
+   그 문구대로면 DRAIN 3 은 x1 이 맞을 수 있는데 요구대로 NOTE 승수(x2)를 둔다 — 실무 판단.
+   ⚠ 표식마다 낸 행은 같은 버블 자리에 겹쳐 그려진다(목록에서는 따로).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

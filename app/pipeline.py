@@ -3437,23 +3437,39 @@ def _attach_diaphragm_seals(rows, pages, tb_rows) -> dict:
     return stats
 
 
-def _apply_typical(rows, typical_by_page: dict) -> dict:
-    """상세 상자 안 행의 Q'ty 에 참조 표식 수를 곱한다 — **여기 하나가 곱한다** (38회차 [D]).
+_TYPICAL_UNLABELLED_CODE = "TYPICAL_POINT_UNLABELLED"
+_TYPICAL_UNLABELLED = ("Typical 표식 %d/%d 아래에 이름표가 없어 이 행의 Description 에 자리 이름을 "
+                       "적지 못했습니다 — 도면에서 어느 자리인지 확인")
 
-    상자 자체는 한 번만 센다: 상자 안 계기를 N 배 하는 것이지 상자를 N 번 세는 것이
-    아니다.  유닛 승수(27·36회차)는 이미 `qty` 에 들어 있으므로 곱은 그 위에 얹힌다 —
-    두 인수는 `qty_basis` 에 따로 적혀 하나만 쓰기로 정해지면 인수 하나를 빼면 된다
-    (피드백 14장: *"Typical 물량을 … 계산한다. 또한 Note Unit 수량 정의에 따라 승수를
-    반영한다"*).  참조가 0 이면 그대로(x1) 두고 사유만 남긴다.
+
+def _apply_typical(rows, typical_by_page: dict) -> dict:
+    """상세 상자 안 행에 참조 표식을 반영한다 — **여기 하나가 곱하거나 가른다** (38회차 [D] · hotfix30).
+
+    상자 자체는 한 번만 센다: 상자 안 계기를 표식 수만큼 세는 것이지 상자를 N 번 세는 것이
+    아니다.  유닛 승수(27·36회차)는 이미 `qty` 에 들어 있으므로 그 위에 얹힌다.
+
+    hotfix30 — **표식에 이름표가 있으면 표식마다 행 하나**로 가른다 (QFE 요구: *"Drain 3 에
+    대해 TIT 2 · MOV 1 이 x2 로, Description 에도 Drain 3 이라고 · Drain 4 는 별개로"*).
+    행의 Q'ty 는 유닛 승수 그대로(곱하지 않는다 — N 행이 곧 N 벌이다), Description 은
+    **도면이 표식 아래 인쇄한 이름표**(`DRAIN 3`)를 앞에 붙인다 — 도면 낱말이지 지어낸 말이
+    아니다 (`description_sources` 에 `DRAWING:` 으로 남긴다).  이름표를 하나도 못 읽은
+    상세(TC2 의 `D`·`D1` — 표식 아래 글이 없다)는 이전처럼 **x N 한 행**이다: 이름 없는 행
+    N 개는 서로 가를 수 없어 가른 뜻이 없다.  이름표가 일부만 읽힌 상세는 가르되 못 읽은
+    표식의 행에 `TYPICAL_POINT_UNLABELLED` 를 단다 — 조용히 곱하기로 돌아가지 않는다.
+    참조가 0 이면 그대로(x1) 두고 사유만 남긴다.
     """
     stats = {"rows_in_detail": 0, "rows_multiplied": 0, "rows_ambiguous": 0,
+             "rows_split": 0, "rows_from_split": 0,
              "pages": sum(1 for t in typical_by_page.values() if t.details)}
+    out = []
     for r in rows:
         t = typical_by_page.get(r.page_no)
         if t is None or not t.details:
+            out.append(r)
             continue
         hit = t.factor_for(pymupdf.Rect(*r.rect))
         if hit is None:
+            out.append(r)
             continue
         det, n = hit
         stats["rows_in_detail"] += 1
@@ -3464,12 +3480,42 @@ def _apply_typical(rows, typical_by_page: dict) -> dict:
             # hotfix21 — 부품 상세(`[ST]`)는 본문 점마다 한 행으로 이미 셌다
             # (`_typical_point_rows`).  상자 안 행을 또 곱하면 같은 것을 두 번 센다.
             fact["note"] = "부품 상세 — 본문 점 수량으로 셉니다 (x1 그대로)"
+            out.append(r)
             continue
         if det.id in t.ambiguous:
             stats["rows_ambiguous"] += 1
             r.evidence.setdefault("review_codes", []).append("TYPICAL_AMBIGUOUS")
             r.needs_review = "; ".join([x for x in [r.needs_review] if x]
                                        + [_TYPICAL_AMBIGUOUS % det.id])
+            out.append(r)
+            continue
+        labelled = [lbl for _p, lbl in det.points if typical.is_name(lbl)]
+        if n >= 1 and r.qty is not None and labelled:
+            # hotfix30 — 표식마다 한 행.  키는 원래 행의 키 + 표식 자리라 다시 분석해도 같다.
+            base_desc, base_basis = (r.description or ""), str(r.evidence.get("qty_basis", ""))
+            stats["rows_split"] += 1
+            for i, (prect, lbl) in enumerate(det.points, 1):
+                nr = copy.deepcopy(r)
+                nr.key = _key(r.key, "TPR", det.id, i, round(prect.x0, 1), round(prect.y0, 1))
+                named = typical.is_name(lbl)
+                nr.evidence["typical"] = dict(fact, point=i, of=n, label=lbl if named else "",
+                                              raw_label=lbl, mark=[round(v, 1) for v in prect],
+                                              labelled=len(labelled))
+                if named:
+                    nr.description = f"{lbl} {base_desc}".strip()
+                    srcs = nr.evidence.setdefault("description_sources", [])
+                    if isinstance(srcs, list):
+                        srcs.append(f"DRAWING:{lbl}")
+                    nr.evidence["qty_basis"] = (base_basis + f" (( {det.id} ) 상세 한 벌 · 본문 표식 "
+                                                f"{i}/{n} '{lbl}' — 표식마다 한 행)")
+                else:
+                    nr.evidence["qty_basis"] = (base_basis + f" (( {det.id} ) 상세 한 벌 · 본문 표식 "
+                                                f"{i}/{n} 이름표 없음 — 표식마다 한 행)")
+                    nr.evidence.setdefault("review_codes", []).append(_TYPICAL_UNLABELLED_CODE)
+                    nr.needs_review = "; ".join([x for x in [nr.needs_review] if x]
+                                                + [_TYPICAL_UNLABELLED % (i, n)])
+                out.append(nr)
+                stats["rows_from_split"] += 1
             continue
         if n >= 1 and r.qty is not None:
             r.qty = r.qty * n
@@ -3478,6 +3524,8 @@ def _apply_typical(rows, typical_by_page: dict) -> dict:
                                        + f" x {n} (( {det.id} ) 상세 한 벌 × 본문 표식 {n}개)")
         elif n == 0:
             fact["note"] = "이 장에 참조 표식이 없어 x1 그대로"
+        out.append(r)
+    rows[:] = out
     return stats
 
 

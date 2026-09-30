@@ -2763,8 +2763,9 @@ function showExcluded(item) {
       + `<dt>무엇인가</dt><dd>${escape(item.reason || "")}</dd>`
       + `<dt>위치</dt><dd>${escape(S.page.drawing_no || "")} · p${S.page.page_no}`
       + ` · (${item.rect.map(v => Math.round(v)).join(", ")})</dd>`
-      + `<dt>리스트 반영</dt><dd>이 표식 자체는 행이 아닙니다 — 상세 상자 안의`
-      + ` 행 수량이 참조 수만큼 곱해집니다 (근거는 그 행의 <b>수량 근거</b>)</dd>`
+      + `<dt>리스트 반영</dt><dd>이 표식 자체는 행이 아닙니다 — 표식 아래 이름표(예: DRAIN 3)가`
+      + ` 있으면 상세 상자 안의 행이 <b>표식마다 한 행</b>으로 나가고 Description 에 그 이름표가 붙습니다.`
+      + ` 이름표가 없으면 상자 안 행의 수량이 참조 수만큼 곱해집니다 (근거는 그 행의 <b>수량 근거</b>)</dd>`
       + `</dl>`;
     return;
   }

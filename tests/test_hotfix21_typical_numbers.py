@@ -104,12 +104,19 @@ def test_rows_in_each_drain_detail_take_only_their_own_refs():
     t = typical.analyse(_sadara_like(), AREA, ceiling=11.4)
 
     class R:
-        def __init__(s, rect):
+        def __init__(s, rect, key):
             s.page_no, s.rect, s.qty, s.evidence, s.needs_review = 1, rect, 1, {"qty_basis": "1 symbol x 1"}, ""
-    a, b = R((100, 600, 120, 610)), R((600, 600, 620, 610))
-    P._apply_typical([a, b], {1: t})
-    assert (a.qty, b.qty) == (1, 1)
+            s.key, s.description = key, ""
+    a, b = R((100, 600, 120, 610), "a"), R((600, 600, 620, 610), "b")
+    rows = [a, b]
+    P._apply_typical(rows, {1: t})
     assert a.evidence["typical"]["refs"] == 1 and b.evidence["typical"]["refs"] == 1
+    # hotfix30 — 표식 아래 `DRAIN n` 이름표가 있으므로 표식마다 행 하나: 상세마다 참조 1 → 행 1 ·
+    # Q'ty 는 곱하지 않고 그대로 · Description 은 그 이름표.  두 상세가 서로 다른 드레인을 받는다.
+    assert [r.qty for r in rows] == [1, 1] and [r.evidence["typical"]["refs"] for r in rows] == [1, 1]
+    labels = [r.evidence["typical"]["label"] for r in rows]
+    assert all(l.startswith("DRAIN ") for l in labels) and len(set(labels)) == 2, labels
+    assert [r.description for r in rows] == labels
 
 
 def test_an_unnumbered_caption_still_pairs_by_letter_alone():

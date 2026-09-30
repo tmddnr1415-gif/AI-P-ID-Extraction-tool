@@ -2001,6 +2001,7 @@ REVIEW_LABELS = {
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
     "TYPICAL_POINT": "Typical 부품 점 (예: 스팀 트랩) — 본문 표식 하나를 한 행으로 셌음 · 공급 범위 확인",
+    "TYPICAL_POINT_UNLABELLED": "Typical 표식마다 낸 행인데 그 표식 아래 이름표가 없음 — 어느 자리인지 도면에서 확인",
     "MULTIPLIER_BY_USER": "도면이 승수를 말하지 않아 사람이 지정한 값 — 누가·언제는 근거 패널에 있음",
     # 53회차 [B] — 8차 피드백 s4·s5·s6 (한 뿌리)
     "TAGGED_VALVE_NO_ACTUATOR":

@@ -203,6 +203,15 @@ def numbers_in(text: str) -> frozenset | None:
     return frozenset(out) or None
 
 
+def is_name(label: str) -> bool:
+    """표식 아래 줄이 **이름표**인가 — 글자만으로 된 낱말(두 글자 이상)이 하나는 있어야 한다 (hotfix30).
+
+    `DRAIN 3` · `STEAM TRAP 1` 은 이름표다.  `.`(TC2 p9 — 표식 아래 찍힌 점 하나) · `550X700`
+    (AL NOUF1 — 옆 배관의 관경) 은 그 줄에 글자 낱말이 없어 이름표가 아니다.  이름표가 아니면
+    그 표식에는 자리 이름이 없는 것이고, 행을 표식마다 가를 근거가 되지 않는다."""
+    return any(w.isalpha() and len(w) >= 2 for w in _tokens(label or ""))
+
+
 def _label_below(m: Mark, words) -> tuple[str, int | None]:
     """라인 표식 바로 아래 한 줄 — SADARA `DRAIN 7` · `STEAM TRAP 1`.
 

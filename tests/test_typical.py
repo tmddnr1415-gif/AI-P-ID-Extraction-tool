@@ -65,8 +65,9 @@ def test_two_captions_with_the_same_id_are_ambiguous_not_multiplied():
 
 
 class _Row:
-    def __init__(self, page_no, rect, qty):
+    def __init__(self, page_no, rect, qty, description="", key="k"):
         self.page_no, self.rect, self.qty, self.evidence, self.needs_review = page_no, rect, qty, {"qty_basis": "1 symbol x 8 (NOTES)"}, ""
+        self.description, self.key = description, key
 
 
 def test_apply_multiplies_only_rows_inside_the_detail_box():
@@ -267,3 +268,109 @@ def test_unpaired_marks_are_still_counted_not_lost():
     """짝이 없는 글자는 **버리는 것이 아니라** 결과에 세어 남는다."""
     src = (ROOT / "app" / "engine" / "typical.py").read_text(encoding="utf8")
     assert "unpaired" in src, "짝 없는 표식을 세는 자리가 없다"
+
+
+# --------------------------------------------------------------------------
+# hotfix30 — 표식에 이름표가 있으면 **표식마다 행 하나** · Description 에 그 이름표
+# (QFE: "Drain 3 에 대해 TIT 2 · MOV 1 이 x2 로, Description 에도 Drain 3 · Drain 4 는 별개로")
+# --------------------------------------------------------------------------
+
+def _labelled():
+    pc = _tc2_like()
+    # 라인 표식 셋 아래 이름표 — 도면이 인쇄한 낱말.  (둘째는 두 줄 — 아랫줄은 안 읽는다)
+    pc.words += [((190, 310, 210, 314), "DRAIN"), ((212, 310, 216, 314), "1"),
+                 ((390, 310, 410, 314), "DRAIN"), ((412, 310, 416, 314), "3"),
+                 ((388, 316, 420, 320), "(ONLY"), ((422, 316, 440, 320), "BLOCK"),
+                 ((490, 310, 510, 314), "DRAIN"), ((512, 310, 516, 314), "4")]
+    return pc
+
+
+def test_labelled_marks_give_one_row_per_mark_with_the_label_in_the_description():
+    t = typical.analyse(_labelled(), AREA, ceiling=11.4)
+    assert [lbl for _r, lbl in t.details[0].points] == ["DRAIN 1", "DRAIN 3", "DRAIN 4"]
+    tit_a = _Row(1, (600, 700, 630, 712), 8, "UNIT #11 HP STEAM TEMPERATURE A", "ka")
+    tit_b = _Row(1, (640, 700, 670, 712), 8, "UNIT #11 HP STEAM TEMPERATURE B", "kb")
+    mov = _Row(1, (700, 720, 730, 740), 8, "", "kv")
+    outside = _Row(1, (100, 100, 130, 112), 8, "OUT", "ko")
+    rows = [tit_a, tit_b, mov, outside]
+    stats = P._apply_typical(rows, {1: t})
+    assert stats["rows_split"] == 3 and stats["rows_from_split"] == 9 and stats["rows_multiplied"] == 0
+    assert len(rows) == 10 and rows[-1] is outside and outside.qty == 8
+    got = [(r.description, r.qty) for r in rows[:9]]
+    assert got[:3] == [("DRAIN 1 UNIT #11 HP STEAM TEMPERATURE A", 8),
+                       ("DRAIN 3 UNIT #11 HP STEAM TEMPERATURE A", 8),
+                       ("DRAIN 4 UNIT #11 HP STEAM TEMPERATURE A", 8)]      # 곱하지 않는다 — 행이 곧 벌이다
+    assert got[6:9] == [("DRAIN 1", 8), ("DRAIN 3", 8), ("DRAIN 4", 8)]     # 문장 없던 밸브도 자리 이름은 갖는다
+    assert sum(r.qty for r in rows[:9]) == 8 * 3 * 3                        # 총량은 ×N 과 같다
+    assert len({r.key for r in rows}) == 10                                 # 키는 전부 다르고
+    pr = t.details[0].points[1][0]
+    assert rows[1].key == P._key("ka", "TPR", "D", 2, round(pr.x0, 1), round(pr.y0, 1))
+    ev = rows[1].evidence
+    assert ev["typical"]["label"] == "DRAIN 3" and ev["typical"]["point"] == 2 and ev["typical"]["of"] == 3
+    assert "DRAWING:DRAIN 3" in ev["description_sources"] and "표식마다 한 행" in ev["qty_basis"]
+    assert "review_codes" not in ev or "TYPICAL_POINT_UNLABELLED" not in ev["review_codes"]
+    # 원래 행의 근거는 복사본마다 따로다 — 하나를 고쳐도 옆 행이 안 바뀐다
+    rows[0].evidence["x"] = 1
+    assert "x" not in rows[1].evidence
+
+
+def test_marks_without_any_label_keep_the_old_multiply(tmp_path):
+    t = typical.analyse(_tc2_like(), AREA, ceiling=11.4)                    # TC2 — 이름표 없음
+    r = _Row(1, (600, 700, 630, 712), 8, "S", "k1")
+    rows = [r]
+    stats = P._apply_typical(rows, {1: t})
+    assert rows == [r] and r.qty == 24 and r.description == "S" and stats["rows_split"] == 0
+
+
+def test_partly_labelled_marks_split_and_flag_the_nameless_row():
+    pc = _tc2_like()
+    pc.words += [((490, 310, 510, 314), "DRAIN"), ((512, 310, 516, 314), "4")]   # 셋 중 하나만 이름표
+    t = typical.analyse(pc, AREA, ceiling=11.4)
+    rows = [_Row(1, (600, 700, 630, 712), 8, "S", "k1")]
+    P._apply_typical(rows, {1: t})
+    assert len(rows) == 3
+    named = [r for r in rows if r.evidence["typical"]["label"]]
+    nameless = [r for r in rows if not r.evidence["typical"]["label"]]
+    assert len(named) == 1 and named[0].description == "DRAIN 4 S"
+    assert len(nameless) == 2 and all(r.description == "S" for r in nameless)
+    assert all("TYPICAL_POINT_UNLABELLED" in r.evidence["review_codes"] for r in nameless)
+    assert all("이름표가 없어" in r.needs_review for r in nameless)
+
+
+def test_splitting_lives_only_in_apply_typical_and_the_code_is_labelled_for_the_screen():
+    src = (ROOT / "app" / "pipeline.py").read_text(encoding="utf-8")
+    assert src.count('"TPR"') == 1                                          # 표식 행의 키를 만드는 곳 하나
+    from app import main
+    assert "TYPICAL_POINT_UNLABELLED" in main.REVIEW_LABELS
+    cfg = (ROOT / "config" / "project_alnouf1.yaml").read_text(encoding="utf-8")
+    assert "TYPICAL_POINT_UNLABELLED: QUANTITY" in cfg
+
+
+def test_labels_under_marks_are_read_from_a_real_pdf(tmp_path):
+    """합성 PDF — 라인 표식 아래 `DRAIN n` 을 찍으면 `analyse` 가 이름표로 읽는다 (SADARA·QFE 꼴)."""
+    import pidcache  # noqa
+    doc = pymupdf.open(); page = doc.new_page(width=842, height=595)
+    _draw_sheet(page, "D")
+    for x, n in ((150, 1), (350, 3), (550, 4)):
+        txt = f"DRAIN {n}"
+        w = pymupdf.get_text_length(txt, fontname="helv", fontsize=5)
+        page.insert_text((x - w / 2, 340 + 12 + 8), txt, fontsize=5, fontname="helv")
+    page.insert_text((350 - 14, 340 + 12 + 15), "(ONLY BLOCK #10)", fontsize=4, fontname="helv")
+    pdf = tmp_path / "labelled.pdf"; doc.save(str(pdf)); doc.close()
+    _d, pages = pidcache.load_pages(pdf)
+    t = typical.analyse(pages[0], pymupdf.Rect(0, 0, 842, 595), ceiling=30.0)
+    assert t.refs == {"D": 3}
+    assert sorted(lbl for _r, lbl in t.details[0].points) == ["DRAIN 1", "DRAIN 3", "DRAIN 4"]
+
+
+def test_a_dot_or_a_pipe_size_under_a_mark_is_not_a_name_so_nothing_is_split():
+    """TC2 p9 실측 — 표식 아래 `.` 하나가 이름표로 읽혀 LS·MOV 9행이 갈렸다.  글자 낱말이 없는 줄은 이름표가 아니다."""
+    assert typical.is_name("DRAIN 3") and typical.is_name("STEAM TRAP 1") and typical.is_name("(ONLY BLOCK #10)")
+    assert not typical.is_name(".") and not typical.is_name("550X700") and not typical.is_name("") and not typical.is_name("3")
+    pc = _tc2_like()
+    pc.words += [((498, 310, 502, 314), ".")]                      # 표식 하나 아래에 점
+    t = typical.analyse(pc, AREA, ceiling=11.4)
+    assert [lbl for _r, lbl in t.details[0].points].count(".") == 1
+    rows = [_Row(1, (600, 700, 630, 712), 8, "S", "k1")]
+    stats = P._apply_typical(rows, {1: t})
+    assert len(rows) == 1 and rows[0].qty == 24 and stats["rows_split"] == 0    # 전처럼 x3 한 행
