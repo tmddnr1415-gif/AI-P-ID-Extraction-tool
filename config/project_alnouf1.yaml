@@ -683,6 +683,18 @@ description:
     AT: Analyzer
     AIT: Analyzer
 
+  # hotfix31 — 한 라인(같은 태그)에 표시기(PI · TI)만 있으면 **게이지**다 (사용자
+  # 규칙 · QFE).  TYPE 표기는 ISA 머리 글자 + `letter` (PI → PG · TI → TG),
+  # 근거 낱말은 그 도면 ISA 표의 변수어 + `word` (PRESSURE GAUGE).  판정은
+  # `pipeline._fold_readouts` 가 **태그가 붙은 행에서만** 한다 — 태그가 없는
+  # 2급 문서에서는 같은 라인인지 도면이 말하지 않으므로 아무 것도 안 바꾼다.
+  # `values["type"]` 은 `PI` 그대로다 (대조·측정 단위).  `enabled: false` 면
+  # 표기도 그대로다 (접기는 이 스위치와 무관하다).
+  gauge_indicator:
+    enabled: true
+    letter: G
+    word: GAUGE
+
   # 중복 문장에 순번을 붙일 TYPE (17회차 C-1).  **비우면 전 TYPE** 이다.
   #
   # 사용자 요구(2차 피드백 3장)는 "중복되는 항목들" 이지 TYPE 을 가리지

@@ -19,6 +19,7 @@ unknown, and callers are expected to leave the word out rather than invent it.
 from __future__ import annotations
 
 import collections
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -327,12 +328,125 @@ def derive(pages, cfg=None) -> IsaTable:
                 succeeding.setdefault(best[1], [])
                 if t not in succeeding[best[1]]:
                     succeeding[best[1]].append(t)
+    note_tail = ""
+    if not succeeding:
+        # ★ hotfix31 — SUCCEEDING 열의 **다른 판**: `TYPICAL SYMBOL` 머리줄이 없고
+        # 글자마다 `( ) AL` · `( ) K` 꼴 칸을 한 줄로 인쇄하는 범례 (FICHTNER 양식 —
+        # UAD · QFE).  55회차가 DXF 쪽에만 두고 "PDF 로 옮겨야 한다" 고 적어 둔
+        # 규칙이다.  이 판을 못 읽으면 succeeding 이 0 이라 `AIT`·`AI` 가
+        # 풀리지 않고(`decompose`), 사전에 있는 `PI`·`TI`·`TIT` 만 행이 된다 —
+        # QFE 화면의 "AIT 가 식별 안 된다" 가 바로 그것이다.
+        # **머리줄로 읽힌 문서(AL NOUF1 · TC2 · SADARA)는 여기 오지 않는다.**
+        for cand in [pc] + [p for p in pages if p is not pc and p.analysis_scope]:
+            cells = succeeding_from_cells(cand.words)
+            if cells:
+                succeeding = {k: list(v) for k, v in cells.items()}
+                note_tail = (f" · succeeding {len(cells)} from '( ) X' cells "
+                             f"on p{cand.page_no}")
+                break
     return IsaTable(first={k: tuple(v) for k, v in first.items() if v},
                     succeeding={k: tuple(v) for k, v in succeeding.items()},
                     page_no=pc.page_no,
                     note=f"legend p{pc.page_no} identification matrix: "
                          f"{len(first)} first letters, "
-                         f"{len(succeeding)} succeeding letters")
+                         f"{len(succeeding)} succeeding letters" + note_tail)
+
+
+# `( ) AL` — 한 조각으로 인쇄된 칸.  낱말이 갈라져 오면(`(` · `)` · `AL`) 줄 안에서
+# 이어 붙여 같은 꼴로 맞춘다.
+_CELL_RE = re.compile(r"^\(\)([A-Z]{1,4})$")
+_CELL_PREFIX_RE = re.compile(r"^\(\)?$")
+
+
+def _line_groups(words) -> list:
+    """낱말을 줄로 묶는다 — 같은 줄은 **그 낱말 자신의 높이 절반** 안이다."""
+    items = sorted(((r, t) for r, t in words if t and t.strip()),
+                   key=lambda rt: (rt[0].y0 + rt[0].y1) / 2)
+    lines: list = []
+    for r, t in items:
+        cy = (r.y0 + r.y1) / 2
+        if lines and abs(cy - lines[-1][0]) <= max(r.y1 - r.y0, 1.0) / 2:
+            lines[-1][1].append((r, t))
+        else:
+            lines.append([cy, [(r, t)]])
+    return [sorted(members, key=lambda rt: rt[0].x0) for _cy, members in lines]
+
+
+def _cells_on_line(line) -> list:
+    """그 줄의 `( ) X` 칸 — `[(rect, 'X'), ...]`.  조각 하나든 낱말 셋이든 같은 꼴."""
+    out, i = [], 0
+    while i < len(line):
+        r, t = line[i]
+        m = _CELL_RE.match(t.replace(" ", ""))
+        if m:
+            out.append((r, m.group(1)))
+            i += 1
+            continue
+        buf, j, x0, y0, x1, y1 = "", i, r.x0, r.y0, r.x1, r.y1
+        hit = None
+        while j < len(line) and len(buf) < 8:
+            rj, tj = line[j]
+            buf += tj.replace(" ", "")
+            x0, y0, x1, y1 = min(x0, rj.x0), min(y0, rj.y0), max(x1, rj.x1), max(y1, rj.y1)
+            j += 1
+            m = _CELL_RE.match(buf)
+            if m:
+                hit = (_rect(x0, y0, x1, y1, r), m.group(1))
+                break
+            if not _CELL_PREFIX_RE.match(buf):
+                break
+        if hit:
+            out.append(hit)
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def _rect(x0, y0, x1, y1, like):
+    try:
+        return type(like)(x0, y0, x1, y1)
+    except Exception:                                      # noqa: BLE001
+        import pymupdf
+        return pymupdf.Rect(x0, y0, x1, y1)
+
+
+def succeeding_from_cells(words) -> dict:
+    """`( ) X` 칸 한 줄에서 succeeding 글자 → 그 칸 위에 인쇄된 뜻.
+
+    판단은 셋뿐이고 전부 그 줄 자신이 답한다: 칸이 **세 개 이상** 나란한 줄
+    (가장 많은 줄) · 뜻은 그 칸 **위**(칸 높이의 여섯 배 안 · 가로로 칸 너비 반
+    + 칸 높이 안) 의 글자 낱말 · `( ) AL` 은 `AL` 과 `A`·`L` 셋 다.  55회차
+    DXF 규칙 그대로이고 PDF 와 DXF 가 **이 함수 하나**를 부른다.
+    """
+    words = list(words)
+    lines = _line_groups(words)
+    best = None
+    for line in lines:
+        cells = _cells_on_line(line)
+        if len(cells) >= 3 and (best is None or len(cells) > len(best)):
+            best = cells
+    if not best:
+        return {}
+    top = min(r.y0 for r, _l in best)
+    succ: dict = {}
+    for r, letter in best:
+        cx = (r.x0 + r.x1) / 2
+        h = r.y1 - r.y0
+        half = (r.x1 - r.x0) / 2 + h
+        meaning = []
+        for xr, xt in sorted(words, key=lambda rt: (rt[0].y0, rt[0].x0)):
+            if not (xr.y1 <= top and xr.y1 >= top - h * 6):
+                continue
+            if abs((xr.x0 + xr.x1) / 2 - cx) > half:
+                continue
+            for w in pidcache.tokens([(xr, xt)]):
+                if w[1].isalpha() and w[1] not in meaning:
+                    meaning.append(w[1])
+        succ.setdefault(letter, tuple(meaning))
+        for ch in letter:
+            succ.setdefault(ch, tuple(meaning))
+    return succ
 
 
 def _letter_column(body) -> list | None:

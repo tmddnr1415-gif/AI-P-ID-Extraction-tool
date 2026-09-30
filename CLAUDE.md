@@ -2683,6 +2683,43 @@ NOTE 승수 x2 로 · Description 에도 Drain 3 · Drain 4 는 별개로.  Deta
    그 문구대로면 DRAIN 3 은 x1 이 맞을 수 있는데 요구대로 NOTE 승수(x2)를 둔다 — 실무 판단.
    ⚠ 표식마다 낸 행은 같은 버블 자리에 겹쳐 그려진다(목록에서는 따로).
 
+**그 다음 — AIT 미식별 · 한 라인의 PIT/PI 규칙 (hotfix31 · QFE 요구)**
+
+QFE 화면: `AI 10MAG00CQ001` 위에 `AIT 10MAG00CQ001` 네 쌍이 식별되지 않는데 PI·TI·TIT·LIT 는
+식별된다.  이어서 사용자 규칙: *"하나의 라인에 PIT, PI 가 있다면 PIT 가 우선된다.  PI 는 생략한다.
+단 하나의 라인에 PI 만 있다면 이는 Pressure Gauge 로 식별한다.  TIT, TI 도 마찬가지다."*
+시험 `tests/test_hotfix31_isa_cells_readouts.py` 12건.
+
+1. **★ AIT 는 검출 실패가 아니라 그 도면의 ISA 표를 반만 읽은 것이다.**  FICHTNER 양식(UAD · QFE)은
+   SUCCEEDING 열을 `TYPICAL SYMBOL` 머리줄 대신 **`( ) AL` · `( ) K` 꼴 칸 한 줄**로 인쇄한다.  55회차가
+   DXF 쪽(`dxf_pipeline.isa_succeeding_from_cells`)에만 두고 *"PDF 로 옮겨야 한다"* 고 적어 둔 규칙이
+   그것이고, PDF 경로의 `isa_table.derive` 는 succeeding 0 으로 남아 `AIT`(`A`+`IT`)·`AI` 가
+   `decompose` 에서 풀리지 않았다 — 사전(`anchors.type_map`)에 있는 `PI`·`TI`·`TIT`·`LIT` 만 행이 됐다.
+   50회차가 UAD 저장 결과에서 *first 25 · succeeding 0* 으로 이미 본 자리다.
+2. **읽는 함수는 하나다** — `isa_table.succeeding_from_cells(words)`.  PDF 의 `derive` 는 **머리줄로
+   succeeding 을 못 채웠을 때만** 부르고(그래서 AL NOUF1 · TC2 · SADARA 는 이 갈래에 오지 않는다 — AST
+   시험이 그 조건을 못박는다), DXF 는 자기 낱말을 같은 모양으로 넘긴다.  `( ) AL` 이 한 조각이든
+   `(`·`)`·`AL` 셋이든 같은 줄 안에서 이어 붙여 같은 꼴로 읽는다.  UAD DXF 범례 p4 실측: 옛 함수와
+   **같은 23 글자**, 뜻은 조각을 낱말로 읽어 더 찬다 (`P` 빈칸 → `TEST POINT` · `Z` → `FINAL CONTROL
+   ELEMENT`).
+3. **★ "한 라인" 은 같은 태그다.**  QFE 는 `PI 11MBP01CP103` 과 `PIT 11MBP01CP103` 을 신호선으로
+   잇고 태그가 같다 — 그것이 한 루프라는 도면의 말이다 (§10 1급).  선을 따라가지 않는다 (§2.3).
+   `pipeline._fold_readouts` 가 `_attach_tags` **뒤** 한 곳에서: 같은 장 · 같은 태그 안에서 **표시기**
+   (뒤 글자가 전부 그 문서 ISA 표가 INDICATOR 로 읽는 글자 — `PI`·`TI`·`AI`) 와 같은 머리에 그 글자를
+   포함하고 더 가진 기능(`PIT` ⊃ `PI` · `AIT` ⊃ `AI`)이 있으면 표시기 행을 접는다.  글자 뜻은 코드에
+   없다 (`_is_switch` 와 같은 길).  접힌 행은 남는 행의 `evidence["readout_folded"]` · REMARK ·
+   `result["readouts"]`(지문 밖 · 저장 화이트리스트) 에 남는다.
+4. **표시기만 있는 라인은 게이지** — `evidence["gauge"]` 로 TYPE **표기만** `PG`·`TG`(ISA 머리 글자 +
+   config `description.gauge_indicator.letter`), 근거 낱말은 그 도면 ISA 변수어 + `word` (`PRESSURE
+   GAUGE`).  `values["type"]` 은 `PI` 그대로다 — 대조·측정 단위.  `type_display` 가 읽는다.
+5. **★ 태그가 없는 행은 접지도 게이지로 부르지도 않는다.**  2급 문서(AL NOUF1 · TC2 · SADARA)는 같은
+   라인인지 도면이 말하지 않으므로 아무 것도 바꾸지 않는다 — 회귀 불변의 근거이고 시험이 못박는다.
+   DXF 경로에는 넣지 않았다 (다음 후보).  회귀: **AL NOUF1 `c5856d6d`·1137·2140·94.8 · TC2 `67eae92d`·902·5564·94.2 불변** ·
+   UAD-DXF 507행 그대로이고 지문만 `c1febdce` → `a32c02a6` — HEAD worktree 대조로 **행 0칸**, 움직인 것은
+   `legend.isa_table.note` 한 줄(succeeding 0 → 23 이라는 문장)뿐이다.  빠른 시험 607.
+6. **⚠ QFE · UAD PDF 는 이 환경에 없다.**  합성 범례(`( ) X` 칸)와 UAD **DXF** 범례로 확인했고,
+   QFE 에서 `AIT` 가 그래도 안 서면 그 문서 범례의 ISA 표 장을 받아 봐야 한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

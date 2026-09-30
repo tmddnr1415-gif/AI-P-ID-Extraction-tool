@@ -504,6 +504,9 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 56회차 [G1] — 어느 프로필로 돌았고 무엇을 남의
                               # 설정에서 빌렸나.  화면 띠가 읽는다 (지문 밖).
                               "profile", "borrowed",
+                              # hotfix31 — 같은 태그의 표시기(PI)를 전송기(PIT)로
+                              # 접은 내역 · 게이지 수 (지문 밖).
+                              "readouts",
                               "unit_notes")},
                             default=str),
                  job_id))

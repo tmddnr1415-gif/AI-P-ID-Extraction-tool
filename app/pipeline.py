@@ -1697,6 +1697,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                      "needs line tracing (Phase 2)"}})
     # §10 증거 등급 — **도면이 태그를 인쇄했으면 그것으로 읽는다** (28회차).
     tier_facts = _attach_tags(rows, pages, declared_mode=declared_mode)
+    # hotfix31 — 한 라인(같은 태그)에 PIT 와 PI 가 있으면 PIT 가 이기고 PI 는
+    # 접는다 · PI 만 있으면 게이지다 (사용자 규칙).  태그가 붙은 뒤에 선다.
+    readout_facts, folded_readouts = _fold_readouts(rows, isa)
+    if folded_readouts:
+        rows = [r for r in rows if r.key not in folded_readouts]
 
     say(total, total, "done")
     for line in clock.summary_lines():
@@ -1718,6 +1723,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # §10 — 이 문서가 무엇을 주는가.  **지문 밖**이다 (`fingerprint` 는
         # 행 아홉 칸 · `multipliers` · `legend` · 글리프만 본다).
         "evidence_tier": tier_facts,
+        # hotfix31 — 같은 태그의 표시기(PI)를 전송기(PIT)로 접은 내역과 게이지
+        # 판정 수.  **지문 밖** — 지문은 남은 행으로 잰다.
+        "readouts": readout_facts,
         # Wall clock, not a finding: excluded from `fingerprint()` on purpose,
         # because it is the one key that must differ between two runs.
         "timings": clock.report(),
@@ -2180,6 +2188,94 @@ def _is_switch(anchor: str, isa) -> bool:
     func = anchor[len(head)].upper()
     words = tuple(w.upper() for w in (isa.succeeding or {}).get(func, ()))
     return "SWITCH" in words
+
+
+def _gauge_cfg() -> dict:
+    """config `description.gauge_indicator` — 부를 때 읽는다 (프로필을 얹으면 CFG 가 바뀐다)."""
+    return dict((CFG.data.get("description") or {}).get("gauge_indicator") or {})
+
+
+def _readout_split(anchor: str, isa):
+    """`PIT` → (`P`, `IT`) — 그 문서의 ISA 표로.  표가 못 풀면 None."""
+    if isa is None or not anchor:
+        return None
+    try:
+        return isa.decompose(anchor)
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def _is_readout(rest: str, isa) -> bool:
+    """뒤 글자가 **전부** 그 표가 INDICATOR 로 읽는 글자인가 (`PI` 의 `I`)."""
+    if not rest:
+        return False
+    for c in rest:
+        words = tuple(w.upper() for w in (isa.succeeding or {}).get(c, ()))
+        if not any(w.startswith("INDICAT") for w in words):
+            return False
+    return True
+
+
+def _fold_readouts(rows: list, isa) -> tuple:
+    """hotfix31 — **한 라인에 PIT 와 PI 가 있으면 PIT 가 이기고 PI 는 접는다.
+    PI 만 있으면 게이지다.**  TIT·TI 도 같다 (사용자 규칙 · QFE 화면).
+
+    "한 라인" 은 도면이 **같은 태그**를 두 버블에 인쇄한 것으로 읽는다 — QFE 는
+    `PI 11MBP01CP103` 위에 `PIT 11MBP01CP103` 을 신호선으로 잇고, 태그가 같다는
+    것이 곧 한 루프라는 도면의 말이다 (§10 1급).  선을 따라가지 않는다 (§2.3).
+    태그가 없는 2급 문서(AL NOUF1 · TC2 · SADARA)에서는 아무 것도 접지 않고
+    게이지로 부르지도 않는다 — 같은 라인인지 도면이 말하지 않기 때문이다.
+
+    글자 뜻은 코드에 적지 않는다: 표시기는 **그 문서 ISA 표가 INDICATOR 로 읽는
+    글자만**으로 된 기능(`_is_readout`), 이기는 쪽은 같은 머리에 그 글자를 **포함하고
+    더 가진** 기능(`PIT` ⊃ `PI` · `TIC` ⊃ `TI`).  표가 없으면 아무 것도 하지 않는다.
+
+    접힌 행은 사라지지 않는다 — 남는 행의 `evidence["readout_folded"]` 와 REMARK,
+    `result["readouts"]` 에 남는다.  게이지는 `evidence["gauge"]` 로 표기만 바뀐다
+    (`PG` · `TG` — 머리 글자 + config `description.gauge_indicator.letter`) 이고
+    `values["type"]` 은 `PI` 그대로다.
+    """
+    gcfg = _gauge_cfg()
+    facts = {"folded": [], "gauges": 0, "enabled": bool(gcfg.get("enabled", True))}
+    folded: set = set()
+    if isa is None or not getattr(isa, "succeeding", None):
+        facts["note"] = "ISA 표가 없어 접지 않음"
+        return facts, folded
+    by_tag = collections.defaultdict(list)
+    for r in rows:
+        if not r.tag_no or r.evidence.get("body"):
+            continue
+        anchor = str(r.evidence.get("anchor") or r.type or "").strip().upper()
+        parts = _readout_split(anchor, isa)
+        if parts:
+            by_tag[(r.page_no, r.tag_no)].append((r, anchor, parts))
+    letter = str(gcfg.get("letter") or "G").strip().upper()
+    word = str(gcfg.get("word") or "GAUGE").strip().upper()
+    for (pno, tag), grp in sorted(by_tag.items()):
+        readouts = [(r, a, p) for r, a, p in grp if _is_readout(p[1], isa)]
+        for r, anchor, (head, rest) in readouts:
+            winner = next((w for w, wa, (wh, wr) in grp
+                           if w is not r and wh == head and len(wr) > len(rest)
+                           and all(c in wr for c in rest)), None)
+            if winner is not None:
+                folded.add(r.key)
+                lst = winner.evidence.setdefault("readout_folded", [])
+                lst.append({"anchor": anchor, "key": r.key, "tag_no": tag,
+                            "rect": [round(v, 1) for v in r.rect]})
+                note = f"같은 태그 {tag} 의 {anchor} 표시기를 이 행에 접음 (한 라인 = {winner.evidence.get('anchor') or winner.type} 우선)"
+                winner.remark = "; ".join(x for x in (winner.remark, note) if x)
+                facts["folded"].append({"page_no": pno, "tag_no": tag, "readout": anchor,
+                                        "kept": str(winner.evidence.get("anchor") or winner.type),
+                                        "kept_key": winner.key, "folded_key": r.key})
+            elif facts["enabled"]:
+                first = " ".join(isa.words_for(anchor) or ())
+                r.evidence["gauge"] = {
+                    "display": f"{head}{letter}",
+                    "word": f"{first} {word}".strip(),
+                    "basis": f"같은 태그 {tag} 에 전송기가 없어 표시기 {anchor} 만 있는 라인 — "
+                             f"게이지 (config description.gauge_indicator)"}
+                facts["gauges"] += 1
+    return facts, folded
 
 
 def _valve_tag_signals(rows, bubbles_by_page=None) -> tuple:
@@ -4282,6 +4378,12 @@ def type_display(values: dict, evidence: dict = None) -> str:
     # 모양 칸(VALVE TYPE)은 그대로 비운다 — 없는 것을 지어내지 않는다.
     if not kind and tag and tag in ds.VALVE_ANCHORS:
         return tag
+    # hotfix31 — 한 라인에 표시기(PI · TI)만 있으면 게이지다.  판정은
+    # `_fold_readouts` 가 하고 여기는 그 표기를 **읽기만** 한다 (`values["type"]`
+    # 는 `PI` 그대로 — 대조·측정 단위).
+    gauge = ((evidence or {}) or {}).get("gauge") or {}
+    if gauge.get("display"):
+        return str(gauge["display"])
     return _TYPE_DISPLAY.get(kind.upper(), kind)
 
 

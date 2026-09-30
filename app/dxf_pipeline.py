@@ -251,9 +251,6 @@ def classify_blocks(legend: dict, roles: dict) -> dict:
     return out
 
 
-_SUCC_CELL = re.compile(r"^\(\s*\)\s*([A-Z]{1,4})$")
-
-
 def isa_succeeding_from_cells(isa, legend_sheets: list):
     """★ SUCCEEDING 열의 다른 판 — `( ) X` 칸 한 줄 (UAD 범례 p4 · 55회차).
 
@@ -262,33 +259,18 @@ def isa_succeeding_from_cells(isa, legend_sheets: list):
     `( ) K` 꼴 칸을 한 줄로 인쇄한다 (50회차가 남긴 *first 25 · succeeding 0* 의
     원인이 이것이다 — 조각 문제가 아니라 **표의 판이 다르다**).
 
-    ⚠ 이 규칙은 `isa_table.derive` 로 옮겨야 한다 (PDF 의 UAD 도 같은 표).  이
-    회차는 **PDF 경로 불변**이 게이트라 DXF 쪽에 두었다 — 대기 목록에 적는다.
+    hotfix31 — 읽는 규칙은 `isa_table.succeeding_from_cells` **하나**로 옮겼고
+    (PDF 경로의 `derive` 가 같은 함수를 부른다), 여기는 DXF 낱말을 그 모양으로
+    넘기는 자리만 남았다.  `derive` 가 이미 칸으로 채운 표는 그대로 돌려준다.
     """
     if isa is None or getattr(isa, "succeeding", None):
         return isa
     for sh in legend_sheets:
-        ws = [w for w in R.words(sh) if not w.hidden and w.kind != "FRAME"]
-        cells = [(w, _SUCC_CELL.match(w.text.strip())) for w in ws]
-        cells = [(w, m.group(1)) for w, m in cells if m]
-        if len(cells) < 3:
+        ws = [(pymupdf.Rect(*w.rect), w.text) for w in R.words(sh)
+              if not w.hidden and w.kind != "FRAME"]
+        succ = isa_table.succeeding_from_cells(ws)
+        if not succ:
             continue
-        rows = collections.defaultdict(list)
-        for w, letter in cells:
-            rows[round((w.rect[1] + w.rect[3]) / 2)].append((w, letter))
-        y, best = max(rows.items(), key=lambda kv: len(kv[1]))
-        if len(best) < 3:
-            continue
-        succ = {}
-        top = min(w.rect[1] for w, _l in best)
-        for w, letter in best:
-            cx = (w.rect[0] + w.rect[2]) / 2
-            half = (w.rect[2] - w.rect[0]) / 2 + w.height
-            words_ = [x.text for x in ws if x.rect[3] <= top and x.rect[3] >= top - w.height * 6
-                      and abs((x.rect[0] + x.rect[2]) / 2 - cx) <= half and x.text.isalpha()]
-            succ.setdefault(letter, tuple(words_))
-            for ch in letter:
-                succ.setdefault(ch, tuple(words_))
         return isa_table.IsaTable(first=dict(isa.first), succeeding=succ, page_no=sh.no,
                                   source=isa.source,
                                   note=isa.note + f" · succeeding {len(succ)} from '( ) X' cells on p{sh.no}")

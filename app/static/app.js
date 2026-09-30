@@ -3222,6 +3222,14 @@ function showEvidence(row) {
     add("Tag No. 근거", `${tagNo.value} — 도면 인쇄 (모양 ${tagNo.shape || ""})`);
     add("Tag No. 규칙", tagNo.rule);
   }
+  // hotfix31 — 한 라인(같은 태그)의 표시기를 전송기로 접은 것 · 표시기만 있는 라인은 게이지.
+  if (Array.isArray(e.readout_folded) && e.readout_folded.length) {
+    add("접은 표시기", e.readout_folded.map(f => `${f.anchor} (${f.tag_no})`).join(", ")
+      + " — 같은 태그 한 라인이라 이 행이 우선 (사용자 규칙)");
+  }
+  if (e.gauge && e.gauge.display) {
+    add("게이지", `${e.gauge.display} = ${e.gauge.word} — ${e.gauge.basis || ""}`);
+  }
   add("산출물", e.deliverable);
   add("검출 근거", e.detail && JSON.stringify(e.detail));
 
