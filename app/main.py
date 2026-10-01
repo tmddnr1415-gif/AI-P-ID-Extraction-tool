@@ -1261,7 +1261,13 @@ def _sheet_number_targets(job_id: str) -> dict:
     if not job:
         raise HTTPException(404, "no such job")
     engine = json.loads(job["engine_json"] or "{}")
-    pages = engine.get("pages") or []
+    # hotfix33 — 장 목록은 `pid_page` 표에서 읽는다 (`/pages` 와 같은 자리).  45회차는
+    # `engine_json["pages"]` 를 읽었는데 그 열쇠는 `store_result` 화이트리스트에 **없어**
+    # 실제 분석에서는 언제나 빈 목록이었다 — 화면 자기검증이 잡았다 (38회차 `evidence_tier`
+    # · 53회차 `unit_notes` 와 같은 결함).  표에 없는 옛 분석은 engine_json 으로 되돌아간다.
+    pages = [dict(r) for r in CON.execute(
+        "SELECT page_no, drawing_no, page_kind FROM pid_page WHERE job_id=? ORDER BY page_no",
+        (job_id,)).fetchall()] or (engine.get("pages") or [])
     saved = sheet_numbers.load(DATA_DIR, job["project"] or "")
     applied = (engine.get("user_sheet_numbers") or {}).get("table") or {}
     out = []

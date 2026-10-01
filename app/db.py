@@ -507,6 +507,10 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # hotfix31 — 같은 태그의 표시기(PI)를 전송기(PIT)로
                               # 접은 내역 · 게이지 수 (지문 밖).
                               "readouts",
+                              # hotfix33 — 45회차 사람 지정 도면번호가 이번 분석에
+                              # 실제로 쓰였는지 (`table`·`who`).  화면 판이 "이번 분석은
+                              # 사람이 적은 번호로 읽었다" 를 이것으로 가른다 (지문 밖).
+                              "user_sheet_numbers",
                               "unit_notes")},
                             default=str),
                  job_id))

@@ -28,8 +28,9 @@ FORBIDDEN = ("app/_data/", "data/")
 
 
 def latest_prev() -> Path | None:
-    zips = sorted(ROOT.glob("out/PID_hotfix*.zip"),
-                  key=lambda p: int(re.search(r"hotfix(\d+)", p.name).group(1)))
+    # 번호 없는 이름(`PID_hotfix_2026-09-27_dxf.zip`)은 건너뛴다 — 순서를 가를 수 없다.
+    zips = [p for p in ROOT.glob("out/PID_hotfix*.zip") if re.search(r"hotfix(\d+)", p.name)]
+    zips.sort(key=lambda p: int(re.search(r"hotfix(\d+)", p.name).group(1)))
     return zips[-1] if zips else None
 
 

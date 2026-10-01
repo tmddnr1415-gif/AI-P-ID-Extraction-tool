@@ -1531,6 +1531,7 @@ function renderReviewPanel() {
   });
   renderReviewCodes();
   loadMultipliers();
+  loadSheetNumbers();
 }
 
 /* ---------------------------------------------------------------------------
@@ -1641,6 +1642,108 @@ async function loadMultipliers() {
       loadMultipliers();
     };
   });
+}
+
+/* ---------------------------------------------------------------------------
+ * 장 도면번호 — 타이틀블록이 글자가 아니라 획이라 읽히지 않은 장에 **사람이
+ * 한 번 적는 자리** (45회차 경로 · hotfix33 화면).
+ *
+ * 저장·엔진·API 는 45회차부터 있었고(`app/sheet_numbers.py` ·
+ * `GET/POST/DELETE /jobs/{id}/sheet_numbers`), 없던 것은 화면뿐이었다.  규율은
+ * 승수 판과 같다 — 서버가 **도면번호가 빈 장만** 목록에 낸다(읽힌 장은 사람이
+ * 적어도 쓰이지 않는다 · 도면이 이긴다) · 작성자 필수 · 적은 값은 **다시
+ * 분석해야** 반영된다(그 사실은 사라지는 안내가 아니라 판에 상주한다).
+ * ------------------------------------------------------------------------- */
+const attr = (s) => escape(String(s == null ? "" : s)).replace(/"/g, "&quot;");
+async function loadSheetNumbers() {
+  const box = $("#sheet-panel");
+  if (!box || !S.job || !S.job.id) return;
+  let out;
+  try {
+    out = await (await fetch(`/jobs/${S.job.id}/sheet_numbers`)).json();
+  } catch (e) { return; }
+  S.sheetNos = out;
+  const sheets = out.sheets || [];
+  if (!sheets.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  const bound = !!out.project;
+  const nSet = sheets.filter(s => s.set).length;
+  const folded = _sheetFolded();
+  box.classList.toggle("folded", folded);
+  /* 이 문서가 다른 장에서 읽은 도면번호 꼴 — 적는 사람이 맞춰 쓰라고 보인다 (지어내지 않는다:
+   * 같은 문서의 읽힌 장이 인쇄한 값 그대로다). */
+  const sample = (S.pages || []).map(p => p.drawing_no).filter(Boolean)[0] || "";
+  box.innerHTML = `<div class="mtop"><b title="타이틀블록이 글자가 아니라 획으로 그려져 도면번호를 읽지 못한 장 — 사람이 적으면 다시 분석할 때 그 장이 분석 대상이 됩니다">장 도면번호</b>
+      <span class="msum">못 읽은 장 ${sheets.length} · 지정 ${nSet} · 미지정 ${sheets.length - nSet}</span>
+      <button class="mfold ghost" title="접으면 요약 한 줄만 남습니다">${folded ? "펼치기" : "접기"}</button></div>`
+    + (out.enabled === false ? `<div class="mwhy muted">이 프로젝트의 장 도면번호 지정이 꺼져 있습니다 (enabled: false) — 적어도 쓰이지 않습니다</div>` : "")
+    + (bound ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
+         도면번호를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
+    + `<div class="mwhy muted">도면에서 읽힌 장은 여기 없습니다 — 사람은 도면을 이기지 않습니다.
+         ${sample ? `이 문서의 읽힌 번호 꼴: <code>${escape(sample)}</code>` : ""}</div>`
+    + sheets.map(sh => {
+        const set = sh.set;
+        return `<div class="mgroup sgroup" data-page="${sh.page_no}">
+          <div class="mhead">p<b>${sh.page_no}</b>
+            <span class="muted">${sh.page_kind ? `종류 ${escape(sh.page_kind)}` : "종류 미상"}
+              ${sh.from_user ? " · 이번 분석은 사람이 적은 번호로 읽었습니다" : " · 이번 분석에서 대상 밖"}</span>
+            <button class="sview ghost" title="그 장을 도면 창에 띄웁니다">보기</button></div>
+          ${set ? `<div class="mset">지정됨 <b>${escape(set.drawing_no || "")}</b>
+              — ${escape(set.author || "이름 없음")} · ${(set.set_at || "").slice(0, 10)}
+              ${set.note ? " · " + escape(set.note) : ""}
+              <button class="mclear">되돌리기</button>
+              ${sh.from_user ? "" : `<div class="mpending">아직 이 결과에는 반영되지 않았습니다 —
+                다시 분석하면 이 장이 분석 대상이 됩니다</div>`}</div>` : ""}
+          ${bound ? `<div class="mform">
+            <label>도면번호 <input class="sval" type="text" spellcheck="false"
+                   value="${attr(set ? (set.drawing_no || "") : "")}" placeholder="${attr(sample || "도면에 인쇄된 번호 그대로")}"></label>
+            <label>근거 <input class="mnote" type="text"
+                   placeholder="예: 타이틀블록 육안 판독" value="${attr(set ? (set.note || "") : "")}"></label>
+            <button class="sset-btn">지정</button>
+          </div>` : ""}</div>`;
+      }).join("");
+  box.querySelector(".mfold").onclick = () => {
+    _sheetFolded(!box.classList.contains("folded"));
+    loadSheetNumbers();
+  };
+  box.querySelectorAll(".sgroup").forEach(el => {
+    const pno = +el.dataset.page;
+    el.querySelector(".sview").onclick = () => {
+      const pg = (S.pages || []).find(p => p.page_no === pno);
+      if (pg) showPage(pg); else editNotice(`p${pno} 은 이 분석의 장 목록에 없습니다`, "out");
+    };
+    const btn = el.querySelector(".sset-btn");
+    if (btn) btn.onclick = async () => {
+      const val = (el.querySelector(".sval").value || "").trim();
+      if (!val) { editNotice("도면번호를 비워 둘 수 없습니다", "out"); return; }
+      /* 13회차 작성자 기록 — 팀이 공유하는 값이므로 누가 적었는지가 값의 일부다. */
+      const who = await askAuthor("장 도면번호 지정", `p${pno} → ${val}`);
+      if (who === null) return;
+      const body = new FormData();
+      body.append("page", String(pno)); body.append("drawing_no", val);
+      body.append("author", who || "");
+      body.append("note", el.querySelector(".mnote").value || "");
+      const r = await fetch(`/jobs/${S.job.id}/sheet_numbers`, { method: "POST", body });
+      if (!r.ok) { editNotice((await r.json()).detail || "저장하지 못했습니다", "out"); return; }
+      editNotice(`p${pno} → ${val} 지정했습니다 — 다시 분석하면 이 장이 분석 대상이 됩니다`, "in");
+      loadSheetNumbers();
+    };
+    const clr = el.querySelector(".mclear");
+    if (clr) clr.onclick = async () => {
+      await fetch(`/jobs/${S.job.id}/sheet_numbers/${pno}`, { method: "DELETE" });
+      editNotice(`p${pno} 지정을 되돌렸습니다`, "out");
+      loadSheetNumbers();
+    };
+  });
+}
+
+const SHEET_FOLD_KEY = "pid.sheet.fold";
+function _sheetFolded(v) {
+  try {
+    if (v === undefined) return localStorage.getItem(SHEET_FOLD_KEY) === "1";
+    localStorage.setItem(SHEET_FOLD_KEY, v ? "1" : "0");
+  } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
+  return !!v;
 }
 
 const MULT_FOLD_KEY = "pid.mult.fold";

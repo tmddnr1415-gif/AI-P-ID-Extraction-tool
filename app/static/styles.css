@@ -1105,6 +1105,11 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .mult-panel.folded { height: auto !important; max-height: none !important; overflow: visible; }
 .mult-panel.folded .mwhy, .mult-panel.folded .mgroup { display: none; }
 #gutter-m { margin-bottom: 6px; }
+/* hotfix33 — 장 도면번호 판은 승수 판과 같은 얼굴이고 높이 손잡이는 없다 (장이 몇이면 끝난다). */
+.sheet-panel { margin-top: 6px; }
+.sheet-panel .mform input.sval { width: 230px; font-family: var(--mono, monospace); }
+.sheet-panel .sview { font-size: 11px; padding: 1px 8px; margin-left: 6px; }
+.sheet-panel .mwhy code { font-family: var(--mono, monospace); }
 .mult-panel > b { margin-right: 6px; }
 .mult-panel .muted { color: var(--ink-soft); }
 .mult-panel .mgroup { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }

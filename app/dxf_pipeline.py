@@ -515,6 +515,16 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
     # ── 태그 (1급) — 속성이 준 것은 그대로, 나머지는 tags.assign ─────────
     tier_facts = _attach_tags(rows, targets, declared_mode)
 
+    # ── hotfix33 — 한 라인의 PIT/PI · 게이지 (hotfix31 규칙을 DXF 에도) ─────
+    # 함수는 PDF 경로의 그것 **하나**다 (`P._fold_readouts` · 태그 뒤 한 곳).  DXF 는
+    # hotfix17 이 `_sheet_rows` 안에서 같은 태그의 기능 표시(`PI` ↔ `PIT`)를 이미
+    # `SIGNAL_FUNCTION` 으로 거르므로 여기서 접히는 행은 보통 0 이고, 남는 몫은
+    # **표시기만 있는 라인을 게이지로 부르는 것**이다 (`evidence["gauge"]` →
+    # `type_display` 가 `PG`·`TG`).  태그 없는 행은 건드리지 않는다.
+    readout_facts, folded_readouts = P._fold_readouts(rows, isa if isa_ok else None)
+    if folded_readouts:
+        rows = [r for r in rows if r.key not in folded_readouts]
+
     # ── 오버레이 층 ─────────────────────────────────────────────────────
     for r in rows:
         scope = (P.SCOPE_VENDOR if str(r.scope or "").startswith(P.COL_VENDOR) else
@@ -568,6 +578,7 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         "legend_profile": {"mode": "dxf", "legend_sheets": [s.no for s in legend_sheets],
                            "measured": True, "compared": False, "uncompared": []},
         "evidence_tier": tier_facts,
+        "readouts": readout_facts,
         "unjudged_symbols": unjudged,
         "valve_tags": valve_tags,
         "isa_anchors": {"total": 0},
