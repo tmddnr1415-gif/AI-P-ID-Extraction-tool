@@ -2259,6 +2259,7 @@ function renderGrid() {
     if (S.sel === r.key) tr.classList.add("sel");
     for (const [key, , editable] of cols) {
       const td = document.createElement("td");
+      td.dataset.col = key;
       const val = key === "page_no" ? r.page_no
         : key === "origin" ? r.origin
         : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
@@ -4278,6 +4279,15 @@ const TYPICAL_MARK = ["TYPICAL", "Typical 표식 (행 아님)", "#5e5ce6",
  * 사용자 요구는 늘 식별 **표기**였다.  값은 행의 근거(`evidence.diaphragm_seal.rects`)
  * 에서 읽는다 — Remark 가 읽는 그 값이다 (11회차: 화면이 데이터와 같은 접근자를 읽는다).
  * 자기 칸이라 33회차 등식(색 칸 합 = 상자 수)은 그대로다. */
+/* hotfix32 — **식별 표기 옆의 수량** (사용자 요구: *"각 식별된 계기, 식별 표기 옆에
+ * x1, x2 와 같이 note 에 따른, 즉 출력된 수량을 표기하고, 사용자가 수량을 바꾸면
+ * 그 값이 list 에도 변경 표기와 함께 반영되게"*).  행이 아니라 **행의 Q'ty 칸**이
+ * 도면 위에 선 것이다 — 값은 그리드와 **같은 접근자**(`cellValue(row,"qty")`)에서
+ * 오고, 누르면 **그리드와 같은 저장 길**(`saveEdit` → PATCH · 작성자 · ✎)로 간다.
+ * 두 벌을 두면 갈린다 (11회차).  "(그중)" 이라 33회차 등식(색 칸 합 = 상자 수)은
+ * 그대로다. */
+const QTY_MARK = ["QTY", "수량 x N (그중)", "#1c1c1e",
+                  "식별 표기 옆의 x N — 그 행의 Q'ty (NOTES 승수 반영). 누르면 그 자리에서 고치고, 고친 값은 목록·Excel 에 ✎ 와 함께 반영됩니다"];
 const SEAL_MARK = ["SEAL", "Diaphragm Seal (행 아님)", "#0d9488",
                    "계기 임펄스 라인의 격막 씰 — 그 계기의 Remark 에 'Diaphragm Seal' 이 적힙니다. 누르면 그 계기 행이 골라집니다"];
 
@@ -4372,8 +4382,9 @@ function itemVisible(it) {
 function buildOverlayLegend() {
   const items = S.page ? overlayItems(S.page) : [];
   const counts = {};
-  let review = 0, manual = 0, rejected = 0, typical = 0, seal = 0;
+  let review = 0, manual = 0, rejected = 0, typical = 0, seal = 0, qtyTags = 0;
   for (const it of items) {
+    if (qtyTagRow(it)) qtyTags++;
     // 53회차 — 사용자 추가는 **자기 칸**이다 (상자도 녹색으로 그린다).  SCOPE
     // 칸에도 세면 한 상자가 두 번 세어져 33회차 등식이 깨진다.
     if (it.seal) seal++;
@@ -4397,7 +4408,8 @@ function buildOverlayLegend() {
     + row(...TYPICAL_MARK, typical, "")
     + row(...SEAL_MARK, seal, "")
     + row(...REVIEW_MARK, review, "badge")
-    + row(...REJECT_MARK, rejected, "badge");
+    + row(...REJECT_MARK, rejected, "badge")
+    + row(...QTY_MARK, qtyTags, "badge");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
     drawOverlay();
@@ -4585,6 +4597,12 @@ function drawOverlay() {
       }
       ov.appendChild(dot); ov.appendChild(bang);
     }
+    // hotfix32 — 식별 표기 옆의 수량 `x N`.  상자 오른쪽 가운데 (검토 ● 는 오른쪽
+    // 위 · 오검출 ✕ 는 오른쪽 아래라 모서리가 겹치지 않는다).
+    if (!S.ovOff.has(QTY_MARK[0])) {
+      const qrow = qtyTagRow(it);
+      if (qrow) drawQtyTag(ov, scale, it, qrow, stroke);
+    }
     // 44회차 — 사용자 추가 ✚(왼쪽 위) · 오검출 ✕(오른쪽 아래).  검토 ● 와
     // 모서리가 다르다.  범례에서 따로 끌 수 있고 상자와 같은 키로 클릭이 통한다.
     const badge = (cx, cy, cls, glyph, tip) => {
@@ -4672,6 +4690,90 @@ function drawOverlay() {
   }
   drawFromTo(ov, scale);
   buildOverlayLegend();
+}
+
+/* hotfix32 — 수량 라벨을 달 행.  행인 상자(제외 심볼 · 씰 · Typical 표식은 아니다)
+ * 이고 그 행이 목록에 있을 때.  Q'ty 가 비어 있어도(승수 미정 — 검토 사유) 단다:
+ * 빈 것도 사람이 채울 자리다. */
+function qtyTagRow(it) {
+  if (it.row === false || it.seal || it.typical || it.rejected) return null;
+  const row = S.rowByKey[it.key];
+  if (!row || row.deleted || row.removed) return null;
+  return row;
+}
+
+function qtyEdited(row) {
+  return !!(row.user && "qty" in row.user && row.user.qty !== null && row.user.qty !== undefined);
+}
+
+function drawQtyTag(ov, scale, it, row, stroke) {
+  const NS = "http://www.w3.org/2000/svg";
+  const [x0, y0, x1, y1] = it.rect;
+  const qty = cellValue(row, "qty");
+  const edited = qtyEdited(row);
+  const label = `x${qty === "" || qty === null || qty === undefined ? "?" : qty}${edited ? " ✎" : ""}`;
+  const fs = Math.max(9, Math.min(16, (y1 - y0) * scale * 0.55));
+  const w = label.length * fs * 0.62 + 6, h = fs * 1.35;
+  const gx = x1 * scale + 3, gy = (y0 + y1) / 2 * scale - h / 2;
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", "qtytag" + (edited ? " edited" : "") + (S.sel === it.key ? " sel" : ""));
+  g.dataset.key = it.key;
+  const bg = document.createElementNS(NS, "rect");
+  bg.setAttribute("x", gx); bg.setAttribute("y", gy);
+  bg.setAttribute("width", w); bg.setAttribute("height", h);
+  bg.setAttribute("rx", 3);
+  bg.setAttribute("stroke", stroke);
+  const t = document.createElementNS(NS, "text");
+  t.setAttribute("x", gx + 3); t.setAttribute("y", gy + h * 0.76);
+  t.setAttribute("font-size", fs);
+  t.textContent = label;
+  const e = row.evidence || {};
+  const tip = document.createElementNS(NS, "title");
+  tip.textContent = `Q'ty ${qty === "" ? "(비어 있음)" : qty}`
+    + (edited ? ` — 사람이 고침 (도면 근거는 ${(row.ai || {}).qty ?? "없음"})` : "")
+    + (e.qty_basis ? `\n근거: ${e.qty_basis}` : "") + "\n누르면 고칩니다";
+  g.appendChild(tip); g.appendChild(bg); g.appendChild(t);
+  g.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); editQtyOnDrawing(row, g); };
+  ov.appendChild(g);
+}
+
+/* 도면 위에서 Q'ty 를 고친다.  **저장은 그리드와 같은 `saveEdit`** — 작성자 확인 ·
+ * PATCH · `row.user` · 검토 수 · 근거 패널 갱신이 전부 거기 있다.  여기는 입력
+ * 상자를 라벨 자리에 띄우고 값을 넘길 뿐이다.  그리드의 같은 칸(`td[data-col=qty]`)
+ * 은 같은 행 요소에서 찾아 글자·✎ 를 맞춘다. */
+function editQtyOnDrawing(row, anchor) {
+  const stage = $("#stage");
+  if (!stage || !anchor) return;
+  document.querySelectorAll("input.qtyedit").forEach(n => n.remove());
+  const sb = stage.getBoundingClientRect(), ab = anchor.getBoundingClientRect();
+  const inp = document.createElement("input");
+  inp.type = "number"; inp.min = "0"; inp.step = "1";
+  inp.className = "qtyedit";
+  inp.value = cellValue(row, "qty") ?? "";
+  inp.title = "Q'ty — Enter 저장 · Esc 취소 · 비우면 도면 값으로";
+  inp.style.left = `${ab.left - sb.left + stage.scrollLeft}px`;
+  inp.style.top = `${ab.top - sb.top + stage.scrollTop}px`;
+  inp.style.height = `${Math.max(18, ab.height)}px`;
+  stage.appendChild(inp);
+  let done = false;
+  const finish = async (save) => {
+    if (done) return; done = true;
+    const value = inp.value.trim();
+    inp.remove();
+    if (!save || String(cellValue(row, "qty") ?? "") === value) return;
+    const td = document.querySelector(
+      `#body tr[data-key="${CSS.escape(row.key)}"] td[data-col="qty"]`) || document.createElement("td");
+    td.textContent = value;
+    await saveEdit(row, "qty", td);
+    drawOverlay();
+    if (S.sel === row.key) showEvidence(row);
+  };
+  inp.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); finish(true); }
+    if (ev.key === "Escape") { ev.preventDefault(); finish(false); }
+  });
+  inp.addEventListener("blur", () => finish(true));
+  inp.focus(); inp.select();
 }
 
 /* The selected row's pipe, under the boxes so it never hides one.

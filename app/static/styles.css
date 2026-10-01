@@ -1283,3 +1283,15 @@ tbody tr.added td:nth-child(-n+2) { background: color-mix(in srgb, var(--panel) 
 .evidence dd.ev-sec { display: none; }
 /* 근거 패널 높이 손잡이 */
 #gutter-r { height: 6px; }
+
+/* hotfix32 — 식별 표기 옆의 수량 `x N`.  행의 Q'ty 칸이 도면 위에 선 것 — 값은
+   그리드와 같은 접근자, 저장은 그리드와 같은 길이다.  고친 값은 ✎ 와 같은 색. */
+g.qtytag { cursor: pointer; }
+g.qtytag rect { fill: #fffdf6; fill-opacity: .92; stroke-width: 1; }
+g.qtytag text { fill: #1c1c1e; font-weight: 700;
+  font-family: ui-sans-serif, system-ui, sans-serif; pointer-events: none; }
+g.qtytag.edited rect { stroke: var(--ok); stroke-width: 1.5; }
+g.qtytag.edited text { fill: var(--ok); }
+g.qtytag.sel rect { stroke-width: 2; }
+input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; font-weight: 700;
+  padding: 1px 4px; border: 2px solid var(--accent); border-radius: 4px; background: #fffdf6; }
