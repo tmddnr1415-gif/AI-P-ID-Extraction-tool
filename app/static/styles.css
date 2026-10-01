@@ -859,7 +859,7 @@ button.ract-b.on { border-color: currentColor; font-weight: 600; }
 button.mini-rep { border: 0; background: transparent; color: var(--muted);
                   cursor: pointer; font: inherit; padding: 0 3px; }
 button.mini-rep:hover { color: var(--bad); }
-.build { position: fixed; right: 10px; bottom: 6px; font-size: var(--t-s);
+.build { position: fixed; right: 10px; bottom: 6px; font-size: var(--t-s); text-align: right; max-width: 70vw;
          pointer-events: none; color: var(--muted);
          background: var(--paper-card); border: 1px solid var(--line);
          border-radius: var(--r-s); padding: 1px 7px; }

@@ -3025,6 +3025,8 @@ def build_version():
     """
     out = dict(version.info())
     out["ui"] = {"app_js": _asset_tag("app.js"), "styles_css": _asset_tag("styles.css")}
+    # hotfix34 — 적용된 꾸러미 (없으면 null · 화면이 "기록 없음" 으로 말한다)
+    out["update"] = version.update_info()
     return out
 
 

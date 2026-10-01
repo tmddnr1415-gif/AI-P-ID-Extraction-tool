@@ -6306,11 +6306,19 @@ $req("#diag").addEventListener("click", async () => {
     // 56회차 — 화면 파일 딱지를 같이 적는다.  꾸러미를 덮어썼는데 브라우저가
     // 옛 `app.js` 를 캐시로 쓰고 있으면 그것을 알 길이 없었다 (현장 보고 두 번).
     const ui = v.ui ? ` · 화면 ${v.ui.app_js}` : "";
+    // hotfix34 — 첫 화면 오른쪽 아래에 **어느 업데이트가 적용돼 있는가** 를 적는다:
+    // 꾸러미 이름(rev 번호) · zip 파일명 · zip 을 만든 시각.  값은 꾸러미 생성기가
+    // 적어 둔 `app/_update.json` 그대로이고, 없으면 "기록 없음" (지어내지 않는다).
+    const u = v.update;
+    const upd = u
+      ? `업데이트 ${u.name}${u.rev != null ? ` (rev ${u.rev})` : ""} · ${u.zip || "zip 이름 없음"} · 생성 ${u.created_at || "시각 없음"}`
+      : "업데이트 기록 없음 (hotfix34 이전 꾸러미)";
     $("#build-text").textContent =
-      `v${v.version} · ${v.built_at || "날짜 없음"}`
+      `${upd}  |  v${v.version} · ${v.built_at || "날짜 없음"}`
       + (v.kind === "exe" ? "" : " (source)") + ui;
     $("#build-text").title =
-      `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`
+      (u ? `적용된 꾸러미 ${u.zip} · 기준 커밋 ${u.base_commit || "?"}${u.branch ? " (" + u.branch + ")" : ""} · ` : "")
+      + `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`
       + (v.ui ? ` · app.js ${v.ui.app_js} · styles.css ${v.ui.styles_css}` : "");
   } catch (e) { /* the footer is a label, not a feature */ }
 })();

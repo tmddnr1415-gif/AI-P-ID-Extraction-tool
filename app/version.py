@@ -20,6 +20,9 @@ VERSION = "1.0.0"
 
 _HERE = Path(__file__).resolve().parent
 _STAMP = _HERE / "_build.json"
+# hotfix34 — 어느 꾸러미(hotfix zip)가 적용돼 있는가.  `spike/pack_hotfix.py` 가 꾸러미를
+# 만들 때 저장소에 적고 꾸러미에 함께 넣는다.  없으면 "기록 없음" 이지 지어내지 않는다.
+_UPDATE = _HERE / "_update.json"
 
 
 def frozen() -> bool:
@@ -54,6 +57,27 @@ def info() -> dict:
         "python": f"{sys.version_info.major}.{sys.version_info.minor}"
                   f".{sys.version_info.micro}",
     }
+
+
+def update_info(path: Path | None = None) -> dict | None:
+    """적용된 꾸러미의 사실 — 이름 · rev 번호 · zip 파일명 · 만든 시각 · 기준 커밋.
+
+    꾸러미 생성기가 적은 그대로 돌려준다.  파일이 없거나 깨졌으면 None — 화면은
+    "업데이트 기록 없음" 으로 말한다 (hotfix34 이전 꾸러미에는 이 파일이 없다).
+    """
+    path = path or _UPDATE
+    if not path.exists():
+        return None
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+    if not isinstance(d, dict) or not d.get("name"):
+        return None
+    return {"name": str(d.get("name") or ""), "rev": d.get("rev"),
+            "zip": str(d.get("zip") or ""), "created_at": str(d.get("created_at") or ""),
+            "base_commit": str(d.get("base_commit") or ""),
+            "branch": str(d.get("branch") or "")}
 
 
 def label() -> str:

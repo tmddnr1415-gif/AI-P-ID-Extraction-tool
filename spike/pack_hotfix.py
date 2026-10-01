@@ -14,6 +14,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import subprocess
 import datetime as dt
 import hashlib
 import re
@@ -34,6 +36,30 @@ def latest_prev() -> Path | None:
     return zips[-1] if zips else None
 
 
+STAMP_REL = "app/_update.json"
+
+
+def write_stamp(name: str, zip_name: str) -> dict:
+    """적용 딱지 — 이름 · rev 번호(이름의 숫자) · zip 파일명 · 만든 시각 · 기준 커밋.
+
+    기준 커밋은 **꾸러미를 만든 시점의 HEAD** 다 (이 딱지와 꾸러미는 그 뒤에 커밋되므로
+    꾸러미 자신의 커밋이 아니다 — 그래서 이름을 `base_commit` 으로 둔다).
+    """
+    m = re.search(r"(\d+)", name)
+    def git(*args):
+        try:
+            return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+        except Exception:                                      # noqa: BLE001
+            return ""
+    stamp = {"name": name, "rev": int(m.group(1)) if m else None, "zip": zip_name,
+             "created_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+             "base_commit": git("rev-parse", "--short", "HEAD"),
+             "branch": git("rev-parse", "--abbrev-ref", "HEAD")}
+    (ROOT / STAMP_REL).write_text(json.dumps(stamp, ensure_ascii=False, indent=2) + "\n",
+                                  encoding="utf-8")
+    return stamp
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("files", nargs="+", help="이번 핫픽스에서 바뀐 저장소 파일 (상대 경로)")
@@ -49,6 +75,12 @@ def main() -> int:
         if not (ROOT / f).is_file():
             sys.exit(f"저장소에 없는 파일: {f}")
     prev = Path(a.prev) if a.prev else latest_prev()
+    # hotfix34 — 어느 꾸러미가 적용돼 있는지 첫 화면이 읽을 딱지.  저장소(app/_update.json)
+    # 에 적고 꾸러미에도 넣는다 — 저장소에 두어야 "저장소와 다른 파일 0" 대조가 선다.
+    stamp = write_stamp(a.name, f"PID_{a.name}_{a.date}.zip")
+    if STAMP_REL not in a.files:
+        a.files.append(STAMP_REL)
+    print(f"딱지 {STAMP_REL}: {stamp}")
     stage = Path(tempfile.mkdtemp(prefix="pack-"))
     prev_readme = ""
     if prev and prev.exists():

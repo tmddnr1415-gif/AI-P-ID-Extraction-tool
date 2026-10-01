@@ -67,6 +67,10 @@ datas += [
 if _os.path.exists(_os.path.join(_os.path.dirname(_os.path.abspath(SPEC)),
                                  "app", "_build.json")):
     datas += [("app/_build.json", "app")]
+# hotfix34 — 적용된 꾸러미 딱지.  있으면 같이 싣는다 (첫 화면 오른쪽 아래가 읽는다).
+if _os.path.exists(_os.path.join(_os.path.dirname(_os.path.abspath(SPEC)),
+                                 "app", "_update.json")):
+    datas += [("app/_update.json", "app")]
 
 a = Analysis(
     ["app/desktop.py"],
