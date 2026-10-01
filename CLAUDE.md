@@ -2744,6 +2744,12 @@ QFE 화면: `AI 10MAG00CQ001` 위에 `AIT 10MAG00CQ001` 네 쌍이 식별되지 
    둔 길(최종 저장 → 스냅샷 → `/revisions/{id}/excel`)의 **같은 `user` 칸**에 적히므로 그 길 그대로 나간다.
    **엔진·지문·회귀는 건드린 것이 없다** (app/static · tests · spike 만).  빠른 시험 612.
 
+**꾸러미(hotfix zip)는 저장소 안의 도구로 만든다 — `spike/pack_hotfix.py`.**  어느 PC 의 Claude Code 에서든
+이어서 만들 수 있다: `python3 spike/pack_hotfix.py --name hotfix33 --readme out/hotfix33/readme_head.txt <바뀐 파일…>`.
+직전 꾸러미는 `out/PID_hotfix*.zip` 중 번호가 가장 큰 것을 자동으로 고르고(`--prev` 로 지정 가능), 그것을 풀어
+HEAD 의 파일을 얹고 `1_먼저읽기.txt` 머리를 앞에 붙인 뒤 **저장소와 바이트 대조(다른 파일 0 이어야 한다)** 까지 한다.
+`app/_data/` · `data/` 는 넣지 않는다(코드가 거부한다).  직전 꾸러미와 readme 머리 전부 `out/` 에 커밋돼 있다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
