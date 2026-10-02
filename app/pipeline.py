@@ -4694,6 +4694,14 @@ def _glyph_alarms(glyphs) -> list:
     return out
 
 
+def _tag_kind(r) -> str:
+    """태그 공유를 가를 때 쓰는 그 검출의 종류 — 앵커 글자 · 밸브 버블 글자 · 몸체."""
+    ev = getattr(r, "evidence", None) or {}
+    tag = ev.get("tag")
+    return str(ev.get("anchor") or (tag if isinstance(tag, str) else "")
+               or getattr(r, "type", "") or getattr(r, "valve_type", "") or "").strip().upper()
+
+
 def _attach_tags(rows: list, pages: list, declared_mode: str = None) -> dict:
     """1급 — 도면이 인쇄한 태그를 행에 붙인다.  **여기 하나가 만든다.**
 
@@ -4708,9 +4716,14 @@ def _attach_tags(rows: list, pages: list, declared_mode: str = None) -> dict:
     순간 `.update` 가 문자열을 만나 분석이 죽었다 (33회차 · 합성 ⑧b —
     UAD 가 안 죽은 것은 밸브 3행에 태그가 안 붙은 우연).  열쇠 하나에 뜻 하나.
     """
+    # hotfix35 — 검출의 **종류**도 넘긴다.  같은 장의 서로 다른 종류(PI ↔ PIT ·
+    # ZSC ↔ XV)가 같은 코드를 들면 그것은 한 루프의 이름이다 (QFE p46).  종류는
+    # 버블 앵커 글자(계기) · 버블 글자(`evidence["tag"]` · 밸브) · 몸체 갈래 순이고
+    # 글자 뜻은 보지 않는다 — "다르다" 만 본다.
     tag_map, tier_facts = tagsys.assign(
         [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
-        {pc.page_no: pc.words for pc in pages})
+        {pc.page_no: pc.words for pc in pages},
+        kinds=[_tag_kind(r) for r in rows])
     # 38회차 — 입찰(bid) / 실행(epc) 선언.  **방법은 하나다: 1급 경로를 켜고
     # 끄는 것뿐이다.**  실측(`tags.assign`)은 선언과 무관하게 언제나 하고,
     # 선언이 없으면 실측이 정한다.  선언과 실측이 다르면 `conflict` 에 적는다 —

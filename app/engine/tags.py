@@ -22,6 +22,20 @@
 실측 (28회차)
     UAD   으뜸 모양 `D2L3D2L2D3` 103행 + 접미 변형 `…L1` 25행 · 14/14장
     AL NOUF1 · SADARA · TC2  체계 없음 → 2급 (기하 경로 그대로)
+
+hotfix35 — 한 루프가 공유하는 태그
+    2차 규칙("두 검출 이상에 나오면 이름이 아니다")이 **같은 루프의 두 버블**을
+    버리고 있었다.  QFE p46 은 `PI 11LBB50CP001` 과 `PIT 11LBB50CP001` 을 신호선으로
+    잇고 **같은 태그를 두 버블에** 찍는다 — 그것이 "한 라인" 이라는 도면의 말인데
+    (hotfix31 `_fold_readouts` 의 전제), 그 태그는 두 검출에 나오므로 둘 다 태그를
+    못 받았고, 접기는 태그가 있어야 돌므로 PI·PIT 가 각각 행으로 남았다.
+    DXF 경로는 블록 속성이 태그를 주어 hotfix17 이 같은 태그의 두 행을 이미 루프로
+    읽는다 — PDF 경로만 거꾸로였다.
+
+    루프 공유 = 같은 장 · 서로 **다른 종류**(앵커 글자)의 검출이 같은 코드를 든다.
+    같은 종류 둘이 같은 코드를 들면 그것은 두 항목이 한 이름을 가진 것이라 2차
+    규칙 그대로 이름이 아니고(배관 번호 · 관경), 다른 장에 걸친 공유도 그렇다.
+    `kinds` 가 없으면 공유를 가르지 않아 **옛 판정과 글자 그대로 같다**.
 """
 from __future__ import annotations
 
@@ -49,32 +63,49 @@ def shape(t: str) -> str:
     return "".join(out)
 
 
-def assign(items, words_by_page):
+def assign(items, words_by_page, kinds=None):
     """`(행별 태그, 판정 근거)`.
 
     `items` 는 `(page_no, rect)` 목록이고 순서가 곧 행 순서다.
     `words_by_page` 는 `{쪽: [(사각형, 글자)]}`.
+    `kinds` 는 행마다 그 검출의 종류(버블 앵커 글자 · 밸브 몸체)이고, 있으면
+    같은 장의 서로 다른 종류가 공유하는 코드를 **한 루프의 이름**으로 본다.
     """
     codes_of = {}
-    owners = collections.Counter()
+    owners = collections.defaultdict(list)
     for i, (page_no, rect) in enumerate(items):
         got = [t for r, t in words_by_page.get(page_no, ())
                if _is_code(t) and rect.intersects(r)]
         codes_of[i] = got
         for t in set(got):
-            owners[t] += 1
+            owners[t].append(i)
+
+    def is_name(t: str) -> bool:
+        """한 검출만 들거나, 한 장의 서로 다른 종류가 같이 드는 코드(루프)."""
+        own = owners[t]
+        if len(own) == 1:
+            return True
+        if kinds is None:
+            return False
+        if len({items[i][0] for i in own}) != 1:
+            return False
+        ks = [str(kinds[i] or "").strip().upper() for i in own]
+        return all(ks) and len(set(ks)) == len(ks)
+
+    names = {t for t in owners if is_name(t)}
+    loop_shared = {t for t in names if len(owners[t]) > 1}
 
     rows_with, pages_with = collections.Counter(), collections.defaultdict(set)
-    for i, (page_no, _rect) in enumerate(items):
-        for t in {t for t in codes_of[i] if owners[t] == 1}:
-            rows_with[shape(t)] += 1
-            pages_with[shape(t)].add(page_no)
+    for t in names:
+        page_no = items[owners[t][0]][0]
+        rows_with[shape(t)] += 1
+        pages_with[shape(t)].add(page_no)
     system = {sh for sh, n in rows_with.items()
               if n >= 2 and len(pages_with[sh]) >= 2}
 
     tags = {}
     for i, (_page_no, _rect) in enumerate(items):
-        cand = [t for t in codes_of[i] if owners[t] == 1 and shape(t) in system]
+        cand = [t for t in codes_of[i] if t in names and shape(t) in system]
         if cand:
             tags[i] = max(cand, key=len)
     facts = {
@@ -85,7 +116,8 @@ def assign(items, words_by_page):
         "shape_counts": {s: rows_with[s] for s in sorted(
             system, key=lambda s: -rows_with[s])[:6]},
         "pages_tagged": sorted({items[i][0] for i in tags}),
-        "rule": ("코드가 한 검출에만 나오고, 그 모양이 두 검출·두 장 이상에서 "
-                 "되풀이될 때만 태그로 본다"),
+        "loop_shared": sorted(t for t in loop_shared if shape(t) in system),
+        "rule": ("코드가 한 검출에만 나오거나 한 장의 서로 다른 종류가 같이 들고, "
+                 "그 모양이 두 이름·두 장 이상에서 되풀이될 때만 태그로 본다"),
     }
     return tags, facts

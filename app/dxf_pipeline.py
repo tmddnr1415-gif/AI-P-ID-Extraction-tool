@@ -1036,7 +1036,7 @@ def _attach_tags(rows, targets, declared_mode):
     """1급 태그 — 속성이 준 것은 그대로 (`DXF_ATTRIB`), 나머지는 `tags.assign`."""
     items = [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows]
     words_by_page = {sh.no: _rects_words(sh) for sh in targets}
-    tag_map, facts = tagsys.assign(items, words_by_page)
+    tag_map, facts = tagsys.assign(items, words_by_page, kinds=[P._tag_kind(r) for r in rows])
     measured = "epc" if facts.get("tier") == 1 or any(r.tag_no for r in rows) else "bid"
     declared = (declared_mode or "").strip().lower() or ""
     effective = declared or measured

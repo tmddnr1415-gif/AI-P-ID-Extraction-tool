@@ -22,10 +22,13 @@ const TABS = [
 const COLS = [
   ["page_no", "Page", false], ["pid_no", "P&ID No.", false],
   ["origin", "귀속", false],
-  ["type", "Type", true], ["valve_type", "Valve Type", true],
+  // hotfix35 — Tag No. 는 Type 바로 옆이다.  열은 처음부터 있었지만 열 번째라
+  // 오른쪽 목록을 좁게 쓰면 가로 스크롤 밖에 있었다 (QFE p46 사진).  값은 행의
+  // `values.tag_no` 그대로이고(1급 태그 · 마크업 · 편집), 자리만 옮긴다.
+  ["type", "Type", true], ["tag_no", "Tag No.", true], ["valve_type", "Valve Type", true],
   ["qty", "Q'ty", true], ["system", "System", true],
   ["vendor_supply", "Vendor", true], ["scope", "Scope", true],
-  ["tag_no", "Tag No.", true], ["description", "Description", true],
+  ["description", "Description", true],
   // Two columns that exist so a reviewer can see, without opening anything, which
   // rows they have to write themselves.  `등급` is filterable from the toolbar.
   ["description_grade", "등급", false], ["remark", "Remark", true],
