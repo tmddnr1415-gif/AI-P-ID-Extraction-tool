@@ -1,0 +1,2 @@
+tc2 exit 1
+nouf1 exit 0

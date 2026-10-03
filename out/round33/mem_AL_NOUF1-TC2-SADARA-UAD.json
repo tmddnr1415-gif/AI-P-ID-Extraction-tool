@@ -1,0 +1,59 @@
+[
+ {
+  "stage": "start",
+  "VmHWM": 0.06,
+  "VmRSS": 0.06
+ },
+ {
+  "stage": "AL_NOUF1 직후",
+  "rows": 1037,
+  "fingerprint": "fb85b039",
+  "seconds": 677.7,
+  "VmHWM": 4.9,
+  "VmRSS": 0.58
+ },
+ {
+  "stage": "AL_NOUF1 결과 놓고 gc",
+  "VmHWM": 4.9,
+  "VmRSS": 0.5
+ },
+ {
+  "stage": "TC2 직후",
+  "rows": 607,
+  "fingerprint": "c0a2d29d",
+  "seconds": 512.0,
+  "VmHWM": 7.38,
+  "VmRSS": 0.75
+ },
+ {
+  "stage": "TC2 결과 놓고 gc",
+  "VmHWM": 7.38,
+  "VmRSS": 0.71
+ },
+ {
+  "stage": "SADARA 직후",
+  "rows": 82,
+  "fingerprint": "0767ba79",
+  "seconds": 81.2,
+  "VmHWM": 7.38,
+  "VmRSS": 0.75
+ },
+ {
+  "stage": "SADARA 결과 놓고 gc",
+  "VmHWM": 7.38,
+  "VmRSS": 0.74
+ },
+ {
+  "stage": "UAD 직후",
+  "rows": 149,
+  "fingerprint": "db1a77d1",
+  "seconds": 431.9,
+  "VmHWM": 7.38,
+  "VmRSS": 0.84
+ },
+ {
+  "stage": "UAD 결과 놓고 gc",
+  "VmHWM": 7.38,
+  "VmRSS": 0.83
+ }
+]

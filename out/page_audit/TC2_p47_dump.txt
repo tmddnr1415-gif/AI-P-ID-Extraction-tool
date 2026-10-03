@@ -1,0 +1,15 @@
+page 47 kind=PID dwg=D02J-00GKB10-M05-0006 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=12
+  FIELD     RO     q=1 scope=SCT                          tag= rect=[625, 328, 636, 362] desc='POTABLE WATER BOOSTER PUMP A RESTRICTION' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     RO     q=1 scope=SCT                          tag= rect=[654, 328, 665, 362] desc='POTABLE WATER BOOSTER PUMP B RESTRICTION' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag= rect=[551, 352, 585, 364] desc='POTABLE WATER BOOSTER PUMP PRESSURE A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag= rect=[420, 360, 454, 371] desc='POTABLE WATER BOOSTER PUMP A SUCTION DIF' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag= rect=[477, 360, 511, 371] desc='POTABLE WATER BOOSTER PUMP PRESSURE B' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=SCT                          tag= rect=[104, 394, 139, 406] desc='POTABLE WATER BUFFER TANK LEVEL A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=SCT                          tag= rect=[104, 416, 139, 427] desc='POTABLE WATER BUFFER TANK LEVEL B' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag= rect=[748, 441, 782, 452] desc='CIRCULATING WATER PUMP HOUSE SUCTION PRE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag= rect=[551, 452, 585, 463] desc='POTABLE WATER BOOSTER PUMP PRESSURE C' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag= rect=[748, 457, 782, 468] desc='CIRCULATING WATER PUMP HOUSE SUCTION PRE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag= rect=[420, 459, 454, 470] desc='POTABLE WATER BOOSTER PUMP B SUCTION DIF' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag= rect=[477, 459, 511, 470] desc='POTABLE WATER BOOSTER PUMP PRESSURE D' rev="unit code '00' 의 승수 x1 는 이 도면의"
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(142, 278, 'MOV'), (184, 258, 'MH'), (201, 294, 'POTABLE'), (202, 299, 'CIRCULATING'), (220, 294, 'WATER'), (229, 299, 'WATER'), (229, 303, 'FOR'), (234, 294, 'BUFFER'), (238, 303, 'UNITS'), (243, 299, 'PUMP'), (251, 294, 'TANK'), (256, 299, 'HOUSE'), (262, 294, 'FOR'), (309, 424, 'MH'), (317, 446, 'DN'), (472, 306, 'DN'), (472, 394, 'DN'), (472, 493, 'DN'), (501, 509, 'POTABLE'), (505, 514, 'CIRCULATING'), (519, 509, 'WATER'), (532, 514, 'WATER'), (533, 519, 'FOR'), (534, 509, 'BOOSTER'), (542, 519, 'UNITS'), (546, 514, 'PUMP'), (554, 509, 'PUMPS'), (558, 514, 'HOUSE'), (568, 509, 'FOR'), (577, 387, 'DN'), (577, 486, 'DN'), (829, 418, 'SCT'), (839, 442, 'TPC'), (881, 414, 'CIRCULATING'), (907, 414, 'WATER'), (913, 420, 'FOR'), (922, 414, 'PUMP'), (922, 420, 'UNITS'), (934, 414, 'HOUSE')] 
+unjudged on page: []

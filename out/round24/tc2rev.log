@@ -1,0 +1,15 @@
+rev_box (1147.4, 785.9, 1162.3, 805.5) blank_above 245 min_ink_px 20 ink_frac 0.75 char_gap_px 6
+pixmap (471, 359) darkest 0 mean 221.77119741674503
+mask ((471, 359), 22513)
+chars 1
+has_titleblock_text None
+lib(3장) {'B': 3}
+read_rev_glyphs ('B', 'HIGH', '1 char(s); d=0.1424 ratio=inf')
+  rank0 663.40~672.30 chars 3
+  rank1 654.90~663.40 chars 1
+  rank2 646.40~654.90 chars 2
+  rank3 637.90~646.40 chars 2
+  rank4 629.50~637.90 chars 2
+  rank5 621.00~629.50 chars 2
+  rank6 612.40~621.00 chars 2
+  rank7 603.90~612.40 chars 2

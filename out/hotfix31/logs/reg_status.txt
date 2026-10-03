@@ -1,0 +1,3 @@
+tc2 exit 0
+nouf1 exit 0
+uaddxf exit 1

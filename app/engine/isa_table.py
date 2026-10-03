@@ -1,0 +1,565 @@
+"""The ISA letter table, read off the legend sheet that prints it.
+
+Legend page 3 carries the identification matrix: a `FIRST LETTER` column listing
+each letter against the variable it measures (`T  TEMPERATURE`, `PD  PRESSURE
+DIFFERENTIAL`, ...) and a `SUCCEEDING LETTERS` block whose columns name what the
+following letter does (`E  PRIMARY ELEMENT`, `T  TRANSMITTER`, ...).
+
+Why this module exists: the client's Description column is written in those very
+words - `UNIT #11 HP STEAM **PRESSURE** A`, `... **LEVEL** HIGH HIGH` - so the
+word for a tag's variable is not something to guess at or keep in a dictionary
+here.  The drawing set states it, on a sheet this tool already reads, and that is
+where it is taken from.  Nothing in this file interprets prose: it reads a table
+by its own column geometry.
+
+No LLM, no hardcoded letter dictionary.  A letter the table does not print stays
+unknown, and callers are expected to leave the word out rather than invent it.
+"""
+
+from __future__ import annotations
+
+import collections
+import re
+import sys
+from dataclasses import dataclass, field
+
+import pymupdf
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import legend_rules  # noqa: E402
+import pidcache  # noqa: E402
+
+# The words the table prints as its own headings.
+FIRST_ROW = "FIRST"
+LETTER_ROW = "LETTER"
+SUCCEEDING_ROW = "SUCCEEDING"
+
+# The table joins alternative readings of one letter with this word: `PRESSURE OR
+# VACUUM`, `MOISTURE OR HUMIDITY`, `DENSITY (MASS) OR SPECIFIC GRAVITY`.  Keeping
+# it lets the alternatives stay apart instead of being run together into a phrase
+# the legend never prints.
+ALT = "OR"
+
+
+@dataclass
+class IsaTable:
+    """Letter -> the words the legend prints for it."""
+
+    first: dict = field(default_factory=dict)        # 'T' -> ('TEMPERATURE',)
+    succeeding: dict = field(default_factory=dict)   # 'E' -> ('PRIMARY', 'ELEMENT')
+    page_no: int = 0
+    source: str = "LEGEND"
+    note: str = ""
+
+    def readings_for(self, tag: str) -> list:
+        """Every reading the table prints for this tag's first letter.
+
+        `PRESSURE OR VACUUM` is two readings, not a two-word phrase, so they are
+        kept apart: `[('PRESSURE',), ('VACUUM',)]`.  A caller measuring where a word
+        came from should accept any of them; a caller writing a line takes the
+        first, which is the one the table names first.
+        """
+        for n in (2, 1):
+            head = tag[:n].upper()
+            if head in self.first:
+                out, cur = [], []
+                for w in self.first[head]:
+                    if w == ALT:
+                        if cur:
+                            out.append(tuple(cur))
+                        cur = []
+                    else:
+                        cur.append(w)
+                if cur:
+                    out.append(tuple(cur))
+                return out
+        return []
+
+    def words_for(self, tag: str) -> tuple:
+        """The variable words for an instrument tag, longest letter match first.
+
+        `PDIT` reads as `PD` + `IT` and `TIT` as `T` + `IT`, so the two-letter
+        first-letter entries the legend prints (`PD`) are tried before the single
+        letters.
+
+        Only the *first* letter's variable is returned.  The succeeding-letter
+        columns are read and reported, but they are not used here: the legend heads
+        the `E` column with four words (`PRIMARY ELEMENT` over `SENSING DEVICE`),
+        and this client's Description writes one of them (`ELEMENT`, in 18 of its
+        557 lines).  Choosing which of the four to keep is not something the legend
+        answers, and choosing it by what matches the client's list would be fitting
+        to the answer key.  So the word is left out and the miss is counted.
+        """
+        readings = self.readings_for(tag)
+        return readings[0] if readings else ()
+
+    def decompose(self, tag: str):
+        """`AIT` → `('A', 'IT')`.  이 표가 정의하지 않은 글자가 하나라도 있으면 `None`.
+
+        ★ 50회차 — 이것이 **앵커 사전을 대신한다.**  지금까지 "무엇이 계기인가" 는
+        `anchors.type_map` 24종을 손으로 적어 정한 것이었고(§9 의 "외워둔 값"),
+        그래서 도면이 버블에 인쇄한 `AIT`·`PP`·`ZS`·`PDI` 가 행이 되지 못했다.
+        그런데 **그 답은 이미 이 표에 있다** — 범례가 FIRST LETTER 로 측정 변수를,
+        SUCCEEDING LETTERS 로 기능을 정의한다.  한 낱말의 모든 글자가 그 두 열로
+        풀리면 그것은 이 도면이 정의한 계기 태그다.
+
+        규칙은 표가 인쇄한 것 그대로이고 더하는 것이 없다:
+
+          * 머리는 **두 글자를 먼저** 본다 (`PD` 가 `P` 보다 먼저 — `readings_for`
+            와 같은 순서).  `PDIT` 는 `PD` + `IT`, `TIT` 는 `T` + `IT`.
+          * 나머지 글자는 **전부** SUCCEEDING 열에 있어야 한다.  하나라도 없으면
+            푸는 것이 아니라 못 푸는 것이다 — 지어내지 않는다 (§2.1 ③).
+          * 뒤 글자가 하나도 없으면 태그가 아니다.  한 글자는 측정 변수의 이름일
+            뿐이고, 도면은 `M`(모터)·`V` 처럼 계기가 아닌 한 글자를 쓴다.
+
+        실측(`spike/isa_anchor_sim.py`) — 이 규칙이 **스스로 걸러내는 것**:
+        `NOTE`(N 이 FIRST LETTER 에 없음) · `TO`·`ZSO`(O 가 SUCCEEDING 에 없음) ·
+        `VBV`·`SSV`·`BRPV`(B·V 없음) · `M`·`V`(한 글자).  경보 수식자가 붙은
+        `ZSO`·`PDIA` 는 **표가 그 글자를 정의하지 않으므로 여기서 풀리지 않는다** —
+        미판정으로 남기고 세는 쪽이 지어내는 것보다 낫다.
+        """
+        t = (tag or "").strip().upper()
+        if not (2 <= len(t) <= 5) or not t.isalpha():
+            return None
+        for n in (2, 1):
+            head, rest = t[:n], t[n:]
+            if head in self.first and rest and all(c in self.succeeding for c in rest):
+                return head, rest
+        return None
+
+    def anchors(self, tokens) -> dict:
+        """이 표로 풀리는 낱말만 남긴 `{낱말: (머리, 뒤)}`."""
+        out = {}
+        for t in tokens:
+            if t not in out:
+                parts = self.decompose(t)
+                if parts:
+                    out[t] = parts
+        return out
+
+    def as_dict(self) -> dict:
+        return {"page_no": self.page_no, "source": self.source, "note": self.note,
+                "first": {k: list(v) for k, v in sorted(self.first.items())},
+                "succeeding": {k: list(v) for k, v in sorted(self.succeeding.items())}}
+
+
+def derive(pages, cfg=None) -> IsaTable:
+    """Read the identification matrix off whichever legend sheet prints it."""
+    pc = legend_rules._page_with(pages, f"{FIRST_ROW} {LETTER_ROW}")
+    if pc is None:
+        return IsaTable(source="MISSING",
+                        note=f"no legend sheet prints '{FIRST_ROW} {LETTER_ROW}'")
+    head = None
+    # ⚠ 획 글꼴 범례는 `FIRST LETTER` 를 **한 조각**으로 싣는다 (28회차) —
+    # 낱말로 읽되 자리는 그 조각의 것을 쓴다 (표의 칸은 조각이 시작하는 자리부터다).
+    head_words = list(pidcache.tokens(pc.words))
+    for r, t in head_words:
+        if t != FIRST_ROW:
+            continue
+        row = [w for _r, w in head_words
+               if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6]
+        if LETTER_ROW in row:
+            head = r
+            break
+    if head is None:
+        return IsaTable(source="MISSING",
+                        note=f"'{FIRST_ROW} {LETTER_ROW}' heading not found")
+
+    # Which column is the FIRST LETTER column.
+    #
+    # Not by where its tokens fall.  Taking the leftmost cluster of x offsets is
+    # what a reader does looking at one sheet, and it breaks on the next one: a
+    # sheet that prints its border grid letters outside the frame offers them as a
+    # column, and a sheet that sets a `SYMBOL` sub-heading over the column offers
+    # that too, 11 pt from the letters it is supposed to find.
+    #
+    # By what the column *is* instead.  The matrix has one row per first letter and
+    # prints each letter once; a succeeding-letter column carries an entry only on
+    # the rows where that combination exists, so its set of letters is a subset of
+    # the first letters.  The FIRST LETTER column is therefore the column with the
+    # most distinct entries, and it is the only one that never repeats one.  Both
+    # are properties of the table's own meaning, so there is no tolerance here to
+    # widen and nothing tuned to either document: on AL NOUF1's legend the winner
+    # holds 25 distinct against 20-21 for the next columns, on SADARA's 25 against
+    # 6-21, and the 25 are the same 25 letters.
+    succ = next((r for r, t in head_words if t == SUCCEEDING_ROW), None)
+    right_limit = succ.x0 if succ is not None else head.x1 + 700
+    body = [(r, t) for r, t in pc.words
+            if r.y0 > head.y1 and r.x0 < right_limit]
+    if not body:
+        return IsaTable(source="MISSING",
+                        note=f"nothing printed under the {FIRST_ROW} "
+                             f"{LETTER_ROW} heading on p{pc.page_no}")
+    column = _letter_column(body)
+    if column is None:
+        return IsaTable(source="MISSING",
+                        note=f"no column under {FIRST_ROW} {LETTER_ROW} on "
+                             f"p{pc.page_no} enumerates a set of first letters")
+    # A text line belongs to a letter when the line's centre falls inside that
+    # letter's own line box.  Not a tolerance: the letter and its meaning are set
+    # on one baseline, so the meaning's centre lies within the letter's ascender-
+    # to-descender span by construction.  It has to be a span rather than an equal
+    # test because the two are different words - on SADARA's sheet `A` centres at
+    # 273.2 and `ANALYSIS` at 274.1, a 0.9 pt difference that an exact key misses
+    # and that no amount of rounding fixes reliably.
+    letter_box = [(r.y0, r.y1, t) for r, t in column]
+    letter_x1 = max(r.x1 for r, _t in column)
+
+    def letter_at(y):
+        return next((t for y0, y1, t in letter_box if y0 <= y <= y1), None)
+
+    lines = collections.defaultdict(list)
+    for r, t in body:
+        lines[round((r.y0 + r.y1) / 2, 1)].append((r.x0, r.x1, t))
+
+    # The meaning column starts where the first letter's cell ends: the leftmost
+    # word printed to the right of the letter column on a row that has a letter.
+    meaning_lo = min((x0 for y, items in lines.items() if letter_at(y)
+                      for x0, _x1, t in items
+                      if x0 > letter_x1 and any(c.isalpha() for c in t)),
+                     default=None)
+    if meaning_lo is None:
+        return IsaTable(source="MISSING",
+                        note=f"the matrix on p{pc.page_no} prints no meaning "
+                             f"beside its first letters")
+
+    # Where the meaning column ends: the matrix repeats each row's letter at the
+    # head of its first tag column (`A ANALYSIS ... A E ...`), so the leftmost such
+    # repeat marks the edge.  Read off the table's own content rather than set as a
+    # width, because a meaning runs to several words (`PRESSURE DIFFERENTIAL`,
+    # `MOISTURE OR HUMIDITY`) and cutting it short silently loses them.
+    meaning_hi = None
+    for y, items in lines.items():
+        letter = letter_at(y)
+        if letter is None:
+            continue
+        for x0, _x1, t in sorted(items):
+            if x0 > meaning_lo + 8 and t.upper().startswith(letter) and len(t) <= 5:
+                meaning_hi = x0 if meaning_hi is None else min(meaning_hi, x0)
+                break
+    if meaning_hi is None:
+        return IsaTable(source="MISSING",
+                        note=f"the matrix on p{pc.page_no} never repeats a row's "
+                             f"letter, so the meaning column has no measurable end")
+
+    # Letter rows, and the meaning lines that wrap without a letter of their own.
+    keyed = []
+    for y in sorted(lines):
+        items = sorted(lines[y])
+        letter = letter_at(y)
+        words = [t for x0, _x1, t in items
+                 if meaning_lo - 8 <= x0 < meaning_hi - 8
+                 and any(c.isalpha() for c in t)
+                 # a parenthetical gloss - `(MASS)`, `(EMF)`, `(MANUAL INITIATED)` -
+                 # explains the variable rather than naming it
+                 and "(" not in t and ")" not in t]
+        if letter or words:
+            keyed.append({"y": y, "letter": letter, "words": words})
+
+    # `DENSITY (MASS) OR SPECIFIC / D / GRAVITY` is one entry printed over three
+    # lines.  A meaning line with no letter belongs to the nearest letter row, and
+    # "nearest" is measured against the table's own row pitch rather than a chosen
+    # tolerance: half the median distance between consecutive letter rows.
+    #
+    # Both the pitch and each row's position come from the letter column itself,
+    # not from the text lines.  A letter's line box can hold more than one text
+    # line - on SADARA's sheet the composed tags sit 1.1 pt below the letter and
+    # key as their own line - and counting those as rows collapses the median gap
+    # from a row pitch to a line spacing, which switches the wrap off entirely and
+    # loses `D DENSITY OR SPECIFIC GRAVITY`.  The letter column has exactly one
+    # entry per row by definition, so it is the thing to measure.
+    letter_ys = [(r.y0 + r.y1) / 2 for r, _t in column]
+    pitch = 0.0
+    if len(letter_ys) > 2:
+        gaps = sorted(letter_ys[i + 1] - letter_ys[i]
+                      for i in range(len(letter_ys) - 1))
+        pitch = gaps[len(gaps) // 2]
+    first: dict = {}
+    order = {t: (r.y0 + r.y1) / 2 for r, t in column}
+    for k in keyed:
+        if k["letter"]:
+            first.setdefault(k["letter"], [])
+            first[k["letter"]] += k["words"]
+    for k in keyed:
+        if k["letter"] or not k["words"]:
+            continue
+        near = min(order.items(), key=lambda kv: abs(kv[1] - k["y"]), default=None)
+        if near and abs(near[1] - k["y"]) <= pitch / 2:
+            # above the letter row keeps its reading order, below follows it
+            if k["y"] < near[1]:
+                first[near[0]] = k["words"] + first[near[0]]
+            else:
+                first[near[0]] += k["words"]
+
+    # The succeeding-letter columns.  Each is headed by its letter in the row the
+    # legend labels `TYPICAL SYMBOL`, and the column's meaning is printed above
+    # that row, centred over the column - so a word joins the column whose header
+    # letter is nearest its own centre.
+    succeeding: dict = {}
+    # ★ 50회차 — 머리말은 **이름으로 찾는 것**이므로 `pidcache.tokens` 로 읽는다.
+    # 같은 함수가 쪽을 두 가지로 읽고 있었다: FIRST LETTER 머리말은 위에서
+    # `tokens()` 로 찾는데(28회차) 여기만 raw `pc.words` 였다.  획(SHX) 글꼴
+    # 범례는 `TYPICAL SYMBOL` 을 **한 조각**으로 싣기 때문에 `t == "TYPICAL"`
+    # 이 영영 맞지 않고, 그러면 이 블록이 통째로 비어 succeeding 이 0 이 된다.
+    # 실측(UAD 저장 결과): `legend p4 identification matrix: 25 first letters,
+    # **0 succeeding letters**` — first 는 되고 succeeding 만 0 이다.
+    #
+    # ⚠ 자리를 재는 아래 두 줄은 **바꾸지 않는다.**  조각은 여러 낱말이 한
+    # 사각형을 나눠 쓰므로 `tokens()` 로 읽으면 중심이 전부 같아지고, 그것으로
+    # 열을 가르면 지어낸 자리가 된다 (`pidcache.tokens` 머리 주석).  열이
+    # 갈리지 않으면 `span` 이 0 이 되어 아무것도 안 담긴다 — 조용히 틀리는
+    # 대신 지금처럼 비는 쪽이다.
+    header = next((r for r, t in pidcache.tokens(pc.words)
+                   if t == "TYPICAL" and head.y1 < r.y0 < head.y1 + 120), None)
+    if header is not None:
+        hy = (header.y0 + header.y1) / 2
+        heads = sorted((r.x0 + r.x1) / 2, ) if False else sorted(
+            ((r.x0 + r.x1) / 2, t) for r, t in pc.words
+            if len(t) == 1 and t.isalpha() and t.isupper()
+            and abs((r.y0 + r.y1) / 2 - hy) < 6 and r.x0 >= meaning_hi - 8)
+        pitches = [heads[i + 1][0] - heads[i][0] for i in range(len(heads) - 1)]
+        span = (sorted(pitches)[len(pitches) // 2] / 2) if pitches else 0.0
+        for r, t in pc.words:
+            cy = (r.y0 + r.y1) / 2
+            if not (head.y1 < cy < hy) or len(t) < 3 or not t.isalpha():
+                continue
+            cx = (r.x0 + r.x1) / 2
+            best = min(heads, key=lambda h: abs(h[0] - cx), default=None)
+            if best and abs(best[0] - cx) <= span:
+                succeeding.setdefault(best[1], [])
+                if t not in succeeding[best[1]]:
+                    succeeding[best[1]].append(t)
+    note_tail = ""
+    if not succeeding:
+        # ★ hotfix31 — SUCCEEDING 열의 **다른 판**: `TYPICAL SYMBOL` 머리줄이 없고
+        # 글자마다 `( ) AL` · `( ) K` 꼴 칸을 한 줄로 인쇄하는 범례 (FICHTNER 양식 —
+        # UAD · QFE).  55회차가 DXF 쪽에만 두고 "PDF 로 옮겨야 한다" 고 적어 둔
+        # 규칙이다.  이 판을 못 읽으면 succeeding 이 0 이라 `AIT`·`AI` 가
+        # 풀리지 않고(`decompose`), 사전에 있는 `PI`·`TI`·`TIT` 만 행이 된다 —
+        # QFE 화면의 "AIT 가 식별 안 된다" 가 바로 그것이다.
+        # **머리줄로 읽힌 문서(AL NOUF1 · TC2 · SADARA)는 여기 오지 않는다.**
+        for cand in [pc] + [p for p in pages if p is not pc and p.analysis_scope]:
+            cells = succeeding_from_cells(cand.words)
+            if cells:
+                succeeding = {k: list(v) for k, v in cells.items()}
+                note_tail = (f" · succeeding {len(cells)} from '( ) X' cells "
+                             f"on p{cand.page_no}")
+                break
+    return IsaTable(first={k: tuple(v) for k, v in first.items() if v},
+                    succeeding={k: tuple(v) for k, v in succeeding.items()},
+                    page_no=pc.page_no,
+                    note=f"legend p{pc.page_no} identification matrix: "
+                         f"{len(first)} first letters, "
+                         f"{len(succeeding)} succeeding letters" + note_tail)
+
+
+# `( ) AL` — 한 조각으로 인쇄된 칸.  낱말이 갈라져 오면(`(` · `)` · `AL`) 줄 안에서
+# 이어 붙여 같은 꼴로 맞춘다.
+_CELL_RE = re.compile(r"^\(\)([A-Z]{1,4})$")
+_CELL_PREFIX_RE = re.compile(r"^\(\)?$")
+
+
+def _line_groups(words) -> list:
+    """낱말을 줄로 묶는다 — 같은 줄은 **그 낱말 자신의 높이 절반** 안이다."""
+    items = sorted(((r, t) for r, t in words if t and t.strip()),
+                   key=lambda rt: (rt[0].y0 + rt[0].y1) / 2)
+    lines: list = []
+    for r, t in items:
+        cy = (r.y0 + r.y1) / 2
+        if lines and abs(cy - lines[-1][0]) <= max(r.y1 - r.y0, 1.0) / 2:
+            lines[-1][1].append((r, t))
+        else:
+            lines.append([cy, [(r, t)]])
+    return [sorted(members, key=lambda rt: rt[0].x0) for _cy, members in lines]
+
+
+def _cells_on_line(line) -> list:
+    """그 줄의 `( ) X` 칸 — `[(rect, 'X'), ...]`.  조각 하나든 낱말 셋이든 같은 꼴."""
+    out, i = [], 0
+    while i < len(line):
+        r, t = line[i]
+        m = _CELL_RE.match(t.replace(" ", ""))
+        if m:
+            out.append((r, m.group(1)))
+            i += 1
+            continue
+        buf, j, x0, y0, x1, y1 = "", i, r.x0, r.y0, r.x1, r.y1
+        hit = None
+        while j < len(line) and len(buf) < 8:
+            rj, tj = line[j]
+            buf += tj.replace(" ", "")
+            x0, y0, x1, y1 = min(x0, rj.x0), min(y0, rj.y0), max(x1, rj.x1), max(y1, rj.y1)
+            j += 1
+            m = _CELL_RE.match(buf)
+            if m:
+                hit = (_rect(x0, y0, x1, y1, r), m.group(1))
+                break
+            if not _CELL_PREFIX_RE.match(buf):
+                break
+        if hit:
+            out.append(hit)
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def _rect(x0, y0, x1, y1, like):
+    try:
+        return type(like)(x0, y0, x1, y1)
+    except Exception:                                      # noqa: BLE001
+        import pymupdf
+        return pymupdf.Rect(x0, y0, x1, y1)
+
+
+def succeeding_from_cells(words) -> dict:
+    """`( ) X` 칸 한 줄에서 succeeding 글자 → 그 칸 위에 인쇄된 뜻.
+
+    판단은 셋뿐이고 전부 그 줄 자신이 답한다: 칸이 **세 개 이상** 나란한 줄
+    (가장 많은 줄) · 뜻은 그 칸 **위**(칸 높이의 여섯 배 안 · 가로로 칸 너비 반
+    + 칸 높이 안) 의 글자 낱말 · `( ) AL` 은 `AL` 과 `A`·`L` 셋 다.  55회차
+    DXF 규칙 그대로이고 PDF 와 DXF 가 **이 함수 하나**를 부른다.
+
+    hotfix36 — 표를 90° 돌려 인쇄한 범례(QFE p3: 칸이 한 **열**로 서고 뜻은 칸의
+    **오른쪽**, 글자 방향 (0,1))도 같은 규칙으로 읽는다: 좌표를 글자 방향이 가로가
+    되게 돌려 놓고 **같은 함수**를 부른다.  가로로 ≥3 칸인 줄이 없을 때만 돈다 —
+    UAD DXF 범례(가로 판)는 첫 시도에서 끝나므로 그대로다.
+    """
+    # 같은 좌표에 같은 글자가 여러 번 찍힌 것은 한 낱말이다 — QFE 범례는 글자를
+    # **세 번 겹쳐** 인쇄해 `( ( ( ) ) ) E E E` 가 되고 칸 꼴이 안 맞는다.
+    # `pidcache` 의 전역 dedup 은 프로젝트가 켜야 도는 것이라(의미 있는 반복을 지우지
+    # 않으려고) 여기 ISA 표 안에서만 접는다.
+    seen, words_u = set(), []
+    for r, t in words:
+        key = (round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        words_u.append((r, t))
+    words = words_u
+    got = _succeeding_in_frame(words)
+    if got:
+        return got
+    for turn in (_turn_cw, _turn_ccw):
+        got = _succeeding_in_frame([(turn(r), t) for r, t in words])
+        if got:
+            return got
+    return {}
+
+
+def _turn_cw(r):
+    """글자 방향 (0,1)(아래로 읽음 · 글자의 위쪽이 +x) → 가로 글자 좌표계: x'=y · y'=-x."""
+    return pymupdf.Rect(r.y0, -r.x1, r.y1, -r.x0)
+
+
+def _turn_ccw(r):
+    """글자 방향 (0,-1)(위로 읽음 · 글자의 위쪽이 -x) → x'=-y · y'=x."""
+    return pymupdf.Rect(-r.y1, r.x0, -r.y0, r.x1)
+
+
+def _succeeding_in_frame(words) -> dict:
+    lines = _line_groups(words)
+    best = None
+    for line in lines:
+        cells = _cells_on_line(line)
+        if len(cells) >= 3 and (best is None or len(cells) > len(best)):
+            best = cells
+    if not best:
+        return {}
+    top = min(r.y0 for r, _l in best)
+    succ: dict = {}
+    for r, letter in best:
+        cx = (r.x0 + r.x1) / 2
+        h = r.y1 - r.y0
+        half = (r.x1 - r.x0) / 2 + h
+        meaning = []
+        for xr, xt in sorted(words, key=lambda rt: (rt[0].y0, rt[0].x0)):
+            if not (xr.y1 <= top and xr.y1 >= top - h * 6):
+                continue
+            if abs((xr.x0 + xr.x1) / 2 - cx) > half:
+                continue
+            for w in pidcache.tokens([(xr, xt)]):
+                if w[1].isalpha() and w[1] not in meaning:
+                    meaning.append(w[1])
+        succ.setdefault(letter, tuple(meaning))
+        for ch in letter:
+            succ.setdefault(ch, tuple(meaning))
+    return succ
+
+
+def _letter_column(body) -> list | None:
+    """The FIRST LETTER column of the matrix: `[(rect, letter), ...]`, top to bottom.
+
+    A candidate entry is a one- or two-character upper-case token, which is what
+    the column holds and nothing else does - the matrix's first letters are A..Z
+    plus the one two-letter row `PD`, while a sub-heading like `SYMBOL` is six
+    characters and a composed tag in a later column is three or more (`AAL`,
+    `PDAH`).
+
+    Candidates are grouped into columns by their centres, allowing one character
+    width - measured off the candidates themselves, not chosen.  A cell centres
+    its letter, so one column's centres vary by a fraction of a character, while
+    two columns of this table stand 250 pt apart; the allowance is therefore not a
+    threshold anything turns on.
+
+    The winner is the column with the most distinct letters.  That is the
+    definition of the column rather than a property of these sheets: the matrix
+    prints one row per first letter, so the FIRST LETTER column enumerates them
+    all, and every succeeding-letter column holds a letter only on the rows where
+    that combination exists.  A tie goes to the leftmost, because the table's own
+    heading puts the first letter first.
+    """
+    cand = [(r, t) for r, t in body
+            if 1 <= len(t) <= 2 and t.isalpha() and t.isupper()]
+    if not cand:
+        return None
+    widths = sorted(r.width for r, _t in cand)
+    allow = widths[len(widths) // 2]
+    groups: list = []
+    for r, t in sorted(cand, key=lambda rt: (rt[0].x0 + rt[0].x1) / 2):
+        cx = (r.x0 + r.x1) / 2
+        if groups and cx - groups[-1][0] <= allow:
+            groups[-1][1].append((r, t))
+        else:
+            groups.append((cx, [(r, t)]))
+    best = None
+    for cx, members in groups:
+        distinct = len({t for _r, t in members})
+        if best is None or distinct > best[0]:
+            best = (distinct, cx, members)
+    if best is None or best[0] < 2:
+        return None
+    return sorted(best[2], key=lambda rt: rt[0].y0)
+
+
+def _columns(xs, slack: float = 8.0) -> list:
+    """Column positions from a list of token x offsets: clusters, left to right.
+
+    A column is a run of x values within `slack` of each other, and `slack` is the
+    stroke index's own coordinate allowance rather than a new number.
+    """
+    slack = legend_rules.INDEX_SLACK * 10 if slack is None else slack
+    out = []
+    for x in sorted(xs):
+        if out and x - out[-1][-1] <= slack:
+            out[-1].append(x)
+        else:
+            out.append([x])
+    # A column of one stray token is not a column; the table repeats every row.
+    return [round(min(c), 1) for c in out if len(c) >= 3]
+
+
+if __name__ == "__main__":
+    import pidcache
+
+    _doc, _pages = pidcache.load_pages(Path("data/pid_total.pdf"))
+    t = derive(_pages)
+    print(t.note)
+    for k, v in sorted(t.first.items()):
+        print(f"  {k:<3} {' '.join(v)}")
+    print("succeeding:")
+    for k, v in sorted(t.succeeding.items()):
+        print(f"  {k:<3} {' '.join(v)}")
+    for tag in ("TIT", "PIT", "PDIT", "LSHH", "FE", "RO", "FIT", "LIT"):
+        print(f"  {tag:<6} -> {t.words_for(tag)}")

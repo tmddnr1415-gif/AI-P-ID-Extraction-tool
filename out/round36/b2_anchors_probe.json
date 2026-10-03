@@ -1,0 +1,18 @@
+{
+ "ok": false,
+ "error_type": "MissingConstant",
+ "error": "cfg.anchors.type_map.TT",
+ "missing": "cfg.anchors.type_map.TT",
+ "missing_all": [
+  "cfg.anchors.type_map.TT"
+ ],
+ "trace_tail": [
+  "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 159, in <dictcomp>",
+  "    {str(k): str(v) for k, v in cfg.get(\"anchors.type_map\").items()},",
+  "             ^^^^^^",
+  "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+  "    raise MissingConstant(self.name)",
+  "missing.MissingConstant: cfg.anchors.type_map.TT"
+ ],
+ "seconds": 89.8
+}

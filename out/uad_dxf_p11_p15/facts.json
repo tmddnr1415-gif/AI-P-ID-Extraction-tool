@@ -1,0 +1,187 @@
+[
+ {
+  "page": 11,
+  "drawing_no": "1A5J-00EKD00-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 26,
+  "grid_rows": 26,
+  "count_text": "표시 26 / 전체 449",
+  "boxes": 26,
+  "legend_sum": 26,
+  "legend": [
+   "SCT 공급 범위 26",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ],
+  "zoom_fit": 0.34205311137534683,
+  "zoom_dense": 1.723529411764706,
+  "dense_centre": [
+   141.8,
+   132.6,
+   170.0
+  ],
+  "types": {
+   "?": 26
+  },
+  "tagged": 0
+ },
+ {
+  "page": 12,
+  "drawing_no": "1A5J-00EKD00-M05-0002",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 17,
+  "grid_rows": 17,
+  "count_text": "표시 17 / 전체 449",
+  "boxes": 17,
+  "legend_sum": 17,
+  "legend": [
+   "SCT 공급 범위 17",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ],
+  "zoom_fit": 0.34205311137534683,
+  "zoom_dense": 1.723529411764706,
+  "dense_centre": [
+   214.2,
+   329.8,
+   170.0
+  ],
+  "types": {
+   "?": 17
+  },
+  "tagged": 0
+ },
+ {
+  "page": 13,
+  "drawing_no": "1A5J-00EKD00-M05-0003",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 26,
+  "grid_rows": 26,
+  "count_text": "표시 26 / 전체 449",
+  "boxes": 26,
+  "legend_sum": 26,
+  "legend": [
+   "SCT 공급 범위 26",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ],
+  "zoom_fit": 0.34205311137534683,
+  "zoom_dense": 1.723529411764706,
+  "dense_centre": [
+   230.5,
+   97.2,
+   170.0
+  ],
+  "types": {
+   "?": 26
+  },
+  "tagged": 0
+ },
+ {
+  "page": 14,
+  "drawing_no": "1A5J-00EKD00-M05-0004",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 28,
+  "grid_rows": 28,
+  "count_text": "표시 28 / 전체 449",
+  "boxes": 28,
+  "legend_sum": 28,
+  "legend": [
+   "SCT 공급 범위 28",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ],
+  "zoom_fit": 0.34205311137534683,
+  "zoom_dense": 1.723529411764706,
+  "dense_centre": [
+   285.9,
+   412.0,
+   170.0
+  ],
+  "types": {
+   "?": 28
+  },
+  "tagged": 0
+ },
+ {
+  "page": 15,
+  "drawing_no": "1A5J-00EKD00-M05-0005",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 8,
+  "grid_rows": 8,
+  "count_text": "표시 8 / 전체 449",
+  "boxes": 8,
+  "legend_sum": 8,
+  "legend": [
+   "SCT 공급 범위 8",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ],
+  "zoom_fit": 0.34205311137534683,
+  "zoom_dense": 1.723529411764706,
+  "dense_centre": [
+   297.5,
+   315.8,
+   170.0
+  ],
+  "types": {
+   "?": 8
+  },
+  "tagged": 0
+ }
+]

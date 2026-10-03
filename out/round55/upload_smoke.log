@@ -1,0 +1,5 @@
+업로드(zip): {'job_id': '68edff3b7eb1', 'pdf_name': 'uad_dxf.zip', 'input_kind': 'DXF', 'page_count': 32}
+분석: failed · 6 초 · 이 PDF 에는 쪽이 하나도 없습니다.
+행: 0 · fingerprint: 
+업로드(개별 2장): {'pdf_name': '005. 1A5J-00GEN00-M05-0005_P&ID FOR SYMB_and_2_dxf.zip', 'input_kind': 'DXF', 'page_count': 2}
+업로드(PDF): {'pdf_name': 'TC2.pdf', 'input_kind': 'PDF', 'page_count': 60}

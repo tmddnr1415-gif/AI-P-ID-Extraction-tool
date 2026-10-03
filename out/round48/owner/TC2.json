@@ -1,0 +1,1988 @@
+{
+ "project": "TC2",
+ "pages": 58,
+ "seconds_per_page": {
+  "n": 60,
+  "max": 15.38,
+  "total": 225.7
+ },
+ "verdicts": {
+  "OK": 474,
+  "VALVE_TAKES_BUBBLE": 32,
+  "BUBBLE_TAKES_VALVE": 3
+ },
+ "contested_pages": [
+  {
+   "page": 7,
+   "marks": 7,
+   "bubbles": 24,
+   "valves": 41,
+   "contested": [
+    {
+     "x": 289.38,
+     "y": 240.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.63,
+     "near_valve": 8.94,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 289.38,
+     "y": 262.76,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.51,
+     "near_valve": 8.95,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 289.38,
+     "y": 285.38,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.57,
+     "near_valve": 8.94,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 289.38,
+     "y": 308.0,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.63,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 289.38,
+     "y": 330.68,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.51,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 288.0,
+     "y": 525.68,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 3.7,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "marks": 13,
+   "bubbles": 19,
+   "valves": 21,
+   "contested": [
+    {
+     "x": 636.84,
+     "y": 236.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 6.67,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.56,
+     "y": 377.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 1.68,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.56,
+     "y": 392.42,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 1.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.56,
+     "y": 408.62,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 1.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.56,
+     "y": 424.82,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 1.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.56,
+     "y": 457.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 1.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 124.2,
+     "y": 500.96,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.12,
+     "near_valve": 18.74,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 158.16,
+     "y": 500.96,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.12,
+     "near_valve": 18.74,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 192.12,
+     "y": 500.96,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 3.12,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 226.08,
+     "y": 500.96,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 3.12,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 14,
+   "marks": 7,
+   "bubbles": 15,
+   "valves": 31,
+   "contested": [
+    {
+     "x": 594.12,
+     "y": 471.74,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 668.52,
+     "y": 464.66,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 594.12,
+     "y": 570.8,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 668.52,
+     "y": 563.72,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 733.56,
+     "y": 462.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.56,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 704.76,
+     "y": 462.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.0,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 15,
+   "marks": 33,
+   "bubbles": 22,
+   "valves": 47,
+   "contested": [
+    {
+     "x": 616.98,
+     "y": 513.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.83,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 717.72,
+     "y": 493.52,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.88,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 692.88,
+     "y": 516.14,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 20.1,
+     "near_valve": 1.84,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "BUBBLE_TAKES_VALVE"
+    },
+    {
+     "x": 692.88,
+     "y": 562.58,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.85,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 616.98,
+     "y": 564.62,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.87,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 717.72,
+     "y": 584.66,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.87,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 654.0,
+     "y": 554.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.87,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 763.5,
+     "y": 567.62,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.8,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 800.52,
+     "y": 580.64,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.78,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 800.52,
+     "y": 497.54,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.81,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 763.5,
+     "y": 510.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.76,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 654.0,
+     "y": 523.58,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 12.66,
+     "near_valve": 1.87,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "BUBBLE_TAKES_VALVE"
+    },
+    {
+     "x": 716.04,
+     "y": 535.34,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.9,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 677.34,
+     "y": 535.7,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 787.92,
+     "y": 536.18,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.25,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 825.0,
+     "y": 536.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.27,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 550.02,
+     "y": 255.2,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.04,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 513.96,
+     "y": 254.24,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.51,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 477.96,
+     "y": 255.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.04,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 477.3,
+     "y": 198.62,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.59,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 441.66,
+     "y": 198.86,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.01,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 405.24,
+     "y": 198.62,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.55,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 537.12,
+     "y": 560.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.97,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 501.06,
+     "y": 560.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.02,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 465.06,
+     "y": 560.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.02,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 429.0,
+     "y": 560.12,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.99,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 330.66,
+     "y": 642.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.32,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 530.4,
+     "y": 647.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.28,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 563.46,
+     "y": 647.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.25,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 190.2,
+     "y": 130.4,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 2,
+     "near_bubble": null,
+     "near_valve": 12.23,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 25,
+   "marks": 29,
+   "bubbles": 38,
+   "valves": 85,
+   "contested": [
+    {
+     "x": 296.44,
+     "y": 690.19,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 3.27,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 367.12,
+     "y": 689.23,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.79,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 296.92,
+     "y": 752.47,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.28,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 337.6,
+     "y": 752.47,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.5,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 344.92,
+     "y": 679.39,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 4.52,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 570.4,
+     "y": 690.19,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 3.31,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 641.08,
+     "y": 689.23,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.82,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 570.88,
+     "y": 752.47,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.22,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 611.56,
+     "y": 752.47,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.44,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 618.88,
+     "y": 679.39,
+     "stars": 1,
+     "form": "TEXT",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 4.48,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 570.24,
+     "y": 310.52,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 2.88,
+     "near_valve": 20.48,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 622.32,
+     "y": 305.48,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.6,
+     "near_valve": 21.12,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 622.32,
+     "y": 364.64,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.48,
+     "near_valve": 20.96,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 570.06,
+     "y": 367.04,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 5.16,
+     "near_valve": 22.76,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 229.32,
+     "y": 211.1,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 2.34,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 263.58,
+     "y": 200.84,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 12.77,
+     "near_valve": 2.86,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "BUBBLE_TAKES_VALVE"
+    },
+    {
+     "x": 263.58,
+     "y": 227.84,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.56,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 358.68,
+     "y": 203.84,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 2,
+     "near_bubble": null,
+     "near_valve": 2.56,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 358.68,
+     "y": 222.86,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.44,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 571.2,
+     "y": 209.54,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 2.5,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 555.42,
+     "y": 126.5,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 1.73,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 570.06,
+     "y": 423.92,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 5.16,
+     "near_valve": 22.68,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 622.32,
+     "y": 421.52,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.48,
+     "near_valve": 20.88,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 570.06,
+     "y": 479.48,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 5.16,
+     "near_valve": 22.82,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 622.32,
+     "y": 477.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 3.48,
+     "near_valve": 21.02,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    }
+   ]
+  },
+  {
+   "page": 36,
+   "marks": 20,
+   "bubbles": 38,
+   "valves": 55,
+   "contested": [
+    {
+     "x": 279.12,
+     "y": 247.04,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 19.8,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 279.12,
+     "y": 630.8,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 19.8,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 577.86,
+     "y": 268.88,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.63,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 511.08,
+     "y": 275.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.65,
+     "near_valve": 17.52,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 511.08,
+     "y": 369.44,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.54,
+     "near_valve": 17.38,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.24,
+     "y": 362.72,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 511.08,
+     "y": 463.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.5,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.24,
+     "y": 456.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 254.76,
+     "y": 266.36,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 322.44,
+     "y": 113.06,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 2.1,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 277.14,
+     "y": 114.38,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 3.64,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 212.82,
+     "y": 140.3,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 8.1,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 254.76,
+     "y": 650.06,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 322.44,
+     "y": 496.76,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 2.16,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 277.14,
+     "y": 498.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 3.64,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    },
+    {
+     "x": 212.82,
+     "y": 524.0,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 0,
+     "valves": 1,
+     "near_bubble": null,
+     "near_valve": 8.2,
+     "valve_kinds": [
+      "GATE"
+     ],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 38,
+   "marks": 13,
+   "bubbles": 34,
+   "valves": 68,
+   "contested": [
+    {
+     "x": 577.86,
+     "y": 206.72,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.57,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 511.08,
+     "y": 213.44,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.54,
+     "near_valve": 17.38,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 511.08,
+     "y": 307.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.5,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.3,
+     "y": 300.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.57,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 577.86,
+     "y": 564.38,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 511.08,
+     "y": 571.1,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.42,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 511.08,
+     "y": 664.94,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.48,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.3,
+     "y": 658.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 40,
+   "marks": 5,
+   "bubbles": 14,
+   "valves": 26,
+   "contested": [
+    {
+     "x": 572.88,
+     "y": 359.96,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 500.52,
+     "y": 366.68,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.65,
+     "near_valve": 17.54,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 500.52,
+     "y": 460.52,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.54,
+     "near_valve": 17.5,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 586.26,
+     "y": 453.8,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.67,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 41,
+   "marks": 13,
+   "bubbles": 35,
+   "valves": 61,
+   "contested": [
+    {
+     "x": 577.8,
+     "y": 277.34,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 510.96,
+     "y": 284.06,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.46,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 510.96,
+     "y": 377.9,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 17.42,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.18,
+     "y": 371.18,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.62,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 577.8,
+     "y": 528.56,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 510.96,
+     "y": 535.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 18.58,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 510.96,
+     "y": 629.06,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.59,
+     "near_valve": 18.54,
+     "valve_kinds": [
+      "GLOBE"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 591.18,
+     "y": 622.4,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.57,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 42,
+   "marks": 16,
+   "bubbles": 34,
+   "valves": 81,
+   "contested": [
+    {
+     "x": 285.48,
+     "y": 74.54,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 67.46,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 285.48,
+     "y": 173.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 166.52,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 285.48,
+     "y": 272.6,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 265.58,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 285.48,
+     "y": 505.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 498.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 285.48,
+     "y": 604.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 597.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 285.48,
+     "y": 703.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 359.88,
+     "y": 696.14,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 445.32,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.52,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 416.52,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.52,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 387.72,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.0,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 44,
+   "marks": 10,
+   "bubbles": 23,
+   "valves": 50,
+   "contested": [
+    {
+     "x": 403.26,
+     "y": 505.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.51,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 477.6,
+     "y": 498.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 403.26,
+     "y": 604.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.63,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 477.6,
+     "y": 597.08,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.65,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 403.26,
+     "y": 703.22,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.57,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 477.6,
+     "y": 696.14,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 563.1,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.6,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 534.3,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.6,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 505.5,
+     "y": 481.16,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 2,
+     "valves": 0,
+     "near_bubble": 0.0,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  },
+  {
+   "page": 46,
+   "marks": 6,
+   "bubbles": 16,
+   "valves": 33,
+   "contested": [
+    {
+     "x": 476.76,
+     "y": 264.74,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.59,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 551.1,
+     "y": 257.66,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.57,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 476.76,
+     "y": 363.8,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.54,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 551.1,
+     "y": 356.72,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.51,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    },
+    {
+     "x": 654.0,
+     "y": 267.44,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 1,
+     "near_bubble": 0.0,
+     "near_valve": 7.6,
+     "valve_kinds": [
+      "CHECK"
+     ],
+     "verdict": "VALVE_TAKES_BUBBLE"
+    },
+    {
+     "x": 625.2,
+     "y": 267.44,
+     "stars": 1,
+     "form": "GLYPH",
+     "bubbles": 1,
+     "valves": 0,
+     "near_bubble": 0.0,
+     "near_valve": null,
+     "valve_kinds": [],
+     "verdict": "OK"
+    }
+   ]
+  }
+ ]
+}

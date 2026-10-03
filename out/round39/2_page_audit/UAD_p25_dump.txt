@@ -1,0 +1,22 @@
+page 25 kind=PID dwg=1A5J-00QFA10-M05-0001 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=19
+  FIELD     PI     q=1 scope=VENDOR                       tag= rect=[578, 170, 616, 183] desc='' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TI     q=1 scope=SCT                          tag= rect=[536, 191, 574, 204] desc='COMPRESSED AIR F AFTER FILTER A TEMPERAT' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag= rect=[211, 234, 249, 247] desc='AIR COMPRESSOR B OUTLET DIFFERENTIAL PRE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag= rect=[418, 238, 456, 250] desc='COMPRESSED AIR F AFTER FILTER SUCTION DI' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00QFB01CP001A rect=[704, 274, 738, 285] desc='COMPRESSED AIR PRESSURE OR VACUUM A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00QFB01CP001B rect=[746, 274, 780, 285] desc='COMPRESSED AIR PRESSURE OR VACUUM B' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag=00QFB01CT001 rect=[796, 274, 830, 285] desc='COMPRESSED AIR TEMPERATURE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag= rect=[562, 363, 600, 375] desc='COMPRESSED AIR F AFTER FILTER PRESSURE O' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TI     q=1 scope=SCT                          tag= rect=[587, 385, 624, 398] desc='COMPRESSED AIR F AFTER FILTER B TEMPERAT' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag= rect=[181, 411, 218, 424] desc='AIR COMPRESSOR C PIT TEMPERATURE TRANSMI' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag= rect=[181, 433, 218, 446] desc='AIR COMPRESSOR C PIT TEMPERATURE TRANSMI' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag= rect=[181, 456, 218, 468] desc='AIR COMPRESSOR C PIT TEMPERATURE TRANSMI' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag= rect=[453, 457, 491, 470] desc='AIR COMPRESSOR C PIT SUCTION DIFFERENTIA' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag= rect=[181, 478, 218, 491] desc='AIR COMPRESSOR C PIT PRESSURE TRANSMITTE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=VENDOR                       tag= rect=[352, 493, 390, 506] desc='' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag= rect=[181, 501, 218, 513] desc='AIR COMPRESSOR C PIT PRESSURE TRANSMITTE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00SCB01CP001 rect=[780, 502, 814, 513] desc='AIR COMPRESSOR C PIT PRESSURE TRANSMITTE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TI     q=1 scope=SCT                          tag= rect=[309, 512, 347, 524] desc='AIR COMPRESSOR C PIT TEMPERATURE GAUGE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag= rect=[181, 523, 218, 536] desc='AIR COMPRESSOR C PIT PRESSURE TRANSMITTE' rev="unit code '00' 의 승수 x1 는 이 도면의"
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(35, 782, 'PDC'), (59, 781, 'PRESSURE'), (62, 775, 'DESIGN'), (92, 781, 'TEMPERATURE'), (101, 775, 'DESIGN'), (138, 775, 'OPERATING'), (139, 781, 'PRESSURE'), (175, 781, 'TEMPERATURE'), (179, 775, 'OPERATING'), (222, 782, 'PMC'), (242, 781, 'INSULATION'), (247, 786, 'TYPE'), (357, 613, 'DT'), (568, 474, 'DT'), (584, 274, 'DT'), (639, 85, 'SUPPLIER'), (671, 54, 'SCT'), (726, 549, 'FC'), (768, 590, 'AT')] 
+unjudged on page: [('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None)]

@@ -1,0 +1,116 @@
+{
+ "restored": [
+  "tb.zoom",
+  "cfg.formats.drawing_no",
+  "cfg.formats.date"
+ ],
+ "runs": [
+  {
+   "iter": 0,
+   "restored_before": [],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "tb.zoom",
+   "missing": "tb.zoom",
+   "missing_all": [
+    "tb.zoom"
+   ],
+   "trace_tail": [
+    "  File \"/usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py\", line 8803, in __init__",
+    "    self.a, self.b, self.c, self.d, self.e, self.f = float(args[0]), \\",
+    "                                                     ^^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: tb.zoom"
+   ],
+   "seconds": 102.9
+  },
+  {
+   "iter": 1,
+   "restored_before": [
+    "tb.zoom"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.formats.drawing_no (.match)",
+   "missing": "cfg.formats.drawing_no",
+   "missing_all": [
+    "cfg.formats.drawing_no"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/extract_titleblocks.py\", line 440, in <listcomp>",
+    "    if DWG_NO_RE.match(t) and in_region(r, lay.dwg_no_region)",
+    "       ^^^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 58, in __getattr__",
+    "    raise MissingConstant(f\"{self.name} (.{item})\")",
+    "missing.MissingConstant: cfg.formats.drawing_no (.match)"
+   ],
+   "seconds": 100.1
+  },
+  {
+   "iter": 2,
+   "restored_before": [
+    "tb.zoom",
+    "cfg.formats.drawing_no"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.formats.date (.match)",
+   "missing": "cfg.formats.date",
+   "missing_all": [
+    "cfg.formats.date"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/extract_titleblocks.py\", line 491, in parse_rev_date",
+    "    and DATE_RE.match(t)",
+    "        ^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 58, in __getattr__",
+    "    raise MissingConstant(f\"{self.name} (.{item})\")",
+    "missing.MissingConstant: cfg.formats.date (.match)"
+   ],
+   "seconds": 100.9
+  },
+  {
+   "iter": 3,
+   "restored_before": [
+    "tb.zoom",
+    "cfg.formats.drawing_no",
+    "cfg.formats.date"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.description.unit_prefix_skip_codes",
+   "missing": "cfg.description.unit_prefix_skip_codes",
+   "missing_all": [
+    "cfg.description.axis_mode",
+    "cfg.description.between_symbol_types",
+    "cfg.description.duplicate_suffix_types",
+    "cfg.description.end_ordinal_types",
+    "cfg.description.equipment_words",
+    "cfg.description.examples",
+    "cfg.description.line_phrase_types",
+    "cfg.description.measured_on",
+    "cfg.description.note",
+    "cfg.description.position_pair_words",
+    "cfg.description.position_word_types",
+    "cfg.description.prefix",
+    "cfg.description.sole_equipment_sheet_max",
+    "cfg.description.template",
+    "cfg.description.title_close",
+    "cfg.description.title_open",
+    "cfg.description.unit_mark",
+    "cfg.description.unit_prefix_skip_codes",
+    "cfg.description.user_input_reasons"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/describe.py\", line 107, in derive_pattern",
+    "    skip = tuple(str(c) for c in (d.get(\"unit_prefix_skip_codes\") or ()))",
+    "                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.description.unit_prefix_skip_codes"
+   ],
+   "seconds": 107.9
+  }
+ ]
+}

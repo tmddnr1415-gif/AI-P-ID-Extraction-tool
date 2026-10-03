@@ -1,0 +1,111 @@
+{
+ "project": "AL NOUF1",
+ "pages": [
+  6,
+  12,
+  20,
+  26,
+  33,
+  39,
+  49,
+  56
+ ],
+ "shots": [
+  {
+   "page": 6,
+   "drawing": "D00P-10LBA10-M05-0001",
+   "grid_rows": 46,
+   "svg_nodes": 46,
+   "legend": [
+    "SCT 공급 범위 18",
+    "VENDOR 공급 (BM 당사) 28",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 12,
+   "drawing": "D00P-10LBG10-M05-0001",
+   "grid_rows": 20,
+   "svg_nodes": 19,
+   "legend": [
+    "SCT 공급 범위 18",
+    "VENDOR 공급 (BM 당사) 1",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 20,
+   "drawing": "D00P-11LAB00-M05-0001",
+   "grid_rows": 39,
+   "svg_nodes": 42,
+   "legend": [
+    "SCT 공급 범위 37",
+    "VENDOR 공급 (BM 당사) 2",
+    "판정 없음 0",
+    "검토 필요 (그중) 1"
+   ]
+  },
+  {
+   "page": 26,
+   "drawing": "D00P-00PAB10-M05-0001",
+   "grid_rows": 29,
+   "svg_nodes": 29,
+   "legend": [
+    "SCT 공급 범위 12",
+    "VENDOR 공급 (BM 당사) 17",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 33,
+   "drawing": "D00P-00EGD00-M05-0002",
+   "grid_rows": 47,
+   "svg_nodes": 80,
+   "legend": [
+    "SCT 공급 범위 36",
+    "VENDOR 공급 (BM 당사) 11",
+    "판정 없음 0",
+    "검토 필요 (그중) 11"
+   ]
+  },
+  {
+   "page": 39,
+   "drawing": "D00P-10PGB10-M05-0005",
+   "grid_rows": 21,
+   "svg_nodes": 21,
+   "legend": [
+    "SCT 공급 범위 21",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 49,
+   "drawing": "D00P-00GHB10-M05-0001",
+   "grid_rows": 22,
+   "svg_nodes": 22,
+   "legend": [
+    "SCT 공급 범위 14",
+    "VENDOR 공급 (BM 당사) 8",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  },
+  {
+   "page": 56,
+   "drawing": "D00P-00GQA10-M05-0001",
+   "grid_rows": 18,
+   "svg_nodes": 18,
+   "legend": [
+    "SCT 공급 범위 6",
+    "VENDOR 공급 (BM 당사) 12",
+    "판정 없음 0",
+    "검토 필요 (그중) 0"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,319 @@
+{
+ "project": "UAD",
+ "drawing_area": [
+  19.8,
+  18.2,
+  984.1,
+  822.8
+ ],
+ "pages": [
+  {
+   "page_no": 6,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 7,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 8,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 9,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 10,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 19,
+   "circles": 5,
+   "marks": 3,
+   "refs": {
+    "M": 3
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      676.2,
+      245.5,
+      682.6,
+      251.9
+     ]
+    ],
+    [
+     "M",
+     [
+      676.3,
+      366.0,
+      682.7,
+      372.4
+     ]
+    ],
+    [
+     "M",
+     [
+      676.2,
+      486.6,
+      682.6,
+      493.0
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    6.42
+   ]
+  },
+  {
+   "page_no": 20,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 21,
+   "circles": 5,
+   "marks": 3,
+   "refs": {
+    "M": 3
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      669.1,
+      280.2,
+      675.5,
+      286.6
+     ]
+    ],
+    [
+     "M",
+     [
+      669.1,
+      415.9,
+      675.5,
+      422.3
+     ]
+    ],
+    [
+     "M",
+     [
+      669.1,
+      565.1,
+      675.5,
+      571.5
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    6.42
+   ]
+  },
+  {
+   "page_no": 23,
+   "circles": 5,
+   "marks": 5,
+   "refs": {
+    "M": 5
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      216.2,
+      131.3,
+      223.3,
+      138.3
+     ]
+    ],
+    [
+     "M",
+     [
+      218.8,
+      386.1,
+      225.8,
+      393.1
+     ]
+    ],
+    [
+     "M",
+     [
+      705.1,
+      167.2,
+      711.5,
+      173.6
+     ]
+    ],
+    [
+     "M",
+     [
+      705.1,
+      287.5,
+      711.5,
+      294.0
+     ]
+    ],
+    [
+     "M",
+     [
+      705.1,
+      416.9,
+      711.5,
+      423.3
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    6.42,
+    7.02
+   ]
+  },
+  {
+   "page_no": 24,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 25,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 26,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 27,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 28,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 29,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 30,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 31,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  }
+ ]
+}

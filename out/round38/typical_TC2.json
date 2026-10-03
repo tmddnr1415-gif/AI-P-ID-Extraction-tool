@@ -1,0 +1,1659 @@
+{
+ "project": "TC2",
+ "drawing_area": [
+  30.1,
+  26.7,
+  963.8,
+  816.3
+ ],
+ "pages": [
+  {
+   "page_no": 6,
+   "circles": 10,
+   "marks": 10,
+   "refs": {
+    "D": 4,
+    "M": 4
+   },
+   "ref_rects": [
+    [
+     "D",
+     [
+      630.8,
+      574.5,
+      637.9,
+      581.6
+     ]
+    ],
+    [
+     "M",
+     [
+      437.0,
+      529.3,
+      444.1,
+      536.4
+     ]
+    ],
+    [
+     "M",
+     [
+      437.0,
+      567.1,
+      444.1,
+      574.2
+     ]
+    ],
+    [
+     "D",
+     [
+      682.3,
+      574.5,
+      689.4,
+      581.6
+     ]
+    ],
+    [
+     "D",
+     [
+      356.6,
+      574.5,
+      363.7,
+      581.6
+     ]
+    ],
+    [
+     "D",
+     [
+      410.6,
+      574.5,
+      417.7,
+      581.6
+     ]
+    ],
+    [
+     "M",
+     [
+      743.0,
+      343.9,
+      750.1,
+      351.0
+     ]
+    ],
+    [
+     "M",
+     [
+      333.6,
+      576.7,
+      340.7,
+      583.8
+     ]
+    ]
+   ],
+   "details": [
+    {
+     "id": "D",
+     "caption": ": HP TYPICAL DRAIN CONFIGURATION REV. REV. REV. REV. DATE DATE DATE DATE DESCRIPTION DESCRIPTION DESCRIPTION DESCRIPTION",
+     "box": {
+      "rect": [
+       750.8,
+       360.9,
+       884.3,
+       815.4
+      ],
+      "sides": 0
+     },
+     "rows_inside": [
+      [
+       "TIT",
+       "FIELD",
+       8
+      ],
+      [
+       "TIT",
+       "FIELD",
+       8
+      ]
+     ]
+    }
+   ],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 7,
+   "circles": 8,
+   "marks": 8,
+   "refs": {
+    "M": 3,
+    "D1": 1,
+    "D2": 2
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      656.9,
+      513.6,
+      664.0,
+      520.6
+     ]
+    ],
+    [
+     "D1",
+     [
+      264.4,
+      558.8,
+      271.4,
+      565.9
+     ]
+    ],
+    [
+     "D2",
+     [
+      435.8,
+      558.8,
+      442.9,
+      565.9
+     ]
+    ],
+    [
+     "D2",
+     [
+      635.5,
+      558.8,
+      642.6,
+      565.9
+     ]
+    ],
+    [
+     "M",
+     [
+      841.3,
+      744.7,
+      848.4,
+      751.8
+     ]
+    ],
+    [
+     "M",
+     [
+      614.9,
+      513.6,
+      622.0,
+      520.6
+     ]
+    ]
+   ],
+   "details": [
+    {
+     "id": "D2",
+     "caption": ": COLD REHEAT TYPICAL DRAIN CONFIGURATION A 26.08.21",
+     "box": {
+      "rect": [
+       664.8,
+       530.6,
+       840.8,
+       815.4
+      ],
+      "sides": 0
+     },
+     "rows_inside": [
+      [
+       "LS",
+       "FIELD",
+       8
+      ]
+     ]
+    },
+    {
+     "id": "D1",
+     "caption": ": COLD REHEAT TYPICAL DRAIN CONFIGURATION D2 : COLD REHEAT",
+     "box": {
+      "rect": [
+       504.2,
+       653.1,
+       732.2,
+       810.8
+      ],
+      "sides": 1
+     },
+     "rows_inside": [
+      [
+       "LS",
+       "FIELD",
+       8
+      ],
+      [
+       "LS",
+       "FIELD",
+       8
+      ]
+     ]
+    }
+   ],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 8,
+   "circles": 7,
+   "marks": 7,
+   "refs": {
+    "D": 3,
+    "M": 4
+   },
+   "ref_rects": [
+    [
+     "D",
+     [
+      774.8,
+      666.0,
+      781.9,
+      673.0
+     ]
+    ],
+    [
+     "M",
+     [
+      693.6,
+      351.4,
+      700.7,
+      358.5
+     ]
+    ],
+    [
+     "M",
+     [
+      387.0,
+      533.8,
+      394.1,
+      540.9
+     ]
+    ],
+    [
+     "D",
+     [
+      359.0,
+      579.1,
+      366.1,
+      586.2
+     ]
+    ],
+    [
+     "M",
+     [
+      387.0,
+      571.6,
+      394.1,
+      578.7
+     ]
+    ],
+    [
+     "D",
+     [
+      628.1,
+      579.1,
+      635.2,
+      586.2
+     ]
+    ],
+    [
+     "M",
+     [
+      841.3,
+      737.7,
+      848.4,
+      744.8
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "D",
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 9,
+   "circles": 8,
+   "marks": 8,
+   "refs": {
+    "M": 3,
+    "D": 2
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      409.6,
+      534.3,
+      416.6,
+      541.4
+     ]
+    ],
+    [
+     "D",
+     [
+      389.8,
+      579.7,
+      396.8,
+      586.8
+     ]
+    ],
+    [
+     "M",
+     [
+      841.3,
+      746.1,
+      848.4,
+      753.2
+     ]
+    ],
+    [
+     "M",
+     [
+      775.0,
+      302.4,
+      782.0,
+      309.4
+     ]
+    ],
+    [
+     "D",
+     [
+      334.8,
+      579.7,
+      341.9,
+      586.8
+     ]
+    ]
+   ],
+   "details": [
+    {
+     "id": "D",
+     "caption": ": LP STEAM TYPICAL DRAIN CONFIGURATION",
+     "box": {
+      "rect": [
+       447.1,
+       551.4,
+       715.3,
+       815.4
+      ],
+      "sides": 0
+     },
+     "rows_inside": []
+    }
+   ],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 10,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 11,
+   "circles": 15,
+   "marks": 15,
+   "refs": {
+    "M": 2,
+    "D": 2,
+    "D1": 7
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      706.4,
+      587.2,
+      713.5,
+      594.3
+     ]
+    ],
+    [
+     "D",
+     [
+      596.4,
+      525.7,
+      603.5,
+      532.8
+     ]
+    ],
+    [
+     "M",
+     [
+      165.4,
+      582.1,
+      172.4,
+      589.2
+     ]
+    ],
+    [
+     "D",
+     [
+      636.6,
+      427.6,
+      643.7,
+      434.7
+     ]
+    ],
+    [
+     "D1",
+     [
+      280.9,
+      109.2,
+      288.0,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      353.8,
+      109.2,
+      360.8,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      441.0,
+      109.2,
+      448.1,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      527.9,
+      109.2,
+      535.0,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      615.6,
+      109.2,
+      622.7,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      703.0,
+      109.2,
+      710.0,
+      116.2
+     ]
+    ],
+    [
+     "D1",
+     [
+      790.4,
+      109.2,
+      797.5,
+      116.2
+     ]
+    ]
+   ],
+   "details": [
+    {
+     "id": "D1",
+     "caption": ": COLD REHEAT TYPICAL DRAIN CONFIGURATION D : AUX STEAM DRAIN",
+     "box": {
+      "rect": [
+       504.2,
+       670.0,
+       732.2,
+       815.5
+      ],
+      "sides": 1
+     },
+     "rows_inside": [
+      [
+       "LS",
+       "FIELD",
+       8
+      ],
+      [
+       "LS",
+       "FIELD",
+       8
+      ]
+     ]
+    },
+    {
+     "id": "D",
+     "caption": ": AUX STEAM DRAIN CONFIGURATION OWNER OWNER OWNER OWNER",
+     "box": {
+      "rect": [
+       723.5,
+       608.6,
+       856.2,
+       815.5
+      ],
+      "sides": 0
+     },
+     "rows_inside": []
+    }
+   ],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 12,
+   "circles": 3,
+   "marks": 2,
+   "refs": {
+    "M": 2
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      762.0,
+      677.5,
+      769.1,
+      684.6
+     ]
+    ],
+    [
+     "M",
+     [
+      762.0,
+      605.5,
+      769.1,
+      612.6
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 13,
+   "circles": 6,
+   "marks": 4,
+   "refs": {
+    "M": 4
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      850.8,
+      407.5,
+      857.9,
+      414.6
+     ]
+    ],
+    [
+     "M",
+     [
+      409.9,
+      193.0,
+      417.0,
+      200.1
+     ]
+    ],
+    [
+     "M",
+     [
+      850.1,
+      488.8,
+      857.2,
+      495.9
+     ]
+    ],
+    [
+     "M",
+     [
+      650.8,
+      407.5,
+      657.8,
+      414.6
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 14,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 15,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 16,
+   "circles": 9,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 17,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 18,
+   "circles": 26,
+   "marks": 6,
+   "refs": {
+    "M": 6
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      369.0,
+      451.8,
+      376.1,
+      458.8
+     ]
+    ],
+    [
+     "M",
+     [
+      369.0,
+      611.1,
+      376.1,
+      618.2
+     ]
+    ],
+    [
+     "M",
+     [
+      681.7,
+      283.0,
+      691.7,
+      293.0
+     ]
+    ],
+    [
+     "M",
+     [
+      141.4,
+      211.6,
+      151.3,
+      221.6
+     ]
+    ],
+    [
+     "M",
+     [
+      522.8,
+      288.2,
+      532.8,
+      298.2
+     ]
+    ],
+    [
+     "M",
+     [
+      76.3,
+      534.2,
+      86.3,
+      544.2
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08,
+    9.96
+   ]
+  },
+  {
+   "page_no": 19,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 20,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 21,
+   "circles": 1,
+   "marks": 1,
+   "refs": {
+    "M": 1
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      206.6,
+      265.5,
+      213.0,
+      271.9
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    6.36
+   ]
+  },
+  {
+   "page_no": 22,
+   "circles": 6,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 23,
+   "circles": 4,
+   "marks": 4,
+   "refs": {
+    "M": 4
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      853.7,
+      151.3,
+      860.8,
+      158.4
+     ]
+    ],
+    [
+     "M",
+     [
+      853.7,
+      246.8,
+      860.8,
+      253.9
+     ]
+    ],
+    [
+     "M",
+     [
+      105.2,
+      151.3,
+      112.3,
+      158.4
+     ]
+    ],
+    [
+     "M",
+     [
+      105.2,
+      246.8,
+      112.3,
+      253.9
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 24,
+   "circles": 8,
+   "marks": 8,
+   "refs": {
+    "G": 8
+   },
+   "ref_rects": [
+    [
+     "G",
+     [
+      615.0,
+      246.9,
+      622.1,
+      254.0
+     ]
+    ],
+    [
+     "G",
+     [
+      615.0,
+      313.2,
+      622.1,
+      320.2
+     ]
+    ],
+    [
+     "G",
+     [
+      615.6,
+      428.0,
+      622.7,
+      435.1
+     ]
+    ],
+    [
+     "G",
+     [
+      271.9,
+      542.0,
+      279.0,
+      549.1
+     ]
+    ],
+    [
+     "G",
+     [
+      271.9,
+      446.5,
+      279.0,
+      453.6
+     ]
+    ],
+    [
+     "G",
+     [
+      381.0,
+      542.0,
+      388.1,
+      549.1
+     ]
+    ],
+    [
+     "G",
+     [
+      381.0,
+      446.5,
+      388.1,
+      453.6
+     ]
+    ],
+    [
+     "G",
+     [
+      615.6,
+      494.2,
+      622.7,
+      501.3
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "G"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 25,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 26,
+   "circles": 7,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 27,
+   "circles": 4,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 28,
+   "circles": 6,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 29,
+   "circles": 10,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 30,
+   "circles": 8,
+   "marks": 8,
+   "refs": {
+    "M": 8
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      235.0,
+      160.2,
+      242.0,
+      167.2
+     ]
+    ],
+    [
+     "M",
+     [
+      235.0,
+      258.3,
+      242.0,
+      265.4
+     ]
+    ],
+    [
+     "M",
+     [
+      235.0,
+      375.7,
+      242.0,
+      382.8
+     ]
+    ],
+    [
+     "M",
+     [
+      235.0,
+      493.3,
+      242.0,
+      500.4
+     ]
+    ],
+    [
+     "M",
+     [
+      527.0,
+      160.2,
+      534.1,
+      167.2
+     ]
+    ],
+    [
+     "M",
+     [
+      527.0,
+      258.3,
+      534.1,
+      265.4
+     ]
+    ],
+    [
+     "M",
+     [
+      527.0,
+      375.7,
+      534.1,
+      382.8
+     ]
+    ],
+    [
+     "M",
+     [
+      527.0,
+      493.3,
+      534.1,
+      500.4
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 31,
+   "circles": 8,
+   "marks": 8,
+   "refs": {
+    "M": 8
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      708.7,
+      294.7,
+      715.8,
+      301.8
+     ]
+    ],
+    [
+     "M",
+     [
+      734.4,
+      294.7,
+      741.5,
+      301.8
+     ]
+    ],
+    [
+     "M",
+     [
+      708.7,
+      367.2,
+      715.8,
+      374.2
+     ]
+    ],
+    [
+     "M",
+     [
+      734.4,
+      367.2,
+      741.5,
+      374.2
+     ]
+    ],
+    [
+     "M",
+     [
+      708.7,
+      439.6,
+      715.8,
+      446.7
+     ]
+    ],
+    [
+     "M",
+     [
+      734.4,
+      439.6,
+      741.5,
+      446.7
+     ]
+    ],
+    [
+     "M",
+     [
+      708.7,
+      512.1,
+      715.8,
+      519.2
+     ]
+    ],
+    [
+     "M",
+     [
+      734.4,
+      512.1,
+      741.5,
+      519.2
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 32,
+   "circles": 2,
+   "marks": 2,
+   "refs": {
+    "M": 2
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      720.8,
+      263.1,
+      727.9,
+      270.2
+     ]
+    ],
+    [
+     "M",
+     [
+      592.1,
+      351.4,
+      599.2,
+      358.5
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 33,
+   "circles": 8,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 34,
+   "circles": 8,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 35,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 36,
+   "circles": 8,
+   "marks": 2,
+   "refs": {
+    "M": 2
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      135.2,
+      182.6,
+      142.3,
+      189.7
+     ]
+    ],
+    [
+     "M",
+     [
+      135.2,
+      566.2,
+      142.3,
+      573.3
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 37,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 38,
+   "circles": 4,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 39,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 40,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 41,
+   "circles": 2,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 42,
+   "circles": 3,
+   "marks": 1,
+   "refs": {
+    "M": 1
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      618.0,
+      129.8,
+      625.1,
+      136.9
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 43,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 44,
+   "circles": 3,
+   "marks": 1,
+   "refs": {
+    "M": 1
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      195.4,
+      191.1,
+      202.4,
+      198.2
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 45,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 46,
+   "circles": 3,
+   "marks": 1,
+   "refs": {
+    "M": 1
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      130.8,
+      195.9,
+      137.9,
+      203.0
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 47,
+   "circles": 3,
+   "marks": 1,
+   "refs": {
+    "M": 1
+   },
+   "ref_rects": [
+    [
+     "M",
+     [
+      130.8,
+      290.2,
+      137.9,
+      297.3
+     ]
+    ]
+   ],
+   "details": [],
+   "refs_without_detail": [
+    "M"
+   ],
+   "details_without_ref": [],
+   "mark_diameters": [
+    7.08
+   ]
+  },
+  {
+   "page_no": 48,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 49,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 50,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 51,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 52,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 53,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 54,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 55,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 56,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 57,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 58,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 59,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  },
+  {
+   "page_no": 60,
+   "circles": 0,
+   "marks": 0,
+   "refs": {},
+   "ref_rects": [],
+   "details": [],
+   "refs_without_detail": [],
+   "details_without_ref": [],
+   "mark_diameters": []
+  }
+ ]
+}

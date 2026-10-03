@@ -1,0 +1,18 @@
+Ignoring BLOCK without name #574E.
+DXF: 32 sheets · readable 32 · order 파일명 앞 번호
+DXF: legend sheets [2, 3, 4, 5] · PID sheets 28
+DXF: ISA LEGEND · roles type=['#(TargetObject.Type)', 'PDIT'] tag=['#(=Drawing.General.PnID)', '#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)'] · legend blocks 129 · instrument 12 · valve 15 · actuator 9 · bubble Ø 8.0
+DXF: rows 449 · unjudged 534 · 62.65s
+총 62.7 초
+행 449 · 탭 {'PNEUMATIC': 23, 'FIELD': 366, 'REVIEW': 52, 'MOV': 8}
+장별: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 1, 7: 16, 8: 5, 9: 4, 10: 4, 11: 26, 12: 17, 13: 26, 14: 28, 15: 8, 16: 44, 17: 49, 18: 50, 19: 16, 20: 0, 21: 28, 22: 1, 23: 33, 24: 0, 25: 9, 26: 12, 27: 9, 28: 0, 29: 15, 30: 36, 31: 12, 32: 0}
+등급: {'1': '빈 장', '6': '빈 장', '7': '빈 장', '8': '기하', '9': '기하', '10': '빈 장', '11': '1급', '12': '1급', '13': '1급', '14': '1급', '15': '기하', '16': '2급', '17': '2급', '18': '2급', '19': '2급', '20': '빈 장', '21': '2급', '22': '2급', '23': '1급', '24': '빈 장', '25': '1급', '26': '기하', '27': '기하', '28': '빈 장', '29': '1급', '30': '1급', '31': '1급', '32': '빈 장'}
+TYPE 상위: [('PI', 130), ('', 49), ('GATE', 27), ('TI', 25), ('LIT', 23), ('AT', 22), ('PDIA', 21), ('PDIT', 21), ('LSA', 21), ('TIT', 18), ('PIT', 17), ('TIA', 11), ('PIA', 10), ('LIA', 8), ('LICAZ', 6), ('ZS', 5), ('CHECK', 4), ('TICA', 4), ('TP', 4), ('AIT', 4)]
+SCOPE: {'SCT': 402, 'VENDOR(FIN FAN COOLER SUPPLIER)': 2, 'VENDOR(TANK ACCESSORIES SUPPLIER)': 2, 'VENDOR': 11, 'VENDOR(PUMP SUPPLIER)': 32}
+태그 붙은 행: 391 · evidence_tier: {'tier': 1, 'tagged_rows': 391, 'measured': 'epc', 'effective': 'epc', 'tags_available': 713}
+미판정: [('범례 장에 없는 블록', 470), ('범례가 계기로 그린 블록인데 안에 ISA 글자가 없음', 52), ('속성 TYPE 이 이 문서 ISA 표로 풀리지 않음', 12)]
+타이틀: [(1, '1A5J-00GEN00-M05-0001', '7', 'PID'), (2, '1A5J-00GEN00-M05-0002', '3', 'LEGEND'), (3, '1A5J-00GEN00-M05-0003', '3', 'LEGEND'), (4, '1A5J-00GEN00-M05-0004', '3', 'LEGEND'), (5, '1A5J-00GEN00-M05-0005', '4', 'LEGEND'), (6, '1A5J-00EKG00-M05-0001', '7', 'PID')]
+패턴: ^[A-Z0-9]{4}-[A-Z0-9]{7}-[A-Z0-9]{3}-\d{4}$ · 역할: ['#(TargetObject.Type)', 'PDIT'] ['#(=Drawing.General.PnID)', '#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)', '#(TargetObject.ConnectArea)', '#(TargetObject.LoopNumber)', '00GHC01AA201', '00GHC01CP001', '00GHC13CP001A', '1A5J-00GHC10-M05-0002']
+블록 분류: Counter({'other': 59, 'equipment': 34, 'valve': 15, 'instrument': 12, 'actuator': 9})
+밸브 블록: {'Gate Valve (Open)': 'GATE', 'Diaph Valve (Open)': 'DIAPHRAGM', 'Pinch Valve_': 'PINCH', 'Globe Valve (Open)': 'SMALL', 'Butterfly Valve (Close)': 'BUTTERFLY', 'Award and Downward Slope': '', 'VA2_Foot Valve': 'FOOT', 'NEEDLE_VALVE': 'NEEDLE', 'VA2_Flow Limiting Check Valve': '', 'Check Valve_': 'CHECK', 'PIP PLUG': 'HOSE', 'STOP_CHECK_VALVE': '', 'ANGLE_CHECK': '', 'PIP ANGLE VALVE': 'ANGLE', 'Ball Valve (Open)': 'BALL'}
+액추에이터 블록: {'PIP MANUAL OPERATOR': 'NONE', 'PIP SINGLE SOLENOID': 'SOLENOID', 'PIP CYLINDER - PISTON': 'PNEUMATIC', 'PIP MOTOR OPERATED': 'MOTOR', 'PIP DIAPHRAGM': 'PNEUMATIC', 'HYDRAULIC_CYLINDER': 'HYDRAULIC', 'PIP PRESSURE BALANCED DIAPHRAGM': 'PNEUMATIC', 'PIP ELECTRO-HYDRAULIC': 'HYDRAULIC', 'PIP SINGLE SOLENOID - REMOTE RESET': 'SOLENOID'}

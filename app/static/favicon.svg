@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img"
+     aria-label="P&amp;ID 계기·밸브 리스트 추출">
+  <!-- An instrument bubble on a line: the two shapes this tool is about, drawn
+       the way the drawings draw them.  Flat, two colours, no gradients - it has
+       to stay legible at 16px in a browser tab. -->
+  <rect width="32" height="32" rx="6" fill="#1f2430"/>
+  <line x1="4" y1="22" x2="28" y2="22" stroke="#8a93a5" stroke-width="2"/>
+  <path d="M12 22v-5" stroke="#8a93a5" stroke-width="2"/>
+  <rect x="6" y="6" width="20" height="11" rx="5.5"
+        fill="none" stroke="#d8dee9" stroke-width="2"/>
+  <line x1="6" y1="11.5" x2="26" y2="11.5" stroke="#d8dee9" stroke-width="1.4"/>
+</svg>

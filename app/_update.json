@@ -1,0 +1,8 @@
+{
+  "name": "hotfix37",
+  "rev": 37,
+  "zip": "PID_hotfix37_2026-10-03.zip",
+  "created_at": "2026-10-03 12:23",
+  "base_commit": "265df04",
+  "branch": "claude/titleblock-parsing-c5st4x"
+}
