@@ -15,7 +15,10 @@ hotfix37 — Line No. 는 사각형 안 코드(12LBB50) · Line Size 열 신설(
   · 발주처 양식 Excel 에 내려면 그 양식 config 에 `line_size: <열 번호>` 한 줄 (line_no 와 같다).
 
 QFE 실측 (93장)
-  __QFE_LINE__
+  2019행 · 지문 906593dd · Q'ty 3649 · 축3 89.1 그대로 (Line 열은 지문 밖).
+  Line No. 727행(공백 든 값 0) · Line Size 719행 (DN 25 143 · DN 80 97 · DN 100 70 · DN 50 63 · DN 250 55 …)
+  보온 N 488 · H 169 · P 61.  못 가른 8행은 건너편 글줄이 직경이 아니라 다른 라벨(AA006 · 12LAE10 …)이라 비운 것.
+  p46 TIT·PIT·TW → 12LBB50 / DN 800.  화면 자기검증 out/hotfix37/ui/ — 머리글 순서 · 칸 726/718 · 근거 패널 · 오류 0.
 
 고친 것
   · app/engine/line_labels.py             parse_spec · learn_flag_format(범례) · learn_prefix_from_labels(본문) · LineLabel.line_no/pipe_no

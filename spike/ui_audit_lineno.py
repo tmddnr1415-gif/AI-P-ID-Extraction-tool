@@ -101,6 +101,9 @@ try:
             has = "Line No. 근거" in panel; has2 = "Line Size 근거" in panel
             note(f"③ 근거 패널 'Line No. 근거' {'있음' if has else '★ 없음'} · 'Line Size 근거' {'있음' if has2 else '★ 없음'} — "
                  + repr([l for l in panel.splitlines() if 'Line ' in l][:4]))
+            ls = panel.splitlines()
+            vals = [ls[i + 1].strip() for i, l in enumerate(ls[:-1]) if l.strip() in ("Line No. 근거", "Line Size 근거")]
+            note("③-b 근거 값: " + " | ".join(vals))
             ev = pg.query_selector("#evidence")
             if ev: ev.screenshot(path=str(OUT / "3_근거패널.png"))
         else:
