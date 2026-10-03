@@ -30,6 +30,12 @@
       "pdf": "data/uad_dxf.zip",
       "client_lists": false,
       "note": "55회차 신규 — 같은 UAD 도면의 DXF 32장 (zip).  `pipeline.analyse` 가 DXF 로 갈라 `dxf_pipeline` 로 간다.  축3 는 재지 않는다 (score null)"
+    },
+    {
+      "name": "QFE",
+      "pdf": "data/QFE_260326.pdf",
+      "client_lists": false,
+      "note": "hotfix36 신규 — FICHTNER 류 양식 93장 (A1 84 · A3 7 · A1 회전 2).  태그가 인쇄된 1급 문서.  egg 분할본은 spike/egg_extract.py 로 푼다"
     }
   ]
 }

@@ -681,18 +681,27 @@ def nearest_conn(rect, run, trunks, connectors, conn_reach):
             "gap": round(gap, 1), "on_run": on, "candidates": len(got)}
 
 
-def judge_page(pc, triples, equipment, drawing_area, style,
-               conn_reach, eq_reach) -> dict:
-    """한 페이지의 `[(key, rect, type)]` 전부를 판정한다 → `{key: verdict}`.
-
-    기하는 페이지당 한 번만 만든다: 병합 런(+표준 끊김 다리) · 인출선 ·
-    커넥터 문구.  전부 이 페이지 것뿐이고, 페이지 사이를 잇는 것은 없다.
-    """
+def page_runs(pc, style) -> tuple:
+    """한 페이지의 (병합 런, 인출선, 표준 끊김).  `judge_page` 가 쓰는 그것이고
+    hotfix36 부터 라인 라벨(`line_labels`)도 **같은 런**을 받는다 — 두 벌을 두면 갈린다."""
     style = style or {}
     join_slack = style.get("join_slack", 0.8)
     runs, leaders = dcand.local_runs(pc, style)
     br = standard_break(runs, join_slack)
-    runs = bridge_collinear(runs, join_slack, br)
+    return bridge_collinear(runs, join_slack, br), leaders, br
+
+
+def judge_page(pc, triples, equipment, drawing_area, style,
+               conn_reach, eq_reach, geometry=None) -> dict:
+    """한 페이지의 `[(key, rect, type)]` 전부를 판정한다 → `{key: verdict}`.
+
+    기하는 페이지당 한 번만 만든다: 병합 런(+표준 끊김 다리) · 인출선 ·
+    커넥터 문구.  전부 이 페이지 것뿐이고, 페이지 사이를 잇는 것은 없다.
+    `geometry` 는 `page_runs` 가 돌려준 그 셋이고, 없으면 여기서 만든다.
+    """
+    style = style or {}
+    join_slack = style.get("join_slack", 0.8)
+    runs, leaders, br = geometry if geometry is not None else page_runs(pc, style)
     conns = dcand._connector_lines(pc, drawing_area)
     out = {}
     for key, rect, type_ in triples:

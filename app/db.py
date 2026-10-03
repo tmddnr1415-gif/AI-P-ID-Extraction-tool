@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS deletion_log (
 # they are deliberately left empty by the engine (Phase 2 / not assigned on
 # these drawings), so a human filling them in is the expected case.
 EDITABLE = ("type", "qty", "system", "valve_type", "vendor_supply", "scope",
-            "description", "tag_no", "description_grade", "remark")
+            "description", "tag_no", "line_no", "description_grade", "remark")
 
 
 # Columns added after a database already existed in the field.  `CREATE TABLE IF

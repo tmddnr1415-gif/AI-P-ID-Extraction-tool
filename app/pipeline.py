@@ -24,6 +24,7 @@ row is "why".
 from __future__ import annotations
 
 import collections
+import logging
 import os
 import contextlib
 import copy
@@ -62,7 +63,8 @@ import describe as desc            # noqa: E402
 import describe_candidates as dcand  # noqa: E402
 import describe_equipment as dequip  # noqa: E402
 import describe_llm                # noqa: E402
-import describe_axis as daxis      # noqa: E402
+import describe_axis as daxis
+import line_labels      # noqa: E402
 import tags as tagsys              # noqa: E402
 
 # 15회차 — 프로젝트 범례 프로필.  엔진 모듈이 아니라 저장 계층이므로 `app.` 로
@@ -219,6 +221,7 @@ class Row:
     scope: str = ""
     description: str = ""          # Phase 2
     tag_no: str = ""               # not assigned on these drawings
+    line_no: str = ""              # hotfix36 — 탭한 배관의 라인 번호 (도면의 깃발 라벨)
     # Whether this row needs a Description at all.  A separate axis from `scope`:
     # `scope` decides whether the row is in the list, this decides whether a
     # sentence will ever be written for it.  See `_description_skip`.
@@ -2262,6 +2265,16 @@ def _fold_readouts(rows: list, isa) -> tuple:
                 lst = winner.evidence.setdefault("readout_folded", [])
                 lst.append({"anchor": anchor, "key": r.key, "tag_no": tag,
                             "rect": [round(v, 1) for v in r.rect]})
+                # hotfix36 — 라인 번호는 한 루프의 것이다.  QFE p59 는 PIT 를 위에, PI 를
+                # 아래에 쌓고 **PI 쪽 인출선**이 배관에 닿는다 — 접히는 표시기가 읽은
+                # 라인 번호를 남는 전송기가 물려받는다 (전송기가 이미 읽었으면 그대로).
+                if not winner.line_no and getattr(r, "line_no", ""):
+                    winner.line_no = r.line_no
+                    ev_line = dict(r.evidence.get("line") or {})
+                    ev_line["via"] = "readout"
+                    ev_line["from_key"] = r.key
+                    ev_line["rule"] = f"같은 태그 {tag} 의 표시기 {anchor} 가 탭한 배관의 깃발 — 한 루프"
+                    winner.evidence["line"] = ev_line
                 note = f"같은 태그 {tag} 의 {anchor} 표시기를 이 행에 접음 (한 라인 = {winner.evidence.get('anchor') or winner.type} 우선)"
                 winner.remark = "; ".join(x for x in (winner.remark, note) if x)
                 facts["folded"].append({"page_no": pno, "tag_no": tag, "readout": anchor,
@@ -2987,6 +3000,7 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
     """
     area = CFG.rect("regions.drawing_area")
     by_page = collections.defaultdict(list)
+    vendor_by_page = collections.defaultdict(list)
     dist = collections.Counter()
     for r in rows:
         if not r.rect:
@@ -2995,19 +3009,45 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
             r.evidence["axis"] = {"axis": daxis.AX_VENDOR, "source": "현행유지",
                                   "ev": {"why": "벤더 공급 — 현행 유지"}}
             dist[daxis.AX_VENDOR] += 1
+            vendor_by_page[r.page_no].append(r)
             continue
         by_page[r.page_no].append(r)
     conn_reach = style.get("connector_reach")
     items = []
-    for pno, page_rows in sorted(by_page.items()):
+    labels_by_page = {}
+    tap_of, geo_by_page = {}, {}
+    for pno in sorted(set(by_page) | set(vendor_by_page)):
+        page_rows = by_page.get(pno, [])
         info = per_page.get(pno) or {}
         pc = info.get("page_cache")
         if pc is None:
             continue
         triples = [(r.key, tuple(r.rect), r.type or r.valve_type)
                    for r in page_rows]
+        geometry = daxis.page_runs(pc, style)
+        # 라인 번호의 인출선 폴백은 **콜리니어로 이은 인출선**을 본다 — 뿌리 밸브 두 개가
+        # 인출선을 세 토막으로 끊어 놓는데(QFE p46 PIT), 잇는 다리는 판정축의 표준 끊김
+        # 그대로다 (`bridge_collinear` · 한 직선 · 순회 아님).
+        geo_by_page[pno] = (geometry[0],
+                            daxis.bridge_collinear(geometry[1], style.get("join_slack", 0.8), geometry[2]))
         verdicts = daxis.judge_page(pc, triples, equip_by_page.get(pno, ()),
-                                    area, style, conn_reach, eq_reach)
+                                    area, style, conn_reach, eq_reach,
+                                    geometry=geometry) if page_rows else {}
+        # hotfix36 — 라인 번호 깃발은 판정이 쓰는 **같은 런** 위에서 읽는다.
+        try:
+            labels_by_page[pno] = line_labels.find_labels(
+                pc, geometry[0], style.get("join_slack", 0.8), area)
+        except Exception as exc:                            # noqa: BLE001
+            labels_by_page[pno] = []
+            logging.getLogger(__name__).warning("line labels p%s: %s", pno, exc)
+        # 벤더 행은 판정(⓪ 현행유지)을 건드리지 않고 **탭한 런만** 읽는다 — 라인
+        # 번호는 공급 주체와 무관하다.  `pick_tap` 은 판정 트리의 첫 걸음 그대로다.
+        for r in vendor_by_page.get(pno, ()):
+            run, _how = daxis.pick_tap(tuple(r.rect), geometry[0], geometry[1],
+                                       style.get("join_slack", 0.8),
+                                       style.get("min_run") or style.get("join_slack", 0.8))
+            if run:
+                tap_of[r.key] = run
         for r in page_rows:
             v = verdicts.get(r.key)
             if v is None:
@@ -3015,6 +3055,7 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
             r.evidence["axis"] = v
             dist[v["axis"]] += 1
             items.append((r.key, pno, r.type or r.valve_type, tuple(r.rect), v))
+    line_facts = _attach_line_numbers(rows, labels_by_page, style.get("join_slack", 0.8), tap_of, geo_by_page)
     suffixes = daxis.assign_suffixes(items)
     by_key = {r.key: r for r in rows}
     for key, _pno, type_, _rect, v in items:
@@ -3038,7 +3079,56 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
     n4 = dist.get(daxis.AX_UNKNOWN, 0)
     return {"distribution": {k: dist[k] for k in sorted(dist)},
             "fromto_conversion_pct": round(100 * n2 / (n2 + n4), 1)
-                                     if (n2 + n4) else None}
+                                     if (n2 + n4) else None,
+            "line_labels": line_facts}
+
+
+def _attach_line_numbers(rows, labels_by_page: dict, join_slack: float, tap_of: dict = None,
+                         geo_by_page: dict = None) -> dict:
+    """hotfix36 — 행이 탭한 런(`evidence["axis"]["ev"]["run"]`) 위의 라인 번호 깃발.
+
+    읽는 것은 `line_labels` 이고 여기는 **붙이기만** 한다.  어느 모양이 라인 번호인지는
+    그 문서가 말한다 — 두 장 이상에서 되풀이되는 깃발 모양만 받는다 (`systematic`).
+    같은 런에 깃발이 여럿이면(밸브로 나뉜 구간이 한 런으로 이어진 경우) 계기에
+    가장 가까운 것을 쓰되 후보 수를 근거에 남긴다 — 검토 사유는 달지 않는다
+    (`needs_review` 는 지문 대상이다).  `line_no` 는 `tag_no` 처럼 지문 밖이다.
+    """
+    system = line_labels.systematic(labels_by_page)
+    usable = {pno: [L for L in ls if L.shape() in system]
+              for pno, ls in labels_by_page.items()}
+    facts = {"pages": {str(p): len(v) for p, v in labels_by_page.items() if v},
+             "systematic_shapes": sorted(system),
+             "usable": sum(len(v) for v in usable.values()),
+             "attached": 0, "ambiguous": 0, "via_tap": 0, "via_leader": 0}
+    for r in rows:
+        if not r.rect:
+            continue
+        ev = (r.evidence.get("axis") or {}).get("ev") or {}
+        run = ev.get("run") or (tap_of or {}).get(r.key)
+        page_labels = usable.get(r.page_no, ())
+        L, n, via = None, 0, ""
+        if run:
+            L, n = line_labels.nearest_on_run(tuple(r.rect), tuple(run), page_labels, join_slack)
+            via = "tap"
+        if L is None and geo_by_page and r.page_no in geo_by_page:
+            runs, leaders = geo_by_page[r.page_no]
+            L, n, run = line_labels.via_leader(tuple(r.rect), leaders, runs, page_labels, join_slack)
+            via = "leader"
+        if L is None:
+            continue
+        r.line_no = L.text
+        r.evidence["line"] = {
+            "line_no": L.text, "parts": list(L.parts), "spec": L.spec,
+            "rect": [round(v, 1) for v in L.rect], "box": [round(v, 1) for v in L.box],
+            "run": [run[0]] + [round(float(v), 1) for v in run[1:]],
+            "candidates": n, "source": "DRAWING", "via": via, "pole": bool(L.pole),
+            "rule": ("탭한 런 위의 깃발 라벨(닫힌 사각형 + 아래 줄) 중 가장 가까운 것" if via == "tap"
+                     else "인출선이 가로지르는 런 중 깃발 라벨이 있는 가장 가까운 것 (한 선분 · 순회 아님)")}
+        facts["attached"] += 1
+        facts["via_" + via] += 1
+        if n > 1:
+            facts["ambiguous"] += 1
+    return facts
 
 
 def _apply_axis(rows) -> dict:

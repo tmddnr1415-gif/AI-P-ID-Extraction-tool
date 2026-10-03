@@ -22,6 +22,8 @@ import collections
 import re
 import sys
 from dataclasses import dataclass, field
+
+import pymupdf
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -418,8 +420,45 @@ def succeeding_from_cells(words) -> dict:
     (가장 많은 줄) · 뜻은 그 칸 **위**(칸 높이의 여섯 배 안 · 가로로 칸 너비 반
     + 칸 높이 안) 의 글자 낱말 · `( ) AL` 은 `AL` 과 `A`·`L` 셋 다.  55회차
     DXF 규칙 그대로이고 PDF 와 DXF 가 **이 함수 하나**를 부른다.
+
+    hotfix36 — 표를 90° 돌려 인쇄한 범례(QFE p3: 칸이 한 **열**로 서고 뜻은 칸의
+    **오른쪽**, 글자 방향 (0,1))도 같은 규칙으로 읽는다: 좌표를 글자 방향이 가로가
+    되게 돌려 놓고 **같은 함수**를 부른다.  가로로 ≥3 칸인 줄이 없을 때만 돈다 —
+    UAD DXF 범례(가로 판)는 첫 시도에서 끝나므로 그대로다.
     """
-    words = list(words)
+    # 같은 좌표에 같은 글자가 여러 번 찍힌 것은 한 낱말이다 — QFE 범례는 글자를
+    # **세 번 겹쳐** 인쇄해 `( ( ( ) ) ) E E E` 가 되고 칸 꼴이 안 맞는다.
+    # `pidcache` 의 전역 dedup 은 프로젝트가 켜야 도는 것이라(의미 있는 반복을 지우지
+    # 않으려고) 여기 ISA 표 안에서만 접는다.
+    seen, words_u = set(), []
+    for r, t in words:
+        key = (round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        words_u.append((r, t))
+    words = words_u
+    got = _succeeding_in_frame(words)
+    if got:
+        return got
+    for turn in (_turn_cw, _turn_ccw):
+        got = _succeeding_in_frame([(turn(r), t) for r, t in words])
+        if got:
+            return got
+    return {}
+
+
+def _turn_cw(r):
+    """글자 방향 (0,1)(아래로 읽음 · 글자의 위쪽이 +x) → 가로 글자 좌표계: x'=y · y'=-x."""
+    return pymupdf.Rect(r.y0, -r.x1, r.y1, -r.x0)
+
+
+def _turn_ccw(r):
+    """글자 방향 (0,-1)(위로 읽음 · 글자의 위쪽이 -x) → x'=-y · y'=x."""
+    return pymupdf.Rect(-r.y1, r.x0, -r.y0, r.x1)
+
+
+def _succeeding_in_frame(words) -> dict:
     lines = _line_groups(words)
     best = None
     for line in lines:
