@@ -221,7 +221,8 @@ class Row:
     scope: str = ""
     description: str = ""          # Phase 2
     tag_no: str = ""               # not assigned on these drawings
-    line_no: str = ""              # hotfix36 — 탭한 배관의 라인 번호 (도면의 깃발 라벨)
+    line_no: str = ""              # hotfix36 — 탭한 배관의 라인 번호 (깃발 사각형 안 코드 · `12LBB50`)
+    line_size: str = ""            # hotfix37 — 라인 사이즈 (깃발 건너편 글줄의 직경 · `DN 800`)
     # Whether this row needs a Description at all.  A separate axis from `scope`:
     # `scope` decides whether the row is in the list, this decides whether a
     # sentence will ever be written for it.  See `_description_skip`.
@@ -1135,6 +1136,13 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # The words for each tag's measured variable, off legend p3's own
         # identification matrix - the Description column is written in them.
         m_isa = isa_table.derive(pages)
+        # hotfix37 — 배관 깃발의 건너편 글줄 형식(직경 접두 · 보온 글자)은 범례가 정의한다
+        try:
+            m_line_fmt = line_labels.learn_flag_format(
+                [pc for pc in pages if not pc.analysis_scope] or pages)
+        except Exception as exc:                            # noqa: BLE001
+            m_line_fmt = {"source": "GENERIC", "error": str(exc), "insulation": [], "diameter_prefix": "",
+                          "prefix_source": ""}
         # The equipment table off legend p2, and the nouns that name equipment.
         m_equip = dequip.derive_symbols(pages, CFG)
         # 중간 부품 낱말은 어느 경우에도 이번 도면에서 읽는다.  범례 몫만
@@ -1642,7 +1650,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     say(total - 1, total, "judging description axes")
     with clock.stage("describe_axis"):
         axis_stats = _axis_pass(rows, per_page, equip_by_page, pipe_style.values,
-                                cand_stats.get("equipment_reach_pt"))
+                                cand_stats.get("equipment_reach_pt"), line_fmt=m_line_fmt)
 
     # Description: choose a middle where the drawing offers candidates, grade
     # every row, and say in the Remark what the reviewer has to do about it.
@@ -2270,6 +2278,7 @@ def _fold_readouts(rows: list, isa) -> tuple:
                 # 라인 번호를 남는 전송기가 물려받는다 (전송기가 이미 읽었으면 그대로).
                 if not winner.line_no and getattr(r, "line_no", ""):
                     winner.line_no = r.line_no
+                    winner.line_size = getattr(r, "line_size", "")
                     ev_line = dict(r.evidence.get("line") or {})
                     ev_line["via"] = "readout"
                     ev_line["from_key"] = r.key
@@ -2992,7 +3001,7 @@ AXIS_APPLY = (daxis.AX_EQUIP, daxis.AX_FROMTO, daxis.AX_FROM_ONLY,
               daxis.AX_TO_ONLY, daxis.AX_BRANCH)
 
 
-def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
+def _axis_pass(rows, per_page, equip_by_page, style, eq_reach, line_fmt=None) -> dict:
     """모든 행에 판정축(⓪~④)과 문장 초안을 기록한다.  문장 적용은 별도다.
 
     `style` 은 `pipe_style.values` 그대로다 — `connector_reach`(이 문서 실측)가
@@ -3055,7 +3064,8 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
             r.evidence["axis"] = v
             dist[v["axis"]] += 1
             items.append((r.key, pno, r.type or r.valve_type, tuple(r.rect), v))
-    line_facts = _attach_line_numbers(rows, labels_by_page, style.get("join_slack", 0.8), tap_of, geo_by_page)
+    line_facts = _attach_line_numbers(rows, labels_by_page, style.get("join_slack", 0.8), tap_of, geo_by_page,
+                                      line_fmt=line_fmt)
     suffixes = daxis.assign_suffixes(items)
     by_key = {r.key: r for r in rows}
     for key, _pno, type_, _rect, v in items:
@@ -3084,7 +3094,7 @@ def _axis_pass(rows, per_page, equip_by_page, style, eq_reach) -> dict:
 
 
 def _attach_line_numbers(rows, labels_by_page: dict, join_slack: float, tap_of: dict = None,
-                         geo_by_page: dict = None) -> dict:
+                         geo_by_page: dict = None, line_fmt: dict = None) -> dict:
     """hotfix36 — 행이 탭한 런(`evidence["axis"]["ev"]["run"]`) 위의 라인 번호 깃발.
 
     읽는 것은 `line_labels` 이고 여기는 **붙이기만** 한다.  어느 모양이 라인 번호인지는
@@ -3096,10 +3106,14 @@ def _attach_line_numbers(rows, labels_by_page: dict, join_slack: float, tap_of: 
     system = line_labels.systematic(labels_by_page)
     usable = {pno: [L for L in ls if L.shape() in system]
               for pno, ls in labels_by_page.items()}
+    # hotfix37 — 직경 접두(`DN`)는 범례가 글자로 주지 않으면(QFE 는 예시를 획으로 그린다)
+    # 체계가 선 깃발의 **본문 다수**에서 배운다.  코드에 `DN` 을 적지 않는다.
+    line_fmt = line_labels.learn_prefix_from_labels(usable, line_fmt)
     facts = {"pages": {str(p): len(v) for p, v in labels_by_page.items() if v},
              "systematic_shapes": sorted(system),
              "usable": sum(len(v) for v in usable.values()),
-             "attached": 0, "ambiguous": 0, "via_tap": 0, "via_leader": 0}
+             "attached": 0, "ambiguous": 0, "via_tap": 0, "via_leader": 0,
+             "format": dict(line_fmt or {}), "sized": 0}
     for r in rows:
         if not r.rect:
             continue
@@ -3116,12 +3130,23 @@ def _attach_line_numbers(rows, labels_by_page: dict, join_slack: float, tap_of: 
             via = "leader"
         if L is None:
             continue
-        r.line_no = L.text
+        # 사용자 정의(hotfix37): 라인 번호 = 사각형 안 코드(`12LBB50`) · 라인 사이즈 = 건너편
+        # 글줄의 직경(`DN 800`).  둘째 줄(`BR010`) · 보온 · 설계 코드는 근거에 남긴다.
+        spec = line_labels.parse_spec(L.spec, line_fmt)
+        r.line_no = L.line_no
+        r.line_size = spec["size"]
+        if spec["size"]:
+            facts["sized"] += 1
         r.evidence["line"] = {
-            "line_no": L.text, "parts": list(L.parts), "spec": L.spec,
+            "line_no": L.line_no, "pipe_no": L.pipe_no, "label": L.text, "parts": list(L.parts), "spec": L.spec,
+            "size": spec["size"], "insulation": spec["insulation"], "design_code": spec["design_code"],
             "rect": [round(v, 1) for v in L.rect], "box": [round(v, 1) for v in L.box],
             "run": [run[0]] + [round(float(v), 1) for v in run[1:]],
             "candidates": n, "source": "DRAWING", "via": via, "pole": bool(L.pole),
+            # hotfix37 — 세 조각의 형식이 어디서 왔나: 보온 글자(범례/없음) · 직경 접두(범례/본문/없음)
+            "format": {"source": (line_fmt or {}).get("source", "GENERIC"),
+                       "prefix_source": (line_fmt or {}).get("prefix_source", ""),
+                       "legend_page": (line_fmt or {}).get("page_no")},
             "rule": ("탭한 런 위의 깃발 라벨(닫힌 사각형 + 아래 줄) 중 가장 가까운 것" if via == "tap"
                      else "인출선이 가로지르는 런 중 깃발 라벨이 있는 가장 가까운 것 (한 선분 · 순회 아님)")}
         facts["attached"] += 1

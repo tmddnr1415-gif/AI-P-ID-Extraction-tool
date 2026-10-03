@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import collections
+import re
 from dataclasses import dataclass, field
 
 import pymupdf
@@ -56,9 +57,18 @@ class LineLabel:
     dir: tuple
     h: float
     run: tuple | None = None  # ('H', y, x0, x1) — 깃대가 닿은 배관 런
-    spec: str = ""            # 런 건너편 글줄 (관경·등급), 뜻은 안 읽는다
+    spec: str = ""            # 런 건너편 글줄 (관경·보온·설계 코드), 글자 그대로
     parts: tuple = ()
     pole: bool = False        # 깃대가 런까지 그려져 있어 그것으로 런을 정했는가
+
+    @property
+    def line_no(self) -> str:
+        """사용자 정의 — 라인 번호는 사각형 안의 코드다 (`12LBB50`).  둘째 줄은 배관 번호."""
+        return self.parts[0] if self.parts else self.text.split(" ")[0]
+
+    @property
+    def pipe_no(self) -> str:
+        return self.parts[1] if len(self.parts) > 1 else ""
 
     def shape(self) -> str:
         return tagsys.shape(self.text.replace(" ", ""))
@@ -438,3 +448,151 @@ def via_leader(rect, leaders, runs, labels, join_slack: float):
     if best is None:
         return None, 0, None
     return best[1], best[2], best[3]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 건너편 글줄 — 범례 "PIPING DESIGNATION FLAG" 가 정의하는 세 자리 (QFE p5 실측):
+#   DN250H LAB1  =  PIPING DIAMETER(DN250) · PIPING INSULATION(H/P/N) · PROCESS DESIGN CODE(LAB1)
+# 형식은 그 범례에서 **배운다** (`learn_flag_format`): 직경 접두(글자)는 범례 예시 글줄의
+# 숫자 앞 글자, 보온 글자는 범례가 `- H :` 꼴로 나열한 것.  범례가 없으면 구조만으로 가른다
+# (글자+숫자 · 숫자 바로 뒤 한 글자 · 나머지) — 출처를 `GENERIC` 으로 적는다.
+# ──────────────────────────────────────────────────────────────────────────
+# 구조만으로 가르는 토큰 — 글자(1~3) + 숫자(두 자리 이상 · `XX` 자리맡).  숫자 한 자리를
+# 받지 않는 이유는 설계 코드(`LBB1` · `PCB1`)가 같은 꼴이기 때문이다.  범례가 접두를 주면
+# `parse_spec` 은 그 접두로 찾으므로(`\d{1,4}`) 이 제한은 **GENERIC 에만** 걸린다.
+_SIZE_RE = re.compile(r"(?<![A-Z0-9])(?P<prefix>[A-Z]{1,3})\s*(?P<size>\d{2,4}|X{1,3})(?![0-9])")
+
+
+def parse_spec(spec: str, fmt: dict | None = None) -> dict:
+    """`DN800H LBB1` / `DN 800 H LBB1` / `DN150NGKB4` / `NOTE 2 DN50H LBB1`
+    → size `DN 800` · insulation `H` · design_code `LBB1`.
+
+    사용자 정의: 라인 사이즈는 `DN 800` 꼴(접두 + 공백 + 수).  접두는 범례가 가르쳐 준
+    것(`diameter_prefix`)을 먼저 찾고, 없으면 글줄 안의 `글자(1~3)+숫자` 토큰.  보온 글자는
+    범례가 나열한 집합에 있을 때만 떼고, 범례가 없으면 숫자 바로 뒤 **홀로 선 한 글자**만
+    보온으로 본다 — 붙어 있는 `NGKB4` 는 가르지 않는다 (지어내지 않는다).
+    """
+    out = {"size": "", "diameter_prefix": "", "insulation": "", "design_code": "", "raw": spec or ""}
+    text = " ".join((spec or "").upper().split())
+    if not text:
+        return out
+    want = (fmt or {}).get("diameter_prefix") or ""
+    m = None
+    if want:
+        m = re.search(r"(?<![A-Z0-9])(?P<prefix>%s)\s*(?P<size>\d{1,4}|X{1,3})(?![0-9])" % re.escape(want), text)
+    if m is None and not want:
+        m = _SIZE_RE.search(text)
+    if m is None:
+        return out
+    prefix, size = m.group("prefix"), m.group("size")
+    out["diameter_prefix"], out["size"] = prefix, f"{prefix} {size}"
+    rest = text[m.end():].strip()
+    letters = set((fmt or {}).get("insulation") or ())
+    if rest:
+        head, _sp, tail = rest.partition(" ")
+        if letters and head[:1] in letters:
+            out["insulation"], rest = head[0], (head[1:] + (" " + tail if tail else "")).strip()
+        elif not letters and len(head) == 1 and head.isalpha():
+            out["insulation"], rest = head, tail.strip()
+    # 설계 코드는 보온 글자 바로 뒤 **한 낱말**이다 — 뒤에 라인 번호를 덧붙인 글줄
+    # (`DN200H LAB3 11LAB21`) 에서 그 꼬리를 코드에 섞지 않는다.
+    out["design_code"] = (rest.split() or [""])[0]
+    return out
+
+
+def _word_lines(pc) -> list:
+    """표시 좌표의 낱말을 글줄로 — 같은 좌표에 겹쳐 찍힌 낱말은 하나 (QFE 범례의 세 번 인쇄)."""
+    seen, items = set(), []
+    for r, t in pc.words:
+        k = (round(r.x0, 1), round(r.y0, 1), t)
+        if k in seen or not t.strip():
+            continue
+        seen.add(k); items.append((r, t))
+    items.sort(key=lambda rt: ((rt[0].y0 + rt[0].y1) / 2, rt[0].x0))
+    lines, cur, cy = [], [], None
+    for r, t in items:
+        c = (r.y0 + r.y1) / 2
+        if cur and abs(c - cy) <= max(r.height, 1.0) / 2:
+            cur.append((r, t))
+        else:
+            if cur:
+                lines.append(sorted(cur, key=lambda rt: rt[0].x0))
+            cur, cy = [(r, t)], c
+    if cur:
+        lines.append(sorted(cur, key=lambda rt: rt[0].x0))
+    return lines
+
+
+def learn_flag_format(pages) -> dict:
+    """범례 장에서 깃발 형식을 배운다 — (보온 글자 집합 · 직경 접두 · 근거).
+
+    보온 글자: 한 글줄에 `-` · 한 글자 · `:` 가 이 순서로 나란한 것 (QFE p5
+    `- H : INSULATION FOR HEAT CONSERVATION`).  직경 접두: 같은 장의 글줄 중
+    `글자+숫자+보온글자` 꼴(범례 예시 `DN250H LAB1`)의 글자 부분 — **QFE 는 그 예시를
+    획으로 그려** 글자가 없으므로 접두는 비워 두고 본문에서 배운다
+    (`learn_prefix_from_labels` · §9 ④).  보온 글자도 못 읽으면 `GENERIC`.
+    """
+    out = {"source": "GENERIC", "insulation": [], "diameter_prefix": "", "page_no": None,
+           "prefix_source": ""}
+    for pc in pages:
+        lines = _word_lines(pc)
+        letters = []
+        for ln in lines:
+            toks = [t for _r, t in ln] + ["", ""]
+            for i in range(len(toks) - 2):
+                if toks[i] != "-":
+                    continue
+                a, b = toks[i + 1], toks[i + 2]
+                # `- H : …` (QFE · 셋이 따로) 또는 `- H: …` (낱말 추출이 `H:` 로 붙인 경우)
+                if len(a) == 1 and a.isalpha() and b.startswith(":"):
+                    letters.append(a.upper())
+                elif len(a) == 2 and a[0].isalpha() and a[1] == ":":
+                    letters.append(a[0].upper())
+        if len(letters) < 2:
+            continue
+        out.update({"source": "LEGEND", "insulation": sorted(set(letters)), "page_no": pc.page_no})
+        prefixes = collections.Counter()
+        for ln in lines:
+            text = " ".join(t for _r, t in ln).upper()
+            for mm in _SIZE_RE.finditer(text):
+                rest = text[mm.end():].strip()
+                if rest[:1] in letters:
+                    prefixes[mm.group("prefix")] += 1
+        if prefixes:
+            out.update({"diameter_prefix": prefixes.most_common(1)[0][0], "prefix_source": "LEGEND"})
+        return out
+    return out
+
+
+def learn_prefix_from_labels(labels_by_page: dict, fmt: dict | None) -> dict:
+    """직경 접두를 **본문 깃발 다수**에서 배운다 — 범례가 글자로 주지 않을 때만.
+
+    규칙은 18·25회차와 같다: 그 문서가 **두 장 이상**에서 되풀이해 인쇄한 꼴만 받는다.
+    후보는 건너편 글줄의 `글자(1~3)+숫자` 토큰이고, 범례가 보온 글자를 줬으면 숫자 뒤가
+    그 글자인 것만 센다.  한 장뿐이면 배우지 않는다 (코드에 `DN` 을 적지 않는다).
+    """
+    out = dict(fmt or {})
+    out.setdefault("insulation", []); out.setdefault("diameter_prefix", "")
+    out.setdefault("source", "GENERIC"); out.setdefault("prefix_source", "")
+    if out.get("diameter_prefix"):
+        return out
+    letters = set(out.get("insulation") or ())
+    pages_of = collections.defaultdict(set)
+    count = collections.Counter()
+    for pno, labels in (labels_by_page or {}).items():
+        for L in labels:
+            text = " ".join((L.spec or "").upper().split())
+            for mm in _SIZE_RE.finditer(text):
+                rest = text[mm.end():].strip()
+                if letters and rest[:1] not in letters:
+                    continue
+                pfx = mm.group("prefix")
+                count[pfx] += 1
+                pages_of[pfx].add(pno)
+    best = [(n, p) for p, n in count.items() if len(pages_of[p]) >= 2]
+    if not best:
+        return out
+    n, pfx = max(best)
+    out.update({"diameter_prefix": pfx, "prefix_source": "BODY",
+                "prefix_count": n, "prefix_pages": len(pages_of[pfx])})
+    return out

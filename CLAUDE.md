@@ -2885,6 +2885,35 @@ QFE PDF 93장(A1 84 · A3 7 · 회전 2) · `data/QFE_260326.pdf` — 분할 egg
 7. **⚠ 못 잰 것** — SADARA·UAD PDF 없음 · 축1·축2 없음 · QFE 정답지 없음(라인 번호의 옳음은
    p46·p59 를 렌더로 확인한 것뿐).  DXF 경로는 `get_text("dict")` 가 없어 라인 번호를 읽지 않는다.
 
+**그 다음 — Line No. 는 사각형 안 코드 하나 · Line Size 열 신설 (hotfix37)**
+
+사용자: *"Line number 의 형식은 12LBB50 이며 Line Size 는 DN 800 이다.  스스로 개발해 프로그램
+더욱 성장시키고 개발시켜라."*  시험 `tests/test_hotfix37_line_size.py` 6건 (빠른 시험 649).
+화면 자기검증 `spike/ui_audit_lineno.py` → `out/hotfix37/ui/`.
+
+1. **Line No. 는 깃발 사각형 안의 코드 하나(`12LBB50`)다** — hotfix36 이 둘째 줄까지 붙여
+   `12LBB50 BR010` 으로 냈던 것을 갈랐다.  둘째 줄(`BR010`)은 지우지 않고 `evidence.line.pipe_no`
+   · 근거 패널 "배관 번호" 로 남는다 (`LineLabel.line_no` / `pipe_no` = `parts[0]` / `parts[1]`).
+2. **Line Size 는 깃발 건너편 글줄의 직경이다** (`line_labels.parse_spec`).  QFE 범례 p5
+   `PIPING DESIGNATION FLAG` 가 그 글줄을 세 조각으로 정의한다 — `DN250H LAB1` = PIPING DIAMETER ·
+   PIPING INSULATION(`- H : INSULATION FOR HEAT CONSERVATION` · `- P :` · `- N : NO INSULATION`) ·
+   PROCESS DESIGN CODE.  사용자 꼴대로 `DN 800`(접두 + 공백 + 수)으로 적고, 보온 글자와 설계
+   코드는 근거(`insulation` · `design_code`)에 둔다.  `Row.line_size` · `EDITABLE` · **지문 밖**.
+3. **★ 형식은 그 범례에서 배운다 — 그런데 범례 예시가 획이다.**  `learn_flag_format` 은 범례 장의
+   `-` · 한 글자 · `:` 가 나란한 글줄에서 보온 글자 집합을 읽는다 (QFE p5 → `H N P`).  직경 접두는
+   같은 장의 예시(`DN250H LAB1`)에서 읽으려 했는데 **QFE 는 그 예시를 획으로 그려** 낱말이 0개다
+   (`out/hotfix36/p5_piping.png` · 주석 0).  그래서 §9 ④ — 체계가 선 본문 깃발이 **두 장 이상**에서
+   되풀이한 `글자+숫자` 접두를 쓴다 (`learn_prefix_from_labels` · QFE `DN` 2,8xx개/77장).  한 장뿐이면
+   배우지 않는다.  **코드에 `DN`·`H`·`P`·`N` 이 없다** (AST 시험).  근거 패널은 출처를 그대로
+   말한다 — *범례 p5 의 깃발 정의 (보온 글자) · 직경 접두는 본문 깃발 다수* / *범례 정의 없음 — 구조로만*.
+4. **GENERIC(범례 없음)은 좁게 간다** — `글자(1~3)+숫자 두 자리 이상` 토큰만 직경이고(한 자리는
+   설계 코드 `LBB1`·`PCB1` 과 같은 꼴), 보온은 숫자 뒤 **홀로 선 한 글자**만.  붙여 쓴
+   `DN150NGKB4` 는 범례 글자가 있어야 `N` + `GKB4` 로 갈린다 — 없으면 `NGKB4` 그대로 (지어내지 않는다).
+   설계 코드는 보온 뒤 **한 낱말** — `DN200H LAB3 11LAB21` 의 꼬리 라인 번호를 섞지 않는다.
+5. **QFE 실측** — __QFE_CLAUDE__
+6. **⚠ 못 잰 것** — SADARA·UAD PDF 없음 · 축1·축2 없음 · Excel 양식 없음.  DXF 는 여전히 라인 번호를 안 읽는다.
+   hotfix36 으로 분석해 둔 결과는 옛 꼴(`12LBB50 BR010`)이 남는다 — 다시 분석해야 바뀐다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3222,6 +3251,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/engine/tags.py` 의 `assign`·`shape` | **증거 등급을 그 도면이 정한다** (29회차 · §10).  규칙: 코드가 **한 검출에만** 나오고 그 **모양이 두 검출·두 장 이상**에서 되풀이될 때만 태그.  모양은 글자·숫자 달리기(`D2L3D2L2D3L1`)이고 **KKS 정규식을 코드에 박지 않는다**.  측정이 세 번 좁혔다 (AL NOUF1 오검 9 → 2 → **0**) |
 | `tags.assign(kinds=)` · `pipeline._tag_kind` | **hotfix35** — 같은 장의 서로 다른 종류가 공유하는 코드는 **한 루프의 이름**이다 (PI ↔ PIT 가 `11LBB50CP001` 을 같이 든다).  2차 규칙(두 검출 이상 = 이름 아님)이 그것을 버려 hotfix31 접기가 돌지 않았다.  종류는 "다르다" 만 보고 글자 뜻은 안 본다.  `kinds` 없이는 옛 판정 그대로 |
 | `app/engine/line_labels.py` | **hotfix36** — 배관 라인 번호 깃발: 닫힌 사각형 안 코드 + 아래 줄 + 깃대가 닿는 평행 런 + 건너편 글줄.  글자 방향(`dir`)을 따라가 세로 배관도 같다.  글자 뜻(`BR`) 없음 · 허용치는 전부 글자 높이 배율 · 모양은 두 장 이상 되풀이로.  읽기만 한다 |
+| `line_labels.parse_spec` · `learn_flag_format` · `learn_prefix_from_labels` | **hotfix37** — 건너편 글줄 `DN800H LBB1` 을 직경(`DN 800`) · 보온 · 설계 코드로.  보온 글자는 **그 범례**의 `- H :` 글줄에서, 직경 접두는 범례 예시가 글자면 거기서 · 획이면(QFE) **본문 깃발이 두 장 이상에서 되풀이한 접두**에서 (§9 ④).  코드에 `DN`·`H`·`P`·`N` 없음 (AST 시험).  GENERIC 은 숫자 두 자리 이상 + 홀로 선 한 글자만 |
+| `Row.line_no` · `Row.line_size` · `evidence["line"]` | **hotfix37** — Line No. 는 사각형 안 코드 하나(`12LBB50`), Line Size 는 `DN 800`.  둘째 줄(`BR010`)은 `pipe_no` 로 근거에만.  둘 다 `EDITABLE` · **지문 밖**.  `format` 에 형식 출처(범례/본문/없음)가 들어가 근거 패널이 그대로 말한다 |
 | `pipeline._attach_line_numbers` · `line_labels.via_leader` · `_extend_through_symbols` | 행에 붙이는 길 둘 — 탭한 런 위 · 인출선이 가로지르는 런(뿌리 밸브로 끊긴 인출선은 직교 획이 있는 틈만 잇는다).  라벨 없는 긴 런을 먼저 만나면 멈춘다.  `line_no` 는 지문 밖 · `EDITABLE` |
 | `describe_axis.page_runs` | 한 페이지의 (병합 런 · 인출선 · 표준 끊김) — `judge_page` 와 라인 라벨이 **같은 런**을 받는다.  `judge_page(geometry=)` 가 없으면 예전처럼 안에서 만든다 |
 | `isa_table.succeeding_from_cells` 의 겹침 접기 · `_turn_cw`/`_turn_ccw` | **hotfix36** — 범례가 글자를 세 번 겹쳐 찍어도(QFE) `( ) X` 칸으로 읽는다 · 표를 90° 돌려 인쇄한 판은 좌표를 돌려 같은 함수로.  ISA 표 안에서만 접는다 (`pidcache` 전역 dedup 은 프로젝트가 켜는 것) |

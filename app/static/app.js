@@ -27,7 +27,7 @@ const COLS = [
   // `values.tag_no` 그대로이고(1급 태그 · 마크업 · 편집), 자리만 옮긴다.
   ["type", "Type", true], ["tag_no", "Tag No.", true],
   // hotfix36 — 탭한 배관의 라인 번호 (도면의 깃발 라벨 · 지문 밖 · 편집 가능).
-  ["line_no", "Line No.", true], ["valve_type", "Valve Type", true],
+  ["line_no", "Line No.", true], ["line_size", "Line Size", true], ["valve_type", "Valve Type", true],
   ["qty", "Q'ty", true], ["system", "System", true],
   ["vendor_supply", "Vendor", true], ["scope", "Scope", true],
   ["description", "Description", true],
@@ -3333,8 +3333,19 @@ function showEvidence(row) {
   }
   // hotfix36 — 탭한 배관의 라인 번호 깃발.  뜻은 안 읽고 글자 그대로 (spec 은 런 건너편 글줄).
   if (e.line && e.line.line_no) {
-    add("Line No. 근거", `${e.line.line_no} — 도면 깃발 라벨` + (e.line.spec ? ` · 건너편 ${e.line.spec}` : "")
+    add("Line No. 근거", `${e.line.line_no} — 도면 깃발 라벨 (사각형 안)` + (e.line.pipe_no ? ` · 배관 번호 ${e.line.pipe_no}` : "")
+      + (e.line.spec ? ` · 건너편 ${e.line.spec}` : "")
       + (e.line.candidates > 1 ? ` · 같은 런에 라벨 ${e.line.candidates}개 (가장 가까운 것)` : ""));
+    if (e.line.size) {
+      // hotfix37 — 형식의 출처를 그대로 말한다: 보온 글자는 범례 글줄, 직경 접두는 범례 예시가 글자면 범례,
+      // 획이면(QFE) 본문 깃발 다수.  둘 다 없으면 구조만으로 가른 것이라 그렇게 적는다.
+      const f = e.line.format || {};
+      const src = f.source === "LEGEND"
+        ? `범례 p${f.legend_page || "?"} 의 깃발 정의 (보온 글자)` + (f.prefix_source === "BODY" ? " · 직경 접두는 본문 깃발 다수" : f.prefix_source === "LEGEND" ? " · 직경 접두는 범례 예시" : "")
+        : "범례 정의 없음 — 글자+숫자 구조로만 가름";
+      add("Line Size 근거", `${e.line.size}` + (e.line.insulation ? ` · 보온 ${e.line.insulation}` : "")
+        + (e.line.design_code ? ` · 설계 코드 ${e.line.design_code}` : "") + ` — ${src}`);
+    }
     add("Line No. 규칙", e.line.rule);
   }
   // hotfix31 — 한 라인(같은 태그)의 표시기를 전송기로 접은 것 · 표시기만 있는 라인은 게이지.
@@ -5987,6 +5998,7 @@ function reportPreview(opts) {
     add("Type", row.values.type || row.values.valve_type || "(없음)");
     add("Tag No.", row.values.tag_no || "(미부여)");
     add("Line No.", row.values.line_no || "(없음)");
+    add("Line Size", row.values.line_size || "(없음)");
     add("Q'ty · Scope", `${row.values.qty ?? ""} · ${row.values.scope || ""}`);
     add("Description", row.values.description || "(비어 있음)");
     add("적용 규칙", (row.evidence.rules_hit || []).join(", ") || "제외 규칙 해당 없음");

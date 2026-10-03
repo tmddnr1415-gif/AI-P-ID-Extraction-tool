@@ -71,28 +71,36 @@ try:
         heads = pg.evaluate("() => [...document.querySelectorAll('#grid thead th')].map(t => t.textContent.trim())")
         note("머리글: " + repr(heads))
         idx = lambda name: next(i for i, h in enumerate(heads) if h.startswith(name))
-        i_type, i_tag, i_line = idx("Type"), idx("Tag No."), idx("Line No.")
-        note(f"① 머리글 순서 Type@{i_type} · Tag No.@{i_tag} · Line No.@{i_line} — {'맞음' if i_type < i_tag < i_line else '★ 틀림'}")
+        i_type, i_tag, i_line, i_size = idx("Type"), idx("Tag No."), idx("Line No."), idx("Line Size")
+        note(f"① 머리글 순서 Type@{i_type} · Tag No.@{i_tag} · Line No.@{i_line} · Line Size@{i_size} — "
+             f"{'맞음' if i_type < i_tag < i_line < i_size else '★ 틀림'}")
         cells = pg.evaluate("""() => [...document.querySelectorAll('#grid tbody tr')].map(tr => ({
             tag: (tr.querySelector('td[data-col=tag_no]')||{}).textContent, line: (tr.querySelector('td[data-col=line_no]')||{}).textContent,
+            size: (tr.querySelector('td[data-col=line_size]')||{}).textContent,
             type: (tr.querySelector('td[data-col=type]')||{}).textContent }))""")
         with_line = [c for c in cells if (c.get("line") or "").strip()]
         with_tag = [c for c in cells if (c.get("tag") or "").strip()]
-        note(f"② p{PAGE} 목록 {len(cells)}행 · Tag No. 있는 행 {len(with_tag)} · Line No. 있는 행 {len(with_line)} · 예 {with_line[:3]}")
+        with_size = [c for c in cells if (c.get("size") or "").strip()]
+        bad_line = [c["line"] for c in with_line if " " in c["line"].strip()]        # hotfix37 — 코드 하나여야 한다
+        note(f"② p{PAGE} 목록 {len(cells)}행 · Tag No. 있는 행 {len(with_tag)} · Line No. 있는 행 {len(with_line)} · "
+             f"Line Size 있는 행 {len(with_size)} · 예 {with_line[:3]}")
+        note(f"②-b Line No. 에 공백이 든 행 {len(bad_line)}{' ★ ' + repr(bad_line[:3]) if bad_line else ''} · "
+             f"Line Size 꼴 {sorted(set((c['size'] or '').strip().split(' ')[0] for c in with_size))}")
         pg.screenshot(path=str(OUT / f"1_p{PAGE}_목록.png"))
         # 열 셋만 크롭 — 열의 bounding box 로 (12회차 규칙)
         th = pg.query_selector_all("#grid thead th")
-        b0, b1 = th[i_type].bounding_box(), th[i_line].bounding_box()
+        b0, b1 = th[i_type].bounding_box(), th[i_size].bounding_box()
         grid = pg.query_selector("#grid").bounding_box()
-        pg.screenshot(path=str(OUT / f"2_p{PAGE}_열_Type_Tag_Line.png"),
+        pg.screenshot(path=str(OUT / f"2_p{PAGE}_열_Type_Tag_Line_Size.png"),
                       clip={"x": b0["x"] - 4, "y": grid["y"], "width": b1["x"] + b1["width"] - b0["x"] + 8, "height": min(grid["height"], 700)})
         key = pg.evaluate("""() => { const tr = [...document.querySelectorAll('#grid tbody tr')].find(tr => ((tr.querySelector('td[data-col=line_no]')||{}).textContent||'').trim());
             return tr ? tr.dataset.key : null; }""")
         if key:
             pg.evaluate(f"() => select({json.dumps(key)}, false)"); pg.wait_for_timeout(800)
             panel = pg.inner_text("#evidence") if pg.query_selector("#evidence") else ""
-            has = "Line No. 근거" in panel
-            note(f"③ 근거 패널 'Line No. 근거' {'있음' if has else '★ 없음'} — " + repr([l for l in panel.splitlines() if 'Line No' in l][:3]))
+            has = "Line No. 근거" in panel; has2 = "Line Size 근거" in panel
+            note(f"③ 근거 패널 'Line No. 근거' {'있음' if has else '★ 없음'} · 'Line Size 근거' {'있음' if has2 else '★ 없음'} — "
+                 + repr([l for l in panel.splitlines() if 'Line ' in l][:4]))
             ev = pg.query_selector("#evidence")
             if ev: ev.screenshot(path=str(OUT / "3_근거패널.png"))
         else:
@@ -101,4 +109,4 @@ try:
         br.close()
 finally:
     srv.terminate()
-    (OUT / "README.md").write_text("# hotfix36 UI 자기검증 — Line No. 열\n\n" + "\n".join(f"- {s}" for s in FOUND) + "\n", encoding="utf-8")
+    (OUT / "README.md").write_text("# hotfix36/37 UI 자기검증 — Line No. · Line Size 열\n\n" + "\n".join(f"- {s}" for s in FOUND) + "\n", encoding="utf-8")

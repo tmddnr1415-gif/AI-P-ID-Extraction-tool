@@ -14,7 +14,7 @@ by_no = {pc.page_no: pc for pc in pages}
 fields = {f.name for f in dataclasses.fields(P.Row)}
 rows = [P.Row(**{k: v for k, v in r.items() if k in fields}) for r in res["rows"] if r["page_no"] in wanted]
 for r in rows:
-    r.rect = tuple(r.rect); r.line_no = ""; r.evidence.pop("line", None)
+    r.rect = tuple(r.rect); r.line_no = ""; r.line_size = ""; r.evidence.pop("line", None)
 labels_by_page, geo, tap_of = {}, {}, {}
 for pno in wanted:
     pc = by_no[pno]
@@ -24,10 +24,11 @@ for pno in wanted:
         if r.page_no == pno and not ((r.evidence.get("axis") or {}).get("ev") or {}).get("run"):
             run, _how = daxis.pick_tap(r.rect, g[0], g[1], style["join_slack"], style.get("min_run") or style["join_slack"])
             if run: tap_of[r.key] = run
-facts = P._attach_line_numbers(rows, labels_by_page, style["join_slack"], tap_of, geo)
+fmt = LL.learn_flag_format([pc for pc in pages if not pc.analysis_scope] or pages)   # hotfix37
+facts = P._attach_line_numbers(rows, labels_by_page, style["join_slack"], tap_of, geo, line_fmt=fmt)
 print("facts", {k: v for k, v in facts.items() if k != "pages"})
 for pno in wanted:
     print(f"\n-- p{pno}  라벨 {len(labels_by_page[pno])} (깃대로 런 정한 것 {sum(1 for L in labels_by_page[pno] if L.pole)})")
     for r in sorted([r for r in rows if r.page_no == pno], key=lambda r: (r.rect[1], r.rect[0])):
         L = r.evidence.get("line") or {}
-        print(f"  {r.type:6s} {r.tag_no or '-':14s} rect={[round(v) for v in r.rect]} line={r.line_no or '-':16s} via={L.get('via','')!s:6s} cand={L.get('candidates','')} spec={L.get('spec','')!r}")
+        print(f"  {r.type:6s} {r.tag_no or '-':14s} rect={[round(v) for v in r.rect]} line={r.line_no or '-':9s} size={r.line_size or '-':7s} via={L.get('via','')!s:6s} cand={L.get('candidates','')} spec={L.get('spec','')!r}")
