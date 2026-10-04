@@ -1323,11 +1323,19 @@ async function loadRevision() {
   if (S.rev.compared_with && (mb.TAG || mb.GEOMETRY)) {
     bits.push(`짝 태그 ${mb.TAG || 0} · 기하 ${mb.GEOMETRY || 0}`);
   }
+  // 도면번호가 바뀐 장 · 한쪽에만 있는 장 — 장 단위 사실이라 행 수와 따로 말한다.
+  const sh = S.rev.sheets || {};
+  if ((sh.renumbered || []).length) bits.push(`도면번호 바뀐 장 ${sh.renumbered.length}`);
+  if ((sh.only_now || []).length) bits.push(`새 장 ${sh.only_now.length}`);
+  if ((sh.only_before || []).length) bits.push(`빠진 장 ${sh.only_before.length}`);
   el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
   el.title = S.rev.compared_with
     ? `${S.rev.compared_with} 와 비교한 결과입니다.  추가 = 이번에 새로 선 행, `
       + `삭제 후보 = 직전 리비전에 있었는데 이번에 짝이 없는 행 (사람이 확정합니다).  `
       + `목록의 '개정' 열과 개정 필터로 좁힐 수 있습니다.`
+      + ((sh.renumbered || []).map(e => `\n도면번호 바뀐 장: ${e.before} → ${e.now} (태그 ${e.shared}개 공유)`).join(""))
+      + ((sh.only_now || []).length ? `\n새 장: ${sh.only_now.join(", ")}` : "")
+      + ((sh.only_before || []).length ? `\n빠진 장: ${sh.only_before.join(", ")}` : "")
     : "";
   el.classList.remove("hidden");
   // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
@@ -3304,6 +3312,7 @@ function showEvidence(row) {
     sec("개정");
     const vs = (S.rev || {}).compared_with || "직전 리비전";
     add("개정 상태", `${revLabel(row)} — ${vs} 대비` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
+    if (rv.sheet_renumbered_from) add("도면번호 바뀐 장", `${rv.sheet_renumbered_from} → 이 장 (태그로 같은 장임을 확인)`);
     if (rv.reason) add("추가 근거", rv.reason);
     if (rv.state === "MODIFIED") {
       add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
@@ -3315,6 +3324,7 @@ function showEvidence(row) {
     sec("개정");
     add("개정 상태", `변경 없음 — ${(S.rev || {}).compared_with || "직전 리비전"} 대비`
       + ` · 짝 ${rv.basis === "TAG" ? "태그" : "기하"}` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
+    if (rv.sheet_renumbered_from) add("도면번호 바뀐 장", `${rv.sheet_renumbered_from} → 이 장 (태그로 같은 장임을 확인)`);
   }
   sec("공급 · 수량");
 

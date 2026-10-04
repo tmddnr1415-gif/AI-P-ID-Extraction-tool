@@ -211,6 +211,17 @@ class Registry:
 BASELINE = "BASELINE"          # 비교 대상이 없다.  Rev.A 가 여기 해당한다
 
 
+def registry_snapshot_path(reg_path: Path, revision: str) -> Path:
+    """그 리비전을 **처음 대조하기 전**의 장부 사본 자리 (hotfix38).
+
+    `id_registry.json` 옆에 `id_registry.before_Rev.B.json` 꼴로 둔다.  같은
+    리비전을 다시 대조할 때 여기서 시작해야 직전 대조가 만든 ID 가 "변경 없음"
+    으로 둔갑하지 않는다.  리비전 이름은 `safe_name` 과 같은 글자 규칙을 지난다.
+    """
+    tag = "".join(c if c.isalnum() or c in "._-" else "_" for c in (revision or "none"))
+    return reg_path.with_name(f"id_registry.before_{tag}.json")
+
+
 def _tag_key(type_, tag):
     """태그 짝의 열쇠.  hotfix35 — 한 루프의 PI 와 PIT 는 **같은 태그**를 들므로
     태그만으로는 둘이 갈리지 않고 TYPE 을 함께 본다.  태그가 비면 열쇠가 없다."""

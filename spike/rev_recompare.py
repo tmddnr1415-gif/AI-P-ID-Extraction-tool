@@ -1,6 +1,6 @@
 """hotfix38 — 저장된 데이터 디렉터리에서 **분석 없이** 대조만 다시 돌린다.
 
-    python3 spike/rev_recompare.py <data_dir> <job_B> <out_dir>
+    python3 spike/rev_recompare.py <data_dir> <job_B> <out_dir> [project] [compared_with]
 
 새 compare() 코드로 다시 짝짓고 /rows · /revision 을 json 으로 둔다.
 """
@@ -22,7 +22,11 @@ for _ in range(60):
     except Exception:
         time.sleep(1)
 try:
-    req = urllib.request.Request(f"{base}/jobs/{job_b}/revision", data=b"", method="POST")
+    import urllib.parse
+    body = urllib.parse.urlencode({"project": sys.argv[4] if len(sys.argv) > 4 else "QFE",
+                                   "compared_with": sys.argv[5] if len(sys.argv) > 5 else "Rev.A"}).encode()
+    req = urllib.request.Request(f"{base}/jobs/{job_b}/revision", data=body, method="POST",
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
     print(json.loads(urllib.request.urlopen(req, timeout=600).read()).get("counts"))
     for name in ("rows?tab=ALL", "revision"):
         blob = urllib.request.urlopen(f"{base}/jobs/{job_b}/{name}", timeout=300).read()

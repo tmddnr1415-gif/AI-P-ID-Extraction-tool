@@ -586,7 +586,19 @@ def _run_comparison(job_id: str) -> dict:
     name, revision = job["project"], job["revision"]
     compared = job["compared_with"] or ""
     reg_path = revisions.project_dir(DATA_DIR, name) / "id_registry.json"
-    registry = revisions.Registry.load(reg_path)
+    # hotfix38 — **같은 리비전을 다시 대조하면 장부를 대조 전으로 되돌린다.**
+    # compare() 는 장부에 쓰면서 간다 (짝지은 기록의 last_anchor·values 갱신 ·
+    # 추가 행에 새 ID).  되돌리지 않고 한 번 더 대조하면 직전 대조가 만든 "추가"
+    # ID 가 장부에 살아 있어 같은 행이 이번엔 "변경 없음" 이 된다 (실측 — 재대조
+    # 결과가 첫 대조와 달랐다).  첫 대조 전의 장부를 리비전 이름으로 떠 두고,
+    # 그 리비전을 다시 대조할 때는 거기서 시작한다.  ID 재부여는 없다 —
+    # 되돌린 장부에는 이 리비전이 만든 ID 가 아직 없다.
+    before = revisions.registry_snapshot_path(reg_path, revision)
+    if before.exists():
+        registry = revisions.Registry.load(before)
+    else:
+        registry = revisions.Registry.load(reg_path)
+        registry.save(before)
     # 대조가 보는 것은 검토자가 보는 값이다 - 엔진 값에 편집이 얹힌 뒤.
     rows = [dict(r["values"], key=r["key"], tab=r["tab"],
                  drawing_no=r["drawing_no"], page_no=r["page_no"], rect=r["rect"])

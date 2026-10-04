@@ -203,3 +203,35 @@ def test_the_screen_marks_added_symbols_and_filters_by_state():
     assert 'id="rev-filter"' in html and 'value="DELETED">삭제만' in html
     # 개정 표기는 한 접근자(`revLabel`)에서 온다 — 그리드 열과 근거 패널이 같이 읽는다
     assert js.count("revLabel(row)") >= 2
+
+
+def test_a_recompare_starts_from_the_registry_as_it_was_before_that_revision(tmp_path):
+    """같은 리비전을 두 번 대조해도 결과가 같다 — 장부 사본에서 시작하기 때문이다."""
+    reg_path = tmp_path / "id_registry.json"
+    reg = R.Registry(); R.compare(base_rows_a(), reg, "Rev.A", compared_with=""); reg.save(reg_path)
+    before = R.registry_snapshot_path(reg_path, "Rev.B")
+    assert before.name == "id_registry.before_Rev.B.json"
+    results = []
+    for _ in range(2):
+        if before.exists():
+            reg = R.Registry.load(before)
+        else:
+            reg = R.Registry.load(reg_path); reg.save(before)
+        out = R.compare(base_rows_b(), reg, "Rev.B", compared_with="Rev.A")
+        reg.save(reg_path)
+        results.append(({k: v["state"] for k, v in out["states"].items()},
+                        sorted(d["id"] for d in out["deleted_candidates"])))
+    assert results[0] == results[1]
+    assert results[0][0]["n"] == R.ADDED          # 두 번째에도 "추가" 다
+    # 사본 없이 이어 대조하면 직전 대조의 ID 가 살아 있어 "추가" 가 사라진다 (옛 결함)
+    reg = R.Registry.load(reg_path)
+    out = R.compare(base_rows_b(), reg, "Rev.B", compared_with="Rev.A")
+    assert out["states"]["n"]["state"] != R.ADDED
+
+
+def base_rows_a():
+    return [row("a", "PIT", 100, 100, "11LBB50CP001"), row("b", "TIT", 400, 100, "11LBB50CT001")]
+
+
+def base_rows_b():
+    return [row("a2", "PIT", 100, 100, "11LBB50CP001"), row("n", "TIT", 800, 800, "11LBB50CT009")]

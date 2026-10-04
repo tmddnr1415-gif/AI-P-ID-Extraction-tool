@@ -235,6 +235,7 @@ _ADDED_COLUMNS = (
     # 화면·Excel 이 그대로 읽는 사실이고 판정은 `revisions.compare` 한 곳이다.
     ("revision_state", "basis", "TEXT NOT NULL DEFAULT ''"),
     ("revision_state", "reason", "TEXT NOT NULL DEFAULT ''"),
+    ("revision_state", "sheet_from", "TEXT NOT NULL DEFAULT ''"),   # 도면번호가 바뀐 장의 옛 번호
     # 몇 장짜리 문서인가, 그중 몇 장을 읽었는가, 얼마나 걸렸는가.  네 값 다
     # 화면에 그대로 나가므로 추정하지 않는다: `page_count` 는 업로드 직후 PDF
     # 에서 세고 (못 세면 0 이고, 0 은 "모른다"이지 "0쪽"이 아니다),
@@ -1188,11 +1189,12 @@ def store_revision_result(con, job_id: str, result: dict) -> None:
     for key, st in result["states"].items():
         con.execute(
             "INSERT INTO revision_state (job_id,row_key,stable_id,state,"
-            "excel_no,moved_pt,changed_json,basis,reason) VALUES (?,?,?,?,?,?,?,?,?)",
+            "excel_no,moved_pt,changed_json,basis,reason,sheet_from) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (job_id, key, st.get("id", ""), st.get("state", ""),
              int(st.get("excel_no") or 0), float(st.get("moved_pt") or 0),
              json.dumps(st.get("changed") or [], ensure_ascii=False),
-             st.get("basis") or "", st.get("reason") or ""))
+             st.get("basis") or "", st.get("reason") or "",
+             st.get("sheet_renumbered_from") or ""))
     for d in result["deleted_candidates"]:
         con.execute(
             "INSERT INTO deleted_candidate (job_id,stable_id,payload_json,confirmed)"
@@ -1205,7 +1207,8 @@ def revision_states(con, job_id: str) -> dict:
     return {r["row_key"]: {"id": r["stable_id"], "state": r["state"],
                            "excel_no": r["excel_no"], "moved_pt": r["moved_pt"],
                            "changed": json.loads(r["changed_json"]),
-                           "basis": r["basis"], "reason": r["reason"]}
+                           "basis": r["basis"], "reason": r["reason"],
+                           "sheet_renumbered_from": r["sheet_from"]}
             for r in con.execute(
                 "SELECT * FROM revision_state WHERE job_id=?", (job_id,))}
 
