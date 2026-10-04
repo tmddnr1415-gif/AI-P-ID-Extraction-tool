@@ -1,39 +1,17 @@
 [감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
 [감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
-INFO:     Started server process [3704]
+INFO:     Started server process [4398]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:36115 (Press CTRL+C to quit)
-INFO:     127.0.0.1:58386 - "GET /home HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58392 - "POST /projects HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58398 - "POST /jobs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58408 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52504 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48018 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46394 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33358 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49524 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:40758 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55084 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58622 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56598 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52078 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:39870 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43506 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43066 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60366 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57362 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48270 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:45142 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38450 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33598 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38084 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42644 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35540 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37774 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55378 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:45860 - "GET /jobs/1ff804786a95 HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3704]
+INFO:     Uvicorn running on http://127.0.0.1:36379 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50522 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50526 - "POST /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50532 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50534 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57312 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54664 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33066 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46810 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34792 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45948 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35846 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
