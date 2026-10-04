@@ -2976,6 +2976,49 @@ UAD-DXF `a32c02a6`·507 전부 "기준선과 같습니다" · QFE 2019 → **201
 6. **못 잰 것** — SADARA·UAD PDF · `data/*.xlsx` 없음 (축1·2 · Excel 출력).  두 판의 **검출 차이**
    (한쪽만 행이 된 심볼 · p56 LCV 글로브)는 그대로 추가/삭제 후보로 올라온다 — 사람이 확정한다.
 
+**그 다음 — 실행 프로젝트는 태그가 우선 · 직전 결과 전환 (hotfix39)**
+
+사용자: *"QFE 는 실행 프로젝트이다.  실행 프로젝트 출력 시에는 tag number 가 우선시 되어야 하며
+tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 수준으로."*  그리고 *"개정된 P&ID 가
+들어오면 오른쪽 list 및 속성란을 직전 P&ID 결과로 불러와 선택 가능하게 … 가볍고 빠르게."*
+전문 `out/hotfix39/1_보고서.md` · 화면 `out/hotfix39/ui/` · `ui_switch/`.  시험 682 → **697**.
+**[회귀] AL NOUF1 `c5856d6d`·1137·2140·94.8 · TC2 `67eae92d`·902·5564·94.2 · UAD-DXF `a32c02a6`·507
+불변 · QFE 2011 → 2041 (`b2409717` · Q'ty 3710 · 축3 89.0) — 사라진 3(p51 탱크 안 낱말) ·
+새로 선 33(태그가 증거인 행) · 공통 행 지문 열 움직임 1(p51 LI SCOPE) → 기준선 갱신.**
+
+1. **★ 사전을 적지 않는다 — 도면이 가르친다** (`tags.grammar`).  KKS 기능코드 표를 코드에 두면
+   다음 회사 체계에서 틀린다 (§9).  태그와 버블 글자가 함께 있는 행에서 태그 글자 묶음 자리마다
+   "그 자리의 글자가 버블 머리글자를 얼마나 결정하는가" 를 세어 가장 순도 높은 자리를 고른다.
+   QFE: 둘째 묶음 · 순도 0.99 · 1,541행 · `CP→P 770 · CT→T 305 · CL→L 314/329 · CF→F 114 ·
+   CQ→A 14` · 계기 코드 첫 글자 `C`(99.4%).  UAD-DXF: 순도 1.0 · `CG→Z 5` 까지.  AST 시험이
+   `CP`·`CT`·`CL`·`CF`·`CG` 리터럴을 막는다.  배운 것은 `result["tag_grammar"]` (지문 밖).
+2. **교차 검증** — 코드의 과반 변수(둘 이상 되풀이)와 버블 글자가 다르면 `TAG_TYPE_MISMATCH`
+   (행은 안 고친다).  QFE 15행: `PI …CL5xx` 7 · `GTC …CL001` 4 · `PICA` 2 · `TI 00QUP02CL002` 1 ·
+   `HS` 1 — 도면이 두 말을 하는 자리이고 사람이 가른다.
+3. **태그가 증거인 행** (`pipeline._tag_grammar_pass` · epc 만) — 버블 글자가 ISA 표로 안 풀리거나
+   (`ZSOC`·`ZOCL`) 버블을 못 세우거나 둘에 걸린 낱말 **바로 아래** 이 체계의 태그가 있고 그 코드가
+   계기 코드 첫 글자로 시작하면 행.  같은 장·같은 태그는 한 행(열림/닫힘 신호 둘 = 계기 하나) ·
+   수량은 같은 장 값이 하나로 모일 때만 · 공급 주체는 비우고 `TAG_EVIDENCE_ROW`.  QFE 33행
+   (`ZOCL` 20 · `ZSOC` 7 · `ZOL` 3 · `PI` 2 · `PDIT` 1) · 건너뜀 태그 없음 58 · 계기 코드 아님 8
+   (밸브 `AA` · `DRAIN`) · 이미 행 2.
+4. **★ 품는 윤곽은 버블이 아니다 — 한 번 틀렸다.**  첫 판이 QFE p42 의 **양 끝 호 캡**(9×21pt
+   작은 윤곽)을 품는 관계로 읽어 버블 36개를 버렸다 (회귀가 p42 행 22 소실로 잡았다).  "변을
+   하나도 나누지 않고 안쪽에" 로 좁혀(`_without_containers`) p42 36 · p51 16 · p39 25.  p51 의
+   `TANK`·`AA`·`CLEAN` 쓰레기 행 3 이 사라지고, 탱크 외곽이 마크 경쟁에서 빠지자 `LI 10LCM10CL002`
+   가 `(*)` 를 받아 `VENDOR_MARK_UNDEFINED` 로 검토에 오른다.
+5. **출력** — `excel_sort_key` 가 같은 장 안에서 태그 있는 행을 태그 순으로 앞에 세운다 (태그 없는
+   문서는 모든 행의 태그가 비어 예전 순서 그대로).  `/mode` 띠에 태그 문법 한 줄 · 근거 패널
+   "태그 교차 검증" · "태그가 증거".  속도는 태그와 무관한 단계(밸브 676 · 레이아웃 526초)가 7할
+   이라 이 회차가 줄이는 자리가 아니다 — 그대로 적는다.
+6. **직전 ↔ 현재 결과 스위치** — 오른쪽 맨 위 `결과 [이전 Rev.A] [현재 Rev.B]`.  오른쪽 전체와
+   왼쪽 도면이 그 결과로, 장은 **같은 도면번호**로.  처음은 보통의 열기(9.2초), 돌아올 때는 화면
+   상태를 통째로 메모리에서 되살려 **1.1초 · 결과 요청 0** (`S.viewCache` · `snapshotView` /
+   `restoreView` · `renderRevLabel` 하나).  `/revision` 이 `previous_job_id` · `next_jobs`.
+   ⚠ 자기검증이 **리팩터가 지운 함수 블록**을 잡았다 (`renderRevSwitch is not defined`) → 복원 ·
+   소스 시험 5건.
+7. **못 잰 것** — SADARA · UAD PDF · `data/*.xlsx` 없음.  DXF 는 교차 검증만 (태그가 증거인 행은
+   DXF 미판정 꼴이 달라 안 만든다).  버블 글자가 아예 없는 태그만의 계기는 행이 안 된다 (사례 없음).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3382,6 +3425,13 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `revLabel` · `rev_state` 열 · `#rev-filter` · `deletedRemark` · `text.revtag` | **hotfix38** — 개정 표기는 `rev.state` 한 접근자.  열·필터·삭제 Remark·도면 ADD/MOD 글자·근거 패널이 같이 읽는다 |
 | `excel_out.revision_remark` · `row["rev_against"]` | **hotfix38** — REMARK 앞머리 `Rev.A 대비 추가/수정 (칸)/삭제 (확정)`.  BASELINE·UNCHANGED 는 빈 문자열 |
 | `spike/rev_flow_qfe.py` · `rev_tag_diff.py` · `rev_crops.py` · `ui_audit_revision.py` · `readout_link_probe.py` | 실제 경로 두 판 흐름 · 독립 태그 대조 · 추가/삭제 눈 확인 크롭 · 개정 화면 자기검증 · 표시기↔전송기 이어 그린 짝 전수 |
+| `tags.grammar` · `tags.code_of` | **hotfix39** — 태그의 어느 글자 묶음이 계기 변수를 말하는지와 코드→변수 과반을 **그 도면에서** 배운다 (사전 0 · AST 시험).  `result["tag_grammar"]` 지문 밖 |
+| `pipeline._tag_grammar_pass` · `TAG_TYPE_MISMATCH` · `TAG_EVIDENCE_ROW` | **hotfix39** — epc 만.  교차 검증(행 불변 · 사유만) · 태그가 증거인 행(낱말 바로 아래 체계 태그 · 계기 코드 첫 글자 · 같은 태그 한 행 · 공급 주체 미판정).  DXF 는 교차 검증만 |
+| `detect_symbols._without_containers` | **hotfix39** — 변을 나누지 않고 안쪽에 다른 윤곽을 품는 윤곽은 버블이 아니다 (탱크 외곽).  호 캡 윤곽은 변을 나누므로 버블이 남는다 (p42 — 첫 판의 실패) |
+| `revisions.excel_sort_key` 의 태그 순 | **hotfix39** — 같은 장에서 태그 있는 행이 태그 순으로 앞.  태그 없는 문서는 불변 |
+| `app.js` `S.viewCache` · `snapshotView` · `restoreView` · `renderRevSwitch` · `switchView` · `renderRevLabel` · `#rev-switch` | **hotfix39** — 직전/현재 결과 전환.  처음은 `open()`, 그 뒤는 메모리 복원(결과 요청 0).  장은 같은 도면번호.  개정 라벨은 한 함수 |
+| `main.job_revision` 의 `previous_job_id` · `next_jobs` | **hotfix39** — 장부(`project.json`)에서 직전·다음 리비전의 분석 id.  판정 아님 |
+| `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

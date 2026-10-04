@@ -2428,7 +2428,9 @@ def _fold_readouts(rows: list, isa, links: dict = None) -> tuple:
                                         "kept_key": winner.key, "folded_key": r.key,
                                         "basis": basis})
             elif facts["enabled"] and basis == "TAG":
-                first = " ".join(isa.words_for(anchor) or ())
+                # hotfix39 — 범례가 글자를 세 번 겹쳐 찍는 문서(QFE)는 변수어도 세 번 온다
+                # (`PRESSURE PRESSURE PRESSURE GAUGE`).  같은 낱말의 되풀이만 접는다.
+                first = " ".join(dict.fromkeys(isa.words_for(anchor) or ()))
                 r.evidence["gauge"] = {
                     "display": f"{head}{letter}",
                     "word": f"{first} {word}".strip(),

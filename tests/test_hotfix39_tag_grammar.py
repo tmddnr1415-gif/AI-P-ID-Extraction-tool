@@ -172,3 +172,12 @@ def test_excel_order_puts_tagged_rows_first_by_tag_and_leaves_untagged_documents
     assert [r["key"] for r in sorted(rows, key=R.excel_sort_key)] == ["c", "b", "a"]
     plain = [{"system": "S", "page_no": 1, "key": k} for k in ("b", "a", "c")]
     assert [r["key"] for r in sorted(plain, key=R.excel_sort_key)] == ["a", "b", "c"]
+
+
+def test_a_gauge_word_is_not_repeated_when_the_legend_prints_it_three_times():
+    """QFE 범례는 글자를 세 번 겹쳐 찍는다 — `PRESSURE PRESSURE PRESSURE GAUGE` 가 아니라 `PRESSURE GAUGE`."""
+    table = isa_table.IsaTable(first={"P": ("PRESSURE", "PRESSURE", "PRESSURE")},
+                               succeeding={"I": ("INDICATOR",), "T": ("TRANSMITTER",)}, page_no=3)
+    pi = _row("pi", "PI", "11LBB50CP901")
+    P._fold_readouts([pi], table)
+    assert pi.evidence["gauge"]["word"] == "PRESSURE GAUGE"
