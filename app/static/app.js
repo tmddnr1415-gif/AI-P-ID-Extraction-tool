@@ -476,6 +476,15 @@ function revRow(r, prevDocRev) {
   const doc = r.doc_rev
     ? `도면 Rev.${escape(r.doc_rev)}`
     : `<span class="muted">도면 개정 못 읽음</span>`;
+  // hotfix42 — 분석 기록이 지워진 리비전은 링크도 삭제 버튼도 없이 사실만 적는다
+  if (r.missing || r.deleted) {
+    const d = r.deleted || {};
+    const who = d.author ? ` · ${escape(d.author)}` : "";
+    const when = d.at ? ` · ${escape(whenWords(d.at))}` : "";
+    return `<div class="revwrap"><span class="revrow missing" title="이 리비전의 분석 기록은 지워졌습니다 — 안정 ID 장부와 대조 기록만 남아 있습니다">`
+      + `<span class="rv-name"><b>${escape(r.revision)}</b> <span class="muted">분석 기록 지워짐${who}${when}</span></span>`
+      + `<span class="muted small">${escape(r.pdf_name || "")}</span></span></div>`;
+  }
   return `<div class="revwrap"><a href="#${escape(r.job_id)}" class="revrow">`
     + `<span class="rv-name"><b>${escape(r.revision)}</b> ${doc} ${badge}</span>`
     + `<span class="muted small">${escape(jobLine(r))}</span></a>`
@@ -2259,7 +2268,9 @@ async function loadSheetNumbers() {
 const SHEET_FOLD_KEY = "pid.sheet.fold";
 function _sheetFolded(v) {
   try {
-    if (v === undefined) return localStorage.getItem(SHEET_FOLD_KEY) === "1";
+    // hotfix42 — 사람이 정한 적이 없으면 **짧은 화면에서는 접힌 채로** 시작한다 (1366×768 에서 두 판이
+    // 목록을 화면 밖으로 밀었다 — QA 시뮬레이션).  한 번 펼치거나 접으면 그 선택이 남는다.
+    if (v === undefined) { const v0 = localStorage.getItem(SHEET_FOLD_KEY); return v0 === null ? window.innerHeight < 860 : v0 === "1"; }
     localStorage.setItem(SHEET_FOLD_KEY, v ? "1" : "0");
   } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
   return !!v;
@@ -2268,7 +2279,9 @@ function _sheetFolded(v) {
 const MULT_FOLD_KEY = "pid.mult.fold";
 function _multFolded(v) {
   try {
-    if (v === undefined) return localStorage.getItem(MULT_FOLD_KEY) === "1";
+    // hotfix42 — 사람이 정한 적이 없으면 **짧은 화면에서는 접힌 채로** 시작한다 (1366×768 에서 두 판이
+    // 목록을 화면 밖으로 밀었다 — QA 시뮬레이션).  한 번 펼치거나 접으면 그 선택이 남는다.
+    if (v === undefined) { const v0 = localStorage.getItem(MULT_FOLD_KEY); return v0 === null ? window.innerHeight < 860 : v0 === "1"; }
     localStorage.setItem(MULT_FOLD_KEY, v ? "1" : "0");
   } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
   return !!v;

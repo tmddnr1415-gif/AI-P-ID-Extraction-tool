@@ -547,7 +547,10 @@ button.danger:hover:not(:disabled) { background: #c0271d; color: #fff; }
 .prog-done .dn-note { font-size: 12px; color: var(--muted); padding: 2px 0; }
 
 /* ---------- grid ---------- */
-#gridwrap { flex: 1; overflow: auto; }
+/* hotfix42 — QA 시뮬레이션: 1700×1000 에서 QFE 를 열면 검토 띠 + 승수 판(170) + 장 도면번호 판(170) +
+   근거 패널(232) 이 오른쪽을 다 먹어 **목록 높이가 0** 이었다 (행 2102개가 한 줄도 안 보이고 누를 수도
+   없다).  목록은 이 화면의 본문이므로 최소 높이를 갖고, 근거 패널·장 판이 대신 줄어든다. */
+#gridwrap { flex: 1 1 auto; overflow: auto; min-height: 160px; }
 table { border-collapse: collapse; width: 100%; }
 th, td {
   text-align: left; padding: 4px 9px; border-bottom: 1px solid var(--line);
@@ -616,7 +619,7 @@ td[contenteditable]:focus { background: rgba(26, 95, 180, .10);
 
 /* ---------- evidence ---------- */
 .evidence {
-  flex: none; height: 232px; overflow: auto; border-top: 1px solid var(--edge);
+  flex: 0 1 auto; height: 232px; min-height: 96px; overflow: auto; border-top: 1px solid var(--edge);
   padding: 12px 14px;
   /* 화병은 패널의 배경이다.  글자가 항상 그림 위에 그려지므로 긴 근거가
      와도 가려지는 쪽은 글자가 아니라 그림이다. */
@@ -1112,7 +1115,7 @@ button.ftc:disabled { opacity: .55; cursor: default; }
 .mult-panel.folded .mwhy, .mult-panel.folded .mgroup { display: none; }
 #gutter-m { margin-bottom: 6px; }
 /* hotfix33 — 장 도면번호 판은 승수 판과 같은 얼굴이고 높이 손잡이는 없다 (장이 몇이면 끝난다). */
-.sheet-panel { margin-top: 6px; }
+.sheet-panel { margin-top: 6px; max-height: 120px; }
 .sheet-panel .mform input.sval { width: 230px; font-family: var(--mono, monospace); }
 .sheet-panel .sview { font-size: 11px; padding: 1px 8px; margin-left: 6px; }
 .sheet-panel .mwhy code { font-family: var(--mono, monospace); }
@@ -1344,6 +1347,7 @@ input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; fo
 #cmp-ov text.deltag { fill: var(--rev-del); font-weight: 700; paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; }
 .cmp-foot { flex: none; padding: 4px 10px; border-top: 1px solid var(--line); background: var(--paper, #fffdf6); }
 .cmp-empty { padding: 24px 14px; color: var(--ink-soft); font-size: 13px; }
+.revrow.missing { opacity: .6; cursor: default; }
 .rev-export { font-size: 12px; border: 1px solid var(--line); border-radius: var(--r-s); padding: 1px 8px; color: var(--ink-strong); text-decoration: none; white-space: nowrap; }
 .rev-export:hover { border-color: var(--accent); color: var(--accent); }
 .side-left-tag { font-weight: 700; color: #fffdf6; background: var(--ink-strong); border-radius: var(--r-s); padding: 2px 8px; font-size: 12px; }

@@ -3090,6 +3090,30 @@ tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 
    QFE 2041·3710·89.0 불변 · 지문만 `b2409717` → `94615ba2` (범례 `isa_table` 뜻 `PRESSURE×3` → `PRESSURE` 가 지문 재료).
    **기준선 갱신** (AL NOUF1 · QFE).  남은 반복 28행 중 p42 `TO TO KM KM` 4행은 본문 글자 겹침 — `text.dedup_exact_duplicates`
    (프로젝트 설정 · AL NOUF1 28 · TC2 16,336 · QFE 8,300 겹침)은 실무 판단.
+**그 다음 — 품질팀 시뮬레이션 (hotfix42)**
+
+사용자: *"여러 번 시도해 보고 프로그램 품질 또는 개선팀의 입장에서 시뮬레이션 돌리면서 보완."*
+전문 `out/hotfix42/1_보고서.md` · 도구 `spike/qa_sim.py` (A API 전수 · B 화면 전수 클릭 · C 합성 PDF 전 흐름 —
+실 데이터는 사본으로) · 시험 `tests/test_hotfix42_qa_sim.py` 4건.  **엔진 0줄 · 네 프로젝트 기준선 불변.**
+
+1. **A·B 는 깨끗했다** — 5xx 0 · Traceback 0 · 페이지/콘솔 오류 0 (GET 47 + 쓰기 30여 · 결과 화면의 모든 버튼·탭·
+   필터·판·나란히 보기, 장을 바꿔 가며 반복).  결함은 **흐름과 배치**에 있었다.
+2. **★ ① 분석을 지우면 장부(`project.json`)가 모른다** — 첫 화면이 지워진 job 으로 가는 링크를 내고(누르면 no such job),
+   다음 업로드의 기본 비교 대상이 지워진 리비전이었다.  `revisions.mark_revision_deleted` 로 `deleted{at, author}` 를
+   적는다 — 항목은 남긴다(안정 ID 는 그 리비전에서 부여됐고 §7.3 은 되돌리지 않는다 · 글자도 이어 간다) ·
+   `compare_choices`·`default_compare_target` 은 뺀다 · 첫 화면은 "분석 기록 지워짐 · 누가 · 언제" 로 링크 없이.
+3. **★ ② 서버 재시작 뒤 `running` 이 영원히 남는다** — 화면은 끝없이 기다리고 삭제는 409.  시작 때
+   `_recover_interrupted`: `queued` 는 다시 줄에, `running` 은 실패(사유 + 멈춘 단계 보존 · 21회차 기록과 같은 칸).
+4. **★ ③ 1700×1000 에서 QFE 목록 높이 0** — 검토 띠 + 승수 판 170 + 장 판 170 + 근거 패널 232 가 오른쪽을 다 먹었다.
+   B 단계의 "행 클릭 timeout" 이 잡았고 `elementFromPoint` 가 근거 패널의 `<p>` 를 가리켰다.  `#gridwrap min-height
+   160` · 근거 패널 `flex: 0 1 auto · min-height 96` · 장 판 `max-height 120` · **짧은 화면(<860)에서는 두 판이 접힌
+   채로 시작**(한 번 정하면 그 선택).  실측 1700×1000 164px · 1920×1080 293px · 1366×768 160px.
+5. **하네스의 기대가 틀렸던 둘** — 범례 없는 개정본이 프로젝트 안에서 완주한 것(15회차 프로필 재사용 · 설계) ·
+   두 합성 리비전의 "수정 40" (태그 활자 있는 Rev.A ↔ 없는 Rev.B 라 `tag_no` 가 빠진 것).  **하네스가 틀렸을 때
+   제품을 고치지 않는다** — 14회차 규칙 그대로.
+6. **하네스 규율** — `pgrep -f`/`pkill -f` 대신 `/proc` 을 읽되 **자기 셸(`shell-snapshots`)을 뺀다** (이번 회차에
+   두 번 자기 셸을 죽였다 · §8 규칙에 한 줄 더함) · 업로드 응답은 `job_id` 다(`id` 가 아니다 — 첫 판이 15분을 기다렸다).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3503,6 +3527,10 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `S.viewCache` · `snapshotView` · `restoreView` · `renderRevSwitch` · `switchView` · `renderRevLabel` · `#rev-switch` | **hotfix39** — 직전/현재 결과 전환.  처음은 `open()`, 그 뒤는 메모리 복원(결과 요청 0).  장은 같은 도면번호.  개정 라벨은 한 함수 |
 | `main.job_revision` 의 `previous_job_id` · `next_jobs` | **hotfix39** — 장부(`project.json`)에서 직전·다음 리비전의 분석 id.  판정 아님 |
 | `app.js` `toggleSide` · `cmpLoad` · `cmpShow` · `drawCmpOverlay` · `cmpApplyZoom` · `cmpSyncScroll` · `#cmp` · `#right.compare` | **hotfix40** — 나란히 보기.  왼쪽 현재(최신 Rev) · 오른쪽 직전 Rev 의 같은 도면번호 장(도면번호 바뀐 장은 옛 번호로).  이전 결과는 `/pages` 한 번(행 안 읽음).  확대·스크롤 공유.  삭제 후보는 **이전 도면 위** 붉은 ✕/DEL — 판정은 서버 그대로 |
+| `spike/qa_sim.py` | **hotfix42** — 품질팀 시뮬레이션: A API 전수 · B 화면 전수 클릭 · C 합성 PDF 전 흐름(프로젝트 → Rev.A → 편집 → Rev.B → 대조 → 삭제 → 범례 없는 개정본 → 취소 → 프로젝트 삭제).  실 데이터는 사본으로.  5xx·Traceback·페이지 오류를 센다 |
+| `revisions.mark_revision_deleted` · `_project_public.missing` · `revRow` 의 missing 갈래 | **hotfix42** — 지운 분석은 장부에 `deleted` 로 남고 비교 대상에서 빠지며 첫 화면에 링크 없이 보인다 |
+| `main._recover_interrupted` | **hotfix42** — 시작 때 끊긴 분석 정리 (`queued` 재줄세움 · `running` 실패+멈춘 단계) |
+| `#gridwrap min-height` · `.evidence flex: 0 1 auto` · `_multFolded/_sheetFolded` 의 짧은 화면 기본 | **hotfix42** — 목록이 0 높이로 밀리지 않는다 |
 | `pidcache._hide_memos` · `PageCache.memo_words_dropped` | **hotfix41** — 사람 이름이 적힌 FreeText(검토 메모)를 메모리에서 숨긴 뒤 글자를 읽는다.  메모가 그린 글자만 빠지고 상자 밑 도면 글자는 산다.  사각형으로 빼는 방식은 AL NOUF1 35행을 삼켰다 |
 | `isa_table.dedupe_overprint` | **hotfix41** — 같은 좌표·같은 글자의 겹침은 한 낱말 (QFE 세 번 겹쳐 인쇄).  FIRST 뜻과 succeeding 칸 둘 다 |
 | `app/revision_export.py` · `GET /jobs/{id}/revision/changes.xlsx` · `#rev-export` | **hotfix41** — 개정 변경 내역 Excel.  판정 0 — `revision_state`·`deleted_candidate`·장부 `sheets` 를 옮겨 적는다 |
@@ -3635,6 +3663,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
   ① `timeout 900` 을 **반드시** 붙인다 (상한 15분).
   ② 기다리는 대상은 **파일**이다 — 작업이 끝날 때 표식(`echo DONE > …done`)을 쓰게 하고
      `until [ -f …done ]` 로 기다린다.  프로세스 이름으로 기다리지 않는다.
+  ③-1 **`/proc` 을 읽어 죽일 때도 자기 셸을 뺀다** — 명령줄에 `shell-snapshots` 가 든 것은 이 세션의 셸이다 (hotfix42 에서 두 번 자기 셸을 죽였다 · exit 144).
   ③ 그래도 `pgrep` 을 써야 하면 패턴을 자기 명령줄에 **적지 않는다** (변수에 담아도
      명령줄에 남는다 — 실행 스크립트를 파일로 두고 그 파일 이름으로 찾는다).
   ④ 상한에 걸리면 **기다린 것이 아니라 실패다.**  로그의 mtime 으로 실제 실행을

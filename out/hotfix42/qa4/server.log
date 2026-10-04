@@ -1,0 +1,147 @@
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 34.4 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+INFO:     Started server process [10121]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:44069 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56142 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56158 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56174 - "GET /jobs/48b5adbdd28c/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56178 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56180 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56186 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56192 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56198 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56202 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56216 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56222 - "GET /projects/QFE HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56238 - "GET /projects/QFE/deletion_preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56252 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56254 - "GET /deletions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56264 - "GET /symbols/global HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56276 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56278 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56292 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56298 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "GET /jobs/48b5adbdd28c/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56308 - "GET /jobs/48b5adbdd28c/rows?tab=REVIEW HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56320 - "GET /jobs/48b5adbdd28c/rows?tab=FIELD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51180 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51192 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51208 - "GET /jobs/48b5adbdd28c/revisions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51224 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51234 - "GET /jobs/48b5adbdd28c/feedback HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51242 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51254 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51256 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51262 - "GET /jobs/48b5adbdd28c/measured_config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51278 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51292 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51302 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51318 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=0.3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51334 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51338 - "GET /jobs/48b5adbdd28c/scope_summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51348 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51350 - "GET /jobs/48b5adbdd28c/titleblock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51432 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51434 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51436 - "GET /jobs/48b5adbdd28c/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51442 - "GET /jobs/48b5adbdd28c/deletion_preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51452 - "GET /jobs/48b5adbdd28c/revision/changes.xlsx HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51472 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51482 - "GET /jobs/48b5adbdd28c/feedback_export HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51488 - "GET /jobs/nope HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51490 - "GET /jobs/nope/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51502 - "GET /projects/nope HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51512 - "GET /jobs/48b5adbdd28c/page/999.png HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51528 - "GET /jobs/48b5adbdd28c/notes/999 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51536 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51548 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51558 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51570 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51572 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:51574 - "PATCH /jobs/48b5adbdd28c/rows/nokey HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51582 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463/review/MULTIPLIER_FROM_CONFIG HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51596 - "POST /jobs/48b5adbdd28c/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54970 - "GET /jobs/48b5adbdd28c/rows/u157733ac629140c/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54984 - "DELETE /jobs/48b5adbdd28c/rows/u157733ac629140c?reason=qa&reason_class=FALSE_POSITIVE&author=QA HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54994 - "POST /jobs/48b5adbdd28c/rows/u157733ac629140c/restore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55008 - "DELETE /jobs/48b5adbdd28c/rows/07e655c75580c463?reason=qa&reason_class=WRONG_VALUE&author=QA&exclude=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55024 - "POST /jobs/48b5adbdd28c/rows/07e655c75580c463/restore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55034 - "POST /jobs/48b5adbdd28c/rows/07e655c75580c463/copy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55050 - "POST /jobs/48b5adbdd28c/markup/propose HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55062 - "POST /jobs/48b5adbdd28c/axis_text HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55068 - "POST /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55074 - "PATCH /reports/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55088 - "DELETE /reports/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55100 - "POST /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55114 - "DELETE /jobs/48b5adbdd28c/multipliers/00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55124 - "POST /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55140 - "DELETE /jobs/48b5adbdd28c/sheet_numbers/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55142 - "POST /jobs/48b5adbdd28c/titleblock/preview HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55158 - "POST /jobs/48b5adbdd28c/titleblock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55174 - "DELETE /jobs/48b5adbdd28c/titleblock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55180 - "POST /jobs/48b5adbdd28c/snapshot HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55194 - "POST /jobs/48b5adbdd28c/save HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55208 - "GET /jobs/48b5adbdd28c/revisions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55218 - "GET /revisions/1/excel HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55224 - "POST /jobs/48b5adbdd28c/deleted/00PAB10-032/confirm?confirmed=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55236 - "POST /jobs/48b5adbdd28c/deleted/00PAB10-032/confirm?confirmed=false HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55250 - "PATCH /projects/QFE/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55254 - "PATCH /projects/QFE/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55264 - "POST /symbols/global HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55272 - "POST /symbols/global/enabled HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55288 - "DELETE /symbols/global/QA-SYM HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55292 - "POST /jobs/48b5adbdd28c/diagnostic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55294 - "POST /projects HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:55298 - "POST /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55302 - "DELETE /projects/QA-TMP HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55308 - "DELETE /projects/QA-TMP HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55310 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55312 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /static/styles.css?v=96ecb459 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55314 - "GET /static/app.js?v=ab3ade1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55314 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55324 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55332 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55338 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55342 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55324 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55338 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55332 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55338 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55324 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55338 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55324 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55332 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55314 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55342 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55342 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55342 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41970 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55342 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41970 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55312 - "GET /jobs/2098450b4603 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41998 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41986 - "GET /jobs/2098450b4603/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41998 - "GET /jobs/2098450b4603/rows?tab=ALL HTTP/1.1" 200 OK

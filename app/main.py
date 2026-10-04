@@ -396,6 +396,33 @@ def _worker() -> None:
             _JOBS.task_done()
 
 
+def _recover_interrupted() -> dict:
+    """hotfix42 — 서버가 꺼졌다 켜질 때 **끊긴 분석**을 정리한다 (QA 시뮬레이션: 분석 중 재시작).
+
+    분석은 이 프로세스의 스레드 하나가 돌리므로 프로세스가 죽으면 `running` 인 job 은 영원히
+    `running` 으로 남는다 — 화면은 끝없이 기다리고, 삭제는 "분석 중" 이라 409 로 막힌다.
+    `queued` 였던 것은 시작조차 안 했으니 **다시 줄에 세우고**, `running` 이던 것은 **실패**로
+    적되 사유와 멈춘 단계를 남긴다 (21회차 실패 기록과 같은 칸 — 화면이 '다시 분석' 을 낸다).
+    """
+    out = {"requeued": [], "failed": []}
+    for row in db.list_jobs(CON):
+        if row["status"] == "queued":
+            _JOBS.put(row["id"]); out["requeued"].append(row["id"])
+        elif row["status"] == "running":
+            stage = _stopped_stage(row["id"])
+            db.set_progress(CON, row["id"], 0.0,
+                            "서버가 다시 시작되어 분석이 끊겼습니다 — 다시 분석하세요", "failed",
+                            error_detail="interrupted: the server process restarted while this analysis was running")
+            db.set_stopped_stage(CON, row["id"], stage)
+            db.mark_finished(CON, row["id"])
+            out["failed"].append(row["id"])
+    if out["requeued"] or out["failed"]:
+        print(f"[시작] 끊긴 분석 정리 — 다시 줄 세움 {len(out['requeued'])} · 실패로 적음 {len(out['failed'])}",
+              flush=True)
+    return out
+
+
+_recover_interrupted()
 threading.Thread(target=_worker, daemon=True).start()
 
 
@@ -810,7 +837,8 @@ def _project_public(meta: dict, *, deep: bool = False) -> dict:
     revs = []
     for r in out.get("revisions") or []:
         job = db.get_job(CON, r.get("job_id") or "")
-        extra = {}
+        # hotfix42 — 분석이 지워진 리비전은 그렇게 말한다 (링크를 내지 않는다)
+        extra = {"missing": job is None}
         if job is not None:
             extra = {"status": job["status"],
                      "analysed_at": job["finished_at"] or job["created_at"],
@@ -1042,6 +1070,11 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
         except OSError:
             removed_pdf = False
     summary["pdf_removed"] = removed_pdf
+    # hotfix42 — 장부에도 적는다.  안 적으면 첫 화면이 지워진 분석으로 가는 링크를 계속 내고
+    # (누르면 "no such job"), 다음 업로드의 기본 비교 대상이 지워진 리비전이 된다 (QA 시뮬레이션).
+    if summary.get("project") and summary.get("revision"):
+        summary["ledger_marked"] = revisions.mark_revision_deleted(
+            DATA_DIR, summary["project"], job_id, author.strip()) is not None
     return summary
 
 

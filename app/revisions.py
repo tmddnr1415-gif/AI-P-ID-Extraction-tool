@@ -836,13 +836,36 @@ def next_revision(meta: dict) -> str:
 
 def default_compare_target(meta: dict) -> str:
     """기본 비교 대상은 직전 리비전.  없으면 빈 문자열(비교 없음)."""
-    revs = meta.get("revisions") or []
+    revs = [r for r in (meta.get("revisions") or []) if not r.get("deleted")]
     return revs[-1]["revision"] if revs else ""
 
 
 def compare_choices(meta: dict) -> list:
-    """고를 수 있는 비교 대상.  이미 등록된 리비전 전부."""
-    return [r["revision"] for r in (meta.get("revisions") or [])]
+    """고를 수 있는 비교 대상.  이미 등록된 리비전 중 **분석 기록이 살아 있는 것**.
+
+    hotfix42 — 분석을 지운 리비전(`deleted`)은 뺀다: 그 job 이 없어 화면이 "이전 결과" 로
+    열 수 없다.  장부 항목 자체는 남긴다 (안정 ID 가 그 리비전에서 부여됐고 §7.3 은 번호를
+    되돌리지 않는다 — 다음 리비전 글자도 건너뛰지 않고 이어 간다).
+    """
+    return [r["revision"] for r in (meta.get("revisions") or []) if not r.get("deleted")]
+
+
+def mark_revision_deleted(data_dir: Path, name: str, job_id: str, author: str = "") -> dict | None:
+    """hotfix42 — 분석 하나를 지울 때 장부의 그 리비전에 `deleted{at, author}` 를 적는다.
+    항목을 빼지 않는다 (ID 장부 · 대조 기록은 그 리비전의 사실이다).  없으면 None."""
+    import time as _t
+    try:
+        meta = load_project(data_dir, name)
+    except (KeyError, ValueError, FileNotFoundError):
+        return None
+    hit = None
+    for r in meta.get("revisions") or []:
+        if r.get("job_id") == job_id:
+            r["deleted"] = {"at": _t.time(), "author": author or ""}
+            hit = r
+    if hit is not None:
+        _save_project(data_dir, meta)
+    return hit
 
 
 def record_revision(data_dir: Path, name: str, revision: str, *, job_id: str,
