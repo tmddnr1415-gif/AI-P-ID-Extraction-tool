@@ -175,6 +175,6 @@ def test_gauge_naming_can_be_switched_off_but_the_fold_stays(monkeypatch):
 
 def test_the_fold_lives_in_one_place_after_the_tags():
     src = (ROOT / "app" / "pipeline.py").read_text(encoding="utf-8")
-    assert src.count("_fold_readouts(rows, isa)") == 1
-    assert src.index("_attach_tags(rows, pages") < src.index("_fold_readouts(rows, isa)")
+    assert src.count("_fold_readouts(\n        rows, isa, links=_bubble_links(rows, pages))") == 1
+    assert src.index("_attach_tags(rows, pages") < src.index("_fold_readouts(\n        rows, isa")
     assert '"readouts"' in (ROOT / "app" / "db.py").read_text(encoding="utf-8")

@@ -1710,7 +1710,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     tier_facts = _attach_tags(rows, pages, declared_mode=declared_mode)
     # hotfix31 — 한 라인(같은 태그)에 PIT 와 PI 가 있으면 PIT 가 이기고 PI 는
     # 접는다 · PI 만 있으면 게이지다 (사용자 규칙).  태그가 붙은 뒤에 선다.
-    readout_facts, folded_readouts = _fold_readouts(rows, isa)
+    # hotfix38 (#39) — "한 가지" 는 같은 태그이거나 **이어 그린 선**이다.
+    readout_facts, folded_readouts = _fold_readouts(
+        rows, isa, links=_bubble_links(rows, pages))
     if folded_readouts:
         rows = [r for r in rows if r.key not in folded_readouts]
 
@@ -2227,9 +2229,105 @@ def _is_readout(rest: str, isa) -> bool:
     return True
 
 
-def _fold_readouts(rows: list, isa) -> tuple:
+def _is_transmitter(rest: str, isa) -> bool:
+    """뒤 글자 중 하나라도 그 표가 TRANSMITTER 로 읽는가 (`PIT` 의 `T` · `FT` 의 `T`)."""
+    for c in rest or "":
+        words = tuple(w.upper() for w in (isa.succeeding or {}).get(c, ()))
+        if any(w.startswith("TRANSMIT") for w in words):
+            return True
+    return False
+
+
+def _bubble_links(rows: list, pages: list) -> dict:
+    """hotfix38 (#39) — 표시기 버블과 같은 머리의 전송기 버블이 **이어 그려져** 있는가.
+
+    사용자 규칙: *"하나의 가지에서 PIT·PI 가 있으면 PIT 가 물리적 계기이고 PI 는
+    시그널이다.  TIT·TI, PDIT·PDI 도 마찬가지."*  hotfix31 은 "한 가지" 를 같은
+    태그로만 읽었는데, QFE 는 태그 없이(p6) · 태그를 달리 찍어(p23 `CL002`↔`CT002` ·
+    p49 `CF901`↔`CF001`) 두 버블을 **짧은 선 하나**로 잇는다 — 그 선이 곧 "한 가지"
+    라는 도면의 말이다.
+
+    읽는 것은 선분 하나의 유무이지 순회가 아니다 (§2.3): 두 버블이 한 축으로 겹치고
+    (세로로 쌓였거나 나란히), 가까운 두 변 사이 틈이 **그 버블의 긴변 이하**이며, 그
+    틈 띠 안의 축 방향 잉크가 틈의 절반 이상을 덮을 것.  상수 없음 — 틈 상한은 버블
+    자신의 크기, 절반은 "파선이어도 이어진 것" 의 하한이다.  실측 틈 10.3~34.0pt
+    (QFE 12짝) · AL NOUF1 0 · TC2 0 (`spike/readout_link_probe.py`).
+
+    돌려주는 것: 장 번호 → [(표시기 key, 상대 key, 축, 틈, 덮인 비율)].
+    """
+    if not rows or not pages:
+        return {}
+    by_page: dict = collections.defaultdict(list)
+    for r in rows:
+        if r.rect and not (r.evidence or {}).get("body") and (r.evidence or {}).get("anchor"):
+            by_page[r.page_no].append(r)
+    pcs = {pc.page_no: pc for pc in pages}
+    out: dict = {}
+
+    def cover(spans, g0, g1):
+        spans.sort(); tot = 0.0; cur = None
+        for lo, hi in spans:
+            if cur is None or lo > cur[1]:
+                if cur: tot += cur[1] - cur[0]
+                cur = [lo, hi]
+            else:
+                cur[1] = max(cur[1], hi)
+        if cur: tot += cur[1] - cur[0]
+        return tot / (g1 - g0) if g1 > g0 else 0.0
+
+    for pno, items in by_page.items():
+        pc = pcs.get(pno)
+        if pc is None or len(items) < 2:
+            continue
+        segs = None
+        found = []
+        for i, a in enumerate(items):
+            for b in items[i + 1:]:
+                ra, rb = a.rect, b.rect
+                long_side = max(ra[2] - ra[0], ra[3] - ra[1])
+                ov_x = min(ra[2], rb[2]) - max(ra[0], rb[0])
+                ov_y = min(ra[3], rb[3]) - max(ra[1], rb[1])
+                if ov_x >= 0.5 * min(ra[2] - ra[0], rb[2] - rb[0]):
+                    axis, g0, g1 = "V", *((ra[3], rb[1]) if ra[1] < rb[1] else (rb[3], ra[1]))
+                    b0, b1 = max(ra[0], rb[0]), min(ra[2], rb[2])
+                elif ov_y >= 0.5 * min(ra[3] - ra[1], rb[3] - rb[1]):
+                    axis, g0, g1 = "H", *((ra[2], rb[0]) if ra[0] < rb[0] else (rb[2], ra[0]))
+                    b0, b1 = max(ra[1], rb[1]), min(ra[3], rb[3])
+                else:
+                    continue
+                if g1 <= g0 or g1 - g0 > long_side:
+                    continue
+                if segs is None:
+                    segs = pc.segments()
+                spans = []
+                for p0, p1 in segs:
+                    if axis == "V":
+                        if abs(p0.x - p1.x) > 0.5 or not (b0 <= p0.x <= b1):
+                            continue
+                        lo, hi = max(min(p0.y, p1.y), g0), min(max(p0.y, p1.y), g1)
+                    else:
+                        if abs(p0.y - p1.y) > 0.5 or not (b0 <= p0.y <= b1):
+                            continue
+                        lo, hi = max(min(p0.x, p1.x), g0), min(max(p0.x, p1.x), g1)
+                    if hi > lo:
+                        spans.append((lo, hi))
+                c = cover(spans, g0, g1)
+                if c >= 0.5:
+                    found.append((a.key, b.key, axis, round(g1 - g0, 1), round(c, 2)))
+        if found:
+            out[pno] = found
+    return out
+
+
+def _fold_readouts(rows: list, isa, links: dict = None) -> tuple:
     """hotfix31 — **한 라인에 PIT 와 PI 가 있으면 PIT 가 이기고 PI 는 접는다.
     PI 만 있으면 게이지다.**  TIT·TI 도 같다 (사용자 규칙 · QFE 화면).
+
+    hotfix38 (#39) — "한 라인" 을 둘로 읽는다: **같은 태그**(hotfix31) 또는 **이어
+    그린 선**(`_bubble_links` · 태그가 없거나 달라도).  이기는 쪽은 같은 머리에
+    그 표가 TRANSMITTER 로 읽는 글자를 가진 기능(`PIT` · `PT` · `FT`)이거나, 표시기
+    글자를 **포함하고 더 가진** 기능(`PIC` ⊃ `PI`)이다 — `FT` 는 `FI` 를 포함하지
+    않아 hotfix31 규칙으로는 안 접혔다 (QFE p42 FI/FT 4짝 실측).
 
     "한 라인" 은 도면이 **같은 태그**를 두 버블에 인쇄한 것으로 읽는다 — QFE 는
     `PI 11MBP01CP103` 위에 `PIT 11MBP01CP103` 을 신호선으로 잇고, 태그가 같다는
@@ -2252,27 +2350,59 @@ def _fold_readouts(rows: list, isa) -> tuple:
     if isa is None or not getattr(isa, "succeeding", None):
         facts["note"] = "ISA 표가 없어 접지 않음"
         return facts, folded
-    by_tag = collections.defaultdict(list)
+    parsed = {}
     for r in rows:
-        if not r.tag_no or r.evidence.get("body"):
+        if r.evidence.get("body"):
             continue
         anchor = str(r.evidence.get("anchor") or r.type or "").strip().upper()
         parts = _readout_split(anchor, isa)
         if parts:
+            parsed[r.key] = (r, anchor, parts)
+    by_tag = collections.defaultdict(list)
+    for key, (r, anchor, parts) in parsed.items():
+        if r.tag_no:
             by_tag[(r.page_no, r.tag_no)].append((r, anchor, parts))
+    # 이어 그린 선으로 묶인 짝 — 표시기 key → [(상대, 축, 틈, 덮임)]
+    linked = collections.defaultdict(list)
+    for pno, pairs in (links or {}).items():
+        for ka, kb, axis, gap, cov in pairs:
+            for a, b in ((ka, kb), (kb, ka)):
+                if a in parsed and b in parsed:
+                    linked[a].append((parsed[b], axis, gap, cov))
     letter = str(gcfg.get("letter") or "G").strip().upper()
     word = str(gcfg.get("word") or "GAUGE").strip().upper()
+
+    def wins(w, wh, wr, head, rest):
+        if wh != head or _is_readout(wr, isa):
+            return False
+        return _is_transmitter(wr, isa) or (
+            len(wr) > len(rest) and all(c in wr for c in rest))
+
+    groups = []                      # (장, 태그 또는 "", 묶음, 근거)
     for (pno, tag), grp in sorted(by_tag.items()):
+        groups.append((pno, tag, grp, "TAG"))
+    for key, (r, anchor, parts) in sorted(parsed.items()):
+        if _is_readout(parts[1], isa) and linked.get(key):
+            grp = [(r, anchor, parts)] + [p for p, *_ in linked[key]]
+            groups.append((r.page_no, r.tag_no or "", grp, "LINK"))
+    for pno, tag, grp, basis in groups:
         readouts = [(r, a, p) for r, a, p in grp if _is_readout(p[1], isa)]
         for r, anchor, (head, rest) in readouts:
+            if r.key in folded:
+                continue
             winner = next((w for w, wa, (wh, wr) in grp
-                           if w is not r and wh == head and len(wr) > len(rest)
-                           and all(c in wr for c in rest)), None)
+                           if w is not r and wins(w, wh, wr, head, rest)), None)
             if winner is not None:
                 folded.add(r.key)
                 lst = winner.evidence.setdefault("readout_folded", [])
-                lst.append({"anchor": anchor, "key": r.key, "tag_no": tag,
-                            "rect": [round(v, 1) for v in r.rect]})
+                link = next(((ax, g, c) for p, ax, g, c in linked.get(r.key, ())
+                             if p[0] is winner), None)
+                how = (f"같은 태그 {tag}" if basis == "TAG" else
+                       f"이어 그린 선 ({'세로' if link and link[0] == 'V' else '가로'} 틈 "
+                       f"{link[1] if link else '?'}pt · 덮임 {link[2] if link else '?'})")
+                lst.append({"anchor": anchor, "key": r.key, "tag_no": r.tag_no or tag,
+                            "rect": [round(v, 1) for v in r.rect],
+                            "basis": basis, "how": how})
                 # hotfix36 — 라인 번호는 한 루프의 것이다.  QFE p59 는 PIT 를 위에, PI 를
                 # 아래에 쌓고 **PI 쪽 인출선**이 배관에 닿는다 — 접히는 표시기가 읽은
                 # 라인 번호를 남는 전송기가 물려받는다 (전송기가 이미 읽었으면 그대로).
@@ -2282,14 +2412,16 @@ def _fold_readouts(rows: list, isa) -> tuple:
                     ev_line = dict(r.evidence.get("line") or {})
                     ev_line["via"] = "readout"
                     ev_line["from_key"] = r.key
-                    ev_line["rule"] = f"같은 태그 {tag} 의 표시기 {anchor} 가 탭한 배관의 깃발 — 한 루프"
+                    ev_line["rule"] = f"{how} 의 표시기 {anchor} 가 탭한 배관의 깃발 — 한 루프"
                     winner.evidence["line"] = ev_line
-                note = f"같은 태그 {tag} 의 {anchor} 표시기를 이 행에 접음 (한 라인 = {winner.evidence.get('anchor') or winner.type} 우선)"
+                note = (f"{how} 의 {anchor} 표시기를 이 행에 접음 (한 가지 = "
+                        f"{winner.evidence.get('anchor') or winner.type} 우선 · 표시기는 신호)")
                 winner.remark = "; ".join(x for x in (winner.remark, note) if x)
-                facts["folded"].append({"page_no": pno, "tag_no": tag, "readout": anchor,
+                facts["folded"].append({"page_no": pno, "tag_no": r.tag_no or tag, "readout": anchor,
                                         "kept": str(winner.evidence.get("anchor") or winner.type),
-                                        "kept_key": winner.key, "folded_key": r.key})
-            elif facts["enabled"]:
+                                        "kept_key": winner.key, "folded_key": r.key,
+                                        "basis": basis})
+            elif facts["enabled"] and basis == "TAG":
                 first = " ".join(isa.words_for(anchor) or ())
                 r.evidence["gauge"] = {
                     "display": f"{head}{letter}",
