@@ -144,6 +144,11 @@ def test_a_container_outline_is_not_a_bubble():
     a = ds.Outline(pymupdf.Rect(100, 100, 175, 126), "H", None, None, "SOLID")
     b = ds.Outline(pymupdf.Rect(170, 100, 245, 126), "H", None, None, "SOLID")
     assert ds._without_containers([a, b]) == [a, b]
+    # QFE p42 — 버블의 양 끝 호 캡이 따로 윤곽으로 서도 버블은 남는다 (변을 나눈다)
+    bub = ds.Outline(pymupdf.Rect(1548, 1302, 1608, 1323), "H", None, None, "SOLID")
+    capL = ds.Outline(pymupdf.Rect(1548, 1302, 1557, 1323), "V", None, None, "SOLID")
+    capR = ds.Outline(pymupdf.Rect(1599, 1302, 1608, 1323), "V", None, None, "SOLID")
+    assert bub in ds._without_containers([bub, capL, capR])
 
 
 def test_qfe_p51_words_inside_the_tank_outline_are_not_rows():

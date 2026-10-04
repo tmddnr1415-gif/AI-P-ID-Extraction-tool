@@ -1864,12 +1864,22 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
 
 
 def _without_containers(outlines: list) -> list:
-    """다른 윤곽을 통째로 품는(면적이 더 큰) 윤곽을 뺀다 — 용기·상자이지 버블이 아니다."""
+    """다른 윤곽을 **안쪽에** 품는 윤곽을 뺀다 — 용기·상자이지 버블이 아니다.
+
+    "안쪽" 은 변을 하나도 안 나누는 것이다.  QFE p42 는 버블의 **양 끝 호 캡**이 따로
+    작은 윤곽으로 서서(9×21pt · 버블의 좌·우 변과 위·아래 변을 그대로 나눈다) 첫 판이
+    버블 36개를 전부 "품는 윤곽" 으로 버렸다 (회귀가 잡았다 — p42 행 22 소실).  탱크 안의
+    계기 버블은 탱크 변에 닿지 않는다.  허용치는 같은 좌표를 가르는 0.5pt (다른 자리들과
+    같은 값) 이지 크기 창이 아니다."""
     rects = [o.rect for o in outlines]
     keep = []
     for o in outlines:
         r = o.rect
-        if any(p is not r and r.contains(p) and r.get_area() > p.get_area() for p in rects):
+        nested = any(p is not r
+                     and p.x0 > r.x0 + 0.5 and p.x1 < r.x1 - 0.5
+                     and p.y0 > r.y0 + 0.5 and p.y1 < r.y1 - 0.5
+                     for p in rects)
+        if nested:
             continue
         keep.append(o)
     return keep
