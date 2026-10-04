@@ -101,6 +101,8 @@ const S = {
   deletedRows: [], revByKey: {}, loading: false,
   // hotfix39 — 직전/현재 결과 전환.  `viewCache` 는 job id → 그 결과의 화면 상태 전부.
   viewCache: {}, revPair: null,
+  // hotfix40 — 나란히 보기 (왼쪽 최신 Rev · 오른쪽 직전 Rev 도면).  `cmp` 는 job id → 이전 결과의 장·층.
+  side: false, cmp: {},
   pageCount: null, sheetTargets: null,
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
@@ -1132,6 +1134,7 @@ async function open(jobId) {
   S.deletedRows = [];
   S.revByKey = {};
   const oc = $("#only-changed"); if (oc) oc.checked = false;
+  if (S.side) { S.side = false; $("#right").classList.remove("compare"); $("#cmp").classList.add("hidden"); }
   const rf = $("#rev-filter"); if (rf) rf.value = "";
 
   readUrl(hashParts()[1]);
@@ -1425,14 +1428,19 @@ function renderRevSwitch() {
   box.innerHTML = `<span class="rs-cap">결과</span>`
     + `<button type="button" class="prev${viewingPrev ? " on" : ""}" data-job="${escape(pr.previous)}" title="직전 P&ID 결과를 봅니다 — 오른쪽 목록·검토·근거와 왼쪽 도면이 그 결과로 바뀝니다">이전 ${escape(pr.previousLabel)}</button>`
     + `<button type="button" class="cur${viewingPrev ? "" : " on"}" data-job="${escape(pr.current)}" title="현재 P&ID 출력 결과">현재 ${escape(pr.currentLabel)}</button>`
-    + `<span class="rs-note">${viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다" : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
+    + `<button type="button" class="side${S.side ? " on" : ""}" title="나란히 보기 — 왼쪽은 최신 ${escape(pr.currentLabel)} 도면, 오른쪽은 직전 ${escape(pr.previousLabel)} 의 같은 도면번호 장.  확대·스크롤이 함께 움직입니다">나란히</button>`
+    + `<span class="rs-note">${S.side ? `왼쪽 ${escape(pr.currentLabel)} · 오른쪽 ${escape(pr.previousLabel)} — 같은 도면번호 장 · 확대와 스크롤이 함께 움직입니다`
+        : viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다" : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
   box.classList.remove("hidden");
   box.classList.toggle("viewing-prev", viewingPrev);
-  box.querySelectorAll("button").forEach(b => b.onclick = () => switchView(b.dataset.job));
+  box.querySelectorAll("button[data-job]").forEach(b => b.onclick = () => switchView(b.dataset.job));
+  const sb = box.querySelector("button.side");
+  if (sb) sb.onclick = () => toggleSide(!S.side);
 }
 
 async function switchView(jobId) {
   if (!jobId || !S.job || S.job.id === jobId || S.loading) return;
+  if (S.side) toggleSide(false);          // 나란히 보기는 "왼쪽 = 현재" 를 전제한다
   const want = S.page ? (S.page.drawing_no || "") : "";
   const pair = S.revPair;
   snapshotView();
@@ -1455,6 +1463,184 @@ async function switchView(jobId) {
   if (note) note.textContent = (S.job.id === (pair || {}).previous ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다 · " : "")
     + `전환 ${S.lastSwitchMs}ms${snap ? " (메모리)" : " (처음 읽음)"}`;
 }
+
+/* hotfix40 — 나란히 보기.
+ *
+ * 사용자 요구: *"좌측 화면은 최신 rev P&ID 가 출력되고 우측은 이전 rev P&ID 가 출력될 수
+ * 있는 기능."*  hotfix39 의 스위치는 화면 전체를 **오가는** 것이었고, 이것은 **동시에**
+ * 보는 것이다.  방법:
+ *   · 왼쪽은 그대로 현재 결과(최신 Rev).  오른쪽 목록·검토·근거를 숨기고(`#right.compare`)
+ *     그 자리에 직전 Rev 의 **같은 도면번호 장**을 그 결과의 상자(층)와 함께 그린다.
+ *   · 이전 결과의 장·층은 `/jobs/{prev}/pages` 한 번 — `S.cmp[prevId]` 에 둔다 (행은 읽지
+ *     않는다: 상자의 색·종류·검토는 층이 이미 들고 있다).  그림은 브라우저 캐시.
+ *   · 확대(`S.zoom`)와 스크롤은 왼쪽을 따라간다 (오른쪽을 끌면 왼쪽도 따라온다).
+ *   · **삭제 후보는 이전 도면 위에** 붉은 ✕ 로 — 그 심볼은 이번 도면에 없어 왼쪽에는
+ *     그릴 자리가 없다 (hotfix38 이 목록에만 세운 이유).  자리는 장부의 `anchor` 이고,
+ *     그 점을 품는 이전 층 상자가 있으면 그 상자를 붉게 두른다.  판정은 서버의
+ *     `deleted_candidates` 그대로이고 여기서 다시 하지 않는다.
+ *   · 왼쪽이 직전 결과를 보는 중이면(스위치 '이전') 먼저 현재로 돌아온다 — "왼쪽 = 최신"
+ *     이 이 보기의 전제다.  */
+function toggleSide(on) {
+  const pr = S.revPair;
+  if (on && (!pr || !S.job)) return;
+  if (on && S.job.id === pr.previous) {
+    // 왼쪽이 이전 결과면 현재로 돌아온 뒤 켠다 (switchView 는 side 를 끄므로 끝에 다시 켠다)
+    switchView(pr.current).then(() => toggleSide(true));
+    return;
+  }
+  S.side = !!on;
+  $("#right").classList.toggle("compare", S.side);
+  $("#cmp").classList.toggle("hidden", !S.side);
+  // 두 도면이 같은 폭이 되게 경계를 가운데로 — 끄면 사람이 끌어 둔 폭으로 돌아간다.
+  const root = document.documentElement;
+  if (S.side) { S._leftW = root.style.getPropertyValue("--left-w"); root.style.setProperty("--left-w", "1fr"); }
+  else if (S._leftW !== undefined) { if (S._leftW) root.style.setProperty("--left-w", S._leftW); else root.style.removeProperty("--left-w"); S._leftW = undefined; }
+  renderRevSwitch();
+  if (S.side) cmpShow();
+}
+
+async function cmpLoad(jobId) {
+  if (S.cmp[jobId]) return S.cmp[jobId];
+  const t0 = performance.now();
+  const [job, pages] = await Promise.all([
+    fetch(`/jobs/${jobId}`).then(r => r.json()),
+    fetch(`/jobs/${jobId}/pages`).then(r => r.json())]);
+  S.cmp[jobId] = { job, pages, ms: Math.round(performance.now() - t0) };
+  return S.cmp[jobId];
+}
+
+/* 오른쪽 창을 지금 왼쪽 장의 도면번호로 맞춘다.  장이 없으면 그렇게 말한다 (새 장). */
+async function cmpShow() {
+  const pr = S.revPair;
+  if (!S.side || !pr || !S.page) return;
+  const head = $("#cmp-head"), foot = $("#cmp-foot"), img = $("#cmp-sheet"), ov = $("#cmp-ov");
+  head.innerHTML = `<span class="cmp-rev">이전 ${escape(pr.previousLabel)}</span><span class="muted">읽는 중…</span>`;
+  const data = await cmpLoad(pr.previous);
+  if (!S.side) return;
+  const want = S.page.drawing_no || "";
+  // 도면번호가 바뀐 장(hotfix38 `sheets.renumbered`)은 이전 결과에서 **옛 번호**로 찾는다.
+  const ren = (((S.rev || {}).sheets || {}).renumbered || []).find(e => e.now === want);
+  const page = (want && data.pages.find(p => p.drawing_no === want))
+    || (ren && data.pages.find(p => p.drawing_no === ren.before)) || null;
+  S.cmpPage = page;
+  // 삭제 후보의 도면번호는 장부가 옮긴 **새 번호**다 (hotfix38) — 옛 번호 장에도 그 후보가 선다.
+  const dels = ((S.rev || {}).deleted_candidates || []).filter(d => page && (d.drawing_no === page.drawing_no || d.drawing_no === want));
+  const n = page ? Object.values(page.layers || {}).reduce((a, v) => a + v.length, 0) : 0;
+  head.innerHTML = `<span class="cmp-rev">이전 ${escape(pr.previousLabel)}</span>`
+    + (page ? `<span class="cmp-dwg">${escape(page.drawing_no || "")}</span><span class="muted">p${page.page_no}</span>`
+              + (ren && page.drawing_no !== want ? `<span class="muted">도면번호 바뀜 → ${escape(want)} (태그 ${ren.shared}개 공유)</span>` : "")
+            : `<span class="muted">같은 도면번호(${escape(want || "없음")}) 장이 이전 결과에 없습니다 — 이번 리비전에서 새로 든 장</span>`)
+    + `<span class="cmp-n">${page ? `상자 ${n} · 삭제 후보 ${dels.length}` : ""}</span>`;
+  foot.textContent = `왼쪽 ${escape(pr.currentLabel)} p${S.page.page_no} ↔ 오른쪽 ${escape(pr.previousLabel)}`
+    + (page ? ` p${page.page_no}` : "") + ` · 같은 도면번호로 맞춤 · 붉은 ✕ = 이번 분석에서 짝이 없는 삭제 후보`
+    + (data.ms ? ` · 이전 결과 ${data.ms}ms 에 읽음 (메모리)` : "");
+  ov.innerHTML = "";
+  if (!page) { img.removeAttribute("src"); img.style.display = "none"; return; }
+  img.style.display = "";
+  img.onload = () => {
+    S.cmpNatural = { w: img.naturalWidth, h: img.naturalHeight };
+    $("#cmp-wrap").style.width = `${S.cmpNatural.w}px`;
+    $("#cmp-wrap").style.height = `${S.cmpNatural.h}px`;
+    cmpApplyZoom();
+    drawCmpOverlay(page, dels);
+    cmpSyncScroll();
+  };
+  img.src = `/jobs/${pr.previous}/page/${page.page_no}.png?zoom=1.6`;
+}
+
+function cmpApplyZoom() {
+  if (!S.side || !S.zoom) return;
+  $("#cmp-wrap").style.transform = `scale(${S.zoom})`;
+}
+
+/* 이전 결과의 상자 — 색은 그 결과의 SCOPE 층 그대로(`SCOPE_COLOR`), 파선은 밸브.
+ * 행은 읽지 않으므로 사람이 그 결과에서 고친 SCOPE 는 모른다 — 머리줄에 그렇게 적지 않고
+ * 상자 툴팁에 "분석 때 층" 이라고 적는다. */
+function drawCmpOverlay(page, dels) {
+  const ov = $("#cmp-ov");
+  ov.innerHTML = "";
+  if (!S.cmpNatural) return;
+  const scale = S.cmpNatural.w / (page.width || 1);
+  ov.setAttribute("viewBox", `0 0 ${S.cmpNatural.w} ${S.cmpNatural.h}`);
+  const items = [];
+  for (const [tab, arr] of Object.entries(page.layers || {})) for (const it of arr) items.push({ ...it, tab });
+  const area = r => Math.abs((r[2] - r[0]) * (r[3] - r[1]));
+  items.sort((a, b) => area(b.rect) - area(a.rect));
+  const inside = (r, x, y) => r && x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
+  const gone = new Set();
+  for (const d of dels || []) {
+    const [ax, ay] = d.anchor || [];
+    const hit = items.filter(it => inside(it.rect, ax, ay)).sort((a, b) => area(a.rect) - area(b.rect))[0];
+    if (hit) gone.add(hit.key);
+  }
+  for (const it of items) {
+    const [x0, y0, x1, y1] = it.rect;
+    const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    r.setAttribute("x", x0 * scale); r.setAttribute("y", y0 * scale);
+    r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
+    r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
+    r.setAttribute("class", "cdet" + (it.kind === "VALVE" ? " valve" : "")
+      + (it.row === false ? " excluded" : "") + (gone.has(it.key) ? " gone" : ""));
+    r.setAttribute("stroke", SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93");
+    const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tip.textContent = `${it.label || ""} · ${it.tab || ""} · 분석 때 층 ${it.scope || "INCLUDED"}`
+      + (gone.has(it.key) ? " · 이번 분석에서 짝이 없는 삭제 후보" : "");
+    r.appendChild(tip);
+    ov.appendChild(r);
+  }
+  // 삭제 후보 — 붉은 ✕ 와 'DEL' 글자.  자리는 장부의 anchor (이전 Rev 좌표).
+  for (const d of dels || []) {
+    const [ax, ay] = d.anchor || [];
+    if (ax === undefined) continue;
+    const cx = ax * scale, cy = ay * scale;
+    const hit = items.filter(it => inside(it.rect, ax, ay)).sort((a, b) => area(a.rect) - area(b.rect))[0];
+    const h = hit ? (hit.rect[3] - hit.rect[1]) * scale : 24;
+    const rad = Math.max(6, h * 0.22);
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const px = hit ? hit.rect[2] * scale : cx, py = hit ? hit.rect[1] * scale : cy;
+    dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("r", rad);
+    dot.setAttribute("class", "delmark");
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", px); t.setAttribute("y", py); t.setAttribute("font-size", rad * 1.5);
+    t.setAttribute("class", "delmark-t"); t.textContent = "✕";
+    const tag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    tag.setAttribute("x", (hit ? hit.rect[0] * scale : cx - rad)); tag.setAttribute("y", (hit ? hit.rect[1] * scale : cy) - 3);
+    tag.setAttribute("font-size", Math.max(9, rad * 1.6)); tag.setAttribute("class", "deltag");
+    tag.textContent = d.confirmed ? "DEL" : "DEL?";
+    const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tip.textContent = deletedRemark(d, (S.rev || {}).compared_with || "") + (d.type ? ` · ${d.type}` : "") + (d.tag_no ? ` ${d.tag_no}` : "");
+    dot.appendChild(tip);
+    for (const el of [dot, t]) el.onclick = (ev) => { ev.stopPropagation(); if (S.rowByKey[`del:${d.id}`] || (S.deletedRows || []).some(r => r.key === `del:${d.id}`)) { toggleSide(false); select(`del:${d.id}`, true); } };
+    ov.appendChild(dot); ov.appendChild(t); ov.appendChild(tag);
+  }
+}
+
+/* 스크롤 동기 — 왼쪽이 움직이면 오른쪽이, 오른쪽을 끌면 왼쪽이.  되돌이는 깃발로 막는다. */
+function cmpSyncScroll(from) {
+  if (!S.side || S._cmpSyncing) return;
+  const a = $("#stage"), b = $("#cmp-stage");
+  const [src, dst] = from === "cmp" ? [b, a] : [a, b];
+  S._cmpSyncing = true;
+  dst.scrollLeft = src.scrollLeft; dst.scrollTop = src.scrollTop;
+  requestAnimationFrame(() => { S._cmpSyncing = false; });
+}
+(() => {
+  const st = $("#stage"), cs = $("#cmp-stage");
+  if (!st || !cs) return;
+  st.addEventListener("scroll", () => cmpSyncScroll("stage"), { passive: true });
+  cs.addEventListener("scroll", () => cmpSyncScroll("cmp"), { passive: true });
+  // 오른쪽 창도 끌어서 팬 — 왼쪽과 같은 규칙(스크롤만 옮긴다 · 12회차).
+  let drag = null;
+  cs.addEventListener("mousedown", (e) => { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, l: cs.scrollLeft, t: cs.scrollTop }; cs.classList.add("panning"); });
+  window.addEventListener("mousemove", (e) => { if (!drag) return; cs.scrollLeft = drag.l - (e.clientX - drag.x); cs.scrollTop = drag.t - (e.clientY - drag.y); });
+  window.addEventListener("mouseup", () => { drag = null; cs.classList.remove("panning"); });
+  // 휠 확대도 왼쪽과 같은 배율로 — 왼쪽의 zoomBy 를 그대로 부른다.
+  cs.addEventListener("wheel", (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    if (typeof zoomBy === "function") zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, null);
+  }, { passive: false });
+})();
 
 /* 삭제 후보 한 건의 근거.  좌표 · 반경 · 가장 가까웠던 후보까지 거리 셋이
  * 있어야 "도면에서 지워졌다" 와 "이번에 못 뽑았다" 를 사람이 가를 수 있다. */
@@ -4344,6 +4530,7 @@ function showPage(page) {
   };
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
   showSheetNotes(page.page_no);
+  if (S.side) cmpShow();                  // hotfix40 — 오른쪽 창도 같은 도면번호 장으로
   if (S.markup) prewarmMarkup();          // 장이 바뀌면 그 장을 미리 읽는다
   // hotfix25 — From/To 범위는 그 행의 장에서만 긋는다.  장을 옮기면 대기를 풀고 말한다.
   if (S.ftMark) {
@@ -4407,7 +4594,7 @@ function fit() {
   S.zoom = ($("#stage").clientWidth - 16) / S.natural.w;
   applyZoom();
 }
-function applyZoom() { $("#wrap").style.transform = `scale(${S.zoom})`; }
+function applyZoom() { $("#wrap").style.transform = `scale(${S.zoom})`; cmpApplyZoom(); }
 
 /* The zoom step is the one the '+' / '-' buttons already used - 1.3 per click,
  * and 1/1.3 back - so the wheel and the keys land on exactly the magnifications

@@ -3019,6 +3019,38 @@ tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 
 7. **못 잰 것** — SADARA · UAD PDF · `data/*.xlsx` 없음.  DXF 는 교차 검증만 (태그가 증거인 행은
    DXF 미판정 꼴이 달라 안 만든다).  버블 글자가 아예 없는 태그만의 계기는 행이 안 된다 (사례 없음).
 
+**그 다음 — 나란히 보기: 왼쪽 최신 Rev · 오른쪽 직전 Rev 도면 (hotfix40 · 화면 회차 · 엔진 0줄)**
+
+사용자: *"좌측 화면은 최신 rev pid 가 출력되고 우측은 이전 rev pid 가 출력될 수 있는 기능을
+넣어주고 실행되는 이미지를 스크린샷해서 보여줘라."*  hotfix39 의 스위치는 화면 전체를
+**오가는** 것이었고 이것은 **동시에** 보는 것이다.  시험 `tests/test_hotfix40_sidebyside.py` 7건 ·
+화면 자기검증 `spike/ui_audit_sidebyside.py` → `out/hotfix40/ui/` (QFE Rev.A ↔ Rev.B 실제 두 판).
+
+1. **스위치에 세 번째 버튼 `나란히`** (`toggleSide`).  켜면 오른쪽에서 스위치와 비교 창(`#cmp`)만
+   남고 목록·검토·근거는 `display:none` 으로 **숨기기만** 한다 — 상태는 그대로라 끄면 바로 돌아온다
+   (실측 행 2102 → 2102).  왼쪽은 그대로 현재 결과(최신 Rev)이고, 경계는 켜는 동안 가운데로.
+2. **오른쪽은 직전 Rev 의 같은 도면번호 장** (`cmpShow`) — 장은 쪽 번호가 아니라 도면번호로 따라간다
+   (13회차).  **도면번호가 바뀐 장**(hotfix38 `sheets.renumbered`)은 옛 번호로 찾아 머리줄에
+   `도면번호 바뀜 → 새 번호 (태그 N개 공유)` 라고 적는다.  이전 결과에 그 장이 없으면(새 장) 첫 장으로
+   떨어지지 않고 그렇게 말한다.
+3. **이전 결과는 `/jobs/{prev}/pages` 한 번** (`cmpLoad` · `S.cmp[prevId]` · 실측 116~639ms) —
+   행은 읽지 않는다: 상자의 색(SCOPE 층)·종류(밸브 파선)·검토는 층이 이미 든다.  그림은 브라우저
+   캐시.  **한계**: 사람이 그 결과에서 고친 SCOPE 는 모른다 — 상자 툴팁이 *분석 때 층* 이라고 적는다.
+4. **확대·스크롤은 왼쪽을 따라간다** (`cmpApplyZoom` 은 `applyZoom` 안에서 · `cmpSyncScroll` 은
+   깃발로 되돌이를 막는다).  오른쪽을 끌면 왼쪽이 따라오고, Ctrl+휠은 왼쪽의 `zoomBy` 를 그대로 부른다.
+5. **★ 삭제 후보는 이전 도면 위에 선다** (`drawCmpOverlay`) — 그 심볼은 이번 도면에 없어 왼쪽에는
+   그릴 자리가 없다 (hotfix38 이 목록에만 세운 이유).  자리는 장부의 `anchor`(이전 Rev 좌표)이고, 그 점을
+   품는 이전 층 상자를 붉게 두르고 `DEL?`(후보)/`DEL`(확정) 글자와 ✕ 표식을 단다.  **판정은 서버의
+   `deleted_candidates` 그대로** — 거리·반경을 여기서 다시 재지 않는다 (시험이 못박는다).  ✕ 를 누르면
+   나란히를 끄고 목록의 그 삭제 행을 고른다.  삭제 후보의 도면번호는 장부가 옮긴 **새 번호**라 옛 번호
+   장에서도 그 후보를 센다 (첫 실행이 p41 `삭제 후보 0` 으로 잡았다 — 실제 31).
+6. **왼쪽 = 최신이 전제다.**  왼쪽이 직전 결과를 보는 중(`이전` 스위치)이면 현재로 돌아온 뒤 켜고,
+   결과를 오가면(`switchView`) 꺼진다.  `open()` 도 끈다.
+7. **실측** (QFE p41 `30GKC10-M05-0203` ↔ Rev.A p40 `-0003`): 켬 2.8초(처음 · 이전 장 PNG 렌더 포함) ·
+   오른쪽 상자 50 · 삭제 후보 31 전부 ✕ · 배율 두 창 동일 · 왼쪽 스크롤 (592,331) → 오른쪽 (592,331) ·
+   장 바꿈 따라감 · 끔 뒤 목록 복귀 · 페이지 오류 0.  **엔진·지문·회귀는 건드린 것이 없다**
+   (app/static · tests · spike 만).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3431,6 +3463,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `revisions.excel_sort_key` 의 태그 순 | **hotfix39** — 같은 장에서 태그 있는 행이 태그 순으로 앞.  태그 없는 문서는 불변 |
 | `app.js` `S.viewCache` · `snapshotView` · `restoreView` · `renderRevSwitch` · `switchView` · `renderRevLabel` · `#rev-switch` | **hotfix39** — 직전/현재 결과 전환.  처음은 `open()`, 그 뒤는 메모리 복원(결과 요청 0).  장은 같은 도면번호.  개정 라벨은 한 함수 |
 | `main.job_revision` 의 `previous_job_id` · `next_jobs` | **hotfix39** — 장부(`project.json`)에서 직전·다음 리비전의 분석 id.  판정 아님 |
+| `app.js` `toggleSide` · `cmpLoad` · `cmpShow` · `drawCmpOverlay` · `cmpApplyZoom` · `cmpSyncScroll` · `#cmp` · `#right.compare` | **hotfix40** — 나란히 보기.  왼쪽 현재(최신 Rev) · 오른쪽 직전 Rev 의 같은 도면번호 장(도면번호 바뀐 장은 옛 번호로).  이전 결과는 `/pages` 한 번(행 안 읽음).  확대·스크롤 공유.  삭제 후보는 **이전 도면 위** 붉은 ✕/DEL — 판정은 서버 그대로 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
