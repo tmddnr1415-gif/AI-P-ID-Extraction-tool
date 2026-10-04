@@ -1343,3 +1343,22 @@ input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; fo
 #cmp-ov text.deltag { fill: var(--rev-del); font-weight: 700; paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; }
 .cmp-foot { flex: none; padding: 4px 10px; border-top: 1px solid var(--line); background: var(--paper, #fffdf6); }
 .cmp-empty { padding: 24px 14px; color: var(--ink-soft); font-size: 13px; }
+.side-left-tag { font-weight: 700; color: #fffdf6; background: var(--ink-strong); border-radius: var(--r-s); padding: 2px 8px; font-size: 12px; }
+#cmp-ov rect.cmp-mod { fill: none; stroke: var(--rev-mod); stroke-width: 2.5; vector-effect: non-scaling-stroke; cursor: pointer; }
+#cmp-ov rect.cmp-mod.sel { stroke-width: 4; }
+#cmp-ov text.cmp-modtag { fill: var(--rev-mod); font-weight: 700; paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; pointer-events: none; }
+#cmp-ov rect.cmp-add { fill: none; stroke: var(--rev-add); stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; cursor: pointer; }
+#cmp-ov rect.cmp-add.sel { stroke-width: 3.5; }
+#cmp-ov text.cmp-addtag { fill: var(--rev-add); font-weight: 700; paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; pointer-events: none; }
+.cmp-changes { flex: none; max-height: 34%; overflow: auto; border-top: 1px solid var(--line); background: var(--paper, #fffdf6); }
+.cmp-ch-head { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-size: 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--paper, #fffdf6); }
+.cmp-ch-head .sp { flex: 1; }
+.cmp-ch-head .add { color: var(--rev-add); } .cmp-ch-head .mod { color: var(--rev-mod); } .cmp-ch-head .del { color: var(--rev-del); }
+.cmp-ch-list { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; }
+.cmp-ch { border: 1px solid var(--line); background: transparent; border-radius: var(--r-s); padding: 2px 8px; font-size: 12px; cursor: pointer; text-align: left; }
+.cmp-ch .g { font-weight: 700; margin-right: 4px; }
+.cmp-ch.add { border-color: var(--rev-add); } .cmp-ch.add .g { color: var(--rev-add); }
+.cmp-ch.mod { border-color: var(--rev-mod); } .cmp-ch.mod .g { color: var(--rev-mod); }
+.cmp-ch.del { border-color: var(--rev-del); } .cmp-ch.del .g { color: var(--rev-del); }
+.cmp-ch.on { background: var(--ink-strong); color: #fffdf6; }
+.cmp-ch.on .muted, .cmp-ch.on .g { color: #fffdf6; }

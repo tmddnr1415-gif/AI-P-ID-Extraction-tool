@@ -33,7 +33,7 @@ def test_the_pane_and_its_functions_exist():
 
 def test_the_switch_grows_a_third_button_that_toggles_side_mode():
     body = _fn("function renderRevSwitch")
-    assert 'class="side' in body and "toggleSide(!S.side)" in body
+    assert 'class="side' in body and "toggleSide(!S.side, true)" in body
     # 결과 전환 버튼은 data-job 이 있는 것만 — 세 번째 버튼이 switchView 로 흘러가면 안 된다
     assert 'querySelectorAll("button[data-job]")' in body
 
@@ -53,7 +53,7 @@ def test_the_right_page_follows_the_same_drawing_number_and_renumbered_sheets():
     assert "data.pages.find(p => p.drawing_no === want)" in body
     # hotfix38 의 도면번호 바뀐 장은 옛 번호로 찾는다 · 삭제 후보는 새 번호로 섰으므로 둘 다 본다
     assert "renumbered" in body and "ren.before" in body
-    assert "d.drawing_no === page.drawing_no || d.drawing_no === want" in body
+    assert "d.drawing_no === want || (page && d.drawing_no === page.drawing_no)" in body
     # 장이 없으면 그렇게 말한다 — 첫 장으로 떨어지지 않는다
     assert "장이 이전 결과에 없습니다" in body
     # 왼쪽 장이 바뀌면 오른쪽도
@@ -69,7 +69,8 @@ def test_zoom_and_scroll_are_shared_with_the_left():
 def test_the_previous_result_is_read_once_and_kept_in_memory():
     body = _fn("async function cmpLoad")
     assert "if (S.cmp[jobId]) return S.cmp[jobId];" in body
-    assert "/pages" in body and "/rows" not in body       # 행은 읽지 않는다 — 층이 상자를 든다
+    # 장·층·행 셋을 한 번에 — 행은 수정 행의 **이전 자리**(안정 ID)를 찾는 데만 쓴다
+    assert "/pages" in body and "/rows?tab=ALL" in body and "byId[r.rev.id] = r" in body
 
 
 def test_deleted_candidates_are_drawn_on_the_previous_sheet_not_judged_here():
@@ -78,3 +79,31 @@ def test_deleted_candidates_are_drawn_on_the_previous_sheet_not_judged_here():
     # 판정은 서버의 deleted_candidates 그대로 — 여기서 거리·반경을 다시 재지 않는다
     assert "radius" not in body and "nearest" not in body
     assert "deletedRemark(d" in body
+
+
+def test_the_change_list_and_navigation_exist_and_judge_nothing():
+    """변경 목록은 서버 판정(row.rev.state · deleted_candidates)을 모으기만 한다."""
+    for name in ("function pageChanges", "function renderCmpChanges", "function focusChange", "function autoSide"):
+        assert name in JS, name
+    assert 'id="cmp-changes"' in HTML and 'id="side-left-tag"' in HTML
+    body = _fn("function pageChanges")
+    assert '(r.rev || {}).state' in body and "ADDED" in body and "MODIFIED" in body
+    assert "radius" not in body and "nearest" not in body
+    # 수정 행의 이전 자리는 안정 ID 로 — 좌표로 다시 짝짓지 않는다
+    assert "prev.byId[r.rev.id]" in body
+    ov = _fn("function drawCmpOverlay")
+    assert '"MOD"' in ov and "ADD (이전엔 없음)" in ov
+
+
+def test_opening_a_result_with_changes_turns_side_mode_on_unless_the_person_turned_it_off():
+    body = _fn("function autoSide")
+    assert "compared_with" in body and "pid.side.off" in body
+    assert "S.job.id !== S.revPair.current" in body         # 왼쪽 = 최신일 때만
+    assert "autoSide();" in _fn("async function open")
+    tg = _fn("function toggleSide")
+    assert 'localStorage.setItem("pid.side.off", "1")' in tg and "if (manual)" in tg
+
+
+def test_the_page_list_counts_changes_per_sheet():
+    body = _fn("function buildPageSelect")
+    assert "deleted_candidates" in body and '"＋"' in body and '"≠"' in body and '"－"' in body

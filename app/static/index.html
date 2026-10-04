@@ -258,6 +258,8 @@
     <section id="left">
       <div class="toolbar">
         <select id="page-select"></select>
+        <!-- hotfix40 — 나란히 볼 때 왼쪽이 **최신** 임을 말한다 -->
+        <span id="side-left-tag" class="side-left-tag hidden"></span>
         <button data-z="-1">&minus;</button>
         <button data-z="0">맞춤</button>
         <button data-z="1">+</button>
@@ -341,6 +343,7 @@
       <div id="cmp" class="cmp hidden">
         <div id="cmp-head" class="cmp-head"></div>
         <div id="cmp-stage"><div id="cmp-wrap"><img id="cmp-sheet" alt="직전 Rev 도면" draggable="false"><svg id="cmp-ov"></svg></div></div>
+        <div id="cmp-changes" class="cmp-changes"></div>
         <div id="cmp-foot" class="cmp-foot muted small"></div>
       </div>
       <!-- Always visible: what is left to decide, by the axis it is decided on.

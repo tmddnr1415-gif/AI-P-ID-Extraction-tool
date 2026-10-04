@@ -1170,6 +1170,18 @@ async function open(jobId) {
   S.loading = false;
   updateEmptyNote();
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
+  autoSide();
+}
+
+/* hotfix40 — 이전 대비 **변경(추가·수정·삭제)이 있는** 결과를 열면 나란히 보기를 바로 켠다 —
+ * 목적이 그 변경을 이전 도면과 눈으로 대조하는 것이기 때문이다.  사람이 한 번 끄면
+ * (`pid.side.off`) 그 브라우저에서는 자동으로 켜지 않는다.  변경이 없으면 켜지 않는다. */
+function autoSide() {
+  if (!S.rev || !S.rev.compared_with || !S.revPair || S.job.id !== S.revPair.current) return;
+  const c = S.rev.counts || {};
+  if (!((c.ADDED || 0) + (c.MODIFIED || 0) + (c.DELETED_CANDIDATE || 0) + (c.DELETED || 0))) return;
+  let off = false; try { off = localStorage.getItem("pid.side.off") === "1"; } catch (e) {}
+  if (!off) toggleSide(true);
 }
 
 /* 이 결과가 어느 범례로 나왔나 — 재사용인가 유도인가 (15회차).
@@ -1435,7 +1447,7 @@ function renderRevSwitch() {
   box.classList.toggle("viewing-prev", viewingPrev);
   box.querySelectorAll("button[data-job]").forEach(b => b.onclick = () => switchView(b.dataset.job));
   const sb = box.querySelector("button.side");
-  if (sb) sb.onclick = () => toggleSide(!S.side);
+  if (sb) sb.onclick = () => toggleSide(!S.side, true);
 }
 
 async function switchView(jobId) {
@@ -1480,9 +1492,11 @@ async function switchView(jobId) {
  *     `deleted_candidates` 그대로이고 여기서 다시 하지 않는다.
  *   · 왼쪽이 직전 결과를 보는 중이면(스위치 '이전') 먼저 현재로 돌아온다 — "왼쪽 = 최신"
  *     이 이 보기의 전제다.  */
-function toggleSide(on) {
+function toggleSide(on, manual) {
   const pr = S.revPair;
   if (on && (!pr || !S.job)) return;
+  // 사람이 끈 것은 기억한다 — 변경이 있는 결과를 열 때 자동으로 켜는 것(`open`)을 그 사람에게는 하지 않는다.
+  if (manual) { try { if (on) localStorage.removeItem("pid.side.off"); else localStorage.setItem("pid.side.off", "1"); } catch (e) {} }
   if (on && S.job.id === pr.previous) {
     // 왼쪽이 이전 결과면 현재로 돌아온 뒤 켠다 (switchView 는 side 를 끄므로 끝에 다시 켠다)
     switchView(pr.current).then(() => toggleSide(true));
@@ -1495,6 +1509,8 @@ function toggleSide(on) {
   const root = document.documentElement;
   if (S.side) { S._leftW = root.style.getPropertyValue("--left-w"); root.style.setProperty("--left-w", "1fr"); }
   else if (S._leftW !== undefined) { if (S._leftW) root.style.setProperty("--left-w", S._leftW); else root.style.removeProperty("--left-w"); S._leftW = undefined; }
+  const lt = $("#side-left-tag");
+  if (lt) { lt.classList.toggle("hidden", !S.side); lt.textContent = S.side ? `최신 ${pr.currentLabel} — 이번 분석` : ""; }
   renderRevSwitch();
   if (S.side) cmpShow();
 }
@@ -1502,11 +1518,40 @@ function toggleSide(on) {
 async function cmpLoad(jobId) {
   if (S.cmp[jobId]) return S.cmp[jobId];
   const t0 = performance.now();
-  const [job, pages] = await Promise.all([
+  // 행도 한 번 읽는다 — **수정된 행의 이전 자리**는 안정 ID(`rev.id`)로만 찾을 수 있다
+  // (층에는 ID 가 없다).  한 번뿐이고 메모리에 둔다.
+  const [job, pages, rows] = await Promise.all([
     fetch(`/jobs/${jobId}`).then(r => r.json()),
-    fetch(`/jobs/${jobId}/pages`).then(r => r.json())]);
-  S.cmp[jobId] = { job, pages, ms: Math.round(performance.now() - t0) };
+    fetch(`/jobs/${jobId}/pages`).then(r => r.json()),
+    fetch(`/jobs/${jobId}/rows?tab=ALL`).then(r => r.json()).catch(() => [])]);
+  const byId = {};
+  for (const r of rows || []) if (r.rev && r.rev.id) byId[r.rev.id] = r;
+  S.cmp[jobId] = { job, pages, byId, ms: Math.round(performance.now() - t0) };
   return S.cmp[jobId];
+}
+
+/* 이 장의 변경 — 왼쪽(현재) 행의 추가·수정과 이 도면번호의 삭제 후보를 한 목록으로.
+ * 판정은 서버(`row.rev.state` · `deleted_candidates`) 그대로이고 여기서는 모으기만 한다. */
+function pageChanges(page, dels, prev) {
+  const out = [];
+  for (const r of S.rows || []) {
+    if (r.page_no !== page.page_no) continue;
+    const st = (r.rev || {}).state;
+    if (st !== "ADDED" && st !== "MODIFIED") continue;
+    const was = st === "MODIFIED" && prev && r.rev.id ? prev.byId[r.rev.id] : null;
+    out.push({ state: st, key: r.key, row: r, rect: r.rect, prevRect: was ? was.rect : null,
+               label: `${r.values.type || r.values.valve_type || ""} ${r.values.tag_no || ""}`.trim(),
+               // 바뀐 칸은 서버가 {field, was, now} 로 주거나 이름만 준다 — 이름만 쓴다
+               changed: ((r.rev || {}).changed || []).map(x => typeof x === "string" ? x : (x && x.field) || "") });
+  }
+  for (const d of dels || []) {
+    out.push({ state: d.confirmed ? "DELETED" : "DELETED_CANDIDATE", key: `del:${d.id}`, del: d,
+               anchor: d.anchor, label: `${d.type || ""} ${d.tag_no || ""}`.trim() });
+  }
+  const order = { ADDED: 0, MODIFIED: 1, DELETED_CANDIDATE: 2, DELETED: 2 };
+  const y = e => e.rect ? e.rect[1] : (e.anchor ? e.anchor[1] : 0);
+  out.sort((a, b) => (order[a.state] - order[b.state]) || (y(a) - y(b)));
+  return out;
 }
 
 /* 오른쪽 창을 지금 왼쪽 장의 도면번호로 맞춘다.  장이 없으면 그렇게 말한다 (새 장). */
@@ -1524,16 +1569,22 @@ async function cmpShow() {
     || (ren && data.pages.find(p => p.drawing_no === ren.before)) || null;
   S.cmpPage = page;
   // 삭제 후보의 도면번호는 장부가 옮긴 **새 번호**다 (hotfix38) — 옛 번호 장에도 그 후보가 선다.
-  const dels = ((S.rev || {}).deleted_candidates || []).filter(d => page && (d.drawing_no === page.drawing_no || d.drawing_no === want));
+  const dels = ((S.rev || {}).deleted_candidates || []).filter(d => d.drawing_no === want || (page && d.drawing_no === page.drawing_no));
   const n = page ? Object.values(page.layers || {}).reduce((a, v) => a + v.length, 0) : 0;
+  const changes = pageChanges(S.page, dels, data);
+  S.cmpChanges = changes;
+  const nAdd = changes.filter(c => c.state === "ADDED").length;
+  const nMod = changes.filter(c => c.state === "MODIFIED").length;
+  const nDel = changes.length - nAdd - nMod;
   head.innerHTML = `<span class="cmp-rev">이전 ${escape(pr.previousLabel)}</span>`
     + (page ? `<span class="cmp-dwg">${escape(page.drawing_no || "")}</span><span class="muted">p${page.page_no}</span>`
               + (ren && page.drawing_no !== want ? `<span class="muted">도면번호 바뀜 → ${escape(want)} (태그 ${ren.shared}개 공유)</span>` : "")
             : `<span class="muted">같은 도면번호(${escape(want || "없음")}) 장이 이전 결과에 없습니다 — 이번 리비전에서 새로 든 장</span>`)
-    + `<span class="cmp-n">${page ? `상자 ${n} · 삭제 후보 ${dels.length}` : ""}</span>`;
-  foot.textContent = `왼쪽 ${escape(pr.currentLabel)} p${S.page.page_no} ↔ 오른쪽 ${escape(pr.previousLabel)}`
-    + (page ? ` p${page.page_no}` : "") + ` · 같은 도면번호로 맞춤 · 붉은 ✕ = 이번 분석에서 짝이 없는 삭제 후보`
-    + (data.ms ? ` · 이전 결과 ${data.ms}ms 에 읽음 (메모리)` : "");
+    + `<span class="cmp-n">${page ? `상자 ${n}` : ""}</span>`;
+  foot.textContent = `왼쪽 최신 ${escape(pr.currentLabel)} p${S.page.page_no} ↔ 오른쪽 이전 ${escape(pr.previousLabel)}`
+    + (page ? ` p${page.page_no}` : "") + ` · 같은 도면번호 · 확대·스크롤 공유`
+    + (data.ms ? ` · 이전 결과 ${data.ms}ms 에 읽음` : "");
+  renderCmpChanges(changes, { add: nAdd, mod: nMod, del: nDel });
   ov.innerHTML = "";
   if (!page) { img.removeAttribute("src"); img.style.display = "none"; return; }
   img.style.display = "";
@@ -1542,7 +1593,7 @@ async function cmpShow() {
     $("#cmp-wrap").style.width = `${S.cmpNatural.w}px`;
     $("#cmp-wrap").style.height = `${S.cmpNatural.h}px`;
     cmpApplyZoom();
-    drawCmpOverlay(page, dels);
+    drawCmpOverlay(page, dels, changes);
     cmpSyncScroll();
   };
   img.src = `/jobs/${pr.previous}/page/${page.page_no}.png?zoom=1.6`;
@@ -1556,7 +1607,7 @@ function cmpApplyZoom() {
 /* 이전 결과의 상자 — 색은 그 결과의 SCOPE 층 그대로(`SCOPE_COLOR`), 파선은 밸브.
  * 행은 읽지 않으므로 사람이 그 결과에서 고친 SCOPE 는 모른다 — 머리줄에 그렇게 적지 않고
  * 상자 툴팁에 "분석 때 층" 이라고 적는다. */
-function drawCmpOverlay(page, dels) {
+function drawCmpOverlay(page, dels, changes) {
   const ov = $("#cmp-ov");
   ov.innerHTML = "";
   if (!S.cmpNatural) return;
@@ -1588,6 +1639,40 @@ function drawCmpOverlay(page, dels) {
     r.appendChild(tip);
     ov.appendChild(r);
   }
+  // 수정된 행 — 이전 자리(안정 ID 로 찾은 이전 행의 상자)에 초록 고리와 MOD 글자.
+  // 추가된 행 — 이전 도면에는 없으므로 **현재 자리에 점선 유령 상자**와 'ADD (이전엔 없음)'.
+  const svgText = (x, y, size, cls, str) => {
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("font-size", size);
+    t.setAttribute("class", cls); t.textContent = str; return t;
+  };
+  for (const c of changes || []) {
+    if (c.state === "MODIFIED" && c.prevRect && c.prevRect.length === 4) {
+      const [x0, y0, x1, y1] = c.prevRect;
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      g.setAttribute("x", x0 * scale - 3); g.setAttribute("y", y0 * scale - 3);
+      g.setAttribute("width", Math.max(2, (x1 - x0) * scale) + 6); g.setAttribute("height", Math.max(2, (y1 - y0) * scale) + 6);
+      g.setAttribute("class", "cmp-mod" + (S.sel === c.key ? " sel" : ""));
+      const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = `수정 — ${c.label} · 바뀐 칸 ${(c.changed || []).join(", ") || "(자리만)"}`;
+      g.appendChild(tip);
+      g.onclick = (ev) => { ev.stopPropagation(); focusChange(c); };
+      ov.appendChild(g);
+      ov.appendChild(svgText(x0 * scale, y0 * scale - 4, Math.max(9, (y1 - y0) * scale * 0.35), "cmp-modtag", "MOD"));
+    } else if (c.state === "ADDED" && c.rect && c.rect.length === 4) {
+      const [x0, y0, x1, y1] = c.rect;
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      g.setAttribute("x", x0 * scale); g.setAttribute("y", y0 * scale);
+      g.setAttribute("width", Math.max(2, (x1 - x0) * scale)); g.setAttribute("height", Math.max(2, (y1 - y0) * scale));
+      g.setAttribute("class", "cmp-add" + (S.sel === c.key ? " sel" : ""));
+      const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tip.textContent = `추가 — ${c.label} · 이전 ${(S.revPair || {}).previousLabel || ""} 에는 이 자리에 행이 없었습니다`;
+      g.appendChild(tip);
+      g.onclick = (ev) => { ev.stopPropagation(); focusChange(c); };
+      ov.appendChild(g);
+      ov.appendChild(svgText(x0 * scale, y0 * scale - 4, Math.max(9, (y1 - y0) * scale * 0.35), "cmp-addtag", "ADD (이전엔 없음)"));
+    }
+  }
   // 삭제 후보 — 붉은 ✕ 와 'DEL' 글자.  자리는 장부의 anchor (이전 Rev 좌표).
   for (const d of dels || []) {
     const [ax, ay] = d.anchor || [];
@@ -1610,9 +1695,63 @@ function drawCmpOverlay(page, dels) {
     const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
     tip.textContent = deletedRemark(d, (S.rev || {}).compared_with || "") + (d.type ? ` · ${d.type}` : "") + (d.tag_no ? ` ${d.tag_no}` : "");
     dot.appendChild(tip);
-    for (const el of [dot, t]) el.onclick = (ev) => { ev.stopPropagation(); if (S.rowByKey[`del:${d.id}`] || (S.deletedRows || []).some(r => r.key === `del:${d.id}`)) { toggleSide(false); select(`del:${d.id}`, true); } };
+    for (const el of [dot, t]) el.onclick = (ev) => { ev.stopPropagation(); focusChange((S.cmpChanges || []).find(c => c.key === `del:${d.id}`) || { state: "DELETED_CANDIDATE", key: `del:${d.id}`, anchor: d.anchor, del: d }); };
     ov.appendChild(dot); ov.appendChild(t); ov.appendChild(tag);
   }
+}
+
+/* 비교 창 아래의 **변경 목록** — 이 장에서 이전 대비 추가·수정·삭제된 것만.  누르면 두 창이
+ * 그 자리로 간다 (왼쪽은 그 행을 고르고, 오른쪽은 스크롤 동기로 따라온다).  ◀ ▶ 로 차례로. */
+function renderCmpChanges(changes, n) {
+  const box = $("#cmp-changes");
+  if (!box) return;
+  S.cmpIdx = -1;
+  if (!changes.length) {
+    box.innerHTML = `<div class="cmp-ch-head"><b>이 장 변경 없음</b><span class="muted">이전 대비 추가·수정·삭제된 행이 없습니다 — 두 도면이 같은 결과입니다</span></div>`;
+    return;
+  }
+  const mark = { ADDED: ["＋", "add"], MODIFIED: ["≠", "mod"], DELETED_CANDIDATE: ["－", "del"], DELETED: ["－", "del"] };
+  box.innerHTML = `<div class="cmp-ch-head"><b>이 장 변경 ${changes.length}</b>`
+    + `<span class="add">추가 ${n.add}</span><span class="mod">수정 ${n.mod}</span><span class="del">삭제 ${n.del}</span>`
+    + `<span class="sp"></span><button type="button" class="ghost mini" data-step="-1" title="앞 변경으로">◀</button>`
+    + `<button type="button" class="ghost mini" data-step="1" title="다음 변경으로">▶</button></div>`
+    + `<div class="cmp-ch-list">` + changes.map((c, i) => {
+        const [g, cls] = mark[c.state];
+        const why = c.state === "MODIFIED" ? (c.changed.length ? c.changed.join(", ") : "자리만")
+          : c.state === "ADDED" ? "이전엔 없음"
+          : (c.del && c.del.confirmed ? "삭제 확정" : "삭제 후보");
+        return `<button type="button" class="cmp-ch ${cls}" data-i="${i}" title="${escape(why)}"><span class="g">${g}</span>${escape(c.label || c.key)}<span class="muted"> ${escape(why)}</span></button>`;
+      }).join("") + `</div>`;
+  box.querySelectorAll("button.cmp-ch").forEach(b => b.onclick = () => focusChange(changes[+b.dataset.i], +b.dataset.i));
+  box.querySelectorAll("button[data-step]").forEach(b => b.onclick = () => {
+    const i = (S.cmpIdx + (+b.dataset.step) + changes.length) % changes.length;
+    focusChange(changes[i], i);
+  });
+}
+
+/* 변경 하나로 두 창을 맞춘다.  추가·수정은 왼쪽 행을 고른다(→ 가운데로 · 오른쪽은 동기);
+ * 삭제는 왼쪽에 자리가 없으므로 오른쪽을 이전 자리로 옮기고(왼쪽이 따라온다) 목록의 삭제 행을 고른다. */
+function focusChange(c, idx) {
+  if (!c) return;
+  if (idx === undefined) idx = (S.cmpChanges || []).indexOf(c);
+  S.cmpIdx = idx;
+  document.querySelectorAll("#cmp-changes button.cmp-ch").forEach((b, i) => b.classList.toggle("on", i === idx));
+  if (c.state === "ADDED" || c.state === "MODIFIED") {
+    select(c.key, true);
+  } else {
+    const [ax, ay] = c.anchor || [];
+    if (ax !== undefined && S.cmpNatural && S.cmpPage) {
+      if (S.zoom < SYMBOL_ZOOM) { S.zoom = SYMBOL_ZOOM; applyZoom(); }
+      const scale = S.cmpNatural.w / (S.cmpPage.width || 1);
+      const cs = $("#cmp-stage");
+      cs.scrollLeft = ax * scale * S.zoom - cs.clientWidth / 2;
+      cs.scrollTop = ay * scale * S.zoom - cs.clientHeight / 2;
+      cmpSyncScroll("cmp");
+    }
+    // 목록의 삭제 행을 고른다 (fromGrid=false — 왼쪽에는 그 심볼이 없어 가운데로 옮길 것이 없다)
+    if ((S.deletedRows || []).some(r => r.key === c.key)) select(c.key, false);
+  }
+  if (S.cmpPage) drawCmpOverlay(S.cmpPage, (S.cmpChanges || []).filter(x => x.del).map(x => x.del), S.cmpChanges);
 }
 
 /* 스크롤 동기 — 왼쪽이 움직이면 오른쪽이, 오른쪽을 끌면 왼쪽이.  되돌이는 깃발로 막는다. */
@@ -4503,10 +4642,26 @@ const escape = (s) => s.replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&":
 function buildPageSelect() {
   const sel = $("#page-select");
   sel.innerHTML = "";
+  // hotfix40 — 이전 대비 변경이 있는 장은 장 목록에 그 수를 적는다 (＋추가 ≠수정 －삭제).
+  // 판정은 행의 `rev.state` 와 서버의 삭제 후보 그대로 — 어느 장을 봐야 하는지 고르는 길이다.
+  const ch = {};
+  if (S.rev && S.rev.compared_with) {
+    for (const r of S.rows || []) {
+      const st = (r.rev || {}).state; if (st !== "ADDED" && st !== "MODIFIED") continue;
+      (ch[r.page_no] = ch[r.page_no] || { a: 0, m: 0, d: 0 })[st === "ADDED" ? "a" : "m"]++;
+    }
+    const byDwg = {}; for (const p of S.pages) if (p.drawing_no) byDwg[p.drawing_no] = p.page_no;
+    for (const d of S.rev.deleted_candidates || []) {
+      const pn = byDwg[d.drawing_no]; if (!pn) continue;
+      (ch[pn] = ch[pn] || { a: 0, m: 0, d: 0 }).d++;
+    }
+  }
   for (const p of S.pages) {
     const o = document.createElement("option");
     o.value = p.page_no;
-    o.textContent = `p${p.page_no}  ${p.drawing_no || ""}`;
+    const c = ch[p.page_no];
+    o.textContent = `p${p.page_no}  ${p.drawing_no || ""}`
+      + (c ? `   ${c.a ? "＋" + c.a + " " : ""}${c.m ? "≠" + c.m + " " : ""}${c.d ? "－" + c.d : ""}`.replace(/\s+$/, "") : "");
     sel.appendChild(o);
   }
   sel.onchange = () => showPage(S.pages.find(p => p.page_no === +sel.value));

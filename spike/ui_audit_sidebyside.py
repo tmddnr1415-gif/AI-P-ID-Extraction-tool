@@ -57,7 +57,9 @@ try:
         if target: pg.select_option("#page-select", str(target)); pg.wait_for_timeout(2000)
         before = pg.evaluate("() => ({rows: document.querySelectorAll('#grid tbody tr').length, gridVisible: !!(document.querySelector('#grid') && document.querySelector('#grid').offsetParent)})")
         n0 = len(reqs); t = time.time()
-        pg.click("#rev-switch button.side")
+        auto0 = pg.evaluate("() => S.side")
+        if auto0: note("   (변경이 있는 결과라 열 때 이미 켜져 있음 — 자동)")
+        else: pg.click("#rev-switch button.side")
         pg.wait_for_function("() => S.side && document.querySelector('#cmp-sheet') && document.querySelector('#cmp-sheet').complete && document.querySelector('#cmp-sheet').naturalWidth > 0", timeout=60000)
         pg.wait_for_timeout(1200)
         st = pg.evaluate("""() => ({side: S.side, compare: document.querySelector('#right').classList.contains('compare'),
@@ -74,6 +76,24 @@ try:
         note(f"   바닥줄: {st['foot']!r}")
         note(f"④ 배율 왼쪽 {st['zl']} = 오른쪽 {st['zr']} — {'맞음' if st['zl'] == st['zr'] else '★ 틀림'}")
         pg.screenshot(path=str(OUT / "1_나란히.png"))
+        # 왼쪽 '최신' 배지 · 장 목록의 변경 수 · 변경 목록 · ◀▶ 로 차례로
+        lt = pg.inner_text("#side-left-tag"); opt = pg.evaluate("() => document.querySelector('#page-select option:checked').textContent")
+        ch = pg.evaluate("() => ({text: document.querySelector('#cmp-changes .cmp-ch-head').innerText, n: document.querySelectorAll('#cmp-changes button.cmp-ch').length, mod: document.querySelectorAll('#cmp-ov rect.cmp-mod').length, add: document.querySelectorAll('#cmp-ov rect.cmp-add').length})")
+        note(f"⑨ 왼쪽 배지 {lt!r} · 장 목록 {opt!r} · 변경 목록 {ch['text']!r} · 항목 {ch['n']} · 오른쪽 MOD 고리 {ch['mod']} · ADD 유령 {ch['add']} — {'맞음' if '최신' in lt and ch['n'] > 0 and ('＋' in opt or '≠' in opt or '－' in opt) else '★ 틀림'}")
+        pg.click("#cmp-changes button[data-step='1']"); pg.wait_for_timeout(900)
+        f1 = pg.evaluate("() => ({idx: S.cmpIdx, sel: S.sel, state: S.cmpChanges[S.cmpIdx].state, zoom: S.zoom, l: document.querySelector('#stage').scrollLeft, r: document.querySelector('#cmp-stage').scrollLeft})")
+        pg.click("#cmp-changes button[data-step='1']"); pg.wait_for_timeout(900)
+        f2 = pg.evaluate("() => ({idx: S.cmpIdx, sel: S.sel, state: S.cmpChanges[S.cmpIdx].state, l: document.querySelector('#stage').scrollLeft, r: document.querySelector('#cmp-stage').scrollLeft, lt: document.querySelector('#stage').scrollTop, rt: document.querySelector('#cmp-stage').scrollTop})")
+        note(f"⑩ ▶ 두 번 — 첫 {f1['state']} (sel {f1['sel'] is not None}) → 둘째 {f2['state']} idx {f2['idx']} · 두 창 스크롤 ({f2['l']},{f2['lt']}) ↔ ({f2['r']},{f2['rt']}) — {'맞음' if f2['idx'] == 1 and abs(f2['l'] - f2['r']) <= 2 and abs(f2['lt'] - f2['rt']) <= 2 else '★ 틀림'}")
+        pg.screenshot(path=str(OUT / "1b_변경따라가기.png"))
+        # 삭제 항목으로 — 오른쪽이 그 자리로 가고 왼쪽이 따라온다
+        di = pg.evaluate("() => S.cmpChanges.findIndex(c => c.state.startsWith('DELETED'))")
+        if di >= 0:
+            pg.click(f"#cmp-changes button.cmp-ch[data-i='{di}']"); pg.wait_for_timeout(900)
+            f3 = pg.evaluate("() => ({sel: S.sel, l: document.querySelector('#stage').scrollLeft, r: document.querySelector('#cmp-stage').scrollLeft})")
+            note(f"⑪ 삭제 항목 누름 — 목록 선택 {f3['sel']!r} · 두 창 스크롤 {f3['l']} ↔ {f3['r']} — {'맞음' if str(f3['sel']).startswith('del:') and abs(f3['l'] - f3['r']) <= 2 else '★ 틀림'}")
+            pg.screenshot(path=str(OUT / "1c_삭제항목.png"))
+        pg.click("#left .toolbar button[data-z='0']"); pg.wait_for_timeout(500)
         # 확대 두 번 + 왼쪽 스크롤 → 오른쪽 따라오나
         pg.click("#left .toolbar button[data-z='1']"); pg.click("#left .toolbar button[data-z='1']"); pg.wait_for_timeout(400)
         pg.evaluate("() => { const s = document.querySelector('#stage'); s.scrollLeft = 600; s.scrollTop = 350; }")
@@ -113,6 +133,14 @@ try:
         pg.wait_for_function("() => S.side && S.job.id === %r && S.cmpPage !== undefined" % JOB, timeout=60000); pg.wait_for_timeout(1000)
         bk = pg.evaluate("() => ({job: S.job.id, side: S.side})")
         note(f"⑥ 이전 보기에서 '나란히' → 왼쪽이 현재({bk['job'] == JOB})로 돌아와 켜짐({bk['side']}) — {'맞음' if bk['job'] == JOB and bk['side'] else '★ 틀림'}")
+        # 자동 켜짐 — 변경이 있는 결과를 다시 열면 켜져 있고, 사람이 끄면 그 뒤로는 안 켜진다
+        pg.evaluate("() => localStorage.removeItem('pid.side.off')")
+        pg.goto(f"http://127.0.0.1:{port}/#{JOB}"); pg.wait_for_function("() => typeof S !== 'undefined' && S.job && !S.loading && S.pages && S.pages.length > 0", timeout=120000); pg.wait_for_timeout(2500)
+        a1 = pg.evaluate("() => S.side")
+        pg.click("#rev-switch button.side"); pg.wait_for_timeout(400)
+        pg.goto(f"http://127.0.0.1:{port}/#{JOB}"); pg.wait_for_function("() => typeof S !== 'undefined' && S.job && !S.loading && S.pages && S.pages.length > 0", timeout=120000); pg.wait_for_timeout(2500)
+        a2 = pg.evaluate("() => S.side"); pg.evaluate("() => localStorage.removeItem('pid.side.off')")
+        note(f"⑫ 변경 있는 결과를 열면 자동 켜짐 {a1} · 사람이 끈 뒤 다시 열면 {a2} — {'맞음' if a1 and not a2 else '★ 틀림'}")
         note(f"⑧ 페이지 오류 {len(errs)}" + (" — " + errs[0][:300] if errs else ""))
         br.close()
 finally:
