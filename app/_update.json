@@ -1,8 +1,8 @@
 {
-  "name": "hotfix38",
-  "rev": 38,
-  "zip": "PID_hotfix38_2026-10-04.zip",
-  "created_at": "2026-10-04 04:06",
-  "base_commit": "c661feb",
+  "name": "hotfix39",
+  "rev": 39,
+  "zip": "PID_hotfix39_2026-10-04.zip",
+  "created_at": "2026-10-04 05:37",
+  "base_commit": "20568d3",
   "branch": "claude/titleblock-parsing-c5st4x"
 }
