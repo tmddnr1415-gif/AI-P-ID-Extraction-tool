@@ -1,0 +1,59 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+INFO:     Started server process [662]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:55757 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35886 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35892 - "POST /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35896 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35912 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44716 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57596 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59288 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44498 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57652 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47650 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52292 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44078 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47740 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38828 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49540 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52930 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45236 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44616 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52452 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48728 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49270 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39248 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50972 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40656 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36354 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46418 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37772 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39660 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54162 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42024 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41982 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48068 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45970 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44940 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37914 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56164 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56284 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48002 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52750 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39366 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44980 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36666 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33372 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42990 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46338 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54174 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47952 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54286 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46826 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37652 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50718 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60430 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47520 - "GET /jobs/8d6abca8e12c HTTP/1.1" 200 OK
