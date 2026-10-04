@@ -254,10 +254,12 @@ def _pairs_within(cur: list, recs: list, radius: float,
                   skip_rows=(), skip_recs=()) -> tuple[list, list]:
     """(현재 행, 장부 기록, 거리) 중 반경 안인 것.  같은 TYPE 끼리만 만든다.
 
-    hotfix38 — **둘 다 태그를 들고 그 태그가 다르면** 거리가 가까워도 짝이 아니다
-    (1급 문서에서 이름이 다른 것은 다른 항목이다).  그 쌍은 버리지 않고 `blocked`
-    로 돌려주어 근거에 적는다 — 같은 자리에서 태그만 바뀐 것은 "수정" 이 아니라
-    "삭제 + 추가" 로 읽히고, 그 판정의 근거가 눈에 보여야 한다.
+    hotfix38 — **둘 다 태그를 들고 그 태그가 다른** 쌍은 따로 돌려준다 (`conflicts`).
+    그런 쌍은 태그가 같거나 한쪽이 빈 쌍을 **다 쓴 뒤에만** 짝이 되고, 짝이 되면
+    "수정 (tag_no)" 이다 — QFE 실측: `00GHC36CF001` → `10GHC42CF101` 이 **같은
+    좌표(0.0~1.7pt)** 에 서 있다.  같은 자리의 같은 심볼에 번호만 다시 매긴 것을
+    "삭제 + 추가" 로 읽으면 안정 ID 가 끊긴다 (§7.3 — ID 는 그 자리의 항목이고
+    태그는 그 항목의 값이다).
     """
     out, blocked = [], []
     for i, row in enumerate(cur):
@@ -283,15 +285,17 @@ def _pairs_within(cur: list, recs: list, radius: float,
 
 
 def _match_one_drawing(cur: list, recs: list, radius: float) -> tuple[dict, dict, dict]:
-    """1:1 짝짓기.  태그가 유일하면 태그로, 남은 것은 상호 최근접 → 거리순.
+    """1:1 짝짓기.  태그가 유일하면 태그로, 남은 것은 상호 최근접 → 거리순 →
+    (맨 뒤에) 태그가 서로 다른 쌍.
 
-    돌려주는 셋째 값은 근거다 — 행마다 `basis` (TAG | GEOMETRY), 거리 안이었는데
-    태그가 달라 막은 쌍, 태그가 겹쳐 기하로 넘긴 열쇠.
+    돌려주는 셋째 값은 근거다 — 행마다 `basis` (TAG | GEOMETRY), 태그가 다른데
+    자리로 짝지은 쌍(`tag_changed` · 짝이 못 된 것도 `matched: False` 로), 태그가
+    겹쳐 기하로 넘긴 열쇠.
     """
     matched, dup = _tag_matches(cur, recs)
     basis = {i: "TAG" for i in matched}
     taken_rows, taken_recs = set(matched), set(matched.values())
-    pairs, blocked = _pairs_within(cur, recs, radius, taken_rows, taken_recs)
+    pairs, conflicts = _pairs_within(cur, recs, radius, taken_rows, taken_recs)
     best_for_row: dict[int, int] = {}
     best_for_rec: dict[int, int] = {}
     for d, i, j in pairs:
@@ -312,12 +316,75 @@ def _match_one_drawing(cur: list, recs: list, radius: float) -> tuple[dict, dict
         basis[i] = "GEOMETRY"
         taken_rows.add(i)
         taken_recs.add(j)
-    evidence = {"basis": basis,
-                "tag_blocked": [{"distance": d, "row": cur[i].get("key", ""),
-                                 "id": recs[j]["id"], "was": was, "now": now}
-                                for d, i, j, was, now in blocked],
-                "tag_duplicates": dup}
+    # 3) 태그가 서로 다른 쌍 — 남은 것끼리만, 거리순
+    changed = []
+    for d, i, j, was, now in conflicts:
+        hit = i not in taken_rows and j not in taken_recs
+        if hit:
+            matched[i] = j
+            basis[i] = "GEOMETRY"
+            taken_rows.add(i)
+            taken_recs.add(j)
+        changed.append({"distance": d, "row": cur[i].get("key", ""),
+                        "id": recs[j]["id"], "was": was, "now": now, "matched": hit})
+    evidence = {"basis": basis, "tag_changed": changed, "tag_duplicates": dup}
     return matched, {j: i for i, j in matched.items()}, evidence
+
+
+def _sheet_tags(rows: list) -> set:
+    return {(str(r.get("type") or ""), str(r.get("tag_no") or "").strip())
+            for r in rows if str(r.get("tag_no") or "").strip()}
+
+
+def pair_renumbered_sheets(by_drawing: dict, registry: "Registry") -> dict:
+    """hotfix38 — **도면번호가 바뀐 장**을 태그로 알아본다.
+
+    QFE 실측: 260112 의 `30GKC10-M05-0001~0003` 이 260326 에서 `…-0201~0203` 이
+    됐다 (같은 제목 · 태그 17/22 · 18/19 · 13/47 공유).  도면번호로만 묶으면 그
+    세 장의 행 전부가 "삭제 + 추가" 가 된다 — 장이 통째로 사라졌다는 거짓말이다.
+
+    규칙: 장부에만 있는 도면번호 ↔ 이번 분석에만 있는 도면번호 사이에서, 공유하는
+    (TYPE, 태그) 가 **둘 이상이고 작은 쪽 집합의 절반 이상**이며 서로가 서로의
+    최선일 때만 같은 장으로 본다.  태그가 없는 장(`…-0004` ↔ `…-0204` · 공유 0)은
+    짝짓지 않는다 — 제목이 같아도 네 장이 다 같은 제목이라 근거가 못 된다.
+    돌려주는 것: {옛 도면번호: {"now", "shared", "before_tags", "now_tags"}}.
+    """
+    reg_drawings = {}
+    for rec in registry.data["ids"].values():
+        if rec.get("status") != "active":
+            continue
+        tag = str((rec.get("values") or {}).get("tag_no") or "").strip()
+        if tag:
+            reg_drawings.setdefault(rec["drawing_no"], set()).add(
+                (str(rec.get("type") or ""), tag))
+        else:
+            reg_drawings.setdefault(rec["drawing_no"], set())
+    only_before = {d: t for d, t in reg_drawings.items() if d not in by_drawing}
+    only_now = {d: _sheet_tags(rows) for d, rows in by_drawing.items()
+                if d not in reg_drawings}
+    if not only_before or not only_now:
+        return {}
+
+    def best(src, pool):
+        scored = sorted(((len(src & t), d) for d, t in pool.items()), reverse=True)
+        return scored[0] if scored and scored[0][0] else None
+
+    out = {}
+    for old, ta in only_before.items():
+        b = best(ta, only_now)
+        if not b:
+            continue
+        shared, new = b
+        tb = only_now[new]
+        # 둘 이상 — 태그 하나가 다른 장으로 옮겨 간 것은 장이 바뀐 것이 아니다
+        if shared < 2 or shared < 0.5 * min(len(ta), len(tb)):
+            continue
+        back = best(tb, only_before)
+        if not back or back[1] != old:
+            continue
+        out[old] = {"now": new, "shared": shared,
+                    "before_tags": len(ta), "now_tags": len(tb)}
+    return out
 
 
 def _changed_fields(row: dict, rec: dict) -> list:
@@ -351,6 +418,22 @@ def compare(rows: list, registry: "Registry", revision: str,
     # hotfix38 — 장부에만 있는 도면도 돈다.  이번 분석에 그 도면의 행이 **하나도**
     # 없으면(장이 빠졌거나 못 읽었거나) 예전 코드는 그 도면을 아예 안 보아 기록이
     # 삭제 후보로 올라오지 않았다 — 통째로 빠진 장이 조용히 사라지는 길이었다.
+    sheets = {"renumbered": [], "only_before": [], "only_now": []}
+    if not baseline:
+        # 도면번호가 바뀐 장 — 그 장의 기록을 새 번호 아래로 옮긴다.  안정 ID 는
+        # 그대로다 (계통코드가 같으면 번호도 같다 · 바뀌어도 ID 는 재부여하지 않는다).
+        for old, info in sorted(pair_renumbered_sheets(by_drawing, registry).items()):
+            for rec in registry.data["ids"].values():
+                if rec.get("status") == "active" and rec["drawing_no"] == old:
+                    rec["drawing_no"] = info["now"]
+                    rec.setdefault("renumbered", []).append(
+                        {"revision": revision, "from": old, "to": info["now"]})
+            sheets["renumbered"].append(dict(info, before=old))
+        reg_drawings = {rec["drawing_no"] for rec in registry.data["ids"].values()
+                        if rec.get("status") == "active"}
+        sheets["only_before"] = sorted(reg_drawings - set(by_drawing))
+        sheets["only_now"] = sorted(set(by_drawing) - reg_drawings)
+    renamed = {e["now"]: e["before"] for e in sheets["renumbered"]}
     drawings = set(by_drawing)
     if not baseline:
         drawings |= {rec["drawing_no"] for rec in registry.data["ids"].values()
@@ -361,12 +444,14 @@ def compare(rows: list, registry: "Registry", revision: str,
         recs = sorted(registry.by_drawing(dwg), key=lambda r: r["seq"])
         info = match_radius(cur, legend_bubble)
         radii[dwg] = info
-        matched, back, how = (({}, {}, {"basis": {}, "tag_blocked": [],
+        matched, back, how = (({}, {}, {"basis": {}, "tag_changed": [],
                                        "tag_duplicates": {"rows": [], "recs": []}})
                               if baseline else
                               _match_one_drawing(cur, recs, info["radius"]))
-        info["tag_blocked"] = how["tag_blocked"]
+        info["tag_changed"] = how["tag_changed"]
         info["tag_duplicates"] = how["tag_duplicates"]
+        if dwg in renamed:
+            info["renumbered_from"] = renamed[dwg]
         # 어느 길로 짝지었는지 — 태그가 있는 문서에서 몇 행이 태그로 섰는지가
         # 곧 "이 대조를 얼마나 믿을 수 있나" 다.
         info["matched_by"] = {"TAG": sum(1 for b in how["basis"].values() if b == "TAG"),
@@ -393,6 +478,8 @@ def compare(rows: list, registry: "Registry", revision: str,
                 states[row["key"]] = {"id": rec["id"], "state": state,
                                       "moved_pt": moved, "changed": changed,
                                       "basis": basis}
+                if dwg in renamed:
+                    states[row["key"]]["sheet_renumbered_from"] = renamed[dwg]
             else:
                 ident = registry.assign(row, revision)
                 rec = registry.data["ids"][ident]
@@ -454,7 +541,7 @@ def compare(rows: list, registry: "Registry", revision: str,
 
     return {"states": states, "deleted_candidates": deleted, "radii": radii,
             "compared_with": compared_with, "revision": revision,
-            "baseline": baseline,
+            "baseline": baseline, "sheets": sheets,
             "counts": {
                 ADDED: sum(1 for s in states.values() if s["state"] == ADDED),
                 MODIFIED: sum(1 for s in states.values() if s["state"] == MODIFIED),
@@ -756,6 +843,7 @@ def record_revision(data_dir: Path, name: str, revision: str, *, job_id: str,
              "label": (f"{revision} vs {compared_with}" if compared_with
                        else f"{revision} (비교 대상 없음)"),
              "counts": result["counts"],
+             "sheets": result.get("sheets") or {},
              "deleted_candidates": result["deleted_candidates"]}
     meta["revisions"] = [r for r in meta.get("revisions") or []
                          if r["revision"] != revision] + [entry]

@@ -1,6 +1,6 @@
 """hotfix38 — 개정 대조의 독립 검사.  `revisions.compare` 를 부르지 않는다.
 
-    python3 spike/rev_tag_diff.py <A_rows.json> <B_rows.json> <B_revision.json> [out.md]
+    python3 spike/rev_tag_diff.py <A_rows.json> <B_rows.json> <B_revision.json> [out.md] [A_pages.json B_pages.json]
 
 두 판의 행을 **태그만으로** 도면 단위 집합 대조한다 — (도면번호, TYPE, 태그).
 A 에만 있으면 삭제, B 에만 있으면 추가.  그 답을 compare() 의 상태와 맞춰
@@ -28,6 +28,23 @@ def tagset(rows):
     return c
 
 
+# hotfix38 — 도면번호가 바뀐 장.  compare() 가 낸 짝(`sheets.renumbered`)을 **받아 쓰되
+# 독립으로 검증한다**: 두 장의 제목이 같은가(pages json) · 태그 겹침을 여기서 다시 센다.
+sheet_map = {}
+pages_a = pages_b = {}
+if len(sys.argv) > 6:
+    pages_a = {p["drawing_no"]: p for p in json.loads(Path(sys.argv[5]).read_text())}
+    pages_b = {p["drawing_no"]: p for p in json.loads(Path(sys.argv[6]).read_text())}
+sheet_notes = []
+for e in (rev.get("sheets") or {}).get("renumbered") or []:
+    old, new = e["before"], e["now"]
+    ta = {k[1:] for k in tagset(a_rows) if k[0] == old}; tb = {k[1:] for k in tagset(b_rows) if k[0] == new}
+    same_title = (pages_a.get(old, {}).get("title") == pages_b.get(new, {}).get("title")) if pages_a else None
+    sheet_notes.append(f"- {old} → {new}: 제목 같음 {same_title} · 태그 겹침 {len(ta & tb)}/{min(len(ta), len(tb))} (compare 가 말한 {e['shared']})")
+    sheet_map[old] = new
+for r in a_rows:
+    if r.get("drawing_no") in sheet_map:
+        r["drawing_no"] = sheet_map[r["drawing_no"]]
 A, B = tagset(a_rows), tagset(b_rows)
 a_untagged = sum(1 for r in a_rows if not key(r))
 b_untagged = sum(1 for r in b_rows if not key(r))
@@ -63,6 +80,10 @@ P(f"- 태그 열쇠 종류 A {len(A)} · B {len(B)} · 겹침 {len(set(A)&set(B)
 P(f"- 태그만으로: 추가 {len(only_b)} 열쇠 · 삭제 {len(only_a)} 열쇠")
 c = rev.get("counts") or {}
 P(f"- compare(): 추가 {c.get('ADDED',0)} · 수정 {c.get('MODIFIED',0)} · 불변 {c.get('UNCHANGED',0)} · 삭제 후보 {c.get('DELETED_CANDIDATE',0)} · 짝 {rev.get('matched_by')}")
+P("")
+P("## 도면번호가 바뀐 장 (compare 의 짝을 독립으로 검증)")
+for n in sheet_notes: P(n)
+if not sheet_notes: P("- 없음")
 P("")
 P("## 일치")
 P(f"- 태그 추가(유일 열쇠) 중 compare 도 ADDED: {agree_add}/{len([k for k in only_b if k not in dup_b])}")

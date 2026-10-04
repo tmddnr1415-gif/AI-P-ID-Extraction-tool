@@ -905,9 +905,20 @@ def job_revision(job_id: str):
     label = (f"{job['revision']} vs {job['compared_with']}"
              if job["compared_with"] else
              (f"{job['revision']} (비교 대상 없음)" if job["revision"] else ""))
+    # hotfix38 — 도면번호가 바뀐 장 · 한쪽에만 있는 장.  장부(`project.json`)의
+    # 이 리비전 항목이 든 사실이고 여기서 다시 판정하지 않는다.
+    sheets = {}
+    if job["project"]:
+        try:
+            meta = revisions.load_project(DATA_DIR, job["project"])
+            for r in meta.get("revisions") or []:
+                if r.get("job_id") == job_id:
+                    sheets = r.get("sheets") or {}
+        except (KeyError, ValueError):
+            sheets = {}
     return {"project": job["project"], "revision": job["revision"],
             "compared_with": job["compared_with"], "label": label,
-            "counts": counts, "matched_by": matched_by,
+            "counts": counts, "matched_by": matched_by, "sheets": sheets,
             "deleted_candidates": cands}
 
 

@@ -75,32 +75,79 @@ def test_duplicate_tags_fall_back_to_geometry_and_say_so():
     assert info["matched_by"] == {"TAG": 0, "GEOMETRY": 2}
 
 
-def test_a_different_tag_at_the_same_spot_is_delete_plus_add_not_modify():
-    """1급 문서에서 이름이 다른 것은 다른 항목이다.  막은 쌍은 근거에 남는다."""
+def test_a_different_tag_at_the_same_spot_is_a_modification_ranked_last():
+    """같은 좌표의 같은 심볼에 번호만 다시 매긴 것 (QFE `00GHC36CF001` → `10GHC42CF101`
+    · 0.0~1.7pt).  안정 ID 를 잇고 "수정 (tag_no)" 으로 적는다 — 근거에 남는다."""
     a = [row("a", "PIT", 100, 100, "11LBB50CP001")]
     b = [row("b", "PIT", 101, 100, "11LBB50CP009")]
+    out, reg = _ab(a, b)
+    st = out["states"]["b"]
+    assert st["state"] == R.MODIFIED and st["basis"] == "GEOMETRY"
+    assert [c["field"] for c in st["changed"]] == ["tag_no"]
+    assert out["deleted_candidates"] == [] and len(reg.data["ids"]) == 1
+    ch = out["radii"][DWG]["tag_changed"]
+    assert ch == [{"distance": 1.0, "row": "b", "id": st["id"],
+                   "was": "11LBB50CP001", "now": "11LBB50CP009", "matched": True}]
+
+
+def test_a_tag_pair_that_agrees_is_taken_before_a_pair_whose_tags_differ():
+    """태그가 같거나 빈 쌍을 다 쓴 **뒤에만** 태그가 다른 쌍이 짝이 된다."""
+    a = [row("a1", "PIT", 100, 100, "11LBB50CP001"),
+         row("a2", "PIT", 100, 130, "11LBB50CP002")]
+    # CP002 가 CP001 의 옛 자리로 왔고 CP001 은 사라졌다, 새 CP003 이 CP002 자리에
+    b = [row("b1", "PIT", 100, 100, "11LBB50CP002"),
+         row("b2", "PIT", 100, 130, "11LBB50CP003")]
     out, _ = _ab(a, b)
-    assert out["states"]["b"]["state"] == R.ADDED
-    assert "11LBB50CP009" in out["states"]["b"]["reason"]
-    assert len(out["deleted_candidates"]) == 1
-    d = out["deleted_candidates"][0]
-    assert d["tag_no"] == "11LBB50CP001" and d["basis"] == "TAG"
-    assert d["tag_elsewhere"] == []
-    blocked = out["radii"][DWG]["tag_blocked"]
-    assert blocked and blocked[0]["was"] == "11LBB50CP001" \
-        and blocked[0]["now"] == "11LBB50CP009"
+    assert out["states"]["b1"]["state"] == R.UNCHANGED and out["states"]["b1"]["basis"] == "TAG"
+    assert out["states"]["b2"]["state"] == R.MODIFIED        # CP001 의 기록이 CP003 으로
+    assert out["deleted_candidates"] == []
+
+
+def test_a_renumbered_sheet_is_recognised_by_its_tags_and_keeps_its_ids():
+    """QFE — `30GKC10-M05-0001` 이 `…-0201` 로 (같은 장 · 태그 17/22 공유).
+    도면번호로만 묶으면 22행이 삭제 + 추가다."""
+    old, new = "1A1Y-30GKC10-M05-0001", "1A1Y-30GKC10-M05-0201"
+    a = [row(f"a{i}", "PIT", 100 + 40 * i, 100, f"31GKC20CP00{i}", dwg=old) for i in range(5)]
+    b = [row(f"b{i}", "PIT", 300 + 40 * i, 500, f"31GKC20CP00{i}", dwg=new) for i in range(4)] \
+        + [row("b9", "PIT", 700, 700, "31GKC20CP009", dwg=new)]
+    out, reg = _ab(a, b)
+    assert out["sheets"]["renumbered"] == [{"before": old, "now": new, "shared": 4,
+                                           "before_tags": 5, "now_tags": 5}]
+    assert out["sheets"]["only_before"] == [] and out["sheets"]["only_now"] == []
+    st = {k: v["state"] for k, v in out["states"].items()}
+    assert st == {"b0": R.UNCHANGED, "b1": R.UNCHANGED, "b2": R.UNCHANGED,
+                  "b3": R.UNCHANGED, "b9": R.ADDED}
+    assert all(v.get("sheet_renumbered_from") == old for k, v in out["states"].items() if k != "b9")
+    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["31GKC20CP004"]
+    recs = [r for r in reg.data["ids"].values() if r["drawing_no"] == new]
+    assert len(recs) == 6 and all(r["id"].startswith("30GKC10-") for r in recs)
+    assert recs[0]["renumbered"] == [{"revision": "Rev.B", "from": old, "to": new}]
+
+
+def test_sheets_without_shared_tags_are_not_paired_even_with_the_same_title():
+    """`…-0004` ↔ `…-0204` — 공유 태그 0.  제목이 같아도 근거가 아니다."""
+    old, new = "1A1Y-30GKC10-M05-0004", "1A1Y-30GKC10-M05-0204"
+    a = [row("a", "PIT", 100, 100, dwg=old)]
+    b = [row("b", "PIT", 100, 100, dwg=new)]
+    out, _ = _ab(a, b)
+    assert out["sheets"]["renumbered"] == []
+    assert out["sheets"]["only_before"] == [old] and out["sheets"]["only_now"] == [new]
+    assert out["states"]["b"]["state"] == R.ADDED and len(out["deleted_candidates"]) == 1
 
 
 def test_a_tag_that_moved_to_another_drawing_is_named_in_the_candidate():
     """삭제 후보가 든 태그가 다른 도면에 섰으면 '옮김일 수 있다' 고 말할 재료다."""
     other = "1A1Y-10LBB60-M05-0001"
-    a = [row("a", "TIT", 100, 100, "11LBB50CT001")]
-    b = [row("b", "TIT", 100, 100, "11LBB50CT001", dwg=other)]
+    a = [row("a", "TIT", 100, 100, "11LBB50CT001"), row("a2", "PIT", 500, 500, "11LBB50CP001"),
+         row("o", "PIT", 100, 100, "11LBB60CP001", dwg=other)]
+    b = [row("b", "TIT", 100, 100, "11LBB50CT001", dwg=other), row("b2", "PIT", 500, 500, "11LBB50CP001"),
+         row("o2", "PIT", 100, 100, "11LBB60CP001", dwg=other)]
     out, _ = _ab(a, b)
     d = out["deleted_candidates"][0]
     assert d["tag_elsewhere"] == [other]
-    # 다른 도면이라 짝은 아니다 — 안정 ID 는 도면 단위이고 (§7.3), 새 행은 추가다
-    assert out["states"]["b"]["state"] == R.ADDED
+    # 다른 도면이라 짝은 아니다 — 안정 ID 는 도면 단위이고 (§7.3), 새 행은 추가다.
+    # 두 장 다 양쪽에 있으므로 "도면번호가 바뀐 장" 도 아니다
+    assert out["states"]["b"]["state"] == R.ADDED and out["sheets"]["renumbered"] == []
 
 
 def test_untagged_rows_are_judged_exactly_as_before():
@@ -115,7 +162,7 @@ def test_untagged_rows_are_judged_exactly_as_before():
     assert all(v["basis"] == "GEOMETRY" for v in out["states"].values())
     assert "태그 없음" in out["states"]["b3"]["reason"]
     assert [d["basis"] for d in out["deleted_candidates"]] == ["GEOMETRY"]
-    assert out["radii"][DWG]["tag_blocked"] == []
+    assert out["radii"][DWG]["tag_changed"] == []
 
 
 def test_a_tagged_row_and_an_untagged_record_can_still_meet_by_geometry():
