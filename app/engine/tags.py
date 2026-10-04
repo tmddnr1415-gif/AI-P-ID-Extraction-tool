@@ -40,6 +40,7 @@ hotfix35 — 한 루프가 공유하는 태그
 from __future__ import annotations
 
 import collections
+import re
 
 
 def _is_code(t: str) -> bool:
@@ -121,3 +122,74 @@ def assign(items, words_by_page, kinds=None):
                  "그 모양이 두 이름·두 장 이상에서 되풀이될 때만 태그로 본다"),
     }
     return tags, facts
+
+
+# ---------------------------------------------------------------------------
+# hotfix39 — 태그 문법: 태그 안의 어느 자리가 계기 변수를 말하는가를 **그 도면에서** 배운다
+# ---------------------------------------------------------------------------
+#
+# 사용자: *"실행 프로젝트 출력 시에는 tag number 가 우선시 되어야 하며 tag number 에
+# 계기 타입이 명시되어 있다."*  KKS 라면 `11LBB50CP001` 의 `CP` 가 압력, `CT` 가 온도다.
+# 그러나 그 표를 코드에 적지 않는다 (§9 — 회사마다 다르다).  대신 **같은 행에 버블 글자
+# (ISA 머리글자)와 태그가 함께 있는 행들**에서, 태그의 글자 자리마다 "그 자리의 글자가
+# 머리글자를 얼마나 결정하는가" 를 세어 가장 잘 가르는 자리를 고른다.  QFE 실측:
+# 셋째 글자 묶음이 CP→P 721 · CT→T 263 · CL→L 312 · CF→F 105 · BP→RO 31 · CQ→A 7 로
+# 갈린다 (순도 0.98).  배운 것은 ① 그 자리 ② 자리의 글자 → 머리글자 과반 ③ 계기 코드의
+# 첫 글자(과반) 이고, 셋 다 **지문 밖**이며 행을 만들거나 지우는 데 혼자 쓰이지 않는다.
+
+def _letter_runs(t: str) -> list:
+    return re.findall(r"[A-Z]+", t or "")
+
+
+def grammar(samples) -> dict:
+    """`samples` = [(태그, 머리글자)].  돌려주는 것: 자리 · 글자→머리 집계 · 과반 · 순도.
+
+    자리는 **글자 묶음의 순번**이다 (`11LBB50CP001` → `LBB`·`CP` → 0·1).  모든 자리를
+    재서 순도(자리 글자마다 과반 머리의 몫)가 가장 높은 자리를 고른다 — 표본의 절반
+    이상이 그 자리를 가질 때만.  표본이 둘 미만이면 배우지 않는다.
+    """
+    samples = [(str(t or "").strip().upper(), str(h or "").strip().upper())
+               for t, h in samples if t and h]
+    out = {"learned": False, "samples": len(samples)}
+    if len(samples) < 2:
+        return out
+    best = None
+    for k in range(max(len(_letter_runs(t)) for t, _h in samples)):
+        pairs = [(_letter_runs(t)[k], h) for t, h in samples if len(_letter_runs(t)) > k]
+        if len(pairs) < len(samples) / 2:
+            continue
+        by = collections.defaultdict(collections.Counter)
+        for code, h in pairs:
+            by[code][h] += 1
+        pure = sum(c.most_common(1)[0][1] for c in by.values()) / len(pairs)
+        cand = (pure, len(pairs), k, by)
+        if best is None or cand[:2] > best[:2]:
+            best = cand
+    if best is None:
+        return out
+    pure, n, k, by = best
+    majority = {}
+    for code, c in by.items():
+        head, m = c.most_common(1)[0]
+        if m * 2 > sum(c.values()):              # 과반일 때만 — 갈리면 말하지 않는다
+            majority[code] = {"head": head, "n": m, "of": sum(c.values())}
+    # 계기 코드의 첫 글자 — 그 도면이 계기 코드에 공통으로 쓰는 글자 (KKS 라면 `C`)
+    first = collections.Counter()
+    for code, c in by.items():
+        first[code[0]] += sum(c.values())
+    cls, m = first.most_common(1)[0]
+    out.update({"learned": True, "run_index": k, "purity": round(pure, 3), "covered": n,
+                "map": {code: dict(c) for code, c in sorted(by.items())},
+                "majority": majority,
+                "class_letter": cls if m * 2 > sum(first.values()) else "",
+                "class_share": round(m / sum(first.values()), 3)})
+    return out
+
+
+def code_of(tag: str, g: dict) -> str:
+    """배운 자리의 글자 묶음.  문법이 없거나 그 자리가 없으면 빈 문자열."""
+    if not g or not g.get("learned"):
+        return ""
+    runs = _letter_runs(str(tag or "").upper())
+    k = g["run_index"]
+    return runs[k] if len(runs) > k else ""

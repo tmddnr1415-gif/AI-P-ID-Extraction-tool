@@ -1137,8 +1137,16 @@ def _mode_facts(job) -> dict:
         line = (f"자동 판정: {words[measured]}"
                 + (f" (태그 {len(pages)}장 · {t.get('tagged_rows', 0)}행)" if measured == "epc"
                    else " (태그가 인쇄된 장이 없습니다)"))
+    # hotfix39 — 태그 문법 한 줄.  배운 사실만 적는다 (자리 · 코드→변수 · 교차 검증 · 증거 행).
+    tg = engine.get("tag_grammar") or {}
+    g = tg.get("grammar") or {}
+    if tg.get("enabled") and g.get("learned"):
+        top = sorted(g.get("majority", {}).items(), key=lambda kv: -kv[1]["n"])[:6]
+        line += (" · 태그 문법: " + " ".join(f"{c}→{m['head']}({m['n']})" for c, m in top)
+                 + f" · 어긋남 {len(tg.get('mismatch') or [])}행 · 태그가 증거인 행 {len(tg.get('evidence_rows') or [])}")
     return {"declared": declared or "", "measured": measured, "effective": effective,
             "conflict": conflict, "pages_tagged": pages,
+            "tag_grammar": tg,
             "tagged_rows": t.get("tagged_rows", 0), "tags_available": t.get("tags_available", 0),
             "line": line, "recorded": bool(t)}
 
@@ -2028,6 +2036,9 @@ def job_review(job_id: str):
 # What each code asks of the reviewer, in one line.  Kept beside the API rather
 # than in the browser so a caller that is not the app sees the same wording.
 REVIEW_LABELS = {
+    # hotfix39 — 실행 프로젝트의 태그 우선
+    "TAG_TYPE_MISMATCH": "태그 기능코드가 말하는 변수와 버블 글자가 다름 — 도면이 두 말을 함",
+    "TAG_EVIDENCE_ROW": "태그가 증거인 행 — 버블 글자가 ISA 표로 안 풀리거나 버블이 흔들림 · 공급 주체 미판정",
     "VENDOR_MARK_UNDEFINED": "벤더마크가 이 도면 NOTES 에 정의되지 않음 — 포함/제외 판단",
     "SCOPE_OVERRIDE_UNRESOLVED": "시트 승수의 예외 문구가 있음 — 어느 항목이 예외인지 판단",
     "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",

@@ -1863,6 +1863,18 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
             else "VENDOR_MARK_GLYPH"], evidence
 
 
+def _without_containers(outlines: list) -> list:
+    """다른 윤곽을 통째로 품는(면적이 더 큰) 윤곽을 뺀다 — 용기·상자이지 버블이 아니다."""
+    rects = [o.rect for o in outlines]
+    keep = []
+    for o in outlines:
+        r = o.rect
+        if any(p is not r and r.contains(p) and r.get_area() > p.get_area() for p in rects):
+            continue
+        keep.append(o)
+    return keep
+
+
 def _innermost(hit: list) -> list:
     """hotfix38 (#40) — 낱말이 여러 윤곽에 들면 **다른 윤곽을 품는 윤곽은 그 낱말의
     버블이 아니다**.  QFE 260326 p51 은 탱크 외곽을 둥근 사각형(호 캡 둘 + 곧은
@@ -1898,6 +1910,12 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
     outlines = bubble_outlines(pc, lay)
     # 파선 버블은 실선 버블 **뒤에** 더한다 — 실선이 크기 기준을 준다 (40회차).
     outlines = outlines + dashed_bubble_outlines(pc, outlines)
+    # hotfix39 (#40 확장) — **다른 윤곽을 품는 윤곽은 버블이 아니다.**  hotfix38 은
+    # 낱말이 두 윤곽에 들 때만 안쪽을 골랐는데, 탱크 외곽(QFE 260326 p51 · 296×801pt)
+    # 안에서 *그 윤곽에만* 든 낱말(`TANK`·`AA`·`CLEAN`)이 그대로 행이 됐다.  품는 관계
+    # 하나로 가른다 — 상수 0.  AL NOUF1 의 중첩 2건(p16 6×17pt 안의 6×3pt)은 낱말이 안
+    # 들어 검출 불변 (실측).
+    outlines = _without_containers(outlines)
     dashed = {id(o.rect) for o in outlines if o.style == "DASHED"}
     bubbles = [o.rect for o in outlines]
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)

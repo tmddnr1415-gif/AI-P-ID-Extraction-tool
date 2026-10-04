@@ -873,8 +873,12 @@ def excel_sort_key(row: dict) -> tuple:
     Rev.A 에서 이 순서로 NO 를 매기므로, 리비전을 쓰기 전과 쓴 뒤의 Rev.A
     산출물이 같은 순서·같은 번호를 갖는다.
     """
+    # hotfix39 — 실행 프로젝트는 태그가 우선: 같은 장 안에서 태그 있는 행이 태그 순으로
+    # 앞에 선다.  태그 없는 문서(AL NOUF1 · TC2 · SADARA)는 모든 행의 태그가 비어 예전 순서
+    # 그대로다 — 안정 ID 와 Rev.A 산출물 번호가 안 흔들린다.
+    tag = str(row.get("tag_no") or "").strip()
     return ((row.get("system") or ""), row.get("page_no") or 0,
-            row.get("key") or "")
+            0 if tag else 1, tag, row.get("key") or "")
 
 
 def assign_excel_numbers(rows: list, registry: "Registry") -> dict:

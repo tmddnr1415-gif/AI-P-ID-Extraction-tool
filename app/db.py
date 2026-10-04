@@ -516,6 +516,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 실제로 쓰였는지 (`table`·`who`).  화면 판이 "이번 분석은
                               # 사람이 적은 번호로 읽었다" 를 이것으로 가른다 (지문 밖).
                               "user_sheet_numbers",
+                              # hotfix39 — 태그 문법 · 교차 검증 · 태그가 증거인 행 (지문 밖)
+                              "tag_grammar",
                               "unit_notes")},
                             default=str),
                  job_id))

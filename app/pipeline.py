@@ -1708,6 +1708,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                                      "needs line tracing (Phase 2)"}})
     # §10 증거 등급 — **도면이 태그를 인쇄했으면 그것으로 읽는다** (28회차).
     tier_facts = _attach_tags(rows, pages, declared_mode=declared_mode)
+    # hotfix39 — 실행 프로젝트는 태그가 우선: 태그 문법을 이 도면에서 배우고, 태그와
+    # 버블 글자가 어긋난 행을 검토로 올리고, 버블 글자가 ISA 표로 안 풀려 버려지던
+    # 심볼 중 **태그가 붙은 것**을 행으로 세운다 (태그가 증거).
+    tag_grammar = _tag_grammar_pass(rows, pages, isa, tier_facts, unjudged)
     # hotfix31 — 한 라인(같은 태그)에 PIT 와 PI 가 있으면 PIT 가 이기고 PI 는
     # 접는다 · PI 만 있으면 게이지다 (사용자 규칙).  태그가 붙은 뒤에 선다.
     # hotfix38 (#39) — "한 가지" 는 같은 태그이거나 **이어 그린 선**이다.
@@ -1736,6 +1740,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # §10 — 이 문서가 무엇을 주는가.  **지문 밖**이다 (`fingerprint` 는
         # 행 아홉 칸 · `multipliers` · `legend` · 글리프만 본다).
         "evidence_tier": tier_facts,
+        # hotfix39 — 태그 문법 · 교차 검증 · 태그가 증거인 행 (지문 밖 · 화면 띠가 읽는다)
+        "tag_grammar": tag_grammar,
         # hotfix31 — 같은 태그의 표시기(PI)를 전송기(PIT)로 접은 내역과 게이지
         # 판정 수.  **지문 밖** — 지문은 남은 행으로 잰다.
         "readouts": readout_facts,
@@ -4999,6 +5005,138 @@ def _attach_tags(rows: list, pages: list, declared_mode: str = None) -> dict:
                                 "shape": tagsys.shape(tag),
                                 "rule": tier_facts["rule"]}
     return tier_facts
+
+
+_TAG_MISMATCH_CODE = "TAG_TYPE_MISMATCH"
+_TAG_EVIDENCE_CODE = "TAG_EVIDENCE_ROW"
+
+
+def _head_letter(anchor: str, isa) -> str:
+    """버블 글자의 측정 변수 머리글자 — 그 도면 ISA 표로 (`PDIT` → `P`).  못 풀면 빈 문자열."""
+    parts = _readout_split(str(anchor or "").strip().upper(), isa)
+    return parts[0][0] if parts and parts[0] else ""
+
+
+def _tag_grammar_pass(rows: list, pages: list, isa, tier_facts: dict, unjudged: list) -> dict:
+    """hotfix39 — 실행(epc) 모드에서 태그를 우선 증거로 쓴다.  세 가지를 한 곳에서.
+
+    ① **문법 학습** (`tags.grammar`) — 태그와 버블 글자가 함께 있는 행에서 태그의 어느
+       글자 자리가 계기 변수를 말하는지와 그 자리 글자→머리글자 과반을 배운다.  사전 없음.
+    ② **교차 검증** — 배운 과반(둘 이상 되풀이된 코드만)과 다른 행에 `TAG_TYPE_MISMATCH`.
+       QFE 실측: `PI 22GMB04CL501`(레벨 코드에 PI) 7행 · `TI 00QUP02CL002` · `HS …CL099`.
+       행을 고치지 않는다 — 도면이 두 말을 하므로 사람이 가른다.
+    ③ **태그가 증거인 행** — 버블은 섰는데 글자가 ISA 표로 안 풀리거나(`ZSOC`·`ZOCL`)
+       버블을 못 세우거나 둘에 걸린 낱말 바로 아래에 **이 도면 체계의 태그**가 인쇄돼 있고
+       그 태그의 코드가 계기 코드의 첫 글자(①에서 배운 `class_letter`)로 시작하면 행이다.
+       같은 장·같은 태그는 한 행 (`ZSOC`/`ZOCL` 이 한 태그를 든다 — 태그가 이름이다).
+       수량은 같은 장 행이 받은 값이 하나로 모일 때만, 공급 주체는 비워 두고
+       `TAG_EVIDENCE_ROW` 로 검토에 올린다 — 별표를 안 본 행을 SCT 라고 말하지 않는다.
+    입찰(bid)·태그 없는 문서(AL NOUF1 · TC2 · SADARA)에서는 아무것도 하지 않는다.
+    """
+    facts = {"enabled": False, "mode": (tier_facts or {}).get("effective", "")}
+    if facts["mode"] != "epc" or isa is None:
+        return facts
+    samples = []
+    for r in rows:
+        if not r.tag_no or r.evidence.get("body"):
+            continue
+        head = _head_letter(r.evidence.get("anchor") or r.type, isa)
+        if head:
+            samples.append((r.tag_no, head))
+    g = tagsys.grammar(samples)
+    facts.update({"enabled": True, "grammar": g, "mismatch": [], "evidence_rows": [],
+                  "evidence_skipped": collections.Counter()})
+    if not g.get("learned"):
+        facts["evidence_skipped"] = {}
+        return facts
+    majority = g["majority"]
+    # ② 교차 검증
+    for r in rows:
+        if not r.tag_no or r.evidence.get("body"):
+            continue
+        head = _head_letter(r.evidence.get("anchor") or r.type, isa)
+        code = tagsys.code_of(r.tag_no, g)
+        m = majority.get(code)
+        if not head or not m or m["of"] < 2 or m["head"] == head:
+            continue
+        note = (f"{_TAG_MISMATCH_CODE}: 태그 기능코드 {code} 는 이 도면에서 {m['head']} "
+                f"({m['n']}/{m['of']}행)인데 버블 글자는 {r.evidence.get('anchor') or r.type} ({head})")
+        r.needs_review = "; ".join(x for x in (r.needs_review, note) if x)
+        r.evidence["tag_check"] = {"code": code, "expected": m["head"], "seen": head,
+                                   "n": m["n"], "of": m["of"]}
+        facts["mismatch"].append({"page_no": r.page_no, "tag_no": r.tag_no,
+                                  "anchor": r.evidence.get("anchor") or r.type,
+                                  "code": code, "expected": m["head"]})
+    # ③ 태그가 증거인 행
+    system = set((tier_facts or {}).get("shapes") or ())
+    cls = g.get("class_letter") or ""
+    if not system or not cls:
+        facts["evidence_skipped"] = {"no_system_or_class": len(unjudged or [])}
+        return facts
+    words = {pc.page_no: pc.words for pc in pages}
+    owned = {(r.page_no, r.tag_no) for r in rows if r.tag_no}
+    by_page_rows = collections.defaultdict(list)
+    for r in rows:
+        by_page_rows[r.page_no].append(r)
+    cand = collections.defaultdict(list)          # (page, tag) → [(label, label_rect, tag_rect, why)]
+    skipped = collections.Counter()
+    for u in unjudged or ():
+        if u.get("kind") != "INSTRUMENT_TAG" or not u.get("center"):
+            continue
+        pno, lab = u["page_no"], str(u.get("label") or "").upper()
+        cx, cy = u["center"]
+        wr = next((rc for rc, t in words.get(pno, ()) if t.upper() == lab
+                   and abs((rc.x0 + rc.x1) / 2 - cx) < 1 and abs((rc.y0 + rc.y1) / 2 - cy) < 1), None)
+        if wr is None:
+            skipped["label_word_not_found"] += 1
+            continue
+        below = [(rc, t) for rc, t in words.get(pno, ())
+                 if tagsys.shape(t) in system and rc.y0 >= wr.y1 - 0.5
+                 and rc.y0 - wr.y1 <= 1.5 * wr.height
+                 and min(rc.x1, wr.x1) - max(rc.x0, wr.x0) >= 0.5 * min(rc.width, wr.width)]
+        if not below:
+            skipped["no_tag_below"] += 1
+            continue
+        trc, tag = min(below, key=lambda it: it[0].y0)
+        code = tagsys.code_of(tag, g)
+        if not code or not code.startswith(cls):
+            skipped["tag_not_instrument_code"] += 1
+            continue
+        if (pno, tag) in owned:
+            skipped["tag_already_on_a_row"] += 1
+            continue
+        cand[(pno, tag)].append((lab, wr, trc, u.get("why") or ""))
+    for (pno, tag), items in sorted(cand.items()):
+        items.sort(key=lambda it: it[1].y0)
+        lab, wr, trc, why = items[0]
+        x0 = min(min(it[1].x0, it[2].x0) for it in items); y0 = min(it[1].y0 for it in items)
+        x1 = max(max(it[1].x1, it[2].x1) for it in items); y1 = max(it[2].y1 for it in items)
+        peers = [r for r in by_page_rows.get(pno, ()) if r.tab == TAB_FIELD]
+        qtys = {r.qty for r in peers if r.qty is not None}
+        qty = qtys.pop() if len(qtys) == 1 else None
+        system_name = next((r.system for r in by_page_rows.get(pno, ()) if r.system), "")
+        dwg = next((r.drawing_no for r in by_page_rows.get(pno, ()) if r.drawing_no), "")
+        others = [it[0] for it in items[1:]]
+        note = (f"{_TAG_EVIDENCE_CODE}: 태그 {tag} 가 증거 — 버블 글자 {lab} 는 "
+                f"{'ISA 표로 풀리지 않음' if '사전에' in why else why}"
+                + (f" · 같은 태그의 글자 {', '.join(others)} 를 이 행에 접음" if others else "")
+                + (" · 수량은 같은 장 행의 값" if qty is not None else " · 수량 미정")
+                + " · 공급 주체는 판정하지 않음")
+        rows.append(Row(
+            key=_key("TAGEV", pno, tag), tab=TAB_FIELD, page_no=pno, drawing_no=dwg,
+            origin=next((r.origin for r in by_page_rows.get(pno, ()) if r.origin), ""),
+            type=lab, qty=qty, system=system_name, scope="", tag_no=tag,
+            needs_review=note, rect=(x0, y0, x1, y1),
+            evidence={"anchor": lab, "tag_no": {"value": tag, "source": "DRAWING",
+                                                "shape": tagsys.shape(tag), "rule": "TAG_EVIDENCE"},
+                      "tag_evidence": {"words": [it[0] for it in items], "why": why,
+                                       "code": code if (code := tagsys.code_of(tag, g)) else "",
+                                       "qty_from": "same_page_rows" if qty is not None else ""},
+                      "rules_hit": [_TAG_EVIDENCE_CODE]}))
+        facts["evidence_rows"].append({"page_no": pno, "tag_no": tag, "anchor": lab,
+                                       "folded": others})
+    facts["evidence_skipped"] = dict(skipped)
+    return facts
 
 
 def fingerprint(result: dict) -> str:

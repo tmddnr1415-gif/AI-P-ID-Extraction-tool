@@ -453,6 +453,8 @@ review_axes:
     DETECTION: 검출
     SOURCE: 입력 자료
   codes:
+    TAG_TYPE_MISMATCH: DETECTION          # 태그 기능코드 ↔ 버블 글자 어긋남 (hotfix39)
+    TAG_EVIDENCE_ROW: DETECTION           # 태그가 증거인 행 (hotfix39)
     SCOPE_OVERRIDE_UNRESOLVED: SCOPE
     VENDOR_MARK_UNDEFINED: SCOPE
     SCT_SUPPLIER_SCOPE: SCOPE

@@ -988,7 +988,9 @@ review_axes:
     TAGGED_VALVE_NO_ACTUATOR: DETECTION   # 도면이 이름만 붙이고 액추에이터를 안 그림 (53회차)
     VALVE_TAG_NO_BODY: DETECTION          # 버블은 있는데 몸체를 못 찾음 (53회차 · 8차 피드백 s5)
     VALVE_TAG_SIGNALS: DETECTION          # 신호 버블을 밸브로 접음 (53회차 · 8차 피드백 s6)
-    DRAWING_NO_BY_USER: DETECTION      # 타이틀블록이 획이라 도면번호를 사람이 적음 (45회차)
+    DRAWING_NO_BY_USER: DETECTION
+    TAG_TYPE_MISMATCH: DETECTION          # 태그 기능코드 ↔ 버블 글자 어긋남 (hotfix39)
+    TAG_EVIDENCE_ROW: DETECTION           # 태그가 증거인 행 — 버블 글자가 ISA 표로 안 풀림 (hotfix39)      # 타이틀블록이 획이라 도면번호를 사람이 적음 (45회차)
     # --- description: wording to finish
     DESCRIPTION_INCOMPLETE: DESCRIPTION
     DESC_BETWEEN_SYMBOL: DESCRIPTION
