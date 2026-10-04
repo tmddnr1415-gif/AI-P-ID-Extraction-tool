@@ -1366,6 +1366,96 @@ function renderRevLabel() {
   if (w) w.classList.toggle("hidden", !S.rev.compared_with);
 }
 
+/* hotfix39 — 직전/현재 결과 스위치와 전환.
+ *
+ * 사용자 요구: *"개정된 P&ID 가 들어오면 오른쪽 list 및 속성란을 … 이전 직전 P&ID 를
+ * 불러와서 선택 가능하도록 — 오른쪽 상단에 이전 P&ID 표기와 현재 P&ID 출력 결과 표기 —
+ * 화면 전환이 무겁지 않고 가볍고 빠르게."*
+ *
+ * 방법: 결과 하나의 화면 상태(행 · 검토 · 개정 · 장 목록 · 선택 · 배율)를 **통째로 메모리에
+ * 둔다** (`S.viewCache[jobId]`).  처음 가는 결과는 보통의 열기(`open`)로 읽고 — 그 비용은
+ * 한 번이다 — 돌아올 때는 캐시를 되살려 그리기만 한다 (결과 요청 0 · 도면 그림은 브라우저
+ * 캐시).  장은 **같은 도면번호**를 따라간다 — 쪽 번호가 아니라 (13회차: 개정 때 장 순서가
+ * 바뀐다).  필터·선택은 결과마다 따로 산다.  */
+const VIEW_KEYS = ["job", "pages", "rows", "rowByKey", "revByKey", "deletedRows", "counts",
+  "originCounts", "review", "jobReview", "rev", "axisOv", "markupSummary", "unjudged",
+  "unjudgedKnown", "feedback", "reports", "legend", "mult", "sheetNos", "sheetTargets",
+  "byTab", "drawings", "page", "sel", "zoom", "mode", "tab", "axis", "code", "drawing",
+  "gradeFilter", "reasonFilter", "originFilter", "filter", "onlyReview", "onlyChanged",
+  "revFilter", "colFilters", "natural"];
+
+function snapshotView() {
+  if (!S.job) return;
+  const snap = {};
+  for (const k of VIEW_KEYS) snap[k] = S[k];
+  snap._bars = { mode: $("#mode-bar") ? $("#mode-bar").innerHTML : "",
+                 modeHidden: $("#mode-bar") ? $("#mode-bar").classList.contains("hidden") : true,
+                 legend: $("#legend-bar") ? $("#legend-bar").innerHTML : "",
+                 legendHidden: $("#legend-bar") ? $("#legend-bar").classList.contains("hidden") : true,
+                 jobName: $("#job-name").textContent, jobMeta: $("#job-meta").textContent };
+  S.viewCache[S.job.id] = snap;
+}
+
+function restoreView(snap) {
+  for (const k of VIEW_KEYS) S[k] = snap[k];
+  const b = snap._bars || {};
+  if ($("#mode-bar")) { $("#mode-bar").innerHTML = b.mode || ""; $("#mode-bar").classList.toggle("hidden", !!b.modeHidden); }
+  if ($("#legend-bar")) { $("#legend-bar").innerHTML = b.legend || ""; $("#legend-bar").classList.toggle("hidden", !!b.legendHidden); }
+  $("#job-name").textContent = b.jobName || "";
+  $("#job-meta").textContent = b.jobMeta || "";
+  const oc = $("#only-changed"); if (oc) oc.checked = !!S.onlyChanged;
+  const rf = $("#rev-filter"); if (rf) rf.value = S.revFilter || "";
+  const only = $("#only-review"); if (only) only.checked = !!S.onlyReview;
+  const box = $("#filter"); if (box) box.value = S.filter || "";
+  // 주소는 보는 결과를 가리키되, hashchange 로 다시 열지 않는다
+  history.replaceState(null, "", "#" + S.job.id);
+  renderRevLabel();
+  buildTabs(); updateBadge(); renderReviewPanel(); showAppliedRules(); buildPageSelect(); renderGrid();
+  renderRevSwitch();
+}
+
+function renderRevSwitch() {
+  const box = $("#rev-switch");
+  if (!box) return;
+  const pr = S.revPair;
+  if (!pr || !S.job || (S.job.id !== pr.current && S.job.id !== pr.previous)) {
+    box.classList.add("hidden"); box.innerHTML = ""; return;
+  }
+  const viewingPrev = S.job.id === pr.previous;
+  box.innerHTML = `<span class="rs-cap">결과</span>`
+    + `<button type="button" class="prev${viewingPrev ? " on" : ""}" data-job="${escape(pr.previous)}" title="직전 P&ID 결과를 봅니다 — 오른쪽 목록·검토·근거와 왼쪽 도면이 그 결과로 바뀝니다">이전 ${escape(pr.previousLabel)}</button>`
+    + `<button type="button" class="cur${viewingPrev ? "" : " on"}" data-job="${escape(pr.current)}" title="현재 P&ID 출력 결과">현재 ${escape(pr.currentLabel)}</button>`
+    + `<span class="rs-note">${viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다" : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
+  box.classList.remove("hidden");
+  box.classList.toggle("viewing-prev", viewingPrev);
+  box.querySelectorAll("button").forEach(b => b.onclick = () => switchView(b.dataset.job));
+}
+
+async function switchView(jobId) {
+  if (!jobId || !S.job || S.job.id === jobId || S.loading) return;
+  const want = S.page ? (S.page.drawing_no || "") : "";
+  const pair = S.revPair;
+  snapshotView();
+  const t0 = performance.now();
+  const snap = S.viewCache[jobId];
+  if (snap) {
+    restoreView(snap);
+  } else {
+    await open(jobId);          // 처음 한 번은 보통의 열기 — 그 뒤로는 캐시
+    S.revPair = pair;
+    renderRevSwitch();
+    snapshotView();
+  }
+  // 같은 도면번호의 장으로 — 없으면 그 결과의 첫 장
+  const page = (want && S.pages.find(p => p.drawing_no === want))
+    || (snap ? S.page : null) || S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0];
+  if (page) showPage(page);
+  S.lastSwitchMs = Math.round(performance.now() - t0);
+  const note = $("#rev-switch .rs-note");
+  if (note) note.textContent = (S.job.id === (pair || {}).previous ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다 · " : "")
+    + `전환 ${S.lastSwitchMs}ms${snap ? " (메모리)" : " (처음 읽음)"}`;
+}
+
 /* 삭제 후보 한 건의 근거.  좌표 · 반경 · 가장 가까웠던 후보까지 거리 셋이
  * 있어야 "도면에서 지워졌다" 와 "이번에 못 뽑았다" 를 사람이 가를 수 있다. */
 function showDeletedEvidence(d) {
