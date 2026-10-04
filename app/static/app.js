@@ -2447,6 +2447,7 @@ function renderGrid() {
         : key === "origin" ? r.origin
         : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
         : key === "remark" ? remarkOf(r)
+        : key === "rev_state" ? revLabel(r)          // hotfix38 — 필터와 같은 접근자
         : (r.values[key] ?? "");
       if (key === "description_grade" && val) {
         // 배지 하나에 모양·글자·색이 같이 실린다.  모양과 글자만으로도 읽힌다.

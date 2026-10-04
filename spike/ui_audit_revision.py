@@ -78,7 +78,8 @@ try:
         pg.select_option("#rev-filter", ""); pg.wait_for_timeout(800)
         if page is not None:
             pg.select_option("#page-select", str(page)); pg.wait_for_timeout(3000)
-            n_add = pg.evaluate("() => [...document.querySelectorAll('text.revtag')].filter(t => t.textContent === 'ADD').length")
+            # <text> 안의 <title>(툴팁)도 textContent 에 들어오므로 글자 노드만 읽는다
+            n_add = pg.evaluate("() => [...document.querySelectorAll('text.revtag')].filter(t => [...t.childNodes].filter(n => n.nodeType === 3).map(n => n.nodeValue).join('') === 'ADD').length")
             rings = pg.evaluate("() => document.querySelectorAll('rect.revring.rev-added').length")
             note(f"④ p{page} 도면 — 'ADD' 글자 {n_add} · 추가 링 {rings} · 서버 추가 행 {by_page[page]} — {'맞음' if n_add == rings == by_page[page] else '★ 틀림'}")
             pg.screenshot(path=str(OUT / f"4_p{page}_도면_ADD.png"))

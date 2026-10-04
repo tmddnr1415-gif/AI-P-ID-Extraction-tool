@@ -279,3 +279,148 @@ INFO:     127.0.0.1:33286 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
   page  10    4.78s   valves.actuators 3.29s valves.tags 0.80s instruments 0.32s annotations 0.30s valves.bodies 0.07s
 INFO:     127.0.0.1:40912 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
   page  11    9.31s   valves.actuators 6.56s valves.tags 1.48s annotations 0.50s instruments 0.45s valves.bodies 0.32s
+INFO:     127.0.0.1:57610 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  12    5.18s   valves.actuators 3.26s valves.tags 1.05s annotations 0.35s instruments 0.35s valves.bodies 0.18s
+INFO:     127.0.0.1:47942 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  13    1.38s   valves.actuators 0.68s annotations 0.41s instruments 0.20s valves.tags 0.05s valves.bodies 0.05s
+  page  14    1.19s   valves.actuators 0.62s annotations 0.31s instruments 0.13s valves.bodies 0.07s valves.tags 0.05s
+  page  15   11.23s   valves.actuators 9.48s valves.tags 0.98s annotations 0.32s instruments 0.27s valves.bodies 0.17s
+  page  16    1.68s   valves.actuators 1.04s instruments 0.28s annotations 0.25s valves.bodies 0.06s valves.tags 0.05s
+  page  17    1.90s   valves.actuators 1.40s annotations 0.22s instruments 0.20s valves.tags 0.04s valves.bodies 0.04s
+INFO:     127.0.0.1:53058 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  18    2.12s   valves.actuators 1.68s annotations 0.24s instruments 0.10s valves.bodies 0.05s valves.tags 0.04s
+  page  19    1.98s   valves.actuators 1.27s annotations 0.35s instruments 0.26s valves.bodies 0.05s valves.tags 0.05s
+  page  22    0.56s   valves.actuators 0.20s annotations 0.20s instruments 0.09s valves.tags 0.04s valves.bodies 0.03s
+  page  23    0.59s   annotations 0.24s instruments 0.18s valves.actuators 0.09s valves.tags 0.04s valves.bodies 0.03s
+  page  24    9.38s   valves.actuators 7.43s valves.tags 1.04s instruments 0.35s annotations 0.35s valves.bodies 0.20s
+INFO:     127.0.0.1:36390 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  25    4.02s   valves.actuators 3.33s annotations 0.33s instruments 0.25s valves.bodies 0.06s valves.tags 0.05s
+  page  26    7.44s   valves.actuators 5.60s valves.tags 0.98s instruments 0.37s annotations 0.34s valves.bodies 0.15s
+  page  27    2.17s   valves.actuators 1.57s annotations 0.26s instruments 0.22s valves.tags 0.08s valves.bodies 0.05s
+  page  28    2.85s   valves.actuators 2.16s annotations 0.28s instruments 0.24s valves.bodies 0.12s valves.tags 0.05s
+  page  29    2.50s   valves.actuators 1.81s annotations 0.30s instruments 0.28s valves.bodies 0.06s valves.tags 0.05s
+INFO:     127.0.0.1:51898 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  30    4.38s   valves.actuators 2.78s valves.tags 0.93s annotations 0.30s instruments 0.27s valves.bodies 0.09s
+  page  31    5.64s   valves.actuators 4.62s instruments 0.40s annotations 0.39s valves.bodies 0.15s valves.tags 0.08s
+INFO:     127.0.0.1:49770 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  32    5.82s   valves.actuators 4.79s instruments 0.39s annotations 0.39s valves.bodies 0.17s valves.tags 0.08s
+  page  33   17.70s   valves.bodies 15.55s valves.actuators 1.60s annotations 0.27s instruments 0.23s valves.tags 0.05s
+  page  34    4.48s   valves.actuators 3.52s annotations 0.38s instruments 0.33s valves.bodies 0.18s valves.tags 0.07s
+INFO:     127.0.0.1:42800 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  35    5.61s   valves.actuators 4.68s annotations 0.35s instruments 0.35s valves.bodies 0.15s valves.tags 0.07s
+  page  36    2.51s   valves.actuators 1.85s annotations 0.29s instruments 0.24s valves.bodies 0.07s valves.tags 0.05s
+INFO:     127.0.0.1:37144 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  37    3.68s   valves.actuators 1.93s valves.tags 1.02s annotations 0.40s instruments 0.27s valves.bodies 0.06s
+  page  38    1.37s   valves.actuators 0.85s annotations 0.23s instruments 0.21s valves.tags 0.04s valves.bodies 0.04s
+INFO:     127.0.0.1:54104 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  39    6.58s   valves.actuators 3.88s valves.tags 1.22s valves.bodies 0.89s annotations 0.34s instruments 0.25s
+  page  40    5.61s   valves.actuators 3.28s valves.tags 1.12s valves.bodies 0.68s annotations 0.31s instruments 0.22s
+INFO:     127.0.0.1:46906 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  41    8.60s   valves.actuators 3.32s valves.bodies 3.27s valves.tags 1.36s annotations 0.40s instruments 0.25s
+  page  42   12.66s   valves.actuators 7.77s valves.bodies 4.09s annotations 0.43s instruments 0.27s valves.tags 0.10s
+  page  43    3.55s   valves.actuators 2.12s valves.tags 0.83s instruments 0.27s annotations 0.26s valves.bodies 0.06s
+INFO:     127.0.0.1:46106 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58354 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  44   18.08s   annotations 14.75s valves.actuators 2.27s valves.tags 0.79s instruments 0.22s valves.bodies 0.06s
+  page  45    4.89s   valves.actuators 3.40s valves.tags 0.87s annotations 0.28s instruments 0.26s valves.bodies 0.08s
+INFO:     127.0.0.1:49592 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  46    5.89s   valves.actuators 4.32s valves.tags 0.95s annotations 0.29s instruments 0.26s valves.bodies 0.07s
+  page  47    2.59s   valves.actuators 1.36s valves.tags 0.73s annotations 0.25s instruments 0.19s valves.bodies 0.05s
+  page  48    5.56s   valves.actuators 4.04s valves.tags 0.89s annotations 0.29s instruments 0.25s valves.bodies 0.09s
+INFO:     127.0.0.1:43134 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  49    5.25s   valves.actuators 3.70s valves.tags 0.89s annotations 0.29s instruments 0.28s valves.bodies 0.09s
+  page  50    5.62s   valves.actuators 4.02s valves.tags 0.91s annotations 0.32s instruments 0.27s valves.bodies 0.10s
+  page  51    3.47s   valves.actuators 2.08s valves.tags 0.83s annotations 0.28s instruments 0.23s valves.bodies 0.06s
+  page  52    1.10s   valves.actuators 0.59s annotations 0.26s instruments 0.17s valves.tags 0.04s valves.bodies 0.03s
+  page  53    1.00s   valves.actuators 0.51s annotations 0.24s instruments 0.17s valves.tags 0.04s valves.bodies 0.03s
+INFO:     127.0.0.1:46484 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  54    2.22s   valves.actuators 1.64s annotations 0.27s instruments 0.21s valves.bodies 0.05s valves.tags 0.05s
+  page  55    2.16s   valves.actuators 1.60s annotations 0.26s instruments 0.20s valves.bodies 0.05s valves.tags 0.05s
+  page  56    9.44s   valves.actuators 6.59s annotations 1.25s valves.tags 1.06s instruments 0.36s valves.bodies 0.18s
+  page  57    5.29s   valves.actuators 2.92s annotations 1.04s valves.tags 0.96s instruments 0.27s valves.bodies 0.10s
+INFO:     127.0.0.1:38252 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  58    1.66s   valves.actuators 0.67s annotations 0.67s instruments 0.24s valves.tags 0.06s valves.bodies 0.03s
+  page  59   20.04s   valves.actuators 17.81s valves.tags 1.15s annotations 0.44s instruments 0.34s valves.bodies 0.30s
+INFO:     127.0.0.1:59456 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  60   21.62s   valves.actuators 19.25s valves.tags 1.20s annotations 0.47s instruments 0.38s valves.bodies 0.32s
+  page  61    5.61s   valves.actuators 4.06s valves.tags 0.92s annotations 0.30s instruments 0.24s valves.bodies 0.10s
+  page  62    5.53s   valves.actuators 3.92s valves.tags 0.95s annotations 0.29s instruments 0.24s valves.bodies 0.13s
+  page  63    2.77s   valves.actuators 1.48s valves.tags 0.76s annotations 0.25s instruments 0.23s valves.bodies 0.05s
+INFO:     127.0.0.1:43814 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  64    4.60s   valves.actuators 1.95s valves.tags 1.81s annotations 0.54s instruments 0.24s valves.bodies 0.07s
+  page  65    4.38s   valves.tags 1.86s valves.actuators 1.75s annotations 0.48s instruments 0.22s valves.bodies 0.07s
+  page  66    1.10s   annotations 0.56s valves.actuators 0.25s instruments 0.23s valves.tags 0.04s valves.bodies 0.03s
+INFO:     127.0.0.1:54746 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  67    2.40s   annotations 0.79s valves.tags 0.75s valves.actuators 0.48s instruments 0.32s valves.bodies 0.07s
+  page  68    6.60s   valves.actuators 4.93s valves.tags 0.93s annotations 0.37s instruments 0.25s valves.bodies 0.11s
+  page  69    7.41s   valves.actuators 5.82s valves.tags 0.89s annotations 0.31s instruments 0.28s valves.bodies 0.10s
+  page  70    6.33s   valves.actuators 4.80s valves.tags 0.89s annotations 0.31s instruments 0.23s valves.bodies 0.10s
+INFO:     127.0.0.1:36968 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  71    7.04s   valves.actuators 5.39s valves.tags 0.93s annotations 0.32s instruments 0.27s valves.bodies 0.13s
+INFO:     127.0.0.1:50418 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  72    4.49s   valves.actuators 2.94s valves.tags 0.90s instruments 0.30s annotations 0.28s valves.bodies 0.07s
+  page  73    3.72s   valves.actuators 2.39s valves.tags 0.75s instruments 0.27s annotations 0.26s valves.bodies 0.06s
+  page  74    2.71s   valves.actuators 1.50s valves.tags 0.73s annotations 0.24s instruments 0.20s valves.bodies 0.04s
+  page  75    2.95s   valves.actuators 1.60s valves.tags 0.75s annotations 0.32s instruments 0.23s valves.bodies 0.04s
+  page  76    1.27s   valves.actuators 0.68s annotations 0.27s instruments 0.24s valves.bodies 0.05s valves.tags 0.04s
+  page  77    0.76s   valves.actuators 0.33s annotations 0.25s instruments 0.11s valves.tags 0.04s valves.bodies 0.03s
+INFO:     127.0.0.1:55874 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  78    1.16s   valves.actuators 0.67s annotations 0.25s instruments 0.14s valves.bodies 0.05s valves.tags 0.05s
+  page  79    1.32s   valves.actuators 0.72s annotations 0.27s instruments 0.25s valves.bodies 0.04s valves.tags 0.04s
+  page  80    4.64s   valves.actuators 3.05s valves.tags 0.93s annotations 0.30s instruments 0.29s valves.bodies 0.08s
+  page  81    1.13s   valves.actuators 0.66s annotations 0.26s instruments 0.12s valves.bodies 0.05s valves.tags 0.04s
+  page  82    1.32s   valves.actuators 0.74s instruments 0.25s annotations 0.24s valves.tags 0.05s valves.bodies 0.04s
+INFO:     127.0.0.1:60572 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  83    4.77s   valves.actuators 3.18s valves.tags 0.91s annotations 0.30s instruments 0.30s valves.bodies 0.08s
+  page  84    4.32s   valves.actuators 1.77s annotations 1.32s valves.tags 0.79s instruments 0.36s valves.bodies 0.08s
+  page  85    6.49s   valves.actuators 4.92s valves.tags 0.91s annotations 0.30s instruments 0.25s valves.bodies 0.11s
+  page  86    6.42s   valves.actuators 4.92s valves.tags 0.89s annotations 0.30s instruments 0.24s valves.bodies 0.08s
+INFO:     127.0.0.1:50148 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  87    7.40s   valves.actuators 5.81s valves.tags 0.90s annotations 0.34s instruments 0.25s valves.bodies 0.11s
+  page  88    6.98s   valves.actuators 5.26s valves.tags 1.03s annotations 0.30s instruments 0.26s valves.bodies 0.13s
+  page  89    4.25s   valves.actuators 2.88s valves.tags 0.75s annotations 0.32s instruments 0.23s valves.bodies 0.07s
+  page  90    3.64s   valves.actuators 2.34s valves.tags 0.74s annotations 0.28s instruments 0.22s valves.bodies 0.06s
+  page  91    2.90s   valves.actuators 1.56s valves.tags 0.81s annotations 0.30s instruments 0.19s valves.bodies 0.04s
+INFO:     127.0.0.1:54450 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+  page  92    2.75s   valves.actuators 1.54s valves.tags 0.74s annotations 0.24s instruments 0.19s valves.bodies 0.04s
+  page  93    0.66s   valves.actuators 0.25s annotations 0.24s instruments 0.09s valves.tags 0.04s valves.bodies 0.03s
+INFO:     127.0.0.1:40234 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56906 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53940 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48440 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38876 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50428 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42122 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+analysis took 1346.2s, by stage:
+  valves.actuators         426.74s   31.7%
+  layout                   339.43s   25.2%
+  instruments              267.91s   19.9%
+  describe_axis             70.08s    5.2%
+  valves.tags               51.49s    3.8%
+  annotations               44.60s    3.3%
+  valves.bodies             35.15s    2.6%
+  pipe_graph                29.06s    2.2%
+  legend_rules              22.11s    1.6%
+  titleblocks               19.45s    1.4%
+  candidates                14.02s    1.0%
+  equipment                 11.88s    0.9%
+  titleblock_glyphs          9.32s    0.7%
+  open_pdf                   4.77s    0.4%
+  description                0.14s    0.0%
+  unit_multipliers           0.04s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p3 79.3s, p4 52.9s, p60 22.1s, p2 21.8s, p59 20.4s
+INFO:     127.0.0.1:44608 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53272 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53288 - "GET /jobs/2098450b4603/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53296 - "GET /jobs/2098450b4603/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53302 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53306 - "GET /jobs/48b5adbdd28c/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53310 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53316 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53330 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53342 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4398]
