@@ -22,6 +22,10 @@ const TABS = [
 const COLS = [
   ["page_no", "Page", false], ["pid_no", "P&ID No.", false],
   ["origin", "귀속", false],
+  // hotfix38 — 개정 상태 열 (추가 · 수정 · 삭제 후보 · 삭제 확정).  값은 행의
+  // `rev.state` 에서 `revLabel()` 이 만든다 — 줄 색·＋ 기호와 같은 접근자다.
+  // 열이라서 필터·검색이 걸린다 (사용자 요구: 삭제를 "필터 걸어서 확인").
+  ["rev_state", "개정", false],
   // hotfix35 — Tag No. 는 Type 바로 옆이다.  열은 처음부터 있었지만 열 번째라
   // 오른쪽 목록을 좁게 쓰면 가로 스크롤 밖에 있었다 (QFE p46 사진).  값은 행의
   // `values.tag_no` 그대로이고(1급 태그 · 마크업 · 편집), 자리만 옮긴다.
@@ -1122,9 +1126,11 @@ async function open(jobId) {
   // 개정 스위치는 그 분석의 것이다.  다른 분석으로 넘어갈 때 남아 있으면
   // 바뀐 행이 없는 리비전에서 화면이 텅 빈 채로 열린다.
   S.onlyChanged = false;
+  S.revFilter = "";
   S.deletedRows = [];
   S.revByKey = {};
   const oc = $("#only-changed"); if (oc) oc.checked = false;
+  const rf = $("#rev-filter"); if (rf) rf.value = "";
 
   readUrl(hashParts()[1]);
   if (location.hash.slice(1).split("?")[0] !== jobId) location.hash = jobId;
@@ -1311,7 +1317,18 @@ async function loadRevision() {
   if (c.MODIFIED) bits.push(`수정 ${c.MODIFIED}`);
   if (c.DELETED_CANDIDATE) bits.push(`삭제 후보 ${c.DELETED_CANDIDATE}`);
   if (c.DELETED) bits.push(`삭제 확정 ${c.DELETED}`);
+  // hotfix38 — 짝을 태그로 지은 행 수.  태그가 있는 문서에서 이 수가 곧 대조의
+  // 신뢰도다 (태그 짝은 거리를 안 본다 · 기하 짝만 반경에 걸린다).
+  const mb = S.rev.matched_by || {};
+  if (S.rev.compared_with && (mb.TAG || mb.GEOMETRY)) {
+    bits.push(`짝 태그 ${mb.TAG || 0} · 기하 ${mb.GEOMETRY || 0}`);
+  }
   el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
+  el.title = S.rev.compared_with
+    ? `${S.rev.compared_with} 와 비교한 결과입니다.  추가 = 이번에 새로 선 행, `
+      + `삭제 후보 = 직전 리비전에 있었는데 이번에 짝이 없는 행 (사람이 확정합니다).  `
+      + `목록의 '개정' 열과 개정 필터로 좁힐 수 있습니다.`
+    : "";
   el.classList.remove("hidden");
   // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
   const w = $("#only-changed-wrap");
@@ -1327,6 +1344,11 @@ function showDeletedEvidence(d) {
   const rows = [
     ["상태", d.confirmed ? "삭제 확정 — 산출물에 취소선으로 나갑니다"
       : "삭제 후보 — 확정 전에는 산출물에 나가지 않습니다"],
+    // hotfix38 — 태그가 있던 기록이면 그 태그가 이번 분석 어디에도 없는지(또는
+    // 다른 도면에 섰는지)가 첫 근거다.  좌표·반경은 태그 없는 기록의 근거다.
+    ...(d.tag_no ? [["태그", `${d.tag_no} — ${(d.tag_elsewhere || []).length
+      ? "이번 분석에서 다른 도면(" + d.tag_elsewhere.join(", ") + ")에 섰습니다 — 옮김일 수 있습니다"
+      : "이번 분석 어디에도 없습니다"}`]] : []),
     ["직전 리비전 좌표", `(${d.anchor.join(", ")})`],
     ["매칭 반경", `${d.radius}pt — ${d.radius_source === "DRAWING_BUBBLE"
       ? "이 도면 버블 긴변" : d.radius_source}`],
@@ -1377,6 +1399,20 @@ function renderDeletedCandidates() {
   }));
 }
 
+/* hotfix38 — 삭제 행 Remark 한 줄.  Excel 의 `revision_remark` 와 같은 낱말을 쓴다. */
+function deletedRemark(d, against) {
+  const vs = against ? `${against} 대비 ` : "";
+  const head = d.confirmed ? `${vs}삭제 (확정)` : `${vs}삭제 후보 — 확정 전`;
+  const why = d.tag_no
+    ? ((d.tag_elsewhere || []).length
+        ? `태그 ${d.tag_no} 가 이번 분석에서 다른 도면(${d.tag_elsewhere.join(", ")})에 섰습니다 — 옮김일 수 있습니다`
+        : `태그 ${d.tag_no} 가 이번 분석 어디에도 없습니다`)
+    : (d.nearest_distance === null || d.nearest_distance === undefined
+        ? "그 도면에 같은 TYPE 이 하나도 없습니다"
+        : `가장 가까운 같은 TYPE 이 ${d.nearest_distance}pt (반경 ${d.radius}pt)`);
+  return `${head} · ${why}`;
+}
+
 async function loadRows() {
   S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
   S.rowByKey = Object.fromEntries(S.rows.map(r => [r.key, r]));
@@ -1398,11 +1434,17 @@ async function loadRows() {
   }
   // 삭제 후보도 리스트에 세운다 - 세 상태가 한 화면에 보여야 한다.  도면에는
   // 그리지 않는다: 이번 리비전에 그 심볼이 없으므로 그릴 좌표가 없다.
+  // hotfix38 — 삭제 행의 Remark 는 **그 사실**을 적는다 (사용자 요구: "List 에서
+  // 삭제 표기만 해주고 remark 에 표기").  확정 전후를 가르고, 태그가 있던 행이면
+  // 그 태그가 이번 분석 어디에도 없다는 것(또는 다른 도면에 섰다는 것)까지 말한다.
+  const against = (S.rev || {}).compared_with || "";
   S.deletedRows = ((S.rev || {}).deleted_candidates || []).map(d => ({
     key: `del:${d.id}`, tab: d.tab || "FIELD", page_no: d.page_no || 0,
     drawing_no: d.drawing_no || "", origin: "", rect: [],
     values: { ...(d.values || {}), type: d.type || "",
-              description: d.description || "" },
+              tag_no: (d.values || {}).tag_no || d.tag_no || "",
+              description: d.description || "",
+              remark: deletedRemark(d, against) },
     ai: {}, user: {}, evidence: {}, needs_review: "", annotation: "",
     conflict: {}, deleted: true, added: false, removed: false,
     review_codes: [], review_state: {},
@@ -1435,6 +1477,12 @@ $("#only-changed").onchange = (e) => {
   S.onlyChanged = e.target.checked;
   renderGrid();
 };
+/* hotfix38 — 개정 상태로 좁히는 선택 상자.  "개정된 행만" 체크와 함께 쓸 수 있고
+ * 선택이 있으면 그 상태만 남는다 (추가만 · 삭제만 · 수정만). */
+$("#rev-filter").onchange = (e) => {
+  S.revFilter = e.target.value || "";
+  renderGrid();
+};
 $("#only-review").onchange = (e) => {
   S.onlyReview = e.target.checked;
   syncUrl(); renderGrid();
@@ -1456,7 +1504,7 @@ function updateEmptyNote() {
   box.classList.toggle("hidden", n > 0);
   if (!n) {
     const narrowed = S.filter || S.gradeFilter || S.axis || S.code || S.drawing
-      || S.originFilter || S.onlyReview || S.onlyChanged
+      || S.originFilter || S.onlyReview || S.onlyChanged || S.revFilter
       || Object.keys(S.colFilters).length;
     box.textContent = narrowed
       ? "이 조건에 맞는 행이 없습니다 — 위의 조건 칩을 하나씩 해제해 보세요."
@@ -1797,6 +1845,9 @@ function renderChips() {
   if (S.reasonFilter) chips.push(["reasonFilter", `사유 ${S.reasonFilter}`]);
   if (S.originFilter) chips.push(["originFilter", `귀속 ${S.originFilter}`]);
   if (S.onlyReview) chips.push(["onlyReview", "검토 필요만"]);
+  if (S.onlyChanged) chips.push(["onlyChanged", "개정된 행만"]);
+  if (S.revFilter) chips.push(["revFilter", `개정 ${
+    { ADDED: "추가만", MODIFIED: "수정만", DELETED: "삭제만" }[S.revFilter] || S.revFilter}`]);
   if (S.filter) chips.push(["filter", `검색 ${S.filter}`]);
   // One chip per filtered column, carrying its own ×.  The header mark says
   // *that* a column is filtered; the chip says what to, and is where it gets
@@ -1818,6 +1869,8 @@ function renderChips() {
       if (k.startsWith("col:")) { setColumnFilter(k.slice(4), null); return; }
       if (k === "tab") S.tab = "ALL";
       else if (k === "onlyReview") { S.onlyReview = false; $("#only-review").checked = false; }
+      else if (k === "onlyChanged") { S.onlyChanged = false; $("#only-changed").checked = false; }
+      else if (k === "revFilter") { S.revFilter = ""; $("#rev-filter").value = ""; }
       else if (k === "filter") { S.filter = ""; $("#filter").value = ""; }
       else if (k === "originFilter") { S.originFilter = ""; $("#origin-filter").value = ""; }
       else S[k] = "";
@@ -2105,13 +2158,22 @@ function buildTabs() {
  * it was looking it up separately, and the top search box was looking in the
  * wrong object entirely (see `#filter` below).  One accessor, four callers, no
  * chance of them disagreeing about what a cell says. */
-const FILTER_COLS = ["page_no", "pid_no", "type", "valve_type", "qty",
+const FILTER_COLS = ["page_no", "pid_no", "rev_state", "type", "valve_type", "qty",
                      "system", "vendor_supply"];
 const BLANK = "\u0000blank";        // the '(공란)' choice, kept out of value space
+
+/* hotfix38 — 개정 상태의 한글 표기.  그리드 열 · 필터 · 근거 패널이 **이 하나**를
+ * 읽는다.  BASELINE(Rev.A)·UNCHANGED 는 빈 문자열 — 표기가 붙지 않는다. */
+const REV_STATE_KO = { ADDED: "추가", MODIFIED: "수정",
+                       DELETED_CANDIDATE: "삭제 후보", DELETED: "삭제 확정" };
+function revLabel(row) {
+  return REV_STATE_KO[((row || {}).rev || {}).state] || "";
+}
 
 function cellValue(row, key) {
   if (key === "page_no") return row.page_no;
   if (key === "origin") return row.origin;
+  if (key === "rev_state") return revLabel(row);
   if (key === "pid_no") {
     return (S.pages.find(p => p.page_no === row.page_no) || {}).drawing_no
       || row.drawing_no || "";
@@ -2190,6 +2252,11 @@ function visibleRows(except) {
     rows = rows.filter(r => ["ADDED", "MODIFIED", "DELETED_CANDIDATE", "DELETED"]
       .includes((r.rev || {}).state));
   }
+  if (S.revFilter) {
+    const want = S.revFilter === "DELETED"
+      ? ["DELETED_CANDIDATE", "DELETED"] : [S.revFilter];
+    rows = rows.filter(r => want.includes((r.rev || {}).state));
+  }
   // These used to be limited to 검토필요, because applied elsewhere they hid rows
   // with nothing on screen to say why.  Now every condition in force is a chip
   // above the grid, so the reason is always visible and the filter can work on
@@ -2222,7 +2289,7 @@ function visibleRows(except) {
 /* What the free-text box looks in.  Every column the grid renders as text, so
  * the box is a search over what is on screen - including Description and Remark,
  * which no dropdown can offer because their values are nearly all distinct. */
-const SEARCH_COLS = ["page_no", "pid_no", "origin", "type", "valve_type", "qty",
+const SEARCH_COLS = ["page_no", "pid_no", "origin", "rev_state", "type", "valve_type", "qty",
                      "system", "vendor_supply", "scope", "tag_no", "description",
                      "description_grade", "remark"];
 
@@ -2416,10 +2483,9 @@ function renderGrid() {
       const b = document.createElement("button");
       b.className = "mini-rep del-confirm";
       b.textContent = r.delCand.confirmed ? "확정 취소" : "삭제 확정";
-      b.title = `Rev 좌표 (${r.delCand.anchor.join(", ")}) · 반경 `
-        + `${r.delCand.radius}pt (${r.delCand.radius_source}) · 가장 가까웠던 후보 `
-        + (r.delCand.nearest_distance === null ? "없음"
-           : r.delCand.nearest_distance + "pt");
+      b.title = deletedRemark(r.delCand, (S.rev || {}).compared_with || "")
+        + ` · Rev 좌표 (${r.delCand.anchor.join(", ")}) · 반경 `
+        + `${r.delCand.radius}pt (${r.delCand.radius_source})`;
       b.onclick = async (ev) => {
         ev.stopPropagation();
         await fetch(`/jobs/${S.job.id}/deleted/`
@@ -3230,6 +3296,26 @@ function showEvidence(row) {
   // 눈으로 갈라야 했다.  값을 바꾸지 않고 사이에 제목만 둔다.
   const sec = (t) => pairs.push(["§" + t, "§"]);
   const hits = e.rules_hit || [];
+  // hotfix38 — 개정 근거를 맨 위에.  추가는 왜 추가인지(태그가 장부에 없었다 /
+  // 반경 안에 기록이 없었다), 수정은 어느 칸이 어떻게 바뀌었는지, 짝은 태그로
+  // 지었는지 기하로 지었는지.  값은 `row.rev` 하나에서 온다.
+  const rv = row.rev || {};
+  if (rv.state && rv.state !== "BASELINE" && rv.state !== "UNCHANGED") {
+    sec("개정");
+    const vs = (S.rev || {}).compared_with || "직전 리비전";
+    add("개정 상태", `${revLabel(row)} — ${vs} 대비` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
+    if (rv.reason) add("추가 근거", rv.reason);
+    if (rv.state === "MODIFIED") {
+      add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
+        : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동)`);
+      add("바뀐 칸", (rv.changed || []).map(c =>
+        `${c.field}: ${c.was ?? "(빈칸)"} → ${c.now ?? "(빈칸)"}`).join(" · ") || "(기록 없음)");
+    }
+  } else if (rv.state === "UNCHANGED" && rv.basis) {
+    sec("개정");
+    add("개정 상태", `변경 없음 — ${(S.rev || {}).compared_with || "직전 리비전"} 대비`
+      + ` · 짝 ${rv.basis === "TAG" ? "태그" : "기하"}` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
+  }
   sec("공급 · 수량");
 
   /* 편집값과 엔진 근거를 **구분해서** 말한다 (13회차).
@@ -4787,6 +4873,26 @@ function drawOverlay() {
         + (rev === "ADDED" ? "rev-added" : "rev-modified"));
       ring.dataset.rev = rev;
       ov.appendChild(ring);
+      // hotfix38 — 식별 표기 **위에 글자**로도 말한다 (사용자 요구: "추가된 것은
+      // 식별 표기 위에 label 을 add 로 표기").  링은 색·파선이고 글자는 셋째 단서다.
+      // 값은 그리드와 같은 `rev.state` 에서 온다 — 두 벌을 두지 않는다.
+      const tag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const fs = Math.max(9, Math.min(16, (y1 - y0) * scale * 0.45));
+      tag.setAttribute("x", x0 * scale - pad);
+      tag.setAttribute("y", y0 * scale - pad - 2);
+      tag.setAttribute("font-size", fs);
+      tag.setAttribute("class", "revtag " + (rev === "ADDED" ? "rev-added" : "rev-modified"));
+      tag.textContent = rev === "ADDED" ? "ADD" : "MOD";
+      tag.dataset.key = it.key;
+      tag.dataset.rev = rev;
+      const st = (S.rowByKey[it.key] || {}).rev || {};
+      const tt = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      tt.textContent = rev === "ADDED"
+        ? `${(S.rev || {}).compared_with || "직전 리비전"} 대비 추가` + (st.reason ? ` — ${st.reason}` : "")
+        : `${(S.rev || {}).compared_with || "직전 리비전"} 대비 수정 — `
+          + ((st.changed || []).map(c => `${c.field}: ${c.was ?? ""} → ${c.now ?? ""}`).join(" · ") || "값 변경");
+      tag.appendChild(tt);
+      ov.appendChild(tag);
     }
     r.dataset.key = it.key;
     r.onclick = (ev) => {

@@ -895,12 +895,20 @@ def job_revision(job_id: str):
         counts[st["state"]] = counts.get(st["state"], 0) + 1
     counts[revisions.DELETED_CANDIDATE] = sum(1 for c in cands if not c["confirmed"])
     counts[revisions.DELETED] = sum(1 for c in cands if c["confirmed"])
+    # hotfix38 — 짝을 태그로 지은 행과 기하로 지은 행의 수.  태그가 있는 문서에서
+    # 이 둘이 곧 "이 대조를 얼마나 믿을 수 있나" 다 (태그 짝은 거리를 안 본다).
+    matched_by = {"TAG": 0, "GEOMETRY": 0}
+    for st in states.values():
+        if st["state"] in (revisions.UNCHANGED, revisions.MODIFIED):
+            matched_by[st.get("basis") or "GEOMETRY"] = (
+                matched_by.get(st.get("basis") or "GEOMETRY", 0) + 1)
     label = (f"{job['revision']} vs {job['compared_with']}"
              if job["compared_with"] else
              (f"{job['revision']} (비교 대상 없음)" if job["revision"] else ""))
     return {"project": job["project"], "revision": job["revision"],
             "compared_with": job["compared_with"], "label": label,
-            "counts": counts, "deleted_candidates": cands}
+            "counts": counts, "matched_by": matched_by,
+            "deleted_candidates": cands}
 
 
 @app.post("/jobs/{job_id}/deleted/{stable_id}/confirm")

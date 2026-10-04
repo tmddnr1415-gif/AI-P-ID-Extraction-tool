@@ -211,34 +211,97 @@ class Registry:
 BASELINE = "BASELINE"          # 비교 대상이 없다.  Rev.A 가 여기 해당한다
 
 
-def _pairs_within(cur: list, recs: list, radius: float) -> list:
-    """(현재 행, 장부 기록, 거리) 중 반경 안인 것.  같은 TYPE 끼리만 만든다."""
-    out = []
+def _tag_key(type_, tag):
+    """태그 짝의 열쇠.  hotfix35 — 한 루프의 PI 와 PIT 는 **같은 태그**를 들므로
+    태그만으로는 둘이 갈리지 않고 TYPE 을 함께 본다.  태그가 비면 열쇠가 없다."""
+    tag = str(tag or "").strip()
+    return (str(type_ or ""), tag) if tag else None
+
+
+def _tag_matches(cur: list, recs: list) -> tuple[dict, dict]:
+    """hotfix38 — 태그가 곧 이름인 문서(§10 1급)에서는 태그로 먼저 짝짓는다.
+
+    규칙은 하나다: **그 도면 안에서 (TYPE, 태그) 가 현재 행에도 장부에도 정확히
+    하나씩**일 때만 짝이다.  같은 태그가 둘 이상이면(한 태그를 여러 버블에 찍는
+    문서가 있다 — UAD p30) 어느 것이 어느 것인지 도면이 말하지 않으므로 기하로
+    넘긴다.  거리는 보지 않는다 — 심볼이 종이 한 장을 가로질러 옮겨 가도 같은
+    태그면 같은 항목이고, 그 거리는 `moved_pt` 로 기록된다.
+
+    태그가 없는 행(2급 문서 전부 · AL NOUF1 · TC2 · SADARA)은 여기서 아무것도
+    안 하고 예전 그대로 기하로 간다 — 그래서 그 문서들의 대조는 한 칸도 안 바뀐다.
+    """
+    def count(items, get):
+        seen: dict = {}
+        for idx, it in enumerate(items):
+            k = get(it)
+            if k:
+                seen.setdefault(k, []).append(idx)
+        return seen
+    rows_by = count(cur, lambda r: _tag_key(r.get("type"), r.get("tag_no")))
+    recs_by = count(recs, lambda r: _tag_key(
+        r.get("type"), (r.get("values") or {}).get("tag_no")))
+    matched: dict[int, int] = {}
+    dup = {"rows": sorted(k for k, v in rows_by.items() if len(v) > 1),
+           "recs": sorted(k for k, v in recs_by.items() if len(v) > 1)}
+    for k, ii in rows_by.items():
+        jj = recs_by.get(k)
+        if len(ii) == 1 and jj and len(jj) == 1:
+            matched[ii[0]] = jj[0]
+    return matched, dup
+
+
+def _pairs_within(cur: list, recs: list, radius: float,
+                  skip_rows=(), skip_recs=()) -> tuple[list, list]:
+    """(현재 행, 장부 기록, 거리) 중 반경 안인 것.  같은 TYPE 끼리만 만든다.
+
+    hotfix38 — **둘 다 태그를 들고 그 태그가 다르면** 거리가 가까워도 짝이 아니다
+    (1급 문서에서 이름이 다른 것은 다른 항목이다).  그 쌍은 버리지 않고 `blocked`
+    로 돌려주어 근거에 적는다 — 같은 자리에서 태그만 바뀐 것은 "수정" 이 아니라
+    "삭제 + 추가" 로 읽히고, 그 판정의 근거가 눈에 보여야 한다.
+    """
+    out, blocked = [], []
     for i, row in enumerate(cur):
+        if i in skip_rows:
+            continue
         ax, ay = anchor(row)
+        rt = str(row.get("tag_no") or "").strip()
         for j, rec in enumerate(recs):
+            if j in skip_recs:
+                continue
             if str(row.get("type") or "") != str(rec.get("type") or ""):
                 continue                       # TYPE 게이트
             bx, by = rec.get("last_anchor") or rec["anchor"]
             d = ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5
-            if d <= radius:
-                out.append((d, i, j))
-    return sorted(out)
+            if d > radius:
+                continue
+            ct = str((rec.get("values") or {}).get("tag_no") or "").strip()
+            if rt and ct and rt != ct:
+                blocked.append((round(d, 2), i, j, ct, rt))
+                continue
+            out.append((d, i, j))
+    return sorted(out), sorted(blocked)
 
 
-def _match_one_drawing(cur: list, recs: list, radius: float) -> tuple[dict, dict]:
-    """1:1 짝짓기.  상호 최근접을 먼저 확정하고 남은 것을 거리순으로 붙인다."""
-    pairs = _pairs_within(cur, recs, radius)
+def _match_one_drawing(cur: list, recs: list, radius: float) -> tuple[dict, dict, dict]:
+    """1:1 짝짓기.  태그가 유일하면 태그로, 남은 것은 상호 최근접 → 거리순.
+
+    돌려주는 셋째 값은 근거다 — 행마다 `basis` (TAG | GEOMETRY), 거리 안이었는데
+    태그가 달라 막은 쌍, 태그가 겹쳐 기하로 넘긴 열쇠.
+    """
+    matched, dup = _tag_matches(cur, recs)
+    basis = {i: "TAG" for i in matched}
+    taken_rows, taken_recs = set(matched), set(matched.values())
+    pairs, blocked = _pairs_within(cur, recs, radius, taken_rows, taken_recs)
     best_for_row: dict[int, int] = {}
     best_for_rec: dict[int, int] = {}
     for d, i, j in pairs:
         best_for_row.setdefault(i, j)
         best_for_rec.setdefault(j, i)
-    taken_rows, taken_recs, matched = set(), set(), {}
     # 1) 서로가 서로의 최근접인 짝
     for i, j in best_for_row.items():
-        if best_for_rec.get(j) == i:
+        if best_for_rec.get(j) == i and i not in taken_rows and j not in taken_recs:
             matched[i] = j
+            basis[i] = "GEOMETRY"
             taken_rows.add(i)
             taken_recs.add(j)
     # 2) 남은 것을 거리순으로.  이미 쓰인 쪽은 건너뛴다 (1:1 유지)
@@ -246,9 +309,15 @@ def _match_one_drawing(cur: list, recs: list, radius: float) -> tuple[dict, dict
         if i in taken_rows or j in taken_recs:
             continue
         matched[i] = j
+        basis[i] = "GEOMETRY"
         taken_rows.add(i)
         taken_recs.add(j)
-    return matched, {j: i for i, j in matched.items()}
+    evidence = {"basis": basis,
+                "tag_blocked": [{"distance": d, "row": cur[i].get("key", ""),
+                                 "id": recs[j]["id"], "was": was, "now": now}
+                                for d, i, j, was, now in blocked],
+                "tag_duplicates": dup}
+    return matched, {j: i for i, j in matched.items()}, evidence
 
 
 def _changed_fields(row: dict, rec: dict) -> list:
@@ -279,14 +348,30 @@ def compare(rows: list, registry: "Registry", revision: str,
 
     states, radii, deleted = {}, {}, []
     baseline = not compared_with
+    # hotfix38 — 장부에만 있는 도면도 돈다.  이번 분석에 그 도면의 행이 **하나도**
+    # 없으면(장이 빠졌거나 못 읽었거나) 예전 코드는 그 도면을 아예 안 보아 기록이
+    # 삭제 후보로 올라오지 않았다 — 통째로 빠진 장이 조용히 사라지는 길이었다.
+    drawings = set(by_drawing)
+    if not baseline:
+        drawings |= {rec["drawing_no"] for rec in registry.data["ids"].values()
+                     if rec.get("status") == "active"}
 
-    for dwg in sorted(by_drawing):
-        cur = sorted(by_drawing[dwg], key=sort_key)
+    for dwg in sorted(drawings):
+        cur = sorted(by_drawing.get(dwg, []), key=sort_key)
         recs = sorted(registry.by_drawing(dwg), key=lambda r: r["seq"])
         info = match_radius(cur, legend_bubble)
         radii[dwg] = info
-        matched, back = ({}, {}) if baseline else _match_one_drawing(
-            cur, recs, info["radius"])
+        matched, back, how = (({}, {}, {"basis": {}, "tag_blocked": [],
+                                       "tag_duplicates": {"rows": [], "recs": []}})
+                              if baseline else
+                              _match_one_drawing(cur, recs, info["radius"]))
+        info["tag_blocked"] = how["tag_blocked"]
+        info["tag_duplicates"] = how["tag_duplicates"]
+        # 어느 길로 짝지었는지 — 태그가 있는 문서에서 몇 행이 태그로 섰는지가
+        # 곧 "이 대조를 얼마나 믿을 수 있나" 다.
+        info["matched_by"] = {"TAG": sum(1 for b in how["basis"].values() if b == "TAG"),
+                              "GEOMETRY": sum(1 for b in how["basis"].values()
+                                              if b == "GEOMETRY")}
 
         for i, row in enumerate(cur):
             if i in matched:
@@ -300,11 +385,14 @@ def compare(rows: list, registry: "Registry", revision: str,
                                + (was[1] - now[1]) ** 2) ** 0.5, 2)
                 rec["last_anchor"] = [round(v, 2) for v in now]
                 rec["values"] = {f: row.get(f) for f in COMPARED_FIELDS}
+                basis = how["basis"].get(i, "GEOMETRY")
                 rec["history"].append({"revision": revision, "state": state,
                                        "row_key": row.get("key", ""),
-                                       "moved_pt": moved, "changed": changed})
+                                       "moved_pt": moved, "changed": changed,
+                                       "basis": basis})
                 states[row["key"]] = {"id": rec["id"], "state": state,
-                                      "moved_pt": moved, "changed": changed}
+                                      "moved_pt": moved, "changed": changed,
+                                      "basis": basis}
             else:
                 ident = registry.assign(row, revision)
                 rec = registry.data["ids"][ident]
@@ -312,7 +400,16 @@ def compare(rows: list, registry: "Registry", revision: str,
                 rec["values"] = {f: row.get(f) for f in COMPARED_FIELDS}
                 state = BASELINE if baseline else ADDED
                 rec["history"][-1]["state"] = state
-                states[row["key"]] = {"id": ident, "state": state, "changed": []}
+                # 추가의 근거 — 태그가 있었다면 장부에 그 태그가 없었다는 것,
+                # 없었다면 반경 안에 같은 TYPE 의 빈 기록이 없었다는 것.
+                tag = str(row.get("tag_no") or "").strip()
+                reason = ("" if baseline else
+                          (f"태그 {tag} 가 {compared_with} 장부에 없음" if tag
+                           else f"반경 {round(info['radius'], 1)}pt 안에 같은 TYPE 의 "
+                                f"남은 기록 없음 (태그 없음)"))
+                states[row["key"]] = {"id": ident, "state": state, "changed": [],
+                                      "basis": "TAG" if tag else "GEOMETRY",
+                                      "reason": reason}
 
         if baseline:
             continue
@@ -330,9 +427,18 @@ def compare(rows: list, registry: "Registry", revision: str,
                     near = (d, row.get("key", ""))
             rec["history"].append({"revision": revision,
                                    "state": DELETED_CANDIDATE})
+            tag = str((rec.get("values") or {}).get("tag_no") or "").strip()
+            # 태그가 있던 기록이면 그 태그가 이번 분석의 **어디에도** 없는지를
+            # 적는다 — 다른 도면에 같은 태그가 섰으면 삭제가 아니라 옮김일 수 있다.
+            elsewhere = sorted({r.get("drawing_no", "") for r in rows
+                                if tag and str(r.get("tag_no") or "").strip() == tag
+                                and r.get("drawing_no", "") != dwg})
             deleted.append({
                 "id": rec["id"], "drawing_no": dwg, "page_no": rec.get("page_no"),
                 "type": rec.get("type", ""), "description": rec.get("description", ""),
+                "tag_no": tag,
+                "basis": "TAG" if tag else "GEOMETRY",
+                "tag_elsewhere": elsewhere,
                 # 산출물에서 원래 자리와 원래 번호를 지키기 위해 함께 옮긴다
                 "tab": rec.get("tab") or "FIELD",
                 "excel_no": rec.get("excel_no"),

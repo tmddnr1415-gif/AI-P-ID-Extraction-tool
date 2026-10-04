@@ -276,6 +276,27 @@ def _value_for(name: str, row: dict, values: dict):
     return values.get(name) or None
 
 
+def revision_remark(row: dict) -> str:
+    """개정 상태 한 줄.  `rev.state` 와 비교 대상(`rev_against`)만 읽는다.
+
+    상태가 없거나 BASELINE·UNCHANGED 면 빈 문자열 — Rev.A 산출물의 REMARK 가
+    개정 때문에 달라지는 일이 없어야 한다.  삭제는 확정된 행만 여기 온다
+    (`deleted_confirmed`) 이고, 수정은 바뀐 칸 이름을 함께 적는다.
+    """
+    rev = row.get("rev") or {}
+    state = rev.get("state") or ""
+    against = row.get("rev_against") or ""
+    vs = f"{against} 대비 " if against else ""
+    if row.get("deleted_confirmed") or state == "DELETED":
+        return f"{vs}삭제 (확정)"
+    if state == "ADDED":
+        return f"{vs}추가"
+    if state == "MODIFIED":
+        fields = [c.get("field", "") for c in (rev.get("changed") or []) if c.get("field")]
+        return f"{vs}수정" + (f" ({', '.join(fields)})" if fields else "")
+    return ""
+
+
 def _remark(row: dict, values: dict):
     """The client's REMARK column: why this row was flagged, and what was decided.
 
@@ -293,6 +314,13 @@ def _remark(row: dict, values: dict):
     # "→ 미처리" 로 읽히면 사람이 이미 본 행에 검토 사유가 붙은 꼴이 된다.
     ev = row.get("evidence") or {}
     lead = []
+    # hotfix38 — 개정 상태는 **이 열의 앞머리**다 (사용자 요구: 삭제는 "List 에서
+    # 삭제 표기 + remark", 추가는 "리스트에서도 추가되었다고 표기").  음영·취소선
+    # (`_mark_revision`)은 그대로 두고 글자로도 말한다 — 흑백 인쇄와 필터가 색을
+    # 못 읽는다.  Rev.A(BASELINE)·UNCHANGED 에는 아무 말도 없다.
+    rev_lead = revision_remark(row)
+    if rev_lead:
+        lead.append(rev_lead)
     if row.get("added"):
         who = (ev.get("markup") or {}).get("author") or ""
         lead.append("사용자 추가" + (f" · {who}" if who else ""))

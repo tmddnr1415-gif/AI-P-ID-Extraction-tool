@@ -349,7 +349,14 @@
         <!-- 개정이 붙은 분석에서만 보인다.  824행에서 바뀐 몇 행을 찾는 일이
              개정 검토의 전부이므로, 그 몇 행으로 좁히는 스위치가 필요하다. -->
         <label class="only-review hidden" id="only-changed-wrap">
-          <input id="only-changed" type="checkbox"> 개정된 행만</label>
+          <input id="only-changed" type="checkbox"> 개정된 행만
+          <!-- hotfix38 — 추가만 · 수정만 · 삭제만.  삭제 후보와 확정은 한 선택에 든다. -->
+          <select id="rev-filter" title="개정 상태로 좁히기">
+            <option value="">개정 전체</option>
+            <option value="ADDED">추가만</option>
+            <option value="MODIFIED">수정만</option>
+            <option value="DELETED">삭제만</option>
+          </select></label>
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>

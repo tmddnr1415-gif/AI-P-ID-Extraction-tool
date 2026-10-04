@@ -927,6 +927,12 @@ rect.revring {
 }
 rect.revring.rev-added    { stroke: var(--rev-add); stroke-dasharray: 7 4; }
 rect.revring.rev-modified { stroke: var(--rev-mod); stroke-dasharray: 2 3; }
+/* hotfix38 — 링 위의 글자 (ADD · MOD).  색은 링과 같고, 글자가 셋째 단서다. */
+text.revtag { font-weight: 700; pointer-events: none; paint-order: stroke;
+              stroke: #fffdf6; stroke-width: 3px; letter-spacing: .02em; }
+text.revtag.rev-added    { fill: var(--rev-add); }
+text.revtag.rev-modified { fill: var(--rev-mod); }
+td[data-col="rev_state"] { white-space: nowrap; color: var(--ink-soft); }
 
 .rev-label { color: var(--muted); }
 .proj { margin: 10px 0 14px; }
