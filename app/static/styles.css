@@ -1306,3 +1306,13 @@ g.qtytag.edited text { fill: var(--ok); }
 g.qtytag.sel rect { stroke-width: 2; }
 input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; font-weight: 700;
   padding: 1px 4px; border: 2px solid var(--accent); border-radius: 4px; background: #fffdf6; }
+
+/* hotfix39 — 직전/현재 결과 스위치.  오른쪽 맨 위, 분할 버튼 둘.  보고 있는 쪽이 진하다. */
+.rev-switch { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; flex: none; }
+.rev-switch .rs-cap { color: var(--ink-soft); font-size: 12px; margin-right: 2px; }
+.rev-switch button { border: 1px solid var(--line); background: transparent; color: var(--ink-soft);
+                     border-radius: var(--r-s); padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.rev-switch button.on { background: var(--ink-strong); color: #fffdf6; border-color: var(--ink-strong); }
+.rev-switch button.prev.on { background: var(--rev-del); border-color: var(--rev-del); }
+.rev-switch .rs-note { color: var(--ink-soft); font-size: 11px; margin-left: 4px; }
+.rev-switch.viewing-prev { outline: 2px solid var(--rev-del); outline-offset: 2px; border-radius: var(--r-s); }

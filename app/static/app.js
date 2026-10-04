@@ -99,6 +99,8 @@ const S = {
   // 프로젝트와 리비전.  `rev` 는 이 분석의 대조 결과 요약이다.
   project: "", projects: [], rev: null, onlyChanged: false, setupDone: false,
   deletedRows: [], revByKey: {}, loading: false,
+  // hotfix39 — 직전/현재 결과 전환.  `viewCache` 는 job id → 그 결과의 화면 상태 전부.
+  viewCache: {}, revPair: null,
   pageCount: null, sheetTargets: null,
   // Which trace layers the reviewer switched off: pipe | up | down | break.
   trOff: new Set(),
@@ -1309,8 +1311,29 @@ async function loadRevision() {
   try {
     S.rev = await (await fetch(`/jobs/${S.job.id}/revision`)).json();
   } catch (e) { S.rev = null; }
+  renderRevLabel();
+  renderDeletedCandidates();
+  // hotfix39 — 직전 ↔ 현재 결과 스위치.  짝은 서버가 장부에서 읽은 id 둘이다.
+  if (S.rev && S.rev.compared_with && S.rev.previous_job_id) {
+    S.revPair = { current: S.job.id, currentLabel: S.rev.revision,
+                  previous: S.rev.previous_job_id, previousLabel: S.rev.compared_with };
+  } else if (S.rev && (S.rev.next_jobs || []).length && S.revPair && S.revPair.previous === S.job.id) {
+    // 직전 결과를 보는 중 — 짝은 그대로 둔다
+  } else if (S.rev && (S.rev.next_jobs || []).length) {
+    const n = S.rev.next_jobs[0];
+    S.revPair = { current: n.job_id, currentLabel: n.revision,
+                  previous: S.job.id, previousLabel: S.rev.revision };
+  } else {
+    S.revPair = null;
+  }
+  renderRevSwitch();
+}
+
+/* 머리줄의 개정 라벨 — `S.rev` 하나에서 그린다.  열기(`loadRevision`)와 메모리 복원
+ * (`restoreView`)이 같은 함수를 부른다 (두 벌을 두면 갈린다). */
+function renderRevLabel() {
   const el = $("#rev-label");
-  if (!S.rev || !S.rev.revision) { el.classList.add("hidden"); return; }
+  if (!S.rev || !S.rev.revision) { el.classList.add("hidden"); el.textContent = ""; return; }
   const c = S.rev.counts || {};
   const bits = [];
   if (c.ADDED) bits.push(`추가 ${c.ADDED}`);
@@ -1341,7 +1364,6 @@ async function loadRevision() {
   // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
   const w = $("#only-changed-wrap");
   if (w) w.classList.toggle("hidden", !S.rev.compared_with);
-  renderDeletedCandidates();
 }
 
 /* 삭제 후보 한 건의 근거.  좌표 · 반경 · 가장 가까웠던 후보까지 거리 셋이

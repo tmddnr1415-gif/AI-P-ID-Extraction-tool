@@ -920,17 +920,29 @@ def job_revision(job_id: str):
     # hotfix38 — 도면번호가 바뀐 장 · 한쪽에만 있는 장.  장부(`project.json`)의
     # 이 리비전 항목이 든 사실이고 여기서 다시 판정하지 않는다.
     sheets = {}
+    # hotfix39 — **직전 리비전과 다음 리비전의 분석 id.**  화면이 "이전 P&ID 결과 ↔ 현재
+    # 결과" 를 오가는 데 쓴다 (사용자 요구).  장부(`project.json`)의 사실이고 여기서
+    # 판정하지 않는다: 직전 = 이 분석이 비교한 리비전의 job, 다음 = 이 리비전을 비교
+    # 대상으로 삼은 리비전들의 job.
+    previous_job = ""
+    next_jobs = []
     if job["project"]:
         try:
             meta = revisions.load_project(DATA_DIR, job["project"])
             for r in meta.get("revisions") or []:
                 if r.get("job_id") == job_id:
                     sheets = r.get("sheets") or {}
+                if job["compared_with"] and r.get("revision") == job["compared_with"]:
+                    previous_job = r.get("job_id") or ""
+                if job["revision"] and r.get("compared_with") == job["revision"] \
+                        and r.get("job_id") and r.get("job_id") != job_id:
+                    next_jobs.append({"job_id": r["job_id"], "revision": r.get("revision", "")})
         except (KeyError, ValueError):
             sheets = {}
     return {"project": job["project"], "revision": job["revision"],
             "compared_with": job["compared_with"], "label": label,
             "counts": counts, "matched_by": matched_by, "sheets": sheets,
+            "previous_job_id": previous_job, "next_jobs": next_jobs,
             "deleted_candidates": cands}
 
 

@@ -329,6 +329,11 @@
 
     <div id="gutter-v" class="gutter gutter-v" title="끌어서 도면 창 폭 조절 · 두 번 누르면 원래대로"></div>
     <section id="right">
+      <!-- hotfix39 — 같은 프로젝트의 **직전 P&ID 결과 ↔ 현재 결과** 를 오가는 스위치 (사용자
+           요구).  오른쪽 전체(목록 · 검토 · 근거)가 그 결과로 바뀌고 왼쪽 도면도 같은 도면번호
+           장으로 따라간다.  한 번 읽은 결과는 메모리에 두어 두 번째부터는 다시 안 읽는다.
+           비교 대상이 없는 분석에서는 숨는다. -->
+      <div id="rev-switch" class="rev-switch hidden"></div>
       <!-- Always visible: what is left to decide, by the axis it is decided on.
            Filled by app.js renderReviewPanel(). -->
       <div id="review-panel" class="review-panel"></div>
