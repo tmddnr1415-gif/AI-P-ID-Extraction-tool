@@ -2918,6 +2918,62 @@ QFE PDF 93장(A1 84 · A3 7 · 회전 2) · `data/QFE_260326.pdf` — 분할 egg
    (64초) · QFE `906593dd` · 2019 · 3649 · 89.1 (1266초 · 6.4G).  Line 열은 지문 밖이라 구조적으로 안 움직인다.
    빠른 시험 **649**.  꾸러미 `out/PID_hotfix37_2026-10-03.zip` (`spike/pack_hotfix.py` · 저장소 대조 0).
 
+**그 다음 — QFE 260112 → 260326 개정 대조 · 추가/삭제를 정확히 · 한 가지의 전송기 · 버블 안의 버블 (hotfix38)**
+
+사용자: *"QFE 프로젝트를 첫 화면에 생성하고 시간순으로 260112 를 분석한 뒤 260326 을 넣으면
+이전 대비 무엇이 삭제되고 추가됐는지 확인하고 싶다.  삭제는 List 에 삭제 표기 + remark(필터),
+추가는 식별 표기 위에 add 라벨 + 리스트 표기.  QFE 모든 페이지를 돌려 검증하고 다른 프로젝트
+에서도 되게 질을 높여라."*  추가 지시: *"하나의 가지에서 PIT·PI 가 있으면 PIT 가 물리적 계기이고
+PI 는 시그널이니 PIT 를 식별해야 한다.  TIT·TI, PDIT·PDI 도 마찬가지."*
+전문 `out/hotfix38/1_보고서.md` · 화면 `out/hotfix38/ui/` · 크롭 `out/hotfix38/flow2/crops/` ·
+독립 검사 `out/hotfix38/flow2/tag_diff.md`.  시험 649 → **682**.  **AL NOUF1 · TC2 · UAD-DXF ⟨회귀⟩ ·
+QFE 는 움직인다(⟨회귀⟩)** — 아래 3·4 가 QFE 행을 바꾼다.
+
+1. **★ 스물한 번째 — 리비전 대조는 13회차부터 있었고 짝을 기하로만 지었다.**  태그가 인쇄된
+   1급 문서에서 태그를 안 썼다.  실제 경로(첫 화면 → 프로젝트 → Rev.A → Rev.B · `spike/rev_flow_qfe.py`)
+   로 돌린 옛 코드: 추가 191 · 수정 382 · 삭제 후보 **46** — 태그만으로 센 삭제 160 중 **14** 만
+   잡았다 (나머지는 반경 안의 **남의** 새 태그 행과 짝지어져 "수정" 이 됐다).
+   고침 (`revisions._tag_matches` · `_pairs_within` · `pair_renumbered_sheets`): (TYPE, 태그) 가 그
+   도면 안에서 양쪽에 하나씩이면 **거리와 무관하게** 짝 (hotfix35 — PI·PIT 가 한 태그를 든다) ·
+   겹치면 기하로 · 남은 것은 예전대로 상호 최근접 → 거리순 · **둘 다 태그인데 다른 쌍은 맨 뒤**
+   (`00GHC36CF001` → `10GHC42CF101` 이 같은 좌표 0.0~1.7pt — 번호 재부여는 "수정 (tag_no)" 이고
+   안정 ID 가 이어진다, §7.3) · 태그 없는 행은 한 글자도 안 바뀐다.
+2. **★ 도면번호가 바뀐 장을 태그로 알아본다.**  `30GKC10-M05-0001~0003` 이 `…-0201~0203` 이 됐다
+   (태그 17/22 · 18/19 · 13/47 공유).  규칙: 장부에만 있는 번호 ↔ 이번에만 있는 번호 사이에서 공유
+   태그 **둘 이상 · 작은 쪽 절반 이상 · 상호 최선**.  기록을 새 번호로 옮기고 ID 는 그대로.  제목은
+   근거가 못 된다 (네 장이 같은 제목 · `…-0004`↔`…-0204` 는 공유 0 이라 안 짓는다).
+   같이 잡은 결함 둘: 장부에만 있는 도면(이번 분석 행 0)은 **아예 돌지 않아** 삭제 후보가 안
+   올라왔다 · 같은 리비전을 다시 대조하면 직전 대조가 만든 ID 가 살아 "추가" 가 "변경 없음" 이 됐다
+   → 첫 대조 전 장부를 `id_registry.before_<rev>.json` 으로 떠 두고 거기서 다시 시작한다.
+   **최종 코드 실측**: Rev.A 1999 · Rev.B 1991 · **추가 103 · 수정 458 · 불변 1430 · 삭제 후보 111** ·
+   짝 태그 1423 · 기하 465 · 바뀐 장 3 · 새 장 4 · 빠진 장 2.  독립 검사(`spike/rev_tag_diff.py` —
+   compare 를 안 부르고 태그 집합만 대조): 양쪽 유일 태그 **1423/1423** 짝 · 태그 추가 62/74 ·
+   삭제 91/106 (차이는 전부 같은 자리 태그 변경 = 수정).  수정 458 의 9할(411)은 Description 재생성.
+3. **★ 눈 확인 크롭이 결함을 잡았다 (#40).**  삭제 후보 `LIT 10LCM10CL001B`(p51)가 두 판 다 있었다.
+   260326 은 탱크 외곽을 둥근 사각형(296×801pt · 호 캡 둘 + 곧은 옆면)으로 그려 `bubble_outlines`
+   가 버블로 세웠고 안의 LIT·LIT·LI 가 "버블 2개에 걸림" 미판정이 됐다.  고침 `detect_symbols._innermost`:
+   **다른 윤곽을 품는 윤곽은 그 낱말의 버블이 아니다** (관계만 · 상수 0 · 크기 창은 37회차대로 안 둔다).
+   전수 중첩 윤곽: QFE 260326 489(p42 68 · p39 8 · p51 5 · 범례 408) · 260112 409 · **AL NOUF1 2**(p16
+   6×17 안의 6×3 조각 — 검출 불변 확인) · TC2 는 메모리가 겹쳐 못 셌다(회귀 지문으로).
+4. **★ 한 가지의 전송기 (#39 · `pipeline._bubble_links` · `_fold_readouts(links=)`).**  hotfix31 은
+   "한 라인" 을 같은 태그로만 읽었다.  QFE 실측(`spike/readout_link_probe.py`): 태그 없이(p6 4) ·
+   태그를 달리 찍고(p23 `CL002`↔`CT002` · p49·p50 `CF901`↔`CF001`) 두 버블을 **짧은 선 하나**로
+   잇는 짝 8, 같은 태그인데 `FT` 가 `FI` 를 **포함하지 않아** 안 접히던 짝 4(p42).  **AL NOUF1 0 ·
+   TC2 0.**  규칙(순회 없음 · 상수 0): 한 축으로 겹친 두 버블의 틈이 **버블 긴변 이하**이고 그 띠의
+   축 방향 잉크가 틈의 절반 이상 → 이어진 것.  이기는 쪽은 그 표가 TRANSMITTER 로 읽는 글자를 가진
+   기능 또는 포함 관계.  Rev.A 접힌 표시기 112 → **124** (같은 태그 116 · 선 8 — 예측 그대로).
+   ⚠ 한계: p59 `PI 11LAB10CP901` 처럼 두 PIT 에서 **꺾인 파선**으로 오는 표시기는 선분 하나로
+   못 읽어 접지 않는다 (§2.3).
+5. **화면·Excel** — 링 위 **ADD/MOD** 글자(툴팁에 근거) · 목록 **개정** 열(필터·검색) · 개정 필터
+   (추가만·수정만·삭제만) · 삭제 행 Remark `Rev.A 대비 삭제 후보 — 확정 전 · 태그 … 가 이번 분석
+   어디에도 없습니다`(다른 도면에 섰으면 "옮김일 수 있습니다") · 머리줄 `짝 태그 N · 기하 N · 도면번호
+   바뀐 장 N · 새 장 N · 빠진 장 N` · 근거 패널 "개정" 구획 · Excel REMARK 앞머리
+   `Rev.A 대비 추가/수정 (칸)/삭제 (확정)` (`excel_out.revision_remark`).  ⚠ UI 자기검증 첫 실행이
+   **개정 열이 빈 것**을 잡았다 — 그리드 셀이 `cellValue` 와 다른 분기를 쓰고 있었다 (11회차 규칙).
+   6/6 통과 · 페이지 오류 0.
+6. **못 잰 것** — SADARA·UAD PDF · `data/*.xlsx` 없음 (축1·2 · Excel 출력).  두 판의 **검출 차이**
+   (한쪽만 행이 된 심볼 · p56 LCV 글로브)는 그대로 추가/삭제 후보로 올라온다 — 사람이 확정한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3316,6 +3372,14 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/engine/dxf_render.py` · `main._dxf_page_png`·`_dxf_sheets` | DXF 배경 PNG — 픽셀 = 모델 × 3 · 장 범위를 정확히 덮는다 · 디스크 캐시 · **세트 캐시 하나** (장마다 zip 을 다시 열면 60초) |
 | `pipeline.analyse` 의 `is_dxf_input` 갈림 | **PDF 경로에 손댄 유일한 자리** (55회차) — DXF 면 `dxf_pipeline.analyse`, 아니면 옛 그대로 |
 | `job.input_kind` · `main._pack_input`·`_project_input_kind` | PDF/DXF/zip 을 파일 머리로 가른다 · .dxf 여러 장은 zip 하나로 · **같은 프로젝트에 두 종류를 섞지 않는다** |
+| `revisions._tag_matches` · `_pairs_within` · `_match_one_drawing` | **hotfix38** — 개정 짝은 (TYPE, 태그) 유일 → 기하(상호 최근접 → 거리순) → 태그가 다른 쌍 순.  근거 `basis`(TAG/GEOMETRY) · `tag_changed` · `tag_duplicates`.  태그 없는 행은 옛 판정 그대로 |
+| `revisions.pair_renumbered_sheets` · `result["sheets"]` | **hotfix38** — 도면번호가 바뀐 장: 장부에만/이번에만 있는 번호 사이 공유 태그 둘 이상 · 작은 쪽 절반 이상 · 상호 최선.  기록을 새 번호로 옮기고 ID 는 그대로 (`rec["renumbered"]`).  제목은 근거가 아니다 |
+| `revisions.registry_snapshot_path` · `main._run_comparison` | **hotfix38** — 첫 대조 전 장부를 `id_registry.before_<rev>.json` 으로 떠 두고 같은 리비전 재대조는 거기서 시작.  안 하면 직전 대조의 ID 가 "변경 없음" 으로 둔갑한다 |
+| `detect_symbols._innermost` | **hotfix38 (#40)** — 낱말이 여러 윤곽에 들면 다른 윤곽을 품는 윤곽은 그 낱말의 버블이 아니다 (탱크 외곽 둥근 사각형).  관계만 · 상수 0 |
+| `pipeline._bubble_links` · `_fold_readouts(links=)` · `_is_transmitter` | **hotfix38 (#39)** — 두 버블을 잇는 선 하나(틈 ≤ 버블 긴변 · 띠 잉크 ≥ 절반)면 한 가지.  전송기(그 표가 TRANSMITTER 로 읽는 글자)가 이기고 표시기는 접힌다.  `readout_folded[].basis` LINK/TAG |
+| `app.js` `revLabel` · `rev_state` 열 · `#rev-filter` · `deletedRemark` · `text.revtag` | **hotfix38** — 개정 표기는 `rev.state` 한 접근자.  열·필터·삭제 Remark·도면 ADD/MOD 글자·근거 패널이 같이 읽는다 |
+| `excel_out.revision_remark` · `row["rev_against"]` | **hotfix38** — REMARK 앞머리 `Rev.A 대비 추가/수정 (칸)/삭제 (확정)`.  BASELINE·UNCHANGED 는 빈 문자열 |
+| `spike/rev_flow_qfe.py` · `rev_tag_diff.py` · `rev_crops.py` · `ui_audit_revision.py` · `readout_link_probe.py` | 실제 경로 두 판 흐름 · 독립 태그 대조 · 추가/삭제 눈 확인 크롭 · 개정 화면 자기검증 · 표시기↔전송기 이어 그린 짝 전수 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
