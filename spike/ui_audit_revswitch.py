@@ -35,7 +35,7 @@ try:
         pg.on("console", lambda m: errs.append("console:" + m.text) if m.type == "error" else None)
         pg.on("request", lambda r: reqs.append(r.url))
         pg.goto(f"http://127.0.0.1:{port}/#{JOB}")
-        pg.wait_for_function("() => window.S && S.job && !S.loading && S.pages && S.pages.length > 0", timeout=120000); pg.wait_for_timeout(1500)
+        pg.wait_for_function("() => typeof S !== 'undefined' && S.job && !S.loading && S.pages && S.pages.length > 0", timeout=120000); pg.wait_for_timeout(1500)
         if errs: note("★ 열기 중 오류: " + errs[0][:300])
         sw = pg.inner_text("#rev-switch") if pg.query_selector("#rev-switch") else ""
         note(f"① 스위치: {sw!r} — {'맞음' if '이전' in sw and '현재' in sw else '★ 없음'}")
