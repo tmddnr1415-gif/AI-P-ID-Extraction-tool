@@ -94,6 +94,27 @@ try:
             note(f"⑪ 삭제 항목 누름 — 목록 선택 {f3['sel']!r} · 두 창 스크롤 {f3['l']} ↔ {f3['r']} — {'맞음' if str(f3['sel']).startswith('del:') and abs(f3['l'] - f3['r']) <= 2 else '★ 틀림'}")
             pg.screenshot(path=str(OUT / "1c_삭제항목.png"))
         pg.click("#left .toolbar button[data-z='0']"); pg.wait_for_timeout(500)
+        # hotfix41 — 오른쪽 장 고르기: 직전에만 있는 장을 고르면 그 장과 그 장의 삭제 후보가 선다
+        opts = pg.evaluate("() => Array.from(document.querySelectorAll('#cmp-pick option')).map(o => ({v: o.value, t: o.textContent}))")
+        ob = next((o for o in opts if "직전에만" in o["t"]), None)
+        note(f"⑬ 오른쪽 장 선택지 {len(opts)} · 직전에만 있는 장 {sum(1 for o in opts if '직전에만' in o['t'])}")
+        if ob:
+            pg.select_option("#cmp-pick", ob["v"])
+            pg.wait_for_function("() => S.cmpPage && String(S.cmpPage.page_no) === %r && document.querySelector('#cmp-sheet').complete" % ob["v"], timeout=60000); pg.wait_for_timeout(800)
+            pk = pg.evaluate("() => ({dwg: S.cmpPage.drawing_no, dels: document.querySelectorAll('#cmp-ov circle.delmark').length, head: document.querySelector('#cmp-head').innerText, picked: document.querySelector('#cmp-pick').value})")
+            note(f"⑭ 직전에만 있는 장 {pk['dwg']} 을 고름 — 오른쪽 ✕ {pk['dels']} · 선택 유지 {pk['picked'] == ob['v']} — {'맞음' if pk['dels'] > 0 and pk['picked'] == ob['v'] else '★ 틀림'}")
+            pg.screenshot(path=str(OUT / "1d_직전에만_있는_장.png"))
+            pg.select_option("#cmp-pick", ""); pg.wait_for_timeout(1500)
+        # Alt+→ 로 다음 변경
+        pg.keyboard.press("Alt+ArrowRight"); pg.wait_for_timeout(700)
+        k1 = pg.evaluate("() => S.cmpIdx")
+        pg.keyboard.press("Alt+ArrowRight"); pg.wait_for_timeout(700)
+        k2 = pg.evaluate("() => S.cmpIdx")
+        note(f"⑮ Alt+→ 두 번 — idx {k1} → {k2} — {'맞음' if k2 == k1 + 1 else '★ 틀림'}")
+        # 변경 내역 Excel 버튼
+        ex = pg.evaluate("() => { const a = document.querySelector('#rev-export'); return a && !a.classList.contains('hidden') ? a.getAttribute('href') : null; }")
+        xr = urllib.request.urlopen(f"http://127.0.0.1:{port}{ex}", timeout=120) if ex else None
+        note(f"⑯ 변경 내역 Excel 버튼 {ex!r} · 내려받기 {xr.status if xr else '없음'} · {len(xr.read()) if xr else 0} bytes — {'맞음' if xr and xr.status == 200 else '★ 틀림'}")
         # 확대 두 번 + 왼쪽 스크롤 → 오른쪽 따라오나
         pg.click("#left .toolbar button[data-z='1']"); pg.click("#left .toolbar button[data-z='1']"); pg.wait_for_timeout(400)
         pg.evaluate("() => { const s = document.querySelector('#stage'); s.scrollLeft = 600; s.scrollTop = 350; }")

@@ -185,8 +185,8 @@ def derive(pages, cfg=None) -> IsaTable:
     # 6-21, and the 25 are the same 25 letters.
     succ = next((r for r, t in head_words if t == SUCCEEDING_ROW), None)
     right_limit = succ.x0 if succ is not None else head.x1 + 700
-    body = [(r, t) for r, t in pc.words
-            if r.y0 > head.y1 and r.x0 < right_limit]
+    body = dedupe_overprint([(r, t) for r, t in pc.words
+                             if r.y0 > head.y1 and r.x0 < right_limit])
     if not body:
         return IsaTable(source="MISSING",
                         note=f"nothing printed under the {FIRST_ROW} "
@@ -413,6 +413,24 @@ def _rect(x0, y0, x1, y1, like):
         return pymupdf.Rect(x0, y0, x1, y1)
 
 
+def dedupe_overprint(words) -> list:
+    """같은 좌표에 같은 글자가 여러 번 찍힌 것은 한 낱말이다 (hotfix36 · hotfix41).
+
+    QFE 범례는 글자를 **세 번 겹쳐** 인쇄한다.  hotfix36 은 succeeding 칸(`( ( ( ) ) ) E E E`)
+    에서만 접었고, FIRST LETTER 열의 **뜻**은 그대로 두어 `P → PRESSURE PRESSURE PRESSURE` 가
+    되어 QFE 1991행 중 **1124행**의 Description 에 변수어가 세 번 들어갔다 (실측).  ISA 표 안에서만
+    접는다 — `pidcache` 의 전역 dedup 은 프로젝트가 켜는 것이다(뜻 있는 반복을 지우지 않으려고).
+    """
+    seen, out = set(), []
+    for r, t in words:
+        key = (round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1), t)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((r, t))
+    return out
+
+
 def succeeding_from_cells(words) -> dict:
     """`( ) X` 칸 한 줄에서 succeeding 글자 → 그 칸 위에 인쇄된 뜻.
 
@@ -430,14 +448,7 @@ def succeeding_from_cells(words) -> dict:
     # **세 번 겹쳐** 인쇄해 `( ( ( ) ) ) E E E` 가 되고 칸 꼴이 안 맞는다.
     # `pidcache` 의 전역 dedup 은 프로젝트가 켜야 도는 것이라(의미 있는 반복을 지우지
     # 않으려고) 여기 ISA 표 안에서만 접는다.
-    seen, words_u = set(), []
-    for r, t in words:
-        key = (round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1), t)
-        if key in seen:
-            continue
-        seen.add(key)
-        words_u.append((r, t))
-    words = words_u
+    words = dedupe_overprint(words)
     got = _succeeding_in_frame(words)
     if got:
         return got

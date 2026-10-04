@@ -1379,6 +1379,9 @@ function renderRevLabel() {
   // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
   const w = $("#only-changed-wrap");
   if (w) w.classList.toggle("hidden", !S.rev.compared_with);
+  // hotfix41 — 변경 내역 Excel.  서버가 저장된 판정을 그대로 옮겨 적는다.
+  const ex = $("#rev-export");
+  if (ex) { ex.classList.toggle("hidden", !S.rev.compared_with); ex.href = `/jobs/${S.job.id}/revision/changes.xlsx`; }
 }
 
 /* hotfix39 — 직전/현재 결과 스위치와 전환.
@@ -1565,11 +1568,25 @@ async function cmpShow() {
   const want = S.page.drawing_no || "";
   // 도면번호가 바뀐 장(hotfix38 `sheets.renumbered`)은 이전 결과에서 **옛 번호**로 찾는다.
   const ren = (((S.rev || {}).sheets || {}).renumbered || []).find(e => e.now === want);
-  const page = (want && data.pages.find(p => p.drawing_no === want))
+  const auto = (want && data.pages.find(p => p.drawing_no === want))
     || (ren && data.pages.find(p => p.drawing_no === ren.before)) || null;
+  // hotfix41 — **사람이 오른쪽 장을 고를 수 있다** (왼쪽 장마다 기억).  직전 리비전에만 있는 장
+  // (빠진 장 — 왼쪽에 세울 장이 없어 hotfix40 으로는 볼 수 없었다)과, 태그를 하나도 공유하지
+  // 않아 짝이 안 된 장(`-0004` ↔ `-0204`)을 사람이 맞대 보는 길이다.  고른 것은 사실로만 쓴다 —
+  // 대조 판정(짝 · 삭제 후보)은 서버 그대로이고 바뀌지 않는다.
+  S.cmpPick = S.cmpPick || {};
+  const pickNo = S.cmpPick[want];
+  const page = (pickNo && data.pages.find(p => p.page_no === pickNo)) || auto;
   S.cmpPage = page;
+  const onlyBefore = new Set((((S.rev || {}).sheets || {}).only_before) || []);
+  const pickOpts = `<option value="">자동 — 같은 도면번호${auto ? ` (p${auto.page_no})` : " (없음)"}</option>`
+    + data.pages.filter(p => p.drawing_no).map(p => `<option value="${p.page_no}"${page && !(!pickNo) && p.page_no === page.page_no ? " selected" : ""}>p${p.page_no} ${escape(p.drawing_no)}${onlyBefore.has(p.drawing_no) ? " — 직전에만 있는 장" : ""}</option>`).join("");
   // 삭제 후보의 도면번호는 장부가 옮긴 **새 번호**다 (hotfix38) — 옛 번호 장에도 그 후보가 선다.
-  const dels = ((S.rev || {}).deleted_candidates || []).filter(d => d.drawing_no === want || (page && d.drawing_no === page.drawing_no));
+  // 사람이 다른 장을 골랐으면 그 장의 삭제 후보만 — 왼쪽 장의 것을 남의 도면 위에 그리지 않는다
+  const manual = !!(pickNo && page && (!auto || page.page_no !== auto.page_no));
+  const dels = ((S.rev || {}).deleted_candidates || []).filter(d => manual
+    ? d.drawing_no === page.drawing_no
+    : (d.drawing_no === want || (page && d.drawing_no === page.drawing_no)));
   const n = page ? Object.values(page.layers || {}).reduce((a, v) => a + v.length, 0) : 0;
   const changes = pageChanges(S.page, dels, data);
   S.cmpChanges = changes;
@@ -1578,9 +1595,13 @@ async function cmpShow() {
   const nDel = changes.length - nAdd - nMod;
   head.innerHTML = `<span class="cmp-rev">이전 ${escape(pr.previousLabel)}</span>`
     + (page ? `<span class="cmp-dwg">${escape(page.drawing_no || "")}</span><span class="muted">p${page.page_no}</span>`
-              + (ren && page.drawing_no !== want ? `<span class="muted">도면번호 바뀜 → ${escape(want)} (태그 ${ren.shared}개 공유)</span>` : "")
+              + (manual ? `<span class="muted">사람이 고른 장 — 삭제 후보는 이 장의 것</span>`
+                 : (ren && page.drawing_no !== want ? `<span class="muted">도면번호 바뀜 → ${escape(want)} (태그 ${ren.shared}개 공유)</span>` : ""))
             : `<span class="muted">같은 도면번호(${escape(want || "없음")}) 장이 이전 결과에 없습니다 — 이번 리비전에서 새로 든 장</span>`)
+    + `<select id="cmp-pick" class="cmp-pick" title="오른쪽에 띄울 직전 Rev 의 장 — 기본은 같은 도면번호.  직전에만 있는 장(빠진 장)도 고를 수 있습니다">${pickOpts}</select>`
     + `<span class="cmp-n">${page ? `상자 ${n}` : ""}</span>`;
+  const pk = $("#cmp-pick");
+  if (pk) pk.onchange = () => { S.cmpPick[want] = pk.value ? +pk.value : undefined; cmpShow(); };
   foot.textContent = `왼쪽 최신 ${escape(pr.currentLabel)} p${S.page.page_no} ↔ 오른쪽 이전 ${escape(pr.previousLabel)}`
     + (page ? ` p${page.page_no}` : "") + ` · 같은 도면번호 · 확대·스크롤 공유`
     + (data.ms ? ` · 이전 결과 ${data.ms}ms 에 읽음` : "");
@@ -1714,7 +1735,7 @@ function renderCmpChanges(changes, n) {
   box.innerHTML = `<div class="cmp-ch-head"><b>이 장 변경 ${changes.length}</b>`
     + `<span class="add">추가 ${n.add}</span><span class="mod">수정 ${n.mod}</span><span class="del">삭제 ${n.del}</span>`
     + `<span class="sp"></span><button type="button" class="ghost mini" data-step="-1" title="앞 변경으로">◀</button>`
-    + `<button type="button" class="ghost mini" data-step="1" title="다음 변경으로">▶</button></div>`
+    + `<button type="button" class="ghost mini" data-step="1" title="다음 변경으로 (Alt+→)">▶</button></div>`
     + `<div class="cmp-ch-list">` + changes.map((c, i) => {
         const [g, cls] = mark[c.state];
         const why = c.state === "MODIFIED" ? (c.changed.length ? c.changed.join(", ") : "자리만")
@@ -3057,6 +3078,13 @@ document.addEventListener("mousedown", ev => {
 });
 document.addEventListener("keydown", ev => {
   if (ev.key === "Escape") closeColumnMenu();
+  // hotfix41 — 나란히 보기에서 Alt+← / Alt+→ 로 변경을 차례로 (◀ ▶ 버튼과 같은 함수)
+  if (S.side && ev.altKey && (ev.key === "ArrowLeft" || ev.key === "ArrowRight") && (S.cmpChanges || []).length) {
+    ev.preventDefault();
+    const n = S.cmpChanges.length;
+    const i = ((S.cmpIdx === undefined || S.cmpIdx < 0 ? -1 : S.cmpIdx) + (ev.key === "ArrowRight" ? 1 : -1) + n) % n;
+    focusChange(S.cmpChanges[i], i);
+  }
 });
 
 /* ---------------- 작성자 (13회차 [D]) ----------------

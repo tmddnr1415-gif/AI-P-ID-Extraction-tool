@@ -40,7 +40,7 @@ for pkg in ("fitz", "pymupdf", "numpy", "openpyxl", "yaml", "uvicorn",
 # then fails on the first request.
 hiddenimports += collect_submodules("uvicorn")
 hiddenimports += ["app.main", "app.pipeline", "app.db", "app.excel_out",
-                  "app.paths", "app.version"]
+                  "app.paths", "app.version", "app.revision_export"]
 
 # The engine modules import each other by *bare* name - `import pidcache`, not
 # `import app.engine.pidcache` - through the sys.path insert each one carries, so

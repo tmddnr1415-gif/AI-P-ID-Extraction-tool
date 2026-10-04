@@ -3060,6 +3060,29 @@ tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 
    목록 선택 `del:30GKC10-056` · 두 창 5745 동일 · 자동 켜짐 True → 끈 뒤 False · 배율 동일 · 끔 뒤 목록
    2102 복귀 · 페이지 오류 0.  **엔진·지문·회귀는 건드린 것이 없다** (app/static · tests · spike 만).
 
+**그 다음 — 스스로 찾은 보완 넷 (hotfix41)**
+
+사용자: *"추가 보완 수정 검토하고 찾아서 스스로 보완해줘."*  변경 내역 Excel 을 처음 뽑다가 둘을 찾았다.
+전문 `out/hotfix41/1_보고서.md` · 시험 `tests/test_hotfix41_review_memo_isa_export.py` 6건.
+
+1. **★ QFE Description 1124/1991행에 변수어가 세 번** — `… OUTLET PRESSURE PRESSURE PRESSURE B`.  근거 줄이
+   말해 주었다: `VARIABLE: 범례 p3 ISA 문자표 — PI → PRESSURE PRESSURE PRESSURE`.  QFE 범례는 글자를 **세 번
+   겹쳐** 인쇄하고(hotfix36 이 succeeding 칸에서 잡은 것) FIRST LETTER 열의 **뜻**은 그대로 두어 세 번 읽혔다.
+   `isa_table.dedupe_overprint` **하나**를 두 자리가 지난다.  겹쳐 찍지 않는 문서는 구조적으로 불변.
+2. **★ 검토 메모가 기기 라벨이 됐다** — p6 `ESDV OUTLET TAG 중복 확인 GAS METERING TAG 중복 확인 B TEMPERATURE …`.
+   검토자(`sungho1.choi`)가 올린 **FreeText 주석**의 글자가 `get_text("words")` 에 도면 글자와 같은 얼굴로
+   들어온다 (QFE 260326 61건 · 13장 / 260112 8 / **AL NOUF1 64건 · 39장** / TC2 0).  §9 — 메모는 도면이 말한
+   것이 아니다.  작성자로 가른다 (SHX 주석 규칙과 같은 기준 · `pidcache._hide_memos`).
+   **⚠ 첫 판(사각형 안 낱말을 전부 빼기)이 AL NOUF1 을 1137 → 1102행으로 깎았다** — 메모 상자는 도면 위에
+   놓이고 그 밑의 심볼 글자(p16 `FE ….. VS RO` · p26 `PI`)까지 삼킨다.  둘째 판(메모가 말한 낱말을 말한 횟수만)도
+   같은 글자가 둘이면 어느 쪽이 도면 것인지 못 가른다.  **답은 PDF 자신의 규칙** — 주석에 숨김 깃발을 세우면
+   렌더러가 그 겉모양을 안 그려 `get_text` 에서 메모가 그린 글자만 정확히 빠진다 (메모리에만 · 저장 안 함).
+   실측 p16 RO 14 → 12(메모 둘) · FE 2 → 2 · `…..` 63 → 63 · p26 PI 7 → 7 · QFE p6 `중복` 4 → 0 · `ESDV` 4 → 2.
+3. **변경 내역 Excel** — `GET /jobs/{id}/revision/changes.xlsx` (`app/revision_export.py`): 요약 · 추가 · 수정(바뀐 칸
+   전→후 · 자리 이동) · 삭제(근거) · 장.  저장된 판정을 옮겨 적기만 한다 (시험이 `match_radius`·`compare(` 없음을
+   못박는다).  머리줄 `변경 내역 Excel`.
+4. **비교 창에서 오른쪽 장을 사람이 고른다** (`#cmp-pick`) — hotfix40 은 직전에만 있는 장(`30GKC10-M05-0004` ·
+   삭제 후보 50)을 왼쪽에 세울 장이 없어 못 보였다.  고르면 그 장의 삭제 후보만 그린다 · Alt+←/→ 로 변경 이동.
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3473,6 +3496,10 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `S.viewCache` · `snapshotView` · `restoreView` · `renderRevSwitch` · `switchView` · `renderRevLabel` · `#rev-switch` | **hotfix39** — 직전/현재 결과 전환.  처음은 `open()`, 그 뒤는 메모리 복원(결과 요청 0).  장은 같은 도면번호.  개정 라벨은 한 함수 |
 | `main.job_revision` 의 `previous_job_id` · `next_jobs` | **hotfix39** — 장부(`project.json`)에서 직전·다음 리비전의 분석 id.  판정 아님 |
 | `app.js` `toggleSide` · `cmpLoad` · `cmpShow` · `drawCmpOverlay` · `cmpApplyZoom` · `cmpSyncScroll` · `#cmp` · `#right.compare` | **hotfix40** — 나란히 보기.  왼쪽 현재(최신 Rev) · 오른쪽 직전 Rev 의 같은 도면번호 장(도면번호 바뀐 장은 옛 번호로).  이전 결과는 `/pages` 한 번(행 안 읽음).  확대·스크롤 공유.  삭제 후보는 **이전 도면 위** 붉은 ✕/DEL — 판정은 서버 그대로 |
+| `pidcache._hide_memos` · `PageCache.memo_words_dropped` | **hotfix41** — 사람 이름이 적힌 FreeText(검토 메모)를 메모리에서 숨긴 뒤 글자를 읽는다.  메모가 그린 글자만 빠지고 상자 밑 도면 글자는 산다.  사각형으로 빼는 방식은 AL NOUF1 35행을 삼켰다 |
+| `isa_table.dedupe_overprint` | **hotfix41** — 같은 좌표·같은 글자의 겹침은 한 낱말 (QFE 세 번 겹쳐 인쇄).  FIRST 뜻과 succeeding 칸 둘 다 |
+| `app/revision_export.py` · `GET /jobs/{id}/revision/changes.xlsx` · `#rev-export` | **hotfix41** — 개정 변경 내역 Excel.  판정 0 — `revision_state`·`deleted_candidate`·장부 `sheets` 를 옮겨 적는다 |
+| `app.js` `#cmp-pick` · Alt+←/→ | **hotfix41** — 오른쪽(직전) 장을 사람이 고른다 (직전에만 있는 장 포함 · 고르면 그 장의 삭제 후보만) · 변경 이동 단축키 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

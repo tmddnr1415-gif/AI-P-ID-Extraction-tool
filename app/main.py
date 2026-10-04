@@ -946,6 +946,35 @@ def job_revision(job_id: str):
             "deleted_candidates": cands}
 
 
+@app.get("/jobs/{job_id}/revision/changes.xlsx")
+def revision_changes_xlsx(job_id: str):
+    """hotfix41 — 개정 변경 내역 Excel (추가 · 수정 · 삭제 · 장 · 요약).
+
+    화면의 개정 열·필터·나란히 보기가 보여 주는 것을 파일로.  판정은 저장된 그대로이고
+    (`revision_state` · `deleted_candidate` · 장부 `sheets`) 여기서 다시 하지 않는다.
+    비교 대상이 없는 분석(Rev.A)에는 변경이 없으므로 400.
+    """
+    from app import revision_export
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    if not job["compared_with"]:
+        raise HTTPException(400, "비교 대상이 없는 분석입니다 — 변경 내역이 없습니다")
+    info = job_revision(job_id)
+    rows = db.merged_rows(CON, job_id, "ALL")
+    rev = db.revision_states(CON, job_id)
+    for row in rows:
+        row["rev"] = rev.get(row["key"], {})
+    pages = {r["page_no"]: r["drawing_no"] for r in CON.execute(
+        "SELECT page_no, drawing_no FROM pid_page WHERE job_id=?", (job_id,)).fetchall()}
+    data = revision_export.build(dict(job), rows, rev, info["deleted_candidates"], pages,
+                                 info["sheets"], info["matched_by"])
+    name = f"changes_{job['revision'] or 'rev'}_vs_{job['compared_with']}.xlsx".replace(" ", "_")
+    return StreamingResponse(io.BytesIO(data),
+                             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 @app.post("/jobs/{job_id}/deleted/{stable_id}/confirm")
 def confirm_deleted(job_id: str, stable_id: str, confirmed: bool = True):
     """삭제 후보를 사람이 확정한다.  확정 전에는 Excel 에 삭제 표기가 안 나간다."""

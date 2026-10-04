@@ -76,6 +76,7 @@ class PageCache:
     project_name: str
     analysis_scope: bool = True
     scope_reason: str = ""
+    memo_words_dropped: int = 0       # hotfix41 — 검토 메모(FreeText) 안이라 뺀 낱말 수
 
     _rects: list[pymupdf.Rect] | None = field(default=None, repr=False)
     _segments: list[tuple[pymupdf.Point, pymupdf.Point]] | None = field(default=None, repr=False)
@@ -207,6 +208,42 @@ def _shx_entries(page, m) -> list:
     return out
 
 
+def _hide_memos(page) -> int:
+    """hotfix41 — **사람이 붙인 검토 메모(FreeText)를 메모리에서 숨긴다.**  숨긴 수를 돌려준다.
+
+    QFE 는 검토자가 `ESDV OUTLET TAG 중복 확인.` 같은 메모를 FreeText 로 올려 두었고, 그
+    글자가 `get_text("words")` 에 **도면 글자와 같은 얼굴로** 들어와 기기 라벨이 되어
+    Description 에 섞였다 (실측 QFE 260326: 13장 · 메모 61 · AL NOUF1 39장 · 64).
+    §9 — 메모는 도면이 말한 것이 아니다.  **종류가 아니라 작성자**로 가른다(SHX 주석과
+    같은 기준): SHX 는 도면 자신이 남긴 글자이고, 사람 이름이 적힌 FreeText 는 메모다.
+
+    ★ 사각형 안의 낱말을 빼는 방식은 쓰지 않는다 — 메모 상자는 도면 위에 놓이고 그 밑의
+    심볼 글자까지 삼킨다 (첫 판이 AL NOUF1 p16 `FE ….. VS RO` · p26 `PI` 를 지워 1137 →
+    1102행이 됐다).  대신 주석에 **숨김 깃발**을 세우면 렌더러가 그 겉모양을 그리지 않아
+    `get_text` 에서 **메모가 그린 글자만** 정확히 빠진다 — 판정이 아니라 PDF 자신의 규칙이다.
+    실측 AL NOUF1 p16 RO 14 → 12(메모 둘) · FE 2 → 2 · `…..` 63 → 63 · p26 PI 7 → 7 (메모 상자
+    밑의 진짜 PI 가 산다) · QFE p6 `중복` 4 → 0 · `ESDV` 4 → 2(진짜 둘).
+    문서는 저장하지 않는다 — 깃발은 이 프로세스의 메모리에만 있다.  SHX 주석(Square)과
+    도면 PNG(`main.page_png` 는 제 문서를 따로 연다)에는 닿지 않는다.
+    """
+    n = 0
+    try:
+        annots = list(page.annots() or [])
+    except Exception:
+        return 0
+    for a in annots:
+        if a.type[1] != "FreeText":
+            continue
+        if ((a.info or {}).get("title") or "").strip() == SHX_AUTHOR:
+            continue
+        try:
+            a.set_flags(a.flags | pymupdf.PDF_ANNOT_IS_HIDDEN)
+            n += 1
+        except Exception:
+            continue
+    return n
+
+
 def _shx_words(entries) -> list:
     """SHX 주석을 낱말로 — **쪼개지 않는다.**
 
@@ -267,6 +304,14 @@ def load_pages(pdf_path: str | Path, only=None
         if want is not None and (i + 1) not in want:
             continue
         page = doc[i]
+        # hotfix41 — 사람이 붙인 검토 메모(FreeText)의 글자는 도면의 글자가 아니다.  숨긴 뒤
+        # 다시 읽는다 (숨김은 메모리에만 · 메모가 그린 글자만 빠진다).
+        memo_dropped = 0
+        if any(a.type[1] == "FreeText" for a in (page.annots() or [])):
+            before = len(page.get_text("words"))          # 숨기기 **전**에 센다
+            if _hide_memos(page):
+                page = doc.reload_page(page)
+                memo_dropped = before - len(page.get_text("words"))
         m = page.rotation_matrix
         words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]
         words += _shx_words(_shx_entries(page, m))
@@ -281,6 +326,7 @@ def load_pages(pdf_path: str | Path, only=None
                 height=page.rect.height,
                 words=words,
                 project_name=_project_name(words),
+                memo_words_dropped=memo_dropped,
             )
         )
 

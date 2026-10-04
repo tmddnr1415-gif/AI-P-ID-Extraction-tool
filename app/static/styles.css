@@ -1328,6 +1328,7 @@ input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; fo
 .cmp-head .cmp-rev { font-weight: 700; color: var(--rev-del); }
 .cmp-head .cmp-dwg { font-family: ui-monospace, monospace; }
 .cmp-head .cmp-n { color: var(--ink-soft); margin-left: auto; }
+.cmp-pick { font-size: 11px; max-width: 260px; }
 #cmp-stage { flex: 1; overflow: auto; position: relative; background: var(--paper-sunk); cursor: grab; }
 #cmp-stage.panning { cursor: grabbing; }
 #cmp-stage, #cmp-stage * { -webkit-user-select: none; user-select: none; }
@@ -1343,6 +1344,8 @@ input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; fo
 #cmp-ov text.deltag { fill: var(--rev-del); font-weight: 700; paint-order: stroke; stroke: #fffdf6; stroke-width: 3px; }
 .cmp-foot { flex: none; padding: 4px 10px; border-top: 1px solid var(--line); background: var(--paper, #fffdf6); }
 .cmp-empty { padding: 24px 14px; color: var(--ink-soft); font-size: 13px; }
+.rev-export { font-size: 12px; border: 1px solid var(--line); border-radius: var(--r-s); padding: 1px 8px; color: var(--ink-strong); text-decoration: none; white-space: nowrap; }
+.rev-export:hover { border-color: var(--accent); color: var(--accent); }
 .side-left-tag { font-weight: 700; color: #fffdf6; background: var(--ink-strong); border-radius: var(--r-s); padding: 2px 8px; font-size: 12px; }
 #cmp-ov rect.cmp-mod { fill: none; stroke: var(--rev-mod); stroke-width: 2.5; vector-effect: non-scaling-stroke; cursor: pointer; }
 #cmp-ov rect.cmp-mod.sel { stroke-width: 4; }
