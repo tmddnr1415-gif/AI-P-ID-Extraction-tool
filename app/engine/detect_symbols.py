@@ -1863,6 +1863,21 @@ def read_vendor_mark(rect, marks, box_marks, mark_dict, lay: Layout = LAYOUT,
             else "VENDOR_MARK_GLYPH"], evidence
 
 
+def _innermost(hit: list) -> list:
+    """hotfix38 (#40) — 낱말이 여러 윤곽에 들면 **다른 윤곽을 품는 윤곽은 그 낱말의
+    버블이 아니다**.  QFE 260326 p51 은 탱크 외곽을 둥근 사각형(호 캡 둘 + 곧은
+    옆면 · 296×801pt)으로 그려 `bubble_outlines` 가 버블로 세웠고, 그 안의 LIT·LIT·LI
+    낱말이 "버블 2개에 걸림" 으로 미판정이 됐다 — 260112 는 그 탱크를 다르게 그려
+    같은 세 행이 섰고, 개정 대조가 그 셋을 "삭제 후보" 로 올렸다 (눈 확인 크롭이
+    잡았다).  크기 창은 37회차가 지웠고 다시 두지 않는다 — 관계(품는가)만 본다.
+    상수 0.  하나뿐이면 그대로다."""
+    if len(hit) < 2:
+        return hit
+    return [b for b in hit
+            if not any(o is not b and b.contains(o) and b.get_area() > o.get_area()
+                       for o in hit)]
+
+
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
            face_rejected=None, rivals=(), isa=None):
@@ -1918,11 +1933,11 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
             continue  # title block / notes column — never a symbol
 
         # -- geometry verification -------------------------------------
-        hit = [
+        hit = _innermost([
             b for b in bubbles
             if b.x0 - lay.anchor_slack <= cx <= b.x1 + lay.anchor_slack
             and b.y0 - lay.anchor_slack <= cy <= b.y1 + lay.anchor_slack
-        ]
+        ])
         if len(hit) != 1:
             # 51회차 — **유도된 낱말은 버블이 섰을 때만 기록한다.**
             #
@@ -2021,11 +2036,11 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         if not _inside(cx, cy, lay.drawing_area):
             continue
-        hit = [
+        hit = _innermost([
             b for b in bubbles
             if b.x0 - lay.anchor_slack <= cx <= b.x1 + lay.anchor_slack
             and b.y0 - lay.anchor_slack <= cy <= b.y1 + lay.anchor_slack
-        ]
+        ])
         if len(hit) == 1:
             unmapped.append({"token": t, "center": [round(cx, 1), round(cy, 1)]})
 
