@@ -3423,6 +3423,16 @@ function showEvidence(row) {
   // `evidence.tag` 는 밸브에 붙은 버블 글자(MOV/HOV — 문자열)다.  33회차 이전
   // 분석은 1급 태그 판정을 같은 열쇠에 dict 로 넣어 두었으므로 그것도 받는다.
   add("태그 버블", typeof e.tag === "string" ? e.tag : undefined);
+  // hotfix39 — 태그 교차 검증 · 태그가 증거인 행.  값은 엔진이 적은 사실 그대로다.
+  if (e.tag_check) {
+    add("태그 교차 검증", `기능코드 ${e.tag_check.code} 는 이 도면에서 ${e.tag_check.expected} `
+      + `(${e.tag_check.n}/${e.tag_check.of}행)인데 버블 글자는 ${e.tag_check.seen} — 도면이 두 말을 합니다`);
+  }
+  if (e.tag_evidence) {
+    add("태그가 증거", `${(e.tag_evidence.words || []).join(" · ")} — ${e.tag_evidence.why || ""}`
+      + (e.tag_evidence.code ? ` · 기능코드 ${e.tag_evidence.code}` : "")
+      + (e.tag_evidence.qty_from ? " · 수량은 같은 장 행의 값" : " · 수량 미정") + " · 공급 주체 미판정");
+  }
   const tagNo = e.tag_no || (e.tag && typeof e.tag === "object" ? e.tag : null);
   if (tagNo && tagNo.value) {
     add("Tag No. 근거", `${tagNo.value} — 도면 인쇄 (모양 ${tagNo.shape || ""})`);

@@ -514,6 +514,9 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
 
     # ── 태그 (1급) — 속성이 준 것은 그대로, 나머지는 tags.assign ─────────
     tier_facts = _attach_tags(rows, targets, declared_mode)
+    # hotfix39 — 태그 문법 · 교차 검증 (함수는 PDF 것 하나).  DXF 는 버블 밖 미판정 낱말을
+    # 같은 꼴로 들지 않으므로 태그가 증거인 행은 여기서 만들지 않는다 (인자 빈 목록).
+    tag_grammar = P._tag_grammar_pass(rows, [], isa if isa_ok else None, tier_facts, [])
 
     # ── hotfix33 — 한 라인의 PIT/PI · 게이지 (hotfix31 규칙을 DXF 에도) ─────
     # 함수는 PDF 경로의 그것 **하나**다 (`P._fold_readouts` · 태그 뒤 한 곳).  DXF 는
@@ -578,6 +581,7 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         "legend_profile": {"mode": "dxf", "legend_sheets": [s.no for s in legend_sheets],
                            "measured": True, "compared": False, "uncompared": []},
         "evidence_tier": tier_facts,
+        "tag_grammar": tag_grammar,
         "readouts": readout_facts,
         "unjudged_symbols": unjudged,
         "valve_tags": valve_tags,
