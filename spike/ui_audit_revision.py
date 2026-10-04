@@ -83,9 +83,14 @@ try:
             rings = pg.evaluate("() => document.querySelectorAll('rect.revring.rev-added').length")
             note(f"④ p{page} 도면 — 'ADD' 글자 {n_add} · 추가 링 {rings} · 서버 추가 행 {by_page[page]} — {'맞음' if n_add == rings == by_page[page] else '★ 틀림'}")
             pg.screenshot(path=str(OUT / f"4_p{page}_도면_ADD.png"))
-            bb = pg.evaluate("() => { const t = document.querySelector('text.revtag'); if (!t) return null; const b = t.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; }")
+            # 확대해서 ADD 글자가 읽히는지 — 3배로 키우고 첫 링이 보이게 스크롤한 뒤 그 둘레를 자른다
+            pg.evaluate("() => { zoomBy(3); const r = document.querySelector('rect.revring.rev-added'); const st = document.getElementById('stage');"
+                        " const b = r.getBoundingClientRect(), s = st.getBoundingClientRect();"
+                        " st.scrollLeft += b.x - s.x - st.clientWidth / 2; st.scrollTop += b.y - s.y - st.clientHeight / 2; }")
+            pg.wait_for_timeout(1200)
+            bb = pg.evaluate("() => { const r = document.querySelector('rect.revring.rev-added'); const b = r.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; }")
             if bb:
-                pg.screenshot(path=str(OUT / f"5_p{page}_ADD_확대.png"), clip={"x": max(0, bb[0] - 80), "y": max(0, bb[1] - 40), "width": 260, "height": 160})
+                pg.screenshot(path=str(OUT / f"5_p{page}_ADD_확대.png"), clip={"x": max(0, bb[0] - 120), "y": max(0, bb[1] - 70), "width": bb[2] + 240, "height": bb[3] + 140})
             # ⑤ 근거 패널
             key = next(r["key"] for r in added if r["page_no"] == page)
             pg.evaluate(f"() => select({json.dumps(key)}, false)"); pg.wait_for_timeout(800)
