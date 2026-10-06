@@ -69,8 +69,9 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                  ("도면번호 바뀐 장", len((sheets or {}).get("renumbered") or [])),
                  ("이번에만 있는 장", len((sheets or {}).get("only_now") or [])),
                  ("직전에만 있는 장", len((sheets or {}).get("only_before") or [])), ("", ""),
-                 ("읽는 법", "판정은 분석 때 저장된 그대로입니다 (행 상태 · 바뀐 칸 · 삭제 후보).  "
-                            "삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
+                 ("읽는 법", "판정은 분석 때 저장된 그대로입니다 (행 상태 · 바뀐 태그 · 삭제 후보).  "
+                            "수정은 태그가 달라진 행뿐이고(자리 이동 · 수량 · SCOPE · Description 차이는 "
+                            "참고로만 적습니다), 삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
         ws.append(list(line))
     ws["A1"].font = ws["A2"].font = ws["A3"].font = Font(bold=True)
     _fit(ws, {"A": 18, "B": 80})
@@ -83,17 +84,21 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                 ch = (r.get("rev") or {}).get("changed") or []
                 line.append(" · ".join(f"{c.get('field')}: {c.get('was') or '(빈칸)'} → {c.get('now') or '(빈칸)'}"
                                        for c in ch if isinstance(c, dict)))
+                # hotfix43 — 상태를 정하지 않은 값 차이는 따로 적는다 (참고)
+                fd = (r.get("rev") or {}).get("field_diffs") or []
+                line.append(" · ".join(f"{c.get('field')}: {c.get('was') or '(빈칸)'} → {c.get('now') or '(빈칸)'}"
+                                       for c in fd if isinstance(c, dict)))
                 line.append((r.get("rev") or {}).get("moved_pt"))
             w.append(line)
             fill = PatternFill("solid", fgColor=STATE_FILL[(r.get("rev") or {}).get("state")])
             w.cell(row=i + 1, column=1).fill = fill
         _fit(w, {"A": 5, "B": 26, "C": 5, "D": 10, "E": 10, "F": 16, "G": 12, "H": 6, "I": 18,
-                 "J": 44, "K": 16, "L": 9, "M": 50, "N": 9})
+                 "J": 44, "K": 16, "L": 9, "M": 36, "N": 50, "O": 9})
         return w
 
     rows_sheet("추가", sorted(added, key=lambda r: (r.get("page_no") or 0, _val(r, pages, "tag_no"))))
     rows_sheet("수정", sorted(modified, key=lambda r: (r.get("page_no") or 0, _val(r, pages, "tag_no"))),
-               extra=("바뀐 칸 (전 → 후)", "자리 이동 pt"))
+               extra=("바뀐 태그 (전 → 후)", "그 밖에 값이 다른 칸 (참고 · 개정 판정에 안 씀)", "자리 이동 pt"))
 
     w = _sheet(wb, "삭제", ["NO", "상태", "안정 ID", "P&ID No.", "쪽", "탭", "Type", "Tag No.",
                            "Description", "근거", "직전 Rev 좌표", "이번 분석의 다른 도면"])

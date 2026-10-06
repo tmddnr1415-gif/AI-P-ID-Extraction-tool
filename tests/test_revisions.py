@@ -84,18 +84,23 @@ def test_new_rows_take_the_next_number_and_deletions_never_give_theirs_back():
     assert out["counts"][R.DELETED_CANDIDATE] == 1
 
 
-def test_a_changed_value_is_a_modification_but_a_move_is_not():
-    """움직인 거리는 기록만 한다 - 임계값에 근거가 없다."""
+def test_a_changed_tag_is_a_modification_but_a_move_or_a_value_is_not():
+    """hotfix43 — 수정은 태그가 달라진 것뿐이다.  움직인 거리와 다른 칸의 차이는
+    기록만 한다 (사용자 확정: 위치 변경은 수정이 아니다 · 임계값에 근거가 없다)."""
     reg = R.Registry()
     R.compare(base_rows(), reg, "Rev.A", compared_with="")
     rows = base_rows()
     rows[0]["description"] = "고쳐진 문장"
     rows[1]["rect"] = [105, 405, 173, 427.6]        # 반경 안에서 이동
+    rows[2]["tag_no"] = "10LBA10CP001"              # 없던 태그가 생겼다
     out = R.compare(rows, reg, "Rev.B", compared_with="Rev.A")
-    assert out["states"]["a"]["state"] == R.MODIFIED
-    assert out["states"]["a"]["changed"][0]["field"] == "description"
+    assert out["states"]["a"]["state"] == R.UNCHANGED
+    assert out["states"]["a"]["changed"] == []
+    assert out["states"]["a"]["field_diffs"][0]["field"] == "description"   # 기록은 남는다
     assert out["states"]["b"]["state"] == R.UNCHANGED
     assert out["states"]["b"]["moved_pt"] > 0       # 기록은 남는다
+    assert out["states"]["c"]["state"] == R.MODIFIED
+    assert out["states"]["c"]["changed"] == [{"field": "tag_no", "was": None, "now": "10LBA10CP001"}]
 
 
 def test_a_deleted_candidate_carries_the_evidence_a_person_needs():

@@ -1544,6 +1544,12 @@ async function cmpLoad(jobId) {
 
 /* 이 장의 변경 — 왼쪽(현재) 행의 추가·수정과 이 도면번호의 삭제 후보를 한 목록으로.
  * 판정은 서버(`row.rev.state` · `deleted_candidates`) 그대로이고 여기서는 모으기만 한다. */
+// hotfix43 — 개정 '수정' 은 태그가 달라진 행뿐이다.  바뀐 태그의 전/후를 상태 기록에서 읽는다.
+function tagChange(rev, side) {
+  const c = ((rev || {}).changed || []).find(x => x && typeof x === "object" && x.field === "tag_no");
+  return c ? (c[side] || "") : "";
+}
+
 function pageChanges(page, dels, prev) {
   const out = [];
   for (const r of S.rows || []) {
@@ -1554,7 +1560,9 @@ function pageChanges(page, dels, prev) {
     out.push({ state: st, key: r.key, row: r, rect: r.rect, prevRect: was ? was.rect : null,
                label: `${r.values.type || r.values.valve_type || ""} ${r.values.tag_no || ""}`.trim(),
                // 바뀐 칸은 서버가 {field, was, now} 로 주거나 이름만 준다 — 이름만 쓴다
-               changed: ((r.rev || {}).changed || []).map(x => typeof x === "string" ? x : (x && x.field) || "") });
+               changed: ((r.rev || {}).changed || []).map(x => typeof x === "string" ? x : (x && x.field) || ""),
+               // hotfix43 — 수정은 태그가 달라진 것뿐이므로 전 → 후 태그를 함께 든다
+               tagWas: tagChange(r.rev, "was"), tagNow: tagChange(r.rev, "now") });
   }
   for (const d of dels || []) {
     out.push({ state: d.confirmed ? "DELETED" : "DELETED_CANDIDATE", key: `del:${d.id}`, del: d,
@@ -1684,7 +1692,7 @@ function drawCmpOverlay(page, dels, changes) {
       g.setAttribute("width", Math.max(2, (x1 - x0) * scale) + 6); g.setAttribute("height", Math.max(2, (y1 - y0) * scale) + 6);
       g.setAttribute("class", "cmp-mod" + (S.sel === c.key ? " sel" : ""));
       const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      tip.textContent = `수정 — ${c.label} · 바뀐 칸 ${(c.changed || []).join(", ") || "(자리만)"}`;
+      tip.textContent = `수정 — ${c.label} · ${c.tagWas || "(태그 없음)"} → ${c.tagNow || "(태그 없음)"}`;
       g.appendChild(tip);
       g.onclick = (ev) => { ev.stopPropagation(); focusChange(c); };
       ov.appendChild(g);
@@ -1747,7 +1755,7 @@ function renderCmpChanges(changes, n) {
     + `<button type="button" class="ghost mini" data-step="1" title="다음 변경으로 (Alt+→)">▶</button></div>`
     + `<div class="cmp-ch-list">` + changes.map((c, i) => {
         const [g, cls] = mark[c.state];
-        const why = c.state === "MODIFIED" ? (c.changed.length ? c.changed.join(", ") : "자리만")
+        const why = c.state === "MODIFIED" ? `태그 ${c.tagWas || "(없음)"} → ${c.tagNow || "(없음)"}`
           : c.state === "ADDED" ? "이전엔 없음"
           : (c.del && c.del.confirmed ? "삭제 확정" : "삭제 후보");
         return `<button type="button" class="cmp-ch ${cls}" data-i="${i}" title="${escape(why)}"><span class="g">${g}</span>${escape(c.label || c.key)}<span class="muted"> ${escape(why)}</span></button>`;
@@ -3796,14 +3804,24 @@ function showEvidence(row) {
     if (rv.state === "MODIFIED") {
       add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
         : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동)`);
-      add("바뀐 칸", (rv.changed || []).map(c =>
-        `${c.field}: ${c.was ?? "(빈칸)"} → ${c.now ?? "(빈칸)"}`).join(" · ") || "(기록 없음)");
+      add("바뀐 태그", (rv.changed || []).map(c =>
+        `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "(기록 없음)");
+    }
+    // hotfix43 — 상태를 정하지 않은 값 차이는 참고로만 보인다
+    if ((rv.field_diffs || []).length) {
+      add("값이 다른 칸 (개정 판정에는 쓰지 않음)", rv.field_diffs.map(c =>
+        `${c.field}: ${c.was ?? "(빈칸)"} → ${c.now ?? "(빈칸)"}`).join(" · "));
     }
   } else if (rv.state === "UNCHANGED" && rv.basis) {
     sec("개정");
     add("개정 상태", `변경 없음 — ${(S.rev || {}).compared_with || "직전 리비전"} 대비`
-      + ` · 짝 ${rv.basis === "TAG" ? "태그" : "기하"}` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
+      + ` · 짝 ${rv.basis === "TAG" ? "태그" : "기하"}` + (rv.id ? ` · 안정 ID ${rv.id}` : "")
+      + ((rv.moved_pt || 0) > 0 ? ` · ${rv.moved_pt}pt 이동 (자리 이동은 수정이 아님)` : ""));
     if (rv.sheet_renumbered_from) add("도면번호 바뀐 장", `${rv.sheet_renumbered_from} → 이 장 (태그로 같은 장임을 확인)`);
+    if ((rv.field_diffs || []).length) {
+      add("값이 다른 칸 (개정 판정에는 쓰지 않음)", rv.field_diffs.map(c =>
+        `${c.field}: ${c.was ?? "(빈칸)"} → ${c.now ?? "(빈칸)"}`).join(" · "));
+    }
   }
   sec("공급 · 수량");
 
@@ -5406,7 +5424,7 @@ function drawOverlay() {
       tt.textContent = rev === "ADDED"
         ? `${(S.rev || {}).compared_with || "직전 리비전"} 대비 추가` + (st.reason ? ` — ${st.reason}` : "")
         : `${(S.rev || {}).compared_with || "직전 리비전"} 대비 수정 — `
-          + ((st.changed || []).map(c => `${c.field}: ${c.was ?? ""} → ${c.now ?? ""}`).join(" · ") || "값 변경");
+          + ((st.changed || []).map(c => `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "태그 변경");
       tag.appendChild(tt);
       ov.appendChild(tag);
     }

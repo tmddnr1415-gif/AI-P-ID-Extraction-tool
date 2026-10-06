@@ -3114,6 +3114,33 @@ tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 
 6. **하네스 규율** — `pgrep -f`/`pkill -f` 대신 `/proc` 을 읽되 **자기 셸(`shell-snapshots`)을 뺀다** (이번 회차에
    두 번 자기 셸을 죽였다 · §8 규칙에 한 줄 더함) · 업로드 응답은 `job_id` 다(`id` 가 아니다 — 첫 판이 15분을 기다렸다).
 
+**그 다음 — 개정의 '수정' 은 태그가 달라진 행뿐 (hotfix43)**
+
+사용자: *"이전 pid 대비 최신 pid 수정 변경 사항 식별이 이상한 것 같다.  위치변경이 아니라, tag number 변경
+또는 기존에 없었던 tag 가 추가되었거나 삭제되었을 때만 수정사항으로 간주한다."*
+전문 `out/hotfix43/1_보고서.md` · 화면 `out/hotfix43/ui_tagonly/` · 재대조 `out/hotfix43/recompare/` ·
+시험 `tests/test_hotfix43_tag_only_changes.py` 10건 (빠른 시험 728).  **엔진 0줄 · 네 프로젝트 기준선 불변**
+(대조는 분석 뒤 단계 · 지문에 닿지 않는다).
+
+1. **원인** — `compare()` 가 `COMPARED_FIELDS` 여덟 칸 중 하나라도 다르면 `MODIFIED` 였다.  QFE 실측 수정 458 중
+   **411 이 Description 재생성**(순번 A→B · 계통명 꼬리) — 도면이 아니라 우리 문장이 바뀐 것.  자리 이동은
+   처음부터 상태가 아니었다(`moved_pt` 기록만).
+2. **상태를 가르는 칸은 `STATE_FIELDS = ("tag_no",)` 하나** (`_revision_state` — `compare` 가 MODIFIED 를 직접 고르지
+   않는 것을 시험이 소스로 못박는다).  빈칸 → 태그 · 태그 → 빈칸도 태그가 달라진 것.  추가·삭제 후보는 그대로
+   (짝이 안 선 행·기록 = 없던 태그 · 사라진 태그).  짝짓기 규칙(태그 유일 → 기하 → 태그 다른 쌍)은 안 바꿨다.
+3. **값 차이는 지우지 않고 `field_diffs` 로 기록만** — 장부 이력 · DB `revision_state.diffs_json`(가산 열) · 근거 패널
+   *"값이 다른 칸 (개정 판정에는 쓰지 않음)"* · 변경 없음 행에 `N pt 이동 (자리 이동은 수정이 아님)`.
+   변경 내역 Excel 수정 시트는 **바뀐 태그** · 그 밖에 값이 다른 칸(참고) · 자리 이동.  REMARK 는
+   `Rev.A 대비 수정 (태그 X → Y)`.  필터 `수정만 (태그 바뀜)` · MOD 툴팁 · 나란히 변경 목록 `태그 X → Y`.
+4. **QFE 재대조** (분석 없이): 추가 103 · **수정 458 → 18** · 변경 없음 1430 → 1870 · 삭제 후보 111.  18 = 태그 변경 8 ·
+   태그 → 빈칸 6(못 읽은 것인지 지워진 것인지는 사람이 가른다) · 빈칸 → 태그 4.  변경 없음 중 값이 다른 행 440
+   (description 401 · system 95 · scope 11 …) · 10pt 넘게 움직인 변경 없음 47.
+5. **태그 없는 문서(AL NOUF1 · TC2 · SADARA)는 수정이 구조적으로 0** — 기하 짝은 태그가 둘 다 비어 달라질 수 없다.
+   추가·삭제 후보만 선다.
+6. ⚠ 이미 대조해 둔 결과는 옛 판정이 DB 에 남는다 — 재분석하거나 `spike/rev_recompare.py` 로 다시 대조해야 바뀐다.
+   ⚠ 화면 자기검증 첫 판이 ③ 에서 "근거 패널 없음" 을 냈는데 **제품이 아니라 검증기**였다 — 다른 장의 행을 누르면
+   장을 바꾼 뒤(`S.pending`) 근거가 서므로 그때까지 기다려야 한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3535,6 +3562,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `isa_table.dedupe_overprint` | **hotfix41** — 같은 좌표·같은 글자의 겹침은 한 낱말 (QFE 세 번 겹쳐 인쇄).  FIRST 뜻과 succeeding 칸 둘 다 |
 | `app/revision_export.py` · `GET /jobs/{id}/revision/changes.xlsx` · `#rev-export` | **hotfix41** — 개정 변경 내역 Excel.  판정 0 — `revision_state`·`deleted_candidate`·장부 `sheets` 를 옮겨 적는다 |
 | `app.js` `#cmp-pick` · Alt+←/→ | **hotfix41** — 오른쪽(직전) 장을 사람이 고른다 (직전에만 있는 장 포함 · 고르면 그 장의 삭제 후보만) · 변경 이동 단축키 |
+| `revisions.STATE_FIELDS` · `_revision_state` · `states[].field_diffs` · `revision_state.diffs_json` | **hotfix43** — 개정 '수정' 은 `tag_no` 가 달라진 행뿐.  나머지 칸의 차이와 자리 이동은 기록만(`field_diffs` · `moved_pt`).  추가·삭제 후보는 그대로 |
+| `spike/ui_audit_tagonly.py` | **hotfix43** — 수정 = 태그 변경뿐인지 띄워서 확인 (머리줄 수 · 필터 · 근거 패널 · 나란히 변경 목록) |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

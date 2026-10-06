@@ -182,6 +182,11 @@ def test_the_excel_remark_leads_with_the_revision_state():
     assert excel_out.revision_remark({"rev": {"state": "ADDED"},
                                       "rev_against": "Rev.A"}) == "Rev.A 대비 추가"
     assert excel_out.revision_remark(
+        {"rev": {"state": "MODIFIED",
+                 "changed": [{"field": "tag_no", "was": "11LBB50CP001", "now": "11LBB50CP009"}]},
+         "rev_against": "Rev.A"}) == "Rev.A 대비 수정 (태그 11LBB50CP001 → 11LBB50CP009)"
+    # 옛 분석(hotfix38 이전)이 남긴 다른 칸 이름은 이름 그대로
+    assert excel_out.revision_remark(
         {"rev": {"state": "MODIFIED", "changed": [{"field": "qty"}]},
          "rev_against": "Rev.A"}) == "Rev.A 대비 수정 (qty)"
     assert excel_out.revision_remark({"deleted_confirmed": True,

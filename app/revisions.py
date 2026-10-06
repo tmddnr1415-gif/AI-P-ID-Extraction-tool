@@ -21,9 +21,19 @@ SYSTEM 명은 쓰지 않는다 — 한 계통이 여러 장에 걸쳐 있어 순
 **자리를 옮긴 것만으로는 '수정' 이 아니다.**  얼마를 움직여야 수정인지에는
 근거가 없고, 어떤 값을 골라도 임의값이다 (§2.3).  그리고 검토자가 보는 것은
 좌표가 아니라 칸의 값이므로, 시트를 다시 그린 개정에서 전 행이 '수정' 으로
-물드는 쪽이 더 나쁘다.  그래서 상태는 `COMPARED_FIELDS` 의 값으로만 정하고,
-움직인 거리는 `moved_pt` 로 이력과 상태에 **기록만** 한다.  근거 패널에서
-보이므로 사람이 판단할 수 있다.  이 판단은 뒤집을 수 있게 한 곳에 모여 있다.
+물드는 쪽이 더 나쁘다.  움직인 거리는 `moved_pt` 로 이력과 상태에 **기록만**
+한다.  근거 패널에서 보이므로 사람이 판단할 수 있다.
+
+**hotfix43 — 개정의 변경은 태그로만 센다** (사용자 확정: *"위치변경이 아니라,
+tag number 변경 또는 기존에 없었던 tag 가 추가되었거나 삭제되었을 때만 수정사항으로
+간주한다"*).  hotfix38 까지는 `COMPARED_FIELDS` 어느 칸이든 다르면 '수정' 이었고,
+QFE 실측에서 수정 458 중 411 이 Description **재생성**이었다 — 도면이 바뀐 것이
+아니라 우리 문장이 바뀐 것이다.  이제 `MODIFIED` 는 **`tag_no` 가 달라졌을 때만**
+이고(빈칸 → 태그도 포함한다 — 없던 태그가 생긴 것), `ADDED`·`DELETED_CANDIDATE` 는
+전처럼 짝이 안 선 행·기록이다.  그 밖의 칸(수량 · SCOPE · Description …)이 다른
+것은 `field_diffs` 로 **기록만** 하고 상태에 쓰지 않는다 — 근거 패널이 *"값이
+다른 칸 (개정 판정에는 쓰지 않음)"* 으로 보인다.  이 판단은 뒤집을 수 있게
+`_revision_state` 한 곳에 모여 있다.
 
 **삭제는 여기서 확정하지 않는다.**  검출 실패와 실제 삭제는 구분되지 않는다 —
 계기가 도면에 그대로 있는데 우리가 그 장에서 못 뽑으면 똑같이 매칭 실패로
@@ -398,8 +408,13 @@ def pair_renumbered_sheets(by_drawing: dict, registry: "Registry") -> dict:
     return out
 
 
+# 개정 상태를 가르는 칸.  hotfix43 — 태그 하나다.  이 튜플에 칸을 더하면
+# 그 칸이 다른 행이 '수정' 이 된다 (hotfix38 까지는 COMPARED_FIELDS 전부였다).
+STATE_FIELDS = ("tag_no",)
+
+
 def _changed_fields(row: dict, rec: dict) -> list:
-    """어느 칸이 바뀌었는지.  화면에 나가는 칸만 본다."""
+    """어느 칸이 다른지.  화면에 나가는 칸만 본다 — 기록용이고 상태는 아니다."""
     out = []
     snap = rec.get("values") or {}
     for f in COMPARED_FIELDS:
@@ -407,6 +422,19 @@ def _changed_fields(row: dict, rec: dict) -> list:
         if (was or "") != (now or ""):
             out.append({"field": f, "was": was, "now": now})
     return out
+
+
+def _revision_state(diffs: list) -> tuple[str, list, list]:
+    """(상태, 상태를 정한 칸, 그 밖에 값이 다른 칸).
+
+    **태그가 달라졌을 때만 `MODIFIED`** 다 (hotfix43).  빈칸 → 태그(없던 태그가
+    생김)도 태그가 달라진 것이다.  나머지 칸은 `field_diffs` 로 돌려주고 상태에
+    쓰지 않는다 — 수량·SCOPE·Description 은 도면이 아니라 우리 판정이 바뀌어도
+    달라지는 칸이라, 그것으로 '수정' 을 세면 개정이 아닌 것이 개정으로 보인다.
+    """
+    changed = [c for c in diffs if c["field"] in STATE_FIELDS]
+    others = [c for c in diffs if c["field"] not in STATE_FIELDS]
+    return (MODIFIED if changed else UNCHANGED), changed, others
 
 
 def compare(rows: list, registry: "Registry", revision: str,
@@ -472,8 +500,7 @@ def compare(rows: list, registry: "Registry", revision: str,
         for i, row in enumerate(cur):
             if i in matched:
                 rec = recs[matched[i]]
-                changed = _changed_fields(row, rec)
-                state = MODIFIED if changed else UNCHANGED
+                state, changed, others = _revision_state(_changed_fields(row, rec))
                 was = rec.get("last_anchor") or rec["anchor"]
                 now = anchor(row)
                 # 얼마나 움직였는지는 기록하되 상태로 삼지 않는다 — §설계 주석
@@ -485,10 +512,10 @@ def compare(rows: list, registry: "Registry", revision: str,
                 rec["history"].append({"revision": revision, "state": state,
                                        "row_key": row.get("key", ""),
                                        "moved_pt": moved, "changed": changed,
-                                       "basis": basis})
+                                       "field_diffs": others, "basis": basis})
                 states[row["key"]] = {"id": rec["id"], "state": state,
                                       "moved_pt": moved, "changed": changed,
-                                      "basis": basis}
+                                      "field_diffs": others, "basis": basis}
                 if dwg in renamed:
                     states[row["key"]]["sheet_renumbered_from"] = renamed[dwg]
             else:

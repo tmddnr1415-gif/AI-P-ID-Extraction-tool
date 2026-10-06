@@ -292,8 +292,17 @@ def revision_remark(row: dict) -> str:
     if state == "ADDED":
         return f"{vs}추가"
     if state == "MODIFIED":
-        fields = [c.get("field", "") for c in (rev.get("changed") or []) if c.get("field")]
-        return f"{vs}수정" + (f" ({', '.join(fields)})" if fields else "")
+        # hotfix43 — 수정은 태그가 달라진 것뿐이다.  바뀐 태그를 전 → 후로 적는다
+        # (옛 분석의 다른 칸 이름은 그대로 이름만 적는다).
+        bits = []
+        for c in rev.get("changed") or []:
+            if not c.get("field"):
+                continue
+            if c.get("field") == "tag_no":
+                bits.append(f"태그 {c.get('was') or '(없음)'} → {c.get('now') or '(없음)'}")
+            else:
+                bits.append(c["field"])
+        return f"{vs}수정" + (f" ({', '.join(bits)})" if bits else "")
     return ""
 
 
