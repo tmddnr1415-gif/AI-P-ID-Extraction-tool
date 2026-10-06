@@ -16,6 +16,7 @@ import io
 import json
 import os
 import queue
+import shutil
 import re
 import sys
 import threading
@@ -27,7 +28,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
-                               StreamingResponse)
+                               Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +46,10 @@ DATA_DIR = paths.data_dir()
 UPLOADS = DATA_DIR / "uploads"
 OUTPUTS = DATA_DIR / "outputs"
 DB_PATH = DATA_DIR / "app.db"
+# hotfix45 — 장 그림(PNG)의 디스크 캐시.  `page_png` 가 요청마다 PDF 를 열어 다시 그리던
+# 것(QFE A1 한 장 0.65~0.96초)을 한 번만 그리고 둔다.  파생물이라 지워도 된다 —
+# 분석을 지우면 같이 지우고(`delete_job`), 고아는 위생 감사가 센다.
+PAGE_CACHE = DATA_DIR / "page_cache"
 STATIC = paths.resource("app", "static")
 
 app = FastAPI(title="P&ID extraction")
@@ -579,6 +584,17 @@ def _store_doc_rev(job_id: str) -> dict:
     return folded
 
 
+def _json(data) -> Response:
+    """큰 목록은 `jsonable_encoder` 를 거치지 않고 바로 적는다 (hotfix45).
+
+    `/rows` 2,041행(13MB)에서 FastAPI 의 기본 변환기가 0.97초, `json.dumps` 가 0.45초였다 —
+    값은 전부 `json.loads` 로 읽은 평범한 dict·list 라 변환할 것이 없다.  띄어쓰기도
+    뺀다 (같은 내용 · 바이트만 준다).  내용은 같다 — 시험이 두 길의 `json.loads` 를 대조한다.
+    """
+    return Response(json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+                    media_type="application/json")
+
+
 def _job_public(row) -> dict:
     """A job as the browser may see it: everything except the raw traceback.
 
@@ -1045,6 +1061,14 @@ def deletion_preview(job_id: str):
         raise HTTPException(404, "no such job")
 
 
+def _drop_page_cache(job_id: str) -> bool:
+    d = PAGE_CACHE / job_id
+    if not d.is_dir():
+        return False
+    shutil.rmtree(d, ignore_errors=True)
+    return not d.exists()
+
+
 @app.delete("/jobs/{job_id}")
 def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
     """분석 하나를 지운다.  `confirm` 이 그 분석의 id 와 같아야 한다."""
@@ -1070,6 +1094,8 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
         except OSError:
             removed_pdf = False
     summary["pdf_removed"] = removed_pdf
+    # hotfix45 — 그 분석의 장 그림 캐시도 지운다 (파생물 · 남기면 고아).
+    summary["page_cache_removed"] = _drop_page_cache(job_id)
     # hotfix42 — 장부에도 적는다.  안 적으면 첫 화면이 지워진 분석으로 가는 링크를 계속 내고
     # (누르면 "no such job"), 다음 업로드의 기본 비교 대상이 지워진 리비전이 된다 (QA 시뮬레이션).
     if summary.get("project") and summary.get("revision"):
@@ -1136,7 +1162,6 @@ def delete_project(name: str, author: str = Form(""), confirm: str = Form("")):
     summary["uploads_removed"] = removed
     # 출력 폴더 — 이제 어느 리비전도 가리키지 않으므로 고아가 된다.  남기면
     # [B] 위생 경고가 그대로 뜬다.
-    import shutil
     gone = []
     outs = DATA_DIR / "outputs"
     live = {f"rev{r[0]}" for r in CON.execute("SELECT id FROM revision")}
@@ -1146,6 +1171,9 @@ def delete_project(name: str, author: str = Form(""), confirm: str = Form("")):
                 shutil.rmtree(d, ignore_errors=True)
                 gone.append(d.name)
     summary["outputs_removed"] = gone
+    # hotfix45 — 지운 분석들의 장 그림 캐시
+    summary["page_cache_removed"] = [j["job_id"] for j in summary["jobs"]
+                                     if _drop_page_cache(j["job_id"])]
     summary["registry"] = revisions.bury_project(DATA_DIR, safe,
                                                  author=author.strip())
     return summary
@@ -1287,7 +1315,7 @@ def _multiplier_targets(job_id: str) -> dict:
     # (`engine_json` 은 타이틀블록을 담지 않는다.  두 벌을 두면 언젠가 갈린다).
     pages = {int(p["page_no"]): (pipeline.tb.parse_unit_code(p["drawing_no"]) or "")
              for p in db.page_revisions(CON, job_id)}
-    rows = db.merged_rows(CON, job_id)
+    rows = db.merged_rows_cached(CON, job_id)        # 읽기만 한다 (hotfix45)
     want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG", "MULTIPLIER_DEFAULT_ONE",
             "MULTIPLIER_NOTE_RANGE", unit_multipliers.REVIEW_CODE}
     groups: dict = {}
@@ -1750,7 +1778,9 @@ def rows(job_id: str, tab: str = "ALL"):
     screen filters on them on every click and a second round trip per click is
     latency the reviewer feels.
     """
-    out = db.merged_rows(CON, job_id, tab)
+    # hotfix45 — 파싱한 목록은 다른 읽기 전용 엔드포인트와 나눠 쓴다.  여기는 열을 더하므로
+    # 행마다 얕은 복사를 뜬다 (값 dict 는 공유해도 된다 — 아무도 안 고친다).
+    out = [dict(r) for r in db.merged_rows_cached(CON, job_id, tab)]
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     for row in out:
@@ -1761,7 +1791,28 @@ def rows(job_id: str, tab: str = "ALL"):
         # (`pipeline.type_display` — 판정값 `values["type"]` 은 불변).
         row["type_display"] = pipeline.type_display(row["values"],
                                                     row.get("evidence"))
-    return out
+    return _json(out)
+
+
+@app.get("/jobs/{job_id}/anchors")
+def anchors(job_id: str):
+    """hotfix45 — 안정 ID → 그 행의 장과 사각형만.  나란히 보기가 **수정된 행의 이전
+    자리**(MOD 고리)를 찾는 데 쓴다.
+
+    hotfix40 은 그것을 위해 직전 결과의 `/rows?tab=ALL` 을 통째로 읽었다 — QFE 에서
+    13.7MB(그중 `evidence` 가 82%)이고 브라우저가 그것을 풀어 들고 있어 켤 때 4.6초 ·
+    힙 +30MB 였다.  필요한 것은 ID 마다 사각형 하나다 (약 60KB).  판정은 없다 —
+    `revision_state` 와 `item` 을 이어 적기만 한다.
+    """
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    out = {}
+    for r in CON.execute(
+            "SELECT s.stable_id, i.page_no, i.rect_json, i.key FROM revision_state s"
+            " JOIN item i ON i.job_id = s.job_id AND i.key = s.row_key"
+            " WHERE s.job_id=? AND s.stable_id<>''", (job_id,)):
+        out[r[0]] = {"page_no": r[1], "rect": json.loads(r[2] or "[]"), "key": r[3]}
+    return _json(out)
 
 
 @app.get("/jobs/{job_id}/measured_config")
@@ -2051,7 +2102,7 @@ def job_review(job_id: str):
     if job is None:
         raise HTTPException(404, "no such job")
     engine = json.loads(job["engine_json"] or "{}")
-    rows = db.merged_rows(CON, job_id, "ALL")
+    rows = db.merged_rows_cached(CON, job_id, "ALL")     # 읽기만 한다 (hotfix45)
     states = db.review_states(CON, job_id)
     axes = pipeline.CFG.data.get("review_axes") or {}
     by_code = {str(k).upper(): str(v).upper()
@@ -2212,7 +2263,11 @@ def pages(job_id: str):
         d = dict(r)
         d["layers"] = json.loads(d.pop("layers_json"))
         out.append(d)
-    return out
+    return _json(out)
+
+
+def _page_cache_file(job_id: str, page_no: int, zoom: float) -> Path:
+    return PAGE_CACHE / job_id / f"p{page_no}_z{zoom:g}.png"
 
 
 @app.get("/jobs/{job_id}/page/{page_no}.png")
@@ -2230,6 +2285,13 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
         data = _dxf_page_png(job_id, Path(row["pdf_path"]), page_no)
         return StreamingResponse(io.BytesIO(data), media_type="image/png",
                                  headers={"Cache-Control": "public, max-age=3600"})
+    # hotfix45 — 한 번 그린 장은 디스크에 둔다.  같은 분석의 같은 장은 PDF 가 바뀌지
+    # 않으므로(업로드 파일 고정) 그림도 바뀌지 않는다.  캐시가 없거나 못 쓰면 전처럼
+    # 그린다 — 캐시는 빠르게 할 뿐 결과를 바꾸지 않는다.
+    cached = _page_cache_file(job_id, page_no, zoom)
+    if cached.is_file():
+        return FileResponse(str(cached), media_type="image/png",
+                            headers={"Cache-Control": "public, max-age=3600"})
     import pymupdf
     doc = pymupdf.open(row["pdf_path"])
     if not 1 <= page_no <= doc.page_count:
@@ -2238,6 +2300,13 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     pm = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
     data = pm.tobytes("png")
     doc.close()
+    try:
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cached.with_name(cached.name + f".{uuid.uuid4().hex[:8]}.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, cached)          # 쓰다 만 파일이 캐시로 읽히지 않게
+    except OSError:
+        pass
     return StreamingResponse(io.BytesIO(data), media_type="image/png",
                              headers={"Cache-Control": "public, max-age=3600"})
 
@@ -2702,7 +2771,7 @@ def axis_override_map(job_id: str):
     # hotfix25 — 안정 ID 가 없는 행(프로젝트 밖 · 대조 전)의 마크업 범위는 장부에 못 적히므로
     # 마지막 FROM/TO 확정의 근거(`feedback.basis`)에서 돌려준다.  **지금 사람 값이 그 문장일
     # 때만** — 확정을 해제했거나 칸을 다시 고친 뒤에는 옛 범위를 되살리지 않는다.
-    rows_by_key = {r["key"]: r for r in db.merged_rows(CON, job_id, "ALL")}
+    rows_by_key = {r["key"]: r for r in db.merged_rows_cached(CON, job_id, "ALL")}   # 읽기만 (hotfix45)
     for fb in db.feedback_rows(CON, job_id, limit=5000):
         key = fb.get("row_key") or ""
         if fb.get("kind") != "EDITED" or fb.get("field") != "description" or key in out:

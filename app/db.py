@@ -573,6 +573,44 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
             con.execute(sql + " ORDER BY page_no, key", args).fetchall()]
 
 
+# hotfix45 — 같은 분석의 행을 **한 요청 안에서 다섯 번** 파싱하고 있었다.  결과 화면을
+# 열 때 `/rows` · `/review` · `/markup` · `/drawings` · `/multipliers` · `/axis_overrides`
+# 가 저마다 `merged_rows` 를 불러 evidence 10.9MB(QFE 2,041행)를 다시 읽는다 — 서버에서
+# 각 0.3~0.4초, 직렬로 1.75초.  읽기 전용인 곳은 마지막으로 파싱한 목록을 다시 쓴다.
+#
+# 묵은 값을 주지 않는 장치는 **도장**이다: 이 연결의 `total_changes`(이 연결이 바꾼 행 수)
+# 와 `PRAGMA data_version`(다른 연결이 커밋하면 바뀐다) — 둘 중 하나라도 움직이면 다시
+# 파싱한다.  편집 한 칸(UPDATE 한 행)도 `total_changes` 를 올리므로 편집 직후의 읽기는
+# 언제나 새 값이다.  받은 목록은 **고치지 않는다** — 고쳐야 하는 곳(`/rows` 가 열을 더한다)
+# 은 얕은 복사를 떠서 쓴다 (시험이 소스로 못박는다).  둘까지만 든다 (분석 하나 약 60MB).
+import collections as _collections
+_ROWS_MEMO: "_collections.OrderedDict" = _collections.OrderedDict()
+_ROWS_MEMO_MAX = 2
+
+
+def _db_stamp(con) -> tuple:
+    path = con.execute("PRAGMA database_list").fetchone()[2]
+    dv = con.execute("PRAGMA data_version").fetchone()[0]
+    return path, (con.total_changes, dv)
+
+
+def merged_rows_cached(con, job_id: str, tab: str = None) -> list:
+    """`merged_rows` 와 같은 목록 — 읽기 전용 호출자를 위한 것.  **받은 목록을 고치지 마라.**"""
+    tab = tab or "ALL"
+    path, stamp = _db_stamp(con)
+    key = (id(con), path, job_id, tab)
+    hit = _ROWS_MEMO.get(key)
+    if hit is not None and hit[0] == stamp:
+        _ROWS_MEMO.move_to_end(key)
+        return hit[1]
+    rows = merged_rows(con, job_id, tab)
+    _ROWS_MEMO[key] = (stamp, rows)
+    _ROWS_MEMO.move_to_end(key)
+    while len(_ROWS_MEMO) > _ROWS_MEMO_MAX:
+        _ROWS_MEMO.popitem(last=False)
+    return rows
+
+
 def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
             drawing_no: str = "", values: dict = None, source_key: str = None,
             rect=None, evidence: dict = None, needs_review: str = None) -> str:
@@ -922,7 +960,7 @@ def drawings_of(con, job_id: str) -> list:
     which.  Grouped by system, because the client splits its packages that way.
     """
     out = {}
-    for r in merged_rows(con, job_id):
+    for r in merged_rows_cached(con, job_id):      # 읽기만 한다 (hotfix45)
         if r["removed"]:
             continue
         d = out.setdefault(r["drawing_no"], {

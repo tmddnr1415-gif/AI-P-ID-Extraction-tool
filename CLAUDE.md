@@ -3153,6 +3153,32 @@ p55 는 "이 장 변경 없음" 이다 (`out/hotfix44/ui/3_p55_나란히.png`). 
 POST 1회 · 같은 장 · 페이지 오류 0.  시험 `tests/test_hotfix44_recompare_button.py` 3건.  `_carry_edits` 가 같이 돌지만
 빈 칸만 채우므로 편집은 그대로다.
 
+**그 다음 — 나란히 보기 · 이전/현재 전환을 가볍게 (hotfix45 · 엔진 0줄)**
+
+사용자: *"이전 Rev.A, 현재 Rev.B 나란히 대조 누르면 너무 시간이 오래 걸리고 렉 걸린다."*  전문
+`out/hotfix45/1_보고서.md` · 자 `spike/ui_audit_side_speed.py` (전/후 `out/hotfix45/ui/*.json`) ·
+기능 재확인 `out/hotfix45/ui_func/`.  시험 731 → **742**.  **네 프로젝트 기준선 불변** (판정 코드 0줄).
+
+1. **QFE 실측 (Rev.B 2,041행)** — 나란히 켬 **4,614ms · 14.6MB → 177ms · 1.0MB** · 켠 채 장 바꾸기
+   1.2~1.9초 → **90ms**(캐시 뒤) · 이전 결과 전환 8.8초 → 4~5초 (JS 안 7.2 → 2.0초) · 힙 99 → 57MB ·
+   가장 긴 스크롤 프레임 20ms.
+2. **★ 원인 넷.**  ㉠ hotfix40 이 MOD 고리의 이전 자리를 찾으려고 직전 결과의 `/rows?tab=ALL`(13.7MB ·
+   evidence 82%)을 통째로 읽었다 → `GET /jobs/{id}/anchors`(안정 ID → 장·사각형 · 178KB).  ㉡ 장 그림을
+   요청마다 PDF 를 열어 그렸다(A1 한 장 0.65~0.96초 · 나란히는 장마다 둘) → 디스크 캐시
+   `page_cache/<job>/` (분석 삭제 때 같이 · 고아는 위생 감사 `orphan_page_cache`).  ㉢ 전환 때 목록을
+   **두 번** 그렸다 — `open()` 이 주소를 바꾸면 `hashchange` 가 옛 행으로 한 번 더 — 그리고 hotfix26 의
+   머리글 관찰자가 바뀐 직후 `getBoundingClientRect` 로 2,000행 표의 레이아웃을 강제했다 (CPU 프로파일
+   2,257ms · 두 번).  ㉣ 서버가 한 요청에 행을 **다섯 번** 파싱했다 (`/review`·`/markup`·`/drawings`·
+   `/multipliers`·`/axis_overrides` 각 0.3~0.4초 · `/axis_overrides` 는 2바이트에 348ms).
+3. **행 메모 `db.merged_rows_cached`** — 읽기 전용 다섯 곳이 마지막 파싱 목록을 나눠 쓴다.  묵은 값을
+   막는 **도장**은 이 연결의 `total_changes` + `PRAGMA data_version` — 편집 한 칸도, 다른 연결의 커밋도
+   다시 파싱한다 (시험 둘).  `/rows` 는 열을 더하므로 얕은 복사를 뜬다 (소스 시험).  둘까지만 든다.
+4. **`/rows`·`/pages` 는 `json.dumps` 바로** (FastAPI 변환기 0.97초가 하는 일이 없었다 — 값은 전부
+   `json.loads` 한 dict).  `cmpSyncScroll` 은 프레임에 한 번 · 같으면 안 쓴다.  `cmpShow` 번호표로 빠른 넘김에서
+   앞 장이 뒤 장 위에 안 그려진다.  미리 받기는 **쉬는 동안만**(바로 받으면 다음 장과 겨뤄 1.7 → 3.3초).
+5. **남은 것** — 처음 열 때 2,000행 표 레이아웃 약 0.9초(표 가상화 · 화면이 바뀌므로 묻고 한다) · 캐시가 빈 첫
+   장 바꾸기 1.1~2.2초(두 장 렌더).  축1·2 · SADARA·UAD PDF · Excel 은 이 환경에 없어 못 쟀다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3576,6 +3602,12 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `#cmp-pick` · Alt+←/→ | **hotfix41** — 오른쪽(직전) 장을 사람이 고른다 (직전에만 있는 장 포함 · 고르면 그 장의 삭제 후보만) · 변경 이동 단축키 |
 | `revisions.STATE_FIELDS` · `_revision_state` · `states[].field_diffs` · `revision_state.diffs_json` | **hotfix43** — 개정 '수정' 은 `tag_no` 가 달라진 행뿐.  나머지 칸의 차이와 자리 이동은 기록만(`field_diffs` · `moved_pt`).  추가·삭제 후보는 그대로 |
 | `app.js` `recompare` · `#rev-switch button.recmp` | **hotfix44** — 재분석 없이 대조만 다시 (`POST /jobs/{id}/revision` 그대로 · 판정은 서버).  업데이트로 개정 규칙이 바뀌었을 때 옛 판정을 새 규칙으로 |
+| `GET /jobs/{id}/anchors` · `app.js cmpLoad` | **hotfix45** — 나란히 보기가 읽는 직전 결과는 `/pages` + `/anchors`(안정 ID → 장·사각형)뿐.  `/rows?tab=ALL`(13.7MB)을 읽지 않는다 (시험이 fetch 호출을 센다) |
+| `main.PAGE_CACHE` · `_page_cache_file` · `_drop_page_cache` | **hotfix45** — 장 그림 디스크 캐시 `page_cache/<job>/p<n>_z<zoom>.png`.  임시 파일 → `os.replace`.  분석·프로젝트 삭제 때 지우고 `audit.leftovers` 가 고아를 센다.  캐시는 빠르게 할 뿐 결과를 바꾸지 않는다 |
+| `db.merged_rows_cached` · `_db_stamp` | **hotfix45** — 읽기 전용 호출자(`rows`·`job_review`·`axis_override_map`·`_multiplier_targets`·`markup.summary`·`drawings_of`)의 행 메모.  도장 = `total_changes` + `data_version`.  **받은 목록을 고치지 마라** — `/rows` 는 `dict(r)` 복사 |
+| `main._json` | **hotfix45** — 큰 목록(`/rows`·`/pages`·`/anchors`)은 `jsonable_encoder` 없이 `json.dumps` |
+| `app.js hashchange` 의 `S.loading` · 머리글 `later()` · `cmpSyncScroll` rAF · `S._cmpSeq` · `cmpPrefetch` | **hotfix45** — 읽는 중엔 목록을 안 그린다 · 머리글 재기는 그려진 뒤 한 번 · 스크롤 동기는 프레임에 한 번 · 빠른 넘김 보호 · 쉬는 동안 앞·뒤 장 미리 받기 |
+| `spike/ui_audit_side_speed.py` | **hotfix45** — 나란히·전환의 시간·요청·바이트·가장 긴 프레임·힙을 띄워서 잰다.  전/후를 같은 자로 |
 | `spike/ui_audit_tagonly.py` | **hotfix43** — 수정 = 태그 변경뿐인지 띄워서 확인 (머리줄 수 · 필터 · 근거 패널 · 나란히 변경 목록) |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

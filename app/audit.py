@@ -134,6 +134,15 @@ def leftovers(con, data_dir: Path) -> dict:
                 diags.append(f.name)
                 diag_bytes += f.stat().st_size
 
+    # hotfix45 — 장 그림 캐시 (`page_cache/<job>/`).  파생물이라 분석이 사라지면 고아다.
+    caches, cache_bytes = [], 0
+    pc = data_dir / "page_cache"
+    if pc.is_dir():
+        for d in sorted(pc.iterdir()):
+            if d.is_dir() and d.name not in jobs:
+                caches.append(d.name)
+                cache_bytes += _dir_bytes(d)
+
     page_size = con.execute("PRAGMA page_size").fetchone()[0]
     page_count = con.execute("PRAGMA page_count").fetchone()[0]
     free = con.execute("PRAGMA freelist_count").fetchone()[0]
@@ -141,7 +150,8 @@ def leftovers(con, data_dir: Path) -> dict:
         "orphan_uploads": uploads,
         "orphan_outputs": outputs,
         "orphan_diagnostics": diags,
-        "reclaimable_bytes": upload_bytes + output_bytes + diag_bytes
+        "orphan_page_cache": caches,
+        "reclaimable_bytes": upload_bytes + output_bytes + diag_bytes + cache_bytes
                              + free * page_size,
         "db_bytes": page_count * page_size,
         "db_free_bytes": free * page_size,
@@ -169,6 +179,7 @@ def summary(prov: dict, left: dict) -> list[str]:
         f"고아 업로드 {len(left['orphan_uploads'])} · "
         f"고아 출력 {len(left['orphan_outputs'])} · "
         f"고아 진단 {len(left['orphan_diagnostics'])} · "
+        f"고아 그림 캐시 {len(left.get('orphan_page_cache') or [])} · "
         f"DB {mb(left['db_bytes'])} 중 죽은 페이지 {mb(left['db_free_bytes'])} · "
         f"정리하면 되찾는 용량 {mb(left['reclaimable_bytes'])}",
     ]

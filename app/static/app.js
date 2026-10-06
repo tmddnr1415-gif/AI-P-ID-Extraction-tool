@@ -379,7 +379,7 @@ function auditDetail(a) {
   }
   const L = a.leftovers || {};
   const files = [["고아 출력", L.orphan_outputs], ["고아 업로드", L.orphan_uploads],
-                 ["고아 진단", L.orphan_diagnostics]]
+                 ["고아 진단", L.orphan_diagnostics], ["고아 그림 캐시", L.orphan_page_cache]]
     .filter(([, v]) => (v || []).length);
   if (files.length) {
     out.push(`<div class="audit-detail">` + files.map(([name, v]) =>
@@ -1111,6 +1111,10 @@ function hashParts() {
 window.addEventListener("hashchange", () => {
   const [id, query] = hashParts();
   if (id && (!S.job || S.job.id !== id)) { open(id); return; }
+  // hotfix45 — `open()` 이 주소를 바꾸는 중이면 아무것도 하지 않는다.  그 전에는 이 갈래가
+  // **옛 결과의 행으로** 목록을 한 번 더 그렸다 (QFE 2,041행 · 레이아웃 0.9초) — 읽기가
+  // 끝나면 `open()` 이 어차피 다시 그린다.
+  if (S.loading) return;
   // Same job, different filters: a shared link has to apply its view without a
   // reload, and the state has to follow the URL rather than the other way round -
   // otherwise navigating back to the bare job id leaves the old filters in place
@@ -1522,7 +1526,8 @@ async function switchView(jobId) {
  *   · 왼쪽은 그대로 현재 결과(최신 Rev).  오른쪽 목록·검토·근거를 숨기고(`#right.compare`)
  *     그 자리에 직전 Rev 의 **같은 도면번호 장**을 그 결과의 상자(층)와 함께 그린다.
  *   · 이전 결과의 장·층은 `/jobs/{prev}/pages` 한 번 — `S.cmp[prevId]` 에 둔다 (행은 읽지
- *     않는다: 상자의 색·종류·검토는 층이 이미 들고 있다).  그림은 브라우저 캐시.
+ *     않는다: 상자의 색·종류·검토는 층이 이미 들고 있다).  수정된 행의 이전 자리는
+ *     `/jobs/{prev}/anchors`(ID → 장·사각형 · hotfix45).  그림은 서버 디스크 캐시 + 브라우저 캐시.
  *   · 확대(`S.zoom`)와 스크롤은 왼쪽을 따라간다 (오른쪽을 끌면 왼쪽도 따라온다).
  *   · **삭제 후보는 이전 도면 위에** 붉은 ✕ 로 — 그 심볼은 이번 도면에 없어 왼쪽에는
  *     그릴 자리가 없다 (hotfix38 이 목록에만 세운 이유).  자리는 장부의 `anchor` 이고,
@@ -1555,17 +1560,23 @@ function toggleSide(on, manual) {
 
 async function cmpLoad(jobId) {
   if (S.cmp[jobId]) return S.cmp[jobId];
+  if (S._cmpLoading && S._cmpLoading.id === jobId) return S._cmpLoading.p;   // 같은 결과를 두 번 읽지 않는다
   const t0 = performance.now();
-  // 행도 한 번 읽는다 — **수정된 행의 이전 자리**는 안정 ID(`rev.id`)로만 찾을 수 있다
-  // (층에는 ID 가 없다).  한 번뿐이고 메모리에 둔다.
-  const [job, pages, rows] = await Promise.all([
-    fetch(`/jobs/${jobId}`).then(r => r.json()),
-    fetch(`/jobs/${jobId}/pages`).then(r => r.json()),
-    fetch(`/jobs/${jobId}/rows?tab=ALL`).then(r => r.json()).catch(() => [])]);
-  const byId = {};
-  for (const r of rows || []) if (r.rev && r.rev.id) byId[r.rev.id] = r;
-  S.cmp[jobId] = { job, pages, byId, ms: Math.round(performance.now() - t0) };
-  return S.cmp[jobId];
+  // hotfix45 — **수정된 행의 이전 자리**(MOD 고리)는 안정 ID 로 찾는데, 그에 필요한 것은
+  // ID 마다 장·사각형 하나뿐이다 (`/anchors` · 약 60KB).  hotfix40 은 그것을 위해 직전
+  // 결과의 `/rows?tab=ALL`(QFE 13.7MB · evidence 가 82%)을 통째로 읽어 켤 때 4.6초가
+  // 걸리고 힙이 +30MB 였다 — "너무 오래 걸리고 렉 걸린다" 의 첫째 원인.  `/jobs/{id}`
+  // 도 쓰는 곳이 없어 뺐다.  층(`/pages`)은 그대로 — 상자의 색·종류·검토는 층이 든다.
+  const p = (async () => {
+    const [pages, byId] = await Promise.all([
+      fetch(`/jobs/${jobId}/pages`).then(r => r.json()),
+      fetch(`/jobs/${jobId}/anchors`).then(r => r.ok ? r.json() : {}).catch(() => ({}))]);
+    S.cmp[jobId] = { pages, byId: byId || {}, ms: Math.round(performance.now() - t0) };
+    S._cmpLoading = null;
+    return S.cmp[jobId];
+  })();
+  S._cmpLoading = { id: jobId, p };
+  return p;
 }
 
 /* 이 장의 변경 — 왼쪽(현재) 행의 추가·수정과 이 도면번호의 삭제 후보를 한 목록으로.
@@ -1605,9 +1616,12 @@ async function cmpShow() {
   const pr = S.revPair;
   if (!S.side || !pr || !S.page) return;
   const head = $("#cmp-head"), foot = $("#cmp-foot"), img = $("#cmp-sheet"), ov = $("#cmp-ov");
+  // hotfix45 — 장을 빠르게 넘기면 앞 장의 읽기가 뒤 장 위에 그려질 수 있다.  번호표를 들고
+  // 가서 그 사이에 다른 장이 왔으면 그만둔다 (그림 onload 까지).
+  const seq = (S._cmpSeq = (S._cmpSeq || 0) + 1);
   head.innerHTML = `<span class="cmp-rev">이전 ${escape(pr.previousLabel)}</span><span class="muted">읽는 중…</span>`;
   const data = await cmpLoad(pr.previous);
-  if (!S.side) return;
+  if (!S.side || seq !== S._cmpSeq) return;
   const want = S.page.drawing_no || "";
   // 도면번호가 바뀐 장(hotfix38 `sheets.renumbered`)은 이전 결과에서 **옛 번호**로 찾는다.
   const ren = (((S.rev || {}).sheets || {}).renumbered || []).find(e => e.now === want);
@@ -1652,15 +1666,44 @@ async function cmpShow() {
   ov.innerHTML = "";
   if (!page) { img.removeAttribute("src"); img.style.display = "none"; return; }
   img.style.display = "";
+  img.decoding = "async";          // 큰 그림의 디코드가 화면을 멈추지 않게
   img.onload = () => {
+    if (seq !== S._cmpSeq) return;
     S.cmpNatural = { w: img.naturalWidth, h: img.naturalHeight };
     $("#cmp-wrap").style.width = `${S.cmpNatural.w}px`;
     $("#cmp-wrap").style.height = `${S.cmpNatural.h}px`;
     cmpApplyZoom();
     drawCmpOverlay(page, dels, changes);
     cmpSyncScroll();
+    cmpPrefetch(data, page);
   };
   img.src = `/jobs/${pr.previous}/page/${page.page_no}.png?zoom=1.6`;
+}
+
+/* hotfix45 — 다음·앞 장의 그림(양쪽 결과)을 **화면이 쉬는 동안** 미리 받아 둔다 (브라우저
+ * 캐시에만 · 그리지 않는다).  바로 받으면 사람이 곧장 다음 장으로 갈 때 그 장의 그림과
+ * 서버에서 겨룬다 (실측: 캐시가 빈 첫 장 바꾸기가 1.7 → 3.3초로 늘었다) — 그래서 1.2초
+ * 뒤에, 그 사이 다른 장이 오면 취소한다.  서버 쪽은 디스크 캐시(`page_cache`)가 한 번 그린
+ * 장을 다시 그리지 않으므로 둘이 합쳐 "장 바꾸기" 가 90~105ms 가 된다 (QFE 실측). */
+function cmpPrefetch(data, page) {
+  const pr = S.revPair;
+  if (!pr || !data || !page) return;
+  if (S._cmpPrefetch) clearTimeout(S._cmpPrefetch);
+  const seq = S._cmpSeq;
+  S._cmpPrefetch = setTimeout(() => {
+    S._cmpPrefetch = 0;
+    if (!S.side || seq !== S._cmpSeq) return;
+    const want = [];
+    const idx = data.pages.findIndex(p => p.page_no === page.page_no);
+    for (const k of [1, -1]) { const q = idx >= 0 && data.pages[idx + k]; if (q) want.push([pr.previous, q.page_no]); }
+    const cur = (S.pages || []).findIndex(p => S.page && p.page_no === S.page.page_no);
+    for (const k of [1, -1]) { const q = cur >= 0 && S.pages[cur + k]; if (q && S.job) want.push([S.job.id, q.page_no]); }
+    for (const [job, n] of want) {
+      const im = new Image();
+      im.decoding = "async";
+      im.src = `/jobs/${job}/page/${n}.png?zoom=1.6`;
+    }
+  }, 1200);
 }
 
 function cmpApplyZoom() {
@@ -1821,11 +1864,21 @@ function focusChange(c, idx) {
 /* 스크롤 동기 — 왼쪽이 움직이면 오른쪽이, 오른쪽을 끌면 왼쪽이.  되돌이는 깃발로 막는다. */
 function cmpSyncScroll(from) {
   if (!S.side || S._cmpSyncing) return;
-  const a = $("#stage"), b = $("#cmp-stage");
-  const [src, dst] = from === "cmp" ? [b, a] : [a, b];
-  S._cmpSyncing = true;
-  dst.scrollLeft = src.scrollLeft; dst.scrollTop = src.scrollTop;
-  requestAnimationFrame(() => { S._cmpSyncing = false; });
+  // hotfix45 — 스크롤 이벤트마다 바로 쓰지 않고 **프레임에 한 번**만 쓴다.  휠·끌기는 한
+  // 프레임에 여러 번 오고, 그때마다 반대쪽을 옮기면 두 창이 번갈아 레이아웃을 다시 해
+  // 끊긴다.  마지막 값만 남기고 다음 프레임에 한 번 옮긴다 (같으면 안 쓴다).
+  S._cmpFrom = from;
+  if (S._cmpRaf) return;
+  S._cmpRaf = requestAnimationFrame(() => {
+    S._cmpRaf = 0;
+    if (!S.side) return;
+    const a = $("#stage"), b = $("#cmp-stage");
+    const [src, dst] = S._cmpFrom === "cmp" ? [b, a] : [a, b];
+    S._cmpSyncing = true;
+    if (dst.scrollLeft !== src.scrollLeft) dst.scrollLeft = src.scrollLeft;
+    if (dst.scrollTop !== src.scrollTop) dst.scrollTop = src.scrollTop;
+    requestAnimationFrame(() => { S._cmpSyncing = false; });
+  });
 }
 (() => {
   const st = $("#stage"), cs = $("#cmp-stage");
@@ -7256,9 +7309,14 @@ function applyInfobars() {
     const th = grid.querySelector("thead th");
     if (th) grid.style.setProperty("--c1w", `${th.getBoundingClientRect().width}px`);
   };
-  new MutationObserver(measure).observe(head, { childList: true });
-  window.addEventListener("resize", measure);
-  measure();
+  // hotfix45 — 머리글이 바뀐 **직후** 재면 방금 세운 2,000행 표의 레이아웃을 그 자리에서
+  // 강제한다 (QFE 실측 한 번에 0.9초 · 전환마다 두 번).  한 프레임 뒤(그려진 뒤)에 재면 그
+  // 레이아웃은 이미 끝나 있어 읽기만 한다.  여러 번 바뀌어도 한 번만 잰다.
+  let pending = 0;
+  const later = () => { if (pending) return; pending = requestAnimationFrame(() => requestAnimationFrame(() => { pending = 0; measure(); })); };
+  new MutationObserver(later).observe(head, { childList: true });
+  window.addEventListener("resize", later);
+  later();
 })();
 
 // hotfix26 — ↑ ↓ 로 목록의 앞뒤 행을 고른다.  입력칸 · 선택상자에서는 잡지 않는다.

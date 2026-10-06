@@ -264,7 +264,7 @@ def assign_stable_id(data_dir: Path, con, job, key: str, row: dict) -> dict:
 # --------------------------------------------------------------------------
 
 def summary(con, job_id: str) -> dict:
-    rows = db.merged_rows(con, job_id)
+    rows = db.merged_rows_cached(con, job_id)      # 읽기만 한다 (hotfix45)
     out = {"added": 0, "added_with_rect": 0, "scope_user": 0, "qty_user": 0,
            "rejected": 0, "rejected_excluded": 0, "by_page": {}}
     for r in rows:

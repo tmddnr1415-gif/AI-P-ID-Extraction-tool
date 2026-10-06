@@ -69,8 +69,9 @@ def test_zoom_and_scroll_are_shared_with_the_left():
 def test_the_previous_result_is_read_once_and_kept_in_memory():
     body = _fn("async function cmpLoad")
     assert "if (S.cmp[jobId]) return S.cmp[jobId];" in body
-    # 장·층·행 셋을 한 번에 — 행은 수정 행의 **이전 자리**(안정 ID)를 찾는 데만 쓴다
-    assert "/pages" in body and "/rows?tab=ALL" in body and "byId[r.rev.id] = r" in body
+    # 장·층과 수정 행의 **이전 자리**(안정 ID → 사각형)를 한 번에.  hotfix45 — 행 전체
+    # (`/rows?tab=ALL` · QFE 13.7MB)가 아니라 `/anchors` 다.
+    assert "/pages" in body and "/anchors" in body and "byId" in body
 
 
 def test_deleted_candidates_are_drawn_on_the_previous_sheet_not_judged_here():
