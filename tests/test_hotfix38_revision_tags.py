@@ -3,11 +3,11 @@
 사용자 요구: QFE 260112(Rev.A) 뒤에 260326(Rev.B)을 넣으면 **무엇이 삭제되고
 추가됐는지** 정확히 가르고, 삭제는 목록 + Remark 로, 추가는 도면 라벨 + 목록으로.
 
-지키는 규칙:
+지키는 규칙 (hotfix46 — 위치로는 비교하지 않는다):
   · 태그가 유일하면 태그로 짝짓고 거리는 보지 않는다 (옮겨도 같은 항목).
-  · 같은 태그가 둘 이상이면 어느 것이 어느 것인지 도면이 말하지 않으므로 기하로.
-  · 둘 다 태그가 있는데 다르면 가까워도 짝이 아니다 — 삭제 + 추가이고 근거에 남는다.
-  · 태그 없는 행(2급 문서 전부)은 예전 그대로 — 기하 결과가 한 칸도 안 바뀐다.
+  · 같은 태그가 둘 이상이면 어느 것이 어느 것인지 도면이 말하지 않으므로 **대조하지 않는다**.
+  · 둘 다 태그가 있는데 다르면 가까워도 짝이 아니다 — 삭제 후보 + 추가.
+  · 태그 없는 행은 대조하지 않는다 (NOT_COMPARED — 추가도 삭제도 아니다).
   · 근거(basis · reason · tag_elsewhere)는 결과에 그대로 실린다.
 """
 from __future__ import annotations
@@ -61,37 +61,38 @@ def test_a_loop_shared_tag_is_split_by_type():
     assert all(v["basis"] == "TAG" for v in out["states"].values())
 
 
-def test_duplicate_tags_fall_back_to_geometry_and_say_so():
-    """한 태그를 두 버블에 찍는 문서(UAD p30) — 태그로는 못 가르고 기하로 간다."""
+def test_duplicate_tags_are_not_compared_and_say_so():
+    """한 태그를 두 버블에 찍는 문서(UAD p30) — 태그로는 못 가르고, 위치로는 비교하지
+    않으므로 **대조하지 않는다**."""
     a = [row("a1", "LS", 100, 100, "00GKB01CL001"),
          row("a2", "LS", 100, 400, "00GKB01CL001")]
     b = [row("b1", "LS", 102, 101, "00GKB01CL001"),
          row("b2", "LS", 101, 402, "00GKB01CL001")]
     out, _ = _ab(a, b)
-    assert all(v["state"] == R.UNCHANGED and v["basis"] == "GEOMETRY"
+    assert all(v["state"] == R.NOT_COMPARED and v["basis"] == "NONE" and "둘 이상" in v["reason"]
                for v in out["states"].values())
     info = out["radii"][DWG]
     assert info["tag_duplicates"]["rows"] == [("LS", "00GKB01CL001")]
-    assert info["matched_by"] == {"TAG": 0, "GEOMETRY": 2}
+    assert info["matched_by"] == {"TAG": 0, "GEOMETRY": 0, "NOT_COMPARED": 2}
+    assert out["deleted_candidates"] == []          # 겹친 태그의 옛 기록도 삭제 후보가 아니다
 
 
-def test_a_different_tag_at_the_same_spot_is_a_modification_ranked_last():
-    """같은 좌표의 같은 심볼에 번호만 다시 매긴 것 (QFE `00GHC36CF001` → `10GHC42CF101`
-    · 0.0~1.7pt).  안정 ID 를 잇고 "수정 (tag_no)" 으로 적는다 — 근거에 남는다."""
+def test_a_different_tag_at_the_same_spot_is_a_deletion_plus_an_addition():
+    """같은 좌표의 같은 심볼에 번호만 다시 매긴 것 (QFE `00GHC36CF001` → `10GHC42CF101`).
+    hotfix38 은 자리로 이어 '수정' 이라 했지만 hotfix46 부터 위치로 잇지 않는다 — 도면이
+    같은 항목이라고 말한 것이 아니므로 **삭제 후보 + 추가**다."""
     a = [row("a", "PIT", 100, 100, "11LBB50CP001")]
     b = [row("b", "PIT", 101, 100, "11LBB50CP009")]
     out, reg = _ab(a, b)
     st = out["states"]["b"]
-    assert st["state"] == R.MODIFIED and st["basis"] == "GEOMETRY"
-    assert [c["field"] for c in st["changed"]] == ["tag_no"]
-    assert out["deleted_candidates"] == [] and len(reg.data["ids"]) == 1
-    ch = out["radii"][DWG]["tag_changed"]
-    assert ch == [{"distance": 1.0, "row": "b", "id": st["id"],
-                   "was": "11LBB50CP001", "now": "11LBB50CP009", "matched": True}]
+    assert st["state"] == R.ADDED and st["basis"] == "TAG"
+    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
+    assert len(reg.data["ids"]) == 2
+    assert out["radii"][DWG]["tag_changed"] == []
 
 
-def test_a_tag_pair_that_agrees_is_taken_before_a_pair_whose_tags_differ():
-    """태그가 같거나 빈 쌍을 다 쓴 **뒤에만** 태그가 다른 쌍이 짝이 된다."""
+def test_a_tag_pair_that_agrees_is_the_only_pair():
+    """태그가 같은 쌍만 짝이다.  자리를 바꿔 앉아도 태그가 가른다."""
     a = [row("a1", "PIT", 100, 100, "11LBB50CP001"),
          row("a2", "PIT", 100, 130, "11LBB50CP002")]
     # CP002 가 CP001 의 옛 자리로 왔고 CP001 은 사라졌다, 새 CP003 이 CP002 자리에
@@ -99,8 +100,9 @@ def test_a_tag_pair_that_agrees_is_taken_before_a_pair_whose_tags_differ():
          row("b2", "PIT", 100, 130, "11LBB50CP003")]
     out, _ = _ab(a, b)
     assert out["states"]["b1"]["state"] == R.UNCHANGED and out["states"]["b1"]["basis"] == "TAG"
-    assert out["states"]["b2"]["state"] == R.MODIFIED        # CP001 의 기록이 CP003 으로
-    assert out["deleted_candidates"] == []
+    assert out["states"]["b1"]["moved_pt"] == 30.0      # 기록만
+    assert out["states"]["b2"]["state"] == R.ADDED
+    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
 
 
 def test_a_renumbered_sheet_is_recognised_by_its_tags_and_keeps_its_ids():
@@ -127,8 +129,8 @@ def test_a_renumbered_sheet_is_recognised_by_its_tags_and_keeps_its_ids():
 def test_sheets_without_shared_tags_are_not_paired_even_with_the_same_title():
     """`…-0004` ↔ `…-0204` — 공유 태그 0.  제목이 같아도 근거가 아니다."""
     old, new = "1A1Y-30GKC10-M05-0004", "1A1Y-30GKC10-M05-0204"
-    a = [row("a", "PIT", 100, 100, dwg=old)]
-    b = [row("b", "PIT", 100, 100, dwg=new)]
+    a = [row("a", "PIT", 100, 100, "31GKC20CP001", dwg=old)]
+    b = [row("b", "PIT", 100, 100, "31GKC20CP002", dwg=new)]
     out, _ = _ab(a, b)
     assert out["sheets"]["renumbered"] == []
     assert out["sheets"]["only_before"] == [old] and out["sheets"]["only_now"] == [new]
@@ -150,28 +152,30 @@ def test_a_tag_that_moved_to_another_drawing_is_named_in_the_candidate():
     assert out["states"]["b"]["state"] == R.ADDED and out["sheets"]["renumbered"] == []
 
 
-def test_untagged_rows_are_judged_exactly_as_before():
-    """2급 문서(AL NOUF1 · TC2 · SADARA)는 태그가 없다.  기하 판정이 그대로다."""
+def test_untagged_rows_are_not_compared():
+    """hotfix46 — 태그 없는 행은 대조할 열쇠가 없다.  추가도 삭제도 아니고(NOT_COMPARED),
+    위치로 짝짓지 않는다.  태그 없던 옛 기록도 삭제 후보가 아니다."""
     a = [row("a1", "PI", 100, 100), row("a2", "PI", 100, 400),
          row("a3", "TIT", 600, 100)]
     b = [row("b1", "PI", 103, 101), row("b2", "TIT", 600, 100),
          row("b3", "PI", 900, 900)]
     out, _ = _ab(a, b)
     st = {k: v["state"] for k, v in out["states"].items()}
-    assert st == {"b1": R.UNCHANGED, "b2": R.UNCHANGED, "b3": R.ADDED}
-    assert all(v["basis"] == "GEOMETRY" for v in out["states"].values())
-    assert "태그 없음" in out["states"]["b3"]["reason"]
-    assert [d["basis"] for d in out["deleted_candidates"]] == ["GEOMETRY"]
-    assert out["radii"][DWG]["tag_changed"] == []
+    assert st == {"b1": R.NOT_COMPARED, "b2": R.NOT_COMPARED, "b3": R.NOT_COMPARED}
+    assert all(v["basis"] == "NONE" and "태그 없음" in v["reason"] for v in out["states"].values())
+    assert out["deleted_candidates"] == []
+    assert out["radii"][DWG]["matched_by"] == {"TAG": 0, "GEOMETRY": 0, "NOT_COMPARED": 3}
+    assert out["counts"][R.NOT_COMPARED] == 3 and out["counts"][R.ADDED] == 0
 
 
-def test_a_tagged_row_and_an_untagged_record_can_still_meet_by_geometry():
-    """한쪽만 태그를 들면(옛 장부 · 마크업 행) 태그가 막지 않는다 — 기하로 간다."""
+def test_a_tagged_row_and_an_untagged_record_do_not_meet():
+    """한쪽만 태그를 들면(옛 장부 · 마크업 행) 짝이 없다 — 위치로는 잇지 않는다.
+    새 행은 추가이고, 태그 없던 기록은 삭제 후보가 아니다."""
     a = [row("a", "PIT", 100, 100)]
     b = [row("b", "PIT", 102, 100, "11LBB50CP001")]
     out, _ = _ab(a, b)
-    assert out["states"]["b"]["state"] == R.MODIFIED        # tag_no 칸이 찼다
-    assert out["states"]["b"]["basis"] == "GEOMETRY"
+    assert out["states"]["b"]["state"] == R.ADDED and out["states"]["b"]["basis"] == "TAG"
+    assert out["deleted_candidates"] == []
 
 
 def test_the_excel_remark_leads_with_the_revision_state():

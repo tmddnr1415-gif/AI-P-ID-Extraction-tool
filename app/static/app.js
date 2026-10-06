@@ -1191,6 +1191,7 @@ async function open(jobId) {
  * (`pid.side.off`) 그 브라우저에서는 자동으로 켜지 않는다.  변경이 없으면 켜지 않는다. */
 function autoSide() {
   if (!S.rev || !S.rev.compared_with || !S.revPair || S.job.id !== S.revPair.current) return;
+  if (S.rev.compare_basis !== "TAG") return;          // hotfix46 — 나란히 대조는 실행 프로젝트만
   const c = S.rev.counts || {};
   if (!((c.ADDED || 0) + (c.MODIFIED || 0) + (c.DELETED_CANDIDATE || 0) + (c.DELETED || 0))) return;
   let off = false; try { off = localStorage.getItem("pid.side.off") === "1"; } catch (e) {}
@@ -1371,8 +1372,13 @@ function renderRevLabel() {
   // hotfix38 — 짝을 태그로 지은 행 수.  태그가 있는 문서에서 이 수가 곧 대조의
   // 신뢰도다 (태그 짝은 거리를 안 본다 · 기하 짝만 반경에 걸린다).
   const mb = S.rev.matched_by || {};
-  if (S.rev.compared_with && (mb.TAG || mb.GEOMETRY)) {
-    bits.push(`짝 태그 ${mb.TAG || 0} · 기하 ${mb.GEOMETRY || 0}`);
+  const tagOnly = S.rev.compare_basis === "TAG";
+  if (S.rev.compared_with && tagOnly) {
+    // hotfix46 — 짝은 태그로만.  대조하지 않은 행(태그 없음)은 그 수를 따로 말한다.
+    bits.push(`짝 태그 ${mb.TAG || 0}` + (mb.GEOMETRY ? ` · 기하 ${mb.GEOMETRY} (옛 대조)` : "")
+      + (mb.NOT_COMPARED ? ` · 대조 안 함(태그 없음) ${mb.NOT_COMPARED}` : ""));
+  } else if (S.rev.compared_with && S.rev.compare_basis === "NONE") {
+    bits.push("개정 대조 안 함 — 입찰 프로젝트 (태그가 없어 비교할 열쇠가 없고, 위치로는 비교하지 않습니다)");
   }
   // 도면번호가 바뀐 장 · 한쪽에만 있는 장 — 장 단위 사실이라 행 수와 따로 말한다.
   const sh = S.rev.sheets || {};
@@ -1381,8 +1387,8 @@ function renderRevLabel() {
   if ((sh.only_before || []).length) bits.push(`빠진 장 ${sh.only_before.length}`);
   el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
   el.title = S.rev.compared_with
-    ? `${S.rev.compared_with} 와 비교한 결과입니다.  추가 = 이번에 새로 선 행, `
-      + `삭제 후보 = 직전 리비전에 있었는데 이번에 짝이 없는 행 (사람이 확정합니다).  `
+    ? `${S.rev.compared_with} 와 비교한 결과입니다.  짝은 같은 TYPE 의 같은 태그로만 — 위치로는 비교하지 않습니다.  `
+      + `추가 = 이번에 새로 선 태그, 삭제 후보 = 직전 리비전에 있었는데 이번에 없는 태그 (사람이 확정합니다).  `
       + `목록의 '개정' 열과 개정 필터로 좁힐 수 있습니다.`
       + ((sh.renumbered || []).map(e => `\n도면번호 바뀐 장: ${e.before} → ${e.now} (태그 ${e.shared}개 공유)`).join(""))
       + ((sh.only_now || []).length ? `\n새 장: ${sh.only_now.join(", ")}` : "")
@@ -1453,14 +1459,18 @@ function renderRevSwitch() {
     box.classList.add("hidden"); box.innerHTML = ""; return;
   }
   const viewingPrev = S.job.id === pr.previous;
+  // hotfix46 — 나란히 대조는 실행 프로젝트(태그 대조)만.  입찰 프로젝트에는 버튼 대신 사유 한 줄.
+  const tagOnly = (S.rev || {}).compare_basis === "TAG";
   box.innerHTML = `<span class="rs-cap">결과</span>`
     + `<button type="button" class="prev${viewingPrev ? " on" : ""}" data-job="${escape(pr.previous)}" title="직전 P&ID 결과를 봅니다 — 오른쪽 목록·검토·근거와 왼쪽 도면이 그 결과로 바뀝니다">이전 ${escape(pr.previousLabel)}</button>`
     + `<button type="button" class="cur${viewingPrev ? "" : " on"}" data-job="${escape(pr.current)}" title="현재 P&ID 출력 결과">현재 ${escape(pr.currentLabel)}</button>`
-    + `<button type="button" class="side${S.side ? " on" : ""}" title="나란히 보기 — 왼쪽은 최신 ${escape(pr.currentLabel)} 도면, 오른쪽은 직전 ${escape(pr.previousLabel)} 의 같은 도면번호 장.  확대·스크롤이 함께 움직입니다">나란히</button>`
+    + (tagOnly ? `<button type="button" class="side${S.side ? " on" : ""}" title="나란히 보기 — 왼쪽은 최신 ${escape(pr.currentLabel)} 도면, 오른쪽은 직전 ${escape(pr.previousLabel)} 의 같은 도면번호 장.  대조는 같은 TYPE 의 같은 태그로만 (위치로는 비교하지 않습니다).  확대·스크롤이 함께 움직입니다">나란히</button>` : "")
     // hotfix44 — 재분석 없이 대조만 다시 한다 (업데이트로 판정 규칙이 바뀌었을 때 — 옛 판정이 DB 에 남는다).
     + `<button type="button" class="recmp" title="재분석 없이 ${escape(pr.previousLabel)} 대비 대조만 다시 합니다 — 업데이트로 개정 판정 규칙이 바뀌었을 때 (분석 결과·편집은 그대로)">대조 다시</button>`
-    + `<span class="rs-note">${S.side ? `왼쪽 ${escape(pr.currentLabel)} · 오른쪽 ${escape(pr.previousLabel)} — 같은 도면번호 장 · 확대와 스크롤이 함께 움직입니다`
-        : viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다" : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
+    + `<span class="rs-note">${S.side ? `왼쪽 ${escape(pr.currentLabel)} · 오른쪽 ${escape(pr.previousLabel)} — 같은 도면번호 장 · 태그로 대조 · 확대와 스크롤이 함께 움직입니다`
+        : viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다"
+        : (!tagOnly && (S.rev || {}).compare_basis === "NONE") ? "입찰 프로젝트 — 태그가 없어 개정 대조(나란히)를 하지 않습니다"
+        : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
   box.classList.remove("hidden");
   box.classList.toggle("viewing-prev", viewingPrev);
   box.querySelectorAll("button[data-job]").forEach(b => b.onclick = () => switchView(b.dataset.job));
@@ -1538,6 +1548,8 @@ async function switchView(jobId) {
 function toggleSide(on, manual) {
   const pr = S.revPair;
   if (on && (!pr || !S.job)) return;
+  // hotfix46 — 나란히 대조는 실행 프로젝트(태그 대조)만.  입찰 프로젝트는 비교할 열쇠가 없다.
+  if (on && (S.rev || {}).compare_basis !== "TAG") return;
   // 사람이 끈 것은 기억한다 — 변경이 있는 결과를 열 때 자동으로 켜는 것(`open`)을 그 사람에게는 하지 않는다.
   if (manual) { try { if (on) localStorage.removeItem("pid.side.off"); else localStorage.setItem("pid.side.off", "1"); } catch (e) {} }
   if (on && S.job.id === pr.previous) {
@@ -1911,18 +1923,19 @@ function showDeletedEvidence(d) {
     ...(d.tag_no ? [["태그", `${d.tag_no} — ${(d.tag_elsewhere || []).length
       ? "이번 분석에서 다른 도면(" + d.tag_elsewhere.join(", ") + ")에 섰습니다 — 옮김일 수 있습니다"
       : "이번 분석 어디에도 없습니다"}`]] : []),
-    ["직전 리비전 좌표", `(${d.anchor.join(", ")})`],
-    ["매칭 반경", `${d.radius}pt — ${d.radius_source === "DRAWING_BUBBLE"
+    ["직전 리비전 자리", `(${(d.anchor || []).join(", ")}) — 표식을 그리는 자리일 뿐 판정에 쓰지 않습니다`],
+    // hotfix46 — 반경·최근접은 위치 비교의 근거였다.  옛 대조(hotfix46 이전)가 남긴 값만 보인다.
+    ...(d.radius ? [["매칭 반경 (옛 대조)", `${d.radius}pt — ${d.radius_source === "DRAWING_BUBBLE"
       ? "이 도면 버블 긴변" : d.radius_source}`],
-    ["가장 가까웠던 같은 TYPE 후보",
+    ["가장 가까웠던 같은 TYPE 후보 (옛 대조)",
      d.nearest_distance === null ? "그 도면에 같은 TYPE 이 하나도 없음"
-       : `${d.nearest_distance}pt 떨어져 있었습니다`],
+       : `${d.nearest_distance}pt 떨어져 있었습니다`]] : []),
     ["안정 ID", `${d.id} · ${d.type || "TYPE 없음"} · ${d.drawing_no} (p${d.page_no})`],
     ["직전 Description", d.description || "(없음)"],
   ];
   $("#evidence").innerHTML =
     `<div class="ev-head"><h3>삭제 후보 — ${escape(d.id)}</h3></div>`
-    + `<p class="muted">이번 분석에서 짝을 찾지 못했습니다. 도면에서 지워진 것인지,`
+    + `<p class="muted">이번 분석에 이 태그(같은 TYPE)가 없습니다. 도면에서 지워진 것인지,`
     + ` 이번에 못 뽑은 것인지는 기계가 가르지 못합니다 — 아래 근거를 보고`
     + ` 확정하세요.</p>`
     + "<dl>" + rows.map(([k, v]) =>
@@ -2730,6 +2743,7 @@ const BLANK = "\u0000blank";        // the '(공란)' choice, kept out of value 
 
 /* hotfix38 — 개정 상태의 한글 표기.  그리드 열 · 필터 · 근거 패널이 **이 하나**를
  * 읽는다.  BASELINE(Rev.A)·UNCHANGED 는 빈 문자열 — 표기가 붙지 않는다. */
+// hotfix46 — NOT_COMPARED(태그 없어 대조 안 함)는 표기가 없다 — 추가도 삭제도 아니다.
 const REV_STATE_KO = { ADDED: "추가", MODIFIED: "수정",
                        DELETED_CANDIDATE: "삭제 후보", DELETED: "삭제 확정" };
 function revLabel(row) {
@@ -3874,7 +3888,11 @@ function showEvidence(row) {
   // 반경 안에 기록이 없었다), 수정은 어느 칸이 어떻게 바뀌었는지, 짝은 태그로
   // 지었는지 기하로 지었는지.  값은 `row.rev` 하나에서 온다.
   const rv = row.rev || {};
-  if (rv.state && rv.state !== "BASELINE" && rv.state !== "UNCHANGED") {
+  if (rv.state === "NOT_COMPARED") {
+    // hotfix46 — 대조하지 않은 행.  추가도 삭제도 아니고 왜 대조하지 않았는지만 말한다.
+    sec("개정");
+    add("개정 상태", `대조 안 함 — ${(S.rev || {}).compared_with || "직전 리비전"} 대비 · ${rv.reason || "태그 없음"}`);
+  } else if (rv.state && rv.state !== "BASELINE" && rv.state !== "UNCHANGED") {
     sec("개정");
     const vs = (S.rev || {}).compared_with || "직전 리비전";
     add("개정 상태", `${revLabel(row)} — ${vs} 대비` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
@@ -3882,7 +3900,7 @@ function showEvidence(row) {
     if (rv.reason) add("추가 근거", rv.reason);
     if (rv.state === "MODIFIED") {
       add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
-        : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동)`);
+        : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동) — hotfix46 이전 대조 (위치로는 더 비교하지 않습니다 · '대조 다시')`);
       add("바뀐 태그", (rv.changed || []).map(c =>
         `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "(기록 없음)");
     }

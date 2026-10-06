@@ -25,10 +25,11 @@ def row(key, dwg, type_, x, y, **kw):
 
 
 def base_rows():
-    return [row("a", "D00P-10LBA10-M05-0001", "PI", 100, 100),
-            row("b", "D00P-10LBA10-M05-0001", "PI", 100, 400),
-            row("c", "D00P-10LBA10-M05-0001", "TIT", 600, 100),
-            row("d", "D00P-00PAB10-M05-0001", "PIT", 100, 100)]
+    # hotfix46 — 대조의 열쇠는 (TYPE, 태그) 다.  위치로는 비교하지 않으므로 골격 시험의 행도 태그를 든다.
+    return [row("a", "D00P-10LBA10-M05-0001", "PI", 100, 100, tag_no="10LBA10CP001"),
+            row("b", "D00P-10LBA10-M05-0001", "PI", 100, 400, tag_no="10LBA10CP002"),
+            row("c", "D00P-10LBA10-M05-0001", "TIT", 600, 100, tag_no="10LBA10CT001"),
+            row("d", "D00P-00PAB10-M05-0001", "PIT", 100, 100, tag_no="00PAB10CP001")]
 
 
 def test_the_system_code_comes_from_the_drawing_number():
@@ -76,7 +77,7 @@ def test_new_rows_take_the_next_number_and_deletions_never_give_theirs_back():
     first = {r["id"] for r in reg.data["ids"].values()}
     # 하나 지우고 하나 더한다
     rows = [r for r in base_rows() if r["key"] != "a"]
-    rows.append(row("new", "D00P-10LBA10-M05-0001", "PI", 900, 900))
+    rows.append(row("new", "D00P-10LBA10-M05-0001", "PI", 900, 900, tag_no="10LBA10CP004"))
     out = R.compare(rows, reg, "Rev.B", compared_with="Rev.A")
     added = [s["id"] for s in out["states"].values() if s["state"] == R.ADDED]
     assert added == ["10LBA10-004"], added         # 003 다음이지 001 재사용이 아니다
@@ -84,23 +85,24 @@ def test_new_rows_take_the_next_number_and_deletions_never_give_theirs_back():
     assert out["counts"][R.DELETED_CANDIDATE] == 1
 
 
-def test_a_changed_tag_is_a_modification_but_a_move_or_a_value_is_not():
-    """hotfix43 — 수정은 태그가 달라진 것뿐이다.  움직인 거리와 다른 칸의 차이는
-    기록만 한다 (사용자 확정: 위치 변경은 수정이 아니다 · 임계값에 근거가 없다)."""
+def test_a_changed_tag_is_a_deletion_plus_an_addition_but_a_move_or_a_value_is_nothing():
+    """hotfix43 — 위치 변경·값 차이는 기록만 한다.  hotfix46 — 태그가 달라진 심볼은 같은
+    항목이라는 것을 도면이 말하지 않았으므로 **삭제 후보 + 추가**다 (위치로 잇지 않는다)."""
     reg = R.Registry()
     R.compare(base_rows(), reg, "Rev.A", compared_with="")
     rows = base_rows()
     rows[0]["description"] = "고쳐진 문장"
-    rows[1]["rect"] = [105, 405, 173, 427.6]        # 반경 안에서 이동
-    rows[2]["tag_no"] = "10LBA10CP001"              # 없던 태그가 생겼다
+    rows[1]["rect"] = [105, 405, 173, 427.6]        # 자리가 움직였다
+    rows[2]["tag_no"] = "10LBA10CT009"              # 태그가 바뀌었다
     out = R.compare(rows, reg, "Rev.B", compared_with="Rev.A")
     assert out["states"]["a"]["state"] == R.UNCHANGED
     assert out["states"]["a"]["changed"] == []
     assert out["states"]["a"]["field_diffs"][0]["field"] == "description"   # 기록은 남는다
     assert out["states"]["b"]["state"] == R.UNCHANGED
     assert out["states"]["b"]["moved_pt"] > 0       # 기록은 남는다
-    assert out["states"]["c"]["state"] == R.MODIFIED
-    assert out["states"]["c"]["changed"] == [{"field": "tag_no", "was": None, "now": "10LBA10CP001"}]
+    assert out["states"]["c"]["state"] == R.ADDED and out["states"]["c"]["basis"] == "TAG"
+    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["10LBA10CT001"]
+    assert out["counts"][R.MODIFIED] == 0
 
 
 def test_a_deleted_candidate_carries_the_evidence_a_person_needs():
@@ -110,8 +112,10 @@ def test_a_deleted_candidate_carries_the_evidence_a_person_needs():
     out = R.compare([r for r in base_rows() if r["key"] != "c"], reg, "Rev.B",
                     compared_with="Rev.A")
     d = out["deleted_candidates"][0]
-    assert d["anchor"] and d["radius"] > 0 and d["radius_source"]
-    assert "nearest_distance" in d
+    assert d["tag_no"] == "10LBA10CT001" and d["type"] == "TIT" and d["basis"] == "TAG"
+    assert d["tag_elsewhere"] == []                 # 그 태그가 다른 도면에 선 것도 아니다
+    assert d["anchor"]                              # 표식을 그릴 자리 — 판정이 아니다
+    assert "radius" not in d                        # hotfix46 — 반경은 없다 (위치로 비교하지 않는다)
     assert d["confirmed"] is False                  # 자동으로 굳지 않는다
 
 

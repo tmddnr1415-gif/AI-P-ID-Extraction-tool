@@ -3179,6 +3179,28 @@ POST 1회 · 같은 장 · 페이지 오류 0.  시험 `tests/test_hotfix44_reco
 5. **남은 것** — 처음 열 때 2,000행 표 레이아웃 약 0.9초(표 가상화 · 화면이 바뀌므로 묻고 한다) · 캐시가 빈 첫
    장 바꾸기 1.1~2.2초(두 장 렌더).  축1·2 · SADARA·UAD PDF · Excel 은 이 환경에 없어 못 쟀다.
 
+**그 다음 — 개정 대조는 태그로만 · 실행 프로젝트만 (hotfix46 · 엔진 0줄)**
+
+사용자: *"나란히 대조는 실행 프로젝트만 해당되며 tag 위주로 비교한다.  동일 tag 와 abbreviation 기준 (TIT 등).
+PDF 상의 위치 좌표로는 비교하지 않는다."*  전문 `out/hotfix46/1_보고서.md` · 재대조 `out/hotfix46/recompare/` ·
+화면 `out/hotfix46/ui_func/` · 시험 `tests/test_hotfix46_tag_only_compare.py` 10건 (빠른 시험 742 → **752**).
+**네 프로젝트 기준선 불변** (분석 뒤 단계).
+
+1. **짝의 열쇠는 (TYPE, 태그) 하나다** (`revisions._match_one_drawing` — hotfix38 의 상호 최근접·거리순·태그 다른 쌍
+   세 단계를 뺐다 · `_pairs_within` 삭제 · `match_radius` 는 compare 가 더 부르지 않는다).  시험이 대조 경로에
+   `radius`·`nearest` 가 없음을 소스로 못박는다.
+2. **`NOT_COMPARED`** — 태그 없는 행 · 같은 태그가 둘 이상인 행 · **입찰 프로젝트의 모든 행**.  추가도 삭제도
+   아니고 사유를 든다.  태그 없던 옛 기록은 삭제 후보가 아니다.  같은 자리의 다른 태그는 **삭제 후보 + 추가**
+   (hotfix43 의 "수정 = 태그 변경" 은 자리로 이은 결과였다 → 수정은 이제 구조적으로 0).
+3. **실행/입찰은 `_mode_facts(job).effective` 하나로** — `_run_comparison` 이 `tagged=` 로 넘기고 `/revision` 이
+   `compare_basis`(TAG | NONE) 를 낸다.  화면은 나란히 버튼·자동 켜짐을 TAG 일 때만 (`renderRevSwitch` · `autoSide` ·
+   `toggleSide`).
+4. **QFE 재대조** (hotfix43 → 46): 짝 태그 1,423 그대로 · 기하 465 → 0 · 추가 103 → **74** · 수정 18 → **0** ·
+   삭제 후보 111 → **106** · 대조 안 함 **494**.  **hotfix38 독립 검사(`spike/rev_tag_diff.py`)의 "태그 추가 74 ·
+   삭제 106" 과 글자 그대로 같다.**  기능 자기검증 MOD 고리 0 · 페이지 오류 0.
+5. **⚠ 입찰 프로젝트의 편집 승계는 리비전 사이에 이어지지 않는다** — 안정 ID 짝이 위치였고 위치로는 잇지 않는다.
+   옛 판정은 `대조 다시` 한 번으로 바뀐다.  SADARA·UAD PDF · Excel 은 못 쟀다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3608,6 +3630,9 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._json` | **hotfix45** — 큰 목록(`/rows`·`/pages`·`/anchors`)은 `jsonable_encoder` 없이 `json.dumps` |
 | `app.js hashchange` 의 `S.loading` · 머리글 `later()` · `cmpSyncScroll` rAF · `S._cmpSeq` · `cmpPrefetch` | **hotfix45** — 읽는 중엔 목록을 안 그린다 · 머리글 재기는 그려진 뒤 한 번 · 스크롤 동기는 프레임에 한 번 · 빠른 넘김 보호 · 쉬는 동안 앞·뒤 장 미리 받기 |
 | `spike/ui_audit_side_speed.py` | **hotfix45** — 나란히·전환의 시간·요청·바이트·가장 긴 프레임·힙을 띄워서 잰다.  전/후를 같은 자로 |
+| `revisions.compare(tagged=)` · `_match_one_drawing` · `NOT_COMPARED` | **hotfix46** — 짝은 (TYPE, 태그) 유일 하나.  반경·최근접·거리 코드가 대조 경로에 없다 (시험).  태그 없는 행 · 겹친 태그 · 입찰 프로젝트 전부 `NOT_COMPARED`(추가도 삭제도 아님).  `moved_pt`·`anchor` 는 기록·표식 자리일 뿐 |
+| `main._run_comparison` 의 `tagged` · `job_revision.compare_basis` | **hotfix46** — 실행/입찰 판정은 `_mode_facts(job).effective` 하나.  TAG 면 대조, NONE 이면 대조 안 함.  화면의 나란히 버튼·자동 켜짐이 이 값을 읽는다 |
+| ~~`revisions.match_radius` · `_pairs_within`~~ | hotfix46 이전의 기하 짝.  `match_radius` 는 함수만 남고 compare 가 부르지 않는다 — 위치로는 비교하지 않는다 |
 | `spike/ui_audit_tagonly.py` | **hotfix43** — 수정 = 태그 변경뿐인지 띄워서 확인 (머리줄 수 · 필터 · 근거 패널 · 나란히 변경 목록) |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

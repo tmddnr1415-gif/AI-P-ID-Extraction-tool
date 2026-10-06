@@ -646,7 +646,12 @@ def _run_comparison(job_id: str) -> dict:
     rows = [dict(r["values"], key=r["key"], tab=r["tab"],
                  drawing_no=r["drawing_no"], page_no=r["page_no"], rect=r["rect"])
             for r in db.merged_rows(CON, job_id, "ALL") if not r["removed"]]
-    result = revisions.compare(rows, registry, revision, compared_with=compared)
+    # hotfix46 — 대조의 열쇠는 태그다.  실행 프로젝트(`effective == "epc"`)만 대조하고
+    # 입찰 프로젝트는 대조하지 않는다 (위치로는 비교하지 않는다 · 사용자 확정).  판정은
+    # `_mode_facts` 하나 — 화면 띠가 읽는 것과 같은 함수다.
+    tagged = _mode_facts(job).get("effective") == "epc"
+    result = revisions.compare(rows, registry, revision, compared_with=compared,
+                               tagged=tagged)
     # 산출물의 NO 도 ID 와 같은 원리로 단조 증가한다.  ID 부여는 도면 단위
     # 좌표순이고 NO 는 산출물 단위 순서이므로, 번호는 따로 한 번 더 매긴다.
     for r in rows:
@@ -951,13 +956,16 @@ def job_revision(job_id: str):
         counts[st["state"]] = counts.get(st["state"], 0) + 1
     counts[revisions.DELETED_CANDIDATE] = sum(1 for c in cands if not c["confirmed"])
     counts[revisions.DELETED] = sum(1 for c in cands if c["confirmed"])
-    # hotfix38 — 짝을 태그로 지은 행과 기하로 지은 행의 수.  태그가 있는 문서에서
-    # 이 둘이 곧 "이 대조를 얼마나 믿을 수 있나" 다 (태그 짝은 거리를 안 본다).
-    matched_by = {"TAG": 0, "GEOMETRY": 0}
+    # hotfix38 — 짝을 태그로 지은 행 수 · hotfix46 — 대조하지 않은 행 수(태그 없음).
+    # GEOMETRY 는 hotfix46 이전 판정에만 남아 있다 (위치로는 더 비교하지 않는다).
+    matched_by = {"TAG": 0, "GEOMETRY": 0, "NOT_COMPARED": counts.get(revisions.NOT_COMPARED, 0)}
     for st in states.values():
         if st["state"] in (revisions.UNCHANGED, revisions.MODIFIED):
-            matched_by[st.get("basis") or "GEOMETRY"] = (
-                matched_by.get(st.get("basis") or "GEOMETRY", 0) + 1)
+            b = st.get("basis") or "GEOMETRY"
+            matched_by[b] = matched_by.get(b, 0) + 1
+    # hotfix46 — 이 대조가 무엇으로 섰나.  실행(태그) / 입찰(대조 안 함).  판정은
+    # `_mode_facts` 하나이고 `_run_comparison` 이 compare 에 넘긴 것과 같은 식이다.
+    compare_basis = "TAG" if _mode_facts(job).get("effective") == "epc" else "NONE"
     label = (f"{job['revision']} vs {job['compared_with']}"
              if job["compared_with"] else
              (f"{job['revision']} (비교 대상 없음)" if job["revision"] else ""))
@@ -986,6 +994,7 @@ def job_revision(job_id: str):
     return {"project": job["project"], "revision": job["revision"],
             "compared_with": job["compared_with"], "label": label,
             "counts": counts, "matched_by": matched_by, "sheets": sheets,
+            "compare_basis": compare_basis,
             "previous_job_id": previous_job, "next_jobs": next_jobs,
             "deleted_candidates": cands}
 

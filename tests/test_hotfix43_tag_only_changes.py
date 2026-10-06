@@ -53,40 +53,40 @@ def test_a_move_alone_is_never_a_modification_even_far_inside_the_radius():
     assert st["state"] == R.UNCHANGED and st["moved_pt"] > 15 and st["changed"] == []
 
 
-def test_a_tag_change_on_the_same_symbol_is_a_modification_with_was_and_now():
+def test_a_tag_change_on_the_same_spot_is_a_deletion_plus_an_addition():
+    """hotfix46 — 자리로 잇지 않으므로 태그가 바뀐 심볼은 삭제 후보 + 추가다."""
     a = [row("a", "PIT", 100, 100, "11LBB50CP001")]
     b = [row("b", "PIT", 101, 100, "11LBB50CP009")]
     out, _ = _ab(a, b)
-    st = out["states"]["b"]
-    assert st["state"] == R.MODIFIED
-    assert st["changed"] == [{"field": "tag_no", "was": "11LBB50CP001", "now": "11LBB50CP009"}]
-    assert st["field_diffs"] == []
+    assert out["states"]["b"]["state"] == R.ADDED
+    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
+    assert out["counts"][R.MODIFIED] == 0
 
 
-def test_a_tag_that_appears_on_a_formerly_untagged_symbol_is_a_modification():
-    """없던 태그가 생긴 것 — 태그가 달라진 것이다 (빈칸 → 값)."""
+def test_a_tag_that_appears_on_a_formerly_untagged_symbol_is_an_addition():
+    """없던 태그가 생긴 것 — 옛 기록은 태그가 없어 대조 밖이고 새 태그는 추가다."""
     a = [row("a", "PIT", 100, 100)]
     b = [row("b", "PIT", 100, 100, "11LBB50CP001")]
     out, _ = _ab(a, b)
-    assert out["states"]["b"]["state"] == R.MODIFIED
-    assert out["states"]["b"]["changed"][0]["now"] == "11LBB50CP001"
+    assert out["states"]["b"]["state"] == R.ADDED
+    assert out["deleted_candidates"] == []
 
 
-def test_added_and_deleted_tags_still_count_and_untagged_documents_only_add_or_delete():
-    """태그 추가 → ADDED · 태그 사라짐 → 삭제 후보.  태그 없는 문서(AL NOUF1)는
-    수정이 구조적으로 0 — 기하 짝은 태그가 둘 다 비어 달라질 수 없다."""
+def test_added_and_deleted_tags_count_and_untagged_rows_are_not_compared():
+    """태그 추가 → ADDED · 태그 사라짐 → 삭제 후보.  태그 없는 행(AL NOUF1 류)은
+    hotfix46 부터 대조하지 않는다 — 수정 0 · 추가 0 · 삭제 0 · NOT_COMPARED 전부."""
     a = [row("a1", "PIT", 100, 100, "11LBB50CP001"), row("a2", "TIT", 300, 100, "11LBB50CT001")]
     b = [row("b1", "PIT", 100, 100, "11LBB50CP001"), row("b3", "LIT", 500, 100, "11LBB50CL001")]
     out, _ = _ab(a, b)
     assert out["states"]["b3"]["state"] == R.ADDED
     assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CT001"]
-    # 태그 없는 문서
+    # 태그 없는 행
     a = [row("a1", "PI", 100, 100, description="x"), row("a2", "PI", 100, 300, description="y")]
     b = [row("b1", "PI", 100, 102, description="x2"), row("b2", "PI", 104, 300, description="y2"),
          row("b3", "PI", 800, 800)]
     out, _ = _ab(a, b)
-    assert out["counts"] == {R.UNCHANGED: 2, R.ADDED: 1, R.MODIFIED: 0, R.DELETED_CANDIDATE: 0} \
-        or (out["counts"][R.MODIFIED] == 0 and out["counts"][R.ADDED] == 1 and out["counts"][R.UNCHANGED] == 2)
+    assert out["counts"][R.MODIFIED] == 0 and out["counts"][R.ADDED] == 0
+    assert out["counts"][R.NOT_COMPARED] == 3 and out["counts"][R.DELETED_CANDIDATE] == 0
 
 
 def test_the_history_and_the_db_keep_field_diffs_apart_from_the_state(tmp_path):

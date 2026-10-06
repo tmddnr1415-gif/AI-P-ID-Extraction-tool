@@ -65,13 +65,13 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                  ("", ""), ("추가", len(added)), ("수정", len(modified)), ("변경 없음", unchanged),
                  ("삭제 후보", len(cand)), ("삭제 확정", len(conf)), ("", ""),
                  ("짝 — 태그", (matched_by or {}).get("TAG", 0)),
-                 ("짝 — 기하", (matched_by or {}).get("GEOMETRY", 0)), ("", ""),
+                 ("대조 안 함 (태그 없음)", (matched_by or {}).get("NOT_COMPARED", 0)), ("", ""),
                  ("도면번호 바뀐 장", len((sheets or {}).get("renumbered") or [])),
                  ("이번에만 있는 장", len((sheets or {}).get("only_now") or [])),
                  ("직전에만 있는 장", len((sheets or {}).get("only_before") or [])), ("", ""),
                  ("읽는 법", "판정은 분석 때 저장된 그대로입니다 (행 상태 · 바뀐 태그 · 삭제 후보).  "
-                            "수정은 태그가 달라진 행뿐이고(자리 이동 · 수량 · SCOPE · Description 차이는 "
-                            "참고로만 적습니다), 삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
+                            "짝은 같은 TYPE 의 같은 태그로만 짓고 위치로는 비교하지 않습니다.  태그 없는 행은 "
+                            "대조하지 않습니다.  삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
         ws.append(list(line))
     ws["A1"].font = ws["A2"].font = ws["A3"].font = Font(bold=True)
     _fit(ws, {"A": 18, "B": 80})
