@@ -1453,6 +1453,8 @@ function renderRevSwitch() {
     + `<button type="button" class="prev${viewingPrev ? " on" : ""}" data-job="${escape(pr.previous)}" title="직전 P&ID 결과를 봅니다 — 오른쪽 목록·검토·근거와 왼쪽 도면이 그 결과로 바뀝니다">이전 ${escape(pr.previousLabel)}</button>`
     + `<button type="button" class="cur${viewingPrev ? "" : " on"}" data-job="${escape(pr.current)}" title="현재 P&ID 출력 결과">현재 ${escape(pr.currentLabel)}</button>`
     + `<button type="button" class="side${S.side ? " on" : ""}" title="나란히 보기 — 왼쪽은 최신 ${escape(pr.currentLabel)} 도면, 오른쪽은 직전 ${escape(pr.previousLabel)} 의 같은 도면번호 장.  확대·스크롤이 함께 움직입니다">나란히</button>`
+    // hotfix44 — 재분석 없이 대조만 다시 한다 (업데이트로 판정 규칙이 바뀌었을 때 — 옛 판정이 DB 에 남는다).
+    + `<button type="button" class="recmp" title="재분석 없이 ${escape(pr.previousLabel)} 대비 대조만 다시 합니다 — 업데이트로 개정 판정 규칙이 바뀌었을 때 (분석 결과·편집은 그대로)">대조 다시</button>`
     + `<span class="rs-note">${S.side ? `왼쪽 ${escape(pr.currentLabel)} · 오른쪽 ${escape(pr.previousLabel)} — 같은 도면번호 장 · 확대와 스크롤이 함께 움직입니다`
         : viewingPrev ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다" : (S.viewCache[pr.previous] ? "이전 결과는 메모리에 있어 바로 전환됩니다" : "")}</span>`;
   box.classList.remove("hidden");
@@ -1460,6 +1462,30 @@ function renderRevSwitch() {
   box.querySelectorAll("button[data-job]").forEach(b => b.onclick = () => switchView(b.dataset.job));
   const sb = box.querySelector("button.side");
   if (sb) sb.onclick = () => toggleSide(!S.side, true);
+  const rb = box.querySelector("button.recmp");
+  if (rb) rb.onclick = () => recompare(pr.current, pr.previousLabel);
+}
+
+/* hotfix44 — 대조만 다시.  서버의 `POST /jobs/{id}/revision` 은 13회차부터 "비교 대상을
+ * 바꿔 다시 보고 싶을 때 — 재분석 없이 대조만" 을 위해 있었는데 화면에서 부르는 곳이
+ * 없었다.  판정은 서버(`revisions.compare`)가 하고 여기서는 묻고 → 부르고 → 다시 연다. */
+async function recompare(jobId, against) {
+  if (!jobId || S.loading) return;
+  const job = S.job && S.job.id === jobId ? S.job : await (await fetch(`/jobs/${jobId}`)).json();
+  if (!job.project) { alert("프로젝트에 묶인 분석이 아니라 대조할 수 없습니다."); return; }
+  if (!confirm(`${against || "직전 리비전"} 대비 대조를 다시 합니다 (재분석 없음 · 분석 결과와 편집은 그대로).  진행할까요?`)) return;
+  const body = new URLSearchParams({ project: job.project, compared_with: job.compared_with || "" });
+  const res = await fetch(`/jobs/${jobId}/revision`, { method: "POST", body });
+  if (!res.ok) { alert(`대조에 실패했습니다: ${(await res.json()).detail || res.status}`); return; }
+  const out = await res.json();
+  // 옛 화면 상태(메모리 캐시)는 옛 판정을 들고 있다 — 버리고 다시 연다
+  S.viewCache = {};
+  const want = S.page ? (S.page.drawing_no || "") : "";
+  await open(jobId);
+  const page = want && S.pages.find(p => p.drawing_no === want);
+  if (page) showPage(page);
+  const c = out.counts || {};
+  editNotice(`대조를 다시 했습니다 — 추가 ${c.ADDED || 0} · 수정 ${c.MODIFIED || 0} · 삭제 후보 ${c.DELETED_CANDIDATE || 0}`);
 }
 
 async function switchView(jobId) {

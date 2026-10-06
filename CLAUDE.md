@@ -3141,6 +3141,18 @@ tag number 에 계기 타입이 명시되어 있다 … 범용성 있게 상용 
    ⚠ 화면 자기검증 첫 판이 ③ 에서 "근거 패널 없음" 을 냈는데 **제품이 아니라 검증기**였다 — 다른 장의 행을 누르면
    장을 바꾼 뒤(`S.pending`) 근거가 서므로 그때까지 기다려야 한다.
 
+**그 다음 — `대조 다시` 버튼 (hotfix44 · 화면 회차 · 엔진 0줄)**
+
+사용자(회사 PC 사진 · hotfix42 · QFE p55): *"PI MOD 로 표기했는데 Tag 가 동일하며 PI 표기도 동일하므로
+이것은 수정이 아니다."*  그 장의 다섯 행(`PI 12LCQ21CP502` 등 SCOPE 만 다름 · `RO 12LCQ20BP601`
+vendor_supply·scope·description 다름)은 hotfix43 재대조에서 전부 **변경 없음**(`field_diffs` 만)이고
+p55 는 "이 장 변경 없음" 이다 (`out/hotfix44/ui/3_p55_나란히.png`).  그런데 hotfix43 을 풀어도 **옛 판정이 DB 에
+남아** 다시 분석(25분)해야 바뀌었다 — `POST /jobs/{id}/revision`(13회차 · *재분석 없이 대조만*)을 화면에서 부르는 곳이
+없었다 (스물두 번째).  스위치에 **`대조 다시`** 버튼(`recompare` · confirm → POST 한 번 → `S.viewCache` 비우고 다시 열기 ·
+같은 장 유지).  자기검증 `spike/ui_audit_recompare.py` → `out/hotfix44/ui/`: 옛 사본에서 수정 458 → **18** · 8.6초 ·
+POST 1회 · 같은 장 · 페이지 오류 0.  시험 `tests/test_hotfix44_recompare_button.py` 3건.  `_carry_edits` 가 같이 돌지만
+빈 칸만 채우므로 편집은 그대로다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3563,6 +3575,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/revision_export.py` · `GET /jobs/{id}/revision/changes.xlsx` · `#rev-export` | **hotfix41** — 개정 변경 내역 Excel.  판정 0 — `revision_state`·`deleted_candidate`·장부 `sheets` 를 옮겨 적는다 |
 | `app.js` `#cmp-pick` · Alt+←/→ | **hotfix41** — 오른쪽(직전) 장을 사람이 고른다 (직전에만 있는 장 포함 · 고르면 그 장의 삭제 후보만) · 변경 이동 단축키 |
 | `revisions.STATE_FIELDS` · `_revision_state` · `states[].field_diffs` · `revision_state.diffs_json` | **hotfix43** — 개정 '수정' 은 `tag_no` 가 달라진 행뿐.  나머지 칸의 차이와 자리 이동은 기록만(`field_diffs` · `moved_pt`).  추가·삭제 후보는 그대로 |
+| `app.js` `recompare` · `#rev-switch button.recmp` | **hotfix44** — 재분석 없이 대조만 다시 (`POST /jobs/{id}/revision` 그대로 · 판정은 서버).  업데이트로 개정 규칙이 바뀌었을 때 옛 판정을 새 규칙으로 |
 | `spike/ui_audit_tagonly.py` | **hotfix43** — 수정 = 태그 변경뿐인지 띄워서 확인 (머리줄 수 · 필터 · 근거 패널 · 나란히 변경 목록) |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
