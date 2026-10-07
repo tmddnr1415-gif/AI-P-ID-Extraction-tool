@@ -1,20 +1,52 @@
 {
   "projects": [
     {
-      "name": "UAD-DXF",
-      "rows": 499,
-      "fingerprint": "c5aba07a4ca64c4b1cb026da19e4a7258f87a45961bf24a0cbe8d015716d25ea",
-      "qty_sum": 499,
+      "name": "QFE",
+      "rows": 2051,
+      "fingerprint": "fbe5e887a7d3a2362851f08b296f15ce8c5ead754c23a76bd128dfedde743a47",
+      "qty_sum": 3720,
       "tabs": {
-        "FIELD": 414,
-        "PNEUMATIC": 23,
-        "REVIEW": 54,
-        "MOV": 8
+        "FIELD": 1678,
+        "REVIEW": 279,
+        "PNEUMATIC": 12,
+        "MOV": 67,
+        "BFV": 15
       },
-      "seconds": 61.9,
-      "max_rss_gb": 0.51,
-      "identification": {},
-      "score": null
+      "seconds": 2317.3,
+      "max_rss_gb": 6.36,
+      "identification": {
+        "도면번호": [
+          86,
+          86,
+          ""
+        ],
+        "개정": [
+          85,
+          93,
+          ""
+        ],
+        "태그→행": [
+          321,
+          430,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          2049,
+          2051,
+          ""
+        ],
+        "심볼판정": [
+          2051,
+          2373,
+          ""
+        ],
+        "파라미터": [
+          28,
+          31,
+          ""
+        ]
+      },
+      "score": 90.5
     }
   ],
   "metrics": [
