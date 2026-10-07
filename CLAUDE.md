@@ -3257,7 +3257,7 @@ SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/
    옛 절대값과 **같은 수**다 (AL NOUF1 14.22 × 1.896 × 2 = 53.94 — 게이트 산술 · 시험).  범례 원이 되풀이되지
    않는 SADARA 는 비율 0 → 절대값 그대로.  출처는 `act_reach_source` · 결과 `valve_layout`(지문 밖).
 3. **밸브 단계만 전수로 돌렸다** (`spike/act_reach_probe.py` — `find_bodies` 한 번 · 규칙 둘로 `attach_actuators`):
-   AL NOUF1 170 → **170** (다른 장 0) · TC2 TBD_TC2 · QFE TBD_QFE.  QFE p10: 0 → **2** (BALL·MOTOR) ·
+   AL NOUF1 170 → **170** (다른 장 0) · TC2 160 → **160** (0) · **QFE 27 → 129** (+102 · 26장 · 잃은 것 0 — BALL/GATE/NEEDLE/BUTTERFLY 의 MOTOR 79 · HYDRAULIC 14 · PNEUMATIC 9 · 표본 7 렌더 확인 `out/hotfix48/qfe_gained_crops.png`).  QFE p10: 0 → **2** (BALL·MOTOR) ·
    `read_vendor_mark` → `VENDOR_MARK_TEXT` · `MARKED ITEMS TO BE PROVIDED BY GTG SUPPLIER.` → `VENDOR(GTG SUPPLIER)`.
 4. **[회귀]** TBD_REG
 5. ⚠ `stroke_bootstrap` 의 글리프 학습 창은 절대 `act_reach` 그대로다 (판정이 아니라 사전 학습 — 다음 후보).

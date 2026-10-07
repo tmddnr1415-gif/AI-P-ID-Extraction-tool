@@ -9,3 +9,153 @@ p8: bodies 17 · abs 0 · ratio 0 · diff 0 · 4.0s
 p9: bodies 31 · abs 1 · ratio 3 · diff 2 · 6.3s
     ('BALL', 'MOTOR', [872.3, 1199.3, 879.5, 1216.3])
     ('BALL', 'MOTOR', [898.6, 1088.0, 915.5, 1095.2])
+p10: bodies 47 · abs 0 · ratio 2 · diff 2 · 11.5s
+    ('BALL', 'MOTOR', [561.2, 744.9, 578.2, 752.0])
+    ('BALL', 'MOTOR', [561.2, 1117.1, 578.2, 1124.3])
+p11: bodies 79 · abs 0 · ratio 10 · diff 10 · 26.6s
+p12: bodies 76 · abs 0 · ratio 11 · diff 11 · 11.2s
+p13: bodies 3 · abs 0 · ratio 0 · diff 0 · 4.0s
+p14: bodies 7 · abs 0 · ratio 0 · diff 0 · 3.2s
+p15: bodies 77 · abs 0 · ratio 4 · diff 4 · 29.3s
+    ('GATE', 'MOTOR', [322.6, 127.8, 340.7, 139.2])
+    ('GATE', 'MOTOR', [322.6, 1378.1, 340.7, 1389.5])
+    ('GATE', 'MOTOR', [322.6, 1477.4, 340.7, 1488.7])
+    ('GATE', 'MOTOR', [322.6, 227.1, 340.7, 238.4])
+p16: bodies 51 · abs 0 · ratio 0 · diff 0 · 4.2s
+p17: bodies 1 · abs 0 · ratio 0 · diff 0 · 5.5s
+p18: bodies 13 · abs 0 · ratio 0 · diff 0 · 5.5s
+p19: bodies 4 · abs 0 · ratio 0 · diff 0 · 4.9s
+p20: bodies 0 · abs 0 · ratio 0 · diff 0 · 3.0s
+p21: bodies 22 · abs 0 · ratio 0 · diff 0 · 2.8s
+p22: bodies 0 · abs 0 · ratio 0 · diff 0 · 1.2s
+p23: bodies 5 · abs 0 · ratio 0 · diff 0 · 1.5s
+p24: bodies 74 · abs 0 · ratio 2 · diff 2 · 32.2s
+    ('BALL', 'MOTOR', [348.1, 869.0, 366.2, 875.7])
+    ('BALL', 'MOTOR', [348.1, 180.2, 366.2, 186.9])
+p25: bodies 2 · abs 0 · ratio 0 · diff 0 · 11.8s
+p26: bodies 62 · abs 0 · ratio 2 · diff 2 · 18.9s
+    ('BALL', 'MOTOR', [291.4, 355.9, 309.5, 362.7])
+    ('BALL', 'MOTOR', [299.9, 1157.1, 318.0, 1163.9])
+p27: bodies 2 · abs 0 · ratio 0 · diff 0 · 6.3s
+p28: bodies 34 · abs 0 · ratio 2 · diff 2 · 8.0s
+    ('BALL', 'MOTOR', [365.0, 433.4, 383.2, 440.1])
+    ('BALL', 'MOTOR', [365.0, 1018.8, 383.2, 1025.6])
+p29: bodies 0 · abs 0 · ratio 0 · diff 0 · 6.9s
+p30: bodies 27 · abs 0 · ratio 3 · diff 3 · 10.9s
+    ('BALL', 'MOTOR', [399.0, 260.4, 417.1, 267.2])
+    ('BALL', 'MOTOR', [399.0, 729.2, 417.1, 735.9])
+    ('BALL', 'MOTOR', [1817.4, 1078.8, 1835.5, 1085.6])
+p31: bodies 44 · abs 0 · ratio 0 · diff 0 · 15.9s
+p32: bodies 58 · abs 0 · ratio 0 · diff 0 · 16.6s
+p33: bodies 20 · abs 0 · ratio 0 · diff 0 · 7.3s
+p34: bodies 50 · abs 0 · ratio 0 · diff 0 · 13.7s
+p35: bodies 49 · abs 0 · ratio 0 · diff 0 · 16.3s
+p36: bodies 22 · abs 0 · ratio 0 · diff 0 · 6.8s
+p37: bodies 13 · abs 0 · ratio 1 · diff 1 · 7.5s
+    ('GATE', 'MOTOR', [727.1, 635.6, 738.5, 653.8])
+p38: bodies 16 · abs 0 · ratio 0 · diff 0 · 3.7s
+p39: bodies 39 · abs 0 · ratio 8 · diff 8 · 25.9s
+p40: bodies 31 · abs 0 · ratio 4 · diff 4 · 14.7s
+    ('BALL', 'MOTOR', [1589.6, 622.5, 1607.8, 629.2])
+    ('BALL', 'MOTOR', [1589.6, 962.6, 1607.8, 969.2])
+    ('BALL', 'MOTOR', [1589.6, 1342.4, 1607.8, 1349.0])
+    ('BALL', 'MOTOR', [294.1, 842.0, 312.3, 848.6])
+p41: bodies 34 · abs 3 · ratio 3 · diff 0 · 18.3s
+p42: bodies 38 · abs 0 · ratio 0 · diff 0 · 32.8s
+p43: bodies 37 · abs 0 · ratio 1 · diff 1 · 8.6s
+    ('BUTTERFLY', 'MOTOR', [386.2, 368.2, 404.3, 375.0])
+p44: bodies 28 · abs 2 · ratio 7 · diff 5 · 9.0s
+    ('NEEDLE', 'MOTOR', [1657.7, 601.5, 1675.8, 612.1])
+    ('NEEDLE', 'MOTOR', [1657.7, 491.1, 1675.8, 501.6])
+    ('GATE', 'MOTOR', [721.6, 1000.9, 739.8, 1012.2])
+    ('NEEDLE', 'MOTOR', [494.2, 1356.3, 512.3, 1367.0])
+    ('GATE', 'MOTOR', [721.6, 572.9, 739.8, 584.2])
+p45: bodies 30 · abs 0 · ratio 7 · diff 7 · 13.2s
+p46: bodies 30 · abs 2 · ratio 7 · diff 5 · 15.3s
+    ('NEEDLE', 'MOTOR', [1708.7, 802.1, 1726.8, 812.7])
+    ('NEEDLE', 'MOTOR', [1708.7, 671.7, 1726.8, 682.3])
+    ('GATE', 'MOTOR', [759.7, 411.3, 777.8, 422.7])
+    ('GATE', 'MOTOR', [759.7, 1032.1, 777.8, 1043.4])
+    ('NEEDLE', 'MOTOR', [494.2, 1298.9, 512.3, 1309.5])
+p47: bodies 17 · abs 0 · ratio 3 · diff 3 · 6.6s
+    ('GATE', 'MOTOR', [841.3, 459.8, 859.4, 471.1])
+    ('GATE', 'MOTOR', [841.3, 1017.9, 859.4, 1029.3])
+    ('NEEDLE', 'MOTOR', [1616.0, 1320.8, 1634.1, 1331.4])
+p48: bodies 27 · abs 0 · ratio 5 · diff 5 · 15.1s
+    ('NEEDLE', 'MOTOR', [362.2, 1032.6, 380.4, 1043.3])
+    ('NEEDLE', 'MOTOR', [362.2, 1499.1, 380.4, 1509.7])
+    ('GATE', 'PNEUMATIC', [1643.5, 410.7, 1661.6, 422.1])
+    ('GATE', 'PNEUMATIC', [1643.5, 850.1, 1661.6, 861.5])
+    ('GATE', 'PNEUMATIC', [1643.5, 1347.2, 1661.6, 1358.5])
+p49: bodies 29 · abs 0 · ratio 5 · diff 5 · 13.9s
+    ('NEEDLE', 'MOTOR', [362.2, 1032.5, 380.4, 1043.0])
+    ('NEEDLE', 'MOTOR', [362.2, 1499.1, 380.4, 1509.7])
+    ('GATE', 'PNEUMATIC', [1643.5, 410.7, 1661.6, 422.1])
+    ('GATE', 'PNEUMATIC', [1643.5, 850.1, 1661.6, 861.5])
+    ('GATE', 'PNEUMATIC', [1643.5, 1347.2, 1661.6, 1358.5])
+p50: bodies 36 · abs 1 · ratio 7 · diff 6 · 14.5s
+    ('NEEDLE', 'MOTOR', [333.9, 673.1, 352.0, 683.7])
+    ('NEEDLE', 'MOTOR', [1669.0, 521.8, 1687.1, 532.4])
+    ('NEEDLE', 'MOTOR', [1669.0, 959.3, 1687.1, 969.9])
+    ('GATE', 'PNEUMATIC', [333.9, 1042.8, 352.0, 1054.2])
+    ('GATE', 'PNEUMATIC', [1708.7, 665.7, 1726.8, 677.1])
+    ('NEEDLE', 'MOTOR', [1294.6, 1543.7, 1312.7, 1554.3])
+p51: bodies 20 · abs 1 · ratio 2 · diff 1 · 7.6s
+    ('GATE', 'MOTOR', [1615.1, 1053.8, 1633.3, 1065.2])
+p52: bodies 7 · abs 0 · ratio 0 · diff 0 · 2.7s
+p53: bodies 7 · abs 0 · ratio 0 · diff 0 · 2.8s
+p54: bodies 20 · abs 0 · ratio 0 · diff 0 · 7.2s
+p55: bodies 19 · abs 0 · ratio 0 · diff 0 · 6.1s
+p56: bodies 41 · abs 0 · ratio 4 · diff 4 · 22.5s
+    ('GATE', 'MOTOR', [1779.4, 1544.6, 1797.5, 1556.0])
+    ('GATE', 'MOTOR', [1779.4, 1331.1, 1797.5, 1342.5])
+    ('GATE', 'MOTOR', [1779.4, 1117.7, 1797.5, 1129.0])
+    ('BUTTERFLY', 'MOTOR', [1167.9, 151.5, 1186.0, 158.3])
+p57: bodies 44 · abs 0 · ratio 0 · diff 0 · 10.2s
+p58: bodies 0 · abs 0 · ratio 0 · diff 0 · 15.9s
+p59: bodies 71 · abs 2 · ratio 4 · diff 2 · 57.1s
+    ('GATE', 'MOTOR', [1411.2, 901.2, 1429.3, 912.5])
+    ('GATE', 'MOTOR', [1410.9, 1428.4, 1429.0, 1439.7])
+p60: bodies 71 · abs 2 · ratio 4 · diff 2 · 62.2s
+    ('GATE', 'MOTOR', [1411.2, 901.2, 1429.3, 912.5])
+    ('GATE', 'MOTOR', [1410.9, 1428.4, 1429.0, 1439.7])
+p61: bodies 32 · abs 2 · ratio 2 · diff 0 · 13.8s
+p62: bodies 32 · abs 2 · ratio 2 · diff 0 · 14.0s
+p63: bodies 18 · abs 0 · ratio 2 · diff 2 · 5.6s
+    ('BALL', 'MOTOR', [1462.0, 214.8, 1480.2, 221.6])
+    ('BALL', 'MOTOR', [1450.7, 115.5, 1468.9, 122.3])
+p64: bodies 34 · abs 0 · ratio 0 · diff 0 · 9.4s
+p65: bodies 27 · abs 0 · ratio 0 · diff 0 · 7.7s
+p66: bodies 2 · abs 0 · ratio 0 · diff 0 · 1.7s
+p67: bodies 8 · abs 0 · ratio 0 · diff 0 · 2.6s
+p68: bodies 47 · abs 0 · ratio 0 · diff 0 · 16.9s
+p69: bodies 51 · abs 0 · ratio 0 · diff 0 · 21.0s
+p70: bodies 43 · abs 0 · ratio 0 · diff 0 · 15.8s
+p71: bodies 50 · abs 0 · ratio 0 · diff 0 · 18.0s
+p72: bodies 35 · abs 0 · ratio 0 · diff 0 · 11.7s
+p73: bodies 27 · abs 0 · ratio 0 · diff 0 · 8.6s
+p74: bodies 20 · abs 0 · ratio 0 · diff 0 · 6.4s
+p75: bodies 20 · abs 0 · ratio 0 · diff 0 · 6.1s
+p76: bodies 32 · abs 0 · ratio 0 · diff 0 · 3.4s
+p77: bodies 2 · abs 0 · ratio 0 · diff 0 · 2.2s
+p78: bodies 12 · abs 0 · ratio 0 · diff 0 · 3.0s
+p79: bodies 9 · abs 0 · ratio 0 · diff 0 · 3.2s
+p80: bodies 12 · abs 0 · ratio 0 · diff 0 · 10.5s
+p81: bodies 12 · abs 0 · ratio 0 · diff 0 · 20.6s
+p82: bodies 9 · abs 0 · ratio 0 · diff 0 · 3.8s
+p83: bodies 12 · abs 0 · ratio 0 · diff 0 · 10.7s
+p84: bodies 20 · abs 0 · ratio 3 · diff 3 · 7.8s
+    ('NEEDLE', 'MOTOR', [1324.3, 657.8, 1342.4, 668.4])
+    ('NEEDLE', 'MOTOR', [799.1, 1142.7, 817.2, 1153.4])
+    ('NEEDLE', 'MOTOR', [1109.7, 867.9, 1127.8, 878.5])
+p85: bodies 47 · abs 0 · ratio 0 · diff 0 · 17.5s
+p86: bodies 43 · abs 0 · ratio 0 · diff 0 · 17.4s
+p87: bodies 50 · abs 0 · ratio 0 · diff 0 · 21.8s
+p88: bodies 50 · abs 0 · ratio 0 · diff 0 · 20.1s
+p89: bodies 36 · abs 0 · ratio 0 · diff 0 · 11.2s
+p90: bodies 27 · abs 0 · ratio 0 · diff 0 · 8.7s
+p91: bodies 20 · abs 0 · ratio 0 · diff 0 · 6.1s
+p92: bodies 20 · abs 0 · ratio 0 · diff 0 · 6.7s
+p93: bodies 2 · abs 0 · ratio 0 · diff 0 · 1.9s
+TOTAL abs 27 ratio 129 diff 102 1416s
+exit 0
