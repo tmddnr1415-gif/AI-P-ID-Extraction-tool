@@ -59,10 +59,14 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
     added = [r for r in rows if (r.get("rev") or {}).get("state") == "ADDED"]
     modified = [r for r in rows if (r.get("rev") or {}).get("state") == "MODIFIED"]
     unchanged = sum(1 for r in rows if (r.get("rev") or {}).get("state") == "UNCHANGED")
-    cand = [d for d in deleted if not d.get("confirmed")]
+    # hotfix47 — 짝 없는 기록은 둘로 갈린다: 같은 도면에 새 태그가 섰으면 "수정 (이전 태그)",
+    # 아니면 삭제 후보.  옛 대조의 payload 에는 `state` 가 없다 → 삭제 후보.
+    before = [d for d in deleted if not d.get("confirmed") and d.get("state") == "MODIFIED"]
+    cand = [d for d in deleted if not d.get("confirmed") and d.get("state") != "MODIFIED"]
     conf = [d for d in deleted if d.get("confirmed")]
     for line in [("문서", job.get("pdf_name") or ""), ("리비전", revision), ("비교 대상", against),
-                 ("", ""), ("추가", len(added)), ("수정", len(modified)), ("변경 없음", unchanged),
+                 ("", ""), ("추가", len(added)), ("수정", len(modified)),
+                 ("수정 (이전 태그 — 이번 분석에 없음)", len(before)), ("변경 없음", unchanged),
                  ("삭제 후보", len(cand)), ("삭제 확정", len(conf)), ("", ""),
                  ("짝 — 태그", (matched_by or {}).get("TAG", 0)),
                  ("대조 안 함 (태그 없음)", (matched_by or {}).get("NOT_COMPARED", 0)), ("", ""),
@@ -71,7 +75,10 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                  ("직전에만 있는 장", len((sheets or {}).get("only_before") or [])), ("", ""),
                  ("읽는 법", "판정은 분석 때 저장된 그대로입니다 (행 상태 · 바뀐 태그 · 삭제 후보).  "
                             "짝은 같은 TYPE 의 같은 태그로만 짓고 위치로는 비교하지 않습니다.  태그 없는 행은 "
-                            "대조하지 않습니다.  삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
+                            "대조하지 않습니다.  같은 도면에 짝 없는 태그가 양쪽에 남으면(사라진 태그 + 새 태그) "
+                            "태그 변경인지 추가/삭제인지 도면이 가르지 않으므로 전부 '수정' 으로만 표기합니다 — "
+                            "새 태그 쪽은 '수정' 시트, 사라진 태그 쪽은 '삭제' 시트에 '수정 (이전 태그)' 로.  "
+                            "삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
         ws.append(list(line))
     ws["A1"].font = ws["A2"].font = ws["A3"].font = Font(bold=True)
     _fit(ws, {"A": 18, "B": 80})
@@ -82,7 +89,10 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
             line = [i] + [_val(r, pages, n) for _, n in ROW_COLS]
             if extra:
                 ch = (r.get("rev") or {}).get("changed") or []
-                line.append(" · ".join(f"{c.get('field')}: {c.get('was') or '(빈칸)'} → {c.get('now') or '(빈칸)'}"
+                rv = r.get("rev") or {}
+                # hotfix47 — 짝 없이 변경으로만 표기한 행은 전 → 후를 지어내지 않고 사유를 적는다
+                line.append(rv.get("reason") or "" if rv.get("basis") == "AMBIGUOUS" else
+                            " · ".join(f"{c.get('field')}: {c.get('was') or '(빈칸)'} → {c.get('now') or '(빈칸)'}"
                                        for c in ch if isinstance(c, dict)))
                 # hotfix43 — 상태를 정하지 않은 값 차이는 따로 적는다 (참고)
                 fd = (r.get("rev") or {}).get("field_diffs") or []
@@ -103,20 +113,26 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
     w = _sheet(wb, "삭제", ["NO", "상태", "안정 ID", "P&ID No.", "쪽", "탭", "Type", "Tag No.",
                            "Description", "근거", "직전 Rev 좌표", "이번 분석의 다른 도면"])
     for i, d in enumerate(sorted(deleted, key=lambda d: (d.get("drawing_no") or "", d.get("id") or "")), 1):
-        if d.get("tag_no"):
+        if d.get("state") == "MODIFIED":
+            why = (f"태그 {d['tag_no']} 가 이번 분석에 없고 같은 도면에 새 태그 {len(d.get('tag_candidates') or [])}개"
+                   f"({', '.join(d.get('tag_candidates') or [])})가 섰습니다 — 태그 변경인지 삭제인지 도면이 가르지 않아 "
+                   f"수정으로만 표기 (삭제였다면 사람이 확정)")
+        elif d.get("tag_no"):
             why = (f"태그 {d['tag_no']} 가 이번 분석에서 다른 도면에 섰습니다 — 옮김일 수 있습니다"
                    if d.get("tag_elsewhere") else f"태그 {d['tag_no']} 가 이번 분석 어디에도 없습니다")
         elif d.get("nearest_distance") is None:
             why = "그 도면에 같은 TYPE 이 하나도 없습니다"
         else:
             why = f"가장 가까운 같은 TYPE 이 {d['nearest_distance']}pt (반경 {d.get('radius')}pt)"
-        w.append([i, "삭제 확정" if d.get("confirmed") else "삭제 후보", d.get("id", ""),
+        w.append([i, "삭제 확정" if d.get("confirmed") else
+                  ("수정 (이전 태그)" if d.get("state") == "MODIFIED" else "삭제 후보"), d.get("id", ""),
                   d.get("drawing_no", ""), d.get("page_no"), d.get("tab", ""), d.get("type", ""),
                   d.get("tag_no", ""), d.get("description", ""), why,
                   ", ".join(str(v) for v in (d.get("anchor") or [])),
                   ", ".join(d.get("tag_elsewhere") or [])])
         w.cell(row=i + 1, column=1).fill = PatternFill(
-            "solid", fgColor=STATE_FILL["DELETED" if d.get("confirmed") else "DELETED_CANDIDATE"])
+            "solid", fgColor=STATE_FILL["DELETED" if d.get("confirmed") else
+                                        ("MODIFIED" if d.get("state") == "MODIFIED" else "DELETED_CANDIDATE")])
     _fit(w, {"A": 5, "B": 10, "C": 16, "D": 26, "E": 5, "F": 10, "G": 8, "H": 16, "I": 44, "J": 52, "K": 16, "L": 26})
 
     w = _sheet(wb, "장", ["구분", "직전 도면번호", "이번 도면번호", "공유 태그", "직전 태그 수", "이번 태그 수"])

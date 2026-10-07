@@ -75,19 +75,24 @@ def test_new_rows_take_the_next_number_and_deletions_never_give_theirs_back():
     reg = R.Registry()
     R.compare(base_rows(), reg, "Rev.A", compared_with="")
     first = {r["id"] for r in reg.data["ids"].values()}
-    # 하나 지우고 하나 더한다
+    # hotfix47 — 같은 도면에서 지우고 더하면 태그 변경인지 추가/삭제인지 도면이 가르지 않아
+    # 전부 '수정' 이 된다.  번호 규칙은 그래서 **지우는 리비전과 더하는 리비전을 갈라** 잰다.
     rows = [r for r in base_rows() if r["key"] != "a"]
-    rows.append(row("new", "D00P-10LBA10-M05-0001", "PI", 900, 900, tag_no="10LBA10CP004"))
     out = R.compare(rows, reg, "Rev.B", compared_with="Rev.A")
-    added = [s["id"] for s in out["states"].values() if s["state"] == R.ADDED]
-    assert added == ["10LBA10-004"], added         # 003 다음이지 001 재사용이 아니다
+    assert out["counts"][R.DELETED_CANDIDATE] == 1 and out["counts"][R.ADDED] == 0
+    # 사라진 CP001 의 기록은 확정 전이라 장부에 살아 있고, 새 LIT 가 같은 도면에 서면 그 둘이
+    # "새 태그 + 사라진 태그" 라 변경으로만 표기된다 (TYPE 이 달라 잇지는 않는다) — 새 행은 새 번호
+    rows.append(row("new", "D00P-10LBA10-M05-0001", "LIT", 900, 900, tag_no="10LBA10CL004"))
+    out = R.compare(rows, reg, "Rev.C", compared_with="Rev.B")
+    st = out["states"]["new"]
+    assert st["state"] == R.MODIFIED and st["basis"] == R.BASIS_AMBIGUOUS
+    assert st["id"] == "10LBA10-004", st           # 003 다음이지 001 재사용이 아니다
     assert first <= set(reg.data["ids"])           # 옛 ID 는 그대로 남는다
-    assert out["counts"][R.DELETED_CANDIDATE] == 1
 
 
-def test_a_changed_tag_is_a_deletion_plus_an_addition_but_a_move_or_a_value_is_nothing():
-    """hotfix43 — 위치 변경·값 차이는 기록만 한다.  hotfix46 — 태그가 달라진 심볼은 같은
-    항목이라는 것을 도면이 말하지 않았으므로 **삭제 후보 + 추가**다 (위치로 잇지 않는다)."""
+def test_a_changed_tag_is_a_modification_but_a_move_or_a_value_is_nothing():
+    """hotfix43 — 위치 변경·값 차이는 기록만 한다.  hotfix47 — 같은 도면에서 TIT 하나가 사라지고
+    TIT 하나가 새로 섰으면 태그가 바뀐 한 항목으로 잇는다 (유일한 같은 TYPE 끼리 · 위치 아님)."""
     reg = R.Registry()
     R.compare(base_rows(), reg, "Rev.A", compared_with="")
     rows = base_rows()
@@ -100,9 +105,11 @@ def test_a_changed_tag_is_a_deletion_plus_an_addition_but_a_move_or_a_value_is_n
     assert out["states"]["a"]["field_diffs"][0]["field"] == "description"   # 기록은 남는다
     assert out["states"]["b"]["state"] == R.UNCHANGED
     assert out["states"]["b"]["moved_pt"] > 0       # 기록은 남는다
-    assert out["states"]["c"]["state"] == R.ADDED and out["states"]["c"]["basis"] == "TAG"
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["10LBA10CT001"]
-    assert out["counts"][R.MODIFIED] == 0
+    c = out["states"]["c"]
+    assert c["state"] == R.MODIFIED and c["basis"] == R.BASIS_TYPE and c["id"] == "10LBA10-002"
+    assert c["changed"] == [{"field": "tag_no", "was": "10LBA10CT001", "now": "10LBA10CT009"}]
+    assert out["deleted_candidates"] == []
+    assert out["counts"][R.MODIFIED] == 1 and out["counts"][R.ADDED] == 0
 
 
 def test_a_deleted_candidate_carries_the_evidence_a_person_needs():

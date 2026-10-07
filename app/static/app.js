@@ -1366,7 +1366,9 @@ function renderRevLabel() {
   const c = S.rev.counts || {};
   const bits = [];
   if (c.ADDED) bits.push(`추가 ${c.ADDED}`);
-  if (c.MODIFIED) bits.push(`수정 ${c.MODIFIED}`);
+  // hotfix47 — 같은 도면에 짝 없는 태그가 양쪽에 남은 것은 전부 '수정' 이다 (태그 변경인지
+  // 추가/삭제인지 도면이 가르지 않는다).  사라진 태그 쪽은 '이전 태그' 로 따로 센다.
+  if (c.MODIFIED || c.MODIFIED_BEFORE) bits.push(`수정 ${c.MODIFIED || 0}` + (c.MODIFIED_BEFORE ? ` (+ 이전 태그 ${c.MODIFIED_BEFORE})` : ""));
   if (c.DELETED_CANDIDATE) bits.push(`삭제 후보 ${c.DELETED_CANDIDATE}`);
   if (c.DELETED) bits.push(`삭제 확정 ${c.DELETED}`);
   // hotfix38 — 짝을 태그로 지은 행 수.  태그가 있는 문서에서 이 수가 곧 대조의
@@ -1388,7 +1390,8 @@ function renderRevLabel() {
   el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
   el.title = S.rev.compared_with
     ? `${S.rev.compared_with} 와 비교한 결과입니다.  짝은 같은 TYPE 의 같은 태그로만 — 위치로는 비교하지 않습니다.  `
-      + `추가 = 이번에 새로 선 태그, 삭제 후보 = 직전 리비전에 있었는데 이번에 없는 태그 (사람이 확정합니다).  `
+      + `추가 = 이번에 새로 선 태그(그 도면에서 사라진 태그가 없을 때), 삭제 후보 = 직전 리비전에 있었는데 이번에 없는 태그(그 도면에 새 태그가 없을 때 · 사람이 확정합니다).  `
+      + `같은 도면에 새 태그와 사라진 태그가 함께 있으면 태그 변경인지 추가/삭제인지 도면이 가르지 않으므로 전부 '수정' 으로만 표기합니다.  `
       + `목록의 '개정' 열과 개정 필터로 좁힐 수 있습니다.`
       + ((sh.renumbered || []).map(e => `\n도면번호 바뀐 장: ${e.before} → ${e.now} (태그 ${e.shared}개 공유)`).join(""))
       + ((sh.only_now || []).length ? `\n새 장: ${sh.only_now.join(", ")}` : "")
@@ -1499,7 +1502,7 @@ async function recompare(jobId, against) {
   const page = want && S.pages.find(p => p.drawing_no === want);
   if (page) showPage(page);
   const c = out.counts || {};
-  editNotice(`대조를 다시 했습니다 — 추가 ${c.ADDED || 0} · 수정 ${c.MODIFIED || 0} · 삭제 후보 ${c.DELETED_CANDIDATE || 0}`);
+  editNotice(`대조를 다시 했습니다 — 추가 ${c.ADDED || 0} · 수정 ${c.MODIFIED || 0}${c.MODIFIED_BEFORE ? ` (+ 이전 태그 ${c.MODIFIED_BEFORE})` : ""} · 삭제 후보 ${c.DELETED_CANDIDATE || 0}`);
 }
 
 async function switchView(jobId) {
@@ -1599,6 +1602,14 @@ function tagChange(rev, side) {
   return c ? (c[side] || "") : "";
 }
 
+/* hotfix47 — 짝 없는 기록의 상태 하나.  서버 payload 의 `state`(MODIFIED = 같은 도면에 새 태그가
+ * 서서 변경으로만 표기 · 없으면 삭제 후보) 와 `confirmed` 를 읽는다.  옛 대조는 `state` 가 없다. */
+function delState(d) {
+  if (!d) return "";
+  if (d.confirmed) return "DELETED";
+  return d.state === "MODIFIED" ? "MODIFIED" : "DELETED_CANDIDATE";
+}
+
 function pageChanges(page, dels, prev) {
   const out = [];
   for (const r of S.rows || []) {
@@ -1614,7 +1625,8 @@ function pageChanges(page, dels, prev) {
                tagWas: tagChange(r.rev, "was"), tagNow: tagChange(r.rev, "now") });
   }
   for (const d of dels || []) {
-    out.push({ state: d.confirmed ? "DELETED" : "DELETED_CANDIDATE", key: `del:${d.id}`, del: d,
+    // hotfix47 — 같은 도면에 새 태그가 선 기록은 삭제 후보가 아니라 '수정 (이전 태그)' 다
+    out.push({ state: delState(d), key: `del:${d.id}`, del: d,
                anchor: d.anchor, label: `${d.type || ""} ${d.tag_no || ""}`.trim() });
   }
   const order = { ADDED: 0, MODIFIED: 1, DELETED_CANDIDATE: 2, DELETED: 2 };
@@ -1737,11 +1749,11 @@ function drawCmpOverlay(page, dels, changes) {
   const area = r => Math.abs((r[2] - r[0]) * (r[3] - r[1]));
   items.sort((a, b) => area(b.rect) - area(a.rect));
   const inside = (r, x, y) => r && x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
-  const gone = new Set();
+  const gone = new Set(), goneMod = new Set();
   for (const d of dels || []) {
     const [ax, ay] = d.anchor || [];
     const hit = items.filter(it => inside(it.rect, ax, ay)).sort((a, b) => area(a.rect) - area(b.rect))[0];
-    if (hit) gone.add(hit.key);
+    if (hit) { gone.add(hit.key); if (delState(d) === "MODIFIED") goneMod.add(hit.key); }
   }
   for (const it of items) {
     const [x0, y0, x1, y1] = it.rect;
@@ -1754,7 +1766,7 @@ function drawCmpOverlay(page, dels, changes) {
     r.setAttribute("stroke", SCOPE_COLOR[it.scope || "INCLUDED"] || "#8e8e93");
     const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
     tip.textContent = `${it.label || ""} · ${it.tab || ""} · 분석 때 층 ${it.scope || "INCLUDED"}`
-      + (gone.has(it.key) ? " · 이번 분석에서 짝이 없는 삭제 후보" : "");
+      + (gone.has(it.key) ? (goneMod.has(it.key) ? " · 이번 분석에 이 태그가 없음 — 같은 도면에 새 태그가 서서 '수정 (이전 태그)'" : " · 이번 분석에서 짝이 없는 삭제 후보") : "");
     r.appendChild(tip);
     ov.appendChild(r);
   }
@@ -1800,21 +1812,25 @@ function drawCmpOverlay(page, dels, changes) {
     const hit = items.filter(it => inside(it.rect, ax, ay)).sort((a, b) => area(a.rect) - area(b.rect))[0];
     const h = hit ? (hit.rect[3] - hit.rect[1]) * scale : 24;
     const rad = Math.max(6, h * 0.22);
+    const stt = delState(d);
+    // hotfix47 — 같은 도면에 새 태그가 선 기록은 삭제가 아니라 **변경** — 초록 MOD 고리로
+    // (붉은 ✕ 는 삭제 후보·확정에만).  판정은 서버 payload 의 `state` 그대로.
+    const isMod = stt === "MODIFIED";
     const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     const px = hit ? hit.rect[2] * scale : cx, py = hit ? hit.rect[1] * scale : cy;
     dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("r", rad);
-    dot.setAttribute("class", "delmark");
+    dot.setAttribute("class", isMod ? "modmark" : "delmark");
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t.setAttribute("x", px); t.setAttribute("y", py); t.setAttribute("font-size", rad * 1.5);
-    t.setAttribute("class", "delmark-t"); t.textContent = "✕";
+    t.setAttribute("class", isMod ? "modmark-t" : "delmark-t"); t.textContent = isMod ? "≠" : "✕";
     const tag = document.createElementNS("http://www.w3.org/2000/svg", "text");
     tag.setAttribute("x", (hit ? hit.rect[0] * scale : cx - rad)); tag.setAttribute("y", (hit ? hit.rect[1] * scale : cy) - 3);
-    tag.setAttribute("font-size", Math.max(9, rad * 1.6)); tag.setAttribute("class", "deltag");
-    tag.textContent = d.confirmed ? "DEL" : "DEL?";
+    tag.setAttribute("font-size", Math.max(9, rad * 1.6)); tag.setAttribute("class", isMod ? "cmp-modtag" : "deltag");
+    tag.textContent = isMod ? "MOD" : (d.confirmed ? "DEL" : "DEL?");
     const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
     tip.textContent = deletedRemark(d, (S.rev || {}).compared_with || "") + (d.type ? ` · ${d.type}` : "") + (d.tag_no ? ` ${d.tag_no}` : "");
     dot.appendChild(tip);
-    for (const el of [dot, t]) el.onclick = (ev) => { ev.stopPropagation(); focusChange((S.cmpChanges || []).find(c => c.key === `del:${d.id}`) || { state: "DELETED_CANDIDATE", key: `del:${d.id}`, anchor: d.anchor, del: d }); };
+    for (const el of [dot, t]) el.onclick = (ev) => { ev.stopPropagation(); focusChange((S.cmpChanges || []).find(c => c.key === `del:${d.id}`) || { state: stt, key: `del:${d.id}`, anchor: d.anchor, del: d }); };
     ov.appendChild(dot); ov.appendChild(t); ov.appendChild(tag);
   }
 }
@@ -1836,7 +1852,13 @@ function renderCmpChanges(changes, n) {
     + `<button type="button" class="ghost mini" data-step="1" title="다음 변경으로 (Alt+→)">▶</button></div>`
     + `<div class="cmp-ch-list">` + changes.map((c, i) => {
         const [g, cls] = mark[c.state];
-        const why = c.state === "MODIFIED" ? `태그 ${c.tagWas || "(없음)"} → ${c.tagNow || "(없음)"}`
+        // hotfix47 — 수정은 셋: 태그가 바뀐 짝(전 → 후) · 짝 없이 변경으로만 표기한 새 태그 ·
+        // 같은 도면에 새 태그가 서서 변경으로만 표기한 이전 태그(기록)
+        const why = c.state === "MODIFIED"
+          ? (c.del ? `이전 태그 — 이번 분석에 없음 (같은 도면에 새 태그 ${(c.del.tag_candidates || []).length}개 · 태그 변경인지 삭제인지 도면이 가르지 않음)`
+             : ((c.row && (c.row.rev || {}).basis === "AMBIGUOUS")
+                ? "태그 변경 또는 추가 — 같은 도면에서 사라진 태그가 있어 도면이 가르지 않음"
+                : `태그 ${c.tagWas || "(없음)"} → ${c.tagNow || "(없음)"}`))
           : c.state === "ADDED" ? "이전엔 없음"
           : (c.del && c.del.confirmed ? "삭제 확정" : "삭제 후보");
         return `<button type="button" class="cmp-ch ${cls}" data-i="${i}" title="${escape(why)}"><span class="g">${g}</span>${escape(c.label || c.key)}<span class="muted"> ${escape(why)}</span></button>`;
@@ -1855,9 +1877,10 @@ function focusChange(c, idx) {
   if (idx === undefined) idx = (S.cmpChanges || []).indexOf(c);
   S.cmpIdx = idx;
   document.querySelectorAll("#cmp-changes button.cmp-ch").forEach((b, i) => b.classList.toggle("on", i === idx));
-  if (c.state === "ADDED" || c.state === "MODIFIED") {
+  if (!c.del) {
     select(c.key, true);
   } else {
+    // 기록(이전 태그 · 삭제 후보)은 왼쪽에 자리가 없다 — 오른쪽을 이전 자리로
     const [ax, ay] = c.anchor || [];
     if (ax !== undefined && S.cmpNatural && S.cmpPage) {
       if (S.zoom < SYMBOL_ZOOM) { S.zoom = SYMBOL_ZOOM; applyZoom(); }
@@ -1915,9 +1938,14 @@ function cmpSyncScroll(from) {
 function showDeletedEvidence(d) {
   // 근거 셋을 맨 위에 둔다.  패널이 232px 이라 아래로 밀리면 스크롤해야 보이고,
   // 정작 판단에 쓰는 값이 그 셋이다.
+  const isMod = delState(d) === "MODIFIED";
   const rows = [
     ["상태", d.confirmed ? "삭제 확정 — 산출물에 취소선으로 나갑니다"
-      : "삭제 후보 — 확정 전에는 산출물에 나가지 않습니다"],
+      : (isMod ? "수정 (이전 태그) — 같은 도면에 새 태그가 서서 삭제 후보가 아니라 변경으로 표기 · 산출물에 나가지 않습니다"
+         : "삭제 후보 — 확정 전에는 산출물에 나가지 않습니다")],
+    // hotfix47 — 같은 도면의 새 태그.  이 기록의 태그가 그중 하나로 바뀐 것일 수 있다 — 고르지 않는다
+    ...(isMod ? [["같은 도면의 새 태그", (d.tag_candidates || []).join(", ") || "(없음)"]] : []),
+    ...(isMod && (d.same_tag_now || []).length ? [["같은 태그의 이번 표기", `${d.same_tag_now.join("/")} — 표기(abbreviation)가 바뀐 것일 수 있습니다 · 고르지 않습니다`]] : []),
     // hotfix38 — 태그가 있던 기록이면 그 태그가 이번 분석 어디에도 없는지(또는
     // 다른 도면에 섰는지)가 첫 근거다.  좌표·반경은 태그 없는 기록의 근거다.
     ...(d.tag_no ? [["태그", `${d.tag_no} — ${(d.tag_elsewhere || []).length
@@ -1934,10 +1962,14 @@ function showDeletedEvidence(d) {
     ["직전 Description", d.description || "(없음)"],
   ];
   $("#evidence").innerHTML =
-    `<div class="ev-head"><h3>삭제 후보 — ${escape(d.id)}</h3></div>`
-    + `<p class="muted">이번 분석에 이 태그(같은 TYPE)가 없습니다. 도면에서 지워진 것인지,`
-    + ` 이번에 못 뽑은 것인지는 기계가 가르지 못합니다 — 아래 근거를 보고`
-    + ` 확정하세요.</p>`
+    `<div class="ev-head"><h3>${isMod ? "수정 (이전 태그)" : "삭제 후보"} — ${escape(d.id)}</h3></div>`
+    + (isMod
+       ? `<p class="muted">이번 분석에 이 태그(같은 TYPE)가 없는데 같은 도면에 새 태그가 섰습니다.`
+         + ` 태그가 바뀐 것인지 지워지고 새로 선 것인지 도면이 가르지 않아 변경으로만 표기합니다 —`
+         + ` 삭제였다면 '삭제 확정' 으로 굳히세요.</p>`
+       : `<p class="muted">이번 분석에 이 태그(같은 TYPE)가 없습니다. 도면에서 지워진 것인지,`
+         + ` 이번에 못 뽑은 것인지는 기계가 가르지 못합니다 — 아래 근거를 보고`
+         + ` 확정하세요.</p>`)
     + "<dl>" + rows.map(([k, v]) =>
       `<dt>${escape(k)}</dt><dd>${escape(String(v))}</dd>`).join("") + "</dl>";
 }
@@ -1977,6 +2009,12 @@ function renderDeletedCandidates() {
 /* hotfix38 — 삭제 행 Remark 한 줄.  Excel 의 `revision_remark` 와 같은 낱말을 쓴다. */
 function deletedRemark(d, against) {
   const vs = against ? `${against} 대비 ` : "";
+  // hotfix47 — 같은 도면에 새 태그가 선 기록은 '수정 (이전 태그)' (Excel 변경 내역과 같은 낱말)
+  if (!d.confirmed && delState(d) === "MODIFIED") {
+    const nt = d.tag_candidates || [];
+    return `${vs}수정 (이전 태그) · 태그 ${d.tag_no} 가 이번 분석에 없고 같은 도면에 새 태그 ${nt.length}개(${nt.join(", ")})가 섰습니다 — 태그 변경인지 삭제인지 도면이 가르지 않아 수정으로만 표기`
+      + ((d.same_tag_now || []).length ? ` · 같은 태그가 이번에는 ${d.same_tag_now.join("/")} 로 섰습니다 (표기가 바뀐 것일 수 있음)` : "");
+  }
   const head = d.confirmed ? `${vs}삭제 (확정)` : `${vs}삭제 후보 — 확정 전`;
   const why = d.tag_no
     ? ((d.tag_elsewhere || []).length
@@ -2023,7 +2061,7 @@ async function loadRows() {
     ai: {}, user: {}, evidence: {}, needs_review: "", annotation: "",
     conflict: {}, deleted: true, added: false, removed: false,
     review_codes: [], review_state: {},
-    rev: { id: d.id, state: d.confirmed ? "DELETED" : "DELETED_CANDIDATE" },
+    rev: { id: d.id, state: delState(d), role: "before" },
     delCand: d,
   }));
   S.counts = { ALL: S.rows.length, REVIEW: 0 };
@@ -2747,7 +2785,10 @@ const BLANK = "\u0000blank";        // the '(공란)' choice, kept out of value 
 const REV_STATE_KO = { ADDED: "추가", MODIFIED: "수정",
                        DELETED_CANDIDATE: "삭제 후보", DELETED: "삭제 확정" };
 function revLabel(row) {
-  return REV_STATE_KO[((row || {}).rev || {}).state] || "";
+  const rv = (row || {}).rev || {};
+  // hotfix47 — 기록 쪽의 '수정' 은 이전 태그다 (이번 분석에 그 태그가 없다)
+  if (rv.state === "MODIFIED" && rv.role === "before") return "수정 (이전 태그)";
+  return REV_STATE_KO[rv.state] || "";
 }
 
 function cellValue(row, key) {
@@ -2990,7 +3031,9 @@ function renderGrid() {
   // "표시 N / 전체 M" the moment anything is narrowing the grid, because a bare
   // row count next to a filtered table reads as the size of the job.
   const nDel = (S.deletedRows || []).length;
-  const tail = nDel ? ` (+ 삭제 후보 ${nDel})` : "";
+  // hotfix47 — 기록 행은 삭제 후보와 '이전 태그(수정)' 둘이다
+  const nBefore = (S.deletedRows || []).filter(r => (r.rev || {}).state === "MODIFIED").length;
+  const tail = nDel ? ` (+ ${nBefore ? `이전 태그 ${nBefore}${nDel - nBefore ? " · " : ""}` : ""}${nDel - nBefore ? `삭제 후보 ${nDel - nBefore}` : ""})` : "";
   $("#count").textContent = (rows.length === S.rows.length + nDel
     ? `${S.rows.length}행`
     : `표시 ${rows.length} / 전체 ${S.rows.length}`) + tail;
@@ -3065,8 +3108,8 @@ function renderGrid() {
       b.className = "mini-rep del-confirm";
       b.textContent = r.delCand.confirmed ? "확정 취소" : "삭제 확정";
       b.title = deletedRemark(r.delCand, (S.rev || {}).compared_with || "")
-        + ` · Rev 좌표 (${r.delCand.anchor.join(", ")}) · 반경 `
-        + `${r.delCand.radius}pt (${r.delCand.radius_source})`;
+        + ` · Rev 좌표 (${(r.delCand.anchor || []).join(", ")})`
+        + (r.delCand.radius ? ` · 반경 ${r.delCand.radius}pt (${r.delCand.radius_source}) — 옛 대조` : "");
       b.onclick = async (ev) => {
         ev.stopPropagation();
         await fetch(`/jobs/${S.job.id}/deleted/`
@@ -3897,9 +3940,13 @@ function showEvidence(row) {
     const vs = (S.rev || {}).compared_with || "직전 리비전";
     add("개정 상태", `${revLabel(row)} — ${vs} 대비` + (rv.id ? ` · 안정 ID ${rv.id}` : ""));
     if (rv.sheet_renumbered_from) add("도면번호 바뀐 장", `${rv.sheet_renumbered_from} → 이 장 (태그로 같은 장임을 확인)`);
-    if (rv.reason) add("추가 근거", rv.reason);
-    if (rv.state === "MODIFIED") {
+    if (rv.reason) add(rv.state === "ADDED" ? "추가 근거" : "근거", rv.reason);
+    if (rv.state === "MODIFIED" && rv.basis === "AMBIGUOUS") {
+      // hotfix47 — 짝 없이 변경으로만 표기한 행.  전 → 후를 지어내지 않는다.
+      add("짝 근거", "없음 — 같은 도면에 새 태그와 사라진 태그가 함께 있어 태그 변경인지 추가인지 도면이 가르지 않음 (위치로는 비교하지 않음)");
+    } else if (rv.state === "MODIFIED") {
       add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
+        : rv.basis === "TYPE" ? "같은 도면의 유일한 같은 TYPE 끼리 (태그가 바뀐 한 항목 · 위치는 보지 않음)"
         : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동) — hotfix46 이전 대조 (위치로는 더 비교하지 않습니다 · '대조 다시')`);
       add("바뀐 태그", (rv.changed || []).map(c =>
         `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "(기록 없음)");
@@ -4809,7 +4856,8 @@ function buildPageSelect() {
     const byDwg = {}; for (const p of S.pages) if (p.drawing_no) byDwg[p.drawing_no] = p.page_no;
     for (const d of S.rev.deleted_candidates || []) {
       const pn = byDwg[d.drawing_no]; if (!pn) continue;
-      (ch[pn] = ch[pn] || { a: 0, m: 0, d: 0 }).d++;
+      // hotfix47 — 이전 태그(수정)는 ≠ 에, 삭제 후보·확정은 － 에
+      (ch[pn] = ch[pn] || { a: 0, m: 0, d: 0 })[delState(d) === "MODIFIED" ? "m" : "d"]++;
     }
   }
   for (const p of S.pages) {
@@ -5521,7 +5569,8 @@ function drawOverlay() {
       tt.textContent = rev === "ADDED"
         ? `${(S.rev || {}).compared_with || "직전 리비전"} 대비 추가` + (st.reason ? ` — ${st.reason}` : "")
         : `${(S.rev || {}).compared_with || "직전 리비전"} 대비 수정 — `
-          + ((st.changed || []).map(c => `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "태그 변경");
+          + (st.basis === "AMBIGUOUS" ? (st.reason || "태그 변경 또는 추가 — 도면이 가르지 않음")
+             : ((st.changed || []).map(c => `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "태그 변경"));
       tag.appendChild(tt);
       ov.appendChild(tag);
     }

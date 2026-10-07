@@ -292,6 +292,10 @@ def revision_remark(row: dict) -> str:
     if state == "ADDED":
         return f"{vs}추가"
     if state == "MODIFIED":
+        # hotfix47 — 같은 도면에 짝 없는 태그가 양쪽에 남아 태그 변경인지 추가/삭제인지
+        # 도면이 가르지 않은 행.  "수정" 으로만 적고 무엇과 바뀌었다고 지어내지 않는다.
+        if rev.get("basis") == "AMBIGUOUS":
+            return f"{vs}수정 (태그 변경 또는 추가 — 같은 도면에서 사라진 태그가 있어 도면이 가르지 않음)"
         # hotfix43 — 수정은 태그가 달라진 것뿐이다.  바뀐 태그를 전 → 후로 적는다
         # (옛 분석의 다른 칸 이름은 그대로 이름만 적는다).
         bits = []

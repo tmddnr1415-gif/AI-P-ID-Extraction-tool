@@ -58,6 +58,12 @@ DELETED = "DELETED"
 # hotfix46 — 대조하지 않은 행.  태그가 없어(또는 입찰 프로젝트라) 짝지을 열쇠가 없는 행 —
 # 추가도 삭제도 아니다.  위치로는 비교하지 않는다 (사용자 확정).
 NOT_COMPARED = "NOT_COMPARED"
+# hotfix47 — 짝의 근거.  TAG = 같은 (TYPE, 태그) · TYPE = 같은 도면에서 그 TYPE 의 짝 없는
+# 행과 기록이 **하나씩**이라 태그가 바뀐 것으로 이은 짝 · AMBIGUOUS = 같은 도면에 짝 없는
+# 태그가 양쪽에 남아 태그 변경인지 추가/삭제인지 도면이 가르지 않는 것 (변경으로만 표기).
+BASIS_TAG = "TAG"
+BASIS_TYPE = "TYPE"
+BASIS_AMBIGUOUS = "AMBIGUOUS"
 
 # 도면번호에서 KKS 계통코드를 떼는 자리.  `D00P-10LBA10-M05-0001` 의 두 번째
 # 하이픈 구획이 그것이다.  형식이 다른 문서에서는 조용히 실패하지 않고
@@ -444,11 +450,16 @@ def compare(rows: list, registry: "Registry", revision: str,
         # 어느 길로 짝지었는지 · 대조하지 않은 행 수 — 태그가 있는 문서에서 이 수가
         # 곧 "이 대조가 무엇을 덮는가" 다.  GEOMETRY 는 hotfix46 부터 언제나 0 이다.
         info["matched_by"] = {"TAG": len(how["basis"]), "GEOMETRY": 0, "NOT_COMPARED": 0}
+        dup_recs = set(how["tag_duplicates"]["recs"])
+        left_rows, left_recs, pairs, ambiguous = _leftovers(cur, recs, matched, back,
+                                                            dup_rows, dup_recs, compare_now)
+        info["ambiguous"] = ambiguous
+        info["type_pairs"] = len(pairs)
 
         for i, row in enumerate(cur):
             tag = str(row.get("tag_no") or "").strip()
-            if i in matched:
-                rec = recs[matched[i]]
+            if i in matched or i in pairs:
+                rec = recs[matched[i] if i in matched else pairs[i]]
                 state, changed, others = _revision_state(_changed_fields(row, rec))
                 was = rec.get("last_anchor") or rec["anchor"]
                 now = anchor(row)
@@ -457,7 +468,7 @@ def compare(rows: list, registry: "Registry", revision: str,
                                + (was[1] - now[1]) ** 2) ** 0.5, 2)
                 rec["last_anchor"] = [round(v, 2) for v in now]
                 rec["values"] = {f: row.get(f) for f in COMPARED_FIELDS}
-                basis = how["basis"].get(i, "TAG")
+                basis = how["basis"].get(i, BASIS_TAG) if i in matched else BASIS_TYPE
                 rec["history"].append({"revision": revision, "state": state,
                                        "row_key": row.get("key", ""),
                                        "moved_pt": moved, "changed": changed,
@@ -465,6 +476,14 @@ def compare(rows: list, registry: "Registry", revision: str,
                 states[row["key"]] = {"id": rec["id"], "state": state,
                                       "moved_pt": moved, "changed": changed,
                                       "field_diffs": others, "basis": basis}
+                if i in pairs:
+                    # hotfix47 — 같은 도면에서 그 TYPE 의 짝 없는 행·기록이 하나씩 — 태그가
+                    # 바뀐 한 항목으로 잇는다 (안정 ID 그대로).  위치는 보지 않았다.
+                    was_tag = next((c.get("was") for c in changed
+                                    if isinstance(c, dict) and c.get("field") == "tag_no"), "")
+                    states[row["key"]]["reason"] = (
+                        f"변경 — 같은 도면의 유일한 {row.get('type') or ''} 끼리 짝 "
+                        f"(태그 {was_tag or '(없음)'} → {tag or '(없음)'}) — 위치는 보지 않음")
                 if dwg in renamed:
                     states[row["key"]]["sheet_renumbered_from"] = renamed[dwg]
                 continue
@@ -487,8 +506,25 @@ def compare(rows: list, registry: "Registry", revision: str,
                 reason = (f"같은 태그 {tag} ({row.get('type') or ''}) 가 이 도면에 둘 이상 — "
                           f"어느 것인지 도면이 말하지 않아 대조하지 않음")
                 info["matched_by"]["NOT_COMPARED"] += 1
+            elif ambiguous:
+                # hotfix47 — 같은 도면에 짝 없는 태그가 양쪽에 남았다.  태그가 바뀐 것인지
+                # 지워지고 새로 선 것인지 도면이 가르지 않으므로 **변경(MOD)으로만** 표기한다
+                # (사용자: "태그 변경인지, 삭제 추가인지 확인이 어려우니 모두 MOD").
+                state, basis = MODIFIED, BASIS_AMBIGUOUS
+                gone = [str((recs[j].get("values") or {}).get("tag_no") or "")
+                        for j in left_recs if j not in pairs.values()]
+                # 같은 태그를 든 사라진 기록이 있으면(TYPE 만 다름) 그 사실도 적는다 — 표기
+                # (abbreviation)가 바뀐 것일 수 있다.  고르지는 않는다 (TYPE 이 다르면 다른 항목).
+                same = sorted({str(recs[j].get("type") or "") for j in left_recs
+                               if j not in pairs.values()
+                               and str((recs[j].get("values") or {}).get("tag_no") or "").strip() == tag})
+                reason = (f"변경 — 태그 {tag} ({row.get('type') or ''}) 는 {compared_with} 장부에 없고, "
+                          f"같은 도면에서 태그 {len(gone)}개가 사라졌습니다 ({', '.join(gone)}) — "
+                          f"태그 변경인지 추가인지 도면이 가르지 않아 변경으로만 표기"
+                          + (f" · 같은 태그가 {compared_with} 에서는 {'/'.join(same)} 로 있었습니다 (표기가 바뀐 것일 수 있음)"
+                             if same else ""))
             else:
-                state, basis = ADDED, "TAG"
+                state, basis = ADDED, BASIS_TAG
                 reason = f"태그 {tag} ({row.get('type') or ''}) 가 {compared_with} 장부에 없음"
             rec["history"][-1]["state"] = state
             states[row["key"]] = {"id": ident, "state": state, "changed": [],
@@ -498,16 +534,20 @@ def compare(rows: list, registry: "Registry", revision: str,
             continue
         # 삭제 후보 — **태그가 있던 기록**이 이번 분석에서 짝이 없을 때만.  태그 없던
         # 기록은 대조할 열쇠가 없으므로 삭제 후보가 아니다 (위치로는 비교하지 않는다).
-        dup_recs = set(how["tag_duplicates"]["recs"])
+        paired_recs = set(pairs.values())
+        new_tags = [str(cur[i].get("tag_no") or "").strip() for i in left_rows if i not in pairs]
         for j, rec in enumerate(recs):
-            if j in back:
+            if j in back or j in paired_recs:
                 continue
             tag = str((rec.get("values") or {}).get("tag_no") or "").strip()
             if not tag or _tag_key(rec.get("type"), tag) in dup_recs:
                 continue
             ax, ay = rec.get("last_anchor") or rec["anchor"]
-            rec["history"].append({"revision": revision,
-                                   "state": DELETED_CANDIDATE})
+            # hotfix47 — 같은 도면에 새 태그도 섰으면 삭제 후보가 아니라 **변경(이전 태그)** 다.
+            # 태그 변경인지 삭제인지 도면이 가르지 않는다.  사람이 '삭제로 확정' 할 수는 있다.
+            rec_state = MODIFIED if ambiguous else DELETED_CANDIDATE
+            rec["history"].append({"revision": revision, "state": rec_state,
+                                   **({"ambiguous": True} if ambiguous else {})})
             # 그 태그가 이번 분석의 **어디에도** 없는지를 적는다 — 다른 도면에 같은
             # 태그가 섰으면 삭제가 아니라 옮김일 수 있다.
             elsewhere = sorted({r.get("drawing_no", "") for r in rows
@@ -517,7 +557,16 @@ def compare(rows: list, registry: "Registry", revision: str,
                 "id": rec["id"], "drawing_no": dwg, "page_no": rec.get("page_no"),
                 "type": rec.get("type", ""), "description": rec.get("description", ""),
                 "tag_no": tag,
-                "basis": "TAG",
+                "basis": BASIS_AMBIGUOUS if ambiguous else BASIS_TAG,
+                "state": rec_state,
+                "ambiguous": ambiguous,
+                # 같은 도면에서 새로 선(짝 없는) 태그 — 이 기록의 태그가 그중 하나로 바뀐
+                # 것일 수 있다.  고르지 않고 목록으로만 둔다 (위치로 고르면 위치 비교다).
+                "tag_candidates": new_tags if ambiguous else [],
+                # 같은 태그를 든 새 행의 TYPE (표기만 바뀐 것일 수 있다 · 고르지 않는다)
+                "same_tag_now": sorted({str(cur[i].get("type") or "") for i in left_rows
+                                        if i not in pairs and str(cur[i].get("tag_no") or "").strip() == tag})
+                                if ambiguous else [],
                 "tag_elsewhere": elsewhere,
                 # 산출물에서 원래 자리와 원래 번호를 지키기 위해 함께 옮긴다
                 "tab": rec.get("tab") or "FIELD",
@@ -538,8 +587,50 @@ def compare(rows: list, registry: "Registry", revision: str,
                 UNCHANGED: sum(1 for s in states.values() if s["state"] == UNCHANGED),
                 BASELINE: sum(1 for s in states.values() if s["state"] == BASELINE),
                 NOT_COMPARED: sum(1 for s in states.values() if s["state"] == NOT_COMPARED),
-                DELETED_CANDIDATE: len(deleted),
+                DELETED_CANDIDATE: sum(1 for d in deleted if d["state"] == DELETED_CANDIDATE),
+                # hotfix47 — 변경(이전 태그): 짝 없는 기록인데 같은 도면에 새 태그가 서서
+                # 삭제 후보가 아니라 변경으로 표기한 것
+                "MODIFIED_BEFORE": sum(1 for d in deleted if d["state"] == MODIFIED),
             }}
+
+
+def _leftovers(cur: list, recs: list, matched: dict, back: dict,
+               dup_rows: set, dup_recs: set, compare_now: bool):
+    """hotfix47 — 한 도면에서 (TYPE, 태그)로 짝이 안 선 **태그 있는** 행·기록.
+
+    둘 다 남아 있으면 이 도면은 `ambiguous` 다 — 태그가 바뀐 것인지, 지워지고 새로 선
+    것인지 도면이 가르지 않는다 (사용자: *"tag 변경인지, 삭제 추가인지 확인이 어려우니
+    이런 사항들은 모두 MOD 로 변경으로만 표기한다"*).  한쪽만 남으면 뜻이 하나뿐이라
+    (사라진 태그가 없는데 새 태그 = 추가 · 새 태그가 없는데 사라진 태그 = 삭제 후보)
+    예전 그대로다.
+
+    `pairs` 는 그 도면에서 **같은 TYPE 의 짝 없는 행과 기록이 정확히 하나씩**일 때만
+    잇는다 — 태그가 바뀐 한 항목(안정 ID 유지).  둘 이상이면 어느 것이 어느 것인지
+    도면이 말하지 않으므로 잇지 않는다.  **위치는 어디서도 보지 않는다.**
+    """
+    if not compare_now:
+        return [], [], {}, False
+    left_rows = [i for i, r in enumerate(cur)
+                 if i not in matched and str(r.get("tag_no") or "").strip()
+                 and _tag_key(r.get("type"), str(r.get("tag_no") or "").strip()) not in dup_rows]
+    left_recs = [j for j, rec in enumerate(recs)
+                 if j not in back and str((rec.get("values") or {}).get("tag_no") or "").strip()
+                 and _tag_key(rec.get("type"), str((rec.get("values") or {}).get("tag_no") or "").strip())
+                 not in dup_recs]
+    ambiguous = bool(left_rows) and bool(left_recs)
+    pairs: dict[int, int] = {}
+    if ambiguous:
+        by_type_rows: dict[str, list] = {}
+        by_type_recs: dict[str, list] = {}
+        for i in left_rows:
+            by_type_rows.setdefault(str(cur[i].get("type") or ""), []).append(i)
+        for j in left_recs:
+            by_type_recs.setdefault(str(recs[j].get("type") or ""), []).append(j)
+        for t, ii in by_type_rows.items():
+            jj = by_type_recs.get(t) or []
+            if len(ii) == 1 and len(jj) == 1:
+                pairs[ii[0]] = jj[0]
+    return left_rows, left_recs, pairs, ambiguous
 
 
 # --------------------------------------------------------------------------

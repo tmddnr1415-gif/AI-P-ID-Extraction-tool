@@ -6,7 +6,9 @@
 지키는 규칙 (hotfix46 — 위치로는 비교하지 않는다):
   · 태그가 유일하면 태그로 짝짓고 거리는 보지 않는다 (옮겨도 같은 항목).
   · 같은 태그가 둘 이상이면 어느 것이 어느 것인지 도면이 말하지 않으므로 **대조하지 않는다**.
-  · 둘 다 태그가 있는데 다르면 가까워도 짝이 아니다 — 삭제 후보 + 추가.
+  · 둘 다 태그가 있는데 다르면 가까워도 **태그 짝**은 아니다.  hotfix47 — 같은 도면에 새 태그와
+    사라진 태그가 함께 남으면 태그 변경인지 추가/삭제인지 도면이 가르지 않아 전부 '수정' 이다
+    (같은 TYPE 이 하나씩이면 태그가 바뀐 한 항목으로 잇고, 아니면 짝 없이 수정으로만 표기).
   · 태그 없는 행은 대조하지 않는다 (NOT_COMPARED — 추가도 삭제도 아니다).
   · 근거(basis · reason · tag_elsewhere)는 결과에 그대로 실린다.
 """
@@ -77,18 +79,19 @@ def test_duplicate_tags_are_not_compared_and_say_so():
     assert out["deleted_candidates"] == []          # 겹친 태그의 옛 기록도 삭제 후보가 아니다
 
 
-def test_a_different_tag_at_the_same_spot_is_a_deletion_plus_an_addition():
-    """같은 좌표의 같은 심볼에 번호만 다시 매긴 것 (QFE `00GHC36CF001` → `10GHC42CF101`).
-    hotfix38 은 자리로 이어 '수정' 이라 했지만 hotfix46 부터 위치로 잇지 않는다 — 도면이
-    같은 항목이라고 말한 것이 아니므로 **삭제 후보 + 추가**다."""
+def test_a_different_tag_on_the_only_symbol_of_its_type_is_a_modification():
+    """같은 심볼에 번호만 다시 매긴 것 (QFE `00GHC36CF001` → `10GHC42CF101`).  hotfix46 은
+    위치로 잇지 않아 삭제 후보 + 추가였고, hotfix47 은 **같은 도면의 유일한 PIT 끼리** 태그가
+    바뀐 한 항목으로 잇는다 — 자리가 아니라 "그 TYPE 이 하나씩 남았다" 가 근거다."""
     a = [row("a", "PIT", 100, 100, "11LBB50CP001")]
-    b = [row("b", "PIT", 101, 100, "11LBB50CP009")]
+    b = [row("b", "PIT", 900, 900, "11LBB50CP009")]        # 자리는 멀어도 같다
     out, reg = _ab(a, b)
     st = out["states"]["b"]
-    assert st["state"] == R.ADDED and st["basis"] == "TAG"
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
-    assert len(reg.data["ids"]) == 2
-    assert out["radii"][DWG]["tag_changed"] == []
+    assert st["state"] == R.MODIFIED and st["basis"] == R.BASIS_TYPE
+    assert st["changed"] == [{"field": "tag_no", "was": "11LBB50CP001", "now": "11LBB50CP009"}]
+    assert out["deleted_candidates"] == []
+    assert len(reg.data["ids"]) == 1
+    assert out["radii"][DWG]["ambiguous"] is True and out["radii"][DWG]["type_pairs"] == 1
 
 
 def test_a_tag_pair_that_agrees_is_the_only_pair():
@@ -101,8 +104,9 @@ def test_a_tag_pair_that_agrees_is_the_only_pair():
     out, _ = _ab(a, b)
     assert out["states"]["b1"]["state"] == R.UNCHANGED and out["states"]["b1"]["basis"] == "TAG"
     assert out["states"]["b1"]["moved_pt"] == 30.0      # 기록만
-    assert out["states"]["b2"]["state"] == R.ADDED
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
+    # hotfix47 — CP001 이 사라지고 CP003 이 섰다: 같은 도면의 유일한 PIT 끼리라 태그가 바뀐 한 항목
+    assert out["states"]["b2"]["state"] == R.MODIFIED and out["states"]["b2"]["basis"] == R.BASIS_TYPE
+    assert out["deleted_candidates"] == []
 
 
 def test_a_renumbered_sheet_is_recognised_by_its_tags_and_keeps_its_ids():
@@ -117,12 +121,13 @@ def test_a_renumbered_sheet_is_recognised_by_its_tags_and_keeps_its_ids():
                                            "before_tags": 5, "now_tags": 5}]
     assert out["sheets"]["only_before"] == [] and out["sheets"]["only_now"] == []
     st = {k: v["state"] for k, v in out["states"].items()}
+    # hotfix47 — CP004 가 사라지고 CP009 가 섰다 (유일한 PIT 끼리) → 태그가 바뀐 한 항목
     assert st == {"b0": R.UNCHANGED, "b1": R.UNCHANGED, "b2": R.UNCHANGED,
-                  "b3": R.UNCHANGED, "b9": R.ADDED}
-    assert all(v.get("sheet_renumbered_from") == old for k, v in out["states"].items() if k != "b9")
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["31GKC20CP004"]
+                  "b3": R.UNCHANGED, "b9": R.MODIFIED}
+    assert all(v.get("sheet_renumbered_from") == old for k, v in out["states"].items())
+    assert out["deleted_candidates"] == []
     recs = [r for r in reg.data["ids"].values() if r["drawing_no"] == new]
-    assert len(recs) == 6 and all(r["id"].startswith("30GKC10-") for r in recs)
+    assert len(recs) == 5 and all(r["id"].startswith("30GKC10-") for r in recs)
     assert recs[0]["renumbered"] == [{"revision": "Rev.B", "from": old, "to": new}]
 
 
@@ -231,11 +236,12 @@ def test_a_recompare_starts_from_the_registry_as_it_was_before_that_revision(tmp
         results.append(({k: v["state"] for k, v in out["states"].items()},
                         sorted(d["id"] for d in out["deleted_candidates"])))
     assert results[0] == results[1]
-    assert results[0][0]["n"] == R.ADDED          # 두 번째에도 "추가" 다
-    # 사본 없이 이어 대조하면 직전 대조의 ID 가 살아 있어 "추가" 가 사라진다 (옛 결함)
+    # hotfix47 — TIT 하나가 사라지고 TIT 하나가 섰다 → 태그가 바뀐 한 항목(수정).  두 번째에도 같다
+    assert results[0][0]["n"] == R.MODIFIED
+    # 사본 없이 이어 대조하면 직전 대조가 장부에 적은 새 태그가 살아 있어 "변경 없음" 이 된다 (옛 결함)
     reg = R.Registry.load(reg_path)
     out = R.compare(base_rows_b(), reg, "Rev.B", compared_with="Rev.A")
-    assert out["states"]["n"]["state"] != R.ADDED
+    assert out["states"]["n"]["state"] == R.UNCHANGED
 
 
 def base_rows_a():

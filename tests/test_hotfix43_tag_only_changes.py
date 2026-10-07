@@ -53,14 +53,14 @@ def test_a_move_alone_is_never_a_modification_even_far_inside_the_radius():
     assert st["state"] == R.UNCHANGED and st["moved_pt"] > 15 and st["changed"] == []
 
 
-def test_a_tag_change_on_the_same_spot_is_a_deletion_plus_an_addition():
-    """hotfix46 — 자리로 잇지 않으므로 태그가 바뀐 심볼은 삭제 후보 + 추가다."""
+def test_a_tag_change_on_the_only_symbol_of_its_type_is_a_modification():
+    """hotfix46 — 자리로 잇지 않는다.  hotfix47 — 같은 도면의 유일한 PIT 끼리는 태그가 바뀐 한 항목."""
     a = [row("a", "PIT", 100, 100, "11LBB50CP001")]
     b = [row("b", "PIT", 101, 100, "11LBB50CP009")]
     out, _ = _ab(a, b)
-    assert out["states"]["b"]["state"] == R.ADDED
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CP001"]
-    assert out["counts"][R.MODIFIED] == 0
+    assert out["states"]["b"]["state"] == R.MODIFIED and out["states"]["b"]["basis"] == R.BASIS_TYPE
+    assert out["deleted_candidates"] == []
+    assert out["counts"][R.MODIFIED] == 1 and out["counts"][R.ADDED] == 0
 
 
 def test_a_tag_that_appears_on_a_formerly_untagged_symbol_is_an_addition():
@@ -78,8 +78,12 @@ def test_added_and_deleted_tags_count_and_untagged_rows_are_not_compared():
     a = [row("a1", "PIT", 100, 100, "11LBB50CP001"), row("a2", "TIT", 300, 100, "11LBB50CT001")]
     b = [row("b1", "PIT", 100, 100, "11LBB50CP001"), row("b3", "LIT", 500, 100, "11LBB50CL001")]
     out, _ = _ab(a, b)
-    assert out["states"]["b3"]["state"] == R.ADDED
-    assert [d["tag_no"] for d in out["deleted_candidates"]] == ["11LBB50CT001"]
+    # hotfix47 — TIT 가 사라지고 LIT 가 섰다 (TYPE 이 달라 짝은 못 짓는다) → 둘 다 '수정' 으로만 표기
+    assert out["states"]["b3"]["state"] == R.MODIFIED and out["states"]["b3"]["basis"] == R.BASIS_AMBIGUOUS
+    d = out["deleted_candidates"][0]
+    assert d["tag_no"] == "11LBB50CT001" and d["state"] == R.MODIFIED and d["tag_candidates"] == ["11LBB50CL001"]
+    assert out["counts"][R.ADDED] == 0 and out["counts"][R.DELETED_CANDIDATE] == 0
+    assert out["counts"][R.MODIFIED] == 1 and out["counts"]["MODIFIED_BEFORE"] == 1
     # 태그 없는 행
     a = [row("a1", "PI", 100, 100, description="x"), row("a2", "PI", 100, 300, description="y")]
     b = [row("b1", "PI", 100, 102, description="x2"), row("b2", "PI", 104, 300, description="y2"),
@@ -123,10 +127,16 @@ def test_the_screen_reads_the_tag_change_and_shows_other_diffs_as_reference_only
     assert "값이 다른 칸 (개정 판정에는 쓰지 않음)" in js
     assert "자리 이동은 수정이 아님" in js
     html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
-    assert "수정만 (태그 바뀜)" in html
+    assert "수정만 (태그 바뀜" in html
 
 
 def test_compare_decides_the_state_in_one_place():
-    """`compare` 안에서 MODIFIED 를 직접 고르는 줄이 없다 — `_revision_state` 하나."""
+    """짝이 선 행의 상태는 `_revision_state` 하나가 정한다.  hotfix47 이 더한 MODIFIED 는
+    **짝이 없는** 자리(같은 도면에 새 태그와 사라진 태그가 함께 남은 것)뿐이고 그 둘은
+    `ambiguous` 를 조건으로 한다 — 그 밖에 MODIFIED 를 직접 고르는 줄이 없다."""
     src = inspect.getsource(R.compare)
-    assert "MODIFIED if" not in src and "_revision_state(" in src
+    assert "_revision_state(" in src
+    direct = [ln for ln in src.splitlines() if "MODIFIED" in ln and "=" in ln
+              and "counts" not in ln and "sum(" not in ln and "#" not in ln.split("MODIFIED")[0]]
+    assert direct == [ln for ln in direct if "ambiguous" in ln or "BASIS_AMBIGUOUS" in ln], direct
+    assert len(direct) == 2

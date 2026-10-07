@@ -954,7 +954,12 @@ def job_revision(job_id: str):
     counts = {}
     for st in states.values():
         counts[st["state"]] = counts.get(st["state"], 0) + 1
-    counts[revisions.DELETED_CANDIDATE] = sum(1 for c in cands if not c["confirmed"])
+    # hotfix47 — 짝 없는 기록은 둘로 갈린다: 같은 도면에 새 태그가 섰으면 **변경(이전 태그)**
+    # (`state: MODIFIED`), 아니면 삭제 후보.  옛 대조의 payload 에는 `state` 가 없다 → 삭제 후보.
+    counts[revisions.DELETED_CANDIDATE] = sum(
+        1 for c in cands if not c["confirmed"] and c.get("state") != revisions.MODIFIED)
+    counts["MODIFIED_BEFORE"] = sum(
+        1 for c in cands if not c["confirmed"] and c.get("state") == revisions.MODIFIED)
     counts[revisions.DELETED] = sum(1 for c in cands if c["confirmed"])
     # hotfix38 — 짝을 태그로 지은 행 수 · hotfix46 — 대조하지 않은 행 수(태그 없음).
     # GEOMETRY 는 hotfix46 이전 판정에만 남아 있다 (위치로는 더 비교하지 않는다).

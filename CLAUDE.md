@@ -3201,6 +3201,44 @@ PDF 상의 위치 좌표로는 비교하지 않는다."*  전문 `out/hotfix46/1
 5. **⚠ 입찰 프로젝트의 편집 승계는 리비전 사이에 이어지지 않는다** — 안정 ID 짝이 위치였고 위치로는 잇지 않는다.
    옛 판정은 `대조 다시` 한 번으로 바뀐다.  SADARA·UAD PDF · Excel 은 못 쟀다.
 
+**그 다음 — 같은 도면에 새 태그와 사라진 태그가 함께 남으면 전부 '수정'(MOD) (hotfix47 · 엔진 0줄)**
+
+사용자(회사 PC 사진 둘): QFE p41 `30GKC10-M05-0203`(추가 4 · 삭제 34 가 ADD/DEL? 로) — *"이런 사항들은
+tag 가 변경된 것이다.  하지만 tag 변경인지, 삭제 추가인지 확인이 어려우니 이런 사항들은 모두 MOD 로
+변경으로만 표기한다."*  QFE p89 PI — *"Tag number 도 이전과 최신이 같다.  변경된 것은 단순 pdf 에서의
+위치이다.  이런 사항은 변경으로 표기하지 않는다."*  전문 `out/hotfix47/1_보고서.md` · 재대조
+`out/hotfix47/recompare/` · 화면 `out/hotfix47/ui/` · 시험 `tests/test_hotfix47_ambiguous_mod.py` 10건
+(빠른 시험 752 → **762**).  **네 프로젝트 기준선 불변** (대조는 분석 뒤 단계 · 지문에 닿지 않는다).
+
+1. **★ p89 는 두 판의 PDF 가 다르다.**  Rev.A(260112) p89 의 낱말에 `20PGD46*`·`20PGD56*` 가 **0개**이고
+   Rev.B(260326) 에만 있다 (두 PDF 를 열어 셌다).  같은 태그를 든 PI 열여덟(41·42·43·51·52·53)은 자리가
+   247pt 움직였어도 **전부 변경 없음**(hotfix46 그대로)이고, ADD 는 46·56 열의 여섯뿐이다 — 그 여섯은
+   도면이 새로 그린 것이라 추가가 맞다.  회사 PC 가 같은 태그에 ADD 를 보였다면 옛 판정이다 → `대조 다시`.
+2. **한 도면의 짝 없는 태그가 양쪽에 남으면 `ambiguous`** (`revisions._leftovers`).  새 태그 행은
+   `MODIFIED`(basis `AMBIGUOUS`) · 사라진 태그 기록은 `deleted_candidates` 에 `state: MODIFIED`(이전 태그)
+   로 — 추가 0 · 삭제 후보 0.  한쪽만 남으면 뜻이 하나라 예전 그대로다 (새 태그만 = 추가 · 사라진 태그만
+   = 삭제 후보).  **같은 TYPE 의 짝 없는 행·기록이 하나씩이면** 태그가 바뀐 한 항목으로 잇는다
+   (basis `TYPE` · 안정 ID 유지 · `changed` 에 전 → 후).  둘 이상이면 어느 것인지 도면이 말하지 않아
+   잇지 않는다.  **위치는 어디서도 보지 않는다** (`_leftovers` 에 좌표를 읽는 줄이 없음을 시험이 못박는다).
+3. **같은 태그 · 다른 표기는 고르지 않고 적는다** — p41 의 `LS 31GKC41CL104`(Rev.A) ↔ `LSLL 31GKC41CL104`
+   (Rev.B) 처럼 TYPE 만 다른 쌍은 사유에 *"같은 태그가 Rev.A 에서는 LS 로 있었습니다 (표기가 바뀐 것일 수
+   있음)"* 를 붙인다 (`same_tag_now` · reason).  짝으로 잇지는 않는다 — "동일 tag 와 abbreviation" 이
+   열쇠다 (hotfix46).
+4. **QFE 재대조** (hotfix46 → 47): 추가 74 → **58** · 수정 0 → **16**(TYPE 짝 5 · 짝 없음 11) · 이전 태그
+   **42** · 삭제 후보 106 → **59** · 짝 1,423 · 대조 안 함 494.  p41 `-0203`: 추가 4 · 삭제 34 → **수정 4 +
+   이전 태그 34** (변경 목록 "이 장 변경 38 · 추가 0 · 수정 38 · 삭제 0").  삭제 후보로 남은 59 중 45 는
+   직전에만 있는 장 `-0004` 의 것이다 (새 태그가 없는 장).
+5. **화면·Excel** — 머리줄 `수정 16 (+ 이전 태그 42)` · 목록 개정 열 `수정 (이전 태그)` · `수정만` 필터에
+   둘 다 · `삭제만` 에는 안 든다 · 나란히 보기 오른쪽 도면의 이전 태그는 붉은 ✕/DEL? 가 아니라 **초록
+   MOD 표식** · 근거 패널 머리 `수정 (이전 태그)` + 같은 도면의 새 태그 · `삭제 확정` 버튼은 남는다
+   (삭제였다면 사람이 굳힌다 → DELETED).  Excel REMARK `Rev.A 대비 수정 (태그 변경 또는 추가 — …)` ·
+   변경 내역 Excel 요약 `수정 (이전 태그 — 이번 분석에 없음)` · 삭제 시트 상태 `수정 (이전 태그)`.
+   읽는 곳은 `app.js` `delState(d)` 하나 (payload 의 `state`·`confirmed`).  옛 대조 payload 에는 `state` 가
+   없어 삭제 후보로 읽힌다 → `대조 다시`.
+6. ⚠ 확정 전 삭제 후보 기록은 장부에 살아 있어 다음 리비전에도 짝 없는 기록으로 남는다 — 그 도면에 새
+   태그가 서면 그때 '수정' 으로 묶인다 (`test_new_rows_take_the_next_number…` 가 그 모양을 그대로 적는다).
+   SADARA·UAD PDF · `data/*.xlsx` 는 없어 못 쟀다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3634,6 +3672,9 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._run_comparison` 의 `tagged` · `job_revision.compare_basis` | **hotfix46** — 실행/입찰 판정은 `_mode_facts(job).effective` 하나.  TAG 면 대조, NONE 이면 대조 안 함.  화면의 나란히 버튼·자동 켜짐이 이 값을 읽는다 |
 | ~~`revisions.match_radius` · `_pairs_within`~~ | hotfix46 이전의 기하 짝.  `match_radius` 는 함수만 남고 compare 가 부르지 않는다 — 위치로는 비교하지 않는다 |
 | `spike/ui_audit_tagonly.py` | **hotfix43** — 수정 = 태그 변경뿐인지 띄워서 확인 (머리줄 수 · 필터 · 근거 패널 · 나란히 변경 목록) |
+| `revisions._leftovers` · `BASIS_TYPE` · `BASIS_AMBIGUOUS` · `counts.MODIFIED_BEFORE` | **hotfix47** — 한 도면의 짝 없는 태그 행·기록.  양쪽에 남으면 전부 '수정'(새 태그 행 MODIFIED/AMBIGUOUS · 사라진 기록 `deleted_candidates[].state = MODIFIED`), 같은 TYPE 하나씩이면 태그 바뀐 한 항목(TYPE · ID 유지).  한쪽만 남으면 추가/삭제 후보 그대로.  좌표 0 |
+| `app.js` `delState(d)` · `revLabel` 의 `role: "before"` · `#cmp-ov circle.modmark` | **hotfix47** — 기록의 상태를 읽는 곳 하나.  이전 태그는 목록 `수정 (이전 태그)` · 오른쪽 도면 초록 MOD 표식 · `수정만` 필터 · 삭제 확정 버튼 유지 |
+| `spike/ui_audit_hotfix47.py` | **hotfix47** — 머리줄 · 필터 셋 · 이전 태그 근거 패널 · p41 나란히(✕ 0 · MOD 34) · p89(같은 태그 링 0 · ADD 6) · 페이지 오류 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

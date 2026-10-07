@@ -53,12 +53,14 @@ def test_the_comparison_path_has_no_distance_code():
 
 
 def test_same_tag_different_type_is_not_a_pair():
-    """동일 tag 와 abbreviation 기준 — PI 와 PIT 는 같은 태그를 들어도 다른 항목이다."""
+    """동일 tag 와 abbreviation 기준 — PI 와 PIT 는 같은 태그를 들어도 다른 항목이다.
+    hotfix47 — 같은 도면에 사라진 PI 와 새 PIT 가 남아 둘 다 '수정' 으로만 표기된다 (TYPE 이
+    달라 잇지는 않는다)."""
     a = [row("a", "PI", 100, 100, "11LBB50CP001")]
     b = [row("b", "PIT", 100, 100, "11LBB50CP001")]
     out, _ = _ab(a, b)
-    assert out["states"]["b"]["state"] == R.ADDED
-    assert [(d["type"], d["tag_no"]) for d in out["deleted_candidates"]] == [("PI", "11LBB50CP001")]
+    assert out["states"]["b"]["state"] == R.MODIFIED and out["states"]["b"]["basis"] == R.BASIS_AMBIGUOUS
+    assert [(d["type"], d["tag_no"], d["state"]) for d in out["deleted_candidates"]] == [("PI", "11LBB50CP001", R.MODIFIED)]
 
 
 def test_same_tag_same_type_far_away_is_unchanged():
@@ -138,12 +140,15 @@ def test_run_comparison_follows_the_project_mode(tmp_path):
     _job(main, "eb", "EPC", "B", "A", [("PIT", "11LBB50CP001"), ("LIT", "11LBB50CL001"), ("GATE", "")])
     main._run_comparison("ea")
     out = main._run_comparison("eb")
-    assert out["counts"][R.ADDED] == 1 and out["counts"][R.DELETED_CANDIDATE] == 1
+    # hotfix47 — TIT 가 사라지고 LIT 가 섰다 → 추가·삭제 후보가 아니라 둘 다 '수정'
+    assert out["counts"][R.ADDED] == 0 and out["counts"][R.DELETED_CANDIDATE] == 0
+    assert out["counts"][R.MODIFIED] == 1 and out["counts"]["MODIFIED_BEFORE"] == 1
     assert out["counts"][R.NOT_COMPARED] == 1 and out["counts"][R.UNCHANGED] == 1
     rev = c.get("/jobs/eb/revision").json()
     assert rev["compare_basis"] == "TAG"
-    assert rev["matched_by"] == {"TAG": 1, "GEOMETRY": 0, "NOT_COMPARED": 1}
-    assert [d["tag_no"] for d in rev["deleted_candidates"]] == ["11LBB50CT001"]
+    assert rev["matched_by"]["TAG"] == 1 and rev["matched_by"]["NOT_COMPARED"] == 1 and rev["matched_by"]["GEOMETRY"] == 0
+    assert rev["counts"]["MODIFIED_BEFORE"] == 1 and rev["counts"][R.DELETED_CANDIDATE] == 0
+    assert [(d["tag_no"], d["state"]) for d in rev["deleted_candidates"]] == [("11LBB50CT001", R.MODIFIED)]
     # 입찰 프로젝트 — 대조하지 않는다
     revisions.create_project(main.DATA_DIR, "BID")
     revisions.set_mode(main.DATA_DIR, "BID", "bid", "tester")
