@@ -1842,7 +1842,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                          # 47회차 — 액추에이터 울타리 창도 같은 자리에 적는다
                          "act_box": [round(v, 3) for v in dv.LAYOUT.act_box],
                          "act_box_source": dv.LAYOUT.act_box_source,
-                         "act_box_basis": dv.LAYOUT.act_box_basis},
+                         "act_box_basis": dv.LAYOUT.act_box_basis,
+                         # hotfix48 — 액추에이터 사정거리: 울타리 크기 대비 비율과 출처
+                         "act_reach": round(dv.LAYOUT.act_reach, 3),
+                         "act_reach_ratio": dv.LAYOUT.act_reach_ratio,
+                         "act_reach_source": dv.LAYOUT.act_reach_source},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
         # 들어가지 않는다 (`fingerprint` 는 `legend`·`multipliers`·행만 본다):
         # 같은 값을 쓴 두 경로가 다른 지문을 내면 프로필이 값을 정확히 담았는지

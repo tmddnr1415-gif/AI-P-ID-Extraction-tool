@@ -3239,6 +3239,30 @@ tag 가 변경된 것이다.  하지만 tag 변경인지, 삭제 추가인지 �
    태그가 서면 그때 '수정' 으로 묶인다 (`test_new_rows_take_the_next_number…` 가 그 모양을 그대로 적는다).
    SADARA·UAD PDF · `data/*.xlsx` 는 없어 못 쟀다.
 
+**그 다음 — `(*)` 가 찍힌 MOV 가 SCT 로: 액추에이터 사정거리를 울타리 크기 대비 비율로 (hotfix48 · 엔진 1함수)**
+
+사용자(회사 PC 사진 · QFE p10 `1A1Y-00EKG00-M05-0005` · `MOV 11MBP01AA105/AA106`): *"`(*)` 표기가 있음에도
+SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/hotfix48/1_보고서.md` · 전수
+`out/hotfix48/probe_*.json` · 시험 `tests/test_hotfix48_act_reach_ratio.py` 7건.
+
+1. **★ 별표가 아니라 액추에이터였다.**  그 두 밸브는 `BALL · actuator NONE · 태그 MOV · REVIEW · SCT`.
+   `(*)` 활자는 M 원 **왼쪽 옆**(중심 y 714.5)인데 M 원이 안 붙어 별표 창이 몸체 사각형뿐이고(위 끝 y 720)
+   5.5pt 차로 창 밖이었다.  M 원이 안 붙은 이유 — **QFE 는 범례를 A3, 본문을 A1 로 그린다** (hotfix28):
+   범례 M 원 7.08 · centre_to_body 13.62 → `act_reach = 13.62 × 2 = 27.2` **절대 pt** ↔ 본문 M 원 14.2 ·
+   몸체 중심까지 **30.5** → 거부.  A1 본문 M 원 149개(스템 읽힌 109)가 전부 같은 꼴이다.
+2. **네 범례의 `centre_to_body / 원 지름` 은 1.90 · 1.91 · 1.92 로 같다** (AL NOUF1 · TC2 · QFE).  비율은
+   축척을 넘고 절대 pt 는 못 넘는다 (§9 ⑥).  `derive_layout` 이 `act_reach_ratio = centre_to_body / 범례 원 ×
+   REACH_FACTOR` 를 더 들고, `attach_actuators` 는 `_act_reach(rect, body, lay)` 하나로 **그 울타리가 스템축을
+   가로지르는 변 × 비율**을 본다 (원 = 지름 · 돔 = 평평한 폭 · 상자 = 가로지르는 변).  범례와 같은 크기의 울타리는
+   옛 절대값과 **같은 수**다 (AL NOUF1 14.22 × 1.896 × 2 = 53.94 — 게이트 산술 · 시험).  범례 원이 되풀이되지
+   않는 SADARA 는 비율 0 → 절대값 그대로.  출처는 `act_reach_source` · 결과 `valve_layout`(지문 밖).
+3. **밸브 단계만 전수로 돌렸다** (`spike/act_reach_probe.py` — `find_bodies` 한 번 · 규칙 둘로 `attach_actuators`):
+   AL NOUF1 170 → **170** (다른 장 0) · TC2 TBD_TC2 · QFE TBD_QFE.  QFE p10: 0 → **2** (BALL·MOTOR) ·
+   `read_vendor_mark` → `VENDOR_MARK_TEXT` · `MARKED ITEMS TO BE PROVIDED BY GTG SUPPLIER.` → `VENDOR(GTG SUPPLIER)`.
+4. **[회귀]** TBD_REG
+5. ⚠ `stroke_bootstrap` 의 글리프 학습 창은 절대 `act_reach` 그대로다 (판정이 아니라 사전 학습 — 다음 후보).
+   SADARA · UAD PDF · `data/*.xlsx` 없음.  회사 PC 의 그 분석은 **다시 분석**해야 바뀐다 (검출 단계 — `대조 다시` 로는 안 된다).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3675,6 +3699,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `revisions._leftovers` · `BASIS_TYPE` · `BASIS_AMBIGUOUS` · `counts.MODIFIED_BEFORE` | **hotfix47** — 한 도면의 짝 없는 태그 행·기록.  양쪽에 남으면 전부 '수정'(새 태그 행 MODIFIED/AMBIGUOUS · 사라진 기록 `deleted_candidates[].state = MODIFIED`), 같은 TYPE 하나씩이면 태그 바뀐 한 항목(TYPE · ID 유지).  한쪽만 남으면 추가/삭제 후보 그대로.  좌표 0 |
 | `app.js` `delState(d)` · `revLabel` 의 `role: "before"` · `#cmp-ov circle.modmark` | **hotfix47** — 기록의 상태를 읽는 곳 하나.  이전 태그는 목록 `수정 (이전 태그)` · 오른쪽 도면 초록 MOD 표식 · `수정만` 필터 · 삭제 확정 버튼 유지 |
 | `spike/ui_audit_hotfix47.py` | **hotfix47** — 머리줄 · 필터 셋 · 이전 태그 근거 패널 · p41 나란히(✕ 0 · MOD 34) · p89(같은 태그 링 0 · ADD 6) · 페이지 오류 |
+| `detect_valves._act_reach` · `ValveLayout.act_reach_ratio` · `act_reach_source` | **hotfix48** — 액추에이터 사정거리 = 울타리가 스템축을 가로지르는 변 × (범례 centre_to_body / 범례 원 지름 × REACH_FACTOR).  범례(A3)와 본문(A1) 축척이 다른 QFE 에서 절대 pt 27.2 가 본문 M 원(30.5)을 전부 거부해 `(*)` MOV 가 SCT 로 나갔다.  비율 0(범례 원 없음)이면 절대값 그대로 · 범례 크기 울타리는 옛 값과 같은 수 |
+| `spike/act_reach_probe.py` | **hotfix48** — 밸브 단계만(`find_bodies` 한 번 · `attach_actuators` 규칙 둘) 돌려 붙은 액추에이터를 절대/비율로 대조.  분석 경로·DB 에 안 닿는다 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

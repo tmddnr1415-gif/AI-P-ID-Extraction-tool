@@ -225,6 +225,7 @@ class ValveLayout:
     body_short_basis: float = 0.0       # 범례 나비 짧은 변 (LEGEND 일 때)
     act_box_source: str = "CONFIG"      # 47회차 — LEGEND 면 그 문서 범례의 액추에이터 원에서
     act_box_basis: float = 0.0          # 범례 액추에이터 원 지름 (LEGEND 일 때)
+    act_reach_source: str = ""       # hotfix48 — 비율 사정거리의 출처 (LEGEND … / ABSOLUTE …)
     disc_min: float = 0.0               # 43회차 [B-2] — 원형 몸체 원 지름 하한 (범례 원 × DISC_MIN_RATIO · 0 이면 옛 규칙)
     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
     bar_axis_tol: float = 0.8           # how close an end bar is to the end
@@ -266,6 +267,13 @@ class ValveLayout:
     # config; the defaults here are only so the dataclass is constructible.
     act_reach: float = 90.0
     act_offaxis: float = 12.0
+    # hotfix48 — 액추에이터 **자기 크기 대비** 사정거리.  범례가 원을 그리고 스템을
+    # 잰 문서에서 `centre_to_body / 범례 원 지름 × REACH_FACTOR` 로 유도된다
+    # (0 이면 유도되지 않은 것 — 절대값 `act_reach` 를 쓴다).  범례(A3)와 본문(A1)의
+    # 축척이 다른 문서(QFE)에서 절대값은 본문 M 원의 스템 절반밖에 못 미친다 —
+    # 비율은 축척을 넘고 절대 pt 는 못 넘는다 (§9 ⑥).  어느 도면에서 읽는가:
+    # 그 문서 범례의 ACTUATORS 열 (원 지름 · 스템 길이).
+    act_reach_ratio: float = 0.0
     # Legend page 3 draws its actuator enclosures at 14.2 pt across (the motor
     # and E/H circles) and page 26 strokes its hydraulic box at 11.3.  The
     # lower bound sits below both and above the 7.1 pt globe waist disc, which
@@ -450,6 +458,9 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         # The legend lays its own actuator out at `centre_to_body`; a drawing at
         # another scale needs headroom, and REACH_FACTOR is that headroom.
         kw["act_reach"] = float(st.values["centre_to_body"]) * REACH_FACTOR
+        # hotfix48 — 같은 값을 **범례 원 지름에 대한 비율**로도 든다 (아래 `act` 가
+        # 서면).  본문이 범례와 다른 축척으로 그려진 문서에서 절대 pt 는 못 넘는다.
+        kw["_centre_to_body"] = float(st.values["centre_to_body"])
     # 43회차 — 몸체 짧은 변의 창을 그 문서 범례가 그린 나비에 맨다.  `derived`
     # (지문 재료인 legend 기록)에는 넣지 않는다 — 값이 같아도 항목이 늘면 이미
     # 답이 있는 문서의 지문이 움직인다.  출처는 layout 자신이 들고 파이프라인이
@@ -463,6 +474,16 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         kw["act_box_source"], kw["act_box_basis"] = "LEGEND", act
     else:
         kw["act_box_source"] = "CONFIG_FALLBACK: " + act_why
+    ctb = kw.pop("_centre_to_body", None)
+    if act and ctb:
+        # hotfix48 — 사정거리는 **그 울타리 자기 크기의 몇 배**인가.  범례 원 지름
+        # 대비 centre_to_body (네 범례 실측 1.90 · 1.91 · 1.92) × REACH_FACTOR.
+        # 범례와 같은 크기로 그린 울타리에서는 옛 절대값과 **같은 수**가 된다.
+        kw["act_reach_ratio"] = round(ctb / act * REACH_FACTOR, 4)
+        kw["act_reach_source"] = f"LEGEND: centre_to_body {ctb} / circle {act} x {REACH_FACTOR}"
+    else:
+        kw["act_reach_ratio"] = 0.0
+        kw["act_reach_source"] = "ABSOLUTE: " + ("no stem measured" if not ctb else act_why)
     # 위에서 잰 값 그대로 (예전에도 이 측정에 닿는 칸은 `kw` 가 바꾸지 않았다 —
     # 같은 자로 두 번 재던 것을 한 번으로).
     basis, why = basis0, why0
@@ -1747,6 +1768,23 @@ def _actuator_stem(horiz, vert, rect, body: Body, lay: ValveLayout) -> bool:
     return lo >= hi - 0.5 or _stem_links(horiz, coord, lo, hi, lay)
 
 
+def _act_reach(rect, body: Body, lay: ValveLayout) -> float:
+    """hotfix48 — 이 울타리가 몸체에서 얼마나 멀리 서 있어도 되는가.
+
+    범례가 원 지름과 스템을 둘 다 주면 **그 울타리 자기 크기**(스템축을 가로지르는
+    변 — 원이면 지름, 돔이면 평평한 폭, 상자면 스템을 가로지르는 변)에 비율을
+    곱한다.  QFE 는 범례를 A3, 본문을 A1 로 그려 본문 M 원(14.2)이 범례 원(7.08)의
+    두 배이고 스템도 두 배(centre_to_body 30.5 ↔ 13.62)다 — 절대값 27.2 로는 전부
+    거부돼 `(*)` 가 찍힌 MOV 가 액추에이터 없이 SCT 로 나갔다.  범례와 같은 크기로
+    그린 울타리에서는 옛 절대값과 같은 수다 (AL NOUF1 14.22 × 1.896 × 2 = 53.9).
+    비율이 유도되지 않은 문서(SADARA — 범례 원 되풀이 없음)는 절대값 그대로다.
+    """
+    if not lay.act_reach_ratio:
+        return lay.act_reach
+    across = rect.width if body.axis == "H" else rect.height
+    return lay.act_reach_ratio * across
+
+
 def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
                      disabled=frozenset()) -> None:
     """Assign each actuator mark to the body it stands over.
@@ -1783,7 +1821,7 @@ def attach_actuators(pc, bodies: list[Body], lay: ValveLayout = LAYOUT,
                 off, along = abs(pt.x - cx), abs(pt.y - cy)
             else:
                 off, along = abs(pt.y - cy), abs(pt.x - cx)
-            if off > lay.act_offaxis or along > lay.act_reach:
+            if off > lay.act_offaxis or along > _act_reach(rect, b, lay):
                 continue
             if "ACT_STEM" not in disabled and not _actuator_stem(
                     horiz, vert, rect, b, lay):
