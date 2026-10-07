@@ -1,0 +1,44 @@
+before rows 2041 after rows 2051
+only before 0 only after 10 common 2021
+moved cells {'tab': 70, 'actuator': 112, 'scope': 5}
+tab [(('REVIEW', 'MOV'), 49), (('REVIEW', 'BFV'), 12), (('REVIEW', 'PNEUMATIC'), 9)]
+    (40, 'BALL', '', 'REVIEW', 'MOV')
+    (49, 'GATE', '', 'REVIEW', 'PNEUMATIC')
+    (39, 'BALL', '', 'REVIEW', 'MOV')
+    (30, 'BALL', '', 'REVIEW', 'MOV')
+    (39, 'BALL', '', 'REVIEW', 'MOV')
+    (45, 'CHECK', '', 'REVIEW', 'PNEUMATIC')
+    (30, 'BALL', '', 'REVIEW', 'MOV')
+    (44, 'GATE', '', 'REVIEW', 'MOV')
+actuator [(('NONE', 'MOTOR'), 97), (('NONE', 'PNEUMATIC'), 9), (('NONE', 'HYDRAULIC'), 6)]
+    (40, 'BALL', '', 'NONE', 'MOTOR')
+    (49, 'GATE', '', 'NONE', 'PNEUMATIC')
+    (39, 'BALL', '', 'NONE', 'MOTOR')
+    (30, 'BALL', '', 'NONE', 'MOTOR')
+    (39, 'BALL', '', 'NONE', 'MOTOR')
+    (45, 'NEEDLE', '', 'NONE', 'MOTOR')
+    (45, 'CHECK', '', 'NONE', 'PNEUMATIC')
+    (30, 'BALL', '', 'NONE', 'MOTOR')
+scope [(('SCT', 'VENDOR'), 3), (('SCT', 'VENDOR(GTG SUPPLIER)'), 2)]
+    (45, 'CHECK', '', 'SCT', 'VENDOR')
+    (45, 'NEEDLE', '', 'SCT', 'VENDOR')
+    (10, 'BALL', '', 'SCT', 'VENDOR(GTG SUPPLIER)')
+    (45, 'NEEDLE', '', 'SCT', 'VENDOR')
+    (9, 'BALL', '', 'SCT', 'VENDOR(GTG SUPPLIER)')
+new rows by (tab,type,page): [(('MOV', 'BALL', 11), 4), (('BFV', 'BUTTERFLY', 11), 3), (('MOV', 'BALL', 28), 2), (('MOV', 'BALL', 12), 1)]
+new rows scope: Counter({'SCT': 10})
+gone rows: []
+actuator changed, tab unchanged: [(('REVIEW', 'NEEDLE', False), 42)]
+--- p10 valve rows after:
+  REVIEW CHECK  SCT NONE None
+  MOV BALL  SCT MOTOR None
+  MOV BALL  VENDOR(GTG SUPPLIER) MOTOR None
+--- tabs after: Counter({'FIELD': 1678, 'REVIEW': 279, 'MOV': 67, 'BFV': 15, 'PNEUMATIC': 12})
+--- tabs before: Counter({'FIELD': 1678, 'REVIEW': 349, 'MOV': 11, 'PNEUMATIC': 3})
+Q'ty before 3710 after 3720
+scope changed rows detail:
+  9 BALL  SCT -> VENDOR(GTG SUPPLIER)  []
+  45 CHECK  SCT -> VENDOR  []
+  45 NEEDLE  SCT -> VENDOR  []
+  45 NEEDLE  SCT -> VENDOR  []
+  10 BALL  SCT -> VENDOR(GTG SUPPLIER)  []

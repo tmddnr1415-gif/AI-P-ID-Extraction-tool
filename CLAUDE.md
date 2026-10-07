@@ -3239,11 +3239,11 @@ tag 가 변경된 것이다.  하지만 tag 변경인지, 삭제 추가인지 �
    태그가 서면 그때 '수정' 으로 묶인다 (`test_new_rows_take_the_next_number…` 가 그 모양을 그대로 적는다).
    SADARA·UAD PDF · `data/*.xlsx` 는 없어 못 쟀다.
 
-**그 다음 — `(*)` 가 찍힌 MOV 가 SCT 로: 액추에이터 사정거리를 울타리 크기 대비 비율로 (hotfix48 · 엔진 1함수)**
+**그 다음 — `(*)` 가 찍힌 MOV 가 SCT 로: 원인 둘 — 액추에이터 사정거리(절대 pt) · 범례 장 종이 ≠ 도면 종이 (hotfix48)**
 
 사용자(회사 PC 사진 · QFE p10 `1A1Y-00EKG00-M05-0005` · `MOV 11MBP01AA105/AA106`): *"`(*)` 표기가 있음에도
 SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/hotfix48/1_보고서.md` · 전수
-`out/hotfix48/probe_*.json` · 시험 `tests/test_hotfix48_act_reach_ratio.py` 7건.
+`out/hotfix48/probe_*.json` · 전후 대조 `out/hotfix48/qfe_diff.txt` · 시험 `tests/test_hotfix48_act_reach_ratio.py` 13건.
 
 1. **★ 별표가 아니라 액추에이터였다.**  그 두 밸브는 `BALL · actuator NONE · 태그 MOV · REVIEW · SCT`.
    `(*)` 활자는 M 원 **왼쪽 옆**(중심 y 714.5)인데 M 원이 안 붙어 별표 창이 몸체 사각형뿐이고(위 끝 y 720)
@@ -3260,7 +3260,24 @@ SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/
    AL NOUF1 170 → **170** (다른 장 0) · TC2 160 → **160** (0) · **QFE 27 → 129** (+102 · 26장 · 잃은 것 0 — BALL/GATE/NEEDLE/BUTTERFLY 의 MOTOR 79 · HYDRAULIC 14 · PNEUMATIC 9 · 표본 7 렌더 확인 `out/hotfix48/qfe_gained_crops.png`).  QFE p10: 0 → **2** (BALL·MOTOR) ·
    `read_vendor_mark` → `VENDOR_MARK_TEXT` · `MARKED ITEMS TO BE PROVIDED BY GTG SUPPLIER.` → `VENDOR(GTG SUPPLIER)`.
 4. **[회귀]** AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 **불변** · TC2 `67eae92d` · 902 · 5564 · 94.2 **불변** · **QFE `94615ba2` → `fbe5e887` · 2041 → 2051 · Q'ty 3710 → 3720 · 축3 89.0 → 90.5** (기준선 갱신 · TBD_QFE_DIFF).
-5. ⚠ `stroke_bootstrap` 의 글리프 학습 창은 절대 `act_reach` 그대로다 (판정이 아니라 사전 학습 — 다음 후보).
+5. **★ [B] 그래도 p10 의 두 MOV 중 위쪽은 SCT 였다 — 둘째 원인은 hotfix20 의 길이 단위다.**  [A] 뒤 전량 회귀에서
+   AA105 가 MOTOR 로 붙고도 SCT.  한 장 프로브는 둘 다 VENDOR 를 내서 **12장 부분 PDF 로 8분 만에 재현**하고 `read_vendor_mark`
+   에 스파이를 달았다: 파이프라인의 `mark_side / mark_above` 가 **4.95 / 12.375**(프로브 10 / 25) · 그 장 마크 2개(프로브 4).
+   `_document_unit` = 범례 나비 원 3.0 / 6.06 = **0.495** 가 별표 창·글리프 크기·체인 파선 허용치를 절반으로 줄였고, AA105 의
+   `(*)` 는 M 원에서 5.06pt 라 4.95 창 밖(AA106 은 3.68 — 안).  **그 단위는 범례 장(A3)의 축척이지 본문(A1)의 것이 아니다** —
+   [A] 의 `act_reach` 와 같은 뿌리이고 `derive_layout` 의 범례 길이 전부(`act_box` (4.48, 16.93) · `body_short` (2.45, 14.7) ·
+   돔 · 스템 · 틱)가 같은 자리에 있었다.
+6. **`legend_rules.legend_paper_scale(pages)`** — 범례 장(세 머리말을 인쇄한 장)의 종이와 양식 종이(다수 장 · hotfix28
+   `_form_pages` 와 같은 생각)가 다르면 그 비(가로·세로 1% 안에서 같을 때만)를 **범례에서 잰 길이에 곱한다**:
+   `derive_layout` 아홉 자리(나비 · 액추에이터 원 · `centre_to_body` · `stem_offaxis` · `stem_gap` · 돔 · 실린더 · 틱 · 원 지름)
+   와 `_document_unit`.  같은 종이면 1.0 — `x 1.0` 은 비트까지 같아 네 기준 문서가 **구조적으로** 안 움직인다.  새 상수 0
+   (종이 크기 둘뿐 · AST 시험).  **축척으로 분기하는 것이 아니다** — 같은 문서 안에서 자가 둘인 것을 하나로 맞춘다 (§9 ⑥ 의
+   반증은 다른 문서의 절대 pt 를 종이로 나눈 것).  근거: QFE 범례 M 원 7.08 → 본문 14.2 · 범례 버블 11.4 → 본문 22.6 (둘 다 ≈2.0 =
+   종이 비 2.0008).  12장 부분 PDF: p10 둘 다 **`VENDOR(GTG SUPPLIER)`** · `legend_scale 2.0008` · `document_unit 0.9904` ·
+   PNEUMATIC 1 → 11 · REVIEW 7 → 4.
+7. ⚠ **남은 자리** — `pipe_graph.derive_line_styles`(ELECTRIC 토막 · `min_run`)와 `stroke_bootstrap` 글리프 창은 범례 길이를
+   그대로 쓴다 (QFE 의 Description 판정축이 절반 `min_run` 으로 돈다 — 이 회차 요구 밖).  배율의 근거는 종이 비 하나라
+   범례를 다른 종이에 **같은 크기로** 그린 문서는 틀린다 (그때 본문/범례 버블 비로 검증하는 길이 남아 있다).
    SADARA · UAD PDF · `data/*.xlsx` 없음.  회사 PC 의 그 분석은 **다시 분석**해야 바뀐다 (검출 단계 — `대조 다시` 로는 안 된다).
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
@@ -3700,6 +3717,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `delState(d)` · `revLabel` 의 `role: "before"` · `#cmp-ov circle.modmark` | **hotfix47** — 기록의 상태를 읽는 곳 하나.  이전 태그는 목록 `수정 (이전 태그)` · 오른쪽 도면 초록 MOD 표식 · `수정만` 필터 · 삭제 확정 버튼 유지 |
 | `spike/ui_audit_hotfix47.py` | **hotfix47** — 머리줄 · 필터 셋 · 이전 태그 근거 패널 · p41 나란히(✕ 0 · MOD 34) · p89(같은 태그 링 0 · ADD 6) · 페이지 오류 |
 | `detect_valves._act_reach` · `ValveLayout.act_reach_ratio` · `act_reach_source` | **hotfix48** — 액추에이터 사정거리 = 울타리가 스템축을 가로지르는 변 × (범례 centre_to_body / 범례 원 지름 × REACH_FACTOR).  범례(A3)와 본문(A1) 축척이 다른 QFE 에서 절대 pt 27.2 가 본문 M 원(30.5)을 전부 거부해 `(*)` MOV 가 SCT 로 나갔다.  비율 0(범례 원 없음)이면 절대값 그대로 · 범례 크기 울타리는 옛 값과 같은 수 |
+| `legend_rules.legend_paper_scale` · `ValveLayout.legend_scale` · `_document_unit` 의 배율 | **hotfix48 [B]** — 범례 장 종이 → 양식 종이 배율.  범례에서 잰 길이(별표 창 단위 · 액추에이터 원 · 나비 · 스템 · 돔 · 틱)는 범례 장의 축척이라, 범례가 다른 종이에 있으면(QFE A3 범례 ↔ A1 도면 · x2.0) 그만큼 곱해야 본문 길이다.  같은 종이면 1.0(비트까지 그대로) · 비례 아니면 1.0 + 사유 · 새 상수 0.  안 곱하면 `mark_side` 가 4.95 로 줄어 M 원에서 5.06pt 인 `(*)` 를 놓친다 |
 | `spike/act_reach_probe.py` | **hotfix48** — 밸브 단계만(`find_bodies` 한 번 · `attach_actuators` 규칙 둘) 돌려 붙은 액추에이터를 절대/비율로 대조.  분석 경로·DB 에 안 닿는다 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
