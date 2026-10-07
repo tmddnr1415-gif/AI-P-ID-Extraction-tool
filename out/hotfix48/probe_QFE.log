@@ -1,0 +1,11 @@
+layout: act_reach 27.24 ratio 3.8475 (LEGEND: centre_to_body 13.62 / circle 7.08 x 2.0) act_box (4.48, 16.93) unit 0.4949 · 68.7s
+p1: bodies 0 · abs 0 · ratio 0 · diff 0 · 4.0s
+p2: bodies 48 · abs 3 · ratio 3 · diff 0 · 61.7s
+p4: bodies 23 · abs 6 · ratio 6 · diff 0 · 172.8s
+p5: bodies 1 · abs 0 · ratio 0 · diff 0 · 72.6s
+p6: bodies 54 · abs 0 · ratio 0 · diff 0 · 7.9s
+p7: bodies 18 · abs 0 · ratio 0 · diff 0 · 2.7s
+p8: bodies 17 · abs 0 · ratio 0 · diff 0 · 4.0s
+p9: bodies 31 · abs 1 · ratio 3 · diff 2 · 6.3s
+    ('BALL', 'MOTOR', [872.3, 1199.3, 879.5, 1216.3])
+    ('BALL', 'MOTOR', [898.6, 1088.0, 915.5, 1095.2])
