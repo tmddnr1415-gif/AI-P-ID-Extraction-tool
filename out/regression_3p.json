@@ -1,52 +1,52 @@
 {
   "projects": [
     {
-      "name": "TC2",
-      "rows": 902,
-      "fingerprint": "67eae92de409d9e81eb43d4e53b241f0aeaa3b8314d91e5c5de6402255bb706d",
-      "qty_sum": 5564,
+      "name": "AL NOUF1",
+      "rows": 1133,
+      "fingerprint": "46d551fd0968917861352d1012e209916dc9b35f72d3878e20769faf31f9e092",
+      "qty_sum": 2136,
       "tabs": {
-        "FIELD": 706,
-        "MOV": 71,
-        "PNEUMATIC": 58,
-        "BFV": 7,
-        "REVIEW": 60
+        "FIELD": 904,
+        "MOV": 76,
+        "PNEUMATIC": 55,
+        "REVIEW": 75,
+        "BFV": 23
       },
-      "seconds": 1154.2,
-      "max_rss_gb": 7.47,
+      "seconds": 1461.3,
+      "max_rss_gb": 4.94,
       "identification": {
         "도면번호": [
-          60,
-          60,
+          58,
+          58,
           ""
         ],
         "개정": [
-          60,
-          60,
+          58,
+          58,
           ""
         ],
         "태그→행": [
-          239,
-          266,
+          245,
+          267,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          902,
-          902,
+          1133,
+          1133,
           ""
         ],
         "심볼판정": [
-          902,
-          1055,
+          1133,
+          1329,
           ""
         ],
         "파라미터": [
-          26,
-          29,
+          28,
+          30,
           ""
         ]
       },
-      "score": 94.2
+      "score": 95.1
     }
   ],
   "metrics": [

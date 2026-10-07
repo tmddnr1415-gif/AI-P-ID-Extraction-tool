@@ -3259,7 +3259,7 @@ SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/
 3. **밸브 단계만 전수로 돌렸다** (`spike/act_reach_probe.py` — `find_bodies` 한 번 · 규칙 둘로 `attach_actuators`):
    AL NOUF1 170 → **170** (다른 장 0) · TC2 160 → **160** (0) · **QFE 27 → 129** (+102 · 26장 · 잃은 것 0 — BALL/GATE/NEEDLE/BUTTERFLY 의 MOTOR 79 · HYDRAULIC 14 · PNEUMATIC 9 · 표본 7 렌더 확인 `out/hotfix48/qfe_gained_crops.png`).  QFE p10: 0 → **2** (BALL·MOTOR) ·
    `read_vendor_mark` → `VENDOR_MARK_TEXT` · `MARKED ITEMS TO BE PROVIDED BY GTG SUPPLIER.` → `VENDOR(GTG SUPPLIER)`.
-4. **[회귀]** TBD_REG
+4. **[회귀]** AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 **불변** · TC2 `67eae92d` · 902 · 5564 · 94.2 **불변** · **QFE `94615ba2` → `fbe5e887` · 2041 → 2051 · Q'ty 3710 → 3720 · 축3 89.0 → 90.5** (기준선 갱신 · TBD_QFE_DIFF).
 5. ⚠ `stroke_bootstrap` 의 글리프 학습 창은 절대 `act_reach` 그대로다 (판정이 아니라 사전 학습 — 다음 후보).
    SADARA · UAD PDF · `data/*.xlsx` 없음.  회사 PC 의 그 분석은 **다시 분석**해야 바뀐다 (검출 단계 — `대조 다시` 로는 안 된다).
 
