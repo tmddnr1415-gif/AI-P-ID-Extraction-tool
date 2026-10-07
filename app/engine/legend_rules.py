@@ -422,6 +422,63 @@ def derive_butterfly(pages, cfg) -> Derived:
 BUTTERFLY_CIRCLE_BASIS = 6.06
 
 
+LEGEND_HEADINGS = (LINE_VALVE_HEADING, ACTUATOR_HEADING, "FIRST LETTER")
+
+
+def _majority_paper(pages) -> tuple:
+    """가장 많은 장이 쓰는 쪽 크기 (hotfix28 `_form_pages` 와 같은 생각 · 다수가 곧 양식)."""
+    groups: dict = {}
+    for pc in pages:
+        k = (round(float(pc.width), 1), round(float(pc.height), 1))
+        groups[k] = groups.get(k, 0) + 1
+    return max(groups, key=lambda k: (groups[k], k)) if groups else (0.0, 0.0)
+
+
+def legend_paper_scale(pages) -> tuple:
+    """범례 장의 종이 → 양식(본 도면) 종이 배율 `(scale, why)` (hotfix48 [B]).
+
+    범례에서 잰 길이(별표 창 · 액추에이터 원 · 나비 짧은 변 · 스템 · 돔)는 **범례
+    장의 축척**으로 적힌 값이다.  범례 장이 본 도면과 같은 종이면 그대로 본문의
+    길이이고(네 기준 문서 전부), 다른 종이면 그 값은 본문에서 그 배율만큼 커진다 —
+    QFE 는 범례 5장을 A3(1191x842)로, 도면 88장을 A1(2384x1684)로 냈고 범례의
+    M 원 7.08 · 버블 11.4 가 본문에서 14.2 · 22.6 이다 (배율 2.0 = 종이 비 2.0017).
+    그 배율을 안 곱하면 별표 창(`vendor_marks.side` 10.0 x 0.495 = 4.95)이 본문
+    별표(액추에이터 원에서 5.06pt)를 놓친다 — 사용자 지적의 둘째 원인이다.
+
+    규칙은 종이 크기 둘뿐이고 새 상수가 없다: 범례 장이 양식 종이와 같으면 1.0 ·
+    가로·세로 비가 서로 다르면(비례 축소가 아니면) 1.0 과 사유 · 범례 장끼리 종이가
+    다르면 1.0 과 사유.  **축척으로 분기하는 것이 아니다** — 같은 문서 안에서 자가
+    둘(범례 종이 · 도면 종이)인 것을 하나로 맞추는 것이다 (§9 ⑥ 의 반증은 다른
+    문서의 절대 pt 를 종이로 나눈 것이었다).
+    """
+    if not pages:
+        return 1.0, "no pages"
+    form = _majority_paper(pages)
+    legend = {}
+    for h in LEGEND_HEADINGS:
+        pc = _page_with(pages, h)
+        if pc is not None:
+            legend[pc.page_no] = (round(float(pc.width), 1), round(float(pc.height), 1))
+    if not legend:
+        return 1.0, "no legend sheet found by its headings - legend lengths used as written"
+    sizes = set(legend.values())
+    if len(sizes) > 1:
+        return 1.0, (f"legend sheets are on different papers {sorted(sizes)} - not scaled")
+    lw, lh = next(iter(sizes))
+    fw, fh = form
+    if abs(lw - fw) <= 1.0 and abs(lh - fh) <= 1.0:
+        return 1.0, f"legend sheet is on the form paper {fw}x{fh} pt"
+    if not (lw > 0 and lh > 0):
+        return 1.0, "legend sheet has no size"
+    sx, sy = fw / lw, fh / lh
+    if abs(sx - sy) > 0.01 * max(sx, sy):
+        return 1.0, (f"legend paper {lw}x{lh} is not proportional to the form paper "
+                     f"{fw}x{fh} (x{sx:.3f} vs x{sy:.3f}) - not scaled")
+    scale = round((sx + sy) / 2, 4)
+    return scale, (f"legend sheet {lw}x{lh} pt, form sheets {fw}x{fh} pt "
+                   f"({len(pages) - len(legend)} of {len(pages)}) - legend lengths x{scale}")
+
+
 def legend_unit(bf) -> float:
     """그 문서 범례의 길이 단위 (AL NOUF1 = 1.0).  나비 원을 못 재면 1.0."""
     cd = float((bf.values or {}).get("circle_diameter") or 0.0) if bf is not None else 0.0

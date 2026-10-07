@@ -226,6 +226,11 @@ class ValveLayout:
     act_box_source: str = "CONFIG"      # 47회차 — LEGEND 면 그 문서 범례의 액추에이터 원에서
     act_box_basis: float = 0.0          # 범례 액추에이터 원 지름 (LEGEND 일 때)
     act_reach_source: str = ""       # hotfix48 — 비율 사정거리의 출처 (LEGEND … / ABSOLUTE …)
+    # hotfix48 [B] — 범례 장 종이 → 본 도면 종이 배율 (`legend_rules.legend_paper_scale`).
+    # 범례에서 잰 길이(원 · 나비 · 스템 · 돔)는 범례 장의 축척이라, 범례가 다른 종이에
+    # 있으면 이 배율을 곱해야 본문의 길이가 된다.  같은 종이면 1.0 (네 기준 문서 전부).
+    legend_scale: float = 1.0
+    legend_scale_source: str = ""
     disc_min: float = 0.0               # 43회차 [B-2] — 원형 몸체 원 지름 하한 (범례 원 × DISC_MIN_RATIO · 0 이면 옛 규칙)
     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
     bar_axis_tol: float = 0.8           # how close an end bar is to the end
@@ -409,10 +414,18 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     kw = {}
     # hotfix20 — 이 문서의 길이 단위를 **먼저** 잰다 (범례 나비 · 재는 자는 예전 그대로).
     # 못 재면 1.0 (예전과 같음) 이고 사유를 남긴다.
+    # hotfix48 [B] — 범례 장이 본 도면과 다른 종이면 범례에서 잰 길이는 그 배율만큼
+    # 본문에서 커진다 (QFE: A3 범례 ↔ A1 도면 · x2.0).  같은 종이면 1.0 이라 곱해도
+    # 비트까지 같다 — 네 기준 문서가 구조적으로 안 움직이는 근거다.
+    scale, scale_why = legend_rules.legend_paper_scale(pages)
+    kw["legend_scale"], kw["legend_scale_source"] = scale, scale_why
     basis0, why0 = legend_bowtie_short(pages, lay)
+    if basis0:
+        basis0 = basis0 * scale
     unit = round(basis0 / BODY_SHORT_BASIS, 4) if basis0 else 1.0
     if basis0:
-        kw["unit"], kw["unit_source"] = unit, f"LEGEND: bowtie {basis0} / {BODY_SHORT_BASIS}"
+        kw["unit"], kw["unit_source"] = unit, (f"LEGEND: bowtie {basis0} / {BODY_SHORT_BASIS}"
+                                               + (f" (legend x{scale})" if scale != 1.0 else ""))
         kw["seg_span"] = (lay.seg_span[0] * unit, lay.seg_span[1] * unit)
         kw["bar_axis_tol"] = lay.bar_axis_tol * unit
         kw["bar_cover"] = lay.bar_cover * unit
@@ -425,8 +438,8 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
         # they do not move with the drawing's scale; their tolerance is the
         # coordinate slack the stroke index already carries, expressed as a
         # fraction of the size the legend drew - not a chosen allowance.
-        flat = float(pn.values.get("dome_flat") or 0.0)
-        side = float(pn.values.get("cylinder_side") or 0.0)
+        flat = float(pn.values.get("dome_flat") or 0.0) * scale
+        side = float(pn.values.get("cylinder_side") or 0.0) * scale
         if flat:
             kw["dome_flat"] = (flat * PNEUMATIC_SIZE_BAND[0],
                                flat * PNEUMATIC_SIZE_BAND[1])
@@ -442,25 +455,25 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
             div = float(pn.values["cylinder_divider"])
             kw["cyl_divider"] = (div - slack, div + slack)
     if bf.values:
-        tl = float(bf.values["tick_length"])
+        tl = float(bf.values["tick_length"]) * scale
         kw["tick_span"] = (tl * TICK_LENGTH_BAND[0], tl * TICK_LENGTH_BAND[1])
         kw["tick_reach"] = float(bf.values["tick_reach_radii"])
         kw["bar_reach"] = float(bf.values["bar_reach_radii"]) * BAR_RADII_BAND[1]
         kw["bar_min"] = float(bf.values["bar_min_radii"]) * BAR_RADII_BAND[0]
         if bf.values.get("circle_diameter"):
-            kw["disc_min"] = float(bf.values["circle_diameter"]) * DISC_MIN_RATIO
+            kw["disc_min"] = float(bf.values["circle_diameter"]) * scale * DISC_MIN_RATIO
     if st.values:
         # The legend draws the stem on the enclosure's centre line and starting
         # on its edge, so both tolerances are its measured value plus the index
         # slack rather than a chosen allowance.
-        kw["act_offaxis"] = float(st.values["stem_offaxis"]) + INDEX_SLACK * unit
-        kw["stem_slack"] = float(st.values["stem_gap"]) + INDEX_SLACK * unit
+        kw["act_offaxis"] = float(st.values["stem_offaxis"]) * scale + INDEX_SLACK * unit
+        kw["stem_slack"] = float(st.values["stem_gap"]) * scale + INDEX_SLACK * unit
         # The legend lays its own actuator out at `centre_to_body`; a drawing at
         # another scale needs headroom, and REACH_FACTOR is that headroom.
-        kw["act_reach"] = float(st.values["centre_to_body"]) * REACH_FACTOR
+        kw["act_reach"] = float(st.values["centre_to_body"]) * scale * REACH_FACTOR
         # hotfix48 — 같은 값을 **범례 원 지름에 대한 비율**로도 든다 (아래 `act` 가
         # 서면).  본문이 범례와 다른 축척으로 그려진 문서에서 절대 pt 는 못 넘는다.
-        kw["_centre_to_body"] = float(st.values["centre_to_body"])
+        kw["_centre_to_body"] = float(st.values["centre_to_body"]) * scale
     # 43회차 — 몸체 짧은 변의 창을 그 문서 범례가 그린 나비에 맨다.  `derived`
     # (지문 재료인 legend 기록)에는 넣지 않는다 — 값이 같아도 항목이 늘면 이미
     # 답이 있는 문서의 지문이 움직인다.  출처는 layout 자신이 들고 파이프라인이
@@ -469,6 +482,7 @@ def derive_layout(pages, lay: ValveLayout = None, cfg=CFG, derived=None):
     # `derived`(지문 재료)에 넣지 않는 이유는 아래 43회차 주석과 같다.
     act, act_why = legend_actuator_circle(pages, lay)
     if act:
+        act = act * scale
         kw["act_box"] = (round(act * ACT_BOX_BAND[0], 2),
                          round(act * ACT_BOX_BAND[1], 2))
         kw["act_box_source"], kw["act_box_basis"] = "LEGEND", act

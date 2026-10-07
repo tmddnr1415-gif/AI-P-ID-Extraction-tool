@@ -540,7 +540,15 @@ def _document_unit(pages) -> tuple:
     cd = (bf.values or {}).get("circle_diameter")
     if not cd:
         return 1.0, "no butterfly circle on the legend - unit 1.0 (AL NOUF1 values as written)"
-    return u, f"legend butterfly circle {cd} pt / {legend_rules.BUTTERFLY_CIRCLE_BASIS} pt"
+    why = f"legend butterfly circle {cd} pt / {legend_rules.BUTTERFLY_CIRCLE_BASIS} pt"
+    # hotfix48 [B] — 범례 장이 본 도면과 다른 종이면(QFE: A3 범례 ↔ A1 도면) 범례의
+    # 원은 본문에서 그 배율만큼 크다.  안 곱하면 별표 창이 반으로 줄어 본문 별표를
+    # 놓친다 (p10 MOV `(*)` 가 액추에이터 원에서 5.06pt ↔ 창 4.95).  같은 종이면 1.0.
+    scale, scale_why = legend_rules.legend_paper_scale(pages)
+    if scale != 1.0:
+        u = round(u * scale, 4)
+        why += f" x {scale} ({scale_why})"
+    return u, why
 
 
 def _fit_layout(pages) -> dict:
@@ -1846,7 +1854,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                          # hotfix48 — 액추에이터 사정거리: 울타리 크기 대비 비율과 출처
                          "act_reach": round(dv.LAYOUT.act_reach, 3),
                          "act_reach_ratio": dv.LAYOUT.act_reach_ratio,
-                         "act_reach_source": dv.LAYOUT.act_reach_source},
+                         "act_reach_source": dv.LAYOUT.act_reach_source,
+                         # hotfix48 [B] — 범례 장 종이 → 본 도면 종이 배율과 사유
+                         "legend_scale": dv.LAYOUT.legend_scale,
+                         "legend_scale_source": dv.LAYOUT.legend_scale_source},
         # 이 분석이 범례를 **재서** 왔는지 **물려받아서** 왔는지.  지문에는
         # 들어가지 않는다 (`fingerprint` 는 `legend`·`multipliers`·행만 본다):
         # 같은 값을 쓴 두 경로가 다른 지문을 내면 프로필이 값을 정확히 담았는지
