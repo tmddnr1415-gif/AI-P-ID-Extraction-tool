@@ -3243,7 +3243,7 @@ tag 가 변경된 것이다.  하지만 tag 변경인지, 삭제 추가인지 �
 
 사용자(회사 PC 사진 · QFE p10 `1A1Y-00EKG00-M05-0005` · `MOV 11MBP01AA105/AA106`): *"`(*)` 표기가 있음에도
 SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/hotfix48/1_보고서.md` · 전수
-`out/hotfix48/probe_*.json` · 전후 대조 `out/hotfix48/qfe_diff.txt` · 시험 `tests/test_hotfix48_act_reach_ratio.py` 13건.
+`out/hotfix48/probe_*.json` · 전후 대조 `out/hotfix48/qfe_diff.txt` · 시험 `tests/test_hotfix48_act_reach_ratio.py` 13건 (빠른 시험 762 → **775**).
 
 1. **★ 별표가 아니라 액추에이터였다.**  그 두 밸브는 `BALL · actuator NONE · 태그 MOV · REVIEW · SCT`.
    `(*)` 활자는 M 원 **왼쪽 옆**(중심 y 714.5)인데 M 원이 안 붙어 별표 창이 몸체 사각형뿐이고(위 끝 y 720)
@@ -3259,7 +3259,7 @@ SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/
 3. **밸브 단계만 전수로 돌렸다** (`spike/act_reach_probe.py` — `find_bodies` 한 번 · 규칙 둘로 `attach_actuators`):
    AL NOUF1 170 → **170** (다른 장 0) · TC2 160 → **160** (0) · **QFE 27 → 129** (+102 · 26장 · 잃은 것 0 — BALL/GATE/NEEDLE/BUTTERFLY 의 MOTOR 79 · HYDRAULIC 14 · PNEUMATIC 9 · 표본 7 렌더 확인 `out/hotfix48/qfe_gained_crops.png`).  QFE p10: 0 → **2** (BALL·MOTOR) ·
    `read_vendor_mark` → `VENDOR_MARK_TEXT` · `MARKED ITEMS TO BE PROVIDED BY GTG SUPPLIER.` → `VENDOR(GTG SUPPLIER)`.
-4. **[회귀]** AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 **불변** · TC2 `67eae92d` · 902 · 5564 · 94.2 **불변** · **QFE `94615ba2` → `fbe5e887` · 2041 → 2051 · Q'ty 3710 → 3720 · 축3 89.0 → 90.5** (기준선 갱신 · TBD_QFE_DIFF).
+4. **[회귀 · 최종 코드 [A]+[B] · 순차]** AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 **불변** · TC2 `67eae92d` · 902 · 5564 · 94.2 **불변** · UAD-DXF `a32c02a6` · 507 **불변** · **QFE 움직임 — 기준선 갱신** ([A] 만으로는 `fbe5e887` · 2051 · 3720 · 90.5 였다).  QFE `94615ba2` → **`8b2975ee`** · 2041 → **2068** · Q'ty 3710 → **3757** · 축3 89.0 → **91.1**.  hotfix47 코드(worktree `98f6e84`)로 같은 PDF 를 다시 돌려 **칸 단위로 대조**했다 (`out/hotfix48/qfe_diff.txt` · `qfe_diff_summary.txt`): 공통 1928행 — 지문 열에서 tab 70 · actuator 70 · scope 52 · vendor_supply 19 · needs_review 101 이 움직였고, 같은 자리의 몸체 종류 재판독이 80쌍(NEEDLE→GATE 44 · BALL→BUTTERFLY 19 · BUTTERFLY→BALL 15 — 몸체 짧은 변 창이 (2.45, 14.7) → (4.9, 29.4)), 사라진 13(몸체를 찾은 태그 버블 행 7 · 2pt CHECK 6), 새 40(공압 GATE 6 · BFV 7 · MOV 7 · FIELD 6 …).  탭 REVIEW 349 → **213** · MOV 11 → **98** · BFV 0 → **26** · PNEUMATIC 3 → **47**.  SCOPE 이동 52 = SCT → VENDOR 26 · SCT → VENDOR(GTG SUPPLIER) 6 · SCT → VENDOR(PUMP SUPPLIER) 3 · VENDOR → VENDOR(HRSG VENDOR) 8 · VENDOR(PUMP) → VENDOR(PUMP SUPPLIER) 9 (NOTES 줄 간격 허용치가 돌아와 공급자 이름을 끝까지 읽는다).  **렌더 확인** (`out/hotfix48/verify_*.png`): p10 MOV 둘 다 `VENDOR(GTG SUPPLIER)` · p24 RO 구름 안 `(*)` · p44·p46 MOV 의 M 원 옆 ⊛ · p56 PDIT·PI 위 ⊛(그 장 NOTES 가 정의하지 않아 `VENDOR` + 검토) · p11 BALL + `H` 상자.  ⚠ 잃은 것: p44·p46 의 작은 GLOBE 4행 — 반 크기 `(M)` 원(≈7pt)이 범례 배율 창 하한 8.97 아래라 MOTOR → NONE (REVIEW 탭에 남는다 · AL NOUF1 이 글로브 허리 원반 7.1 을 빼려고 둔 하한과 같은 자리).).
 5. **★ [B] 그래도 p10 의 두 MOV 중 위쪽은 SCT 였다 — 둘째 원인은 hotfix20 의 길이 단위다.**  [A] 뒤 전량 회귀에서
    AA105 가 MOTOR 로 붙고도 SCT.  한 장 프로브는 둘 다 VENDOR 를 내서 **12장 부분 PDF 로 8분 만에 재현**하고 `read_vendor_mark`
    에 스파이를 달았다: 파이프라인의 `mark_side / mark_above` 가 **4.95 / 12.375**(프로브 10 / 25) · 그 장 마크 2개(프로브 4).

@@ -1,0 +1,8 @@
+공통 1928 · 같은 자리 몸체 종류 재판독 80 {('BUTTERFLY', 'BALL'): 15, ('NEEDLE', 'GATE'): 44, ('BALL', 'BUTTERFLY'): 19, ('CHECK', 'CHECK'): 2}
+사라진(짝 없음) 13 {'CHECK': 6, '태그 버블 행': 7}
+새로(짝 없음) 40 {('BFV', 'BUTTERFLY'): 7, ('FIELD', 'SC'): 2, ('PNEUMATIC', 'GATE'): 6, ('FIELD', 'GTC'): 2, ('MOV', 'GLOBE'): 4, ('REVIEW', '태그 버블 행'): 6, ('REVIEW', 'BALL'): 2, ('PNEUMATIC', 'BALL'): 1, ('FIELD', 'pH'): 1, ('MOV', 'BALL'): 3, ('PNEUMATIC', 'GLOBE'): 2, ('FIELD', 'DN'): 1, ('REVIEW', 'CHECK'): 2, ('REVIEW', 'GLOBE'): 1}
+탭 전 {'FIELD': 1678, 'REVIEW': 349, 'PNEUMATIC': 3, 'MOV': 11} 후 {'FIELD': 1684, 'PNEUMATIC': 47, 'REVIEW': 213, 'MOV': 98, 'BFV': 26}
+공통 행 SCOPE 이동 52 {('SCT', 'VENDOR(GTG SUPPLIER)'): 6, ('SCT', 'VENDOR'): 26, ('VENDOR', 'VENDOR(HRSG VENDOR)'): 8, ('SCT', 'VENDOR(PUMP SUPPLIER)'): 3, ('VENDOR(PUMP)', 'VENDOR(PUMP SUPPLIER)'): 9}
+  그중 계기(FIELD) 36 · 밸브 16
+새 행 SCOPE {'SCT': 117, 'VENDOR': 3}
+Q'ty 3710 -> 3757
