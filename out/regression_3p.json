@@ -1,52 +1,52 @@
 {
   "projects": [
     {
-      "name": "QFE",
-      "rows": 2051,
-      "fingerprint": "fbe5e887a7d3a2362851f08b296f15ce8c5ead754c23a76bd128dfedde743a47",
-      "qty_sum": 3720,
+      "name": "TC2",
+      "rows": 902,
+      "fingerprint": "67eae92de409d9e81eb43d4e53b241f0aeaa3b8314d91e5c5de6402255bb706d",
+      "qty_sum": 5564,
       "tabs": {
-        "FIELD": 1678,
-        "REVIEW": 279,
-        "PNEUMATIC": 12,
-        "MOV": 67,
-        "BFV": 15
+        "FIELD": 706,
+        "MOV": 71,
+        "PNEUMATIC": 58,
+        "BFV": 7,
+        "REVIEW": 60
       },
-      "seconds": 2317.3,
-      "max_rss_gb": 6.36,
+      "seconds": 1154.2,
+      "max_rss_gb": 7.47,
       "identification": {
         "도면번호": [
-          86,
-          86,
+          60,
+          60,
           ""
         ],
         "개정": [
-          85,
-          93,
+          60,
+          60,
           ""
         ],
         "태그→행": [
-          321,
-          430,
+          239,
+          266,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          2049,
-          2051,
+          902,
+          902,
           ""
         ],
         "심볼판정": [
-          2051,
-          2373,
+          902,
+          1055,
           ""
         ],
         "파라미터": [
-          28,
-          31,
+          26,
+          29,
           ""
         ]
       },
-      "score": 90.5
+      "score": 94.2
     }
   ],
   "metrics": [
