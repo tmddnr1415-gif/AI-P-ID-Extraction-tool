@@ -206,6 +206,12 @@ def main() -> int:
 
     RUNS.mkdir(parents=True, exist_ok=True)
     todo = [p for p in PROJECTS if not a.only or p["name"] == a.only]
+    if not todo:
+        # hotfix48 — `--only AL_NOUF1` 처럼 이름이 안 맞으면 빈 표를 그리다 죽었다.
+        # 무엇을 받는지 말하고 멈춘다.
+        print("--only %r 에 맞는 프로젝트가 없습니다.  이름은 %s 중 하나입니다 (공백 포함 · 따옴표로 감싼다)"
+              % (a.only, [p["name"] for p in PROJECTS]))
+        return 2
     res = []
     for p in todo:
         print("· %s 분석 …" % p["name"], flush=True)
