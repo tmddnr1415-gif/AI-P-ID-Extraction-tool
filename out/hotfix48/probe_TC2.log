@@ -59,3 +59,4 @@ p58: bodies 36 · abs 0 · ratio 0 · diff 0 · 6.9s
 p59: bodies 7 · abs 0 · ratio 0 · diff 0 · 4.5s
 p60: bodies 5 · abs 0 · ratio 0 · diff 0 · 4.8s
 TOTAL abs 160 ratio 160 diff 0 414s
+exit 0
