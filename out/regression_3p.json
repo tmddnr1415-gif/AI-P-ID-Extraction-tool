@@ -1,52 +1,52 @@
 {
   "projects": [
     {
-      "name": "AL NOUF1",
-      "rows": 1133,
-      "fingerprint": "46d551fd0968917861352d1012e209916dc9b35f72d3878e20769faf31f9e092",
-      "qty_sum": 2136,
+      "name": "QFE",
+      "rows": 2068,
+      "fingerprint": "8b2975eecc6fb4c99e4d8d81b9e8743e6874ecbb7af011a7a4902e02e6291afc",
+      "qty_sum": 3757,
       "tabs": {
-        "FIELD": 904,
-        "MOV": 76,
-        "PNEUMATIC": 55,
-        "REVIEW": 75,
-        "BFV": 23
+        "FIELD": 1684,
+        "PNEUMATIC": 47,
+        "REVIEW": 213,
+        "MOV": 98,
+        "BFV": 26
       },
-      "seconds": 1461.3,
-      "max_rss_gb": 4.94,
+      "seconds": 1744.0,
+      "max_rss_gb": 6.37,
       "identification": {
         "도면번호": [
-          58,
-          58,
+          86,
+          86,
           ""
         ],
         "개정": [
-          58,
-          58,
+          85,
+          93,
           ""
         ],
         "태그→행": [
-          245,
-          267,
+          334,
+          430,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          1133,
-          1133,
+          2066,
+          2068,
           ""
         ],
         "심볼판정": [
-          1133,
-          1329,
+          2068,
+          2365,
           ""
         ],
         "파라미터": [
           28,
-          30,
+          31,
           ""
         ]
       },
-      "score": 95.1
+      "score": 91.1
     }
   ],
   "metrics": [
