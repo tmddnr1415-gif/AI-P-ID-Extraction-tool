@@ -3340,6 +3340,20 @@ P&ID 분석이 뜨고 그 P&ID 분석은 내가 개발한 프로그램을 돌리
 8. ⚠ **bat 는 Windows 에서 돌려 보지 못했다** (Linux 환경).  회사망 실주소의 허용은 시험에서 `65.3.30.234` 로 재현했다.
    대시보드 `dashboard.html` 은 이 저장소 밖이라 프롬프트만 냈다.
 
+**그 다음 — 자동 시작 창에서 서버가 안 뜨던 것: 배치 파일의 한글 (hotfix51 · 엔진 0줄)**
+
+현장(회사 PC): `install_autostart_lan.bat` 는 등록 SUCCESS 인데 `localhost:8000` 이 ERR_CONNECTION_REFUSED.  서버 창에
+`'twork'` · `'loopback'` · `'uble-click'` · `'data\CZE_Field_Instrument.xlsx'` · `'ho'` 가 줄줄이 — 전부 `start.bat`
+**주석·echo 줄의 조각**이다.  전문 `out/hotfix51/1_보고서.md` · 시험 `tests/test_hotfix51_bat_ascii.py` 3건 (빠른 시험 **793**).
+
+1. **원인** — hotfix50 의 `run_lan_service.bat` 가 `chcp 65001` 뒤 `call start.bat` 했고 `start.bat` 은 **UTF-8 한글 + LF** 였다.
+   cmd.exe 는 배치 파일을 바이트 위치로 다시 찾아 읽는데 65001 에서 여러 바이트 글자 줄을 지나면 위치가 어긋나 **줄 가운데부터**
+   읽는다 → `uvicorn` 줄에 끝내 닿지 못했다.  예전 더블클릭(cp949)에서는 깨져 보일 뿐 위치는 맞았다.
+2. **★ 저장소의 모든 `*.bat` 은 ASCII · CRLF · `chcp` 없음** (시험이 강제).  화면 문장은 영어 — 한국어는 Python 쪽이 말한다.
+3. `run_lan_service.bat` 는 `start.bat` 을 부르지 않고 서버를 직접 띄운다 (`.venv` python → `-m uvicorn app.main:app --host 0.0.0.0
+   --port 8000` · exe 가 있으면 `--lan --no-browser 8000`) · 창 이름 `PID server - LAN port 8000`.
+4. ⚠ **hotfix50 이 "bat 는 Windows 에서 돌려 보지 못했다" 고 적은 자리에서 터졌다** — 이 환경에 cmd.exe 가 없다.  여전히 못 잰다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3788,6 +3802,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `EMBED` · `applyEmbed` · `#embed-tabs` · `#embed-from` · `body.embed` | **hotfix50** — `?embed=1&mode=&user=` 를 파일 머리에서 한 번 읽는다.  메뉴 숨김 · 결과 탭 이동 · 작성자 · 새 프로젝트 종류.  해시는 화면 상태, 이 값들은 query — `toFirstScreen` 이 query 를 지키게 고쳤다 |
 | `run_lan_service.bat` · `install_autostart_lan.bat` · `uninstall_autostart_lan.bat` · `open_firewall_8000.bat` · `docs/dashboard_embed.md` | **hotfix50** — 부서장 PC 운영 스크립트(CRLF)와 절차 · 대시보드 Claude 용 프롬프트.  python 을 일괄 종료하는 줄을 넣지 마라 (대시보드 서버도 python) |
 | `spike/ui_audit_embed.py` | **hotfix50** — 사본 데이터로 사내망 모드 서버를 띄우고 대시보드 흉내 페이지(file://)의 iframe 안을 눌러 확인한다 |
+| `tests/test_hotfix51_bat_ascii.py` | **hotfix51** — 모든 `*.bat` 은 ASCII · CRLF · `chcp` 없음.  cmd.exe 가 UTF-8 한글 배치 파일을 줄 가운데부터 읽어 서버가 안 떴다.  배치 파일에 한글을 넣지 마라 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

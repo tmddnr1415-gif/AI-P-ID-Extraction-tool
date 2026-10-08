@@ -22,7 +22,7 @@
    - 옆에 `PID_Extract.exe` 가 있으면 그것을, 없으면 `start.bat`(Python 설치본)을 씁니다.
    - 손으로 켜려면 `start.bat --lan --no-reload` 또는 `PID_Extract.exe --lan`.
 4. **확인** — 다른 PC 의 Edge 에서 `http://ASEUNGWOOK-B01:8000/` (또는 `http://65.3.30.234:8000/`).
-5. 끄기 — 작업 표시줄의 "P&ID 분석 서버" 창을 닫습니다.  자동 시작을 지우려면
+5. 끄기 — 작업 표시줄의 "PID server - LAN port 8000" 창을 닫습니다 (hotfix51 부터 창 이름이 영어입니다).  자동 시작을 지우려면
    `uninstall_autostart_lan.bat`.  (대시보드 서버도 python 이라 python 을 일괄 종료하지 않습니다.)
 
 ### 사내망 모드에서 달라지는 것
