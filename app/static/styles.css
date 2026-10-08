@@ -1641,3 +1641,26 @@ header.head { background: #fff; border-bottom: 1px solid var(--line); padding: 1
 /* 좁은 창에서 한 글자씩 세로로 접히던 꼬리표 둘 (전 캡처에도 있었다). */
 #infobars .lb-tag, #infobars b, .rev-switch button, .rev-switch .rs-cap { white-space: nowrap; flex: none; }
 .rev-switch { flex-wrap: wrap; row-gap: 4px; }
+
+/* ---------- hotfix50 — 부서 대시보드 안 (?embed=1) ----------
+   대시보드가 왼쪽 메뉴를 이미 갖고 있으므로 이 화면의 메뉴는 숨긴다.  결과 탭은
+   결과 머리 아래 줄(#embed-tabs)로 옮겨 가로 알약으로 선다. */
+body.embed, body.embed.nav-collapsed { padding-left: 0; }
+body.embed #sidebar, body.embed .nav-toggle { display: none !important; }
+.embed-from { margin: 4px 0 0; font-size: 12px; color: var(--sb-on); font-weight: 600; }
+.embed-tabs { padding-top: 6px; }
+body.embed .embed-tabs #tabs {
+  display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 0; margin: 0;
+}
+body.embed .embed-tabs #tabs button {
+  width: auto; flex: none; gap: 6px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: #f3f5f9; color: var(--ink-strong, #1d2433);
+  font-size: 12.5px; box-shadow: none;
+}
+body.embed .embed-tabs #tabs button:hover { background: #e8ecf5; }
+body.embed .embed-tabs #tabs button.on { background: var(--sb-on); border-color: var(--sb-on); color: #fff; }
+body.embed .embed-tabs #tabs .tab-line { flex: none; gap: 6px; }
+body.embed .embed-tabs #tabs button .n, body.embed .embed-tabs #tabs .tab-line .n {
+  margin-left: 4px; color: inherit; opacity: .75;
+}
+

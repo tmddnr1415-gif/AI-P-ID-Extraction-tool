@@ -108,6 +108,20 @@ const S = {
   trOff: new Set(),
 };
 
+/* hotfix50 — 부서 대시보드 안에서 열릴 때 (주소 뒤 `?embed=1&mode=bid|epc&user=이름`).
+ * 대시보드가 iframe 으로 띄우며 넘기는 세 값을 **한 번** 읽는다.  읽기만 하고 판정은 하지 않는다:
+ *   embed=1  — 이 화면의 왼쪽 메뉴를 숨긴다 (대시보드 메뉴가 이미 왼쪽에 있다)
+ *   mode     — 새 프로젝트를 입찰(bid) / 실행(epc · run) 으로 시작한다 (이미 있는 프로젝트의 선언은 안 건드린다)
+ *   user     — 편집 · 저장 기록의 이름 (대시보드에 적은 이름 · 자칭이라는 사실은 그대로다)
+ * 해시(#job?tab=…)는 화면 상태이고 이 값들은 주소의 query 에 있어 화면을 오가도 남는다. */
+const EMBED = (function readEmbed() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { q = new URLSearchParams(""); }
+  const m = (q.get("mode") || "").trim().toLowerCase();
+  const mode = m === "bid" ? "bid" : (m === "epc" || m === "run") ? "epc" : "";
+  return { on: q.get("embed") === "1", mode, user: (q.get("user") || "").trim().slice(0, 40) };
+})();
+
 /* ---------------- upload ----------------
  *
  * 왼쪽 단이 정해지기 전에는 PDF 를 받지 않는다.  프로젝트와 비교 대상은 분석이
@@ -250,6 +264,7 @@ function chooseProject(name) {
     box.classList.add("hidden");
     $("#rev-note").textContent = "";
     $("#proj-msg").textContent = "프로젝트 없이 한 번만 분석합니다 — 개정 대조 없음";
+    if (EMBED.mode) { S.mode = EMBED.mode; showMode(S.mode); }   // hotfix50 — 대시보드 메뉴가 정한 종류
     setSetupDone(true);
     return;
   }
@@ -338,6 +353,12 @@ $req("#proj-save").addEventListener("click", async () => {
   }
   $("#proj-new").classList.add("hidden");
   $("#proj-name").value = "";
+  // hotfix50 — 대시보드의 입찰 / 실행 메뉴에서 만든 프로젝트는 그 종류로 시작한다.  선언은 장부에
+  // 작성자와 함께 적히고(38회차 PATCH 그대로) 화면 라디오로 언제든 바꿀 수 있다.
+  if (EMBED.mode && !(out.mode && out.mode.value)) {
+    const fm = new FormData(); fm.append("mode", EMBED.mode); fm.append("author", lastAuthor() || "");
+    try { await fetch(`/projects/${encodeURIComponent(out.name)}/mode`, { method: "PATCH", body: fm }); } catch (e) {}
+  }
   await loadProjects(out.name);           // 만든 프로젝트가 곧 선택이다
 });
 
@@ -1101,7 +1122,7 @@ function toFirstScreen() {
   $("#prog-now").textContent = "";
   $("#prog-home").textContent = "첫 화면으로";
   S.pageCount = null; S.sheetTargets = null; S.watching = null;
-  if (location.hash) history.replaceState(null, "", location.pathname);
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);  // hotfix50 — ?embed 등을 지우지 않는다
   listJobs();
 }
 $req("#prog-home").addEventListener("click", toFirstScreen);
@@ -7753,3 +7774,23 @@ document.addEventListener("click", ev => {
   const el = document.querySelector(target);
   if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("home-highlight"); setTimeout(() => el.classList.remove("home-highlight"), 1500); }
 });
+
+/* hotfix50 — 대시보드 안 (EMBED 는 파일 머리에서 읽었다).
+ * 왼쪽 메뉴를 숨기고, 메뉴에 있던 결과 탭은 결과 머리 아래 줄로 옮긴다 — 요소를 옮길 뿐이라
+ * `buildTabs` 는 그대로다 (hotfix49 가 머리줄에서 메뉴로 옮길 때와 같은 방식).  첫 화면으로는
+ * 결과 머리의 `← 첫 화면` 으로 간다. */
+(function applyEmbed() {
+  if (EMBED.user) { rememberAuthor(EMBED.user); renderNav(); }
+  if (EMBED.mode && !S.project) { S.mode = EMBED.mode; showMode(S.mode); }
+  const from = $("#embed-from");
+  if (from && EMBED.mode) {
+    const w = MODE_WORD[EMBED.mode];
+    from.textContent = `${w} 프로젝트 메뉴에서 열림 — 새 프로젝트는 ${w}${EMBED.mode === "bid" ? "로" : "으로"} 시작합니다`;
+    from.classList.remove("hidden");
+  }
+  if (!EMBED.on) return;
+  document.body.classList.add("embed");
+  const slot = $("#embed-tabs"), tabs = $("#tabs");
+  if (slot && tabs) { slot.appendChild(tabs); slot.classList.remove("hidden"); }
+  setTimeout(() => window.dispatchEvent(new Event("resize")), 0);   // 도면 창 폭이 메뉴만큼 넓어졌다
+})();

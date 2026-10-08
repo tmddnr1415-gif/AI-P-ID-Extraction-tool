@@ -7,6 +7,9 @@
 #   ./run.sh              start on 8000, reload on code change
 #   ./run.sh 9000         another port
 #   ./run.sh --no-reload  don't watch files (a little faster)
+#   ./run.sh --lan        hotfix50: open on the company network (0.0.0.0) so the
+#                         department dashboard can show it in an iframe.  Only
+#                         loopback / private / this PC's /16 / PID_ALLOW get in.
 #
 # Analyses already in app/_data/app.db are kept, so an earlier result opens
 # immediately - the landing screen lists them and the app jumps straight to the
@@ -16,9 +19,11 @@ cd "$(dirname "$0")"
 
 PORT=8000
 RELOAD=--reload
+HOST=127.0.0.1
 for arg in "$@"; do
   case "$arg" in
     --no-reload) RELOAD="" ;;
+    --lan) HOST=0.0.0.0; export PID_LAN=1 ;;
     [0-9]*) PORT="$arg" ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
   esac
@@ -49,7 +54,11 @@ PY
 fi
 
 echo "→ http://127.0.0.1:${PORT}"
+if [ "${PID_LAN:-}" = "1" ]; then
+  echo "사내망 모드: 다른 PC 는 아래 주소로 들어옵니다 (사내망 · 이 PC 의 /16 만 허용)"
+  python3 -c "from app import lan; print('\n'.join('   → ' + u for u in lan.urls(${PORT})))"
+fi
 echo "→ 로그: logs/server.log (화면에도 같이 출력)"
 echo
-exec python3 -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT" ${RELOAD} \
+exec python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT" ${RELOAD} \
   2>&1 | tee -a logs/server.log

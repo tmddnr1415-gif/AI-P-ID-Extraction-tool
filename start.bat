@@ -3,6 +3,9 @@ rem One command to bring the app up on Windows - the same thing run.sh does.
 rem
 rem   start.bat            start on 8000, reload on code change
 rem   start.bat 9000       another port
+rem   start.bat --lan      hotfix50: open on the company network (0.0.0.0) so the
+rem                        department dashboard can show it in an iframe.  Only
+rem                        loopback / private / this PC's /16 / PID_ALLOW get in.
 rem   start.bat --verify   verification mode: attribute drawings against
 rem                        data\CZE_Field_Instrument.xlsx (a *finished* list).
 rem                        Off by default; normal use has no such file.
@@ -15,10 +18,12 @@ cd /d "%~dp0"
 
 set PORT=8000
 set RELOAD=--reload
+set HOST=127.0.0.1
 for %%a in (%*) do (
+  if "%%a"=="--lan" (set HOST=0.0.0.0& set PID_LAN=1) else (
   if "%%a"=="--no-reload" (set RELOAD=) else (
   if "%%a"=="--verify" (set PID_VERIFY_EXCEL=data\CZE_Field_Instrument.xlsx) else (
-  set PORT=%%a))
+  set PORT=%%a)))
 )
 
 rem Use the project's virtual environment when there is one, so a plain
@@ -39,10 +44,14 @@ if errorlevel 1 (
 if not exist logs mkdir logs
 if defined PID_VERIFY_EXCEL echo 검증 모드: %PID_VERIFY_EXCEL% 로 귀속을 판정합니다.
 echo -^> http://127.0.0.1:%PORT%
+if defined PID_LAN (
+  echo 사내망 모드: 다른 PC 는 아래 주소로 들어옵니다 ^(사내망 · 이 PC 의 /16 만 허용^)
+  %PY% -c "from app import lan; print('\n'.join('   -> ' + u for u in lan.urls(%PORT%)))"
+)
 echo -^> 로그: logs\server.log
 echo.
 
 rem cmd.exe has no `tee`, so the log is written by uvicorn's own stream and
 rem echoed back as it goes.
-%PY% -m uvicorn app.main:app --host 127.0.0.1 --port %PORT% %RELOAD% 2>&1 | %PY% -c "import sys;f=open('logs/server.log','a',encoding='utf-8',buffering=1);[ (sys.stdout.write(l), f.write(l)) for l in sys.stdin ]"
+%PY% -m uvicorn app.main:app --host %HOST% --port %PORT% %RELOAD% 2>&1 | %PY% -c "import sys;f=open('logs/server.log','a',encoding='utf-8',buffering=1);[ (sys.stdout.write(l), f.write(l)) for l in sys.stdin ]"
 endlocal

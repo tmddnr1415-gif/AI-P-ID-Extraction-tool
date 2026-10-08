@@ -3312,6 +3312,34 @@ SCT 로 분류함.  이런 일이 일어나지 않도록 수정."*  전문 `out/
    실패 목록이 같다** (step3 귀속 한 종류 · step6 다섯 발주처 xlsx 없음 · step16 장이 창보다 짧음 · step17 hotfix38 이전 열 순서 ·
    step12 46↔47).  이번 회차 밖이라 고치지 않았다 — 낡은 기대 둘(step17 · step12)은 다음 후보.
 
+**그 다음 — 부서 대시보드 안에 P&ID 분석 넣기 (hotfix50 · 엔진 0줄)**
+
+사용자(부서 대시보드 폴더 사진 · `DASHBOARD_ARCHITECTURE.md`): *"입찰/실행 프로젝트를 누르면 하위 메뉴로
+P&ID 분석이 뜨고 그 P&ID 분석은 내가 개발한 프로그램을 돌리고 싶다."*  전문 `out/hotfix50/1_보고서.md` ·
+절차와 대시보드 Claude 용 프롬프트 `docs/dashboard_embed.md` · 화면 `out/hotfix50/ui/` ·
+시험 `tests/test_hotfix50_dashboard_embed.py` 10건 (빠른 시험 780 → **790**).  **엔진 0줄 · 지문 무관.**
+
+1. **대시보드 폴더에 넣지 않는다** — 대시보드는 표준 라이브러리 + HTML 한 파일이고 pip 금지라 `apps/`(정적)에서
+   이 프로그램이 못 돈다.  같은 PC 에서 따로 포트 8000 으로 돌고 대시보드가 iframe 으로 띄운다 (그 문서 §7 방법 B).
+2. **`--lan`** (`start.bat` · `run.sh` · `PID_Extract.exe`) — `0.0.0.0` · `PID_LAN=1` · exe 는 **8000 고정**(빈 포트를
+   고르면 대시보드가 주소를 못 적는다 · 쓰고 있으면 사유를 말하고 멈춘다).  꺼져 있으면 예전과 한 글자도 같다.
+3. **`app/lan.py` 문지기** — 사내망 모드에서만: 루프백 · 사설망 · **이 PC 의 /16**(그때 잼) · `PID_ALLOW`, 그 밖은 403.
+   대시보드 서버(§5)와 같은 규칙.  `/version` **하나만** `Access-Control-Allow-Origin: *` (대시보드가 살아 있나를 묻는다 ·
+   다른 경로는 허용 없음 — 시험).
+4. **`?embed=1`** — 왼쪽 메뉴를 숨기고 `#tabs` 를 결과 머리 아래 `#embed-tabs` 로 옮긴다 (요소만 옮김 · `buildTabs` 그대로).
+   **`?user=`** — `pid.author` 를 채운다.  **`?mode=bid|epc|run`** — 새 프로젝트를 그 종류로 시작(38회차 PATCH 그대로 · 작성자
+   함께) · "프로젝트 없이" 의 라디오 기본값.  읽는 곳은 파일 머리의 `EMBED` 하나 · 대시보드로 보내는 것 없음.
+5. ★ **`toFirstScreen` 이 query 를 지우고 있었다** (`location.pathname` 만) — embed 에서 `← 첫 화면` 을 누르면 메뉴가
+   다시 나타났을 것이다.  `pathname + search` 로.  자기검증이 query 생존을 확인한다.
+6. 운영 bat 넷(CRLF): `run_lan_service.bat`(멈추면 10초 뒤 다시 · exe 우선) · `install_autostart_lan.bat`(작업 스케줄러 ·
+   관리자 불필요) · `uninstall_autostart_lan.bat`(**python 일괄 종료 금지** — 대시보드 서버도 python) ·
+   `open_firewall_8000.bat [대역]`(관리자).  자동 시작 창은 사람이 없어 exe 가 Enter 를 기다리지 않는다(`PID_NO_HOLD`).
+7. **띄워서 확인** (`spike/ui_audit_embed.py` — 사본 데이터 · 사내망 모드 서버 · 대시보드 흉내 페이지를 **file://** 로):
+   `/version` CORS ok · 메뉴 숨김 · 여백 0 · 이름 `홍길동` · 모드 `bid` · 결과 1,133행 · 탭 6개가 `#embed-tabs` 안 ·
+   첫 화면 뒤 query 유지 · 새 프로젝트 장부 `mode: bid · author: 홍길동` · 직접 열면 예전 그대로 · 페이지 오류 0.
+8. ⚠ **bat 는 Windows 에서 돌려 보지 못했다** (Linux 환경).  회사망 실주소의 허용은 시험에서 `65.3.30.234` 로 재현했다.
+   대시보드 `dashboard.html` 은 이 저장소 밖이라 프롬프트만 냈다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3755,6 +3783,11 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `DASH` · `renderDashboard` · `vbars`/`hbars`/`donut` · `DONUT_PARTS` · `#chart-tip` | **hotfix49** — 첫 화면 지표·그래프.  `listHome`·`showAudit` 가 받은 응답을 그대로 읽는다 (새 요청·새 판정 0 — 시험이 소스로 못박는다).  도넛 색은 상태 고정 · 색맹 검사 통과 |
 | `spike/ui_shots_redesign.py` | **hotfix49** — 첫 화면·결과·나란히를 두 폭(1920 · 1366)으로 찍고 목록 높이·도면 창·가로 스크롤·페이지 오류를 적은 뒤, 메뉴 접기·툴팁·메뉴 → 결과 → 홈을 눌러 확인한다.  실 DB 를 안 연다 |
 | `spike/ui_audit_tags.py` · `spike/ui_audit_revswitch.py` | 태그 문법 띠·증거 행·교차 검증 / 전환 스위치 자기검증 (시간·요청 수까지 잰다) |
+| `app/lan.py` · `lan.Gate` · `client_allowed` · `PID_LAN` · `PID_ALLOW` | **hotfix50** — 사내망 모드(`--lan`)에서만 주소를 본다: 루프백 · 사설망 · 이 PC 의 /16 · 더한 대역.  꺼져 있으면 아무것도 안 한다 (TestClient 의 `testclient` 주소가 그대로 통과) |
+| `GET /version` 의 `Access-Control-Allow-Origin: *` | **hotfix50** — 부서 대시보드가 P&ID 서버가 살아 있나를 묻는 **유일한** 다른 출처 허용.  다른 경로에 넣지 마라 |
+| `app.js` `EMBED` · `applyEmbed` · `#embed-tabs` · `#embed-from` · `body.embed` | **hotfix50** — `?embed=1&mode=&user=` 를 파일 머리에서 한 번 읽는다.  메뉴 숨김 · 결과 탭 이동 · 작성자 · 새 프로젝트 종류.  해시는 화면 상태, 이 값들은 query — `toFirstScreen` 이 query 를 지키게 고쳤다 |
+| `run_lan_service.bat` · `install_autostart_lan.bat` · `uninstall_autostart_lan.bat` · `open_firewall_8000.bat` · `docs/dashboard_embed.md` | **hotfix50** — 부서장 PC 운영 스크립트(CRLF)와 절차 · 대시보드 Claude 용 프롬프트.  python 을 일괄 종료하는 줄을 넣지 마라 (대시보드 서버도 python) |
+| `spike/ui_audit_embed.py` | **hotfix50** — 사본 데이터로 사내망 모드 서버를 띄우고 대시보드 흉내 페이지(file://)의 iframe 안을 눌러 확인한다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

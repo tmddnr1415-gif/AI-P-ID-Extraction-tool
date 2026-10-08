@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
-                 legend_profile, markup, paths, pipeline, revisions,
+                 lan, legend_profile, markup, paths, pipeline, revisions,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
 from app.pipeline import CFG                              # noqa: E402
 
@@ -53,6 +53,9 @@ PAGE_CACHE = DATA_DIR / "page_cache"
 STATIC = paths.resource("app", "static")
 
 app = FastAPI(title="P&ID extraction")
+# hotfix50 — 사내망 모드(`--lan` · PID_LAN=1)에서만 주소를 본다: 루프백 · 사설망 · 이 PC 의
+# /16 · PID_ALLOW.  꺼져 있으면(127.0.0.1) 아무것도 하지 않는다 (app/lan.py).
+app.add_middleware(lan.Gate)
 CON = db.connect(DB_PATH)
 
 # Verification mode.  Attributing a drawing to MATCHED or PDF_ONLY needs a
@@ -3226,7 +3229,11 @@ def build_version():
     out["ui"] = {"app_js": _asset_tag("app.js"), "styles_css": _asset_tag("styles.css")}
     # hotfix34 — 적용된 꾸러미 (없으면 null · 화면이 "기록 없음" 으로 말한다)
     out["update"] = version.update_info()
-    return out
+    # hotfix50 — 부서 대시보드(다른 출처 · file:// 사본은 null)가 "P&ID 서버가 살아 있나" 를
+    # 이것으로 묻는다.  버전 정보만 담긴 이 응답 하나만 출처를 가리지 않는다 — 다른 경로에는
+    # 이 머리말이 없어 대시보드가 데이터를 읽어 가는 길은 열리지 않는다.
+    return JSONResponse(out, headers={"Access-Control-Allow-Origin": "*",
+                                      "Cache-Control": "no-store"})
 
 
 # --------------------------------------------------------------------------
