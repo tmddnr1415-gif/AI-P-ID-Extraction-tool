@@ -22,7 +22,10 @@
    - 옆에 `PID_Extract.exe` 가 있으면 그것을, 없으면 `start.bat`(Python 설치본)을 씁니다.
    - 손으로 켜려면 `start.bat --lan --no-reload` 또는 `PID_Extract.exe --lan`.
 4. **확인** — 다른 PC 의 Edge 에서 `http://ASEUNGWOOK-B01:8000/` (또는 `http://65.3.30.234:8000/`).
-5. 끄기 — 작업 표시줄의 "PID server - LAN port 8000" 창을 닫습니다 (hotfix51 부터 창 이름이 영어입니다).  자동 시작을 지우려면
+5. **페이지가 끝없이 로딩만 하면** — `check_pid_server.bat` 더블클릭 (hotfix52).  8000 을 잡은 프로그램 ·
+   `/version` · 첫 화면 자료가 응답하는지 재고 할 일을 한국어로 말합니다 (같은 글이 `logs\lan_check.txt`).
+   hotfix52 부터 서비스 창은 글을 쓰지 않습니다(서버 기록은 `logs\server.log`) — 창을 눌러도 서버가 멈추지 않습니다.
+6. 끄기 — 작업 표시줄의 "PID server - LAN port 8000" 창을 닫습니다 (hotfix51 부터 창 이름이 영어입니다).  자동 시작을 지우려면
    `uninstall_autostart_lan.bat`.  (대시보드 서버도 python 이라 python 을 일괄 종료하지 않습니다.)
 
 ### 사내망 모드에서 달라지는 것

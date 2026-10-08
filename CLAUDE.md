@@ -3354,6 +3354,19 @@ P&ID 분석이 뜨고 그 P&ID 분석은 내가 개발한 프로그램을 돌리
    --port 8000` · exe 가 있으면 `--lan --no-browser 8000`) · 창 이름 `PID server - LAN port 8000`.
 4. ⚠ **hotfix50 이 "bat 는 Windows 에서 돌려 보지 못했다" 고 적은 자리에서 터졌다** — 이 환경에 cmd.exe 가 없다.  여전히 못 잰다.
 
+**그 다음 — 서버는 떠 있는데 페이지가 로딩만 (hotfix52 · 엔진 0줄)**
+
+현장: hotfix51 창에 `Uvicorn running on http://0.0.0.0:8000` 이 떴는데 `localhost:8000/?embed=1&mode=bid` 가 끝없이 로딩.
+전문 `out/hotfix52/1_보고서.md` · 시험 `tests/test_hotfix52_lan_hang.py` 9건 (빠른 시험 **801**).
+
+1. **"떠 있다" 와 "응답한다" 는 다른 사실이다.**  멈추는 길 셋 — ① 서버 창을 누르면 콘솔 '선택' 모드가 되어 그 창에 글을 쓰는
+   uvicorn 이 첫 요청에서 멈춘다(이전 사진 제목 "선택 …") → 서비스는 서버 출력을 `logs\server.log` 로만 · ② 다른 서버가 8000 을 같이
+   잡음 → 켜기 전에 `python -m app.lan_check --preflight` (0 비어 있음 · 3 이미 응답 · 4 잡혔는데 말 없음 — 1·2 는 파이썬 실패와 겹쳐
+   안 쓴다) · ③ `lan.Gate` 가 첫 요청에서 DNS 로 대역을 잼 → 루프백·사설망은 재기 전에 받는다.
+2. **`check_pid_server.bat`** — 8000 을 잡은 프로그램(PID) · `/version` · `/home` · 사내망 주소를 재고 판정을 한국어로 (`logs\lan_check.txt`).
+   아무것도 끄지 않는다.
+3. ⚠ Windows 에서 못 돌렸다 — 원인이 ①인지는 회사 PC 의 점검 결과가 말한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3803,6 +3816,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `run_lan_service.bat` · `install_autostart_lan.bat` · `uninstall_autostart_lan.bat` · `open_firewall_8000.bat` · `docs/dashboard_embed.md` | **hotfix50** — 부서장 PC 운영 스크립트(CRLF)와 절차 · 대시보드 Claude 용 프롬프트.  python 을 일괄 종료하는 줄을 넣지 마라 (대시보드 서버도 python) |
 | `spike/ui_audit_embed.py` | **hotfix50** — 사본 데이터로 사내망 모드 서버를 띄우고 대시보드 흉내 페이지(file://)의 iframe 안을 눌러 확인한다 |
 | `tests/test_hotfix51_bat_ascii.py` | **hotfix51** — 모든 `*.bat` 은 ASCII · CRLF · `chcp` 없음.  cmd.exe 가 UTF-8 한글 배치 파일을 줄 가운데부터 읽어 서버가 안 떴다.  배치 파일에 한글을 넣지 마라 |
+| `app/lan_check.py` · `check_pid_server.bat` | **hotfix52** — 8000 이 *응답하는지* 잰다 (`--preflight` 0/3/4 · 진단 보고).  서비스 창에 서버 출력을 쓰지 마라 — 콘솔 '선택' 모드가 서버를 멈춘다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

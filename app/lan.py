@@ -82,8 +82,13 @@ def allowed_networks(local: list[str] | None = None,
     return nets
 
 
-def client_allowed(host: str | None, nets: list) -> bool:
-    """대시보드 서버와 같은 규칙.  주소를 못 읽으면 받지 않는다."""
+def client_allowed(host: str | None, nets) -> bool:
+    """대시보드 서버와 같은 규칙.  주소를 못 읽으면 받지 않는다.
+
+    hotfix52 — `nets` 는 목록이거나 목록을 내는 함수다.  루프백 · 사설망은 대역을 재지
+    않고 먼저 받는다: 대역을 재는 `local_ipv4` 는 이 PC 이름을 DNS 로 푸는데, 그것이
+    이벤트 루프 안에서 막히면 **이 PC 자신(localhost)의 요청까지** 기다리게 된다.
+    """
     if not host:
         return False
     try:
@@ -94,6 +99,8 @@ def client_allowed(host: str | None, nets: list) -> bool:
         a = a.ipv4_mapped
     if a.is_loopback or a.is_private:
         return True
+    if callable(nets):
+        nets = nets()
     return any(a in n for n in nets if n.version == a.version)
 
 
@@ -126,7 +133,7 @@ class Gate:
     async def __call__(self, scope, receive, send):
         if scope.get("type") in ("http", "websocket") and enabled():
             client = scope.get("client") or (None, None)
-            if not client_allowed(client[0], self.nets()):
+            if not client_allowed(client[0], self.nets):
                 if scope["type"] == "websocket":
                     await send({"type": "websocket.close", "code": 1008})
                     return
