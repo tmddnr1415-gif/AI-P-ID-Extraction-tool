@@ -12,6 +12,7 @@
   ③ 첫 화면 자료(`/home`)가 느리다
 
     python -m app.lan_check              진단 — 화면에 쓰고 logs/lan_check.txt 에도 남긴다
+    python -m app.lan_check --tail       서버 로그 끝(마지막 예외) — 서비스가 멈출 때 창에 보인다
     python -m app.lan_check --preflight  서비스가 켜기 전에: 0 비어 있음 · 3 이 서버가 이미
                                          응답 중 · 4 누군가 잡았는데 응답이 없음
                                          (1·2 는 쓰지 않는다 — 파이썬 자체가 실패한 코드와
@@ -151,9 +152,45 @@ def report(port: int = PORT) -> list[str]:
     return lines
 
 
+def tail(path: Path | None = None, n: int = 15) -> list[str]:
+    """hotfix54 — 서버가 멈춘 이유를 창에 보인다 (로그 파일을 열지 않아도 되게).
+
+    로그는 UTF-8(서비스가 `PYTHONUTF8=1`)이지만 hotfix53 까지의 줄은 cp949 일 수 있어
+    줄마다 UTF-8 → cp949 순으로 풀고, 둘 다 안 되면 바꿔 읽는다.  마지막 예외가 보이도록
+    `Traceback` 이 있으면 그 줄부터 낸다."""
+    path = path or ROOT / "logs" / "server.log"
+    try:
+        raw = path.read_bytes()[-64_000:]
+    except OSError:
+        return [f"(로그가 없습니다: {path})"]
+    lines = []
+    for b in raw.splitlines():
+        for enc in ("utf-8", "cp949"):
+            try:
+                lines.append(b.decode(enc))
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            lines.append(b.decode("utf-8", "replace"))
+    last_tb = max((i for i, ln in enumerate(lines) if ln.startswith("Traceback")), default=None)
+    if last_tb is not None and len(lines) - last_tb <= 60:
+        start = max(last_tb, len(lines) - 60)
+        picked = lines[start:]
+        return picked[:3] + ["   ..."] + picked[-(n - 4):] if len(picked) > n else picked
+    return lines[-n:]
+
+
 def main(argv: list[str]) -> int:
+    from app import console
+    console.safe_stdio()
     if "--preflight" in argv:
         return preflight()
+    if "--tail" in argv:
+        print("---- logs\\server.log (end) ----")
+        print("\n".join(tail()))
+        print("---------------------------------")
+        return 0
     lines = report()
     text = "\n".join(lines)
     print(text)

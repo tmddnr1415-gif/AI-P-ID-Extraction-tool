@@ -3375,6 +3375,16 @@ P&ID 분석이 뜨고 그 P&ID 분석은 내가 개발한 프로그램을 돌리
 hotfix51(배치 파일)과 같은 가족이다.  `requirements*.txt` 다섯을 **ASCII** 로 (주석 영어 · 고정 버전 그대로) ·
 시험 `tests/test_hotfix53_requirements_ascii.py` 2건 (빠른 시험 **803**).  당장의 우회는 `set PYTHONUTF8=1`.
 
+**그 다음 — 서버가 켜지다 죽던 것: 로그 파일의 cp949 (hotfix54 · 엔진 0줄)**
+
+현장: 자동 시작 창이 `Server stopped … Restarting in 10 seconds` 를 되풀이 · 포트 8000 에 아무도 없음.
+hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 파일을 **cp949** 로 썼고, 손으로 더한 행이
+있는 DB 에서 기동 감사가 `—` 든 줄을 출력해 `import app.main` 에서 `UnicodeEncodeError` 로 죽었다 (이 환경의
+시험 DB 에는 그 행이 없어 놓쳤다).  고침: bat 둘에 `set PYTHONUTF8=1` · `app/console.safe_stdio()`(못 쓰는 글자는
+`?` · 인코딩 불변 · main/desktop/lan_check) · exe `_Tee` 가 `UnicodeError` 도 잡음 · 멈추면 창에
+`python -m app.lan_check --tail`(마지막 Traceback).  시험 `tests/test_hotfix54_log_encoding.py` 5건(빠른 시험 **808**).
+**Windows 에 출력을 파일로 돌리는 곳에는 `PYTHONUTF8=1` 을 같이 둔다.**
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3826,6 +3836,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `tests/test_hotfix51_bat_ascii.py` | **hotfix51** — 모든 `*.bat` 은 ASCII · CRLF · `chcp` 없음.  cmd.exe 가 UTF-8 한글 배치 파일을 줄 가운데부터 읽어 서버가 안 떴다.  배치 파일에 한글을 넣지 마라 |
 | `app/lan_check.py` · `check_pid_server.bat` | **hotfix52** — 8000 이 *응답하는지* 잰다 (`--preflight` 0/3/4 · 진단 보고).  서비스 창에 서버 출력을 쓰지 마라 — 콘솔 '선택' 모드가 서버를 멈춘다 |
 | `requirements*.txt` (ASCII) · `tests/test_hotfix53_requirements_ascii.py` | **hotfix53** — Windows 도구가 읽는 파일은 코드페이지에 기대지 않는다 (배치 파일 hotfix51 · requirements hotfix53).  한글을 넣지 마라 |
+| `app/console.py` `safe_stdio` · `lan_check.tail`/`--tail` | **hotfix54** — 표준 출력이 cp949 여도 못 쓰는 글자로 죽지 않는다 · 서비스가 멈추면 로그 끝을 창에.  출력을 파일로 돌리는 bat 에는 `set PYTHONUTF8=1` |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

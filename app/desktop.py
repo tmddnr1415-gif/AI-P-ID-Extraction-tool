@@ -94,8 +94,13 @@ class _Tee:
         if self.stream is not None:
             try:
                 self.stream.write(text)
-            except (ValueError, OSError):
-                pass
+            except (ValueError, OSError, UnicodeError):
+                # hotfix54 — 창/파일이 cp949 면 `—` 를 못 쓴다.  서버를 죽이지 않고 바꿔 쓴다
+                try:
+                    enc = getattr(self.stream, "encoding", None) or "utf-8"
+                    self.stream.write(text.encode(enc, "replace").decode(enc, "replace"))
+                except (ValueError, OSError, UnicodeError, LookupError):
+                    pass
         self.file.write(text)
         return len(text)
 
@@ -128,6 +133,11 @@ class _Tee:
 
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    try:                                       # hotfix54 — 못 쓰는 글자로 죽지 않게
+        from app import console
+        console.safe_stdio()
+    except Exception:                          # noqa: BLE001
+        pass
     port_arg = next((a for a in argv if a.isdigit()), None)
     no_browser = "--no-browser" in argv
     lan_mode = "--lan" in argv

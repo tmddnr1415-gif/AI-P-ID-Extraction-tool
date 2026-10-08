@@ -17,10 +17,17 @@ rem Before starting, it checks that port 8000 is free (app\lan_check.py):
 rem   0 free -> start   3 this server already answers -> wait
 rem   4 taken but silent -> say so and wait (check_pid_server.bat tells more)
 rem   anything else (python itself failed) -> start anyway; the error lands in the log
+rem
+rem hotfix54: PYTHONUTF8=1.  Python writes a redirected log in the Windows code
+rem page (cp949) and cp949 has no em dash; the start-up audit line holds one when
+rem the database has hand-added rows, so the server died while starting and this
+rem window restarted it every 10 s.  When it stops, the end of the log is shown.
 setlocal
 cd /d "%~dp0"
 set PID_LAN=1
 set PID_NO_HOLD=1
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 if not exist logs mkdir logs
 title PID server - LAN port 8000
 if exist ".venv\Scripts\python.exe" (set PY=.venv\Scripts\python.exe) else (set PY=python)
@@ -64,6 +71,9 @@ goto loop
 
 :stopped
 echo [%date% %time%] server stopped - restarting in 10 seconds>> logs\lan_service.log
-echo Server stopped (see the end of logs\server.log).  Restarting in 10 seconds.
+echo.
+echo Server stopped.  End of logs\server.log:
+if exist "PID_Extract.exe" (echo   see logs\server.log) else (%PY% -m app.lan_check --tail)
+echo Restarting in 10 seconds.
 timeout /t 10 /nobreak >nul
 goto loop

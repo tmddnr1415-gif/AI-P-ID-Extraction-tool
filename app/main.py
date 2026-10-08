@@ -34,6 +34,12 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from app import console                                   # noqa: E402
+
+# hotfix54 — 아래 import 와 기동 출력 전에.  cp949 로 돌린 로그에 `—` 하나를 못 써 서버가
+# 켜지다 죽던 것 (app/console.py).
+console.safe_stdio()
+
 from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
                  lan, legend_profile, markup, paths, pipeline, revisions,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
