@@ -3367,6 +3367,14 @@ P&ID 분석이 뜨고 그 P&ID 분석은 내가 개발한 프로그램을 돌리
    아무것도 끄지 않는다.
 3. ⚠ Windows 에서 못 돌렸다 — 원인이 ①인지는 회사 PC 의 점검 결과가 말한다.
 
+**그 다음 — pip 이 requirements 를 cp949 로 읽어 멈춤 (hotfix53 · 엔진 0줄)**
+
+현장: 운영 폴더를 `C:\Claude\PID` 로 옮기며 `.venv` 를 새로 만들다 `pip install -r requirements-win.txt` 가
+`UnicodeDecodeError: 'cp949' codec can't decode byte 0xec` 로 멈췄다.  pip 은 BOM·coding 줄이 없는 requirements 를
+**로캘 코드페이지**로 읽고, 한국어 Windows 는 cp949 다 — UTF-8 한글 주석에서 설치가 한 개도 안 된 채 끝났다.
+hotfix51(배치 파일)과 같은 가족이다.  `requirements*.txt` 다섯을 **ASCII** 로 (주석 영어 · 고정 버전 그대로) ·
+시험 `tests/test_hotfix53_requirements_ascii.py` 2건 (빠른 시험 **803**).  당장의 우회는 `set PYTHONUTF8=1`.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3817,6 +3825,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/ui_audit_embed.py` | **hotfix50** — 사본 데이터로 사내망 모드 서버를 띄우고 대시보드 흉내 페이지(file://)의 iframe 안을 눌러 확인한다 |
 | `tests/test_hotfix51_bat_ascii.py` | **hotfix51** — 모든 `*.bat` 은 ASCII · CRLF · `chcp` 없음.  cmd.exe 가 UTF-8 한글 배치 파일을 줄 가운데부터 읽어 서버가 안 떴다.  배치 파일에 한글을 넣지 마라 |
 | `app/lan_check.py` · `check_pid_server.bat` | **hotfix52** — 8000 이 *응답하는지* 잰다 (`--preflight` 0/3/4 · 진단 보고).  서비스 창에 서버 출력을 쓰지 마라 — 콘솔 '선택' 모드가 서버를 멈춘다 |
+| `requirements*.txt` (ASCII) · `tests/test_hotfix53_requirements_ascii.py` | **hotfix53** — Windows 도구가 읽는 파일은 코드페이지에 기대지 않는다 (배치 파일 hotfix51 · requirements hotfix53).  한글을 넣지 마라 |
+| `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

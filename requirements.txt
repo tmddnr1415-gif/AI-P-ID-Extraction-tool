@@ -1,3 +1,6 @@
+# Development install (online).  Windows offline installs use requirements-win*.txt.
+# anthropic: only for the optional Description middle-phrase selector (off by default).
+# ASCII only on purpose (see requirements-win.txt).
 pymupdf
 openpyxl
 PyYAML
@@ -5,6 +8,6 @@ numpy
 fastapi
 uvicorn[standard]
 python-multipart
-anthropic>=0.122  # Description 중간 서술 선택기 전용 (config description.llm.enabled). 없으면 호출 없이 규칙 결과만 씁니다
+anthropic>=0.122
 ezdxf>=1.4
 matplotlib>=3.8
