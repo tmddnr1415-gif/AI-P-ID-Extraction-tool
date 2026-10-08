@@ -404,6 +404,8 @@ async function showAudit() {
     // 고아 파일 이름을 내고 있었는데(`provenance.jobs`·`leftovers.orphan_*`)
     // 화면이 총계만 보여, 팀원이 "5행" 을 보고도 확인할 길이 없었다.
     const detail = auditDetail(a);
+    DASH.audit = { bad: bad.length, lines: a.lines || [] };
+    renderDashboard();
     box.innerHTML = bad.length
       ? `<details class="audit" open><summary>데이터 위생 — 확인할 항목 `
         + `${bad.length}건</summary>${full}${detail}</details>`
@@ -665,6 +667,10 @@ async function listHome() {
           + delButton(j.id) + `</div>`).join(""));
   }
   box.innerHTML = parts.join("");
+  // hotfix49 — 대시보드 · 왼쪽 메뉴가 같은 응답을 읽는다 (한 번 받고 둘이 쓴다)
+  DASH.home = home;
+  renderDashboard();
+  renderNav();
 }
 const listJobs = listHome;      // 예전 이름으로 부르는 곳이 있다
 listHome();
@@ -1155,6 +1161,7 @@ async function open(jobId) {
   drop.classList.add("hidden");
   $("#progress").classList.add("hidden");
   $("#main").classList.remove("hidden");
+  renderNav();
   $("#job-name").textContent = job.pdf_name + (job.input_kind === "DXF" ? "  [DXF]" : "");
   // 몇 장을 얼마나 걸려 읽었는지.  둘 다 잰 값이고, 없으면 그 칸은 비운다.
   const meta = [];
@@ -2760,6 +2767,7 @@ function buildTabs() {
       b.title = ((S.jobReview && S.jobReview.job_review) || [])
         .map(j => `${j.kind} p${(j.pages || []).join(",")}`).join("\n");
     }
+    if (!b.title) b.title = `${label} ${S.counts[key] || 0}`;   // hotfix49 — 접힌 메뉴에서 이름이 잘린다
     b.onclick = () => { S.tab = key; buildTabs(); renderGrid(); drawOverlay(); };
     $("#tabs").appendChild(b);
   }
@@ -7420,3 +7428,328 @@ document.addEventListener("keydown", (ev) => {
     editNotice(`저장했습니다 — ${saveWords(sv)}`, "in");
   });
 })();
+
+/* =====================================================================
+ * hotfix49 — 대시보드형 화면: 왼쪽 메뉴 · 첫 화면 지표 · 그래프
+ * ---------------------------------------------------------------------
+ * 새로 세는 값이 없다.  전부 서버가 이미 내던 `/home` · `/audit` · `/version`
+ * 을 다시 읽어 늘어놓는다 — 화면이 하는 말과 데이터가 같은 접근자에서 나와야
+ * 한다 (11회차 규칙).  판정하는 곳도 없다: 개정 수(추가·수정·삭제 후보)는
+ * 서버의 `counts` 그대로이고, 위생 건수는 `showAudit` 가 센 그 수다.
+ * ===================================================================== */
+const DASH = { home: null, audit: null };
+const NAV_KEY = "pid.nav.collapsed";
+const escAttr = (v) => String(v ?? "").replace(/[<>&"']/g,
+  c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtN = (n) => (n == null ? "—" : Number(n).toLocaleString("ko-KR"));
+
+/* ---- 메뉴 접기 ---- */
+(function navCollapse() {
+  let v = null;
+  try { v = localStorage.getItem(NAV_KEY); } catch (e) {}
+  const collapsed = v === null ? window.innerWidth < 1500 : v === "1";
+  document.body.classList.toggle("nav-collapsed", collapsed);
+  document.addEventListener("click", ev => {
+    if (!ev.target.closest(".nav-toggle")) return;
+    const now = !document.body.classList.contains("nav-collapsed");
+    document.body.classList.toggle("nav-collapsed", now);
+    try { localStorage.setItem(NAV_KEY, now ? "1" : "0"); } catch (e) {}
+    // 도면 창 폭이 바뀐다 — 맞춤 배율 · 손잡이가 크기 변화를 다시 읽게 한다
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 180);
+  });
+})();
+
+/* ---- 결과 화면이 열려 있는가 — 메뉴의 결과 탭을 그때만 보인다.  `:has()` 없이 (오래된 브라우저)
+   #main 의 hidden 을 지켜보고 body 에 한 낱말을 둔다.  #main 을 여닫는 곳이 여럿이라 그 곳들을
+   고치지 않고 결과(클래스)만 본다. ---- */
+(function watchMain() {
+  const m = document.getElementById("main");
+  if (!m) return;
+  const sync = () => document.body.classList.toggle("in-results", !m.classList.contains("hidden"));
+  sync();
+  new MutationObserver(sync).observe(m, { attributes: true, attributeFilter: ["class"] });
+})();
+
+/* ---- 왼쪽 메뉴 ---- */
+function latestJobOf(p) {
+  return (p.revisions || []).find(r => r.job_id && !r.missing && !r.deleted) || null;
+}
+function renderNav() {
+  const box = $("#nav-projects");
+  const home = DASH.home;
+  const inMain = !$("#main").classList.contains("hidden");
+  const cur = inMain && S.job ? S.job.id : null;
+  $("#nav-home").classList.toggle("on", !inMain);
+  if (box && home) {
+    const items = home.projects.map(p => {
+      const last = latestJobOf(p);
+      const mine = (p.revisions || []).some(r => r.job_id && r.job_id === cur);
+      const c = (last && last.counts) || {};
+      const changes = last && last.compared_with
+        ? (c.ADDED || 0) + (c.MODIFIED || 0) + (c.DELETED_CANDIDATE || 0) : 0;
+      const pill = changes ? `<span class="nav-pill" title="최신 리비전의 개정 변경 (추가 · 수정 · 삭제 후보)">변경 ${fmtN(changes)}</span>` : "";
+      const n = (p.revisions || []).length;
+      return `<a class="nav-item${mine ? " on" : ""}" href="${last ? "#" + escAttr(last.job_id) : "#"}"`
+        + ` data-project="${escAttr(p.name)}" title="${escAttr(p.name)} — 리비전 ${n}개${last ? " · 최신 " + escAttr(last.revision) : ""}">`
+        + `<span class="nav-ico" aria-hidden="true">${escAttr(p.name.slice(0, 2))}</span>`
+        + `<span class="nav-text">${escAttr(p.name)}</span>${pill}<span class="nav-n">${n}</span></a>`;
+    });
+    if (home.loose && home.loose.length) {
+      items.push(`<a class="nav-item" href="#" data-loose="1" title="프로젝트에 묶이지 않은 분석">`
+        + `<span class="nav-ico" aria-hidden="true">…</span><span class="nav-text">묶이지 않은 분석</span>`
+        + `<span class="nav-n">${home.loose.length}</span></a>`);
+    }
+    box.innerHTML = items.join("") || `<span class="nav-item" style="cursor:default;opacity:.7"><span class="nav-ico">·</span><span class="nav-text">프로젝트 없음</span></span>`;
+  }
+  const who = (typeof lastAuthor === "function" ? lastAuthor() : "") || "이름 없음";
+  const u = $("#nav-user"); if (u) u.textContent = who;
+}
+$req("#nav-home").addEventListener("click", ev => {
+  ev.preventDefault();
+  if (!$("#main").classList.contains("hidden") || !$("#progress").classList.contains("hidden")) {
+    if (!$("#progress").classList.contains("hidden") && S.watching) return;  // 분석 중에는 진행 화면을 지킨다
+    toFirstScreen();
+  } else {
+    $("#drop").scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
+$req("#nav-projects").addEventListener("click", ev => {
+  const a = ev.target.closest("a.nav-item");
+  if (!a) return;
+  if (a.getAttribute("href") === "#") {
+    ev.preventDefault();
+    if (!$("#main").classList.contains("hidden")) toFirstScreen();
+    setTimeout(() => {
+      const card = document.querySelector(".list-card");
+      if (card) { card.scrollIntoView({ behavior: "smooth", block: "start" }); card.classList.add("home-highlight"); setTimeout(() => card.classList.remove("home-highlight"), 1500); }
+    }, 60);
+  }
+});
+$req("#nav-rename").addEventListener("click", () => {
+  const now = (typeof lastAuthor === "function" ? lastAuthor() : "") || "";
+  const v = prompt("이름 (자칭) — 편집 · 저장 기록에 적힙니다", now);
+  if (v == null) return;
+  if (typeof rememberAuthor === "function") rememberAuthor(v.trim());
+  renderNav();
+});
+window.addEventListener("storage", ev => { if (ev.key === "pid.author") renderNav(); });
+async function pingServer() {
+  const box = $("#nav-server"), t = $("#nav-server-text");
+  try {
+    const r = await fetch("/version", { cache: "no-store" });
+    if (!r.ok) throw new Error(String(r.status));
+    box.className = "sb-server ok"; t.textContent = `서버 연결됨 · ${location.host}`;
+  } catch (e) {
+    box.className = "sb-server bad"; t.textContent = "서버 응답 없음";
+  }
+}
+pingServer();
+setInterval(pingServer, 60000);
+
+/* ---- 첫 화면 머리 · 버튼 ---- */
+$req("#home-new").addEventListener("click", () => {
+  const card = document.querySelector(".intake-card");
+  if (!card) return;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  card.classList.add("home-highlight"); setTimeout(() => card.classList.remove("home-highlight"), 1500);
+  const pick = $("#proj-pick"); if (pick) setTimeout(() => pick.focus(), 300);
+});
+$req("#home-refresh").addEventListener("click", () => { listHome(); showAudit(); pingServer(); });
+
+/* ---- 대시보드 ---- */
+function allRuns(home) {
+  // 프로젝트 리비전 + 묶이지 않은 분석.  지운 기록(missing)은 셈에서 뺀다.
+  const out = [];
+  for (const p of home.projects) {
+    for (const r of p.revisions || []) {
+      if (r.missing || r.deleted) continue;
+      out.push({ project: p.name, revision: r.revision, job_id: r.job_id, pdf: r.pdf_name,
+                 status: r.status, rows: r.rows, at: r.analysed_at, edits: r.edits,
+                 counts: r.counts || {}, compared_with: r.compared_with, page_count: r.page_count });
+    }
+  }
+  for (const j of home.loose || []) {
+    out.push({ project: "", revision: "", job_id: j.id, pdf: j.pdf_name, status: j.status, rows: j.rows,
+               at: j.analysed_at || j.finished_at || j.created_at, edits: j.edits, counts: {}, compared_with: "",
+               page_count: j.page_count });
+  }
+  return out.sort((a, b) => (b.at || 0) - (a.at || 0));
+}
+function kpi(label, value, unit, note, go, goLabel) {
+  return `<div class="kpi"><span class="kpi-label">${escAttr(label)}</span>`
+    + `<span class="kpi-value">${value}${unit ? `<small>${escAttr(unit)}</small>` : ""}</span>`
+    + `<span class="kpi-note" title="${escAttr(note)}">${escAttr(note) || "&nbsp;"}</span>`
+    + (go ? `<button type="button" class="kpi-go" data-go="${escAttr(go)}">${escAttr(goLabel || "바로가기")} →</button>` : "")
+    + `</div>`;
+}
+function renderDashboard() {
+  const home = DASH.home;
+  if (!home) return;
+  const runs = allRuns(home);
+  const done = runs.filter(r => r.status === "done");
+  const running = runs.filter(r => r.status === "running" || r.status === "queued");
+  const failed = runs.filter(r => r.status === "failed");
+  const latestPer = home.projects.map(p => ({ name: p.name, last: latestJobOf(p) })).filter(x => x.last);
+  const latestRows = latestPer.reduce((a, x) => a + (x.last.rows || 0), 0)
+    + (home.loose || []).reduce((a, j) => a + (j.rows || 0), 0);
+  const edits = latestPer.reduce((a, x) => a + (x.last.edits || 0), 0);
+  const cmp = runs.find(r => r.compared_with && r.counts && Object.keys(r.counts).length);
+  const cc = (cmp && cmp.counts) || {};
+  const changes = (cc.ADDED || 0) + (cc.MODIFIED || 0) + (cc.DELETED_CANDIDATE || 0);
+  const newest = runs[0];
+  const audit = DASH.audit;
+
+  $("#home-sub").textContent = [
+    `프로젝트 ${home.projects.length}`, `분석 ${runs.length}건`,
+    newest ? `마지막 분석 ${whenWords(newest.at)}${newest.project ? ` (${newest.project} ${newest.revision})` : ""}` : "분석 기록 없음",
+  ].join(" · ");
+
+  const pills = [];
+  if (audit && audit.bad) pills.push(`<a class="pill" data-go="audit">데이터 위생 확인 <b>${audit.bad}</b></a>`);
+  if (failed.length) pills.push(`<a class="pill" data-go="list">분석 실패 <b>${failed.length}</b></a>`);
+  if (running.length) pills.push(`<a class="pill info" data-go="list">분석 중 <b>${running.length}</b></a>`);
+  if (cmp && changes) pills.push(`<a class="pill info" data-go="#${escAttr(cmp.job_id)}">${escAttr(cmp.project)} ${escAttr(cmp.revision)} 개정 변경 <b>${fmtN(changes)}</b></a>`);
+  if (audit && !audit.bad) pills.push(`<span class="pill ok">데이터 위생 이상 없음 <b>0</b></span>`);
+  $("#home-pills").innerHTML = pills.join("");
+
+  $("#home-kpis").innerHTML = [
+    kpi("프로젝트", fmtN(home.projects.length), "개",
+        home.loose && home.loose.length ? `묶이지 않은 분석 ${home.loose.length}건` : "저장된 프로젝트", "list"),
+    kpi("분석 (리비전)", fmtN(runs.length), "건",
+        `완료 ${done.length}` + (running.length ? ` · 분석 중 ${running.length}` : "") + (failed.length ? ` · 실패 ${failed.length}` : ""), "recent", "이력 보기"),
+    kpi("산출 행 (최신 리비전)", fmtN(latestRows), "행", "프로젝트마다 가장 최근 리비전의 행 합", "list"),
+    kpi("최근 개정 변경", cmp ? fmtN(changes) : "—", cmp ? "건" : "",
+        cmp ? `${cmp.project} ${cmp.revision} vs ${cmp.compared_with} · 추가 ${cc.ADDED || 0} · 수정 ${cc.MODIFIED || 0} · 삭제 후보 ${cc.DELETED_CANDIDATE || 0}` : "비교한 리비전 없음",
+        cmp ? "#" + cmp.job_id : "", "결과 열기"),
+    kpi("사람이 고친 칸", fmtN(edits), "칸", "최신 리비전에서 편집한 칸 수", "list"),
+    kpi("데이터 위생", audit ? fmtN(audit.bad) : "…", audit ? "건" : "",
+        audit ? (audit.bad ? "확인할 항목이 있습니다" : "이상 없음") : "확인 중", "audit", "자세히"),
+  ].join("");
+
+  $("#home-charts").innerHTML = [
+    chartCard("프로젝트별 산출 행 (최신 리비전)", vbars(latestPer.map(x => ({ label: x.name, value: x.last.rows || 0,
+      tip: `${x.name} ${x.last.revision} · ${fmtN(x.last.rows)}행 · ${x.last.page_count || "?"}장` })), "행")),
+    chartCard("리비전별 산출 행 (최근 12)", hbars(done.slice(0, 12).map(r => ({
+      label: r.project ? `${r.project} ${r.revision}` : r.pdf, value: r.rows || 0,
+      tip: `${r.project ? r.project + " " + r.revision + " · " : ""}${r.pdf} · ${fmtN(r.rows)}행 · ${whenWords(r.at)}` })))),
+    chartCard(cmp ? `개정 변경 내역 — ${cmp.project} ${cmp.revision} vs ${cmp.compared_with}` : "개정 변경 내역", donut(cc)),
+  ].join("");
+
+  $("#home-recent").innerHTML = runs.slice(0, 8).map(r => {
+    const st = r.status === "done" ? `<span class="tagchip ok">${fmtN(r.rows)}행</span>`
+      : `<span class="tagchip ${r.status === "failed" ? "bad" : "rev"}">${escAttr(JOB_STATUS_KO[r.status] || r.status)}</span>`;
+    return `<a class="recent-row" href="#${escAttr(r.job_id)}"><span class="when">${escAttr(whenWords(r.at))}</span>`
+      + `<span><b>${escAttr(r.project || "—")}</b> ${r.revision ? `<span class="tagchip rev">${escAttr(r.revision)}</span>` : ""}</span>`
+      + `<span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escAttr(r.pdf)}`
+      + `${r.page_count ? ` · ${r.page_count}장` : ""}${r.edits ? ` · 수정 ${r.edits}칸` : ""}</span>${st}</a>`;
+  }).join("") || `<p class="muted small">아직 분석이 없습니다 — 위의 <b>새 분석</b> 에서 PDF 를 넣으세요.</p>`;
+}
+function chartCard(title, body) {
+  return `<section class="card chart-card"><h3 class="card-title">${escAttr(title)}</h3>${body}</section>`;
+}
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p;
+  return 10 * p;
+}
+/* 세로 막대 — 한 계열이라 범례 없이 제목이 이름을 댄다.  끝 4px 둥글게 · 기준선에 붙는다. */
+function vbars(items, unit) {
+  if (!items.length) return `<div class="chart-empty">분석한 프로젝트가 없습니다</div>`;
+  const W = 420, H = 190, L = 40, B = 34, T = 14, R = 8;
+  const max = niceMax(Math.max(...items.map(i => i.value)));
+  const n = items.length, slot = (W - L - R) / n, bw = Math.min(46, slot * 0.6);
+  const ticks = [0, max / 2, max];
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="세로 막대 그래프">`;
+  for (const t of ticks) {
+    const y = H - B - (t / max) * (H - B - T);
+    svg += `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>`
+      + `<text class="axis-t" x="${L - 6}" y="${y + 3}" text-anchor="end">${fmtN(Math.round(t))}</text>`;
+  }
+  items.forEach((it, i) => {
+    const h = Math.max(1, (it.value / max) * (H - B - T));
+    const x = L + slot * i + (slot - bw) / 2, y = H - B - h;
+    const r = Math.min(4, h / 2);
+    svg += `<path class="bar" fill="#2f5bd8" data-tip="${escAttr(it.tip || `${it.label} ${fmtN(it.value)}${unit || ""}`)}" `
+      + `d="M${x},${H - B} V${y + r} Q${x},${y} ${x + r},${y} H${x + bw - r} Q${x + bw},${y} ${x + bw},${y + r} V${H - B} Z"/>`
+      + `<text class="val-t" x="${x + bw / 2}" y="${y - 4}" text-anchor="middle">${fmtN(it.value)}</text>`
+      + `<text class="axis-t" x="${x + bw / 2}" y="${H - B + 14}" text-anchor="middle">${escAttr(it.label.length > 12 ? it.label.slice(0, 11) + "…" : it.label)}</text>`;
+  });
+  return svg + `</svg>`;
+}
+/* 가로 막대 — 이름이 긴 리비전 목록에 맞다. */
+function hbars(items) {
+  if (!items.length) return `<div class="chart-empty">완료된 분석이 없습니다</div>`;
+  const W = 420, rowH = 20, T = 6, L = 120, R = 46;
+  const H = T * 2 + rowH * items.length;
+  const max = niceMax(Math.max(...items.map(i => i.value)));
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="가로 막대 그래프">`;
+  items.forEach((it, i) => {
+    const y = T + rowH * i + 4, bh = rowH - 8;
+    const w = Math.max(1, (it.value / max) * (W - L - R));
+    const r = Math.min(4, bh / 2);
+    const lab = it.label.length > 18 ? it.label.slice(0, 17) + "…" : it.label;
+    svg += `<text class="axis-t" x="${L - 8}" y="${y + bh / 2 + 3}" text-anchor="end">${escAttr(lab)}</text>`
+      + `<path class="bar" fill="#2f5bd8" data-tip="${escAttr(it.tip)}" d="M${L},${y} H${L + w - r} Q${L + w},${y} ${L + w},${y + r} V${y + bh - r} Q${L + w},${y + bh} ${L + w - r},${y + bh} H${L} Z"/>`
+      + `<text class="val-t" x="${L + w + 5}" y="${y + bh / 2 + 3}">${fmtN(it.value)}</text>`;
+  });
+  return svg + `</svg>`;
+}
+/* 도넛 — 서버 counts 그대로.  색은 검증기 통과 (blue · amber · teal · red, 대조 안 함은 회색). */
+const DONUT_PARTS = [
+  ["UNCHANGED", "변경 없음", "#2f5bd8"],
+  ["ADDED", "추가", "#b07614"],
+  ["MODIFIED", "수정", "#0f8f80"],
+  ["DELETED_CANDIDATE", "삭제 후보", "#c2453f"],
+  ["NOT_COMPARED", "대조 안 함 (태그 없음)", "#a3acbd"],
+];
+function donut(c) {
+  const parts = DONUT_PARTS.map(([k, label, color]) => ({
+    label, color, value: (c[k] || 0) + (k === "MODIFIED" ? (c.MODIFIED_BEFORE || 0) : 0) })).filter(p => p.value > 0);
+  const total = parts.reduce((a, p) => a + p.value, 0);
+  if (!total) return `<div class="chart-empty">비교한 리비전이 아직 없습니다 — 같은 프로젝트에 두 번째 리비전을 넣으면 여기에 섭니다</div>`;
+  const R = 60, r = 40, cx = 75, cy = 75;
+  let a0 = -Math.PI / 2, svg = `<svg viewBox="0 0 150 150" role="img" aria-label="개정 변경 도넛">`;
+  for (const p of parts) {
+    const frac = p.value / total, a1 = a0 + frac * Math.PI * 2;
+    const gap = parts.length > 1 ? 0.012 : 0;
+    const s0 = a0 + gap, s1 = Math.max(s0 + 0.001, a1 - gap), large = s1 - s0 > Math.PI ? 1 : 0;
+    const P = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
+    const d = frac >= 0.9999
+      ? `M${cx - R},${cy} A${R},${R} 0 1 1 ${cx + R},${cy} A${R},${R} 0 1 1 ${cx - R},${cy} M${cx - r},${cy} A${r},${r} 0 1 0 ${cx + r},${cy} A${r},${r} 0 1 0 ${cx - r},${cy} Z`
+      : `M${P(R, s0)} A${R},${R} 0 ${large} 1 ${P(R, s1)} L${P(r, s1)} A${r},${r} 0 ${large} 0 ${P(r, s0)} Z`;
+    svg += `<path class="bar" fill="${p.color}" fill-rule="evenodd" data-tip="${escAttr(`${p.label} ${fmtN(p.value)} (${(frac * 100).toFixed(1)}%)`)}" d="${d}"/>`;
+    a0 = a1;
+  }
+  svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" style="font-size:20px;font-weight:700;fill:var(--fg)">${fmtN(total)}</text>`
+    + `<text x="${cx}" y="${cy + 18}" text-anchor="middle" class="axis-t">행</text></svg>`;
+  const legend = `<ul class="legend">` + parts.map(p => `<li><span class="sw" style="background:${p.color}"></span>${escAttr(p.label)}`
+    + `<span class="lv">${fmtN(p.value)} · ${(p.value / total * 100).toFixed(0)}%</span></li>`).join("") + `</ul>`;
+  return `<div class="donut-wrap">${svg}${legend}</div>`;
+}
+/* 마우스를 올리면 값 — 모든 그래프가 같은 말풍선 하나를 쓴다 */
+(function chartTips() {
+  const tip = $("#chart-tip");
+  const host = $("#home-charts");
+  if (!tip || !host) return;
+  host.addEventListener("mousemove", ev => {
+    const m = ev.target.closest("[data-tip]");
+    if (!m) { tip.classList.add("hidden"); return; }
+    tip.textContent = m.getAttribute("data-tip");
+    tip.classList.remove("hidden");
+    const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = `${x}px`; tip.style.top = `${ev.clientY + 14}px`;
+  });
+  host.addEventListener("mouseleave", () => tip.classList.add("hidden"));
+})();
+/* 바로가기 · 알림 알약 */
+document.addEventListener("click", ev => {
+  const g = ev.target.closest("#home-kpis [data-go], #home-pills [data-go]");
+  if (!g) return;
+  ev.preventDefault();
+  const go = g.dataset.go;
+  if (go.startsWith("#")) { location.hash = go.slice(1); return; }
+  const target = go === "audit" ? ".note-card" : go === "recent" ? ".recent-card" : ".list-card";
+  const el = document.querySelector(target);
+  if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("home-highlight"); setTimeout(() => el.classList.remove("home-highlight"), 1500); }
+});
