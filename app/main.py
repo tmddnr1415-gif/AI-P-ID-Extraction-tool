@@ -40,7 +40,8 @@ from app import console                                   # noqa: E402
 # 켜지다 죽던 것 (app/console.py).
 console.safe_stdio()
 
-from app import (audit, axis_overrides, db, excel_out, global_symbols,  # noqa: E402
+from app import (analysis_proc, audit, axis_overrides, db, excel_out,  # noqa: E402
+                 global_symbols,
                  lan, legend_profile, markup, paths, pipeline, revisions,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
 from app.pipeline import CFG                              # noqa: E402
@@ -297,7 +298,11 @@ def _worker() -> None:
             # 31회차 — 그 프로젝트에서 **사람이 지정한 승수**가 있으면 넘긴다.
             # 없으면 빈 값이고, 빈 값은 이 기능이 없던 때와 정확히 같다.
             # 파이프라인은 파일을 읽지 않는다 (15회차 프로필과 같은 모양).
-            result = pipeline.analyse(Path(row["pdf_path"]), progress=progress,
+            # hotfix56 — 분석은 **다른 프로세스**가 돈다 (`app/analysis_proc.py`).
+            # 이 스레드는 진행 소식을 받아 위 `progress` 를 부르기만 하므로 서버가
+            # 분석 중에도 대답한다 (대시보드의 `/version` 3초 확인 — 현장 실패).
+            result = analysis_proc.run(Path(row["pdf_path"]), progress,
+                                      DATA_DIR / "work",
                                       reference=VERIFY_AGAINST,
                                       legend_profile=profile,
                                       unit_multipliers=_user_multipliers(
@@ -371,7 +376,8 @@ def _worker() -> None:
             reason = str(exc)
             stage = _stopped_stage(job_id)          # 덮기 전에 읽는다
             db.set_progress(CON, job_id, 0.0, reason, "failed",
-                            error_detail=traceback.format_exc())
+                            error_detail=(getattr(exc, "child_traceback", "")
+                                          or traceback.format_exc()))
             db.set_stopped_stage(CON, job_id, stage)
             db.mark_finished(CON, job_id)
             fin = db.get_job(CON, job_id)
@@ -389,6 +395,12 @@ def _worker() -> None:
             # person can act on - never the exception, reworded.
             traceback.print_exc()
             detail = traceback.format_exc()
+            # hotfix56 — 자식 프로세스의 트레이스 원문을 붙인다 (부모 쪽 스택만으로는 어디서
+            # 났는지 모른다).
+            child = getattr(exc, "detail", "") or getattr(exc, "child_traceback", "")
+            if child:
+                print(child, flush=True)
+                detail = child + "\n--- (분석 프로세스를 기다리던 서버 쪽) ---\n" + detail
             stage = _stopped_stage(job_id)          # 덮기 전에 읽는다
             reason = _failure_reason(Path(row["pdf_path"]))
             db.set_progress(CON, job_id, 0.0, reason, "failed", error_detail=detail)

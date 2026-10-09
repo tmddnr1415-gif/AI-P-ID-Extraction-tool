@@ -194,4 +194,8 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    # hotfix56 — 분석은 자식 프로세스가 돈다 (app/analysis_proc.py).  exe 에서는 자식이 이
+    # exe 를 다시 실행하므로, 그 자식이 서버를 또 띄우지 않고 분석만 하게 맨 먼저 부른다.
+    import multiprocessing
+    multiprocessing.freeze_support()
     sys.exit(main())

@@ -3385,6 +3385,40 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
 `python -m app.lan_check --tail`(마지막 Traceback).  시험 `tests/test_hotfix54_log_encoding.py` 5건(빠른 시험 **808**).
 **Windows 에 출력을 파일로 돌리는 곳에는 `PYTHONUTF8=1` 을 같이 둔다.**
 
+**그 다음 — 분석 중에 대시보드가 "P&ID 서버가 꺼져 있습니다" (hotfix56 · 분석을 자식 프로세스로 · 판정 0줄)**
+
+현장(회사 PC 사진 둘): 60장 PDF 를 넣고 `도면 치수를 재는 중` 일 때 대시보드의 다른 메뉴로 갔다가 P&ID 메뉴로
+돌아오면 대시보드가 *"P&ID 서버가 꺼져 있습니다 — run_lan_service.bat 을 확인하세요"*.  ⚠ 회사 Claude 가 이미
+`hotfix55`(netstat 디코딩 · 시험 26건) 를 썼으므로 이 회차는 **hotfix56** 이다.
+
+1. **서버는 꺼진 것이 아니라 대답을 못 했다.**  대시보드는 메뉴를 누를 때마다 `/version` 을 **3초** 안에 받아야
+   iframe 을 띄운다 (`docs/dashboard_embed.md` §4).  분석은 서버 프로세스 안의 스레드가 돌았고 `layout` 단계의
+   PyMuPDF 호출이 GIL 을 몇 초씩 쥔다.  실측(TC2 60장 · 4코어 · `spike/version_probe.py` — 업로드 뒤 0.5초마다
+   `/version` 을 3초 제한으로): **190초 동안 130번 중 3초 초과 7번 · 2초 초과 8 · 1초 초과 16**
+   (`out/hotfix56/version_probe_before.log`).
+2. **고침 — 분석을 새 프로세스(`spawn`)가 돈다** (`app/analysis_proc.py`).  `_worker` 의 스레드는 진행 소식을 큐로
+   받아 **예전과 같은 `progress` 함수**를 부르기만 하므로 진행 표시 · 취소(진행 소식 사이에서 → 자식 `terminate`) ·
+   실패 문장(`LegendUnavailable`·`TitleBlockUnreadable` 은 종류와 문장 그대로) · 멈춘 단계가 전부 그대로다.
+   결과는 피클 파일 하나로 받는다(큰 dict 를 파이프로 넘기면 서로 기다리다 막힐 수 있다).  자식의 트레이스는
+   `error_detail` 앞에 붙는다.  **자식이 죽어도(메모리 부족) 서버는 산다** — 그 분석만 실패로 적힌다.  분석이
+   끝나면 그 메모리가 운영체제로 돌아간다 (예전에는 서버 프로세스가 TC2 7GB 를 쥐고 있었다).
+3. **자식은 `app.main` 을 import 하지 않는다** (DB 연결 · 작업 스레드 · 끊긴 분석 정리가 import 때 돈다 — 시험이
+   AST 로 못박는다).  exe 는 `desktop.py` 가 `multiprocessing.freeze_support()` 를 맨 먼저 부른다.
+   끄는 스위치 `PID_ANALYSIS_INPROCESS=1` (예전처럼 서버 안 스레드).
+4. **판정은 바뀌지 않는다** — 자식이 부르는 것은 `pipeline.analyse` 그 함수 · 같은 인자다.  매번 새 프로세스라
+   22회차가 `_own_config` 로 막아 둔 "앞 분석의 config 가 샌다" 는 구조적으로 사라진다.
+5. **변경분 꾸러미** (`spike/pack_delta.py` · 적용기 `spike/apply_delta.py`) — 개발이 두 곳(여기 · 회사 PC
+   `C:\Claude\PID_dev`)이라 누적 꾸러미는 회사에서 고친 파일을 되돌린다.  기준 커밋(처음 r3 = `97a8732`, 이후
+   `out/PID_dev_delta_base.txt`) 이후 바뀐 파일만 담고 파일마다 기준판·새 해시를 적는다.  적용기는 PID_dev 의 파일이
+   **기준판과 같을 때만** 덮고(원본은 `backup\<이름>_<시각>\`), 다르면 덮지 않고 `<파일>.<이름>.new` 로 옆에 둔다.
+   `app\_data` · `data` · `.venv` · `logs` 는 거부, 이름이 `PID` 인 폴더(운영)는 거부.  `app/_update.json` 딱지만 늘 덮는다.
+   만든 뒤 기준판 트리에 실제로 적용해 HEAD 와 같은지 센다.  **운영 반영은 회사 Claude 의 "운영에 반영해" 로만.**
+6. **실측 (같은 자 · 같은 TC2 · 고친 뒤)**: 629초 동안 1,242번 중 **최대 0.02초 · 1초 초과 0 · 실패 0**
+   (`out/hotfix56/version_probe_after.log`).  결과 **902행 · 지문 `67eae92d` — 기준선과 같다**.  빠른 시험 **823**
+   (808 + 이 회차 15).  ⚠ 시험 하나가 처음에 실패했다 — 다른 시험이 `app.*` 를 다시 읽어 시험 모듈이 쥔
+   `analysis_proc` 가 낡았고 spawn 이 낡은 `_child` 를 피클하지 못했다 (제품에는 없는 경로 · 픽스처가 지금 모듈을
+   쓴다).  ⚠ Windows · exe 의 spawn 은 이 환경에서 못 돌렸다 — 회사 PC 의 PID_dev(8001)에서 확인한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3837,6 +3871,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/lan_check.py` · `check_pid_server.bat` | **hotfix52** — 8000 이 *응답하는지* 잰다 (`--preflight` 0/3/4 · 진단 보고).  서비스 창에 서버 출력을 쓰지 마라 — 콘솔 '선택' 모드가 서버를 멈춘다 |
 | `requirements*.txt` (ASCII) · `tests/test_hotfix53_requirements_ascii.py` | **hotfix53** — Windows 도구가 읽는 파일은 코드페이지에 기대지 않는다 (배치 파일 hotfix51 · requirements hotfix53).  한글을 넣지 마라 |
 | `app/console.py` `safe_stdio` · `lan_check.tail`/`--tail` | **hotfix54** — 표준 출력이 cp949 여도 못 쓰는 글자로 죽지 않는다 · 서비스가 멈추면 로그 끝을 창에.  출력을 파일로 돌리는 bat 에는 `set PYTHONUTF8=1` |
+| `app/analysis_proc.py` `run` · `PID_ANALYSIS_INPROCESS` | **hotfix56** — 분석은 자식 프로세스(`spawn`)가 돈다.  서버 스레드는 진행 소식을 받아 같은 `progress` 를 부를 뿐 · 취소는 `terminate` · 알려진 실패는 종류 그대로.  자식은 `app.main` 을 import 하지 않는다.  분석 중에 서버가 GIL 을 뺏겨 대시보드의 `/version` 3초 확인이 실패하던 것 |
+| `spike/pack_delta.py` · `spike/apply_delta.py` · `out/PID_dev_delta_base.txt` | **hotfix56** — PID_dev 변경분 꾸러미.  기준판과 같은 파일만 덮고 회사에서 고친 파일은 `.new` 로 옆에 둔다.  운영 폴더는 거부 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
