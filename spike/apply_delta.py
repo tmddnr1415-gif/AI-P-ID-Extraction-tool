@@ -6,7 +6,8 @@ Usage (Windows, in the unpacked package folder):
     ... apply_delta.py C:\\Claude\\PID_dev --dry-run     (show only, change nothing)
 
 Per file in manifest.json:
-  * target file == the version this package was made against (base)  -> overwrite
+  * target file == the version this package was made against (base),
+    or any version an earlier package of ours delivered (known)      -> overwrite
   * target file == the new version already                           -> skip
   * file is new and absent in target                                 -> create
   * anything else (someone edited it on the company PC)              -> CONFLICT:
@@ -46,7 +47,7 @@ def plan(target: Path, manifest: dict) -> list[dict]:
         now = sha(target / rel)
         if now == f["new_sha256"]:
             act = "same"
-        elif f.get("always") or now == f["base_sha256"]:
+        elif f.get("always") or now == f["base_sha256"] or now in (f.get("known_sha256") or ()):
             act = "create" if now is None else "overwrite"
         else:
             act = "conflict"

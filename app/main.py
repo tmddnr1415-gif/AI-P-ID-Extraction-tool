@@ -185,6 +185,16 @@ def _elapsed(row) -> float:
     return round(b - a, 1) if a and b and b >= a else 0.0
 
 
+def _running_s(row) -> float:
+    """hotfix57 — 지금 돌고 있는 분석이 시작한 지 몇 초인가.  다시 붙은 화면의 경과 표시가
+    0 부터 다시 세지 않게 한다.  돌고 있지 않으면 0."""
+    try:
+        a, st = row["started_at"], row["status"]
+    except (KeyError, IndexError):
+        return 0.0
+    return round(max(0.0, time.time() - a), 1) if a and st == "running" else 0.0
+
+
 def _scope_summary(rows: list) -> dict:
     """완료 화면이 읽는 결과 요약 (12회차).
 
@@ -633,6 +643,7 @@ def _job_public(row) -> dict:
     out.pop("error_detail", None)
     # 걸린 시간은 두 시각의 차이지 별도 사실이 아니므로 여기서 만든다.
     out["elapsed_s"] = _elapsed(row)
+    out["running_s"] = _running_s(row)
     out["sheet_plan"] = _plan(row)
     out.pop("sheet_plan_json", None)
     return out
@@ -1781,6 +1792,8 @@ def events(job_id: str):
                         "sheets_done": row["sheets_done"],
                         "sheets_total": row["sheets_total"],
                         "sheet_plan": _plan(row),
+                        "stopped_stage": row["stopped_stage"],
+                        "running_s": _running_s(row),
                         "elapsed_s": _elapsed(row)})
         try:
             while True:

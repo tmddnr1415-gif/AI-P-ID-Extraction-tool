@@ -3419,6 +3419,29 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
    `analysis_proc` 가 낡았고 spawn 이 낡은 `_child` 를 피클하지 못했다 (제품에는 없는 경로 · 픽스처가 지금 모듈을
    쓴다).  ⚠ Windows · exe 의 spawn 은 이 환경에서 못 돌렸다 — 회사 PC 의 PID_dev(8001)에서 확인한다.
 
+**그 다음 — 다른 메뉴로 갔다 와도 분석 화면이 이어진다 (hotfix57 · 화면 회차 · 판정 0줄)**
+
+사용자: *"다른 메뉴로 갔다가 돌아오더라도 계속 분석이 이어져야 한다."*  분석 자체는 서버에서 계속 돌고 있었다
+(hotfix56 부터는 서버와 다른 프로세스).  **사라지던 것은 화면**이었다 — 대시보드는 메뉴를 옮길 때 iframe 을 새로
+만들고, 새 iframe 은 주소에 분석 번호가 없어 첫 화면으로 열렸다.  진행 화면을 다시 여는 길(`open(id)` → `watch`)과
+늦게 붙은 화면에 지금 상태를 먼저 보내는 길(`/jobs/{id}/events` 첫 소식)은 처음부터 있었다 — 없던 것은 **어느
+분석으로 돌아갈지 기억하는 자리**였다 (스물세 번째).
+
+1. `watch()` 가 분석 번호를 `localStorage` `pid.watching` 에 적고 주소에도 `#번호` 를 붙인다(query 는 지킨다).
+   주소 없이 열리면 `resumeWatched()` 가 그 분석으로 간다 — 돌고 있으면 진행 화면(*"다른 화면에 다녀오는 동안에도
+   분석은 계속됐습니다"*), 그 사이 끝났으면 **결과 화면**, 취소됐거나 없으면 잊는다.  브라우저마다 따로라 남이 건
+   분석으로 끌려가지 않는다.
+2. **잊는 때**: 끝난 분석에서 첫 화면으로 나갈 때(`S.watchEnded`) · 결과를 열었을 때(`open`) · 취소.  분석 *중에*
+   나가는 것은 잊지 않는다 — 그것이 지키려는 경우다.
+3. 경과 시간은 서버가 잰 값에서 이어 센다 (`_running_s` → `/jobs/{id}` · 첫 소식의 `running_s`) — 예전에는
+   다시 붙으면 0초부터 셌다.  첫 화면의 *분석 중* 알약은 하나면 그 분석으로 바로 간다.
+4. **눌러서 확인** (`spike/ui_audit_resume.py` — 대시보드 흉내 페이지가 iframe 을 지웠다 새로 만든다 · TC2):
+   다른 메뉴 → 돌아옴 = 진행 화면 · 경과 4분 42초에서 이어짐 · 끝날 때까지 다른 메뉴 → 돌아옴 = 결과 화면 ·
+   결과를 본 뒤 → 돌아옴 = 첫 화면 · 취소하면 자식 프로세스 없음 · 페이지 오류 0 (`out/hotfix57/`).
+5. (선택) 대시보드가 iframe 을 지우지 않고 숨기면 다시 읽지도 않는다 — 프롬프트 `docs/dashboard_embed.md` §3-1.
+6. 변경분 꾸러미가 **앞 꾸러미를 적용했든 안 했든** 덮을 수 있게 됐다 — `known_sha256`(기준과 HEAD 사이 저장소가
+   거친 판 전부).  hotfix57 꾸러미는 97a8732 기준 누적(56 포함)이다.  빠른 시험 **830**.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3873,6 +3896,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/console.py` `safe_stdio` · `lan_check.tail`/`--tail` | **hotfix54** — 표준 출력이 cp949 여도 못 쓰는 글자로 죽지 않는다 · 서비스가 멈추면 로그 끝을 창에.  출력을 파일로 돌리는 bat 에는 `set PYTHONUTF8=1` |
 | `app/analysis_proc.py` `run` · `PID_ANALYSIS_INPROCESS` | **hotfix56** — 분석은 자식 프로세스(`spawn`)가 돈다.  서버 스레드는 진행 소식을 받아 같은 `progress` 를 부를 뿐 · 취소는 `terminate` · 알려진 실패는 종류 그대로.  자식은 `app.main` 을 import 하지 않는다.  분석 중에 서버가 GIL 을 뺏겨 대시보드의 `/version` 3초 확인이 실패하던 것 |
 | `spike/pack_delta.py` · `spike/apply_delta.py` · `out/PID_dev_delta_base.txt` | **hotfix56** — PID_dev 변경분 꾸러미.  기준판과 같은 파일만 덮고 회사에서 고친 파일은 `.new` 로 옆에 둔다.  운영 폴더는 거부 |
+| `app.js` `WATCH_KEY` · `rememberWatch` · `resumeWatched` · `forgetWatch` · `main._running_s` | **hotfix57** — 이 브라우저가 지켜보던 분석을 기억하고, 주소 없이 다시 열리면(대시보드 iframe 재생성) 그 분석의 진행 화면·결과로 돌아간다.  끝난 분석에서 나가거나 결과를 열면 잊는다 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

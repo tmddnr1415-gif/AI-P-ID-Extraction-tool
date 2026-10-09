@@ -85,3 +85,15 @@ def test_bat_files_stay_ascii():
     text = ast.literal_eval(bat.value)
     text.encode("ascii")
     assert "\r\n" in text and "chcp" not in text
+
+
+def test_a_version_we_delivered_earlier_is_not_a_conflict(tmp_path):
+    """hotfix57 — 앞 꾸러미(56)를 적용한 PID_dev 에 누적 꾸러미(57)를 얹어도 충돌이 아니다."""
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "main.py").write_bytes(b"main from hotfix56")
+    for f in man["files"]:
+        if f["path"] == "app/main.py":
+            f["known_sha256"] = [_h(b"main from hotfix56")]
+    steps, _ = apply_delta.apply(target, pkg, man)
+    assert {s["path"]: s["action"] for s in steps}["app/main.py"] == "overwrite"
+    assert (target / "app" / "main.py").read_bytes() == b"new main"

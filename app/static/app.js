@@ -740,9 +740,10 @@ function stageWords(msg) {
  * 13초와 60초 화면이 **바이트까지 같은 것**을 잡았고, 그 구간이 치수 재기
  * 190초의 뒤쪽 절반이다. */
 let _tick = null;
-function startElapsed() {
+function startElapsed(already) {
   stopElapsed();
-  const t0 = Date.now();
+  // hotfix57 — 다시 붙은 화면은 서버가 잰 경과(`running_s`)에서 이어 센다.
+  const t0 = Date.now() - Math.max(0, already || 0) * 1000;
   const line = $("#prog-elapsed");
   const paint = () => {
     if (line) line.textContent = `경과 ${minsec((Date.now() - t0) / 1000)}`;
@@ -941,8 +942,45 @@ function showSkipped(plan) {
   box.classList.remove("hidden");
 }
 
+/* hotfix57 — **다른 메뉴로 갔다 와도 분석 화면이 이어진다.**
+ *
+ * 분석은 서버에서 돈다 — 화면이 사라져도 멈추지 않는다 (hotfix56 부터는 서버와 다른
+ * 프로세스).  사라지던 것은 *화면*이었다: 부서 대시보드는 메뉴를 옮길 때 iframe 을 새로
+ * 만들고, 새 iframe 은 주소에 분석 번호가 없어 첫 화면으로 열렸다.  그래서 **이 브라우저가
+ * 지켜보던 분석**을 적어 두고, 다시 열리면 그 분석으로 돌아간다.  남이 건 분석으로 끌려가지
+ * 않게 브라우저마다 따로다 (localStorage — 다른 사람의 화면에는 없다).
+ *
+ * 지우는 때: 사람이 끝난 분석에서 첫 화면으로 나가거나, 끝난 분석의 결과를 열었을 때 ·
+ * 취소됐을 때 · 그 분석이 서버에 없을 때.  *분석 중에* 나가는 것은 지우지 않는다 — 그것이
+ * 이 기능이 지키려는 경우다. */
+const WATCH_KEY = "pid.watching";
+function rememberWatch(id) { try { localStorage.setItem(WATCH_KEY, id); } catch (e) {} }
+function watchedJob() { try { return localStorage.getItem(WATCH_KEY) || ""; } catch (e) { return ""; } }
+function forgetWatch(id) {
+  try { if (!id || localStorage.getItem(WATCH_KEY) === id) localStorage.removeItem(WATCH_KEY); } catch (e) {}
+}
+async function resumeWatched() {
+  const id = watchedJob();
+  if (!id) return false;
+  let job = null;
+  try {
+    const r = await fetch(`/jobs/${id}`);
+    if (r.ok) job = await r.json();
+  } catch (e) { return false; }                   // 서버가 대답하지 않으면 적은 것을 지우지 않는다
+  if (!job || job.status === "cancelled") { forgetWatch(id); return false; }
+  if (location.hash.length > 1) return false;     // 그 사이 사람이 다른 것을 열었다
+  if (job.status === "done") { open(id); return true; }
+  watch(id, job.page_count, Object.assign({ resumed: true }, job));
+  return true;
+}
+
 function watch(jobId, pageCount, what) {
   drop.classList.add("hidden");
+  rememberWatch(jobId);
+  S.watchEnded = false;
+  // 새로고침·새 창도 같은 분석으로 — 주소가 그 분석을 가리킨다 (query 는 그대로).
+  if (location.hash.slice(1).split("?")[0] !== jobId)
+    history.replaceState(null, "", location.pathname + location.search + "#" + jobId);
   $("#progress").classList.remove("hidden");
   S.pageCount = null; S.sheetTargets = null;
   S.watching = jobId;
@@ -950,7 +988,7 @@ function watch(jobId, pageCount, what) {
   $("#prog-done").classList.add("hidden");
   showWhat((what || {}).project, (what || {}).pdf_name);
   showNow("");
-  startElapsed();
+  startElapsed((what || {}).running_s);
   const cb = $("#prog-cancel");
   cb.disabled = false; cb.textContent = "분석 취소";
   $("#prog-cancelwrap").classList.remove("hidden");
@@ -963,7 +1001,14 @@ function watch(jobId, pageCount, what) {
   showPages(pageCount);
   ["#prog-hint", "#prog-actions", "#prog-jobs"].forEach(
     sel => $(sel).classList.add("hidden"));
+  if ((what || {}).resumed && (what.status === "running" || what.status === "queued")) {
+    const hint = $("#prog-hint");
+    hint.textContent = "다른 화면에 다녀오는 동안에도 분석은 계속됐습니다 — 이어서 보여 드립니다.";
+    hint.classList.remove("hidden");
+  }
+  if (S.watchSrc) { try { S.watchSrc.close(); } catch (e) {} }
   const src = new EventSource(`/jobs/${jobId}/events`);
+  S.watchSrc = src;
   src.onmessage = (ev) => {
     const d = JSON.parse(ev.data);
     $("#bar-fill").style.width = `${Math.round(d.progress * 100)}%`;
@@ -973,8 +1018,15 @@ function watch(jobId, pageCount, what) {
     if (d.sheets_total != null) showSheets(d.sheets_done || 0, d.sheets_total);
     if (d.sheet_plan) showSkipped(d.sheet_plan);
     if (d.drawing_no !== undefined) showNow(d.drawing_no);
+    if (d.status === "done" || d.status === "failed" || d.status === "cancelled") S.watchEnded = true;
+    if (d.status === "cancelled") forgetWatch(jobId);
+    if (d.status === "done" && !d.summary) {
+      // 다시 붙었는데 그 사이 끝났다 — 요약은 끝나는 순간에만 실리므로 결과로 바로 간다.
+      src.close(); stopElapsed(); open(jobId); return;
+    }
     if (d.status === "done") {
       src.close();
+      $("#prog-hint").classList.add("hidden");
       // 완료 요약을 먼저 보이고, 누르면 그리드로 간다.  바로 넘어가면 결과를
       // 읽을 틈이 없다 - "분석 완료 사유를 명확히" 가 그 요구다.
       $("#prog-cancelwrap").classList.add("hidden");
@@ -1121,6 +1173,8 @@ function toFirstScreen() {
   $("#prog-what").textContent = "";
   $("#prog-now").textContent = "";
   $("#prog-home").textContent = "첫 화면으로";
+  // hotfix57 — 끝난 분석에서 나가면 잊는다.  분석 중에 나가면 기억한다 (돌아오면 이어서).
+  if (S.watching && S.watchEnded) forgetWatch(S.watching);
   S.pageCount = null; S.sheetTargets = null; S.watching = null;
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);  // hotfix50 — ?embed 등을 지우지 않는다
   listJobs();
@@ -1159,11 +1213,13 @@ window.addEventListener("hashchange", () => {
   buildTabs(); renderReviewPanel(); renderGrid();
 });
 if (location.hash.length > 1) open(hashParts()[0]);
+else resumeWatched();
 
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
   if (job.status !== "done") { watch(jobId, job.page_count, job); return; }
+  forgetWatch(jobId);                       // hotfix57 — 결과를 봤으면 다시 끌고 오지 않는다
   S.loading = true;
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
@@ -7628,7 +7684,8 @@ function renderDashboard() {
   const pills = [];
   if (audit && audit.bad) pills.push(`<a class="pill" data-go="audit">데이터 위생 확인 <b>${audit.bad}</b></a>`);
   if (failed.length) pills.push(`<a class="pill" data-go="list">분석 실패 <b>${failed.length}</b></a>`);
-  if (running.length) pills.push(`<a class="pill info" data-go="list">분석 중 <b>${running.length}</b></a>`);
+  // hotfix57 — 분석 중인 것이 하나면 그 분석의 진행 화면으로 바로 간다.
+  if (running.length) pills.push(`<a class="pill info" data-go="${running.length === 1 && running[0].job_id ? "#" + escAttr(running[0].job_id) : "list"}">분석 중 <b>${running.length}</b></a>`);
   if (cmp && changes) pills.push(`<a class="pill info" data-go="#${escAttr(cmp.job_id)}">${escAttr(cmp.project)} ${escAttr(cmp.revision)} 개정 변경 <b>${fmtN(changes)}</b></a>`);
   if (audit && !audit.bad) pills.push(`<span class="pill ok">데이터 위생 이상 없음 <b>0</b></span>`);
   $("#home-pills").innerHTML = pills.join("");

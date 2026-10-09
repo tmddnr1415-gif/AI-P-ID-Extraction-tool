@@ -92,7 +92,15 @@ def main() -> int:
     for p in paths:
         if p == STAMP:
             continue
-        files.append({"path": p, "base_sha256": h(blob(base, p)), "new_sha256": h(blob("HEAD", p))})
+        # 기준과 HEAD 사이에 저장소가 거친 판 전부 — 앞 꾸러미를 이미 적용한 PID_dev 도 "우리가 보낸 판"
+        # 으로 알아보고 덮는다 (회사에서 고친 판만 충돌).  그래서 꾸러미를 건너뛰어도, 차례로 적용해도 된다.
+        known = []
+        for c in git("log", "--format=%H", f"{base}..HEAD", "--", p).splitlines():
+            b = blob(c, p)
+            if b is not None and h(b) not in known:
+                known.append(h(b))
+        files.append({"path": p, "base_sha256": h(blob(base, p)), "new_sha256": h(blob("HEAD", p)),
+                      "known_sha256": known})
     files.append({"path": STAMP, "base_sha256": h(blob(base, STAMP)), "new_sha256": h(stamp_bytes),
                   "always": True})
     manifest = {"name": a.name, "summary": a.summary, "base_commit": base, "head_commit": head,
