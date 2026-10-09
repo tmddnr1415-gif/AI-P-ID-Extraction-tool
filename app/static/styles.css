@@ -1924,3 +1924,24 @@ body.pid-full #gutter-v { visibility: hidden; }
 .fe-row input:focus, .fe-row textarea:focus { outline: 2px solid #2f5bd8; outline-offset: -1px; }
 .fe-row.edited input, .fe-row.edited textarea { background: #f2fbf5; border-color: #9fd3b2; }
 .fe-foot { padding: 6px 10px 8px; border-top: 1px solid #eef0f4; }
+
+/* hotfix65 — 페이지별 승수: 여러 장을 고르고 장마다 승수를 적어 지금 결과에 바로 적용 */
+.mult-panel .pmult { margin-top: 4px; }
+.mult-panel .pm-head b { font-size: 12px; }
+.mult-panel .pm-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0; }
+.mult-panel .pm-tools input[type=number] { width: 60px; margin-left: 2px; }
+.mult-panel .pm-preview { font-size: 11px; margin-bottom: 4px; }
+.mult-panel .pm-preview b { color: var(--ink-strong); }
+.mult-panel .pm-list { display: flex; flex-direction: column; gap: 1px; }
+.mult-panel .pm-row { display: grid; grid-template-columns: 18px 38px minmax(80px, 1fr) 44px minmax(70px, auto) 76px minmax(90px, auto);
+                      gap: 6px; align-items: center; padding: 2px 4px; border-radius: 4px; }
+.mult-panel .pm-row:hover { background: var(--hover, rgba(0,0,0,.04)); }
+.mult-panel .pm-row.on { background: rgba(47, 91, 216, .09); }
+.mult-panel .pm-p { cursor: pointer; font-weight: 600; color: var(--link, #2f5bd8); }
+.mult-panel .pm-dwg { font-family: var(--mono, monospace); font-size: 11px; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); }
+.mult-panel .pm-x input { width: 52px; margin-left: 2px; }
+.mult-panel .pm-after b { color: #2f5bd8; }
+.mult-panel .pm-ed { font-style: normal; color: #0f8f80; margin-left: 2px; }
+.mult-panel .mu-head { margin-top: 10px; }
+.mult-panel.folded .pmult, .mult-panel.folded .mu-head { display: none; }

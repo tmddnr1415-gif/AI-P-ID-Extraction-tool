@@ -3625,6 +3625,26 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
    → `99TEST01` → **목록 칸 7(✎) · 99TEST01 · 도면 라벨 x7 ✎ · 서버 user 같은 값** · ▶ 다음 항목 · Esc 두 번 → 전체화면 끝 ·
    목록 그 행 그대로 · 목록을 끝까지 접어도 카드가 뜬다 · 페이지 오류 0.
 
+**그 다음 — 수량 승수 판에서 여러 장을 고르고 장마다 승수 · 바로 적용 (hotfix65 · 판정 0줄)**
+
+사용자(승수 판 사진): *"수량 승수는, 사용자가 여러 page 를 선택할 수 있게 하고, 해당 page 별 승수를 입력해서
+적용할 수 있게 해줘.  그리고 적용되면 수량이 자동으로 바껴야 해."*  시험 `tests/test_hotfix65_page_mult.py` 6건
+(빠른 시험 **876**) · 자기검증 `spike/ui_audit_page_mult.py` → `out/hotfix65/ui/`.
+
+1. **판 맨 위에 '페이지별 승수'** (`renderPageMult`) — 행이 있는 장마다 한 줄: 고름 · `p6`(누르면 그 장) · 도면번호 ·
+   행 수 · `지금 xN`(Q'ty ÷ 기본 개수 · 섞이면 `x1(3) · x2(5)` · 사람이 고친 행 `✎N`) · 승수 칸 · `Q'ty 16 → 48`.
+   칸에 적으면 그 장이 저절로 골라지고, Shift 로 사이의 장을 고르고, `선택한 장에 같은 승수` 로 채운다.
+   누르기 전에 `고른 장 Q'ty 20 → 적용하면 68` 을 보인다.  `도면 값으로` 는 고른 장의 사람 Q'ty 를 지운다.
+2. **유닛코드 승수(31회차)와 다른 길이다** — 그것은 프로젝트에 적혀 **다음 분석부터**, 이것은 지금 결과의 행에
+   **사람이 고친 Q'ty** 로 (hotfix59 라벨 편집과 같은 칸 · ✎ · 다음 리비전에 안정 ID 로 승계).  판 안에서 두 구획으로
+   나눠 그렇게 적는다.  유닛 승수가 없는 문서(AL NOUF1)에도 이제 판이 뜬다.
+3. **새 Q'ty = 기본 개수 × 승수** (`qtyBase` — 엔진 근거 `N symbol x F` 에서 도면 Q'ty ÷ F · 못 읽으면 1).  Typical
+   상세 한 벌(x4)처럼 승수가 아닌 곱은 남는다.  계산은 화면 한 곳이고 서버(`POST /jobs/{id}/qty_bulk`)는 받은 정수를
+   PATCH 와 **같은 db 함수**(`set_user_value` · `record_feedback`)로 적기만 한다 — 요청 하나 · 작성자 한 번 · 사유
+   `PAGE_MULTIPLIER: p6 x3`.  뒤에 목록·도면 라벨·근거 패널을 같은 값에서 다시 그린다.
+4. 실측 (QFE Rev.B 사본 · 79장): p6 x3 · p7 x5 → 서버·목록 칸(✎)·도면 라벨 `x3 ✎` 이 같은 값 · p8 누르고 Shift+p11 →
+   4장 · x2 채우기 · 적용 · p6 도면 값으로 → 처음 값 · 편집 이력 `홍길동 · PAGE_MULTIPLIER: p7 x5` · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4088,6 +4108,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/pdf_facts.py` · `job.facts_json` · `main._store_facts`/`_backfill_facts`/`_card_facts`/`_verdicts`/`_project_card` · `db.output_qty` | **hotfix62** — 카드의 도면 사실(PDF 프로젝트 제목 · 장별 개정 날짜 · 이력 표의 개정 순서 · 최상위 Rev) 과 나가는 Q'ty.  판정·지문 밖 · 예전 분석은 시작 때 한 번 채움 |
 | `app/sheet_memo.py` · `main._note_aliases`/`job_memos`/`page_memo`/`save_page_memo` · `app.js` `showMemo`/`saveMemo`/`memoOpen`/`initMemo` · `#memo` | **hotfix63** — 장별 메모.  열쇠는 도면번호(바뀐 번호는 장부로 이음) · 같은 프로젝트의 모든 Rev · 판을 쌓는다 · `/notes` 와 다른 자리 |
 | `app.js` `saveField`/`syncRowCell`/`saveEdit` · `renderFloatEdit`/`setFull` · `#fedit` · `#full-toggle` | **hotfix64** — 칸 저장의 단 하나의 길(목록 칸 · 도면 위 편집 카드 공용) · 도면 전체화면 · 목록이 안 보일 때 도면 위 편집 |
+| `app.js` `qtyBase`·`pageMultPages`·`pageMultPlan`·`renderPageMult`·`applyPageMult`·`_saveQtyItems` · `main.qty_bulk` | **hotfix65** — 수량 승수 판의 페이지별 승수(지금 결과에 바로).  Q'ty = 기본 개수 × 승수 — 계산은 화면 한 곳 · 서버는 PATCH 와 같은 db 함수로 적기만.  유닛코드 승수(다음 분석부터)와 다른 길 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

@@ -1413,6 +1413,7 @@ async function open(jobId) {
   buildPageSelect();
   S.loading = false;
   updateEmptyNote();
+  S.pageMult = { checked: new Set(), vals: {}, last: null };   // hotfix65 — 페이지별 승수 (분석마다 새로)
   S.memo = null; S.memoDraft = {};        // hotfix63 — 장별 메모 (다른 분석의 저장 안 한 글은 들고 오지 않는다)
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
   loadMemoSummary();
@@ -1652,7 +1653,7 @@ function renderRevLabel() {
  * 바뀐다).  필터·선택은 결과마다 따로 산다.  */
 const VIEW_KEYS = ["job", "pages", "rows", "rowByKey", "revByKey", "deletedRows", "counts",
   "originCounts", "review", "jobReview", "rev", "axisOv", "markupSummary", "unjudged",
-  "unjudgedKnown", "feedback", "reports", "legend", "mult", "sheetNos", "sheetTargets",
+  "unjudgedKnown", "feedback", "reports", "legend", "mult", "pageMult", "sheetNos", "sheetTargets",
   "byTab", "drawings", "page", "sel", "zoom", "mode", "tab", "axis", "code", "drawing",
   "gradeFilter", "reasonFilter", "originFilter", "filter", "onlyReview", "onlyChanged",
   "revFilter", "colFilters", "natural"];
@@ -2444,6 +2445,254 @@ function renderReviewPanel() {
  * `adopt_legend_profile` 과 같은 규율이다: 바꿨다고 말하면서 바꾸지 않으면
  * 화면이 거짓말을 한다.
  * ------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+ * hotfix65 — 페이지별 승수: 여러 장을 고르고 장마다 승수를 적어 **바로** 적용한다.
+ *
+ * 사용자: *"수량 승수는, 사용자가 여러 page 를 선택할 수 있게 하고, 해당 page 별
+ * 승수를 입력해서 적용할 수 있게 해줘.  그리고 적용되면 수량이 자동으로 바껴야 해."*
+ *
+ * 아래 유닛코드 승수(31회차)와 **다른 길**이다 — 그것은 프로젝트에 적혀 *다음
+ * 분석부터* 쓰이고, 이것은 지금 결과의 행에 사람이 고친 Q'ty 로 적힌다
+ * (hotfix59 `x N` 라벨 편집과 같은 칸 · 같은 ✎ · 다음 리비전에 안정 ID 로 승계).
+ *
+ * 새 Q'ty = 그 행의 **기본 개수** × 사람이 적은 승수.  기본 개수는 엔진이 적은
+ * 근거(`qty_basis` 의 `N symbol x F` — 도면 Q'ty ÷ 도면 승수)에서 읽는다 — Typical
+ * 상세 한 벌(x4)처럼 승수가 아닌 곱은 그대로 남는다.  근거를 못 읽으면 1 이다
+ * (LS 묶음 `1 x 시트 승수` 도 1).  계산은 여기 한 곳이고 서버는 받은 정수를 적기만
+ * 한다 (`POST /jobs/{id}/qty_bulk` — PATCH 와 같은 db 함수 · 같은 편집 이력).
+ * ------------------------------------------------------------------------- */
+function qtyBase(row) {
+  const ai = (row.ai || {}).qty;
+  const b = String(((row.evidence || {}).qty_basis) || "");
+  const m = b.match(/^\s*(\d+)\s+(?:symbol|point)s?\s+x\s+(\d+)/);
+  if (m && ai != null && ai !== "" && +m[2] > 0) {
+    const base = Math.round(Number(ai) / +m[2]);
+    return base >= 1 ? base : 1;
+  }
+  return 1;
+}
+function rowMultiplier(row) {
+  const q = cellValue(row, "qty");
+  if (q === "" || q == null || isNaN(Number(q))) return null;
+  const b = qtyBase(row);
+  return Number(q) / b;
+}
+function pageMultPages() {
+  const by = new Map();
+  for (const r of S.rows || []) {
+    if (r.deleted || r.removed || r.delCand) continue;
+    if (!by.has(r.page_no)) by.set(r.page_no, []);
+    by.get(r.page_no).push(r);
+  }
+  const pgs = new Map((S.pages || []).map(p => [p.page_no, p]));
+  return [...by.keys()].sort((a, b) => a - b).map(no => {
+    const rows = by.get(no);
+    const mults = new Map();
+    let qty = 0, human = 0;
+    for (const r of rows) {
+      const m = rowMultiplier(r);
+      const k = m == null ? "?" : String(Math.round(m * 100) / 100);
+      mults.set(k, (mults.get(k) || 0) + 1);
+      qty += Number(cellValue(r, "qty")) || 0;
+      if (r.user && r.user.qty !== undefined) human += 1;
+    }
+    const pg = pgs.get(no) || {};
+    return { no, rows, qty, human, drawing: pg.drawing_no || "",
+             mults: [...mults.entries()].sort((a, b) => b[1] - a[1]) };
+  });
+}
+/* 고른 장 · 적은 승수로 무엇이 바뀌는지 — 누르기 전에 보인다 (31회차 규율). */
+function pageMultPlan() {
+  const st = S.pageMult;
+  const plan = [], missing = [];
+  let before = 0, after = 0;
+  for (const p of pageMultPages()) {
+    if (!st.checked.has(p.no)) continue;
+    const v = String(st.vals[p.no] ?? "").trim();
+    if (!/^\d+$/.test(v) || +v < 1) { missing.push(p.no); continue; }
+    const m = +v;
+    for (const r of p.rows) {
+      const now = cellValue(r, "qty");
+      const nq = qtyBase(r) * m;
+      before += Number(now) || 0; after += nq;
+      if (String(now ?? "") !== String(nq)) plan.push({ row: r, page: p.no, m, value: nq });
+    }
+  }
+  return { plan, missing, before, after };
+}
+function renderPageMult(box) {
+  const st = S.pageMult || (S.pageMult = { checked: new Set(), vals: {}, last: null });
+  const pages = pageMultPages();
+  const wrap = box.querySelector(".pmult");
+  if (!wrap) return;
+  if (!pages.length) { wrap.innerHTML = ""; return; }
+  const nChk = pages.filter(p => st.checked.has(p.no)).length;
+  const { plan, missing, before, after } = pageMultPlan();
+  const multTxt = (p) => p.mults.map(([k, n]) => (k === "?" ? "?" : "x" + k) + (p.mults.length > 1 ? `(${n})` : "")).join(" · ");
+  wrap.innerHTML = `<div class="mhead pm-head">페이지별 승수 <span class="muted">— 여러 장을 고르고
+        장마다 승수를 적으면 <b>지금 결과의 Q'ty 가 바로</b> 바뀝니다 (Q'ty = 기본 개수 × 승수)</span></div>
+      <div class="pm-tools">
+        <label class="pm-all"><input type="checkbox" class="pm-chkall"
+          ${nChk && nChk === pages.length ? "checked" : ""}> 전체 선택</label>
+        <span class="muted">선택 ${nChk}장</span>
+        <label>선택한 장에 같은 승수 x<input class="pm-fillv" type="number" min="1" step="1" placeholder="예: 2"></label>
+        <button class="pm-fill ghost" ${nChk ? "" : "disabled"}>채우기</button>
+        <button class="pm-apply primary" ${plan.length ? "" : "disabled"}>적용 (${plan.length}행)</button>
+        <button class="pm-revert ghost" ${nChk ? "" : "disabled"}
+          title="고른 장에서 사람이 고친 Q'ty 를 도면 값으로 되돌립니다">도면 값으로</button>
+      </div>
+      <div class="pm-preview muted">${nChk
+        ? (plan.length || missing.length
+            ? `고른 장 Q'ty <b>${before}</b> → 적용하면 <b>${after}</b>`
+              + (missing.length ? ` · 승수를 안 적은 장 ${missing.map(n => "p" + n).join(", ")} 은 건너뜁니다` : "")
+            : "고른 장의 승수 칸을 채우면 바뀔 Q'ty 가 여기 보입니다")
+        : "장을 고르세요 — Shift 를 누른 채 고르면 사이의 장이 모두 골라집니다"}</div>
+      <div class="pm-list">${pages.map(p => {
+        const on = st.checked.has(p.no);
+        const v = st.vals[p.no] ?? "";
+        const nv = /^\d+$/.test(String(v)) && +v >= 1
+          ? p.rows.reduce((a, r) => a + qtyBase(r) * +v, 0) : null;
+        return `<div class="pm-row${on ? " on" : ""}" data-page="${p.no}">
+          <input type="checkbox" class="pm-chk" ${on ? "checked" : ""}>
+          <a class="pm-p" title="이 장을 도면 창에 띄웁니다">p${p.no}</a>
+          <span class="pm-dwg" title="${attr(p.drawing)}">${escape(p.drawing || "")}</span>
+          <span class="pm-n muted">${p.rows.length}행</span>
+          <span class="pm-now" title="지금 승수 (Q'ty ÷ 기본 개수) · 괄호는 행 수">지금 ${multTxt(p)}${p.human ? ` <i class="pm-ed" title="사람이 고친 Q'ty ${p.human}행">✎${p.human}</i>` : ""}</span>
+          <label class="pm-x">x<input class="pm-val" type="number" min="1" step="1" value="${attr(v)}"></label>
+          <span class="pm-after muted">Q'ty ${p.qty}${nv != null ? ` → <b>${nv}</b>` : ""}</span>
+        </div>`;
+      }).join("")}</div>`;
+  const rerender = () => { renderPageMult(box); };
+  wrap.querySelector(".pm-chkall").onchange = (ev) => {
+    st.checked = ev.target.checked ? new Set(pages.map(p => p.no)) : new Set();
+    rerender();
+  };
+  wrap.querySelectorAll(".pm-row").forEach((el, i) => {
+    const no = +el.dataset.page;
+    const chk = el.querySelector(".pm-chk");
+    chk.onclick = (ev) => {
+      const want = chk.checked;
+      // Shift — 직전에 누른 장과 이 장 사이를 같은 상태로 (목록 순서 기준).
+      if (ev.shiftKey && st.last != null) {
+        const a = pages.findIndex(p => p.no === st.last);
+        const lo = Math.min(a, i), hi = Math.max(a, i);
+        if (a >= 0) for (let k = lo; k <= hi; k++) want ? st.checked.add(pages[k].no) : st.checked.delete(pages[k].no);
+      } else {
+        want ? st.checked.add(no) : st.checked.delete(no);
+      }
+      st.last = no;
+      rerender();
+    };
+    el.querySelector(".pm-p").onclick = () => {
+      const pg = (S.pages || []).find(p => p.page_no === no);
+      if (pg) showPage(pg);
+    };
+    const val = el.querySelector(".pm-val");
+    // 칸에 적으면 그 장이 골라진다 — 적고 나서 또 고르지 않게.  다시 그리면 입력이 끊기므로
+    // 이 줄과 위 요약만 고친다.
+    val.oninput = () => {
+      st.vals[no] = val.value.trim();
+      if (st.vals[no] !== "") { st.checked.add(no); chk.checked = true; el.classList.add("on"); }
+      const p = pages.find(x => x.no === no);
+      const v = st.vals[no];
+      const nv = /^\d+$/.test(v) && +v >= 1 ? p.rows.reduce((a, r) => a + qtyBase(r) * +v, 0) : null;
+      el.querySelector(".pm-after").innerHTML = `Q'ty ${p.qty}${nv != null ? ` → <b>${nv}</b>` : ""}`;
+      _pageMultSummary(wrap, pages);
+    };
+    val.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); applyPageMult(); } };
+  });
+  wrap.querySelector(".pm-fill").onclick = () => {
+    const v = wrap.querySelector(".pm-fillv").value.trim();
+    if (!/^\d+$/.test(v) || +v < 1) { editNotice("승수는 1 이상의 정수입니다", "out"); return; }
+    for (const no of st.checked) st.vals[no] = v;
+    rerender();
+  };
+  wrap.querySelector(".pm-fillv").onkeydown = (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); wrap.querySelector(".pm-fill").click(); }
+  };
+  wrap.querySelector(".pm-apply").onclick = () => applyPageMult();
+  wrap.querySelector(".pm-revert").onclick = () => revertPageMult();
+}
+function _pageMultSummary(wrap, pages) {
+  const st = S.pageMult;
+  const nChk = pages.filter(p => st.checked.has(p.no)).length;
+  const { plan, missing, before, after } = pageMultPlan();
+  const ap = wrap.querySelector(".pm-apply");
+  ap.textContent = `적용 (${plan.length}행)`; ap.disabled = !plan.length;
+  wrap.querySelector(".pm-fill").disabled = !nChk;
+  wrap.querySelector(".pm-revert").disabled = !nChk;
+  wrap.querySelector(".pm-tools .muted").textContent = `선택 ${nChk}장`;
+  wrap.querySelector(".pm-preview").innerHTML = nChk
+    ? `고른 장 Q'ty <b>${before}</b> → 적용하면 <b>${after}</b>`
+      + (missing.length ? ` · 승수를 안 적은 장 ${missing.map(n => "p" + n).join(", ")} 은 건너뜁니다` : "")
+    : "장을 고르세요 — Shift 를 누른 채 고르면 사이의 장이 모두 골라집니다";
+}
+/* 저장 — 한 요청 · 작성자 한 번.  뒤에 목록과 도면을 같은 Q'ty 값에서 다시 그린다
+ * (`applyQtyToRows` 와 같은 뒤처리). */
+async function _saveQtyItems(items, what, reasonOf) {
+  const author = await askAuthor(`승수 — ${what}`);
+  if (author === null) return 0;                       // 취소 — 한 행도 안 고친다
+  const res = await fetch(`/jobs/${S.job.id}/qty_bulk`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ author, items: items.map(it => ({ key: it.row.key, value: it.value,
+                                                             reason: reasonOf(it) })) }),
+  });
+  if (!res.ok) { editNotice((await res.json()).detail || "저장하지 못했습니다", "out"); return 0; }
+  const out = await res.json();
+  let done = 0;
+  for (const it of items) {
+    const r = it.row;
+    if (!(r.key in out.users)) continue;
+    r.user = out.users[r.key];
+    r.values.qty = it.value === "" ? (r.ai || {}).qty : Number(it.value);
+    delete (r.conflict || {}).qty;
+    done += 1;
+  }
+  S.counts.REVIEW = out.review_count;
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+  updateBadge();
+  renderGrid();                                       // 오른쪽 — 같은 Q'ty 값
+  markMultiRows();
+  drawOverlay();                                      // 왼쪽 — x N 라벨이 같은 값을 다시 읽는다
+  const cur = S.sel && S.rowByKey[S.sel];
+  if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
+  if (typeof renderFloatEdit === "function") renderFloatEdit();
+  return done;
+}
+async function applyPageMult() {
+  const { plan, missing } = pageMultPlan();
+  if (!plan.length) {
+    editNotice(missing.length ? "고른 장의 승수 칸이 비어 있습니다" : "바뀔 행이 없습니다 — 이미 그 승수입니다", "out");
+    return;
+  }
+  const byPage = new Map();
+  for (const it of plan) byPage.set(it.page, it.m);
+  const what = [...byPage.entries()].map(([p, m]) => `p${p} x${m}`).join(" · ");
+  const done = await _saveQtyItems(plan, `${byPage.size}장 ${plan.length}행 (${what})`,
+                                   it => `PAGE_MULTIPLIER: p${it.page} x${it.m}`);
+  if (!done) return;
+  for (const p of byPage.keys()) delete S.pageMult.vals[p];
+  S.pageMult.checked = new Set();
+  editNotice(`${byPage.size}장 ${done}행의 Q'ty 를 바꿨습니다 (${what}) — 도면 라벨과 목록에 같이 반영`, "in");
+  const box = $("#mult-panel"); if (box) renderPageMult(box);
+}
+async function revertPageMult() {
+  const st = S.pageMult;
+  const items = [];
+  for (const p of pageMultPages()) {
+    if (!st.checked.has(p.no)) continue;
+    for (const r of p.rows) if (r.user && r.user.qty !== undefined) items.push({ row: r, page: p.no, value: "" });
+  }
+  if (!items.length) { editNotice("고른 장에 사람이 고친 Q'ty 가 없습니다", "out"); return; }
+  const pages = new Set(items.map(it => it.page));
+  const done = await _saveQtyItems(items, `${pages.size}장 ${items.length}행 도면 값으로`,
+                                   it => `PAGE_MULTIPLIER: p${it.page} 도면 값으로`);
+  if (!done) return;
+  S.pageMult.checked = new Set();
+  editNotice(`${pages.size}장 ${done}행의 Q'ty 를 도면 값으로 되돌렸습니다`, "out");
+  const box = $("#mult-panel"); if (box) renderPageMult(box);
+}
+
 async function loadMultipliers() {
   const box = $("#mult-panel");
   if (!box || !S.job || !S.job.id) return;
@@ -2453,7 +2702,9 @@ async function loadMultipliers() {
   } catch (e) { return; }
   S.mult = out;
   const groups = out.groups || [];
-  if (!groups.length) { box.classList.add("hidden"); box.innerHTML = ""; _multGutter(); return; }
+  // hotfix65 — 유닛 승수가 없는 문서(도면이 승수를 다 말한 AL NOUF1)에도 페이지별 승수는 있다.
+  const hasRows = (S.rows || []).some(r => !r.deleted && !r.removed && !r.delCand);
+  if (!groups.length && !hasRows) { box.classList.add("hidden"); box.innerHTML = ""; _multGutter(); return; }
   box.classList.remove("hidden");
   /* 이 분석이 프로젝트에 안 묶여 있으면 **저장할 자리가 없다** — 누르고 나서
    * 400 으로 알리지 않고 먼저 말한다 (31회차 UI 자기검증).  승수는 프로젝트의
@@ -2465,12 +2716,15 @@ async function loadMultipliers() {
   const nSet = groups.filter(g => g.set).length;
   const folded = _multFolded();
   box.classList.toggle("folded", folded);
-  box.innerHTML = `<div class="mtop"><b title="도면이 말하지 않은 유닛 — 사람이 한 번 답하면 그 유닛의 모든 행에 적용됩니다">수량 승수</b>
-      <span class="msum">유닛 ${groups.length}개 · 지정 ${nSet} · 미지정 ${groups.length - nSet}
-        · ${groups.reduce((a, g) => a + (g.rows || 0), 0)}행</span>
+  box.innerHTML = `<div class="mtop"><b title="페이지별 승수는 지금 결과에 바로 · 유닛 승수는 도면이 말하지 않은 유닛을 다음 분석부터">수량 승수</b>
+      <span class="msum">페이지별 바로 적용${groups.length ? ` · 유닛 ${groups.length}개 · 지정 ${nSet} · 미지정 ${groups.length - nSet}
+        · ${groups.reduce((a, g) => a + (g.rows || 0), 0)}행` : ""}</span>
       <button class="mfold ghost" title="접으면 요약 한 줄만 남습니다">${folded ? "펼치기" : "접기"}</button></div>`
-    + (bound ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
-         승수를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
+    + `<div class="mgroup pmult"></div>`
+    + (groups.length ? `<div class="mgroup mu-head"><div class="mhead">유닛코드 승수 <span class="muted">— 도면이
+         승수를 말하지 않은 유닛 · 프로젝트에 적혀 <b>다음 분석부터</b> 쓰입니다</span></div></div>` : "")
+    + (bound || !groups.length ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
+         유닛 승수를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
     + groups.map(g => {
         const set = g.set;
         const after = set ? g.rows * (set.multiplier || 0) : null;
@@ -2503,7 +2757,8 @@ async function loadMultipliers() {
     loadMultipliers();
   };
   _multGutter();
-  box.querySelectorAll(".mgroup").forEach(el => {
+  renderPageMult(box);
+  box.querySelectorAll(".mgroup[data-unit]").forEach(el => {
     const unit = el.dataset.unit;
     const val = el.querySelector(".mval");
     const pv = el.querySelector(".mpreview");
@@ -3643,6 +3898,7 @@ async function saveField(row, field, value) {
   // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).  hotfix64 — Q'ty 라벨(x N) ·
   // TYPE 도 도면 위에 서 있으므로 같이 다시 그린다.  색·라벨을 정하는 곳은 그대로 `itemScope`·`cellValue` 다.
   if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") drawOverlay();
+  if (field === "qty") _refreshPageMult();
   renderFloatEdit();
   noticeAfterEdit(row, field, scopeBefore, row.values.scope);
   return true;
@@ -6226,9 +6482,17 @@ async function applyQtyToRows(rows, value, what) {
   drawOverlay();                                      // 왼쪽 — 라벨이 같은 값을 다시 읽는다
   const cur = S.sel && S.rowByKey[S.sel];
   if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
+  _refreshPageMult();
   editNotice(value === ""
     ? `${what} ${done}행의 승수를 도면 값으로 되돌렸습니다`
     : `${what} ${done}행의 승수를 x${value} 로 바꿨습니다 — 도면 라벨과 목록에 같이 반영`);
+}
+
+/* hotfix65 — Q'ty 가 다른 길(라벨 · 목록 칸 · 도면 위 카드)로 바뀌어도 페이지별 승수 판의
+ * '지금 xN' 이 같은 값을 말하게 한다. */
+function _refreshPageMult() {
+  const box = $("#mult-panel");
+  if (box && !box.classList.contains("hidden") && box.querySelector(".pmult")) renderPageMult(box);
 }
 
 function pageQtyRows(pageNo) {

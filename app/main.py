@@ -2934,6 +2934,56 @@ async def patch_row(job_id: str, key: str, payload: dict):
             "history": db.row_edit_history(CON, job_id, key)}
 
 
+@app.post("/jobs/{job_id}/qty_bulk")
+async def qty_bulk(job_id: str, payload: dict):
+    """hotfix65 — 여러 행의 Q'ty 를 한 번에 (수량 승수 판의 '페이지별 승수').
+
+    **하는 일은 `patch_row` 와 같다** — 행마다 같은 `db.set_user_value` · 같은
+    `record_feedback`(작성자 · 사유) 이고, 다른 것은 요청이 하나라는 것뿐이다.  여러
+    장 수백 행을 행마다 요청하면 화면이 그동안 멈춰 있다.  값은 화면이 정한다
+    (그 행의 기본 개수 × 사람이 적은 승수) — 서버는 받은 정수를 적기만 하고
+    아무것도 다시 계산하지 않는다.  빈 값이면 도면 값으로 되돌린다 (PATCH 와 같다)."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    items = payload.get("items") or []
+    if not isinstance(items, list) or not items:
+        raise HTTPException(400, "no rows")
+    author = " ".join(str(payload.get("author") or "").split())[:60]
+    reason = str(payload.get("reason") or "")[:200]
+    clean = []
+    for it in items:
+        key = str((it or {}).get("key") or "")
+        value = (it or {}).get("value")
+        if value not in (None, ""):
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(400, "Q'ty must be a whole number")
+            if value < 0:
+                raise HTTPException(400, "Q'ty must not be negative")
+        else:
+            value = ""
+        clean.append((key, value, str((it or {}).get("reason") or reason)[:200]))
+    out = {}
+    for key, value, why in clean:
+        before = db.get_row(CON, job_id, key)
+        if before is None:
+            continue
+        user = db.set_user_value(CON, job_id, key, "qty", value)
+        db.record_feedback(
+            CON, job_id, "EDITED", row_key=key, page_no=before["page_no"],
+            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
+            field="qty", ai_value=(before.get("ai") or {}).get("qty"),
+            user_value=value, reason=why,
+            basis=before.get("evidence") or {}, author=author,
+            pattern_args={"field": "qty",
+                          "ai": (before.get("ai") or {}).get("qty"),
+                          "user": value})
+        out[key] = user
+    return {"users": out, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id)}
+
+
 @app.get("/jobs/{job_id}/rows/{key}/history")
 def row_history(job_id: str, key: str):
     """이 행을 누가 · 언제 · 무엇에서 무엇으로 고쳤나 (13회차 [D]).
