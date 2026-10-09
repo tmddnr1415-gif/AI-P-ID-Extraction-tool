@@ -4113,11 +4113,24 @@ async function saveField(row, field, value) {
     : `이 행은 발주처 양식에 ${before.formLine}`;
   const author = await askAuthor(`${field} 수정`, hint);
   if (author === null) return null;                         // 취소
-  const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
-    method: "PATCH", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ field, value, author }),
-  });
-  if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return false; }
+  // hotfix74 — 서버가 꺼졌거나 연결이 끊기면 **칸을 원래 값으로 돌리고 그렇게 말한다**.  돌발상황
+  // 시뮬레이션(U2): 예외가 그대로 올라가 칸은 새 값을 보이고 아무 말이 없었다 — 저장된 줄 알고 넘어간다.
+  let r;
+  try {
+    r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field, value, author }),
+    });
+  } catch (e) {
+    alert("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  칸은 원래 값으로 돌아갑니다.\n"
+      + "서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.");
+    return false;
+  }
+  if (!r.ok) {
+    let msg = "저장 실패 (서버 응답 " + r.status + ")";
+    try { msg = (await r.json()).detail || msg; } catch (e) { /* 본문이 JSON 이 아니다 */ }
+    alert(msg); return false;
+  }
   const out = await r.json();
   row.user = out.user;
   stampEditor(row, field, author);
@@ -9111,10 +9124,47 @@ function syncNoteMutation(url, init) {
                review: S.counts ? S.counts.REVIEW : null, feedback: S.feedback ?? null });
   }, 180);
 }
+/* hotfix74 — 서버와 연결이 끊기면 화면 위에 띠 하나로 말한다.  어느 요청이 실패했든 같은 띠이고, 5초마다
+ * `/version` 을 물어 돌아오면 스스로 사라진다.  돌발상황 시뮬레이션(U2): 서버가 꺼진 동안 화면은 아무 말이
+ * 없었고 페이지 오류(`Failed to fetch`)만 남았다. */
+const NET = { down: false, timer: null };
+function netDown() {
+  if (NET.down) return;
+  NET.down = true;
+  let b = document.getElementById("net-banner");
+  if (!b) {
+    b = document.createElement("div");
+    b.id = "net-banner";
+    b.setAttribute("role", "alert");
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#b42318;color:#fff;"
+      + "padding:8px 16px;font-size:14px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+    document.body.appendChild(b);
+  }
+  b.textContent = "서버에 연결할 수 없습니다 — 고친 값이 저장되지 않습니다.  P&ID 분석 서버가 켜져 있는지 확인해 "
+    + "주세요.  연결되면 이 줄은 저절로 사라집니다.";
+  b.hidden = false;
+  NET.timer = setInterval(async () => {
+    try {
+      const r = await _fetch0("/version", { cache: "no-store" });
+      if (r.ok) netUp();
+    } catch (e) { /* 아직 꺼져 있다 */ }
+  }, 5000);
+}
+function netUp() {
+  NET.down = false;
+  if (NET.timer) { clearInterval(NET.timer); NET.timer = null; }
+  const b = document.getElementById("net-banner");
+  if (b) b.hidden = true;
+}
+let _fetch0 = window.fetch.bind(window);
+
 (function hookFetch() {
   const f0 = window.fetch.bind(window);
+  _fetch0 = f0;
   window.fetch = function (input, init) {
     const p = f0(input, init);
+    p.then(() => { if (NET.down) netUp(); },
+           e => { if (e && e.name !== "AbortError") netDown(); });
     try {
       const method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
       if (method !== "GET" && method !== "HEAD" && SYNC.link) {

@@ -49,8 +49,7 @@ def v_mediabox_origin():
     for pg in d:
         r = pg.rect
         np_ = out.new_page(width=r.width, height=r.height)
-        np_.show_pdf_page(np_.rect, d, pg.number)
-        np_.set_rotation(pg.rotation)
+        np_.show_pdf_page(np_.rect, d, pg.number)   # 보이는 모양 그대로 그린다 — 회전을 다시 걸지 않는다
     p = VD / "v02_reflowed_xobject.pdf"
     out.save(p)
     return p, "run"

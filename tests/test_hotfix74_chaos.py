@@ -69,3 +69,13 @@ def test_children_follow_the_parent():
 def test_db_waits_and_busy_answers_503():
     assert "timeout=30.0" in Path(db.__file__).read_text(encoding="utf-8")
     assert "@app.exception_handler(sqlite3.OperationalError)" in SRC
+
+
+def test_screen_says_when_the_server_is_unreachable():
+    js = (Path(main.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    body = js[js.index("async function saveField("):js.index("function syncRowCell(")]
+    assert "} catch (e) {" in body and "칸은 원래 값으로 돌아갑니다" in body and "return false;" in body
+    # 띠 하나 — 어느 요청이 실패해도 같은 말 · 돌아오면 스스로 사라진다
+    assert "function netDown()" in js and "function netUp()" in js and 'id = "net-banner"' in js
+    hook = js[js.index("(function hookFetch()"):]
+    assert "netDown()" in hook and "netUp()" in hook

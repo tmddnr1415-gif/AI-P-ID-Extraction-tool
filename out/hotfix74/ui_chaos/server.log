@@ -1,0 +1,610 @@
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26016]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:52029 (Press CTRL+C to quit)
+INFO:     127.0.0.1:46852 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /static/app.js?v=363d40c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46884 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46862 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46872 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46864 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46896 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34542 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26172]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:39641 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60952 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /static/app.js?v=363d40c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60980 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32772 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60998 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60968 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60988 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60960 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26356]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:38517 (Press CTRL+C to quit)
+INFO:     127.0.0.1:40684 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /static/app.js?v=363d40c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40718 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40708 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40730 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40694 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40722 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40746 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26488]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:38517 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58448 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58480 - "GET /jobs/48b5adbdd28c/rows?keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58496 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58468 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58496 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58496 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58468 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58458 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58460 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58468 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46208 - "GET /jobs/48b5adbdd28c/rows?keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46212 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46212 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46212 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46236 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46236 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46236 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46236 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45988 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58464 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46212 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46228 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /static/app.js?v=363d40c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46682 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46246 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46682 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46682 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46698 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46702 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46684 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46696 - "GET /home HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.1 MB · 정리하면 되찾는 용량 0.1 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26580]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:38517 (Press CTRL+C to quit)
+INFO:     127.0.0.1:40074 - "GET /version HTTP/1.1" 200 OK
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26702]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:34411 (Press CTRL+C to quit)
+INFO:     127.0.0.1:45058 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:45080 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45104 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45084 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45098 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45080 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45072 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26834]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:34411 (Press CTRL+C to quit)
+INFO:     127.0.0.1:44154 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44184 - "GET /jobs/48b5adbdd28c/rows?keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44166 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32794 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32808 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32822 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32794 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32822 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32808 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32794 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32794 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32808 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32808 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44174 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32794 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32808 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "PATCH /jobs/48b5adbdd28c/rows/07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52108 - "GET /jobs/48b5adbdd28c/rows?keys=07e655c75580c463 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:52102 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52128 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52120 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52120 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52128 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/48b5adbdd28c/rows/07e655c75580c463/axis_candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52120 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52120 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52120 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44166 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52128 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44156 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /static/styles.css?v=d5b8b261 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/markup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/unjudged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/multipliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/sheet_numbers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/notes/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/memo/6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/memo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/2098450b4603/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/2098450b4603/anchors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/2098450b4603/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/2098450b4603/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/2098450b4603/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/page/7.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42362 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/page/5.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52136 - "GET /jobs/48b5adbdd28c/page/8.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42362 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42362 - "GET /static/app.js?v=10dcf9a0 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:42362 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42414 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42400 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42374 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42390 - "GET /home HTTP/1.1" 200 OK
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.1 MB · 정리하면 되찾는 용량 0.1 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+INFO:     Started server process [26930]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:34411 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35680 - "GET /version HTTP/1.1" 200 OK
