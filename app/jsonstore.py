@@ -64,7 +64,20 @@ def write(path: Path, data, *, indent=1, sort_keys=True) -> Path:
                 shutil.copy2(path, _bak(path))          # 바로 앞 판 — 복사가 반쯤이어도 원본은 그대로
             except OSError:
                 pass
-        os.replace(tmp, path)
+        # Windows 에서는 다른 프로그램(백신 · 편집기)이 그 파일을 잠깐 열고 있으면 `os.replace` 가
+        # PermissionError 로 실패한다 — 잠깐씩 기다려 몇 번 더 해 본다.  그래도 안 되면 임시 파일을 치우고 알린다.
+        for attempt in range(6):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if attempt == 5:
+                    try:
+                        tmp.unlink()
+                    except OSError:
+                        pass
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     return path
 
 

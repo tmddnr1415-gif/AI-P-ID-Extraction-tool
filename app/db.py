@@ -329,7 +329,8 @@ def backup_daily(path: Path, keep: int = BACKUP_KEEP):
     if dest.exists():
         return dest
     tmp = dest.with_name(dest.name + ".tmp")
-    src = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=30.0)
+    # URI 는 `as_uri()` 로 — Windows 경로(`C:\…` · 한글 · 공백)를 손으로 붙이면 SQLite 가 잘못 읽는다.
+    src = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=30.0)
     try:
         out = sqlite3.connect(tmp)
         try:

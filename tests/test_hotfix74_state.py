@@ -249,3 +249,21 @@ def test_repeated_reads_of_the_same_broken_file_record_once(tmp_path):
         assert jsonstore.read(p, {}, what="시험") == {}
     assert len(jsonstore.incidents()) == n0 + 1
     assert len(list(tmp_path.glob("m.json.corrupt-*"))) == 1
+
+
+def test_write_retries_a_briefly_locked_file(tmp_path, monkeypatch):
+    db, jsonstore, main, revisions = _mods()
+    import os as _os
+    real = _os.replace
+    calls = {"n": 0}
+
+    def flaky(a, b):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise PermissionError(13, "file in use")         # Windows: 백신·편집기가 잠깐 열고 있다
+        return real(a, b)
+    monkeypatch.setattr(jsonstore.os, "replace", flaky)
+    p = tmp_path / "w.json"
+    jsonstore.write(p, {"ok": 1})
+    assert json.loads(p.read_text(encoding="utf-8")) == {"ok": 1} and calls["n"] == 3
+    assert not list(tmp_path.glob("*.tmp*"))
