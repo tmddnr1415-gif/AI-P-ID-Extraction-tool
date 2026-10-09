@@ -3642,9 +3642,10 @@ function paintWindow(force) {
   if (!force && start === VROW.start && end === VROW.end) return;
   VROW.start = start; VROW.end = end;
   const n = cols.length + 1;
-  let html = VROW.measure + _vpad(start * h, n);
+  // 숨은 측정 줄은 **맨 끝**에 둔다 — 맨 앞에 두면 "첫 줄" 을 찾는 곳(`#body tr`)이 그 줄을 집는다 (UI 시험이 잡았다)
+  let html = _vpad(start * h, n);
   for (let i = start; i < end; i++) html += rowHtml(rows[i], cols);
-  html += _vpad((rows.length - end) * h, n);
+  html += _vpad((rows.length - end) * h, n) + VROW.measure;
   body.innerHTML = html;
   if (!VROW.h) {
     const tr = body.querySelector("tr[data-key]");

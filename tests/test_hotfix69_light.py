@@ -155,9 +155,8 @@ def test_row_memo_parses_once_under_concurrent_readers(tmp_path, monkeypatch):
 # ---------------------------------------------------------------- ⑤ 화면
 def test_grid_paints_only_the_rows_in_view():
     pw = _fn("paintWindow")
-    assert "VROW.measure + _vpad(start * h, n)" in pw
+    assert "let html = _vpad(start * h, n);" in pw and "_vpad((rows.length - end) * h, n) + VROW.measure" in pw
     assert "body.contains(document.activeElement)" in pw                    # 타자 중에는 다시 그리지 않는다
-    assert "_vpad((rows.length - end) * h, n)" in pw
     rv = _fn("revealRow")
     assert "S.vlist" in rv and "paintWindow(true)" in rv
     assert "#grid tr.vmeasure { visibility: collapse; }" in CSS
