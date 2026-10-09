@@ -2411,8 +2411,12 @@ def _slim_row(row: dict) -> dict:
 
 
 def _rows_payload(job_id: str, tab: str, keys: set | None) -> list:
-    src = db.merged_rows_cached(CON, job_id, tab)
-    out = [dict(r) for r in src if keys is None or r["key"] in keys]
+    if keys is not None and len(keys) <= 2000:
+        # hotfix74 — 몇 행이면 그 행만 읽는다 (편집이 메모를 풀 때마다 전체를 파싱하던 것 · 부하 시뮬레이션)
+        out = db.merged_rows_by_keys(CON, job_id, sorted(keys), tab)
+    else:
+        src = db.merged_rows_cached(CON, job_id, tab)
+        out = [dict(r) for r in src if keys is None or r["key"] in keys]
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     editors = db.last_editors(CON, job_id)      # hotfix66 — 고친 칸마다 누가 · 언제

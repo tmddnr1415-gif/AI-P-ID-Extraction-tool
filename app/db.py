@@ -680,6 +680,29 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
             con.execute(sql + " ORDER BY page_no, key", args).fetchall()]
 
 
+def merged_rows_by_keys(con, job_id: str, keys, tab: str = None) -> list:
+    """`merged_rows` 와 같은 행 · 같은 순서 — 그 열쇠의 행만 DB 에서 읽는다 (hotfix74).
+
+    부하 시뮬레이션(`spike/soak.py` — 6명이 칸을 고치며 근거를 연다): 행 하나의 근거(`/rows?keys=`)가
+    **p50 4초**였다.  편집 한 칸마다 메모가 풀리고, 행 하나를 위해 분석 전체(QFE 2천 행 · evidence 11MB)를
+    다시 파싱했기 때문이다.  행 몇 개면 그 몇 개만 읽는다."""
+    keys = [k for k in dict.fromkeys(keys or []) if k]
+    out = []
+    for i in range(0, len(keys), 500):
+        part = keys[i:i + 500]
+        sql = f"SELECT * FROM item WHERE job_id=? AND key IN ({','.join('?' * len(part))})"
+        args = [job_id, *part]
+        if tab and tab != "ALL":
+            if tab == "REVIEW":
+                sql += " AND (needs_review<>'' OR deleted=1)"
+            else:
+                sql += " AND tab=?"
+                args.append(tab)
+        out += con.execute(sql, args).fetchall()
+    out.sort(key=lambda r: (r["page_no"], r["key"]))
+    return [_merged(r) for r in out]
+
+
 # hotfix45 — 같은 분석의 행을 **한 요청 안에서 다섯 번** 파싱하고 있었다.  결과 화면을
 # 열 때 `/rows` · `/review` · `/markup` · `/drawings` · `/multipliers` · `/axis_overrides`
 # 가 저마다 `merged_rows` 를 불러 evidence 10.9MB(QFE 2,041행)를 다시 읽는다 — 서버에서
