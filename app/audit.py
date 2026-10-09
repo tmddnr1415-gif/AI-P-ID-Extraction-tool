@@ -29,7 +29,7 @@ import os
 import re
 from pathlib import Path
 
-REV_DIR = re.compile(r"^rev(\d+)$")
+REV_DIR = re.compile(r"^rev(\d+)(?:_\d{8}-\d{6})?$")    # hotfix74 — 잠긴 파일을 피해 새로 쓴 폴더도 같은 스냅샷이다
 
 
 def _dir_bytes(path: Path) -> int:
@@ -122,7 +122,8 @@ def leftovers(con, data_dir: Path) -> dict:
     out = data_dir / "outputs"
     if out.is_dir():
         for d in sorted(out.iterdir()):
-            if d.is_dir() and REV_DIR.match(d.name) and d.name not in revisions:
+            m = REV_DIR.match(d.name) if d.is_dir() else None
+            if m and f"rev{m.group(1)}" not in revisions:
                 outputs.append(d.name)
                 output_bytes += _dir_bytes(d)
 

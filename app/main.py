@@ -4304,7 +4304,13 @@ def revision_excel(revision_id: int):
         raise HTTPException(404, "no such revision")
     templates = _templates()
     out_dir = OUTPUTS / f"rev{revision_id}"
-    result = excel_out.write_all(snap, templates, out_dir, CFG)
+    try:
+        result = excel_out.write_all(snap, templates, out_dir, CFG)
+    except PermissionError:
+        # hotfix74 — Windows 에서 지난번 결과 파일을 서버 PC 에서 엑셀로 열어 두면 같은 이름으로 덮어쓰지
+        # 못한다.  지난 파일은 그대로 두고 새 폴더에 쓴다 (내려받는 사람에게는 같은 zip 이다).
+        out_dir = OUTPUTS / f"rev{revision_id}_{time.strftime('%Y%m%d-%H%M%S')}"
+        result = excel_out.write_all(snap, templates, out_dir, CFG)
     if not result["written"]:
         raise HTTPException(
             400, {"error": "채울 발주처 양식이 하나도 없습니다 — 양식(.xlsx)을 올리거나 data/ 에 두어야 "
