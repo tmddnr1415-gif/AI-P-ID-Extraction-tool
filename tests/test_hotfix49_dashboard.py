@@ -71,7 +71,9 @@ def test_tabs_live_inside_the_sidebar():
 def test_dashboard_reads_only_existing_endpoints():
     block = _block(JS, "hotfix49 — 대시보드형 화면")
     urls = set(re.findall(r'fetch\(\s*[`"]([^`"$?]+)', block))
-    assert urls <= {"/version"}, urls          # /home · /audit 은 listHome · showAudit 가 받아 DASH 에 둔다
+    # /home · /audit 은 listHome · showAudit 가 받아 DASH 에 둔다.  hotfix58 — 분석 중 현황은
+    # 서버가 계산해 주는 /running 하나 (판정 아님 · 화면이 다시 세지 않는다).
+    assert urls <= {"/version", "/running"}, urls
     assert "DASH.home = home" in JS and "DASH.audit =" in JS
     for verb in ("method: \"POST\"", "method: \"PATCH\"", "method: \"DELETE\""):
         assert verb not in block, verb

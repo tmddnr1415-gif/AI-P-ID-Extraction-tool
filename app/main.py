@@ -195,6 +195,68 @@ def _running_s(row) -> float:
     return round(max(0.0, time.time() - a), 1) if a and st == "running" else 0.0
 
 
+def _pace_history(jobs) -> dict:
+    """hotfix58 — 이 서버에서 **끝난 분석이 장당 몇 초 걸렸나** (입력 종류별 중앙값).
+
+    진행률을 단계 수로 세면 쓸모가 없다 — `layout`(도면 치수 재기)이 전체 시간의
+    절반을 넘게 쓰는데 그동안 단계 번호는 0 에 머문다 (TC2 실측 55.9%).  그래서
+    퍼센트와 남은 시간은 **이 서버가 실제로 걸린 시간**에서 낸다.  지어낸 속도는 없다 —
+    끝난 분석이 없으면 비어 있고, 화면이 "아직 예상할 기록이 없다" 고 말한다.
+    """
+    per = {}
+    for j in jobs:
+        try:
+            a, b, n = j["started_at"], j["finished_at"], j["page_count"]
+            kind = j["input_kind"] or "PDF"
+        except (KeyError, IndexError):
+            continue
+        if j["status"] != "done" or not (a and b and n and b > a):
+            continue
+        per.setdefault(kind, []).append((b - a) / n)
+    out = {}
+    for kind, xs in per.items():
+        xs.sort()
+        out[kind] = {"sec_per_page": xs[len(xs) // 2], "n": len(xs)}
+    return out
+
+
+def _run_status(row, pace: dict, queue_ahead: int = 0) -> dict:
+    """한 분석의 지금 — 단계 · 장수 · 경과 · 예상 퍼센트 · 남은 시간 (첫 화면과 진행 화면이 같이 읽는다)."""
+    kind = row["input_kind"] or "PDF"
+    hist = pace.get(kind)
+    running = _running_s(row)
+    pages = row["page_count"] or 0
+    out = {"id": row["id"], "status": row["status"], "message": row["message"] or "",
+           "sheets_done": row["sheets_done"] or 0, "sheets_total": row["sheets_total"] or 0,
+           "page_count": pages, "running_s": running, "queue_ahead": queue_ahead,
+           "percent": None, "eta_s": None, "expected_s": None, "basis": None,
+           "over": False}
+    if hist and pages:
+        expected = hist["sec_per_page"] * pages
+        out["expected_s"] = round(expected)
+        out["basis"] = {"jobs": hist["n"], "sec_per_page": round(hist["sec_per_page"], 1)}
+        if row["status"] == "running":
+            out["percent"] = min(99, int(running / expected * 100)) if expected else None
+            left = expected - running
+            out["eta_s"] = round(left) if left > 0 else None
+            out["over"] = left <= 0
+    return out
+
+
+@app.get("/running")
+def running_jobs():
+    """hotfix58 — 돌고 있거나 기다리는 분석과 그 진행 — 첫 화면의 '최근 분석 이력' 이 읽는다."""
+    jobs = db.list_jobs(CON)
+    pace = _pace_history(jobs)
+    live = [j for j in jobs if j["status"] in ("running", "queued")]
+    live.sort(key=lambda j: j["created_at"] or 0)
+    out, ahead = [], 0
+    for j in live:
+        out.append(_run_status(j, pace, queue_ahead=ahead if j["status"] == "queued" else 0))
+        ahead += 1
+    return {"jobs": out, "pace": pace}
+
+
 def _scope_summary(rows: list) -> dict:
     """완료 화면이 읽는 결과 요약 (12회차).
 

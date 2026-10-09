@@ -155,18 +155,27 @@ def mark_rects(body) -> tuple:
     별표를 어느 쪽에 찍는지가 장마다 다르기 때문이다 (p6 M 원 8.4pt ↔ p27
     몸체 8.1pt).  **행을 만드는 쪽과 소유권 경쟁(48회차)이 같은 사각형을
     봐야 한다** — 두 벌을 두면 경쟁에서 이긴 마크를 읽을 때 놓친다.
+
+    hotfix58 — **태그 버블도 이 밸브의 자리다.**  EPIC Rev.E p9 은 `**` 를
+    몸체도 M 원도 아닌 **MOV 태그 버블 위**에 찍었고, 그 MOV 가 SCT 로 나갔다.
+    같은 버블의 별표를 몸체를 못 찾은 밸브(53회차 [B-3] 의 버블 자리 행)는
+    버블에서 읽고 있었다 — 몸체를 찾았느냐에 따라 같은 별표를 읽기도 하고
+    안 읽기도 했다.  버블은 도면이 그 밸브에 붙인 이름표이므로(53회차 s6 ·
+    `attach_tags` 의 지시선 짝) 그 위 별표는 그 밸브의 것이다.  마크는
+    `read_vendor_mark` 가 한 번만 훑으므로 몸체·버블 둘 다에 걸쳐도 한 번 센다.
     """
+    own = (pymupdf.Rect(*body.tag_rect),) if getattr(body, "tag_rect", None) else ()
     if body.actuator_rect:
-        return (pymupdf.Rect(*body.actuator_rect), body.rect)
-    return (body.rect,)
+        return (pymupdf.Rect(*body.actuator_rect), body.rect) + own
+    return (body.rect,) + own
 
 
 def item_rects(body) -> tuple:
     """별표 소유권 경쟁에서 이 밸브 **한 항목** — `(읽는 사각형들, 태그 버블)`.
 
-    읽는 자리(`mark_rects`)와 태그 버블이 갈려 있다: 태그 버블 옆 별표를
-    밸브 것으로 *읽지는* 않지만, 그 버블이 자기가 이름 붙인 밸브의 별표를
-    **뺏어서도 안 된다.**
+    hotfix58 부터 읽는 자리(`mark_rects`)에도 태그 버블이 든다 — 그 버블
+    위 별표는 이 밸브의 것이고, 그 버블이 자기가 이름 붙인 밸브의 별표를
+    **뺏어서도 안 된다** (아래 48회차).
 
     ★ 48회차 실측 — AL NOUF1 p7 의 NRV.  `**`(ST SUPPLIER) 두 획이 밸브
     울타리 바로 위에 가운데 맞춰 찍혀 있고, 그 오른쪽 4.7pt 에 `NRV` 태그

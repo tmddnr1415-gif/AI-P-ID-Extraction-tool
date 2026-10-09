@@ -3442,6 +3442,38 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
 6. 변경분 꾸러미가 **앞 꾸러미를 적용했든 안 했든** 덮을 수 있게 됐다 — `known_sha256`(기준과 HEAD 사이 저장소가
    거친 판 전부).  hotfix57 꾸러미는 97a8732 기준 누적(56 포함)이다.  빠른 시험 **830**.
 
+**그 다음 — P&ID 메뉴는 언제나 첫 화면 · 첫 화면이 분석 중 현황을 보인다 · 밸브 태그 버블 위 별표 (hotfix58)**
+
+사용자: *"분석중에 다른 메뉴로 갔다가 다시 P&ID 분석으로 오거나, 분석중 화면에서 첫 화면으로 가거나, P&ID 분석
+메뉴를 부르면 첫 화면으로 … 단 분석중 현황을 표기해달라 — 최근 분석 이력에 Progress Bar 를 이미지화하고 % 와
+예상 잔여 시간."*  그리고 EPIC Rev.E p9: *"MOV 위에 ** 표기가 있으나 SCT 로 분류됨."*
+시험 `tests/test_hotfix58_running_status.py` 6 · `tests/test_hotfix58_valve_tag_star.py` 5 · 델타 적용기 +1
+(빠른 시험 **836**) · 화면 자기검증 `spike/ui_audit_running.py` → `out/hotfix58/ui/`.
+
+1. **hotfix57 의 자동 복귀를 철회했다** — `resumeWatched` · `rememberWatch` · `pid.watching` · 진행 화면이 주소에
+   `#분석` 을 적던 것 전부 뺐다 (시험이 그 이름이 없음을 못박는다).  왼쪽 메뉴 '홈' 도 분석 중에 첫 화면으로 간다.
+   진행 화면에 **`첫 화면으로 — 분석은 계속됩니다`** (`#prog-leave`) — 이 화면의 진행 소식·시계만 닫는다.
+   `docs/dashboard_embed.md` §3-1(iframe 숨기기)은 **넣지 말라**로 고쳤다 — 숨기면 떠나기 전 화면이 남는다.
+2. **'최근 분석 이력' 맨 위** — 도는 것, 그 다음 기다리는 것.  줄무늬가 흐르는 진행 막대 · % · `남은 시간 약 N분 ·
+   경과` · 지금 단계(도면 치수 재는 중 — 37/60쪽) · 근거.  누르면 그 분석의 진행 화면.  기다리는 것은 빈 막대 +
+   `대기` + `앞에 1건 — 그 분석이 끝나면 시작합니다 (시작하면 예상 소요 약 2분)`.  진행 화면도 같은 값을 쓴다
+   (`#prog-eta` · 막대가 같은 퍼센트).  3초마다 `GET /running` 하나 · 목록에서 빠지면 이력을 다시 받는다.
+3. **추정은 단계 수가 아니라 이 서버의 실측이다** (`main._pace_history` · `_run_status`) — 끝난 분석의 **장당 시간
+   중앙값**(입력 종류별) × 이 PDF 의 장수.  단계로 세면 '도면 치수 재기' 하나가 절반 넘게 쓰는 동안 0% 다.
+   근거(지난 분석 N건 · 장당 X초)를 같이 적고, **끝난 분석이 없으면 "아직 예상할 수 없습니다"** 와 '알 수 없음'
+   무늬 막대 (지어낸 속도 0) · 예상을 넘기면 99% 에 멈추고 "예상보다 오래 걸리는 중".
+4. **실측** (TC2 12장 → 장당 9.8초 · TC2 60장 · 12장 하나 더): 끝난 분석 없을 때 "예상할 수 없습니다" · 4% →
+   8% → 17% 로 오르고 두 시점 카드 캡처가 다르다 · 진행 화면 `9% · 남은 시간 약 9분` · 나가기 → 첫 화면 ·
+   진행 화면에서 다른 메뉴 → P&ID 메뉴 = **첫 화면** · 페이지 오류 0.
+5. **별표 — 밸브가 별표를 읽는 사각형에 그 밸브의 태그 버블을 더했다** (`detect_valves.mark_rects`).
+   EPIC p9 는 `**` 를 MOV **태그 버블 위**에 찍는다.  밸브는 몸체·액추에이터만 보고, 몸체를 못 찾은 밸브(53회차
+   [B-3] 버블 자리 행)만 버블에서 읽고 있었다.  `read_vendor_mark` 는 마크를 한 번만 훑고 경쟁(16·19·48회차)은
+   그대로다.  EPIC PDF 는 이 환경에 없어 같은 꼴인 TC2 p6 으로 확인했다.
+   **[회귀]** AL NOUF1 `46d551fd` · 1133 · 2136 · QFE `8b2975ee` · 2068 **불변** · **TC2 `67eae92d` → `23e78e27`**
+   (902 · 5564 · 94.2 그대로 · 움직인 칸 1 — p6 MOV GATE SCT → `VENDOR(SE)` · 렌더 확인) → 기준선 갱신.
+6. **델타 꾸러미가 저장소에서 없앤 파일을 지운다** (`pack_delta` · `apply_delta` `remove`) — hotfix57 시험이
+   PID_dev 에 남으면 빠른 시험이 실패한다.  **우리가 보낸 판 그대로일 때만** 지우고(백업) 회사에서 고친 판은 남겨 보고.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3896,7 +3928,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/console.py` `safe_stdio` · `lan_check.tail`/`--tail` | **hotfix54** — 표준 출력이 cp949 여도 못 쓰는 글자로 죽지 않는다 · 서비스가 멈추면 로그 끝을 창에.  출력을 파일로 돌리는 bat 에는 `set PYTHONUTF8=1` |
 | `app/analysis_proc.py` `run` · `PID_ANALYSIS_INPROCESS` | **hotfix56** — 분석은 자식 프로세스(`spawn`)가 돈다.  서버 스레드는 진행 소식을 받아 같은 `progress` 를 부를 뿐 · 취소는 `terminate` · 알려진 실패는 종류 그대로.  자식은 `app.main` 을 import 하지 않는다.  분석 중에 서버가 GIL 을 뺏겨 대시보드의 `/version` 3초 확인이 실패하던 것 |
 | `spike/pack_delta.py` · `spike/apply_delta.py` · `out/PID_dev_delta_base.txt` | **hotfix56** — PID_dev 변경분 꾸러미.  기준판과 같은 파일만 덮고 회사에서 고친 파일은 `.new` 로 옆에 둔다.  운영 폴더는 거부 |
-| `app.js` `WATCH_KEY` · `rememberWatch` · `resumeWatched` · `forgetWatch` · `main._running_s` | **hotfix57** — 이 브라우저가 지켜보던 분석을 기억하고, 주소 없이 다시 열리면(대시보드 iframe 재생성) 그 분석의 진행 화면·결과로 돌아간다.  끝난 분석에서 나가거나 결과를 열면 잊는다 |
+| `main._pace_history` · `_run_status` · `GET /running` · `app.js` `liveFacts` · `renderLive` · `pollRunning` · `#prog-leave` · `#prog-eta` | **hotfix58** — 분석 중 현황.  P&ID 메뉴는 언제나 첫 화면 (hotfix57 자동 복귀 철회) · '최근 분석 이력' 맨 위에 진행 막대 · % · 남은 시간 · 단계.  추정은 이 서버에서 끝난 분석의 **장당 시간 중앙값 × 장수**이고 근거를 같이 적는다 · 없으면 예상할 수 없다고 말한다 · 넘으면 99% |
+| `detect_valves.mark_rects` 의 태그 버블 | **hotfix58** — 밸브가 별표를 읽는 사각형에 그 밸브의 **태그 버블**을 더한다 (EPIC Rev.E p9 · MOV 태그 버블 위 `**` 가 SCT 로).  `read_vendor_mark` 는 마크를 한 번만 훑으므로 두 창에 다 들어와도 한 번 · 경쟁 규칙 그대로 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

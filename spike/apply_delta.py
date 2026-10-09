@@ -13,6 +13,10 @@ Per file in manifest.json:
   * anything else (someone edited it on the company PC)              -> CONFLICT:
         the target is NOT touched; the new version is written next to it as
         <file>.<package>.new so the company Claude can merge the two.
+Files the repository removed after an earlier package delivered them ("remove": true):
+  * target file == a version we delivered (known)                   -> remove (backed up)
+  * absent                                                           -> same
+  * anything else (edited on the company PC)                         -> keep, reported
 Originals are copied to <target>\\backup\\<package>_<time>\\ before overwriting.
 Never touches app\\_data, data, .venv, logs.  Refuses the operating folder
 (a folder named PID) unless --ops is given.  Exit code 0 = applied, 2 = conflicts.
@@ -45,6 +49,12 @@ def plan(target: Path, manifest: dict) -> list[dict]:
             out.append({**f, "action": "refused"})
             continue
         now = sha(target / rel)
+        if f.get("remove"):
+            act = ("same" if now is None
+                   else "remove" if (now in (f.get("known_sha256") or ()) or now == f.get("base_sha256"))
+                   else "kept")
+            out.append({**f, "now_sha256": now, "action": act})
+            continue
         if now == f["new_sha256"]:
             act = "same"
         elif f.get("always") or now == f["base_sha256"] or now in (f.get("known_sha256") or ()):
@@ -64,7 +74,13 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False) -> tuple[l
         for s in steps:
             src = pkg / "files" / s["path"]
             dst = target / s["path"]
-            if s["action"] in ("overwrite", "create"):
+            if s["action"] == "remove":
+                backup = backup or (target / "backup" / f"{name}_{stamp}")
+                b = backup / s["path"]
+                b.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dst, b)
+                dst.unlink()
+            elif s["action"] in ("overwrite", "create"):
                 if s["action"] == "overwrite":
                     backup = backup or (target / "backup" / f"{name}_{stamp}")
                     b = backup / s["path"]
@@ -108,7 +124,8 @@ def main(argv=None) -> int:
     print(f"{manifest['name']}  ({manifest.get('summary', '')})")
     print(f"대상: {target}{'   [미리보기 - 아무것도 바꾸지 않음]' if dry else ''}\n")
     words = {"overwrite": "덮어씀", "create": "새로 만듦", "same": "이미 같음",
-             "conflict": "충돌 - 안 덮음", "refused": "거부(보호 폴더)"}
+             "conflict": "충돌 - 안 덮음", "refused": "거부(보호 폴더)",
+             "remove": "지움 (저장소에서 없앤 파일)", "kept": "안 지움 - 회사에서 고친 파일"}
     for s in steps:
         tail = f"   -> 새 버전: {Path(s['new_copy']).name}" if s.get("new_copy") else ""
         print(f"  [{words[s['action']]}] {s['path']}{tail}")

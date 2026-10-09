@@ -97,3 +97,23 @@ def test_a_version_we_delivered_earlier_is_not_a_conflict(tmp_path):
     steps, _ = apply_delta.apply(target, pkg, man)
     assert {s["path"]: s["action"] for s in steps}["app/main.py"] == "overwrite"
     assert (target / "app" / "main.py").read_bytes() == b"new main"
+
+
+def test_removes_a_file_we_delivered_but_keeps_an_edited_one(tmp_path):
+    """hotfix58 — 저장소가 없앤 파일(hotfix57 시험)은 우리가 보낸 판일 때만 지운다."""
+    target, pkg, man = _setup(tmp_path)
+    (target / "tests").mkdir()
+    (target / "tests" / "old.py").write_bytes(b"delivered by hotfix57")
+    (target / "tests" / "mine.py").write_bytes(b"company edit")
+    man["files"] += [{"path": "tests/old.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [_h(b"delivered by hotfix57")], "remove": True},
+                     {"path": "tests/mine.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [_h(b"delivered")], "remove": True},
+                     {"path": "tests/never.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [], "remove": True}]
+    steps, backup = apply_delta.apply(target, pkg, man)
+    act = {s["path"]: s["action"] for s in steps}
+    assert act["tests/old.py"] == "remove" and not (target / "tests" / "old.py").exists()
+    assert (backup / "tests" / "old.py").read_bytes() == b"delivered by hotfix57"
+    assert act["tests/mine.py"] == "kept" and (target / "tests" / "mine.py").exists()
+    assert act["tests/never.py"] == "same"

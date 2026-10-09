@@ -33,10 +33,10 @@
   },
   "TC2": {
     "rows": 902,
-    "fingerprint": "67eae92de409d9e81eb43d4e53b241f0aeaa3b8314d91e5c5de6402255bb706d",
+    "fingerprint": "23e78e27146e9ea3ac2cb12666dc4509c9f1e73e8e5c014f71cff4b8a6d8a3ac",
     "qty_sum": 5564,
     "score": 94.2,
-    "_": "hotfix20 — 4c508aa1 · 902 → 1ea583bc · 902 · Q'ty 5564 · 축3 93.0 → 94.2 (종이 크기 범용화).  같은 도면을 A4·A2·A1 로 다시 낸 PDF 와 행이 같아지게 고정 pt 허용치를 그 문서 범례의 나비(짧은 변 9.9 · 원 6.06 = AL NOUF1 값)로 잰 길이 단위(TC2 0.495)로 곱했다 — AL NOUF1 은 1.0 이라 c3f63cde 그대로.  움직인 것(렌더 확인): 태그 버블만 있던 REVIEW 행 9 → 몸체 있는 밸브 행 (p10·p11·p17 공압 글로브 · p13·p18 MOV 글로브 · p21 게이트) — 흩어진 나비의 첫 고리가 허리 원반을 건너고(범례 waist_ratio) 칠 조각·지시선 쌍이 교점을 선점하지 않게 · BALL→BUTTERFLY 4(p23 · 원 안 날개) · BUTTERFLY→GLOBE 2(p13·p18 · 칠한 원반) · SCOPE: 이름 없는 VENDOR 14 → VENDOR(SIEMENS) (VENDOR_MARK_UNDEFINED 27 → 10) · p16 PI 2 VENDOR(CEP)→SCT(별표는 옆 VS 밸브 것) · p10 XV 2 VENDOR(SE)→SCT(별표는 HRH 바이패스 밸브 것) · p10 GLOBE SCT→VENDOR(SE)(돔 옆 별표).  ⚠ p33·p34 PSV 태그 6행이 REVIEW '' → REVIEW CHECK (안전밸브 삼각형이 반쪽 나비로 읽힘 · 탭 불변).  글리프 채널 별표는 방향 셋 이상(STAR_MIN_DIRS) — 크기 창을 단위로 곱하자 틱·파선 모서리가 별표가 되던 것.\n\n56회차 — 901 → 902 · Q'ty 5556 → 5564 · 지문 68b09eb2 → 4c508aa1.  원인 하나: 공압 실린더·파일럿 상자를 이제 찾는다.  PNEUMATIC 탭 44 → 54 · TAGGED_VALVE_NO_ACTUATOR 40 → 31 (XV 10 → 2 · NRV 1 → 0)."
+    "_": "hotfix58 — 67eae92d → 23e78e27 · 902 · Q'ty 5564 · 축3 94.2 그대로.  밸브가 별표를 읽는 사각형에 그 밸브의 태그 버블을 더했다 (EPIC Rev.E p9 · MOV 태그 버블 위 `**`).  움직인 칸 1 — p6 MOV GATE [436.4,543.8,444.8,548.8] SCT → VENDOR(SE) (렌더 확인 · 태그 버블 위 별표).  AL NOUF1 · QFE 불변."
   },
   "UAD": {
     "rows": 198,

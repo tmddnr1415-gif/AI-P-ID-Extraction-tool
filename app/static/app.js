@@ -942,45 +942,16 @@ function showSkipped(plan) {
   box.classList.remove("hidden");
 }
 
-/* hotfix57 — **다른 메뉴로 갔다 와도 분석 화면이 이어진다.**
+/* hotfix58 — **P&ID 분석 메뉴는 언제나 첫 화면으로 연다.**
  *
- * 분석은 서버에서 돈다 — 화면이 사라져도 멈추지 않는다 (hotfix56 부터는 서버와 다른
- * 프로세스).  사라지던 것은 *화면*이었다: 부서 대시보드는 메뉴를 옮길 때 iframe 을 새로
- * 만들고, 새 iframe 은 주소에 분석 번호가 없어 첫 화면으로 열렸다.  그래서 **이 브라우저가
- * 지켜보던 분석**을 적어 두고, 다시 열리면 그 분석으로 돌아간다.  남이 건 분석으로 끌려가지
- * 않게 브라우저마다 따로다 (localStorage — 다른 사람의 화면에는 없다).
- *
- * 지우는 때: 사람이 끝난 분석에서 첫 화면으로 나가거나, 끝난 분석의 결과를 열었을 때 ·
- * 취소됐을 때 · 그 분석이 서버에 없을 때.  *분석 중에* 나가는 것은 지우지 않는다 — 그것이
- * 이 기능이 지키려는 경우다. */
-const WATCH_KEY = "pid.watching";
-function rememberWatch(id) { try { localStorage.setItem(WATCH_KEY, id); } catch (e) {} }
-function watchedJob() { try { return localStorage.getItem(WATCH_KEY) || ""; } catch (e) { return ""; } }
-function forgetWatch(id) {
-  try { if (!id || localStorage.getItem(WATCH_KEY) === id) localStorage.removeItem(WATCH_KEY); } catch (e) {}
-}
-async function resumeWatched() {
-  const id = watchedJob();
-  if (!id) return false;
-  let job = null;
-  try {
-    const r = await fetch(`/jobs/${id}`);
-    if (r.ok) job = await r.json();
-  } catch (e) { return false; }                   // 서버가 대답하지 않으면 적은 것을 지우지 않는다
-  if (!job || job.status === "cancelled") { forgetWatch(id); return false; }
-  if (location.hash.length > 1) return false;     // 그 사이 사람이 다른 것을 열었다
-  if (job.status === "done") { open(id); return true; }
-  watch(id, job.page_count, Object.assign({ resumed: true }, job));
-  return true;
-}
-
+ * hotfix57 은 이 브라우저가 지켜보던 분석을 적어 두고 다시 열리면 그 진행 화면으로 끌고
+ * 갔는데, 사용자 요구는 반대였다: *다른 메뉴에 다녀오거나 · 진행 화면에서 나가거나 ·
+ * 메뉴를 다시 불러도 첫 화면으로 온다 — 대신 첫 화면이 분석 중 현황을 보인다.*  분석은
+ * 서버(자식 프로세스)에서 계속 돌므로 화면이 떠나도 멈추지 않는다.  돌고 있는 분석은
+ * '최근 분석 이력' 맨 위에서 진행 막대 · % · 남은 시간으로 보이고, 누르면 진행 화면으로
+ * 간다 (`liveRow` · `pollRunning`). */
 function watch(jobId, pageCount, what) {
   drop.classList.add("hidden");
-  rememberWatch(jobId);
-  S.watchEnded = false;
-  // 새로고침·새 창도 같은 분석으로 — 주소가 그 분석을 가리킨다 (query 는 그대로).
-  if (location.hash.slice(1).split("?")[0] !== jobId)
-    history.replaceState(null, "", location.pathname + location.search + "#" + jobId);
   $("#progress").classList.remove("hidden");
   S.pageCount = null; S.sheetTargets = null;
   S.watching = jobId;
@@ -1001,25 +972,28 @@ function watch(jobId, pageCount, what) {
   showPages(pageCount);
   ["#prog-hint", "#prog-actions", "#prog-jobs"].forEach(
     sel => $(sel).classList.add("hidden"));
-  if ((what || {}).resumed && (what.status === "running" || what.status === "queued")) {
-    const hint = $("#prog-hint");
-    hint.textContent = "다른 화면에 다녀오는 동안에도 분석은 계속됐습니다 — 이어서 보여 드립니다.";
-    hint.classList.remove("hidden");
-  }
+  $("#prog-leave").classList.remove("hidden");
+  $("#prog-eta").textContent = "";
+  if (!_pollTimer) pollRunning();            // hotfix58 — 예상 퍼센트·남은 시간
   if (S.watchSrc) { try { S.watchSrc.close(); } catch (e) {} }
   const src = new EventSource(`/jobs/${jobId}/events`);
   S.watchSrc = src;
   src.onmessage = (ev) => {
     const d = JSON.parse(ev.data);
-    $("#bar-fill").style.width = `${Math.round(d.progress * 100)}%`;
+    // hotfix58 — 이 서버의 지난 분석으로 예상이 서면 막대는 그 예상(시간 비례)을 따른다 —
+    // 첫 화면과 같은 퍼센트.  예상이 없을 때만 단계 비율을 그린다.
+    if (!(DASH.live[jobId] && DASH.live[jobId].percent != null))
+      $("#bar-fill").style.width = `${Math.round(d.progress * 100)}%`;
     $("#prog-msg").textContent = stageWords(d.message);
     if (d.page_count != null) showPages(d.page_count, null);
     if (d.sheets_total) showPages(null, d.sheets_total);
     if (d.sheets_total != null) showSheets(d.sheets_done || 0, d.sheets_total);
     if (d.sheet_plan) showSkipped(d.sheet_plan);
     if (d.drawing_no !== undefined) showNow(d.drawing_no);
-    if (d.status === "done" || d.status === "failed" || d.status === "cancelled") S.watchEnded = true;
-    if (d.status === "cancelled") forgetWatch(jobId);
+    if (d.status === "done" || d.status === "failed" || d.status === "cancelled") {
+      $("#prog-leave").classList.add("hidden");
+      $("#prog-eta").textContent = "";
+    }
     if (d.status === "done" && !d.summary) {
       // 다시 붙었는데 그 사이 끝났다 — 요약은 끝나는 순간에만 실리므로 결과로 바로 간다.
       src.close(); stopElapsed(); open(jobId); return;
@@ -1173,13 +1147,18 @@ function toFirstScreen() {
   $("#prog-what").textContent = "";
   $("#prog-now").textContent = "";
   $("#prog-home").textContent = "첫 화면으로";
-  // hotfix57 — 끝난 분석에서 나가면 잊는다.  분석 중에 나가면 기억한다 (돌아오면 이어서).
-  if (S.watching && S.watchEnded) forgetWatch(S.watching);
+  // hotfix58 — 분석 중에 나가도 분석은 서버에서 계속된다.  이 화면만 닫는다 (진행 소식 ·
+  // 경과 시계).  첫 화면의 '최근 분석 이력' 이 그 분석의 현황을 이어서 보인다.
+  if (S.watchSrc) { try { S.watchSrc.close(); } catch (e) {} S.watchSrc = null; }
+  stopElapsed();
+  $("#prog-leave").classList.add("hidden");
+  $("#prog-eta").textContent = "";
   S.pageCount = null; S.sheetTargets = null; S.watching = null;
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);  // hotfix50 — ?embed 등을 지우지 않는다
   listJobs();
 }
 $req("#prog-home").addEventListener("click", toFirstScreen);
+$req("#prog-leave").addEventListener("click", toFirstScreen);   // hotfix58 — 분석은 계속된다
 // 18회차 — 결과 화면에서도 같은 함수를 부른다.  판정도 초기화도 한 곳에만
 // 있어야 두 경로가 갈리지 않는다 (12회차 `toFirstScreen` 을 그대로 쓴다).
 $req("#to-home").addEventListener("click", toFirstScreen);
@@ -1213,13 +1192,11 @@ window.addEventListener("hashchange", () => {
   buildTabs(); renderReviewPanel(); renderGrid();
 });
 if (location.hash.length > 1) open(hashParts()[0]);
-else resumeWatched();
 
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
   if (job.status !== "done") { watch(jobId, job.page_count, job); return; }
-  forgetWatch(jobId);                       // hotfix57 — 결과를 봤으면 다시 끌고 오지 않는다
   S.loading = true;
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
@@ -7514,7 +7491,7 @@ document.addEventListener("keydown", (ev) => {
  * 한다 (11회차 규칙).  판정하는 곳도 없다: 개정 수(추가·수정·삭제 후보)는
  * 서버의 `counts` 그대로이고, 위생 건수는 `showAudit` 가 센 그 수다.
  * ===================================================================== */
-const DASH = { home: null, audit: null };
+const DASH = { home: null, audit: null, live: {}, pace: {} };
 const NAV_KEY = "pid.nav.collapsed";
 const escAttr = (v) => String(v ?? "").replace(/[<>&"']/g,
   c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -7584,8 +7561,7 @@ function renderNav() {
 $req("#nav-home").addEventListener("click", ev => {
   ev.preventDefault();
   if (!$("#main").classList.contains("hidden") || !$("#progress").classList.contains("hidden")) {
-    if (!$("#progress").classList.contains("hidden") && S.watching) return;  // 분석 중에는 진행 화면을 지킨다
-    toFirstScreen();
+    toFirstScreen();      // hotfix58 — 분석 중에도 첫 화면으로 (분석은 계속되고 첫 화면이 현황을 보인다)
   } else {
     $("#drop").scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -7713,14 +7689,107 @@ function renderDashboard() {
     chartCard(cmp ? `개정 변경 내역 — ${cmp.project} ${cmp.revision} vs ${cmp.compared_with}` : "개정 변경 내역", donut(cc)),
   ].join("");
 
-  $("#home-recent").innerHTML = runs.slice(0, 8).map(r => {
+  // hotfix58 — 돌고 있거나 기다리는 분석은 맨 위에 둔다 (시각이 아직 없어 정렬로는 밑으로 간다).
+  const live = r => r.status === "running" || r.status === "queued";
+  // 도는 것이 먼저, 기다리는 것은 그 뒤 (서버 /running 의 줄 순서와 같다).
+  const recent = runs.filter(r => r.status === "running").concat(
+    runs.filter(r => r.status === "queued"), runs.filter(r => !live(r))).slice(0, 8);
+  $("#home-recent").innerHTML = recent.map(r => {
     const st = r.status === "done" ? `<span class="tagchip ok">${fmtN(r.rows)}행</span>`
       : `<span class="tagchip ${r.status === "failed" ? "bad" : "rev"}">${escAttr(JOB_STATUS_KO[r.status] || r.status)}</span>`;
-    return `<a class="recent-row" href="#${escAttr(r.job_id)}"><span class="when">${escAttr(whenWords(r.at))}</span>`
+    return `<a class="recent-row${live(r) ? " is-live" : ""}" href="#${escAttr(r.job_id)}"`
+      + `${live(r) ? ` data-live="${escAttr(r.job_id)}" title="누르면 진행 화면으로 갑니다"` : ""}>`
+      + `<span class="when">${escAttr(live(r) ? "지금" : whenWords(r.at))}</span>`
       + `<span><b>${escAttr(r.project || "—")}</b> ${r.revision ? `<span class="tagchip rev">${escAttr(r.revision)}</span>` : ""}</span>`
       + `<span class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escAttr(r.pdf)}`
-      + `${r.page_count ? ` · ${r.page_count}장` : ""}${r.edits ? ` · 수정 ${r.edits}칸` : ""}</span>${st}</a>`;
+      + `${r.page_count ? ` · ${r.page_count}장` : ""}${r.edits ? ` · 수정 ${r.edits}칸` : ""}</span>${st}`
+      + `${live(r) ? `<span class="run-live"></span>` : ""}</a>`;
   }).join("") || `<p class="muted small">아직 분석이 없습니다 — 위의 <b>새 분석</b> 에서 PDF 를 넣으세요.</p>`;
+  renderLive();
+  if (runs.some(live)) pollSoon();
+}
+
+/* hotfix58 — **분석 중 현황**: 진행 막대 · 예상 퍼센트 · 남은 시간 · 지금 단계.
+ *
+ * 값은 전부 서버의 `GET /running` 이다 (`main._run_status`).  퍼센트·남은 시간은 단계
+ * 번호가 아니라 **이 서버에서 끝난 분석이 장당 걸린 시간의 중앙값 × 이 PDF 의 장수**
+ * 에서 낸 추정이다 — 단계로 세면 '도면 치수 재기' 하나가 절반을 넘게 쓰는 동안 0% 에
+ * 머문다.  근거(지난 분석 몇 건 · 장당 몇 초)를 같이 적고, 끝난 분석이 없으면 추정할 수
+ * 없다고 말한다 (지어낸 속도는 없다).  예상보다 길어지면 99% 에서 멈추고 그렇게 적는다. */
+const RUN_POLL_MS = 3000;
+function etaWords(sec) {
+  const n = Math.round(sec || 0);
+  if (n < 60) return "1분 미만";
+  const h = Math.floor(n / 3600), m = Math.round((n % 3600) / 60);
+  return h ? `약 ${h}시간 ${m}분` : `약 ${m}분`;
+}
+function liveFacts(j) {
+  /* 한 분석의 현황을 화면 말로 — 첫 화면과 진행 화면이 같이 읽는다. */
+  if (!j) return { pct: null, eta: "현황을 받아 오는 중…", stage: "", basis: "" };
+  if (j.status === "queued")
+    return { pct: 0, waiting: true, stage: "",
+             eta: (j.queue_ahead ? `앞에 ${j.queue_ahead}건 — 그 분석이 끝나면 시작합니다` : "곧 시작합니다")
+               + (j.expected_s ? ` (시작하면 예상 소요 ${etaWords(j.expected_s)})` : ""),
+             basis: j.basis ? `이 서버의 지난 분석 ${j.basis.jobs}건 · 장당 ${j.basis.sec_per_page}초 기준 추정` : "" };
+  const stage = stageWords(j.message || "");
+  const sheets = j.sheets_total ? ` · 도면 ${j.sheets_done}/${j.sheets_total}장` : "";
+  const basis = j.basis ? `이 서버의 지난 분석 ${j.basis.jobs}건 · 장당 ${j.basis.sec_per_page}초 기준 추정` : "";
+  if (j.percent == null)
+    return { pct: null, stage: stage + sheets, basis,
+             eta: `경과 ${minsec(j.running_s)} · 남은 시간은 아직 예상할 수 없습니다`
+               + (j.page_count ? " (이 서버에서 끝난 분석이 아직 없습니다)" : "") };
+  if (j.over)
+    return { pct: j.percent, stage: stage + sheets, basis,
+             eta: `경과 ${minsec(j.running_s)} · 예상(${etaWords(j.expected_s).replace("약 ", "")})보다 오래 걸리는 중` };
+  return { pct: j.percent, stage: stage + sheets, basis,
+           eta: `남은 시간 ${etaWords(j.eta_s)} · 경과 ${minsec(j.running_s)}` };
+}
+function liveBar(f) {
+  const pct = f.pct == null ? null : Math.max(0, Math.min(100, f.pct));
+  return `<span class="runbar${pct == null ? " unknown" : ""}${f.waiting ? " waiting" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100"`
+    + `${pct == null ? "" : ` aria-valuenow="${pct}"`}><span class="runbar-fill" style="width:${pct == null ? 100 : pct}%"></span></span>`
+    + `<span class="runpct">${f.waiting ? "대기" : pct == null ? "—" : pct + "%"}</span>`;
+}
+function renderLive() {
+  for (const el of document.querySelectorAll("#home-recent [data-live]")) {
+    const slot = el.querySelector(".run-live");
+    if (!slot) continue;
+    const f = liveFacts(DASH.live[el.dataset.live]);
+    slot.innerHTML = liveBar(f)
+      + `<span class="runtext"><b>${escAttr(f.eta)}</b>${f.stage ? ` · ${escAttr(f.stage)}` : ""}`
+      + `${f.basis ? `<span class="muted"> · ${escAttr(f.basis)}</span>` : ""}</span>`;
+  }
+  // 진행 화면이 열려 있으면 같은 값으로 — 막대도 같은 퍼센트를 그린다.
+  if (S.watching && !$("#progress").classList.contains("hidden")) {
+    const j = DASH.live[S.watching];
+    const eta = $("#prog-eta");
+    if (j && eta) {
+      const f = liveFacts(j);
+      eta.textContent = (f.pct != null ? `${f.pct}% · ` : "") + f.eta + (f.basis ? ` (${f.basis})` : "");
+      if (f.pct != null) $("#bar-fill").style.width = `${f.pct}%`;
+    }
+  }
+}
+let _pollTimer = null;
+async function pollRunning() {
+  _pollTimer = null;
+  let res;
+  try { res = await (await fetch("/running")).json(); } catch (e) { pollSoon(); return; }
+  const before = Object.keys(DASH.live);
+  DASH.live = {};
+  for (const j of res.jobs || []) DASH.live[j.id] = j;
+  DASH.pace = res.pace || {};
+  // 목록에서 빠진 분석은 끝났다 (완료 · 실패 · 취소) — 이력을 다시 받아 행 수·상태를 고친다.
+  // 새로 생긴 분석도 첫 화면 목록에 없으면 다시 받는다.
+  const shown = new Set([...document.querySelectorAll("#home-recent [data-live]")].map(e => e.dataset.live));
+  const changed = before.some(id => !DASH.live[id]) || Object.keys(DASH.live).some(id => !before.includes(id) && !shown.has(id));
+  if (changed && !$("#drop").classList.contains("hidden")) listHome();
+  else renderLive();
+  if (Object.keys(DASH.live).length || (S.watching && !$("#progress").classList.contains("hidden"))) pollSoon();
+}
+function pollSoon() {
+  if (_pollTimer) return;
+  _pollTimer = setTimeout(pollRunning, document.hidden ? RUN_POLL_MS * 4 : RUN_POLL_MS);
 }
 function chartCard(title, body) {
   return `<section class="card chart-card"><h3 class="card-title">${escAttr(title)}</h3>${body}</section>`;

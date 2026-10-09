@@ -103,6 +103,21 @@ def main() -> int:
                       "known_sha256": known})
     files.append({"path": STAMP, "base_sha256": h(blob(base, STAMP)), "new_sha256": h(stamp_bytes),
                   "always": True})
+    # hotfix58 — 앞 꾸러미가 보냈다가 저장소가 없앤 파일 (기준판에도 HEAD 에도 없어 diff 에 안 잡힌다).
+    # 우리가 보낸 판 그대로일 때만 지운다 — 회사에서 고친 판은 남기고 보고한다.
+    gone = git("-c", "core.quotepath=off", "log", "--diff-filter=D", "--name-only", "--format=",
+               f"{base}..HEAD").splitlines()
+    for p in sorted({g for g in gone if g and not g.startswith(SKIP)} | set(deleted)):
+        if blob("HEAD", p) is not None:
+            continue
+        known = []
+        for c in git("log", "--format=%H", f"{base}..HEAD", "--", p).splitlines():
+            for rev in (c, c + "~1"):
+                b = blob(rev, p)
+                if b is not None and h(b) not in known:
+                    known.append(h(b))
+        files.append({"path": p, "base_sha256": h(blob(base, p)), "new_sha256": None,
+                      "known_sha256": known, "remove": True})
     manifest = {"name": a.name, "summary": a.summary, "base_commit": base, "head_commit": head,
                 "created_at": stamp["created_at"], "files": files, "deleted_upstream": deleted}
 
@@ -112,10 +127,12 @@ def main() -> int:
         "      먼저 보기만: apply_to_PID_dev.bat --dry-run\n"
         "충돌(회사에서 고친 파일)은 덮지 않고 <파일>.<이름>.new 로 옆에 둡니다.\n"
         "원본 백업: C:\\Claude\\PID_dev\\backup\\<이름>_<시각>\\\n\n"
-        + "\n".join(f"  {f['path']}" for f in files) + "\n")
+        + "\n".join(f"  {'(지움) ' if f.get('remove') else ''}{f['path']}" for f in files) + "\n")
     out = ROOT / "out" / zname
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
+            if f.get("remove"):
+                continue
             data = stamp_bytes if f["path"] == STAMP else blob("HEAD", f["path"])
             z.writestr(f"files/{f['path']}", data)
         z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
@@ -137,12 +154,14 @@ def main() -> int:
         zipfile.ZipFile(out).extractall(pkg)
         steps, _ = apply_delta.apply(tree, pkg, json.loads((pkg / "manifest.json").read_text("utf-8")))
         bad = [s["path"] for s in steps if s["action"] in ("conflict", "refused")]
-        diff = [f["path"] for f in files if f["path"] != STAMP
+        diff = [f["path"] for f in files if f["path"] != STAMP and not f.get("remove")
                 and h((tree / f["path"]).read_bytes()) != h(blob("HEAD", f["path"]))]
+        diff += [f["path"] for f in files if f.get("remove") and (tree / f["path"]).exists()]
     print(f"{out.relative_to(ROOT)}  {out.stat().st_size:,} bytes  · 파일 {len(files)} · 기준 {base} → {head}")
     print(f"검증: 기준판에 적용 → 충돌 {len(bad)} · HEAD 와 다른 파일 {len(diff)}")
-    if deleted:
-        print(f"⚠ 저장소에서 지운 파일 {len(deleted)}개는 꾸러미가 지우지 않습니다: {deleted}")
+    rm = [f["path"] for f in files if f.get("remove")]
+    if rm:
+        print(f"저장소에서 없앤 파일 {len(rm)}개 — 우리가 보낸 판 그대로일 때만 지웁니다: {rm}")
     if bad or diff:
         print(bad, diff)
         return 1
