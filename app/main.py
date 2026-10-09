@@ -908,6 +908,10 @@ def reanalyse(job_id: str):
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
+    # hotfix74 — 두 창에서 [다시 분석] 을 함께 누르거나 분석 중에 또 누르면 같은 분석이 줄에 두 번 서고,
+    # 도는 분석의 상태가 "대기" 로 덮였다.  이미 대기·분석 중이면 그렇다고 말한다.
+    if job["status"] in ("queued", "running"):
+        raise HTTPException(409, "이미 분석을 기다리거나 분석하는 중입니다 — 끝난 뒤 다시 누르세요")
     _require_source(job)
     db.set_progress(CON, job_id, 0.0, "queued", "queued", sheets=(0, 0))
     _JOBS.put(job_id)

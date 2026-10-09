@@ -214,7 +214,7 @@ def test_failure_screen_offers_the_panel_only_for_the_title_block_case():
     # 작성자 없이 저장하지 않는다 · 저장 뒤 "다시 분석해야" 를 말한다
     assert "작성자를 적어야 저장됩니다" in save and "out.applies" in save
     run = js.split('$req("#tbfix-save-run")', 1)[1].split("\n});", 1)[0]
-    assert "/reanalyse" in run and "watch(id, null, {})" in run
+    assert ("/reanalyse" in run or "askReanalyse(id)" in run) and "watch(id, null, {})" in run
     # 좌표는 화면 배율을 되돌린 도면 pt 다 — 이미지 픽셀을 저장하지 않는다
     assert "(ev.clientX - b.left) / TB.zoom" in js and "(ev.clientY - b.top) / TB.zoom" in js
     assert "titleblock" in js.split("const _MUTATES", 1)[1].split("\n", 1)[0]

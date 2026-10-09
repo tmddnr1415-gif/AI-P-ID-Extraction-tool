@@ -180,3 +180,20 @@ def test_environment_causes_are_named_in_failure_reason():
     assert "디스크" in main._known_cause("OSError: [Errno 28] No space left on device")
     assert "메모리" in main._known_cause("Traceback ...\nMemoryError")
     assert main._known_cause("ValueError: x") == ""
+
+
+def test_reanalyse_twice_is_refused_while_queued(tmp_path):
+    db, jsonstore, main, revisions = _mods()
+    pdf = tmp_path / "x.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    jid = "r" + "0" * 11
+    db.create_job(main.CON, jid, "x.pdf", "sha", pdf)
+    try:
+        main.CON.execute("UPDATE job SET status='queued' WHERE id=?", (jid,))
+        main.CON.commit()
+        with pytest.raises(main.HTTPException) as e:
+            main.reanalyse(jid)
+        assert e.value.status_code == 409
+    finally:
+        main.CON.execute("DELETE FROM job WHERE id=?", (jid,))
+        main.CON.commit()

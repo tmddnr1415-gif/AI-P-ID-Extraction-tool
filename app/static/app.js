@@ -8104,7 +8104,7 @@ $req("#tbfix-save-run").addEventListener("click", async () => {
   if (!(await tbSave(true))) return;
   const id = TB.job;
   $("#tbfix").classList.add("hidden");
-  await fetch(`/jobs/${id}/reanalyse`, { method: "POST" });
+  if (!(await askReanalyse(id))) return;
   watch(id, null, {});
 });
 $req("#tbfix-clear").addEventListener("click", async () => {
@@ -8120,8 +8120,22 @@ $req("#tbfix-page").addEventListener("change", ev => {
 $req("#tbfix-prev").addEventListener("click", () => { if (TB.page > 1) { TB.page--; tbRender(); } });
 $req("#tbfix-next").addEventListener("click", () => { if (TB.page < ((TB.state || {}).page_count || 1)) { TB.page++; tbRender(); } });
 
+/* hotfix74 — 다시 분석을 청한다.  서버가 거절하면(이미 분석 중 409 · 원본 PDF 없음 410) 그 문장을 말하고
+ * 화면을 바꾸지 않는다 — 예전에는 응답을 보지 않고 진행 화면으로 넘어가 아무 일도 없는 진행을 보였다. */
+async function askReanalyse(id) {
+  try {
+    const r = await fetch(`/jobs/${id}/reanalyse`, { method: "POST" });
+    if (r.ok) return true;
+    const j = await r.json().catch(() => ({}));
+    alert(typeof j.detail === "string" ? j.detail : `다시 분석을 시작하지 못했습니다 (${r.status})`);
+  } catch (e) {
+    alert("다시 분석을 시작하지 못했습니다 — 서버에 연결할 수 없습니다.");
+  }
+  return false;
+}
+
 $req("#reanalyse").addEventListener("click", async () => {
-  await fetch(`/jobs/${S.job.id}/reanalyse`, { method: "POST" });
+  if (!(await askReanalyse(S.job.id))) return;
   $("#main").classList.add("hidden");
   watch(S.job.id, S.job.page_count, S.job);
 });
