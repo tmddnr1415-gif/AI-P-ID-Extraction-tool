@@ -34,6 +34,7 @@ _MISSING = object()
 # 이 프로세스에서 만난 깨진 파일 — 위생 감사(`app/audit.py`)가 첫 화면에 말한다.
 INCIDENTS: list = []
 _LOCK = threading.Lock()
+_SEEN: dict = {}            # 깨진 판의 (mtime, 크기) → 이미 떠 두고 기록했다
 
 
 class StateFileCorrupt(RuntimeError):
@@ -93,6 +94,19 @@ def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False
             raise _WrongShape(f"{expect.__name__} 이 아니라 {type(data).__name__}")
         return data
     except (ValueError, UnicodeDecodeError) as exc:
+        # 같은 깨진 판을 거듭 읽어도(첫 화면이 몇 초마다 묻는다) 떠 두기·기록은 한 번만.
+        try:
+            st = path.stat()
+            sig = (st.st_mtime_ns, st.st_size)
+        except OSError:
+            sig = None
+        seen = _SEEN.get(str(path))
+        if sig is not None and seen is not None and seen[0] == sig:
+            if seen[1] is not None:
+                return seen[1]
+            if required or default is _MISSING:
+                raise StateFileCorrupt(seen[2]) from exc
+            return default
         stamp = time.strftime("%Y%m%d-%H%M%S")
         aside = path.with_name(f"{path.name}.corrupt-{stamp}")
         try:
@@ -120,14 +134,15 @@ def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False
                 with _LOCK:
                     shutil.copy2(bak, path)
             except OSError:
-                pass
+                _SEEN[str(path)] = (sig, restored, "")
             return restored
         log.error("%s 가 깨져 있고 되살릴 백업이 없습니다 — 깨진 파일은 %s", path, rec["aside"])
+        msg = (f"{label} 파일이 깨져 있습니다 ({path.name}) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 "
+               f"있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  "
+               f"깨진 파일은 {rec['aside'] or '그 자리에'} 남겨 두었습니다 — 관리자에게 알려 주세요.")
+        _SEEN[str(path)] = (sig, None, msg)
         if required or default is _MISSING:
-            raise StateFileCorrupt(
-                f"{label} 파일이 깨져 있습니다 ({path.name}) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 "
-                f"있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  "
-                f"깨진 파일은 {rec['aside'] or '그 자리에'} 남겨 두었습니다 — 관리자에게 알려 주세요.") from exc
+            raise StateFileCorrupt(msg) from exc
         return default
 
 

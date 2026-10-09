@@ -223,3 +223,29 @@ def test_upload_reports_a_byte_identical_earlier_analysis():
     js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
     assert '"duplicate_of": duplicate_of' in src and "WHERE pdf_sha256=?" in src
     assert "job.duplicate_of" in js
+
+
+def test_rows_by_keys_matches_the_full_parse(tmp_path):
+    db, jsonstore, main, revisions = _mods()
+    con = db.connect(tmp_path / "k.db")
+    for i in range(30):
+        con.execute("INSERT INTO item (job_id,key,tab,page_no,ai_json,user_json,needs_review) VALUES (?,?,?,?,?,?,?)",
+                    ("J", f"k{i:02d}", "FIELD" if i % 3 else "MOV", 30 - i,
+                     json.dumps({"type": "PIT", "qty": i}), json.dumps({"qty": 9} if i % 4 == 0 else {}),
+                     "x" if i % 5 == 0 else ""))
+    con.commit()
+    keys = ["k03", "k10", "k00", "k29", "nope"]
+    for tab in ("ALL", "FIELD", "MOV", "REVIEW"):
+        full = [r for r in db.merged_rows(con, "J", tab) if r["key"] in keys]
+        assert db.merged_rows_by_keys(con, "J", keys, tab) == full, tab
+
+
+def test_repeated_reads_of_the_same_broken_file_record_once(tmp_path):
+    db, jsonstore, main, revisions = _mods()
+    p = tmp_path / "m.json"
+    p.write_bytes(b'{"a": ')
+    n0 = len(jsonstore.incidents())
+    for _ in range(5):
+        assert jsonstore.read(p, {}, what="시험") == {}
+    assert len(jsonstore.incidents()) == n0 + 1
+    assert len(list(tmp_path.glob("m.json.corrupt-*"))) == 1
