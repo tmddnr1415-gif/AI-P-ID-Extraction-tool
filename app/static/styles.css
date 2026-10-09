@@ -1898,3 +1898,29 @@ body.nav-collapsed #sidebar .mode-chip { display: none; }
 .memo-meta .memo-use { margin-left: auto; }
 @media (max-width: 900px) { .memo-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto auto; }
   .memo-hist-head, .memo-list { grid-column: 1; } .memo-list { grid-row: 3; margin-top: 0; max-height: 120px; } }
+
+/* hotfix64 — 도면 전체화면 · 도면 위 편집 카드 */
+body.pid-full #left { position: fixed; inset: 0; z-index: 35; background: var(--panel, #fff); border-radius: 0;
+  margin: 0; padding: 0; }
+body.pid-full #gutter-v { visibility: hidden; }
+#full-toggle[aria-pressed="true"] { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.fedit { position: absolute; top: 46px; right: 14px; z-index: 7; width: 360px; max-width: calc(100% - 28px);
+  max-height: calc(100% - 60px - var(--memo-h, 0px)); display: flex; flex-direction: column;
+  background: #ffffffee; backdrop-filter: blur(4px); border: 1px solid #c9d3e6; border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(16, 24, 40, .18); font-size: 12.5px; }
+.fedit.hidden { display: none; }
+.fe-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #e6eaf1;
+  background: linear-gradient(180deg, #f5f8ff, #eef3ff); border-radius: 12px 12px 0 0; }
+.fe-head b { font-size: 14px; color: #1b2333; }
+.fe-tag { font-weight: 600; color: #1d3f9e; font-size: 12px; }
+.fe-nav { margin-left: auto; display: flex; gap: 4px; flex: none; }
+.fe-body { overflow: auto; padding: 6px 10px; display: grid; gap: 4px; }
+.fe-row { display: grid; grid-template-columns: 86px minmax(0, 1fr); align-items: center; gap: 6px; }
+.fe-l { color: #4a5363; font-weight: 600; font-size: 11.5px; }
+.fe-row.edited .fe-l::after { content: " ✎"; color: #1f6f3f; }
+.fe-row input, .fe-row textarea { width: 100%; box-sizing: border-box; padding: 4px 7px; border: 1px solid #d5dbe6;
+  border-radius: 6px; font: 12.5px/1.4 "Noto Sans KR", system-ui, sans-serif; background: #fff; color: #1b2333; }
+.fe-row textarea { resize: vertical; min-height: 34px; }
+.fe-row input:focus, .fe-row textarea:focus { outline: 2px solid #2f5bd8; outline-offset: -1px; }
+.fe-row.edited input, .fe-row.edited textarea { background: #f2fbf5; border-color: #9fd3b2; }
+.fe-foot { padding: 6px 10px 8px; border-top: 1px solid #eef0f4; }

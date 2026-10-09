@@ -50,7 +50,8 @@ def test_unit_notes_is_stored():
 # s7 ─ SCOPE 를 바꾸면 색이 따라간다 · VENDOR 이름은 그 도면에서 온다
 def test_the_overlay_colour_reads_the_live_scope():
     assert 'if (row) return scopeKeyOf(cellValue(row, "scope"));' in JS
-    assert 'if (field === "scope") drawOverlay();' in JS
+    # hotfix64 — 저장 길이 `saveField` 하나가 되며 Q'ty·TYPE·Tag 도 같이 다시 그린다 (scope 는 그대로 포함)
+    assert 'if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") drawOverlay();' in JS
 
 
 def test_vendor_names_come_from_this_drawing_only():

@@ -1300,6 +1300,7 @@ async function showFailure(message, d, jobId) {
 }
 
 function toFirstScreen() {
+  if (document.body.classList.contains("pid-full")) setFull(false);   // hotfix64
   $("#progress").classList.add("hidden");
   $("#prog-hint").classList.add("hidden");
   $("#prog-actions").classList.add("hidden");
@@ -3606,10 +3607,14 @@ async function noticeAfterEdit(row, field, before, after) {
                         : "out");
 }
 
-async function saveEdit(row, field, td) {
-  const value = td.textContent.trim();
+/* hotfix64 — 칸 하나를 저장하는 **단 하나의 길**.  목록 칸(`saveEdit`)과 도면 위 편집 카드(`floatEdit`)가
+ * 같이 부른다 — 어디서 고쳤든 같은 PATCH · 같은 작성자 확인 · 같은 뒤처리(목록 칸 · 줄 표시 · 근거 패널 ·
+ * 도면 표시 · 양식 안내)이고, 그래서 도면에서 고친 값이 목록에 **저절로** 같은 값으로 선다.
+ * 돌려주는 값: true 저장 · false 실패 · null 취소 · undefined 바뀐 것 없음. */
+async function saveField(row, field, value) {
+  value = String(value ?? "").trim();
   const current = row.values[field] ?? "";
-  if (String(current) === value) return;
+  if (String(current) === value) return undefined;
   const scopeBefore = row.values.scope;
   // 저장하기 **전에** 알린다 - 이 행이 발주처 양식 밖이면 고친 값이 파일에
   // 닿지 않는다는 것을 그 순간 아는 편이 낫다.  막지는 않는다.
@@ -3619,12 +3624,12 @@ async function saveEdit(row, field, td) {
   const hint = field === "scope" || before.state === "delivered" ? ""
     : `이 행은 발주처 양식에 ${before.formLine}`;
   const author = await askAuthor(`${field} 수정`, hint);
-  if (author === null) { td.textContent = current; return; }   // 취소
+  if (author === null) return null;                         // 취소
   const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ field, value, author }),
   });
-  if (!r.ok) { alert((await r.json()).detail || "저장 실패"); td.textContent = current; return; }
+  if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return false; }
   const out = await r.json();
   row.user = out.user;
   row.values[field] = value === "" ? row.ai[field] : (field === "qty" ? Number(value) : value);
@@ -3632,20 +3637,144 @@ async function saveEdit(row, field, td) {
   S.counts.REVIEW = out.review_count;
   if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   updateBadge();
-  // Update this cell in place instead of rebuilding the grid.  A save completes
-  // after the reviewer has already clicked into the next cell, and a full
-  // re-render at that moment replaced the element being typed into - the edit
-  // went to a detached node and vanished.
-  td.textContent = row.values[field] ?? "";
-  td.classList.toggle("edited", !!(row.user && field in row.user));
-  td.classList.remove("conflict");
+  syncRowCell(row, field);            // 오른쪽 목록 — 그 칸만 제자리에서 (아래 주석)
   repaintRow(row);
   if (S.sel === row.key) showEvidence(row);
-  // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).
-  // 색을 정하는 곳은 그대로 `itemScope` 하나이고, 여기서는 다시 그리라고만 한다.
-  if (field === "scope") drawOverlay();
+  // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).  hotfix64 — Q'ty 라벨(x N) ·
+  // TYPE 도 도면 위에 서 있으므로 같이 다시 그린다.  색·라벨을 정하는 곳은 그대로 `itemScope`·`cellValue` 다.
+  if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") drawOverlay();
+  renderFloatEdit();
   noticeAfterEdit(row, field, scopeBefore, row.values.scope);
+  return true;
 }
+
+/* 목록의 그 행 그 칸을 지금 값으로.  행을 다시 그리지 않는다 — 저장은 사람이 이미 다음 칸을 누른 뒤에 끝나고,
+ * 그 순간 목록을 통째로 다시 그리면 타자 중인 칸이 떨어져 나가 편집이 사라졌다. */
+function syncRowCell(row, field) {
+  const td = document.querySelector(`#body tr[data-key="${CSS.escape(row.key)}"] td[data-col="${field}"]`);
+  if (!td) return;
+  // 목록이 그 칸을 그릴 때와 같은 값 (renderGrid — Remark 만 `remarkOf`, 나머지는 행의 값 그대로)
+  const v = field === "remark" ? remarkOf(row) : (row.values[field] ?? "");
+  td.textContent = v ?? "";
+  td.title = v !== "" && v != null ? String(v) : "";
+  td.classList.toggle("edited", !!(row.user && field in row.user));
+  td.classList.remove("conflict");
+}
+
+async function saveEdit(row, field, td) {
+  const current = row.values[field] ?? "";
+  const ok = await saveField(row, field, td.textContent.trim());
+  if (ok === null || ok === false) td.textContent = current;      // 취소 · 실패 — 칸을 원래 값으로
+}
+
+/* ---------------- hotfix64 — 전체화면에서도 도면 위에서 고친다 ----------------
+ *
+ * 사용자: *"P&ID 가 전체화면이 되어도 사용자가 수정할 수 있어야 하고 수정된 값은 List 에 자동으로 반영되어야 한다."*
+ * 목록이 안 보이는 두 경우 — ⛶ 전체화면 · 경계를 끝까지 밀어 목록이 접힌 것(hotfix63) — 에 도면에서 상자를 누르면
+ * 그 자리에 편집 카드가 뜬다.  칸 목록은 목록 머리글과 **같은 표**(`COLS` 의 편집 가능 칸)이고, 저장은
+ * `saveField` 하나라 목록 칸이 같은 값으로 저절로 바뀐다 — 화면을 다시 열거나 새로고침할 필요가 없다. */
+const FEDIT_FIELDS = COLS.filter(c => c[2]);
+const FEDIT_LONG = new Set(["description", "remark"]);
+function listHidden() {
+  const rg = document.getElementById("right");
+  return !rg || rg.getBoundingClientRect().width < 320;
+}
+function floatEditWanted() { return document.body.classList.contains("pid-full") || listHidden(); }
+function _feditRow() {
+  if (!S.sel || !S.rows) return null;
+  return (S.rowByKey && S.rowByKey[S.sel]) || S.rows.find(r => r.key === S.sel) || null;
+}
+function _feditPageRows(row) {
+  // 같은 장의 행을 도면 위 자리 순서로 (위→아래 · 왼→오) — ◀ ▶ 가 도면을 훑는 순서
+  const at = r => Array.isArray(r.rect) && r.rect.length >= 4 ? r.rect : [0, 0, 0, 0];
+  return S.rows.filter(r => r.page_no === row.page_no && !r.deleted && !r.removed && !r.delCand)
+    .sort((a, b) => (at(a)[1] - at(b)[1]) || (at(a)[0] - at(b)[0]));
+}
+function renderFloatEdit() {
+  const box = document.getElementById("fedit");
+  if (!box) return;
+  const row = _feditRow();
+  if (!row || !floatEditWanted() || row.deleted || row.removed || row.delCand || (S.multi && S.multi.size)) {
+    box.classList.add("hidden"); box.dataset.key = ""; return;
+  }
+  const same = box.dataset.key === row.key && !box.classList.contains("hidden");
+  if (same) {
+    // 같은 행 — 칸을 다시 만들지 않고 값만 맞춘다 (사람이 다음 칸에 타자 중일 수 있다)
+    box.querySelectorAll("[data-f]").forEach(inp => {
+      const f = inp.dataset.f;
+      if (document.activeElement !== inp) inp.value = row.values[f] ?? "";
+      inp.closest(".fe-row").classList.toggle("edited", !!(row.user && f in row.user));
+    });
+    return;
+  }
+  box.dataset.key = row.key;
+  const list = _feditPageRows(row);
+  const i = list.findIndex(r => r.key === row.key);
+  const pid = (S.pages.find(p => p.page_no === row.page_no) || {}).drawing_no || "";
+  const head = `${escape(String(cellValue(row, "type") || "?"))}`
+    + (row.values.tag_no ? ` <span class="fe-tag">${escape(String(row.values.tag_no))}</span>` : "");
+  box.innerHTML = `<div class="fe-head"><b>${head}</b>`
+    + `<span class="muted small">p${row.page_no} ${escape(pid)} · ${i + 1}/${list.length}</span>`
+    + `<span class="fe-nav"><button type="button" class="ghost mini" data-nav="-1" title="이 장의 앞 항목 (도면 위→아래 순)">◀</button>`
+    + `<button type="button" class="ghost mini" data-nav="1" title="이 장의 다음 항목">▶</button>`
+    + `<button type="button" class="ghost mini" data-nav="0" title="닫기 (Esc)">✕</button></span></div>`
+    + `<div class="fe-body">` + FEDIT_FIELDS.map(([f, label]) => {
+        const v = row.values[f] ?? "";
+        const ai = (row.ai || {})[f];
+        const tip = row.user && f in row.user ? `사람이 고침 — 도면 값은 ${ai ?? "(없음)"} · 비우고 저장하면 도면 값으로` : "도면에서 읽은 값";
+        const input = FEDIT_LONG.has(f)
+          ? `<textarea data-f="${f}" rows="2" spellcheck="false">${escape(String(v))}</textarea>`
+          : `<input data-f="${f}" type="text" value="${escAttr(String(v))}" spellcheck="false">`;
+        return `<label class="fe-row${row.user && f in row.user ? " edited" : ""}" title="${escAttr(tip)}">`
+          + `<span class="fe-l">${escape(label)}</span>${input}</label>`;
+      }).join("") + `</div>`
+    + `<div class="fe-foot muted small">Enter 저장 (긴 칸은 Ctrl+Enter) · 고친 값은 오른쪽 목록에 바로 반영됩니다`
+    + ` · ✎ 사람이 고친 칸</div>`;
+  box.classList.remove("hidden");
+  box.querySelectorAll("[data-f]").forEach(inp => {
+    const f = inp.dataset.f;
+    const commit = async () => {
+      const r = _feditRow();
+      if (!r || r.key !== row.key) return;
+      const ok = await saveField(r, f, inp.value);
+      if (ok === null || ok === false) inp.value = r.values[f] ?? "";
+    };
+    inp.addEventListener("keydown", ev => {
+      if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); inp.value = row.values[f] ?? ""; inp.blur(); }
+      else if (ev.key === "Enter" && (!FEDIT_LONG.has(f) || ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); inp.blur(); }
+    });
+    inp.addEventListener("blur", commit);
+  });
+  box.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => {
+    const step = +b.dataset.nav;
+    if (!step) { deselect(); return; }
+    const pool = _feditPageRows(row);
+    const j = pool.findIndex(r => r.key === row.key);
+    const next = pool[(j + step + pool.length) % pool.length];
+    if (next) select(next.key, true);
+  });
+}
+function setFull(on) {
+  document.body.classList.toggle("pid-full", !!on);
+  const b = document.getElementById("full-toggle");
+  if (b) { b.setAttribute("aria-pressed", on ? "true" : "false"); b.textContent = on ? "⤡ 전체화면 끝" : "⛶ 전체화면"; }
+  // 브라우저 전체화면도 청한다 (주소줄·탭이 사라진다).  대시보드 iframe 처럼 허락되지 않은 곳에서는
+  // 조용히 실패하고 화면 안 전체화면만 된다 — 편집은 어느 쪽이든 같다.
+  try {
+    if (on && !document.fullscreenElement && document.documentElement.requestFullscreen)
+      document.documentElement.requestFullscreen().catch(() => {});
+    else if (!on && document.fullscreenElement && document.exitFullscreen)
+      document.exitFullscreen().catch(() => {});
+  } catch (e) { /* 허락 안 됨 — 화면 안 전체화면만 */ }
+  window.dispatchEvent(new Event("resize"));
+  renderFloatEdit();
+}
+document.addEventListener("fullscreenchange", () => {
+  // 브라우저 Esc 로 전체화면이 풀리면 화면 안 전체화면도 같이 푼다 — 둘이 갈리면 안 된다
+  if (!document.fullscreenElement && document.body.classList.contains("pid-full")) setFull(false);
+});
+window.addEventListener("resize", () => renderFloatEdit());
+$req("#full-toggle").addEventListener("click", () => setFull(!document.body.classList.contains("pid-full")));
 
 /* Writing a Description by hand.
  *
@@ -3754,6 +3883,7 @@ function select(key, fromGrid, item) {
   pulse(key);
   if (row) showEvidence(row);
   else showExcluded(item);       // an excluded symbol has no row to show
+  renderFloatEdit();             // hotfix64 — 목록이 안 보이면 도면 위 편집 카드
 }
 
 function deselect() {
@@ -3763,6 +3893,7 @@ function deselect() {
   document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
   document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
   drawOverlay();
+  renderFloatEdit();             // hotfix64 — 편집 카드도 닫힌다
   $("#evidence").innerHTML =
     "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 또는 <b>Ctrl</b> 을 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>";
 }
@@ -6827,7 +6958,10 @@ function sheetPointClamped(ev) {
   return [fx * S.page.width, fy * S.page.height];
 }
 document.addEventListener("keydown", ev => {
-  if (ev.key === "Escape" && !ev.target.isContentEditable) deselect();
+  if (ev.key !== "Escape" || ev.target.isContentEditable) return;
+  // hotfix64 — 고른 것이 없을 때의 Esc 는 전체화면에서 나간다 (고른 것이 있으면 먼저 그것을 푼다)
+  if (!S.sel && document.body.classList.contains("pid-full")) { setFull(false); return; }
+  deselect();
 });
 
 /* ---------------- filter, gate, export ---------------- */

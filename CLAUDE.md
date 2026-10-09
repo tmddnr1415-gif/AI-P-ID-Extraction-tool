@@ -3606,6 +3606,25 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
 3. 실측 (QFE 두 판 사본): Rev.B p6 에 두 판 저장 → Rev.A p6(같은 도면번호)에서 **이력 2판 · 지금 메모 · `다른 Rev 에서`
    2** · 페이지 오류 0.
 
+**그 다음 — 도면 전체화면에서도 고친다 · 목록에 저절로 (hotfix64 · 판정 0줄)**
+
+사용자: *"P&ID 가 전체화면이 되어도 사용자가 수정할 수 있어야 하고 수정된 값은 List 에 자동으로 반영되어야 한다."*
+시험 `tests/test_hotfix64_fullscreen_edit.py` 4건 (빠른 시험 **870**) · 자기검증 `spike/ui_audit_fullscreen.py` → `out/hotfix64/ui/`.
+
+1. **저장 길을 하나로** — `saveField(row, field, value)` 가 PATCH · 작성자 확인 · 뒤처리(목록 칸 `syncRowCell` · 줄 표시 ·
+   근거 패널 · 도면 다시 그리기 · 양식 안내)를 한다.  목록 칸(`saveEdit`)과 도면 위 편집 카드가 **둘 다 이것만** 부른다 —
+   그래서 어디서 고쳤든 목록이 같은 값으로 선다 (시험이 fetch 가 한 곳뿐임을 못박는다).  도면은 SCOPE 뿐 아니라
+   Q'ty·TYPE·Tag 를 고쳐도 다시 그린다 (x N 라벨).
+2. **⛶ 전체화면** (도면 도구줄) — 도면 창이 화면 전체를 덮고 브라우저 전체화면도 청한다 (대시보드 iframe 처럼 허락 안 되면
+   화면 안 전체화면만).  Esc: 고른 것이 있으면 먼저 풀고, 없으면 전체화면에서 나간다 · 브라우저 Esc 로 풀려도 같이 푼다.
+3. **도면 위 편집 카드** (`#fedit` · `renderFloatEdit`) — 전체화면이거나 **목록을 끝까지 접어 안 보일 때**(폭 < 320px ·
+   hotfix63) 상자를 누르면 오른쪽 위에 뜬다.  칸은 목록 머리글과 같은 표(`COLS` 의 편집 가능 칸) · Enter 저장 (긴 칸은
+   Ctrl+Enter) · 사람이 고친 칸 ✎ · 도면 값은 툴팁 · ◀ ▶ 로 그 장의 다음 항목(도면 위→아래 순) · 같은 행을 저장해도 칸을
+   다시 만들지 않는다 (다음 칸 타자를 안 끊는다).
+4. 실측 (QFE Rev.B 사본 · 1920): 전체화면 도면 창 1920×1080 · 상자 누름 → 카드 `TIT 00EKG01CT001` · Q'ty 1→7 · Line No.
+   → `99TEST01` → **목록 칸 7(✎) · 99TEST01 · 도면 라벨 x7 ✎ · 서버 user 같은 값** · ▶ 다음 항목 · Esc 두 번 → 전체화면 끝 ·
+   목록 그 행 그대로 · 목록을 끝까지 접어도 카드가 뜬다 · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4068,6 +4087,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `revRow` · `rowsDelta` · `listHome` 의 `.pj-card` · `styles.css` hotfix61 블록 | **hotfix61** — 첫 화면 저장된 프로젝트 카드 · 리비전 타임라인.  `/home` 한 번만 읽는다 · 색은 도면 종류·분석 상태이고 글자로도 말한다 |
 | `app/pdf_facts.py` · `job.facts_json` · `main._store_facts`/`_backfill_facts`/`_card_facts`/`_verdicts`/`_project_card` · `db.output_qty` | **hotfix62** — 카드의 도면 사실(PDF 프로젝트 제목 · 장별 개정 날짜 · 이력 표의 개정 순서 · 최상위 Rev) 과 나가는 Q'ty.  판정·지문 밖 · 예전 분석은 시작 때 한 번 채움 |
 | `app/sheet_memo.py` · `main._note_aliases`/`job_memos`/`page_memo`/`save_page_memo` · `app.js` `showMemo`/`saveMemo`/`memoOpen`/`initMemo` · `#memo` | **hotfix63** — 장별 메모.  열쇠는 도면번호(바뀐 번호는 장부로 이음) · 같은 프로젝트의 모든 Rev · 판을 쌓는다 · `/notes` 와 다른 자리 |
+| `app.js` `saveField`/`syncRowCell`/`saveEdit` · `renderFloatEdit`/`setFull` · `#fedit` · `#full-toggle` | **hotfix64** — 칸 저장의 단 하나의 길(목록 칸 · 도면 위 편집 카드 공용) · 도면 전체화면 · 목록이 안 보일 때 도면 위 편집 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
