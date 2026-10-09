@@ -459,12 +459,16 @@ def export_zip(con, job, out_dir: Path, data_dir: Path = None, by: str = "") -> 
         "items": items,
     }
     md = _markdown(payload)
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+    # hotfix74 — 다 쓴 뒤 한 번에 바꿔 넣는다 (같은 날 두 사람이 동시에 누르면 같은 파일에 썼다).
+    tmp = jsonstore.scratch(path)
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("feedback.json", json.dumps(payload, ensure_ascii=False,
                                                indent=1, default=str))
         z.writestr("feedback.md", md)
         for fname in sorted(clips):
             z.writestr(fname, clips[fname])
+    path = jsonstore.publish(tmp, path)
+    name = path.name
     return {"path": str(path), "name": name, "items": len(items),
             "counts": dict(payload["counts"]), "clips": len(clips)}
 

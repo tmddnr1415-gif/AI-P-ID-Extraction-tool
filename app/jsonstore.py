@@ -180,3 +180,30 @@ def serialized(fn):
 def incidents() -> list:
     with _LOCK:
         return list(INCIDENTS)
+
+
+def scratch(path: Path) -> Path:
+    """이 요청만 쓰는 임시 파일 이름 (같은 폴더 · 숨김).  `publish` 와 짝."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path.with_name(f".{path.name}.tmp{os.getpid()}-{threading.get_ident()}")
+
+
+def publish(tmp: Path, path: Path) -> Path:
+    """다 쓴 임시 파일을 제 이름으로 바꿔 넣는다 (hotfix74).
+
+    내보내기 zip 은 이름이 정해져 있어(그 분석 · 그날) 두 사람이 같은 순간에 누르면 두 요청이 **같은 파일**에
+    썼다 — 한쪽이 반쯤 쓴 zip 을 내려받았다 (`spike/file_race.py`: 피드백 zip `BadZipFile`).  다 쓴 뒤 한 번에
+    바꿔 넣으면 누가 받든 온전한 zip 이다.  Windows 에서 다른 요청이 그 파일을 아직 보내는 중이면 바꿔 넣기가
+    거절된다 — 잠깐씩 기다려 보고, 그래도 안 되면 **이 요청의 이름**으로 남겨 그것을 돌려준다 (실패하지 않는다).
+    """
+    tmp, path = Path(tmp), Path(path)
+    for attempt in range(6):
+        try:
+            os.replace(tmp, path)
+            return path
+        except PermissionError:
+            time.sleep(0.05 * (attempt + 1))
+    alt = path.with_name(f"{path.stem}_{time.strftime('%H%M%S')}-{threading.get_ident() % 10000}{path.suffix}")
+    os.replace(tmp, alt)
+    return alt

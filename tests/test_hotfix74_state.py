@@ -325,3 +325,32 @@ def test_broken_voc_folder_is_counted_not_silently_skipped(tmp_path):
     assert good_id not in dirs
     js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
     assert "counts || {}).unreadable" in js
+
+
+def test_export_zips_are_published_whole(tmp_path, monkeypatch):
+    """내보내기 zip 은 임시 파일에 다 쓴 뒤 바꿔 넣는다 — 동시에 누른 두 요청이 같은 파일에 쓰지 않게
+    (`spike/file_race.py`).  Windows 에서 바꿔 넣기가 끝내 거절되면 이 요청의 이름으로 남긴다 (실패하지 않는다)."""
+    import importlib, os as _os
+    js = importlib.import_module("app.jsonstore")
+    target = tmp_path / "x.zip"
+    t = js.scratch(target)
+    assert t.parent == tmp_path and t.name.startswith(".x.zip.tmp")
+    t.write_bytes(b"one")
+    assert js.publish(t, target) == target and target.read_bytes() == b"one"
+    t2 = js.scratch(target); t2.write_bytes(b"two")
+    real = _os.replace
+    calls = {"n": 0}
+
+    def locked(a, b):
+        calls["n"] += 1
+        if Path(b) == target:
+            raise PermissionError("in use")
+        return real(a, b)
+    monkeypatch.setattr(js.os, "replace", locked)
+    monkeypatch.setattr(js.time, "sleep", lambda s: None)
+    alt = js.publish(t2, target)
+    assert alt != target and alt.read_bytes() == b"two" and target.read_bytes() == b"one"
+    assert not list(tmp_path.glob(".x.zip.tmp*"))
+    root = Path(__file__).resolve().parent.parent
+    for f in ("app/markup.py", "app/main.py"):
+        assert "jsonstore.publish(tmp, path)" in (root / f).read_text(encoding="utf-8")
