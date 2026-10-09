@@ -372,3 +372,27 @@ def test_new_project_names_are_windows_safe(tmp_path):
     rv.create_project(tmp_path, "COM10")            # 장치 이름이 아니다
     rv.create_project(tmp_path, "AUX_PJT")
     assert sorted(p["name"] for p in rv.list_projects(tmp_path)) == ["AUX_PJT", "COM10", "QFE"]
+
+
+def test_long_running_server_log_is_tailed_and_rotated(tmp_path):
+    """몇 달 켜 둔 서버의 server.log — 끝만 읽고(통째로 읽지 않는다), 켜기 직전에 20MB 를 넘으면 밀어 둔다."""
+    import importlib
+    lc = importlib.import_module("app.lan_check")
+    log = tmp_path / "server.log"
+    with open(log, "wb") as f:                      # 3GB 처럼 보이는 성긴 파일 — 실제로 디스크를 쓰지 않는다
+        f.seek(3 * 1024 ** 3)
+        f.write(b"\nTraceback (most recent call last):\n  boom\n")
+    assert lc.tail_bytes(log, 100).endswith(b"boom\n")
+    assert any("boom" in ln for ln in lc.tail(log))
+    for i in (1, 2, 3):
+        log.with_name(f"server.log.{i}").write_bytes(f"old{i}".encode())
+    assert lc.rotate(log, limit=1000, keep=3)
+    assert not log.exists()
+    assert log.with_name("server.log.1").stat().st_size > 3 * 1024 ** 3
+    assert log.with_name("server.log.2").read_bytes() == b"old1"
+    assert log.with_name("server.log.3").read_bytes() == b"old2"      # old3 는 밀려 나갔다
+    log.write_bytes(b"small")
+    assert not lc.rotate(log, limit=1000, keep=3)
+    src = (Path(__file__).resolve().parent.parent / "app/main.py").read_text(encoding="utf-8")
+    i = src.index("def _log_tail(")
+    assert "read_bytes()" not in src[i:i + 900]

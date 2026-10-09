@@ -95,9 +95,44 @@ def owners(port: int = PORT) -> list[dict]:
 FREE, ALREADY, BUSY = 0, 3, 4
 
 
+LOG_LIMIT = 20 * 1024 * 1024
+LOG_KEEP = 3
+
+
+def tail_bytes(path: Path, n: int) -> bytes:
+    """파일의 **끝** n 바이트만 읽는다 (hotfix74).  서버가 몇 달 켜져 있으면 server.log 가 GB 가 되는데,
+    통째로 읽으면(read_bytes) 끝을 보려다 메모리를 다 쓴다."""
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(max(0, size - n))
+        return f.read()
+
+
+def rotate(path: Path | None = None, limit: int = LOG_LIMIT, keep: int = LOG_KEEP) -> bool:
+    """server.log 가 limit 를 넘으면 server.log.1 … .keep 로 밀어 둔다 (hotfix74).  서버를 켜기 **직전**에만 부른다 —
+    그때는 아무도 그 파일을 열고 있지 않다 (서비스 창의 `>>` 는 서버를 띄울 때 연다).  못 밀면 그대로 둔다."""
+    path = path or ROOT / "logs" / "server.log"
+    try:
+        if not path.exists() or path.stat().st_size <= limit:
+            return False
+        oldest = path.with_name(f"{path.name}.{keep}")
+        if oldest.exists():
+            oldest.unlink()
+        for i in range(keep - 1, 0, -1):
+            src = path.with_name(f"{path.name}.{i}")
+            if src.exists():
+                src.replace(path.with_name(f"{path.name}.{i + 1}"))
+        path.replace(path.with_name(f"{path.name}.1"))
+        return True
+    except OSError:
+        return False
+
+
 def preflight(port: int = PORT) -> int:
     """서비스가 켜기 전에 묻는다.  0 비어 있음 · 3 이 서버가 이미 응답 · 4 잡혔는데 응답 없음."""
     if not listening(port):
+        rotate()                       # hotfix74 — 켜기 직전, 아무도 로그를 열고 있지 않을 때
         return FREE
     v = probe(f"http://127.0.0.1:{port}/version", timeout=5)
     return ALREADY if v.get("ok") and v.get("ours") else BUSY
@@ -160,7 +195,7 @@ def tail(path: Path | None = None, n: int = 15) -> list[str]:
     `Traceback` 이 있으면 그 줄부터 낸다."""
     path = path or ROOT / "logs" / "server.log"
     try:
-        raw = path.read_bytes()[-64_000:]
+        raw = tail_bytes(path, 64_000)
     except OSError:
         return [f"(로그가 없습니다: {path})"]
     lines = []

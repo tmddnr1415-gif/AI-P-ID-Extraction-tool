@@ -4201,11 +4201,13 @@ def _log_tail(limit: int = 2_000_000) -> bytes:
     log = paths.log_path()
     if not log.exists():
         return b"(logs/server.log is not on this machine)\n"
-    raw = log.read_bytes()
-    if len(raw) <= limit:
+    # hotfix74 — 끝만 읽는다.  몇 달 켜 둔 서버의 로그는 GB 가 되고, 통째로 읽으면 진단을 만들다 메모리를 다 쓴다.
+    from app.lan_check import tail_bytes
+    size = log.stat().st_size
+    raw = tail_bytes(log, limit)
+    if size <= limit:
         return raw
-    return (f"(truncated: last {limit} of {len(raw)} bytes)\n"
-            .encode("utf-8") + raw[-limit:])
+    return (f"(truncated: last {limit} of {size} bytes)\n".encode("utf-8") + raw)
 
 
 def _diagnostic_zip(job_id: str) -> dict:
