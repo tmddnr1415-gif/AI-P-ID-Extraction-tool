@@ -1307,8 +1307,22 @@ g.qtytag text { fill: #1c1c1e; font-weight: 700;
 g.qtytag.edited rect { stroke: var(--ok); stroke-width: 1.5; }
 g.qtytag.edited text { fill: var(--ok); }
 g.qtytag.sel rect { stroke-width: 2; }
-input.qtyedit { position: absolute; z-index: 9; width: 64px; font-size: 13px; font-weight: 700;
-  padding: 1px 4px; border: 2px solid var(--accent); border-radius: 4px; background: #fffdf6; }
+/* hotfix59 — 승수 고르는 판: 이 태그만 · 이 페이지 전체 · Shift 로 묶은 범위 */
+.qtypop { position: fixed; z-index: 70; background: #fff; border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 8px; box-shadow: 0 6px 18px rgba(15, 23, 42, .18);
+  padding: 8px 10px; min-width: 240px; max-width: 360px; font-size: 12.5px; }
+.qtypop .qp-h { font-weight: 700; margin-bottom: 6px; color: var(--fg); }
+.qtypop .qp-row { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.qtypop .qp-x { font-weight: 700; color: var(--ink-soft); }
+.qtypop input.qtyedit { width: 80px; font-size: 14px; font-weight: 700; padding: 2px 6px;
+  border: 2px solid var(--accent); border-radius: 4px; background: #fffdf6; }
+.qtypop input.qtyedit.bad, #mq-val.bad { border-color: #c2453f; }
+.qtypop .qp-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.qtypop .qp-b { border: 1px solid var(--line); background: #f6f8fc; border-radius: 6px;
+  padding: 3px 9px; cursor: pointer; font-size: 12.5px; }
+.qtypop .qp-b.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.qtypop .qp-b.ghost { background: transparent; }
+.ract.qtymulti input { width: 90px; }
 
 /* hotfix39 — 직전/현재 결과 스위치.  오른쪽 맨 위, 분할 버튼 둘.  보고 있는 쪽이 진하다. */
 .rev-switch { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; flex: none; }

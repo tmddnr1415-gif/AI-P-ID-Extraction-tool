@@ -3889,6 +3889,12 @@ async function restoreRow(key) {
   editNotice("되돌렸습니다 — 다시 결과와 Excel 에 들어갑니다", "in");
 }
 
+function qtySummary(rows) {
+  const by = {};
+  for (const r of rows) { const q = cellValue(r, "qty"); const k = q === "" || q == null ? "?" : q; by[k] = (by[k] || 0) + 1; }
+  return "지금 " + Object.entries(by).map(([k, n]) => `x${k} ${n}`).join(" · ");
+}
+
 function showMultiScope() {
   const rows = multiRows();
   const by = {};
@@ -3899,7 +3905,7 @@ function showMultiScope() {
   const names = vendorNames();
   const pages = [...new Set(rows.map(r => r.page_no))].sort((a, b) => a - b);
   $("#evidence").innerHTML =
-    `<h3>선택 ${rows.length}개 — 공급 주체를 한 번에</h3>`
+    `<h3>선택 ${rows.length}개 — 공급 주체 · 승수를 한 번에</h3>`
     + `<p class="muted small">p${pages.join(" · p")} · Shift 또는 Ctrl + 클릭으로 더하거나 뺍니다</p>`
     + `<p class="small">지금 값 — ${Object.entries(by)
         .map(([k, n]) => `${escape(k)} ${n}`).join(" · ")}</p>`
@@ -3912,6 +3918,10 @@ function showMultiScope() {
         <input id="mc-other" class="hidden" placeholder="VENDOR 이름">
       </div>
       <p class="muted small">VENDOR 는 이름을 고른 뒤 적용됩니다 · 이 도면에서 읽은 ${names.length}종</p>
+      <div class="ract qtymulti"><span>승수 (Q'ty)</span>
+        <input id="mq-val" type="number" min="0" step="1" placeholder="${escape(qtySummary(rows))}">
+        <button class="ract-b" id="mq-apply">선택 ${rows.length}개에 적용</button></div>
+      <p class="muted small">비우고 적용하면 도면 값으로 되돌립니다 · 도면의 x N 라벨을 눌러도 같습니다</p>
       <div class="ract"><button class="ract-b" id="mc-clear">선택 해제</button>
         <button class="ract-b danger" id="mc-delete" title="고른 행을 오검출로 지웁니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다">선택 ${rows.length}개 삭제</button></div>
       </div>`;
@@ -3929,6 +3939,14 @@ function showMultiScope() {
     if (sel.value === "__other__") { other.classList.remove("hidden"); other.focus(); }
     else other.classList.add("hidden");
   };
+  const mq = document.querySelector("#mq-val");
+  const mqGo = () => {
+    const v = mq.value.trim();
+    if (v !== "" && !/^\d+$/.test(v)) { mq.classList.add("bad"); return; }
+    applyQtyToRows(multiRows().filter(r => !r.deleted && !r.removed), v, `선택 ${rows.length}개`);
+  };
+  document.querySelector("#mq-apply").onclick = mqGo;
+  mq.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); mqGo(); } });
   document.querySelector("#mc-clear").onclick = clearMulti;
   document.querySelector("#mc-delete").onclick = () => deleteRows(rows.map(r => r.key));
 }
@@ -5661,6 +5679,10 @@ function drawOverlay() {
     };
     ov.appendChild(r);
   }
+  // hotfix59 — `x N` 라벨은 모든 상자 **위**에 둔다.  상자를 그리는 순서대로 두면 뒤에 그린
+  // 큰 상자(밸브 울타리 · 묶음 버블)가 앞 행의 라벨을 덮어 눌러도 그 상자가 잡혔다
+  // (자기검증 — AL NOUF1 p6 두 번째 라벨이 36×108 상자에 가려 눌리지 않았다).
+  ov.querySelectorAll("g.qtytag").forEach(g => ov.appendChild(g));
   drawFromTo(ov, scale);
   buildOverlayLegend();
 }
@@ -5704,48 +5726,124 @@ function drawQtyTag(ov, scale, it, row, stroke) {
   const tip = document.createElementNS(NS, "title");
   tip.textContent = `Q'ty ${qty === "" ? "(비어 있음)" : qty}`
     + (edited ? ` — 사람이 고침 (도면 근거는 ${(row.ai || {}).qty ?? "없음"})` : "")
-    + (e.qty_basis ? `\n근거: ${e.qty_basis}` : "") + "\n누르면 고칩니다";
+    + (e.qty_basis ? `\n근거: ${e.qty_basis}` : "")
+    + "\n누르면 승수를 고칩니다 — 이 태그만 · 이 페이지 전체 · Shift 로 묶은 범위";
   g.appendChild(tip); g.appendChild(bg); g.appendChild(t);
-  g.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); editQtyOnDrawing(row, g); };
+  g.onclick = (ev) => {
+    ev.stopPropagation();
+    // hotfix59 — Shift 로 묶은 범위 안의 라벨을 누르면 그 범위의 승수를 한 번에 고친다.
+    // 묶음 밖의 라벨을 Shift 로 누르면 상자와 같이 묶음에 더하거나 뺀다.
+    if (isAddClick(ev)) { toggleMulti(it.key); return; }
+    if (S.multi.size > 1 && S.multi.has(it.key)) { editQtyOnDrawing(row, g, { multi: true }); return; }
+    select(it.key, false, it);
+    editQtyOnDrawing(row, g);
+  };
   ov.appendChild(g);
 }
 
-/* 도면 위에서 Q'ty 를 고친다.  **저장은 그리드와 같은 `saveEdit`** — 작성자 확인 ·
- * PATCH · `row.user` · 검토 수 · 근거 패널 갱신이 전부 거기 있다.  여기는 입력
- * 상자를 라벨 자리에 띄우고 값을 넘길 뿐이다.  그리드의 같은 칸(`td[data-col=qty]`)
- * 은 같은 행 요소에서 찾아 글자·✎ 를 맞춘다. */
-function editQtyOnDrawing(row, anchor) {
-  const stage = $("#stage");
-  if (!stage || !anchor) return;
-  document.querySelectorAll("input.qtyedit").forEach(n => n.remove());
-  const sb = stage.getBoundingClientRect(), ab = anchor.getBoundingClientRect();
-  const inp = document.createElement("input");
-  inp.type = "number"; inp.min = "0"; inp.step = "1";
-  inp.className = "qtyedit";
-  inp.value = cellValue(row, "qty") ?? "";
-  inp.title = "Q'ty — Enter 저장 · Esc 취소 · 비우면 도면 값으로";
-  inp.style.left = `${ab.left - sb.left + stage.scrollLeft}px`;
-  inp.style.top = `${ab.top - sb.top + stage.scrollTop}px`;
-  inp.style.height = `${Math.max(18, ab.height)}px`;
-  stage.appendChild(inp);
-  let done = false;
-  const finish = async (save) => {
-    if (done) return; done = true;
+/* 도면 위에서 승수(Q'ty)를 고친다 — hotfix32 의 입력 상자를 hotfix59 에서 고르는 판으로 넓혔다.
+ *
+ * 사용자 요구: *"tag 의 오른쪽(x N)을 누르면 승수를 변경 · 해당 tag 만인지 해당 page 전체인지
+ * 선택 · Shift 로 범위를 지정하고 누르면 범위에 선택된 항목의 승수를 변경 · 왼쪽 오른쪽 모두
+ * 반영."*  적용 범위는 셋이고 고르는 판은 하나다:
+ *   ① 이 태그만        — 누른 라벨의 행
+ *   ② 이 페이지 전체    — 그 장의 행 전부 (`pageQtyRows` — 라벨이 서는 행과 같은 조건)
+ *   ③ Shift 로 묶은 범위 — `S.multi` (56회차 묶음 · 띠 선택과 같은 묶음)
+ * **저장은 한 행짜리와 같은 PATCH** (`field: "qty"`) 이고 작성자는 한 번만 묻는다 (56회차
+ * 묶음 규율 · 편집 이력·검토 수가 두 벌이 되지 않게).  비우면 도면 값으로 되돌린다
+ * (`db.set_user_value` 의 빈 값 규칙).  저장 뒤 목록(`renderGrid`)과 도면(`drawOverlay`)을
+ * **같은 Q'ty 값** 에서 다시 그린다 — 라벨과 칸이 한 값을 말한다. */
+async function applyQtyToRows(rows, value, what) {
+  rows = rows.filter(r => String(cellValue(r, "qty") ?? "") !== value);
+  if (!rows.length) { editNotice("바뀔 행이 없습니다 — 이미 그 승수입니다"); return; }
+  const author = await askAuthor(`승수 x${value || "(도면 값)"} — ${what} · ${rows.length}행`);
+  if (author === null) return;                       // 취소 — 한 행도 안 고친다
+  let done = 0;
+  for (const r of rows) {
+    const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field: "qty", value, author }),
+    });
+    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
+    const out = await res.json();
+    r.user = out.user;
+    r.values.qty = value === "" ? (r.ai || {}).qty : Number(value);
+    delete (r.conflict || {}).qty;
+    S.counts.REVIEW = out.review_count;
+    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    done += 1;
+  }
+  updateBadge();
+  renderGrid();                                       // 오른쪽 — 같은 Q'ty 값
+  markMultiRows();
+  drawOverlay();                                      // 왼쪽 — 라벨이 같은 값을 다시 읽는다
+  const cur = S.sel && S.rowByKey[S.sel];
+  if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
+  editNotice(value === ""
+    ? `${what} ${done}행의 승수를 도면 값으로 되돌렸습니다`
+    : `${what} ${done}행의 승수를 x${value} 로 바꿨습니다 — 도면 라벨과 목록에 같이 반영`);
+}
+
+function pageQtyRows(pageNo) {
+  return S.rows.filter(r => r.page_no === pageNo && !r.deleted && !r.removed && !r.delCand);
+}
+
+function closeQtyPop() {
+  document.querySelectorAll(".qtypop").forEach(n => n.remove());
+  if (closeQtyPop._off) { document.removeEventListener("pointerdown", closeQtyPop._off, true); closeQtyPop._off = null; }
+}
+
+function editQtyOnDrawing(row, anchor, opts = {}) {
+  // 라벨을 누르면 `select` 가 오버레이를 다시 그려 누른 요소가 문서에서 빠진다 — 판이 화면
+  // 왼쪽 위(0,0)에 떴다 (자기검증).  같은 행의 **지금 그려진** 라벨에 붙인다.
+  const live = document.querySelector(`g.qtytag[data-key="${CSS.escape(row.key)}"]`);
+  if (live) anchor = live;
+  if (!anchor) return;
+  closeQtyPop();
+  const multi = opts.multi ? multiRows().filter(r => !r.deleted && !r.removed) : [];
+  const page = pageQtyRows(row.page_no);
+  const ab = anchor.getBoundingClientRect();
+  const pop = document.createElement("div");
+  pop.className = "qtypop";
+  pop.setAttribute("role", "dialog");
+  const now = cellValue(row, "qty");
+  const head = multi.length
+    ? `선택 ${multi.length}개의 승수 (Q'ty)`
+    : `승수 (Q'ty) — ${escape(String(cellValue(row, "type") || ""))} ${escape(String(cellValue(row, "tag_no") || ""))}`;
+  const buttons = multi.length
+    ? `<button class="qp-b primary" data-scope="multi">선택 ${multi.length}개에 적용</button>`
+    : `<button class="qp-b primary" data-scope="one">이 태그만</button>`
+      + `<button class="qp-b" data-scope="page" title="p${row.page_no} 의 행 ${page.length}개 전부에 같은 승수를 적습니다">이 페이지 전체 (${page.length}행)</button>`;
+  pop.innerHTML = `<div class="qp-h">${head}</div>`
+    + `<div class="qp-row"><span class="qp-x">x</span><input class="qtyedit" type="number" min="0" step="1"></div>`
+    + `<div class="qp-btns">${buttons}<button class="qp-b ghost" data-scope="cancel">취소</button></div>`
+    + `<div class="qp-note muted small">지금 x${now === "" || now == null ? "?" : escape(String(now))} · Enter = ${multi.length ? "선택에 적용" : "이 태그만"} · Esc 취소 · 비우면 도면 값으로</div>`;
+  document.body.appendChild(pop);
+  const inp = pop.querySelector("input");
+  inp.value = now ?? "";
+  // 라벨 오른쪽에 붙이되 화면 밖으로 나가면 안쪽으로 접는다.
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = ab.right + 6, top = ab.top - 4;
+  if (left + pw > window.innerWidth - 8) left = Math.max(8, ab.left - pw - 6);
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
+  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+  const go = async (scope) => {
+    if (scope === "cancel") { closeQtyPop(); return; }
     const value = inp.value.trim();
-    inp.remove();
-    if (!save || String(cellValue(row, "qty") ?? "") === value) return;
-    const td = document.querySelector(
-      `#body tr[data-key="${CSS.escape(row.key)}"] td[data-col="qty"]`) || document.createElement("td");
-    td.textContent = value;
-    await saveEdit(row, "qty", td);
-    drawOverlay();
-    if (S.sel === row.key) showEvidence(row);
+    if (value !== "" && !/^\d+$/.test(value)) { inp.classList.add("bad"); inp.focus(); return; }
+    const rows = scope === "multi" ? multi : scope === "page" ? page : [row];
+    closeQtyPop();
+    await applyQtyToRows(rows, value, scope === "multi" ? `선택 ${rows.length}개`
+      : scope === "page" ? `p${row.page_no} 전체 ${rows.length}행` : "이 태그");
   };
+  pop.querySelectorAll("button.qp-b").forEach(b => { b.onclick = () => go(b.dataset.scope); });
   inp.addEventListener("keydown", ev => {
-    if (ev.key === "Enter") { ev.preventDefault(); finish(true); }
-    if (ev.key === "Escape") { ev.preventDefault(); finish(false); }
+    if (ev.key === "Enter") { ev.preventDefault(); go(multi.length ? "multi" : "one"); }
+    if (ev.key === "Escape") { ev.preventDefault(); closeQtyPop(); }
   });
-  inp.addEventListener("blur", () => finish(true));
+  // 판 밖을 누르면 닫는다 (저장하지 않는다 — 고르는 판이므로 범위를 고르지 않은 채 저장하지 않는다).
+  closeQtyPop._off = (ev) => { if (!pop.contains(ev.target)) closeQtyPop(); };
+  setTimeout(() => document.addEventListener("pointerdown", closeQtyPop._off, true), 0);
   inp.focus(); inp.select();
 }
 

@@ -30,10 +30,14 @@ def test_the_label_reads_qty_through_the_grid_accessor():
 
 
 def test_editing_on_the_drawing_uses_the_grid_save_path_only():
+    """hotfix59 — 도면 편집은 범위(이 태그 · 이 페이지 · Shift 묶음)를 고르는 판이 됐고, 저장은
+    `applyQtyToRows` 한 곳이 그리드와 같은 PATCH(`field: "qty"`)로 한다.  판 자체는 PATCH 를 모른다."""
     body = _fn("editQtyOnDrawing")
-    assert 'saveEdit(row, "qty", td)' in body
     assert "fetch(" not in body and "PATCH" not in body
-    assert 'td[data-col="qty"]' in body         # 목록의 같은 칸을 찾아 글자·✎ 를 맞춘다
+    assert "applyQtyToRows(" in body
+    save = _fn("applyQtyToRows")
+    assert 'field: "qty"' in save and "askAuthor(" in save
+    assert "renderGrid()" in save and "drawOverlay()" in save   # 왼쪽·오른쪽 같은 값으로
 
 
 def test_legend_has_its_own_toggle_and_it_is_a_mark_not_a_colour_cell():

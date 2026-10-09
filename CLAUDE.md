@@ -3474,6 +3474,30 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
 6. **델타 꾸러미가 저장소에서 없앤 파일을 지운다** (`pack_delta` · `apply_delta` `remove`) — hotfix57 시험이
    PID_dev 에 남으면 빠른 시험이 실패한다.  **우리가 보낸 판 그대로일 때만** 지우고(백업) 회사에서 고친 판은 남겨 보고.
 
+**그 다음 — 도면의 `x N` 라벨로 승수를: 이 태그만 · 이 페이지 전체 · Shift 범위 (hotfix59 · 화면 회차 · 엔진 0줄)**
+
+사용자(회사 PC 사진 · EPIC p14 · p31): *"Page 별 승수를 사용자가 변경할 때는 해당 tag 의 오른쪽을 누르면 승수를
+변경할 수 있도록 · 해당 tag 에 대해서만인지 해당 page 에 전체 적용할 것인지 선택 · 변경된 승수는 왼쪽 오른쪽
+모두 반영 · Shift 를 누르고 범위를 지정하고 누르면 범위에 선택된 항목의 승수를 변경."*  시험
+`tests/test_hotfix59_qty_scope.py` 6건 (빠른 시험 **842**) · 화면 자기검증 `spike/ui_audit_qty_scope.py` →
+`out/hotfix59/ui/`.  **엔진·서버 0줄** (app/static · tests · spike).
+
+1. **라벨(`x N`)을 누르면 고르는 판** (`editQtyOnDrawing` · `.qtypop`) — `이 태그만` · `이 페이지 전체 (N행)`
+   (`pageQtyRows` — 라벨이 서는 행과 같은 조건: 그 장 · 지우지 않은 행) · `취소`.  Shift 로 묶은 범위 안의
+   라벨을 누르면 `선택 N개에 적용`.  Shift + 라벨은 상자와 같이 묶음에 더하기/빼기.  오른쪽 묶음 판에도 같은
+   승수 칸(`#mq-val`).  Enter = 기본 단추 · Esc · 판 밖 누르면 닫힘(저장 안 함) · 비우면 도면 값으로.
+2. **저장은 한 곳** (`applyQtyToRows`) — 한 행짜리와 같은 PATCH(`field: "qty"`) · 작성자 한 번 · 뒤에
+   `renderGrid` + `drawOverlay` 가 같은 값을 다시 읽는다 (왼쪽 라벨 `x N ✎` · 오른쪽 칸 ✎).  hotfix32 시험의
+   "도면 편집은 `saveEdit` 만" 은 "판은 PATCH 를 모르고 `applyQtyToRows` 한 곳만" 으로 고쳤다.
+3. **자기검증이 잡은 것 둘**: ㉠ 뒤에 그린 큰 상자(36×108 밸브 울타리)가 앞 행의 라벨을 덮어 **눌리지 않았다** →
+   라벨을 모든 상자 위로 올린다 (`drawOverlay` 끝) · ㉡ 라벨을 누르면 `select` 가 오버레이를 다시 그려 누른
+   요소가 빠지고 판이 **화면 왼쪽 위**에 떴다 → 지금 그려진 같은 키의 라벨에 붙인다.
+4. **실측** (AL NOUF1 p6 46행): 이 태그만 x5 → 그 라벨 `x5 ✎` · 목록 5 · 서버 5 · 나머지 45 x2 그대로 ·
+   이 페이지 전체 x3 → 라벨 46 `x3 ✎` · 목록 46 · 서버 46 · Shift 띠 7개 → 라벨에서 x7 → 7개만 · 밖 39 x3 ·
+   오른쪽 판에서 비우고 적용 → 7개 도면 값 x2 · 페이지 오류 0.
+5. ⚠ 고친 값은 **사람이 고친 Q'ty** (`user.qty`) 다 — 프로젝트 단위 승수 지정(31회차 `unit_multipliers`)과 다른
+   길이고, 다음 리비전에는 안정 ID 로 승계된다(13회차).  다시 분석해도 사람 값은 남는다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3930,6 +3954,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/pack_delta.py` · `spike/apply_delta.py` · `out/PID_dev_delta_base.txt` | **hotfix56** — PID_dev 변경분 꾸러미.  기준판과 같은 파일만 덮고 회사에서 고친 파일은 `.new` 로 옆에 둔다.  운영 폴더는 거부 |
 | `main._pace_history` · `_run_status` · `GET /running` · `app.js` `liveFacts` · `renderLive` · `pollRunning` · `#prog-leave` · `#prog-eta` | **hotfix58** — 분석 중 현황.  P&ID 메뉴는 언제나 첫 화면 (hotfix57 자동 복귀 철회) · '최근 분석 이력' 맨 위에 진행 막대 · % · 남은 시간 · 단계.  추정은 이 서버에서 끝난 분석의 **장당 시간 중앙값 × 장수**이고 근거를 같이 적는다 · 없으면 예상할 수 없다고 말한다 · 넘으면 99% |
 | `detect_valves.mark_rects` 의 태그 버블 | **hotfix58** — 밸브가 별표를 읽는 사각형에 그 밸브의 **태그 버블**을 더한다 (EPIC Rev.E p9 · MOV 태그 버블 위 `**` 가 SCT 로).  `read_vendor_mark` 는 마크를 한 번만 훑으므로 두 창에 다 들어와도 한 번 · 경쟁 규칙 그대로 |
+| `app.js` `editQtyOnDrawing` · `.qtypop` · `pageQtyRows` · `applyQtyToRows` · `#mq-val` | **hotfix59** — `x N` 라벨을 누르면 승수 범위를 고른다 (이 태그 · 이 페이지 · Shift 범위).  저장은 `applyQtyToRows` 한 곳(같은 PATCH · 작성자 한 번) · 라벨은 모든 상자 위 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
