@@ -37,6 +37,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from app.jsonstore import serialized as _serialized  # hotfix74 — 읽고-고치고-쓰기를 줄 세운다
 
 FILENAME = "title_block_cells.json"
 VERSION = 1
@@ -99,6 +100,7 @@ def cells(data_dir, project: str) -> dict:
             "author": data.get("author") or "", "set_at": data.get("set_at") or ""}
 
 
+@_serialized
 def set_cells(data_dir, project: str, *, cells_in: dict, size, page_no: int,
               author: str = "", note: str = "", job_id: str = "") -> dict:
     """칸을 적는다.  도면번호 칸은 필수이고 **`author` 없이 넣을 수 없다.**"""
@@ -134,6 +136,7 @@ def set_cells(data_dir, project: str, *, cells_in: dict, size, page_no: int,
     return data
 
 
+@_serialized
 def clear(data_dir, project: str) -> bool:
     p = path_for(data_dir, project) if project else None
     if not p or not p.exists():
@@ -142,6 +145,7 @@ def clear(data_dir, project: str) -> bool:
     return True
 
 
+@_serialized
 def set_enabled(data_dir, project: str, enabled: bool) -> dict:
     data = load(data_dir, project)
     data["enabled"] = bool(enabled)

@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "engine"))
 import describe_axis as daxis  # noqa: E402
+from app.jsonstore import serialized as _serialized  # hotfix74 — 읽고-고치고-쓰기를 줄 세운다
 
 FILE_NAME = "axis_overrides.json"
 
@@ -97,6 +98,7 @@ def suffix_for(rows_same_group: list, this_key: str) -> str:
     return ""
 
 
+@_serialized
 def record(path: Path, stable_id: str, *, from_text: str, to_text: str,
            source_from: str, source_to: str, type_: str, sentence: str,
            origin_job: str, candidate: str = "", applies_to: str = "",
@@ -129,6 +131,7 @@ def record(path: Path, stable_id: str, *, from_text: str, to_text: str,
     return entry
 
 
+@_serialized
 def clear(path: Path, stable_id: str) -> bool:
     data = load(path)
     if stable_id not in data:

@@ -56,6 +56,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from app.jsonstore import serialized as _serialized  # hotfix74 — 읽고-고치고-쓰기를 줄 세운다
 
 FILENAME = "unit_multipliers.json"
 VERSION = 1
@@ -117,6 +118,7 @@ def table(data_dir, project: str) -> dict:
     return out
 
 
+@_serialized
 def set_unit(data_dir, project: str, *, unit: str, multiplier: int,
              author: str = "", note: str = "", job_id: str = "") -> dict:
     """한 유닛코드의 승수를 지정한다.  **`author` 없이 넣을 수 없다.**
@@ -148,6 +150,7 @@ def set_unit(data_dir, project: str, *, unit: str, multiplier: int,
     return data["units"][unit]
 
 
+@_serialized
 def clear_unit(data_dir, project: str, unit: str) -> bool:
     """되돌린다.  지운 뒤에는 그 유닛이 지정되지 않았던 때와 같아진다."""
     data = load(data_dir, project)
@@ -158,6 +161,7 @@ def clear_unit(data_dir, project: str, unit: str) -> bool:
     return True
 
 
+@_serialized
 def set_enabled(data_dir, project: str, enabled: bool) -> dict:
     data = load(data_dir, project)
     data["enabled"] = bool(enabled)

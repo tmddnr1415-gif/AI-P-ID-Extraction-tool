@@ -197,3 +197,22 @@ def test_reanalyse_twice_is_refused_while_queued(tmp_path):
     finally:
         main.CON.execute("DELETE FROM job WHERE id=?", (jid,))
         main.CON.commit()
+
+
+def test_concurrent_mutations_do_not_lose_updates(tmp_path):
+    import importlib
+    um = importlib.import_module("app.unit_multipliers")
+    (tmp_path / "projects" / "P").mkdir(parents=True)
+    units = [f"{i:02d}" for i in range(10, 40)]
+    errs = []
+
+    def go(u):
+        try:
+            um.set_unit(tmp_path, "P", unit=u, multiplier=2, author="a")
+        except Exception as exc:                      # noqa: BLE001
+            errs.append(repr(exc))
+    ts = [threading.Thread(target=go, args=(u,)) for u in units]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert errs == []
+    assert sorted(um.load(tmp_path, "P")["units"]) == units      # 30 개 전부 (예전엔 3개만 남았다)

@@ -48,6 +48,7 @@ import re
 from datetime import datetime, timezone
 import unicodedata
 from pathlib import Path
+from app.jsonstore import serialized as _serialized  # hotfix74 — 읽고-고치고-쓰기를 줄 세운다
 
 # 상태.  문자열은 화면·산출물·저장 파일이 같은 낱말을 쓰도록 한 곳에 둔다.
 UNCHANGED = "UNCHANGED"
@@ -720,6 +721,7 @@ def tombstones(data_dir: Path, name: str) -> list:
     return sorted(out, key=lambda d: d.name, reverse=True)
 
 
+@_serialized
 def create_project(data_dir: Path, name: str) -> dict:
     """Rev.A 를 여는 자리.  같은 이름이 있으면 덮어쓰지 않고 거절한다."""
     d = project_dir(data_dir, name)
@@ -741,6 +743,7 @@ def create_project(data_dir: Path, name: str) -> dict:
     return meta
 
 
+@_serialized
 def bury_project(data_dir: Path, name: str, *, author: str = "", at: str = "") -> dict:
     """프로젝트 폴더를 지우되 **안정 ID 장부만 무덤으로 옮긴다**.
 
@@ -778,6 +781,7 @@ def bury_project(data_dir: Path, name: str, *, author: str = "", at: str = "") -
 MODES = ("bid", "epc")
 
 
+@_serialized
 def set_mode(data_dir: Path, name: str, mode: str, author: str) -> dict:
     """프로젝트의 입찰/실행 선언.  `mode=""` 는 선언을 지운다(자동 판정)."""
     mode = (mode or "").strip().lower()
@@ -969,6 +973,7 @@ def compare_choices(meta: dict) -> list:
     return [r["revision"] for r in (meta.get("revisions") or []) if not r.get("deleted")]
 
 
+@_serialized
 def mark_revision_deleted(data_dir: Path, name: str, job_id: str, author: str = "") -> dict | None:
     """hotfix42 — 분석 하나를 지울 때 장부의 그 리비전에 `deleted{at, author}` 를 적는다.
     항목을 빼지 않는다 (ID 장부 · 대조 기록은 그 리비전의 사실이다).  없으면 None."""
@@ -987,6 +992,7 @@ def mark_revision_deleted(data_dir: Path, name: str, job_id: str, author: str = 
     return hit
 
 
+@_serialized
 def record_revision(data_dir: Path, name: str, revision: str, *, job_id: str,
                     pdf_name: str, compared_with: str, result: dict) -> dict:
     """대조 결과를 프로젝트에 적어 넣는다."""

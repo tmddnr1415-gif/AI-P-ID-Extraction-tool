@@ -131,6 +131,24 @@ def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False
         return default
 
 
+# 읽고-고치고-쓰는 함수를 줄 세운다 (hotfix74).  요청은 스레드 여럿에서 오므로, 두 사람이 같은 파일의 다른 칸을
+# 동시에 고치면 둘 다 옛 판을 읽고 각자 쓴 뒤 **나중 쓴 쪽만 남았다** — 실측: 유닛 승수 30개를 동시에 지정하면
+# 3개만 남았다 (`spike/state_chaos.py` 의 동시 저장 · 시험 `test_concurrent_mutations_do_not_lose_updates`).
+# 상태 파일은 작고 사람이 누르는 빈도로 쓰이므로 프로세스 전체에 잠금 하나로 충분하다.
+STATE_LOCK = threading.RLock()
+
+
+def serialized(fn):
+    """상태 파일을 읽고-고치고-쓰는 함수에 붙인다."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(*a, **k):
+        with STATE_LOCK:
+            return fn(*a, **k)
+    return run
+
+
 def incidents() -> list:
     with _LOCK:
         return list(INCIDENTS)

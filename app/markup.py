@@ -25,6 +25,7 @@ import zipfile
 from pathlib import Path
 
 from app import db, revisions
+from app import jsonstore
 
 # 사유 분류 (요구 [D-4]).  값은 저장되는 문자열이고 화면 라벨은 따로다.
 CLASSES = {
@@ -233,6 +234,7 @@ def propose(con, job, page_no: int, rect) -> dict:
 # 안정 ID — 같은 장부 · 같은 규칙
 # --------------------------------------------------------------------------
 
+@jsonstore.serialized          # hotfix74 — 안정 ID 장부를 읽고-고치고-쓴다 (§7.3: 두 쪽이 겹치면 ID 가 겹친다)
 def assign_stable_id(data_dir: Path, con, job, key: str, row: dict) -> dict:
     """프로젝트가 있으면 그 장부에서 ID 를 받는다.  없으면 받지 않고 그렇게 말한다.
 

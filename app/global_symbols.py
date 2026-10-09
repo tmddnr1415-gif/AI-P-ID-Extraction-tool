@@ -42,6 +42,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from app.jsonstore import serialized as _serialized  # hotfix74 — 읽고-고치고-쓰기를 줄 세운다
 
 FILENAME = "global_symbols.json"
 VERSION = 1
@@ -88,6 +89,7 @@ def active(data_dir: Path) -> dict:
     return data["symbols"] if data.get("enabled", True) else {}
 
 
+@_serialized
 def register(data_dir: Path, *, symbol_id: str, kind: str, name: str,
              type_value: str = "", deliverable: str = "",
              signature: dict = None, author: str = "",
@@ -124,6 +126,7 @@ def register(data_dir: Path, *, symbol_id: str, kind: str, name: str,
     return data["symbols"][symbol_id]
 
 
+@_serialized
 def remove(data_dir: Path, symbol_id: str) -> bool:
     data = load(data_dir)
     if symbol_id not in data["symbols"]:
@@ -133,6 +136,7 @@ def remove(data_dir: Path, symbol_id: str) -> bool:
     return True
 
 
+@_serialized
 def set_enabled(data_dir: Path, on: bool) -> dict:
     data = load(data_dir)
     data["enabled"] = bool(on)

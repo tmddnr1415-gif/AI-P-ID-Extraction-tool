@@ -1033,6 +1033,7 @@ def _job_public(row) -> dict:
 # 프로젝트와 리비전
 # --------------------------------------------------------------------------
 
+@jsonstore.serialized          # hotfix74 — 안정 ID 장부를 읽고-고치고-쓴다 (§7.3: 두 쪽이 겹치면 ID 가 겹친다)
 def _run_comparison(job_id: str) -> dict:
     """이 분석을 그 프로젝트의 장부와 맞춘다.  프로젝트가 없으면 아무것도 안 한다."""
     job = db.get_job(CON, job_id)
