@@ -1610,10 +1610,36 @@ def _pneumatic_cylinders(pc, lay: ValveLayout, index):
     return out
 
 
+_STROKES_BY_X: dict = {"segs": None}
+
+
+def _segments_by_x(pc):
+    """그 장 선분을 왼쪽 끝 x 순으로 (원래 순번과 함께) — 한 장만 든다 (hotfix73).
+
+    `_strokes_in` 은 껍데기마다 그 장 선분 전부(A1 15만)를 훑었다 — QFE 프로파일 1,692번 ·
+    80초.  왼쪽 끝 x 로 먼저 좁히고 **원래 순서대로** 다시 돌려주므로 답은 글자 그대로 같다."""
+    segs = pc.segments()
+    memo = _STROKES_BY_X
+    if memo["segs"] is not segs:
+        order = sorted(range(len(segs)), key=lambda i: min(segs[i][0].x, segs[i][1].x))
+        memo.update(segs=segs, order=order,
+                    keys=[min(segs[i][0].x, segs[i][1].x) for i in order])
+    return segs, memo["order"], memo["keys"]
+
+
+def release_strokes() -> None:
+    _STROKES_BY_X.clear()
+    _STROKES_BY_X["segs"] = None
+
+
 def _strokes_in(pc, rect, lay: ValveLayout):
     """Straight strokes wholly inside a shell - the drawn letter."""
+    import bisect
     out = []
-    for p0, p1 in pc.segments():
+    segs, order, keys = _segments_by_x(pc)
+    lo, hi = bisect.bisect_left(keys, rect.x0 - 0.3), bisect.bisect_right(keys, rect.x1 + 0.3)
+    for i in sorted(order[lo:hi]):
+        p0, p1 = segs[i]
         if not (rect.x0 - 0.3 <= min(p0.x, p1.x) and max(p0.x, p1.x) <= rect.x1 + 0.3
                 and rect.y0 - 0.3 <= min(p0.y, p1.y) and max(p0.y, p1.y) <= rect.y1 + 0.3):
             continue
@@ -1889,18 +1915,16 @@ def _leader_index(pc, cell: float):
     지시선은 버블 테두리에 한쪽 끝이 있으므로 그 칸만 보면 된다.  칸은 그 장
     버블의 긴 변이라 절대 pt 가 아니다 (§9 ⑥).
     """
-    R = pidcache.Rot(pc.page.rotation_matrix)
     grid: dict = collections.defaultdict(list)
     if cell <= 0:
         return grid
-    for d in pc.drawings():
-        for it in d["items"]:
-            if it[0] != "l":
-                continue
-            a, c = R.pt(it[1]), R.pt(it[2])
-            seg = (a, c)
-            for p in (a, c):
-                grid[(int(p.x // cell), int(p.y // cell))].append(seg)
+    # hotfix73 — 그 장의 직선은 `pc.segments()` 가 이미 표시 좌표로 한 번 옮겨 들고 있다 (같은 `l`
+    # 항목 · 같은 순서 · `Rot.segs` 는 `Rot.pt` 와 비트까지 같다 — `pidcache._rot_self_check`).
+    # 예전에는 점마다 다시 옮겼다 (TC2 프로파일 360만 번).
+    for seg in pc.segments():
+        a, c = seg
+        for p in (a, c):
+            grid[(int(p.x // cell), int(p.y // cell))].append(seg)
     return grid
 
 

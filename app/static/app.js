@@ -216,8 +216,21 @@ async function upload(files) {
   } else if (S.mode) {
     fd.append("mode", S.mode);              // 프로젝트 없는 분석의 선언
   }
-  const r = await fetch("/jobs", { method: "POST", body: fd });
-  if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
+  // hotfix73 — 서버가 JSON 아닌 응답(프록시 오류 · 500 HTML)을 주거나 연결이 끊겨도
+  // 조용히 멈추지 않는다.  사유 문장은 서버가 쓴 것(`detail`)을 그대로 보인다.
+  let r;
+  try {
+    r = await fetch("/jobs", { method: "POST", body: fd });
+  } catch (e) {
+    alert("서버에 올리지 못했습니다 — 서버가 꺼져 있거나 연결이 끊겼습니다. 잠시 뒤 다시 시도해 주세요.");
+    return;
+  }
+  if (!r.ok) {
+    let why = "";
+    try { why = (await r.json()).detail || ""; } catch (e) { why = ""; }
+    alert(why || `업로드 실패 (서버 응답 ${r.status})`);
+    return;
+  }
   const job = await r.json();
   watch(job.job_id, job.page_count, job);
 }
@@ -5082,8 +5095,18 @@ function showEvidence(row) {
   }
   // hotfix31 — 한 라인(같은 태그)의 표시기를 전송기로 접은 것 · 표시기만 있는 라인은 게이지.
   if (Array.isArray(e.readout_folded) && e.readout_folded.length) {
-    add("접은 표시기", e.readout_folded.map(f => `${f.anchor} (${f.tag_no})`).join(", ")
-      + " — 같은 태그 한 라인이라 이 행이 우선 (사용자 규칙)");
+    add("접은 표시기", e.readout_folded.map(f => `${f.anchor} (${f.tag_no})`
+      + (f.basis === "TAG_LOCATION" ? ` — ${f.how}` : "")).join(", ")
+      + (e.readout_folded.every(f => f.basis === "TAG_LOCATION") ? "" : " — 같은 태그 한 라인이라 이 행이 우선 (사용자 규칙)"));
+  }
+  // hotfix73 — 버블이 도면에서 말한 것: 가운데 선(ISA 위치 표기) · 겹쳐 인쇄 · 버블 밖 이웃 라벨
+  const det = e.detail || {};
+  if (det.bubble_lines) {
+    add("버블 가운데 선", `${det.bubble_lines}줄 — ISA 위치 표기 (뜻은 범례 GENERAL INSTRUMENTS · 선 없음 = 현장)`);
+  }
+  if (det.overprinted) add("겹쳐 인쇄", `같은 글자가 이 버블에 ${det.overprinted}번 찍혀 있습니다 — 한 계기로 셉니다`);
+  if (Array.isArray(det.outside_labels) && det.outside_labels.length) {
+    add("버블 밖 라벨", det.outside_labels.map(o => o.anchor).join(", ") + " — 버블 사각형 밖이라 이 계기의 글자로 보지 않았습니다");
   }
   if (e.gauge && e.gauge.display) {
     add("게이지", `${e.gauge.display} = ${e.gauge.word} — ${e.gauge.basis || ""}`);
@@ -8760,8 +8783,13 @@ document.addEventListener("click", (ev) => {
   const lg = document.getElementById("ovlegend"), b = document.getElementById("ovl-fold");
   if (!lg || !b) return;
   const apply = (f) => { lg.classList.toggle("folded", f); b.textContent = f ? "펼치기" : "접기"; };
-  let folded = false;
-  try { folded = localStorage.getItem("pid.ovl.fold") === "1"; } catch (e) {}
+  // hotfix73 — 기억된 선택이 없으면 **도면 창이 낮을 때 접힌 채로** 시작한다.  품질 시뮬레이션이
+  // 잡았다: 1366×768 에서 펼친 범례 판이 도면 창 왼쪽 아래의 약 1/4 을 덮어 그 밑의 상자를 누를
+  // 수 없었다.  접힌 줄도 세는 수를 그대로 말하고, 한 번 펼치면 그 선택을 기억한다.
+  let folded = false, stored = null;
+  try { stored = localStorage.getItem("pid.ovl.fold"); } catch (e) {}
+  if (stored === "1" || stored === "0") folded = stored === "1";
+  else folded = window.innerHeight < 900;
   apply(folded);
   b.addEventListener("click", () => {
     folded = !folded; apply(folded);

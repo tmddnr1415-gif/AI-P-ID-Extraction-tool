@@ -452,7 +452,8 @@ def _worker() -> None:
                            "page_count": fin["page_count"],
                            "elapsed_s": _elapsed(fin)})
         except (pipeline.LegendUnavailable,
-                pipeline.TitleBlockUnreadable) as exc:
+                pipeline.TitleBlockUnreadable,
+                pipeline.NoTextLayer) as exc:
             # 15회차 — 이 실패는 파이프라인이 **직접 검사한 조건**이고 문장도
             # 거기서 썼다.  그래서 `_failure_reason` 을 거치지 않는다: 그 함수는
             # *알 수 없는* 실패에 쓰는 것이고, 아는 실패까지 일반 문구로 덮으면
@@ -563,8 +564,12 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
     files = [f for f in (pdf or []) if f is not None and f.filename]
     if not files:
         raise HTTPException(400, "파일이 없습니다")
-    blobs = [(Path(f.filename).name, await f.read()) for f in files]
+    blobs = [(_display_name(f.filename), await f.read()) for f in files]
     kind, raw, name = _pack_input(blobs, input_kind)
+    if kind == "PDF":
+        problem = _pdf_problem(raw)
+        if problem:
+            raise HTTPException(400, problem)
     revision = ""
     if project:
         try:
@@ -586,7 +591,7 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
             raise HTTPException(400, f"프로젝트 '{project}' 는 {prev} 로 시작했습니다 — "
                                      f"같은 프로젝트에 {kind} 를 섞지 않습니다")
     UPLOADS.mkdir(parents=True, exist_ok=True)
-    path = UPLOADS / f"{job_id}_{name}"
+    path = UPLOADS / f"{job_id}_{_safe_name(name)}"
     path.write_bytes(raw)
     db.create_job(CON, job_id, name, sha, path)
     CON.execute("UPDATE job SET input_kind=? WHERE id=?", (kind, job_id)); CON.commit()
@@ -637,7 +642,65 @@ def _pack_input(blobs: list, hint: str = "") -> tuple:
                                        else f"{stem}.zip")
     if hint.upper() == "DXF":
         raise HTTPException(400, "DXF 로 골랐는데 .dxf 나 zip 이 아닙니다")
-    raise HTTPException(400, "that file is not a PDF (PDF 하나 · DXF zip 하나 · .dxf 여러 장만 받습니다)")
+    if len(blobs) == 1 and not blobs[0][1]:
+        raise HTTPException(400, "빈 파일입니다 (0 바이트) — 올리는 중에 끊겼을 수 있습니다. 다시 올려 주세요.")
+    if len(blobs) > 1:
+        raise HTTPException(400, "PDF 는 한 번에 하나만 올립니다 (여러 파일은 DXF 장들일 때만 받습니다).")
+    raise HTTPException(400, "PDF 파일이 아닙니다 — PDF 하나 · DXF zip 하나 · .dxf 여러 장만 받습니다.")
+
+
+# hotfix73 — 저장 파일 이름.  화면에 보이는 이름(`pdf_name`)은 사람이 올린 그대로 두고,
+# 디스크에 쓰는 이름만 어느 운영체제에서나 쓸 수 있게 고른다.  비정상 입력 시뮬레이션이
+# 잡았다: 한글 200자 이름이 500 을 냈고(파일 이름 255바이트 상한), `a:b*c?"<>|` 는 운영
+# 서버(Windows)에서 쓰기가 실패한다.  `..\\..\\` 꼴은 Linux 에서 `Path.name` 이 못 떼어 낸다.
+_UNSAFE_NAME = re.compile(r'[\x00-\x1f<>:"/\\|?*]+')
+_NAME_BYTES = 150          # job id 접두와 합쳐도 255바이트 아래 (UTF-8 한글 한 자 3바이트)
+
+
+def _display_name(name: str) -> str:
+    """화면에 보일 이름 — 경로 조각과 제어 문자만 뗀다 (어느 쪽 구분자든)."""
+    base = re.split(r"[\\/]", name or "")[-1]
+    base = re.sub(r"[\x00-\x1f]+", " ", base).strip()
+    return base or "upload.pdf"
+
+
+def _safe_name(name: str) -> str:
+    """디스크에 쓸 이름 — 금지 글자는 `_` · 끝의 점·공백 제거 · 바이트 상한 (확장자는 지킨다)."""
+    base = _UNSAFE_NAME.sub("_", _display_name(name)).strip(" .") or "upload"
+    stem, dot, ext = base.rpartition(".")
+    if not dot or len(ext) > 8:
+        stem, ext = base, ""
+    ext = ("." + ext) if ext else ""
+    raw = stem.encode("utf-8")[:_NAME_BYTES - len(ext.encode("utf-8"))]
+    stem = raw.decode("utf-8", "ignore").strip(" .") or "upload"
+    return stem + ext
+
+
+def _pdf_problem(raw: bytes) -> str:
+    """올린 PDF 를 **열어 보고** 분석이 시작도 못 할 사유를 한 문장으로 (없으면 빈 문자열).
+
+    hotfix73 비정상 입력 시뮬레이션: 암호 걸린 PDF 가 *"파일이 손상되었을 수 있습니다"*,
+    중간에 잘린 PDF 가 *"쪽이 하나도 없습니다"* 로 끝났다 — 둘 다 원인이 아니다.  그리고
+    둘 다 줄에 들어가 분석 하나를 차지했다.  여기서 막으면 줄도 기록도 남지 않는다.
+    """
+    import pymupdf
+    try:
+        doc = pymupdf.open(stream=raw, filetype="pdf")
+    except Exception:                                   # noqa: BLE001
+        return ("이 파일을 PDF 로 열 수 없습니다 — 손상되었거나 PDF 가 아닙니다. "
+                "원본에서 다시 내보내 올려 주세요.")
+    try:
+        if doc.needs_pass:
+            return ("암호가 걸린 PDF 입니다. 암호를 풀어 저장한 PDF 로 올려 주세요 "
+                    "(PDF 뷰어에서 '인쇄 → PDF 로 저장' 또는 원본에서 다시 내보내기).")
+        if doc.page_count == 0:
+            if doc.is_repaired:
+                return ("PDF 가 손상돼 쪽을 하나도 읽지 못했습니다 — 파일이 중간에 잘렸을 수 "
+                        "있습니다. 다시 내려받거나 원본에서 다시 내보내 올려 주세요.")
+            return "이 PDF 에는 쪽이 하나도 없습니다."
+    finally:
+        doc.close()
+    return ""
 
 
 def _project_input_kind(project: str) -> str:
@@ -1356,7 +1419,15 @@ def revision_changes_xlsx(job_id: str):
     name = f"changes_{job['revision'] or 'rev'}_vs_{job['compared_with']}.xlsx".replace(" ", "_")
     return StreamingResponse(io.BytesIO(data),
                              media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             headers={"Content-Disposition": f'attachment; filename="{name}"'})
+                             headers={"Content-Disposition": _attachment(name)})
+
+
+def _attachment(name: str) -> str:
+    """`Content-Disposition` — 한글 이름도 500 없이 (hotfix73).  헤더는 latin-1 이라 그대로
+    넣으면 인코딩 예외가 난다.  ASCII 대체 이름 + RFC 5987 `filename*` 를 같이 보낸다."""
+    from urllib.parse import quote
+    ascii_name = name.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 
 @app.post("/jobs/{job_id}/deleted/{stable_id}/confirm")
@@ -1795,6 +1866,22 @@ def _tb_pages(job):
     return _TB_PAGES["pages"]
 
 
+def _tb_sizes(job):
+    """쪽 크기만 — 칸 지정 화면을 여는 데는 낱말이 필요 없다 (hotfix73 · QA 실측 6.2초 → 수십 ms).
+    낱말을 이미 읽어 둔 job 이면 그것을 쓴다.  크기는 `PageCache` 와 같은 표시 좌표(회전 반영)."""
+    if _TB_PAGES.get("id") == job["id"]:
+        return _TB_PAGES["pages"]
+    import types
+    import pymupdf
+    doc = pymupdf.open(job["pdf_path"])
+    try:
+        return [types.SimpleNamespace(page_no=i + 1, width=float(pg.rect.width),
+                                      height=float(pg.rect.height))
+                for i, pg in enumerate(doc)]
+    finally:
+        doc.close()
+
+
 def _tb_form(pages):
     """다수 크기의 장과 크기 표 — `derive_layout._form_pages` 와 같은 정의."""
     import derive_layout
@@ -1825,7 +1912,7 @@ def titleblock_state(job_id: str):
     from app.engine import dxf_reader
     if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
         return {"supported": False, "note": "DXF 는 타이틀 캡션 아래 칸을 읽으므로 이 지정이 없습니다"}
-    pages = _tb_pages(job)
+    pages = _tb_sizes(job)
     form, sizes = _tb_form(pages)
     engine = json.loads(job["engine_json"] or "{}") if "engine_json" in job.keys() and job["engine_json"] else {}
     lay = (engine.get("applied_rules") or {}).get("layout") or {}
@@ -1877,7 +1964,7 @@ def titleblock_save(job_id: str, payload: dict):
     job = db.get_job(CON, job_id)
     if not job:
         raise HTTPException(404, "no such job")
-    pages = _tb_pages(job)
+    pages = _tb_sizes(job)
     form, _sizes = _tb_form(pages)
     try:
         data = title_block_cells.set_cells(

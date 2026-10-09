@@ -3847,6 +3847,64 @@ PID 폴더에 차곡차곡 쌓이고 · 반영된 VOC 는 다음번에 중복 �
 4. **실측** — 1366: 머리 단추 두 줄 → 한 줄 · 도면 창 395 → **473px** · 목록 160 → **175px** · 1920: 도면 770 → **818** · 목록 224 → **272** ·
    페이지 오류 0 · 가로 스크롤 없음.
 
+**그 다음 — 상용 수준으로: 비정상 입력 · 버블 하나는 계기 하나 · 같은 답으로 빠르게 (hotfix73)**
+
+사용자: *"개발 코드를 더 정교하고, 식별에 있어 성능 향상을 위한 수정 보완하고, 속도 향상할수있는 방법이 있다면 개선하고,
+상업적으로 사용되더라도 손색이 없을 정도로 … 여러번 시뮬레이션하면서 스스로 고쳐나가라."*  시뮬레이션 셋을 돌려 결함을 찾고
+고친 뒤 다시 돌렸다 — `spike/hostile_inputs.py`(비정상 입력 · 새로 만듦) · `spike/qa_sim.py`(API·화면 전수·전 흐름 · 하네스 고침) ·
+`spike/analysis_profile.py`(QFE cProfile).  시험 `tests/test_hotfix73_robust_inputs.py` 9 · `test_hotfix73_one_bubble.py` 10 ·
+`test_hotfix73_same_answer.py` 7 (빠른 시험 **958** · 6 건너뜀).
+**AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 · TC2 `23e78e27` · 902 · 5564 · 94.2 · UAD-DXF `a32c02a6` · 507 불변 —
+QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.2** (기준선 갱신 · 칸 단위 규명 아래).
+
+1. **[B] 비정상 입력은 원인을 말하며 멈춘다** (`spike/hostile_inputs.py` — 격리 서버에 실제 업로드).  암호 걸린 PDF · 열리지 않는 PDF ·
+   잘린 PDF(쪽 0) · 빈 파일 · PDF 아닌 파일은 **업로드에서 400 과 원인 문장**으로 막는다 (`main._pdf_problem` · `_pack_input` — 예전엔
+   줄에 들어가 "손상되었을 수 있습니다" 로 분석 하나를 차지했다).  소유자 암호(권한)만 걸린 PDF 는 열리므로 막지 않는다.
+   **글자층이 한 장에도 없으면** `pipeline.NoTextLayer` 로 곧장 멈추고 스캔인지 획 글자인지 말한다 (예전엔 4분 뒤 좌표 문장) ·
+   선이 한 장에도 없으면 *"P&ID 도면이 아닌 문서"* (`_frame_reason`).  자식 프로세스는 `analysis_proc._KNOWN` 으로 종류를 넘긴다.
+   ★ 한글 200자 파일 이름이 **500** 이었다 — 디스크 이름은 `_safe_name`(금지 글자 · 150바이트) · 화면 이름은 `_display_name`(원래 그대로).
+   한글 이름 내려받기 헤더는 `_attachment`(RFC 5987).  화면 업로드는 네트워크 오류·JSON 아닌 응답에서도 문장을 낸다.
+2. **[A] QA 시뮬레이션 — 제품 결함 하나 · 하네스 결함 셋.**  제품: 오버레이 범례 판이 짧은 화면(높이 < 900)에서 도면 상자를 가려
+   클릭을 막았다 → 그런 화면에서는 접힌 채 시작 (기억한 선택은 그대로).  `GET /jobs/{id}/titleblock` 6.2초 → 쪽 크기만 읽는다
+   (`_tb_sizes` — 칸 지정 화면을 여는 데 낱말이 필요 없다).  하네스: 다시 그려진 뒤 옛 요소 손잡이 · 변경 없는 장의 ▶ 버튼 ·
+   가린 범례.  고친 뒤 **A 5xx 0 · B 실패 0 · C 결함 0** (`out/hotfix73/qa2/`).
+3. **★ [D] 버블 하나는 계기 하나다** (`detect_symbols._one_function_per_bubble` · QFE 실측 · AL NOUF1 · TC2 는 한 버블 두 행이 **0** 이라 구조적으로 안 닿는다).
+   ① **겹쳐 인쇄된 같은 낱말**(QFE p39·p42 는 본문을 통째로 두 번 찍는다 — `TO TO KM KM`) → 같은 행이 둘씩 섰다 → 하나로 ·
+   `evidence.detail.overprinted`.  ★ 그러자 그 태그가 **한 검출에만** 나와 1급 태그가 붙고(29회차 규칙이 두 검출에 나온 코드를
+   이름이 아니라고 버리고 있었다), 겹친 짝이 흐리던 묶음이 풀려 **p42 레벨 스위치 5(LSH·LSN·LSL·LSHH·LSLL)가 처음 섰다** (렌더 확인).
+   ② **버블 사각형 밖 라벨이 여유(`anchor_slack`)로 버블을 차지** — p51 `SC`(AIT 옆 신호 라벨) · p69·p86 `DN` · p9 `GTC`(TI 버블 위 라벨) ·
+   p24 `pH`(AI 옆 측정 대상) → 사각형 **안**에 중심이 있는 앵커가 이긴다 · 진 것은 `outside_labels`.
+   ③ 한 윤곽 안에 **서로 다른 기능 글자 둘** — p58 `CONDENSATE FLASH BOX` 외곽(180×604pt) 안의 `FLASH`·`SPARE` → 계기 버블이 아니다 → 미판정.
+4. **버블 가운데 선 = ISA 위치 표기** (`detect_symbols.bubble_lines` · 비율만 · 상수 0).  QFE 범례 p3 `GENERAL INSTRUMENTS` 실측 — 선 없음 현장 ·
+   한 줄 DCS/주 제어반 · 두 줄 현장 패널.  줄 수만 세어 `evidence.detail.bubble_lines` 에 두고(뜻은 그 문서 범례) 근거 패널이 말한다.
+   **같은 장 · 같은 태그 · 같은 TYPE 이 둘 이상이고 선 없는 버블이 정확히 하나면 그것이 현장 계기** — QFE p41·p42 `FIT`(선 한 줄) 4행을
+   `FT`(→ FIT) 행에 접는다 (`_fold_readouts` 의 `TAG_LOCATION` · REMARK · `readouts`).  갈리지 않으면 고르지 않는다.
+   ⚠ **제어실 기능 버블(LICA · PICA · LA …) 자체는 그대로 둔다** — 입찰 전수 정책(50회차)과 실무 판단의 자리다.  근거 패널이
+   *"버블 가운데 선 1줄"* 이라고 말하므로 사람이 가를 수 있다.
+5. **Typical 이름표는 그 표식의 것만** (`typical._label_below(marks=)`) — 나란한 표식의 이름표가 한 줄에 붙어(`DRAIN 2 DRAIN 3`) 둘 다
+   두 이름을 가졌고 옆 주석이 섞였다(`DN DRAIN 2` · `DRAIN 4 ASME SEC.I` · `1A DRAIN 9`).  같은 줄의 이웃 표식이 더 가까운 낱말은 그 표식의
+   것 · 표식에 가장 가까운 낱말에서 **글자 높이보다 넓은 틈** 앞에서 끊는다.
+6. **기기 이름에서 계기의 글자를 뺀다** (`describe_equipment.find_labels(bubbles=, bubble_anchors=)`) — QFE 가 버블을 용기 캡션 바로 밑에 찍어
+   `SURGE VESSEL 31GKC41BB001 … LSH LIT 31GKC41CL103` 이 됐다.  빼는 것은 **버블 안의 그 계기 기능 글자와 태그 코드(글자+숫자)뿐** —
+   ⚠ 첫 판(버블 안 낱말 전부)이 AL NOUF1 p21 Description 4칸을 옮겼다: `.....`(미부여 태그) 접두가 `TO CONDENSER` 를 경로 문구 걸림에서
+   빼 주고 있었다 (우연히 맞던 것).  좁힌 뒤 AL NOUF1 **0칸** · TC2 p11 18칸(`XV STRAINER…` → `STRAINER AND SEAL STREAM`).
+7. **[C] 같은 답으로 빠르게** — 전부 결과 비트 동일 변환이고 `tests/test_hotfix73_same_answer.py` 가 옛 방식을 시험 안에 두고 맞댄다.
+   `_leader_index`·`_ink_index` 의 직선은 `pc.segments()`(이미 옮긴 것)를 쓴다 (점마다 회전하던 것 · TC2 980만 번) · `_index_put` 펼침 ·
+   `_bubble_links` 는 축 방향 선분을 자리 순으로 두고 bisect (짝마다 15만 선분 훑기 · QFE 한 번에 28초) · `_strokes_in` 은 왼쪽 끝 x 로
+   좁힌 뒤 **원래 순서로** · `legend_rules.stroke_index` 는 같은 장 목록이면 메모하고 **호출자마다 복사본**을 준다 (읽기가 defaultdict 에
+   빈 칸을 넣으므로 공유하면 한 호출자의 읽기가 다음으로 샌다).  메모는 한 장만 들고 분석 끝에 놓는다 (`release_stroke_memo` ·
+   `dv.release_strokes` — 26회차 메모리 규칙).
+실측 (같은 기계 · 다른 일 없이 순차 · 결과 지문 전부 같음):
+
+   | 프로젝트 | hotfix70 | hotfix73 | 최대 메모리 |
+   | --- | --- | --- | --- |
+   | AL NOUF1 (58장) | 457초 | **366초 (−20%)** | 4.8G (같음) |
+   | TC2 (60장 · 270°) | 331초 | **308초 (−7%)** | 7.4G (같음) |
+   | QFE (93장) | 603초 | **554초 (−8%)** | 6.2G (같음) |
+8. **못 한 것** — QFE p6 파선 LIT(73.7×25.6) 은 그 장 *가장 흔한* 실선 크기(68×22.6)와 달라 40회차 규칙이 못 세운다 (넓히면 UAD p8
+   거짓 고리 222 의 위험 · UAD PDF 가 없어 못 잰다) · `pipe_graph.derive_line_styles` 의 `min_run` 은 여전히 범례 종이 축척(hotfix48 ⚠) ·
+   QFE `PSV` 147행은 몸체가 반쪽 `CHECK` 로 읽혀 REVIEW (자력식 안전밸브 · 23회차 범위 밖) · SADARA · UAD PDF · `data/*.xlsx` 없음.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4324,6 +4382,12 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/voc.py` (`voc_root`·`write`·`scan`·`pending`·`mark`·`public`) · `main._write_voc`·`POST /voc`·`GET /voc` · `app.js` `vocSend`·`vocDialog`·`vocCheckHtml` | **hotfix71** — VOC 함.  한 건 = 폴더 하나 · 상태는 장부 + 폴더의 `resolution.json` · 쓰는 길은 하나 |
 | `spike/voc.py` (`list`·`brief`·`show`·`resolve`·`dup`·`wontfix`·`needinfo`) · `docs/voc.md` | **hotfix71** — 회사 Claude Code 가 회차 시작에 읽고 반영 표시.  이미 처리된 id 는 건너뛴다 (중복 반영 방지) |
 | `index.html` `#more-actions` · `app.js` 머리줄 판 닫기 IIFE · `styles.css` hotfix72 블록 · `.lb-short` | **hotfix72** — 드문 동작은 더보기 메뉴(id 불변) · 판 바깥 누르면 닫힘 · 접힌 정보 띠는 한 마디 · 좁은 카드 두 줄 배치 |
+| `app/static/app.js` 업로드 오류 문장 · 오버레이 범례 짧은 화면 접힘 | **hotfix73** — 업로드 실패도 사유를 말한다 · 높이 < 900 이면 범례가 도면을 가리지 않게 접힌 채 시작 |
+| `main._pdf_problem`·`_safe_name`·`_display_name`·`_attachment`·`_tb_sizes` · `pipeline.NoTextLayer`·`_no_text_reason` | **hotfix73** — 업로드에서 막는 PDF(암호·손상·0쪽·빈 파일) · 디스크/화면 이름 · 글자층 없는 PDF 의 사유 · 칸 지정 화면은 쪽 크기만 |
+| `detect_symbols._one_function_per_bubble`·`bubble_lines`·`_axis_lines` · `pipeline._fold_readouts` 의 `TAG_LOCATION` | **hotfix73** — 버블 하나 = 계기 하나 (겹쳐 인쇄 · 밖 라벨 · 외곽 안 두 기능) · 가운데 선 줄 수(ISA 위치) · 같은 태그·TYPE 의 제어 측 버블 접기 |
+| `typical._label_below(marks=)` · `describe_equipment.find_labels(bubbles=, bubble_anchors=)` | **hotfix73** — Typical 이름표는 그 표식의 것만 · 기기 이름에서 버블 안 계기 글자·태그 코드를 뺀다 |
+| `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
+| `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

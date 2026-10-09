@@ -242,24 +242,32 @@ if UI:
                 step(f"열 메뉴 {i}", lambda i=i: pg.locator("#grid thead th button").nth(i).click(timeout=1500), settle=350); close_overlays()
             for i in range(min(pg.locator("#body tr").count(), 5)):
                 step(f"행 클릭 {i}", lambda i=i: pg.locator("#body tr").nth(i).click(timeout=2000), settle=700)
-                evb = [b for b in pg.query_selector_all("#evidence button") if b.is_visible()]
-                for j, b in enumerate(evb[:6]):
-                    txt = (b.inner_text() or "")[:14]
+                # hotfix73 — 손잡이를 쥐고 있지 않는다.  패널이 누를 때마다 다시 그려져 옛 손잡이는
+                # "not attached" 가 되고, 그 거짓 경보가 진짜 결함을 가린다 (73회차 첫 실행).  매번 다시 찾는다.
+                n_ev = len([b for b in pg.query_selector_all("#evidence button") if b.is_visible()])
+                for j in range(min(n_ev, 6)):
+                    evb = [b for b in pg.query_selector_all("#evidence button") if b.is_visible()]
+                    if j >= len(evb): break
+                    txt = (evb[j].inner_text() or "")[:14]
                     if any(x in txt for x in ("삭제", "지우", "확정", "다시 분석", "재분석")): continue
-                    step(f"근거 패널 버튼 {j} '{txt}'", lambda b=b: b.click(timeout=1500), settle=500); close_overlays()
+                    step(f"근거 패널 버튼 {j} '{txt}'", lambda j=j: [b for b in pg.query_selector_all("#evidence button") if b.is_visible()][j].click(timeout=1500), settle=500); close_overlays()
             step("셀 편집 qty", lambda: (pg.dblclick("#body tr:first-child td[data-col=qty]"), pg.keyboard.type("3"), pg.keyboard.press("Enter")), settle=1200)
             step("셀 편집 qty 되돌림", lambda: (pg.dblclick("#body tr:first-child td[data-col=qty]"), pg.keyboard.press("Control+A"), pg.keyboard.press("Backspace"), pg.keyboard.press("Enter")), settle=1200)
             for z in ["1", "1", "-1", "0"]:
                 step(f"확대 {z}", lambda z=z: pg.click(f"#left .toolbar button[data-z='{z}']"), settle=300)
             step("도면 상자 클릭", lambda: pg.click("#ov rect.det >> nth=0", timeout=3000), settle=700)
-            for cb in pg.query_selector_all("#ovl-items input[type=checkbox]")[:6]:
-                step("오버레이 토글", lambda cb=cb: cb.click(timeout=1000), settle=250)
-                step("오버레이 토글 복귀", lambda cb=cb: cb.click(timeout=1000), settle=250)
+            if pg.evaluate("() => document.querySelector('#ovlegend')?.classList.contains('folded')"):
+                step("범례 판 펼침", lambda: pg.click("#ovl-fold"), settle=300)
+            for k in range(min(6, len(pg.query_selector_all("#ovl-items input[type=checkbox]")))):
+                sel = f"#ovl-items input[type=checkbox] >> nth={k}"
+                step("오버레이 토글", lambda sel=sel: pg.click(sel, timeout=1000), settle=250)
+                step("오버레이 토글 복귀", lambda sel=sel: pg.click(sel, timeout=1000), settle=250)
             step("탭 색으로", lambda: pg.click("#ovl-bytab"), settle=400); step("탭 색 해제", lambda: pg.click("#ovl-bytab"), settle=300)
             if pg.query_selector("#rev-switch button.side") and pg.is_visible("#rev-switch button.side"):
                 if not pg.evaluate("() => S.side"): step("나란히 켬", lambda: pg.click("#rev-switch button.side"), settle=3000)
-                step("변경 ▶", lambda: pg.click("#cmp-changes button[data-step='1']"), settle=800)
-                step("변경 ◀", lambda: pg.click("#cmp-changes button[data-step='-1']"), settle=800)
+                if pg.query_selector("#cmp-changes button[data-step='1']"):     # 변경 없는 장에는 단추가 없다
+                    step("변경 ▶", lambda: pg.click("#cmp-changes button[data-step='1']"), settle=800)
+                    step("변경 ◀", lambda: pg.click("#cmp-changes button[data-step='-1']"), settle=800)
                 step("Alt+→", lambda: pg.keyboard.press("Alt+ArrowRight"), settle=600)
                 opts = pg.evaluate("() => Array.from(document.querySelectorAll('#cmp-pick option')).map(o => o.value)")
                 if len(opts) > 2: step("오른쪽 장 고름", lambda: pg.select_option("#cmp-pick", opts[2]), settle=2500)
@@ -271,10 +279,13 @@ if UI:
             for pid in ["mult-panel", "sheet-panel", "review-codes", "legend-bar", "mode-bar", "notes-band"]:
                 el = pg.query_selector(f"#{pid}")
                 if el and el.is_visible():
-                    for b in [b for b in el.query_selector_all("button, summary") if b.is_visible()][:4]:
-                        txt = (b.inner_text() or "")[:14]
+                    vis = lambda: [b for b in pg.query_selector_all(f"#{pid} button, #{pid} summary") if b.is_visible()]
+                    for k in range(min(4, len(vis()))):
+                        cur = vis()
+                        if k >= len(cur): break
+                        txt = (cur[k].inner_text() or "")[:14]
                         if any(x in txt for x in ("지우", "되돌리", "다시 분석", "바꾸기")): continue
-                        step(f"{pid} 버튼 '{txt}'", lambda b=b: b.click(timeout=1500), settle=500); close_overlays()
+                        step(f"{pid} 버튼 '{txt}'", lambda k=k, vis=vis: vis()[k].click(timeout=1500), settle=500); close_overlays()
             step("리뷰 띠 버튼들", lambda: [b.click(timeout=1000) for b in pg.query_selector_all("#review-panel button")[:5] if b.is_visible()], settle=600)
         step("첫 화면으로", lambda: pg.click("#to-home"), settle=1500)
         step("첫 화면에서 다시 열기", lambda: (pg.click("a.revrow >> nth=0", timeout=5000), ready()), settle=2000)

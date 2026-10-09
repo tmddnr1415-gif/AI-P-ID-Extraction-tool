@@ -12,8 +12,8 @@
         "REVIEW": 75,
         "BFV": 23
       },
-      "seconds": 456.9,
-      "max_rss_gb": 4.87,
+      "seconds": 366.0,
+      "max_rss_gb": 4.83,
       "identification": {
         "도면번호": [
           58,
@@ -64,8 +64,8 @@
         "BFV": 7,
         "REVIEW": 60
       },
-      "seconds": 330.8,
-      "max_rss_gb": 7.43,
+      "seconds": 308.5,
+      "max_rss_gb": 7.41,
       "identification": {
         "도면번호": [
           60,
@@ -123,18 +123,18 @@
     },
     {
       "name": "QFE",
-      "rows": 2068,
-      "fingerprint": "8b2975eecc6fb4c99e4d8d81b9e8743e6874ecbb7af011a7a4902e02e6291afc",
-      "qty_sum": 3757,
+      "rows": 2043,
+      "fingerprint": "8bd6a8b382c0ae7874fd99d3e69437116c05b663825ef2126d0074302f341d2b",
+      "qty_sum": 3720,
       "tabs": {
-        "FIELD": 1684,
+        "FIELD": 1659,
         "PNEUMATIC": 47,
         "REVIEW": 213,
         "MOV": 98,
         "BFV": 26
       },
-      "seconds": 603.4,
-      "max_rss_gb": 6.25,
+      "seconds": 553.9,
+      "max_rss_gb": 6.24,
       "identification": {
         "도면번호": [
           86,
@@ -147,18 +147,18 @@
           ""
         ],
         "태그→행": [
-          334,
+          337,
           430,
           "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
         ],
         "수량": [
-          2066,
-          2068,
+          2041,
+          2043,
           ""
         ],
         "심볼판정": [
-          2068,
-          2365,
+          2043,
+          2342,
           ""
         ],
         "파라미터": [
@@ -167,7 +167,7 @@
           ""
         ]
       },
-      "score": 91.1
+      "score": 91.2
     }
   ],
   "metrics": [

@@ -21,7 +21,8 @@ import detect_valves as dv     # noqa: E402
 
 
 class _PC:
-    """`drawings()` 와 회전 행렬만 가진 가짜 쪽."""
+    """`drawings()` · `segments()` 와 회전 행렬만 가진 가짜 쪽 (`segments` 는 진짜 쪽처럼 `l` 항목을
+    같은 순서로 — hotfix73 부터 지시선 색인이 그것을 읽는다)."""
 
     def __init__(self, lines):
         self._lines = lines
@@ -33,6 +34,9 @@ class _PC:
                  "bbox": pymupdf.Rect(min(a[0], b[0]), min(a[1], b[1]),
                                       max(a[0], b[0]), max(a[1], b[1]))}
                 for a, b in self._lines]
+
+    def segments(self):
+        return [(it[1], it[2]) for d in self.drawings() for it in d["items"] if it[0] == "l"]
 
 
 def _body(x0, y0, x1, y1, kind="GLOBE"):

@@ -1307,9 +1307,28 @@ def _ink_index(pc, m, cell):
     별표는 칠한 나비에도 안 닿는다).  곡선은 시작·끝을 잇는 현으로 본다."""
     grid = collections.defaultdict(list)
     R = pidcache.Rot(m)
+    # hotfix73 — 직선은 `pc.segments()` 가 이미 표시 좌표로 들고 있다 (같은 값 · 점마다 다시 옮기던
+    # 것이 TC2 프로파일 620만 번).  읽는 쪽(`_touches`)은 "닿는 끝점이 하나라도 있나" 만 물으므로
+    # 칸 안의 순서는 답을 바꾸지 않는다.
+    if tuple(R.m) == tuple(pc.page.rotation_matrix):
+        # `_index_put` 를 펼친 것 — 값 · 순서 그대로 (QFE 프로파일 1,050만 번의 함수 호출)
+        rnd = round
+        for a, b in pc.segments():
+            ax, ay, bx, by = a.x, a.y, b.x, b.y
+            entry = (a, b, (rnd(ax, 2), rnd(ay, 2), rnd(bx, 2), rnd(by, 2)))
+            ca = (int(ax // cell), int(ay // cell))
+            cb = (int(bx // cell), int(by // cell))
+            grid[ca].append(entry)
+            if cb != ca:
+                grid[cb].append(entry)
+        lines_done = True
+    else:                                         # pragma: no cover — 부르는 곳은 언제나 그 장의 행렬
+        lines_done = False
     for d in pc.drawings():
         for it in d["items"]:
             if it[0] == "l":
+                if lines_done:
+                    continue
                 a, b = R.pt(it[1]), R.pt(it[2])
             elif it[0] == "c":
                 a, b = R.pt(it[1]), R.pt(it[4])
@@ -1917,6 +1936,132 @@ def _innermost(hit: list) -> list:
                        for o in hit)]
 
 
+def _strictly_inside(cx: float, cy: float, b) -> bool:
+    return b.x0 <= cx <= b.x1 and b.y0 <= cy <= b.y1
+
+
+def _one_function_per_bubble(detections: list, words=(), unverified=None) -> list:
+    """hotfix73 — **버블 하나는 계기 하나다.**  한 버블에 앵커가 둘 이상 걸리면
+    도면이 말한 것은 하나뿐이므로 고른다 (QFE 실측 · AL NOUF1 · TC2 는 한 버블 두
+    행이 0 이라 구조적으로 안 닿는다):
+
+      ① **겹쳐 인쇄된 같은 낱말** — 같은 글자가 같은 자리(그 낱말 자신의 높이
+         안)에 두 번 찍혔다.  QFE p42 는 본문 글자를 통째로 두 번 인쇄해(`TO TO KM
+         KM`) 버블마다 같은 행이 둘씩 섰다 (17행).  하나만 남기고 겹침 수를 적는다.
+      ② **버블 밖 낱말이 여유(`anchor_slack`)로 들어온 것** — 버블 사각형 *안* 에
+         중심이 있는 앵커가 있으면 밖의 것은 그 버블의 글자가 아니다 (QFE p51
+         `AIT` 버블 옆 신호 라벨 `SC` · p69 `GTC` 버블 옆 `DN`).  여유는 버블을
+         조금 못 미치게 그린 *그 버블의 글자* 를 받으려는 것이지 이웃을 받으려는
+         것이 아니다.
+      ③ 그래도 **서로 다른 앵커가 둘 이상 안에** 남으면 그 윤곽은 계기 버블이
+         아니다 — 기기 외곽을 둥글게 그린 것(QFE p58 `CONDENSATE FLASH BOX` 180×604pt
+         안의 `FLASH`·`SPARE`).  어느 것도 행으로 세우지 않고 미판정으로 올린다.
+
+    상수 0 — 비교는 그 낱말 자신의 높이와 그 버블 사각형뿐이다."""
+    groups: dict = {}
+    order: list = []
+    for d in detections:
+        k = id(d.bbox)
+        if k not in groups:
+            groups[k] = []
+            order.append(k)
+        groups[k].append(d)
+    if all(len(g) == 1 for g in groups.values()):
+        return detections
+    hgt = {}
+    for r, t in words:
+        hgt.setdefault((t, round((r.x0 + r.x1) / 2, 1), round((r.y0 + r.y1) / 2, 1)),
+                       min(r.height, r.width))
+    out: list = []
+    for k in order:
+        g = groups[k]
+        if len(g) == 1:
+            out.append(g[0])
+            continue
+        b = g[0].bbox
+        # ① 겹쳐 인쇄 — 같은 글자 · 그 글자 높이 안의 같은 자리
+        kept: list = []
+        for d in g:
+            h = hgt.get((d.anchor, round(d.center[0], 1), round(d.center[1], 1)), 0.0) or 1.0
+            twin = next((e for e in kept if e.anchor == d.anchor
+                         and abs(e.center[0] - d.center[0]) <= h
+                         and abs(e.center[1] - d.center[1]) <= h), None)
+            if twin is not None:
+                twin.evidence["overprinted"] = twin.evidence.get("overprinted", 1) + 1
+                continue
+            kept.append(d)
+        # ② 안의 것이 있으면 여유로 들어온 밖의 것은 남이다
+        inside = [d for d in kept if _strictly_inside(d.center[0], d.center[1], b)]
+        if inside and len(inside) < len(kept):
+            outside = [d for d in kept if d not in inside]
+            for d in inside:
+                d.evidence["outside_labels"] = [
+                    {"anchor": o.anchor,
+                     "center": [round(o.center[0], 1), round(o.center[1], 1)]}
+                    for o in outside]
+            kept = inside
+        # ③ 서로 다른 앵커가 여전히 둘 이상 — 계기 버블이 아니다
+        if len({d.anchor for d in kept}) > 1:
+            if unverified is not None:
+                for d in kept:
+                    unverified.append({"anchor": d.anchor,
+                                       "center": [round(d.center[0], 1),
+                                                  round(d.center[1], 1)],
+                                       "bubbles_matched": 1,
+                                       "shared_with": sorted({e.anchor for e in kept
+                                                              if e is not d}),
+                                       "outline": [round(v, 1) for v in b],
+                                       "why": "한 윤곽 안에 서로 다른 기능 글자가 둘 이상 "
+                                              "(" + " · ".join(sorted({e.anchor for e in kept}))
+                                              + ") — 계기 버블이 아니라 기기 외곽일 수 있습니다"})
+            continue
+        out.extend(kept)
+    return out
+
+
+def _axis_lines(pc):
+    """그 장의 가로 · 세로 직선 — (위치, 시작, 끝) 을 위치 순으로.  `bubble_lines` 가 쓴다.
+    장 객체에 들지 않는다 (93장을 다 들면 수백 MB) — 부르는 쪽이 한 장 동안만 쥔다."""
+    hs, vs = [], []
+    for a, b in pc.segments():
+        dx, dy = abs(a.x - b.x), abs(a.y - b.y)
+        if dy <= 0.01 * dx:
+            hs.append(((a.y + b.y) / 2, min(a.x, b.x), max(a.x, b.x)))
+        elif dx <= 0.01 * dy:
+            vs.append(((a.x + b.x) / 2, min(a.y, b.y), max(a.y, b.y)))
+    hs.sort(); vs.sort()
+    return (hs, [h[0] for h in hs], vs, [v[0] for v in vs])
+
+
+def bubble_lines(pc, rect, lines=None) -> int:
+    """hotfix73 — 버블 **가운데를 가로지르는 선**의 줄 수 (서로 다른 자리만 센다).
+
+    ISA 5.1 의 계기 버블은 그 선으로 **자리**를 말한다 — 선 없음 · 한 줄 · 두 줄 · 파선
+    (QFE 범례 p3 `GENERAL INSTRUMENTS` 실측: 현장 · DCS/주 제어반 · 현장 패널 · 패널 뒤).
+    뜻은 그 문서 범례가 정하므로 여기서는 **줄 수만** 센다.  선은 버블 긴 축과 나란하고
+    가운데 띠(짧은 변의 가운데 40%)에 있으며 양 끝 캡 안쪽(긴 변의 바깥 4분의 1)까지 닿는다
+    — 전부 그 버블 자신의 크기에 대한 비율이다 (§9 ⑥)."""
+    import bisect
+    x0, y0, x1, y1 = rect
+    w, h = x1 - x0, y1 - y0
+    if w <= 0 or h <= 0:
+        return 0
+    hs, hy, vs, vx = lines if lines is not None else _axis_lines(pc)
+    if w >= h:
+        lo, hi = bisect.bisect_left(hy, y0 + 0.3 * h), bisect.bisect_right(hy, y1 - 0.3 * h)
+        pos = {round(c, 1) for c, s, e in hs[lo:hi] if s <= x0 + 0.25 * w and e >= x1 - 0.25 * w}
+    else:
+        lo, hi = bisect.bisect_left(vx, x0 + 0.3 * w), bisect.bisect_right(vx, x1 - 0.3 * w)
+        pos = {round(c, 1) for c, s, e in vs[lo:hi] if s <= y0 + 0.25 * h and e >= y1 - 0.25 * h}
+    # 같은 선을 두 번 그린 것(0.5pt 안)은 한 줄이다
+    n, last = 0, None
+    for c in sorted(pos):
+        if last is None or c - last > 0.5:
+            n += 1
+        last = c
+    return n
+
+
 def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
            disabled: frozenset | None = None, allow_glyph_sizes=KNOWN_GLYPH_SIZES,
            face_rejected=None, rivals=(), isa=None):
@@ -2089,6 +2234,13 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
         if len(hit) == 1:
             unmapped.append({"token": t, "center": [round(cx, 1), round(cy, 1)]})
 
+    detections = _one_function_per_bubble(detections, words=pc.words,
+                                          unverified=unverified)
+    _al = _axis_lines(pc) if detections else None
+    for det in detections:
+        n = bubble_lines(pc, det.bbox, _al)
+        if n:
+            det.evidence["bubble_lines"] = n
     detections.sort(key=lambda d: (round(d.center[1] / 15), d.center[0]))
     # 48회차 — `bubbles` 도 돌려준다.  밸브 쪽이 별표 소유권 경쟁을 하려면
     # **그 장의 버블 전부**를 알아야 하는데, 지금까지는 이 함수 안에만 있었다.

@@ -483,7 +483,8 @@ def _modifier_ok(text: str, head: str, modifiers: dict) -> bool:
 
 
 def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
-                modifiers: dict = None, aliases: dict = None) -> list:
+                modifiers: dict = None, aliases: dict = None, bubbles=(),
+                bubble_anchors=()) -> list:
     """Equipment named on one drawing, as whole label blocks.
 
     The drawings write an equipment name over several baselines - p33 prints
@@ -492,7 +493,23 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
     pitch of each other and their horizontal extents overlap.  Taking a single
     line instead produced `FORWARDING PUMP` where the client writes `AUX FUEL OIL
     FORWARDING PUMP`, which is the difference between a name and a fragment.
+
+    hotfix73 — the **instrument's own words inside its bubble** (its function
+    letters, `bubble_anchors`, and its tag code — a word with both letters and
+    digits) are not part of an equipment name (`bubbles` are the bubbles the
+    detector verified on this sheet).  QFE prints its bubbles right under the vessel
+    caption, and the block joining read `SURGE VESSEL 31GKC41BB001 … LSH LIT
+    31GKC41CL103`.  Only those two kinds go: AL NOUF1 p21 prints the unassigned tag
+    `.....` in its bubbles, and taking every in-bubble word out moved four of its
+    Descriptions (measured) — `.....` is not a name either way, but it is not this
+    rule's business.
     """
+    bubbles = [b for b in (bubbles or ())]
+    bubble_anchors = {str(a) for a in (bubble_anchors or ())}
+
+    def _instrument_word(t: str) -> bool:
+        return t in bubble_anchors or (any(c.isdigit() for c in t)
+                                       and any(c.isalpha() for c in t))
     modifiers = {str(k).upper(): {str(w).upper() for w in v}
                  for k, v in (modifiers or {}).items()}
     lines = collections.defaultdict(list)
@@ -500,6 +517,10 @@ def find_labels(pc, vocab: dict, drawing_area, line_pitch: float = None,
         if not (drawing_area[0] <= r.x0 and r.x1 <= drawing_area[2]
                 and drawing_area[1] <= r.y0 and r.y1 <= drawing_area[3]):
             continue
+        if bubbles and _instrument_word(t):
+            cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+            if any(b[0] <= cx <= b[2] and b[1] <= cy <= b[3] for b in bubbles):
+                continue
         lines[round((r.y0 + r.y1) / 2, 1)].append((r.x0, r, t))
     # Two labels printed side by side share a baseline.  What separates them is
     # not a gap - splitting on the word gap was tried and measured, and it cut

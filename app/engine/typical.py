@@ -227,11 +227,18 @@ def is_name(label: str) -> bool:
     return any(w.isalpha() and len(w) >= 2 for w in _tokens(label or ""))
 
 
-def _label_below(m: Mark, words) -> tuple[str, int | None]:
+def _label_below(m: Mark, words, marks=()) -> tuple[str, int | None]:
     """라인 표식 바로 아래 한 줄 — SADARA `DRAIN 7` · `STEAM TRAP 1`.
 
     자리는 그 표식의 크기로 잰다 (아래로 지름 세 배 · 좌우 지름 네 배) — 절대 pt 없음.
-    번호는 그 줄의 숫자가 **하나**일 때만 준다."""
+    번호는 그 줄의 숫자가 **하나**일 때만 준다.
+
+    hotfix73 — 그 줄에서 **이 표식의 이름표만** 고른다 (QFE p46·p47 실측).  표식을 나란히
+    찍으면 이름표도 한 줄에 붙어(`DRAIN 2 DRAIN 3`) 둘 다 두 이름을 가졌고, 옆 주석이 같은
+    줄에 걸리면(`DN DRAIN 2` · `DRAIN 4 ASME SEC.I`) 이름에 섞였다.  두 단계다 — ① 같은 줄의
+    다른 라인 표식이 더 가까운 낱말은 그 표식의 것이다 ② 남은 낱말 중 표식 중심에 가장
+    가까운 낱말에서 시작해 **그 글자 높이보다 넓은 틈** 앞에서 끊는다 (낱말 사이 띄어쓰기는
+    글자 높이보다 좁다).  비교는 그 표식의 위치와 그 글자 자신의 높이뿐이다."""
     r, d = m.rect, m.d
     cx = (r.x0 + r.x1) / 2
     below = [(w, t) for w, t in words
@@ -241,6 +248,22 @@ def _label_below(m: Mark, words) -> tuple[str, int | None]:
         return "", None
     top = min(w.y0 for w, _t in below)
     line = sorted([(w, t) for w, t in below if w.y0 - top <= 0.6 * w.height], key=lambda x: x[0].x0)
+    # ① 같은 줄의 이웃 표식이 더 가까운 낱말은 그 표식의 이름표다
+    peers = [((o.rect.x0 + o.rect.x1) / 2) for o in marks
+             if o is not m and o.kind == "line" and abs(o.rect.y1 - r.y1) <= d]
+    if peers:
+        line = [(w, t) for w, t in line
+                if all(abs((w.x0 + w.x1) / 2 - cx) <= abs((w.x0 + w.x1) / 2 - px) for px in peers)]
+    if not line:
+        return "", None
+    # ② 표식에 가장 가까운 낱말에서 시작해 글자 높이보다 넓은 틈 앞에서 끊는다
+    i = min(range(len(line)), key=lambda k: abs((line[k][0].x0 + line[k][0].x1) / 2 - cx))
+    lo = hi = i
+    while lo > 0 and line[lo][0].x0 - line[lo - 1][0].x1 <= min(line[lo][0].height, line[lo - 1][0].height):
+        lo -= 1
+    while hi + 1 < len(line) and line[hi + 1][0].x0 - line[hi][0].x1 <= min(line[hi][0].height, line[hi + 1][0].height):
+        hi += 1
+    line = line[lo:hi + 1]
     text = " ".join(t for _w, t in line).strip()
     nums = [int(w) for w in _tokens(text) if w.isdigit()]
     return text, (nums[0] if len(nums) == 1 else None)
@@ -258,7 +281,7 @@ def analyse(pc, area, ceiling: float | None) -> Typical:
     segs = pc.segments()
     for m in t.marks:
         if m.kind == "line":
-            m.label, m.num = _label_below(m, words)
+            m.label, m.num = _label_below(m, words, t.marks)
 
     # 캡션 — 오른쪽 지름 두 배 안에서 같은 줄로 글이 두 낱말 이상 이어지고, 배관 위가 아니다.
     # hotfix21 — 줄은 **같은 줄의 다음 표식 앞에서** 끊는다.  SADARA 는 캡션 둘을 한 줄에

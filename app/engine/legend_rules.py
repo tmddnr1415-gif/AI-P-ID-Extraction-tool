@@ -227,11 +227,39 @@ def _straight_items(d, stroke_only: bool = False, m=None):
 # instead, and the same code measures the legend and reads the drawings - which
 # is the point: the rule cannot drift away from what it was measured on.
 
+_STROKE_MEMO: dict = {"segs": None, "out": {}}
+
+
 def stroke_index(segments, tol: float = 0.4, min_len: float = 0.9):
     """Axis-parallel runs bucketed to 0.1 pt: `(horizontals, verticals)`.
 
     `horizontals[y]` is a list of `(x0, x1)`, `verticals[x]` of `(y0, y1)`.
+
+    hotfix73 — the same page's index is asked for by `describe_candidates`,
+    `line_labels`, `pipe_graph` (twice) and the valve pass, each from the page's
+    one cached `pc.segments()` list (QFE profile: 570 builds over 93 pages).  The
+    last list's results are kept (one page only — the memory rule of 26회차) and
+    every caller gets **its own copy**: callers read these as defaultdicts and a
+    read of a missing bucket inserts one, so a shared object could carry one
+    caller's reads into the next.
     """
+    memo = _STROKE_MEMO
+    if memo["segs"] is not segments:
+        memo["segs"], memo["out"] = segments, {}
+    hit = memo["out"].get((tol, min_len))
+    if hit is None:
+        hit = _stroke_index(segments, tol, min_len)
+        memo["out"][(tol, min_len)] = hit
+    return tuple(collections.defaultdict(list, {k: list(v) for k, v in ix.items()})
+                 for ix in hit)
+
+
+def release_stroke_memo() -> None:
+    """Let go of the last page's stroke index (the analysis calls it when done)."""
+    _STROKE_MEMO["segs"], _STROKE_MEMO["out"] = None, {}
+
+
+def _stroke_index(segments, tol: float, min_len: float):
     horiz = collections.defaultdict(list)
     vert = collections.defaultdict(list)
     for p0, p1 in segments:

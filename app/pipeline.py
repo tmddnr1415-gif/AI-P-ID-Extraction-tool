@@ -23,6 +23,7 @@ row is "why".
 
 from __future__ import annotations
 
+import bisect
 import collections
 import logging
 import os
@@ -99,6 +100,44 @@ class TitleBlockUnreadable(RuntimeError):
     """
 
 
+class NoTextLayer(RuntimeError):
+    """이 PDF 의 어느 장에도 글자층이 없다 (hotfix73).
+
+    **예외를 바꿔 쓴 문장이 아니다** — `LegendUnavailable`·`TitleBlockUnreadable` 과
+    같은 자리이고 문장도 여기서 쓴다.  이 도구가 읽는 모든 것(타이틀블록 · 범례 ·
+    버블 안 글자 · NOTES)은 글자층(텍스트 또는 `AutoCAD SHX Text` 주석)에서 온다.
+    한 장에도 없으면 그 뒤의 어느 단계도 답을 낼 수 없고, 예전에는 `layout`
+    (조밀한 문서에서 4분)을 다 지난 뒤 *"도면번호 칸의 자리를 … 종이 밖"* 이라는
+    **원인이 아닌 문장**으로 멈췄다 (hotfix73 비정상 입력 시뮬레이션 — 스캔 PDF).
+
+    장 하나라도 글자가 있으면 걸지 않는다 — UAD p11~p15 처럼 몇 장만 획으로
+    그린 문서는 지금처럼 장마다 사유가 붙어야 한다 (45회차).
+    """
+
+
+def _no_text_reason(doc, pages) -> str:
+    """`NoTextLayer` 의 문장 — 그 장에 **무엇이 있는지**로 사람이 할 일을 가른다.
+
+    이미지가 있고 선이 없으면 스캔이고, 선이 있으면 글자를 획으로 내보낸 CAD 출력이다.
+    둘 다 아니면 빈 문서다.  선은 `get_cdrawings` 의 개수만 센다 (앞 다섯 장 — 답을
+    가르는 데 그 이상은 필요 없다).
+    """
+    n = len(pages)
+    look = [pc.page for pc in pages[:5]]
+    images = sum(len(p.get_images()) for p in look)
+    vectors = sum(len(p.get_cdrawings()) for p in look)
+    if images and not vectors:
+        return (f"이 PDF 의 {n}장 어디에도 글자층이 없습니다 — 스캔 이미지로 보입니다. "
+                "이 도구는 CAD 에서 내보낸 벡터 PDF(글자가 텍스트로 들어 있는 것)만 읽습니다. "
+                "원본 CAD 에서 PDF 로 다시 내보내 올려 주세요.")
+    if vectors:
+        return (f"이 PDF 의 {n}장 어디에도 글자층이 없습니다 — 선은 있는데 글자가 전부 "
+                "선(획)으로 그려져 있습니다. CAD 의 PDF 출력에서 글꼴을 텍스트로 내보내는 "
+                "설정(TrueType 글꼴 · SHX 글꼴을 주석으로)을 켜고 다시 내보내 주세요. "
+                "DXF 로 올리는 길도 있습니다.")
+    return f"이 PDF 의 {n}장에 글자도 선도 없습니다 — 빈 문서로 보입니다."
+
+
 def _frame_reason(pages, layout: dict | None = None) -> str:
     """`TitleBlockUnreadable` 의 문장.  **사실은 `tb.frame_report` 가 재고 여기서
     문장으로 만든다** — 저장하지 않으므로 다음에 문구를 고치면 옛 분석에도 새
@@ -136,6 +175,14 @@ def _frame_reason(pages, layout: dict | None = None) -> str:
         how = (" 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 "
                "값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 "
                "프로젝트 설정에 넣으면 됩니다.")
+    # hotfix73 — 선(도면 요소)이 한 장에도 없으면 칸 좌표를 말하기 전에 그것부터 말한다.
+    # 비정상 입력 시뮬레이션: 회의록 같은 A4 문서가 "타이틀블록 좌표를 재서 넣으라" 는
+    # 문장을 받았다 — 사람이 할 일은 좌표가 아니라 파일을 확인하는 것이다.  앞 다섯 장의
+    # `get_cdrawings` 개수만 센다 (이 갈래에서만 · 정상 경로 비용 0).
+    look = [pc.page for pc in pages[:5]]
+    if look and not sum(len(p.get_cdrawings()) for p in look):
+        return (f"이 PDF 의 {fr['pages']}장에 도면 요소(선)가 하나도 없습니다 — P&ID 도면이 "
+                f"아닌 문서로 보입니다 (쪽 크기: {sizes}).  올린 파일이 맞는지 확인해 주세요.")
     return (f"이 PDF 의 {fr['pages']}장 어디에서도 도면번호를 읽지 못했습니다. "
             f"도면번호 칸의 자리를 {list(cell['rect'])} 로 보고 있는데 {where} "
             f"(이 문서의 쪽 크기: {sizes}).{how}")
@@ -917,6 +964,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
             # 한 서버 프로세스가 앞 문서의 마지막 장을 다음 분석 내내 들고 있다.
             ds.release_ink()
+            legend_rules.release_stroke_memo()     # hotfix73 — 같은 이유 (마지막 장의 선 색인)
+            dv.release_strokes()
 
 
 @contextlib.contextmanager
@@ -1001,6 +1050,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # 56회차 [G1] — **프로필은 도면이 고른다.**  `_fit_layout` 보다 앞이어야
     # 한다 (그 함수가 `project.code` 로 "내 프로필인가" 를 가른다).  고른 뒤
     # `_rebind_config` 을 한 번 부르는 이유: import 때 읽힌 잎도 장부에 들게.
+    # hotfix73 — 글자층이 한 장에도 없으면 여기서 멈춘다 (`NoTextLayer`).  그 뒤의
+    # 모든 단계가 글자를 읽으므로 이 판정은 결과를 바꾸지 않고 **자리만** 당긴다 —
+    # 21회차가 뒤집은 이른 검사와 달리 이 사실은 유도되는 값에 기대지 않는다.
+    if pages and not any(pc.words for pc in pages):
+        raise NoTextLayer(_no_text_reason(doc, pages))
     profile_info = _select_profile(_document_code(pages))
     _rebind_config()
     total = len(pages) + 6
@@ -2319,17 +2373,21 @@ def _bubble_links(rows: list, pages: list) -> dict:
                 if g1 <= g0 or g1 - g0 > long_side:
                     continue
                 if segs is None:
-                    segs = pc.segments()
+                    # hotfix73 — 축 방향 선분을 한 번 골라 자리 순으로 둔다.  예전에는 짝마다 그 장의
+                    # 선분 전부(A1 15만)를 훑었다 (QFE 프로파일 한 번에 28초).  조건(축 어긋남 0.5pt ·
+                    # 띠 [b0, b1] 안)은 글자 그대로 같고 덮임은 구간 모음이라 순서와 무관하다.
+                    vs, hs = [], []
+                    for p0, p1 in pc.segments():
+                        if abs(p0.x - p1.x) <= 0.5:
+                            vs.append((p0.x, min(p0.y, p1.y), max(p0.y, p1.y)))
+                        if abs(p0.y - p1.y) <= 0.5:
+                            hs.append((p0.y, min(p0.x, p1.x), max(p0.x, p1.x)))
+                    vs.sort(key=lambda t: t[0]); hs.sort(key=lambda t: t[0])
+                    segs = (vs, [t[0] for t in vs], hs, [t[0] for t in hs])
+                lst, keys = (segs[0], segs[1]) if axis == "V" else (segs[2], segs[3])
                 spans = []
-                for p0, p1 in segs:
-                    if axis == "V":
-                        if abs(p0.x - p1.x) > 0.5 or not (b0 <= p0.x <= b1):
-                            continue
-                        lo, hi = max(min(p0.y, p1.y), g0), min(max(p0.y, p1.y), g1)
-                    else:
-                        if abs(p0.y - p1.y) > 0.5 or not (b0 <= p0.y <= b1):
-                            continue
-                        lo, hi = max(min(p0.x, p1.x), g0), min(max(p0.x, p1.x), g1)
+                for _c, s0, s1 in lst[bisect.bisect_left(keys, b0):bisect.bisect_right(keys, b1)]:
+                    lo, hi = max(s0, g0), min(s1, g1)
                     if hi > lo:
                         spans.append((lo, hi))
                 c = cover(spans, g0, g1)
@@ -2452,6 +2510,38 @@ def _fold_readouts(rows: list, isa, links: dict = None) -> tuple:
                     "basis": f"같은 태그 {tag} 에 전송기가 없어 표시기 {anchor} 만 있는 라인 — "
                              f"게이지 (config description.gauge_indicator)"}
                 facts["gauges"] += 1
+    # hotfix73 — **같은 태그 · 같은 TYPE 이 한 장에 둘 이상이면 물리 계기는 하나**다.  QFE p41 은
+    # `FIT 31GKC20CF001`(버블 가운데 선 — 제어실 표시) 아래에 `FT 31GKC20CF001`(선 없는 버블 —
+    # 현장)을 신호선으로 잇고, `FT` 는 이 문서 사전으로 `FIT` 가 되어 같은 행이 둘 섰다.  둘 중
+    # **가운데 선이 없는 버블이 정확히 하나**일 때만 그것을 남긴다 (ISA 5.1 — 선 없는 버블이
+    # 현장 계기다 · 줄 수의 뜻은 그 문서 범례가 정하지만 "선 없음 = 현장" 은 표준의 기본형이다).
+    # 갈리지 않으면 고르지 않는다.
+    same = collections.defaultdict(list)
+    for key, (r, anchor, parts) in parsed.items():
+        if r.tag_no and key not in folded:
+            same[(r.page_no, r.tag_no, r.type)].append((r, anchor))
+    for (pno, tag, typ), grp in sorted(same.items(), key=lambda t: (t[0][0], t[0][1], t[0][2])):
+        if len(grp) < 2:
+            continue
+        lines = [int(((r.evidence.get("detail") or {}).get("bubble_lines")) or 0) for r, _a in grp]
+        plain = [i for i, n in enumerate(lines) if n == 0]
+        if len(plain) != 1:
+            continue
+        winner = grp[plain[0]][0]
+        for i, (r, anchor) in enumerate(grp):
+            if i == plain[0]:
+                continue
+            folded.add(r.key)
+            how = f"같은 태그 {tag} · 같은 TYPE {typ} — 가운데 선 {lines[i]}줄 버블(제어 측 표시)"
+            winner.evidence.setdefault("readout_folded", []).append(
+                {"anchor": anchor, "key": r.key, "tag_no": tag,
+                 "rect": [round(v, 1) for v in r.rect], "basis": "TAG_LOCATION", "how": how})
+            note = (f"{how} 을 이 행(선 없는 버블 = 현장 계기)에 접음")
+            winner.remark = "; ".join(x for x in (winner.remark, note) if x)
+            facts["folded"].append({"page_no": pno, "tag_no": tag, "readout": anchor,
+                                    "kept": str(winner.evidence.get("anchor") or winner.type),
+                                    "kept_key": winner.key, "folded_key": r.key,
+                                    "basis": "TAG_LOCATION"})
     return facts, folded
 
 
@@ -3121,7 +3211,10 @@ def _equipment_pass(per_page, symbols, vocab, pat) -> tuple:
     for pno, info in sorted(per_page.items()):
         found = dequip.find_labels(
             info["page_cache"], vocab, area, pitch,
-            (CFG.data.get("description") or {}).get("equipment_modifiers"), aliases)
+            (CFG.data.get("description") or {}).get("equipment_modifiers"), aliases,
+            bubbles=[tuple(d.bbox) for d in info.get("detections") or ()
+                     if getattr(d, "bbox", None) is not None],
+            bubble_anchors={d.anchor for d in info.get("detections") or ()})
         found = dequip.group(found)
         out[pno] = found
         stats["instances"] += len(found)
@@ -4365,6 +4458,8 @@ class _ProposeCleanup:
 
     def close(self) -> None:
         ds.release_ink()
+        legend_rules.release_stroke_memo()
+        dv.release_strokes()
 
 
 def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
