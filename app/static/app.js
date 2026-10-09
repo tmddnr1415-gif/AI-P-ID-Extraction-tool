@@ -2644,6 +2644,7 @@ async function _saveQtyItems(items, what, reasonOf) {
     const r = it.row;
     if (!(r.key in out.users)) continue;
     r.user = out.users[r.key];
+    stampEditor(r, "qty", author);
     r.values.qty = it.value === "" ? (r.ai || {}).qty : Number(it.value);
     delete (r.conflict || {}).qty;
     done += 1;
@@ -3576,7 +3577,7 @@ function renderGrid() {
       // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친
       // 칸에는 연필이 붙는다.  "직접 입력" 등급과 같은 기호를 쓰는 것은 같은
       // 사실을 말하기 때문이다.
-      if (r.user && key in r.user) td.classList.add("edited");
+      if (r.user && key in r.user) { td.classList.add("edited"); td.title = editedTitle(r, key, val); }
       if (r.conflict && key in r.conflict) td.classList.add("conflict");
       if (editable && !r.deleted && !r.removed) {
         td.contentEditable = "true";
@@ -3765,7 +3766,20 @@ function rememberAuthor(name) {
  * `saveEdit` 의 null 갈래가 칸을 원래 값으로 돌려놓고, 무엇이 취소됐는지
  * 새 줄이 뜬 뒤에 한 줄로 말한다 (말없이 버리지 않는다). */
 let _authorPending = null;
+
+/* hotfix66 — **편집마다 묻지 않는다.**  사용자: *"수정할 때마다 누가 고쳤나요 띄워서 확인하지 말고
+ * 대시보드 로그인할 때의 정보로 누가 고쳤는지 자동으로 마크업/라벨링하도록."*
+ *
+ * 이름의 출처는 하나다 (`currentAuthor`):
+ *   ① 대시보드가 iframe 주소에 실어 보낸 로그인 이름 (`?user=` — `EMBED.user`) — 언제나 이긴다
+ *   ② 이 브라우저가 기억하는 이름 (대시보드 밖에서 직접 열었을 때 · 첫 편집 때 **한 번만** 묻는다)
+ * 둘 다 없을 때만 이름 줄을 띄운다.  13회차의 "매번 확인" 은 사용자가 거둬들였다.
+ * 고친 칸에는 그 이름이 붙는다 (`row.edited_by` · ✎ 툴팁 · 도면의 `x N ✎이름` 라벨). */
+function currentAuthor() { return (EMBED.user || lastAuthor() || "").trim(); }
+function authorSource() { return EMBED.user ? "대시보드 로그인" : (lastAuthor() ? "이 브라우저에 기억된 이름" : ""); }
 function askAuthor(what, hint) {
+  const known = currentAuthor();
+  if (known) { renderWhoChip(); return Promise.resolve(known); }
   // 이름을 묻는 순간 앞 편집의 안내는 지운다 - 그것은 이미 다른 행 이야기다.
   const dropped = _authorPending ? _authorPending() : null;
   document.querySelectorAll(".edit-note").forEach(n => n.remove());
@@ -3798,6 +3812,36 @@ function askAuthor(what, hint) {
     });
     box.focus();
   });
+}
+
+/* hotfix66 — 결과 머리에 지금 누구 이름으로 기록되는지.  대시보드 안에서는 왼쪽 메뉴(사용자 칸)가
+ * 숨겨지므로 여기가 그 사실을 말하는 자리다. */
+function renderWhoChip() {
+  const el = document.getElementById("who-chip");
+  if (!el) return;
+  const who = currentAuthor();
+  el.textContent = who ? `✎ ${who}` : "✎ 이름 없음";
+  el.title = who
+    ? `고친 칸은 "${who}" 이름으로 기록되고 표시됩니다 — ${authorSource()}`
+    : "첫 편집 때 이름을 한 번 묻고, 그 뒤로는 묻지 않습니다 (대시보드에서 열면 로그인 이름을 씁니다)";
+  el.classList.toggle("login", !!EMBED.user);
+}
+
+/* 그 칸을 마지막으로 고친 사람 — `/rows` 의 `edited_by` (서버 `db.last_editors`) 와 이번 화면에서 저장한 것. */
+function editorOf(row, field) {
+  const e = row && row.edited_by && row.edited_by[field];
+  return e && e.author ? e : null;
+}
+function stampEditor(row, field, author) {
+  row.edited_by = row.edited_by || {};
+  row.edited_by[field] = { author: author || "", at: Date.now() / 1000 };
+}
+function editedTitle(row, field, val) {
+  const e = editorOf(row, field);
+  const base = val !== "" && val != null ? String(val) : "";
+  if (!(row.user && field in row.user)) return base;
+  const when = e && e.at ? new Date(e.at * 1000).toLocaleString("ko-KR", { hour12: false }) : "";
+  return (base ? base + "\n" : "") + `✎ ${e ? e.author : "이름 없음"}${when ? " · " + when : ""} 고침`;
 }
 
 /* 편집이 발주처 양식에 어떻게 닿는지 — 고친 **그 순간** 말한다 (14회차).
@@ -3887,6 +3931,7 @@ async function saveField(row, field, value) {
   if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return false; }
   const out = await r.json();
   row.user = out.user;
+  stampEditor(row, field, author);
   row.values[field] = value === "" ? row.ai[field] : (field === "qty" ? Number(value) : value);
   delete (row.conflict || {})[field];
   S.counts.REVIEW = out.review_count;
@@ -3912,7 +3957,7 @@ function syncRowCell(row, field) {
   // 목록이 그 칸을 그릴 때와 같은 값 (renderGrid — Remark 만 `remarkOf`, 나머지는 행의 값 그대로)
   const v = field === "remark" ? remarkOf(row) : (row.values[field] ?? "");
   td.textContent = v ?? "";
-  td.title = v !== "" && v != null ? String(v) : "";
+  td.title = editedTitle(row, field, v);
   td.classList.toggle("edited", !!(row.user && field in row.user));
   td.classList.remove("conflict");
 }
@@ -3977,14 +4022,15 @@ function renderFloatEdit() {
     + `<div class="fe-body">` + FEDIT_FIELDS.map(([f, label]) => {
         const v = row.values[f] ?? "";
         const ai = (row.ai || {})[f];
-        const tip = row.user && f in row.user ? `사람이 고침 — 도면 값은 ${ai ?? "(없음)"} · 비우고 저장하면 도면 값으로` : "도면에서 읽은 값";
+        const who = editorOf(row, f);
+        const tip = row.user && f in row.user ? `${who ? who.author : "이름 없음"} 고침 — 도면 값은 ${ai ?? "(없음)"} · 비우고 저장하면 도면 값으로` : "도면에서 읽은 값";
         const input = FEDIT_LONG.has(f)
           ? `<textarea data-f="${f}" rows="2" spellcheck="false">${escape(String(v))}</textarea>`
           : `<input data-f="${f}" type="text" value="${escAttr(String(v))}" spellcheck="false">`;
         return `<label class="fe-row${row.user && f in row.user ? " edited" : ""}" title="${escAttr(tip)}">`
           + `<span class="fe-l">${escape(label)}</span>${input}</label>`;
       }).join("") + `</div>`
-    + `<div class="fe-foot muted small">Enter 저장 (긴 칸은 Ctrl+Enter) · 고친 값은 오른쪽 목록에 바로 반영됩니다`
+    + `<div class="fe-foot muted small">Enter 저장 (긴 칸은 Ctrl+Enter) · 고친 값은 오른쪽 목록에 바로 반영됩니다 · ${escape(currentAuthor() || "이름 없음")} 이름으로 기록`
     + ` · ✎ 사람이 고친 칸</div>`;
   box.classList.remove("hidden");
   box.querySelectorAll("[data-f]").forEach(inp => {
@@ -4048,11 +4094,13 @@ async function setDescription(row, text, opts = {}) {
   const patch = async (r, field, value) => {
     const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field, value }),
+      // hotfix66 — 이 길은 작성자를 싣지 않고 있었다 (이력에 이름 없음).  묻지 않고 로그인 이름을 싣는다.
+      body: JSON.stringify({ field, value, author: currentAuthor() }),
     });
     if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return false; }
     const out = await res.json();
     r.user = out.user;
+    stampEditor(r, field, currentAuthor());
     r.values[field] = value;
     S.counts.REVIEW = out.review_count;
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
@@ -4524,6 +4572,7 @@ async function applyScopeToMulti(value) {
     if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
     const out = await res.json();
     r.user = out.user;
+    stampEditor(r, "scope", author);
     r.values.scope = value;
     repaintRow(r);
     S.counts.REVIEW = out.review_count;
@@ -4615,7 +4664,7 @@ function showEvidence(row) {
    * 값을 바꾸지 않고 **어디서 온 값인지**를 붙인다. */
   const wasEdited = f => !!(row.user && f in row.user);
   const mark = (f, v) => wasEdited(f)
-    ? `${v}  ✎ 사람이 고침 (도면 근거는 ${
+    ? `${v}  ✎ ${(editorOf(row, f) || {}).author || "사람"} 고침 (도면 근거는 ${
         row.ai && row.ai[f] !== undefined && row.ai[f] !== null && row.ai[f] !== ""
           ? row.ai[f] : "비어 있음"})`
     : v;
@@ -5064,6 +5113,7 @@ function refreshDescMarkup(row) {
 
 /* 작성자 — 판 안의 칸이 채워져 있으면 그 이름으로, 비어 있으면 이름 줄을 띄운다. */
 async function _ftAuthor(what, hint) {
+  if (EMBED.user) { S.ftWho = EMBED.user; return EMBED.user; }   // hotfix66 — 대시보드 로그인 이름이 이긴다
   const box = document.querySelector("#dm-who");
   const v = box ? box.value.trim() : "";
   if (v) { rememberAuthor(v); S.ftWho = v; return v; }
@@ -6409,9 +6459,13 @@ function drawQtyTag(ov, scale, it, row, stroke) {
   const [x0, y0, x1, y1] = it.rect;
   const qty = cellValue(row, "qty");
   const edited = qtyEdited(row);
-  const label = `x${qty === "" || qty === null || qty === undefined ? "?" : qty}${edited ? " ✎" : ""}`;
+  // hotfix66 — 고친 라벨에는 고친 사람 이름이 붙는다 (`x5 ✎홍길동`).  이름은 `edited_by` 하나에서 온다.
+  const ed = edited ? editorOf(row, "qty") : null;
+  const label = `x${qty === "" || qty === null || qty === undefined ? "?" : qty}${edited ? " ✎" + (ed ? ed.author : "") : ""}`;
   const fs = Math.max(9, Math.min(16, (y1 - y0) * scale * 0.55));
-  const w = label.length * fs * 0.62 + 6, h = fs * 1.35;
+  // 한글(넓은 글자)은 한 칸을 다 쓴다 — 0.62 로만 세면 이름이 상자 밖으로 나간다 (hotfix66 자기검증)
+  const em = [...label].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? 1.0 : 0.62), 0);
+  const w = em * fs + 6, h = fs * 1.35;
   const gx = x1 * scale + 3, gy = (y0 + y1) / 2 * scale - h / 2;
   const g = document.createElementNS(NS, "g");
   g.setAttribute("class", "qtytag" + (edited ? " edited" : "") + (S.sel === it.key ? " sel" : ""));
@@ -6428,7 +6482,7 @@ function drawQtyTag(ov, scale, it, row, stroke) {
   const e = row.evidence || {};
   const tip = document.createElementNS(NS, "title");
   tip.textContent = `Q'ty ${qty === "" ? "(비어 있음)" : qty}`
-    + (edited ? ` — 사람이 고침 (도면 근거는 ${(row.ai || {}).qty ?? "없음"})` : "")
+    + (edited ? ` — ${ed ? ed.author : "이름 없음"} 고침${ed && ed.at ? " · " + new Date(ed.at * 1000).toLocaleString("ko-KR", { hour12: false }) : ""} (도면 근거는 ${(row.ai || {}).qty ?? "없음"})` : "")
     + (e.qty_basis ? `\n근거: ${e.qty_basis}` : "")
     + "\n누르면 승수를 고칩니다 — 이 태그만 · 이 페이지 전체 · Shift 로 묶은 범위";
   g.appendChild(tip); g.appendChild(bg); g.appendChild(t);
@@ -6470,6 +6524,7 @@ async function applyQtyToRows(rows, value, what) {
     if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
     const out = await res.json();
     r.user = out.user;
+    stampEditor(r, "qty", author);
     r.values.qty = value === "" ? (r.ai || {}).qty : Number(value);
     delete (r.conflict || {}).qty;
     S.counts.REVIEW = out.review_count;
@@ -8374,7 +8429,7 @@ function renderNav() {
     }
     box.innerHTML = items.join("") || `<span class="nav-item" style="cursor:default;opacity:.7"><span class="nav-ico">·</span><span class="nav-text">프로젝트 없음</span></span>`;
   }
-  const who = (typeof lastAuthor === "function" ? lastAuthor() : "") || "이름 없음";
+  const who = (typeof currentAuthor === "function" ? currentAuthor() : "") || "이름 없음";
   const u = $("#nav-user"); if (u) u.textContent = who;
 }
 $req("#nav-home").addEventListener("click", ev => {
@@ -8398,11 +8453,12 @@ $req("#nav-projects").addEventListener("click", ev => {
   }
 });
 $req("#nav-rename").addEventListener("click", () => {
+  if (EMBED.user) { editNotice(`대시보드 로그인 이름(${EMBED.user})으로 기록됩니다 — 바꾸려면 대시보드에서 다시 로그인하세요`); return; }
   const now = (typeof lastAuthor === "function" ? lastAuthor() : "") || "";
   const v = prompt("이름 (자칭) — 편집 · 저장 기록에 적힙니다", now);
   if (v == null) return;
   if (typeof rememberAuthor === "function") rememberAuthor(v.trim());
-  renderNav();
+  renderNav(); renderWhoChip();
 });
 window.addEventListener("storage", ev => { if (ev.key === "pid.author") renderNav(); });
 async function pingServer() {
@@ -8706,6 +8762,7 @@ document.addEventListener("click", ev => {
  * 결과 머리의 `← 첫 화면` 으로 간다. */
 (function applyEmbed() {
   if (EMBED.user) { rememberAuthor(EMBED.user); renderNav(); }
+  renderWhoChip();
   if (EMBED.mode && !S.project) { S.mode = EMBED.mode; showMode(S.mode); }
   const from = $("#embed-from");
   if (from && EMBED.mode) {

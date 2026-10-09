@@ -2109,7 +2109,9 @@ def rows(job_id: str, tab: str = "ALL"):
     out = [dict(r) for r in db.merged_rows_cached(CON, job_id, tab)]
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
+    editors = db.last_editors(CON, job_id)      # hotfix66 — 고친 칸마다 누가 · 언제
     for row in out:
+        row["edited_by"] = editors.get(row["key"], {})
         row["review_codes"] = review_codes(row)
         row["review_state"] = states.get(row["key"], {})
         row["rev"] = rev.get(row["key"], {})

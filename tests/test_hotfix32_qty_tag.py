@@ -52,6 +52,7 @@ def test_grid_cells_say_their_column():
 
 
 def test_edited_label_shares_the_grid_pencil():
-    assert 'edited ? " ✎" : ""' in _fn("drawQtyTag")
+    # hotfix66 — 연필 뒤에 고친 사람 이름이 붙는다 (`x5 ✎홍길동`)
+    assert 'edited ? " ✎" + (ed ? ed.author : "") : ""' in _fn("drawQtyTag")
     assert "g.qtytag.edited text { fill: var(--ok); }" in CSS
     assert "td.edited::after { content: \" ✎\"" in CSS

@@ -847,6 +847,20 @@ def row_edit_history(con, job_id: str, row_key: str, limit: int = 40) -> list:
                 " ORDER BY id DESC LIMIT ?", (job_id, row_key, limit))]
 
 
+def last_editors(con, job_id: str) -> dict:
+    """hotfix66 — 행·칸마다 **마지막으로 고친 사람과 때** ({row_key: {field: {author, at}}}).
+
+    화면이 고친 칸(✎)과 도면 라벨에 누가 고쳤는지 붙이는 데 쓴다.  새로 적는 것은 없다 —
+    `feedback` 의 EDITED 기록(13회차부터 작성자 칸이 있다)을 읽기만 한다.  한 번의 질의로
+    읽는다 (행마다 묻지 않는다)."""
+    out: dict = {}
+    for key, field, author, at in con.execute(
+            "SELECT row_key, field, author, created_at FROM feedback"
+            " WHERE job_id=? AND kind='EDITED' AND row_key<>'' ORDER BY id", (job_id,)):
+        out.setdefault(key, {})[field] = {"author": author or "", "at": at}
+    return out
+
+
 def feedback_count(con, job_id: str) -> int:
     return con.execute("SELECT COUNT(*) FROM feedback WHERE job_id=?",
                        (job_id,)).fetchone()[0]

@@ -71,9 +71,14 @@ def _confirm_author(page, name="UI 시험"):
     것이다.  인증이 아니라 자기신고이고, 화면이 "자칭"이라고 적는다.  시험이
     이 줄을 넘겨야 저장이 일어난다 - 그것이 실제 사용자가 겪는 순서다.
     """
+    # hotfix66 — 이름은 처음 한 번만 묻는다 (그 뒤로는 기억된 이름 · 대시보드면 로그인 이름).
+    # 줄이 안 뜨면 이미 이름이 있는 것이고, 그것이 실제 사용자가 겪는 순서다.
     bar = page.query_selector(".author-bar")
     if bar is None:
-        page.wait_for_selector(".author-bar", timeout=4000)
+        try:
+            page.wait_for_selector(".author-bar", timeout=1500)
+        except Exception:
+            return
         bar = page.query_selector(".author-bar")
     box = bar.query_selector("input")
     box.fill(name)

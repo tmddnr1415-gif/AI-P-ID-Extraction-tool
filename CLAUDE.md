@@ -3645,6 +3645,25 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
 4. 실측 (QFE Rev.B 사본 · 79장): p6 x3 · p7 x5 → 서버·목록 칸(✎)·도면 라벨 `x3 ✎` 이 같은 값 · p8 누르고 Shift+p11 →
    4장 · x2 채우기 · 적용 · p6 도면 값으로 → 처음 값 · 편집 이력 `홍길동 · PAGE_MULTIPLIER: p7 x5` · 페이지 오류 0.
 
+**그 다음 — 편집마다 이름을 묻지 않는다 · 대시보드 로그인 이름으로 자동 기록 · 고친 칸에 이름 (hotfix66 · 판정 0줄)**
+
+사용자: *"수정할 때마다 누가 고쳤나요 띄워서 확인하지 말고 대시보드 로그인할 때의 정보로 누가 고쳤는지 자동으로
+마크업/라벨링하도록."*  13회차의 "매 편집 이름 확인" 을 사용자가 거둬들였다.  시험 `tests/test_hotfix66_login_author.py`
+5건 (빠른 시험 **881**) · 자기검증 `spike/ui_audit_login_author.py` → `out/hotfix66/ui/`.
+
+1. **이름의 출처는 하나** (`currentAuthor`) — ① 대시보드가 iframe 주소에 실어 보낸 로그인 이름(`?user=` · `EMBED.user`)이
+   언제나 이긴다 ② 대시보드 밖에서 직접 열면 이 브라우저에 기억된 이름.  `askAuthor` 는 이름을 알면 줄을 띄우지 않고 바로
+   돌려준다 — 둘 다 없을 때만 **처음 한 번** 묻고 기억한다.  대시보드 안에서는 `이름 변경`·From/To 판의 이름 칸보다 로그인이
+   이긴다.  결과 머리에 `✎ 홍길동` 칩(`#who-chip` — 대시보드 안이면 파란색 · 출처를 툴팁에).
+2. **고친 칸에 이름이 붙는다** — 서버 `/rows` 가 칸마다 마지막으로 고친 사람·때를 싣고(`db.last_editors` — `feedback` 의
+   EDITED 기록을 한 번 읽기만 한다 · 새로 적는 것 0), 화면은 `editorOf` 하나로 읽어 목록 ✎ 칸 툴팁 · 도면 라벨 `x7 ✎홍길동` ·
+   근거 패널 `✎ 홍길동 고침 (도면 근거는 …)` · 도면 위 편집 카드에 붙인다.  이번 화면에서 저장한 것은 `stampEditor` 가 바로 얹는다.
+3. **같이 고친 것** — Description 저장 길(`setDescription` 의 PATCH)이 작성자를 아예 싣지 않아 이력에 이름이 비었다 → 로그인 이름을 싣는다.
+4. **대시보드가 보낸 이름을 그대로 믿는다** — 인증은 대시보드 몫이고 이 서버는 사내망 문지기(`lan.Gate`) 안에서만 돈다.
+5. 실측 (QFE Rev.B 사본 · `?embed=1&user=홍길동` · 기억된 이름 없음): 칸 두 번 고침 → 이름 줄 0번 · 서버 이력 작성자 홍길동 ·
+   목록 툴팁 `✎ 홍길동 · 시각 고침` · 도면 라벨 `x7 ✎홍길동` · 새로 연 뒤에도 같은 이름 · 대시보드 밖 이름 없음 → 첫 편집만
+   한 번 묻고 둘째부터 안 묻는다 · 페이지 오류 0.  ⚠ 라벨 폭이 한글 이름을 못 담던 것을 자기검증 크롭이 잡았다(넓은 글자는 1em).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4109,6 +4128,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app/sheet_memo.py` · `main._note_aliases`/`job_memos`/`page_memo`/`save_page_memo` · `app.js` `showMemo`/`saveMemo`/`memoOpen`/`initMemo` · `#memo` | **hotfix63** — 장별 메모.  열쇠는 도면번호(바뀐 번호는 장부로 이음) · 같은 프로젝트의 모든 Rev · 판을 쌓는다 · `/notes` 와 다른 자리 |
 | `app.js` `saveField`/`syncRowCell`/`saveEdit` · `renderFloatEdit`/`setFull` · `#fedit` · `#full-toggle` | **hotfix64** — 칸 저장의 단 하나의 길(목록 칸 · 도면 위 편집 카드 공용) · 도면 전체화면 · 목록이 안 보일 때 도면 위 편집 |
 | `app.js` `qtyBase`·`pageMultPages`·`pageMultPlan`·`renderPageMult`·`applyPageMult`·`_saveQtyItems` · `main.qty_bulk` | **hotfix65** — 수량 승수 판의 페이지별 승수(지금 결과에 바로).  Q'ty = 기본 개수 × 승수 — 계산은 화면 한 곳 · 서버는 PATCH 와 같은 db 함수로 적기만.  유닛코드 승수(다음 분석부터)와 다른 길 |
+| `app.js` `currentAuthor`·`askAuthor`·`renderWhoChip`·`editorOf`·`stampEditor`·`editedTitle` · `db.last_editors` · `/rows` 의 `edited_by` | **hotfix66** — 작성자는 대시보드 로그인(`?user=`) → 기억된 이름 순 · 편집마다 묻지 않는다(이름이 없을 때 처음 한 번만) · 고친 칸·라벨·근거 패널에 고친 사람 이름 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

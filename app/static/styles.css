@@ -1945,3 +1945,8 @@ body.pid-full #gutter-v { visibility: hidden; }
 .mult-panel .pm-ed { font-style: normal; color: #0f8f80; margin-left: 2px; }
 .mult-panel .mu-head { margin-top: 10px; }
 .mult-panel.folded .pmult, .mult-panel.folded .mu-head { display: none; }
+
+/* hotfix66 — 기록되는 이름 */
+.who-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line);
+            color: var(--ink-soft); background: var(--card); white-space: nowrap; }
+.who-chip.login { color: #1f4fbf; border-color: #9db4e8; background: #eef3fd; }
