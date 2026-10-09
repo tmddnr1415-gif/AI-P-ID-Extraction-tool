@@ -165,3 +165,7 @@ out/4_설치파일_wheels_part*.zip
 # 운영 PC 의 `PID\voc\inbox` 에 쌓이고 개발 폴더(PID_dev)의 `voc\ledger.json` 이 반영을 적는다.
 voc/
 out/voc_brief.md
+
+# hotfix74 — 입력 변형 시뮬레이터가 만드는 PDF·zip (재료는 저장소 안 · 다시 만들 수 있다)
+out/hotfix74/variants*/pdf/
+out/hotfix74/dxf_variants/*.zip
