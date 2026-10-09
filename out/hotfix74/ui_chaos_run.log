@@ -1,4 +1,4 @@
-U1 새로고침 → 주소 /127.0.0.1:54313/#48b5adbdd28c · 다시 연 결과 48b5adbdd28c
+U1 새로고침 → 주소 /127.0.0.1:57847/#48b5adbdd28c · 다시 연 결과 48b5adbdd28c
 U1 뒤로/앞으로 → 결과 48b5adbdd28c · 행 1991 (처음 1991)
 U2 서버 꺼짐 중 편집 → 화면 말 ' | 저장하지 못했습니다 — 서버에 연결할 수 없습니다.  칸은 원래 값으로 돌아갑니다.
 서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.' · 2.7초 · 페이지 오류 []
@@ -11,5 +11,66 @@ P&ID 계기·밸브 리스트 Dashboard
 
 프로젝트 1 · 분석 2건 · 마지막 분석 2026-10-04 03:12 (QFE Rev.B)' · 오류 []
 U6 원본 PDF 없음 → 도면 자리 '필요한 파일이 서버에 없습니다 (gone.pdf) — 업로드 폴더가 정리됐거나 옮겨졌습니다. 같은 파일로 새로 분석해 주세요.' · 행 1991 · 오류 []
+U7 원본 없음 [재분석] → 대화상자 ['이 분석의 원본 파일(gone.pdf)이 서버에 없습니다 — 업로드 폴더가 정리됐거나 옮겨졌습니다.  결과 목록·편집·Excel 은 그대로 쓸 수 있고, 도면 그림·재분석·마크업 제안은 같은 파일로 새로 분석해야 합니다.'] · 결과 화면에 머묾 True
+Exception in callback SyncBase._sync.<locals>.<lambda>(<Task finishe...dy handled!')>) at /usr/local/lib/python3.11/dist-packages/playwright/_impl/_sync_base.py:111
+handle: <Handle SyncBase._sync.<locals>.<lambda>(<Task finishe...dy handled!')>) at /usr/local/lib/python3.11/dist-packages/playwright/_impl/_sync_base.py:111>
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/asyncio/events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_sync_base.py", line 111, in <lambda>
+    task.add_done_callback(lambda _: g_self.switch())
+                                     ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 548, in _listener_with_error_handler_attached
+    potential_future = listener(params)
+                       ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_browser_context.py", line 175, in <lambda>
+    "dialog", lambda params: self._on_dialog(from_channel(params["dialog"]))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_browser_context.py", line 696, in _on_dialog
+    has_listeners = page.emit(Page.Events.Dialog, dialog) or has_listeners
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/pyee/asyncio.py", line 70, in emit
+    return super().emit(event, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/pyee/base.py", line 220, in emit
+    handled = self._call_handlers(event, args, kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/pyee/base.py", line 196, in _call_handlers
+    self._emit_run(f, args, kwargs)
+  File "/usr/local/lib/python3.11/dist-packages/pyee/asyncio.py", line 81, in _emit_run
+    self.emit("error", exc)
+  File "/usr/local/lib/python3.11/dist-packages/pyee/asyncio.py", line 70, in emit
+    return super().emit(event, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/pyee/base.py", line 223, in emit
+    self._emit_handle_potential_error(event, args[0] if args else None)
+  File "/usr/local/lib/python3.11/dist-packages/pyee/base.py", line 181, in _emit_handle_potential_error
+    raise error
+  File "/usr/local/lib/python3.11/dist-packages/pyee/asyncio.py", line 79, in _emit_run
+    coro: Any = f(*args, **kwargs)
+                ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_impl_to_api_mapping.py", line 139, in wrapper_func
+    return handler(
+           ^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/spike/ui_chaos.py", line 233, in <lambda>
+    p5.on("dialog", lambda d: (d8.append(d.message), d.accept()))
+                                                     ^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py", line 7871, in accept
+    self._sync(self._impl_obj.accept(promptText=prompt_text))
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_dialog.py", line 52, in accept
+    await self._channel.send("accept", None, locals_to_params(locals()))
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 76, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py", line 632, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: Dialog.accept: Cannot accept dialog which is already handled!
+U8 양식 없음 [Excel 출력] → 대화상자 ['채울 발주처 양식이 하나도 없습니다 — 양식(.xlsx)을 올리거나 data/ 에 두어야 Excel 을 만들 수 있습니다 (no delivera'] · 화면 그대로 True
+U9 장부 깨짐 → 첫 화면 살아 있음 True · 위생 '데이터 위생 — 확인할 항목 5건
+산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
+고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 65.1 MB 중 죽은 페이지 15.9 MB · 정리하면 되찾는 용량' · 오류 []
 
 결함 0
