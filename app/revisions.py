@@ -721,12 +721,38 @@ def tombstones(data_dir: Path, name: str) -> list:
     return sorted(out, key=lambda d: d.name, reverse=True)
 
 
+# hotfix74 — 운영 서버는 Windows 다.  그 파일 시스템에서는 장치 이름(CON · AUX · NUL · COM1 …)이 폴더가 될 수
+# 없어 프로젝트를 만들면 500 이었고, 끝의 점은 소리 없이 지워져 `QFE.` 가 `QFE` 의 폴더로 들어가며, 대소문자만
+# 다른 이름은 같은 폴더다.  **새로 만들 때만** 막는다 (이미 있는 프로젝트를 읽는 길은 그대로 — 열어 볼 수 없게
+# 되면 안 된다).  개발 PC(리눅스)에서도 같게 막아 두 곳의 동작이 갈리지 않게 한다.
+_WINDOWS_DEVICES = {"CON", "PRN", "AUX", "NUL"} | {f"COM{i}" for i in range(1, 10)} | {f"LPT{i}" for i in range(1, 10)}
+
+
+def check_new_name(name: str) -> str:
+    safe = safe_name(name)
+    if safe.endswith("."):
+        raise ProjectNameError(f"프로젝트명은 점(.)으로 끝날 수 없습니다 — Windows 가 끝의 점을 지워 다른 이름과 "
+                               f"겹칩니다: {safe!r}")
+    if safe.split(".")[0].strip().upper() in _WINDOWS_DEVICES:
+        raise ProjectNameError(f"{safe!r} 는 Windows 가 장치 이름으로 쓰는 낱말이라 프로젝트명이 될 수 없습니다 "
+                               f"— 다른 이름을 쓰세요 (예: {safe}_PJT)")
+    return safe
+
+
 @_serialized
 def create_project(data_dir: Path, name: str) -> dict:
     """Rev.A 를 여는 자리.  같은 이름이 있으면 덮어쓰지 않고 거절한다."""
+    safe = check_new_name(name)
     d = project_dir(data_dir, name)
     if (d / "project.json").exists():
-        raise FileExistsError(safe_name(name))
+        raise FileExistsError(safe)
+    root = projects_root(data_dir)
+    if root.is_dir():
+        for other in root.iterdir():
+            # 대소문자만 다른 이름 — Windows 에서는 같은 폴더다 (`qfe` 를 만들면 `QFE` 의 장부를 덮을 뻔했다)
+            if other.name != safe and other.name.casefold() == safe.casefold() \
+                    and (other / "project.json").exists():
+                raise FileExistsError(other.name)
     d.mkdir(parents=True, exist_ok=True)
     meta = {"name": safe_name(name), "revisions": []}
     _save_project(data_dir, meta)

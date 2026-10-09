@@ -1274,8 +1274,11 @@ def create_project(name: str = Form(...)):
     """Rev.A 를 여는 자리.  같은 이름이 있으면 덮어쓰지 않고 거절한다."""
     try:
         meta = revisions.create_project(DATA_DIR, name)
-    except FileExistsError:
-        raise HTTPException(409, f"'{name}' 프로젝트가 이미 있습니다. "
+    except FileExistsError as exc:
+        have = str(exc.args[0]) if exc.args else name
+        raise HTTPException(409, f"'{have}' 프로젝트가 이미 있습니다"
+                                 + (f" (대소문자만 다른 이름은 같은 프로젝트로 봅니다)" if have != name.strip() else "")
+                                 + ". "
                                  f"덮어쓰지 않습니다 - 다른 이름을 쓰거나 "
                                  f"그 프로젝트를 골라 다음 리비전으로 올리세요.")
     except ValueError as exc:

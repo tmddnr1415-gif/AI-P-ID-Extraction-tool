@@ -354,3 +354,21 @@ def test_export_zips_are_published_whole(tmp_path, monkeypatch):
     root = Path(__file__).resolve().parent.parent
     for f in ("app/markup.py", "app/main.py"):
         assert "jsonstore.publish(tmp, path)" in (root / f).read_text(encoding="utf-8")
+
+
+def test_new_project_names_are_windows_safe(tmp_path):
+    """운영 서버(Windows)에서 장치 이름은 폴더가 될 수 없고(500) · 끝의 점은 지워지고 · 대소문자만 다른 이름은 같은
+    폴더다.  새로 만들 때 사람 말로 막는다 — 개발 PC 에서도 같게."""
+    import importlib
+    rv = importlib.import_module("app.revisions")
+    rv.create_project(tmp_path, "QFE")
+    for bad in ("CON", "nul", "Com3.old", "LPT9", "QFE."):
+        with pytest.raises(ValueError) as e:
+            rv.create_project(tmp_path, bad)
+        assert any("가" <= ch <= "힣" for ch in str(e.value))
+    with pytest.raises(FileExistsError) as e:
+        rv.create_project(tmp_path, "qfe")
+    assert e.value.args[0] == "QFE"
+    rv.create_project(tmp_path, "COM10")            # 장치 이름이 아니다
+    rv.create_project(tmp_path, "AUX_PJT")
+    assert sorted(p["name"] for p in rv.list_projects(tmp_path)) == ["AUX_PJT", "COM10", "QFE"]
