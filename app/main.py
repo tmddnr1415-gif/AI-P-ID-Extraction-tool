@@ -4318,9 +4318,26 @@ def job_snapshots(job_id: str):
     return [dict(r) for r in db.list_revisions(CON, job_id)]
 
 
+# hotfix74 — 두 사람이 같은 스냅샷의 [Excel 출력] 을 같은 순간에 누르면 두 요청이 **같은 폴더의 같은 파일**에
+# 양식을 복사하고 다시 열었다 — 한쪽이 다른 쪽의 반쯤 쓴 파일을 읽어 `BadZipFile` 500 (실측 8동시 × 3회 중
+# 대부분).  스냅샷마다 줄을 세운다 (파일 쓰기 · zip 묶기까지).  다른 스냅샷끼리는 서로 기다리지 않는다.
+_EXCEL_LOCKS: dict = {}
+_EXCEL_LOCKS_GUARD = threading.Lock()
+
+
+def _excel_lock(revision_id: int) -> threading.Lock:
+    with _EXCEL_LOCKS_GUARD:
+        return _EXCEL_LOCKS.setdefault(int(revision_id), threading.Lock())
+
+
 @app.get("/revisions/{revision_id}/excel")
 def revision_excel(revision_id: int):
     """Deliverables built from a snapshot.  Never from live rows."""
+    with _excel_lock(revision_id):
+        return _revision_excel(revision_id)
+
+
+def _revision_excel(revision_id: int):
     snap = db.get_revision(CON, revision_id)
     if snap is None:
         raise HTTPException(404, "no such revision")

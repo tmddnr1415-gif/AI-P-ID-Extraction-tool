@@ -113,3 +113,15 @@ def test_enter_while_composing_hangul_does_not_reach_handlers():
     tail = js[i:i + 120]
     assert "}, true);" in tail                     # 캡처 단계 — 다른 어떤 처리기보다 먼저
     assert "preventDefault" not in js[i - 200:i + 120]   # 입력기가 글자를 확정해야 하므로 기본 동작은 막지 않는다
+
+
+def test_excel_export_is_serialised_per_snapshot():
+    """두 요청이 같은 스냅샷 폴더의 같은 파일에 양식을 복사·재열기 하다 서로의 반쯤 쓴 파일을 읽었다
+    (`spike/excel_race.py`: 잠금 전 24회 중 17~22회 500 → 잠금 뒤 0)."""
+    import importlib
+    main = importlib.import_module("app.main")
+    assert main._excel_lock(7) is main._excel_lock(7)
+    assert main._excel_lock(7) is not main._excel_lock(8)
+    src = (Path(__file__).resolve().parent.parent / "app/main.py").read_text(encoding="utf-8")
+    i = src.index("def revision_excel(revision_id: int):")
+    assert "with _excel_lock(revision_id):" in src[i:i + 300]
