@@ -44,6 +44,38 @@ BAT = ("@echo off\r\n"
        "pause\r\n")
 
 
+# hotfix60 — 운영 폴더(C:\Claude\PID)용.  서버가 돌리는 파일(app/...)만 · 하나라도 충돌이면 아무것도
+# 안 바꾼다 · 그 뒤 포트 8000 의 서버만 다시 띄운다 (python 을 이름으로 끄지 않는다 — 대시보드도 python).
+OPS_BAT = ("@echo off\r\n"
+           "rem Apply this update to the OPERATING folder C:\\Claude\\PID (the server the dashboard shows).\r\n"
+           "rem Only the files the server runs (app\\...).  If any of them was changed in that folder,\r\n"
+           "rem nothing is changed at all.  Then only the server on port 8000 is restarted.\r\n"
+           "cd /d \"%~dp0\"\r\n"
+           "set PYTHONUTF8=1\r\n"
+           "set \"TARGET=C:\\Claude\\PID\"\r\n"
+           "if not \"%~1\"==\"\" set \"TARGET=%~1\"\r\n"
+           "set \"PY=%TARGET%\\.venv\\Scripts\\python.exe\"\r\n"
+           "if not exist \"%PY%\" set \"PY=python\"\r\n"
+           "\"%PY%\" apply_delta.py \"%TARGET%\" --ops --runtime --all-or-nothing\r\n"
+           "if errorlevel 1 goto end\r\n"
+           "\"%PY%\" restart_pid_server.py 8000\r\n"
+           ":end\r\n"
+           "pause\r\n")
+ROLLBACK_BAT = ("@echo off\r\n"
+                "rem Undo this update in the OPERATING folder C:\\Claude\\PID and restart the port 8000 server.\r\n"
+                "cd /d \"%~dp0\"\r\n"
+                "set PYTHONUTF8=1\r\n"
+                "set \"TARGET=C:\\Claude\\PID\"\r\n"
+                "if not \"%~1\"==\"\" set \"TARGET=%~1\"\r\n"
+                "set \"PY=%TARGET%\\.venv\\Scripts\\python.exe\"\r\n"
+                "if not exist \"%PY%\" set \"PY=python\"\r\n"
+                "\"%PY%\" apply_delta.py \"%TARGET%\" --ops --restore\r\n"
+                "if errorlevel 1 goto end\r\n"
+                "\"%PY%\" restart_pid_server.py 8000\r\n"
+                ":end\r\n"
+                "pause\r\n")
+
+
 def git(*args, binary=False):
     out = subprocess.check_output(["git", *args], cwd=ROOT)
     return out if binary else out.decode("utf-8").strip()
@@ -67,6 +99,7 @@ def main() -> int:
     ap.add_argument("--summary", default="")
     ap.add_argument("--readme", default="")
     ap.add_argument("--base", default="")
+    ap.add_argument("--ops", action="store_true", help="운영 폴더용 단추(적용·되돌리기)와 서버 재시작 도구를 같이 싣는다")
     a = ap.parse_args()
     if git("status", "--porcelain", "--untracked-files=no"):
         print("커밋하지 않은 변경이 있습니다 — 커밋한 뒤 만드세요 (꾸러미는 HEAD 를 담는다)")
@@ -78,7 +111,7 @@ def main() -> int:
     deleted = [p for p in paths if blob("HEAD", p) is None]
     paths = [p for p in paths if p not in deleted]
     day = dt.date.today().isoformat()
-    zname = f"PID_dev_{a.name}_{day}.zip"
+    zname = f"PID_dev+ops_{a.name}_{day}.zip" if a.ops else f"PID_dev_{a.name}_{day}.zip"
 
     # 딱지 — 이 꾸러미가 적용됐다는 표시 (첫 화면 오른쪽 아래).  HEAD 에 커밋하지 않고 꾸러미에만.
     m = "".join(ch for ch in a.name if ch.isdigit())
@@ -138,6 +171,10 @@ def main() -> int:
         z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
         z.writestr("apply_delta.py", (ROOT / "spike" / "apply_delta.py").read_bytes())
         z.writestr("apply_to_PID_dev.bat", BAT.encode("ascii"))
+        if a.ops:
+            z.writestr("apply_to_PID_ops.bat", OPS_BAT.encode("ascii"))
+            z.writestr("rollback_PID_ops.bat", ROLLBACK_BAT.encode("ascii"))
+            z.writestr("restart_pid_server.py", (ROOT / "spike" / "restart_pid_server.py").read_bytes())
         z.writestr("1_먼저읽기.txt", readme.encode("utf-8"))
 
     # 검증 — 기준판 트리를 만들고 실제로 적용해 HEAD 와 같은지 센다.
@@ -157,6 +194,19 @@ def main() -> int:
         diff = [f["path"] for f in files if f["path"] != STAMP and not f.get("remove")
                 and h((tree / f["path"]).read_bytes()) != h(blob("HEAD", f["path"]))]
         diff += [f["path"] for f in files if f.get("remove") and (tree / f["path"]).exists()]
+        if a.ops:
+            # 운영 길도 같은 기준판에 실제로 걸어 본다 — 서버 파일만 · 전부 아니면 무
+            ops_tree = td / "PID"
+            tarfile.open(fileobj=io.BytesIO(tar)).extractall(ops_tree)
+            osteps, _ = apply_delta.apply(ops_tree, pkg, json.loads((pkg / "manifest.json").read_text("utf-8")),
+                                          runtime_only=True, all_or_nothing=True)
+            bad += [s["path"] for s in osteps if s.get("aborted")]
+            diff += [f["path"] for f in files if f["path"].startswith("app/") and f["path"] != STAMP
+                     and not f.get("remove") and h((ops_tree / f["path"]).read_bytes()) != h(blob("HEAD", f["path"]))]
+            diff += [f["path"] for f in files if not f["path"].startswith("app/")
+                     and (ops_tree / f["path"]).exists() and not f.get("remove")
+                     and h((ops_tree / f["path"]).read_bytes()) == h(blob("HEAD", f["path"]))
+                     and h(blob(base, f["path"])) != h(blob("HEAD", f["path"]))]   # 운영에는 서버 파일만
     print(f"{out.relative_to(ROOT)}  {out.stat().st_size:,} bytes  · 파일 {len(files)} · 기준 {base} → {head}")
     print(f"검증: 기준판에 적용 → 충돌 {len(bad)} · HEAD 와 다른 파일 {len(diff)}")
     rm = [f["path"] for f in files if f.get("remove")]

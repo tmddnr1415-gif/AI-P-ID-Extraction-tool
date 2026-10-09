@@ -3517,6 +3517,24 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
    TEST BID 를 실행으로 바꿈 → 상자·목록·메뉴 전부 `실행` · 서버 장부 `{'value': 'epc', 'author': '홍길동'}` ·
    화면 오류 0.
 
+**그 다음 — 사내 Claude 없이 PID_dev 와 운영 PID 에 직접 얹는 꾸러미 (hotfix60 꾸러미 · 엔진 0줄)**
+
+사용자: *"사내 클로드 토큰을 다 썼다 — 우선 반영하고 나중에 팔로우업.  PID_dev 만 덮으면 되나, PID 도 필요하면
+둘 다 만들어 줘."*  → **둘 다 필요하다** (대시보드는 운영 PID 의 8000 을 띄운다).  `spike/pack_delta.py --ops` 가
+`PID_dev+ops_<이름>_<날짜>.zip` 을 만든다 — `apply_to_PID_dev.bat` 그대로 + `apply_to_PID_ops.bat` ·
+`rollback_PID_ops.bat` · `restart_pid_server.py`.
+
+1. **운영 적용은 서버 파일만 · 전부 아니면 무** (`apply_delta --ops --runtime --all-or-nothing`): `app/…` 만 얹고
+   (시험·문서·spike 는 PID_dev 에만), 운영에서 따로 고친 파일이 하나라도 있으면 **한 파일도 안 바꾸고** 멈춘다
+   (새 app.js + 옛 index.html 같은 반쪽 서버를 막는다 · 종료 코드 3).  `PID_Extract.exe` 가 있는 폴더는 소스
+   업데이트가 반영되지 않으므로 멈춘다 (4).  만든 파일 목록을 백업에 적어 `--restore` 가 되돌린다.
+2. **재시작은 포트 8000 을 LISTEN 하는 PID 하나만** (`restart_pid_server.py` — `netstat -ano` 의 상대 주소 0 줄 ·
+   상태 낱말은 언어마다 달라 안 본다 · `taskkill /PID … /T /F`).  python 을 이름으로 끄지 않는다(대시보드도
+   python).  분석 중이면 묻고, `run_lan_service.bat` 의 반복이 10초 뒤 새 코드로 띄우면 `/version` 의 업데이트
+   딱지를 보여 준다.  ⚠ Windows 에서는 못 돌렸다 — 판정 함수(`listening_pids`)만 시험한다.
+3. 꾸러미를 만들 때 **두 길 다 기준판 트리에 실제로 걸어** 본다 (PID_dev: HEAD 와 같음 · 운영: 서버 파일만
+   HEAD 와 같고 그 밖은 기준판 그대로).  시험 `tests/test_hotfix56_delta.py` +5.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

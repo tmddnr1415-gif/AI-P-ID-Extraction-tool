@@ -117,3 +117,65 @@ def test_removes_a_file_we_delivered_but_keeps_an_edited_one(tmp_path):
     assert (backup / "tests" / "old.py").read_bytes() == b"delivered by hotfix57"
     assert act["tests/mine.py"] == "kept" and (target / "tests" / "mine.py").exists()
     assert act["tests/never.py"] == "same"
+
+
+def test_ops_takes_only_server_files_and_all_or_nothing(tmp_path):
+    """hotfix60 — 운영 폴더에는 서버가 돌리는 파일(app/…)만 · 하나라도 충돌이면 아무것도 안 바꾼다."""
+    target, pkg, man = _setup(tmp_path)
+    man["files"].append({"path": "tests/test_x.py", "base_sha256": None, "new_sha256": _h(b"t")})
+    (pkg / "files" / "tests").mkdir(parents=True, exist_ok=True)
+    (pkg / "files" / "tests" / "test_x.py").write_bytes(b"t")
+    before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+    steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert all(s.get("aborted") for s in steps) and backup is None          # lan_check.py 가 회사판 → 멈춤
+    assert {p: p.read_bytes() for p in target.rglob("*") if p.is_file()} == before
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")              # 회사판이 아니면
+    steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert {s["path"] for s in steps} == {p for p in (f["path"] for f in man["files"]) if p.startswith("app/")}
+    assert not (target / "tests").exists()                                  # 시험 파일은 운영에 안 간다
+    assert (target / "app" / "main.py").read_bytes() == b"new main"
+
+
+def test_restore_puts_back_replaced_and_removes_created(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert (target / "app" / "analysis_proc.py").exists()
+    b, back, gone = apply_delta.restore(target, man["name"])
+    assert b is not None and gone == 1 and not (target / "app" / "analysis_proc.py").exists()
+    assert (target / "app" / "main.py").read_bytes() == b"base main"
+    assert (target / "app" / "lan_check.py").read_bytes() == b"base lan"
+
+
+def test_ops_refuses_an_exe_install(tmp_path, monkeypatch, capsys):
+    ops = tmp_path / "PID"
+    (ops / "app").mkdir(parents=True)
+    (ops / "app" / "main.py").write_text("x")
+    (ops / "PID_Extract.exe").write_bytes(b"MZ")
+    monkeypatch.setattr(apply_delta, "HERE", tmp_path)
+    (tmp_path / "manifest.json").write_text(json.dumps({"name": "h", "files": []}))
+    assert apply_delta.main([str(ops), "--ops", "--runtime", "--all-or-nothing"]) == 4
+
+
+def test_restart_finds_only_the_listener_on_the_port():
+    import restart_pid_server as r
+    text = """
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:8000           0.0.0.0:0              LISTENING       4120
+  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       5000
+  TCP    127.0.0.1:8000         127.0.0.1:53111        ESTABLISHED     4120
+  TCP    127.0.0.1:53111        127.0.0.1:8000         ESTABLISHED     7777
+  TCP    [::]:8000              [::]:0                 수신 대기       4120
+  TCP    0.0.0.0:18000          0.0.0.0:0              LISTENING       9999
+"""
+    assert r.listening_pids(8000, text) == [4120]          # 대시보드(8080) · 손님(7777) · 18000 은 아니다
+    src = (ROOT / "spike" / "restart_pid_server.py").read_text(encoding="utf-8")
+    assert "taskkill" in src and "/IM" not in src and "python.exe" not in src  # 이름으로 끄지 않는다
+
+
+def test_ops_bats_stay_ascii():
+    import pack_delta
+    for t in (pack_delta.OPS_BAT, pack_delta.ROLLBACK_BAT):
+        t.encode("ascii")
+        assert "\r\n" in t and "chcp" not in t
+    assert "--all-or-nothing" in pack_delta.OPS_BAT and "--runtime" in pack_delta.OPS_BAT
