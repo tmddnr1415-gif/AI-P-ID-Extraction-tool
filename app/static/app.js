@@ -7749,9 +7749,10 @@ async function refreshRows(selectKey, opts = {}) {
   // 이동 및 표기해라"*).  `select(key, true)` 는 도면 쪽만 가운데로 옮기고
   // 목록은 그대로 두므로, 추가한 행이 1,000행 어딘가에 묻힌다.
   select(selectKey, !opts.toGrid);
-  if (!opts.toGrid) return;
+  // hotfix70 — 목록은 보이는 행만 그리므로(hotfix69) 새 행이 화면 밖이면 그려지지도 않는다.  추가·복사한 행은
+  // 언제나 목록에 세운다 (예전에는 모든 행이 그려져 있어 따로 할 일이 없었다 — UI 시험 step5 가 잡았다).
   const tr = revealRow(selectKey);
-  if (!tr) return;
+  if (!opts.toGrid || !tr) return;
   tr.scrollIntoView({ block: "center" });
   tr.classList.add("justadded");          // 잠깐 밝게 — 어디에 생겼는지 보인다
   setTimeout(() => tr.classList.remove("justadded"), 2000);

@@ -212,6 +212,8 @@ def _cell(page, key, col):
         "col => [...document.querySelectorAll('#head th')]"
         ".findIndex(t => t.dataset.col === col)", col)
     assert idx >= 0, f"no column '{col}' in the grid header"
+    # hotfix69 — 목록은 보이는 행만 그린다.  화면 밖 행은 사람이 굴리듯 그 자리로 굴려 그린다 (`revealRow`).
+    page.evaluate("k => revealRow(k)", key)
     return page.locator(f'#body tr[data-key="{key}"] td').nth(idx)
 
 
@@ -394,6 +396,10 @@ _ADD_STATE = """() => ({
 # waits for the rows rather than for a stopwatch.  A fixed 500ms read the *previous*
 # render often enough to look like '＋행' does nothing - the server had the row and
 # the grid did not have it yet.
+# hotfix69 — 목록은 보이는 행만 그린다(`paintWindow`).  그래서 "목록에 몇 행이 있나" 는 `<tr>` 수가 아니라
+# 목록이 세운 행(`S.vlist`)의 수다 — `<tr>` 은 화면 창 몇십 줄 + 빈 칸 줄 + 숨은 측정 줄이다.
+_GRID_ROWS = "() => (S.vlist || []).length"
+
 _ADDED_KEYS = ("() => [...document.querySelectorAll('#body tr')]"
                ".filter(tr => tr.dataset.added === '1').map(tr => tr.dataset.key)")
 
@@ -789,11 +795,11 @@ def test_step9_a_reason_filters_the_grid_and_survives_a_reload(page, server, job
     chips = page.eval_on_selector_all(".chip", "els => els.map(e => e.textContent)")
     assert any("축" in c for c in chips) and any("사유" in c for c in chips)
     assert "axis=" in page.evaluate("location.hash")
-    before = page.eval_on_selector_all("#body tr", "e => e.length")
+    before = page.evaluate(_GRID_ROWS)
     page.goto(page.evaluate("location.href"))
     page.wait_for_selector("#chips .chip", timeout=120_000)
     page.wait_for_timeout(1500)
-    assert page.eval_on_selector_all("#body tr", "e => e.length") == before
+    assert page.evaluate(_GRID_ROWS) == before
 
 
 @pytest.mark.ui
@@ -1167,13 +1173,13 @@ def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
     page.keyboard.press("Escape")
 
     choose("type", ["PIT"])
-    shown = page.eval_on_selector_all("#body tr", "e => e.length")
+    shown = page.evaluate(_GRID_ROWS)
     assert shown == page.evaluate("() => S.rows.filter(r => r.values.type === 'PIT').length")
     assert page.locator("th.filtered").count() == 1, "the filtered header is not marked"
     assert page.locator("#count").inner_text() == f"표시 {shown} / 전체 {total}"
 
     choose("page_no", ["6"])
-    n_and = page.eval_on_selector_all("#body tr", "e => e.length")
+    n_and = page.evaluate(_GRID_ROWS)
     assert n_and == page.evaluate(
         "() => S.rows.filter(r => r.values.type === 'PIT' && r.page_no === 6).length")
 
@@ -1181,7 +1187,7 @@ def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
     page.evaluate("""() => { S.tab = 'FIELD'; S.gradeFilter = 'PARTIAL';
                              S.filter = 'HP STEAM'; syncUrl(); buildTabs(); renderGrid(); }""")
     page.wait_for_timeout(400)
-    n_all = page.eval_on_selector_all("#body tr", "e => e.length")
+    n_all = page.evaluate(_GRID_ROWS)
     assert n_all == page.evaluate("""() => S.rows.filter(r => r.tab === 'FIELD'
       && r.values.type === 'PIT' && r.page_no === 6
       && r.values.description_grade === 'PARTIAL'
@@ -1197,7 +1203,7 @@ def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
     page.goto(f"{server}/{url}")
     page.wait_for_selector("#body tr", timeout=120_000)
     page.wait_for_timeout(2000)
-    assert page.eval_on_selector_all("#body tr", "e => e.length") == n_all
+    assert page.evaluate(_GRID_ROWS) == n_all
     assert page.evaluate("() => S.colFilters.type") == ["PIT"]
 
     # the blank choice survives the round trip - it is most of Vendor
@@ -1205,7 +1211,7 @@ def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
     page.wait_for_selector("#body tr")
     page.wait_for_timeout(1500)
     choose("vendor_supply", [blank])
-    blank_rows = page.eval_on_selector_all("#body tr", "e => e.length")
+    blank_rows = page.evaluate(_GRID_ROWS)
     assert blank_rows == page.evaluate(
         "() => S.rows.filter(r => !(r.values.vendor_supply || '')).length")
     page.goto(f"{server}/{page.evaluate('() => location.hash')}")
@@ -1220,7 +1226,7 @@ def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
     assert page.evaluate("() => Object.keys(S.colFilters).length") == 0
     assert page.locator(".chip").count() == 0
     assert page.locator("th.filtered").count() == 0
-    assert page.eval_on_selector_all("#body tr", "e => e.length") == total
+    assert page.evaluate(_GRID_ROWS) == total
 
 
 def test_step18_the_search_box_looks_in_the_columns_it_names(page, server, job_id):
@@ -1242,7 +1248,7 @@ def test_step18_the_search_box_looks_in_the_columns_it_names(page, server, job_i
     assert dwg
     page.fill("#filter", dwg)
     page.wait_for_timeout(500)
-    hits = page.eval_on_selector_all("#body tr", "e => e.length")
+    hits = page.evaluate(_GRID_ROWS)
     assert hits > 0, f"searching the drawing number {dwg} still finds nothing"
     assert hits == page.evaluate(
         "d => S.rows.filter(r => cellValue(r, 'pid_no') === d).length", dwg)
@@ -1250,7 +1256,7 @@ def test_step18_the_search_box_looks_in_the_columns_it_names(page, server, job_i
     for name in ("type", "qty", "description_grade"):
         page.fill("#filter", name)
         page.wait_for_timeout(400)
-        assert page.eval_on_selector_all("#body tr", "e => e.length") < total, \
+        assert page.evaluate(_GRID_ROWS) < total, \
             f"the column name {name!r} still matches every row"
     page.fill("#filter", "")
 
@@ -1353,7 +1359,7 @@ def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(pa
         page.click("#markup-toggle")
     errors0 = len(page.errors)
     before = _legend_counts(page)
-    rows_before = page.evaluate("() => document.querySelectorAll('#body tr').length")
+    rows_before = page.evaluate(_GRID_ROWS)
     box = page.locator("#ov rect.det:not(.manual):not(.excluded)").first
     key = box.get_attribute("data-key")
     # 앞 단계가 새 행으로 확대해 두어 첫 상자가 화면 밖일 수 있다 — `force` 는
@@ -1372,7 +1378,7 @@ def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(pa
         arg=before.get("REJECT", 0) + 1, timeout=30000)
     after = _legend_counts(page)
     assert after.get("REJECT") == before.get("REJECT", 0) + 1, (before, after)
-    assert page.evaluate("() => document.querySelectorAll('#body tr').length") == rows_before, "행이 지워지면 안 된다"
+    assert page.evaluate(_GRID_ROWS) == rows_before, "행이 지워지면 안 된다"
     row = json.loads(urllib.request.urlopen(f"{server}/jobs/{job_id}/rows").read())
     r = next(x for x in row if x["key"] == key)
     assert r["reject"]["class"] == "FALSE_POSITIVE" and r["removed"] is False
