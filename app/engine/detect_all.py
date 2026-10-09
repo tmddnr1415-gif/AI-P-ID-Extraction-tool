@@ -98,12 +98,11 @@ _INK = ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
 def _highlights(pc) -> list:
     """Rectangles filled with something that is neither ink nor paper."""
     out = []
-    m = pc.page.rotation_matrix
-    for dr in pc.page.get_drawings():
+    for dr in pc.drawings():                      # hotfix70 — 장 캐시 (`bbox` = `Rect(rect) * 회전`)
         fill = dr.get("fill")
         if fill is None or tuple(round(v, 2) for v in fill) in _INK:
             continue
-        out.append(pymupdf.Rect(dr["rect"]) * m)
+        out.append(pymupdf.Rect(dr["bbox"]))
     return out
 
 

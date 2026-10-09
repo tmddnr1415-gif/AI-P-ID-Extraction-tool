@@ -658,10 +658,11 @@ def _markup_script(pages, drawing_area) -> dict:
     """
     ranges = {"HANGUL": re.compile("[가-힣]"), "LOWER": re.compile("[a-z]")}
     out = {}
+    # hotfix70 — 칠한 상자는 장마다 한 번만 (글자 갈래마다 다시 읽지 않는다)
+    boxes_of = [_highlights(pc) for pc in pages]
     for name, rx in ranges.items():
         inside = outside = 0
-        for pc in pages:
-            boxes = _highlights(pc)
+        for pc, boxes in zip(pages, boxes_of):
             for r, t in pc.words:
                 if not rx.search(t) or not (drawing_area[0] <= r.x0 <= drawing_area[2]):
                     continue
@@ -679,14 +680,15 @@ _INK = ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
 
 def _highlights(pc) -> list:
     """Rectangles filled with neither the drawing's ink nor its paper."""
+    # hotfix70 — 장 캐시의 그림을 쓴다 (`bbox` 는 `Rect(rect) * 회전` 과 같은 값).  예전에는 PDF 를
+    # 글자 갈래마다 다시 읽어(`get_drawings`) TC2 에서 이 함수 하나가 분석의 1할을 썼다.
     import pymupdf
     out = []
-    m = pc.page.rotation_matrix
-    for dr in pc.page.get_drawings():
+    for dr in pc.drawings():
         fill = dr.get("fill")
         if fill is None or tuple(round(v, 2) for v in fill) in _INK:
             continue
-        out.append(pymupdf.Rect(dr["rect"]) * m)
+        out.append(pymupdf.Rect(dr["bbox"]))
     return out
 
 

@@ -32,6 +32,7 @@ import collections
 import math
 from dataclasses import dataclass, field
 
+import numpy as np
 import pymupdf
 
 
@@ -130,6 +131,7 @@ def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
     words = [(pymupdf.Rect(r), t) for r, t in pc.words]
     out = []
     segs = pc.segments()
+    box = None                                    # hotfix70 — 선분 상자 (처음 쓸 때 한 번)
     for d in pc.drawings():
         items = d["items"]
         if len(items) == 4 and all(i[0] == "c" for i in items):
@@ -156,16 +158,29 @@ def circle_marks(pc, area: pymupdf.Rect, ceiling: float) -> list[Mark]:
         #   닿는다 = 한 끝이 원 안에 있다(리더) **또는** 원 가운데를 지나간다(원을 선 위에 그린 문서).
         pad = pymupdf.Rect(cb.x0 - 0.5, cb.y0 - 0.5, cb.x1 + 0.5, cb.y1 + 0.5)
         centre, rad = pymupdf.Point((cb.x0 + cb.x1) / 2, (cb.y0 + cb.y1) / 2), cb.width / 2
+        # hotfix70 — 닿을 수 있는 선분만 훑는다.  닿는다 = 한 끝이 pad 안이거나 중심에서 rad 안을 지난다
+        # — 둘 다 그 선분의 상자가 중심 둘레 정사각형(반 변 = rad 와 pad 반 변 중 큰 것 + 1pt)과 겹쳐야
+        # 일어난다.  그 밖의 선분은 판정이 언제나 거짓이라 빼도 답이 같다 (예전엔 장의 선분 15만 개를
+        # 후보마다 다 훑어 TC2 에서 이 함수가 분석의 1할 가까이를 썼다).
+        if box is None:
+            xy = np.array([(a.x, a.y, b.x, b.y) for a, b in segs], dtype=float).reshape(-1, 4)
+            box = (np.minimum(xy[:, 0], xy[:, 2]), np.maximum(xy[:, 0], xy[:, 2]),
+                   np.minimum(xy[:, 1], xy[:, 3]), np.maximum(xy[:, 1], xy[:, 3]))
+        half = max(rad, pad.width / 2, pad.height / 2) + 1.0
+        lox, hix, loy, hiy = box
+        near = np.nonzero((hix >= centre.x - half) & (lox <= centre.x + half)
+                          & (hiy >= centre.y - half) & (loy <= centre.y + half))[0]
+        cand = [segs[i] for i in near.tolist()]
         if shape == "circle":
             touched = any(pad.contains(a) != pad.contains(b) or _dist(centre, a, b) < rad
-                          for a, b in segs)
+                          for a, b in cand)
         else:
             # 네모는 제 테두리가 선분이다 — 두 끝이 다 테두리 안인 선분(자기 변·글자 획)은 닿는
             # 선이 아니다.  닿는다 = 한 끝만 안(리더) **또는** 두 끝이 다 밖인데 가운데를 지난다.
             touched = any(pad.contains(a) != pad.contains(b)
                           or (not pad.contains(a) and not pad.contains(b)
                               and _dist(centre, a, b) < rad)
-                          for a, b in segs)
+                          for a, b in cand)
         kind = "line" if touched else "free"
         out.append(Mark(inside[0][1], pymupdf.Rect(cb), cb.width, kind, shape))
     return out

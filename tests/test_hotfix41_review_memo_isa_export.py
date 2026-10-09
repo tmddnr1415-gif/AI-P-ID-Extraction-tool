@@ -71,7 +71,7 @@ def test_memo_rule_is_by_author_not_by_annotation_kind():
     # 사각형 안 낱말을 빼는 방식은 없다 — 상자 밑의 도면 글자를 삼킨다 (AL NOUF1 1137 → 1102 의 원인)
     assert "_without_memo_words" not in src and "_memo_rects" not in src
     lp = src[src.index("def load_pages"):]
-    assert lp.index("_hide_memos(page)") < lp.index("words = [(pymupdf.Rect(w[:4]) * m, w[4])")
+    assert lp.index("_hide_memos(page)") < lp.index("words = [(R.rect(w[:4]), w[4])")
 
 
 def _row(key, page, state, **v):

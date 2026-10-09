@@ -3759,6 +3759,43 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
    시험 첫 판은 나란히 보기가 저절로 켜져 목록이 숨어 **아무것도 굴리지 않고** 매끄럽다고 나왔다.  둘 다 자를 고쳐 다시 쟀다.
 9. ⚠ 헤드리스 브라우저는 GPU 가 없어 큰 그림을 그리는 일(확대 · 부드러운 스크롤)이 실제 PC 보다 무겁게 나온다 — 표의 값은 하한이 아니라 상한 쪽이다.
 
+10. **UI 스위트가 잡은 것 (hotfix70 회차에 마무리)** — 목록이 보이는 행만 그리게 되자 **더하거나 복사한 행이 화면
+    밖이면 그려지지 않았다** (`refreshRows` 가 `select(key, true)` 로 도면만 옮겼다) → 언제나 `revealRow`.  시험 셋은
+    `<tr>` 수를 행 수로 셌다 → 목록이 세운 행(`S.vlist`) 수로 · 칸을 읽기 전에 그 행으로 굴린다.  UI 26 중 실패 9 —
+    **옛 코드(hotfix68)와 같은 목록** (step3 · step6 다섯 · step16 · step17 · step12).
+
+**그 다음 — 분석을 빠르게, 답은 그대로 (hotfix70 · 판정 0줄)**
+
+사용자: *"분석에 시간이 많이 걸리는데, 더 라이트하게 빠르게 분석하도록 코드를 수정할 수 있나."*  자
+`spike/analysis_profile.py` (단계별 시간 + 함수별 cProfile) · 결과 `out/hotfix70/tc2_prof`(전) · `tc2_prof_v1`(후) ·
+`tc2_stages`·`tc2_stages_v1`(cProfile 없이).  시험 `tests/test_hotfix70_fast_analysis.py` 8건 (빠른 시험 **918**).
+
+| 프로젝트 | 전 | 후 | 지문 · 행 · Q'ty · 축3 | 최대 메모리 |
+| --- | --- | --- | --- | --- |
+| AL NOUF1 (58장) | 830초 | **457초 (−45%)** | `46d551fd` · 1133 · 2136 · 95.1 **불변** | 4.96 → 4.87G |
+| TC2 (60장 · 전부 270°) | 632초 | **331초 (−48%)** | `23e78e27` · 902 · 5564 · 94.2 **불변** | 7.47 → 7.43G |
+| QFE (93장) | 984초 | **603초 (−39%)** | `8b2975ee` · 2068 · 3757 · 91.1 **불변** | 6.36 → 6.2G |
+| UAD-DXF | — | 67초 | `a32c02a6` · 507 **불변** | 0.5G |
+
+1. **★ 시간은 판정이 아니라 같은 값을 비싸게 다시 만드는 데 갔다** (TC2 프로파일).  `Point * 회전` 2천만 번 ·
+   `Point(...)` 생성 5,200만 번 · PDF 를 다시 읽는 `get_drawings` 120번 · 잉크 검사 2,800만 번 · 후보마다 장의 선분 15만 개 훑기.
+2. **회전 곱은 `pidcache.Rot`** — 페이지 회전 행렬은 성분이 0·±1 이라 MuPDF 의 float 계산을 double 로 한 뒤 float 로
+   **한 번** 반올림하면 비트까지 같다.  한 장의 선분은 numpy 로 한 번에(`Rot.segs`), 객체는 범용 생성자를 건너뛰어 만든다.
+   **세 문서 전 장을 맞대 0 차이** (`spike/rot_exact_check.py` — 점 3,900만 · 사각형 500만 · 타입·속성·repr 까지).
+   import 때 PyMuPDF 와 맞대 보고(`_ROT_OK`) 다르면 예전 길로 간다 — 판본이 바뀌어도 값은 안 바뀐다.  0·±1 이 아닌 행렬도 예전 길.
+3. **칠한 상자(`_highlights`)는 장 캐시의 그림에서** — `derive_layout._markup_script` 가 글자 갈래(한글·소문자)마다 PDF 를
+   다시 읽어(`get_drawings`) 이 함수 하나가 분석의 1할이었다.  캐시의 `bbox` 는 `Rect(rect) * 회전` 과 같은 값이다.
+4. **잉크 인덱스는 선분을 끝점 칸에만 넣는다** (`detect_symbols._index_put`) — 읽는 쪽(`_touches`)은 끝점 거리만 재고,
+   끝점이 `tol` 안이면 그 칸은 반드시 훑는 반경 안이다.  예전엔 긴 배관 하나가 칸 수백 개를 채웠다.
+5. **Typical 표식의 "선이 닿는가" 는 닿을 수 있는 선분만** (`typical.circle_marks`) — 중심 둘레 정사각형(반 변 = rad 와
+   pad 반 변 중 큰 것 + 1pt)과 상자가 겹치는 선분.  그 밖은 판정이 언제나 거짓이다 (시험이 무작위 4백 원으로 맞댄다).
+6. **잉크 획 걸러내기는 장마다 한 번** (`detect_symbols._ink_strokes`) — 마크·별표 찾기가 장마다 수십 번 같은 검사를 했다.
+7. ⚠ **해 보고 버린 것** — `get_drawings` 를 `get_cdrawings` 위에 다시 짓기는 13%(51→44초) 뿐이라 코드를 늘릴 값이 없었다
+   (그 시간의 대부분이 C 안이다).  **장을 여러 코어로 나누기는 하지 않았다** — TC2 가 이미 7.4GB 라 일꾼 넷이면 8GB PC 에서
+   못 돈다.  남은 큰 몫은 `get_drawings` 의 C 부분 · `instruments` 의 기하 판정이다.
+8. ⚠ 전 · 후 시간은 같은 기계에서 쟀지만 "후" 의 TC2 · AL NOUF1 은 다른 검사가 한 코어를 쓰는 동안 돌았다 — 실제는 조금 더 빠르다.
+
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4231,6 +4268,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `VROW`·`paintWindow`·`revealRow`·`_measureRowHtml`·`S.vlist` · `swapSheet`·`prefetchNeighbours` · `ensureFull` · `listHidden`(ResizeObserver) | **hotfix69** — 보이는 행만 · 그림은 풀어서 건다 · 이웃 장 미리 · 고른 행만 온전히 · 폭은 관찰 |
 | `app/page_warm.py` (`start`·`order`·`render_now`·`call`·`prime`·`stop`) · `main._warm_pages` · `db._ROWS_MEMO_LOCK` · `main.SLIM_DROP` | **hotfix69** — 장 그림 미리 그리기 · 서버 밖 일꾼 · 메모 동시 파싱 잠금 · slim 목록 |
 | `spike/perf_sim.py` | **hotfix69** — 사용자가 하는 일을 되풀이해 잰다 (전/후 같은 자 · 캐시 비우고 3회) |
+| `pidcache.Rot` (`pt`·`rect`·`segs`·`_ROT_OK`) · `detect_symbols._ink_strokes`·`_index_put`(끝점 칸) · `typical.circle_marks` 사전 거르기 · `_highlights`(장 캐시) | **hotfix70** — 분석 속도.  전부 **같은 답** 변환 — 바꾸면 `spike/rot_exact_check.py` 와 `tests/test_hotfix70_fast_analysis.py` · 4문서 회귀로 확인 |
+| `spike/analysis_profile.py` · `spike/rot_exact_check.py` | **hotfix70** — 단계별·함수별 시간 · 회전 변환이 PyMuPDF 와 비트까지 같은지 전 장 대조 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

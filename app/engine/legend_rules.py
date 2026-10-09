@@ -203,10 +203,11 @@ def _straight_items(d, stroke_only: bool = False, m=None):
     if stroke_only and (d.get("fill") is not None or len(d["items"]) != 1):
         return []
     out = []
+    R = pidcache.Rot(m) if m is not None else None
     for it in d["items"]:
         if it[0] == "l":
-            if m is not None:
-                a, b = pymupdf.Point(it[1]) * m, pymupdf.Point(it[2]) * m
+            if R is not None:
+                a, b = R.pt(it[1]), R.pt(it[2])
                 out.append(((a.x, a.y), (b.x, b.y)))
             else:
                 out.append((it[1], it[2]))

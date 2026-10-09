@@ -79,6 +79,7 @@ except ImportError:  # pragma: no cover
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import projectconfig  # noqa: E402
+import pidcache  # noqa: E402
 from pidcache import load_pages  # noqa: E402
 
 CFG = projectconfig.load()
@@ -462,7 +463,7 @@ def _dash_pieces(pc, max_len: float) -> list:
     """짧고 열린 직선 폴리라인 — 파선 한 토막.  전부 `l` 이고 닫히지 않았고 bbox 가
     `max_len` 을 넘지 않는 path.  (끝점 a, 끝점 b, bbox) — 끝점은 float 튜플."""
     out = []
-    m = pc.page.rotation_matrix          # 낱말과 같은 표시 좌표로 (회전 장 — UAD·TC2·SADARA 는 270°)
+    R = pidcache.Rot(pc.page.rotation_matrix)    # 낱말과 같은 표시 좌표로 (회전 장 — UAD·TC2·SADARA 는 270°)
     for d in pc.drawings():
         its = d["items"]
         if not its or d.get("closePath") or any(i[0] != "l" for i in its):
@@ -470,7 +471,7 @@ def _dash_pieces(pc, max_len: float) -> list:
         r = pymupdf.Rect(d["bbox"])      # `bbox` 가 표시 좌표, `rect` 는 회전 전
         if max(r.width, r.height) > max_len or (r.width < 0.01 and r.height < 0.01):
             continue
-        a, b = pymupdf.Point(its[0][1]) * m, pymupdf.Point(its[-1][2]) * m
+        a, b = R.pt(its[0][1]), R.pt(its[-1][2])
         ax, ay, bx, by = float(a.x), float(a.y), float(b.x), float(b.y)
         if ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5 < 0.3:
             continue
@@ -727,6 +728,18 @@ def _is_stroke_glyph(d) -> bool:
     return all(it[0] == "l" for it in d["items"])
 
 
+def _ink_strokes(pc) -> list:
+    """그 장의 그림 중 `_is_ink` 이고 `_is_stroke_glyph` 인 것 — `pc.drawings()` 순서 그대로.
+
+    hotfix70 — 마크·별표를 찾는 함수들이 장마다 수십 번 그 장의 그림 전부(15만 개)를 훑으며 이 두
+    검사를 다시 했다 (TC2 프로파일 2,800만 번).  답은 그림에만 달렸으므로 한 번 걸러 장에 둔다."""
+    got = getattr(pc, "_ink_strokes", None)
+    if got is None:
+        got = [d for d in pc.drawings() if _is_ink(d) and _is_stroke_glyph(d)]
+        pc._ink_strokes = got
+    return got
+
+
 def in_mark_window(rect, x, y, lay: Layout = LAYOUT) -> bool:
     """마크 중심 `(x, y)` 가 이 사각형의 **마크 자리**에 있는가.
 
@@ -800,7 +813,7 @@ def _glyph_clusters(pc, lay: Layout = LAYOUT, with_dirs: bool = False):
     # 납작한 획(별표의 가로·세로 획은 높이 0)을 떨어뜨리므로, 살아남은 대각선
     # 둘만으로 세면 AL NOUF1 p26 의 진짜 별표(8획 · 4방향)가 2방향이 된다.
     strokes = []
-    for d in pc.drawings():
+    for d in _ink_strokes(pc):
         # 16회차 — **도면이 자기 표시에 쓰는 색은 잉크와 종이 둘뿐이다.**
         # `detect_all._INK` 이 이미 쓰고 있는 개념 그대로다: 그 밖의 색으로
         # 칠해진 것은 도면의 표시가 아니라 위에 덧그린 것이다.  개정 클라우드와
@@ -1160,11 +1173,9 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     """
     if not maxlen or maxlen <= 0:
         return []
-    m = pc.page.rotation_matrix
+    R = pidcache.Rot(pc.page.rotation_matrix)
     segs = []
-    for d in pc.drawings():
-        if not _is_ink(d) or not _is_stroke_glyph(d):
-            continue
+    for d in _ink_strokes(pc):
         b = d["bbox"]
         if max(b.width, b.height) > maxlen:
             continue
@@ -1173,7 +1184,7 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
         for it in d["items"]:
             if it[0] != "l":
                 continue
-            a, c = it[1] * m, it[2] * m
+            a, c = R.pt(it[1]), R.pt(it[2])
             ln = math.hypot(c.x - a.x, c.y - a.y)
             if ln <= 0 or ln > maxlen:
                 continue
@@ -1200,7 +1211,7 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     # RSS 7.85 → 9.4GB).  격자는 이웃을 좁히는 자리일 뿐이고 거리 판정은 정확하므로,
     # 칸이 허용치보다 작으면 `_touches` 가 그만큼 **더 넓게 훑으면 된다** — 결과는
     # 같고 만드는 횟수만 준다.
-    icell, touch = _ink_cache(pc, m, cell)
+    icell, touch = _ink_cache(pc, R.m, cell)
     # ★ 54회차 — **두 번 훑는다.**  먼저 무리를 다 모으고, 그 다음에 끝점을 본다.
     #
     # 9차 피드백 [C]: TC2 p12 는 `**` 를 별표 **둘을 나란히** 찍어 그린다.  실측
@@ -1295,17 +1306,18 @@ def _ink_index(pc, m, cell):
     """그 장의 모든 그림 항목을 선분으로 펴서 격자에 담는다 (칠한 것도 포함 —
     별표는 칠한 나비에도 안 닿는다).  곡선은 시작·끝을 잇는 현으로 본다."""
     grid = collections.defaultdict(list)
+    R = pidcache.Rot(m)
     for d in pc.drawings():
         for it in d["items"]:
             if it[0] == "l":
-                a, b = it[1] * m, it[2] * m
+                a, b = R.pt(it[1]), R.pt(it[2])
             elif it[0] == "c":
-                a, b = it[1] * m, it[4] * m
+                a, b = R.pt(it[1]), R.pt(it[4])
             elif it[0] == "qu":
                 q = it[1]
-                a, b = q.ul * m, q.lr * m
+                a, b = R.pt(q.ul), R.pt(q.lr)
             elif it[0] == "re":
-                r = it[1] * m
+                r = R.rect(it[1])
                 for a, b in ((r.tl, r.tr), (r.tr, r.br), (r.br, r.bl), (r.bl, r.tl)):
                     _index_put(grid, a, b, cell)
                 continue
@@ -1316,10 +1328,15 @@ def _ink_index(pc, m, cell):
 
 
 def _index_put(grid, a, b, cell):
+    # hotfix70 — **끝점이 든 칸에만** 넣는다.  읽는 쪽(`_touches`)은 끝점까지의 거리만 재고, 끝점이
+    # `tol` 안이면 그 끝점의 칸은 반드시 훑는 반경(`rings`) 안이다 — 그래서 답이 같다.  예전에는 선분이
+    # 지나는 칸 전부에 넣어 긴 배관 하나가 칸 수백 개를 채웠다 (TC2 프로파일 309만 번 · 메모리도 그만큼).
     key = (round(a.x, 2), round(a.y, 2), round(b.x, 2), round(b.y, 2))
-    for gx in range(int(min(a.x, b.x) // cell), int(max(a.x, b.x) // cell) + 1):
-        for gy in range(int(min(a.y, b.y) // cell), int(max(a.y, b.y) // cell) + 1):
-            grid[(gx, gy)].append((a, b, key))
+    ca = (int(a.x // cell), int(a.y // cell))
+    cb = (int(b.x // cell), int(b.y // cell))
+    grid[ca].append((a, b, key))
+    if cb != ca:
+        grid[cb].append((a, b, key))
 
 
 def _touches(grid, p, tol, own, cell):

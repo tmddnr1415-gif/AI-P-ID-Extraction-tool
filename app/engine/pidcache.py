@@ -63,6 +63,142 @@ def rename_projects(pages, region, min_height) -> None:
 _IDENTITY = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
 
+# hotfix70 — 회전 행렬 곱을 PyMuPDF 를 거치지 않고 같은 값으로.
+#
+# `Point * m` · `Rect * m` 은 한 번에 Point/Matrix 래퍼를 서넛 만들고 swig 를 두 번 건넌다.  TC2(60장 ·
+# 전부 /Rotate 270) 프로파일에서 이 곱이 2천만 번 · 분석의 4분의 1을 썼다 (out/hotfix70/tc2_prof).
+# 페이지 회전 행렬은 성분이 0 · ±1 뿐이라 MuPDF 가 float 로 하는 계산(`fz_transform_point` ·
+# `fz_transform_rect`)을 double 로 한 뒤 float 로 한 번 반올림하면 **비트까지 같다** — 0·±1 곱은 정확하고
+# 남는 덧셈 한 번은 double 에서 정확하므로 반올림이 한 번뿐이다.  그 밖의 행렬이면 예전 길(`p * m`)로 간다.
+# 같은지는 import 때 PyMuPDF 와 맞대 보고(`_ROT_OK`), 다르면 이 길을 끈다 — 판본이 바뀌어도 값은 안 바뀐다.
+import struct as _struct
+
+_F32 = _struct.Struct("f")
+
+
+def _f32(v: float) -> float:
+    return _F32.unpack(_F32.pack(v))[0]
+
+
+_PT, _RC = pymupdf.Point, pymupdf.Rect
+
+
+def _mkpt(x: float, y: float):
+    """`pymupdf.Point(x, y)` 과 같은 객체 — 범용 생성자(인자 모양 가리기)를 건너뛴다.  값은 이미 float 다."""
+    p = _PT.__new__(_PT)
+    p.x = x
+    p.y = y
+    return p
+
+
+def _mkrect(x0: float, y0: float, x1: float, y1: float):
+    r = _RC.__new__(_RC)
+    r.x0, r.y0, r.x1, r.y1 = x0, y0, x1, y1
+    return r
+
+
+class Rot:
+    """한 장의 회전 행렬 — `pt(p)` 는 `p * m`, `rect(r)` 은 `Rect(r) * m`, `segs(쌍들)` 은 쌍마다 두 점을
+    `* m` 한 것과 같은 값을 낸다."""
+    __slots__ = ("m", "fast", "a", "b", "c", "d", "e", "f", "ident")
+
+    def __init__(self, m):
+        self.m = m
+        t = tuple(float(v) for v in m)
+        self.a, self.b, self.c, self.d, self.e, self.f = t
+        self.ident = t == _IDENTITY
+        self.fast = _ROT_OK and all(v in (0.0, 1.0, -1.0) for v in t[:4]) and t[4] == _f32(t[4]) \
+            and t[5] == _f32(t[5])
+
+    def xy(self, x: float, y: float) -> tuple[float, float]:
+        return (_f32(x * self.a + y * self.c + self.e), _f32(x * self.b + y * self.d + self.f))
+
+    def pt(self, p):
+        if not self.fast:
+            return pymupdf.Point(p) * self.m
+        if self.ident:
+            return _mkpt(float(p.x), float(p.y))
+        return _mkpt(*self.xy(p.x, p.y))
+
+    def segs(self, pairs: list) -> list:
+        """`[(Point(a) * m, Point(b) * m) for a, b in pairs]` 와 같은 값 — 한 장의 선분 전부를 한 번에 옮긴다
+        (numpy 로 같은 순서의 double 계산 → float 반올림 한 번)."""
+        if not self.fast:
+            m = self.m
+            return [(pymupdf.Point(a) * m, pymupdf.Point(b) * m) for a, b in pairs]
+        if not pairs:
+            return []
+        import numpy as np
+        xy = np.array([(a.x, a.y, b.x, b.y) for a, b in pairs], dtype=np.float64)
+        A, B, C, D, E, F = self.a, self.b, self.c, self.d, self.e, self.f
+
+        def f32(v):
+            return v.astype(np.float32).astype(np.float64).tolist()
+        ax, ay = f32(xy[:, 0] * A + xy[:, 1] * C + E), f32(xy[:, 0] * B + xy[:, 1] * D + F)
+        bx, by = f32(xy[:, 2] * A + xy[:, 3] * C + E), f32(xy[:, 2] * B + xy[:, 3] * D + F)
+        return [(_mkpt(p, q), _mkpt(r, s)) for p, q, r, s in zip(ax, ay, bx, by)]
+
+    def rect(self, r):
+        if not self.fast:
+            return pymupdf.Rect(r) * self.m
+        x0, y0, x1, y1 = r
+        x0, y0, x1, y1 = float(x0), float(y0), float(x1), float(y1)
+        if self.ident:
+            return _mkrect(x0, y0, x1, y1)
+        if max(abs(x0), abs(y0), abs(x1), abs(y1)) >= 2.0e9:     # 무한 사각형 — MuPDF 가 그대로 돌려준다
+            return pymupdf.Rect(r) * self.m
+        # fz_transform_rect 의 축 정렬 두 갈래 — 뒤집히는 축이면 먼저 끝을 바꾸고 두 모서리만 옮긴다
+        if self.b == 0.0 and self.c == 0.0:
+            if self.a < 0:
+                x0, x1 = x1, x0
+            if self.d < 0:
+                y0, y1 = y1, y0
+        elif self.a == 0.0 and self.d == 0.0:
+            if self.b < 0:
+                x0, x1 = x1, x0
+            if self.c < 0:
+                y0, y1 = y1, y0
+        else:                                     # pragma: no cover — fast 는 이 둘만 받는다
+            return pymupdf.Rect(r) * self.m
+        sx, sy = self.xy(x0, y0)
+        tx, ty = self.xy(x1, y1)
+        return _mkrect(sx, sy, tx, ty)
+
+
+def _rot_self_check() -> bool:
+    """이 PyMuPDF 판본에서 `Rot` 가 `* m` 과 같은 값을 내는가 — 다르면 빠른 길을 쓰지 않는다."""
+    import random
+    rng = random.Random(70)
+    mats = [pymupdf.Matrix(1, 0, 0, 1, 0, 0), pymupdf.Matrix(0, -1, 1, 0, 0, 842),
+            pymupdf.Matrix(0, 1, -1, 0, 1190.5511474609375, 0), pymupdf.Matrix(-1, 0, 0, -1, 595.2755737304688, 841.8897705078125)]
+    for m in mats:
+        R = Rot.__new__(Rot)
+        Rot.__init__(R, m)
+        R.fast = True
+        for _ in range(200):
+            x, y = _f32(rng.uniform(-50, 2500)), _f32(rng.uniform(-50, 2500))
+            q = pymupdf.Point(x, y) * m
+            got = R.pt(pymupdf.Point(x, y))
+            if type(got) is not type(q) or vars(got) != vars(q) or (repr(got.x), repr(got.y)) != (repr(q.x), repr(q.y)):
+                return False
+            w, h = _f32(rng.uniform(-3, 80)), _f32(rng.uniform(-3, 80))
+            r = pymupdf.Rect(x, y, _f32(x + w), _f32(y + h))
+            a, b = R.rect(r), pymupdf.Rect(r) * m
+            if type(a) is not type(b) or vars(a) != vars(b) or tuple(map(repr, a)) != tuple(map(repr, b)):
+                return False
+        pts = [pymupdf.Point(_f32(rng.uniform(-50, 2500)), _f32(rng.uniform(-50, 2500))) for _ in range(200)]
+        pairs = list(zip(pts[::2], pts[1::2])) + [(pymupdf.Point(0, 0), pymupdf.Point(-0.0, 842))]
+        for (p, q), (u, v) in zip(R.segs(pairs), [(pymupdf.Point(p) * m, pymupdf.Point(q) * m) for p, q in pairs]):
+            for a, b in ((p, u), (q, v)):
+                if type(a) is not type(b) or vars(a) != vars(b) or (repr(a.x), repr(a.y)) != (repr(b.x), repr(b.y)):
+                    return False
+    return True
+
+
+_ROT_OK = False
+_ROT_OK = _rot_self_check()
+
+
 @dataclass
 class PageCache:
     """One page with every coordinate already in display space."""
@@ -86,11 +222,11 @@ class PageCache:
     def drawings(self) -> list[dict]:
         """Raw drawings with an added display-space 'bbox' key."""
         if self._drawings is None:
-            m = self.page.rotation_matrix
+            R = Rot(self.page.rotation_matrix)
             out = []
             for d in self.page.get_drawings():
                 d = dict(d)
-                d["bbox"] = pymupdf.Rect(d["rect"]) * m
+                d["bbox"] = R.rect(d["rect"])
                 out.append(d)
             self._drawings = out
         return self._drawings
@@ -125,9 +261,8 @@ class PageCache:
                 self._segments = [(it[1], it[2]) for d in drawings
                                   for it in d["items"] if it[0] == "l"]
             else:
-                self._segments = [
-                    (pymupdf.Point(it[1]) * m, pymupdf.Point(it[2]) * m)
-                    for d in drawings for it in d["items"] if it[0] == "l"]
+                self._segments = Rot(m).segs(
+                    [(it[1], it[2]) for d in drawings for it in d["items"] if it[0] == "l"])
         return self._segments
 
     def pixmap(self, clip: pymupdf.Rect, zoom: float = 2.0, **kw):
@@ -204,7 +339,7 @@ def _shx_entries(page, m) -> list:
         text = " ".join((info.get("content") or "").split())
         if not text:
             continue
-        out.append((pymupdf.Rect(a.rect) * m, text))
+        out.append((Rot(m).rect(a.rect), text))
     return out
 
 
@@ -313,7 +448,8 @@ def load_pages(pdf_path: str | Path, only=None
                 page = doc.reload_page(page)
                 memo_dropped = before - len(page.get_text("words"))
         m = page.rotation_matrix
-        words = [(pymupdf.Rect(w[:4]) * m, w[4]) for w in page.get_text("words")]
+        R = Rot(m)
+        words = [(R.rect(w[:4]), w[4]) for w in page.get_text("words")]
         words += _shx_words(_shx_entries(page, m))
         if _DEDUP_WORDS:
             words = _dedup(words)

@@ -1073,7 +1073,7 @@ def _angle_figures(pc, lay: ValveLayout):
     # 그대로 내면 `attach_actuators` 가 다른 좌표계에서 어긋남을 재게 된다
     # (41회차 [C] 가 `legend_rules._straight_items` 에서 겪은 것과 같은 덫).
     # 회전 0 인 문서(AL NOUF1)에서는 항등이라 아무것도 달라지지 않는다.
-    m = pc.page.rotation_matrix
+    R = pidcache.Rot(pc.page.rotation_matrix)
     for d in pc.drawings():
         if d.get("fill") is not None:
             continue
@@ -1085,7 +1085,7 @@ def _angle_figures(pc, lay: ValveLayout):
             continue
         if min(box.width, box.height) < lay.body_short[0]:
             continue
-        items = [(it[0], it[1] * m, it[2] * m) for it in items]
+        items = [(it[0], R.pt(it[1]), R.pt(it[2])) for it in items]
         ends = collections.Counter()
         for it in items:
             for pt in (it[1], it[2]):
@@ -1889,7 +1889,7 @@ def _leader_index(pc, cell: float):
     지시선은 버블 테두리에 한쪽 끝이 있으므로 그 칸만 보면 된다.  칸은 그 장
     버블의 긴 변이라 절대 pt 가 아니다 (§9 ⑥).
     """
-    m = pc.page.rotation_matrix
+    R = pidcache.Rot(pc.page.rotation_matrix)
     grid: dict = collections.defaultdict(list)
     if cell <= 0:
         return grid
@@ -1897,7 +1897,7 @@ def _leader_index(pc, cell: float):
         for it in d["items"]:
             if it[0] != "l":
                 continue
-            a, c = it[1] * m, it[2] * m
+            a, c = R.pt(it[1]), R.pt(it[2])
             seg = (a, c)
             for p in (a, c):
                 grid[(int(p.x // cell), int(p.y // cell))].append(seg)
