@@ -1013,6 +1013,7 @@ def test_step14_the_diagnostic_export_says_its_size_and_what_it_leaves_out(
     page.wait_for_selector("#body tr", timeout=120_000)
     page.wait_for_timeout(1200)
     page.evaluate("() => closeModal()")
+    page.click("#more-actions > summary")  # hotfix72 — 진단 내보내기는 '더보기' 메뉴 안
     page.click("#diag")
     page.wait_for_selector("#modal:not(.hidden)", timeout=120_000)
     body = page.locator("#modal-body").inner_text()

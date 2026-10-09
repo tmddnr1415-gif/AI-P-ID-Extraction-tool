@@ -3830,6 +3830,23 @@ PID 폴더에 차곡차곡 쌓이고 · 반영된 VOC 는 다음번에 중복 �
    건드리지 않는다 (VOC 함은 그 밖이다).
 
 
+**그 다음 — 화면을 읽기 쉽게 · 덜 붐비게 (hotfix72 · 화면 회차 · 판정 0줄)**
+
+사용자: *"UI 개선이 필요하거나 사용자 친화적 또는 그래픽 개선점 등 작업해줘라. 그리고 텍스트들도 가독성있게 정리해줘라."*
+전후 캡처 `out/hotfix72/before/` · `after/` (같은 자 `spike/ui_shots_redesign.py` · QFE Rev.B 사본) · 시험
+`tests/test_hotfix72_ui_tidy.py` 4건 (빠른 시험 **932**).  **엔진 0줄** — 서버는 `_legend_facts` 의 문장만 고쳤다.
+
+1. **머리줄** — 드문 동작 다섯(적용 규칙 · 템플릿 · 진단 내보내기 · 피드백 내보내기 · 재분석)을 `#more-actions`(더보기 ▾)
+   하나로.  **id 는 그대로**다 (hotfix49 의 id 목록 시험 통과).  `최종 저장`·`Excel 출력` 은 맨 오른쪽 · 구획 사이 `.act-sep`.
+   판은 바깥을 누르면 닫히고 메뉴 단추를 누르면 닫히며 안쪽 판은 하나만 · 안쪽 판이 열리면 메뉴가 넓어진다(`.wide` —
+   240px 안에서 규칙 표가 한 글자씩 접혔다 · 캡처가 잡았다).  ⚠ 진단 내보내기를 누르는 시험(`step14`)은 메뉴부터 연다.
+2. **정보 띠** — 접힌 줄은 `.lb-short` 한 마디 · 전문은 [자세히] 와 툴팁.  서버 문장의 `**`(화면은 textContent 라 글자 그대로
+   보였다 — 31회차와 같은 결함)를 지우고, 화면이 `compare_note` 와 같은 사실("대조 못 한 항목 N")을 한 번 더 쓰던 것을 뺐다.
+3. **카드 · 리비전 줄** — 좁은 카드(컨테이너 쿼리 720px)에서 칩이 한 글자씩 세로로 접히고 제목이 `QATAR FACILIT…` 로 잘리던 것을
+   두 줄 배치로 · 칩은 `nowrap` · 메뉴 프로젝트 이름 안 잘림 · 흐린 글자 `#555e6e` · 한글 글꼴 맑은 고딕 우선.
+4. **실측** — 1366: 머리 단추 두 줄 → 한 줄 · 도면 창 395 → **473px** · 목록 160 → **175px** · 1920: 도면 770 → **818** · 목록 224 → **272** ·
+   페이지 오류 0 · 가로 스크롤 없음.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4306,6 +4323,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/analysis_profile.py` · `spike/rot_exact_check.py` | **hotfix70** — 단계별·함수별 시간 · 회전 변환이 PyMuPDF 와 비트까지 같은지 전 장 대조 |
 | `app/voc.py` (`voc_root`·`write`·`scan`·`pending`·`mark`·`public`) · `main._write_voc`·`POST /voc`·`GET /voc` · `app.js` `vocSend`·`vocDialog`·`vocCheckHtml` | **hotfix71** — VOC 함.  한 건 = 폴더 하나 · 상태는 장부 + 폴더의 `resolution.json` · 쓰는 길은 하나 |
 | `spike/voc.py` (`list`·`brief`·`show`·`resolve`·`dup`·`wontfix`·`needinfo`) · `docs/voc.md` | **hotfix71** — 회사 Claude Code 가 회차 시작에 읽고 반영 표시.  이미 처리된 id 는 건너뛴다 (중복 반영 방지) |
+| `index.html` `#more-actions` · `app.js` 머리줄 판 닫기 IIFE · `styles.css` hotfix72 블록 · `.lb-short` | **hotfix72** — 드문 동작은 더보기 메뉴(id 불변) · 판 바깥 누르면 닫힘 · 접힌 정보 띠는 한 마디 · 좁은 카드 두 줄 배치 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

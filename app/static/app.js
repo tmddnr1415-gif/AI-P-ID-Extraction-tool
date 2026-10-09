@@ -1539,18 +1539,20 @@ async function loadLegendProfile() {
     `<span class="lb-line">${escape(f.line || "")}</span>`];
   if (n) bits.push(`<span class="lb-n">${n}항목`
     + (failed ? ` · 유도 실패 ${failed}` : "") + `</span>`);
+  // hotfix72 — 대조 못 한 항목 수는 서버 문장(`compare_note`)이 이미 말한다.  예전에는 같은
+  // 사실을 여기서 한 번 더 적어 띠 한 줄에 같은 말이 두 번 있었다.
   if (f.compare_note) bits.push(`<span class="lb-note">${escape(f.compare_note)}</span>`);
-  // 일부만 대조된 경우에만 적는다.  하나도 대조 못 한 경우는 바로 앞
-  // `compare_note` 가 이미 그렇게 말했다 — 같은 말을 두 번 적지 않는다.
-  if (f.compared && (f.uncompared || []).length) {
-    bits.push(`<span class="lb-note">대조 못 한 항목 ${f.uncompared.length}`
-      + ` — 이 PDF 에 그 범례가 없습니다 (같다고 보지 않습니다)</span>`);
-  }
-  let html = `<div class="lb-main">${bits.join("")}</div>`;
+  const fullLegend = [f.line, f.compare_note].filter(Boolean).join(" · ");
+  let html = `<div class="lb-main" title="${escape(fullLegend)}">${bits.join("")}</div>`;
   // 56회차 [G1] — 어느 프로필로 돌았나.  "새 프로젝트" 면 무엇을 빌렸는지 편다.
   if (pr.path) {
-    html += `<div class="lb-main"><span class="lb-tag ${pr.matched ? "matched" : "stranger"}">`
+    // 접힌 띠에는 짧은 말만 (`lb-short`), 펼치면 온 문장 (`lb-line`).
+    const short = pr.matched ? (pr.name || pr.code || "")
+      : `새 프로젝트${(bo.count ? ` · 기본 설정 ${bo.count}칸 빌림` : "")}`;
+    html += `<div class="lb-main" title="${escape(f.profile_line || "")}">`
+      + `<span class="lb-tag ${pr.matched ? "matched" : "stranger"}">`
       + `${pr.matched ? "프로필 일치" : "프로필 없음"}</span>`
+      + `<span class="lb-short">${escape(short)}</span>`
       + `<span class="lb-line">${escape(f.profile_line || "")}</span></div>`;
     if ((bo.keys || []).length) {
       const sec = Object.entries(bo.by_section || {}).map(([k, n]) => `${k} ${n}`).join(" · ");
@@ -8726,6 +8728,32 @@ document.querySelectorAll("details.scope").forEach((det) => {
 window.addEventListener("resize", () => {
   document.querySelectorAll("details.scope[open]").forEach(placeScope);
 });
+
+/* hotfix72 — 머리줄 판(출력 범위 · 더보기 …)은 바깥을 누르면 닫힌다.  판 안을 누르는 것은
+ * (체크 · 안쪽 판 열기) 닫지 않는다.  '더보기' 안의 단추를 누르면 그 일을 하고 메뉴를 닫는다. */
+document.addEventListener("click", (ev) => {
+  document.querySelectorAll("header details.scope[open]").forEach((det) => {
+    if (!det.contains(ev.target)) det.open = false;
+  });
+});
+(function () {
+  const more = document.getElementById("more-actions");
+  if (!more) return;
+  more.querySelectorAll("button.menu-item").forEach((b) =>
+    b.addEventListener("click", () => { more.open = false; }));
+  // 안쪽 판(적용 규칙 · 템플릿)은 하나만 펼친다 — 둘 다 길어서 메뉴가 화면을 넘는다.
+  more.querySelectorAll(":scope > .scope-body > details.scope").forEach((inner) =>
+    inner.addEventListener("toggle", () => {
+      if (inner.open) {
+        more.querySelectorAll(":scope > .scope-body > details.scope[open]").forEach((o) => {
+          if (o !== inner) o.open = false;
+        });
+      }
+      // 안쪽 판이 열려 있는 동안만 메뉴를 넓힌다 — 규칙 표가 240px 안에서 한 글자씩 접혔다.
+      more.classList.toggle("wide",
+        !!more.querySelector(":scope > .scope-body > details.scope[open]"));
+    }));
+})();
 
 // hotfix26 — 범례 판 접기 (pid.ovl.fold).  접히면 한 줄 요약만 남는다 (`buildOverlayLegend` 가 채운다).
 (function () {

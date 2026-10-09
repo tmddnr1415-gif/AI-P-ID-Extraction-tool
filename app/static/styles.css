@@ -2003,3 +2003,71 @@ table.voc-list td { overflow-wrap: anywhere; white-space: normal; text-overflow:
 table.voc-list th, table.voc-list td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
 table.voc-list tr.voc-open .voc-state { color: var(--warn); font-weight: 600; }
 table.voc-list tr.voc-resolved .voc-state { color: var(--ok); font-weight: 600; }
+
+/* ---------- hotfix72 — 읽기 쉽게 · 덜 붐비게 ----------
+   1) 머리줄: 무리마다 가는 칸막이 · 자주 안 쓰는 다섯은 '더보기' 안 · 파란 단추는 Excel 출력 하나.
+   2) 정보 띠: 접힌 줄에는 짧은 말만 (온 문장은 펼치면 · 마우스를 올리면).
+   3) 저장된 프로젝트 카드: 칩이 글자마다 줄바꿈되지 않는다 · 좁은 카드에서는 메타가 아랫줄로.
+   4) 사이드바 프로젝트: 이름이 먼저, 칩은 아랫줄. */
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: -apple-system, "Segoe UI", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+.head-actions { align-items: center; }
+.act-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; flex: none; }
+#save-final { background: #fff; color: var(--accent); border: 1px solid #9fb6e8; box-shadow: none; font-weight: 600; }
+#save-final:hover { background: #eef3ff; border-color: var(--accent); color: #1a43bd; }
+#excel:not(:disabled) { padding-left: 14px; padding-right: 14px; }
+.head-actions .badge-n { margin-left: 2px; }
+
+details.more > .scope-body.menu-body { width: 240px; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+details.more > .scope-body.menu-body > button.menu-item,
+details.more > .scope-body.menu-body > details.scope > summary {
+  display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; padding: 7px 10px;
+  background: transparent; font-size: 13px; color: var(--fg); box-shadow: none; cursor: pointer; }
+details.more > .scope-body.menu-body > button.menu-item:hover,
+details.more > .scope-body.menu-body > details.scope > summary:hover { background: #f1f4fa; }
+details.more > .scope-body.menu-body > details.scope > summary::after { content: " ▸"; color: var(--muted); }
+details.more > .scope-body.menu-body > details.scope[open] > summary::after { content: " ▾"; }
+details.more > .scope-body.menu-body > details.scope > .scope-body {
+  position: static; width: auto; max-height: 46vh; margin: 2px 2px 6px; box-shadow: none; }
+details.more.wide > .scope-body.menu-body { width: min(640px, calc(100vw - 32px)); }
+details.more.wide > .scope-body.menu-body > details.scope > .scope-body { max-height: 60vh; overflow: auto; }
+details.more .menu-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+#reanalyse.menu-item { color: #8a3b14; }
+
+/* 정보 띠 — 접힌 줄은 태그 + 짧은 말 */
+.legend-bar .lb-short { display: none; color: var(--ink-strong); }
+#infobars.compact .legend-bar .lb-short { display: inline; white-space: nowrap; }
+#infobars.compact .legend-bar .lb-short ~ .lb-line,
+#infobars.compact .legend-bar .lb-note { display: none; }
+#infobars.compact .legend-bar .lb-line { max-width: 34vw; }
+#infobars.compact .legend-bar .lb-main { cursor: help; }
+.legend-bar { font-size: 12.5px; line-height: 1.55; }
+#infobars:not(.compact) .legend-bar .lb-main { row-gap: 2px; }
+#infobars:not(.compact) .legend-bar .lb-note::before { content: "· "; color: var(--muted); }
+
+/* 저장된 프로젝트 카드 — 칩은 쪼개지지 않는다 */
+.rv-chip, .rv-st, .rv-tag, .rv-latest, .rv-when, .rv-delta, .rv-doc, .pj-stat i, .mode-chip { white-space: nowrap; flex: none; }
+.joblist details.pj-card { container-type: inline-size; }
+@container (max-width: 720px) {
+  .joblist .rv-tl > a.revrow, .joblist .rv-tl > span.revrow {
+    grid-template-columns: 24px minmax(0, 1fr) auto; row-gap: 4px; }
+  .joblist .rv-tl > a.revrow .rv-meta, .joblist .rv-tl > span.revrow .rv-meta {
+    grid-column: 2 / -1; grid-row: 2; justify-content: flex-start; }
+  .joblist details.pj-card > summary { grid-template-columns: 42px minmax(0, 1fr) 18px; row-gap: 8px; }
+  .joblist details.pj-card > summary .pj-stats { grid-column: 2 / 3; grid-row: 2; }
+  .joblist details.pj-card > summary .del-project { grid-column: 2 / 3; grid-row: 3; justify-self: start; }
+  .rv-open { display: none; }
+}
+
+/* 사이드바 프로젝트 — 이름 먼저, 칩은 아랫줄 */
+.sb-projects .nav-item { flex-wrap: wrap; row-gap: 3px; align-items: center; }
+.sb-projects .nav-item .nav-text { flex: 1 1 calc(100% - 60px); font-weight: 600; }
+.sb-projects .nav-item .mode-chip, .sb-projects .nav-item .nav-pill { margin-left: 26px; }
+.sb-projects .nav-item .mode-chip ~ .nav-pill { margin-left: 0; }
+body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-projects .nav-item .nav-pill { display: none; }
+
+/* 읽기 — 회색 글씨를 조금 진하게 (흰 카드 위 대비 4.5 넘게) */
+.page-sub, .pj-sub, .rv-when, .muted { color: #555e6e; }
+.small { line-height: 1.55; }

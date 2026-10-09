@@ -2357,32 +2357,29 @@ def _legend_facts(job) -> dict:
     mode = lp.get("mode") or "unknown"
     changes = lp.get("changes") or []
     if mode == "unknown":
-        line = ("이 분석은 범례 프로필이 생기기 전(15회차 이전)에 돌았습니다 — "
-                "범례를 재서 왔는지 기록이 없습니다")
+        line = "범례 기록이 없는 옛 분석입니다 (15회차 이전)"
     elif mode == "derived":
         # "범례 4장" 이 아니라 "값을 읽은 3장" 이다.  이 문서는 범례가 4장인데
         # 값을 내놓은 장은 3장이고(p4 는 어느 항목의 근거도 아니다), 4라고
         #적으면 화면이 세지 않은 것을 세었다고 말하게 된다.
-        line = ("이 문서의 범례를 직접 읽어 분석했습니다"
+        line = ("이 문서의 범례를 직접 읽었습니다"
                 + (f" (값을 읽은 범례 {len(lp.get('legend_sheets') or [])}장)"
                    if lp.get("legend_sheets") else ""))
     else:
         # 왜 대조를 못 했는지는 바로 옆 `compare_note` 가 말한다.  같은 사실을
         # 두 번 적으면 띠가 길어지고 읽는 사람은 두 문장을 대조하게 된다
         # (14회차 "한 번에 한 줄만" 과 같은 이유).
-        line = "이 프로젝트가 앞서 읽어 둔 범례를 그대로 썼습니다"
+        line = "이 프로젝트에 저장된 범례를 그대로 썼습니다"
     sheets = lp.get("legend_sheets") or []
     missing = lp.get("uncompared") or []
     if mode != "reused":
         note = ""
     elif not lp.get("compared"):
-        note = ("이 PDF 에 범례가 없어 **대조하지 못했습니다** — "
-                "프로필과 같다고 단정하지 않습니다")
+        note = "이 PDF 에는 범례가 없어 대조하지 못했습니다 (같다고 보지 않습니다)"
     else:
-        note = f"이 PDF 에서 값을 읽은 범례 {len(sheets)}장과 대조했습니다"
+        note = f"이 PDF 의 범례 {len(sheets)}장과 대조했습니다"
         if missing:
-            note += (f" — {len(missing)}항목은 이 PDF 에 없어 "
-                     f"**대조하지 못했습니다**")
+            note += f" · {len(missing)}항목은 이 PDF 에 없어 대조하지 못했습니다"
     # 56회차 [G1] — 프로필 문장.  저장된 것은 사실(`profile`·`borrowed`)이고
     # 문장은 **여기서** 만든다 (15회차 규율 — 문장을 저장하면 고칠 수 없다).
     prof = engine.get("profile") or {}
@@ -2395,12 +2392,12 @@ def _legend_facts(job) -> dict:
         profile_line = f"프로필 {prof.get('name') or prof.get('path')} ({prof.get('code')}) — {how}"
     else:
         who = prof.get("document_code") or ""
-        head = (f"이 문서(코드 {who})에 맞는 프로필이 없습니다 — 새 프로젝트" if who
-                else "도면번호에서 프로젝트 코드를 읽지 못해 프로필을 고를 수 없습니다")
+        head = (f"코드 {who} 에 맞는 프로필이 없어 새 프로젝트로 봤습니다" if who
+                else "도면번호에서 프로젝트 코드를 읽지 못해 프로필을 고르지 못했습니다")
         n, rep = int(bor.get("count") or 0), len(bor.get("replaced_by_sheet") or [])
-        profile_line = (f"{head}. {prof.get('borrowed_from') or prof.get('path')} 의 설정 "
+        profile_line = (f"{head} — 기본 설정({prof.get('borrowed_from') or prof.get('path')}) "
                         f"{n}칸을 빌려 썼습니다"
-                        + (f" (도면이 대신 답한 {rep}칸은 뺐습니다)" if rep else ""))
+                        + (f" · 도면이 직접 답한 {rep}칸은 제외" if rep else ""))
     return {"mode": mode,
             "profile": prof, "borrowed": bor, "profile_line": profile_line,
             "measured": bool(lp.get("measured")),
