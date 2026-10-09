@@ -209,7 +209,9 @@ def main(argv=None) -> int:
         print(f"\n충돌 {len(conflicts)}개: 회사에서 고친 파일이라 덮지 않았습니다.")
         print("회사 Claude 에게: '충돌 파일(.new)과 지금 파일을 비교해 둘 다 살려서 합쳐줘'")
         return 2
-    if not dry:
+    if not dry and ops:
+        print("\n운영 폴더에 얹었습니다 — 서버를 다시 띄워야 새 코드가 돕니다 (이어서 묻습니다).")
+    elif not dry:
         print("\n적용 끝. 다음: 회사 Claude 에게 변경 확인 + 시험 + 8001 미리보기를 맡기세요.")
     return 0
 
