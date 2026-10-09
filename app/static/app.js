@@ -232,6 +232,15 @@ async function upload(files) {
     return;
   }
   const job = await r.json();
+  // hotfix74 — 같은 파일(바이트까지 같음)을 이미 분석한 적이 있으면 말한다.  막지는 않는다.
+  if (job.duplicate_of) {
+    const d = job.duplicate_of;
+    const where = d.project ? `${d.project} ${d.revision || ""}`.trim() : "프로젝트 없이 올린 분석";
+    alert(`이 파일은 이미 분석한 적이 있습니다 — ${where} (${d.pdf_name}) 와 바이트까지 같습니다.\n`
+      + (job.project && d.project === job.project
+         ? `개정본을 올리려던 것이라면 파일을 확인해 주세요.  분석은 그대로 ${job.revision} 로 진행합니다.`
+         : "분석은 그대로 진행합니다."));
+  }
   watch(job.job_id, job.page_count, job);
 }
 

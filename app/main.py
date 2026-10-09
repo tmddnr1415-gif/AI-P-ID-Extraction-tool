@@ -712,6 +712,12 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
             compared_with = inflight[-1] if inflight else revisions.default_compare_target(meta)
     sha = hashlib.sha256(raw).hexdigest()
     job_id = uuid.uuid4().hex[:12]
+    # hotfix74 — 같은 파일을 다시 올렸는지 (바이트까지 같다).  막지 않는다 — 다시 분석하고 싶을 수도 있다.
+    # 다만 개정본을 올린다며 **직전 판을 또 올리는** 실수는 흔하므로 그 사실을 응답에 싣고 화면이 말한다.
+    same = CON.execute("SELECT id, pdf_name, project, revision FROM job WHERE pdf_sha256=? "
+                       "AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1", (sha,)).fetchone()
+    duplicate_of = ({"job_id": same["id"], "pdf_name": same["pdf_name"], "project": same["project"] or "",
+                     "revision": same["revision"] or ""} if same else None)
     if project:
         prev = _project_input_kind(project)
         if prev and prev != kind:
@@ -734,7 +740,7 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
     _JOBS.put(job_id)
     return {"job_id": job_id, "pdf_name": name, "sha256": sha,
             "project": project, "revision": revision, "input_kind": kind,
-            "compared_with": compared_with, "page_count": pages}
+            "compared_with": compared_with, "page_count": pages, "duplicate_of": duplicate_of}
 
 
 def _inflight_revisions(project: str, meta: dict) -> list:

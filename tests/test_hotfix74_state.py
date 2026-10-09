@@ -216,3 +216,10 @@ def test_concurrent_mutations_do_not_lose_updates(tmp_path):
     [t.join() for t in ts]
     assert errs == []
     assert sorted(um.load(tmp_path, "P")["units"]) == units      # 30 개 전부 (예전엔 3개만 남았다)
+
+
+def test_upload_reports_a_byte_identical_earlier_analysis():
+    src = (Path(__file__).resolve().parent.parent / "app/main.py").read_text(encoding="utf-8")
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    assert '"duplicate_of": duplicate_of' in src and "WHERE pdf_sha256=?" in src
+    assert "job.duplicate_of" in js
