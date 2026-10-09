@@ -51,7 +51,7 @@ def test_delete_endpoint_marks_the_ledger_and_home_renders_no_dead_link():
     row = JS[JS.index("function revRow("):JS.index("function delButton(")]
     assert "r.missing || r.deleted" in row and "분석 기록 지워짐" in row
     # 지워진 리비전 갈래에는 링크(href)도 삭제 버튼도 없다
-    branch = row[row.index("r.missing || r.deleted"):row.index("return `<div class=\"revwrap\"><a")]
+    branch = row[row.index("r.missing || r.deleted"):row.index("return `<div class=\"revwrap rv-tl${")]   # hotfix61 카드
     assert "href" not in branch and "delButton" not in branch
 
 

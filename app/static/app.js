@@ -569,25 +569,52 @@ function revVerdict(now, before) {
   return n > b ? "NEWER" : n === b ? "SAME" : "OLDER";
 }
 
-function revRow(r, prevDocRev) {
+/* hotfix61 — 저장된 프로젝트 목록을 카드 + 리비전 타임라인으로.
+ * 값은 전부 `/home` 이 이미 주는 것(상태 · 행 · 장 · 일시 · 수정 칸 · 도면 Rev)이고 새로 세는 것이 없다.
+ * 직전 리비전 대비 행 수 차이만 화면에서 뺀다 (둘 다 그 응답에 있는 수). */
+const fmtCount = n => Number(n || 0).toLocaleString("ko-KR");
+const RV_STATUS = { done: "ok", failed: "bad", cancelled: "off", running: "live", queued: "wait" };
+
+function rowsDelta(now, before) {
+  if (before == null || now == null || !before.status || before.missing || before.deleted) return "";
+  const d = (now.rows || 0) - (before.rows || 0);
+  if (!d) return `<em class="rv-delta same" title="직전 ${escape(before.revision || "")} 과 행 수가 같습니다">±0</em>`;
+  return `<em class="rv-delta ${d > 0 ? "up" : "down"}" title="직전 ${escape(before.revision || "")} 대비 행 수">`
+    + `${d > 0 ? "▲" : "▼"}${fmtCount(Math.abs(d))}</em>`;
+}
+
+function revRow(r, prevDocRev, opts = {}) {
   const v = revVerdict(r.doc_rev, prevDocRev);
   const badge = v && REV_VERDICT[v]
     ? `<span class="rvbadge ${REV_VERDICT[v][1]}">${REV_VERDICT[v][0]}</span>` : "";
   const doc = r.doc_rev
-    ? `도면 Rev.${escape(r.doc_rev)}`
-    : `<span class="muted">도면 개정 못 읽음</span>`;
+    ? `<span class="rv-doc">도면 Rev.${escape(r.doc_rev)}</span>`
+    : `<span class="rv-doc muted">도면 개정 못 읽음</span>`;
   // hotfix42 — 분석 기록이 지워진 리비전은 링크도 삭제 버튼도 없이 사실만 적는다
   if (r.missing || r.deleted) {
     const d = r.deleted || {};
     const who = d.author ? ` · ${escape(d.author)}` : "";
     const when = d.at ? ` · ${escape(whenWords(d.at))}` : "";
-    return `<div class="revwrap"><span class="revrow missing" title="이 리비전의 분석 기록은 지워졌습니다 — 안정 ID 장부와 대조 기록만 남아 있습니다">`
-      + `<span class="rv-name"><b>${escape(r.revision)}</b> <span class="muted">분석 기록 지워짐${who}${when}</span></span>`
+    return `<div class="revwrap rv-tl"><span class="revrow missing" title="이 리비전의 분석 기록은 지워졌습니다 — 안정 ID 장부와 대조 기록만 남아 있습니다">`
+      + `<span class="rv-dot off"></span>`
+      + `<span class="rv-name"><span class="rv-tag">${escape(r.revision)}</span> <span class="muted">분석 기록 지워짐${who}${when}</span></span>`
       + `<span class="muted small">${escape(r.pdf_name || "")}</span></span></div>`;
   }
-  return `<div class="revwrap"><a href="#${escape(r.job_id)}" class="revrow">`
-    + `<span class="rv-name"><b>${escape(r.revision)}</b> ${doc} ${badge}</span>`
-    + `<span class="muted small">${escape(jobLine(r))}</span></a>`
+  const st = r.status || "";
+  const chips = [`<span class="rv-st ${RV_STATUS[st] || "off"}">${escape(JOB_STATUS_KO[st] || st || "—")}</span>`];
+  if (r.rows != null) chips.push(`<span class="rv-chip"><b>${fmtCount(r.rows)}</b>행${opts.delta || ""}</span>`);
+  if (r.page_count) chips.push(`<span class="rv-chip"><b>${fmtCount(r.page_count)}</b>장</span>`);
+  if (r.edits) chips.push(`<span class="rv-chip edit" title="사람이 고친 칸"><b>${fmtCount(r.edits)}</b>칸 수정</span>`);
+  const when = r.analysed_at || r.finished_at || r.created_at;
+  if (when) chips.push(`<span class="rv-when">${escape(whenWords(when))}</span>`);
+  const saved = r.last_save ? `<span class="rv-saved">${escape(saveWords(r.last_save))}</span>` : "";
+  const latest = opts.latest ? `<span class="rv-latest">최신</span>` : "";
+  return `<div class="revwrap rv-tl${opts.latest ? " is-latest" : ""}"><a href="#${escape(r.job_id)}" class="revrow"`
+    + ` title="${escape(jobLine(r))} — 눌러서 엽니다 (재분석하지 않습니다)">`
+    + `<span class="rv-dot ${RV_STATUS[st] || "off"}"></span>`
+    + `<span class="rv-name"><span class="rv-tag">${escape(r.revision)}</span>${latest} ${doc} ${badge}</span>`
+    + `<span class="rv-meta">${chips.join("")}${saved}</span>`
+    + `<span class="rv-open">열기 →</span></a>`
     + delButton(r.job_id) + `</div>`;
 }
 
@@ -742,27 +769,53 @@ async function listHome() {
     for (const p of home.projects) {
       const revs = p.revisions || [];
       // 최근순으로 왔으므로 "직전"은 배열의 다음 항목이다.
-      const rows = revs.map((r, i) => revRow(r, (revs[i + 1] || {}).doc_rev)).join("");
-      const head = revs.length
-        ? `${revs.length}개 리비전 · 최신 ${escape(revs[0].revision)}`
-        : "분석 없음";
+      const rows = revs.map((r, i) => revRow(r, (revs[i + 1] || {}).doc_rev,
+        { latest: i === 0 && revs.length > 1, delta: rowsDelta(r, revs[i + 1]) })).join("");
+      const last = revs.find(r => !r.missing && !r.deleted) || null;
+      const mode = projectMode(p);
+      const sub = revs.length
+        ? `${revs.length}개 리비전 · 최신 <b>${escape(revs[0].revision)}</b>`
+          + (last && (last.analysed_at || last.created_at)
+            ? ` · 마지막 분석 ${escape(whenWords(last.analysed_at || last.created_at))}` : "")
+        : "아직 분석 없음";
       const saved = p.last_save
         ? `<span class="saved small">${escape(saveWords(p.last_save))}`
           + `${p.last_save.revision ? ` — ${escape(p.last_save.revision)}` : ""}</span>` : "";
-      parts.push(`<details class="pjt" ${revs.length ? "open" : ""}>`
-        + `<summary><b>${escape(p.name)}</b>${modeChip(projectMode(p))}`
-        + `<span class="muted small">${escape(head)}</span>` + saved
+      const stat = (n, unit, cls = "") => `<span class="pj-stat ${cls}"><b>${fmtCount(n)}</b><i>${unit}</i></span>`;
+      const stats = last
+        ? stat(last.rows, "행") + stat(last.page_count, "장")
+          + (last.edits ? stat(last.edits, "칸 수정", "edit") : "")
+        : "";
+      const empty = revs.length ? ""
+        : `<div class="pj-empty">위 <b>① 어디에 넣을지</b> 에서 이 프로젝트를 고르고 PDF 를 넣으면 `
+          + `<b>${escape(p.next_revision || "Rev.A")}</b> 가 됩니다.</div>`;
+      parts.push(`<details class="pjt pj-card ${mode || "auto"}" open>`
+        + `<summary><span class="pj-icon" aria-hidden="true">${escape((p.name || "?").trim().charAt(0).toUpperCase())}</span>`
+        + `<span class="pj-title"><span class="pj-line"><b class="pj-name">${escape(p.name)}</b>${modeChip(projectMode(p))}</span>`
+        + `<span class="pj-sub">${sub}</span>${saved}</span>`
+        + `<span class="pj-stats">${stats}</span>`
         + `<button class="ghost mini del-project" data-project="${escape(p.name)}"`
         + ` title="이 프로젝트를 통째로 지웁니다 — 되돌릴 수 없습니다">프로젝트 삭제</button>`
-        + `</summary>` + rows + "</details>");
+        + `</summary><div class="pj-revs">` + rows + empty + "</div></details>");
     }
   }
   if (home.loose.length) {
-    parts.push("<p class='muted small'>프로젝트에 묶이지 않은 분석</p>"
-      + home.loose.map(j =>
-          `<div class="revwrap"><a href="#${j.id}">${escape(j.pdf_name)}`
-          + `<span class="muted small">${escape(jobLine(j))}</span></a>`
-          + delButton(j.id) + `</div>`).join(""));
+    parts.push(`<div class="pj-loose-head">프로젝트에 묶이지 않은 분석 <span class="pj-count">${home.loose.length}</span></div>`
+      + `<div class="pj-loose">` + home.loose.map(j => {
+          const st = j.status || "";
+          const when = j.analysed_at || j.finished_at || j.created_at;
+          return `<div class="revwrap rv-tl"><a href="#${j.id}" class="revrow loose"`
+            + ` title="${escape(jobLine(j))}">`
+            + `<span class="rv-dot ${RV_STATUS[st] || "off"}"></span>`
+            + `<span class="rv-name"><span class="rv-file">${escape(j.pdf_name || "")}</span></span>`
+            + `<span class="rv-meta"><span class="rv-st ${RV_STATUS[st] || "off"}">${escape(JOB_STATUS_KO[st] || st)}</span>`
+            + (j.rows ? `<span class="rv-chip"><b>${fmtCount(j.rows)}</b>행</span>` : "")
+            + (j.page_count ? `<span class="rv-chip"><b>${fmtCount(j.page_count)}</b>장</span>` : "")
+            + (j.edits ? `<span class="rv-chip edit"><b>${fmtCount(j.edits)}</b>칸 수정</span>` : "")
+            + (when ? `<span class="rv-when">${escape(whenWords(when))}</span>` : "")
+            + `</span><span class="rv-open">열기 →</span></a>`
+            + delButton(j.id) + `</div>`;
+        }).join("") + `</div>`);
   }
   box.innerHTML = parts.join("");
   // hotfix49 — 대시보드 · 왼쪽 메뉴가 같은 응답을 읽는다 (한 번 받고 둘이 쓴다)

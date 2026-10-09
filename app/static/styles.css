@@ -1710,3 +1710,127 @@ body.embed .embed-tabs #tabs button .n, body.embed .embed-tabs #tabs .tab-line .
 .proj-type { margin: 4px 0 6px; font-size: 13px; color: var(--fg); }
 #sidebar .mode-chip { margin-left: 4px; font-size: 10px; padding: 0 5px; }
 body.nav-collapsed #sidebar .mode-chip { display: none; }
+
+/* ---------- hotfix61 — 저장된 프로젝트: 카드 + 리비전 타임라인 ----------
+ * 프로젝트마다 카드 하나.  왼쪽 띠·아이콘 색은 도면 종류(입찰 호박 · 실행 파랑 · 자동 회색)이고
+ * 글자(칩)로도 같은 말을 한다 — 색만으로 구분하지 않는다.  리비전은 세로 타임라인의 점 하나씩이고
+ * 점 색은 분석 상태(완료 초록 · 실패 빨강 · 분석 중 파랑)이며 옆에 상태 글자가 같이 선다. */
+.joblist { max-height: 520px; padding: 2px 4px 2px 0; }
+.joblist details.pj-card { position: relative; margin: 0 0 12px; padding: 0;
+  background: #fff; border: 1px solid #e2e6ee; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 2px 8px rgba(16, 24, 40, .04);
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; }
+.joblist details.pj-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 5px; background: var(--pj-accent, #9aa3b2); }
+.joblist details.pj-card:hover { border-color: #cdd5e3; transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .09); }
+.pj-card.bid  { --pj-accent: #e0a32e; --pj-icon-a: #f4bd4f; --pj-icon-b: #b56f00; --pj-tint: #fffaf0; }
+.pj-card.epc  { --pj-accent: #2f5bd8; --pj-icon-a: #5d86f2; --pj-icon-b: #1d4ed8; --pj-tint: #f5f8ff; }
+.pj-card.auto { --pj-accent: #9aa3b2; --pj-icon-a: #9aa3b2; --pj-icon-b: #5b6472; --pj-tint: #f7f8fa; }
+
+.joblist details.pj-card > summary { display: grid; align-items: center; gap: 14px;
+  grid-template-columns: 42px minmax(0, 1fr) auto auto 18px;
+  padding: 12px 14px 12px 18px; border-radius: 0; cursor: pointer; list-style: none;
+  background: linear-gradient(90deg, var(--pj-tint, #f7f8fa) 0%, #fff 70%); }
+.joblist details.pj-card > summary::-webkit-details-marker { display: none; }
+.joblist details.pj-card > summary::before { content: none; }
+.joblist details.pj-card > summary::after { content: "▸"; color: #8a93a3; font-size: 13px;
+  justify-self: center; transition: transform .15s ease; }
+.joblist details.pj-card[open] > summary::after { transform: rotate(90deg); }
+.joblist details.pj-card > summary:hover { background: linear-gradient(90deg, var(--pj-tint, #f7f8fa) 0%, #fafbfd 100%); }
+.joblist details.pj-card[open] > summary { border-bottom: 1px solid #edf0f5; }
+
+.pj-icon { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+  font: 700 18px/1 -apple-system, "Segoe UI", "Noto Sans KR", system-ui, sans-serif; color: #fff;
+  background: linear-gradient(135deg, var(--pj-icon-a), var(--pj-icon-b));
+  box-shadow: 0 2px 6px rgba(16, 24, 40, .18), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.pj-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pj-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pj-name { font-size: 15px; font-weight: 700; color: #1b2333; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pj-line .mode-chip { margin-left: 2px; font-weight: 600; }
+.pj-sub { font-size: 12px; color: #5b6472; }
+.pj-sub b { color: #1d2a44; }
+.pj-title .saved { font-size: 11.5px; color: #2f6b46; font-weight: 600; }
+
+.pj-stats { display: flex; gap: 6px; }
+.pj-stat { display: flex; flex-direction: column; align-items: center; min-width: 58px;
+  padding: 4px 10px; border-radius: 10px; background: #f4f6fa; border: 1px solid #e6eaf1; }
+.pj-stat b { font-size: 16px; line-height: 1.2; color: #1b2333; font-variant-numeric: tabular-nums; }
+.pj-stat i { font-style: normal; font-size: 10.5px; color: #5b6472; }
+.pj-stat.edit { background: #f3f0ff; border-color: #ded6fb; }
+.pj-stat.edit b { color: #5b3fc4; }
+.joblist details.pj-card > summary .del-project { opacity: .45; transition: opacity .15s ease; }
+.joblist details.pj-card > summary:hover .del-project { opacity: 1; }
+.joblist details.pj-card > summary .del-project:hover { color: var(--bad); border-color: var(--bad); }
+
+/* 리비전 타임라인 */
+.pj-revs { position: relative; padding: 6px 12px 10px 18px; }
+.pj-revs::before { content: none; position: absolute; left: 38px; top: 14px; bottom: 18px;
+  width: 2px; background: #e3e7ef; border-radius: 2px; }
+.pj-revs:has(> .revwrap + .revwrap)::before { content: ""; }   /* 리비전이 둘 이상일 때만 잇는 선 */
+.joblist .rv-tl { position: relative; gap: 8px; }
+.joblist .rv-tl > a.revrow, .joblist .rv-tl > span.revrow { display: grid; align-items: center;
+  grid-template-columns: 24px minmax(170px, auto) minmax(0, 1fr) auto; gap: 10px;
+  padding: 7px 10px 7px 10px !important; margin: 2px 0; border-radius: 10px;
+  border: 1px solid transparent; color: #1b2333; text-decoration: none; }
+.joblist .rv-tl > a.revrow:hover { background: #f4f7ff; border-color: #d5def4; }
+.joblist .rv-tl.is-latest > a.revrow { background: #fbfcff; border-color: #e3e9f8; }
+.rv-dot { justify-self: center; width: 12px; height: 12px; border-radius: 50%; position: relative; z-index: 1;
+  background: #b6bdc9; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #dfe3ea; }
+.rv-dot.ok { background: #2f9e5b; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #bfe3cc; }
+.rv-dot.bad { background: #d14b45; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f2c4c1; }
+.rv-dot.live { background: #2f5bd8; animation: rv-pulse 1.4s ease-in-out infinite; }
+.rv-dot.wait { background: #e0a32e; }
+@keyframes rv-pulse { 0%, 100% { box-shadow: 0 0 0 3px #fff, 0 0 0 4px #c9d6fa; }
+                      50% { box-shadow: 0 0 0 3px #fff, 0 0 0 7px rgba(47, 91, 216, .25); } }
+.joblist .rv-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.rv-tag { display: inline-block; padding: 1px 9px; border-radius: 7px; font-weight: 700; font-size: 12.5px;
+  color: #1d3f9e; background: #e9effd; border: 1px solid #cbd8f7; }
+.rv-latest { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+  color: #fff; background: linear-gradient(135deg, #34b26a, #23864c); letter-spacing: .02em; }
+.rv-doc { font-size: 12.5px; color: #3c4658; }
+.rv-file { font-weight: 600; font-size: 13px; color: #1b2333; }
+.rv-meta { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.rv-st { display: inline-flex; align-items: center; gap: 5px; padding: 1px 9px 1px 7px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; background: #f1f3f6; color: #4a5363; }
+.rv-st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rv-st.ok { background: #e7f6ed; color: #1f6f3f; }
+.rv-st.bad { background: #fdecea; color: #a8322d; }
+.rv-st.live { background: #e9effd; color: #1d4ed8; }
+.rv-st.wait { background: #fff4d6; color: #8a5a00; }
+.rv-chip { display: inline-flex; align-items: baseline; gap: 2px; padding: 1px 8px; border-radius: 7px;
+  font-size: 11.5px; color: #4a5363; background: #f4f6fa; border: 1px solid #e6eaf1; }
+.rv-chip b { font-size: 12.5px; color: #1b2333; font-variant-numeric: tabular-nums; }
+.rv-chip.edit { background: #f3f0ff; border-color: #ded6fb; color: #5b3fc4; }
+.rv-chip.edit b { color: #4a2fb0; }
+.rv-delta { font-style: normal; font-size: 10.5px; font-weight: 700; margin-left: 4px; padding: 0 4px; border-radius: 4px; }
+.rv-delta.up, .rv-delta.down { color: #34507f; background: #e8eef8; }   /* 행 수 변화는 좋고 나쁨이 아니다 — 한 색 + ▲▼ */
+.rv-delta.same { color: #5b6472; background: #eef0f4; }
+.rv-when { font-size: 11.5px; color: #5b6472; font-variant-numeric: tabular-nums; padding-left: 2px; }
+.rv-saved { flex-basis: 100%; text-align: right; font-size: 11px; color: #2f6b46; }
+.rv-open { font-size: 12px; font-weight: 600; color: #1d4ed8; opacity: 0; transform: translateX(-4px);
+  transition: opacity .15s ease, transform .15s ease; white-space: nowrap; }
+.joblist .rv-tl > a.revrow:hover .rv-open, .joblist .rv-tl > a.revrow:focus-visible .rv-open { opacity: 1; transform: none; }
+.joblist .rv-tl > .del-job { opacity: .35; }
+.joblist .rv-tl:hover > .del-job { opacity: 1; }
+.pj-empty { margin: 4px 6px 2px 2px; padding: 10px 12px; border: 1px dashed #cfd6e2; border-radius: 10px;
+  font-size: 12.5px; color: #4a5363; background: #fafbfc; }
+
+.pj-loose-head { display: flex; align-items: center; gap: 8px; margin: 16px 2px 6px;
+  font-size: 13px; font-weight: 700; color: #3c4658; }
+.pj-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 999px; font-size: 11px; background: #eef0f4; color: #4a5363; }
+.pj-loose { border: 1px solid #e2e6ee; border-radius: 14px; background: #fff; padding: 4px 8px; }
+.joblist .pj-loose .rv-tl > a.revrow { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+
+@media (max-width: 1100px) {
+  .joblist details.pj-card > summary { grid-template-columns: 42px minmax(0, 1fr) auto 18px; }
+  .joblist details.pj-card > summary .pj-stats { grid-column: 2 / -1; grid-row: 2; }
+  .joblist .rv-tl > a.revrow { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .joblist .rv-tl > a.revrow .rv-meta { grid-column: 2 / -1; justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv-dot.live { animation: none; }
+  .joblist details.pj-card, .rv-open { transition: none; }
+}
