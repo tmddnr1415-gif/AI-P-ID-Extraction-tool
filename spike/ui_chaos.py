@@ -9,6 +9,9 @@ U3 두 창이 같은 칸을 고친다 — 마지막 값이 서버에 남고 두 
 U4 느린 망 (모든 요청 1.5초 지연) — 결과 열기가 끝나고 목록이 한 번만 그려지는가
 U5 업로드 중 서버가 죽는다 — 업로드 단추가 영영 '올리는 중' 으로 남지 않는가
 U6 원본 PDF 가 서버에서 사라졌다 — 도면 자리에 이유가 뜨는가 (빈 자리로 남지 않는가)
+U7 원본이 없는데 [재분석] — 거절 문장을 말하고 결과 화면에 머무는가 (진행 화면으로 넘어가지 않는가)
+U8 발주처 양식이 하나도 없는데 [Excel 출력] — 화면을 떠나지 않고(JSON 글자 화면 금지) 이유를 말하는가
+U9 프로젝트 장부가 깨졌다 — 첫 화면이 살아 있고 데이터 위생 카드가 그 사실을 말하는가
 """
 from __future__ import annotations
 
@@ -211,7 +214,53 @@ try:
             p5.screenshot(path=str(OUT / "u6_missing_pdf.png"))
         except Exception as e:                                     # noqa: BLE001
             defect(f"U6 원본 PDF 가 없으면 결과가 안 열린다: {str(e)[:120]}")
+        # ---------------- U7 (원본이 아직 없는 채로)
+        d7 = []
+        p5.on("dialog", lambda d: (d7.append(d.message), d.accept()))
+        try:
+            p5.evaluate("() => { const m = document.querySelector('#more-actions'); if (m) m.open = true; }")
+            p5.click("#reanalyse")
+            p5.wait_for_timeout(2500)
+            on_result = p5.evaluate("() => !document.querySelector('#main').classList.contains('hidden')")
+            note(f"U7 원본 없음 [재분석] → 대화상자 {d7[-1:]} · 결과 화면에 머묾 {on_result}")
+            if not d7 or not on_result:
+                defect("U7 재분석 거절을 말하지 않거나 결과 화면을 떠난다")
+        except Exception as e:                                     # noqa: BLE001
+            defect(f"U7 재분석 단추 예외 {str(e)[:120]}")
         c.execute("update job set pdf_path=? where id=?", (old_pdf, JOB)); c.commit(); c.close()
+        # ---------------- U8 (이 사본에는 발주처 양식이 없다)
+        d8 = []
+        p5.on("dialog", lambda d: (d8.append(d.message), d.accept()))
+        url0 = p5.url
+        try:
+            p5.evaluate("() => { const g = document.querySelector('#gate-check'); if (g && !g.checked) g.click(); }")
+            p5.wait_for_timeout(4000)
+            p5.evaluate("() => { const b = document.querySelector('#excel'); b.disabled = false; b.click(); }")
+            p5.wait_for_timeout(5000)
+            same = p5.url == url0 and p5.evaluate("() => !!document.querySelector('#main')")
+            note(f"U8 양식 없음 [Excel 출력] → 대화상자 {[m[:80] for m in d8[-2:]]} · 화면 그대로 {same}")
+            if not same:
+                defect("U8 Excel 출력 실패가 화면을 떠나게 한다")
+            elif not any("양식" in m or "Excel" in m or "내려받지" in m for m in d8):
+                note("U8 ⚠ 대화상자 없음 — 양식이 있어 내려받았을 수 있다")
+        except Exception as e:                                     # noqa: BLE001
+            defect(f"U8 Excel 단추 예외 {str(e)[:120]}")
+        # ---------------- U9 프로젝트 장부 깨짐
+        pj = next((p for p in (data / "projects").glob("*/project.json")), None)
+        if pj:
+            orig = pj.read_bytes()
+            pj.write_bytes(orig[: len(orig) // 2])
+            p9 = ctx6.new_page(); e9 = []
+            p9.on("pageerror", lambda e: e9.append(str(e)))
+            p9.goto(base + "/"); p9.wait_for_timeout(3000)
+            p9.reload(); p9.wait_for_timeout(4000)          # 첫 요청들이 장부를 읽은 뒤의 위생 감사
+            audit = p9.evaluate("() => { const b = document.querySelector('#audit-line'); return b ? b.innerText : ''; }")
+            alive = p9.evaluate("() => !!document.querySelector('#drop')")
+            note(f"U9 장부 깨짐 → 첫 화면 살아 있음 {alive} · 위생 '{audit[:160]}' · 오류 {e9[:2]}")
+            if not alive or "깨진 상태 파일" not in audit:
+                defect("U9 장부가 깨진 사실을 첫 화면이 말하지 않는다")
+            p9.screenshot(path=str(OUT / "u9_broken_ledger.png"))
+            pj.write_bytes(orig)
         pg.screenshot(path=str(OUT / "end.png"))
         br.close()
 finally:

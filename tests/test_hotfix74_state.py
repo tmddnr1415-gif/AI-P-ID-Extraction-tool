@@ -267,3 +267,17 @@ def test_write_retries_a_briefly_locked_file(tmp_path, monkeypatch):
     jsonstore.write(p, {"ok": 1})
     assert json.loads(p.read_text(encoding="utf-8")) == {"ok": 1} and calls["n"] == 3
     assert not list(tmp_path.glob("*.tmp*"))
+
+
+def test_home_says_why_a_project_job_became_loose(tmp_path):
+    db, jsonstore, main, revisions = _mods()
+    jid = "l" + "0" * 11
+    db.create_job(main.CON, jid, "x.pdf", "sha", tmp_path / "x.pdf")
+    main.CON.execute("UPDATE job SET project='깨진장부', revision='Rev.A' WHERE id=?", (jid,))
+    main.CON.commit()
+    try:
+        loose = {j["id"]: j for j in main.home()["loose"]}
+        assert loose[jid].get("ledger_missing") == "깨진장부"
+    finally:
+        main.CON.execute("DELETE FROM job WHERE id=?", (jid,))
+        main.CON.commit()

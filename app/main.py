@@ -1226,8 +1226,15 @@ def home():
     projects.sort(key=lambda p: (p.get("latest") or {}).get("analysed_at") or 0,
                   reverse=True)
     claimed = {r.get("job_id") for p in projects for r in p["revisions"]}
+    listed = {p.get("name") for p in projects}
     loose = [_job_public(j) for j in db.list_jobs(CON) if j["id"] not in claimed]
     for j in loose:
+        # hotfix74 — 프로젝트에 묶였던 분석인데 그 프로젝트 장부를 읽지 못하면(깨짐 · 지워짐) "묶이지 않은
+        # 분석" 으로 떨어진다.  그렇게만 보이면 왜 프로젝트가 사라졌는지 알 길이 없다 — 그 사실을 행에 싣는다.
+        pj = (db.get_job(CON, j["id"]) or {})
+        pname = pj["project"] if pj and "project" in pj.keys() else ""
+        if pname and pname not in listed:
+            j["ledger_missing"] = pname
         j["rows"] = db.row_count(CON, j["id"])
         j["edits"] = db.edited_cell_count(CON, j["id"])
         j["last_save"] = db.last_save(CON, j["id"])

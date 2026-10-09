@@ -3909,7 +3909,7 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 
 사용자: *"다양한 경우와 다양한 돌발상황들을 시뮬레이션하면서 보강해라 — 내일 오전 6시까지."*  시뮬레이터 일곱을 만들어 돌리고
 결함을 고친 뒤 다시 돌렸다 (전부 **사본 데이터**에서 · 실 DB 를 열지 않는다).  시험 `tests/test_hotfix74_fuzz.py` 6 ·
-`test_hotfix74_chaos.py` 7 · `test_hotfix74_variants.py` 8 · `test_hotfix74_state.py` 20 (빠른 시험 **999** · 6 건너뜀).
+`test_hotfix74_chaos.py` 8 · `test_hotfix74_variants.py` 8 · `test_hotfix74_state.py` 21 (빠른 시험 **1001** · 6 건너뜀).
 **네 프로젝트 기준선 그대로 — AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 (369초 · 4.8G) · TC2 `23e78e27` · 902 · 5564 · 94.2
 (310초 · 7.4G) · QFE `8bd6a8b3` · 2043 · 3720 · 91.2 (540초 · 6.2G) · UAD-DXF `a32c02a6` · 507 (65초) — 넷 다 "기준선과 같습니다"**
 (`out/hotfix74/reg/` · 최종 엔진 코드 · 순차).  최종 코드로 API 퍼징 다시 **5xx 0** (84초) · 프로세스·상태 돌발상황 다시 **결함 0** · UI 26 은 16 통과 · 10 실패로
@@ -3919,7 +3919,7 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 | --- | --- | --- |
 | `spike/api_fuzz.py` | 모든 경로 × 경로 인자 변형 × 본문 14종(빈 · 목록 · 글 · null · 틀린 형 · 거대 · 깊은 중첩 · NaN …) | **5xx 55 → 0** |
 | `spike/chaos_sim.py` | S1 동시 업로드 · S2 분석 자식 kill -9 · S3 대기 취소·분석 중 삭제 · S4 서버 kill -9 → 재시작 · S5 다른 프로세스가 DB 15초 잠금 · S6 같은 프로젝트에 동시에 둘 | 결함 6 → 0 |
-| `spike/ui_chaos.py` | U1 새로고침·뒤로 · U2 서버 꺼진 동안 편집 · U3 두 창 같은 칸 · U4 느린 망(요청마다 1.5초) · U5 서버 꺼진 채 업로드 · U6 원본 PDF 사라짐 | 결함 2 → 0 |
+| `spike/ui_chaos.py` | U1 새로고침·뒤로 · U2 서버 꺼진 동안 편집 · U3 두 창 같은 칸 · U4 느린 망(요청마다 1.5초) · U5 서버 꺼진 채 업로드 · U6 원본 PDF 사라짐 · U7 원본 없이 [재분석] · U8 양식 없이 [Excel 출력] · U9 프로젝트 장부 깨짐 | 결함 5 → 0 |
 | `spike/variant_inputs.py` | PDF 16 변형 (CropBox · XObject · 소유자 암호 · 증분 저장 · 표지 · 주석 · 한 장만 회전 · 30쪽 · EOF 뒤 쓰레기 · 깨진 xref · 거대/작은 장 · 범례만 …) | 결함 1 → 0 |
 | `spike/dxf_variants.py` | UAD DXF 32장 11 변형 (폴더 깊이 · cp949 이름 · 다른 파일 · LF · 빈/잘린/쓰레기 DXF · 범례 없음 · 전부 깨짐 · 같은 파일 두 번 · 작은 묶음) | 결함 4 → 0 |
 | `spike/state_chaos.py` | K1 상태 JSON 6종 × (반쯤 잘림 · 빈 · 목록 · 이진) × 백업 유무 · K2 원본 PDF 사라짐 · K3 DB 머리 손상 | 결함 다수 → 0 |
@@ -3967,14 +3967,20 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
    다시 받는** 최악의 꼴이다 (화면은 편집 뒤 그 행만 받는다 — hotfix68).  ③ 분석 중에 [다시 분석] 을 또 누르면 같은 분석이 줄에 두 번 섰다 → 409 · 화면이
    그 문장을 말한다(`askReanalyse` — 예전엔 응답을 안 보고 진행 화면으로 넘어갔다).  ④ 바이트까지 같은 PDF 를 다시 올리면
    말한다(막지 않음 · `duplicate_of`) — 개정본을 올린다며 직전 판을 또 올리는 실수.
-10. **[J] Windows 대비** — 백업용 읽기 전용 연결은 `as_uri()` 로 연다(손으로 `file:C:\…` 를 붙이면 한글·공백·`#` 경로를 잘못 읽는다 ·
+10. **[K] 화면이 거절·실패를 만났을 때** — [재분석] 이 응답을 보지 않고 진행 화면으로 넘어갔다 → `askReanalyse` 가 409·410 을 말하고
+   결과 화면에 머문다 (U7) · [Excel 출력] 400 이 화면을 떠나 JSON 글자를 보였다 → `downloadUrl` (U8) · 프로젝트 장부가 깨지면
+   그 분석들이 아무 말 없이 "묶이지 않은 분석" 으로 떨어졌다 → 행에 *"프로젝트 '…' 장부를 읽지 못해 여기 보입니다"*
+   (`ledger_missing` · U9).  **열어 둔 탭이 옛 판일 때** — 운영 서버에 꾸러미를 적용해도 밤새 켜 둔 탭·대시보드 iframe 은 옛
+   `app.js` 로 새 서버와 이야기한다 → 내 스크립트 주소의 `?v=` 딱지(56회차)와 `/version` 의 딱지를 2분마다·연결이 돌아올 때 맞대
+   다르면 노란 띠와 [새로고침] (`checkStaleUi` · 실측: 서버 쪽 `app.js` 를 바꾸자 띠가 섰다 · `ui_chaos/u10_stale_ui.png`).
+11. **[J] Windows 대비** — 백업용 읽기 전용 연결은 `as_uri()` 로 연다(손으로 `file:C:\…` 를 붙이면 한글·공백·`#` 경로를 잘못 읽는다 ·
    실측 `한글 경로#x`) · 상태 파일 교체(`os.replace`)가 백신·편집기에 잠깐 잡혀 PermissionError 면 몇 번 더 해 본다 ·
    서버 PC 에서 지난 결과 엑셀을 열어 두면 같은 이름으로 못 덮어쓰므로 Excel 출력은 새 폴더(`rev<n>_<시각>`)에 쓴다
    (위생 감사가 같은 스냅샷으로 센다).  ⚠ 셋 다 이 환경(Linux)에서는 흉내로만 시험했다.
-11. **⚠ 스스로 뒤집은 것** — 변형기 v02(XObject)가 회전 장을 잘라 46행을 냈다 — 제품이 아니라 변형기 결함 · DXF 변형의 첫 기준 묶음
+12. **⚠ 스스로 뒤집은 것** — 변형기 v02(XObject)가 회전 장을 잘라 46행을 냈다 — 제품이 아니라 변형기 결함 · DXF 변형의 첫 기준 묶음
    (6장)이 1행이라 "원본과 같다" 가 아무것도 재지 못했다 → 32장 전부를 기준으로 · state_chaos 첫 판이 사본 밖의 원본 PDF 를 옮겼다 →
    사본 DB 의 경로만 바꾼다 · U6 첫 판이 브라우저 캐시로 그림을 받아 "말이 없다" 고 잘못 적었다 → 새 브라우저 창.
-12. **못 한 것** — Windows(cmd · 서비스 루프 · 경로)에서의 돌발상황 · 실제 디스크 가득 참(단위 시험으로만) · SADARA · UAD PDF ·
+13. **못 한 것** — Windows(cmd · 서비스 루프 · 경로)에서의 돌발상황 · 실제 디스크 가득 참(단위 시험으로만) · SADARA · UAD PDF ·
     `data/*.xlsx` 없음 (축1·2 · 실제 양식 채우기).
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
@@ -4463,7 +4469,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._unexpected_error`·`_state_corrupt`·`_db_busy`·`_disk_full_response`·`_known_cause`·`_require_source`·`_template_problem`·`_inflight_revisions`·`_start_background` | **hotfix74** — 예상 못 한 오류는 기록 번호 · 상태 파일 손상 · DB 잠김 503 · 디스크 가득 507 · 실패 사유의 환경 원인 · 원본 사라짐 410 · 엑셀 아닌 양식 거부 · 분석 중 리비전 · 백그라운드 스레드는 모듈 끝에서 |
 | `pipeline.NoPidSheets` · 계획의 "이 장만 종이 방향이 다릅니다" | **hotfix74** — 범례만 든 PDF 가 0행으로 조용히 성공하지 않는다 · 옆으로 누운 장이 왜 빠졌는지 |
 | `dxf_pipeline` 의 세 멈춤 · `roles_note` · `dxf_reader.list_inputs`(같은 내용·macOS 찌꺼기)·`_order`(자연 순서) | **hotfix74** — DXF 묶음 돌발상황 |
-| `app.js` `downloadUrl`·`askReanalyse`·`#sheet-err`·`#net-banner`(`netDown`/`netUp`)·`duplicate_of` 알림 | **hotfix74** — 화면을 떠나지 않는 내려받기 · 다시 분석 거절을 말함 · 그림 못 받은 이유 · 연결 끊김 띠 · 같은 파일 재업로드 |
+| `app.js` `downloadUrl`·`askReanalyse`·`#sheet-err`·`#net-banner`(`netDown`/`netUp`)·`checkStaleUi`/`MY_UI_TAG`·`duplicate_of` 알림·`ledger_missing` | **hotfix74** — 화면을 떠나지 않는 내려받기 · 다시 분석 거절을 말함 · 그림 못 받은 이유 · 연결 끊김 띠 · 같은 파일 재업로드 |
 | `spike/api_fuzz.py`·`chaos_sim.py`·`ui_chaos.py`·`variant_inputs.py`·`dxf_variants.py`·`state_chaos.py`·`soak.py` | **hotfix74** — 돌발상황 시뮬레이터 일곱 (전부 사본 데이터) |
 | `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
 | `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |

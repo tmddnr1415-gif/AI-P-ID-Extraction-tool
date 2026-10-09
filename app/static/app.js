@@ -896,7 +896,10 @@ async function listHome() {
             + `<span class="rv-dot ${RV_STATUS[st] || "off"}"></span>`
             + `<span class="rv-name"><span class="rv-file">${escape(j.pdf_title || j.pdf_name || "")}</span>`
             + (j.top_rev ? ` ${drawnRev(j.top_rev, j.top_date, j.top_basis)}` : "")
-            + (j.pdf_title ? `<span class="rv-file-sm">${escape(j.pdf_name || "")}</span>` : "") + `</span>`
+            + (j.pdf_title ? `<span class="rv-file-sm">${escape(j.pdf_name || "")}</span>` : "")
+            // hotfix74 — 프로젝트 장부를 읽지 못해 여기로 떨어진 분석 (데이터 위생이 사유를 말한다)
+            + (j.ledger_missing ? `<span class="rv-file-sm" style="color:#b42318">프로젝트 '${escape(j.ledger_missing)}' 장부를 읽지 못해 여기 보입니다 — 아래 데이터 위생 참고</span>` : "")
+            + `</span>`
             + `<span class="rv-meta"><span class="rv-st ${RV_STATUS[st] || "off"}">${escape(JOB_STATUS_KO[st] || st)}</span>`
             + (qtyOf(j) != null ? `<span class="rv-chip qty">계기 <b>${fmtCount(qtyOf(j))}</b></span>` : "")
             + (j.page_count ? `<span class="rv-chip"><b>${fmtCount(j.page_count)}</b>장</span>` : "")
@@ -9236,11 +9239,46 @@ function netDown() {
 }
 function netUp() {
   NET.down = false;
+  checkStaleUi();                     // 서버가 다시 켜졌다면 업데이트였을 수 있다
   if (NET.timer) { clearInterval(NET.timer); NET.timer = null; }
   const b = document.getElementById("net-banner");
   if (b) b.hidden = true;
 }
 let _fetch0 = window.fetch.bind(window);
+
+/* hotfix74 — 서버가 업데이트됐는데 이 화면은 옛 판일 때 말한다.  운영 서버에 꾸러미를 적용해도 열어 둔
+ * 탭은 옛 `app.js` 로 새 서버와 이야기한다 (밤새 켜 둔 탭 · 대시보드 iframe).  내 딱지는 이 스크립트 주소의
+ * `?v=` 이고(서버가 내용으로 만든다 · 56회차), 2분마다 · 연결이 돌아올 때 `/version` 의 딱지와 맞대 다르면
+ * 노란 띠와 [새로고침].  고친 값은 칸마다 이미 저장돼 있으므로 새로고침해도 잃지 않는다. */
+const MY_UI_TAG = (() => {
+  try {
+    const m = /[?&]v=([^&]+)/.exec((document.currentScript && document.currentScript.src) || "");
+    return m ? m[1] : "";
+  } catch (e) { return ""; }
+})();
+async function checkStaleUi() {
+  if (!MY_UI_TAG) return;
+  try {
+    const v = await (await _fetch0("/version", { cache: "no-store" })).json();
+    const now = v && v.ui && v.ui.app_js;
+    if (!now || now === MY_UI_TAG || document.getElementById("stale-banner")) return;
+    const b = document.createElement("div");
+    b.id = "stale-banner";
+    b.setAttribute("role", "status");
+    b.style.cssText = "position:fixed;bottom:34px;left:50%;transform:translateX(-50%);z-index:99998;"
+      + "background:#fff4d6;color:#5c3d00;border:1px solid #e0a35a;border-radius:8px;padding:8px 14px;"
+      + "font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.18)";
+    const name = v.update && v.update.name ? ` (${v.update.name})` : "";
+    b.textContent = `서버가 업데이트됐습니다${name} — 이 화면은 옛 판입니다.  고친 값은 저장돼 있으니 새로고침하세요. `;
+    const btn = document.createElement("button");
+    btn.textContent = "새로고침";
+    btn.style.marginLeft = "8px";
+    btn.onclick = () => location.reload();
+    b.appendChild(btn);
+    document.body.appendChild(b);
+  } catch (e) { /* 꺼져 있으면 연결 끊김 띠가 말한다 */ }
+}
+setInterval(checkStaleUi, 120000);
 
 (function hookFetch() {
   const f0 = window.fetch.bind(window);

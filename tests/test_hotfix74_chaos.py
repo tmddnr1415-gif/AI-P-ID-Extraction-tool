@@ -79,3 +79,12 @@ def test_screen_says_when_the_server_is_unreachable():
     assert "function netDown()" in js and "function netUp()" in js and 'id = "net-banner"' in js
     hook = js[js.index("(function hookFetch()"):]
     assert "netDown()" in hook and "netUp()" in hook
+
+
+def test_open_tab_learns_that_the_server_was_updated():
+    """서버에 꾸러미를 적용해도 열어 둔 탭은 옛 app.js 다 — 딱지가 다르면 노란 띠와 [새로고침]."""
+    js = (Path(main.__file__).resolve().parent / "static" / "app.js").read_text(encoding="utf-8")
+    assert "const MY_UI_TAG" in js and "async function checkStaleUi()" in js
+    assert "setInterval(checkStaleUi, 120000)" in js
+    up = js.split("function netUp() {", 1)[1].split("\n}", 1)[0]
+    assert "checkStaleUi()" in up
