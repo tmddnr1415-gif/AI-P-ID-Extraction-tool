@@ -281,3 +281,25 @@ def test_home_says_why_a_project_job_became_loose(tmp_path):
     finally:
         main.CON.execute("DELETE FROM job WHERE id=?", (jid,))
         main.CON.commit()
+
+
+def test_output_qty_is_reused_until_the_db_changes(monkeypatch):
+    db, jsonstore, main, revisions = _mods()
+    calls = {"n": 0}
+    real = db.output_qty
+
+    def counting(*a, **k):
+        calls["n"] += 1
+        return real(*a, **k)
+    monkeypatch.setattr(main.db, "output_qty", counting)
+    main._OUTPUT_QTY.clear()
+    main._output_qty("nojob")
+    main._output_qty("nojob")
+    assert calls["n"] == 1                                    # DB 가 그대로면 다시 세지 않는다
+    main.CON.execute("CREATE TABLE IF NOT EXISTS _t74 (a)")
+    main.CON.execute("INSERT INTO _t74 VALUES (1)")
+    main.CON.commit()
+    main._output_qty("nojob")
+    assert calls["n"] == 2                                    # 바뀌면 다시 센다
+    main.CON.execute("DROP TABLE _t74")
+    main.CON.commit()

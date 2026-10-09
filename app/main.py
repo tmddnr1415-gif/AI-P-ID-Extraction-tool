@@ -996,9 +996,22 @@ def _output_qty(job_id: str) -> dict:
 
     나가는 탭과 SCOPE 판정은 Excel 출력과 **같은 것**을 쓴다 (`excel_out.DELIVERABLES` ·
     `in_client_scope`) — 화면이 말하는 수와 파일이 갈리지 않게."""
+    # hotfix74 — 첫 화면이 프로젝트 카드마다 분석 하나씩 이 합을 다시 셌다 (QFE 2천 행 한 번 11ms · 프로젝트 31개 ·
+    # 리비전 62개면 첫 화면 1.1초 중 0.7초).  DB 가 바뀌지 않았으면 같은 답이다 — 도장(`db._db_stamp`)이 같을 때만 다시 쓴다.
+    _path, stamp = db._db_stamp(CON)
+    hit = _OUTPUT_QTY.get(job_id)
+    if hit and hit[0] == stamp:
+        return hit[1]
     tabs = {t for spec in excel_out.DELIVERABLES.values() for t in spec["tabs"]}
     keep = lambda scope: excel_out.in_client_scope({"values": {"scope": scope}})   # noqa: E731
-    return db.output_qty(CON, job_id, tabs, keep)
+    out = db.output_qty(CON, job_id, tabs, keep)
+    _OUTPUT_QTY[job_id] = (stamp, out)
+    if len(_OUTPUT_QTY) > 500:
+        _OUTPUT_QTY.pop(next(iter(_OUTPUT_QTY)))
+    return out
+
+
+_OUTPUT_QTY: dict = {}
 
 
 def _json(data) -> Response:
