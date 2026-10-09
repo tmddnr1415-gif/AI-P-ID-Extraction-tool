@@ -27,7 +27,7 @@ env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT), PID_PAGE_WA
 srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
                        cwd=str(ROOT), env=env, stdout=open(OUT / "server.log", "w"), stderr=subprocess.STDOUT)
 SIZES = [(1280, 720, 1.5, "1920x1080_150pct"), (1093, 614, 1.25, "1366x768_125pct"),
-         (1024, 700, 1.0, "1024x700"), (1536, 864, 1.25, "1920x1080_125pct")]
+         (1024, 700, 1.0, "1024x700"), (1536, 864, 1.25, "1920x1080_125pct"), (960, 540, 2.0, "1920x1080_200pct"), (800, 600, 1.0, "800x600")]
 FACTS, DEFECTS = {}, []
 CHECK = """() => {
   const inView = sel => { const e = document.querySelector(sel); if (!e) return 'none';

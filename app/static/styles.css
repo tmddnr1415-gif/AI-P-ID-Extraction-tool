@@ -2091,3 +2091,11 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
   .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .55; }
   .build:hover { max-width: 70vw; white-space: normal; opacity: 1; }
 }
+
+/* hotfix74 — 아주 키 작은 화면 (브라우저 200% 확대 · 800×600 · CSS 540~600px).  머리줄과 정보 띠가 420px 를 먹어
+   도면 창이 140~155px 였다 (`spike/ui_small_screens.py`).  이런 화면에서는 페이지 자체가 굴러간다 — 도면·목록 칸은
+   화면 한 장 높이를 갖고, 머리줄은 위로 밀려 올라간다 (아래로 굴리면 도면이 화면을 채운다). */
+@media (max-height: 620px) {
+  main { height: auto; min-height: 100%; }
+  #split { flex: none; height: max(420px, calc(100vh - 16px)); }
+}

@@ -101,6 +101,9 @@ def test_short_screens_keep_the_list_reachable():
     assert "#right { overflow-y: auto; }" in body
     assert "#right.compare { overflow-y: hidden; }" in body
     assert ".build {" in body and "text-overflow: ellipsis" in body
+    # 아주 키 작은 화면(200% 확대 · 800×600)은 페이지가 굴러가고 도면·목록 칸이 화면 한 장 높이를 갖는다
+    m2 = re.search(r"@media \(max-height: 620px\) \{(.*?)\n\}", css, re.S)
+    assert m2 and "#split { flex: none; height: max(420px, calc(100vh - 16px)); }" in m2.group(1)
 
 
 def test_enter_while_composing_hangul_does_not_reach_handlers():
