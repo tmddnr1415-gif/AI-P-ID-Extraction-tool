@@ -139,3 +139,15 @@ def test_record_making_buttons_ignore_a_second_press():
         assert needle in js, needle
     i = js.index("async function saveMemo() {")
     assert "if (S._memoBusy) return;" in js[i:i + 400]
+
+
+def test_escape_covers_quotes_for_attributes():
+    """`escape()` 의 결과가 `title="…"` 속성 안에도 들어간다 — 따옴표를 두면 사람이 적은 이름·메모가 속성을 깨고
+    처리기를 심었다 (`spike/ui_xss.py`: 옛 코드 스크립트 4회 · 처리기 7개 → 0 · 0)."""
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    line = next(ln for ln in js.splitlines() if ln.startswith("const escape = "))
+    for ch, ent in (('"', "&quot;"), ("'", "&#39;"), ("<", "&lt;"), ("&", "&amp;")):
+        assert ent in line, ch
+    i = js.index('<div class="mset">지정됨')
+    seg = js[i:i + 400]
+    assert "escape(String(set.author" in seg and "escape(String(set.note))" in seg

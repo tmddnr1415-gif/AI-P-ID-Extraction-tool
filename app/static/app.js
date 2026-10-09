@@ -2005,7 +2005,7 @@ async function cmpShow() {
     + `<span class="cmp-n">${page ? `상자 ${n}` : ""}</span>`;
   const pk = $("#cmp-pick");
   if (pk) pk.onchange = () => { S.cmpPick[want] = pk.value ? +pk.value : undefined; cmpShow(); };
-  foot.textContent = `왼쪽 최신 ${escape(pr.currentLabel)} p${S.page.page_no} ↔ 오른쪽 이전 ${escape(pr.previousLabel)}`
+  foot.textContent = `왼쪽 최신 ${pr.currentLabel} p${S.page.page_no} ↔ 오른쪽 이전 ${pr.previousLabel}`
     + (page ? ` p${page.page_no}` : "") + ` · 같은 도면번호 · 확대·스크롤 공유`
     + (data.ms ? ` · 이전 결과 ${data.ms}ms 에 읽음` : "");
   renderCmpChanges(changes, { add: nAdd, mod: nMod, del: nDel });
@@ -2823,14 +2823,14 @@ async function loadMultipliers() {
         const after = set ? g.rows * (set.multiplier || 0) : null;
         /* 유닛코드가 비어 있으면 열쇠가 없다 — 그 도면의 도면번호를 못 읽은 것이다. */
         const keyed = !!g.unit;
-        return `<div class="mgroup" data-unit="${g.unit}">
-          <div class="mhead">유닛 <b>${g.unit || "(빈칸)"}</b>
+        return `<div class="mgroup" data-unit="${attr(g.unit || "")}">
+          <div class="mhead">유닛 <b>${escape(String(g.unit || "(빈칸)"))}</b>
             <span class="muted">${g.sheets}장 ${g.rows}행에 적용됩니다
               (${g.pages.map(p => "p" + p).join(", ")})</span></div>
-          <div class="mwhy muted">${(g.codes || []).join(" · ")}</div>
+          <div class="mwhy muted">${escape((g.codes || []).join(" · "))}</div>
           ${set ? `<div class="mset">지정됨 <b>x${set.multiplier}</b>
-              — ${set.author || "이름 없음"} · ${(set.set_at || "").slice(0, 10)}
-              ${set.note ? " · " + set.note : ""}
+              — ${escape(String(set.author || "이름 없음"))} · ${escape(String(set.set_at || "").slice(0, 10))}
+              ${set.note ? " · " + escape(String(set.note)) : ""}
               <button class="mclear">되돌리기</button>
               <div class="mpending">아직 이 결과에는 반영되지 않았습니다 —
                 다시 분석하면 ${g.rows}행에 적용됩니다</div></div>` : ""}
@@ -2838,7 +2838,7 @@ async function loadMultipliers() {
             <label>승수 <input class="mval" type="number" min="1" step="1"
                    value="${set ? set.multiplier : ""}" placeholder="예: 4"></label>
             <label>근거 <input class="mnote" type="text"
-                   placeholder="예: 발주처 회신 2026-09-11" value="${set ? (set.note || "") : ""}"></label>
+                   placeholder="예: 발주처 회신 2026-09-11" value="${attr(set ? (set.note || "") : "")}"></label>
             <button class="mset-btn">지정</button>
             <span class="mpreview muted">지금 Q'ty ${g.qty_now}
               ${after !== null ? ` · 다시 분석하면 <b>${after}</b>` : " · 다시 분석하면 ?"}</span>
@@ -5880,7 +5880,9 @@ function bindCandidatePicker(row) {
   document.querySelector("#cand-bulk").onclick =
     () => setDescription(row, input.value.trim(), { bulk: true });
 }
-const escape = (s) => s.replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+// hotfix74 — 따옴표도 바꾼다.  이 함수의 결과가 `title="…"` 같은 속성 안에도 들어가는데, 따옴표를 두면 사람이 적은
+// 이름·메모가 속성을 깨고 처리기를 심었다 (spike/ui_xss.py: 첫 화면 리비전 줄의 저장자 이름 → onmouseover).
+const escape = (s) => s.replace(/[<>&"']/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ---------------- hotfix63 — 장별 메모 ----------------
  *
