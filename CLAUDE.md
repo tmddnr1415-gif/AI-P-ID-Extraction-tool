@@ -3909,7 +3909,7 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 
 사용자: *"다양한 경우와 다양한 돌발상황들을 시뮬레이션하면서 보강해라 — 내일 오전 6시까지."*  시뮬레이터 일곱을 만들어 돌리고
 결함을 고친 뒤 다시 돌렸다 (전부 **사본 데이터**에서 · 실 DB 를 열지 않는다).  시험 `tests/test_hotfix74_fuzz.py` 6 ·
-`test_hotfix74_chaos.py` 8 · `test_hotfix74_variants.py` 8 · `test_hotfix74_state.py` 22 (빠른 시험 **1002** · 6 건너뜀).
+`test_hotfix74_chaos.py` 14 · `test_hotfix74_variants.py` 8 · `test_hotfix74_state.py` 28 (빠른 시험 **1014** · 6 건너뜀).
 **네 프로젝트 기준선 그대로 — AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 (369초 · 4.8G) · TC2 `23e78e27` · 902 · 5564 · 94.2
 (310초 · 7.4G) · QFE `8bd6a8b3` · 2043 · 3720 · 91.2 (540초 · 6.2G) · UAD-DXF `a32c02a6` · 507 (65초) — 넷 다 "기준선과 같습니다"**
 (`out/hotfix74/reg/` · 최종 엔진 코드 · 순차).  최종 코드로 API 퍼징 다시 **5xx 0** (84초) · 프로세스·상태 돌발상황 다시 **결함 0** · UI 26 은 16 통과 · 10 실패로
@@ -3930,6 +3930,7 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 | `spike/ui_small_screens.py` | 1920×1080@150%·@125%·@200% · 1366×768@125% · 1024×700 · 800×600 — 목록이 닿는가 · 도면 창 높이 · 단추가 화면 안 · 딱지가 덮나 | 결함 3 → 0 (1366@125% 도면 229 → 431px · 200% 155 → 357px) |
 | `spike/ui_double_click.py` | 기록을 만드는 단추를 느린 망(0.8초)에서 두 번 누름 | VOC 2 · 메모 2 → 1 · 1 |
 | `spike/ui_xss.py` | 사람이 쓰는 칸 11곳 + 도면에서 읽은 값 6가지에 HTML·따옴표 → 그 글이 보이는 화면 9곳 | 스크립트 4 · 처리기 7 → 0 · 0 |
+| `spike/ui_open_fail.py` | 결과를 여는 도중 `/rows` · `/pages` · `/legend` 를 한 번씩 끊음 | 말 없이 0행 → 사유 + [다시 열기] · 다시 열면 1991행 |
 
 1. **[A] API 500 55건** — 프로젝트 이름 검사(`revisions.ProjectNameError` → 400 · 빈 · `..` · 금지 글자 · 제어 글자 · 150바이트) ·
    정수 칸(`main._int_field` → 400 과 칸 이름) · 목록 자리에 사전 아닌 것 · zip 폭탄(`ZIP_MAX_BYTES` 1.5GB · 압축비 100 — UAD 실측 비 6).
@@ -4006,6 +4007,9 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
    `title="…"` 속성을 깼고(첫 화면 리비전 줄의 저장자 이름), 승수 판이 작성자·근거를 그대로 넣었다 → `escape` 가 `"`·`'` 도 바꾼다 ·
    승수 판은 escape/attr.  도면 쪽 독(PDF 글자 — 설명 · 계통 · 태그 · 도면번호 · 장 제목 · PDF 제목)도 넣어 봤다 → 0 · 0.
    사내망에서 여럿이 쓰는 서버라 **한 사람이 적은 글이 다른 사람의 브라우저에서 돌 수 있던 자리**다.
+   ⑪ **결과를 여는 도중 연결이 끊기면** (`spike/ui_open_fail.py` — `/rows`·`/pages` 를 한 번 끊음) 목록 0행 · `S.loading` 켜진 채 ·
+   위쪽 연결 띠는 다음 확인에서 사라져 **아무 말도 남지 않았다** → `open()` 이 실패를 잡아 "결과를 다 받지 못했습니다" +
+   [다시 열기] (본문은 `_open()` — 그 본문을 읽던 시험 다섯이 따라갔다).  첫 화면에서 누른 것이면 알림.
 12. **⚠ 스스로 뒤집은 것** — 변형기 v02(XObject)가 회전 장을 잘라 46행을 냈다 — 제품이 아니라 변형기 결함 · DXF 변형의 첫 기준 묶음
    (6장)이 1행이라 "원본과 같다" 가 아무것도 재지 못했다 → 32장 전부를 기준으로 · state_chaos 첫 판이 사본 밖의 원본 PDF 를 옮겼다 →
    사본 DB 의 경로만 바꾼다 · U6 첫 판이 브라우저 캐시로 그림을 받아 "말이 없다" 고 잘못 적었다 → 새 브라우저 창.
@@ -4501,7 +4505,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `downloadUrl`·`askReanalyse`·`#sheet-err`·`#net-banner`(`netDown`/`netUp`)·`checkStaleUi`/`MY_UI_TAG`·`duplicate_of` 알림·`ledger_missing` | **hotfix74** — 화면을 떠나지 않는 내려받기 · 다시 분석 거절을 말함 · 그림 못 받은 이유 · 연결 끊김 띠 · 같은 파일 재업로드 |
 | `spike/api_fuzz.py`·`chaos_sim.py`·`ui_chaos.py`·`variant_inputs.py`·`dxf_variants.py`·`state_chaos.py`·`soak.py` | **hotfix74** — 돌발상황 시뮬레이터 일곱 (전부 사본 데이터) |
 | `main._excel_lock` · `jsonstore.building`/`scratch`/`publish` · `app.js` `guarded` · IME Enter 거름 · `@media (max-height: 760px)` · `revisions.check_new_name` · `lan_check.tail_bytes`/`rotate` · `voc.unreadable` | **hotfix74 [L]** — 동시 내보내기 · 반쯤 쓴 파일 없음 · 두 번 누름 · 한글 조합 · 작은 화면 · Windows 이름 · 긴 로그 · 깨진 VOC |
-| `spike/excel_race.py`·`file_race.py`·`ui_small_screens.py`·`ui_double_click.py`·`ui_xss.py` | **hotfix74 [L]** — 시뮬레이터 다섯 (사본 데이터) · `escape()` 는 따옴표까지 바꾼다 — 속성 안에도 쓰인다 |
+| `spike/excel_race.py`·`file_race.py`·`ui_small_screens.py`·`ui_double_click.py`·`ui_xss.py`·`ui_open_fail.py` | **hotfix74 [L]** — 시뮬레이터 여섯 (사본 데이터) · `escape()` 는 따옴표까지 바꾼다 — 속성 안에도 쓰인다 |
 | `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
 | `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

@@ -2,7 +2,7 @@
 =================================== FAILURES ===================================
 ______________________ test_step3_survives_origin_filter _______________________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
 
     def test_step3_survives_origin_filter(page, edited):
@@ -29,8 +29,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     return await self._connection.wrap_api_call(
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <playwright._impl._connection.Connection object at 0x7f9aeda916d0>
-cb = <function Channel.send.<locals>.<lambda> at 0x7f9aeee8fba0>
+self = <playwright._impl._connection.Connection object at 0x7fe0401beb10>
+cb = <function Channel.send.<locals>.<lambda> at 0x7fe0415c3e20>
 is_internal = False, title = None
 
     async def wrap_api_call(
@@ -70,10 +70,10 @@ E                  - waiting 500ms
 /usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:632: TimeoutError
 _______________________ test_step6_edits_reach_the_excel _______________________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
-tmp_path = PosixPath('/tmp/pytest-of-root/pytest-394/test_step6_edits_reach_the_exc0')
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-400/test_step6_edits_reach_the_exc0')
 
     def test_step6_edits_reach_the_excel(page, edited, server, job_id, tmp_path):
         """Gate, export, and find the five edited values in the workbook cells."""
@@ -108,10 +108,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
              ^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f9b08bd2e50>
-req = <urllib.request.Request object at 0x7f9b05cd57d0>
-fp = <http.client.HTTPResponse object at 0x7f9b08f67280>, code = 400
-msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f9aed963390>
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fe0571c6910>
+req = <urllib.request.Request object at 0x7fe0411a6710>
+fp = <http.client.HTTPResponse object at 0x7fe04181e710>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7fe033f2cfd0>
 
     def http_error_default(self, req, fp, code, msg, hdrs):
 >       raise HTTPError(req.full_url, code, msg, hdrs, fp)
@@ -120,10 +120,10 @@ E       urllib.error.HTTPError: HTTP Error 400: Bad Request
 /usr/lib/python3.11/urllib/request.py:643: HTTPError
 _____________________ test_step6_reports_unmappable_edits ______________________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
-tmp_path = PosixPath('/tmp/pytest-of-root/pytest-394/test_step6_reports_unmappable_0')
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-400/test_step6_reports_unmappable_0')
 
     def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
         """An edit the target form cannot carry must be named, not dropped quietly.
@@ -173,10 +173,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
              ^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f9b08bd2e50>
-req = <urllib.request.Request object at 0x7f9b08fa2fd0>
-fp = <http.client.HTTPResponse object at 0x7f9b08bb79a0>, code = 400
-msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f9aeea68550>
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fe0571c6910>
+req = <urllib.request.Request object at 0x7fe0411a6d90>
+fp = <http.client.HTTPResponse object at 0x7fe0575f7c70>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7fe0411a6410>
 
     def http_error_default(self, req, fp, code, msg, hdrs):
 >       raise HTTPError(req.full_url, code, msg, hdrs, fp)
@@ -185,11 +185,11 @@ E       urllib.error.HTTPError: HTTP Error 400: Bad Request
 /usr/lib/python3.11/urllib/request.py:643: HTTPError
 ___________ test_step6_scope_edit_is_counted_and_follows_the_setting ___________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
 field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
-tmp_path = PosixPath('/tmp/pytest-of-root/pytest-394/test_step6_scope_edit_is_count0')
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-400/test_step6_scope_edit_is_count0')
 
     def test_step6_scope_edit_is_counted_and_follows_the_setting(
             page, edited, field_rows, server, job_id, tmp_path):
@@ -262,10 +262,10 @@ tests/test_ui_edits.py:567: in export
              ^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f9b08bd2e50>
-req = <urllib.request.Request object at 0x7f9b08bd3610>
-fp = <http.client.HTTPResponse object at 0x7f9b08fe2c50>, code = 400
-msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f9b08bd35d0>
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fe0571c6910>
+req = <urllib.request.Request object at 0x7fe041b8ac10>
+fp = <http.client.HTTPResponse object at 0x7fe05755b9d0>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7fe0401be4d0>
 
     def http_error_default(self, req, fp, code, msg, hdrs):
 >       raise HTTPError(req.full_url, code, msg, hdrs, fp)
@@ -274,11 +274,11 @@ E       urllib.error.HTTPError: HTTP Error 400: Bad Request
 /usr/lib/python3.11/urllib/request.py:643: HTTPError
 ________ test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting ________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
 field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
-tmp_path = PosixPath('/tmp/pytest-of-root/pytest-394/test_step6_edit_on_a_vendor_ro0')
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-400/test_step6_edit_on_a_vendor_ro0')
 
     def test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting(
             page, edited, field_rows, server, job_id, tmp_path):
@@ -332,10 +332,10 @@ tests/test_ui_edits.py:606: in _field_rows_in_export
              ^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f9b08bd2e50>
-req = <urllib.request.Request object at 0x7f9aecaa6e10>
-fp = <http.client.HTTPResponse object at 0x7f9aef2bf730>, code = 400
-msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f9aecaa6f50>
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fe0571c6910>
+req = <urllib.request.Request object at 0x7fe0415ee910>
+fp = <http.client.HTTPResponse object at 0x7fe0575b9b70>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7fe033198250>
 
     def http_error_default(self, req, fp, code, msg, hdrs):
 >       raise HTTPError(req.full_url, code, msg, hdrs, fp)
@@ -344,11 +344,11 @@ E       urllib.error.HTTPError: HTTP Error 400: Bad Request
 /usr/lib/python3.11/urllib/request.py:643: HTTPError
 ____________ test_step6_a_row_with_no_scope_is_written_not_dropped _____________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
 edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
 field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
-tmp_path = PosixPath('/tmp/pytest-of-root/pytest-394/test_step6_a_row_with_no_scope0')
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-400/test_step6_a_row_with_no_scope0')
 
     def test_step6_a_row_with_no_scope_is_written_not_dropped(
             page, edited, field_rows, server, job_id, tmp_path):
@@ -399,10 +399,10 @@ tests/test_ui_edits.py:606: in _field_rows_in_export
              ^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f9b08bd2e50>
-req = <urllib.request.Request object at 0x7f9aeeca2890>
-fp = <http.client.HTTPResponse object at 0x7f9af53e7b80>, code = 400
-msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f9aeeca2a50>
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fe0571c6910>
+req = <urllib.request.Request object at 0x7fe0327db250>
+fp = <http.client.HTTPResponse object at 0x7fe041c95ff0>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7fe0327db410>
 
     def http_error_default(self, req, fp, code, msg, hdrs):
 >       raise HTTPError(req.full_url, code, msg, hdrs, fp)
@@ -411,8 +411,8 @@ E       urllib.error.HTTPError: HTTP Error 400: Bad Request
 /usr/lib/python3.11/urllib/request.py:643: HTTPError
 _____________ test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only _____________
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
 
     def test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only(page, server, job_id):
         """[A] The four ways of zooming agree, and the keys stay off the grid.
@@ -478,8 +478,8 @@ E        +  and   264.35578089992543 = abs((881.1859363330842 - 1145.54171723300
 tests/test_ui_edits.py:1096: AssertionError
 ______ test_step17_column_filters_and_with_everything_and_ride_in_the_url ______
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
 
     def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
             page, server, job_id):
@@ -509,8 +509,8 @@ E         Use -v to get more diff
 tests/test_ui_edits.py:1148: AssertionError
 _______ test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation _______
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
 
     def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, server, job_id):
         """빈 자리를 드래그하면 누락 행이 되고, 목록에 ＋ 로 서고, 범례의 세 색 칸 합은
@@ -556,8 +556,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     return await self._connection.wrap_api_call(
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <playwright._impl._connection.Connection object at 0x7f9aeda916d0>
-cb = <function Channel.send.<locals>.<lambda> at 0x7f9aeee8e200>
+self = <playwright._impl._connection.Connection object at 0x7fe0401beb10>
+cb = <function Channel.send.<locals>.<lambda> at 0x7fe03318f6a0>
 is_internal = False, title = None
 
     async def wrap_api_call(
@@ -583,8 +583,8 @@ E             - waiting for locator("#body tr.added") to be visible
 /usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:632: TimeoutError
 __ test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting ___
 
-page = <Page url='http://127.0.0.1:54195/#uidb289025bb8ec2'>
-server = 'http://127.0.0.1:54195', job_id = 'uidb289025bb8ec2'
+page = <Page url='http://127.0.0.1:37841/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:37841', job_id = 'uidb289025bb8ec2'
 
     def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(page, server, job_id):
         """상자를 누르면 오검출 표시 — 행은 남고 (그중) 오검출 표시가 1 늘며 ✕ 표식이 붙는다."""
@@ -614,8 +614,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     return await self._connection.wrap_api_call(
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-self = <playwright._impl._connection.Connection object at 0x7f9aeda916d0>
-cb = <function Channel.send.<locals>.<lambda> at 0x7f9aecaa2ac0>
+self = <playwright._impl._connection.Connection object at 0x7fe0401beb10>
+cb = <function Channel.send.<locals>.<lambda> at 0x7fe03318f060>
 is_internal = False, title = None
 
     async def wrap_api_call(
@@ -660,4 +660,4 @@ FAILED tests/test_ui_edits.py::test_step16_ctrl_wheel_and_keys_zoom_the_viewer_o
 FAILED tests/test_ui_edits.py::test_step17_column_filters_and_with_everything_and_ride_in_the_url
 FAILED tests/test_ui_edits.py::test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation
 FAILED tests/test_ui_edits.py::test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting
-10 failed, 16 passed, 1036 deselected, 2 warnings in 596.10s (0:09:56)
+10 failed, 16 passed, 1038 deselected, 2 warnings in 570.01s (0:09:30)
