@@ -706,7 +706,12 @@ def _store_facts(job_id: str) -> dict:
     if (job["input_kind"] or "PDF") != "PDF":
         facts = {"kind": job["input_kind"], "error": "DXF 입력은 PDF 글자층이 없습니다"}
     else:
-        facts = pdf_facts.read(job["pdf_path"], db.page_revisions(CON, job_id))
+        revs = db.page_revisions(CON, job_id)
+        try:
+            # hotfix69 — PDF 를 다시 읽는 2~5초를 서버 밖 일꾼이 한다 (그동안 화면 요청이 기다리지 않게)
+            facts = page_warm.call(pdf_facts.read, (job["pdf_path"], revs))
+        except RuntimeError:
+            facts = pdf_facts.read(job["pdf_path"], revs)
         facts["top"] = pdf_facts.top_revision(facts, job["doc_rev"] or "")
     db.set_facts(CON, job_id, facts)
     return facts
@@ -2669,6 +2674,7 @@ def _warm_pages(job_id: str, pages_out: list) -> None:
             return
         nos = [p["page_no"] for p in pages_out]
         first = next((p["page_no"] for p in pages_out if p.get("layers")), nos[0] if nos else 1)
+        page_warm.prime()
         page_warm.start(pdf, PAGE_CACHE, job_id, nos, first)
     except Exception:       # 미리 그리기는 빠르게 할 뿐 — 실패해도 화면은 그때그때 그린다
         pass
@@ -2698,6 +2704,13 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     # 그린다 — 캐시는 빠르게 할 뿐 결과를 바꾸지 않는다.
     cached = _page_cache_file(job_id, page_no, zoom)
     if cached.is_file():
+        return FileResponse(str(cached), media_type="image/png",
+                            headers={"Cache-Control": "public, max-age=3600"})
+    # hotfix69 — 서버 밖 일꾼이 그린다 (그리는 동안 다른 요청이 기다리지 않게 · app/page_warm.render_now)
+    done = page_warm.render_now(Path(row["pdf_path"]), cached, page_no, zoom)
+    if done is False:
+        raise HTTPException(404, "no such page")
+    if done and cached.is_file():
         return FileResponse(str(cached), media_type="image/png",
                             headers={"Cache-Control": "public, max-age=3600"})
     import pymupdf

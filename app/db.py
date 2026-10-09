@@ -588,6 +588,7 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
 # 언제나 새 값이다.  받은 목록은 **고치지 않는다** — 고쳐야 하는 곳(`/rows` 가 열을 더한다)
 # 은 얕은 복사를 떠서 쓴다 (시험이 소스로 못박는다).  둘까지만 든다 (분석 하나 약 60MB).
 import collections as _collections
+import os as _os
 _ROWS_MEMO: "_collections.OrderedDict" = _collections.OrderedDict()
 _ROWS_MEMO_MAX = 2
 
@@ -598,21 +599,32 @@ def _db_stamp(con) -> tuple:
     return path, (con.total_changes, dv)
 
 
+# hotfix69 — 결과를 열면 화면이 읽기 요청 열 개를 **한꺼번에** 보내고 그중 넷(`/rows` · 검토 · 마크업 · FROM/TO
+# 확정)이 이 메모를 읽는다.  메모가 비어 있으면 넷이 **같은 파싱(0.4초)을 동시에** 하며 인터프리터 잠금을 다퉈
+# 결과 열기가 4초가 됐다 (QFE 실측 — 따로 부르면 각 0.01~0.03초).  잠금 하나로 한 요청만 파싱하고 나머지는 그
+# 결과를 받는다.
+import threading as _threading
+_ROWS_MEMO_LOCK = _threading.Lock()
+
+
 def merged_rows_cached(con, job_id: str, tab: str = None) -> list:
     """`merged_rows` 와 같은 목록 — 읽기 전용 호출자를 위한 것.  **받은 목록을 고치지 마라.**"""
     tab = tab or "ALL"
-    path, stamp = _db_stamp(con)
-    key = (id(con), path, job_id, tab)
-    hit = _ROWS_MEMO.get(key)
-    if hit is not None and hit[0] == stamp:
+    with _ROWS_MEMO_LOCK:
+        path, stamp = _db_stamp(con)
+        key = (id(con), path, job_id, tab)
+        hit = _ROWS_MEMO.get(key)
+        if hit is not None and hit[0] == stamp:
+            _ROWS_MEMO.move_to_end(key)
+            return hit[1]
+        if _os.environ.get("PID_DEBUG_MEMO"):
+            print(f"[memo] rebuild {job_id} {tab} stamp={stamp} had={hit[0] if hit else None}", flush=True)
+        rows = merged_rows(con, job_id, tab)
+        _ROWS_MEMO[key] = (stamp, rows)
         _ROWS_MEMO.move_to_end(key)
-        return hit[1]
-    rows = merged_rows(con, job_id, tab)
-    _ROWS_MEMO[key] = (stamp, rows)
-    _ROWS_MEMO.move_to_end(key)
-    while len(_ROWS_MEMO) > _ROWS_MEMO_MAX:
-        _ROWS_MEMO.popitem(last=False)
-    return rows
+        while len(_ROWS_MEMO) > _ROWS_MEMO_MAX:
+            _ROWS_MEMO.popitem(last=False)
+        return rows
 
 
 def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",

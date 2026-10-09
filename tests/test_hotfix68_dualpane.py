@@ -173,7 +173,10 @@ def test_open_starts_the_independent_reads_together():
 
 def test_grid_is_one_html_pour_and_the_body_listens_once():
     rg = _fn("renderGrid")
-    assert 'body.innerHTML = rows.map(r => rowHtml(r, cols)).join("");' in rg
+    # hotfix69 — 보이는 행만 글 한 줄로 이어 한 번 붓는다
+    assert "S.vlist = rows;" in rg and "paintWindow(true);" in rg
+    pw = _fn("paintWindow")
+    assert "for (let i = start; i < end; i++) html += rowHtml(rows[i], cols);" in pw and "body.innerHTML = html;" in pw
     rh = _fn("rowHtml")
     assert "addEventListener" not in rh and "onclick" not in rh
     assert 'data-act="report"' in rh and 'data-act="restore"' in rh and 'data-act="del-confirm"' in rh

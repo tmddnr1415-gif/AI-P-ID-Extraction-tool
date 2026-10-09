@@ -1442,7 +1442,7 @@ async function open(jobId) {
   // hotfix68 — 서로 기다릴 이유가 없는 읽기는 **같이** 보낸다.  예전에는 장 → 범례 → 모드 → 개정 → 행 →
   // (행 뒤) 마크업 · 확정 · 검토 · 이력 · 신고 · 미판정 · 템플릿을 하나씩 기다렸다 (QFE 2,041행 · 요청 열넷이 줄지어).
   // 가장 큰 `/rows`(압축 뒤 1.2MB)를 맨 먼저 띄워 두고, 나머지 작은 것들이 그 사이에 온다.
-  const rowsP = fetch(`/jobs/${jobId}/rows?tab=ALL`).then(r => r.json());
+  const rowsP = fetch(`/jobs/${jobId}/rows?tab=ALL&slim=1`).then(r => r.json());
   const sideP = rowSideFetches(jobId);      // 행 큰 본문을 푸는 동안(주 스레드가 막힌다) 이미 날아가 있게
   const pagesP = fetch(`/jobs/${jobId}/pages`).then(r => r.json());
   await Promise.all([loadLegendProfile(), loadModeBar(), loadRevision()]);
@@ -2317,7 +2317,7 @@ function rowSideFetches(id) {
 async function loadRows(pre, sidePre) {
   const id = S.job.id;
   const side = sidePre || rowSideFetches(id);
-  S.rows = await (pre || fetch(`/jobs/${id}/rows?tab=ALL`).then(r => r.json()));
+  S.rows = await (pre || fetch(`/jobs/${id}/rows?tab=ALL&slim=1`).then(r => r.json()));
   S.rowByKey = Object.fromEntries(S.rows.map(r => [r.key, r]));
   const [markup, axisOv, review, feedback, reports] = await side;
   S.markupSummary = markup;
@@ -4852,7 +4852,33 @@ function bindAxisActions(row) {
   });
 }
 
+/* hotfix69 — 목록은 근거 칸 셋(후보 · 경로 · 판정축 — 서버 `SLIM_DROP`)을 빼고 받는다 (`_slim`).  그 셋은 고른
+ * 행 하나에만 쓰이므로, 근거 패널을 열 때 그 행만 온전히 받아 같은 행 객체에 채우고 패널 · 경로 선을 다시
+ * 그린다.  같은 행을 두 번 받지 않는다. */
+const _fullP = new Map();
+function ensureFull(row) {
+  if (!row || !row._slim || !S.job) return Promise.resolve(row);
+  if (_fullP.has(row.key)) return _fullP.get(row.key);
+  const job = S.job.id;
+  const p = fetch(`/jobs/${job}/rows?tab=ALL&keys=${encodeURIComponent(row.key)}`)
+    .then(r => r.json())
+    .then(list => {
+      const full = Array.isArray(list) && list[0];
+      if (full && S.job && S.job.id === job && row._slim) { row.evidence = full.evidence || {}; delete row._slim; }
+      return row;
+    })
+    .catch(() => row)
+    .finally(() => _fullP.delete(row.key));
+  _fullP.set(row.key, p);
+  return p;
+}
+
 function showEvidence(row) {
+  if (row && row._slim) {
+    ensureFull(row).then(r => {
+      if (!r._slim && S.sel === r.key && !(S.multi && S.multi.size)) { showEvidence(r); drawOverlay(); }
+    });
+  }
   // 삭제 후보는 이번 리비전에 심볼이 없는 행이다.  근거 패널이 보여야 하는 것은
   // 검출 근거가 아니라 **왜 짝을 못 찾았는가** 이고, 그것이 사람이 '검출 실패'
   // 와 '실제 삭제' 를 가르는 재료다.

@@ -48,7 +48,7 @@ def test_legend_has_its_own_toggle_and_it_is_a_mark_not_a_colour_cell():
 
 def test_grid_cells_say_their_column():
     # hotfix68 — 행은 글 한 줄(`rowHtml`)로 만들어 몸통에 한 번 붓는다.  칸이 자기 열을 말하는 것은 같다.
-    assert "rowHtml(r, cols)" in _fn("renderGrid")
+    assert "paintWindow(true)" in _fn("renderGrid") and "rowHtml(rows[i], cols)" in _fn("paintWindow")
     assert 'h += `<td data-col="${key}"`' in _fn("rowHtml")
 
 

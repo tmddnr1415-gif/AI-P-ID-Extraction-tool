@@ -41,9 +41,10 @@ def test_evidence_gutter_keeps_four_rows_of_the_grid():
 
 
 def test_arrow_keys_skip_inputs_and_follow_grid_order():
-    seg = JS.split('if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;', 1)[1].split("});", 1)[0]
+    seg = JS.split('if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;', 1)[1].split("\n});", 1)[0]
     assert 'tag === "input" || tag === "textarea" || tag === "select"' in seg
-    assert '"#body tr[data-key]"' in seg and "select(trs[i].dataset.key, true)" in seg
+    # hotfix69 — 목록은 보이는 행만 그리므로 순서는 목록(`S.vlist`)에서 읽고, 화면 밖 행은 굴려 그린다
+    assert "const list = S.vlist || [];" in seg and "select(k, true)" in seg and "revealRow(k)" in seg
 
 
 def test_first_two_columns_are_sticky_and_the_second_offset_is_measured():

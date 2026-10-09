@@ -58,6 +58,7 @@ _REAL_DATA = (_REPO / "app" / "_data").resolve()
 # hotfix69 — 결과를 열 때 장 그림을 뒤에서 미리 그리는 자식 프로세스(`app/page_warm.py`)는 시험에서 띄우지
 # 않는다 (시험마다 프로세스가 남고 시간을 먹는다).  그 기능의 시험은 이 값을 스스로 켠다.
 os.environ.setdefault("PID_PAGE_WARM", "0")
+os.environ.setdefault("PID_RENDER_POOL", "0")      # 장 그림 일꾼도 시험에서는 안 띄운다 (서버 안에서 그린다)
 _OWNED_TMP = None
 if not os.environ.get("PID_DATA_DIR"):
     _OWNED_TMP = tempfile.mkdtemp(prefix="pid-test-data-")

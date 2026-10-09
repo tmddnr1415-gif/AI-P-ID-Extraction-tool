@@ -76,6 +76,80 @@ def _child(pdf: str, cache_root: str, job_id: str, pages: list, zoom: float) -> 
         doc.close()
 
 
+def _render_one(pdf: str, out: str, page_no: int, zoom: float) -> bool:
+    """자식 프로세스에서 장 하나를 그려 캐시 파일로 둔다 (`render_now` 가 부른다)."""
+    target = Path(out)
+    if target.is_file():
+        return True
+    import pymupdf
+    doc = pymupdf.open(pdf)
+    try:
+        if not 1 <= page_no <= doc.page_count:
+            return False
+        data = doc[page_no - 1].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom)).tobytes("png")
+    finally:
+        doc.close()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + f".{uuid.uuid4().hex[:8]}.tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, target)
+    return True
+
+
+_POOL: dict = {"pool": None}
+
+
+def _pool():
+    with _LOCK:
+        if _POOL["pool"] is None:
+            _POOL["pool"] = mp.get_context("spawn").Pool(processes=2)
+        return _POOL["pool"]
+
+
+def _ready() -> bool:
+    import pymupdf  # noqa: F401  — 일꾼이 처음 일을 받을 때 읽을 것을 미리 읽어 둔다
+    return True
+
+
+def prime() -> None:
+    """결과를 열 때 일꾼을 미리 깨운다 — 첫 장을 그리는 사람이 일꾼이 뜨는 1초를 기다리지 않게."""
+    if os.environ.get("PID_RENDER_POOL", "1") == "0":
+        return
+    try:
+        p = _pool()
+        for _ in range(2):
+            p.apply_async(_ready)
+    except Exception:                            # noqa: BLE001
+        pass
+
+
+def call(fn, args: tuple, timeout: float = 120.0):
+    """PDF 를 읽는 무거운 일을 서버 밖 일꾼에게 맡기고 기다린다 (기다리는 동안 서버는 다른 요청을 받는다).
+    `fn` 은 모듈 맨 위 함수여야 한다 (일꾼에게 이름으로 보낸다).  일꾼을 못 쓰면 `RuntimeError` — 부른 쪽이
+    서버 안에서 직접 한다."""
+    if os.environ.get("PID_RENDER_POOL", "1") == "0":
+        raise RuntimeError("render pool off")
+    try:
+        return _pool().apply_async(fn, args).get(timeout)
+    except Exception as exc:                     # noqa: BLE001
+        raise RuntimeError(str(exc)) from exc
+
+
+def render_now(pdf: Path, out: Path, page_no: int, zoom: float, timeout: float = 60.0):
+    """사람이 지금 연 장 — 서버 프로세스 밖(일꾼 둘)에서 그리고 기다린다.
+
+    서버 안에서 그리면 PyMuPDF 가 그리는 동안(A1 한 장 0.5초) 인터프리터 잠금을 쥐어, 그 사이 들어온 다른
+    요청(칸 저장 · 목록)이 줄을 선다.  시뮬레이션에서 이웃 장 미리 받기와 겹치자 칸 저장이 0.4초 → 5.6초가
+    됐다 (spike/perf_sim.py).  기다리는 동안 서버는 잠금을 놓는다.  일꾼을 못 띄우면 None — 부른 쪽이 예전처럼
+    그린다.  돌려주는 것: True(그렸다 · 캐시 파일이 있다) / False(그런 장이 없다) / None(일꾼 없음)."""
+    if os.environ.get("PID_RENDER_POOL", "1") == "0":
+        return None
+    try:
+        return _pool().apply_async(_render_one, (str(pdf), str(out), page_no, zoom)).get(timeout)
+    except Exception:
+        return None
+
+
 def start(pdf: Path, cache_root: Path, job_id: str, pages: list, first: int, zoom: float = 1.6) -> bool:
     """그릴 장이 남아 있으면 자식 프로세스 하나를 띄운다.  이미 도는 것이 있으면 띄우지 않는다
     (같은 분석이면 그것이 다 그리고, 다른 분석이면 다음에 결과를 열 때 그 분석 차례가 온다)."""
