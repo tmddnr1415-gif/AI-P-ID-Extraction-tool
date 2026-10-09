@@ -336,6 +336,12 @@
              그 자리에 편집 카드(#fedit)가 뜬다.  저장 길은 목록 칸과 같다 (app.js saveField). -->
         <button id="full-toggle" class="ghost" aria-pressed="false"
                 title="도면 전체화면 — 상자를 누르면 그 자리에서 고칠 수 있고, 고친 값은 목록에 바로 반영됩니다 (Esc 로 나가기)">⛶ 전체화면</button>
+        <!-- hotfix68 — 듀얼 모니터.  도면을 새 창으로 띄워 다른 모니터에 전체화면으로 둔다.  두 창은 고르기 · 장 · 편집 ·
+             삭제 · 승수를 서로 따라간다 (app.js "도면 · 목록을 새 창으로").  나뉘어 있는 동안에는 연동 표시와 합치기 단추. -->
+        <button type="button" class="ghost pop-btn" data-pane="drawing"
+                title="도면을 새 창으로 — 듀얼 모니터에서 도면과 목록을 한 화면씩 (고르기 · 편집 · 삭제가 두 창에 같이 반영됩니다)">⧉ 도면 새 창</button>
+        <button type="button" class="ghost pane-join hidden">⇆ 한 창으로</button>
+        <span class="pane-chip hidden"></span>
         <span id="page-note" class="muted"></span>
         <span id="markup-note" class="muted small hidden"></span>
       </div>
@@ -470,6 +476,12 @@
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>
+        <!-- hotfix68 — 목록을 새 창으로 (이 창에는 도면만 남는다) · 목록 창의 전체화면 · 합치기 -->
+        <button type="button" class="ghost pop-btn" data-pane="list"
+                title="목록을 새 창으로 — 듀얼 모니터에서 도면과 목록을 한 화면씩 (고르기 · 편집 · 삭제가 두 창에 같이 반영됩니다)">⧉ 목록 새 창</button>
+        <button type="button" class="ghost pane-join hidden">⇆ 한 창으로</button>
+        <button type="button" id="full-list" class="ghost hidden" title="이 목록 창을 화면 전체로 (Esc 로 나가기)">⛶ 전체화면</button>
+        <span class="pane-chip hidden"></span>
         <span id="count" class="muted"></span>
       </div>
       <!-- The filters actually in force, each removable on its own. -->

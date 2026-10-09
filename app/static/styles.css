@@ -1684,18 +1684,18 @@ body.embed, body.embed.nav-collapsed { padding-left: 0; }
 body.embed #sidebar, body.embed .nav-toggle { display: none !important; }
 .embed-from { margin: 4px 0 0; font-size: 12px; color: var(--sb-on); font-weight: 600; }
 .embed-tabs { padding-top: 6px; }
-body.embed .embed-tabs #tabs {
+body.embed .embed-tabs #tabs, body.popout .embed-tabs #tabs {
   display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 0; margin: 0;
 }
-body.embed .embed-tabs #tabs button {
+body.embed .embed-tabs #tabs button, body.popout .embed-tabs #tabs button {
   width: auto; flex: none; gap: 6px; padding: 4px 11px; border-radius: 999px;
   border: 1px solid var(--line); background: #f3f5f9; color: var(--ink-strong, #1d2433);
   font-size: 12.5px; box-shadow: none;
 }
-body.embed .embed-tabs #tabs button:hover { background: #e8ecf5; }
-body.embed .embed-tabs #tabs button.on { background: var(--sb-on); border-color: var(--sb-on); color: #fff; }
-body.embed .embed-tabs #tabs .tab-line { flex: none; gap: 6px; }
-body.embed .embed-tabs #tabs button .n, body.embed .embed-tabs #tabs .tab-line .n {
+body.embed .embed-tabs #tabs button:hover, body.popout .embed-tabs #tabs button:hover { background: #e8ecf5; }
+body.embed .embed-tabs #tabs button.on, body.popout .embed-tabs #tabs button.on { background: var(--sb-on); border-color: var(--sb-on); color: #fff; }
+body.embed .embed-tabs #tabs .tab-line, body.popout .embed-tabs #tabs .tab-line { flex: none; gap: 6px; }
+body.embed .embed-tabs #tabs button .n, body.popout .embed-tabs #tabs button .n, body.embed .embed-tabs #tabs .tab-line .n, body.popout .embed-tabs #tabs .tab-line .n {
   margin-left: 4px; color: inherit; opacity: .75;
 }
 
@@ -1966,3 +1966,19 @@ body.pid-full #gutter-v { visibility: hidden; }
 .scopepop .sp-b.none:hover { background: #fdecea; }
 .scopepop .sp-name { font-size: 12px; max-width: 170px; }
 .scopepop .sp-note { margin-top: 5px; }
+
+/* hotfix68 — 도면 · 목록을 새 창으로 (듀얼 모니터).  한 창에 한 칸만 남긴다 — 칸은 숨기기만 하고 상태는 그대로다. */
+body.pane-drawing #right, body.pane-drawing #gutter-v,
+body.pane-list #left, body.pane-list #gutter-v { display: none !important; }
+body.pane-drawing #split, body.pane-list #split { grid-template-columns: minmax(0, 1fr) !important; }
+/* 도면만 보이는 창은 머리의 동작 · 띠를 접는다 (그 일은 목록 창이 한다) — 도면에 세로 자리를 준다 */
+body.pane-drawing .head-actions, body.pane-drawing .head-pills, body.pane-drawing #infobars,
+body.pane-drawing #gutter-h, body.pane-drawing #embed-tabs { display: none !important; }
+body.pane-drawing header.head { padding-top: 4px; padding-bottom: 4px; }
+/* 새 창은 한 결과에 묶여 있다 — 메뉴 · 첫 화면 가기는 본 창의 일이다 */
+body.popout #sidebar, body.popout .nav-toggle, body.popout #to-home { display: none !important; }
+body.popout, body.popout.nav-collapsed { padding-left: 0; }
+.pane-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px;
+  background: #e8f0ff; color: #1d3f9e; border: 1px solid #c4d4fb; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.pane-join { border-color: #1d4ed8; color: #1d4ed8; }
+.pop-btn { white-space: nowrap; }

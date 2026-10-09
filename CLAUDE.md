@@ -3680,6 +3680,43 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
    홍길동 · 양식에 나가는 행 1991 → 1990 · 다시 누름 → 되돌리기 → 살아남 · VENDOR + 이름 → `VENDOR(CO2 ABSORBER SUPPLIER)` ·
    Shift 묶음 2개 → 둘 다 지움 · 페이지 오류 0.
 
+**그 다음 — 듀얼 모니터: 도면 · 목록을 새 창으로 · 두 창 연동 · 가볍게 (hotfix68 · 판정 0줄)**
+
+사용자: *"좌측 화면과 우측 화면을 새창으로 띄워서 듀얼 모니터를 사용하는 사람들이 각 화면에 하나씩 전체 화면으로 볼 수
+있도록 · 각 화면에서는 기존 기능들과 서로간의 연동도 모두 되어야 한다 · 모든 기능은 무겁지 않아야 하며 … 코드를 더
+가볍게."*  시험 `tests/test_hotfix68_dualpane.py` 13건 (빠른 시험 **899**) · 두 창 자기검증 `spike/ui_audit_dualpane.py`
+→ `out/hotfix68/ui/` · 열기 자 `spike/ui_measure_open.py` → `out/hotfix68/open_before.json`·`open_after.json`.
+
+1. **기능을 다시 만들지 않는다 — 새 창은 같은 화면 전체를 싣고 보이는 칸만 고른다.**  `⧉ 도면 새 창`(왼쪽 도구줄) ·
+   `⧉ 목록 새 창`(오른쪽 도구줄) → `?pane=drawing|list&link=…#job` 새 창 · `body.pane-drawing`/`pane-list` 가 한 칸만
+   남긴다 (본 창은 나머지 칸).  도면 창은 머리 동작·띠를 접고 ⛶ 전체화면, 목록 창은 `⛶ 전체화면`(#full-list) ·
+   `⇆ 한 창으로` 로 합친다.  새 창은 메뉴·첫 화면 가기가 없다 (`body.popout`).  나뉜 동안 나란히 보기는 막는다.
+2. **연동은 사실 몇 개** (`syncPost` · `window.postMessage` · 같은 출처 · `link` 확인 · 자기 메아리 무시 · 받는 쪽은
+   `SYNC.muted`): `job`(결과 · 이전/현재 전환) · `sel`(고른 행 · Shift 묶음) · `page` · `rows`(바뀐 행 열쇠) · `memo` ·
+   `reopen` · `gone` · `bye`.  BroadcastChannel 이 아닌 이유 — 대시보드가 다른 사이트면 iframe 저장소가 갈려 닿지 않는다.
+3. **★ 저장 함수마다 알리지 않고 서버에 쓰는 요청이 끝난 것을 본다** (`hookFetch` → `syncNoteMutation`).  저장 길이
+   마흔 곳 넘게 흩어져 있어 하나라도 빠지면 연동이 조용히 끊긴다.  열쇠는 `/rows/{key}` 주소나 본문(`key`·`keys`·
+   `items[].key`)에서, 못 읽으면 "전부".  받은 창은 `/rows?keys=` 로 **그 행만** 받아 같은 행 객체를 제자리에서 바꾼다
+   (`syncRows` — 타자 중인 칸은 안 건드린다).
+4. **★ `window.open` 이 이 파일의 `open(jobId)` 에 덮여 있었다** — 첫 판의 새 창이 결과 열기를 불러 404 를 냈다
+   (자기검증이 잡았다).  이름을 바꾸면 수십 곳·시험이 따라 바뀌므로 숨은 iframe 의 손대지 않은 open 을 이 창을
+   주인으로 부른다 (`_nativeOpen`).  창 배치 권한이 있으면 다른 모니터에 꽉 차게 (`placeOnOtherScreen`).
+5. **목록 창은 장 그림을 받지 않는다** (`S.imgStale` · 합치면 그린다) · 숨은 칸에서 `fit()` 은 배율을 안 건드린다 ·
+   목록 창에서 행을 눌러도 장을 그리지 않고 도면 창이 옮긴다.
+6. **가볍게 — 실측 (QFE Rev.B 1,991행 · 같은 자)**: 결과 열기 **1.2~3.4초 → 0.78~0.83초** · 전송 **18.4MB → 3.3MB** ·
+   목록 그리기 **514ms → 100ms** · 두 번째 창의 `/rows` **0.3초 → 3ms**.  ① GZipMiddleware(수준 5 · PNG·zip·xlsx·SSE 제외 ·
+   `/rows` 13.7MB → 1.2MB) ② `/rows` 본문 메모(`_ROWS_BODY` · 도장 `db._db_stamp` — 편집 한 칸에 풀린다 · 압축본도 한 번)
+   ③ 서로 기다릴 이유 없는 읽기를 같이 (`open` 의 행·장·범례·모드·개정 · `rowSideFetches`) ④ 목록 행을 글 한 줄로
+   (`rowHtml` → 몸통 innerHTML 한 번 · `buildRowTr` 는 한 행) + 칸마다 달던 듣는 이 2만 8천 개를 몸통 하나로 (`bindGridBody`
+   — focusout 저장 · Enter · 누르기 · 신고/되돌리기/삭제 확정 `data-act`) ⑤ 결과를 열며 시작한 창은 첫 화면 목록·위생 감사를
+   결과가 선 **뒤**에 읽는다 (`afterFirstOpen` — 새 창은 안 읽는다).
+7. 실측 두 창 (`out/hotfix68/ui/result.txt`): 도면 새 창 2.8~3.0초에 섬 · 목록에서 p7 행 → 도면 창 p6→p7 · 도면에서 상자 →
+   목록 창 그 행·근거 · 목록 Q'ty 1→5 → 도면 라벨 `x5 ✎홍길동` · 도면 편집 카드 Line No. → 목록 칸 ✎ · 도면 '둘 다 아님' →
+   목록 행 지워짐 → 목록 되돌리기 → 도면 복원 · 도면 Shift 묶음 → 목록 묶음 판 · 도면 장 → 목록 S.page · 한 창으로 → 도면
+   다시 그림 · 목록 새 창 → 목록 창은 장 그림 0 · 목록 X 닫기 → 두 칸 · 페이지 오류 0.
+8. ⚠ 대시보드에서 다른 메뉴로 가면 iframe 이 지워져 새 창은 짝을 잃고 **혼자** 두 칸 화면으로 계속 쓴다
+   (`docs/dashboard_embed.md` §3-2).  창 배치 권한은 브라우저가 한 번 묻는다 — iframe 이면 `allow="window-management"` 가 있어야 한다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4146,6 +4183,9 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `qtyBase`·`pageMultPages`·`pageMultPlan`·`renderPageMult`·`applyPageMult`·`_saveQtyItems` · `main.qty_bulk` | **hotfix65** — 수량 승수 판의 페이지별 승수(지금 결과에 바로).  Q'ty = 기본 개수 × 승수 — 계산은 화면 한 곳 · 서버는 PATCH 와 같은 db 함수로 적기만.  유닛코드 승수(다음 분석부터)와 다른 길 |
 | `app.js` `currentAuthor`·`askAuthor`·`renderWhoChip`·`editorOf`·`stampEditor`·`editedTitle` · `db.last_editors` · `/rows` 의 `edited_by` | **hotfix66** — 작성자는 대시보드 로그인(`?user=`) → 기억된 이름 순 · 편집마다 묻지 않는다(이름이 없을 때 처음 한 번만) · 고친 칸·라벨·근거 패널에 고친 사람 이름 |
 | `app.js` `scopePop`·`closeScopePop`·`dismissRows`·`deleteRows(keys, opts)` · `markup.CLASSES.NOT_SUPPLY` | **hotfix67** — 도면 상자를 누르면 SCT · VENDOR · 둘 다 아님(식별 지우기) 판.  판은 고르기만 하고 저장은 `saveField` · `deleteRows` · `restoreRow` 그대로 |
+| `app.js` `PANE`·`SYNC`·`popOut`·`rejoin`·`setPane`·`paneRole`·`drawingHidden`·`_nativeOpen`·`syncPost`·`syncReceive`·`syncSel`·`syncPage`·`syncRows`·`hookFetch`·`syncNoteMutation` | **hotfix68** — 도면 · 목록 새 창(듀얼 모니터)과 두 창 연동.  보이는 칸만 고른다 (`body.pane-*`) · 같은 출처 postMessage · 저장은 쓰기 요청이 끝난 것을 보고 알린다 · 받은 창은 그 행만 `/rows?keys=` |
+| `main._ROWS_BODY` · `_rows_payload` · `rows(keys=)` · `GZipMiddleware` | **hotfix68** — `/rows` 본문 메모(도장 `db._db_stamp`) · 압축본 · 몇 행만.  큰 응답 압축(이미 압축된 것 · SSE 제외) |
+| `app.js` `rowHtml`·`buildRowTr`·`gridCols`·`bindGridBody`·`rowSideFetches`·`afterFirstOpen` | **hotfix68** — 목록 행을 글 한 줄로 한 번에 붓고 듣는 이는 몸통 하나 · 열기의 읽기를 같이 · 첫 화면 정보는 결과가 선 뒤 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

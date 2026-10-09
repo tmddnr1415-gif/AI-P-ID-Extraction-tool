@@ -147,8 +147,10 @@ def test_embed_params_are_read_once_and_only_read():
     tail = JS[JS.index("(function applyEmbed()"):]
     assert "rememberAuthor(EMBED.user)" in tail
     assert 'slot.appendChild(tabs)' in tail
-    # 대시보드 쪽으로 무엇도 보내지 않는다 (postMessage · 다른 주소 fetch 없음)
-    assert "postMessage" not in JS
+    # 대시보드 쪽으로 무엇도 보내지 않는다 (postMessage · 다른 주소 fetch 없음).  hotfix68 — 두 창(도면 · 목록) 사이의
+    # postMessage 는 **이 서버와 같은 출처**로만 보낸다 (대시보드가 다른 출처면 닿지 않는다)
+    calls = re.findall(r"\.postMessage\(([^;]*?)\);", JS, flags=re.S)
+    assert calls and all(c.rstrip().endswith("location.origin") for c in calls), calls
     assert not re.search(r'fetch\(\s*["`]https?://', JS)
 
 

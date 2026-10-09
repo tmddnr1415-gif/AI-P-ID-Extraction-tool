@@ -11,6 +11,7 @@ a workbook.  Live rows are never exported.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import io
 import json
@@ -26,10 +27,11 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -63,6 +65,15 @@ app = FastAPI(title="P&ID extraction")
 # hotfix50 — 사내망 모드(`--lan` · PID_LAN=1)에서만 주소를 본다: 루프백 · 사설망 · 이 PC 의
 # /16 · PID_ALLOW.  꺼져 있으면(127.0.0.1) 아무것도 하지 않는다 (app/lan.py).
 app.add_middleware(lan.Gate)
+# hotfix68 — 큰 응답(JSON · JS · CSS)을 압축한다.  QFE `/rows` 13.7MB → 1.2MB (수준 5 · 0.13초) 라
+# 사내망으로 대시보드에서 열 때 전송이 열에 하나로 준다.  이미 압축된 것(PNG · zip · xlsx)과
+# 진행 소식(SSE)은 건드리지 않는다 — 하는 일이 없거나 소식이 늦게 간다.  수준 9(기본)는 같은
+# 크기에 시간만 두 배라 5 로 둔다 (실측 1.23MB/0.125초 ↔ 수준 6 1.15MB/0.138초).
+app.add_middleware(
+    GZipMiddleware, minimum_size=2048, compresslevel=5,
+    exclude_content_types=DEFAULT_EXCLUDED_CONTENT_TYPES + (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/x-zip-compressed", "application/octet-stream"))
 CON = db.connect(DB_PATH)
 
 # Verification mode.  Attributing a drawing to MATCHED or PDF_ONLY needs a
@@ -2096,17 +2107,17 @@ def _sse(payload: dict) -> str:
 # Results
 # --------------------------------------------------------------------------
 
-@app.get("/jobs/{job_id}/rows")
-def rows(job_id: str, tab: str = "ALL"):
-    """The grid's rows, each carrying the review codes it is flagged under.
+# hotfix68 — `/rows` 응답 본문의 메모.  같은 결과를 두 창(도면 · 목록)이 따로 열고, 창 사이 연동이
+# 바뀐 행만 다시 받으므로, **바뀐 것이 없는 한** 같은 본문을 다시 만들 이유가 없다 (QFE 0.3초 +
+# 압축 0.13초).  열쇠의 도장은 `merged_rows_cached` 와 같은 `db._db_stamp` 라 편집 한 칸 · 다른
+# 연결의 커밋에도 다시 만든다.  압축본은 요청이 gzip 을 받을 때 한 번 만들어 둔다 (미들웨어는
+# `Content-Encoding` 이 이미 있으면 다시 압축하지 않는다).
+_ROWS_BODY: dict = {}
 
-    The codes ride on the row rather than being fetched separately, because the
-    screen filters on them on every click and a second round trip per click is
-    latency the reviewer feels.
-    """
-    # hotfix45 — 파싱한 목록은 다른 읽기 전용 엔드포인트와 나눠 쓴다.  여기는 열을 더하므로
-    # 행마다 얕은 복사를 뜬다 (값 dict 는 공유해도 된다 — 아무도 안 고친다).
-    out = [dict(r) for r in db.merged_rows_cached(CON, job_id, tab)]
+
+def _rows_payload(job_id: str, tab: str, keys: set | None) -> list:
+    src = db.merged_rows_cached(CON, job_id, tab)
+    out = [dict(r) for r in src if keys is None or r["key"] in keys]
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     editors = db.last_editors(CON, job_id)      # hotfix66 — 고친 칸마다 누가 · 언제
@@ -2119,7 +2130,39 @@ def rows(job_id: str, tab: str = "ALL"):
         # (`pipeline.type_display` — 판정값 `values["type"]` 은 불변).
         row["type_display"] = pipeline.type_display(row["values"],
                                                     row.get("evidence"))
-    return _json(out)
+    return out
+
+
+@app.get("/jobs/{job_id}/rows")
+def rows(job_id: str, tab: str = "ALL", keys: str = "", request: Request = None):
+    """The grid's rows, each carrying the review codes it is flagged under.
+
+    The codes ride on the row rather than being fetched separately, because the
+    screen filters on them on every click and a second round trip per click is
+    latency the reviewer feels.
+    """
+    # hotfix45 — 파싱한 목록은 다른 읽기 전용 엔드포인트와 나눠 쓴다.  여기는 열을 더하므로
+    # 행마다 얕은 복사를 뜬다 (값 dict 는 공유해도 된다 — 아무도 안 고친다).
+    # hotfix68 — `keys=a,b,c` 면 그 행만 (창 사이 연동이 바뀐 행만 다시 받는다 · 메모 안 함).
+    if keys:
+        return _json(_rows_payload(job_id, tab, {k for k in keys.split(",") if k}))
+    _path, stamp = db._db_stamp(CON)
+    memo_key = (job_id, tab)
+    hit = _ROWS_BODY.get(memo_key)
+    if hit is None or hit["stamp"] != stamp:
+        body = json.dumps(_rows_payload(job_id, tab, None), ensure_ascii=False,
+                          separators=(",", ":")).encode("utf-8")
+        hit = {"stamp": stamp, "raw": body, "gz": None}
+        _ROWS_BODY[memo_key] = hit
+        while len(_ROWS_BODY) > 4:              # 두 결과(이전 · 현재) × 두 탭이면 넉넉하다
+            _ROWS_BODY.pop(next(iter(_ROWS_BODY)))
+    accepts = request.headers.get("accept-encoding", "") if request is not None else ""
+    if "gzip" in accepts and len(hit["raw"]) >= 2048:
+        if hit["gz"] is None:
+            hit["gz"] = gzip.compress(hit["raw"], 5)
+        return Response(hit["gz"], media_type="application/json",
+                        headers={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+    return Response(hit["raw"], media_type="application/json")
 
 
 @app.get("/jobs/{job_id}/anchors")

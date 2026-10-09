@@ -159,15 +159,17 @@ def test_rows_endpoint_copies_and_the_memo_is_not_mutated_by_it(tmp_path):
     cached = db.merged_rows_cached(main.CON, job, "ALL")
     assert all("review_codes" not in r and "rev" not in r for r in cached)
     # 소스 — `/rows` 는 복사를 뜨고, 메모를 쓰는 다른 곳은 읽기 전용 엔드포인트뿐
-    body = MAIN[MAIN.index('@app.get("/jobs/{job_id}/rows")'):]
+    # hotfix68 — 행을 만드는 일은 `_rows_payload` 로 갈라졌다 (`/rows` 가 본문을 메모하고 `?keys=` 로 몇 행만 낸다)
+    body = MAIN[MAIN.index("def _rows_payload("):]
     body = body[:body.index("\n@app.")]
-    assert "[dict(r) for r in db.merged_rows_cached(CON, job_id, tab)]" in body
+    assert "src = db.merged_rows_cached(CON, job_id, tab)" in body
+    assert "[dict(r) for r in src if keys is None or r[\"key\"] in keys]" in body
     users = [m.start() for m in re.finditer(r"merged_rows_cached\(", MAIN)]
     assert len(users) >= 4
     for pos in users:
         head = MAIN[max(0, pos - 2500):pos]
         name = re.findall(r"\ndef (\w+)\(", head)[-1]
-        assert name in {"rows", "job_review", "axis_override_map", "_multiplier_targets"}, name
+        assert name in {"rows", "_rows_payload", "job_review", "axis_override_map", "_multiplier_targets"}, name
 
 
 # ---------------------------------------------------------------- ④ screen

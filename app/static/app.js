@@ -122,6 +122,38 @@ const EMBED = (function readEmbed() {
   return { on: q.get("embed") === "1", mode, user: (q.get("user") || "").trim().slice(0, 40) };
 })();
 
+/* hotfix68 — 듀얼 모니터.  이 창이 도면만 / 목록만 보이는 **새 창**으로 열렸는가 (`?pane=drawing|list&link=…`).
+ * 새 창도 같은 화면 전체를 싣는다 — 기능을 다시 만들지 않고 보이는 칸만 고른다.  두 창은 `link` 로 이름 붙인
+ * BroadcastChannel 하나로 선택 · 편집 · 결과 전환을 주고받는다 (아래 "도면 · 목록을 새 창으로").
+ * BOOT_JOB — 주소가 결과(#job)를 가리키며 열렸다.  첫 화면 목록·위생 감사는 결과를 다 연 **뒤**에 읽는다
+ * (서버에서 `/home`·`/audit` 이 `/rows` 와 CPU 를 다퉜다 — QFE 실측 각 0.17 · 0.19초). */
+const PANE = (function readPane() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { q = new URLSearchParams(""); }
+  const r = (q.get("pane") || "").toLowerCase();
+  return { role: r === "drawing" || r === "list" ? r : "",
+           link: (q.get("link") || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 24) };
+})();
+const BOOT_JOB = location.hash.length > 1;
+const _afterOpen = [];
+let _afterOpenDone = false;
+function afterFirstOpen(fn) {
+  // 결과를 열며 시작한 창은 첫 결과가 선 뒤에, 아니면 바로.  새 창(PANE)은 첫 화면을 쓰지 않으므로 아예 안 읽는다.
+  if (PANE.role) return;
+  if (!BOOT_JOB || _afterOpenDone) { fn(); return; }
+  _afterOpen.push(fn);
+}
+function _runAfterOpen() {
+  if (_afterOpenDone) return;
+  _afterOpenDone = true;
+  for (const fn of _afterOpen.splice(0)) { try { fn(); } catch (e) { /* 부가 정보 — 화면을 막지 않는다 */ } }
+}
+if (BOOT_JOB) setTimeout(_runAfterOpen, 6000);     // 결과가 끝내 안 열려도(분석 중 · 실패) 첫 화면 정보는 읽는다
+// 두 창의 연동 상태 — 함수들은 파일 끝 "도면 · 목록을 새 창으로" 에 있다 (여기 두는 것은 부팅 중에 불릴 수 있어서).
+const SYNC = { link: "", peer: null, peerRole: "", poll: 0, muted: 0, selQueued: false, alone: false,
+               me: Math.random().toString(36).slice(2, 10),
+               dirty: { keys: new Set(), all: false, t: 0 } };
+
 /* ---------------- upload ----------------
  *
  * 왼쪽 단이 정해지기 전에는 PDF 를 받지 않는다.  프로젝트와 비교 대상은 분석이
@@ -512,7 +544,7 @@ async function showAudit() {
   } catch (e) { /* 감사는 부가 정보다 - 실패해도 화면을 막지 않는다 */ }
 }
 loadProjects();
-showAudit();
+afterFirstOpen(showAudit);
 
 /* 이전 분석 한 줄: 상태 · 장수 · 걸린 시간.  전부 저장된 값이다. */
 /* 분석 상태의 화면 말.  **모르는 값은 그대로 쓴다** - 없는 뜻을 지어내지
@@ -863,7 +895,7 @@ async function listHome() {
   if (pending) listHome._t = setTimeout(() => { if (!drop.classList.contains("hidden")) listHome(); }, 8000);
 }
 const listJobs = listHome;      // 예전 이름으로 부르는 곳이 있다
-listHome();
+afterFirstOpen(listHome);
 
 /* ---------------- progress ----------------
  *
@@ -1301,6 +1333,8 @@ async function showFailure(message, d, jobId) {
 
 function toFirstScreen() {
   if (document.body.classList.contains("pid-full")) setFull(false);   // hotfix64
+  _runAfterOpen();                          // hotfix68 — 결과를 열며 시작한 창이면 첫 화면 정보를 지금 읽는다
+  if (SYNC.peer) rejoin();                  // hotfix68 — 결과를 떠나면 새 창도 닫는다
   $("#progress").classList.add("hidden");
   $("#prog-hint").classList.add("hidden");
   $("#prog-actions").classList.add("hidden");
@@ -1366,7 +1400,7 @@ if (location.hash.length > 1) open(hashParts()[0]);
 /* ---------------- load ---------------- */
 async function open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
-  if (job.status !== "done") { watch(jobId, job.page_count, job); return; }
+  if (job.status !== "done") { _runAfterOpen(); watch(jobId, job.page_count, job); return; }
   S.loading = true;
   S.job = job;
   S.zoom = null;                  // a fresh analysis starts fitted, not zoomed
@@ -1405,11 +1439,15 @@ async function open(jobId) {
     $("#job-meta").title = "";
   }
   $("#job-meta").textContent = meta.join(" · ");
-  S.pages = await (await fetch(`/jobs/${jobId}/pages`)).json();
-  await loadLegendProfile();
-  await loadModeBar();
-  await loadRevision();
-  await loadRows();
+  // hotfix68 — 서로 기다릴 이유가 없는 읽기는 **같이** 보낸다.  예전에는 장 → 범례 → 모드 → 개정 → 행 →
+  // (행 뒤) 마크업 · 확정 · 검토 · 이력 · 신고 · 미판정 · 템플릿을 하나씩 기다렸다 (QFE 2,041행 · 요청 열넷이 줄지어).
+  // 가장 큰 `/rows`(압축 뒤 1.2MB)를 맨 먼저 띄워 두고, 나머지 작은 것들이 그 사이에 온다.
+  const rowsP = fetch(`/jobs/${jobId}/rows?tab=ALL`).then(r => r.json());
+  const sideP = rowSideFetches(jobId);      // 행 큰 본문을 푸는 동안(주 스레드가 막힌다) 이미 날아가 있게
+  const pagesP = fetch(`/jobs/${jobId}/pages`).then(r => r.json());
+  await Promise.all([loadLegendProfile(), loadModeBar(), loadRevision()]);
+  S.pages = await pagesP;
+  await loadRows(rowsP, sideP);
   buildPageSelect();
   S.loading = false;
   updateEmptyNote();
@@ -1418,12 +1456,15 @@ async function open(jobId) {
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
   loadMemoSummary();
   autoSide();
+  syncPost({ t: "job", id: jobId });        // hotfix68 — 다른 창도 같은 결과로
+  _runAfterOpen();
 }
 
 /* hotfix40 — 이전 대비 **변경(추가·수정·삭제)이 있는** 결과를 열면 나란히 보기를 바로 켠다 —
  * 목적이 그 변경을 이전 도면과 눈으로 대조하는 것이기 때문이다.  사람이 한 번 끄면
  * (`pid.side.off`) 그 브라우저에서는 자동으로 켜지 않는다.  변경이 없으면 켜지 않는다. */
 function autoSide() {
+  if (paneSplit()) return;                            // hotfix68 — 두 창으로 나뉘어 있으면 목록 창을 가리지 않는다
   if (!S.rev || !S.rev.compared_with || !S.revPair || S.job.id !== S.revPair.current) return;
   if (S.rev.compare_basis !== "TAG") return;          // hotfix46 — 나란히 대조는 실행 프로젝트만
   const c = S.rev.counts || {};
@@ -1763,6 +1804,7 @@ async function switchView(jobId) {
   const note = $("#rev-switch .rs-note");
   if (note) note.textContent = (S.job.id === (pair || {}).previous ? "직전 결과를 보는 중 — 편집은 그 결과에 저장됩니다 · " : "")
     + `전환 ${S.lastSwitchMs}ms${snap ? " (메모리)" : " (처음 읽음)"}`;
+  syncPost({ t: "job", id: S.job.id });     // hotfix68 — 다른 창도 같은 결과로
 }
 
 /* hotfix40 — 나란히 보기.
@@ -1787,6 +1829,11 @@ function toggleSide(on, manual) {
   if (on && (!pr || !S.job)) return;
   // hotfix46 — 나란히 대조는 실행 프로젝트(태그 대조)만.  입찰 프로젝트는 비교할 열쇠가 없다.
   if (on && (S.rev || {}).compare_basis !== "TAG") return;
+  // hotfix68 — 두 창으로 나뉘어 있는 동안 나란히 보기는 목록 창을 통째로 가린다 (도면은 다른 창에 있다).
+  if (on && paneSplit()) {
+    editNotice("도면 · 목록이 두 창으로 나뉘어 있는 동안에는 나란히 보기를 쓸 수 없습니다 — '한 창으로' 를 누른 뒤 켜세요", "out");
+    return;
+  }
   // 사람이 끈 것은 기억한다 — 변경이 있는 결과를 열 때 자동으로 켜는 것(`open`)을 그 사람에게는 하지 않는다.
   if (manual) { try { if (on) localStorage.removeItem("pid.side.off"); else localStorage.setItem("pid.side.off", "1"); } catch (e) {} }
   if (on && S.job.id === pr.previous) {
@@ -2260,18 +2307,24 @@ function deletedRemark(d, against) {
   return `${head} · ${why}`;
 }
 
-async function loadRows() {
-  S.rows = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL`)).json();
+/* hotfix68 — 행에 딸린 작은 읽기 다섯은 행을 기다리지 않고 같이 띄운다 (각자 실패해도 화면은 선다). */
+function rowSideFetches(id) {
+  const J = (u, dflt) => fetch(u).then(r => r.json()).catch(() => dflt);
+  return Promise.all([J(`/jobs/${id}/markup`, null), J(`/jobs/${id}/axis_overrides`, {}),
+                      J(`/jobs/${id}/review`, null), J(`/jobs/${id}/feedback?limit=1`, {}),
+                      J(`/jobs/${id}/reports`, {})]);
+}
+async function loadRows(pre, sidePre) {
+  const id = S.job.id;
+  const side = sidePre || rowSideFetches(id);
+  S.rows = await (pre || fetch(`/jobs/${id}/rows?tab=ALL`).then(r => r.json()));
   S.rowByKey = Object.fromEntries(S.rows.map(r => [r.key, r]));
-  try {
-    S.markupSummary = await (await fetch(`/jobs/${S.job.id}/markup`)).json();
-  } catch (e) { S.markupSummary = null; }
+  const [markup, axisOv, review, feedback, reports] = await side;
+  S.markupSummary = markup;
   updateMarkupNote();
   // ④ 행의 FROM/TO 확정 장부 - 근거 패널의 "FROM/TO 확정"·"확정 승계" 표시용.
   // 프로젝트가 없는 job 은 빈 객체가 온다.
-  try {
-    S.axisOv = await (await fetch(`/jobs/${S.job.id}/axis_overrides`)).json();
-  } catch (e) { S.axisOv = {}; }
+  S.axisOv = axisOv || {};
   // 오버레이가 행 상태를 키로 찾을 수 있게.  도면에는 추가·수정만 그린다 -
   // 삭제된 것은 이번 도면에 심볼이 없어 그릴 좌표가 없다.
   S.revByKey = {};
@@ -2305,15 +2358,13 @@ async function loadRows() {
     if (r.needs_review || r.deleted) S.counts.REVIEW++;
     S.originCounts[r.origin] = (S.originCounts[r.origin] || 0) + 1;
   }
-  await buildScope();
-  S.jobReview = await (await fetch(`/jobs/${S.job.id}/review`)).json();
+  S.jobReview = review || await (await fetch(`/jobs/${id}/review`)).json();
   S.review = S.jobReview;
-  S.feedback = (await (await fetch(`/jobs/${S.job.id}/feedback?limit=1`)).json()).count;
-  S.reports = (await (await fetch(`/jobs/${S.job.id}/reports`)).json()).count;
+  S.feedback = (feedback || {}).count;
+  S.reports = (reports || {}).count;
   updateReportBadge();
-  await loadUnjudged();
+  await Promise.all([buildScope(), loadUnjudged(), showTemplates()]);
   showAppliedRules();
-  await showTemplates();
   buildTabs();
   updateBadge();
   renderReviewPanel();
@@ -3478,7 +3529,7 @@ function renderGrid() {
   head.innerHTML = "";
   // The 귀속 column is dropped when every page has the same origin - see
   // buildScope(): with no answer key there is nothing for it to say.
-  const cols = COLS.filter(([key]) => key !== "origin" || S.showOrigin);
+  const cols = gridCols();
   for (const [key, label] of cols) {
     const th = document.createElement("th");
     th.dataset.col = key;
@@ -3529,126 +3580,152 @@ function renderGrid() {
     : `표시 ${rows.length} / 전체 ${S.rows.length}`) + tail;
   const body = $("#body");
   body.innerHTML = "";
-  for (const r of rows) {
-    const tr = document.createElement("tr");
-    tr.dataset.key = r.key;
-    if (r.added) tr.dataset.added = "1";
-    if (r.deleted || r.removed) tr.classList.add("deleted");
-    paintRowState(tr, r);
-    // 개정 상태.  BASELINE(Rev.A) 과 UNCHANGED 는 아무 표기도 붙이지 않는다.
-    const st = (r.rev || {}).state;
-    if (st === "ADDED" || st === "MODIFIED") {
-      tr.classList.add(st === "ADDED" ? "rev-added" : "rev-modified");
-      tr.dataset.rev = st;
-    } else if (st === "DELETED_CANDIDATE" || st === "DELETED") {
-      tr.classList.add("rev-deleted");
-      tr.dataset.rev = st;
-    }
-    if (S.sel === r.key) tr.classList.add("sel");
-    for (const [key, , editable] of cols) {
-      const td = document.createElement("td");
-      td.dataset.col = key;
-      const val = key === "page_no" ? r.page_no
-        : key === "origin" ? r.origin
-        : key === "pid_no" ? (S.pages.find(p => p.page_no === r.page_no) || {}).drawing_no || ""
-        : key === "remark" ? remarkOf(r)
-        : key === "rev_state" ? revLabel(r)          // hotfix38 — 필터와 같은 접근자
-        : (r.values[key] ?? "");
-      if (key === "description_grade" && val) {
-        // 배지 하나에 모양·글자·색이 같이 실린다.  모양과 글자만으로도 읽힌다.
-        const g = GRADES.find(x => x[0] === val);
-        const b = document.createElement("span");
-        b.className = `gradge g-${val}`;
-        b.innerHTML = `<i class="gm">${GRADE_MARK[val] || "·"}</i>`
-          + `<span>${escape(g ? g[1] : val)}</span>`;
-        b.title = g ? g[2] : val;
-        td.appendChild(b);
-      } else {
-        td.textContent = val;
-      }
-      // 잘리는 칸은 마우스를 올리면 전문이 보인다.  `max-width: 260px` 위에서
-      // 최장 SCOPE 값(`VENDOR(SEAWATER INTAKE FACILITY SUPPLIER)`, 40자)은
-      // 어느 폭으로도 한 줄에 안 들어가므로, 열을 넓히는 대신 **읽을 방법**을
-      // 준다 — 밀도(§7.2 의 29.0px / 15행)를 깨지 않는 유일한 방법이다.
-      // SCOPE 열은 그 위에 폭을 따로 준다 (styles.css `.col-scope`).
-      if (val !== "" && val !== null && val !== undefined) td.title = String(val);
-      if (key === "scope") td.classList.add("col-scope");
-      if (key === "origin") td.classList.add(`origin-${r.origin}`);
-      // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친
-      // 칸에는 연필이 붙는다.  "직접 입력" 등급과 같은 기호를 쓰는 것은 같은
-      // 사실을 말하기 때문이다.
-      if (r.user && key in r.user) { td.classList.add("edited"); td.title = editedTitle(r, key, val); }
-      if (r.conflict && key in r.conflict) td.classList.add("conflict");
-      if (editable && !r.deleted && !r.removed) {
-        td.contentEditable = "true";
-        td.addEventListener("blur", () => saveEdit(r, key, td));
-        td.addEventListener("keydown", ev => {
-          if (ev.key === "Enter") { ev.preventDefault(); td.blur(); }
-        });
-      }
-      tr.appendChild(td);
-    }
-    const f = document.createElement("td");
-    if (r.needs_review) f.innerHTML += '<span class="flag bad" title="검토 필요">●</span>';
-    if (r.annotation) f.innerHTML += '<span class="flag" title="도면에 검토 주석">▲</span>';
-    if (r.added) f.innerHTML += '<span class="flag ok" title="검토자 추가 행">＋</span>';
-    // 삭제 후보는 확정 버튼을 달고 나온다.  자동으로 굳지 않는다.
-    if (r.delCand) {
-      const b = document.createElement("button");
-      b.className = "mini-rep del-confirm";
-      b.textContent = r.delCand.confirmed ? "확정 취소" : "삭제 확정";
-      b.title = deletedRemark(r.delCand, (S.rev || {}).compared_with || "")
-        + ` · Rev 좌표 (${(r.delCand.anchor || []).join(", ")})`
-        + (r.delCand.radius ? ` · 반경 ${r.delCand.radius}pt (${r.delCand.radius_source}) — 옛 대조` : "");
-      b.onclick = async (ev) => {
-        ev.stopPropagation();
-        await fetch(`/jobs/${S.job.id}/deleted/`
-          + `${encodeURIComponent(r.delCand.id)}/confirm`
-          + `?confirmed=${!r.delCand.confirmed}`, { method: "POST" });
-        await loadRevision();
-        await loadRows();
-      };
-      f.appendChild(b);
-    }
-    if (r.removed) f.innerHTML += '<span class="flag" title="검토자 삭제 — 출력 제외">✕</span>';
-    // 44회차 — 오검출 표시(Excel 유지)와 되돌리기.  표시된 행은 어느 쪽이든
-    // 사람이 되돌릴 수 있어야 한다 — API 는 처음부터 있었고 버튼이 없었다.
-    if (r.reject && Object.keys(r.reject).length && !r.removed) {
-      f.innerHTML += `<span class="flag" title="오검출 의심 표시 — Excel 유지 · ${escape(r.reject.class || "")} ${escape(r.reject.note || "")}">✕?</span>`;
-    }
-    if (r.removed || (r.reject && Object.keys(r.reject).length)) {
-      const b = document.createElement("button");
-      b.className = "mini-rep"; b.textContent = "되돌리기";
-      b.title = "오검출 표시를 지우고 행을 되살립니다";
-      b.onclick = async (ev) => {
-        ev.stopPropagation();
-        await fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" });
-        await refreshRows(r.key);
-      };
-      f.appendChild(b);
-    }
-    // One click from any row to a report, because a reviewer notices the error
-    // while looking at the grid and will not go hunting for a menu.
-    const rep = document.createElement("button");
-    rep.className = "mini-rep";
-    rep.textContent = "신고";
-    rep.title = "이 행의 판정이 틀렸다고 신고합니다";
-    rep.onclick = (ev) => {
-      ev.stopPropagation();
-      reportDialog({ rowKey: r.key, pageNo: r.page_no });
-    };
-    f.appendChild(rep);
-    tr.appendChild(f);
-    // 56회차 — 그리드에서도 Shift 로 더한다 (도면과 같은 묶음 하나다).
-    tr.onclick = (ev) => {
-      if (isAddClick(ev)) { toggleMulti(r.key); return; }
-      select(r.key, true);
-    };
-    body.appendChild(tr);
-  }
+  // hotfix68 — 한 행을 만드는 일은 `buildRowTr` 하나 (다른 창에서 고친 행을 제자리에서 바꿀 때도 같은 함수)
+  body.innerHTML = rows.map(r => rowHtml(r, cols)).join("");
   // 묶음 표시는 다시 그린 뒤에도 남는다 — 판정하는 곳은 `S.multi` 하나다.
   markMultiRows();
 }
+
+function gridCols() { return COLS.filter(([key]) => key !== "origin" || S.showOrigin); }
+
+/* hotfix68 — 한 행을 만든다.  2,000행 목록에서 칸마다 createElement · dataset · innerHTML 을 부르던 것이
+ * 목록 그리기의 대부분이었다 (QFE 실측 renderGrid 514ms — 그중 칸 하나하나의 DOM 호출이 대부분).  그래서 행을
+ * **글 한 줄**로 만들어 몸통에 한 번 붓는다 (브라우저의 HTML 해석기가 칸 수만큼의 DOM 호출보다 훨씬 빠르다).
+ * 보이는 모습 · 칸 · 제목 · 깃발 · 단추는 예전과 같고, 단추 누르기는 몸통의 듣는 이가 받는다 (`bindGridBody`). */
+let _pidMapOf = null, _pidMap = null;
+function _pidOf(pageNo) {
+  if (_pidMapOf !== S.pages) {
+    _pidMapOf = S.pages;
+    _pidMap = new Map((S.pages || []).map(p => [p.page_no, p.drawing_no || ""]));
+  }
+  return _pidMap.get(pageNo) || "";
+}
+const _gradeHtml = {};
+function _gradeBadgeHtml(val) {
+  if (!(val in _gradeHtml)) {
+    // 배지 하나에 모양·글자·색이 같이 실린다.  모양과 글자만으로도 읽힌다.
+    const g = GRADES.find(x => x[0] === val);
+    _gradeHtml[val] = `<span class="gradge g-${escAttr(val)}" title="${escAttr(g ? g[2] : val)}">`
+      + `<i class="gm">${GRADE_MARK[val] || "·"}</i><span>${escape(String(g ? g[1] : val))}</span></span>`;
+  }
+  return _gradeHtml[val];
+}
+const _flagHtml = (cls, title, text) => `<span class="${cls}" title="${escAttr(title)}">${text}</span>`;
+
+function rowHtml(r, cols) {
+  const cls = [];
+  const attrs = [`data-key="${escAttr(r.key)}"`];
+  if (r.added) attrs.push('data-added="1"');
+  if (r.deleted || r.removed) cls.push("deleted");
+  const ust = rowUserState(r);                 // paintRowState 와 같은 판정
+  if (ust) cls.push(ust);
+  // 개정 상태.  BASELINE(Rev.A) 과 UNCHANGED 는 아무 표기도 붙이지 않는다.
+  const st = (r.rev || {}).state;
+  if (st === "ADDED" || st === "MODIFIED") { cls.push(st === "ADDED" ? "rev-added" : "rev-modified"); attrs.push(`data-rev="${st}"`); }
+  else if (st === "DELETED_CANDIDATE" || st === "DELETED") { cls.push("rev-deleted"); attrs.push(`data-rev="${st}"`); }
+  if (S.sel === r.key) cls.push("sel");
+  if (S.multi && S.multi.has(r.key)) cls.push("multi");
+  let h = `<tr ${attrs.join(" ")}${cls.length ? ` class="${cls.join(" ")}"` : ""}>`;
+  const canEdit = !r.deleted && !r.removed;
+  for (const [key, , editable] of cols) {
+    const val = key === "page_no" ? r.page_no
+      : key === "origin" ? r.origin
+      : key === "pid_no" ? _pidOf(r.page_no)
+      : key === "remark" ? remarkOf(r)
+      : key === "rev_state" ? revLabel(r)          // hotfix38 — 필터와 같은 접근자
+      : (r.values[key] ?? "");
+    const has = val !== "" && val !== null && val !== undefined;
+    const tc = [];
+    // SCOPE 열은 폭을 따로 준다 (styles.css `.col-scope`).
+    if (key === "scope") tc.push("col-scope");
+    if (key === "origin") tc.push(`origin-${r.origin}`);
+    // 잘리는 칸은 마우스를 올리면 전문이 보인다 — 밀도(§7.2 의 29.0px / 15행)를 깨지 않는 유일한 방법이다.
+    let title = has ? String(val) : "";
+    // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친 칸에는 연필이 붙는다.
+    if (r.user && key in r.user) { tc.push("edited"); title = editedTitle(r, key, val); }
+    if (r.conflict && key in r.conflict) tc.push("conflict");
+    h += `<td data-col="${key}"`
+      + (tc.length ? ` class="${tc.join(" ")}"` : "")
+      + (title ? ` title="${escAttr(title)}"` : "")
+      // 저장 · Enter 는 목록 몸통 하나가 받는다 (`bindGridBody`)
+      + (editable && canEdit ? ' contenteditable="true"' : "")
+      + ">"
+      + (key === "description_grade" && has ? _gradeBadgeHtml(val) : has ? escape(String(val)) : "")
+      + "</td>";
+  }
+  h += "<td>";
+  if (r.needs_review) h += _flagHtml("flag bad", "검토 필요", "●");
+  if (r.annotation) h += _flagHtml("flag", "도면에 검토 주석", "▲");
+  if (r.added) h += _flagHtml("flag ok", "검토자 추가 행", "＋");
+  // 삭제 후보는 확정 버튼을 달고 나온다.  자동으로 굳지 않는다.
+  if (r.delCand) {
+    const t = deletedRemark(r.delCand, (S.rev || {}).compared_with || "")
+      + ` · Rev 좌표 (${(r.delCand.anchor || []).join(", ")})`
+      + (r.delCand.radius ? ` · 반경 ${r.delCand.radius}pt (${r.delCand.radius_source}) — 옛 대조` : "");
+    h += `<button class="mini-rep del-confirm" data-act="del-confirm" title="${escAttr(t)}">`
+      + (r.delCand.confirmed ? "확정 취소" : "삭제 확정") + "</button>";
+  }
+  if (r.removed) h += _flagHtml("flag", "검토자 삭제 — 출력 제외", "✕");
+  // 44회차 — 오검출 표시(Excel 유지)와 되돌리기.  표시된 행은 어느 쪽이든
+  // 사람이 되돌릴 수 있어야 한다 — API 는 처음부터 있었고 버튼이 없었다.
+  const rejected = r.reject && Object.keys(r.reject).length;
+  if (rejected && !r.removed)
+    h += _flagHtml("flag", `오검출 의심 표시 — Excel 유지 · ${r.reject.class || ""} ${r.reject.note || ""}`, "✕?");
+  if (r.removed || rejected)
+    h += '<button class="mini-rep" data-act="restore" title="오검출 표시를 지우고 행을 되살립니다">되돌리기</button>';
+  // One click from any row to a report, because a reviewer notices the error
+  // while looking at the grid and will not go hunting for a menu.
+  h += '<button class="mini-rep" data-act="report" title="이 행의 판정이 틀렸다고 신고합니다">신고</button>';
+  return h + "</td></tr>";
+}
+const _rowTpl = document.createElement("template");
+function buildRowTr(r, cols) {
+  _rowTpl.innerHTML = rowHtml(r, cols);
+  return _rowTpl.content.firstElementChild;
+}
+
+/* hotfix68 — 목록 몸통의 듣는 이 셋.  칸마다 달던 blur · keydown 과 행마다 달던 click 을 한 곳에서 받는다 —
+ * 하는 일은 같다 (칸을 떠나면 `saveEdit` · Enter 는 칸 떠나기 · 행 누르기는 고르기 / Shift 는 묶음).
+ * 행은 `S.rowByKey` 에서 찾는다 — 다른 창에서 고친 행도 같은 객체를 제자리에서 바꾸므로 같은 행이다. */
+function _gridRow(tr) {
+  const k = tr && tr.dataset.key;
+  return k ? (S.rowByKey && S.rowByKey[k]) || (S.deletedRows || []).find(r => r.key === k) || null : null;
+}
+(function bindGridBody() {
+  const body = document.getElementById("body");
+  if (!body) return;
+  body.addEventListener("focusout", ev => {
+    const td = ev.target;
+    if (!td || td.tagName !== "TD" || td.contentEditable !== "true") return;
+    const r = _gridRow(td.parentElement);
+    if (r) saveEdit(r, td.dataset.col, td);
+  });
+  body.addEventListener("keydown", ev => {
+    const td = ev.target;
+    if (ev.key === "Enter" && td && td.tagName === "TD" && td.contentEditable === "true") { ev.preventDefault(); td.blur(); }
+  });
+  body.addEventListener("click", ev => {
+    const tr = ev.target.closest ? ev.target.closest("tr") : null;
+    if (!tr || !body.contains(tr)) return;
+    const r = _gridRow(tr);
+    if (!r) return;
+    const act = ev.target.closest("[data-act]");
+    if (act) {
+      const what = act.dataset.act;
+      if (what === "report") reportDialog({ rowKey: r.key, pageNo: r.page_no });
+      else if (what === "restore") {
+        fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" }).then(() => refreshRows(r.key));
+      } else if (what === "del-confirm" && r.delCand) {
+        fetch(`/jobs/${S.job.id}/deleted/${encodeURIComponent(r.delCand.id)}/confirm`
+              + `?confirmed=${!r.delCand.confirmed}`, { method: "POST" })
+          .then(() => loadRevision()).then(() => loadRows());
+      }
+      return;
+    }
+    if (isAddClick(ev)) { toggleMulti(r.key); return; }
+    select(r.key, true);
+  });
+})();
 
 /* The dropdown itself.
  *
@@ -4162,11 +4239,18 @@ function select(key, fromGrid, item) {
   // 그냥 누르면 묶음은 풀린다 (더하려면 Shift).
   S.multi.clear();
   S.sel = key;
+  syncSel();                                // hotfix68 — 다른 창(도면 · 목록)도 같은 행으로
   // 삭제 후보는 `S.rows` 가 아니라 `S.deletedRows` 에 산다 (이번 리비전에 그
   // 심볼이 없으므로 검출 행이 아니다).  둘 다 봐야 근거 패널이 열린다.
   const row = S.rows.find(r => r.key === key)
     || (S.deletedRows || []).find(r => r.key === key);
-  if (fromGrid && row && (!S.page || S.page.page_no !== row.page_no)) {
+  // hotfix68 — 도면이 다른 창에 있으면 이 창은 장을 그리지 않는다 (그 창이 장을 옮긴다).  "이 장" 기능이
+  // 따라가도록 지금 장만 조용히 바꾼다.
+  if (row && drawingHidden() && (!S.page || S.page.page_no !== row.page_no)) {
+    const pg = S.pages.find(p => p.page_no === row.page_no);
+    if (pg) { S.page = pg; S.imgStale = true; }
+  }
+  if (fromGrid && row && (!S.page || S.page.page_no !== row.page_no) && !drawingHidden()) {
     // The page render is async; centre once the overlay for it exists.
     S.pending = key;
     showPage(S.pages.find(p => p.page_no === row.page_no));
@@ -4194,6 +4278,7 @@ function deselect() {
   S.sel = null;
   S.pending = null;
   S.multi.clear();
+  syncSel();
   document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
   document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
   drawOverlay();
@@ -4443,6 +4528,7 @@ function toggleMulti(key) {
   if (!S.multi.size && S.sel && S.sel !== key) S.multi.add(S.sel);
   if (S.multi.has(key)) S.multi.delete(key); else S.multi.add(key);
   if (S.multi.size === 1) S.multi.clear();     // 하나만 남으면 묶음이 아니다
+  syncSel();
   drawOverlay();
   markMultiRows();
   if (S.multi.size) showMultiScope();
@@ -4454,6 +4540,7 @@ function toggleMulti(key) {
 
 function clearMulti() {
   S.multi.clear();
+  syncSel();
   drawOverlay();
   markMultiRows();
   const row = S.sel && S.rows.find(r => r.key === S.sel);
@@ -5780,6 +5867,9 @@ function showPage(page) {
   $("#page-select").value = page.page_no;
   $("#page-note").textContent = page.in_scope ? "" : `분석 제외: ${page.scope_reason}`;
   const img = $("#sheet");
+  // hotfix68 — 도면이 다른 창에 있으면 이 창은 장 그림을 받지 않는다 (A1 한 장 그림 · 근거 패널은 행에서 읽는다).
+  // 다시 한 창으로 합치면 `setPane` 이 그 장을 그린다.
+  S.imgStale = drawingHidden();
   img.onload = () => {
     // The magnification is the reviewer's, not the page's: moving to the next
     // sheet keeps it, and only opening a job (which is also what re-analysis
@@ -5790,7 +5880,8 @@ function showPage(page) {
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
   };
-  img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
+  if (!S.imgStale) img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
+  syncPage();                               // hotfix68 — 목록 창의 "이 장" 이 도면 창의 장을 따른다
   showSheetNotes(page.page_no);
   showMemo(page.page_no);                 // hotfix63 — 이 장 메모 (같은 프로젝트의 모든 Rev)
   if (S.side) cmpShow();                  // hotfix40 — 오른쪽 창도 같은 도면번호 장으로
@@ -5853,6 +5944,7 @@ function measure() {
 }
 
 function fit() {
+  if ($("#stage").clientWidth < 20) return;     // hotfix68 — 도면이 다른 창에 있어 이 칸이 숨었다 (배율을 음수로 만들지 않는다)
   measure();
   S.zoom = ($("#stage").clientWidth - 16) / S.natural.w;
   applyZoom();
@@ -7249,6 +7341,7 @@ function _bandEnd(ev) {
     if (row) select(only, false);
     return;
   }
+  syncSel();
   drawOverlay();
   markMultiRows();
   if (S.multi.size) showMultiScope();
@@ -8407,7 +8500,8 @@ document.addEventListener("keydown", (ev) => {
   const t = ev.target, tag = ((t && t.tagName) || "").toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select" || (t && t.isContentEditable)) return;
   const st = document.getElementById("stage");
-  if (!S.job || !st || !st.offsetParent) return;
+  // hotfix68 — 목록만 보이는 창(도면은 다른 창)에서도 위·아래 화살표로 행을 옮긴다 — 도면 창이 따라온다
+  if (!S.job || !st || (!st.offsetParent && !drawingHidden())) return;
   const trs = [...document.querySelectorAll("#body tr[data-key]")];
   if (!trs.length) return;
   let i = trs.findIndex(tr => tr.dataset.key === S.sel);
@@ -8434,6 +8528,348 @@ document.addEventListener("keydown", (ev) => {
     const sv = await r.json();
     editNotice(`저장했습니다 — ${saveWords(sv)}`, "in");
   });
+})();
+
+/* ---------------- hotfix68 — 도면 · 목록을 새 창으로 (듀얼 모니터) ----------------
+ *
+ * 사용자: *"좌측 화면과 우측 화면을 새창으로 띄워서 듀얼 모니터를 사용하는 사람들이 각 화면에 하나씩 전체 화면으로
+ * 볼 수 있도록 · 각 화면에서는 기존 기능들과 서로간의 연동도 모두 되어야 한다 · 무겁지 않아야 한다."*
+ *
+ * 방법 — **기능을 다시 만들지 않는다.**  새 창은 같은 화면 전체를 싣고 보이는 칸만 고른다
+ * (`body.pane-drawing` · `body.pane-list`).  본 창은 나머지 칸만 남긴다.  그래서 도면 창에서는 상자 누르기 · 공급
+ * 주체 판 · x N 라벨 · 마크업 · 도면 위 편집 카드가, 목록 창에서는 칸 편집 · 필터 · 승수 판 · 근거 패널 · Excel 이
+ * 그대로 돈다.  두 창 사이에 오가는 것은 **사실 몇 개**뿐이다 (`window.postMessage` — 대시보드 iframe 에서 띄운 창도
+ * 같은 길로 닿는다):
+ *   job   — 어느 결과를 보는가 (한쪽이 다른 결과를 열거나 이전/현재를 바꾸면 다른 쪽도)
+ *   sel   — 고른 행 · Shift 묶음 (도면 창은 그 자리로 가고, 목록 창은 그 행으로 내려가 근거를 보인다)
+ *   page  — 도면 창의 장 (목록 창의 "이 장" 기능이 따른다 · 목록 창에서 장을 옮기면 도면 창이 따른다)
+ *   rows  — 저장이 끝난 행의 열쇠 (받은 창은 **그 행만** `/rows?keys=` 로 다시 받아 제자리에서 바꾼다 —
+ *           어느 저장 길이든 같다: 저장 함수마다 알리는 대신 서버에 쓰는 요청이 끝난 것을 본다)
+ *   memo · reopen · gone · bye — 장 메모 · 다시 대조/분석 · 분석 삭제 · 창 닫힘
+ * 판정은 어느 창에서도 다시 하지 않는다 — 받은 창은 서버가 준 행을 그대로 놓는다. */
+function paneRole() {
+  const b = document.body.classList;
+  return b.contains("pane-drawing") ? "drawing" : b.contains("pane-list") ? "list" : "";
+}
+function paneSplit() { return !!paneRole(); }
+function drawingHidden() { return document.body.classList.contains("pane-list"); }
+
+function setPane(role) {
+  const b = document.body.classList;
+  b.toggle("pane-drawing", role === "drawing");
+  b.toggle("pane-list", role === "list");
+  renderPaneBar();
+  window.dispatchEvent(new Event("resize"));
+  // 도면이 다시 보이면 지금 장을 그린다 (안 보이는 동안에는 그림을 받지 않았다).
+  if (role !== "list" && S.job && S.page && S.imgStale) showPage(S.page);
+  else if (role !== "list" && S.natural && S.natural.w && $("#sheet").getAttribute("src")) requestAnimationFrame(() => fit());
+  renderFloatEdit();
+}
+
+function _peer() {
+  if (!SYNC.link) return null;
+  const w = PANE.role ? window.opener : SYNC.peer;
+  return w && !w.closed ? w : null;
+}
+function syncPost(m) {
+  if (!SYNC.link || SYNC.muted) return;
+  const w = _peer();
+  if (!w) return;
+  try {
+    w.postMessage({ ...m, __pid: SYNC.link, from: SYNC.me, job: m.job || (S.job ? S.job.id : "") }, location.origin);
+  } catch (e) { /* 다른 출처로 옮겨 간 창 — 연동만 끊긴다 */ }
+}
+function syncSel() {
+  if (!SYNC.link || SYNC.muted || SYNC.selQueued) return;
+  SYNC.selQueued = true;
+  queueMicrotask(() => {
+    SYNC.selQueued = false;
+    syncPost({ t: "sel", key: S.sel || null, multi: [...S.multi] });
+  });
+}
+function syncPage() {
+  if (!SYNC.link || SYNC.muted || !S.page) return;
+  syncPost({ t: "page", page: S.page.page_no });
+}
+window.addEventListener("message", (ev) => {
+  if (ev.origin !== location.origin) return;
+  const d = ev.data;
+  if (!d || !SYNC.link || d.__pid !== SYNC.link || d.from === SYNC.me) return;
+  syncReceive(d).catch(() => {});
+});
+
+async function syncReceive(m) {
+  if (m.t === "bye") {
+    // 본 창이 닫히거나 새로 읽혔다 → 이 새 창은 혼자 계속 쓴다 (두 칸을 다 보인다).
+    // 새 창이 보낸 bye 는 본 창이 기다리지 않는다 — 새 창을 새로 읽은 것일 수 있고, 닫혔으면 감시가 잡는다.
+    if (PANE.role) {
+      SYNC.alone = true; SYNC.link = ""; setPane("");
+      editNotice("본 창이 닫혀 연동이 끊겼습니다 — 이 창은 혼자 계속 쓸 수 있습니다", "out");
+    }
+    return;
+  }
+  if (m.t === "job") {
+    if (!S.job || S.job.id !== m.id) {
+      const pr = S.revPair;
+      if (pr && S.viewCache && S.viewCache[m.id] && (m.id === pr.current || m.id === pr.previous)) await switchView(m.id);
+      else await open(m.id);
+    } else if (!PANE.role) {
+      // 새 창이 결과를 다 열었다 — 본 창이 지금 보는 장과 고른 것을 알려 준다 (새 창은 이 답을 하지 않는다: 메아리 없음)
+      syncPost({ t: "state", page: S.page ? S.page.page_no : 0, key: S.sel || null, multi: [...S.multi] });
+    }
+    return;
+  }
+  if (!S.job || m.job !== S.job.id || S.loading) return;
+  if (m.t === "state") { if (m.page) applyPage(m.page); applySel(m); return; }
+  if (m.t === "page") { applyPage(m.page); return; }
+  if (m.t === "sel") { applySel(m); return; }
+  if (m.t === "rows") { await syncRows(m); return; }
+  if (m.t === "memo") { if (S.page && S.page.page_no === m.page) showMemo(m.page); loadMemoSummary(); return; }
+  if (m.t === "reopen") { await open(S.job.id); return; }
+  if (m.t === "gone") { if (PANE.role) window.close(); else toFirstScreen(); return; }
+}
+
+function applyPage(pageNo) {
+  const pg = (S.pages || []).find(p => p.page_no === pageNo);
+  if (!pg || (S.page && S.page.page_no === pageNo)) return;
+  SYNC.muted++;
+  try {
+    if (drawingHidden()) {
+      // 그림은 받지 않는다 — 이 창의 "이 장" 기능(페이지별 승수 · 장 메모)이 따라갈 장만 바꾼다
+      S.page = pg; S.imgStale = true;
+      const ps = $("#page-select"); if (ps) ps.value = pg.page_no;
+      _refreshPageMult();
+    } else showPage(pg);
+  } finally { SYNC.muted--; }
+}
+
+function applySel(m) {
+  if (!S.rows) return;
+  SYNC.muted++;
+  try {
+    const multi = (m.multi || []).filter(k => S.rowByKey[k]);
+    if (multi.length > 1) {
+      S.multi.clear(); multi.forEach(k => S.multi.add(k));
+      S.sel = m.key || null;
+      drawOverlay(); markMultiRows(); showMultiScope(); renderFloatEdit();
+      return;
+    }
+    if (!m.key) { if (S.sel || S.multi.size) deselect(); return; }
+    if (S.sel === m.key && !S.multi.size) return;
+    const known = S.rowByKey[m.key] || (S.deletedRows || []).some(r => r.key === m.key);
+    if (!known) return;
+    // 도면 창은 그 자리로 가고(장이 다르면 장을 옮긴다), 목록 창은 그 행으로 내려가 근거를 보인다
+    select(m.key, !drawingHidden());
+  } finally { SYNC.muted--; }
+}
+
+/* 다른 창에서 저장한 행만 다시 받아 **제자리에서** 바꾼다.  행을 통째로 다시 읽지 않는다 (QFE 2,041행이면
+ * 13.7MB · 목록 다시 그리기 0.9초).  사람이 지금 그 행의 칸에 타자 중이면 그 칸은 건드리지 않고 값만 맞춘다. */
+async function syncRows(m) {
+  const keys = Array.isArray(m.keys) ? m.keys : null;
+  if (!keys || !keys.length || keys.length > 300 || keys.some(k => !S.rowByKey[k])) { await reloadRowsKeepView(); return; }
+  let fresh;
+  try {
+    fresh = await (await fetch(`/jobs/${S.job.id}/rows?tab=ALL&keys=${keys.map(encodeURIComponent).join(",")}`)).json();
+  } catch (e) { return; }
+  if (!Array.isArray(fresh) || fresh.length !== keys.length) { await reloadRowsKeepView(); return; }
+  const cols = gridCols();
+  for (const r of fresh) {
+    const old = S.rowByKey[r.key];
+    for (const k of Object.keys(old)) if (!(k in r)) delete old[k];
+    Object.assign(old, r);
+    const tr = document.querySelector(`#body tr[data-key="${CSS.escape(r.key)}"]`);
+    if (!tr) continue;
+    if (tr.contains(document.activeElement)) {
+      for (const [f, , editable] of cols) if (editable && document.activeElement.dataset.col !== f) syncRowCell(old, f);
+      repaintRow(old);
+    } else {
+      const nt = buildRowTr(old, cols);
+      if (S.sel === old.key) nt.classList.add("sel");
+      tr.replaceWith(nt);
+    }
+  }
+  markMultiRows();
+  if (m.review != null && S.counts) S.counts.REVIEW = m.review;
+  if (m.feedback != null) S.feedback = m.feedback;
+  updateBadge();
+  drawOverlay();
+  if (S.sel && keys.includes(S.sel) && !S.multi.size && S.rowByKey[S.sel]) showEvidence(S.rowByKey[S.sel]);
+  else if (S.multi.size && keys.some(k => S.multi.has(k))) showMultiScope();
+  renderFloatEdit();
+  _refreshPageMult();
+}
+async function reloadRowsKeepView() {
+  const gw = $("#gridwrap"); const top = gw ? gw.scrollTop : 0;
+  await loadRows();
+  if (gw) gw.scrollTop = top;
+  drawOverlay();
+  SYNC.muted++;
+  try {
+    if (S.multi.size > 1) showMultiScope();
+    else if (S.sel && S.rowByKey[S.sel]) showEvidence(S.rowByKey[S.sel]);
+  } finally { SYNC.muted--; }
+  renderFloatEdit();
+}
+
+/* 서버에 쓰는 요청이 끝나면 다른 창에 "이 행이 바뀌었다" 를 알린다.  저장 길이 마흔 곳 넘게 흩어져 있어
+ * 저장 함수마다 알림을 다는 대신, 요청 하나를 본다 — 새 저장 길이 생겨도 연동이 저절로 따라온다.
+ * 열쇠는 주소(`/rows/{key}`)나 본문(`key` · `keys` · `items[].key`)에서 읽고, 못 읽으면 "전부" 로 보낸다. */
+function _bodyKeys(body) {
+  let b = body;
+  if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) { return null; } }
+  else if (b instanceof FormData) { const k = b.get("key") || b.get("row_key"); return k ? [String(k)] : null; }
+  if (!b || typeof b !== "object") return null;
+  const out = [];
+  for (const f of ["key", "row_key"]) if (typeof b[f] === "string") out.push(b[f]);
+  for (const f of ["keys", "row_keys"]) if (Array.isArray(b[f])) b[f].forEach(k => typeof k === "string" && out.push(k));
+  for (const f of ["items", "rows"]) if (Array.isArray(b[f])) b[f].forEach(it => it && typeof it.key === "string" && out.push(it.key));
+  return out.length ? out : null;
+}
+function syncNoteMutation(url, init) {
+  if (!SYNC.link || !S.job) return;
+  let u;
+  try { u = new URL(url, location.href); } catch (e) { return; }
+  const mm = u.pathname.match(/^\/jobs\/([^/]+)(?:\/(.*))?$/);
+  if (!mm) return;                                   // 프로젝트 · 템플릿 · 심볼 사전 — 행에 안 닿는다
+  const job = decodeURIComponent(mm[1]), rest = mm[2] || "";
+  if (job !== S.job.id) return;
+  if (rest === "") { syncPost({ t: "gone", job }); return; }                  // 분석 삭제
+  if (/^(cancel|diagnostic|feedback_export|titleblock)/.test(rest)) return;
+  if (rest === "reanalyse" || rest === "revision") { syncPost({ t: "reopen", job }); return; }
+  if (rest.startsWith("memo/")) { syncPost({ t: "memo", job, page: +rest.split("/")[1] || 0 }); return; }
+  let keys = null;
+  const rm = rest.match(/^rows\/([^/]+)(?:\/([a-z_]+))?$/);
+  if (rm && rm[2] !== "copy") keys = [decodeURIComponent(rm[1])];
+  else if (!rm && rest !== "rows") keys = _bodyKeys(init && init.body);
+  const d = SYNC.dirty;
+  if (!keys) d.all = true; else keys.forEach(k => d.keys.add(k));
+  clearTimeout(d.t);
+  // 저장한 창이 응답을 다 받아 자기 화면을 고친 뒤에 보낸다 (검토 수 · 이력 수를 함께 실어 보낸다)
+  d.t = setTimeout(() => {
+    const all = d.all, ks = [...d.keys];
+    SYNC.dirty = { keys: new Set(), all: false, t: 0 };
+    syncPost({ t: "rows", job, keys: all ? null : ks,
+               review: S.counts ? S.counts.REVIEW : null, feedback: S.feedback ?? null });
+  }, 180);
+}
+(function hookFetch() {
+  const f0 = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const p = f0(input, init);
+    try {
+      const method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
+      if (method !== "GET" && method !== "HEAD" && SYNC.link) {
+        const url = typeof input === "string" ? input : (input && input.url) || String(input);
+        p.then(res => { if (res && res.ok) syncNoteMutation(url, init); }).catch(() => {});
+      }
+    } catch (e) { /* 연동은 부가 기능 — 요청 자체를 막지 않는다 */ }
+    return p;
+  };
+})();
+
+/* 새 창 열기 · 닫기 */
+async function popOut(role) {
+  if (!S.job) return;
+  if (SYNC.peer && !SYNC.peer.closed) { try { SYNC.peer.focus(); } catch (e) {} return; }
+  if (S.side) toggleSide(false);
+  if (document.body.classList.contains("pid-full")) setFull(false);
+  const link = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const q = new URLSearchParams(location.search);
+  q.set("pane", role); q.set("link", link);
+  const url = `${location.pathname}?${q.toString()}#${S.job.id}`;
+  const w0 = Math.round((screen.availWidth || 1600) * 0.92), h0 = Math.round((screen.availHeight || 900) * 0.92);
+  const w = _nativeOpen(url, `pid-${role}-${link}`, `popup=yes,width=${w0},height=${h0}`);
+  if (!w) {
+    alert("새 창이 막혔습니다 — 주소줄 오른쪽의 팝업 차단 표시에서 이 주소를 허용한 뒤 다시 눌러 주세요.");
+    return;
+  }
+  SYNC.link = link; SYNC.peer = w; SYNC.peerRole = role; SYNC.alone = false;
+  setPane(role === "drawing" ? "list" : "drawing");
+  clearInterval(SYNC.poll);
+  SYNC.poll = setInterval(() => { if (!SYNC.peer || SYNC.peer.closed) rejoin(); }, 700);
+  placeOnOtherScreen(w);
+}
+/* 이 파일의 `open(jobId)` (결과 열기) 가 전역 함수라 브라우저의 `window.open` 을 덮는다 — `window.open(url)` 은 결과 열기를
+ * 부르고 404 를 낸다 (자기검증이 잡았다).  이름을 바꾸면 부르는 곳 수십 군데와 시험이 따라 바뀌므로, 숨은 빈 iframe 의
+ * 손대지 않은 `open` 을 이 창을 주인으로 부른다 — 새 창의 `opener` 는 이 창이다. */
+let _openFrame = null;
+function _nativeOpen(url, name, features) {
+  if (!_openFrame || !_openFrame.isConnected) {
+    _openFrame = document.createElement("iframe");
+    _openFrame.style.display = "none";
+    _openFrame.setAttribute("aria-hidden", "true");
+    _openFrame.title = "새 창 열기 도우미";
+    document.body.appendChild(_openFrame);
+  }
+  return _openFrame.contentWindow.open.call(window, url, name, features);
+}
+async function placeOnOtherScreen(w) {
+  // 브라우저가 창 배치를 허락하면 다른 모니터에 꽉 차게 놓는다.  허락이 없거나(처음 한 번 묻는다) 대시보드 iframe 처럼
+  // 막힌 곳에서는 그대로 둔다 — 사람이 그 창을 다른 모니터로 끌어 ⛶ 를 누르면 된다.
+  try {
+    if (!("getScreenDetails" in window)) return;
+    const d = await window.getScreenDetails();
+    const other = (d.screens || []).find(sc => sc !== d.currentScreen);
+    if (!other || !w || w.closed) return;
+    w.moveTo(other.availLeft, other.availTop);
+    w.resizeTo(other.availWidth, other.availHeight);
+  } catch (e) { /* 권한 없음 — 그대로 */ }
+}
+function rejoin() {
+  clearInterval(SYNC.poll); SYNC.poll = 0;
+  if (PANE.role) { syncPost({ t: "bye" }); window.close(); return; }
+  const w = SYNC.peer;
+  SYNC.peer = null; SYNC.peerRole = ""; SYNC.link = "";
+  if (w && !w.closed) { try { w.close(); } catch (e) {} }
+  setPane("");
+}
+function renderPaneBar() {
+  const role = paneRole();
+  const pop = PANE.role && !SYNC.alone;               // 이 창이 새 창인가
+  const linked = !!SYNC.link && !SYNC.alone;
+  document.querySelectorAll(".pop-btn").forEach(b => b.classList.toggle("hidden", !!role || !!PANE.role));
+  document.querySelectorAll(".pane-join").forEach(b => {
+    b.classList.toggle("hidden", !role || !linked);
+    b.textContent = pop ? "⇆ 한 창으로 (이 창 닫기)" : "⇆ 한 창으로";
+    b.title = pop ? "이 새 창을 닫고 본 창에서 도면 · 목록을 함께 봅니다"
+                  : "새 창을 닫고 이 창에서 도면 · 목록을 함께 봅니다";
+  });
+  const other = role === "drawing" ? "목록" : "도면";
+  document.querySelectorAll(".pane-chip").forEach(c => {
+    c.classList.toggle("hidden", !role || !linked);
+    c.textContent = `⧉ ${other} 창과 연동 중`;
+    c.title = "고르기 · 장 옮기기 · 편집 · 삭제 · 승수가 두 창에 같이 반영됩니다";
+  });
+  const fl = document.getElementById("full-list");
+  if (fl) fl.classList.toggle("hidden", role !== "list");
+}
+document.querySelectorAll(".pop-btn").forEach(b => b.addEventListener("click", () => popOut(b.dataset.pane)));
+document.querySelectorAll(".pane-join").forEach(b => b.addEventListener("click", rejoin));
+(function () {
+  const fl = document.getElementById("full-list");
+  if (!fl) return;
+  fl.addEventListener("click", () => {
+    // 목록 창은 화면 안 전체화면이 따로 없다 — 브라우저 전체화면만 (도면 창은 ⛶ 가 같은 일을 한다)
+    try {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      else document.exitFullscreen().catch(() => {});
+    } catch (e) {}
+  });
+  document.addEventListener("fullscreenchange", () => {
+    fl.textContent = document.fullscreenElement ? "⤡ 전체화면 끝" : "⛶ 전체화면";
+  });
+})();
+window.addEventListener("pagehide", () => { if (SYNC.link) syncPost({ t: "bye" }); });
+(function bootPane() {
+  if (!PANE.role) { renderPaneBar(); return; }
+  document.body.classList.add("popout");
+  SYNC.link = PANE.link;
+  if (!window.opener || !SYNC.link) { SYNC.alone = true; SYNC.link = ""; renderPaneBar(); return; }
+  const slot = $("#embed-tabs"), tabs = $("#tabs");
+  if (PANE.role === "list" && slot && tabs && !slot.contains(tabs)) { slot.appendChild(tabs); slot.classList.remove("hidden"); }
+  setPane(PANE.role);
+  document.title = (PANE.role === "drawing" ? "도면 — " : "목록 — ") + document.title;
 })();
 
 /* =====================================================================
