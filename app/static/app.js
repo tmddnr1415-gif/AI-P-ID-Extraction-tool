@@ -5958,6 +5958,12 @@ async function showMemo(pageNo) {
   memoLayout();
 }
 async function saveMemo() {
+  // hotfix74 — 저장 단추를 두 번 누르거나 Ctrl+Enter 를 연달아 치면 같은 판이 두 번 쌓였다.  하나가 끝날 때까지 다음은 무시한다.
+  if (S._memoBusy) return;
+  S._memoBusy = true;
+  try { return await _saveMemo(); } finally { S._memoBusy = false; }
+}
+async function _saveMemo() {
   const pg = S.memoPage, ta = $("#memo-text");
   if (!S.job || !pg) return;
   const author = await askAuthor("메모");
@@ -7308,7 +7314,7 @@ async function markupDialog(rect) {
        <button id="mk-save">행 추가</button>
      </div>`);
   $("#mk-cancel").onclick = closeModal;
-  $("#mk-save").onclick = async () => {
+  $("#mk-save").onclick = guarded(async () => {      // hotfix74 — 두 번 눌러도 행은 하나
     if (!vocReasonOk("mk")) return;
     const scopeSel = $("#mk-scope").value;
     const name = $("#mk-scope-name").value.trim();
@@ -7365,7 +7371,7 @@ async function markupDialog(rect) {
       + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
       + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
       + `발주처 양식에 ${formLine}` + (vocId ? ` · VOC ${vocId} 접수` : ""), "in");
-  };
+  });
   $("#mk-type").focus();
 }
 
@@ -8232,7 +8238,7 @@ function reportDialog(opts) {
      </div>`);
   $("#rep-detail").focus();
   $("#rep-cancel").onclick = closeModal;
-  const save = async () => {
+  const save = guarded(async () => {           // hotfix74 — 두 번 눌러도(Enter 연타) 신고는 한 건
     const what = (document.querySelector('input[name="rep-what"]:checked') || {}).value;
     const detail = $("#rep-detail").value.trim();
     if (!detail) { alert("왜 틀렸는지 한 줄만 적어 주세요."); return; }
@@ -8252,7 +8258,7 @@ function reportDialog(opts) {
     updateReportBadge();
     closeModal();
     if (rep.voc_id) editNotice(`신고 접수 · VOC ${rep.voc_id} — 개발팀 함에도 쌓였습니다`, "in");
-  };
+  });
   $("#rep-save").onclick = save;
   $("#rep-detail").addEventListener("keydown", ev => {
     if (ev.key === "Enter") { ev.preventDefault(); save(); }
@@ -8404,7 +8410,7 @@ async function vocDialog(opts) {
      <div id="vc-list">${vocListHtml(info.items || [])}</div>`);
   $("#vc-cancel").onclick = closeModal;
   $("#vc-note").focus();
-  $("#vc-save").onclick = async () => {
+  $("#vc-save").onclick = guarded(async () => {       // hotfix74 — 두 번 눌러도 VOC 는 한 건
     const reason = $("#vc-note").value.trim();
     if (!reason) { alert("내용을 적어 주세요."); $("#vc-note").focus(); return; }
     const author = $("#vc-author").value.trim();
@@ -8420,7 +8426,7 @@ async function vocDialog(opts) {
     editNotice(`VOC ${id} 접수 — 개발팀 함에 쌓였습니다`, "in");
     try { info = await (await fetch("/voc?limit=30")).json(); $("#vc-list").innerHTML = vocListHtml(info.items || []); }
     catch (e) { /* 목록은 덤 */ }
-  };
+  });
 }
 for (const id of ["#voc-btn", "#home-voc"]) {
   const b = document.querySelector(id);
@@ -9258,6 +9264,20 @@ let _fetch0 = window.fetch.bind(window);
 window.addEventListener("keydown", (ev) => {
   if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.stopImmediatePropagation();
 }, true);
+
+/* hotfix74 — 기록을 하나 만드는 단추(VOC 접수 · 마크업 저장 …)를 사람이 두 번 누르면(더블클릭 · 느린 망에서 다시 누름)
+ * 같은 기록이 두 개 생겼다.  처리 중에는 단추를 잠그고 다음 누름은 무시한다 — 끝나면(성공이든 실패든) 다시 풀린다. */
+function guarded(fn) {
+  let busy = false;
+  return async function (...args) {
+    if (busy) return;
+    busy = true;
+    const btn = this instanceof HTMLElement ? this : null;
+    if (btn) btn.disabled = true;
+    try { return await fn.apply(this, args); }
+    finally { busy = false; if (btn) btn.disabled = false; }
+  };
+}
 
 const MY_UI_TAG = (() => {
   try {

@@ -3926,6 +3926,9 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 | `spike/dxf_variants.py` | UAD DXF 32장 11 변형 (폴더 깊이 · cp949 이름 · 다른 파일 · LF · 빈/잘린/쓰레기 DXF · 범례 없음 · 전부 깨짐 · 같은 파일 두 번 · 작은 묶음) | 결함 4 → 0 |
 | `spike/state_chaos.py` | K1 상태 JSON 6종 × (반쯤 잘림 · 빈 · 목록 · 이진) × 백업 유무 · K2 원본 PDF 사라짐 · K3 DB 머리 손상 | 결함 다수 → 0 |
 | `spike/soak.py` | 6명이 12분 동안 첫 화면 · 목록 · 검토 · 장 그림 · 칸 편집 · 근거 · 메모를 되풀이 | 오류 0 · 메모리 안 늚 · 결함 2 → 0 (동시 저장 유실 · 근거 4초) |
+| `spike/excel_race.py` · `spike/file_race.py` | 같은 스냅샷 Excel 8동시 × 3 · 진단 · 피드백 · 변경 내역 · 장 그림 · 스냅샷 · 메모 · VOC · 같은 칸 6동시 × 2 | Excel 17~22/24 → 0 · 피드백 zip 깨짐 → 0 |
+| `spike/ui_small_screens.py` | 1920×1080@150% · 1366×768@125% · 1024×700 · 1920×1080@125% — 목록이 닿는가 · 단추가 화면 안 · 딱지가 덮나 | 결함 1 → 0 |
+| `spike/ui_double_click.py` | 기록을 만드는 단추를 느린 망(0.8초)에서 두 번 누름 | VOC 2 · 메모 2 → 1 · 1 |
 
 1. **[A] API 500 55건** — 프로젝트 이름 검사(`revisions.ProjectNameError` → 400 · 빈 · `..` · 금지 글자 · 제어 글자 · 150바이트) ·
    정수 칸(`main._int_field` → 400 과 칸 이름) · 목록 자리에 사전 아닌 것 · zip 폭탄(`ZIP_MAX_BYTES` 1.5GB · 압축비 100 — UAD 실측 비 6).
@@ -3980,6 +3983,23 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
    실측 `한글 경로#x`) · 상태 파일 교체(`os.replace`)가 백신·편집기에 잠깐 잡혀 PermissionError 면 몇 번 더 해 본다 ·
    서버 PC 에서 지난 결과 엑셀을 열어 두면 같은 이름으로 못 덮어쓰므로 Excel 출력은 새 폴더(`rev<n>_<시각>`)에 쓴다
    (위생 감사가 같은 스냅샷으로 센다).  ⚠ 셋 다 이 환경(Linux)에서는 흉내로만 시험했다.
+11-2. **[L] 동시에 · 작은 화면 · 한글 · Windows · 오래 켜 둔 서버** (이 회차 뒷부분).
+   ① **같은 스냅샷 Excel 을 두 사람이 같은 순간에** — 두 요청이 같은 폴더의 같은 파일에 양식을 복사하고 다시 열어 서로의
+   반쯤 쓴 파일을 읽었다 (`BadZipFile` 500 · 24회 중 17~22회) → 스냅샷마다 줄 세움(`_excel_lock`) → 0.  ② 내보내기 zip(피드백 ·
+   진단)도 이름이 정해진 파일에 같이 썼다 → 임시 파일에 다 쓴 뒤 바꿔 넣는다(`jsonstore.building` · Windows 에서 보내는 중이라
+   거절되면 이 요청의 이름으로) · 디스크가 차면 원본은 그대로이고 반쯤 쓴 임시 파일을 남기지 않는다.
+   ③ **1366×768 을 125% 로 쓰는 노트북**(CSS 614px)에서 오른쪽 칸의 내용(635)이 칸(372)보다 커서 **목록·근거에 닿을 수
+   없었다**(`overflow:hidden`) → 키 작은 화면(≤760px)에서는 오른쪽 칸이 굴러간다 · 나란히 보기는 예외 · 아래 오른쪽 업데이트
+   딱지가 메모 줄을 덮었다 → 한 줄로 흐리게.  ④ **한글 조합 중의 Enter** — 열한 곳의 Enter 처리가 `isComposing` 을 보지 않아
+   `홍길동` + Enter 에서 마지막 글자가 빠지거나 겹칠 수 있었다 → 창의 캡처 단계에서 한 번 거른다(기본 동작은 막지 않는다).
+   ⑤ **더블클릭** — VOC 접수 · 메모 저장이 두 번 눌리면 기록이 둘이었다 → `guarded` (처리 중 단추 잠금 · 신고 · 마크업 저장 포함).
+   ⑥ **브라우저 저장소가 막힌 iframe**(대시보드 · 제3자 저장소 차단) — 삭제 대화 두 곳이 `localStorage` 를 맨손으로 읽어 예외 →
+   `currentAuthor`/`rememberAuthor` (U11 · 실제로 막힌 것을 확인하고 쟀다).  ⑦ **Windows 가 못 쓰는 프로젝트명** — 장치 이름
+   (CON·AUX·NUL·COM1…)은 폴더가 못 돼 500 · 끝의 점은 지워져 다른 프로젝트와 겹침 · `qfe`↔`QFE` 는 같은 폴더 → 새로 만들 때
+   사람 말로 막는다(`revisions.check_new_name` · 있는 프로젝트는 그대로 열린다).  ⑧ **몇 달 켜 둔 서버** — 진단·`--tail` 이 server.log 를
+   통째로 읽었다(GB) → 끝만 읽는다(`lan_check.tail_bytes`) · 켜기 직전 20MB 넘으면 `.1`~`.3` 으로 민다(`rotate` · ⚠ exe 경로는 안 민다).
+   ⑨ **깨진 VOC 폴더** — `voc.json` 이 없거나 깨진 VOC 를 `scan` 이 조용히 건너뛰었다 → `voc.unreadable` 이 세고 CLI `list` 와
+   화면 VOC 창이 붉게 말한다.
 12. **⚠ 스스로 뒤집은 것** — 변형기 v02(XObject)가 회전 장을 잘라 46행을 냈다 — 제품이 아니라 변형기 결함 · DXF 변형의 첫 기준 묶음
    (6장)이 1행이라 "원본과 같다" 가 아무것도 재지 못했다 → 32장 전부를 기준으로 · state_chaos 첫 판이 사본 밖의 원본 PDF 를 옮겼다 →
    사본 DB 의 경로만 바꾼다 · U6 첫 판이 브라우저 캐시로 그림을 받아 "말이 없다" 고 잘못 적었다 → 새 브라우저 창.
@@ -4474,6 +4494,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `dxf_pipeline` 의 세 멈춤 · `roles_note` · `dxf_reader.list_inputs`(같은 내용·macOS 찌꺼기)·`_order`(자연 순서) | **hotfix74** — DXF 묶음 돌발상황 |
 | `app.js` `downloadUrl`·`askReanalyse`·`#sheet-err`·`#net-banner`(`netDown`/`netUp`)·`checkStaleUi`/`MY_UI_TAG`·`duplicate_of` 알림·`ledger_missing` | **hotfix74** — 화면을 떠나지 않는 내려받기 · 다시 분석 거절을 말함 · 그림 못 받은 이유 · 연결 끊김 띠 · 같은 파일 재업로드 |
 | `spike/api_fuzz.py`·`chaos_sim.py`·`ui_chaos.py`·`variant_inputs.py`·`dxf_variants.py`·`state_chaos.py`·`soak.py` | **hotfix74** — 돌발상황 시뮬레이터 일곱 (전부 사본 데이터) |
+| `main._excel_lock` · `jsonstore.building`/`scratch`/`publish` · `app.js` `guarded` · IME Enter 거름 · `@media (max-height: 760px)` · `revisions.check_new_name` · `lan_check.tail_bytes`/`rotate` · `voc.unreadable` | **hotfix74 [L]** — 동시 내보내기 · 반쯤 쓴 파일 없음 · 두 번 누름 · 한글 조합 · 작은 화면 · Windows 이름 · 긴 로그 · 깨진 VOC |
+| `spike/excel_race.py`·`file_race.py`·`ui_small_screens.py`·`ui_double_click.py` | **hotfix74 [L]** — 시뮬레이터 넷 (사본 데이터) |
 | `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
 | `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

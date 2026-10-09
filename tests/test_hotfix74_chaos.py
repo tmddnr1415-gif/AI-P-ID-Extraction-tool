@@ -125,3 +125,14 @@ def test_excel_export_is_serialised_per_snapshot():
     src = (Path(__file__).resolve().parent.parent / "app/main.py").read_text(encoding="utf-8")
     i = src.index("def revision_excel(revision_id: int):")
     assert "with _excel_lock(revision_id):" in src[i:i + 300]
+
+
+def test_record_making_buttons_ignore_a_second_press():
+    """VOC 접수 · 마크업 저장 · 신고 접수 · 메모 저장 — 처리 중의 두 번째 누름은 무시한다
+    (`spike/ui_double_click.py`: 옛 코드 VOC 2건 · 메모 2판 → 1 · 1)."""
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    assert "function guarded(fn)" in js
+    for needle in ('$("#vc-save").onclick = guarded(', '$("#mk-save").onclick = guarded(', "const save = guarded("):
+        assert needle in js, needle
+    i = js.index("async function saveMemo() {")
+    assert "if (S._memoBusy) return;" in js[i:i + 400]
