@@ -344,6 +344,30 @@
            element, which is how they stay out of the way while the reviewer is
            typing in a cell or in the filter box.  See app.js zoomBy(). -->
       <div id="stage" tabindex="0"><div id="wrap"><img id="sheet" alt="" draggable="false"><svg id="ov"></svg></div></div>
+      <!-- hotfix63 — 장별 메모.  도면 아래에 붙어 있고, 도면을 끝까지 내린 뒤 휠을 한 번 더 내리면 열린다.
+           열쇠는 도면번호라 같은 프로젝트의 다른 Rev 에서도 이 장의 메모가 이력과 함께 보인다
+           (app/sheet_memo.py · GET/POST /jobs/{id}/memo/{page}). -->
+      <div id="gutter-n" class="gutter gutter-h" title="끌어서 메모 칸 높이 조절 · 두 번 누르면 원래대로"></div>
+      <section id="memo" class="memo folded" aria-label="이 장 메모">
+        <div class="memo-head">
+          <button type="button" id="memo-toggle" class="memo-toggle" aria-expanded="false"
+                  title="이 장 메모 열기 / 접기 — 도면을 끝까지 내린 뒤 휠을 더 내려도 열립니다">
+            <span class="memo-ic" aria-hidden="true">✎</span> 이 장 메모 <span id="memo-count" class="memo-count"></span></button>
+          <span id="memo-sum" class="memo-sum muted small"></span>
+        </div>
+        <div class="memo-body">
+          <textarea id="memo-text" spellcheck="false"
+                    placeholder="이 장에 대한 메모 — 확인할 것 · 발주처 회신 · 개정 때 볼 것 …  (Ctrl+Enter 로 저장)"></textarea>
+          <div class="memo-actions">
+            <button type="button" id="memo-save" class="primary mini">메모 저장</button>
+            <button type="button" id="memo-revert" class="ghost mini" title="저장한 지금 메모로 되돌립니다">되돌리기</button>
+            <span id="memo-msg" class="small muted"></span>
+          </div>
+          <div class="memo-hist-head">이력 <span id="memo-hist-n" class="muted small"></span>
+            <span class="muted small">— 같은 프로젝트의 모든 Rev 에서 이 도면번호에 적은 메모 (지우지 않고 쌓입니다)</span></div>
+          <ol id="memo-list" class="memo-list"></ol>
+        </div>
+      </section>
       <!-- Shown while the reviewer is pointing at where a missed item belongs. -->
       <div id="pick-note" class="picknote hidden">놓친 항목의 위치를 도면에서 클릭하세요
         <button id="pick-cancel" class="ghost mini">위치 없이 추가</button></div>

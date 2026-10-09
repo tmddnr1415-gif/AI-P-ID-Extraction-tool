@@ -3583,6 +3583,29 @@ Revision 과 날짜 · 같은 Rev 라면 PDF 상의 날짜를 기준으로"* + *
    차이(`▼27`)도 그 수로.  QFE Rev.A 2,964 → Rev.B 2,937.
 7. 지표 카드 여섯은 지웠다 (`#home-kpis` 는 빈 채로 남아 숨는다 — 요소 id 를 안 바꾼다).
 
+**그 다음 — 좌/우 경계를 끝까지 · 장별 메모 (hotfix63 · 판정 0줄)**
+
+사용자: *"왼쪽 P&ID 든 오른쪽 List 든 칸 조절을 최대로 · 마우스 휠로 아래로 내리면 각 Page 별로 메모장 Type 의
+Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리와 볼 수 있도록."*  시험
+`tests/test_hotfix63_memo_split.py` 4건 (빠른 시험 **866**) · 자기검증 `spike/ui_audit_memo.py` → `out/hotfix63/ui/`.
+
+1. **경계** — 양쪽 최소 260px · 도면이 꽉 차는 폭 상한(hotfix18 `leftCap`)을 뺐다.  끝까지 가고 남기는 것은 손잡이
+   폭(`GRIP` 7px) 하나 · 두 번 누르면 예전 기본 크기 · 창이 줄면 다시 맞춘다 (`clampLeft` on resize).
+   ⚠ 자기검증이 결함 둘을 잡았다 — `#split` 의 안쪽 여백(12px)을 안 빼서 손잡이가 화면 밖(x=1925 ↔ 창 1920)으로
+   밀려 다시 못 잡던 것 · 왼쪽 끝(폭 0)을 "값 없음" 으로 읽어 기본 크기로 돌아가던 것 (`v.left != null`).
+   실측 1920: 오른쪽 끝 [도면 1677 · 목록 2] · 왼쪽 끝 [2 · 1677] · 두 번 누름 [839 · 839].
+2. **장별 메모** (`app/sheet_memo.py` · `GET /jobs/{id}/memo` · `GET/POST /jobs/{id}/memo/{page}`) — 도면 아래 메모장,
+   도면을 끝까지 내린 뒤 휠을 더 내리면 열린다 (도면이 화면에 맞춰져 있으면 휠 한 번).  **열쇠는 도면번호**라
+   (개정 때 장 순서가 바뀐다 — 13회차) 같은 프로젝트의 다른 Rev 에서 같은 장의 메모가 보이고, hotfix38 이 이은
+   **도면번호가 바뀐 장**(`sheets.renumbered`)은 옛 번호의 메모도 함께 보인다.  저장 한 번이 판 하나 · 지우지 않고
+   쌓는다 (비워서 저장해도 앞 판이 남는다) · 작성자는 자기신고 · 다른 Rev 에서 쓴 판은 `다른 Rev 에서` 표식 ·
+   `불러오기` 로 옛 판을 메모장에 · Ctrl+Enter 저장 · 저장 안 한 글은 장을 옮겨도 들고 있다 · 장 목록에 `✎N`.
+   저장은 `projects/<프로젝트>/sheet_notes.json` (묶이지 않은 분석은 `loose_notes/<job>.json` — 그 분석에서만).
+   ⚠ `/notes/{page}` 는 53회차 NOTES 판독 자리라 사람 메모는 `/memo` 다 — 첫 판이 모듈 이름 `sheet_notes` 로
+   `main.sheet_notes`(NOTES 판독 함수)와 부딪혀 500 이 났고 자기검증이 잡았다 (모듈을 `sheet_memo` 로).
+3. 실측 (QFE 두 판 사본): Rev.B p6 에 두 판 저장 → Rev.A p6(같은 도면번호)에서 **이력 2판 · 지금 메모 · `다른 Rev 에서`
+   2** · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4044,6 +4067,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `app.js` `revRow` · `rowsDelta` · `listHome` 의 `.pj-card` · `styles.css` hotfix61 블록 | **hotfix61** — 첫 화면 저장된 프로젝트 카드 · 리비전 타임라인.  `/home` 한 번만 읽는다 · 색은 도면 종류·분석 상태이고 글자로도 말한다 |
 | `app/pdf_facts.py` · `job.facts_json` · `main._store_facts`/`_backfill_facts`/`_card_facts`/`_verdicts`/`_project_card` · `db.output_qty` | **hotfix62** — 카드의 도면 사실(PDF 프로젝트 제목 · 장별 개정 날짜 · 이력 표의 개정 순서 · 최상위 Rev) 과 나가는 Q'ty.  판정·지문 밖 · 예전 분석은 시작 때 한 번 채움 |
+| `app/sheet_memo.py` · `main._note_aliases`/`job_memos`/`page_memo`/`save_page_memo` · `app.js` `showMemo`/`saveMemo`/`memoOpen`/`initMemo` · `#memo` | **hotfix63** — 장별 메모.  열쇠는 도면번호(바뀐 번호는 장부로 이음) · 같은 프로젝트의 모든 Rev · 판을 쌓는다 · `/notes` 와 다른 자리 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

@@ -27,6 +27,6 @@ def test_row_shading_colours():
 def test_gutter_drag_refits_and_caps_at_full_drawing_width():
     seg = JS.split('const SPLIT_KEY = "pid.split";', 1)[1]
     assert "fit();" in seg and "requestAnimationFrame" in seg
-    # 최대치는 도면의 가로세로 비와 창 높이에서 — 숫자를 적지 않는다
-    assert "S.natural.w / S.natural.h" in seg
-    assert "leftCap()" in seg
+    # hotfix63 — 사용자 요구 *"칸 조절을 최대로"* 로 도면 폭 상한(leftCap)을 뺐다.  끝까지 가고,
+    # 남기는 것은 손잡이를 다시 잡을 폭 하나다 (tests/test_hotfix63_memo_split.py).
+    assert "leftCap()" not in seg and "GRIP" in seg

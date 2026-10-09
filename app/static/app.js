@@ -1412,7 +1412,9 @@ async function open(jobId) {
   buildPageSelect();
   S.loading = false;
   updateEmptyNote();
+  S.memo = null; S.memoDraft = {};        // hotfix63 — 장별 메모 (다른 분석의 저장 안 한 글은 들고 오지 않는다)
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
+  loadMemoSummary();
   autoSide();
 }
 
@@ -5090,6 +5092,143 @@ function bindCandidatePicker(row) {
 }
 const escape = (s) => s.replace(/[<>&]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
 
+/* ---------------- hotfix63 — 장별 메모 ----------------
+ *
+ * 도면 아래 메모장.  열쇠는 **도면번호**(서버 `sheet_memo.key_of`)라 같은 프로젝트의 다른 Rev 에서도 같은 장의
+ * 메모가 이력과 함께 보인다.  저장 한 번이 판 하나이고 지우지 않는다 (비워서 저장해도 앞 판은 남는다).
+ * 저장 안 한 글은 장을 옮겨도 이 화면이 들고 있다가(`S.memoDraft`) 그 장으로 돌아오면 되살린다. */
+const MEMO_KEY = "pid.memo";            // { open: bool, h: px } — 이 브라우저의 펼침·높이만
+function _memoPref() { try { return JSON.parse(localStorage.getItem(MEMO_KEY) || "{}") || {}; } catch (e) { return {}; } }
+function _memoPrefSave(v) { try { localStorage.setItem(MEMO_KEY, JSON.stringify(v)); } catch (e) {} }
+function memoLayout() {
+  const box = $("#memo"), lf = $("#left");
+  if (!box || !lf) return;
+  const pref = _memoPref();
+  const open = !box.classList.contains("folded");
+  box.style.height = open ? `${Math.round(pref.h || 240)}px` : "";
+  $("#memo-toggle").setAttribute("aria-expanded", open ? "true" : "false");
+  $("#gutter-n").classList.toggle("hidden", !open);
+  lf.style.setProperty("--memo-h", `${box.offsetHeight + (open ? 6 : 0)}px`);
+}
+function memoOpen(open) {
+  const box = $("#memo");
+  if (!box || !S.job) return;
+  if (open === !box.classList.contains("folded")) return;
+  box.classList.toggle("folded", !open);
+  _memoPrefSave({ ..._memoPref(), open });
+  memoLayout();
+  window.dispatchEvent(new Event("resize"));
+  if (open && S.memoPage) $("#memo-text").focus({ preventScroll: true });
+}
+async function loadMemoSummary() {
+  if (!S.job) return;
+  try { S.memo = await (await fetch(`/jobs/${S.job.id}/memo`)).json(); } catch (e) { S.memo = null; return; }
+  const keep = S.page && S.page.page_no;
+  buildPageSelect();
+  if (keep) $("#page-select").value = keep;
+}
+function memoWhen(e) {
+  const who = e.author ? escape(e.author) : `<span class="muted">이름 없음</span>`;
+  const here = S.job && e.job_id === S.job.id;
+  const rev = e.revision ? `<span class="rv-tag mini">${escape(e.revision)}</span>` : "";
+  return `${rev}${here ? "" : ` <span class="memo-other" title="다른 리비전의 분석에서 적은 메모">다른 Rev 에서</span>`}`
+    + ` <b>${who}</b> · ${escape(whenWords(e.at))}`
+    + (e.key && S.memoView && e.key !== S.memoView.key ? ` · <span class="muted" title="도면번호가 바뀐 장 — 옛 번호로 적은 메모">옛 번호 ${escape(e.key)}</span>` : "");
+}
+function renderMemo() {
+  const v = S.memoView, pg = S.memoPage;
+  if (!v) return;
+  const cur = v.current;
+  const draft = S.memoDraft && S.memoDraft[pg];
+  const ta = $("#memo-text");
+  ta.value = draft != null ? draft : (cur ? cur.text : "");
+  $("#memo-count").textContent = v.history.length ? `${v.history.length}` : "";
+  $("#memo-count").classList.toggle("hidden", !v.history.length);
+  const where = v.scope === "project"
+    ? `${escape(v.drawing_no || "도면번호 없음 (이 장 번호로만)")} · 프로젝트 ${escape(v.project)} 의 모든 Rev 에서 보입니다`
+    : "프로젝트에 묶이지 않은 분석 — 이 분석에서만 보입니다";
+  $("#memo-sum").innerHTML = (cur && cur.text ? `지금 메모: ${memoWhen(cur)} · ` : "") + where;
+  $("#memo-msg").textContent = draft != null && (!cur || draft !== cur.text) ? "저장 안 한 글이 있습니다" : "";
+  $("#memo-hist-n").textContent = v.history.length ? `${v.history.length}판` : "아직 없음";
+  $("#memo-list").innerHTML = v.history.map((e, i) => `<li class="memo-item${i === 0 ? " now" : ""}">`
+    + `<div class="memo-meta">${i === 0 ? `<span class="memo-now">지금</span>` : ""}${memoWhen(e)}`
+    + (i ? ` <button type="button" class="ghost mini memo-use" data-i="${i}" title="이 판의 글을 메모장에 불러옵니다 (저장해야 지금 메모가 됩니다)">불러오기</button>` : "")
+    + `</div><div class="memo-txt">${e.text ? escape(e.text) : `<span class="muted">(비움)</span>`}</div></li>`).join("")
+    || `<li class="muted small">이 장에는 아직 메모가 없습니다.</li>`;
+}
+async function showMemo(pageNo) {
+  if (!S.job) return;
+  S.memoPage = pageNo;
+  try {
+    const v = await (await fetch(`/jobs/${S.job.id}/memo/${pageNo}`)).json();
+    if (S.memoPage !== pageNo) return;        // 그 사이 다른 장으로 갔다
+    S.memoView = v;
+  } catch (e) { return; }
+  renderMemo();
+  memoLayout();
+}
+async function saveMemo() {
+  const pg = S.memoPage, ta = $("#memo-text");
+  if (!S.job || !pg) return;
+  const author = await askAuthor("메모");
+  if (author === null) return;
+  const res = await fetch(`/jobs/${S.job.id}/memo/${pg}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: ta.value, author }) });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    $("#memo-msg").textContent = d.detail || "저장하지 못했습니다";
+    return;
+  }
+  const v = await res.json();
+  if (S.memoDraft) delete S.memoDraft[pg];
+  S.memoView = v;
+  renderMemo();
+  $("#memo-msg").textContent = "저장했습니다 — 같은 프로젝트의 다른 Rev 에서도 보입니다";
+  loadMemoSummary();
+}
+(function initMemo() {
+  const ta = $("#memo-text");
+  if (!ta) return;
+  if (_memoPref().open) $("#memo").classList.remove("folded");
+  $("#memo-toggle").onclick = () => memoOpen($("#memo").classList.contains("folded"));
+  $("#memo-save").onclick = saveMemo;
+  $("#memo-revert").onclick = () => {
+    if (S.memoDraft) delete S.memoDraft[S.memoPage];
+    renderMemo();
+  };
+  ta.addEventListener("input", () => {
+    S.memoDraft = S.memoDraft || {};
+    S.memoDraft[S.memoPage] = ta.value;
+    const cur = S.memoView && S.memoView.current;
+    $("#memo-msg").textContent = (!cur || ta.value !== cur.text) ? "저장 안 한 글이 있습니다" : "";
+  });
+  ta.addEventListener("keydown", ev => {
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === "Enter" || ev.key === "s")) { ev.preventDefault(); saveMemo(); }
+  });
+  $("#memo-list").addEventListener("click", ev => {
+    const b = ev.target.closest(".memo-use");
+    if (!b || !S.memoView) return;
+    const e = S.memoView.history[+b.dataset.i];
+    if (!e) return;
+    ta.value = e.text || "";
+    ta.dispatchEvent(new Event("input"));
+    ta.focus();
+  });
+  // 메모 칸 높이 — 위로 끌면 커진다.  상한은 도면 창에 머리줄 하나는 남게(#left 높이 − 120).
+  _dragGutter($("#gutter-n"), "row", (e) => {
+    const box = $("#memo"), lf = $("#left");
+    const h = Math.max(110, Math.min(box.getBoundingClientRect().bottom - e.clientY, lf.clientHeight - 120));
+    _memoPrefSave({ ..._memoPref(), h });
+    memoLayout();
+  });
+  $("#gutter-n").addEventListener("dblclick", () => {
+    const p = _memoPref(); delete p.h; _memoPrefSave(p); memoLayout();
+    window.dispatchEvent(new Event("resize"));
+  });
+  memoLayout();
+})();
+
 /* ---------------- viewer ---------------- */
 function buildPageSelect() {
   const sel = $("#page-select");
@@ -5113,8 +5252,10 @@ function buildPageSelect() {
     const o = document.createElement("option");
     o.value = p.page_no;
     const c = ch[p.page_no];
+    const memo = S.memo && S.memo.pages && S.memo.pages[p.page_no];   // hotfix63 — 메모가 있는 장
     o.textContent = `p${p.page_no}  ${p.drawing_no || ""}`
-      + (c ? `   ${c.a ? "＋" + c.a + " " : ""}${c.m ? "≠" + c.m + " " : ""}${c.d ? "－" + c.d : ""}`.replace(/\s+$/, "") : "");
+      + (c ? `   ${c.a ? "＋" + c.a + " " : ""}${c.m ? "≠" + c.m + " " : ""}${c.d ? "－" + c.d : ""}`.replace(/\s+$/, "") : "")
+      + (memo ? `   ✎${memo.count}` : "");
     sel.appendChild(o);
   }
   sel.onchange = () => showPage(S.pages.find(p => p.page_no === +sel.value));
@@ -5138,6 +5279,7 @@ function showPage(page) {
   };
   img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
   showSheetNotes(page.page_no);
+  showMemo(page.page_no);                 // hotfix63 — 이 장 메모 (같은 프로젝트의 모든 Rev)
   if (S.side) cmpShow();                  // hotfix40 — 오른쪽 창도 같은 도면번호 장으로
   if (S.markup) prewarmMarkup();          // 장이 바뀌면 그 장을 미리 읽는다
   // hotfix25 — From/To 범위는 그 행의 장에서만 긋는다.  장을 옮기면 대기를 풀고 말한다.
@@ -5250,7 +5392,12 @@ $(".toolbar").addEventListener("click", ev => {
  * listener is not passive because the browser's own page zoom has to be
  * prevented, and only for the modified case. */
 $req("#stage").addEventListener("wheel", ev => {
-  if (!ev.ctrlKey && !ev.metaKey) return;
+  if (!ev.ctrlKey && !ev.metaKey) {
+    // hotfix63 — 도면을 끝까지 내린 뒤 휠을 더 내리면 이 장 메모가 열린다 (사용자 요구).
+    const st = ev.currentTarget;
+    if (ev.deltaY > 0 && st.scrollTop + st.clientHeight >= st.scrollHeight - 2) memoOpen(true);
+    return;
+  }
   ev.preventDefault();
   zoomBy(ev.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, { x: ev.clientX, y: ev.clientY });
 }, { passive: false });
@@ -7502,7 +7649,8 @@ function _splitApply(v) {
   const split = document.getElementById("split");
   const bars = document.getElementById("infobars");
   if (split) {
-    if (v.left) split.style.setProperty("--left-w", `${Math.round(v.left)}px`);
+    // hotfix63 — 0 도 값이다 (왼쪽 끝까지 끈 것).  없을 때(null)만 기본 크기.
+    if (v.left != null) split.style.setProperty("--left-w", `${Math.round(v.left)}px`);
     else split.style.removeProperty("--left-w");
   }
   if (bars) bars.style.maxHeight = (v.bars === undefined || v.bars === null) ? "" : `${Math.round(v.bars)}px`;
@@ -7551,18 +7699,14 @@ function _dragGutter(g, axis, onMove) {
   if (!split) return;
   let state = _splitLoad();
   _splitApply(state);
-  const MIN = 260;                       // 두 창 모두 이보다 좁아지지 않게 (#split 의 minmax 와 같은 값)
+  // hotfix63 — 사용자 요구 *"왼쪽 P&ID 든 오른쪽 List 든 칸 조절을 최대로"*.  예전에는 두 창 모두 260px
+  // 아래로 못 줄였고, 왼쪽은 도면이 창을 꽉 채우는 폭(leftCap)보다 넓힐 수 없었다.  이제 끝까지 간다 —
+  // 남기는 것은 손잡이를 다시 잡을 수 있는 폭(GRIP) 하나뿐이다.  두 번 누르면 예전 기본 크기로 돌아온다.
+  const MIN = 0, GRIP = 7;
   // hotfix18 — 끄는 동안 도면이 **창에 맞춰** 커진다 ("맞춤" 과 같은 함수 `fit`).
   // 그리고 왼쪽 창은 도면이 창을 **꽉 채우는 폭**보다 넓어지지 않는다 — 그보다
   // 넓히면 도면은 더 커질 수 없고(높이가 먼저 찬다) 오른쪽에 빈 띠만 생긴다.
   // 그 폭은 도면 자신의 가로세로 비와 지금 창 높이에서 나온다 (숫자를 적지 않는다).
-  const leftCap = () => {
-    const st = document.getElementById("stage");
-    const lf = document.getElementById("left");
-    if (!st || !lf || !S.natural || !S.natural.w || !S.natural.h) return Infinity;
-    const over = lf.getBoundingClientRect().width - st.clientWidth;   // 창 테두리·세로 스크롤바
-    return over + (st.clientHeight - 16) * S.natural.w / S.natural.h + 16;
-  };
   let raf = 0;
   const refit = () => {
     if (raf) return;
@@ -7571,15 +7715,22 @@ function _dragGutter(g, axis, onMove) {
       if (S.natural && S.natural.w && document.getElementById("sheet").src) fit();
     });
   };
+  // #split 의 안쪽 여백을 뺀 폭 — 빼지 않으면 끝까지 끌었을 때 손잡이가 화면 밖으로 밀려나 다시 못 잡는다
+  // (hotfix63 자기검증이 잡았다: 손잡이 x=1925 ↔ 창 폭 1920).
+  const inner = () => {
+    const r = split.getBoundingClientRect(), cs = getComputedStyle(split);
+    const pl = parseFloat(cs.paddingLeft) || 0, pr = parseFloat(cs.paddingRight) || 0;
+    return { x0: r.left + pl, w: r.width - pl - pr };
+  };
   const clampLeft = () => {
-    const r = split.getBoundingClientRect();
-    if (!state.left) return;
-    const left = Math.max(MIN, Math.min(state.left, r.width - MIN - 7, leftCap()));
+    if (state.left == null) return;
+    const box = inner();
+    const left = Math.max(MIN, Math.min(state.left, box.w - MIN - GRIP));
     if (left !== state.left) { state = { ...state, left }; _splitApply(state); _splitSave(state); }
   };
   _dragGutter(gv, "col", (e) => {
-    const r = split.getBoundingClientRect();
-    const left = Math.max(MIN, Math.min(e.clientX - r.left, r.width - MIN - 7, leftCap()));
+    const box = inner();
+    const left = Math.max(MIN, Math.min(e.clientX - box.x0, box.w - MIN - GRIP));
     state = { ...state, left }; _splitApply(state); _splitSave(state);
     refit();
   });
@@ -7615,6 +7766,9 @@ function _dragGutter(g, axis, onMove) {
     const h = Math.max(60, Math.min(e.clientY - top, share - 120));
     state = { ...state, mult: h }; _splitApply(state); _splitSave(state);
   });
+  // 창이 줄면 저장된 폭이 새 창보다 클 수 있다 — 손잡이가 화면 밖으로 나가지 않게 다시 맞춘다.
+  window.addEventListener("resize", () => clampLeft());
+  requestAnimationFrame(clampLeft);
   for (const g of [gv, gh, ge, gm]) {
     if (!g) continue;
     g.addEventListener("dblclick", () => {

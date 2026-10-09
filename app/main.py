@@ -42,7 +42,7 @@ console.safe_stdio()
 
 from app import (analysis_proc, audit, axis_overrides, db, excel_out,  # noqa: E402
                  global_symbols,
-                 lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions,
+                 lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
 from app.pipeline import CFG                              # noqa: E402
 
@@ -1217,6 +1217,101 @@ def job_revision(job_id: str):
             "compare_basis": compare_basis,
             "previous_job_id": previous_job, "next_jobs": next_jobs,
             "deleted_candidates": cands}
+
+
+# --------------------------------------------------------------------------
+# 장별 메모 (hotfix63) — 같은 프로젝트의 모든 Rev 에서 이력과 함께.
+# ⚠ `/notes/{page}` 는 53회차의 NOTES 판독(도면이 인쇄한 NOTES) 자리라 사람 메모는 `/memo` 다.
+# --------------------------------------------------------------------------
+
+def _note_aliases(project: str) -> dict:
+    """도면번호 → 같은 장의 다른 번호들 (장부의 `sheets.renumbered` — hotfix38 이 태그로 이은 것)."""
+    links: dict = {}
+    if not project:
+        return links
+    try:
+        meta = revisions.load_project(DATA_DIR, project)
+    except (KeyError, ValueError, OSError):
+        return links
+    for r in meta.get("revisions") or []:
+        for e in ((r.get("sheets") or {}).get("renumbered") or []):
+            a, b = str(e.get("before") or ""), str(e.get("now") or "")
+            if a and b:
+                links.setdefault(a, set()).add(b)
+                links.setdefault(b, set()).add(a)
+    return links
+
+
+def _note_keys(project: str, drawing_no: str, page_no: int, aliases: dict) -> list:
+    key = sheet_memo.key_of(drawing_no, page_no)
+    seen, todo = [key], [key]
+    while todo:
+        for k in sorted(aliases.get(todo.pop(), ())):
+            if k not in seen:
+                seen.append(k)
+                todo.append(k)
+    return seen
+
+
+def _note_view(e: dict) -> dict:
+    return {k: e.get(k) for k in ("seq", "text", "author", "at", "revision", "job_id", "page_no", "drawing_no", "key")}
+
+
+@app.get("/jobs/{job_id}/memo")
+def job_memos(job_id: str):
+    """이 분석의 장마다 메모가 몇 판 있고 지금 메모가 무엇인지 (장 목록·도면 아래 판이 읽는다)."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    project = job["project"] or ""
+    data = sheet_memo.load(DATA_DIR, project, job_id)
+    aliases = _note_aliases(project)
+    pages = {}
+    for p in db.page_revisions(CON, job_id):
+        keys = _note_keys(project, p.get("drawing_no") or "", p["page_no"], aliases)
+        es = sheet_memo.entries(data, keys)
+        if es:
+            pages[str(p["page_no"])] = {"count": len(es), "latest": _note_view(es[-1])}
+    return {"scope": "project" if project else "job", "project": project, "pages": pages}
+
+
+@app.get("/jobs/{job_id}/memo/{page_no}")
+def page_memo(job_id: str, page_no: int):
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    project = job["project"] or ""
+    page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
+    if page is None:
+        raise HTTPException(404, "no such page")
+    keys = _note_keys(project, page.get("drawing_no") or "", page_no, _note_aliases(project))
+    es = sheet_memo.entries(sheet_memo.load(DATA_DIR, project, job_id), keys)
+    return {"scope": "project" if project else "job", "project": project,
+            "revision": job["revision"] or "", "drawing_no": page.get("drawing_no") or "",
+            "key": keys[0], "keys": keys,
+            "current": _note_view(es[-1]) if es else None,
+            "history": [_note_view(e) for e in reversed(es)]}
+
+
+@app.post("/jobs/{job_id}/memo/{page_no}")
+def save_page_memo(job_id: str, page_no: int, payload: dict = None):
+    """메모 한 판을 쌓는다 (지우지 않는다 — 비워서 저장해도 앞 판은 남는다)."""
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
+    if page is None:
+        raise HTTPException(404, "no such page")
+    payload = payload or {}
+    project = job["project"] or ""
+    key = sheet_memo.key_of(page.get("drawing_no") or "", page_no)
+    try:
+        rec = sheet_memo.add(DATA_DIR, project, job_id, key=key, text=str(payload.get("text") or ""),
+                              author=str(payload.get("author") or ""), revision=job["revision"] or "",
+                              page_no=page_no, drawing_no=page.get("drawing_no") or "")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return page_memo(job_id, page_no) | {"saved": _note_view(rec)}
 
 
 @app.get("/jobs/{job_id}/revision/changes.xlsx")
