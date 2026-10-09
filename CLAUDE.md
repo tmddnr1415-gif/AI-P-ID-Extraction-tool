@@ -3498,6 +3498,25 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
 5. ⚠ 고친 값은 **사람이 고친 Q'ty** (`user.qty`) 다 — 프로젝트 단위 승수 지정(31회차 `unit_multipliers`)과 다른
    길이고, 다음 리비전에는 안정 ID 로 승계된다(13회차).  다시 분석해도 사람 값은 남는다.
 
+**그 다음 — 프로젝트가 입찰인지 실행인지 분명히 적는다 (hotfix60 · 화면 회차 · 엔진 0줄)**
+
+사용자: *"새 프로젝트를 누르고 입찰/실행을 누르면 해당 프로젝트가 입찰인지 실행인지 명확하게 선정된 타입을
+표기해줘라."*  시험 `tests/test_hotfix60_project_type.py` 3건 (빠른 시험 **845**) · 화면 자기검증
+`spike/ui_audit_project_type.py` → `out/hotfix60/ui/`.
+
+1. **표기 한 벌** (`modeChip` · `projectMode` — 장부의 `p.mode.value` 하나를 읽는다): 설정 카드의 큰 표기
+   (`#proj-type` · `TEST BID 도면 종류 [입찰 프로젝트] — 선언됨 (홍길동 · 시각) · 다음 분석부터 적용`) ·
+   프로젝트 고르는 상자(`TEST BID — 입찰 · 다음 Rev.A`) · 선택 결과 한 줄(`… · 입찰 프로젝트`) ·
+   저장된 프로젝트 목록 · 왼쪽 메뉴의 칩.  입찰 = 호박색 · 실행 = 파랑 · 자동 = 회색 (글자로도 말한다).
+   라디오로 바꾸면 곳곳이 같은 값으로 다시 적힌다 (`refreshProjectLabels`).
+2. **★ 결함 둘을 같이 고쳤다** — 새 프로젝트 이름을 적는 동안 라디오에서 입찰/실행을 고르면 ㉠ 앞서 고른
+   **다른 프로젝트**의 선언이 바뀌었고 ㉡ [만들기] 뒤 새 프로젝트는 선언 없이 만들어져 라디오가 '자동' 으로
+   되돌아갔다 (대시보드 `?mode=` 만 새 프로젝트에 적히고 있었다).  이제 그동안 고른 종류는 **만들 프로젝트**의
+   것이고 [만들기] 때 작성자 확인과 함께 장부에 적힌다 (고른 것 > 대시보드 메뉴 > 자동).
+3. **실측**: 입찰로 만듦 → 표기·상자·라디오 `입찰` · 실행으로 만듦 → `실행` · 안 고름 → `자동 — 선언 없음` ·
+   TEST BID 를 실행으로 바꿈 → 상자·목록·메뉴 전부 `실행` · 서버 장부 `{'value': 'epc', 'author': '홍길동'}` ·
+   화면 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -3955,6 +3974,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._pace_history` · `_run_status` · `GET /running` · `app.js` `liveFacts` · `renderLive` · `pollRunning` · `#prog-leave` · `#prog-eta` | **hotfix58** — 분석 중 현황.  P&ID 메뉴는 언제나 첫 화면 (hotfix57 자동 복귀 철회) · '최근 분석 이력' 맨 위에 진행 막대 · % · 남은 시간 · 단계.  추정은 이 서버에서 끝난 분석의 **장당 시간 중앙값 × 장수**이고 근거를 같이 적는다 · 없으면 예상할 수 없다고 말한다 · 넘으면 99% |
 | `detect_valves.mark_rects` 의 태그 버블 | **hotfix58** — 밸브가 별표를 읽는 사각형에 그 밸브의 **태그 버블**을 더한다 (EPIC Rev.E p9 · MOV 태그 버블 위 `**` 가 SCT 로).  `read_vendor_mark` 는 마크를 한 번만 훑으므로 두 창에 다 들어와도 한 번 · 경쟁 규칙 그대로 |
 | `app.js` `editQtyOnDrawing` · `.qtypop` · `pageQtyRows` · `applyQtyToRows` · `#mq-val` | **hotfix59** — `x N` 라벨을 누르면 승수 범위를 고른다 (이 태그 · 이 페이지 · Shift 범위).  저장은 `applyQtyToRows` 한 곳(같은 PATCH · 작성자 한 번) · 라벨은 모든 상자 위 |
+| `app.js` `modeChip` · `projectMode` · `renderProjectType` · `projectOptionText` · `#proj-type` | **hotfix60** — 프로젝트 도면 종류(입찰/실행/자동) 표기 한 벌.  새 프로젝트를 적는 동안 고른 종류는 만들 프로젝트의 것 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |

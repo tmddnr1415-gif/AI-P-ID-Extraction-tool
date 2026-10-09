@@ -205,8 +205,7 @@ async function loadProjects(select) {
   // 밖에서 분석을 끝내게 된다.
   pick.innerHTML = '<option value="__unset__">(고르세요)</option>'
     + '<option value="">프로젝트 없이 한 번만 분석</option>'
-    + list.map(p => `<option value="${escape(p.name)}">${escape(p.name)}`
-      + ` — 다음 ${escape(nextRev(p))}</option>`).join("");
+    + list.map(p => `<option value="${escape(p.name)}">${escape(projectOptionText(p))}</option>`).join("");
   pick.value = select != null ? select : "__unset__";
   chooseProject(pick.value);
 }
@@ -220,6 +219,41 @@ const MODE_NOTE = {
   bid: "입찰 — 태그가 인쇄되지 않은 도면. 범례·NOTES·기하로 식별합니다 (태그가 보이면 결과 화면이 말합니다).",
   epc: "실행 — 태그가 인쇄된 도면. 태그로 귀속하고 범례·NOTES 도 함께 씁니다 (SCOPE·수량은 여전히 별표·NOTES).",
 };
+/* hotfix60 — 프로젝트의 도면 종류를 **눈에 띄게** 적는다 (사용자: *"새 프로젝트를 누르고 입찰/실행을 누르면
+ * 그 프로젝트가 입찰인지 실행인지 명확하게 선정된 타입을 표기"*).  읽는 곳은 장부의 `p.mode` 하나이고
+ * (38회차 PATCH 가 적는 그 값), 첫 화면 설정 카드 · 프로젝트 고르는 상자 · 저장된 프로젝트 목록 ·
+ * 왼쪽 메뉴가 같은 `modeChip` 을 쓴다. */
+function projectMode(p) {
+  const v = (p && p.mode && p.mode.value) || "";
+  return v === "run" ? "epc" : v;
+}
+function modeChip(v, opts = {}) {
+  const word = v === "bid" ? "입찰" : v === "epc" ? "실행" : "자동";
+  const tip = v ? `${word} 프로젝트로 선언됨` : "선언 없음 — 도면에 태그가 인쇄됐는지로 정합니다";
+  return `<span class="mode-chip ${v || "auto"}${opts.big ? " big" : ""}" title="${escape(tip)}">`
+    + `${word}${opts.big && v ? " 프로젝트" : ""}</span>`;
+}
+function renderProjectType() {
+  const box = $("#proj-type");
+  if (!box) return;
+  const creating = !$("#proj-new").classList.contains("hidden");
+  const p = S.projects && S.projects.find(x => x.name === S.project);
+  if (creating) {
+    const v = modeRadio() ? modeRadio().value : "";
+    box.innerHTML = `새 프로젝트 도면 종류 ${modeChip(v, { big: true })}`
+      + `<span class="muted small"> — 아래에서 고르면 [만들기] 때 함께 저장합니다</span>`;
+    box.classList.remove("hidden");
+    return;
+  }
+  if (!p) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+  const v = projectMode(p);
+  const m = p.mode || {};
+  const who = v ? [m.author ? `${escape(m.author)}` : "", m.set_at ? escape(whenWords(m.set_at)) : ""].filter(Boolean).join(" · ") : "";
+  box.innerHTML = `${escape(p.name)} 도면 종류 ${modeChip(v, { big: true })}`
+    + `<span class="muted small"> ${v ? `— 선언됨${who ? " (" + who + ")" : ""} · 다음 분석부터 적용` : "— 선언 없음 · 태그가 인쇄된 장이 있으면 실행, 없으면 입찰로 읽습니다"}</span>`;
+  box.classList.remove("hidden");
+}
+
 function modeRadio() { return document.querySelector('input[name="mode"]:checked'); }
 function showMode(v) {
   const r = document.querySelector(`input[name="mode"][value="${v || ""}"]`);
@@ -230,8 +264,12 @@ document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener(
   const v = modeRadio().value;
   S.mode = v;
   $("#mode-note").textContent = MODE_NOTE[v];
+  // hotfix60 — 새 프로젝트 이름을 적는 중이면 **고른 프로젝트가 아니라 만들 프로젝트**의 종류다.
+  // 예전에는 여기서 앞서 고른 다른 프로젝트의 선언을 바꿨고, [만들기] 뒤 라디오가 '자동' 으로
+  // 되돌아가 고른 종류가 사라졌다.
+  if (!$("#proj-new").classList.contains("hidden")) { renderProjectType(); return; }
   const p = S.projects && S.projects.find(x => x.name === S.project);
-  if (!p) return;                            // 프로젝트 없으면 업로드에만 실린다
+  if (!p) { renderProjectType(); return; }   // 프로젝트 없으면 업로드에만 실린다
   const author = await askAuthor(`${p.name} 도면 종류 → ${MODE_WORD[v]}`);
   if (author === null) { showMode(p.mode && p.mode.value || ""); S.mode = p.mode && p.mode.value || ""; return; }
   const fd = new FormData(); fd.append("mode", v); fd.append("author", author || "");
@@ -240,7 +278,24 @@ document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener(
   const meta = await res.json();
   p.mode = meta.mode || null;
   $("#mode-note").textContent = MODE_NOTE[v] + (v ? ` 저장됨 — 다음 분석부터 적용` : " 선언을 지웠습니다 — 다음 분석부터 자동");
+  refreshProjectLabels();
+  revSummary(p, nextRev(p));
 }));
+
+/* 선언이 바뀌면 그 프로젝트가 보이는 곳(고르는 상자 · 목록 · 메뉴)을 같은 값으로 다시 적는다. */
+function refreshProjectLabels() {
+  const pick = $("#proj-pick");
+  for (const o of pick.options) {
+    const p = (S.projects || []).find(x => x.name === o.value);
+    if (p) o.textContent = projectOptionText(p);
+  }
+  renderProjectType();
+  listHome();
+}
+function projectOptionText(p) {
+  const v = projectMode(p);
+  return `${p.name} — ${v === "bid" ? "입찰" : v === "epc" ? "실행" : "자동"} · 다음 ${nextRev(p)}`;
+}
 
 function nextRev(p) {
   const n = (p.revisions || []).length;
@@ -258,6 +313,7 @@ function chooseProject(name) {
     $("#rev-note").textContent = "";
     $("#proj-msg").textContent = "";
     setSetupDone(false, "왼쪽에서 프로젝트를 먼저 고르세요.");
+    renderProjectType();
     return;
   }
   if (!p) {                                 // 프로젝트 없이 한 번만
@@ -266,6 +322,7 @@ function chooseProject(name) {
     $("#proj-msg").textContent = "프로젝트 없이 한 번만 분석합니다 — 개정 대조 없음";
     if (EMBED.mode) { S.mode = EMBED.mode; showMode(S.mode); }   // hotfix50 — 대시보드 메뉴가 정한 종류
     setSetupDone(true);
+    renderProjectType();
     return;
   }
   const revs = (p.revisions || []).map(r => r.revision);
@@ -284,19 +341,22 @@ function chooseProject(name) {
       ? "비교 대상은 Rev.A 하나뿐이라 바꿀 수 없습니다"
       : "기본값은 직전 리비전이고, 그 이전 것으로 바꿀 수 있습니다";
   // 이 프로젝트의 선언을 라디오에 보인다 — 개정본은 같은 값을 승계한다.
-  S.mode = (p.mode && p.mode.value) || "";
+  S.mode = projectMode(p);
   showMode(S.mode);
   setSetupDone(true);
   revSummary(p, next);
+  renderProjectType();
 }
 
 /* 선택 결과 한 줄.  고르기 전에도, 고른 뒤에도 늘 보인다. */
 function revSummary(p, next) {
   const base = $("#rev-base");
   const target = base.value;
-  $("#proj-msg").textContent = target
+  const v = projectMode(p);
+  const kind = v === "bid" ? "입찰 프로젝트" : v === "epc" ? "실행 프로젝트" : "자동(도면이 정함)";
+  $("#proj-msg").textContent = (target
     ? `이 PDF 는 ${p.name} 의 ${next} 가 됩니다 — 비교 대상 ${target}`
-    : `이 PDF 는 ${p.name} 의 ${next} 가 됩니다 (비교 대상 없음)`;
+    : `이 PDF 는 ${p.name} 의 ${next} 가 됩니다 (비교 대상 없음)`) + ` · ${kind}`;
 }
 $req("#rev-base").addEventListener("change", () => {
   const p = S.projects.find(x => x.name === S.project);
@@ -306,6 +366,11 @@ $req("#rev-base").addEventListener("change", () => {
 $req("#proj-pick").addEventListener("change", ev => chooseProject(ev.target.value));
 $req("#proj-new-btn").addEventListener("click", () => {
   $("#proj-new").classList.remove("hidden");
+  // hotfix60 — 새 프로젝트의 종류는 대시보드 메뉴가 정했으면 그것, 아니면 자동에서 시작한다
+  // (앞서 고른 다른 프로젝트의 선언이 라디오에 남아 새 프로젝트로 옮겨 붙지 않게).
+  S.mode = EMBED.mode || "";
+  showMode(S.mode);
+  renderProjectType();
   $("#proj-name").focus();
 });
 
@@ -338,6 +403,7 @@ $req("#proj-name").addEventListener("input", sameNameHint);
 $req("#proj-cancel").addEventListener("click", () => {
   $("#proj-new").classList.add("hidden");
   $("#proj-msg").textContent = "";
+  chooseProject($("#proj-pick").value);      // 고른 프로젝트의 종류로 라디오·표기를 되돌린다
 });
 $req("#proj-save").addEventListener("click", async () => {
   const name = $("#proj-name").value.trim();
@@ -351,15 +417,26 @@ $req("#proj-save").addEventListener("click", async () => {
     $("#proj-msg").textContent = out.detail || "프로젝트를 만들지 못했습니다.";
     return;
   }
-  $("#proj-new").classList.add("hidden");
-  $("#proj-name").value = "";
   // hotfix50 — 대시보드의 입찰 / 실행 메뉴에서 만든 프로젝트는 그 종류로 시작한다.  선언은 장부에
   // 작성자와 함께 적히고(38회차 PATCH 그대로) 화면 라디오로 언제든 바꿀 수 있다.
-  if (EMBED.mode && !(out.mode && out.mode.value)) {
-    const fm = new FormData(); fm.append("mode", EMBED.mode); fm.append("author", lastAuthor() || "");
+  // hotfix60 — 이름을 적는 동안 라디오에서 고른 종류가 먼저다 (사람이 이 화면에서 고른 것).
+  const chosen = (modeRadio() && modeRadio().value) || EMBED.mode || "";
+  $("#proj-new").classList.add("hidden");
+  $("#proj-name").value = "";
+  if (chosen && !(out.mode && out.mode.value)) {
+    // 이 화면에서 고른 종류는 누가 정했는지 적는다 (라디오를 바꿀 때와 같은 확인 줄).  대시보드 메뉴가
+    // 정한 종류는 `?user=` 가 이미 이름을 채워 두었다.
+    let who = lastAuthor() || "";
+    if (!EMBED.mode || modeRadio().value !== EMBED.mode) {
+      const a = await askAuthor(`새 프로젝트 ${out.name} — ${MODE_WORD[chosen] || chosen}`);
+      if (a !== null) who = a;
+    }
+    const fm = new FormData(); fm.append("mode", chosen); fm.append("author", who);
     try { await fetch(`/projects/${encodeURIComponent(out.name)}/mode`, { method: "PATCH", body: fm }); } catch (e) {}
   }
   await loadProjects(out.name);           // 만든 프로젝트가 곧 선택이다
+  const made = (S.projects || []).find(x => x.name === out.name);
+  if (made) editNotice(`${made.name} 프로젝트를 ${projectMode(made) === "bid" ? "입찰" : projectMode(made) === "epc" ? "실행" : "자동(도면이 정함)"}으로 만들었습니다`);
 });
 
 /* 위생 통계는 한 문장으로 이어 붙이면 아홉 개 숫자가 한 줄이 된다.  대부분의
@@ -673,7 +750,7 @@ async function listHome() {
         ? `<span class="saved small">${escape(saveWords(p.last_save))}`
           + `${p.last_save.revision ? ` — ${escape(p.last_save.revision)}` : ""}</span>` : "";
       parts.push(`<details class="pjt" ${revs.length ? "open" : ""}>`
-        + `<summary><b>${escape(p.name)}</b>`
+        + `<summary><b>${escape(p.name)}</b>${modeChip(projectMode(p))}`
         + `<span class="muted small">${escape(head)}</span>` + saved
         + `<button class="ghost mini del-project" data-project="${escape(p.name)}"`
         + ` title="이 프로젝트를 통째로 지웁니다 — 되돌릴 수 없습니다">프로젝트 삭제</button>`
@@ -7644,7 +7721,7 @@ function renderNav() {
       return `<a class="nav-item${mine ? " on" : ""}" href="${last ? "#" + escAttr(last.job_id) : "#"}"`
         + ` data-project="${escAttr(p.name)}" title="${escAttr(p.name)} — 리비전 ${n}개${last ? " · 최신 " + escAttr(last.revision) : ""}">`
         + `<span class="nav-ico" aria-hidden="true">${escAttr(p.name.slice(0, 2))}</span>`
-        + `<span class="nav-text">${escAttr(p.name)}</span>${pill}<span class="nav-n">${n}</span></a>`;
+        + `<span class="nav-text">${escAttr(p.name)}</span>${modeChip(projectMode(p))}${pill}<span class="nav-n">${n}</span></a>`;
     });
     if (home.loose && home.loose.length) {
       items.push(`<a class="nav-item" href="#" data-loose="1" title="프로젝트에 묶이지 않은 분석">`

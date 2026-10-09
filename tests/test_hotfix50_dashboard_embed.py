@@ -158,8 +158,9 @@ def test_first_screen_keeps_the_embed_query():
 
 
 def test_new_project_starts_with_the_dashboard_menus_mode():
-    i = JS.index("if (EMBED.mode && !(out.mode && out.mode.value))")
-    seg = JS[i:i + 500]
+    # hotfix60 — 이름을 적는 동안 라디오에서 고른 종류가 먼저이고, 없으면 대시보드 메뉴의 종류다.
+    i = JS.index("const chosen = (modeRadio() && modeRadio().value) || EMBED.mode")
+    seg = JS[i:i + 900]
     assert "/mode`" in seg and 'method: "PATCH"' in seg and "lastAuthor()" in seg
     assert seg.index("PATCH") < JS[i:].index("await loadProjects(out.name)")
 
