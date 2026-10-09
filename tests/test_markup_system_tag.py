@@ -67,7 +67,8 @@ JS = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(en
 
 
 def test_delete_paths_share_one_helper_and_draw_red():
-    assert JS.count("async function deleteRows(keys)") == 1
+    # hotfix67 — 사유가 정해진 길(공급 대상 아님)은 opts 로 같은 함수를 지난다
+    assert JS.count("async function deleteRows(keys, opts = {})") == 1
     assert "deleteRows(rows.map(r => r.key))" in JS            # 묶음 패널
     assert "deleteRows([row.key])" in JS                        # 근거 패널
     tb = JS.split('$req("#row-delete").addEventListener("click"', 1)[1].split("});", 1)[0]

@@ -1950,3 +1950,19 @@ body.pid-full #gutter-v { visibility: hidden; }
 .who-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line);
             color: var(--ink-soft); background: var(--card); white-space: nowrap; }
 .who-chip.login { color: #1f4fbf; border-color: #9db4e8; background: #eef3fd; }
+
+/* hotfix66 — 도면 상자를 누르면 옆에 뜨는 공급 주체 판: SCT · VENDOR · 둘 다 아님(식별 지우기) */
+.scopepop { position: fixed; z-index: 60; background: var(--card, #fff); border: 1px solid var(--line);
+            border-radius: 8px; box-shadow: 0 6px 22px rgba(0,0,0,.18); padding: 8px 10px; font-size: 12px;
+            max-width: 420px; }
+.scopepop .sp-h { font-weight: 600; margin-bottom: 6px; color: var(--ink-strong); }
+.scopepop .sp-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.scopepop .sp-b { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line);
+                  background: #fff; cursor: pointer; }
+.scopepop .sp-b.sct { border-color: #0a84ff; color: #0a5ccc; }
+.scopepop .sp-b.ven { border-color: #ff9f0a; color: #a85f00; }
+.scopepop .sp-b.on { font-weight: 700; box-shadow: inset 0 0 0 1px currentColor; }
+.scopepop .sp-b.none { border-color: #c2453f; color: #b0332d; }
+.scopepop .sp-b.none:hover { background: #fdecea; }
+.scopepop .sp-name { font-size: 12px; max-width: 170px; }
+.scopepop .sp-note { margin-top: 5px; }

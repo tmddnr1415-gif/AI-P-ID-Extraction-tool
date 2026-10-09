@@ -32,6 +32,9 @@ CLASSES = {
     "FALSE_POSITIVE": "㉢ 오검출 — 행이 있는데 도면에 없음",
     "WRONG_VALUE": "㉣ 값 틀림 — 행은 맞는데 칸이 틀림",
     "UNKNOWN_SYMBOL": "미지정 심볼 — 범례에 없어 무엇인지 사람이 정함",
+    # hotfix66 — 도면에 그려진 것은 맞는데 공급 대상이 아니다 (SCT 도 VENDOR 도 아님).
+    # 오검출(㉢)과 갈라 둔다 — 그것은 "그 자리에 계기가 없다" 이고 이것은 "세지 않는다" 다.
+    "NOT_SUPPLY": "공급 대상 아님 — SCT 도 VENDOR 도 아님 (식별 지움)",
     "OTHER": "기타",
 }
 SOURCE_DRAWING = "DRAWING"

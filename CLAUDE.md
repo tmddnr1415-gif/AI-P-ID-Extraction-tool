@@ -3664,6 +3664,22 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
    목록 툴팁 `✎ 홍길동 · 시각 고침` · 도면 라벨 `x7 ✎홍길동` · 새로 연 뒤에도 같은 이름 · 대시보드 밖 이름 없음 → 첫 편집만
    한 번 묻고 둘째부터 안 묻는다 · 페이지 오류 0.  ⚠ 라벨 폭이 한글 이름을 못 담던 것을 자기검증 크롭이 잡았다(넓은 글자는 1em).
 
+**그 다음 — 도면 상자를 눌러 SCT · VENDOR · 둘 다 아님(식별 지우기) (hotfix67 · 판정 0줄)**
+
+사용자: *"식별된 것들을 클릭해서 Vendor 도 SCT 공급도 아닌 것으로 식별을 지울 수 있는 기능도 반영해 줘."*
+시험 `tests/test_hotfix67_dismiss.py` 5건 (빠른 시험 **886**) · 자기검증 `spike/ui_audit_dismiss.py` → `out/hotfix66/ui_dismiss/`.
+
+1. **상자를 누르면 옆에 작은 판** (`scopePop` · 마크업 모드가 아닐 때) — `SCT 공급` · `VENDOR`(이 도면에서 읽은 공급자
+   이름을 고를 수 있다) · `둘 다 아님 — 식별 지우기`.  지운 상자를 다시 누르면 `되돌리기`.  Esc · 판 밖을 누르면 닫힌다.
+   판은 **고르기만** 한다 — 저장은 목록 칸과 같은 `saveField`(SCOPE) · 지우기는 hotfix14 의 `deleteRows` 하나 · 되돌리기는
+   `restoreRow`.  근거 패널의 공급 주체 줄과 Shift 묶음 판에도 같은 단추.
+2. **'둘 다 아님' 은 오검출(㉢)과 다른 사유다** — 새 분류 `NOT_SUPPLY`(*그려진 것은 맞는데 공급 대상이 아님*, `markup.CLASSES`).
+   사유를 묻지 않고 지운다 (`dismissRows` → `deleteRows(keys, {klass, reason})`).  하는 일은 예전 삭제 그대로 — 행은 남고
+   `removed` · Excel 에서 빠짐 · 도면 붉은 ✕ · 목록 취소선 · 피드백에 분류 · 작성자(로그인 이름 · hotfix66).
+3. 실측 (QFE Rev.B 사본 · 대시보드 `user=홍길동`): 상자 누름 → 판 · 둘 다 아님 → 서버 removed · 분류 NOT_SUPPLY · 작성자
+   홍길동 · 양식에 나가는 행 1991 → 1990 · 다시 누름 → 되돌리기 → 살아남 · VENDOR + 이름 → `VENDOR(CO2 ABSORBER SUPPLIER)` ·
+   Shift 묶음 2개 → 둘 다 지움 · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4129,6 +4145,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `saveField`/`syncRowCell`/`saveEdit` · `renderFloatEdit`/`setFull` · `#fedit` · `#full-toggle` | **hotfix64** — 칸 저장의 단 하나의 길(목록 칸 · 도면 위 편집 카드 공용) · 도면 전체화면 · 목록이 안 보일 때 도면 위 편집 |
 | `app.js` `qtyBase`·`pageMultPages`·`pageMultPlan`·`renderPageMult`·`applyPageMult`·`_saveQtyItems` · `main.qty_bulk` | **hotfix65** — 수량 승수 판의 페이지별 승수(지금 결과에 바로).  Q'ty = 기본 개수 × 승수 — 계산은 화면 한 곳 · 서버는 PATCH 와 같은 db 함수로 적기만.  유닛코드 승수(다음 분석부터)와 다른 길 |
 | `app.js` `currentAuthor`·`askAuthor`·`renderWhoChip`·`editorOf`·`stampEditor`·`editedTitle` · `db.last_editors` · `/rows` 의 `edited_by` | **hotfix66** — 작성자는 대시보드 로그인(`?user=`) → 기억된 이름 순 · 편집마다 묻지 않는다(이름이 없을 때 처음 한 번만) · 고친 칸·라벨·근거 패널에 고친 사람 이름 |
+| `app.js` `scopePop`·`closeScopePop`·`dismissRows`·`deleteRows(keys, opts)` · `markup.CLASSES.NOT_SUPPLY` | **hotfix67** — 도면 상자를 누르면 SCT · VENDOR · 둘 다 아님(식별 지우기) 판.  판은 고르기만 하고 저장은 `saveField` · `deleteRows` · `restoreRow` 그대로 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

@@ -3724,7 +3724,7 @@ document.addEventListener("mousedown", ev => {
   closeColumnMenu();
 });
 document.addEventListener("keydown", ev => {
-  if (ev.key === "Escape") closeColumnMenu();
+  if (ev.key === "Escape") { closeColumnMenu(); if (typeof closeScopePop === "function") closeScopePop(); }
   // hotfix41 — 나란히 보기에서 Alt+← / Alt+→ 로 변경을 차례로 (◀ ▶ 버튼과 같은 함수)
   if (S.side && ev.altKey && (ev.key === "ArrowLeft" || ev.key === "ArrowRight") && (S.cmpChanges || []).length) {
     ev.preventDefault();
@@ -4368,6 +4368,7 @@ function scopeEditor(row) {
   return `<div class="ractions"><div class="ract scopeed"><span>공급 주체</span>
     <button class="ract-b sc-b${cur === SCOPE_DELIVERED ? " on" : ""}" data-sc="SCT">SCT</button>
     <button class="ract-b sc-b${isVen ? " on" : ""}" data-sc="VENDOR">VENDOR</button>
+    <button class="ract-b sc-none danger" title="그려진 것은 맞지만 공급 대상이 아님 — 식별을 지웁니다 (Excel 에서 빠짐 · 되돌릴 수 있음)"${row.removed ? " disabled" : ""}>둘 다 아님 — 식별 지우기</button>
     <span class="sc-ven${isVen ? "" : " hidden"}">
       <select id="sc-name"><option value="">(이름 없음)</option>${
         names.map(n => `<option value="${escape(n)}"${n === name ? " selected" : ""}>${escape(n)}</option>`).join("")
@@ -4393,6 +4394,8 @@ function bindScopeEditor(row) {
     await saveEdit(row, "scope", shim);
     renderGrid();
   };
+  const none = wrap.querySelector("button.sc-none");
+  if (none) none.onclick = () => dismissRows([row.key]);
   wrap.querySelectorAll("button.sc-b").forEach(b => {
     b.onclick = async () => {
       if (b.dataset.sc === "SCT") { ven.classList.add("hidden"); await save(SCOPE_DELIVERED); return; }
@@ -4462,16 +4465,18 @@ function clearMulti() {
  * 행은 지워지지 않고 `removed` 표시만 남는다 (44회차 — 다음 분석이 그 자리를 다시
  * 찾아도 사람의 판단이 살아 있어야 한다).  Excel 에서는 빠지고 되돌릴 수 있다.
  * 부르는 곳은 셋(목록 위 단추 · 근거 패널 · 묶음 패널)이고 하는 일은 여기 하나다. */
-async function deleteRows(keys) {
+async function deleteRows(keys, opts = {}) {
   keys = keys.filter(k => S.rowByKey[k] && !S.rowByKey[k].removed);
   if (!keys.length) { alert("지울 행이 없습니다 (이미 지운 행은 되돌리기로 살립니다)."); return; }
-  const reason = window.prompt(`${keys.length}개 행을 오검출로 지웁니다 — 사유 (선택 · 비워도 됩니다)`, "");
+  // hotfix66 — '공급 대상 아님' 처럼 사유가 정해진 길은 묻지 않는다 (opts.reason).
+  const reason = opts.reason !== undefined ? opts.reason
+    : window.prompt(`${keys.length}개 행을 오검출로 지웁니다 — 사유 (선택 · 비워도 됩니다)`, "");
   if (reason === null) return;
   const author = await askAuthor(`${keys.length}개 행 삭제`);
   if (author === null) return;
   let done = 0;
   for (const key of keys) {
-    const q = new URLSearchParams({ reason: reason.trim(), reason_class: "FALSE_POSITIVE",
+    const q = new URLSearchParams({ reason: String(reason).trim(), reason_class: opts.klass || "FALSE_POSITIVE",
                                     author, exclude: "true" });
     const r = await fetch(`/jobs/${S.job.id}/rows/${key}?${q}`, { method: "DELETE" });
     if (!r.ok) { alert("삭제 실패"); break; }
@@ -4485,7 +4490,75 @@ async function deleteRows(keys) {
   // 뒤에야 서던 것을 그 자리에서 그린다 (자기검증이 잡았다).
   if (keys.length === 1) drawOverlay(); else deselect();   // 묶음 패널은 이제 빈 묶음을 말한다
   markMultiRows();
-  editNotice(`${done}개 행을 지웠습니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (되돌릴 수 있습니다)`, "out");
+  editNotice(opts.klass === "NOT_SUPPLY"
+    ? `${done}개 식별을 지웠습니다 — SCT 도 VENDOR 도 아님 · 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (눌러서 되돌릴 수 있습니다)`
+    : `${done}개 행을 지웠습니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (되돌릴 수 있습니다)`, "out");
+}
+
+/* hotfix66 — **SCT 도 VENDOR 도 아닌 것은 식별을 지운다** (사용자: *"식별된 것들을 클릭해서 Vendor 도 SCT
+ * 공급도 아닌 것으로 식별을 지울 수 있는 기능"*).  하는 일은 위 `deleteRows` 그대로 — 행은 남고 `removed` 표시 ·
+ * Excel 에서 빠짐 · 도면 붉은 ✕ · 되돌리기 — 이고, 사유 분류만 `NOT_SUPPLY`(오검출 ㉢ 과 다르다: 그 자리에
+ * 그려진 것은 맞는데 세지 않는다) 이며 사유를 묻지 않는다. */
+const NOT_SUPPLY_NOTE = "SCT 도 VENDOR 도 아님";
+function dismissRows(keys) {
+  return deleteRows(keys, { klass: "NOT_SUPPLY", reason: NOT_SUPPLY_NOTE });
+}
+
+/* 도면에서 상자를 누르면 그 옆에 뜨는 작은 판 — SCT · VENDOR · 둘 다 아님.  저장은 목록 칸과 같은 `saveField`
+ * (SCOPE) · 지우기는 `dismissRows` · 되돌리기는 `restoreRow` — 판은 고르기만 한다. */
+function closeScopePop() {
+  document.querySelectorAll(".scopepop").forEach(n => n.remove());
+  if (closeScopePop._off) { document.removeEventListener("pointerdown", closeScopePop._off, true); closeScopePop._off = null; }
+}
+function scopePop(key) {
+  closeScopePop();
+  const row = S.rowByKey && S.rowByKey[key];
+  if (!row || row.deleted) return;
+  const box = document.querySelector(`rect.det[data-key="${CSS.escape(key)}"]`);
+  if (!box) return;
+  const ab = box.getBoundingClientRect();
+  const cur = String(cellValue(row, "scope") || "");
+  const names = vendorNames();
+  const pop = document.createElement("div");
+  pop.className = "scopepop";
+  pop.setAttribute("role", "dialog");
+  const head = `${escape(String(cellValue(row, "type") || ""))} ${escape(String(cellValue(row, "tag_no") || ""))}`.trim();
+  pop.innerHTML = row.removed
+    ? `<div class="sp-h">${head || "이 항목"} — 지운 식별</div>`
+      + `<div class="sp-btns"><button type="button" class="sp-b" data-sp="restore">되돌리기</button>`
+      + `<button type="button" class="sp-b ghost" data-sp="close">닫기</button></div>`
+    : `<div class="sp-h">${head || "이 항목"} · 지금 ${escape(cur || "(비어 있음)")}</div>`
+      + `<div class="sp-btns">`
+      + `<button type="button" class="sp-b sct${cur === SCOPE_DELIVERED ? " on" : ""}" data-sp="sct">SCT 공급</button>`
+      + `<button type="button" class="sp-b ven${cur.startsWith(SCOPE_VENDOR_PREFIX) ? " on" : ""}" data-sp="vendor">VENDOR</button>`
+      + (names.length ? `<select class="sp-name" title="VENDOR 이름 (이 도면에서 읽은 것)"><option value="">(이름 없음)</option>${
+          names.map(n => `<option value="${escAttr(n)}">${escape(n)}</option>`).join("")}</select>` : "")
+      + `<button type="button" class="sp-b none" data-sp="none" title="그려진 것은 맞지만 공급 대상이 아님 — 식별을 지웁니다 (Excel 에서 빠짐 · 되돌릴 수 있음)">둘 다 아님 — 식별 지우기</button>`
+      + `</div><div class="sp-note muted small">Esc 닫기 · 지운 것은 다시 눌러 되돌립니다</div>`;
+  document.body.appendChild(pop);
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = ab.right + 8, top = ab.top - 6;
+  if (left + pw > window.innerWidth - 8) left = Math.max(8, ab.left - pw - 8);
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
+  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+  pop.querySelectorAll("button.sp-b").forEach(b => {
+    b.onclick = async (ev) => {
+      ev.stopPropagation();
+      const what = b.dataset.sp;
+      closeScopePop();
+      if (what === "close") return;
+      if (what === "restore") return restoreRow(key);
+      if (what === "none") return dismissRows([key]);
+      if (what === "sct") { await saveField(row, "scope", SCOPE_DELIVERED); return; }
+      const sel = pop.querySelector(".sp-name");
+      const name = sel ? sel.value : "";
+      await saveField(row, "scope", name ? `${SCOPE_VENDOR_PREFIX}(${name})` : SCOPE_VENDOR_PREFIX);
+    };
+  });
+  const sel = pop.querySelector(".sp-name");
+  if (sel) sel.onclick = (ev) => ev.stopPropagation();
+  closeScopePop._off = (ev) => { if (!pop.contains(ev.target)) closeScopePop(); };
+  setTimeout(() => document.addEventListener("pointerdown", closeScopePop._off, true), 0);
 }
 
 async function restoreRow(key) {
@@ -4518,6 +4591,7 @@ function showMultiScope() {
     + `<div class="ractions"><div class="ract scopemulti"><span>바꿀 값</span>
         <button class="ract-b mc-b" data-mc="SCT">SCT</button>
         <button class="ract-b mc-b" data-mc="VENDOR">VENDOR</button>
+        <button class="ract-b danger" id="mc-none" title="고른 것 전부 — 공급 대상이 아님 · 식별을 지웁니다 (되돌릴 수 있음)">둘 다 아님 — 식별 지우기</button>
         <select id="mc-name"><option value="">(이름 없음)</option>${
           names.map(n => `<option value="${escape(n)}">${escape(n)}</option>`).join("")
         }<option value="__other__">직접 입력…</option></select>
@@ -4545,6 +4619,8 @@ function showMultiScope() {
     if (sel.value === "__other__") { other.classList.remove("hidden"); other.focus(); }
     else other.classList.add("hidden");
   };
+  const mcn = document.querySelector("#mc-none");
+  if (mcn) mcn.onclick = () => dismissRows(multiRows().map(r => r.key));
   const mq = document.querySelector("#mq-val");
   const mqGo = () => {
     const v = mq.value.trim();
@@ -6416,6 +6492,8 @@ function drawOverlay() {
       select(it.key, false, it);
       // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
       if (S.markup && it.row !== false) rejectDialog(it);
+      // hotfix66 — 그 밖에는 상자 옆에 SCT · VENDOR · 둘 다 아님(식별 지우기) 판
+      else if (it.row !== false) scopePop(it.key);
     };
     // Right-click on the symbol itself: the same dialog the grid opens, so the
     // reviewer reports from wherever they noticed it.
@@ -6836,6 +6914,7 @@ const MARKUP_CLASSES = [
   ["FALSE_POSITIVE", "㉢ 오검출 — 행이 있는데 도면에 없음"],
   ["WRONG_VALUE", "㉣ 값 틀림 — 행은 맞는데 칸이 틀림"],
   ["UNKNOWN_SYMBOL", "미지정 심볼 — 범례에 없어 사람이 정함"],
+  ["NOT_SUPPLY", "공급 대상 아님 — SCT 도 VENDOR 도 아님"],
   ["OTHER", "기타"],
 ];
 const SCOPE_CHOICES = [SCOPE_DELIVERED, "VENDOR"];
