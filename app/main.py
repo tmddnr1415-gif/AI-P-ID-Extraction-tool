@@ -15,6 +15,7 @@ import gzip
 import hashlib
 import io
 import json
+import sqlite3
 import os
 import queue
 import shutil
@@ -81,6 +82,17 @@ CON = db.connect(DB_PATH)
 @app.exception_handler(revisions.ProjectNameError)
 async def _project_name_error(_request, exc):
     return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
+@app.exception_handler(sqlite3.OperationalError)
+async def _db_busy(request, exc):
+    """DB 가 잠겨 30초를 기다려도 쓰지 못했다 — 다시 하면 되는 일이라 503 과 그 말로 답한다 (hotfix74)."""
+    if "locked" in str(exc) or "busy" in str(exc):
+        print(f"[DB 잠김] {request.method} {request.url.path}: {exc}", flush=True)
+        return JSONResponse({"detail": "다른 작업이 데이터를 쓰는 중이라 지금 저장하지 못했습니다 — "
+                                       "잠시 뒤 다시 해 주세요 (서버가 두 번 켜져 있지 않은지도 확인해 주세요)"},
+                            status_code=503)
+    return await _unexpected_error(request, exc)
 
 
 @app.exception_handler(Exception)
@@ -381,6 +393,9 @@ def _worker() -> None:
         row = db.get_job(CON, job_id)
         if row is None:
             continue
+        if row["status"] == "cancelled":           # hotfix74 — 줄에 있는 동안 취소된 것
+            _cancel_clear(job_id)
+            continue
         try:
             # 큐에서 기다리는 동안 취소했을 수 있다 - 시작하기 전에 본다.
             if _cancel_requested(job_id):
@@ -529,7 +544,13 @@ def _worker() -> None:
                 print(child, flush=True)
                 detail = child + "\n--- (분석 프로세스를 기다리던 서버 쪽) ---\n" + detail
             stage = _stopped_stage(job_id)          # 덮기 전에 읽는다
-            reason = _failure_reason(Path(row["pdf_path"]))
+            if isinstance(exc, analysis_proc.ChildFailed) and getattr(exc, "process_died", False):
+                # hotfix74 — 분석 프로세스가 **결과 없이** 끝났다 (강제 종료 · 메모리 부족).  PDF 를 다시
+                # 열어 사유를 찾는 `_failure_reason` 은 "사유를 특정하지 못했습니다" 라고만 말한다 —
+                # 아는 것을 말한다 (돌발상황 시뮬레이션 S2).
+                reason = str(exc)
+            else:
+                reason = _failure_reason(Path(row["pdf_path"]))
             db.set_progress(CON, job_id, 0.0, reason, "failed", error_detail=detail)
             db.set_stopped_stage(CON, job_id, stage)
             db.mark_finished(CON, job_id)
@@ -575,8 +596,7 @@ def _recover_interrupted() -> dict:
     return out
 
 
-_recover_interrupted()
-threading.Thread(target=_worker, daemon=True).start()
+# 끊긴 분석 정리와 작업 스레드는 **이 모듈 끝**에서 시작한다 (hotfix74 — 아래 `_start_background`).
 
 
 # --------------------------------------------------------------------------
@@ -613,13 +633,18 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
             meta = revisions.load_project(DATA_DIR, project)
         except (KeyError, ValueError):
             raise HTTPException(404, f"프로젝트 '{project}' 가 없습니다")
-        revision = revisions.next_revision(meta)
-        choices = revisions.compare_choices(meta)
+        # hotfix74 — 장부에 아직 오르지 않은 **분석 중·대기 중** 리비전도 센다.  장부는 분석이 끝나야
+        # 리비전을 적으므로, Rev.A 가 도는 동안 다음 PDF 를 올리면 둘 다 'Rev.A' 가 됐다 (돌발상황
+        # 시뮬레이션 S6 — 현장에서는 "앞 분석이 끝나기 전에 개정본을 올린다" 가 흔하다).
+        inflight = _inflight_revisions(project, meta)
+        revision = revisions.next_revision(
+            dict(meta, revisions=list(meta.get("revisions") or []) + [{"revision": r} for r in inflight]))
+        choices = revisions.compare_choices(meta) + inflight
         if compared_with and compared_with not in choices:
             raise HTTPException(400, f"비교 대상 '{compared_with}' 는 이 프로젝트에 "
                                      f"없습니다 (있는 것: {choices})")
         if not compared_with:
-            compared_with = revisions.default_compare_target(meta)
+            compared_with = inflight[-1] if inflight else revisions.default_compare_target(meta)
     sha = hashlib.sha256(raw).hexdigest()
     job_id = uuid.uuid4().hex[:12]
     if project:
@@ -645,6 +670,19 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
     return {"job_id": job_id, "pdf_name": name, "sha256": sha,
             "project": project, "revision": revision, "input_kind": kind,
             "compared_with": compared_with, "page_count": pages}
+
+
+def _inflight_revisions(project: str, meta: dict) -> list:
+    """그 프로젝트에서 **줄에 있거나 도는** 분석의 리비전 중 장부에 아직 없는 것 (올린 순서)."""
+    known = {r.get("revision") for r in (meta.get("revisions") or [])}
+    rows = CON.execute("SELECT revision FROM job WHERE project=? AND status IN ('queued','running') "
+                       "AND revision IS NOT NULL AND revision != '' ORDER BY created_at",
+                       (project,)).fetchall()
+    out = []
+    for (rev,) in rows:
+        if rev not in known and rev not in out:
+            out.append(rev)
+    return out
 
 
 def _probe_or_none(path: Path, page_no: int, *args, **kw) -> dict:
@@ -788,6 +826,14 @@ def cancel_job(job_id: str):
                                  f"취소할 수 없습니다")
     with _CANCEL_LOCK:
         _CANCEL.add(job_id)
+    if row["status"] == "queued":
+        # hotfix74 — 아직 시작하지 않은 분석은 **지금** 취소로 적는다.  돌발상황 시뮬레이션(S3):
+        # 앞 분석이 끝날 때까지 '대기' 로 남아, 그동안 지우려 하면 "분석 중" 이라 409 였다.
+        # 작업 스레드는 줄에서 꺼낼 때 취소 표시를 보고 건너뛴다 (그 갈래는 그대로 둔다).
+        db.set_progress(CON, job_id, 0.0, "사용자가 분석을 취소했습니다", "cancelled", sheets=(0, 0))
+        db.mark_finished(CON, job_id)
+        _emit(job_id, {"progress": 0.0, "status": "cancelled", "message": "사용자가 분석을 취소했습니다"})
+        return {"job_id": job_id, "cancelling": True, "cancelled": True}
     return {"job_id": job_id, "cancelling": True}
 
 
@@ -865,7 +911,7 @@ def _backfill_facts() -> None:
 
 
 # 시작 때 한 번, 뒤에서 — 첫 화면은 기다리지 않는다 (안 채워진 카드는 "읽는 중" 이라고 말한다).
-threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
+# 시작은 모듈 끝 `_start_background` 에서 (hotfix74).
 
 
 def _output_qty(job_id: str) -> dict:
@@ -1147,8 +1193,11 @@ def _project_public(meta: dict, *, deep: bool = False) -> dict:
     같은 `pid_total.pdf` 두 분석을 화면에서 구분할 수 없었던 것이 그 이유다.
     장부(`project.json`)에는 job_id 밖에 없으므로 값은 job 표에서 읽는다.
     """
+    inflight = _inflight_revisions(meta.get("name") or "", meta) if meta.get("name") else []
     out = {**meta,
-           "next_revision": revisions.next_revision(meta),
+           "next_revision": revisions.next_revision(
+               dict(meta, revisions=list(meta.get("revisions") or []) + [{"revision": r} for r in inflight])),
+           "inflight_revisions": inflight,
            "compare_choices": revisions.compare_choices(meta),
            "default_compare": revisions.default_compare_target(meta)}
     if not deep:
@@ -4321,3 +4370,18 @@ def _audit_on_start() -> None:
 
 
 _audit_on_start()
+
+
+def _start_background() -> None:
+    """hotfix74 — 백그라운드 스레드는 **모듈을 다 읽은 뒤에** 시작한다.
+
+    돌발상황 시뮬레이션(S4 · 서버 강제 종료 뒤 재시작): 끊긴 분석 정리가 기다리던 분석을 다시 줄에 세우고
+    작업 스레드가 모듈 가운데에서 시작해 곧장 그 분석을 집었는데, 그 스레드가 부르는 함수
+    (`_user_multipliers` 등)가 **아직 정의되기 전**이라 `NameError` 로 실패했다 — 재시작할 때마다 기다리던
+    분석이 하나씩 사라졌다.  보통 기동에서는 줄이 비어 있어 드러나지 않았다."""
+    _recover_interrupted()
+    threading.Thread(target=_worker, daemon=True, name="analysis-worker").start()
+    threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
+
+
+_start_background()

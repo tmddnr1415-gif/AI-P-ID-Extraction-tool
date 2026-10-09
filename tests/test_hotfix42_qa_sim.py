@@ -67,7 +67,7 @@ def test_interrupted_analyses_are_recovered_at_startup(tmp_path, monkeypatch):
                 " VALUES ('q1','b.pdf','y','/y','queued',0.0,'',2)")
     con.commit()
     src = MAIN
-    body = src[src.index("def _recover_interrupted("):src.index("_recover_interrupted()\nthreading.Thread")]
+    body = src[src.index("def _recover_interrupted("):src.index("# 끊긴 분석 정리와 작업 스레드는")]
     assert '"queued"' in body and '"running"' in body and "set_stopped_stage" in body and '"failed"' in body
     # 함수만 따로 돌려 본다 (실 모듈을 import 하면 실 DB 에 닿을 수 있다 — 17회차 격리)
     import queue

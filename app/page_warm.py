@@ -52,6 +52,11 @@ def order(pages: list, first: int) -> list:
 
 
 def _child(pdf: str, cache_root: str, job_id: str, pages: list, zoom: float) -> None:
+    try:                                  # hotfix74 — 서버가 죽으면 같이 끝난다 (analysis_proc 와 같은 장치)
+        from app.analysis_proc import _follow_parent
+        _follow_parent()
+    except Exception:                     # noqa: BLE001
+        pass
     try:
         os.nice(10)                       # 사람이 쓰는 서버보다 뒤에 선다 (Windows 에는 없다 — 그냥 지나간다)
     except (AttributeError, OSError):

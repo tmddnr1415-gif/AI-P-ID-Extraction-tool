@@ -90,7 +90,7 @@ def test_both_failure_branches_read_the_stage_before_overwriting():
     src = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     assert src.count("_stopped_stage(job_id)") == 2, "실패 갈래는 둘이다"
     for chunk in src.split("_stopped_stage(job_id)")[1:]:
-        head = chunk[:400]
+        head = chunk[:1200]          # hotfix74 — 일반 갈래에 "분석 프로세스가 도중에 끝났다" 문장 고르기가 끼었다
         assert "db.set_progress(" in head, "같은 갈래 안에서 사유를 적어야 한다"
         assert head.index("db.set_progress(") < head.index("db.set_stopped_stage("), \
             "단계를 읽는 것이 사유로 덮기보다 먼저여야 한다"

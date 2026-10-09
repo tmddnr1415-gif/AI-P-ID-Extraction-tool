@@ -1,0 +1,33 @@
+서버 http://127.0.0.1:58407 · 데이터 /tmp/chaos_h637npnp
+## S1 동시 업로드 셋
+  업로드 응답 [200, 200, 200] · job ['a279f1828006', '5df126d79ee3', 'a1b88bd7eb8c']
+  /running → 200 · [('a279f1828006', 'running'), ('a1b88bd7eb8c', 'queued'), ('5df126d79ee3', 'queued')]
+  끝 상태 ['done', 'done', 'done']
+## S2 분석 자식 kill -9
+  자식 pid 25204
+  상태 failed · 문장 분석 프로세스가 도중에 끝났습니다 (종료 코드 -9) — 메모리가 모자랐거나 프로세스가 강제로 종료됐을 수 있습니다.  다른 분석이 끝난 뒤 [다시 분석] 하거나, 같으면 PDF 를 나눠 올려 주세요
+  다음 분석 done
+## S3 대기 중 취소 · 분석 중 삭제 · 취소 뒤 삭제
+  대기(queued) 취소 → 200 · 상태 cancelled
+  분석 중 삭제 → 409 {'detail': '분석 중인 것은 지울 수 없습니다. 먼저 취소하세요'}
+  앞 done · 대기 cancelled
+  취소 뒤 삭제 → 200
+## S4 서버 kill -9 → 재시작
+  서버의 자식: 25158: from multiprocessing.resource_tracker import main;main(25)  | 25166:_main(tracker_fd=27, pipe_handle=26) --multiprocessing-fork  | 25167:_main(tracker_fd=27, pipe_handle=29) --multiprocessing-fork  | 25238:_main(tracker_fd=27, pipe_handle=33) --multiprocessing-fork 
+  ⚠ 서버가 죽은 뒤에도 자식 25158 가 살아 있다
+  ⚠ 서버가 죽은 뒤에도 자식 25166 가 살아 있다
+  ⚠ 서버가 죽은 뒤에도 자식 25167 가 살아 있다
+  ⚠ 서버가 죽은 뒤에도 자식 25238 가 살아 있다
+  재시작 직후: 돌던 것 failed (서버가 다시 시작되어 분석이 끊겼습니다 — 다시 분석하세요) · 기다리던 것 running
+  기다리던 것 끝 done · done
+## S5 다른 프로세스가 DB 를 15초 잠금
+  잠긴 동안 목록 → 200 · 0.0초 · [{'key': '033c247d451222c3', 'tab': 'MOV', 'page_no': 5, 'drawing_no': 'D00P-10LBA10-M05-0001', 'origin': 'DRAWING', 're
+  잠긴 동안 첫 화면 → 200 · 0.0초 · {'projects': [], 'loose': [{'id': '416b0243ae6d', 'pdf_name': '재시작대기.pdf', 'pdf_sha256': '846dbbaff4cbe031bf3cd4798fc0e9
+  잠긴 동안 편집 → 200 · 14.1초 · {'key': '033c247d451222c3', 'user': {'qty': 2}, 'review_count': 18, 'feedback_count': 1, 'history': [{'at': 1791561981.6
+## S6 같은 프로젝트에 동시에 둘
+  프로젝트 만들기 → 200
+  응답 [(200, 'Rev.A'), (200, 'Rev.B')]
+  장부 리비전 ['Rev.B', 'Rev.A']
+  위생 감사 → 200 · {'provenance': {'jobs': [{'job_id': 'a279f1828006', 'pdf_name': '동시2.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': 'a1b88bd7eb8c', 'pdf_name': '동시0.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': '5df126d79ee3', 'pdf_name': '동시1.pdf', 'rows': 8
+
+결함 0

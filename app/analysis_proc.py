@@ -66,9 +66,32 @@ def _resolve(target: str):
     return getattr(importlib.import_module(mod), name)
 
 
+def _follow_parent() -> None:
+    """hotfix74 — **서버가 죽으면 분석 자식도 끝난다.**
+
+    돌발상황 시뮬레이션(`spike/chaos_sim.py` S4): 서버를 강제 종료하면 분석 자식이 고아로 남아
+    끝까지 돌았다 — 결과를 받을 쪽이 없는데 CPU 와 메모리(TC2 7GB)를 쥔 채로.  다시 켠 서버가 새
+    분석을 시작하면 둘이 겹쳐 8GB PC 에서 메모리가 모자란다.  부모의 sentinel 을 기다리는 스레드
+    하나를 둔다 (Windows · Linux 공통 — `multiprocessing.parent_process`).  `daemon=True` 라
+    `terminate` 로 끝낼 때와 같은 방식으로 끝낸다."""
+    import threading
+    parent = mp.parent_process()
+    if parent is None:
+        return
+
+    def watch():
+        parent.join()
+        os._exit(3)
+    threading.Thread(target=watch, name="follow-parent", daemon=True).start()
+
+
 def _child(out_path: str, events, kwargs: dict, target: str = TARGET) -> None:
     """자식 프로세스의 본체.  **app.main 을 import 하지 않는다** (DB 연결 · 작업 스레드 ·
     끊긴 분석 정리가 import 때 돈다 — 자식이 그것을 하면 서버가 둘이 된다)."""
+    try:
+        _follow_parent()
+    except Exception:                                   # noqa: BLE001
+        pass
     try:
         from app import console
         console.safe_stdio()
@@ -124,10 +147,13 @@ def run(pdf_path: Path, progress, work_dir: Path, *, target: str = TARGET,
                     try:
                         kind, payload = events.get(timeout=2.0)
                     except queue_mod.Empty:
-                        raise ChildFailed(
-                            f"분석 프로세스가 결과 없이 끝났습니다 (종료 코드 {proc.exitcode}) — "
-                            "메모리가 모자랐을 수 있습니다",
+                        err = ChildFailed(
+                            f"분석 프로세스가 도중에 끝났습니다 (종료 코드 {proc.exitcode}) — 메모리가 모자랐거나 "
+                            "프로세스가 강제로 종료됐을 수 있습니다.  다른 분석이 끝난 뒤 [다시 분석] 하거나, "
+                            "같으면 PDF 를 나눠 올려 주세요",
                             f"analysis child exited with code {proc.exitcode} and sent nothing")
+                        err.process_died = True
+                        raise err
                 else:
                     continue
             if kind == "progress":

@@ -291,7 +291,10 @@ _ADDED_COLUMNS = (
 
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(path, check_same_thread=False)
+    # hotfix74 — 다른 프로세스(두 번 켠 서버 · DB 를 연 다른 도구)가 쓰기 잠금을 쥐면 기본 5초 뒤
+    # `database is locked` 로 실패했다 (돌발상황 시뮬레이션 S5).  30초까지 기다리고, 그래도 안 되면
+    # `main` 이 503 과 사람 말로 답한다.
+    con = sqlite3.connect(path, check_same_thread=False, timeout=30.0)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
