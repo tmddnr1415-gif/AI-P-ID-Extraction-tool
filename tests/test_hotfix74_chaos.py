@@ -161,3 +161,11 @@ def test_open_failure_is_said_and_can_be_retried():
     body = js[i:js.index("async function _open(jobId) {")]
     assert "return await _open(jobId);" in body and "S.loading = false;" in body
     assert "결과를 다 받지 못했습니다" in body and "다시 열기" in body and "escape(why)" in body
+
+
+def test_saving_into_a_deleted_analysis_says_so_in_words():
+    """다른 창이 분석을 지운 뒤 칸을 고치면 영문 'no such job' 한 줄이었다 — 무엇이 일어났고 무엇을 하면 되는지 말한다."""
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    i = js.index("async function saveField")
+    seg = js[i:i + 3000]
+    assert "r.status === 404" in seg and "다른 창이나 다른 사람이 지웠을 수 있습니다" in seg

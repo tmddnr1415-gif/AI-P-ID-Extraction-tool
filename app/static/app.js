@@ -4175,6 +4175,11 @@ async function saveField(row, field, value) {
   if (!r.ok) {
     let msg = "저장 실패 (서버 응답 " + r.status + ")";
     try { msg = (await r.json()).detail || msg; } catch (e) { /* 본문이 JSON 이 아니다 */ }
+    // hotfix74 — 다른 창(다른 사람)이 이 분석을 지운 뒤 고치면 영문 "no such job" 한 줄만 떴다.
+    if (r.status === 404 && /no such (job|row)/i.test(String(msg))) {
+      msg = "저장하지 못했습니다 — 이 분석(또는 이 행)이 서버에 없습니다.  다른 창이나 다른 사람이 지웠을 수 있습니다.  "
+        + "첫 화면에서 다시 열어 주세요.";
+    }
     alert(msg); return false;
   }
   const out = await r.json();
