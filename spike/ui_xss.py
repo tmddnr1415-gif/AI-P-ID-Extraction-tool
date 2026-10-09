@@ -30,6 +30,22 @@ MARK = "window.__xss=(window.__xss||[]).concat([%s])"
 P = ('<img src=x onerror="' + MARK % "'IMG'" + '">"\'><svg onload="' + MARK % "'SVG'" + '">'
      + '" onmouseover="' + MARK % "'ATTR'" + '" x="')
 FOUND, DEFECTS = [], []
+# 도면 쪽 독 — PDF 안의 글자가 HTML 이면 (악의적인 PDF · 이상한 도면 주석).  엔진이 읽은 값(설명 · 계통 · 태그 · 도면번호 ·
+# 장 제목 · PDF 프로젝트 제목)을 사본 DB 에서 바꿔 둔 뒤 같은 화면을 연다.
+import sqlite3 as _sq  # noqa: E402
+_con = _sq.connect(str(data / "app.db"))
+_PD = '<img src=x onerror="window.__xss=(window.__xss||[]).concat([\'PDF\'])">"\' onmouseover="x'
+_first = _con.execute("SELECT page_no FROM item WHERE job_id=? ORDER BY page_no LIMIT 1", (JOB,)).fetchone()[0]
+for _k, _aj in _con.execute("SELECT key, ai_json FROM item WHERE job_id=? AND page_no=? LIMIT 6", (JOB, _first)).fetchall():
+    _v = json.loads(_aj or "{}")
+    for _f in ("description", "system", "tag_no", "remark", "line_size"):
+        _v[_f] = _PD
+    _con.execute("UPDATE item SET ai_json=? WHERE job_id=? AND key=?", (json.dumps(_v), JOB, _k))
+_con.execute("UPDATE pid_page SET drawing_no=?, title=? WHERE job_id=? AND page_no=?", (_PD, _PD, JOB, _first))
+_f = json.loads((_con.execute("SELECT facts_json FROM job WHERE id=?", (JOB,)).fetchone()[0]) or "{}")
+_f["title"] = _PD
+_con.execute("UPDATE job SET facts_json=?, pdf_name=? WHERE id=?", (json.dumps(_f), "x" + _PD + ".pdf", JOB))
+_con.commit(); _con.close()
 
 
 def req(method, path, body=None, form=None):
