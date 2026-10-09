@@ -356,7 +356,7 @@
            element, which is how they stay out of the way while the reviewer is
            typing in a cell or in the filter box.  See app.js zoomBy(). -->
       <div id="fedit" class="fedit hidden" role="dialog" aria-label="도면 위 편집"></div>
-      <div id="stage" tabindex="0"><div id="wrap"><img id="sheet" alt="" draggable="false"><svg id="ov"></svg></div></div>
+      <div id="stage" tabindex="0"><div id="wrap"><img id="sheet" alt="" draggable="false" decoding="async"><svg id="ov"></svg></div></div>
       <!-- hotfix63 — 장별 메모.  도면 아래에 붙어 있고, 도면을 끝까지 내린 뒤 휠을 한 번 더 내리면 열린다.
            열쇠는 도면번호라 같은 프로젝트의 다른 Rev 에서도 이 장의 메모가 이력과 함께 보인다
            (app/sheet_memo.py · GET/POST /jobs/{id}/memo/{page}). -->

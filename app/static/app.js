@@ -3597,8 +3597,10 @@ function renderGrid() {
  * 화면에 보이는 줄 ± 여유(`VROW.buf`)만 그리고 위·아래는 빈 칸(높이만 가진 줄)으로 채운다 — 굴림막대의 길이와
  * 자리는 2,000행을 다 그렸을 때와 같다.  열 폭이 굴릴 때마다 흔들리지 않도록 **열마다 가장 긴 값을 담은 숨은 줄**
  * 하나(`visibility: collapse` — 높이 0, 폭에는 든다)를 늘 맨 위에 둔다.
- * 사람이 칸에 타자 중이면 다시 그리지 않는다 (그 칸이 사라지면 편집이 사라진다). */
-const VROW = { h: 0, buf: 40, step: 20, start: -1, end: -1, raf: 0, measure: "" };
+ * 사람이 칸에 타자 중이면 다시 그리지 않는다 (그 칸이 사라지면 편집이 사라진다).
+ * 여유 16행 · 8행마다 다시 그리기 — 굴리기 실측(spike 굴림 시험, 30걸음)에서 40/20 은 50ms 넘는 작업 3~5건,
+ * 16/8 은 0건이었다 (한 번에 그리는 줄이 적을수록 그리기 한 번이 짧다 · 그리기 한 번은 4~5ms). */
+const VROW = { h: 0, buf: 16, step: 8, start: -1, end: -1, raf: 0, measure: "" };
 function _measureRowHtml(rows, cols) {
   const longest = cols.map(() => "");
   for (const r of rows) {
@@ -4140,9 +4142,19 @@ async function saveEdit(row, field, td) {
  * `saveField` 하나라 목록 칸이 같은 값으로 저절로 바뀐다 — 화면을 다시 열거나 새로고침할 필요가 없다. */
 const FEDIT_FIELDS = COLS.filter(c => c[2]);
 const FEDIT_LONG = new Set(["description", "remark"]);
+/* hotfix69 — 목록 칸 폭은 크기가 바뀔 때만 잰다 (`ResizeObserver`).  예전에는 상자를 누를 때마다 폭을 물어 브라우저가
+ * 그 자리에서 배치를 다시 해야 했다 (행 누르기 한 번에 70ms — perf_sim 프로파일). */
+let _rightW = null;
+(function watchRight() {
+  const rg = document.getElementById("right");
+  if (!rg || typeof ResizeObserver === "undefined") return;
+  new ResizeObserver(ents => { for (const e of ents) _rightW = e.contentRect.width; }).observe(rg);
+})();
 function listHidden() {
   const rg = document.getElementById("right");
-  return !rg || rg.getBoundingClientRect().width < 320;
+  if (!rg) return true;
+  if (_rightW === null) _rightW = rg.getBoundingClientRect().width;
+  return _rightW < 320;
 }
 function floatEditWanted() { return document.body.classList.contains("pid-full") || listHidden(); }
 function _feditRow() {
@@ -5994,7 +6006,7 @@ function showPage(page) {
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
     prefetchNeighbours(page);               // hotfix69 — 다음 · 이전 장 그림을 쉬는 동안 받아 둔다
   };
-  if (!S.imgStale) img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
+  if (!S.imgStale) swapSheet(img, `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`);
   syncPage();                               // hotfix68 — 목록 창의 "이 장" 이 도면 창의 장을 따른다
   showSheetNotes(page.page_no);
   showMemo(page.page_no);                 // hotfix63 — 이 장 메모 (같은 프로젝트의 모든 Rev)
@@ -6007,6 +6019,20 @@ function showPage(page) {
     if (r0 && r0.page_no !== page.page_no)
       editNotice(`장을 옮겨 ${m.side === "from" ? "From" : "To"} 범위 지정을 취소했습니다 — 그 행은 p${r0.page_no} 입니다`, "out");
   }
+}
+
+/* hotfix69 — 장 그림(A1 이면 3,815×2,695 픽셀)을 **풀어 놓은 뒤** 화면에 건다.  `img.src` 를 바로 바꾸면 브라우저가
+ * 첫 그리기 때 주 스레드에서 그림을 풀어 행을 누를 때마다 화면이 0.1~0.4초 멈췄다 (spike/perf_sim.py 의 rowclick ·
+ * 프로파일 "(program)").  `decode()` 는 다른 스레드에서 풀고, 다 풀린 같은 주소를 걸면 그 결과를 그대로 쓴다.
+ * 빨리 넘기면 마지막 장만 건다 (번호표). */
+let _sheetSeq = 0;
+function swapSheet(img, url) {
+  const seq = ++_sheetSeq;
+  const pre = new Image();
+  pre.decoding = "async";
+  pre.src = url;
+  const go = () => { if (seq === _sheetSeq) img.src = url; };
+  if (pre.decode) pre.decode().then(go, go); else go();
 }
 
 /* hotfix69 — 장을 넘길 때 기다리지 않게: 지금 장이 뜬 뒤 **쉬는 동안** 다음 · 이전 장 그림을 받아 둔다.
@@ -6025,6 +6051,7 @@ function prefetchNeighbours(page) {
       const im = new Image();
       im.decoding = "async";
       im.src = url;
+      if (im.decode) im.decode().catch(() => {});     // 받아 둘 뿐 아니라 풀어 둔다 — 넘기는 순간 멈추지 않게
     }
   };
   if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 1500 }); else setTimeout(go, 300);

@@ -3717,6 +3717,48 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
 8. ⚠ 대시보드에서 다른 메뉴로 가면 iframe 이 지워져 새 창은 짝을 잃고 **혼자** 두 칸 화면으로 계속 쓴다
    (`docs/dashboard_embed.md` §3-2).  창 배치 권한은 브라우저가 한 번 묻는다 — iframe 이면 `allow="window-management"` 가 있어야 한다.
 
+**그 다음 — PDF-XChange 처럼 가볍게: 시뮬레이션을 여러 번 돌리며 고친 것 (hotfix69 · 판정 0줄)**
+
+사용자: *"PDFXChange 와 같이 가볍게 만들어줘 · 결국 사용자들이 사용할 때 무거우면 의미가 없어 · 여러 번 시뮬레이션
+돌려서 가볍게."*  자 `spike/perf_sim.py` (열기 · 장 넘기기 ×8 · 확대 · 끌기 · 목록 행 누르기 ×8 · 상자 누르기 · 검색 타자 ·
+목록 굴리기 · 칸 편집 · 새 창 — 회마다 장 그림 캐시를 비우고 3회) · 결과 `out/hotfix69/perf_before.json`(hotfix68) ·
+`perf_v1~v6.json`.  시험 `tests/test_hotfix69_light.py` 11건 (빠른 시험 **910**).
+
+| 일 (QFE Rev.B 1,991행 · 중앙값) | hotfix68 | hotfix69 |
+| --- | --- | --- |
+| 결과 열기 | 6.3초 | **PERF_OPEN** |
+| 장 넘기기 | 840ms (50ms 넘는 작업 48건) | **PERF_PAGE** |
+| 목록 행 누르기 | 434ms (123건) | **PERF_ROW** |
+| 도면 상자 누르기 | 134ms | **PERF_BOX** |
+| 검색 한 글자 | 1,065ms (최대 5.0초) | **PERF_SEARCH** |
+| 목록 끝까지 굴리기 | 2.4초 | **PERF_SCROLL** |
+| 칸 편집 | 427ms | **PERF_EDIT** |
+| 도면 새 창 | 6.7초 | **PERF_POP** |
+
+1. **목록은 보이는 행만 그린다** (`paintWindow` · `revealRow` · `S.vlist`).  2,000행을 다 그리면 검색 한 글자에 표 배치가
+   1.2초였고 고정 열 4,000칸을 굴릴 때마다 다시 칠했다.  행 높이가 하나라 i 번째 행의 자리는 i×높이 · 위아래는 빈 줄 ·
+   열 폭은 **열마다 가장 긴 값을 담은 숨은 줄**(`visibility: collapse`)이 붙잡는다.  타자 중에는 다시 그리지 않는다.
+   화면 밖 행으로 가야 하는 곳(고르기 · 추가한 행 · 화살표)은 굴려 그린다.  여유 16행 · 8행마다 — 40/20 은 굴리기 30걸음에
+   50ms 넘는 작업 3~5건, 16/8 은 0건 (그리기 한 번은 4~5ms).
+2. **장 그림을 미리 그린다** (`app/page_warm.py`).  결과를 처음 열 때(`/pages`) 별도 프로세스가 지금 장부터 앞뒤로 모든 장을
+   디스크 캐시(hotfix45)에 그린다.  화면은 다음 · 이전 장을 쉬는 동안 받아 **풀어 둔다** (`prefetchNeighbours` · `decode()`).
+3. **★ 서버는 그림을 그리지 않는다.**  PyMuPDF 가 그리는 동안(A1 한 장 0.5초) 인터프리터 잠금을 쥐어, 이웃 장 미리 받기와
+   겹치자 칸 저장이 0.4 → **5.6초**, 새 창이 13.5초가 됐다 (v2 실측 — 첫 판의 실패).  사람이 연 장도 PDF 사실 읽기(hotfix62
+   2~5초)도 **일꾼 프로세스 둘**이 하고 서버는 기다리기만 한다 (`page_warm.render_now` · `call` · `prime`).  끄는 스위치
+   `PID_PAGE_WARM=0` · `PID_RENDER_POOL=0` (시험은 둘 다 끈다 · conftest).
+4. **★ 결과 열기의 네 요청이 같은 파싱을 동시에 하고 있었다** — `/rows` · 검토 · 마크업 · FROM/TO 확정이 빈 메모를 동시에 만나
+   각자 0.4초 파싱을 하며 잠금을 다퉈 열기가 3~4초였다 (따로 부르면 각 0.01~0.03초).  `merged_rows_cached` 에 잠금 하나 —
+   한 요청만 파싱하고 나머지는 결과를 받는다 (열기 3.0 → 1.5초).
+5. **목록은 고른 행에만 쓰는 근거 셋을 빼고 받는다** (`/rows?slim=1` · `SLIM_DROP` = candidates 4.6MB · trace 2.0MB · axis
+   0.8MB — 13.8MB 의 7.4MB).  근거 패널이 열릴 때 그 행만 `?keys=` 로 온전히 받아 같은 행 객체에 채운다 (`ensureFull`).
+   다른 호출자(시험 · 다른 화면)는 예전 그대로다.
+6. **장 그림은 풀어 놓은 뒤 건다** (`swapSheet` — `Image.decode()` · 번호표).  바로 바꾸면 첫 그리기 때 주 스레드에서 3,815×2,695
+   그림을 풀어 행을 누를 때마다 멈췄다.  장 넘기기의 50ms 넘는 작업 48 → **0건**.
+7. 목록 폭은 크기가 바뀔 때만 잰다 (`ResizeObserver` — 상자 누를 때마다 강제 배치 70ms 였다).
+8. ⚠ 자가 틀린 것 둘 — 두 번째 측정은 백그라운드 UI 스위트와 겹쳐 칸 편집이 3.4초로 나왔다(조용한 기계 264ms) · 굴리기
+   시험 첫 판은 나란히 보기가 저절로 켜져 목록이 숨어 **아무것도 굴리지 않고** 매끄럽다고 나왔다.  둘 다 자를 고쳐 다시 쟀다.
+9. ⚠ 헤드리스 브라우저는 GPU 가 없어 큰 그림을 그리는 일(확대 · 부드러운 스크롤)이 실제 PC 보다 무겁게 나온다 — 표의 값은 하한이 아니라 상한 쪽이다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4186,6 +4228,9 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `PANE`·`SYNC`·`popOut`·`rejoin`·`setPane`·`paneRole`·`drawingHidden`·`_nativeOpen`·`syncPost`·`syncReceive`·`syncSel`·`syncPage`·`syncRows`·`hookFetch`·`syncNoteMutation` | **hotfix68** — 도면 · 목록 새 창(듀얼 모니터)과 두 창 연동.  보이는 칸만 고른다 (`body.pane-*`) · 같은 출처 postMessage · 저장은 쓰기 요청이 끝난 것을 보고 알린다 · 받은 창은 그 행만 `/rows?keys=` |
 | `main._ROWS_BODY` · `_rows_payload` · `rows(keys=)` · `GZipMiddleware` | **hotfix68** — `/rows` 본문 메모(도장 `db._db_stamp`) · 압축본 · 몇 행만.  큰 응답 압축(이미 압축된 것 · SSE 제외) |
 | `app.js` `rowHtml`·`buildRowTr`·`gridCols`·`bindGridBody`·`rowSideFetches`·`afterFirstOpen` | **hotfix68** — 목록 행을 글 한 줄로 한 번에 붓고 듣는 이는 몸통 하나 · 열기의 읽기를 같이 · 첫 화면 정보는 결과가 선 뒤 |
+| `app.js` `VROW`·`paintWindow`·`revealRow`·`_measureRowHtml`·`S.vlist` · `swapSheet`·`prefetchNeighbours` · `ensureFull` · `listHidden`(ResizeObserver) | **hotfix69** — 보이는 행만 · 그림은 풀어서 건다 · 이웃 장 미리 · 고른 행만 온전히 · 폭은 관찰 |
+| `app/page_warm.py` (`start`·`order`·`render_now`·`call`·`prime`·`stop`) · `main._warm_pages` · `db._ROWS_MEMO_LOCK` · `main.SLIM_DROP` | **hotfix69** — 장 그림 미리 그리기 · 서버 밖 일꾼 · 메모 동시 파싱 잠금 · slim 목록 |
+| `spike/perf_sim.py` | **hotfix69** — 사용자가 하는 일을 되풀이해 잰다 (전/후 같은 자 · 캐시 비우고 3회) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

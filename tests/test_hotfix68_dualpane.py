@@ -150,7 +150,7 @@ def test_receivers_do_not_echo():
 def test_list_window_does_not_fetch_sheet_images_and_fit_ignores_a_hidden_stage():
     sp = _fn("showPage")
     assert "S.imgStale = drawingHidden();" in sp
-    assert "if (!S.imgStale) img.src =" in sp
+    assert "if (!S.imgStale) swapSheet(img," in sp
     assert "if ($(\"#stage\").clientWidth < 20) return;" in _fn("fit")
     sel = _fn("select")
     assert "!drawingHidden()" in sel                     # 목록 창에서 행을 눌러도 장을 그리지 않는다

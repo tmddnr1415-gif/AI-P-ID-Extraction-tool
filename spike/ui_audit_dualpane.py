@@ -119,7 +119,10 @@ try:
         # ⑦ Shift 묶음 (도면 창) → 목록 창 묶음 판
         ks = dr.evaluate("() => S.rows.filter(r => r.page_no === S.page.page_no && !r.removed && !r.deleted && r.values.type).map(r => r.key).slice(0, 3)")
         dr.evaluate("() => deselect()"); dr.wait_for_timeout(300)
-        for k in ks:
+        # 첫 상자는 그냥 누르고(고르기) 나머지를 Shift 로 더한다 — 앱의 묶음 규칙 그대로
+        dr.evaluate("k => document.querySelector(`rect.det[data-key=\"${k}\"]`).dispatchEvent(new MouseEvent('click', {bubbles: true}))", ks[0])
+        dr.wait_for_timeout(300); dr.evaluate("() => closeScopePop()")
+        for k in ks[1:]:
             # 화면 밖 상자도 있어 좌표로 누르지 않고 그 상자에 Shift 누르기를 보낸다 (같은 처리기를 탄다)
             dr.evaluate("k => document.querySelector(`rect.det[data-key=\"${k}\"]`).dispatchEvent(new MouseEvent('click', {bubbles: true, shiftKey: true}))", k)
             dr.wait_for_timeout(300)
