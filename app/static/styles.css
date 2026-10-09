@@ -1988,3 +1988,18 @@ body.popout, body.popout.nav-collapsed { padding-left: 0; }
 #grid tr.vmeasure { visibility: collapse; }
 #grid tr.vpad td { padding: 0; border: 0; background: transparent; position: static; box-shadow: none; }
 #grid tr.vpad:hover td { background: transparent; }
+
+/* hotfix71 — VOC: 마크업·신고 대화상자의 "VOC 로 신고" 줄 · 일반 VOC 목록 */
+.mk-form label.voc-check { display: flex; gap: 8px; align-items: flex-start; font-size: var(--t-s);
+  background: var(--paper-2, #f6f1e6); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.mk-form label.voc-check input { margin-top: 2px; }
+.mk-form textarea { width: 100%; font: inherit; resize: vertical; }
+.voc-h { margin: 14px 0 6px; }
+#vc-list { max-height: 260px; overflow: auto; }
+table.voc-list { width: 100%; border-collapse: collapse; font-size: var(--t-s); table-layout: fixed; }
+table.voc-list th:nth-child(1) { width: 19%; } table.voc-list th:nth-child(2) { width: 35%; }
+table.voc-list th:nth-child(3) { width: 26%; } table.voc-list th:nth-child(4) { width: 20%; }
+table.voc-list td { overflow-wrap: anywhere; white-space: normal; text-overflow: clip; overflow: visible; max-width: none; }
+table.voc-list th, table.voc-list td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
+table.voc-list tr.voc-open .voc-state { color: var(--warn); font-weight: 600; }
+table.voc-list tr.voc-resolved .voc-state { color: var(--ok); font-weight: 600; }

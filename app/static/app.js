@@ -1289,6 +1289,13 @@ async function showFailure(message, d, jobId) {
     tbBtn.onclick = () => openTbFix(jobId);
   }
   $("#tbfix").classList.add("hidden");
+  // hotfix71 — 실패도 VOC 로 남긴다 (실패 사유 · 멈춘 단계 · 예외 원문을 서버가 담는다)
+  const vb = $("#prog-voc");
+  if (vb) {
+    vb.classList.toggle("hidden", !jobId);
+    vb.onclick = () => vocDialog({ jobId, source: "ANALYSIS_FAILED", category: "ANALYSIS_FAILED",
+                                   jobName: (d && d.pdf_name) || jobId });
+  }
   /* 예외 원문 — 접어 두되 버리지 않는다 (21회차).
    *
    * 예전에는 진단 내보내기 zip 안에만 있었다.  "그대로 노출하지 않는다" 는
@@ -7217,9 +7224,10 @@ async function markupDialog(rect) {
          list="mk-tag-cands"><datalist id="mk-tag-cands">${(prop.tag_candidates || []).map(t => `<option value="${escape(t)}">`).join("")}</datalist>
          ${_sourceLine(prop.tag_source, prop.tag_basis, "TAG")}</label>
        <label>Description <input id="mk-desc" type="text" placeholder="(선택)"></label>
-       <label>사유 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
-       <label>메모 <input id="mk-note" type="text" placeholder="(선택) 한 줄"></label>
-       <label>작성자 <input id="mk-author" type="text" value="${escape(lastAuthor())}" placeholder="이름 (자칭)"></label>
+       <label>분류 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
+       <label>사유 <input id="mk-note" type="text" placeholder="왜 프로그램이 못 읽었나 / 무엇이 맞나 — 한 줄"></label>
+       ${vocCheckHtml("mk")}
+       <label>작성자 <input id="mk-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (자칭)"></label>
      </div>
      <div class="modal-actions">
        <button id="mk-cancel" class="ghost">취소</button>
@@ -7227,6 +7235,7 @@ async function markupDialog(rect) {
      </div>`);
   $("#mk-cancel").onclick = closeModal;
   $("#mk-save").onclick = async () => {
+    if (!vocReasonOk("mk")) return;
     const scopeSel = $("#mk-scope").value;
     const name = $("#mk-scope-name").value.trim();
     const scope = scopeSel === "VENDOR" && name ? `VENDOR(${name})` : scopeSel;
@@ -7266,6 +7275,10 @@ async function markupDialog(rect) {
     if (!r.ok) { alert((await r.json()).detail || "행 추가 실패"); return; }
     const out = await r.json();
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    const vocId = $("#mk-voc").checked ? await vocSend({
+      source: "MARKUP_ADD", category: payload.reason_class, reason: payload.note, author,
+      page_no: page.page_no, drawing_no: page.drawing_no || "", rect, row_keys: [out.key],
+      markup: { tab: payload.tab, values, scope_source, qty_source, proposal: payload.proposal } }) : "";
     closeModal();
     clearFiltersForNewRow();
     await refreshRows(out.key, { toGrid: true });
@@ -7277,7 +7290,7 @@ async function markupDialog(rect) {
     editNotice(`추가했습니다 (${out.stable_id ? `ID ${out.stable_id}` : out.id_note || "ID 없음"}) · `
       + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
       + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
-      + `발주처 양식에 ${formLine}`, "in");
+      + `발주처 양식에 ${formLine}` + (vocId ? ` · VOC ${vocId} 접수` : ""), "in");
   };
   $("#mk-type").focus();
 }
@@ -7300,8 +7313,9 @@ function rejectDialog(it) {
          <p class="muted small">값 틀림은 행을 빼지 않고 그 칸을 고칩니다 — 편집 이력에 남고 Excel 에는 고친 값이 나갑니다.</p>
        </div>
        <label id="rj-exclude-wrap"><input id="rj-exclude" type="checkbox" checked> Excel 에서 제외 (행은 화면에 남습니다)</label>
-       <label>메모 <input id="rj-note" type="text" placeholder="(선택) 한 줄"></label>
-       <label>작성자 <input id="rj-author" type="text" value="${escape(lastAuthor())}" placeholder="이름 (자칭)"></label>
+       <label>사유 <input id="rj-note" type="text" placeholder="왜 틀렸나 — 한 줄"></label>
+       ${vocCheckHtml("rj")}
+       <label>작성자 <input id="rj-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (자칭)"></label>
      </div>
      <div class="modal-actions">
        ${already ? `<button id="rj-restore" class="ghost">되돌리기</button>` : ""}
@@ -7322,9 +7336,14 @@ function rejectDialog(it) {
     closeModal(); await refreshRows(row.key);
   };
   $("#rj-save").onclick = async () => {
+    if (!vocReasonOk("rj")) return;
     const author = $("#rj-author").value.trim();
     rememberAuthor(author);
     const note = $("#rj-note").value.trim();
+    const wantVoc = $("#rj-voc").checked;
+    const sendVoc = (extra) => wantVoc ? vocSend(Object.assign({
+      source: "MARKUP_REJECT", category: cls.value, reason: note, author,
+      page_no: row.page_no, drawing_no: row.drawing_no || "", rect: row.rect, row_keys: [row.key] }, extra)) : "";
     if (cls.value === "WRONG_VALUE") {
       const field = $("#rj-field").value, value = $("#rj-value").value.trim();
       if (!value) { alert("올바른 값을 적어 주세요."); return; }
@@ -7332,7 +7351,10 @@ function rejectDialog(it) {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, value, author, reason: `WRONG_VALUE: ${note}` }) });
       if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return; }
-      closeModal(); await refreshRows(row.key); return;
+      const vocId = await sendVoc({ markup: { field, value } });
+      closeModal(); await refreshRows(row.key);
+      if (vocId) editNotice(`${field} 을(를) 고쳤습니다 · VOC ${vocId} 접수`, "in");
+      return;
     }
     const q = new URLSearchParams({ reason: note, reason_class: cls.value, author,
                                     exclude: $("#rj-exclude").checked ? "true" : "false" });
@@ -7340,8 +7362,10 @@ function rejectDialog(it) {
     if (!r.ok) { alert("표시 실패"); return; }
     const out = await r.json();
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+    const vocId = await sendVoc({ markup: { exclude: $("#rj-exclude").checked } });
     closeModal();
     await refreshRows(out.dropped ? null : row.key);
+    if (vocId) { editNotice(`표시했습니다 · VOC ${vocId} 접수 — 개발팀 함에 쌓였습니다`, "in"); return; }
     if (cls.value === "UNKNOWN_SYMBOL") {
       editNotice("미지정 심볼로 표시했습니다 — 무엇으로 볼지는 [심볼] 화면에서 등록합니다", "unjudged");
     } else {
@@ -8091,15 +8115,18 @@ function reportDialog(opts) {
       kind: opts.point ? "MISSED" : (opts.fromDrawing ? "SYMBOL" : "ROW"),
       what, detail, row_key: opts.rowKey || "",
       page_no: opts.pageNo || null, point: opts.point || null,
+      author: currentAuthor(), screen: vocScreen(),
     };
     const r = await fetch(`/jobs/${S.job.id}/reports`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!r.ok) { alert((await r.json()).detail || "신고 저장 실패"); return; }
-    S.reports = (await r.json()).report_count;
+    const rep = await r.json();
+    S.reports = rep.report_count;
     updateReportBadge();
     closeModal();
+    if (rep.voc_id) editNotice(`신고 접수 · VOC ${rep.voc_id} — 개발팀 함에도 쌓였습니다`, "in");
   };
   $("#rep-save").onclick = save;
   $("#rep-detail").addEventListener("keydown", ev => {
@@ -8167,6 +8194,113 @@ async function showReportList() {
 }
 
 $req("#report-list").addEventListener("click", showReportList);
+
+/* ---------------- VOC (hotfix71) ----------------
+ *
+ * 부서원이 남긴 오류·요청을 **개발 쪽(회사 Claude Code)이 읽는 함**에 쌓는다.  서버는 한 건을
+ * 운영 폴더의 `voc/inbox/<VOC-id>/` 에 쓰고(`app/voc.py`), 회사 Claude Code 는
+ * `python spike/voc.py list` 로 읽고 고친 뒤 `resolve` 로 장부에 적는다 — 반영된 VOC 는
+ * 다시 목록에 오르지 않는다 (중복 반영 방지).  화면이 적는 것은 셋뿐(분류 · 사유 · 이름)이고
+ * 어느 분석 · 어느 장 · 어느 행 · 이 서버의 업데이트는 서버가 담는다.
+ *
+ * 입구: 마크업(누락 추가 · 기존 상자 표시)의 "VOC 로 신고" · 오류 신고 · 머리줄/첫 화면의
+ * [VOC] 버튼 · 분석 실패 화면.  쓰는 길은 `vocSend` 하나다. */
+function vocCheckHtml(prefix) {
+  return `<label class="voc-check"><input id="${prefix}-voc" type="checkbox" checked>
+    개발팀에 <b>VOC</b> 로 신고 — 프로그램이 못 읽었거나 잘못 읽은 것으로 남깁니다 (사유 필수)</label>`;
+}
+function vocReasonOk(prefix) {
+  const on = $(`#${prefix}-voc`) && $(`#${prefix}-voc`).checked;
+  const note = ($(`#${prefix}-note`) || {}).value || "";
+  if (on && !note.trim()) {
+    alert("VOC 로 신고하려면 사유를 한 줄 적어 주세요 (또는 'VOC 로 신고' 를 끄세요).");
+    $(`#${prefix}-note`).focus();
+    return false;
+  }
+  return true;
+}
+function vocScreen() {
+  return { hash: location.hash || "", tab: S.tab || "", page_no: S.page ? S.page.page_no : null,
+           viewport: [window.innerWidth, window.innerHeight], pane: PANE.role || "",
+           embed: !!(EMBED && EMBED.on), ui: (document.querySelector('script[src*="app.js"]') || {}).src || "" };
+}
+async function vocSend(body) {
+  const payload = Object.assign({ job_id: S.job ? S.job.id : "", author: currentAuthor(),
+                                  screen: vocScreen() }, body);
+  try {
+    const r = await fetch("/voc", { method: "POST", headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify(payload) });
+    if (!r.ok) { alert("VOC 저장 실패: " + ((await r.json()).detail || r.statusText)); return ""; }
+    return (await r.json()).id || "";
+  } catch (e) { alert("VOC 저장 실패: " + e); return ""; }
+}
+const VOC_GENERAL = ["UI", "SLOW", "FEATURE", "MISSING", "FALSE_POSITIVE", "WRONG_VALUE", "UNKNOWN_SYMBOL",
+                     "SCOPE", "QTY", "TYPE", "DESCRIPTION", "ANALYSIS_FAILED", "OTHER"];
+
+function vocListHtml(items) {
+  if (!items.length) return `<p class="muted small">아직 접수된 VOC 가 없습니다.</p>`;
+  return `<table class="voc-list"><thead><tr><th>접수</th><th>분류 · 사유</th><th>자리</th><th>상태</th></tr></thead><tbody>`
+    + items.map(v => `<tr class="voc-${escape((v.state || "").toLowerCase())}">
+        <td class="small">${escape((v.created_at || "").replace("T", " "))}<br><span class="muted">${escape(v.author || "이름 없음")}</span></td>
+        <td><b>${escape(v.category_label || v.category)}</b><br>${escape(v.reason || "")}
+          ${v.has_crop ? `<br><a href="/voc/${encodeURIComponent(v.id)}/crop.png" target="_blank" rel="noopener">도면 조각</a>` : ""}</td>
+        <td class="small">${escape([v.project, v.pdf_name, v.page_no ? `p${v.page_no}` : "", v.drawing_no].filter(Boolean).join(" · ") || "—")}<br>
+          <span class="muted">${escape(v.id)}</span></td>
+        <td class="small voc-state">${escape(v.state_label || "")}${v.resolution && v.resolution.note ? `<br><span class="muted">${escape(v.resolution.note)}</span>` : ""}</td>
+      </tr>`).join("") + `</tbody></table>`;
+}
+
+/* 일반 VOC — 어디서든.  결과 화면이면 지금 분석·장을 함께 담고, 실패 화면이면 그 실패를 담는다. */
+async function vocDialog(opts) {
+  opts = opts || {};
+  let info = { categories: {}, items: [], counts: {}, voc_dir: "" };
+  try { info = await (await fetch("/voc?limit=30")).json(); } catch (e) { /* 목록 없이도 쓴다 */ }
+  const cats = info.categories || {};
+  const pick = opts.category || (S.job ? "WRONG_VALUE" : "UI");
+  const jobId = opts.jobId || (S.job && !opts.noJob ? S.job.id : "");
+  const where = opts.jobId ? `분석 ${opts.jobName || opts.jobId} — 실패 사유와 멈춘 단계를 함께 담습니다`
+    : S.job ? `${S.job.pdf_name || ""}${S.page ? ` · p${S.page.page_no} ${S.page.drawing_no || ""}` : ""}` : "";
+  openModal("VOC — 개발팀에 남기기",
+    `<p class="muted small">프로그램이 못 읽었거나 잘못 읽은 것, 불편한 점, 바라는 기능을 적어 주세요.
+       이 PC 의 VOC 함(<code>${escape(info.voc_dir || "voc/inbox")}</code>)에 쌓이고, 개발하는 쪽이 읽고 고친 뒤
+       <b>반영됨</b> 으로 표시합니다 — 한 번 반영된 VOC 는 다시 반영되지 않습니다.</p>
+     <div class="mk-form">
+       <label>분류 <select id="vc-class">${VOC_GENERAL.filter(k => cats[k] || !Object.keys(cats).length)
+         .map(k => `<option value="${k}"${k === pick ? " selected" : ""}>${escape(cats[k] || k)}</option>`).join("")}</select></label>
+       <label>내용 <textarea id="vc-note" rows="4" placeholder="무엇이 · 어디서 · 어떻게 되어야 하나">${escape(opts.reason || "")}</textarea></label>
+       ${where ? `<label class="voc-check"><input id="vc-ctx" type="checkbox" checked> 지금 보고 있는 것을 함께 담기 — ${escape(where)}</label>` : ""}
+       <label>작성자 <input id="vc-author" type="text" value="${escape(currentAuthor())}" placeholder="이름"></label>
+     </div>
+     <div class="modal-actions">
+       <button id="vc-cancel" class="ghost">닫기</button>
+       <button id="vc-save">VOC 접수</button>
+     </div>
+     <h4 class="voc-h">최근 VOC <span class="muted small">— 미반영 ${(info.counts || {}).open || 0} · 전체 ${(info.counts || {}).total || 0}</span></h4>
+     <div id="vc-list">${vocListHtml(info.items || [])}</div>`);
+  $("#vc-cancel").onclick = closeModal;
+  $("#vc-note").focus();
+  $("#vc-save").onclick = async () => {
+    const reason = $("#vc-note").value.trim();
+    if (!reason) { alert("내용을 적어 주세요."); $("#vc-note").focus(); return; }
+    const author = $("#vc-author").value.trim();
+    if (author && !EMBED.user) rememberAuthor(author);
+    const withCtx = !$("#vc-ctx") || $("#vc-ctx").checked;
+    const body = { source: opts.source || "GENERAL", category: $("#vc-class").value, reason, author,
+                   job_id: withCtx ? jobId : "" };
+    if (withCtx && !opts.jobId && S.page) { body.page_no = S.page.page_no; body.drawing_no = S.page.drawing_no || ""; }
+    if (withCtx && !opts.jobId && S.sel) body.row_keys = [S.sel];
+    const id = await vocSend(body);
+    if (!id) return;
+    $("#vc-note").value = "";
+    editNotice(`VOC ${id} 접수 — 개발팀 함에 쌓였습니다`, "in");
+    try { info = await (await fetch("/voc?limit=30")).json(); $("#vc-list").innerHTML = vocListHtml(info.items || []); }
+    catch (e) { /* 목록은 덤 */ }
+  };
+}
+for (const id of ["#voc-btn", "#home-voc"]) {
+  const b = document.querySelector(id);
+  if (b) b.addEventListener("click", () => vocDialog(id === "#home-voc" ? { noJob: true } : {}));
+}
 
 /* ---------------- 전역 심볼 사전 (18회차 [D]) ----------------
  *

@@ -160,3 +160,8 @@ out/uad_dxf_p11_p15/*.png
 out/*.done
 # 남의 wheel 이라 저장소에 두지 않습니다 — pip download 로 언제든 다시 만듭니다
 out/4_설치파일_wheels_part*.zip
+
+# hotfix71 — VOC 함과 반영 장부.  도면 조각 · 사람 이름 · 분석 경로가 들어간다 (`app/_data/` 와 같은 이유).
+# 운영 PC 의 `PID\voc\inbox` 에 쌓이고 개발 폴더(PID_dev)의 `voc\ledger.json` 이 반영을 적는다.
+voc/
+out/voc_brief.md

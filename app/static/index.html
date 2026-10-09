@@ -53,6 +53,8 @@
       <div class="page-actions">
         <button type="button" id="home-new" class="primary">새 분석</button>
         <button type="button" id="home-refresh" class="ghost">새로고침</button>
+        <!-- hotfix71 — 오류·불편·요청을 개발팀 함(voc/inbox)에 남긴다 -->
+        <button type="button" id="home-voc" class="ghost" title="오류 · 불편 · 바라는 기능을 개발팀에 남깁니다">VOC</button>
       </div>
     </div>
     <div id="home-pills" class="pills"></div>
@@ -192,6 +194,7 @@
       <!-- hotfix29 — 타이틀블록을 못 읽고 멈춘 분석에서만 보인다.  도면 위에 사각형을
            끌어 어느 칸이 도면번호인지 알려 주면 프로젝트에 저장되고 다시 분석한다. -->
       <button id="prog-tbfix" class="hidden">타이틀블록 칸 지정</button>
+      <button id="prog-voc" class="hidden ghost" title="이 실패를 개발팀 VOC 함에 남깁니다">VOC 로 신고</button>
     </div>
     <!-- 분석 중에만 보인다.  누르면 그 자리에서 멈추고 아무것도 저장하지
          않는다 (행 0 · 안정 ID 소비 0). -->
@@ -281,6 +284,8 @@
          숫자는 이 분석이 판정하지 못한 건수다. -->
     <button id="symbols" class="ghost" title="범례에 없어 판정하지 못한 심볼 · 전역 심볼 사전">심볼 <span id="symbol-n" class="badge-n">0</span></button>
     <button id="report-list" class="ghost" title="접수한 오류 신고">신고 <span id="report-n" class="badge-n">0</span></button>
+    <!-- hotfix71 — 어떤 VOC 든.  마크업·신고에서 남긴 것도 여기 목록에 상태(반영됨 · 다음 업데이트)와 함께 보인다 -->
+    <button id="voc-btn" class="ghost" title="오류 · 불편 · 바라는 기능을 개발팀 VOC 함에 남깁니다">VOC</button>
     <button id="diag" class="ghost" title="이 PC 안에서만 만들어지는 진단 파일">진단 내보내기</button>
     <!-- 44회차 [F] — 마크업·편집·신고를 zip 하나로 (feedback.json · feedback.md ·
          조각/ · 장/).  도면 내용이 들어가므로 저장소에는 넣지 않는다. -->

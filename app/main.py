@@ -45,7 +45,7 @@ console.safe_stdio()
 from app import (analysis_proc, audit, axis_overrides, db, excel_out, page_warm,  # noqa: E402
                  global_symbols,
                  lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
-                 unit_multipliers, sheet_numbers, title_block_cells, version)
+                 unit_multipliers, sheet_numbers, title_block_cells, version, voc)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -3636,7 +3636,22 @@ def create_report(job_id: str, payload: dict):
                             capture=capture)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    return {"id": rid, "report_count": db.report_count(CON, job_id)}
+    # hotfix71 — 같은 신고를 개발 쪽이 읽는 VOC 함에도 한 건.  신고는 이 분석의 DB 에 남고
+    # (화면의 '신고' 목록), VOC 는 운영 폴더 `voc/inbox/` 에 남는다 (회사 Claude Code 가 읽는다).
+    vid = ""
+    try:
+        category = ("MISSING" if kind == "MISSED" and what == "OTHER"
+                    else what if what in voc.CATEGORIES else "OTHER")
+        vid = _write_voc({"source": "ROW_REPORT", "category": category, "reason": detail,
+                          "author": payload.get("author") or "",
+                          "job_id": job_id, "page_no": page_no, "drawing_no": drawing_no,
+                          "rect": rect if len(rect or []) == 4 else None,
+                          "row_keys": [key] if key else [],
+                          "point": point or None, "report_id": rid,
+                          "screen": payload.get("screen") or {}})["id"]
+    except (ValueError, OSError) as exc:          # VOC 함에 못 써도 신고 자체는 접수됐다
+        print(f"[voc] report {rid}: {exc}", file=sys.stderr)
+    return {"id": rid, "report_count": db.report_count(CON, job_id), "voc_id": vid}
 
 
 @app.get("/jobs/{job_id}/reports")
@@ -3669,6 +3684,166 @@ def remove_report(report_id: int):
     except KeyError:
         raise HTTPException(404, "no such report")
     return {"ok": True}
+
+
+# --------------------------------------------------------------------------
+# VOC — 부서원의 오류·요청을 개발 쪽이 읽는 함에 쌓는다 (hotfix71 · app/voc.py)
+# --------------------------------------------------------------------------
+#
+# 사람이 적는 것은 셋뿐이다 — 무엇이 틀렸나(분류) · 왜(사유) · 누가(로그인 이름).
+# 나머지 — 어느 분석 · 어느 PDF · 어느 장 · 어느 사각형 · 그 행을 엔진이 어떻게 판정했나 ·
+# 이 서버가 어느 업데이트인가 — 는 서버가 이미 갖고 있으므로 여기서 담는다.
+# 회사 Claude Code 는 이 함을 `python spike/voc.py list` 로 읽고, 반영하면 `resolve` 로
+# 장부에 적는다 (반영된 VOC 는 다시 안 보인다 — 중복 반영 방지).
+
+VOC_CROP_PAD = 48.0          # 사각형 둘레에 보탤 여백 (pt) — 그 자리가 무엇 옆인지 보이게
+VOC_CROP_ZOOM = 3.0
+
+
+def _voc_crop(job, page_no: int, rect) -> bytes | None:
+    """그 자리의 도면 조각 — 사각형을 붉게 두른다.  PDF 만 (DXF 는 그림이 따로라 건너뛴다)."""
+    if not job or not page_no or not rect or len(rect) != 4:
+        return None
+    from app.engine import dxf_reader
+    path = Path(job["pdf_path"])
+    if not path.is_file() or dxf_reader.is_dxf_input(path):
+        return None
+    import pymupdf
+    try:
+        doc = pymupdf.open(str(path))
+    except Exception:  # noqa: BLE001 — 조각은 덤이다, 못 그리면 없이 간다
+        return None
+    try:
+        if not 1 <= page_no <= doc.page_count:
+            return None
+        page = doc[page_no - 1]
+        x0, y0, x1, y1 = (float(v) for v in rect)
+        x0, x1 = min(x0, x1), max(x0, x1)
+        y0, y1 = min(y0, y1), max(y0, y1)
+        clip = pymupdf.Rect(x0 - VOC_CROP_PAD, y0 - VOC_CROP_PAD,
+                            x1 + VOC_CROP_PAD, y1 + VOC_CROP_PAD) & page.rect
+        if clip.is_empty:
+            return None
+        z = VOC_CROP_ZOOM
+        pm = page.get_pixmap(matrix=pymupdf.Matrix(z, z), clip=clip, alpha=False)
+        ox, oy = pm.x, pm.y
+        def px(x, y):
+            return int(round(x * z)) - ox, int(round(y * z)) - oy
+        a, b = px(x0, y0)
+        c, d = px(x1, y1)
+        red, t = (220, 30, 30), 3
+        for r in ((a - t, b - t, c + t, b), (a - t, d, c + t, d + t),
+                  (a - t, b, a, d), (c, b, c + t, d)):
+            ir = pymupdf.IRect(r[0] + ox, r[1] + oy, r[2] + ox, r[3] + oy) & pm.irect
+            if not ir.is_empty:
+                pm.set_rect(ir, red)
+        return pm.tobytes("png")
+    except Exception:  # noqa: BLE001
+        return None
+    finally:
+        doc.close()
+
+
+def _voc_context(job_id: str, page_no, drawing_no: str = "") -> dict:
+    job = db.get_job(CON, job_id) if job_id else None
+    out = {"server": {"build": version.info(), "update": version.update_info(),
+                      "voc_dir": str(voc.voc_root())}}
+    if job is None:
+        return out
+    if page_no and not drawing_no:
+        found = CON.execute("SELECT drawing_no FROM pid_page WHERE job_id=? AND page_no=?",
+                            (job_id, page_no)).fetchone()
+        drawing_no = (found["drawing_no"] or "") if found else ""
+    keys = job.keys()
+    out.update({
+        "job_id": job_id, "pdf_name": job["pdf_name"], "pdf_sha256": job["pdf_sha256"],
+        # 회사 Claude Code 는 운영 PC 에서 돈다 — 같은 PDF 를 그 자리에서 열 수 있게 경로도 적는다.
+        "pdf_path": job["pdf_path"], "fingerprint": job["fingerprint"],
+        "status": job["status"],
+        "project": job["project"] if "project" in keys else "",
+        "revision": job["revision"] if "revision" in keys else "",
+        "input_kind": job["input_kind"] if "input_kind" in keys else "",
+        "page_no": page_no or None, "drawing_no": drawing_no or "",
+    })
+    if job["status"] == "failed":
+        out["failure"] = {"message": job["message"],
+                          "stopped_stage": job["stopped_stage"] if "stopped_stage" in keys else "",
+                          "error_detail": (job["error_detail"] or "")[-6000:]}
+    return out
+
+
+def _write_voc(payload: dict) -> dict:
+    """한 건 쓰기 — 화면의 모든 입구(일반 VOC · 마크업 · 신고 · 실패 화면)가 여기 하나로 온다."""
+    job_id = str(payload.get("job_id") or "")
+    job = db.get_job(CON, job_id) if job_id else None
+    if job_id and job is None:
+        raise ValueError("no such job")
+    page_no = int(payload.get("page_no") or 0) or None
+    keys = [str(k) for k in (payload.get("row_keys") or []) if k][:50]
+    rows = [_capture_row(job_id, k) for k in keys] if job else []
+    rows = [r for r in rows if r]
+    rect = payload.get("rect")
+    if (not rect or len(rect) != 4) and rows:
+        rect = (rows[0].get("identity") or {}).get("rect")
+    if not page_no and rows:
+        page_no = (rows[0].get("identity") or {}).get("page_no")
+    drawing_no = str(payload.get("drawing_no") or "")
+    if not drawing_no and rows:
+        drawing_no = str((rows[0].get("identity") or {}).get("drawing_no") or "")
+    ctx = _voc_context(job_id, page_no, drawing_no)
+    rec = {
+        "source": payload.get("source") or "GENERAL",
+        "category": payload.get("category") or "OTHER",
+        "reason": payload.get("reason") or "",
+        "author": payload.get("author") or "",
+        "context": ctx,
+        "rect": [round(float(v), 1) for v in rect] if rect and len(rect) == 4 else None,
+        "point": payload.get("point") or None,
+        "rows": rows,
+        "markup": payload.get("markup") or None,
+        "report_id": payload.get("report_id"),
+        "screen": payload.get("screen") or {},
+    }
+    crop = _voc_crop(job, page_no, rec["rect"]) if job else None
+    return voc.write(rec, crop_png=crop)
+
+
+@app.post("/voc")
+def create_voc(payload: dict):
+    try:
+        rec = _write_voc(payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except OSError as exc:
+        raise HTTPException(500, f"VOC 함에 쓰지 못했습니다: {exc}")
+    return {"id": rec["id"], "has_crop": rec["has_crop"], "voc_dir": str(voc.voc_root())}
+
+
+@app.get("/voc")
+def list_voc(job_id: str = "", limit: int = 200):
+    """이 서버의 VOC 함 — 최근 것부터.  반영 상태는 장부 · inbox 의 반영 표시에서 읽는다."""
+    items = voc.scan([voc.inbox_dir()])
+    try:
+        ledger = voc.load_ledger()
+    except ValueError:
+        ledger = None
+    upd = version.update_info()
+    out = [voc.public(r, ledger, upd) for r in items.values()
+           if not job_id or (r.get("context") or {}).get("job_id") == job_id]
+    out.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    counts = {"total": len(out), "open": sum(1 for r in out if r["state"] == "OPEN")}
+    return {"voc_dir": str(voc.voc_root()), "counts": counts, "items": out[:max(1, limit)],
+            "categories": voc.CATEGORIES, "sources": voc.SOURCES}
+
+
+@app.get("/voc/{voc_id}/crop.png")
+def voc_crop(voc_id: str):
+    if not voc.ID_RE.match(voc_id):
+        raise HTTPException(404, "no such VOC")
+    f = voc.inbox_dir() / voc_id / "crop.png"
+    if not f.is_file():
+        raise HTTPException(404, "no crop")
+    return FileResponse(str(f), media_type="image/png")
 
 
 @app.get("/version")

@@ -8,6 +8,13 @@
 > 절대 불변식 · 반복되는 실패 유형 열 가지 · 다음에 무엇을 할지(로드맵)** 만
 > 담고 있어 방향을 세우는 데 쓰입니다.  이 문서는 그 근거를 찾을 때 봅니다.
 
+> **★ 회차를 시작하면 부서원의 VOC 부터 보세요 (hotfix71 · `docs/voc.md`).**
+> 운영 서버에서 부서원이 마크업 · 오류 신고 · [VOC] 로 남긴 것이 `..\PID\voc\inbox\` 에 쌓입니다.
+> `python spike/voc.py list` (미반영만) → `python spike/voc.py brief` (한 장 요약 · 행 · 엔진 값 · PDF 경로 · 도면 조각) →
+> 고치고 회귀를 돌린 뒤 `python spike/voc.py resolve <id…> --by <이름> --release <꾸러미> --note <무엇을>`.
+> **반영한 VOC 는 장부(`voc/ledger.json`)와 그 VOC 폴더의 `resolution.json` 에 남아 다시 목록에 오르지 않습니다 —
+> 중복 반영 방지.**  같은 원인은 함께 resolve 하거나 `dup --of` 로 묶고, 도면이 답하지 않는 것은 `needinfo` 로 둡니다.
+
 ## 1. 지금 어디까지 와 있나
 
 | 단계 | 상태 |
@@ -3795,6 +3802,33 @@ Note 칸 · 이 Note 는 같은 Project 의 다른 Rev. 에 모두 이력관리�
    못 돈다.  남은 큰 몫은 `get_drawings` 의 C 부분 · `instruments` 의 기하 판정이다.
 8. ⚠ 전 · 후 시간은 같은 기계에서 쟀지만 "후" 의 TC2 · AL NOUF1 은 다른 검사가 한 코어를 쓰는 동안 돌았다 — 실제는 조금 더 빠르다.
 
+**그 다음 — VOC: 부서원의 오류·요청을 개발이 읽고 반영하는 길 (hotfix71 · 판정 0줄)**
+
+사용자: *"사용자가 마크업을 하면, 프로그램이 읽지 못하거나 잘못 식별한 분류를 사용자가 지정하고 사유를 작성하고 신고해서
+회사 클로드코드가 앞으로 개발을 해 나갈 때 부서원의 VOC 를 읽고 오류를 코드를 수정할 수 있는 기능 · 그 오류가 운영자 컴퓨터
+PID 폴더에 차곡차곡 쌓이고 · 반영된 VOC 는 다음번에 중복 반영되어서는 안 된다 · 마크업 말고도 어떠한 VOC 라도."*
+전문 `docs/voc.md` · 시험 `tests/test_hotfix71_voc.py` 10건 · 화면 자기검증 `spike/ui_audit_voc.py` → `out/hotfix71/ui/`.
+
+1. **한 건 = 폴더 하나** (`app/voc.py`) — `voc/inbox/VOC-<시각>-<6hex>/voc.json` (+ `crop.png` · 사각형을 붉게 두른 도면 조각).
+   다 쓴 뒤 이름을 바꿔 넣는다(반쯤 쓴 VOC 는 안 보인다).  자리는 `voc_root()` 하나 — `PID_VOC_DIR` > `PID_DATA_DIR`/voc
+   (시험) > exe `pid_data/voc` > 소스면 **그 폴더의 `voc/`** (운영 PC `C:\Claude\PID\voc`).  `.gitignore` 대상 · 꾸러미에 안 들어간다.
+2. **사람이 적는 것은 셋** — 분류 · 사유 · 이름(대시보드 로그인).  나머지(분석 · PDF 경로 · 장 · 도면번호 · 사각형 · 그 행의 엔진 값/사람 값/
+   적용 규칙 · 실패면 멈춘 단계·예외 원문 · 서버 빌드와 업데이트 딱지)는 서버가 담는다 (`main._write_voc` — 모든 입구가 여기 하나).
+3. **입구 다섯** — 마크업 누락 추가 · 기존 상자 표시(오검출·값 틀림·미지정 심볼) · 오류 신고(신고 목록과 VOC 함 **둘 다**) ·
+   머리줄/첫 화면 [VOC](어떤 내용이든 · 결과 화면이면 지금 장·고른 행) · 분석 실패 화면 [VOC 로 신고].  마크업 대화상자의
+   "개발팀에 VOC 로 신고" 는 **기본 켜짐**이고 켜 둔 채 사유를 비우면 저장되지 않는다.  쓰는 길은 화면 `vocSend` 하나 · 서버 `POST /voc`.
+4. **중복 반영 방지 두 겹** — 개발 폴더의 장부 `voc/ledger.json`(지우지 않고 쌓기만) + 그 VOC 폴더의 `resolution.json`.  둘 중 하나라도
+   있으면 `list` 에 다시 안 나오고 `resolve` 는 이미 처리된 id 를 건드리지 않는다(`--force` 로만).  id 는 만들 때 한 번 정해지므로
+   inbox 를 복사해 와도, 두 inbox 에 같은 VOC 가 있어도 한 건이다.  `spike/voc.py` 는 이 폴더와 옆 `../PID/voc/inbox` 를 같이 읽는다.
+5. **화면이 상태를 말한다** — VOC 목록에 `접수됨 — 개발 대기` / `반영됨 — hotfix72 (다음 업데이트에 포함)` / 업데이트 딱지 번호가
+   그 이상이면 `(이 서버에 적용됨)`.
+6. 실측 (QFE Rev.B 사본 · `?embed=1&user=홍길동`): 첫 화면 VOC(분석 없음) · 결과 화면 VOC(p6 도면번호까지) · 마크업 추가(사유 비우면
+   막힘 → 적으면 MARKUP_ADD + 행 + 조각) · 오검출 표시(MARKUP_REJECT) · 오류 신고(ROW_REPORT + 신고 번호) · 실패 화면(ANALYSIS_FAILED) ·
+   CLI list 6 → resolve 2 → list 4 · 같은 id 다시 resolve → `이미 처리됨 … 건너뜀` · 화면 목록 `반영됨 — hotfix72` · 페이지 오류 0.
+   ⚠ 자기검증이 목록 표의 상태 열이 잘리는 것을 잡았다 (전역 `td` 한 줄 규칙) — VOC 표만 줄바꿈.
+7. **판정 0줄** — 엔진은 VOC 를 읽지 않는다.  서버는 함에 쓰기만 하고 반영 표시는 `spike/voc.py` 만 쓴다.  운영 폴더의 `app\_data` 는
+   건드리지 않는다 (VOC 함은 그 밖이다).
+
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
@@ -4270,6 +4304,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/perf_sim.py` | **hotfix69** — 사용자가 하는 일을 되풀이해 잰다 (전/후 같은 자 · 캐시 비우고 3회) |
 | `pidcache.Rot` (`pt`·`rect`·`segs`·`_ROT_OK`) · `detect_symbols._ink_strokes`·`_index_put`(끝점 칸) · `typical.circle_marks` 사전 거르기 · `_highlights`(장 캐시) | **hotfix70** — 분석 속도.  전부 **같은 답** 변환 — 바꾸면 `spike/rot_exact_check.py` 와 `tests/test_hotfix70_fast_analysis.py` · 4문서 회귀로 확인 |
 | `spike/analysis_profile.py` · `spike/rot_exact_check.py` | **hotfix70** — 단계별·함수별 시간 · 회전 변환이 PyMuPDF 와 비트까지 같은지 전 장 대조 |
+| `app/voc.py` (`voc_root`·`write`·`scan`·`pending`·`mark`·`public`) · `main._write_voc`·`POST /voc`·`GET /voc` · `app.js` `vocSend`·`vocDialog`·`vocCheckHtml` | **hotfix71** — VOC 함.  한 건 = 폴더 하나 · 상태는 장부 + 폴더의 `resolution.json` · 쓰는 길은 하나 |
+| `spike/voc.py` (`list`·`brief`·`show`·`resolve`·`dup`·`wontfix`·`needinfo`) · `docs/voc.md` | **hotfix71** — 회사 Claude Code 가 회차 시작에 읽고 반영 표시.  이미 처리된 id 는 건너뛴다 (중복 반영 방지) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
