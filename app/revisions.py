@@ -197,7 +197,7 @@ class Registry:
     def load(cls, path: Path) -> "Registry":
         if path.exists():
             from app import jsonstore
-            data = jsonstore.read(path, what="안정 ID 장부", required=True)
+            data = jsonstore.read(path, what="안정 ID 장부", required=True, expect=dict)
             return cls(data if isinstance(data, dict) else None)
         return cls()
 
@@ -675,7 +675,15 @@ def list_projects(data_dir: Path) -> list:
         meta = d / "project.json"
         if d.is_dir() and meta.exists():
             from app import jsonstore
-            out.append(jsonstore.read(meta, what=f"프로젝트 장부 {d.name}", required=True))
+            # hotfix74 — 한 프로젝트의 장부가 깨졌다고 **첫 화면 전체**가 500 이 되면 안 된다
+            # (state_chaos K1: project.json 반쯤 잘림 → /home 500).  그 프로젝트만 빼고, 사실은
+            # `jsonstore.INCIDENTS` 에 남아 위생 감사가 첫 화면에 말한다.
+            try:
+                data = jsonstore.read(meta, what=f"프로젝트 장부 {d.name}", required=True, expect=dict)
+            except jsonstore.StateFileCorrupt:
+                continue
+            if isinstance(data, dict) and data.get("name"):
+                out.append(data)
     return out
 
 
@@ -688,7 +696,7 @@ def load_project(data_dir: Path, name: str) -> dict:
     if not meta.exists():
         raise KeyError(name)
     from app import jsonstore
-    return jsonstore.read(meta, what=f"프로젝트 장부 {name}", required=True)
+    return jsonstore.read(meta, what=f"프로젝트 장부 {name}", required=True, expect=dict)
 
 
 DELETED_DIR = "_deleted"

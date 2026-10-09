@@ -6085,7 +6085,24 @@ function swapSheet(img, url) {
   pre.decoding = "async";
   pre.src = url;
   const go = () => { if (seq === _sheetSeq) img.src = url; };
-  if (pre.decode) pre.decode().then(go, go); else go();
+  const box = $("#sheet-err");
+  if (box) box.classList.add("hidden");
+  // hotfix74 — 그림을 못 받으면 빈 자리만 남았다 (원본 PDF 가 지워진 경우 등 · state_chaos K2).
+  // 서버가 이유를 말하므로(410 · 사람 말) 그 문장을 도면 자리 위에 띄운다.
+  const failed = async () => {
+    go();
+    if (seq !== _sheetSeq || !box) return;
+    let msg = "도면 그림을 불러오지 못했습니다.";
+    try {
+      const r = await fetch(url);
+      if (!r.ok) { const j = await r.json().catch(() => ({})); if (j.detail) msg = j.detail; }
+      else return;                                    // 받아졌다 — 일시적이었다
+    } catch (e) { msg = "도면 그림을 불러오지 못했습니다 — 서버에 연결할 수 없습니다."; }
+    if (seq !== _sheetSeq) return;
+    box.textContent = msg;
+    box.classList.remove("hidden");
+  };
+  if (pre.decode) pre.decode().then(go, failed); else go();
 }
 
 /* hotfix69 — 장을 넘길 때 기다리지 않게: 지금 장이 뜬 뒤 **쉬는 동안** 다음 · 이전 장 그림을 받아 둔다.
@@ -7480,7 +7497,7 @@ $req("#feedback-export").addEventListener("click", () => {
   const by = window.prompt("내보내는 사람 이름 (자칭 · 비워도 됩니다)", lastAuthor()) ;
   if (by === null) return;
   rememberAuthor(by.trim());
-  window.location.href = `/jobs/${S.job.id}/feedback_export?by=${encodeURIComponent(by.trim())}`;
+  downloadUrl(`/jobs/${S.job.id}/feedback_export?by=${encodeURIComponent(by.trim())}`, "feedback.zip");
 });
 
 /* 56회차 — **Shift 를 누른 채 끌면 그 안의 검출이 전부 묶인다.**
@@ -7806,8 +7823,45 @@ $req("#excel").addEventListener("click", async () => {
     if (!out) return;
     editNotice(`체크 뒤의 편집·삭제·추가를 반영해 스냅샷을 새로 만들었습니다 (rev ${out.revision_id} · ${out.rows}행)`, "in");
   }
-  location.href = `/revisions/${S.revision}/excel`;
+  // hotfix74 — 예전에는 `location.href` 로 바로 갔다.  서버가 400(양식 없음 · 깨진 양식)을 내면 브라우저가
+  // **이 화면을 떠나 JSON 글자만 보여 줬다** (돌발상황 시뮬레이션).  받아 보고, 되면 내려받고 아니면 말한다.
+  await downloadUrl(`/revisions/${S.revision}/excel`, `rev${S.revision}_deliverables.zip`, $("#excel"));
 });
+
+/* hotfix74 — 내려받기 한 곳.  `location.href` 로 바로 가면 서버가 400(양식 없음 · 깨진 양식)을 낼 때
+ * 브라우저가 **이 화면을 떠나 JSON 글자만** 보여 줬다 (돌발상황 시뮬레이션).  받아 보고, 되면 내려받고,
+ * 아니면 서버 문장을 그대로 말한다.  `btn` 을 주면 받는 동안 "만드는 중…" 으로 묶어 둔다. */
+async function downloadUrl(url, fallbackName, btn) {
+  const label = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "만드는 중…"; }
+  try {
+    const r = await fetch(url);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      const d = j.detail;
+      const msg = typeof d === "string" ? d
+        : (d && d.error ? d.error + ((d.skipped || []).length
+            ? "\n\n건너뛴 산출물:\n" + d.skipped.map(x => `· ${x.kind || ""} ${x.reason || ""}`).join("\n") : "")
+          : `내려받지 못했습니다 (${r.status})`);
+      alert(msg);
+      return false;
+    }
+    const blob = await r.blob();
+    const cd = r.headers.get("content-disposition") || "";
+    const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = m ? decodeURIComponent(m[1]) : fallbackName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    return true;
+  } catch (e) {
+    alert("내려받지 못했습니다 — 서버에 연결할 수 없습니다.");
+    return false;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
 
 /* ---------------- row add / copy / delete ---------------- */
 async function refreshRows(selectKey, opts = {}) {

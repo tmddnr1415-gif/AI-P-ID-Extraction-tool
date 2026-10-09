@@ -87,6 +87,8 @@ async def _project_name_error(_request, exc):
 @app.exception_handler(sqlite3.OperationalError)
 async def _db_busy(request, exc):
     """DB 가 잠겨 30초를 기다려도 쓰지 못했다 — 다시 하면 되는 일이라 503 과 그 말로 답한다 (hotfix74)."""
+    if "disk is full" in str(exc) or "disk I/O error" in str(exc):
+        return _disk_full_response(request, exc)
     if "locked" in str(exc) or "busy" in str(exc):
         print(f"[DB 잠김] {request.method} {request.url.path}: {exc}", flush=True)
         return JSONResponse({"detail": "다른 작업이 데이터를 쓰는 중이라 지금 저장하지 못했습니다 — "
@@ -96,6 +98,19 @@ async def _db_busy(request, exc):
 
 
 from app import jsonstore  # noqa: E402
+
+
+def _disk_full_response(request, exc):
+    """서버 디스크가 가득 찼다 — 다시 해도 같다.  무엇을 하면 되는지 말한다 (hotfix74)."""
+    print(f"[디스크 가득 참] {request.method} {request.url.path}: {exc}", flush=True)
+    try:
+        free = shutil.disk_usage(DATA_DIR).free
+    except Exception:                                    # noqa: BLE001
+        free = None
+    left = f" (남은 공간 {free / 1024 / 1024:.0f} MB)" if free is not None else ""
+    return JSONResponse({"detail": f"서버 디스크가 가득 차서 저장하지 못했습니다{left} — 관리자에게 알려 "
+                                   f"주세요.  첫 화면의 '데이터 위생' 이 정리하면 되찾는 용량을 보여 줍니다."},
+                        status_code=507)
 
 
 @app.exception_handler(jsonstore.StateFileCorrupt)
@@ -110,12 +125,50 @@ async def _unexpected_error(request, exc):
     (예외 원문을 화면에 내지 않는 21회차 규칙 그대로)."""
     import traceback
     import uuid
+    import errno as _errno
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) == _errno.ENOSPC:
+        return _disk_full_response(request, exc)
+    if isinstance(exc, FileNotFoundError) or type(exc).__name__ == "FileNotFoundError":
+        # 원본 PDF 가 사라진 뒤의 장 그림 · 마크업 제안 (hotfix74 · state_chaos K2)
+        text = str(getattr(exc, "filename", "") or "")
+        if not text and "'" in str(exc):
+            text = str(exc).split("'")[-2]                  # pymupdf: "no such file: '<경로>'"
+        name = Path(text).name
+        return JSONResponse({"detail": f"필요한 파일이 서버에 없습니다 ({name or '이름 모름'}) — 업로드 폴더가 정리됐거나 "
+                                       f"옮겨졌습니다.  같은 파일로 새로 분석해 주세요."}, status_code=410)
     ref = uuid.uuid4().hex[:8]
     print(f"[오류 {ref}] {request.method} {request.url.path}\n"
           + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), flush=True)
     return JSONResponse({"detail": f"서버가 이 요청을 처리하지 못했습니다 (기록 번호 {ref}). "
                                    f"다시 시도해도 같으면 VOC 로 이 번호와 함께 알려 주세요.",
                          "error_ref": ref}, status_code=500)
+
+
+def _known_cause(detail: str) -> str:
+    """예외 원문에 **환경** 문제가 적혀 있으면 그것을 사람 말로 (hotfix74).  PDF 탓이 아닌데
+    `_failure_reason` 이 PDF 를 다시 열어 "사유를 특정하지 못했습니다" 라고만 말하던 자리다."""
+    d = detail or ""
+    if "No space left on device" in d or "disk is full" in d or "Errno 28" in d:
+        return ("서버 디스크가 가득 차서 분석 결과를 쓰지 못했습니다 — 관리자에게 알려 주세요 (첫 화면의 "
+                "'데이터 위생' 이 정리하면 되찾는 용량을 보여 줍니다).  공간을 비운 뒤 [다시 분석] 하면 됩니다.")
+    if "MemoryError" in d or "Cannot allocate memory" in d:
+        return ("분석 중 메모리가 모자랐습니다 — 다른 분석이 끝난 뒤 [다시 분석] 하거나, 같으면 PDF 를 "
+                "나눠 올려 주세요.")
+    return ""
+
+
+def _require_source(job) -> Path:
+    """그 분석의 원본 파일이 서버에 있어야 하는 요청 — 없으면 410 과 사람 말 (hotfix74).
+
+    돌발상황 시뮬레이션(`spike/state_chaos.py` K2): 업로드 폴더를 누가 정리하면 재분석은 줄을 섰다가
+    분석 단계에서 영문 예외로 실패했고, 장 그림·마크업 제안은 일반 500 이었다.
+    """
+    p = Path(job["pdf_path"] or "")
+    if not str(job["pdf_path"] or "") or not p.exists():
+        raise HTTPException(410, f"이 분석의 원본 파일({p.name or '이름 없음'})이 서버에 없습니다 — 업로드 폴더가 "
+                                 f"정리됐거나 옮겨졌습니다.  결과 목록·편집·Excel 은 그대로 쓸 수 있고, 도면 그림·"
+                                 f"재분석·마크업 제안은 같은 파일로 새로 분석해야 합니다.")
+    return p
 
 
 def _int_field(payload, name: str, default=0):
@@ -559,6 +612,8 @@ def _worker() -> None:
                 # 열어 사유를 찾는 `_failure_reason` 은 "사유를 특정하지 못했습니다" 라고만 말한다 —
                 # 아는 것을 말한다 (돌발상황 시뮬레이션 S2).
                 reason = str(exc)
+            elif _known_cause(detail):
+                reason = _known_cause(detail)
             else:
                 reason = _failure_reason(Path(row["pdf_path"]))
             db.set_progress(CON, job_id, 0.0, reason, "failed", error_detail=detail)
@@ -850,8 +905,10 @@ def cancel_job(job_id: str):
 @app.post("/jobs/{job_id}/reanalyse")
 def reanalyse(job_id: str):
     """Re-run the engine, keeping every reviewer edit."""
-    if db.get_job(CON, job_id) is None:
+    job = db.get_job(CON, job_id)
+    if job is None:
         raise HTTPException(404, "no such job")
+    _require_source(job)
     db.set_progress(CON, job_id, 0.0, "queued", "queued", sheets=(0, 0))
     _JOBS.put(job_id)
     return {"job_id": job_id, "queued": True}
@@ -4235,7 +4292,8 @@ def revision_excel(revision_id: int):
     result = excel_out.write_all(snap, templates, out_dir, CFG)
     if not result["written"]:
         raise HTTPException(
-            400, {"error": "no deliverable had a template to fill",
+            400, {"error": "채울 발주처 양식이 하나도 없습니다 — 양식(.xlsx)을 올리거나 data/ 에 두어야 "
+                           "Excel 을 만들 수 있습니다 (no deliverable had a template to fill)",
                   "skipped": result["skipped"]})
 
     buf = io.BytesIO()
@@ -4290,8 +4348,34 @@ async def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
         raise HTTPException(400, f"unknown deliverable '{kind}'")
     TEMPLATES.mkdir(parents=True, exist_ok=True)
     path = TEMPLATES / f"{kind}.xlsx"
-    path.write_bytes(await file.read())
+    raw = await file.read()
+    # hotfix74 — 엑셀이 아닌 파일(이름만 .xlsx · 구형 .xls · 손상)을 그대로 받아 두면 다음 Excel 출력이
+    # 일반 500 으로 죽었다 (돌발상황 시뮬레이션).  받기 전에 열어 보고, 쓰기는 원자적으로 한다.
+    why = _template_problem(raw)
+    if why:
+        raise HTTPException(400, f"{kind} 양식으로 쓸 수 없는 파일입니다 — {why}.  "
+                                 f"발주처 양식을 엑셀에서 .xlsx 로 저장해 다시 올려 주세요.")
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(raw)
+    os.replace(tmp, path)
     return {"kind": kind, "path": str(path)}
+
+
+def _template_problem(raw: bytes) -> str:
+    """양식 파일이 열리는 .xlsx 인가.  열리면 빈 문자열, 아니면 사람 말 한 마디."""
+    if not raw:
+        return "빈 파일입니다"
+    if raw[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        return "구형 엑셀(.xls) 파일입니다"
+    if raw[:2] != b"PK":
+        return "엑셀(.xlsx) 파일이 아닙니다"
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True)
+        wb.close()
+    except Exception as exc:                             # noqa: BLE001
+        return f"엑셀로 열리지 않습니다 ({type(exc).__name__})"
+    return ""
 
 
 TEMPLATES = DATA_DIR / "templates"
@@ -4319,7 +4403,8 @@ def _templates() -> dict:
     out = {}
     for kind in excel_out.DELIVERABLES:
         uploaded = TEMPLATES / f"{kind}.xlsx"
-        if uploaded.exists():
+        # hotfix74 — 예전에 받아 둔 깨진 양식은 없는 것처럼 (그 산출물만 사유와 함께 건너뛴다)
+        if uploaded.exists() and not _template_problem(uploaded.read_bytes()):
             out[kind] = uploaded
         elif kind in _BUILTIN and _BUILTIN[kind].exists():
             out[kind] = _BUILTIN[kind]
@@ -4390,6 +4475,16 @@ def _audit_on_start() -> None:
 _audit_on_start()
 
 
+def _daily_backup() -> None:
+    """하루 한 번 DB 를 떠 둔다 (hotfix74 · `db.backup_daily`).  실패해도 서버는 계속한다."""
+    try:
+        made = db.backup_daily(DB_PATH)
+        if made:
+            print(f"DB 백업: {made}", flush=True)
+    except Exception as exc:                             # noqa: BLE001
+        print(f"DB 백업 실패 (서버는 계속): {type(exc).__name__}: {exc}", flush=True)
+
+
 def _start_background() -> None:
     """hotfix74 — 백그라운드 스레드는 **모듈을 다 읽은 뒤에** 시작한다.
 
@@ -4398,6 +4493,7 @@ def _start_background() -> None:
     (`_user_multipliers` 등)가 **아직 정의되기 전**이라 `NameError` 로 실패했다 — 재시작할 때마다 기다리던
     분석이 하나씩 사라졌다.  보통 기동에서는 줄이 비어 있어 드러나지 않았다."""
     _recover_interrupted()
+    threading.Thread(target=_daily_backup, daemon=True, name="db-backup").start()
     threading.Thread(target=_worker, daemon=True, name="analysis-worker").start()
     threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
 

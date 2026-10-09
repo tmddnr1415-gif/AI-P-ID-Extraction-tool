@@ -8,6 +8,7 @@ U2 서버가 죽은 동안 칸 편집 · 장 넘기기 — 사람 말로 알리�
 U3 두 창이 같은 칸을 고친다 — 마지막 값이 서버에 남고 두 창이 그것을 보는가 (새로 읽으면)
 U4 느린 망 (모든 요청 1.5초 지연) — 결과 열기가 끝나고 목록이 한 번만 그려지는가
 U5 업로드 중 서버가 죽는다 — 업로드 단추가 영영 '올리는 중' 으로 남지 않는가
+U6 원본 PDF 가 서버에서 사라졌다 — 도면 자리에 이유가 뜨는가 (빈 자리로 남지 않는가)
 """
 from __future__ import annotations
 
@@ -189,6 +190,28 @@ try:
             if not d4 and "올리는 중" in busy:
                 defect("U5 서버가 꺼졌는데 업로드가 '올리는 중' 으로 남는다")
         start()
+        # ---------------- U6
+        import sqlite3
+        c = sqlite3.connect(str(data / "app.db"))
+        old_pdf = c.execute("select pdf_path from job where id=?", (JOB,)).fetchone()[0]
+        c.execute("update job set pdf_path=? where id=?", (str(data / "uploads" / "gone.pdf"), JOB)); c.commit()
+        shutil.rmtree(data / "page_cache", ignore_errors=True)
+        ctx6 = br.new_context(viewport={"width": 1600, "height": 950})     # 브라우저 캐시를 안 쓰는 새 창
+        p5 = ctx6.new_page(); e5 = []
+        p5.add_init_script("try{localStorage.setItem('pid.author','시뮬')}catch(e){}")
+        p5.on("pageerror", lambda e: e5.append(str(e)))
+        p5.goto(base + "/"); p5.wait_for_timeout(1000)
+        try:
+            open_job(p5)
+            p5.wait_for_timeout(4000)
+            msg = p5.evaluate("() => { const b = document.querySelector('#sheet-err'); return b && !b.classList.contains('hidden') ? b.innerText : ''; }")
+            note(f"U6 원본 PDF 없음 → 도면 자리 '{msg[:140]}' · 행 {p5.evaluate('() => S.rows.length')} · 오류 {e5[:2]}")
+            if not msg:
+                defect("U6 원본 PDF 가 없는데 도면 자리가 아무 말 없이 비어 있다")
+            p5.screenshot(path=str(OUT / "u6_missing_pdf.png"))
+        except Exception as e:                                     # noqa: BLE001
+            defect(f"U6 원본 PDF 가 없으면 결과가 안 열린다: {str(e)[:120]}")
+        c.execute("update job set pdf_path=? where id=?", (old_pdf, JOB)); c.commit(); c.close()
         pg.screenshot(path=str(OUT / "end.png"))
         br.close()
 finally:

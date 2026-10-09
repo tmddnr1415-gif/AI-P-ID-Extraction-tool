@@ -71,7 +71,11 @@ def _parse(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False):
+class _WrongShape(ValueError):
+    pass
+
+
+def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False, expect=None):
     """읽기.  없으면 `default` (주지 않았으면 FileNotFoundError).
 
     깨졌으면: 옆에 떠 두고 → `.bak` 이 읽히면 그것으로 되살려 돌려주고 → 아니면
@@ -83,7 +87,11 @@ def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False
             raise FileNotFoundError(path)
         return default
     try:
-        return _parse(path)
+        data = _parse(path)
+        if expect is not None and not isinstance(data, expect):
+            # JSON 으로는 읽히지만 모양이 틀렸다 (사전 자리에 목록) — 깨진 것과 같게 다룬다.
+            raise _WrongShape(f"{expect.__name__} 이 아니라 {type(data).__name__}")
+        return data
     except (ValueError, UnicodeDecodeError) as exc:
         stamp = time.strftime("%Y%m%d-%H%M%S")
         aside = path.with_name(f"{path.name}.corrupt-{stamp}")
@@ -97,6 +105,8 @@ def read(path: Path, default=_MISSING, *, what: str = "", required: bool = False
         if bak.exists():
             try:
                 restored = _parse(bak)
+                if expect is not None and not isinstance(restored, expect):
+                    restored = None
             except (ValueError, UnicodeDecodeError, OSError):
                 restored = None
         rec = {"path": str(path), "what": label, "error": f"{type(exc).__name__}: {exc}"[:200],

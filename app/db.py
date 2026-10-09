@@ -290,6 +290,64 @@ _ADDED_COLUMNS = (
 )
 
 
+class DatabaseCorrupt(RuntimeError):
+    """DB 파일이 깨져 열 수 없다.  문장은 `_corrupt_message` 가 만든다 (hotfix74)."""
+
+
+BACKUP_DIR = "backups"
+BACKUP_KEEP = 3
+
+
+def backups(path: Path) -> list:
+    """`backup_daily` 가 떠 둔 판 — 새것부터."""
+    d = Path(path).parent / BACKUP_DIR
+    return sorted(d.glob(Path(path).name + ".*.bak"), reverse=True) if d.is_dir() else []
+
+
+def _corrupt_message(path: Path, exc) -> str:
+    have = backups(path)
+    hint = (f"가장 최근 백업은 {have[0]} 입니다 — 서버를 끄고 깨진 {Path(path).name} 를 다른 이름으로 옮긴 뒤 "
+            f"그 백업을 {Path(path).name} 로 복사하고 다시 켜세요 (그 뒤의 분석·편집은 다시 해야 합니다)."
+            if have else
+            f"자동 백업이 아직 없습니다 — 서버를 끄고 깨진 {Path(path).name} 를 다른 이름으로 옮기면 빈 DB 로 "
+            f"켜집니다 (프로젝트 장부는 projects 폴더에 그대로 남습니다).")
+    return (f"분석 기록 DB 가 깨져 열 수 없습니다 ({path}: {exc}).  지우거나 덮지 않고 멈춥니다.  " + hint)
+
+
+def backup_daily(path: Path, keep: int = BACKUP_KEEP):
+    """하루 한 번 DB 를 `backups/` 에 떠 둔다 — sqlite backup API 라 쓰는 중에도 일관된 판이다 (hotfix74).
+
+    운영 서버는 이 DB 하나에 모든 분석 기록이 있는데 백업이 없었다.  디스크 오류·정전으로 깨지면 되살릴
+    판이 없었다.  읽기 전용 연결을 따로 열어 뜨므로 요청을 막지 않는다.  최근 `keep` 판만 남긴다.
+    """
+    path = Path(path)
+    if not path.exists():
+        return None
+    d = path.parent / BACKUP_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    dest = d / f"{path.name}.{time.strftime('%Y-%m-%d')}.bak"
+    if dest.exists():
+        return dest
+    tmp = dest.with_name(dest.name + ".tmp")
+    src = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=30.0)
+    try:
+        out = sqlite3.connect(tmp)
+        try:
+            src.backup(out)
+        finally:
+            out.close()
+    finally:
+        src.close()
+    import os as _os2
+    _os2.replace(tmp, dest)
+    for old in backups(path)[keep:]:
+        try:
+            old.unlink()
+        except OSError:
+            pass
+    return dest
+
+
 class _SerialConnection(sqlite3.Connection):
     """한 연결을 여러 스레드가 함께 쓴다 — 호출 하나하나를 잠금으로 줄 세운다 (hotfix74).
 
@@ -330,7 +388,15 @@ def connect(path: Path) -> sqlite3.Connection:
     # `main` 이 503 과 사람 말로 답한다.
     con = sqlite3.connect(path, check_same_thread=False, timeout=30.0, factory=_SerialConnection)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
+    try:
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+    except sqlite3.DatabaseError as exc:
+        # hotfix74 — 돌발상황 시뮬레이션(`spike/state_chaos.py` K3): DB 머리가 깨지면 영문
+        # `file is not a database` 로만 멈춰 서비스 창이 10초마다 같은 줄을 되풀이했다.
+        # **지우지도 덮지도 않는다** — 무엇을 하면 되는지와 가장 최근 백업을 말하고 멈춘다.
+        con.close()
+        raise DatabaseCorrupt(_corrupt_message(path, exc)) from exc
     con.executescript(SCHEMA)
     for table, column, decl in _ADDED_COLUMNS:
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}

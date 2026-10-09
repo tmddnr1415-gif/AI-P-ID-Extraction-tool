@@ -169,7 +169,7 @@ def test_grid_paints_only_the_rows_in_view():
 
 def test_sheet_is_decoded_before_it_is_shown_and_neighbours_are_prefetched():
     sw = _fn("swapSheet")
-    assert "pre.decode().then(go, go)" in sw and "seq === _sheetSeq" in sw
+    assert ("pre.decode().then(go, go)" in sw or "pre.decode().then(go, failed)" in sw) and "seq === _sheetSeq" in sw
     pf = _fn("prefetchNeighbours")
     assert "requestIdleCallback" in pf and "im.decode()" in pf
     assert "prefetchNeighbours(page);" in _fn("showPage")

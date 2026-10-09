@@ -2071,3 +2071,8 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 /* 읽기 — 회색 글씨를 조금 진하게 (흰 카드 위 대비 4.5 넘게) */
 .page-sub, .pj-sub, .rv-when, .muted { color: #555e6e; }
 .small { line-height: 1.55; }
+
+/* hotfix74 — 도면 그림을 못 받았을 때 그 이유 (서버 문장 그대로) */
+.sheet-err { margin: 6px 8px; padding: 8px 12px; border-radius: 6px; background: #fff4e5;
+  border: 1px solid #e0a35a; color: #6b3a00; font-size: 13px; line-height: 1.45; }
+.sheet-err.hidden { display: none; }
