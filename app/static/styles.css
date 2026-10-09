@@ -2099,3 +2099,8 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
   main { height: auto; min-height: 100%; }
   #split { flex: none; height: max(420px, calc(100vh - 16px)); }
 }
+
+/* hotfix74 — 결과를 여는 도중 연결이 끊겼을 때 (open 의 catch) */
+.open-err { margin: 8px; padding: 8px 12px; border: 1px solid #e3a5a1; background: #fdf1f0; color: #7a1f1a;
+  border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.open-err button { margin-left: 6px; }

@@ -44,7 +44,7 @@ def test_left_is_always_the_current_result():
     assert "S.job.id === pr.previous" in body and "switchView(pr.current).then(() => toggleSide(true))" in body
     sw = _fn("async function switchView")
     assert "if (S.side) toggleSide(false)" in sw
-    op = _fn("async function open")
+    op = _fn("async function _open")
     assert 'S.side = false' in op
 
 
@@ -100,7 +100,7 @@ def test_opening_a_result_with_changes_turns_side_mode_on_unless_the_person_turn
     body = _fn("function autoSide")
     assert "compared_with" in body and "pid.side.off" in body
     assert "S.job.id !== S.revPair.current" in body         # 왼쪽 = 최신일 때만
-    assert "autoSide();" in _fn("async function open")
+    assert "autoSide();" in _fn("async function _open")
     tg = _fn("function toggleSide")
     assert 'localStorage.setItem("pid.side.off", "1")' in tg and "if (manual)" in tg
 

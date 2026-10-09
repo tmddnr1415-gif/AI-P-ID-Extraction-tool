@@ -151,3 +151,13 @@ def test_escape_covers_quotes_for_attributes():
     i = js.index('<div class="mset">지정됨')
     seg = js[i:i + 400]
     assert "escape(String(set.author" in seg and "escape(String(set.note))" in seg
+
+
+def test_open_failure_is_said_and_can_be_retried():
+    """결과를 여는 도중 요청 하나가 끊기면 반쯤 선 화면이 말 없이 남았다 (`spike/ui_open_fail.py`).
+    open 은 실패를 잡아 S.loading 을 풀고 [다시 열기] 를 둔다."""
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    i = js.index("async function open(jobId) {")
+    body = js[i:js.index("async function _open(jobId) {")]
+    assert "return await _open(jobId);" in body and "S.loading = false;" in body
+    assert "결과를 다 받지 못했습니다" in body and "다시 열기" in body and "escape(why)" in body

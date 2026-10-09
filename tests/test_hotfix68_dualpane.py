@@ -164,7 +164,7 @@ def test_side_by_side_and_auto_side_stay_off_while_split():
 
 # ---------------------------------------------------------------- ③ 가볍게 — 열기 · 목록 그리기
 def test_open_starts_the_independent_reads_together():
-    op = _fn("open")
+    op = _fn("_open")
     assert op.index("const rowsP = fetch(") < op.index("await Promise.all([loadLegendProfile(), loadModeBar(), loadRevision()])")
     assert "rowSideFetches(jobId)" in op and "await loadRows(rowsP, sideP);" in op
     lr = _fn("loadRows")
@@ -192,4 +192,4 @@ def test_first_screen_reads_wait_until_the_result_is_open():
     assert "afterFirstOpen(showAudit);" in JS and "afterFirstOpen(listHome);" in JS
     after = _fn("afterFirstOpen")
     assert "if (PANE.role) return;" in after             # 새 창은 첫 화면을 안 쓴다
-    assert "_runAfterOpen();" in _fn("open") and "_runAfterOpen();" in _fn("toFirstScreen")
+    assert "_runAfterOpen();" in _fn("_open") and "_runAfterOpen();" in _fn("toFirstScreen")

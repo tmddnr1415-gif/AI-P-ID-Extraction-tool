@@ -1430,7 +1430,34 @@ window.addEventListener("hashchange", () => {
 if (location.hash.length > 1) open(hashParts()[0]);
 
 /* ---------------- load ---------------- */
+/* hotfix74 — 결과를 여는 도중 요청 하나가 끊기면(망 순단 · 서버 재시작) 화면이 반쯤 선 채로 남았다 — 목록 0행 ·
+ * `S.loading` 이 켜진 채라 다음 그리기도 막히고, 위쪽 연결 띠는 다음 확인에서 사라져 **아무 말도 남지 않았다**
+ * (실측: `/rows` 나 `/pages` 를 한 번 끊으면).  그 자리에서 말하고 [다시 열기] 를 둔다.  다시 열면 정상으로 선다. */
 async function open(jobId) {
+  const old = document.getElementById("open-err");
+  if (old) old.remove();
+  try {
+    return await _open(jobId);
+  } catch (e) {
+    S.loading = false;
+    const why = String((e && e.message) || e || "");
+    const onResult = !$("#main").classList.contains("hidden") && S.job && S.job.id === jobId;
+    if (!onResult) {
+      alert("결과를 열지 못했습니다 — 서버에 연결할 수 없거나 응답이 끊겼습니다.  잠시 뒤 다시 눌러 주세요.\n(" + why + ")");
+      return;
+    }
+    const box = document.createElement("div");
+    box.id = "open-err";
+    box.className = "open-err";
+    box.innerHTML = `<b>결과를 다 받지 못했습니다</b> — 여는 도중 연결이 끊겼습니다 (${escape(why)}).
+      목록·도면이 비어 있거나 일부만 보일 수 있습니다.  <button type="button">다시 열기</button>`;
+    box.querySelector("button").onclick = () => open(jobId);
+    const right = $("#right");
+    right.insertBefore(box, right.firstChild);
+  }
+}
+
+async function _open(jobId) {
   const job = await (await fetch(`/jobs/${jobId}`)).json();
   if (job.status !== "done") { _runAfterOpen(); watch(jobId, job.page_count, job); return; }
   S.loading = true;

@@ -182,7 +182,7 @@ def test_list_width_is_observed_not_measured_on_every_click():
 
 
 def test_open_reads_slim_rows_and_the_evidence_panel_fills_the_selected_row():
-    assert "/rows?tab=ALL&slim=1" in _fn("open")
+    assert "/rows?tab=ALL&slim=1" in _fn("_open")
     ef = _fn("ensureFull")
     assert "rows?tab=ALL&keys=${encodeURIComponent(row.key)}" in ef and "delete row._slim" in ef
     se = JS[JS.index("function showEvidence(row) {"):JS.index("function showEvidence(row) {") + 400]
