@@ -12,6 +12,8 @@ U6 원본 PDF 가 서버에서 사라졌다 — 도면 자리에 이유가 뜨�
 U7 원본이 없는데 [재분석] — 거절 문장을 말하고 결과 화면에 머무는가 (진행 화면으로 넘어가지 않는가)
 U8 발주처 양식이 하나도 없는데 [Excel 출력] — 화면을 떠나지 않고(JSON 글자 화면 금지) 이유를 말하는가
 U9 프로젝트 장부가 깨졌다 — 첫 화면이 살아 있고 데이터 위생 카드가 그 사실을 말하는가
+U11 브라우저 저장소가 막혔다 (대시보드 iframe 에서 제3자 저장소 차단) — 첫 화면 · 결과 · 편집 · VOC ·
+    판 접기 · 메뉴 접기가 페이지 오류 없이 되는가
 """
 from __future__ import annotations
 
@@ -261,6 +263,32 @@ try:
                 defect("U9 장부가 깨진 사실을 첫 화면이 말하지 않는다")
             p9.screenshot(path=str(OUT / "u9_broken_ledger.png"))
             pj.write_bytes(orig)
+        # ---------------- U11 저장소 막힘
+        ctx10 = br.new_context(viewport={"width": 1600, "height": 950})
+        ctx10.add_init_script("""(() => { const boom = { get() { throw new DOMException('blocked', 'SecurityError'); } };
+            try { Object.defineProperty(window, 'localStorage', boom); } catch (e) {}
+            try { Object.defineProperty(window, 'sessionStorage', boom); } catch (e) {} })();""")
+        p10 = ctx10.new_page(); e10 = []; d10 = []
+        p10.on("pageerror", lambda e: e10.append(str(e)))
+        p10.on("dialog", lambda d: (d10.append(d.message), d.accept("시뮬") if d.type == "prompt" else d.accept()))
+        p10.goto(base + "/?embed=1&user=시뮬"); p10.wait_for_timeout(2500)
+        home_ok = p10.evaluate("() => !!document.querySelector('#drop')")
+        steps = []
+        try:
+            open_job(p10); steps.append("결과")
+            k = first_key(p10)
+            edit(p10, k, "qty", "6"); p10.wait_for_timeout(1500); steps.append(f"편집 서버={server_value(k, 'qty')}")
+            for js, name in [("_sheetFolded(true)", "장판 접기"), ("_multFolded(true)", "승수판 접기"),
+                             ("document.querySelector('.nav-toggle') && document.querySelector('.nav-toggle').click()", "메뉴 접기")]:
+                p10.evaluate(f"() => {{ {js}; }}"); steps.append(name)
+            p10.evaluate("() => vocDialog({})"); p10.wait_for_timeout(1500)
+            steps.append("VOC 창 " + str(p10.evaluate("() => !!document.querySelector('#vc-note')")))
+        except Exception as e:                                     # noqa: BLE001
+            steps.append(f"예외 {str(e)[:120]}")
+        note(f"U11 저장소 막힘 → 첫 화면 {home_ok} · {' · '.join(steps)} · 페이지 오류 {e10[:3]}")
+        if e10 or not home_ok or any(x.startswith("예외") for x in steps):
+            defect(f"U11 저장소가 막히면 화면이 깨진다 {e10[:3]}")
+        p10.screenshot(path=str(OUT / "u11_storage_blocked.png"))
         pg.screenshot(path=str(OUT / "end.png"))
         br.close()
 finally:

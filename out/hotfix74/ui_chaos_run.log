@@ -1,7 +1,7 @@
-U1 새로고침 → 주소 /127.0.0.1:57847/#48b5adbdd28c · 다시 연 결과 48b5adbdd28c
+U1 새로고침 → 주소 /127.0.0.1:48101/#48b5adbdd28c · 다시 연 결과 48b5adbdd28c
 U1 뒤로/앞으로 → 결과 48b5adbdd28c · 행 1991 (처음 1991)
 U2 서버 꺼짐 중 편집 → 화면 말 ' | 저장하지 못했습니다 — 서버에 연결할 수 없습니다.  칸은 원래 값으로 돌아갑니다.
-서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.' · 2.7초 · 페이지 오류 []
+서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.' · 2.6초 · 페이지 오류 []
 U2 그 칸에 보이는 값 '1'
 U2 서버 복귀 뒤 편집 → 서버 값 6
 U3 두 창 3 → 4 · 서버 4 · 첫 창 새로 읽은 값 4
@@ -52,7 +52,7 @@ Traceback (most recent call last):
   File "/usr/local/lib/python3.11/dist-packages/playwright/_impl/_impl_to_api_mapping.py", line 139, in wrapper_func
     return handler(
            ^^^^^^^^
-  File "/home/user/AI-P-ID-Extraction-tool/spike/ui_chaos.py", line 233, in <lambda>
+  File "/home/user/AI-P-ID-Extraction-tool/spike/ui_chaos.py", line 235, in <lambda>
     p5.on("dialog", lambda d: (d8.append(d.message), d.accept()))
                                                      ^^^^^^^^^^
   File "/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py", line 7871, in accept
@@ -69,8 +69,9 @@ Traceback (most recent call last):
     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
 playwright._impl._errors.Error: Dialog.accept: Cannot accept dialog which is already handled!
 U8 양식 없음 [Excel 출력] → 대화상자 ['채울 발주처 양식이 하나도 없습니다 — 양식(.xlsx)을 올리거나 data/ 에 두어야 Excel 을 만들 수 있습니다 (no delivera'] · 화면 그대로 True
-U9 장부 깨짐 → 첫 화면 살아 있음 True · 위생 '데이터 위생 — 확인할 항목 5건
+U9 장부 깨짐 → 첫 화면 살아 있음 True · 위생 '데이터 위생 — 확인할 항목 6건
 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 3 · 도면 근거 없는 행 0
 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 65.1 MB 중 죽은 페이지 15.9 MB · 정리하면 되찾는 용량' · 오류 []
+U11 저장소 막힘 → 첫 화면 True · 결과 · 편집 서버=6 · 장판 접기 · 승수판 접기 · 메뉴 접기 · VOC 창 True · 페이지 오류 []
 
 결함 0

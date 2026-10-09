@@ -2077,3 +2077,17 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 .sheet-err { margin: 6px 8px; padding: 8px 12px; border-radius: 6px; background: #fff4e5;
   border: 1px solid #e0a35a; color: #6b3a00; font-size: 13px; line-height: 1.45; }
 .sheet-err.hidden { display: none; }
+
+/* hotfix74 — 키 작은 화면 (1366×768 을 125% 로 쓰는 노트북 = CSS 614px).  오른쪽 칸의 내용(검토 줄 · 두 판 ·
+   도구줄)이 칸보다 커서 목록과 근거가 **칸 밖으로 잘려 닿을 수 없었다** (실측 내용 635 ↔ 칸 372 ·
+   `spike/ui_small_screens.py`).  그런 화면에서는 오른쪽 칸 자체가 굴러간다 — 목록은 최소 높이를 지키고 그 안에서 또 굴러간다.
+   아래 오른쪽 업데이트 딱지는 메모 줄을 덮었다 → 한 줄로 줄이고 흐리게, 마우스를 올리면 전부. */
+@media (max-height: 760px) {
+  #right { overflow-y: auto; }
+  #right > * { flex-shrink: 0; }
+  #right > #gridwrap { flex: 0 0 auto; height: max(160px, 45vh); }
+  #right.compare { overflow-y: hidden; }            /* 나란히 보기는 이전 도면이 칸을 채운다 — 굴리지 않는다 */
+  #right > #cmp { flex-shrink: 1; }
+  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .55; }
+  .build:hover { max-width: 70vw; white-space: normal; opacity: 1; }
+}

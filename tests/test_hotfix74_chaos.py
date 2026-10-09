@@ -88,3 +88,16 @@ def test_open_tab_learns_that_the_server_was_updated():
     assert "setInterval(checkStaleUi, 120000)" in js
     up = js.split("function netUp() {", 1)[1].split("\n}", 1)[0]
     assert "checkStaleUi()" in up
+
+
+def test_short_screens_keep_the_list_reachable():
+    """1366×768 을 125% 로 쓰는 노트북(CSS 614px)에서 오른쪽 칸의 목록·근거가 칸 밖으로 잘려 닿을 수 없었다
+    (`spike/ui_small_screens.py`).  키 작은 화면에서는 오른쪽 칸이 굴러가고, 나란히 보기는 예외다."""
+    import re
+    css = (Path(__file__).resolve().parent.parent / "app/static/styles.css").read_text(encoding="utf-8")
+    m = re.search(r"@media \(max-height: 760px\) \{(.*?)\n\}", css, re.S)
+    assert m, "키 작은 화면 규칙이 없다"
+    body = m.group(1)
+    assert "#right { overflow-y: auto; }" in body
+    assert "#right.compare { overflow-y: hidden; }" in body
+    assert ".build {" in body and "text-overflow: ellipsis" in body
