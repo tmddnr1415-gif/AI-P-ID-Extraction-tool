@@ -75,6 +75,7 @@ def cmd_list(a, items, ledger):
     if not rows:
         print("반영할 VOC 가 없습니다." if not a.all else "VOC 가 없습니다.")
         print("읽은 곳: " + (", ".join(str(p) for p in inboxes(a.inbox) if p.exists()) or "(없음)"))
+        _say_unreadable(a)
         return 0
     for r in rows:
         st = voc.status_of(r, ledger)
@@ -89,7 +90,17 @@ def cmd_list(a, items, ledger):
             print(f"    조각: {Path(r['_dir']) / 'crop.png'}")
     open_n = len(voc.pending(items, ledger))
     print(f"\n미반영 {open_n}건 · 전체 {len(items)}건 · 장부 {voc.ledger_path(ROOT / 'voc') if not a.ledger else a.ledger}")
+    _say_unreadable(a)
     return 0
+
+
+def _say_unreadable(a):
+    """hotfix74 — 읽지 못한 VOC 폴더 (조용히 건너뛰지 않는다)."""
+    bad = voc.unreadable(inboxes(a.inbox))
+    if bad:
+        print(f"\n⚠ 읽지 못한 VOC {len(bad)}건 — 폴더를 열어 사람이 확인하세요 (사유는 그 폴더의 crop.png 등에 남아 있을 수 있습니다):")
+        for b in bad[:20]:
+            print(f"    {b['dir']}  ({b['why']})")
 
 
 def cmd_show(a, items, ledger):

@@ -182,7 +182,7 @@ def test_api_writes_under_the_data_dir_with_context_and_crop(tmp_path):
     assert c.post("/voc", json={"category": "SLOW", "reason": ""}).status_code == 400
     assert c.post("/voc", json={"job_id": "nope", "category": "UI", "reason": "x"}).status_code == 400
     lst = c.get("/voc").json()
-    assert lst["counts"] == {"total": 2, "open": 2} and {i["id"] for i in lst["items"]} >= {vid}
+    assert lst["counts"] == {"total": 2, "open": 2, "unreadable": 0} and {i["id"] for i in lst["items"]} >= {vid}
     assert [i["id"] for i in c.get(f"/voc?job_id={job}").json()["items"]] == [vid]
     assert c.get("/voc/../../etc/crop.png").status_code == 404
 

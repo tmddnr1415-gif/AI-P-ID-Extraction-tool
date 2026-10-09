@@ -1995,6 +1995,7 @@ body.popout, body.popout.nav-collapsed { padding-left: 0; }
 .mk-form label.voc-check input { margin-top: 2px; }
 .mk-form textarea { width: 100%; font: inherit; resize: vertical; }
 .voc-h { margin: 14px 0 6px; }
+.voc-bad { color: #b3261e; font-weight: 600; }
 #vc-list { max-height: 260px; overflow: auto; }
 table.voc-list { width: 100%; border-collapse: collapse; font-size: var(--t-s); table-layout: fixed; }
 table.voc-list th:nth-child(1) { width: 19%; } table.voc-list th:nth-child(2) { width: 35%; }

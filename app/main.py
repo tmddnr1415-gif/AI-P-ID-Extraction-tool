@@ -4136,7 +4136,9 @@ def list_voc(job_id: str = "", limit: int = 200):
     out = [voc.public(r, ledger, upd) for r in items.values()
            if not job_id or (r.get("context") or {}).get("job_id") == job_id]
     out.sort(key=lambda r: r.get("created_at") or "", reverse=True)
-    counts = {"total": len(out), "open": sum(1 for r in out if r["state"] == "OPEN")}
+    counts = {"total": len(out), "open": sum(1 for r in out if r["state"] == "OPEN"),
+              # hotfix74 — 읽지 못한 VOC 폴더 (깨진 voc.json) — 조용히 건너뛰지 않는다
+              "unreadable": len(voc.unreadable([voc.inbox_dir()])) if not job_id else 0}
     return {"voc_dir": str(voc.voc_root()), "counts": counts, "items": out[:max(1, limit)],
             "categories": voc.CATEGORIES, "sources": voc.SOURCES}
 

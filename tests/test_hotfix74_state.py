@@ -303,3 +303,25 @@ def test_output_qty_is_reused_until_the_db_changes(monkeypatch):
     assert calls["n"] == 2                                    # 바뀌면 다시 센다
     main.CON.execute("DROP TABLE _t74")
     main.CON.commit()
+
+
+def test_broken_voc_folder_is_counted_not_silently_skipped(tmp_path):
+    """깨진 voc.json 은 `scan` 이 건너뛴다 — 그 폴더를 `unreadable` 이 따로 센다 (부서원 신고가 조용히 사라지지 않게)."""
+    import importlib
+    voc = importlib.import_module("app.voc")
+    cat = sorted(voc.CATEGORIES)[0]
+    ok = voc.write({"category": cat, "reason": "정상", "author": "홍길동"}, root=tmp_path)
+    good_id = ok["id"]
+    inbox = voc.inbox_dir(tmp_path)
+    bad = inbox / "VOC-20261009-180000-abcdef"
+    bad.mkdir()
+    (bad / "voc.json").write_text("{ broken", encoding="utf-8")
+    gone = inbox / "VOC-20261009-180001-abcdef"
+    gone.mkdir()
+    got = voc.unreadable([inbox])
+    assert good_id in voc.scan([inbox])
+    dirs = sorted(Path(g["dir"]).name for g in got)
+    assert dirs == [bad.name, gone.name]
+    assert good_id not in dirs
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    assert "counts || {}).unreadable" in js

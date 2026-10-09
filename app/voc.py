@@ -173,6 +173,21 @@ def read_item(folder: Path) -> dict | None:
     return rec
 
 
+def unreadable(inboxes) -> list:
+    """VOC 처럼 생긴 폴더인데 읽지 못한 것 (hotfix74).  `voc.json` 이 깨졌거나 없으면 `scan` 은 건너뛴다 —
+    부서원이 남긴 신고가 **조용히 사라지면** 안 되므로 그 폴더를 따로 센다 (CLI · 화면이 말한다)."""
+    out = []
+    for ib in inboxes:
+        ib = Path(ib)
+        if not ib.is_dir():
+            continue
+        for d in sorted(ib.iterdir()):
+            if d.is_dir() and ID_RE.match(d.name) and read_item(d) is None:
+                f = d / "voc.json"
+                out.append({"dir": str(d), "why": "voc.json 없음" if not f.exists() else "voc.json 이 깨졌거나 id 가 다름"})
+    return out
+
+
 def scan(inboxes) -> dict:
     """여러 inbox 를 훑어 id 로 하나씩.  같은 id 가 둘이면 먼저 찾은 것을 쓰고 자리를 함께 적는다."""
     out: dict[str, dict] = {}

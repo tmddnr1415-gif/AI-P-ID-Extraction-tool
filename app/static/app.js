@@ -720,7 +720,7 @@ async function askDeleteProject(name) {
   try {
     pv = await (await fetch(`/projects/${encodeURIComponent(name)}/deletion_preview`)).json();
   } catch (e) { alert("무엇이 사라지는지 확인하지 못했습니다."); return; }
-  const mine = (localStorage.getItem("pid.author") || "").trim();
+  const mine = (currentAuthor() || "").trim();   // hotfix74 — 저장소가 막힌 iframe 에서도 (읽기 예외 없음)
   const others = (pv.authors || []).filter(a => a && a !== mine);
   const bits = [
     `프로젝트  ${pv.project}`,
@@ -779,8 +779,8 @@ async function askDelete(jobId) {
     + jobId);
   if (typed === null) return;
   const author = prompt("누가 지웁니까? (비워도 됩니다 — 화면이 '자칭' 이라고 적습니다)",
-    localStorage.getItem("pid.author") || "") ?? "";
-  if (author) { try { localStorage.setItem("pid.author", author); } catch (e) {} }
+    currentAuthor() || "") ?? "";
+  if (author) rememberAuthor(author);
   const body = new FormData();
   body.append("confirm", typed);
   body.append("author", author);
@@ -8400,7 +8400,7 @@ async function vocDialog(opts) {
        <button id="vc-cancel" class="ghost">닫기</button>
        <button id="vc-save">VOC 접수</button>
      </div>
-     <h4 class="voc-h">최근 VOC <span class="muted small">— 미반영 ${(info.counts || {}).open || 0} · 전체 ${(info.counts || {}).total || 0}</span></h4>
+     <h4 class="voc-h">최근 VOC <span class="muted small">— 미반영 ${(info.counts || {}).open || 0} · 전체 ${(info.counts || {}).total || 0}${(info.counts || {}).unreadable ? ` · <span class="voc-bad">읽지 못한 ${info.counts.unreadable}건 (운영 PC 의 voc 폴더 확인)</span>` : ""}</span></h4>
      <div id="vc-list">${vocListHtml(info.items || [])}</div>`);
   $("#vc-cancel").onclick = closeModal;
   $("#vc-note").focus();
