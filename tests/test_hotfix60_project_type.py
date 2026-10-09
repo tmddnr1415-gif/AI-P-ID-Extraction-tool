@@ -26,7 +26,7 @@ def test_one_chip_reads_the_ledger_value():
 
 def test_chip_is_shown_in_every_place_a_project_appears():
     assert "projectOptionText(p)" in _block("async function loadProjects(")       # 고르는 상자
-    assert "modeChip(projectMode(p))" in _block("async function listHome(")       # 저장된 프로젝트
+    assert "modeChip(projectMode(p))" in _block("async function listHome(", 9000)  # 저장된 프로젝트
     assert JS.count("modeChip(projectMode(p))") >= 2                              # + 왼쪽 메뉴
     assert "renderProjectType()" in _block("function chooseProject(", 3000)
 

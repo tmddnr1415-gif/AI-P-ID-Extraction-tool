@@ -21,7 +21,7 @@ def test_cards_read_only_the_home_response():
     assert home.count("fetch(") == 1 and 'fetch("/home")' in home
     assert "fetch(" not in rev
     assert "pj-card" in home and "pj-stat" in home and "modeChip(projectMode(p))" in home
-    assert "rowsDelta(r, revs[i + 1])" in home
+    assert "qtyDelta(r, revs[i + 1])" in home          # hotfix62 — 행 수가 아니라 계기 Q'ty
 
 
 def test_the_ways_in_and_out_are_unchanged():
@@ -34,7 +34,7 @@ def test_the_ways_in_and_out_are_unchanged():
 
 
 def test_row_delta_is_neutral_and_skips_missing_revisions():
-    d = _block("function rowsDelta(", "function revRow(")
+    d = _block("function qtyDelta(", "const TOP_BASIS")
     assert "before.missing || before.deleted" in d                       # 지워진 리비전과 견주지 않는다
     assert "▲" in d and "▼" in d
     # 행 수 변화는 좋고 나쁨이 아니다 — 위·아래가 같은 색

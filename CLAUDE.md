@@ -3554,6 +3554,35 @@ hotfix52 가 서버 출력을 `logs\server.log` 로 돌리자 파이썬이 그 �
 5. 실측(QFE 두 판 사본 + 빈 입찰 프로젝트 · 1920 · 1366): 카드 2 · 가로 넘침 없음 · `열기 →` 불투명도 1 · 접기/펼치기 ·
    리비전 누름 → 결과 1,991행 · 페이지 오류 0.
 
+**그 다음 — 카드는 도면이 인쇄한 것을 말한다: PDF 프로젝트 제목 · 계기 수량 · 최상위 Rev+날짜 (hotfix62 · 판정 0줄)**
+
+사용자: *"프로젝트 제목은 PDF 상에 표기된 프로젝트 제목 · 행 대신 총 출력된 계기 수량 · Rev 는 분석된 모든 PDF 중 최상위
+Revision 과 날짜 · 같은 Rev 라면 PDF 상의 날짜를 기준으로"* + *"지표 카드 여섯 모두 삭제"*.  전문은 이 절 · 시험
+`tests/test_hotfix62_doc_facts.py` 8건 (빠른 시험 **862**) · 자기검증 `spike/ui_audit_projlist.py` → `out/hotfix62/ui/`.
+
+1. **`app/pdf_facts.py` — 판정 엔진이 아니다.**  분석이 끝난 뒤 PDF 글자층을 다시 읽어 `job.facts_json`(가산 열 · 지문 밖)에
+   적는다.  예전 분석은 **서버 시작 때 뒤에서 한 번** 채운다 (`_backfill_facts` · 분석 하나 2~5초 · 재분석 없음 · 화면은
+   "읽는 중" 이라고 말하고 8초마다 다시 묻는다).  DXF 는 글자층이 없어 그렇게 적는다.
+2. **프로젝트 제목** = 캡션 `PROJECT NAME|TITLE` 아래 **캡션보다 큰 글자**의 첫 줄, 장마다 읽고 다수결.  실측 QFE
+   `QATAR FACILITY E IWPP`(93/93) · AL NOUF1 `AL NOUF1 PROJECT`(10장 — 나머지는 획) · TC2 `TAICHUNG CCPP PHASE II`(59/60 ·
+   1장 오탈자 `PHASSE`).  못 읽으면 이 프로그램의 프로젝트 이름을 쓰고 그렇다고 적는다.
+3. **개정 날짜** = 이력 표에서 **그 장의 현재 Rev(엔진이 읽은 `pid_page.rev`) 와 같은 줄**의 날짜.  Rev 열은 그 낱말이 선
+   자리로 찾고, 다른 날짜 줄에서는 그 열의 짧은 낱말이 그 줄의 Rev 다 (설명 칸의 `A` 를 안 집는다).  같은 Rev 가 여러 번
+   발행됐으면 가장 늦은 것.  실측 QFE 83/83 · 82/86 · AL NOUF1 9/53 · TC2 0/55 (이력 표가 **획** — 지어내지 않는다).
+   날짜는 월 이름·4자리 연도가 있을 때만 ISO 로 읽고 `26.08.21`·`03.04.2026` 은 원문만 둔다 (모호하다).
+4. **★ 최상위 Rev 는 글자 순서가 아니라 이력 표의 순서다.**  장마다의 이력 표(날짜순)에서 앞뒤를 모으면 QFE 는
+   `A < B < C < 0 < 1A < 1B < 1C` — 사전순 최댓값(예전 `doc_rev`)은 `C` 였고, "가장 늦은 날짜의 Rev" 도 틀린다 (새로 그린
+   장이 2026-01-08 에 `A` 로 처음 나온다).  앞뒤를 모르는 둘(`1A` ↔ `0A` — 다른 장 계열)은 날짜가 정한다.  현재 Rev 하나라도
+   어느 이력 표에도 없으면(획) 예전 규칙으로 돌아가고 `basis: RULE` 로 말한다 (AL NOUF1 `D` · TC2 `A`).
+   실측 QFE 260112 `A` → **`1A · 07.JAN.2026`** · 260326 `C` → **`1C · 26.MAR.2026`**.
+5. **같은 Rev 면 PDF 날짜가 정한다** — `revisions.compare_document_revision(now_date=, before_date=, order=)` (날짜 없이 부르면
+   예전 판정 그대로 · 시험).  판정은 서버 `/home` 의 `_verdicts` 한 곳이고 카드의 `개정본` 배지는 그 결과다.  프로젝트 머리의
+   `Rev.1C 26.MAR.2026` 은 **분석된 모든 PDF 중** 그 비교로 가장 앞선 것 (`_project_card`).
+6. **계기 수량** = 발주처 양식에 **실제로 나가는** 행의 Q'ty 합 — 탭은 `excel_out.DELIVERABLES`, SCOPE 판정은
+   `in_client_scope`, 사람이 고친 Q'ty 가 이긴다 (`db.output_qty` · `json_extract` 두 칸만 — QFE 0.02초).  직전 리비전 대비
+   차이(`▼27`)도 그 수로.  QFE Rev.A 2,964 → Rev.B 2,937.
+7. 지표 카드 여섯은 지웠다 (`#home-kpis` 는 빈 채로 남아 숨는다 — 요소 id 를 안 바꾼다).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4014,6 +4043,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `modeChip` · `projectMode` · `renderProjectType` · `projectOptionText` · `#proj-type` | **hotfix60** — 프로젝트 도면 종류(입찰/실행/자동) 표기 한 벌.  새 프로젝트를 적는 동안 고른 종류는 만들 프로젝트의 것 |
 | `spike/pack_source.py` · `out/source_handover_readme.txt` | 회사 PC 개발 이관용 소스 꾸러미 (GitHub 막힌 곳 · 무거운 산출물 제외 · git 이력 없음) |
 | `app.js` `revRow` · `rowsDelta` · `listHome` 의 `.pj-card` · `styles.css` hotfix61 블록 | **hotfix61** — 첫 화면 저장된 프로젝트 카드 · 리비전 타임라인.  `/home` 한 번만 읽는다 · 색은 도면 종류·분석 상태이고 글자로도 말한다 |
+| `app/pdf_facts.py` · `job.facts_json` · `main._store_facts`/`_backfill_facts`/`_card_facts`/`_verdicts`/`_project_card` · `db.output_qty` | **hotfix62** — 카드의 도면 사실(PDF 프로젝트 제목 · 장별 개정 날짜 · 이력 표의 개정 순서 · 최상위 Rev) 과 나가는 Q'ty.  판정·지문 밖 · 예전 분석은 시작 때 한 번 채움 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

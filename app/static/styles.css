@@ -1834,3 +1834,21 @@ body.nav-collapsed #sidebar .mode-chip { display: none; }
   .rv-dot.live { animation: none; }
   .joblist details.pj-card, .rv-open { transition: none; }
 }
+.kpis:empty { display: none; }
+
+/* hotfix62 — 카드 제목은 PDF 의 프로젝트 제목 · 숫자 블록은 최상위 Rev+날짜 · 계기 Q'ty · 장 */
+.pj-key { display: inline-block; padding: 0 7px; border-radius: 6px; background: #eef1f6; color: #3c4658;
+  font-weight: 600; font-size: 11.5px; }
+.pj-stat.rev { min-width: 96px; background: #eef3ff; border-color: #cbd8f7; }
+.pj-stat.rev b { color: #1d3f9e; }
+.pj-stat.rev i { color: #34507f; font-variant-numeric: tabular-nums; }
+.pj-stat.qty { background: #ecf8f1; border-color: #c5e8d3; }
+.pj-stat.qty b { color: #1f6f3f; }
+.rv-doc b { color: #1d2a44; }
+.rv-date { display: inline-block; margin-left: 2px; padding: 0 6px; border-radius: 6px; font-size: 11.5px;
+  background: #f1f4fa; color: #34507f; font-variant-numeric: tabular-nums; }
+.rv-date.none { background: #f5f5f5; color: #6b7280; font-style: italic; }
+.rv-chip.qty { background: #ecf8f1; border-color: #c5e8d3; color: #1f6f3f; }
+.rv-chip.qty b { color: #17603a; }
+.rv-file-sm { flex-basis: 100%; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 420px; }

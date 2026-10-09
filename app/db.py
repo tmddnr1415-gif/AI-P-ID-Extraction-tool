@@ -282,6 +282,10 @@ _ADDED_COLUMNS = (
     # 누가 고쳤나.  인증이 아니라 자기신고다 - 이 앱에는 로그인도 사용자
     # 테이블도 없고, 없는 것을 지어내지 않는다.  화면이 "자칭"이라고 적는다.
     ("feedback", "author", "TEXT NOT NULL DEFAULT ''"),
+    # hotfix62 — 첫 화면 카드가 말하는 도면 사실 (`app/pdf_facts.py`): PDF 의 프로젝트 제목 ·
+    # 장마다 현재 개정의 날짜 · 이력 표가 말하는 개정 순서.  판정에 안 쓰이고 지문 밖이다.
+    # 빈 문자열은 "아직 안 읽었다" — 시작 때 한 번 채운다 (예전 분석도 재분석 없이).
+    ("job", "facts_json", "TEXT NOT NULL DEFAULT ''"),
 )
 
 
@@ -1131,6 +1135,38 @@ def page_revisions(con, job_id: str) -> list:
         "SELECT page_no, drawing_no, page_kind, in_scope, rev, rev_method,"
         " rev_confidence, rev_date FROM pid_page WHERE job_id=? ORDER BY page_no",
         (job_id,))]
+
+
+def set_facts(con, job_id: str, facts: dict) -> None:
+    con.execute("UPDATE job SET facts_json=? WHERE id=?",
+                (json.dumps(facts or {}, ensure_ascii=False, sort_keys=True), job_id))
+    con.commit()
+
+
+def output_qty(con, job_id: str, tabs, keep=None) -> dict:
+    """발주처 양식에 나가는 행의 Q'ty 합 — 사람이 고친 값이 이긴다 (`_merged` 와 같은 규칙).
+
+    행을 통째로 파싱하지 않고 두 칸만 꺼낸다 (QFE 2,041행에서 `merged_rows` 0.3초 ↔ 이것 0.02초).
+    `keep(scope)` 는 `excel_out.in_client_scope` 의 판정을 넘겨받는다 (세는 기준이 두 벌이 되지 않게).
+    """
+    total, rows, missing = 0.0, 0, 0
+    for tab, ai_q, user_q, ai_s, user_s in con.execute(
+            "SELECT tab, json_extract(ai_json,'$.qty'), json_extract(user_json,'$.qty'),"
+            " json_extract(ai_json,'$.scope'), json_extract(user_json,'$.scope')"
+            " FROM item WHERE job_id=? AND deleted=0 AND removed=0", (job_id,)):
+        if tab not in tabs:
+            continue
+        scope = user_s if user_s is not None else ai_s
+        if keep is not None and not keep(scope or ""):
+            continue
+        q = user_q if user_q not in (None, "") else ai_q
+        rows += 1
+        try:
+            total += float(q)
+        except (TypeError, ValueError):
+            missing += 1
+    return {"qty": int(total) if total == int(total) else round(total, 2),
+            "rows": rows, "qty_missing": missing}
 
 
 def set_doc_rev(con, job_id: str, doc_rev: str) -> None:

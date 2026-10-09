@@ -1,4 +1,4 @@
-"""hotfix61 — 첫 화면 '저장된 프로젝트' 카드 · 리비전 타임라인을 찍고 눌러서 확인한다.
+"""hotfix61·62 — 첫 화면 '저장된 프로젝트' 카드 · 리비전 타임라인을 찍고 눌러서 확인한다.
 
     python3 spike/ui_audit_projlist.py <data_dir 사본> out/hotfix61/ui
 
@@ -36,7 +36,12 @@ try:
             pg = br.new_page(viewport={"width": w, "height": h}); errs = []
             pg.on("pageerror", lambda e: errs.append(str(e)))
             pg.on("console", lambda m: errs.append("console:" + m.text) if m.type == "error" else None)
-            pg.goto(base + "/"); pg.wait_for_selector("details.pj-card", timeout=20000); pg.wait_for_timeout(1200)
+            pg.goto(base + "/"); pg.wait_for_selector("details.pj-card", timeout=20000)
+            # hotfix62 — 예전 분석의 도면 사실은 서버가 뒤에서 채운다 (분석 하나 2~5초) — 다 찰 때까지
+            for _ in range(40):
+                if not pg.evaluate("() => /읽는 중/.test(document.querySelector('#joblist').innerText)"): break
+                pg.wait_for_timeout(1500)
+            pg.wait_for_timeout(800)
             card = pg.query_selector(".list-card"); card.scroll_into_view_if_needed()
             card.screenshot(path=str(OUT / f"1_목록_{tag}.png"))
             facts = pg.evaluate("""() => ({

@@ -829,21 +829,44 @@ def document_revision(pages: list, rule: str = "max") -> dict:
     return out
 
 
-def compare_document_revision(now: str, before: str) -> dict:
-    """이 PDF 가 이전 리비전보다 나중인가.  판정은 네 가지뿐이고 추정하지 않는다."""
+def compare_document_revision(now: str, before: str, *, now_date: str = "",
+                              before_date: str = "", order=()) -> dict:
+    """이 PDF 가 이전 리비전보다 나중인가.  판정은 네 가지뿐이고 추정하지 않는다.
+
+    hotfix62 — **Rev 가 같으면 PDF 에 인쇄된 날짜가 정한다** (사용자 확정).  Rev 가 다르면
+    두 문서의 이력 표가 말하는 앞뒤(`order` — `pdf_facts` 의 `rev_before`)가 정하고, 이력 표가
+    둘의 앞뒤를 모르면 날짜가, 날짜도 없으면 예전처럼 글자 순서가 정한다.  날짜는 ISO 문자열이고
+    없으면 빈 문자열이다 — 날짜 없이 불린 예전 호출은 예전 판정 그대로다.
+    """
     n, b = (now or "").strip(), (before or "").strip()
+    nd, bd = (now_date or "").strip(), (before_date or "").strip()
     if not n or not b:
         return {"verdict": "UNKNOWN", "now": n, "before": b,
                 "label": ("이 도면의 개정을 읽지 못했습니다" if not n
                           else "이전 리비전의 개정 기록이 없습니다")}
-    if n > b:
-        return {"verdict": "NEWER", "now": n, "before": b,
-                "label": f"개정본입니다 — {b} 다음 {n}"}
-    if n == b:
-        return {"verdict": "SAME", "now": n, "before": b,
+
+    def by(sign, why):
+        if sign > 0:
+            return {"verdict": "NEWER", "now": n, "before": b, "basis": why,
+                    "label": f"개정본입니다 — {b} 다음 {n}"}
+        if sign < 0:
+            return {"verdict": "OLDER", "now": n, "before": b, "basis": why,
+                    "label": f"이전 개정입니다 — 등록된 것은 {b} 인데 이 도면은 {n}"}
+        return {"verdict": "SAME", "now": n, "before": b, "basis": why,
                 "label": f"같은 개정입니다 — 둘 다 {n}"}
-    return {"verdict": "OLDER", "now": n, "before": b,
-            "label": f"이전 개정입니다 — 등록된 것은 {b} 인데 이 도면은 {n}"}
+
+    if n == b:
+        if nd and bd and nd != bd:
+            return by(1 if nd > bd else -1, "DATE")
+        return by(0, "DATE" if nd and bd else "REV")
+    pairs = {tuple(x) for x in (order or ())}
+    if (b, n) in pairs and (n, b) not in pairs:
+        return by(1, "HISTORY")
+    if (n, b) in pairs and (b, n) not in pairs:
+        return by(-1, "HISTORY")
+    if nd and bd and nd != bd:
+        return by(1 if nd > bd else -1, "DATE")
+    return by(1 if n > b else -1, "REV")
 
 
 def _sheets_by_drawing(pages: list) -> dict:

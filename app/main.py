@@ -42,7 +42,7 @@ console.safe_stdio()
 
 from app import (analysis_proc, audit, axis_overrides, db, excel_out,  # noqa: E402
                  global_symbols,
-                 lan, legend_profile, markup, paths, pipeline, revisions,
+                 lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
 from app.pipeline import CFG                              # noqa: E402
 
@@ -402,6 +402,12 @@ def _worker() -> None:
             # 접기 전 장별 값은 `pid_page` 에 그대로 남아 있고, 화면은 둘 다
             # 보인다 - 대표값만 두면 "53장 중 3장만 C" 라는 사실이 사라진다.
             summary["doc_rev"] = _store_doc_rev(job_id)
+            # hotfix62 — 첫 화면 카드의 도면 사실 (프로젝트 제목 · 개정 날짜 · 최상위 개정).
+            # 판정이 아니고 실패해도 분석은 성공이다 — 안 읽힌 칸은 시작 때 다시 채운다.
+            try:
+                _store_facts(job_id)
+            except Exception:                        # noqa: BLE001
+                traceback.print_exc()
             # 프로젝트에 묶인 분석이면 여기서 바로 대조한다.  묶이지 않았으면
             # 예전과 똑같이 동작한다 - 리비전은 얹는 것이지 대체하는 것이 아니다.
             try:
@@ -677,6 +683,62 @@ def _store_doc_rev(job_id: str) -> dict:
     return folded
 
 
+def _store_facts(job_id: str) -> dict:
+    """PDF 의 프로젝트 제목 · 장별 개정 날짜 · 최상위 개정을 읽어 job 에 적는다 (hotfix62).
+
+    값은 전부 그 PDF 가 인쇄한 것이고(`app/pdf_facts.py`), 판정에 쓰이지 않는다.  DXF 입력은
+    글자층이 없으므로 그렇다고 적는다 (빈 문자열로 두면 시작 때마다 다시 읽으려 한다).
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        return {}
+    if (job["input_kind"] or "PDF") != "PDF":
+        facts = {"kind": job["input_kind"], "error": "DXF 입력은 PDF 글자층이 없습니다"}
+    else:
+        facts = pdf_facts.read(job["pdf_path"], db.page_revisions(CON, job_id))
+        facts["top"] = pdf_facts.top_revision(facts, job["doc_rev"] or "")
+    db.set_facts(CON, job_id, facts)
+    return facts
+
+
+def _facts_of(job) -> dict:
+    try:
+        return json.loads(job["facts_json"] or "{}") if job is not None else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _backfill_facts() -> None:
+    """예전 분석(hotfix62 이전)의 도면 사실을 **재분석 없이** 한 번 채운다 — 분석 하나 2~5초."""
+    try:
+        todo = [r["id"] for r in CON.execute(
+            "SELECT id FROM job WHERE status='done' AND facts_json='' ORDER BY created_at DESC")]
+    except Exception:                                # noqa: BLE001
+        return
+    for jid in todo:
+        try:
+            _store_facts(jid)
+        except Exception as exc:                     # noqa: BLE001
+            try:
+                db.set_facts(CON, jid, {"error": f"{type(exc).__name__}: {exc}"})
+            except Exception:                        # noqa: BLE001
+                pass
+
+
+# 시작 때 한 번, 뒤에서 — 첫 화면은 기다리지 않는다 (안 채워진 카드는 "읽는 중" 이라고 말한다).
+threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
+
+
+def _output_qty(job_id: str) -> dict:
+    """발주처 양식에 실제로 나가는 계기·밸브의 Q'ty 합 (사람이 고친 값 반영).
+
+    나가는 탭과 SCOPE 판정은 Excel 출력과 **같은 것**을 쓴다 (`excel_out.DELIVERABLES` ·
+    `in_client_scope`) — 화면이 말하는 수와 파일이 갈리지 않게."""
+    tabs = {t for spec in excel_out.DELIVERABLES.values() for t in spec["tabs"]}
+    keep = lambda scope: excel_out.in_client_scope({"values": {"scope": scope}})   # noqa: E731
+    return db.output_qty(CON, job_id, tabs, keep)
+
+
 def _json(data) -> Response:
     """큰 목록은 `jsonable_encoder` 를 거치지 않고 바로 적는다 (hotfix45).
 
@@ -906,6 +968,9 @@ def home():
         j["rows"] = db.row_count(CON, j["id"])
         j["edits"] = db.edited_cell_count(CON, j["id"])
         j["last_save"] = db.last_save(CON, j["id"])
+        job = db.get_job(CON, j["id"])
+        if job is not None and job["status"] == "done":
+            j.update(_card_facts(job))
     return {"projects": projects, "loose": loose}
 
 
@@ -964,15 +1029,71 @@ def _project_public(meta: dict, *, deep: bool = False) -> dict:
                      "rows": db.row_count(CON, job["id"]),
                      "edits": db.edited_cell_count(CON, job["id"]),
                      "last_save": db.last_save(CON, job["id"])}
+            if job["status"] == "done":
+                extra.update(_card_facts(job))
         revs.append({**r, **extra})
     # 최근순.  같은 프로젝트 안에서도 사람이 마지막에 만진 것이 위에 온다.
     revs.sort(key=lambda r: r.get("analysed_at") or 0, reverse=True)
+    _verdicts(revs)
     out["revisions"] = revs
     out["latest"] = revs[0] if revs else None
+    out.update(_project_card(revs))
     saves = [dict(r["last_save"], revision=r.get("revision"), job_id=r.get("job_id"))
              for r in revs if r.get("last_save")]
     out["last_save"] = max(saves, key=lambda x: x["at"]) if saves else None
     return out
+
+
+def _card_facts(job) -> dict:
+    """첫 화면 카드 한 줄의 도면 사실 (hotfix62) — 프로젝트 제목 · 최상위 개정과 날짜 · 나가는 Q'ty."""
+    f = _facts_of(job)
+    top = f.get("top") or {}
+    return {"pdf_title": f.get("project_title") or "",
+            "top_rev": top.get("rev") or "", "top_date": top.get("date") or "",
+            "top_iso": top.get("iso") or "", "top_basis": top.get("basis") or "",
+            "facts_state": ("pending" if not job["facts_json"] else
+                            "error" if f.get("error") else "ok"),
+            "facts_error": f.get("error") or "",
+            "rev_before": f.get("rev_before") or [],
+            "output": _output_qty(job["id"])}
+
+
+def _verdicts(revs: list) -> None:
+    """리비전마다 바로 앞(더 오래된) 리비전과 견준 개정 판정 — 서버 한 곳에서 (hotfix62).
+
+    Rev 가 같으면 **PDF 에 인쇄된 날짜**가 정한다 (사용자 확정).  판정은
+    `revisions.compare_document_revision` 하나이고 화면은 결과만 그린다."""
+    live = [r for r in revs if r.get("status") == "done"]
+    for i, r in enumerate(live):
+        prev = live[i + 1] if i + 1 < len(live) else None
+        if prev is None:
+            continue
+        order = pdf_facts.order_pairs({"rev_before": r.get("rev_before")},
+                                      {"rev_before": prev.get("rev_before")})
+        r["verdict"] = revisions.compare_document_revision(
+            r.get("top_rev") or r.get("doc_rev") or "", prev.get("top_rev") or prev.get("doc_rev") or "",
+            now_date=r.get("top_iso") or "", before_date=prev.get("top_iso") or "", order=order)
+
+
+def _project_card(revs: list) -> dict:
+    """프로젝트 카드 머리 — **분석된 모든 PDF 중** 최상위 개정 · PDF 의 프로젝트 제목 · 최신 리비전의 Q'ty."""
+    live = [r for r in revs if r.get("status") == "done"]
+    if not live:
+        return {"pdf_title": "", "top": None}
+    order = pdf_facts.order_pairs(*({"rev_before": r.get("rev_before")} for r in live))
+    best = live[0]
+    for r in live[1:]:
+        v = revisions.compare_document_revision(
+            r.get("top_rev") or r.get("doc_rev") or "", best.get("top_rev") or best.get("doc_rev") or "",
+            now_date=r.get("top_iso") or "", before_date=best.get("top_iso") or "", order=order)
+        if v["verdict"] == "NEWER":
+            best = r
+    titles = [r.get("pdf_title") for r in live if r.get("pdf_title")]
+    return {"pdf_title": titles[0] if titles else "",
+            "top": {"rev": best.get("top_rev") or best.get("doc_rev") or "",
+                    "date": best.get("top_date") or "", "basis": best.get("top_basis") or "",
+                    "revision": best.get("revision") or "", "job_id": best.get("job_id")},
+            "facts_pending": any(r.get("facts_state") == "pending" for r in live)}
 
 
 @app.patch("/projects/{name}/mode")
