@@ -3905,6 +3905,77 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
    거짓 고리 222 의 위험 · UAD PDF 가 없어 못 잰다) · `pipe_graph.derive_line_styles` 의 `min_run` 은 여전히 범례 종이 축척(hotfix48 ⚠) ·
    QFE `PSV` 147행은 몸체가 반쪽 `CHECK` 로 읽혀 REVIEW (자력식 안전밸브 · 23회차 범위 밖) · SADARA · UAD PDF · `data/*.xlsx` 없음.
 
+**그 다음 — 돌발상황을 시뮬레이션하며 보강 (hotfix74 · 판정 0줄)**
+
+사용자: *"다양한 경우와 다양한 돌발상황들을 시뮬레이션하면서 보강해라 — 내일 오전 6시까지."*  시뮬레이터 일곱을 만들어 돌리고
+결함을 고친 뒤 다시 돌렸다 (전부 **사본 데이터**에서 · 실 DB 를 열지 않는다).  시험 `tests/test_hotfix74_fuzz.py` 6 ·
+`test_hotfix74_chaos.py` 7 · `test_hotfix74_variants.py` 8 · `test_hotfix74_state.py` 20 (빠른 시험 **999** · 6 건너뜀).
+**네 프로젝트 기준선 그대로 — AL NOUF1 `46d551fd` · 1133 · 2136 · 95.1 (369초 · 4.8G) · TC2 `23e78e27` · 902 · 5564 · 94.2
+(310초 · 7.4G) · QFE `8bd6a8b3` · 2043 · 3720 · 91.2 (540초 · 6.2G) · UAD-DXF `a32c02a6` · 507 (65초) — 넷 다 "기준선과 같습니다"**
+(`out/hotfix74/reg/` · 최종 엔진 코드 · 순차).  최종 코드로 API 퍼징 다시 **5xx 0** (84초).
+
+| 시뮬레이터 | 무엇을 | 처음 → 고친 뒤 |
+| --- | --- | --- |
+| `spike/api_fuzz.py` | 모든 경로 × 경로 인자 변형 × 본문 14종(빈 · 목록 · 글 · null · 틀린 형 · 거대 · 깊은 중첩 · NaN …) | **5xx 55 → 0** |
+| `spike/chaos_sim.py` | S1 동시 업로드 · S2 분석 자식 kill -9 · S3 대기 취소·분석 중 삭제 · S4 서버 kill -9 → 재시작 · S5 다른 프로세스가 DB 15초 잠금 · S6 같은 프로젝트에 동시에 둘 | 결함 6 → 0 |
+| `spike/ui_chaos.py` | U1 새로고침·뒤로 · U2 서버 꺼진 동안 편집 · U3 두 창 같은 칸 · U4 느린 망(요청마다 1.5초) · U5 서버 꺼진 채 업로드 · U6 원본 PDF 사라짐 | 결함 2 → 0 |
+| `spike/variant_inputs.py` | PDF 16 변형 (CropBox · XObject · 소유자 암호 · 증분 저장 · 표지 · 주석 · 한 장만 회전 · 30쪽 · EOF 뒤 쓰레기 · 깨진 xref · 거대/작은 장 · 범례만 …) | 결함 1 → 0 |
+| `spike/dxf_variants.py` | UAD DXF 32장 11 변형 (폴더 깊이 · cp949 이름 · 다른 파일 · LF · 빈/잘린/쓰레기 DXF · 범례 없음 · 전부 깨짐 · 같은 파일 두 번 · 작은 묶음) | 결함 4 → 0 |
+| `spike/state_chaos.py` | K1 상태 JSON 6종 × (반쯤 잘림 · 빈 · 목록 · 이진) × 백업 유무 · K2 원본 PDF 사라짐 · K3 DB 머리 손상 | 결함 다수 → 0 |
+| `spike/soak.py` | 6명이 12분 동안 첫 화면 · 목록 · 검토 · 장 그림 · 칸 편집 · 근거 · 메모를 되풀이 | 오류 0 · 메모리 안 늚 · 결함 2 → 0 (동시 저장 유실 · 근거 4초) |
+
+1. **[A] API 500 55건** — 프로젝트 이름 검사(`revisions.ProjectNameError` → 400 · 빈 · `..` · 금지 글자 · 제어 글자 · 150바이트) ·
+   정수 칸(`main._int_field` → 400 과 칸 이름) · 목록 자리에 사전 아닌 것 · zip 폭탄(`ZIP_MAX_BYTES` 1.5GB · 압축비 100 — UAD 실측 비 6).
+   **예상 못 한 오류는 사람 말과 기록 번호**(`_unexpected_error` · 원문은 서버 로그에만 — 21회차 규칙).
+2. **[B] 프로세스** — ① 재시작 때 다시 줄 선 분석을 작업 스레드가 집었는데 그 스레드가 부르는 함수가 **아직 정의되기 전**이라
+   `NameError` → 재시작할 때마다 기다리던 분석이 하나씩 사라졌다 → 백그라운드 스레드는 **모듈 끝** `_start_background()` 에서.
+   ② 대기 중 취소가 대기로 남았다 → 즉시 cancelled.  ③ 분석 중에 같은 프로젝트로 올린 개정본이 **같은 Rev.A** 를 받았다 —
+   장부는 분석이 끝나야 리비전을 적으므로 → `_inflight_revisions` 가 DB 의 대기·분석 중 리비전을 센다.  ④ DB 잠금 5초 → 30초 ·
+   그래도 안 되면 503 과 사람 말.  ⑤ 분석 자식이 죽으면(메모리·강제 종료) 종료 코드와 할 일을 말한다(`process_died`).
+   ⑥ 서버가 죽으면 분석·그림 자식도 같이 죽는다 (`analysis_proc._follow_parent` — 부모를 기다리다 `os._exit`).
+3. **[C] 화면** — 서버가 꺼진 동안 고친 칸이 **저장된 것처럼** 남았다 → 원래 값으로 되돌리고 말한다 · 모든 요청을 지켜보다
+   연결이 끊기면 붉은 띠(`#net-banner` · 5초마다 `/version`) · 돌아오면 사라진다 (`hookFetch` · `netDown`/`netUp`).
+4. **[D] 입력 변형** — 범례 장만 든 PDF 가 **행 0개로 조용히 성공**했다 → `pipeline.NoPidSheets`(장 종류별 수를 말한다).
+   DXF 묶음이 전부 깨졌거나 · P&ID 장이 없거나 · 범례가 없으면 같은 세 예외로 멈춘다.  같은 DXF 두 번(바이트까지 같음)은
+   **한 번만** · macOS `._` 찌꺼기는 건너뛴다 · 건너뛴 이름은 `dxf.skipped_inputs` → 근거 띠 `입력`.  번호 없는 DXF 이름은
+   **자연 순서**.  DXF 의 TYPE·태그 속성을 못 배운 묶음(장이 적다 — 29회차 규칙은 그대로)은 `roles_note` 로 말한다.
+   옆으로 누운 장(회전이 잘못 저장)은 고치지 않고 **왜 빠졌는지** 말한다 — "이 장만 종이 방향이 다릅니다".
+5. **★ [E] 공유 sqlite 연결의 경합** — `main.CON` 하나를 요청 스레드·작업 스레드·사실 채우기 스레드가 함께 쓰는데, 쓰기 앞의
+   BEGIN 판단 사이에 다른 스레드가 끼면 `cannot start a transaction within a transaction` 으로 실패했다.  실측 6스레드×2000 쓰기
+   **362건 실패 → 잠금 0건** (`db._SerialConnection` · `connect(factory=)`).  빠른 시험이 세 번에 한 번 꼴로 이 경합에 걸려 드러났다 —
+   **두 사람이 동시에 칸을 고치면 500 이 날 수 있던 자리**다.
+6. **★ [F] 상태 파일(JSON)은 원자적으로** (`app/jsonstore.py`) — 장부·승수·메모·칸 지정 … 이 전부 `write_text` 로 제자리 쓰기였다.
+   이제 임시 파일 → `fsync` → `os.replace` · 바로 앞 판은 `.bak` · 깨지면 `<이름>.corrupt-<시각>` 으로 떠 두고 백업으로 되살린다 ·
+   백업도 없으면 **꼭 있어야 하는 장부는 사람 말로 멈추고**(`StateFileCorrupt` — 안정 ID 를 1부터 다시 내면 §7.3 이 깨진다)
+   사람 값 파일은 빈 값으로 계속하되 **위생 감사가 첫 화면에 말한다**.  모양이 틀린 JSON(사전 자리에 목록)도 깨진 것과 같다.
+   ★ 한 프로젝트 장부가 깨지면 **첫 화면 전체가 500** 이었다 → 그 프로젝트만 빼고 말한다.
+7. **[G] 원본이 사라짐 · DB 손상 · 디스크** — 업로드 PDF 가 지워지면 410 과 사람 말(`_require_source` · 장 그림 자리에 그 문장 —
+   `#sheet-err`) · 재분석은 줄에 서기 전에 막는다.  DB 머리가 깨지면 영문 `file is not a database` 대신 **지우지도 덮지도 않고**
+   할 일과 가장 최근 백업을 말한다(`db.DatabaseCorrupt`) · **하루 한 번 DB 백업**(`backups/app.db.<날짜>.bak` · 3판 · 읽기 전용 연결로 ·
+   요청을 막지 않는다).  디스크가 가득 차면 507 · 분석 실패 사유에 디스크·메모리를 이름으로(`_known_cause`).
+8. **[H] 발주처 양식** — 엑셀이 아닌 파일(이름만 .xlsx · 구형 .xls · 빈 · 손상)을 양식으로 받아 두면 다음 Excel 출력이 일반 500 이었다 →
+   받기 전에 열어 본다(`_template_problem`) · 예전에 받아 둔 깨진 양식은 없는 것처럼.  ★ Excel 출력이 400 이면 브라우저가
+   **화면을 떠나 JSON 글자만** 보였다(`location.href`) → `downloadUrl` 이 받아 보고 되면 내려받고 아니면 서버 문장을 말한다.
+9. **[I] 여럿이 오래 쓰는 서버** (`spike/soak.py` — 6명이 12분 동안 2,758 요청 · 오류 0 · 서버 RSS 360~460MB 에서 오르내리며
+   **늘지 않는다**).  ① 같은 상태 파일을 두 사람이 동시에 고치면 둘 다 옛 판을 읽고 나중 쓴 쪽만 남았다 — 유닛 승수 30개를 동시에
+   지정하면 **3개만 남았다** → 읽고-고치고-쓰는 함수를 줄 세운다(`jsonstore.serialized` · 안정 ID 장부를 쓰는 `_run_comparison` ·
+   `markup.assign_stable_id` 포함 — 겹치면 ID 가 겹친다 §7.3).  ② 행 하나의 근거(`/rows?keys=`)가 **p50 4초** — 편집 한 칸이 메모를
+   풀 때마다 분석 전체(2천 행 · evidence 11MB)를 다시 파싱했다 → 그 행만 DB 에서 읽는다(`db.merged_rows_by_keys` · 같은 행 ·
+   같은 순서를 시험이 맞댄다) · 혼자일 때 0.015초, 부하 중 p50 **4.0 → 2.6초** — 남는 몫은 다른 요청의 전체 다시 파싱(편집
+   뒤 `/rows` · `/review` 각 0.6초 CPU)과 인터프리터 잠금을 나눠 쓰는 것이다.  ⚠ 이 부하는 **모든 사람이 편집할 때마다 전체 목록을
+   다시 받는** 최악의 꼴이다 (화면은 편집 뒤 그 행만 받는다 — hotfix68).  ③ 분석 중에 [다시 분석] 을 또 누르면 같은 분석이 줄에 두 번 섰다 → 409 · 화면이
+   그 문장을 말한다(`askReanalyse` — 예전엔 응답을 안 보고 진행 화면으로 넘어갔다).  ④ 바이트까지 같은 PDF 를 다시 올리면
+   말한다(막지 않음 · `duplicate_of`) — 개정본을 올린다며 직전 판을 또 올리는 실수.
+10. **[J] Windows 대비** — 백업용 읽기 전용 연결은 `as_uri()` 로 연다(손으로 `file:C:\…` 를 붙이면 한글·공백·`#` 경로를 잘못 읽는다 ·
+   실측 `한글 경로#x`) · 상태 파일 교체(`os.replace`)가 백신·편집기에 잠깐 잡혀 PermissionError 면 몇 번 더 해 본다 ·
+   서버 PC 에서 지난 결과 엑셀을 열어 두면 같은 이름으로 못 덮어쓰므로 Excel 출력은 새 폴더(`rev<n>_<시각>`)에 쓴다
+   (위생 감사가 같은 스냅샷으로 센다).  ⚠ 셋 다 이 환경(Linux)에서는 흉내로만 시험했다.
+11. **⚠ 스스로 뒤집은 것** — 변형기 v02(XObject)가 회전 장을 잘라 46행을 냈다 — 제품이 아니라 변형기 결함 · DXF 변형의 첫 기준 묶음
+   (6장)이 1행이라 "원본과 같다" 가 아무것도 재지 못했다 → 32장 전부를 기준으로 · state_chaos 첫 판이 사본 밖의 원본 PDF 를 옮겼다 →
+   사본 DB 의 경로만 바꾼다 · U6 첫 판이 브라우저 캐시로 그림을 받아 "말이 없다" 고 잘못 적었다 → 새 브라우저 창.
+12. **못 한 것** — Windows(cmd · 서비스 루프 · 경로)에서의 돌발상황 · 실제 디스크 가득 참(단위 시험으로만) · SADARA · UAD PDF ·
+    `data/*.xlsx` 없음 (축1·2 · 실제 양식 채우기).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4386,6 +4457,13 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._pdf_problem`·`_safe_name`·`_display_name`·`_attachment`·`_tb_sizes` · `pipeline.NoTextLayer`·`_no_text_reason` | **hotfix73** — 업로드에서 막는 PDF(암호·손상·0쪽·빈 파일) · 디스크/화면 이름 · 글자층 없는 PDF 의 사유 · 칸 지정 화면은 쪽 크기만 |
 | `detect_symbols._one_function_per_bubble`·`bubble_lines`·`_axis_lines` · `pipeline._fold_readouts` 의 `TAG_LOCATION` | **hotfix73** — 버블 하나 = 계기 하나 (겹쳐 인쇄 · 밖 라벨 · 외곽 안 두 기능) · 가운데 선 줄 수(ISA 위치) · 같은 태그·TYPE 의 제어 측 버블 접기 |
 | `typical._label_below(marks=)` · `describe_equipment.find_labels(bubbles=, bubble_anchors=)` | **hotfix73** — Typical 이름표는 그 표식의 것만 · 기기 이름에서 버블 안 계기 글자·태그 코드를 뺀다 |
+| `app/jsonstore.py` (`write`·`read`·`StateFileCorrupt`·`INCIDENTS`·`serialized`) | **hotfix74** — 상태 JSON 의 원자적 저장(임시 → fsync → replace · 앞 판 `.bak`) · 깨지면 떠 두고 백업으로 되살림 · 꼭 있어야 하는 장부는 사람 말로 멈춤 · 읽고-고치고-쓰기 줄 세움.  **상태 파일을 새로 만들면 이것으로 쓴다** |
+| `db._SerialConnection` · `db.DatabaseCorrupt` · `db.backup_daily` · `db.merged_rows_by_keys` | **hotfix74** — 공유 연결 호출 줄 세움(경합 362→0) · DB 머리 손상은 할 일과 최근 백업을 말하고 멈춤 · 하루 한 번 `backups/` (3판) · 몇 행은 그 행만 읽기 |
+| `main._unexpected_error`·`_state_corrupt`·`_db_busy`·`_disk_full_response`·`_known_cause`·`_require_source`·`_template_problem`·`_inflight_revisions`·`_start_background` | **hotfix74** — 예상 못 한 오류는 기록 번호 · 상태 파일 손상 · DB 잠김 503 · 디스크 가득 507 · 실패 사유의 환경 원인 · 원본 사라짐 410 · 엑셀 아닌 양식 거부 · 분석 중 리비전 · 백그라운드 스레드는 모듈 끝에서 |
+| `pipeline.NoPidSheets` · 계획의 "이 장만 종이 방향이 다릅니다" | **hotfix74** — 범례만 든 PDF 가 0행으로 조용히 성공하지 않는다 · 옆으로 누운 장이 왜 빠졌는지 |
+| `dxf_pipeline` 의 세 멈춤 · `roles_note` · `dxf_reader.list_inputs`(같은 내용·macOS 찌꺼기)·`_order`(자연 순서) | **hotfix74** — DXF 묶음 돌발상황 |
+| `app.js` `downloadUrl`·`askReanalyse`·`#sheet-err`·`#net-banner`(`netDown`/`netUp`)·`duplicate_of` 알림 | **hotfix74** — 화면을 떠나지 않는 내려받기 · 다시 분석 거절을 말함 · 그림 못 받은 이유 · 연결 끊김 띠 · 같은 파일 재업로드 |
+| `spike/api_fuzz.py`·`chaos_sim.py`·`ui_chaos.py`·`variant_inputs.py`·`dxf_variants.py`·`state_chaos.py`·`soak.py` | **hotfix74** — 돌발상황 시뮬레이터 일곱 (전부 사본 데이터) |
 | `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
 | `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
