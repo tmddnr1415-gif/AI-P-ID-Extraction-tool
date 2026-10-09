@@ -77,7 +77,10 @@ def test_bulk_rejects_non_integers(tmp_path, monkeypatch):
 
 def test_the_server_only_writes_what_the_screen_computed():
     body = MAIN[MAIN.index("async def qty_bulk("):MAIN.index('@app.get("/jobs/{job_id}/rows/{key}/history")')]
-    assert "db.set_user_value(" in body and "db.record_feedback(" in body
+    # hotfix75 — PATCH · qty_bulk · rows_edit 가 같은 `_edit_one` 을 부른다
+    assert "_edit_one(" in body
+    one = MAIN[MAIN.index("def _edit_one("):MAIN.index('@app.delete("/jobs/{job_id}/rows/{key}")')]
+    assert "db.set_user_value(" in one and "db.record_feedback(" in one
     assert "qty_basis" not in body and "multiplier" not in body   # 다시 계산하지 않는다
 
 

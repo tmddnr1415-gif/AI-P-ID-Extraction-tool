@@ -45,7 +45,8 @@ def test_description_patch_now_carries_the_author():
 
 def test_edited_cells_and_labels_name_the_editor():
     assert "stampEditor(row, field, author)" in _fn("saveField")
-    assert 'stampEditor(r, "qty", author)' in JS[JS.index("async function applyQtyToRows("):][:1500]
+    assert 'editRowsBulk(rows, "qty", () => value, author)' in JS[JS.index("async function applyQtyToRows("):][:1500]
+    assert "stampEditor(r, field, author)" in _fn("editRowsBulk")      # hotfix75 — 묶음 저장의 한 곳
     assert 'stampEditor(r, "qty", author)' in _fn("_saveQtyItems")
     assert "editedTitle(row, field, v)" in _fn("syncRowCell")
     tag = _fn("drawQtyTag")

@@ -3088,8 +3088,10 @@ def _engine_near(job_id: str, page_no: int) -> tuple:
     *엔진이 낸 것*이라 다시 돌린 값보다 정확하다.
     """
     dets = []
-    for r in db.merged_rows(CON, job_id):
-        if r.get("page_no") != page_no or not r.get("rect"):
+    # hotfix75 — 그 장의 행만 읽는다 (`merged_rows` 와 같은 행 · 같은 순서).  예전에는 행을 더할 때마다 분석 전체
+    # (QFE 2천 행 · 근거 11MB)를 파싱했고, 아래 `engine_json` 도 통째로 읽었다.
+    for r in db.merged_rows_on_page(CON, job_id, page_no):
+        if not r.get("rect"):
             continue
         ev = r.get("evidence") or {}
         dets.append({"anchor": ev.get("anchor") or ev.get("tag") or "",
@@ -3098,13 +3100,14 @@ def _engine_near(job_id: str, page_no: int) -> tuple:
                      "rect": [round(float(v), 1) for v in r["rect"]],
                      "rules": list(ev.get("rules_hit") or []),
                      "review_codes": list(ev.get("review_codes") or [])})
-    eng = json.loads((db.get_job(CON, job_id) or {"engine_json": "{}"})["engine_json"] or "{}")
+    eng = db.engine_parts(CON, job_id, {"unjudged_symbols": "$.unjudged_symbols",
+                                         "moved": "$.applied_rules.layout.moved"})
     un = [u for u in (eng.get("unjudged_symbols") or [])
-          if u.get("page_no") == page_no and u.get("center")]
+          if isinstance(u, dict) and u.get("page_no") == page_no and u.get("center")]
     # ★ 제안(`markup.propose`)이 쓰는 것과 **같은 값**이어야 한다 — 그 장 캐시의
     # 열쇠에 이것이 들어가므로, 다르면 제안이 데워 둔 캐시를 못 쓰고 그 장을
     # 처음부터 다시 읽는다 (실측 5.3초).  53회차 자기검증이 그것을 잡았다.
-    moved = ((eng.get("applied_rules") or {}).get("layout") or {}).get("moved") or []
+    moved = eng.get("moved") or []
     return dets, un, moved
 
 
@@ -3153,11 +3156,13 @@ async def add_row(job_id: str, payload: dict):
             "proposal": payload.get("proposal") or {},
         }}
         needs_review = ""          # 사람이 만든 행은 사람이 이미 본 행이다
-    key = db.add_row(CON, job_id, page_no, tab,
-                     payload.get("origin") or "",
-                     payload.get("drawing_no") or "",
-                     values, rect=rect if len(rect) == 4 else None,
-                     evidence=evidence, needs_review=needs_review)
+    with db.memo_follow(CON, job_id) as touched:      # hotfix75 — 메모를 이 행만 고친다
+        key = db.add_row(CON, job_id, page_no, tab,
+                         payload.get("origin") or "",
+                         payload.get("drawing_no") or "",
+                         values, rect=rect if len(rect) == 4 else None,
+                         evidence=evidence, needs_review=needs_review)
+        touched.append(key)
     ident = {}
     if evidence is not None:
         ident = markup.assign_stable_id(
@@ -3165,11 +3170,13 @@ async def add_row(job_id: str, payload: dict):
             dict(values, tab=tab, page_no=page_no, rect=rect,
                  drawing_no=payload.get("drawing_no") or ""))
         if ident.get("stable_id"):
-            row = db.get_row(CON, job_id, key)
-            ev = dict(row["evidence"]); ev["markup"]["stable_id"] = ident["stable_id"]
-            CON.execute("UPDATE item SET evidence_json=? WHERE job_id=? AND key=?",
-                        (json.dumps(ev, sort_keys=True, default=str), job_id, key))
-            CON.commit()
+            with db.memo_follow(CON, job_id) as touched:
+                row = db.get_row(CON, job_id, key)
+                ev = dict(row["evidence"]); ev["markup"]["stable_id"] = ident["stable_id"]
+                CON.execute("UPDATE item SET evidence_json=? WHERE job_id=? AND key=?",
+                            (json.dumps(ev, sort_keys=True, default=str), job_id, key))
+                CON.commit()
+                touched.append(key)
     point = payload.get("point") or []
     if len(rect) == 4 and not point:
         point = [(float(rect[0]) + float(rect[2])) / 2,
@@ -3253,28 +3260,20 @@ def copy_row(job_id: str, key: str):
     return {"key": new_key, "review_count": db.review_count(CON, job_id)}
 
 
-@app.delete("/jobs/{job_id}/rows/{key}")
-def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
-               author: str = "", exclude: bool = True):
-    """Strike out a detection.  Records which rule produced it and on what.
+def _delete_one(job_id: str, key: str, klass: str, reason: str, author: str, exclude: bool) -> dict:
+    """행 하나를 지운다 (`removed` 표시 · 사람이 만든 행만 실제로 없어진다) + 피드백 기록.
 
-    44회차 — 오검출 표시.  `reason_class` 는 ㉢ 오검출 · ㉣ 값 틀림 · 미지정
-    심볼 · 기타 중 하나이고 `exclude=false` 면 Excel 에는 그대로 두고 표시만
-    남긴다.  **행은 지워지지 않는다** (검출 행은 `removed` 표시뿐이고 되돌릴
-    수 있다).  사람이 만든 행(`added`)만 실제로 없어진다.
-    """
+    hotfix75 — `delete_row`(한 행) 와 `rows_delete`(묶음) 가 **같은 함수**를 부른다.  다른 것은 요청 수와
+    검토 수 · 마크업 요약을 몇 번 세느냐뿐이다.  `KeyError` 는 그 행이 없다는 뜻이다."""
     before = db.get_row(CON, job_id, key)
-    klass = str(reason_class or "").upper()
-    if klass and klass not in markup.CLASSES:
-        raise HTTPException(400, f"unknown reason class {klass!r}")
     author = " ".join(str(author or "").split())[:60]
+    reason = str(reason or "")
     reject = ({"class": klass or "FALSE_POSITIVE", "note": reason[:500],
                "author": author, "at": time.time()}
               if (klass or author or not exclude) else None)
-    try:
+    with db.memo_follow(CON, job_id) as touched:     # hotfix75 — 메모를 이 행만 고친다
         out = db.remove_row(CON, job_id, key, reject=reject, exclude=exclude)
-    except KeyError:
-        raise HTTPException(404, "no such row")
+        touched.append(key)
     if before is not None:
         ev = before.get("evidence") or {}
         rules = ev.get("rules_hit") or []
@@ -3288,6 +3287,49 @@ def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
                                    or ev.get("body") or ""),
                           "rule": (ev.get("excluded_by") or ev.get("anchor")
                                    or (rules[0] if rules else ""))})
+    return out
+
+
+def _edit_one(job_id: str, key: str, field: str, value, author: str, reason: str, follow: bool = True):
+    """칸 하나를 사람 값으로 (`set_user_value`) + 피드백 기록.  hotfix75 — PATCH 한 행 · `qty_bulk` ·
+    `rows_edit`(묶음) 가 **같은 함수**를 부른다.  `KeyError` = 행 없음 · `ValueError` = 고칠 수 없는 칸."""
+    before = db.get_row(CON, job_id, key)
+    if follow:
+        with db.memo_follow(CON, job_id) as touched:     # hotfix75 — 메모를 이 행만 고친다
+            user = db.set_user_value(CON, job_id, key, field, value)
+            touched.append(key)
+    else:                                                # 묶음 — 부른 쪽이 끝에 한 번 고친다
+        user = db.set_user_value(CON, job_id, key, field, value)
+    if before is not None:
+        db.record_feedback(
+            CON, job_id, "EDITED", row_key=key, page_no=before["page_no"],
+            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
+            field=field, ai_value=(before.get("ai") or {}).get(field),
+            user_value=value, reason=reason or "",
+            basis=before.get("evidence") or {}, author=author,
+            pattern_args={"field": field,
+                          "ai": (before.get("ai") or {}).get(field),
+                          "user": value})
+    return user
+
+
+@app.delete("/jobs/{job_id}/rows/{key}")
+def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
+               author: str = "", exclude: bool = True):
+    """Strike out a detection.  Records which rule produced it and on what.
+
+    44회차 — 오검출 표시.  `reason_class` 는 ㉢ 오검출 · ㉣ 값 틀림 · 미지정
+    심볼 · 기타 중 하나이고 `exclude=false` 면 Excel 에는 그대로 두고 표시만
+    남긴다.  **행은 지워지지 않는다** (검출 행은 `removed` 표시뿐이고 되돌릴
+    수 있다).  사람이 만든 행(`added`)만 실제로 없어진다.
+    """
+    klass = str(reason_class or "").upper()
+    if klass and klass not in markup.CLASSES:
+        raise HTTPException(400, f"unknown reason class {klass!r}")
+    try:
+        out = _delete_one(job_id, key, klass, reason, author, exclude)
+    except KeyError:
+        raise HTTPException(404, "no such row")
     out["review_count"] = db.review_count(CON, job_id)
     out["feedback_count"] = db.feedback_count(CON, job_id)
     out["markup"] = markup.summary(CON, job_id)
@@ -3296,7 +3338,9 @@ def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
 
 @app.post("/jobs/{job_id}/rows/{key}/restore")
 def restore_row(job_id: str, key: str):
-    db.restore_row(CON, job_id, key)
+    with db.memo_follow(CON, job_id) as touched:     # hotfix75 — 메모를 이 행만 고친다
+        db.restore_row(CON, job_id, key)
+        touched.append(key)
     return {"key": key, "review_count": db.review_count(CON, job_id)}
 
 
@@ -3313,23 +3357,12 @@ async def patch_row(job_id: str, key: str, payload: dict):
     # 사용자 테이블도 없고, 없는 신원을 지어내지 않는다.  비어 있으면 비어 있는
     # 채로 적고 화면이 "이름 없음" 이라고 쓴다 - 서버가 이름을 만들지 않는다.
     author = " ".join(str(payload.get("author") or "").split())[:60]
-    before = db.get_row(CON, job_id, key)
     try:
-        user = db.set_user_value(CON, job_id, key, field, value)
+        user = _edit_one(job_id, key, field, value, author, payload.get("reason") or "")
     except KeyError:
         raise HTTPException(404, "no such row")
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    if before is not None:
-        db.record_feedback(
-            CON, job_id, "EDITED", row_key=key, page_no=before["page_no"],
-            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
-            field=field, ai_value=(before.get("ai") or {}).get(field),
-            user_value=value, reason=payload.get("reason") or "",
-            basis=before.get("evidence") or {}, author=author,
-            pattern_args={"field": field,
-                          "ai": (before.get("ai") or {}).get(field),
-                          "user": value})
     return {"key": key, "user": user, "review_count": db.review_count(CON, job_id),
             "feedback_count": db.feedback_count(CON, job_id),
             "history": db.row_edit_history(CON, job_id, key)}
@@ -3368,23 +3401,94 @@ async def qty_bulk(job_id: str, payload: dict):
             value = ""
         clean.append((key, value, str((it or {}).get("reason") or reason)[:200]))
     out = {}
-    for key, value, why in clean:
-        before = db.get_row(CON, job_id, key)
-        if before is None:
-            continue
-        user = db.set_user_value(CON, job_id, key, "qty", value)
-        db.record_feedback(
-            CON, job_id, "EDITED", row_key=key, page_no=before["page_no"],
-            drawing_no=before.get("drawing_no") or "", rect=before.get("rect"),
-            field="qty", ai_value=(before.get("ai") or {}).get("qty"),
-            user_value=value, reason=why,
-            basis=before.get("evidence") or {}, author=author,
-            pattern_args={"field": "qty",
-                          "ai": (before.get("ai") or {}).get("qty"),
-                          "user": value})
-        out[key] = user
+    with db.memo_follow(CON, job_id) as touched:      # hotfix75 — 메모는 끝에 한 번
+        for key, value, why in clean:
+            try:
+                out[key] = _edit_one(job_id, key, "qty", value, author, why, follow=False)
+                touched.append(key)
+            except KeyError:
+                continue
     return {"users": out, "review_count": db.review_count(CON, job_id),
             "feedback_count": db.feedback_count(CON, job_id)}
+
+
+@app.post("/jobs/{job_id}/rows_edit")
+async def rows_edit(job_id: str, payload: dict):
+    """hotfix75 — 여러 행의 **같은 칸**을 한 요청으로 (도면에서 Shift 로 묶은 행의 공급 주체 · 승수 라벨의 '이 페이지
+    전체' · '선택 N개').  행마다 PATCH 를 보내면 요청이 N 번 오가고 화면이 그동안 멈춰 있었다 (46행 승수 실측).
+
+    **하는 일은 PATCH 와 같다** — 행마다 같은 `_edit_one`(같은 `set_user_value` · 같은 `record_feedback`) 이고 값은
+    화면이 정한다.  `items: [{key, value}]` (행마다 값이 다를 수 있다) · `field` · `author` · `reason`.
+    없는 행은 건너뛰고 `missing` 으로 돌려준다 — 다른 창이 그 사이 지웠을 수 있다."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    field = str(payload.get("field") or "")
+    if field not in db.EDITABLE:
+        raise HTTPException(400, f"{field!r} 는 고칠 수 있는 칸이 아닙니다")
+    items = payload.get("items")
+    if not isinstance(items, list) or not items or not all(isinstance(it, dict) for it in items):
+        raise HTTPException(400, "items 는 {key, value} 목록이어야 합니다")
+    if len(items) > 5000:
+        raise HTTPException(400, "한 번에 5000행까지 고칠 수 있습니다")
+    author = " ".join(str(payload.get("author") or "").split())[:60]
+    reason = str(payload.get("reason") or "")[:200]
+    clean = []
+    for it in items:
+        key, value = str(it.get("key") or ""), it.get("value")
+        if field == "qty" and value not in (None, ""):
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(400, "Q'ty must be a whole number")
+            if value < 0:
+                raise HTTPException(400, "Q'ty must not be negative")
+        elif value is None:
+            value = ""
+        elif not isinstance(value, (str, int, float)):
+            raise HTTPException(400, "value 는 글자나 숫자여야 합니다")
+        clean.append((key, value, str(it.get("reason") or reason)[:200]))
+    users, missing = {}, []
+    with db.memo_follow(CON, job_id) as touched:      # 메모는 끝에 한 번 (행마다 고치면 그것이 다시 느려진다)
+        for key, value, why in clean:
+            try:
+                users[key] = _edit_one(job_id, key, field, value, author, why, follow=False)
+                touched.append(key)
+            except KeyError:
+                missing.append(key)
+            except ValueError as exc:
+                raise HTTPException(400, str(exc))
+    return {"users": users, "missing": missing, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id)}
+
+
+@app.post("/jobs/{job_id}/rows_delete")
+def rows_delete(job_id: str, payload: dict):
+    """hotfix75 — 여러 행을 한 요청으로 지운다 (도면에서 Shift 로 묶은 행의 '둘 다 아님' · 묶음 삭제).
+
+    **하는 일은 DELETE 와 같다** — 행마다 같은 `_delete_one` 이고, 검토 수 · 이력 수 · 마크업 요약은 **끝에 한 번**
+    센다.  예전에는 행마다 DELETE 를 보냈고 한 번에 0.4초(마크업 요약이 분석 전체를 다시 읽는다)라 30행이면
+    13초를 멈춰 있었다.  없는 행은 건너뛰고 `missing` 으로 돌려준다."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    keys = payload.get("keys")
+    if not isinstance(keys, list) or not keys or not all(isinstance(k, str) for k in keys):
+        raise HTTPException(400, "keys 는 행 열쇠 목록이어야 합니다")
+    if len(keys) > 5000:
+        raise HTTPException(400, "한 번에 5000행까지 지울 수 있습니다")
+    klass = str(payload.get("reason_class") or "").upper()
+    if klass and klass not in markup.CLASSES:
+        raise HTTPException(400, f"unknown reason class {klass!r}")
+    exclude = payload.get("exclude", True)
+    exclude = exclude if isinstance(exclude, bool) else str(exclude).lower() not in ("false", "0", "")
+    reason = str(payload.get("reason") or "")
+    done, missing = {}, []
+    for key in dict.fromkeys(keys):
+        try:
+            done[key] = _delete_one(job_id, key, klass, reason, payload.get("author") or "", exclude)
+        except KeyError:
+            missing.append(key)
+    return {"rows": done, "missing": missing, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id), "markup": markup.summary(CON, job_id)}
 
 
 @app.get("/jobs/{job_id}/rows/{key}/history")

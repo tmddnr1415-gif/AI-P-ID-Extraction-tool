@@ -681,6 +681,39 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
             con.execute(sql + " ORDER BY page_no, key", args).fetchall()]
 
 
+def merged_rows_on_page(con, job_id: str, page_no: int) -> list:
+    """`merged_rows` 중 그 장의 행만 — 같은 행 · 같은 순서 (hotfix75 · 행 추가가 그 장만 본다)."""
+    return [_merged(r) for r in con.execute(
+        "SELECT * FROM item WHERE job_id=? AND page_no=? ORDER BY page_no, key", (job_id, page_no)).fetchall()]
+
+
+def engine_tag_numbers(con, job_id: str) -> list:
+    """엔진이 붙인 태그(`ai.tag_no`) 만 — 마크업 제안이 이 문서의 태그 체계를 볼 때 (hotfix75 · 분석 전체를 파싱하지 않는다).
+    `merged_rows(...)[i]["ai"]["tag_no"]` 와 같은 값 · 같은 순서."""
+    return [raw for (raw,) in con.execute(
+        "SELECT json_extract(ai_json, '$.tag_no') FROM item WHERE job_id=? ORDER BY page_no, key", (job_id,))]
+
+
+def engine_parts(con, job_id: str, paths: dict) -> dict:
+    """`engine_json` 의 몇 칸만 (`{이름: JSON 경로}`).  hotfix75 — 그 칸 하나를 위해 분석 기록 전체를 파이썬으로
+    파싱하지 않는다 (SQLite 의 json_extract 가 C 에서 한 번 읽는다).  없는 분석 · 없는 칸 · 깨진 기록은 None."""
+    cols = ", ".join(f"json_extract(engine_json, ?) AS c{i}" for i in range(len(paths)))
+    try:
+        row = con.execute(f"SELECT {cols} FROM job WHERE id=?", (*paths.values(), job_id)).fetchone()
+    except sqlite3.Error:
+        row = None
+    out = {}
+    for i, name in enumerate(paths):
+        v = row[i] if row is not None else None
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except ValueError:
+                pass
+        out[name] = v
+    return out
+
+
 def merged_rows_by_keys(con, job_id: str, keys, tab: str = None) -> list:
     """`merged_rows` 와 같은 행 · 같은 순서 — 그 열쇠의 행만 DB 에서 읽는다 (hotfix74).
 
@@ -752,6 +785,84 @@ def merged_rows_cached(con, job_id: str, tab: str = None) -> list:
         while len(_ROWS_MEMO) > _ROWS_MEMO_MAX:
             _ROWS_MEMO.popitem(last=False)
         return rows
+
+
+class memo_follow:
+    """hotfix75 — 행 몇 개를 고치는 쓰기 뒤에 **메모를 그 행만 고쳐** 둔다 (다음 읽기가 분석 전체를 다시 파싱하지 않게).
+
+    편집·지우기·되살리기·행 추가 한 번마다 메모가 풀려, 그 뒤 화면이 읽는 검토 · 마크업 · 그림 목록 요청이
+    분석 전체(QFE 2천 행 · 근거 11MB)를 다시 파싱했다 — 지우기 한 번이 1초 남짓 멈춘 몫의 대부분이다.
+
+        with db.memo_follow(con, job_id) as keys:
+            ...쓰기...
+            keys.append(key)          # 이 블록이 바꾼(더한 · 지운) 행
+
+    안전 규칙: 블록 동안 이 연결의 잠금을 쥔다 (다른 스레드의 쓰기가 끼지 않는다) · 다른 연결이 그 사이 썼으면
+    (`data_version`) 고치지 않는다 · 메모가 블록 **직전** 상태였을 때만 고친다 · 고친 메모에는 블록 **직후** 도장을
+    찍는다 — 그 뒤 누가 무엇을 쓰든 도장이 달라져 예전처럼 전부 다시 읽는다.  예외가 나면 아무것도 고치지 않는다
+    (메모는 도장이 안 맞아 저절로 버려진다).  잠금이 없는 연결(시험의 맨 sqlite3)이면 하는 일이 없다."""
+
+    def __init__(self, con, job_id: str):
+        self.con, self.job_id, self.keys = con, job_id, []
+        self.lock = getattr(con, "_lock", None)
+
+    _depth = _threading.local()   # 겹친 블록(묶음 안의 이력 쓰기)은 바깥 블록이 끝에 한 번 고친다
+
+    def __enter__(self):
+        if self.lock is not None:
+            self.lock.acquire()
+            memo_follow._depth.n = getattr(memo_follow._depth, "n", 0) + 1
+            try:
+                self.pre = _db_stamp(self.con)
+            except Exception:
+                self.lock.release(); raise
+        return self.keys
+
+    def __exit__(self, et, ev, tb):
+        if self.lock is None:
+            return False
+        memo_follow._depth.n -= 1
+        fresh = None
+        try:
+            # 바깥 블록이 아직 연결 잠금을 쥐고 있으면 여기서 메모 잠금을 잡지 않는다 (잠금 순서: 메모 → 연결 이
+            # `merged_rows_cached` 의 순서다 — 거꾸로 잡으면 서로 기다린다).  바깥 블록이 끝에 한 번 고친다.
+            if et is None and memo_follow._depth.n == 0:            # 바꾼 행이 없으면(이력 표만 썼다) 도장만 옮긴다
+                post = _db_stamp(self.con)
+                if post[0] == self.pre[0] and post[1][1] == self.pre[1][1]:   # 같은 파일 · 다른 연결이 안 썼다
+                    fresh = (post, merged_rows_by_keys(self.con, self.job_id, self.keys) if self.keys else [])
+        except Exception:
+            fresh = None
+        finally:
+            self.lock.release()
+        if fresh is not None:
+            _patch_memo(self.con, self.job_id, self.pre, fresh[0], set(self.keys), fresh[1])
+        return False
+
+
+def _in_tab(r: dict, tab: str) -> bool:
+    if tab == "ALL":
+        return True
+    if tab == "REVIEW":
+        return bool(r["needs_review"]) or bool(r["deleted"])
+    return r["tab"] == tab
+
+
+def _patch_memo(con, job_id, pre, post, keys: set, fresh: list) -> None:
+    by = {r["key"]: r for r in fresh}
+    with _ROWS_MEMO_LOCK:
+        for mk, (stamp, rows) in list(_ROWS_MEMO.items()):
+            if mk[0] != id(con) or mk[1] != pre[0] or mk[2] != job_id or stamp != pre[1]:
+                continue
+            tab = mk[3]
+            out = [by[r["key"]] if r["key"] in by else r for r in rows if r["key"] not in keys or r["key"] in by]
+            have = {r["key"] for r in out}
+            out = [r for r in out if r["key"] not in by or _in_tab(r, tab)]
+            for r in fresh:                                    # 새 행 · 이제 이 탭에 드는 행 — 같은 자리 (page_no, key)
+                if r["key"] in have or not _in_tab(r, tab):
+                    continue
+                at = next((i for i, x in enumerate(out) if (x["page_no"], x["key"]) > (r["page_no"], r["key"])), len(out))
+                out.insert(at, r)
+            _ROWS_MEMO[mk] = (post[1], out)
 
 
 def add_row(con, job_id: str, page_no: int, tab: str, origin: str = "",
@@ -945,6 +1056,14 @@ def record_feedback(con, job_id: str, kind: str, *, row_key: str = "",
                     geometry: dict = None, pattern_args: dict = None,
                     author: str = "") -> int:
     args = dict(pattern_args or {})
+    # hotfix75 — 이력 표만 쓰고 행(item)은 안 건드린다 → 행 메모를 버리지 않고 도장만 옮긴다 (`memo_follow`).
+    with memo_follow(con, job_id):
+        return _insert_feedback(con, job_id, kind, row_key, page_no, drawing_no, rect, field, ai_value,
+                                user_value, reason, args, basis, geometry, author)
+
+
+def _insert_feedback(con, job_id, kind, row_key, page_no, drawing_no, rect, field, ai_value,
+                     user_value, reason, args, basis, geometry, author) -> int:
     cur = con.execute(
         "INSERT INTO feedback (job_id, created_at, kind, row_key, page_no,"
         " drawing_no, rect_json, field, ai_value, user_value, reason, pattern,"

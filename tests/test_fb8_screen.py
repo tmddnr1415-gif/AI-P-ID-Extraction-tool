@@ -88,7 +88,7 @@ def test_markup_turns_green_and_the_legend_counts_it_once():
 
 
 def test_the_grid_moves_to_the_added_row():
-    assert "refreshRows(out.key, { toGrid: true })" in JS
+    assert "refreshRows(out.key, { toGrid: true, keys: [out.key] })" in JS   # hotfix75 — 그 행만 다시 받는다
     assert 'tr.scrollIntoView({ block: "center" })' in JS
     assert 'tr.classList.add("justadded")' in JS
 

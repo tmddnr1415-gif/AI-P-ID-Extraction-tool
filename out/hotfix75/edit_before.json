@@ -1,0 +1,453 @@
+{
+ "rounds": [
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 50,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 795,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 73,
+    "kb": 36,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/a9b559cadf6fe834",
+     "/jobs/48b5adbdd28c/rows/3f0ba072fe6ce49d",
+     "/jobs/48b5adbdd28c/rows/a920919de140a04f",
+     "/jobs/48b5adbdd28c/rows/4526b38aa659e03b",
+     "/jobs/48b5adbdd28c/rows/60d7908fbadfe93a",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c",
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/6c2082f0e5d21f6f",
+     "/jobs/48b5adbdd28c/rows/80a382e05a927b9e",
+     "/jobs/48b5adbdd28c/rows/ada54846b85cb776",
+     "/jobs/48b5adbdd28c/rows/f98719b4eb9eac59",
+     "/jobs/48b5adbdd28c/rows/83809f7a29aeddd7"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 897,
+    "longtasks": 1,
+    "longtask_ms": 68,
+    "requests": 73,
+    "kb": 43,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 92,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 10788,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 29,
+    "kb": 473,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 1305,
+    "longtasks": 2,
+    "longtask_ms": 170,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3283,
+    "longtasks": 1,
+    "longtask_ms": 68,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/templates",
+     "/jobs/48b5adbdd28c/unjudged"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 64,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 851,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 73,
+    "kb": 36,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/a9b559cadf6fe834",
+     "/jobs/48b5adbdd28c/rows/3f0ba072fe6ce49d",
+     "/jobs/48b5adbdd28c/rows/a920919de140a04f",
+     "/jobs/48b5adbdd28c/rows/4526b38aa659e03b",
+     "/jobs/48b5adbdd28c/rows/60d7908fbadfe93a",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c",
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/6c2082f0e5d21f6f",
+     "/jobs/48b5adbdd28c/rows/80a382e05a927b9e",
+     "/jobs/48b5adbdd28c/rows/ada54846b85cb776",
+     "/jobs/48b5adbdd28c/rows/f98719b4eb9eac59",
+     "/jobs/48b5adbdd28c/rows/83809f7a29aeddd7"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 960,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 73,
+    "kb": 43,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 81,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 10901,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 29,
+    "kb": 473,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 1344,
+    "longtasks": 2,
+    "longtask_ms": 224,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3564,
+    "longtasks": 2,
+    "longtask_ms": 143,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 65,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 847,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 73,
+    "kb": 36,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/a9b559cadf6fe834",
+     "/jobs/48b5adbdd28c/rows/3f0ba072fe6ce49d",
+     "/jobs/48b5adbdd28c/rows/a920919de140a04f",
+     "/jobs/48b5adbdd28c/rows/4526b38aa659e03b",
+     "/jobs/48b5adbdd28c/rows/60d7908fbadfe93a",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c",
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/6c2082f0e5d21f6f",
+     "/jobs/48b5adbdd28c/rows/80a382e05a927b9e",
+     "/jobs/48b5adbdd28c/rows/ada54846b85cb776",
+     "/jobs/48b5adbdd28c/rows/f98719b4eb9eac59",
+     "/jobs/48b5adbdd28c/rows/83809f7a29aeddd7"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 980,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 73,
+    "kb": 43,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c",
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 96,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 11162,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 29,
+    "kb": 473,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows/09d9cea04ea4a007",
+     "/jobs/48b5adbdd28c/rows/0a4e387092c110dc",
+     "/jobs/48b5adbdd28c/rows/0caf1310579d40cf",
+     "/jobs/48b5adbdd28c/rows/0cd009cb94f7492e",
+     "/jobs/48b5adbdd28c/rows/0e2bbb5023080cae",
+     "/jobs/48b5adbdd28c/rows/0e4005e559069354",
+     "/jobs/48b5adbdd28c/rows/0f57f183bc89cdb2",
+     "/jobs/48b5adbdd28c/rows/1824da2570203ad7",
+     "/jobs/48b5adbdd28c/rows/1870f70fc8bd4300",
+     "/jobs/48b5adbdd28c/rows/1a7a996b463f0a85",
+     "/jobs/48b5adbdd28c/rows/1e2f8c3e65b5b86c"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 1272,
+    "longtasks": 2,
+    "longtask_ms": 189,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3482,
+    "longtasks": 2,
+    "longtask_ms": 149,
+    "requests": 10,
+    "kb": 460,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  }
+ ],
+ "job": "48b5adbdd28c",
+ "root": "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/wt_before",
+ "summary": {
+  "band": {
+   "median_ms": 64,
+   "max_ms": 65,
+   "requests": 0,
+   "kb": 0,
+   "longtasks": 0
+  },
+  "scope_multi": {
+   "median_ms": 847,
+   "max_ms": 851,
+   "requests": 73,
+   "kb": 36,
+   "longtasks": 0
+  },
+  "qty_page": {
+   "median_ms": 960,
+   "max_ms": 980,
+   "requests": 73,
+   "kb": 43,
+   "longtasks": 0
+  },
+  "edit_one": {
+   "median_ms": 92,
+   "max_ms": 96,
+   "requests": 1,
+   "kb": 1,
+   "longtasks": 0
+  },
+  "dismiss": {
+   "median_ms": 10901,
+   "max_ms": 11162,
+   "requests": 29,
+   "kb": 473,
+   "longtasks": 0
+  },
+  "restore": {
+   "median_ms": 1305,
+   "max_ms": 1344,
+   "requests": 10,
+   "kb": 460,
+   "longtasks": 2
+  },
+  "add_row": {
+   "median_ms": 3482,
+   "max_ms": 3564,
+   "requests": 10,
+   "kb": 460,
+   "longtasks": 2
+  }
+ }
+}

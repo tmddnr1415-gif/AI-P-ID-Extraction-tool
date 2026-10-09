@@ -4019,6 +4019,47 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 13. **못 한 것** — Windows(cmd · 서비스 루프 · 경로)에서의 돌발상황 · 실제 디스크 가득 참(단위 시험으로만) · SADARA · UAD PDF ·
     `data/*.xlsx` 없음 (축1·2 · 실제 양식 채우기).
 
+**그 다음 — 고치는 일을 빠르게: 마크업 · 범위 선택 · 목록 반영 (hotfix75 · 판정 0줄)**
+
+사용자: *"마크업과 사용자가 pid 에서 계기 선택 범위로 선택 그리고 수정시 list 변경과 같은 행위와 반영은 빨리 처리되어야지
+프로그램으로서의 실효성이 생긴다."*  자 `spike/perf_edit_sim.py` (QFE Rev.B 사본 · 행이 가장 많은 장 p15 73행 · 회마다 사본을
+새로 뜬다 · `--root` 로 전 판 worktree 를 같은 자로) → `out/hotfix75/edit_before.json` · `edit_after.json`.
+시험 `tests/test_hotfix75_edit_speed.py` 13건 (빠른 시험 **1028**).  **엔진 0줄 — 지문에 닿을 길이 없다** (분석 뒤 편집 경로뿐).
+
+| 일 (중앙값 · 3회) | 전 | 후 |
+| --- | --- | --- |
+| Shift 띠로 73개 묶기 | 64ms | 61ms (원래 빨랐다) |
+| 묶은 73행 공급 주체 바꾸기 | 847ms · 요청 73 | **215ms · 요청 1** |
+| 승수 라벨 '이 페이지 전체' (73행) | 960ms · 요청 73 | **435ms · 요청 1** |
+| 칸 하나 고치기 | 92ms | 79ms (원래 빨랐다) |
+| 묶은 20행 '둘 다 아님' | **10.9초** · 요청 29 | **0.42초** · 요청 10 |
+| 지운 행 되돌리기 | 1.3초 | **0.42초** |
+| [+행] → 점 고르기 → 행이 목록에 섬 | 3.5초 | **1.5초** |
+| 마크업 사각형 제안 (그 장을 읽은 뒤) | 1.51초 | **0.07초** (서버 실측) |
+
+1. **묶음은 요청 하나** — `POST /jobs/{id}/rows_edit`(같은 칸 · 행마다 값) · `POST /jobs/{id}/rows_delete`.  행마다 PATCH·DELETE 를
+   순서대로 보내고 있었다.  **서버가 하는 일은 한 행짜리와 같은 함수**다 — `_edit_one`(PATCH · `qty_bulk` · `rows_edit`) ·
+   `_delete_one`(DELETE · `rows_delete`).  값을 하나라도 못 읽으면 한 행도 적지 않고, 없는 행은 `missing` 으로 말한다.
+   화면은 `editRowsBulk` 한 곳이 행 객체를 PATCH 뒤와 똑같이 고친다.  창 사이 연동은 본문의 `items`·`keys` 로 그대로 간다.
+2. **지운 · 되살린 · 더한 행만 다시 받는다** — `refreshRows(key, {keys})` → `reloadKeys` 가 `/rows?keys=` 로 그 행만 받아 지금 목록에
+   끼우고 목록을 세우는 일은 예전 `loadRows(pre)` 가 한다 (한 곳).  새 행은 서버 목록과 같은 자리(장 · 열쇠 순).  못 받으면 예전처럼 전부.
+   예전에는 지울 때마다 목록 전체(QFE 7MB)를 다시 받았다.
+3. **★ 행 메모를 그 행만 고친다** (`db.memo_follow`).  편집 한 칸이 메모를 풀어, 그 뒤 화면이 읽는 검토 · 마크업 · 그림 목록이
+   분석 전체(2천 행 · 근거 11MB)를 다시 파싱했다 — 지우기 한 번의 1초 남짓이 거의 이것이다.  안전 규칙: 블록 동안 연결 잠금을
+   쥔다 · 다른 연결이 쓰면(`data_version`) 고치지 않는다 · 메모가 블록 **직전** 상태일 때만 · 고친 메모에는 블록 **직후** 도장 —
+   그 뒤 누가 무엇을 쓰든 예전처럼 전부 다시 읽는다.  이력 표만 쓰는 `record_feedback` 은 도장만 옮긴다.  겹친 블록(묶음 안의 이력
+   쓰기)은 **바깥 블록이 끝에 한 번** 고친다 — 안쪽에서 메모 잠금을 잡으면 `merged_rows_cached`(메모 → 연결 순)와 거꾸로 잡아 서로
+   기다린다 (시험이 4스레드로 교착 없음 · 끝 상태 = 처음부터 읽은 목록을 못박는다).
+4. **마크업 제안이 분석 전체를 세 번 파싱하고 있었다** (`_qty_from_page` · `_system_from_page` · `_tag_from_words` — 1.4초).  그 장의
+   행(`db.merged_rows_on_page`)과 엔진 태그(`db.engine_tag_numbers`)만 읽는다.  마크업 요약(`markup.summary`)도 필요한 칸만 SQL 로
+   (근거는 사람이 더한 행 것만).  행 추가의 `_engine_near` 도 그 장 + `db.engine_parts`(json_extract) — 둘 다 예전과 같은 값을 시험이 맞댄다.
+5. **[+행] 을 누르면 그 장을 미리 읽는다** (`startPick` → `prewarmMarkup` — 마크업과 같은 캐시).  점을 고르는 동안 읽혀, 처음 더하는
+   행이 그 장을 읽느라 멈추지 않는다.  ⚠ A1 장 처음 읽기가 3초 남짓이라 2초 안에 점을 찍으면 남은 몫을 기다린다.
+6. ⚠ **띠 선택 · 칸 하나 고치기는 원래 빨랐다** (60~90ms) — 바꾸지 않았다.  남은 몫은 지운 뒤 `loadRows` 의 곁 요청(검토 · 마크업 ·
+   FROM/TO · 신고 · 이력 · 그림 목록 · 미판정 · 템플릿 — 메모가 살아 있어 각각 수십 ms)과 목록·도면 다시 그리기다.
+7. 같이 고친 것 — 측정 사본을 저장소 밖 임시 폴더에 둔다 (첫 판이 `out/` 아래에 DB 사본을 떴다).  결과 화면을 주소 `#분석` 으로 여는
+   길은 hotfix58 부터 없다 — 측정기는 `open(job)` 을 부른다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4511,6 +4552,10 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/excel_race.py`·`file_race.py`·`ui_small_screens.py`·`ui_double_click.py`·`ui_xss.py`·`ui_open_fail.py` | **hotfix74 [L]** — 시뮬레이터 여섯 (사본 데이터) · `escape()` 는 따옴표까지 바꾼다 — 속성 안에도 쓰인다 |
 | `legend_rules.stroke_index` 메모 · `dv._segments_by_x` · `_bubble_links` bisect | **hotfix73** — 같은 답으로 빠르게 (호출자마다 복사본 · 한 장만 들고 분석 끝에 놓는다) |
 | `spike/hostile_inputs.py` | **hotfix73** — 비정상 입력(암호·손상·잘림·0바이트·스캔·A4 문서·이상한 이름)을 격리 서버에 실제로 올려 사유와 서버 생존을 잰다 |
+| `main._edit_one` · `_delete_one` · `POST /jobs/{id}/rows_edit` · `POST /jobs/{id}/rows_delete` · `app.js` `editRowsBulk` | **hotfix75** — 묶음 저장·삭제는 요청 하나 · 서버는 한 행짜리와 같은 함수 |
+| `db.memo_follow` · `_patch_memo` · `merged_rows_on_page` · `engine_parts` · `engine_tag_numbers` | **hotfix75** — 쓰기 뒤 행 메모를 그 행만 고친다(바깥 블록 한 번 · 다른 연결이 쓰면 안 고침) · 장만 · 몇 칸만 읽기.  **행을 바꾸는 쓰기를 새로 만들면 `memo_follow` 로 감싸거나, 감싸지 않으면 예전처럼 전부 다시 읽힌다(틀리지는 않는다)** |
+| `app.js` `reloadKeys` · `refreshRows(key, {keys})` | **hotfix75** — 바뀐 행만 받아 끼우고 목록은 `loadRows(pre)` 한 곳이 세운다 |
+| `spike/perf_edit_sim.py` | **hotfix75** — 띠 선택 · 묶음 SCOPE · 승수 · 칸 하나 · 지우기 · 되살리기 · 행 추가를 잰다 (`--root` 로 전 판) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

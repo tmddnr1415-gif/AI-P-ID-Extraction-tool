@@ -27,15 +27,22 @@ def _row(page, system="", tag="", added=0):
             "ai": {"system": system, "tag_no": tag}}
 
 
+
+def _fake(monkeypatch, rows):
+    """hotfix75 — 제안은 그 장의 행(`merged_rows_on_page`)과 엔진 태그(`engine_tag_numbers`)만 읽는다."""
+    monkeypatch.setattr(markup.db, "merged_rows_on_page", lambda con, j, p: [r for r in rows if r["page_no"] == p])
+    monkeypatch.setattr(markup.db, "engine_tag_numbers", lambda con, j: [(r.get("ai") or {}).get("tag_no") for r in rows])
+
+
 def test_system_is_the_value_the_page_rows_carry(monkeypatch):
     rows = [_row(12, "P&ID FOR FUEL OIL"), _row(12, "P&ID FOR FUEL OIL"), _row(13, "OTHER")]
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: rows)
+    _fake(monkeypatch, rows)
     out = markup._system_from_page(_Con(), "j", 12)
     assert out["system"] == "P&ID FOR FUEL OIL" and out["system_source"] == "DRAWING"
 
 
 def test_system_falls_back_to_page_title_then_blank(monkeypatch):
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: [])
+    _fake(monkeypatch, [])
     assert markup._system_from_page(_Con("TITLE X"), "j", 3)["system"] == "TITLE X"
     blank = markup._system_from_page(_Con(""), "j", 3)
     assert blank["system"] == "" and blank["system_source"] == "USER"
@@ -43,22 +50,22 @@ def test_system_falls_back_to_page_title_then_blank(monkeypatch):
 
 def test_system_is_not_chosen_when_the_page_disagrees(monkeypatch):
     rows = [_row(5, "A"), _row(5, "B")]
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: rows)
+    _fake(monkeypatch, rows)
     assert markup._system_from_page(_Con("T"), "j", 5)["system"] == ""
 
 
 def test_tag_uses_the_documents_own_tag_shape(monkeypatch):
     rows = [_row(1, tag="00EGD31CP501"), _row(1, tag="00GHB01CL001")]
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: rows)
+    _fake(monkeypatch, rows)
     words = [{"text": "PDIA+"}, {"text": "00EGD21CP001"}, {"text": "DN25"}]
     out = markup._tag_from_words(None, "j", words)
     assert out["tag_no"] == "00EGD21CP001" and out["tag_source"] == "DRAWING"
 
 
 def test_tag_is_blank_without_a_tag_system_or_with_two_candidates(monkeypatch):
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: [_row(1)])
+    _fake(monkeypatch, [_row(1)])
     assert markup._tag_from_words(None, "j", [{"text": "00EGD21CP001"}])["tag_no"] == ""
-    monkeypatch.setattr(markup.db, "merged_rows", lambda con, j: [_row(1, tag="00EGD31CP501")])
+    _fake(monkeypatch, [_row(1, tag="00EGD31CP501")])
     two = markup._tag_from_words(None, "j", [{"text": "00EGD21CP001"}, {"text": "00EGD22CP001"}])
     assert two["tag_no"] == "" and len(two["tag_candidates"]) == 2
 

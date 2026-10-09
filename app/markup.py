@@ -88,7 +88,7 @@ def _qty_from_page(con, job_id: str, page_no: int) -> dict:
 
     값이 갈리면(Typical 상자 안·밖이 섞인 장) 고르지 않고 빈칸 + 사유다.
     """
-    rows = [r for r in db.merged_rows(con, job_id)
+    rows = [r for r in db.merged_rows_on_page(con, job_id, page_no)   # hotfix75 — 그 장만 읽는다
             if r["page_no"] == page_no and not r["added"] and not r["removed"]
             and not r["deleted"]]
     vals = collections.Counter()
@@ -116,7 +116,7 @@ def _system_from_page(con, job_id: str, page_no: int) -> dict:
     엔진은 SYSTEM 을 그 장 타이틀블록의 도면 제목에서 읽으므로(`meta["drawing_title"]`)
     같은 장 행은 같은 값을 갖는다.  행이 없으면 저장된 그 장의 제목, 그것도 없으면
     빈칸 — 지어내지 않는다.  갈리면 고르지 않는다."""
-    rows = [r for r in db.merged_rows(con, job_id)
+    rows = [r for r in db.merged_rows_on_page(con, job_id, page_no)   # hotfix75 — 그 장만 읽는다
             if r["page_no"] == page_no and not r["added"] and not r["removed"]
             and not r["deleted"]]
     vals = collections.Counter(str((r.get("ai") or {}).get("system") or "").strip()
@@ -148,8 +148,9 @@ def _tag_from_words(con, job_id: str, words: list) -> dict:
     고르지 않고 후보만 낸다 (§9 ④)."""
     from app.engine import tags as tagsys
     shapes = collections.Counter()
-    for r in db.merged_rows(con, job_id):
-        t = str((r.get("ai") or {}).get("tag_no") or "").strip()
+    # hotfix75 — 태그 칸 하나만 읽는다 (예전에는 제안 한 번에 분석 전체를 파싱했다 — 세 곳 합쳐 1.4초).
+    for raw in db.engine_tag_numbers(con, job_id):
+        t = str(raw or "").strip()
         if t and tagsys._is_code(t):
             shapes[tagsys.shape(t)] += 1
     if not shapes:
@@ -269,7 +270,18 @@ def assign_stable_id(data_dir: Path, con, job, key: str, row: dict) -> dict:
 # --------------------------------------------------------------------------
 
 def summary(con, job_id: str) -> dict:
-    rows = db.merged_rows_cached(con, job_id)      # 읽기만 한다 (hotfix45)
+    """마크업 요약.  hotfix75 — 필요한 칸만 DB 에서 읽는다 (근거 JSON 은 사람이 더한 행 것만).  예전에는
+    `merged_rows_cached` 로 분석 전체를 다시 파싱해, 편집 한 칸 뒤 첫 호출이 0.4초였고 지우기 한 번이 그만큼
+    멈췄다 (QFE 2천 행).  행 · 순서 · 값은 `_merged` 가 만드는 것과 같다 (시험이 맞댄다)."""
+    rows = []
+    for r in con.execute(
+            "SELECT page_no, added, removed, rect_json, reject_json,"
+            " CASE WHEN added THEN evidence_json ELSE NULL END AS ev"
+            " FROM item WHERE job_id=? ORDER BY page_no, key", (job_id,)).fetchall():
+        rows.append({"page_no": r["page_no"], "added": bool(r["added"]), "removed": bool(r["removed"]),
+                     "rect": json.loads(r["rect_json"] or "[]"),
+                     "reject": json.loads(r["reject_json"] or "{}"),
+                     "evidence": json.loads(r["ev"]) if r["ev"] else {}})
     out = {"added": 0, "added_with_rect": 0, "scope_user": 0, "qty_user": 0,
            "rejected": 0, "rejected_excluded": 0, "by_page": {}}
     for r in rows:

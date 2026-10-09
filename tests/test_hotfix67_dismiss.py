@@ -41,7 +41,7 @@ def test_dismiss_is_delete_with_its_own_class_and_no_prompt():
     assert 'klass: "NOT_SUPPLY"' in d and "reason: NOT_SUPPLY_NOTE" in d
     dr = _fn("deleteRows")
     assert "opts.reason !== undefined ? opts.reason" in dr and 'opts.klass || "FALSE_POSITIVE"' in dr
-    assert 'exclude: "true"' in dr
+    assert "/rows_delete" in dr and "exclude: true" in dr      # hotfix75 — 요청 하나
 
 
 def test_same_button_in_the_panel_and_the_multi_panel():

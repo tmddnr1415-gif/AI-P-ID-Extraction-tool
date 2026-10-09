@@ -3872,7 +3872,7 @@ function _gridRow(tr) {
       const what = act.dataset.act;
       if (what === "report") reportDialog({ rowKey: r.key, pageNo: r.page_no });
       else if (what === "restore") {
-        fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" }).then(() => refreshRows(r.key));
+        fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" }).then(() => refreshRows(r.key, { keys: [r.key] }));
       } else if (what === "del-confirm" && r.delCand) {
         fetch(`/jobs/${S.job.id}/deleted/${encodeURIComponent(r.delCand.id)}/confirm`
               + `?confirmed=${!r.delCand.confirmed}`, { method: "POST" })
@@ -4747,18 +4747,22 @@ async function deleteRows(keys, opts = {}) {
   if (reason === null) return;
   const author = await askAuthor(`${keys.length}개 행 삭제`);
   if (author === null) return;
-  let done = 0;
-  for (const key of keys) {
-    const q = new URLSearchParams({ reason: String(reason).trim(), reason_class: opts.klass || "FALSE_POSITIVE",
-                                    author, exclude: "true" });
-    const r = await fetch(`/jobs/${S.job.id}/rows/${key}?${q}`, { method: "DELETE" });
-    if (!r.ok) { alert("삭제 실패"); break; }
-    const out = await r.json();
-    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
-    done += 1;
-  }
+  // hotfix75 — 행마다 DELETE(한 번 0.4초 · 30행이면 13초) 를 요청 하나로, 그 뒤 목록 전체(7MB)를 다시 받던 것을
+  // **지운 행만** 다시 받는다 (`refreshRows(..., {keys})`).  서버가 하는 일은 DELETE 와 같은 함수다.
+  let r;
+  try {
+    r = await fetch(`/jobs/${S.job.id}/rows_delete`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys, reason: String(reason).trim(), reason_class: opts.klass || "FALSE_POSITIVE",
+                             author, exclude: true }),
+    });
+  } catch (e) { alert("삭제하지 못했습니다 — 서버에 연결할 수 없습니다."); return; }
+  if (!r.ok) { alert("삭제 실패"); return; }
+  const out = await r.json();
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+  const done = Object.keys(out.rows || {}).length;
   S.multi.clear();
-  await refreshRows(keys.length === 1 ? keys[0] : null);
+  await refreshRows(keys.length === 1 ? keys[0] : null, { keys });
   // 고른 행이 없으면 `refreshRows` 는 목록만 다시 읽는다 — 붉은 표시가 다음 동작
   // 뒤에야 서던 것을 그 자리에서 그린다 (자기검증이 잡았다).
   if (keys.length === 1) drawOverlay(); else deselect();   // 묶음 패널은 이제 빈 묶음을 말한다
@@ -4836,7 +4840,7 @@ function scopePop(key) {
 
 async function restoreRow(key) {
   await fetch(`/jobs/${S.job.id}/rows/${key}/restore`, { method: "POST" });
-  await refreshRows(key);
+  await refreshRows(key, { keys: [key] });
   drawOverlay();
   editNotice("되돌렸습니다 — 다시 결과와 Excel 에 들어갑니다", "in");
 }
@@ -4911,29 +4915,53 @@ async function applyScopeToMulti(value) {
   if (!rows.length) return;
   const author = await askAuthor(`${rows.length}개 공급 주체 → ${value}`);
   if (author === null) return;                       // 취소 — 한 행도 안 고친다
-  let done = 0;
-  for (const r of rows) {
-    if (String(cellValue(r, "scope") || "") === value) { done += 1; continue; }
-    const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "scope", value, author }),
-    });
-    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
-    const out = await res.json();
-    r.user = out.user;
-    stampEditor(r, "scope", author);
-    r.values.scope = value;
-    repaintRow(r);
-    S.counts.REVIEW = out.review_count;
-    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
-    done += 1;
-  }
+  // hotfix75 — 행마다 PATCH 를 보내던 것을 요청 하나로 (`rows_edit` — 서버는 행마다 PATCH 와 같은 함수).
+  const todo = rows.filter(r => String(cellValue(r, "scope") || "") !== value);
+  const out = await editRowsBulk(todo, "scope", () => value, author);
+  if (!out) return;
   updateBadge();
   renderGrid();
   markMultiRows();
   drawOverlay();          // 색은 `itemScope` 하나가 정한다 — 여기서는 다시 그릴 뿐
-  editNotice(`${done}개 행의 공급 주체를 ${value} 로 바꿨습니다`);
+  editNotice(`${rows.length - out.missing.length}개 행의 공급 주체를 ${value} 로 바꿨습니다`);
   showMultiScope();
+}
+
+/* hotfix75 — 여러 행의 같은 칸을 **요청 하나**로 저장하고 행 객체를 PATCH 뒤와 똑같이 고친다 (`row.user` · 고친
+ * 사람 · `values` · 충돌 풀기 · 검토 수 · 이력 수).  다시 그리는 일은 부른 쪽이 한 번 한다 — 행마다 그리면 그것이
+ * 다시 느려진다.  `valueOf(row)` 는 그 행에 적을 값 (빈 값이면 도면 값으로 되돌린다).  실패면 null. */
+async function editRowsBulk(rows, field, valueOf, author, reasonOf) {
+  const out = { missing: [] };
+  if (!rows.length) return out;
+  let res;
+  try {
+    res = await fetch(`/jobs/${S.job.id}/rows_edit`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field, author, items: rows.map(r => ({ key: r.key, value: valueOf(r),
+                                                                    reason: reasonOf ? reasonOf(r) : undefined })) }),
+    });
+  } catch (e) {
+    alert("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  한 행도 바뀌지 않았습니다."); return null;
+  }
+  if (!res.ok) {
+    let msg = "저장 실패 (서버 응답 " + res.status + ")";
+    try { msg = (await res.json()).detail || msg; } catch (e) { /* 본문이 JSON 이 아니다 */ }
+    alert(msg); return null;
+  }
+  const got = await res.json();
+  for (const r of rows) {
+    if (!(r.key in got.users)) continue;
+    const v = String(valueOf(r) ?? "").trim();
+    r.user = got.users[r.key];
+    stampEditor(r, field, author);
+    r.values[field] = v === "" ? (r.ai || {})[field] : (field === "qty" ? Number(v) : v);
+    delete (r.conflict || {})[field];
+  }
+  S.counts.REVIEW = got.review_count;
+  if (got.feedback_count !== undefined) S.feedback = got.feedback_count;
+  out.missing = got.missing || [];
+  if (out.missing.length) alert(`${out.missing.length}개 행은 서버에 없어 바꾸지 못했습니다 — 다른 창이나 다른 사람이 지웠을 수 있습니다.`);
+  return out;
 }
 
 function bindAxisActions(row) {
@@ -4944,7 +4972,7 @@ function bindAxisActions(row) {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, value: b.dataset.v }),
       });
-      await loadRows();
+      await reloadKeys([row.key]);
       const again = S.rows.find(r => r.key === row.key);
       if (again) showEvidence(again);
     };
@@ -6969,22 +6997,10 @@ async function applyQtyToRows(rows, value, what) {
   if (!rows.length) { editNotice("바뀔 행이 없습니다 — 이미 그 승수입니다"); return; }
   const author = await askAuthor(`승수 x${value || "(도면 값)"} — ${what} · ${rows.length}행`);
   if (author === null) return;                       // 취소 — 한 행도 안 고친다
-  let done = 0;
-  for (const r of rows) {
-    const res = await fetch(`/jobs/${S.job.id}/rows/${r.key}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "qty", value, author }),
-    });
-    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); break; }
-    const out = await res.json();
-    r.user = out.user;
-    stampEditor(r, "qty", author);
-    r.values.qty = value === "" ? (r.ai || {}).qty : Number(value);
-    delete (r.conflict || {}).qty;
-    S.counts.REVIEW = out.review_count;
-    if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
-    done += 1;
-  }
+  // hotfix75 — 행마다 PATCH(46행이면 46번 왕복)를 요청 하나로.  같은 PATCH 칸(`field: "qty"`) · 같은 작성자.
+  const out = await editRowsBulk(rows, "qty", () => value, author);
+  if (!out) return;
+  const done = rows.length - out.missing.length;
   updateBadge();
   renderGrid();                                       // 오른쪽 — 같은 Q'ty 값
   markMultiRows();
@@ -7395,7 +7411,7 @@ async function markupDialog(rect) {
       markup: { tab: payload.tab, values, scope_source, qty_source, proposal: payload.proposal } }) : "";
     closeModal();
     clearFiltersForNewRow();
-    await refreshRows(out.key, { toGrid: true });
+    await refreshRows(out.key, { toGrid: true, keys: [out.key] });
     updateBadge();
     // 빈 SCOPE 는 "판정한 적 없음(옛 분석)" 이 아니라 **사람이 비워 둔 것**이다 — 문장은
     // `scopeFacts` 한 곳이 쓴다 (근거 패널과 같은 문장).
@@ -7447,7 +7463,7 @@ function rejectDialog(it) {
   $("#rj-cancel").onclick = closeModal;
   if ($("#rj-restore")) $("#rj-restore").onclick = async () => {
     await fetch(`/jobs/${S.job.id}/rows/${row.key}/restore`, { method: "POST" });
-    closeModal(); await refreshRows(row.key);
+    closeModal(); await refreshRows(row.key, { keys: [row.key] });
   };
   $("#rj-save").onclick = async () => {
     if (!vocReasonOk("rj")) return;
@@ -7466,7 +7482,7 @@ function rejectDialog(it) {
         body: JSON.stringify({ field, value, author, reason: `WRONG_VALUE: ${note}` }) });
       if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return; }
       const vocId = await sendVoc({ markup: { field, value } });
-      closeModal(); await refreshRows(row.key);
+      closeModal(); await refreshRows(row.key, { keys: [row.key] });
       if (vocId) editNotice(`${field} 을(를) 고쳤습니다 · VOC ${vocId} 접수`, "in");
       return;
     }
@@ -7478,7 +7494,7 @@ function rejectDialog(it) {
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     const vocId = await sendVoc({ markup: { exclude: $("#rj-exclude").checked } });
     closeModal();
-    await refreshRows(out.dropped ? null : row.key);
+    await refreshRows(out.dropped ? null : row.key, { keys: [row.key] });
     if (vocId) { editNotice(`표시했습니다 · VOC ${vocId} 접수 — 개발팀 함에 쌓였습니다`, "in"); return; }
     if (cls.value === "UNKNOWN_SYMBOL") {
       editNotice("미지정 심볼로 표시했습니다 — 무엇으로 볼지는 [심볼] 화면에서 등록합니다", "unjudged");
@@ -7506,7 +7522,7 @@ async function markupElsewhere(row) {
   $("#me-save").onclick = async () => {
     const chosen = [...document.querySelectorAll(".mk-pages input:checked")].map(c => +c.value);
     if (!chosen.length) { alert("장을 고르세요."); return; }
-    let made = 0, lastKey = null;
+    let made = 0, lastKey = null; const madeKeys = [];
     for (const pno of chosen) {
       const pg = S.pages.find(p => p.page_no === pno);
       let prop = {};
@@ -7535,10 +7551,10 @@ async function markupElsewhere(row) {
           reason_class: mk.class || "MISSING", note: `p${row.page_no} 마크업에서 같이 적용`,
           proposal: prop.error ? {} : { type: prop.type, scope: prop.scope, scope_source: prop.scope_source,
                                         qty: prop.qty, qty_source: prop.qty_source, qty_basis: prop.qty_basis } }) });
-      if (r2.ok) { made++; lastKey = (await r2.json()).key; }
+      if (r2.ok) { made++; lastKey = (await r2.json()).key; madeKeys.push(lastKey); }
     }
     closeModal();
-    await refreshRows(lastKey);
+    await refreshRows(lastKey, { keys: madeKeys });
     editNotice(`${made}장에 추가했습니다 — 장마다 SCOPE·Q'ty 출처는 근거 패널에 있습니다`, "in");
   };
 }
@@ -7917,7 +7933,7 @@ async function downloadUrl(url, fallbackName, btn) {
 
 /* ---------------- row add / copy / delete ---------------- */
 async function refreshRows(selectKey, opts = {}) {
-  await loadRows();
+  if (opts.keys && opts.keys.length) await reloadKeys(opts.keys); else await loadRows();
   if (!selectKey) return;
   // 53회차 [G] — 마크업으로 행을 더한 뒤에는 **오른쪽 목록이 그 행으로
   // 간다** (8차 피드백 s8: *"마크업이 완료되면 오른쪽 화면은 추가된 행으로
@@ -7943,6 +7959,9 @@ $req("#row-add").addEventListener("click", () => {
 });
 
 function startPick() {
+  // hotfix75 — 사람이 점을 고르는 동안 그 장을 미리 읽는다 (마크업과 같은 캐시 — 행을 더할 때 주변 도형을 재는
+  // `probe_point` 가 같은 것을 쓴다).  안 그러면 처음 더하는 행이 그 장을 읽느라 2초 넘게 멈췄다.
+  prewarmMarkup();
   S.picking = true;
   $("#stage").classList.add("picking");
   $("#pick-note").classList.remove("hidden");
@@ -7986,7 +8005,7 @@ async function createRow(point) {
       + `${g.path_count || 0}개 · 선분 ${g.segment_count || 0}개`
       + (g.nearest_text ? ` · 인접 텍스트 "${g.nearest_text}"` : "");
   }
-  await refreshRows(out.key);
+  await refreshRows(out.key, { keys: [out.key] });
   updateBadge();
 }
 
@@ -8007,7 +8026,8 @@ $req("#row-copy").addEventListener("click", async () => {
   const r = await fetch(`/jobs/${S.job.id}/rows/${S.sel}/copy`, { method: "POST" });
   if (!r.ok) { alert("복사 실패"); return; }
   clearFiltersForNewRow();
-  await refreshRows((await r.json()).key);
+  const ck = (await r.json()).key;
+  await refreshRows(ck, { keys: [ck] });
 });
 
 $req("#row-delete").addEventListener("click", async () => {
@@ -9196,6 +9216,32 @@ async function syncRows(m) {
   else if (S.multi.size && keys.some(k => S.multi.has(k))) showMultiScope();
   renderFloatEdit();
   _refreshPageMult();
+}
+/* hotfix75 — 몇 행이 바뀌었을 때(지움 · 마크업 추가 · 되살림) 목록 전체(QFE 2천 행 · 7MB · 0.2초 + 파싱)를
+ * 다시 받지 않고 **그 행만** 받아 지금 목록에 끼워 넣은 뒤, 목록을 세우는 일은 예전과 같은 `loadRows` 가 한다
+ * (`pre` 로 넘긴다 — 개수 · 개정 · 검토 · 탭 · 범례 · 그리드를 세우는 곳은 그대로 하나다).  서버에서 사라진 행
+ * (사람이 만든 행을 지움)은 빼고, 새 행은 서버 목록과 같은 자리(장 · 열쇠 순)에 둔다.  못 받으면 예전처럼 전부 받는다. */
+async function reloadKeys(keys) {
+  let fresh;
+  try {
+    const res = await fetch(`/jobs/${S.job.id}/rows?tab=ALL&keys=${keys.map(encodeURIComponent).join(",")}`);
+    if (!res.ok) throw new Error(res.status);
+    fresh = await res.json();
+  } catch (e) { await loadRows(); return; }
+  if (!Array.isArray(fresh)) { await loadRows(); return; }
+  const want = new Set(keys), got = new Map(fresh.map(r => [r.key, r]));
+  const list = [];
+  for (const r of S.rows) {
+    if (got.has(r.key)) { list.push(got.get(r.key)); got.delete(r.key); }
+    else if (!want.has(r.key)) list.push(r);
+  }
+  // 새 행 — 서버 목록과 같은 자리 (`merged_rows` 의 ORDER BY page_no, key)
+  const before = (x, y) => x.page_no < y.page_no || (x.page_no === y.page_no && x.key < y.key);
+  for (const r of got.values()) {
+    const at = list.findIndex(x => !x.key.startsWith("del:") && before(r, x));
+    if (at < 0) list.push(r); else list.splice(at, 0, r);
+  }
+  await loadRows(Promise.resolve(list));
 }
 async function reloadRowsKeepView() {
   const gw = $("#gridwrap"); const top = gw ? gw.scrollTop : 0;
