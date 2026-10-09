@@ -39,9 +39,9 @@
 - K1 저장 뒤 파일 ['sheet_notes.json.bak', 'sheet_notes.json'] · 남은 임시 파일 []
 - K2 PDF 없음 GET /jobs/48b5adbdd28c/page/6.png → 410 {"detail":"필요한 파일이 서버에 없습니다 (gone.pdf) — 업로드 폴더가 정리됐거나 옮겨졌습니다.  같은 파일로 새로 분석해 주세요."}
 - K2 PDF 없음 POST /jobs/48b5adbdd28c/reanalyse → 410 {"detail":"이 분석의 원본 파일(gone.pdf)이 서버에 없습니다 — 업로드 폴더가 정리됐거나 옮겨졌습니다.  결과 목록·편집·Excel 은 그대로 쓸 수 있고, 도면 그림·재분석·마크업 제안은 같은 파일로 새로 분석해야 합니다."}
-- K2 PDF 없음 POST /jobs/48b5adbdd28c/diagnostic → 200 {"filename":"pid_diag_v1.0.0_20261009_48b5adbdd28c.zip","bytes":1551774,"counts":{"rows":1991,"reports":0,"edits":1,"feedback":3,"pages":93,"derived_layout_measured":23,"derived_layout_applied":38},"e
+- K2 PDF 없음 POST /jobs/48b5adbdd28c/diagnostic → 200 {"filename":"pid_diag_v1.0.0_20261009_48b5adbdd28c.zip","bytes":1551780,"counts":{"rows":1991,"reports":0,"edits":1,"feedback":3,"pages":93,"derived_layout_measured":23,"derived_layout_applied":38},"e
 - K2 PDF 없음 GET /jobs/48b5adbdd28c/feedback_export → 200 application/zip
 - K2 PDF 없음 POST /jobs/48b5adbdd28c/markup/propose → 410 {"detail":"필요한 파일이 서버에 없습니다 (gone.pdf) — 업로드 폴더가 정리됐거나 옮겨졌습니다.  같은 파일로 새로 분석해 주세요."}
 - K2 PDF 없음 POST /jobs/48b5adbdd28c/titleblock/preview → 400 {"detail":"cell 과 rect [x0,y0,x1,y1] 가 필요합니다"}
 - K2 PDF 없음 GET /jobs/48b5adbdd28c/notes/6 → 200 {"known":true,"found":false,"note":"이 장의 NOTES 에는 '이 도면이 유닛 몇 개에 같이 쓰이는가' 를 말하는 문단이 없습니다."}
-- K3 DB 머리 손상 → 기동 안 됨 · 마지막 출력: 'ne 400, in connect\n    raise DatabaseCorrupt(_corrupt_message(path, exc)) from exc\napp.db.DatabaseCorrupt: 분석 기록 DB 가 깨져 열 수 없습니다 (/tmp/state_r5j_6iz_/k3/app.db: file is not a database).  지우거나 덮지 않고 멈춥니다.  자동 백업이 아직 없습니다 — 서버를 끄고 깨진 app.db 를 다른 이름으로 옮기면 빈 DB 로 켜집니다 (프로젝트 장부는 projects 폴더에 그대로 남습니다).\n'
+- K3 DB 머리 손상 → 기동 안 됨 · 마지막 출력: 'ne 400, in connect\n    raise DatabaseCorrupt(_corrupt_message(path, exc)) from exc\napp.db.DatabaseCorrupt: 분석 기록 DB 가 깨져 열 수 없습니다 (/tmp/state_59iqp_p3/k3/app.db: file is not a database).  지우거나 덮지 않고 멈춥니다.  자동 백업이 아직 없습니다 — 서버를 끄고 깨진 app.db 를 다른 이름으로 옮기면 빈 DB 로 켜집니다 (프로젝트 장부는 projects 폴더에 그대로 남습니다).\n'

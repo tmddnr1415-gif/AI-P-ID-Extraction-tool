@@ -2,13 +2,13 @@
 
 결함 0
 
-- 서버 http://127.0.0.1:41905 · 데이터 /tmp/chaos_h3sfs929
+- 서버 http://127.0.0.1:59041 · 데이터 /tmp/chaos_p41tf8mu
 - ## S1 동시 업로드 셋
--   업로드 응답 [200, 200, 200] · job ['3d62767ab874', '205082b55a98', '3d76367bca22']
--   /running → 200 · [('3d62767ab874', 'running'), ('205082b55a98', 'queued'), ('3d76367bca22', 'queued')]
+-   업로드 응답 [200, 200, 200] · job ['a3a57b74f60b', 'f2d45997ec20', '20f2d9a20f37']
+-   /running → 200 · [('a3a57b74f60b', 'running'), ('20f2d9a20f37', 'queued'), ('f2d45997ec20', 'queued')]
 -   끝 상태 ['done', 'done', 'done']
 - ## S2 분석 자식 kill -9
--   자식 pid 22671
+-   자식 pid 25382
 -   상태 failed · 문장 분석 프로세스가 도중에 끝났습니다 (종료 코드 -9) — 메모리가 모자랐거나 프로세스가 강제로 종료됐을 수 있습니다.  다른 분석이 끝난 뒤 [다시 분석] 하거나, 같으면 PDF 를 나눠 올려 주세요
 -   다음 분석 done
 - ## S3 대기 중 취소 · 분석 중 삭제 · 취소 뒤 삭제
@@ -17,20 +17,19 @@
 -   앞 done · 대기 cancelled
 -   취소 뒤 삭제 → 200
 - ## S4 서버 kill -9 → 재시작
--   서버의 자식: 22451: from multiprocessing.resource_tracker import main;main(27)  | 22591:_main(tracker_fd=28, pipe_handle=27) --multiprocessing-fork  | 22592:_main(tracker_fd=28, pipe_handle=30) --multiprocessing-fork  | 22756:_main(tracker_fd=28, pipe_handle=34) --multiprocessing-fork 
--   ⚠ 서버가 죽은 뒤에도 자식 22451 가 살아 있다
--   ⚠ 서버가 죽은 뒤에도 자식 22591 가 살아 있다
--   ⚠ 서버가 죽은 뒤에도 자식 22592 가 살아 있다
--   ⚠ 서버가 죽은 뒤에도 자식 22756 가 살아 있다
+-   서버의 자식: 25310: from multiprocessing.resource_tracker import main;main(26)  | 25335:_main(tracker_fd=27, pipe_handle=28) --multiprocessing-fork  | 25336:_main(tracker_fd=27, pipe_handle=30) --multiprocessing-fork  | 25429:_main(tracker_fd=27, pipe_handle=34) --multiprocessing-fork 
+-   ⚠ 서버가 죽은 뒤에도 자식 25310 가 살아 있다
+-   ⚠ 서버가 죽은 뒤에도 자식 25335 가 살아 있다
+-   ⚠ 서버가 죽은 뒤에도 자식 25336 가 살아 있다
+-   ⚠ 서버가 죽은 뒤에도 자식 25429 가 살아 있다
 -   재시작 직후: 돌던 것 failed (서버가 다시 시작되어 분석이 끊겼습니다 — 다시 분석하세요) · 기다리던 것 running
 -   기다리던 것 끝 done · done
--   서버가 죽은 뒤 자식 [22451, 22756] 은 몇 초 안에 스스로 끝났다
 - ## S5 다른 프로세스가 DB 를 15초 잠금
 -   잠긴 동안 목록 → 200 · 0.0초 · [{'key': '033c247d451222c3', 'tab': 'MOV', 'page_no': 5, 'drawing_no': 'D00P-10LBA10-M05-0001', 'origin': 'DRAWING', 're
--   잠긴 동안 첫 화면 → 200 · 0.0초 · {'projects': [], 'loose': [{'id': '0b2583873c6d', 'pdf_name': '재시작대기.pdf', 'pdf_sha256': '846dbbaff4cbe031bf3cd4798fc0e9
--   잠긴 동안 편집 → 200 · 14.1초 · {'key': '033c247d451222c3', 'user': {'qty': 2}, 'review_count': 18, 'feedback_count': 1, 'history': [{'at': 1791568253.8
+-   잠긴 동안 첫 화면 → 200 · 0.0초 · {'projects': [], 'loose': [{'id': '931b9bccb998', 'pdf_name': '재시작대기.pdf', 'pdf_sha256': '846dbbaff4cbe031bf3cd4798fc0e9
+-   잠긴 동안 편집 → 200 · 14.1초 · {'key': '033c247d451222c3', 'user': {'qty': 2}, 'review_count': 18, 'feedback_count': 1, 'history': [{'at': 1791575985.2
 - ## S6 같은 프로젝트에 동시에 둘
 -   프로젝트 만들기 → 200
 -   응답 [(200, 'Rev.A'), (200, 'Rev.B')]
 -   장부 리비전 ['Rev.B', 'Rev.A']
--   위생 감사 → 200 · {'provenance': {'jobs': [{'job_id': '3d62767ab874', 'pdf_name': '동시2.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': '205082b55a98', 'pdf_name': '동시1.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': '3d76367bca22', 'pdf_name': '동시0.pdf', 'rows': 8
+-   위생 감사 → 200 · {'provenance': {'jobs': [{'job_id': 'a3a57b74f60b', 'pdf_name': '동시0.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': '20f2d9a20f37', 'pdf_name': '동시2.pdf', 'rows': 80, 'overridden_cells': 0, 'hand_added_rows': 0}, {'job_id': 'f2d45997ec20', 'pdf_name': '동시1.pdf', 'rows': 8

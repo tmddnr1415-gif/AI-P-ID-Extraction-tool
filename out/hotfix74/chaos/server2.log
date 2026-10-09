@@ -1,169 +1,168 @@
 [감사] 산출 대상 400행 / job 8개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
 [감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 2.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
 [시작] 끊긴 분석 정리 — 다시 줄 세움 1 · 실패로 적음 1
-INFO:     Started server process [25244]
+DB 백업: /tmp/chaos_p41tf8mu/backups/app.db.2026-10-09.bak
+INFO:     Started server process [25436]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:58407 (Press CTRL+C to quit)
-INFO:     127.0.0.1:48832 - "GET /version HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48844 - "GET /jobs/8a5e30369e4b HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48856 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48860 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48870 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48884 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48900 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48906 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38590 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38592 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38594 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38600 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:38610 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57630 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57632 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57638 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57650 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57656 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54240 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54246 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54252 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54260 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54270 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36032 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36040 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36044 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36046 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-  page   5    0.48s   valves.actuators 0.14s valves.tags 0.13s valves.bodies 0.12s instruments 0.10s annotations 0.00s
-INFO:     127.0.0.1:36050 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-  page   6    0.50s   valves.tags 0.15s valves.bodies 0.14s valves.actuators 0.13s instruments 0.08s annotations 0.00s
-INFO:     127.0.0.1:59140 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-analysis took 49.2s, by stage:
-  layout                    20.81s   42.3%
-  valves.actuators          15.30s   31.1%
-  titleblock_glyphs          2.43s    4.9%
-  legend_rules               2.37s    4.8%
-  instruments                2.31s    4.7%
-  titleblocks                2.08s    4.2%
-  valves.bodies              1.21s    2.5%
-  valves.tags                1.15s    2.3%
-  describe_axis              0.57s    1.2%
-  pipe_graph                 0.43s    0.9%
-  open_pdf                   0.40s    0.8%
+INFO:     Uvicorn running on http://127.0.0.1:59041 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58802 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58818 - "GET /jobs/f4cc001fe1cf HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58820 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58824 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58836 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60394 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60406 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60410 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60424 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60432 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48534 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48542 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48552 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48566 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48580 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53694 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53710 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53718 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53732 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48758 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48766 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48770 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48774 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48790 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39928 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+  page   5    0.48s   valves.actuators 0.13s instruments 0.12s valves.tags 0.12s valves.bodies 0.11s annotations 0.00s
+INFO:     127.0.0.1:39944 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+  page   6    0.44s   valves.tags 0.13s valves.actuators 0.12s valves.bodies 0.11s instruments 0.08s annotations 0.00s
+analysis took 46.6s, by stage:
+  layout                    19.65s   42.1%
+  valves.actuators          14.61s   31.3%
+  instruments                2.38s    5.1%
+  legend_rules               2.25s    4.8%
+  titleblock_glyphs          1.95s    4.2%
+  titleblocks                1.86s    4.0%
+  valves.bodies              1.23s    2.6%
+  valves.tags                1.12s    2.4%
+  pipe_graph                 0.61s    1.3%
+  describe_axis              0.43s    0.9%
+  open_pdf                   0.35s    0.8%
   candidates                 0.16s    0.3%
   equipment                  0.01s    0.0%
   description                0.00s    0.0%
   unit_multipliers           0.00s    0.0%
   annotations                0.00s    0.0%
   valves.glyph_library       0.00s    0.0%
-  slowest pages: p2 7.2s, p3 4.2s, p1 4.2s, p4 1.2s, p6 0.6s
-INFO:     127.0.0.1:59156 - "GET /jobs/416b0243ae6d HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59166 - "GET /jobs/a279f1828006/rows HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59170 - "GET /jobs/a279f1828006/rows HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59172 - "GET /home HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59178 - "PATCH /jobs/a279f1828006/rows/033c247d451222c3 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34824 - "POST /projects HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34828 - "POST /jobs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34836 - "POST /jobs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34852 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43600 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43606 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43616 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43630 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43632 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59126 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59136 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59150 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59160 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59170 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57532 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57538 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57542 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57556 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57564 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56352 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56360 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56366 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56372 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56384 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35682 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35688 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35704 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-  page   5    0.47s   valves.actuators 0.14s valves.tags 0.14s valves.bodies 0.11s instruments 0.09s annotations 0.00s
-INFO:     127.0.0.1:35714 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-  page   6    0.50s   valves.tags 0.16s valves.actuators 0.14s valves.bodies 0.13s instruments 0.08s annotations 0.00s
-INFO:     127.0.0.1:35724 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-analysis took 49.2s, by stage:
-  layout                    20.46s   41.5%
-  valves.actuators          15.56s   31.6%
-  titleblock_glyphs          2.54s    5.2%
-  legend_rules               2.43s    4.9%
-  instruments                2.37s    4.8%
-  titleblocks                1.96s    4.0%
-  valves.bodies              1.21s    2.5%
-  valves.tags                1.14s    2.3%
-  pipe_graph                 0.51s    1.0%
-  describe_axis              0.50s    1.0%
-  open_pdf                   0.35s    0.7%
-  candidates                 0.21s    0.4%
-  equipment                  0.01s    0.0%
-  description                0.00s    0.0%
-  unit_multipliers           0.00s    0.0%
-  annotations                0.00s    0.0%
-  valves.glyph_library       0.00s    0.0%
-  slowest pages: p2 7.3s, p3 4.3s, p1 4.2s, p4 1.2s, p6 0.6s
-INFO:     127.0.0.1:51650 - "GET /jobs/9f23c4c3d572 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51662 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51674 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51676 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51684 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51698 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37022 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37024 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37038 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37050 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37060 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59488 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59504 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59518 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59534 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59544 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34602 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34610 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34616 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34628 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34640 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46178 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46184 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46190 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46194 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-  page   5    0.60s   valves.bodies 0.20s valves.actuators 0.14s valves.tags 0.14s instruments 0.12s annotations 0.00s
-INFO:     127.0.0.1:46204 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-  page   6    0.51s   valves.tags 0.17s valves.actuators 0.14s valves.bodies 0.12s instruments 0.08s annotations 0.00s
-INFO:     127.0.0.1:36858 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
+  slowest pages: p2 7.1s, p3 4.0s, p1 4.0s, p4 1.1s, p5 0.7s
+INFO:     127.0.0.1:39954 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39956 - "GET /jobs/931b9bccb998 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39970 - "GET /jobs/a3a57b74f60b/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39980 - "GET /jobs/a3a57b74f60b/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39994 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39998 - "PATCH /jobs/a3a57b74f60b/rows/033c247d451222c3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58646 - "POST /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58660 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58662 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58670 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58674 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58686 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58700 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41790 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41796 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41802 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41810 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41826 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40140 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40144 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40158 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40160 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40164 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50392 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50398 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50414 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50426 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50434 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51092 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51108 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51112 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51120 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51130 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+  page   5    0.47s   valves.tags 0.13s valves.actuators 0.13s valves.bodies 0.12s instruments 0.09s annotations 0.00s
+INFO:     127.0.0.1:33240 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+  page   6    0.51s   valves.actuators 0.14s valves.bodies 0.14s valves.tags 0.14s instruments 0.08s annotations 0.00s
+INFO:     127.0.0.1:33254 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
 analysis took 48.5s, by stage:
-  layout                    20.67s   42.6%
-  valves.actuators          15.05s   31.0%
-  legend_rules               2.63s    5.4%
-  instruments                2.38s    4.9%
-  titleblock_glyphs          2.04s    4.2%
+  layout                    19.79s   40.8%
+  valves.actuators          15.48s   31.9%
+  legend_rules               2.60s    5.4%
+  instruments                2.56s    5.3%
+  titleblock_glyphs          2.03s    4.2%
   titleblocks                1.87s    3.9%
-  valves.bodies              1.29s    2.7%
-  valves.tags                1.08s    2.2%
-  describe_axis              0.47s    1.0%
-  open_pdf                   0.45s    0.9%
-  pipe_graph                 0.43s    0.9%
-  candidates                 0.17s    0.4%
+  valves.bodies              1.28s    2.6%
+  valves.tags                1.23s    2.5%
+  pipe_graph                 0.58s    1.2%
+  describe_axis              0.48s    1.0%
+  open_pdf                   0.38s    0.8%
+  candidates                 0.18s    0.4%
   equipment                  0.01s    0.0%
   description                0.00s    0.0%
   unit_multipliers           0.00s    0.0%
   annotations                0.00s    0.0%
   valves.glyph_library       0.00s    0.0%
-  slowest pages: p2 7.1s, p1 4.1s, p3 4.0s, p4 1.3s, p5 0.7s
-INFO:     127.0.0.1:36864 - "GET /jobs/404dafa8d5ac HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36876 - "GET /home HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36882 - "GET /audit HTTP/1.1" 200 OK
+  slowest pages: p2 7.5s, p3 4.3s, p1 4.2s, p4 1.2s, p6 0.7s
+INFO:     127.0.0.1:33260 - "GET /jobs/e7c76a5b8fd5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33276 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33288 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33296 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60698 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60704 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60710 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60712 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60718 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41704 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41712 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41728 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41730 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41746 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41138 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41146 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41156 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41168 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41172 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42556 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42562 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42578 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42592 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42600 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+  page   5    0.55s   valves.actuators 0.17s valves.bodies 0.17s valves.tags 0.12s instruments 0.09s annotations 0.00s
+INFO:     127.0.0.1:44696 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+  page   6    0.52s   valves.tags 0.22s valves.actuators 0.12s valves.bodies 0.11s instruments 0.07s annotations 0.00s
+INFO:     127.0.0.1:44698 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+analysis took 47.7s, by stage:
+  layout                    19.61s   41.1%
+  valves.actuators          15.33s   32.1%
+  instruments                2.46s    5.2%
+  legend_rules               2.33s    4.9%
+  titleblock_glyphs          2.14s    4.5%
+  titleblocks                1.89s    4.0%
+  valves.bodies              1.25s    2.6%
+  valves.tags                1.23s    2.6%
+  describe_axis              0.46s    1.0%
+  open_pdf                   0.43s    0.9%
+  pipe_graph                 0.40s    0.8%
+  candidates                 0.16s    0.3%
+  equipment                  0.01s    0.0%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  annotations                0.00s    0.0%
+  slowest pages: p2 7.2s, p3 4.3s, p1 4.2s, p4 1.2s, p5 0.7s
+INFO:     127.0.0.1:44704 - "GET /jobs/9d5e9b7d9a59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44710 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44722 - "GET /audit HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [25244]
+INFO:     Finished server process [25436]
 /usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
   warnings.warn('resource_tracker: There appear to be %d '
