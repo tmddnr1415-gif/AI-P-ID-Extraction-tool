@@ -66,10 +66,10 @@ def test_rows_body_is_memoised_gzipped_and_invalidated_by_an_edit(tmp_path):
     assert a.headers.get("content-encoding") == "gzip"
     rows = json.loads(a.content)                      # TestClient 가 풀어 준다
     assert len(rows) == len(keys)
-    hit = main._ROWS_BODY[(job, "ALL")]
+    hit = main._ROWS_BODY[(job, "ALL", False)]
     assert hit["gz"] is not None and gzip.decompress(hit["gz"]) == hit["raw"]
     b = c.get(f"/jobs/{job}/rows?tab=ALL", headers={"Accept-Encoding": "gzip"})
-    assert main._ROWS_BODY[(job, "ALL")] is hit and b.content == a.content     # 다시 만들지 않았다
+    assert main._ROWS_BODY[(job, "ALL", False)] is hit and b.content == a.content     # 다시 만들지 않았다
     # 압축을 안 받는 요청은 맨 본문
     plain = c.get(f"/jobs/{job}/rows?tab=ALL", headers={"Accept-Encoding": "identity"})
     assert "content-encoding" not in plain.headers and json.loads(plain.content) == rows
@@ -77,7 +77,7 @@ def test_rows_body_is_memoised_gzipped_and_invalidated_by_an_edit(tmp_path):
     r = c.patch(f"/jobs/{job}/rows/{keys[3]}", json={"field": "qty", "value": "7", "author": "홍길동"})
     assert r.status_code == 200
     d = json.loads(c.get(f"/jobs/{job}/rows?tab=ALL").content)
-    assert main._ROWS_BODY[(job, "ALL")] is not hit
+    assert main._ROWS_BODY[(job, "ALL", False)] is not hit
     assert next(x for x in d if x["key"] == keys[3])["values"]["qty"] == 7
 
 

@@ -67,7 +67,7 @@ try:
         # ② 목록에서 다른 장의 행을 누르면 도면 창이 그 장 · 그 자리로
         cur = dr.evaluate("S.page.page_no")
         key, pno = main.evaluate(f"() => {{ const r = S.rows.find(r => r.page_no !== {cur} && !r.removed && !r.deleted && r.rect && r.rect.length === 4 && r.values.type); return [r.key, r.page_no]; }}")
-        main.evaluate(f"() => document.querySelector('#body tr[data-key=\"{key}\"]').scrollIntoView({{block:'center'}})")
+        main.evaluate("k => (window.revealRow ? revealRow(k) : document.querySelector(`#body tr[data-key=\"${k}\"]`)).scrollIntoView({block:'center'})", key)
         main.click(f'#body tr[data-key="{key}"] td[data-col="type"]')
         dr.wait_for_function(f"() => S.sel === '{key}' && S.page.page_no === {pno} && document.querySelector('rect.det.sel[data-key=\"{key}\"]')", timeout=20000)
         note(f"② 목록에서 p{pno} 행을 누름 → 도면 창 p{cur} → p{dr.evaluate('S.page.page_no')} · 그 상자 선택됨")
@@ -152,7 +152,7 @@ try:
         note(f"⑩ 목록 새 창 — 본 창 '{main.evaluate('document.body.className')}' · 새 창 '{ls.evaluate('document.body.className')}' · 목록 창은 장 그림을 안 받음 (src '{imgreq}')",
              imgreq == "")
         k3, p3 = ls.evaluate(f"() => {{ const r = S.rows.find(r => r.page_no !== S.page.page_no && !r.removed && r.rect && r.rect.length === 4 && r.values.type); return [r.key, r.page_no]; }}")
-        ls.evaluate(f"() => document.querySelector('#body tr[data-key=\"{k3}\"]').scrollIntoView({{block:'center'}})")
+        ls.evaluate("k => (window.revealRow ? revealRow(k) : document.querySelector(`#body tr[data-key=\"${k}\"]`)).scrollIntoView({block:'center'})", k3)
         ls.click(f'#body tr[data-key="{k3}"] td[data-col="type"]')
         main.wait_for_function(f"() => S.sel === '{k3}' && S.page.page_no === {p3}", timeout=20000)
         main.wait_for_timeout(1200)

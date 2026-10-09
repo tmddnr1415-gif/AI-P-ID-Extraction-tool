@@ -55,6 +55,9 @@ _REAL_DATA = (_REPO / "app" / "_data").resolve()
 # ── 1겹: 쓰는 뿌리를 버릴 폴더로 ────────────────────────────────────────────
 # 시험 모듈이 하나라도 import 되기 전에 정해야 한다.  `app/main.py` 는 import
 # 시점에 `paths.data_dir()` 를 읽기 때문이다.
+# hotfix69 — 결과를 열 때 장 그림을 뒤에서 미리 그리는 자식 프로세스(`app/page_warm.py`)는 시험에서 띄우지
+# 않는다 (시험마다 프로세스가 남고 시간을 먹는다).  그 기능의 시험은 이 값을 스스로 켠다.
+os.environ.setdefault("PID_PAGE_WARM", "0")
 _OWNED_TMP = None
 if not os.environ.get("PID_DATA_DIR"):
     _OWNED_TMP = tempfile.mkdtemp(prefix="pid-test-data-")

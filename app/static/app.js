@@ -3581,10 +3581,97 @@ function renderGrid() {
   const body = $("#body");
   body.innerHTML = "";
   // hotfix68 — 한 행을 만드는 일은 `buildRowTr` 하나 (다른 창에서 고친 행을 제자리에서 바꿀 때도 같은 함수)
-  body.innerHTML = rows.map(r => rowHtml(r, cols)).join("");
+  // hotfix69 — 목록은 **보이는 행만** 그린다 (`paintWindow`).  2,000행을 다 그리면 검색 한 글자에 목록 배치가
+  // 1.2초 · 굴리기 한 번에 고정 열 4,000칸을 다시 칠했다 (QFE 실측 — spike/perf_sim.py).  행이 어느 줄에 서는지는
+  // `S.vlist` 가 말하고, 화면 밖 행은 굴리면 그때 그린다.
+  S.vlist = rows;
+  S.vcols = cols;
+  VROW.measure = _measureRowHtml(rows, cols);
+  VROW.start = VROW.end = -1;
+  paintWindow(true);
+}
+
+/* hotfix69 — 보이는 행만 그리기.
+ *
+ * 행 높이는 하나다 (칸이 한 줄 · 넘치면 말줄임 — styles.css `th, td`).  그래서 i 번째 행의 자리는 i × 높이이고,
+ * 화면에 보이는 줄 ± 여유(`VROW.buf`)만 그리고 위·아래는 빈 칸(높이만 가진 줄)으로 채운다 — 굴림막대의 길이와
+ * 자리는 2,000행을 다 그렸을 때와 같다.  열 폭이 굴릴 때마다 흔들리지 않도록 **열마다 가장 긴 값을 담은 숨은 줄**
+ * 하나(`visibility: collapse` — 높이 0, 폭에는 든다)를 늘 맨 위에 둔다.
+ * 사람이 칸에 타자 중이면 다시 그리지 않는다 (그 칸이 사라지면 편집이 사라진다). */
+const VROW = { h: 0, buf: 40, step: 20, start: -1, end: -1, raf: 0, measure: "" };
+function _measureRowHtml(rows, cols) {
+  const longest = cols.map(() => "");
+  for (const r of rows) {
+    for (let i = 0; i < cols.length; i++) {
+      const key = cols[i][0];
+      if (key === "description_grade") continue;
+      const v = key === "page_no" ? r.page_no : key === "origin" ? r.origin
+        : key === "pid_no" ? _pidOf(r.page_no) : key === "remark" ? remarkOf(r)
+        : key === "rev_state" ? revLabel(r) : (r.values[key] ?? "");
+      const t = v === null || v === undefined ? "" : String(v);
+      if (t.length > longest[i].length) longest[i] = t;
+    }
+  }
+  const grade = rows.find(r => r.values.description_grade);
+  return '<tr class="vmeasure" aria-hidden="true">' + cols.map(([key], i) =>
+    `<td data-col="${key}">` + (key === "description_grade"
+      ? (grade ? _gradeBadgeHtml(grade.values.description_grade) : "")
+      : escape(longest[i])) + "</td>").join("")
+    + '<td><button class="mini-rep" tabindex="-1">삭제 확정</button><button class="mini-rep" tabindex="-1">되돌리기</button>'
+    + '<button class="mini-rep" tabindex="-1">신고</button></td></tr>';
+}
+function _vpad(px, n) {
+  return px > 0 ? `<tr class="vpad" aria-hidden="true"><td colspan="${n}" style="height:${px}px"></td></tr>` : "";
+}
+function paintWindow(force) {
+  const body = $("#body"), gw = $("#gridwrap");
+  const rows = S.vlist || [], cols = S.vcols || gridCols();
+  if (!body || !gw) return;
+  if (!force && body.contains(document.activeElement) && document.activeElement !== body) return;
+  const h = VROW.h || 29;
+  const view = Math.max(gw.clientHeight, 600);
+  const first = Math.max(0, Math.floor(gw.scrollTop / h));
+  const last = Math.min(rows.length, Math.ceil((gw.scrollTop + view) / h));
+  // 그린 범위가 보이는 줄 ± 한 걸음(`step`)을 아직 덮으면 다시 그리지 않는다
+  if (!force && VROW.start >= 0 && VROW.start <= Math.max(0, first - VROW.step)
+      && VROW.end >= Math.min(rows.length, last + VROW.step)) return;
+  const start = Math.max(0, Math.floor((first - VROW.buf) / VROW.step) * VROW.step);
+  const end = Math.min(rows.length, Math.ceil((last + VROW.buf) / VROW.step) * VROW.step);
+  if (!force && start === VROW.start && end === VROW.end) return;
+  VROW.start = start; VROW.end = end;
+  const n = cols.length + 1;
+  let html = VROW.measure + _vpad(start * h, n);
+  for (let i = start; i < end; i++) html += rowHtml(rows[i], cols);
+  html += _vpad((rows.length - end) * h, n);
+  body.innerHTML = html;
+  if (!VROW.h) {
+    const tr = body.querySelector("tr[data-key]");
+    const rh = tr ? tr.getBoundingClientRect().height : 0;
+    if (rh > 10) { VROW.h = rh; if (Math.abs(rh - h) > 0.5) { paintWindow(true); return; } }
+  }
   // 묶음 표시는 다시 그린 뒤에도 남는다 — 판정하는 곳은 `S.multi` 하나다.
   markMultiRows();
 }
+/* 그 행이 지금 그려져 있지 않으면 그 자리로 굴려 그린다.  행 `<tr>` 를 돌려준다 (목록에 없는 행이면 null). */
+function revealRow(key) {
+  let tr = document.querySelector(`#body tr[data-key="${CSS.escape(key)}"]`);
+  if (tr) return tr;
+  const i = (S.vlist || []).findIndex(r => r.key === key);
+  if (i < 0) return null;
+  const gw = $("#gridwrap");
+  if (gw) gw.scrollTop = Math.max(0, i * (VROW.h || 29) - gw.clientHeight / 2);
+  paintWindow(true);
+  return document.querySelector(`#body tr[data-key="${CSS.escape(key)}"]`);
+}
+(function bindGridScroll() {
+  const gw = document.getElementById("gridwrap");
+  if (!gw) return;
+  const later = () => { if (!VROW.raf) VROW.raf = requestAnimationFrame(() => { VROW.raf = 0; paintWindow(false); }); };
+  gw.addEventListener("scroll", later, { passive: true });
+  window.addEventListener("resize", later);
+  // 칸 편집이 끝나면 미뤄 둔 그리기를 한다
+  gw.addEventListener("focusout", () => setTimeout(later, 0));
+})();
 
 function gridCols() { return COLS.filter(([key]) => key !== "origin" || S.showOrigin); }
 
@@ -4265,7 +4352,7 @@ function select(key, fromGrid, item) {
     tr.classList.toggle("sel", tr.dataset.key === key));
   if (fromGrid) centreOnSymbol(key);
   else {
-    const tr = document.querySelector(`#body tr[data-key="${key}"]`);
+    const tr = revealRow(key);              // hotfix69 — 화면 밖 행은 그 자리로 굴려 그린다
     if (tr) tr.scrollIntoView({ block: "center" });
   }
   pulse(key);
@@ -5879,6 +5966,7 @@ function showPage(page) {
     drawOverlay();
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
+    prefetchNeighbours(page);               // hotfix69 — 다음 · 이전 장 그림을 쉬는 동안 받아 둔다
   };
   if (!S.imgStale) img.src = `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`;
   syncPage();                               // hotfix68 — 목록 창의 "이 장" 이 도면 창의 장을 따른다
@@ -5893,6 +5981,27 @@ function showPage(page) {
     if (r0 && r0.page_no !== page.page_no)
       editNotice(`장을 옮겨 ${m.side === "from" ? "From" : "To"} 범위 지정을 취소했습니다 — 그 행은 p${r0.page_no} 입니다`, "out");
   }
+}
+
+/* hotfix69 — 장을 넘길 때 기다리지 않게: 지금 장이 뜬 뒤 **쉬는 동안** 다음 · 이전 장 그림을 받아 둔다.
+ * 브라우저가 그 그림을 캐시에 두므로(`Cache-Control: max-age=3600`) 넘기는 순간 바로 뜬다.  서버는 결과를 처음
+ * 열 때부터 모든 장을 미리 그리고 있다 (`app/page_warm.py`).  받기만 하고 화면은 건드리지 않는다. */
+const _prefetched = new Set();
+function prefetchNeighbours(page) {
+  if (!S.job || !S.pages || drawingHidden()) return;
+  const i = S.pages.findIndex(p => p.page_no === page.page_no);
+  const want = [S.pages[i + 1], S.pages[i - 1], S.pages[i + 2]].filter(Boolean);
+  const go = () => {
+    for (const p of want) {
+      const url = `/jobs/${S.job.id}/page/${p.page_no}.png?zoom=1.6`;
+      if (_prefetched.has(url)) continue;
+      _prefetched.add(url);
+      const im = new Image();
+      im.decoding = "async";
+      im.src = url;
+    }
+  };
+  if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 1500 }); else setTimeout(go, 300);
 }
 
 /* 53회차 [E] — 이 장의 NOTES 판독 (8차 피드백 s3).
@@ -7587,7 +7696,7 @@ async function refreshRows(selectKey, opts = {}) {
   // 목록은 그대로 두므로, 추가한 행이 1,000행 어딘가에 묻힌다.
   select(selectKey, !opts.toGrid);
   if (!opts.toGrid) return;
-  const tr = document.querySelector(`#body tr[data-key="${CSS.escape(selectKey)}"]`);
+  const tr = revealRow(selectKey);
   if (!tr) return;
   tr.scrollIntoView({ block: "center" });
   tr.classList.add("justadded");          // 잠깐 밝게 — 어디에 생겼는지 보인다
@@ -8502,13 +8611,17 @@ document.addEventListener("keydown", (ev) => {
   const st = document.getElementById("stage");
   // hotfix68 — 목록만 보이는 창(도면은 다른 창)에서도 위·아래 화살표로 행을 옮긴다 — 도면 창이 따라온다
   if (!S.job || !st || (!st.offsetParent && !drawingHidden())) return;
-  const trs = [...document.querySelectorAll("#body tr[data-key]")];
-  if (!trs.length) return;
-  let i = trs.findIndex(tr => tr.dataset.key === S.sel);
-  i = i < 0 ? (ev.key === "ArrowDown" ? 0 : trs.length - 1)
-    : Math.max(0, Math.min(trs.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)));
+  // hotfix69 — 목록은 보이는 행만 그리므로 순서는 그린 줄이 아니라 목록(`S.vlist`)에서 읽는다
+  const list = S.vlist || [];
+  if (!list.length) return;
+  let i = list.findIndex(r => r.key === S.sel);
+  i = i < 0 ? (ev.key === "ArrowDown" ? 0 : list.length - 1)
+    : Math.max(0, Math.min(list.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)));
   ev.preventDefault();
-  select(trs[i].dataset.key, true);
+  const k = list[i].key;
+  const tr = revealRow(k);
+  if (tr) tr.scrollIntoView({ block: "nearest" });
+  select(k, true);
 });
 
 // hotfix23 — 최종 저장.  편집은 칸마다 곧바로 저장되고 있다 — 이 버튼은 "이 상태로 저장했다"

@@ -42,7 +42,7 @@ from app import console                                   # noqa: E402
 # 켜지다 죽던 것 (app/console.py).
 console.safe_stdio()
 
-from app import (analysis_proc, audit, axis_overrides, db, excel_out,  # noqa: E402
+from app import (analysis_proc, audit, axis_overrides, db, excel_out, page_warm,  # noqa: E402
                  global_symbols,
                  lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
                  unit_multipliers, sheet_numbers, title_block_cells, version)
@@ -1397,6 +1397,8 @@ def deletion_preview(job_id: str):
 
 
 def _drop_page_cache(job_id: str) -> bool:
+    if page_warm.running_job() == job_id:       # hotfix69 — 지울 폴더에 미리 그리기가 다시 쓰지 않게
+        page_warm.stop()
     d = PAGE_CACHE / job_id
     if not d.is_dir():
         return False
@@ -2114,6 +2116,20 @@ def _sse(payload: dict) -> str:
 # `Content-Encoding` 이 이미 있으면 다시 압축하지 않는다).
 _ROWS_BODY: dict = {}
 
+# hotfix69 — 목록이 처음 받는 행에서 뺄 근거 칸.  셋이 `/rows` 13.8MB 의 7.4MB 다 (QFE Rev.B 실측:
+# candidates 4.6MB · trace 2.0MB · axis 0.8MB) — 화면은 이 셋을 **고른 행 하나**에만 쓴다 (근거 패널의 후보 ·
+# From/To · 판정축, 도면의 경로 선).  그래서 목록은 `?slim=1` 로 빼고 받고, 행을 고를 때 그 행만
+# `?keys=` 로 온전히 받는다 (app.js `ensureFull`).  행에 `_slim: 1` 이 붙어 화면이 그것을 안다.
+SLIM_DROP = ("candidates", "trace", "axis")
+
+
+def _slim_row(row: dict) -> dict:
+    ev = row.get("evidence")
+    if isinstance(ev, dict) and any(k in ev for k in SLIM_DROP):
+        row["evidence"] = {k: v for k, v in ev.items() if k not in SLIM_DROP}
+    row["_slim"] = 1
+    return row
+
 
 def _rows_payload(job_id: str, tab: str, keys: set | None) -> list:
     src = db.merged_rows_cached(CON, job_id, tab)
@@ -2134,7 +2150,7 @@ def _rows_payload(job_id: str, tab: str, keys: set | None) -> list:
 
 
 @app.get("/jobs/{job_id}/rows")
-def rows(job_id: str, tab: str = "ALL", keys: str = "", request: Request = None):
+def rows(job_id: str, tab: str = "ALL", keys: str = "", slim: int = 0, request: Request = None):
     """The grid's rows, each carrying the review codes it is flagged under.
 
     The codes ride on the row rather than being fetched separately, because the
@@ -2147,11 +2163,13 @@ def rows(job_id: str, tab: str = "ALL", keys: str = "", request: Request = None)
     if keys:
         return _json(_rows_payload(job_id, tab, {k for k in keys.split(",") if k}))
     _path, stamp = db._db_stamp(CON)
-    memo_key = (job_id, tab)
+    memo_key = (job_id, tab, bool(slim))
     hit = _ROWS_BODY.get(memo_key)
     if hit is None or hit["stamp"] != stamp:
-        body = json.dumps(_rows_payload(job_id, tab, None), ensure_ascii=False,
-                          separators=(",", ":")).encode("utf-8")
+        payload = _rows_payload(job_id, tab, None)
+        if slim:
+            payload = [_slim_row(r) for r in payload]
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         hit = {"stamp": stamp, "raw": body, "gz": None}
         _ROWS_BODY[memo_key] = hit
         while len(_ROWS_BODY) > 4:              # 두 결과(이전 · 현재) × 두 탭이면 넉넉하다
@@ -2634,7 +2652,26 @@ def pages(job_id: str):
         d = dict(r)
         d["layers"] = json.loads(d.pop("layers_json"))
         out.append(d)
+    _warm_pages(job_id, out)
     return _json(out)
+
+
+def _warm_pages(job_id: str, pages_out: list) -> None:
+    """hotfix69 — 이 결과의 장 그림을 뒤에서 미리 그린다 (`app/page_warm.py`).  사람이 처음 넘기는 장도
+    디스크에서 바로 나오게.  화면이 먼저 여는 장(층이 있는 첫 장)부터 앞뒤로.  DXF 는 제 캐시가 따로 있다."""
+    try:
+        row = db.get_job(CON, job_id)
+        if row is None or row["status"] != "done" or not row["pdf_path"]:
+            return
+        from app.engine import dxf_reader
+        pdf = Path(row["pdf_path"])
+        if dxf_reader.is_dxf_input(pdf):
+            return
+        nos = [p["page_no"] for p in pages_out]
+        first = next((p["page_no"] for p in pages_out if p.get("layers")), nos[0] if nos else 1)
+        page_warm.start(pdf, PAGE_CACHE, job_id, nos, first)
+    except Exception:       # 미리 그리기는 빠르게 할 뿐 — 실패해도 화면은 그때그때 그린다
+        pass
 
 
 def _page_cache_file(job_id: str, page_no: int, zoom: float) -> Path:
