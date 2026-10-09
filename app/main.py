@@ -76,6 +76,43 @@ app.add_middleware(
         "application/x-zip-compressed", "application/octet-stream"))
 CON = db.connect(DB_PATH)
 
+
+# hotfix74 — 돌발 입력이 서버 내부 오류(500 · 영문 한 줄)로 끝나지 않게 한다 (spike/api_fuzz.py 가 잡은 자리).
+@app.exception_handler(revisions.ProjectNameError)
+async def _project_name_error(_request, exc):
+    return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
+@app.exception_handler(Exception)
+async def _unexpected_error(request, exc):
+    """예상하지 못한 오류 — 사람이 읽을 문장과 **기록 번호**를 준다.  원문은 서버 로그에만 남긴다
+    (예외 원문을 화면에 내지 않는 21회차 규칙 그대로)."""
+    import traceback
+    import uuid
+    ref = uuid.uuid4().hex[:8]
+    print(f"[오류 {ref}] {request.method} {request.url.path}\n"
+          + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)), flush=True)
+    return JSONResponse({"detail": f"서버가 이 요청을 처리하지 못했습니다 (기록 번호 {ref}). "
+                                   f"다시 시도해도 같으면 VOC 로 이 번호와 함께 알려 주세요.",
+                         "error_ref": ref}, status_code=500)
+
+
+def _int_field(payload, name: str, default=0):
+    """본문의 정수 칸 — 글자·소수·목록이 오면 400 과 칸 이름으로 말한다 (hotfix74)."""
+    v = (payload or {}).get(name) if isinstance(payload, dict) else None
+    if v in (None, ""):
+        return default
+    try:
+        if isinstance(v, bool):
+            raise ValueError
+        f = float(v)
+        if f != f or f in (float("inf"), float("-inf")) or f != int(f):
+            raise ValueError
+        return int(f)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"'{name}' 는 정수여야 합니다 (받은 값: {str(v)[:40]!r})")
+
+
 # Verification mode.  Attributing a drawing to MATCHED or PDF_ONLY needs a
 # *finished* instrument list to attribute it against, and in real use no such
 # file exists - the inputs are the drawings and an empty output form.  So the
@@ -618,6 +655,26 @@ def _probe_or_none(path: Path, page_no: int, *args, **kw) -> dict:
     return pipeline.probe_point(path, page_no, *args, **kw)
 
 
+# hotfix74 — zip 폭탄 막이.  분석은 zip 을 메모리에서 통째로 펴므로 풀린 크기가 곧 메모리다.  실측 UAD
+# DXF 32장: 압축 12.3MB → 풀면 76.0MB · 한 장 최대 5.4MB · 압축비 약 6배.  한도는 그 20배(1.5GB)와
+# 한 파일 압축비 100배 — 정상 도면 묶음은 닿지 않고, 몇 KB 가 수 GB 로 풀리는 파일만 걸린다.
+ZIP_MAX_BYTES = 1_500_000_000
+ZIP_MAX_RATIO = 100
+
+
+def _zip_problem(z) -> str:
+    total = 0
+    for i in z.infolist():
+        total += i.file_size
+        if i.file_size > 1_000_000 and i.compress_size and i.file_size / i.compress_size > ZIP_MAX_RATIO:
+            return (f"zip 안의 {i.filename[:60]} 이(가) {i.file_size / i.compress_size:.0f}배로 풀립니다 — "
+                    f"정상 도면 파일이 아닙니다 (압축 폭탄 막이 · 한도 {ZIP_MAX_RATIO}배)")
+    if total > ZIP_MAX_BYTES:
+        return (f"zip 을 풀면 {total / 1e9:.1f}GB 입니다 — 한 번에 {ZIP_MAX_BYTES / 1e9:.1f}GB 까지 받습니다. "
+                f"도면을 나눠서 올려 주세요")
+    return ""
+
+
 def _pack_input(blobs: list, hint: str = "") -> tuple:
     """`(종류, 바이트, 저장 이름)`.  파일이 말하는 것으로 가른다."""
     import zipfile
@@ -628,6 +685,9 @@ def _pack_input(blobs: list, hint: str = "") -> tuple:
             with zipfile.ZipFile(io.BytesIO(blobs[0][1])) as z:
                 if not any(n.lower().endswith(".dxf") for n in z.namelist()):
                     raise HTTPException(400, "zip 안에 .dxf 가 없습니다")
+                problem = _zip_problem(z)
+                if problem:
+                    raise HTTPException(400, problem)
         except zipfile.BadZipFile:
             raise HTTPException(400, "zip 을 열 수 없습니다")
         return "DXF", blobs[0][1], blobs[0][0]
@@ -1969,7 +2029,7 @@ def titleblock_save(job_id: str, payload: dict):
     try:
         data = title_block_cells.set_cells(
             DATA_DIR, job["project"] or "", cells_in=payload.get("cells") or {},
-            size=[form[0].width, form[0].height], page_no=int(payload.get("page_no") or 0),
+            size=[form[0].width, form[0].height], page_no=_int_field(payload, "page_no"),
             author=payload.get("author") or "", note=payload.get("note") or "", job_id=job_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
@@ -2905,7 +2965,7 @@ async def add_row(job_id: str, payload: dict):
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
-    page_no = int(payload.get("page_no") or 0)
+    page_no = _int_field(payload, "page_no")
     values = payload.get("values") or {}
     rect = payload.get("rect") or []
     author = " ".join(str(payload.get("author") or "").split())[:60]
@@ -2987,7 +3047,7 @@ async def markup_propose(job_id: str, payload: dict):
     job = db.get_job(CON, job_id)
     if job is None:
         raise HTTPException(404, "no such job")
-    page_no = int(payload.get("page_no") or 0)
+    page_no = _int_field(payload, "page_no")
     rect = payload.get("rect") or []
     if not page_no or len(rect) != 4:
         raise HTTPException(400, "page_no and a 4-number rect are required")
@@ -3130,6 +3190,8 @@ async def qty_bulk(job_id: str, payload: dict):
     author = " ".join(str(payload.get("author") or "").split())[:60]
     reason = str(payload.get("reason") or "")[:200]
     clean = []
+    if not all(isinstance(it, dict) for it in items):
+        raise HTTPException(400, "items 는 {key, value} 목록이어야 합니다")
     for it in items:
         key = str((it or {}).get("key") or "")
         value = (it or {}).get("value")
@@ -3692,7 +3754,7 @@ def create_report(job_id: str, payload: dict):
     what = str(payload.get("what") or "").upper()
     detail = str(payload.get("detail") or "").strip()
     key = str(payload.get("row_key") or "")
-    page_no = int(payload.get("page_no") or 0) or None
+    page_no = _int_field(payload, "page_no") or None
     capture = dict(_capture_context(job_id))
     if key:
         capture["row"] = _capture_row(job_id, key)
@@ -3862,7 +3924,7 @@ def _write_voc(payload: dict) -> dict:
     job = db.get_job(CON, job_id) if job_id else None
     if job_id and job is None:
         raise ValueError("no such job")
-    page_no = int(payload.get("page_no") or 0) or None
+    page_no = _int_field(payload, "page_no") or None
     keys = [str(k) for k in (payload.get("row_keys") or []) if k][:50]
     rows = [_capture_row(job_id, k) for k in keys] if job else []
     rows = [r for r in rows if r]

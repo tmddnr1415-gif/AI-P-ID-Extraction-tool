@@ -84,13 +84,28 @@ def system_code(drawing_no: str) -> tuple[str, str]:
     return (drawing_no or "UNKNOWN").strip(), "도면번호에서 계통코드를 떼지 못함"
 
 
+class ProjectNameError(ValueError):
+    """프로젝트명을 디렉터리 이름으로 쓸 수 없다 — 화면에는 400 과 이 문장으로 간다 (hotfix74)."""
+
+
+# 디렉터리 이름 한도 — 파일 시스템은 255바이트까지 받고, 그 안에 `id_registry.before_<rev>.json` 같은
+# 파일이 더 붙으므로 넉넉히 남긴다 (`main._NAME_BYTES` 와 같은 값 · 한글 50자).
+NAME_BYTES = 150
+
+
 def safe_name(name: str) -> str:
-    """프로젝트명을 디렉터리 이름으로.  경로를 벗어날 수 있는 글자를 막는다."""
+    """프로젝트명을 디렉터리 이름으로.  경로를 벗어날 수 있는 글자를 막는다.
+
+    hotfix74 — API 퍼징이 잡은 둘: 300자 이름이 파일 시스템까지 가서 `File name too long`(500) 이었고,
+    제어 문자가 그대로 디렉터리 이름이 됐다.  둘 다 여기서 사유와 함께 막는다."""
     name = unicodedata.normalize("NFC", (name or "").strip())
     if not name:
-        raise ValueError("프로젝트명이 비어 있습니다")
-    if name in (".", "..") or any(c in name for c in '/\\:*?"<>|\0'):
-        raise ValueError(f"프로젝트명에 쓸 수 없는 글자가 있습니다: {name!r}")
+        raise ProjectNameError("프로젝트명이 비어 있습니다")
+    if name in (".", "..") or any(c in name for c in '/\\:*?"<>|\0') \
+            or any(ord(c) < 32 for c in name):
+        raise ProjectNameError(f"프로젝트명에 쓸 수 없는 글자가 있습니다: {name!r}")
+    if len(name.encode("utf-8")) > NAME_BYTES:
+        raise ProjectNameError(f"프로젝트명이 너무 깁니다 — {NAME_BYTES}바이트(한글 약 50자)까지 됩니다")
     return name
 
 
