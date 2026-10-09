@@ -95,6 +95,15 @@ async def _db_busy(request, exc):
     return await _unexpected_error(request, exc)
 
 
+from app import jsonstore  # noqa: E402
+
+
+@app.exception_handler(jsonstore.StateFileCorrupt)
+async def _state_corrupt(request, exc):
+    """상태 파일이 깨졌고 백업도 없다 — 문장은 `jsonstore` 가 만든 것 그대로 (hotfix74)."""
+    return JSONResponse({"detail": str(exc)}, status_code=500)
+
+
 @app.exception_handler(Exception)
 async def _unexpected_error(request, exc):
     """예상하지 못한 오류 — 사람이 읽을 문장과 **기록 번호**를 준다.  원문은 서버 로그에만 남긴다
@@ -505,7 +514,8 @@ def _worker() -> None:
                            "elapsed_s": _elapsed(fin)})
         except (pipeline.LegendUnavailable,
                 pipeline.TitleBlockUnreadable,
-                pipeline.NoTextLayer) as exc:
+                pipeline.NoTextLayer,
+                pipeline.NoPidSheets) as exc:
             # 15회차 — 이 실패는 파이프라인이 **직접 검사한 조건**이고 문장도
             # 거기서 썼다.  그래서 `_failure_reason` 을 거치지 않는다: 그 함수는
             # *알 수 없는* 실패에 쓰는 것이고, 아는 실패까지 일반 문구로 덮으면
@@ -2594,7 +2604,15 @@ def _legend_facts(job) -> dict:
         profile_line = (f"{head} — 기본 설정({prof.get('borrowed_from') or prof.get('path')}) "
                         f"{n}칸을 빌려 썼습니다"
                         + (f" · 도면이 직접 답한 {rep}칸은 제외" if rep else ""))
-    return {"mode": mode,
+    # hotfix74 — DXF 묶음에서 건너뛴 파일(같은 내용 · macOS 찌꺼기 · .dxf 아닌 것)과 태그 속성을 못
+    # 배운 사실.  조용히 빠지면 "왜 행이 적지?" 에 답할 길이 없다 — 사실은 엔진이 적고 문장도 엔진 것이다.
+    dx = engine.get("dxf") or {}
+    input_notes = [x for x in [dx.get("roles_note") or ""] if x]
+    if dx.get("skipped_inputs"):
+        sk = list(dx["skipped_inputs"])
+        input_notes.append(f"묶음에서 건너뛴 파일 {len(sk)}개 — " + " · ".join(str(x) for x in sk[:6])
+                           + (f" 외 {len(sk) - 6}개" if len(sk) > 6 else ""))
+    return {"mode": mode, "input_notes": input_notes,
             "profile": prof, "borrowed": bor, "profile_line": profile_line,
             "measured": bool(lp.get("measured")),
             "compared": bool(lp.get("compared")),

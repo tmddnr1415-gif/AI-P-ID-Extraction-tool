@@ -47,12 +47,17 @@ def v_mediabox_origin():
     d = base()
     out = pymupdf.open()
     for pg in d:
+        if pg.rotation:
+            # ⚠ `show_pdf_page` 는 회전된 장을 옮기며 내용을 잘랐다 (글자 399 → 168 — 변형기의 결함이지
+            # 제품의 결함이 아니다).  회전 장은 그대로 옮긴다.
+            out.insert_pdf(d, from_page=pg.number, to_page=pg.number)
+            continue
         r = pg.rect
         np_ = out.new_page(width=r.width, height=r.height)
-        np_.show_pdf_page(np_.rect, d, pg.number)   # 보이는 모양 그대로 그린다 — 회전을 다시 걸지 않는다
+        np_.show_pdf_page(np_.rect, d, pg.number)   # 내용을 Form XObject 하나로 감싼다
     p = VD / "v02_reflowed_xobject.pdf"
     out.save(p)
-    return p, "run"
+    return p, "same"
 
 
 def v_owner_pw():
@@ -218,7 +223,8 @@ for mk in MAKERS:
     else:
         human = (not r.get("ok")) and any("가" <= ch <= "힣" for ch in r.get("msg", "")) \
             and r.get("kind") not in ("CRASH", "TIMEOUT")
-        verdict = "OK" if r.get("ok") or human else "★ 사람 말 없이 멈춤"
+        verdict = ("★ 행 0개로 조용히 성공" if r.get("ok") and not r.get("rows")
+                   else "OK" if r.get("ok") or human else "★ 사람 말 없이 멈춤")
     r["verdict"] = verdict
     results[mk.__name__] = r
     print(f"{mk.__name__:24} {verdict:12} {json.dumps(r, ensure_ascii=False)[:260]}", flush=True)

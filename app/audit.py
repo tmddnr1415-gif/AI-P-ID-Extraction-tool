@@ -165,7 +165,25 @@ def run(con, data_dir: Path) -> dict:
             # 46회차 — 합계 옆에 **무엇인지**를 함께 낸다.  화면이 총계만
             # 보이면 사람이 확인할 수가 없다.
             "hand_added": hand_added(con),
-            "lines": summary(prov, left)}
+            "state_files": _state_incidents(),
+            "lines": summary(prov, left) + _state_lines()}
+
+
+def _state_incidents() -> list:
+    """이 서버가 만난 깨진 상태 파일 (hotfix74 · `app/jsonstore.py`)."""
+    from app import jsonstore
+    return jsonstore.incidents()
+
+
+def _state_lines() -> list:
+    out = []
+    for r in _state_incidents():
+        how = ("바로 앞 판(.bak)으로 되살렸습니다" if r.get("restored")
+               else "백업이 없어 빈 값으로 읽었습니다 — 그 파일에 적었던 값을 다시 확인하세요")
+        # 화면(`auditProblems`)이 " · " 로 항목을 가르므로 한 사고는 그 구분자 없이 한 줄이다.
+        out.append(f"깨진 상태 파일 — {r.get('what')} ({Path(r.get('path', '')).name}): {how}; "
+                   f"깨진 원본은 {r.get('aside') or '그 자리'} 로 남겨 두었습니다 ({r.get('at')})")
+    return out
 
 
 def summary(prov: dict, left: dict) -> list[str]:

@@ -100,6 +100,15 @@ class TitleBlockUnreadable(RuntimeError):
     """
 
 
+class NoPidSheets(RuntimeError):
+    """도면번호는 읽혔는데 분석할 P&ID 장이 한 장도 없다 (hotfix74).
+
+    돌발상황 시뮬레이션(`spike/variant_inputs.py` v15) — 범례 장만 든 PDF 가 **행 0개로 조용히
+    성공**했다.  `TitleBlockUnreadable` 은 도면번호를 한 장도 못 읽었을 때만 서므로 이 경우를
+    잡지 못한다.  문장은 장 종류별 수로 만든다 — 사람이 무엇을 잘못 올렸는지 알 수 있게.
+    """
+
+
 class NoTextLayer(RuntimeError):
     """이 PDF 의 어느 장에도 글자층이 없다 (hotfix73).
 
@@ -1288,6 +1297,17 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]
+    if not targets:
+        kinds = collections.Counter(tb_rows[pc.page_no]["page_kind"] for pc in pages)
+        out_scope = sum(1 for pc in pages
+                        if tb_rows[pc.page_no]["page_kind"] == "PID" and not pc.analysis_scope)
+        names = {"LEGEND": "범례", "DRAWING_LIST": "도면 목록", "PID": "P&ID", "UNKNOWN": "도면번호 못 읽음"}
+        parts = [f"{names.get(k, k)} {n}장" for k, n in sorted(kinds.items())]
+        if out_scope:
+            parts.append(f"그중 다른 프로젝트·범위 밖 {out_scope}장")
+        raise NoPidSheets(f"이 PDF({len(pages)}장)에서 분석할 P&ID 장을 찾지 못했습니다 — "
+                          + " · ".join(parts) + ".  P&ID 도면이 든 PDF 를 올려 주세요 "
+                          "(범례만 따로 든 PDF 라면 P&ID 와 함께 올리면 됩니다).")
     # 36회차 [D] — 이 문서가 유닛코드를 NOTES 에서 어떤 꼴로 적는지 먼저 배운다.
     # 재료는 둘 다 이미 읽은 것이다: 도면번호의 유닛 자리(`tb.parse_unit_code`)와
     # 그 장의 NOTES 문단.  결과는 지문 밖(`result["unit_forms"]`)에 남긴다.
@@ -1307,6 +1327,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # a bucket that sounds decided.
     skipped = {}
     unknown = []
+    # hotfix74 — 회전이 잘못 저장돼 옆으로 누운 장은 타이틀블록이 엉뚱한 자리에 와 도면번호를 못
+    # 읽는다 (돌발상황 시뮬레이션 v08 — 한 장만 90° 더 돌린 PDF 에서 그 장 46행이 빠졌다).  고치지는
+    # 못해도(지어낸 자리에서 읽지 않는다) **왜 빠졌는지**는 말한다: 다수 장과 종이 방향이 다르다.
+    def _landscape(pc):
+        w, h = getattr(pc, "width", 0) or 0, getattr(pc, "height", 0) or 0
+        return (w >= h) if (w and h) else None
+    _orient = collections.Counter(_landscape(pc) for pc in pages if _landscape(pc) is not None)
+    _major = _orient.most_common(1)[0][0] if _orient else None
     for pc in pages:
         if pc in targets:
             continue
@@ -1317,6 +1345,11 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             why = "도면 목록"
         elif not pc.analysis_scope:
             why = "분석 범위 밖" + (f" ({pc.scope_reason})" if pc.scope_reason else "")
+        elif kind == "UNKNOWN" and _major is not None and _landscape(pc) not in (None, _major):
+            why = ("도면번호를 읽지 못함 — 이 장만 종이 방향이 다릅니다 "
+                   f"({'가로' if _landscape(pc) else '세로'}).  PDF 의 회전이 잘못 저장됐을 수 있습니다")
+        elif kind == "UNKNOWN":
+            why = "도면번호를 읽지 못함 (장 도면번호 지정 판에서 적을 수 있습니다)"
         elif kind and kind != "PID":
             why = f"도면이 아님 ({kind})"
         else:

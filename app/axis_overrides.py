@@ -40,13 +40,14 @@ def path_for(data_dir: Path, project: str) -> Path:
 def load(path: Path) -> dict:
     if not path.exists():
         return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    from app import jsonstore
+    data = jsonstore.read(path, {}, what="FROM/TO 확정")
+    return data if isinstance(data, dict) else {}
 
 
 def save(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, sort_keys=True,
-                               indent=1) + "\n", encoding="utf-8")
+    from app import jsonstore
+    jsonstore.write(path, data)
 
 
 def classify_source(text: str, candidates: list) -> str:

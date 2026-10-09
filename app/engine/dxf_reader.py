@@ -153,12 +153,34 @@ def list_inputs(path: Path) -> tuple:
                     skipped.append(info.filename)
     else:
         got.append((p.name, p.read_bytes()))
-    return got, skipped
+    # hotfix74 — 돌발상황 시뮬레이션(`spike/dxf_variants.py`).  ① macOS 압축이 넣는 `__MACOSX/` ·
+    # `._이름.dxf` 는 DXF 가 아니라 파일 속성 찌꺼기다 — 열면 실패 장이 하나 생긴다.  ② **바이트까지 같은**
+    # DXF 가 두 번 들어오면(복사본) 같은 장이 두 번 세어져 행이 갑절이 된다.  같은 내용은 한 번만 읽고
+    # 건너뛴 이름을 남긴다 (내용이 조금이라도 다르면 둘 다 읽는다 — 같은 도면번호의 다른 판은 사람이 가른다).
+    import hashlib
+    kept, seen = [], {}
+    for name, raw in got:
+        if name.startswith("._"):
+            skipped.append(f"{name} (macOS 속성 파일)")
+            continue
+        h = hashlib.sha256(raw).hexdigest()
+        if h in seen:
+            skipped.append(f"{name} (내용이 {seen[h]} 와 같음 — 한 번만 읽음)")
+            continue
+        seen[h] = name
+        kept.append((name, raw))
+    return kept, skipped
 
 
 def _order(name: str) -> tuple:
     m = LEADING_NO.match(name)
-    return (0, int(m.group(1)), name) if m else (1, 0, name)
+    if m:
+        return (0, int(m.group(1)), name)
+    # hotfix74 — 번호 없는 이름은 **자연 순서**로 (`P&ID_2` 가 `P&ID_10` 앞).  글자 순서면 `_10` 이
+    # `_2` 앞에 서서 장 번호가 도면 순서와 어긋났다 (돌발상황 시뮬레이션 v02 — 한글 이름 묶음).
+    parts = tuple((0, int(t), "") if t.isdigit() else (1, 0, t.lower())
+                  for t in re.findall(r"\d+|\D+", name))
+    return (1, 0, parts)
 
 
 def open_set(path: Path, only: int = None) -> tuple:

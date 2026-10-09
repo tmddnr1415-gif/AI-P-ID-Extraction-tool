@@ -126,9 +126,10 @@ def load(data_dir, project: str):
     path = profile_path(data_dir, project)
     if not path.exists():
         return None
+    from app import jsonstore
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
+        data = jsonstore.read(path, None, what="범례 프로필")
+    except OSError:
         return None
     if not isinstance(data, dict) or data.get("version") != VERSION:
         return None
@@ -138,11 +139,8 @@ def load(data_dir, project: str):
 def save(data_dir, project: str, profile: dict) -> Path:
     """프로필을 그 프로젝트 폴더에 적는다.  정렬 고정 - 같은 값이면 같은 파일."""
     path = profile_path(data_dir, project)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(profile, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-        encoding="utf-8")
-    return path
+    from app import jsonstore
+    return jsonstore.write(path, profile)
 
 
 # --------------------------------------------------------------------------

@@ -124,7 +124,7 @@ def test_a_document_without_lines_is_named_as_not_a_drawing(tmp_path):
 def test_child_process_keeps_the_new_failure_kind():
     assert "NoTextLayer" in analysis_proc._KNOWN
     w = Path(main.__file__).read_text(encoding="utf-8")
-    assert "pipeline.NoTextLayer) as exc:" in w
+    assert "pipeline.NoTextLayer," in w and ") as exc:" in w
     # 글자가 한 장이라도 있으면 걸지 않는다 — 검사는 '전부 비었을 때' 뿐
     src = Path(pipeline.__file__).read_text(encoding="utf-8")
     assert "if pages and not any(pc.words for pc in pages):" in src

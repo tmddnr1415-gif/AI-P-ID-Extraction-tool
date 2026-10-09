@@ -1541,7 +1541,7 @@ async function loadLegendProfile() {
   } catch (e) { f = null; }
   S.legend = f;
   const pr = (f && f.profile) || {}, bo = (f && f.borrowed) || {};
-  if (!f || f.mode === "unknown" && !f.has_stored_profile && !pr.path) {
+  if (!f || f.mode === "unknown" && !f.has_stored_profile && !pr.path && !(f.input_notes || []).length) {
     bar.classList.add("hidden"); bar.innerHTML = ""; return;
   }
   const n = (f.summary && f.summary.item_count) || 0;
@@ -1573,6 +1573,13 @@ async function loadLegendProfile() {
         + `<pre>${escape(bo.keys.join("\n"))}</pre>`
         + `<div class="muted small">${escape(bo.not_counted || "")}</div></details>`;
     }
+  }
+  // hotfix74 — DXF 묶음에서 건너뛴 파일 · 태그 속성을 못 배운 사실 (서버 문장 그대로)
+  if ((f.input_notes || []).length) {
+    html += `<div class="lb-main" title="${escape(f.input_notes.join("\n"))}">`
+      + `<span class="lb-tag stranger">입력</span>`
+      + `<span class="lb-short">${escape(f.input_notes[0].split(" — ")[0])}</span>`
+      + `<span class="lb-line">${escape(f.input_notes.join(" · "))}</span></div>`;
   }
   if ((f.stored_lines || []).length) {
     html += `<details class="lb-saved"><summary>저장된 범례 프로필 보기</summary>`

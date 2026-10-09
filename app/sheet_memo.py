@@ -49,9 +49,12 @@ def key_of(drawing_no: str, page_no: int) -> str:
 
 def load(data_dir: Path, project: str, job_id: str) -> dict:
     p = _path(data_dir, project, job_id)
+    from app import jsonstore
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        data = jsonstore.read(p, {}, what="장별 메모")
+    except OSError:
+        data = {}
+    if not isinstance(data, dict):
         data = {}
     data.setdefault("sheets", {})
     return data
@@ -59,10 +62,8 @@ def load(data_dir: Path, project: str, job_id: str) -> dict:
 
 def _save(data_dir: Path, project: str, job_id: str, data: dict) -> None:
     p = _path(data_dir, project, job_id)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, p)
+    from app import jsonstore
+    jsonstore.write(p, data)
 
 
 def entries(data: dict, keys) -> list:

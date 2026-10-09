@@ -42,7 +42,7 @@ from pathlib import Path
 
 # 자식이 다시 세울 수 있는 예외 — 파이프라인이 **직접 검사한 조건**이고 문장도 거기서 썼다.
 # 이 둘은 `main._worker` 가 문장 그대로 화면에 보내므로 종류를 잃으면 안 된다.
-_KNOWN = ("LegendUnavailable", "TitleBlockUnreadable", "NoTextLayer")
+_KNOWN = ("LegendUnavailable", "TitleBlockUnreadable", "NoTextLayer", "NoPidSheets")
 
 
 def inprocess() -> bool:

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -289,12 +290,45 @@ _ADDED_COLUMNS = (
 )
 
 
+class _SerialConnection(sqlite3.Connection):
+    """한 연결을 여러 스레드가 함께 쓴다 — 호출 하나하나를 잠금으로 줄 세운다 (hotfix74).
+
+    `main.CON` 하나를 요청 스레드들 · 분석 작업 스레드 · 도면 사실 채우기 스레드가 같이 쓴다
+    (`check_same_thread=False`).  sqlite3 모듈은 쓰기 앞에 "트랜잭션이 열려 있나" 를 보고 BEGIN 을
+    거는데, 그 사이에 다른 스레드가 끼면 `cannot start a transaction within a transaction` ·
+    `cannot commit - no transaction is active` 로 실패한다.  실측(6스레드 × 2000 쓰기): 잠금 없이
+    **362건 실패** ↔ 잠금 **0건**.  두 사람이 동시에 칸을 고치면 500 이 날 수 있었다 — 빠른 시험이
+    세 번에 한 번 꼴로 이 경합에 걸려 드러났다 (`test_hotfix68_dualpane`).
+    """
+    _lock = threading.RLock()
+
+    def execute(self, *a, **k):
+        with self._lock:
+            return super().execute(*a, **k)
+
+    def executemany(self, *a, **k):
+        with self._lock:
+            return super().executemany(*a, **k)
+
+    def executescript(self, *a, **k):
+        with self._lock:
+            return super().executescript(*a, **k)
+
+    def commit(self):
+        with self._lock:
+            return super().commit()
+
+    def rollback(self):
+        with self._lock:
+            return super().rollback()
+
+
 def connect(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     # hotfix74 — 다른 프로세스(두 번 켠 서버 · DB 를 연 다른 도구)가 쓰기 잠금을 쥐면 기본 5초 뒤
     # `database is locked` 로 실패했다 (돌발상황 시뮬레이션 S5).  30초까지 기다리고, 그래도 안 되면
     # `main` 이 503 과 사람 말로 답한다.
-    con = sqlite3.connect(path, check_same_thread=False, timeout=30.0)
+    con = sqlite3.connect(path, check_same_thread=False, timeout=30.0, factory=_SerialConnection)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)

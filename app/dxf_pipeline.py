@@ -408,6 +408,21 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
     legend_sheets = [sh for sh in ok if tb_rows[sh.no]["page_kind"] == "LEGEND"]
     targets = [sh for sh in ok if tb_rows[sh.no]["page_kind"] == "PID"]
     log(f"DXF: legend sheets {[s.no for s in legend_sheets]} · PID sheets {len(targets)}")
+    # hotfix74 — 돌발상황 시뮬레이션(`spike/dxf_variants.py`): 범례 없는 묶음 · 전부 깨진 묶음이 **행 0개로
+    # 조용히 성공**했다.  PDF 경로와 같은 두 예외로, 같은 자리(분석 앞)에서 사람 말로 멈춘다.
+    if not ok:
+        bad = "; ".join(f"{sh.file}: {sh.error}" for sh in sheets[:3])
+        raise P.NoTextLayer(f"DXF {len(sheets)}개를 하나도 열지 못했습니다 — DXF 가 아니거나 손상됐습니다 ({bad[:300]}).  "
+                            f"CAD 에서 DXF 로 다시 내보내 올려 주세요.")
+    if not targets:
+        raise P.TitleBlockUnreadable(
+            f"이 DXF 묶음({len(ok)}장)에서 P&ID 장을 찾지 못했습니다 — 도면번호를 읽은 장 "
+            f"{sum(1 for r in tb_rows.values() if r['drawing_no'])}장 · 범례 장 {len(legend_sheets)}장.  "
+            f"타이틀블록에 도면번호가 있는 P&ID DXF 를 넣어 주세요.")
+    if not legend_sheets:
+        raise P.LegendUnavailable(
+            f"이 DXF 묶음({len(ok)}장)에 Symbol & Legend 장이 없습니다 — DXF 는 블록의 뜻(계기·밸브)을 범례 장에서 "
+            f"읽으므로 범례 DXF 를 함께 넣어 주세요 (제목에 SYMBOL · LEGEND 가 든 장).")
     # 56회차 [G1] — 프로필은 도면이 고른다 (PDF 경로와 같은 함수).
     codes = collections.Counter(r["drawing_no"].split("-")[0]
                                 for r in tb_rows.values() if r["drawing_no"])
@@ -594,7 +609,13 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
                 "bubble_diameter": bubble_d,
                 "blocks_outside_legend_round": sorted(outside),
                 "scope_breaks": breaker,
-                "drawing_no_pattern": pat or ""},
+                "drawing_no_pattern": pat or "",
+                # hotfix74 — 속성 역할을 못 배웠으면 그 사실을 남긴다 (태그 모양은 두 장 이상에서 되풀이돼야
+                # 배운다 — 장이 적은 묶음에서는 행이 크게 준다; 시뮬레이션: 6장 묶음 1행 ↔ 32장 묶음 507행).
+                "roles_note": ("" if roles["tag"] and roles["type"] else
+                               f"계기 블록의 TYPE·태그 속성을 배우지 못했습니다 — 같은 태그 모양이 두 장 이상에서 되풀이돼야 배웁니다 "
+                               f"(P&ID 장 {len(targets)}장).  장이 적으면 계기 행이 크게 줄 수 있습니다 — "
+                               f"같은 계통의 DXF 를 함께 넣어 주세요.")},
         "description_grades": dict(collections.Counter(r.description_grade for r in rows)),
         # 화면·저장이 읽는 PDF 결과의 나머지 열쇠 — 이 회차에 값이 없는 것은 **빈 값**으로 둔다
         # (`main.job_review` 가 `engine.get("job_review", [])` 를 돌리므로 None 이면 500).

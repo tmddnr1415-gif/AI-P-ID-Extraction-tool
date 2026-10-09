@@ -88,9 +88,9 @@ def load(data_dir, project: str) -> dict:
     p = path_for(data_dir, project)
     if not p.exists():
         return {"version": VERSION, "enabled": True, "sheets": {}}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
+    from app import jsonstore
+    data = jsonstore.read(p, None, what="장 도면번호 지정")
+    if not isinstance(data, dict):
         return {"version": VERSION, "enabled": True, "sheets": {}}
     data.setdefault("version", VERSION)
     data.setdefault("enabled", True)
@@ -100,10 +100,8 @@ def load(data_dir, project: str) -> dict:
 
 def save(data_dir, project: str, data: dict) -> Path:
     p = path_for(data_dir, project)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, ensure_ascii=False, sort_keys=True,
-                            indent=1) + "\n", encoding="utf-8")
-    return p
+    from app import jsonstore
+    return jsonstore.write(p, data)
 
 
 def table(data_dir, project: str) -> dict:

@@ -65,10 +65,8 @@ def load(data_dir: Path) -> dict:
     p = path(data_dir)
     if not p.exists():
         return empty()
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except ValueError:
-        return empty()
+    from app import jsonstore
+    data = jsonstore.read(p, None, what="전역 심볼 사전")
     if not isinstance(data, dict) or "symbols" not in data:
         return empty()
     data.setdefault("version", VERSION)
@@ -80,10 +78,8 @@ def save(data_dir: Path, data: dict) -> Path:
     """정렬 키를 고정해 쓴다 — 두 번 저장하면 같은 파일이어야 한다
     (15회차 `Registry.save` 와 같은 규칙)."""
     p = path(data_dir)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-                 encoding="utf-8")
-    return p
+    from app import jsonstore
+    return jsonstore.write(p, data)
 
 
 def active(data_dir: Path) -> dict:

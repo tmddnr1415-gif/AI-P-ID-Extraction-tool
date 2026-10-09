@@ -196,14 +196,15 @@ class Registry:
     @classmethod
     def load(cls, path: Path) -> "Registry":
         if path.exists():
-            return cls(json.loads(path.read_text(encoding="utf-8")))
+            from app import jsonstore
+            data = jsonstore.read(path, what="안정 ID 장부", required=True)
+            return cls(data if isinstance(data, dict) else None)
         return cls()
 
     def save(self, path: Path) -> None:
         """정렬 키를 고정해 쓴다 — 두 번 저장하면 같은 파일이어야 한다."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.data, ensure_ascii=False, indent=1,
-                                   sort_keys=True) + "\n", encoding="utf-8")
+        from app import jsonstore                      # hotfix74 — 원자적 저장 · 바로 앞 판 .bak
+        jsonstore.write(path, self.data)
 
     # -- 조회 -----------------------------------------------------------
     def next_seq(self, code: str) -> int:
@@ -673,7 +674,8 @@ def list_projects(data_dir: Path) -> list:
     for d in sorted(root.iterdir()):
         meta = d / "project.json"
         if d.is_dir() and meta.exists():
-            out.append(json.loads(meta.read_text(encoding="utf-8")))
+            from app import jsonstore
+            out.append(jsonstore.read(meta, what=f"프로젝트 장부 {d.name}", required=True))
     return out
 
 
@@ -685,7 +687,8 @@ def load_project(data_dir: Path, name: str) -> dict:
     meta = project_dir(data_dir, name) / "project.json"
     if not meta.exists():
         raise KeyError(name)
-    return json.loads(meta.read_text(encoding="utf-8"))
+    from app import jsonstore
+    return jsonstore.read(meta, what=f"프로젝트 장부 {name}", required=True)
 
 
 DELETED_DIR = "_deleted"
@@ -791,9 +794,8 @@ def declared_mode(meta: dict | None) -> str:
 def _save_project(data_dir: Path, meta: dict) -> None:
     d = project_dir(data_dir, meta["name"])
     d.mkdir(parents=True, exist_ok=True)
-    (d / "project.json").write_text(
-        json.dumps(meta, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-        encoding="utf-8")
+    from app import jsonstore                          # hotfix74 — 원자적 저장 · 바로 앞 판 .bak
+    jsonstore.write(d / "project.json", meta)
 
 
 # 문서 대표 개정 — 장마다 다른 Rev 를 하나로 접는 규칙 (13회차).
