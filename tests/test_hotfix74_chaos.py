@@ -101,3 +101,15 @@ def test_short_screens_keep_the_list_reachable():
     assert "#right { overflow-y: auto; }" in body
     assert "#right.compare { overflow-y: hidden; }" in body
     assert ".build {" in body and "text-overflow: ellipsis" in body
+
+
+def test_enter_while_composing_hangul_does_not_reach_handlers():
+    """한글 조합 중의 Enter 는 글자를 확정하는 키다 — 창의 캡처 단계에서 한 번 걸러 처리기 열한 곳에 닿지 않게 한다
+    (브라우저 실측: 조합 중 Enter 뒤에도 칸이 편집 중 · 보통 Enter 는 저장)."""
+    js = (Path(__file__).resolve().parent.parent / "app/static/app.js").read_text(encoding="utf-8")
+    i = js.index('if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.stopImmediatePropagation();')
+    head = js[max(0, i - 200):i]
+    assert 'window.addEventListener("keydown"' in head
+    tail = js[i:i + 120]
+    assert "}, true);" in tail                     # 캡처 단계 — 다른 어떤 처리기보다 먼저
+    assert "preventDefault" not in js[i - 200:i + 120]   # 입력기가 글자를 확정해야 하므로 기본 동작은 막지 않는다

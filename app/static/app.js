@@ -9250,6 +9250,15 @@ let _fetch0 = window.fetch.bind(window);
  * 탭은 옛 `app.js` 로 새 서버와 이야기한다 (밤새 켜 둔 탭 · 대시보드 iframe).  내 딱지는 이 스크립트 주소의
  * `?v=` 이고(서버가 내용으로 만든다 · 56회차), 2분마다 · 연결이 돌아올 때 `/version` 의 딱지와 맞대 다르면
  * 노란 띠와 [새로고침].  고친 값은 칸마다 이미 저장돼 있으므로 새로고침해도 잃지 않는다. */
+/* hotfix74 — 한글 입력기(IME) 조합 중의 Enter 는 글자를 **확정**하는 키이지 저장하라는 키가 아니다.
+ * 이 화면의 Enter 처리 열한 곳(칸 · 이름 줄 · 승수 · 검색 · 메모 …)이 그것을 가리지 않아, 이름 `홍길동` 을
+ * 치고 바로 Enter 를 누르면 마지막 글자가 조합 중인 채로 저장되거나(빠짐) 저장 뒤 한 번 더 들어간다(겹침).
+ * 곳곳을 고치지 않고 창에서 한 번 거른다 — 조합 중의 Enter 는 처리기에 닿지 않고 입력기만 받는다.
+ * (기본 동작은 막지 않는다 — 입력기가 글자를 확정해야 한다.)  조합이 끝난 다음 Enter 는 예전 그대로다. */
+window.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.isComposing || ev.keyCode === 229)) ev.stopImmediatePropagation();
+}, true);
+
 const MY_UI_TAG = (() => {
   try {
     const m = /[?&]v=([^&]+)/.exec((document.currentScript && document.currentScript.src) || "");
