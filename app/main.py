@@ -4283,13 +4283,13 @@ def _diagnostic_zip(job_id: str) -> dict:
         "audit": audit.run(CON, DATA_DIR),
         "contents": sorted(list(files) + ["logs/server.log", "MANIFEST.json"]),
     }
-    tmp = jsonstore.scratch(path)            # hotfix74 — 같은 분석의 진단을 둘이 동시에 만들면 같은 파일에 썼다
-    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+    # hotfix74 — 같은 분석의 진단을 둘이 동시에 만들면 같은 파일에 썼다 → 다 쓴 뒤 바꿔 넣는다
+    with jsonstore.building(path) as out, zipfile.ZipFile(out.tmp, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("MANIFEST.json", dump(manifest))
         for inner, text in files.items():
             z.writestr(inner, text)
         z.writestr("logs/server.log", _log_tail())
-    path = jsonstore.publish(tmp, path)
+    path = out.path
     name = path.name
     return {"filename": name, "bytes": path.stat().st_size,
             "counts": manifest["counts"], "excluded": DIAGNOSTIC_EXCLUDED,

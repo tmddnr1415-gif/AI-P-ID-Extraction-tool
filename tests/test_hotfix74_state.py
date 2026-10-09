@@ -353,7 +353,7 @@ def test_export_zips_are_published_whole(tmp_path, monkeypatch):
     assert not list(tmp_path.glob(".x.zip.tmp*"))
     root = Path(__file__).resolve().parent.parent
     for f in ("app/markup.py", "app/main.py"):
-        assert "jsonstore.publish(tmp, path)" in (root / f).read_text(encoding="utf-8")
+        assert "with jsonstore.building(path) as out, zipfile.ZipFile(out.tmp" in (root / f).read_text(encoding="utf-8")
 
 
 def test_new_project_names_are_windows_safe(tmp_path):
@@ -396,3 +396,44 @@ def test_long_running_server_log_is_tailed_and_rotated(tmp_path):
     src = (Path(__file__).resolve().parent.parent / "app/main.py").read_text(encoding="utf-8")
     i = src.index("def _log_tail(")
     assert "read_bytes()" not in src[i:i + 900]
+
+
+def test_disk_full_during_save_keeps_original_and_leaves_no_temp(tmp_path, monkeypatch):
+    import builtins, errno, importlib
+    js = importlib.import_module("app.jsonstore")
+    target = tmp_path / "s.json"
+    js.write(target, {"a": 1})
+    real_open = builtins.open
+
+    class Full:
+        def __init__(self, f): self.f = f
+        def __enter__(self): return self
+        def __exit__(self, *a): self.f.close()
+        def write(self, t): self.f.write(t[:3]); raise OSError(errno.ENOSPC, "No space left on device")
+        def flush(self): pass
+        def fileno(self): return self.f.fileno()
+
+    def fake_open(path, mode="r", *a, **k):
+        f = real_open(path, mode, *a, **k)
+        return Full(f) if ".tmp" in str(path) and "w" in mode else f
+    monkeypatch.setattr(builtins, "open", fake_open)
+    with pytest.raises(OSError):
+        js.write(target, {"a": 2})
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert js.read(target, {}) == {"a": 1}
+    assert [p.name for p in tmp_path.iterdir() if ".tmp" in p.name] == []
+
+
+def test_building_removes_half_written_file_on_failure(tmp_path):
+    import importlib, zipfile
+    js = importlib.import_module("app.jsonstore")
+    target = tmp_path / "a.zip"
+    with js.building(target) as out, zipfile.ZipFile(out.tmp, "w") as z:
+        z.writestr("x", "1")
+    assert zipfile.ZipFile(target).read("x") == b"1"
+    with pytest.raises(RuntimeError):
+        with js.building(target) as out, zipfile.ZipFile(out.tmp, "w") as z:
+            z.writestr("x", "2")
+            raise RuntimeError("disk full")
+    assert zipfile.ZipFile(target).read("x") == b"1"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["a.zip"]

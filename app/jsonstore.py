@@ -51,13 +51,21 @@ def write(path: Path, data, *, indent=1, sort_keys=True) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(data, ensure_ascii=False, sort_keys=sort_keys, indent=indent) + "\n"
     tmp = path.with_name(f"{path.name}.tmp{os.getpid()}-{threading.get_ident()}")
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
-        f.flush()
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:                             # 일부 파일 시스템은 fsync 를 못 한다
+                pass
+    except BaseException:
+        # 디스크가 찼다 · 권한이 없다 — 원본은 그대로이고, 반쯤 쓴 임시 파일은 남기지 않는다 (hotfix74).
         try:
-            os.fsync(f.fileno())
-        except OSError:                                 # 일부 파일 시스템은 fsync 를 못 한다
+            tmp.unlink()
+        except OSError:
             pass
+        raise
     with _LOCK:
         if path.exists():
             try:
@@ -207,3 +215,25 @@ def publish(tmp: Path, path: Path) -> Path:
     alt = path.with_name(f"{path.stem}_{time.strftime('%H%M%S')}-{threading.get_ident() % 10000}{path.suffix}")
     os.replace(tmp, alt)
     return alt
+
+
+class building:
+    """`with building(path) as b: write(b.tmp) ...` → 끝나면 `b.path` 에 온전히 들어가 있다.  도중에 실패하면
+    (디스크가 참 · 예외) 반쯤 쓴 임시 파일을 지우고 예외를 그대로 올린다 — 원래 파일은 그대로다 (hotfix74)."""
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        self.tmp = scratch(self.path)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, kind, exc, tb):
+        if kind is None:
+            self.path = publish(self.tmp, self.path)
+            return False
+        try:
+            self.tmp.unlink()
+        except OSError:
+            pass
+        return False
