@@ -1594,6 +1594,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                for pno, info in per_page.items()})
     if folded_sig:
         rows = [r for r in rows if r.key not in folded_sig]
+    # hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  Description ·
+    # 순번 · 태그 체계 · 문턱 모집단이 그 행을 보기 **전에** 뺀다 — 뒤에서 빼면 같은
+    # 문장의 A·B 접미에 빈자리가 남는다.
+    rows, policy_facts = apply_policy(rows, isa, log=clock.log)
     for r in rows:
         chain = tag_signals.get(r.key)
         if not chain:
@@ -1871,6 +1875,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # hotfix31 — 같은 태그의 표시기(PI)를 전송기(PIT)로 접은 내역과 게이지
         # 판정 수.  **지문 밖** — 지문은 남은 행으로 잰다.
         "readouts": readout_facts,
+        # hotfix83 — 사용자가 정한 '식별하지 않는 것' 이 무엇을 뺐나 (지문 밖)
+        "policy_excluded": policy_facts,
         # Wall clock, not a finding: excluded from `fingerprint()` on purpose,
         # because it is the one key that must differ between two runs.
         "timings": clock.report(),
@@ -2360,6 +2366,95 @@ def _is_switch(anchor: str, isa) -> bool:
     return "SWITCH" in words
 
 
+# hotfix83 — **사용자 실무 판단** (2026-10-10).  도면이 답하지 않아 사람에게 물었고
+# 사람이 답했다 (§9 ⑤).  두 규칙 다 **행을 지우지 않고 세어 둔다** — 결과의
+# `policy_excluded` 에 무엇을 왜 뺐는지 남긴다 (지문 밖).
+#
+#   ① *"PSV 는 식별하지 않는다"* — 자력식 안전밸브는 계장 산출물이 아니다.
+#      태그 낱말은 config `policy.not_identified_tags` 에 있다 (사용자가 정한 값이지
+#      도면에서 읽은 값이 아니다 — 그래서 config 다).
+#   ② *"제어실 기능 버블(LICA·PICA 등)은 넣지 않는다"* — 판정은 **그 도면의 ISA
+#      문자표**가 한다 (글자 뜻을 코드에 적지 않는다 · `_is_switch` 와 같은 길):
+#        (가) 뒤 글자 중 하나라도 그 표가 `CONTROLLER`(또는 `CONTROL STATION`)로
+#             읽으면 제어 기능이다 — LICA · PICA · PIC · FICA · LCA · TCA · GTC.
+#        (나) 버블 가운데 선이 있고(ISA 위치 표기 — hotfix73 · 범례 GENERAL
+#             INSTRUMENTS) 뒤 글자 어느 것도 그 표가 **물리 기기**(전송기 · 소자 ·
+#             스위치 · 유리 · 밸브 …)로 읽지 않으면 제어실 표시·경보다 — LA · LIA ·
+#             TIA · PIA.  가운데 선이 있어도 전송기(PIT · LIT …)·스위치는 남는다
+#             (AL NOUF1 은 현장 전송기를 선 있는 버블로 그린다 — 실측 108행).
+#      표가 그 낱말을 못 풀면(`decompose` None) 판정하지 않는다 — `ZOCL` 처럼
+#      표가 정의하지 않은 글자를 가진 낱말을 제어 기능으로 지어 읽지 않는다.
+#      실측(저장 결과): AL NOUF1 0 · TC2 0 · UAD-DXF 0 · QFE 286행.
+_PHYSICAL_WORDS_DEFAULT = ("TRANSMIT", "ELEMENT", "SENSING", "SWITCH", "GLASS",
+                           "VALVE", "WELL", "SOLENOID", "POSITIONER", "POINT")
+
+
+def _policy_cfg() -> dict:
+    """config `policy` — 부를 때 읽는다 (프로필을 얹으면 CFG 가 바뀐다)."""
+    return dict(CFG.data.get("policy") or {})
+
+
+def control_function_reason(anchor: str, lines, isa) -> str:
+    """제어실 기능 버블이면 그 근거 한 줄, 아니면 빈 문자열.  표가 없으면 판정 안 함."""
+    if isa is None or not anchor:
+        return ""
+    parts = isa.decompose(anchor)
+    if not parts:
+        return ""
+    _head, rest = parts
+    meaning = {c: tuple(str(w).upper() for w in (isa.succeeding or {}).get(c, ()))
+               for c in rest}
+    for c, words in meaning.items():
+        if "CONTROLLER" in words or ("CONTROL" in words and "STATION" in words):
+            return f"'{c}' = {' '.join(words)} (그 도면 ISA 표) — 제어 기능"
+    try:
+        n_lines = int(lines or 0)
+    except (TypeError, ValueError):
+        n_lines = 0
+    if n_lines >= 1:
+        phys = tuple(str(w).upper() for w in
+                     (_policy_cfg().get("physical_function_words") or _PHYSICAL_WORDS_DEFAULT))
+        if not any(p in w for words in meaning.values() for w in words for p in phys):
+            return (f"버블 가운데 선 {n_lines}줄 (ISA 위치 표기) · 뒤 글자 "
+                    f"{''.join(rest)} 가 물리 기기가 아님 — 제어실 표시·경보")
+    return ""
+
+
+def apply_policy(rows: list, isa, log=None) -> tuple:
+    """hotfix83 — 사용자가 정한 '식별하지 않는 것' 을 행에서 뺀다.  (남은 행, 사실)."""
+    pol = _policy_cfg()
+    skip_tags = {str(t).strip().upper() for t in
+                 (pol.get("not_identified_tags") or ()) if str(t).strip()}
+    ctrl_mode = str(pol.get("control_room_functions") or "keep").strip().lower()
+    kept, dropped = [], []
+    for r in rows:
+        ev = r.evidence or {}
+        tag = str(ev.get("tag") or "").strip().upper()
+        anchor = str(ev.get("anchor") or "").strip().upper()
+        why = ""
+        if skip_tags and (tag in skip_tags or anchor in skip_tags
+                          or str(r.type or "").upper() in skip_tags):
+            why = "NOT_IDENTIFIED_TAG"
+            note = f"'{tag or anchor or r.type}' 는 식별하지 않음 (사용자 확정)"
+        elif ctrl_mode == "exclude" and not ev.get("body") and anchor:
+            note = control_function_reason(
+                anchor, (ev.get("detail") or {}).get("bubble_lines"), isa)
+            why = "CONTROL_FUNCTION" if note else ""
+        if why:
+            dropped.append({"key": r.key, "page_no": r.page_no, "type": r.type or tag or anchor,
+                            "anchor": anchor or tag, "why": why, "note": note,
+                            "rect": [round(v, 1) for v in (r.rect or ())]})
+        else:
+            kept.append(r)
+    facts = {"not_identified_tags": sorted(skip_tags), "control_room_functions": ctrl_mode,
+             "by_reason": dict(collections.Counter(d["why"] for d in dropped)),
+             "by_type": dict(collections.Counter(d["type"] for d in dropped)),
+             "rows": dropped}
+    if log and dropped:
+        log(f"policy: excluded {len(dropped)} rows {facts['by_reason']} {facts['by_type']}")
+    return kept, facts
+
+
 def _gauge_cfg() -> dict:
     """config `description.gauge_indicator` — 부를 때 읽는다 (프로필을 얹으면 CFG 가 바뀐다)."""
     return dict((CFG.data.get("description") or {}).get("gauge_indicator") or {})
@@ -2701,10 +2796,6 @@ def _valve_tag_signals(rows, bubbles_by_page=None) -> tuple:
     return owned, folded
 
 
-_VENDOR_UNDEFINED_REASON = ("a vendor mark is drawn on this symbol but this "
-                            "drawing's NOTES do not define what it means, so "
-                            "whether it is vendor supply is undecided")
-
 
 def _row_mark_rank(r) -> int:
     """이 버블이 공급 주체에 대해 무엇을 말하나 — 2 정의된 별표 · 1 뜻 없는 별표 · 0 없음."""
@@ -2740,7 +2831,9 @@ def _bundle_scope(grp) -> dict:
     best_rank, _i, src = ranked[0]
     if best_rank == 0:
         return {}
-    marked = {r.scope for r in grp if _row_mark_rank(r)}
+    # hotfix83 — 서로 **다른 이름**을 말할 때만 갈림이다.  이름 있는 것과 그냥 VENDOR 는
+    # 갈림이 아니라 이름이 이긴다 (사용자 확정: 특정되어 있으면 그것을 따른다).
+    marked = {r.scope for r in grp if _row_mark_rank(r) == 2}
     info = {"anchor": str(src.evidence.get("anchor") or src.type), "scope": src.scope,
             "marked_members": [str(r.evidence.get("anchor") or r.type)
                                for r in grp if _row_mark_rank(r)]}
@@ -2770,18 +2863,15 @@ def _bundle_scope(grp) -> dict:
                 r.description_note = src.description_note
                 r.evidence["description_needed"] = False
                 r.evidence["description_note"] = src.description_note
-            if best_rank == 1:
-                codes = r.evidence.setdefault("review_codes", [])
-                if "VENDOR_MARK_UNDEFINED" not in codes:
-                    codes.append("VENDOR_MARK_UNDEFINED")
-                    r.needs_review = "; ".join(
-                        x for x in (r.needs_review, _VENDOR_UNDEFINED_REASON) if x)
+            # hotfix83 — 뜻 없는 별표(best_rank 1)는 사용자 확정으로 그냥 VENDOR 다.
+            # 검토 사유를 달지 않는다.
         r.evidence["bundle_scope"] = dict(info, own_scope=before)
     if info.get("disagree"):
         for r in grp:
+            # hotfix83 — 갈림은 **서로 다른 공급자 이름**일 때뿐이다 (뜻 없는 별표가 아니다)
             codes = r.evidence.setdefault("review_codes", [])
-            if "VENDOR_MARK_UNDEFINED" not in codes:
-                codes.append("VENDOR_MARK_UNDEFINED")
+            if "SIGNAL_VENDOR_DISAGREE" not in codes:
+                codes.append("SIGNAL_VENDOR_DISAGREE")
                 r.needs_review = "; ".join(x for x in (
                     r.needs_review, "signals of one switch carry different vendor marks "
                     f"({', '.join(info['disagree'])}) — {info['anchor']}'s is used") if x)
@@ -4352,11 +4442,8 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
             # 뜻을 지어내지 않고 검토로 올린다 (§9 ⑤).
             codes.append("BUBBLE_DASHED")
             reasons.append(_DASHED_BUBBLE)
-        if "VENDOR_MARK_UNDEFINED" in (getattr(d, "rules_hit", []) or []):
-            codes.append("VENDOR_MARK_UNDEFINED")
-            reasons.append("a vendor mark is drawn on this symbol but this "
-                           "drawing's NOTES do not define what it means, so "
-                           "whether it is vendor supply is undecided")
+        # hotfix83 — 뜻 없는 별표는 사용자 확정으로 그냥 VENDOR 다.  검토 사유를 달지
+        # 않는다 (`rules_hit` 의 VENDOR_MARK_UNDEFINED 는 사실로 남는다 — 근거 패널이 읽는다).
         if scope_keywords:
             codes.append("SCOPE_OVERRIDE_UNRESOLVED")
             reasons.append(
@@ -4721,7 +4808,9 @@ def _vendor_of(d) -> str:
         if tag in hits:
             return "VENDOR"
     if "VENDOR_MARK_UNDEFINED" in hits:
-        return "UNDEFINED"
+        # hotfix83 — 사용자 확정: 별표는 있는데 그 장 NOTES 가 공급자를 말하지 않으면
+        # **그냥 VENDOR** 다 (예전 `UNDEFINED` · 축 판정은 둘 다 벤더로 읽었다).
+        return "VENDOR"
     return ""
 
 
@@ -4736,10 +4825,58 @@ _SUPPLIER_RE = re.compile(
         or r"\bBY\s+(?P<name>[^.]+?)\s*\.?\s*$"), re.IGNORECASE)
 
 
+# hotfix83 — 사용자 확정 (2026-10-10): *"노트에 `**` 또는 `*` 하나의 표기에 대해 Vendor 가
+# 특정되어 있으면 이를 따르고 언급이 없으면 그냥 VENDOR 로 한다."*
+#
+# `BY <이름>` 한 꼴만 읽던 10회차 자리 규칙으로는 NOTES 가 공급자를 **분명히 적었는데도**
+# 이름이 빠졌다 — 네 문서 저장 결과 실측:
+#   TC2   `… SUPPLIED FROM SUMP PUMP VENDOR.` 132 · `THIS WILL BE IN EQUIPMENT VENDOR SCOPE.` 52 ·
+#         `PUMP SUPPLIER'S SCOPE` 4 · `: CONDENSER VENDOR SCOPE OF SUPPLY` 2
+#   QFE   `… SUPPLIED FROM SUMP PUMPS VENDOR.` 177 · `PUMP VENDOR SHALL PROVIDE THE INSTRUMENT.` 20
+#   AL NOUF1 `… SUPPLIED FROM SUMP` / `PUMP VENDOR.` 93 (두 줄 — `read_mark_dictionary` 가 이음)
+# 그래서 `BY` 가 없으면 **공급자 명사**(VENDOR · SUPPLIER …)로 끝나는 명사구를 그 이름으로
+# 읽는다: 그 명사에서 앞으로 걸어가며 전치사·관사·조동사(`FROM` · `IN` · `BY` · `THIS` …)를
+# 만나면 멈춘다.  낱말은 **영어 문법**이지 프로젝트 값이 아니므로 기본값은 코드에 있고
+# config `scope.supplier_nouns` · `scope.supplier_stop_words` 가 늘린다 (27회차 `qty_note` 와 같은 길).
+# 공급자 명사가 없으면 빈 문자열 — 이름을 지어내지 않고 그냥 `VENDOR` 다.
+_SUPPLIER_NOUNS_DEFAULT = ("VENDOR", "VENDORS", "SUPPLIER", "SUPPLIERS", "MANUFACTURER",
+                           "MANUFACTURERS", "CONTRACTOR", "CONTRACTORS", "PACKAGER",
+                           "FABRICATOR")
+_SUPPLIER_STOP_DEFAULT = ("FROM", "BY", "IN", "OF", "THE", "A", "AN", "THIS", "THAT", "THESE",
+                          "WILL", "SHALL", "BE", "IS", "ARE", "TO", "FOR", "WITH", "AND", "OR",
+                          "AS", "AT", "ON", "DENOTED", "DENOTES", "SUPPLIED", "PROVIDED",
+                          "FURNISHED", "MARKED", "ITEMS", "INSTRUMENTS", "EQUIPMENTS", "SYMBOL",
+                          "INDICATES", "DENOTE")
+
+
+def _supplier_words(key: str, default) -> tuple:
+    extra = (CFG.data.get("scope") or {}).get(key) or ()
+    return tuple(dict.fromkeys(str(w).upper() for w in (*default, *extra)))
+
+
 def _supplier_name(meaning: str) -> str:
     """NOTES 정의문에서 공급자 이름.  형태가 다르면 빈 문자열 — 지어내지 않는다."""
-    m = _SUPPLIER_RE.search(" ".join(str(meaning or "").split()))
-    return " ".join(m.group("name").split()) if m else ""
+    text = " ".join(str(meaning or "").split())
+    m = _SUPPLIER_RE.search(text)
+    if m:
+        return " ".join(m.group("name").split())
+    nouns = set(_supplier_words("supplier_nouns", _SUPPLIER_NOUNS_DEFAULT))
+    stops = set(_supplier_words("supplier_stop_words", _SUPPLIER_STOP_DEFAULT))
+    toks = [t.strip(".,;:()[]\"") for t in text.upper().split()]
+    for i, t in enumerate(toks):
+        base = t[:-2] if t.endswith("'S") else t
+        if base not in nouns:
+            continue
+        name = [base]
+        for w in reversed(toks[:i]):
+            if not w or w in stops or not any(ch.isalpha() for ch in w) or w.endswith(":"):
+                break
+            name.insert(0, w)
+        if len(name) > 1 or base not in ("VENDOR", "VENDORS", "SUPPLIER", "SUPPLIERS"):
+            return " ".join(name)
+        # 명사 하나뿐(`BY VENDOR` 처럼 누구인지 말하지 않음) — 이름이 아니다
+        return ""
+    return ""
 
 
 def _scope_of(d) -> str:

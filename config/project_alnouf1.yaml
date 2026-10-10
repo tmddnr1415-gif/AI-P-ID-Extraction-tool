@@ -221,6 +221,24 @@ revision:
 client_form:
   scope_filter: all           # all(18회차 · 전량) | sct(11회차 · SCT 만)
 
+# hotfix83 — **사용자 실무 판단** (2026-10-10).  도면이 답하지 않는 질문에 사람이
+# 답한 것이라 config 에 둔다 (§9 ⑤).  프로젝트가 아니라 이 도구를 쓰는 부서의 방침이므로
+# 다른 프로필은 이 값을 그대로 물려받는다 (프로필이 덮으면 그 프로필의 값).
+#   not_identified_tags      — "PSV 는 식별하지 않는다".  행을 만들지 않고 결과의
+#                              `policy_excluded` 에 센다.  자력식 안전밸브.
+#   control_room_functions   — "제어실 기능 버블(LICA·PICA 등)을 리스트에 넣지 않는다".
+#                              exclude | keep.  판정은 그 도면의 ISA 문자표가 한다
+#                              (`pipeline.control_function_reason`): 뒤 글자가 CONTROLLER ·
+#                              CONTROL STATION 이거나, 버블 가운데 선이 있고 물리 기기 글자가
+#                              없으면 제어실 기능.  실측 AL NOUF1 0 · TC2 0 · QFE 286행.
+#   physical_function_words  — (나) 갈래에서 "물리 기기" 로 읽는 그 표의 낱말 (부분 일치).
+#                              PIT · LIT · LS 처럼 선 있는 버블로 그린 현장 계기를 지킨다.
+policy:
+  not_identified_tags: [PSV]
+  control_room_functions: exclude
+  physical_function_words: [TRANSMIT, ELEMENT, SENSING, SWITCH, GLASS, VALVE, WELL,
+                            SOLENOID, POSITIONER, POINT]
+
 scope:
   exclusion_rules: none
 
@@ -973,6 +991,7 @@ review_axes:
   codes:
     # --- scope: does this row belong in the deliverable at all
     VENDOR_MARK_UNDEFINED: SCOPE          # 벤더마크가 NOTES 에 정의되지 않음
+    SIGNAL_VENDOR_DISAGREE: SCOPE         # hotfix83 — 한 스위치의 신호들이 서로 다른 공급자
     SCOPE_OVERRIDE_UNRESOLVED: SCOPE      # PLANT COMMON 등 시트 승수 예외
     # --- quantity: how many are ordered
     MULTI_SIGNAL_BUNDLE: QUANTITY         # 맞닿은 신호 버블의 물리 수량

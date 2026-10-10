@@ -78,14 +78,14 @@ def test_the_report_splits_derived_fallback_and_human_work():
     mu = by["multipliers"]
     assert mu["status"] == "todo" and mu["facts"]["asking"] == {"MULTIPLIER_FROM_CONFIG": 2}
     assert mu["todo"][0]["where"].startswith("수량 승수 판")
-    # SCOPE: 정의되지 않은 별표 1 → 근거 패널
+    # SCOPE: 정의되지 않은 별표 1 — hotfix83 사용자 확정으로 그냥 VENDOR 라 사람 몫이 아니다
     sc = by["scope"]
-    assert sc["facts"]["undefined"] == 1 and sc["status"] == "todo"
+    assert sc["facts"]["undefined"] == 1 and sc["status"] == "ok" and not sc["todo"]
     # 검토: 승수·SCOPE 는 자기 섹션이 말하고 여기서는 TAGGED_VALVE_NO_ACTUATOR 만 todo 로
     rv = by["review"]
     assert [t["what"].split(" ")[0] for t in rv["todo"]] == ["TAGGED_VALVE_NO_ACTUATOR"]
     # 사람 몫 묶음과 글
-    assert len(out["todo"]) >= 5 and all(t["where"] for t in out["todo"])
+    assert len(out["todo"]) >= 4 and all(t["where"] for t in out["todo"])
     assert "## 사람 몫" in out["text"] and "★ 양식" in out["text"]
 
 

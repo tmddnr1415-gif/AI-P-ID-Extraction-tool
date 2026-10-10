@@ -3031,6 +3031,8 @@ REVIEW_LABELS = {
     "TAG_TYPE_MISMATCH": "태그 기능코드가 말하는 변수와 버블 글자가 다름 — 도면이 두 말을 함",
     "TAG_EVIDENCE_ROW": "태그가 증거인 행 — 버블 글자가 ISA 표로 안 풀리거나 버블이 흔들림 · 공급 주체 미판정",
     "VENDOR_MARK_UNDEFINED": "벤더마크가 이 도면 NOTES 에 정의되지 않음 — 포함/제외 판단",
+    # hotfix83 — 한 스위치 묶음의 신호 버블들이 서로 다른 공급자를 말한다 (이름 둘)
+    "SIGNAL_VENDOR_DISAGREE": "한 스위치의 신호 버블들이 서로 다른 공급자를 말함 — 하나를 골랐음",
     "SCOPE_OVERRIDE_UNRESOLVED": "시트 승수의 예외 문구가 있음 — 어느 항목이 예외인지 판단",
     "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",

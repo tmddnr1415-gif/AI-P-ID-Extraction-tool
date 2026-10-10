@@ -299,14 +299,12 @@ def _scope(engine, rows) -> dict:
     named = sum(n for k, n in sc.items() if k.startswith("VENDOR("))
     blank = sc.get("", 0)
     lines.append("SCOPE 분포: " + " · ".join(f"{k or '빈칸'} {n}" for k, n in sc.most_common(6)))
+    # hotfix83 — 정의 없는 별표는 사용자 확정으로 그냥 VENDOR 다 (사람 몫이 아니다).
+    # 예전 분석은 검토 사유가 남아 있으므로 세기만 한다.
     undefined = sum(1 for r in rows if "VENDOR_MARK_UNDEFINED" in _codes(r))
-    if undefined:
-        status = "todo"
-        todo.append({"what": f"별표는 있는데 그 장 NOTES 가 뜻을 정하지 않은 행 {undefined}",
-                     "where": "근거 패널 → SCOPE 칸 (상자를 눌러 SCT / VENDOR / 둘 다 아님)",
-                     "why": "정의줄 없는 별표는 공급자 이름이 없다 — 사람이 가른다"})
-    if nameless and not undefined:
-        lines.append(f"이름 없는 VENDOR {nameless}행 — 그 장 NOTES 의 정의줄이 `BY <이름>` 꼴이 아니다")
+    if nameless:
+        lines.append(f"이름 없는 VENDOR {nameless}행 — 그 장 NOTES 가 공급자를 적지 않았다 "
+                     "(규칙: 적혀 있으면 그 이름 · 없으면 VENDOR)")
     if blank:
         lines.append(f"공급 주체 빈칸 {blank}행 (태그만이 증거인 행 · 사람이 더한 행)")
     dashed = sum(1 for r in rows if "BUBBLE_DASHED" in _codes(r))
@@ -343,6 +341,27 @@ def _review(rows, review_axes: list | None, labels: dict) -> dict:
     else:
         lines.append("검토 사유가 붙은 행이 없다")
     return _sec("review", "검토 사유", status, lines, todo, facts={"counts": dict(cnt)})
+
+
+def _policy(engine) -> dict:
+    """hotfix83 — 사용자가 정한 '식별하지 않는 것' 이 무엇을 뺐나 (판정 아님 · 옮겨 적기)."""
+    pol = engine.get("policy_excluded")
+    if not pol:
+        return _sec("policy", "사용자 방침으로 뺀 행", "info", ["기록 없음 (hotfix83 이전 분석)"])
+    by_reason = pol.get("by_reason") or {}
+    by_type = pol.get("by_type") or {}
+    lines = [f"식별하지 않는 태그: {', '.join(pol.get('not_identified_tags') or []) or '없음'} · "
+             f"제어실 기능 버블: {'넣지 않음' if pol.get('control_room_functions') == 'exclude' else '넣음'}"]
+    if by_reason:
+        lines.append(f"뺀 행 {sum(_n(v) for v in by_reason.values())} — "
+                     + " · ".join(f"{'PSV 등 식별 안 함' if k == 'NOT_IDENTIFIED_TAG' else '제어실 기능'} {v}"
+                                  for k, v in by_reason.items()))
+        lines.append("종류: " + " · ".join(f"{k} {v}" for k, v in
+                                           sorted(by_type.items(), key=lambda kv: -_n(kv[1]))[:10]))
+    else:
+        lines.append("이 문서에서 뺀 행이 없다")
+    return _sec("policy", "사용자 방침으로 뺀 행", "info", lines,
+                facts={"by_reason": by_reason, "by_type": by_type})
 
 
 def _borrowed(engine) -> dict:
@@ -399,6 +418,7 @@ def build(engine: dict, pages: Iterable[dict], rows: Iterable[dict], *, job: dic
             _multipliers(engine, rows, user_mults or {}),
             _tier(engine, mode or {}),
             _scope(engine, rows),
+            _policy(engine),
             _review(rows, review_axes, labels),
             _borrowed(engine),
             _extras(engine, rows)]

@@ -953,6 +953,10 @@ def _undouble(text: str) -> str:
     return text
 
 
+# hotfix83 — 끄는 스위치 (대조 측정용 · 기본 켜짐).
+CONTINUE_AT_TEXT_COLUMN = True
+
+
 def read_mark_dictionary(pc, lay: Layout = LAYOUT):
     """Page-scoped mark legend: {asterisk count -> meaning}.
 
@@ -1004,6 +1008,11 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
                 # (TC2 정의줄 1.8pt ↔ 본문 2.9pt).  `find_marks` 가 그 크기로
                 # 덩어리를 찾게 두면 그 장이 안 그리는 크기를 받아들이게 된다.
                 stars, rest = ink_stars[i], ln["text"]
+        # hotfix83 — 정의 글이 **줄의 첫 낱말부터** 시작하는가 (별표가 글 왼쪽에 따로
+        # 그려진 줄 · 획 별표 줄).  그런 줄의 이어지는 줄은 들여쓰지 않고 **같은 열**에서
+        # 시작한다 (AL NOUF1 p52 `DENOTED INSTRUMENTS WILL BE SUPPLIED FROM SUMP` /
+        # `PUMP VENDOR.` — x 2010.48 ↔ 2010.40).
+        text_col = ln["x0"] if (stars and (on_line or i in ink_stars)) else None
         if stars:
             # 한 조각(획 글꼴 덩어리)에 정의가 여럿 들어 있으면 표시마다 가른다.
             # 조각이 **한 낱말**로 들어온 줄에서만 덧인쇄를 접는다 — 여러 낱말로
@@ -1011,12 +1020,14 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
             block = len(ln["words"]) == 1
             sections = _mark_sections(rest or "")
             if not sections:
-                entries.append({"line": i, "stars": stars, "text": rest, "size": size})
+                entries.append({"line": i, "stars": stars, "text": rest, "size": size,
+                                "col": text_col})
             for n, (extra, txt) in enumerate(sections):
                 if block:
                     txt = _undouble(txt)
                 entries.append({"line": i, "stars": extra or stars, "text": txt,
-                                "size": size if n == 0 else None})
+                                "size": size if n == 0 else None,
+                                "col": text_col if len(sections) == 1 else None})
 
     dictionary, glyph_size = {}, None
     entry_lines = {e["line"] for e in entries}
@@ -1030,7 +1041,14 @@ def read_mark_dictionary(pc, lay: Layout = LAYOUT):
             # the column (e.g. "FOR INTERNAL USE") out of the definition.
             if k in entry_lines or ln["y"] - prev_y > lay.note_line_gap:
                 break
-            if re.match(r"^\d+\.", ln["text"]) or ln["x0"] <= lines[e["line"]]["x0"] + 2:
+            if re.match(r"^\d+\.", ln["text"]):
+                break
+            col = e.get("col") if CONTINUE_AT_TEXT_COLUMN else None
+            if col is not None:
+                # 글 열보다 왼쪽에서 시작하면 다른 문단이다 (같은 열 · 들여쓰기는 이어짐).
+                if ln["x0"] < col - 2:
+                    break
+            elif ln["x0"] <= lines[e["line"]]["x0"] + 2:
                 break
             text += " " + ln["text"]
             prev_y = ln["y"]

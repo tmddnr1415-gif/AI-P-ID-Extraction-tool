@@ -680,7 +680,9 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # (38회차 evidence_tier · 53회차 unit_notes 와 같은 결함).
                               "valve_layout", "isa_anchors", "unit_forms",
                               # hotfix82 [C] — 어느 모양 사전으로 돌았나 (지문 밖)
-                              "shape_library")},
+                              "shape_library",
+                              # hotfix83 — 사용자 판단으로 뺀 행 (PSV · 제어실 기능 버블 · 지문 밖)
+                              "policy_excluded")},
                             default=str),
                  job_id))
     con.commit()

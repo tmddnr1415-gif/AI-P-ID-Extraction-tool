@@ -527,6 +527,11 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         if hasattr(timings, "page_done"):
             timings.page_done(sh.no)
 
+    # ── hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블) ────
+    # 함수는 PDF 경로의 그것 하나다.  DXF 는 버블 가운데 선을 재지 않으므로 (나) 갈래
+    # (선 있는 표시·경보)는 여기서 발동하지 않고 (가) 제어 기능 글자만 본다.
+    rows, policy_facts = P.apply_policy(rows, isa if isa_ok else None, log=log)
+
     # ── 태그 (1급) — 속성이 준 것은 그대로, 나머지는 tags.assign ─────────
     tier_facts = _attach_tags(rows, targets, declared_mode)
     # hotfix39 — 태그 문법 · 교차 검증 (함수는 PDF 것 하나).  DXF 는 버블 밖 미판정 낱말을
@@ -598,6 +603,7 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         "evidence_tier": tier_facts,
         "tag_grammar": tag_grammar,
         "readouts": readout_facts,
+        "policy_excluded": policy_facts,
         "unjudged_symbols": unjudged,
         "valve_tags": valve_tags,
         "isa_anchors": {"total": 0},
@@ -718,9 +724,7 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
     def make_row(tab, page_rect, type_, kind_codes, evidence, tag_no="", valve_type=""):
         q, codes, reasons = qty_and_codes(kind_codes)
         scope, sev, shit = scope_for(page_rect, evidence.pop("_own_words", ()))
-        if "VENDOR_MARK_UNDEFINED" in shit:
-            codes.append("VENDOR_MARK_UNDEFINED")
-            reasons.append("별표는 있는데 이 장 NOTES 가 그 별표를 정의하지 않습니다")
+        # hotfix83 — 뜻 없는 별표는 사용자 확정으로 그냥 VENDOR (검토 사유 없음)
         evidence.update(sev)
         evidence["rules_hit"] = list(evidence.get("rules_hit", [])) + shit
         evidence["review_codes"] = codes

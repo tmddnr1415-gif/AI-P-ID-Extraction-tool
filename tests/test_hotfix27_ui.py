@@ -144,4 +144,5 @@ def test_ls_bundle_without_any_star_stays_sct_and_undefined_is_flagged():
     assert rows[0].scope == "SCT" and "bundle_scope" not in rows[0].evidence
     rows = [_ls("LSHH", 100.0), _ls("LSH", 112.0, "VENDOR", ("VENDOR_MARK_UNDEFINED",)), _ls("LSL", 124.0)]
     P._signal_groups(rows, _Isa())
-    assert rows[0].scope == "VENDOR" and "VENDOR_MARK_UNDEFINED" in rows[0].evidence["review_codes"]
+    # hotfix83 — 뜻 없는 별표는 사용자 확정으로 그냥 VENDOR 이고 검토 사유를 달지 않는다
+    assert rows[0].scope == "VENDOR" and "VENDOR_MARK_UNDEFINED" not in rows[0].evidence.get("review_codes", [])
