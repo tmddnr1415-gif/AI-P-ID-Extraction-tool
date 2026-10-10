@@ -4174,6 +4174,74 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 12. **QA 시뮬레이션** (`out/hotfix79/qa_after/`) — API 전수 5xx 0 · 화면 전수 클릭 페이지/콘솔 오류 0 · 서버 Traceback 0 · 결함 0.
     hotfix78 칸 편집 자기검증 22항목 그대로 통과 · 편의 자기검증(`spike/ui_audit_convenience.py`) 24항목 통과.
 
+**그 다음 — 목록을 더 가볍게 · 저장 상태 · Ctrl+F (hotfix80 · 판정 0줄)**
+
+사용자(hotfix79 와 같은 요구 — *"상용화 가능한 수준으로 속도 · UI · 편의 · 보완 … 여러 번 시뮬레이션"*).
+hotfix79 가 남긴 느린 자리(목록 굴리기 50ms 넘는 작업 54건 · 검색 한 글자 204ms · `/rows` 첫 응답 1.5초)를 재고 고쳤다.
+자 `spike/perf_ab.py`(**옛 코드와 새 코드를 한 브라우저가 번갈아 잰다** — 이 기계의 흔들림이 커서 따로 잰 수치는 비교가
+안 됐다) · 시험 `tests/test_hotfix80_fast_lists.py` 15건 (빠른 시험 **1060 통과 · 18 건너뜀** — 건너뜀은 이 환경에 `data/*.pdf` ·
+결과 json 이 없어서다 ↓ 7) · 자기검증 `spike/ui_audit_hotfix80.py` → `out/hotfix80/ui/` (15항목 통과 · 페이지 오류 0).
+**엔진 0줄 — 네 프로젝트 지문에 닿을 길이 없다** (바뀐 것은 `app/db.py` 의 연결·메모 · `app/main.py` 의 `/rows` · 화면).
+
+| 일 (QFE Rev.B 1,991행 · 4회 번갈아 · 중앙값) | hotfix79 | hotfix80 |
+| --- | --- | --- |
+| 목록 끝까지 굴리기 (40걸음) | 1,825ms · 50ms 넘는 작업 18 | **1,158ms · 3** |
+| 검색 한 글자 | 364ms · 4.5 | **297ms · 2.5** |
+| 다른 장의 행 누르기 | 290ms | **204ms** |
+| 칸 하나 고치기 (Enter) | 552ms | **438ms** |
+| 고친 뒤 목록 다시 받기 (`/rows`) | 1,610ms | **1,245ms** (서버만 재면 0.86 → 0.14초) |
+| 서버가 처음 켠 뒤 첫 `/rows` (첫 회) | 2,401ms | **1,426ms** (서버만 재면 1.54 → 0.67초) |
+| 결과 열기 (데운 뒤) | 1,144ms | 1,179ms (같음 — 잡음 안) |
+
+1. **★ 서버 — 행 메모가 "아무 쓰기에나" 풀리고 있었다.**  `merged_rows_cached` 와 `/rows` 본문 메모의 도장이 이 연결의
+   `total_changes` 라, 검토 상태 한 칸 · 신고 한 건 · 도면 사실 채우기 · 분석 진행 적기처럼 **행 표(`item`)를 안 건드린 쓰기**도
+   분석 전체(2천 행 · 근거 13MB)를 다시 파싱하게 했다.  이제 `_SerialConnection` 이 쓰기 문장에서 **표 이름을 읽어 센다**
+   (`writes`) — 행 메모는 `item` 만, `/rows` 본문은 `item · review_state · revision_state · feedback` 넷만 본다.  모르는
+   문장(`CREATE`·`ALTER`·`executescript`)은 `*` 로 모든 도장을 움직인다 (보수적).  표를 안 주면 예전 도장 그대로다.
+2. **★ 목록용 행은 SQL 이 덜어낸 뒤 파싱한다.**  `/rows?slim=1` 은 근거에서 `candidates/trace/axis`(13MB 의 7.4MB)를 빼서
+   주는데, 그 셋을 **파이썬이 다 파싱한 뒤** 버리고 있었다.  `json_remove(evidence_json, …)` 로 SQLite 가 C 에서 덜어내고
+   남은 것만 파싱한다 — QFE 근거 파싱 0.38 → 0.06초 · `merged_rows` 0.64 → 0.25초.  덜어낸 메모와 온전한 메모는 따로 들고
+   (`_ROWS_MEMO_MAX` 2 → 3), `memo_follow` 는 둘 다 그 행만 고친다.  **값은 `slim_copy(온전한 행)` 과 같다** (시험이 맞댄다).
+   읽기 전용 호출자 넷(검토 집계 · 그림 목록 · 승수 대상 · FROM/TO 장부)도 덜어낸 행을 받는다 — 그 셋을 읽는 곳은 `?keys=`
+   (고른 행 하나) 뿐이다.
+3. **`/rows` 본문은 행마다 직렬화한 글자를 잇는다** (`_rows_body`).  편집 한 칸 뒤 본문을 다시 만들 때 7MB 를 통째로
+   `json.dumps` 하고 있었다 (0.36초).  `memo_follow` 가 바뀐 행만 바꿔 두므로 행 객체가 그대로이고 그 행에 얹는 셋(검토 상태 ·
+   개정 판정 · 고친 사람)이 같으면 전에 만든 글자를 그대로 쓴다 — 편집 뒤 `/rows` 0.86 → **0.14초**.  본문은 자물쇠 하나로 한
+   스레드만 만든다 (미리 데우는 스레드와 첫 요청이 같은 본문을 두 번 만들던 것).  서버를 켠 3초 뒤 최근 분석 셋의 본문을
+   미리 만들어 둔다 (`_warm_recent_rows` · 읽기만 · `PID_ROWS_WARM=0` 으로 끔 · 시험은 끈다).
+4. **★ 화면 — 굴릴 때 새로 보이는 행만 넣고 뺀다** (`paintWindow` 증분 갈래).  걸음마다 보이는 행 40줄을 통째로 `innerHTML`
+   로 다시 만들어 표 배치·칠하기가 한 번에 50~100ms 였다 (실측: 글 만들기 7ms · 넣기 7ms · **배치 93ms**).  이제 그려 둔 범위와
+   겹치면 밖으로 나간 행만 빼고 새 행만 `insertAdjacentHTML` 로 넣으며 위·아래 빈 줄의 높이를 맞춘다 — 남은 행은 제자리라
+   칠할 것은 새 행뿐이다.  빈 줄은 0 이면 두지 않고(`_vpad`) 증분 갈래가 있는지를 `start`/`end` 로 안다.  몸통의 줄 수가
+   기대와 다르면(다른 코드가 줄을 넣거나 뺐다) 통째로 다시 그린다 — 안전한 쪽.  ⚠ **첫 판은 빈 줄을 0 이어도 두었고
+   UI 스위트가 잡았다** — 맨 위 줄이 높이 0 의 빈 줄이 되자 `#body tr` 로 "첫 행" 을 찾는 곳(시험의 click)이 그 줄을 집어
+   멈췄다 (12 실패 · 그중 둘이 이것).  hotfix69 가 측정 줄을 맨 끝에 둔 이유와 같다.  **대조**: 75걸음(앞으로 · 거꾸로 · 아무 데나) 전부 "보이는 창 = `S.vlist` 의 그 조각 ·
+   빈 줄 높이 = 줄 수 × 행 높이" (`out/hotfix80/ui/`).  ⚠ 첫 대조가 75/75 어긋남을 냈는데 **브라우저가 `style.height` 를
+   반올림해 돌려준 것**(58528.1 ↔ 58528.078)이었다 — 검증기의 결함.
+5. **검색은 한 번만 거르고 손이 멈춘 뒤 세운다.**  `renderGrid` 가 `updateEmptyNote` 에서 한 번, 목록을 위해 또 한 번
+   `visibleRows()` 를 돌렸다 → 한 번.  글자마다 목록을 다시 세우던 것을 120ms 지연으로 (`FILTER_DEBOUNCE_MS` · 칸은 바로
+   받는다).  **열 폭은 전체 행으로 한 번만 잰다** — 거른 목록으로 재면 검색마다 열이 뛰었고, 등급 배지는 **글자가 가장 긴
+   등급**으로 잰다 (첫 행의 등급으로 재니 거른 목록에서 35px 뛰었다 — 자기검증이 잡았다).
+6. **편의 둘** — 머리줄 **저장 상태 칸** (`#save-state` · "저장 중… → 저장됨 HH:MM" · 거절·연결 끊김이면 "저장 실패 — 다시
+   시도하세요" 가 남는다).  값은 `hookFetch` 가 본 쓰기 요청의 결과 하나에서 오고 저장 함수마다 따로 적지 않는다 (미리 읽기 ·
+   업로드 · 취소 · 분석은 `SAVE_SKIP_RE` 로 뺀다).  **Ctrl+F** 는 결과 화면에서 검색 칸으로 (첫 화면 · 숨긴 목록 창에서는
+   브라우저 찾기 그대로 · 한글 자판 `ㄹ` 도).  단축키 표에 적었다.
+7. **⚠ 이 회차에 저장소 작업 폴더를 한 번 지웠다 — 내 자가.**  A/B 자가 `perf_sim.py` 의 탐침 문자열을 가져오려고
+   `from perf_sim import …` 했고, 그 스크립트는 **모듈 수준에서 제 argv 를 읽어** `shutil.rmtree(data / "page_cache" / JOB)` 을
+   돈다.  JOB 자리에 든 절대 경로가 `Path /` 에서 그 경로 자체가 되어 `/home/user/AI-P-ID-Extraction-tool` 이 통째로 지워졌다.
+   푸시된 것은 무사했고 이 회차의 고침은 전부 패치 스크립트로 다시 얹어 같은 시험으로 확인했다.  **잃은 것**: 이 환경에만
+   있던 `data/*.pdf` · `out/*.json` 결과 파일 (가 gitignore 라 저장소에 없다 — 그래서 빠른 시험 21건이 건너뛴다 · 회귀 하네스는
+   PDF 를 다시 받아야 돈다 · QFE PDF 는 데이터 사본의 `uploads/` 에서 되살렸다).  `perf_sim` 에 **job id 문지기**(분석 id 가
+   아니면 멈춤 · 지울 자리가 데이터 폴더 아래인지 `resolve()` 로 확인)를 넣고 §8 에 규칙을 적었다.
+8. **남은 것** — 다른 장의 행 누르기(204ms)는 장 그림(3,815×2,695) 칠하기가 대부분이라 화면 쪽 손볼 자리가 없다 · 행 추가 2.5초는
+   `[+행]` 을 누른 뒤 그 장을 처음 읽는 서버 시간(A1 5초 · 2초 안에 점을 찍으면 남은 몫을 기다린다)이고 판정 코드라 이번 범위
+   밖 · 거른 목록으로 열 폭이 1~2px 움직이는 것은 고친 칸의 연필(✎) 몫이다.
+9. **UI 스위트 26 — 12 통과 · 14 실패, 옛 코드(hotfix79 · 같은 DB)도 글자 그대로 같은 14 실패.**  hotfix79 의 알려진 10
+   (step3 · step6 다섯 · step16 · step17 · step12 · step13) 에 **step7 · step10 · step11 · step13(상자 표시)** 넷이 더해졌는데 전부
+   7 의 사고로 그 DB 의 PDF(`data/pid_total.pdf`)가 사라진 탓이다 — 장 그림이 410 이라 근거 패널이 안 서고 재분석이 거절된다.
+   옛 코드로 같은 DB 를 돌려 같은 넷이 같은 자리에서 멈추는 것을 확인했다 (`spike` 가 아니라 pytest 두 번 · 실패 이름 diff 0).
+   QA 시뮬레이션(`spike/qa_sim.py` — API 전수 · 화면 전수 클릭)은 **결함 0 · 5xx 0 · 페이지 오류 0** (빈 줄 고침 뒤 한 번 더).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4682,6 +4750,13 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `S.cellRange` · `extendRange` · `rangeRows` · `markRange` · `fillCells` · `pasteValues` · `revertCells` · `td[data-rng]` | **hotfix79** — 한 열의 칸 범위 · 범위 채우기 · 여러 줄 붙이기 · Delete = 도면 값 |
 | `app.js` `SHORTCUTS` · `showShortcuts` · `#kbd-btn` · `beforeunload` · `NET.writing` · `PANEL_FOLD_H` | **hotfix79** — 단축키 도움말 · 닫기 전에 묻기 · 판 접힘 문턱 960 |
 | `spike/ui_profile.py` · `spike/ui_audit_overlay_incr.py` · `spike/ui_audit_convenience.py` | **hotfix79** — 동작별 브라우저 주 스레드 일(칠하기 · 배치)과 JS 함수 시간 · 고친 것만 그린 그림 = 전부 그린 그림 · 편의 기능 띄워서 누르기 |
+| `db._SerialConnection.writes` · `_note` · `_db_stamp(con, tables=)` · `MEMO_TABLES` | **hotfix80** — 쓰기 문장이 건드린 표를 세고, 행 메모의 도장은 `item` 표의 쓰기만 본다.  검토 상태 · 신고 · 도면 사실 · 분석 진행의 쓰기는 행 메모를 풀지 않는다 (표를 안 주면 예전 도장 — hotfix45 호출자 그대로) |
+| `db.merged_rows(slim=)` · `_SLIM_SQL` · `slim_copy` · `merged_rows_cached(slim=)` · `_patch_memo` 의 `by_slim` | **hotfix80** — 목록용 행은 SQLite 의 `json_remove` 가 `candidates/trace/axis` 를 덜어낸 뒤 파이썬이 파싱한다 (QFE 근거 파싱 0.38 → 0.06초).  덜어낸 메모와 온전한 메모는 따로 들고, `memo_follow` 는 둘 다 그 행만 고친다.  **값은 `slim_copy(온전한 행)` 과 같다** (시험) |
+| `main._row_out` · `_rows_body` · `_rows_body_cached` · `_ROWS_BODY_LOCK` · `ROWS_BODY_TABLES` | **hotfix80** — `/rows` 본문은 행마다 직렬화한 글자를 재사용한다 (행 객체가 그대로이고 검토 상태 · 개정 판정 · 고친 사람이 같으면).  본문은 한 스레드만 만든다.  읽는 표 넷 밖의 쓰기는 본문을 다시 만들지 않는다 |
+| `main._warm_recent_rows` · `PID_ROWS_WARM` | **hotfix80** — 서버를 켠 3초 뒤 최근에 끝난 분석 셋의 목록 본문을 미리 만들어 둔다 (읽기만 · 시험은 끈다) |
+| `app.js` `paintWindow` 의 증분 갈래 · `_vpad` (0 이어도 줄) · `renderGrid` 의 `updateEmptyNote(rows.length)` · `FILTER_DEBOUNCE_MS` · `_measureRowHtml(all, cols)` · `_gradeLabel` | **hotfix80** — 굴릴 때 새로 보이는 행만 넣고 뺀다 (몸통 줄 수가 기대와 다르면 통째로) · 검색은 한 번만 거르고 손이 멈춘 뒤 세운다 · 열 폭은 전체 행(배지는 글자가 가장 긴 등급)으로 한 번만 잰다 |
+| `app.js` `saveState` · `SAVE_SKIP_RE` · `#save-state` · Ctrl+F 처리기 | **hotfix80** — 머리줄 "저장 중… / 저장됨 HH:MM / 저장 실패" 는 `hookFetch` 가 본 쓰기 요청의 결과 하나에서 (미리 읽기 · 업로드 · 취소는 뺀다) · Ctrl+F 는 결과 화면에서만 검색 칸으로 |
+| `spike/perf_ab.py` · `spike/ui_audit_hotfix80.py` · `spike/perf_sim.py` 의 job id 문지기 | **hotfix80** — 옛/새 코드를 한 브라우저가 번갈아 재는 A/B 자 (`perf_sim` 을 import 하지 않는다) · 검색 지연 · 굴리기 창 대조 · 저장 상태 · Ctrl+F 자기검증 · `perf_sim` 은 JOB 이 분석 id 가 아니면 멈춘다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
@@ -4814,6 +4889,12 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
      명령줄에 남는다 — 실행 스크립트를 파일로 두고 그 파일 이름으로 찾는다).
   ④ 상한에 걸리면 **기다린 것이 아니라 실패다.**  로그의 mtime 으로 실제 실행을
      판정하고, 안 돌았으면 "안 돌았다" 고 적는다.
+- **★ 모듈 수준에서 일을 하는 스크립트(`spike/*.py`)는 import 하지 않는다 — 그 argv 로 돈다.**  hotfix80 에서
+  A/B 자가 `perf_sim.py` 의 탐침 문자열을 가져오려고 `from perf_sim import …` 했더니 `perf_sim` 이 **제 argv 를
+  읽어** `shutil.rmtree(data / "page_cache" / JOB)` 을 돌렸고, JOB 자리에 든 절대 경로가 `Path /` 에서 그 경로
+  자체가 되어 **저장소 작업 폴더를 통째로 지웠다** (푸시 안 한 것은 패치 스크립트로 다시 얹었다).  규칙 셋:
+  ① 지우는 자리는 `resolve()` 한 뒤 데이터 폴더 아래인지 확인한다 (`perf_sim` 에 문지기를 넣었다)
+  ② 필요한 조각은 베낀다 — import 하지 않는다 ③ 지우기 전에 `git status` 가 깨끗한가 — 아니면 먼저 커밋한다.
 - **TIT 의 위치어는 유도되지 않습니다** (다시 재봤습니다): 방향별 최다가 전부
   "낱말 없음"(ABOVE 7/11 · LEFT 14/22 · RIGHT 13/22)이고, 기기 종류로 갈라도
   VALVE 89% 없음 · HEADER·TANK·BOX 100% 없음 · PUMP 는 n=10 에 SUCTION 3 /

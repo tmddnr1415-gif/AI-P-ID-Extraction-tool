@@ -2462,7 +2462,7 @@ $("#only-review").onchange = (e) => {
 
 /* A filter that matches nothing must say so.  An empty table with four chips
  * above it reads as "there is nothing here", which is a different statement. */
-function updateEmptyNote() {
+function updateEmptyNote(nVisible) {
   const box = $("#empty-note");
   if (!box) return;
   // 아직 안 불러온 것과 조건에 맞는 것이 없는 것은 다른 상태다.  같은 자리에
@@ -2472,7 +2472,7 @@ function updateEmptyNote() {
     box.textContent = "행을 불러오는 중입니다…";
     return;
   }
-  const n = visibleRows().length;
+  const n = typeof nVisible === "number" ? nVisible : visibleRows().length;
   box.classList.toggle("hidden", n > 0);
   if (!n) {
     const narrowed = S.filter || S.gradeFilter || S.axis || S.code || S.drawing
@@ -3605,7 +3605,6 @@ function remarkOf(row) {
 function renderGrid() {
   renderDescriptionGroups();
   renderChips();
-  updateEmptyNote();
   const head = $("#head");
   head.innerHTML = "";
   // The 귀속 column is dropped when every page has the same origin - see
@@ -3650,6 +3649,7 @@ function renderGrid() {
   head.appendChild(flags);
 
   const rows = visibleRows();
+  updateEmptyNote(rows.length);           // hotfix80 — 같은 목록을 두 번 거르지 않는다 (검색 한 글자마다)
   // "표시 N / 전체 M" the moment anything is narrowing the grid, because a bare
   // row count next to a filtered table reads as the size of the job.
   const nDel = (S.deletedRows || []).length;
@@ -3667,7 +3667,13 @@ function renderGrid() {
   // `S.vlist` 가 말하고, 화면 밖 행은 굴리면 그때 그린다.
   S.vlist = rows;
   S.vcols = cols;
-  VROW.measure = _measureRowHtml(rows, cols);
+  // hotfix80 — 열 폭은 **전체 행**의 가장 긴 값으로 (거른 목록이 아니라).  검색·필터를 바꿀 때마다 열 폭이 흔들리지
+  // 않고, 그 값은 목록이 바뀌지 않는 한 같으므로 한 번만 잰다 (2,000행 2.5ms).
+  const all = (S.deletedRows && S.deletedRows.length) ? S.rows.concat(S.deletedRows) : S.rows;
+  if (VROW.measureOf !== S.rows || VROW.measureCols !== cols.length || !VROW.measure) {
+    VROW.measure = _measureRowHtml(all, cols);
+    VROW.measureOf = S.rows; VROW.measureCols = cols.length;
+  }
   VROW.start = VROW.end = -1;
   paintWindow(true);
 }
@@ -3695,15 +3701,19 @@ function _measureRowHtml(rows, cols) {
       if (t.length > longest[i].length) longest[i] = t;
     }
   }
-  const grade = rows.find(r => r.values.description_grade);
+  // hotfix80 — 등급 배지는 **글자가 가장 긴 등급**으로 잰다 (첫 행의 등급으로 재면 거른 목록에 더 긴 배지가 나와 열이 35px 뛴다)
+  const seen = new Set(rows.map(r => r.values.description_grade).filter(Boolean));
+  const grade = [...seen].sort((a, b) => _gradeLabel(b).length - _gradeLabel(a).length)[0];
   return '<tr class="vmeasure" aria-hidden="true">' + cols.map(([key], i) =>
     `<td data-col="${key}">` + (key === "description_grade"
-      ? (grade ? _gradeBadgeHtml(grade.values.description_grade) : "")
+      ? (grade ? _gradeBadgeHtml(grade) : "")
       : escape(longest[i])) + "</td>").join("")
     + '<td><button class="mini-rep" tabindex="-1">삭제 확정</button><button class="mini-rep" tabindex="-1">되돌리기</button>'
     + '<button class="mini-rep" tabindex="-1">신고</button></td></tr>';
 }
 function _vpad(px, n) {
+  // 0 이면 줄을 두지 않는다 — 맨 위 줄이 빈 줄이면 "첫 행" 을 찾는 곳(`#body tr` · UI 시험의 click)이 그 줄을 집는다
+  // (hotfix80 첫 판이 그랬다).  굴리기의 증분 갈래는 빈 줄이 있는지를 `start`/`end` 로 안다.
   return px > 0 ? `<tr class="vpad" aria-hidden="true"><td colspan="${n}" style="height:${px}px"></td></tr>` : "";
 }
 function paintWindow(force) {
@@ -3721,8 +3731,44 @@ function paintWindow(force) {
   const start = Math.max(0, Math.floor((first - VROW.buf) / VROW.step) * VROW.step);
   const end = Math.min(rows.length, Math.ceil((last + VROW.buf) / VROW.step) * VROW.step);
   if (!force && start === VROW.start && end === VROW.end) return;
+  const prevS = VROW.start, prevE = VROW.end;
   VROW.start = start; VROW.end = end;
   const n = cols.length + 1;
+  // hotfix80 — 굴리기: 그려 둔 범위와 겹치면 **새로 보이는 행만** 넣고 밖으로 나간 행만 뺀다.  예전에는 걸음마다
+  // 보이는 행 40줄을 통째로 다시 만들어 표 배치·칠하기가 한 번에 50~100ms 였다 (QFE 실측 — 목록 끝까지
+  // 굴리기 50ms 넘는 작업 54건).  위 빈 줄의 높이가 뺀 만큼 늘어 남은 행은 제자리라 칠할 것은 새 행뿐이다.
+  // 몸통의 줄 수가 기대와 다르면(다른 코드가 줄을 넣거나 뺐다) 통째로 다시 그린다 — 안전한 쪽.
+  const hadTop = prevS > 0, hadBot = prevE < rows.length;          // 그려 둔 판의 위·아래 빈 줄 (0 이면 없다)
+  if (!force && VROW.h && prevS >= 0 && start < prevE && end > prevS
+      && body.children.length === (prevE - prevS) + hadTop + hadBot + 1
+      && body.lastElementChild.classList.contains("vmeasure")
+      && (!hadTop || body.firstElementChild.classList.contains("vpad"))) {
+    const measure = body.lastElementChild;
+    let top = hadTop ? body.firstElementChild : null;
+    let bot = hadBot ? measure.previousElementSibling : null;
+    const firstRow = () => (top ? top.nextElementSibling : body.firstElementChild);
+    const lastRow = () => (bot ? bot : measure).previousElementSibling;
+    for (let i = prevS; i < Math.min(start, prevE); i++) firstRow().remove();
+    for (let i = Math.max(end, prevS); i < prevE; i++) lastRow().remove();
+    if (start < prevS) {
+      let add = ""; for (let i = start; i < prevS; i++) add += rowHtml(rows[i], cols);
+      if (top) top.insertAdjacentHTML("afterend", add); else body.insertAdjacentHTML("afterbegin", add);
+    }
+    if (end > prevE) {
+      let add = ""; for (let i = Math.max(prevE, start); i < end; i++) add += rowHtml(rows[i], cols);
+      (bot || measure).insertAdjacentHTML("beforebegin", add);
+    }
+    if (start > 0) {
+      if (top) top.firstElementChild.style.height = `${start * h}px`;
+      else body.insertAdjacentHTML("afterbegin", _vpad(start * h, n));
+    } else if (top) top.remove();
+    if (end < rows.length) {
+      if (bot) bot.firstElementChild.style.height = `${(rows.length - end) * h}px`;
+      else measure.insertAdjacentHTML("beforebegin", _vpad((rows.length - end) * h, n));
+    } else if (bot) bot.remove();
+    markMultiRows();
+    return;
+  }
   // 숨은 측정 줄은 **맨 끝**에 둔다 — 맨 앞에 두면 "첫 줄" 을 찾는 곳(`#body tr`)이 그 줄을 집는다 (UI 시험이 잡았다)
   let html = _vpad(start * h, n);
   for (let i = start; i < end; i++) html += rowHtml(rows[i], cols);
@@ -3772,6 +3818,7 @@ function _pidOf(pageNo) {
   return _pidMap.get(pageNo) || "";
 }
 const _gradeHtml = {};
+function _gradeLabel(val) { const g = GRADES.find(x => x[0] === val); return String(g ? g[1] : val); }
 function _gradeBadgeHtml(val) {
   if (!(val in _gradeHtml)) {
     // 배지 하나에 모양·글자·색이 같이 실린다.  모양과 글자만으로도 읽힌다.
@@ -8735,8 +8782,14 @@ document.addEventListener("keydown", ev => {
 });
 
 /* ---------------- filter, gate, export ---------------- */
+/* hotfix80 — 검색은 손이 잠깐 멈춘 뒤 한 번 거른다.  글자마다 목록을 다시 세우면(배치 · 칠하기 100ms 안팎) 타자가
+ * 끊겼다 (perf_sim 검색 한 글자 204ms · 50ms 넘는 작업 17/18).  칸은 바로 받고 목록만 `FILTER_DEBOUNCE_MS` 뒤에. */
+const FILTER_DEBOUNCE_MS = 120;
+let _filterTimer = 0;
 $req("#filter").addEventListener("input", ev => {
-  S.filter = ev.target.value; syncUrl(); renderGrid();
+  S.filter = ev.target.value; syncUrl();
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(() => { _filterTimer = 0; renderGrid(); }, FILTER_DEBOUNCE_MS);
 });
 $req("#origin-filter").addEventListener("change", ev => {
   S.originFilter = ev.target.value; syncUrl(); renderGrid();
@@ -10375,6 +10428,12 @@ setInterval(checkStaleUi, 120000);
       if (method !== "GET" && method !== "HEAD") {
         NET.writing = (NET.writing || 0) + 1;
         p.finally(() => { NET.writing = Math.max(0, (NET.writing || 1) - 1); }).catch(() => {});
+        // hotfix80 — 머리줄에 "저장 중… / 저장됨 / 저장 실패".  저장이 아닌 쓰기(미리 읽기 · 업로드 · 취소 · 분석)는 뺀다.
+        const u = typeof input === "string" ? input : (input && input.url) || String(input);
+        if (!SAVE_SKIP_RE.test(u)) {
+          saveState("saving");
+          p.then(res => saveState(res && res.ok ? "saved" : "failed"), () => saveState("failed"));
+        }
       }
       if (method !== "GET" && method !== "HEAD" && SYNC.link) {
         const url = typeof input === "string" ? input : (input && input.url) || String(input);
@@ -10384,6 +10443,25 @@ setInterval(checkStaleUi, 120000);
     return p;
   };
 })();
+
+/* hotfix80 — 저장 상태 한 칸 (`#save-state`).  쓰는 요청이 날아가는 동안 "저장 중…", 끝나면 "저장됨 HH:MM", 거절·연결
+ * 끊김이면 "저장 실패" 가 남는다 (사라지지 않는다 — 다음 저장이 성공해야 바뀐다).  값은 `hookFetch` 가 본 요청의 결과
+ * 그대로이고 저장 함수마다 따로 적지 않는다 (hotfix68 의 연동과 같은 자리). */
+const SAVE_SKIP_RE = /\/(propose|upload|cancel|reanalyse|analyse|version|events|running|page_warm)(\/|\?|$)|\/jobs\/?(\?|$)/;
+const SAVE = { pending: 0, timer: 0 };
+function saveState(state) {
+  const el = document.getElementById("save-state");
+  if (state === "saving") { SAVE.pending++; }
+  else { SAVE.pending = Math.max(0, SAVE.pending - 1); }
+  if (!el) return;
+  clearTimeout(SAVE.timer);
+  if (SAVE.pending > 0) { el.textContent = "저장 중…"; el.className = "save-state saving"; el.classList.remove("hidden"); return; }
+  if (state === "failed") { el.textContent = "저장 실패 — 다시 시도하세요"; el.className = "save-state failed"; el.classList.remove("hidden"); return; }
+  const t = new Date();
+  el.textContent = `저장됨 ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  el.className = "save-state saved"; el.classList.remove("hidden");
+  SAVE.timer = setTimeout(() => { el.classList.add("faded"); }, 4000);
+}
 
 /* 새 창 열기 · 닫기 */
 async function popOut(role) {
@@ -10929,6 +11007,7 @@ const SHORTCUTS = [
     ["Ctrl + Enter (편집 중)", "범위 전체를 그 값으로 채우기"],
     ["Ctrl + C / Ctrl + V", "복사 · 붙이기 — 여러 줄이면 아래로 한 줄씩 (엑셀 열 그대로)"],
     ["Delete", "사람이 고친 값을 도면 값으로 되돌리기 (범위면 범위 전체)"],
+    ["Ctrl + F", "검색 칸으로 (글자를 치면 손이 멈춘 뒤 목록이 걸러진다)"],
   ]],
   ["되돌리기", [
     ["Ctrl + Z", "되돌리기 — 칸 고침 · 묶음 고침 · 승수 · 지우기"],
@@ -10952,6 +11031,16 @@ function showShortcuts() {
       rows.map(([k, d]) => `<tr><td>${k.split(" · ").map(x => `<kbd>${escape(x)}</kbd>`).join(" · ")}</td><td>${escape(d)}</td></tr>`).join("")
     }</table>`).join("")}<p class="muted small">이 창은 <kbd>?</kbd> 로도 엽니다 (글자를 치는 칸 밖에서).</p></div>`);
 }
+/* hotfix80 — Ctrl+F 는 이 화면의 검색 칸으로 (브라우저 찾기 대신).  결과 화면이 열려 있고 검색 칸이 보일 때만 — 첫 화면
+ * 이나 숨긴 목록 창에서는 브라우저 찾기 그대로다. */
+document.addEventListener("keydown", ev => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.isComposing) return;
+  if (ev.key !== "f" && ev.key !== "F" && ev.key !== "ㄹ") return;
+  const f = document.getElementById("filter");
+  if (!f || !S.job || !f.offsetParent) return;
+  ev.preventDefault();
+  f.focus(); f.select();          // 편집 중인 칸은 초점이 떠나며 저장된다 (`bindGridBody` 의 focusout — 다른 곳을 누른 것과 같다)
+});
 document.addEventListener("keydown", ev => {
   if (ev.key !== "?" || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return;
   const t = ev.target;

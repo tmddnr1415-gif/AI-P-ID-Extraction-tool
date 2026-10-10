@@ -18,6 +18,8 @@ someone signed off.
 from __future__ import annotations
 
 import json
+import re
+import collections as _collections
 import sqlite3
 import threading
 import time
@@ -361,16 +363,43 @@ class _SerialConnection(sqlite3.Connection):
     """
     _lock = threading.RLock()
 
-    def execute(self, *a, **k):
-        with self._lock:
-            return super().execute(*a, **k)
+    # hotfix80 — 쓰기 문장이 **어느 표**를 건드렸는지 센다.  행 메모(`merged_rows_cached`)와 `/rows` 본문
+    # 메모의 도장이 `total_changes`(이 연결의 모든 쓰기)였던 탓에, 검토 상태 한 칸 · 신고 한 건 · 도면 사실
+    # 채우기처럼 **행 표(item)를 안 건드린 쓰기**도 분석 전체(QFE 2천 행 · 근거 13MB)를 다시 파싱하게 했다.
+    # 표 이름은 문장에서 읽는다 (INSERT/REPLACE INTO · UPDATE · DELETE FROM).  읽기로 보이지 않는 그 밖의
+    # 문장(ALTER · CREATE · executescript)은 `*` — 모든 도장이 움직인다 (보수적).
+    _WRITE_RE = re.compile(
+        r"^\s*(?:(?:INSERT|REPLACE)(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+[\"`\[]?(\w+)", re.I)
+    _READ_RE = re.compile(r"^\s*(?:SELECT|PRAGMA|EXPLAIN|BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b", re.I)
 
-    def executemany(self, *a, **k):
+    @property
+    def writes(self):
+        w = self.__dict__.get("_writes")
+        if w is None:
+            w = self.__dict__["_writes"] = _collections.Counter()
+        return w
+
+    def _note(self, sql):
+        s = sql if isinstance(sql, str) else str(sql)
+        m = self._WRITE_RE.match(s)
+        if m:
+            self.writes[m.group(1).lower()] += 1
+        elif not self._READ_RE.match(s):
+            self.writes["*"] += 1
+
+    def execute(self, sql, *a, **k):
         with self._lock:
-            return super().executemany(*a, **k)
+            self._note(sql)
+            return super().execute(sql, *a, **k)
+
+    def executemany(self, sql, *a, **k):
+        with self._lock:
+            self._note(sql)
+            return super().executemany(sql, *a, **k)
 
     def executescript(self, *a, **k):
         with self._lock:
+            self.writes["*"] += 1
             return super().executescript(*a, **k)
 
     def commit(self):
@@ -635,8 +664,11 @@ def store_result(con, job_id: str, result: dict) -> dict:
             "kept_edits": kept_edits, "vanished": gone}
 
 
-def _merged(r) -> dict:
-    """One item row as the reviewer sees it: engine values with edits laid over."""
+def _merged(r, slim: bool = False) -> dict:
+    """One item row as the reviewer sees it: engine values with edits laid over.
+
+    hotfix80 — `slim` 이면 근거는 SQL 이 `SLIM_DROP` 을 덜어낸 `evidence_slim` 열에서 읽는다 (QFE 실측:
+    근거 파싱 0.38초 → 0.06초 · 셋이 근거 13MB 의 7.4MB 다).  값은 `slim_copy(_merged(r))` 와 같다."""
     ai = json.loads(r["ai_json"])
     user = json.loads(r["user_json"])
     merged = dict(ai)
@@ -646,7 +678,8 @@ def _merged(r) -> dict:
         "drawing_no": r["drawing_no"], "origin": r["origin"],
         "rect": json.loads(r["rect_json"]),
         "values": merged, "ai": ai, "user": user,
-        "evidence": json.loads(r["evidence_json"]),
+        "evidence": json.loads((r["evidence_slim"] if slim and "evidence_slim" in r.keys() else None)
+                               or r["evidence_json"]),
         "needs_review": r["needs_review"], "annotation": r["annotation"],
         "conflict": json.loads(r["conflict_json"]),
         "deleted": bool(r["deleted"]),
@@ -667,9 +700,11 @@ def get_row(con, job_id: str, key: str):
     return _merged(r) if r else None
 
 
-def merged_rows(con, job_id: str, tab: str = None) -> list:
-    """Rows as the reviewer sees them: engine values with edits laid over."""
-    sql = "SELECT * FROM item WHERE job_id=?"
+def merged_rows(con, job_id: str, tab: str = None, slim: bool = False) -> list:
+    """Rows as the reviewer sees them: engine values with edits laid over.
+
+    `slim` — 근거에서 `SLIM_DROP` 을 뺀 행 (목록용 · hotfix80).  SQLite 가 C 에서 덜어내고 파이썬은 남은 것만 파싱한다."""
+    sql = f"SELECT *{', ' + _SLIM_SQL + ' AS evidence_slim' if slim else ''} FROM item WHERE job_id=?"
     args = [job_id]
     if tab and tab != "ALL":
         if tab == "REVIEW":
@@ -677,7 +712,7 @@ def merged_rows(con, job_id: str, tab: str = None) -> list:
         else:
             sql += " AND tab=?"
             args.append(tab)
-    return [_merged(r) for r in
+    return [_merged(r, slim) for r in
             con.execute(sql + " ORDER BY page_no, key", args).fetchall()]
 
 
@@ -750,13 +785,37 @@ def merged_rows_by_keys(con, job_id: str, keys, tab: str = None) -> list:
 import collections as _collections
 import os as _os
 _ROWS_MEMO: "_collections.OrderedDict" = _collections.OrderedDict()
-_ROWS_MEMO_MAX = 2
+_ROWS_MEMO_MAX = 3      # hotfix80 — 목록용(slim) 과 온전한 것이 따로 든다
 
 
-def _db_stamp(con) -> tuple:
+def _db_stamp(con, tables=None) -> tuple:
+    """DB 도장 — `(경로, (이 연결의 쓰기, 다른 연결의 커밋))`.
+
+    hotfix80 — `tables` 를 주면 이 연결의 쓰기는 **그 표들을 건드린 문장 수**만 센다 (`_SerialConnection.writes` ·
+    모르는 문장 `*` 포함).  그래서 검토 상태 · 신고 · 도면 사실처럼 그 표 밖의 쓰기는 도장을 안 움직인다.
+    도장 둘째 원소(`data_version`)의 자리는 그대로다 — `memo_follow` 가 그것으로 "다른 연결이 썼나" 를 본다."""
     path = con.execute("PRAGMA database_list").fetchone()[2]
     dv = con.execute("PRAGMA data_version").fetchone()[0]
+    w = getattr(con, "writes", None)
+    if tables and w is not None:
+        return path, (tuple(w[t] for t in tables) + (w["*"],), dv)
     return path, (con.total_changes, dv)
+
+
+# hotfix80 — 행 메모가 보는 표.  행은 `item` 에서만 온다 (`_merged`).
+MEMO_TABLES = ("item",)
+# 목록이 처음 받는 행에서 뺄 근거 칸 (hotfix69 가 `main.SLIM_DROP` 에 두었던 것 — 이제 SQL 에서 덜어낸다).
+SLIM_DROP = ("candidates", "trace", "axis")
+_SLIM_SQL = "json_remove(evidence_json, " + ", ".join(f"'$.{k}'" for k in SLIM_DROP) + ")"
+
+
+def slim_copy(row: dict) -> dict:
+    """`row` 의 근거에서 `SLIM_DROP` 을 뺀 얕은 복사 (뺄 것이 없으면 그 행 그대로)."""
+    ev = row.get("evidence")
+    if isinstance(ev, dict) and any(k in ev for k in SLIM_DROP):
+        row = dict(row)
+        row["evidence"] = {k: v for k, v in ev.items() if k not in SLIM_DROP}
+    return row
 
 
 # hotfix69 — 결과를 열면 화면이 읽기 요청 열 개를 **한꺼번에** 보내고 그중 넷(`/rows` · 검토 · 마크업 · FROM/TO
@@ -767,19 +826,21 @@ import threading as _threading
 _ROWS_MEMO_LOCK = _threading.Lock()
 
 
-def merged_rows_cached(con, job_id: str, tab: str = None) -> list:
-    """`merged_rows` 와 같은 목록 — 읽기 전용 호출자를 위한 것.  **받은 목록을 고치지 마라.**"""
+def merged_rows_cached(con, job_id: str, tab: str = None, slim: bool = False) -> list:
+    """`merged_rows` 와 같은 목록 — 읽기 전용 호출자를 위한 것.  **받은 목록을 고치지 마라.**
+
+    hotfix80 — 도장은 `item` 표의 쓰기만 본다 (`MEMO_TABLES`) · `slim` 이면 근거를 덜어낸 목록 (따로 든다)."""
     tab = tab or "ALL"
     with _ROWS_MEMO_LOCK:
-        path, stamp = _db_stamp(con)
-        key = (id(con), path, job_id, tab)
+        path, stamp = _db_stamp(con, MEMO_TABLES)
+        key = (id(con), path, job_id, tab, bool(slim))
         hit = _ROWS_MEMO.get(key)
         if hit is not None and hit[0] == stamp:
             _ROWS_MEMO.move_to_end(key)
             return hit[1]
         if _os.environ.get("PID_DEBUG_MEMO"):
-            print(f"[memo] rebuild {job_id} {tab} stamp={stamp} had={hit[0] if hit else None}", flush=True)
-        rows = merged_rows(con, job_id, tab)
+            print(f"[memo] rebuild {job_id} {tab} slim={slim} stamp={stamp} had={hit[0] if hit else None}", flush=True)
+        rows = merged_rows(con, job_id, tab, slim=bool(slim))
         _ROWS_MEMO[key] = (stamp, rows)
         _ROWS_MEMO.move_to_end(key)
         while len(_ROWS_MEMO) > _ROWS_MEMO_MAX:
@@ -813,7 +874,7 @@ class memo_follow:
             self.lock.acquire()
             memo_follow._depth.n = getattr(memo_follow._depth, "n", 0) + 1
             try:
-                self.pre = _db_stamp(self.con)
+                self.pre = _db_stamp(self.con, MEMO_TABLES)
             except Exception:
                 self.lock.release(); raise
         return self.keys
@@ -827,7 +888,7 @@ class memo_follow:
             # 바깥 블록이 아직 연결 잠금을 쥐고 있으면 여기서 메모 잠금을 잡지 않는다 (잠금 순서: 메모 → 연결 이
             # `merged_rows_cached` 의 순서다 — 거꾸로 잡으면 서로 기다린다).  바깥 블록이 끝에 한 번 고친다.
             if et is None and memo_follow._depth.n == 0:            # 바꾼 행이 없으면(이력 표만 썼다) 도장만 옮긴다
-                post = _db_stamp(self.con)
+                post = _db_stamp(self.con, MEMO_TABLES)
                 if post[0] == self.pre[0] and post[1][1] == self.pre[1][1]:   # 같은 파일 · 다른 연결이 안 썼다
                     fresh = (post, merged_rows_by_keys(self.con, self.job_id, self.keys) if self.keys else [])
         except Exception:
@@ -848,16 +909,18 @@ def _in_tab(r: dict, tab: str) -> bool:
 
 
 def _patch_memo(con, job_id, pre, post, keys: set, fresh: list) -> None:
-    by = {r["key"]: r for r in fresh}
+    by_full = {r["key"]: r for r in fresh}
+    by_slim = {k: slim_copy(r) for k, r in by_full.items()}      # hotfix80 — 목록용 메모에는 덜어낸 행
     with _ROWS_MEMO_LOCK:
         for mk, (stamp, rows) in list(_ROWS_MEMO.items()):
             if mk[0] != id(con) or mk[1] != pre[0] or mk[2] != job_id or stamp != pre[1]:
                 continue
             tab = mk[3]
+            by = by_slim if (len(mk) > 4 and mk[4]) else by_full
             out = [by[r["key"]] if r["key"] in by else r for r in rows if r["key"] not in keys or r["key"] in by]
             have = {r["key"] for r in out}
             out = [r for r in out if r["key"] not in by or _in_tab(r, tab)]
-            for r in fresh:                                    # 새 행 · 이제 이 탭에 드는 행 — 같은 자리 (page_no, key)
+            for r in by.values():                              # 새 행 · 이제 이 탭에 드는 행 — 같은 자리 (page_no, key)
                 if r["key"] in have or not _in_tab(r, tab):
                     continue
                 at = next((i for i, x in enumerate(out) if (x["page_no"], x["key"]) > (r["page_no"], r["key"])), len(out))
@@ -1236,7 +1299,7 @@ def drawings_of(con, job_id: str) -> list:
     which.  Grouped by system, because the client splits its packages that way.
     """
     out = {}
-    for r in merged_rows_cached(con, job_id):      # 읽기만 한다 (hotfix45)
+    for r in merged_rows_cached(con, job_id, slim=True):      # 읽기만 한다 (hotfix45 · 덜어낸 행이면 된다 hotfix80)
         if r["removed"]:
             continue
         d = out.setdefault(r["drawing_no"], {

@@ -162,14 +162,14 @@ def test_rows_endpoint_copies_and_the_memo_is_not_mutated_by_it(tmp_path):
     # hotfix68 — 행을 만드는 일은 `_rows_payload` 로 갈라졌다 (`/rows` 가 본문을 메모하고 `?keys=` 로 몇 행만 낸다)
     body = MAIN[MAIN.index("def _rows_payload("):]
     body = body[:body.index("\n@app.")]
-    assert "src = db.merged_rows_cached(CON, job_id, tab)" in body
+    assert "src = db.merged_rows_cached(CON, job_id, tab, slim=slim)" in body      # hotfix80 — 목록용은 덜어낸 행
     assert "[dict(r) for r in src if keys is None or r[\"key\"] in keys]" in body
     users = [m.start() for m in re.finditer(r"merged_rows_cached\(", MAIN)]
     assert len(users) >= 4
     for pos in users:
         head = MAIN[max(0, pos - 2500):pos]
         name = re.findall(r"\ndef (\w+)\(", head)[-1]
-        assert name in {"rows", "_rows_payload", "job_review", "axis_override_map", "_multiplier_targets"}, name
+        assert name in {"rows", "_rows_payload", "_rows_body", "job_review", "axis_override_map", "_multiplier_targets"}, name   # hotfix80 — 본문 조립
 
 
 # ---------------------------------------------------------------- ④ screen

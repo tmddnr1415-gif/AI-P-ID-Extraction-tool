@@ -59,6 +59,7 @@ _REAL_DATA = (_REPO / "app" / "_data").resolve()
 # 않는다 (시험마다 프로세스가 남고 시간을 먹는다).  그 기능의 시험은 이 값을 스스로 켠다.
 os.environ.setdefault("PID_PAGE_WARM", "0")
 os.environ.setdefault("PID_RENDER_POOL", "0")      # 장 그림 일꾼도 시험에서는 안 띄운다 (서버 안에서 그린다)
+os.environ.setdefault("PID_ROWS_WARM", "0")        # hotfix80 — 최근 결과 목록 미리 데우기도 시험에서는 끈다 (메모 상태를 맞대는 시험)
 _OWNED_TMP = None
 if not os.environ.get("PID_DATA_DIR"):
     _OWNED_TMP = tempfile.mkdtemp(prefix="pid-test-data-")

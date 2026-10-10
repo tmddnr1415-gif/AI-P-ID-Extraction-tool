@@ -129,7 +129,7 @@ def test_messages_go_only_to_the_same_origin_and_carry_the_link():
 
 def test_only_writes_are_announced_and_keys_come_from_the_url_or_body():
     i = JS.index("(function hookFetch()")
-    seg = JS[i:i + 900]
+    seg = JS[i:i + 1600]                                  # hotfix80 — 저장 상태 칸이 같은 자리에 들어 조금 길어졌다
     assert 'method !== "GET" && method !== "HEAD"' in seg and "res.ok" in seg
     note = _fn("syncNoteMutation")
     assert r"rest.match(/^rows\/([^/]+)(?:\/([a-z_]+))?$/)" in note

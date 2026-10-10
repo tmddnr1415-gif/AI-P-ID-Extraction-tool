@@ -2205,3 +2205,11 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 }
 .toolbar select { flex: 0 1 auto; max-width: 170px; min-width: 0; }
 .toolbar #filter { flex: 1 1 200px; min-width: 140px; }
+
+/* hotfix80 — 머리줄 저장 상태 */
+.save-state { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap;
+  transition: opacity .6s; }
+.save-state.saving { color: #7a5a00; border-color: #e3c56a; background: #fff8e1; }
+.save-state.saved { color: #1e6b3a; border-color: #9ad1ae; background: #edf9f0; }
+.save-state.saved.faded { opacity: .45; }
+.save-state.failed { color: #a32d2d; border-color: #e3a0a0; background: #fdecec; font-weight: 600; }

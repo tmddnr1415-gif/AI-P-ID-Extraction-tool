@@ -139,10 +139,10 @@ def test_row_memo_parses_once_under_concurrent_readers(tmp_path, monkeypatch):
     calls = []
     real = db.merged_rows
 
-    def slow(con_, job_id, tab=None):
+    def slow(con_, job_id, tab=None, slim=False):          # hotfix80 — `slim` 인자가 늘었다
         calls.append(job_id)
         time.sleep(0.3)
-        return real(con_, job_id, tab)
+        return real(con_, job_id, tab, slim=slim)
     monkeypatch.setattr(db, "merged_rows", slow)
     db._ROWS_MEMO.clear()
     got = []

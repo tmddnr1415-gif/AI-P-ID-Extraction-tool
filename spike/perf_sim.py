@@ -20,7 +20,7 @@
 각 일마다 걸린 시간 · 그 사이 50ms 넘는 작업(longtask) 수와 합 · 힙을 적는다.
 """
 from __future__ import annotations
-import json, os, shutil, socket, statistics, subprocess, sys, time, urllib.request
+import json, re, os, shutil, socket, statistics, subprocess, sys, time, urllib.request
 from pathlib import Path
 from urllib.parse import quote
 
@@ -28,7 +28,15 @@ ROOT = Path(__file__).resolve().parent.parent
 data, JOB, OUT = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 ROUNDS = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4].isdigit() else 3
 LAN = "--lan" in sys.argv
-shutil.rmtree(data / "page_cache" / JOB, ignore_errors=True)
+# hotfix80 — ★ JOB 이 분석 id 가 아니면 멈춘다.  이 스크립트를 다른 자(perf_ab)가 import 하면서 제 argv 로 돌아
+# `JOB` 자리에 **절대 경로**가 들어왔고, `Path(data) / "page_cache" / "/home/.../저장소"` 가 그 경로 자체가 되어
+# **저장소를 통째로 지웠다**.  지우는 자리는 데이터 폴더 아래의 그 분석 캐시 하나여야 한다.
+if not re.fullmatch(r"[0-9a-f]{6,}", JOB):
+    sys.exit(f"job 은 분석 id 여야 합니다 (받은 값 {JOB!r})")
+_cache = (data / "page_cache" / JOB).resolve()
+if data.resolve() not in _cache.parents:
+    sys.exit(f"지울 자리가 데이터 폴더 밖입니다: {_cache}")
+shutil.rmtree(_cache, ignore_errors=True)
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT))
 srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],

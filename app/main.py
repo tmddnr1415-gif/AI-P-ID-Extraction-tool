@@ -2022,7 +2022,7 @@ def _multiplier_targets(job_id: str) -> dict:
     # (`engine_json` 은 타이틀블록을 담지 않는다.  두 벌을 두면 언젠가 갈린다).
     pages = {int(p["page_no"]): (pipeline.tb.parse_unit_code(p["drawing_no"]) or "")
              for p in db.page_revisions(CON, job_id)}
-    rows = db.merged_rows_cached(CON, job_id)        # 읽기만 한다 (hotfix45)
+    rows = db.merged_rows_cached(CON, job_id, slim=True)        # 읽기만 한다 (hotfix45 · 덜어낸 행이면 된다 hotfix80)
     want = {"MULTIPLIER_UNDEFINED", "MULTIPLIER_FROM_CONFIG", "MULTIPLIER_DEFAULT_ONE",
             "MULTIPLIER_NOTE_RANGE", unit_multipliers.REVIEW_CODE}
     groups: dict = {}
@@ -2501,12 +2501,19 @@ def _sse(payload: dict) -> str:
 # 연결의 커밋에도 다시 만든다.  압축본은 요청이 gzip 을 받을 때 한 번 만들어 둔다 (미들웨어는
 # `Content-Encoding` 이 이미 있으면 다시 압축하지 않는다).
 _ROWS_BODY: dict = {}
+# hotfix80 — 본문은 한 번에 하나만 만든다.  미리 데우는 스레드와 첫 요청이 같은 본문을 **동시에** 만들면 둘 다 느려진다
+# (`db._ROWS_MEMO_LOCK` 과 같은 생각 — 한쪽이 만들고 다른 쪽은 그 결과를 받는다).
+_ROWS_BODY_LOCK = threading.Lock()
+# hotfix80 — `/rows` 본문이 읽는 표.  행(`item`) · 검토 상태 · 개정 판정 · 고친 사람(`feedback`).  이 넷 밖의
+# 쓰기(신고 · 메모 · 도면 사실 · 분석 진행)는 본문을 다시 만들지 않는다 (`db._db_stamp(tables=)`).
+ROWS_BODY_TABLES = ("item", "review_state", "revision_state", "feedback")
 
 # hotfix69 — 목록이 처음 받는 행에서 뺄 근거 칸.  셋이 `/rows` 13.8MB 의 7.4MB 다 (QFE Rev.B 실측:
 # candidates 4.6MB · trace 2.0MB · axis 0.8MB) — 화면은 이 셋을 **고른 행 하나**에만 쓴다 (근거 패널의 후보 ·
 # From/To · 판정축, 도면의 경로 선).  그래서 목록은 `?slim=1` 로 빼고 받고, 행을 고를 때 그 행만
 # `?keys=` 로 온전히 받는다 (app.js `ensureFull`).  행에 `_slim: 1` 이 붙어 화면이 그것을 안다.
-SLIM_DROP = ("candidates", "trace", "axis")
+# hotfix80 — 덜어내는 자리는 `db.merged_rows(slim=True)` 의 SQL 이다 (파이썬이 파싱하기 **전에**).
+SLIM_DROP = db.SLIM_DROP
 
 
 def _slim_row(row: dict) -> dict:
@@ -2517,26 +2524,74 @@ def _slim_row(row: dict) -> dict:
     return row
 
 
-def _rows_payload(job_id: str, tab: str, keys: set | None) -> list:
+def _row_out(row: dict, states: dict, rev: dict, editors: dict) -> dict:
+    """한 행에 화면이 쓰는 열을 더한다 — `/rows` 전체 본문과 `?keys=` 응답이 **같은 함수**를 쓴다."""
+    row["edited_by"] = editors.get(row["key"], {})
+    row["review_codes"] = review_codes(row)
+    row["review_state"] = states.get(row["key"], {})
+    row["rev"] = rev.get(row["key"], {})
+    # 화면에 보이는 TYPE 표기.  규칙은 서버에만 두고 화면은 결과만 읽는다
+    # (`pipeline.type_display` — 판정값 `values["type"]` 은 불변).
+    row["type_display"] = pipeline.type_display(row["values"], row.get("evidence"))
+    return row
+
+
+def _rows_payload(job_id: str, tab: str, keys: set | None, slim: bool = False) -> list:
     if keys is not None and len(keys) <= 2000:
         # hotfix74 — 몇 행이면 그 행만 읽는다 (편집이 메모를 풀 때마다 전체를 파싱하던 것 · 부하 시뮬레이션)
         out = db.merged_rows_by_keys(CON, job_id, sorted(keys), tab)
     else:
-        src = db.merged_rows_cached(CON, job_id, tab)
+        src = db.merged_rows_cached(CON, job_id, tab, slim=slim)
         out = [dict(r) for r in src if keys is None or r["key"] in keys]
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     editors = db.last_editors(CON, job_id)      # hotfix66 — 고친 칸마다 누가 · 언제
     for row in out:
-        row["edited_by"] = editors.get(row["key"], {})
-        row["review_codes"] = review_codes(row)
-        row["review_state"] = states.get(row["key"], {})
-        row["rev"] = rev.get(row["key"], {})
-        # 화면에 보이는 TYPE 표기.  규칙은 서버에만 두고 화면은 결과만 읽는다
-        # (`pipeline.type_display` — 판정값 `values["type"]` 은 불변).
-        row["type_display"] = pipeline.type_display(row["values"],
-                                                    row.get("evidence"))
+        _row_out(row, states, rev, editors)
     return out
+
+
+def _rows_body(job_id: str, tab: str, slim: bool, old: dict) -> tuple:
+    """`/rows` 본문 — 행마다 직렬화한 글자를 **재사용**한다 (hotfix80).
+
+    편집 한 칸 뒤 본문을 다시 만들 때 `json.dumps` 가 7MB 를 통째로 다시 쓰고 있었다 (QFE 0.36초).  행 메모는
+    `memo_follow` 가 바뀐 행만 바꿔 두므로(같은 객체가 남는다), 행 객체가 그대로이고 그 행에 얹는 세 가지
+    (검토 상태 · 개정 판정 · 고친 사람)가 같으면 전에 만든 글자를 그대로 잇는다.  답은 `_rows_payload` 를 통째로
+    직렬화한 것과 글자 그대로 같다 (시험이 맞댄다)."""
+    src = db.merged_rows_cached(CON, job_id, tab, slim=slim)
+    states = db.review_states(CON, job_id)
+    rev = db.revision_states(CON, job_id)
+    editors = db.last_editors(CON, job_id)
+    parts, chunks = {}, []
+    for r in src:
+        k = r["key"]
+        sig = (states.get(k) or {}, rev.get(k) or {}, editors.get(k) or {})
+        c = old.get(k)
+        if c is not None and c[0] is r and c[1] == sig:
+            s = c[2]
+        else:
+            row = _row_out(dict(r), states, rev, editors)
+            if slim:
+                row = _slim_row(row)
+            s = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+        parts[k] = (r, sig, s)
+        chunks.append(s)
+    return ("[" + ",".join(chunks) + "]").encode("utf-8"), parts
+
+
+def _rows_body_cached(job_id: str, tab: str, slim: bool) -> dict:
+    """`/rows` 본문 메모 — 도장이 같으면 그대로, 아니면 **한 스레드만** 만든다 (hotfix80)."""
+    with _ROWS_BODY_LOCK:
+        _path, stamp = db._db_stamp(CON, ROWS_BODY_TABLES)
+        memo_key = (job_id, tab, slim)
+        hit = _ROWS_BODY.get(memo_key)
+        if hit is None or hit["stamp"] != stamp:
+            body, parts = _rows_body(job_id, tab, slim, hit["parts"] if hit else {})
+            hit = {"stamp": stamp, "raw": body, "gz": None, "parts": parts}
+            _ROWS_BODY[memo_key] = hit
+            while len(_ROWS_BODY) > 4:              # 두 결과(이전 · 현재) × 두 탭이면 넉넉하다
+                _ROWS_BODY.pop(next(iter(_ROWS_BODY)))
+        return hit
 
 
 @app.get("/jobs/{job_id}/rows")
@@ -2552,22 +2607,12 @@ def rows(job_id: str, tab: str = "ALL", keys: str = "", slim: int = 0, request: 
     # hotfix68 — `keys=a,b,c` 면 그 행만 (창 사이 연동이 바뀐 행만 다시 받는다 · 메모 안 함).
     if keys:
         return _json(_rows_payload(job_id, tab, {k for k in keys.split(",") if k}))
-    _path, stamp = db._db_stamp(CON)
-    memo_key = (job_id, tab, bool(slim))
-    hit = _ROWS_BODY.get(memo_key)
-    if hit is None or hit["stamp"] != stamp:
-        payload = _rows_payload(job_id, tab, None)
-        if slim:
-            payload = [_slim_row(r) for r in payload]
-        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        hit = {"stamp": stamp, "raw": body, "gz": None}
-        _ROWS_BODY[memo_key] = hit
-        while len(_ROWS_BODY) > 4:              # 두 결과(이전 · 현재) × 두 탭이면 넉넉하다
-            _ROWS_BODY.pop(next(iter(_ROWS_BODY)))
+    hit = _rows_body_cached(job_id, tab, bool(slim))
     accepts = request.headers.get("accept-encoding", "") if request is not None else ""
     if "gzip" in accepts and len(hit["raw"]) >= 2048:
-        if hit["gz"] is None:
-            hit["gz"] = gzip.compress(hit["raw"], 5)
+        with _ROWS_BODY_LOCK:
+            if hit["gz"] is None:
+                hit["gz"] = gzip.compress(hit["raw"], 5)
         return Response(hit["gz"], media_type="application/json",
                         headers={"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
     return Response(hit["raw"], media_type="application/json")
@@ -2886,7 +2931,7 @@ def job_review(job_id: str):
     if job is None:
         raise HTTPException(404, "no such job")
     engine = json.loads(job["engine_json"] or "{}")
-    rows = db.merged_rows_cached(CON, job_id, "ALL")     # 읽기만 한다 (hotfix45)
+    rows = db.merged_rows_cached(CON, job_id, "ALL", slim=True)     # 읽기만 한다 (hotfix45 · 덜어낸 행이면 된다 hotfix80)
     states = db.review_states(CON, job_id)
     axes = pipeline.CFG.data.get("review_axes") or {}
     by_code = {str(k).upper(): str(v).upper()
@@ -3738,7 +3783,7 @@ def axis_override_map(job_id: str):
     # hotfix25 — 안정 ID 가 없는 행(프로젝트 밖 · 대조 전)의 마크업 범위는 장부에 못 적히므로
     # 마지막 FROM/TO 확정의 근거(`feedback.basis`)에서 돌려준다.  **지금 사람 값이 그 문장일
     # 때만** — 확정을 해제했거나 칸을 다시 고친 뒤에는 옛 범위를 되살리지 않는다.
-    rows_by_key = {r["key"]: r for r in db.merged_rows_cached(CON, job_id, "ALL")}   # 읽기만 (hotfix45)
+    rows_by_key = {r["key"]: r for r in db.merged_rows_cached(CON, job_id, "ALL", slim=True)}   # 읽기만 (hotfix45 · hotfix80)
     for fb in db.feedback_rows(CON, job_id, limit=5000):
         key = fb.get("row_key") or ""
         if fb.get("kind") != "EDITED" or fb.get("field") != "description" or key in out:
@@ -4752,6 +4797,32 @@ def _start_background() -> None:
     threading.Thread(target=_daily_backup, daemon=True, name="db-backup").start()
     threading.Thread(target=_worker, daemon=True, name="analysis-worker").start()
     threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
+    threading.Thread(target=_warm_recent_rows, daemon=True, name="rows-warm").start()
+
+
+def _warm_recent_rows() -> None:
+    """hotfix80 — 서버를 켠 뒤 **최근에 끝난 분석 몇 개**의 목록(`/rows?slim=1`)을 미리 만들어 둔다.
+
+    첫 열기의 `/rows` 가 행 파싱(QFE 0.25초) + 직렬화(0.2초)로 0.5초 안팎이고 그 뒤로는 메모에서 10ms 다 —
+    사람이 켜 둔 서버에서 처음 여는 결과도 그 10ms 로 열리게.  판정 0 · 쓰기 0 (읽어 메모에 두기만).  끄는 스위치
+    `PID_ROWS_WARM=0` (시험은 끈다 — 메모 상태를 맞대는 시험이 있다).  켜자마자가 아니라 잠깐 뒤에 — 기동 감사·
+    끊긴 분석 정리와 겹치지 않게."""
+    if os.environ.get("PID_ROWS_WARM", "1") == "0":
+        return
+    try:
+        time.sleep(float(os.environ.get("PID_ROWS_WARM_DELAY", "3")))
+        jobs = [r["id"] for r in CON.execute(
+            "SELECT id FROM job WHERE status='done' ORDER BY created_at DESC LIMIT 3")]
+        for job_id in jobs:
+            try:
+                hit = _rows_body_cached(job_id, "ALL", True)       # 요청과 같은 자물쇠 — 둘이 같은 본문을 두 번 만들지 않는다
+                with _ROWS_BODY_LOCK:
+                    if hit["gz"] is None:
+                        hit["gz"] = gzip.compress(hit["raw"], 5)
+            except Exception:
+                continue
+    except Exception:
+        pass
 
 
 _start_background()
