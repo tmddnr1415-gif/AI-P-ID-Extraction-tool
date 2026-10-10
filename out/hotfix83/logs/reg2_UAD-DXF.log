@@ -1,0 +1,15 @@
+· UAD-DXF 분석 …
+   행 467 · 지문 26d45872 · 축3 — (DXF · 안 잰다)
+
+프로젝트         행         지문     Q'ty       초     RSS      축3
+UAD-DXF    467   26d45872      467     106    0.5G    nan
+
+축3 내역 (지표별 맞춘 수 / 분모)
+        도면번호         개정           태그→행         수량           심볼판정         파라미터       
+UAD-DXF —            —            —            —            —            —          
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   UAD-DXF rows: 기준선 507 → 지금 467
+   UAD-DXF fingerprint: 기준선 a32c02a640d667ad3288887cc6da8413d60d9b7a871fc7e0c04c266a5f5cfd9d → 지금 26d45872424dded9ecf0dd4fc54c9e868049219b501f4c15c21a2defc8b1814f
+   UAD-DXF qty_sum: 기준선 507 → 지금 467

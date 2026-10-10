@@ -4356,6 +4356,56 @@ O/X 로 표기하고 누락된 게 있으면 행추가로 마크업 … 저장 �
    블록 이름으로 판정한다).  UI 스위트 26 은 이 회차에 안 돌렸다 (hotfix81 과 같은 알려진 실패 목록 · 화면 자기검증으로
    대신).
 
+**그 다음 — 사용자 실무 판단 넷을 반영 (hotfix83 · 2026-10-10)**
+
+사용자 답: ① *"Typical 상세 수량과 유닛 승수 — 곱한다.  잘못된 것은 사용자가 수정한다"* ② *"PSV 는 식별하지
+않는다"* ③ *"노트에 `**` 또는 `*` 하나의 표기에 대해 Vendor 가 특정되어 있으면 이를 따르고 언급이 없으면 그냥
+VENDOR 로 한다"* ④ *"제어실 기능 버블(LICA·PICA 등)은 넣지 않는다"*.  시험 `tests/test_hotfix83_policy.py` 40건
+(빠른 시험 **1144**).  **네 프로젝트 기준선을 일부러 옮겼다** — 사라진 행은 전부 정책 기록과 1:1 · 새 행 0.
+
+| 프로젝트 | 전 | 후 | 움직인 것 |
+| --- | --- | --- | --- |
+| AL NOUF1 | `46d551fd` · 1133 · 2136 · 95.1 | **`b61a6995` · 1065 · 1996 · 94.9** | PSV 68 · 공급자 이름 111 · 뜻 없는 별표 15 |
+| TC2 | `23e78e27` · 902 · 5564 · 94.2 | **`10e32bd0` · 864 · 5292 · 94.1** | PSV 38 · 이름 190 · 별표 10 |
+| QFE | `26cd1210` · 2043 · 3720 · 91.2 | **`531237eb` · 1605 · 3016 · 90.7** | 제어실 기능 286 · PSV 152 · 이름 197 · 별표 71 · 접미 다시 매김 35 |
+| UAD-DXF | `a32c02a6` · 507 | **`26d45872` · 467** | PSV 40 · 별표 16 |
+
+1. **① 은 이미 그렇게 돌고 있었다** — `_apply_typical` 은 유닛 승수가 든 Q'ty 에 표식 수를 곱하고(이름표가 있으면
+   표식마다 한 행 · 행마다 유닛 승수).  코드는 그대로이고 시험으로 못박았다.  roadmap §8 #7 닫음.
+2. **② `policy.not_identified_tags: [PSV]`** (config · 사용자가 정한 값이라 코드에 낱말이 없다 — AST 시험).
+   태그·앵커·TYPE 중 하나가 그 낱말이면 행을 만들지 않고 `result["policy_excluded"]` 에 센다 (지문 밖 ·
+   저장 화이트리스트 · 점검표 `사용자 방침으로 뺀 행` 구획).  QFE 의 PSV 147행은 몸체가 반쪽 CHECK 로 읽히던 것이다.
+3. **④ 판정은 그 도면의 ISA 문자표** (`pipeline.control_function_reason` · 글자 뜻을 코드에 적지 않는다 —
+   `_is_switch`·`_is_transmitter` 와 같은 길).  (가) 뒤 글자가 표에서 `CONTROLLER`/`CONTROL STATION` → LICA ·
+   PICA · PIC · FICA · LCA · TCA · GTC.  (나) 버블 가운데 선(hotfix73 ISA 위치 표기)이 있고 뒤 글자 어느 것도
+   **물리 기기**(config `policy.physical_function_words` — 전송기·소자·스위치·유리·밸브 …)가 아니면 제어실
+   표시·경보 → LA · LIA · TIA · PIA.  선 있는 현장 전송기(AL NOUF1 PIT·LIT 108행)는 남는다.  표가 못 푸는 낱말
+   (`ZOCL`)은 판정하지 않는다.  실측 AL NOUF1 0 · TC2 0 · UAD-DXF 0 · QFE 286.  DXF 는 선을 재지 않아 (가)만.
+4. **★ 정책 거름은 마지막 단계다 — 한 번 틀렸다.**  첫 판이 정책을 행 정리 직후(Description 앞)에 걸었더니
+   QFE 에서 ㉠ 전송기(PIT·TIT)에 접히던 **선 있는 표시기 124행**이 접힘 대신 정책으로 빠져 접힘 기록이
+   131 → 7 이 됐고 ㉡ Description 거리 문턱의 모집단이 움직여 남은 행의 문장이 흔들렸다 (p74 TI 에 도면번호가
+   섞임).  행 목록은 같았지만 판정이 달라진 것이다.  지금은 `_fold_readouts` **뒤** 한 자리이고, 뺀 행이 남기는
+   자리 둘만 정리한다 — 같은 문장 무리의 A·B 접미(`_resuffix` · 남은 것이 하나면 뗀다) · 오버레이 상자
+   (`_drop_from_layers` · 33회차 등식).  고친 뒤 접힘 131 그대로 · 문장 변화는 접미뿐.  시험이 순서를 못박는다.
+5. **③ 공급자 이름** — `_supplier_name` 이 `BY <이름>` 밖의 꼴도 읽는다: 공급자 명사(VENDOR · SUPPLIER ·
+   MANUFACTURER …)로 끝나는 명사구를 앞으로 걸으며 전치사·관사·조동사에서 멈춘다 (낱말은 영어 문법이라 코드
+   기본값 + config `scope.supplier_nouns`·`supplier_stop_words`).  `FROM SUMP PUMP VENDOR` · `EQUIPMENT VENDOR SCOPE`
+   · `PUMP SUPPLIER'S SCOPE` · `PUMP VENDOR SHALL PROVIDE`.  명사 하나뿐(`IN VENDOR SCOPE`)이면 이름이 아니다.
+6. **★ 두 줄에 걸친 정의를 끝까지 읽는다** (`read_mark_dictionary` 의 `col`).  별표를 글 왼쪽에 따로 그린 줄은
+   이어지는 줄이 들여쓰지 않고 **같은 열**에서 시작하는데, 10회차 규칙이 "들여쓴 줄만 이음" 이라 끊었다 —
+   AL NOUF1 p52 `… SUPPLIED FROM SUMP` / `PUMP VENDOR.` (10회차가 "규칙을 넓힐지는 발주처 몫" 으로 남긴 62행이
+   이것이었다).  세 문서 전 장 대조: **AL NOUF1 6장만 바뀜**(p10·p11 `BYPASS VALVE` → `BYPASS VALVE VENDOR` ·
+   p52~56 `SUMP` → `SUMP PUMP VENDOR`) · TC2 0 · QFE 0.  `CONTINUE_AT_TEXT_COLUMN` 로 끌 수 있다 (대조용).
+7. **뜻 없는 별표 = 그냥 VENDOR · 검토 사유 없음** — `_vendor_of` 가 `UNDEFINED` 대신 `VENDOR` (축 판정은 둘 다
+   벤더로 읽었다 — Description 불변) · `VENDOR_MARK_UNDEFINED` 검토 사유를 다는 자리 넷(계기 행 · LS 묶음 · DXF)을
+   뺐다 (`rules_hit` 의 사실은 남는다).  LS 묶음이 **서로 다른 이름**을 말할 때만 새 사유 `SIGNAL_VENDOR_DISAGREE`.
+   점검표의 `**` 사람 몫이 사라진다.  roadmap §8 #3 · #14 닫음.
+8. **AL NOUF1 의 축3 95.1 → 94.9 는 정의가 아니라 행 수다** — 심볼판정 지표가 행/(행+미판정)이라 PSV 행이 빠진
+   만큼 내려간다.  정책으로 뺀 것을 판정한 것으로 셀지는 측정 정의를 바꾸는 일이라 하지 않았다 (§2.6).
+9. ⚠ 사람이 고친 값(Q'ty 등)은 다시 분석해도 남지만, **정책으로 빠진 행에 사람이 적어 둔 편집**은 행이 없어져
+   보이지 않는다 (편집 기록은 지우지 않는다).  끄려면 config `policy.not_identified_tags: []` ·
+   `control_room_functions: keep`.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4875,6 +4925,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `TABS` 의 `VOC` · `VOC_ORDER`·`VOC_ONLY`·`gridCols()` · `verdictOf`·`qtyVerdictOf`·`verdictWho` · `_vxHtml` · `setVerdict`(`field` = verdict/qty_verdict/note) · `vxTargets` · `renderVerdictCount` · `#vx-o`/`#vx-x`/`#vx-xlsx` | **hotfix82** — 식별 VOC 탭(전체 행 · 열 순서 고정 · VOC 전용 열은 다른 탭에 안 보임) · 모든 탭의 O/X 열(Type 바로 앞) · 칸을 고르고 O/X 키(범위 · 적으면 아래로) · 비고 칸은 `saveField` 가 `setVerdict(note)` 로 보낸다 · 되돌리기 kind `verdict` · 저장은 `setVerdict` 하나 · `NET.vxBusy` 는 자기검증이 기다리는 자리 |
 | `spike/verdict_set.py` · `spike/voc.py verdicts` · `regression_3p` 의 `verdicts` 참고축 | **hotfix82** — VOC 함의 VERDICT · MARKUP_ADD(MISSED) · MARKUP_REJECT(X) → `out/verdicts/<프로젝트>.json` (같은 항목은 나중 것이 이긴다).  `score(rows, vset)` 가 O 유지 · X 제외 · 누락 회수를 센다.  게이트가 아니다 — `CHECK` 넷 그대로 |
 | `app/engine/shape_library.py` · `detect_valves.analyse(shape_lib=)` · `pipeline._shape_library()` · `spike/shape_train.py` · `BODY_FROM_SHAPE_LIBRARY` | **hotfix82 [C]** — 밸브 모양 사전.  `<data_dir>/shape_library.json`(`PID_SHAPE_LIBRARY_FILE` · `PID_SHAPE_LIBRARY=0` · config `valves.shape_library`) 이 없으면 **None 이고 판정은 글자 그대로 같다**.  있으면 `unclassified_bodies` 후보를 정규화 그림(잉크 마스크 → 24×24 · 회전·뒤집기 8)으로 보기에 맞댄다.  문턱은 사전 자신의 같은 종류 최댓값 / 다른 종류 최솟값.  `find_bodies` 는 사전을 모른다 · 사전 모듈은 `detect_valves` 를 import 하지 않는다 · 행은 검토 사유를 단다 |
+| `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
+| `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
@@ -5050,8 +5102,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 4. **못 읽으면 멈춘다.**  `TitleBlockUnreadable` · `LegendUnavailable` 과 같은 방식으로
    시끄럽게 멈춘다.  조용히 진행하지 않는다.  사유를 화면에 말한다.
 5. **세 프로젝트 회귀.**  어떤 변경이든 AL NOUF1 · TC2 · SADARA 를 전부 확인한다
-   (`spike/regression_3p.py`).  **AL NOUF1 게이트는 `46d551fd` · 1133행 ·
-   Q'ty 2136 · 축3 95.1 이다** (hotfix41 — 검토 메모 글자를 뺀 값 · 직전 `c5856d6d`·1137 은 hotfix27 실측 — 50·51회차가 ISA 문자표로 앵커를
+   (`spike/regression_3p.py`).  **AL NOUF1 게이트는 `b61a6995` · 1065행 ·
+   Q'ty 1996 · 축3 94.9 이다** (hotfix83 — PSV 68행을 사용자 방침으로 뺀 값 · 직전 `46d551fd`·1133 은 hotfix41 — 검토 메모 글자를 뺀 값 · 직전 `c5856d6d`·1137 은 hotfix27 실측 — 50·51회차가 ISA 문자표로 앵커를
    유도하며 `fb85b039`·1037 에서 일부러 옮겼고, 54회차가 지시선으로 태그→몸체
    짝을 바로잡으며 `1f40cc92`·1149 에서 다시 옮겼고, hotfix27 이 LS 묶음 34개의
    공급 주체를 **묶음 안 어느 버블의 별표든** 따르게 하며 `c3f63cde` 에서 옮겼다 —
