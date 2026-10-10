@@ -421,6 +421,15 @@ open_pdf → _fit_layout(도면에서 재고 낯선 프로필이면 얹는다) �
 
 ## 8. 실무 판단 대기 — 사용자가 답해야 진행되는 것
 
+### ✔ hotfix83 에 사용자가 답한 넷 (2026-10-10)
+
+| 물음 | 답 | 반영 |
+| --- | --- | --- |
+| Typical 상세 수량 × 유닛 승수 (아래 #7) | **곱한다.  잘못된 것은 사용자가 수정한다** | 이미 곱하고 있었다 — 시험으로 못박음 (`test_typical_multiplies_the_unit_multiplier`) |
+| 액추에이터 없는 태그 밸브(PSV 등)의 탭 | **PSV 는 식별하지 않는다** | config `policy.not_identified_tags: [PSV]` · `pipeline.apply_policy` 가 행을 빼고 `policy_excluded` 에 센다 |
+| `**` 의 공급자 이름 (아래 #3 · #14) | **노트가 특정하면 그 이름, 언급이 없으면 그냥 VENDOR** | `_supplier_name` 이 `BY` 밖의 꼴(`FROM …` · `… VENDOR SCOPE` · `… SUPPLIER'S SCOPE` · `… SHALL PROVIDE`)도 읽고, 두 줄에 걸친 정의를 끝까지 잇는다 · 뜻 없는 별표는 검토 사유 없이 VENDOR |
+| 제어실 기능 버블(LICA · PICA …) | **넣지 않는다** | `policy.control_room_functions: exclude` · 판정은 그 도면의 ISA 표(CONTROLLER 글자 · 또는 가운데 선 + 물리 기기 글자 없음) |
+
 | # | 물음 | 무엇이 걸려 있나 |
 | --- | --- | --- |
 | 1 | **SADARA·TC2·UAD 의 유닛 승수** | 도면에 표가 없다.  SADARA 82행이 전부 빈칸이고 축3 16.67점이 여기 걸려 있다 |
