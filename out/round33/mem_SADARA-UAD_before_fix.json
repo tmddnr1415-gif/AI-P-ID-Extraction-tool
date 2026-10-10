@@ -1,0 +1,33 @@
+[
+ {
+  "stage": "start",
+  "VmHWM": 0.06,
+  "VmRSS": 0.06
+ },
+ {
+  "stage": "SADARA 직후",
+  "rows": 82,
+  "fingerprint": "0767ba79",
+  "seconds": 73.1,
+  "VmHWM": 0.94,
+  "VmRSS": 0.35
+ },
+ {
+  "stage": "SADARA 결과 놓고 gc",
+  "VmHWM": 0.94,
+  "VmRSS": 0.34
+ },
+ {
+  "stage": "UAD 직후",
+  "rows": 149,
+  "fingerprint": "db1a77d1",
+  "seconds": 425.2,
+  "VmHWM": 3.34,
+  "VmRSS": 0.52
+ },
+ {
+  "stage": "UAD 결과 놓고 gc",
+  "VmHWM": 3.34,
+  "VmRSS": 0.5
+ }
+]

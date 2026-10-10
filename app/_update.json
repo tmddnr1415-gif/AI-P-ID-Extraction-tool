@@ -1,0 +1,8 @@
+{
+  "name": "hotfix54",
+  "rev": 54,
+  "zip": "PID_hotfix54_2026-10-08.zip",
+  "created_at": "2026-10-08 05:10",
+  "base_commit": "0588b2d",
+  "branch": "claude/titleblock-parsing-c5st4x"
+}

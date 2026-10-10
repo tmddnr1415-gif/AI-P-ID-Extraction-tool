@@ -1,0 +1,663 @@
+DB 백업: /tmp/pid-test-data-exshr7h6/backups/app.db.2026-10-09.bak...F..FFFFF.........FF..FF                                               [100%]
+=================================== FAILURES ===================================
+______________________ test_step3_survives_origin_filter _______________________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+
+    def test_step3_survives_origin_filter(page, edited):
+        # Which origins exist depends on whether an answer key was supplied, so the
+        # test picks one that is actually on the menu rather than naming MATCHED,
+        # which only verification mode produces.
+        origin = page.evaluate(
+            "[...document.querySelectorAll('#origin-filter option')]"
+            ".map(o => o.value).find(v => v)")
+        assert origin, "the origin filter has nothing to choose"
+>       page.select_option("#origin-filter", origin)
+
+tests/test_ui_edits.py:364: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py:12333: in select_option
+    self._sync(
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_page.py:1075: in select_option
+    return await self._main_frame.select_option(**params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py:815: in select_option
+    return await self._channel.send("selectOption", self._timeout, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f1f8fa56fd0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f1f9ce939c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.select_option: Timeout 30000ms exceeded.
+E           Call log:
+E             - waiting for locator("#origin-filter")
+E               - locator resolved to <select class="hidden" id="origin-filter">…</select>
+E             - attempting select option action
+E               2 × waiting for element to be visible and enabled
+E                 - element is not visible
+E               - retrying select option action
+E               - waiting 20ms
+E               2 × waiting for element to be visible and enabled
+E                 - element is not visible
+E               - retrying select option action
+E                 - waiting 100ms
+E               59 × waiting for element to be visible and enabled
+E                  - element is not visible
+E                - retrying select option action
+E                  - waiting 500ms
+
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:632: TimeoutError
+_______________________ test_step6_edits_reach_the_excel _______________________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-418/test_step6_edits_reach_the_exc0')
+
+    def test_step6_edits_reach_the_excel(page, edited, server, job_id, tmp_path):
+        """Gate, export, and find the five edited values in the workbook cells."""
+        import urllib.request
+        page.check("#gate-check")
+        # 고정 대기(1500ms)가 아니라 **조건**을 기다린다.  게이트를 누르면 1029행짜리
+        # 스냅샷을 서버가 쓰는데, 그 시간이 장비와 부하에 따라 1.5초를 넘나든다 —
+        # 실측으로 같은 코드가 통과했다 실패했다 했다.  기다리는 대상이 분명하므로
+        # 시간을 늘리는 대신 조건으로 바꾼다.
+        page.wait_for_function("() => window.__rev", timeout=60000)
+        rev = page.evaluate("() => window.__rev || null")
+        assert rev, "step 6: checking the gate did not produce a revision"
+    
+>       data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_ui_edits.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.11/urllib/request.py:216: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:525: in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:634: in http_response
+    response = self.parent.error(
+/usr/lib/python3.11/urllib/request.py:563: in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:496: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f1f9f5e7210>
+req = <urllib.request.Request object at 0x7f1f8f918490>
+fp = <http.client.HTTPResponse object at 0x7f1f9cebd330>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f1fb2f85690>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+/usr/lib/python3.11/urllib/request.py:643: HTTPError
+_____________________ test_step6_reports_unmappable_edits ______________________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-418/test_step6_reports_unmappable_0')
+
+    def test_step6_reports_unmappable_edits(page, edited, server, job_id, tmp_path):
+        """An edit the target form cannot carry must be named, not dropped quietly.
+    
+        The valve deliverables have no Vendor column, so a Vendor edit on a MOV row
+        has nowhere to go.  The export says so in its MANIFEST instead of losing it.
+        """
+        import urllib.request
+        mov = page.evaluate(
+            """() => {
+              const btn = [...document.querySelectorAll('#tabs button')]
+                .find(b => b.textContent.startsWith('MOV'));
+              btn.click();
+              return null;
+            }""")
+        page.wait_for_timeout(600)
+        key = page.evaluate(
+            "() => (document.querySelector('#body tr') || {}).dataset?.key || null")
+        if not key:
+            pytest.skip("no MOV rows to test the unmapped path with")
+        _type_edit(page, _cell(page, key, "vendor_supply"), "UI-UNMAPPABLE")
+        page.wait_for_timeout(400)
+    
+        req = urllib.request.Request(
+            f"{server}/jobs/{job_id}/snapshot", method="POST",
+            data=json.dumps({"label": "unmapped"}).encode(),
+            headers={"Content-Type": "application/json"})
+        rev = json.loads(urllib.request.urlopen(req).read())["revision_id"]
+>       data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_ui_edits.py:517: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.11/urllib/request.py:216: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:525: in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:634: in http_response
+    response = self.parent.error(
+/usr/lib/python3.11/urllib/request.py:563: in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:496: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f1f9f5e7210>
+req = <urllib.request.Request object at 0x7f1f9ca8b0d0>
+fp = <http.client.HTTPResponse object at 0x7f1fb2f43970>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f1f9ca8b7d0>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+/usr/lib/python3.11/urllib/request.py:643: HTTPError
+___________ test_step6_scope_edit_is_counted_and_follows_the_setting ___________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-418/test_step6_scope_edit_is_count0')
+
+    def test_step6_scope_edit_is_counted_and_follows_the_setting(
+            page, edited, field_rows, server, job_id, tmp_path):
+        """SCOPE 를 고치면 **세어지고**, 파일에서 빠지는지는 **설정이 정한다** (18회차).
+    
+        11회차: 발주처 양식은 SCT 만 담았다 — SCOPE 를 바꾸면 행이 빠졌다.
+        18회차 [B]: 발주처 요구로 **전량을 담는 것이 기본**이 됐다 (계기를 당사가
+        공급하지 않아도 설치 Bulk material 은 당사 몫이라 물량이 필요하다).
+        그래서 이 시험이 못박는 것이 하나 바뀌고 하나 남는다:
+    
+          · **바뀐 것** — 행이 빠지는지는 `client_form.scope_filter` 가 정한다.
+            기본(`all`)에서는 안 빠지고, `sct` 에서는 빠진다.  두 갈래의 판정은
+            `tests/test_scope_and_type.py` 가 단위로 시험한다.
+          · **남은 것** — 어느 쪽이든 **세어져서 MANIFEST 에 적힌다.**  공급
+            주체(`scope_state`)와 나가는지(`in_client_scope`)는 18회차부터 서로
+            다른 사실이고, 조용히 사라지지 않는 것이 여전히 조건이다.
+    
+        값이 **아예 없는** 행은 어느 설정에서도 담긴다: 없는 판정을 "타사 공급"
+        으로 읽으면 발주처 양식 네 개가 통째로 빈 파일이 된다 (이 스위트가 실제로
+        그렇게 잡아냈다).
+        """
+        import urllib.request
+        # 탭은 `dataset.tab` 으로 고른다 — 화면 글자는 'Field' 이고 키는 'FIELD' 라,
+        # 라벨로 찾으면 조용히 `undefined` 가 된다 (실제로 그랬다).
+        page.evaluate(
+            """() => document.querySelector('#tabs button[data-tab="FIELD"]').click()""")
+        page.wait_for_timeout(600)
+        # **범위 안에 있는 행**을 고른다 (14회차).  이미 범위 밖인 행의 SCOPE 를
+        # 또 바꾸면 당연히 행수가 안 줄고(실측 667 → 667), 그것은 필터가 아니라
+        # 시험의 가정이 틀린 것이다.
+        key = next((r["key"] for r in field_rows["delivered"]
+                    if r["key"] not in edited), None)
+        assert key, "SCOPE=SCT 인 FIELD 행이 있어야 이 시험이 성립한다"
+    
+        def export(label):
+            req = urllib.request.Request(
+                f"{server}/jobs/{job_id}/snapshot", method="POST",
+                data=json.dumps({"label": label}).encode(),
+                headers={"Content-Type": "application/json"})
+            rev = json.loads(urllib.request.urlopen(req).read())["revision_id"]
+            data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+            zp = tmp_path / f"{label}.zip"
+            zp.write_bytes(data)
+            with zipfile.ZipFile(zp) as z:
+                man = json.loads(z.read("MANIFEST.json"))
+            field = next(w for w in man["written"] if w["kind"] == "FIELD")
+            return man, field["rows"]
+    
+>       before_man, before_rows = export("scope-before")
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_ui_edits.py:575: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_ui_edits.py:567: in export
+    data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:216: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:525: in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:634: in http_response
+    response = self.parent.error(
+/usr/lib/python3.11/urllib/request.py:563: in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:496: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f1f9f5e7210>
+req = <urllib.request.Request object at 0x7f1fb2f75d10>
+fp = <http.client.HTTPResponse object at 0x7f1f9d2f78e0>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f1fb2f67dd0>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+/usr/lib/python3.11/urllib/request.py:643: HTTPError
+________ test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting ________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-418/test_step6_edit_on_a_vendor_ro0')
+
+    def test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting(
+            page, edited, field_rows, server, job_id, tmp_path):
+        """벤더 행의 편집이 양식에 닿는지 — **설정이 정하고, 화면이 그 말을 한다** (18회차).
+    
+        11회차에는 안 닿는 것이 정답이었다.  18회차 [B] 로 기본이 전량이 되면서
+        **닿는 것이 정답**이 됐다: 그 계기를 당사가 공급하지 않아도 설치 Bulk
+        material 은 당사가 공급하므로 물량을 세어야 한다.
+    
+        시험이 지키는 것은 "닿는다/안 닿는다" 가 아니라 **설정과 파일이 같은 말을
+        한다** 는 것이다 — 그 둘이 갈리면 화면의 안내(`scopeFacts`)도 함께 갈린다.
+        어느 쪽이든 화면·DB 에는 값이 그대로 남고, 공급 주체는 MANIFEST 에 세어진다.
+        """
+        import urllib.request
+        row = field_rows["vendor"][0]
+        key, mark = row["key"], "UI-VENDOR-EDIT"
+        page.evaluate(
+            """() => document.querySelector('#tabs button[data-tab="FIELD"]').click()""")
+        page.wait_for_timeout(600)
+        _type_edit(page, _cell(page, key, "tag_no"), mark)
+        page.wait_for_timeout(400)
+    
+        # 화면과 DB 에는 남는다
+        rows = {r["key"]: r for r in json.loads(urllib.request.urlopen(
+            f"{server}/jobs/{job_id}/rows?tab=ALL").read())}
+        assert rows[key]["values"]["tag_no"] == mark, "벤더 행 편집이 저장되지 않았다"
+        assert _scope_state(rows[key]) == "vendor", "이 시험은 벤더 행이어야 성립한다"
+    
+        # 파일에 있는가 없는가 — 설정이 답한다
+>       man, _rows, cells = _field_rows_in_export(server, job_id, tmp_path, "vendor-edit")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_ui_edits.py:653: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_ui_edits.py:606: in _field_rows_in_export
+    data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:216: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:525: in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:634: in http_response
+    response = self.parent.error(
+/usr/lib/python3.11/urllib/request.py:563: in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:496: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f1f9f5e7210>
+req = <urllib.request.Request object at 0x7f1f8ea74d90>
+fp = <http.client.HTTPResponse object at 0x7f1fb2fef760>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f1f8ea74f10>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+/usr/lib/python3.11/urllib/request.py:643: HTTPError
+____________ test_step6_a_row_with_no_scope_is_written_not_dropped _____________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+edited = {'0496c0be022bd8d2': ('qty', '7'), '0e96b25afd3ef9aa': ('type', 'UI-TYPE-A'), '311eac50402e48c3': ('system', 'UI-SYSTEM'), '44d2e50a7e81229c': ('tag_no', 'UI-TAG-01'), ...}
+field_rows = {'delivered': [{'key': '0496c0be022bd8d2', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...ey': '4dbd9b238f0e4a9a', 'tab': 'FIELD', 'page_no': 6, 'drawing_no': 'D00P-10LBA10-M05-0001', ...}, ...], 'legacy': []}
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-418/test_step6_a_row_with_no_scope0')
+
+    def test_step6_a_row_with_no_scope_is_written_not_dropped(
+            page, edited, field_rows, server, job_id, tmp_path):
+        """SCOPE 가 **빈** 행은 담긴다 — "판정한 적 없음" 은 "타사 공급" 이 아니다.
+    
+        회사 PC 는 반영 직후 822행이 이 상태다(10회차 이전 분석).  없는 판정을
+        타사 공급으로 읽으면 발주처 양식 네 개가 통째로 빈 파일이 되고, 이 스위트가
+        예전에 실제로 그것을 잡았다.
+    
+        새로 분석한 결과에는 빈 SCOPE 행이 없으므로(전 행이 판정된다) 한 행의
+        SCOPE 를 지워 그 상태를 만든다.  판정을 지우는 것은 사람이 할 수 있는
+        편집이고, `legacy` 갈래는 값이 비었다는 사실 하나로 정해진다.
+        """
+        import urllib.request
+        row = next(r for r in field_rows["delivered"] if r["key"] not in edited)
+        key = row["key"]
+        urllib.request.urlopen(urllib.request.Request(
+            f"{server}/jobs/{job_id}/rows/{key}",
+            data=json.dumps({"field": "scope", "value": "  ",
+                             "author": "UI 시험"}).encode(), method="PATCH",
+            headers={"Content-Type": "application/json"})).read()
+        fresh = {r["key"]: r for r in json.loads(urllib.request.urlopen(
+            f"{server}/jobs/{job_id}/rows?tab=ALL").read())}
+        if _scope_state(fresh[key]) != "legacy":
+            pytest.skip("SCOPE 를 비울 수 없는 행이다 - 빈 값이 엔진 값으로 되돌아온다")
+    
+>       man, rows_n, _cells = _field_rows_in_export(server, job_id, tmp_path, "legacy-row")
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_ui_edits.py:692: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_ui_edits.py:606: in _field_rows_in_export
+    data = urllib.request.urlopen(f"{server}/revisions/{rev}/excel").read()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:216: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:525: in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:634: in http_response
+    response = self.parent.error(
+/usr/lib/python3.11/urllib/request.py:563: in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/urllib/request.py:496: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7f1f9f5e7210>
+req = <urllib.request.Request object at 0x7f1f8e05ba90>
+fp = <http.client.HTTPResponse object at 0x7f1f9d817fd0>, code = 400
+msg = 'Bad Request', hdrs = <http.client.HTTPMessage object at 0x7f1f8e048750>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+/usr/lib/python3.11/urllib/request.py:643: HTTPError
+_____________ test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only _____________
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+
+    def test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only(page, server, job_id):
+        """[A] The four ways of zooming agree, and the keys stay off the grid.
+    
+        Ctrl+wheel has to hold the point under the cursor still - zooming to the
+        middle and then hunting for the symbol again is the thing this replaces - and
+        Ctrl +/-/0 must not fire while a reviewer is typing, which is why they are
+        handled on the viewer rather than on the document.
+        """
+        page.goto(f"{server}/#{job_id}")
+        page.wait_for_selector("#body tr", timeout=120_000)
+        page.wait_for_timeout(2000)
+        page.evaluate("() => { closeModal(); endPick(); }")
+    
+        # The page fixture is shared and selecting a row zooms in to read the bubble
+        # (`SYMBOL_ZOOM`), so the viewer is not necessarily at rest.  Press 맞춤 to
+        # establish the fitted magnification rather than assuming it.
+        page.click("[data-z='0']")
+        page.wait_for_timeout(200)
+        fitted = page.evaluate("() => S.zoom")
+        stage = page.evaluate("() => document.querySelector('#stage').clientWidth")
+        natural = page.evaluate("() => S.natural.w")
+        assert abs(fitted - (stage - 16) / natural) < 1e-9, "맞춤 is not what fit() computes"
+    
+        page.click("#stage")
+        assert page.evaluate("() => document.activeElement.id") == "stage"
+    
+        # Scrolled to the origin first, so the cursor is over the sheet.  Below 1:1
+        # the scroll extent stays the sheet's unscaled size while the sheet paints
+        # smaller, so the viewer can be parked in the blank space beyond it - a
+        # property of the existing transform-based zoom, not of this test - and a
+        # zoom anchored out there is clamped by the browser rather than applied.
+        page.evaluate("""() => { const st = document.querySelector('#stage');
+                                 st.scrollLeft = 0; st.scrollTop = 0; }""")
+        page.wait_for_timeout(150)
+        box = page.locator("#stage").bounding_box()
+        cx, cy = box["x"] + box["width"] * 0.7, box["y"] + box["height"] * 0.3
+        under = """([cx, cy]) => {
+          const st = document.querySelector('#stage');
+          const r = st.getBoundingClientRect();
+          return [(st.scrollLeft + cx - r.left) / S.zoom,
+                  (st.scrollTop + cy - r.top) / S.zoom];
+        }"""
+        before = page.evaluate(under, [cx, cy])
+        page.evaluate("""([cx, cy]) => document.querySelector('#stage').dispatchEvent(
+          new WheelEvent('wheel', {deltaY: -120, ctrlKey: true, clientX: cx,
+                                   clientY: cy, bubbles: true, cancelable: true}))""",
+                      [cx, cy])
+        page.wait_for_timeout(200)
+        after = page.evaluate(under, [cx, cy])
+        zoomed = page.evaluate("() => S.zoom")
+        step = page.evaluate("() => ZOOM_STEP")
+        assert abs(zoomed / fitted - step) < 1e-6, "the wheel does not use the buttons' step"
+        # Sub-point, not sub-pixel: scroll offsets are integers, and one device pixel
+        # is several sheet points at this magnification.
+>       assert abs(after[0] - before[0]) < 4 and abs(after[1] - before[1]) < 4, \
+            f"the point under the cursor moved: {before} -> {after}"
+E       AssertionError: the point under the cursor moved: [2727.9101941747567, 1145.5417172330096] -> [2729.2737117251677, 881.1859363330842]
+E       assert (1.3635175504109611 < 4 and 264.35578089992543 < 4)
+E        +  where 1.3635175504109611 = abs((2729.2737117251677 - 2727.9101941747567))
+E        +  and   264.35578089992543 = abs((881.1859363330842 - 1145.5417172330096))
+
+tests/test_ui_edits.py:1096: AssertionError
+______ test_step17_column_filters_and_with_everything_and_ride_in_the_url ______
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+
+    def test_step17_column_filters_and_with_everything_and_ride_in_the_url(
+            page, server, job_id):
+        """[B] Seven dropdowns, ANDed with each other and with the filters that
+        already existed, visible as chips, and reproduced by the URL.
+    
+        The two defects this class of filter has had before are both checked: a
+        condition that outlives a move back to the bare job id, and one that applies
+        on a tab where nothing on screen says why the grid is short.
+        """
+        page.goto(f"{server}/#{job_id}")
+        page.wait_for_selector("#body tr", timeout=120_000)
+        page.wait_for_timeout(2000)
+        page.evaluate("() => { closeModal(); endPick(); }")
+        blank = page.evaluate("() => BLANK")
+        total = page.evaluate("() => S.rows.length")
+    
+        cols = page.eval_on_selector_all("button.colf", "e => e.map(b => b.dataset.col)")
+>       assert cols == ["page_no", "pid_no", "type", "valve_type", "qty",
+                        "system", "vendor_supply"]
+E       AssertionError: assert ['page_no', '...', 'qty', ...] == ['page_no', '...'system', ...]
+E         
+E         At index 2 diff: 'rev_state' != 'type'
+E         Left contains one more item: 'vendor_supply'
+E         Use -v to get more diff
+
+tests/test_ui_edits.py:1148: AssertionError
+_______ test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation _______
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+
+    def test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation(page, server, job_id):
+        """빈 자리를 드래그하면 누락 행이 되고, 목록에 ＋ 로 서고, 범례의 세 색 칸 합은
+        상자 수와 같게 유지되며 "(그중) 사용자 추가" 가 1 이 된다 (33회차 등식 + 44회차)."""
+        errors0 = len(page.errors)          # 앞 단계의 오류는 이 시험의 것이 아니다
+        before = _legend_counts(page)
+        boxes0 = _box_count(page)
+        assert sum(before.get(k, 0) for k in ("SCT", "VENDOR_EXCLUDED", "INCLUDED")) == boxes0
+        page.click("#markup-toggle")
+        expect(page.locator("#stage")).to_have_class(re.compile(r"\bmarkup\b"))
+        sheet = page.locator("#sheet").bounding_box()
+        # 빈 자리를 찾는다 — 상자 위에서는 드래그가 시작되지 않으므로 대화상자가 뜰 때까지
+        # 몇 자리를 시도한다.  자리는 화면 분율이고 값은 시험용이다.
+        opened = False
+        for fx, fy in ((0.55, 0.62), (0.40, 0.70), (0.62, 0.35), (0.30, 0.45), (0.70, 0.75)):
+            x, y = sheet["x"] + sheet["width"] * fx, sheet["y"] + sheet["height"] * fy
+            page.mouse.move(x, y); page.mouse.down(); page.mouse.move(x + 18, y + 26, steps=4); page.mouse.up()
+            try:
+                page.wait_for_selector("#mk-save", timeout=25000)
+                opened = True
+                break
+            except Exception:
+                continue
+        assert opened, "드래그로 마크업 대화상자가 열리지 않았다"
+        # 제안값 출처가 화면에 적혀 있다 — 도면에서 읽었든 못 읽었든 말한다
+        src_text = page.locator(".mk-form .src").all_text_contents()
+        assert any("도면에서" in t for t in src_text), src_text
+        page.fill("#mk-type", "UI-MARK")
+        page.fill("#mk-author", "UI 시험")
+        page.click("#mk-save")
+>       page.wait_for_selector("#body tr.added", timeout=90000)
+
+tests/test_ui_edits.py:1336: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py:9061: in wait_for_selector
+    self._sync(
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_page.py:429: in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f1f8fa56fd0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f1f8ea49120>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 90000ms exceeded.
+E           Call log:
+E             - waiting for locator("#body tr.added") to be visible
+
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:632: TimeoutError
+__ test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting ___
+
+page = <Page url='http://127.0.0.1:40935/#uidb289025bb8ec2'>
+server = 'http://127.0.0.1:40935', job_id = 'uidb289025bb8ec2'
+
+    def test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting(page, server, job_id):
+        """상자를 누르면 오검출 표시 — 행은 남고 (그중) 오검출 표시가 1 늘며 ✕ 표식이 붙는다."""
+        if not page.evaluate("() => document.getElementById('stage').classList.contains('markup')"):
+            page.click("#markup-toggle")
+        errors0 = len(page.errors)
+        before = _legend_counts(page)
+        rows_before = page.evaluate(_GRID_ROWS)
+        box = page.locator("#ov rect.det:not(.manual):not(.excluded)").first
+        key = box.get_attribute("data-key")
+        # 앞 단계가 새 행으로 확대해 두어 첫 상자가 화면 밖일 수 있다 — `force` 는
+        # 스크롤을 건너뛰므로 먼저 보이게 한 뒤 누른다 (캡처 검증에서 잡은 것).
+        box.scroll_into_view_if_needed()
+        box.click(force=True)
+>       page.wait_for_selector("#rj-save", timeout=8000)
+
+tests/test_ui_edits.py:1370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/dist-packages/playwright/sync_api/_generated.py:9061: in wait_for_selector
+    self._sync(
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_page.py:429: in wait_for_selector
+    return await self._main_frame.wait_for_selector(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py:395: in wait_for_selector
+    await self._channel.send(
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f1f8fa56fd0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f1f9cedb740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 8000ms exceeded.
+E           Call log:
+E             - waiting for locator("#rj-save") to be visible
+
+/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py:632: TimeoutError
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.11/dist-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.11/dist-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../../../usr/local/lib/python3.11/dist-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.11/dist-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_ui_edits.py::test_step3_survives_origin_filter - playwright...
+FAILED tests/test_ui_edits.py::test_step6_edits_reach_the_excel - urllib.erro...
+FAILED tests/test_ui_edits.py::test_step6_reports_unmappable_edits - urllib.e...
+FAILED tests/test_ui_edits.py::test_step6_scope_edit_is_counted_and_follows_the_setting
+FAILED tests/test_ui_edits.py::test_step6_edit_on_a_vendor_row_follows_the_form_scope_setting
+FAILED tests/test_ui_edits.py::test_step6_a_row_with_no_scope_is_written_not_dropped
+FAILED tests/test_ui_edits.py::test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only
+FAILED tests/test_ui_edits.py::test_step17_column_filters_and_with_everything_and_ride_in_the_url
+FAILED tests/test_ui_edits.py::test_step12_markup_drag_adds_a_row_and_keeps_the_legend_equation
+FAILED tests/test_ui_edits.py::test_step13_markup_click_on_a_box_flags_a_false_positive_without_deleting
+10 failed, 16 passed, 1052 deselected, 2 warnings in 582.00s (0:09:42)

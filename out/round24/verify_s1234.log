@@ -1,0 +1,7 @@
+Preparing worktree (detached HEAD aac64ba)
+HEAD is now at aac64ba 회사 PC 이관 — Windows 오프라인 설치 준비
+1 worktree aac64ba · PID_DATA_DIR /tmp/v24_data · 실 DB 643748dc0efe
+2 옛 코드 분석 — 상태 done · 824행 · 412.1초
+3 편집 5칸 (작성자 검증자)
+4 백업 ['app.db', 'app.db-shm', 'app.db-wal']
+→ /home/user/AI-P-ID-Extraction-tool/out/round24/verify/stage1234.json

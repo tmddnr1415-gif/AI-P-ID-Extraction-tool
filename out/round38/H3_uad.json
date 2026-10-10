@@ -1,0 +1,13 @@
+{
+ "projects": [
+  {
+   "name": "UAD",
+   "rows": 149,
+   "fingerprint": "eb1ee3ee19b976f7f70df8b495880bbf558159d61f87cd2193a43897258de942",
+   "qty_sum": 149,
+   "seconds": 406.0,
+   "max_rss_gb": 3.18,
+   "note": "H3 — 보정 뒤 두 번째 회귀 · 하네스 판정 '기준선과 같습니다' (H3_uad.log)"
+  }
+ ]
+}

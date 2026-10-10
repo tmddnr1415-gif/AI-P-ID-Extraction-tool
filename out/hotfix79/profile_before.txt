@@ -1,0 +1,204 @@
+
+== 목록 행 누르기 ×6 (다른 장) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+    1556.5ms  Paint
+     402.0ms  Layerize
+     386.3ms  Layout
+     328.7ms  PrePaint
+     261.0ms  FunctionCall
+     233.2ms  EventDispatch
+     100.3ms  Commit
+      90.1ms  UpdateLayoutTree
+      41.3ms  FireAnimationFrame
+      28.5ms  UpdateLayer
+      19.0ms  ParseHTML
+      16.1ms  TimerFire
+       0.9ms  PaintImage
+       0.2ms  HitTest
+
+== 목록 행 누르기 ×6 (다른 장) — 걸린 시간 3541ms · 표본 합 3646ms
+    2331.3ms  (program)
+     787.5ms  (idle)
+     246.2ms  scrollIntoView
+      46.6ms  centreOnSymbol app.js:4652
+      45.9ms  paintWindow app.js:3701
+      25.1ms  drawOverlay app.js:7273
+      23.0ms  fetch
+      15.3ms  createElementNS
+      14.0ms  buildOverlayLegend app.js:7182
+      13.0ms  (anon) app.js:7117
+      11.1ms  showEvidence app.js:5179
+       8.1ms  overlayItems app.js:7136
+       7.6ms  select app.js:4600
+       6.5ms  setAttribute
+       6.5ms  querySelectorAll
+       4.8ms  scopeEditor app.js:4810
+       4.5ms  querySelector
+       4.3ms  vendorNames app.js:4800
+       4.2ms  itemScope app.js:7107
+       4.1ms  drawQtyTag app.js:7538
+       3.0ms  (garbage collector)
+       2.8ms  appendChild
+       2.8ms  memoLayout app.js:6131
+       2.7ms  (anon)
+       1.8ms  sameSentence app.js:5604
+
+== 도면 상자 누르기 ×5 — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     646.7ms  Paint
+     212.5ms  Layerize
+     193.7ms  EventDispatch
+     142.7ms  PrePaint
+      90.0ms  Layout
+      33.6ms  UpdateLayoutTree
+      32.7ms  Commit
+      13.6ms  UpdateLayer
+       8.2ms  ParseHTML
+       5.9ms  TimerFire
+       3.0ms  FunctionCall
+       2.1ms  FireAnimationFrame
+       0.1ms  HitTest
+
+== 도면 상자 누르기 ×5 — 걸린 시간 1688ms · 표본 합 1778ms
+    1342.6ms  (program)
+     121.3ms  (garbage collector)
+      74.9ms  getBoundingClientRect
+      68.0ms  scrollIntoView
+      54.9ms  (idle)
+      20.2ms  createElementNS
+      14.5ms  scopePop app.js:4966
+      12.8ms  drawOverlay app.js:7273
+       9.3ms  showEvidence app.js:5179
+       7.1ms  setAttribute
+       6.6ms  querySelectorAll
+       6.2ms  vendorNames app.js:4800
+       3.8ms  buildOverlayLegend app.js:7182
+       3.7ms  drawQtyTag app.js:7538
+       3.5ms  appendChild
+       3.2ms  fetch
+       3.1ms  itemScope app.js:7107
+       2.3ms  select app.js:4600
+       2.1ms  (anon)
+       1.9ms  (anon) app.js:7117
+       1.5ms  renderCands app.js:5946
+       1.4ms  querySelector
+       1.4ms  remove
+       1.0ms  (anon) app.js:5957
+       0.8ms  paintWindow app.js:3701
+
+== 목록 끝까지 굴리기 — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     607.1ms  Paint
+     467.8ms  Layout
+     229.4ms  FireAnimationFrame
+     194.9ms  UpdateLayoutTree
+     176.3ms  PrePaint
+     175.4ms  Layerize
+     154.5ms  FunctionCall
+      52.6ms  ParseHTML
+      18.5ms  Commit
+       7.1ms  UpdateLayer
+       4.4ms  EventDispatch
+       0.1ms  HitTest
+
+== 목록 끝까지 굴리기 — 걸린 시간 1851ms · 표본 합 1882ms
+    1573.8ms  (program)
+     146.1ms  paintWindow app.js:3701
+      85.7ms  (idle)
+      44.7ms  (anon)
+      10.9ms  (garbage collector)
+       5.6ms  rowHtml app.js:3778
+       5.0ms  escape app.js:6121
+       2.3ms  escAttr app.js:10144
+       2.1ms  (anon) app.js:4883
+       1.6ms  markMultiRows app.js:4882
+       0.9ms  editedTitle app.js:4250
+       0.9ms  querySelector
+       0.9ms  contains
+       0.6ms  requestAnimationFrame
+       0.3ms  toggle
+       0.3ms  parseEvaluationResultValue
+       0.3ms  rowUserState app.js:9336
+       0.3ms  _promiseAwareJsonValueNoThrow
+
+== 화살표 ↓ 20번 (칸 이동) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     751.1ms  Paint
+     421.7ms  Layout
+     308.0ms  FunctionCall
+     301.2ms  EventDispatch
+     154.8ms  PrePaint
+     134.9ms  Layerize
+     115.1ms  Commit
+      78.4ms  UpdateLayoutTree
+      23.4ms  HitTest
+      18.7ms  ParseHTML
+      16.3ms  FireAnimationFrame
+      14.3ms  UpdateLayer
+       3.0ms  PaintImage
+
+== 화살표 ↓ 20번 (칸 이동) — 걸린 시간 2137ms · 표본 합 2229ms
+    1745.2ms  (program)
+      72.9ms  (idle)
+      72.3ms  centreOnSymbol app.js:4652
+      42.9ms  scrollIntoView
+      30.6ms  querySelectorAll
+      25.7ms  paintWindow app.js:3701
+      24.2ms  showEvidence app.js:5179
+      23.3ms  (garbage collector)
+      22.0ms  fetch
+      21.5ms  vendorNames app.js:4800
+      20.7ms  querySelector
+      16.7ms  (anon) app.js:7117
+      16.3ms  itemScope app.js:7107
+      11.8ms  buildOverlayLegend app.js:7182
+      11.1ms  createElementNS
+       8.8ms  window.fetch app.js:8464
+       8.5ms  setAttribute
+       8.2ms  drawOverlay app.js:7273
+       5.7ms  select app.js:4600
+       5.4ms  scopeEditor app.js:4810
+       5.2ms  (anon) app.js:7704
+       3.6ms  drawQtyTag app.js:7538
+       3.1ms  (anon) app.js:5606
+       2.2ms  (anon) app.js:4626
+       2.0ms  requestAnimationFrame
+
+== 칸 하나 고치기 (Enter) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     833.1ms  Paint
+     191.1ms  Layerize
+     181.1ms  PrePaint
+     131.5ms  EventDispatch
+     120.7ms  Layout
+      90.4ms  FunctionCall
+      60.2ms  Commit
+      57.0ms  HitTest
+      30.7ms  FireAnimationFrame
+      28.6ms  UpdateLayoutTree
+      12.5ms  UpdateLayer
+       8.6ms  ParseHTML
+       0.2ms  PaintImage
+       0.1ms  TimerFire
+
+== 칸 하나 고치기 (Enter) — 걸린 시간 675ms · 표본 합 719ms
+     513.6ms  (program)
+      91.6ms  (idle)
+      29.1ms  querySelectorAll
+      21.7ms  buildOverlayLegend app.js:7182
+       9.1ms  focus
+       7.9ms  drawOverlay app.js:7273
+       7.7ms  blur
+       6.6ms  centreOnSymbol app.js:4652
+       2.6ms  setAttribute
+       2.3ms  showEvidence app.js:5179
+       2.2ms  fetch
+       1.9ms  (anon) app.js:7117
+       1.6ms  scrollIntoView
+       1.4ms  createElementNS
+       1.3ms  renderCands app.js:5946
+       1.3ms  scopeEditor app.js:4810
+       1.2ms  (anon) app.js:5606
+       1.2ms  appendChild
+       1.2ms  vendorNames app.js:4800
+       1.2ms  drawQtyTag app.js:7538
+       1.0ms  querySelector
+       0.9ms  overlayItems app.js:7136
+       0.8ms  (anon) app.js:4623
+       0.7ms  (garbage collector)
+       0.7ms  (anon) app.js:4626

@@ -1,0 +1,172 @@
+.............................sss........................................ [  6%]
+........................................................................ [ 13%]
+........................................................................ [ 20%]
+........................................................................ [ 27%]
+........................................................................ [ 34%]
+........................................................................ [ 41%]
+........................................................................ [ 48%]
+........................................................................ [ 55%]
+........................................................................ [ 62%]
+........................................................................ [ 69%]
+........................................................................ [ 76%]
+....FFFFF............................................................... [ 83%]
+.............................................s.......................... [ 90%]
+........................................................................ [ 97%]
+ss........................                                               [100%]
+=================================== FAILURES ===================================
+_________________ test_system_is_the_value_the_page_rows_carry _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3670d7750>
+
+    def test_system_is_the_value_the_page_rows_carry(monkeypatch):
+        rows = [_row(12, "P&ID FOR FUEL OIL"), _row(12, "P&ID FOR FUEL OIL"), _row(13, "OTHER")]
+        _fake(monkeypatch, rows)
+>       out = markup._system_from_page(_Con(), "j", 12)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_markup_system_tag.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/markup.py:119: in _system_from_page
+    rows = [r for r in db.merged_rows_on_page(con, job_id, page_no)   # hotfix75 — 그 장만 읽는다
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = <tests.test_markup_system_tag._Con object at 0x7fc3670d79d0>, job_id = 'j'
+page_no = 12
+
+    def merged_rows_on_page(con, job_id: str, page_no: int) -> list:
+        """`merged_rows` 중 그 장의 행만 — 같은 행 · 같은 순서 (hotfix75 · 행 추가가 그 장만 본다)."""
+        return [_merged(r) for r in con.execute(
+>           "SELECT * FROM item WHERE job_id=? AND page_no=? ORDER BY page_no, key", (job_id, page_no)).fetchall()]
+                                                                                                        ^^^^^^^^
+E       AttributeError: '_Cur' object has no attribute 'fetchall'
+
+app/db.py:687: AttributeError
+_______________ test_system_falls_back_to_page_title_then_blank ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3d4a9be10>
+
+    def test_system_falls_back_to_page_title_then_blank(monkeypatch):
+        _fake(monkeypatch, [])
+>       assert markup._system_from_page(_Con("TITLE X"), "j", 3)["system"] == "TITLE X"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_markup_system_tag.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/markup.py:119: in _system_from_page
+    rows = [r for r in db.merged_rows_on_page(con, job_id, page_no)   # hotfix75 — 그 장만 읽는다
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = <tests.test_markup_system_tag._Con object at 0x7fc3d4a9ae10>, job_id = 'j'
+page_no = 3
+
+    def merged_rows_on_page(con, job_id: str, page_no: int) -> list:
+        """`merged_rows` 중 그 장의 행만 — 같은 행 · 같은 순서 (hotfix75 · 행 추가가 그 장만 본다)."""
+        return [_merged(r) for r in con.execute(
+>           "SELECT * FROM item WHERE job_id=? AND page_no=? ORDER BY page_no, key", (job_id, page_no)).fetchall()]
+                                                                                                        ^^^^^^^^
+E       AttributeError: '_Cur' object has no attribute 'fetchall'
+
+app/db.py:687: AttributeError
+______________ test_system_is_not_chosen_when_the_page_disagrees _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3d4a63b90>
+
+    def test_system_is_not_chosen_when_the_page_disagrees(monkeypatch):
+        rows = [_row(5, "A"), _row(5, "B")]
+        _fake(monkeypatch, rows)
+>       assert markup._system_from_page(_Con("T"), "j", 5)["system"] == ""
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_markup_system_tag.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/markup.py:119: in _system_from_page
+    rows = [r for r in db.merged_rows_on_page(con, job_id, page_no)   # hotfix75 — 그 장만 읽는다
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = <tests.test_markup_system_tag._Con object at 0x7fc3d4a63c10>, job_id = 'j'
+page_no = 5
+
+    def merged_rows_on_page(con, job_id: str, page_no: int) -> list:
+        """`merged_rows` 중 그 장의 행만 — 같은 행 · 같은 순서 (hotfix75 · 행 추가가 그 장만 본다)."""
+        return [_merged(r) for r in con.execute(
+>           "SELECT * FROM item WHERE job_id=? AND page_no=? ORDER BY page_no, key", (job_id, page_no)).fetchall()]
+                                                                                                        ^^^^^^^^
+E       AttributeError: '_Cur' object has no attribute 'fetchall'
+
+app/db.py:687: AttributeError
+__________________ test_tag_uses_the_documents_own_tag_shape ___________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3d4a5be10>
+
+    def test_tag_uses_the_documents_own_tag_shape(monkeypatch):
+        rows = [_row(1, tag="00EGD31CP501"), _row(1, tag="00GHB01CL001")]
+        _fake(monkeypatch, rows)
+        words = [{"text": "PDIA+"}, {"text": "00EGD21CP001"}, {"text": "DN25"}]
+>       out = markup._tag_from_words(None, "j", words)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_markup_system_tag.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/markup.py:152: in _tag_from_words
+    for raw in db.engine_tag_numbers(con, job_id):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = None, job_id = 'j'
+
+    def engine_tag_numbers(con, job_id: str) -> list:
+        """엔진이 붙인 태그(`ai.tag_no`) 만 — 마크업 제안이 이 문서의 태그 체계를 볼 때 (hotfix75 · 분석 전체를 파싱하지 않는다).
+        `merged_rows(...)[i]["ai"]["tag_no"]` 와 같은 값 · 같은 순서."""
+>       return [raw for (raw,) in con.execute(
+                                  ^^^^^^^^^^^
+            "SELECT json_extract(ai_json, '$.tag_no') FROM item WHERE job_id=? ORDER BY page_no, key", (job_id,))]
+E       AttributeError: 'NoneType' object has no attribute 'execute'
+
+app/db.py:693: AttributeError
+________ test_tag_is_blank_without_a_tag_system_or_with_two_candidates _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3cfeea650>
+
+    def test_tag_is_blank_without_a_tag_system_or_with_two_candidates(monkeypatch):
+        _fake(monkeypatch, [_row(1)])
+>       assert markup._tag_from_words(None, "j", [{"text": "00EGD21CP001"}])["tag_no"] == ""
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_markup_system_tag.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/markup.py:152: in _tag_from_words
+    for raw in db.engine_tag_numbers(con, job_id):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+con = None, job_id = 'j'
+
+    def engine_tag_numbers(con, job_id: str) -> list:
+        """엔진이 붙인 태그(`ai.tag_no`) 만 — 마크업 제안이 이 문서의 태그 체계를 볼 때 (hotfix75 · 분석 전체를 파싱하지 않는다).
+        `merged_rows(...)[i]["ai"]["tag_no"]` 와 같은 값 · 같은 순서."""
+>       return [raw for (raw,) in con.execute(
+                                  ^^^^^^^^^^^
+            "SELECT json_extract(ai_json, '$.tag_no') FROM item WHERE job_id=? ORDER BY page_no, key", (job_id,))]
+E       AttributeError: 'NoneType' object has no attribute 'execute'
+
+app/db.py:693: AttributeError
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.11/dist-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.11/dist-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../../../usr/local/lib/python3.11/dist-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.11/dist-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_markup_system_tag.py::test_system_is_the_value_the_page_rows_carry
+FAILED tests/test_markup_system_tag.py::test_system_falls_back_to_page_title_then_blank
+FAILED tests/test_markup_system_tag.py::test_system_is_not_chosen_when_the_page_disagrees
+FAILED tests/test_markup_system_tag.py::test_tag_uses_the_documents_own_tag_shape
+FAILED tests/test_markup_system_tag.py::test_tag_is_blank_without_a_tag_system_or_with_two_candidates
+5 failed, 1023 passed, 6 skipped, 44 deselected, 2 warnings in 69.23s (0:01:09)

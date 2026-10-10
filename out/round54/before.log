@@ -1,0 +1,72 @@
+  page   6    0.42s   instruments 0.15s valves.actuators 0.12s valves.bodies 0.10s valves.tags 0.05s annotations 0.00s
+  page   7    0.49s   instruments 0.19s valves.actuators 0.13s valves.bodies 0.12s valves.tags 0.05s annotations 0.00s
+  page   8    0.41s   instruments 0.17s valves.actuators 0.11s valves.bodies 0.08s valves.tags 0.04s annotations 0.00s
+  page   9    0.42s   instruments 0.16s valves.actuators 0.12s valves.bodies 0.09s valves.tags 0.04s annotations 0.00s
+  page  10    0.78s   valves.actuators 0.41s instruments 0.20s valves.bodies 0.13s valves.tags 0.05s annotations 0.00s
+  page  11    0.81s   valves.actuators 0.34s instruments 0.30s valves.bodies 0.11s valves.tags 0.05s annotations 0.00s
+  page  12    0.38s   instruments 0.16s valves.actuators 0.11s valves.bodies 0.08s valves.tags 0.04s annotations 0.00s
+  page  13    0.43s   instruments 0.28s valves.actuators 0.09s valves.bodies 0.04s valves.tags 0.03s annotations 0.00s
+  page  14    2.13s   valves.actuators 1.81s instruments 0.17s valves.bodies 0.12s valves.tags 0.04s annotations 0.00s
+  page  15    0.38s   instruments 0.25s valves.actuators 0.07s valves.bodies 0.03s valves.tags 0.02s annotations 0.00s
+  page  16    1.25s   valves.actuators 0.50s instruments 0.44s valves.bodies 0.24s valves.tags 0.06s annotations 0.00s
+  page  17    0.64s   instruments 0.28s valves.actuators 0.18s valves.bodies 0.13s valves.tags 0.06s annotations 0.00s
+  page  18    0.39s   instruments 0.28s valves.actuators 0.06s valves.bodies 0.03s valves.tags 0.03s annotations 0.00s
+  page  19    0.41s   instruments 0.31s valves.actuators 0.05s valves.bodies 0.02s valves.tags 0.02s annotations 0.00s
+  page  20    0.83s   valves.actuators 0.42s instruments 0.21s valves.bodies 0.15s valves.tags 0.05s annotations 0.00s
+  page  21    1.30s   valves.actuators 0.69s instruments 0.37s valves.bodies 0.19s valves.tags 0.06s annotations 0.00s
+  page  22    0.50s   instruments 0.29s valves.actuators 0.10s valves.bodies 0.07s valves.tags 0.04s annotations 0.00s
+  page  23    0.44s   instruments 0.23s valves.actuators 0.10s valves.bodies 0.07s valves.tags 0.04s annotations 0.00s
+  page  24    0.61s   instruments 0.34s valves.actuators 0.13s valves.bodies 0.09s valves.tags 0.04s annotations 0.00s
+  page  25    0.65s   instruments 0.30s valves.bodies 0.16s valves.actuators 0.14s valves.tags 0.05s annotations 0.00s
+  page  26    0.95s   valves.actuators 0.52s instruments 0.35s valves.bodies 0.05s valves.tags 0.03s annotations 0.00s
+  page  27    0.98s   valves.actuators 0.48s instruments 0.42s valves.bodies 0.04s valves.tags 0.03s annotations 0.00s
+  page  28    0.57s   instruments 0.29s valves.actuators 0.23s valves.bodies 0.03s valves.tags 0.03s annotations 0.00s
+  page  29    0.19s   instruments 0.09s valves.actuators 0.06s valves.bodies 0.02s valves.tags 0.02s annotations 0.00s
+  page  30    1.05s   valves.actuators 0.59s instruments 0.22s valves.bodies 0.17s valves.tags 0.07s annotations 0.00s
+  page  31    0.47s   instruments 0.32s valves.actuators 0.08s valves.bodies 0.05s valves.tags 0.03s annotations 0.00s
+  page  32    0.88s   valves.actuators 0.38s instruments 0.37s valves.bodies 0.10s valves.tags 0.04s annotations 0.00s
+  page  33    1.45s   valves.actuators 0.85s instruments 0.40s valves.bodies 0.16s valves.tags 0.04s annotations 0.00s
+  page  34    0.39s   instruments 0.28s valves.actuators 0.06s valves.tags 0.03s valves.bodies 0.02s annotations 0.00s
+  page  35    0.57s   instruments 0.36s valves.actuators 0.13s valves.bodies 0.06s valves.tags 0.03s annotations 0.00s
+  page  36    0.41s   instruments 0.30s valves.actuators 0.05s valves.bodies 0.03s valves.tags 0.02s annotations 0.00s
+  page  37    0.48s   instruments 0.33s valves.bodies 0.06s valves.actuators 0.06s valves.tags 0.03s annotations 0.00s
+  page  38    0.47s   instruments 0.33s valves.actuators 0.06s valves.bodies 0.05s valves.tags 0.03s annotations 0.00s
+  page  39    0.40s   instruments 0.25s valves.actuators 0.07s valves.bodies 0.05s valves.tags 0.03s annotations 0.00s
+  page  40    0.45s   instruments 0.27s valves.bodies 0.08s valves.actuators 0.07s valves.tags 0.03s annotations 0.00s
+  page  41    0.52s   instruments 0.33s valves.bodies 0.08s valves.actuators 0.08s valves.tags 0.03s annotations 0.00s
+  page  42    0.71s   instruments 0.35s valves.actuators 0.26s valves.bodies 0.06s valves.tags 0.03s annotations 0.00s
+  page  43    0.52s   instruments 0.29s valves.actuators 0.11s valves.bodies 0.08s valves.tags 0.03s annotations 0.00s
+  page  44    0.35s   instruments 0.13s valves.actuators 0.11s valves.bodies 0.08s valves.tags 0.04s annotations 0.00s
+  page  45    0.27s   instruments 0.10s valves.actuators 0.09s valves.bodies 0.06s valves.tags 0.03s annotations 0.00s
+  page  46    0.73s   instruments 0.35s valves.actuators 0.29s valves.bodies 0.06s valves.tags 0.03s annotations 0.00s
+  page  47    1.00s   valves.actuators 0.46s instruments 0.35s valves.bodies 0.15s valves.tags 0.03s annotations 0.00s
+  page  49    0.66s   valves.actuators 0.28s instruments 0.26s valves.bodies 0.08s valves.tags 0.03s annotations 0.00s
+  page  50    0.36s   instruments 0.14s valves.bodies 0.11s valves.actuators 0.08s valves.tags 0.03s annotations 0.00s
+  page  51    0.56s   instruments 0.31s valves.actuators 0.17s valves.bodies 0.04s valves.tags 0.03s annotations 0.00s
+  page  52    1.06s   valves.actuators 0.57s instruments 0.35s valves.bodies 0.11s valves.tags 0.04s annotations 0.00s
+  page  53    0.96s   valves.actuators 0.47s instruments 0.35s valves.bodies 0.10s valves.tags 0.04s annotations 0.00s
+  page  54    0.82s   valves.actuators 0.37s instruments 0.34s valves.bodies 0.07s valves.tags 0.03s annotations 0.00s
+  page  55    0.43s   instruments 0.27s valves.actuators 0.11s valves.bodies 0.03s valves.tags 0.02s annotations 0.00s
+  page  56    0.72s   instruments 0.35s valves.actuators 0.28s valves.bodies 0.06s valves.tags 0.03s annotations 0.00s
+  page  57    0.29s   instruments 0.12s valves.actuators 0.08s valves.bodies 0.05s valves.tags 0.03s annotations 0.00s
+  page  58    0.23s   instruments 0.09s valves.actuators 0.07s valves.bodies 0.03s valves.tags 0.03s annotations 0.00s
+analysis took 564.9s, by stage:
+  layout                   276.80s   49.0%
+  instruments              174.76s   30.9%
+  valves.actuators          37.42s    6.6%
+  pipe_graph                22.95s    4.1%
+  titleblocks               13.05s    2.3%
+  titleblock_glyphs         11.50s    2.0%
+  legend_rules              10.39s    1.8%
+  valves.bodies              5.15s    0.9%
+  candidates                 4.78s    0.8%
+  describe_axis              3.87s    0.7%
+  valves.tags                2.20s    0.4%
+  open_pdf                   1.80s    0.3%
+  equipment                  0.21s    0.0%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 10.1s, p34 8.3s, p4 7.4s, p2 6.3s, p14 2.2s
+pid_total.pdf  행 1149  지문 1f40cc928b8fd87cd0195b0ed83c1e383c1f5d72a315bfedc80adc2cd8ea6ac7  597.8초  최대 RSS 4.95GB

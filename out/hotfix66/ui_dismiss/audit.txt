@@ -1,0 +1,8 @@
+① 상자 누름 → 판 True · 'TIT 00EKG01CT001 · 지금 SCT' · 단추 ['SCT 공급', 'VENDOR', '둘 다 아님 — 식별 지우기']
+② 둘 다 아님 → 서버 removed True · 사유 NOT_SUPPLY · 작성자 홍길동 · 양식에 나가는 행 1991 → 1990
+   목록 행 class 'deleted userdel sel' · 도면 상자 class 'det rejected sel'
+③ 다시 누름 → 단추 ['되돌리기', '닫기'] → 되돌리기 → 서버 removed False
+④ VENDOR 고름 → 서버 user.scope 'VENDOR(CO2 ABSORBER SUPPLIER)' · 작성자 홍길동 · 판 닫힘 True
+⑤ Esc → 판 닫힘 True · 근거 패널 '둘 다 아님' 단추 True
+⑥ 묶음 2개 → 서버 removed True / True
+페이지 오류 0 []

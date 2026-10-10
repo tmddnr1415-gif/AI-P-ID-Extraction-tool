@@ -1,0 +1,145 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+INFO:     Started server process [1062]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:38007 (Press CTRL+C to quit)
+INFO:     127.0.0.1:40856 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40860 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40874 - "GET /jobs/8169589ef070 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:40878 - "GET /jobs/8169589ef070 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40880 - "GET /jobs/8169589ef070/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40896 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40912 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:40928 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40938 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40946 - "GET /jobs/6ecbbbf9e50b HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 1장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 1장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 1장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:40954 - "GET /jobs/6ecbbbf9e50b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40964 - "GET /jobs/6ecbbbf9e50b/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40972 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40980 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:40994 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41000 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:41004 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41010 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:41014 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41022 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41030 - "GET /jobs/ef5bca08c072 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.NoTextLayer: 이 PDF 의 3장 어디에도 글자층이 없습니다 — 스캔 이미지로 보입니다. 이 도구는 CAD 에서 내보낸 벡터 PDF(글자가 텍스트로 들어 있는 것)만 읽습니다. 원본 CAD 에서 PDF 로 다시 내보내 올려 주세요.
+INFO:     127.0.0.1:41042 - "GET /jobs/ef5bca08c072 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41052 - "GET /jobs/ef5bca08c072/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41068 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41082 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:41088 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41092 - "POST /jobs HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:41104 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41108 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41110 - "GET /jobs/cc1ab8e8cb24 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:41122 - "GET /jobs/cc1ab8e8cb24 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41126 - "GET /jobs/cc1ab8e8cb24/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41132 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41140 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41148 - "GET /jobs/73eb0264f58c HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:41164 - "GET /jobs/73eb0264f58c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41170 - "GET /jobs/73eb0264f58c/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41174 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41188 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41198 - "GET /jobs/c86357c27b93 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:41214 - "GET /jobs/c86357c27b93 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41222 - "GET /jobs/c86357c27b93/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41238 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41250 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41256 - "GET /jobs/19e9e5ff65fd HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:53646 - "GET /jobs/19e9e5ff65fd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53648 - "GET /jobs/19e9e5ff65fd/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53658 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53670 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53672 - "GET /jobs/e89905a0589a HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:53684 - "GET /jobs/e89905a0589a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53690 - "GET /jobs/e89905a0589a/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53696 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53710 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53718 - "GET /jobs/4bd57ac74bc7 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:53730 - "GET /jobs/4bd57ac74bc7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53742 - "GET /jobs/4bd57ac74bc7/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53754 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53758 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53772 - "GET /jobs/2f3bca08fb0d HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 387, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 146, in run
+    raise exc
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+INFO:     127.0.0.1:53776 - "GET /jobs/2f3bca08fb0d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53788 - "GET /jobs/2f3bca08fb0d/error_detail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53792 - "GET /version HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1062]
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 3 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

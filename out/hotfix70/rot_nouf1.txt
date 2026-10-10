@@ -1,0 +1,1 @@
+pid_total.pdf p1-58 rotations {0: 56, 270: 2} · points 16124250 · rects 597634 · mismatch 0 · old 166.1s new 57.9s · fast=True

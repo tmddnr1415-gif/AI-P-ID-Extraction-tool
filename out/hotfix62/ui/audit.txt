@@ -1,0 +1,17 @@
+[wide] 카드 2 · 가로 스크롤 False · 목록 가로 넘침 False
+   pjt pj-card epc open=True :: Q QATAR FACILITY E IWPP 실행 QFE · 2개 리비전 · 최신 Rev.B · 마지막 분석 2026-10-04 03:12 Rev.1C 26.MAR.2026 2,937 계기 93 장 프로젝트 삭제
+      - Rev.B 최신 도면 Rev.1C 26.MAR.2026 개정본 QFE_260326.pdf 완료 계기 2,937 ▼27 93 장 2026-10-04 03:12 열기 → 삭제
+      - Rev.A 도면 Rev.1A 07.JAN.2026 QFE_260112.pdf 완료 계기 2,964 93 장 2026-10-04 02:48 열기 → 삭제
+   pjt pj-card bid open=True :: E EMPTY BID 입찰 아직 분석 없음 프로젝트 삭제
+[wide] 마우스 올림 → '열기 →' 불투명도 1
+[wide] 첫 카드 접힘 → open=False
+[wide] 리비전 누름 → 결과 열림 (행 1991)
+[wide] 페이지 오류 0 []
+[narrow] 카드 2 · 가로 스크롤 False · 목록 가로 넘침 False
+   pjt pj-card epc open=True :: Q QATAR FACILITY E IWPP 실행 QFE · 2개 리비전 · 최신 Rev.B · 마지막 분석 2026-10-04 03:12 Rev.1C 26.MAR.2026 2,937 계기 93 장 프로젝트 삭제
+      - Rev.B 최신 도면 Rev.1C 26.MAR.2026 개정본 QFE_260326.pdf 완료 계기 2,937 ▼27 93 장 2026-10-04 03:12 열기 → 삭제
+      - Rev.A 도면 Rev.1A 07.JAN.2026 QFE_260112.pdf 완료 계기 2,964 93 장 2026-10-04 02:48 열기 → 삭제
+   pjt pj-card bid open=True :: E EMPTY BID 입찰 아직 분석 없음 프로젝트 삭제
+[narrow] 마우스 올림 → '열기 →' 불투명도 1
+[narrow] 첫 카드 접힘 → open=False
+[narrow] 페이지 오류 0 []

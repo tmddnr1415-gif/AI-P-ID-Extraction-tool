@@ -1,0 +1,59 @@
+{
+ "project": "SADARA",
+ "pages": [
+  6,
+  7,
+  8,
+  9
+ ],
+ "shots": [
+  {
+   "page": 6,
+   "drawing": "1A46-10LBA10-M05-0001",
+   "grid_rows": 10,
+   "svg_nodes": 10,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 10"
+   ]
+  },
+  {
+   "page": 7,
+   "drawing": "1A46-10LBA10-M05-0002",
+   "grid_rows": 25,
+   "svg_nodes": 25,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 25"
+   ]
+  },
+  {
+   "page": 8,
+   "drawing": "1A46-10LBA10-M05-0003",
+   "grid_rows": 17,
+   "svg_nodes": 17,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 17"
+   ]
+  },
+  {
+   "page": 9,
+   "drawing": "1A46-10LBA20-M05-0001",
+   "grid_rows": 30,
+   "svg_nodes": 30,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 30"
+   ]
+  }
+ ]
+}

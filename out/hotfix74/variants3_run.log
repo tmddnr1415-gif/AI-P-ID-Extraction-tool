@@ -1,0 +1,3 @@
+원본 {'ok': True, 'rows': 80, 'fp': 'a87db267', 'tabs': {'FIELD': 61, 'MOV': 16, 'PNEUMATIC': 3}, 'pages': 6, 's': 51.7}
+v_mediabox_origin        OK           {"ok": true, "rows": 80, "fp": "a87db267", "tabs": {"FIELD": 61, "MOV": 16, "PNEUMATIC": 3}, "pages": 6, "s": 48.8, "file": "v02_reflowed_xobject.pdf", "expect": "same", "verdict": "OK"}
+v_extra_rotation         OK           {"ok": true, "rows": 34, "fp": "b934e6f0", "tabs": {"FIELD": 23, "MOV": 8, "PNEUMATIC": 3}, "pages": 6, "s": 47.4, "file": "v08_one_sheet_rotated.pdf", "expect": "run", "verdict": "OK"}

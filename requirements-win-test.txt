@@ -1,0 +1,9 @@
+# Windows test tools - only to check that a move/install worked.  Not needed to run the app.
+# UI tests also need the chromium browser folder (not a pip wheel) - see
+# docs/offline_setup_windows.md.  Delete the playwright line if you do not move it.
+# ASCII only on purpose (see requirements-win.txt).
+#
+#   .venv\Scripts\python -m pip install --no-index --find-links wheels -r requirements-win-test.txt
+#   .venv\Scripts\python -m pytest -q -m "not slow and not ui"
+pytest==9.1.1
+playwright==1.62.0

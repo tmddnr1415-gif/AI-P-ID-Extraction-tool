@@ -1,0 +1,16 @@
+· TC2 분석 …
+   행 912 · 지문 464cb90a · 축3 93.0점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+TC2    912   464cb90a     5636     474    7.5G   93.0
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+TC2 60/60        60/60        239/266      912/912      912/1111     25/29      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TC2 rows: 기준선 811 → 지금 912
+   TC2 fingerprint: 기준선 f3712abbd0b05171a2d4cb5775fd250300504a2abf519d48f5a9e3de6ab544a8 → 지금 464cb90a36612210d223b3eb80bec50a038e8da401021d7c121a433226738b2a
+   TC2 qty_sum: 기준선 4875 → 지금 5636
+   TC2 score: 기준선 92.4 → 지금 93.0

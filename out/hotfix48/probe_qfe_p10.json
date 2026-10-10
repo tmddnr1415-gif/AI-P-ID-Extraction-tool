@@ -1,0 +1,67 @@
+{
+ "layout": {
+  "act_reach": 27.24,
+  "act_reach_ratio": 3.8475,
+  "act_reach_source": "LEGEND: centre_to_body 13.62 / circle 7.08 x 2.0",
+  "act_box": [
+   4.48,
+   16.93
+  ]
+ },
+ "pages": {
+  "10": {
+   "bodies": 47,
+   "abs": [],
+   "ratio": [
+    [
+     "BALL",
+     "MOTOR",
+     [
+      561.2,
+      744.9,
+      578.2,
+      752.0
+     ]
+    ],
+    [
+     "BALL",
+     "MOTOR",
+     [
+      561.2,
+      1117.1,
+      578.2,
+      1124.3
+     ]
+    ]
+   ],
+   "diff": [
+    [
+     "BALL",
+     "MOTOR",
+     [
+      561.2,
+      744.9,
+      578.2,
+      752.0
+     ]
+    ],
+    [
+     "BALL",
+     "MOTOR",
+     [
+      561.2,
+      1117.1,
+      578.2,
+      1124.3
+     ]
+    ]
+   ]
+  }
+ },
+ "totals": {
+  "abs": 0,
+  "ratio": 2,
+  "diff": 2,
+  "seconds": 98.7
+ }
+}

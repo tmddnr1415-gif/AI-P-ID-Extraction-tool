@@ -1,0 +1,82 @@
+[
+ {
+  "kind": "PDF",
+  "page": 11,
+  "rows": 0,
+  "grid": 0,
+  "drawing_no": "1A5J-00EKD00-M05-0001",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "PDF",
+  "page": 12,
+  "rows": 0,
+  "grid": 0,
+  "drawing_no": "1A5J-00EKD00-M05-0002",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "PDF",
+  "page": 13,
+  "rows": 1,
+  "grid": 1,
+  "drawing_no": "1A5J-00EKD00-M05-0003",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "PDF",
+  "page": 14,
+  "rows": 0,
+  "grid": 0,
+  "drawing_no": "1A5J-00EKD00-M05-0004",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "PDF",
+  "page": 15,
+  "rows": 0,
+  "grid": 0,
+  "drawing_no": "1A5J-00EKD00-M05-0005",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "DXF",
+  "page": 11,
+  "rows": 27,
+  "grid": 27,
+  "drawing_no": "1A5J-00EKD00-M05-0001",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "DXF",
+  "page": 12,
+  "rows": 17,
+  "grid": 17,
+  "drawing_no": "1A5J-00EKD00-M05-0002",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "DXF",
+  "page": 13,
+  "rows": 26,
+  "grid": 26,
+  "drawing_no": "1A5J-00EKD00-M05-0003",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "DXF",
+  "page": 14,
+  "rows": 32,
+  "grid": 32,
+  "drawing_no": "1A5J-00EKD00-M05-0004",
+  "sheet_in_result": true
+ },
+ {
+  "kind": "DXF",
+  "page": 15,
+  "rows": 8,
+  "grid": 8,
+  "drawing_no": "1A5J-00EKD00-M05-0005",
+  "sheet_in_result": true
+ }
+]

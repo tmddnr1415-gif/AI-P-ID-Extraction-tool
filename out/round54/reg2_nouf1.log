@@ -1,0 +1,16 @@
+· AL NOUF1 분석 …
+   행 1148 · 지문 40c4cddb · 축3 94.6점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1148   40c4cddb     2152     647    4.9G   94.6
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        244/272      1148/1148    1148/1365    30/32      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   AL NOUF1 rows: 기준선 1149 → 지금 1148
+   AL NOUF1 fingerprint: 기준선 1f40cc928b8fd87cd0195b0ed83c1e383c1f5d72a315bfedc80adc2cd8ea6ac7 → 지금 40c4cddb2abd5769ebd2839f05efe00fa352066f9fbfe7b7385151dcfc6e5c69
+   AL NOUF1 qty_sum: 기준선 2172 → 지금 2152
+   AL NOUF1 score: 기준선 94.8 → 지금 94.6

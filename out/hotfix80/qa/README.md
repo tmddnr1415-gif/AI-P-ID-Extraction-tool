@@ -1,0 +1,55 @@
+# QA 시뮬레이션
+
+- ## A. API 전수
+- jobs 2 · done 2 · B 48b5adbdd28c · A 2098450b4603
+- GET 47개 · 5xx 0
+-   PATCH qty → 200
+-   PATCH qty 되돌림 → 200
+-   PATCH scope → 200
+-   PATCH scope 되돌림 → 200
+-   PATCH 없는 칸 → 400
+-   PATCH 없는 행 → 404
+-   PATCH review state → 200
+-   POST rows (마크업) → 200
+-   GET history(추가행) → 200
+-   DELETE rows(추가행) → 200
+-   POST restore → 200
+-   DELETE 검출행(오검출 표시) → 200
+-   POST restore 검출행 → 200
+-   POST copy → 200
+-   POST propose → 200
+-   POST axis_text → 200
+-   POST reports → 200
+-   PATCH report → 200
+-   DELETE report → 200
+-   POST multipliers → 200
+-   DELETE multipliers → 200
+-   POST sheet_numbers → 200
+-   DELETE sheet_numbers → 200
+-   POST titleblock/preview → 400
+-   POST titleblock → 200
+-   DELETE titleblock → 200
+-   POST snapshot → 200
+-   POST save → 200
+-   GET revisions/{id}/excel → 400
+-   POST deleted confirm → 200
+-   POST deleted unconfirm → 200
+-   PATCH project mode → 200
+-   PATCH project mode auto → 200
+-   POST symbols/global → 400
+-   POST symbols/global/enabled → 200
+-   DELETE symbols/global → 404
+-   POST diagnostic → 200
+-   POST projects 중복 → 409
+-   POST projects 새 → 200
+-   DELETE projects 확인없이 → 400
+-   DELETE projects → 200
+-   POST jobs 빈 파일 → 400
+- A 끝 — 서버 Traceback 0 · 500 0
+- ## B. 화면 전수 클릭
+- -- round 1
+-   버튼 #excel 비활성
+- B 끝 — 페이지/콘솔 오류 누적 0 · 서버 Traceback 0 · 500 0
+
+## 결함 0
+

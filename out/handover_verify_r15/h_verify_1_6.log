@@ -1,0 +1,59 @@
+=== 1~3 옛 코드(aac64ba)로 분석 + 손편집 3칸 ===
+옛 코드 분석: status=done · 행 824 · 지문 91ba3e33
+편집 칸 3
+SCOPE 값이 있는 행 2
+JOB 32edab15a872
+
+=== 4 백업 ===
+32M	/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/r15/site.backup
+
+=== 5 zip 을 옛 트리에 덮어쓴다 ===
+zip 엔트리 30 · app/_data 엔트리 0
+푼 파일이 HEAD 와 바이트 동일: 29 · 다름: 0
+
+=== 6 수동 삭제 ===
+삭제·이름변경 0개
+
+=== 7~10 서버 기동 · 첫 화면 · 옛 프로젝트 열기 ===
+  "귀속",
+  "Type▾",
+  "Valve Type▾",
+  "Q'ty▾",
+  "System▾",
+  "Vendor▾",
+  "Scope",
+  "Tag No.",
+  "Description",
+  "등급",
+  "Remark",
+  ""
+ ],
+ "10_SCOPE_칸_앞5행": [
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\""
+ ],
+ "JS_오류": [],
+ "E1_snapshot": {
+  "revision_id": 1,
+  "id": null,
+  "rows": 824
+ },
+ "E1_MANIFEST": {
+  "total_rows": null,
+  "written_rows": null,
+  "out_of_scope_rows": 0,
+  "legacy_no_scope_rows": 822,
+  "scope_filter": "SCT"
+ },
+ "E1_zip안": [
+  "field_pid_total.xlsx",
+  "bfv_pid_total.xlsx",
+  "mov_pid_total.xlsx",
+  "MANIFEST.json"
+ ]
+}
+
+=== 11 재분석 (새 코드) ===

@@ -1,0 +1,66 @@
+{"stage": "start", "VmHWM": 0.06, "VmRSS": 0.06}
+  page   1    1.52s   annotations 1.43s instruments 0.08s
+  page   6    0.46s   annotations 0.29s instruments 0.17s
+  page   7    1.81s   annotations 1.57s instruments 0.24s
+  page   8    1.83s   annotations 1.61s instruments 0.22s
+  page   9    2.08s   annotations 1.80s instruments 0.28s
+analysis took 72.4s, by stage:
+  layout                    37.18s   51.4%
+  valves.actuators          12.33s   17.0%
+  instruments               10.23s   14.1%
+  annotations                6.71s    9.3%
+  titleblock_glyphs          2.11s    2.9%
+  titleblocks                1.04s    1.4%
+  valves.bodies              0.66s    0.9%
+  pipe_graph                 0.52s    0.7%
+  open_pdf                   0.47s    0.6%
+  describe_axis              0.31s    0.4%
+  legend_rules               0.30s    0.4%
+  valves.tags                0.25s    0.3%
+  candidates                 0.22s    0.3%
+  equipment                  0.04s    0.1%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 6.3s, p7 5.1s, p8 4.3s, p1 1.6s, p2 1.4s
+{"stage": "SADARA 직후", "rows": 82, "fingerprint": "0767ba79", "seconds": 72.7, "VmHWM": 0.94, "VmRSS": 0.22}
+{"stage": "SADARA 결과 놓고 gc", "VmHWM": 0.94, "VmRSS": 0.15}
+  page   6    4.45s   instruments 4.45s annotations 0.00s
+  page   7   12.16s   instruments 12.16s annotations 0.00s
+  page   8    4.47s   instruments 4.47s annotations 0.00s
+  page   9    4.48s   instruments 4.48s annotations 0.00s
+  page  10    1.13s   instruments 1.13s annotations 0.00s
+  page  19    7.36s   instruments 7.36s annotations 0.00s
+  page  20    5.95s   instruments 5.95s annotations 0.00s
+  page  21    6.03s   instruments 6.03s annotations 0.00s
+  page  23    6.19s   instruments 6.19s annotations 0.00s
+  page  24    1.39s   instruments 1.39s annotations 0.00s
+  page  25    2.77s   instruments 2.77s annotations 0.00s
+  page  26    5.82s   instruments 5.82s annotations 0.00s
+  page  27    4.17s   instruments 4.17s annotations 0.00s
+  page  28    1.45s   instruments 1.45s annotations 0.00s
+  page  29    5.82s   instruments 5.82s annotations 0.00s
+  page  30    8.90s   instruments 8.90s annotations 0.00s
+  page  31    5.01s   instruments 5.00s annotations 0.00s
+analysis took 409.0s, by stage:
+  instruments              203.22s   49.7%
+  layout                   141.66s   34.6%
+  valves.actuators          23.63s    5.8%
+  open_pdf                  13.55s    3.3%
+  titleblocks                9.43s    2.3%
+  titleblock_glyphs          5.38s    1.3%
+  valves.bodies              3.36s    0.8%
+  pipe_graph                 2.69s    0.7%
+  candidates                 1.73s    0.4%
+  valves.tags                1.48s    0.4%
+  describe_axis              1.30s    0.3%
+  legend_rules               1.14s    0.3%
+  equipment                  0.40s    0.1%
+  description                0.01s    0.0%
+  annotations                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p30 16.7s, p7 14.8s, p19 8.3s, p29 7.7s, p23 6.9s
+{"stage": "UAD 직후", "rows": 149, "fingerprint": "db1a77d1", "seconds": 410.4, "VmHWM": 3.18, "VmRSS": 0.31}
+{"stage": "UAD 결과 놓고 gc", "VmHWM": 3.18, "VmRSS": 0.22}
+→ /home/user/AI-P-ID-Extraction-tool/out/round33/mem_SADARA-UAD.json

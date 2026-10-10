@@ -1,0 +1,18 @@
+· AL NOUF1 분석 …
+   행 1069 · 지문 117b2d61 · 축3 94.6점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1069   117b2d61     2022     604    4.9G   94.6
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        247/272      1069/1069    1069/1287    30/32      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   AL NOUF1 rows: 기준선 1037 → 지금 1069
+   AL NOUF1 fingerprint: 기준선 fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592 → 지금 117b2d61c93a338424474042406a2bf868e352115884f9349d0a7d7b918c40cc
+   AL NOUF1 qty_sum: 기준선 1931 → 지금 2022
+   AL NOUF1 score: 기준선 94.2 → 지금 94.6
+   AL NOUF1 축[전량]: 기준선 {'recall': 99.3, 'precision': 70.5, 'fp': 249, 'fn': 4} → 지금 None
+   AL NOUF1 축[SCT]: 기준선 {'recall': 99.3, 'precision': 94.4, 'fp': 35, 'fn': 4} → 지금 None
