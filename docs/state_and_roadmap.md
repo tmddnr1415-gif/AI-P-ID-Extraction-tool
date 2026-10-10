@@ -138,13 +138,15 @@ SADARA·UAD 는 도면이 한 색(빨강)이었고 범례가 `SCT 공급 범위 
 ## 3. 절대 불변 — 이것이 움직이면 되돌린다
 
 ```
-AL NOUF1   지문 46d551fd · 1133행 · Q'ty 2136 · 축3 95.1   ← hotfix41 (검토 메모 글자 제외) · hotfix81 재확인
+AL NOUF1   지문 46d551fd · 1133행 · Q'ty 2136 · 축3 95.1   ← hotfix41 (검토 메모 글자 제외) · hotfix82 재확인
            Tag 칸 전부 `.....` · REV 58/58 · 글리프 H4/M32
 SADARA     86행 · 53531ef6        (PID_PROJECT_CONFIG 지정하지 않는다) ⚠ 54회차 이후 미측정 (PDF 없음)
 TC2        902행 · 23e78e27 · Q'ty 5564 · 축3 94.2   ← hotfix58
 UAD        198행 · 9783173e       ⚠ 51회차 이후 미측정 (PDF 없음)
 UAD-DXF    507행 · a32c02a6
-QFE        2043행 · 26cd1210 · Q'ty 3720 · 축3 91.2   ← hotfix81 (범례 종이 배율을 신호선에도 · needs_review 69칸)
+QFE        2043행 · 26cd1210 · Q'ty 3720 · 축3 91.2   ← hotfix81 (범례 종이 배율을 신호선에도 · needs_review 69칸) · hotfix82 재확인
+★ 모양 사전(hotfix82)은 <data_dir>/shape_library.json 이 있을 때만 켜진다 — 회귀 하네스는 PID_DATA_DIR 을 빈 임시 폴더로
+  돌리므로 사전 없이 잰다.  사전을 얹은 값은 기준선이 아니라 실측 기록이다 (CLAUDE.md hotfix82 절).
 ```
 (정확한 현재 값은 언제나 `spike/baselines_3p.json` 이다 — 이 블록은 그 사본이다.)
 
@@ -581,3 +583,17 @@ UAD `fff7ef15` → `9783173e` (24행).**  시험 368 → **376**.
 * **[엔진] `_notes_lines` 7pt 버킷 → `pidcache.same_lines`** (글자 높이 절반 · 상수 0).  네 문서 불변.
   **커넥터 5pt 버킷은 되돌렸다** — §4 ④ 참조 (가로 분포에 빈 띠 없음 · AL NOUF1 218 → 194 로 움직여서).
 * 회귀: AL NOUF1 · TC2 · UAD-DXF 불변 · QFE 기준선 갱신.  빠른 시험 1085.  전문 `CLAUDE.md` hotfix81 절 · `out/hotfix81/`.
+
+## hotfix82 — 식별 VOC 탭 · 재학습 경로 · 밸브 모양 사전 (2026-10-10)
+
+* **식별 VOC 탭** — 같은 목록 환경에서 행마다 식별 O/X(X 는 출력에서 뺀다 · 되돌릴 수 있다) · 수량 O/X · 비고.  누락은
+  ＋행 마크업.  누르는 순간 저장(`row_verdict`) · 요청마다 VOC 한 건(`VERDICT`) · [VOC Excel].  모든 탭에 O/X 열.
+  자기검증 `spike/ui_audit_verdict.py` 9단계 통과 (`out/hotfix82/ui/`).
+* **재학습 경로** — `spike/voc.py verdicts` → `out/verdicts/<프로젝트>.json` (VERDICT · 마크업 누락=MISSED · 오검출=X ·
+  같은 항목은 나중 것) · `spike/verdict_set.py score` · 회귀 하네스가 **참고축**으로 찍는다 (게이트 넷 그대로).
+  **판정 코드는 정답지를 읽지 않는다** — 시험이 AST 로 못박는다.
+* **밸브 모양 사전** (`app/engine/shape_library.py` · `spike/shape_train.py`) — 사전 파일이 있을 때만.  규칙이 못 가른 중공
+  몸체(`unclassified_bodies`)를 확정된 보기의 정규화 그림(24×24 · 회전·뒤집기 8)에 맞댄다.  문턱은 사전 자신(같은 종류
+  최댓값 / 다른 종류 최솟값 · 보기 둘 미만이면 판정 안 함).  사전 행은 `BODY_FROM_SHAPE_LIBRARY` 검토 사유.
+  §4 ① 의 다음 자리 — 규칙이 깨지는 양식마다 규칙을 더 쓰는 대신, 사람이 O 로 확인한 것이 보기로 쌓인다.
+* 회귀(사전 없음): AL NOUF1 · TC2 · UAD-DXF · QFE **넷 다 기준선 그대로**.  빠른 시험 1104.

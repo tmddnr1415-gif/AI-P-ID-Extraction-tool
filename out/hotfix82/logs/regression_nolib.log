@@ -9,3 +9,24 @@
 · UAD-DXF 분석 …
    행 507 · 지문 a32c02a6 · 축3 — (DXF · 안 잰다)
 · QFE 분석 …
+   행 2043 · 지문 26cd1210 · 축3 91.2점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1133   46d551fd     2136     576    4.8G   95.1
+SADARA    실패 — PDF 없음: app/_data/uploads/2391ee0f1ea6_sadara_1A46.pdf
+TC2         902   23e78e27     5564     480    7.4G   94.2
+UAD       실패 — PDF 없음: data/UAD_binding.pdf
+UAD-DXF     507   a32c02a6      507     101    0.5G    nan
+QFE        2043   26cd1210     3720     843    6.2G   91.2
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        245/267      1133/1133    1133/1329    28/30      
+TC2      60/60        60/60        239/266      902/902      902/1055     26/29      
+UAD-DXF  —            —            —            —            —            —          
+QFE      86/86        85/93        337/430      2041/2043    2043/2342    28/31      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   SADARA — PDF 없음: app/_data/uploads/2391ee0f1ea6_sadara_1A46.pdf
+   UAD — PDF 없음: data/UAD_binding.pdf

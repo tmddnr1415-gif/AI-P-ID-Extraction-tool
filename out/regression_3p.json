@@ -1,6 +1,127 @@
 {
   "projects": [
     {
+      "name": "AL NOUF1",
+      "rows": 1133,
+      "fingerprint": "46d551fd0968917861352d1012e209916dc9b35f72d3878e20769faf31f9e092",
+      "qty_sum": 2136,
+      "tabs": {
+        "FIELD": 904,
+        "MOV": 76,
+        "PNEUMATIC": 55,
+        "REVIEW": 75,
+        "BFV": 23
+      },
+      "seconds": 575.6,
+      "max_rss_gb": 4.83,
+      "identification": {
+        "도면번호": [
+          58,
+          58,
+          ""
+        ],
+        "개정": [
+          58,
+          58,
+          ""
+        ],
+        "태그→행": [
+          245,
+          267,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          1133,
+          1133,
+          ""
+        ],
+        "심볼판정": [
+          1133,
+          1329,
+          ""
+        ],
+        "파라미터": [
+          28,
+          30,
+          ""
+        ]
+      },
+      "score": 95.1
+    },
+    {
+      "name": "SADARA",
+      "error": "PDF 없음: app/_data/uploads/2391ee0f1ea6_sadara_1A46.pdf"
+    },
+    {
+      "name": "TC2",
+      "rows": 902,
+      "fingerprint": "23e78e27146e9ea3ac2cb12666dc4509c9f1e73e8e5c014f71cff4b8a6d8a3ac",
+      "qty_sum": 5564,
+      "tabs": {
+        "FIELD": 706,
+        "MOV": 71,
+        "PNEUMATIC": 58,
+        "BFV": 7,
+        "REVIEW": 60
+      },
+      "seconds": 479.7,
+      "max_rss_gb": 7.41,
+      "identification": {
+        "도면번호": [
+          60,
+          60,
+          ""
+        ],
+        "개정": [
+          60,
+          60,
+          ""
+        ],
+        "태그→행": [
+          239,
+          266,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          902,
+          902,
+          ""
+        ],
+        "심볼판정": [
+          902,
+          1055,
+          ""
+        ],
+        "파라미터": [
+          26,
+          29,
+          ""
+        ]
+      },
+      "score": 94.2
+    },
+    {
+      "name": "UAD",
+      "error": "PDF 없음: data/UAD_binding.pdf"
+    },
+    {
+      "name": "UAD-DXF",
+      "rows": 507,
+      "fingerprint": "a32c02a640d667ad3288887cc6da8413d60d9b7a871fc7e0c04c266a5f5cfd9d",
+      "qty_sum": 507,
+      "tabs": {
+        "FIELD": 423,
+        "PNEUMATIC": 23,
+        "REVIEW": 51,
+        "MOV": 8,
+        "BFV": 2
+      },
+      "seconds": 100.6,
+      "max_rss_gb": 0.51,
+      "identification": {},
+      "score": null
+    },
+    {
       "name": "QFE",
       "rows": 2043,
       "fingerprint": "26cd1210045a25dd6057816f13466fa01a2b888059a355c8ae35c36039461281",
@@ -12,8 +133,8 @@
         "MOV": 98,
         "BFV": 26
       },
-      "seconds": 737.9,
-      "max_rss_gb": 6.24,
+      "seconds": 843.0,
+      "max_rss_gb": 6.21,
       "identification": {
         "도면번호": [
           86,
