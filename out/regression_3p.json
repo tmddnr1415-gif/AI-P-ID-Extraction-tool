@@ -1,52 +1,21 @@
 {
   "projects": [
     {
-      "name": "AL NOUF1",
-      "rows": 1065,
-      "fingerprint": "03e9055e5554d152f8e98a96ed423b1e3bd4edeb7e704373384326694ba03842",
-      "qty_sum": 1996,
+      "name": "UAD-DXF",
+      "rows": 467,
+      "fingerprint": "26d45872424dded9ecf0dd4fc54c9e868049219b501f4c15c21a2defc8b1814f",
+      "qty_sum": 467,
       "tabs": {
-        "FIELD": 904,
-        "MOV": 76,
-        "PNEUMATIC": 55,
-        "REVIEW": 7,
-        "BFV": 23
+        "FIELD": 423,
+        "PNEUMATIC": 23,
+        "REVIEW": 11,
+        "MOV": 8,
+        "BFV": 2
       },
-      "seconds": 588.8,
-      "max_rss_gb": 4.82,
-      "identification": {
-        "도면번호": [
-          58,
-          58,
-          ""
-        ],
-        "개정": [
-          58,
-          58,
-          ""
-        ],
-        "태그→행": [
-          245,
-          267,
-          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
-        ],
-        "수량": [
-          1065,
-          1065,
-          ""
-        ],
-        "심볼판정": [
-          1065,
-          1261,
-          ""
-        ],
-        "파라미터": [
-          28,
-          30,
-          ""
-        ]
-      },
-      "score": 94.9
+      "seconds": 105.2,
+      "max_rss_gb": 0.51,
+      "identification": {},
+      "score": null
     }
   ],
   "metrics": [
