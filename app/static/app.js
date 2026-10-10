@@ -18,6 +18,9 @@ const $req = (sel) => {
 const TABS = [
   ["ALL", "전체"], ["FIELD", "Field"], ["BFV", "BFV"], ["MOV", "MOV"],
   ["PNEUMATIC", "Pneumatic"], ["REVIEW", "검토필요"],
+  // hotfix82 — 식별 VOC: 같은 목록 환경에서 행마다 식별 O/X · 수량 O/X · 비고를 적고, 누락은 ＋행 마크업으로 더한다.
+  // 저장은 누르는 순간(서버 `row_verdict` + VOC 함) · Excel 은 도구줄 [VOC Excel].  배지는 식별 평가를 적은 행 수.
+  ["VOC", "식별 VOC"],
 ];
 const COLS = [
   ["page_no", "Page", false], ["pid_no", "P&ID No.", false],
@@ -29,6 +32,11 @@ const COLS = [
   // hotfix35 — Tag No. 는 Type 바로 옆이다.  열은 처음부터 있었지만 열 번째라
   // 오른쪽 목록을 좁게 쓰면 가로 스크롤 밖에 있었다 (QFE p46 사진).  값은 행의
   // `values.tag_no` 그대로이고(1급 태그 · 마크업 · 편집), 자리만 옮긴다.
+  // hotfix82 — O/X 평가.  "이 행이 식별되어야 하는가" 를 사람이 적는 칸 — 값은 서버의
+  // `row.verdict`(O · X · 빈칸) 하나이고 `verdictOf()` 가 읽는다.  편집 칸이 아니라 단추 둘이다.
+  ["verdict", "O/X", false],
+  // hotfix82 — 식별 VOC 탭에만 나오는 셋 (`VOC_ONLY`): 수량 O/X · 평가자 · 비고(편집 가능 — 저장은 `setVerdict`)
+  ["qty_verdict", "수량 O/X", false], ["vx_who", "평가자", false], ["vx_note", "비고", true],
   ["type", "Type", true], ["tag_no", "Tag No.", true],
   // hotfix36 — 탭한 배관의 라인 번호 (도면의 깃발 라벨 · 지문 밖 · 편집 가능).
   ["line_no", "Line No.", true], ["line_size", "Line Size", true], ["valve_type", "Valve Type", true],
@@ -2481,10 +2489,11 @@ async function loadRows(pre, sidePre) {
     rev: { id: d.id, state: delState(d), role: "before" },
     delCand: d,
   }));
-  S.counts = { ALL: S.rows.length, REVIEW: 0 };
+  S.counts = { ALL: S.rows.length, REVIEW: 0, VOC: 0 };
   S.originCounts = {};
   for (const r of S.rows) {
     S.counts[r.tab] = (S.counts[r.tab] || 0) + 1;
+    if (verdictOf(r) || qtyVerdictOf(r)) S.counts.VOC++;                  // hotfix82
     if (r.needs_review || r.deleted) S.counts.REVIEW++;
     S.originCounts[r.origin] = (S.originCounts[r.origin] || 0) + 1;
   }
@@ -3453,7 +3462,7 @@ function buildTabs() {
  * it was looking it up separately, and the top search box was looking in the
  * wrong object entirely (see `#filter` below).  One accessor, four callers, no
  * chance of them disagreeing about what a cell says. */
-const FILTER_COLS = ["page_no", "pid_no", "rev_state", "type", "valve_type", "qty",
+const FILTER_COLS = ["page_no", "pid_no", "rev_state", "verdict", "qty_verdict", "type", "valve_type", "qty",
                      "system", "vendor_supply"];
 const BLANK = "\u0000blank";        // the '(공란)' choice, kept out of value space
 
@@ -3473,6 +3482,10 @@ function cellValue(row, key) {
   if (key === "page_no") return row.page_no;
   if (key === "origin") return row.origin;
   if (key === "rev_state") return revLabel(row);
+  if (key === "verdict") return verdictOf(row);        // hotfix82 — 열 · 필터 · 검색이 같은 접근자
+  if (key === "qty_verdict") return qtyVerdictOf(row);
+  if (key === "vx_who") return verdictWho(row);
+  if (key === "vx_note") return (row.verdict && row.verdict.note) || "";
   if (key === "pid_no") {
     return (S.pages.find(p => p.page_no === row.page_no) || {}).drawing_no
       || row.drawing_no || "";
@@ -3537,7 +3550,7 @@ function visibleRows(except) {
   let rows = S.deletedRows && S.deletedRows.length
     ? S.rows.concat(S.deletedRows) : S.rows;
   if (S.tab === "REVIEW") rows = rows.filter(r => r.needs_review || r.deleted);
-  else if (S.tab !== "ALL") rows = rows.filter(r => r.tab === S.tab);
+  else if (S.tab !== "ALL" && S.tab !== "VOC") rows = rows.filter(r => r.tab === S.tab);
   if (S.originFilter) rows = rows.filter(r => r.origin === S.originFilter);
   if (S.drawing) rows = rows.filter(r => r.values.pid_no === S.drawing
                                       || r.drawing_no === S.drawing);
@@ -3715,6 +3728,7 @@ function renderGrid() {
   $("#count").textContent = (rows.length === S.rows.length + nDel
     ? `${S.rows.length}행`
     : `표시 ${rows.length} / 전체 ${S.rows.length}`) + tail;
+  renderVerdictCount();                   // hotfix82
   const body = $("#body");
   body.innerHTML = "";
   // hotfix68 — 한 행을 만드는 일은 `buildRowTr` 하나 (다른 창에서 고친 행을 제자리에서 바꿀 때도 같은 함수)
@@ -3859,7 +3873,14 @@ function revealRow(key) {
   gw.addEventListener("focusout", () => setTimeout(later, 0));
 })();
 
-function gridCols() { return COLS.filter(([key]) => key !== "origin" || S.showOrigin); }
+// hotfix82 — 식별 VOC 탭의 열 순서.  다른 탭에서는 VOC 전용 셋(`VOC_ONLY`)이 안 보인다.
+const VOC_ONLY = new Set(["qty_verdict", "vx_who", "vx_note"]);
+const VOC_ORDER = ["page_no", "pid_no", "verdict", "qty_verdict", "type", "tag_no", "line_no", "qty", "scope",
+                   "vx_who", "vx_note", "description"];
+function gridCols() {
+  if (S.tab === "VOC") return VOC_ORDER.map(k => COLS.find(c => c[0] === k)).filter(Boolean);
+  return COLS.filter(([key]) => !VOC_ONLY.has(key) && (key !== "origin" || S.showOrigin));
+}
 
 /* hotfix68 — 한 행을 만든다.  2,000행 목록에서 칸마다 createElement · dataset · innerHTML 을 부르던 것이
  * 목록 그리기의 대부분이었다 (QFE 실측 renderGrid 514ms — 그중 칸 하나하나의 DOM 호출이 대부분).  그래서 행을
@@ -3886,6 +3907,35 @@ function _gradeBadgeHtml(val) {
 }
 const _flagHtml = (cls, title, text) => `<span class="${cls}" title="${escAttr(title)}">${text}</span>`;
 
+/* hotfix82 — O/X 평가 칸.  O = 식별되어야 함(맞음) · X = 식별되면 안 됨(틀림 — 출력에서 빠진다 · 되돌릴 수 있다).
+ * 켜진 쪽을 다시 누르면 평가를 지운다.  값은 서버가 적은 `row.verdict` 하나에서만 읽는다. */
+function verdictOf(row) { return (row && row.verdict && row.verdict.verdict) || ""; }
+function verdictTitle(row) {
+  const v = row && row.verdict;
+  if (!v || !v.verdict) return "O/X 평가 — O: 식별되어야 함 · X: 식별되면 안 됨 (출력에서 빠짐) · 칸을 고르고 O / X 키";
+  const who = v.author || "(이름 없음)", at = v.at ? new Date(v.at * 1000).toLocaleString("ko-KR") : "";
+  return `${v.verdict === "O" ? "O — 식별되어야 함 (맞게 식별됨)" : "X — 식별되면 안 됨 (틀리게 식별됨 · 출력에서 빠짐)"}`
+    + ` · ${who}${at ? " · " + at : ""}${v.note ? " · " + v.note : ""}`;
+}
+function _vxHtml(r, val, act = "vx") {
+  if (r.deleted) return "";
+  const q = act === "qvx";
+  return `<span class="vx"><button type="button" class="vx-b o${val === "O" ? " on" : ""}" data-act="${act}" data-v="O" title="${q ? "O — 수량이 맞음" : "O — 식별되어야 함"}">O</button>`
+    + `<button type="button" class="vx-b x${val === "X" ? " on" : ""}" data-act="${act}" data-v="X" title="${q ? "X — 수량이 틀림 (Q'ty 칸을 고치면 사람 값이 나간다)" : "X — 식별되면 안 됨 (출력에서 빠짐)"}">X</button></span>`;
+}
+function qtyVerdictOf(row) { return (row && row.verdict && row.verdict.qty_verdict) || ""; }
+function verdictWho(row) {
+  const v = row && row.verdict;
+  if (!v || (!v.verdict && !v.qty_verdict && !v.note)) return "";
+  const at = v.at ? new Date(v.at * 1000).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  return `${v.author || "(이름 없음)"}${at ? " " + at : ""}`;
+}
+function qtyVerdictTitle(row) {
+  const v = row && row.verdict;
+  if (!v || !v.qty_verdict) return "수량 O/X — O: Q'ty 가 맞음 · X: 틀림 · 칸을 고르고 O / X 키";
+  return (v.qty_verdict === "O" ? "O — 수량이 맞음" : "X — 수량이 틀림") + ` · ${v.author || "(이름 없음)"}`;
+}
+
 function rowHtml(r, cols) {
   const cls = [];
   const attrs = [`data-key="${escAttr(r.key)}"`];
@@ -3907,14 +3957,21 @@ function rowHtml(r, cols) {
       : key === "pid_no" ? _pidOf(r.page_no)
       : key === "remark" ? remarkOf(r)
       : key === "rev_state" ? revLabel(r)          // hotfix38 — 필터와 같은 접근자
+      : key === "verdict" ? verdictOf(r)           // hotfix82
+      : key === "qty_verdict" ? qtyVerdictOf(r)
+      : key === "vx_who" ? verdictWho(r)
+      : key === "vx_note" ? ((r.verdict && r.verdict.note) || "")
       : (r.values[key] ?? "");
     const has = val !== "" && val !== null && val !== undefined;
     const tc = [];
+    if (key === "verdict" || key === "qty_verdict") tc.push("col-vx");
     // SCOPE 열은 폭을 따로 준다 (styles.css `.col-scope`).
     if (key === "scope") tc.push("col-scope");
     if (key === "origin") tc.push(`origin-${r.origin}`);
     // 잘리는 칸은 마우스를 올리면 전문이 보인다 — 밀도(§7.2 의 29.0px / 15행)를 깨지 않는 유일한 방법이다.
     let title = has ? String(val) : "";
+    if (key === "verdict") title = verdictTitle(r);
+    if (key === "qty_verdict") title = qtyVerdictTitle(r);
     // 사람이 고친 칸과 엔진이 채운 칸은 색이 아니라 표시로 갈린다: 사람이 고친 칸에는 연필이 붙는다.
     if (r.user && key in r.user) { tc.push("edited"); title = editedTitle(r, key, val); }
     if (r.conflict && key in r.conflict) tc.push("conflict");
@@ -3927,7 +3984,9 @@ function rowHtml(r, cols) {
       + (S.cell && S.cell.key === r.key && S.cell.col === key ? ' data-cur="1"' : "")
       + (S.cellRange && S.cellRange.col === key && S.rangeKeys && S.rangeKeys.has(r.key) ? ' data-rng="1"' : "")
       + ">"
-      + (key === "description_grade" && has ? _gradeBadgeHtml(val) : has ? escape(String(val)) : "")
+      + (key === "description_grade" && has ? _gradeBadgeHtml(val)
+         : key === "verdict" ? _vxHtml(r, val) : key === "qty_verdict" ? _vxHtml(r, val, "qvx")
+         : has ? escape(String(val)) : "")
       + "</td>";
   }
   h += "<td>";
@@ -4203,7 +4262,13 @@ function _gridRow(tr) {
     if (act) {
       const what = act.dataset.act;
       if (what === "report") reportDialog({ rowKey: r.key, pageNo: r.page_no });
-      else if (what === "restore") {
+      else if (what === "vx") {                 // hotfix82 — 켜진 쪽을 다시 누르면 지운다 · 묶음·범위면 전부
+        const v = act.dataset.v === verdictOf(r) ? "" : act.dataset.v;
+        setVerdict(vxTargets(r, "verdict"), v);
+      } else if (what === "qvx") {              // 수량 O/X — 같은 길, 칸만 다르다
+        const v = act.dataset.v === qtyVerdictOf(r) ? "" : act.dataset.v;
+        setVerdict(vxTargets(r, "qty_verdict"), v, { field: "qty_verdict" });
+      } else if (what === "restore") {
         fetch(`/jobs/${S.job.id}/rows/${r.key}/restore`, { method: "POST" }).then(() => refreshRows(r.key, { keys: [r.key] }));
       } else if (what === "del-confirm" && r.delCand) {
         fetch(`/jobs/${S.job.id}/deleted/${encodeURIComponent(r.delCand.id)}/confirm`
@@ -4232,6 +4297,18 @@ function _gridRow(tr) {
     const k = ev.key, plain = !ev.ctrlKey && !ev.metaKey && !ev.altKey;
     // hotfix79 — Shift+↑↓ 는 칸 범위를 넓힌다 (엑셀) · Delete 는 도면 값으로 · Esc 는 범위를 푼다
     if (ev.shiftKey && plain && (k === "ArrowDown" || k === "ArrowUp")) { ev.preventDefault(); extendRange(k === "ArrowDown" ? 1 : -1); return; }
+    // hotfix82 — O/X 평가 칸에서는 O · X 키가 평가이고 Delete/Backspace 가 지우기 (범위면 범위 전체 · 적은 뒤 아래 칸으로)
+    if ((S.cell.col === "verdict" || S.cell.col === "qty_verdict") && plain && !ev.shiftKey) {
+      const kk = String(k).toLowerCase();
+      if (kk === "o" || kk === "x" || k === "Delete" || k === "Backspace") {
+        ev.preventDefault();
+        const rng = rangeRows();
+        const keys = rng.length > 1 ? rng.map(r => r.key) : [S.cell.key];
+        setVerdict(keys, kk === "o" ? "O" : kk === "x" ? "X" : "", { advance: rng.length <= 1, field: S.cell.col });
+        return;
+      }
+      if (k.length === 1 || k === "F2" || k === "Process") { ev.preventDefault(); return; }   // 편집 칸이 아니다
+    }
     if (k === "Delete" && plain && !ev.shiftKey) { ev.preventDefault(); revertCells(); return; }
     if (k === "Escape" && S.cellRange) { ev.preventDefault(); clearRange(); return; }
     let mv = MOVE[k];
@@ -4569,6 +4646,13 @@ async function noticeAfterEdit(row, field, before, after) {
  * 돌려주는 값: true 저장 · false 실패 · null 취소 · undefined 바뀐 것 없음. */
 async function saveField(row, field, value) {
   value = String(value ?? "").trim();
+  // hotfix82 — 식별 VOC 의 비고는 행 값이 아니라 평가의 글이다 — `setVerdict` 하나로 (PATCH 가 아니다)
+  if (field === "vx_note") {
+    const cur = (row.verdict && row.verdict.note) || "";
+    if (cur === value) return undefined;
+    const ok = await setVerdict([row.key], value, { field: "note" });
+    return ok ? true : false;
+  }
   const current = row.values[field] ?? "";
   if (String(current) === value) return undefined;
   const userBefore = _userVal(row, field);                 // hotfix79 — 되돌리기는 이 값으로 (빈 값 = 도면 값)
@@ -5071,6 +5155,21 @@ function scopeEditor(row) {
     </div>`;
 }
 
+/* hotfix82 — 근거 패널의 O/X 단추.  목록 칸과 같은 `setVerdict` 하나. */
+function verdictEditor(row) {
+  if (row.deleted) return "";
+  const v = verdictOf(row);
+  return `<div class="ractions"><div class="ract vxed"><span>O/X 평가</span>
+    <button type="button" class="ract-b vx-b o${v === "O" ? " on" : ""}" data-vx="O" title="O — 식별되어야 함 (맞게 식별됨)">O</button>
+    <button type="button" class="ract-b vx-b x${v === "X" ? " on" : ""}" data-vx="X" title="X — 식별되면 안 됨 (틀리게 식별됨 · 출력에서 빠짐 · 되돌릴 수 있음)">X</button>
+    <span class="muted small">${v ? "켜진 쪽을 다시 누르면 지웁니다" : "평가는 VOC 함에 쌓여 다음 학습 자료가 됩니다"}</span></div></div>`;
+}
+function bindVerdictEditor(row) {
+  document.querySelectorAll("#evidence .vxed button[data-vx]").forEach(b => {
+    b.onclick = () => setVerdict([row.key], b.dataset.vx === verdictOf(row) ? "" : b.dataset.vx);
+  });
+}
+
 function bindScopeEditor(row) {
   const wrap = document.querySelector("#evidence .scopeed");
   if (!wrap) return;
@@ -5159,6 +5258,119 @@ function clearMulti() {
  * 행은 지워지지 않고 `removed` 표시만 남는다 (44회차 — 다음 분석이 그 자리를 다시
  * 찾아도 사람의 판단이 살아 있어야 한다).  Excel 에서는 빠지고 되돌릴 수 있다.
  * 부르는 곳은 셋(목록 위 단추 · 근거 패널 · 묶음 패널)이고 하는 일은 여기 하나다. */
+/* hotfix82 — O/X 평가.  저장은 `POST /jobs/{id}/verdicts` 하나 (목록 칸 · 자판 · 도구줄 · 근거 패널 · 묶음 판 · 되돌리기가
+ * 전부 이 함수).  X 는 서버가 출력에서 뺀다 (오검출 삭제와 같은 함수 · 되돌릴 수 있다).  한 요청이 VOC 함에 한 건으로
+ * 쌓인다 — 그것이 다음 학습의 정답지다 (`spike/voc.py verdicts`). */
+function vxTargets(r, col = "verdict") {
+  if (S.multi && S.multi.size > 1 && S.multi.has(r.key)) return [...S.multi];
+  const rng = S.cell && S.cell.col === col ? rangeRows() : [];
+  if (rng.length > 1 && rng.some(x => x.key === r.key)) return rng.map(x => x.key);
+  return [r.key];
+}
+function verdictCounts() {
+  let o = 0, x = 0, open = 0, qO = 0, qX = 0;
+  for (const r of (S.rows || [])) {
+    if (r.deleted || String(r.key).startsWith("del:")) continue;
+    const v = verdictOf(r);
+    if (v === "O") o++; else if (v === "X") x++; else open++;
+    const q = qtyVerdictOf(r);
+    if (q === "O") qO++; else if (q === "X") qX++;
+  }
+  return { O: o, X: x, open, qO, qX };
+}
+function renderVerdictCount() {
+  const el = document.getElementById("vx-count");
+  if (!el) return;
+  const c = verdictCounts();
+  const n = c.O + c.X;
+  const xb = document.getElementById("vx-xlsx");
+  if (xb) xb.classList.toggle("hidden", S.tab !== "VOC");                 // hotfix82 — 식별 VOC 탭에서만
+  el.textContent = n ? `O ${c.O} · X ${c.X} · 미평가 ${c.open}${S.tab === "VOC" && (c.qO || c.qX) ? ` · 수량 O ${c.qO} X ${c.qX}` : ""}` : "";
+  el.title = "O/X 평가 — 식별되어야 하는 행(O) · 식별되면 안 되는 행(X) · 아직 안 적은 행.  평가는 VOC 함에 쌓여 다음 학습 자료가 됩니다";
+}
+async function setVerdict(keys, v, opts = {}) {
+  // 돌고 있는 평가 요청 수 — 자기검증기가 "다 끝났다" 를 기다리는 자리 (요청 → 그 행 다시 받기 → 다음 칸까지)
+  NET.vxBusy = (NET.vxBusy || 0) + 1;
+  try { return await _setVerdict(keys, v, opts); }
+  finally { NET.vxBusy = Math.max(0, (NET.vxBusy || 1) - 1); }
+}
+async function _setVerdict(keys, v, opts = {}) {
+  keys = [...new Set(keys)].filter(k => S.rowByKey[k] && !S.rowByKey[k].deleted && !String(k).startsWith("del:"));
+  if (!keys.length) { editNotice("평가할 행이 없습니다", "out"); return false; }
+  if (!S.job) return false;
+  const author = await askAuthor(`${keys.length}행 O/X 평가`);
+  if (author === null) return false;
+  // 어느 칸인가 — 식별(`verdict` · X 는 출력에서 뺀다) · 수량(`qty_verdict`) · 비고(`note`).  서버는 적은 칸만 바꾼다.
+  const field = opts.field || "verdict";
+  const read = row => field === "qty_verdict" ? qtyVerdictOf(row) : field === "note" ? ((row.verdict && row.verdict.note) || "") : verdictOf(row);
+  const items = keys.map(k => ({ key: k, before: read(S.rowByKey[k]), after: v, field }));
+  let r;
+  try {
+    r = await fetch(`/jobs/${S.job.id}/verdicts`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: keys.map(k => ({ key: k, [field]: v })), author, note: opts.note || "" }),
+    });
+  } catch (e) { editNotice("O/X 평가를 저장하지 못했습니다 — 서버에 연결할 수 없습니다", "out"); return false; }
+  if (!r.ok) {
+    let msg = "";
+    try { msg = (await r.json()).detail || ""; } catch (e) { /* 본문 없음 */ }
+    editNotice(`O/X 평가를 저장하지 못했습니다${msg ? " — " + msg : ""}`, "out"); return false;
+  }
+  const out = await r.json();
+  if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+  if (out.markup) { S.markupSummary = out.markup; updateMarkupNote(); }
+  if (!opts.silent) {
+    const lab = field === "note" ? "비고" : (v === "O" ? "O" : v === "X" ? "X" : "평가 지움");
+    undoRecord({ kind: "verdict", label: `${keys.length}행 ${field === "qty_verdict" ? "수량 " : field === "note" ? "" : ""}O/X 평가 ${lab}`, items });
+  }
+  const at = S.cell;
+  await refreshRows(null, { keys });
+  if (at && S.rowByKey[at.key]) { S.cell = at; setCell(at.key, at.col, { focus: false }); }
+  restyleItems(keys);                    // X 는 도면에 붉은 ✕ — 지운 행과 같은 얼굴
+  renderVerdictCount();
+  updateBadge();
+  const n = out.rows ? out.rows.length : keys.length;
+  const vocNote = out.voc && !out.voc.error ? " · VOC 함에 저장" : out.voc && out.voc.error ? ` · ⚠ VOC 함에 못 씀 (${out.voc.error})` : "";
+  if (field === "note") editNotice(`${n}행 비고 저장${vocNote}`);
+  else if (field === "qty_verdict") editNotice(v ? `${n}행 수량 ${v} — ${v === "X" ? "수량이 틀림 (Q'ty 칸을 고치면 그 값이 나갑니다)" : "수량이 맞음"}${vocNote}` : `${n}행 수량 평가를 지웠습니다`);
+  else editNotice(v ? `${n}행 ${v} — ${v === "X" ? "출력에서 뺐습니다 (되돌리기 Ctrl+Z)" : "식별되어야 함"}${vocNote}`
+                    : `${n}행 O/X 평가를 지웠습니다`);
+  if (opts.advance && S.cell && (S.cell.col === "verdict" || S.cell.col === "qty_verdict")) gotoCell(nextCell(S.cell, 1, 0));
+  const gw = document.getElementById("gridwrap");
+  if (gw && !CELL.editing && opts.advance) gw.focus({ preventScroll: true });
+  return true;
+}
+async function _applyVerdicts(items) {
+  // 되돌리기 — 칸·값마다 한 요청 (O 로 돌아갈 행 · X 로 돌아갈 행 · 지울 행)
+  const by = new Map();
+  for (const it of items) {
+    const k = `${it.field || "verdict"}\u0000${it.value}`;
+    if (!by.has(k)) by.set(k, []); by.get(k).push(it.key);
+  }
+  let ok = true;
+  for (const [k, keys] of by) {
+    const [field, v] = k.split("\u0000");
+    ok = (await setVerdict(keys, v, { silent: true, field })) && ok;
+  }
+  return ok;
+}
+(function bindVerdictToolbar() {
+  const o = document.getElementById("vx-o"), x = document.getElementById("vx-x");
+  const go = v => {
+    const keys = S.multi && S.multi.size ? [...S.multi] : (S.sel ? [S.sel] : []);
+    if (!keys.length) { editNotice("먼저 행을 고르세요 (Shift 로 여럿)", "out"); return; }
+    const cur = keys.length === 1 ? verdictOf(S.rowByKey[keys[0]]) : null;
+    setVerdict(keys, cur === v ? "" : v);
+  };
+  if (o) o.addEventListener("click", () => go("O"));
+  if (x) x.addEventListener("click", () => go("X"));
+  const xl = document.getElementById("vx-xlsx");
+  if (xl) xl.addEventListener("click", () => {
+    if (!S.job) return;
+    downloadUrl(`/jobs/${S.job.id}/verdicts.xlsx`, `VOC_${S.job.id}.xlsx`, xl);
+  });
+})();
+
 async function deleteRows(keys, opts = {}) {
   keys = keys.filter(k => S.rowByKey[k] && !S.rowByKey[k].removed);
   if (!keys.length) { alert("지울 행이 없습니다 (이미 지운 행은 되돌리기로 살립니다)."); return; }
@@ -5346,6 +5558,7 @@ async function undoStep(back) {
   let ok = false;
   try {
     if (e.kind === "edit") ok = await _applyEdits(e.field, e.items.map(it => ({ key: it.key, value: back ? it.before : it.after })));
+    else if (e.kind === "verdict") ok = await _applyVerdicts(e.items.map(it => ({ key: it.key, field: it.field, value: back ? it.before : it.after })));
     else if ((e.kind === "delete") === back) ok = await _restoreKeys(e.keys);
     else ok = await deleteRows(e.keys, { reason: e.opts.reason, klass: e.opts.klass });
   } catch (err) { ok = false; }
@@ -5400,6 +5613,10 @@ function showMultiScope() {
         <input id="mq-val" type="number" min="0" step="1" placeholder="${escape(qtySummary(rows))}">
         <button class="ract-b" id="mq-apply">선택 ${rows.length}개에 적용</button></div>
       <p class="muted small">비우고 적용하면 도면 값으로 되돌립니다 · 도면의 x N 라벨을 눌러도 같습니다</p>
+      <div class="ract vxmulti"><span>O/X 평가</span>
+        <button class="ract-b vx-b o" id="mv-o" title="고른 행 전부 — 식별되어야 함">O</button>
+        <button class="ract-b vx-b x" id="mv-x" title="고른 행 전부 — 식별되면 안 됨 (출력에서 빠짐 · 되돌릴 수 있음)">X</button>
+        <button class="ract-b" id="mv-clear" title="고른 행의 O/X 평가를 지움">평가 지움</button></div>
       <div class="ract"><button class="ract-b" id="mc-clear">선택 해제</button>
         <button class="ract-b danger" id="mc-delete" title="고른 행을 오검출로 지웁니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다">선택 ${rows.length}개 삭제</button></div>
       </div>`;
@@ -5428,6 +5645,10 @@ function showMultiScope() {
   document.querySelector("#mq-apply").onclick = mqGo;
   mq.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); mqGo(); } });
   document.querySelector("#mc-clear").onclick = clearMulti;
+  const mvo = document.querySelector("#mv-o"), mvx = document.querySelector("#mv-x"), mvc = document.querySelector("#mv-clear");
+  if (mvo) mvo.onclick = () => setVerdict(rows.map(r => r.key), "O");
+  if (mvx) mvx.onclick = () => setVerdict(rows.map(r => r.key), "X");
+  if (mvc) mvc.onclick = () => setVerdict(rows.map(r => r.key), "");
   document.querySelector("#mc-delete").onclick = () => deleteRows(rows.map(r => r.key));
 }
 
@@ -5612,6 +5833,8 @@ function showEvidence(row) {
   const facts = scopeFacts(row.values.scope, { needsReview: row.needs_review,
                                                manualBlank: !!(row.added && e.markup) });
   add("공급 주체", mark("scope", facts.supplierName));
+  // hotfix82 — O/X 평가는 글이 아니라 단추라 `add()`(escape) 로 못 넣는다 — 공급 주체 편집기 뒤 `verdictEditor` 에.
+  add("O/X 평가", verdictOf(row) ? verdictTitle(row) : "아직 평가하지 않음 (아래 단추 · 목록 O/X 칸 · O / X 키)");
   // hotfix27 — 맞닿은 스위치 묶음(물리 LS 1개)은 **어느 신호 버블의 별표든** 따른다.
   // 이 행(맨 위 버블)에 별표가 없어도 VENDOR 인 까닭을 적는다.
   if (e.bundle_scope && e.bundle_scope.anchor) {
@@ -5867,7 +6090,7 @@ function showEvidence(row) {
        ? `<button id="ev-elsewhere" class="mini-rep" title="같은 마크업을 다른 장에도 — 장마다 다시 읽어 제안하고 고른 장에만 넣습니다">다른 장에도…</button>`
        : "")
     + `</div>`
-    + reviewControls(row) + scopeEditor(row) + axisActions(row)
+    + reviewControls(row) + scopeEditor(row) + verdictEditor(row) + axisActions(row)
     // hotfix27 — From/To 입력은 패널 **위쪽**에 둔다.  예전에는 25항목과 수정 이력 아래라
     // 1366×768 에서 매번 스크롤해 내려가야 했다.
     + descMarkupBlock(row)
@@ -5883,6 +6106,7 @@ function showEvidence(row) {
   bindReviewControls(row);
   bindAxisActions(row);
   bindScopeEditor(row);
+  bindVerdictEditor(row);
   showHistory(row);
   const evb = $("#ev-report");
   if (evb) evb.onclick = () => reportDialog({ rowKey: row.key, pageNo: row.page_no });
@@ -7534,7 +7758,7 @@ function itemVisible(it) {
   // Typical 표식은 어느 산출물 탭에도 속하지 않는다 — 검토 탭 말고는 늘 보인다.
   if (it.typical) return S.tab !== "REVIEW";
   if (S.tab === "REVIEW") return !!it.needs_review;
-  if (S.tab === "ALL") return true;
+  if (S.tab === "ALL" || S.tab === "VOC") return true;
   // A deliverable tab shows its own rows, and keeps the excluded symbols on
   // screen: they are the reason a count comes up short.
   return it.tab === S.tab || it.tab === "EXCLUDED";
@@ -8396,7 +8620,7 @@ async function markupDialog(rect) {
   const scopeVal = prop.scope || "";
   const scopeOpts = [...new Set([...SCOPE_CHOICES, scopeVal].filter(Boolean))];
   const tabOpts = ["FIELD", "MOV", "BFV", "PNEUMATIC"];
-  const tab0 = prop.tab || (S.tab === "ALL" || S.tab === "REVIEW" ? "FIELD" : S.tab);
+  const tab0 = prop.tab || (S.tab === "ALL" || S.tab === "REVIEW" || S.tab === "VOC" ? "FIELD" : S.tab);
   const words = (prop.words || []).map(w => w.text).filter(Boolean);
   openModal("누락 행 추가 — 마크업",
     `<p class="muted small">${escape(page.drawing_no || "(도면번호 없음)")} · p${page.page_no}
@@ -9056,7 +9280,7 @@ async function createRow(point) {
   const body = {
     page_no: point ? S.page.page_no
       : (src ? src.page_no : (S.page ? S.page.page_no : 0)),
-    tab: src ? src.tab : (S.tab === "ALL" || S.tab === "REVIEW" ? "FIELD" : S.tab),
+    tab: src ? src.tab : (S.tab === "ALL" || S.tab === "REVIEW" || S.tab === "VOC" ? "FIELD" : S.tab),
     origin: src ? src.origin : "",
     drawing_no: point ? (S.page.drawing_no || "")
       : (src ? src.drawing_no : (S.page ? S.page.drawing_no : "")),
@@ -11065,8 +11289,16 @@ const SHORTCUTS = [
     ["Delete", "사람이 고친 값을 도면 값으로 되돌리기 (범위면 범위 전체)"],
     ["Ctrl + F", "검색 칸으로 (글자를 치면 손이 멈춘 뒤 목록이 걸러진다)"],
   ]],
+  ["O/X 평가 (학습 자료)", [
+    ["O / X (O/X 칸을 고른 뒤)", "이 행이 식별되어야 하면 O · 아니면 X (X 는 출력에서 빠지고 되돌릴 수 있다) — 적으면 아래 칸으로"],
+    ["O / X (식별 VOC 탭의 수량 O/X 칸)", "Q'ty 가 맞으면 O · 틀리면 X (틀리면 Q'ty 칸을 고치면 그 값이 나간다)"],
+    ["비고 칸 (식별 VOC 탭)", "두 번 누르거나 F2 — 왜 O/X 인지 한 줄 (VOC 함에 같이 쌓인다)"],
+    ["Delete / Backspace (O/X 칸)", "평가 지우기 (범위면 범위 전체)"],
+    ["Shift + ↑ ↓ 뒤 O / X", "범위 전체를 한 번에 평가"],
+    ["도구줄 O · X", "고른 행(묶음이면 전부)을 평가 · 평가는 VOC 함에 쌓여 다음 학습 자료가 된다"],
+  ]],
   ["되돌리기", [
-    ["Ctrl + Z", "되돌리기 — 칸 고침 · 묶음 고침 · 승수 · 지우기"],
+    ["Ctrl + Z", "되돌리기 — 칸 고침 · 묶음 고침 · 승수 · 지우기 · O/X 평가"],
     ["Ctrl + Y · Ctrl + Shift + Z", "다시"],
   ]],
   ["도면", [

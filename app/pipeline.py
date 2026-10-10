@@ -1405,8 +1405,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     # **별표 소유권 경쟁에 밸브를 넣으려면 계기를 읽을 때 밸브 자리를 이미
     # 알고 있어야 한다.**  여기서 읽어 두면 추가 계산이 0 이다 (한 장을 두 번
     # 읽으면 밸브 단계가 두 배가 된다).
+    # hotfix82 [C] — 밸브 모양 사전.  파일이 없으면(기본) None 이고 판정은 예전과 글자 그대로 같다.
+    shape_lib = _shape_library()
     valve_results, glyphs = dv.analyse_all(pages, VALVE_DISABLED,
-                                           on_step=valve_step)
+                                           on_step=valve_step, shape_lib=shape_lib)
     # 그 장에서 별표를 가질 수 있는 밸브 사각형들.  `_valve_rows` 와 **같은
     # 함수**(`dv.mark_rects`)로 고른다 — 경쟁에서 쓴 사각형과 마크를 읽을 때
     # 보는 사각형이 다르면 이긴 마크를 놓친다.
@@ -1960,6 +1962,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                    for k, d in legend_derived.items()},
         # 43회차 — 몸체 짧은 변의 창이 어디서 왔나.  **지문 밖**이다 (`legend`
         # 에 항목을 더하면 값이 같아도 지문이 움직인다).
+        # hotfix82 [C] — 어느 모양 사전으로 돌았나 (없으면 None).  **지문 밖**.
+        "shape_library": shape_lib.summary() if shape_lib is not None else None,
         "valve_layout": {"body_short": [round(v, 3) for v in dv.LAYOUT.body_short],
                          "source": dv.LAYOUT.body_short_source,
                          "basis": dv.LAYOUT.body_short_basis,
@@ -2262,6 +2266,22 @@ _TAGGED_NO_ACTUATOR = (
     "도면이 이 밸브를 '%s' 로 이름 붙였는데(버블) 액추에이터를 그리지 않았습니다 "
     "— 몸체는 %s 입니다.  어느 산출물인지 도면이 말하지 않으므로 탭을 고르지 "
     "않고 검토로 올립니다")
+
+_SHAPE_LIB_CODE = "BODY_FROM_SHAPE_LIBRARY"
+_SHAPE_LIB = ("이 몸체는 범례 규칙이 아니라 **모양 사전**이 판정했습니다 — %s 의 보기(%s p%s)와 거리 %s "
+              "(문턱 %s).  맞으면 식별 VOC 탭에서 O, 아니면 X 로 적어 주세요 — 다음 학습이 그것을 읽습니다")
+
+
+def _shape_library():
+    """`<data_dir>/shape_library.json` 이 있으면 읽는다.  config `valves.shape_library: false` 나
+    `PID_SHAPE_LIBRARY=0` 이면 안 읽는다.  없으면 None — 아무 일도 하지 않는다."""
+    if CFG.get_or("valves.shape_library", True) is False:
+        return None
+    from app.engine import shape_library as _sl
+    try:
+        return _sl.load()
+    except Exception:  # noqa: BLE001 — 사전이 깨졌으면 없는 것과 같다 (판정을 막지 않는다)
+        return None
 
 _USER_MULT_CODE = "MULTIPLIER_BY_USER"
 
@@ -4937,6 +4957,11 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
             codes.append("ACTUATOR_LETTER_UNREAD")
             reasons.append("actuator enclosure found but its letter could not be "
                            "derived from this document")
+        if (b.evidence or {}).get("body_source") == "SHAPE_LIBRARY":
+            ex = b.evidence.get("exemplar") or {}
+            codes.append(_SHAPE_LIB_CODE)
+            reasons.append(_SHAPE_LIB % (ex.get("source", ""), ex.get("project", "") or ex.get("doc", ""),
+                                         ex.get("page_no", ""), b.evidence.get("distance"), b.evidence.get("threshold")))
         if not unread and b.kind not in ACTUATED_BODIES:
             codes.append("ACTUATOR_ON_UNEXPECTED_BODY")
             reasons.append(

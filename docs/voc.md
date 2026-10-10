@@ -57,6 +57,25 @@ python spike\voc.py needinfo VOC-… --by … --note "무엇이 더 필요한가
 `list` 는 이 폴더의 `voc\inbox` 와 **옆 폴더 `..\PID\voc\inbox`**(운영 서버에 쌓인 것)를 함께 읽고 id 로
 하나로 센다.  다른 PC 에서 받은 inbox 는 `--inbox 경로` 로 더한다.
 
+### 식별 VOC — O/X 평가는 "고칠 일" 이 아니라 "학습 자료" 다 (hotfix82)
+
+부서원이 결과 화면의 **식별 VOC 탭**(또는 어느 탭의 O/X 칸)에서 행마다 적는 것 셋 — 식별 O/X(이 행이 식별되어야
+하는가 · X 는 출력에서 빠진다) · 수량 O/X(Q'ty 가 맞는가) · 비고.  누락은 같은 탭에서 ＋행 마크업으로 더한다.
+누르는 순간 저장되고(`row_verdict`) 요청마다 VOC 한 건(`source: VERDICT`)이 함에 쌓인다 — 행마다 엔진 값 · 자리 · 평가.
+[VOC Excel] 이 그 탭을 파일로 낸다 (요약 · 식별 VOC · 누락 추가 · 출력 제외).
+
+개발 쪽에서는 `list` 에 **안 나온다** (반영 표시할 일이 아니다).  대신 정답지로 모은다:
+
+```bat
+python spike\voc.py verdicts                          REM O/X 평가 · 마크업 → out\verdicts\<프로젝트>.json
+python spike\verdict_set.py score out\run.json out\verdicts\QFE.json   REM 결과가 정답지를 얼마나 지키나
+python spike\regression_3p.py                          REM out\verdicts\<이름>.json 이 있으면 참고축으로 같이 찍는다 (게이트 아님)
+python spike\shape_train.py --pdf data\x.pdf --verdicts out\verdicts\QFE.json   REM 밸브 모양 사전 — O 는 보기로, X 는 거름
+```
+
+정답지의 한 줄 = 도면번호 · TYPE · 태그(또는 자리) · 판정(O · X · MISSED).  같은 항목에 여러 번 적혔으면 나중 것이
+이긴다.  **판정 코드는 정답지를 읽지 않는다** — 재는 자이지 규칙이 아니다 (CLAUDE.md §9 · 44회차 [E-5]).
+
 ### 중복 반영을 막는 두 겹
 
 1. **장부** `PID_dev\voc\ledger.json` — 처리한 id 마다 상태 · 누가 · 언제 · 어느 업데이트 · 무엇을.

@@ -986,7 +986,8 @@ review_axes:
     TYPICAL_POINT_UNLABELLED: QUANTITY    # 표식마다 낸 행인데 이름표가 없음 (hotfix30)
     MULTIPLIER_BY_USER: QUANTITY          # 도면이 답하지 않아 사람이 지정함 (31회차)
     TAGGED_VALVE_NO_ACTUATOR: DETECTION   # 도면이 이름만 붙이고 액추에이터를 안 그림 (53회차)
-    VALVE_TAG_NO_BODY: DETECTION          # 버블은 있는데 몸체를 못 찾음 (53회차 · 8차 피드백 s5)
+    VALVE_TAG_NO_BODY: DETECTION
+    BODY_FROM_SHAPE_LIBRARY: DETECTION   # 모양 사전이 판정한 몸체 (hotfix82 [C])          # 버블은 있는데 몸체를 못 찾음 (53회차 · 8차 피드백 s5)
     VALVE_TAG_SIGNALS: DETECTION          # 신호 버블을 밸브로 접음 (53회차 · 8차 피드백 s6)
     DRAWING_NO_BY_USER: DETECTION
     TAG_TYPE_MISMATCH: DETECTION          # 태그 기능코드 ↔ 버블 글자 어긋남 (hotfix39)

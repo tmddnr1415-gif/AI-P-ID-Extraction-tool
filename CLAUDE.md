@@ -14,6 +14,9 @@
 > 고치고 회귀를 돌린 뒤 `python spike/voc.py resolve <id…> --by <이름> --release <꾸러미> --note <무엇을>`.
 > **반영한 VOC 는 장부(`voc/ledger.json`)와 그 VOC 폴더의 `resolution.json` 에 남아 다시 목록에 오르지 않습니다 —
 > 중복 반영 방지.**  같은 원인은 함께 resolve 하거나 `dup --of` 로 묶고, 도면이 답하지 않는 것은 `needinfo` 로 둡니다.
+> **hotfix82 — 부서원의 O/X 평가(식별 VOC 탭)는 `list` 에 안 나옵니다.**  고칠 일이 아니라 학습 자료입니다 —
+> `python spike/voc.py verdicts` 로 `out/verdicts/<프로젝트>.json` 정답지를 만들고, 회귀 하네스가 그것을 **참고축**으로 찍습니다.
+> 밸브 모양 사전은 `python spike/shape_train.py --pdf … --verdicts out/verdicts/<이름>.json` 으로 만듭니다 (`docs/voc.md`).
 
 ## 1. 지금 어디까지 와 있나
 
@@ -4817,6 +4820,10 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `paintWindow` 의 증분 갈래 · `_vpad` (0 이어도 줄) · `renderGrid` 의 `updateEmptyNote(rows.length)` · `FILTER_DEBOUNCE_MS` · `_measureRowHtml(all, cols)` · `_gradeLabel` | **hotfix80** — 굴릴 때 새로 보이는 행만 넣고 뺀다 (몸통 줄 수가 기대와 다르면 통째로) · 검색은 한 번만 거르고 손이 멈춘 뒤 세운다 · 열 폭은 전체 행(배지는 글자가 가장 긴 등급)으로 한 번만 잰다 |
 | `app.js` `saveState` · `SAVE_SKIP_RE` · `#save-state` · Ctrl+F 처리기 | **hotfix80** — 머리줄 "저장 중… / 저장됨 HH:MM / 저장 실패" 는 `hookFetch` 가 본 쓰기 요청의 결과 하나에서 (미리 읽기 · 업로드 · 취소는 뺀다) · Ctrl+F 는 결과 화면에서만 검색 칸으로 |
 | `spike/perf_ab.py` · `spike/ui_audit_hotfix80.py` · `spike/perf_sim.py` 의 job id 문지기 | **hotfix80** — 옛/새 코드를 한 브라우저가 번갈아 재는 A/B 자 (`perf_sim` 을 import 하지 않는다) · 검색 지연 · 굴리기 창 대조 · 저장 상태 · Ctrl+F 자기검증 · `perf_sim` 은 JOB 이 분석 id 가 아니면 멈춘다 |
+| `row_verdict` 테이블 · `db.set_verdict`·`verdicts`·`verdict_counts` · `main._verdict_one`·`_verdict_voc` · `GET/POST /jobs/{id}/verdicts` · `GET /jobs/{id}/verdicts.xlsx` · `app/verdict_export.py` | **hotfix82** — 식별 O/X · 수량 O/X · 비고.  `None` 인 칸은 건드리지 않고 셋이 비면 지운다.  식별 X 만 행을 출력에서 뺀다(`_delete_one` · 사유 `O/X 평가 X` · O 나 빈 값이 그 표시만 되살린다).  한 요청 = VOC 한 건(`source: VERDICT` · 행마다 엔진 값 · 자리 · `body_basis`).  Excel 은 요약 · 식별 VOC · 누락 추가 · 출력 제외 |
+| `app.js` `TABS` 의 `VOC` · `VOC_ORDER`·`VOC_ONLY`·`gridCols()` · `verdictOf`·`qtyVerdictOf`·`verdictWho` · `_vxHtml` · `setVerdict`(`field` = verdict/qty_verdict/note) · `vxTargets` · `renderVerdictCount` · `#vx-o`/`#vx-x`/`#vx-xlsx` | **hotfix82** — 식별 VOC 탭(전체 행 · 열 순서 고정 · VOC 전용 열은 다른 탭에 안 보임) · 모든 탭의 O/X 열(Type 바로 앞) · 칸을 고르고 O/X 키(범위 · 적으면 아래로) · 비고 칸은 `saveField` 가 `setVerdict(note)` 로 보낸다 · 되돌리기 kind `verdict` · 저장은 `setVerdict` 하나 · `NET.vxBusy` 는 자기검증이 기다리는 자리 |
+| `spike/verdict_set.py` · `spike/voc.py verdicts` · `regression_3p` 의 `verdicts` 참고축 | **hotfix82** — VOC 함의 VERDICT · MARKUP_ADD(MISSED) · MARKUP_REJECT(X) → `out/verdicts/<프로젝트>.json` (같은 항목은 나중 것이 이긴다).  `score(rows, vset)` 가 O 유지 · X 제외 · 누락 회수를 센다.  게이트가 아니다 — `CHECK` 넷 그대로 |
+| `app/engine/shape_library.py` · `detect_valves.analyse(shape_lib=)` · `pipeline._shape_library()` · `spike/shape_train.py` · `BODY_FROM_SHAPE_LIBRARY` | **hotfix82 [C]** — 밸브 모양 사전.  `<data_dir>/shape_library.json`(`PID_SHAPE_LIBRARY_FILE` · `PID_SHAPE_LIBRARY=0` · config `valves.shape_library`) 이 없으면 **None 이고 판정은 글자 그대로 같다**.  있으면 `unclassified_bodies` 후보를 정규화 그림(잉크 마스크 → 24×24 · 회전·뒤집기 8)으로 보기에 맞댄다.  문턱은 사전 자신의 같은 종류 최댓값 / 다른 종류 최솟값.  `find_bodies` 는 사전을 모른다 · 사전 모듈은 `detect_valves` 를 import 하지 않는다 · 행은 검토 사유를 단다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

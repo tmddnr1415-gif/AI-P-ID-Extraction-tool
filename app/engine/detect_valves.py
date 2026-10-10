@@ -2073,12 +2073,16 @@ def attach_tags(pc, bodies: list[Body], lay: ValveLayout = LAYOUT) -> list[tuple
 # --------------------------------------------------------------------------
 
 def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset(),
-            on_step=None) -> dict:
+            on_step=None, shape_lib=None) -> dict:
     """`on_step(page_no, step_name, seconds)` is a timing hook and nothing else.
 
     It exists so a slow run can be attributed to a step instead of guessed at.
     Nothing it reports is read back, so the result is the same whether it is
     passed or not.
+
+    hotfix82 — `shape_lib` (`shape_library.Library` · 기본 None).  있으면 규칙이 못 가른 중공 도형
+    (`unclassified_bodies`) 을 사전의 보기에 맞대어 몸체로 세운다.  **None 이면 이 함수는 예전과 글자 그대로
+    같다** — 네 기준 문서의 지문이 구조적으로 안 움직인다.  사전으로 선 몸체는 `evidence.body_source` 가 말한다.
     """
     @contextlib.contextmanager
     def timed(name):
@@ -2091,6 +2095,11 @@ def analyse(pc, lay: ValveLayout = LAYOUT, disabled=frozenset(),
 
     with timed("bodies"):
         bodies = find_bodies(pc, lay, disabled)
+    if shape_lib is not None:
+        with timed("shape_library"):
+            import shape_library as _sl
+            for m in _sl.promote(pc, unclassified_bodies(pc, lay, bodies), shape_lib):
+                bodies.append(Body(m["kind"], pymupdf.Rect(*m["rect"]), m["axis"], evidence=m["evidence"]))
     with timed("actuators"):
         attach_actuators(pc, bodies, lay, disabled)
     with timed("tags"):
@@ -2255,14 +2264,14 @@ def page_index(titleblocks: Path = None) -> dict:
     return idx
 
 
-def analyse_all(pages, disabled=frozenset(), derive=True, on_step=None):
+def analyse_all(pages, disabled=frozenset(), derive=True, on_step=None, shape_lib=None):
     """Analyse every page, then derive the document's own glyph letters.
 
     Returns `(results, library)`.  The derivation is a second look at results
     already computed, not a second pass over the PDF: naming a letter does not
     change any geometry.  `on_step` is the timing hook `analyse` documents.
     """
-    results = {pc.page_no: analyse(pc, LAYOUT, disabled, on_step)
+    results = {pc.page_no: analyse(pc, LAYOUT, disabled, on_step, shape_lib)
                for pc in pages if pc.analysis_scope}
     t0 = time.perf_counter()
     lib = derive_glyph_library(results) if derive else GlyphLibrary()

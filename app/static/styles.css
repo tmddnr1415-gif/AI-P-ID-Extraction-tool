@@ -2229,3 +2229,18 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 .intake details.intake-sec summary { cursor: pointer; font-weight: 600; }
 .intake details.intake-sec ul { margin: 4px 0 2px; padding-left: 18px; }
 .intake details.intake-sec li { margin: 2px 0; }
+
+/* hotfix82 — O/X 평가 칸 · 도구줄 · 근거 패널.  켜진 쪽만 색이 찬다 (O 초록 · X 붉음) — 글자로도 읽힌다. */
+td.col-vx { white-space: nowrap; padding-top: 1px; padding-bottom: 1px; }
+.vx { display: inline-flex; gap: 2px; }
+.vx-b { font: 600 11px/1 var(--font, inherit); min-width: 20px; height: 18px; padding: 0 5px; border: 1px solid #c9cdd6;
+  border-radius: 4px; background: #fff; color: #7b8494; cursor: pointer; line-height: 16px; }
+.vx-b:hover { border-color: #8a93a3; color: #222; }
+.vx-b.o.on { background: var(--ok, #1a7f37); border-color: var(--ok, #1a7f37); color: #fff; }
+.vx-b.x.on { background: var(--bad, #c2453f); border-color: var(--bad, #c2453f); color: #fff; }
+tr.deleted td.col-vx .vx-b:not(.on) { opacity: .55; }
+.vx-tool { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; }
+.vx-tool .vx-b { height: 24px; min-width: 26px; font-size: 12px; }
+.vx-tool #vx-count { margin-left: 4px; white-space: nowrap; }
+.vxmulti .vx-b { height: 24px; min-width: 28px; }
+.vx-ev .vx-b { height: 20px; }

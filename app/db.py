@@ -151,6 +151,23 @@ CREATE TABLE IF NOT EXISTS review_state (
 );
 CREATE INDEX IF NOT EXISTS review_state_job ON review_state(job_id, code);
 
+-- hotfix82 — O/X 평가: 이 행이 식별되어야 하는가 (O) · 식별되면 안 되는가 (X).
+--
+-- 검토 상태(review_state · 사유 코드마다 미처리/확인함)와 다른 질문이다 — 그것은 "이 사유를
+-- 봤는가" 이고 이것은 "이 행 자체가 맞는가" 다.  행마다 하나뿐이라 열쇠가 (job, row) 다.
+-- 사람이 적는 것은 O 또는 X 와 (선택) 한 줄이고, 같은 내용이 VOC 함에도 한 건씩 남아
+-- 개발 쪽이 정답지로 모은다 (spike/voc.py verdicts).  비우면 지운다 — 없음이 곧 미평가다.
+CREATE TABLE IF NOT EXISTS row_verdict (
+    job_id      TEXT NOT NULL,
+    row_key     TEXT NOT NULL,
+    verdict     TEXT NOT NULL DEFAULT '',  -- 식별 O | X | '' (hotfix82)
+    qty_verdict TEXT NOT NULL DEFAULT '',  -- 수량 O | X | ''  (식별 VOC 탭)
+    author      TEXT NOT NULL DEFAULT '',
+    note        TEXT NOT NULL DEFAULT '',
+    updated_at  REAL NOT NULL,
+    PRIMARY KEY (job_id, row_key)
+);
+
 -- An error report: "this is wrong, and here is why".
 --
 -- Distinct from `feedback`, which is written by the act of correcting and never
@@ -661,7 +678,9 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               # 밸브 창의 출처·범례 종이 배율 · ISA 표가 세운 앵커 수 ·
                               # 유닛 표기 꼴.  저장하지 않으면 화면이 "모른다" 고만 말한다
                               # (38회차 evidence_tier · 53회차 unit_notes 와 같은 결함).
-                              "valve_layout", "isa_anchors", "unit_forms")},
+                              "valve_layout", "isa_anchors", "unit_forms",
+                              # hotfix82 [C] — 어느 모양 사전으로 돌았나 (지문 밖)
+                              "shape_library")},
                             default=str),
                  job_id))
     con.commit()
@@ -1085,6 +1104,62 @@ def review_states(con, job_id: str) -> dict:
         out.setdefault(r["row_key"], {})[r["code"]] = {
             "state": r["state"], "note": r["note"]}
     return out
+
+
+VERDICTS = ("O", "X")
+
+
+def set_verdict(con, job_id: str, row_key: str, verdict=None, author: str = "",
+                note=None, qty_verdict=None) -> None:
+    """hotfix82 — O/X 를 적는다.  `None` 인 칸은 그대로 두고, 식별·수량·비고가 전부 비면 지운다 (미평가)."""
+    cur = con.execute("SELECT verdict, qty_verdict, note FROM row_verdict WHERE job_id=? AND row_key=?",
+                      (job_id, row_key)).fetchone()
+    v = (cur["verdict"] if cur else "") if verdict is None else str(verdict or "").upper()
+    q = (cur["qty_verdict"] if cur else "") if qty_verdict is None else str(qty_verdict or "").upper()
+    n = (cur["note"] if cur else "") if note is None else str(note or "")
+    for x in (v, q):
+        if x and x not in VERDICTS:
+            raise ValueError(f"unknown verdict {x!r}")
+    if not v and not q and not n.strip():
+        con.execute("DELETE FROM row_verdict WHERE job_id=? AND row_key=?", (job_id, row_key))
+    else:
+        con.execute(
+            "INSERT INTO row_verdict (job_id, row_key, verdict, qty_verdict, author, note, updated_at)"
+            " VALUES (?,?,?,?,?,?,?)"
+            " ON CONFLICT(job_id, row_key) DO UPDATE SET"
+            " verdict=excluded.verdict, qty_verdict=excluded.qty_verdict, author=excluded.author,"
+            " note=excluded.note, updated_at=excluded.updated_at",
+            (job_id, row_key, v, q, author or "", n, time.time()))
+    con.commit()
+
+
+def verdicts(con, job_id: str) -> dict:
+    """`{row_key: {"verdict", "qty_verdict", "author", "note", "at"}}` for one job."""
+    out: dict = {}
+    for r in con.execute(
+            "SELECT row_key, verdict, qty_verdict, author, note, updated_at FROM row_verdict WHERE job_id=?",
+            (job_id,)):
+        out[r["row_key"]] = {"verdict": r["verdict"], "qty_verdict": r["qty_verdict"],
+                             "author": r["author"], "note": r["note"], "at": r["updated_at"]}
+    return out
+
+
+def verdict_counts(con, job_id: str) -> dict:
+    """식별 O · X · 미평가(지우지 않은 행 중 식별 평가가 없는 것) · 수량 O · X."""
+    n = {v: 0 for v in VERDICTS}
+    q = {v: 0 for v in VERDICTS}
+    for r in con.execute("SELECT verdict, qty_verdict, COUNT(*) AS n FROM row_verdict WHERE job_id=?"
+                         " GROUP BY verdict, qty_verdict", (job_id,)):
+        if r["verdict"] in n:
+            n[r["verdict"]] += r["n"]
+        if r["qty_verdict"] in q:
+            q[r["qty_verdict"]] += r["n"]
+    live = con.execute("SELECT COUNT(*) FROM item WHERE job_id=? AND deleted=0", (job_id,)).fetchone()[0]
+    judged = con.execute(
+        "SELECT COUNT(*) FROM row_verdict v JOIN item i ON i.job_id=v.job_id AND i.key=v.row_key"
+        " WHERE v.job_id=? AND i.deleted=0 AND v.verdict<>''", (job_id,)).fetchone()[0]
+    return {"O": n["O"], "X": n["X"], "open": max(0, live - judged), "rows": live,
+            "qty_O": q["O"], "qty_X": q["X"]}
 
 
 def review_count(con, job_id: str) -> int:
@@ -1676,7 +1751,8 @@ def confirm_deleted(con, job_id: str, stable_id: str, confirmed: bool) -> dict:
 # 않는다.  그래서 이 함수는 `app/_data/projects/…` 의 어떤 파일도 건드리지
 # 않는다 — DB 안의 그 분석만 지운다.
 _JOB_TABLES = ("item", "revision_state", "deleted_candidate", "pid_page",
-               "revision", "feedback", "review_state", "report", "save_log")
+               "revision", "feedback", "review_state", "report", "save_log",
+               "row_verdict")   # hotfix82 — O/X 평가
 
 
 def deletion_preview(con, job_id: str) -> dict:

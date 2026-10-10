@@ -8,6 +8,7 @@
     python spike/voc.py dup VOC-… --of VOC-… --by 이름
     python spike/voc.py wontfix VOC-… --by 이름 --note "왜 안 고치나"
     python spike/voc.py needinfo VOC-… --by 이름 --note "무엇이 더 필요한가"
+    python spike/voc.py verdicts          # hotfix82 — O/X 평가 · 마크업을 프로젝트 정답지로 (out/verdicts/<이름>.json)
 
 어디를 읽나 (전부 훑고 id 로 하나로 센다 — 같은 VOC 가 두 곳에 있어도 한 건):
   ① `--inbox 경로` (여러 번)  ② `PID_VOC_DIR`/inbox  ③ 이 폴더의 `voc/inbox`
@@ -71,9 +72,15 @@ def _rows_line(r: dict) -> str:
 
 def cmd_list(a, items, ledger):
     rows = list(items.values()) if a.all else voc.pending(items, ledger)
+    # hotfix82 — O/X 평가(VERDICT)는 고칠 일이 아니라 학습 자료다.  `verdicts` 명령이 모으고, 여기서는 --all 일 때만.
+    n_vx = sum(1 for r in rows if r.get("source") == "VERDICT")
+    if not a.all:
+        rows = [r for r in rows if r.get("source") != "VERDICT"]
     rows.sort(key=lambda r: r.get("created_ts") or 0)
     if not rows:
         print("반영할 VOC 가 없습니다." if not a.all else "VOC 가 없습니다.")
+        if n_vx and not a.all:
+            print(f"O/X 평가 {n_vx}건은 학습 자료입니다 — `python spike/voc.py verdicts` 로 모읍니다")
         print("읽은 곳: " + (", ".join(str(p) for p in inboxes(a.inbox) if p.exists()) or "(없음)"))
         _say_unreadable(a)
         return 0
@@ -90,6 +97,8 @@ def cmd_list(a, items, ledger):
             print(f"    조각: {Path(r['_dir']) / 'crop.png'}")
     open_n = len(voc.pending(items, ledger))
     print(f"\n미반영 {open_n}건 · 전체 {len(items)}건 · 장부 {voc.ledger_path(ROOT / 'voc') if not a.ledger else a.ledger}")
+    if n_vx and not a.all:
+        print(f"O/X 평가 {n_vx}건은 목록에서 뺐습니다 — `python spike/voc.py verdicts` 로 모읍니다 (--all 이면 보임)")
     _say_unreadable(a)
     return 0
 
@@ -173,6 +182,24 @@ def cmd_mark(a, items, ledger, status):
     return 1 if bad else 0
 
 
+def cmd_verdicts(a, items, ledger):
+    """hotfix82 — 정답지 모으기.  정의는 `spike/verdict_set.py` 하나 (반영 표시와 무관 — 학습 자료는 지워지지 않는다)."""
+    import verdict_set
+    sets = verdict_set.build(items.values())
+    out_dir = Path(a.out) if a.out else verdict_set.OUT_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if not sets:
+        print("VOC 함에 O/X 평가 · 마크업이 없습니다.")
+        return 0
+    for proj, vs in sets.items():
+        f = verdict_set.verdict_file(proj, out_dir)
+        f.write_text(json.dumps(vs, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        c = vs["counts"]
+        print(f"{proj}: 정답지 {len(vs['items'])}줄 (O {c['O']} · X {c['X']} · 누락 {c['MISSED']}) · VOC {vs['vocs']}건 → {f}")
+    print("재는 법: python3 spike/verdict_set.py score <결과.json> <정답지.json>  (회귀 하네스는 out/verdicts/<이름>.json 을 참고축으로 읽는다)")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--inbox", action="append", help="더 읽을 inbox 폴더")
@@ -181,6 +208,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("list"); p.add_argument("--all", action="store_true")
     p = sub.add_parser("show"); p.add_argument("ids", nargs="+")
     p = sub.add_parser("brief"); p.add_argument("--out")
+    p = sub.add_parser("verdicts"); p.add_argument("--out", help="정답지 폴더 (기본 out/verdicts)")
     for name in ("resolve", "dup", "wontfix", "needinfo"):
         p = sub.add_parser(name)
         p.add_argument("ids", nargs="+")
@@ -205,6 +233,8 @@ def main(argv=None) -> int:
         return cmd_show(a, items, ledger)
     if a.cmd == "brief":
         return cmd_brief(a, items, ledger)
+    if a.cmd == "verdicts":
+        return cmd_verdicts(a, items, ledger)
     return cmd_mark(a, items, ledger, {"resolve": "RESOLVED", "dup": "DUPLICATE",
                                         "wontfix": "WONTFIX", "needinfo": "NEED_INFO"}[a.cmd])
 

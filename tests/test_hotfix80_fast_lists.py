@@ -146,7 +146,8 @@ def test_rows_body_equals_whole_serialisation_and_reuses_row_strings(tmp_path, m
 
 def test_rows_body_tables_and_callers():
     from app import main
-    assert main.ROWS_BODY_TABLES == ("item", "review_state", "revision_state", "feedback")
+    # hotfix82 — O/X 평가(`row_verdict`)도 /rows 본문에 실리므로 그 표의 쓰기가 본문을 다시 만든다
+    assert main.ROWS_BODY_TABLES == ("item", "review_state", "revision_state", "feedback", "row_verdict")
     # 읽기 전용 호출자는 덜어낸 행을 받는다 (온전한 근거를 쓰는 곳은 `?keys=` 뿐)
     for call in re.findall(r"db\.merged_rows_cached\([^)]*\)", MAIN):
         assert "slim=" in call, call

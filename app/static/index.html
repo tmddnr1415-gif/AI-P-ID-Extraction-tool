@@ -514,6 +514,13 @@
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>
+        <!-- hotfix82 — O/X 평가: 고른 행(묶음이면 전부)이 식별되어야 하는가.  저장은 app.js `setVerdict` 하나 · VOC 함에 쌓인다 -->
+        <span class="vx-tool" title="O/X 평가 — 고른 행이 식별되어야 하면 O · 아니면 X (X 는 출력에서 빠지고 되돌릴 수 있습니다).  평가는 VOC 함에 쌓여 다음 학습 자료가 됩니다">
+          <button id="vx-o" class="ghost vx-b o" type="button" title="O — 식별되어야 함 (고른 행 · 묶음이면 전부)">O</button>
+          <button id="vx-x" class="ghost vx-b x" type="button" title="X — 식별되면 안 됨 (출력에서 빠짐 · 고른 행 · 묶음이면 전부)">X</button>
+          <span id="vx-count" class="muted"></span>
+          <button id="vx-xlsx" class="ghost hidden" type="button" title="식별 VOC 탭을 Excel 로 — 요약 · 식별 VOC(식별 O/X · 수량 O/X · 평가자 · 비고) · 누락 추가 · 출력 제외">VOC Excel</button>
+        </span>
         <!-- hotfix68 — 목록을 새 창으로 (이 창에는 도면만 남는다) · 목록 창의 전체화면 · 합치기 -->
         <button type="button" class="ghost pop-btn" data-pane="list"
                 title="목록을 새 창으로 — 듀얼 모니터에서 도면과 목록을 한 화면씩 (고르기 · 편집 · 삭제가 두 창에 같이 반영됩니다)">⧉ 목록 새 창</button>

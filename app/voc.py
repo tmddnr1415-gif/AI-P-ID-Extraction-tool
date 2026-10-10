@@ -51,6 +51,8 @@ SOURCES = {
     "ROW_REPORT": "오류 신고 (행 · 도면 위치)",
     "GENERAL": "일반 VOC",
     "ANALYSIS_FAILED": "분석 실패 화면",
+    # hotfix82 — 목록의 O/X 평가.  한 번의 저장이 한 건이고 `verdicts` 에 행마다 O/X 가 든다.
+    "VERDICT": "O/X 평가 (학습 자료)",
 }
 
 # 무엇이 틀렸나 — 마크업 분류(44회차 `markup.CLASSES`)와 일반 VOC 분류를 한 표로.
@@ -69,6 +71,9 @@ CATEGORIES = {
     "UI": "화면 · 사용법 불편",
     "FEATURE": "기능 요청",
     "OTHER": "기타",
+    # hotfix82 — 사람이 매긴 정답/오답.  "무엇이 틀렸나" 가 아니라 "이 행이 맞는가" 의 답이라
+    # 개발이 고칠 일이 아니고 정답지로 모으는 자료다 (spike/voc.py verdicts).
+    "VERDICT": "O/X 평가 — 식별 정답/오답 표시 (학습 자료)",
 }
 
 # 반영 장부의 상태.  RESOLVED 만 "고쳤다" 이고 나머지는 "고치지 않기로 했다" 이지만,
@@ -149,6 +154,26 @@ def write(record: dict, *, crop_png: bytes | None = None, root: Path | None = No
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)
         raise
+    return rec
+
+
+def amend(voc_id: str, extra: dict, *, root: Path | None = None) -> dict:
+    """이미 쓴 VOC 의 voc.json 에 항목을 더한다 (id · 시각 · 분류 같은 머리는 못 바꾼다).
+    O/X 평가처럼 한 건에 여러 행을 싣는 경우 — write() 뒤 같은 폴더에 원자적으로 다시 쓴다."""
+    folder = inbox_dir(root) / str(voc_id)
+    f = folder / "voc.json"
+    if not ID_RE.match(str(voc_id)) or not f.exists():
+        raise FileNotFoundError(f"VOC {voc_id} not in inbox")
+    rec = json.loads(f.read_text(encoding="utf-8"))
+    for k, v in dict(extra or {}).items():
+        if k in ("id", "schema", "created_at", "created_ts", "source", "source_label",
+                 "category", "category_label"):
+            continue
+        rec[k] = v
+    tmp = folder / ".voc.json.tmp"
+    tmp.write_text(json.dumps(rec, ensure_ascii=False, indent=1, sort_keys=True, default=str),
+                   encoding="utf-8")
+    os.replace(tmp, f)
     return rec
 
 

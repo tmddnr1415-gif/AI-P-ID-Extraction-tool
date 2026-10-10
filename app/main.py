@@ -2507,7 +2507,7 @@ _ROWS_BODY: dict = {}
 _ROWS_BODY_LOCK = threading.Lock()
 # hotfix80 — `/rows` 본문이 읽는 표.  행(`item`) · 검토 상태 · 개정 판정 · 고친 사람(`feedback`).  이 넷 밖의
 # 쓰기(신고 · 메모 · 도면 사실 · 분석 진행)는 본문을 다시 만들지 않는다 (`db._db_stamp(tables=)`).
-ROWS_BODY_TABLES = ("item", "review_state", "revision_state", "feedback")
+ROWS_BODY_TABLES = ("item", "review_state", "revision_state", "feedback", "row_verdict")  # hotfix82 — O/X
 
 # hotfix69 — 목록이 처음 받는 행에서 뺄 근거 칸.  셋이 `/rows` 13.8MB 의 7.4MB 다 (QFE Rev.B 실측:
 # candidates 4.6MB · trace 2.0MB · axis 0.8MB) — 화면은 이 셋을 **고른 행 하나**에만 쓴다 (근거 패널의 후보 ·
@@ -2525,9 +2525,10 @@ def _slim_row(row: dict) -> dict:
     return row
 
 
-def _row_out(row: dict, states: dict, rev: dict, editors: dict) -> dict:
+def _row_out(row: dict, states: dict, rev: dict, editors: dict, vx: dict | None = None) -> dict:
     """한 행에 화면이 쓰는 열을 더한다 — `/rows` 전체 본문과 `?keys=` 응답이 **같은 함수**를 쓴다."""
     row["edited_by"] = editors.get(row["key"], {})
+    row["verdict"] = (vx or {}).get(row["key"], {})          # hotfix82 — O/X 평가
     row["review_codes"] = review_codes(row)
     row["review_state"] = states.get(row["key"], {})
     row["rev"] = rev.get(row["key"], {})
@@ -2547,8 +2548,9 @@ def _rows_payload(job_id: str, tab: str, keys: set | None, slim: bool = False) -
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     editors = db.last_editors(CON, job_id)      # hotfix66 — 고친 칸마다 누가 · 언제
+    vx = db.verdicts(CON, job_id)                # hotfix82 — O/X 평가
     for row in out:
-        _row_out(row, states, rev, editors)
+        _row_out(row, states, rev, editors, vx)
     return out
 
 
@@ -2563,15 +2565,16 @@ def _rows_body(job_id: str, tab: str, slim: bool, old: dict) -> tuple:
     states = db.review_states(CON, job_id)
     rev = db.revision_states(CON, job_id)
     editors = db.last_editors(CON, job_id)
+    vx = db.verdicts(CON, job_id)                # hotfix82 — O/X 평가 (본문 서명에 든다)
     parts, chunks = {}, []
     for r in src:
         k = r["key"]
-        sig = (states.get(k) or {}, rev.get(k) or {}, editors.get(k) or {})
+        sig = (states.get(k) or {}, rev.get(k) or {}, editors.get(k) or {}, vx.get(k) or {})
         c = old.get(k)
         if c is not None and c[0] is r and c[1] == sig:
             s = c[2]
         else:
-            row = _row_out(dict(r), states, rev, editors)
+            row = _row_out(dict(r), states, rev, editors, vx)
             if slim:
                 row = _slim_row(row)
             s = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
@@ -3045,6 +3048,9 @@ REVIEW_LABELS = {
         "도면이 말하지 않음 — 탭을 고르지 않고 올림",
     "VALVE_TAG_NO_BODY":
         "도면이 밸브 태그 버블을 인쇄했는데 그 밸브 몸체를 못 찾음 — 품목은 있고 모양을 못 읽음",
+    # hotfix82 [C] — 모양 사전이 판정한 몸체는 조용히 지나가지 않는다
+    "BODY_FROM_SHAPE_LIBRARY":
+        "범례 규칙이 아니라 모양 사전(확정된 보기)이 판정한 밸브 몸체 — 식별 VOC 탭에서 O/X 로 확인",
     "VALVE_TAG_SIGNALS":
         "이 밸브 버블에 맞닿은 신호 버블(ZSC·ZSO·ZT 등)을 이 행으로 접음 — 물리 품목은 하나",
 
@@ -3652,6 +3658,166 @@ def rows_delete(job_id: str, payload: dict):
             missing.append(key)
     return {"rows": done, "missing": missing, "review_count": db.review_count(CON, job_id),
             "feedback_count": db.feedback_count(CON, job_id), "markup": markup.summary(CON, job_id)}
+
+
+# ---------------------------------------------------------------------------
+# hotfix82 — O/X 평가: 이 행이 식별되어야 하는가 (O) · 식별되면 안 되는가 (X)
+#
+# 사용자: *"출력된 식별된 값이 식별되어야 하는지 아닌지 O/X 표기하고 그 결과값이 VOC 로
+# 저장되어 재학습할 수 있는 경로."*  하는 일 셋 — ① `row_verdict` 표에 적는다 (목록 열 ·
+# 필터 · 머리줄 수) ② X 는 **출력에서 뺀다** (오검출 삭제와 같은 함수 `_delete_one` · 되돌릴 수
+# 있다 · 사람이 더한 행은 지우지 않는다) ③ 한 요청이 VOC 한 건이 된다 (`verdicts` 목록에 행마다
+# O/X · 그 행의 엔진 값 · 자리) — 개발 쪽 `spike/voc.py verdicts` 가 프로젝트 정답지로 모은다.
+# 판정 코드는 이 평가를 읽지 않는다 — 정답지는 재는 자이지 규칙이 아니다 (§9 · 44회차 [E-5]).
+# ---------------------------------------------------------------------------
+VERDICT_REASON = {"O": "O — 식별되어야 함 (맞게 식별됨)", "X": "X — 식별되면 안 됨 (틀리게 식별됨)"}
+VERDICT_REJECT_NOTE = "O/X 평가 X"           # X 가 남긴 오검출 표시의 사유 — 이 표시만 O/비움이 되돌린다
+
+
+def _verdict_one(job_id: str, key: str, verdict, qty_verdict, note, author: str) -> dict:
+    """행 하나의 O/X.  `None` 인 칸은 건드리지 않는다.  `KeyError` 는 그 행이 없다는 뜻이다."""
+    before = db.get_row(CON, job_id, key)
+    if before is None:
+        raise KeyError(key)
+    prev = db.verdicts(CON, job_id).get(key, {})
+    db.set_verdict(CON, job_id, key, verdict, author, note, qty_verdict)
+    now = db.verdicts(CON, job_id).get(key, {})
+    out = {"key": key, "verdict": now.get("verdict", ""), "qty_verdict": now.get("qty_verdict", ""),
+           "note": now.get("note", ""), "was": prev.get("verdict", ""), "was_qty": prev.get("qty_verdict", ""),
+           "removed": bool(before.get("removed"))}
+    if verdict is None:                     # 수량 · 비고만 — 행의 출력 여부는 그대로
+        return out
+    reject = before.get("reject") or {}
+    by_verdict = reject.get("note") == VERDICT_REJECT_NOTE
+    if verdict == "X":
+        # 식별되면 안 되는 행은 출력에서 뺀다 — 오검출 삭제와 **같은 함수**.  사람이 더한 행은
+        # 지우면 사라지므로(복원 불가) 평가만 적는다.
+        if not before.get("removed") and not before.get("added"):
+            _delete_one(job_id, key, "FALSE_POSITIVE", VERDICT_REJECT_NOTE, author, True)
+            out["removed"] = True
+    elif before.get("removed") and by_verdict:
+        # X 가 지운 행만 되살린다 — 사람이 따로 지운 행(사유가 다르다)은 건드리지 않는다.
+        with db.memo_follow(CON, job_id) as touched:
+            db.restore_row(CON, job_id, key)
+            touched.append(key)
+        out["removed"] = False
+    return out
+
+
+def _body_basis(ev: dict) -> dict:
+    bb = ev.get("body_basis") or {}
+    if not isinstance(bb, dict) or not bb.get("body_source"):
+        return {}
+    return {"body_source": bb.get("body_source"), "exemplar": (bb.get("exemplar") or {}).get("id", ""),
+            "kind": ev.get("body") or ""}
+
+
+def _verdict_voc(job_id: str, done: list, author: str, note: str, crop_one: bool) -> dict | None:
+    """한 요청의 평가 전부를 VOC 한 건으로.  식별·수량 어느 쪽도 없는 행(지운 것)은 학습 자료가 아니라 적지 않는다."""
+    kept = [d for d in done if d["verdict"] or d["qty_verdict"]]
+    if not kept:
+        return None
+    rows = []
+    for d in kept:
+        cap = _capture_row(job_id, d["key"])
+        if not cap:
+            continue
+        rows.append({"identity": cap["identity"], "ai_values": cap["ai_values"],
+                     "user_values": cap["user_values"], "applied_rules": cap["applied_rules"],
+                     "review_codes": cap["review_codes"], "verdict": d["verdict"],
+                     "qty_verdict": d["qty_verdict"], "note": d["note"],
+                     # 모양 사전이 판정한 몸체면 어느 보기였는지 — 학습이 X 는 거르고 O 는 보기로 더한다
+                     "body_basis": _body_basis(cap.get("evidence") or {})})
+    n_o = sum(1 for d in kept if d["verdict"] == "O"); n_x = sum(1 for d in kept if d["verdict"] == "X")
+    q_o = sum(1 for d in kept if d["qty_verdict"] == "O"); q_x = sum(1 for d in kept if d["qty_verdict"] == "X")
+    if len(kept) == 1:
+        d = kept[0]
+        head = VERDICT_REASON.get(d["verdict"]) or ""
+        if d["qty_verdict"]:
+            head += (" · " if head else "") + ("수량 O — 수량이 맞음" if d["qty_verdict"] == "O" else "수량 X — 수량이 틀림")
+    else:
+        head = f"식별 O {n_o} · X {n_x} · 수량 O {q_o} · X {q_x} — 식별 VOC {len(kept)}행"
+    payload = {"job_id": job_id, "source": "VERDICT", "category": "VERDICT",
+               "reason": head + (f" · {note}" if note else ""), "author": author,
+               "row_keys": [kept[0]["key"]] if len(kept) == 1 else [],
+               "no_crop": not (crop_one and len(kept) == 1 and "X" in (kept[0]["verdict"], kept[0]["qty_verdict"]))}
+    rec = _write_voc(payload)
+    # `_write_voc` 는 행을 50개까지만 담는다 — 평가는 전부 담아야 정답지가 된다.
+    extra = {"verdicts": [{"key": d["key"], "verdict": d["verdict"], "qty_verdict": d["qty_verdict"],
+                           "note": d["note"]} for d in kept],
+             "rows": rows, "counts": {"O": n_o, "X": n_x, "qty_O": q_o, "qty_X": q_x}}
+    voc.amend(rec["id"], extra)
+    return rec
+
+
+@app.get("/jobs/{job_id}/verdicts")
+def job_verdicts(job_id: str):
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    return {"counts": db.verdict_counts(CON, job_id), "items": db.verdicts(CON, job_id)}
+
+
+@app.post("/jobs/{job_id}/verdicts")
+def set_verdicts(job_id: str, payload: dict):
+    """`{items: [{key, verdict?: "O"|"X"|"", qty_verdict?: "O"|"X"|"", note?}], author, note}` — 여러 행을 한 요청으로.
+
+    항목에 없는 칸은 건드리지 않는다 (수량만 적어도 식별 평가는 그대로).  `verdict: "X"` 만 행을 출력에서 뺀다."""
+    if db.get_job(CON, job_id) is None:
+        raise HTTPException(404, "no such job")
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        raise HTTPException(400, "items 는 {key, verdict | qty_verdict | note} 목록이어야 합니다")
+    if len(items) > 5000:
+        raise HTTPException(400, "한 번에 5000행까지 평가할 수 있습니다")
+    author = " ".join(str(payload.get("author") or "").split())[:60]
+    note = str(payload.get("note") or "").strip()[:500]
+    done, missing = [], []
+    seen = set()
+    for it in items:
+        if not isinstance(it, dict) or not isinstance(it.get("key"), str):
+            raise HTTPException(400, "items 의 각 항목은 {key, verdict | qty_verdict | note} 여야 합니다")
+        if not any(k in it for k in ("verdict", "qty_verdict", "note")):
+            raise HTTPException(400, "items 의 각 항목에 verdict · qty_verdict · note 중 하나는 있어야 합니다")
+        vals = {}
+        for k in ("verdict", "qty_verdict"):
+            if k in it:
+                v = str(it.get(k) or "").upper()
+                if v not in ("", "O", "X"):
+                    raise HTTPException(400, f"{k} 는 O · X · 빈 값 중 하나입니다 ({v!r})")
+                vals[k] = v
+        row_note = str(it.get("note") or "").strip()[:500] if "note" in it else None
+        if it["key"] in seen:
+            continue
+        seen.add(it["key"])
+        try:
+            done.append(_verdict_one(job_id, it["key"], vals.get("verdict"), vals.get("qty_verdict"), row_note, author))
+        except KeyError:
+            missing.append(it["key"])
+    voc_rec = None
+    try:
+        voc_rec = _verdict_voc(job_id, done, author, note, crop_one=bool(payload.get("crop", True)))
+    except (OSError, ValueError) as exc:          # VOC 함에 못 써도 평가 자체는 남는다 — 말만 한다
+        voc_rec = {"error": str(exc)}
+    return {"rows": done, "missing": missing, "counts": db.verdict_counts(CON, job_id),
+            "voc": voc_rec, "review_count": db.review_count(CON, job_id),
+            "feedback_count": db.feedback_count(CON, job_id), "markup": markup.summary(CON, job_id)}
+
+
+@app.get("/jobs/{job_id}/verdicts.xlsx")
+def verdicts_xlsx(job_id: str):
+    """hotfix82 — 식별 VOC 탭을 그대로 파일로 (요약 · 식별 VOC · 누락 추가 · 출력 제외).  판정은 저장된 그대로."""
+    from app import verdict_export
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    rows = db.merged_rows(CON, job_id, "ALL")
+    pages = {r["page_no"]: r["drawing_no"] for r in CON.execute(
+        "SELECT page_no, drawing_no FROM pid_page WHERE job_id=?", (job_id,)).fetchall()}
+    data = verdict_export.build(dict(job), rows, pages, db.verdicts(CON, job_id), db.verdict_counts(CON, job_id))
+    name = f"VOC_{job['project'] or 'job'}_{job['revision'] or 'rev'}.xlsx".replace(" ", "_")
+    return StreamingResponse(io.BytesIO(data),
+                             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": _attachment(name)})
 
 
 @app.get("/jobs/{job_id}/rows/{key}/history")
@@ -4379,7 +4545,7 @@ def _write_voc(payload: dict) -> dict:
         "report_id": payload.get("report_id"),
         "screen": payload.get("screen") or {},
     }
-    crop = _voc_crop(job, page_no, rec["rect"]) if job else None
+    crop = _voc_crop(job, page_no, rec["rect"]) if job and not payload.get("no_crop") else None
     return voc.write(rec, crop_png=crop)
 
 

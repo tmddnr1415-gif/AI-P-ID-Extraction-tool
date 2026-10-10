@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "spike"))
 import identification  # noqa: E402
+import verdict_set  # noqa: E402  — hotfix82 참고축
 
 PROJECTS = json.loads((ROOT / "spike" / "projects_3p.json").read_text())["projects"]
 BASELINES = ROOT / "spike" / "baselines_3p.json"
@@ -92,6 +93,11 @@ def score(proj, blob) -> dict:
     }
     if proj.get("client_lists") and (ROOT / "data" / "CZE_Field_Instrument.xlsx").exists():
         out["axes"] = client_axes(rows)
+    # hotfix82 — 부서원의 O/X 평가 정답지 (out/verdicts/<이름>.json · `spike/voc.py verdicts` 가 만든다).
+    # 참고축이다 — 게이트가 아니다.  없으면 조용하다.
+    vf = verdict_set.verdict_file(proj["name"])
+    if vf.exists():
+        out["verdicts"] = verdict_set.score(rows, json.loads(vf.read_text(encoding="utf-8")))
     return out
 
 
@@ -180,6 +186,12 @@ def table(res) -> str:
                 lines.append("%-*s %s 재현율 %.1f%% · 정밀도 %.1f%% (FP %d · FN %d)"
                              % (w, r["name"], ax, v["recall"], v["precision"],
                                 v["fp"], v["fn"]))
+    vref = [r for r in res if not r.get("error") and r.get("verdicts")]
+    if vref:
+        lines.append("")
+        lines.append("O/X 정답지 (참고 — 게이트가 아닙니다 · 부서원이 적은 평가를 얼마나 지키나)")
+        for r in vref:
+            lines.append("%-*s %s" % (w, r["name"], verdict_set.summary_line(r["verdicts"])))
     lines.append("")
     lines.append("축3 내역 (지표별 맞춘 수 / 분모)")
     lines.append("%-*s %s" % (w, "", "  ".join("%-11s" % m for m in identification.METRICS)))
@@ -234,6 +246,9 @@ def main() -> int:
             new = {k: r[k] for k in CHECK if k in r}
             if "axes" in r:
                 new["axes_reference"] = r["axes"]      # 참고 · 대조하지 않는다
+            if "verdicts" in r:                        # hotfix82 — 참고 · 대조하지 않는다
+                v = r["verdicts"]
+                new["verdict_reference"] = {"total": v["total"], "agree": v["agree"], "pct": v["pct"]}
             if AXIS_FLOOR_KEY in keep:                 # 바닥값은 사람이 정한다
                 new[AXIS_FLOOR_KEY] = keep[AXIS_FLOOR_KEY]
             base[r["name"]] = new
