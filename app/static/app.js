@@ -1511,6 +1511,7 @@ async function _open(jobId) {
   S.loading = false;
   updateEmptyNote();
   S.pageMult = { checked: new Set(), vals: {}, last: null };   // hotfix65 — 페이지별 승수 (분석마다 새로)
+  S.cell = null; CELL.editing = null;                    // hotfix78 — 골라진 칸은 결과마다
   S.pinSel = null; S.pinEditing = null; if (S.pinMode) setPinMode(false); closePinPop();   // hotfix76
   S.memo = null; S.memoDraft = {};        // hotfix63 — 장별 메모 (다른 분석의 저장 안 한 글은 들고 오지 않는다)
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
@@ -3809,8 +3810,10 @@ function rowHtml(r, cols) {
     h += `<td data-col="${key}"`
       + (tc.length ? ` class="${tc.join(" ")}"` : "")
       + (title ? ` title="${escAttr(title)}"` : "")
-      // 저장 · Enter 는 목록 몸통 하나가 받는다 (`bindGridBody`)
-      + (editable && canEdit ? ' contenteditable="true"' : "")
+      // hotfix78 — 고칠 수 있는 칸은 표시만 한다 (`data-ed`).  엑셀처럼 한 번 누르면 칸이 골라지고(`cur`) ·
+      // 두 번 누르거나 F2 · 바로 타자를 치면 그때 편집이 열린다 (`startCellEdit`) — 저장은 `bindGridBody`.
+      + (editable && canEdit ? ' data-ed="1"' : "")
+      + (S.cell && S.cell.key === r.key && S.cell.col === key ? ' data-cur="1"' : "")
       + ">"
       + (key === "description_grade" && has ? _gradeBadgeHtml(val) : has ? escape(String(val)) : "")
       + "</td>";
@@ -3846,8 +3849,91 @@ function buildRowTr(r, cols) {
   return _rowTpl.content.firstElementChild;
 }
 
+/* hotfix78 — 목록 칸을 엑셀처럼 고친다.
+ *
+ * 사용자: *"출력된 List 의 값 수정은 해당 셀을 더블클릭하면 엑셀 셀과 같이 사용자가 편집할 수 있도록 excel 과 같은
+ * 유사한 느낌으로."*  예전에는 고칠 수 있는 칸이 늘 편집 상태(contenteditable)라 한 번만 눌러도 글자 사이에 커서가
+ * 서고, 화살표가 칸이 아니라 글자를 옮겼다.  이제 엑셀과 같다:
+ *   · 한 번 누름 → 그 칸이 **골라진다** (녹색 테두리 · `S.cell`) — 행도 같이 골라져 도면이 그 자리로 간다 (예전 그대로).
+ *   · 두 번 누름 → 누른 자리에 커서를 두고 편집 · F2 → 끝에 커서 · 글자를 바로 치면 → 칸을 비우고 그 글자부터 (엑셀의 "입력").
+ *     Backspace 도 비우고 편집을 연다.
+ *   · 편집 중 Enter → 저장하고 아래 칸 (Shift+Enter 위) · Tab → 저장하고 오른쪽 (Shift+Tab 왼쪽) · Esc → 되돌리고 그 칸에 남는다 ·
+ *     다른 곳을 누르면 저장 (예전과 같은 `saveEdit`).
+ *   · 편집이 아닐 때 화살표 · Enter · Tab 은 **칸**을 옮긴다 · Ctrl+C 는 그 칸 값을 복사 · Ctrl+V 는 그 칸에 붙여 저장.
+ * 저장 길은 그대로 하나다 (`saveEdit` → `saveField` — 작성자 · 다른 창 연동 · 도면 다시 그리기 전부 같다).
+ * 고를 수만 있는 칸(장 · 등급 · 개정 …)은 골라지고 복사되지만 편집은 열리지 않는다. */
+const CELL = { editing: null, orig: "", cancel: false, pasteCommit: false };
+function _cellTd(key, col) {
+  return document.querySelector(`#body tr[data-key="${CSS.escape(key)}"] td[data-col="${CSS.escape(col)}"]`);
+}
+/* 칸 하나를 고른다 (목록이 다시 그려져도 `rowHtml` 이 `S.cell` 을 읽어 표시를 되살린다). */
+function setCell(key, col, opts = {}) {
+  S.cell = key && col ? { key, col } : null;
+  document.querySelectorAll('#body td[data-cur]').forEach(t => t.removeAttribute("data-cur"));
+  if (!S.cell) return null;
+  if (opts.reveal) revealRow(key);
+  const td = _cellTd(key, col);
+  if (td) {
+    td.setAttribute("data-cur", "1");
+    if (opts.scroll) td.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  const gw = document.getElementById("gridwrap");
+  if (opts.focus !== false && gw && !CELL.editing && document.activeElement !== gw) gw.focus({ preventScroll: true });
+  return td;
+}
+/* 편집을 연다.  how: "end"(F2) · "replace"(타자로 시작 · Backspace) · {x, y}(두 번 누른 자리). */
+function startCellEdit(td, how) {
+  if (!td || td.dataset.ed !== "1" || CELL.editing) return false;
+  const r = _gridRow(td.parentElement);
+  if (!r || r.deleted || r.removed) return false;
+  CELL.editing = td; CELL.orig = td.textContent; CELL.cancel = false;
+  td.setAttribute("data-cur", "1");
+  td.classList.add("editing");
+  td.contentEditable = "true";
+  if (how === "replace") td.textContent = "";
+  td.focus({ preventScroll: true });
+  const sel = window.getSelection();
+  let range = null;
+  if (how && typeof how === "object" && document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(how.x, how.y);
+    if (range && !td.contains(range.startContainer)) range = null;
+  }
+  if (!range) { range = document.createRange(); range.selectNodeContents(td); range.collapse(false); }
+  sel.removeAllRanges(); sel.addRange(range);
+  return true;
+}
+/* 편집 상태를 푼다.  저장해야 하면 true (Esc 면 false — 원래 글자로 돌린다). */
+function endCellEdit(td) {
+  CELL.editing = null;
+  CELL.pasteCommit = false;
+  td.classList.remove("editing");
+  td.removeAttribute("contenteditable");
+  if (CELL.cancel) { td.textContent = CELL.orig; CELL.cancel = false; return false; }
+  return true;
+}
+/* 지금 칸에서 dr 행 · dc 열 옮긴 칸 — 순서는 목록이 세운 행(`S.vlist`)과 보이는 열(`gridCols`). */
+function nextCell(from, dr, dc) {
+  const list = S.vlist || [], cols = (S.vcols || gridCols()).map(c => c[0]);
+  let i = list.findIndex(r => r.key === from.key), j = cols.indexOf(from.col);
+  if (i < 0 || j < 0) return null;
+  i = Math.max(0, Math.min(list.length - 1, i + dr));
+  j = Math.max(0, Math.min(cols.length - 1, j + dc));
+  return { key: list[i].key, col: cols[j] };
+}
+function gotoCell(to) {
+  if (!to) return;
+  setCell(to.key, to.col, { reveal: true, scroll: true });
+  if (to.key !== S.sel) select(to.key, true);
+}
+function commitAndMove(td, dr, dc) {
+  const from = { key: td.parentElement.dataset.key, col: td.dataset.col };
+  const to = nextCell(from, dr, dc);
+  td.blur();                                 // focusout 이 저장한다 (`saveEdit`)
+  gotoCell(to || from);
+}
+
 /* hotfix68 — 목록 몸통의 듣는 이 셋.  칸마다 달던 blur · keydown 과 행마다 달던 click 을 한 곳에서 받는다 —
- * 하는 일은 같다 (칸을 떠나면 `saveEdit` · Enter 는 칸 떠나기 · 행 누르기는 고르기 / Shift 는 묶음).
+ * 하는 일은 같다 (칸을 떠나면 `saveEdit` · 행 누르기는 고르기 / Shift 는 묶음).  hotfix78 — 칸 고르기 · 두 번 누르기.
  * 행은 `S.rowByKey` 에서 찾는다 — 다른 창에서 고친 행도 같은 객체를 제자리에서 바꾸므로 같은 행이다. */
 function _gridRow(tr) {
   const k = tr && tr.dataset.key;
@@ -3858,17 +3944,35 @@ function _gridRow(tr) {
   if (!body) return;
   body.addEventListener("focusout", ev => {
     const td = ev.target;
-    if (!td || td.tagName !== "TD" || td.contentEditable !== "true") return;
+    if (!td || td !== CELL.editing) return;
+    const commit = endCellEdit(td);          // 편집 상태를 풀고, 저장할지 돌려준다 (Esc 면 아니다)
     const r = _gridRow(td.parentElement);
-    if (r) saveEdit(r, td.dataset.col, td);
+    if (commit && r) saveEdit(r, td.dataset.col, td);
   });
   body.addEventListener("keydown", ev => {
-    const td = ev.target;
-    if (ev.key === "Enter" && td && td.tagName === "TD" && td.contentEditable === "true") { ev.preventDefault(); td.blur(); }
+    const td = CELL.editing;
+    if (!td || ev.target !== td || ev.isComposing) return;
+    if (ev.key === "Enter" && !ev.altKey) { ev.preventDefault(); commitAndMove(td, ev.shiftKey ? -1 : 1, 0); }
+    else if (ev.key === "Tab") { ev.preventDefault(); commitAndMove(td, 0, ev.shiftKey ? -1 : 1); }
+    else if (ev.key === "Escape") {
+      ev.preventDefault(); ev.stopPropagation();
+      CELL.cancel = true;
+      const at = { key: td.parentElement.dataset.key, col: td.dataset.col };
+      td.blur();
+      setCell(at.key, at.col);
+    }
+  });
+  body.addEventListener("dblclick", ev => {
+    const td = ev.target.closest ? ev.target.closest("td[data-col]") : null;
+    if (!td || !body.contains(td) || td === CELL.editing) return;
+    const tr = td.parentElement;
+    setCell(tr.dataset.key, td.dataset.col, { focus: false });
+    startCellEdit(td, { x: ev.clientX, y: ev.clientY });
   });
   body.addEventListener("click", ev => {
     const tr = ev.target.closest ? ev.target.closest("tr") : null;
     if (!tr || !body.contains(tr)) return;
+    if (CELL.editing && CELL.editing.contains(ev.target)) return;     // 편집 중인 칸 안의 커서 옮기기
     const r = _gridRow(tr);
     if (!r) return;
     const act = ev.target.closest("[data-act]");
@@ -3885,7 +3989,75 @@ function _gridRow(tr) {
       return;
     }
     if (isAddClick(ev)) { toggleMulti(r.key); return; }
+    const td = ev.target.closest("td[data-col]");
+    if (td) setCell(r.key, td.dataset.col);
     select(r.key, true);
+  });
+})();
+
+/* hotfix78 — 칸이 골라져 있을 때(편집 아님)의 자판.  목록 틀(`#gridwrap`)이 자판을 받는다 — 엑셀처럼 화살표 ·
+ * Enter · Tab 은 칸을 옮기고, F2 · 글자 · Backspace 는 편집을 연다.  여기서 받은 화살표는 아래의 행 화살표
+ * (hotfix26) 로 가지 않는다 (`defaultPrevented`). */
+(function bindGridKeys() {
+  const gw = document.getElementById("gridwrap");
+  if (!gw) return;
+  gw.tabIndex = 0;
+  const MOVE = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+  gw.addEventListener("keydown", ev => {
+    if (CELL.editing || !S.cell || ev.target !== gw || ev.isComposing) return;
+    const k = ev.key, plain = !ev.ctrlKey && !ev.metaKey && !ev.altKey;
+    let mv = MOVE[k];
+    if (!mv && k === "Tab") mv = [0, ev.shiftKey ? -1 : 1];
+    if (!mv && k === "Enter") mv = [ev.shiftKey ? -1 : 1, 0];
+    if (mv && plain) { ev.preventDefault(); gotoCell(nextCell(S.cell, mv[0], mv[1])); return; }
+    const td = _cellTd(S.cell.key, S.cell.col) || setCell(S.cell.key, S.cell.col, { reveal: true, focus: false });
+    if (!td) return;
+    if (k === "F2") { ev.preventDefault(); startCellEdit(td, "end"); return; }
+    if (k === "Backspace" && plain) { ev.preventDefault(); startCellEdit(td, "replace"); return; }
+    // Ctrl+V — 브라우저는 편집할 수 없는 곳에서 붙이기를 일으키지 않는다.  칸을 먼저 열어 두면 붙이기가 그 칸에
+    // 들어오고(아래 `paste`), 들어오는 즉시 저장하고 그 칸에 남는다 (엑셀처럼).  기본 동작은 막지 않는다.
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (k === "v" || k === "V") && td.dataset.ed === "1") {
+      if (startCellEdit(td, "replace")) CELL.pasteCommit = true;
+      return;
+    }
+    // 글자를 바로 치면 칸을 비우고 그 글자부터 — 기본 동작을 막지 않으므로 그 글자가 편집 칸에 들어간다
+    if (plain && (k.length === 1 || k === "Process")) startCellEdit(td, "replace");
+  });
+  // Ctrl+C · Ctrl+V — 골라진 칸 하나 (편집 중에는 브라우저 기본 그대로)
+  document.addEventListener("copy", ev => {
+    if (CELL.editing || !S.cell || document.activeElement !== gw) return;
+    const td = _cellTd(S.cell.key, S.cell.col);
+    if (!td) return;
+    ev.clipboardData.setData("text/plain", td.textContent.trim());
+    ev.preventDefault();
+  });
+  // 편집 중인 칸에 붙이기 — 글자만 (엑셀에서 온 서식 · 여러 칸은 첫 칸 글자만).  Ctrl+V 로 연 칸이면 곧바로 저장.
+  document.getElementById("body").addEventListener("paste", ev => {
+    const cell = CELL.editing;
+    if (!cell || ev.target !== cell && !cell.contains(ev.target)) return;
+    ev.preventDefault();
+    const t = String((ev.clipboardData && ev.clipboardData.getData("text/plain")) || "").split(/\r?\n/)[0].split("\t")[0];
+    if (CELL.pasteCommit) {
+      CELL.pasteCommit = false;
+      cell.textContent = t;
+      const at = { key: cell.parentElement.dataset.key, col: cell.dataset.col };
+      cell.blur();                               // focusout 이 저장한다
+      setCell(at.key, at.col);
+    } else {
+      document.execCommand("insertText", false, t);
+    }
+  });
+  document.addEventListener("paste", ev => {
+    if (CELL.editing || !S.cell || document.activeElement !== gw) return;
+    const td = _cellTd(S.cell.key, S.cell.col);
+    if (!td || td.dataset.ed !== "1") return;
+    const r = _gridRow(td.parentElement);
+    if (!r) return;
+    ev.preventDefault();
+    // 엑셀에서 복사한 칸 묶음이면 첫 칸만 (여러 칸 붙이기는 Shift 묶음 판이 맡는다)
+    const t = String(ev.clipboardData.getData("text/plain") || "").split(/\r?\n/)[0].split("\t")[0];
+    td.textContent = t;
+    saveEdit(r, td.dataset.col, td);
   });
 })();
 
@@ -9449,6 +9621,7 @@ function applyInfobars() {
 // hotfix26 — ↑ ↓ 로 목록의 앞뒤 행을 고른다.  입력칸 · 선택상자에서는 잡지 않는다.
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+  if (ev.defaultPrevented) return;          // hotfix78 — 골라진 칸이 있으면 목록 틀이 이미 칸을 옮겼다
   const t = ev.target, tag = ((t && t.tagName) || "").toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select" || (t && t.isContentEditable)) return;
   const st = document.getElementById("stage");

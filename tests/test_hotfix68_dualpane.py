@@ -181,7 +181,7 @@ def test_grid_is_one_html_pour_and_the_body_listens_once():
     assert "addEventListener" not in rh and "onclick" not in rh
     assert 'data-act="report"' in rh and 'data-act="restore"' in rh and 'data-act="del-confirm"' in rh
     i = JS.index("(function bindGridBody()")
-    seg = JS[i:i + 2200]
+    seg = JS[i:JS.index("\n})();", i)]          # hotfix78 — 두 번 누르기가 더해져 IIFE 끝까지 본다
     for ev in ('"focusout"', '"keydown"', '"click"'):
         assert f"body.addEventListener({ev}" in seg, ev
     assert "saveEdit(r, td.dataset.col, td)" in seg
