@@ -156,3 +156,39 @@ def test_typical_multiplies_the_unit_multiplier():
     P._apply_typical(rows, {6: _T()})
     assert rows[0].qty == 32
     assert "x 4" in rows[0].evidence["qty_basis"]
+
+
+def _desc_row(key, desc, letter, sentence, dwg="D-1"):
+    return P.Row(key=key, tab="FIELD", page_no=6, drawing_no=dwg, type="LIT",
+                 description=f"{desc} {letter}", rect=(0, 0, 1, 1),
+                 evidence={"duplicate_suffix": {"letter": letter, "sentence": sentence},
+                           "description_sources": ["DRAWING:X", "SUFFIX: …"]})
+
+
+def test_dropping_a_row_relabels_the_rest_of_its_sentence_group():
+    s = "UNIT #11 TANK LEVEL"
+    a, b, c = _desc_row("a", s, "A", s), _desc_row("b", s, "B", s), _desc_row("c", s, "C", s)
+    assert P._resuffix([a, c], [b]) == 2
+    assert (a.description, c.description) == (f"{s} A", f"{s} B")
+    # 남은 것이 하나면 접미를 뗀다 (가를 것이 없다)
+    d, e = _desc_row("d", s, "A", s), _desc_row("e", s, "B", s)
+    assert P._resuffix([d], [e]) == 1
+    assert d.description == s and "duplicate_suffix" not in d.evidence
+    assert d.evidence["description_sources"] == ["DRAWING:X"]
+    # 다른 무리는 건드리지 않는다
+    f = _desc_row("f", "OTHER", "A", "OTHER")
+    assert P._resuffix([f], [e]) == 0 and f.description == "OTHER A"
+
+
+def test_dropped_rows_leave_no_overlay_box():
+    layers = {6: {"FIELD": [{"key": "a", "row": True}, {"key": "b", "row": True},
+                            {"key": "b", "row": False}]}}
+    P._drop_from_layers(layers, {"b"})
+    assert layers[6]["FIELD"] == [{"key": "a", "row": True}, {"key": "b", "row": False}]
+
+
+def test_the_policy_is_the_last_filter():
+    """판정이 다 끝난 뒤 뺀다 — 앞에서 빼면 표시기 접기·거리 문턱이 달라진다 (QFE 실측)."""
+    src = inspect.getsource(P._analyse)
+    assert src.index("_fold_readouts(") < src.index("apply_policy(")
+    assert src.index("_attach_tags(") < src.index("apply_policy(")

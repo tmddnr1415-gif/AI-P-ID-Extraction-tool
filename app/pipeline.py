@@ -1594,10 +1594,6 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                for pno, info in per_page.items()})
     if folded_sig:
         rows = [r for r in rows if r.key not in folded_sig]
-    # hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  Description ·
-    # 순번 · 태그 체계 · 문턱 모집단이 그 행을 보기 **전에** 뺀다 — 뒤에서 빼면 같은
-    # 문장의 A·B 접미에 빈자리가 남는다.
-    rows, policy_facts = apply_policy(rows, isa, log=clock.log)
     for r in rows:
         chain = tag_signals.get(r.key)
         if not chain:
@@ -1849,6 +1845,13 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         rows, isa, links=_bubble_links(rows, pages))
     if folded_readouts:
         rows = [r for r in rows if r.key not in folded_readouts]
+    # hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블) 은 **마지막
+    # 거름**이다.  앞에서 빼면 판정이 달라진다 (실측 QFE): 전송기에 접히던 선 있는 표시기
+    # 124행이 접힘 대신 '정책' 으로 빠지고, Description 거리 문턱의 모집단이 움직여 남은
+    # 행의 문장이 바뀌었다.  그래서 모든 판정이 끝난 뒤 빼고, 그 행이 남긴 자리 둘
+    # (같은 문장의 A·B 접미 · 오버레이 상자)만 정리한다.
+    rows, policy_facts = apply_policy(rows, isa, log=clock.log)
+    _drop_from_layers(layers, {d["key"] for d in policy_facts["rows"]})
 
     say(total, total, "done")
     for line in clock.summary_lines():
@@ -2420,6 +2423,59 @@ def control_function_reason(anchor: str, lines, isa) -> str:
     return ""
 
 
+def _drop_from_layers(layers: dict, keys: set) -> None:
+    """뺀 행의 오버레이 상자를 지운다 — 33회차 등식(색 칸 합 = 상자 수 = 행 수)을 지킨다."""
+    if not keys:
+        return
+    for by_tab in (layers or {}).values():
+        for tab in list(by_tab):
+            by_tab[tab] = [it for it in by_tab[tab]
+                           if not (it.get("row") and it.get("key") in keys)]
+
+
+def _resuffix(kept: list, dropped: list) -> int:
+    """뺀 행이 같은 문장 무리(17회차 C-1 접미)에 있었으면 남은 행의 글자를 다시 매긴다.
+
+    무리의 정의는 `_disambiguate_duplicates` 가 남긴 근거(`duplicate_suffix.sentence` ·
+    도면) 그대로다.  남은 것이 하나면 접미를 떼고(가를 것이 없다), 둘 이상이면 원래
+    순서(위→아래 · 좌→우)대로 A · B … 를 다시 붙인다.  문장 끝이 그 글자일 때만 고친다 —
+    뒤에서 앞머리(Typical 이름표)가 붙은 문장도 끝은 그대로다.
+    """
+    hit = {(r.drawing_no, (r.evidence.get("duplicate_suffix") or {}).get("sentence"))
+           for r in dropped if (r.evidence or {}).get("duplicate_suffix")}
+    if not hit:
+        return 0
+    groups = collections.defaultdict(list)
+    for r in kept:
+        ds_ = (r.evidence or {}).get("duplicate_suffix") or {}
+        k = (r.drawing_no, ds_.get("sentence"))
+        if k in hit:
+            groups[k].append(r)
+    touched = 0
+    for members in groups.values():
+        members.sort(key=lambda r: r.evidence["duplicate_suffix"].get("letter", ""))
+        for i, r in enumerate(members):
+            info = r.evidence["duplicate_suffix"]
+            old = info.get("letter", "")
+            desc = r.description or ""
+            if not old or not desc.endswith(" " + old):
+                continue
+            stem = desc[: -len(old) - 1]
+            if len(members) == 1:
+                r.description = stem
+                r.evidence.pop("duplicate_suffix", None)
+                srcs = r.evidence.get("description_sources")
+                if isinstance(srcs, list):
+                    r.evidence["description_sources"] = [x for x in srcs
+                                                         if not str(x).startswith("SUFFIX:")]
+            else:
+                new = chr(ord("A") + i)
+                r.description = f"{stem} {new}"
+                info.update(letter=new, of=len(members))
+            touched += 1
+    return touched
+
+
 def apply_policy(rows: list, isa, log=None) -> tuple:
     """hotfix83 — 사용자가 정한 '식별하지 않는 것' 을 행에서 뺀다.  (남은 행, 사실)."""
     pol = _policy_cfg()
@@ -2446,7 +2502,13 @@ def apply_policy(rows: list, isa, log=None) -> tuple:
                             "rect": [round(v, 1) for v in (r.rect or ())]})
         else:
             kept.append(r)
-    facts = {"not_identified_tags": sorted(skip_tags), "control_room_functions": ctrl_mode,
+    gone = {d["key"] for d in dropped}
+    resuffixed = _resuffix(kept, [r for r in rows if r.key in gone])
+    facts = {"resuffixed": resuffixed,
+             # 뺀 행이 다른 행을 접어 들고 있었으면 (표시기를 접은 제어 기능 등) 그렇게 말한다
+             "carried_folds": sum(len((r.evidence or {}).get("readout_folded") or [])
+                                  for r in rows if r.key in gone),
+             "not_identified_tags": sorted(skip_tags), "control_room_functions": ctrl_mode,
              "by_reason": dict(collections.Counter(d["why"] for d in dropped)),
              "by_type": dict(collections.Counter(d["type"] for d in dropped)),
              "rows": dropped}

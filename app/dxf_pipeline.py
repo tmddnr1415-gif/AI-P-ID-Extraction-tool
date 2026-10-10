@@ -527,11 +527,6 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
         if hasattr(timings, "page_done"):
             timings.page_done(sh.no)
 
-    # ── hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블) ────
-    # 함수는 PDF 경로의 그것 하나다.  DXF 는 버블 가운데 선을 재지 않으므로 (나) 갈래
-    # (선 있는 표시·경보)는 여기서 발동하지 않고 (가) 제어 기능 글자만 본다.
-    rows, policy_facts = P.apply_policy(rows, isa if isa_ok else None, log=log)
-
     # ── 태그 (1급) — 속성이 준 것은 그대로, 나머지는 tags.assign ─────────
     tier_facts = _attach_tags(rows, targets, declared_mode)
     # hotfix39 — 태그 문법 · 교차 검증 (함수는 PDF 것 하나).  DXF 는 버블 밖 미판정 낱말을
@@ -547,6 +542,12 @@ def analyse(path: Path, progress=None, timings=None, declared_mode: str = None,
     readout_facts, folded_readouts = P._fold_readouts(rows, isa if isa_ok else None)
     if folded_readouts:
         rows = [r for r in rows if r.key not in folded_readouts]
+
+    # ── hotfix83 — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블) ────
+    # 함수는 PDF 경로의 그것 하나 · 마지막 거름 (판정이 다 끝난 뒤).  DXF 는 버블 가운데
+    # 선을 재지 않으므로 (나) 갈래는 발동하지 않고 (가) 제어 기능 글자만 본다.
+    # 오버레이 층은 이 아래에서 남은 행으로 만든다.
+    rows, policy_facts = P.apply_policy(rows, isa if isa_ok else None, log=log)
 
     # ── 오버레이 층 ─────────────────────────────────────────────────────
     for r in rows:
