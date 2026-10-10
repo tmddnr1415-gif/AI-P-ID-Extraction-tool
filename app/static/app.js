@@ -1731,8 +1731,11 @@ function renderRevLabel() {
   if ((sh.renumbered || []).length) bits.push(`도면번호 바뀐 장 ${sh.renumbered.length}`);
   if ((sh.only_now || []).length) bits.push(`새 장 ${sh.only_now.length}`);
   if ((sh.only_before || []).length) bits.push(`빠진 장 ${sh.only_before.length}`);
-  el.textContent = S.rev.label + (bits.length ? ` — ${bits.join(" · ")}` : "");
-  el.title = S.rev.compared_with
+  // hotfix77 — 사용자: *"추가 74, 삭제 후보 106 ~ 빠진 장 2 는 사용자가 읽지 않는 불필요한 정보다 삭제해줘."*
+  // 머리줄에는 무엇과 비교했는지(`Rev.B vs Rev.A`)만 둔다.  수는 지우지 않고 **마우스를 올렸을 때** 보인다 —
+  // 같은 수가 개정 필터 · 장 목록(＋≠－) · 변경 내역 Excel 에 이미 있다.
+  el.textContent = S.rev.label;
+  el.title = (bits.length ? bits.join(" · ") + "\n\n" : "") + (S.rev.compared_with
     ? `${S.rev.compared_with} 와 비교한 결과입니다.  짝은 같은 TYPE 의 같은 태그로만 — 위치로는 비교하지 않습니다.  `
       + `추가 = 이번에 새로 선 태그(그 도면에서 사라진 태그가 없을 때), 삭제 후보 = 직전 리비전에 있었는데 이번에 없는 태그(그 도면에 새 태그가 없을 때 · 사람이 확정합니다).  `
       + `같은 도면에 새 태그와 사라진 태그가 함께 있으면 태그 변경인지 추가/삭제인지 도면이 가르지 않으므로 전부 '수정' 으로만 표기합니다.  `
@@ -1740,7 +1743,7 @@ function renderRevLabel() {
       + ((sh.renumbered || []).map(e => `\n도면번호 바뀐 장: ${e.before} → ${e.now} (태그 ${e.shared}개 공유)`).join(""))
       + ((sh.only_now || []).length ? `\n새 장: ${sh.only_now.join(", ")}` : "")
       + ((sh.only_before || []).length ? `\n빠진 장: ${sh.only_before.join(", ")}` : "")
-    : "";
+    : "");
   el.classList.remove("hidden");
   // 비교 대상이 있는 리비전에서만 스위치를 보인다 - Rev.A 에는 고를 상태가 없다.
   const w = $("#only-changed-wrap");
@@ -6150,7 +6153,7 @@ function renderPins() {
   cnt.classList.toggle("hidden", !nMemo && !open);
   if (!shown.length) {
     box.innerHTML = `<li class="muted small">${all.length ? "보이는 위치 메모가 없습니다 (숨긴 것만 있음)."
-      : "아직 없습니다 — 위의 <b>📍 도면에 메모 달기</b> 를 누르고 도면에서 자리를 끌거나 누르세요."}</li>`;
+      : "아직 없습니다 — 위의 <b>📌 핀 메모 달기</b> 를 누르고 도면에서 핀을 꽂을 자리를 누르세요."}</li>`;
     return;
   }
   box.innerHTML = shown.map(p => {
@@ -6183,48 +6186,78 @@ function renderPins() {
   }
 }
 
-/* 도면 위 표식: 자리 사각형(파선 · 옅은 칠)과 번호 깃발.  점 메모는 깃발만. */
+/* 도면 위 표식: 자리 사각형(파선 · 옅은 칠)과 **압정**(hotfix77).  점 메모는 압정만.
+ * 압정의 바늘 끝이 메모의 자리다 — 점 메모는 누른 그 점, 영역 메모는 사각형의 오른쪽 위 모서리
+ * (도면 범례 판이 왼쪽 아래에 떠 있어 왼쪽 모서리는 가려지기 쉽다).  머리에 번호가 선다.
+ * 깜박임(`S.pinFlash`)은 시각으로 들고 있어 그리기가 중간에 다시 일어나도 **처음부터 다시 깜박이지 않고**
+ * 이어서 깜박인다 (animation-delay 를 지난 시간만큼 당긴다) — 언제나 정확히 두 번이다. */
+const PIN_FLASH_MS = 1100;          // CSS `pinblink` 0.55s × 2 — 둘을 같이 고친다
+function pinFlashing(id) {
+  const f = S.pinFlash;
+  if (!f || f.id !== id) return -1;
+  const t = Date.now() - f.at;
+  return t < PIN_FLASH_MS ? t : -1;
+}
 function drawPins(ov, scale) {
   if (S.ovOff.has(PIN_MARK[0])) return;
   const pins = pagePins().filter(pinShown);
   if (!pins.length) return;
   const NS = "http://www.w3.org/2000/svg";
-  // 깃발 크기는 화면에서 같은 크기로 보이게 배율을 되돌린다 (확대해도 도면을 덮지 않는다)
+  // 압정 크기는 화면에서 같은 크기로 보이게 배율을 되돌린다 (확대해도 도면을 덮지 않는다)
   const z = S.zoom || 1;
-  const rad = Math.max(7, 11 / z);
+  const u = Math.max(7, 11 / z);
   for (const p of pins) {
     const [x0, y0, x1, y1] = p.rect;
     const st = p.state || "open";
     const cls = (st === "resolved" ? " resolved" : "") + (st === "hidden" ? " hid" : "") + (S.pinSel === p.id ? " sel" : "");
     const area = (x1 - x0) > 0.5 && (y1 - y0) > 0.5;
+    const ft = pinFlashing(p.id);
     if (area) {
       const b = document.createElementNS(NS, "rect");
       b.setAttribute("x", x0 * scale); b.setAttribute("y", y0 * scale);
       b.setAttribute("width", (x1 - x0) * scale); b.setAttribute("height", (y1 - y0) * scale);
-      b.setAttribute("class", "pinbox" + cls);
+      b.setAttribute("class", "pinbox" + cls + (ft >= 0 ? " flash" : ""));
+      if (ft >= 0) b.style.animationDelay = `-${ft}ms`;
       b.dataset.pin = p.id;
       ov.appendChild(b);
     }
-    // 깃발은 자리의 **오른쪽 위** — 도면 범례 판이 왼쪽 아래에 떠 있어 왼쪽 모서리는 가려지기 쉽다
-    const cx = x1 * scale, cy = y0 * scale;
-    const g = document.createElementNS(NS, "g");
-    g.setAttribute("class", "pinmark");
+    const g = pushpin(NS, x1 * scale, y0 * scale, u, cls, pinNumber(p.id));
     g.dataset.pin = p.id;
-    const c = document.createElementNS(NS, "circle");
-    c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", rad);
-    c.setAttribute("class", "pinflag" + cls);
-    const t = document.createElementNS(NS, "text");
-    t.setAttribute("x", cx); t.setAttribute("y", cy); t.setAttribute("font-size", rad * 1.15);
-    t.setAttribute("class", "pinflag-t");
-    t.textContent = pinNumber(p.id);
+    if (ft >= 0) { g.classList.add("flash"); g.style.animationDelay = `-${ft}ms`; }
     const tip = document.createElementNS(NS, "title");
-    tip.textContent = `위치 메모 ${pinNumber(p.id)} — ${p.author || "이름 없음"}: ${p.text}`;
-    c.appendChild(tip);
-    g.appendChild(c); g.appendChild(t);
+    tip.textContent = `위치 메모 ${pinNumber(p.id)} — ${p.author || "이름 없음"} · ${whenWords(p.at)}: ${p.text}`;
+    g.querySelector("circle").appendChild(tip);
     g.onclick = (ev) => { ev.stopPropagation(); selectPin(p.id, { fromDrawing: true }); };
     g.onpointerdown = (ev) => ev.stopPropagation();          // 팬·띠 선택이 가로채지 않게
     ov.appendChild(g);
   }
+}
+/* 압정 하나 — 바늘 끝이 (tx, ty).  바늘은 오른쪽 위로 기울고 머리(원)에 번호가 선다.
+ * 그림은 `g.pinmark` 하나이고 머리 원(`circle.pinflag`)이 말풍선이 붙는 자리다. */
+function pushpin(NS, tx, ty, u, cls, label) {
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", "pinmark" + cls);
+  const hx = tx + u * 0.95, hy = ty - u * 1.95;                // 머리 가운데
+  const shadow = document.createElementNS(NS, "ellipse");      // 꽂힌 자리 — 바늘 끝의 작은 그림자
+  shadow.setAttribute("cx", tx); shadow.setAttribute("cy", ty);
+  shadow.setAttribute("rx", u * 0.42); shadow.setAttribute("ry", u * 0.2);
+  shadow.setAttribute("class", "pinshadow");
+  const needle = document.createElementNS(NS, "path");
+  needle.setAttribute("d", `M${tx} ${ty} L${hx - u * 0.18} ${hy + u * 0.62} L${hx + u * 0.12} ${hy + u * 0.78} Z`);
+  needle.setAttribute("class", "pinneedle");
+  const collar = document.createElementNS(NS, "path");          // 머리 밑 깃 — 압정다운 모양
+  collar.setAttribute("d", `M${hx - u * 0.78} ${hy + u * 0.35} L${hx + u * 0.5} ${hy + u * 1.02} `
+    + `L${hx + u * 0.72} ${hy + u * 0.62} L${hx - u * 0.52} ${hy - u * 0.05} Z`);
+  collar.setAttribute("class", "pincollar" + cls);
+  const head = document.createElementNS(NS, "circle");
+  head.setAttribute("cx", hx); head.setAttribute("cy", hy); head.setAttribute("r", u);
+  head.setAttribute("class", "pinflag" + cls);
+  const t = document.createElementNS(NS, "text");
+  t.setAttribute("x", hx); t.setAttribute("y", hy); t.setAttribute("font-size", u * 1.15);
+  t.setAttribute("class", "pinflag-t");
+  t.textContent = label;
+  g.append(shadow, needle, collar, head, t);
+  return g;
 }
 
 /* 메모 하나를 고른다 — 목록에서 누르면 도면이 그 자리로 가고, 도면에서 누르면 목록이 그 메모로 간다.
@@ -6235,9 +6268,19 @@ function selectPin(id, opts = {}) {
   S.pinSel = id;
   if ($("#memo").classList.contains("folded")) memoOpen(true);
   renderPins();
+  // 도면의 압정을 누르면 → 메모장의 **그 메모로 간다** (가운데로 굴리고 두 번 깜박인다)
   const li = document.querySelector(`#pin-list li[data-pin="${CSS.escape(id)}"]`);
-  if (li) li.scrollIntoView({ block: "nearest" });
+  if (li) {
+    // 목록만 굴린다 (scrollIntoView 는 바깥 쪽까지 굴린다) — 가운데로, 메모가 목록보다 크면 머리(번호·작성자)가 위에
+    const L = $("#pin-list"), lr = L.getBoundingClientRect(), ir = li.getBoundingClientRect();
+    const top = L.scrollTop + (ir.top - lr.top) - Math.max(0, (L.clientHeight - ir.height) / 2);
+    if (opts.fromDrawing || ir.top < lr.top || ir.bottom > lr.bottom)
+      L.scrollTo({ top: Math.max(0, top), behavior: opts.fromDrawing ? "smooth" : "auto" });
+    if (opts.fromDrawing) { li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash"); }
+  }
   if (drawingHidden()) { syncPost({ t: "pin", page: S.page && S.page.page_no, id }); return; }
+  // 메모장의 메모를 누르면 → 도면이 **그 자리로 가고** 압정이 두 번 깜박인다
+  if (!opts.fromDrawing) S.pinFlash = { id, at: Date.now() };
   drawOverlay();
   if (!opts.fromDrawing) focusPin(p);
   showPinPop(p);
@@ -6256,8 +6299,10 @@ function focusPin(p) {
   if (want !== S.zoom) { S.zoom = want; applyZoom(); drawOverlay(); }
   const cx = (x0 + x1) / 2 * scale * S.zoom, cy = (y0 + y1) / 2 * scale * S.zoom;
   stage.scrollTo({ left: Math.max(0, cx - stage.clientWidth / 2), top: Math.max(0, cy - stage.clientHeight / 2) });
-  const b = document.querySelector(`#ov .pinbox[data-pin="${CSS.escape(p.id)}"]`);
-  if (b) { b.classList.remove("flash"); void b.getBoundingClientRect(); b.classList.add("flash"); }
+  // 두 번 깜박임 — 압정과 영역이 같이.  지금 그려진 것에 거는 대신 시각을 다시 세고 다시 그린다
+  // (위 확대가 그림을 새로 만들었을 수 있다 · `drawPins` 가 지난 시간만큼 당겨 이어 깜박인다)
+  S.pinFlash = { id: p.id, at: Date.now() };
+  drawOverlay();
 }
 
 function closePinPop() {
@@ -6317,25 +6362,44 @@ function pinDialog(rect) {
     b.setAttribute("class", "pinbox sel");
     ov.appendChild(b);
   }
-  const tmp = document.createElementNS(NS, "circle");
-  tmp.setAttribute("cx", rect[2] * scale); tmp.setAttribute("cy", rect[1] * scale);
-  tmp.setAttribute("r", Math.max(7, 11 / (S.zoom || 1)));
-  tmp.setAttribute("class", "pinflag sel");
-  ov.appendChild(tmp);
+  const tmpPin = pushpin(NS, rect[2] * scale, rect[1] * scale, Math.max(7, 11 / (S.zoom || 1)), " sel", "+");
+  tmpPin.classList.add("drop");
+  ov.appendChild(tmpPin);
+  const tmp = tmpPin.querySelector("circle");
   const pop = document.createElement("div");
   pop.className = "pinpop";
   pop.setAttribute("role", "dialog");
-  pop.innerHTML = `<div class="pp-h"><b>이 자리에 메모</b> <span class="muted">p${pageNo}${S.page.drawing_no ? " · " + escape(S.page.drawing_no) : ""}</span></div>`
-    + `<textarea placeholder="무엇을 볼 자리인가 — 확인할 것 · 발주처 회신 · 개정 때 볼 것 …  (Ctrl+Enter 저장 · Esc 취소)"></textarea>`
+  // hotfix77 — 작성칸에 **날짜 · 작성자 · 메모 내용** 이 자동으로 선다.  날짜는 지금 시각이고(저장하면 서버가
+  // 저장한 시각을 적는다), 작성자는 대시보드 로그인 이름 → 기억된 이름 순(`currentAuthor`).  이름을 모를 때만
+  // 그 칸이 입력이 된다 — 편집마다 이름을 묻지 않는다 (hotfix66).
+  const who = currentAuthor();
+  pop.innerHTML = `<div class="pp-h"><b>📌 이 자리에 메모</b> <span class="muted">p${pageNo}${S.page.drawing_no ? " · " + escape(S.page.drawing_no) : ""}</span></div>`
+    + `<dl class="pp-form">`
+    + `<dt>날짜</dt><dd class="pp-date">${escape(whenWords(Date.now() / 1000))}</dd>`
+    + `<dt>작성자</dt><dd class="pp-who">${who ? `<b>${escape(who)}</b> <span class="muted small">${escape(authorSource())}</span>`
+        : `<input type="text" class="pp-name" placeholder="이름 (처음 한 번만 — 다음부터 자동)" value="">`}</dd>`
+    + `<dt>메모 내용</dt><dd><textarea placeholder="무엇을 볼 자리인가 — 확인할 것 · 발주처 회신 · 개정 때 볼 것 …  (Ctrl+Enter 저장 · Esc 취소)"></textarea></dd>`
+    + `</dl>`
     + `<div class="pp-b"><button type="button" class="primary mini" data-pa="save">저장</button>`
     + `<button type="button" class="ghost mini" data-pa="cancel">취소</button><span class="pp-msg"></span></div>`;
+  // 날짜는 말풍선이 떠 있는 동안 분이 바뀌면 따라간다
+  const clock = setInterval(() => {
+    if (!pop.isConnected) { clearInterval(clock); return; }
+    pop.querySelector(".pp-date").textContent = whenWords(Date.now() / 1000);
+  }, 15000);
   const ta = pop.querySelector("textarea");
   const done = () => { closePinPop(); drawOverlay(); };
   const save = async () => {
     const text = ta.value.trim();
-    if (!text) { pop.querySelector(".pp-msg").textContent = "글을 적어 주세요"; ta.focus(); return; }
-    const author = await askAuthor("위치 메모");
-    if (author === null) return;
+    if (!text) { pop.querySelector(".pp-msg").textContent = "메모 내용을 적어 주세요"; ta.focus(); return; }
+    const nameBox = pop.querySelector(".pp-name");
+    let author = currentAuthor();
+    if (nameBox) {
+      author = nameBox.value.trim();
+      if (!author) { pop.querySelector(".pp-msg").textContent = "작성자 이름을 적어 주세요"; nameBox.focus(); return; }
+      rememberAuthor(author);
+      renderWhoChip();
+    }
     const before = new Set(pagePins().map(x => x.id));
     const res = await fetch(`/jobs/${S.job.id}/memo/${pageNo}/pins`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -6357,8 +6421,13 @@ function pinDialog(rect) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); pop.querySelector('[data-pa="save"]').click(); }
     if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); done(); }
   });
+  const nb = pop.querySelector(".pp-name");
+  if (nb) nb.addEventListener("keydown", ev => {
+    if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); ta.focus(); }
+    if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); done(); }
+  });
   _pinPopAt(pop, tmp);
-  ta.focus();
+  (nb || ta).focus();
 }
 
 async function pinUpdate(id, body) {

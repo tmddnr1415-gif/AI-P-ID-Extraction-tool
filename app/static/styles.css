@@ -1921,19 +1921,33 @@ body.nav-collapsed #sidebar .mode-chip { display: none; }
 .pin-edit { width: 100%; box-sizing: border-box; min-height: 48px; margin-top: 4px; font: 12.5px/1.5 "Noto Sans KR", system-ui, sans-serif;
   border: 1px solid #e0a32e; border-radius: 6px; padding: 4px 6px; resize: vertical; }
 .pin-edit-acts { display: flex; gap: 6px; margin-top: 4px; }
-#stage.pinning, #stage.pinning * { cursor: crosshair !important; }
+#stage.pinning, #stage.pinning * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M2 26 L11 15 L13 17 Z' fill='%23555'/%3E%3Cpath d='M8 13 L15 20 L18 17 L11 10 Z' fill='%23b07614'/%3E%3Ccircle cx='17' cy='9' r='7' fill='%23e0a32e' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E") 2 26, crosshair !important; }
 .pinnote { background: #fff3cf; border-color: #e0a32e; color: #6b4f00; }
 /* 도면 위 표식 — 사각형(파선) + 번호 깃발.  색은 메모장 색(호박)이라 SCOPE 색과 섞이지 않는다 */
 #ov .pinbox { fill: rgba(224, 163, 46, 0.10); stroke: #e0a32e; stroke-width: 2; stroke-dasharray: 6 4;
   vector-effect: non-scaling-stroke; pointer-events: none; }
 #ov .pinbox.sel { fill: rgba(224, 163, 46, 0.22); stroke-width: 3; }
 #ov .pinbox.resolved { stroke: #8aa58a; fill: rgba(138, 165, 138, 0.08); }
-#ov .pinbox.flash { animation: pinflash 1.2s ease-out 2; }
-@keyframes pinflash { 0% { stroke-width: 6; fill: rgba(224, 163, 46, 0.45); } 100% { stroke-width: 3; } }
+/* hotfix77 — 깜박임은 **정확히 두 번** (0.55s × 2 = app.js PIN_FLASH_MS) — 압정과 영역이 같이 */
+#ov .pinbox.flash { animation: pinboxblink .55s ease-in-out 2; }
+@keyframes pinboxblink { 0%, 100% { stroke-width: 3; } 50% { stroke-width: 7; fill: rgba(224, 163, 46, 0.5); } }
+#ov g.pinmark.flash { animation: pinblink .55s ease-in-out 2; }
+@keyframes pinblink { 0%, 100% { opacity: 1; } 50% { opacity: .08; } }
+.pin-item.flash { animation: pinitemblink .55s ease-in-out 2; }
+@keyframes pinitemblink { 0%, 100% { background: #fffaf0; } 50% { background: #ffd98a; } }
 #ov .pinflag { fill: #e0a32e; stroke: #fff; stroke-width: 1.5; cursor: pointer; vector-effect: non-scaling-stroke; }
 #ov .pinflag.resolved { fill: #8aa58a; }
 #ov .pinflag.hid { fill: #b8b8b8; }
 #ov .pinflag.sel { stroke: #7a4d00; stroke-width: 2.5; }
+/* 압정 (hotfix77) — 바늘 끝이 메모의 자리 */
+#ov g.pinmark { cursor: pointer; }
+#ov .pinneedle { fill: #4a4a4a; stroke: #2b2b2b; stroke-width: .6; vector-effect: non-scaling-stroke; }
+#ov .pinshadow { fill: rgba(0, 0, 0, .28); }
+#ov .pincollar { fill: #b07614; stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }
+#ov .pincollar.resolved { fill: #5f7d5f; }
+#ov .pincollar.hid { fill: #8c8c8c; }
+#ov g.pinmark.drop { animation: pindrop .25s ease-out 1; }
+@keyframes pindrop { 0% { opacity: 0; } 100% { opacity: 1; } }
 #ov .pinflag-t { fill: #fff; font-weight: 800; text-anchor: middle; dominant-baseline: central; pointer-events: none;
   font-family: system-ui, sans-serif; }
 .pinpop { position: fixed; z-index: 65; background: #fffdf3; border: 1px solid #e0a32e; border-radius: 10px;
@@ -1944,6 +1958,12 @@ body.nav-collapsed #sidebar .mode-chip { display: none; }
   border: 1px solid #e0a32e; border-radius: 6px; padding: 5px 7px; resize: vertical; }
 .pinpop .pp-b { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
 .pinpop .pp-msg { color: #b0332d; font-size: 11.5px; }
+.pinpop .pp-form { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; margin: 2px 0 0; align-items: center; }
+.pinpop .pp-form dt { font-size: 11.5px; color: #6b5a3a; font-weight: 700; }
+.pinpop .pp-form dd { margin: 0; min-width: 0; }
+.pinpop .pp-form dt:nth-of-type(3) { align-self: start; padding-top: 4px; }
+.pinpop .pp-date { font-variant-numeric: tabular-nums; color: #2b2b2b; }
+.pinpop .pp-name { width: 100%; box-sizing: border-box; border: 1px solid #e0a32e; border-radius: 6px; padding: 3px 6px; font-size: 12.5px; }
 @media (max-width: 900px) { .memo-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto auto; }
   .pin-col { grid-column: 1; grid-row: 1; max-height: 140px; }
   #memo-text { grid-column: 1; grid-row: 2; } .memo-actions { grid-column: 1; grid-row: 3; }

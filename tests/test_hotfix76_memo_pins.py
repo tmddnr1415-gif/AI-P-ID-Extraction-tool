@@ -114,7 +114,7 @@ def test_screen_links_note_and_place_both_ways():
     draw = _fn("drawPins")
     assert "selectPin(p.id, { fromDrawing: true })" in draw      # 도면 깃발 → 목록의 그 메모
     focus = _fn("focusPin")
-    assert "scrollTo(" in focus and "flash" in focus
+    assert "scrollTo(" in focus and "S.pinFlash" in focus          # hotfix77 — 두 번 깜박임은 시각으로
     # 위치 메모는 행이 아니다 — SCOPE 색 칸에 섞지 않고 자기 범례 칸 (33회차 등식)
     legend = _fn("buildOverlayLegend")
     assert "row(...PIN_MARK" in legend
