@@ -1511,6 +1511,7 @@ async function _open(jobId) {
   S.loading = false;
   updateEmptyNote();
   S.pageMult = { checked: new Set(), vals: {}, last: null };   // hotfix65 — 페이지별 승수 (분석마다 새로)
+  S.pinSel = null; S.pinEditing = null; if (S.pinMode) setPinMode(false); closePinPop();   // hotfix76
   S.memo = null; S.memoDraft = {};        // hotfix63 — 장별 메모 (다른 분석의 저장 안 한 글은 들고 오지 않는다)
   showPage(S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0]);
   loadMemoSummary();
@@ -6007,6 +6008,7 @@ function renderMemo() {
     + (i ? ` <button type="button" class="ghost mini memo-use" data-i="${i}" title="이 판의 글을 메모장에 불러옵니다 (저장해야 지금 메모가 됩니다)">불러오기</button>` : "")
     + `</div><div class="memo-txt">${e.text ? escape(e.text) : `<span class="muted">(비움)</span>`}</div></li>`).join("")
     || `<li class="muted small">이 장에는 아직 메모가 없습니다.</li>`;
+  renderPins();
 }
 async function showMemo(pageNo) {
   if (!S.job) return;
@@ -6018,6 +6020,9 @@ async function showMemo(pageNo) {
   } catch (e) { return; }
   renderMemo();
   memoLayout();
+  // hotfix76 — 위치 메모는 도면 위에도 선다 (그 장의 메모를 받은 뒤에 그린다)
+  if (S.page && S.page.page_no === pageNo && !drawingHidden()) drawOverlay();
+  tryPinPending();
 }
 async function saveMemo() {
   // hotfix74 — 저장 단추를 두 번 누르거나 Ctrl+Enter 를 연달아 치면 같은 판이 두 번 쌓였다.  하나가 끝날 때까지 다음은 무시한다.
@@ -6087,6 +6092,355 @@ async function _saveMemo() {
   memoLayout();
 })();
 
+/* ---------------- 위치 메모 (hotfix76) ----------------
+ *
+ * 사용자: *"메모가 pdf 상에 어떤 곳에 대한 메모인지, 마이크로소프트 프로그램의 메모 기능과 같이 메모를 클릭하면
+ * pdf 위치를 보여주고 메모표기를 하는 기능."*
+ *
+ * 메모장(위)은 장 하나에 한 판씩 쌓이는 글이고, 위치 메모는 **장 안의 자리 하나**에 붙는 글이다 — Word 메모처럼
+ * 여럿이 나란히 산다.  자리는 그 장의 PDF 좌표(오버레이 상자와 같은 좌표계 · `sheetPoint`)이고, 저장·이력·
+ * 다른 Rev 공유는 메모장과 같은 파일·같은 열쇠(도면번호)다 (`app/sheet_memo.py`).
+ *   · 목록의 메모를 누르면 → 도면이 그 자리로 가서(확대·가운데) 깜빡이고, 자리 옆에 말풍선이 선다.
+ *   · 도면의 번호 깃발을 누르면 → 메모 판이 열리고 그 메모가 골라진다.
+ *   · 글을 고치면 앞 글은 이력으로 · '완료' · '숨김' 은 표시일 뿐 지우지 않는다.
+ * 행이 아니므로 SCOPE 색 칸에 섞지 않고 범례에 자기 칸을 둔다 (33회차 등식 *칸 합 = 상자 수* 유지).
+ * 도면 위 깃발은 자리의 오른쪽 위 — 범례 판(왼쪽 아래)에 가려지지 않게 (자기검증 캡처가 잡았다). */
+const PIN_MARK = ["PIN", "위치 메모 (행 아님)", "#e0a32e",
+                  "사람이 도면의 한 자리에 단 메모 — 번호 깃발을 누르면 메모가, 메모를 누르면 그 자리가 보입니다"];
+function pagePins() {
+  const v = S.memoView;
+  if (!v || !S.page || S.memoPage !== S.page.page_no) return [];
+  return v.pins || [];
+}
+function pinShown(p) {
+  return (p.state || "open") !== "hidden" || !!S.pinShowHidden;
+}
+function pinNumber(id) {
+  const i = pagePins().findIndex(p => p.id === id);
+  return i < 0 ? "?" : i + 1;
+}
+function pinWhen(p) {
+  const who = p.author ? escape(p.author) : `<span class="muted">이름 없음</span>`;
+  const rev = p.revision ? `<span class="rv-tag mini">${escape(p.revision)}</span>` : "";
+  return `${rev}${p.here ? "" : ` <span class="memo-other" title="다른 분석에서 단 메모 — 그때의 도면 자리입니다">${p.other_rev ? "다른 Rev 에서" : "다른 분석에서"}</span>`}`
+    + ` <b>${who}</b> · ${escape(whenWords(p.at))}`
+    + (p.edited_at ? ` · <span class="muted" title="고친 글 — 앞 글은 이력에 남습니다">${escape(p.edited_by || "이름 없음")} 고침 ${escape(whenWords(p.edited_at))}</span>` : "");
+}
+function pinWarn(p) {
+  const w = [];
+  if (!p.here) w.push("다른 판에서 단 자리 — 이 판의 도면이 바뀌었으면 자리가 맞지 않을 수 있습니다");
+  if (p.renumbered) w.push(`도면번호가 바뀐 장 — 옛 번호 ${p.key} 에서 단 메모`);
+  if (p.scaled) w.push("종이 크기가 다른 판에서 단 자리 — 비례로 옮겨 그렸습니다");
+  return w;
+}
+const PIN_STATE_WORD = { open: "", resolved: "완료", hidden: "숨김" };
+
+function renderPins() {
+  const box = $("#pin-list");
+  if (!box) return;
+  const all = pagePins();
+  const shown = all.filter(pinShown);
+  const open = all.filter(p => (p.state || "open") === "open").length;
+  const hid = all.length - all.filter(p => (p.state || "open") !== "hidden").length;
+  $("#pin-n").textContent = all.length ? `${open}개 열림${all.length - open ? ` · 완료/숨김 ${all.length - open}` : ""}` : "";
+  $("#pin-showhidden").closest("label").classList.toggle("hidden", !hid && !S.pinShowHidden);
+  const cnt = $("#memo-count");
+  const nMemo = S.memoView ? (S.memoView.history || []).length : 0;
+  cnt.textContent = nMemo || open ? `${nMemo || ""}${open ? `${nMemo ? " · " : ""}📍${open}` : ""}` : "";
+  cnt.classList.toggle("hidden", !nMemo && !open);
+  if (!shown.length) {
+    box.innerHTML = `<li class="muted small">${all.length ? "보이는 위치 메모가 없습니다 (숨긴 것만 있음)."
+      : "아직 없습니다 — 위의 <b>📍 도면에 메모 달기</b> 를 누르고 도면에서 자리를 끌거나 누르세요."}</li>`;
+    return;
+  }
+  box.innerHTML = shown.map(p => {
+    const st = p.state || "open";
+    const warn = pinWarn(p);
+    const editing = S.pinEditing === p.id;
+    return `<li class="pin-item${S.pinSel === p.id ? " sel" : ""}${st === "resolved" ? " resolved" : ""}${st === "hidden" ? " hidden-state" : ""}" data-pin="${escAttr(p.id)}">`
+      + `<div class="memo-meta"><span class="pin-no">${pinNumber(p.id)}</span>${pinWhen(p)}`
+      + (PIN_STATE_WORD[st] ? ` <span class="pin-state">${PIN_STATE_WORD[st]}</span>` : "")
+      + `<span class="pin-acts">`
+      + `<button type="button" class="ghost mini" data-pa="go" title="도면에서 이 자리를 보여 줍니다">위치</button>`
+      + `<button type="button" class="ghost mini" data-pa="edit" title="글을 고칩니다 (앞 글은 이력에 남습니다)">고치기</button>`
+      + (st === "open" ? `<button type="button" class="ghost mini" data-pa="resolved" title="다 본 메모 — 흐리게 남습니다">완료</button>`
+                       : `<button type="button" class="ghost mini" data-pa="open" title="다시 열린 메모로">다시 열기</button>`)
+      + (st !== "hidden" ? `<button type="button" class="ghost mini" data-pa="hidden" title="목록과 도면에서 감춥니다 (기록은 남습니다)">숨김</button>` : "")
+      + `</span></div>`
+      + (editing ? `<textarea class="pin-edit">${escape(p.text)}</textarea><div class="pin-edit-acts">`
+          + `<button type="button" class="primary mini" data-pa="save">저장</button><button type="button" class="ghost mini" data-pa="cancel">취소</button></div>`
+        : `<div class="memo-txt">${escape(p.text)}</div>`)
+      + (warn.length ? `<div class="pin-warn" title="${escAttr(warn.join(" · "))}">⚠ ${escape(warn[0])}</div>` : "")
+      + (p.history && p.history.length ? `<details class="small muted"><summary>이력 ${p.history.length}</summary>`
+          + p.history.slice().reverse().map(h => `<div>${escape(whenWords(h.at))} · ${escape(h.author || "이름 없음")} — ${
+              h.to ? `상태 ${escape(PIN_STATE_WORD[h.state] || "열림")} → ${escape(PIN_STATE_WORD[h.to] || "열림")}` : `앞 글: ${escape(h.text || "")}`}</div>`).join("")
+          + `</details>` : "")
+      + `</li>`;
+  }).join("");
+  if (S.pinEditing) {
+    const ta = box.querySelector(`li[data-pin="${CSS.escape(S.pinEditing)}"] .pin-edit`);
+    if (ta && document.activeElement !== ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  }
+}
+
+/* 도면 위 표식: 자리 사각형(파선 · 옅은 칠)과 번호 깃발.  점 메모는 깃발만. */
+function drawPins(ov, scale) {
+  if (S.ovOff.has(PIN_MARK[0])) return;
+  const pins = pagePins().filter(pinShown);
+  if (!pins.length) return;
+  const NS = "http://www.w3.org/2000/svg";
+  // 깃발 크기는 화면에서 같은 크기로 보이게 배율을 되돌린다 (확대해도 도면을 덮지 않는다)
+  const z = S.zoom || 1;
+  const rad = Math.max(7, 11 / z);
+  for (const p of pins) {
+    const [x0, y0, x1, y1] = p.rect;
+    const st = p.state || "open";
+    const cls = (st === "resolved" ? " resolved" : "") + (st === "hidden" ? " hid" : "") + (S.pinSel === p.id ? " sel" : "");
+    const area = (x1 - x0) > 0.5 && (y1 - y0) > 0.5;
+    if (area) {
+      const b = document.createElementNS(NS, "rect");
+      b.setAttribute("x", x0 * scale); b.setAttribute("y", y0 * scale);
+      b.setAttribute("width", (x1 - x0) * scale); b.setAttribute("height", (y1 - y0) * scale);
+      b.setAttribute("class", "pinbox" + cls);
+      b.dataset.pin = p.id;
+      ov.appendChild(b);
+    }
+    // 깃발은 자리의 **오른쪽 위** — 도면 범례 판이 왼쪽 아래에 떠 있어 왼쪽 모서리는 가려지기 쉽다
+    const cx = x1 * scale, cy = y0 * scale;
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "pinmark");
+    g.dataset.pin = p.id;
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", rad);
+    c.setAttribute("class", "pinflag" + cls);
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", cx); t.setAttribute("y", cy); t.setAttribute("font-size", rad * 1.15);
+    t.setAttribute("class", "pinflag-t");
+    t.textContent = pinNumber(p.id);
+    const tip = document.createElementNS(NS, "title");
+    tip.textContent = `위치 메모 ${pinNumber(p.id)} — ${p.author || "이름 없음"}: ${p.text}`;
+    c.appendChild(tip);
+    g.appendChild(c); g.appendChild(t);
+    g.onclick = (ev) => { ev.stopPropagation(); selectPin(p.id, { fromDrawing: true }); };
+    g.onpointerdown = (ev) => ev.stopPropagation();          // 팬·띠 선택이 가로채지 않게
+    ov.appendChild(g);
+  }
+}
+
+/* 메모 하나를 고른다 — 목록에서 누르면 도면이 그 자리로 가고, 도면에서 누르면 목록이 그 메모로 간다.
+ * 어느 쪽이든 자리 옆에 말풍선이 선다 (Word 메모처럼 글과 자리가 한눈에). */
+function selectPin(id, opts = {}) {
+  const p = pagePins().find(x => x.id === id);
+  if (!p) return;
+  S.pinSel = id;
+  if ($("#memo").classList.contains("folded")) memoOpen(true);
+  renderPins();
+  const li = document.querySelector(`#pin-list li[data-pin="${CSS.escape(id)}"]`);
+  if (li) li.scrollIntoView({ block: "nearest" });
+  if (drawingHidden()) { syncPost({ t: "pin", page: S.page && S.page.page_no, id }); return; }
+  drawOverlay();
+  if (!opts.fromDrawing) focusPin(p);
+  showPinPop(p);
+}
+
+function focusPin(p) {
+  if (!S.natural || !S.page) return;
+  const stage = $("#stage");
+  const scale = S.natural.w / (S.page.width || 1);
+  const [x0, y0, x1, y1] = p.rect;
+  const w = Math.max(1, (x1 - x0) * scale), h = Math.max(1, (y1 - y0) * scale);
+  // 자리가 화면의 반쯤을 차지하게 — 점 메모는 계기 하나 볼 때와 같은 배율 (SYMBOL_ZOOM)
+  let want = Math.min(stage.clientWidth * 0.5 / w, stage.clientHeight * 0.5 / h);
+  if (!(w > 2 && h > 2) || !isFinite(want)) want = SYMBOL_ZOOM;
+  want = Math.max(Math.min(want, SYMBOL_ZOOM * 2), S.zoom || 0.1);
+  if (want !== S.zoom) { S.zoom = want; applyZoom(); drawOverlay(); }
+  const cx = (x0 + x1) / 2 * scale * S.zoom, cy = (y0 + y1) / 2 * scale * S.zoom;
+  stage.scrollTo({ left: Math.max(0, cx - stage.clientWidth / 2), top: Math.max(0, cy - stage.clientHeight / 2) });
+  const b = document.querySelector(`#ov .pinbox[data-pin="${CSS.escape(p.id)}"]`);
+  if (b) { b.classList.remove("flash"); void b.getBoundingClientRect(); b.classList.add("flash"); }
+}
+
+function closePinPop() {
+  const old = document.querySelector(".pinpop");
+  if (old) old.remove();
+  if (closePinPop._off) { document.removeEventListener("pointerdown", closePinPop._off, true); closePinPop._off = null; }
+}
+function _pinPopAt(pop, flag) {
+  document.body.appendChild(pop);
+  const ab = flag ? flag.getBoundingClientRect() : $("#stage").getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = ab.right + 10, top = ab.top - 4;
+  if (left + pw > window.innerWidth - 8) left = Math.max(8, ab.left - pw - 10);
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
+  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+  closePinPop._off = (ev) => { if (!pop.contains(ev.target)) closePinPop(); };
+  setTimeout(() => document.addEventListener("pointerdown", closePinPop._off, true), 0);
+}
+function showPinPop(p) {
+  closePinPop();
+  const flag = document.querySelector(`#ov g.pinmark[data-pin="${CSS.escape(p.id)}"] circle`);
+  if (!flag) return;
+  const pop = document.createElement("div");
+  pop.className = "pinpop";
+  pop.setAttribute("role", "dialog");
+  const st = p.state || "open";
+  const warn = pinWarn(p);
+  pop.innerHTML = `<div class="pp-h"><span class="pin-no">${pinNumber(p.id)}</span>${pinWhen(p)}${PIN_STATE_WORD[st] ? ` <span class="pin-state">${PIN_STATE_WORD[st]}</span>` : ""}</div>`
+    + `<div class="pp-t">${escape(p.text)}</div>`
+    + (warn.length ? `<div class="pin-warn">⚠ ${escape(warn.join(" · "))}</div>` : "")
+    + `<div class="pp-b"><button type="button" class="ghost mini" data-pa="edit">고치기</button>`
+    + (st === "open" ? `<button type="button" class="ghost mini" data-pa="resolved">완료</button>`
+                     : `<button type="button" class="ghost mini" data-pa="open">다시 열기</button>`)
+    + `<button type="button" class="ghost mini" data-pa="close">닫기</button></div>`;
+  pop.querySelectorAll("button[data-pa]").forEach(b => b.onclick = (ev) => {
+    ev.stopPropagation();
+    const a = b.dataset.pa;
+    closePinPop();
+    if (a === "edit") { S.pinEditing = p.id; renderPins(); }
+    else if (a === "resolved" || a === "open") pinUpdate(p.id, { state: a });
+  });
+  _pinPopAt(pop, flag);
+}
+
+/* 자리를 고른 뒤 글을 적는 말풍선.  자리 옆에 뜨고, 저장하면 서버가 그 장의 메모를 새로 돌려준다. */
+function pinDialog(rect) {
+  closePinPop();
+  if (!S.page || !S.job) return;
+  const pageNo = S.page.page_no;
+  // 그 자리에 임시 깃발을 세워 말풍선이 붙을 곳을 만든다 (저장하지 않으면 다음 그리기에서 사라진다)
+  const ov = $("#ov"), scale = S.natural.w / (S.page.width || 1);
+  const NS = "http://www.w3.org/2000/svg";
+  if (rect[2] - rect[0] > 0.5 && rect[3] - rect[1] > 0.5) {
+    const b = document.createElementNS(NS, "rect");
+    b.setAttribute("x", rect[0] * scale); b.setAttribute("y", rect[1] * scale);
+    b.setAttribute("width", (rect[2] - rect[0]) * scale); b.setAttribute("height", (rect[3] - rect[1]) * scale);
+    b.setAttribute("class", "pinbox sel");
+    ov.appendChild(b);
+  }
+  const tmp = document.createElementNS(NS, "circle");
+  tmp.setAttribute("cx", rect[2] * scale); tmp.setAttribute("cy", rect[1] * scale);
+  tmp.setAttribute("r", Math.max(7, 11 / (S.zoom || 1)));
+  tmp.setAttribute("class", "pinflag sel");
+  ov.appendChild(tmp);
+  const pop = document.createElement("div");
+  pop.className = "pinpop";
+  pop.setAttribute("role", "dialog");
+  pop.innerHTML = `<div class="pp-h"><b>이 자리에 메모</b> <span class="muted">p${pageNo}${S.page.drawing_no ? " · " + escape(S.page.drawing_no) : ""}</span></div>`
+    + `<textarea placeholder="무엇을 볼 자리인가 — 확인할 것 · 발주처 회신 · 개정 때 볼 것 …  (Ctrl+Enter 저장 · Esc 취소)"></textarea>`
+    + `<div class="pp-b"><button type="button" class="primary mini" data-pa="save">저장</button>`
+    + `<button type="button" class="ghost mini" data-pa="cancel">취소</button><span class="pp-msg"></span></div>`;
+  const ta = pop.querySelector("textarea");
+  const done = () => { closePinPop(); drawOverlay(); };
+  const save = async () => {
+    const text = ta.value.trim();
+    if (!text) { pop.querySelector(".pp-msg").textContent = "글을 적어 주세요"; ta.focus(); return; }
+    const author = await askAuthor("위치 메모");
+    if (author === null) return;
+    const before = new Set(pagePins().map(x => x.id));
+    const res = await fetch(`/jobs/${S.job.id}/memo/${pageNo}/pins`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rect, text, author }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { pop.querySelector(".pp-msg").textContent = d.detail || "저장하지 못했습니다"; return; }
+    closePinPop();
+    if (S.memoPage === pageNo) S.memoView = d;
+    const made = (d.pins || []).find(x => !before.has(x.id));
+    renderMemo();
+    loadMemoSummary();
+    if (made) selectPin(made.id, { fromDrawing: true });
+    else drawOverlay();
+    editNotice("위치 메모를 달았습니다 — 같은 프로젝트의 다른 Rev 에서도 이 자리에 보입니다", "in");
+  };
+  pop.querySelector('[data-pa="save"]').onclick = guarded(save);
+  pop.querySelector('[data-pa="cancel"]').onclick = done;
+  ta.addEventListener("keydown", ev => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); pop.querySelector('[data-pa="save"]').click(); }
+    if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); done(); }
+  });
+  _pinPopAt(pop, tmp);
+  ta.focus();
+}
+
+async function pinUpdate(id, body) {
+  if (!S.job || !S.memoPage) return false;
+  const author = await askAuthor("위치 메모");
+  if (author === null) return false;
+  const pageNo = S.memoPage;
+  const res = await fetch(`/jobs/${S.job.id}/memo/${pageNo}/pins/${encodeURIComponent(id)}`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, author }) });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) { editNotice(d.detail || "위치 메모를 바꾸지 못했습니다", "out"); return false; }
+  if (S.memoPage === pageNo) S.memoView = d;
+  if (body.state === "hidden" && S.pinSel === id && !S.pinShowHidden) S.pinSel = null;
+  renderMemo();
+  loadMemoSummary();
+  if (!drawingHidden()) drawOverlay();
+  return true;
+}
+
+/* 장을 옮겨야 고를 수 있는 위치 메모(다른 창이 고른 것) — 그 장의 그림과 메모가 둘 다 선 뒤에 고른다. */
+function tryPinPending() {
+  const w = S.pinPending;
+  if (!w || !S.page || S.page.page_no !== w.page) return;
+  if (S.pinImgPage !== w.page || S.memoPage !== w.page || !S.memoView) return;
+  S.pinPending = null;
+  if (pagePins().some(x => x.id === w.id)) selectPin(w.id);
+}
+
+function setPinMode(on) {
+  S.pinMode = !!on && !!S.page;
+  if (S.pinMode) {
+    if (S.markup) setMarkup(false);
+    if (S.picking) endPick();
+    closePinPop();
+  }
+  $("#stage").classList.toggle("pinning", S.pinMode);
+  $("#memo-pin").classList.toggle("on", S.pinMode);
+  $("#pin-note").classList.toggle("hidden", !S.pinMode);
+}
+
+(function initPins() {
+  // 자리를 고른 그 클릭이 아래 상자(행)를 고르거나 공급 주체 판을 띄우지 않게 한 번 삼킨다
+  $("#stage").addEventListener("click", ev => {
+    if (S.pinJust && Date.now() - S.pinJust < 600) { S.pinJust = 0; ev.stopPropagation(); ev.preventDefault(); }
+  }, true);
+  $("#memo-pin").onclick = (ev) => { ev.stopPropagation(); setPinMode(!S.pinMode); };
+  $("#pin-cancel").onclick = (ev) => { ev.stopPropagation(); setPinMode(false); };
+  $("#pin-showhidden").onchange = (ev) => { S.pinShowHidden = ev.target.checked; renderPins(); drawOverlay(); };
+  document.addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (S.pinMode) { setPinMode(false); ev.preventDefault(); }
+    closePinPop();
+  });
+  $("#pin-list").addEventListener("click", ev => {
+    const li = ev.target.closest("li[data-pin]");
+    if (!li) return;
+    const id = li.dataset.pin;
+    const b = ev.target.closest("button[data-pa]");
+    if (ev.target.closest("textarea, details")) return;
+    if (!b) { selectPin(id); return; }
+    ev.stopPropagation();
+    const a = b.dataset.pa;
+    if (a === "go") selectPin(id);
+    else if (a === "edit") { S.pinEditing = id; renderPins(); }
+    else if (a === "cancel") { S.pinEditing = null; renderPins(); }
+    else if (a === "save") {
+      const ta = li.querySelector(".pin-edit");
+      const text = ta ? ta.value.trim() : "";
+      if (!text) { ta && ta.focus(); return; }
+      guarded(async () => { if (await pinUpdate(id, { text })) S.pinEditing = null; renderPins(); })();
+    }
+    else pinUpdate(id, { state: a });
+  });
+  $("#pin-list").addEventListener("keydown", ev => {
+    const ta = ev.target.closest(".pin-edit");
+    if (!ta) return;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); ta.closest("li").querySelector('[data-pa="save"]').click(); }
+    if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); S.pinEditing = null; renderPins(); }
+  });
+})();
+
 /* ---------------- viewer ---------------- */
 function buildPageSelect() {
   const sel = $("#page-select");
@@ -6113,7 +6467,8 @@ function buildPageSelect() {
     const memo = S.memo && S.memo.pages && S.memo.pages[p.page_no];   // hotfix63 — 메모가 있는 장
     o.textContent = `p${p.page_no}  ${p.drawing_no || ""}`
       + (c ? `   ${c.a ? "＋" + c.a + " " : ""}${c.m ? "≠" + c.m + " " : ""}${c.d ? "－" + c.d : ""}`.replace(/\s+$/, "") : "")
-      + (memo ? `   ✎${memo.count}` : "");
+      + (memo && memo.count ? `   ✎${memo.count}` : "")
+      + (memo && memo.pins ? `   📍${memo.pins}` : "");
     sel.appendChild(o);
   }
   sel.onchange = () => showPage(S.pages.find(p => p.page_no === +sel.value));
@@ -6137,6 +6492,7 @@ function showPage(page) {
     drawOverlay();
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
+    S.pinImgPage = page.page_no; tryPinPending();   // hotfix76 — 다른 창이 고른 위치 메모가 이 장을 기다리고 있었다
     prefetchNeighbours(page);               // hotfix69 — 다음 · 이전 장 그림을 쉬는 동안 받아 둔다
   };
   if (!S.imgStale) swapSheet(img, `/jobs/${S.job.id}/page/${page.page_no}.png?zoom=1.6`);
@@ -6612,7 +6968,8 @@ function buildOverlayLegend() {
     + row(...SEAL_MARK, seal, "")
     + row(...REVIEW_MARK, review, "badge")
     + row(...REJECT_MARK, rejected, "badge")
-    + row(...QTY_MARK, qtyTags, "badge");
+    + row(...QTY_MARK, qtyTags, "badge")
+    + row(...PIN_MARK, pagePins().filter(pinShown).length, "");
   document.querySelectorAll(".ovl").forEach(c => c.addEventListener("change", () => {
     if (c.checked) S.ovOff.delete(c.value); else S.ovOff.add(c.value);
     drawOverlay();
@@ -6919,6 +7276,7 @@ function drawOverlay() {
   // (자기검증 — AL NOUF1 p6 두 번째 라벨이 36×108 상자에 가려 눌리지 않았다).
   ov.querySelectorAll("g.qtytag").forEach(g => ov.appendChild(g));
   drawFromTo(ov, scale);
+  drawPins(ov, scale);                    // hotfix76 — 위치 메모는 맨 위 (눌러야 하므로)
   buildOverlayLegend();
 }
 
@@ -7194,6 +7552,7 @@ $req("#markup-toggle").addEventListener("click", () => setMarkup(!S.markup));
 function setMarkup(on) {
   S.markup = !!on;
   if (S.markup && S.picking) endPick();
+  if (S.markup && S.pinMode) setPinMode(false);
   $("#stage").classList.toggle("markup", S.markup);
   $("#markup-toggle").classList.toggle("on", S.markup);
   $("#markup-toggle").setAttribute("aria-pressed", S.markup ? "true" : "false");
@@ -7245,9 +7604,9 @@ function updateMarkupNote() {
 }
 
 $req("#stage").addEventListener("pointerdown", ev => {
-  if (!(S.markup || S.ftMark) || ev.button !== 0) return;
-  // 상자는 자기 onclick — 단 From/To 범위를 긋는 중이면 상자 위에서 시작해도 긋는다
-  if (!S.ftMark && ev.target.tagName.toLowerCase() === "rect") return;
+  if (!(S.markup || S.ftMark || S.pinMode) || ev.button !== 0) return;
+  // 상자는 자기 onclick — 단 From/To 범위를 긋는 중이거나 위치 메모를 다는 중이면 상자 위에서 시작해도 긋는다
+  if (!S.ftMark && !S.pinMode && ev.target.tagName.toLowerCase() === "rect") return;
   const p = sheetPoint(ev);
   if (!p) return;
   _rubber = { x: ev.clientX, y: ev.clientY, p0: p, id: ev.pointerId, el: null };
@@ -7287,6 +7646,15 @@ async function _rubberEnd(ev) {
   if (r.el) r.el.remove();
   const p = sheetPoint(ev) || r.p0;
   const rect = normRect(r.p0, p);
+  // hotfix76 — 위치 메모: 끌면 그 사각형, 누르기만 하면 그 점 (점 메모는 깃발만 선다)
+  if (S.pinMode) {
+    S.panned = true;
+    const click = Math.abs(ev.clientX - r.x) <= PAN_SLOP && Math.abs(ev.clientY - r.y) <= PAN_SLOP;
+    setPinMode(false);
+    S.pinJust = Date.now();          // 뒤따르는 click 이 상자를 고르지 않게 (아래 capture 에서 삼킨다)
+    pinDialog(click ? [r.p0[0], r.p0[1], r.p0[0], r.p0[1]] : rect);
+    return;
+  }
   // 드래그가 아니라 클릭이면(4px 이하 — 팬과 같은 문턱) 아무것도 만들지 않는다.
   if (Math.abs(ev.clientX - r.x) <= PAN_SLOP && Math.abs(ev.clientY - r.y) <= PAN_SLOP) {
     S.panned = true;          // 뒤따르는 click 이 선택을 지우지 않게
@@ -7962,6 +8330,7 @@ function startPick() {
   // hotfix75 — 사람이 점을 고르는 동안 그 장을 미리 읽는다 (마크업과 같은 캐시 — 행을 더할 때 주변 도형을 재는
   // `probe_point` 가 같은 것을 쓴다).  안 그러면 처음 더하는 행이 그 장을 읽느라 2초 넘게 멈췄다.
   prewarmMarkup();
+  if (S.pinMode) setPinMode(false);
   S.picking = true;
   $("#stage").classList.add("picking");
   $("#pick-note").classList.remove("hidden");
@@ -9143,6 +9512,15 @@ async function syncReceive(m) {
   if (m.t === "sel") { applySel(m); return; }
   if (m.t === "rows") { await syncRows(m); return; }
   if (m.t === "memo") { if (S.page && S.page.page_no === m.page) showMemo(m.page); loadMemoSummary(); return; }
+  // hotfix76 — 목록 창에서 위치 메모를 고르면 도면 창이 그 자리로 간다
+  if (m.t === "pin") {
+    S.pinPending = { page: m.page, id: m.id };
+    if (!S.page || S.page.page_no !== m.page) {
+      const pg = S.pages.find(x => x.page_no === m.page);
+      if (pg) showPage(pg);                 // 그림과 메모가 둘 다 오면 tryPinPending 이 고른다
+    } else showMemo(m.page);
+    return;
+  }
   if (m.t === "reopen") { await open(S.job.id); return; }
   if (m.t === "gone") { if (PANE.role) window.close(); else toFirstScreen(); return; }
 }

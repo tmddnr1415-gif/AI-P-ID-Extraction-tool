@@ -1559,8 +1559,10 @@ def job_memos(job_id: str):
     for p in db.page_revisions(CON, job_id):
         keys = _note_keys(project, p.get("drawing_no") or "", p["page_no"], aliases)
         es = sheet_memo.entries(data, keys)
-        if es:
-            pages[str(p["page_no"])] = {"count": len(es), "latest": _note_view(es[-1])}
+        ps = [e for e in sheet_memo.pins(data, keys) if (e.get("state") or "open") == "open"]
+        if es or ps:
+            pages[str(p["page_no"])] = {"count": len(es), "latest": _note_view(es[-1]) if es else None,
+                                        "pins": len(ps)}
     return {"scope": "project" if project else "job", "project": project, "pages": pages}
 
 
@@ -1574,12 +1576,94 @@ def page_memo(job_id: str, page_no: int):
     if page is None:
         raise HTTPException(404, "no such page")
     keys = _note_keys(project, page.get("drawing_no") or "", page_no, _note_aliases(project))
-    es = sheet_memo.entries(sheet_memo.load(DATA_DIR, project, job_id), keys)
+    data = sheet_memo.load(DATA_DIR, project, job_id)
+    es = sheet_memo.entries(data, keys)
+    size = _page_size(job_id, page_no)
     return {"scope": "project" if project else "job", "project": project,
             "revision": job["revision"] or "", "drawing_no": page.get("drawing_no") or "",
             "key": keys[0], "keys": keys,
             "current": _note_view(es[-1]) if es else None,
-            "history": [_note_view(e) for e in reversed(es)]}
+            "history": [_note_view(e) for e in reversed(es)],
+            "pins": [_pin_view(e, job_id, job["revision"] or "", keys[0], size)
+                     for e in sheet_memo.pins(data, keys)]}
+
+
+def _page_size(job_id: str, page_no: int) -> tuple:
+    row = CON.execute("SELECT width, height FROM pid_page WHERE job_id=? AND page_no=?",
+                      (job_id, page_no)).fetchone()
+    return (float(row[0] or 0), float(row[1] or 0)) if row else (0.0, 0.0)
+
+
+def _pin_view(e: dict, job_id: str, revision: str, key: str, size: tuple) -> dict:
+    """hotfix76 — 위치 메모 하나를 화면에.  종이 크기가 다른 장에서 단 것이면 비례로 옮겨 그린다
+    (같은 크기면 그대로 — 다른 Rev 의 같은 크기 장은 자리를 옮기지 않는다)."""
+    rect = list(e.get("rect") or [0, 0, 0, 0])
+    w, h = size
+    pw, ph = float(e.get("page_w") or 0), float(e.get("page_h") or 0)
+    scaled = bool(w and h and pw and ph and (abs(pw - w) > 0.5 or abs(ph - h) > 0.5))
+    if scaled:
+        fx, fy = w / pw, h / ph
+        rect = [round(rect[0] * fx, 2), round(rect[1] * fy, 2), round(rect[2] * fx, 2), round(rect[3] * fy, 2)]
+    return {"id": e.get("id"), "rect": rect, "text": e.get("text") or "", "author": e.get("author") or "",
+            "at": e.get("at"), "revision": e.get("revision") or "", "job_id": e.get("job_id") or "",
+            "page_no": e.get("page_no"), "drawing_no": e.get("drawing_no") or "", "key": e.get("key") or "",
+            "state": e.get("state") or "open", "edited_at": e.get("edited_at"), "edited_by": e.get("edited_by") or "",
+            "state_at": e.get("state_at"), "state_by": e.get("state_by") or "",
+            "history": list(e.get("history") or []),
+            "here": (e.get("job_id") or "") == job_id,
+            "other_rev": (e.get("job_id") or "") != job_id and (e.get("revision") or "") != revision,
+            "renumbered": bool(e.get("key")) and e.get("key") != key, "scaled": scaled}
+
+
+def _memo_page(job_id: str, page_no: int):
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
+    if page is None:
+        raise HTTPException(404, "no such page")
+    return job, page
+
+
+@app.post("/jobs/{job_id}/memo/{page_no}/pins")
+def add_memo_pin(job_id: str, page_no: int, payload: dict = None):
+    """hotfix76 — 도면의 한 자리에 메모를 단다 (자리 = 그 장의 PDF 좌표 사각형)."""
+    job, page = _memo_page(job_id, page_no)
+    payload = payload if isinstance(payload, dict) else {}
+    project = job["project"] or ""
+    w, h = _page_size(job_id, page_no)
+    try:
+        sheet_memo.add_pin(DATA_DIR, project, job_id,
+                           key=sheet_memo.key_of(page.get("drawing_no") or "", page_no),
+                           rect=payload.get("rect"), text=str(payload.get("text") or ""),
+                           author=str(payload.get("author") or ""), revision=job["revision"] or "",
+                           page_no=page_no, drawing_no=page.get("drawing_no") or "", page_w=w, page_h=h)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return page_memo(job_id, page_no)
+
+
+@app.post("/jobs/{job_id}/memo/{page_no}/pins/{pin_id}")
+def update_memo_pin(job_id: str, page_no: int, pin_id: str, payload: dict = None):
+    """hotfix76 — 위치 메모의 글을 고치거나(앞 글은 이력으로) 완료·숨김·다시 열기.  지우지 않는다."""
+    job, page = _memo_page(job_id, page_no)
+    payload = payload if isinstance(payload, dict) else {}
+    project = job["project"] or ""
+    keys = _note_keys(project, page.get("drawing_no") or "", page_no, _note_aliases(project))
+    text = payload.get("text")
+    state = payload.get("state")
+    if text is None and state is None:
+        raise HTTPException(400, "바꿀 것(text 또는 state)이 없습니다")
+    try:
+        sheet_memo.update_pin(DATA_DIR, project, job_id, keys=keys, pin_id=str(pin_id),
+                              author=str(payload.get("author") or ""), revision=job["revision"] or "",
+                              text=None if text is None else str(text),
+                              state=None if state is None else str(state))
+    except KeyError:
+        raise HTTPException(404, "그 위치 메모가 이 장에 없습니다 (다른 창에서 장이 바뀌었을 수 있습니다)")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return page_memo(job_id, page_no)
 
 
 @app.post("/jobs/{job_id}/memo/{page_no}")

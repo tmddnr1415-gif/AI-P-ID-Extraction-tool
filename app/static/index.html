@@ -384,9 +384,18 @@
           <button type="button" id="memo-toggle" class="memo-toggle" aria-expanded="false"
                   title="이 장 메모 열기 / 접기 — 도면을 끝까지 내린 뒤 휠을 더 내려도 열립니다">
             <span class="memo-ic" aria-hidden="true">✎</span> 이 장 메모 <span id="memo-count" class="memo-count"></span></button>
+          <!-- hotfix76 — 위치 메모: 도면의 한 자리에 붙는 메모 (Word 메모처럼).  누르면 그 자리로 간다. -->
+          <button type="button" id="memo-pin" class="memo-pin-btn"
+                  title="도면에서 메모할 자리를 끌거나 눌러 그 자리에 메모를 답니다 (Esc 취소)">📍 도면에 메모 달기</button>
           <span id="memo-sum" class="memo-sum muted small"></span>
         </div>
         <div class="memo-body">
+          <div class="pin-col">
+            <div class="pin-head">위치 메모 <span id="pin-n" class="muted small"></span>
+              <label class="pin-hid small muted" title="숨긴 위치 메모도 목록과 도면에 보입니다 (기록은 지우지 않습니다)">
+                <input type="checkbox" id="pin-showhidden"> 숨긴 것도</label></div>
+            <ol id="pin-list" class="pin-list"></ol>
+          </div>
           <textarea id="memo-text" spellcheck="false"
                     placeholder="이 장에 대한 메모 — 확인할 것 · 발주처 회신 · 개정 때 볼 것 …  (Ctrl+Enter 로 저장)"></textarea>
           <div class="memo-actions">
@@ -400,6 +409,8 @@
         </div>
       </section>
       <!-- Shown while the reviewer is pointing at where a missed item belongs. -->
+      <div id="pin-note" class="picknote pinnote hidden">📍 메모할 자리를 도면에서 끌거나 누르세요
+        <button id="pin-cancel" class="ghost mini">취소 (Esc)</button></div>
       <div id="pick-note" class="picknote hidden">놓친 항목의 위치를 도면에서 클릭하세요
         <button id="pick-cancel" class="ghost mini">위치 없이 추가</button></div>
       <!-- Always on the drawing, so a colour never has to be remembered.  It
