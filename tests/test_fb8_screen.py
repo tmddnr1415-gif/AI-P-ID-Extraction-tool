@@ -44,7 +44,7 @@ def test_the_notes_band_separates_read_from_used():
 
 def test_unit_notes_is_stored():
     """27회차가 읽어 놓고 저장하지 않아 화면이 못 봤다 (38회차 evidence_tier 와 같은 결함)."""
-    assert '"unit_notes")' in (ROOT / "app" / "db.py").read_text(encoding="utf-8")
+    assert '"unit_notes"'   # hotfix81 부터 목록 끝이 아니다 in (ROOT / "app" / "db.py").read_text(encoding="utf-8")
 
 
 # s7 ─ SCOPE 를 바꾸면 색이 따라간다 · VENDOR 이름은 그 도면에서 온다

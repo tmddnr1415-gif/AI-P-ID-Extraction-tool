@@ -2213,3 +2213,19 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 .save-state.saved { color: #1e6b3a; border-color: #9ad1ae; background: #edf9f0; }
 .save-state.saved.faded { opacity: .45; }
 .save-state.failed { color: #a32d2d; border-color: #e3a0a0; background: #fdecec; font-weight: 600; }
+
+/* hotfix81 — 새 프로젝트 점검표 (띠 칩 + 모달) */
+.legend-bar .lb-intake-btn { padding: 1px 8px; font-size: 12px; }
+.intake .intake-head { font-weight: 600; margin: 0 0 8px; }
+.intake .intake-head.todo { color: #b0471e; }
+.intake .intake-head.warn { color: #8a6a1c; }
+.intake .intake-head.ok { color: #1f6f3f; }
+.intake h4 { margin: 10px 0 4px; font-size: 13px; }
+.intake ol.intake-todo { padding-left: 20px; margin: 0 0 6px; }
+.intake ol.intake-todo li { margin: 3px 0; }
+.intake details.intake-sec { border: 1px solid var(--line, #e3dccb); border-radius: 6px; padding: 4px 8px; margin: 4px 0; }
+.intake details.intake-sec.todo { border-color: #d9a48a; }
+.intake details.intake-sec.warn { border-color: #d8c48a; }
+.intake details.intake-sec summary { cursor: pointer; font-weight: 600; }
+.intake details.intake-sec ul { margin: 4px 0 2px; padding-left: 18px; }
+.intake details.intake-sec li { margin: 2px 0; }

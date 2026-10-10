@@ -656,7 +656,12 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               "user_sheet_numbers",
                               # hotfix39 — 태그 문법 · 교차 검증 · 태그가 증거인 행 (지문 밖)
                               "tag_grammar",
-                              "unit_notes")},
+                              "unit_notes",
+                              # hotfix81 — 새 프로젝트 점검표가 읽는 사실 셋 (전부 지문 밖).
+                              # 밸브 창의 출처·범례 종이 배율 · ISA 표가 세운 앵커 수 ·
+                              # 유닛 표기 꼴.  저장하지 않으면 화면이 "모른다" 고만 말한다
+                              # (38회차 evidence_tier · 53회차 unit_notes 와 같은 결함).
+                              "valve_layout", "isa_anchors", "unit_forms")},
                             default=str),
                  job_id))
     con.commit()

@@ -900,12 +900,10 @@ def _notes_lines(pc, lay: Layout = LAYOUT):
     x0, y0, x1, y1 = lay.notes_area
     sel = [(r, t) for r, t in pc.words if x0 <= r.x0 <= lay.notes_text_x_max
            and y0 <= r.y0 <= y1]
-    rows = collections.defaultdict(list)
-    for r, t in sel:
-        rows[round(r.y0 / 7)].append((r, t))
+    # hotfix81 — 7pt 버킷을 같은 줄 묶기로 (`pidcache.same_lines` · 상수 0).  줄 간격이 7pt
+    # 아래인 문서에서 정의줄 둘이 한 줄이 되던 자리 (27회차 ⚠ · roadmap §4 ④).
     lines = []
-    for key in sorted(rows):
-        items = sorted(rows[key], key=lambda rt: rt[0].x0)
+    for items in pidcache.same_lines(sel):
         lines.append({
             "y": min(r.y0 for r, _ in items),
             "y1": max(r.y1 for r, _ in items),

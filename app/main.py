@@ -30,7 +30,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
-                               Response, StreamingResponse)
+                               PlainTextResponse, Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
@@ -46,7 +46,8 @@ console.safe_stdio()
 from app import (analysis_proc, audit, axis_overrides, db, excel_out, page_warm,  # noqa: E402
                  global_symbols,
                  lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
-                 unit_multipliers, sheet_numbers, title_block_cells, version, voc)
+                 unit_multipliers, sheet_numbers, title_block_cells, version, voc,
+                 intake)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -2699,15 +2700,17 @@ def measured_config(job_id: str):
                      for it in (layout.get("items") or [])
                      if isinstance(it, dict) and "key" in it},
         "notes": layout.get("notes") or [],
-        "must_measure_by_hand": [
-            "title_block.hist_rule_x0_max", "title_block.hist_rule_x1_min",
-            "title_block.hist_rule_y", "title_block.hist_rev_col",
-            "title_block.hist_date_col", "title_block.hist_row_inset",
-        ],
+        # hotfix81 — 24회차가 이력 표 다섯 칸(`hist_rule_*`·`hist_rev_col`·`hist_date_col`)을
+        # 유도로 바꿨는데 이 목록은 여섯을 그대로 적고 있었다 (32회차 [C] 정정 · roadmap §7).
+        # 남는 것은 `hist_row_inset` 하나 — 도면이 그리지 않는 여백이라 잴 대상이 없다.
+        # 유도에 실패한 칸은 `measured` 에 없으므로 그것으로 안다 (`UNAVAILABLE` 항목).
+        "must_measure_by_hand": ["title_block.hist_row_inset"],
+        "unavailable": [it["key"] for it in (layout.get("items") or [])
+                        if isinstance(it, dict) and it.get("source") == "UNAVAILABLE"],
         "note": ("`measured` 는 이 도면에서 **잰** 값입니다. "
-                 "`must_measure_by_hand` 는 이 도구가 재지 못하는 항목이라 "
-                 "사람이 도면에서 재어 넣어야 합니다 — 개정 이력 표는 칸마다 "
-                 "캡션이 없어 앵커가 없습니다."),
+                 "`must_measure_by_hand` 는 도면이 그리지 않아 잴 수 없는 항목(행 안쪽 여백 하나)이고, "
+                 "`unavailable` 은 이 도면에서 재려 했으나 실패해 설정값을 그대로 쓴 항목입니다 — "
+                 "그 칸은 사람이 도면에서 재어 넣습니다."),
     }
 
 
@@ -2868,6 +2871,37 @@ def job_legend_profile(job_id: str):
     out = _legend_facts(job)
     out["project"] = job["project"]
     out["revision"] = job["revision"]
+    return out
+
+
+@app.get("/jobs/{job_id}/intake")
+def job_intake(job_id: str, format: str = ""):
+    """새 프로젝트 점검표 (hotfix81) — 이 도면이 준 것 · 빌린 것 · 사람 몫.
+
+    **판정 0.**  저장된 사실(`engine_json` · `pid_page` · 행의 검토 사유 · 프로젝트의 사람 값)을
+    `app/intake.py` 하나가 읽어 규칙 가족별로 가른다.  사람 몫마다 어느 판에서 답하는지가
+    붙으므로, 새 PDF/DXF 를 올린 사람은 회차를 기다리지 않고 **그 자리에서** 무엇을 하면
+    되는지 안다.  `?format=text` 면 글(markdown)만 — VOC 에 붙이거나 복사하기 위해.
+    """
+    job = db.get_job(CON, job_id)
+    if job is None:
+        raise HTTPException(404, "no such job")
+    engine = json.loads(job["engine_json"] or "{}")
+    pages = [dict(p) for p in db.page_revisions(CON, job_id)]
+    rows = db.merged_rows_cached(CON, job_id, "ALL", slim=True)      # 읽기만 한다
+    project = job["project"] or ""
+    out = intake.build(
+        engine, pages, rows, job=dict(job),
+        user_mults=unit_multipliers.table(DATA_DIR, project) if project else {},
+        user_sheets=sheet_numbers.table(DATA_DIR, project) if project else {},
+        user_cells=bool(title_block_cells.cells(DATA_DIR, project)) if project else False,
+        mode=_mode_facts(job),
+        review_axes=job_review(job_id).get("axes") or [],
+        labels=REVIEW_LABELS)
+    out["job_id"] = job_id
+    out["project"] = project
+    if format == "text":
+        return PlainTextResponse(out["text"])
     return out
 
 

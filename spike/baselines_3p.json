@@ -54,9 +54,8 @@
   },
   "QFE": {
     "rows": 2043,
-    "fingerprint": "8bd6a8b382c0ae7874fd99d3e69437116c05b663825ef2126d0074302f341d2b",
+    "fingerprint": "26cd1210045a25dd6057816f13466fa01a2b888059a355c8ae35c36039461281",
     "qty_sum": 3720,
-    "score": 91.2,
-    "_": "hotfix73 — 8b2975ee · 2068 · 3757 · 91.1 → 8bd6a8b3 · 2043 · 3720 · 91.2.  **버블 하나는 계기 하나**(`detect_symbols._one_function_per_bubble`): ① 본문을 두 번 인쇄한 장(p39·p42)의 같은 낱말이 같은 행을 둘씩 세웠다 — 하나로 · 겹침 수 기록.  그러자 태그가 붙고(p42 `32GKC20CF001` 등 · 두 검출에 나와 이름이 아니라고 버려졌었다) p42 의 스위치 5(LSH·LSN·LSL·LSHH·LSLL)가 처음 섰다 (렌더 확인 — 예전엔 겹친 짝이 묶음을 흐려 사라졌다).  ② 버블 사각형 밖 라벨이 여유로 버블을 차지 — p51 `SC`×2 · p69/p86 `DN`×2 · p9 `GTC` · p24 `pH` → 안의 계기(AIT · GTC · TI · AI)가 이긴다.  ③ 한 윤곽에 서로 다른 기능 글자 둘 — p58 `FLASH`·`SPARE`(기기 외곽 180×604pt) → 미판정.  **같은 태그 · 같은 TYPE 둘 중 가운데 선 없는 버블 하나가 현장**(`bubble_lines` · ISA 위치 표기) — p41·p42 `FIT`(선 한 줄 · 제어 측) 4행을 `FT` 행에 접음.  Description 105칸 — Typical 이름표 정리(`DRAIN 2 DRAIN 3`→`DRAIN 3` · `DN`/`ASME SEC.I`/`1A` 섞임 제거) · 버블 안 계기 글자·태그를 기기 이름에서 뺌 · 겹친 행이 빠지며 순번 `B B` 정리.  AL NOUF1 46d551fd · TC2 23e78e27 · UAD-DXF a32c02a6 불변 (AL NOUF1 칸 0 · TC2 description 18칸 — p11 `XV STRAINER…` → `STRAINER…`).  속도 변경(같은 답)은 이 값을 한 칸도 안 옮긴다 (QFE 두 번 실측 대조 0칸)."
+    "score": 91.2
   }
 }

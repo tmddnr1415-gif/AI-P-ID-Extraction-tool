@@ -28,22 +28,25 @@ http://127.0.0.1:8000/jobs/<분석ID>/measured_config
 
 ## 3. 도구가 재지 못하는 것은 도면을 열어 직접 잽니다
 
-`must_measure_by_hand` 가 알려 주는 여섯 개입니다:
+**hotfix81 정정** — 24회차가 개정 이력 표의 다섯 칸(`hist_rule_x0_max` · `hist_rule_x1_min` ·
+`hist_rule_y` · `hist_rev_col` · `hist_date_col`)을 **그 도면에서 유도**하게 바꿨고 세 프로젝트
+전부에서 `DERIVED` 로 나옵니다.  이 절이 그 뒤로도 여섯 개를 적고 있었습니다 (32회차 [C] 가
+잡아 둔 것).  `must_measure_by_hand` 는 이제 **하나**입니다:
 
 | 항목 | 무엇인가 |
 |---|---|
-| `title_block.hist_rule_x0_max` / `hist_rule_x1_min` | 개정 이력 표 가로 괘선의 좌·우 끝 |
-| `title_block.hist_rule_y` | 그 괘선들이 있는 y 범위 |
-| `title_block.hist_rev_col` | 개정 문자(A·B·C)가 들어가는 칸의 x 범위 |
-| `title_block.hist_date_col` | 개정 날짜가 들어가는 칸의 x 범위 |
-| `title_block.hist_row_inset` | 행 위아래로 잘라낼 여백 (보통 1~2pt) |
+| `title_block.hist_row_inset` | 이력 표의 행을 읽을 때 위아래로 물리는 여백 (보통 1~2pt).  도면이 그리는 값이 아니라 잴 대상이 없습니다 |
 
-**왜 도구가 못 재나**: 이 표는 칸마다 캡션이 없습니다.  도면번호·제목 칸은
-`PROJECT DWG NO.` 같은 캡션이 바로 위에 인쇄돼 있어 그것을 앵커로 찾는데,
-이력 표는 머리말이 맨 윗줄에 한 줄로만 있습니다.
+그 밖에 **재려 했으나 실패한 항목**은 `measured_config` 응답의 `unavailable` 에 이름이 나옵니다
+(`broken_line.brk_max_mark` 처럼 그 범례가 그 선 종류를 안 그리는 경우).  그 칸은 설정값을
+그대로 쓰므로, 도면에서 재어 넣거나 그대로 두고 사유를 압니다.
 
 **안 채워도 분석은 됩니다** — 개정 문자(REV)를 글리프로 못 읽을 뿐이고,
 검출·수량·SCOPE 에는 쓰이지 않습니다.
+
+**★ 한 장으로 보려면** — 분석이 끝난 결과 화면의 더보기 ▾ → **새 프로젝트 점검표**
+(또는 `GET /jobs/<분석ID>/intake?format=text`).  이 도면이 답한 것 · 빌린 것 · 사람이 답할
+것이 판 이름과 함께 나옵니다 (hotfix81).
 
 ## 4. 그 밖에 그 양식에서 확인해야 하는 것
 

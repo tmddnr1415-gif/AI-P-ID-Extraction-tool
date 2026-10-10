@@ -1586,13 +1586,20 @@ async function loadLegendProfile() {
     bar.classList.add("hidden"); bar.innerHTML = ""; return;
   }
   const n = (f.summary && f.summary.item_count) || 0;
-  const failed = ((f.summary && f.summary.failed) || []).length;
+  const failedKeys = (f.summary && f.summary.failed) || [];
+  const failed = failedKeys.length;
+  // hotfix81 — "유도 실패 N" 만으로는 어느 항목이 누구의 값으로 대신됐는지 모른다 (roadmap §5 4순위).
+  // 항목 이름과 출처(설정 폴백 = 그 프로필의 값)를 툴팁에 적는다.  전문은 점검표(모달)가 편다.
+  const fallbackItems = ((f.summary && f.summary.items) || []).filter(it => it.source && it.source !== "LEGEND" && it.source !== "MEASURED");
+  const failedTitle = fallbackItems.length
+    ? fallbackItems.map(it => `${it.label || it.key}: ${it.source}${it.note ? ` — ${it.note}` : ""}`).join("\n")
+    : failedKeys.join(", ");
   const bits = [`<span class="lb-tag ${f.mode}">`
     + `${f.mode === "reused" ? "범례 재사용" : f.mode === "derived"
         ? "범례 유도" : "기록 없음"}</span>`,
     `<span class="lb-line">${escape(f.line || "")}</span>`];
-  if (n) bits.push(`<span class="lb-n">${n}항목`
-    + (failed ? ` · 유도 실패 ${failed}` : "") + `</span>`);
+  if (n) bits.push(`<span class="lb-n" title="${escape(failedTitle)}">${n}항목`
+    + (failed ? ` · 유도 실패 ${failed} (${escape(failedKeys.slice(0, 3).join(", "))}${failed > 3 ? " …" : ""} — 설정값으로 대신)` : "") + `</span>`);
   // hotfix72 — 대조 못 한 항목 수는 서버 문장(`compare_note`)이 이미 말한다.  예전에는 같은
   // 사실을 여기서 한 번 더 적어 띠 한 줄에 같은 말이 두 번 있었다.
   if (f.compare_note) bits.push(`<span class="lb-note">${escape(f.compare_note)}</span>`);
@@ -1632,7 +1639,56 @@ async function loadLegendProfile() {
   bar.classList.remove("hidden");
   bar.classList.toggle("changed", !!f.change_count);
   bindLegendAdopt();
+  loadIntakeChip();
 }
+
+/* hotfix81 — 새 프로젝트 점검표.  서버 `GET /jobs/{id}/intake` 가 저장된 사실에서 **판정 없이**
+ * 규칙 가족별로 `유도 / 폴백 / 사람 몫` 을 가른다.  띠에는 사람 몫 수만 한 칩으로 두고, 누르면
+ * 모달에 전문을 편다 (더보기 메뉴의 [새 프로젝트 점검표] 와 같은 창). */
+async function loadIntakeChip() {
+  const bar = $("#legend-bar");
+  if (!bar || !S.job || !S.job.id) return;
+  let it = null;
+  try { it = await (await fetch(`/jobs/${S.job.id}/intake`)).json(); } catch (e) { return; }
+  if (!it || !it.sections) return;
+  S.intake = it;
+  const n = (it.todo || []).length;
+  const cls = it.verdict === "todo" ? "stranger" : it.verdict === "warn" ? "changed" : "matched";
+  const chip = document.createElement("div");
+  chip.className = "lb-main lb-intake";
+  chip.innerHTML = `<span class="lb-tag ${cls}">점검표</span>`
+    + `<button class="ghost lb-intake-btn" title="${escape(it.headline || "")}">`
+    + escape(n ? `사람 몫 ${n}건 — 어디서 답하는지 보기` : (it.verdict === "warn" ? "대신한 값으로 돈 자리 보기" : "이 도면이 전부 답했습니다"))
+    + `</button>`;
+  chip.querySelector("button").addEventListener("click", showIntake);
+  bar.appendChild(chip);
+}
+
+async function showIntake() {
+  if (!S.job || !S.job.id) return;
+  let it = S.intake;
+  if (!it) {
+    try { it = await (await fetch(`/jobs/${S.job.id}/intake`)).json(); } catch (e) { it = null; }
+    if (!it || !it.sections) { openModal("새 프로젝트 점검표", `<p class="muted">점검표를 받지 못했습니다.</p>`); return; }
+    S.intake = it;
+  }
+  const mark = {ok: "✔", warn: "△", todo: "★", info: "·"};
+  const todo = (it.todo || []).map((t, i) => `<li><b>${escape(t.what)}</b>`
+    + `<div class="muted small">어디서: ${escape(t.where)}${t.why ? ` · 왜: ${escape(t.why)}` : ""}</div></li>`).join("");
+  const secs = (it.sections || []).map(s => `<details class="intake-sec ${s.status}" ${s.status === "todo" || s.status === "warn" ? "open" : ""}>`
+    + `<summary>${mark[s.status] || "·"} ${escape(s.title)}</summary><ul>`
+    + (s.lines || []).map(l => `<li>${escape(l)}</li>`).join("") + `</ul></details>`).join("");
+  openModal("새 프로젝트 점검표",
+    `<div class="intake"><p class="intake-head ${escape(it.verdict || "")}">${escape(it.headline || "")}</p>`
+    + (todo ? `<h4>사람 몫 — 답하는 자리</h4><ol class="intake-todo">${todo}</ol>` : "")
+    + `<h4>이 도면이 준 것 · 빌린 것</h4>${secs}`
+    + `<p class="muted small">판정은 하나도 새로 하지 않았습니다 — 분석이 저장한 사실을 모아 적은 것입니다. `
+    + `글로 복사: <a href="/jobs/${escape(S.job.id)}/intake?format=text" target="_blank">intake?format=text</a></p></div>`);
+}
+(function bindIntakeButton() {
+  const b = document.getElementById("intake-btn");
+  if (b) b.addEventListener("click", () => { if (S.job) showIntake(); });
+})();
 
 /* 달라진 곳 — 무엇이 무엇에서 무엇으로.  **자동 갱신은 없다.** */
 function legendChangeBlock(f) {

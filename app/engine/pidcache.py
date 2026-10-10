@@ -396,6 +396,35 @@ def _shx_words(entries) -> list:
     return list(entries)
 
 
+def same_lines(items, rect=lambda it: it[0]):
+    """같은 글줄 묶기 — y 중심의 차가 **둘 중 작은 글자 높이의 절반** 안이면 한 줄 (hotfix81).
+
+    옛 버킷(`round(y0 / 7)` · `round(y0 / 5)`)은 두 가지로 틀린다.  줄 간격이 버킷보다
+    촘촘한 문서(32회차 실측: UAD 줄 간격의 72% 가 5pt 미만)에서 **서로 다른 줄을
+    한 줄로 섞고**, 한 줄의 낱말이 버킷 경계(y0 = 101.4 ↔ 101.6)에 걸리면 **같은 줄을
+    둘로 가른다**.  28~29회차 TC2 지문이 움직인 원인(SHX `M` 한 글자가 5pt 버킷에서
+    `TO CONDENSER` 와 한 줄)이 앞엣것이고, roadmap §4 ④ 가 "아직 남아 있다" 고 적어
+    둔 자리다.
+
+    **상수 0** — 그 낱말 자신의 높이만 쓴다.  `get_text("words")` 와 SHX 조각의 사각형은
+    글자 잉크가 아니라 글줄 높이라 한 줄의 낱말은 중심이 같다.  기준은 줄의 **첫 낱말**
+    (중심이 흘러가 옆 줄을 삼키지 않게).  돌려주는 것은 y 순의 줄 목록이고 각 줄은 x 순.
+    """
+    seq = sorted(items, key=lambda it: ((rect(it).y0 + rect(it).y1) / 2, rect(it).x0))
+    lines = []
+    cur = None
+    for it in seq:
+        r = rect(it)
+        yc = (r.y0 + r.y1) / 2
+        h = max(r.y1 - r.y0, 0.0)
+        if cur is not None and abs(yc - cur[0]) <= 0.5 * min(h, cur[1]):
+            cur[2].append(it)
+        else:
+            cur = [yc, h, [it]]
+            lines.append(cur)
+    return [sorted(c[2], key=lambda it: rect(it).x0) for c in lines]
+
+
 def tokens(words):
     """낱말 조각을 **낱말 단위로** 읽는다 — 자리는 그 조각의 사각형 그대로.
 

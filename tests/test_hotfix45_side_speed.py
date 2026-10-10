@@ -169,7 +169,7 @@ def test_rows_endpoint_copies_and_the_memo_is_not_mutated_by_it(tmp_path):
     for pos in users:
         head = MAIN[max(0, pos - 2500):pos]
         name = re.findall(r"\ndef (\w+)\(", head)[-1]
-        assert name in {"rows", "_rows_payload", "_rows_body", "job_review", "axis_override_map", "_multiplier_targets"}, name   # hotfix80 — 본문 조립
+        assert name in {"rows", "_rows_payload", "_rows_body", "job_review", "axis_override_map", "_multiplier_targets", "job_intake"}, name   # hotfix80 — 본문 조립 · hotfix81 점검표(읽기만)
 
 
 # ---------------------------------------------------------------- ④ screen

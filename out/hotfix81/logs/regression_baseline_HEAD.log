@@ -1,0 +1,55 @@
+· AL NOUF1 분석 …
+   행 1133 · 지문 46d551fd · 축3 95.1점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1133   46d551fd     2136     543    4.8G   95.1
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        245/267      1133/1133    1133/1329    28/30      
+결과: /tmp/hf81_base/out/regression_3p.json
+
+기준선과 같습니다.
+· TC2 분석 …
+   s 0.10s valves.tags 0.05s annotations 0.00s
+  page  58    0.47s   instruments 0.20s valves.actuators 0.11s valves.bodies 0.10s valves.tags 0.05s annotations 0.00s
+  page  59    0.27s   valves.bodies 0.09s instruments 0.06s valves.actuators 0.06s valves.tags 0.05s annotations 0.00s
+  page  60    0.31s   instruments 0.12s valves.bodies 0.09s valves.actuators 0.06s valves.tags 0.05s annotations 0.00s
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+TC2  실패 — s 0.10s valves.tags 0.05s annotations 0.00s
+  page  58    0.
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+결과: /tmp/hf81_base/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TC2 — s 0.10s valves.tags 0.05s annotations 0.00s
+  page  58    0.47s   instruments 0.20s valves.actuators 0.11s valves.bodies 0.10s valves.tags 0.05s annotations 0.00s
+  page  59    0.27s   valves.bodies 0.09s instruments 0.06s valves.actuators 0.06s valves.tags 0.05s annotations 0.00s
+  page  60    0.31s   instruments 0.12s valves.bodies 0.09s valves.actuators 0.06s valves.tags 0.05s annotations 0.00s
+· QFE 분석 …
+   행 2043 · 지문 8bd6a8b3 · 축3 91.2점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+QFE   2043   8bd6a8b3     3720     786    6.2G   91.2
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+QFE 86/86        85/93        337/430      2041/2043    2043/2342    28/31      
+결과: /tmp/hf81_base/out/regression_3p.json
+
+기준선과 같습니다.
+· UAD-DXF 분석 …
+   행 507 · 지문 a32c02a6 · 축3 — (DXF · 안 잰다)
+
+프로젝트         행         지문     Q'ty       초     RSS      축3
+UAD-DXF    507   a32c02a6      507      97    0.5G    nan
+
+축3 내역 (지표별 맞춘 수 / 분모)
+        도면번호         개정           태그→행         수량           심볼판정         파라미터       
+UAD-DXF —            —            —            —            —            —          
+결과: /tmp/hf81_base/out/regression_3p.json
+
+기준선과 같습니다.

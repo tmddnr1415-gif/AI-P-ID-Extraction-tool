@@ -607,6 +607,35 @@ def _document_unit(pages) -> tuple:
     return u, why
 
 
+def _scale_line_styles(style, pages):
+    """hotfix81 — 범례 장의 종이가 본문과 다르면 신호선 길이 넷도 그 배율로 (hotfix48 ⚠ 의 자리).
+
+    `derive_line_styles` 는 `dash_len` · `dash_gap` · `min_run` · `join_slack` 을 **범례 장의
+    축척**으로 잰다.  QFE 는 범례를 A3 에, 본문을 A1 에 그려 그 값이 본문에서 절반이었고,
+    Description 판정축(`describe_axis`)과 배관 라벨이 절반 `min_run` 으로 돌았다 — hotfix48
+    이 밸브 창·별표 창에는 배율을 곱하고 이 자리는 ⚠ 로 남겨 두었다.
+
+    같은 종이면(네 기준 문서 전부) **객체를 그대로 돌려준다** — 곱하지도 note 를 적지도
+    않으므로 값·지문이 비트까지 그대로다.  배율은 `legend_rules.legend_paper_scale` 하나
+    (종이 크기 둘뿐 · 새 상수 0).  범례에서 못 읽은 폴백(`CONFIG_FALLBACK`)은 범례 길이가
+    아니므로 곱하지 않는다.
+    """
+    if not style.values or style.source != "LEGEND":
+        return style
+    scale, why = legend_rules.legend_paper_scale(pages)
+    if scale == 1.0:
+        return style
+    vals = dict(style.values)
+    for k in ("dash_len", "dash_gap", "min_run", "join_slack"):
+        if vals.get(k):
+            vals[k] = round(float(vals[k]) * scale, 3)
+    ev = dict(style.evidence)
+    ev["legend_scale"] = scale
+    ev["legend_scale_source"] = why
+    note = (style.note + " · " if style.note else "") + f"legend lengths x {scale} ({why})"
+    return legend_rules.Derived(values=vals, source=style.source, note=note, evidence=ev)
+
+
 def _fit_layout(pages) -> dict:
     """Measure the sheet, and use the measurement where the profile is a stranger.
 
@@ -1201,7 +1230,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     say(2, total, "measuring rules off the legend sheets")
     with clock.stage("legend_rules"):
         _lay, m_derived = dv.derive_layout(pages)
-        m_style = pipe_graph.derive_line_styles(pages, CFG)
+        m_style = _scale_line_styles(pipe_graph.derive_line_styles(pages, CFG), pages)
         # `connector_reach` 를 섞기 **전** 값이 범례가 말한 것이다.
         m_style_values = dict(m_style.values)
         # The words for each tag's measured variable, off legend p3's own

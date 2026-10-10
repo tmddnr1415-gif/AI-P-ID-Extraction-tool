@@ -145,4 +145,4 @@ def test_the_measured_geometry_is_kept_so_a_new_form_can_be_configured():
                     .split("\n@app.")[0]
     # 재지 못하는 항목은 지어내지 않고 "사람이 재야 한다" 로 이름만 낸다
     assert "must_measure_by_hand" in route
-    assert "hist_rule_y" in route
+    assert "hist_row_inset" in route and '"unavailable"' in route   # hotfix81 — 손으로 잴 것은 하나 · 못 잰 것은 이름으로
