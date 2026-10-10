@@ -1,1 +1,16 @@
 · AL NOUF1 분석 …
+   행 1065 · 지문 b61a6995 · 축3 94.9점
+
+프로젝트          행         지문     Q'ty       초     RSS      축3
+AL NOUF1   1065   b61a6995     1996     570    4.8G   94.9
+
+축3 내역 (지표별 맞춘 수 / 분모)
+         도면번호         개정           태그→행         수량           심볼판정         파라미터       
+AL NOUF1 58/58        58/58        245/267      1065/1065    1065/1261    28/30      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   AL NOUF1 rows: 기준선 1133 → 지금 1065
+   AL NOUF1 fingerprint: 기준선 46d551fd0968917861352d1012e209916dc9b35f72d3878e20769faf31f9e092 → 지금 b61a6995d44a8443c4d5a3d607d237053669ea1c5a1e562631cdbd83f837fc4d
+   AL NOUF1 qty_sum: 기준선 2136 → 지금 1996
+   AL NOUF1 score: 기준선 95.1 → 지금 94.9

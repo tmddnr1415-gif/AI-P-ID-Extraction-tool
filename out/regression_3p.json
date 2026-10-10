@@ -1,21 +1,52 @@
 {
   "projects": [
     {
-      "name": "UAD-DXF",
-      "rows": 467,
-      "fingerprint": "26d45872424dded9ecf0dd4fc54c9e868049219b501f4c15c21a2defc8b1814f",
-      "qty_sum": 467,
+      "name": "TC2",
+      "rows": 864,
+      "fingerprint": "10e32bd0aab1ed0a0c94fdd139e13865f954d2e8316c717d09b87a386ab409e2",
+      "qty_sum": 5292,
       "tabs": {
-        "FIELD": 423,
-        "PNEUMATIC": 23,
-        "REVIEW": 11,
-        "MOV": 8,
-        "BFV": 2
+        "FIELD": 706,
+        "MOV": 71,
+        "PNEUMATIC": 58,
+        "BFV": 7,
+        "REVIEW": 22
       },
-      "seconds": 105.2,
-      "max_rss_gb": 0.51,
-      "identification": {},
-      "score": null
+      "seconds": 512.6,
+      "max_rss_gb": 7.41,
+      "identification": {
+        "도면번호": [
+          60,
+          60,
+          ""
+        ],
+        "개정": [
+          60,
+          60,
+          ""
+        ],
+        "태그→행": [
+          239,
+          266,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          864,
+          864,
+          ""
+        ],
+        "심볼판정": [
+          864,
+          1017,
+          ""
+        ],
+        "파라미터": [
+          26,
+          29,
+          ""
+        ]
+      },
+      "score": 94.1
     }
   ],
   "metrics": [
