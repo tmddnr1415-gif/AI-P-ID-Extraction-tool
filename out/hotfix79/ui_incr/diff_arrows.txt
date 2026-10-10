@@ -1,0 +1,4 @@
+len 241 vs 241 · qty 73 vs 73
+first diff at 123
+INCR ["rect", {"class": "det pulse sel", "data-key": "0f57f183bc89cdb2", "data-own": "0f57f183bc89cdb2", "height": "117.9385486577182", "stroke": "#0a84ff", "style": "fill: rgb(10, 132, 255);", "width": "40.96644295301999", "x": "2885.09375", "y": "2277.6382130872485"}, []]
+FULL ["rect", {"class": "det sel", "data-key": "0f57f183bc89cdb2", "data-own": "0f57f183bc89cdb2", "height": "117.9385486577182", "stroke": "#0a84ff", "style": "fill: rgb(10, 132, 255);", "width": "40.96644295301999", "x": "2885.09375", "y": "2277.6382130872485"}, []]

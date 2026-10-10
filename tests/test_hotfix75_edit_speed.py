@@ -128,7 +128,8 @@ def test_after_delete_restore_add_only_those_rows_are_fetched():
     assert "/rows?tab=ALL&keys=" in rk and "loadRows(Promise.resolve(list))" in rk
     assert "slim=1" not in rk                       # 그 행 몇 개는 온전히 받는다
     assert "refreshRows(keys.length === 1 ? keys[0] : null, { keys })" in _fn("deleteRows")
-    assert "refreshRows(key, { keys: [key] })" in _fn("restoreRow")
+    assert "_restoreKeys([key])" in _fn("restoreRow")            # hotfix79 — 되돌리기와 같은 길
+    assert "refreshRows(keys.length === 1 ? keys[0] : null, { keys })" in _fn("_restoreKeys")
     assert "refreshRows(out.key, { keys: [out.key] })" in _fn("createRow")
     assert "refreshRows(out.key, { toGrid: true, keys: [out.key] })" in JS
 

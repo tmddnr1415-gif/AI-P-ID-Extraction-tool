@@ -502,6 +502,10 @@
             <option value="MODIFIED">수정만 (태그 바뀜 · 이전 태그 포함)</option>
             <option value="DELETED">삭제만</option>
           </select></label>
+        <!-- hotfix79 — 되돌리기 · 다시 (Ctrl+Z · Ctrl+Y) — 칸 고침 · 묶음 고침 · 승수 · 지우기 -->
+        <button id="undo-btn" class="ghost undo-btn" type="button" disabled title="되돌릴 것이 없습니다 (Ctrl+Z)" aria-label="되돌리기">↶</button>
+        <button id="redo-btn" class="ghost undo-btn" type="button" disabled title="다시 할 것이 없습니다 (Ctrl+Y)" aria-label="다시">↷</button>
+        <button id="kbd-btn" class="ghost undo-btn" type="button" title="단축키 (?)" aria-label="단축키">⌨</button>
         <button id="row-add" class="ghost" title="빈 행 추가">＋행</button>
         <button id="row-copy" class="ghost" title="선택 행 복사">복사</button>
         <button id="row-delete" class="ghost" title="선택 행 삭제">삭제</button>

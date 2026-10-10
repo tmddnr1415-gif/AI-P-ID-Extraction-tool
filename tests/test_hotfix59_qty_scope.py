@@ -39,7 +39,7 @@ def test_label_click_routes_shift_and_range():
 def test_one_save_path_updates_both_sides():
     save = _fn("applyQtyToRows")
     assert 'field: "qty"' in save and save.count("askAuthor(") == 1      # 작성자는 한 번만
-    assert "renderGrid()" in save and "drawOverlay()" in save
+    assert "renderGrid()" in save and "restyleItems(" in save    # hotfix79 — 고친 행만 다시 그린다
     # hotfix75 — 행마다 PATCH 대신 요청 하나(`editRowsBulk` → `rows_edit`) · 행 객체 고치기는 그 함수 한 곳
     assert 'editRowsBulk(rows, "qty"' in save
     bulk = _fn("editRowsBulk")

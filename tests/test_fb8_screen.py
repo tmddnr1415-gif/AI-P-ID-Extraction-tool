@@ -51,7 +51,8 @@ def test_unit_notes_is_stored():
 def test_the_overlay_colour_reads_the_live_scope():
     assert 'if (row) return scopeKeyOf(cellValue(row, "scope"));' in JS
     # hotfix64 — 저장 길이 `saveField` 하나가 되며 Q'ty·TYPE·Tag 도 같이 다시 그린다 (scope 는 그대로 포함)
-    assert 'if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") drawOverlay();' in JS
+    # hotfix79 — 전부가 아니라 그 행의 그림만 같은 `drawItem` 으로 다시 그린다 (`restyleItems`)
+    assert 'if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") restyleItems([row.key]);' in JS
 
 
 def test_vendor_names_come_from_this_drawing_only():

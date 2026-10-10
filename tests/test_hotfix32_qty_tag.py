@@ -37,13 +37,13 @@ def test_editing_on_the_drawing_uses_the_grid_save_path_only():
     assert "applyQtyToRows(" in body
     save = _fn("applyQtyToRows")
     assert 'field: "qty"' in save and "askAuthor(" in save
-    assert "renderGrid()" in save and "drawOverlay()" in save   # 왼쪽·오른쪽 같은 값으로
+    assert "renderGrid()" in save and "restyleItems(" in save   # 왼쪽·오른쪽 같은 값으로 (hotfix79 — 고친 행만 다시 그린다)
 
 
 def test_legend_has_its_own_toggle_and_it_is_a_mark_not_a_colour_cell():
     assert re.search(r'const QTY_MARK = \["QTY", "수량 x N \(그중\)"', JS)
     assert "row(...QTY_MARK, qtyTags, \"badge\")" in JS
-    assert "S.ovOff.has(QTY_MARK[0])" in _fn("drawOverlay")
+    assert "S.ovOff.has(QTY_MARK[0])" in _fn("drawItem")      # hotfix79 — 상자 하나 그리기를 떼어 냈다
 
 
 def test_grid_cells_say_their_column():

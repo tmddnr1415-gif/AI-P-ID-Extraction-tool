@@ -2392,6 +2392,7 @@ async function loadRows(pre, sidePre) {
   const side = sidePre || rowSideFetches(id);
   S.rows = await (pre || fetch(`/jobs/${id}/rows?tab=ALL&slim=1`).then(r => r.json()));
   S.rowByKey = Object.fromEntries(S.rows.map(r => [r.key, r]));
+  renderUndo();                                  // hotfix79 — 다른 결과면 되돌리기 기록을 비운다
   const [markup, axisOv, review, feedback, reports] = await side;
   S.markupSummary = markup;
   updateMarkupNote();
@@ -2756,6 +2757,7 @@ function _pageMultSummary(wrap, pages) {
 async function _saveQtyItems(items, what, reasonOf) {
   const author = await askAuthor(`승수 — ${what}`);
   if (author === null) return 0;                       // 취소 — 한 행도 안 고친다
+  const befores = new Map(items.map(it => [it.row.key, _userVal(it.row, "qty")]));   // hotfix79 — 되돌리기
   const res = await fetch(`/jobs/${S.job.id}/qty_bulk`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ author, items: items.map(it => ({ key: it.row.key, value: it.value,
@@ -2775,10 +2777,13 @@ async function _saveQtyItems(items, what, reasonOf) {
   }
   S.counts.REVIEW = out.review_count;
   if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
+  const doneIt = items.filter(it => it.row.key in out.users);
+  if (doneIt.length) undoRecord({ kind: "edit", field: "qty", label: `${doneIt.length}행 승수 (${what})`,
+    items: doneIt.map(it => ({ key: it.row.key, before: befores.get(it.row.key), after: String(it.value ?? "") })) });
   updateBadge();
   renderGrid();                                       // 오른쪽 — 같은 Q'ty 값
   markMultiRows();
-  drawOverlay();                                      // 왼쪽 — x N 라벨이 같은 값을 다시 읽는다
+  restyleItems(items.map(it => it.row.key));          // 왼쪽 — x N 라벨이 같은 값을 다시 읽는다 (고친 행만)
   const cur = S.sel && S.rowByKey[S.sel];
   if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
   if (typeof renderFloatEdit === "function") renderFloatEdit();
@@ -3814,6 +3819,7 @@ function rowHtml(r, cols) {
       // 두 번 누르거나 F2 · 바로 타자를 치면 그때 편집이 열린다 (`startCellEdit`) — 저장은 `bindGridBody`.
       + (editable && canEdit ? ' data-ed="1"' : "")
       + (S.cell && S.cell.key === r.key && S.cell.col === key ? ' data-cur="1"' : "")
+      + (S.cellRange && S.cellRange.col === key && S.rangeKeys && S.rangeKeys.has(r.key) ? ' data-rng="1"' : "")
       + ">"
       + (key === "description_grade" && has ? _gradeBadgeHtml(val) : has ? escape(String(val)) : "")
       + "</td>";
@@ -3866,9 +3872,99 @@ const CELL = { editing: null, orig: "", cancel: false, pasteCommit: false };
 function _cellTd(key, col) {
   return document.querySelector(`#body tr[data-key="${CSS.escape(key)}"] td[data-col="${CSS.escape(col)}"]`);
 }
+/* ---------------- hotfix79 — 한 열의 칸 범위 (Shift+↑↓) ----------------
+ * 엑셀처럼 칸 하나에서 Shift+화살표로 위아래로 넓힌다.  범위에서: Ctrl+C 복사(줄마다 한 값) · Ctrl+V 붙이기
+ * (한 값이면 범위 전체 · 여러 줄이면 위에서부터 한 줄씩) · 편집 중 Ctrl+Enter 로 범위 전체 채우기 · Delete 로
+ * 도면 값 되돌리기.  저장은 여러 행이면 `editRowsBulk`(요청 하나) · 한 행이면 `saveField` — 길은 그대로다.
+ * 범위는 한 열만 — 다른 열은 뜻(칸 종류)이 달라 한 값으로 채울 일이 없다. */
+function clearRange() {
+  S.cellRange = null; S.rangeKeys = null;
+  document.querySelectorAll("#body td[data-rng]").forEach(t => t.removeAttribute("data-rng"));
+}
+function rangeRows() {
+  const R = S.cellRange, list = S.vlist || [];
+  if (!R || !S.cell || S.cell.col !== R.col) return [];
+  const a = list.findIndex(r => r.key === R.anchor), b = list.findIndex(r => r.key === R.end);
+  if (a < 0 || b < 0) return [];
+  return list.slice(Math.min(a, b), Math.max(a, b) + 1);
+}
+function markRange() {
+  const rows = rangeRows();
+  S.rangeKeys = rows.length > 1 ? new Set(rows.map(r => r.key)) : null;
+  document.querySelectorAll("#body td[data-rng]").forEach(t => t.removeAttribute("data-rng"));
+  if (!S.rangeKeys) return;
+  for (const k of S.rangeKeys) { const td = _cellTd(k, S.cellRange.col); if (td) td.setAttribute("data-rng", "1"); }
+  editNotice(`${rows.length}칸 범위 — Ctrl+C 복사 · Ctrl+V 붙이기 · 편집 중 Ctrl+Enter 로 모두 채우기 · Delete 로 도면 값`);
+}
+function extendRange(dr) {
+  if (!S.cell) return;
+  if (!S.cellRange || S.cellRange.col !== S.cell.col) S.cellRange = { col: S.cell.col, anchor: S.cell.key, end: S.cell.key };
+  const nx = nextCell({ key: S.cellRange.end, col: S.cellRange.col }, dr, 0);
+  if (!nx) return;
+  S.cellRange.end = nx.key;
+  revealRow(nx.key);
+  const td = _cellTd(nx.key, S.cellRange.col);
+  if (td) td.scrollIntoView({ block: "nearest", inline: "nearest" });
+  markRange();
+}
+function _editableCol(col) { return !!(COLS.find(c => c[0] === col) || [])[2]; }
+/* 여러 행의 한 칸에 값을 적는다 — 지운 행은 건너뛴다.  pairs: [[row, value], …] */
+async function fillCells(col, pairs, what) {
+  pairs = pairs.filter(([r, v]) => r && !r.deleted && !r.removed && !r.delCand
+                                   && String(cellValue(r, col) ?? "") !== String(v));
+  if (!_editableCol(col)) { editNotice(`${colName(col)} 칸은 고칠 수 없습니다`, "out"); return false; }
+  if (!pairs.length) { editNotice("바뀔 칸이 없습니다"); return false; }
+  if (pairs.length === 1) {
+    const ok = await saveField(pairs[0][0], col, pairs[0][1]);
+    return ok !== null && ok !== false;
+  }
+  const author = await askAuthor(`${pairs.length}칸 ${colName(col)} — ${what}`);
+  if (author === null) return false;
+  const val = new Map(pairs.map(([r, v]) => [r.key, String(v)]));
+  const rows = pairs.map(p => p[0]);
+  const out = await editRowsBulk(rows, col, r => val.get(r.key), author, () => `CELL_RANGE: ${what}`);
+  if (!out) return false;
+  updateBadge();
+  renderGrid();
+  markMultiRows();
+  restyleItems(rows.map(r => r.key));
+  const cur = S.sel && S.rowByKey[S.sel];
+  if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
+  if (col === "qty") _refreshPageMult();
+  editNotice(`${rows.length - out.missing.length}칸 ${colName(col)} — ${what} (Ctrl+Z 로 되돌립니다)`);
+  return true;
+}
+/* 붙이기 — 한 값이면 범위(없으면 그 칸) 전체에, 여러 줄이면 범위 맨 위(없으면 지금 칸)부터 아래로 한 줄씩. */
+function pasteValues(text) {
+  if (!S.cell) return;
+  const lines = String(text || "").replace(/\r?\n$/, "").split(/\r?\n/).map(l => l.split("\t")[0].trim());
+  const col = S.cell.col, rng = rangeRows();
+  if (lines.length <= 1) {
+    const rows = rng.length > 1 ? rng : [S.rowByKey[S.cell.key]];
+    return fillCells(col, rows.map(r => [r, lines[0] || ""]), "붙이기");
+  }
+  const list = (S.vlist || []).filter(r => !r.deleted && !r.removed && !r.delCand);
+  const top = rng.length > 1 ? rng[0].key : S.cell.key;
+  const i = list.findIndex(r => r.key === top);
+  if (i < 0) return;
+  const rows = list.slice(i, i + lines.length);
+  return fillCells(col, rows.map((r, n) => [r, lines[n]]), `${rows.length}줄 붙이기`);
+}
+/* Delete — 사람이 고친 칸을 도면 값으로 되돌린다 (범위면 범위 전체).  고친 적 없는 칸은 그대로. */
+function revertCells() {
+  if (!S.cell) return;
+  const rng = rangeRows();
+  const rows = (rng.length > 1 ? rng : [S.rowByKey[S.cell.key]]).filter(Boolean);
+  const col = S.cell.col;
+  const edited = rows.filter(r => _userVal(r, col) !== "" || (r.user && col in r.user));
+  if (!edited.length) { editNotice("사람이 고친 칸이 없습니다 — 이미 도면 값입니다"); return; }
+  return fillCells(col, edited.map(r => [r, ""]), "도면 값으로");
+}
+
 /* 칸 하나를 고른다 (목록이 다시 그려져도 `rowHtml` 이 `S.cell` 을 읽어 표시를 되살린다). */
 function setCell(key, col, opts = {}) {
   S.cell = key && col ? { key, col } : null;
+  if (!opts.keepRange && S.cellRange) clearRange();
   document.querySelectorAll('#body td[data-cur]').forEach(t => t.removeAttribute("data-cur"));
   if (!S.cell) return null;
   if (opts.reveal) revealRow(key);
@@ -3920,10 +4016,21 @@ function nextCell(from, dr, dc) {
   j = Math.max(0, Math.min(cols.length - 1, j + dc));
   return { key: list[i].key, col: cols[j] };
 }
+/* hotfix79 — 화살표를 누르고 있으면 칸은 바로 옮기고 **행 고르기(도면 · 근거 패널)는 멈춘 뒤 한 번**.
+ * 행마다 그 장을 그리고 근거 패널을 다시 세우면 키 반복(초당 30번)을 못 따라가 칸이 밀린다.
+ * 목록의 행 표시는 바로 옮긴다 — 눈이 보는 곳은 그 줄이다. */
+const KEY_SELECT_MS = 90;
 function gotoCell(to) {
   if (!to) return;
   setCell(to.key, to.col, { reveal: true, scroll: true });
-  if (to.key !== S.sel) select(to.key, true);
+  clearTimeout(gotoCell._t);
+  if (to.key === S.sel) return;
+  document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
+  const tr = document.querySelector(`#body tr[data-key="${CSS.escape(to.key)}"]`);
+  if (tr) tr.classList.add("sel");
+  gotoCell._t = setTimeout(() => {
+    if (S.cell && S.cell.key === to.key && to.key !== S.sel) select(to.key, true);
+  }, KEY_SELECT_MS);
 }
 function commitAndMove(td, dr, dc) {
   const from = { key: td.parentElement.dataset.key, col: td.dataset.col };
@@ -3952,6 +4059,17 @@ function _gridRow(tr) {
   body.addEventListener("keydown", ev => {
     const td = CELL.editing;
     if (!td || ev.target !== td || ev.isComposing) return;
+    // hotfix79 — 범위가 골라진 채 Ctrl+Enter 면 그 값으로 범위 전체를 채운다 (엑셀)
+    if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey) && rangeRows().length > 1) {
+      ev.preventDefault();
+      const v = td.textContent.trim(), keep = S.cellRange, rows = rangeRows();
+      const at = { key: td.parentElement.dataset.key, col: td.dataset.col };
+      CELL.cancel = true; td.blur();
+      S.cell = at; S.cellRange = keep; markRange();
+      const gw = document.getElementById("gridwrap"); if (gw) gw.focus({ preventScroll: true });
+      fillCells(at.col, rows.map(r => [r, v]), "범위 채우기");
+      return;
+    }
     if (ev.key === "Enter" && !ev.altKey) { ev.preventDefault(); commitAndMove(td, ev.shiftKey ? -1 : 1, 0); }
     else if (ev.key === "Tab") { ev.preventDefault(); commitAndMove(td, 0, ev.shiftKey ? -1 : 1); }
     else if (ev.key === "Escape") {
@@ -4006,6 +4124,10 @@ function _gridRow(tr) {
   gw.addEventListener("keydown", ev => {
     if (CELL.editing || !S.cell || ev.target !== gw || ev.isComposing) return;
     const k = ev.key, plain = !ev.ctrlKey && !ev.metaKey && !ev.altKey;
+    // hotfix79 — Shift+↑↓ 는 칸 범위를 넓힌다 (엑셀) · Delete 는 도면 값으로 · Esc 는 범위를 푼다
+    if (ev.shiftKey && plain && (k === "ArrowDown" || k === "ArrowUp")) { ev.preventDefault(); extendRange(k === "ArrowDown" ? 1 : -1); return; }
+    if (k === "Delete" && plain && !ev.shiftKey) { ev.preventDefault(); revertCells(); return; }
+    if (k === "Escape" && S.cellRange) { ev.preventDefault(); clearRange(); return; }
     let mv = MOVE[k];
     if (!mv && k === "Tab") mv = [0, ev.shiftKey ? -1 : 1];
     if (!mv && k === "Enter") mv = [ev.shiftKey ? -1 : 1, 0];
@@ -4026,6 +4148,11 @@ function _gridRow(tr) {
   // Ctrl+C · Ctrl+V — 골라진 칸 하나 (편집 중에는 브라우저 기본 그대로)
   document.addEventListener("copy", ev => {
     if (CELL.editing || !S.cell || document.activeElement !== gw) return;
+    const rng = rangeRows();
+    if (rng.length > 1) {                       // hotfix79 — 범위면 한 줄에 한 값 (엑셀에 그대로 붙는다)
+      ev.clipboardData.setData("text/plain", rng.map(r => String(cellValue(r, S.cell.col) ?? "")).join("\n"));
+      ev.preventDefault(); return;
+    }
     const td = _cellTd(S.cell.key, S.cell.col);
     if (!td) return;
     ev.clipboardData.setData("text/plain", td.textContent.trim());
@@ -4036,7 +4163,19 @@ function _gridRow(tr) {
     const cell = CELL.editing;
     if (!cell || ev.target !== cell && !cell.contains(ev.target)) return;
     ev.preventDefault();
-    const t = String((ev.clipboardData && ev.clipboardData.getData("text/plain")) || "").split(/\r?\n/)[0].split("\t")[0];
+    const raw = String((ev.clipboardData && ev.clipboardData.getData("text/plain")) || "");
+    const t = raw.split(/\r?\n/)[0].split("\t")[0];
+    // hotfix79 — Ctrl+V 로 연 칸에 여러 줄이 오거나 범위가 골라져 있으면 범위 붙이기로 (편집은 접는다)
+    if (CELL.pasteCommit && (rangeRows().length > 1 || /\r?\n./.test(raw.replace(/\r?\n$/, "")))) {
+      CELL.pasteCommit = false; CELL.cancel = true;
+      const at = { key: cell.parentElement.dataset.key, col: cell.dataset.col };
+      const keep = S.cellRange;
+      cell.blur();
+      S.cell = at; S.cellRange = keep; markRange();
+      const gw = document.getElementById("gridwrap"); if (gw) gw.focus({ preventScroll: true });
+      pasteValues(raw);
+      return;
+    }
     if (CELL.pasteCommit) {
       CELL.pasteCommit = false;
       cell.textContent = t;
@@ -4054,9 +4193,10 @@ function _gridRow(tr) {
     const r = _gridRow(td.parentElement);
     if (!r) return;
     ev.preventDefault();
-    // 엑셀에서 복사한 칸 묶음이면 첫 칸만 (여러 칸 붙이기는 Shift 묶음 판이 맡는다)
-    const t = String(ev.clipboardData.getData("text/plain") || "").split(/\r?\n/)[0].split("\t")[0];
-    td.textContent = t;
+    // hotfix79 — 여러 줄 · 범위면 `pasteValues` (엑셀에서 복사한 열을 그대로) · 아니면 그 칸 하나
+    const raw = String(ev.clipboardData.getData("text/plain") || "");
+    if (rangeRows().length > 1 || /\r?\n./.test(raw.replace(/\r?\n$/, ""))) { pasteValues(raw); return; }
+    td.textContent = raw.split(/\r?\n/)[0].split("\t")[0];
     saveEdit(r, td.dataset.col, td);
   });
 })();
@@ -4325,6 +4465,7 @@ async function saveField(row, field, value) {
   value = String(value ?? "").trim();
   const current = row.values[field] ?? "";
   if (String(current) === value) return undefined;
+  const userBefore = _userVal(row, field);                 // hotfix79 — 되돌리기는 이 값으로 (빈 값 = 도면 값)
   const scopeBefore = row.values.scope;
   // 저장하기 **전에** 알린다 - 이 행이 발주처 양식 밖이면 고친 값이 파일에
   // 닿지 않는다는 것을 그 순간 아는 편이 낫다.  막지는 않는다.
@@ -4359,6 +4500,8 @@ async function saveField(row, field, value) {
     alert(msg); return false;
   }
   const out = await r.json();
+  undoRecord({ kind: "edit", field, label: `${colName(field)} ${current === "" ? "(빈칸)" : current} → ${value === "" ? "(도면 값)" : value}`,
+               items: [{ key: row.key, before: userBefore, after: value }] });
   row.user = out.user;
   stampEditor(row, field, author);
   row.values[field] = value === "" ? row.ai[field] : (field === "qty" ? Number(value) : value);
@@ -4371,7 +4514,8 @@ async function saveField(row, field, value) {
   if (S.sel === row.key) showEvidence(row);
   // 53회차 [F] — SCOPE 를 고쳤으면 **그 자리에서 색이 따라간다** (8차 s7).  hotfix64 — Q'ty 라벨(x N) ·
   // TYPE 도 도면 위에 서 있으므로 같이 다시 그린다.  색·라벨을 정하는 곳은 그대로 `itemScope`·`cellValue` 다.
-  if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") drawOverlay();
+  // hotfix79 — 그 행의 그림만 다시 그린다 (`restyleItems` — 같은 `drawItem`).
+  if (field === "scope" || field === "qty" || field === "type" || field === "tag_no") restyleItems([row.key]);
   if (field === "qty") _refreshPageMult();
   renderFloatEdit();
   noticeAfterEdit(row, field, scopeBefore, row.values.scope);
@@ -4620,11 +4764,7 @@ function select(key, fromGrid, item) {
   }
   document.querySelectorAll("#body tr").forEach(tr =>
     tr.classList.toggle("sel", tr.dataset.key === key));
-  document.querySelectorAll("rect.det").forEach(n =>
-    n.classList.toggle("sel", n.dataset.key === key));
-  drawOverlay();          // the traced path belongs to the selected row
-  document.querySelectorAll("#body tr").forEach(tr =>
-    tr.classList.toggle("sel", tr.dataset.key === key));
+  refreshSel();           // hotfix79 — the traced path belongs to the selected row; only that changes
   if (fromGrid) centreOnSymbol(key);
   else {
     const tr = revealRow(key);              // hotfix69 — 화면 밖 행은 그 자리로 굴려 그린다
@@ -4642,8 +4782,7 @@ function deselect() {
   S.multi.clear();
   syncSel();
   document.querySelectorAll("#body tr.sel").forEach(tr => tr.classList.remove("sel"));
-  document.querySelectorAll("rect.det.sel").forEach(n => n.classList.remove("sel"));
-  drawOverlay();
+  refreshSel();                  // hotfix79 — 고른 표시만 걷는다
   renderFloatEdit();             // hotfix64 — 편집 카드도 닫힌다
   $("#evidence").innerHTML =
     "<p class='muted'>행을 클릭하면 판정 근거가 여기에 표시됩니다. <b>Shift</b> 또는 <b>Ctrl</b> 을 누른 채 도면의 상자(또는 목록의 행)를 누르면 여러 개를 골라 <b>공급 주체를 한 번에</b> 바꿀 수 있습니다.</p>";
@@ -4891,7 +5030,7 @@ function toggleMulti(key) {
   if (S.multi.has(key)) S.multi.delete(key); else S.multi.add(key);
   if (S.multi.size === 1) S.multi.clear();     // 하나만 남으면 묶음이 아니다
   syncSel();
-  drawOverlay();
+  refreshSel();
   markMultiRows();
   if (S.multi.size) showMultiScope();
   else if (S.sel) {
@@ -4903,7 +5042,7 @@ function toggleMulti(key) {
 function clearMulti() {
   S.multi.clear();
   syncSel();
-  drawOverlay();
+  refreshSel();
   markMultiRows();
   const row = S.sel && S.rows.find(r => r.key === S.sel);
   if (row) showEvidence(row); else deselect();
@@ -4932,11 +5071,13 @@ async function deleteRows(keys, opts = {}) {
       body: JSON.stringify({ keys, reason: String(reason).trim(), reason_class: opts.klass || "FALSE_POSITIVE",
                              author, exclude: true }),
     });
-  } catch (e) { alert("삭제하지 못했습니다 — 서버에 연결할 수 없습니다."); return; }
-  if (!r.ok) { alert("삭제 실패"); return; }
+  } catch (e) { alert("삭제하지 못했습니다 — 서버에 연결할 수 없습니다."); return false; }
+  if (!r.ok) { alert("삭제 실패"); return false; }
   const out = await r.json();
   if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   const done = Object.keys(out.rows || {}).length;
+  if (done) undoRecord({ kind: "delete", label: `${done}개 행 ${opts.klass === "NOT_SUPPLY" ? "식별 지우기" : "삭제"}`,
+    keys: Object.keys(out.rows || {}), opts: { reason: String(reason).trim(), klass: opts.klass || "FALSE_POSITIVE" } });
   S.multi.clear();
   await refreshRows(keys.length === 1 ? keys[0] : null, { keys });
   // 고른 행이 없으면 `refreshRows` 는 목록만 다시 읽는다 — 붉은 표시가 다음 동작
@@ -4945,7 +5086,8 @@ async function deleteRows(keys, opts = {}) {
   markMultiRows();
   editNotice(opts.klass === "NOT_SUPPLY"
     ? `${done}개 식별을 지웠습니다 — SCT 도 VENDOR 도 아님 · 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (눌러서 되돌릴 수 있습니다)`
-    : `${done}개 행을 지웠습니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (되돌릴 수 있습니다)`, "out");
+    : `${done}개 행을 지웠습니다 — 도면에 붉은 ✕ 로 남고 Excel 에서 빠집니다 (되돌릴 수 있습니다 · Ctrl+Z)`, "out");
+  return true;
 }
 
 /* hotfix66 — **SCT 도 VENDOR 도 아닌 것은 식별을 지운다** (사용자: *"식별된 것들을 클릭해서 Vendor 도 SCT
@@ -5015,11 +5157,108 @@ function scopePop(key) {
 }
 
 async function restoreRow(key) {
-  await fetch(`/jobs/${S.job.id}/rows/${key}/restore`, { method: "POST" });
-  await refreshRows(key, { keys: [key] });
-  drawOverlay();
+  const rj = ((S.rowByKey || {})[key] || {}).reject || {};
+  const ok = await _restoreKeys([key]);
+  if (ok) undoRecord({ kind: "restore", label: "지운 행 되살리기", keys: [key],
+                       opts: { reason: rj.note || "", klass: rj.class || "FALSE_POSITIVE" } });
   editNotice("되돌렸습니다 — 다시 결과와 Excel 에 들어갑니다", "in");
 }
+async function _restoreKeys(keys) {
+  let ok = true;
+  for (const k of keys) {
+    try { const r = await fetch(`/jobs/${S.job.id}/rows/${k}/restore`, { method: "POST" }); ok = ok && r.ok; }
+    catch (e) { ok = false; }
+  }
+  await refreshRows(keys.length === 1 ? keys[0] : null, { keys });
+  drawOverlay();
+  return ok;
+}
+
+/* ---------------- hotfix79 — 되돌리기 · 다시 (Ctrl+Z · Ctrl+Y) ----------------
+ *
+ * 상용 편집기의 기본 — 칸 하나를 잘못 고쳤거나 묶음을 잘못 지웠을 때 손으로 되찾지 않는다.
+ * 기록하는 곳은 서버에 쓰는 **길 넷**뿐이다: 칸 하나(`saveField`) · 여러 행 같은 칸(`editRowsBulk`) ·
+ * 승수 묶음(`_saveQtyItems`) · 지우기/되살리기(`deleteRows` · `restoreRow`).  되돌리기도 **같은 길**로
+ * 서버에 쓴다 — 서버 기록(누가 · 언제)은 지우지 않고 한 줄 더 쌓인다 (13회차 감사 그대로).
+ * 기록하는 값은 **사람 값**이다 (빈 값 = 도면 값).  그래서 되돌리면 도면 값으로 돌아가고 엔진 값은 건드리지 않는다.
+ * 분석(결과)이 바뀌면 쌓인 것을 비운다 — 다른 결과의 행에 되돌리기를 하지 않는다. */
+const UNDO = { done: [], redo: [], busy: 0, job: null, MAX: 100 };
+function _userVal(row, field) {
+  const u = row && row.user;
+  return u && field in u && u[field] !== null && u[field] !== undefined ? String(u[field]) : "";
+}
+function colName(field) { return (COLS.find(([k]) => k === field) || [field, field])[1]; }
+function _undoJob() {
+  const id = S.job && S.job.id;
+  if (UNDO.job !== id) { UNDO.done = []; UNDO.redo = []; UNDO.job = id; }
+}
+function undoRecord(entry) {
+  if (UNDO.busy || !S.job) return;
+  _undoJob();
+  UNDO.done.push(entry);
+  if (UNDO.done.length > UNDO.MAX) UNDO.done.shift();
+  UNDO.redo = [];
+  renderUndo();
+}
+function renderUndo() {
+  _undoJob();
+  const u = document.getElementById("undo-btn"), r = document.getElementById("redo-btn");
+  const last = UNDO.done[UNDO.done.length - 1], next = UNDO.redo[UNDO.redo.length - 1];
+  if (u) { u.disabled = !last || !!UNDO.busy; u.title = last ? `되돌리기 — ${last.label} (Ctrl+Z)` : "되돌릴 것이 없습니다 (Ctrl+Z)"; }
+  if (r) { r.disabled = !next || !!UNDO.busy; r.title = next ? `다시 — ${next.label} (Ctrl+Y)` : "다시 할 것이 없습니다 (Ctrl+Y)"; }
+}
+async function _applyEdits(field, items) {
+  const rows = items.map(it => S.rowByKey[it.key]).filter(Boolean);
+  if (!rows.length) return false;
+  const val = new Map(items.map(it => [it.key, it.value]));
+  if (rows.length === 1) {
+    const ok = await saveField(rows[0], field, val.get(rows[0].key));
+    if (ok === null || ok === false) return false;
+    if (field === "description" || field === "remark") syncRowCell(rows[0], field);
+    return true;
+  }
+  const author = await askAuthor(`${rows.length}행 ${colName(field)} 되돌리기`);
+  if (author === null) return false;
+  const out = await editRowsBulk(rows, field, r => val.get(r.key), author, () => "UNDO");
+  if (!out) return false;
+  updateBadge();
+  renderGrid();
+  markMultiRows();
+  restyleItems(rows.map(r => r.key));
+  const cur = S.sel && S.rowByKey[S.sel];
+  if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
+  if (field === "qty") _refreshPageMult();
+  return true;
+}
+async function undoStep(back) {
+  if (UNDO.busy || !S.job) return;
+  _undoJob();
+  const from = back ? UNDO.done : UNDO.redo, to = back ? UNDO.redo : UNDO.done;
+  const e = from.pop();
+  if (!e) { editNotice(back ? "되돌릴 것이 없습니다" : "다시 할 것이 없습니다"); return; }
+  UNDO.busy++; renderUndo();
+  let ok = false;
+  try {
+    if (e.kind === "edit") ok = await _applyEdits(e.field, e.items.map(it => ({ key: it.key, value: back ? it.before : it.after })));
+    else if ((e.kind === "delete") === back) ok = await _restoreKeys(e.keys);
+    else ok = await deleteRows(e.keys, { reason: e.opts.reason, klass: e.opts.klass });
+  } catch (err) { ok = false; }
+  finally { UNDO.busy--; }
+  if (ok) { to.push(e); editNotice(`${back ? "되돌렸습니다" : "다시 했습니다"} — ${e.label}`); }
+  else { from.push(e); editNotice(`${back ? "되돌리지" : "다시 하지"} 못했습니다 — ${e.label}`, "out"); }
+  renderUndo();
+}
+document.addEventListener("keydown", ev => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.isComposing) return;
+  const k = String(ev.key || "").toLowerCase();
+  if (k !== "z" && k !== "y") return;
+  const t = ev.target;
+  // 글자를 치는 곳(검색 칸 · 편집 중인 칸 · 메모)의 Ctrl+Z 는 브라우저의 글자 되돌리기다
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (!S.job || !S.rows) return;
+  ev.preventDefault();
+  undoStep(!(k === "y" || ev.shiftKey));
+});
 
 function qtySummary(rows) {
   const by = {};
@@ -5098,7 +5337,7 @@ async function applyScopeToMulti(value) {
   updateBadge();
   renderGrid();
   markMultiRows();
-  drawOverlay();          // 색은 `itemScope` 하나가 정한다 — 여기서는 다시 그릴 뿐
+  restyleItems(todo.map(r => r.key));   // 색은 `itemScope` 하나가 정한다 — 고친 행만 다시 그린다
   editNotice(`${rows.length - out.missing.length}개 행의 공급 주체를 ${value} 로 바꿨습니다`);
   showMultiScope();
 }
@@ -5109,6 +5348,7 @@ async function applyScopeToMulti(value) {
 async function editRowsBulk(rows, field, valueOf, author, reasonOf) {
   const out = { missing: [] };
   if (!rows.length) return out;
+  const befores = new Map(rows.map(r => [r.key, _userVal(r, field)]));     // hotfix79 — 되돌리기
   let res;
   try {
     res = await fetch(`/jobs/${S.job.id}/rows_edit`, {
@@ -5136,6 +5376,9 @@ async function editRowsBulk(rows, field, valueOf, author, reasonOf) {
   S.counts.REVIEW = got.review_count;
   if (got.feedback_count !== undefined) S.feedback = got.feedback_count;
   out.missing = got.missing || [];
+  const doneRows = rows.filter(r => r.key in got.users);
+  if (doneRows.length) undoRecord({ kind: "edit", field, label: `${doneRows.length}행 ${colName(field)}`,
+    items: doneRows.map(r => ({ key: r.key, before: befores.get(r.key), after: String(valueOf(r) ?? "").trim() })) });
   if (out.missing.length) alert(`${out.missing.length}개 행은 서버에 없어 바꾸지 못했습니다 — 다른 창이나 다른 사람이 지웠을 수 있습니다.`);
   return out;
 }
@@ -5179,7 +5422,7 @@ function ensureFull(row) {
 function showEvidence(row) {
   if (row && row._slim) {
     ensureFull(row).then(r => {
-      if (!r._slim && S.sel === r.key && !(S.multi && S.multi.size)) { showEvidence(r); drawOverlay(); }
+      if (!r._slim && S.sel === r.key && !(S.multi && S.multi.size)) { showEvidence(r); refreshSel(); }
     });
   }
   // 삭제 후보는 이번 리비전에 심볼이 없는 행이다.  근거 패널이 보여야 하는 것은
@@ -6196,7 +6439,7 @@ async function showMemo(pageNo) {
   renderMemo();
   memoLayout();
   // hotfix76 — 위치 메모는 도면 위에도 선다 (그 장의 메모를 받은 뒤에 그린다)
-  if (S.page && S.page.page_no === pageNo && !drawingHidden()) drawOverlay();
+  if (S.page && S.page.page_no === pageNo && !drawingHidden()) redrawPins();   // hotfix79 — 압정만
   tryPinPending();
 }
 async function saveMemo() {
@@ -6370,6 +6613,18 @@ function pinFlashing(id) {
   const t = Date.now() - f.at;
   return t < PIN_FLASH_MS ? t : -1;
 }
+/* hotfix79 — 위치 메모(압정)만 다시 그린다.  메모를 받거나 고르거나 고칠 때마다 오버레이 전체(상자
+ * 수백 개)를 다시 만들 일이 아니다 — 압정은 맨 위의 자기 요소(`[data-pin]`)뿐이다. */
+function redrawPins() {
+  const ov = $("#ov");
+  if (!ov || !S.page || !S.natural) return;
+  if (!ov.querySelector("#ov-ft") || ov.dataset.page !== String(S.page.page_no)
+      || ov.dataset.nat !== `${S.natural.w}x${S.natural.h}`) { drawOverlay(); return; }
+  ov.querySelectorAll("[data-pin]").forEach(n => n.remove());
+  drawPins(ov, S.natural.w / (S.page.width || 1));
+  buildOverlayLegend();
+}
+
 function drawPins(ov, scale) {
   if (S.ovOff.has(PIN_MARK[0])) return;
   const pins = pagePins().filter(pinShown);
@@ -6453,7 +6708,7 @@ function selectPin(id, opts = {}) {
   if (drawingHidden()) { syncPost({ t: "pin", page: S.page && S.page.page_no, id }); return; }
   // 메모장의 메모를 누르면 → 도면이 **그 자리로 가고** 압정이 두 번 깜박인다
   if (!opts.fromDrawing) S.pinFlash = { id, at: Date.now() };
-  drawOverlay();
+  redrawPins();
   if (!opts.fromDrawing) focusPin(p);
   showPinPop(p);
 }
@@ -6468,13 +6723,13 @@ function focusPin(p) {
   let want = Math.min(stage.clientWidth * 0.5 / w, stage.clientHeight * 0.5 / h);
   if (!(w > 2 && h > 2) || !isFinite(want)) want = SYMBOL_ZOOM;
   want = Math.max(Math.min(want, SYMBOL_ZOOM * 2), S.zoom || 0.1);
-  if (want !== S.zoom) { S.zoom = want; applyZoom(); drawOverlay(); }
+  if (want !== S.zoom) { S.zoom = want; applyZoom(); }
   const cx = (x0 + x1) / 2 * scale * S.zoom, cy = (y0 + y1) / 2 * scale * S.zoom;
   stage.scrollTo({ left: Math.max(0, cx - stage.clientWidth / 2), top: Math.max(0, cy - stage.clientHeight / 2) });
   // 두 번 깜박임 — 압정과 영역이 같이.  지금 그려진 것에 거는 대신 시각을 다시 세고 다시 그린다
   // (위 확대가 그림을 새로 만들었을 수 있다 · `drawPins` 가 지난 시간만큼 당겨 이어 깜박인다)
   S.pinFlash = { id: p.id, at: Date.now() };
-  drawOverlay();
+  redrawPins();                 // 압정 크기는 배율을 따른다 — 압정만 다시 그린다
 }
 
 function closePinPop() {
@@ -6560,7 +6815,7 @@ function pinDialog(rect) {
     pop.querySelector(".pp-date").textContent = whenWords(Date.now() / 1000);
   }, 15000);
   const ta = pop.querySelector("textarea");
-  const done = () => { closePinPop(); drawOverlay(); };
+  const done = () => { closePinPop(); redrawPins(); };
   const save = async () => {
     const text = ta.value.trim();
     if (!text) { pop.querySelector(".pp-msg").textContent = "메모 내용을 적어 주세요"; ta.focus(); return; }
@@ -6584,7 +6839,7 @@ function pinDialog(rect) {
     renderMemo();
     loadMemoSummary();
     if (made) selectPin(made.id, { fromDrawing: true });
-    else drawOverlay();
+    else redrawPins();
     editNotice("위치 메모를 달았습니다 — 같은 프로젝트의 다른 Rev 에서도 이 자리에 보입니다", "in");
   };
   pop.querySelector('[data-pa="save"]').onclick = guarded(save);
@@ -6616,7 +6871,7 @@ async function pinUpdate(id, body) {
   if (body.state === "hidden" && S.pinSel === id && !S.pinShowHidden) S.pinSel = null;
   renderMemo();
   loadMemoSummary();
-  if (!drawingHidden()) drawOverlay();
+  if (!drawingHidden()) redrawPins();
   return true;
 }
 
@@ -6648,7 +6903,7 @@ function setPinMode(on) {
   }, true);
   $("#memo-pin").onclick = (ev) => { ev.stopPropagation(); setPinMode(!S.pinMode); };
   $("#pin-cancel").onclick = (ev) => { ev.stopPropagation(); setPinMode(false); };
-  $("#pin-showhidden").onchange = (ev) => { S.pinShowHidden = ev.target.checked; renderPins(); drawOverlay(); };
+  $("#pin-showhidden").onchange = (ev) => { S.pinShowHidden = ev.target.checked; renderPins(); redrawPins(); };
   document.addEventListener("keydown", ev => {
     if (ev.key !== "Escape") return;
     if (S.pinMode) { setPinMode(false); ev.preventDefault(); }
@@ -7276,7 +7531,15 @@ function drawOverlay() {
   if (!S.page || !S.natural) return;
   const scale = S.natural.w / (S.page.width || 1);
   ov.setAttribute("viewBox", `0 0 ${S.natural.w} ${S.natural.h}`);
-  drawTrace(ov, scale);
+  // hotfix79 — 고른 행에 딸린 그림(추적 선 · FROM/TO 상자)은 **자기 무리**에 둔다.  행을 고를
+  // 때마다 오버레이 전체를 다시 그리던 것(도면 칠하기가 행 누르기 시간의 대부분이었다)을
+  // `refreshSel` 이 그 무리만 다시 그리고 상자의 표시 글자(class)만 바꾸게 한다.
+  ov.dataset.page = String(S.page.page_no);
+  ov.dataset.nat = `${S.natural.w}x${S.natural.h}`;
+  const trG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  trG.id = "ov-trace";
+  ov.appendChild(trG);
+  drawTrace(trG, scale);
   // hotfix27 — **큰 상자를 먼저, 작은 상자를 나중에** 그린다.  SVG 는 나중에 그린 것이
   // 위에 서서 클릭을 받는다.  Typical 상세 상자(`D HRH TYPICAL DRAIN CONFIGURATION`)는
   // 층 목록 끝에 있어 **안쪽 TT · MOV 상자 위에** 덮였고, 칠이 투명해도 클릭을
@@ -7288,237 +7551,324 @@ function drawOverlay() {
     .map(p => p[0]);
   for (const it of drawn) {
     if (!itemVisible(it)) continue;
-    const [x0, y0, x1, y1] = it.rect;
-    const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    r.setAttribute("x", x0 * scale);
-    r.setAttribute("y", y0 * scale);
-    r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
-    r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
-    // 세 축이 한 테두리를 두고 다투지 않게 갈라 놓는다:
-    //   색      = SCOPE 열 (#0a84ff SCT 공급 · #ff9f0a VENDOR 공급) — 의미 그대로
-    //   파선    = 종류 (밸브)
-    //   바깥 링 = 개정 (추가 · 수정)
-    // 개정을 같은 테두리의 굵기·파선으로 말하면 밸브의 파선과 "제외는 얇게"가
-    // 둘 다 지워진다.  실제로 그랬다: `.det.rev-added` 가 뒤에 있어 `.det.valve`
-    // 와 `.det.excluded` 를 이겼다.  그래서 개정은 자기 도형을 따로 그린다.
-    const rev = (S.revByKey || {})[it.key];
-    r.setAttribute("class", "det"
-      + (it.seal ? " seal" : "")
-      + (it.typical ? " typical" : "")
-      + (it.kind === "VALVE" ? " valve" : "")
-      + (it.row === false ? " excluded" : "")
-      + (it.manual ? " manual" : "")
-      + (it.rejected ? " rejected" : "")
-      + (S.multi.has(it.key) ? " multi" : "")
-      + (S.sel === it.key ? " sel" : ""));
-    // 53회차 [G] — **사용자 마크업 상자는 녹색 선**이다 (8차 피드백 s8:
-    // *"사용자가 마크업 Block 을 녹색 Line 으로 표기하라"*).
-    //
-    // 44회차는 색을 SCOPE 에 두고 표식(모서리 ✚)만 더했다 — 그 판단을 사용자가
-    // 뒤집었으므로 따른다.  대신 **33회차 등식이 깨지지 않게** 범례를 같이
-    // 고친다: 사용자 추가는 "(그중)" 이 아니라 자기 색 칸이 되고, 합은
-    // `SCT + VENDOR + 판정없음 + 사용자추가 = 상자 수` 다.
-    // 탭 색 보기(`S.byTab`)에서는 탭이 색을 정하므로 건드리지 않는다.
-    const stroke = it.seal ? SEAL_MARK[2]
-      : it.typical ? TYPICAL_MARK[2]
-      : S.byTab ? (COLOR[it.tab] || "#8e8e93")
-      : it.manual ? MANUAL_MARK[2]
-      : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
-    r.setAttribute("stroke", stroke);
-    // ★ 식별된 것은 **반투명 음영**으로도 말한다 (DXF 9차 피드백 3번).
-    // DXF 도면은 층마다 색이 달라서(파랑 배관 · 초록 테두리 · 자홍 상자) 가는
-    // 테두리 하나로는 "이건 우리가 잡은 것" 이 도면 색에 묻힌다.  같은 색을
-    // 아주 옅게 깔면 도면 글자는 그대로 읽히면서 잡힌 자리가 한눈에 보인다.
-    // 색은 테두리와 **같은 값**이다 — 색이 둘이면 SCOPE 가 두 말을 하게 된다.
-    // 제외된 심볼(행이 아닌 것)은 칠하지 않는다: 잡은 것과 같은 얼굴이 된다.
-    if (it.row !== false) {
-      // ★ 56회차 — **인라인 스타일로 칠한다.**  `styles.css` 의 `rect.det` 이
-      // `fill: transparent` 를 갖고 있고(상자 안쪽까지 클릭이 통하게 하려고 둔
-      // 것), CSS 규칙은 **표현 속성(`setAttribute('fill', …)`)을 이긴다**.
-      // 그래서 9차 [3] 의 "반투명 음영" 은 코드가 도는데도 **한 번도 칠해진 적이
-      // 없었다** — 패턴이 안 보이는 것을 파다가 드러났다 (살아 있는 페이지에
-      // 같은 패턴을 직접 그려 보니 멀쩡히 칠해진다: out/round56/patprobe).
-      r.style.fill = isDxfJob() ? hatchFill(ov, stroke) : stroke;
-      if (isDxfJob()) r.classList.add("hatch");
-    }
-    // 53회차 [B] — 밸브 행의 **태그 버블**에도 가는 고리를 그린다
-    // (8차 피드백 s6 · TC2 9차: 버블에 아무 표시가 없어 "XV·MOV·TCV·PCV 가
-    // 식별되지 않는다" 로 읽힌다).  행의 상자는 **몸체** 위에 서므로, 도면에서
-    // 이름을 읽는 사람은 버블을 보는데 그 자리에 아무 것도 없었다.
-    //
-    // ★ 예전에는 **고른 행에만** 그렸다 — 누르기 전에는 안 보이니 "안 잡혔다"
-    // 와 구별되지 않는다.  이제 늘 그리고, 고른 행에서만 진해진다.
-    // 상자를 하나 더 세지 않는다 — `rect.det` 이 아니라 장식이라 33회차
-    // 등식(색 칸 합 = 상자 수)은 그대로다.  잇는 선은 고른 행에서만 그린다
-    // (전부 그리면 도면이 선으로 덮인다).
-    if (!it.seal) {
-      // 56회차 — 층이 실어 주면 그것을 쓰고, 옛 분석이면 행에서 찾는다.
-      const tr = it.tag_rect
-        || ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
-      if (tr && (Math.round(tr[0]) !== Math.round(it.rect[0])
-                 || Math.round(tr[1]) !== Math.round(it.rect[1]))) {
-        const tb = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        tb.setAttribute("x", tr[0] * scale); tb.setAttribute("y", tr[1] * scale);
-        tb.setAttribute("width", Math.max(2, (tr[2] - tr[0]) * scale));
-        tb.setAttribute("height", Math.max(2, (tr[3] - tr[1]) * scale));
-        tb.setAttribute("class", "tagbub" + (S.sel === it.key ? " sel" : ""));
-        tb.setAttribute("stroke", stroke);
-        if (S.sel === it.key) {
-          const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-          ln.setAttribute("x1", (tr[0] + tr[2]) / 2 * scale);
-          ln.setAttribute("y1", (tr[1] + tr[3]) / 2 * scale);
-          ln.setAttribute("x2", (x0 + x1) / 2 * scale);
-          ln.setAttribute("y2", (y0 + y1) / 2 * scale);
-          ln.setAttribute("class", "tagbub-l");
-          ln.setAttribute("stroke", stroke);
-          ov.appendChild(ln);
-        }
-        ov.appendChild(tb);
-      }
-    }
-    // 검토 필요는 색을 바꾸지 않고 **모서리 표식**으로 말한다 (33회차).  표식은
-    // 자기 층이라 범례에서 따로 끄고, 상자와 같은 키로 클릭이 통한다.
-    if (it.needs_review && !S.ovOff.has(REVIEW_MARK[0])) {
-      const rad = Math.max(4, (y1 - y0) * scale * 0.2);
-      const cx = x1 * scale, cy = y0 * scale;
-      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
-      dot.setAttribute("class", "revbadge");
-      const bang = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      bang.setAttribute("x", cx); bang.setAttribute("y", cy);
-      bang.setAttribute("font-size", rad * 1.5);
-      bang.setAttribute("class", "revbadge-t");
-      bang.textContent = "!";
-      const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      tip.textContent = `검토 필요 — ${it.reason || ""}`;
-      dot.appendChild(tip);
-      for (const el of [dot, bang]) {
-        el.dataset.key = it.key;
-        el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
-      }
-      ov.appendChild(dot); ov.appendChild(bang);
-    }
-    // hotfix32 — 식별 표기 옆의 수량 `x N`.  상자 오른쪽 가운데 (검토 ● 는 오른쪽
-    // 위 · 오검출 ✕ 는 오른쪽 아래라 모서리가 겹치지 않는다).
-    if (!S.ovOff.has(QTY_MARK[0])) {
-      const qrow = qtyTagRow(it);
-      if (qrow) drawQtyTag(ov, scale, it, qrow, stroke);
-    }
-    // 44회차 — 사용자 추가 ✚(왼쪽 위) · 오검출 ✕(오른쪽 아래).  검토 ● 와
-    // 모서리가 다르다.  범례에서 따로 끌 수 있고 상자와 같은 키로 클릭이 통한다.
-    const badge = (cx, cy, cls, glyph, tip) => {
-      const rad = Math.max(4, (y1 - y0) * scale * 0.2);
-      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
-      dot.setAttribute("class", cls);
-      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      t.setAttribute("x", cx); t.setAttribute("y", cy);
-      t.setAttribute("font-size", rad * 1.5);
-      t.setAttribute("class", "revbadge-t");
-      t.textContent = glyph;
-      const ti = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      ti.textContent = tip;
-      dot.appendChild(ti);
-      for (const el of [dot, t]) {
-        el.dataset.key = it.key;
-        el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
-      }
-      ov.appendChild(dot); ov.appendChild(t);
-    };
-    if (it.manual && !S.ovOff.has(MANUAL_MARK[0])) {
-      const mk = ((S.rowByKey[it.key] || {}).evidence || {}).markup || {};
-      badge(x0 * scale, y0 * scale, "manbadge", "+",
-            `사용자 추가 — ${mk.author || "이름 없음"}`);
-    }
-    if (it.rejected && !S.ovOff.has(REJECT_MARK[0])) {
-      // hotfix14 — **지운 자리는 붉은 선으로 말한다.**  흐리게만 하면(44회차) 도면
-      // 색 위에서 "지웠다" 가 안 읽혔다.  붉은 파선 테두리 + 대각선 두 줄.  칸은
-      // 여전히 SCOPE 색이 센다 (33회차 등식) — 이 표시는 범례의 "(그중)" 칸이다.
-      const sx0 = x0 * scale, sy0 = y0 * scale, sx1 = x1 * scale, sy1 = y1 * scale;
-      const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      ring.setAttribute("x", sx0 - 2); ring.setAttribute("y", sy0 - 2);
-      ring.setAttribute("width", Math.max(2, sx1 - sx0) + 4);
-      ring.setAttribute("height", Math.max(2, sy1 - sy0) + 4);
-      ring.setAttribute("class", "delring");
-      ov.appendChild(ring);
-      for (const [ax, ay, bx, by] of [[sx0, sy0, sx1, sy1], [sx0, sy1, sx1, sy0]]) {
-        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        ln.setAttribute("x1", ax); ln.setAttribute("y1", ay);
-        ln.setAttribute("x2", bx); ln.setAttribute("y2", by);
-        ln.setAttribute("class", "delstrike");
-        ov.appendChild(ln);
-      }
-      const rj = (S.rowByKey[it.key] || {}).reject || {};
-      badge(x1 * scale, y1 * scale, "rejbadge", "×",
-            `오검출 표시 — ${rj.class || "삭제"}${rj.note ? " · " + rj.note : ""}`);
-    }
-    if (rev === "ADDED" || rev === "MODIFIED") {
-      const pad = 4;
-      const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      ring.setAttribute("x", x0 * scale - pad);
-      ring.setAttribute("y", y0 * scale - pad);
-      ring.setAttribute("width", Math.max(2, (x1 - x0) * scale) + pad * 2);
-      ring.setAttribute("height", Math.max(2, (y1 - y0) * scale) + pad * 2);
-      ring.setAttribute("class", "revring "
-        + (rev === "ADDED" ? "rev-added" : "rev-modified"));
-      ring.dataset.rev = rev;
-      ov.appendChild(ring);
-      // hotfix38 — 식별 표기 **위에 글자**로도 말한다 (사용자 요구: "추가된 것은
-      // 식별 표기 위에 label 을 add 로 표기").  링은 색·파선이고 글자는 셋째 단서다.
-      // 값은 그리드와 같은 `rev.state` 에서 온다 — 두 벌을 두지 않는다.
-      const tag = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      const fs = Math.max(9, Math.min(16, (y1 - y0) * scale * 0.45));
-      tag.setAttribute("x", x0 * scale - pad);
-      tag.setAttribute("y", y0 * scale - pad - 2);
-      tag.setAttribute("font-size", fs);
-      tag.setAttribute("class", "revtag " + (rev === "ADDED" ? "rev-added" : "rev-modified"));
-      tag.textContent = rev === "ADDED" ? "ADD" : "MOD";
-      tag.dataset.key = it.key;
-      tag.dataset.rev = rev;
-      const st = (S.rowByKey[it.key] || {}).rev || {};
-      const tt = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      tt.textContent = rev === "ADDED"
-        ? `${(S.rev || {}).compared_with || "직전 리비전"} 대비 추가` + (st.reason ? ` — ${st.reason}` : "")
-        : `${(S.rev || {}).compared_with || "직전 리비전"} 대비 수정 — `
-          + (st.basis === "AMBIGUOUS" ? (st.reason || "태그 변경 또는 추가 — 도면이 가르지 않음")
-             : ((st.changed || []).map(c => `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "태그 변경"));
-      tag.appendChild(tt);
-      ov.appendChild(tag);
-    }
-    r.dataset.key = it.key;
-    r.onclick = (ev) => {
-      ev.stopPropagation();
-      // 56회차 — Shift 를 누르고 누르면 **더한다**.  행이 아닌 것(제외 심볼)은
-      // 고칠 SCOPE 칸 자체가 없으므로 묶음에 넣지 않는다.
-      if (isAddClick(ev) && it.row !== false) { toggleMulti(it.key); return; }
-      select(it.key, false, it);
-      // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
-      if (S.markup && it.row !== false) rejectDialog(it);
-      // hotfix66 — 그 밖에는 상자 옆에 SCT · VENDOR · 둘 다 아님(식별 지우기) 판
-      else if (it.row !== false) scopePop(it.key);
-    };
-    // Right-click on the symbol itself: the same dialog the grid opens, so the
-    // reviewer reports from wherever they noticed it.
-    r.oncontextmenu = (ev) => {
-      ev.preventDefault(); ev.stopPropagation();
-      // hotfix13 — 맥의 Ctrl + 클릭은 브라우저가 오른쪽 클릭으로 바꿔 보낸다
-      // (왼쪽 단추 · ctrlKey).  사람이 뜻한 것은 신고가 아니라 더하기다.
-      if (ev.ctrlKey && ev.button === 0) {
-        if (it.row !== false) toggleMulti(it.key);
-        return;
-      }
-      select(it.key, false, it);
-      reportDialog({ rowKey: it.key, pageNo: S.page.page_no, fromDrawing: true });
-    };
-    ov.appendChild(r);
+    drawItem(ov, scale, it);
   }
   // hotfix59 — `x N` 라벨은 모든 상자 **위**에 둔다.  상자를 그리는 순서대로 두면 뒤에 그린
   // 큰 상자(밸브 울타리 · 묶음 버블)가 앞 행의 라벨을 덮어 눌러도 그 상자가 잡혔다
   // (자기검증 — AL NOUF1 p6 두 번째 라벨이 36×108 상자에 가려 눌리지 않았다).
   ov.querySelectorAll("g.qtytag").forEach(g => ov.appendChild(g));
-  drawFromTo(ov, scale);
+  const ftG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  ftG.id = "ov-ft";
+  ov.appendChild(ftG);
+  drawFromTo(ftG, scale);
   drawPins(ov, scale);                    // hotfix76 — 위치 메모는 맨 위 (눌러야 하므로)
   buildOverlayLegend();
+}
+
+/* hotfix79 — 상자 하나(와 그 버블 고리 · 배지 · 라벨 · 개정 링)를 그린다.  예전에는 drawOverlay 의
+ * 반복문 몸통이었다 — 떼어 낸 것은 한 행을 고쳤을 때 `restyleItems` 가 **그 행의 그림만** 같은
+ * 함수로 다시 그리게 하려는 것이다 (두 벌을 두면 언젠가 갈린다).  그린 것에는 `data-own` 으로
+ * 주인 키를 단다. */
+function drawItem(ov, scale, it) {
+  const mark = ov.lastChild;
+  const [x0, y0, x1, y1] = it.rect;
+  const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  r.setAttribute("x", x0 * scale);
+  r.setAttribute("y", y0 * scale);
+  r.setAttribute("width", Math.max(2, (x1 - x0) * scale));
+  r.setAttribute("height", Math.max(2, (y1 - y0) * scale));
+  // 세 축이 한 테두리를 두고 다투지 않게 갈라 놓는다:
+  //   색      = SCOPE 열 (#0a84ff SCT 공급 · #ff9f0a VENDOR 공급) — 의미 그대로
+  //   파선    = 종류 (밸브)
+  //   바깥 링 = 개정 (추가 · 수정)
+  // 개정을 같은 테두리의 굵기·파선으로 말하면 밸브의 파선과 "제외는 얇게"가
+  // 둘 다 지워진다.  실제로 그랬다: `.det.rev-added` 가 뒤에 있어 `.det.valve`
+  // 와 `.det.excluded` 를 이겼다.  그래서 개정은 자기 도형을 따로 그린다.
+  const rev = (S.revByKey || {})[it.key];
+  r.setAttribute("class", "det"
+    + (it.seal ? " seal" : "")
+    + (it.typical ? " typical" : "")
+    + (it.kind === "VALVE" ? " valve" : "")
+    + (it.row === false ? " excluded" : "")
+    + (it.manual ? " manual" : "")
+    + (it.rejected ? " rejected" : "")
+    + (S.multi.has(it.key) ? " multi" : "")
+    + (S.sel === it.key ? " sel" : ""));
+  // 53회차 [G] — **사용자 마크업 상자는 녹색 선**이다 (8차 피드백 s8:
+  // *"사용자가 마크업 Block 을 녹색 Line 으로 표기하라"*).
+  //
+  // 44회차는 색을 SCOPE 에 두고 표식(모서리 ✚)만 더했다 — 그 판단을 사용자가
+  // 뒤집었으므로 따른다.  대신 **33회차 등식이 깨지지 않게** 범례를 같이
+  // 고친다: 사용자 추가는 "(그중)" 이 아니라 자기 색 칸이 되고, 합은
+  // `SCT + VENDOR + 판정없음 + 사용자추가 = 상자 수` 다.
+  // 탭 색 보기(`S.byTab`)에서는 탭이 색을 정하므로 건드리지 않는다.
+  const stroke = it.seal ? SEAL_MARK[2]
+    : it.typical ? TYPICAL_MARK[2]
+    : S.byTab ? (COLOR[it.tab] || "#8e8e93")
+    : it.manual ? MANUAL_MARK[2]
+    : (SCOPE_COLOR[itemScope(it)] || "#8e8e93");
+  r.setAttribute("stroke", stroke);
+  // ★ 식별된 것은 **반투명 음영**으로도 말한다 (DXF 9차 피드백 3번).
+  // DXF 도면은 층마다 색이 달라서(파랑 배관 · 초록 테두리 · 자홍 상자) 가는
+  // 테두리 하나로는 "이건 우리가 잡은 것" 이 도면 색에 묻힌다.  같은 색을
+  // 아주 옅게 깔면 도면 글자는 그대로 읽히면서 잡힌 자리가 한눈에 보인다.
+  // 색은 테두리와 **같은 값**이다 — 색이 둘이면 SCOPE 가 두 말을 하게 된다.
+  // 제외된 심볼(행이 아닌 것)은 칠하지 않는다: 잡은 것과 같은 얼굴이 된다.
+  if (it.row !== false) {
+    // ★ 56회차 — **인라인 스타일로 칠한다.**  `styles.css` 의 `rect.det` 이
+    // `fill: transparent` 를 갖고 있고(상자 안쪽까지 클릭이 통하게 하려고 둔
+    // 것), CSS 규칙은 **표현 속성(`setAttribute('fill', …)`)을 이긴다**.
+    // 그래서 9차 [3] 의 "반투명 음영" 은 코드가 도는데도 **한 번도 칠해진 적이
+    // 없었다** — 패턴이 안 보이는 것을 파다가 드러났다 (살아 있는 페이지에
+    // 같은 패턴을 직접 그려 보니 멀쩡히 칠해진다: out/round56/patprobe).
+    r.style.fill = isDxfJob() ? hatchFill(ov, stroke) : stroke;
+    if (isDxfJob()) r.classList.add("hatch");
+  }
+  // 53회차 [B] — 밸브 행의 **태그 버블**에도 가는 고리를 그린다
+  // (8차 피드백 s6 · TC2 9차: 버블에 아무 표시가 없어 "XV·MOV·TCV·PCV 가
+  // 식별되지 않는다" 로 읽힌다).  행의 상자는 **몸체** 위에 서므로, 도면에서
+  // 이름을 읽는 사람은 버블을 보는데 그 자리에 아무 것도 없었다.
+  //
+  // ★ 예전에는 **고른 행에만** 그렸다 — 누르기 전에는 안 보이니 "안 잡혔다"
+  // 와 구별되지 않는다.  이제 늘 그리고, 고른 행에서만 진해진다.
+  // 상자를 하나 더 세지 않는다 — `rect.det` 이 아니라 장식이라 33회차
+  // 등식(색 칸 합 = 상자 수)은 그대로다.  잇는 선은 고른 행에서만 그린다
+  // (전부 그리면 도면이 선으로 덮인다).
+  if (!it.seal) {
+    // 56회차 — 층이 실어 주면 그것을 쓰고, 옛 분석이면 행에서 찾는다.
+    const tr = it.tag_rect
+      || ((S.rowByKey[it.key] || {}).evidence || {}).tag_rect;
+    if (tr && (Math.round(tr[0]) !== Math.round(it.rect[0])
+               || Math.round(tr[1]) !== Math.round(it.rect[1]))) {
+      const tb = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      tb.setAttribute("x", tr[0] * scale); tb.setAttribute("y", tr[1] * scale);
+      tb.setAttribute("width", Math.max(2, (tr[2] - tr[0]) * scale));
+      tb.setAttribute("height", Math.max(2, (tr[3] - tr[1]) * scale));
+      tb.setAttribute("class", "tagbub" + (S.sel === it.key ? " sel" : ""));
+      tb.setAttribute("stroke", stroke);
+      tb.dataset.key = it.key;
+      if (S.sel === it.key) ov.appendChild(tagbubLine(tb, r, stroke));
+      ov.appendChild(tb);
+    }
+  }
+  // 검토 필요는 색을 바꾸지 않고 **모서리 표식**으로 말한다 (33회차).  표식은
+  // 자기 층이라 범례에서 따로 끄고, 상자와 같은 키로 클릭이 통한다.
+  if (it.needs_review && !S.ovOff.has(REVIEW_MARK[0])) {
+    const rad = Math.max(4, (y1 - y0) * scale * 0.2);
+    const cx = x1 * scale, cy = y0 * scale;
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
+    dot.setAttribute("class", "revbadge");
+    const bang = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    bang.setAttribute("x", cx); bang.setAttribute("y", cy);
+    bang.setAttribute("font-size", rad * 1.5);
+    bang.setAttribute("class", "revbadge-t");
+    bang.textContent = "!";
+    const tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tip.textContent = `검토 필요 — ${it.reason || ""}`;
+    dot.appendChild(tip);
+    for (const el of [dot, bang]) {
+      el.dataset.key = it.key;
+      el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+    }
+    ov.appendChild(dot); ov.appendChild(bang);
+  }
+  // hotfix32 — 식별 표기 옆의 수량 `x N`.  상자 오른쪽 가운데 (검토 ● 는 오른쪽
+  // 위 · 오검출 ✕ 는 오른쪽 아래라 모서리가 겹치지 않는다).
+  if (!S.ovOff.has(QTY_MARK[0])) {
+    const qrow = qtyTagRow(it);
+    if (qrow) drawQtyTag(ov, scale, it, qrow, stroke);
+  }
+  // 44회차 — 사용자 추가 ✚(왼쪽 위) · 오검출 ✕(오른쪽 아래).  검토 ● 와
+  // 모서리가 다르다.  범례에서 따로 끌 수 있고 상자와 같은 키로 클릭이 통한다.
+  const badge = (cx, cy, cls, glyph, tip) => {
+    const rad = Math.max(4, (y1 - y0) * scale * 0.2);
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", rad);
+    dot.setAttribute("class", cls);
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", cx); t.setAttribute("y", cy);
+    t.setAttribute("font-size", rad * 1.5);
+    t.setAttribute("class", "revbadge-t");
+    t.textContent = glyph;
+    const ti = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    ti.textContent = tip;
+    dot.appendChild(ti);
+    for (const el of [dot, t]) {
+      el.dataset.key = it.key;
+      el.onclick = (ev) => { ev.stopPropagation(); select(it.key, false, it); };
+    }
+    ov.appendChild(dot); ov.appendChild(t);
+  };
+  if (it.manual && !S.ovOff.has(MANUAL_MARK[0])) {
+    const mk = ((S.rowByKey[it.key] || {}).evidence || {}).markup || {};
+    badge(x0 * scale, y0 * scale, "manbadge", "+",
+          `사용자 추가 — ${mk.author || "이름 없음"}`);
+  }
+  if (it.rejected && !S.ovOff.has(REJECT_MARK[0])) {
+    // hotfix14 — **지운 자리는 붉은 선으로 말한다.**  흐리게만 하면(44회차) 도면
+    // 색 위에서 "지웠다" 가 안 읽혔다.  붉은 파선 테두리 + 대각선 두 줄.  칸은
+    // 여전히 SCOPE 색이 센다 (33회차 등식) — 이 표시는 범례의 "(그중)" 칸이다.
+    const sx0 = x0 * scale, sy0 = y0 * scale, sx1 = x1 * scale, sy1 = y1 * scale;
+    const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    ring.setAttribute("x", sx0 - 2); ring.setAttribute("y", sy0 - 2);
+    ring.setAttribute("width", Math.max(2, sx1 - sx0) + 4);
+    ring.setAttribute("height", Math.max(2, sy1 - sy0) + 4);
+    ring.setAttribute("class", "delring");
+    ov.appendChild(ring);
+    for (const [ax, ay, bx, by] of [[sx0, sy0, sx1, sy1], [sx0, sy1, sx1, sy0]]) {
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", ax); ln.setAttribute("y1", ay);
+      ln.setAttribute("x2", bx); ln.setAttribute("y2", by);
+      ln.setAttribute("class", "delstrike");
+      ov.appendChild(ln);
+    }
+    const rj = (S.rowByKey[it.key] || {}).reject || {};
+    badge(x1 * scale, y1 * scale, "rejbadge", "×",
+          `오검출 표시 — ${rj.class || "삭제"}${rj.note ? " · " + rj.note : ""}`);
+  }
+  if (rev === "ADDED" || rev === "MODIFIED") {
+    const pad = 4;
+    const ring = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    ring.setAttribute("x", x0 * scale - pad);
+    ring.setAttribute("y", y0 * scale - pad);
+    ring.setAttribute("width", Math.max(2, (x1 - x0) * scale) + pad * 2);
+    ring.setAttribute("height", Math.max(2, (y1 - y0) * scale) + pad * 2);
+    ring.setAttribute("class", "revring "
+      + (rev === "ADDED" ? "rev-added" : "rev-modified"));
+    ring.dataset.rev = rev;
+    ov.appendChild(ring);
+    // hotfix38 — 식별 표기 **위에 글자**로도 말한다 (사용자 요구: "추가된 것은
+    // 식별 표기 위에 label 을 add 로 표기").  링은 색·파선이고 글자는 셋째 단서다.
+    // 값은 그리드와 같은 `rev.state` 에서 온다 — 두 벌을 두지 않는다.
+    const tag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const fs = Math.max(9, Math.min(16, (y1 - y0) * scale * 0.45));
+    tag.setAttribute("x", x0 * scale - pad);
+    tag.setAttribute("y", y0 * scale - pad - 2);
+    tag.setAttribute("font-size", fs);
+    tag.setAttribute("class", "revtag " + (rev === "ADDED" ? "rev-added" : "rev-modified"));
+    tag.textContent = rev === "ADDED" ? "ADD" : "MOD";
+    tag.dataset.key = it.key;
+    tag.dataset.rev = rev;
+    const st = (S.rowByKey[it.key] || {}).rev || {};
+    const tt = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    tt.textContent = rev === "ADDED"
+      ? `${(S.rev || {}).compared_with || "직전 리비전"} 대비 추가` + (st.reason ? ` — ${st.reason}` : "")
+      : `${(S.rev || {}).compared_with || "직전 리비전"} 대비 수정 — `
+        + (st.basis === "AMBIGUOUS" ? (st.reason || "태그 변경 또는 추가 — 도면이 가르지 않음")
+           : ((st.changed || []).map(c => `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "태그 변경"));
+    tag.appendChild(tt);
+    ov.appendChild(tag);
+  }
+  r.dataset.key = it.key;
+  r.onclick = (ev) => {
+    ev.stopPropagation();
+    // 56회차 — Shift 를 누르고 누르면 **더한다**.  행이 아닌 것(제외 심볼)은
+    // 고칠 SCOPE 칸 자체가 없으므로 묶음에 넣지 않는다.
+    if (isAddClick(ev) && it.row !== false) { toggleMulti(it.key); return; }
+    select(it.key, false, it);
+    // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
+    if (S.markup && it.row !== false) rejectDialog(it);
+    // hotfix66 — 그 밖에는 상자 옆에 SCT · VENDOR · 둘 다 아님(식별 지우기) 판
+    else if (it.row !== false) scopePop(it.key);
+  };
+  // Right-click on the symbol itself: the same dialog the grid opens, so the
+  // reviewer reports from wherever they noticed it.
+  r.oncontextmenu = (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    // hotfix13 — 맥의 Ctrl + 클릭은 브라우저가 오른쪽 클릭으로 바꿔 보낸다
+    // (왼쪽 단추 · ctrlKey).  사람이 뜻한 것은 신고가 아니라 더하기다.
+    if (ev.ctrlKey && ev.button === 0) {
+      if (it.row !== false) toggleMulti(it.key);
+      return;
+    }
+    select(it.key, false, it);
+    reportDialog({ rowKey: it.key, pageNo: S.page.page_no, fromDrawing: true });
+  };
+  ov.appendChild(r);
+  for (let n = mark ? mark.nextSibling : ov.firstChild; n; n = n.nextSibling) {
+    if (n.nodeName !== "defs") n.dataset.own = it.key;
+  }
+}
+
+/* hotfix79 — 몇 행의 그림만 다시 그린다 (공급 주체 · 수량 · TYPE · 태그를 고친 뒤).  한 칸을 고칠
+ * 때마다 오버레이 전체를 다시 만들면 도면 전체가 다시 칠해진다.  새 그림은 옛 그림 **자리**에
+ * 넣는다 — 상자는 면적 순으로 겹쳐 있어 순서가 클릭을 정하기 때문이다.  수량 라벨은 모든 상자
+ * 위(`#ov-ft` 앞) · 위치 메모는 맨 위 그대로.  이 장의 오버레이가 아니면 전부 그린다. */
+function restyleItems(keys) {
+  const ov = $("#ov");
+  if (!ov || !S.page || !S.natural) return;
+  const ftG = ov.querySelector("#ov-ft");
+  if (!ftG || ov.dataset.page !== String(S.page.page_no)
+      || ov.dataset.nat !== `${S.natural.w}x${S.natural.h}`) { drawOverlay(); return; }
+  const scale = S.natural.w / (S.page.width || 1);
+  const want = new Set(keys);
+  const items = overlayItems(S.page).filter(it => want.has(it.key));
+  // 고친 행이 이 장에 없으면 (다른 장 · 지운 행 목록) 할 일이 없다 — 범례 숫자만 다시 센다
+  for (const key of want) {
+    const old = [...ov.querySelectorAll(`[data-own="${CSS.escape(key)}"]`)];
+    const it = items.find(x => x.key === key);
+    if (!old.length) { if (it) { drawOverlay(); return; } continue; }   // 그림이 없던 것이 생겼다 — 순서를 모른다
+    const at = old.find(n => !(n.matches && n.matches("g.qtytag"))) || old[0];
+    const tmp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    if (it && itemVisible(it)) {
+      // defs(빗금 무늬)는 진짜 오버레이에 있어야 하므로 hatchFill 이 ov 를 보게 같은 함수로 그리고 옮긴다
+      const mark = ov.lastChild;
+      drawItem(ov, scale, it);
+      for (let n = mark.nextSibling; n; ) { const nx = n.nextSibling; tmp.appendChild(n); n = nx; }
+    }
+    for (const n of [...tmp.childNodes]) {
+      if (n.matches("g.qtytag")) ov.insertBefore(n, ftG); else ov.insertBefore(n, at);
+    }
+    old.forEach(n => n.remove());
+  }
+  buildOverlayLegend();
+}
+
+/* hotfix79 — 태그 버블에서 몸체 상자 가운데로 잇는 선 (고른 행에만).  좌표는 그려진 두 상자에서
+ * 읽는다 — 다시 계산하지 않으므로 drawOverlay 와 refreshSel 이 같은 선을 긋는다. */
+function tagbubLine(tb, box, stroke) {
+  const c = (el) => [+el.getAttribute("x") + +el.getAttribute("width") / 2,
+                     +el.getAttribute("y") + +el.getAttribute("height") / 2];
+  const [ax, ay] = c(tb), [bx, by] = c(box);
+  const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  ln.setAttribute("x1", ax); ln.setAttribute("y1", ay);
+  ln.setAttribute("x2", bx); ln.setAttribute("y2", by);
+  ln.setAttribute("class", "tagbub-l");
+  ln.setAttribute("stroke", stroke || tb.getAttribute("stroke"));
+  return ln;
+}
+
+/* hotfix79 — **고른 것만 바꾼다.**  행을 고르거나 Shift 묶음을 바꿀 때 오버레이 전체(상자 수백 개 ·
+ * 라벨 · 배지)를 지우고 새로 만들면 브라우저가 도면 위 SVG 를 통째로 다시 칠한다 — 행 누르기 6번에
+ * 칠하기 1.56초였다 (`out/hotfix79/profile_before.txt`).  고른 표시는 class 하나이고 고른 행에 딸린
+ * 그림은 자기 무리(`#ov-trace` · `#ov-ft`) 둘뿐이라, 그것만 바꾸면 같은 화면이 된다.
+ * 지금 그려진 오버레이가 이 장 · 이 그림 크기의 것이 아니면 예전처럼 전부 그린다. */
+function refreshSel() {
+  const ov = $("#ov");
+  if (!ov || !S.page || !S.natural) return;
+  const trG = ov.querySelector("#ov-trace"), ftG = ov.querySelector("#ov-ft");
+  if (!trG || !ftG || ov.dataset.page !== String(S.page.page_no)
+      || ov.dataset.nat !== `${S.natural.w}x${S.natural.h}`) { drawOverlay(); return; }
+  const scale = S.natural.w / (S.page.width || 1);
+  const sel = S.sel, multi = S.multi;
+  ov.querySelectorAll("rect.det").forEach(n => {
+    const k = n.dataset.key;
+    n.classList.toggle("sel", k === sel);
+    n.classList.toggle("multi", multi.has(k));
+  });
+  ov.querySelectorAll("g.qtytag").forEach(g => g.classList.toggle("sel", g.dataset.key === sel));
+  ov.querySelectorAll("line.tagbub-l").forEach(l => l.remove());
+  ov.querySelectorAll("rect.tagbub").forEach(tb => {
+    const on = tb.dataset.key === sel;
+    tb.classList.toggle("sel", on);
+    if (on) {
+      const box = ov.querySelector(`rect.det[data-key="${CSS.escape(sel)}"]`);
+      if (box) { const ln = tagbubLine(tb, box); ln.dataset.own = sel; ov.insertBefore(ln, tb); }
+    }
+  });
+  trG.replaceChildren(); drawTrace(trG, scale);
+  ftG.replaceChildren(); drawFromTo(ftG, scale);
 }
 
 /* hotfix32 — 수량 라벨을 달 행.  행인 상자(제외 심볼 · 씰 · Typical 표식은 아니다)
@@ -7603,7 +7953,7 @@ async function applyQtyToRows(rows, value, what) {
   updateBadge();
   renderGrid();                                       // 오른쪽 — 같은 Q'ty 값
   markMultiRows();
-  drawOverlay();                                      // 왼쪽 — 라벨이 같은 값을 다시 읽는다
+  restyleItems(rows.map(r => r.key));                 // 왼쪽 — 라벨이 같은 값을 다시 읽는다 (고친 행만)
   const cur = S.sel && S.rowByKey[S.sel];
   if (S.multi.size) showMultiScope(); else if (cur) showEvidence(cur);
   _refreshPageMult();
@@ -8268,7 +8618,7 @@ function _bandEnd(ev) {
     return;
   }
   syncSel();
-  drawOverlay();
+  refreshSel();
   markMultiRows();
   if (S.multi.size) showMultiScope();
   editNotice(added
@@ -9789,7 +10139,7 @@ function applySel(m) {
     if (multi.length > 1) {
       S.multi.clear(); multi.forEach(k => S.multi.add(k));
       S.sel = m.key || null;
-      drawOverlay(); markMultiRows(); showMultiScope(); renderFloatEdit();
+      refreshSel(); markMultiRows(); showMultiScope(); renderFloatEdit();
       return;
     }
     if (!m.key) { if (S.sel || S.multi.size) deselect(); return; }
@@ -10549,4 +10899,60 @@ document.addEventListener("click", ev => {
   const slot = $("#embed-tabs"), tabs = $("#tabs");
   if (slot && tabs) { slot.appendChild(tabs); slot.classList.remove("hidden"); }
   setTimeout(() => window.dispatchEvent(new Event("resize")), 0);   // 도면 창 폭이 메뉴만큼 넓어졌다
+})();
+
+/* hotfix79 — 되돌리기 · 다시 단추 */
+(function bindUndoButtons() {
+  const u = document.getElementById("undo-btn"), r = document.getElementById("redo-btn");
+  if (u) u.addEventListener("click", () => undoStep(true));
+  if (r) r.addEventListener("click", () => undoStep(false));
+})();
+
+/* hotfix79 — 단축키 도움말.  `?` (글자를 치는 곳이 아닐 때) 또는 목록 도구줄의 ⌨ 단추.
+ * 적힌 것은 이 화면이 실제로 받는 키뿐이다 — 새 키를 더하면 여기에도 적는다 (시험이 몇 줄을 맞댄다). */
+const SHORTCUTS = [
+  ["목록 — 칸", [
+    ["한 번 누름", "칸 고르기 (편집 아님)"],
+    ["두 번 누름 · F2 · 바로 타자", "칸 편집"],
+    ["Enter / Tab", "저장하고 아래 / 오른쪽 칸 (Shift 와 함께면 위 / 왼쪽)"],
+    ["Esc", "편집 취소 (원래 값으로) · 범위 풀기"],
+    ["↑ ↓ ← →", "칸 옮기기"],
+    ["Shift + ↑ ↓", "한 열의 칸 범위 넓히기"],
+    ["Ctrl + Enter (편집 중)", "범위 전체를 그 값으로 채우기"],
+    ["Ctrl + C / Ctrl + V", "복사 · 붙이기 — 여러 줄이면 아래로 한 줄씩 (엑셀 열 그대로)"],
+    ["Delete", "사람이 고친 값을 도면 값으로 되돌리기 (범위면 범위 전체)"],
+  ]],
+  ["되돌리기", [
+    ["Ctrl + Z", "되돌리기 — 칸 고침 · 묶음 고침 · 승수 · 지우기"],
+    ["Ctrl + Y · Ctrl + Shift + Z", "다시"],
+  ]],
+  ["도면", [
+    ["Ctrl + 휠 · Ctrl + + / −", "확대 · 축소 (커서 자리 기준)"],
+    ["Ctrl + 0", "도면 맞춤"],
+    ["끌기", "도면 옮기기"],
+    ["Shift / Ctrl + 상자 누름", "여러 개 고르기 (공급 주체 · 승수를 한 번에)"],
+    ["Shift + 끌기", "띠로 여러 개 고르기"],
+    ["Esc", "고른 것 풀기 · 전체화면 나가기"],
+  ]],
+  ["메모", [
+    ["Ctrl + Enter", "메모 · 위치 메모 저장"],
+  ]],
+];
+function showShortcuts() {
+  openModal("단축키",
+    `<div class="kbd-help">${SHORTCUTS.map(([h, rows]) => `<h4>${escape(h)}</h4><table>${
+      rows.map(([k, d]) => `<tr><td>${k.split(" · ").map(x => `<kbd>${escape(x)}</kbd>`).join(" · ")}</td><td>${escape(d)}</td></tr>`).join("")
+    }</table>`).join("")}<p class="muted small">이 창은 <kbd>?</kbd> 로도 엽니다 (글자를 치는 칸 밖에서).</p></div>`);
+}
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "?" || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return;
+  const t = ev.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (CELL.editing) return;
+  ev.preventDefault();
+  showShortcuts();
+});
+(function bindShortcutButton() {
+  const b = document.getElementById("kbd-btn");
+  if (b) b.addEventListener("click", showShortcuts);
 })();

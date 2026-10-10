@@ -110,7 +110,7 @@ console.log(JSON.stringify(rows.map(qtyBase)));"""
 def test_apply_is_one_request_one_author_and_redraws_both_sides():
     save = _fn("_saveQtyItems")
     assert save.count("askAuthor(") == 1 and save.count("fetch(") == 1 and "/qty_bulk`" in save
-    assert "renderGrid();" in save and "drawOverlay();" in save   # 오른쪽 목록 · 왼쪽 라벨 같은 값
+    assert "renderGrid();" in save and "restyleItems(" in save   # 오른쪽 목록 · 왼쪽 라벨 같은 값 (hotfix79 — 고친 행만)
     plan = _fn("pageMultPlan")
     assert "qtyBase(r) * m" in plan                       # Q'ty = 기본 개수 × 승수
     ui = _fn("renderPageMult")
