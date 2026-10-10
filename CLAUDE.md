@@ -4126,6 +4126,54 @@ QFE 만 `8b2975ee` · 2068 · 3757 · 91.1 → `8bd6a8b3` · 2043 · 3720 · 91.
 6. ⚠ 한글을 골라진 칸에서 **바로** 치면 첫 키(입력기 `Process`)에서 편집이 열리며 초점이 옮겨진다 — 입력기에 따라 첫 자모가 빠질 수 있다
    (헤드리스에서는 잴 수 없다).  한글은 두 번 누르거나 F2 로 연 뒤 치는 것이 안전하다.
 
+**그 다음 — 상용 수준으로: 가볍게 · 되돌리기 · 엑셀식 범위 · 작은 화면 (hotfix79 · 화면 회차 · 판정 0줄)**
+
+사용자: *"상용화 가능한 수준으로 1) 속도 개선, 2) UI 개선, 3) 사용자 편의 기능 개선 4) 추가 보완 개선 사항 검토 및 수행 …
+여러 번 시뮬레이션 돌리면서 개선해 나가라."*  VOC 반영할 것 없음.  자 넷을 같은 기계 · QFE Rev.B 사본(1,991행)으로 앞뒤에
+돌렸다 — `spike/perf_sim.py`(3회) · `spike/perf_edit_sim.py` · 새 `spike/ui_profile.py`(브라우저 주 스레드 일 + JS 함수별) ·
+`spike/qa_sim.py` · `spike/ui_small_screens.py`.  시험 `tests/test_hotfix79_commercial.py` 14건 (빠른 시험 **1058**).
+**엔진·서버 0줄 — 네 프로젝트 지문에 닿을 길이 없다.**
+
+1. **★ 느린 몫은 JS 가 아니라 칠하기였다** (`out/hotfix79/profile_before.txt` — 행 누르기 6번: Paint 1,557ms · Layout 386 ·
+   JS 자기 시간은 작다).  행을 고를 때마다 · 칸 하나를 고칠 때마다 · 메모를 받을 때마다 **오버레이 SVG 전체**(상자 수백 ·
+   라벨 · 배지)를 지우고 새로 만들어 도면 위가 통째로 다시 칠해졌다 (`drawOverlay` 호출 29곳).
+2. **고른 것만 바꾼다** (`refreshSel`) — 상자·라벨·버블 고리의 `sel`/`multi` class 와 고른 행에 딸린 두 무리(`#ov-trace` 추적 선 ·
+   `#ov-ft` FROM/TO 상자)만.  `select` · `deselect` · `toggleMulti` · `clearMulti` · 띠 선택 · 창 연동(`applySel`) · 근거를 받은 뒤가 쓴다.
+   이 장 · 이 그림 크기의 오버레이가 아니면(`ov.dataset.page`/`nat`) 예전처럼 전부 그린다.
+3. **고친 행만 다시 그린다** (`drawItem` · `restyleItems`) — `drawOverlay` 의 반복문 몸통을 **함수 하나로 떼어** 전부 그릴 때와
+   몇 개만 다시 그릴 때가 같은 함수를 쓴다 (두 벌을 두면 갈린다).  그린 요소마다 `data-own` 주인 키 · 새 그림은 옛 그림 **자리**에
+   (면적 순서가 클릭을 정한다) · 수량 라벨은 `#ov-ft` 앞(모든 상자 위) · 범례 숫자는 다시 센다.  `saveField`(scope·qty·type·tag_no) ·
+   공급 주체 묶음 · 승수 묶음 · 범위 채우기 · 되돌리기가 쓴다.  위치 메모는 `redrawPins` (압정만).
+4. **★ 같은지를 띄워서 맞댔다** (`spike/ui_audit_overlay_incr.py`) — 동작마다 화면이 한 그대로의 `#ov` 와 `drawOverlay()` 로 전부
+   다시 그린 `#ov` 를 요소·속성·순서까지 대조: 고르기 둘 · 묶음 · 풀기 · 고르기 풀기 · SCOPE · Q'ty · 묶음 SCOPE · 메모 · 화살표 이동
+   **전부 같음** (요소 314~315).  첫 판이 잡은 차이 둘 — 다시 그은 버블 잇는 선에 `data-own` 이 없었다 · `pulse`(고른 순간 깜박임)는
+   그림이 아니라 대조에서 뺐다.
+5. **화살표를 누르고 있으면** 칸은 바로 옮기고 행 고르기(도면 장 바꾸기 · 근거 패널)는 멈춘 뒤 한 번 (`KEY_SELECT_MS` 90ms) — 목록의
+   행 표시는 바로 따라온다.
+6. **실측 (같은 기계 · 3회 중앙값)**: 칸 편집 580 → **337ms** · 도면 상자 누르기 63 → **49ms**(긴 작업 2 → 0) · 행 누르기 266 → 236 ·
+   목록 새 창 5.2 → **3.0초** · 칸 하나 저장(edit_one) 142 → **90ms** · 묶음 SCOPE 325 → 287 · 행 추가 3.1 → 2.8초 ·
+   프로파일 행 누르기 Paint 1,557 → 978ms · 칸 고치기 Paint 833 → 412ms.  ⚠ 장 넘기기 중앙값이 176 → 341 로 나왔으나 그림 캐시를 데운
+   A/B(옛 코드 worktree 와 번갈아 · 24번)는 **92.5 ↔ 95.0ms 같음** — 서버가 그림을 그리느냐 아니냐(150ms ↔ 1초)의 두 봉우리 잡음이었다.
+   ⚠ `will-change` 로 도면 그림과 SVG 를 다른 층으로 나눠 봤으나 헤드리스(소프트웨어 래스터)에서 이득이 재지지 않아 **되돌렸다**.
+7. **되돌리기 · 다시** (`UNDO` · `undoRecord` · `undoStep` · `_applyEdits` · 목록 위 ↶ ↷ · Ctrl+Z / Ctrl+Y · Ctrl+Shift+Z).  기록하는 곳은
+   서버에 쓰는 **길 넷**뿐 — `saveField` · `editRowsBulk` · `_saveQtyItems` · `deleteRows`/`restoreRow`.  되돌리기도 **같은 길**로 서버에
+   쓴다 (서버 기록은 지우지 않고 한 줄 더 쌓인다 · 새 fetch 0 — 시험이 강제).  기록하는 값은 **사람 값**(빈 값 = 도면 값)이라
+   되돌리면 도면 값으로 돌아가고 엔진 값은 건드리지 않는다.  결과가 바뀌면 비운다 (`_undoJob`).  검색 칸 · 편집 중인 칸 · 메모의
+   Ctrl+Z 는 브라우저 글자 되돌리기 그대로.
+8. **엑셀식 칸 범위** (`S.cellRange` · `extendRange` · `rangeRows` · `markRange` · `td[data-rng]`) — Shift+↑↓ 로 한 열 · Ctrl+C 한 줄에 한 값 ·
+   Ctrl+V 한 값이면 범위 전체 · **여러 줄이면 위에서부터 한 줄씩**(엑셀 열을 그대로 · `pasteValues`) · 편집 중 Ctrl+Enter 범위 채우기 ·
+   Delete 는 사람이 고친 값을 도면 값으로(`revertCells`).  저장은 `fillCells` → 한 행이면 `saveField` · 여러 행이면 `editRowsBulk`
+   (요청 하나) — 지운 행은 건너뛴다.  ⚠ 칸이 골라져 있으면 `?` 는 그 칸에 치는 글자다 (엑셀) — 도움말은 ⌨ 단추 또는 도면에서 `?`.
+9. **단축키 도움말** (`SHORTCUTS` · `showShortcuts` · ⌨) — 이 화면이 실제로 받는 키만 적는다 (새 키를 더하면 여기에도).
+10. **닫기 전에 묻기** — 편집 중인 칸에 바뀐 글자가 있거나 서버에 쓰는 요청이 아직 가는 중(`NET.writing` — `hookFetch` 가 센다)에 탭을
+    닫으면 브라우저가 한 번 묻는다.  아무것도 없으면 묻지 않는다.
+11. **★ 작은 화면 시뮬레이션이 잡은 것** — 노트북 흔한 설정 1920×1080 **125%**(CSS 1536×864)에서 목록이 **160px(3행)**: 승수 판 · 장 도면번호
+    판이 펼쳐진 채(접힘 문턱 860 바로 위) · 목록 도구줄 세 줄 · 업데이트 딱지가 메모 줄을 덮음(2,058px²).  접힘 문턱 `PANEL_FOLD_H`
+    860 → **960** (사람이 한 번 고르면 그 선택) · 폭 1700px 아래면 딱지 한 줄 · 도구줄 고르기 상자 늘지 않게 → **238px(7행)** · 덮음 0.
+    다른 다섯 크기는 그대로 결함 0.
+12. **QA 시뮬레이션** (`out/hotfix79/qa_after/`) — API 전수 5xx 0 · 화면 전수 클릭 페이지/콘솔 오류 0 · 서버 Traceback 0 · 결함 0.
+    hotfix78 칸 편집 자기검증 22항목 그대로 통과 · 편의 자기검증(`spike/ui_audit_convenience.py`) 24항목 통과.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4629,6 +4677,11 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `spike/ui_audit_pin_ux.py` | **hotfix77** — 압정 커서 · 작성칸 · 바늘 끝 · 깜박임 횟수(불투명도로 셈) · 핀→메모 · 이름 없는 브라우저 |
 | `app.js` `CELL` · `S.cell` · `setCell` · `startCellEdit` · `endCellEdit` · `nextCell` · `gotoCell` · `commitAndMove` · `bindGridKeys` · `rowHtml` 의 `data-ed`/`data-cur` | **hotfix78** — 목록 칸 엑셀식 편집.  칸은 표시만 · 두 번 누름/F2/타자로 연다 · Enter/Tab 저장 후 이동 · Esc 되돌림 · 화살표 칸 이동 · Ctrl+C/V 한 칸.  저장은 `saveEdit` 하나 |
 | `spike/ui_audit_excel_cell.py` | **hotfix78** — 칸 고르기 · 두 번 누름 · Enter/Tab/Esc/F2 · 바로 타자 · 화살표 · 복사·붙이기 · 지운 행 · 고칠 수 없는 칸을 띄워서 누른다 |
+| `app.js` `drawItem` · `restyleItems` · `refreshSel` · `tagbubLine` · `redrawPins` · `#ov-trace` · `#ov-ft` · `data-own` · `KEY_SELECT_MS` | **hotfix79** — 오버레이는 고른 것 · 고친 것만 다시 그린다.  상자 하나 그리기는 `drawItem` 하나 (전부 그릴 때도 같은 함수).  이 장의 오버레이가 아니면 전부 그린다 |
+| `app.js` `UNDO` · `undoRecord` · `undoStep` · `_applyEdits` · `_restoreKeys` · `_userVal` · `#undo-btn`/`#redo-btn` | **hotfix79** — 되돌리기 · 다시.  기록은 서버에 쓰는 길 넷에서만 · 되돌리기도 같은 길 · 값은 사람 값(빈 값 = 도면 값) |
+| `app.js` `S.cellRange` · `extendRange` · `rangeRows` · `markRange` · `fillCells` · `pasteValues` · `revertCells` · `td[data-rng]` | **hotfix79** — 한 열의 칸 범위 · 범위 채우기 · 여러 줄 붙이기 · Delete = 도면 값 |
+| `app.js` `SHORTCUTS` · `showShortcuts` · `#kbd-btn` · `beforeunload` · `NET.writing` · `PANEL_FOLD_H` | **hotfix79** — 단축키 도움말 · 닫기 전에 묻기 · 판 접힘 문턱 960 |
+| `spike/ui_profile.py` · `spike/ui_audit_overlay_incr.py` · `spike/ui_audit_convenience.py` | **hotfix79** — 동작별 브라우저 주 스레드 일(칠하기 · 배치)과 JS 함수 시간 · 고친 것만 그린 그림 = 전부 그린 그림 · 편의 기능 띄워서 누르기 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

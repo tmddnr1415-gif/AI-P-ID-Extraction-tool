@@ -3022,11 +3022,14 @@ async function loadSheetNumbers() {
 }
 
 const SHEET_FOLD_KEY = "pid.sheet.fold";
+/* hotfix79 — 이 높이보다 낮은 창에서는 승수 · 장 도면번호 판이 접힌 채 시작한다 (사람이 한 번 고르면 그 선택).
+ * 860 이었는데 노트북 흔한 설정(1920×1080 125% → CSS 864)이 바로 위라 두 판이 펼쳐져 목록이 3행이었다. */
+const PANEL_FOLD_H = 960;
 function _sheetFolded(v) {
   try {
     // hotfix42 — 사람이 정한 적이 없으면 **짧은 화면에서는 접힌 채로** 시작한다 (1366×768 에서 두 판이
     // 목록을 화면 밖으로 밀었다 — QA 시뮬레이션).  한 번 펼치거나 접으면 그 선택이 남는다.
-    if (v === undefined) { const v0 = localStorage.getItem(SHEET_FOLD_KEY); return v0 === null ? window.innerHeight < 860 : v0 === "1"; }
+    if (v === undefined) { const v0 = localStorage.getItem(SHEET_FOLD_KEY); return v0 === null ? window.innerHeight < PANEL_FOLD_H : v0 === "1"; }
     localStorage.setItem(SHEET_FOLD_KEY, v ? "1" : "0");
   } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
   return !!v;
@@ -3037,7 +3040,7 @@ function _multFolded(v) {
   try {
     // hotfix42 — 사람이 정한 적이 없으면 **짧은 화면에서는 접힌 채로** 시작한다 (1366×768 에서 두 판이
     // 목록을 화면 밖으로 밀었다 — QA 시뮬레이션).  한 번 펼치거나 접으면 그 선택이 남는다.
-    if (v === undefined) { const v0 = localStorage.getItem(MULT_FOLD_KEY); return v0 === null ? window.innerHeight < 860 : v0 === "1"; }
+    if (v === undefined) { const v0 = localStorage.getItem(MULT_FOLD_KEY); return v0 === null ? window.innerHeight < PANEL_FOLD_H : v0 === "1"; }
     localStorage.setItem(MULT_FOLD_KEY, v ? "1" : "0");
   } catch (e) { /* 저장 못 해도 이번 화면은 그대로 */ }
   return !!v;
@@ -10368,6 +10371,11 @@ setInterval(checkStaleUi, 120000);
            e => { if (e && e.name !== "AbortError") netDown(); });
     try {
       const method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
+      // hotfix79 — 서버에 쓰는 요청이 날아가는 중인지 센다 (창을 닫기 전에 묻는 데 쓴다)
+      if (method !== "GET" && method !== "HEAD") {
+        NET.writing = (NET.writing || 0) + 1;
+        p.finally(() => { NET.writing = Math.max(0, (NET.writing || 1) - 1); }).catch(() => {});
+      }
       if (method !== "GET" && method !== "HEAD" && SYNC.link) {
         const url = typeof input === "string" ? input : (input && input.url) || String(input);
         p.then(res => { if (res && res.ok) syncNoteMutation(url, init); }).catch(() => {});
@@ -10956,3 +10964,13 @@ document.addEventListener("keydown", ev => {
   const b = document.getElementById("kbd-btn");
   if (b) b.addEventListener("click", showShortcuts);
 })();
+
+/* hotfix79 — 저장 안 된 편집이 있는 채 탭을 닫거나 새로고침하면 브라우저가 한 번 묻는다.  칸 편집은 칸을 떠날 때
+ * 저장되므로(`focusout`) 편집 중인 칸에서 바로 닫으면 그 글자가 사라졌다.  서버에 쓰는 요청이 아직 날아가는
+ * 중일 때도 같다.  아무것도 없으면 묻지 않는다 (불필요한 확인 창은 상용 화면의 흠이다). */
+window.addEventListener("beforeunload", ev => {
+  const typing = CELL.editing && CELL.editing.textContent !== CELL.orig;
+  if (!typing && !(NET.writing > 0)) return;
+  ev.preventDefault();
+  ev.returnValue = "";
+});

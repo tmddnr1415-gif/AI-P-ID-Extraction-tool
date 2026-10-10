@@ -115,3 +115,14 @@ def test_shortcut_help_lists_the_new_keys():
     for k in ("Ctrl + Z", "Shift + ↑ ↓", "Ctrl + Enter (편집 중)", "Delete", "F2"):
         assert k in table, k
     assert 'id="kbd-btn"' in HTML
+
+
+# ── 닫기 전에 묻기 ───────────────────────────────────────────────────────
+def test_close_guard_asks_only_when_something_is_unsaved():
+    i = JS.index('window.addEventListener("beforeunload"')
+    body = JS[i:i + 400]
+    assert "CELL.editing.textContent !== CELL.orig" in body       # 편집 중인 칸에 바뀐 글자
+    assert "NET.writing > 0" in body                              # 서버에 쓰는 요청이 아직 날아가는 중
+    assert "if (!typing && !(NET.writing > 0)) return;" in body   # 아무것도 없으면 묻지 않는다
+    hook = JS[JS.index("(function hookFetch()"):JS.index("(function hookFetch()") + 1500]
+    assert "NET.writing = (NET.writing || 0) + 1" in hook and "p.finally(" in hook

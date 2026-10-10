@@ -2195,3 +2195,13 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 .kbd-help td:first-child { width: 44%; white-space: nowrap; }
 .kbd-help kbd { display: inline-block; padding: 1px 6px; border: 1px solid #c8c2b4; border-bottom-width: 2px;
   border-radius: 4px; background: #fffdf8; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* hotfix79 — 노트북 흔한 설정(1920×1080 을 125% · CSS 1536×864)에서 목록이 3행이었다 (`spike/ui_small_screens.py`).
+   ① 업데이트 딱지가 메모 줄 오른쪽을 덮었다 — 폭이 1700px 아래면 한 줄로 줄이고 흐리게 (마우스를 올리면 전부)
+   ② 목록 도구줄이 세 줄로 접혔다 — 고르기 상자는 늘어나지 않게, 단추 사이를 좁게 */
+@media (max-width: 1700px) {
+  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .55; }
+  .build:hover { max-width: 70vw; white-space: normal; opacity: 1; }
+}
+.toolbar select { flex: 0 1 auto; max-width: 170px; min-width: 0; }
+.toolbar #filter { flex: 1 1 200px; min-width: 140px; }

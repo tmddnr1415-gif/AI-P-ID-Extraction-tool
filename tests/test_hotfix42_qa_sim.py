@@ -91,4 +91,6 @@ def test_the_list_keeps_a_minimum_height_and_panels_start_folded_on_short_screen
     assert ".sheet-panel { margin-top: 6px; max-height: 120px; }" in css
     for fn in ("function _sheetFolded", "function _multFolded"):
         body = JS[JS.index(fn):JS.index(fn) + 500]
-        assert "window.innerHeight < 860" in body and "v0 === null" in body
+        # hotfix79 — 문턱을 이름 하나로 (860 → 960 · 1920×1080 125% 노트북에서 목록이 3행이었다)
+        assert "window.innerHeight < PANEL_FOLD_H" in body and "v0 === null" in body
+    assert "const PANEL_FOLD_H = 960;" in JS
