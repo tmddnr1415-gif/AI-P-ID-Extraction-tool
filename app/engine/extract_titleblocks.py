@@ -464,7 +464,13 @@ def parse_unit_code(drawing_no: str | None) -> str | None:
     parts = drawing_no.split("-")
     if len(parts) <= _UC_SEG or len(parts[_UC_SEG]) < _UC_TO:
         return None
-    return parts[_UC_SEG][_UC_FROM:_UC_TO]
+    code = parts[_UC_SEG][_UC_FROM:_UC_TO]
+    # hotfix84 — a KKS unit code is two digits (AL NOUF1 · TC2 · QFE · UAD: 00 10 11 31 ...).
+    # Takhiatash numbers its drawings `B-SBA-M-32-001`: there is no unit field, and
+    # the letters in that place (`SB`) were being read as a unit code with no meaning.
+    if not code.isdigit():
+        return None
+    return code
 
 
 def parse_rev_date(pd: PageCache, rev: str | None, lay: Layout = LAYOUT) -> str | None:

@@ -592,11 +592,16 @@ def _document_unit(pages) -> tuple:
         bf = legend_rules.derive_butterfly(pages, CFG)
     except Exception as exc:                               # noqa: BLE001
         return 1.0, f"butterfly legend not measured ({type(exc).__name__})"
-    u = legend_rules.legend_unit(bf)
+    u = legend_rules.legend_unit(bf, pages)
     cd = (bf.values or {}).get("circle_diameter")
     if not cd:
-        return 1.0, "no butterfly circle on the legend - unit 1.0 (AL NOUF1 values as written)"
-    why = f"legend butterfly circle {cd} pt / {legend_rules.BUTTERFLY_CIRCLE_BASIS} pt"
+        if u == 1.0:
+            return 1.0, "no butterfly circle on the legend - unit 1.0 (AL NOUF1 values as written)"
+        # hotfix84 — 나비 원이 없는 범례는 액추에이터 원으로 (legend_rules.legend_unit)
+        why = (f"no butterfly circle on the legend; legend actuator circle / "
+               f"{legend_rules.ACTUATOR_CIRCLE_BASIS} pt = {u}")
+    else:
+        why = f"legend butterfly circle {cd} pt / {legend_rules.BUTTERFLY_CIRCLE_BASIS} pt"
     # hotfix48 [B] — 범례 장이 본 도면과 다른 종이면(QFE: A3 범례 ↔ A1 도면) 범례의
     # 원은 본문에서 그 배율만큼 크다.  안 곱하면 별표 창이 반으로 줄어 본문 별표를
     # 놓친다 (p10 MOV `(*)` 가 액추에이터 원에서 5.06pt ↔ 창 4.95).  같은 종이면 1.0.
@@ -2227,6 +2232,15 @@ DEFAULT_MULT_REASON = ("유닛코드 '%s' 의 승수를 도면(범례 · NOTES)�
                        "— 사용자 규칙 (승수를 가늠할 수 없으면 x1) · 승수 패널에서 답하면 그 값이 이깁니다")
 
 
+def default_mult_reason(unit) -> str:
+    """`MULTIPLIER_DEFAULT_ONE` 의 사유 문장.  유닛 자리가 없는 도면번호(hotfix84 —
+    Takhiatash `B-SBA-M-32-001`)는 없는 유닛코드를 문장에 넣지 않고 그렇게 말한다."""
+    if unit:
+        return DEFAULT_MULT_REASON % unit
+    return ("이 장의 도면번호에 유닛 자리가 없고, 승수를 도면(범례 · NOTES)이 말하지 않아 x1 로 "
+            "셌습니다 — 사용자 규칙 (승수를 가늠할 수 없으면 x1) · 승수 패널에서 답하면 그 값이 이깁니다")
+
+
 def unknown_multiplier() -> int | None:
     """승수를 모를 때 쓰는 값 — config `qty_note.unknown_multiplier` (기본 1).  `null` 이면 예전처럼 빈칸."""
     v = (CFG.data.get("qty_note") or {}).get("unknown_multiplier", 1)
@@ -2408,7 +2422,10 @@ def control_function_reason(anchor: str, lines, isa) -> str:
     meaning = {c: tuple(str(w).upper() for w in (isa.succeeding or {}).get(c, ()))
                for c in rest}
     for c, words in meaning.items():
-        if "CONTROLLER" in words or ("CONTROL" in words and "STATION" in words):
+        # hotfix84 — DIN 19227 (Takhiatash) prints `C` as `CONTROLLING, CLOSED
+        # LOOP CONTROL`; the same function as ISA's `CONTROLLER`.
+        if (any(w.strip(",;").startswith("CONTROLL") for w in words)
+                or ("CONTROL" in words and "STATION" in words)):
             return f"'{c}' = {' '.join(words)} (그 도면 ISA 표) — 제어 기능"
     try:
         n_lines = int(lines or 0)
@@ -2781,6 +2798,39 @@ def _fold_readouts(rows: list, isa, links: dict = None) -> tuple:
                                     "kept": str(winner.evidence.get("anchor") or winner.type),
                                     "kept_key": winner.key, "folded_key": r.key,
                                     "basis": "TAG_LOCATION"})
+    # hotfix84 — **같은 태그면 TYPE 이 달라도 한 루프**다.  Takhiatash (DIN 19227 · KKS) 는
+    # 현장 계기를 선 없는 버블로(`PIT 00SBA20CP001`), 그 루프의 DCS 기능을 가운데 선이 있는
+    # 버블로 **같은 태그**에 따로 인쇄한다 (`PISA 00SBA20CP001` · `LSAZ`·`LA` 와 `LS`).  위 규칙은
+    # TYPE 이 같을 때만 보아 그 DCS 버블들이 계기 행으로 따로 섰다.  같은 장 · 같은 태그에
+    # **선 없는 버블이 정확히 하나**이고 나머지가 선이 있는 버블이면, 선 있는 버블을 그 현장
+    # 계기에 접는다.  갈리지 않으면(선 없는 버블이 없거나 둘 이상) 고르지 않는다.
+    loop = collections.defaultdict(list)
+    for key, (r, anchor, parts) in parsed.items():
+        if r.tag_no and key not in folded:
+            loop[(r.page_no, r.tag_no)].append((r, anchor))
+    for (pno, tag), grp in sorted(loop.items()):
+        if len(grp) < 2 or len({r.type for r, _a in grp}) < 2:
+            continue
+        lines = [int(((r.evidence.get("detail") or {}).get("bubble_lines")) or 0) for r, _a in grp]
+        plain = [i for i, n in enumerate(lines) if n == 0]
+        if len(plain) != 1:
+            continue
+        winner = grp[plain[0]][0]
+        for i, (r, anchor) in enumerate(grp):
+            if i == plain[0]:
+                continue
+            folded.add(r.key)
+            how = (f"같은 태그 {tag} — {anchor} 는 가운데 선 {lines[i]}줄 버블(제어 측 기능), "
+                   f"{winner.evidence.get('anchor') or winner.type} 는 선 없는 버블(현장 계기)")
+            winner.evidence.setdefault("readout_folded", []).append(
+                {"anchor": anchor, "key": r.key, "tag_no": tag,
+                 "rect": [round(v, 1) for v in r.rect], "basis": "TAG_LOOP", "how": how})
+            note = f"{how} — 한 루프라 이 행에 접음"
+            winner.remark = "; ".join(x for x in (winner.remark, note) if x)
+            facts["folded"].append({"page_no": pno, "tag_no": tag, "readout": anchor,
+                                    "kept": str(winner.evidence.get("anchor") or winner.type),
+                                    "kept_key": winner.key, "folded_key": r.key,
+                                    "basis": "TAG_LOOP"})
     return facts, folded
 
 
@@ -4051,7 +4101,7 @@ def _typical_point_rows(pc, meta, t, mult, note=None, user_mult=None, user_mult_
                 reasons.append(f"unit code '{unit}' has no multiplier")
             elif defaulted:
                 codes.append(DEFAULT_MULT_CODE)
-                reasons.append(DEFAULT_MULT_REASON % unit)
+                reasons.append(default_mult_reason(unit))
             elif from_user:
                 codes.append(_USER_MULT_CODE)
                 reasons.append(_USER_MULTIPLIER % (unit, factor, (user_mult_note or {}).get(unit, "")))
@@ -4485,7 +4535,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                            f"IDENTIFICATION NUMBERS table, so no multiplier")
         elif defaulted:
             codes.append(DEFAULT_MULT_CODE)
-            reasons.append(DEFAULT_MULT_REASON % unit)
+            reasons.append(default_mult_reason(unit))
         elif from_note:
             pass          # 도면이 그 장 NOTES 에 적어 둔 값이다 — 검토 사유가 아니다
         elif from_user:
@@ -4564,7 +4614,7 @@ def _field_rows(pc, meta, dets, mult, annotations, scope_keywords=(),
                                  if from_note else
                                  f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
                                  if from_user else
-                                 f"unit code {unit} — 승수 미상, 규칙 x1" if defaulted else
+                                 f"unit code {unit or '없음'} — 승수 미상, 규칙 x1" if defaulted else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
@@ -5179,7 +5229,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         elif defaulted:
             codes.append(DEFAULT_MULT_CODE)
-            reasons.append(DEFAULT_MULT_REASON % unit)
+            reasons.append(default_mult_reason(unit))
         elif from_note:
             pass
         elif from_user:
@@ -5244,7 +5294,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
                                  if from_note else
                                  f"사람 지정 — {(user_mult_note or {}).get(unit, '')}"
                                  if from_user else
-                                 f"unit code {unit} — 승수 미상, 규칙 x1" if defaulted else
+                                 f"unit code {unit or '없음'} — 승수 미상, 규칙 x1" if defaulted else
                                  f"unit code {unit}, {mult.source}") + ")"
                               if not undefined else f"unit code {unit} undefined"),
                 "qty_source": ((note or (0, [], ""))[2][:200] if from_note
@@ -5284,7 +5334,7 @@ def _valve_rows(page_no, meta, res, mult, page=None, note=None,
             reasons.append(f"unit code '{unit}' has no multiplier in the legend")
         elif defaulted:
             codes.append(DEFAULT_MULT_CODE)
-            reasons.append(DEFAULT_MULT_REASON % unit)
+            reasons.append(default_mult_reason(unit))
         out.append(Row(
             key=_key(meta["drawing_no"], page_no, "VT", text,
                      *[round(v, 1) for v in rect]),

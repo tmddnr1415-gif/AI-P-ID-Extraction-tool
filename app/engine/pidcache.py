@@ -21,6 +21,7 @@ to think about them:
 
 from __future__ import annotations
 
+import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -197,6 +198,76 @@ def _rot_self_check() -> bool:
 
 _ROT_OK = False
 _ROT_OK = _rot_self_check()
+
+
+# hotfix84 — a straight piece this short, against the path's own short side,
+# is the exporter's lead-in to an arc, not a side of the shape.
+CURVE_STUB = 0.25
+
+
+def curve_path(items, bbox) -> bool:
+    """Is this path an arc - curves only, or curves with tiny straight stubs?
+
+    Takhiatash draws each bubble cap as `l c l`: one Bezier arc with a 0.78 pt
+    straight lead-in at each end (0.11 of the cap's 7.3 pt width).  The caps of
+    AL NOUF1 · TC2 · QFE are curves only and pass exactly as before.  A stub is
+    measured against the path's own short side, so no length is assumed.
+    """
+    if not items or not any(i[0] == "c" for i in items):
+        return False
+    short = min(bbox.width, bbox.height)
+    for it in items:
+        if it[0] == "c":
+            continue
+        if it[0] != "l" or short <= 0:
+            return False
+        a, b = it[1], it[2]
+        if math.hypot(a.x - b.x, a.y - b.y) > CURVE_STUB * short:
+            return False
+    return True
+
+
+def curve_extent(items, m) -> pymupdf.Rect:
+    """The box of the drawn curve (not its control points), display space."""
+    xs, ys = [], []
+    for it in items:
+        if it[0] == "l":
+            pts = [it[1], it[2]]
+        elif it[0] == "c":
+            p0, p1, p2, p3 = it[1], it[2], it[3], it[4]
+            pts = []
+            for k in range(9):
+                t = k / 8
+                u = 1 - t
+                pts.append(pymupdf.Point(
+                    u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+                    u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y))
+        else:
+            continue
+        for p in pts:
+            q = p * m
+            xs.append(q.x)
+            ys.append(q.y)
+    return pymupdf.Rect(min(xs), min(ys), max(xs), max(ys))
+
+
+def round_box(d, m):
+    """The box of a round path (circle, disc, arc), or None if it is not one.
+
+    Curve-only paths keep their own `bbox` - the box every document before
+    hotfix84 was measured by.  Curves led in by tiny straight stubs (Takhiatash
+    draws its circles as two arcs and six 0.6 pt pieces) are admitted and
+    measured on the drawn curve, because their `bbox` holds control points.
+    """
+    items = d["items"]
+    b = d["bbox"]
+    if not items or b.width <= 0 or b.height <= 0:
+        return None
+    if all(i[0] == "c" for i in items):
+        return b
+    if curve_path(items, b):
+        return curve_extent(items, m)
+    return None
 
 
 @dataclass

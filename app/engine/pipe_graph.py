@@ -94,7 +94,7 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
     # 정한 pt 값이다.  그 문서 범례의 나비 원으로 잰 단위를 곱한다 (AL NOUF1 = 1.0).
     # 실측: 같은 범례를 A0 로 키우면 창이 파선의 절반만 덮어 `dash_len` 이 1.0 이 됐다.
     bf = legend_rules.derive_butterfly(pages, cfg)
-    unit = legend_rules.legend_unit(bf)
+    unit = legend_rules.legend_unit(bf, pages)
     label = None
     # ⚠ 획 글꼴 범례는 `ELECTRIC SIGNAL` 을 **한 조각**으로 싣는다 (28회차) —
     # 낱말로 읽되 자리는 조각의 것을 쓴다.  파선은 라벨 **왼쪽**에 그려지므로
@@ -104,7 +104,8 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
         if t == "SIGNAL":
             row = [w for _r, w in row_words
                    if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6 * unit]
-            if "ELECTRIC" in row:
+            # hotfix84 — `ELECTRICAL SIGNAL LINE` (Takhiatash) is the same row.
+            if "ELECTRIC" in row or "ELECTRICAL" in row:
                 label = r
                 break
     if label is None:

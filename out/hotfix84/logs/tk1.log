@@ -1,0 +1,14 @@
+· TAKHIATASH 분석 …
+   user/AI-P-ID-Extraction-tool/app/pipeline.py", line 1163, in _analyse
+    raise TitleBlockUnreadable(_frame_reason(pages, layout))
+app.pipeline.TitleBlockUnreadable: 이 PDF 의 60장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 60장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 1191.0x842.0pt 60장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.
+
+프로젝트            행         지문     Q'ty       초     RSS      축3
+TAKHIATASH  실패 — user/AI-P-ID-Extraction-tool/app/pipeline.py", line 1163, in
+
+축3 내역 (지표별 맞춘 수 / 분모)
+           도면번호         개정           태그→행         수량           심볼판정         파라미터       
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TAKHIATASH — 기준선이 없습니다 (--write-baseline 으로 세우세요)

@@ -36,6 +36,12 @@
       "pdf": "data/QFE_260326.pdf",
       "client_lists": false,
       "note": "hotfix36 신규 — FICHTNER 류 양식 93장 (A1 84 · A3 7 · A1 회전 2).  태그가 인쇄된 1급 문서.  egg 분할본은 spike/egg_extract.py 로 푼다"
+    },
+    {
+      "name": "TAKHIATASH",
+      "pdf": "data/newproj/binder.pdf",
+      "client_lists": false,
+      "note": "hotfix84 신규 — 우즈베키스탄 Takhiatash TPP (Hyundai) BOP P&ID 60장 · A3 · /Rotate 90 · 영어/러시아어 병기 · KKS 태그 인쇄(1급 예상).  HRSG 단장 4개는 글자층이 없어(획) 여기 넣지 않는다"
     }
   ]
 }

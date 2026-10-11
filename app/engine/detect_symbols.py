@@ -388,6 +388,11 @@ def on_bubble_face(x: float, y: float, outlines) -> bool:
     return False
 
 
+# hotfix84 — 곡선 판정은 `pidcache.curve_path` · `round_box` 하나 (밸브·범례와 같은 함수).
+curve_path = pidcache.curve_path
+_curve_extent = pidcache.curve_extent
+
+
 def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
     """Instrument bubbles, measured rather than assumed — **윤곽까지** 낸다.
 
@@ -404,9 +409,15 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
     caps_wide, caps_tall = [], []
     for d in pc.drawings():
         items = d["items"]
-        if not items or any(i[0] != "c" for i in items):
-            continue
         r = d["bbox"]
+        if not curve_path(items, r):
+            continue
+        if any(i[0] == "l" for i in items):
+            # hotfix84 — an arc drawn as one Bezier: its box holds the control
+            # points (4/3 beyond the curve), so measure the curve itself.  Only
+            # for the stub-led caps this round admits; curve-only caps keep the
+            # box they were measured by before.
+            r = _curve_extent(items, pc.page.rotation_matrix)
         w, h = r.width, r.height
         if w <= 0 or h <= 0:
             continue

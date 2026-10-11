@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import bisect
 import collections
+import re
 import math
 import sys
 from dataclasses import dataclass, field
@@ -112,6 +113,55 @@ def _page_with(pages, heading: str):
             continue
         if _line_with(pc, want) is not None:
             return pc
+    # hotfix84 — the same heading in other words.  Tried only when no page
+    # prints the exact one, so a document that does (AL NOUF1 · TC2 · QFE ·
+    # SADARA · UAD) finds the same sheet as before.
+    for alt in HEADING_ALTERNATIVES.get(heading, ()):
+        for pc in pages:
+            if not pc.analysis_scope:
+                continue
+            if alt.startswith("§ "):
+                if _section_heading(pc, alt[2:].split()) is not None:
+                    return pc
+            elif _line_with(pc, alt.split()) is not None:
+                return pc
+    return None
+
+
+# hotfix84 — Takhiatash (Hyundai) numbers its legend sections and names them
+# plainly: `2. VALVES` (not `LINE VALVES`), `3. ACTUATORS` (not `VALVES
+# ACTUATORS`), and calls the signal row `ELECTRICAL SIGNAL LINE`.  A `§ ` entry
+# is a numbered section heading (`<n>. <words>`, nothing after it on the line);
+# the others are phrases printed in a row.  Printed words, not project data.
+HEADING_ALTERNATIVES = {
+    "LINE VALVES": ("§ VALVES",),
+    "VALVES ACTUATORS": ("§ ACTUATORS",),
+    "ELECTRIC SIGNAL": ("ELECTRICAL SIGNAL",),
+}
+SECTION_NUMBER = re.compile(r"^\d{1,2}\.$")
+
+
+def _section_heading(pc, want):
+    """A numbered section heading `<n>. <want>` that ends the line - or None.
+
+    The line ends where the next word on the same row starts more than the
+    heading's own letter height away (another column of the sheet)."""
+    rows = {}
+    for r, t in pidcache.tokens(pc.words):
+        half = max(r.height, 1.0) / 2
+        key = round((r.y0 + r.y1) / 2 / half)
+        rows.setdefault(key, []).append((r.x0, t, r))
+    n = len(want)
+    for items in rows.values():
+        items.sort(key=lambda it: it[0])
+        texts = [t.upper() for _x, t, _r in items]
+        for i in range(1, len(texts) - n + 1):
+            if texts[i:i + n] != want or not SECTION_NUMBER.match(texts[i - 1]):
+                continue
+            last = items[i + n - 1][2]
+            nxt = items[i + n][2] if i + n < len(items) else None
+            if nxt is None or nxt.x0 - last.x1 > last.height:
+                return items[i][2]
     return None
 
 
@@ -508,10 +558,61 @@ def legend_paper_scale(pages) -> tuple:
                    f"({len(pages) - len(legend)} of {len(pages)}) - legend lengths x{scale}")
 
 
-def legend_unit(bf) -> float:
-    """그 문서 범례의 길이 단위 (AL NOUF1 = 1.0).  나비 원을 못 재면 1.0."""
+def actuator_circle(pages):
+    """그 문서 범례의 `ACTUATORS` 열에서 **두 번 이상 그려진** 원 지름 — `(지름, 사유)`.
+
+    47회차 `detect_valves.legend_actuator_circle` 의 몸통을 옮겨 온 것이다 (hotfix84) —
+    나비 원이 없는 범례(Takhiatash 는 나비 밸브를 사각형+점으로 그린다)에서 문서의
+    길이 단위를 이 원으로 잡으려면 이 모듈이 불러야 하고, 두 벌을 두면 갈린다.
+    """
+    pc = _page_with(pages, ACTUATOR_HEADING)
+    if pc is None:
+        return None, f"no legend sheet prints '{ACTUATOR_HEADING}'"
+    head = _label(pc, "ACTUATORS")
+    column = (head.x0 - 260, head.x0 + 40) if head else (0.0, 1e9)
+    sizes = []
+    m = pc.page.rotation_matrix
+    for d in pc.drawings():
+        b = pidcache.round_box(d, m)          # hotfix84 — stub-led arcs too
+        if b is None or not (column[0] <= b.x0 and b.x1 <= column[1]):
+            continue
+        short, long_ = min(b.width, b.height), max(b.width, b.height)
+        if long_ <= 0 or short / long_ < 0.85:
+            continue
+        sizes.append(round(short, 2))
+    if not sizes:
+        return None, "the ACTUATORS column draws no circle"
+    repeated = [s for s, n in collections.Counter(sizes).items() if n >= 2]
+    if not repeated:
+        return None, ("no circle size is drawn twice in the ACTUATORS column "
+                      f"({sorted(set(sizes))})")
+    best = max(repeated)
+    return best, (f"{len(sizes)} circle(s) in the ACTUATORS column; "
+                  f"{best} is drawn {sizes.count(best)} times")
+
+
+# 47회차 — AL NOUF1 범례의 액추에이터 원 지름.  나비 원(`BUTTERFLY_CIRCLE_BASIS`)과
+# 같은 자리의 기준값이고, 나비 원을 못 잰 문서에서만 단위를 이것으로 잡는다 (hotfix84).
+ACTUATOR_CIRCLE_BASIS = 14.22
+
+
+def legend_unit(bf, pages=None) -> float:
+    """그 문서 범례의 길이 단위 (AL NOUF1 = 1.0).
+
+    나비 원을 재면 그것으로 (예전 그대로).  못 재면 `pages` 가 있을 때 범례의
+    액추에이터 원으로 (hotfix84 — Takhiatash 7.08 / 14.22 = 0.5), 그것도 없으면 1.0.
+    """
     cd = float((bf.values or {}).get("circle_diameter") or 0.0) if bf is not None else 0.0
-    return round(cd / BUTTERFLY_CIRCLE_BASIS, 4) if cd > 0 else 1.0
+    if cd > 0:
+        return round(cd / BUTTERFLY_CIRCLE_BASIS, 4)
+    if pages:
+        try:
+            ac, _why = actuator_circle(pages)
+        except Exception:                                  # noqa: BLE001
+            ac = None
+        if ac:
+            return round(float(ac) / ACTUATOR_CIRCLE_BASIS, 4)
+    return 1.0
 
 
 def derive_actuator_stem(pages, cfg, unit: float = 1.0) -> Derived:
@@ -526,14 +627,18 @@ def derive_actuator_stem(pages, cfg, unit: float = 1.0) -> Derived:
 
     # Enclosures in the symbol column: circles and closed boxes of actuator size.
     enclosures = []
+    m_enc = pc.page.rotation_matrix
     for d in pc.drawings():
         b = d["bbox"]
+        items = d["items"]
+        round_b = pidcache.round_box(d, m_enc) if items else None
+        if round_b is not None:
+            b = round_b            # hotfix84 — stub-led circles measured on the curve
         if not (column[0] <= b.x0 and b.x1 <= column[1]):
             continue
         if not (8.0 * unit <= min(b.width, b.height) <= 40.0 * unit):
             continue
-        items = d["items"]
-        if items and all(i[0] == "c" for i in items):
+        if round_b is not None:
             if min(b.width, b.height) / max(b.width, b.height) >= 0.85:
                 enclosures.append(b)
 
@@ -730,7 +835,7 @@ def derive_all(pages, cfg=None) -> dict:
     bf = derive_butterfly(pages, cfg)
     return {
         "butterfly": bf,
-        "actuator_stem": derive_actuator_stem(pages, cfg, legend_unit(bf)),
+        "actuator_stem": derive_actuator_stem(pages, cfg, legend_unit(bf, pages)),
         "pneumatic": derive_pneumatic(pages, cfg),
     }
 

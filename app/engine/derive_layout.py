@@ -43,6 +43,9 @@ FRAME_SPAN = 0.85
 # than as something one drawing happens to contain.  A form is on every page; a
 # drawing's own content is not.  Again a majority, not a threshold on a value.
 FORM_PAGES = 0.8
+# A rule closer than this to the paper's edge is the paper's outline (hotfix84).
+# One point, the same width `_frame.keep` allows a form line to wander.
+PAPER_EDGE = 1.0
 
 
 @dataclass
@@ -110,6 +113,74 @@ def _rules(pc):
     return merge(V), merge(H)
 
 
+def _box_edges(pc, W, H):
+    """The sheet-spanning edges of rectangles and quads (`re` · `qu` items).
+
+    hotfix84 — Takhiatash (Hyundai) draws its whole border as **one quad**
+    (`qu` [29, 8, 1184, 834] on every page), not as line segments, and
+    `pc.segments()` hands back `l` items only — so no rule spanned the sheet
+    and the form could not be measured at all (TitleBlockUnreadable on 60/60).
+    Only edges that already pass the frame test are returned, so a document
+    that draws its border with lines gets nothing new here: the small boxes of
+    a title block or a symbol never reach `FRAME_SPAN` of the sheet.
+    """
+    m = pc.page.rotation_matrix
+    V, Hh = [], []
+    for d in pc.drawings():
+        for it in d["items"]:
+            if it[0] == "re":
+                q = pymupdf.Rect(it[1]).quad
+            elif it[0] == "qu":
+                q = pymupdf.Quad(it[1])
+            else:
+                continue
+            q = q * m
+            pts = [q.ul, q.ur, q.lr, q.ll]
+            for a, b in zip(pts, pts[1:] + pts[:1]):
+                if abs(a.x - b.x) < 0.5 and abs(a.y - b.y) > FRAME_SPAN * H:
+                    V.append((round(a.x, 1), min(a.y, b.y), max(a.y, b.y)))
+                elif abs(a.y - b.y) < 0.5 and abs(a.x - b.x) > FRAME_SPAN * W:
+                    Hh.append((round(a.y, 1), min(a.x, b.x), max(a.x, b.x)))
+    return V, Hh
+
+
+# The form's own heading over its notes (hotfix84).  A printed word, like the
+# captions below - not project data.
+NOTES_HEADING = "NOTES"
+
+
+def _notes_heading(pages, left, right):
+    """Where the form prints its NOTES heading, when it draws no notes column.
+
+    Returns `(x0, y0, height, pages)` of the place most pages print it, or None.
+    The place must be in the right half of the sheet and be shared by at least
+    half of the pages - a heading a drawing happens to contain is on one page.
+    """
+    spots = []
+    for i, pc in enumerate(pages):
+        for r, t in pc.words:
+            if t.upper().rstrip(":") == NOTES_HEADING and r.x0 > (left + right) / 2:
+                spots.append((r.x0, r.y0, r.height, i))
+    groups = []
+    for x, y, h, i in sorted(spots):
+        for g in groups:
+            if abs(g[0][0] - x) <= 1.0 and abs(g[0][1] - y) <= 1.0:
+                g.append((x, y, h, i))
+                break
+        else:
+            groups.append([(x, y, h, i)])
+    best = max(groups, key=lambda g: len({i for *_, i in g}), default=None)
+    if not best:
+        return None
+    n = len({i for *_, i in best})
+    if n < 2 or n < 0.5 * len(pages):
+        return None
+    xs = sorted(x for x, *_ in best)
+    ys = sorted(y for _, y, *_ in best)
+    hs = sorted(h for _, _, h, _ in best)
+    return xs[len(xs) // 2], ys[len(ys) // 2], hs[len(hs) // 2], n
+
+
 def _frame(pages) -> tuple:
     """The sheet's border and the title-block column edge.
 
@@ -150,6 +221,26 @@ def _frame(pages) -> tuple:
         return sorted(g[len(g) // 2] for g, seen in out if len(seen) >= need)
 
     xs, ys = keep(vx), keep(hy)
+    if len(xs) < 2 or len(ys) < 2:
+        # hotfix84 — no frame drawn with lines: try the sheet's rectangles and
+        # quads.  Only here, so a form that does draw its frame with lines
+        # (AL NOUF1 · TC2 · QFE - TC2 also strokes two quads round the paper)
+        # is measured exactly as before.
+        for i, pc in enumerate(pages):
+            bv, bh = _box_edges(pc, W, H)
+            vx += [(x, i) for x, lo, hi in bv]
+            hy += [(y, i) for y, lo, hi in bh]
+        xs, ys = keep(vx), keep(hy)
+    # hotfix84 — a rule on the paper's own edge is the paper, not the form.
+    # Takhiatash outlines every page with a hairline exactly on its edge
+    # (x 0 / 1190.8) and draws its real border as a quad inside it; taken as the
+    # border, the quad's right edge looked like a title-block column 7pt wide
+    # and the notes were looked for in that strip.  Dropped only when two rules
+    # remain inside, so a form whose border *is* the paper edge keeps it.
+    for vals, size in ((xs, W), (ys, H)):
+        inside = [v for v in vals if PAPER_EDGE < v < size - PAPER_EDGE]
+        if len(inside) >= 2 and len(inside) < len(vals):
+            vals[:] = inside
     if len(xs) < 2 or len(ys) < 2:
         return None
     # The border is the outermost pair; the drawing sits inside it.
@@ -1008,15 +1099,29 @@ def derive(pages, cfg=None) -> Layout:
             f"border rules at x {left:.1f}/{right:.1f} and y {top:.1f}/{bottom:.1f}; "
             f"the title block's column edge is the innermost full-height rule "
             f"right of centre, at x {column:.1f}")
-    lay.add("regions.notes_area",
-            [round(column, 1), round(top, 1), round(W, 1), round(bottom, 1)],
-            f"the column right of x {column:.1f}, between the border rules")
-    # The notes text stops at the column's own inner rule where the form draws
-    # one; otherwise at the sheet edge.
     inner = [x for x in xs if column < x < right]
-    lay.add("regions.notes_text_x_max", round(inner[-1] if inner else right, 1),
-            (f"inner rule of the notes column at x {inner[-1]:.1f}" if inner
-             else f"no inner rule; the sheet edge at x {right:.1f}"))
+    head = _notes_heading(pages, left, right) if column >= right else None
+    if head is not None:
+        # hotfix84 — the form draws no column for its notes (the title block is
+        # a box in the corner, not a full-height strip); the notes sit inside
+        # the drawing under a heading the form prints at one place on most pages.
+        hx, hy, hh, n = head
+        lay.add("regions.notes_area",
+                [round(hx - hh, 1), round(hy, 1), round(right, 1), round(bottom, 1)],
+                f"no notes column is drawn; the form prints its NOTES heading at "
+                f"x {hx:.1f} y {hy:.1f} on {n} of {len(pages)} pages - from there "
+                f"to the border")
+        lay.add("regions.notes_text_x_max", round(right, 1),
+                f"no notes column; the border at x {right:.1f}")
+    else:
+        lay.add("regions.notes_area",
+                [round(column, 1), round(top, 1), round(W, 1), round(bottom, 1)],
+                f"the column right of x {column:.1f}, between the border rules")
+        # The notes text stops at the column's own inner rule where the form draws
+        # one; otherwise at the sheet edge.
+        lay.add("regions.notes_text_x_max", round(inner[-1] if inner else right, 1),
+                (f"inner rule of the notes column at x {inner[-1]:.1f}" if inner
+                 else f"no inner rule; the sheet edge at x {right:.1f}"))
 
     tb = _title_block(pages, column, right)
     vocab_found = tb.get("_captions_vocab") or {}
@@ -1181,7 +1286,7 @@ def derive(pages, cfg=None) -> Layout:
     # derivation, so the value stays configured and this records what was seen.
     try:
         import legend_rules as _lr
-        _unit = _lr.legend_unit(_lr.derive_butterfly(pages, cfg))
+        _unit = _lr.legend_unit(_lr.derive_butterfly(pages, cfg), pages)
     except Exception:                                      # noqa: BLE001
         _unit = 1.0
     dash = _dash_geometry(pages, (left, top, column, bottom), _unit)

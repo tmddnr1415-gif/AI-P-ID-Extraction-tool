@@ -653,12 +653,12 @@ def _filled_paths(pc, lay: ValveLayout):
 def _round_paths(pc, lay: ValveLayout):
     """Curve-only paths: circles, discs and arcs."""
     out = []
+    m = pc.page.rotation_matrix
     for d in pc.drawings():
-        items = d["items"]
-        if not items or any(i[0] != "c" for i in items):
-            continue
-        b = d["bbox"]
-        if b.width <= 0 or b.height <= 0:
+        # hotfix84 — `pidcache.round_box`: curve-only paths as before, plus
+        # arcs led in by tiny straight stubs (Takhiatash's M circles).
+        b = pidcache.round_box(d, m)
+        if b is None:
             continue
         if _in_area(b, lay.drawing_area):
             out.append(b)
@@ -930,32 +930,8 @@ def legend_actuator_circle(pages, lay: ValveLayout = None):
 
     못 찾으면 `None` 이고 그 사유를 함께 낸다 — 조용히 폴백하지 않는다.
     """
-    lay = lay or LAYOUT
-    pc = legend_rules._page_with(pages, legend_rules.ACTUATOR_HEADING)
-    if pc is None:
-        return None, f"no legend sheet prints '{legend_rules.ACTUATOR_HEADING}'"
-    head = legend_rules._label(pc, "ACTUATORS")
-    column = (head.x0 - 260, head.x0 + 40) if head else (0.0, 1e9)
-    sizes = []
-    for d in pc.drawings():
-        b, items = d["bbox"], d["items"]
-        if not items or not (column[0] <= b.x0 and b.x1 <= column[1]):
-            continue
-        if not all(i[0] == "c" for i in items):
-            continue
-        short, long_ = min(b.width, b.height), max(b.width, b.height)
-        if long_ <= 0 or short / long_ < 0.85:
-            continue
-        sizes.append(round(short, 2))
-    if not sizes:
-        return None, "the ACTUATORS column draws no circle"
-    repeated = [s for s, n in collections.Counter(sizes).items() if n >= 2]
-    if not repeated:
-        return None, ("no circle size is drawn twice in the ACTUATORS column "
-                      f"({sorted(set(sizes))})")
-    best = max(repeated)
-    return best, (f"{len(sizes)} circle(s) in the ACTUATORS column; "
-                  f"{best} is drawn {sizes.count(best)} times")
+    # hotfix84 — 재는 곳은 `legend_rules.actuator_circle` 하나 (문서 단위도 그것을 쓴다).
+    return legend_rules.actuator_circle(pages)
 
 
 def find_bodies(pc, lay: ValveLayout = LAYOUT,
@@ -1479,6 +1455,7 @@ def _actuator_shells(pc, lay: ValveLayout, disabled=frozenset()):
     # letters are derived from, so `--without PNEUMATIC_SHELL` would measure
     # something that is neither the old detector nor the new one.
     index = None if "PNEUMATIC_SHELL" in disabled else _pneumatic_index(pc, lay)
+    m_rot = pc.page.rotation_matrix
     for d in pc.drawings():
         items = d["items"]
         if not items:
@@ -1486,6 +1463,17 @@ def _actuator_shells(pc, lay: ValveLayout, disabled=frozenset()):
         b = d["bbox"]
         if not _in_area(b, lay.drawing_area):
             continue
+        if not all(i[0] == "c" for i in items):
+            # hotfix84 — a circle drawn as arcs led in by tiny stubs (Takhiatash's
+            # M circle: two arcs and six 0.6 pt pieces) is a circle; its `bbox`
+            # holds the control points, so it is measured on the drawn curve.
+            rb = pidcache.round_box(d, m_rot)
+            if rb is not None:
+                if (lay.act_box[0] <= rb.width <= lay.act_box[1]
+                        and lay.act_box[0] <= rb.height <= lay.act_box[1]
+                        and min(rb.width, rb.height) / max(rb.width, rb.height) >= 0.75):
+                    shells.append(("circle", rb))
+                continue
         if index is not None and _is_dome(b, items, lay, index[0]):
             # Tested before the size and squareness checks below, neither of
             # which a dome can pass: it is half as deep as it is wide.

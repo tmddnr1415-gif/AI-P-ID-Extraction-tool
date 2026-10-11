@@ -346,12 +346,120 @@ def derive(pages, cfg=None) -> IsaTable:
                 note_tail = (f" · succeeding {len(cells)} from '( ) X' cells "
                              f"on p{cand.page_no}")
                 break
+    if not succeeding and succ is not None:
+        # ★ hotfix84 — the **list form** (DIN 19227 · Takhiatash p4): one row per
+        # letter, `<letter> | measured variable | modifier | display or output
+        # function`, under one `FIRST LETTER` / `SUCCEEDING LETTERS` heading.
+        # Neither the matrix's `TYPICAL SYMBOL` row nor `( ) X` cells exist, so
+        # both readers above come back empty and every function letter (`T` =
+        # TRANSMITTING, `I` = INDICATION, `C` = CONTROLLING) was unknown.  Only
+        # reached when those two found nothing - AL NOUF1 · TC2 · SADARA · UAD ·
+        # QFE do not get here.
+        listed = _list_form(pc, head, succ, column, pitch)
+        if listed is not None:
+            first, succeeding = listed
+            note_tail = " · read as a one-row-per-letter list (first | modifier | function)"
     return IsaTable(first={k: tuple(v) for k, v in first.items() if v},
                     succeeding={k: tuple(v) for k, v in succeeding.items()},
                     page_no=pc.page_no,
                     note=f"legend p{pc.page_no} identification matrix: "
                          f"{len(first)} first letters, "
                          f"{len(succeeding)} succeeding letters" + note_tail)
+
+
+def _list_form(pc, head, succ, column, pitch):
+    """The identification table printed as a list: `(first, succeeding)` or None.
+
+    Columns come from the sub-heading row the table prints right under its
+    heading (`MEASURED OR INITIATING VARIABLE | MODIFIER | DISPLAY OR OUTPUT
+    FUNCTIONS`): its words, grouped where they are further apart than their own
+    letter height, are the columns, and a word belongs to the column whose
+    group it starts after.  The last column runs right while the words touch
+    (no wider gap than two letter heights), so the next table on the sheet is
+    not read into it.  A modifier (`D` DIFFERENCE, `F` RATIO) is what the
+    table says it is - a letter that follows the first letter - so it becomes
+    the two-letter first entries `PD` = PRESSURE DIFFERENCE etc.
+    """
+    words = [(r, t) for r, t in dedupe_overprint(pc.words) if r.y0 > head.y1]
+    if not words or not column:
+        return None
+    # the sub-heading row: the first text row under the heading that reaches
+    # the SUCCEEDING heading's column
+    rows = _line_groups(words)
+    sub = next((ln for ln in rows
+                if any(abs(r.x0 - succ.x0) <= succ.height for r, _t in ln)
+                and all(not (len(t) == 1 and t.isalpha()) for rr, t in ln
+                        if rr.x1 < succ.x0)), None)
+    if sub is None:
+        return None
+    sub = [(r, t) for r, t in sub if r.x0 >= column[0][0].x1 - 1]
+    groups = []
+    for r, t in sorted(sub, key=lambda rt: rt[0].x0):
+        if groups and r.x0 - groups[-1][-1][0].x1 <= max(r.height, 1.0):
+            groups[-1].append((r, t))
+        else:
+            groups.append([(r, t)])
+    # the function column is the group under the SUCCEEDING heading; anything
+    # right of it on that row belongs to another table on the sheet
+    fi = next((i for i, g in enumerate(groups)
+               if abs(g[0][0].x0 - succ.x0) <= succ.height), None)
+    if fi is None:
+        return None
+    groups = groups[:fi + 1]
+    if len(groups) < 2:
+        return None
+    starts = [g[0][0].x0 for g in groups]
+    ends = [g[-1][0].x1 for g in groups]
+    bounds = [(ends[i - 1] + starts[i]) / 2 for i in range(1, len(groups))]
+    func_i = len(groups) - 1
+    mod_i = 1 if len(groups) >= 3 else None
+    sub_y = max(r.y1 for r, _t in sub)
+
+    letter_y = {t: ((r.y0 + r.y1) / 2, r.y0, r.y1) for r, t in column}
+    letter_x1 = max(r.x1 for r, _t in column)
+
+    def owner(cy):
+        for t, (_c, y0, y1) in letter_y.items():
+            if y0 <= cy <= y1:
+                return t
+        near = min(letter_y.items(), key=lambda kv: abs(kv[1][0] - cy), default=None)
+        if near and pitch and abs(near[1][0] - cy) <= pitch / 2:
+            return near[0]
+        return None
+
+    cols = {i: collections.defaultdict(list) for i in range(len(groups))}
+    for ln in rows:
+        if min(r.y0 for r, _t in ln) <= sub_y:
+            continue
+        cy = sum((r.y0 + r.y1) / 2 for r, _t in ln) / len(ln)
+        who = owner(cy)
+        if who is None:
+            continue
+        last_x1 = None
+        for r, t in ln:
+            if r.x0 <= letter_x1:
+                continue
+            i = sum(1 for b in bounds if r.x0 >= b)
+            if i == func_i:
+                gap = (r.x0 - last_x1 if last_x1 is not None
+                       else r.x0 - starts[func_i])
+                if gap > 2 * max(r.height, 1.0):
+                    break
+                last_x1 = r.x1
+            word = t.strip(",;")
+            if not any(c.isalpha() for c in word) or "(" in word or ")" in word:
+                continue
+            cols[i][who].append(word.upper())
+    first = {k: v for k, v in cols[0].items() if v}
+    succeeding = {k: v for k, v in cols[func_i].items() if v}
+    if mod_i is not None:
+        for m, mw in cols[mod_i].items():
+            for f, fw in list(first.items()):
+                if len(f) == 1 and m != f:
+                    first.setdefault(f + m, fw + mw)
+    if not succeeding:
+        return None
+    return first, succeeding
 
 
 # `( ) AL` — 한 조각으로 인쇄된 칸.  낱말이 갈라져 오면(`(` · `)` · `AL`) 줄 안에서

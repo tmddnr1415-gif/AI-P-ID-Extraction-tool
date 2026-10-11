@@ -709,7 +709,7 @@ def _sheet_rows(sh, meta_, blocks, inst_blocks, valve_blocks, act_blocks, roles,
         if undefined and default is not None:
             # hotfix21 — PDF 경로와 같은 규칙 (`pipeline._default_multiplier`)
             codes.append(P.DEFAULT_MULT_CODE)
-            reasons.append(P.DEFAULT_MULT_REASON % unit)
+            reasons.append(P.default_mult_reason(unit))
             q = default
         elif undefined:
             codes.append("MULTIPLIER_UNDEFINED")
