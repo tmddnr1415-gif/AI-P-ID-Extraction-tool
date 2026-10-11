@@ -147,3 +147,21 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-rows li.ftwarn { background: #fff7e6; box-shadow: inset 3px 0 0 #d08a14; }
 .lg-rows .ftline.warn { color: #9a6200; }
 #sheet-list .meta i.dd { color: #9a6200; font-style: normal; }
+
+/* FROM / TO 표기 · 이동 (L6) */
+#ov .reftag { fill: transparent; stroke-width: .8; cursor: pointer; }
+#ov .reftag.from { stroke: #0f8f80; }
+#ov .reftag.to { stroke: #7b4dff; }
+#ov .reftag.other { stroke-dasharray: 1.5 1; opacity: .6; cursor: help; }
+#ov .reftag:hover { fill: rgba(15,143,128,.14); stroke-width: 1.4; }
+#ov .reftag.to:hover { fill: rgba(123,77,255,.12); }
+#ov .reftxt { font: 700 3.4px system-ui, sans-serif; pointer-events: none; }
+#ov .reftxt.from { fill: #0f8f80; }
+#ov .reftxt.to { fill: #7b4dff; }
+#ov .goto { fill: rgba(255,214,0,.28); stroke: #e0a800; stroke-width: 1.2; pointer-events: none; animation: lggoto .55s ease-in-out 4 alternate; }
+#ov .goto.still { animation: none; }
+@keyframes lggoto { from { fill-opacity: .15; stroke-width: .6 } to { fill-opacity: 1; stroke-width: 2 } }
+.lg-rows .ref.from { color: #0f8f80; }
+.lg-rows .ref.to { color: #7b4dff; }
+.lg-rows li.goto { background: #fff3bf !important; }
+#go-back:disabled { opacity: .45; cursor: default; }

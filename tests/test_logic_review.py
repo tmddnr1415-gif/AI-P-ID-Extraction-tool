@@ -236,6 +236,15 @@ def test_api_round_trip(tmp_path, monkeypatch):
     assert len(sheets) == 1
     s = client.get(f"/logic/api/jobs/{job}/sheet/1").json()
     assert s["nets"] and s["order"]
+    # L6: 표 행마다 칸 자리 — FROM(FM) 칸 · TO 칸 · NO. 칸 (도면 위 표기와 이동에 쓴다)
+    L = [t for t in s["table"] if t["side"] == "L"]
+    R = [t for t in s["table"] if t["side"] == "R"]
+    assert L and all("fm_box" in t and "no_box" in t for t in L)
+    assert R and all("to_box" in t and "no_box" in t for t in R)
+    for t in L + R:                                     # 칸은 그 행의 세로 범위 그대로
+        for k in ("fm_box", "to_box", "no_box"):
+            if t.get(k):
+                assert t[k][1] == round(t["y0"], 2) and t[k][3] == round(t["y1"], 2) and t[k][0] < t[k][2]
     sim_r = client.post(f"/logic/api/jobs/{job}/sheet/1/simulate", json={"forces": {"row:1": 1, "bad": 3}}).json()
     assert sim_r["frames"]
     tr = client.post(f"/logic/api/jobs/{job}/sheet/1/trace", json={"start": "row:1"}).json()

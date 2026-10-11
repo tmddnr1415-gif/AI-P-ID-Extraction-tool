@@ -111,7 +111,7 @@ def _rows(sh, D):
             cells = []
             for i in range(len(cs) - 1):
                 cells.append(cell_text(cs[i], cs[i + 1], a, b))
-            out.append({"n": n, "side": side, "y0": a, "y1": b, "cells": cells})
+            out.append({"n": n, "side": side, "y0": a, "y1": b, "cells": cells, "xs": list(cs)})
     # 칸 이름 — 행 번호 칸(글자가 행 번호와 같은 칸)을 기준으로 앞뒤를 정한다
     for side in ("L", "R"):
         rs = [r for r in out if r["side"] == side]
@@ -122,6 +122,16 @@ def _rows(sh, D):
         k_no = max(range(ncell), key=lambda k: hit[k]) if hit else None
         for r in rs:
             c = r["cells"]
+            xs = r.pop("xs")
+
+            def box(k, r=r, xs=xs):
+                return [round(xs[k], 2), round(r["y0"], 2), round(xs[k + 1], 2), round(r["y1"], 2)] \
+                    if k is not None and 0 <= k < len(xs) - 1 else None
+            r["no_box"] = box(k_no)
+            if side == "L":
+                r["fm_box"] = box(k_no - 1 if k_no else None)
+            else:
+                r["to_box"] = box(k_no + 1 if k_no is not None else None)
             r["no_read"] = c[k_no] if k_no is not None else ""
             if side == "L":
                 r["fm"] = c[k_no - 1] if k_no and k_no >= 1 else ""
@@ -227,7 +237,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             continue
         info = rmap.get((r["side"], r["n"]), {})
         srows.append({"n": r["n"], "side": r["side"], "net": str(r["net"]), "at": list(r["at"]),
-                      **{k: v for k, v in info.items() if k in ("fm", "desc", "kks", "to", "no_read", "y0", "y1")}})
+                      **{k: v for k, v in info.items() if k in ("fm", "desc", "kks", "to", "no_read", "y0", "y1", "fm_box", "to_box", "no_box")}})
     lay = sh.layout
     out = {
         "page": pno, "sheet_no": sheet_no or "", "title": title,

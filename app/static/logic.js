@@ -9,6 +9,7 @@ const L = {
   forces: {}, state: null, frames: null, values: {}, anim: [], sel: null, busy: false,
   // 묶음 전체 (L4): 장마다 사람이 준 값 · 장마다 상태 · 다른 장에서 연결로 들어온 입력 · 활성 연결 장 목록
   allForces: {}, states: {}, linked: {}, chain: [],
+  focus: null, back: [], afterFit: null,          // FROM/TO 로 간 행 · 돌아갈 자리 (L6)
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -92,7 +93,7 @@ function renderSheetList() {
     if (ch) li.classList.add("chain");
     li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
       <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
-    li.onclick = () => openSheet(s.page);
+    li.onclick = () => { L.focus = null; openSheet(s.page); };
     ul.appendChild(li);
   }
 }
@@ -131,6 +132,8 @@ function fit() {
   const w = x1 - x0 + 20, h = lg[3] - lg[1] + 40;
   L.zoom = Math.min(st.clientWidth / w, st.clientHeight / h);
   setZoom(L.zoom, null, [x0 - 10, lg[1] - 20]);
+  if (L.focus && L.focus.page === L.sheet.page) focusRow();
+  else if (L.afterFit) { const f = L.afterFit; L.afterFit = null; f(); }
 }
 function tableX() {
   const s = L.sheet, fr = s.frame, W = (s.size && s.size[0]) || s.logic[2] + 200;
@@ -241,12 +244,120 @@ function drawOverlay() {
       }
     }
   }
+  drawRefTags(ov);
   for (const f of s.findings) {
     if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
   }
+  if (L.focus && L.focus.page === s.page) drawGoto();
   $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   paint();
+}
+/* ------------------------------------------------------------------ FROM / TO 표기 · 그 시트 그 행으로 이동 (L6)
+
+   FM 칸 `G049-40` = G049 시트 40행(오른쪽 출력)에서 온 신호 · TO 칸 `G025-7` = G025 시트 7행(왼쪽 입력)으로 가는 신호.
+   표기는 표가 적은 그 칸 위에, 누르면 그 시트의 그 행으로 간다. */
+
+const REF_RE = /([A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)/g;
+function refsIn(text) {
+  const out = [];
+  for (const m of String(text || "").replace(/\s+/g, "").matchAll(REF_RE)) out.push({ sheet: m[1], row: Number(m[2]) });
+  return out;
+}
+function sheetByNo(no) { return L.sheets.find((x) => x.sheet_no === no); }
+function drawRefTags(ov) {
+  const s = L.sheet;
+  const g = el("g", { id: "g-refs" }, ov);
+  for (const t of s.table || []) {
+    const box = t.side === "L" ? t.fm_box : t.to_box;
+    if (!box) continue;
+    const refs = refsIn(t.side === "L" ? t.fm : t.to);
+    if (!refs.length) continue;
+    const kind = t.side === "L" ? "from" : "to";
+    const ok = refs.some((r) => sheetByNo(r.sheet));
+    const rc = el("rect", { x: box[0] + 0.4, y: box[1] + 0.4, width: box[2] - box[0] - 0.8, height: box[3] - box[1] - 0.8,
+      class: `reftag ${kind}${ok ? "" : " other"}`, "data-side": t.side, "data-row": t.n }, g);
+    const tag = kind === "from" ? "FROM" : "TO";
+    const tx = el("text", { x: kind === "from" ? box[0] - 1 : box[2] + 1, y: (box[1] + box[3]) / 2 + 1.5,
+      class: `reftxt ${kind}`, "text-anchor": kind === "from" ? "end" : "start" }, g);
+    tx.textContent = tag;
+    const list = refs.map((r) => `${r.sheet} 시트 ${r.row}행` + (sheetByNo(r.sheet) ? "" : " (이 묶음에 없음)")).join(", ");
+    el("title", {}, rc).textContent = `${tag} ${refs.map((r) => r.sheet + "-" + r.row).join(", ")} → ${list}${ok ? " — 누르면 그 행으로 갑니다" : ""}`;
+    rc.addEventListener("click", (e) => {
+      if (L.justPanned) return;
+      e.stopPropagation();
+      chooseRef(refs, t.side === "L" ? "R" : "L", e);
+    });
+  }
+}
+/* 여러 곳이면 고르는 작은 메뉴, 하나면 바로 */
+function chooseRef(refs, side, e) {
+  const go = refs.filter((r) => sheetByNo(r.sheet));
+  if (!go.length) { status(`${refs.map((r) => r.sheet).join(", ")} 시트는 이 묶음에 없습니다 (다른 묶음 · Loop 등)`); return; }
+  if (go.length === 1) { goToRef(go[0].sheet, go[0].row, side); return; }
+  closeForceMenu();
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu";
+  m.innerHTML = `<div class="fm-h">어느 곳으로 갈까요</div>` + go.map((r, i) => `<button data-i="${i}">${esc(r.sheet)}-${r.row} <small>${esc((sheetByNo(r.sheet) || {}).title || "")}</small></button>`).join("");
+  document.body.appendChild(m);
+  const rr = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(e.clientX + 8, innerWidth - rr.width - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(e.clientY + 8, innerHeight - rr.height - 4)) + "px";
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest("button[data-i]");
+    if (!b) return;
+    closeForceMenu();
+    const r = go[Number(b.dataset.i)];
+    goToRef(r.sheet, r.row, side);
+  });
+}
+/* 그 시트 그 행으로 — 지금 자리는 '이전 위치' 로 남긴다 */
+function goToRef(sheetNo, row, side) {
+  const t = sheetByNo(sheetNo);
+  if (!t) { status(`${sheetNo} 시트는 이 묶음에 없습니다`); return; }
+  if (L.sheet) {
+    const st = $("#stage");
+    L.back.push({ page: L.page, zoom: L.zoom, sl: st.scrollLeft, stp: st.scrollTop });
+    $("#go-back").disabled = false;
+  }
+  L.focus = { page: t.page, row, side, at: Date.now() };
+  if (t.page === L.page) { drawOverlay(); focusRow(); }
+  else openSheet(t.page);
+}
+function goBack() {
+  const b = L.back.pop();
+  $("#go-back").disabled = !L.back.length;
+  if (!b) return;
+  L.focus = null;
+  const restore = () => { setZoom(b.zoom); const st = $("#stage"); st.scrollLeft = b.sl; st.scrollTop = b.stp; };
+  if (b.page === L.page) { drawOverlay(); restore(); }
+  else { L.afterFit = restore; openSheet(b.page); }
+}
+function focusRow() {
+  const f = L.focus, s = L.sheet;
+  if (!f || f.page !== s.page) return;
+  const t = (s.table || []).find((x) => x.n === f.row && x.side === f.side) || (s.table || []).find((x) => x.n === f.row);
+  if (!t) { status(`${s.sheet_no} 시트에 ${f.row}행이 없습니다`); return; }
+  const st = $("#stage");
+  const [fx0, fx1] = tableX();
+  const cx = t.side === "L" ? (fx0 + s.logic[0]) / 2 : (s.logic[2] + fx1) / 2;
+  const z = Math.max(L.zoom, 1.6);
+  setZoom(z);
+  st.scrollLeft = cx * L.zoom - st.clientWidth / 2;
+  st.scrollTop = ((t.y0 + t.y1) / 2) * L.zoom - st.clientHeight / 2;
+  status(`${s.sheet_no} 시트 ${f.row}행 (${t.side === "L" ? "입력 · FM " + (t.fm || "없음") : "출력 · TO " + (t.to || "없음")}) — ${t.desc || "설명 없음"}`);
+  const li = document.querySelector(`#${t.side === "L" ? "in" : "out"}-rows li[data-row="${f.row}"]`);
+  if (li) { li.classList.add("goto"); li.scrollIntoView({ block: "nearest" }); setTimeout(() => li.classList.remove("goto"), 2600); }
+}
+function drawGoto() {
+  const f = L.focus, s = L.sheet;
+  const t = (s.table || []).find((x) => x.n === f.row && x.side === f.side) || (s.table || []).find((x) => x.n === f.row);
+  if (!t) return;
+  const [fx0, fx1] = tableX();
+  const x0 = t.side === "L" ? fx0 : s.logic[2], x1 = t.side === "L" ? s.logic[0] : fx1;
+  const r = el("rect", { x: x0, y: t.y0, width: x1 - x0, height: t.y1 - t.y0, class: "goto" }, $("#ov"));
+  if (Date.now() - f.at > 3000) r.classList.add("still");
 }
 function badgeText(b) {
   if (b.func === "UNKNOWN") return "?";
@@ -511,12 +622,17 @@ function renderRows() {
   const s = L.sheet;
   if (!s) return;
   const mk = (r) => {
-    const ref = r.ref ? ` <span class="ref" data-ref-page="${r.ref.page || ""}" data-ref-row="${r.ref.row}" title="그 장으로">${esc(r.fm)}</span>`
+    const ref = r.ref ? ` <span class="ref from" data-ref-sheet="${esc(r.ref.sheet)}" data-ref-row="${r.ref.row}" data-ref-side="R" title="FROM — ${esc(r.ref.sheet)} 시트 ${r.ref.row}행으로 갑니다">FROM ${esc(r.fm)}</span>`
       : r.fm ? ` <small>${esc(r.fm)}</small>` : "";
-    const ins = (r.refs_in || []).map((x) => ` <span class="ref${L.mode === "sim" && L.values[r.net] === 1 ? " hot" : ""}" data-ref-page="${x.page}" data-ref-row="${x.row}" title="이 출력을 받는 장">→${esc(x.sheet)}-${x.row}</span>`).join("");
+    const hot = L.mode === "sim" && L.values[r.net] === 1 ? " hot" : "";
+    const toRefs = r.side === "R" ? refsIn(r.to) : [];
+    const seen = new Set(toRefs.map((x) => x.sheet + "-" + x.row));
+    const extra = (r.refs_in || []).filter((x) => !seen.has(x.sheet + "-" + x.row));
+    const ins = [...toRefs, ...extra].map((x) => ` <span class="ref to${hot}" data-ref-sheet="${esc(x.sheet)}" data-ref-row="${x.row}" data-ref-side="L" title="TO — ${esc(x.sheet)} 시트 ${x.row}행으로 갑니다">TO ${esc(x.sheet)}-${x.row}</span>`).join("");
     const lk = L.mode === "sim" && r.side === "L" && r.n in L.linked && !(("row:" + r.n) in L.forces)
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
-    const to = r.to ? ` <small>→ ${esc(r.to)}</small>` : "";
+    const toRest = String(r.to || "").replace(REF_RE, "").replace(/[\s)(]+/g, " ").trim();
+    const to = r.side === "R" && toRest ? ` <small>TO ${esc(toRest)}</small>` : "";
     const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
@@ -640,7 +756,8 @@ function bind() {
   };
   $("#zoom-in").onclick = () => setZoom(L.zoom * 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
   $("#zoom-out").onclick = () => setZoom(L.zoom / 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
-  $("#zoom-fit").onclick = fit;
+  $("#zoom-fit").onclick = () => { L.focus = null; drawOverlay(); fit(); };
+  $("#go-back").onclick = goBack;
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
@@ -654,9 +771,9 @@ function bind() {
       return;
     }
     const ref = e.target.closest(".ref");
-    if (ref && ref.dataset.refPage) { openSheet(Number(ref.dataset.refPage)); return; }
+    if (ref && ref.dataset.refSheet) { goToRef(ref.dataset.refSheet, Number(ref.dataset.refRow), ref.dataset.refSide || "R"); return; }
     const cl = e.target.closest("#chain li[data-page]");
-    if (cl) { openSheet(Number(cl.dataset.page)); return; }
+    if (cl) { L.focus = null; openSheet(Number(cl.dataset.page)); return; }
     const li = e.target.closest(".lg-rows li[data-row]");
     if (li) { onRow(Number(li.dataset.row), e); return; }
     const act = e.target.closest("[data-act]");
