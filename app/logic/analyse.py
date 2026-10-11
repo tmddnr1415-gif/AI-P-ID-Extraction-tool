@@ -232,6 +232,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
     out = {
         "page": pno, "sheet_no": sheet_no or "", "title": title,
         "logic": [round(v, 2) for v in lay.logic], "pitch": lay.pitch,
+        "frame": [round(v, 2) for v in sh.frame] if sh.frame else None,
         "nets": nets, "blocks": blks, "ports": ports, "rows": srows, "table": rows,
         "dangling": [list(d) for d in sh.dangling], "stray_arrows": [list(d) for d in sh.stray_arrows],
     }

@@ -126,10 +126,15 @@ function fit() {
   if (!L.sheet) return;
   const st = $("#stage");
   const lg = L.sheet.logic;
-  // LOGIC 영역이 화면을 채우게
-  const w = lg[2] - lg[0] + 40, h = lg[3] - lg[1] + 40;
+  // 표 양쪽(FM · NO. · 설명 · KKS / KKS · 설명 · NO. · TO)까지 보이게 — from-to 는 FM 칸으로 맞추므로 그 칸이 보여야 한다
+  const [x0, x1] = tableX();
+  const w = x1 - x0 + 20, h = lg[3] - lg[1] + 40;
   L.zoom = Math.min(st.clientWidth / w, st.clientHeight / h);
-  setZoom(L.zoom, null, [lg[0] - 20, lg[1] - 20]);
+  setZoom(L.zoom, null, [x0 - 10, lg[1] - 20]);
+}
+function tableX() {
+  const s = L.sheet, fr = s.frame, W = (s.size && s.size[0]) || s.logic[2] + 200;
+  return fr ? [fr[0], fr[2]] : [0, W];
 }
 function setZoom(z, at, origin) {
   const st = $("#stage");
@@ -217,8 +222,8 @@ function drawOverlay() {
       c.classList.add("ftbad");
       if (r.y0 != null && r.y1 != null) {
         // 그 행의 표 칸을 붉게 두른다 (왼쪽 표는 LOGIC 영역 왼쪽, 오른쪽 표는 오른쪽)
-        const lg = s.logic, W = (s.size && s.size[0]) || lg[2] + 200;
-        const x0 = r.side === "L" ? Math.max(0, lg[0] - (W - lg[2])) : lg[2], x1 = r.side === "L" ? lg[0] : W;
+        const lg = s.logic, [fx0, fx1] = tableX();
+        const x0 = r.side === "L" ? fx0 : lg[2], x1 = r.side === "L" ? lg[0] : fx1;
         const bx = el("rect", { x: x0, y: r.y0, width: x1 - x0, height: r.y1 - r.y0, class: "ft-row" }, gR);
         gR.insertBefore(bx, gR.firstChild);
         el("title", {}, bx).textContent = c.querySelector("title").textContent;
@@ -514,9 +519,11 @@ function renderRows() {
 function ftText(r) {
   const f = r.ft;
   if (!f) return "";
-  if (f.ok === false) return `✕ 일치하지 않습니다 (${esc(f.peer || "?")}) — ${f.why.map(esc).join(" · ")}`;
-  if (f.ok) return `✓ 일치 (${esc(f.peer || "")})`;
-  return `확인 못 함 (${esc(f.peer || "")} — TO 가 NOTE 이거나 글자를 못 읽음)`;
+  const by = r.side === "L" ? `FM ${esc(r.fm || "")}` : `TO ${esc(f.peer || "")}`;
+  const peer = r.side === "L" && r.ref ? ` → ${esc(r.ref.sheet)} 시트 ${r.ref.row}행${r.ref.src_row && r.ref.src_row !== r.ref.row ? ` (신호 ${r.ref.src_row}행)` : ""}` : "";
+  if (f.ok === false) return `✕ 일치하지 않습니다 · ${by}${peer} — ${f.why.map(esc).join(" · ")}`;
+  if (f.ok) return `✓ 일치 · ${by}${peer}`;
+  return `확인 못 함 · ${by}${peer} — 상대 TO 가 NOTE 이거나 글자를 못 읽음`;
 }
 /* 활성이 연결을 따라 닿은 장 — 사람이 준 장에서부터 몇 장째인가 */
 function renderChain() {

@@ -329,3 +329,20 @@ def test_from_to_mismatch_is_reported():
     o85 = src["rows"][0]
     assert o85["ft"]["ok"] is False and "G035-31" in o85["ft"]["why"][0], "TO G035-31 의 FM 이 G049-96 이다"
     assert sum(f["code"] == "FT_MISMATCH" for sh in S for f in sh["findings"]) == 3
+
+
+def test_from_is_matched_by_fm_sheet_and_row_not_kks():
+    """사용자 확정: FROM 은 KKS 가 아니라 FM 칸의 시트 번호 + 행 No. 로 식별하고 맞댄다."""
+    from app.logic import fromto
+    src = {"page": 1, "sheet_no": "G048", "findings": [], "rows": [{"n": 95, "side": "R", "net": "1", "at": [0, 0]}],
+           "table": [{"side": "R", "n": 95, "desc": "PUMP READY", "to": "G025-7", "kks": "10AAA01AA001"}]}
+    dst = {"page": 2, "sheet_no": "G025", "findings": [],
+           "rows": [{"n": 7, "side": "L", "net": "1", "at": [0, 0], "fm": "G048-95", "desc": "PUMP READY", "kks": "99ZZZ99ZZ999"},
+                    {"n": 8, "side": "L", "net": "2", "at": [0, 0], "fm": "", "desc": "PUMP READY", "kks": "10AAA01AA001"}],
+           "table": [{"side": "L", "n": 7, "fm": "G048-95", "desc": "PUMP READY", "kks": "99ZZZ99ZZ999"},
+                     {"side": "L", "n": 8, "fm": "", "desc": "PUMP READY", "kks": "10AAA01AA001"}]}
+    fromto.check([src, dst])
+    r7, r8 = dst["rows"]
+    assert r7["ft"]["ok"] is True and r7["ref"] == {"sheet": "G048", "row": 95, "page": 1, "other_bundle": False, "src_row": 95}
+    assert "ft" not in r8 and "ref" not in r8, "KKS 가 같아도 FM 이 없으면 잇지 않는다"
+    assert [x["row"] for x in src["rows"][0]["refs_in"]] == [7]
