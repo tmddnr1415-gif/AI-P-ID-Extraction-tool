@@ -286,16 +286,20 @@ def notes_from_heading(pages, word, height: float):
       안 읽힌다 (시뮬레이션 실측: 공급자 이름 337칸이 사라졌다).
     · 아니면(Takhiatash 꼴 — 노트가 도면 안 오른쪽 위에 산다) 글자 왼쪽 한 글자 높이.  그 양식에는
       노트를 가르는 괘선이 없어 가장 가까운 괘선은 테두리다 (그러면 도면 전체가 노트가 된다).
-    · 위는 반 줄 위 · 오른쪽과 아래는 테두리.  새 상수 없음 — 괘선과 글자 높이뿐.
+    · 노트 열이면 위도 테두리(열 전체) · 아니면 제목 반 줄 위.  오른쪽과 아래는 테두리.
+      새 상수 없음 — 괘선과 글자 높이뿐.
     `pages` 는 같은 종이의 장들(`_form_pages` 의 다수)이다."""
     h = max(float(height), 1.0)
     fr = _frame(pages) if pages else None
     if fr is None:
         W, H = (float(pages[0].width), float(pages[0].height)) if pages else (word.x1 + h, word.y1 + h)
         return [word.x0 - h, word.y0 - 0.5 * h, W, H]
-    _l, _t, r, b, column, _xs, _ys = fr
-    left = column if column < r - 1 and word.x0 >= column else word.x0 - h
-    return [left, word.y0 - 0.5 * h, r, b]
+    _l, t, r, b, column, _xs, _ys = fr
+    if column < r - 1 and word.x0 >= column:
+        # 노트 **열** — 그 열 전체 (위는 테두리).  제목 줄은 장마다 높이가 달라, 누른 장의 제목에서
+        # 자르면 다른 장에서 그 위에 인쇄한 별표 정의가 빠진다 (QFE 실측: 공급자 이름 213칸).
+        return [column, t, r, b]
+    return [word.x0 - h, word.y0 - 0.5 * h, r, b]
 
 
 def _title_column(xs, W, right):
@@ -1184,6 +1188,10 @@ def derive(pages, cfg=None) -> Layout:
                  else f"no inner rule; the sheet edge at x {right:.1f}"))
 
     tb = _title_block(pages, column, right)
+    if pidcache.teach_blind("titleblock"):
+        # hotfix85 시뮬레이션 — 타이틀블록 칸을 캡션·구조로 스스로 찾지 않는다 (사람이 도면번호를
+        # 누르는 길을 실물로 시험하려고).  운영에서는 켜지 않는다.
+        tb = {"_blind": True}
     vocab_found = tb.get("_captions_vocab") or {}
     for name, key in (("project_name", "title_block.project_name_region"),
                       ("title", "title_block.title_region"),
@@ -1214,7 +1222,7 @@ def derive(pages, cfg=None) -> Layout:
     # 빈 채로 남고 AL NOUF1 좌표가 그대로 쓰여 한 장도 안 읽힌다.  캡션 낱말을 더
     # 외우지 않고 **구조**로 찾는다 — 장마다 같은 자리에 되풀이되는 코드 번호 중
     # 값이 장마다 다른 것 (`_recurring_numbers`).  캡션이 찾은 문서는 여기 안 온다.
-    if "dwg_no_region" not in tb:
+    if "dwg_no_region" not in tb and not tb.get("_blind"):
         cands = _recurring_numbers(pages)
         if cands:
             best = cands[0]

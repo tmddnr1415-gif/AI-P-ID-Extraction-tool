@@ -2134,10 +2134,60 @@ def _sheet_number_targets(job_id: str) -> dict:
                     "page_kind": p.get("page_kind") or "",
                     "from_user": str(no) in {str(k) for k in applied},
                     "set": rec or None})
+    stroke = _stroke_only_pages(job, [o["page_no"] for o in out])
+    for o in out:
+        o["stroke_only"] = o["page_no"] in stroke
     return {"project": job["project"] or "", "sheets": out,
             "enabled": saved.get("enabled", True),
+            "stroke_only": sorted(stroke),
             "note": "도면에서 읽힌 장은 여기 없습니다 — 사람은 도면을 이기지 "
                     "않습니다.  적은 값은 **다시 분석해야** 반영됩니다."}
+
+
+def _stroke_only_pages(job, page_nos) -> set:
+    """hotfix85 — 글자가 **선(획)으로만** 그려진 장.  그런 장은 사람이 무엇을 짚어도 계기 글자를 못 읽는다
+    — DXF 로 올리는 길을 알려야 한다 (사용자: *"UAD 처럼 완전히 읽을 수 없다면 DXF 로 변환해 올려
+    달라는 안내"*).
+
+    잣대는 그 문서 자신이다: 그 장의 낱말(텍스트 + `AutoCAD SHX Text` 주석) 수가 **이 문서 모든 장의
+    위 사분위 값의 10분의 1** 에도 못 미치고 선은 있는 장.  UAD p11~p15 실측 0~28 낱말 ↔ 같은 문서의 본문
+    945~1,039 낱말 (45회차).  절대 개수가 아니라 그 문서와의 비라 종이·양식이 달라도 따라간다.
+    PDF 를 열어 낱말만 센다 — 판정 엔진을 돌리지 않는다."""
+    nos = {int(n) for n in page_nos or []}
+    if not nos:
+        return set()
+    try:
+        import pymupdf
+        import pidcache
+        path = Path(job["pdf_path"] or "")
+        if not path.exists() or path.suffix.lower() != ".pdf":
+            return set()
+        doc = pymupdf.open(path)
+    except Exception:                                    # noqa: BLE001
+        return set()
+    try:
+        counts = {}
+        for i, page in enumerate(doc):
+            try:
+                n = len(page.get_text("words")) + len(pidcache._shx_entries(page, page.rotation_matrix))
+            except Exception:                            # noqa: BLE001
+                n = 0
+            counts[i + 1] = n
+        # 잣대 — 이 문서 **모든 장** 낱말 수의 위 사분위.  "나머지 장" 의 중앙값으로 재면 물은 장이 곧 전부일 때
+        # (가르치기 판은 도면 장 전부를 묻는다) 잴 것이 없다.  위 사분위라 장의 4분의 1 만 글자가 있어도 선다.
+        allc = sorted(counts.values())
+        ref = allc[(3 * len(allc)) // 4] if allc else 0
+        if ref <= 0:
+            return set()
+        out = set()
+        for k in nos:
+            if k in counts and counts[k] < 0.1 * ref:
+                page = doc[k - 1]
+                if len(page.get_cdrawings()) > 0:
+                    out.add(k)
+        return out
+    finally:
+        doc.close()
 
 
 def _user_title_block(project: str) -> dict:
@@ -2374,6 +2424,8 @@ def teach_state(job_id: str):
     saved = form_teach.load(DATA_DIR, project)
     return {"supported": True, "project": project, "page_count": len(pages),
             "needs": _teach_needs(job, pages, form, saved),
+            # 글자가 선으로만 그려진 장 — 가르쳐도 그 장의 계기 글자는 못 읽는다 → DXF 안내
+            "stroke_only": sorted(_stroke_only_pages(job, [pc.page_no for pc in form])),
             "pages": [{"page_no": pc.page_no, "size": [round(float(pc.width), 1), round(float(pc.height), 1)]}
                       for pc in pages],
             "sizes": sizes, "form_pages": [pc.page_no for pc in form],
@@ -2557,7 +2609,9 @@ def teach_click(job_id: str, payload: dict):
                 min(abs(cand[0].x0 - x), abs(cand[0].x1 - x)) + min(abs(cand[0].y0 - y), abs(cand[0].y1 - y)) < 12:
             hit = cand
     if hit is None:
-        return {"item": item, "ok": False, "note": "그 자리에 글자가 없습니다 — 글자 위를 눌러 주세요"}
+        # 그 장에 글자가 거의 없으면(선으로 그린 글자) 화면이 DXF 안내를 함께 낸다
+        return {"item": item, "ok": False, "note": "그 자리에 글자가 없습니다 — 글자 위를 눌러 주세요",
+                "no_text": pc.page_no in _stroke_only_pages(job, [pc.page_no]) or not toks}
     w, text = pymupdf.Rect(hit[0]), hit[1]
     h = max(w.height, 1.0)
     if item == "dwg_no":

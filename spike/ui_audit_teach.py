@@ -49,8 +49,10 @@ PROJECT = "TAKHIATASH"
 revisions.create_project(data, PROJECT)
 
 port = free_port()
+# 셋째 인자 — 눈가림 (예: `titleblock` 이면 타이틀블록 칸도 스스로 못 찾는다 → 도면번호 누르기까지 시험)
+BLIND = sys.argv[3] if len(sys.argv) > 3 else ""
 env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT), PID_FORM_AUTO="0",
-           PID_PAGE_WARM="0")
+           PID_PAGE_WARM="0", PID_TEACH_BLIND=BLIND)
 srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
                         "--port", str(port)], cwd=str(ROOT), env=env,
                        stdout=open(OUT / "server.log", "w"), stderr=subprocess.STDOUT)

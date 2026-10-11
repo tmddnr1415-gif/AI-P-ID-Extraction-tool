@@ -2278,3 +2278,12 @@ tr.deleted td.col-vx .vx-b:not(.on) { opacity: .55; }
 .tbfix-adv { margin: 6px 0; }
 .tbfix-adv > summary { cursor: pointer; color: var(--ink-soft, #555e6e); font-size: 13px; }
 #tbfix-stage { cursor: crosshair; }
+
+/* hotfix85 — 글자를 읽을 수 없는 PDF → DXF 로 올리는 안내 */
+.dxf-guide { max-width: 640px; line-height: 1.55; }
+.dxf-guide .dxf-lead { font-size: 14px; margin: 0 0 10px; }
+.dxf-guide .dxf-steps { margin: 0 0 10px 18px; padding: 0; }
+.dxf-guide .dxf-steps li { margin: 4px 0; }
+.dxf-guide .dxf-acts { display: flex; gap: 8px; margin-top: 12px; }
+.tbfix-stroke { margin: 4px 0 8px; padding: 6px 10px; border-left: 3px solid #b07614; background: rgba(176, 118, 20, .08); }
+.mwhy.dxf-line { color: #8a5a0a; }

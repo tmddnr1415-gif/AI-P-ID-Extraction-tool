@@ -1286,6 +1286,51 @@ function watch(jobId, pageCount, what) {
  *
  * `message` is now a sentence the server built from what the file contains - the
  * traceback is in the log and the diagnostic export, not here. */
+/* hotfix85 — 글자를 읽을 수 없는 PDF 는 DXF 로 (사용자: *"UAD 처럼 완전히 읽을 수 없다면 사용자에게
+ * DXF 파일로 변환해서 올려 달라는 안내창"*).  사람이 무엇을 짚어도 글자가 선(획)이면 읽을 낱말이 없다 —
+ * 그때 할 수 있는 일은 원본 CAD 에서 DXF 로 내보내는 것이다 (DXF 는 글자를 글자로 담는다 · 55회차).
+ * `why` — "all"(한 장도 못 읽음) · "scan"(스캔 이미지) · "pages"(몇 장만).  `pages` 는 그 장 번호들. */
+function dxfGuideHtml(why, pages) {
+  const lead = why === "scan"
+    ? "이 PDF 는 스캔 이미지라 글자가 없습니다.  원본 CAD 파일이 있으면 DXF 로 올려 주세요 (없으면 CAD 에서 다시 내보낸 PDF)."
+    : why === "pages"
+      ? `이 PDF 의 ${pages.length}장(p${pages.join(", p")})은 글자가 <b>선으로 그려져</b> 있어 프로그램이 읽을 수 없습니다.  ` +
+        "그 장들은 도면을 가르쳐도 계기 글자가 읽히지 않습니다 — 원본 CAD 에서 <b>DXF</b> 로 내보내 올리면 전부 읽습니다."
+      : "이 PDF 는 글자가 전부 <b>선으로 그려져</b> 있어(CAD 의 SHX 글꼴을 그대로 플롯한 PDF) 프로그램이 한 글자도 읽을 수 없습니다.  " +
+        "도면 위에서 가르쳐도 읽을 글자가 없으므로, 원본 CAD 에서 <b>DXF</b> 로 내보내 올려 주세요.";
+  return `<div class="dxf-guide"><p class="dxf-lead">${lead}</p>
+    <ol class="dxf-steps">
+      <li>AutoCAD(또는 사용하는 CAD)에서 그 도면 파일(.dwg)을 엽니다</li>
+      <li><b>다른 이름으로 저장</b> → 파일 형식을 <b>DXF</b> 로 고릅니다 (예: AutoCAD 2013 DXF)</li>
+      <li>도면이 여러 장이면 장마다 DXF 를 만들어 <b>zip 하나로</b> 묶습니다 (여러 .dxf 를 한꺼번에 올려도 됩니다)</li>
+      <li>첫 화면에서 <b>같은 프로젝트</b>를 고르고, 입력 종류 <b>DXF</b> 를 고른 뒤 올립니다</li>
+    </ol>
+    <p class="muted small">DXF 는 글자를 글자 그대로 담아서, 범례 · 버블 · 태그를 PDF 보다 정확히 읽습니다.  PDF 를 다시 내보낼 수 있다면
+      CAD 의 PDF 출력 설정에서 글꼴을 <b>텍스트로</b>(TrueType · SHX 를 주석으로) 내보내는 것도 방법입니다.</p>
+    <div class="dxf-acts"><button type="button" id="dxf-go">첫 화면에서 DXF 올리기</button>
+      <button type="button" class="ghost" id="dxf-close">닫기</button></div></div>`;
+}
+
+function showDxfGuide(why, pages) {
+  openModal("DXF 파일로 올려 주세요", dxfGuideHtml(why, pages || []));
+  const go = $("#dxf-go"), cl = $("#dxf-close");
+  if (cl) cl.onclick = () => closeModal();
+  if (go) go.onclick = () => {
+    closeModal();
+    toFirstScreen();
+    const r = document.querySelector('input[name="input_kind"][value="DXF"]');
+    if (r) { r.checked = true; r.dispatchEvent(new Event("change")); }
+    const d = $("#drop"); if (d) d.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+}
+
+/* 실패 문장이 "글자를 읽을 수 없다" 는 뜻인가 — 파이프라인의 `_no_text_reason` 이 쓰는 마디로 가른다. */
+function unreadableCase(message) {
+  const m = message || "";
+  if (!/글자층이 없습니다/.test(m)) return null;
+  return /스캔 이미지/.test(m) ? "scan" : /선\(획\)으로/.test(m) ? "all" : null;
+}
+
 async function showFailure(message, d, jobId) {
   $("#bar-fill").style.width = "0%";
   $("#prog-title").textContent = "분석 실패";
@@ -1326,6 +1371,17 @@ async function showFailure(message, d, jobId) {
   }
   $("#tbfix").classList.add("hidden");
   if (tc) openTbFix(jobId, tc.kind);
+  // hotfix85 — 글자를 한 글자도 못 읽는 PDF 는 가르칠 것이 없다 → DXF 로 올리는 안내창
+  const uc = unreadableCase(message);
+  const dxfBtn = $("#prog-dxf");
+  if (dxfBtn) {
+    dxfBtn.classList.toggle("hidden", !uc);
+    dxfBtn.onclick = () => showDxfGuide(uc);
+  }
+  if (uc) {
+    hint.textContent = "이 PDF 는 글자를 읽을 수 없습니다 — 원본 CAD 에서 DXF 로 내보내 올려 주세요 (아래 [DXF 로 올리는 법]).";
+    showDxfGuide(uc);
+  }
   // hotfix71 — 실패도 VOC 로 남긴다 (실패 사유 · 멈춘 단계 · 예외 원문을 서버가 담는다)
   const vb = $("#prog-voc");
   if (vb) {
@@ -3032,6 +3088,9 @@ async function loadSheetNumbers() {
     + (out.enabled === false ? `<div class="mwhy muted">이 프로젝트의 장 도면번호 지정이 꺼져 있습니다 (enabled: false) — 적어도 쓰이지 않습니다</div>` : "")
     + (bound ? "" : `<div class="mwhy muted">이 분석은 프로젝트에 묶여 있지 않아
          도면번호를 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리면 지정할 수 있습니다</div>`)
+    + ((out.stroke_only || []).length ? `<div class="mwhy dxf-line">⚠ p${out.stroke_only.join(", p")} 은 글자가 선으로 그려져
+         있어 번호를 적어도 그 장의 계기는 읽히지 않을 수 있습니다 — 원본 CAD 에서 DXF 로 올리면 읽습니다
+         <button type="button" class="ghost small sdxf">DXF 로 올리는 법</button></div>` : "")
     + `<div class="mwhy muted">도면에서 읽힌 장은 여기 없습니다 — 사람은 도면을 이기지 않습니다.
          ${sample ? `이 문서의 읽힌 번호 꼴: <code>${escape(sample)}</code>` : ""}</div>`
     + sheets.map(sh => {
@@ -3059,6 +3118,8 @@ async function loadSheetNumbers() {
     _sheetFolded(!box.classList.contains("folded"));
     loadSheetNumbers();
   };
+  const sd = box.querySelector(".sdxf");
+  if (sd) sd.onclick = () => showDxfGuide("pages", out.stroke_only || []);
   box.querySelectorAll(".sgroup").forEach(el => {
     const pno = +el.dataset.page;
     el.querySelector(".sview").onclick = () => {
@@ -9421,6 +9482,15 @@ async function openTbFix(jobId, kind) {
     TB.teach.legend_page = Array.isArray(lp) ? lp : [lp];
   }
   TB.needs = (TB.tstate && TB.tstate.needs) || [];
+  TB.stroke = (TB.tstate && TB.tstate.stroke_only) || [];
+  const sg = $("#tbfix-stroke");
+  if (sg) {
+    sg.classList.toggle("hidden", !TB.stroke.length);
+    sg.innerHTML = TB.stroke.length
+      ? `⚠ 이 PDF 의 ${TB.stroke.length}장은 글자가 선으로 그려져 있어 가르쳐도 그 장의 계기는 읽을 수 없습니다 ` +
+        `<button type="button" class="ghost small" id="tbfix-dxf">DXF 로 올리는 법</button>` : "";
+    const b = $("#tbfix-dxf"); if (b) b.onclick = () => showDxfGuide("pages", TB.stroke);
+  }
   if (c && c.kind === "titleblock" && !TB.needs.includes("dwg_no")) TB.needs.unshift("dwg_no");
   if (c) { const r = document.querySelector(`input[name="tbfix-cell"][value="${c.item}"]`); if (r) r.checked = true; }
   const had = [st.saved ? "타이틀블록" : "", saved ? "가르친 칸" : ""].filter(Boolean).join(" · ");
@@ -9524,7 +9594,13 @@ async function tbClick(p) {
     got = await r.json();
     if (!r.ok) throw new Error(got.detail || r.status);
   } catch (e) { out.textContent = `읽지 못했습니다 — ${e.message || e}`; return; }
-  if (!got.ok) { out.innerHTML = `<p class="no">✖ ${escape(got.note || "그 자리에서 찾지 못했습니다")}</p>`; return; }
+  if (!got.ok) {
+    out.innerHTML = `<p class="no">✖ ${escape(got.note || "그 자리에서 찾지 못했습니다")}</p>`
+      + (got.no_text ? `<p class="muted">이 장에는 읽을 수 있는 글자가 없습니다 — 글자가 선으로 그려진 PDF 입니다.
+           <button type="button" class="ghost small" id="tbfix-dxf2">DXF 로 올리는 법</button></p>` : "");
+    const b = $("#tbfix-dxf2"); if (b) b.onclick = () => showDxfGuide("pages", [TB.page]);
+    return;
+  }
   await tbTake({ dwg_no: "dwg_no_region", bubble: "bubbles", notes: "notes" }[t.click], got.rect);
   tbNextTask();
 }

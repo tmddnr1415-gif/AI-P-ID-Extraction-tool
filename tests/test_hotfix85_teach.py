@@ -360,8 +360,9 @@ def test_notes_click_in_the_title_column_takes_the_whole_column(tmp_path, monkey
     import derive_layout
     monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", None)
     pages = _rules_pdf(tmp_path, [990])
-    r = derive_layout.notes_from_heading(pages, pymupdf.Rect(1010, 40, 1040, 48), 8)
-    assert abs(r[0] - 990) < 1 and abs(r[2] - 1171) < 1 and abs(r[3] - 822) < 1
+    r = derive_layout.notes_from_heading(pages, pymupdf.Rect(1010, 300, 1040, 308), 8)
+    # 열 전체 — 위도 테두리 (제목이 장마다 다른 높이에 있어도 그 위의 별표 정의가 들어온다 · QFE)
+    assert abs(r[0] - 990) < 1 and abs(r[1] - 20) < 1 and abs(r[2] - 1171) < 1 and abs(r[3] - 822) < 1
 
 
 def test_notes_click_inside_the_drawing_starts_at_the_heading(tmp_path, monkeypatch):
@@ -407,3 +408,46 @@ def test_legend_pages_are_stored_as_a_list(tmp_path):
     assert [x["page_no"] for x in data["legend_page"]] == [4, 2]
     data = form_teach.set_items(tmp_path, "P", author="kim", legend_page={"page_no": 3, "size": [1191, 842]})
     assert [x["page_no"] for x in data["legend_page"]] == [3]
+
+
+# ---------------------------------------------------------------- 읽을 수 없는 PDF → DXF 안내
+
+def _text_and_strokes_pdf(tmp_path):
+    """글자가 있는 장 넷 + 글자를 선으로만 그린 장 하나."""
+    doc = pymupdf.open()
+    for i in range(4):
+        page = doc.new_page(width=600, height=400)
+        for k in range(40):
+            page.insert_text((20 + (k % 8) * 70, 30 + (k // 8) * 20), f"PIT-{i}{k:02d}", fontsize=6)
+    page = doc.new_page(width=600, height=400)
+    sh = page.new_shape()
+    for k in range(60):                                   # 글자 대신 획
+        sh.draw_line((20 + k * 8, 50), (24 + k * 8, 60))
+    sh.finish(color=(0, 0, 0), width=0.5)
+    sh.commit()
+    path = tmp_path / "strokes.pdf"
+    doc.save(path)
+    return path
+
+
+def test_stroke_only_pages_are_found_against_the_document_itself(tmp_path):
+    from app import main
+    path = _text_and_strokes_pdf(tmp_path)
+    job = {"pdf_path": str(path)}
+    assert main._stroke_only_pages(job, [1, 2, 3, 4, 5]) == {5}       # 모든 장을 물어도
+    assert main._stroke_only_pages(job, [5]) == {5}
+    assert main._stroke_only_pages(job, [1]) == set()
+    assert main._stroke_only_pages({"pdf_path": str(tmp_path / "none.pdf")}, [1]) == set()
+
+
+def test_unreadable_pdf_opens_the_dxf_guide():
+    """글자를 한 글자도 못 읽는 실패는 가르치기 판이 아니라 DXF 안내창이다 — 그 갈림이 파이프라인 문장과 맞는다."""
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    src = (ROOT / "app" / "pipeline.py").read_text(encoding="utf-8")
+    html = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
+    assert "function showDxfGuide(" in js and "function unreadableCase(" in js
+    assert "글자층이 없습니다" in src and "선(획)으로" in src and "스캔 이미지" in src
+    assert 'id="prog-dxf"' in html and 'id="tbfix-stroke"' in html
+    # 가르치기의 멈춤 셋과 겹치지 않는다 (글자층 없음은 TEACH_CASES 에 없다)
+    cases = re.findall(r'kind: "(\w+)", re: /(.+?)/, item:', js)
+    assert all("글자층" not in rx for _k, rx in cases)

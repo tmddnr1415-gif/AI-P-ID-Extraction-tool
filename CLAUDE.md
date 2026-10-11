@@ -4549,14 +4549,43 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
     | 문서 | 누르기 | 행 | 같은 행 | 재현율 / 정밀도 | 공급 주체 · 수량 다른 칸 |
     | --- | --- | --- | --- | --- | --- |
     | Takhiatash | 3 (범례 장 · 버블 · NOTES) | 1139 → 1139 | 1139 | 100 / 100 | 0 · 0 |
-    | AL NOUF1 | 3 | 1065 → 1065 | 1065 | 100 / 100 | 0 · 0 |
+    | AL NOUF1 | 4 (범례 장 둘 — p3 · p2) | 1065 → 1065 | 1065 | 100 / 100 | 0 · 0 |
     | TC2 | 4 (범례 장 둘 — p4 · p2) | 864 → 864 | 864 | 100 / 100 | 0 · 0 |
-    | QFE | 4 (범례 장 둘) | (QFE_RESULT) | | | |
+    | QFE | 4 (범례 장 둘 — p3 · p2) | 1605 → 1597 | 1573 (+16 같은 계기 · 표기만 ZOCL↔ZSOC) | 98.0 / 98.5 | 16 · 11 |
     지문은 같지 않다 — 행과 값은 같고 근거 기록(어디서 읽었나)이 "가르친 장" 을 적기 때문이다.
+    QFE 의 남은 차이는 p42(버블을 두 번째 모양으로 그린 장 · 11행)와 PIT/PI · TIT/TI 짝 셋(한쪽 버블 모양이 달라 접히지
+    않음)이다 — 그 장의 버블을 하나 더 누르면 되는 자리다 (사각형 9개 판도 p42 는 같았다).
     화면 시뮬레이션(Takhiatash · 이전 프로그램 기준 `PID_FORM_AUTO=0`): **한 번 멈춤 · 할 일 2 + 선택 1 · 세 번 누름 →
     1,139행** · 페이지 오류 0 · 실 DB 같음.  앞 판(사각형)은 세 번 멈추고 사각형 9개였다.
 17. ⚠ **사람 몫이 남는 자리** — 한 문서가 버블을 **두 가지 모양**으로 그리면(QFE p42) 그 장의 버블도 하나 더 눌러야 한다
     (미리보기의 초록 테두리가 안 서는 것을 보고).  사각형 9개 판의 QFE 도 p42 에서 11행이 갈렸다.
+
+**그 다음 — 분석에 실패한 PDF 가 가르친 뒤에 실제로 식별되는가 · 읽을 수 없는 PDF 는 DXF 로 (hotfix85 마무리)**
+
+사용자: *"사용자가 필요한 정보를 마크업하면 분석 실패 PID 도 그 이후에는 식별이 되는지, 안 된다면 되도록 · 앞으로도
+학습 기반으로 다양한 PID 를 분석하되, 그렇지 않은 PID 는 사용자가 표기해서 분석 가능하게"* + *"단, UAD 처럼 완전히
+읽을 수 없다면 DXF 파일로 변환해서 올려 달라는 안내창"*.  화면 시뮬레이션 `spike/ui_audit_teach.py <pdf> <out> [눈가림]` ·
+`spike/ui_audit_dxf_guide.py <pdf> <out> [partial]`.
+
+18. **멈춤 다섯 중 사람이 고칠 수 있는 셋을 전부 실물로 확인했다** (Takhiatash · 이전 프로그램 기준 `PID_FORM_AUTO=0`):
+    | 멈춤 | 할 일 | 결과 |
+    | --- | --- | --- |
+    | 범례 · 버블 | 범례 장 · 버블 하나 · (NOTES) — 3번 누름 | 1,139행 (`out/hotfix85/ui_click/`) |
+    | 타이틀블록 + 범례 + 버블 (`PID_TEACH_BLIND=titleblock` — 프로그램이 도면번호 칸을 스스로 못 찾게) | 도면번호 글자 · 범례 장 · 버블 · NOTES — 4번 누름 · **한 번 멈춤** | 도면번호 60장 중 59장 읽힘(표지 1장은 번호 없음) · **1,139행** (`out/hotfix85/ui_click_tb/`) |
+    `teach_blind("titleblock")` 은 `derive_layout.derive` 가 캡션·되풀이 번호로 칸을 찾지 않게 한다 (시뮬레이션 전용 · 운영 무관).
+19. **나머지 둘은 가르칠 것이 없다** — `NoTextLayer`(글자층이 한 장에도 없음 — 스캔 또는 글자를 선으로 플롯)와 `NoPidSheets`
+    (범례 장만).  앞의 것에 **DXF 안내창**(`app.js` `showDxfGuide` · `unreadableCase` · `#prog-dxf`): 실패 화면이 저절로
+    띄우고, 무엇이 문제인지 · CAD 에서 DXF 로 저장하는 네 단계 · [첫 화면에서 DXF 올리기](첫 화면으로 가서 입력 종류를 DXF 로
+    바꿔 둔다).  판정은 파이프라인 문장(`_no_text_reason` 의 `글자층이 없습니다` + `선(획)으로` / `스캔 이미지`)이다.
+    실측: Takhiatash HRSG 단장 `1_HAC.pdf` (글자 0) → 안내창 · 버튼 · 첫 화면 DXF 선택 전부 ✔ (`out/hotfix85/ui_dxf/`).
+20. **몇 장만 선으로 그린 PDF**(UAD p11~p15 꼴) — 분석은 되고 그 장들만 빠진다.  `main._stroke_only_pages` 가 **그 문서 자신**을
+    잣대로 가른다: 그 장의 낱말(텍스트 + SHX 주석)이 이 문서 모든 장의 **위 사분위의 10분의 1** 에도 못 미치고 선은 있는 장.
+    `GET /jobs/{id}/sheet_numbers` 의 `stroke_only` → '장 도면번호' 판에 *"p61~p64 은 글자가 선으로 그려져 … DXF 로 올리면
+    읽습니다 [DXF 로 올리는 법]"* · 가르치기 판(`GET /teach` 의 `stroke_only` → `#tbfix-stroke`) · 도면번호/NOTES 를 눌렀는데
+    글자가 없으면(`/teach/click` 의 `no_text`) 같은 안내.  실측: Takhiatash 60장 + HRSG 4장 붙인 PDF → 정확히 p61~p64 ·
+    Takhiatash · TC2 · AL NOUF1 · QFE 는 **0장**(거짓 경보 없음) · 결과 1,139행 그대로 (`out/hotfix85/ui_dxf_partial/`).
+21. **NOTES 를 누르면 노트 열 전체** — 제목이 타이틀블록 열 안이면 그 열 전체(위도 테두리).  누른 장의 제목 높이에서 자르면
+    다른 장이 그 위에 인쇄한 별표 정의가 빠진다 (QFE 실측: 공급자 이름 213칸 · 수량 231칸).
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
@@ -5085,6 +5114,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._teach_needs` · `POST /jobs/{id}/teach/click` · `app.js` `TEACH_TASKS` · `tbRenderTasks` · `tbClick` · `tbLegendHere` · `tbTake` | **hotfix85 후반** — 할 일 목록(서버가 미리 본 것만 · 한 번에) · 누르기 한 번 = 할 일 하나 · 누른 자리를 사각형으로 바꾸는 것은 서버 · 사각형 긋기는 고급으로 접힘 |
 | `ds.bubble_at` · `derive_layout.notes_from_heading` · `PAPER_STANDS_IN` · `legend_rules.taught_pages` · `_keyword_heading` · `HEADING_KEYWORD` | **hotfix85 후반** — 누른 점의 버블 · NOTES 제목 글자 → 영역 · 테두리를 못 찾으면 종이 · 범례 장 목록에서 머리말(인쇄된 그대로 → 핵심 낱말 · 다른 칸 제목의 일부와 겹쳐 인쇄는 뺀다) |
 | `spike/teach_sim.py` (`pick_min` · `--full` · `--rescore` · `_match`) | **hotfix85 후반** — 사람이 누를 것만 흉내 내 눈가림 분석 → 기준선과 행 단위 대조 (태그 먼저) |
+| `app.js` `showDxfGuide` · `dxfGuideHtml` · `unreadableCase` · `#prog-dxf` · `#tbfix-stroke` · `main._stroke_only_pages` | **hotfix85 마무리** — 글자를 읽을 수 없는 PDF(전부 · 몇 장)는 가르칠 것이 없다 → DXF 로 올리는 안내창.  몇 장인지는 그 문서 자신의 낱말 수로 |
+| `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
