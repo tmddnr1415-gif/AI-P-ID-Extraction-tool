@@ -44,11 +44,11 @@ BAT = ("@echo off\r\n"
        "pause\r\n")
 
 
-# hotfix60 — 운영 폴더(C:\Claude\PID)용.  서버가 돌리는 파일(app/...)만 · 하나라도 충돌이면 아무것도
+# hotfix60 — 운영 폴더(C:\Claude\PID)용.  서버가 돌리는 파일(app/... · config/...)만 · 하나라도 충돌이면 아무것도
 # 안 바꾼다 · 그 뒤 포트 8000 의 서버만 다시 띄운다 (python 을 이름으로 끄지 않는다 — 대시보드도 python).
 OPS_BAT = ("@echo off\r\n"
            "rem Apply this update to the OPERATING folder C:\\Claude\\PID (the server the dashboard shows).\r\n"
-           "rem Only the files the server runs (app\\...).  If any of them was changed in that folder,\r\n"
+           "rem Only the files the server runs (app\\... and config\\...).  If any of them was changed in that folder,\r\n"
            "rem nothing is changed at all.  Then only the server on port 8000 is restarted.\r\n"
            "cd /d \"%~dp0\"\r\n"
            "set PYTHONUTF8=1\r\n"
@@ -201,9 +201,9 @@ def main() -> int:
             osteps, _ = apply_delta.apply(ops_tree, pkg, json.loads((pkg / "manifest.json").read_text("utf-8")),
                                           runtime_only=True, all_or_nothing=True)
             bad += [s["path"] for s in osteps if s.get("aborted")]
-            diff += [f["path"] for f in files if f["path"].startswith("app/") and f["path"] != STAMP
+            diff += [f["path"] for f in files if f["path"].startswith(apply_delta.RUNTIME) and f["path"] != STAMP
                      and not f.get("remove") and h((ops_tree / f["path"]).read_bytes()) != h(blob("HEAD", f["path"]))]
-            diff += [f["path"] for f in files if not f["path"].startswith("app/")
+            diff += [f["path"] for f in files if not f["path"].startswith(apply_delta.RUNTIME)
                      and (ops_tree / f["path"]).exists() and not f.get("remove")
                      and h((ops_tree / f["path"]).read_bytes()) == h(blob("HEAD", f["path"]))
                      and h(blob(base, f["path"])) != h(blob("HEAD", f["path"]))]   # 운영에는 서버 파일만

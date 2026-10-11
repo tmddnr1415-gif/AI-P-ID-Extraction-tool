@@ -4699,6 +4699,10 @@ TC2 `10e32bd0` · 864 · QFE `531237eb` · 1605 · UAD-DXF `26d45872` · 467 · 
 판정·지문에 닿을 길이 없다.  병합 트리에서 빠른 시험 전부 통과(LOGIC 시험 포함) · `/logic` · `/logic/api/jobs` 200.
 지시문의 Takhiatash 기준값을 지금 값(`17bc34dd` · 1105)으로 고쳤다.  ⚠ LOGIC 분석은 소스 실행이면 `python -m app.logic.run`
 자식 프로세스, exe 면 스레드로 돈다 · 자료는 `{data}/logic/` (업로드 폴더 밖 — 위생 감사가 고아로 세지 않는다).
+★ **같이 찾은 결함 — 운영 꾸러미가 `config/` 를 얹지 않았다.**  `apply_delta --runtime` 이 `app/` 만 받아, hotfix83 의
+방침(`policy` — PSV 제외 · 제어실 기능 제외)이 들어간 `config/project_alnouf1.yaml` 이 hotfix83~88 꾸러미에서 **운영 서버에 닿지
+않았다** (PID_dev 에만 갔다).  `RUNTIME = ("app/", "config/")` · 꾸러미 검증도 같은 값을 읽는다 · 시험 1건.  LOGIC 의
+`config/logic_symbols.yaml` 도 이 길로 간다.  Takhiatash 회귀 "기준선과 같습니다".
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 

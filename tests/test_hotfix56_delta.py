@@ -131,7 +131,7 @@ def test_ops_takes_only_server_files_and_all_or_nothing(tmp_path):
     assert {p: p.read_bytes() for p in target.rglob("*") if p.is_file()} == before
     (target / "app" / "lan_check.py").write_bytes(b"base lan")              # 회사판이 아니면
     steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
-    assert {s["path"] for s in steps} == {p for p in (f["path"] for f in man["files"]) if p.startswith("app/")}
+    assert {s["path"] for s in steps} == {p for p in (f["path"] for f in man["files"]) if p.startswith(apply_delta.RUNTIME)}
     assert not (target / "tests").exists()                                  # 시험 파일은 운영에 안 간다
     assert (target / "app" / "main.py").read_bytes() == b"new main"
 
@@ -179,3 +179,18 @@ def test_ops_bats_stay_ascii():
         t.encode("ascii")
         assert "\r\n" in t and "chcp" not in t
     assert "--all-or-nothing" in pack_delta.OPS_BAT and "--runtime" in pack_delta.OPS_BAT
+
+
+def test_ops_also_takes_config(tmp_path):
+    """hotfix89 — 서버는 config/ 도 읽는다.  app/ 만 얹으면 hotfix83 의 방침(PSV 제외 · 제어실 기능 제외)이
+    운영 서버에 닿지 않는다."""
+    assert apply_delta.RUNTIME == ("app/", "config/")
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    (target / "config").mkdir(exist_ok=True)
+    (target / "config" / "p.yaml").write_bytes(b"old")
+    man["files"].append({"path": "config/p.yaml", "base_sha256": _h(b"old"), "new_sha256": _h(b"new")})
+    (pkg / "files" / "config").mkdir(parents=True, exist_ok=True)
+    (pkg / "files" / "config" / "p.yaml").write_bytes(b"new")
+    apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert (target / "config" / "p.yaml").read_bytes() == b"new"

@@ -23,7 +23,7 @@ Never touches app\\_data, data, .venv, logs.  Refuses the operating folder
 
 hotfix60 - the operating folder (C:\\Claude\\PID, the server the dashboard shows):
     apply_delta.py C:\\Claude\\PID --ops --runtime --all-or-nothing
-  --runtime         only the files the server runs (app/...); tests, docs, spike stay in PID_dev
+  --runtime         only the files the server runs (app/..., config/...); tests, docs, spike stay in PID_dev
   --all-or-nothing  if ANY file would conflict, change nothing at all (exit 3) - a running
                     server must never get half of an update (new app.js with old index.html)
     apply_delta.py C:\\Claude\\PID --ops --restore
@@ -50,7 +50,9 @@ def sha(p: Path) -> str | None:
         return None
 
 
-RUNTIME = ("app/",)
+# 서버가 실행 중에 읽는 것 — 코드(app/)와 설정(config/).  hotfix89 전에는 app/ 만이라
+# hotfix83 의 방침(config policy: PSV 제외 · 제어실 기능 제외)이 운영 서버에 닿지 않았다.
+RUNTIME = ("app/", "config/")
 
 
 def plan(target: Path, manifest: dict, runtime_only: bool = False) -> list[dict]:
