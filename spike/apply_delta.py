@@ -17,6 +17,9 @@ Files the repository removed after an earlier package delivered them ("remove": 
   * target file == a version we delivered (known)                   -> remove (backed up)
   * absent                                                           -> same
   * anything else (edited on the company PC)                         -> keep, reported
+  * a company-edited file with a merge recipe (MERGERS, e.g. app/lan_check.py)  -> MERGE:
+        the company version is kept as is and only what we added is inserted;
+        if the recipe cannot find its place it stays a CONFLICT.
 Originals are copied to <target>\\backup\\<package>_<time>\\ before overwriting.
 Never touches app\\_data, data, .venv, logs.  Refuses the operating folder
 (a folder named PID) unless --ops is given.  Exit code 0 = applied, 2 = conflicts.
@@ -55,6 +58,91 @@ def sha(p: Path) -> str | None:
 RUNTIME = ("app/", "config/")
 
 
+# ── 회사에서 고친 파일을 합치는 조리법 (hotfix89b) ─────────────────────────────
+# 회사 판은 한 글자도 지우지 않고, 우리가 기준판 뒤에 **더한 것만** 끼워 넣는다.
+# 조리법이 끼울 자리를 못 찾으면 None — 예전처럼 충돌로 남는다 (지어서 합치지 않는다).
+# 결과는 반드시 컴파일되어야 하고 필요한 이름이 있어야 한다.  이미 다 들어 있으면 원문 그대로.
+
+_LAN_ADD = """LOG_LIMIT = 20 * 1024 * 1024
+LOG_KEEP = 3
+
+
+def tail_bytes(path: Path, n: int) -> bytes:
+    \"\"\"Read only the LAST n bytes (hotfix74 - server.log can grow to GB).\"\"\"
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(max(0, size - n))
+        return f.read()
+
+
+def rotate(path: Path | None = None, limit: int = LOG_LIMIT, keep: int = LOG_KEEP) -> bool:
+    \"\"\"Move server.log to server.log.1 ... .keep when it is over limit (hotfix74).
+    Called only right before the server starts, when nobody holds the file open.\"\"\"
+    path = path or ROOT / "logs" / "server.log"
+    try:
+        if not path.exists() or path.stat().st_size <= limit:
+            return False
+        oldest = path.with_name(f"{path.name}.{keep}")
+        if oldest.exists():
+            oldest.unlink()
+        for i in range(keep - 1, 0, -1):
+            src = path.with_name(f"{path.name}.{i}")
+            if src.exists():
+                src.replace(path.with_name(f"{path.name}.{i + 1}"))
+        path.replace(path.with_name(f"{path.name}.1"))
+        return True
+    except OSError:
+        return False
+
+
+"""
+
+
+def _merge_lan_check(text: str) -> str | None:
+    import re
+    nl = "\r\n" if "\r\n" in text else "\n"
+    t = text.replace("\r\n", "\n")
+    if "def tail_bytes(" not in t or "def rotate(" not in t:
+        if "def tail_bytes(" in t or "def rotate(" in t or "LOG_LIMIT" in t:
+            return None                                   # 반쯤 있다 — 손으로 합칠 일
+        if t.count("\ndef preflight(") != 1 or "ROOT" not in t or "Path" not in t:
+            return None
+        t = t.replace("\ndef preflight(", "\n" + _LAN_ADD + "def preflight(", 1)
+    m = re.search(r"\ndef preflight\([^\n]*\n(.*?)(?=\ndef |\Z)", t, re.S)
+    if m and "rotate(" not in m.group(1):
+        body = m.group(1)
+        hit = re.search(r"^( +)if not listening\(port\):\n", body, re.M)
+        if hit:
+            ind = hit.group(1)
+            add = f"{ind}    rotate()                       # hotfix74 - before start, nobody holds the log\n"
+            body2 = body[:hit.end()] + add + body[hit.end():]
+            t = t[:m.start(1)] + body2 + t[m.end(1):]
+    t = t.replace("path.read_bytes()[-64_000:]", "tail_bytes(path, 64_000)")
+    try:
+        compile(t, "lan_check.py", "exec")
+    except SyntaxError:
+        return None
+    if "def tail_bytes(" not in t or "def rotate(" not in t:
+        return None
+    return t.replace("\n", nl)
+
+
+MERGERS = {"app/lan_check.py": _merge_lan_check}
+
+
+def merged_text(target: Path, rel: str) -> str | None:
+    """조리법이 있는 파일이면 합친 글을, 없거나 못 합치면 None."""
+    fn = MERGERS.get(rel)
+    if fn is None:
+        return None
+    try:
+        text = (target / rel).read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    return fn(text)
+
+
 def plan(target: Path, manifest: dict, runtime_only: bool = False) -> list[dict]:
     out = []
     for f in manifest["files"]:
@@ -77,6 +165,10 @@ def plan(target: Path, manifest: dict, runtime_only: bool = False) -> list[dict]
             act = "create" if now is None else "overwrite"
         else:
             act = "conflict"
+            m = merged_text(target, rel)
+            if m is not None:
+                cur = (target / rel).read_bytes().decode("utf-8")
+                act = "same_merged" if m == cur else "merge"
         out.append({**f, "now_sha256": now, "action": act})
     return out
 
@@ -114,6 +206,15 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
                     shutil.copy2(dst, b)
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
+            elif s["action"] == "merge":
+                backup = backup or (target / "backup" / f"{name}_{stamp}")
+                b = backup / s["path"]
+                b.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dst, b)
+                text = merged_text(target, s["path"])
+                dst.write_bytes(text.encode("utf-8"))
+                for side in dst.parent.glob(dst.name + ".hotfix*.new"):
+                    side.unlink()                 # 앞선 적용들이 남긴 .new — 이제 합쳤다
             elif s["action"] == "conflict":
                 side = dst.with_name(dst.name + f".{name}.new")
                 shutil.copyfile(src, side)
@@ -200,7 +301,8 @@ def main(argv=None) -> int:
     print(f"대상: {target}{'   [미리보기 - 아무것도 바꾸지 않음]' if dry else ''}\n")
     words = {"overwrite": "덮어씀", "create": "새로 만듦", "same": "이미 같음",
              "conflict": "충돌 - 안 덮음", "refused": "거부(보호 폴더)",
-             "remove": "지움 (저장소에서 없앤 파일)", "kept": "안 지움 - 회사에서 고친 파일"}
+             "remove": "지움 (저장소에서 없앤 파일)", "kept": "안 지움 - 회사에서 고친 파일",
+             "merge": "합침 - 회사 판 + 이번 추가분", "same_merged": "이미 합쳐짐"}
     for s in steps:
         tail = f"   -> 새 버전: {Path(s['new_copy']).name}" if s.get("new_copy") else ""
         print(f"  [{words[s['action']]}] {s['path']}{tail}")

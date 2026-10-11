@@ -194,3 +194,61 @@ def test_ops_also_takes_config(tmp_path):
     (pkg / "files" / "config" / "p.yaml").write_bytes(b"new")
     apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
     assert (target / "config" / "p.yaml").read_bytes() == b"new"
+
+
+def _company_lan_check(crlf=False):
+    """기준판(97a8732) lan_check.py 에 회사가 netstat 을 손본 것처럼 고친 판."""
+    import subprocess
+    base = subprocess.run(["git", "-C", str(ROOT), "show", "97a8732:app/lan_check.py"],
+                          capture_output=True, check=True).stdout.decode("utf-8")
+    company = base.replace('capture_output=True, text=True,\n                             timeout=20).stdout',
+                           'capture_output=True, timeout=20).stdout.decode("cp949", "replace")'
+                           '  # company netstat fix')
+    assert company != base
+    return company.replace("\n", "\r\n") if crlf else company
+
+
+def test_company_lan_check_is_merged_not_left_as_conflict(tmp_path):
+    """hotfix89b — 회사가 고친 lan_check.py 는 회사 판을 그대로 두고 우리 추가분(tail_bytes · rotate)만 끼운다.
+    운영(전부 아니면 무)도 그 파일 때문에 멈추지 않는다."""
+    import types
+    for crlf in (False, True):
+        target, pkg, man = _setup(tmp_path / ("crlf" if crlf else "lf"))
+        company = _company_lan_check(crlf)
+        (target / "app" / "lan_check.py").write_bytes(company.encode("utf-8"))
+        new = (ROOT / "app" / "lan_check.py").read_bytes()
+        (pkg / "files" / "app" / "lan_check.py").write_bytes(new)
+        for f in man["files"]:
+            if f["path"] == "app/lan_check.py":
+                f["new_sha256"] = _h(new)
+        (target / "app" / "lan_check.py.hotfix89.new").write_bytes(new)    # 앞선 적용의 흔적
+        steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+        act = {s["path"]: s["action"] for s in steps}
+        assert act["app/lan_check.py"] == "merge" and not steps[0].get("aborted")
+        out = (target / "app" / "lan_check.py").read_bytes().decode("utf-8")
+        assert "company netstat fix" in out                       # 회사 판 그대로
+        assert ("\r\n" in out) == crlf
+        assert (backup / "app" / "lan_check.py").read_bytes() == company.encode("utf-8")
+        assert not list((target / "app").glob("lan_check.py.*.new"))
+        mod = types.ModuleType("lc")
+        mod.__file__ = str(target / "app" / "lan_check.py")
+        exec(compile(out, "lan_check.py", "exec"), mod.__dict__)
+        assert callable(mod.tail_bytes) and callable(mod.rotate)
+        log = tmp_path / ("x" + str(crlf)) / "server.log"
+        log.parent.mkdir(parents=True)
+        log.write_bytes(b"a" * 50)
+        assert mod.tail_bytes(log, 10) == b"a" * 10
+        assert mod.rotate(log, limit=10, keep=2) and (log.parent / "server.log.1").exists()
+        pre = out[out.index("def preflight("):]
+        assert "rotate()" in pre.split("\ndef ")[0]
+        assert "tail_bytes(path, 64_000)" in out
+        steps, _ = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+        assert {s["path"]: s["action"] for s in steps}["app/lan_check.py"] == "same_merged"
+
+
+def test_unmergeable_company_file_stays_a_conflict(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"def tail_bytes(p, n):\n    return b''\n")   # 반쯤 있다
+    steps, _ = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert steps[0].get("aborted")
+    assert {s["path"]: s["action"] for s in steps}["app/lan_check.py"] == "conflict"
