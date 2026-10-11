@@ -1,0 +1,584 @@
+/* LOGIC 검토 화면 — 도면 위에 읽은 선 · 블록을 얹고, 선을 따라가거나 강제 신호로 로직을 돌린다.
+   판정은 서버(app/logic)가 한다.  이 파일은 그리고 · 누르고 · 움직일 뿐이다. */
+"use strict";
+
+const $ = (s) => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const L = {
+  job: null, sheets: [], sheet: null, page: null, zoom: 1, mode: "trace",
+  forces: {}, state: null, frames: null, values: {}, anim: [], sel: null, busy: false,
+};
+const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
+const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
+const TIMER_MS = 1100;      // 타이머 경과를 보이는 시간
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+async function api(url, opt) {
+  const r = await fetch(url, opt);
+  if (!r.ok) {
+    let m = r.statusText;
+    try { m = (await r.json()).detail || m; } catch (e) { /* 글 아닌 응답 */ }
+    throw new Error(m);
+  }
+  return r.status === 204 ? null : r.json();
+}
+const post = (url, body) => api(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function status(t) { $("#status").textContent = t || ""; }
+
+const FUNC_KO = {
+  AND: "AND 게이트", NAND: "NAND 게이트", OR: "OR 게이트", NOR: "NOR 게이트", NOT: "NOT (반전)",
+  MEMORY: "메모리", GT: "지연 ON 타이머 (GT)", DT: "지연 OFF 타이머 (DT)", PD: "펄스 타이머 (PD)",
+  PB: "누름단추", STEP: "STEP (시퀀스 단계)", CONNECTOR: "연결 기호", LIGHT: "램프", ANN: "경보 (ANN)",
+  SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함",
+};
+
+/* ------------------------------------------------------------------ 묶음 · 시트 */
+
+async function loadJobs(select) {
+  const j = await api("/logic/api/jobs");
+  const sel = $("#job");
+  sel.innerHTML = "";
+  if (!j.jobs.length) sel.innerHTML = `<option value="">— 분석한 묶음 없음 —</option>`;
+  for (const x of j.jobs) {
+    const st = x.state === "done" ? `${x.sheets}장` : x.state === "failed" ? "실패" : "분석 중";
+    sel.insertAdjacentHTML("beforeend", `<option value="${x.id}">${esc(x.name)} · ${st}</option>`);
+  }
+  $("#samples").innerHTML = j.samples.map((n) => `<button data-sample="${esc(n)}" title="data/logic 의 샘플을 분석합니다">샘플: ${esc(n.replace(/\.pdf$/i, ""))}</button>`).join(" ");
+  const want = select || (location.hash.match(/job=([0-9a-f]{12})/) || [])[1] || (j.jobs[0] && j.jobs[0].id);
+  if (want) { sel.value = want; await openJob(want); }
+}
+
+async function openJob(id) {
+  L.job = id;
+  const st = await api(`/logic/api/jobs/${id}`);
+  if (st.state !== "done") {
+    if (st.state === "failed") { status(`분석 실패 — ${st.error || ""}`); return; }
+    const pct = st.total ? Math.round((100 * st.done) / st.total) : 0;
+    status(`분석 중… ${stageKo(st.stage)} ${pct}%`);
+    setTimeout(() => L.job === id && openJob(id), 1200);
+    return;
+  }
+  status(`분석 ${st.seconds}초 · ${st.sheets}장`);
+  const j = await api(`/logic/api/jobs/${id}/sheets`);
+  L.sheets = j.sheets;
+  $("#basis").innerHTML = `${esc(j.note)}<br><br>배운 글자: ${Object.keys(j.dictionary).map(esc).join(" ")}`;
+  renderSheetList();
+  const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
+  if (p) openSheet(p);
+}
+function stageKo(s) { return { reading: "선 읽는 중", glyphs: "글자 배우는 중", blocks: "블록 판정 중" }[s] || ""; }
+
+function renderSheetList() {
+  const q = $("#sheet-filter").value.trim().toUpperCase();
+  const ul = $("#sheet-list");
+  ul.innerHTML = "";
+  const list = L.sheets.filter((s) => !q || (s.sheet_no + " " + s.title).toUpperCase().includes(q));
+  $("#sheet-count").textContent = `${L.sheets.length}장`;
+  for (const s of list) {
+    const li = document.createElement("li");
+    li.dataset.page = s.page;
+    if (s.page === L.page) li.className = "sel";
+    li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
+      <span class="meta">블록 ${s.blocks} · 선 ${s.nets}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
+    li.onclick = () => openSheet(s.page);
+    ul.appendChild(li);
+  }
+}
+
+async function openSheet(page) {
+  L.page = page;
+  location.hash = `job=${L.job}&page=${page}`;
+  renderSheetList();
+  const s = await api(`/logic/api/jobs/${L.job}/sheet/${page}`);
+  L.sheet = s;
+  L.forces = {}; L.state = null; L.values = {}; L.sel = null; stopAnim();
+  $("#empty").hidden = true;
+  const img = $("#page");
+  img.src = `/logic/api/jobs/${L.job}/page/${page}.png`;
+  $("#canvas").style.width = s.size[0] + "px";
+  $("#canvas").style.height = s.size[1] + "px";
+  $("#ov").setAttribute("viewBox", `0 0 ${s.size[0]} ${s.size[1]}`);
+  $("#sheet-head").textContent = `${s.sheet_no} · ${s.title}`;
+  drawOverlay();
+  renderRows(); renderFindings(); renderInfo(); renderHelp();
+  img.onload = () => fit();
+  if (img.complete) fit();
+  if (L.mode === "sim") runSim();
+}
+
+/* ------------------------------------------------------------------ 확대 · 이동 */
+
+function fit() {
+  if (!L.sheet) return;
+  const st = $("#stage");
+  const lg = L.sheet.logic;
+  // LOGIC 영역이 화면을 채우게
+  const w = lg[2] - lg[0] + 40, h = lg[3] - lg[1] + 40;
+  L.zoom = Math.min(st.clientWidth / w, st.clientHeight / h);
+  setZoom(L.zoom, null, [lg[0] - 20, lg[1] - 20]);
+}
+function setZoom(z, at, origin) {
+  const st = $("#stage");
+  const c = $("#canvas");
+  const old = L.zoom;
+  let px, py;
+  if (at) { px = (st.scrollLeft + at[0]) / old; py = (st.scrollTop + at[1]) / old; }
+  L.zoom = Math.max(0.3, Math.min(8, z));
+  c.style.transform = `scale(${L.zoom})`;
+  c.style.width = L.sheet.size[0] + "px";
+  c.style.height = L.sheet.size[1] + "px";
+  // 스크롤 영역을 확대 크기에 맞춘다
+  c.style.marginRight = (L.sheet.size[0] * (L.zoom - 1)) + "px";
+  c.style.marginBottom = (L.sheet.size[1] * (L.zoom - 1)) + "px";
+  if (origin) { st.scrollLeft = origin[0] * L.zoom; st.scrollTop = origin[1] * L.zoom; }
+  else if (at) { st.scrollLeft = px * L.zoom - at[0]; st.scrollTop = py * L.zoom - at[1]; }
+}
+function initPan() {
+  const st = $("#stage");
+  let drag = null;
+  st.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, sl: st.scrollLeft, st: st.scrollTop, moved: false };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) { drag.moved = true; st.classList.add("drag"); }
+    if (drag.moved) { st.scrollLeft = drag.sl - dx; st.scrollTop = drag.st - dy; }
+  });
+  window.addEventListener("pointerup", () => { if (drag && drag.moved) L.justPanned = true; drag = null; st.classList.remove("drag"); setTimeout(() => (L.justPanned = false), 0); });
+  st.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = st.getBoundingClientRect();
+    setZoom(L.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), [e.clientX - r.left, e.clientY - r.top]);
+  }, { passive: false });
+}
+
+/* ------------------------------------------------------------------ 도면 위 그림 */
+
+function drawOverlay() {
+  const s = L.sheet;
+  const ov = $("#ov");
+  ov.innerHTML = "";
+  const gB = el("g", { id: "g-blocks" }, ov);
+  const gN = el("g", { id: "g-nets" }, ov);
+  const gR = el("g", { id: "g-rows" }, ov);
+  const gF = el("g", { id: "g-find" }, ov);
+  for (const [nid, segs] of Object.entries(s.order)) {
+    const g = el("g", { class: "net", "data-net": nid }, gN);
+    for (const [x0, y0, x1, y1, d0] of segs) {
+      el("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: "vis" }, g);
+    }
+    for (const [x0, y0, x1, y1, d0] of segs) {
+      const L_ = Math.hypot(x1 - x0, y1 - y0) || 0.01;
+      el("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: "fx", "data-d0": d0, "data-len": L_,
+        "stroke-dasharray": `${L_} ${L_}`, "stroke-dashoffset": L_ }, g);
+    }
+    for (const [x0, y0, x1, y1] of segs) el("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: "hit" }, g);
+    if (s.nets[nid] && s.nets[nid].dashed) g.classList.add("dashed");
+    g.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onNet(nid, e); });
+  }
+  for (const [bid, b] of Object.entries(s.blocks)) {
+    const [x0, y0, x1, y1] = b.bbox;
+    const cls = "blk" + (b.func === "UNKNOWN" ? " unknown" : "");
+    const r = b.kind === "RECT"
+      ? el("rect", { x: x0 - 0.6, y: y0 - 0.6, width: x1 - x0 + 1.2, height: y1 - y0 + 1.2, class: cls, "data-block": bid }, gB)
+      : el("circle", { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, r: (x1 - x0) / 2 + 0.8, class: cls, "data-block": bid }, gB);
+    r.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onBlock(bid, e); });
+    if (b.func !== "CONNECTOR") {
+      const t = badgeText(b);
+      const w = t.length * 2.55 + 2.4;
+      el("rect", { x: x0, y: y0 - 5.6, width: w, height: 5, rx: 1, class: "badge-bg" + (b.func === "UNKNOWN" ? " unknown" : "") }, gB);
+      const tx = el("text", { x: x0 + 1.2, y: y0 - 1.9, class: "badge" }, gB);
+      tx.textContent = t;
+    }
+  }
+  for (const r of s.rows) {
+    const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
+    c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
+    const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}`;
+  }
+  for (const f of s.findings) {
+    if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
+  }
+  $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
+  $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
+  paint();
+}
+function badgeText(b) {
+  if (b.func === "UNKNOWN") return "?";
+  if (b.func === "MEMORY") return b.param.dominant === "set" ? "MEM S우선" : b.param.dominant === "reset" ? "MEM R우선" : "MEM";
+  if (["GT", "DT", "PD"].includes(b.func)) return `${b.func}${b.param.text ? " " + b.param.text.replace("t=", "") : ""}`;
+  if (b.func === "PB") return "PB";
+  if (b.func === "SIGNAL") return "입력";
+  return b.func;
+}
+
+/* ------------------------------------------------------------------ 상태 칠하기 */
+
+function paint() {
+  const s = L.sheet;
+  if (!s) return;
+  for (const g of document.querySelectorAll("#ov .net")) {
+    const nid = g.dataset.net;
+    g.classList.remove("on", "off", "unk", "forced");
+    if (L.mode === "sim" && nid in L.values) {
+      const v = L.values[nid];
+      g.classList.add(v === 1 ? "on" : v === 0 ? "off" : "unk");
+      if (("net:" + nid) in L.forces) g.classList.add("forced");
+    }
+    g.classList.toggle("sel", L.sel && L.sel.net === nid);
+  }
+  for (const r of document.querySelectorAll("#ov .rowpin")) {
+    const n = Number(r.dataset.row);
+    const row = s.rows.find((x) => x.n === n);
+    r.classList.toggle("v1", L.mode === "sim" && row && L.values[row.net] === 1);
+    r.classList.toggle("forced", ("row:" + n) in L.forces);
+  }
+  const act = new Set();
+  if (L.mode === "sim" && L.state) {
+    for (const [bid, q] of Object.entries(L.state.mem || {})) if (q === 1) act.add(bid);
+    for (const [bid, t] of Object.entries(L.state.tim || {})) if (t.out === 1) act.add(bid);
+    for (const k of Object.keys(L.forces)) if (k.startsWith("block:") && L.forces[k] === 1) act.add(k.slice(6));
+  }
+  for (const b of document.querySelectorAll("#ov .blk")) {
+    b.classList.toggle("act", act.has(b.dataset.block));
+    b.classList.toggle("sel", L.sel && L.sel.block === b.dataset.block);
+  }
+  renderRows();
+}
+
+function stopAnim() {
+  for (const t of L.anim) clearTimeout(t);
+  L.anim = [];
+  for (const l of document.querySelectorAll("#ov .fx")) {
+    l.style.transition = "none";
+    l.setAttribute("stroke-dashoffset", l.dataset.len);
+  }
+  for (const g of document.querySelectorAll("#ov .net")) g.classList.remove("tr", "tru");
+  for (const b of document.querySelectorAll("#ov .blk")) b.classList.remove("tr");
+  $("#timeline").hidden = true;
+}
+
+/* 넷 하나를 몰이 자리부터 바깥으로 그린다 (선이 쭉 이어지는 모습) */
+function wipe(nid, delay, show) {
+  const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
+  if (!g) return 0;
+  let maxEnd = 0;
+  for (const l of g.querySelectorAll(".fx")) {
+    const d0 = Number(l.dataset.d0), len = Number(l.dataset.len);
+    const t0 = delay + (d0 / SPEED) * 1000, dur = (len / SPEED) * 1000;
+    maxEnd = Math.max(maxEnd, t0 + dur);
+    l.style.transition = "none";
+    l.setAttribute("stroke-dashoffset", show ? len : 0);
+    L.anim.push(setTimeout(() => {
+      l.style.transition = `stroke-dashoffset ${Math.max(40, dur)}ms linear`;
+      l.setAttribute("stroke-dashoffset", show ? 0 : len);
+    }, t0));
+  }
+  return maxEnd;
+}
+function showAll(nids, on) {
+  for (const nid of nids) {
+    const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
+    if (!g) continue;
+    for (const l of g.querySelectorAll(".fx")) { l.style.transition = "none"; l.setAttribute("stroke-dashoffset", on ? 0 : l.dataset.len); }
+  }
+}
+
+/* ------------------------------------------------------------------ 연결 따라가기 */
+
+async function traceFrom(start, up) {
+  stopAnim();
+  const r = await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/trace`, { start, direction: up ? "up" : "down" });
+  const cls = up ? "tru" : "tr";
+  // 깊이마다 순서대로 — 앞 깊이의 선이 다 그려진 뒤 다음 블록을 지난다
+  const byDepth = {};
+  for (const o of r.order) (byDepth[o.depth] = byDepth[o.depth] || []).push(o.net);
+  const bDepth = {};
+  for (const b of r.blocks) (bDepth[b.depth] = bDepth[b.depth] || []).push(b.block);
+  let t = 0;
+  const depths = Object.keys(byDepth).map(Number).sort((a, b) => a - b);
+  for (const d of depths) {
+    for (const bid of bDepth[d] || []) {
+      L.anim.push(setTimeout(() => { const e = document.querySelector(`#ov .blk[data-block="${CSS.escape(bid)}"]`); if (e) e.classList.add("tr"); }, t));
+    }
+    let end = t;
+    for (const nid of byDepth[d]) {
+      const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
+      if (g) g.classList.add(cls);
+      end = Math.max(end, wipe(nid, t, true));
+    }
+    t = end + STEP_MS;
+  }
+  const nb = r.blocks.length;
+  $("#info").insertAdjacentHTML("beforeend", `<p class="trace-sum">${up ? "거슬러 올라가" : "따라가"} 선 ${r.order.length}개 · 블록 ${nb}개를 지났습니다.</p>`);
+}
+
+/* ------------------------------------------------------------------ 동작 시뮬레이션 */
+
+async function runSim(animate) {
+  if (!L.sheet) return;
+  const prev = { ...L.values };
+  const r = await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/simulate`, { forces: L.forces, state: L.state });
+  L.state = r.state;
+  L.notes = r.notes;
+  stopAnim();
+  if (!animate) {
+    const last = r.frames[r.frames.length - 1];
+    L.values = last.values;
+    showAll(Object.keys(L.values), true);
+    paint(); renderInfo();
+    return;
+  }
+  // 틀마다: 값이 바뀐 넷을 깊이 순서로 그리고, 타이머 틀 사이에는 경과를 보인다
+  let t = 0;
+  let cur = prev;
+  r.frames.forEach((fr, i) => {
+    const changed = Object.keys(fr.values).filter((n) => fr.values[n] !== cur[n]);
+    const startAt = t;
+    if (i > 0) {
+      const label = fr.note;
+      L.anim.push(setTimeout(() => timelineShow(label, TIMER_MS), startAt));
+      t += TIMER_MS;
+    }
+    const base = t;
+    const depths = {};
+    for (const n of changed) (depths[fr.depth[n] || 0] = depths[fr.depth[n] || 0] || []).push(n);
+    const ds = Object.keys(depths).map(Number).sort((a, b) => a - b);
+    let tt = base;
+    const snap = fr.values;
+    L.anim.push(setTimeout(() => {
+      L.values = { ...L.values };
+      // 꺼지는 선은 바로, 켜지는 선은 흘러가며
+      for (const n of changed) if (snap[n] !== 1) L.values[n] = snap[n];
+      paint();
+    }, base));
+    for (const d of ds) {
+      let end = tt;
+      for (const n of depths[d]) {
+        if (snap[n] === 1) {
+          L.anim.push(setTimeout(() => { L.values[n] = 1; paintNet(n); }, tt));
+          end = Math.max(end, wipe(n, tt, true));
+        }
+      }
+      tt = end + STEP_MS;
+    }
+    t = tt;
+    L.anim.push(setTimeout(() => { L.values = { ...snap }; showAll(Object.keys(snap), true); paint(); renderInfo(); }, t));
+    cur = fr.values;
+  });
+}
+function paintNet(nid) {
+  const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
+  if (!g) return;
+  g.classList.remove("on", "off", "unk");
+  const v = L.values[nid];
+  g.classList.add(v === 1 ? "on" : v === 0 ? "off" : "unk");
+}
+function timelineShow(label, ms) {
+  const tl = $("#timeline");
+  tl.hidden = false;
+  $("#tl-text").textContent = `⏱ ${label}`;
+  const f = $("#tl-fill");
+  f.style.transition = "none"; f.style.width = "0";
+  requestAnimationFrame(() => { f.style.transition = `width ${ms}ms linear`; f.style.width = "100%"; });
+  L.anim.push(setTimeout(() => (tl.hidden = true), ms + 300));
+}
+
+function cycleForce(key) {
+  // 1 → 0 → 강제 풀기
+  const v = L.forces[key];
+  if (v === undefined) L.forces[key] = 1;
+  else if (v === 1) L.forces[key] = 0;
+  else delete L.forces[key];
+  runSim(true);
+}
+function setForce(key, v) {
+  if (v === null) delete L.forces[key]; else L.forces[key] = v;
+  runSim(true);
+}
+
+/* ------------------------------------------------------------------ 누르기 */
+
+function onNet(nid, e) {
+  L.sel = { net: nid };
+  if (L.mode === "trace") traceFrom("net:" + nid, e.shiftKey);
+  else cycleForce("net:" + nid);
+  paint(); renderInfo();
+}
+function onBlock(bid, e) {
+  L.sel = { block: bid };
+  const b = L.sheet.blocks[bid];
+  const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
+  if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
+  else if (!hasIn || b.logic === "source") cycleForce("block:" + bid);
+  paint(); renderInfo();
+}
+function onRow(n, e) {
+  const row = L.sheet.rows.find((r) => r.n === n);
+  L.sel = { row: n, net: row && row.net };
+  if (L.mode === "trace") traceFrom("row:" + n, row && row.side === "R");
+  else if (row && row.side === "L") cycleForce("row:" + n);
+  paint(); renderInfo();
+}
+
+/* ------------------------------------------------------------------ 오른쪽 판 */
+
+function valTag(v) {
+  if (L.mode !== "sim") return "";
+  return v === 1 ? `<span class="val v1">1</span>` : v === 0 ? `<span class="val v0">0</span>` : v === null ? `<span class="val vn">?</span>` : "";
+}
+function forceBtns(key) {
+  const v = L.forces[key];
+  return `<span class="force" data-key="${esc(key)}"><button class="v1 ${v === 1 ? "on" : ""}" data-v="1" title="1 로 강제">1</button><button class="v0 ${v === 0 ? "on" : ""}" data-v="0" title="0 으로 강제">0</button><button data-v="x" title="강제 풀기">×</button></span>`;
+}
+function renderRows() {
+  const s = L.sheet;
+  if (!s) return;
+  const mk = (r) => {
+    const ref = r.ref ? ` <span class="ref" data-ref-page="${r.ref.page || ""}" data-ref-row="${r.ref.row}" title="그 장으로">${esc(r.fm)}</span>`
+      : r.fm ? ` <small>${esc(r.fm)}</small>` : "";
+    const ins = (r.refs_in || []).map((x) => ` <span class="ref" data-ref-page="${x.page}" data-ref-row="${x.row}" title="이 출력을 받는 장">→${esc(x.sheet)}-${x.row}</span>`).join("");
+    const to = r.to ? ` <small>→ ${esc(r.to)}</small>` : "";
+    const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
+    return `<li data-row="${r.n}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}</span><span>${right}</span></li>`;
+  };
+  const rows = [...s.rows].sort((a, b) => a.n - b.n);
+  $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
+  $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
+}
+function renderFindings() {
+  const f = L.sheet.findings;
+  $("#find-count").textContent = f.length ? `${f.length}건` : "이상 없음";
+  $("#findings").innerHTML = f.map((x, i) => `<li data-i="${i}">${esc(x.text)} <code>${esc(x.code)}</code></li>`).join("");
+}
+function renderInfo() {
+  const s = L.sheet;
+  const box = $("#info");
+  if (!s || !L.sel) { box.innerHTML = "도면에서 선이나 블록을 누르세요."; return; }
+  if (L.sel.block) {
+    const b = s.blocks[L.sel.block];
+    const ports = s.ports.filter((p) => p.block === L.sel.block);
+    const ins = ports.filter((p) => p.dir === "in"), outs = ports.filter((p) => p.dir === "out");
+    const mem = L.state && L.state.mem && L.state.mem[L.sel.block];
+    const tim = L.state && L.state.tim && L.state.tim[L.sel.block];
+    box.innerHTML = `<table>
+      <tr><td>종류</td><td><b>${esc(FUNC_KO[b.func] || b.func)}</b> ${b.func === "MEMORY" ? `(${b.param.dominant === "set" ? "SET 우선" : b.param.dominant === "reset" ? "RESET 우선" : "기본"})` : ""}</td></tr>
+      <tr><td>도면 글자</td><td>${esc(b.label || "")} <small>(읽은 그대로: ${esc(b.read || "—")})</small></td></tr>
+      ${b.score ? `<tr><td>맞음</td><td>${Math.round(b.score * 100)}% <small>범례 어휘와 글자 모양</small></td></tr>` : ""}
+      ${b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
+      <tr><td>단자</td><td>들어옴 ${ins.length} · 나감 ${outs.length}</td></tr>
+      ${L.mode === "sim" && b.func === "MEMORY" ? `<tr><td>상태</td><td>${valTag(mem || 0)}</td></tr>` : ""}
+      ${L.mode === "sim" && tim ? `<tr><td>타이머</td><td>출력 ${valTag(tim.out)} ${tim.due ? "· 진행 중" : ""}</td></tr>` : ""}
+      ${b.func === "STEP" ? `<tr><td>주의</td><td>근사 모델: C_STEP = STEP_IN · STEP_OUT = STEP_IN AND CRIT</td></tr>` : ""}
+    </table>
+    <div class="acts">${L.mode === "sim" && (!ins.length || b.logic === "source") ? forceBtns("block:" + L.sel.block) : ""}
+      ${L.mode === "trace" ? `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>` : ""}</div>`;
+    return;
+  }
+  const nid = L.sel.net;
+  const ports = s.ports.filter((p) => p.net === nid);
+  const rows = s.rows.filter((r) => r.net === nid);
+  const drv = ports.filter((p) => p.dir === "out").map((p) => FUNC_KO[s.blocks[p.block].func] || p.block)
+    .concat(rows.filter((r) => r.side === "L").map((r) => `입력 ${r.n}행`));
+  const snk = ports.filter((p) => p.dir === "in").map((p) => FUNC_KO[s.blocks[p.block].func] || p.block)
+    .concat(rows.filter((r) => r.side === "R").map((r) => `출력 ${r.n}행`));
+  box.innerHTML = `<table>
+    <tr><td>선</td><td>#${esc(nid)} ${s.nets[nid] && s.nets[nid].dashed ? "(파선)" : ""}</td></tr>
+    <tr><td>보내는 곳</td><td>${esc(drv.join(", ") || "없음")}</td></tr>
+    <tr><td>받는 곳</td><td>${esc(snk.join(", ") || "없음")}</td></tr>
+    ${L.mode === "sim" ? `<tr><td>값</td><td>${valTag(L.values[nid])} ${("net:" + nid) in L.forces ? "(강제)" : ""}</td></tr>` : ""}
+  </table>
+  <div class="acts">${L.mode === "sim" ? forceBtns("net:" + nid) : `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>`}</div>
+  ${L.notes && L.notes.length && L.mode === "sim" ? `<p class="lg-basis">${L.notes.map(esc).join("<br>")}</p>` : ""}`;
+}
+function renderHelp() {
+  const sim = L.mode === "sim";
+  $("#help").innerHTML = sim
+    ? "<b>동작 시뮬레이션</b> — 왼쪽 입력 행의 <b>1 / 0</b>, 누름단추(PB), 또는 아무 선이나 눌러 신호를 강제로 넣으세요 (누를 때마다 1 → 0 → 풀기). 로직이 동작하는 순서대로 선이 초록으로 이어집니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다."
+    : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지).";
+  $("#legend").innerHTML = sim
+    ? `<span><i style="background:var(--on)"></i>1 (켜짐)</span><span><i style="background:#59616f"></i>0 (꺼짐)</span><span><i style="background:var(--unk)"></i>알 수 없음</span><span><i style="background:rgba(18,161,80,.4)"></i>켜진 메모리·타이머</span>`
+    : `<span><i style="background:var(--trace)"></i>따라가는 신호</span><span><i style="background:var(--trace-up)"></i>거슬러 올라감</span><span><i style="background:rgba(47,91,216,.5)"></i>읽은 선</span><span><i style="background:var(--unk)"></i>판정 못 한 블록</span>`;
+}
+
+/* ------------------------------------------------------------------ 이벤트 */
+
+function bind() {
+  $("#job").onchange = (e) => e.target.value && openJob(e.target.value);
+  $("#sheet-filter").oninput = renderSheetList;
+  $("#upload").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    status("올리는 중…");
+    try { const r = await api("/logic/api/jobs", { method: "POST", body: fd }); await loadJobs(r.id); }
+    catch (err) { status("올리기 실패 — " + err.message); }
+    e.target.value = "";
+  };
+  $("#samples").onclick = async (e) => {
+    const n = e.target.dataset.sample;
+    if (!n) return;
+    try { const r = await post("/logic/api/jobs/sample", { name: n }); await loadJobs(r.id); }
+    catch (err) { status("샘플 실패 — " + err.message); }
+  };
+  $("#mode").onclick = (e) => {
+    const m = e.target.dataset.mode;
+    if (!m) return;
+    L.mode = m;
+    for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
+    stopAnim();
+    renderHelp();
+    if (m === "sim") runSim(false); else { L.values = {}; paint(); }
+    renderInfo();
+  };
+  $("#zoom-in").onclick = () => setZoom(L.zoom * 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
+  $("#zoom-out").onclick = () => setZoom(L.zoom / 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
+  $("#zoom-fit").onclick = fit;
+  $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
+  $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
+  $("#reset").onclick = () => { L.forces = {}; L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
+  document.body.addEventListener("click", (e) => {
+    const fb = e.target.closest(".force button");
+    if (fb) {
+      const key = fb.parentElement.dataset.key;
+      const v = fb.dataset.v === "x" ? null : Number(fb.dataset.v);
+      setForce(key, v);
+      return;
+    }
+    const ref = e.target.closest(".ref");
+    if (ref && ref.dataset.refPage) { openSheet(Number(ref.dataset.refPage)); return; }
+    const li = e.target.closest(".lg-rows li[data-row]");
+    if (li) { onRow(Number(li.dataset.row), e); return; }
+    const act = e.target.closest("[data-act]");
+    if (act && L.sel) {
+      const start = L.sel.block ? "block:" + L.sel.block : L.sel.row ? "row:" + L.sel.row : "net:" + L.sel.net;
+      traceFrom(start, act.dataset.act === "up");
+      return;
+    }
+    const fi = e.target.closest("#findings li");
+    if (fi) {
+      const f = L.sheet.findings[Number(fi.dataset.i)];
+      const at = f.at || (f.block && L.sheet.blocks[f.block] && L.sheet.blocks[f.block].bbox.slice(0, 2));
+      if (f.block) { L.sel = { block: f.block }; paint(); renderInfo(); }
+      if (at) { const st = $("#stage"); st.scrollLeft = at[0] * L.zoom - st.clientWidth / 2; st.scrollTop = at[1] * L.zoom - st.clientHeight / 2; }
+    }
+  });
+  $("#stage").addEventListener("click", () => { if (L.justPanned) return; L.sel = null; paint(); renderInfo(); });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") stopAnim(); });
+}
+
+bind();
+initPan();
+renderHelp();
+loadJobs().catch((e) => status(e.message));
