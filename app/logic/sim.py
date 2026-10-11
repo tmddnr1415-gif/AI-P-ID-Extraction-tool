@@ -325,7 +325,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
         for r in s["rows"]:
             ref = r.get("ref")
             if r["side"] == "L" and ref and ref.get("page") in by_page:
-                feeds[s["page"]].append((r["n"], ref["page"], ref["row"]))
+                feeds[s["page"]].append((r["n"], ref["page"], ref.get("src_row", ref["row"])))
     out_rows = {}                     # page → {row: 값}
     results = {}
     link_in = {}                      # page → {row: 값}

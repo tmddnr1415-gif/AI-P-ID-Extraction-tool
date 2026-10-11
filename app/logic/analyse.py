@@ -12,7 +12,7 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import geom, glyphs, graph
+from . import fromto, geom, glyphs, graph
 
 REF = re.compile(r"^([A-Z]\d{3}[A-Z]?)-(\d{1,3})$")     # 시트-행 (설계 S6 · 판독한 글자에서)
 
@@ -47,6 +47,7 @@ def analyse(pdf_path, progress=None):
     _cross_refs(out_sheets)
     for s in out_sheets:
         s["findings"] = _findings(s)
+    fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
     return {
         "pdf_pages": len(doc),
         "sheets": out_sheets,
@@ -346,8 +347,4 @@ def _findings(s):
                       "text": f"{b['func']} 게이트에 들어오는 선을 찾지 못했습니다 (도면을 확인하세요)"})
         if not pdir[bid] and b["func"] not in ("CONNECTOR",):
             f.append({"code": "C3_BLOCK_UNCONNECTED", "block": bid, "text": "선이 하나도 닿지 않은 블록입니다"})
-    for r in s["rows"]:
-        if r.get("ref") and r["ref"]["page"] is None and not r["ref"].get("other_bundle"):
-            f.append({"code": "L_C2_SHEET_MISSING", "row": r["n"],
-                      "text": f"FM {r['ref']['sheet']}-{r['ref']['row']} — 묶음에 {r['ref']['sheet']} 장이 없습니다"})
     return f

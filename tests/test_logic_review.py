@@ -298,3 +298,34 @@ def test_active_output_carries_to_linked_sheets():
     assert hops["G001"] == 0 and hops["G002"] == 0 and hops["G003"] == 1   # 사람이 준 장에서 몇 장째
     r = sim.simulate_bundle(S, {1: {"row:1": 1}, 2: {"row:1": 0, "row:2": 1}}, None, 2)
     assert r["focus"]["frames"][-1]["values"]["9"] == 0, "사람이 준 0 이 연결보다 이긴다"
+
+
+def test_from_to_mismatch_is_reported():
+    """L5 사용자 지시: from-to 가 맞지 않으면 붉게 — FM ↔ TO 양쪽과 설명을 도면 글자 그대로 대조한다."""
+    from app.logic import fromto
+
+    def sheet(page, no, table, wired):
+        return {"page": page, "sheet_no": no, "table": table, "findings": [],
+                "rows": [{"n": n, "side": sd, "net": str(n), "at": [0, 0]} for sd, n in wired]}
+    src = sheet(1, "G049", [
+        {"side": "R", "n": 85, "desc": "HP DRUM CBD MOV CLOSED", "to": "G035-31"},
+        {"side": "R", "n": 86, "desc": "", "to": "G023-8"},           # TO 목록이 아래 행으로 이어진다
+        {"side": "R", "n": 95, "desc": "HP DRUM CBD MOV READY", "to": "G025-8"},
+        {"side": "R", "n": 96, "desc": "", "to": ""},
+    ], [("R", 85), ("R", 95)])
+    a = sheet(2, "G023", [{"side": "L", "n": 8, "fm": "G049-86", "desc": "HP DRUM CBD MOV CLOSED"}], [("L", 8)])
+    b = sheet(3, "G025", [{"side": "L", "n": 8, "fm": "G049-95", "desc": "HP DRUM CBD MOV CLOSED"}], [("L", 8)])
+    c = sheet(4, "G035", [{"side": "L", "n": 31, "fm": "G049-96", "desc": "X"}], [("L", 31)])
+    for sh in (a, b, c):
+        for r in sh["rows"]:
+            r["fm"] = sh["table"][0]["fm"]; r["desc"] = sh["table"][0]["desc"]
+    S = [src, a, b, c]
+    fromto.check(S)
+    fromto.check(S)                                                     # 여러 번 불러도 같다
+    ra, rb, rc = a["rows"][0], b["rows"][0], c["rows"][0]
+    assert ra["ft"]["ok"] is True and ra["ref"]["src_row"] == 85, "86행은 85행 신호의 TO 이어짐"
+    assert rb["ft"]["ok"] is False and "설명이 다릅니다" in rb["ft"]["why"][0]
+    assert rc["ft"]["ok"] is False and "출력 신호가 없습니다" in rc["ft"]["why"][0]
+    o85 = src["rows"][0]
+    assert o85["ft"]["ok"] is False and "G035-31" in o85["ft"]["why"][0], "TO G035-31 의 FM 이 G049-96 이다"
+    assert sum(f["code"] == "FT_MISMATCH" for sh in S for f in sh["findings"]) == 3

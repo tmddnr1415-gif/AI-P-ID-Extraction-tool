@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import sim, store
+from . import fromto, sim, store
 
 router = APIRouter()
 ZOOM = 2.5                      # 장 그림 배율 (A3 1191pt → 약 2980px)
@@ -107,7 +107,9 @@ def _result(job):
     d = _dir(job)
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
-    return store.read_result(d)
+    res = store.read_result(d)
+    fromto.check(res["sheets"])              # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5 · 여러 번 불러도 같다)
+    return res
 
 
 def _sheet(job, page):
@@ -128,6 +130,7 @@ def sheets(job: str):
         out.append({"page": s["page"], "sheet_no": s["sheet_no"], "title": s["title"],
                     "nets": len(s["nets"]), "blocks": len(s["blocks"]), "funcs": funcs,
                     "findings": len(s["findings"]),
+                    "mismatch": sum(1 for f in s["findings"] if f["code"] == "FT_MISMATCH"),
                     "unknown": funcs.get("UNKNOWN", 0)})
     return {"sheets": out, "pdf_pages": res["pdf_pages"], "note": res.get("note", ""),
             "dictionary": res.get("dictionary", {}), "seconds": res.get("seconds")}

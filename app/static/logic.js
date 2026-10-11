@@ -91,7 +91,7 @@ function renderSheetList() {
     const ch = L.mode === "sim" && L.chain.find((c) => c.page === s.page && c.hop != null);
     if (ch) li.classList.add("chain");
     li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
-      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
+      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
     li.onclick = () => openSheet(s.page);
     ul.appendChild(li);
   }
@@ -211,7 +211,19 @@ function drawOverlay() {
   for (const r of s.rows) {
     const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
     c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
-    const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}`;
+    const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}` + (r.ft && r.ft.ok === false ? `\n⚠ from-to 일치하지 않습니다 — ${r.ft.why.join(" · ")}` : "");
+    if (r.ft && r.ft.ok === false) {
+      // from-to 가 맞지 않는 행 — 붉게 (사용자 지시 L5)
+      c.classList.add("ftbad");
+      if (r.y0 != null && r.y1 != null) {
+        // 그 행의 표 칸을 붉게 두른다 (왼쪽 표는 LOGIC 영역 왼쪽, 오른쪽 표는 오른쪽)
+        const lg = s.logic, W = (s.size && s.size[0]) || lg[2] + 200;
+        const x0 = r.side === "L" ? Math.max(0, lg[0] - (W - lg[2])) : lg[2], x1 = r.side === "L" ? lg[0] : W;
+        const bx = el("rect", { x: x0, y: r.y0, width: x1 - x0, height: r.y1 - r.y0, class: "ft-row" }, gR);
+        gR.insertBefore(bx, gR.firstChild);
+        el("title", {}, bx).textContent = c.querySelector("title").textContent;
+      }
+    }
   }
   for (const f of s.findings) {
     if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
@@ -490,11 +502,21 @@ function renderRows() {
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
     const to = r.to ? ` <small>→ ${esc(r.to)}</small>` : "";
     const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
-    return `<li data-row="${r.n}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}</span><span>${right}</span></li>`;
+    const bad = r.ft && r.ft.ok === false;
+    const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
+    return `<li data-row="${r.n}" class="${bad ? "ftbad" : ""}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}${ftl}</span><span>${right}</span></li>`;
   };
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
   $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
+}
+/* from-to 대조 한 줄 — 서버(app/logic/fromto.py)가 판정한 그대로 */
+function ftText(r) {
+  const f = r.ft;
+  if (!f) return "";
+  if (f.ok === false) return `✕ 일치하지 않습니다 (${esc(f.peer || "?")}) — ${f.why.map(esc).join(" · ")}`;
+  if (f.ok) return `✓ 일치 (${esc(f.peer || "")})`;
+  return `확인 못 함 (${esc(f.peer || "")} — TO 가 NOTE 이거나 글자를 못 읽음)`;
 }
 /* 활성이 연결을 따라 닿은 장 — 사람이 준 장에서부터 몇 장째인가 */
 function renderChain() {
@@ -550,6 +572,7 @@ function renderInfo() {
     <tr><td>보내는 곳</td><td>${esc(drv.join(", ") || "없음")}</td></tr>
     <tr><td>받는 곳</td><td>${esc(snk.join(", ") || "없음")}</td></tr>
     ${L.mode === "sim" ? `<tr><td>값</td><td>${valTag(L.values[nid])} ${("net:" + nid) in L.forces ? "(강제)" : ""}</td></tr>` : ""}
+    ${rows.filter((r) => r.ft).map((r) => `<tr><td>from-to ${r.n}행</td><td>${ftText(r)}</td></tr>`).join("")}
   </table>
   <div class="acts">${L.mode === "sim" ? forceBtns("net:" + nid) : `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>`}</div>
   ${L.notes && L.notes.length && L.mode === "sim" ? `<p class="lg-basis">${L.notes.map(esc).join("<br>")}</p>` : ""}`;

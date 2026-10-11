@@ -132,3 +132,13 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-chain li { padding: 4px 6px; border-left: 3px solid var(--active); background: #effaff; margin-bottom: 4px; cursor: pointer; font-size: 12px; display: flex; flex-direction: column; }
 .lg-chain li.sel { background: #d6f2ff; }
 .lg-chain small { color: var(--soft); }
+
+/* from-to 불일치 = 붉게 (L5) */
+#ov .rowpin.ftbad { stroke: var(--find); stroke-width: 1.6; fill: #ffe3e1; }
+#ov .rowpin.ftbad.v1, #ov .rowpin.ftbad.linked { fill: var(--active); }
+#ov .ft-row { fill: rgba(194,69,63,.16); stroke: var(--find); stroke-width: .7; }
+.lg-rows li.ftbad { background: #fdecea; box-shadow: inset 3px 0 0 var(--find); }
+.lg-rows li.ftbad .n { color: var(--find); font-weight: 700; }
+.lg-rows .ftline { display: block; font-size: 11px; white-space: normal; color: var(--soft); }
+.lg-rows .ftline.bad { color: var(--find); font-weight: 600; }
+.lg-rows .ftline.ok { color: #12804a; }
