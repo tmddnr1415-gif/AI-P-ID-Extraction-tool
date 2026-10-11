@@ -4406,6 +4406,59 @@ VENDOR 로 한다"* ④ *"제어실 기능 버블(LICA·PICA 등)은 넣지 않�
    보이지 않는다 (편집 기록은 지우지 않는다).  끄려면 config `policy.not_identified_tags: []` ·
    `control_room_functions: keep`.
 
+**그 다음 — 다섯째 회사 양식: Takhiatash (Hyundai · DIN 19227 · KKS) (hotfix84 · 2026-10-11)**
+
+사용자: *"첨부는 다른 Project 의 P&ID 다 — 시뮬레이션하고 제대로 식별되는지, 문제가 있으면 해결해서 …
+이것처럼 계속해서 주겠다."*  binder 60장(A3 · /Rotate 90 · 영어/러시아어 병기) + HRSG 단장 4개.
+회귀 하네스에 **TAKHIATASH 항목 추가** (`spike/projects_3p.json` · `data/newproj/binder.pdf`).  시험 1144 → **1157**
+(`tests/test_hotfix84_new_form.py` 13건).  **AL NOUF1 `b61a6995` · TC2 `10e32bd0` · QFE `531237eb` · UAD-DXF `26d45872`
+전부 "기준선과 같습니다"** (`out/hotfix84/logs/reg_*.log` · 밸브 태그 고침 뒤 QFE 한 번 더 `v_QFE.log`).
+**TAKHIATASH 첫 기준선 `59757589` · 1139행 · Q'ty 1495 · 축3 74.6.**
+
+처음에는 **60장 전부에서 0행**이었다 — 벽이 다섯 겹이었고 하나씩 넘었다 (전부 앞 갈래가 빌 때만 도는 새 갈래):
+
+1. **테두리가 선이 아니라 사각형(`qu`) 하나** → `TitleBlockUnreadable`.  `derive_layout._box_edges` — 선 테두리를
+   못 찾았을 때만 `re`·`qu` 의 종이 크기 변을 본다 (TC2 는 종이 둘레에 quad 를 둘 더 그어 *먼저* 보면 테두리가 바뀐다 —
+   A/B 가 잡았다).  **종이 가장자리 위의 선은 종이다** (`PAPER_EDGE` 1pt · 안쪽에 둘이 남을 때만 뺀다).
+2. **노트 열이 없다** — 타이틀블록이 오른쪽 아래 상자이고 NOTES 가 도면 안 오른쪽 위에 있다.  `_notes_heading` —
+   양식이 NOTES 머리말을 **절반 이상의 장에 같은 자리**로 찍으면 거기부터 테두리까지가 노트 영역 (49/60장 · 노트 열을
+   그은 양식은 이 갈래에 안 온다).  별표 뜻(`* … STEAM BYPASS SYSTEM SUPPLIER` · `** … HRSG SUPPLIER`)과
+   `THIS P&ID IS TYPICAL FOR UNIT 1 & 2`(x2 · 356행)가 이것으로 읽힌다.
+3. **범례 머리말이 다른 낱말** — `2. VALVES` · `3. ACTUATORS` · `ELECTRICAL SIGNAL LINE`.  `legend_rules.HEADING_ALTERNATIVES`
+   (정확한 머리말을 **어느 장도 안 찍을 때만** 시도 · `§` 는 번호 붙은 절 머리말이 그 줄의 끝).
+4. **ISA 문자표가 DIN 19227 의 "한 글자 한 줄" 꼴** (`<글자> | 측정변수 | 수식어 | 표시·출력 기능`) — 행렬 판독기도
+   `( ) X` 칸 판독기도 비어 succeeding 0 이었다.  `isa_table._list_form` — 열은 표가 바로 아래 찍은 소제목 줄
+   (`MEASURED OR INITIATING VARIABLE | MODIFIER | DISPLAY OR OUTPUT FUNCTIONS`)이 정하고, 마지막 열은 낱말이 붙어 있는
+   동안만(옆 KKS 표를 안 읽는다) · 수식어(`D` DIFFERENCE)는 두 글자 첫 항목 `PD` 로.  `C` = `CONTROLLING` 이라
+   제어 기능 판정이 `CONTROLL…` 로 넓어졌다 (hotfix83 방침 — FIC·PIC·TICA·LICAZ 49행 제외).
+5. **★ 원·버블 캡을 "베지어 + 아주 짧은 직선" 으로 그린다** (`l c l` · 직선 0.6~0.8pt = 캡 짧은 변의 0.1).
+   *곡선만* 을 요구하던 버블·모터 원·범례 액추에이터 원 판정이 **하나도** 못 찾았다.  `pidcache.curve_path` ·
+   `round_box` 하나 — 직선이 그 도형 짧은 변의 1/4 이하면 호의 꼬리로 보고, 그런 도형은 **제어점이 아니라 그려진
+   곡선**으로 잰다 (베지어 하나짜리 반원은 bbox 가 제어점 때문에 4/3 부풀어 캡 비 1.56 이 되어 `cap_ratio` 밖이었다).
+   곡선만의 도형은 예전 bbox 그대로라 기존 문서는 구조적으로 불변.  버블 p6 0 → 37 · MOV 0 → 46행.
+6. **문서 길이 단위** — 나비 밸브를 사각형+점으로 그려 나비 원이 없다 → 단위 1.0(AL NOUF1 크기)이었다.
+   `legend_unit(bf, pages)` 가 나비 원이 없을 때 **범례 액추에이터 원 ÷ 14.22** (= 0.47) — 47회차 측정을
+   `legend_rules.actuator_circle` 로 옮겨 한 곳에서.  스템도 범례에서 섰다 (centre_to_body 13.66).
+7. **★ 같은 태그 = 한 루프 (`TAG_LOOP`).**  DIN 양식은 현장 계기를 선 없는 버블(`PIT 00SBA20CP001`)로, 그 루프의 DCS
+   기능을 가운데 선 버블(`PISA 00SBA20CP001` · `LSAZ`·`LA`)로 **같은 태그**에 따로 찍는다.  hotfix73 은 TYPE 이 같을 때만
+   접었다 → 같은 장·같은 태그에 **선 없는 버블이 정확히 하나**면 선 있는 버블을 접는다 (144행 · 갈리면 안 고른다).
+8. **도면번호에 유닛 자리가 없다** (`B-SBA-M-32-001`) — `SB` 를 유닛코드로 읽던 것을 **숫자일 때만** 유닛코드로
+   (네 기준 문서 전부 숫자 — 실측).  사유 문장도 없는 코드를 지어내지 않는다 (`default_mult_reason`).
+9. **밸브 행의 태그는 그 밸브의 태그 버블 자리에서** (`_attach_tags` 가 `tag_rect` 를 본다) — 225행 중 201행.
+
+**실측 (binder 60장 · 101~126초 · 0.8GB)**: FIELD 914 · MOV 46 · PNEUMATIC 2 · REVIEW 177 · 태그 1067/1139 ·
+SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS SYSTEM SUPPLIER · HEATER · HRSG …) ·
+제외 69(제어 기능 49 · PSV 20).  p6 를 도면과 한 줄씩 대조: TIT/TE/PIT/PDIT/FIT/FE 전부 · `**` MOV·PCV = HRSG ·
+`*` XV·PCV·TCV = STEAM BYPASS · 제어 기능(TICA·PICA·FIC) 제외 · PIC/PDIA 는 PIT/PDIT 에 접힘 — 맞다.
+
+**못 한 것 (다음 후보)**:
+- **HRSG 단장 4개는 글자층이 0** (글자가 전부 획 · SHX 주석도 없음) → `NoTextLayer` 로 사유를 말하고 멈춘다 (의도).
+  CAD 에서 TrueType 로 다시 내보내거나 DXF 로 받아야 한다.
+- 개정(REV) 0/60 — 이력 표가 열이 아니라 오른쪽 아래 상자 안이라 이력 표 유도(24회차 · 열 기준)가 못 찾는다.
+- 나비 밸브(사각형+점)·공압 액추에이터 기호를 범례에서 못 잰다 → BFV 0 · PCV/XV 상당수가 REVIEW(몸체 없음 51 ·
+  액추에이터 없음 106).  **기호 모양이 다른 회사 양식**이라 몸체 판정의 새 가족이 필요하다.
+- 선 있는 기능 버블 중 같은 태그의 현장 버블이 **없는** 것(PISA 16 · TISA 8 · LISAZ 8 …)은 그대로 행이다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

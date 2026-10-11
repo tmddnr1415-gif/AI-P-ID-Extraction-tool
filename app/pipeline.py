@@ -5421,8 +5421,12 @@ def _attach_tags(rows: list, pages: list, declared_mode: str = None) -> dict:
     # ZSC ↔ XV)가 같은 코드를 들면 그것은 한 루프의 이름이다 (QFE p46).  종류는
     # 버블 앵커 글자(계기) · 버블 글자(`evidence["tag"]` · 밸브) · 몸체 갈래 순이고
     # 글자 뜻은 보지 않는다 — "다르다" 만 본다.
+    # hotfix84 — 밸브 몸체 행은 **그 밸브의 태그 버블** 자리에서 태그를 읽는다.  몸체
+    # 사각형 안에는 태그 글자가 없다 (태그는 지시선 끝 버블 안에 인쇄된다 — Takhiatash
+    # `MOV 10LBA10AA541`).  버블 자리는 `attach_tags` 가 이미 `tag_rect` 로 적어 두었다.
     tag_map, tier_facts = tagsys.assign(
-        [(r.page_no, pymupdf.Rect(*r.rect)) for r in rows],
+        [(r.page_no, pymupdf.Rect(*((r.evidence or {}).get("tag_rect") or r.rect)))
+         for r in rows],
         {pc.page_no: pc.words for pc in pages},
         kinds=[_tag_kind(r) for r in rows])
     # 38회차 — 입찰(bid) / 실행(epc) 선언.  **방법은 하나다: 1급 경로를 켜고

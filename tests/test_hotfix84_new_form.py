@@ -259,3 +259,9 @@ def test_unit_falls_back_to_the_legend_actuator_circle(monkeypatch):
     assert lr.legend_unit(bf, [object()]) == round(6.69 / 14.22, 4)
     bf2 = types.SimpleNamespace(values={"circle_diameter": 6.06})
     assert lr.legend_unit(bf2, [object()]) == 1.0          # 나비 원이 있으면 그것이 이긴다
+
+
+def test_valve_rows_read_their_tag_from_the_tag_bubble():
+    """밸브 몸체 안에는 태그 글자가 없다 — 지시선 끝 버블(`tag_rect`) 자리에서 읽는다."""
+    src = inspect.getsource(P._attach_tags)
+    assert '"tag_rect"' in src and src.index('"tag_rect"') < src.index("tagsys.assign(") + 400

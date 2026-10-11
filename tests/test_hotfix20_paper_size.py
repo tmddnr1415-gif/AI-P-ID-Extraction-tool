@@ -67,6 +67,6 @@ def test_scaled_config_keys_have_no_new_numbers():
 
 def test_legend_measurements_take_a_unit():
     assert "unit" in inspect.signature(lr.derive_actuator_stem).parameters
-    assert "legend_unit(bf)" in inspect.getsource(lr.derive_all)
+    assert "legend_unit(bf, pages)" in inspect.getsource(lr.derive_all)   # hotfix84 — 나비 원이 없으면 액추에이터 원
     src = inspect.getsource(P.pipe_graph.derive_line_styles)
     assert "6 * unit" in src and "200 * unit" in src

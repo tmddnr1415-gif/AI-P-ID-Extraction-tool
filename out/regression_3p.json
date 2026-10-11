@@ -1,21 +1,51 @@
 {
   "projects": [
     {
-      "name": "UAD-DXF",
-      "rows": 467,
-      "fingerprint": "26d45872424dded9ecf0dd4fc54c9e868049219b501f4c15c21a2defc8b1814f",
-      "qty_sum": 467,
+      "name": "TAKHIATASH",
+      "rows": 1139,
+      "fingerprint": "59757589b5653380b82ab9a16add40b12e34c66a01efc6fde30ae63e268c8818",
+      "qty_sum": 1495,
       "tabs": {
-        "FIELD": 423,
-        "PNEUMATIC": 23,
-        "REVIEW": 11,
-        "MOV": 8,
-        "BFV": 2
+        "FIELD": 914,
+        "MOV": 46,
+        "REVIEW": 177,
+        "PNEUMATIC": 2
       },
-      "seconds": 74.3,
-      "max_rss_gb": 0.51,
-      "identification": {},
-      "score": null
+      "seconds": 120.4,
+      "max_rss_gb": 0.81,
+      "identification": {
+        "도면번호": [
+          59,
+          59,
+          ""
+        ],
+        "개정": [
+          0,
+          60,
+          ""
+        ],
+        "태그→행": [
+          262,
+          335,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          1139,
+          1139,
+          ""
+        ],
+        "심볼판정": [
+          1139,
+          1272,
+          ""
+        ],
+        "파라미터": [
+          12,
+          15,
+          ""
+        ]
+      },
+      "score": 74.6
     }
   ],
   "metrics": [

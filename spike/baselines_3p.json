@@ -57,5 +57,12 @@
     "fingerprint": "531237eb9aa8f98e97be7b0c453a646b5cf36f081ba61e064390da0faeffeef3",
     "qty_sum": 3016,
     "score": 90.7
+  },
+  "TAKHIATASH": {
+    "rows": 1139,
+    "fingerprint": "59757589b5653380b82ab9a16add40b12e34c66a01efc6fde30ae63e268c8818",
+    "qty_sum": 1495,
+    "score": 74.6,
+    "note": "hotfix84 신규 — Takhiatash TPP (Hyundai) BOP 60장 · DIN 19227/KKS · 1급(태그). HRSG 단장 4개는 글자층이 없어(획) 분석이 사유를 말하고 멈춘다 — 넣지 않는다"
   }
 }
