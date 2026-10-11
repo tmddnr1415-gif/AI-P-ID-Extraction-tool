@@ -1,6 +1,8 @@
 """시트 사이 from-to 맞대기 — 도면이 표에 적은 그대로 양쪽을 대조한다 (L5).
 
 ★ 식별 열쇠는 **FM 칸의 시트 번호 + 행 No.** 하나다 (사용자 확정) — KKS 는 맞대기에 쓰지 않는다.
+  FM `G048-95` = G048 시트 95행에서 온 신호.  붉은 '불일치' 는 이 연결(FM ↔ 그 행 · 그 행의 TO)이 어긋날 때만이고,
+  연결은 맞는데 두 쪽 설명이 다르면 주황 '설명 다름' 으로 따로 알린다.
 받는 쪽: 왼쪽 행의 FM `G049-86` (보내는 장 · 그 장의 행).
 보내는 쪽: 오른쪽 출력 행의 TO 칸.  한 출력이 여러 장으로 가면 TO 목록이 **아래 행으로 이어진다** —
   G049 85 `HP DRUM CBD MOV CLOSED` · TO `G035-31` / 86 (설명 없음) · TO `G023-8` / 87 · TO `G032-15`.
@@ -77,10 +79,16 @@ def check(sheets):
                 return r
         return None
 
-    def add(s, n, side, ok, whys, peer):
+    def add(s, n, side, ok, whys, peer, warn=(), back=None):
         r = row_obj(s, side, n)
         if r is not None:
-            r["ft"] = {"ok": ok, "why": whys, "peer": peer}
+            r["ft"] = {"ok": ok, "why": whys, "peer": peer, "warn": list(warn), "back": back}
+        if warn and ok is not False:
+            f = {"code": "FT_DESC_DIFF", "row": n, "side": side,
+                 "text": f"{s['sheet_no']}-{n} ← {peer or '?'} 연결은 맞고 설명만 다릅니다 — " + " · ".join(warn)}
+            if r is not None and r.get("at"):
+                f["at"] = r["at"]
+            s["findings"].append(f)
         if ok is False:
             f = {"code": "FT_MISMATCH", "row": n, "side": side,
                  "text": f"{s['sheet_no']}-{n} ↔ {peer or '?'} 일치하지 않습니다 — " + " · ".join(whys)}
@@ -122,10 +130,14 @@ def check(sheets):
                     whys.append(f"{src}-{k} 의 TO 는 {', '.join(f'{a}-{b}' for a, b in to_refs)} 를 가리킵니다")
             a, b = _norm(r.get("desc")), _norm(tr[own].get("desc"))
             if a and b and a != b:
-                whys.append(f"설명이 다릅니다: '{r.get('desc')}' ↔ '{tr[own].get('desc')}'")
+                warn = [f"설명이 다릅니다: '{r.get('desc')}' ↔ '{tr[own].get('desc')}'"]
+            else:
+                warn = []
             peer = f"{src}-{own}" + (f" (TO {k}행)" if own != k else "")
-            ok = False if whys else (True if recip or (a and b) else None)
-            add(s, r["n"], "L", ok, whys, peer)
+            # 정합성은 FM 의 시트 + 행이 정한다 — 그 행에 신호가 있고 상대 TO 가 다른 곳을 가리키지 않으면 맞다.
+            # 설명이 다른 것은 연결 불일치가 아니라 따로 알린다 (주황).  상대 TO 가 NOTE 면 거꾸로는 확인 못 함(back None).
+            ok = False if whys else True
+            add(s, r["n"], "L", ok, whys, peer, warn, recip)
             o = row_obj(t, "R", own)
             if o is not None:
                 o.setdefault("refs_in", []).append({"sheet": me, "page": s["page"], "row": r["n"]})

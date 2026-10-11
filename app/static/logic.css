@@ -142,3 +142,8 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-rows .ftline { display: block; font-size: 11px; white-space: normal; color: var(--soft); }
 .lg-rows .ftline.bad { color: var(--find); font-weight: 600; }
 .lg-rows .ftline.ok { color: #12804a; }
+#ov .ft-row.warn { fill: rgba(232,150,20,.16); stroke: #d08a14; }
+#ov .rowpin.ftwarn { stroke: #d08a14; stroke-width: 1.4; fill: #fff3dc; }
+.lg-rows li.ftwarn { background: #fff7e6; box-shadow: inset 3px 0 0 #d08a14; }
+.lg-rows .ftline.warn { color: #9a6200; }
+#sheet-list .meta i.dd { color: #9a6200; font-style: normal; }

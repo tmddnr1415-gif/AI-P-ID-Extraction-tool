@@ -324,11 +324,12 @@ def test_from_to_mismatch_is_reported():
     fromto.check(S)                                                     # 여러 번 불러도 같다
     ra, rb, rc = a["rows"][0], b["rows"][0], c["rows"][0]
     assert ra["ft"]["ok"] is True and ra["ref"]["src_row"] == 85, "86행은 85행 신호의 TO 이어짐"
-    assert rb["ft"]["ok"] is False and "설명이 다릅니다" in rb["ft"]["why"][0]
+    assert rb["ft"]["ok"] is True and "설명이 다릅니다" in rb["ft"]["warn"][0], "연결은 맞고 설명만 다르면 주황 (불일치 아님)"
     assert rc["ft"]["ok"] is False and "출력 신호가 없습니다" in rc["ft"]["why"][0]
     o85 = src["rows"][0]
     assert o85["ft"]["ok"] is False and "G035-31" in o85["ft"]["why"][0], "TO G035-31 의 FM 이 G049-96 이다"
-    assert sum(f["code"] == "FT_MISMATCH" for sh in S for f in sh["findings"]) == 3
+    assert sum(f["code"] == "FT_MISMATCH" for sh in S for f in sh["findings"]) == 2
+    assert sum(f["code"] == "FT_DESC_DIFF" for sh in S for f in sh["findings"]) == 1
 
 
 def test_from_is_matched_by_fm_sheet_and_row_not_kks():

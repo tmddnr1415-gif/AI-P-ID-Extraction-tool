@@ -91,7 +91,7 @@ function renderSheetList() {
     const ch = L.mode === "sim" && L.chain.find((c) => c.page === s.page && c.hop != null);
     if (ch) li.classList.add("chain");
     li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
-      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
+      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
     li.onclick = () => openSheet(s.page);
     ul.appendChild(li);
   }
@@ -216,7 +216,18 @@ function drawOverlay() {
   for (const r of s.rows) {
     const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
     c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
-    const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}` + (r.ft && r.ft.ok === false ? `\n⚠ from-to 일치하지 않습니다 — ${r.ft.why.join(" · ")}` : "");
+    const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}` + (r.ft && r.ft.ok === false ? `\n✕ from-to 일치하지 않습니다 — ${r.ft.why.join(" · ")}` : r.ft && r.ft.warn && r.ft.warn.length ? `\n⚠ 연결은 맞고 설명만 다릅니다 — ${r.ft.warn.join(" · ")}` : "");
+    const ftWarn = r.ft && r.ft.ok !== false && r.ft.warn && r.ft.warn.length;
+    if (ftWarn) {
+      c.classList.add("ftwarn");
+      if (r.y0 != null && r.y1 != null) {
+        const lg = s.logic, [fx0, fx1] = tableX();
+        const x0 = r.side === "L" ? fx0 : lg[2], x1 = r.side === "L" ? lg[0] : fx1;
+        const bx = el("rect", { x: x0, y: r.y0, width: x1 - x0, height: r.y1 - r.y0, class: "ft-row warn" }, gR);
+        gR.insertBefore(bx, gR.firstChild);
+        el("title", {}, bx).textContent = `${r.n}행 — 연결(FM ${r.fm})은 맞고 설명만 다릅니다: ${r.ft.warn.join(" · ")}`;
+      }
+    }
     if (r.ft && r.ft.ok === false) {
       // from-to 가 맞지 않는 행 — 붉게 (사용자 지시 L5)
       c.classList.add("ftbad");
@@ -508,8 +519,9 @@ function renderRows() {
     const to = r.to ? ` <small>→ ${esc(r.to)}</small>` : "";
     const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
     const bad = r.ft && r.ft.ok === false;
-    const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
-    return `<li data-row="${r.n}" class="${bad ? "ftbad" : ""}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}${ftl}</span><span>${right}</span></li>`;
+    const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
+    const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
+    return `<li data-row="${r.n}" class="${bad ? "ftbad" : warn ? "ftwarn" : ""}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}${ftl}</span><span>${right}</span></li>`;
   };
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
@@ -522,7 +534,9 @@ function ftText(r) {
   const by = r.side === "L" ? `FM ${esc(r.fm || "")}` : `TO ${esc(f.peer || "")}`;
   const peer = r.side === "L" && r.ref ? ` → ${esc(r.ref.sheet)} 시트 ${r.ref.row}행${r.ref.src_row && r.ref.src_row !== r.ref.row ? ` (신호 ${r.ref.src_row}행)` : ""}` : "";
   if (f.ok === false) return `✕ 일치하지 않습니다 · ${by}${peer} — ${f.why.map(esc).join(" · ")}`;
-  if (f.ok) return `✓ 일치 · ${by}${peer}`;
+  const back = r.side === "L" && f.back == null ? " (상대 TO 가 NOTE · 거꾸로는 확인 못 함)" : "";
+  if (f.ok && f.warn && f.warn.length) return `✓ 연결 일치 · ${by}${peer} — ⚠ ${f.warn.map(esc).join(" · ")}`;
+  if (f.ok) return `✓ 일치 · ${by}${peer}${back}`;
   return `확인 못 함 · ${by}${peer} — 상대 TO 가 NOTE 이거나 글자를 못 읽음`;
 }
 /* 활성이 연결을 따라 닿은 장 — 사람이 준 장에서부터 몇 장째인가 */

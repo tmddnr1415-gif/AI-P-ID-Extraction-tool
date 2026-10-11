@@ -131,6 +131,7 @@ def sheets(job: str):
                     "nets": len(s["nets"]), "blocks": len(s["blocks"]), "funcs": funcs,
                     "findings": len(s["findings"]),
                     "mismatch": sum(1 for f in s["findings"] if f["code"] == "FT_MISMATCH"),
+                    "descdiff": sum(1 for f in s["findings"] if f["code"] == "FT_DESC_DIFF"),
                     "unknown": funcs.get("UNKNOWN", 0)})
     return {"sheets": out, "pdf_pages": res["pdf_pages"], "note": res.get("note", ""),
             "dictionary": res.get("dictionary", {}), "seconds": res.get("seconds")}
