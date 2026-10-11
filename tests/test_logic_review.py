@@ -266,6 +266,12 @@ def test_api_round_trip(tmp_path, monkeypatch):
     # 장 그림은 분석이 끝나며 미리 그려 둔다 (L7) — 분석 프로세스가 쓴 캐시가 그대로 쓰인다
     from app.logic import store
     assert (store.job_dir(job) / "pages" / f"p1_z{store.ZOOM}.png").exists()
+    # L8 — 메모 API (지우는 길이 없다)
+    m = client.post(f"/logic/api/jobs/{job}/memo", json={"page": 1, "sheet_no": "G001", "text": "확인", "author": "홍길동", "at": [10, 20]}).json()
+    assert client.post(f"/logic/api/jobs/{job}/memo", json={"page": 1, "text": "", "author": "홍길동"}).status_code == 400
+    assert client.patch(f"/logic/api/jobs/{job}/memo/{m['id']}", json={"author": "김", "done": True}).json()["done"] is True
+    assert client.patch(f"/logic/api/jobs/{job}/memo/none", json={"author": "김", "done": True}).status_code == 404
+    assert len(client.get(f"/logic/api/jobs/{job}/memo").json()["items"]) == 1
     assert client.post("/logic/api/jobs", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 400
     assert client.get("/logic/api/jobs/zzz").status_code == 404
     assert client.get("/logic").status_code == 200
@@ -372,3 +378,38 @@ def test_from_is_matched_by_fm_sheet_and_row_not_kks():
     assert r7["ft"]["ok"] is True and r7["ref"] == {"sheet": "G048", "row": 95, "page": 1, "other_bundle": False, "src_row": 95}
     assert "ft" not in r8 and "ref" not in r8, "KKS 가 같아도 FM 이 없으면 잇지 않는다"
     assert [x["row"] for x in src["rows"][0]["refs_in"]] == [7]
+
+
+def test_memo_is_kept_with_history_and_never_deleted(tmp_path):
+    """L8 — 메모는 지우지 않는다: 고치면 앞 글이 이력 · 완료/숨김은 표시 · 작성자·내용 필수."""
+    from app.logic import memo
+    d = tmp_path / "job"
+    d.mkdir()
+    a = memo.add(d, 27, "G034", "PD 3초 확인", "홍길동", at=[100.5, 200])
+    b = memo.add(d, 27, "G034", "시트 메모", "홍길동")
+    assert a["at"] == [100.5, 200.0] and b["at"] is None
+    with pytest.raises(ValueError):
+        memo.add(d, 27, "G034", "  ", "홍길동")
+    with pytest.raises(ValueError):
+        memo.add(d, 27, "G034", "글", "")
+    m = memo.update(d, a["id"], "김철수", text="PD 5초로 고침", done=True)
+    assert m["text"] == "PD 5초로 고침" and m["done"] is True
+    assert m["history"][0]["text"] == "PD 3초 확인"
+    memo.update(d, b["id"], "김철수", hidden=True)
+    items = memo.load(d)["items"]
+    assert len(items) == 2 and items[1]["hidden"] is True
+    with pytest.raises(KeyError):
+        memo.update(d, "없는것", "김철수", done=True)
+
+
+def test_gate_values_and_latch_table_are_in_the_screen_code():
+    """L8 — 게이트 단자 1/0 과 S-R 래치 표는 시뮬레이터의 값(L.values)을 읽는다 (화면이 다시 판정하지 않는다)."""
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    for name in ("function drawSimMarks", "function drawLatchTable", "function latchTableHtml",
+                 "function setFull", "function saveMemo", "function drawPins"):
+        assert name in js
+    body = js.split("function portVal", 1)[1].split("\nfunction ", 1)[0]
+    assert "L.values" in body
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    for i in ("show-ports", "show-latch", "full", "memo-list", "latches"):
+        assert f'id="{i}"' in html

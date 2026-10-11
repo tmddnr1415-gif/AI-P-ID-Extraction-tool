@@ -179,3 +179,58 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-all li .sh { font-weight: 700; margin-right: 4px; }
 .lg-all li.ok { border-left-color: #9a6200; background: #fff8e8; }
 .lg-all li.sel { outline: 2px solid var(--blue); }
+
+/* L8 — 게이트 단자 1/0 · S-R 래치 표 · 메모 · 전체창 */
+#ov .pv { pointer-events: auto; }
+#ov .pv rect { stroke-width: .35; }
+#ov .pv text { font-family: system-ui, sans-serif; font-weight: 800; text-anchor: middle; pointer-events: none; }
+#ov .pv.v1 rect { fill: var(--active); stroke: #0078b0; }
+#ov .pv.v1 text { fill: #fff; }
+#ov .pv.v0 rect { fill: #fff; stroke: #8b94a5; }
+#ov .pv.v0 text { fill: #6a7385; }
+#ov .lt .lt-bg { fill: rgba(255,255,255,.95); stroke: #0078b0; stroke-width: .4; }
+#ov .lt .lt-cur { fill: rgba(0,180,255,.35); }
+#ov .lt .lt-ln { stroke: #9fb6c8; stroke-width: .25; }
+#ov .lt text { font-family: system-ui, sans-serif; font-weight: 600; text-anchor: middle; fill: #1d2433; pointer-events: none; }
+#ov .lt text.lt-h { font-weight: 800; fill: #0078b0; }
+.lg-latches { display: flex; flex-direction: column; gap: 6px; }
+.latch-card { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; cursor: pointer; background: #fff; }
+.latch-card.live { border-color: var(--active); box-shadow: 0 0 0 2px rgba(0,180,255,.2); }
+.latch-card.sel { outline: 2px solid var(--trace); }
+.latch-card .lc-h { font-size: 12px; margin-bottom: 2px; }
+.latch-card .val { font-size: 11px; padding: 0 5px; border-radius: 8px; background: #eef0f4; color: #6a7385; }
+.latch-card .val.v1 { background: var(--active); color: #fff; }
+table.latch { border-collapse: collapse; font-size: 11px; width: 100%; }
+table.latch th, table.latch td { border: 1px solid #e2e0d8; padding: 1px 4px; text-align: center; }
+table.latch td:last-child { text-align: left; color: var(--soft); }
+table.latch tr.cur td { background: #c8efff; font-weight: 700; color: var(--ink); }
+.latch-q { margin: 3px 0 0; font-size: 11px; color: var(--soft); }
+
+.lg-memo { display: flex; flex-direction: column; gap: 4px; }
+.lg-memo textarea, .lg-memo input { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; font-size: 12px; }
+.memo-who { font-size: 11px; color: var(--soft); }
+.memo-btns { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#memo-pin.on { background: #fff3bf; border-color: #e0a800; }
+.memo-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.memo-list li { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 12px; cursor: pointer; background: #fffef6; }
+.memo-list li.done { opacity: .55; }
+.memo-list li.hid { opacity: .4; font-style: italic; }
+.memo-list li.flash { animation: memoflash .45s ease-in-out 4 alternate; }
+.memo-list li.empty { cursor: default; color: var(--soft); background: none; border-style: dashed; }
+.memo-list .mh { font-size: 11px; color: var(--soft); display: flex; gap: 4px; align-items: center; }
+.memo-list .pinno { display: inline-block; min-width: 14px; height: 14px; border-radius: 7px; background: #e0453a; color: #fff; text-align: center; font-size: 10px; line-height: 14px; font-weight: 700; }
+.memo-list .mt { white-space: pre-wrap; margin: 2px 0; }
+.memo-list .ma { display: flex; gap: 4px; }
+.memo-list .ma button { font-size: 10px; padding: 0 5px; }
+@keyframes memoflash { from { background: #fffef6 } to { background: #ffe066 } }
+#ov .pin { cursor: pointer; }
+#ov .pin .needle { stroke: #555; stroke-width: .5; }
+#ov .pin .head { fill: #e0453a; stroke: #8a1f18; stroke-width: .4; }
+#ov .pin text { fill: #fff; font-family: system-ui, sans-serif; font-weight: 800; text-anchor: middle; pointer-events: none; }
+#ov .pin.done .head { fill: #9aa3b2; stroke: #5b6475; }
+#ov .pin.pending .head { fill: #e0a800; }
+#ov .pin.flash { animation: pinflash .45s ease-in-out 4 alternate; }
+@keyframes pinflash { from { opacity: 1 } to { opacity: .1 } }
+#stage.pinning, #stage.pinning * { cursor: crosshair !important; }
+#sheet-list .meta i.mc { color: #b0451c; font-style: normal; margin-left: 4px; }
+body.lg-full .lg-view { position: fixed; inset: 0; z-index: 40; background: var(--bg); }

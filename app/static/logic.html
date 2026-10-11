@@ -45,7 +45,11 @@
       <span class="sep"></span>
       <label class="chk"><input type="checkbox" id="show-nets" checked> 읽은 선 보이기</label>
       <label class="chk"><input type="checkbox" id="show-blocks" checked> 블록 이름</label>
+      <label class="chk" title="시뮬레이션 중 게이트 입력·출력 단자에 1/0 을 적습니다"><input type="checkbox" id="show-ports" checked> 게이트 1/0</label>
+      <label class="chk" title="1 이 하나도 없는 게이트에도 1/0 을 적습니다"><input type="checkbox" id="show-all-gates"> 모든 게이트</label>
+      <label class="chk" title="S-R 래치 위에 진리표를 그리고 지금 줄을 표시합니다"><input type="checkbox" id="show-latch" checked> S-R 표</label>
       <span class="sep"></span>
+      <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
       <button id="reset" title="강제 신호와 메모리 · 타이머 상태를 모두 지웁니다">초기화</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
     </div>
@@ -67,6 +71,8 @@
     <div class="lg-legend" id="legend"></div>
     <h3>선택</h3>
     <div id="info" class="lg-info">도면에서 선이나 블록을 누르세요.</div>
+    <h3 id="latch-h" hidden>S-R 래치 <small>(이 시트)</small></h3>
+    <div id="latches" class="lg-latches" hidden></div>
     <h3 id="chain-h" hidden>활성 연결 <small>(다른 장으로 이어진 활성)</small></h3>
     <ul id="chain" class="lg-chain" hidden></ul>
     <h3>입력 행 <small>(왼쪽 표)</small></h3>
@@ -75,6 +81,18 @@
     <ul id="out-rows" class="lg-rows"></ul>
     <h3>연결 점검 <small id="find-count"></small></h3>
     <ul id="findings" class="lg-find"></ul>
+    <h3>메모 <small id="memo-count"></small></h3>
+    <div class="lg-memo">
+      <div id="memo-who" class="memo-who"></div>
+      <input id="memo-author" placeholder="작성자 이름">
+      <textarea id="memo-text" rows="3" placeholder="이 시트에 대한 메모 (Ctrl+Enter 저장)"></textarea>
+      <div class="memo-btns">
+        <button id="memo-save">저장</button>
+        <button id="memo-pin" title="도면을 눌러 그 자리에 핀을 꽂고 메모를 답니다">📌 핀 메모</button>
+        <label class="chk"><input type="checkbox" id="memo-hidden"> 숨긴 것도</label>
+      </div>
+      <ul id="memo-list" class="memo-list"></ul>
+    </div>
     <h3>읽기 근거</h3>
     <div id="basis" class="lg-basis"></div>
   </aside>

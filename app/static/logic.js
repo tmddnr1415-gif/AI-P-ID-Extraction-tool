@@ -11,6 +11,7 @@ const L = {
   allForces: {}, states: {}, linked: {}, chain: [],
   focus: null, back: [], afterFit: null,          // FROM/TO 로 간 행 · 돌아갈 자리 (L6)
   all: null, allCode: "", allSel: null,            // 묶음 전체 점검 목록 (L7)
+  memos: [], memoEdit: null, pinMode: false, pendingAt: null, memoFlash: null,   // 메모 (L8)
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -79,6 +80,8 @@ async function openJob(id) {
   const rep = $("#report"); rep.hidden = false; rep.href = `/logic/api/jobs/${id}/report.xlsx`;
   L.all = null; L.allSel = null;
   api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
+  L.memos = [];
+  loadMemos(id);
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   if (p) openSheet(p);
 }
@@ -133,7 +136,7 @@ function renderSheetList() {
     const ch = L.mode === "sim" && L.chain.find((c) => c.page === s.page && c.hop != null);
     if (ch) li.classList.add("chain");
     li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
-      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
+      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}${memoCount(s.page) ? ` · <i class="mc">✎${memoCount(s.page)}</i>` : ""}</span>`;
     li.onclick = () => { L.focus = null; openSheet(s.page); };
     ul.appendChild(li);
   }
@@ -156,7 +159,8 @@ async function openSheet(page) {
   $("#ov").setAttribute("viewBox", `0 0 ${s.size[0]} ${s.size[1]}`);
   $("#sheet-head").textContent = `${s.sheet_no} · ${s.title}`;
   drawOverlay();
-  renderRows(); renderFindings(); renderInfo(); renderHelp();
+  renderRows(); renderFindings(); renderInfo(); renderHelp(); renderLatches();
+  L.pendingAt = null; L.memoEdit = null; renderMemo();
   img.onload = () => fit();
   if (img.complete) fit();
   if (L.mode === "sim") runSim();
@@ -290,6 +294,8 @@ function drawOverlay() {
     if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
   }
   if (L.focus && L.focus.page === s.page) drawGoto();
+  el("g", { id: "g-sim" }, ov);       // 게이트 단자 1/0 · S-R 표 (L8) — paint 가 채운다
+  drawPins();
   $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   paint();
@@ -423,6 +429,11 @@ function paint() {
       if (("net:" + nid) in L.forces) g.classList.add("forced");
     }
     g.classList.toggle("sel", L.sel && L.sel.net === nid);
+    // 도면을 다시 그린 뒤(맞춤·메모 등)에도 활성 선은 그대로 보인다 — 흐르는 중이면 흐름에 맡긴다
+    if (L.mode === "sim" && Date.now() >= (L.animUntil || 0)) {
+      const on = g.classList.contains("on");
+      for (const l of g.querySelectorAll(".fx")) { l.style.transition = "none"; l.setAttribute("stroke-dashoffset", on ? 0 : l.dataset.len); }
+    }
   }
   for (const r of document.querySelectorAll("#ov .rowpin")) {
     const n = Number(r.dataset.row);
@@ -441,12 +452,15 @@ function paint() {
     b.classList.toggle("act", act.has(b.dataset.block));
     b.classList.toggle("sel", L.sel && L.sel.block === b.dataset.block);
   }
+  drawSimMarks();
   renderRows();
+  renderLatches();
 }
 
 function stopAnim() {
   for (const t of L.anim) clearTimeout(t);
   L.anim = [];
+  L.animUntil = 0;
   for (const l of document.querySelectorAll("#ov .fx")) {
     l.style.transition = "none";
     l.setAttribute("stroke-dashoffset", l.dataset.len);
@@ -573,6 +587,7 @@ async function runSim(animate) {
     L.anim.push(setTimeout(() => { L.values = { ...snap }; showAll(Object.keys(snap), true); paint(); renderInfo(); }, t));
     cur = fr.values;
   });
+  L.animUntil = Date.now() + t + 50;          // 이 뒤로는 다시 그려도 활성 선을 바로 보인다 (paint)
 }
 function paintNet(nid) {
   const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
@@ -731,9 +746,11 @@ function renderInfo() {
       ${b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
       <tr><td>단자</td><td>들어옴 ${ins.length} · 나감 ${outs.length}</td></tr>
       ${L.mode === "sim" && b.func === "MEMORY" ? `<tr><td>상태</td><td>${valTag(mem || 0)}</td></tr>` : ""}
+      ${L.mode === "sim" && GATE_LOGIC.has(b.logic) ? `<tr><td>단자 값</td><td>${portValuesText(L.sel.block)}</td></tr>` : ""}
       ${L.mode === "sim" && tim ? `<tr><td>타이머</td><td>출력 ${valTag(tim.out)} ${tim.due ? "· 진행 중" : ""}</td></tr>` : ""}
       ${b.func === "STEP" ? `<tr><td>주의</td><td>근사 모델: C_STEP = STEP_IN · STEP_OUT = STEP_IN AND CRIT</td></tr>` : ""}
     </table>
+    ${b.func === "MEMORY" ? latchTableHtml(L.sel.block) : ""}
     <div class="acts">${L.mode === "sim" && (!ins.length || b.logic === "source") ? forceBtns("block:" + L.sel.block) : ""}
       ${L.mode === "trace" ? `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>` : ""}</div>`;
     return;
@@ -763,6 +780,327 @@ function renderHelp() {
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
     : `<span><i style="background:var(--trace)"></i>따라가는 신호</span><span><i style="background:var(--trace-up)"></i>거슬러 올라감</span><span><i style="background:rgba(47,91,216,.5)"></i>읽은 선</span><span><i style="background:var(--unk)"></i>판정 못 한 블록</span>`;
+}
+
+/* ------------------------------------------------------------------ 게이트 단자 1/0 · S-R 래치 표 (L8)
+
+   시뮬레이션에서 활성 신호가 지나는 게이트의 앞(입력)·뒤(출력) 단자마다 1/0 을 적는다.
+   값은 화면이 지금 그리는 L.values 그대로라 흐르는 모습(애니메이션)과 같이 움직인다.
+   '모든 게이트' 를 켜면 활성이 아닌 게이트도 적는다.  S-R(메모리)은 진리표에 지금 줄을 칠한다. */
+
+const GATE_LOGIC = new Set(["and", "nand", "or", "nor", "not", "memory", "delay_on", "delay_off", "pulse", "step"]);
+function portVal(p) { return L.values[p.net] === 1 ? 1 : 0; }
+function latchState(bid) {
+  const s = L.sheet;
+  const ps = s.ports.filter((p) => p.block === bid);
+  const S = ps.some((p) => p.dir === "in" && p.role === "set" && portVal(p) === 1) ? 1 : 0;
+  const R = ps.some((p) => p.dir === "in" && p.role === "reset" && portVal(p) === 1) ? 1 : 0;
+  const Q = L.state && L.state.mem && L.state.mem[bid] === 1 ? 1 : 0;
+  const dom = (s.blocks[bid].param || {}).dominant || "";
+  return { S, R, Q, dom };
+}
+function latchRows(dom) {
+  // 범례 G003 의 메모리 정의 — S·R 둘 다 1 이면 우선 칸이 정한다 (우선 없음: 그대로 둔다)
+  return [
+    { S: 0, R: 0, q: "유지", why: "그대로" },
+    { S: 1, R: 0, q: "1", why: "SET" },
+    { S: 0, R: 1, q: "0", why: "RESET" },
+    { S: 1, R: 1, q: dom === "set" ? "1" : dom === "reset" ? "0" : "유지", why: dom === "set" ? "SET 우선" : dom === "reset" ? "RESET 우선" : "우선 없음" },
+  ];
+}
+function latchTableHtml(bid) {
+  const st = latchState(bid);
+  const sim = L.mode === "sim";
+  const rows = latchRows(st.dom).map((r) => {
+    const cur = sim && r.S === st.S && r.R === st.R;
+    const q = cur && r.S === 0 && r.R === 0 ? `${r.q} (=${st.Q})` : r.q;   // 유지 줄은 지금 붙든 값을 함께
+    return `<tr class="${cur ? "cur" : ""}"><td>${r.S}</td><td>${r.R}</td><td>${esc(q)}</td><td>${esc(r.why)}</td></tr>`;
+  }).join("");
+  return `<table class="latch"><tr><th>S</th><th>R</th><th>Q</th><th></th></tr>${rows}</table>
+    <p class="latch-q">${sim ? `지금: S=${st.S} · R=${st.R} → <b>Q=${st.Q}</b>` : "동작 시뮬레이션에서 지금 값이 칠해집니다."}</p>`;
+}
+function renderLatches() {
+  const box = $("#latches");
+  if (!box || !L.sheet) return;
+  const mems = Object.entries(L.sheet.blocks).filter(([, b]) => b.func === "MEMORY");
+  $("#latch-h").hidden = box.hidden = !mems.length;
+  if (!mems.length) { box.innerHTML = ""; return; }
+  box.innerHTML = mems.map(([bid, b]) => {
+    const st = latchState(bid);
+    const dom = b.param.dominant === "set" ? "SET 우선" : b.param.dominant === "reset" ? "RESET 우선" : "기본";
+    return `<div class="latch-card${L.mode === "sim" && (st.Q || st.S || st.R) ? " live" : ""}${L.sel && L.sel.block === bid ? " sel" : ""}" data-latch="${esc(bid)}">
+      <div class="lc-h"><b>${esc(bid)}</b> <small>${dom}</small>${L.mode === "sim" ? ` <span class="val v${st.Q}">Q ${st.Q}</span>` : ""}</div>
+      ${latchTableHtml(bid)}</div>`;
+  }).join("");
+}
+function portValuesText(bid) {
+  const ps = L.sheet.ports.filter((p) => p.block === bid);
+  const ins = ps.filter((p) => p.dir === "in").map((p) => `${p.role ? p.role.toUpperCase() + " " : ""}${portVal(p)}`);
+  const outs = ps.filter((p) => p.dir === "out").map((p) => `${p.role ? p.role.toUpperCase() + " " : ""}${portVal(p)}`);
+  return `입력 ${esc(ins.join(" · ") || "없음")} → 출력 ${esc(outs.join(" · ") || "없음")}`;
+}
+function drawSimMarks() {
+  const g = $("#g-sim");
+  if (!g) return;
+  g.innerHTML = "";
+  if (L.mode !== "sim" || !L.sheet) return;
+  const s = L.sheet;
+  const showAllGates = $("#show-all-gates") && $("#show-all-gates").checked;
+  const showVals = !$("#show-ports") || $("#show-ports").checked;
+  const showTables = !$("#show-latch") || $("#show-latch").checked;
+  const P = s.pitch || 11.5;
+  const fs = Math.max(2.4, Math.min(4.6, P * 0.34));     // 글자 크기 = 행 간격의 비율 (절대 pt 아님)
+  const byBlock = {};
+  for (const p of s.ports) (byBlock[p.block] = byBlock[p.block] || []).push(p);
+  for (const [bid, ps] of Object.entries(byBlock)) {
+    const b = s.blocks[bid];
+    if (!b || !GATE_LOGIC.has(b.logic)) continue;
+    const live = ps.some((p) => portVal(p) === 1) || (b.logic === "memory" && latchState(bid).Q === 1);
+    if (!live && !showAllGates) continue;
+    if (showVals) {
+      for (const p of ps) {
+        const v = portVal(p);
+        const w = fs * 1.15, h = fs * 1.2, pad = fs * 0.25;
+        const x = p.dir === "in" ? p.at[0] - pad - w : p.at[0] + pad;
+        const y = p.at[1] - h - fs * 0.15;
+        const gg = el("g", { class: "pv v" + v }, g);
+        el("rect", { x, y, width: w, height: h, rx: fs * 0.25 }, gg);
+        const t = el("text", { x: x + w / 2, y: y + h * 0.8, "font-size": fs }, gg);
+        t.textContent = String(v);
+        el("title", {}, gg).textContent = `${FUNC_KO[b.func] || b.func} ${p.dir === "in" ? "입력" : "출력"}${p.role ? " " + p.role.toUpperCase() : ""} = ${v}`;
+      }
+    }
+    if (b.logic === "memory" && showTables && (live || showAllGates)) drawLatchTable(g, bid, fs);
+  }
+}
+function drawLatchTable(g, bid, fs) {
+  const b = L.sheet.blocks[bid];
+  const st = latchState(bid);
+  const rows = latchRows(st.dom);
+  const cw = [fs * 1.3, fs * 1.3, fs * 2.9], ch = fs * 1.35;
+  const W = cw[0] + cw[1] + cw[2], H = ch * (rows.length + 1);
+  const [x0, y0] = b.bbox;
+  const x = x0, y = y0 - 6.2 - H;                         // 블록 이름표(위 5.6) 바로 위
+  const gg = el("g", { class: "lt" }, g);
+  el("rect", { x, y, width: W, height: H, class: "lt-bg" }, gg);
+  const head = ["S", "R", "Q"];
+  const cells = [head, ...rows.map((r) => [String(r.S), String(r.R), r.S === st.S && r.R === st.R && !r.S && !r.R ? `${r.q}=${st.Q}` : r.q])];
+  cells.forEach((row, i) => {
+    const cy = y + ch * i;
+    const cur = i > 0 && rows[i - 1].S === st.S && rows[i - 1].R === st.R;
+    if (cur) el("rect", { x, y: cy, width: W, height: ch, class: "lt-cur" }, gg);
+    let cx = x;
+    row.forEach((txt, j) => {
+      const t = el("text", { x: cx + cw[j] / 2, y: cy + ch * 0.75, "font-size": fs * (j === 2 && txt.length > 1 ? 0.8 : 0.9), class: i === 0 ? "lt-h" : "" }, gg);
+      t.textContent = txt;
+      cx += cw[j];
+    });
+    if (i > 0) el("line", { x1: x, y1: cy, x2: x + W, y2: cy, class: "lt-ln" }, gg);
+  });
+  el("line", { x1: x + cw[0], y1: y, x2: x + cw[0], y2: y + H, class: "lt-ln" }, gg);
+  el("line", { x1: x + cw[0] + cw[1], y1: y, x2: x + cw[0] + cw[1], y2: y + H, class: "lt-ln" }, gg);
+  el("title", {}, gg).textContent = `S-R 래치 ${bid} — 지금 S=${st.S} · R=${st.R} → Q=${st.Q}`;
+}
+
+/* ------------------------------------------------------------------ 전체창 보기 (L8 · P&ID hotfix64 와 같은 생각) */
+
+function setFull(on) {
+  document.body.classList.toggle("lg-full", on);
+  $("#full").textContent = on ? "⤢ 전체창 끝" : "⛶ 전체창";
+  if (on && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});   // 허락 안 되면 화면 안 전체창만
+  }
+  if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  setTimeout(() => { if (L.sheet) fit(); }, 60);
+}
+
+/* ------------------------------------------------------------------ 메모 · 핀 메모 (L8 · P&ID hotfix63/76/77 과 같은 규율)
+
+   장마다 메모를 쌓는다 (지우지 않는다 — 고치면 앞 글은 이력, '완료'·'숨김' 은 표시뿐).
+   📌 를 누르고 도면을 한 번 누르면 그 자리에 핀 — 메모를 누르면 그 자리로 가서 핀이 두 번 깜박인다. */
+
+function currentAuthor() {
+  const q = new URLSearchParams(location.search).get("user");
+  if (q && q.trim()) return q.trim();
+  try { return (localStorage.getItem("pid.author") || "").trim(); } catch (e) { return ""; }
+}
+function rememberAuthor(name) { try { localStorage.setItem("pid.author", name); } catch (e) { /* 막힌 저장소 */ } }
+async function loadMemos(job) {
+  try {
+    const m = await api(`/logic/api/jobs/${job}/memo`);
+    if (L.job !== job) return;
+    L.memos = m.items || [];
+  } catch (e) { L.memos = []; }
+  renderMemo(); renderSheetList(); if (L.sheet) drawPins();
+}
+function memoCount(page) { return L.memos.filter((m) => m.page === page && !m.hidden && !m.done).length; }
+function pageMemos() {
+  const showHidden = $("#memo-hidden") && $("#memo-hidden").checked;
+  return L.memos.filter((m) => L.sheet && m.page === L.sheet.page && (showHidden || !m.hidden));
+}
+function pinNo(m) {
+  const pins = L.memos.filter((x) => L.sheet && x.page === L.sheet.page && x.at && !x.hidden);
+  return pins.indexOf(m) + 1;
+}
+function renderMemo() {
+  const box = $("#memo-list");
+  if (!box) return;
+  const who = currentAuthor();
+  $("#memo-author").hidden = !!who;
+  $("#memo-who").textContent = who ? `작성자 ${who}` : "작성자 이름을 적어 주세요 (한 번만)";
+  const pinBtn = $("#memo-pin");
+  pinBtn.classList.toggle("on", L.pinMode || !!L.pendingAt);
+  pinBtn.textContent = L.pendingAt ? "📌 자리 지정됨 (Esc 취소)" : L.pinMode ? "📌 도면을 누르세요" : "📌 핀 메모";
+  $("#memo-save").textContent = L.memoEdit ? "고친 글 저장" : "저장";
+  const items = pageMemos();
+  $("#memo-count").textContent = items.length ? `${items.length}건` : "";
+  if (!L.sheet) { box.innerHTML = ""; return; }
+  box.innerHTML = items.length ? items.slice().reverse().map((m) => {
+    const n = m.at ? pinNo(m) : 0;
+    return `<li data-memo="${esc(m.id)}" class="${m.done ? "done" : ""}${m.hidden ? " hid" : ""}${L.memoFlash === m.id ? " flash" : ""}">
+      <div class="mh">${n ? `<span class="pinno" title="도면 위 핀 번호">${n}</span>` : ""}<b>${esc(m.author)}</b> <small>${esc(m.time)}${m.history && m.history.length ? ` · 고친 이력 ${m.history.length}` : ""}</small></div>
+      <div class="mt">${esc(m.text)}</div>
+      <div class="ma"><button data-mact="edit">고치기</button><button data-mact="done">${m.done ? "완료 풀기" : "완료"}</button><button data-mact="hide">${m.hidden ? "다시 보기" : "숨김"}</button></div>
+    </li>`;
+  }).join("") : `<li class="empty">이 장의 메모가 없습니다.</li>`;
+}
+function drawPins() {
+  const ov = $("#ov");
+  if (!ov || !L.sheet) return;
+  const old = $("#g-pins");
+  if (old) old.remove();
+  const g = el("g", { id: "g-pins" }, ov);
+  const P = L.sheet.pitch || 11.5;
+  const r = Math.max(2.6, P * 0.42);
+  const one = (x, y, label, cls, m) => {
+    const gg = el("g", { class: "pin " + cls, "data-memo": m ? m.id : "" }, g);
+    const hx = x + r * 1.4, hy = y - r * 2.6;          // 바늘 끝 = 메모의 자리
+    el("line", { x1: x, y1: y, x2: hx, y2: hy, class: "needle" }, gg);
+    el("circle", { cx: hx, cy: hy, r, class: "head" }, gg);
+    const t = el("text", { x: hx, y: hy + r * 0.38, "font-size": r * 1.05 }, gg);
+    t.textContent = label;
+    if (m) {
+      el("title", {}, gg).textContent = `${m.author} · ${m.time}\n${m.text}`;
+      gg.addEventListener("click", (e) => { e.stopPropagation(); selectMemo(m.id, false); });
+      if (L.memoFlash === m.id) gg.classList.add("flash");
+    }
+  };
+  for (const m of L.memos) {
+    if (m.page !== L.sheet.page || !m.at || m.hidden) continue;
+    one(m.at[0], m.at[1], String(pinNo(m)), m.done ? "done" : "", m);
+  }
+  if (L.pendingAt) one(L.pendingAt[0], L.pendingAt[1], "+", "pending", null);
+}
+function setPinMode(on) {
+  L.pinMode = on;
+  $("#stage").classList.toggle("pinning", on);
+  renderMemo();
+}
+function sheetPoint(e) {
+  const r = $("#ov").getBoundingClientRect();
+  const [W, H] = L.sheet.size;
+  return [Math.round(((e.clientX - r.left) * W / r.width) * 100) / 100, Math.round(((e.clientY - r.top) * H / r.height) * 100) / 100];
+}
+async function saveMemo() {
+  if (!L.sheet) return;
+  const text = $("#memo-text").value.trim();
+  if (!text) { status("메모 내용을 적어 주세요"); $("#memo-text").focus(); return; }
+  let author = currentAuthor();
+  if (!author) {
+    author = $("#memo-author").value.trim();
+    if (!author) { status("작성자 이름을 적어 주세요"); $("#memo-author").focus(); return; }
+    rememberAuthor(author);
+  }
+  try {
+    if (L.memoEdit) {
+      const m = await api(`/logic/api/jobs/${L.job}/memo/${L.memoEdit}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, author }) });
+      L.memos = L.memos.map((x) => (x.id === m.id ? m : x));
+    } else {
+      const m = await post(`/logic/api/jobs/${L.job}/memo`, { page: L.sheet.page, sheet_no: L.sheet.sheet_no, text, author, at: L.pendingAt });
+      L.memos.push(m);
+    }
+  } catch (err) { status("메모 저장 실패 — " + err.message); return; }
+  $("#memo-text").value = "";
+  L.memoEdit = null; L.pendingAt = null; setPinMode(false);
+  drawPins(); renderMemo(); renderSheetList();
+  status("메모를 저장했습니다");
+}
+async function memoAction(id, act) {
+  const m = L.memos.find((x) => x.id === id);
+  if (!m) return;
+  if (act === "edit") { L.memoEdit = id; $("#memo-text").value = m.text; $("#memo-text").focus(); renderMemo(); return; }
+  const author = currentAuthor() || $("#memo-author").value.trim();
+  if (!author) { status("작성자 이름을 적어 주세요"); $("#memo-author").focus(); return; }
+  const body = act === "done" ? { done: !m.done, author } : { hidden: !m.hidden, author };
+  try {
+    const u = await api(`/logic/api/jobs/${L.job}/memo/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    L.memos = L.memos.map((x) => (x.id === id ? u : x));
+  } catch (err) { status("메모 고치기 실패 — " + err.message); return; }
+  drawPins(); renderMemo(); renderSheetList();
+}
+/* 메모 ↔ 핀.  fromList: 목록에서 눌렀으면 도면을 그 자리로, 핀에서 눌렀으면 목록을 그 메모로 */
+function selectMemo(id, fromList) {
+  const m = L.memos.find((x) => x.id === id);
+  if (!m) return;
+  L.memoFlash = id;
+  clearTimeout(L._memoFlashT);
+  L._memoFlashT = setTimeout(() => { L.memoFlash = null; drawPins(); renderMemo(); }, 1300);
+  const go = () => {
+    if (fromList && m.at) {
+      const st = $("#stage");
+      setZoom(Math.max(L.zoom, 1.6));
+      st.scrollLeft = m.at[0] * L.zoom - st.clientWidth / 2;
+      st.scrollTop = m.at[1] * L.zoom - st.clientHeight / 2;
+    }
+    drawPins(); renderMemo();
+    if (!fromList) {
+      const li = document.querySelector(`#memo-list li[data-memo="${CSS.escape(id)}"]`);
+      const box = $("#memo-list");
+      if (li && box) box.scrollTop = li.offsetTop - box.offsetTop - 8;
+    }
+  };
+  if (L.sheet && m.page !== L.sheet.page) { L.focus = null; L.afterFit = go; openSheet(m.page); }
+  else go();
+}
+function bindExtras() {
+  $("#full").onclick = () => setFull(!document.body.classList.contains("lg-full"));
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("lg-full")) setFull(false); });
+  for (const id of ["show-ports", "show-latch", "show-all-gates"]) { const c = $("#" + id); if (c) c.onchange = () => drawSimMarks(); }
+  $("#memo-save").onclick = saveMemo;
+  $("#memo-text").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveMemo(); } };
+  $("#memo-pin").onclick = () => {
+    if (L.pendingAt || L.pinMode) { L.pendingAt = null; setPinMode(false); drawPins(); return; }
+    if (!L.sheet) { status("먼저 시트를 고르세요"); return; }
+    setPinMode(true);
+  };
+  $("#memo-hidden").onchange = renderMemo;
+  $("#memo-list").addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-memo]");
+    if (!li) return;
+    const b = e.target.closest("button[data-mact]");
+    if (b) { memoAction(li.dataset.memo, b.dataset.mact); return; }
+    selectMemo(li.dataset.memo, true);
+  });
+  $("#latches").addEventListener("click", (e) => {
+    const c = e.target.closest("[data-latch]");
+    if (!c) return;
+    const bid = c.dataset.latch, b = L.sheet.blocks[bid];
+    L.sel = { block: bid }; paint(); renderInfo();
+    const st = $("#stage");
+    setZoom(Math.max(L.zoom, 1.6));
+    st.scrollLeft = ((b.bbox[0] + b.bbox[2]) / 2) * L.zoom - st.clientWidth / 2;
+    st.scrollTop = ((b.bbox[1] + b.bbox[3]) / 2) * L.zoom - st.clientHeight / 2;
+  });
+  // 핀 자리 고르기 — 선·블록 누르기보다 먼저 (붙잡는 단계)
+  $("#stage").addEventListener("click", (e) => {
+    if (!L.pinMode || L.justPanned || !L.sheet) return;
+    e.stopPropagation(); e.preventDefault();
+    L.pendingAt = sheetPoint(e);
+    setPinMode(false);
+    drawPins(); renderMemo();
+    $("#memo-text").focus();
+    status("자리를 골랐습니다 — 메모 내용을 적고 저장하세요 (Ctrl+Enter)");
+  }, true);
 }
 
 /* ------------------------------------------------------------------ 이벤트 */
@@ -837,7 +1175,14 @@ function bind() {
     }
   });
   $("#stage").addEventListener("click", () => { if (L.justPanned) return; L.sel = null; paint(); renderInfo(); });
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForceMenu(); stopAnim(); } });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (document.querySelector("#force-menu")) { closeForceMenu(); return; }
+    if (L.pinMode || L.pendingAt) { setPinMode(false); L.pendingAt = null; drawPins(); renderMemo(); return; }
+    stopAnim();
+    if (document.body.classList.contains("lg-full")) setFull(false);
+  });
+  bindExtras();
 }
 
 bind();

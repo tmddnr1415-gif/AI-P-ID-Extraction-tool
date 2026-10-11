@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, report, sim, store
+from . import fromto, memo, report, sim, store
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -241,3 +241,38 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     return sim.simulate_bundle(res["sheets"], forces, state, focus)
+
+
+@router.get("/logic/api/jobs/{job}/memo")
+def memo_list(job: str):
+    """이 묶음의 메모 전부 (L8) — 화면이 장마다 거른다."""
+    return memo.load(_dir(job))
+
+
+@router.post("/logic/api/jobs/{job}/memo")
+def memo_add(job: str, body: dict = Body(...)):
+    d = _dir(job)
+    page = body.get("page")
+    if not isinstance(page, int):
+        raise HTTPException(400, "page 는 쪽 번호(정수)여야 합니다.")
+    try:
+        return memo.add(d, page, str(body.get("sheet_no") or ""), str(body.get("text") or ""),
+                        str(body.get("author") or ""), body.get("at"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/logic/api/jobs/{job}/memo/{mid}")
+def memo_update(job: str, mid: str, body: dict = Body(...)):
+    d = _dir(job)
+    def flag(k):
+        v = body.get(k)
+        return v if isinstance(v, bool) else None
+    text = body.get("text")
+    try:
+        return memo.update(d, mid, str(body.get("author") or ""),
+                           text=str(text) if text is not None else None, done=flag("done"), hidden=flag("hidden"))
+    except KeyError:
+        raise HTTPException(404, "그런 메모가 없습니다.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
