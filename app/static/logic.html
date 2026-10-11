@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOGIC 검토</title>
+<link rel="stylesheet" href="/static/logic.css">
+</head>
+<body>
+<header class="lg-head">
+  <a class="lg-home" href="/" title="P&amp;ID 첫 화면으로">← P&amp;ID</a>
+  <h1>LOGIC 검토</h1>
+  <select id="job" title="분석한 Logic 묶음"></select>
+  <label class="btn" title="Logic Diagram PDF 를 올립니다">PDF 올리기<input id="upload" type="file" accept=".pdf" hidden></label>
+  <span id="samples"></span>
+  <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
+  <a id="report" class="btn lg-report" href="#" hidden title="묶음 전체의 점검 결과를 Excel 로 내려받습니다">Excel 보고서</a>
+  <span id="status" class="lg-status"></span>
+</header>
+
+<main class="lg-main">
+  <aside class="lg-sheets">
+    <div class="lg-side-h">시트 <span id="sheet-count"></span></div>
+    <input id="sheet-filter" placeholder="시트 번호 · 제목 찾기">
+    <ul id="sheet-list"></ul>
+    <div class="lg-side-h lg-all-h">묶음 점검 <span id="all-count"></span>
+      <button id="all-toggle" class="mini" title="묶음 전체의 점검 목록을 펼치거나 접습니다">펼치기</button></div>
+    <div id="all-box" hidden>
+      <select id="all-code" title="점검 종류로 거릅니다"></select>
+      <ul id="all-findings" class="lg-find lg-all"></ul>
+    </div>
+  </aside>
+
+  <section class="lg-view">
+    <div class="lg-tools">
+      <div class="seg" id="mode">
+        <button data-mode="trace" class="on" title="선을 누르면 그 신호가 어디로 가는지 따라갑니다">연결 따라가기</button>
+        <button data-mode="sim" title="입력에 1/0 을 강제로 넣어 로직이 실제로 동작하는 모습을 봅니다">동작 시뮬레이션</button>
+      </div>
+      <span class="sep"></span>
+      <button id="zoom-out" title="축소">－</button>
+      <button id="zoom-fit" title="화면에 맞춤">맞춤</button>
+      <button id="zoom-in" title="확대">＋</button>
+      <button id="go-back" title="FROM/TO 로 오기 전 자리로" disabled>◀ 이전 위치</button>
+      <span class="sep"></span>
+      <label class="chk"><input type="checkbox" id="show-nets" checked> 읽은 선 보이기</label>
+      <label class="chk"><input type="checkbox" id="show-blocks" checked> 블록 이름</label>
+      <span class="sep"></span>
+      <button id="reset" title="강제 신호와 메모리 · 타이머 상태를 모두 지웁니다">초기화</button>
+      <span id="sheet-head" class="lg-sheet-head"></span>
+    </div>
+    <div id="stage" class="lg-stage">
+      <div id="canvas" class="lg-canvas">
+        <img id="page" alt="">
+        <svg id="ov" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="empty" class="lg-empty">왼쪽에서 시트를 고르세요.</div>
+    </div>
+    <div id="timeline" class="lg-timeline" hidden>
+      <span id="tl-text"></span>
+      <div class="tl-bar"><div id="tl-fill"></div></div>
+    </div>
+  </section>
+
+  <aside class="lg-panel">
+    <div id="help" class="lg-help"></div>
+    <div class="lg-legend" id="legend"></div>
+    <h3>선택</h3>
+    <div id="info" class="lg-info">도면에서 선이나 블록을 누르세요.</div>
+    <h3 id="chain-h" hidden>활성 연결 <small>(다른 장으로 이어진 활성)</small></h3>
+    <ul id="chain" class="lg-chain" hidden></ul>
+    <h3>입력 행 <small>(왼쪽 표)</small></h3>
+    <ul id="in-rows" class="lg-rows"></ul>
+    <h3>출력 행 <small>(오른쪽 표)</small></h3>
+    <ul id="out-rows" class="lg-rows"></ul>
+    <h3>연결 점검 <small id="find-count"></small></h3>
+    <ul id="findings" class="lg-find"></ul>
+    <h3>읽기 근거</h3>
+    <div id="basis" class="lg-basis"></div>
+  </aside>
+</main>
+<script src="/static/logic.js"></script>
+</body>
+</html>

@@ -5499,6 +5499,8 @@ def favicon():
     return FileResponse(STATIC / "favicon.svg", media_type="image/svg+xml")
 
 
+from app.logic import api as _logic_api              # LOGIC 검토 (app/logic) — 라우터만 붙인다
+app.include_router(_logic_api.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 

@@ -1,0 +1,181 @@
+:root {
+  --bg: #f6f4ee; --panel: #ffffff; --ink: #1d2433; --soft: #5b6475; --line: #d9d5ca;
+  --navy: #1f2d4d; --blue: #2f5bd8; --on: #12a150; --on-glow: rgba(18,161,80,.35);
+  --off: #9aa3b2; --unk: #d08a14; --active: #00b4ff; --active-glow: rgba(0, 200, 255, .75); --trace: #ff6a00; --trace-up: #7b4dff; --find: #c2453f;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; }
+button, select, input { font: inherit; }
+button, .btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px;
+  cursor: pointer; color: var(--ink); }
+button:hover, .btn:hover { border-color: var(--blue); }
+.lg-head { height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--navy); color: #fff; }
+.lg-head h1 { font-size: 16px; margin: 0 8px 0 0; letter-spacing: .02em; }
+.lg-home { color: #c9d4f2; text-decoration: none; }
+.lg-head select { max-width: 360px; }
+.lg-head .btn { background: var(--blue); color: #fff; border-color: var(--blue); }
+#samples button { background: #2a3a62; color: #fff; border-color: #3d4f7c; }
+.lg-status { margin-left: auto; color: #c9d4f2; font-size: 12px; }
+.lg-main { display: grid; grid-template-columns: 230px 1fr 340px; height: calc(100% - 48px); }
+.lg-sheets { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.lg-side-h { padding: 10px 12px 4px; font-weight: 700; }
+#sheet-filter { margin: 4px 10px 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+#sheet-list { list-style: none; margin: 0; padding: 0 6px 10px; overflow: auto; flex: 1; }
+#sheet-list li { padding: 6px 8px; border-radius: 6px; cursor: pointer; display: grid; grid-template-columns: 52px 1fr; gap: 2px 6px; }
+#sheet-list li:hover { background: #eef2fb; }
+#sheet-list li.sel { background: #dfe7fb; }
+#sheet-list .no { font-weight: 700; }
+#sheet-list .t { color: var(--soft); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sheet-list .meta { grid-column: 2; font-size: 11px; color: var(--soft); }
+#sheet-list .meta b { color: var(--find); font-weight: 600; }
+.lg-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.lg-tools { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 5px 12px; }
+.seg button.on { background: var(--navy); color: #fff; }
+.sep { width: 1px; height: 20px; background: var(--line); }
+.chk { display: inline-flex; gap: 4px; align-items: center; color: var(--soft); }
+.lg-sheet-head { margin-left: auto; color: var(--soft); }
+.lg-stage { position: relative; flex: 1; overflow: auto; background: #e9e6dd; cursor: grab; }
+.lg-stage.drag { cursor: grabbing; }
+.lg-canvas { position: relative; transform-origin: 0 0; }
+.lg-canvas img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.lg-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lg-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--soft); }
+.lg-timeline { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: #fffbe8; border-top: 1px solid #eadfae; }
+.tl-bar { flex: 1; height: 6px; background: #efe6c4; border-radius: 3px; overflow: hidden; }
+#tl-fill { height: 100%; width: 0; background: var(--unk); }
+.lg-panel { border-left: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 10px 12px 30px; }
+.lg-panel h3 { font-size: 13px; margin: 16px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.lg-panel h3 small { color: var(--soft); font-weight: 400; }
+.lg-help { background: #eef2fb; border-radius: 8px; padding: 8px 10px; color: #2a3550; }
+.lg-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 8px; font-size: 12px; color: var(--soft); }
+.lg-legend i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+.lg-info { font-size: 12px; }
+.lg-info table { border-collapse: collapse; width: 100%; }
+.lg-info td { padding: 2px 4px; border-bottom: 1px solid #f0ede5; vertical-align: top; }
+.lg-info td:first-child { color: var(--soft); width: 86px; }
+.lg-info .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.lg-rows { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
+.lg-rows li { display: grid; grid-template-columns: 30px 1fr auto; gap: 4px; align-items: center; padding: 3px 4px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.lg-rows li:hover { background: #f2f4fa; }
+.lg-rows .n { color: var(--soft); text-align: right; }
+.lg-rows .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-rows .d small { color: var(--soft); margin-left: 4px; }
+.lg-rows .ref { color: var(--blue); text-decoration: underline; cursor: pointer; }
+.force { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.force button { border: 0; border-radius: 0; padding: 0 7px; font-size: 11px; line-height: 18px; }
+.force button.v1.on { background: var(--active); color: #fff; }
+.force button.v0.on { background: #59616f; color: #fff; }
+.val { font-weight: 700; font-size: 11px; padding: 0 6px; border-radius: 4px; }
+.val.v1 { background: #dff5ff; color: #0083c2; }
+.val.v0 { background: #eef0f3; color: #59616f; }
+.val.vn { background: #fbf0dc; color: var(--unk); }
+.lg-find { list-style: none; padding: 0; margin: 0; }
+.lg-find li { padding: 4px 6px; border-left: 3px solid var(--find); margin-bottom: 4px; background: #fdf3f2; cursor: pointer; font-size: 12px; }
+.lg-find li code { color: var(--soft); font-size: 11px; }
+.lg-basis { font-size: 12px; color: var(--soft); }
+
+/* ---- 도면 위 그림 ---- */
+#ov .net line { stroke-linecap: round; fill: none; }
+#ov .net .hit { stroke: transparent; stroke-width: 7; cursor: pointer; pointer-events: stroke; }
+#ov .net .vis { stroke: rgba(47, 91, 216, .35); stroke-width: 1.1; pointer-events: none; }
+#ov.hide-nets .net .vis, #ov.sim .net .vis { stroke: transparent; }
+#ov.sim .net:hover .vis { stroke: rgba(0,180,255,.35); }
+#ov .net:hover .vis { stroke: var(--blue); stroke-width: 2; }
+#ov .net .fx { stroke: transparent; stroke-width: 2.6; pointer-events: none; }
+/* 디지털 1 = 형광 파랑 · 0 = 아무 표시 없음 (사용자 지시 L3) */
+#ov .net.on .fx { stroke: var(--active); stroke-width: 3; filter: drop-shadow(0 0 2.5px var(--active-glow)); }
+#ov .net.tr .fx { stroke: var(--trace); filter: drop-shadow(0 0 3px rgba(255,106,0,.5)); }
+#ov .net.tru .fx { stroke: var(--trace-up); }
+#ov .net.on.forced .fx { stroke-width: 3.8; }
+#ov .net.sel .vis { stroke: #000; stroke-width: 2; }
+#ov .blk { fill: transparent; stroke: transparent; stroke-width: .8; cursor: pointer; }
+#ov .blk:hover { stroke: var(--blue); fill: rgba(47,91,216,.06); }
+#ov .blk.sel { stroke: #000; }
+#ov .blk.unknown { stroke: var(--unk); stroke-dasharray: 2 1.5; }
+#ov .blk.act { fill: rgba(0,180,255,.16); stroke: var(--active); }
+#ov .blk.tr { stroke: var(--trace); stroke-width: 1.4; fill: rgba(255,106,0,.08); }
+#ov .badge { font: 600 4.2px/1 system-ui, sans-serif; fill: #fff; pointer-events: none; }
+#ov .badge-bg { fill: rgba(31,45,77,.78); pointer-events: none; }
+#ov .badge-bg.unknown { fill: rgba(208,138,20,.9); }
+#ov.hide-blocks .badge, #ov.hide-blocks .badge-bg { display: none; }
+#ov .rowpin { fill: #fff; stroke: var(--navy); stroke-width: .8; cursor: pointer; }
+#ov .rowpin.v1 { fill: var(--active); stroke: var(--active); }
+#ov .rowpin.forced { stroke: #000; stroke-width: 1.4; }
+#ov .find { fill: none; stroke: var(--find); stroke-width: 1.2; }
+#ov .timer-txt { font: 600 4px system-ui, sans-serif; fill: var(--unk); }
+#ov .pulse { animation: lgpulse .9s ease-out 2; }
+@keyframes lgpulse { 0% { stroke-width: 6; opacity: .3 } 100% { stroke-width: 2.6; opacity: 1 } }
+
+/* 입력 신호 메뉴 (L4) */
+.force-menu { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(20,30,50,.18); padding: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+.force-menu .fm-h { font-size: 11px; color: var(--soft); padding: 2px 6px 4px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid #f0ede5; }
+.force-menu button { border: 0; text-align: left; padding: 4px 8px; font-size: 12px; border-radius: 5px; }
+.force-menu button b { display: inline-block; width: 18px; text-align: center; border-radius: 4px; margin-right: 4px; }
+.force-menu button.v1 b { background: var(--active); color: #fff; }
+.force-menu button.v0 b { background: #59616f; color: #fff; }
+.force-menu button:hover { background: #eef6ff; }
+.force-menu button.on { background: #dff5ff; font-weight: 700; }
+.force-menu button.vx { color: var(--soft); }
+
+/* 시트 사이 연결 (L4) */
+#ov .rowpin.linked { fill: var(--active); stroke: #003a5c; stroke-width: 1; stroke-dasharray: 1.4 .9; }
+.lg-rows .ref.hot, .lg-rows .lk.hot { color: #0083c2; font-weight: 700; text-decoration: none; background: #dff5ff; border-radius: 3px; padding: 0 3px; }
+.lg-rows .lk { color: var(--soft); font-size: 11px; margin-left: 4px; }
+#sheet-list li.chain { box-shadow: inset 3px 0 0 var(--active); }
+.chain-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--active); box-shadow: 0 0 4px var(--active-glow); margin-right: 3px; vertical-align: middle; }
+.lg-chain { list-style: none; margin: 0; padding: 0; }
+.lg-chain li { padding: 4px 6px; border-left: 3px solid var(--active); background: #effaff; margin-bottom: 4px; cursor: pointer; font-size: 12px; display: flex; flex-direction: column; }
+.lg-chain li.sel { background: #d6f2ff; }
+.lg-chain small { color: var(--soft); }
+
+/* from-to 불일치 = 붉게 (L5) */
+#ov .rowpin.ftbad { stroke: var(--find); stroke-width: 1.6; fill: #ffe3e1; }
+#ov .rowpin.ftbad.v1, #ov .rowpin.ftbad.linked { fill: var(--active); }
+#ov .ft-row { fill: rgba(194,69,63,.16); stroke: var(--find); stroke-width: .7; }
+.lg-rows li.ftbad { background: #fdecea; box-shadow: inset 3px 0 0 var(--find); }
+.lg-rows li.ftbad .n { color: var(--find); font-weight: 700; }
+.lg-rows .ftline { display: block; font-size: 11px; white-space: normal; color: var(--soft); }
+.lg-rows .ftline.bad { color: var(--find); font-weight: 600; }
+.lg-rows .ftline.ok { color: #12804a; }
+#ov .ft-row.warn { fill: rgba(232,150,20,.16); stroke: #d08a14; }
+#ov .rowpin.ftwarn { stroke: #d08a14; stroke-width: 1.4; fill: #fff3dc; }
+.lg-rows li.ftwarn { background: #fff7e6; box-shadow: inset 3px 0 0 #d08a14; }
+.lg-rows .ftline.warn { color: #9a6200; }
+#sheet-list .meta i.dd { color: #9a6200; font-style: normal; }
+
+/* FROM / TO 표기 · 이동 (L6) */
+#ov .reftag { fill: transparent; stroke-width: .8; cursor: pointer; }
+#ov .reftag.from { stroke: #0f8f80; }
+#ov .reftag.to { stroke: #7b4dff; }
+#ov .reftag.other { stroke-dasharray: 1.5 1; opacity: .6; cursor: help; }
+#ov .reftag:hover { fill: rgba(15,143,128,.14); stroke-width: 1.4; }
+#ov .reftag.to:hover { fill: rgba(123,77,255,.12); }
+#ov .reftxt { font: 700 3.4px system-ui, sans-serif; pointer-events: none; }
+#ov .reftxt.from { fill: #0f8f80; }
+#ov .reftxt.to { fill: #7b4dff; }
+#ov .goto { fill: rgba(255,214,0,.28); stroke: #e0a800; stroke-width: 1.2; pointer-events: none; animation: lggoto .55s ease-in-out 4 alternate; }
+#ov .goto.still { animation: none; }
+@keyframes lggoto { from { fill-opacity: .15; stroke-width: .6 } to { fill-opacity: 1; stroke-width: 2 } }
+.lg-rows .ref.from { color: #0f8f80; }
+.lg-rows .ref.to { color: #7b4dff; }
+.lg-rows li.goto { background: #fff3bf !important; }
+#go-back:disabled { opacity: .45; cursor: default; }
+
+/* L7 — 이동 칸 · Excel · 묶음 점검 */
+.lg-goto { width: 150px; padding: 4px 8px; border: 1px solid #5a6a9a; border-radius: 6px; background: #1c2a4d; color: #fff; }
+.lg-goto::placeholder { color: #9fb0d8; }
+.lg-goto:disabled { opacity: .5; }
+.lg-head .lg-report { text-decoration: none; font-size: 13px; }
+.lg-all-h { border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
+.lg-all-h .mini { margin-left: auto; font-size: 11px; padding: 1px 6px; }
+#all-box { display: flex; flex-direction: column; min-height: 0; max-height: 45%; }
+#all-code { margin: 0 10px 6px; }
+.lg-all { overflow: auto; padding: 0 6px 10px; }
+.lg-all li .sh { font-weight: 700; margin-right: 4px; }
+.lg-all li.ok { border-left-color: #9a6200; background: #fff8e8; }
+.lg-all li.sel { outline: 2px solid var(--blue); }

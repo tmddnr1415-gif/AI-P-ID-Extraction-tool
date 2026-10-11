@@ -1,0 +1,36 @@
+# LOGIC 검토 — 논리 블록 어휘 (업계 표준 ISA-S5.2 · 범례 G003 "SYMBOL & LEGEND (1)" 에 인쇄된 이름)
+#
+# 프로젝트 값이 아니다.  범례가 인쇄한 블록 글자와 그 동작 정의를 옮긴 것이다 (plant_standard_abbr.yaml 과
+# 같은 층).  도면의 블록 글자는 선으로 그려져 있어 글자 사전(glyphs.py)으로 읽고, 읽은 글자들을 아래 낱말
+# 중 **글자 수가 같은 것**에 맞대 가장 잘 맞는 하나를 고른다.  맞는 낱말이 없거나 1·2위가 붙으면
+# UNKNOWN 으로 두고 사람이 정한다 (지어내지 않는다).
+#
+# words 의 '*' 는 아무 글자 (타이머의 소문자 t 처럼 사전에 없는 글자 자리).
+# 동작(logic):
+#   and / or / not / nand / nor           — 범례 G003 정의 그대로
+#   memory (set|reset dominant)          — S 칸에 들어온 1 이면 출력 1, R 칸에 들어온 1 이면 0, 둘 다면 우선 칸이 이긴다.
+#                                          우선 칸은 글자에 'O' 가 붙은 칸이다 (So = SET DOMINANT · Ro = RESET DOMINANT)
+#   delay_on (GT)                        — 입력이 1 로 바뀌고 t 동안 유지되면 1
+#   delay_off (DT)                       — 입력이 1 이면 바로 1, 0 으로 바뀌고 t 뒤에 0
+#   pulse (PD)                           — 입력이 0→1 로 바뀌면 t 동안 1
+#   source                               — 사람이 누르는 입력 (PB 누름단추 · HMI)
+#   sink                                 — 받기만 한다 (ANN 경보 · SOE 기록 · 램프)
+functions:
+  AND:  {words: [AND], logic: and}
+  NAND: {words: [NAND], logic: nand}
+  OR:   {words: [OR], logic: or}
+  NOR:  {words: [NOR], logic: nor}
+  NOT:  {words: [NOT], logic: not}
+  GT:   {words: ["*GT", GT], logic: delay_on}
+  DT:   {words: ["*DT", DT], logic: delay_off}
+  PD:   {words: ["*PD", PD], logic: pulse}
+  ANN:  {words: [ANN], logic: sink}
+  SOE:  {words: [SOE], logic: sink}
+  PB:   {words: [PB], logic: source}
+# 메모리 칸 글자 (두 칸으로 나뉜 상자의 각 칸)
+memory_cells:
+  set:   [S, SO]
+  reset: [R, RO]
+  dominant_mark: O
+# 연결 기호 — 원 안 글자 한 자 (같은 장에서 같은 글자끼리 이어진다)
+connector_chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

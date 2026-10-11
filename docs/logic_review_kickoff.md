@@ -49,7 +49,7 @@ P&ID 분석과 나란히 "LOGIC 검토" 메뉴를 하나 더 만든다. 같은 �
     TC2        10e32bd0 · 864행  · Q'ty 5292 · 축3 94.1
     QFE        531237eb · 1605행 · Q'ty 3016 · 축3 90.7
     UAD-DXF    26d45872 · 467행
-    TAKHIATASH 59757589 · 1139행 · Q'ty 1495 · 축3 74.6
+    TAKHIATASH 17bc34dd · 1105행 · Q'ty 1461 · 축3 75.0   (hotfix86 — Symbol & Legend 장 계기 제외)
 - app/_data/, data/ 는 커밋하지 않는다 (고객 도면). 샘플 PDF 는 data/logic/ 에 두고 .gitignore 를 확인한다.
 - 시험·시뮬레이터는 실 DB 를 열지 않는다 (conftest.py 격리 그대로). pgrep -f / pkill -f 를 쓰지 않는다.
 - 회귀가 도는 동안 커밋하지 않는다.
