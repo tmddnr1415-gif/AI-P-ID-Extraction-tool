@@ -4704,6 +4704,18 @@ TC2 `10e32bd0` · 864 · QFE `531237eb` · 1605 · UAD-DXF `26d45872` · 467 · 
 않았다** (PID_dev 에만 갔다).  `RUNTIME = ("app/", "config/")` · 꾸러미 검증도 같은 값을 읽는다 · 시험 1건.  LOGIC 의
 `config/logic_symbols.yaml` 도 이 길로 간다.  Takhiatash 회귀 "기준선과 같습니다".
 
+**그 다음 — 적용기가 회사에서 고친 파일을 합친다 (hotfix90 · 판정 0줄)**
+
+현장: hotfix89 를 PID_dev 에 얹자 `app/lan_check.py` 하나가 충돌로 남았다 (회사 hotfix55 의 netstat 읽기 보정판).
+그대로면 진단 내보내기가 `tail_bytes` import 에서 멈추고 서버 로그를 밀지 않으며, 운영 적용(전부 아니면 무)은 이
+파일 하나 때문에 통째로 멈춘다.  회사 Claude 는 토큰이 없어 "합쳐줘" 길이 막혀 있다.
+`spike/apply_delta.py` 의 `MERGERS` — 파일별 합치기 조리법.  **회사 판은 지우지 않고** 기준판 뒤에 우리가 더한 것만
+끼운다 (`_merge_lan_check`: LOG_LIMIT/KEEP · tail_bytes · rotate · preflight 의 rotate() · tail 의 tail_bytes).  자리를
+못 찾거나 반쯤 들어 있거나 컴파일이 안 되면 예전처럼 충돌 · 줄 끝 유지 · 원본 백업 · 앞선 `.hotfix*.new` 정리 ·
+이미 합쳐졌으면 `same_merged`.  `merge` 는 전부 아니면 무를 막지 않는다.  실측: 기준판 + 회사식 고침(CRLF) 트리에
+hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 HEAD 판 + 회사 고친 줄뿐 · lan_check 관련 시험 70 통과.
+⚠ 회사 판을 저장소에 들여오지 않는 한 lan_check.py 를 고치는 꾸러미마다 이 조리법을 맞춰야 한다 — 다음 회차에 회사 판을 받으면 저장소로 들인다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
