@@ -71,7 +71,8 @@ def test_pdf_with_no_pid_sheet_stops_instead_of_succeeding_empty():
 
 def test_new_known_failure_is_wired_like_the_others():
     msrc = Path(main.__file__).read_text(encoding="utf-8")
-    assert "pipeline.NoPidSheets) as exc:" in msrc
+    # hotfix85 — 그 뒤에 `BubblesUnreadable` 가 같은 줄로 붙었다 (같은 처리 · 튜플)
+    assert "pipeline.NoPidSheets," in msrc and "pipeline.BubblesUnreadable) as exc:" in msrc
     assert "NoPidSheets" in analysis_proc._KNOWN
 
 

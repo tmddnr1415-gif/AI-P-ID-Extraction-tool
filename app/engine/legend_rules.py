@@ -100,13 +100,56 @@ class Derived:
         return self.source == "LEGEND"
 
 
+# hotfix85 — 사람이 가르친 범례 칸 (`app/form_teach.py`).  `{머리말: {"page_no", "rect"}}`.
+# 파이프라인이 `_rebind_config` 에서 CFG 의 `taught.legend` 로 채우고, 분석이 끝나면
+# 같은 함수가 비운다 (`_own_config`).  비어 있으면 이 모듈은 예전과 글자 그대로 같다.
+TAUGHT: dict = {}
+
+
+def _taught_page(pages, heading: str):
+    t = TAUGHT.get(heading)
+    if not t:
+        return None
+    return next((pc for pc in pages if pc.page_no == int(t.get("page_no") or 0)), None)
+
+
+def taught_rect(pc, heading: str):
+    """그 장에서 사람이 그 머리말이라고 그은 사각형 — 없으면 None."""
+    t = TAUGHT.get(heading)
+    if not t or pc is None or int(t.get("page_no") or 0) != pc.page_no:
+        return None
+    return pymupdf.Rect(*t["rect"])
+
+
+def taught_word(pc, heading: str, prefer: str | None = None):
+    """가르친 사각형 안의 낱말 자리 — `prefer` 낱말이 있으면 그것, 없으면 가장 왼쪽 낱말,
+    낱말이 없으면 사각형 자신.  가르치지 않았으면 None."""
+    R = taught_rect(pc, heading)
+    if R is None:
+        return None
+    inside = [(r, t) for r, t in pidcache.tokens(pc.words)
+              if R.contains(pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))]
+    if prefer:
+        hit = next((r for r, t in inside if t.upper() == prefer.upper()), None)
+        if hit is not None:
+            return hit
+    if inside:
+        return min(inside, key=lambda w: (w[0].x0, w[0].y0))[0]
+    return R
+
+
 def _page_with(pages, heading: str):
     """The legend sheet carrying a heading, by its printed words.
 
     ⚠ 한 조각이 여러 낱말을 담을 수 있다 (28회차) — 획 글꼴로 그린 범례는
     `VALVES ACTUATORS` 를 주석 하나로 싣는다.  `pidcache.tokens` 가 조각 안을
     낱말로 읽는다 (자리는 조각의 것).
+
+    hotfix85 — 사람이 그 칸을 가르쳤으면 그 장이 먼저다 (가르친 것이 이긴다).
     """
+    taught = _taught_page(pages, heading)
+    if taught is not None:
+        return taught
     want = heading.split()
     for pc in pages:
         if not pc.analysis_scope:
@@ -116,7 +159,7 @@ def _page_with(pages, heading: str):
     # hotfix84 — the same heading in other words.  Tried only when no page
     # prints the exact one, so a document that does (AL NOUF1 · TC2 · QFE ·
     # SADARA · UAD) finds the same sheet as before.
-    for alt in HEADING_ALTERNATIVES.get(heading, ()):
+    for alt in (HEADING_ALTERNATIVES.get(heading, ()) if pidcache.form_auto() else ()):
         for pc in pages:
             if not pc.analysis_scope:
                 continue
@@ -568,7 +611,7 @@ def actuator_circle(pages):
     pc = _page_with(pages, ACTUATOR_HEADING)
     if pc is None:
         return None, f"no legend sheet prints '{ACTUATOR_HEADING}'"
-    head = _label(pc, "ACTUATORS")
+    head = taught_word(pc, ACTUATOR_HEADING, "ACTUATORS") or _label(pc, "ACTUATORS")
     column = (head.x0 - 260, head.x0 + 40) if head else (0.0, 1e9)
     sizes = []
     m = pc.page.rotation_matrix
@@ -622,7 +665,7 @@ def derive_actuator_stem(pages, cfg, unit: float = 1.0) -> Derived:
         return _fallback(cfg, "actuator_stem",
                          f"no legend sheet prints '{ACTUATOR_HEADING}'")
 
-    head = _label(pc, "ACTUATORS")
+    head = taught_word(pc, ACTUATOR_HEADING, "ACTUATORS") or _label(pc, "ACTUATORS")
     column = (head.x0 - 260 * unit, head.x0 + 40 * unit) if head else (0.0, 1e9)
 
     # Enclosures in the symbol column: circles and closed boxes of actuator size.
@@ -732,7 +775,7 @@ def derive_pneumatic(pages, cfg) -> Derived:
         return _fallback(cfg, "pneumatic",
                          f"no legend sheet prints '{ACTUATOR_HEADING}'")
 
-    head = _label(pc, "ACTUATORS")
+    head = taught_word(pc, ACTUATOR_HEADING, "ACTUATORS") or _label(pc, "ACTUATORS")
     if head is None:
         return _fallback(cfg, "pneumatic",
                          f"'{ACTUATOR_HEADING}' sheet has no ACTUATORS label")

@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pidcache  # noqa: E402  (hotfix85 — form_auto 스위치)
 
 # How much of a page a rule must span to count as the sheet's frame.  Not a
 # tolerance on a measurement: the frame is drawn corner to corner and everything
@@ -144,6 +145,12 @@ def _box_edges(pc, W, H):
     return V, Hh
 
 
+# hotfix85 — 사람이 그은 도면 영역 [x0, y0, x1, y1] (그 문서 종이의 좌표).  파이프라인이
+# `_fit_layout` 앞에서 얹고 바로 뒤에서 걷는다 (`pipeline._taught_frame`).  None 이면 이
+# 모듈은 예전과 같다.
+TAUGHT_FRAME = None
+
+
 # The form's own heading over its notes (hotfix84).  A printed word, like the
 # captions below - not project data.
 NOTES_HEADING = "NOTES"
@@ -221,7 +228,7 @@ def _frame(pages) -> tuple:
         return sorted(g[len(g) // 2] for g, seen in out if len(seen) >= need)
 
     xs, ys = keep(vx), keep(hy)
-    if len(xs) < 2 or len(ys) < 2:
+    if (len(xs) < 2 or len(ys) < 2) and pidcache.form_auto():
         # hotfix84 — no frame drawn with lines: try the sheet's rectangles and
         # quads.  Only here, so a form that does draw its frame with lines
         # (AL NOUF1 · TC2 · QFE - TC2 also strokes two quads round the paper)
@@ -237,7 +244,7 @@ def _frame(pages) -> tuple:
     # border, the quad's right edge looked like a title-block column 7pt wide
     # and the notes were looked for in that strip.  Dropped only when two rules
     # remain inside, so a form whose border *is* the paper edge keeps it.
-    for vals, size in ((xs, W), (ys, H)):
+    for vals, size in (((xs, W), (ys, H)) if pidcache.form_auto() else ()):
         inside = [v for v in vals if PAPER_EDGE < v < size - PAPER_EDGE]
         if len(inside) >= 2 and len(inside) < len(vals):
             vals[:] = inside
@@ -1089,6 +1096,14 @@ def derive(pages, cfg=None) -> Layout:
             + f"; measured on the {len(pages)} majority-size pages only")
 
     fr = _frame(pages)
+    if fr is None and TAUGHT_FRAME is not None:
+        # hotfix85 — 사람이 그은 도면 영역 (`app/form_teach.py`).  테두리를 못 찾은 양식에서만
+        # 쓴다 — 찾은 문서는 이 갈래에 오지 않는다.  그 영역을 테두리로 보고 아래 유도(NOTES ·
+        # 타이틀블록 · 별표 크기 …)를 그대로 잇는다.  남의 좌표를 빌리는 것보다 낫다.
+        l, t, r, b = (float(v) for v in TAUGHT_FRAME)
+        fr = (l, t, r, b, r, [l, r], [t, b])
+        lay.notes.append(f"no border rule spans this sheet; the drawing area was drawn by a "
+                         f"person at [{l:.1f}, {t:.1f}, {r:.1f}, {b:.1f}]")
     if fr is None:
         lay.notes.append("no border rule spans this sheet on a majority of its "
                          "pages, so the drawing area could not be measured")
@@ -1100,7 +1115,8 @@ def derive(pages, cfg=None) -> Layout:
             f"the title block's column edge is the innermost full-height rule "
             f"right of centre, at x {column:.1f}")
     inner = [x for x in xs if column < x < right]
-    head = _notes_heading(pages, left, right) if column >= right else None
+    head = (_notes_heading(pages, left, right)
+            if column >= right and pidcache.form_auto() else None)
     if head is not None:
         # hotfix84 — the form draws no column for its notes (the title block is
         # a box in the corner, not a full-height strip); the notes sit inside

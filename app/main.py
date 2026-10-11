@@ -47,7 +47,7 @@ from app import (analysis_proc, audit, axis_overrides, db, excel_out, page_warm,
                  global_symbols,
                  lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
                  unit_multipliers, sheet_numbers, title_block_cells, version, voc,
-                 intake)
+                 intake, form_teach)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -509,6 +509,7 @@ def _worker() -> None:
                                           row["project"]),
                                       title_block_cells=_user_title_block(
                                           row["project"]),
+                                      form_teach=_user_form_teach(row["project"]),
                                       declared_mode=_declared_mode(row))
             result["fingerprint"] = pipeline.fingerprint(result)
             # 새 프로젝트면 이번에 읽은 범례를 그 프로젝트 것으로 남긴다.
@@ -569,7 +570,8 @@ def _worker() -> None:
         except (pipeline.LegendUnavailable,
                 pipeline.TitleBlockUnreadable,
                 pipeline.NoTextLayer,
-                pipeline.NoPidSheets) as exc:
+                pipeline.NoPidSheets,
+                pipeline.BubblesUnreadable) as exc:
             # 15회차 — 이 실패는 파이프라인이 **직접 검사한 조건**이고 문장도
             # 거기서 썼다.  그래서 `_failure_reason` 을 거치지 않는다: 그 함수는
             # *알 수 없는* 실패에 쓰는 것이고, 아는 실패까지 일반 문구로 덮으면
@@ -2147,6 +2149,15 @@ def _user_title_block(project: str) -> dict:
     return title_block_cells.cells(DATA_DIR, project)
 
 
+def _user_form_teach(project: str) -> dict:
+    """파이프라인에 넘길 사람이 가르친 자리 (hotfix85).  **읽는 곳은 여기 하나다** — 프로젝트에
+    안 묶이면 빈 값이고, 빈 값은 이 기능이 없던 때와 정확히 같다."""
+    project = (project or "").strip()
+    if not project:
+        return {}
+    return form_teach.for_pipeline(DATA_DIR, project)
+
+
 _TB_PAGES: dict = {}          # job_id -> pages (낱말만 · 한 job)
 
 
@@ -2277,6 +2288,223 @@ def titleblock_clear(job_id: str):
     if not job:
         raise HTTPException(404, "no such job")
     return {"cleared": title_block_cells.clear(DATA_DIR, job["project"] or "")}
+
+
+# ---------------------------------------------------------------------------
+# hotfix85 — 도면 가르치기 (`app/form_teach.py`).  분석이 멈춘 화면에서 사람이 도면 위에
+# 사각형을 긋는다: NOTES 영역 · 범례 칸 머리말 · 버블 예시.  타이틀블록 칸은 위
+# `/titleblock` 이 그대로 맡는다 (같은 화면에서 긋는다).  저장은 프로젝트 단위 ·
+# 작성자 필수 · **다시 분석해야 반영된다.**
+
+_TEACH_LOCK = threading.Lock()     # 미리보기가 엔진 모듈 전역(TAUGHT)을 잠깐 바꾼다
+
+
+def _teach_suggest(pages, form) -> dict:
+    """어느 장을 먼저 띄울지 — 화면 편의일 뿐 판정에 안 쓴다."""
+    import pidcache
+    import legend_rules
+    from app.engine import detect_symbols as _ds
+    anchors = _ds.RULESET_V3.anchors
+    score = {pc.page_no: sum(1 for _r, t in pc.words if t in anchors) for pc in form}
+    drawing = max(score, key=lambda n: (score[n], -n)) if score else (form[0].page_no if form else 1)
+    legend = None
+    for pc in pages:
+        words = {t.upper() for _r, t in pidcache.tokens(pc.words)}
+        if {"LEGEND", "SYMBOL", "SYMBOLS"} & words and ({"VALVES", "ACTUATORS", "SIGNAL"} & words):
+            legend = pc.page_no
+            break
+    if legend is None:
+        pc = legend_rules._page_with(pages, "FIRST LETTER")
+        legend = pc.page_no if pc is not None else (pages[0].page_no if pages else 1)
+    return {"drawing": drawing, "legend": legend}
+
+
+@app.get("/jobs/{job_id}/teach")
+def teach_state(job_id: str):
+    """가르치기 화면이 읽는 것 하나 — 저장된 칸 · 장 크기 · 먼저 띄울 장."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    from app.engine import dxf_reader
+    if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
+        return {"supported": False, "note": "DXF 는 블록 이름으로 읽으므로 이 가르치기가 없습니다"}
+    _require_source(job)
+    pages = _tb_pages(job)
+    form, sizes = _tb_form(pages)
+    project = job["project"] or ""
+    saved = form_teach.load(DATA_DIR, project)
+    return {"supported": True, "project": project, "page_count": len(pages),
+            "pages": [{"page_no": pc.page_no, "size": [round(float(pc.width), 1), round(float(pc.height), 1)]}
+                      for pc in pages],
+            "sizes": sizes, "form_pages": [pc.page_no for pc in form],
+            "suggest": _teach_suggest(pages, form),
+            "saved": saved if form_teach.has_any(saved) else None,
+            "legend_keys": [{"key": k, "label": form_teach.LEGEND_LABEL[k]} for k in form_teach.LEGEND_KEYS],
+            "note": "가르친 칸은 프로젝트에 저장되고 **다시 분석해야** 반영됩니다."}
+
+
+def _words_in(pc, rect) -> str:
+    import pymupdf
+    import pidcache
+    R = pymupdf.Rect(*rect)
+    ws = [(r, t) for r, t in pidcache.tokens(pc.words)
+          if R.contains(pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2))]
+    ws.sort(key=lambda w: (round(w[0].y0), w[0].x0))
+    return " ".join(t for _r, t in ws)
+
+
+@app.post("/jobs/{job_id}/teach/preview")
+def teach_preview(job_id: str, payload: dict):
+    """그은 사각형으로 **무엇이 읽히는지** 저장 전에 보인다.
+
+    * `notes` — 같은 크기의 장들에서 그 칸의 글 (앞 몇 줄)
+    * `legend:<머리말>` — 그 칸 안 글자 + 그 칸으로 범례 값을 실제로 재 본 결과
+    * `bubbles` — 예시 전부(`examples`)로 그림을 배워 이 장에서 찾은 버블 · 전체 장 수
+    """
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    _require_source(job)
+    item = str(payload.get("item") or "")
+    pages = _tb_pages(job)
+    by_no = {pc.page_no: pc for pc in pages}
+    try:
+        page_no = int(payload.get("page_no"))
+        pc = by_no[page_no]
+    except Exception:                                    # noqa: BLE001
+        raise HTTPException(400, "page_no 가 이 PDF 의 장 번호여야 합니다")
+    from app.engine import detect_symbols as _ds
+    if item == "bubbles":
+        examples = payload.get("examples") or []
+        templates = []
+        for ex in examples[:form_teach.MAX_BUBBLES]:
+            try:
+                epc = by_no[int(ex.get("page_no"))]
+                t = _ds.learn_bubble_template(epc, [float(v) for v in ex.get("rect")])
+            except Exception:                            # noqa: BLE001
+                t = None
+            if t:
+                templates.append(t)
+        if not templates:
+            return {"item": item, "ok": False,
+                    "note": "그은 사각형 안에 버블 테두리(곡선)가 없습니다 — 버블 하나를 넉넉히 감싸 주세요"}
+        here = _ds.taught_bubbles(pc, templates)
+        form, _sizes = _tb_form(pages)
+        # 세는 장은 앞 30장까지 — 미리보기는 "이 모양으로 찾힌다" 를 보이는 것이고 전수가 아니다.
+        per_page = {p.page_no: len(_ds.taught_bubbles(p, templates)) for p in form[:30]}
+        return {"item": item, "ok": True, "templates": len(templates),
+                "sizes": [t["size"] for t in templates],
+                "found_here": [[round(v, 1) for v in o.rect] for o in here],
+                "found_total": sum(per_page.values()),
+                "pages_with": sum(1 for n in per_page.values() if n),
+                "pages_total": len(per_page)}
+    try:
+        rect = [float(v) for v in payload.get("rect")]
+        assert len(rect) == 4
+    except Exception:                                    # noqa: BLE001
+        raise HTTPException(400, "rect [x0,y0,x1,y1] 가 필요합니다")
+    if item == "drawing":
+        import pymupdf
+        R = pymupdf.Rect(*rect)
+        inside = sum(1 for r, _t in pc.words if R.contains(r))
+        return {"item": item, "ok": inside > 0, "words_inside": inside, "words_total": len(pc.words),
+                "note": f"이 장 글자 {len(pc.words)}개 중 {inside}개가 영역 안"}
+    if item == "notes":
+        form, _sizes = _tb_form(pages)
+        same = [p for p in form if abs(p.width - pc.width) <= 1 and abs(p.height - pc.height) <= 1]
+        got = [{"page_no": p.page_no, "text": _words_in(p, rect)[:240]} for p in same]
+        # NOTES 를 실제로 인쇄한 장을 먼저 보인다 (표지·목록 장의 그 자리는 개정 기록일 수 있다)
+        got.sort(key=lambda g: ("NOTE" not in g["text"].upper(), g["page_no"]))
+        read = [g for g in got if g["text"]]
+        return {"item": item, "ok": bool(read), "read": len(read), "total": len(got),
+                "pages": got[:12],
+                "stars": sum(1 for g in read if "*" in g["text"])}
+    if item.startswith("legend:"):
+        key = item.split(":", 1)[1]
+        if key not in form_teach.LEGEND_KEYS:
+            raise HTTPException(400, f"모르는 범례 칸: {key}")
+        import legend_rules
+        import pipe_graph
+        text = _words_in(pc, rect)
+        with _TEACH_LOCK:
+            saved = dict(legend_rules.TAUGHT)
+            try:
+                legend_rules.TAUGHT = {key: {"page_no": pc.page_no, "rect": rect}}
+                cfg = pipeline.CFG
+                if key == "ELECTRIC SIGNAL":
+                    d = pipe_graph.derive_line_styles(pages, cfg)
+                    got = {"source": d.source, "note": d.note,
+                           "values": {k: d.values.get(k) for k in ("dash_len", "dash_gap", "min_run")}}
+                elif key == "VALVES ACTUATORS":
+                    # 분석과 같은 호출 — 문서 길이 단위를 곱한다 (`detect_valves.derive_layout`)
+                    unit = legend_rules.legend_unit(legend_rules.derive_butterfly(pages, cfg), pages)
+                    d = legend_rules.derive_actuator_stem(pages, cfg, unit)
+                    got = {"source": d.source, "note": d.note,
+                           "values": {k: v for k, v in d.values.items() if isinstance(v, (int, float))}}
+                else:
+                    d = legend_rules.derive_butterfly(pages, cfg)
+                    got = {"source": d.source, "note": d.note,
+                           "values": {k: v for k, v in d.values.items() if isinstance(v, (int, float))}}
+            except Exception as exc:                     # noqa: BLE001
+                got = {"source": "ERROR", "note": str(exc)[:200], "values": {}}
+            finally:
+                legend_rules.TAUGHT = saved
+        return {"item": item, "ok": got.get("source") == "LEGEND", "text": text, "measured": got,
+                "page_no": pc.page_no}
+    raise HTTPException(400, f"모르는 항목: {item}")
+
+
+@app.post("/jobs/{job_id}/teach")
+def teach_save(job_id: str, payload: dict):
+    """가르친 칸을 프로젝트에 적는다.  **다시 분석해야 반영된다.**
+
+    본문: `{"drawing": …, "notes": {page_no, rect} | {} , "legend": {머리말: {page_no, rect} | {}},
+    "bubbles": [{page_no, rect}...], "author"}` — 넘긴 항목만 바뀐다.  쪽 크기는 서버가
+    그 장에서 적는다 (화면이 보낸 값을 믿지 않는다)."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    _require_source(job)
+    pages = {pc.page_no: pc for pc in _tb_sizes(job)}
+
+    def sized(v):
+        if not v:
+            return v
+        if not isinstance(v, dict):
+            raise ValueError("칸은 {page_no, rect} 여야 합니다")
+        try:
+            pc = pages[int(v.get("page_no"))]
+        except Exception:                                # noqa: BLE001
+            raise ValueError("page_no 가 이 PDF 의 장 번호여야 합니다")
+        return {"page_no": pc.page_no, "rect": v.get("rect"),
+                "size": [float(pc.width), float(pc.height)]}
+    try:
+        drawing = payload.get("drawing")
+        notes = payload.get("notes")
+        legend = payload.get("legend")
+        bubbles = payload.get("bubbles")
+        if legend is not None and not isinstance(legend, dict):
+            raise ValueError("legend 는 {머리말: 칸} 이어야 합니다")
+        if bubbles is not None and not isinstance(bubbles, list):
+            raise ValueError("bubbles 는 목록이어야 합니다")
+        data = form_teach.set_items(
+            DATA_DIR, job["project"] or "",
+            drawing=(sized(drawing) if drawing else ({} if drawing == {} else None)),
+            notes=(sized(notes) if notes else ({} if notes == {} else None)),
+            legend=({k: sized(v) for k, v in legend.items()} if legend is not None else None),
+            bubbles=([sized(b) for b in bubbles] if bubbles is not None else None),
+            author=payload.get("author") or "", note=payload.get("note") or "", job_id=job_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"saved": data, "applies": "다시 분석하면 가르친 자리에서 읽습니다"}
+
+
+@app.delete("/jobs/{job_id}/teach")
+def teach_clear(job_id: str):
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    return {"cleared": form_teach.clear(DATA_DIR, job["project"] or "")}
 
 
 @app.get("/jobs/{job_id}/sheet_numbers")

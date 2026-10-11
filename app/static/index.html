@@ -193,7 +193,7 @@
       <button id="prog-home">첫 화면으로</button>
       <!-- hotfix29 — 타이틀블록을 못 읽고 멈춘 분석에서만 보인다.  도면 위에 사각형을
            끌어 어느 칸이 도면번호인지 알려 주면 프로젝트에 저장되고 다시 분석한다. -->
-      <button id="prog-tbfix" class="hidden">타이틀블록 칸 지정</button>
+      <button id="prog-tbfix" class="hidden">도면 가르치기</button>
       <button id="prog-voc" class="hidden ghost" title="이 실패를 개발팀 VOC 함에 남깁니다">VOC 로 신고</button>
     </div>
     <!-- 분석 중에만 보인다.  누르면 그 자리에서 멈추고 아무것도 저장하지
@@ -209,19 +209,42 @@
   <!-- hotfix29 — 타이틀블록 칸 지정.  도면을 그대로 띄우고 사람이 끈 사각형을 같은 크기의
        모든 장에서 읽어 보여 준 뒤 프로젝트에 저장한다 (좌표는 그 종이의 것). -->
   <div id="tbfix" class="tbfix hidden">
-    <h3>타이틀블록 칸 지정 <span class="muted small">— 도면 위에 사각형을 끌어 어느 칸이 도면번호인지 알려 주면, 같은 종이 크기의 모든 장을 그 칸으로 읽습니다</span></h3>
+    <h3>도면 가르치기 <span class="muted small">— 프로그램이 이 양식에서 못 찾은 자리를 도면 위에 사각형으로 짚어 주면, 그 자리에서 읽습니다.  값은 여전히 도면에서 읽습니다</span></h3>
+    <!-- hotfix85 — 멈춘 이유에 따라 무엇을 짚을지 한 줄로 안내한다 (`openTbFix(job, kind)`) -->
+    <p id="tbfix-guide" class="tbfix-guide"></p>
     <div class="tbfix-bar">
       <label>장 <input id="tbfix-page" type="number" min="1" value="1"></label>
       <button id="tbfix-prev" class="ghost" title="앞 장">◀</button>
       <button id="tbfix-next" class="ghost" title="다음 장">▶</button>
       <span id="tbfix-sizes" class="muted small"></span>
-      <span class="tbfix-cells">
+      <button id="tbfix-zoom-out" class="ghost" title="축소">－</button>
+      <button id="tbfix-zoom-in" class="ghost" title="확대 — 작은 버블을 그을 때">＋</button>
+      <button id="tbfix-go-drawing" class="ghost" title="계기가 많은 도면 장으로">도면 장으로</button>
+      <button id="tbfix-go-legend" class="ghost" title="범례(Symbol &amp; Legend) 장으로">범례 장으로</button>
+    </div>
+    <div class="tbfix-bar tbfix-items">
+      <span class="tbfix-group" data-group="tb"><b>① 타이틀블록</b>
         <label><input type="radio" name="tbfix-cell" value="dwg_no_region" checked> 도면번호 <b>(필수)</b></label>
         <label><input type="radio" name="tbfix-cell" value="title_region"> 제목</label>
         <label><input type="radio" name="tbfix-cell" value="rev_box"> REV</label>
         <label><input type="radio" name="tbfix-cell" value="sheet_box"> SHEET</label>
+        <label title="테두리 안쪽 전체 — 프로그램이 테두리를 못 찾았을 때"><input type="radio" name="tbfix-cell" value="drawing"> 도면 영역</label>
       </span>
-      <span class="muted small">고른 칸을 도면 위에서 끌어 그으세요 · 이미 그은 칸은 다시 그으면 바뀝니다</span>
+      <span class="tbfix-group" data-group="notes"><b>② NOTES</b>
+        <label><input type="radio" name="tbfix-cell" value="notes"> NOTES 영역</label>
+      </span>
+      <span class="tbfix-group" data-group="legend"><b>③ 범례</b>
+        <label><input type="radio" name="tbfix-cell" value="legend:LINE VALVES"> 밸브 칸 제목</label>
+        <label><input type="radio" name="tbfix-cell" value="legend:VALVES ACTUATORS"> 액추에이터 칸 제목</label>
+        <label><input type="radio" name="tbfix-cell" value="legend:ELECTRIC SIGNAL"> 전기 신호선 줄 이름</label>
+      </span>
+      <span class="tbfix-group" data-group="bubbles"><b>④ 버블</b>
+        <label><input type="radio" name="tbfix-cell" value="bubbles"> 계기 버블 예시 <span class="muted small">(2~3개)</span></label>
+        <button id="tbfix-bubbles-clear" class="ghost small" title="그은 버블 예시를 모두 지웁니다">예시 지우기</button>
+      </span>
+    </div>
+    <div class="tbfix-bar">
+      <span class="muted small">고른 항목을 도면 위에서 끌어 그으세요 · 이미 그은 칸은 다시 그으면 바뀝니다 (버블 예시는 쌓입니다)</span>
     </div>
     <div id="tbfix-stage"><img id="tbfix-img" alt="도면"><div id="tbfix-boxes"></div></div>
     <div id="tbfix-preview" class="small"></div>

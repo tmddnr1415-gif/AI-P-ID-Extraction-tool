@@ -413,6 +413,8 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
         if not curve_path(items, r):
             continue
         if any(i[0] == "l" for i in items):
+            if not pidcache.form_auto():
+                continue                   # hotfix85 시뮬레이션 — 이전 프로그램처럼 곡선만
             # hotfix84 — an arc drawn as one Bezier: its box holds the control
             # points (4/3 beyond the curve), so measure the curve itself.  Only
             # for the stub-led caps this round admits; curve-only caps keep the
@@ -467,6 +469,12 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
                 bubbles.append(Outline(pymupdf.Rect(a.x0, a.y0, b.x1, b.y1),
                                        "V", a, b))
 
+    # hotfix85 — 사람이 예시로 가르친 버블 모양.  규칙이 이미 세운 버블과 겹치지 않는
+    # 것만 더한다 (가산).  가르친 것이 없으면 아무 일도 하지 않는다.
+    if TAUGHT_BUBBLES:
+        for o in taught_bubbles(pc, TAUGHT_BUBBLES):
+            if not any(_overlap(o.rect, b.rect) > 0.5 for b in bubbles):
+                bubbles.append(o)
     return bubbles
 
 
@@ -657,6 +665,222 @@ def dashed_bubble_outlines(pc, solid: list) -> list:
             cap_a = pymupdf.Rect(R.x0, R.y0, R.x1, R.y0 + R.width / 2)
             cap_b = pymupdf.Rect(R.x0, R.y1 - R.width / 2, R.x1, R.y1)
             out.append(Outline(R, "V", cap_a, cap_b, "DASHED"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# hotfix85 — **사람이 예시로 가르친 버블** (`app/form_teach.py` · §9 ⑤).
+#
+# 규칙(`bubble_outlines`)은 "마주 본 호 캡 둘 + 곧은 옆면" 이라는 모양을 알고 있지만,
+# 그 호를 **어떻게 그렸는지**는 회사마다 다르다 (Takhiatash 는 곡선 앞뒤에 0.7pt 짜리
+# 짧은 직선을 붙여 그려 규칙이 한 개도 못 찾았다 — hotfix84 이전).  여기서는 모양을
+# 가정하지 않는다: 사람이 버블 2~3개를 사각형으로 짚으면 **그 안의 곡선 path 묶음**
+# (종류 · 크기 · 서로의 자리)이 곧 그 문서의 버블 그림이고, 같은 묶음을 다른 자리에서
+# 찾는다.  허용치는 전부 그 예시 자신의 크기 배율이다 (새 절대 pt 0).
+#
+# 지어내지 않는다 — 찾은 것은 "그 그림이 거기 있다" 뿐이고, 계기인지는 여전히 버블
+# 안의 글자가 정한다 (`detect` 의 앵커 · 버블 검증 그대로).
+TAUGHT_BUBBLES: list = []
+# 예시 버블 짧은 변에 대한 비율 — 같은 그림으로 볼 크기·자리 차.  그린 선의 굵기와
+# 내보내기 반올림을 덮는 몫이고, 이웃 버블(최소 간격 = 버블 하나)과는 섞이지 않는다.
+TEACH_TOL = 0.06
+# 예시 사각형 안의 곡선 중 **버블의 윤곽**만 쓴다 — 짧은 변의 이 비율보다 작은 곡선은
+# 버블 안 글자(획으로 그린 O·C·S)다.
+TEACH_PART_MIN = 0.5
+
+
+def _overlap(a, b) -> float:
+    """두 사각형의 겹침 / 작은 쪽 넓이."""
+    i = pymupdf.Rect(a) & pymupdf.Rect(b)
+    if i.is_empty:
+        return 0.0
+    small = min(a.width * a.height, b.width * b.height) or 1.0
+    return (i.width * i.height) / small
+
+
+def learn_bubble_template(pc, rect) -> dict | None:
+    """사람이 그은 사각형 하나에서 버블 그림을 배운다 — 없으면 None.
+
+    두 갈래다.
+
+    * **캡(`caps`)** — 사각형 안의 윤곽 곡선이 마주 본 호 둘이면 *버블 끝 모양* 을 배운다:
+      path 의 종류(`lcl` 처럼 그리는 순서) · 짧은 변 대 긴 변의 비 · 긴 변(버블 높이).
+      찾을 때는 규칙(`bubble_outlines`)과 **같은 구조** — 나란한 캡 둘 + 그 사이 곧은 옆면 —
+      로 짝짓는다.  그래서 예시 하나로 **길이가 다른 버블**과 **세로로 선 버블**도 찾는다.
+    * **그림 그대로(`exact`)** — 그 밖(원 하나로 그린 버블 등)은 path 묶음의 종류·크기·
+      서로의 자리를 그대로 찾는다.
+
+    크기·자리는 **그 path 의 bbox** 로 잰다 (같은 문서의 같은 버블이면 같은 값 — 곡선의
+    제어점이 섞여 있어도 매번 같다).  버블 사각형(`outer`)은 그려진 곡선의 실제 둘레다.
+    """
+    R = pymupdf.Rect(rect)
+    if R.is_empty or R.width <= 0 or R.height <= 0:
+        return None
+    m = pc.page.rotation_matrix
+    short = min(R.width, R.height)
+    parts = []
+    for d in pc.drawings():
+        items = d["items"]
+        if not items or not any(i[0] == "c" for i in items):
+            continue
+        b = d["bbox"]
+        if not R.contains(pymupdf.Point((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)):
+            continue
+        if b.width > 1.5 * R.width or b.height > 1.5 * R.height:
+            continue
+        ext = pidcache.curve_extent(items, m)
+        if max(ext.width, ext.height) < TEACH_PART_MIN * short:
+            continue                       # 버블 안 글자 획
+        parts.append((b, ext, "".join(i[0] for i in items)))
+    if not parts:
+        return None
+    outer = pymupdf.Rect(parts[0][1])
+    for _b, ext, _k in parts[1:]:
+        outer |= ext
+    parts.sort(key=lambda t: -(t[0].width * t[0].height))
+    out = {"page_no": pc.page_no, "size": [round(outer.width, 2), round(outer.height, 2)],
+           "outer": [round(v, 2) for v in outer], "mode": "exact",
+           "parts": [{"kind": k, "w": round(b.width, 3), "h": round(b.height, 3),
+                      "dx": round(b.x0 - outer.x0, 3), "dy": round(b.y0 - outer.y0, 3)}
+                     for b, _ext, k in parts]}
+    if len(parts) == 2:
+        (a, _ea, ka), (c, _ec, kc) = parts
+        tol = TEACH_TOL * min(outer.width, outer.height)
+        horiz = a.height > a.width and c.height > c.width
+        vert = a.width > a.height and c.width > c.height
+        same_band = ((horiz and abs(a.y0 - c.y0) <= tol and abs(a.y1 - c.y1) <= tol)
+                     or (vert and abs(a.x0 - c.x0) <= tol and abs(a.x1 - c.x1) <= tol))
+        if same_band:
+            longs = [max(a.width, a.height), max(c.width, c.height)]
+            ratios = [max(r.width, r.height) / max(min(r.width, r.height), 1e-6) for r in (a, c)]
+            out.update({"mode": "caps", "cap_kinds": sorted({ka, kc}),
+                        "cap_long": round(sum(longs) / 2, 3),
+                        "cap_ratio": round(sum(ratios) / 2, 3)})
+    return out
+
+
+# 캡 짝짓기에서 예시와 "같은 버블 끝" 으로 볼 폭 — 비율은 그리는 법이 같으면 같고(±15%),
+# 버블 높이는 한 문서 안에서도 두세 가지를 쓴다(Takhiatash 9.8 · 11.3 · 12.7 · 13.5 pt).
+# 하한·상한은 그 문서의 예시 높이에 대한 배율이다 — 절대 pt 가 아니다.
+TEACH_CAP_RATIO = 0.15
+TEACH_CAP_SIZE = (0.75, 1.35)
+
+
+def _seg_index(pc):
+    """곧은 가로·세로 선분을 좌표(0.1pt)별로 — 버블 옆면 찾기용 (`bubble_outlines` 와 같은 정의)."""
+    h_seg: dict = collections.defaultdict(list)
+    v_seg: dict = collections.defaultdict(list)
+    for a, b in pc.segments():
+        if abs(a.y - b.y) < 0.4 and abs(a.x - b.x) > 1.0:
+            h_seg[round(a.y, 1)].append((min(a.x, b.x), max(a.x, b.x)))
+        elif abs(a.x - b.x) < 0.4 and abs(a.y - b.y) > 1.0:
+            v_seg[round(a.x, 1)].append((min(a.y, b.y), max(a.y, b.y)))
+    return h_seg, v_seg
+
+
+def _taught_caps(pc, t, drawings, index, lay) -> list:
+    """캡 모양 하나로 버블 찾기 — 규칙과 같은 구조 (나란한 캡 둘 + 곧은 옆면)."""
+    kinds = set(t.get("cap_kinds") or ())
+    ratio, long_ = float(t["cap_ratio"]), float(t["cap_long"])
+    m = pc.page.rotation_matrix
+    tall, wide = [], []
+    for d in drawings:
+        if d[0] not in kinds:
+            continue
+        b = d[1]
+        lo, hi = min(b.width, b.height), max(b.width, b.height)
+        if lo <= 0 or abs(hi / lo - ratio) > TEACH_CAP_RATIO * ratio:
+            continue
+        if not TEACH_CAP_SIZE[0] * long_ <= hi <= TEACH_CAP_SIZE[1] * long_:
+            continue
+        (tall if b.height > b.width else wide).append(d)
+    h_seg, v_seg = index
+    steps = [round(i * 0.1, 1) for i in range(-8, 9)]
+
+    def spans(idx, coord, lo, hi) -> bool:
+        for dd in steps:
+            for s0, s1 in idx.get(round(coord + dd, 1), ()):
+                if s0 <= lo + lay.side_slack and s1 >= hi - lay.side_slack:
+                    return True
+        return False
+
+    out = []
+    for caps, horiz in ((tall, True), (wide, False)):
+        groups: dict = collections.defaultdict(list)
+        for d in caps:
+            b = d[1]
+            groups[(round(b.y0, 1), round(b.y1, 1)) if horiz else (round(b.x0, 1), round(b.x1, 1))].append(d)
+        for g in groups.values():
+            g.sort(key=(lambda d: d[1].x0) if horiz else (lambda d: d[1].y0))
+            for da, db in zip(g, g[1:]):
+                a, b = da[1], db[1]
+                if horiz:
+                    ok = spans(h_seg, a.y0, a.x1, b.x0) and spans(h_seg, a.y1, a.x1, b.x0)
+                else:
+                    ok = spans(v_seg, a.x0, a.y1, b.y0) and spans(v_seg, a.x1, a.y1, b.y0)
+                if not ok:
+                    continue
+                ea = pidcache.curve_extent(da[2], m)
+                eb = pidcache.curve_extent(db[2], m)
+                R = pymupdf.Rect(ea) | eb
+                out.append(Outline(R, "H" if horiz else "V", ea, eb, "TAUGHT"))
+    return out
+
+
+def _taught_exact(t, by_kind) -> list:
+    """그림 그대로 — path 묶음의 종류·크기·자리가 예시와 같은 자리."""
+    parts = t.get("parts") or []
+    if not parts:
+        return []
+    W, H = float(t["size"][0]), float(t["size"][1])
+    tol = max(TEACH_TOL * min(W, H), 0.2)
+    anchor, rest = parts[0], parts[1:]
+
+    def near(kind, w, h, x0, y0):
+        for b in by_kind.get(kind, ()):
+            if (abs(b.width - w) <= tol and abs(b.height - h) <= tol
+                    and abs(b.x0 - x0) <= tol and abs(b.y0 - y0) <= tol):
+                return b
+        return None
+
+    out = []
+    for b in by_kind.get(anchor["kind"], ()):
+        if abs(b.width - anchor["w"]) > tol or abs(b.height - anchor["h"]) > tol:
+            continue
+        ox, oy = b.x0 - anchor["dx"], b.y0 - anchor["dy"]
+        if all(near(p["kind"], p["w"], p["h"], ox + p["dx"], oy + p["dy"]) is not None for p in rest):
+            R = pymupdf.Rect(ox, oy, ox + W, oy + H)
+            if R.width >= R.height:
+                cap_a = pymupdf.Rect(R.x0, R.y0, R.x0 + R.height / 2, R.y1)
+                cap_b = pymupdf.Rect(R.x1 - R.height / 2, R.y0, R.x1, R.y1)
+            else:
+                cap_a = pymupdf.Rect(R.x0, R.y0, R.x1, R.y0 + R.width / 2)
+                cap_b = pymupdf.Rect(R.x0, R.y1 - R.width / 2, R.x1, R.y1)
+            out.append(Outline(R, "H" if R.width >= R.height else "V", cap_a, cap_b, "TAUGHT"))
+    return out
+
+
+def taught_bubbles(pc, templates, lay: Layout = None) -> list:
+    """가르친 그림으로 찾은 버블 — `Outline` 목록 (style `TAUGHT`).  겹친 것은 하나로."""
+    if not templates:
+        return []
+    lay = lay or LAYOUT
+    drawings = []
+    by_kind: dict = collections.defaultdict(list)
+    for d in pc.drawings():
+        items = d["items"]
+        if items and any(i[0] == "c" for i in items):
+            kind = "".join(i[0] for i in items)
+            drawings.append((kind, d["bbox"], items))
+            by_kind[kind].append(d["bbox"])
+    index = _seg_index(pc) if any(t.get("mode") == "caps" for t in templates) else None
+    out: list = []
+    for t in templates:
+        got = (_taught_caps(pc, t, drawings, index, lay) if t.get("mode") == "caps"
+               else _taught_exact(t, by_kind))
+        for o in got:
+            if not any(_overlap(o.rect, k.rect) > 0.5 for k in out):
+                out.append(o)
     return out
 
 
@@ -2116,6 +2340,7 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
     # 들어 검출 불변 (실측).
     outlines = _without_containers(outlines)
     dashed = {id(o.rect) for o in outlines if o.style == "DASHED"}
+    taught = {id(o.rect) for o in outlines if o.style == "TAUGHT"}      # hotfix85
     bubbles = [o.rect for o in outlines]
     mark_dict, glyph_size = read_mark_dictionary(pc, lay)
     marks = find_marks(pc, lay, glyph_size, allow_sizes=allow_glyph_sizes,
@@ -2176,6 +2401,9 @@ def detect(pc, lay: Layout = LAYOUT, rules: Ruleset = RULESET_V3,
         det = Detection(anchor=t, bbox=bubble, center=(cx, cy))
         if id(bubble) in dashed:
             det.evidence["bubble_style"] = "DASHED"
+        elif id(bubble) in taught:
+            # hotfix85 — 이 버블은 사람이 예시로 가르친 그림으로 찾았다 (근거 패널이 말한다)
+            det.evidence["bubble_style"] = "TAUGHT"
 
         # -- category / type mapping -----------------------------------
         if t in rules.valves:

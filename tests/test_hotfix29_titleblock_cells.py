@@ -208,11 +208,13 @@ def test_failure_screen_offers_the_panel_only_for_the_title_block_case():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     fail = js.split("async function showFailure(", 1)[1].split("\nfunction ", 1)[0]
-    assert "/도면번호를 읽지 못했습니다/.test(message" in fail and "#prog-tbfix" in fail
+    # hotfix85 — 판은 멈춘 이유 셋(타이틀블록 · 범례 · 버블)에 열린다.  타이틀블록 갈래는 그대로다.
+    assert "teachCase(message)" in fail and "#prog-tbfix" in fail
+    assert 'kind: "titleblock", re: /도면번호를 읽지 못했습니다/' in js
     assert 'id="prog-tbfix"' in html and 'id="tbfix"' in html and 'name="tbfix-cell"' in html
     save = js.split("async function tbSave(", 1)[1].split("\n}\n", 1)[0]
     # 작성자 없이 저장하지 않는다 · 저장 뒤 "다시 분석해야" 를 말한다
-    assert "작성자를 적어야 저장됩니다" in save and "out.applies" in save
+    assert "작성자를 적어야 저장됩니다" in save and "다시 분석하면" in save
     run = js.split('$req("#tbfix-save-run")', 1)[1].split("\n});", 1)[0]
     assert ("/reanalyse" in run or "askReanalyse(id)" in run) and "watch(id, null, {})" in run
     # 좌표는 화면 배율을 되돌린 도면 pt 다 — 이미지 픽셀을 저장하지 않는다

@@ -109,6 +109,18 @@ class NoPidSheets(RuntimeError):
     """
 
 
+class BubblesUnreadable(RuntimeError):
+    """P&ID 장에 계기 글자(PIT · TIT …)는 인쇄돼 있는데 계기 버블을 **한 개도** 못 찾았다
+    (hotfix85).
+
+    hotfix84 이전의 Takhiatash 가 이것이었다 — 버블 호를 "곡선 + 아주 짧은 직선" 으로
+    그려 규칙이 하나도 못 세웠고, 분석은 **계기 0행으로 조용히 성공**할 자리였다.  이제는
+    멈추고 *버블 예시 2~3개를 짚어 달라* 고 말한다 (`app/form_teach.py`).  한 장에서라도
+    버블이 서면 걸지 않는다 — 그 문서의 규칙은 맞고, 남은 장은 장마다 사유로 간다.
+    **예외를 바꿔 쓴 문장이 아니다** — 파이프라인이 직접 검사한 조건이고 문장도 여기서 쓴다.
+    """
+
+
 class NoTextLayer(RuntimeError):
     """이 PDF 의 어느 장에도 글자층이 없다 (hotfix73).
 
@@ -868,6 +880,11 @@ def _rebind_config() -> None:
     # 커넥터 개수가 **218 -> 219** 로 달라져 `legend` 의 기록 문장이 바뀌고,
     # 지문이 `fb85b039` -> `f21626fd` 로 움직였다.  값(70.2)은 같았다 —
     # **판정이 아니라 세는 대상이 달라진 것**이고, 그래서 더 위험하다.
+    # hotfix85 — 사람이 가르친 범례 칸 · 버블 그림.  CFG 의 `taught` 가지에 얹혀 있고
+    # (`_apply_form_teach`), 분석이 끝나 `_own_config` 가 CFG 를 되돌리면 여기서 비워진다.
+    taught = CFG.data.get("taught") or {}
+    legend_rules.TAUGHT = dict(taught.get("legend") or {})
+    ds.TAUGHT_BUBBLES = list(taught.get("bubbles") or [])
     tb_cfg = CFG.data.get("title_block") or {}
     pidcache.PROJECT_NAME_REGION = tb_cfg.get("project_name_region")
     pidcache.PROJECT_NAME_MIN_HEIGHT = tb_cfg.get("project_name_min_height")
@@ -948,7 +965,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             reference: Path = None, use_prefix: bool = True,
             use_line_gate: bool = True, legend_profile: dict = None,
             unit_multipliers: dict = None, declared_mode: str = None,
-            sheet_numbers: dict = None, title_block_cells: dict = None) -> dict:
+            sheet_numbers: dict = None, title_block_cells: dict = None,
+            form_teach: dict = None) -> dict:
     """`_analyse` 를 돌리되, **이 분석이 config 를 바꾼 것이 다음 분석으로 새지
     않게** 한다 (22회차).
 
@@ -1001,7 +1019,8 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                             reference=reference, use_prefix=use_prefix,
                             use_line_gate=use_line_gate, legend_profile=legend_profile,
                             unit_multipliers=unit_multipliers, declared_mode=declared_mode,
-                            sheet_numbers=sheet_numbers, title_block_cells=title_block_cells)
+                            sheet_numbers=sheet_numbers, title_block_cells=title_block_cells,
+                            form_teach=form_teach)
         finally:
             # 33회차 [D] — 마지막 장의 잉크 인덱스(와 그것이 붙드는 PyMuPDF 문서)를
             # 놓는다.  결과는 이미 만들어졌으므로 지문에 닿지 않는다.  이것이 없으면
@@ -1009,6 +1028,113 @@ def analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             ds.release_ink()
             legend_rules.release_stroke_memo()     # hotfix73 — 같은 이유 (마지막 장의 선 색인)
             dv.release_strokes()
+
+
+def _same_paper(item: dict, pc) -> bool:
+    try:
+        w, h = (float(v) for v in item.get("size"))
+    except Exception:
+        return False
+    return abs(w - float(pc.width)) <= 1.0 and abs(h - float(pc.height)) <= 1.0
+
+
+def _taught_frame(pages, teach: dict | None):
+    """사람이 그은 도면 영역 — 같은 번호의 장이 같은 종이일 때만 · 아니면 None."""
+    item = (teach or {}).get("drawing")
+    if not item:
+        return None
+    pc = next((p for p in pages if p.page_no == int(item.get("page_no") or 0)), None)
+    if pc is None or not _same_paper(item, pc):
+        return None
+    return [float(v) for v in item["rect"]]
+
+
+def _taught_legend(pages, teach: dict | None) -> tuple:
+    """가르친 범례 칸 — `({머리말: {page_no, rect}}, [못 얹은 사유])`.  같은 종이일 때만."""
+    by_no = {pc.page_no: pc for pc in pages}
+    legend, skipped = {}, []
+    for key, item in ((teach or {}).get("legend") or {}).items():
+        pc = by_no.get(int(item.get("page_no") or 0))
+        if pc is not None and _same_paper(item, pc):
+            legend[key] = {"page_no": pc.page_no, "rect": [float(v) for v in item["rect"]]}
+        else:
+            skipped.append(f"legend:{key}: 그은 장이 없거나 종이 크기가 다릅니다")
+    return legend, skipped
+
+
+def _apply_taught_legend(pages, teach: dict | None) -> None:
+    """범례 칸은 **치수를 재기 전에** 얹는다 — `_fit_layout` 이 문서 길이 단위를 범례의
+    액추에이터 원으로 재기 때문이다 (늦게 얹으면 단위가 1.0 으로 남아 별표 창이 두 배가
+    된다 — 시뮬레이션이 잡았다).  CFG 에 얹으므로 분석 뒤 `_own_config` 가 되돌린다."""
+    legend, _skipped = _taught_legend(pages, teach)
+    if legend and CFG.overlay({"taught.legend": legend}):
+        _rebind_config()
+
+
+def _apply_form_teach(pages, layout: dict, teach: dict | None) -> dict:
+    """사람이 가르친 자리를 얹는다 (hotfix85 · `app/form_teach.py`).
+
+    * 도면 영역 → `_taught_frame` 이 `_fit_layout` 앞에서 테두리로 넘긴다 (여기서는 기록만)
+    * NOTES 영역 → `regions.notes_area` · `regions.notes_text_x_max` (그 칸의 오른쪽 끝)
+    * 범례 칸 머리말 → CFG `taught.legend` → `legend_rules.TAUGHT`
+    * 버블 예시 → 그 장에서 그림을 배워(`ds.learn_bubble_template`) CFG `taught.bubbles`
+
+    **같은 번호의 장이 같은 종이 크기일 때만** 쓴다 (좌표는 그 종이의 것).  돌려주는 것은
+    사실뿐 — 무엇을 얹었나 · 왜 못 얹었나 · 누가 가르쳤나.  CFG 에 얹으므로 분석이 끝나면
+    `_own_config` 가 그대로 되돌린다.
+    """
+    out = {"applied": [], "skipped": [], "who": "", "bubble_templates": 0}
+    if not teach:
+        return out
+    out["who"] = teach.get("who") or ""
+    by_no = {pc.page_no: pc for pc in pages}
+    values = {}
+    if teach.get("drawing"):
+        # 도면 영역은 `_fit_layout` 앞에서 이미 테두리로 쓰였다 (`_taught_frame`) — 기록만
+        if _taught_frame(pages, teach) is not None:
+            out["applied"].append("drawing")
+        else:
+            out["skipped"].append("drawing: 그은 장이 없거나 종이 크기가 다릅니다")
+    notes = teach.get("notes")
+    if notes:
+        pc = by_no.get(int(notes.get("page_no") or 0))
+        if pc is not None and _same_paper(notes, pc):
+            r = [float(v) for v in notes["rect"]]
+            values["regions.notes_area"] = r
+            values["regions.notes_text_x_max"] = r[2]
+            out["applied"].append("notes")
+        else:
+            out["skipped"].append("notes: 그은 장이 없거나 종이 크기가 다릅니다")
+    legend, skipped = _taught_legend(pages, teach)
+    out["applied"] += [f"legend:{k}" for k in legend]
+    out["skipped"] += skipped
+    templates = []
+    for item in teach.get("bubbles") or []:
+        pc = by_no.get(int(item.get("page_no") or 0))
+        if pc is None or not _same_paper(item, pc):
+            out["skipped"].append(f"bubble p{item.get('page_no')}: 그은 장이 없거나 종이 크기가 다릅니다")
+            continue
+        t = ds.learn_bubble_template(pc, item["rect"])
+        if t is None:
+            out["skipped"].append(f"bubble p{pc.page_no}: 그은 사각형 안에 곡선 그림이 없습니다")
+            continue
+        templates.append(t)
+    if templates:
+        out["applied"].append("bubbles")
+        out["bubble_templates"] = len(templates)
+    if legend:
+        values["taught.legend"] = legend
+    if templates:
+        values["taught.bubbles"] = templates
+    if not values:
+        return out
+    moved = CFG.overlay(values)
+    if moved:
+        _reconfigure(pages)
+    layout.setdefault("moved", []).extend(
+        {"key": k, "was": w, "now": n, "source": "USER"} for k, w, n in moved
+        if not k.startswith("taught."))
+    return out
 
 
 @contextlib.contextmanager
@@ -1061,7 +1187,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
              reference: Path = None, use_prefix: bool = True,
              use_line_gate: bool = True, legend_profile: dict = None,
              unit_multipliers: dict = None, declared_mode: str = None,
-             sheet_numbers: dict = None, title_block_cells: dict = None) -> dict:
+             sheet_numbers: dict = None, title_block_cells: dict = None,
+             form_teach: dict = None) -> dict:
     """Full analysis of one PDF.  `progress(done, total, message)` is optional.
 
     `reference` turns on verification mode: it is a finished instrument list to
@@ -1141,11 +1268,21 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 sheets=(0, 0))
             pc.segments()
         say(0, total, "measuring the sheet")
-        layout = _fit_layout(pages)
+        # hotfix85 — 사람이 그은 도면 영역은 **테두리를 못 찾았을 때** 테두리로 쓴다 (그 뒤의
+        # 유도가 남의 좌표 대신 이 도면에서 이어지게).  얹고 바로 걷는다.
+        derive_layout.TAUGHT_FRAME = _taught_frame(pages, form_teach)
+        _apply_taught_legend(pages, form_teach)
+        try:
+            layout = _fit_layout(pages)
+        finally:
+            derive_layout.TAUGHT_FRAME = None
         # hotfix29 — **사람이 도면 위에서 그은 타이틀블록 칸** (`app/title_block_cells.py`).
         # 도면이 답한 칸 위에 얹는다 — 어디를 읽을지는 프로젝트가 적은 `title_block.*`
         # 와 같은 자격이고, 같은 종이 크기에서만 얹는다 (좌표는 그 종이의 것).
         layout["user_cells"] = _apply_user_cells(pages, layout, title_block_cells)
+        # hotfix85 — **사람이 가르친 자리** (NOTES 영역 · 범례 칸 · 버블 예시).  타이틀블록
+        # 칸과 같은 자격(어디를 읽을지)이고, 없으면 아무 일도 하지 않는다.
+        layout["taught"] = _apply_form_teach(pages, layout, form_teach)
     say(1, total, "reading title blocks")
 
     with clock.stage("titleblock_glyphs"):
@@ -1279,7 +1416,9 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 "이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 "
                 "저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 "
                 "분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 "
-                "장이 없어도 분석할 수 있습니다.")
+                "장이 없어도 분석할 수 있습니다.  범례 장이 이 PDF 에 있는데 못 읽은 것이라면 "
+                "[도면 가르치기] 에서 범례의 칸 제목(밸브 · 액추에이터 · 전기 신호선)을 "
+                "사각형으로 짚어 주면 그 자리에서 읽습니다.")
 
         legend_derived["line_styles"] = pipe_style
         # The off-page connector is not in the legend, so how far its text sits
@@ -1342,6 +1481,20 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         raise NoPidSheets(f"이 PDF({len(pages)}장)에서 분석할 P&ID 장을 찾지 못했습니다 — "
                           + " · ".join(parts) + ".  P&ID 도면이 든 PDF 를 올려 주세요 "
                           "(범례만 따로 든 PDF 라면 P&ID 와 함께 올리면 됩니다).")
+    # hotfix85 — 계기 버블을 **한 장에서도** 못 찾으면 여기서 멈춘다 (`BubblesUnreadable`).
+    # 찾을 때까지만 본다 (`any` — 첫 장에 버블이 있으면 한 장 값이다).  판정은 바꾸지
+    # 않는다: 버블이 하나라도 서는 문서는 이 검사를 그냥 지나간다 (네 기준 문서 전부).
+    say(3, total, "looking for instrument bubbles")
+    if not any(ds.bubble_outlines(pc) for pc in targets):
+        printed = collections.Counter(t for pc in targets for _r, t in pc.words
+                                      if t in ds.RULESET_V3.anchors)
+        if sum(printed.values()) >= 3:
+            raise BubblesUnreadable(
+                f"P&ID {len(targets)}장에 계기 글자는 인쇄돼 있는데 "
+                f"({', '.join(f'{t} {n}' for t, n in printed.most_common(5))} …) "
+                "계기 버블(그 글자를 두른 원·타원)을 한 개도 찾지 못했습니다 — 이 양식은 "
+                "버블을 이 프로그램이 아는 것과 다른 방식으로 그렸습니다.  [도면 가르치기] 에서 "
+                "버블 2~3개를 사각형으로 짚어 주면 그 모양으로 나머지를 찾습니다.")
     # 36회차 [D] — 이 문서가 유닛코드를 NOTES 에서 어떤 꼴로 적는지 먼저 배운다.
     # 재료는 둘 다 이미 읽은 것이다: 도면번호의 유닛 자리(`tb.parse_unit_code`)와
     # 그 장의 NOTES 문단.  결과는 지문 밖(`result["unit_forms"]`)에 남긴다.

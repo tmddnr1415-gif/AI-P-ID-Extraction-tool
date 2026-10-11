@@ -100,12 +100,14 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
     # 낱말로 읽되 자리는 조각의 것을 쓴다.  파선은 라벨 **왼쪽**에 그려지므로
     # 조각의 x0 가 곧 그 행의 글자가 시작하는 자리다.
     row_words = list(pidcache.tokens(pc.words))
-    for r, t in row_words:
+    # hotfix85 — 사람이 그 줄을 가르쳤으면 그 줄의 첫 낱말이 라벨이다 (파선은 그 왼쪽).
+    label = legend_rules.taught_word(pc, SIGNAL_ROW, "SIGNAL")
+    for r, t in ([] if label is not None else row_words):
         if t == "SIGNAL":
             row = [w for _r, w in row_words
                    if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6 * unit]
             # hotfix84 — `ELECTRICAL SIGNAL LINE` (Takhiatash) is the same row.
-            if "ELECTRIC" in row or "ELECTRICAL" in row:
+            if "ELECTRIC" in row or ("ELECTRICAL" in row and pidcache.form_auto()):
                 label = r
                 break
     if label is None:

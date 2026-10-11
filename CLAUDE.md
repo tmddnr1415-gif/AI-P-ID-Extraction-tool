@@ -4459,6 +4459,55 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
   액추에이터 없음 106).  **기호 모양이 다른 회사 양식**이라 몸체 판정의 새 가족이 필요하다.
 - 선 있는 기능 버블 중 같은 태그의 현장 버블이 **없는** 것(PISA 16 · TISA 8 · LISAZ 8 …)은 그대로 행이다.
 
+**그 다음 — 도면 가르치기: 새 양식에서 멈추면 그 자리에서 사람이 짚는다 (hotfix85 · 2026-10-11)**
+
+사용자: *"PDF 넣고 분석 중 화면에서 문제가 발생하면 분석 프로그레스 화면에서 사용자가 확인하는 화면을
+만들어서 읽을 수 있도록 · UTCC P&ID 로 이전 프로그램 기준으로 시뮬레이션해 봐."*  hotfix84 는 새 양식
+(Takhiatash)을 **코드를 고쳐서** 읽었다 — 프로젝트마다 다르게 그리므로 끝이 없다.  이번에는 분석이 멈춘
+진행 화면에서 **사람이 도면 위에 사각형을 그어** 그 자리를 알려 주면 프로그램이 거기서 읽는다.
+시험 `tests/test_hotfix85_teach.py` 13건 · 화면 시뮬레이션 `spike/ui_audit_teach.py` → `out/hotfix85/ui/`.
+
+1. **가르치는 것** (`app/form_teach.py` · `projects/<프로젝트>/form_teach.json` · 작성자 필수 · `enabled`
+   · 읽는 곳 `main._user_form_teach` 하나 · 사람 값이 없으면 빈 값 = 이 기능이 없던 때와 같다):
+   도면 영역(테두리 안쪽) · NOTES 영역 · 범례 칸 제목 셋(밸브 · 액추에이터 · 전기 신호선 줄) ·
+   계기 버블 예시 2~3개.  타이틀블록 칸은 hotfix29 의 `title_block_cells.json` 그대로 (같은 판에서 긋는다).
+   **사람은 어디를 읽을지와 어떻게 생겼는지만 준다 — 값은 여전히 도면에서 읽는다** (§9 ⑤).
+2. **엔진에 닿는 자리** — 도면 영역은 `derive_layout.TAUGHT_FRAME`(테두리를 **못 찾았을 때만** 테두리로 —
+   그 뒤의 유도가 남의 좌표 대신 이 도면에서 이어진다) · 범례 칸은 `legend_rules.TAUGHT`(`_page_with` 가 먼저
+   보고 `taught_word` 가 칸 안 낱말 자리를 준다) · NOTES 는 `regions.notes_area` overlay · 버블은
+   `ds.TAUGHT_BUBBLES`.  전부 CFG 의 `taught.*` 가지에 얹고 `_rebind_config` 이 모듈로 옮기며
+   **`_own_config` 이 분석 뒤 되돌린다** (시험이 못박는다).
+3. **★ 버블은 모양을 가정하지 않고 예시에서 배운다** (`ds.learn_bubble_template` · `taught_bubbles`).
+   예시 사각형 안의 윤곽 곡선이 마주 본 호 둘이면 **버블 끝(캡)의 그리는 법**(path 종류 `lcl` · 짧은/긴 변 비 ·
+   높이)을 배우고 규칙과 **같은 구조**(나란한 캡 둘 + 곧은 옆면)로 짝짓는다 — 예시 하나로 **길이가 다른 버블과
+   세로로 선 버블**도 찾는다.  그 밖(원 하나 등)은 path 묶음을 그대로 찾는다.  허용치는 전부 예시 크기의 배율.
+   글자 획은 버블 짧은 변 절반 미만이라 빠진다.  찾은 버블은 `bubble_style: TAUGHT` 로 근거에 남는다.
+4. **새 멈춤 `BubblesUnreadable`** — P&ID 장에 계기 글자(앵커 사전)가 3개 이상 인쇄돼 있는데 버블이 **한 장에서도**
+   안 서면 (hotfix84 이전 Takhiatash 는 계기 0행으로 *조용히 성공* 할 자리였다).  `any()` 라 첫 장에 버블이 있으면
+   한 장 값이다 — 네 기준 문서는 이 검사를 그냥 지나간다.  단계 이름 `looking for instrument bubbles`.
+5. **화면** (`index.html` `#tbfix` 를 넓혔다 · `app.js` `TEACH_CASES` · `openTbFix(job, kind)` · `teachPreview`) —
+   멈춘 이유 셋(타이틀블록 · 범례 · 버블)을 서버 문장의 한 마디로 가르고 **판이 저절로 열린다**.  붉은 안내 한 줄 ·
+   해당 항목 무리 강조 · `도면 장으로`/`범례 장으로` · 확대/축소.  그을 때마다 **무엇이 읽히는지** 저장 전에 보인다
+   (`POST /jobs/{id}/teach/preview` — NOTES 는 장마다 글 · 범례 칸은 칸 제목 글자 + 그 칸으로 실제로 잰 값 ·
+   버블은 이 장에서 찾은 버블을 초록 테두리로 + 전체 장 수).  `저장하고 다시 분석` 한 번.
+   API `GET/POST/DELETE /jobs/{id}/teach` (쪽 크기는 서버가 그 장에서 적는다).
+6. **시뮬레이션 스위치 `PID_FORM_AUTO=0`** (`pidcache.form_auto()`) — hotfix84 의 새 양식 자동 갈래 다섯(사각형
+   테두리 · 종이 가장자리 선 · NOTES 머리말 자리 · 범례 머리말 다른 낱말 · 곡선+짧은 직선 버블 캡)을 끈다.
+   **운영용이 아니다** — "그 갈래가 없던 이전 프로그램이었다면" 을 재려고 둔다.  기본은 켜짐.
+   재현 확인: hotfix83 코드(`95beebf` worktree)와 스위치 끈 현재 코드가 Takhiatash 에서 **같은 문장으로** 멈춘다.
+7. **실측 — 이전 프로그램 기준 + 가르치기만으로 hotfix84 자동과 지문까지 같다.**  멈춤 셋: ① 타이틀블록(16초)
+   → 도면번호 칸 · 도면 영역 · NOTES ② 범례(22초) → 칸 제목 셋 ③ 버블(22초) → p6 버블 둘 → **1,139행 ·
+   Q'ty 1,495 · 지문 `59757589`** (TAKHIATASH 기준선 그대로).  화면 시뮬레이션도 같은 1,139행 · 버블 출처
+   TAUGHT 912 · 페이지 오류 0 · 실 DB sha256 같음.
+8. **★ 시뮬레이션이 잡은 결함 셋.**  (가) 처음엔 정확히 같은 크기의 버블만 찾아 1,050행 — 이 문서는 버블 크기가
+   여섯 가지(36.8·25.5·40.4·38.0·34.7 가로 · 세로)라 → 캡 모양 학습 (3).  (나) 테두리를 못 찾으면 `derive_layout`
+   이 **그 뒤의 유도(별표 크기 · 겹침 · 도면번호 형식)를 통째로 건너뛰고** 남의 값을 빌려 SCOPE 21칸이 달랐다 →
+   도면 영역을 테두리로 넘긴다 (2).  (다) 범례 칸을 `_fit_layout` **뒤**에 얹어 문서 길이 단위가 1.0 으로 남고
+   별표 창이 두 배가 됐다 (p9 TW 5행이 `VENDOR(GE)`) → 범례 칸은 치수 재기 **앞**에 얹는다 (`_apply_taught_legend`).
+9. **못 하는 것** — 글자가 선으로 그려진 PDF(HRSG 단장)는 짚을 글자가 없다 (`NoTextLayer` 그대로) · 밸브 기호
+   모양(나비밸브 사각형+점 등)은 이 판에 없다 (hotfix82 모양 사전이 맡을 자리) · 이미 성공한 분석의 NOTES 를
+   나중에 가르치는 입구는 아직 실패 화면뿐이다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -4978,6 +5027,11 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `TABS` 의 `VOC` · `VOC_ORDER`·`VOC_ONLY`·`gridCols()` · `verdictOf`·`qtyVerdictOf`·`verdictWho` · `_vxHtml` · `setVerdict`(`field` = verdict/qty_verdict/note) · `vxTargets` · `renderVerdictCount` · `#vx-o`/`#vx-x`/`#vx-xlsx` | **hotfix82** — 식별 VOC 탭(전체 행 · 열 순서 고정 · VOC 전용 열은 다른 탭에 안 보임) · 모든 탭의 O/X 열(Type 바로 앞) · 칸을 고르고 O/X 키(범위 · 적으면 아래로) · 비고 칸은 `saveField` 가 `setVerdict(note)` 로 보낸다 · 되돌리기 kind `verdict` · 저장은 `setVerdict` 하나 · `NET.vxBusy` 는 자기검증이 기다리는 자리 |
 | `spike/verdict_set.py` · `spike/voc.py verdicts` · `regression_3p` 의 `verdicts` 참고축 | **hotfix82** — VOC 함의 VERDICT · MARKUP_ADD(MISSED) · MARKUP_REJECT(X) → `out/verdicts/<프로젝트>.json` (같은 항목은 나중 것이 이긴다).  `score(rows, vset)` 가 O 유지 · X 제외 · 누락 회수를 센다.  게이트가 아니다 — `CHECK` 넷 그대로 |
 | `app/engine/shape_library.py` · `detect_valves.analyse(shape_lib=)` · `pipeline._shape_library()` · `spike/shape_train.py` · `BODY_FROM_SHAPE_LIBRARY` | **hotfix82 [C]** — 밸브 모양 사전.  `<data_dir>/shape_library.json`(`PID_SHAPE_LIBRARY_FILE` · `PID_SHAPE_LIBRARY=0` · config `valves.shape_library`) 이 없으면 **None 이고 판정은 글자 그대로 같다**.  있으면 `unclassified_bodies` 후보를 정규화 그림(잉크 마스크 → 24×24 · 회전·뒤집기 8)으로 보기에 맞댄다.  문턱은 사전 자신의 같은 종류 최댓값 / 다른 종류 최솟값.  `find_bodies` 는 사전을 모른다 · 사전 모듈은 `detect_valves` 를 import 하지 않는다 · 행은 검토 사유를 단다 |
+| `app/form_teach.py` · `main._user_form_teach` · `GET/POST/DELETE /jobs/{id}/teach` · `POST /jobs/{id}/teach/preview` | **hotfix85** — 도면 가르치기 저장·미리보기.  작성자 필수 · 읽는 곳 하나 · 없으면 이 기능이 없던 때와 같다 |
+| `pipeline._apply_form_teach` · `_apply_taught_legend` · `_taught_frame` · `BubblesUnreadable` | **hotfix85** — 가르친 자리를 CFG `taught.*` 에 얹고 `_own_config` 가 되돌린다.  범례 칸은 치수 재기 앞 · 도면 영역은 테두리를 못 찾았을 때만 테두리로 |
+| `ds.learn_bubble_template` · `taught_bubbles` · `TAUGHT_BUBBLES` · `legend_rules.TAUGHT`·`taught_word` · `derive_layout.TAUGHT_FRAME` | **hotfix85** — 예시 버블의 캡 모양을 배워 규칙과 같은 구조로 짝짓는다 (길이·방향이 달라도) · 가르친 범례 칸이 이긴다 |
+| `pidcache.form_auto()` · `PID_FORM_AUTO=0` | **hotfix85** — 시뮬레이션 전용: hotfix84 새 양식 자동 갈래 다섯을 끈다 (이전 프로그램 재현) |
+| `app.js` `TEACH_CASES` · `teachCase` · `openTbFix(job, kind)` · `teachPreview` · `tbZoom` · `spike/ui_audit_teach.py` | **hotfix85** — 멈춘 이유별 가르치기 판 (저절로 열림 · 안내 · 미리보기) · 화면 시뮬레이션 |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

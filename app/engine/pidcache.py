@@ -205,6 +205,19 @@ _ROT_OK = _rot_self_check()
 CURVE_STUB = 0.25
 
 
+def form_auto() -> bool:
+    """hotfix85 — 새 양식을 **자동으로** 알아보는 갈래(hotfix84 다섯)를 켤지.
+
+    기본은 켜짐이다.  `PID_FORM_AUTO=0` 은 **시뮬레이션 전용**이다 — "그 갈래가 없던
+    이전 프로그램이었다면 화면에서 가르치기만으로 읽혔을까" 를 재려고 둔다.  끄는
+    갈래: 사각형 테두리 · 종이 가장자리 선 · NOTES 머리말 자리 · 범례 머리말 다른
+    낱말(`2. VALVES` · `ELECTRICAL`) · 곡선+짧은 직선 버블 캡.  밸브·범례 원 읽기
+    (`round_box`)와 판정 규칙은 그대로다.  매번 환경을 읽는다 (분석 자식 프로세스가
+    물려받는다)."""
+    import os
+    return os.environ.get("PID_FORM_AUTO", "1").strip() not in ("0", "false", "no", "off")
+
+
 def curve_path(items, bbox) -> bool:
     """Is this path an arc - curves only, or curves with tiny straight stubs?
 
