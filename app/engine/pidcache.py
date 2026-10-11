@@ -218,6 +218,16 @@ def form_auto() -> bool:
     return os.environ.get("PID_FORM_AUTO", "1").strip() not in ("0", "false", "no", "off")
 
 
+def teach_blind(what: str) -> bool:
+    """hotfix85 — **시뮬레이션 전용** 눈가림.  `PID_TEACH_BLIND=bubbles,legend,frame` 이면 그 항목을
+    프로그램이 스스로 찾지 않고 **사람이 가르친 것만** 쓴다 — "이 양식을 처음 보는 프로그램에게
+    가르치기만으로 읽히는가" 를 이미 읽히는 문서들에서 재려고 둔다 (`spike/teach_sim.py`).
+    비어 있으면(기본) 아무것도 가리지 않는다."""
+    import os
+    raw = os.environ.get("PID_TEACH_BLIND", "")
+    return what in {t.strip() for t in raw.split(",") if t.strip()}
+
+
 def curve_path(items, bbox) -> bool:
     """Is this path an arc - curves only, or curves with tiny straight stubs?
 

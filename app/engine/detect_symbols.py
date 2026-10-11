@@ -407,7 +407,8 @@ def bubble_outlines(pc, lay: Layout = LAYOUT) -> list[Outline]:
     bubbles standing 25 pt apart never merge into one blob.
     """
     caps_wide, caps_tall = [], []
-    for d in pc.drawings():
+    blind = pidcache.teach_blind("bubbles")      # hotfix85 시뮬레이션 — 규칙 버블을 가린다
+    for d in ([] if blind else pc.drawings()):
         items = d["items"]
         r = d["bbox"]
         if not curve_path(items, r):

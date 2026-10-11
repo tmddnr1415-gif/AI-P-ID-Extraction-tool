@@ -196,6 +196,8 @@ def _frame(pages) -> tuple:
     rule on the right of the sheet that is not the border - the line the form
     draws between the drawing and its title block.
     """
+    if pidcache.teach_blind("frame"):
+        return None                               # hotfix85 시뮬레이션 — 테두리를 스스로 찾지 않는다
     W, H = pages[0].width, pages[0].height
     # Counted to the point, kept to the tenth.  A form's line is in the same place
     # on every page but the export does not repeat its coordinate to the decimal,

@@ -104,6 +104,8 @@ class Derived:
 # 파이프라인이 `_rebind_config` 에서 CFG 의 `taught.legend` 로 채우고, 분석이 끝나면
 # 같은 함수가 비운다 (`_own_config`).  비어 있으면 이 모듈은 예전과 글자 그대로 같다.
 TAUGHT: dict = {}
+# 사람이 가르칠 수 있는 칸 머리말 (`app/form_teach.LEGEND_KEYS` 와 같은 셋)
+TEACHABLE_HEADINGS = ("LINE VALVES", "VALVES ACTUATORS", "ELECTRIC SIGNAL")
 
 
 def _taught_page(pages, heading: str):
@@ -150,6 +152,8 @@ def _page_with(pages, heading: str):
     taught = _taught_page(pages, heading)
     if taught is not None:
         return taught
+    if heading in TEACHABLE_HEADINGS and pidcache.teach_blind("legend"):
+        return None                               # hotfix85 시뮬레이션 — 인쇄된 머리말로 찾지 않는다
     want = heading.split()
     for pc in pages:
         if not pc.analysis_scope:
