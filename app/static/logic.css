@@ -109,3 +109,26 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .timer-txt { font: 600 4px system-ui, sans-serif; fill: var(--unk); }
 #ov .pulse { animation: lgpulse .9s ease-out 2; }
 @keyframes lgpulse { 0% { stroke-width: 6; opacity: .3 } 100% { stroke-width: 2.6; opacity: 1 } }
+
+/* 입력 신호 메뉴 (L4) */
+.force-menu { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(20,30,50,.18); padding: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+.force-menu .fm-h { font-size: 11px; color: var(--soft); padding: 2px 6px 4px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid #f0ede5; }
+.force-menu button { border: 0; text-align: left; padding: 4px 8px; font-size: 12px; border-radius: 5px; }
+.force-menu button b { display: inline-block; width: 18px; text-align: center; border-radius: 4px; margin-right: 4px; }
+.force-menu button.v1 b { background: var(--active); color: #fff; }
+.force-menu button.v0 b { background: #59616f; color: #fff; }
+.force-menu button:hover { background: #eef6ff; }
+.force-menu button.on { background: #dff5ff; font-weight: 700; }
+.force-menu button.vx { color: var(--soft); }
+
+/* 시트 사이 연결 (L4) */
+#ov .rowpin.linked { fill: var(--active); stroke: #003a5c; stroke-width: 1; stroke-dasharray: 1.4 .9; }
+.lg-rows .ref.hot, .lg-rows .lk.hot { color: #0083c2; font-weight: 700; text-decoration: none; background: #dff5ff; border-radius: 3px; padding: 0 3px; }
+.lg-rows .lk { color: var(--soft); font-size: 11px; margin-left: 4px; }
+#sheet-list li.chain { box-shadow: inset 3px 0 0 var(--active); }
+.chain-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--active); box-shadow: 0 0 4px var(--active-glow); margin-right: 3px; vertical-align: middle; }
+.lg-chain { list-style: none; margin: 0; padding: 0; }
+.lg-chain li { padding: 4px 6px; border-left: 3px solid var(--active); background: #effaff; margin-bottom: 4px; cursor: pointer; font-size: 12px; display: flex; flex-direction: column; }
+.lg-chain li.sel { background: #d6f2ff; }
+.lg-chain small { color: var(--soft); }

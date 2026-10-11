@@ -271,3 +271,30 @@ def test_every_line_is_digital_and_gate_waits_for_all_inputs():
          "rows": [{"n": 1, "side": "L", "net": "1"}], "nets": {"1": {"segs": []}, "2": {"segs": []}}}
     assert sim.simulate(t, {})["frames"][-1]["values"]["2"] == 1
     assert sim.simulate(t, {"row:1": 1})["frames"][-1]["values"]["2"] == 0
+
+
+def test_active_output_carries_to_linked_sheets():
+    """L4 사용자 지시: 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 — 게이트 조건대로 이어진다."""
+    def gate(page, no, logic, ins, out, ref=None):
+        ports = [{"block": "G", "net": str(n), "dir": "in", "role": "", "cell": 0} for n in ins]
+        ports.append({"block": "G", "net": str(out), "dir": "out", "role": "", "cell": 0})
+        rows = [{"n": n, "side": "L", "net": str(n), **({"ref": ref} if ref and n == ins[0] else {})} for n in ins]
+        rows.append({"n": 70, "side": "R", "net": str(out)})
+        return {"page": page, "sheet_no": no, "blocks": {"G": {"func": logic.upper(), "logic": logic, "group": "", "param": {}}},
+                "ports": ports, "rows": rows, "nets": {str(n): {"segs": []} for n in [*ins, out]}}
+    a = gate(1, "G001", "or", [1], 9)
+    b = gate(2, "G002", "and", [1, 2], 9, ref={"sheet": "G001", "row": 70, "page": 1})
+    c = gate(3, "G003", "or", [1], 9, ref={"sheet": "G002", "row": 70, "page": 2})
+    a["rows"][-1]["refs_in"] = [{"sheet": "G002", "page": 2, "row": 1}]
+    b["rows"][-1]["refs_in"] = [{"sheet": "G003", "page": 3, "row": 1}]
+    S = [a, b, c]
+    r = sim.simulate_bundle(S, {1: {"row:1": 1}}, None, 2)
+    assert r["linked"][2] == {1: 1}, "G001-70 이 1 이면 G002 1행도 1"
+    assert r["focus"]["frames"][-1]["values"]["9"] == 0, "AND 는 다른 입력이 0 이면 멈춘다"
+    assert not any(p["page"] == 3 and p["hop"] is not None for p in r["pages"])
+    r = sim.simulate_bundle(S, {1: {"row:1": 1}, 2: {"row:2": 1}}, None, 3)
+    assert r["focus"]["frames"][-1]["values"]["9"] == 1, "AND 조건이 맞으면 G003 까지 이어진다"
+    hops = {p["sheet_no"]: p["hop"] for p in r["pages"]}
+    assert hops["G001"] == 0 and hops["G002"] == 0 and hops["G003"] == 1   # 사람이 준 장에서 몇 장째
+    r = sim.simulate_bundle(S, {1: {"row:1": 1}, 2: {"row:1": 0, "row:2": 1}}, None, 2)
+    assert r["focus"]["frames"][-1]["values"]["9"] == 0, "사람이 준 0 이 연결보다 이긴다"

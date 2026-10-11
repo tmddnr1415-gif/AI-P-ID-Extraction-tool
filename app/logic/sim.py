@@ -294,3 +294,104 @@ def trace(s, start, direction="down"):
         frontier = nxt
     return {"order": [{"net": n, "depth": d} for n, d in sorted(seen_n.items(), key=lambda kv: kv[1])],
             "blocks": [{"block": b, "depth": d} for b, d in sorted(seen_b.items(), key=lambda kv: kv[1])]}
+
+
+# ------------------------------------------------------------------ 묶음 전체 (시트 사이)
+
+MAX_PASSES = 12
+
+
+def _row_values(s, values):
+    """오른쪽(출력) 행마다 그 행 넷의 값."""
+    return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
+
+
+def simulate_bundle(sheets, forces=None, state=None, focus=None):
+    """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
+
+    연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
+    사람이 그 입력 행을 직접 0/1 로 준 것이 도면 연결보다 이긴다.  끝없는 되먹임은 MAX_PASSES 에서 멈추고 말한다.
+
+    forces = {page: {key: 0|1}} · state = {page: 이전 state} · focus = 화면이 보는 장
+    → {"focus": 그 장의 simulate 결과, "linked": {page: {row: 값}}, "pages": [...], "state": {page: st}, "notes"}
+    """
+    forces = {int(k): v for k, v in (forces or {}).items()}
+    state = {int(k): v for k, v in (state or {}).items()}
+    by_page = {s["page"]: s for s in sheets}
+    by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
+    # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
+    feeds = defaultdict(list)
+    for s in sheets:
+        for r in s["rows"]:
+            ref = r.get("ref")
+            if r["side"] == "L" and ref and ref.get("page") in by_page:
+                feeds[s["page"]].append((r["n"], ref["page"], ref["row"]))
+    out_rows = {}                     # page → {row: 값}
+    results = {}
+    link_in = {}                      # page → {row: 값}
+
+    def inputs_of(page):
+        o = {}
+        for n, sp, sr in feeds.get(page, ()):
+            o[n] = out_rows.get(sp, {}).get(sr, 0)
+        return o
+
+    todo = set(by_page)
+    notes = set()
+    for _ in range(MAX_PASSES):
+        if not todo:
+            break
+        changed_out = set()
+        for page in sorted(todo):
+            s = by_page[page]
+            lin = inputs_of(page)
+            f = {f"row:{n}": v for n, v in lin.items()}
+            f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
+            res = simulate(s, f, state.get(page))
+            results[page] = res
+            link_in[page] = lin
+            rv = _row_values(s, res["frames"][-1]["values"])
+            if rv != out_rows.get(page):
+                out_rows[page] = rv
+                changed_out.add(page)
+        todo = {p for p, fd in feeds.items() if any(sp in changed_out for _, sp, _ in fd)
+                and inputs_of(p) != link_in.get(p)}
+    else:
+        if todo:
+            notes.add(f"시트 사이 되먹임이 {MAX_PASSES}번 안에 가라앉지 않았습니다 — 마지막 상태를 보입니다")
+    # 사람이 준 장에서 1 인 연결을 따라 닿은 장 — 몇 장을 건너왔나 (화면이 그 순서로 보인다)
+    hop = {p: 0 for p in forces if forces[p]}
+    frontier = list(hop)
+    while frontier:
+        nxt = []
+        for p in frontier:
+            for q, fd in feeds.items():
+                if q in hop:
+                    continue
+                if any(sp == p and out_rows.get(p, {}).get(sr) == 1 for _, sp, sr in fd):
+                    hop[q] = hop[p] + 1
+                    nxt.append(q)
+        frontier = nxt
+    pages = []
+    for page, s in sorted(by_page.items()):
+        lin = {n: v for n, v in link_in.get(page, {}).items() if f"row:{n}" not in forces.get(page, {})}
+        user = forces.get(page, {})
+        on_in = sorted(n for n, v in lin.items() if v == 1)
+        on_out = sorted(n for n, v in out_rows.get(page, {}).items() if v == 1)
+        if on_in or user:
+            vals = results[page]["frames"][-1]["values"]
+            pages.append({"page": page, "sheet_no": s.get("sheet_no"), "user": bool(user),
+                          "hop": hop.get(page),
+                          "linked_in": on_in, "on_out": on_out,
+                          "on_nets": sum(1 for v in vals.values() if v == 1),
+                          "from": sorted({(by_page[sp].get("sheet_no"), sr) for n, sp, sr in feeds.get(page, ())
+                                          if n in on_in}),
+                          "to": sorted({x["sheet"] for r in s["rows"] if r["side"] == "R" and r["n"] in on_out
+                                        for x in r.get("refs_in", []) if x["sheet"] in by_no})})
+    focus_res = results.get(focus) if focus is not None else None
+    return {"focus": focus_res,
+            "linked": {p: {n: v for n, v in lin.items() if f"row:{n}" not in forces.get(p, {})}
+                       for p, lin in link_in.items() if lin},
+            "pages": pages,
+            "state": {p: r["state"] for p, r in results.items()},
+            "notes": sorted(notes)}

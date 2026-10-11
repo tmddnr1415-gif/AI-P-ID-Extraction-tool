@@ -191,3 +191,24 @@ def delete(job: str):
     d = _dir(job)
     shutil.rmtree(d, ignore_errors=True)
     return Response(status_code=204)
+
+
+@router.post("/logic/api/jobs/{job}/simulate")
+def simulate_bundle(job: str, body: dict = Body(default={})):
+    """묶음 전체 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1 (도면이 적은 FM 연결)."""
+    res = _result(job)
+    raw = body.get("forces") or {}
+    if not isinstance(raw, dict):
+        raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+    forces = {}
+    for pg, fs in raw.items():
+        if not isinstance(fs, dict) or not str(pg).isdigit():
+            raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+        clean = {k: int(v) for k, v in fs.items()
+                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in ("net", "row", "block")}
+        if clean:
+            forces[int(pg)] = clean
+    state = body.get("state") if isinstance(body.get("state"), dict) else None
+    focus = body.get("page")
+    focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
+    return sim.simulate_bundle(res["sheets"], forces, state, focus)

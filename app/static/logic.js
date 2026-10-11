@@ -7,6 +7,8 @@ const NS = "http://www.w3.org/2000/svg";
 const L = {
   job: null, sheets: [], sheet: null, page: null, zoom: 1, mode: "trace",
   forces: {}, state: null, frames: null, values: {}, anim: [], sel: null, busy: false,
+  // 묶음 전체 (L4): 장마다 사람이 준 값 · 장마다 상태 · 다른 장에서 연결로 들어온 입력 · 활성 연결 장 목록
+  allForces: {}, states: {}, linked: {}, chain: [],
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -86,8 +88,10 @@ function renderSheetList() {
     const li = document.createElement("li");
     li.dataset.page = s.page;
     if (s.page === L.page) li.className = "sel";
+    const ch = L.mode === "sim" && L.chain.find((c) => c.page === s.page && c.hop != null);
+    if (ch) li.classList.add("chain");
     li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
-      <span class="meta">블록 ${s.blocks} · 선 ${s.nets}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
+      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}</span>`;
     li.onclick = () => openSheet(s.page);
     ul.appendChild(li);
   }
@@ -99,7 +103,9 @@ async function openSheet(page) {
   renderSheetList();
   const s = await api(`/logic/api/jobs/${L.job}/sheet/${page}`);
   L.sheet = s;
-  L.forces = {}; L.state = null; L.values = {}; L.sel = null; stopAnim();
+  L.forces = L.allForces[page] = L.allForces[page] || {};
+  L.state = L.states[page] || null; L.values = {}; L.sel = null; stopAnim();
+  L.linked = {};
   $("#empty").hidden = true;
   const img = $("#page");
   img.src = `/logic/api/jobs/${L.job}/page/${page}.png`;
@@ -243,6 +249,7 @@ function paint() {
     const row = s.rows.find((x) => x.n === n);
     r.classList.toggle("v1", L.mode === "sim" && row && L.values[row.net] === 1);
     r.classList.toggle("forced", ("row:" + n) in L.forces);
+    r.classList.toggle("linked", L.mode === "sim" && L.linked[n] === 1 && !(("row:" + n) in L.forces));
   }
   const act = new Set();
   if (L.mode === "sim" && L.state) {
@@ -329,9 +336,18 @@ async function traceFrom(start, up) {
 async function runSim(animate) {
   if (!L.sheet) return;
   const prev = { ...L.values };
-  const r = await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/simulate`, { forces: L.forces, state: L.state });
-  L.state = r.state;
-  L.notes = r.notes;
+  // 묶음 전체를 함께 돌린다 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 (서버가 판정)
+  const forces = {};
+  for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page });
+  const r = b.focus;
+  if (!r) return;
+  L.states = b.state || {};
+  L.state = L.states[L.page] || r.state;
+  L.linked = (b.linked || {})[L.page] || {};
+  L.chain = b.pages || [];
+  L.notes = [...(r.notes || []), ...(b.notes || [])];
+  renderSheetList(); renderChain();
   stopAnim();
   if (!animate) {
     const last = r.frames[r.frames.length - 1];
@@ -393,17 +409,40 @@ function timelineShow(label, ms) {
   L.anim.push(setTimeout(() => (tl.hidden = true), ms + 300));
 }
 
-function cycleForce(key) {
-  // 1 → 0 → 강제 풀기
-  const v = L.forces[key];
-  if (v === undefined) L.forces[key] = 1;
-  else if (v === 1) L.forces[key] = 0;
-  else delete L.forces[key];
-  runSim(true);
-}
 function setForce(key, v) {
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
   runSim(true);
+}
+
+/* 입력 신호를 누르면 그 자리에 작은 메뉴 — 1 활성 / 0 비활성 / 해제 (사용자 지시 L4) */
+function closeForceMenu() {
+  const m = document.getElementById("force-menu");
+  if (m) m.remove();
+}
+function forceMenu(key, e, label) {
+  closeForceMenu();
+  const v = L.forces[key];
+  const m = document.createElement("div");
+  m.id = "force-menu";
+  m.className = "force-menu";
+  m.dataset.key = key;
+  m.innerHTML =
+    (label ? `<div class="fm-h">${esc(label)}</div>` : "") +
+    `<button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (activate)</button>` +
+    `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성 (deactivate)</button>` +
+    (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "");
+  document.body.appendChild(m);
+  const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x + 8, innerWidth - r.width - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(y + 8, innerHeight - r.height - 4)) + "px";
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest("button");
+    if (!b) return;
+    closeForceMenu();
+    setForce(key, b.dataset.v === "x" ? null : Number(b.dataset.v));
+  });
 }
 
 /* ------------------------------------------------------------------ 누르기 */
@@ -411,7 +450,7 @@ function setForce(key, v) {
 function onNet(nid, e) {
   L.sel = { net: nid };
   if (L.mode === "trace") traceFrom("net:" + nid, e.shiftKey);
-  else cycleForce("net:" + nid);
+  else forceMenu("net:" + nid, e, "선 신호");
   paint(); renderInfo();
 }
 function onBlock(bid, e) {
@@ -419,14 +458,14 @@ function onBlock(bid, e) {
   const b = L.sheet.blocks[bid];
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
   if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
-  else if (!hasIn || b.logic === "source") cycleForce("block:" + bid);
+  else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
   paint(); renderInfo();
 }
 function onRow(n, e) {
   const row = L.sheet.rows.find((r) => r.n === n);
   L.sel = { row: n, net: row && row.net };
   if (L.mode === "trace") traceFrom("row:" + n, row && row.side === "R");
-  else if (row && row.side === "L") cycleForce("row:" + n);
+  else if (row && row.side === "L") forceMenu("row:" + n, e, `입력 ${n}` + (row.desc ? " · " + row.desc : ""));
   paint(); renderInfo();
 }
 
@@ -446,14 +485,29 @@ function renderRows() {
   const mk = (r) => {
     const ref = r.ref ? ` <span class="ref" data-ref-page="${r.ref.page || ""}" data-ref-row="${r.ref.row}" title="그 장으로">${esc(r.fm)}</span>`
       : r.fm ? ` <small>${esc(r.fm)}</small>` : "";
-    const ins = (r.refs_in || []).map((x) => ` <span class="ref" data-ref-page="${x.page}" data-ref-row="${x.row}" title="이 출력을 받는 장">→${esc(x.sheet)}-${x.row}</span>`).join("");
+    const ins = (r.refs_in || []).map((x) => ` <span class="ref${L.mode === "sim" && L.values[r.net] === 1 ? " hot" : ""}" data-ref-page="${x.page}" data-ref-row="${x.row}" title="이 출력을 받는 장">→${esc(x.sheet)}-${x.row}</span>`).join("");
+    const lk = L.mode === "sim" && r.side === "L" && r.n in L.linked && !(("row:" + r.n) in L.forces)
+      ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
     const to = r.to ? ` <small>→ ${esc(r.to)}</small>` : "";
     const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
-    return `<li data-row="${r.n}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}</span><span>${right}</span></li>`;
+    return `<li data-row="${r.n}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}</span><span>${right}</span></li>`;
   };
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
   $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
+}
+/* 활성이 연결을 따라 닿은 장 — 사람이 준 장에서부터 몇 장째인가 */
+function renderChain() {
+  const box = $("#chain");
+  if (!box) return;
+  const list = L.mode === "sim" ? L.chain.filter((c) => c.hop != null).sort((a, b) => a.hop - b.hop || a.page - b.page) : [];
+  $("#chain-h").hidden = box.hidden = !list.length;
+  box.innerHTML = list.map((c) => {
+    const fr = c.from.map(([sh, n]) => `${esc(sh)}-${n}`).join(", ");
+    const to = c.to.length ? ` → ${c.to.map(esc).join(", ")}` : " · 끝 (더 넘어가는 연결 없음)";
+    return `<li data-page="${c.page}" class="${c.page === L.page ? "sel" : ""}"><b>${esc(c.sheet_no || "p" + c.page)}</b>
+      <small>${c.hop === 0 ? "지정한 장" : `연결 ${c.hop}단계 ← ${fr}`}${to} · 활성 선 ${c.on_nets}</small></li>`;
+  }).join("");
 }
 function renderFindings() {
   const f = L.sheet.findings;
@@ -503,7 +557,7 @@ function renderInfo() {
 function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
-    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 <b>1</b>, 누름단추(PB), 또는 아무 선이나 눌러 신호를 <b>활성(1)</b>으로 주세요 (누를 때마다 1 → 0 → 풀기). 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 일 때만). 타이머는 시간이 흐르는 모습을 아래에 보입니다."
+    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다."
     : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지).";
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
@@ -537,16 +591,17 @@ function bind() {
     for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
     stopAnim();
     renderHelp();
-    if (m === "sim") runSim(false); else { L.values = {}; paint(); }
-    renderInfo();
+    if (m === "sim") runSim(false); else { L.values = {}; L.linked = {}; paint(); }
+    renderInfo(); renderRows(); renderChain(); renderSheetList();
   };
   $("#zoom-in").onclick = () => setZoom(L.zoom * 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
   $("#zoom-out").onclick = () => setZoom(L.zoom / 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
   $("#zoom-fit").onclick = fit;
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
-  $("#reset").onclick = () => { L.forces = {}; L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
+  $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
   document.body.addEventListener("click", (e) => {
+    if (!e.target.closest("#force-menu")) closeForceMenu();
     const fb = e.target.closest(".force button");
     if (fb) {
       const key = fb.parentElement.dataset.key;
@@ -556,6 +611,8 @@ function bind() {
     }
     const ref = e.target.closest(".ref");
     if (ref && ref.dataset.refPage) { openSheet(Number(ref.dataset.refPage)); return; }
+    const cl = e.target.closest("#chain li[data-page]");
+    if (cl) { openSheet(Number(cl.dataset.page)); return; }
     const li = e.target.closest(".lg-rows li[data-row]");
     if (li) { onRow(Number(li.dataset.row), e); return; }
     const act = e.target.closest("[data-act]");
@@ -573,7 +630,7 @@ function bind() {
     }
   });
   $("#stage").addEventListener("click", () => { if (L.justPanned) return; L.sel = null; paint(); renderInfo(); });
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape") stopAnim(); });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeForceMenu(); stopAnim(); } });
 }
 
 bind();
