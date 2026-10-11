@@ -12,7 +12,7 @@
         "REVIEW": 7,
         "BFV": 23
       },
-      "seconds": 434.3,
+      "seconds": 461.6,
       "max_rss_gb": 4.85,
       "identification": {
         "도면번호": [
@@ -64,7 +64,7 @@
         "BFV": 7,
         "REVIEW": 22
       },
-      "seconds": 353.4,
+      "seconds": 360.8,
       "max_rss_gb": 7.41,
       "identification": {
         "도면번호": [
@@ -116,7 +116,7 @@
         "MOV": 8,
         "BFV": 2
       },
-      "seconds": 78.4,
+      "seconds": 79.2,
       "max_rss_gb": 0.51,
       "identification": {},
       "score": null
@@ -133,8 +133,8 @@
         "BFV": 26,
         "REVIEW": 61
       },
-      "seconds": 629.4,
-      "max_rss_gb": 6.21,
+      "seconds": 612.5,
+      "max_rss_gb": 6.22,
       "identification": {
         "도면번호": [
           86,
@@ -180,7 +180,7 @@
         "MOV": 44,
         "PNEUMATIC": 2
       },
-      "seconds": 130.7,
+      "seconds": 91.8,
       "max_rss_gb": 0.81,
       "identification": {
         "도면번호": [

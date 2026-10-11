@@ -127,16 +127,11 @@ def _keyword_heading(pc, heading: str) -> bool:
     볼밸브가 됐다) — 바로 뒤 낱말이 다른 칸의 핵심 낱말이면 그 칸의 제목이다."""
     word = HEADING_KEYWORD[heading]
     others = {v for k, v in HEADING_KEYWORD.items() if k != heading}
-    rows: dict = {}
-    for r, t in pidcache.tokens(pc.words):
-        half = max(r.height, 1.0) / 2
-        rows.setdefault(round((r.y0 + r.y1) / 2 / half), []).append((r.x0, str(t).upper()))
-    for items in rows.values():
-        items.sort()
+    for row in _word_rows(pc):
         # 겹쳐 인쇄한 범례(QFE — 같은 글자를 세 번)는 `VALVES VALVES VALVES ACTUATORS` 로 읽힌다 —
-        # 잇달아 같은 낱말은 하나로 보고 다음 낱말을 본다.
+        # 잇달아 같은 낱말은 하나로 보고 다음 낱말을 본다.  (순서는 예전 그대로 (x0, 글자) — 같은 x 는 글자순)
         texts = []
-        for _x, t in items:
+        for _x, t in sorted((x, str(t).upper()) for x, t, _r in row):
             if not texts or texts[-1] != t:
                 texts.append(t)
         for i, t in enumerate(texts):
@@ -253,14 +248,8 @@ def _section_heading(pc, want):
 
     The line ends where the next word on the same row starts more than the
     heading's own letter height away (another column of the sheet)."""
-    rows = {}
-    for r, t in pidcache.tokens(pc.words):
-        half = max(r.height, 1.0) / 2
-        key = round((r.y0 + r.y1) / 2 / half)
-        rows.setdefault(key, []).append((r.x0, t, r))
     n = len(want)
-    for items in rows.values():
-        items.sort(key=lambda it: it[0])
+    for items in _word_rows(pc):
         texts = [t.upper() for _x, t, _r in items]
         for i in range(1, len(texts) - n + 1):
             if texts[i:i + n] != want or not SECTION_NUMBER.match(texts[i - 1]):
@@ -270,6 +259,26 @@ def _section_heading(pc, want):
             if nxt is None or nxt.x0 - last.x1 > last.height:
                 return items[i][2]
     return None
+
+
+def _word_rows(pc) -> list:
+    """그 장의 낱말을 **줄**로 — `[(x0, 글자, 사각형)…]` 를 x 순으로 둔 줄의 목록 (줄 순은 dict 삽입 순 그대로).
+    hotfix88 — `_line_with` · `_keyword_heading` · `_section_heading` 이 부를 때마다 같은 줄 묶기를 다시 했다
+    (Takhiatash 프로파일 1,447번 · 7초).  줄은 낱말에만 달렸으므로 장에 한 번 두고 나눠 쓴다 — 세 함수가 읽던
+    것과 같은 열쇠(글자 높이의 절반) · 같은 순서다."""
+    got = getattr(pc, "_word_rows", None)
+    if got is None:
+        rows: dict = {}
+        for r, t in pidcache.tokens(pc.words):
+            half = max(r.height, 1.0) / 2
+            key = round((r.y0 + r.y1) / 2 / half)
+            rows.setdefault(key, []).append((r.x0, t, r))
+        got = [sorted(items, key=lambda it: it[0]) for items in rows.values()]
+        try:
+            pc._word_rows = got
+        except Exception:                            # noqa: BLE001 — 낱말만 든 가짜 쪽(시험)이어도 된다
+            pass
+    return got
 
 
 def _line_with(pc, want):
@@ -283,13 +292,7 @@ def _line_with(pc, want):
     같은 줄은 **글자 높이의 절반**으로 묶는다 — 그 줄에 인쇄된 글자 자신이
     답하는 값이라 문서가 달라도 따라간다 (절대 pt 를 새로 적지 않는다).
     """
-    rows = {}
-    for r, t in pidcache.tokens(pc.words):
-        half = max(r.height, 1.0) / 2
-        key = round((r.y0 + r.y1) / 2 / half)
-        rows.setdefault(key, []).append((r.x0, t, r))
-    for items in rows.values():
-        items.sort(key=lambda it: it[0])
+    for items in _word_rows(pc):
         texts = [t for _x, t, _r in items]
         for i in range(len(texts) - len(want) + 1):
             if texts[i:i + len(want)] == want:

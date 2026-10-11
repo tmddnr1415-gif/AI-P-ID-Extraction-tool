@@ -171,3 +171,5 @@ out/voc_brief.md
 # hotfix74 — 입력 변형 시뮬레이터가 만드는 PDF·zip (재료는 저장소 안 · 다시 만들 수 있다)
 out/hotfix74/variants*/pdf/
 out/hotfix74/dxf_variants/*.zip
+out/hotfix88/revflow/
+out/hotfix88/*/profile.prof

@@ -4645,6 +4645,52 @@ takhiatash pid 학습 후 식별했을 때의 결과가 오차범위 5% 안에 �
 6. ⚠ 제안 계산 시간 — Takhiatash 14초 · QFE 44초 · AL NOUF1/TC2 50~75초 (일꾼 · 분석 실패 순간 시작이라 보통 판을 열 때는 끝나 있다).
    ⚠ 버블 미리보기(초록 테두리)는 판을 연 뒤 따로 잰다 (몇 초).
 
+**그 다음 — 같은 답으로 더 빠르게 · 가르치기 판을 바로 · 시뮬레이션 (hotfix88 · 판정 0줄)**
+
+사용자: *"성능 개선과 시뮬레이션해서 보완 개선 필요한거 찾아서 해줘."*  VOC 함은 비어 있었다.  자 셋을 돌려 느린 자리를
+찾고(분석 cProfile `spike/analysis_profile.py` · 가르치기 판 서버 시간 `scratchpad` 탐침 · 화면 `spike/perf_sim.py` ·
+`spike/perf_edit_sim.py` · `spike/qa_sim.py`) 고친 뒤 다시 쟀다.  시험 `tests/test_hotfix88_curve_extent.py` 12건
+(빠른 시험 **1211**).  **[회귀 · 최종 코드 · 순차] 다섯 프로젝트 전부 "기준선과 같습니다"** — AL NOUF1 `b61a6995` · 1065 ·
+TC2 `10e32bd0` · 864 · QFE `531237eb` · 1605 · UAD-DXF `26d45872` · 467 · TAKHIATASH `17bc34dd` · 1105.
+
+| 분석 (같은 기계 · 순차) | hotfix87 | hotfix88 |
+| --- | --- | --- |
+| Takhiatash (60장 · A3 · `l c l` 곡선 · 획 별표) | 151.5초 | **89.4초 (−41%)** |
+| AL NOUF1 (58장 · A1) | 426.5초 | 428.0초 (**같음** — 느린 자리가 `instruments` 127초 · `layout` 125초로 다르다) |
+| 회귀 하네스 (같은 날 · 순차) | AL NOUF1 434 · TC2 353 · QFE 629 · TAK 131 | AL NOUF1 462 · TC2 361 · QFE 612 · TAK 92 (±10% 흔들림 안 · TAK 만 분명한 차) |
+
+1. **★ [엔진 · 같은 답] 느린 자리는 판정이 아니라 같은 값을 비싸게 만드는 데 있었다** (hotfix70 과 같은 모양 · Takhiatash
+   cProfile 345초).  ① `pidcache.curve_extent` 93초 — 곡선 표본점 4백만 개를 `pymupdf.Point * m` 래퍼로 옮겼다 → `Rot.xy32`
+   (입력을 float32 로 먼저 반올림한 뒤 0·±1 곱 — `Point * m` 이 하는 그대로) · 점이 16개 넘는 path 는 numpy 로 한 번에 (적은
+   path 는 numpy 호출값이 더 비싸다 — TC2 54,411 path 실측).  ② `detect_symbols.star_groups` 38초 — 장마다 서너 번 불리며
+   획 전부를 다시 옮기고 쟀다 → 획 표를 장마다 한 번(`_star_strokes` · `_star_arrays`) · 이웃 찾기는 2D 격자 + numpy 로 좁힌 뒤
+   `math.hypot` **예전 식 그대로** 확정(`_near_adjacency` — numpy 의 hypot 은 마지막 비트가 다를 수 있어 느슨한 거름에만).
+   ③ `describe_axis.pick_tap` 17초 — 행마다 그 장 인출선 전부(2,400개)를 거리로 정렬한 뒤 "두 끝이 다 안이거나 다 밖"
+   을 건너뛰었다 → 먼저 빼고 정렬(`leaders_touching` · 건너뛰는 것은 흔적이 없고 정렬은 안정 정렬이라 처리 순서가 같다).
+   ④ `legend_rules._word_rows` 줄 표 캐시 · `main._stroke_only_pages` 낱말 수 캐시.
+   **같은 답인지는 옛 식을 시험 안에 두고 맞댔다** — 곡선 상자(네 회전 · 무작위 double · 실물 장 전부) · 별표 무리(합성 60판 + 실물
+   TC2 p5~14 243무리 · AL NOUF1 p5~10 · p24~28 573무리) · 인출선(합성 200판 + 실물 세 문서 11,904 사각형) 전부 비트까지 같다.
+2. **★ [가르치기 판] A1 문서에서 판이 13.5초 뒤에 열렸다** (QFE 93장 실측 · `GET /jobs/{id}/teach`).  원인은 판을 여는 데 필요
+   없는 일 — 낱말 전부 읽기(`_tb_pages`) · 할 일 검사(`_teach_needs` 가 바쁜 장 다섯에서 `bubble_outlines`) · 장별 낱말 수
+   (`_stroke_only_pages` 5초) — 가 서버 스레드 안에서 돌아 그동안 대시보드의 `/version` 3초 확인이 실패했다 (hotfix56 의
+   자리).  → 쪽 크기만 읽고(`_tb_sizes`) · 할 일과 먼저 띄울 장은 **서버 밖 일꾼**이 센다 (`teach_propose.needs_pdf` ·
+   `main._needs_and_suggest` · 분석이 멈춘 순간 `_prefetch_proposals` 가 먼저 세어 둔다 · 일꾼이 없으면 서버 안에서 같은 함수)
+   · 버블 미리보기 30장도 일꾼(`preview_bubbles_pdf`).  실측 `/teach` **13.5 → 0.16초** · `/sheet_numbers` **5.1 → 0.04초** ·
+   판 열기+제안 중 `/version` 최대 **1.5초 · 실패 0**.  일꾼은 PDF 하나를 들고 있고(`_PAGES`) 쓴 캐시는 놓는다(`release_pages`).
+3. **[시뮬레이션] 결함 0** — `qa_sim` API 전수 5xx 0 · 화면 전수 클릭 페이지/콘솔 오류 0 · 서버 Traceback 0.  `perf_sim`(QFE
+   Rev.B 1,991행): 열기 1.8초 · 장 넘기기 157ms · 행 누르기 179ms · 검색 한 글자 118ms · 칸 편집 156ms (hotfix80 과 같은 자리).
+   `perf_edit_sim`: 띠 69ms · 묶음 SCOPE 210 · **페이지 전체 승수 235** · 칸 하나 70 · 지우기 431 · 되살리기 503 · 행 추가 1,753.
+   ⚠ **자가 틀린 것 하나** — 첫 측정에서 페이지 전체 승수가 **2.9초**로 나와 회귀로 보였다.  탐침으로 보니 그 사이 요청이
+   `rows_edit` 하나가 아니라 장 그림 · 메모 · 노트였다 — 자가 장을 바꾼 **직후** 재기 시작해 아직 안 온 A1 그림(서버가 그리는
+   중)을 첫 일이 떠안은 것이고, 그때 다른 cProfile 분석이 같은 기계에서 돌고 있었다.  제품은 0.24초(요청 1).  자를 고쳤다 —
+   장 그림이 실제로 걸린 뒤(`#sheet.complete` · `S.pending` 없음)부터 잰다.
+   ⚠ **A1 문서에는 거의 닿지 않는다** — AL NOUF1 의 시간은 `instruments`(127초) · `layout`(125초)에 있고 그 안은
+   `get_drawings` 의 C 몫 · 잉크 인덱스 · 버블 윤곽이라 이번 자리와 다르다.  HEAD worktree 와 같은 기계에서 순차로 재 같음을
+   확인했다 (`out/hotfix88/nouf_before.log` · `nouf_after.log`).
+4. **남은 느린 자리** (Takhiatash cProfile 270초 기준): `detect_valves._split_groups` 19초(흩어진 나비 토막 사슬 — `on_line`
+   1,200만 번) · `describe_equipment._blocks` 7초 · `legend_rules._stroke_index` 5.5초 · `_glyph_clusters` 10초.  전부 판정 안의
+   파이썬 반복이라 다음 후보로 둔다 (같은 답 A/B 가 필수).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5174,6 +5220,11 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `main._teach_needs` · `POST /jobs/{id}/teach/click` · `app.js` `TEACH_TASKS` · `tbRenderTasks` · `tbClick` · `tbLegendHere` · `tbTake` | **hotfix85 후반** — 할 일 목록(서버가 미리 본 것만 · 한 번에) · 누르기 한 번 = 할 일 하나 · 누른 자리를 사각형으로 바꾸는 것은 서버 · 사각형 긋기는 고급으로 접힘 |
 | `ds.bubble_at` · `derive_layout.notes_from_heading` · `PAPER_STANDS_IN` · `legend_rules.taught_pages` · `_keyword_heading` · `HEADING_KEYWORD` | **hotfix85 후반** — 누른 점의 버블 · NOTES 제목 글자 → 영역 · 테두리를 못 찾으면 종이 · 범례 장 목록에서 머리말(인쇄된 그대로 → 핵심 낱말 · 다른 칸 제목의 일부와 겹쳐 인쇄는 뺀다) |
 | `spike/teach_sim.py` (`pick_min` · `--full` · `--rescore` · `_match`) | **hotfix85 후반** — 사람이 누를 것만 흉내 내 눈가림 분석 → 기준선과 행 단위 대조 (태그 먼저) |
+| `pidcache.curve_extent`(numpy 갈래 · `_BEZIER9`) · `Rot.xy32` · `_rot_for` | **hotfix88** — 곡선 상자를 `Point * m` 없이 같은 값으로.  점이 16개 넘는 path 만 numpy · 입력을 float32 로 먼저 반올림 |
+| `detect_symbols._star_strokes` · `_star_arrays` · `_near_adjacency` · `_STAR_LAST` | **hotfix88** — 별표 획 표는 장마다 한 번 · 이웃은 2D 격자+numpy 로 좁히고 `math.hypot` 으로 확정 (옛 식) · 직전 장 것은 놓는다 |
+| `describe_axis.leaders_touching` · `_leader_ends_np` | **hotfix88** — 한 끝만 닿는 인출선만 정렬한다 (건너뛰던 것을 먼저 뺀다 · 순서 같음) |
+| `main._needs_and_suggest` · `_NEEDS_CACHE` · `_STROKE_COUNTS` · `teach_propose.needs_pdf`·`preview_bubbles_pdf`·`release_pages` | **hotfix88** — 가르치기 판의 할 일·먼저 띄울 장·버블 미리보기·장별 낱말 수를 서버 밖 일꾼이 세고 기억한다 (`/teach` 13.5 → 0.16초) |
+| `legend_rules._word_rows` | **hotfix88** — 머리말 찾기용 줄 표를 장마다 한 번 (`_line_with` · `_section_heading` · `_keyword_heading`) |
 | `app.js` `showDxfGuide` · `dxfGuideHtml` · `unreadableCase` · `#prog-dxf` · `#tbfix-stroke` · `main._stroke_only_pages` | **hotfix85 마무리** — 글자를 읽을 수 없는 PDF(전부 · 몇 장)는 가르칠 것이 없다 → DXF 로 올리는 안내창.  몇 장인지는 그 문서 자신의 낱말 수로 |
 | `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |

@@ -1,0 +1,399 @@
+{
+ "rounds": [
+  {
+   "page": 15,
+   "rows_on_page": 57,
+   "band": {
+    "ms": 18,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 0
+   },
+   "scope_multi": {
+    "ms": 17,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 2406,
+    "longtasks": 1,
+    "longtask_ms": 84,
+    "requests": 4,
+    "kb": 881,
+    "urls": [
+     "/jobs/f4f152014e6e/notes/15",
+     "/jobs/f4f152014e6e/memo/15",
+     "/jobs/f4f152014e6e/page/15.png",
+     "/jobs/f4f152014e6e/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 63,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 359,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 13,
+    "kb": 2317,
+    "urls": [
+     "/jobs/f4f152014e6e/page/16.png",
+     "/jobs/f4f152014e6e/page/14.png",
+     "/jobs/f4f152014e6e/page/17.png",
+     "/jobs/f4f152014e6e/rows_delete",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 378,
+    "longtasks": 2,
+    "longtask_ms": 204,
+    "requests": 10,
+    "kb": 30,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/drawings",
+     "/templates",
+     "/jobs/f4f152014e6e/unjudged"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 1395,
+    "longtasks": 2,
+    "longtask_ms": 124,
+    "requests": 12,
+    "kb": 28,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/markup/propose",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 57,
+   "band": {
+    "ms": 45,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 0
+   },
+   "scope_multi": {
+    "ms": 27,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 2967,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 7,
+    "kb": 1654,
+    "urls": [
+     "/jobs/f4f152014e6e/memo/6",
+     "/jobs/f4f152014e6e/memo",
+     "/jobs/f4f152014e6e/page/6.png",
+     "/jobs/f4f152014e6e/notes/15",
+     "/jobs/f4f152014e6e/memo/15",
+     "/jobs/f4f152014e6e/page/15.png",
+     "/jobs/f4f152014e6e/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 85,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 364,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 10,
+    "kb": 44,
+    "urls": [
+     "/jobs/f4f152014e6e/rows_delete",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 474,
+    "longtasks": 3,
+    "longtask_ms": 289,
+    "requests": 12,
+    "kb": 33,
+    "urls": [
+     "/jobs/f4f152014e6e/multipliers",
+     "/jobs/f4f152014e6e/sheet_numbers",
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 1496,
+    "longtasks": 1,
+    "longtask_ms": 68,
+    "requests": 12,
+    "kb": 28,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/markup/propose",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 57,
+   "band": {
+    "ms": 29,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 0
+   },
+   "scope_multi": {
+    "ms": 28,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 2908,
+    "longtasks": 2,
+    "longtask_ms": 143,
+    "requests": 3,
+    "kb": 880,
+    "urls": [
+     "/jobs/f4f152014e6e/memo/15",
+     "/jobs/f4f152014e6e/page/15.png",
+     "/jobs/f4f152014e6e/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 122,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 553,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 11,
+    "kb": 647,
+    "urls": [
+     "/jobs/f4f152014e6e/rows_delete",
+     "/jobs/f4f152014e6e/page/14.png",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 589,
+    "longtasks": 2,
+    "longtask_ms": 236,
+    "requests": 14,
+    "kb": 38,
+    "urls": [
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates",
+     "/jobs/f4f152014e6e/multipliers",
+     "/jobs/f4f152014e6e/sheet_numbers",
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 1755,
+    "longtasks": 2,
+    "longtask_ms": 121,
+    "requests": 12,
+    "kb": 28,
+    "urls": [
+     "/jobs/f4f152014e6e/rows/08d94973b57ee7cf",
+     "/jobs/f4f152014e6e/markup/propose",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/rows",
+     "/jobs/f4f152014e6e/markup",
+     "/jobs/f4f152014e6e/axis_overrides",
+     "/jobs/f4f152014e6e/review",
+     "/jobs/f4f152014e6e/feedback",
+     "/jobs/f4f152014e6e/reports",
+     "/jobs/f4f152014e6e/drawings",
+     "/jobs/f4f152014e6e/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  }
+ ],
+ "job": "f4f152014e6e",
+ "root": "/home/user/AI-P-ID-Extraction-tool",
+ "summary": {
+  "band": {
+   "median_ms": 29,
+   "max_ms": 45,
+   "requests": 0,
+   "kb": 0,
+   "longtasks": 0
+  },
+  "scope_multi": {
+   "median_ms": 27,
+   "max_ms": 28,
+   "requests": 0,
+   "kb": 0,
+   "longtasks": 0
+  },
+  "qty_page": {
+   "median_ms": 2908,
+   "max_ms": 2967,
+   "requests": 3,
+   "kb": 880,
+   "longtasks": 2
+  },
+  "edit_one": {
+   "median_ms": 85,
+   "max_ms": 122,
+   "requests": 1,
+   "kb": 1,
+   "longtasks": 0
+  },
+  "dismiss": {
+   "median_ms": 364,
+   "max_ms": 553,
+   "requests": 11,
+   "kb": 647,
+   "longtasks": 0
+  },
+  "restore": {
+   "median_ms": 474,
+   "max_ms": 589,
+   "requests": 14,
+   "kb": 38,
+   "longtasks": 2
+  },
+  "add_row": {
+   "median_ms": 1496,
+   "max_ms": 1755,
+   "requests": 12,
+   "kb": 28,
+   "longtasks": 2
+  }
+ }
+}

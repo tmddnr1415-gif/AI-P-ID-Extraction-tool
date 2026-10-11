@@ -81,6 +81,12 @@ try:
                     return +Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]; }""")
                 pg.evaluate("n => { if (S.side) toggleSide(false); const sel = document.querySelector('#page-select'); sel.value = String(n); sel.dispatchEvent(new Event('change', {bubbles: true})); }", pno)
                 pg.wait_for_function("n => S.page && S.page.page_no === n && !S.loading", arg=pno, timeout=60000)
+                # hotfix88 — 장 그림이 **실제로 걸린 뒤**부터 잰다.  `S.page` 는 바로 바뀌지만 A1 그림은 서버가 그려
+                # 보내는 데 1~3초이고(캐시가 빈 사본), 그 사이 재기 시작하면 첫 일(qty_page)이 그 그림·메모 요청을
+                # 떠안아 2.9초로 나왔다 (실제 저장은 0.2초).
+                pg.wait_for_function("""n => { const i = document.querySelector('#sheet');
+                    return i && i.complete && i.naturalWidth > 0 && i.src.includes('/page/' + n + '.png') && !S.pending; }""",
+                                     arg=pno, timeout=120000)
                 pg.wait_for_timeout(1500)
                 pg.evaluate("() => fit()"); pg.wait_for_timeout(500)
                 rnd = {"page": pno, "rows_on_page": pg.evaluate("n => pageQtyRows(n).length", pno)}

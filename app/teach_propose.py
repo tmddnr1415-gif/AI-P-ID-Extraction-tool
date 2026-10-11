@@ -346,9 +346,114 @@ def propose_pdf(pdf: str, needs: list) -> dict:
     큰 도면은 30~70초가 걸리고(곡선을 장마다 다시 읽는다) 그 동안 서버 프로세스가 붙들리면 대시보드의
     살아 있나 확인(3초)이 실패한다 (hotfix56).  그래서 분석이 멈춘 그 순간 일꾼에게 맡겨 두고, 사람이
     판을 열 때는 끝난 답을 받는다 (`main._prefetch_proposals`)."""
-    from app import pipeline  # noqa: F401  — 엔진 경로와 설정을 세운다
-    ds, derive_layout, _lr, pidcache = _engine()
-    _doc, pages = pidcache.load_pages(pdf)
+    ds, derive_layout, _lr, pages = _open(pdf)
     fp = derive_layout._form_pages(pages)
     form = (fp[0] if fp else None) or pages
-    return propose(pages, form, ds.RULESET_V3.anchors, list(needs))
+    try:
+        return propose(pages, form, ds.RULESET_V3.anchors, list(needs))
+    finally:
+        release_pages(pages)
+
+
+# 일꾼 프로세스가 든 **마지막 PDF** 의 장들 — 같은 PDF 를 묻는 다음 호출이 다시 열지 않게 (A1 93장 6초).
+# 그림(`_drawings` 등 lazy 값)은 쓰고 나서 놓는다 (`release_pages`) — 낱말만 남긴다.
+_PAGES: dict = {}
+_NEEDS: dict = {}
+
+
+def _open(pdf: str, only=None):
+    from app import pipeline  # noqa: F401  — 엔진 경로와 설정을 세운다
+    import os
+    ds, derive_layout, legend_rules, pidcache = _engine()
+    if only:
+        _doc, pages = pidcache.load_pages(pdf, only=only)
+        return ds, derive_layout, legend_rules, pages
+    key = (str(pdf), os.stat(pdf).st_mtime_ns)
+    if _PAGES.get("key") != key:
+        _PAGES.clear()
+        doc, pages = pidcache.load_pages(pdf)
+        _PAGES.update({"key": key, "doc": doc, "pages": pages})
+    return ds, derive_layout, legend_rules, _PAGES["pages"]
+
+
+def release_pages(pages) -> None:
+    """장의 lazy 값(그림 · 선분 · 잉크 인덱스 …)을 놓는다 — 일꾼이 낱말만 들고 산다."""
+    for pc in pages:
+        for name in ("_drawings", "_rects", "_segments", "_ink_strokes", "_ink_index", "_star_segs", "_star_np",
+                     "_stroke_memo", "_hist_rows"):
+            if hasattr(pc, name):
+                try:
+                    setattr(pc, name, None)
+                except Exception:                      # noqa: BLE001
+                    pass
+
+
+def suggest(pages, form) -> dict:
+    """어느 장을 먼저 띄울지 — 화면 편의일 뿐 판정에 안 쓴다 (`main._teach_suggest` 와 같은 판정)."""
+    ds, _dl, legend_rules, pidcache = _engine()
+    anchors = ds.RULESET_V3.anchors
+    score = {pc.page_no: sum(1 for _r, t in pc.words if t in anchors) for pc in form}
+    drawing = max(score, key=lambda n: (score[n], -n)) if score else (form[0].page_no if form else 1)
+    legend = None
+    for pc in pages:
+        words = {t.upper() for _r, t in pidcache.tokens(pc.words)}
+        if {"LEGEND", "SYMBOL", "SYMBOLS"} & words and ({"VALVES", "ACTUATORS", "SIGNAL"} & words):
+            legend = pc.page_no
+            break
+    if legend is None:
+        pc = legend_rules._page_with(pages, "FIRST LETTER")
+        legend = pc.page_no if pc is not None else (pages[0].page_no if pages else 1)
+    return {"drawing": drawing, "legend": legend}
+
+
+def needs_pdf(pdf: str, saved: dict) -> dict:
+    """`main._teach_needs` 의 무거운 반(Symbol & Legend 칸 · 버블)과 먼저 띄울 장을 서버 밖 일꾼이 — 같은 판정.
+    가르친 값(`saved`)을 모듈 전역(`TAUGHT*`)에 얹고 끝에 되돌린다 (일꾼 프로세스라 다른 요청과 안 겹친다).
+    답은 (PDF · 시각 · 가르친 값)으로 기억한다."""
+    import json
+    import os
+    key = (str(pdf), os.stat(pdf).st_mtime_ns, json.dumps(saved or {}, sort_keys=True, default=str))
+    got = _NEEDS.get(key)
+    if got is not None:
+        return got
+    ds, derive_layout, legend_rules, pages = _open(pdf)
+    fp = derive_layout._form_pages(pages)
+    form = (fp[0] if fp else None) or pages
+    needs = []
+    keep_page, keep_taught, keep_b = legend_rules.TAUGHT_PAGE, legend_rules.TAUGHT, ds.TAUGHT_BUBBLES
+    try:
+        lp = saved.get("legend_page") or []
+        legend_rules.TAUGHT_PAGE = [int(x["page_no"]) for x in (lp if isinstance(lp, list) else [lp])] or None
+        legend_rules.TAUGHT = {k: {"page_no": v["page_no"], "rect": v["rect"]}
+                               for k, v in (saved.get("legend") or {}).items()}
+        if any(legend_rules._page_with(pages, h) is None for h in legend_rules.TEACHABLE_HEADINGS):
+            needs.append("legend")
+        by = {pc.page_no: pc for pc in pages}
+        temps = [t for t in (ds.learn_bubble_template(by[b["page_no"]], b["rect"])
+                             for b in (saved.get("bubbles") or []) if b.get("page_no") in by) if t]
+        ds.TAUGHT_BUBBLES = temps
+        anchors = ds.RULESET_V3.anchors
+        busy = sorted(form, key=lambda pc: -sum(1 for _r, t in pc.words if t in anchors))[:5]
+        if busy and sum(1 for pc in busy for _r, t in pc.words if t in anchors) >= 3 \
+                and not any(ds.bubble_outlines(pc) for pc in busy):
+            needs.append("bubbles")
+        got = {"needs": needs, "suggest": suggest(pages, form)}
+    finally:
+        legend_rules.TAUGHT_PAGE, legend_rules.TAUGHT, ds.TAUGHT_BUBBLES = keep_page, keep_taught, keep_b
+        release_pages(pages)
+    if len(_NEEDS) >= 8:
+        _NEEDS.pop(next(iter(_NEEDS)))
+    _NEEDS[key] = got
+    return got
+
+
+def preview_bubbles_pdf(pdf: str, templates: list, page_no: int, count_nos: list) -> tuple:
+    """버블 미리보기의 무거운 부분 — 이 장에서 찾은 버블 사각형과 장마다의 수 (`main.teach_preview` 와 같은 함수)."""
+    ds, _dl, _lr, pages = _open(pdf)
+    by = {pc.page_no: pc for pc in pages}
+    try:
+        here = [[round(v, 1) for v in o.rect] for o in ds.taught_bubbles(by[int(page_no)], templates)] if int(page_no) in by else []
+        per_page = {n: len(ds.taught_bubbles(by[n], templates)) for n in count_nos if n in by}
+    finally:
+        release_pages(pages)
+    return here, per_page

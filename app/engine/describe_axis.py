@@ -141,6 +141,47 @@ def _covers(run, other, slack) -> bool:
             and run[2] <= other[2] + slack and run[3] >= other[3] - slack)
 
 
+_LEADER_NP: list = [None, None]      # (인출선 목록 객체, 끝점 배열) — 한 장의 목록은 한 벌
+
+
+def _leader_ends_np(leaders):
+    """인출선 끝점 배열 `(n, 4)` = (p0x, p0y, p1x, p1y) — 같은 목록이면 다시 만들지 않는다.
+    목록 객체 자체를 들고 있어 `id` 가 재사용되지 않는다."""
+    if _LEADER_NP[0] is leaders:
+        return _LEADER_NP[1]
+    import numpy as np
+    rows = []
+    for L in leaders:
+        (x0, y0), (x1, y1) = _ends(L)
+        rows.append((x0, y0, x1, y1))
+    arr = np.asarray(rows, dtype=float).reshape(-1, 4)
+    _LEADER_NP[0], _LEADER_NP[1] = leaders, arr
+    return arr
+
+
+def leaders_touching(rect, leaders, slack) -> list:
+    """한 끝만 `rect` 에 (`_pt_rect_d <= slack`) 닿는 인출선 — **원래 순서대로**.
+
+    hotfix88 — `pick_tap` 이 행마다 그 장의 인출선 **전부**(Takhiatash 장당 2,400개)를 거리로 정렬한 뒤
+    "두 끝이 다 안이거나 다 밖" 인 것을 건너뛰고 있었다 (분석 270초 중 17초).  건너뛰는 것은 아무 흔적도
+    남기지 않으므로 먼저 빼고 정렬해도 처리 순서가 같다 (파이썬 정렬은 안정 정렬).  거리 식은 `_pt_rect_d`
+    그대로이고 numpy 의 뺄셈·`maximum` 은 같은 double 연산이라 비교 결과가 같다 (0 의 부호만 다를 수 있고
+    그것은 `<=` 에 닿지 않는다)."""
+    if not leaders:
+        return []
+    import numpy as np
+    arr = _leader_ends_np(leaders)
+    x0, y0, x1, y1 = rect[0], rect[1], rect[2], rect[3]
+
+    def d(px, py):
+        dx = np.maximum(np.maximum(x0 - px, 0.0), px - x1)
+        dy = np.maximum(np.maximum(y0 - py, 0.0), py - y1)
+        return np.maximum(dx, dy)
+    in0 = d(arr[:, 0], arr[:, 1]) <= slack
+    in1 = d(arr[:, 2], arr[:, 3]) <= slack
+    return [leaders[i] for i in np.flatnonzero(in0 != in1).tolist()]
+
+
 def _own_body(item, rect, slack) -> bool:
     """심볼 자기 몸통 획 — rect 를 벗어나지 않는 획은 바깥 세계를 증언하지 못한다.
 
@@ -298,7 +339,7 @@ def pick_tap(rect, runs, leaders, join_slack, reach=None):
     outs = [r for r in runs if not body(r)]
 
     # 1. 인출선 착지 — 교차 우선, 끊긴 라인 병합, 마지막으로 먼 끝 근접
-    for L in sorted((l for l in leaders if not body(l)),
+    for L in sorted((l for l in leaders_touching(rect, leaders, join_slack) if not body(l)),
                     key=lambda l: min(_pt_rect_d(p, rect) for p in _ends(l))):
         p0, p1 = _ends(L)
         ins = [(_pt_rect_d(p, rect) <= join_slack) for p in (p0, p1)]
@@ -391,7 +432,7 @@ def judge_row(rect, runs, leaders, connectors, equipment, *,
     if run is None:
         if how == "런 없음":
             # 인출선이 런이 아니라 기기 라벨 근방에 떨어졌나 → 기기 직결
-            for L in leaders:
+            for L in leaders_touching(rect, leaders, join_slack):
                 p0, p1 = _ends(L)
                 ins = [(_pt_rect_d(p, rect) <= join_slack) for p in (p0, p1)]
                 if ins[0] == ins[1]:

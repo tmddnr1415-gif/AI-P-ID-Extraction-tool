@@ -26,6 +26,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
 import pymupdf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -112,6 +113,17 @@ class Rot:
             and t[5] == _f32(t[5])
 
     def xy(self, x: float, y: float) -> tuple[float, float]:
+        return (_f32(x * self.a + y * self.c + self.e), _f32(x * self.b + y * self.d + self.f))
+
+    def xy32(self, x: float, y: float) -> tuple[float, float]:
+        """`(pymupdf.Point(x, y) * m)` 의 x·y — 아무 double 에나 쓴다 (`xy` 는 이미 float32 인 값용).
+        `Point * m` 은 점을 float32 `fz_point` 로 바꾼 뒤 옮기므로 입력을 먼저 float32 로 반올림한다.
+        회전 행렬이 아니면 예전 길."""
+        if not self.fast:
+            q = pymupdf.Point(x, y) * self.m
+            return (q.x, q.y)
+        x = _f32(x)
+        y = _f32(y)
         return (_f32(x * self.a + y * self.c + self.e), _f32(x * self.b + y * self.d + self.f))
 
     def pt(self, p):
@@ -251,27 +263,65 @@ def curve_path(items, bbox) -> bool:
 
 
 def curve_extent(items, m) -> pymupdf.Rect:
-    """The box of the drawn curve (not its control points), display space."""
+    """The box of the drawn curve (not its control points), display space.
+
+    hotfix88 — 점을 `pymupdf.Point` 로 만들어 `* m` 하던 것을 `Rot.xy32` 로 (같은 값).  Takhiatash
+    프로파일에서 이 함수가 분석 345초 중 93초였고 그 대부분이 4백만 번의 점×행렬 래퍼였다.
+    표본점은 double 로 셈한 뒤 **float32 로 먼저 반올림**한다 — `Point * m` 도 점을 float32
+    `fz_point` 로 바꾼 뒤 옮기므로 그래야 비트까지 같다 (`tests/test_hotfix88_curve_extent.py`)."""
+    R = _rot_for(m)
     xs, ys = [], []
     for it in items:
         if it[0] == "l":
-            pts = [it[1], it[2]]
+            for p in (it[1], it[2]):
+                xs.append(p.x)
+                ys.append(p.y)
         elif it[0] == "c":
             p0, p1, p2, p3 = it[1], it[2], it[3], it[4]
-            pts = []
-            for k in range(9):
-                t = k / 8
-                u = 1 - t
-                pts.append(pymupdf.Point(
-                    u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-                    u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y))
-        else:
-            continue
-        for p in pts:
-            q = p * m
-            xs.append(q.x)
-            ys.append(q.y)
-    return pymupdf.Rect(min(xs), min(ys), max(xs), max(ys))
+            x0, y0, x1, y1, x2, y2, x3, y3 = p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y
+            for a, b, c, d in _BEZIER9:
+                xs.append(a * x0 + b * x1 + c * x2 + d * x3)
+                ys.append(a * y0 + b * y1 + c * y2 + d * y3)
+    if not xs:
+        return pymupdf.Rect(min(xs), min(ys), max(xs), max(ys))      # 예전과 같은 ValueError
+    if not R.fast or len(xs) < 16:
+        # 점이 몇 개뿐인 path(선분 하나 · 짧은 곡선)는 numpy 호출값이 더 비싸다 (TC2 54,411 path 실측)
+        pts = [R.xy32(x, y) for x, y in zip(xs, ys)]
+        return pymupdf.Rect(min(p[0] for p in pts), min(p[1] for p in pts),
+                            max(p[0] for p in pts), max(p[1] for p in pts))
+    # 점마다 `xy32` 를 부르던 것을 한 배열로 — float32 반올림(`astype`)은 struct 의 C 캐스트와 같은
+    # 짝수 반올림이고, 0·±1 곱과 덧셈 한 번은 파이썬 double 과 같은 순서로 같은 값이다.
+    X = np.asarray(xs, dtype=np.float64).astype(np.float32).astype(np.float64)
+    Y = np.asarray(ys, dtype=np.float64).astype(np.float32).astype(np.float64)
+    U = (X * R.a + Y * R.c + R.e).astype(np.float32)
+    V = (X * R.b + Y * R.d + R.f).astype(np.float32)
+    return pymupdf.Rect(float(U.min()), float(V.min()), float(U.max()), float(V.max()))
+
+
+def _bezier9() -> tuple:
+    out = []
+    for k in range(9):
+        t = k / 8
+        u = 1 - t
+        out.append((u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t))
+    return tuple(out)
+
+
+_BEZIER9 = _bezier9()
+
+
+_ROTS: dict = {}
+
+
+def _rot_for(m) -> "Rot":
+    """행렬 하나에 `Rot` 하나 — 장마다 수만 번 부르는 자리라 매번 만들지 않는다."""
+    key = tuple(m)
+    r = _ROTS.get(key)
+    if r is None:
+        if len(_ROTS) > 16:
+            _ROTS.clear()
+        r = _ROTS[key] = Rot(m)
+    return r
 
 
 def round_box(d, m):

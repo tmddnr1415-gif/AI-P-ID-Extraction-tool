@@ -1476,29 +1476,32 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     if not maxlen or maxlen <= 0:
         return []
     R = pidcache.Rot(pc.page.rotation_matrix)
+    # hotfix88 — 획의 중점·길이·방향은 장에 달린 값이라 **장마다 한 번** 재고(`_star_strokes`), 부를 때는
+    # 상한(`maxlen`)과 영역으로 거르기만 한다.  Takhiatash 프로파일: 이 함수가 장마다 서너 번 불리며
+    # 매번 획 전부를 다시 옮기고 재서 분석 345초 중 38초였다.  순서·값은 그대로다 (같은 획을 같은 순서로).
+    strokes = _star_strokes(pc, R)
+    arr = _star_arrays(pc, strokes)
+    keep = (arr["long"] <= maxlen) & (arr["ln"] <= maxlen)
+    if region is not None:
+        # 느슨한 사각형 거름(numpy) 뒤 **같은 함수** `Rect.intersects` 로 확정 — 판정은 그대로다.
+        keep &= ((arr["bx0"] < region.x1 + 1.0) & (region.x0 - 1.0 < arr["bx1"])
+                 & (arr["by0"] < region.y1 + 1.0) & (region.y0 - 1.0 < arr["by1"]))
+        idx = [i for i in np.flatnonzero(keep).tolist() if region.intersects(strokes[i][9])]
+    else:
+        idx = np.flatnonzero(keep).tolist()
     segs = []
-    for d in _ink_strokes(pc):
-        b = d["bbox"]
-        if max(b.width, b.height) > maxlen:
-            continue
-        if region is not None and not region.intersects(b):
-            continue
-        for it in d["items"]:
-            if it[0] != "l":
-                continue
-            a, c = R.pt(it[1]), R.pt(it[2])
-            ln = math.hypot(c.x - a.x, c.y - a.y)
-            if ln <= 0 or ln > maxlen:
-                continue
-            segs.append(((a.x + c.x) / 2, (a.y + c.y) / 2, ln,
-                         int(math.degrees(math.atan2(c.y - a.y, c.x - a.x)) % 180 // 15),
-                         a, c))
+    for i in idx:
+        mx, my, ln, dirb, ax, ay, cx, cy, _long, _b = strokes[i]
+        segs.append((mx, my, ln, dirb, pidcache._mkpt(ax, ay), pidcache._mkpt(cx, cy)))
     if len(segs) < 2:
         return []
     cell = maxlen
-    grid = collections.defaultdict(list)
-    for i, s in enumerate(segs):
-        grid[(int(s[0] // cell), int(s[1] // cell))].append(i)
+    # hotfix88 — 이웃 찾기를 numpy 로.  예전에는 획마다 3×3 격자 칸을 파이썬으로 훑었다 (Takhiatash
+    # 장당 획 수만 개 × 200회 = 분석 270초 중 20초).  허용치는 `0.25 * min(길이)` 이고 길이가 `maxlen`
+    # 이하이므로 상한은 `0.25 * maxlen` — 그 칸으로 좁힌 뒤 `math.hypot` 으로 **예전과 같은 식**으로
+    # 확정한다 (numpy 의 hypot 과 파이썬의 hypot 은 마지막 비트가 다를 수 있어 느슨한 거름에만 쓴다).
+    # 무리의 구성원 순서는 결과(사각형 · 획 수 · 방향 수)에 닿지 않는다.
+    adj = _near_adjacency(arr, idx, 0.25 * maxlen)
     # ★ 별표의 획 끝은 아무 것에도 닿지 않는다.  밸브 나비의 두 대각선도 중심에서
     # 교차하므로 "중점이 한 점" 만으로는 나비와 별표가 같다 (25회차 접촉 시트 —
     # 더한 것의 대부분이 나비였다).  가르는 것은 **끝점**이다: 나비의 대각선은
@@ -1529,20 +1532,10 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     # **후보 무리 전체**로 넓힌다.  나비가 후보가 되지 않는 것은 방향 수가 가르고
     # (`min_dirs`), 후보가 되지 못한 획은 예전과 똑같이 "다른 잉크" 로 남는다.
     used, groups = set(), []
-    for i, s in enumerate(segs):
+    for i in range(len(segs)):
         if i in used:
             continue
-        gx, gy = int(s[0] // cell), int(s[1] // cell)
-        near = []
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                for j in grid.get((gx + dx, gy + dy), ()):
-                    if j in used:
-                        continue
-                    t = segs[j]
-                    tol = 0.25 * min(s[2], t[2])
-                    if math.hypot(t[0] - s[0], t[1] - s[1]) <= tol:
-                        near.append(j)
+        near = [j for j in adj.get(i, ()) if j not in used]
         # `min_dirs` — 본문 별표(`star_marks`)는 방향 **셋 이상**을 요구한다 (38회차 [F]).
         # 둘이면 `+` 나 `x` 다: UAD p23 의 `PDIA++,+` 경보 접미 `+` 가 획 둘로 그려져
         # 별표로 읽혔고, 그 버블은 패널 사각형 안이라 윤곽(30회차)도 못 찾았다.  실측 본문
@@ -1568,6 +1561,107 @@ def star_groups(pc, lay: Layout = LAYOUT, maxlen: float = 0.0, region=None,
     return out
 
 
+_STAR_LAST: list = []        # 획 표를 든 직전 장 — `_INK_LAST` 와 같은 "놓는 자리"
+
+
+def _star_strokes(pc, R) -> list:
+    """그 장 잉크 획의 곧은 선분 전부 — `(중점x, 중점y, 길이, 방향칸, ax, ay, cx, cy, 그림의 긴 변, bbox)`.
+    `star_groups` 가 매번 다시 재던 것을 장마다 한 번.  `R.pt` 와 같은 값(`R.xy` 는 같은 식)이고,
+    길이 0 인 선분은 예전처럼 뺀다.  직전 장의 표는 놓는다 (26회차 메모리 규칙)."""
+    got = getattr(pc, "_star_segs", None)
+    if got is not None:
+        return got
+    for prev in _STAR_LAST:
+        if prev is not pc:
+            prev._star_segs = None
+            prev._star_np = None
+    _STAR_LAST[:] = [pc]
+    xy = R.xy if R.fast else (lambda x, y: (lambda q: (q.x, q.y))(pymupdf.Point(x, y) * R.m))
+    got = []
+    for d in _ink_strokes(pc):
+        b = d["bbox"]
+        long_ = max(b.width, b.height)
+        for it in d["items"]:
+            if it[0] != "l":
+                continue
+            ax, ay = xy(it[1].x, it[1].y)
+            cx, cy = xy(it[2].x, it[2].y)
+            ln = math.hypot(cx - ax, cy - ay)
+            if ln <= 0:
+                continue
+            got.append(((ax + cx) / 2, (ay + cy) / 2, ln,
+                        int(math.degrees(math.atan2(cy - ay, cx - ax)) % 180 // 15),
+                        ax, ay, cx, cy, long_, b))
+    pc._star_segs = got
+    pc._star_np = None
+    return got
+
+
+def _star_arrays(pc, strokes: list) -> dict:
+    """`_star_strokes` 의 열들을 numpy 배열로 (장마다 한 번 · 획 표와 같이 놓는다)."""
+    got = getattr(pc, "_star_np", None)
+    if got is not None:
+        return got
+    if strokes:
+        a = np.array([s[:3] + (s[8],) for s in strokes], dtype=float)
+        bb = np.array([(s[9].x0, s[9].y0, s[9].x1, s[9].y1) for s in strokes], dtype=float)
+        got = {"mx": a[:, 0], "my": a[:, 1], "ln": a[:, 2], "long": a[:, 3],
+               "bx0": bb[:, 0], "by0": bb[:, 1], "bx1": bb[:, 2], "by1": bb[:, 3]}
+    else:
+        z = np.zeros(0, dtype=float)
+        got = {k: z for k in ("mx", "my", "ln", "long", "bx0", "by0", "bx1", "by1")}
+    pc._star_np = got
+    return got
+
+
+def _near_adjacency(arr: dict, idx: list, w: float) -> dict:
+    """`idx` 의 획끼리 중점 거리가 `0.25 * min(길이)` 안인 짝 — `{i: [j, …]}` (자기 자신 포함).
+
+    2D 격자(칸 = `w` = 허용치 상한)의 3×3 이웃만 보고, 거리는 numpy 로 **느슨하게** 거른 뒤
+    `math.hypot` 으로 예전 식 그대로 확정한다 — 판정이 비트까지 같다."""
+    ix = np.asarray(idx, dtype=np.int64)
+    mx, my, ln = arr["mx"][ix], arr["my"][ix], arr["ln"][ix]
+    n = len(ix)
+    if w <= 0 or n < 2:
+        return {}
+    cx = np.floor(mx / w).astype(np.int64)
+    cy = np.floor(my / w).astype(np.int64)
+    cx -= cx.min()
+    cy -= cy.min()
+    ncy = int(cy.max()) + 3
+    key = cx * ncy + cy
+    order = np.argsort(key, kind="stable")
+    sk = key[order]
+    rows = np.arange(n)
+    cand_i, cand_j = [], []
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            nk = (cx + dx) * ncy + (cy + dy)
+            lo = np.searchsorted(sk, nk, "left")
+            hi = np.searchsorted(sk, nk, "right")
+            cnt = hi - lo
+            tot = int(cnt.sum())
+            if not tot:
+                continue
+            ii = np.repeat(rows, cnt)
+            jj = np.arange(tot) - np.repeat(np.cumsum(cnt) - cnt, cnt) + np.repeat(lo, cnt)
+            jj = order[jj]
+            tol = 0.25 * np.minimum(ln[ii], ln[jj])
+            ok = np.hypot(mx[jj] - mx[ii], my[jj] - my[ii]) <= tol * (1.0 + 1e-9) + 1e-9
+            cand_i.append(ii[ok])
+            cand_j.append(jj[ok])
+    if not cand_i:
+        return {}
+    ci = np.concatenate(cand_i).tolist()
+    cj = np.concatenate(cand_j).tolist()
+    mxl, myl, lnl = mx.tolist(), my.tolist(), ln.tolist()
+    adj: dict = collections.defaultdict(list)
+    for i, j in zip(ci, cj):
+        if math.hypot(mxl[j] - mxl[i], myl[j] - myl[i]) <= 0.25 * min(lnl[i], lnl[j]):
+            adj[i].append(j)
+    return adj
+
+
 # 인덱스를 든 **직전 장**.  값을 나르는 자리가 아니라 **놓는 자리**다 — 다음 장이
 # 인덱스를 만들 때 앞 장의 것을 떨군다.  25회차는 장마다 인덱스를 만들어 쪽 객체에
 # 그대로 두었고, 60장이면 60개가 살아 있어 최대 RSS 가 +3GB 였다 (TC2 11.0GB).
@@ -1589,6 +1683,10 @@ def release_ink() -> None:
     for prev in _INK_LAST:
         prev._ink_index = None
     _INK_LAST[:] = []
+    for prev in _STAR_LAST:
+        prev._star_segs = None
+        prev._star_np = None
+    _STAR_LAST[:] = []
 
 
 def _ink_cache(pc, m, cell):

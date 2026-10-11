@@ -2145,6 +2145,9 @@ def _sheet_number_targets(job_id: str) -> dict:
                     "않습니다.  적은 값은 **다시 분석해야** 반영됩니다."}
 
 
+_STROKE_COUNTS: dict = {}            # (job id · PDF 시각) → 장별 낱말 수
+
+
 def _stroke_only_pages(job, page_nos) -> set:
     """hotfix85 — 글자가 **선(획)으로만** 그려진 장.  그런 장은 사람이 무엇을 짚어도 계기 글자를 못 읽는다
     — DXF 로 올리는 길을 알려야 한다 (사용자: *"UAD 처럼 완전히 읽을 수 없다면 DXF 로 변환해 올려
@@ -2167,13 +2170,21 @@ def _stroke_only_pages(job, page_nos) -> set:
     except Exception:                                    # noqa: BLE001
         return set()
     try:
-        counts = {}
-        for i, page in enumerate(doc):
-            try:
-                n = len(page.get_text("words")) + len(pidcache._shx_entries(page, page.rotation_matrix))
-            except Exception:                            # noqa: BLE001
-                n = 0
-            counts[i + 1] = n
+        # hotfix88 — 장마다 낱말을 세는 것이 A1 93장에서 5초였고 `/teach` · `/sheet_numbers` 가 열 때마다
+        # 다시 셌다.  답은 PDF 에만 달렸으므로 (분석 id · 파일 시각) 으로 한 번만 센다.
+        ckey = (str(path), path.stat().st_mtime_ns)
+        counts = _STROKE_COUNTS.get(ckey)
+        if counts is None:
+            counts = {}
+            for i, page in enumerate(doc):
+                try:
+                    n = len(page.get_text("words")) + len(pidcache._shx_entries(page, page.rotation_matrix))
+                except Exception:                        # noqa: BLE001
+                    n = 0
+                counts[i + 1] = n
+            if len(_STROKE_COUNTS) >= 8:
+                _STROKE_COUNTS.pop(next(iter(_STROKE_COUNTS)))
+            _STROKE_COUNTS[ckey] = counts
         # 잣대 — 이 문서 **모든 장** 낱말 수의 위 사분위.  "나머지 장" 의 중앙값으로 재면 물은 장이 곧 전부일 때
         # (가르치기 판은 도면 장 전부를 묻는다) 잴 것이 없다.  위 사분위라 장의 4분의 1 만 글자가 있어도 선다.
         allc = sorted(counts.values())
@@ -2409,6 +2420,38 @@ def _teach_needs(job, pages, form, saved) -> list:
     return needs
 
 
+_NEEDS_CACHE: dict = {}              # (분석 id · PDF 시각 · 가르친 값) → {needs, suggest}
+
+
+def _needs_and_suggest(job, saved) -> dict:
+    """할 일 목록과 먼저 띄울 장 — 서버 밖 일꾼이 센다 (hotfix88).
+
+    `_teach_needs` 의 버블 검사(계기 글자가 많은 장 다섯에서 `bubble_outlines`)와 낱말 읽기가 A1 문서에서
+    서버 스레드를 13초 붙들었다 (대시보드의 3초 확인이 실패한다 · hotfix56).  같은 함수를 일꾼이 돌리고
+    (`teach_propose.needs_pdf`) 답은 (분석 · PDF 시각 · 가르친 값)으로 기억한다 — 분석이 멈춘 순간
+    `_prefetch_proposals` 가 먼저 세어 두므로 판을 열 때는 대개 0초다.  일꾼이 없으면 서버 안에서."""
+    path = Path(job["pdf_path"] or "")
+    key = (job["id"], path.stat().st_mtime_ns if path.exists() else 0,
+           json.dumps(saved or {}, sort_keys=True, default=str))
+    got = _NEEDS_CACHE.get(key)
+    if got is not None:
+        return got
+    msg = job["message"] or ""
+    head = ["dwg_no"] if "도면번호를 읽지 못했습니다" in msg else []
+    try:
+        from app import teach_propose
+        w = page_warm.call(teach_propose.needs_pdf, (job["pdf_path"], dict(saved or {})), timeout=600)
+        got = {"needs": head + list(w["needs"]) + ["notes?"], "suggest": w["suggest"]}
+    except RuntimeError:
+        pages = _tb_pages(job)
+        form, _sizes = _tb_form(pages)
+        got = {"needs": _teach_needs(job, pages, form, saved), "suggest": _teach_suggest(pages, form)}
+    if len(_NEEDS_CACHE) >= 16:
+        _NEEDS_CACHE.pop(next(iter(_NEEDS_CACHE)))
+    _NEEDS_CACHE[key] = got
+    return got
+
+
 @app.get("/jobs/{job_id}/teach")
 def teach_state(job_id: str):
     """가르치기 화면이 읽는 것 하나 — 저장된 칸 · 장 크기 · 먼저 띄울 장."""
@@ -2419,18 +2462,21 @@ def teach_state(job_id: str):
     if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
         return {"supported": False, "note": "DXF 는 블록 이름으로 읽으므로 이 가르치기가 없습니다"}
     _require_source(job)
-    pages = _tb_pages(job)
+    # hotfix88 — 판을 여는 데 낱말이 필요 없다 (쪽 크기만 · `_tb_sizes`).  할 일과 먼저 띄울 장은
+    # 서버 밖 일꾼이 센 값을 쓴다 (`_needs_and_suggest` — 분석이 멈춘 순간 미리 센다).
+    pages = _tb_sizes(job)
     form, sizes = _tb_form(pages)
     project = job["project"] or ""
     saved = form_teach.load(DATA_DIR, project)
+    ns = _needs_and_suggest(job, saved)
     return {"supported": True, "project": project, "page_count": len(pages),
-            "needs": _teach_needs(job, pages, form, saved),
+            "needs": ns["needs"],
             # 글자가 선으로만 그려진 장 — 가르쳐도 그 장의 계기 글자는 못 읽는다 → DXF 안내
             "stroke_only": sorted(_stroke_only_pages(job, [pc.page_no for pc in form])),
             "pages": [{"page_no": pc.page_no, "size": [round(float(pc.width), 1), round(float(pc.height), 1)]}
                       for pc in pages],
             "sizes": sizes, "form_pages": [pc.page_no for pc in form],
-            "suggest": _teach_suggest(pages, form),
+            "suggest": ns["suggest"],
             "saved": saved if form_teach.has_any(saved) else None,
             "legend_keys": [{"key": k, "label": form_teach.LEGEND_LABEL[k]} for k in form_teach.LEGEND_KEYS],
             "note": "가르친 칸은 프로젝트에 저장되고 **다시 분석해야** 반영됩니다."}
@@ -2467,6 +2513,9 @@ def teach_preview(job_id: str, payload: dict):
     except Exception:                                    # noqa: BLE001
         raise HTTPException(400, "page_no 가 이 PDF 의 장 번호여야 합니다")
     from app.engine import detect_symbols as _ds
+    import types
+    import pymupdf as _pm
+    pymupdf_rect = _pm.Rect
     if item == "bubbles":
         examples = payload.get("examples") or []
         templates = []
@@ -2481,10 +2530,18 @@ def teach_preview(job_id: str, payload: dict):
         if not templates:
             return {"item": item, "ok": False,
                     "note": "그은 사각형 안에 버블 테두리(곡선)가 없습니다 — 버블 하나를 넉넉히 감싸 주세요"}
-        here = _ds.taught_bubbles(pc, templates)
         form, _sizes = _tb_form(pages)
         # 세는 장은 앞 30장까지 — 미리보기는 "이 모양으로 찾힌다" 를 보이는 것이고 전수가 아니다.
-        per_page = {p.page_no: len(_ds.taught_bubbles(p, templates)) for p in form[:30]}
+        # hotfix88 — A1 한 장 1~4초 × 30장이 서버 스레드를 붙들었다 → 서버 밖 일꾼이 센다 (같은 함수).
+        count_nos = [p.page_no for p in form[:30]]
+        try:
+            from app import teach_propose
+            here_rects, per_page = page_warm.call(
+                teach_propose.preview_bubbles_pdf, (job["pdf_path"], templates, pc.page_no, count_nos), timeout=600)
+            here = [types.SimpleNamespace(rect=pymupdf_rect(r)) for r in here_rects]
+        except RuntimeError:
+            here = _ds.taught_bubbles(pc, templates)
+            per_page = {p.page_no: len(_ds.taught_bubbles(p, templates)) for p in form[:30]}
         return {"item": item, "ok": True, "templates": len(templates),
                 "sizes": [t["size"] for t in templates],
                 "found_here": [[round(v, 1) for v in o.rect] for o in here],
@@ -2592,6 +2649,10 @@ def _proposal_slot(job_id: str, start: bool = True):
         try:
             job = db.get_job(CON, job_id)
             from app import teach_propose
+            try:                                        # 할 일 목록을 먼저 (판이 열릴 때 기다리지 않게)
+                _needs_and_suggest(job, form_teach.load(DATA_DIR, job["project"] or ""))
+            except Exception:                           # noqa: BLE001
+                traceback.print_exc()
             try:
                 got = page_warm.call(teach_propose.propose_pdf, (job["pdf_path"], list(PROPOSE_NEEDS)), timeout=900)
             except RuntimeError:            # 일꾼이 없으면(시험 · 끈 설정) 서버 안에서
