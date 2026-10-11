@@ -194,6 +194,22 @@ try:
                 pg.click(f'#tbfix-tasks li[data-task="{k}"]')
                 pg.wait_for_function("() => document.querySelector('#tbfix-img').complete", timeout=30000)
                 pg.wait_for_timeout(600)
+                # hotfix86 — 지금 할 일에 다른 프로젝트 예시 그림이 붙는가 (그림이 실제로 읽혔는가)
+                ex = pg.evaluate("(k) => { const li = document.querySelector(`#tbfix-tasks li[data-task='${k}']`);"
+                                 " return [...li.querySelectorAll('.tb-ex-pic img')].map(i => ({ok: i.complete && i.naturalWidth > 0,"
+                                 " cap: i.alt})); }", k)
+                note(f"   [{k}] 예시 그림 {sum(e['ok'] for e in ex)}/{len(ex)} — " + " / ".join(e['cap'] for e in ex))
+                li = pg.query_selector(f'#tbfix-tasks li[data-task="{k}"]')
+                li.scroll_into_view_if_needed()
+                li.screenshot(path=str(OUT / f"{step}x_{k}_예시.png"))
+                if k == "legend" and not (OUT / "ex_modal.png").exists():
+                    pg.click(f'#tbfix-tasks li[data-task="{k}"] .tb-ex-pic')
+                    pg.wait_for_function("() => { const i = document.querySelector('#modal-body img.tb-ex-big');"
+                                         " return i && i.complete && i.naturalWidth > 0; }", timeout=10000)
+                    pg.screenshot(path=str(OUT / "ex_modal.png"))
+                    note(f"   [{k}] 예시 그림을 누르니 크게 뜸: {pg.text_content('#modal-title')}")
+                    pg.keyboard.press("Escape")
+                    pg.evaluate("() => document.querySelector('#modal').classList.add('hidden')")
                 if k == "legend":
                     note(f"   [범례] 목록을 누르니 p{pg.evaluate('() => TB.page')} 가 떴습니다 → [이 장이 범례입니다]")
                     before = pg.text_content("#tbfix-preview")
@@ -232,6 +248,11 @@ try:
             s = ((r.get("evidence") or {}).get("detail") or {}).get("bubble_style") or (r.get("evidence") or {}).get("bubble_style") or "-"
             styles[s] = styles.get(s, 0) + 1
         note(f"③ 최종: 상태 {res.get('status')} · 행 {len(rows)} · 버블 출처 {styles}")
+        pages = json.loads(urllib.request.urlopen(f"{base}/jobs/{job}/pages", timeout=60).read())
+        pages = pages.get("pages", pages) if isinstance(pages, dict) else pages
+        legend_nos = sorted(p["page_no"] for p in pages if p.get("page_kind") == "LEGEND")
+        on_legend = [r for r in rows if r.get("page_no") in legend_nos]
+        note(f"③-2 범례 장 {legend_nos} 위의 추출 행 {len(on_legend)} (0 이어야 한다)")
         try:
             pg.wait_for_function("() => !document.querySelector('#main').classList.contains('hidden')", timeout=60000)
             pg.wait_for_timeout(3000)

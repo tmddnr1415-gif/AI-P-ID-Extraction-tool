@@ -1076,6 +1076,32 @@ def _apply_taught_legend(pages, teach: dict | None) -> None:
         _rebind_config()
 
 
+def mark_legend_sheets(tb_rows: dict, taught: list) -> list:
+    """범례 장을 PID 대상에서 뺀다 (hotfix86).  돌려주는 것은 LEGEND 로 바꾼 장 번호.
+
+    ① 사람이 "이 장이 범례입니다" 라고 한 장 ② 이미 LEGEND 인 장(제목 · 머리말)과 **같은
+    도면번호**를 쓰는 PID 장 — 같은 범례 도면의 다음 장이다.  글자 뜻·쪽 번호로 가르지 않는다."""
+    moved = []
+    for no in taught:
+        row = tb_rows.get(no)
+        if row is not None and row.get("page_kind") != "LEGEND":
+            row["page_kind"] = "LEGEND"
+            row["page_kind_basis"] = "taught: the user marked this sheet as the legend"
+            moved.append(no)
+    legend_numbers = {}
+    for no, row in sorted(tb_rows.items()):
+        if row.get("page_kind") == "LEGEND" and row.get("drawing_no"):
+            legend_numbers.setdefault(row["drawing_no"], no)
+    for no, row in sorted(tb_rows.items()):
+        first = legend_numbers.get(row.get("drawing_no") or "")
+        if row.get("page_kind") == "PID" and first is not None:
+            row["page_kind"] = "LEGEND"
+            row["page_kind_basis"] = (f"shares drawing number `{row['drawing_no']}` "
+                                      f"with legend sheet p{first}")
+            moved.append(no)
+    return moved
+
+
 def _taught_legend_page(pages, teach: dict | None):
     """사람이 "이 장이 범례입니다" 라고 한 장 번호들 — 같은 종이인 것만 (없으면 None)."""
     item = (teach or {}).get("legend_page")
@@ -1339,7 +1365,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             row = tb_rows.get(pc.page_no) or {}
             if row.get("page_kind") != "PID":
                 continue
-            hit = next((h for h in heads if legend_rules._line_with(pc, h.split()) is not None), None)
+            hit = next((h for h in heads if legend_rules.prints_heading(pc, h)), None)
             if hit:
                 row["page_kind"] = "LEGEND"
                 row["page_kind_basis"] = f"legend heading `{hit}` printed on the sheet (no title cell on this form)"
@@ -1371,6 +1397,15 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         row["page_kind"] = tb.classify_page(row.get("drawing_title"), value)
         row["drawing_no_source"] = "USER"
         filled_sheets[page_no] = value
+
+    # hotfix86 — **Symbol & Legend 장의 계기는 추출 목록에 들어가지 않는다** (사용자 지시).
+    # 범례 장은 버블·밸브를 *보기로* 그리므로 P&ID 로 읽으면 그 보기가 행이 된다 (Takhiatash
+    # p3 34행).  범례 장을 아는 길 셋을 모두 쓴다 — 제목(`classify_page`) · 머리말(위) ·
+    # **사람이 "이 장이 범례입니다" 라고 한 장** — 그리고 범례 장과 **같은 도면번호**를 쓰는 장은
+    # 같은 범례 도면의 다음 장이다 (Takhiatash 는 범례 네 장이 `B-VVV-M-32-001` 하나를 쓰고
+    # 그중 머리말이 인쇄된 장만 범례로 갈렸다).  도면번호는 그 도면이 인쇄한 값이다 —
+    # 낱말 목록·쪽 번호로 가르지 않는다.
+    mark_legend_sheets(tb_rows, _taught_legend_page(pages, form_teach) or [])
 
     # 15회차 — 프로젝트 범례 프로필.  같은 프로젝트의 다른 Rev 는 Rev.A 가 읽은
     # 범례를 그대로 쓴다.  `page_kinds` 는 `derive_unit_multipliers` 가 읽던
@@ -1488,6 +1523,16 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
     legend_missing = legend_profile_store.uncompared(measured_profile)
     legend_changes = (legend_profile_store.diff(profile, measured_profile)
                       if profile is not None else [])
+    # hotfix86 — 밸브·액추에이터·ISA 문자표를 **실제로 읽어 낸 장**은 범례 장이다 (그 장의
+    # 보기 버블이 행이 되면 안 된다).  제목·머리말·사람으로 못 가른 문서(제목 칸을 못 읽는
+    # 양식)에서도 이 장은 유도가 이미 찾았다.  기기 표·부품 낱말·선 종류는 P&ID 장의 작은
+    # 범례 상자에서도 읽히므로 넣지 않는다 (Takhiatash p32 — 기기 표만 그 장에서 읽힘).
+    _symbol_items = (measured_profile or {}).get("items") or {}
+    _symbol_pages = legend_profile_store.read_pages(
+        {"items": {k: v for k, v in _symbol_items.items()
+                   if k in ("butterfly", "actuator_stem", "pneumatic", "isa_table")}})
+    if mark_legend_sheets(tb_rows, _symbol_pages):
+        page_kinds = {p: r["page_kind"] for p, r in tb_rows.items()}
 
     targets = [pc for pc in pages
                if tb_rows[pc.page_no]["page_kind"] == "PID" and pc.analysis_scope]

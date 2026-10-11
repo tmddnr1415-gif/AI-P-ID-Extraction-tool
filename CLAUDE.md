@@ -4587,6 +4587,25 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
 21. **NOTES 를 누르면 노트 열 전체** — 제목이 타이틀블록 열 안이면 그 열 전체(위도 테두리).  누른 장의 제목 높이에서 자르면
     다른 장이 그 위에 인쇄한 별표 정의가 빠진다 (QFE 실측: 공급자 이름 213칸 · 수량 231칸).
 
+**그 다음 — 범례 장의 계기는 목록에 넣지 않는다 · 가르치기 할 일마다 예시 그림 (hotfix86 · 2026-10-11)**
+
+사용자: *"심볼엔레전드의 계기 식별을 추출 list 에 포함되어서는 안된다"* · *"각 항목에 대한 예시도 … 다른 프로젝트 기준으로
+어떤 걸 선택하고 어떻게 해야 하는지"*.  시험 `tests/test_hotfix86_legend_sheets.py` 6건 · 화면 시뮬레이션 `out/hotfix86/ui/`.
+
+1. **Takhiatash p3(범례 2쪽째)의 보기 버블 34행이 목록에 나가고 있었다.**  그 문서는 제목 칸을 못 읽어 장 종류를 범례
+   머리말로만 가르는데(hotfix28), 범례 네 장(`B-VVV-M-32-001` 한 번호) 중 머리말이 인쇄된 p4 만 LEGEND 였다.
+2. **범례 장을 아는 길 넷** (`pipeline.mark_legend_sheets` 한 곳): ① 제목(`classify_page` — 그대로) ② 머리말 — 이제 hotfix84 의
+   다른 낱말(`2. VALVES` · `ELECTRICAL SIGNAL`)도 (`legend_rules.prints_heading`) ③ **사람이 "이 장이 범례입니다" 라고 한 장**
+   ④ **밸브·액추에이터·ISA 문자표를 실제로 읽어 낸 장**(`legend_profile.read_pages` 의 넷 — 기기 표·부품 낱말·선 종류는 P&ID 장의
+   작은 범례 상자에서도 읽히므로 넣지 않는다: Takhiatash p32).  그리고 **범례 장과 같은 도면번호를 쓰는 PID 장**은 같은 범례 도면의
+   다음 장이다.  글자 뜻·쪽 번호로 가르지 않는다.  ④ 는 `targets` 앞에서 다시 부른다.
+3. **실측** — Takhiatash 1139 → **1105행** (사라진 34행 전부 p3 · 새 행 0 · 남은 행에서 움직인 칸은 Description 35 — 문서 단위 거리
+   문턱의 모집단 감도, 40회차 [B]).  가르치기 경로(이전 프로그램 기준 · 3번 누름)도 **1105행 · 범례 장 [2,3,4,5] 위 행 0**.
+4. **예시 그림** (`spike/teach_examples.py` → `app/static/img/teach/ex_*.png` 8장 · 5~43KB) — AL NOUF1 · QFE 도면을 잘라 누를 자리에
+   붉은 상자와 손가락.  설명 글은 그림이 아니라 화면(`TEACH_EXAMPLES` · `teachExampleHtml`)에 있다 (한글 글꼴을 그림에 묻히지 않는다).
+   **지금 할 일에만** 붙고(목록이 길어지지 않게), 그림을 누르면 크게(`openModal`).  범례 항목은 ✔ 이런 장(기호표) / ✘ 이런 장 아님
+   (배관이 그려진 P&ID) 둘을 나란히.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5111,6 +5130,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `ds.learn_bubble_template` · `taught_bubbles` · `TAUGHT_BUBBLES` · `legend_rules.TAUGHT`·`taught_word` · `derive_layout.TAUGHT_FRAME` | **hotfix85** — 예시 버블의 캡 모양을 배워 규칙과 같은 구조로 짝짓는다 (길이·방향이 달라도) · 가르친 범례 칸이 이긴다 |
 | `pidcache.form_auto()` · `PID_FORM_AUTO=0` | **hotfix85** — 시뮬레이션 전용: hotfix84 새 양식 자동 갈래 다섯을 끈다 (이전 프로그램 재현) |
 | `app.js` `TEACH_CASES` · `teachCase` · `openTbFix(job, kind)` · `teachPreview` · `tbZoom` · `spike/ui_audit_teach.py` | **hotfix85** — 멈춘 이유별 가르치기 판 (저절로 열림 · 안내 · 미리보기) · 화면 시뮬레이션 |
+| `pipeline.mark_legend_sheets` · `legend_rules.prints_heading` · `app.js` `TEACH_EXAMPLES`·`teachExampleHtml` · `spike/teach_examples.py` | **hotfix86** — 범례 장(제목 · 머리말 · 사람이 알려 준 장 · 기호표를 읽은 장 + 같은 도면번호)은 PID 대상이 아니다 · 할 일마다 다른 프로젝트 예시 그림 |
 | `main._teach_needs` · `POST /jobs/{id}/teach/click` · `app.js` `TEACH_TASKS` · `tbRenderTasks` · `tbClick` · `tbLegendHere` · `tbTake` | **hotfix85 후반** — 할 일 목록(서버가 미리 본 것만 · 한 번에) · 누르기 한 번 = 할 일 하나 · 누른 자리를 사각형으로 바꾸는 것은 서버 · 사각형 긋기는 고급으로 접힘 |
 | `ds.bubble_at` · `derive_layout.notes_from_heading` · `PAPER_STANDS_IN` · `legend_rules.taught_pages` · `_keyword_heading` · `HEADING_KEYWORD` | **hotfix85 후반** — 누른 점의 버블 · NOTES 제목 글자 → 영역 · 테두리를 못 찾으면 종이 · 범례 장 목록에서 머리말(인쇄된 그대로 → 핵심 낱말 · 다른 칸 제목의 일부와 겹쳐 인쇄는 뺀다) |
 | `spike/teach_sim.py` (`pick_min` · `--full` · `--rescore` · `_match`) | **hotfix85 후반** — 사람이 누를 것만 흉내 내 눈가림 분석 → 기준선과 행 단위 대조 (태그 먼저) |

@@ -220,6 +220,21 @@ def _page_with(pages, heading: str):
     return None
 
 
+def prints_heading(pc, heading: str) -> bool:
+    """이 장이 범례 칸 머리말 `heading` 을 인쇄하는가 — 인쇄된 그대로, 없으면 hotfix84 의
+    다른 낱말(`2. VALVES` · `ELECTRICAL SIGNAL`).  장 종류를 가르는 데 쓴다 (hotfix86) —
+    `_page_with` 가 **첫 장** 을 돌려주는 것과 달리 장 하나에 묻는다."""
+    if _line_with(pc, heading.split()) is not None:
+        return True
+    for alt in (HEADING_ALTERNATIVES.get(heading, ()) if pidcache.form_auto() else ()):
+        if alt.startswith("§ "):
+            if _section_heading(pc, alt[2:].split()) is not None:
+                return True
+        elif _line_with(pc, alt.split()) is not None:
+            return True
+    return False
+
+
 # hotfix84 — Takhiatash (Hyundai) numbers its legend sections and names them
 # plainly: `2. VALVES` (not `LINE VALVES`), `3. ACTUATORS` (not `VALVES
 # ACTUATORS`), and calls the signal row `ELECTRICAL SIGNAL LINE`.  A `§ ` entry

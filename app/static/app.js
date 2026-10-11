@@ -9442,6 +9442,35 @@ const TEACH_TASKS = {
            done: () => !!TB.teach.notes },
 };
 
+/* hotfix86 — 할 일마다 "다른 프로젝트에서는 무엇을 어떻게 눌렀나" 그림.  그림은
+ * `spike/teach_examples.py` 가 AL NOUF1 · QFE 도면을 잘라 붉은 상자와 손가락을 그린 것이다
+ * (`/static/img/teach/`).  설명 글자는 그림이 아니라 여기 있다. */
+const TEACH_EXAMPLES = {
+  dwg_no: { how: "칸 제목(DWG NO. · DRAWING NUMBER)이 아니라 번호 글자 자체를 누릅니다.",
+            pics: [["ex_dwgno_1.png", "AL NOUF1 — PROJECT DWG NO. 칸의 번호"],
+                   ["ex_dwgno_2.png", "QFE — DRAWING NUMBER 칸의 번호"]] },
+  legend: { how: "기호 그림과 설명이 표처럼 줄지어 있는 장(✔)이 범례이고, 배관이 이어 그려진 장(✘)은 아닙니다.  "
+                 + "범례로 알려 준 장의 계기 그림은 추출 목록에 들어가지 않습니다.",
+            pics: [["ex_legend_yes.png", "✔ 이런 장 — 기호표 (AL NOUF1 Symbol & Legend)", "yes"],
+                   ["ex_legend_no.png", "✘ 이런 장 아님 — 배관이 그려진 P&ID", "no"]] },
+  bubbles: { how: "버블 모양은 프로젝트마다 다릅니다 (가로로 긴 것 · 세로로 선 것 · 동그란 것) — 그 도면의 버블 글자를 누르면 됩니다.",
+             pics: [["ex_bubble_1.png", "AL NOUF1 — FT 버블 (가로로 긴 타원)"],
+                    ["ex_bubble_2.png", "QFE — PIT 버블"]] },
+  notes: { how: "제목 하나만 누르면 그 아래 노트 칸 전체(초록)를 읽습니다 — 별표(*) 공급자 · 'IDENTICAL FOR' 수량 노트.",
+           pics: [["ex_notes_1.png", "AL NOUF1 — GENERAL NOTES"],
+                  ["ex_notes_2.png", "QFE — GENERAL NOTES"]] },
+};
+
+function teachExampleHtml(k) {
+  const ex = TEACH_EXAMPLES[k];
+  if (!ex) return "";
+  return `<span class="tb-ex"><span class="tb-ex-how"><b>예시</b> — 다른 프로젝트에서 누른 자리 (붉은 상자 · 그림을 누르면 크게).  ${escape(ex.how)}</span>`
+    + `<span class="tb-ex-pics">` + ex.pics.map(([src, cap, kind]) =>
+      `<button type="button" class="tb-ex-pic${kind ? " " + kind : ""}" data-ex="${attr(src)}" data-cap="${attr(cap)}" title="크게 보기">`
+      + `<img src="/static/img/teach/${attr(src)}" alt="${attr(cap)}" loading="lazy"><span>${escape(cap)}</span></button>`).join("")
+    + `</span></span>`;
+}
+
 function teachCase(message) { return TEACH_CASES.find(c => c.re.test(message || "")) || null; }
 
 async function openTbFix(jobId, kind) {
@@ -9523,7 +9552,7 @@ function tbRenderTasks() {
       + (k === "bubbles" && ok ? ` <button type="button" class="tb-do ghost small" data-do="bubbles-clear" title="누른 버블을 모두 잊고 다시 누릅니다">다시 고르기</button>` : "");
     return `<li class="tb-task${ok ? " done" : ""}${on ? " on" : ""}${t.optional ? " opt" : ""}" data-task="${k}">`
       + `<span class="tb-mark">${ok ? "✔" : i + 1}</span><span class="tb-txt"><b>${escape(t.title)}</b>${btn}`
-      + (on ? `<span class="muted small tb-hint">${escape(t.hint)}</span>` : "") + `</span></li>`;
+      + (on ? `<span class="muted small tb-hint">${escape(t.hint)}</span>` + teachExampleHtml(k) : "") + `</span></li>`;
   }).join("");
 }
 
@@ -9539,6 +9568,13 @@ function tbSetTask(k, go) {
 
 $req("#tbfix-tasks").addEventListener("click", ev => {
   const btn = ev.target.closest("button[data-do]");
+  const pic = ev.target.closest("button[data-ex]");
+  if (pic) {
+    openModal("예시 — " + pic.dataset.cap,
+      `<img class="tb-ex-big" src="/static/img/teach/${attr(pic.dataset.ex)}" alt="${attr(pic.dataset.cap)}">`
+      + `<p class="muted">붉은 상자와 손가락이 누르는 자리입니다.  이 도면이 아니라 다른 프로젝트의 그림입니다 — 지금 도면에서 같은 것을 찾아 누르세요.</p>`);
+    return;
+  }
   if (btn && btn.dataset.do === "bubbles-clear") { $("#tbfix-bubbles-clear").click(); tbSetTask("bubbles", false); return; }
   if (btn) { tbLegendHere(); return; }
   const li = ev.target.closest("li[data-task]");

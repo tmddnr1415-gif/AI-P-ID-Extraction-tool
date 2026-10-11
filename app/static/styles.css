@@ -2275,6 +2275,19 @@ tr.deleted td.col-vx .vx-b:not(.on) { opacity: .55; }
 .tbfix-tasks .tb-txt { display: flex; flex-direction: column; gap: 4px; }
 .tbfix-tasks .tb-hint { line-height: 1.45; }
 .tbfix-tasks button.tb-do { align-self: flex-start; margin-top: 2px; }
+/* hotfix86 — 할 일마다 다른 프로젝트 예시 그림.  누르면 크게. */
+.tbfix-tasks .tb-ex { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 8px 10px;
+  background: #f6f3ec; border-radius: 6px; }
+.tbfix-tasks .tb-ex-how { font-size: 13px; line-height: 1.45; color: var(--ink-strong, #2b2f36); }
+.tbfix-tasks .tb-ex-pics { display: flex; flex-wrap: wrap; gap: 10px; }
+.tbfix-tasks button.tb-ex-pic { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 4px;
+  border: 2px solid var(--line, #d6d0c4); border-radius: 6px; background: #fff; cursor: zoom-in; max-width: 240px; font-size: 12px;
+  text-align: left; }
+.tbfix-tasks button.tb-ex-pic img { width: 228px; height: auto; display: block; }
+.tbfix-tasks button.tb-ex-pic.yes { border-color: #0f8f80; }
+.tbfix-tasks button.tb-ex-pic.no { border-color: #c2453f; }
+.tbfix-tasks button.tb-ex-pic:hover { border-color: #2f5bd8; }
+img.tb-ex-big { max-width: min(90vw, 1000px); width: 100%; height: auto; display: block; margin: 0 auto 8px; }
 .tbfix-adv { margin: 6px 0; }
 .tbfix-adv > summary { cursor: pointer; color: var(--ink-soft, #555e6e); font-size: 13px; }
 #tbfix-stage { cursor: crosshair; }
