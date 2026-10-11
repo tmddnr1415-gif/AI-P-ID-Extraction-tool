@@ -5238,3 +5238,32 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 둥근 버블의 **바깥 사각형 모서리는 빈 자리**이고 도면은 거기에 별표를 찍는다
 (AL NOUF1 p55 렌더).  안/밖 판정은 **그려진 윤곽**으로 한다.  bbox 로 하면
 모서리 별표를 "심볼 위" 로 읽어 SCOPE 를 바꾼다.
+
+
+## LOGIC 회차 기록 — P&ID 회차와 따로 적는다
+
+> LOGIC 검토 메뉴(Logic / Loop / System Diagram 의 연결 적합성 · P&ID 정합성)의 회차 기록.
+> 설계: `docs/logic_review_design.md` · 지시: `docs/logic_review_kickoff.md`.
+> 작업 브랜치: `claude/logic-review-design-pd2z75` (세션이 지정한 이름 — 지시문의 `claude/logic-review` 자리).
+> `claude/titleblock-parsing-c5st4x` 위에서 갈라졌고 그 브랜치에는 커밋하지 않는다.
+
+### L1회차 — 조사 · 설계 초안 (2026-10-11) · 코드 없음
+
+* **샘플 PDF 가 오지 않았다.**  첫 메시지에 첨부가 없고 `data/` 가 없다 → §1 실태 조사(S1~S10)를
+  못 했다.  설계의 블록·선·참조 "모양" 은 전부 **가설**로 적었고, 측정 전에는 코드로 옮기지 않는다.
+* **재사용 조사 결과** (설계 §2 표):
+  - `pidcache.load_pages` 그대로 — 낱말 · SHX · 회전.  단 `segments()` 는 직선 `l` 만이라 블록
+    사각형(`re`)·곡선 게이트는 `drawings()` 에서 읽어야 하고, `drawings()` 의 `items` 는 **회전 전 좌표**다.
+  - ★ **import 함정** — 엔진 모듈은 맨이름으로 서로를 import 한다.  `app.engine.pidcache` 로 부르면
+    모듈이 둘이 되고 config 싱글턴도 둘이 된다.  pipeline 처럼 `app/engine` 을 `sys.path` 에 넣고 `import pidcache`.
+  - `derive_layout.derive` 는 순수 — 쓰되 `CFG.overlay` 는 부르지 않는다(전역 config 변경 · 실패 유형 ⑨).
+    `extract_titleblocks.parse_drawing_no` 는 `lay` 를 **반드시** 넘긴다 (기본값이 AL NOUF1 좌표).
+  - `pipe_graph` 는 배관용이고 신호선을 그래프에 넣지 않는다 · 수평·수직만 · 추적 성공률 10~13% 기록 —
+    **패턴만 베낀다**.  끊김 다리 문턱은 LOGIC 묶음의 분포로 다시 잰다.
+  - `voc.SOURCES`/`CATEGORIES` 는 닫힌 사전(모르는 키면 `ValueError`) — 설계 Q7.
+  - LOGIC PDF 를 `{data}/uploads` 에 두면 `audit.leftovers` 가 고아로 센다 → `{data}/logic/`.
+  - ⚠ **2급 프로젝트(AL NOUF1·TC2·SADARA)는 P&ID 행에 태그가 없다** — P&ID 대조(X1~X4)는 태그가
+    인쇄된 1급 프로젝트에서만 의미가 있고, 없으면 "대조 불가" 를 화면 첫 줄에 말한다.
+* **기존 파일 변경 0** (설계 문서 · 이 절만).  회귀는 돌리지 않았다 — 엔진을 안 건드렸고 이 컨테이너에
+  회귀 PDF 가 없다.
+* **사용자 판단 대기**: 설계 §8 Q1~Q12.  **Q1(샘플)** 이 구현 시작 조건이다.
