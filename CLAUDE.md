@@ -4590,7 +4590,7 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
 **그 다음 — 범례 장의 계기는 목록에 넣지 않는다 · 가르치기 할 일마다 예시 그림 (hotfix86 · 2026-10-11)**
 
 사용자: *"심볼엔레전드의 계기 식별을 추출 list 에 포함되어서는 안된다"* · *"각 항목에 대한 예시도 … 다른 프로젝트 기준으로
-어떤 걸 선택하고 어떻게 해야 하는지"*.  시험 `tests/test_hotfix86_legend_sheets.py` 6건 · 화면 시뮬레이션 `out/hotfix86/ui/`.
+어떤 걸 선택하고 어떻게 해야 하는지"*.  시험 `tests/test_hotfix86_legend_sheets.py` 6건 (빠른 시험 **1188** · 6 건너뜀) · 화면 시뮬레이션 `out/hotfix86/ui/`.
 
 1. **Takhiatash p3(범례 2쪽째)의 보기 버블 34행이 목록에 나가고 있었다.**  그 문서는 제목 칸을 못 읽어 장 종류를 범례
    머리말로만 가르는데(hotfix28), 범례 네 장(`B-VVV-M-32-001` 한 번호) 중 머리말이 인쇄된 p4 만 LEGEND 였다.
@@ -4599,12 +4599,14 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
    ④ **밸브·액추에이터·ISA 문자표를 실제로 읽어 낸 장**(`legend_profile.read_pages` 의 넷 — 기기 표·부품 낱말·선 종류는 P&ID 장의
    작은 범례 상자에서도 읽히므로 넣지 않는다: Takhiatash p32).  그리고 **범례 장과 같은 도면번호를 쓰는 PID 장**은 같은 범례 도면의
    다음 장이다.  글자 뜻·쪽 번호로 가르지 않는다.  ④ 는 `targets` 앞에서 다시 부른다.
-3. **실측** — Takhiatash 1139 → **1105행** (사라진 34행 전부 p3 · 새 행 0 · 남은 행에서 움직인 칸은 Description 35 — 문서 단위 거리
+3. **실측** — Takhiatash 1139 → **1105행 · Q'ty 1495 → 1461 · 축3 74.6 → 75.0 · 지문 `17bc34dd`** (기준선 갱신 · 사라진 34행 전부 p3 · 새 행 0 · 남은 행에서 움직인 칸은 Description 35 — 문서 단위 거리
    문턱의 모집단 감도, 40회차 [B]).  가르치기 경로(이전 프로그램 기준 · 3번 누름)도 **1105행 · 범례 장 [2,3,4,5] 위 행 0**.
 4. **예시 그림** (`spike/teach_examples.py` → `app/static/img/teach/ex_*.png` 8장 · 5~43KB) — AL NOUF1 · QFE 도면을 잘라 누를 자리에
    붉은 상자와 손가락.  설명 글은 그림이 아니라 화면(`TEACH_EXAMPLES` · `teachExampleHtml`)에 있다 (한글 글꼴을 그림에 묻히지 않는다).
    **지금 할 일에만** 붙고(목록이 길어지지 않게), 그림을 누르면 크게(`openModal`).  범례 항목은 ✔ 이런 장(기호표) / ✘ 이런 장 아님
    (배관이 그려진 P&ID) 둘을 나란히.
+5. **[회귀 · 최종 코드 · 순차]** AL NOUF1 `b61a6995` · 1065 · 1996 · 94.9 · TC2 `10e32bd0` · 864 · 5292 · 94.1 · QFE `531237eb` · 1605 ·
+   3016 · 90.7 · UAD-DXF `26d45872` · 467 — **넷 다 불변** (범례 장은 이미 제목으로 LEGEND 였다).  움직인 것은 TAKHIATASH 하나.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
