@@ -10,6 +10,7 @@ const L = {
   // 묶음 전체 (L4): 장마다 사람이 준 값 · 장마다 상태 · 다른 장에서 연결로 들어온 입력 · 활성 연결 장 목록
   allForces: {}, states: {}, linked: {}, chain: [],
   focus: null, back: [], afterFit: null,          // FROM/TO 로 간 행 · 돌아갈 자리 (L6)
+  all: null, allCode: "", allSel: null,            // 묶음 전체 점검 목록 (L7)
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -74,8 +75,48 @@ async function openJob(id) {
   L.sheets = j.sheets;
   $("#basis").innerHTML = `${esc(j.note)}<br><br>배운 글자: ${Object.keys(j.dictionary).map(esc).join(" ")}`;
   renderSheetList();
+  $("#goto").disabled = false;
+  const rep = $("#report"); rep.hidden = false; rep.href = `/logic/api/jobs/${id}/report.xlsx`;
+  L.all = null; L.allSel = null;
+  api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   if (p) openSheet(p);
+}
+/* 묶음 전체 점검 (L7) — 서버가 편 목록을 종류로 걸러 보인다.  누르면 그 시트 · 그 자리로. */
+function renderAll() {
+  const f = L.all;
+  if (!f) { $("#all-count").textContent = ""; return; }
+  $("#all-count").textContent = f.total ? `${f.total}건` : "이상 없음";
+  const sel = $("#all-code");
+  const cur = L.allCode;
+  sel.innerHTML = `<option value="">전부 (${f.total})</option>` + f.codes.map((c) => `<option value="${esc(c.code)}">${esc(c.label)} (${c.n})</option>`).join("");
+  sel.value = f.codes.some((c) => c.code === cur) ? cur : "";
+  L.allCode = sel.value;
+  const items = f.items.map((x, i) => ({ ...x, i })).filter((x) => !L.allCode || x.code === L.allCode);
+  $("#all-findings").innerHTML = items.map((x) => `<li data-i="${x.i}" class="${x.code === "FT_DESC_DIFF" ? "ok" : ""}${L.allSel === x.i ? " sel" : ""}"><span class="sh">${esc(x.sheet_no || "p" + x.page)}</span>${esc(x.text)}</li>`).join("");
+}
+function gotoFinding(i) {
+  const x = L.all && L.all.items[i];
+  if (!x) return;
+  L.allSel = i; renderAll();
+  const after = () => {
+    if (x.row) { L.focus = { page: x.page, row: x.row, side: x.side || "L", at: Date.now() }; drawOverlay(); focusRow(); return; }
+    const s = L.sheet;
+    const at = x.at || (x.block && s.blocks[x.block] && s.blocks[x.block].bbox.slice(0, 2));
+    if (x.block) { L.sel = { block: x.block }; paint(); renderInfo(); }
+    if (at) { const st = $("#stage"); setZoom(Math.max(L.zoom, 1.6)); st.scrollLeft = at[0] * L.zoom - st.clientWidth / 2; st.scrollTop = at[1] * L.zoom - st.clientHeight / 2; }
+  };
+  if (x.page === L.page) after();
+  else { L.focus = null; L.afterFit = after; openSheet(x.page); }
+}
+/* 이동 칸 — `G049-40` 꼴을 읽어 그 시트의 그 행으로 (출력 행 먼저 · 없으면 입력 행) */
+function gotoTyped(text) {
+  const m = String(text || "").toUpperCase().replace(/\s+/g, "").match(/^([A-Z]\d{3}[A-Z]?)(?:-(\d{1,3}))?$/);
+  if (!m) { status("시트-행 꼴이 아닙니다 (예: G049-40)"); return; }
+  const t = sheetByNo(m[1]);
+  if (!t) { status(`${m[1]} 시트는 이 묶음에 없습니다`); return; }
+  if (!m[2]) { L.focus = null; openSheet(t.page); return; }
+  goToRef(m[1], Number(m[2]), "R");
 }
 function stageKo(s) { return { reading: "선 읽는 중", glyphs: "글자 배우는 중", blocks: "블록 판정 중" }[s] || ""; }
 
@@ -758,6 +799,9 @@ function bind() {
   $("#zoom-out").onclick = () => setZoom(L.zoom / 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
   $("#zoom-fit").onclick = () => { L.focus = null; drawOverlay(); fit(); };
   $("#go-back").onclick = goBack;
+  $("#goto").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) { gotoTyped(e.target.value); e.target.select(); } };
+  $("#all-toggle").onclick = () => { const b = $("#all-box"); b.hidden = !b.hidden; $("#all-toggle").textContent = b.hidden ? "펼치기" : "접기"; };
+  $("#all-code").onchange = (e) => { L.allCode = e.target.value; renderAll(); };
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
@@ -772,6 +816,8 @@ function bind() {
     }
     const ref = e.target.closest(".ref");
     if (ref && ref.dataset.refSheet) { goToRef(ref.dataset.refSheet, Number(ref.dataset.refRow), ref.dataset.refSide || "R"); return; }
+    const al = e.target.closest("#all-findings li[data-i]");
+    if (al) { gotoFinding(Number(al.dataset.i)); return; }
     const cl = e.target.closest("#chain li[data-page]");
     if (cl) { L.focus = null; openSheet(Number(cl.dataset.page)); return; }
     const li = e.target.closest(".lg-rows li[data-row]");

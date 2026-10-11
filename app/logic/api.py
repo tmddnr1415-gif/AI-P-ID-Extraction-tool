@@ -6,6 +6,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from urllib.parse import quote
 
 import pymupdf
 from fastapi import APIRouter, Body, File, HTTPException, UploadFile
@@ -13,10 +14,11 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, sim, store
+from . import fromto, report, sim, store
 
 router = APIRouter()
-ZOOM = 2.5                      # 장 그림 배율 (A3 1191pt → 약 2980px)
+ZOOM = store.ZOOM
+_SIZES = {}                     # job → {page: [w, h]} — 쪽 크기는 PDF 를 한 번만 연다 (L7)
 
 
 def _static(name):
@@ -108,8 +110,25 @@ def _result(job):
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
     res = store.read_result(d)
-    fromto.check(res["sheets"])              # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5 · 여러 번 불러도 같다)
+    if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
+        fromto.check(res["sheets"])
+        res["_ft"] = True
     return res
+
+
+def _size(job, d, page):
+    sz = _SIZES.get(job)
+    if sz is None:
+        sz = {}
+        try:
+            doc = pymupdf.open(d / "source.pdf")
+            for i, pg in enumerate(doc):
+                r = pg.rect
+                sz[i + 1] = [r.width, r.height]
+        except Exception:
+            pass
+        _SIZES[job] = sz
+    return sz.get(page)
 
 
 def _sheet(job, page):
@@ -140,29 +159,34 @@ def sheets(job: str):
 @router.get("/logic/api/jobs/{job}/sheet/{page}")
 def sheet(job: str, page: int):
     s = _sheet(job, page)
+    return JSONResponse({**s, "size": _size(job, _dir(job), page), "zoom": ZOOM})
+
+
+@router.get("/logic/api/jobs/{job}/findings")
+def findings(job: str):
+    """묶음 전체의 점검 목록 — 장마다의 `findings` 를 한 줄로 편다 (새 판정 0 · 화면의 '묶음 점검' 이 읽는다)."""
+    res = _result(job)
+    return report.findings(res["sheets"])
+
+
+@router.get("/logic/api/jobs/{job}/report.xlsx")
+def report_xlsx(job: str):
+    res = _result(job)
     d = _dir(job)
-    try:
-        doc = pymupdf.open(d / "source.pdf")
-        r = doc[page - 1].rect
-        size = [r.width, r.height]
-    except Exception:
-        size = None
-    return JSONResponse({**s, "size": size, "zoom": ZOOM})
+    name = store.read_status(d).get("name") or "logic"
+    data = report.workbook(res, name)
+    fn = Path(name).stem + "_logic_review.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
 
 
 @router.get("/logic/api/jobs/{job}/page/{page}.png")
 def page_png(job: str, page: int):
     d = _dir(job)
-    cache = d / "pages" / f"p{page}_z{ZOOM}.png"
-    if not cache.exists():
-        cache.parent.mkdir(exist_ok=True)
-        doc = pymupdf.open(d / "source.pdf")
-        if not (1 <= page <= len(doc)):
-            raise HTTPException(404, "그 쪽이 없습니다.")
-        pix = doc[page - 1].get_pixmap(matrix=pymupdf.Matrix(ZOOM, ZOOM), alpha=False)
-        tmp = cache.with_suffix(".tmp.png")
-        pix.save(tmp)
-        tmp.replace(cache)
+    try:
+        cache = store.page_png(d, page)
+    except IndexError:
+        raise HTTPException(404, "그 쪽이 없습니다.")
     return FileResponse(cache, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 
@@ -194,6 +218,7 @@ def trace(job: str, page: int, body: dict = Body(default={})):
 def delete(job: str):
     d = _dir(job)
     shutil.rmtree(d, ignore_errors=True)
+    _SIZES.pop(job, None)
     return Response(status_code=204)
 
 

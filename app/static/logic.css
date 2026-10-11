@@ -165,3 +165,17 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-rows .ref.to { color: #7b4dff; }
 .lg-rows li.goto { background: #fff3bf !important; }
 #go-back:disabled { opacity: .45; cursor: default; }
+
+/* L7 — 이동 칸 · Excel · 묶음 점검 */
+.lg-goto { width: 150px; padding: 4px 8px; border: 1px solid #5a6a9a; border-radius: 6px; background: #1c2a4d; color: #fff; }
+.lg-goto::placeholder { color: #9fb0d8; }
+.lg-goto:disabled { opacity: .5; }
+.lg-head .lg-report { text-decoration: none; font-size: 13px; }
+.lg-all-h { border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
+.lg-all-h .mini { margin-left: auto; font-size: 11px; padding: 1px 6px; }
+#all-box { display: flex; flex-direction: column; min-height: 0; max-height: 45%; }
+#all-code { margin: 0 10px 6px; }
+.lg-all { overflow: auto; padding: 0 6px 10px; }
+.lg-all li .sh { font-weight: 700; margin-right: 4px; }
+.lg-all li.ok { border-left-color: #9a6200; background: #fff8e8; }
+.lg-all li.sel { outline: 2px solid var(--blue); }

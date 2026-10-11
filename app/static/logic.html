@@ -13,6 +13,8 @@
   <select id="job" title="분석한 Logic 묶음"></select>
   <label class="btn" title="Logic Diagram PDF 를 올립니다">PDF 올리기<input id="upload" type="file" accept=".pdf" hidden></label>
   <span id="samples"></span>
+  <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
+  <a id="report" class="btn lg-report" href="#" hidden title="묶음 전체의 점검 결과를 Excel 로 내려받습니다">Excel 보고서</a>
   <span id="status" class="lg-status"></span>
 </header>
 
@@ -21,6 +23,12 @@
     <div class="lg-side-h">시트 <span id="sheet-count"></span></div>
     <input id="sheet-filter" placeholder="시트 번호 · 제목 찾기">
     <ul id="sheet-list"></ul>
+    <div class="lg-side-h lg-all-h">묶음 점검 <span id="all-count"></span>
+      <button id="all-toggle" class="mini" title="묶음 전체의 점검 목록을 펼치거나 접습니다">펼치기</button></div>
+    <div id="all-box" hidden>
+      <select id="all-code" title="점검 종류로 거릅니다"></select>
+      <ul id="all-findings" class="lg-find lg-all"></ul>
+    </div>
   </aside>
 
   <section class="lg-view">

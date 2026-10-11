@@ -250,6 +250,22 @@ def test_api_round_trip(tmp_path, monkeypatch):
     tr = client.post(f"/logic/api/jobs/{job}/sheet/1/trace", json={"start": "row:1"}).json()
     assert len(tr["order"]) >= 2
     assert client.get(f"/logic/api/jobs/{job}/page/1.png").headers["content-type"] == "image/png"
+    # L7 — 묶음 점검 목록 · Excel 보고서 (판정 0 · 장마다의 findings 를 옮겨 적는다)
+    fd = client.get(f"/logic/api/jobs/{job}/findings").json()
+    assert fd["total"] == sum(len(x["findings"]) for x in [s]) and sum(c["n"] for c in fd["codes"]) == fd["total"]
+    assert all(it["page"] == 1 and it["label"] for it in fd["items"])
+    xr = client.get(f"/logic/api/jobs/{job}/report.xlsx")
+    assert xr.status_code == 200 and xr.headers["content-type"].endswith("sheet") and "filename*=UTF-8" in xr.headers["content-disposition"]
+    import io
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(xr.content))
+    assert [w.title for w in wb] == ["요약", "from-to 불일치", "설명 다름", "연결 점검", "입력 행", "출력 행"]
+    rows_in = [r for r in s["rows"] if r["side"] == "L"]
+    rows_out = [r for r in s["rows"] if r["side"] == "R"]
+    assert wb["입력 행"].max_row - 1 == len(rows_in) and wb["출력 행"].max_row - 1 == len(rows_out)
+    # 장 그림은 분석이 끝나며 미리 그려 둔다 (L7) — 분석 프로세스가 쓴 캐시가 그대로 쓰인다
+    from app.logic import store
+    assert (store.job_dir(job) / "pages" / f"p1_z{store.ZOOM}.png").exists()
     assert client.post("/logic/api/jobs", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 400
     assert client.get("/logic/api/jobs/zzz").status_code == 404
     assert client.get("/logic").status_code == 200

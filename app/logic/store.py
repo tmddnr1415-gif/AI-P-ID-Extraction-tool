@@ -19,6 +19,7 @@ from pathlib import Path
 from app import paths
 
 JOB_RE = re.compile(r"^[0-9a-f]{12}$")
+ZOOM = 2.5                      # 장 그림 배율 (A3 1191pt → 약 2980px) — api · run 이 같은 값을 쓴다
 
 
 def root() -> Path:
@@ -90,3 +91,21 @@ def jobs() -> list:
         out.append({"id": d.name, **{k: st.get(k) for k in ("state", "name", "created", "stage", "done", "total",
                                                              "error", "sheets", "seconds")}})
     return out
+    return res
+
+
+def page_png(d: Path, page: int) -> Path:
+    """장 그림 캐시 파일 — 없으면 그린다 (api 가 요청 때, run 이 분석 끝에 미리).  임시 파일 → replace."""
+    import pymupdf
+    cache = d / "pages" / f"p{page}_z{ZOOM}.png"
+    if cache.exists():
+        return cache
+    cache.parent.mkdir(exist_ok=True)
+    doc = pymupdf.open(d / "source.pdf")
+    if not (1 <= page <= len(doc)):
+        raise IndexError(page)
+    pix = doc[page - 1].get_pixmap(matrix=pymupdf.Matrix(ZOOM, ZOOM), alpha=False)
+    tmp = cache.with_suffix(f".tmp{os.getpid()}.png")
+    pix.save(tmp)
+    os.replace(tmp, cache)
+    return cache
