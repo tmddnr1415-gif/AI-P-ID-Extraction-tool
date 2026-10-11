@@ -94,14 +94,14 @@ ITEMS = ("butterfly", "actuator_stem", "pneumatic", "line_styles",
 
 # 사람이 읽을 한 줄 설명 — "무엇을 저장했는지 사람이 읽을 수 있어야 한다".
 LABELS = {
-    "butterfly": "버터플라이 밸브 날개 눈금 (범례 p2 LINE VALVES)",
-    "actuator_stem": "액추에이터 스템 규약 (범례 p3 VALVES ACTUATORS)",
-    "pneumatic": "공압 액추에이터 외곽 치수 (범례 p3)",
-    "line_styles": "계장 신호선 파선 주기와 최소 런 (범례 SIGNAL/ELECTRIC 행)",
-    "isa_table": "ISA 식별 문자표 (범례 p3)",
-    "equipment_symbols": "기기 표 (범례 p2 EQUIPMENT)",
-    "component_words": "중간 부품 낱말 (범례가 인쇄한 STRAINER 계열)",
-    "unit_multipliers": "유닛 번호별 수량 승수 (범례 p5)",
+    "butterfly": "버터플라이 밸브 날개 눈금 (Symbol & Legend p2 LINE VALVES)",
+    "actuator_stem": "액추에이터 스템 규약 (Symbol & Legend p3 VALVES ACTUATORS)",
+    "pneumatic": "공압 액추에이터 외곽 치수 (Symbol & Legend p3)",
+    "line_styles": "계장 신호선 파선 주기와 최소 런 (Symbol & Legend SIGNAL/ELECTRIC 행)",
+    "isa_table": "ISA 식별 문자표 (Symbol & Legend p3)",
+    "equipment_symbols": "기기 표 (Symbol & Legend p2 EQUIPMENT)",
+    "component_words": "중간 부품 낱말 (Symbol & Legend가 인쇄한 STRAINER 계열)",
+    "unit_multipliers": "유닛 번호별 수량 승수 (Symbol & Legend p5)",
 }
 
 # 유도가 성공했다고 볼 출처.  나머지는 "유도 실패" 로 기록한다 - 기본값으로
@@ -128,7 +128,7 @@ def load(data_dir, project: str):
         return None
     from app import jsonstore
     try:
-        data = jsonstore.read(path, None, what="범례 프로필")
+        data = jsonstore.read(path, None, what="Symbol & Legend 프로필")
     except OSError:
         return None
     if not isinstance(data, dict) or data.get("version") != VERSION:

@@ -179,6 +179,38 @@ def pick_min(name: str) -> dict:
     return teach
 
 
+def pick_propose(name: str) -> dict:
+    """hotfix87 — **제안만 확인** — 서버 `/teach/propose` 와 같은 함수(`app/teach_propose.py`)가 고른 답을
+    사람이 고치지 않고 [저장하고 다시 분석] 만 누른 것.  누르는 횟수 = 1 (저장)."""
+    import pidcache
+    import derive_layout
+    import detect_symbols as ds
+    from app import teach_propose
+    proj = PROJECTS[name]
+    _doc, pages = pidcache.load_pages(ROOT / proj["pdf"])
+    form = derive_layout._form_pages(pages)[0] or pages
+    got = teach_propose.propose(pages, form, ds.RULESET_V3.anchors, ["legend", "bubbles", "notes?"])
+    by = {p.page_no: p for p in pages}
+    size = lambda n: [float(by[n].width), float(by[n].height)]
+    teach = {"who": "sim", "legend": {}, "bubbles": [], "notes": None, "drawing": None, "legend_page": None}
+    if got["legend_page"]:
+        teach["legend_page"] = [{"page_no": n, "size": size(n)} for n in got["legend_page"]["pages"]]
+    if got["bubbles"]:
+        teach["bubbles"] = [{"page_no": e["page_no"], "rect": e["rect"], "size": size(e["page_no"])}
+                            for e in got["bubbles"]["examples"]]
+    if got["notes"]:
+        teach["notes"] = {"page_no": got["notes"]["page_no"], "rect": got["notes"]["rect"],
+                          "size": size(got["notes"]["page_no"])}
+    if got.get("drawing"):
+        teach["drawing"] = {"page_no": got["drawing"]["page_no"], "rect": got["drawing"]["rect"],
+                            "size": size(got["drawing"]["page_no"])}
+    teach["_busiest"] = (got["bubbles"] or {}).get("pages", [None])[0]
+    teach["_shapes"] = {}
+    teach["_proposal"] = got
+    teach["_clicks"] = 1
+    return teach
+
+
 def analyse(name: str, teach: dict, blind: str) -> dict:
     os.environ["PID_TEACH_BLIND"] = blind
     from app import pipeline
@@ -189,7 +221,8 @@ def analyse(name: str, teach: dict, blind: str) -> dict:
     except Exception as e:                       # noqa: BLE001
         return {"ok": False, "type": type(e).__name__, "msg": str(e)[:400], "secs": round(time.time() - t0)}
     return {"ok": True, "secs": round(time.time() - t0), "fingerprint": pipeline.fingerprint(res),
-            "rows": [{k: r.get(k) for k in ("page_no", "tab", "type", "tag_no", "qty", "scope", "rect")} for r in res["rows"]],
+            "rows": [{k: r.get(k) for k in ("page_no", "tab", "type", "tag_no", "qty", "scope", "rect",
+                                            "description", "line_no", "line_size", "valve_type")} for r in res["rows"]],
             "taught": ((res.get("applied_rules") or {}).get("layout") or {}).get("taught")}
 
 
@@ -224,12 +257,16 @@ def compare(name: str, got: dict) -> dict:
     nb, nt, same = len(base["rows"]), len(got["rows"]), len(pairs)
     diff_scope = sum((b.get("scope") or "") != (r.get("scope") or "") for b, r in pairs)
     diff_qty = sum(str(b.get("qty")) != str(r.get("qty")) for b, r in pairs)
+    diff_desc = sum((b.get("description") or "") != (r.get("description") or "") for b, r in pairs if "description" in r)
+    diff_line = sum((b.get("line_no") or "") != (r.get("line_no") or "") for b, r in pairs if "line_no" in r)
     key = lambda r: [r["page_no"], r["tab"], r["type"], r.get("tag_no") or "", [round(v) for v in (r.get("rect") or [])]]
     return {"base_rows": nb, "taught_rows": nt, "same": same,
             "recall": round(same / max(1, nb) * 100, 1),
             "precision": round(same / max(1, nt) * 100, 1),
             "only_base": len(only_b), "only_taught": len(only_t),
-            "scope_diff": diff_scope, "qty_diff": diff_qty,
+            "scope_diff": diff_scope, "qty_diff": diff_qty, "description_diff": diff_desc, "line_no_diff": diff_line,
+            "qty_sum_base": sum(int(r.get("qty") or 0) for r in base["rows"]),
+            "qty_sum_taught": sum(int(r.get("qty") or 0) for r in got["rows"]),
             "same_fingerprint": got["fingerprint"] == base.get("fingerprint"),
             "only_base_types": collections.Counter(r["type"] for r in only_b).most_common(8),
             "only_taught_types": collections.Counter(r["type"] for r in only_t).most_common(8),
@@ -250,6 +287,9 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     stem = name.replace(" ", "_") + "_" + (blind.replace(",", "-") or "none")
     full = "--full" in args
+    prop = "--propose" in args
+    if prop:
+        stem += "_propose"
     if full:
         out = out / "full"
         out.mkdir(parents=True, exist_ok=True)
@@ -262,7 +302,8 @@ def main() -> int:
         print(json.dumps({k: v for k, v in rep.items() if not k.endswith("_sample")}, ensure_ascii=False)[:1500])
         return 0
     if "--pick-only" in args:
-        print(json.dumps(pick(name) if full else pick_min(name), ensure_ascii=False))
+        print(json.dumps(pick_propose(name) if "--propose" in args else pick(name) if full else pick_min(name),
+                         ensure_ascii=False))
         return 0
     if "--run" in args:
         teach = json.loads((out / f"{stem}.teach.json").read_text())
@@ -270,11 +311,12 @@ def main() -> int:
         (out / f"{stem}.run.json").write_text(json.dumps(got, ensure_ascii=False))
         return 0
     # 1) 사람 흉내 (가벼운 자식) → 2) 눈가림 분석 (자식) → 3) 맞대기
-    teach = json.loads(subprocess.run([sys.executable, __file__, name, "--pick-only"] + (["--full"] if full else []), capture_output=True,
+    teach = json.loads(subprocess.run([sys.executable, __file__, name, "--pick-only"] + (["--full"] if full else [])
+                                      + (["--propose"] if prop else []), capture_output=True,
                                       text=True, check=True, cwd=str(ROOT)).stdout.strip().splitlines()[-1])
     (out / f"{stem}.teach.json").write_text(json.dumps(teach, ensure_ascii=False, indent=1))
     subprocess.run([sys.executable, __file__, name, "--blind", blind, "--out", str(out.parent if full else out), "--run"]
-                   + (["--full"] if full else []),
+                   + (["--full"] if full else []) + (["--propose"] if prop else []),
                    check=True, cwd=str(ROOT))
     got = json.loads((out / f"{stem}.run.json").read_text())
     if not got.get("ok"):

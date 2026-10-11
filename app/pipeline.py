@@ -1470,10 +1470,10 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         if not pipe_style.values.get("min_run"):
             raise LegendUnavailable(
                 "이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 "
-                "저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 "
-                "분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 "
-                "장이 없어도 분석할 수 있습니다.  범례 장이 이 PDF 에 있는데 못 읽은 것이라면 "
-                "[도면 가르치기] 에서 범례 장을 띄우고 [이 장이 범례입니다] 를 한 번 "
+                "저장된 Symbol & Legend 프로필도 없습니다. Symbol & Legend 장이 든 PDF 로 한 번 "
+                "분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 Symbol & Legend "
+                "장이 없어도 분석할 수 있습니다.  Symbol & Legend 장이 이 PDF 에 있는데 못 읽은 것이라면 "
+                "[도면 가르치기] 에서 Symbol & Legend 장을 띄우고 [이 장이 Symbol & Legend입니다] 를 한 번 "
                 "누르면 그 장에서 읽습니다.")
 
         legend_derived["line_styles"] = pipe_style
@@ -1540,13 +1540,13 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         kinds = collections.Counter(tb_rows[pc.page_no]["page_kind"] for pc in pages)
         out_scope = sum(1 for pc in pages
                         if tb_rows[pc.page_no]["page_kind"] == "PID" and not pc.analysis_scope)
-        names = {"LEGEND": "범례", "DRAWING_LIST": "도면 목록", "PID": "P&ID", "UNKNOWN": "도면번호 못 읽음"}
+        names = {"LEGEND": "Symbol & Legend", "DRAWING_LIST": "도면 목록", "PID": "P&ID", "UNKNOWN": "도면번호 못 읽음"}
         parts = [f"{names.get(k, k)} {n}장" for k, n in sorted(kinds.items())]
         if out_scope:
             parts.append(f"그중 다른 프로젝트·범위 밖 {out_scope}장")
         raise NoPidSheets(f"이 PDF({len(pages)}장)에서 분석할 P&ID 장을 찾지 못했습니다 — "
                           + " · ".join(parts) + ".  P&ID 도면이 든 PDF 를 올려 주세요 "
-                          "(범례만 따로 든 PDF 라면 P&ID 와 함께 올리면 됩니다).")
+                          "(Symbol & Legend만 따로 든 PDF 라면 P&ID 와 함께 올리면 됩니다).")
     # hotfix85 — 계기 버블을 **한 장에서도** 못 찾으면 여기서 멈춘다 (`BubblesUnreadable`).
     # 찾을 때까지만 본다 (`any` — 첫 장에 버블이 있으면 한 장 값이다).  판정은 바꾸지
     # 않는다: 버블이 하나라도 서는 문서는 이 검사를 그냥 지나간다 (네 기준 문서 전부).
@@ -1593,7 +1593,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
             continue
         kind = tb_rows[pc.page_no]["page_kind"]
         if kind == "LEGEND":
-            why = "범례"
+            why = "Symbol & Legend"
         elif kind == "DRAWING_LIST":
             why = "도면 목록"
         elif not pc.analysis_scope:

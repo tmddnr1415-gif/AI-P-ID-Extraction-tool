@@ -26,18 +26,18 @@ from typing import Iterable
 WHERE = {
     "MULTIPLIER_UNDEFINED": ("수량 승수 판", "유닛코드의 승수를 지정하면 다음 분석부터 Q'ty 가 찬다"),
     "MULTIPLIER_FROM_CONFIG": ("수량 승수 판", "지금 값은 설정 폴백(남의 도면 값)이다 — 유닛코드마다 확인·지정"),
-    "MULTIPLIER_DEFAULT_ONE": ("수량 승수 판", "범례·NOTES 가 답하지 않아 x1 로 뒀다 — 유닛코드마다 확인"),
+    "MULTIPLIER_DEFAULT_ONE": ("수량 승수 판", "Symbol & Legend·NOTES 가 답하지 않아 x1 로 뒀다 — 유닛코드마다 확인"),
     "MULTIPLIER_NOTE_RANGE": ("수량 승수 판", "NOTES 가 범위(THRU)로만 말해 세지 않았다"),
     "MULTIPLIER_BY_USER": ("수량 승수 판", "사람이 지정한 값으로 돌았다 (감사용 — 할 일 아님)"),
     "DRAWING_NO_BY_USER": ("장 도면번호 판", "사람이 적은 도면번호로 읽은 장 (감사용 — 할 일 아님)"),
     "VENDOR_MARK_UNDEFINED": ("근거 패널 · SCOPE 칸", "별표가 있는데 그 장 NOTES 가 뜻을 정하지 않는다 — 공급 주체를 사람이 가른다"),
-    "BUBBLE_DASHED": ("근거 패널 · SCOPE 칸", "파선으로 그린 버블 — 범례가 뜻을 정하지 않아 별표·NOTES 대로 두었다"),
+    "BUBBLE_DASHED": ("근거 패널 · SCOPE 칸", "파선으로 그린 버블 — Symbol & Legend가 뜻을 정하지 않아 별표·NOTES 대로 두었다"),
     "TAGGED_VALVE_NO_ACTUATOR": ("목록 · 탭", "태그는 있는데 액추에이터가 없는 밸브 — 어느 산출물 탭인지 도면이 말하지 않는다"),
     "VALVE_TAG_NO_BODY": ("목록 · 근거 패널", "태그 버블은 있는데 몸체를 못 찾았다 — 몸체·액추에이터 칸이 비어 있다"),
     "TAG_TYPE_MISMATCH": ("근거 패널", "태그 기능코드와 버블 글자가 다르다 — 도면이 두 말을 한다"),
     "TAG_EVIDENCE_ROW": ("근거 패널 · SCOPE 칸", "태그만이 증거인 행 — 공급 주체 미판정"),
     "SCOPE_OVERRIDE_UNRESOLVED": ("근거 패널", "PLANT COMMON 같은 범위 문구가 있다 — 어느 항목이 해당하는지 사람이 가른다"),
-    "UNKNOWN_SYMBOL": ("미지정 심볼 등록 화면", "범례에 없는 심볼 — 사람이 정한다"),
+    "UNKNOWN_SYMBOL": ("미지정 심볼 등록 화면", "Symbol & Legend에 없는 심볼 — 사람이 정한다"),
     "TYPICAL_AMBIGUOUS": ("근거 패널", "같은 표식의 Typical 상세가 둘 이상 — 어느 것인지 도면이 말하지 않는다"),
     "TYPICAL_POINT_UNLABELLED": ("근거 패널 · Q'ty", "Typical 표식 아래 이름표를 못 읽은 행"),
 }
@@ -146,7 +146,7 @@ def _titleblock(engine, pages, user_sheets: dict, user_cells: bool) -> dict:
     unknown_real = [n for n in unknown if n not in legend_pages]
     rev_read = sum(1 for p in pid if str(p.get("rev") or ""))
     lines.append(f"도면번호 읽힌 장 {len(pid)} · 못 읽은 장 {len(unknown)}"
-                 + (f" (그중 범례 장 {len(unknown) - len(unknown_real)})" if len(unknown) != len(unknown_real) else "")
+                 + (f" (그중 Symbol & Legend 장 {len(unknown) - len(unknown_real)})" if len(unknown) != len(unknown_real) else "")
                  + f" · REV 읽힌 장 {rev_read}/{len(pid)}")
     set_sheets = {str(k) for k in (user_sheets or {})}
     missing = [n for n in unknown_real if str(n) not in set_sheets]
@@ -174,9 +174,9 @@ def _legend(engine, labels: dict) -> dict:
     status = "ok"
     mode = lp.get("mode") or "unknown"
     sheets = lp.get("legend_sheets") or []
-    lines.append({"derived": f"이 문서의 범례를 직접 읽었다 (값을 읽은 장 {len(sheets)})",
-                  "reused": "프로젝트에 저장된 범례 프로필을 썼다" + (" · 이 PDF 의 범례와 대조함" if lp.get("compared") else " · 이 PDF 에 범례가 없어 대조 못 함"),
-                  "unknown": "범례 기록이 없는 옛 분석"}.get(mode, mode))
+    lines.append({"derived": f"이 문서의 Symbol & Legend를 직접 읽었다 (값을 읽은 장 {len(sheets)})",
+                  "reused": "프로젝트에 저장된 Symbol & Legend 프로필을 썼다" + (" · 이 PDF 의 Symbol & Legend와 대조함" if lp.get("compared") else " · 이 PDF 에 Symbol & Legend가 없어 대조 못 함"),
+                  "unknown": "Symbol & Legend 기록이 없는 옛 분석"}.get(mode, mode))
     fell = []
     for key, d in leg.items():
         if not isinstance(d, dict):
@@ -192,18 +192,18 @@ def _legend(engine, labels: dict) -> dict:
                          + (f" (값은 {whose} 의 것)" if src == "CONFIG_FALLBACK" else ""))
         if any(src == "NEEDS_REVIEW" for _k, src, _n_ in fell):
             status = "todo"
-            todo.append({"what": "범례가 그 항목을 그리지 않고 설정에도 값이 없다",
+            todo.append({"what": "Symbol & Legend가 그 항목을 그리지 않고 설정에도 값이 없다",
                          "where": "config/project_<이름>.yaml valves.legend_fallback",
                          "why": "그 판정(밸브 몸체·액추에이터·신호선)은 값이 없으면 돌지 않는다"})
         else:
-            todo.append({"what": "범례에서 재지 못한 항목 " + ", ".join(k for k, _s, _n_ in fell) + " 이 설정 폴백으로 돌았다",
-                         "where": "Symbol & Legend 장 확인 (그 심볼이 범례에 그려져 있는가) → 없으면 프로젝트 설정에 그 도면 값을 적는다",
+            todo.append({"what": "Symbol & Legend에서 재지 못한 항목 " + ", ".join(k for k, _s, _n_ in fell) + " 이 설정 폴백으로 돌았다",
+                         "where": "Symbol & Legend 장 확인 (그 심볼이 Symbol & Legend에 그려져 있는가) → 없으면 프로젝트 설정에 그 도면 값을 적는다",
                          "why": f"지금 값은 {whose} 에서 잰 것이라 이 도면의 축척·그리기 방식과 다를 수 있다"})
     vl = engine.get("valve_layout") or {}
     if vl:
         sc = vl.get("legend_scale")
         if sc and float(sc) != 1.0:
-            lines.append(f"범례 장과 본문 장의 종이가 다르다 — 범례에서 잰 길이에 x{sc} 를 곱했다 ({vl.get('legend_scale_source') or ''})")
+            lines.append(f"Symbol & Legend 장과 본문 장의 종이가 다르다 — Symbol & Legend에서 잰 길이에 x{sc} 를 곱했다 ({vl.get('legend_scale_source') or ''})")
         for k, lab in (("act_box_source", "액추에이터 울타리 창"), ("source", "밸브 몸체 창")):
             s = str(vl.get(k) or "")
             if s and "LEGEND" not in s.upper():
@@ -218,7 +218,7 @@ def _legend(engine, labels: dict) -> dict:
         if first and not succ:
             status = _worst(status, "warn")
             lines.append("SUCCEEDING 열을 못 읽었다 — 사전에 없는 태그(AIT 등)가 행이 되지 않는다")
-            todo.append({"what": "범례 ISA 문자표의 SUCCEEDING 열 판형 확인",
+            todo.append({"what": "Symbol & Legend ISA 문자표의 SUCCEEDING 열 판형 확인",
                          "where": "Symbol & Legend 의 ISA 표 장 (TYPICAL SYMBOL 머리줄 또는 `( ) X` 칸)",
                          "why": "그 열이 있어야 두 글자 이상 태그가 분해된다 (50회차 · hotfix31)"})
     ia = engine.get("isa_anchors") or {}
@@ -226,7 +226,7 @@ def _legend(engine, labels: dict) -> dict:
         lines.append(f"사전에 없던 낱말을 ISA 표가 앵커로 세움 {ia.get('total')}개")
     facts = {"mode": mode, "sheets": sheets, "fallbacks": [k for k, _s, _n_ in fell],
              "legend_scale": vl.get("legend_scale")}
-    return _sec("legend", "범례", status, lines, todo, facts)
+    return _sec("legend", "Symbol & Legend", status, lines, todo, facts)
 
 
 def _multipliers(engine, rows, user_mults: dict) -> dict:
@@ -236,8 +236,8 @@ def _multipliers(engine, rows, user_mults: dict) -> dict:
     lines, todo = [], []
     status = "ok"
     table = m.get("table") or {}
-    lines.append({"LEGEND": "범례 UNIT IDENTIFICATION 표에서 읽었다",
-                  "CONFIG_FALLBACK": "범례에 승수표가 없어 설정 폴백으로 돌았다 (남의 도면 값일 수 있다)",
+    lines.append({"LEGEND": "Symbol & Legend UNIT IDENTIFICATION 표에서 읽었다",
+                  "CONFIG_FALLBACK": "Symbol & Legend에 승수표가 없어 설정 폴백으로 돌았다 (남의 도면 값일 수 있다)",
                   "USER": "사람이 지정한 승수로 돌았다"}.get(src, src or "승수 기록 없음")
                  + (" — " + " · ".join(f"{k}:x{v}" for k, v in sorted(table.items())) if table else ""))
     if isinstance(un, dict) and un:
@@ -309,7 +309,7 @@ def _scope(engine, rows) -> dict:
         lines.append(f"공급 주체 빈칸 {blank}행 (태그만이 증거인 행 · 사람이 더한 행)")
     dashed = sum(1 for r in rows if "BUBBLE_DASHED" in _codes(r))
     if dashed:
-        lines.append(f"파선으로 그린 버블 {dashed}행 — 범례가 파선 버블의 뜻을 정하지 않는다 (실무 판단 15)")
+        lines.append(f"파선으로 그린 버블 {dashed}행 — Symbol & Legend가 파선 버블의 뜻을 정하지 않는다 (실무 판단 15)")
     return _sec("scope", "공급 주체 (SCOPE)", status, lines, todo,
                 facts={"dist": dict(sc), "undefined": undefined, "nameless": nameless})
 

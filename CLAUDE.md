@@ -4608,6 +4608,43 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
 5. **[회귀 · 최종 코드 · 순차]** AL NOUF1 `b61a6995` · 1065 · 1996 · 94.9 · TC2 `10e32bd0` · 864 · 5292 · 94.1 · QFE `531237eb` · 1605 ·
    3016 · 90.7 · UAD-DXF `26d45872` · 467 — **넷 다 불변** (범례 장은 이미 제목으로 LEGEND 였다).  움직인 것은 TAKHIATASH 하나.
 
+**그 다음 — 누를 자리를 프로그램이 먼저 고른다 · "Symbol & Legend" 문구 (hotfix87 · 판정 0줄)**
+
+사용자: *"범례라는 단어보다 Symbol & Legend 라고 표현한다 · takhiatash 사용자 직접 범위 지정의 결과값과 클로드에서
+takhiatash pid 학습 후 식별했을 때의 결과가 오차범위 5% 안에 들어오나 · 사용자 직접 범위 지정의 포인트가 많지 않아야
+한다. 최적화해 달라."*  시험 `tests/test_hotfix87_propose.py` 11건 (빠른 시험 **1199**) · 시뮬레이션 `spike/teach_sim.py --propose`
+→ `out/hotfix87/sim/` · 화면 `AUDIT_PROPOSE=1 spike/ui_audit_teach.py` → `out/hotfix87/ui_propose/`.
+
+1. **문구** — 화면·안내·멈춤 문장·점검표의 '범례' 를 'Symbol & Legend' 로.  **주석과 결과 지문에 들어가는 글
+   (`needs_review` 사유 · 범례 유도 note)은 그대로** — 바꾸면 지문이 움직인다.  오버레이 색 설명판('범례 접기')도 그대로
+   (뜻이 다르다).  ⚠ 첫 판의 JS 문자열 판독기가 주석 몇 줄까지 바꿨다(정규식 리터럴에서 상태가 엉켰다) — 줄 단위로 다시 했다.
+2. **★ 제안** (`app/teach_propose.py` · `GET /jobs/{id}/teach/propose`) — 할 일마다 프로그램이 답을 골라 판에 **미리 채운다**.
+   사람은 초록·파랑 표시를 보고 [저장하고 다시 분석] **한 번**.  틀린 것만 [다시 고르기].
+   · Symbol & Legend 장 = 머리말을 인쇄된 그대로(2점) · 핵심 낱말(1점)로 가장 많이 담은 장 + 빠진 칸은 가까운 장
+     (엔진이 가르친 장에서 칸을 찾는 길과 같은 판정) — 네 문서 전부 맞는 장 (AL NOUF1 [3,2] · TC2 [4,2] · QFE [3,2] · Takhiatash [2])
+   · 버블 = 계기 글자가 많은 장 넷에서 글자 자리를 눌러 본 것처럼(`bubble_at`) 모양을 모으고, 그 모양으로 찾은 버블이
+     계기 글자를 가장 많이 품는 것.  다음 12장에서 그 모양이 절반 넘게 못 감싼 장이 있으면 둘째 모양 (QFE p42)
+   · NOTES = 두 장 이상 같은 자리에 인쇄된 제목 → 그 제목을 누른 것과 같은 영역 (`notes_rect` — `/teach/click` 과 같은 함수)
+   · 도면 영역 = 테두리를 **선이 아니라 사각형 하나**로 그린 양식에서만 (`_box_edges` — 자동 새 양식 갈래와 같은 함수)
+   **판정이 아니다** — 엔진은 이 모듈을 모르고(AST 시험) 사람이 저장해야 `form_teach.json` 에 들어간다.  저장 기록에
+   `note: 프로그램 제안을 확인하고 저장` 이 남는다.
+3. **계산은 서버 밖 일꾼이** (`page_warm.call(teach_propose.propose_pdf)`) — 큰 도면 30~70초라 서버 안에서 돌면 대시보드의
+   3초 확인이 실패한다 (hotfix56).  **분석이 가르칠 수 있는 이유로 멈춘 그 순간 시작**한다 (`_prefetch_proposals` — 타이틀블록 ·
+   Symbol & Legend · 버블.  글자층 없음은 DXF 안내라 제외).  일꾼이 없으면 서버 안에서.
+4. **★ 실측이 잡은 것 셋.**  (가) NOTES 영역을 재려고 테두리를 **장 전부**에서 재면 A1 54장 94초 → 같은 크기 장 6장만
+   (`FRAME_SAMPLE`) · (나) 그 6장을 띄엄띄엄 뽑았더니 QFE 에서 표지·목록 장이 섞여 노트 열을 못 알아봐 별표 정의가 영역 밖 →
+   공급 주체 356칸 · 수량 487칸이 갈렸다 → **같은 자리에 NOTES 제목을 인쇄한 장**을 먼저 (`_heading_at`) · (다) 테두리를 사각형으로
+   그린 Takhiatash 에서 테두리를 못 찾으면 종이가 테두리가 되어 **여백의 격자 번호(`7`)가 Description 에 섞였다**(25행) →
+   도면 영역 제안 (4번째 항목).
+5. **5% 질문의 답 — Takhiatash 이전 프로그램(`PID_FORM_AUTO=0`) + 제안 그대로 저장만(누르기 1번)**:
+   자동 식별(1105행)과 **행 1105 = 1105 · 공급 주체 0 · 수량 0 · Q'ty 합 1461 = 1461 · Line No. 0 · Description 0 — 전부 같다.**
+   다른 문서도 프로그램이 스스로 찾는 것을 일부러 막은 눈가림(`bubbles,legend,frame`)으로 쟀다:
+   AL NOUF1 1065 = 1065 (Description 4 — 눈가림이 테두리를 숨긴 탓 · 실제로는 자동으로 찾는다) · TC2 864 = 864 (전부 같음) ·
+   QFE 1597 ↔ 1605 · 같은 행 1573 (+16 은 같은 계기 표기만 다름 ZOCL↔ZSOC) · 공급 주체 16 · 수량 11 · Q'ty 합 −0.7% —
+   남은 11행은 p42 (눈가림이 버블을 못 찾게 한 장 · 실제 QFE 는 버블을 가르칠 필요가 없다).  **넷 다 5% 안.**
+6. ⚠ 제안 계산 시간 — Takhiatash 14초 · QFE 44초 · AL NOUF1/TC2 50~75초 (일꾼 · 분석 실패 순간 시작이라 보통 판을 열 때는 끝나 있다).
+   ⚠ 버블 미리보기(초록 테두리)는 판을 연 뒤 따로 잰다 (몇 초).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5133,6 +5170,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pidcache.form_auto()` · `PID_FORM_AUTO=0` | **hotfix85** — 시뮬레이션 전용: hotfix84 새 양식 자동 갈래 다섯을 끈다 (이전 프로그램 재현) |
 | `app.js` `TEACH_CASES` · `teachCase` · `openTbFix(job, kind)` · `teachPreview` · `tbZoom` · `spike/ui_audit_teach.py` | **hotfix85** — 멈춘 이유별 가르치기 판 (저절로 열림 · 안내 · 미리보기) · 화면 시뮬레이션 |
 | `pipeline.mark_legend_sheets` · `legend_rules.prints_heading` · `app.js` `TEACH_EXAMPLES`·`teachExampleHtml` · `spike/teach_examples.py` | **hotfix86** — 범례 장(제목 · 머리말 · 사람이 알려 준 장 · 기호표를 읽은 장 + 같은 도면번호)은 PID 대상이 아니다 · 할 일마다 다른 프로젝트 예시 그림 |
+| `app/teach_propose.py` (`legend_pages` · `bubbles` · `notes`/`notes_rect` · `drawing_area` · `propose_pdf`) · `main._proposal_slot`·`_prefetch_proposals` · `GET /jobs/{id}/teach/propose` · `app.js` `tbLoadProposals`·`tbShowProposal`·`tbRedo`·`TB.prop` | **hotfix87** — 가르치기 제안.  판정 아님(엔진이 모른다 · 저장해야 쓰인다) · 일꾼이 계산 · 멈춘 순간 시작 · 노트 영역은 클릭과 같은 함수 |
 | `main._teach_needs` · `POST /jobs/{id}/teach/click` · `app.js` `TEACH_TASKS` · `tbRenderTasks` · `tbClick` · `tbLegendHere` · `tbTake` | **hotfix85 후반** — 할 일 목록(서버가 미리 본 것만 · 한 번에) · 누르기 한 번 = 할 일 하나 · 누른 자리를 사각형으로 바꾸는 것은 서버 · 사각형 긋기는 고급으로 접힘 |
 | `ds.bubble_at` · `derive_layout.notes_from_heading` · `PAPER_STANDS_IN` · `legend_rules.taught_pages` · `_keyword_heading` · `HEADING_KEYWORD` | **hotfix85 후반** — 누른 점의 버블 · NOTES 제목 글자 → 영역 · 테두리를 못 찾으면 종이 · 범례 장 목록에서 머리말(인쇄된 그대로 → 핵심 낱말 · 다른 칸 제목의 일부와 겹쳐 인쇄는 뺀다) |
 | `spike/teach_sim.py` (`pick_min` · `--full` · `--rescore` · `_match`) | **hotfix85 후반** — 사람이 누를 것만 흉내 내 눈가림 분석 → 기준선과 행 단위 대조 (태그 먼저) |

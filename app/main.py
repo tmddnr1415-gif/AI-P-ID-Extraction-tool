@@ -588,6 +588,7 @@ def _worker() -> None:
                                           or traceback.format_exc()))
             db.set_stopped_stage(CON, job_id, stage)
             db.mark_finished(CON, job_id)
+            _prefetch_proposals(job_id, exc)          # hotfix87 — 판을 열기 전에 답을 골라 둔다
             fin = db.get_job(CON, job_id)
             _emit(job_id, {"progress": 0.0, "status": "failed",
                            "message": reason,
@@ -1940,7 +1941,7 @@ def _mode_facts(job) -> dict:
                 f"(태그 후보 {t.get('tags_available', 0)}행). 선언대로 태그 없이 "
                 f"읽었습니다 — 실측대로 가려면 프로젝트 모드를 실행으로 바꾸고 다시 분석하세요")
     elif conflict == "declared_epc_no_tags":
-        line = ("실행으로 고르셨는데 태그를 찾지 못했습니다. 범례·NOTES·기하로 "
+        line = ("실행으로 고르셨는데 태그를 찾지 못했습니다. Symbol & Legend·NOTES·기하로 "
                 "식별합니다 (2급)")
     elif declared:
         line = (f"{words[declared]}(선언)으로 읽었습니다 — 실측도 같습니다"
@@ -2058,7 +2059,7 @@ def _multiplier_targets(job_id: str) -> dict:
                     "set": rec or None})
     return {"project": job["project"] or "", "groups": out,
             "enabled": saved.get("enabled", True),
-            "note": "범례나 그 장 NOTES 가 답한 유닛은 여기 없습니다 — "
+            "note": "Symbol & Legend나 그 장 NOTES 가 답한 유닛은 여기 없습니다 — "
                     "사람은 도면을 이기지 않습니다."}
 
 
@@ -2538,7 +2539,7 @@ def teach_preview(job_id: str, payload: dict):
     if item.startswith("legend:"):
         key = item.split(":", 1)[1]
         if key not in form_teach.LEGEND_KEYS:
-            raise HTTPException(400, f"모르는 범례 칸: {key}")
+            raise HTTPException(400, f"모르는 Symbol & Legend 칸: {key}")
         import legend_rules
         import pipe_graph
         text = _words_in(pc, rect)
@@ -2568,6 +2569,74 @@ def teach_preview(job_id: str, payload: dict):
         return {"item": item, "ok": got.get("source") == "LEGEND", "text": text, "measured": got,
                 "page_no": pc.page_no}
     raise HTTPException(400, f"모르는 항목: {item}")
+
+
+_PROPOSALS: dict = {}               # job → {"event", "result"} — 최근 몇 분석만 든다
+_PROPOSALS_LOCK = threading.Lock()
+PROPOSE_NEEDS = ("legend", "bubbles", "notes")
+
+
+def _proposal_slot(job_id: str, start: bool = True):
+    """그 분석의 제안 자리 — 없으면 만들고 일꾼에게 맡긴다 (한 분석에 한 번만 계산한다)."""
+    with _PROPOSALS_LOCK:
+        slot = _PROPOSALS.get(job_id)
+        if slot is not None or not start:
+            return slot
+        while len(_PROPOSALS) >= 4:
+            _PROPOSALS.pop(next(iter(_PROPOSALS)))
+        slot = {"event": threading.Event(), "result": None}
+        _PROPOSALS[job_id] = slot
+
+    def run():
+        t0 = time.time()
+        try:
+            job = db.get_job(CON, job_id)
+            from app import teach_propose
+            try:
+                got = page_warm.call(teach_propose.propose_pdf, (job["pdf_path"], list(PROPOSE_NEEDS)), timeout=900)
+            except RuntimeError:            # 일꾼이 없으면(시험 · 끈 설정) 서버 안에서
+                pages = _tb_pages(job)
+                form, _sizes = _tb_form(pages)
+                import detect_symbols as _bare_ds
+                with _TEACH_LOCK:           # 노트 영역을 지을 때 `derive_layout.TAUGHT_FRAME` 을 잠깐 얹는다
+                    got = teach_propose.propose(pages, form, _bare_ds.RULESET_V3.anchors, list(PROPOSE_NEEDS))
+            slot["result"] = {**got, "secs": round(time.time() - t0, 1),
+                              "note": "프로그램이 고른 답입니다 — 맞는지 보고 저장하세요.  저장해야 분석에 쓰입니다."}
+        except Exception as exc:            # noqa: BLE001 — 제안이 안 되면 사람이 누르면 된다
+            traceback.print_exc()
+            slot["result"] = {"legend_page": None, "bubbles": None, "notes": None, "drawing": None,
+                              "error": str(exc)[:200]}
+        finally:
+            slot["event"].set()
+    threading.Thread(target=run, daemon=True, name=f"propose-{job_id}").start()
+    return slot
+
+
+def _prefetch_proposals(job_id: str, exc) -> None:
+    """가르칠 수 있는 멈춤(타이틀블록 · Symbol & Legend · 버블)이면 그 자리에서 제안을 미리 계산한다 —
+    사람이 실패 문장을 읽고 판을 열 즈음에는 답이 서 있다."""
+    if isinstance(exc, (pipeline.LegendUnavailable, pipeline.TitleBlockUnreadable, pipeline.BubblesUnreadable)):
+        try:
+            _proposal_slot(job_id)
+        except Exception:                   # noqa: BLE001
+            traceback.print_exc()
+
+
+@app.get("/jobs/{job_id}/teach/propose")
+def teach_propose_(job_id: str, needs: str = "legend,bubbles,notes"):
+    """hotfix87 — 사람이 누를 자리를 **프로그램이 먼저 골라** 둔다 (`app/teach_propose.py`).
+
+    화면이 그것을 미리 채워 보이고, 사람은 맞는지 보고 [저장하고 다시 분석] 한 번만 누른다.
+    저장하지 않는다 — 판정에 쓰이는 것은 사람이 저장한 뒤다.  계산은 서버 밖 일꾼이 하고
+    (큰 도면 30~70초), 분석이 멈춘 그 순간 시작된다 (`_prefetch_proposals`)."""
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    _require_source(job)
+    slot = _proposal_slot(job_id)
+    if not slot["event"].wait(timeout=600):
+        raise HTTPException(503, "제안을 아직 고르는 중입니다 — 잠시 뒤 다시 여세요")
+    return slot["result"]
 
 
 @app.post("/jobs/{job_id}/teach/click")
@@ -2618,10 +2687,15 @@ def teach_click(job_id: str, payload: dict):
         r = [round(w.x0 - 0.5 * h, 1), round(w.y0 - 0.3 * h, 1), round(w.x1 + 0.5 * h, 1), round(w.y1 + 0.3 * h, 1)]
         return {"item": item, "ok": True, "rect": r, "page_no": pc.page_no, "text": text}
     if item == "notes":
-        import derive_layout
+        from app import teach_propose
         form, _sizes = _tb_form(pages)
-        same = [p for p in form if abs(p.width - pc.width) <= 1 and abs(p.height - pc.height) <= 1] or [pc]
-        r = [round(v, 1) for v in derive_layout.notes_from_heading(same, w, h)]
+        frame = payload.get("frame")
+        try:
+            frame = [float(v) for v in frame] if frame and len(frame) == 4 else None
+        except (TypeError, ValueError):
+            frame = None
+        with _TEACH_LOCK:                  # 제안과 같은 함수 (hotfix87) · 화면이 든 도면 영역 안에서
+            r = teach_propose.notes_rect(form, pc, w, frame=frame)
         return {"item": item, "ok": True, "rect": r, "page_no": pc.page_no, "text": text}
     raise HTTPException(400, f"모르는 항목: {item}")
 
@@ -2725,8 +2799,8 @@ def global_symbol_list():
     return {"enabled": data.get("enabled", True),
             "symbols": list(data["symbols"].values()),
             "path": str(global_symbols.path(DATA_DIR)),
-            "note": "프로젝트 범례가 정의한 것이 있으면 그것이 이깁니다. "
-                    "이 사전은 범례에 **없는** 심볼만 채웁니다."}
+            "note": "프로젝트 Symbol & Legend가 정의한 것이 있으면 그것이 이깁니다. "
+                    "이 사전은 Symbol & Legend에 **없는** 심볼만 채웁니다."}
 
 
 @app.post("/symbols/global")
@@ -3197,27 +3271,27 @@ def _legend_facts(job) -> dict:
     mode = lp.get("mode") or "unknown"
     changes = lp.get("changes") or []
     if mode == "unknown":
-        line = "범례 기록이 없는 옛 분석입니다 (15회차 이전)"
+        line = "Symbol & Legend 기록이 없는 옛 분석입니다 (15회차 이전)"
     elif mode == "derived":
         # "범례 4장" 이 아니라 "값을 읽은 3장" 이다.  이 문서는 범례가 4장인데
         # 값을 내놓은 장은 3장이고(p4 는 어느 항목의 근거도 아니다), 4라고
         #적으면 화면이 세지 않은 것을 세었다고 말하게 된다.
-        line = ("이 문서의 범례를 직접 읽었습니다"
-                + (f" (값을 읽은 범례 {len(lp.get('legend_sheets') or [])}장)"
+        line = ("이 문서의 Symbol & Legend를 직접 읽었습니다"
+                + (f" (값을 읽은 Symbol & Legend {len(lp.get('legend_sheets') or [])}장)"
                    if lp.get("legend_sheets") else ""))
     else:
         # 왜 대조를 못 했는지는 바로 옆 `compare_note` 가 말한다.  같은 사실을
         # 두 번 적으면 띠가 길어지고 읽는 사람은 두 문장을 대조하게 된다
         # (14회차 "한 번에 한 줄만" 과 같은 이유).
-        line = "이 프로젝트에 저장된 범례를 그대로 썼습니다"
+        line = "이 프로젝트에 저장된 Symbol & Legend를 그대로 썼습니다"
     sheets = lp.get("legend_sheets") or []
     missing = lp.get("uncompared") or []
     if mode != "reused":
         note = ""
     elif not lp.get("compared"):
-        note = "이 PDF 에는 범례가 없어 대조하지 못했습니다 (같다고 보지 않습니다)"
+        note = "이 PDF 에는 Symbol & Legend가 없어 대조하지 못했습니다 (같다고 보지 않습니다)"
     else:
-        note = f"이 PDF 의 범례 {len(sheets)}장과 대조했습니다"
+        note = f"이 PDF 의 Symbol & Legend {len(sheets)}장과 대조했습니다"
         if missing:
             note += f" · {len(missing)}항목은 이 PDF 에 없어 대조하지 못했습니다"
     # 56회차 [G1] — 프로필 문장.  저장된 것은 사실(`profile`·`borrowed`)이고
@@ -3330,11 +3404,11 @@ def adopt_legend_profile(job_id: str, keys: str = Form("")):
     lp = engine.get("legend_profile") or {}
     fresh = lp.get("measured_profile")
     if not fresh:
-        raise HTTPException(400, "이 분석에는 프로필과 다른 범례가 없습니다 — "
+        raise HTTPException(400, "이 분석에는 프로필과 다른 Symbol & Legend가 없습니다 — "
                                  "갱신할 것이 없습니다")
     stored = legend_profile.load(DATA_DIR, job["project"])
     if stored is None:
-        raise HTTPException(404, "이 프로젝트에 저장된 범례 프로필이 없습니다")
+        raise HTTPException(404, "이 프로젝트에 저장된 Symbol & Legend 프로필이 없습니다")
     changed = sorted({c["item"] for c in (lp.get("changes") or [])})
     want = [k.strip() for k in keys.split(",") if k.strip()] or changed
     taken = [k for k in want if k in changed]
@@ -3440,9 +3514,9 @@ REVIEW_LABELS = {
     "SCOPE_OVERRIDE_UNRESOLVED": "시트 승수의 예외 문구가 있음 — 어느 항목이 예외인지 판단",
     "MULTI_SIGNAL_BUNDLE": "맞닿은 신호 버블 — 물리 수량 합산 여부 판단",
     "MULTIPLIER_UNDEFINED": "unit code 에 승수가 없어 Q'ty 를 비워 둠",
-    "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
+    "MULTIPLIER_FROM_CONFIG": "Q'ty 승수가 이 도면의 Symbol & Legend가 아니라 프로젝트 설정에서 왔음 — 확인 필요",
     "MULTIPLIER_DEFAULT_ONE": "도면이 승수를 말하지 않아 Q'ty 를 x1 로 셌음 — 승수 패널에서 답하면 그 값이 이김",
-    "BUBBLE_DASHED": "버블이 파선으로 그려짐 — 범례가 뜻을 정의하지 않음 · 공급 범위 확인",
+    "BUBBLE_DASHED": "버블이 파선으로 그려짐 — Symbol & Legend가 뜻을 정의하지 않음 · 공급 범위 확인",
     "MULTIPLIER_NOTE_RANGE": "이 장 NOTES 가 유닛을 범위로 적어 몇 개인지 열거하지 않음 — 수량 확인 필요",
     "TYPICAL_AMBIGUOUS": "같은 Typical 표식의 상세 상자가 한 장에 둘 이상 — 어느 상자인지 확인 필요",
     "TYPICAL_POINT": "Typical 부품 점 (예: 스팀 트랩) — 본문 표식 하나를 한 행으로 셌음 · 공급 범위 확인",
@@ -3456,7 +3530,7 @@ REVIEW_LABELS = {
         "도면이 밸브 태그 버블을 인쇄했는데 그 밸브 몸체를 못 찾음 — 품목은 있고 모양을 못 읽음",
     # hotfix82 [C] — 모양 사전이 판정한 몸체는 조용히 지나가지 않는다
     "BODY_FROM_SHAPE_LIBRARY":
-        "범례 규칙이 아니라 모양 사전(확정된 보기)이 판정한 밸브 몸체 — 식별 VOC 탭에서 O/X 로 확인",
+        "Symbol & Legend 규칙이 아니라 모양 사전(확정된 보기)이 판정한 밸브 몸체 — 식별 VOC 탭에서 O/X 로 확인",
     "VALVE_TAG_SIGNALS":
         "이 밸브 버블에 맞닿은 신호 버블(ZSC·ZSO·ZT 등)을 이 행으로 접음 — 물리 품목은 하나",
 

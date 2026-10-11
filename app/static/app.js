@@ -278,8 +278,8 @@ async function loadProjects(select) {
 const MODE_WORD = { "": "자동", bid: "입찰", epc: "실행" };
 const MODE_NOTE = {
   "": "자동 — 태그가 인쇄된 장이 있으면 실행, 없으면 입찰로 읽고 그렇게 적습니다.",
-  bid: "입찰 — 태그가 인쇄되지 않은 도면. 범례·NOTES·기하로 식별합니다 (태그가 보이면 결과 화면이 말합니다).",
-  epc: "실행 — 태그가 인쇄된 도면. 태그로 귀속하고 범례·NOTES 도 함께 씁니다 (SCOPE·수량은 여전히 별표·NOTES).",
+  bid: "입찰 — 태그가 인쇄되지 않은 도면. Symbol & Legend·NOTES·기하로 식별합니다 (태그가 보이면 결과 화면이 말합니다).",
+  epc: "실행 — 태그가 인쇄된 도면. 태그로 귀속하고 Symbol & Legend·NOTES 도 함께 씁니다 (SCOPE·수량은 여전히 별표·NOTES).",
 };
 /* hotfix60 — 프로젝트의 도면 종류를 **눈에 띄게** 적는다 (사용자: *"새 프로젝트를 누르고 입찰/실행을 누르면
  * 그 프로젝트가 입찰인지 실행인지 명확하게 선정된 타입을 표기"*).  읽는 곳은 장부의 `p.mode` 하나이고
@@ -946,7 +946,7 @@ const STAGE_KO = {
   "opening the document": "문서를 여는 중",
   "measuring the sheet": "도면 치수를 재는 중 — 이 단계가 가장 깁니다",
   "reading title blocks": "타이틀블록을 읽는 중",
-  "measuring rules off the legend sheets": "범례에서 규칙을 재는 중",
+  "measuring rules off the legend sheets": "Symbol & Legend에서 규칙을 재는 중",
   "deriving unit multipliers from legend page 5": "유닛 승수를 유도하는 중",
   "looking for instrument bubbles": "계기 버블을 찾는 중",
   "valve bodies and actuators": "밸브 몸체·액추에이터를 찾는 중",
@@ -1094,12 +1094,12 @@ function legendDoneLines(summary) {
   const f = summary.legend;
   if (!f || f.mode === "unknown") return "";
   const n = (f.summary && f.summary.item_count) || 0;
-  let out = `<div class="dn-row big"><span>범례</span>`
+  let out = `<div class="dn-row big"><span>Symbol & Legend</span>`
     + `<span class="n">${f.mode === "reused" ? "재사용" : "이 문서에서 유도"}</span></div>`
     + `<div class="dn-sub">${escape(f.line || "")}`
     + (n ? ` — ${n}항목` : "") + `</div>`;
   if (f.change_count) {
-    out += `<div class="dn-note">이 개정본의 범례가 프로필과 ${f.change_count}칸 `
+    out += `<div class="dn-note">이 개정본의 Symbol & Legend가 프로필과 ${f.change_count}칸 `
       + `다릅니다 — 자동으로 갱신하지 않았습니다. 결과 화면 위쪽에서 고르세요</div>`;
   } else if (f.mode === "reused" && !f.compared) {
     out += `<div class="dn-note">${escape(f.compare_note || "")}</div>`;
@@ -1305,7 +1305,7 @@ function dxfGuideHtml(why, pages) {
       <li>도면이 여러 장이면 장마다 DXF 를 만들어 <b>zip 하나로</b> 묶습니다 (여러 .dxf 를 한꺼번에 올려도 됩니다)</li>
       <li>첫 화면에서 <b>같은 프로젝트</b>를 고르고, 입력 종류 <b>DXF</b> 를 고른 뒤 올립니다</li>
     </ol>
-    <p class="muted small">DXF 는 글자를 글자 그대로 담아서, 범례 · 버블 · 태그를 PDF 보다 정확히 읽습니다.  PDF 를 다시 내보낼 수 있다면
+    <p class="muted small">DXF 는 글자를 글자 그대로 담아서, Symbol & Legend · 버블 · 태그를 PDF 보다 정확히 읽습니다.  PDF 를 다시 내보낼 수 있다면
       CAD 의 PDF 출력 설정에서 글꼴을 <b>텍스트로</b>(TrueType · SHX 를 주석으로) 내보내는 것도 방법입니다.</p>
     <div class="dxf-acts"><button type="button" id="dxf-go">첫 화면에서 DXF 올리기</button>
       <button type="button" class="ghost" id="dxf-close">닫기</button></div></div>`;
@@ -1366,7 +1366,7 @@ async function showFailure(message, d, jobId) {
   const tc = jobId ? teachCase(message) : null;
   tbBtn.classList.toggle("hidden", !tc);
   if (tc) {
-    hint.textContent = "이 양식에서 프로그램이 찾지 못한 자리가 있습니다 — 아래 [도면 가르치기] 에 할 일이 적혀 있습니다 — 도면을 몇 번 누르고 [저장하고 다시 분석] 을 누르면 됩니다.";
+    hint.textContent = "이 양식에서 프로그램이 찾지 못한 자리가 있습니다 — 아래 [도면 가르치기] 에 프로그램이 고른 답이 미리 채워집니다.  맞는지 보고 [저장하고 다시 분석] 을 누르면 됩니다 (틀린 것만 직접 누릅니다).";
     tbBtn.onclick = () => openTbFix(jobId, tc.kind);
   }
   $("#tbfix").classList.add("hidden");
@@ -1663,8 +1663,8 @@ async function loadLegendProfile() {
     ? fallbackItems.map(it => `${it.label || it.key}: ${it.source}${it.note ? ` — ${it.note}` : ""}`).join("\n")
     : failedKeys.join(", ");
   const bits = [`<span class="lb-tag ${f.mode}">`
-    + `${f.mode === "reused" ? "범례 재사용" : f.mode === "derived"
-        ? "범례 유도" : "기록 없음"}</span>`,
+    + `${f.mode === "reused" ? "Symbol & Legend 재사용" : f.mode === "derived"
+        ? "Symbol & Legend 유도" : "기록 없음"}</span>`,
     `<span class="lb-line">${escape(f.line || "")}</span>`];
   if (n) bits.push(`<span class="lb-n" title="${escape(failedTitle)}">${n}항목`
     + (failed ? ` · 유도 실패 ${failed} (${escape(failedKeys.slice(0, 3).join(", "))}${failed > 3 ? " …" : ""} — 설정값으로 대신)` : "") + `</span>`);
@@ -1698,7 +1698,7 @@ async function loadLegendProfile() {
       + `<span class="lb-line">${escape(f.input_notes.join(" · "))}</span></div>`;
   }
   if ((f.stored_lines || []).length) {
-    html += `<details class="lb-saved"><summary>저장된 범례 프로필 보기</summary>`
+    html += `<details class="lb-saved"><summary>저장된 Symbol & Legend 프로필 보기</summary>`
       + `<div class="lb-path">${escape(f.stored_path || "")}</div>`
       + `<pre>${escape((f.stored_lines || []).join("\n"))}</pre></details>`;
   }
@@ -1774,12 +1774,12 @@ function legendChangeBlock(f) {
     + (g.rows.length > 6 ? `<div>… 그 밖에 ${g.rows.length - 6}칸</div>` : "")
     + `</div></div>`).join("");
   return `<div class="lb-changes">`
-    + `<div class="lb-warn">이 개정본의 범례가 저장된 프로필과 `
+    + `<div class="lb-warn">이 개정본의 Symbol & Legend가 저장된 프로필과 `
     + `<b>${f.change_count}칸</b> 다릅니다. 이번 분석은 <b>프로필</b>로 했습니다 — `
     + `자동으로 갱신하지 않았습니다.</div>`
     + rows
     + `<div class="lb-act">`
-    + `<button id="lb-adopt"${f.can_adopt ? "" : " disabled"}>고른 항목을 새 범례로 갱신</button>`
+    + `<button id="lb-adopt"${f.can_adopt ? "" : " disabled"}>고른 항목을 새 Symbol & Legend로 갱신</button>`
     + `<button id="lb-keep" class="ghost">옛 프로필 유지</button>`
     + `<span id="lb-said" class="lb-said"></span></div></div>`;
 }
@@ -3428,7 +3428,7 @@ function showAppliedRules() {
     + row("승수", `${(S.job.engine.multipliers || {}).source} — ${(S.job.engine.multipliers || {}).note || ""}`)
     // A derivation that fell back to config, or gave up, says why right here -
     // the source alone does not tell a reviewer what to do about it.
-    + row("범례 유도", Object.entries(S.job.engine.legend || {})
+    + row("Symbol & Legend 유도", Object.entries(S.job.engine.legend || {})
         .map(([k, v]) => `${k}: ${v.source}`
           + (v.source === "LEGEND" ? "" : ` <span class="muted">— ${v.note || ""}</span>`))
         .join("<br>"))
@@ -3446,7 +3446,7 @@ function showAppliedRules() {
       return `${b.written ?? 0}행 작성 · ${b.blank ?? 0}행 공란`
         + `<br><span class="muted">문형 <code>${b.pattern.template || ""}</code>`
         + ` (${b.pattern.measured_on || ""})`
-        + `<br>변수어: 범례 p${(b.isa_table || {}).page_no} ISA 문자표`
+        + `<br>변수어: Symbol & Legend p${(b.isa_table || {}).page_no} ISA 문자표`
         + ` — 첫 문자 ${Object.keys((b.isa_table || {}).first || {}).length}개`
         + `<br>발주처 ${m.lines_compared}행 대조: 완전일치 ${m.exact}행 · `
         + `토큰 정밀도 ${m.token_precision}% / 재현율 ${m.token_recall}%`
@@ -5991,8 +5991,8 @@ function showEvidence(row) {
       // 획이면(QFE) 본문 깃발 다수.  둘 다 없으면 구조만으로 가른 것이라 그렇게 적는다.
       const f = e.line.format || {};
       const src = f.source === "LEGEND"
-        ? `범례 p${f.legend_page || "?"} 의 깃발 정의 (보온 글자)` + (f.prefix_source === "BODY" ? " · 직경 접두는 본문 깃발 다수" : f.prefix_source === "LEGEND" ? " · 직경 접두는 범례 예시" : "")
-        : "범례 정의 없음 — 글자+숫자 구조로만 가름";
+        ? `Symbol & Legend p${f.legend_page || "?"} 의 깃발 정의 (보온 글자)` + (f.prefix_source === "BODY" ? " · 직경 접두는 본문 깃발 다수" : f.prefix_source === "LEGEND" ? " · 직경 접두는 Symbol & Legend 예시" : "")
+        : "Symbol & Legend 정의 없음 — 글자+숫자 구조로만 가름";
       add("Line Size 근거", `${e.line.size}` + (e.line.insulation ? ` · 보온 ${e.line.insulation}` : "")
         + (e.line.design_code ? ` · 설계 코드 ${e.line.design_code}` : "") + ` — ${src}`);
     }
@@ -6007,7 +6007,7 @@ function showEvidence(row) {
   // hotfix73 — 버블이 도면에서 말한 것: 가운데 선(ISA 위치 표기) · 겹쳐 인쇄 · 버블 밖 이웃 라벨
   const det = e.detail || {};
   if (det.bubble_lines) {
-    add("버블 가운데 선", `${det.bubble_lines}줄 — ISA 위치 표기 (뜻은 범례 GENERAL INSTRUMENTS · 선 없음 = 현장)`);
+    add("버블 가운데 선", `${det.bubble_lines}줄 — ISA 위치 표기 (뜻은 Symbol & Legend GENERAL INSTRUMENTS · 선 없음 = 현장)`);
   }
   if (det.overprinted) add("겹쳐 인쇄", `같은 글자가 이 버블에 ${det.overprinted}번 찍혀 있습니다 — 한 계기로 셉니다`);
   if (Array.isArray(det.outside_labels) && det.outside_labels.length) {
@@ -7477,11 +7477,11 @@ async function showSheetNotes(pageNo) {
   // 읽은 것과 **쓴 것**을 갈라 말한다 — 판정은 서버가 준 `used` 하나다.
   const used = d.used
     ? "이 장의 수량 배수로 <b>썼습니다</b>"
-    : `이 장의 수량은 <b>범례 승수표</b>가 정했습니다 (${escape(d.source || "LEGEND")}) — `
-      + "도면이 두 곳에서 말하면 범례가 이깁니다. 위 해석은 <b>읽기만 한 값</b>입니다";
+    : `이 장의 수량은 <b>Symbol & Legend 승수표</b>가 정했습니다 (${escape(d.source || "LEGEND")}) — `
+      + "도면이 두 곳에서 말하면 Symbol & Legend가 이깁니다. 위 해석은 <b>읽기만 한 값</b>입니다";
   $("#notes-sum").textContent =
     `NOTES 판독 — 유닛 ${d.units.join(" · ")} → 배수 x${d.factor}`
-    + (d.used ? " (적용됨)" : " (읽기만 — 범례가 정함)");
+    + (d.used ? " (적용됨)" : " (읽기만 — Symbol & Legend가 정함)");
   $("#notes-body").innerHTML =
     `<p class="nq">${escape(d.text)}</p>`
     + `<p class="small"><b>식별 값</b> ${escape(d.units.join(", "))} `
@@ -8659,7 +8659,7 @@ const MARKUP_CLASSES = [
   ["MISSING", "㉡ 미검출 — 도면에 있는데 행이 없음"],
   ["FALSE_POSITIVE", "㉢ 오검출 — 행이 있는데 도면에 없음"],
   ["WRONG_VALUE", "㉣ 값 틀림 — 행은 맞는데 칸이 틀림"],
-  ["UNKNOWN_SYMBOL", "미지정 심볼 — 범례에 없어 사람이 정함"],
+  ["UNKNOWN_SYMBOL", "미지정 심볼 — Symbol & Legend에 없어 사람이 정함"],
   ["NOT_SUPPLY", "공급 대상 아님 — SCT 도 VENDOR 도 아님"],
   ["OTHER", "기타"],
 ];
@@ -9411,16 +9411,16 @@ $req("#row-delete").addEventListener("click", async () => {
 const TB = { job: null, page: 1, zoom: 0.5, cells: {}, derived: {}, state: null, drag: null,
              teach: { drawing: null, notes: null, legend: {}, bubbles: [] }, tstate: null, found: [], dirty: {} };
 const TB_LABEL = { dwg_no_region: "도면번호", title_region: "제목", rev_box: "REV", sheet_box: "SHEET",
-                   drawing: "도면 영역", notes: "NOTES 영역", "legend:LINE VALVES": "범례 — 밸브 칸 제목",
-                   "legend:VALVES ACTUATORS": "범례 — 액추에이터 칸 제목",
-                   "legend:ELECTRIC SIGNAL": "범례 — 전기 신호선 줄 이름", bubbles: "버블 예시" };
+                   drawing: "도면 영역", notes: "NOTES 영역", "legend:LINE VALVES": "Symbol & Legend — 밸브 칸 제목",
+                   "legend:VALVES ACTUATORS": "Symbol & Legend — 액추에이터 칸 제목",
+                   "legend:ELECTRIC SIGNAL": "Symbol & Legend — 전기 신호선 줄 이름", bubbles: "버블 예시" };
 const TB_TITLE_CELLS = ["dwg_no_region", "title_region", "rev_box", "sheet_box"];
 /* hotfix85 — 멈춘 이유 → 무엇을 짚을지.  서버 문장의 한 마디로 가른다 (문장은 파이프라인이 쓴다). */
 const TEACH_CASES = [
   { kind: "titleblock", re: /도면번호를 읽지 못했습니다/, item: "dwg_no_region", where: "drawing",
     reason: "이 양식에서 도면번호 칸을 찾지 못해 멈췄습니다." },
   { kind: "legend", re: /Symbol & Legend 시트를 읽지 못했고/, item: "legend:VALVES ACTUATORS", where: "legend",
-    reason: "범례(Symbol & Legend) 장을 찾지 못해 멈췄습니다." },
+    reason: "Symbol & Legend 장을 찾지 못해 멈췄습니다." },
   { kind: "bubbles", re: /계기 버블\(그 글자를 두른 원·타원\)을 한 개도 찾지 못했습니다/, item: "bubbles", where: "drawing",
     reason: "계기 버블(태그 글자를 두른 원·타원)을 한 개도 찾지 못해 멈췄습니다." },
 ];
@@ -9431,12 +9431,15 @@ const TEACH_TASKS = {
   dwg_no: { title: "도면번호 글자를 한 번 누르세요", where: "drawing", click: "dwg_no",
             hint: "타이틀블록에 인쇄된 이 장의 도면번호 글자 위를 누릅니다.  같은 자리를 모든 장에서 읽습니다.",
             done: () => !!TB.cells.dwg_no_region },
-  legend: { title: "범례 장을 띄우고 [이 장이 범례입니다] 를 누르세요", where: "legend", button: "이 장이 범례입니다",
-            hint: "Symbol & Legend 장(밸브·액추에이터 기호표가 있는 장)을 띄웁니다.  못 찾으면 ◀ ▶ 로 넘기세요.  범례가 여러 장이면 아래에 빠진 칸이 적힙니다 — 그 장을 띄우고 한 번 더 누르세요.",
+  legend: { title: "Symbol & Legend 장을 띄우고 [이 장이 Symbol & Legend입니다] 를 누르세요", where: "legend", button: "이 장이 Symbol & Legend입니다",
+            hint: "Symbol & Legend 장(밸브·액추에이터 기호표가 있는 장)을 띄웁니다.  못 찾으면 ◀ ▶ 로 넘기세요.  Symbol & Legend가 여러 장이면 아래에 빠진 칸이 적힙니다 — 그 장을 띄우고 한 번 더 누르세요.",
             done: () => !!((TB.teach.legend_page || []).length || Object.keys(TB.teach.legend || {}).length) },
   bubbles: { title: "계기 버블 하나를 누르세요", where: "drawing", click: "bubble",
              hint: "PT · TT 같은 글자가 든 원·타원의 글자 위를 누릅니다.  같은 모양을 도면 전체에서 찾아 초록으로 보입니다.  모양이 다른 버블이 있으면 그것도 하나 더 누르세요.",
              done: () => TB.teach.bubbles.length > 0 },
+  drawing: { title: "(선택) 도면 영역 (테두리 안쪽)", where: "drawing", optional: true,
+             hint: "테두리를 선이 아니라 사각형 하나로 그린 양식입니다.  프로그램이 고른 테두리가 맞으면 그대로 두세요 — 테두리 밖 여백의 격자 번호를 도면 글자로 읽지 않게 합니다.  직접 정하려면 아래 '직접 사각형으로 그리기' 에서 도면 영역을 끕니다.",
+             done: () => !!TB.teach.drawing },
   notes: { title: "(선택) NOTES 제목 글자를 누르세요", where: "drawing", click: "notes", optional: true,
            hint: "도면의 NOTES 제목을 누르면 거기서부터 테두리 끝까지를 노트로 읽습니다 (별표 공급자 · 수량 노트).  건너뛰어도 분석은 됩니다.",
            done: () => !!TB.teach.notes },
@@ -9449,8 +9452,8 @@ const TEACH_EXAMPLES = {
   dwg_no: { how: "칸 제목(DWG NO. · DRAWING NUMBER)이 아니라 번호 글자 자체를 누릅니다.",
             pics: [["ex_dwgno_1.png", "AL NOUF1 — PROJECT DWG NO. 칸의 번호"],
                    ["ex_dwgno_2.png", "QFE — DRAWING NUMBER 칸의 번호"]] },
-  legend: { how: "기호 그림과 설명이 표처럼 줄지어 있는 장(✔)이 범례이고, 배관이 이어 그려진 장(✘)은 아닙니다.  "
-                 + "범례로 알려 준 장의 계기 그림은 추출 목록에 들어가지 않습니다.",
+  legend: { how: "기호 그림과 설명이 표처럼 줄지어 있는 장(✔)이 Symbol & Legend이고, 배관이 이어 그려진 장(✘)은 아닙니다.  "
+                 + "Symbol & Legend로 알려 준 장의 계기 그림은 추출 목록에 들어가지 않습니다.",
             pics: [["ex_legend_yes.png", "✔ 이런 장 — 기호표 (AL NOUF1 Symbol & Legend)", "yes"],
                    ["ex_legend_no.png", "✘ 이런 장 아님 — 배관이 그려진 P&ID", "no"]] },
   bubbles: { how: "버블 모양은 프로젝트마다 다릅니다 (가로로 긴 것 · 세로로 선 것 · 동그란 것) — 그 도면의 버블 글자를 누르면 됩니다.",
@@ -9476,7 +9479,7 @@ function teachCase(message) { return TEACH_CASES.find(c => c.re.test(message || 
 async function openTbFix(jobId, kind) {
   TB.job = jobId; TB.cells = {}; TB.derived = {}; TB.state = null; TB.tstate = null;
   TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [], legend_page: [] }; TB.found = []; TB.dirty = {};
-  TB.needs = []; TB.task = null;
+  TB.needs = []; TB.task = null; TB.prop = {}; TB.proposing = false;
   const box = $("#tbfix");
   box.classList.remove("hidden");
   const msg = $("#tbfix-msg"); msg.textContent = "불러오는 중…"; msg.classList.remove("out");
@@ -9531,6 +9534,75 @@ async function openTbFix(jobId, kind) {
   if (first) tbSetTask(first, true); else tbRender();
   tbRenderTasks();
   box.scrollIntoView({ block: "start", behavior: "smooth" });
+  tbLoadProposals();
+}
+
+/* hotfix87 — 사람이 누를 자리를 **프로그램이 먼저 골라** 둔다 (`GET /teach/propose`).  고른 답은 화면에
+ * 미리 채워져 할 일이 ✔ 로 서고, 사람은 도면의 초록·파랑 표시가 맞는지만 보고 [저장하고 다시 분석]
+ * 을 한 번 누르면 된다.  틀린 것만 [다시 고르기].  저장하지 않으면 분석에 쓰이지 않는다. */
+async function tbLoadProposals() {
+  const job = TB.job;
+  const want = tbTaskKeys().filter(k => ["legend", "bubbles", "notes"].includes(k) && !TEACH_TASKS[k].done());
+  if (!want.length) return;
+  TB.proposing = true; tbRenderTasks();
+  let got;
+  try {
+    const r = await fetch(`/jobs/${job}/teach/propose?needs=${want.join(",")}`);
+    got = await r.json();
+    if (!r.ok) throw new Error(got.detail || r.status);
+  } catch (e) { if (TB.job === job) { TB.proposing = false; tbRenderTasks(); } return; }
+  if (TB.job !== job) return;
+  TB.proposing = false;
+  const lp = got.legend_page, bb = got.bubbles, nt = got.notes;
+  if (want.includes("legend") && lp && (lp.pages || []).length && !TEACH_TASKS.legend.done()) {
+    TB.teach.legend_page = lp.pages.map(n => ({ page_no: n })); TB.dirty.legend_page = true; TB.prop.legend = lp;
+  }
+  if (want.includes("bubbles") && bb && (bb.examples || []).length && !TEACH_TASKS.bubbles.done()) {
+    TB.teach.bubbles = bb.examples.map(e => ({ page_no: e.page_no, rect: e.rect })); TB.dirty.bubbles = true; TB.prop.bubbles = bb;
+  }
+  if (got.drawing && !TEACH_TASKS.drawing.done()) {
+    TB.teach.drawing = { page_no: got.drawing.page_no, rect: got.drawing.rect }; TB.dirty.drawing = true; TB.prop.drawing = got.drawing;
+    if (!TB.needs.some(n => n.replace(/\?$/, "") === "drawing")) TB.needs.push("drawing?");
+  }
+  if (want.includes("notes") && nt && !TEACH_TASKS.notes.done()) {
+    TB.teach.notes = { page_no: nt.page_no, rect: nt.rect }; TB.dirty.notes = true; TB.prop.notes = nt;
+  }
+  const show = ["bubbles", "legend", "notes", "drawing"].find(k => TB.prop[k]);
+  if (show) tbShowProposal(show); else tbRenderTasks();
+}
+
+const TB_PROP_TITLE = { legend: "Symbol & Legend 장", bubbles: "계기 버블 모양", notes: "(선택) NOTES 칸",
+                        drawing: "(선택) 도면 영역" };
+const TB_PROP_SUMMARY = {
+  legend: p => `Symbol & Legend 장 ${p.pages.map(n => "p" + n).join(" · ")}`,
+  bubbles: p => `버블 모양 ${p.shapes}가지 — 계기 글자 ${p.covered}/${p.total}개를 감쌉니다`,
+  notes: p => `p${p.page_no} 의 NOTES 칸 (같은 자리에 NOTES 가 인쇄된 장 ${p.pages_with_heading})`,
+  drawing: () => "테두리 사각형 안쪽만 도면으로 읽습니다 (여백의 격자 번호 제외)",
+};
+
+/* 제안 하나를 도면에 띄운다 — 버블은 찾은 버블을 초록 테두리로, NOTES 는 칸을, Symbol & Legend 는 그 장을. */
+function tbShowProposal(k) {
+  const p = TB.prop[k];
+  if (!p) return;
+  TB.task = k;
+  const out = $("#tbfix-preview");
+  if (k === "bubbles") {
+    TB.page = p.examples[0].page_no; tbRender(); teachPreview("bubbles", TB.teach.bubbles[0]);
+  } else if (k === "notes") {
+    TB.page = TB.teach.notes.page_no; tbRender(); teachPreview("notes", TB.teach.notes);
+  } else if (k === "drawing") {
+    TB.page = p.page_no; tbRender();
+    out.innerHTML = `<p><b>프로그램이 고른 도면 영역</b> — 테두리 사각형 [${p.rect.map(v => Math.round(v)).join(", ")}] pt.  `
+      + `도면의 파란 상자가 테두리 안쪽과 맞으면 그대로 두세요.</p>`;
+  } else if (k === "legend") {
+    TB.page = p.pages[0]; tbRender();
+    const names = { "LINE VALVES": "밸브 기호표", "VALVES ACTUATORS": "액추에이터 기호표", "ELECTRIC SIGNAL": "전기 신호선" };
+    const f = p.found || {};
+    out.innerHTML = `<p><b>프로그램이 고른 Symbol & Legend 장: ${p.pages.map(n => "p" + n).join(" · ")}</b> — `
+      + Object.entries(names).map(([h, n]) => f[h] ? `<span class="ok">✔ ${n} (p${f[h]})</span>` : `<span class="no">✖ ${n}</span>`).join(" · ")
+      + `</p><p class="muted">이 장이 기호표(Symbol & Legend)가 맞으면 그대로 두세요.  아니면 할 일 목록의 [다시 고르기].</p>`;
+  }
+  tbRenderTasks();
 }
 
 function tbTaskKeys() {
@@ -9542,17 +9614,27 @@ function tbRenderTasks() {
   const ol = $("#tbfix-tasks");
   const must = keys.filter(k => !TEACH_TASKS[k].optional);
   const left = must.filter(k => !TEACH_TASKS[k].done()).length;
-  const head = must.length
+  const proposed = keys.some(k => TB.prop && TB.prop[k]);
+  const head = TB.proposing
+    ? `<span class="muted">프로그램이 누를 자리를 먼저 고르는 중입니다… (큰 도면은 30~40초)</span>`
+    : must.length
     ? (left ? `해 주실 일 ${must.length}가지 — 각각 도면을 <b>한 번</b> 누르면 됩니다.  남은 일 <b>${left}</b>` :
+       proposed ? `<span class="ok">✔ 프로그램이 답을 골라 두었습니다</span> — 도면의 초록·파랑 표시가 맞는지만 보고 `
+                  + `아래 <b>[저장하고 다시 분석]</b> 을 한 번 누르세요.  틀린 것만 [다시 고르기].` :
               `<span class="ok">✔ 필요한 것을 다 알려 주셨습니다</span> — 아래 <b>[저장하고 다시 분석]</b> 을 누르세요`)
     : "이 도면은 프로그램이 스스로 읽을 수 있습니다 — 아래 <b>[저장하고 다시 분석]</b> 만 누르세요";
   ol.innerHTML = `<li class="tb-head">${head}</li>` + keys.map((k, i) => {
     const t = TEACH_TASKS[k], ok = t.done(), on = TB.task === k;
-    const btn = (t.button && on ? ` <button type="button" class="tb-do" data-do="${k}">${escape(t.button)}</button>` : "")
-      + (k === "bubbles" && ok ? ` <button type="button" class="tb-do ghost small" data-do="bubbles-clear" title="누른 버블을 모두 잊고 다시 누릅니다">다시 고르기</button>` : "");
-    return `<li class="tb-task${ok ? " done" : ""}${on ? " on" : ""}${t.optional ? " opt" : ""}" data-task="${k}">`
-      + `<span class="tb-mark">${ok ? "✔" : i + 1}</span><span class="tb-txt"><b>${escape(t.title)}</b>${btn}`
-      + (on ? `<span class="muted small tb-hint">${escape(t.hint)}</span>` + teachExampleHtml(k) : "") + `</span></li>`;
+    const prop = ok && TB.prop && TB.prop[k];
+    const btn = (t.button && on && !prop ? ` <button type="button" class="tb-do" data-do="${k}">${escape(t.button)}</button>` : "")
+      + (prop ? ` <button type="button" class="tb-do ghost small" data-do="view" data-k="${k}" title="도면에 띄워 봅니다">보기</button>` : "")
+      + (ok && (prop || k === "bubbles") ? ` <button type="button" class="tb-do ghost small" data-do="redo" data-k="${k}" title="이 답을 잊고 직접 누릅니다">${t.optional && prop ? "빼기 / 다시 고르기" : "다시 고르기"}</button>` : "");
+    const what = prop ? `<span class="tb-prop">${escape(TB_PROP_SUMMARY[k](prop))}</span>` : "";
+    const title = prop ? `${TB_PROP_TITLE[k]} — 프로그램이 골랐습니다` : t.title;
+    return `<li class="tb-task${ok ? " done" : ""}${on ? " on" : ""}${t.optional ? " opt" : ""}${prop ? " proposed" : ""}" data-task="${k}">`
+      + `<span class="tb-mark">${ok ? "✔" : i + 1}</span><span class="tb-txt"><b>${escape(title)}</b>${what}`
+      + (btn ? `<span class="tb-acts">${btn}</span>` : "")
+      + (on && !prop ? `<span class="muted small tb-hint">${escape(t.hint)}</span>` + teachExampleHtml(k) : "") + `</span></li>`;
   }).join("");
 }
 
@@ -9575,11 +9657,24 @@ $req("#tbfix-tasks").addEventListener("click", ev => {
       + `<p class="muted">붉은 상자와 손가락이 누르는 자리입니다.  이 도면이 아니라 다른 프로젝트의 그림입니다 — 지금 도면에서 같은 것을 찾아 누르세요.</p>`);
     return;
   }
-  if (btn && btn.dataset.do === "bubbles-clear") { $("#tbfix-bubbles-clear").click(); tbSetTask("bubbles", false); return; }
+  if (btn && btn.dataset.do === "view") { tbShowProposal(btn.dataset.k); return; }
+  if (btn && btn.dataset.do === "redo") { tbRedo(btn.dataset.k); return; }
   if (btn) { tbLegendHere(); return; }
   const li = ev.target.closest("li[data-task]");
+  if (li && TB.prop && TB.prop[li.dataset.task] && TEACH_TASKS[li.dataset.task].done()) { tbShowProposal(li.dataset.task); return; }
   if (li) tbSetTask(li.dataset.task, true);
 });
+
+/* 제안이든 사람이 누른 것이든 그 항목을 잊고 직접 누르게 한다. */
+function tbRedo(k) {
+  if (k === "legend") { TB.teach.legend_page = []; TB.teach.legend = {}; TB.dirty.legend_page = true; TB.dirty.legend = true; }
+  else if (k === "bubbles") { TB.teach.bubbles = []; TB.found = []; TB.dirty.bubbles = true; }
+  else if (k === "notes") { TB.teach.notes = null; TB.dirty.notes = true; }
+  else if (k === "drawing") { TB.teach.drawing = null; TB.dirty.drawing = true; }
+  if (TB.prop) TB.prop[k] = null;
+  $("#tbfix-preview").innerHTML = "";
+  tbSetTask(k, true);
+}
 
 function tbNextTask() {
   const nxt = tbTaskKeys().find(k => !TEACH_TASKS[k].done());
@@ -9591,7 +9686,7 @@ function tbNextTask() {
  * 찾아 어느 장에서 찾았는지 보인다.  빠진 칸이 있으면 그 칸이 있는 범례 장을 한 번 더 누르면 된다. */
 async function tbLegendHere() {
   const out = $("#tbfix-preview");
-  out.innerHTML = '<span class="muted">이 장에서 범례 칸을 찾는 중…</span>';
+  out.innerHTML = '<span class="muted">이 장에서 Symbol & Legend 칸을 찾는 중…</span>';
   const also = (TB.teach.legend_page || []).map(x => x.page_no).filter(n => n !== TB.page);
   let got;
   try {
@@ -9603,16 +9698,16 @@ async function tbLegendHere() {
   const names = { "LINE VALVES": "밸브 기호표", "VALVES ACTUATORS": "액추에이터 기호표", "ELECTRIC SIGNAL": "전기 신호선" };
   const f = got.found || {};
   if (!(got.here || []).length) {
-    out.innerHTML = `<p class="no">✖ p${TB.page} 에서 밸브·액추에이터·신호선 칸을 하나도 찾지 못했습니다 — 범례 장이 맞는지 보고, 다른 장이면 ◀ ▶ 로 넘긴 뒤 다시 누르세요.</p>`;
+    out.innerHTML = `<p class="no">✖ p${TB.page} 에서 밸브·액추에이터·신호선 칸을 하나도 찾지 못했습니다 — Symbol & Legend 장이 맞는지 보고, 다른 장이면 ◀ ▶ 로 넘긴 뒤 다시 누르세요.</p>`;
     return;
   }
   if (!TB.teach.legend_page.some(x => x.page_no === TB.page)) TB.teach.legend_page.push({ page_no: TB.page });
   TB.dirty.legend_page = true;
   const pages = TB.teach.legend_page.map(x => "p" + x.page_no).join(" · ");
   const miss = (got.missing || []).map(k => names[k]);
-  out.innerHTML = `<p><b>범례로 쓰는 장: ${pages}</b> — ` + Object.entries(names).map(([k, n]) =>
+  out.innerHTML = `<p><b>Symbol & Legend로 쓰는 장: ${pages}</b> — ` + Object.entries(names).map(([k, n]) =>
       f[k] ? `<span class="ok">✔ ${n} (p${f[k]})</span>` : `<span class="no">✖ ${n}</span>`).join(" · ") + "</p>"
-    + (miss.length ? `<p class="muted">빠진 칸(${miss.join(" · ")})이 다른 범례 장에 있으면 그 장을 띄우고 [이 장이 범례입니다] 를 한 번 더 누르세요.  ` +
+    + (miss.length ? `<p class="muted">빠진 칸(${miss.join(" · ")})이 다른 Symbol & Legend 장에 있으면 그 장을 띄우고 [이 장이 Symbol & Legend입니다] 를 한 번 더 누르세요.  ` +
                      "없으면 그대로 두어도 분석은 됩니다 (그 칸은 설정값으로 계속).</p>" : "");
   tbRenderTasks();
   if (!miss.length) tbNextTask();
@@ -9626,7 +9721,8 @@ async function tbClick(p) {
   let got;
   try {
     const r = await fetch(`/jobs/${TB.job}/teach/click`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item: t.click, page_no: TB.page, x: p[0], y: p[1] }) });
+      body: JSON.stringify({ item: t.click, page_no: TB.page, x: p[0], y: p[1],
+                             frame: TB.teach.drawing ? TB.teach.drawing.rect : null }) });
     got = await r.json();
     if (!r.ok) throw new Error(got.detail || r.status);
   } catch (e) { out.textContent = `읽지 못했습니다 — ${e.message || e}`; return; }
@@ -9800,11 +9896,11 @@ async function teachPreview(cell, item) {
                  "legend:LINE VALVES": "나비 밸브 기호의 치수" }[cell] || "치수";
   const found = !!(got.text || "").trim();
   out.innerHTML = `<p><b>${escape(TB_LABEL[cell])}</b> — `
-    + (found ? `<span class="ok">✔ 칸 제목을 읽었습니다</span> <code>${escape(got.text)}</code> · 이 장(p${got.page_no || TB.page})을 범례로 씁니다`
+    + (found ? `<span class="ok">✔ 칸 제목을 읽었습니다</span> <code>${escape(got.text)}</code> · 이 장(p${got.page_no || TB.page})을 Symbol & Legend로 씁니다`
              : '<span class="no">✖ 사각형 안에 글자가 없습니다 — 칸 제목 글자를 감싸 주세요</span>')
     + `</p><p title="${attr(m.note || "")}">`
-    + (got.ok ? `<span class="ok">✔ ${what}를 이 범례에서 쟀습니다</span>`
-              : `<span class="muted">· ${what}는 이 범례에서 재지 못했습니다 — 이 양식은 그 기호를 다르게 그립니다.  분석은 설정값으로 계속합니다.</span>`)
+    + (got.ok ? `<span class="ok">✔ ${what}를 이 Symbol & Legend에서 쟀습니다</span>`
+              : `<span class="muted">· ${what}는 이 Symbol & Legend에서 재지 못했습니다 — 이 양식은 그 기호를 다르게 그립니다.  분석은 설정값으로 계속합니다.</span>`)
     + `</p>`;
 }
 
@@ -9831,12 +9927,14 @@ async function tbSave(thenRun) {
   }
   if (anyTeach || TB.dirty.drawing || TB.dirty.notes || TB.dirty.legend || TB.dirty.bubbles || TB.dirty.legend_page) {
     const body = { author: who };
+    const took = Object.keys(TB.prop || {}).filter(k => TB.prop[k]);
+    if (took.length) body.note = "프로그램 제안을 확인하고 저장: " + took.join(" · ");
     if (TB.dirty.legend_page) body.legend_page = TB.teach.legend_page || [];
     if (TB.dirty.drawing) body.drawing = TB.teach.drawing || {};
     if (TB.dirty.notes) body.notes = TB.teach.notes || {};
     if (TB.dirty.legend) body.legend = TB.teach.legend;
     if (TB.dirty.bubbles) body.bubbles = TB.teach.bubbles;
-    if (Object.keys(body).length > 1) {
+    if (Object.keys(body).filter(k => k !== "author" && k !== "note").length) {
       const r = await fetch(`/jobs/${TB.job}/teach`, { method: "POST",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) { msg.textContent = (await r.json()).detail || "저장하지 못했습니다"; msg.classList.add("out"); return false; }
@@ -9858,12 +9956,13 @@ $req("#tbfix-clear").addEventListener("click", async () => {
   await Promise.all([fetch(`/jobs/${TB.job}/titleblock`, { method: "DELETE" }),
                      fetch(`/jobs/${TB.job}/teach`, { method: "DELETE" })]);
   TB.cells = {}; TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [], legend_page: [] }; TB.found = []; TB.dirty = {};
+  TB.prop = {};
   tbDrawBoxes(); tbRenderTasks();
   $("#tbfix-preview").innerHTML = "";
   $("#tbfix-msg").textContent = "지정을 지웠습니다 — 다시 분석하면 도면이 스스로 답한 것으로 돌아갑니다";
 });
 $req("#tbfix-bubbles-clear").addEventListener("click", () => {
-  TB.teach.bubbles = []; TB.found = []; TB.dirty.bubbles = true;
+  TB.teach.bubbles = []; TB.found = []; TB.dirty.bubbles = true; if (TB.prop) TB.prop.bubbles = null;
   tbDrawBoxes(); tbRenderTasks(); $("#tbfix-preview").innerHTML = "";
 });
 $req("#tbfix-close").addEventListener("click", () => $("#tbfix").classList.add("hidden"));
@@ -10670,7 +10769,7 @@ function applyInfobars() {
   bars.classList.toggle("empty", !any);
   t.textContent = (open || changed) ? "접기" : "자세히";
   t.disabled = changed;
-  t.title = changed ? "범례가 달라졌거나 모드가 충돌해 접지 않습니다" : "분석 정보 띠 펼치기 / 접기";
+  t.title = changed ? "Symbol & Legend가 달라졌거나 모드가 충돌해 접지 않습니다" : "분석 정보 띠 펼치기 / 접기";
 }
 (function () {
   const t = document.getElementById("infobars-toggle");

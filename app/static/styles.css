@@ -2275,6 +2275,10 @@ tr.deleted td.col-vx .vx-b:not(.on) { opacity: .55; }
 .tbfix-tasks .tb-txt { display: flex; flex-direction: column; gap: 4px; }
 .tbfix-tasks .tb-hint { line-height: 1.45; }
 .tbfix-tasks button.tb-do { align-self: flex-start; margin-top: 2px; }
+/* hotfix87 — 프로그램이 고른 답: 요약 한 줄 + 단추 한 줄 (단추가 세로로 쌓이지 않게) */
+.tbfix-tasks .tb-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tbfix-tasks .tb-acts button.tb-do { margin-top: 0; }
+.tbfix-tasks .tb-prop { color: #0b6b60; }
 /* hotfix86 — 할 일마다 다른 프로젝트 예시 그림.  누르면 크게. */
 .tbfix-tasks .tb-ex { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 8px 10px;
   background: #f6f3ec; border-radius: 6px; }

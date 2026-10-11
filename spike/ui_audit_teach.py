@@ -51,6 +51,8 @@ revisions.create_project(data, PROJECT)
 port = free_port()
 # 셋째 인자 — 눈가림 (예: `titleblock` 이면 타이틀블록 칸도 스스로 못 찾는다 → 도면번호 누르기까지 시험)
 BLIND = sys.argv[3] if len(sys.argv) > 3 else ""
+# hotfix87 — `AUDIT_PROPOSE=1` 이면 할 일을 누르지 않고 프로그램 제안을 그대로 저장만 한다
+PROPOSE = os.environ.get("AUDIT_PROPOSE") == "1"
 env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT), PID_FORM_AUTO="0",
            PID_PAGE_WARM="0", PID_TEACH_BLIND=BLIND)
 srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
@@ -189,6 +191,30 @@ try:
             if not ts:
                 note("   가르칠 것이 없는 멈춤 — 끝냄")
                 break
+            if PROPOSE:
+                # hotfix87 — 프로그램이 고른 답을 사람이 **고치지 않고** 저장만 누른다
+                pg.wait_for_function("() => TB.proposing === false && !/고르는 중/.test(document.querySelector('#tbfix-tasks').textContent)",
+                                     timeout=300000)
+                pg.wait_for_timeout(2500)
+                head = " ".join(pg.text_content("#tbfix-tasks li.tb-head").split())
+                props = pg.evaluate("() => [...document.querySelectorAll('#tbfix-tasks li.tb-task')].map(li => "
+                                    "({k: li.dataset.task, done: li.classList.contains('done'), "
+                                    " prop: (li.querySelector('.tb-prop') || {}).textContent || ''}))")
+                note(f"   제안 뒤 목록: {head}")
+                for t in props:
+                    note(f"     · [{t['k']}] {'✔' if t['done'] else '✖'} {t['prop']}")
+                note(f"   미리보기: {' '.join(pg.text_content('#tbfix-preview').split())[:200]}")
+                pg.screenshot(path=str(OUT / f"{step}p_제안_채워짐.png"), full_page=True)
+                for t in props:
+                    if t["prop"]:
+                        pg.click(f'#tbfix-tasks li[data-task="{t["k"]}"] button[data-do="view"]')
+                        pg.wait_for_timeout(3500)
+                        pg.screenshot(path=str(OUT / f"{step}q_제안_{t['k']}.png"), full_page=True)
+                rounds[-1]["proposed"] = props
+                rounds[-1]["clicks"] = 1
+                note("   사람이 누른 것: [저장하고 다시 분석] 1번")
+                save_and_rerun(f"{step}번째")
+                continue
             for t in ts:
                 k = t["k"]
                 pg.click(f'#tbfix-tasks li[data-task="{k}"]')
