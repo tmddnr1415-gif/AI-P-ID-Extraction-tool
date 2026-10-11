@@ -238,3 +238,172 @@ def test_teach_values_reach_the_child():
     main_src = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     assert main_src.count("form_teach=_user_form_teach(") == 1
     assert main_src.count("form_teach.for_pipeline(") == 1
+
+
+# ---------------------------------------------------------------- 사람이 그은 테두리
+
+def test_taught_border_still_measures_the_title_column(tmp_path, monkeypatch):
+    """사람이 테두리를 그어도 타이틀블록 열은 그 안의 세로 괘선으로 잰다 (TC2 시뮬레이션이 잡은 것 —
+    재지 않으면 도면번호 칸이 폭 0 이 된다)."""
+    import derive_layout
+    doc = pymupdf.open()
+    for _ in range(3):
+        page = doc.new_page(width=1191, height=842)
+        sh = page.new_shape()
+        sh.draw_line((1000, 20), (1000, 820))              # 타이틀블록 열 경계 (테두리는 안 그림)
+        sh.finish(color=(0, 0, 0), width=0.5)
+        sh.commit()
+    path = tmp_path / "frame.pdf"
+    doc.save(path)
+    _doc, pages = pidcache.load_pages(path)
+    monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", [20.0, 20.0, 1170.0, 820.0])
+    l, t, r, b, column, xs, ys = derive_layout._frame(pages)
+    assert (l, t, r, b) == (20.0, 20.0, 1170.0, 820.0)
+    assert abs(column - 1000.0) < 1.0
+    # 그은 것이 없으면 종이가 테두리다 — 열은 그 안에서 똑같이 잰다
+    monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", None)
+    l, t, r, b, column, xs, ys = derive_layout._frame(pages)
+    assert (l, t, r, b) == (0.0, 0.0, 1191.0, 842.0) and abs(column - 1000.0) < 1.0
+    monkeypatch.setattr(derive_layout, "PAPER_STANDS_IN", False)
+    assert derive_layout._frame(pages) is None
+
+
+# ---------------------------------------------------------------- 최소 입력 — 누르기 한 번
+
+def test_click_inside_a_bubble_returns_that_bubble(stub_pdf):
+    """버블 안 글자 위를 한 번 누르면 그 버블의 둘레 — 사람이 사각형을 그을 필요가 없다."""
+    _doc, pages = pidcache.load_pages(stub_pdf)
+    pc = pages[0]
+    r = ds.bubble_at(pc, 65, 105.5)                       # 첫 버블의 한가운데
+    assert r is not None and abs(r.x0 - 50) < 1.0 and abs(r.x1 - 80) < 1.0
+    # 그 둘레로 배운 모양이 나머지를 찾는다 (끌어 그은 것과 같은 길)
+    t = ds.learn_bubble_template(pc, [r.x0 - 1.5, r.y0 - 1.5, r.x1 + 1.5, r.y1 + 1.5])
+    assert t is not None and len(ds.taught_bubbles(pc, [t])) == 8
+    assert ds.bubble_at(pc, 560, 380) is None             # 아무것도 없는 자리
+
+
+def test_legend_page_button_finds_headings_by_keyword(monkeypatch):
+    """[이 장이 범례입니다] 하나로 세 칸 — 그 장에서 VALVES · ACTUATORS · SIGNAL 낱말로 찾는다."""
+    p1 = _fake_page(1, [((10, 10, 40, 18), "ACTUATORS")])                     # 범례가 아닌 장
+    p2 = _fake_page(2, [((50, 665, 53, 673), "2."), ((54, 665, 80, 673), "VALVES"),
+                        ((50, 135, 53, 143), "3."), ((54, 135, 90, 143), "ACTUATORS"),
+                        ((84, 201, 130, 212), "ELECTRICAL"), ((132, 201, 160, 212), "SIGNAL")])
+    monkeypatch.setenv("PID_FORM_AUTO", "0")
+    monkeypatch.setattr(legend_rules, "TAUGHT", {})
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", None)
+    assert legend_rules._page_with([p1, p2], legend_rules.ACTUATOR_HEADING) is None
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", 2)
+    for h in legend_rules.TEACHABLE_HEADINGS:
+        assert legend_rules._page_with([p1, p2], h) is p2, h
+    # 칸 안 자리는 사각형이 없으니 그 낱말이 정한다 — 재는 함수들의 `_label(pc, "ACTUATORS")` 와 같다
+    assert legend_rules.taught_word(p2, legend_rules.ACTUATOR_HEADING, "ACTUATORS") is None
+    assert round(legend_rules._label(p2, "ACTUATORS").x0) == 54
+
+
+def test_paper_stands_in_for_a_missing_border(tmp_path, monkeypatch):
+    """테두리를 못 찾으면 종이가 테두리다 — 그래도 타이틀블록 열은 안쪽 괘선으로 잰다.
+    그래서 사람에게 도면 영역을 묻지 않는다 (Takhiatash 에서 타이틀블록 묻기가 사라진 이유)."""
+    import derive_layout
+    doc = pymupdf.open()
+    for _ in range(3):
+        page = doc.new_page(width=1191, height=842)
+        sh = page.new_shape()
+        sh.draw_line((1000, 2), (1000, 840))
+        sh.finish(color=(0, 0, 0), width=0.5)
+        sh.commit()
+    path = tmp_path / "noframe.pdf"
+    doc.save(path)
+    _doc, pages = pidcache.load_pages(path)
+    monkeypatch.setenv("PID_FORM_AUTO", "0")
+    monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", None)
+    got = derive_layout._frame(pages)
+    assert got is not None
+    l, t, r, b = got[:4]
+    assert (l, t, r, b) == (0, 0, 1191.0, 842.0)
+    monkeypatch.setattr(derive_layout, "PAPER_STANDS_IN", False)
+    assert derive_layout._frame(pages) is None            # 끄면 예전처럼 못 찾는다
+
+
+def test_screen_asks_only_what_is_needed_and_by_click():
+    """화면은 서버가 미리 본 것(needs)만 할 일로 세우고, 할 일 하나는 누르기 한 번이다."""
+    js = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
+    main_src = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
+    assert 'id="tbfix-tasks"' in html and 'id="tbfix-adv"' in html            # 사각형 긋기는 접혀 있다
+    assert "TB.needs = (TB.tstate && TB.tstate.needs)" in js
+    assert "/teach/click" in js and '@app.post("/jobs/{job_id}/teach/click")' in main_src
+    for k in ("dwg_no", "legend", "bubbles", "notes"):
+        assert f"  {k}: {{ title:" in js, k
+    # 할 일의 이름과 서버의 needs 가 같은 낱말이다
+    for k in ('"dwg_no"', '"legend"', '"bubbles"', '"notes?"'):
+        assert f"needs.append({k})" in main_src, k
+
+
+def _rules_pdf(tmp_path, verticals):
+    doc = pymupdf.open()
+    for _ in range(3):
+        page = doc.new_page(width=1191, height=842)
+        sh = page.new_shape()
+        sh.draw_rect(pymupdf.Rect(20, 20, 1171, 822))
+        for x in verticals:
+            sh.draw_line((x, 20), (x, 822))
+        sh.finish(color=(0, 0, 0), width=0.5)
+        sh.commit()
+    path = tmp_path / "rules.pdf"
+    doc.save(path)
+    _doc, pages = pidcache.load_pages(path)
+    return pages
+
+
+def test_notes_click_in_the_title_column_takes_the_whole_column(tmp_path, monkeypatch):
+    """노트가 타이틀블록 열에 사는 양식(AL NOUF1) — 왼쪽은 그 열의 괘선 (글 왼쪽에 그린 별표가 들어온다)."""
+    import derive_layout
+    monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", None)
+    pages = _rules_pdf(tmp_path, [990])
+    r = derive_layout.notes_from_heading(pages, pymupdf.Rect(1010, 40, 1040, 48), 8)
+    assert abs(r[0] - 990) < 1 and abs(r[2] - 1171) < 1 and abs(r[3] - 822) < 1
+
+
+def test_notes_click_inside_the_drawing_starts_at_the_heading(tmp_path, monkeypatch):
+    """노트가 도면 안에 사는 양식(Takhiatash) — 가장 가까운 괘선이 테두리라 그것을 쓰면 도면 전체가 노트다."""
+    import derive_layout
+    monkeypatch.setattr(derive_layout, "TAUGHT_FRAME", None)
+    pages = _rules_pdf(tmp_path, [])
+    r = derive_layout.notes_from_heading(pages, pymupdf.Rect(970, 22, 990, 30), 8)
+    assert abs(r[0] - 962) < 1 and r[1] == 18
+
+
+def test_size_band_is_half_to_double_the_example():
+    """사람은 아무 버블이나 누른다 — 가장 큰 것이든 가장 작은 것이든 (AL NOUF1 22.6 ↔ RO 17.0 ↔ 세로 15.1)."""
+    lo, hi = ds.TEACH_CAP_SIZE
+    assert lo <= 15.1 / 22.6 and hi >= 22.6 / 15.1 and lo > 0 and hi <= 2.0
+
+
+def test_legend_over_several_pages(monkeypatch):
+    """범례가 여러 장(TC2 p2~p4) — 액추에이터 장의 `VALVES ACTUATORS` 는 밸브 칸이 아니다.
+    두 장을 다 알려 주면 각 칸이 제 장에서 찾힌다."""
+    p2 = _fake_page(2, [((50, 60, 70, 68), "LINE"), ((72, 60, 100, 68), "VALVES")])
+    p4 = _fake_page(4, [((50, 60, 80, 68), "VALVES"), ((82, 60, 120, 68), "ACTUATORS")])
+    monkeypatch.setenv("PID_TEACH_BLIND", "legend")
+    monkeypatch.setattr(legend_rules, "TAUGHT", {})
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", [4])
+    assert legend_rules._page_with([p2, p4], "LINE VALVES") is None          # 밸브 칸이 아니다
+    assert legend_rules._page_with([p2, p4], "VALVES ACTUATORS") is p4
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", [4, 2])
+    assert legend_rules._page_with([p2, p4], "LINE VALVES") is p2
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", 2)                     # 옛 꼴(번호 하나)도 읽는다
+    assert legend_rules._page_with([p2, p4], "LINE VALVES") is p2
+    # 겹쳐 인쇄한 범례(QFE) — `VALVES VALVES VALVES ACTUATORS` 도 액추에이터 칸 제목이다
+    p3 = _fake_page(3, [((50 + 0.01 * i, 60, 80, 68), "VALVES") for i in range(3)]
+                    + [((82 + 0.01 * i, 60, 120, 68), "ACTUATORS") for i in range(3)])
+    monkeypatch.setattr(legend_rules, "TAUGHT_PAGE", [3])
+    assert legend_rules._page_with([p3], "LINE VALVES") is None
+
+
+def test_legend_pages_are_stored_as_a_list(tmp_path):
+    data = form_teach.set_items(tmp_path, "P", author="kim",
+                                legend_page=[{"page_no": 4, "size": [1191, 842]}, {"page_no": 2, "size": [1191, 842]},
+                                             {"page_no": 4, "size": [1191, 842]}])
+    assert [x["page_no"] for x in data["legend_page"]] == [4, 2]
+    data = form_teach.set_items(tmp_path, "P", author="kim", legend_page={"page_no": 3, "size": [1191, 842]})
+    assert [x["page_no"] for x in data["legend_page"]] == [3]

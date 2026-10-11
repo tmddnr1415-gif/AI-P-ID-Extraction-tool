@@ -149,6 +149,8 @@ def _box_edges(pc, W, H):
 # `_fit_layout` 앞에서 얹고 바로 뒤에서 걷는다 (`pipeline._taught_frame`).  None 이면 이
 # 모듈은 예전과 같다.
 TAUGHT_FRAME = None
+# 테두리 선이 하나도 없을 때 종이를 테두리로 볼지 (hotfix85).  켜져 있다 — 끄는 것은 시험용이다.
+PAPER_STANDS_IN = True
 
 
 # The form's own heading over its notes (hotfix84).  A printed word, like the
@@ -196,8 +198,7 @@ def _frame(pages) -> tuple:
     rule on the right of the sheet that is not the border - the line the form
     draws between the drawing and its title block.
     """
-    if pidcache.teach_blind("frame"):
-        return None                               # hotfix85 시뮬레이션 — 테두리를 스스로 찾지 않는다
+    blind = pidcache.teach_blind("frame")         # hotfix85 시뮬레이션 — 테두리를 스스로 찾지 않는다
     W, H = pages[0].width, pages[0].height
     # Counted to the point, kept to the tenth.  A form's line is in the same place
     # on every page but the export does not repeat its coordinate to the decimal,
@@ -230,7 +231,9 @@ def _frame(pages) -> tuple:
         return sorted(g[len(g) // 2] for g, seen in out if len(seen) >= need)
 
     xs, ys = keep(vx), keep(hy)
-    if (len(xs) < 2 or len(ys) < 2) and pidcache.form_auto():
+    if blind:
+        xs, ys = [], []
+    if (len(xs) < 2 or len(ys) < 2) and pidcache.form_auto() and not blind:
         # hotfix84 — no frame drawn with lines: try the sheet's rectangles and
         # quads.  Only here, so a form that does draw its frame with lines
         # (AL NOUF1 · TC2 · QFE - TC2 also strokes two quads round the paper)
@@ -246,6 +249,20 @@ def _frame(pages) -> tuple:
     # border, the quad's right edge looked like a title-block column 7pt wide
     # and the notes were looked for in that strip.  Dropped only when two rules
     # remain inside, so a form whose border *is* the paper edge keeps it.
+    if (len(xs) < 2 or len(ys) < 2) and (TAUGHT_FRAME is not None or PAPER_STANDS_IN):
+        # hotfix85 — 테두리 선을 못 찾았다.  사람이 그은 테두리가 있으면 그것, 없으면 **종이
+        # 자체**를 테두리로 본다 — 남의 문서 좌표를 빌리는 것보다 이 종이가 낫고, 그래야 아래
+        # 유도(타이틀블록 · NOTES · 별표 크기 …)가 건너뛰어지지 않는다.  **타이틀블록 열은 그
+        # 안에서 잰다** — 그 높이의 대부분을 가로지르는 세로 괘선 중 가운데 오른쪽 가장 안쪽
+        # (아래 `column` 과 같은 정의).  재지 않으면 도면번호 칸이 폭 0 이 된다 (TC2 시뮬레이션).
+        l, t, r, b = ((float(v) for v in TAUGHT_FRAME) if TAUGHT_FRAME is not None
+                      else (0.0, 0.0, float(W), float(H)))
+        vin = []
+        for i, pc in enumerate(pages):
+            V, _Hh = _rules(pc)
+            vin += [(x, i) for x, lo, hi in V if l + 1 < x < r - 1 and hi - lo > FRAME_SPAN * (b - t)]
+        xs, ys = [l] + keep(vin) + [r], [t, b]
+        return l, t, r, b, _title_column(xs, W, r), xs, ys
     for vals, size in (((xs, W), (ys, H)) if pidcache.form_auto() else ()):
         inside = [v for v in vals if PAPER_EDGE < v < size - PAPER_EDGE]
         if len(inside) >= 2 and len(inside) < len(vals):
@@ -257,9 +274,34 @@ def _frame(pages) -> tuple:
     top, bottom = ys[0], ys[-1]
     # The title-block column: the innermost of the rules right of centre that is
     # not the border itself.  On a sheet that draws none, the border stands in.
-    inner = [x for x in xs if 0.5 * W < x < right - 1]
-    column = min(inner) if inner else right
+    column = _title_column(xs, W, right)
     return left, top, right, bottom, column, xs, ys
+
+
+def notes_from_heading(pages, word, height: float):
+    """hotfix85 — 사람이 NOTES 제목 글자를 **한 번 누른** 자리에서 NOTES 영역을 짓는다.
+
+    · 그 글자가 **타이틀블록 열 안**이면(AL NOUF1 꼴 — 노트가 오른쪽 열에 산다) 왼쪽은 그 열의 경계
+      괘선이다.  글자에서 자르면 글 왼쪽에 따로 그린 별표(p52 꼴)가 영역 밖으로 빠져 별표 뜻이 하나도
+      안 읽힌다 (시뮬레이션 실측: 공급자 이름 337칸이 사라졌다).
+    · 아니면(Takhiatash 꼴 — 노트가 도면 안 오른쪽 위에 산다) 글자 왼쪽 한 글자 높이.  그 양식에는
+      노트를 가르는 괘선이 없어 가장 가까운 괘선은 테두리다 (그러면 도면 전체가 노트가 된다).
+    · 위는 반 줄 위 · 오른쪽과 아래는 테두리.  새 상수 없음 — 괘선과 글자 높이뿐.
+    `pages` 는 같은 종이의 장들(`_form_pages` 의 다수)이다."""
+    h = max(float(height), 1.0)
+    fr = _frame(pages) if pages else None
+    if fr is None:
+        W, H = (float(pages[0].width), float(pages[0].height)) if pages else (word.x1 + h, word.y1 + h)
+        return [word.x0 - h, word.y0 - 0.5 * h, W, H]
+    _l, _t, r, b, column, _xs, _ys = fr
+    left = column if column < r - 1 and word.x0 >= column else word.x0 - h
+    return [left, word.y0 - 0.5 * h, r, b]
+
+
+def _title_column(xs, W, right):
+    """The title-block column edge: innermost full-height rule right of centre, else the border."""
+    inner = [x for x in xs if 0.5 * W < x < right - 1]
+    return min(inner) if inner else right
 
 
 # --------------------------------------------------------------------------
@@ -1097,15 +1139,15 @@ def derive(pages, cfg=None) -> Layout:
             f"{k[0]}x{k[1]} pt x{v}" for k, v in sorted(sizes.items(), key=lambda t: -t[1]))
             + f"; measured on the {len(pages)} majority-size pages only")
 
+    # hotfix85 — 사람이 그은 테두리(`app/form_teach.py`)는 `_frame` 안에서 쓰인다 — 테두리를
+    # 못 찾은 양식에서만이고, 찾은 문서는 그 갈래에 오지 않는다.
     fr = _frame(pages)
-    if fr is None and TAUGHT_FRAME is not None:
-        # hotfix85 — 사람이 그은 도면 영역 (`app/form_teach.py`).  테두리를 못 찾은 양식에서만
-        # 쓴다 — 찾은 문서는 이 갈래에 오지 않는다.  그 영역을 테두리로 보고 아래 유도(NOTES ·
-        # 타이틀블록 · 별표 크기 …)를 그대로 잇는다.  남의 좌표를 빌리는 것보다 낫다.
-        l, t, r, b = (float(v) for v in TAUGHT_FRAME)
-        fr = (l, t, r, b, r, [l, r], [t, b])
-        lay.notes.append(f"no border rule spans this sheet; the drawing area was drawn by a "
-                         f"person at [{l:.1f}, {t:.1f}, {r:.1f}, {b:.1f}]")
+    if fr is not None and TAUGHT_FRAME is not None and [round(v, 1) for v in fr[:4]] == \
+            [round(float(v), 1) for v in TAUGHT_FRAME]:
+        lay.notes.append("no border rule spans this sheet; the border was drawn by a person at "
+                         f"[{fr[0]:.1f}, {fr[1]:.1f}, {fr[2]:.1f}, {fr[3]:.1f}]")
+    elif fr is not None and TAUGHT_FRAME is None and fr[:4] == (0.0, 0.0, float(W), float(H)):
+        lay.notes.append("no border rule spans this sheet; the paper edge stands in for the border")
     if fr is None:
         lay.notes.append("no border rule spans this sheet on a majority of its "
                          "pages, so the drawing area could not be measured")

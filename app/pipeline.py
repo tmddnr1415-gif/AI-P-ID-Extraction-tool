@@ -190,12 +190,12 @@ def _frame_reason(pages, layout: dict | None = None) -> str:
         how = (" 이 양식은 `PROJECT DWG NO.` 캡션을 찍지 않고, 붙임표가 든 번호가 "
                "장마다 같은 자리에 되풀이되지도 않습니다 — 타이틀블록 글자가 "
                "텍스트가 아니라 획으로 그려졌을 수 있습니다.  글자가 있는 장이라면 "
-               "이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣고, 획뿐이면 "
+               "[도면 가르치기] 에서 도면번호 글자를 한 번 누르면 그 자리에서 읽고, 획뿐이면 "
                "장 도면번호를 사람이 적는 경로(`sheet_numbers`)가 남습니다.")
     else:
         how = (" 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 "
-               "값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 "
-               "프로젝트 설정에 넣으면 됩니다.")
+               "값을 그대로 썼습니다 — [도면 가르치기] 에서 도면번호 글자를 한 번 누르면 "
+               "그 자리에서 읽습니다.")
     # hotfix73 — 선(도면 요소)이 한 장에도 없으면 칸 좌표를 말하기 전에 그것부터 말한다.
     # 비정상 입력 시뮬레이션: 회의록 같은 A4 문서가 "타이틀블록 좌표를 재서 넣으라" 는
     # 문장을 받았다 — 사람이 할 일은 좌표가 아니라 파일을 확인하는 것이다.  앞 다섯 장의
@@ -884,6 +884,7 @@ def _rebind_config() -> None:
     # (`_apply_form_teach`), 분석이 끝나 `_own_config` 가 CFG 를 되돌리면 여기서 비워진다.
     taught = CFG.data.get("taught") or {}
     legend_rules.TAUGHT = dict(taught.get("legend") or {})
+    legend_rules.TAUGHT_PAGE = taught.get("legend_page")
     ds.TAUGHT_BUBBLES = list(taught.get("bubbles") or [])
     tb_cfg = CFG.data.get("title_block") or {}
     pidcache.PROJECT_NAME_REGION = tb_cfg.get("project_name_region")
@@ -1067,8 +1068,23 @@ def _apply_taught_legend(pages, teach: dict | None) -> None:
     액추에이터 원으로 재기 때문이다 (늦게 얹으면 단위가 1.0 으로 남아 별표 창이 두 배가
     된다 — 시뮬레이션이 잡았다).  CFG 에 얹으므로 분석 뒤 `_own_config` 가 되돌린다."""
     legend, _skipped = _taught_legend(pages, teach)
-    if legend and CFG.overlay({"taught.legend": legend}):
+    values = {"taught.legend": legend} if legend else {}
+    lp = _taught_legend_page(pages, teach)
+    if lp is not None:
+        values["taught.legend_page"] = lp
+    if values and CFG.overlay(values):
         _rebind_config()
+
+
+def _taught_legend_page(pages, teach: dict | None):
+    """사람이 "이 장이 범례입니다" 라고 한 장 번호들 — 같은 종이인 것만 (없으면 None)."""
+    item = (teach or {}).get("legend_page")
+    if not item:
+        return None
+    by = {p.page_no: p for p in pages}
+    nos = [int(it.get("page_no") or 0) for it in (item if isinstance(item, list) else [item])
+           if int(it.get("page_no") or 0) in by and _same_paper(it, by[int(it.get("page_no") or 0)])]
+    return nos or None
 
 
 def _apply_form_teach(pages, layout: dict, teach: dict | None) -> dict:
@@ -1108,6 +1124,11 @@ def _apply_form_teach(pages, layout: dict, teach: dict | None) -> dict:
     legend, skipped = _taught_legend(pages, teach)
     out["applied"] += [f"legend:{k}" for k in legend]
     out["skipped"] += skipped
+    if teach.get("legend_page"):
+        if _taught_legend_page(pages, teach) is not None:
+            out["applied"].append("legend_page")
+        else:
+            out["skipped"].append("legend_page: 그 장이 없거나 종이 크기가 다릅니다")
     templates = []
     for item in teach.get("bubbles") or []:
         pc = by_no.get(int(item.get("page_no") or 0))
@@ -1417,8 +1438,8 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 "저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 "
                 "분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 "
                 "장이 없어도 분석할 수 있습니다.  범례 장이 이 PDF 에 있는데 못 읽은 것이라면 "
-                "[도면 가르치기] 에서 범례의 칸 제목(밸브 · 액추에이터 · 전기 신호선)을 "
-                "사각형으로 짚어 주면 그 자리에서 읽습니다.")
+                "[도면 가르치기] 에서 범례 장을 띄우고 [이 장이 범례입니다] 를 한 번 "
+                "누르면 그 장에서 읽습니다.")
 
         legend_derived["line_styles"] = pipe_style
         # The off-page connector is not in the legend, so how far its text sits
@@ -1494,7 +1515,7 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
                 f"({', '.join(f'{t} {n}' for t, n in printed.most_common(5))} …) "
                 "계기 버블(그 글자를 두른 원·타원)을 한 개도 찾지 못했습니다 — 이 양식은 "
                 "버블을 이 프로그램이 아는 것과 다른 방식으로 그렸습니다.  [도면 가르치기] 에서 "
-                "버블 2~3개를 사각형으로 짚어 주면 그 모양으로 나머지를 찾습니다.")
+                "버블 하나를 한 번 누르면 그 모양으로 나머지를 찾습니다.")
     # 36회차 [D] — 이 문서가 유닛코드를 NOTES 에서 어떤 꼴로 적는지 먼저 배운다.
     # 재료는 둘 다 이미 읽은 것이다: 도면번호의 유닛 자리(`tb.parse_unit_code`)와
     # 그 장의 NOTES 문단.  결과는 지문 밖(`result["unit_forms"]`)에 남긴다.

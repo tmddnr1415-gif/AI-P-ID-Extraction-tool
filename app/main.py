@@ -2319,6 +2319,45 @@ def _teach_suggest(pages, form) -> dict:
     return {"drawing": drawing, "legend": legend}
 
 
+def _teach_needs(job, pages, form, saved) -> list:
+    """사람이 답해야 하는 것만 — **한 번에** 묻는다 (분석을 세 번 멈추지 않게).
+
+    분석은 첫 벽에서 멈추므로 그 뒤의 벽은 아직 모른다.  그래서 여기서 싸게 미리 본다:
+    · 타이틀블록 — 멈춘 이유가 그것일 때만
+    · 범례 — 엔진이 범례 칸 셋을 찾는 바로 그 함수로 (가르친 범례 장을 얹고) 하나라도 못 찾으면
+    · 버블 — 계기 글자가 가장 많은 장 다섯에서 버블이 하나도 안 서면 (가르친 예시를 얹고)
+    · NOTES — 늘 "선택" 이다 (빠져도 분석은 되고, 별표 뜻·수량 노트만 덜 읽는다)
+    """
+    import legend_rules
+    from app.engine import detect_symbols as _ds
+    msg = job["message"] or ""
+    needs = []
+    if "도면번호를 읽지 못했습니다" in msg:
+        needs.append("dwg_no")
+    with _TEACH_LOCK:
+        keep_page, keep_taught, keep_b = legend_rules.TAUGHT_PAGE, legend_rules.TAUGHT, _ds.TAUGHT_BUBBLES
+        try:
+            lp = saved.get("legend_page") or []
+            legend_rules.TAUGHT_PAGE = [int(x["page_no"]) for x in (lp if isinstance(lp, list) else [lp])] or None
+            legend_rules.TAUGHT = {k: {"page_no": v["page_no"], "rect": v["rect"]}
+                                   for k, v in (saved.get("legend") or {}).items()}
+            if any(legend_rules._page_with(pages, h) is None for h in legend_rules.TEACHABLE_HEADINGS):
+                needs.append("legend")
+            by = {pc.page_no: pc for pc in pages}
+            temps = [t for t in (_ds.learn_bubble_template(by[b["page_no"]], b["rect"])
+                                 for b in (saved.get("bubbles") or []) if b.get("page_no") in by) if t]
+            _ds.TAUGHT_BUBBLES = temps
+            anchors = _ds.RULESET_V3.anchors
+            busy = sorted(form, key=lambda pc: -sum(1 for _r, t in pc.words if t in anchors))[:5]
+            if busy and sum(1 for pc in busy for _r, t in pc.words if t in anchors) >= 3 \
+                    and not any(_ds.bubble_outlines(pc) for pc in busy):
+                needs.append("bubbles")
+        finally:
+            legend_rules.TAUGHT_PAGE, legend_rules.TAUGHT, _ds.TAUGHT_BUBBLES = keep_page, keep_taught, keep_b
+    needs.append("notes?")
+    return needs
+
+
 @app.get("/jobs/{job_id}/teach")
 def teach_state(job_id: str):
     """가르치기 화면이 읽는 것 하나 — 저장된 칸 · 장 크기 · 먼저 띄울 장."""
@@ -2334,6 +2373,7 @@ def teach_state(job_id: str):
     project = job["project"] or ""
     saved = form_teach.load(DATA_DIR, project)
     return {"supported": True, "project": project, "page_count": len(pages),
+            "needs": _teach_needs(job, pages, form, saved),
             "pages": [{"page_no": pc.page_no, "size": [round(float(pc.width), 1), round(float(pc.height), 1)]}
                       for pc in pages],
             "sizes": sizes, "form_pages": [pc.page_no for pc in form],
@@ -2403,6 +2443,30 @@ def teach_preview(job_id: str, payload: dict):
         assert len(rect) == 4
     except Exception:                                    # noqa: BLE001
         raise HTTPException(400, "rect [x0,y0,x1,y1] 가 필요합니다")
+    if item == "legend_page":
+        # 이 장 + 이미 범례라고 한 장들(`also`)로 세 칸을 찾아 **어느 장에서 찾았는지** 말한다 —
+        # 범례가 여러 장인 문서에서 빠진 칸이 있으면 그 칸이 있는 장을 한 번 더 누르면 된다.
+        import legend_rules
+        also = []
+        for n in payload.get("also") or []:
+            try:
+                if int(n) in by_no and int(n) != pc.page_no:
+                    also.append(int(n))
+            except Exception:                            # noqa: BLE001
+                pass
+        found = {}
+        with _TEACH_LOCK:
+            keep = legend_rules.TAUGHT_PAGE
+            try:
+                legend_rules.TAUGHT_PAGE = [pc.page_no] + also
+                for h in legend_rules.TEACHABLE_HEADINGS:
+                    got = legend_rules._page_with(pages, h)
+                    found[h] = got.page_no if got is not None and got.page_no in legend_rules.TAUGHT_PAGE else None
+            finally:
+                legend_rules.TAUGHT_PAGE = keep
+        here = [h for h, n in found.items() if n == pc.page_no]
+        return {"item": item, "ok": bool(here), "found": found, "here": here,
+                "missing": [h for h, n in found.items() if n is None], "page_no": pc.page_no}
     if item == "drawing":
         import pymupdf
         R = pymupdf.Rect(*rect)
@@ -2454,6 +2518,60 @@ def teach_preview(job_id: str, payload: dict):
     raise HTTPException(400, f"모르는 항목: {item}")
 
 
+@app.post("/jobs/{job_id}/teach/click")
+def teach_click(job_id: str, payload: dict):
+    """사람이 도면을 **한 번 누른 자리**를 그 항목의 사각형으로 바꾼다 (hotfix85).
+
+    * `dwg_no` — 누른 글자(도면번호)의 둘레 → 타이틀블록 도면번호 칸
+    * `notes`  — 누른 글자(NOTES 제목)에서 테두리 오른쪽·아래 끝까지 → NOTES 영역
+    * `bubble` — 누른 점을 품는 가장 작은 버블 윤곽 (`detect_symbols.bubble_at`)
+    저장하지 않는다 — 화면이 모아서 [저장하고 다시 분석] 때 한 번에 저장한다.
+    """
+    job = db.get_job(CON, job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    _require_source(job)
+    item = str(payload.get("item") or "")
+    pages = _tb_pages(job)
+    by_no = {pc.page_no: pc for pc in pages}
+    try:
+        pc = by_no[int(payload.get("page_no"))]
+        x, y = float(payload.get("x")), float(payload.get("y"))
+    except Exception:                                    # noqa: BLE001
+        raise HTTPException(400, "page_no · x · y 가 필요합니다")
+    import pymupdf
+    import pidcache
+    if item == "bubble":
+        from app.engine import detect_symbols as _ds
+        R = _ds.bubble_at(pc, x, y)
+        if R is None:
+            return {"item": item, "ok": False, "note": "그 자리에서 버블 테두리를 찾지 못했습니다 — 버블 안쪽(글자 위)을 눌러 주세요"}
+        r = [round(R.x0 - 1.5, 1), round(R.y0 - 1.5, 1), round(R.x1 + 1.5, 1), round(R.y1 + 1.5, 1)]
+        return {"item": item, "ok": True, "rect": r, "page_no": pc.page_no}
+    P = pymupdf.Point(x, y)
+    toks = list(pidcache.tokens(pc.words))
+    hit = next((w for w in toks if pymupdf.Rect(w[0]).contains(P)), None)
+    if hit is None and toks:
+        cand = min(toks, key=lambda w: (pymupdf.Rect(w[0]).tl - P).abs() if not pymupdf.Rect(w[0]).contains(P) else 0)
+        if pymupdf.Rect(cand[0]).irect.include_point(P) is not None or \
+                min(abs(cand[0].x0 - x), abs(cand[0].x1 - x)) + min(abs(cand[0].y0 - y), abs(cand[0].y1 - y)) < 12:
+            hit = cand
+    if hit is None:
+        return {"item": item, "ok": False, "note": "그 자리에 글자가 없습니다 — 글자 위를 눌러 주세요"}
+    w, text = pymupdf.Rect(hit[0]), hit[1]
+    h = max(w.height, 1.0)
+    if item == "dwg_no":
+        r = [round(w.x0 - 0.5 * h, 1), round(w.y0 - 0.3 * h, 1), round(w.x1 + 0.5 * h, 1), round(w.y1 + 0.3 * h, 1)]
+        return {"item": item, "ok": True, "rect": r, "page_no": pc.page_no, "text": text}
+    if item == "notes":
+        import derive_layout
+        form, _sizes = _tb_form(pages)
+        same = [p for p in form if abs(p.width - pc.width) <= 1 and abs(p.height - pc.height) <= 1] or [pc]
+        r = [round(v, 1) for v in derive_layout.notes_from_heading(same, w, h)]
+        return {"item": item, "ok": True, "rect": r, "page_no": pc.page_no, "text": text}
+    raise HTTPException(400, f"모르는 항목: {item}")
+
+
 @app.post("/jobs/{job_id}/teach")
 def teach_save(job_id: str, payload: dict):
     """가르친 칸을 프로젝트에 적는다.  **다시 분석해야 반영된다.**
@@ -2480,6 +2598,7 @@ def teach_save(job_id: str, payload: dict):
                 "size": [float(pc.width), float(pc.height)]}
     try:
         drawing = payload.get("drawing")
+        legend_page = payload.get("legend_page")
         notes = payload.get("notes")
         legend = payload.get("legend")
         bubbles = payload.get("bubbles")
@@ -2490,6 +2609,9 @@ def teach_save(job_id: str, payload: dict):
         data = form_teach.set_items(
             DATA_DIR, job["project"] or "",
             drawing=(sized(drawing) if drawing else ({} if drawing == {} else None)),
+            legend_page=([(lambda v: {"page_no": v["page_no"], "size": v["size"]})(sized({**x, "rect": None}))
+                          for x in (legend_page if isinstance(legend_page, list) else [legend_page])]
+                         if legend_page else ({} if legend_page in ({}, []) else None)),
             notes=(sized(notes) if notes else ({} if notes == {} else None)),
             legend=({k: sized(v) for k, v in legend.items()} if legend is not None else None),
             bubbles=([sized(b) for b in bubbles] if bubbles is not None else None),

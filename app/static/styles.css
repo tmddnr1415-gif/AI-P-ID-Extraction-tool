@@ -2260,3 +2260,21 @@ tr.deleted td.col-vx .vx-b:not(.on) { opacity: .55; }
 .vx-tool #vx-count { margin-left: 4px; white-space: nowrap; }
 .vxmulti .vx-b { height: 24px; min-width: 28px; }
 .vx-ev .vx-b { height: 20px; }
+
+/* hotfix85 — 도면 가르치기의 할 일 목록.  할 일 하나 = 누르기 한 번.  지금 할 일은 파랑, 끝난 일은 초록. */
+.tbfix-tasks { list-style: none; margin: 4px 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tbfix-tasks li.tb-head { font-size: 14px; padding: 2px 0; }
+.tbfix-tasks li.tb-task { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--line, #d6d0c4);
+  border-radius: 8px; background: var(--card, #fffdf8); cursor: pointer; font-size: 14px; }
+.tbfix-tasks li.tb-task.on { border-color: #2f5bd8; box-shadow: 0 0 0 2px rgba(47, 91, 216, .18); }
+.tbfix-tasks li.tb-task.done { border-color: #0f8f80; background: #eefaf6; }
+.tbfix-tasks li.tb-task.opt:not(.on):not(.done) { opacity: .75; }
+.tbfix-tasks .tb-mark { flex: 0 0 26px; height: 26px; border-radius: 50%; background: #e7ecfb; color: #2f5bd8;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.tbfix-tasks li.done .tb-mark { background: #0f8f80; color: #fff; }
+.tbfix-tasks .tb-txt { display: flex; flex-direction: column; gap: 4px; }
+.tbfix-tasks .tb-hint { line-height: 1.45; }
+.tbfix-tasks button.tb-do { align-self: flex-start; margin-top: 2px; }
+.tbfix-adv { margin: 6px 0; }
+.tbfix-adv > summary { cursor: pointer; color: var(--ink-soft, #555e6e); font-size: 13px; }
+#tbfix-stage { cursor: crosshair; }

@@ -1,33 +1,25 @@
 {
  "project": "TAKHIATASH",
  "blind": "bubbles,legend,frame",
- "secs": 112,
+ "secs": 110,
  "taught": {
   "applied": [
-   "drawing",
    "notes",
-   "legend:LINE VALVES",
-   "legend:VALVES ACTUATORS",
-   "legend:ELECTRIC SIGNAL",
+   "legend_page",
    "bubbles"
   ],
   "skipped": [],
   "who": "sim",
-  "bubble_templates": 4
+  "bubble_templates": 1
  },
  "busiest_page": 29,
- "bubble_shapes_on_page": {
-  "37x11": 74,
-  "18x9": 3,
-  "18x8": 1,
-  "3x9": 1
- },
- "examples": 4,
- "legend_taught": [
-  "ELECTRIC SIGNAL",
-  "LINE VALVES",
-  "VALVES ACTUATORS"
- ],
+ "bubble_shapes_on_page": {},
+ "examples": 1,
+ "legend_taught": [],
+ "legend_page": 2,
+ "clicks": 3,
+ "notes_taught": true,
+ "drawing_taught": false,
  "base_rows": 1139,
  "taught_rows": 1139,
  "same": 1139,
@@ -37,9 +29,11 @@
  "only_taught": 0,
  "scope_diff": 0,
  "qty_diff": 0,
- "same_fingerprint": true,
+ "same_fingerprint": false,
  "only_base_types": [],
  "only_taught_types": [],
+ "only_base_pages": [],
+ "only_taught_pages": [],
  "only_base_sample": [],
  "only_taught_sample": []
 }

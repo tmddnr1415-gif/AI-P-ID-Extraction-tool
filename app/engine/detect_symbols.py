@@ -760,11 +760,61 @@ def learn_bubble_template(pc, rect) -> dict | None:
     return out
 
 
+# 클릭 한 번으로 버블을 고를 때 둘러볼 거리 — 클릭한 점에서 이 안의 곡선만 본다.  버블 하나보다
+# 넉넉하고 이웃 장비 기호 여럿을 다 담을 만큼은 아니다.  고르는 것은 **점을 품는 가장 작은 윤곽**
+# 이므로 이 값은 후보의 범위일 뿐 판정이 아니다.
+CLICK_REACH = 120.0
+
+
+def bubble_at(pc, x: float, y: float):
+    """사람이 누른 점을 품는 **가장 작은 버블 윤곽** — `Rect` 또는 None (hotfix85).
+
+    후보 둘: (가) 점을 품는 곡선 하나(원·타원으로 그린 버블) (나) 같은 띠에 마주 선 곡선
+    둘(버블 끝 캡 둘) — 그 둘을 합친 사각형이 점을 품을 때.  점을 품는 것 중 가장 작은 것.
+    """
+    m = pc.page.rotation_matrix
+    P = pymupdf.Point(x, y)
+    near = []
+    for d in pc.drawings():
+        items = d["items"]
+        if not items or not any(i[0] == "c" for i in items):
+            continue
+        b = d["bbox"]
+        if b.x1 < x - CLICK_REACH or b.x0 > x + CLICK_REACH or b.y1 < y - CLICK_REACH or b.y0 > y + CLICK_REACH:
+            continue
+        ext = pidcache.curve_extent(items, m)
+        if ext.width <= 0 or ext.height <= 0:
+            continue
+        near.append((b, ext))
+    best = None
+    for b, ext in near:
+        if ext.contains(P) and min(ext.width, ext.height) > 2.0:
+            if best is None or ext.width * ext.height < best.width * best.height:
+                best = pymupdf.Rect(ext)
+    for i, (a, ea) in enumerate(near):
+        for c, ec in near[i + 1:]:
+            tol = 0.08 * max(1.0, min(ea.height, ea.width))
+            same_row = abs(a.y0 - c.y0) <= tol and abs(a.y1 - c.y1) <= tol and a.height > a.width and c.height > c.width
+            same_col = abs(a.x0 - c.x0) <= tol and abs(a.x1 - c.x1) <= tol and a.width > a.height and c.width > c.height
+            if not (same_row or same_col):
+                continue
+            R = pymupdf.Rect(ea) | ec
+            if not R.contains(P):
+                continue
+            if best is None or R.width * R.height < best.width * best.height:
+                best = R
+    return best
+
+
 # 캡 짝짓기에서 예시와 "같은 버블 끝" 으로 볼 폭 — 비율은 그리는 법이 같으면 같고(±15%),
-# 버블 높이는 한 문서 안에서도 두세 가지를 쓴다(Takhiatash 9.8 · 11.3 · 12.7 · 13.5 pt).
-# 하한·상한은 그 문서의 예시 높이에 대한 배율이다 — 절대 pt 가 아니다.
+# 버블 높이는 한 문서 안에서도 두세 가지를 쓴다(Takhiatash 9.8 · 11.3 · 12.7 · 13.5 pt ·
+# AL NOUF1 22.6 · 17.0(RO) · 15.1(세로 LI)).  하한·상한은 그 문서의 예시 높이에 대한 배율 —
+# 절대 pt 가 아니다.  사람은 아무 버블이나 누르므로 예시가 가장 큰 것일 수도 가장 작은 것일 수도
+# 있어 **절반 ~ 두 배**로 둔다 (hotfix85 최소 입력 시뮬레이션: 0.75~1.35 이면 AL NOUF1 RO 12 ·
+# 세로 LI/LIT 2 를 놓쳤다.  넓혀도 규칙이 세운 버블 밖에서 잡힌 것 AL NOUF1 8장 · Takhiatash 7장 0개
+# — 버블인지는 여전히 안 글자가 정한다).
 TEACH_CAP_RATIO = 0.15
-TEACH_CAP_SIZE = (0.75, 1.35)
+TEACH_CAP_SIZE = (0.5, 2.0)
 
 
 def _seg_index(pc):

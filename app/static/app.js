@@ -1321,7 +1321,7 @@ async function showFailure(message, d, jobId) {
   const tc = jobId ? teachCase(message) : null;
   tbBtn.classList.toggle("hidden", !tc);
   if (tc) {
-    hint.textContent = "이 양식에서 프로그램이 찾지 못한 자리가 있습니다 — 아래 [도면 가르치기] 에서 도면 위에 사각형으로 짚어 주면, 그 자리에서 읽고 다시 분석합니다.";
+    hint.textContent = "이 양식에서 프로그램이 찾지 못한 자리가 있습니다 — 아래 [도면 가르치기] 에 할 일이 적혀 있습니다 — 도면을 몇 번 누르고 [저장하고 다시 분석] 을 누르면 됩니다.";
     tbBtn.onclick = () => openTbFix(jobId, tc.kind);
   }
   $("#tbfix").classList.add("hidden");
@@ -9357,28 +9357,44 @@ const TB_TITLE_CELLS = ["dwg_no_region", "title_region", "rev_box", "sheet_box"]
 /* hotfix85 — 멈춘 이유 → 무엇을 짚을지.  서버 문장의 한 마디로 가른다 (문장은 파이프라인이 쓴다). */
 const TEACH_CASES = [
   { kind: "titleblock", re: /도면번호를 읽지 못했습니다/, item: "dwg_no_region", where: "drawing",
-    guide: "이 양식의 도면번호 칸을 찾지 못해 멈췄습니다.  ① 타이틀블록의 <b>도면번호</b> 칸과 <b>도면 영역</b>(테두리 안쪽 전체)을 " +
-           "사각형으로 그어 주세요.  그은 김에 ② <b>NOTES 영역</b>도 그어 두면 별표 뜻·수량 노트까지 읽습니다." },
+    reason: "이 양식에서 도면번호 칸을 찾지 못해 멈췄습니다." },
   { kind: "legend", re: /Symbol & Legend 시트를 읽지 못했고/, item: "legend:VALVES ACTUATORS", where: "legend",
-    guide: "범례 장의 칸 제목을 이 프로그램이 아는 낱말로 찾지 못해 멈췄습니다.  <b>범례 장으로</b> 가서 ③ 의 세 칸 — " +
-           "밸브 칸 제목 · 액추에이터 칸 제목 · 전기 신호선 줄 이름 — 을 하나씩 사각형으로 짚어 주세요." },
+    reason: "범례(Symbol & Legend) 장을 찾지 못해 멈췄습니다." },
   { kind: "bubbles", re: /계기 버블\(그 글자를 두른 원·타원\)을 한 개도 찾지 못했습니다/, item: "bubbles", where: "drawing",
-    guide: "계기 버블을 한 개도 찾지 못해 멈췄습니다.  <b>도면 장</b>에서 ④ <b>계기 버블</b> 2~3개를 각각 넉넉히 감싸 그어 주세요 " +
-           "(모양이 다른 버블이 있으면 그것도 하나씩).  그을 때마다 같은 모양을 몇 개 찾았는지 아래에 보입니다." },
+    reason: "계기 버블(태그 글자를 두른 원·타원)을 한 개도 찾지 못해 멈췄습니다." },
 ];
+/* hotfix85 — 할 일 목록.  서버가 미리 본 것(`needs`)만 세우고, 할 일 하나는 **누르기 한 번**이다.
+ * `click` 은 도면을 누르면 서버(`/teach/click`)가 그 자리를 사각형으로 바꾸는 항목,
+ * `legend` 는 버튼 하나(이 장이 범례입니다).  `done` 은 화면이 지금 들고 있는 값으로 판정한다. */
+const TEACH_TASKS = {
+  dwg_no: { title: "도면번호 글자를 한 번 누르세요", where: "drawing", click: "dwg_no",
+            hint: "타이틀블록에 인쇄된 이 장의 도면번호 글자 위를 누릅니다.  같은 자리를 모든 장에서 읽습니다.",
+            done: () => !!TB.cells.dwg_no_region },
+  legend: { title: "범례 장을 띄우고 [이 장이 범례입니다] 를 누르세요", where: "legend", button: "이 장이 범례입니다",
+            hint: "Symbol & Legend 장(밸브·액추에이터 기호표가 있는 장)을 띄웁니다.  못 찾으면 ◀ ▶ 로 넘기세요.  범례가 여러 장이면 아래에 빠진 칸이 적힙니다 — 그 장을 띄우고 한 번 더 누르세요.",
+            done: () => !!((TB.teach.legend_page || []).length || Object.keys(TB.teach.legend || {}).length) },
+  bubbles: { title: "계기 버블 하나를 누르세요", where: "drawing", click: "bubble",
+             hint: "PT · TT 같은 글자가 든 원·타원의 글자 위를 누릅니다.  같은 모양을 도면 전체에서 찾아 초록으로 보입니다.  모양이 다른 버블이 있으면 그것도 하나 더 누르세요.",
+             done: () => TB.teach.bubbles.length > 0 },
+  notes: { title: "(선택) NOTES 제목 글자를 누르세요", where: "drawing", click: "notes", optional: true,
+           hint: "도면의 NOTES 제목을 누르면 거기서부터 테두리 끝까지를 노트로 읽습니다 (별표 공급자 · 수량 노트).  건너뛰어도 분석은 됩니다.",
+           done: () => !!TB.teach.notes },
+};
 
 function teachCase(message) { return TEACH_CASES.find(c => c.re.test(message || "")) || null; }
 
 async function openTbFix(jobId, kind) {
   TB.job = jobId; TB.cells = {}; TB.derived = {}; TB.state = null; TB.tstate = null;
-  TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [] }; TB.found = []; TB.dirty = {};
+  TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [], legend_page: [] }; TB.found = []; TB.dirty = {};
+  TB.needs = []; TB.task = null;
   const box = $("#tbfix");
   box.classList.remove("hidden");
   const msg = $("#tbfix-msg"); msg.textContent = "불러오는 중…"; msg.classList.remove("out");
   $("#tbfix-preview").innerHTML = "";
   $("#tbfix-who").value = currentAuthor();
   const c = TEACH_CASES.find(t => t.kind === kind) || null;
-  $("#tbfix-guide").innerHTML = c ? c.guide : "";
+  $("#tbfix-guide").textContent = c ? c.reason : "";
+  $("#tbfix-tasks").innerHTML = "";
   document.querySelectorAll(".tbfix-group").forEach(g => g.classList.toggle("hot",
     !!c && g.dataset.group === (c.item.startsWith("legend:") ? "legend" : c.item === "bubbles" ? "bubbles"
                                  : c.item === "notes" ? "notes" : "tb")));
@@ -9401,15 +9417,116 @@ async function openTbFix(jobId, kind) {
     TB.teach.notes = saved.notes || null;
     TB.teach.legend = { ...(saved.legend || {}) };
     TB.teach.bubbles = [...(saved.bubbles || [])];
+    const lp = saved.legend_page || [];
+    TB.teach.legend_page = Array.isArray(lp) ? lp : [lp];
   }
+  TB.needs = (TB.tstate && TB.tstate.needs) || [];
+  if (c && c.kind === "titleblock" && !TB.needs.includes("dwg_no")) TB.needs.unshift("dwg_no");
   if (c) { const r = document.querySelector(`input[name="tbfix-cell"][value="${c.item}"]`); if (r) r.checked = true; }
   const had = [st.saved ? "타이틀블록" : "", saved ? "가르친 칸" : ""].filter(Boolean).join(" · ");
   msg.textContent = had
     ? `저장된 지정이 있습니다 (${had}) — 다시 그으면 바뀝니다`
     : (st.project ? "" : "⚠ 이 분석은 프로젝트에 묶여 있지 않아 저장할 자리가 없습니다 — 프로젝트를 고르고 다시 올리세요");
   if (!st.project) msg.classList.add("out");
-  tbRender();
+  const first = tbTaskKeys().find(k => !TEACH_TASKS[k].done());
+  if (first) tbSetTask(first, true); else tbRender();
+  tbRenderTasks();
   box.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function tbTaskKeys() {
+  return TB.needs.map(n => n.replace(/\?$/, "")).filter(k => TEACH_TASKS[k]);
+}
+
+function tbRenderTasks() {
+  const keys = tbTaskKeys();
+  const ol = $("#tbfix-tasks");
+  const must = keys.filter(k => !TEACH_TASKS[k].optional);
+  const left = must.filter(k => !TEACH_TASKS[k].done()).length;
+  const head = must.length
+    ? (left ? `해 주실 일 ${must.length}가지 — 각각 도면을 <b>한 번</b> 누르면 됩니다.  남은 일 <b>${left}</b>` :
+              `<span class="ok">✔ 필요한 것을 다 알려 주셨습니다</span> — 아래 <b>[저장하고 다시 분석]</b> 을 누르세요`)
+    : "이 도면은 프로그램이 스스로 읽을 수 있습니다 — 아래 <b>[저장하고 다시 분석]</b> 만 누르세요";
+  ol.innerHTML = `<li class="tb-head">${head}</li>` + keys.map((k, i) => {
+    const t = TEACH_TASKS[k], ok = t.done(), on = TB.task === k;
+    const btn = (t.button && on ? ` <button type="button" class="tb-do" data-do="${k}">${escape(t.button)}</button>` : "")
+      + (k === "bubbles" && ok ? ` <button type="button" class="tb-do ghost small" data-do="bubbles-clear" title="누른 버블을 모두 잊고 다시 누릅니다">다시 고르기</button>` : "");
+    return `<li class="tb-task${ok ? " done" : ""}${on ? " on" : ""}${t.optional ? " opt" : ""}" data-task="${k}">`
+      + `<span class="tb-mark">${ok ? "✔" : i + 1}</span><span class="tb-txt"><b>${escape(t.title)}</b>${btn}`
+      + (on ? `<span class="muted small tb-hint">${escape(t.hint)}</span>` : "") + `</span></li>`;
+  }).join("");
+}
+
+function tbSetTask(k, go) {
+  TB.task = k;
+  const t = TEACH_TASKS[k];
+  const sug = (TB.tstate && TB.tstate.suggest) || {};
+  const want = t.where === "legend" ? ((TB.teach.legend_page || [])[0] || {}).page_no || sug.legend : sug.drawing;
+  if (go && want && want !== TB.page) TB.page = want;
+  if (go) tbRender();
+  tbRenderTasks();
+}
+
+$req("#tbfix-tasks").addEventListener("click", ev => {
+  const btn = ev.target.closest("button[data-do]");
+  if (btn && btn.dataset.do === "bubbles-clear") { $("#tbfix-bubbles-clear").click(); tbSetTask("bubbles", false); return; }
+  if (btn) { tbLegendHere(); return; }
+  const li = ev.target.closest("li[data-task]");
+  if (li) tbSetTask(li.dataset.task, true);
+});
+
+function tbNextTask() {
+  const nxt = tbTaskKeys().find(k => !TEACH_TASKS[k].done());
+  if (nxt && nxt !== TB.task) tbSetTask(nxt, TEACH_TASKS[nxt].where !== TEACH_TASKS[TB.task || nxt].where);
+  else tbRenderTasks();
+}
+
+/* 범례 장 — 버튼 하나.  이 장(+ 이미 범례라고 한 장들)에서 세 칸(밸브 · 액추에이터 · 전기 신호선)을
+ * 찾아 어느 장에서 찾았는지 보인다.  빠진 칸이 있으면 그 칸이 있는 범례 장을 한 번 더 누르면 된다. */
+async function tbLegendHere() {
+  const out = $("#tbfix-preview");
+  out.innerHTML = '<span class="muted">이 장에서 범례 칸을 찾는 중…</span>';
+  const also = (TB.teach.legend_page || []).map(x => x.page_no).filter(n => n !== TB.page);
+  let got;
+  try {
+    const r = await fetch(`/jobs/${TB.job}/teach/preview`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item: "legend_page", page_no: TB.page, rect: [0, 0, 0, 0], also }) });
+    got = await r.json();
+    if (!r.ok) throw new Error(got.detail || r.status);
+  } catch (e) { out.textContent = `확인하지 못했습니다 — ${e.message || e}`; return; }
+  const names = { "LINE VALVES": "밸브 기호표", "VALVES ACTUATORS": "액추에이터 기호표", "ELECTRIC SIGNAL": "전기 신호선" };
+  const f = got.found || {};
+  if (!(got.here || []).length) {
+    out.innerHTML = `<p class="no">✖ p${TB.page} 에서 밸브·액추에이터·신호선 칸을 하나도 찾지 못했습니다 — 범례 장이 맞는지 보고, 다른 장이면 ◀ ▶ 로 넘긴 뒤 다시 누르세요.</p>`;
+    return;
+  }
+  if (!TB.teach.legend_page.some(x => x.page_no === TB.page)) TB.teach.legend_page.push({ page_no: TB.page });
+  TB.dirty.legend_page = true;
+  const pages = TB.teach.legend_page.map(x => "p" + x.page_no).join(" · ");
+  const miss = (got.missing || []).map(k => names[k]);
+  out.innerHTML = `<p><b>범례로 쓰는 장: ${pages}</b> — ` + Object.entries(names).map(([k, n]) =>
+      f[k] ? `<span class="ok">✔ ${n} (p${f[k]})</span>` : `<span class="no">✖ ${n}</span>`).join(" · ") + "</p>"
+    + (miss.length ? `<p class="muted">빠진 칸(${miss.join(" · ")})이 다른 범례 장에 있으면 그 장을 띄우고 [이 장이 범례입니다] 를 한 번 더 누르세요.  ` +
+                     "없으면 그대로 두어도 분석은 됩니다 (그 칸은 설정값으로 계속).</p>" : "");
+  tbRenderTasks();
+  if (!miss.length) tbNextTask();
+}
+
+/* 도면을 한 번 누름 → 서버가 그 자리를 사각형으로 바꿔 준다 → 끌어 그은 것과 같은 길로 넣는다. */
+async function tbClick(p) {
+  const t = TEACH_TASKS[TB.task];
+  if (!t || !t.click) return;
+  const out = $("#tbfix-preview");
+  let got;
+  try {
+    const r = await fetch(`/jobs/${TB.job}/teach/click`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item: t.click, page_no: TB.page, x: p[0], y: p[1] }) });
+    got = await r.json();
+    if (!r.ok) throw new Error(got.detail || r.status);
+  } catch (e) { out.textContent = `읽지 못했습니다 — ${e.message || e}`; return; }
+  if (!got.ok) { out.innerHTML = `<p class="no">✖ ${escape(got.note || "그 자리에서 찾지 못했습니다")}</p>`; return; }
+  await tbTake({ dwg_no: "dwg_no_region", bubble: "bubbles", notes: "notes" }[t.click], got.rect);
+  tbNextTask();
 }
 
 function tbRender() {
@@ -9442,7 +9559,11 @@ function tbDrawBoxes() {
   for (const r of TB.found) put("found", r, "");
 }
 
-function tbCell() { return (document.querySelector('input[name="tbfix-cell"]:checked') || {}).value || "dwg_no_region"; }
+function tbCell() {
+  if ($("#tbfix-adv").open || !TB.task)
+    return (document.querySelector('input[name="tbfix-cell"]:checked') || {}).value || "dwg_no_region";
+  return { dwg_no: "dwg_no_region", bubbles: "bubbles", notes: "notes", legend: "" }[TB.task] || "";
+}
 
 function tbPoint(ev) {
   const img = $("#tbfix-img");
@@ -9477,8 +9598,15 @@ $req("#tbfix-stage").addEventListener("pointerup", async ev => {
   const p = tbPoint(ev);
   const r = [Math.min(d.p0[0], p[0]), Math.min(d.p0[1], p[1]), Math.max(d.p0[0], p[0]), Math.max(d.p0[1], p[1])]
     .map(v => Math.round(v * 10) / 10);
-  if (r[2] - r[0] < 4 || r[3] - r[1] < 2) return;           // 클릭은 사각형이 아니다
+  if (r[2] - r[0] < 4 || r[3] - r[1] < 2) { await tbClick(p); return; }   // 누르기 — 할 일 목록의 항목으로
   const cell = tbCell();
+  if (!cell) return;
+  await tbTake(cell, r);
+  if (!$("#tbfix-adv").open) tbNextTask();
+});
+
+/* 칸 하나를 받는다 — 누르기와 끌기가 같은 길을 쓴다. */
+async function tbTake(cell, r) {
   if (TB_TITLE_CELLS.includes(cell)) {
     TB.cells[cell] = r; TB.dirty.tb = true;
     tbDrawBoxes();
@@ -9495,7 +9623,7 @@ $req("#tbfix-stage").addEventListener("pointerup", async ev => {
   }
   tbDrawBoxes();
   await teachPreview(cell, item);
-});
+}
 
 async function tbPreview(cell, rect) {
   const out = $("#tbfix-preview");
@@ -9536,9 +9664,9 @@ async function teachPreview(cell, item) {
     out.innerHTML = `<p><b>버블 예시 ${TB.teach.bubbles.length}개</b> → 모양 ${got.templates}가지를 배웠습니다 · `
       + `이 장에서 <b class="${TB.found.length ? "ok" : "no"}">${TB.found.length}개</b> (초록 테두리) · `
       + `도면 ${got.pages_total}장 중 <b>${got.pages_with}장</b>에서 모두 <b>${got.found_total}개</b> 찾음`
-      + (TB.found.length ? "" : ' — <span class="no">같은 모양을 못 찾았습니다.  버블 하나를 넉넉히 감싸 다시 그어 보세요</span>')
-      + `</p><p class="muted">초록 테두리가 버블이 아닌 곳에 서 있으면 그 예시를 지우고(예시 지우기) 다시 그으세요.  `
-      + `계기인지는 여전히 버블 안 글자가 정합니다.</p>`;
+      + (TB.found.length ? "" : ' — <span class="no">같은 모양을 못 찾았습니다.  버블 안 글자 위를 다시 눌러 보세요</span>')
+      + `</p><p class="muted">초록 테두리가 버블이 아닌 곳에 서 있으면 할 일 목록의 [다시 고르기] 를 누르고 다른 버블을 누르세요.  `
+      + `모양이 다른 버블(긴 것 · 세로로 선 것)이 초록이 안 되면 그것도 하나 더 누르면 됩니다.  계기인지는 여전히 버블 안 글자가 정합니다.</p>`;
     return;
   }
   if (cell === "drawing") {
@@ -9570,8 +9698,15 @@ async function teachPreview(cell, item) {
 
 async function tbSave(thenRun) {
   const msg = $("#tbfix-msg"); msg.classList.remove("out");
-  const anyTeach = TB.teach.drawing || TB.teach.notes || Object.keys(TB.teach.legend).length || TB.teach.bubbles.length;
-  if (!Object.keys(TB.cells).length && !anyTeach) { msg.textContent = "그은 칸이 없습니다"; msg.classList.add("out"); return false; }
+  const anyTeach = TB.teach.drawing || TB.teach.notes || (TB.teach.legend_page || []).length || Object.keys(TB.teach.legend).length || TB.teach.bubbles.length;
+  const nothingAsked = !tbTaskKeys().some(k => !TEACH_TASKS[k].optional);
+  if (!Object.keys(TB.cells).length && !anyTeach && !(thenRun && nothingAsked)) {
+    const todo = tbTaskKeys().find(k => !TEACH_TASKS[k].done() && !TEACH_TASKS[k].optional);
+    msg.textContent = todo ? `먼저 위 목록의 「${TEACH_TASKS[todo].title}」 를 해 주세요` : "알려 준 것이 없습니다";
+    msg.classList.add("out"); return false;
+  }
+  const todo = tbTaskKeys().find(k => !TEACH_TASKS[k].done() && !TEACH_TASKS[k].optional);
+  if (thenRun && todo && !confirm(`아직 「${TEACH_TASKS[todo].title}」 가 남았습니다.  그래도 다시 분석할까요? (같은 자리에서 다시 멈출 수 있습니다)`)) return false;
   if (TB.dirty.tb && !TB.cells.dwg_no_region) { msg.textContent = "타이틀블록은 도면번호 칸을 먼저 그으세요"; msg.classList.add("out"); return false; }
   const who = $("#tbfix-who").value.trim();
   if (!who) { msg.textContent = "작성자를 적어야 저장됩니다 (팀이 공유하는 값입니다)"; msg.classList.add("out"); $("#tbfix-who").focus(); return false; }
@@ -9582,8 +9717,9 @@ async function tbSave(thenRun) {
       body: JSON.stringify({ cells: TB.cells, page_no: TB.page, author: who }) });
     if (!r.ok) { msg.textContent = (await r.json()).detail || "저장하지 못했습니다"; msg.classList.add("out"); return false; }
   }
-  if (anyTeach || TB.dirty.drawing || TB.dirty.notes || TB.dirty.legend || TB.dirty.bubbles) {
+  if (anyTeach || TB.dirty.drawing || TB.dirty.notes || TB.dirty.legend || TB.dirty.bubbles || TB.dirty.legend_page) {
     const body = { author: who };
+    if (TB.dirty.legend_page) body.legend_page = TB.teach.legend_page || [];
     if (TB.dirty.drawing) body.drawing = TB.teach.drawing || {};
     if (TB.dirty.notes) body.notes = TB.teach.notes || {};
     if (TB.dirty.legend) body.legend = TB.teach.legend;
@@ -9609,14 +9745,14 @@ $req("#tbfix-save-run").addEventListener("click", async () => {
 $req("#tbfix-clear").addEventListener("click", async () => {
   await Promise.all([fetch(`/jobs/${TB.job}/titleblock`, { method: "DELETE" }),
                      fetch(`/jobs/${TB.job}/teach`, { method: "DELETE" })]);
-  TB.cells = {}; TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [] }; TB.found = []; TB.dirty = {};
-  tbDrawBoxes();
+  TB.cells = {}; TB.teach = { drawing: null, notes: null, legend: {}, bubbles: [], legend_page: [] }; TB.found = []; TB.dirty = {};
+  tbDrawBoxes(); tbRenderTasks();
   $("#tbfix-preview").innerHTML = "";
   $("#tbfix-msg").textContent = "지정을 지웠습니다 — 다시 분석하면 도면이 스스로 답한 것으로 돌아갑니다";
 });
 $req("#tbfix-bubbles-clear").addEventListener("click", () => {
   TB.teach.bubbles = []; TB.found = []; TB.dirty.bubbles = true;
-  tbDrawBoxes(); $("#tbfix-preview").innerHTML = "";
+  tbDrawBoxes(); tbRenderTasks(); $("#tbfix-preview").innerHTML = "";
 });
 $req("#tbfix-close").addEventListener("click", () => $("#tbfix").classList.add("hidden"));
 $req("#tbfix-page").addEventListener("change", ev => {

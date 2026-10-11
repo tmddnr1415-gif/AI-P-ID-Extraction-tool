@@ -107,7 +107,9 @@ def derive_line_styles(pages, cfg=None) -> "legend_rules.Derived":
             row = [w for _r, w in row_words
                    if abs((_r.y0 + _r.y1) / 2 - (r.y0 + r.y1) / 2) < 6 * unit]
             # hotfix84 — `ELECTRICAL SIGNAL LINE` (Takhiatash) is the same row.
-            if "ELECTRIC" in row or ("ELECTRICAL" in row and pidcache.form_auto()):
+            taught_page = pc in legend_rules.taught_pages([pc])
+            if ("ELECTRIC" in row or ("ELECTRICAL" in row and pidcache.form_auto())
+                    or (taught_page and any(str(w).upper().startswith("ELECTRIC") for w in row))):
                 label = r
                 break
     if label is None:

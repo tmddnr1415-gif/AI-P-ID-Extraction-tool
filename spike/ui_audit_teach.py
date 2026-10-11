@@ -1,11 +1,11 @@
 """hotfix85 — 띄워서 눌러 본다: **이전 프로그램 기준**으로 새 양식(Takhiatash)을 올리고,
-분석이 멈출 때마다 진행 화면의 '도면 가르치기' 판에서 사각형만 그어 끝까지 가는지.
+분석이 멈추면 진행 화면의 '도면 가르치기' 판에 뜬 **할 일 목록**만 보고 도면을 **눌러** 끝까지 가는지.
 
     python3 spike/ui_audit_teach.py data/newproj/binder.pdf OUTDIR
 
 * 서버는 `PID_FORM_AUTO=0` — hotfix84 가 넣은 새 양식 자동 갈래(사각형 테두리 · 범례 제목
   다른 낱말 · 곡선+짧은 직선 버블 · NOTES 머리말)를 끈다.  그 전 프로그램처럼 멈춘다.
-* 사람이 하는 일은 화면에서 사각형을 긋는 것뿐이다 (API 를 직접 부르지 않는다 — 업로드만 API).
+* 사람이 하는 일은 할 일 목록대로 도면을 한 번씩 누르는 것뿐이다 (사각형 긋기 없음 · API 는 업로드만).
 * 실 DB 는 열지 않는다 (임시 데이터 폴더 · sha256 대조).  캡처와 결과는 OUTDIR 에.
 
 좌표는 이 문서에서 사람이 눈으로 보고 그을 자리다 (도면번호 칸 · 테두리 안쪽 · NOTES ·
@@ -56,14 +56,26 @@ srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host
                        stdout=open(OUT / "server.log", "w"), stderr=subprocess.STDOUT)
 base = f"http://127.0.0.1:{port}"
 
-# 사람이 그을 자리 (도면 pt)
-DWG_NO = [1068.0, 820.0, 1142.0, 834.0]
-DRAWING = [28.0, 7.0, 1184.0, 835.0]
-NOTES = [968.0, 20.0, 1184.0, 834.0]
-LEGEND = {"legend:VALVES ACTUATORS": [412.0, 137.0, 442.0, 154.0],
-          "legend:ELECTRIC SIGNAL": [84.0, 201.0, 130.0, 212.0],
-          "legend:LINE VALVES": [48.0, 663.0, 70.0, 681.0]}
-BUBBLES = [[631.0, 656.5, 672.0, 672.5], [234.5, 458.5, 275.5, 474.0]]
+# 사람이 누를 자리 — **화면이 띄운 장**에서 사람이 눈으로 보고 누를 곳 (도면 pt).
+# 버블은 기준선 결과(hotfix84 · 자동으로 읽은 1139행)의 그 장 계기 하나의 한가운데,
+# NOTES 는 그 장에 인쇄된 `NOTES` 글자, 도면번호는 그 장의 도면번호 글자.
+BASE = json.loads((ROOT / "out" / "regression_3p" / "TAKHIATASH.json").read_text())["result"]["rows"]
+
+
+def eye(page_no, what):
+    """사람의 눈 — 그 장에서 무엇이 어디 있는지 (분석 결과가 아니라 인쇄된 것)."""
+    if what == "bubble":
+        r = next(r for r in BASE if r["page_no"] == page_no and r["tab"] == "FIELD" and r.get("rect"))["rect"]
+        return ((r[0] + r[2]) / 2, (r[1] + r[3]) / 2)
+    sys.path.insert(0, str(ROOT / "app" / "engine"))
+    import pidcache
+    _d, pp = pidcache.load_pages(PDF, only={page_no})
+    for r, t in pp[0].words:
+        if what == "notes" and t.upper() == "NOTES":
+            return ((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
+        if what == "dwg_no" and t.count("-") >= 3 and r.y0 > pp[0].height * 0.8:
+            return ((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
+    raise LookupError(f"p{page_no} 에 {what} 없음")
 
 try:
     for _ in range(90):
@@ -114,26 +126,38 @@ try:
             pg.wait_for_function(f"() => TB.page === {n} && document.querySelector('#tbfix-img').complete", timeout=30000)
             pg.wait_for_timeout(500)
 
-        def drag(item, rect):
-            pg.check(f'input[name="tbfix-cell"][value="{item}"]')
-            z = pg.evaluate("() => TB.zoom")
-            # 그을 자리가 보이게 굴린다
+        def click_at(x, y, zoom=1.0):
+            zoom_to(zoom)
+            pg.evaluate("() => document.querySelector('#tbfix-stage').scrollIntoView({block: 'center'})")
             pg.evaluate(f"""() => {{ const st = document.querySelector('#tbfix-stage');
-                st.scrollLeft = Math.max(0, {rect[0]} * TB.zoom - 60); st.scrollTop = Math.max(0, {rect[1]} * TB.zoom - 60); }}""")
+                st.scrollLeft = Math.max(0, {x} * TB.zoom - st.clientWidth / 2);
+                st.scrollTop = Math.max(0, {y} * TB.zoom - st.clientHeight / 2); }}""")
             pg.wait_for_timeout(200)
             box = pg.eval_on_selector("#tbfix-img", "e => { const b = e.getBoundingClientRect(); return [b.left, b.top]; }")
-            x0, y0 = box[0] + rect[0] * z, box[1] + rect[1] * z
-            x1, y1 = box[0] + rect[2] * z, box[1] + rect[3] * z
-            pg.mouse.move(x0, y0); pg.mouse.down(); pg.mouse.move((x0 + x1) / 2, (y0 + y1) / 2, steps=4)
-            pg.mouse.move(x1, y1, steps=4); pg.mouse.up()
-            pg.wait_for_function("() => !/읽는 중/.test(document.querySelector('#tbfix-preview').textContent)", timeout=120000)
+            z = pg.evaluate("() => TB.zoom")
+            before = pg.text_content("#tbfix-preview")
+            pg.mouse.click(box[0] + x * z, box[1] + y * z)
+            pg.wait_for_function("(b) => { const t = document.querySelector('#tbfix-preview').textContent; return t !== b && !/읽는 중|찾는 중/.test(t); }",
+                                 arg=before, timeout=120000)
             pg.wait_for_timeout(300)
-            return pg.text_content("#tbfix-preview")
+            return " ".join(pg.text_content("#tbfix-preview").split())
+
+        def tasks():
+            return pg.evaluate("() => [...document.querySelectorAll('#tbfix-tasks li.tb-task')].map(li => "
+                               "({k: li.dataset.task, done: li.classList.contains('done'), on: li.classList.contains('on'),"
+                               " text: li.querySelector('b').textContent}))")
 
         def save_and_rerun(tag):
             pg.fill("#tbfix-who", "홍길동")
             pg.click("#tbfix-save-run")
             pg.wait_for_function("() => document.querySelector('#tbfix').classList.contains('hidden')", timeout=30000)
+            # 다시 분석이 **시작된 것**을 본 뒤에 끝을 기다린다 — 바로 물으면 앞 분석의 '실패' 를 읽는다
+            t0 = time.time()
+            while time.time() - t0 < 60:
+                st = json.loads(urllib.request.urlopen(f"{base}/jobs/{job}", timeout=10).read())
+                if st.get("status") in ("queued", "running", "done"):
+                    break
+                time.sleep(0.5)
             note(f"[{tag}] 저장하고 다시 분석")
 
         pg.goto(f"{base}/#{job}")
@@ -153,39 +177,49 @@ try:
             note(f"   판이 저절로 열림 · 안내: {guide[:80]}…")
             rounds.append({"step": step, "status": "failed", "message": msg, "guide": guide})
             pg.screenshot(path=str(OUT / f"{step}a_멈춤과_가르치기판.png"), full_page=True)
-            if "도면번호" in msg:
-                zoom_to(0.5)
-                pv = drag("dwg_no_region", DWG_NO)
-                note(f"   도면번호 칸 → {pv.splitlines()[0][:110] if pv else ''}")
-                pv = drag("drawing", DRAWING)
-                note(f"   도면 영역 → {pv[:110]}")
-                pv = drag("notes", NOTES)
-                note(f"   NOTES 영역 → {pv[:110]}")
-                pg.screenshot(path=str(OUT / f"{step}b_타이틀블록_도면영역_NOTES.png"), full_page=True)
-                save_and_rerun("타이틀블록 · 도면 영역 · NOTES")
-            elif "Legend" in msg:
-                pg.click("#tbfix-go-legend")
-                pg.wait_for_timeout(1500)
-                note(f"   '범례 장으로' → p{pg.evaluate('() => TB.page')}")
-                if pg.evaluate("() => TB.page") != 2:
-                    goto_page(2)
-                zoom_to(1)
-                for item, rect in LEGEND.items():
-                    pv = drag(item, rect)
-                    note(f"   {item} → {' '.join(pv.split())[:150]}")
-                pg.screenshot(path=str(OUT / f"{step}b_범례_칸제목_셋.png"), full_page=True)
-                save_and_rerun("범례 칸 제목 셋")
-            elif "버블" in msg:
-                goto_page(6)
-                zoom_to(1.5)
-                for rect in BUBBLES:
-                    pv = drag("bubbles", rect)
-                    note(f"   버블 예시 → {' '.join(pv.split())[:170]}")
-                pg.screenshot(path=str(OUT / f"{step}b_버블_예시_둘.png"), full_page=True)
-                save_and_rerun("버블 예시 둘")
-            else:
-                note("   가르칠 수 없는 멈춤 — 끝냄")
+            head = " ".join(pg.text_content("#tbfix-tasks li.tb-head").split())
+            ts = tasks()
+            note(f"   할 일 목록: {head}")
+            for t in ts:
+                note(f"     · {t['text']}")
+            rounds[-1]["tasks"] = [t["k"] for t in ts]
+            clicks = 0
+            if not ts:
+                note("   가르칠 것이 없는 멈춤 — 끝냄")
                 break
+            for t in ts:
+                k = t["k"]
+                pg.click(f'#tbfix-tasks li[data-task="{k}"]')
+                pg.wait_for_function("() => document.querySelector('#tbfix-img').complete", timeout=30000)
+                pg.wait_for_timeout(600)
+                if k == "legend":
+                    note(f"   [범례] 목록을 누르니 p{pg.evaluate('() => TB.page')} 가 떴습니다 → [이 장이 범례입니다]")
+                    before = pg.text_content("#tbfix-preview")
+                    pg.click("#tbfix-tasks button.tb-do")
+                    pg.wait_for_function("(b) => { const t = document.querySelector('#tbfix-preview').textContent; return t !== b && !/찾는 중/.test(t); }",
+                                         arg=before, timeout=120000)
+                    clicks += 1
+                    note(f"     → {' '.join(pg.text_content('#tbfix-preview').split())[:170]}")
+                    pg.screenshot(path=str(OUT / f"{step}b_범례장_한번누름.png"), full_page=True)
+                elif k == "bubbles":
+                    pno = pg.evaluate("() => TB.page")
+                    pv = click_at(*eye(pno, "bubble"), 1.0); clicks += 1
+                    note(f"   [버블] 목록이 띄운 p{pno} 에서 버블 하나 누름 → {pv[:170]}")
+                    pg.screenshot(path=str(OUT / f"{step}c_버블_한번누름.png"), full_page=True)
+                elif k in ("dwg_no", "notes"):
+                    pno = pg.evaluate("() => TB.page")
+                    try:
+                        xy = eye(pno, k)
+                    except LookupError as e:
+                        note(f"   [{k}] {e} — 건너뜀 (선택 항목)"); continue
+                    pv = click_at(*xy, 0.75); clicks += 1
+                    note(f"   [{k}] p{pno} 에서 누름 → {pv[:170]}")
+                    pg.screenshot(path=str(OUT / f"{step}d_{k}_한번누름.png"), full_page=True)
+            head = " ".join(pg.text_content("#tbfix-tasks li.tb-head").split())
+            note(f"   누른 횟수 {clicks} · 목록: {head}")
+            rounds[-1]["clicks"] = clicks
+            pg.screenshot(path=str(OUT / f"{step}e_다_알려줌.png"), full_page=True)
+            save_and_rerun(f"{step}번째")
         # 결과 화면
         res = json.loads(urllib.request.urlopen(f"{base}/jobs/{job}", timeout=10).read())
         rows = json.loads(urllib.request.urlopen(f"{base}/jobs/{job}/rows?tab=ALL&slim=1", timeout=60).read())
@@ -204,8 +238,8 @@ try:
             pg.wait_for_timeout(2000)
         pg.screenshot(path=str(OUT / "9_결과화면.png"), full_page=False)
         saved = json.loads((data / "projects" / PROJECT / "form_teach.json").read_text())
-        note(f"④ 저장된 가르침: 작성자 {saved.get('author')} · 도면 영역 {bool(saved.get('drawing'))} · "
-             f"NOTES {bool(saved.get('notes'))} · 범례 {sorted(saved.get('legend') or {})} · 버블 예시 {len(saved.get('bubbles') or [])}")
+        note(f"④ 저장된 가르침: 작성자 {saved.get('author')} · 범례 장 {[x['page_no'] for x in (saved.get('legend_page') or [])]} · "
+             f"NOTES {bool(saved.get('notes'))} · 범례 칸 {sorted(saved.get('legend') or {})} · 버블 예시 {len(saved.get('bubbles') or [])}")
         note(f"⑤ 페이지 오류 {len(errs)} {errs[:3]}")
         br.close()
     (OUT / "result.json").write_text(json.dumps({"log": LOG, "rounds": rounds, "rows": len(rows)},

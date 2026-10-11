@@ -14,6 +14,8 @@
 
     drawing   도면 영역 한 칸 (테두리 안쪽 — 테두리를 프로그램이 못 찾았을 때)
     notes     NOTES 영역 한 칸 (별표 뜻 · 공급자 · "유닛 몇 개" 노트를 읽는 자리)
+    legend_page  "이 장이 범례입니다" — 장 목록 `[{page_no, size}]` (범례가 여러 장인 문서 · 머리말은 그 장들에서
+                 인쇄된 그대로 또는 핵심 낱말로 찾는다).  옛 꼴(장 하나 `{page_no, size}`)도 읽는다
     legend    범례 장의 칸 머리말 — `LINE VALVES` · `VALVES ACTUATORS` · `ELECTRIC SIGNAL`
               (프로그램이 그 낱말로 찾는 칸을 이 문서는 다른 말로 인쇄했을 때)
     bubbles   계기 버블 예시 2~3개 (그 모양과 크기로 나머지를 찾는다)
@@ -58,7 +60,8 @@ def _now() -> str:
 
 
 def _empty() -> dict:
-    return {"version": VERSION, "enabled": True, "drawing": None, "notes": None, "legend": {}, "bubbles": [],
+    return {"version": VERSION, "enabled": True, "drawing": None, "notes": None, "legend": {},
+            "legend_page": None, "bubbles": [],
             "author": "", "set_at": "", "origin_job": "", "note": ""}
 
 
@@ -110,7 +113,8 @@ def _item(v, what: str) -> dict:
 
 
 def has_any(data: dict) -> bool:
-    return bool(data.get("drawing") or data.get("notes") or data.get("legend") or data.get("bubbles"))
+    return bool(data.get("drawing") or data.get("notes") or data.get("legend") or data.get("legend_page")
+                or data.get("bubbles"))
 
 
 def for_pipeline(data_dir, project: str) -> dict:
@@ -120,13 +124,14 @@ def for_pipeline(data_dir, project: str) -> dict:
         return {}
     who = " · ".join(b for b in (data.get("author") or "이름 없음",
                                  (data.get("set_at") or "")[:10]) if b)
-    return {"drawing": data.get("drawing"), "notes": data.get("notes"), "legend": dict(data.get("legend") or {}),
+    return {"drawing": data.get("drawing"), "notes": data.get("notes"), "legend_page": data.get("legend_page"),
+            "legend": dict(data.get("legend") or {}),
             "bubbles": list(data.get("bubbles") or []), "who": who,
             "author": data.get("author") or "", "set_at": data.get("set_at") or ""}
 
 
 @_serialized
-def set_items(data_dir, project: str, *, drawing=None, notes=None, legend: dict | None = None,
+def set_items(data_dir, project: str, *, drawing=None, notes=None, legend_page=None, legend: dict | None = None,
               bubbles: list | None = None, author: str = "", note: str = "",
               job_id: str = "") -> dict:
     """가르친 칸을 적는다 — 넘긴 항목만 바꾸고 나머지는 둔다.
@@ -145,6 +150,21 @@ def set_items(data_dir, project: str, *, drawing=None, notes=None, legend: dict 
         data["drawing"] = _item(drawing, "도면 영역") if drawing else None
     if notes is not None:
         data["notes"] = _item(notes, "NOTES 영역") if notes else None
+    if legend_page is not None:
+        if legend_page:
+            items = legend_page if isinstance(legend_page, list) else [legend_page]
+            out = []
+            try:
+                for it in items:
+                    W, H = (float(t) for t in it.get("size"))
+                    n = int(it.get("page_no"))
+                    if all(o["page_no"] != n for o in out):
+                        out.append({"page_no": n, "size": [round(W, 1), round(H, 1)]})
+            except Exception:
+                raise ValueError("범례 장: 장 번호와 쪽 크기가 필요합니다")
+            data["legend_page"] = out
+        else:
+            data["legend_page"] = None
     for key, v in (legend or {}).items():
         if key not in LEGEND_KEYS:
             raise ValueError(f"모르는 범례 칸: {key}")

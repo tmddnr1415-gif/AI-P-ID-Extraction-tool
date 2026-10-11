@@ -106,6 +106,43 @@ class Derived:
 TAUGHT: dict = {}
 # 사람이 가르칠 수 있는 칸 머리말 (`app/form_teach.LEGEND_KEYS` 와 같은 셋)
 TEACHABLE_HEADINGS = ("LINE VALVES", "VALVES ACTUATORS", "ELECTRIC SIGNAL")
+# 사람이 "이 장이 범례입니다" 라고만 알려 준 장 번호들 (hotfix85 — 가장 간단한 가르침).  범례가 여러
+# 장에 걸친 문서(TC2 p2~p4)가 있어 **목록**이다.  그 장들에서는 먼저 인쇄된 머리말 그대로, 없으면
+# **핵심 낱말 하나**로 찾는다 — 장이 확정됐으므로 낱말이 같은 칸을 가리킨다.
+TAUGHT_PAGE = None
+HEADING_KEYWORD = {"LINE VALVES": "VALVES", "VALVES ACTUATORS": "ACTUATORS", "ELECTRIC SIGNAL": "SIGNAL"}
+
+
+def taught_pages(pages) -> list:
+    """사람이 범례라고 한 장들 (`TAUGHT_PAGE` — 번호 하나여도 목록이어도 된다)."""
+    if TAUGHT_PAGE is None:
+        return []
+    nos = [int(n) for n in (TAUGHT_PAGE if isinstance(TAUGHT_PAGE, (list, tuple)) else [TAUGHT_PAGE])]
+    return [pc for n in nos for pc in pages if pc.page_no == n]
+
+
+def _keyword_heading(pc, heading: str) -> bool:
+    """그 장에 그 칸의 핵심 낱말이 **다른 칸 제목의 일부가 아닌 채로** 있는가.  `VALVES ACTUATORS`
+    의 `VALVES` 는 밸브 칸이 아니다 (TC2 시뮬레이션: 액추에이터 장을 밸브 장으로 읽어 나비밸브 9개가
+    볼밸브가 됐다) — 바로 뒤 낱말이 다른 칸의 핵심 낱말이면 그 칸의 제목이다."""
+    word = HEADING_KEYWORD[heading]
+    others = {v for k, v in HEADING_KEYWORD.items() if k != heading}
+    rows: dict = {}
+    for r, t in pidcache.tokens(pc.words):
+        half = max(r.height, 1.0) / 2
+        rows.setdefault(round((r.y0 + r.y1) / 2 / half), []).append((r.x0, str(t).upper()))
+    for items in rows.values():
+        items.sort()
+        # 겹쳐 인쇄한 범례(QFE — 같은 글자를 세 번)는 `VALVES VALVES VALVES ACTUATORS` 로 읽힌다 —
+        # 잇달아 같은 낱말은 하나로 보고 다음 낱말을 본다.
+        texts = []
+        for _x, t in items:
+            if not texts or texts[-1] != t:
+                texts.append(t)
+        for i, t in enumerate(texts):
+            if t == word and not (i + 1 < len(texts) and texts[i + 1] in others):
+                return True
+    return False
 
 
 def _taught_page(pages, heading: str):
@@ -152,6 +189,14 @@ def _page_with(pages, heading: str):
     taught = _taught_page(pages, heading)
     if taught is not None:
         return taught
+    if heading in TEACHABLE_HEADINGS:
+        marked = taught_pages(pages)
+        for lp in marked:                          # 그 장들에 인쇄된 머리말 그대로가 먼저
+            if _line_with(lp, heading.split()) is not None:
+                return lp
+        for lp in marked:                          # 없으면 핵심 낱말 (다른 칸 제목의 일부는 빼고)
+            if _keyword_heading(lp, heading):
+                return lp
     if heading in TEACHABLE_HEADINGS and pidcache.teach_blind("legend"):
         return None                               # hotfix85 시뮬레이션 — 인쇄된 머리말로 찾지 않는다
     want = heading.split()

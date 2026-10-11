@@ -4508,6 +4508,56 @@ SCOPE 이름 9종(GE · CONDENSER SUPPLIER · SUMP PUMP SUPPLIER · STEAM BYPASS
    모양(나비밸브 사각형+점 등)은 이 판에 없다 (hotfix82 모양 사전이 맡을 자리) · 이미 성공한 분석의 NOTES 를
    나중에 가르치는 입구는 아직 실패 화면뿐이다.
 
+**그 다음 — 가르치기를 최소 입력으로: 사각형 긋기 → 누르기 몇 번 (hotfix85 후반)**
+
+사용자: *"너무 많은 입력을 해야 하는 건 아닌가?  중복된다면 최소한으로, 그리고 직관적이게 설명해서 사용자가 쉽게
+본인이 해 줘야 하는 게 무엇인지 알 수 있도록, 그리고 테스트해서 실제로 적용 가능하게."*  앞 판은 멈출 때마다
+사각형을 여러 개 긋게 했다 (Takhiatash: 세 번 멈춤 · 사각형 9개).  시험 `tests/test_hotfix85_teach.py` 23건 ·
+화면 시뮬레이션 `spike/ui_audit_teach.py`(누르기판) → `out/hotfix85/ui_click/` · 정확도 `spike/teach_sim.py` → `out/hotfix85/sim/`.
+
+10. **할 일 목록은 서버가 미리 본 것만** (`main._teach_needs` → `GET /jobs/{id}/teach` 의 `needs`).  분석은 첫 벽에서
+    멈추므로 그 뒤의 벽을 모른다 — 엔진이 쓰는 **같은 함수**(`legend_rules._page_with` · `ds.bubble_outlines`)를 가르친
+    값을 얹고 싸게 돌려 **한 번에** 묻는다.  `dwg_no`(멈춘 이유가 그것일 때만) · `legend` · `bubbles` · `notes?`(언제나 선택).
+    화면(`#tbfix-tasks` · `TEACH_TASKS` · `tbRenderTasks`)은 번호 목록으로 세우고 할 일마다 **누르기 한 번**이다:
+    ① 도면번호 글자를 누른다 ② 범례 장을 띄우고 [이 장이 범례입니다] ③ 버블 하나를 누른다 ④ (선택) NOTES 제목을 누른다.
+    목록을 누르면 그 일에 맞는 장(도면 장 · 범례 장)이 뜨고, 하나를 끝내면 다음 일로 넘어간다.  사각형 긋기는
+    `<details id="tbfix-adv">`(고급) 안에 접혀 있고 같은 길(`tbTake`)로 들어간다.
+11. **누른 자리를 사각형으로 바꾸는 것은 서버** (`POST /jobs/{id}/teach/click`) — 저장은 하지 않는다 (화면이 모아
+    [저장하고 다시 분석] 때 한 번).  버블은 `ds.bubble_at`(누른 점을 품는 **가장 작은 곡선 윤곽** · 반경은 `CLICK_REACH`) ·
+    도면번호는 누른 낱말 둘레 · NOTES 는 `derive_layout.notes_from_heading`(아래 14).  `teach_sim` 도 **같은 함수**를 부른다.
+12. **도면 영역(테두리)은 묻지 않는다** — 테두리를 못 찾으면 **종이가 테두리**다 (`derive_layout._frame` 의
+    `PAPER_STANDS_IN` · 그 안에서 타이틀블록 열은 세로 괘선으로 잰다 · `_title_column`).  Takhiatash 는 이것만으로 타이틀블록
+    멈춤이 사라졌다 (도면번호 칸 `[1070.9,821.9,1140,832.6]` 를 스스로 잰다).  ⚠ 이 때문에 21회차 합성 PDF 의 멈춤 문장이
+    "설정값 그대로" 갈래에서 "캡션도 되풀이 번호도 없음" 갈래로 옮겼다 — 테두리가 서면 구조 찾기가 돌기 때문이고 그 문장이
+    더 맞다 (`tests/test_titleblock_frame.py` 갱신).  두 문장 다 이제 [도면 가르치기] 를 가리킨다.
+13. **범례는 장 번호만** (`form_teach` `legend_page` = 장 **목록** · `legend_rules.TAUGHT_PAGE` · `taught_pages`).
+    그 장들에서 머리말을 ① 인쇄된 그대로 ② 핵심 낱말 하나(`HEADING_KEYWORD` — VALVES · ACTUATORS · SIGNAL)로 찾는다.
+    ★ 시뮬레이션이 셋을 잡았다: (가) **범례가 여러 장인 문서**(TC2 p2·p4 · QFE p2·p3) — 액추에이터 장만 알려 주면 밸브 칸을
+    거기서 찾아 나비밸브가 볼밸브가 됐다 → 장을 **목록**으로 받고, 미리보기가 칸마다 어느 장에서 찾았는지와 **빠진 칸**을
+    말한다 ("그 칸이 있는 범례 장을 띄우고 한 번 더 누르세요").  (나) `VALVES ACTUATORS` 의 `VALVES` 는 밸브 칸이 아니다 —
+    바로 뒤 낱말이 다른 칸의 핵심 낱말이면 뺀다 (`_keyword_heading`).  (다) **겹쳐 인쇄한 범례**(QFE 세 번) 는
+    `VALVES VALVES VALVES ACTUATORS` 로 읽힌다 → 잇단 같은 낱말은 하나로.
+14. **NOTES 는 제목 글자 하나** (`derive_layout.notes_from_heading`) — 그 글자가 타이틀블록 열 안이면 왼쪽은 **그 열의 경계
+    괘선**(AL NOUF1 — 글 왼쪽에 따로 그린 별표가 들어온다.  글자에서 자르면 공급자 이름 **337칸**이 사라졌다), 아니면 글자 왼쪽
+    한 글자 높이 (Takhiatash — 노트가 도면 안이라 가장 가까운 괘선이 테두리다).  오른쪽·아래는 테두리.  새 상수 0.
+15. **버블 예시는 하나** — 크기 띠를 예시의 **절반~두 배**로 (`TEACH_CAP_SIZE` 0.75~1.35 → 0.5~2.0).  사람은 아무 버블이나
+    누르므로 예시가 가장 큰 것일 수도 가장 작은 것일 수도 있다 (AL NOUF1 22.6 ↔ RO 17.0 ↔ 세로 LI 15.1 — 좁은 띠로는 RO 12 ·
+    LI/LIT 2 를 놓쳤다).  넓혀도 규칙이 세운 버블 **밖**에서 잡힌 것은 AL NOUF1 8장 · Takhiatash 7장에서 **0** 이다.
+    잘못 눌렀으면 목록의 [다시 고르기].
+16. **실측 — 눈가림 시뮬레이션** (`PID_TEACH_BLIND=bubbles,legend,frame` — 프로그램이 테두리·범례·버블을 스스로 찾지 않고
+    가르친 것만 쓴다 · 기준선과 행 단위 대조 · 짝은 태그 먼저 그다음 자리 2pt 안):
+    | 문서 | 누르기 | 행 | 같은 행 | 재현율 / 정밀도 | 공급 주체 · 수량 다른 칸 |
+    | --- | --- | --- | --- | --- | --- |
+    | Takhiatash | 3 (범례 장 · 버블 · NOTES) | 1139 → 1139 | 1139 | 100 / 100 | 0 · 0 |
+    | AL NOUF1 | 3 | 1065 → 1065 | 1065 | 100 / 100 | 0 · 0 |
+    | TC2 | 4 (범례 장 둘 — p4 · p2) | 864 → 864 | 864 | 100 / 100 | 0 · 0 |
+    | QFE | 4 (범례 장 둘) | (QFE_RESULT) | | | |
+    지문은 같지 않다 — 행과 값은 같고 근거 기록(어디서 읽었나)이 "가르친 장" 을 적기 때문이다.
+    화면 시뮬레이션(Takhiatash · 이전 프로그램 기준 `PID_FORM_AUTO=0`): **한 번 멈춤 · 할 일 2 + 선택 1 · 세 번 누름 →
+    1,139행** · 페이지 오류 0 · 실 DB 같음.  앞 판(사각형)은 세 번 멈추고 사각형 9개였다.
+17. ⚠ **사람 몫이 남는 자리** — 한 문서가 버블을 **두 가지 모양**으로 그리면(QFE p42) 그 장의 버블도 하나 더 눌러야 한다
+    (미리보기의 초록 테두리가 안 서는 것을 보고).  사각형 9개 판의 QFE 도 p42 에서 11행이 갈렸다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5032,6 +5082,9 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `ds.learn_bubble_template` · `taught_bubbles` · `TAUGHT_BUBBLES` · `legend_rules.TAUGHT`·`taught_word` · `derive_layout.TAUGHT_FRAME` | **hotfix85** — 예시 버블의 캡 모양을 배워 규칙과 같은 구조로 짝짓는다 (길이·방향이 달라도) · 가르친 범례 칸이 이긴다 |
 | `pidcache.form_auto()` · `PID_FORM_AUTO=0` | **hotfix85** — 시뮬레이션 전용: hotfix84 새 양식 자동 갈래 다섯을 끈다 (이전 프로그램 재현) |
 | `app.js` `TEACH_CASES` · `teachCase` · `openTbFix(job, kind)` · `teachPreview` · `tbZoom` · `spike/ui_audit_teach.py` | **hotfix85** — 멈춘 이유별 가르치기 판 (저절로 열림 · 안내 · 미리보기) · 화면 시뮬레이션 |
+| `main._teach_needs` · `POST /jobs/{id}/teach/click` · `app.js` `TEACH_TASKS` · `tbRenderTasks` · `tbClick` · `tbLegendHere` · `tbTake` | **hotfix85 후반** — 할 일 목록(서버가 미리 본 것만 · 한 번에) · 누르기 한 번 = 할 일 하나 · 누른 자리를 사각형으로 바꾸는 것은 서버 · 사각형 긋기는 고급으로 접힘 |
+| `ds.bubble_at` · `derive_layout.notes_from_heading` · `PAPER_STANDS_IN` · `legend_rules.taught_pages` · `_keyword_heading` · `HEADING_KEYWORD` | **hotfix85 후반** — 누른 점의 버블 · NOTES 제목 글자 → 영역 · 테두리를 못 찾으면 종이 · 범례 장 목록에서 머리말(인쇄된 그대로 → 핵심 낱말 · 다른 칸 제목의 일부와 겹쳐 인쇄는 뺀다) |
+| `spike/teach_sim.py` (`pick_min` · `--full` · `--rescore` · `_match`) | **hotfix85 후반** — 사람이 누를 것만 흉내 내 눈가림 분석 → 기준선과 행 단위 대조 (태그 먼저) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |

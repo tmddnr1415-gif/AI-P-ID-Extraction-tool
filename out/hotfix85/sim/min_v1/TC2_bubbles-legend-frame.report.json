@@ -1,0 +1,301 @@
+{
+ "project": "TC2",
+ "blind": "bubbles,legend,frame",
+ "secs": 339,
+ "taught": {
+  "applied": [
+   "notes",
+   "legend_page",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 1
+ },
+ "busiest_page": 22,
+ "bubble_shapes_on_page": {},
+ "examples": 1,
+ "legend_taught": [],
+ "legend_page": 4,
+ "clicks": 3,
+ "notes_taught": true,
+ "drawing_taught": false,
+ "base_rows": 864,
+ "taught_rows": 864,
+ "same": 855,
+ "recall": 99.0,
+ "precision": 99.0,
+ "only_base": 9,
+ "only_taught": 9,
+ "scope_diff": 262,
+ "qty_diff": 679,
+ "same_fingerprint": false,
+ "only_base_types": [
+  [
+   "BUTTERFLY",
+   9
+  ]
+ ],
+ "only_taught_types": [
+  [
+   "BALL",
+   9
+  ]
+ ],
+ "only_base_pages": [
+  [
+   23,
+   4
+  ],
+  [
+   16,
+   3
+  ],
+  [
+   7,
+   1
+  ],
+  [
+   15,
+   1
+  ]
+ ],
+ "only_taught_pages": [
+  [
+   23,
+   4
+  ],
+  [
+   16,
+   3
+  ],
+  [
+   7,
+   1
+  ],
+  [
+   15,
+   1
+  ]
+ ],
+ "only_base_sample": [
+  [
+   7,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    614,
+    529,
+    622,
+    532
+   ]
+  ],
+  [
+   15,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    710,
+    171,
+    718,
+    174
+   ]
+  ],
+  [
+   16,
+   "REVIEW",
+   "BUTTERFLY",
+   "",
+   [
+    179,
+    215,
+    187,
+    218
+   ]
+  ],
+  [
+   16,
+   "REVIEW",
+   "BUTTERFLY",
+   "",
+   [
+    179,
+    442,
+    187,
+    445
+   ]
+  ],
+  [
+   16,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    179,
+    669,
+    187,
+    672
+   ]
+  ],
+  [
+   23,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    853,
+    167,
+    862,
+    170
+   ]
+  ],
+  [
+   23,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    104,
+    262,
+    113,
+    265
+   ]
+  ],
+  [
+   23,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    853,
+    262,
+    862,
+    265
+   ]
+  ],
+  [
+   23,
+   "BFV",
+   "BUTTERFLY",
+   "",
+   [
+    104,
+    167,
+    113,
+    170
+   ]
+  ]
+ ],
+ "only_taught_sample": [
+  [
+   7,
+   "MOV",
+   "BALL",
+   "",
+   [
+    614,
+    529,
+    622,
+    532
+   ]
+  ],
+  [
+   15,
+   "PNEUMATIC",
+   "BALL",
+   "",
+   [
+    710,
+    171,
+    718,
+    174
+   ]
+  ],
+  [
+   16,
+   "REVIEW",
+   "BALL",
+   "",
+   [
+    179,
+    215,
+    187,
+    218
+   ]
+  ],
+  [
+   16,
+   "REVIEW",
+   "BALL",
+   "",
+   [
+    179,
+    442,
+    187,
+    445
+   ]
+  ],
+  [
+   16,
+   "MOV",
+   "BALL",
+   "",
+   [
+    179,
+    669,
+    187,
+    672
+   ]
+  ],
+  [
+   23,
+   "MOV",
+   "BALL",
+   "",
+   [
+    853,
+    167,
+    862,
+    170
+   ]
+  ],
+  [
+   23,
+   "MOV",
+   "BALL",
+   "",
+   [
+    104,
+    262,
+    113,
+    265
+   ]
+  ],
+  [
+   23,
+   "MOV",
+   "BALL",
+   "",
+   [
+    853,
+    262,
+    862,
+    265
+   ]
+  ],
+  [
+   23,
+   "MOV",
+   "BALL",
+   "",
+   [
+    104,
+    167,
+    113,
+    170
+   ]
+  ]
+ ]
+}

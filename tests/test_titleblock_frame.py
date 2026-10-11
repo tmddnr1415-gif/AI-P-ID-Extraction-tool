@@ -287,6 +287,7 @@ def test_the_whole_pipeline_stops_instead_of_returning_zero_rows(tmp_path):
     assert "3장" in msg                      # 몇 장을 봤는지
     assert "1191.0x842.0pt" in msg           # 이 문서의 쪽 크기
     assert "[1950.0, 1560.0, 2384.0, 1600.0]" in msg   # 어느 자리를 보고 있었는지
-    assert "title_block" in msg              # 무엇을 하면 되는지
-    # 이 합성 PDF 에는 재는 규칙이 찾는 캡션이 없으므로 설정값 갈래여야 한다.
-    assert "재지 못해" in msg
+    assert "도면 가르치기" in msg            # 무엇을 하면 되는지 (hotfix85 — 글자 한 번 누르기)
+    # 이 합성 PDF 에는 캡션도, 장마다 되풀이되는 번호도 없다.  hotfix85 부터 테두리를 못 찾으면
+    # 종이가 테두리라 구조 찾기가 돌고, 그것도 못 찾았다는 갈래가 맞다.
+    assert "캡션" in msg and "되풀이" in msg
