@@ -228,12 +228,12 @@ function badgeText(b) {
 function paint() {
   const s = L.sheet;
   if (!s) return;
+  $("#ov").classList.toggle("sim", L.mode === "sim");     // 시뮬레이션: 활성(1) 선 말고는 아무 표시도 없다
   for (const g of document.querySelectorAll("#ov .net")) {
     const nid = g.dataset.net;
-    g.classList.remove("on", "off", "unk", "forced");
-    if (L.mode === "sim" && nid in L.values) {
-      const v = L.values[nid];
-      g.classList.add(v === 1 ? "on" : v === 0 ? "off" : "unk");
+    g.classList.remove("on", "forced");
+    if (L.mode === "sim" && L.values[nid] === 1) {
+      g.classList.add("on");
       if (("net:" + nid) in L.forces) g.classList.add("forced");
     }
     g.classList.toggle("sel", L.sel && L.sel.net === nid);
@@ -360,7 +360,7 @@ async function runSim(animate) {
     L.anim.push(setTimeout(() => {
       L.values = { ...L.values };
       // 꺼지는 선은 바로, 켜지는 선은 흘러가며
-      for (const n of changed) if (snap[n] !== 1) L.values[n] = snap[n];
+      for (const n of changed) if (snap[n] !== 1) L.values[n] = snap[n];   // 꺼지는 선은 바로 사라진다
       paint();
     }, base));
     for (const d of ds) {
@@ -381,9 +381,7 @@ async function runSim(animate) {
 function paintNet(nid) {
   const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
   if (!g) return;
-  g.classList.remove("on", "off", "unk");
-  const v = L.values[nid];
-  g.classList.add(v === 1 ? "on" : v === 0 ? "off" : "unk");
+  g.classList.toggle("on", L.values[nid] === 1);
 }
 function timelineShow(label, ms) {
   const tl = $("#timeline");
@@ -436,7 +434,7 @@ function onRow(n, e) {
 
 function valTag(v) {
   if (L.mode !== "sim") return "";
-  return v === 1 ? `<span class="val v1">1</span>` : v === 0 ? `<span class="val v0">0</span>` : v === null ? `<span class="val vn">?</span>` : "";
+  return v === 1 ? `<span class="val v1">1</span>` : `<span class="val v0">0</span>`;
 }
 function forceBtns(key) {
   const v = L.forces[key];
@@ -505,10 +503,10 @@ function renderInfo() {
 function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
-    ? "<b>동작 시뮬레이션</b> — 왼쪽 입력 행의 <b>1 / 0</b>, 누름단추(PB), 또는 아무 선이나 눌러 신호를 강제로 넣으세요 (누를 때마다 1 → 0 → 풀기). 로직이 동작하는 순서대로 선이 초록으로 이어집니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다."
+    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 <b>1</b>, 누름단추(PB), 또는 아무 선이나 눌러 신호를 <b>활성(1)</b>으로 주세요 (누를 때마다 1 → 0 → 풀기). 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 일 때만). 타이머는 시간이 흐르는 모습을 아래에 보입니다."
     : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지).";
   $("#legend").innerHTML = sim
-    ? `<span><i style="background:var(--on)"></i>1 (켜짐)</span><span><i style="background:#59616f"></i>0 (꺼짐)</span><span><i style="background:var(--unk)"></i>알 수 없음</span><span><i style="background:rgba(18,161,80,.4)"></i>켜진 메모리·타이머</span>`
+    ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
     : `<span><i style="background:var(--trace)"></i>따라가는 신호</span><span><i style="background:var(--trace-up)"></i>거슬러 올라감</span><span><i style="background:rgba(47,91,216,.5)"></i>읽은 선</span><span><i style="background:var(--unk)"></i>판정 못 한 블록</span>`;
 }
 

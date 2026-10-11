@@ -2,8 +2,9 @@
 
 입력은 analyse.py 가 낸 시트 JSON 그대로다 (다시 읽지 않는다).
 
-값은 셋: 1 · 0 · None(알 수 없음 — 판정 못 한 블록 뒤).
-  * 왼쪽 행 입력 · 누름단추 · 들어오는 선이 없는 블록은 **사람이 강제하지 않으면 0** 이다.
+값은 디지털 둘뿐: 1(활성) · 0(비활성).  "알 수 없음" 을 두지 않는다 (사용자 지시 L3).
+  * 왼쪽 행 입력 · 누름단추 · 들어오는 선이 없는 블록은 **사람이 활성화하지 않으면 0** 이다.
+  * 몰이가 없는 선 · 판정 못 한 블록의 출력은 0 이다 (사람이 그 선을 직접 1 로 줄 수는 있다).
   * 선(넷)을 직접 강제하면 그 넷의 값은 몰이와 상관없이 그 값이다.
   * 블록 동작은 범례 G003 정의 (config/logic_symbols.yaml) — AND · OR · NOT · NAND · NOR ·
     메모리(우선 칸) · GT/DT/PD 타이머 (시간은 타이머 옆에 인쇄된 t 를 읽은 값 · 못 읽으면 1초로 보고 그렇게 말한다).
@@ -46,23 +47,15 @@ def _index(s):
 
 
 def _and(vs):
-    if any(v == 0 for v in vs):
-        return 0
-    if vs and all(v == 1 for v in vs):
-        return 1
-    return None if vs else None
+    return 1 if vs and all(v == 1 for v in vs) else 0
 
 
 def _or(vs):
-    if any(v == 1 for v in vs):
-        return 1
-    if vs and all(v == 0 for v in vs):
-        return 0
-    return None
+    return 1 if any(v == 1 for v in vs) else 0
 
 
 def _not(v):
-    return None if v is None else 1 - v
+    return 0 if v == 1 else 1
 
 
 def simulate(s, forces=None, state=None, now=0.0):
@@ -100,7 +93,7 @@ def simulate(s, forces=None, state=None, now=0.0):
         if lg == "nor":
             return _not(_or(iv))
         if lg == "not":
-            return _not(iv[0] if iv else None)
+            return _not(iv[0] if iv else 0)
         if lg == "memory":
             q = st["mem"].get(bid, 0)
             return q if role != "qn" else _not(q)
@@ -119,7 +112,9 @@ def simulate(s, forces=None, state=None, now=0.0):
             g = groups.get(b["group"] or bid, [bid])
             vals = [val.get(n) for gid in g for n, _, _ in ins[gid]]
             return _or(vals) if vals else 0
-        return None
+        if ins[bid]:
+            notes.add("판정 못 한 블록의 출력은 0 으로 보았습니다 (그 선을 직접 1 로 줄 수 있습니다)")
+        return 0
 
     def settle(val_prev):
         val = dict(val_prev)
@@ -163,7 +158,7 @@ def simulate(s, forces=None, state=None, now=0.0):
                             dd = [depth.get(n, 0) for n, _, _ in ins[x]]
                             ds.append((max(dd) if dd else 0) + 1)
                     if not vs:
-                        v, d = None, 0
+                        v, d = 0, 0
                     else:
                         v = _or(vs) if len(vs) > 1 else vs[0]
                         d = max(ds) if ds else 0

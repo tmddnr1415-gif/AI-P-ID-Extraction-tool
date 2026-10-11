@@ -245,3 +245,29 @@ def test_api_round_trip(tmp_path, monkeypatch):
     assert client.get("/logic/api/jobs/zzz").status_code == 404
     assert client.get("/logic").status_code == 200
     assert client.delete(f"/logic/api/jobs/{job}").status_code == 204
+
+
+def test_every_line_is_digital_and_gate_waits_for_all_inputs():
+    """L3 사용자 지시: 모든 선은 1/0 · AND 는 A 만 활성이면 뒤로 안 나간다 · 판정 못 한 블록 뒤는 0."""
+    s = _toy()
+    s["blocks"]["U"] = {"func": "UNKNOWN", "logic": "unknown", "group": "", "param": {}}
+    s["ports"] += [{"block": "U", "net": "3", "dir": "in", "role": "", "cell": 0},
+                   {"block": "U", "net": "9", "dir": "out", "role": "", "cell": 0}]
+    s["nets"]["9"] = {"segs": []}
+    s["nets"]["10"] = {"segs": []}                 # 몰이 없는 선
+    for forces in ({}, {"row:1": 1}, {"row:4": 1}, {"row:1": 1, "row:4": 1}):
+        r = sim.simulate(s, forces)
+        for fr in r["frames"]:
+            assert set(fr["values"].values()) <= {0, 1}, (forces, fr["values"])
+    a_only = sim.simulate(s, {"row:1": 1})["frames"][-1]["values"]
+    b_only = sim.simulate(s, {"row:4": 1})["frames"][-1]["values"]
+    both = sim.simulate(s, {"row:1": 1, "row:4": 1})["frames"][0]["values"]
+    assert a_only["5"] == 0 and b_only["5"] == 0 and both["5"] == 1
+    assert a_only["9"] == 0 and a_only["10"] == 0
+    # NOT · NAND · NOR 는 범례 G003 정의 그대로 (입력 0 이면 NOT 출력 1)
+    t = {"blocks": {"N": {"func": "NOT", "logic": "not", "group": "", "param": {}}},
+         "ports": [{"block": "N", "net": "1", "dir": "in", "role": "", "cell": 0},
+                   {"block": "N", "net": "2", "dir": "out", "role": "", "cell": 0}],
+         "rows": [{"n": 1, "side": "L", "net": "1"}], "nets": {"1": {"segs": []}, "2": {"segs": []}}}
+    assert sim.simulate(t, {})["frames"][-1]["values"]["2"] == 1
+    assert sim.simulate(t, {"row:1": 1})["frames"][-1]["values"]["2"] == 0

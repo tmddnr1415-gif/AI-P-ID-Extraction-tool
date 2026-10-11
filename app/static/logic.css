@@ -1,7 +1,7 @@
 :root {
   --bg: #f6f4ee; --panel: #ffffff; --ink: #1d2433; --soft: #5b6475; --line: #d9d5ca;
   --navy: #1f2d4d; --blue: #2f5bd8; --on: #12a150; --on-glow: rgba(18,161,80,.35);
-  --off: #9aa3b2; --unk: #d08a14; --trace: #ff6a00; --trace-up: #7b4dff; --find: #c2453f;
+  --off: #9aa3b2; --unk: #d08a14; --active: #00b4ff; --active-glow: rgba(0, 200, 255, .75); --trace: #ff6a00; --trace-up: #7b4dff; --find: #c2453f;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -67,10 +67,10 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-rows .ref { color: var(--blue); text-decoration: underline; cursor: pointer; }
 .force { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .force button { border: 0; border-radius: 0; padding: 0 7px; font-size: 11px; line-height: 18px; }
-.force button.v1.on { background: var(--on); color: #fff; }
+.force button.v1.on { background: var(--active); color: #fff; }
 .force button.v0.on { background: #59616f; color: #fff; }
 .val { font-weight: 700; font-size: 11px; padding: 0 6px; border-radius: 4px; }
-.val.v1 { background: #e2f5ea; color: var(--on); }
+.val.v1 { background: #dff5ff; color: #0083c2; }
 .val.v0 { background: #eef0f3; color: #59616f; }
 .val.vn { background: #fbf0dc; color: var(--unk); }
 .lg-find { list-style: none; padding: 0; margin: 0; }
@@ -82,28 +82,28 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .net line { stroke-linecap: round; fill: none; }
 #ov .net .hit { stroke: transparent; stroke-width: 7; cursor: pointer; pointer-events: stroke; }
 #ov .net .vis { stroke: rgba(47, 91, 216, .35); stroke-width: 1.1; pointer-events: none; }
-#ov.hide-nets .net .vis { stroke: transparent; }
+#ov.hide-nets .net .vis, #ov.sim .net .vis { stroke: transparent; }
+#ov.sim .net:hover .vis { stroke: rgba(0,180,255,.35); }
 #ov .net:hover .vis { stroke: var(--blue); stroke-width: 2; }
 #ov .net .fx { stroke: transparent; stroke-width: 2.6; pointer-events: none; }
-#ov .net.on .fx { stroke: var(--on); filter: drop-shadow(0 0 2px var(--on-glow)); }
-#ov .net.off .fx { stroke: rgba(89, 97, 111, .28); stroke-width: 1.6; }
-#ov .net.unk .fx { stroke: var(--unk); stroke-dasharray: 3 2 !important; stroke-dashoffset: 0 !important; }
+/* 디지털 1 = 형광 파랑 · 0 = 아무 표시 없음 (사용자 지시 L3) */
+#ov .net.on .fx { stroke: var(--active); stroke-width: 3; filter: drop-shadow(0 0 2.5px var(--active-glow)); }
 #ov .net.tr .fx { stroke: var(--trace); filter: drop-shadow(0 0 3px rgba(255,106,0,.5)); }
 #ov .net.tru .fx { stroke: var(--trace-up); }
-#ov .net.forced .fx { stroke-width: 3.6; }
+#ov .net.on.forced .fx { stroke-width: 3.8; }
 #ov .net.sel .vis { stroke: #000; stroke-width: 2; }
 #ov .blk { fill: transparent; stroke: transparent; stroke-width: .8; cursor: pointer; }
 #ov .blk:hover { stroke: var(--blue); fill: rgba(47,91,216,.06); }
 #ov .blk.sel { stroke: #000; }
 #ov .blk.unknown { stroke: var(--unk); stroke-dasharray: 2 1.5; }
-#ov .blk.act { fill: rgba(18,161,80,.18); stroke: var(--on); }
+#ov .blk.act { fill: rgba(0,180,255,.16); stroke: var(--active); }
 #ov .blk.tr { stroke: var(--trace); stroke-width: 1.4; fill: rgba(255,106,0,.08); }
 #ov .badge { font: 600 4.2px/1 system-ui, sans-serif; fill: #fff; pointer-events: none; }
 #ov .badge-bg { fill: rgba(31,45,77,.78); pointer-events: none; }
 #ov .badge-bg.unknown { fill: rgba(208,138,20,.9); }
 #ov.hide-blocks .badge, #ov.hide-blocks .badge-bg { display: none; }
 #ov .rowpin { fill: #fff; stroke: var(--navy); stroke-width: .8; cursor: pointer; }
-#ov .rowpin.v1 { fill: var(--on); stroke: var(--on); }
+#ov .rowpin.v1 { fill: var(--active); stroke: var(--active); }
 #ov .rowpin.forced { stroke: #000; stroke-width: 1.4; }
 #ov .find { fill: none; stroke: var(--find); stroke-width: 1.2; }
 #ov .timer-txt { font: 600 4px system-ui, sans-serif; fill: var(--unk); }
