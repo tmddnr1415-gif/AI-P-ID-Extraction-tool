@@ -42,8 +42,21 @@ const FUNC_KO = {
   AND: "AND 게이트", NAND: "NAND 게이트", OR: "OR 게이트", NOR: "NOR 게이트", NOT: "NOT (반전)",
   MEMORY: "메모리", GT: "지연 ON 타이머 (GT)", DT: "지연 OFF 타이머 (DT)", PD: "펄스 타이머 (PD)",
   PB: "누름단추", STEP: "STEP (시퀀스 단계)", CONNECTOR: "연결 기호", LIGHT: "램프", ANN: "경보 (ANN)",
-  SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함",
+  SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함", MACRO: "매크로 블록",
 };
+
+/* L12 — 매크로 블록의 새 창: 주소의 macro=<부모 장>:<블록>&in=<행>:<값>,… (부모 창이 입력 단자 값을 보낸다) */
+const MACRO_FROM = (() => {
+  const m = location.hash.match(/macro=(\d+):([\w-]+)/);
+  if (!m) return null;
+  const inp = {};
+  for (const kv of ((location.hash.match(/[&#]in=([\d:,]+)/) || [])[1] || "").split(",")) {
+    const [r, v] = kv.split(":");
+    if (r) inp[r] = Number(v) === 1 ? 1 : 0;
+  }
+  return { parent: Number(m[1]), block: m[2], target: Number((location.hash.match(/page=(\d+)/) || [])[1]),
+           from: decodeURIComponent((location.hash.match(/from=([^&]*)/) || [])[1] || ""), inputs: inp };
+})();
 
 /* ------------------------------------------------------------------ 묶음 · 시트 */
 
@@ -163,6 +176,11 @@ async function openSheet(page) {
   L.pendingAt = null; L.memoEdit = null; renderMemo();
   img.onload = () => fit();
   if (img.complete) fit();
+  if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
+    L.macroApplied = true;
+    applyMacroInputs(MACRO_FROM.inputs);
+    return;
+  }
   if (L.mode === "sim") runSim();
 }
 
@@ -248,7 +266,7 @@ function drawOverlay() {
   }
   for (const [bid, b] of Object.entries(s.blocks)) {
     const [x0, y0, x1, y1] = b.bbox;
-    const cls = "blk" + (b.func === "UNKNOWN" ? " unknown" : "");
+    const cls = "blk" + (b.func === "UNKNOWN" ? " unknown" : "") + (b.func === "MACRO" ? " macro" : "");
     const r = b.kind === "RECT"
       ? el("rect", { x: x0 - 0.6, y: y0 - 0.6, width: x1 - x0 + 1.2, height: y1 - y0 + 1.2, class: cls, "data-block": bid }, gB)
       : el("circle", { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, r: (x1 - x0) / 2 + 0.8, class: cls, "data-block": bid }, gB);
@@ -322,14 +340,17 @@ function drawRefTags(ov) {
     if (!refs.length) continue;
     const kind = t.side === "L" ? "from" : "to";
     const ok = refs.some((r) => sheetByNo(r.sheet));
+    const bad = L.mode === "sim" && designErrorsOnPage()[t.side].has(t.n);
     const rc = el("rect", { x: box[0] + 0.4, y: box[1] + 0.4, width: box[2] - box[0] - 0.8, height: box[3] - box[1] - 0.8,
-      class: `reftag ${kind}${ok ? "" : " other"}`, "data-side": t.side, "data-row": t.n }, g);
+      class: `reftag ${kind}${ok ? "" : " other"}${bad ? " design-err" : ""}`, "data-side": t.side, "data-row": t.n }, g);
     const tag = kind === "from" ? "FROM" : "TO";
     const tx = el("text", { x: kind === "from" ? box[0] - 1 : box[2] + 1, y: (box[1] + box[3]) / 2 + 1.5,
       class: `reftxt ${kind}`, "text-anchor": kind === "from" ? "end" : "start" }, g);
     tx.textContent = tag;
     const list = refs.map((r) => `${r.sheet} 시트 ${r.row}행` + (sheetByNo(r.sheet) ? "" : " (이 묶음에 없음)")).join(", ");
-    el("title", {}, rc).textContent = `${tag} ${refs.map((r) => r.sheet + "-" + r.row).join(", ")} → ${list}${ok ? " — 누르면 그 행으로 갑니다" : ""}`;
+    const why = bad ? (L.design || []).filter((e) => e.kind === "error" && ((t.side === "R" && e.page === L.page && (e.at_row || e.row) === t.n)
+      || (t.side === "L" && e.target_page === L.page && e.target_row === t.n))).map((e) => "\n⚠ 설계 오류 — " + e.why).join("") : "";
+    el("title", {}, rc).textContent = `${tag} ${refs.map((r) => r.sheet + "-" + r.row).join(", ")} → ${list}${ok ? " — 누르면 그 행으로 갑니다" : ""}${why}`;
     rc.addEventListener("click", (e) => {
       if (L.justPanned) return;
       e.stopPropagation();
@@ -549,8 +570,15 @@ async function runSim(animate) {
   L.state = L.states[L.page] || r.state;
   L.linked = (b.linked || {})[L.page] || {};
   L.chain = b.pages || [];
+  // L11 — TO 를 따라 이동하다 만난 설계 오류 (TO 시트·행 없음 · 빈 행 · FM 이 다른 곳 · TO 목록에 없음)
+  const prevErr = new Set((L.design || []).filter((e) => e.kind === "error").map((e) => e.page + ":" + e.row + ":" + e.to));
+  L.design = b.design_errors || [];
+  const fresh = L.design.filter((e) => e.kind === "error" && !prevErr.has(e.page + ":" + e.row + ":" + e.to));
+  if (fresh.length) status(`⚠ 설계 오류 ${fresh.length}건 — 신호가 TO 를 따라가다 어긋난 연결을 만났습니다 (오른쪽 '설계 오류')`);
   L.notes = [...(r.notes || []), ...(b.notes || [])];
   L.short = new Set(r.short_gates || []);          // L10 — 입력을 다 읽지 못해 출력을 내지 않는 게이트
+  L.macros = b.macros || {};                        // L12 — 매크로 블록마다 Typical 시트의 입력·출력 행 값
+  sendMacroInputs();
   renderSheetList(); renderChain();
   stopAnim();
   if (!animate) {
@@ -663,6 +691,89 @@ function forceMenu(key, e, label, up) {
   });
 }
 
+/* ------------------------------------------------------------------ 매크로 블록 (L12)
+
+   상자를 누르면 작은 메뉴 — 내부 동작을 정의한 Typical 시트를 새 창으로 연다.  새 창은 이 상자의 입력 단자 값을
+   그 시트의 입력 행에 주고 돌린다 (시뮬레이션이 다시 돌 때마다 이 창이 새 값을 보낸다). */
+L.childWins = {};
+function macroView(bid) { return ((L.macros || {})[L.page] || {})[bid] || null; }
+function macroMenu(bid, e) {
+  closeForceMenu();
+  const b = L.sheet.blocks[bid], m = b.macro || {};
+  const box = document.createElement("div");
+  box.id = "force-menu"; box.className = "force-menu";
+  box.innerHTML = `<div class="fm-h">${esc(b.caption || "매크로 블록")}</div>` +
+    (m.page ? `<button data-m="open" class="v1">↗ 내부 동작 보기 (새 창) — ${esc(m.sheet)}</button>`
+            : `<div class="fm-why">${esc(m.why || "이 블록의 Typical 시트를 찾지 못했습니다")}</div>`) +
+    (L.mode === "trace" ? `<button data-m="trace" class="vt">↪ 연결만 따라가기</button>` : "");
+  document.body.appendChild(box);
+  const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
+  const r = box.getBoundingClientRect();
+  box.style.left = Math.max(4, Math.min(x + 8, innerWidth - r.width - 4)) + "px";
+  box.style.top = Math.max(4, Math.min(y + 8, innerHeight - r.height - 4)) + "px";
+  box.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    closeForceMenu();
+    if (btn.dataset.m === "open") openMacro(bid);
+    else traceFrom("block:" + bid, false);
+  });
+}
+function macroInputs(bid) {
+  const v = macroView(bid);
+  if (v) return v.inputs;
+  const m = L.sheet.blocks[bid].macro || {};
+  const o = {};
+  for (const x of m.inputs || []) if (x.row) o[x.row] = L.values[x.net] === 1 ? 1 : 0;
+  return o;
+}
+function openMacro(bid) {
+  const b = L.sheet.blocks[bid], m = b.macro || {};
+  if (!m.page) return;
+  const inp = Object.entries(macroInputs(bid)).map(([r, v]) => `${r}:${v}`).join(",");
+  const from = encodeURIComponent(`${L.sheet.sheet_no} · ${b.caption || "매크로"}`);
+  const url = `/logic${location.search}#job=${L.job}&page=${m.page}&macro=${L.page}:${bid}&in=${inp}&from=${from}`;
+  const key = `${L.page}:${bid}`;
+  const w = window.open(url, `macro-${L.job}-${key}`, "width=1500,height=950");
+  if (w) L.childWins[key] = { win: w, page: L.page, bid };
+  else status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요");
+}
+function sendMacroInputs() {
+  for (const [key, c] of Object.entries(L.childWins)) {
+    if (!c.win || c.win.closed) { delete L.childWins[key]; continue; }
+    if (c.page !== L.page && !(L.macros || {})[c.page]) continue;
+    const v = ((L.macros || {})[c.page] || {})[c.bid];
+    if (v) c.win.postMessage({ type: "macro-inputs", key, inputs: v.inputs }, location.origin);
+  }
+}
+window.addEventListener("message", (e) => {
+  if (e.origin !== location.origin || !e.data || e.data.type !== "macro-inputs" || !MACRO_FROM) return;
+  applyMacroInputs(e.data.inputs);
+});
+function applyMacroInputs(inputs) {
+  if (!MACRO_FROM || !L.sheet || L.page !== MACRO_FROM.target) return;
+  const f = {};
+  for (const [r, v] of Object.entries(inputs || {})) f["row:" + r] = v === 1 ? 1 : 0;
+  L.forces = L.allForces[L.page] = f;
+  MACRO_FROM.inputs = inputs;
+  renderMacroBanner();
+  if (L.mode !== "sim") setMode("sim", true);
+  runSim(true);
+}
+function renderMacroBanner() {
+  if (!MACRO_FROM) return;
+  let el = document.getElementById("macro-banner");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "macro-banner"; el.className = "macro-banner";
+    document.body.prepend(el);
+  }
+  const on = Object.entries(MACRO_FROM.inputs || {}).filter(([, v]) => v === 1).map(([r]) => r);
+  el.innerHTML = `<b>매크로 내부 동작</b> — ${esc(MACRO_FROM.from || "부모 시트")} 의 입력 단자 값으로 이 Typical 시트를 돌립니다 · ` +
+    `활성 입력 행 ${on.length ? on.map(esc).join(", ") : "없음"} <small>(부모 창에서 신호를 바꾸면 여기도 바뀝니다)</small>`;
+}
+
 /* ------------------------------------------------------------------ 누르기 */
 
 function onNet(nid, e) {
@@ -674,6 +785,7 @@ function onNet(nid, e) {
 function onBlock(bid, e) {
   L.sel = { block: bid };
   const b = L.sheet.blocks[bid];
+  if (b.func === "MACRO") { macroMenu(bid, e); paint(); renderInfo(); return; }
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
   if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
@@ -736,7 +848,38 @@ function ftText(r) {
   return `확인 못 함 · ${by}${peer} — 상대 TO 가 NOTE 이거나 글자를 못 읽음`;
 }
 /* 활성이 연결을 따라 닿은 장 — 사람이 준 장에서부터 몇 장째인가 */
+function renderDesignErrors() {
+  const box = $("#design-err");
+  if (!box) return;
+  const list = L.mode === "sim" ? (L.design || []) : [];
+  const nErr = list.filter((e) => e.kind === "error").length;
+  $("#design-h").hidden = box.hidden = !list.length;
+  $("#design-n").textContent = nErr ? `오류 ${nErr}` : "";
+  const label = { error: "⚠ 설계 오류", warn: "확인 — 설명 다름", other: "다른 묶음" };
+  box.innerHTML = list.map((e, i) => `<li class="de ${e.kind}" data-i="${i}">
+      <b>${label[e.kind]}</b> <span class="de-at">${esc(e.sheet_no)}-${e.row}${e.desc ? " " + esc(e.desc) : ""}</span>
+      <small>${esc(e.why)}</small>
+      <span class="de-go">${`<button data-go="src">${esc(e.sheet_no)}-${e.at_row || e.row} 로</button>`}${
+        e.target_page ? `<button data-go="dst">${esc(e.to)} 로</button>` : ""}</span></li>`).join("");
+}
+function refreshDesignMarks() {
+  const m = L.mode === "sim" ? designErrorsOnPage() : { R: new Set(), L: new Set() };
+  for (const r of document.querySelectorAll("#g-refs rect.reftag"))
+    r.classList.toggle("design-err", m[r.dataset.side].has(Number(r.dataset.row)));
+}
+function designErrorsOnPage() {
+  // 이 장에서 그 오류가 걸린 TO 칸(보내는 쪽) · FM 칸(받는 쪽)
+  const mark = { R: new Set(), L: new Set() };
+  for (const e of L.design || []) {
+    if (e.kind !== "error") continue;
+    if (e.page === L.page) mark.R.add(e.at_row || e.row);
+    if (e.target_page === L.page) mark.L.add(e.target_row);
+  }
+  return mark;
+}
 function renderChain() {
+  renderDesignErrors();
+  refreshDesignMarks();
   const box = $("#chain");
   if (!box) return;
   const list = L.mode === "sim" ? L.chain.filter((c) => c.hop != null).sort((a, b) => a.hop - b.hop || a.page - b.page) : [];
@@ -774,7 +917,9 @@ function renderInfo() {
       ${L.mode === "sim" && L.short && L.short.has(L.sel.block) ? `<tr><td>입력</td><td class="warn">도면에서 입력을 다 읽지 못했습니다 — 범례 조건을 확인할 수 없어 출력을 내지 않습니다</td></tr>` : ""}
       ${L.mode === "sim" && tim ? `<tr><td>타이머</td><td>출력 ${valTag(tim.out)} ${tim.due ? "· 진행 중" : ""}</td></tr>` : ""}
       ${b.func === "STEP" ? `<tr><td>주의</td><td>근사 모델: C_STEP = STEP_IN · STEP_OUT = STEP_IN AND CRIT</td></tr>` : ""}
+      ${b.func === "MACRO" ? macroRowsHtml(L.sel.block) : ""}
     </table>
+    ${b.func === "MACRO" && (b.macro || {}).page ? `<div class="acts"><button data-macro="${esc(L.sel.block)}">↗ 내부 동작 보기 (새 창) — ${esc(b.macro.sheet)}</button></div>` : ""}
     ${b.func === "MEMORY" ? latchTableHtml(L.sel.block) : ""}
     <div class="acts">${L.mode === "sim" && (!ins.length || b.logic === "source") ? forceBtns("block:" + L.sel.block) : ""}
       ${L.mode === "trace" ? `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>` : ""}</div>`;
@@ -857,6 +1002,17 @@ function renderLatches() {
       <div class="lc-h"><b>${esc(bid)}</b> <small>${dom}</small>${L.mode === "sim" ? ` <span class="val v${st.Q}">Q ${st.Q}</span>` : ""}</div>
       ${latchTableHtml(bid)}</div>`;
   }).join("");
+}
+function macroRowsHtml(bid) {
+  const b = L.sheet.blocks[bid], m = b.macro || {};
+  if (!m.page) return `<tr><td>Typical</td><td class="warn">${esc(m.why || "찾지 못함")}</td></tr>`;
+  const v = macroView(bid) || { inputs: {}, outputs: {} };
+  const row = (x, side) => `<tr><td>${esc(x.pin || "?")}</td><td>${x.row ? `${esc(m.sheet)}-${x.row} ${esc(x.desc)}` : `<span class="warn">연결 못 함</span>`}${
+    L.mode === "sim" && x.row ? " " + valTag((side === "in" ? v.inputs : v.outputs)[x.row]) : ""}</td></tr>`;
+  return `<tr><td>이름</td><td>${esc(b.caption || "")}</td></tr>
+    <tr><td>Typical</td><td><b>${esc(m.sheet)}</b> ${esc(m.title || "")}</td></tr>
+    <tr><td colspan="2"><small>입력 단자 → 그 시트의 입력 행</small></td></tr>${(m.inputs || []).map((x) => row(x, "in")).join("")}
+    <tr><td colspan="2"><small>그 시트의 출력 행 → 출력 단자</small></td></tr>${(m.outputs || []).map((x) => row(x, "out")).join("")}`;
 }
 function portValuesText(bid) {
   const ps = L.sheet.ports.filter((p) => p.block === bid);
@@ -1161,7 +1317,7 @@ function bind() {
   $("#all-code").onchange = (e) => { L.allCode = e.target.value; renderAll(); };
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
-  $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
+  $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; L.design = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
   document.body.addEventListener("click", (e) => {
     if (!e.target.closest("#force-menu")) closeForceMenu();
     const fb = e.target.closest(".force button");
@@ -1175,6 +1331,15 @@ function bind() {
     if (ref && ref.dataset.refSheet) { goToRef(ref.dataset.refSheet, Number(ref.dataset.refRow), ref.dataset.refSide || "R"); return; }
     const al = e.target.closest("#all-findings li[data-i]");
     if (al) { gotoFinding(Number(al.dataset.i)); return; }
+    const mb = e.target.closest("button[data-macro]");
+    if (mb) { openMacro(mb.dataset.macro); return; }
+    const dg = e.target.closest("#design-err button[data-go]");
+    if (dg) {
+      const d = (L.design || [])[Number(dg.closest("li").dataset.i)];
+      if (d && dg.dataset.go === "src") goToRef(d.sheet_no, d.at_row || d.row, "R");
+      else if (d) goToRef(d.target_sheet, d.target_row, "L");
+      return;
+    }
     const cl = e.target.closest("#chain li[data-page]");
     if (cl) { L.focus = null; openSheet(Number(cl.dataset.page)); return; }
     const li = e.target.closest(".lg-rows li[data-row]");

@@ -183,6 +183,22 @@ def classify(sheet, D):
                                 seg.append(c)
                             b.lines.append(_seg_line(D, seg, vert))
                         continue
+                # 큰 상자에 글줄이 여럿 — 단자 이름을 안에 인쇄한 매크로 블록 (MOV BLOCK · MCC BLOCK …, L12).
+                # 내부 동작은 그 Typical 시트가 정의한다 (macro.py 가 단자 이름으로 시트와 행을 맞댄다).
+                if len(lines) >= 3:
+                    b.func = "MACRO"
+                    b.logic = "macro"
+                    b.label = b.read
+                    b.lines = []
+                    for ln in lines:
+                        seg = [ln[0]]
+                        for c in ln[1:]:
+                            if c.bbox[0] - seg[-1].bbox[2] > 1.5 * max(c.h, seg[-1].h):
+                                b.lines.append(_seg_line(D, seg, vert))
+                                seg = []
+                            seg.append(c)
+                        b.lines.append(_seg_line(D, seg, vert))
+                    continue
             b.func = "UNKNOWN"
             b.logic = "unknown"
             b.label = b.read
@@ -228,6 +244,7 @@ def classify(sheet, D):
             b.func, b.logic = "SIGNAL", "source"
     _connector_groups(sheet)
     _step_roles(sheet, D)
+    _macro_pins(sheet)
 
 
 def _connector_groups(sheet):
@@ -253,6 +270,39 @@ def _connector_groups(sheet):
 def _seg_line(D, cs, vert):
     return (min(c.bbox[1] for c in cs), max(c.bbox[3] for c in cs), min(c.bbox[0] for c in cs),
             max(c.bbox[2] for c in cs), _read_free(D, cs, vert).replace(" ", "").upper())
+
+
+def _macro_pins(sheet):
+    """매크로 블록의 단자 → 그 단자 높이·그 변 쪽에 인쇄된 상자 안 글줄 (단자 이름).  단자가 없는 상자는 매크로가 아니다."""
+    P = sheet.layout.pitch
+    for b in sheet.blocks.values():
+        if getattr(b, "func", "") != "MACRO":
+            continue
+        pts = [pt for pt in sheet.ports if pt.block == b.id]
+        if not any(pt.dir == "in" for pt in pts):
+            b.func, b.logic = "SIGNAL", "source"       # 들어오는 단자가 없는 상자 = 이름 붙은 신호 상자 (예전 규칙)
+            continue
+        b.pins = {}
+        half = (b.bbox[2] - b.bbox[0]) / 2
+        for pt in pts:
+            y = pt.at[1]
+            side = []
+            for y0, y1, x0, x1, t in getattr(b, "lines", []):
+                on_side = (x0 - b.bbox[0] < half) if pt.side == "L" else (b.bbox[2] - x1 < half)
+                if on_side and t.strip("-_"):         # 밑줄 획만 있는 조각(EN_CLOSE 의 '_')은 이름이 아니다
+                    side.append((y0, y1, x0, t))
+            best = None
+            for y0, y1, x0, t in side:
+                d = 0 if y0 <= y <= y1 else min(abs(y - y0), abs(y - y1))
+                if d <= 0.8 * P and (best is None or d < best[0]):
+                    best = (d, y0, y1)
+            if best is None:
+                b.pins[f"{pt.at[0]},{pt.at[1]}"] = ""
+                continue
+            # 같은 높이의 조각을 x 순으로 잇는다 — 밑줄(_)에서 글줄이 갈린다 (EN · CLOSE → ENCLOSE)
+            _, by0, by1 = best
+            parts = sorted((x0, t) for y0, y1, x0, t in side if y0 <= by1 and y1 >= by0)
+            b.pins[f"{pt.at[0]},{pt.at[1]}"] = "".join(t for _, t in parts)
 
 
 def _step_roles(sheet, D):

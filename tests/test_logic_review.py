@@ -527,3 +527,76 @@ def test_basic_memory_changes_state_when_both_inputs_rise_together():
 def test_trace_stops_at_a_gate_whose_inputs_were_not_read():
     t = sim.trace(_one("and", 1), "row:1")
     assert t["blocked"] and "입력을 1개만 읽었습니다" in t["blocked"][0]["reason"]
+
+
+def test_moving_signal_reports_design_errors_on_the_to_path():
+    """L11 — TO 를 따라 이동하다 그 시트·행이 없거나 잘못 연결돼 있으면 설계 오류로 알린다."""
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "B1-10"},
+                         {"n": 96, "side": "R", "net": "a2", "desc": "", "to": "B1-11"},
+                         {"n": 97, "side": "R", "net": "a3", "desc": "", "to": "Q9-1"},
+                         {"n": 98, "side": "R", "net": "a4", "desc": "", "to": "B1-77"},
+                         {"n": 99, "side": "R", "net": "a5", "desc": "", "to": "P1-5"}])
+    B = _sheet(2, "B1", [{"n": 10, "side": "L", "net": "b", "desc": "READY", "fm": "Z1-1",
+                          "ref": {"sheet": "Z1", "row": 1, "page": None}},
+                         {"n": 11, "side": "L", "net": "c", "desc": "", "fm": ""},
+                         {"n": 12, "side": "L", "net": "d", "desc": "READY", "fm": "A1-95",
+                          "ref": {"sheet": "A1", "row": 95, "page": 1, "src_row": 95}}])
+    b = sim.simulate_bundle([A, B], {1: {"row:95": 1}}, None, 1)
+    errs = {e["to"]: e for e in b["design_errors"]}
+    assert errs["B1-10"]["kind"] == "error" and "FM 은 Z1-1" in errs["B1-10"]["why"]      # 잘못 연결
+    assert errs["B1-11"]["kind"] == "error" and "비어" in errs["B1-11"]["why"]            # 빈 행
+    assert errs["Q9-1"]["kind"] == "other"                                                # 다른 묶음 계열
+    assert errs["B1-77"]["kind"] == "error" and "77행 입력이 없습니다" in errs["B1-77"]["why"]
+    assert errs["B1-12"]["kind"] == "error" and "TO 는" in errs["B1-12"]["why"]          # FM 은 오는데 TO 목록에 없음
+    assert errs["P1-5"]["kind"] == "other"
+    # 신호가 0 이면 이동하지 않으므로 아무 오류도 없다
+    assert not sim.simulate_bundle([A, B], {}, None, 1)["design_errors"]
+
+
+def test_macro_pins_match_typical_rows_through_the_legend_abbreviations():
+    """L12 — 단자 이름 → (범례 약어표) 뜻 → Typical 시트 행.  코드에 단자 이름이 없다 (도면 글자만)."""
+    from app.logic import macro as M
+    abbr = [("A_OPEN", "AUTO OPEN"), ("EN_OPEN", "OPEN PERMISSIVE CONDITION"), ("OVRID1", "OVERRIDE OPEN"),
+            ("FDbk1", "OPENEND STATUS"), ("FDbk0", "CLOSED STATUS"), ("CMD1", "OPEN COMMAND"), ("CMD0", "CLOSE COMMAND")]
+    rows = [(14, "AUTO OPEN"), (18, "OPEN PERMISSIVE CONDITION"), (26, "OVERRIDE OPEN"),
+            (34, "OPENED STATUS"), (40, "CLOSED STATUS")]
+    got = M._assign([("a", "AOPEN"), ("b", "ENOPEN"), ("c", "OVRD1"), ("d", "FDOPEN"), ("e", "FDCLOSE")], rows, abbr)
+    assert {k: v[0] for k, v in got.items()} == {"a": 14, "b": 18, "c": 26, "d": 34, "e": 40}
+    out = M._assign([("x", "CMD"), ("y", "CMDO")], [(69, "OPEN COMMAND"), (77, "CLOSE COMMAND")], abbr)
+    assert out["x"][0] == 69 and out["y"][0] == 77                   # 끝 글자 못 읽음 · O/0 바꿔 읽음
+    assert M.name_sim("CMD1", "CMD0") < M.NAME_MIN                   # 끝의 1/0 은 뜻이 반대
+    assert M._type_code("MOV BLOCK (OPEN CLOSE) <TYPE-Ⅲ-1>") == "III-1"
+    src = (ROOT / "app/logic/macro.py").read_text(encoding="utf-8")
+    for word in ("A_OPEN", "EN_OPEN", "CMD1", "G012", "MOV BLOCK"):
+        assert f'"{word}"' not in src
+
+
+def test_macro_block_runs_its_typical_sheet_and_drives_its_outputs():
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    typ = _sheet(2, "T1", [{"n": 10, "side": "L", "net": "t1"}, {"n": 11, "side": "L", "net": "t2"},
+                           {"n": 70, "side": "R", "net": "to", "desc": "OPEN COMMAND"}],
+                 {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+                 [P("G", "t1", "in"), P("G", "t2", "in"), P("G", "to", "out")])
+    mac = {"func": "MACRO", "logic": "macro", "group": "", "param": {}, "label": "",
+           "macro": {"sheet": "T1", "page": 2,
+                     "inputs": [{"at": "0,1", "net": "p1", "pin": "A", "row": 10}, {"at": "0,2", "net": "p2", "pin": "B", "row": 11}],
+                     "outputs": [{"at": "9,1", "net": "po", "pin": "CMD", "row": 70}]}}
+    par = _sheet(1, "A1", [{"n": 1, "side": "L", "net": "p1"}, {"n": 2, "side": "L", "net": "p2"},
+                           {"n": 80, "side": "R", "net": "po", "desc": "OPEN CMD"}],
+                 {"M": mac}, [P("M", "p1", "in"), P("M", "p2", "in"), P("M", "po", "out")])
+    v = lambda f: sim.simulate_bundle([par, typ], {1: f}, None, 1)
+    assert v({"row:1": 1})["focus"]["frames"][-1]["values"]["po"] == 0          # AND — 하나만
+    b = v({"row:1": 1, "row:2": 1})
+    assert b["focus"]["frames"][-1]["values"]["po"] == 1                       # 둘 다 → 매크로 출력 1
+    assert b["macros"][1]["M"]["inputs"] == {"10": 1, "11": 1} and b["macros"][1]["M"]["outputs"] == {"70": 1}
+
+
+def test_activation_box_always_outputs_one():
+    """범례 G003 ACTIVATION — 글자 '1' 상자: OUTPUT ALWAYS EXISTS."""
+    blocks = {"A": {"func": "SIGNAL", "logic": "source", "group": "", "label": "1", "param": {}},
+              "Z": {"func": "SIGNAL", "logic": "source", "group": "", "label": "0", "param": {}}}
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    s = {"blocks": blocks, "ports": [P("A", "a", "out"), P("Z", "z", "out")], "rows": [], "nets": {"a": {"segs": []}, "z": {"segs": []}}}
+    v = sim.simulate(s, {})["frames"][-1]["values"]
+    assert v["a"] == 1 and v["z"] == 0
+    assert sim.simulate(s, {"block:A": 0})["frames"][-1]["values"]["a"] == 0    # 사람이 0 으로 줄 수 있다

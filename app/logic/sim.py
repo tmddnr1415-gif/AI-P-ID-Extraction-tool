@@ -169,6 +169,10 @@ def simulate(s, forces=None, state=None, now=0.0):
             return blk_force[bid]
         iv = [val.get(n) for n, _, _ in ins[bid]]
         if lg == "source":
+            # 범례 G003 ACTIVATION — 글자 '1' 하나인 상자: OUTPUT ALWAYS EXISTS WHEN THIS FUNCTION ACTIVATE
+            # (MOV 블록의 EN_OPEN · EN_CLOSE 허가처럼 언제나 서 있는 조건 · 사람이 0 으로 줄 수는 있다)
+            if not ins[bid] and re.sub(r"[^0-9A-Z]", "", (b.get("label") or "").upper()) == "1":
+                return 1
             return 0                                   # 누름단추 · HMI — 사람이 누르지 않으면 0
         if lg == "sink":
             return 0
@@ -460,13 +464,9 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
     # 가리켜도(도면 어긋남 — from-to 점검이 붉게 말한다) 도면이 TO 로 보냈으면 신호는 간다.  TO 목록은 아래
     # 행으로 이어지므로 설명 없는 행의 TO 는 위로 처음 설명이 있는 행의 것이다 (fromto 와 같은 규칙).
     for s in sheets:
-        owner = None
-        for r in sorted((x for x in s["rows"] if x["side"] == "R"), key=lambda x: x["n"]):
-            if (r.get("desc") or "").strip():
-                owner = r["n"]
-            if owner is None:
-                continue
-            for sh, rn in _TO_REF.findall(r.get("to") or ""):
+        for owner, tos in _to_runs(s).items():
+            for _, text in tos:
+              for sh, rn in _TO_REF.findall(text.replace(" ", "")):
                 t = by_no.get(sh)
                 if not t or not any(x["n"] == int(rn) and x["side"] == "L" for x in t["rows"]):
                     continue
@@ -484,18 +484,57 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             o[n] = 1 if (o.get(n) == 1 or out_rows.get(sp, {}).get(sr, 0) == 1) else 0
         return o
 
+    # L12 — 매크로 블록: 그 상자의 입력 단자 값을 Typical 시트의 입력 행에 주고 그 시트를 돌려, 출력 행 값을
+    # 상자의 출력 단자 선으로 낸다 (그 장 안에서 되먹임이 가라앉을 때까지 다시 돈다).
+    macros = defaultdict(list)
+    for s0 in sheets:
+        for bid, b in s0["blocks"].items():
+            m = b.get("macro") or {}
+            if b.get("func") == "MACRO" and m.get("page") in by_page:
+                macros[s0["page"]].append((bid, m))
+    macro_force, macro_view, macro_state = {}, {}, {}
+
+    def eval_macros(page, values):
+        f, view, nst = {}, {}, {}
+        old = (state.get(page) or {}).get("macros", {})
+        for bid, m in macros.get(page, ()):
+            ts = by_page[m["page"]]
+            tf = {f"row:{x['row']}": (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")}
+            res = simulate(ts, tf, old.get(bid))
+            nst[bid] = res["state"]
+            orow = _row_values(ts, res["frames"][-1]["values"])
+            for x in m["outputs"]:
+                if x.get("row") is not None:
+                    f[f"net:{x['net']}"] = orow.get(x["row"], 0)
+            view[bid] = {"sheet": m.get("sheet"), "page": m["page"],
+                         "inputs": {str(x["row"]): (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")},
+                         "outputs": {str(x["row"]): orow.get(x["row"], 0) for x in m["outputs"] if x.get("row") is not None}}
+        return f, view, nst
+
     todo = set(by_page)
     notes = set()
     for _ in range(MAX_PASSES):
         if not todo:
             break
         changed_out = set()
+        redo = set()
         for page in sorted(todo):
             s = by_page[page]
             lin = inputs_of(page)
-            f = {f"row:{n}": v for n, v in lin.items()}
-            f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
-            res = simulate(s, f, state.get(page))
+            for _k in range(4 if macros.get(page) else 1):
+                f = {f"row:{n}": v for n, v in lin.items()}
+                f.update(macro_force.get(page, {}))      # 매크로가 모는 출력 선
+                f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
+                res = simulate(s, f, state.get(page))
+                if not macros.get(page):
+                    break
+                mf, view, nst = eval_macros(page, res["frames"][-1]["values"])
+                macro_view[page], macro_state[page] = view, nst
+                if mf == macro_force.get(page):
+                    break
+                macro_force[page] = mf
+            if macros.get(page):
+                res["state"]["macros"] = macro_state.get(page, {})
             results[page] = res
             link_in[page] = lin
             rv = _row_values(s, res["frames"][-1]["values"])
@@ -503,7 +542,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                 out_rows[page] = rv
                 changed_out.add(page)
         todo = {p for p, fd in feeds.items() if any(sp in changed_out for _, sp, _ in fd)
-                and inputs_of(p) != link_in.get(p)}
+                and inputs_of(p) != link_in.get(p)} | redo
     else:
         if todo:
             notes.add(f"시트 사이 되먹임이 {MAX_PASSES}번 안에 가라앉지 않았습니다 — 마지막 상태를 보입니다")
@@ -536,10 +575,136 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                                           if n in on_in}),
                           "to": sorted({by_page[q].get("sheet_no") for q, fd in feeds.items()
                                         for _, sp, sr in fd if sp == page and sr in on_out})})
+    # 사람이 준 신호가 닿은 장(hop)에서 이동하다 만난 것만 — 아무것도 안 줘도 1 인 선(입력 0 의 NOT 등)은 빼고
+    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows) if e["page"] in hop]
+    for e in design:
+        if e["kind"] == "error":
+            for c in pages:
+                if c["page"] == e["page"]:
+                    c["errors"] = c.get("errors", 0) + 1
     focus_res = results.get(focus) if focus is not None else None
     return {"focus": focus_res,
+            "design_errors": design,
+            "macros": {p: v for p, v in macro_view.items() if v},
             "linked": {p: {n: v for n, v in lin.items() if f"row:{n}" not in forces.get(p, {})}
                        for p, lin in link_in.items() if lin},
             "pages": pages,
             "state": {p: r["state"] for p, r in results.items()},
             "notes": sorted(notes)}
+
+
+# ------------------------------------------------------------------ 이동하다 만난 설계 오류 (L11)
+
+def _to_runs(s):
+    """주인 행 → [(TO 가 적힌 행 n, 그 행의 TO 글자)] — TO 목록은 설명 없는 아래 행으로 이어진다 (fromto 와 같은 규칙).
+    표(`table`)를 읽는다 — 선이 없는 이어진 TO 줄(G055 96 · TO G042-6)은 `rows` 에 없다."""
+    o, owner = {}, None
+    for r in sorted((x for x in (s.get("table") or s["rows"]) if x["side"] == "R"), key=lambda x: x["n"]):
+        if (r.get("desc") or "").strip():
+            owner = r["n"]
+        elif not (r.get("to") or "").strip():
+            owner = None
+        if owner is not None and (r.get("to") or "").strip():
+            o.setdefault(owner, []).append((r["n"], r["to"]))
+    return o
+
+
+def _norm_desc(t):
+    return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
+
+
+def _design_errors(sheets, by_page, by_no, out_rows):
+    """**활성(1)인 신호**가 TO · FM 을 따라 이동하는 자리에서 도면끼리 어긋난 곳 (사용자 지시 L11).
+
+    보내는 쪽: 1 인 출력 행(주인 행)과 그 아래로 이어지는 TO 줄들의 TO 마다 —
+      ① TO 의 시트가 이 묶음에 없다  ② 그 시트에 그 행 입력이 없다  ③ 그 행이 비어 있다(설명·FM 없음)
+      ④ 그 행의 FM 이 이 신호를 가리키지 않는다(다른 곳 · 없음)  → 설계 오류.
+      설명만 다르면 '확인' (연결은 맞다 · L5 와 같은 구분).  시트 이름 머리글이 이 묶음과 다르면(Loop `P…` 등) 다른 묶음 —
+      여기서 확인할 수 없다고만 말한다.
+    받는 쪽: FM 으로 1 을 받은 입력 행 — 보내는 행의 TO 목록에 이 장-행이 없으면(TO 가 다른 곳만 적음) 설계 오류.
+    판정은 읽은 글자 그대로이고(fromto 와 같은 규칙) 고치지 않는다.
+    """
+    prefixes = {no[:1] for no in by_no}
+    out = []
+    seen = set()
+
+    def add(e):
+        k = (e["page"], e["row"], e["to"], e["why"])
+        if k not in seen:
+            seen.add(k)
+            out.append(e)
+
+    run_of = {s["page"]: _to_runs(s) for s in sheets}
+
+    def in_table(t, rn):
+        for x in t.get("table") or t["rows"]:
+            if x["side"] == "L" and x["n"] == rn:
+                return x
+        return None
+    for s in sheets:
+        page, me = s["page"], s.get("sheet_no") or ""
+        on = {n for n, v in out_rows.get(page, {}).items() if v == 1}
+        for owner, tos in run_of[page].items():
+            if owner not in on:
+                continue
+            od = next((r.get("desc") for r in s["rows"] if r["side"] == "R" and r["n"] == owner), "")
+            for at, text in tos:
+                for sh, rn in _TO_REF.findall(text.replace(" ", "")):
+                    rn = int(rn)
+                    base = {"page": page, "sheet_no": me, "row": owner, "at_row": at, "to": f"{sh}-{rn}",
+                            "target_sheet": sh, "target_row": rn, "desc": od}
+                    if sh[:1] not in prefixes:
+                        add({**base, "kind": "other", "target_page": None,
+                             "why": f"TO {sh}-{rn} — 다른 묶음(이 묶음에 없는 시트 계열)으로 갑니다 · 여기서는 확인할 수 없습니다"})
+                        continue
+                    t = by_no.get(sh)
+                    if t is None:
+                        add({**base, "kind": "error", "target_page": None,
+                             "why": f"TO {sh}-{rn} — {sh} 시트가 이 묶음에 없습니다"})
+                        continue
+                    tr = in_table(t, rn)
+                    base["target_page"] = t["page"]
+                    if tr is None:
+                        add({**base, "kind": "error", "why": f"TO {sh}-{rn} — {sh} 시트에 {rn}행 입력이 없습니다"})
+                        continue
+                    if not (tr.get("desc") or "").strip() and not (tr.get("fm") or "").strip():
+                        add({**base, "kind": "error", "why": f"TO {sh}-{rn} — 그 행이 비어 있습니다 (받는 신호가 정의되어 있지 않음)"})
+                        continue
+                    fm = (tr.get("fm") or "").strip()
+                    if not fm:
+                        add({**base, "kind": "error", "why": f"TO {sh}-{rn} — 그 행에 FM 이 없습니다 (어디서 오는지 적혀 있지 않음)"})
+                        continue
+                    # FM 이 이 신호(주인 행 또는 그 아래로 이어진 TO 줄)를 가리키는가
+                    back = [(a, int(b)) for a, b in _TO_REF.findall(fm.replace(" ", ""))]
+                    mine = {(me, n) for n, _ in tos} | {(me, owner)}
+                    if not any(x in mine for x in back):
+                        add({**base, "kind": "error",
+                             "why": f"TO {sh}-{rn} — 그 행의 FM 은 {fm} 을 가리킵니다 (이 신호 {me}-{owner} 가 아님 · 잘못 연결)"})
+                        continue
+                    a, b = _norm_desc(od), _norm_desc(tr.get("desc"))
+                    if a and b and a != b:
+                        add({**base, "kind": "warn",
+                             "why": f"TO {sh}-{rn} — 연결은 맞고 설명이 다릅니다: '{od}' ↔ '{tr.get('desc')}'"})
+    # 받는 쪽 — FM 으로 1 을 받았는데 보내는 행의 TO 목록에 이 장-행이 없다
+    for s in sheets:
+        page, me = s["page"], s.get("sheet_no") or ""
+        for r in s["rows"]:
+            ref = r.get("ref") or {}
+            if r["side"] != "L" or ref.get("page") not in by_page:
+                continue
+            sp, own = ref["page"], ref.get("src_row", ref.get("row"))
+            if out_rows.get(sp, {}).get(own) != 1:
+                continue
+            tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
+                   for a, b in _TO_REF.findall(text.replace(" ", "")) if a[:1] in prefixes]
+            if tos and (me, r["n"]) not in tos:
+                src = by_page[sp].get("sheet_no") or ""
+                add({"page": sp, "sheet_no": src, "row": own, "at_row": own, "to": f"{me}-{r['n']}",
+                     "target_sheet": me, "target_row": r["n"], "target_page": page, "desc": r.get("desc") or "",
+                     "kind": "error",
+                     "why": f"{me}-{r['n']} 의 FM 은 {r.get('fm')} 인데 {src}-{own} 의 TO 는 "
+                            f"{', '.join(f'{a}-{b}' for a, b in tos)} 만 적습니다 (잘못 연결)"})
+    order = {"error": 0, "warn": 1, "other": 2}
+    out.sort(key=lambda e: (order[e["kind"]], e["sheet_no"], e["row"], e["to"]))
+    return out
+
