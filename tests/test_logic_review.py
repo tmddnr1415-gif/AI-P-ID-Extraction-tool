@@ -687,3 +687,37 @@ def test_logic_first_screen_projects_and_materials(tmp_path, monkeypatch):
         sc = client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": f"row:{out['n']}"}).json()
         assert "ok" in sc
     assert client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": "x"}).status_code == 400
+
+
+def test_timer_default_is_ten_seconds_and_the_user_can_change_it():
+    """L15 — 도면에 시간이 없는 타이머는 기본 10초 · 사람이 바꾼 시간이 이긴다 · 세는 타이머는 틀에 남는다."""
+    s = _toy()
+    s["blocks"]["PD"]["param"] = {}                                   # 도면이 시간을 적지 않았다
+    assert sim.DEFAULT_T == 10.0
+    r = sim.simulate(s, {"row:1": 1, "row:4": 1})
+    assert r["frames"][-1]["t"] == pytest.approx(10.0)
+    assert any("10초" in n for n in r["notes"])
+    run = r["frames"][0]["running"]
+    assert run == [{"block": "PD", "left": 10.0, "T": 10.0}], "세기 시작한 타이머 · 남은 시간"
+    r = sim.simulate(s, {"row:1": 1, "row:4": 1}, timers={"PD": 3.5})
+    assert r["frames"][-1]["t"] == pytest.approx(3.5) and not any("10초" in n for n in r["notes"])
+    # 도면 값(2초)도 사람이 바꾼 값에 진다 · 틀린 값은 버린다
+    s2 = _toy()
+    assert sim.simulate(s2, {"row:1": 1, "row:4": 1}, timers={"PD": 7})["frames"][-1]["t"] == pytest.approx(7)
+    assert sim.simulate(s2, {"row:1": 1, "row:4": 1}, timers={"PD": -1})["frames"][-1]["t"] == pytest.approx(2)
+    # 묶음째 돌릴 때도 장마다 시간이 간다
+    s2.update(page=3, sheet_no="G003")
+    b = sim.simulate_bundle([s2], {3: {"row:1": 1, "row:4": 1}}, focus=3, timers={3: {"PD": 4}})
+    assert b["focus"]["frames"][-1]["t"] == pytest.approx(4)
+
+
+def test_activating_an_output_finds_and_flashes_the_inputs_it_needs():
+    """L15 — 출력(행 · 블록이 모는 선)을 1 로 주면 범례 정의로 필요한 입력을 찾아 켜고 주황으로 3번 점등한다."""
+    s = _toy()
+    sc = sim.scenario(s, "net:5")                                      # AND 출력 = 블록이 모는 선
+    assert sc["ok"] and {k for k, v in sc["forces"].items() if v == 1} >= {"row:4"}
+    src = (Path(__file__).resolve().parents[1] / "app/static/logic.js").read_text(encoding="utf-8")
+    assert "if (v === 1 && wantsScenario(key)) { activateOutput(key); return; }" in src
+    assert "const NEED_FLASH = 3;" in src and "flashNeed(on)" in src
+    assert 'type: "macro-need"' in src and "handleMacroNeed" in src, "매크로 새 창 ↔ 부모 창이 같이 활성화"
+    assert "timers: L.timers" in src and "startCount(run)" in src, "타이머 시간을 보내고 실제로 센다"

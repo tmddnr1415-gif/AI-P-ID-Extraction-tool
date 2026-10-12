@@ -12,10 +12,13 @@ const L = {
   focus: null, back: [], afterFit: null,          // FROM/TO 로 간 행 · 돌아갈 자리 (L6)
   all: null, allCode: "", allSel: null,            // 묶음 전체 점검 목록 (L7)
   memos: [], memoEdit: null, pinMode: false, pendingAt: null, memoFlash: null,   // 메모 (L8)
+  timers: {}, defaultT: 10, count: {},              // L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}} · 세는 중인 타이머
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
-const TIMER_MS = 1100;      // 타이머 경과를 보이는 시간
+const TIMER_MS = 1100;      // (옛 고정 경과 — L15 부터 타이머는 그 시간만큼 실제로 센다)
+const NEED_FLASH = 3;       // L15 — 출력을 활성화했을 때 필요한 입력을 주황으로 몇 번 점등하나 (사용자 지시)
+const NEED_MS = 520;        // 점등 한 번의 길이
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -222,6 +225,7 @@ function bindHome() {
 
 async function openJob(id) {
   L.job = id;
+  loadTimers();
   const st = await api(`/logic/api/jobs/${id}`);
   if (st.state !== "done") {
     if (st.state === "failed") { renderProgress(st); status(`분석 실패 — ${st.error || ""}`); return; }
@@ -543,6 +547,8 @@ function drawOverlay() {
   }
   if (L.focus && L.focus.page === s.page) drawGoto();
   el("g", { id: "g-sim" }, ov);       // 게이트 단자 1/0 · S-R 표 (L8) — paint 가 채운다
+  el("g", { id: "g-count" }, ov);     // L15 — 세는 타이머의 남은 시간
+  el("g", { id: "g-need" }, ov);      // L15 — 출력을 활성화했을 때 필요한 입력 (주황 3번 점등)
   drawPins();
   $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
@@ -753,6 +759,109 @@ function stopAnim() {
   for (const g of document.querySelectorAll("#ov .net")) g.classList.remove("tr", "tru");
   for (const b of document.querySelectorAll("#ov .blk")) b.classList.remove("tr", "trstop");
   $("#timeline").hidden = true;
+  stopCount();
+}
+
+/* ------------------------------------------------------------------ L15 — 타이머 시간 (사람이 바꿈 · 기본 10초) · 카운트다운 */
+
+const TIMER_LOGIC = new Set(["delay_on", "delay_off", "pulse"]);
+function fmtSec(s) {
+  s = Number(s) || 0;
+  if (s >= 60) { const m = Math.floor(s / 60), r = Math.round(s - m * 60); return `${m}분${r ? " " + r + "초" : ""}`; }
+  return (s >= 10 || Math.abs(s - Math.round(s)) < 0.05 ? Math.round(s) : s.toFixed(1)) + "초";
+}
+function timerSec(bid, page) {
+  page = page ?? L.page;
+  const o = (L.timers[page] || {})[bid];
+  if (o) return { sec: o, src: "user" };
+  const b = L.sheet && L.sheet.blocks[bid];
+  const d = b && b.param && Number(b.param.t);
+  if (d > 0) return { sec: d, src: "drawing" };
+  return { sec: L.defaultT, src: "default" };
+}
+function timersKey() { return "logic.timers." + L.job; }
+function loadTimers() {
+  try { L.timers = JSON.parse(localStorage.getItem(timersKey()) || "{}") || {}; } catch (e) { L.timers = {}; }
+}
+function saveTimers() { try { localStorage.setItem(timersKey(), JSON.stringify(L.timers)); } catch (e) { /* 막힌 저장소 */ } }
+function setTimer(bid, sec) {
+  const p = L.page;
+  L.timers[p] = L.timers[p] || {};
+  if (sec == null) delete L.timers[p][bid]; else L.timers[p][bid] = sec;
+  if (!Object.keys(L.timers[p]).length) delete L.timers[p];
+  saveTimers();
+  const ts = timerSec(bid);
+  status(`타이머 ${bid} — ${fmtSec(ts.sec)} (${ts.src === "user" ? "사람이 바꿈" : ts.src === "drawing" ? "도면 값" : "도면에 없음 · 기본"})`);
+  if (L.mode === "sim") { L.states = {}; L.state = null; L.values = {}; runSim(true); }
+  else { paint(); renderInfo(); }
+}
+function timerMenu(bid, e) {
+  closeForceMenu();
+  const b = L.sheet.blocks[bid];
+  const ts = timerSec(bid);
+  const d = b.param && Number(b.param.t);
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu";
+  m.innerHTML = `<div class="fm-h">${esc(FUNC_KO[b.func] || b.func)} — 시간</div>
+    <label class="fm-t">시간 <input id="fm-sec" type="number" min="0.1" max="86400" step="0.1" value="${ts.sec}"> 초</label>
+    <div class="fm-why">${d > 0 ? `도면 값 ${esc(b.param.text || fmtSec(d))}` : `도면에 시간이 없습니다 — 기본 ${fmtSec(L.defaultT)}`}${ts.src === "user" ? " · 지금은 사람이 바꾼 값" : ""}</div>
+    <button data-t="ok" class="v1">적용 — 동작 시뮬레이션에서 이 시간만큼 셉니다</button>
+    ${ts.src === "user" ? `<button data-t="x" class="vx">${d > 0 ? "도면 값으로" : `기본 ${fmtSec(L.defaultT)}로`}</button>` : ""}`;
+  document.body.appendChild(m);
+  const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x + 8, innerWidth - r.width - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(y + 8, innerHeight - r.height - 4)) + "px";
+  const inp = m.querySelector("#fm-sec");
+  inp.focus(); inp.select();
+  const ok = () => {
+    const v = Number(inp.value);
+    if (!(v > 0 && v <= 86400)) { inp.classList.add("bad"); return; }
+    closeForceMenu(); setTimer(bid, v);
+  };
+  inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) ok(); });
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.t === "ok") ok(); else { closeForceMenu(); setTimer(bid, null); }
+  });
+}
+/* 세는 타이머의 남은 시간을 블록 위에 줄여 간다 (실제 시간) */
+function startCount(run) {
+  const now = Date.now();
+  for (const x of run || []) L.count[x.block] = { end: now + x.left * 1000, T: x.T };
+  if (!L.countTick) L.countTick = setInterval(drawCount, 100);
+  drawCount();
+}
+function stopCount() {
+  if (L.countTick) clearInterval(L.countTick);
+  L.countTick = null; L.count = {};
+  const g = $("#g-count"); if (g) g.innerHTML = "";
+}
+function drawCount() {
+  const g = $("#g-count");
+  if (!g || !L.sheet) return;
+  g.innerHTML = "";
+  const now = Date.now();
+  let live = 0;
+  for (const [bid, c] of Object.entries(L.count)) {
+    const b = L.sheet.blocks[bid];
+    if (!b) continue;
+    const left = (c.end - now) / 1000;
+    if (left <= -0.3) { delete L.count[bid]; continue; }
+    live++;
+    const [x0, y0, x1, y1] = b.bbox;
+    const P = L.sheet.pitch || 11.5, fs = Math.max(3, Math.min(6, P * 0.45));
+    const w = fs * 4.6, h = fs * 1.5, x = (x0 + x1) / 2 - w / 2, y = y1 + fs * 0.4;
+    const gg = el("g", { class: "tcount" }, g);
+    el("rect", { x, y, width: w, height: h, rx: fs * 0.3 }, gg);
+    const fr = Math.max(0, Math.min(1, left / (c.T || 1)));
+    el("rect", { x, y: y + h - fs * 0.22, width: w * fr, height: fs * 0.22, class: "tc-bar" }, gg);
+    const tx = el("text", { x: x + w / 2, y: y + h * 0.72, "font-size": fs }, gg);
+    tx.textContent = "⏱ " + fmtSec(Math.max(0, left));
+  }
+  if (!live && L.countTick) { clearInterval(L.countTick); L.countTick = null; }
 }
 
 /* 넷 하나를 몰이 자리부터 바깥으로 그린다 (선이 쭉 이어지는 모습) */
@@ -827,7 +936,8 @@ async function runSim(animate) {
   // 묶음 전체를 함께 돌린다 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 (서버가 판정)
   const forces = {};
   for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page });
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page, timers: L.timers });
+  if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r) return;
   L.states = b.state || {};
@@ -853,7 +963,7 @@ async function runSim(animate) {
     L.values = last.values;
     showAll(Object.keys(L.values), true);
     paint(); renderInfo();
-    return;
+    return r;
   }
   // 틀마다: 값이 바뀐 넷을 깊이 순서로 그리고, 타이머 틀 사이에는 경과를 보인다
   let t = 0;
@@ -862,9 +972,12 @@ async function runSim(animate) {
     const changed = Object.keys(fr.values).filter((n) => fr.values[n] !== cur[n]);
     const startAt = t;
     if (i > 0) {
+      // L15 — 타이머는 그 시간만큼 실제로 센다 (앞 틀에서 세기 시작한 타이머가 남은 초를 줄여 간다)
       const label = fr.note;
-      L.anim.push(setTimeout(() => timelineShow(label, TIMER_MS), startAt));
-      t += TIMER_MS;
+      const gap = Math.max(0, (fr.t - r.frames[i - 1].t) * 1000);
+      const run = r.frames[i - 1].running || [];
+      L.anim.push(setTimeout(() => { timelineShow(label, gap, run); startCount(run); }, startAt));
+      t += gap;
     }
     const base = t;
     const depths = {};
@@ -893,16 +1006,22 @@ async function runSim(animate) {
     cur = fr.values;
   });
   L.animUntil = Date.now() + t + 50;          // 이 뒤로는 다시 그려도 활성 선을 바로 보인다 (paint)
+  return r;
 }
 function paintNet(nid) {
   const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
   if (!g) return;
   g.classList.toggle("on", L.values[nid] === 1);
 }
-function timelineShow(label, ms) {
+function timelineShow(label, ms, run) {
   const tl = $("#timeline");
   tl.hidden = false;
-  $("#tl-text").textContent = `⏱ ${label}`;
+  const names = (run || []).map((x) => { const b = L.sheet && L.sheet.blocks[x.block]; return `${b && b.func === "MACRO" ? "매크로 안 타이머" : (b && b.func) || "타이머"} ${fmtSec(x.T)}`; });
+  const t0 = Date.now();
+  const txt = () => `⏱ ${names.length ? names.join(" · ") + " 세는 중 — " : ""}${label} · 남은 ${fmtSec(Math.max(0, (ms - (Date.now() - t0)) / 1000))}`;
+  $("#tl-text").textContent = txt();
+  const tick = setInterval(() => { if ($("#timeline").hidden) { clearInterval(tick); return; } $("#tl-text").textContent = txt(); }, 200);
+  L.anim.push(setTimeout(() => clearInterval(tick), ms + 250));
   const f = $("#tl-fill");
   f.style.transition = "none"; f.style.width = "0";
   requestAnimationFrame(() => { f.style.transition = `width ${ms}ms linear`; f.style.width = "100%"; });
@@ -919,18 +1038,143 @@ function setMode(m, quiet) {
 }
 
 function setForce(key, v) {
+  // L15 — 출력(오른쪽 행 · 블록이 모는 선 · 매크로 출력 단자)을 1 로 주면: 그 출력이 서려면 어떤 입력이 1 이어야
+  // 하는지 범례 정의로 찾아 그 입력들을 주황으로 3번 점등하고 실제로 활성화한다 (사용자 지시).
+  if (v === 1 && wantsScenario(key)) { activateOutput(key); return; }
   // L9 — 따라가기 모드에서 입력 동그라미에 1/0 을 고르면 시뮬레이션으로 넘어가 그 값으로 돈다
   if (L.mode !== "sim") setMode("sim", true);
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
   runSim(true);
 }
 
+/* ------------------------------------------------------------------ L15 — 출력을 활성화하면 필요한 입력을 찾아 켠다 */
+
+function wantsScenario(key, s) {
+  s = s || L.sheet;
+  if (!s) return false;
+  if (key.startsWith("row:")) return isOutRow(key, s);
+  if (!key.startsWith("net:")) return false;
+  const nid = key.slice(4);
+  return s.ports.some((p) => p.net === nid && p.dir === "out" && s.blocks[p.block] && s.blocks[p.block].logic !== "source");
+}
+async function findInputs(page, key) {
+  try { return await post(`/logic/api/jobs/${L.job}/sheet/${page}/scenario`, { target: key }); }
+  catch (e) { return { ok: false, why: e.message }; }
+}
+function needOf(forces) {
+  const need = {};
+  for (const [k, v] of Object.entries(forces || {})) if (v === 1 || k.startsWith("net:")) need[k] = v;
+  return need;
+}
+function reachedIn(r, net) { return !!(r && net != null && r.frames.some((fr) => fr.values[net] === 1)); }
+async function activateOutput(key) {
+  if (L.mode !== "sim") setMode("sim", true);
+  const name = key.startsWith("row:") ? `출력 ${key.slice(4)}행` : "선 " + key.slice(4);
+  status(`${name} 이 1 이 되려면 어떤 입력이 1 이어야 하는지 찾는 중…`);
+  const sc = await findInputs(L.page, key);
+  if (!sc.ok) {
+    // 찾지 못하면 예전처럼 그 출력만 강제하고 이유를 말한다 (지어내지 않는다)
+    L.forces[key] = 1;
+    status(`⚠ ${name} — ${sc.why || "필요한 입력 조합을 찾지 못했습니다"} · 그 출력만 1 로 강제합니다`);
+    runSim(true);
+    return;
+  }
+  const need = needOf(sc.forces);
+  // 사람이 이미 준 값은 남기되, 필요한 입력과 겹치는 것 · 다른 출력 강제는 뺀다 (출력은 입력이 정한다)
+  const keep = {};
+  for (const [k, v] of Object.entries(L.forces)) if (!(k in need) && k !== key && !wantsScenario(k)) keep[k] = v;
+  L.forces = L.allForces[L.page] = { ...keep, ...need };
+  const on = Object.keys(need).filter((k) => need[k] === 1);
+  const names = on.map(scenarioName);
+  status(`${name} 을 1 로 — 필요한 입력 ${on.length}개를 주황으로 점등합니다: ${names.join(" · ")}`);
+  await flashNeed(on);
+  let r = await runSim(true);
+  let dropped = false;
+  if (!reachedIn(r, sc.net) && Object.keys(keep).length) {
+    dropped = true;
+    // 지금 준 다른 값(예: RESET 입력 1)이 막았다 — 필요한 입력만 두고 다시
+    L.forces = L.allForces[L.page] = { ...need };
+    L.states = {}; L.state = null; L.values = {};
+    r = await runSim(true);
+    status(`${name} 을 1 로 — 먼저 주었던 다른 값이 이 출력을 막아 풀었습니다 · 필요한 입력: ${names.join(" · ")}`);
+  }
+  L.scenario = { key, ok: true, forces: need, direct: sc.direct_nets || [], at: sc.at, need: on };
+  if (MACRO_FROM && L.page === MACRO_FROM.target && window.opener) {
+    // 매크로 새 창: 이 Typical 시트의 입력 행 → 부모 창의 매크로 입력 단자도 같이 활성화 (사용자 지시)
+    const rows = {};
+    for (const k of on) if (k.startsWith("row:")) rows[k.slice(4)] = 1;
+    try { window.opener.postMessage({ type: "macro-need", parent: MACRO_FROM.parent, block: MACRO_FROM.block, rows, fresh: dropped }, location.origin); }
+    catch (e) { /* 부모 창이 닫힘 */ }
+  }
+  renderInfo();
+}
+/* 필요한 입력(행 점 · 블록 · 선)을 주황으로 NEED_FLASH 번 점등 */
+function flashNeed(keys, s) {
+  s = s || L.sheet;
+  const g = $("#g-need");
+  if (!g || !s || !keys.length) return Promise.resolve();
+  g.innerHTML = "";
+  const gg = el("g", { class: "need", style: `animation-duration:${NEED_MS}ms;animation-iteration-count:${NEED_FLASH}` }, g);
+  const lis = [];
+  for (const k of keys) {
+    if (k.startsWith("row:")) {
+      const n = Number(k.slice(4));
+      const row = s.rows.find((r) => r.n === n && r.side === "L") || s.rows.find((r) => r.n === n);
+      if (row) {
+        el("circle", { cx: row.at[0], cy: row.at[1], r: 4.8 }, gg);
+        if (row.net != null) for (const [x0, y0, x1, y1] of (s.order[row.net] || [])) el("line", { x1: x0, y1: y0, x2: x1, y2: y1 }, gg);
+        const li = document.querySelector(`.lg-rows li[data-row="${n}"]`);
+        if (li) lis.push(li);
+      }
+    } else if (k.startsWith("block:")) {
+      const b = s.blocks[k.slice(6)];
+      if (b) { const [x0, y0, x1, y1] = b.bbox; el("rect", { x: x0 - 2, y: y0 - 2, width: x1 - x0 + 4, height: y1 - y0 + 4, rx: 1.5 }, gg); }
+    } else if (k.startsWith("net:")) {
+      for (const [x0, y0, x1, y1] of (s.order[k.slice(4)] || [])) el("line", { x1: x0, y1: y0, x2: x1, y2: y1 }, gg);
+    }
+  }
+  for (const li of lis) { li.classList.remove("needli"); void li.offsetWidth; li.classList.add("needli"); }
+  const ms = NEED_FLASH * NEED_MS;
+  return new Promise((res) => setTimeout(() => {
+    gg.remove();
+    for (const li of lis) li.classList.remove("needli");
+    res();
+  }, ms + 60));
+}
+/* 매크로 새 창이 "이 입력 행들이 1 이어야 한다" 고 알리면 — 부모 창의 매크로 입력 단자를 그 값으로 (앞쪽 입력까지 찾아) */
+async function handleMacroNeed(d) {
+  if (!L.job || MACRO_FROM) return;
+  const page = Number(d.parent);
+  let s = L.page === page ? L.sheet : null;
+  if (!s) { try { s = await api(`/logic/api/jobs/${L.job}/sheet/${page}`); } catch (e) { return; } }
+  const b = s.blocks[d.block];
+  const m = (b && b.macro) || {};
+  const pins = (m.inputs || []).filter((x) => x.row && d.rows[String(x.row)] === 1 && x.net != null);
+  if (!pins.length) return;
+  // 새 창이 먼저 있던 값이 출력을 막아 풀었다면(fresh) 부모 장도 필요한 값만으로 다시 시작한다
+  const f = d.fresh ? {} : { ...(L.allForces[page] || {}) };
+  if (d.fresh) { L.states = {}; L.state = null; L.values = {}; }
+  const keys = [];
+  for (const x of pins) {
+    const sc = await findInputs(page, "net:" + x.net);
+    if (sc.ok) { const need = needOf(sc.forces); Object.assign(f, need); keys.push(...Object.keys(need).filter((k) => need[k] === 1)); }
+    else { f["net:" + x.net] = 1; keys.push("net:" + x.net); }
+  }
+  L.allForces[page] = f;
+  if (page === L.page) L.forces = f;
+  if (L.mode !== "sim") setMode("sim", true);
+  status(`매크로 새 창(${m.sheet || ""})이 입력 단자 ${pins.map((x) => x.pin || x.row).join(" · ")} 을 요구 — ${s.sheet_no} 에서 활성화합니다`);
+  if (page === L.page) await flashNeed(keys);
+  runSim(true);
+}
+
 /* L14 — 출력 하나를 고르면 서버가 범례 정의(G003)를 거꾸로 따라 입력 조합을 찾고 앞으로 돌려 확인한다.
    찾은 조합을 이 시트의 강제 신호로 넣고 흐름을 그린다 — 입력부터 최종 출력까지 모든 신호가 서는 모습. */
-function isOutRow(key) {
-  if (!key.startsWith("row:") || !L.sheet) return false;
+function isOutRow(key, s) {
+  s = s || L.sheet;
+  if (!key.startsWith("row:") || !s) return false;
   const n = Number(key.slice(4));
-  return L.sheet.rows.some((r) => r.n === n && r.side === "R" && r.net != null);
+  return s.rows.some((r) => r.n === n && r.side === "R" && r.net != null);
 }
 async function runScenario(key) {
   status("동작 예시를 찾는 중…");
@@ -1052,17 +1296,24 @@ function sendMacroInputs() {
   }
 }
 window.addEventListener("message", (e) => {
-  if (e.origin !== location.origin || !e.data || e.data.type !== "macro-inputs" || !MACRO_FROM) return;
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
+  if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
   applyMacroInputs(e.data.inputs);
 });
-function applyMacroInputs(inputs) {
+async function applyMacroInputs(inputs) {
   if (!MACRO_FROM || !L.sheet || L.page !== MACRO_FROM.target) return;
   const f = {};
+  // 이 창에서 사람이 준 선 · 블록 값은 남긴다 (입력 행은 부모 창의 단자 값이 정한다)
+  for (const [k, v] of Object.entries(L.forces || {})) if (!k.startsWith("row:")) f[k] = v;
   for (const [r, v] of Object.entries(inputs || {})) f["row:" + r] = v === 1 ? 1 : 0;
+  // L15 — 부모 창에서 새로 1 이 된 입력 행은 주황으로 3번 점등 (어떤 값이 활성화되어야 하는지)
+  const fresh = Object.entries(inputs || {}).filter(([r, v]) => v === 1 && L.forces["row:" + r] !== 1).map(([r]) => "row:" + r);
   L.forces = L.allForces[L.page] = f;
   MACRO_FROM.inputs = inputs;
   renderMacroBanner();
   if (L.mode !== "sim") setMode("sim", true);
+  if (fresh.length && L.macroApplied) await flashNeed(fresh);
   runSim(true);
 }
 function renderMacroBanner() {
@@ -1092,6 +1343,7 @@ function onBlock(bid, e) {
   if (b.func === "MACRO") { macroMenu(bid, e); paint(); renderInfo(); return; }
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
   if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
+  else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
   else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
   paint(); renderInfo();
 }
@@ -1217,7 +1469,8 @@ function renderInfo() {
       <tr><td>종류</td><td><b>${esc(FUNC_KO[b.func] || b.func)}</b> ${b.func === "MEMORY" ? `(${b.param.dominant === "set" ? "SET 우선" : b.param.dominant === "reset" ? "RESET 우선" : "기본"})` : ""}</td></tr>
       <tr><td>도면 글자</td><td>${esc(b.label || "")} <small>(읽은 그대로: ${esc(b.read || "—")})</small></td></tr>
       ${b.score ? `<tr><td>맞음</td><td>${Math.round(b.score * 100)}% <small>범례 어휘와 글자 모양</small></td></tr>` : ""}
-      ${b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
+      ${TIMER_LOGIC.has(b.logic) ? (() => { const ts = timerSec(L.sel.block); return `<tr><td>시간</td><td><b>${fmtSec(ts.sec)}</b> <small>${ts.src === "user" ? "사람이 바꿈" : ts.src === "drawing" ? "도면 " + esc(b.param.text || "") : "도면에 없음 — 기본"}</small> <button data-timer="${esc(L.sel.block)}">시간 바꾸기</button></td></tr>`; })()
+        : b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
       <tr><td>단자</td><td>들어옴 ${ins.length} · 나감 ${outs.length}</td></tr>
       ${L.mode === "sim" && b.func === "MEMORY" ? `<tr><td>상태</td><td>${valTag(mem || 0)}</td></tr>` : ""}
       ${L.mode === "sim" && GATE_LOGIC.has(b.logic) ? `<tr><td>단자 값</td><td>${portValuesText(L.sel.block)}</td></tr>` : ""}
@@ -1340,6 +1593,14 @@ function drawSimMarks() {
   const fs = Math.max(2.4, Math.min(4.6, P * 0.34));     // 글자 크기 = 행 간격의 비율 (절대 pt 아님)
   const byBlock = {};
   for (const p of s.ports) (byBlock[p.block] = byBlock[p.block] || []).push(p);
+  // L15 — 타이머 블록마다 지금 쓰는 시간 (사람이 바꾼 값은 ✎) — 누르면 바꾼다
+  for (const [bid, b] of Object.entries(s.blocks)) {
+    if (!TIMER_LOGIC.has(b.logic) || L.count[bid]) continue;
+    const ts = timerSec(bid);
+    const [x0, , x1, y1] = b.bbox;
+    const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.3, "font-size": fs * 0.95, class: "tsec " + ts.src }, g);
+    tx.textContent = `t=${fmtSec(ts.sec)}${ts.src === "user" ? " ✎" : ts.src === "default" ? " (기본)" : ""}`;
+  }
   for (const [bid, ps] of Object.entries(byBlock)) {
     const b = s.blocks[bid];
     if (!b || !GATE_LOGIC.has(b.logic)) continue;
@@ -1648,6 +1909,8 @@ function bind() {
     if (ref && ref.dataset.refSheet) { goToRef(ref.dataset.refSheet, Number(ref.dataset.refRow), ref.dataset.refSide || "R"); return; }
     const al = e.target.closest("#all-findings li[data-i]");
     if (al) { gotoFinding(Number(al.dataset.i)); return; }
+    const tb = e.target.closest("button[data-timer]");
+    if (tb) { timerMenu(tb.dataset.timer, e); return; }
     const mb = e.target.closest("button[data-macro]");
     if (mb) { openMacro(mb.dataset.macro); return; }
     const dg = e.target.closest("#design-err button[data-go]");

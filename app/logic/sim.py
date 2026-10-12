@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-DEFAULT_T = 1.0
+DEFAULT_T = 10.0          # L15 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 10초)
 MAX_ITER = 300
 MAX_FRAMES = 24
 
@@ -192,6 +192,24 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
     return implied, conflicts
 
 
+def _secs(v):
+    """사람이 적은 타이머 시간 — 0 보다 크고 하루 이하인 수만."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if 0 < f <= 86400 else None
+
+
+def timer_seconds(b, override=None):
+    """L15 — 타이머 시간: 사람이 바꾼 값 → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
+    for v in (override, (b.get("param") or {}).get("t")):
+        f = _secs(v)
+        if f is not None:
+            return f
+    return DEFAULT_T
+
+
 def _frame(t, val, depth, note):
     """화면은 1/0 만 본다 — 모름은 0 (출력 없음) 으로 내고 어느 선이 모름이었는지는 `unread` 에 남긴다."""
     return {"t": t, "values": {n: (0 if v is None else v) for n, v in val.items()},
@@ -199,12 +217,13 @@ def _frame(t, val, depth, note):
             "depth": depth, "note": note}
 
 
-def simulate(s, forces=None, state=None, now=0.0):
+def simulate(s, forces=None, state=None, now=0.0, timers=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
 
     → {"frames": [{"t", "values", "depth", "note"}], "state", "notes"}
     """
     forces = dict(forces or {})
+    tset = {str(k): float(v) for k, v in (timers or {}).items() if _secs(v) is not None}
     st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     if state:
@@ -352,9 +371,10 @@ def simulate(s, forces=None, state=None, now=0.0):
                 continue
             ts = st["tim"].setdefault(bid, {"out": 0, "inp": 0, "due": None, "to": None})
             inp = _b(_or3([val.get(n) for n, _, _ in ins[bid]]))
-            T = float(b.get("param", {}).get("t") or DEFAULT_T)
-            if not b.get("param", {}).get("t"):
-                notes.add("타이머 시간을 읽지 못한 블록은 1초로 보았습니다")
+            T = timer_seconds(b, tset.get(bid))
+            if bid not in tset and not b.get("param", {}).get("t"):
+                notes.add(f"타이머 시간을 읽지 못한 블록은 {DEFAULT_T:g}초로 보았습니다 (블록을 눌러 바꿀 수 있습니다)")
+            ts["T"] = T
             prev = ts["inp"]
             if lg == "delay_on":
                 if inp == 1 and prev != 1:
@@ -395,6 +415,12 @@ def simulate(s, forces=None, state=None, now=0.0):
     if conflicts:
         notes.add("거꾸로 맞추기에서 한 신호가 0 과 1 을 함께 요구받았습니다 — " + " · ".join(conflicts[:3]))
 
+    def _running(fr, now_):
+        """L15 — 이 틀에서 시간을 세는 타이머 (화면이 카운트다운을 그린다)."""
+        fr["running"] = [{"block": bid, "left": round(ts["due"] - now_, 3), "T": ts.get("T", DEFAULT_T)}
+                         for bid, ts in sorted(st["tim"].items()) if ts.get("due") is not None]
+        return fr
+
     frames = []
     t = st["t"]
     val = {}
@@ -402,7 +428,7 @@ def simulate(s, forces=None, state=None, now=0.0):
         val, depth = settle(val)
         if not timers_step(val, t):
             break
-    frames.append(_frame(t, val, depth, "누른 순간"))
+    frames.append(_running(_frame(t, val, depth, "누른 순간"), t))
     while len(frames) < MAX_FRAMES:
         due = [(ts["due"], bid) for bid, ts in st["tim"].items() if ts.get("due") is not None]
         if not due:
@@ -421,7 +447,7 @@ def simulate(s, forces=None, state=None, now=0.0):
             if not timers_step(val, t):
                 break
         labels = [B[b].get("param", {}).get("text") or B[b]["func"] for b in fired]
-        fr = _frame(t, val, depth, f"{', '.join(labels)} 경과")
+        fr = _running(_frame(t, val, depth, f"{', '.join(labels)} 경과"), t)
         fr["fired"] = fired
         frames.append(fr)
     st["t"] = t
@@ -505,7 +531,7 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -516,6 +542,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
     """
     forces = {int(k): v for k, v in (forces or {}).items()}
     state = {int(k): v for k, v in (state or {}).items()}
+    timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     by_page = {s["page"]: s for s in sheets}
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
@@ -557,20 +584,73 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             m = b.get("macro") or {}
             if b.get("func") == "MACRO" and m.get("page") in by_page:
                 macros[s0["page"]].append((bid, m))
-    macro_force, macro_view, macro_state = {}, {}, {}
+    macro_view = {}
+    inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
 
-    def eval_macros(page, values):
-        f, view, nst = {}, {}, {}
-        old = (state.get(page) or {}).get("macros", {})
-        for bid, m in macros.get(page, ()):
+    # L15 — 매크로 블록을 펼친다: Typical 시트의 블록·선을 이 장 안에 이름을 붙여 넣고, Typical 입력 행의 선 =
+    # 상자의 입력 단자 선 · Typical 출력 행의 선 = 상자의 출력 단자 선으로 잇는다.  한 장을 한 번에 돌리므로
+    # **시간이 같이 흐른다** — Typical 안의 펄스(PD)·지연 타이머가 그 시간 동안 상자의 출력을 1 로 낸다.
+    # (L12 는 Typical 을 따로 돌려 마지막 틀만 가져와, 펄스로 나가는 STOP · START 명령이 부모 장에 닿지 않았다.)
+    def inlined(page):
+        if page in inline:
+            return inline[page]
+        s0 = by_page[page]
+        items = macros.get(page)
+        if not items:
+            inline[page] = (s0, {})
+            return inline[page]
+        boxes = {bid for bid, _ in items}
+        blocks = {k: v for k, v in s0["blocks"].items() if k not in boxes}
+        ports = [p for p in s0["ports"] if p["block"] not in boxes]
+        nets = dict(s0.get("nets") or {})
+        for bid, m in items:
             ts = by_page[m["page"]]
-            tf = {f"row:{x['row']}": (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")}
-            res = simulate(ts, tf, old.get(bid))
-            nst[bid] = res["state"]
-            orow = _row_values(ts, res["frames"][-1]["values"])
+            alias = {}
+            for x in m["inputs"]:
+                tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "L"), None)
+                if tn is not None and x.get("net") is not None:
+                    alias[tn] = x["net"]
             for x in m["outputs"]:
-                if x.get("row") is not None:
-                    f[f"net:{x['net']}"] = orow.get(x["row"], 0)
+                tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "R"), None)
+                if tn is not None and x.get("net") is not None:
+                    alias[tn] = x["net"]
+            nm = lambda n, bid=bid, alias=alias: alias.get(n, f"{bid}/{n}")
+            for k, v in ts["blocks"].items():
+                nb = dict(v)
+                if nb.get("group"):
+                    nb["group"] = f"{bid}/{nb['group']}"
+                blocks[f"{bid}/{k}"] = nb
+            for p_ in ts["ports"]:
+                ports.append({**p_, "block": f"{bid}/{p_['block']}", "net": nm(p_["net"])})
+            for n in (ts.get("nets") or {}):
+                nets.setdefault(nm(n), {"segs": []})
+        s1 = {**s0, "blocks": blocks, "ports": ports, "nets": nets}
+        inline[page] = (s1, dict(items))
+        return inline[page]
+
+    def strip(res):
+        """펼친 Typical 의 선·블록은 화면의 장에 없다 — 결과에서 뺀다 (값은 상자 단자 선으로 이미 나왔다)."""
+        own = lambda k: "/" not in str(k)
+        for fr in res["frames"]:
+            fr["values"] = {k: v for k, v in fr["values"].items() if own(k)}
+            fr["depth"] = {k: v for k, v in fr["depth"].items() if own(k)}
+            fr["unread"] = [k for k in fr["unread"] if own(k)]
+            # 펼친 Typical 안에서 세는 타이머는 그 매크로 상자 위에서 센다 (남은 시간이 가장 긴 것)
+            run = {}
+            for x in fr.get("running", []):
+                k = str(x["block"]).split("/", 1)[0]
+                if k not in run or x["left"] > run[k]["left"]:
+                    run[k] = {**x, "block": k}
+            fr["running"] = list(run.values())
+            if "fired" in fr:
+                fr["fired"] = [b for b in fr["fired"] if own(b)]
+        res["short_gates"] = [b for b in res["short_gates"] if own(b)]
+        return res
+
+    def macro_views(page, items, values):
+        view = {}
+        for bid, m in items.items():
+            orow = {x["row"]: (1 if values.get(x["net"]) == 1 else 0) for x in m["outputs"] if x.get("row") is not None}
             # 짝 출력(이름 끝 1/0 — CMD1 ↔ CMD0 · 열림 ↔ 닫힘)이 함께 1 이면 모순이다 — 숨기지 않고 알린다
             conflict = []
             outs1 = [x for x in m["outputs"] if x.get("row") is not None and orow.get(x["row"]) == 1]
@@ -581,8 +661,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                         conflict.append(f"{a.get('pin')} 과 {b_.get('pin')} 이 함께 1 ({m.get('sheet')} {a['row']}행 · {b_['row']}행)")
             view[bid] = {"sheet": m.get("sheet"), "page": m["page"], "conflict": conflict,
                          "inputs": {str(x["row"]): (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")},
-                         "outputs": {str(x["row"]): orow.get(x["row"], 0) for x in m["outputs"] if x.get("row") is not None}}
-        return f, view, nst
+                         "outputs": {str(r): v for r, v in orow.items()}}
+        return view
 
     todo = set(by_page)
     notes = set()
@@ -594,20 +674,17 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
         for page in sorted(todo):
             s = by_page[page]
             lin = inputs_of(page)
-            for _k in range(4 if macros.get(page) else 1):
-                f = {f"row:{n}": v for n, v in lin.items()}
-                f.update(macro_force.get(page, {}))      # 매크로가 모는 출력 선
-                f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
-                res = simulate(s, f, state.get(page))
-                if not macros.get(page):
-                    break
-                mf, view, nst = eval_macros(page, res["frames"][-1]["values"])
-                macro_view[page], macro_state[page] = view, nst
-                if mf == macro_force.get(page):
-                    break
-                macro_force[page] = mf
-            if macros.get(page):
-                res["state"]["macros"] = macro_state.get(page, {})
+            s_run, items = inlined(page)
+            f = {f"row:{n}": v for n, v in lin.items()}
+            f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
+            tm = dict(timers.get(page) or {})
+            for bid, m in items.items():
+                for k, v in (timers.get(m["page"]) or {}).items():
+                    tm[f"{bid}/{k}"] = v
+            res = simulate(s_run, f, state.get(page), timers=tm)
+            if items:
+                macro_view[page] = macro_views(page, items, res["frames"][-1]["values"])
+                strip(res)
             results[page] = res
             link_in[page] = lin
             rv = _row_values(s, res["frames"][-1]["values"])
@@ -866,17 +943,21 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         if key not in cache:
             cache[key] = scenario(ts, f"row:{out['row']}", 1, rows_only=True, rows_allowed=set(by_row))
         sc = cache[key]
-        if not sc.get("ok") or sc.get("direct_nets"):
+        if not sc.get("ok") or any(sc["forces"].get(k) == 1 for k in sc.get("direct_nets") or ()):
             return []
-        goals = []
+        goals, held = [], {}
         for k, w in sc["forces"].items():
+            if k.startswith("net:"):
+                # L15 — Typical 안에서 몰이를 못 읽어 0 으로 붙든 선: 펼친 장의 그 선(블록 이름/선)을 0 으로 둔다
+                held[f"net:{x}/{k[4:]}"] = 0
+                continue
             if not k.startswith("row:") or w != 1:
                 continue
             n_ = by_row.get(int(k[4:]))
             if n_ is None:
                 return []                              # 그 Typical 입력 행에 닿는 단자를 못 읽었다
             goals.append(("net", n_, 1))
-        return [({}, goals)]
+        return [(held, goals)]
     if lg in ("and", "nand"):
         want_all = (v == 1) == (lg == "and")         # AND=1 · NAND=0 → 모든 입력 1
         if want_all:

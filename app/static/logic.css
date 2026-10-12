@@ -364,3 +364,22 @@ button.big { padding: 8px 28px; font-size: 15px; font-weight: 700; }
 .lg-head .lg-status { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lg-head h1 { white-space: nowrap; }
 #samples { display: inline-flex; gap: 4px; }
+
+/* L15 — 출력을 활성화했을 때 필요한 입력: 주황 3번 점등 */
+#ov #g-need g.need { animation-name: needflash; animation-timing-function: ease-in-out; animation-fill-mode: forwards; pointer-events: none; }
+#ov #g-need circle, #ov #g-need rect { fill: rgba(255, 140, 0, .28); stroke: #ff8c00; stroke-width: 1.6; }
+#ov #g-need line { stroke: #ff8c00; stroke-width: 3.2; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255,140,0,.8)); }
+@keyframes needflash { 0% { opacity: 0 } 45% { opacity: 1 } 100% { opacity: 0 } }
+.lg-rows li.needli { animation: needli 520ms ease-in-out 3; }
+@keyframes needli { 50% { background: #ffd8a8; box-shadow: inset 3px 0 0 #ff8c00; } }
+/* L15 — 타이머 시간 · 카운트다운 */
+#ov text.tsec { fill: #0b5f8a; text-anchor: middle; font-weight: 600; pointer-events: none; }
+#ov text.tsec.user { fill: #b25a00; }
+#ov text.tsec.default { fill: #6b7280; }
+#ov .tcount rect { fill: #fff7e6; stroke: #ff8c00; stroke-width: .5; }
+#ov .tcount rect.tc-bar { fill: #ff8c00; stroke: none; }
+#ov .tcount text { fill: #8a4200; text-anchor: middle; font-weight: 700; }
+.force-menu .fm-t { display: flex; gap: 6px; align-items: center; padding: 4px 8px; font-size: 12px; }
+.force-menu .fm-t input { width: 80px; padding: 3px 5px; }
+.force-menu .fm-t input.bad { outline: 2px solid #d1242f; }
+#ov #g-count, #ov #g-need { pointer-events: none; }
