@@ -10,13 +10,47 @@
 <header class="lg-head">
   <a class="lg-home" href="/" title="P&amp;ID 첫 화면으로">← P&amp;ID</a>
   <h1>LOGIC 검토</h1>
+  <button id="to-home" class="lg-tohome" title="프로젝트 · 자료 넣기 · 분석 이력 첫 화면으로">⌂ 첫 화면</button>
   <select id="job" title="분석한 Logic 묶음"></select>
-  <label class="btn" title="Logic Diagram PDF 를 올립니다">PDF 올리기<input id="upload" type="file" accept=".pdf" hidden></label>
   <span id="samples"></span>
   <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
+  <button id="ft-report" class="btn lg-report" hidden title="From-To 가 정확하게 맞대어졌는지 — 신호를 주기 전에 먼저 봅니다">From-To 보고</button>
   <a id="report" class="btn lg-report" href="#" hidden title="묶음 전체의 점검 결과를 Excel 로 내려받습니다">Excel 보고서</a>
   <span id="status" class="lg-status"></span>
 </header>
+
+<section id="home" class="lh" hidden>
+  <div class="lh-title">
+    <h2>Logic 분석</h2>
+    <p>Logic · Loop · System Description · IO List · Logic Table 을 넣고 <b>분석</b>을 누르세요.  Logic Diagram 만 넣어도 분석됩니다.</p>
+  </div>
+  <div class="lh-intake">
+    <div class="lh-card lh-where">
+      <h3><span class="num">1</span> 어디에 넣을지</h3>
+      <div class="lh-row"><label>프로젝트</label>
+        <select id="lh-project"><option value="">(고르세요)</option></select>
+        <button id="lh-newproj" class="mini">새 프로젝트</button></div>
+      <div id="lh-newbox" class="lh-row" hidden>
+        <input id="lh-newname" placeholder="새 프로젝트 이름"><button id="lh-create" class="primary">만들기</button><button id="lh-cancel" class="mini">취소</button></div>
+      <div class="lh-row"><label>도면 종류</label><span class="lh-mode">실행 프로젝트</span></div>
+      <p class="lh-help">Logic 검토는 <b>실행</b> 프로젝트만 있습니다 (입찰 Logic 은 다루지 않습니다).</p>
+      <p class="lh-help">Logic 50장 기준 약 40초~1분 걸립니다.  끝나면 From-To 점검 보고를 먼저 보여 드립니다.</p>
+    </div>
+    <div class="lh-card lh-files">
+      <h3><span class="num">2</span> 자료</h3>
+      <ul id="lh-materials" class="lh-mats"></ul>
+      <div class="lh-go">
+        <span id="lh-why" class="lh-why"></span>
+        <button id="lh-analyse" class="primary big" disabled>분석</button>
+      </div>
+      <p class="lh-help">지금은 <b>Logic Diagram</b> 을 분석합니다.  다른 자료는 이 분석에 함께 보관되고, 자료 사이의 교차 분석은 추후 개발 예정입니다.</p>
+    </div>
+  </div>
+  <div class="lh-lists">
+    <div class="lh-card"><h3>저장된 프로젝트</h3><div id="lh-projects"></div></div>
+    <div class="lh-card"><h3>최근 분석 이력</h3><ul id="lh-recent" class="lh-recent"></ul></div>
+  </div>
+</section>
 
 <main class="lg-main">
   <aside class="lg-sheets">
@@ -45,7 +79,11 @@
       <span class="sep"></span>
       <label class="chk"><input type="checkbox" id="show-nets" checked> 읽은 선 보이기</label>
       <label class="chk"><input type="checkbox" id="show-blocks" checked> 블록 이름</label>
+      <label class="chk" title="시뮬레이션 중 게이트 입력·출력 단자에 1/0 을 적습니다"><input type="checkbox" id="show-ports" checked> 게이트 1/0</label>
+      <label class="chk" title="1 이 하나도 없는 게이트에도 1/0 을 적습니다"><input type="checkbox" id="show-all-gates"> 모든 게이트</label>
+      <label class="chk" title="S-R 래치 위에 진리표를 그리고 지금 줄을 표시합니다"><input type="checkbox" id="show-latch" checked> S-R 표</label>
       <span class="sep"></span>
+      <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
       <button id="reset" title="강제 신호와 메모리 · 타이머 상태를 모두 지웁니다">초기화</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
     </div>
@@ -56,6 +94,8 @@
       </div>
       <div id="empty" class="lg-empty">왼쪽에서 시트를 고르세요.</div>
     </div>
+    <div id="prog" class="lg-prog" hidden></div>
+    <div id="remind" class="lg-remind" hidden></div>
     <div id="timeline" class="lg-timeline" hidden>
       <span id="tl-text"></span>
       <div class="tl-bar"><div id="tl-fill"></div></div>
@@ -67,6 +107,10 @@
     <div class="lg-legend" id="legend"></div>
     <h3>선택</h3>
     <div id="info" class="lg-info">도면에서 선이나 블록을 누르세요.</div>
+    <h3 id="latch-h" hidden>S-R 래치 <small>(이 시트)</small></h3>
+    <div id="latches" class="lg-latches" hidden></div>
+    <h3 id="design-h" hidden>설계 오류 <small>(신호가 TO·FM 을 따라 이동하다 만난 것)</small> <b id="design-n" class="de-n"></b></h3>
+    <ul id="design-err" class="lg-design" hidden></ul>
     <h3 id="chain-h" hidden>활성 연결 <small>(다른 장으로 이어진 활성)</small></h3>
     <ul id="chain" class="lg-chain" hidden></ul>
     <h3>입력 행 <small>(왼쪽 표)</small></h3>
@@ -75,10 +119,23 @@
     <ul id="out-rows" class="lg-rows"></ul>
     <h3>연결 점검 <small id="find-count"></small></h3>
     <ul id="findings" class="lg-find"></ul>
+    <h3>메모 <small id="memo-count"></small></h3>
+    <div class="lg-memo">
+      <div id="memo-who" class="memo-who"></div>
+      <input id="memo-author" placeholder="작성자 이름">
+      <textarea id="memo-text" rows="3" placeholder="이 시트에 대한 메모 (Ctrl+Enter 저장)"></textarea>
+      <div class="memo-btns">
+        <button id="memo-save">저장</button>
+        <button id="memo-pin" title="도면을 눌러 그 자리에 핀을 꽂고 메모를 답니다">📌 핀 메모</button>
+        <label class="chk"><input type="checkbox" id="memo-hidden"> 숨긴 것도</label>
+      </div>
+      <ul id="memo-list" class="memo-list"></ul>
+    </div>
     <h3>읽기 근거</h3>
     <div id="basis" class="lg-basis"></div>
   </aside>
 </main>
+<div id="ft-modal" class="lg-modal" hidden><div class="lg-modal-box" id="ft-box"></div></div>
 <script src="/static/logic.js"></script>
 </body>
 </html>

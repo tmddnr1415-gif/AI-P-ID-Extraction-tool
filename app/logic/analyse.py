@@ -12,7 +12,7 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import fromto, geom, glyphs, graph
+from . import fromto, geom, glyphs, graph, macro
 
 REF = re.compile(r"^([A-Z]\d{3}[A-Z]?)-(\d{1,3})$")     # 시트-행 (설계 S6 · 판독한 글자에서)
 
@@ -48,6 +48,8 @@ def analyse(pdf_path, progress=None):
     for s in out_sheets:
         s["findings"] = _findings(s)
     fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
+    say("macros", 0, 1)
+    macro.link(doc, out_sheets)              # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12)
     return {
         "pdf_pages": len(doc),
         "sheets": out_sheets,
@@ -80,6 +82,11 @@ def _rows(sh, D):
         grid[int(((p.bbox[1] + p.bbox[3]) / 2) // max(lay.pitch, 1))].append(p)
 
     def cell_text(x0, x1, a, b):
+        # 진짜 글자로 인쇄한 칸이 먼저다 (G005 처럼 표를 글자로 내보낸 장) — 선 글자 사전으로 읽을 일이 없다
+        ws = sorted((w for w in sh.words if x0 < (w[0] + w[2]) / 2 < x1 and a < (w[1] + w[3]) / 2 < b),
+                    key=lambda w: (round((w[1] + w[3]) / 2), w[0]))
+        if ws:
+            return " ".join(w[4] for w in ws).strip()
         ps = []
         for k in range(int(a // lay.pitch) - 1, int(b // lay.pitch) + 2):
             for p in grid.get(k, []):
@@ -213,6 +220,9 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             "param": dict(getattr(b, "param", {})), "group": getattr(b, "group", ""),
             "pointer": b.pointer, "roles": getattr(b, "roles", {}),
         }
+        if getattr(b, "func", "") == "MACRO":
+            blks[b.id]["pins"] = dict(getattr(b, "pins", {}))
+            blks[b.id]["lines"] = [list(ln) for ln in getattr(b, "lines", [])]
         if b.id in timers:
             blks[b.id]["param"].update(timers[b.id])
     ports = []
@@ -228,8 +238,11 @@ def _export(sh, pno, sheet_no, title, rows, timers):
         d = pt.dir
         if getattr(b, "logic", "") == "sink" and pt.side == "":
             d = "in"                                    # 램프 · 경보 · 기록은 받기만 한다 (범례 G003)
-        ports.append({"block": pt.block, "net": str(pt.net), "dir": d, "at": list(pt.at),
-                      "side": pt.side, "cell": pt.cell, "role": role})
+        pd = {"block": pt.block, "net": str(pt.net), "dir": d, "at": list(pt.at),
+              "side": pt.side, "cell": pt.cell, "role": role}
+        if getattr(b, "func", "") == "MACRO":
+            pd["pin"] = b.pins.get(f"{pt.at[0]},{pt.at[1]}", "")
+        ports.append(pd)
     rmap = {(r["side"], r["n"]): r for r in rows}
     srows = []
     for r in sh.rows:

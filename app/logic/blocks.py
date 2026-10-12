@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import copy
 from functools import lru_cache
 from pathlib import Path
 
@@ -118,6 +119,7 @@ def classify(sheet, D):
     mem_reset = V["memory_cells"]["reset"]
     mark = V["memory_cells"]["dominant_mark"]
     byid = {p.pid: p for p in sheet.glyph_polys}
+    split = []
     for b in sheet.blocks.values():
         polys = [byid[i] for i in b.glyphs if i in byid]
         b.read = ""
@@ -183,6 +185,33 @@ def classify(sheet, D):
                                 seg.append(c)
                             b.lines.append(_seg_line(D, seg, vert))
                         continue
+                # 큰 상자에 글줄이 여럿 — 단자 이름을 안에 인쇄한 매크로 블록 (MOV BLOCK · MCC BLOCK …, L12).
+                # 내부 동작은 그 Typical 시트가 정의한다 (macro.py 가 단자 이름으로 시트와 행을 맞댄다).
+                if len(lines) >= 3:
+                    b.func = "MACRO"
+                    b.logic = "macro"
+                    b.label = b.read
+                    b.lines = []
+                    for ln in lines:
+                        seg = [ln[0]]
+                        for c in ln[1:]:
+                            if c.bbox[0] - seg[-1].bbox[2] > 1.5 * max(c.h, seg[-1].h):
+                                b.lines.append(_seg_line(D, seg, vert))
+                                seg = []
+                            seg.append(c)
+                        b.lines.append(_seg_line(D, seg, vert))
+                    continue
+            # 맞닿아 그린 같은 게이트 둘 (GT 위·아래 · G021) — 칸마다 같은 기능 낱말 한 줄이면 칸마다 블록 하나
+            if len(cells) >= 2 and all(abs(c[0] - cells[0][0]) < 1 and abs(c[2] - cells[0][2]) < 1 for c in cells):
+                got = []
+                for _, cs, vert in reads:
+                    lines = glyphs.lines(cs, vertical=vert) if cs else []
+                    w, s_, m = decode(D, cs, [x for x in words if funcs[words[x]]["logic"] not in ("sink", "source")]) \
+                        if len(lines) == 1 else (None, 0, 0)
+                    got.append((w, s_, m))
+                if all(w and s_ >= MIN_SCORE and m >= MIN_MARGIN for w, s_, m in got) and len({words[w] for w, _, _ in got}) == 1:
+                    split.append((b, got))
+                    continue
             b.func = "UNKNOWN"
             b.logic = "unknown"
             b.label = b.read
@@ -221,6 +250,7 @@ def classify(sheet, D):
             b.func = "UNKNOWN"
             b.logic = "unknown"
             b.label = b.read
+    _split_stacked(sheet, split, funcs, words)
     # 들어오는 단자가 없는 판정 못 한 상자 = 이름 붙은 신호 상자 (FLASH · AUTO 칸 — 입력으로 쓴다)
     has_in = {pt.block for pt in sheet.ports if pt.dir == "in"}
     for b in sheet.blocks.values():
@@ -228,6 +258,40 @@ def classify(sheet, D):
             b.func, b.logic = "SIGNAL", "source"
     _connector_groups(sheet)
     _step_roles(sheet, D)
+    _macro_pins(sheet)
+
+
+def _split_stacked(sheet, split, funcs, words):
+    """맞닿은 칸을 블록 하나씩으로 — 단자는 그 칸의 높이로 가른다 (위·아래 변 단자는 가까운 칸)."""
+    for b, got in split:
+        cells = list(b.cells)
+        n = max(int(k[1:]) for k in sheet.blocks)
+        ids = []
+        for i, (cell, (w, s_, _)) in enumerate(zip(cells, got)):
+            nb = b if i == 0 else copy.copy(b)
+            if i:
+                n += 1
+                nb.id = f"B{n}"
+                nb.glyphs = []
+                sheet.blocks[nb.id] = nb
+            ids.append(nb.id)
+            nb.cells = [cell]
+            nb.bbox = tuple(cell)
+            nb.func = words[w]
+            nb.logic = funcs[nb.func]["logic"]
+            nb.label = w.replace("*", "t")
+            nb.score = round(s_, 3)
+            nb.roles = {}
+            nb.param = {}
+            nb.bus = [bs for bs in b.bus if min(bs[1], bs[3]) <= cell[3] and max(bs[1], bs[3]) >= cell[1]]
+        for pt in sheet.ports:
+            if pt.block != b.id:
+                continue
+            y = pt.at[1]
+            k = min(range(len(cells)), key=lambda i: 0 if cells[i][1] <= y <= cells[i][3]
+                    else min(abs(y - cells[i][1]), abs(y - cells[i][3])))
+            pt.block = ids[k]
+            pt.cell = 0
 
 
 def _connector_groups(sheet):
@@ -253,6 +317,39 @@ def _connector_groups(sheet):
 def _seg_line(D, cs, vert):
     return (min(c.bbox[1] for c in cs), max(c.bbox[3] for c in cs), min(c.bbox[0] for c in cs),
             max(c.bbox[2] for c in cs), _read_free(D, cs, vert).replace(" ", "").upper())
+
+
+def _macro_pins(sheet):
+    """매크로 블록의 단자 → 그 단자 높이·그 변 쪽에 인쇄된 상자 안 글줄 (단자 이름).  단자가 없는 상자는 매크로가 아니다."""
+    P = sheet.layout.pitch
+    for b in sheet.blocks.values():
+        if getattr(b, "func", "") != "MACRO":
+            continue
+        pts = [pt for pt in sheet.ports if pt.block == b.id]
+        if not any(pt.dir == "in" for pt in pts):
+            b.func, b.logic = "SIGNAL", "source"       # 들어오는 단자가 없는 상자 = 이름 붙은 신호 상자 (예전 규칙)
+            continue
+        b.pins = {}
+        half = (b.bbox[2] - b.bbox[0]) / 2
+        for pt in pts:
+            y = pt.at[1]
+            side = []
+            for y0, y1, x0, x1, t in getattr(b, "lines", []):
+                on_side = (x0 - b.bbox[0] < half) if pt.side == "L" else (b.bbox[2] - x1 < half)
+                if on_side and t.strip("-_"):         # 밑줄 획만 있는 조각(EN_CLOSE 의 '_')은 이름이 아니다
+                    side.append((y0, y1, x0, t))
+            best = None
+            for y0, y1, x0, t in side:
+                d = 0 if y0 <= y <= y1 else min(abs(y - y0), abs(y - y1))
+                if d <= 0.8 * P and (best is None or d < best[0]):
+                    best = (d, y0, y1)
+            if best is None:
+                b.pins[f"{pt.at[0]},{pt.at[1]}"] = ""
+                continue
+            # 같은 높이의 조각을 x 순으로 잇는다 — 밑줄(_)에서 글줄이 갈린다 (EN · CLOSE → ENCLOSE)
+            _, by0, by1 = best
+            parts = sorted((x0, t) for y0, y1, x0, t in side if y0 <= by1 and y1 >= by0)
+            b.pins[f"{pt.at[0]},{pt.at[1]}"] = "".join(t for _, t in parts)
 
 
 def _step_roles(sheet, D):

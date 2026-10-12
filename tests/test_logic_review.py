@@ -188,11 +188,28 @@ def test_simulation_follows_the_legend_definitions():
 
 
 def test_trace_goes_through_blocks_in_depth_order():
+    # L14 — 연결 따라가기는 연결만 본다: AND 의 다른 입력이 0 이어도 지나간다 (사용자 확정)
     t = sim.trace(_toy(), "row:1")
     depth = {o["net"]: o["depth"] for o in t["order"]}
     assert depth["1"] == 0 and depth["3"] == 1 and depth["5"] == 2 and depth["8"] == 4
+    assert not t["blocked"] and "AND" in {b["block"] for b in t["blocks"]}
     up = sim.trace(_toy(), "net:8", "up")
     assert {o["net"] for o in up["order"]} >= {"6", "7", "5", "3", "1", "2", "4"}
+
+
+def test_scenario_finds_inputs_that_light_the_whole_chain():
+    """L14 — 출력 하나를 고르면 범례 정의를 거꾸로 따라 입력 조합을 찾고, 앞으로 돌려 확인한다."""
+    s = _toy()
+    r = sim.scenario(s, "row:30")
+    assert r["ok"] and r["forces"].get("row:4") == 1 and (r["forces"].get("row:1") == 1 or r["forces"].get("row:2") == 1)
+    assert "row:7" not in r["forces"] or r["forces"]["row:7"] == 0          # RESET 은 주지 않는다
+    v = sim.simulate(s, r["forces"])
+    assert any(fr["values"]["8"] == 1 for fr in v["frames"])
+    # 몰 길이 없는 출력은 찾았다고 하지 않는다
+    s2 = _toy()
+    s2["ports"] = [p for p in s2["ports"] if not (p["block"] == "AND" and p["net"] == "4")]
+    r2 = sim.scenario(s2, "row:30")
+    assert not r2["ok"] or r2["direct_nets"] == []
 
 
 def test_logic_package_does_not_import_the_pid_engine():
@@ -266,6 +283,12 @@ def test_api_round_trip(tmp_path, monkeypatch):
     # 장 그림은 분석이 끝나며 미리 그려 둔다 (L7) — 분석 프로세스가 쓴 캐시가 그대로 쓰인다
     from app.logic import store
     assert (store.job_dir(job) / "pages" / f"p1_z{store.ZOOM}.png").exists()
+    # L8 — 메모 API (지우는 길이 없다)
+    m = client.post(f"/logic/api/jobs/{job}/memo", json={"page": 1, "sheet_no": "G001", "text": "확인", "author": "홍길동", "at": [10, 20]}).json()
+    assert client.post(f"/logic/api/jobs/{job}/memo", json={"page": 1, "text": "", "author": "홍길동"}).status_code == 400
+    assert client.patch(f"/logic/api/jobs/{job}/memo/{m['id']}", json={"author": "김", "done": True}).json()["done"] is True
+    assert client.patch(f"/logic/api/jobs/{job}/memo/none", json={"author": "김", "done": True}).status_code == 404
+    assert len(client.get(f"/logic/api/jobs/{job}/memo").json()["items"]) == 1
     assert client.post("/logic/api/jobs", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 400
     assert client.get("/logic/api/jobs/zzz").status_code == 404
     assert client.get("/logic").status_code == 200
@@ -372,3 +395,295 @@ def test_from_is_matched_by_fm_sheet_and_row_not_kks():
     assert r7["ft"]["ok"] is True and r7["ref"] == {"sheet": "G048", "row": 95, "page": 1, "other_bundle": False, "src_row": 95}
     assert "ft" not in r8 and "ref" not in r8, "KKS 가 같아도 FM 이 없으면 잇지 않는다"
     assert [x["row"] for x in src["rows"][0]["refs_in"]] == [7]
+
+
+def test_memo_is_kept_with_history_and_never_deleted(tmp_path):
+    """L8 — 메모는 지우지 않는다: 고치면 앞 글이 이력 · 완료/숨김은 표시 · 작성자·내용 필수."""
+    from app.logic import memo
+    d = tmp_path / "job"
+    d.mkdir()
+    a = memo.add(d, 27, "G034", "PD 3초 확인", "홍길동", at=[100.5, 200])
+    b = memo.add(d, 27, "G034", "시트 메모", "홍길동")
+    assert a["at"] == [100.5, 200.0] and b["at"] is None
+    with pytest.raises(ValueError):
+        memo.add(d, 27, "G034", "  ", "홍길동")
+    with pytest.raises(ValueError):
+        memo.add(d, 27, "G034", "글", "")
+    m = memo.update(d, a["id"], "김철수", text="PD 5초로 고침", done=True)
+    assert m["text"] == "PD 5초로 고침" and m["done"] is True
+    assert m["history"][0]["text"] == "PD 3초 확인"
+    memo.update(d, b["id"], "김철수", hidden=True)
+    items = memo.load(d)["items"]
+    assert len(items) == 2 and items[1]["hidden"] is True
+    with pytest.raises(KeyError):
+        memo.update(d, "없는것", "김철수", done=True)
+
+
+def test_gate_values_and_latch_table_are_in_the_screen_code():
+    """L8 — 게이트 단자 1/0 과 S-R 래치 표는 시뮬레이터의 값(L.values)을 읽는다 (화면이 다시 판정하지 않는다)."""
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    for name in ("function drawSimMarks", "function drawLatchTable", "function latchTableHtml",
+                 "function setFull", "function saveMemo", "function drawPins"):
+        assert name in js
+    body = js.split("function portVal", 1)[1].split("\nfunction ", 1)[0]
+    assert "L.values" in body
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    for i in ("show-ports", "show-latch", "full", "memo-list", "latches"):
+        assert f'id="{i}"' in html
+
+
+def _sheet(page, no, rows, blocks=None, ports=None):
+    nets = {r["net"]: {"segs": []} for r in rows}
+    for p in ports or []:
+        nets.setdefault(p["net"], {"segs": []})
+    return {"page": page, "sheet_no": no, "rows": rows, "blocks": blocks or {}, "ports": ports or [], "nets": nets}
+
+
+def test_output_row_force_and_to_links_carry_on_until_a_gate_stops():
+    """L9 — 출력 행을 1 로 주면 그 행의 TO 로 다음 시트 입력이 1, 거기서 AND 가 막으면 머문다.
+
+    A: 출력 95 (설명 있음 · TO B-10) · 96 (설명 없음 · TO C-6 — 95 의 TO 목록이 이어진 것).
+    B: 입력 10 의 FM 은 다른 곳(Z-1 · 도면 어긋남)이어도 A 의 TO 로 받는다 → 그대로 출력 50 → TO C-7.
+    C: 입력 6, 7, 8 → AND → 출력 40.  6·7 만 오면 AND 는 0 (머문다) · 8 까지 주면 1.
+    """
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "B1-10"},
+                         {"n": 96, "side": "R", "net": "a2", "desc": "", "to": "C1-6"}])
+    B = _sheet(2, "B1", [{"n": 10, "side": "L", "net": "b", "desc": "X", "fm": "Z1-1"},
+                         {"n": 50, "side": "R", "net": "b", "desc": "X", "to": "C1-7"}])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6"}, {"n": 7, "side": "L", "net": "c7"},
+                         {"n": 8, "side": "L", "net": "c8"}, {"n": 40, "side": "R", "net": "co", "desc": "Y"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "c8", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 1}}, None, 3)
+    v = b["focus"]["frames"][-1]["values"]
+    assert v["c6"] == 1 and v["c7"] == 1 and v["c8"] == 0 and v["co"] == 0     # AND 가 막아 머문다
+    hops = {c["sheet_no"]: c["hop"] for c in b["pages"]}
+    assert hops["B1"] == 1 and hops["C1"] in (1, 2)
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 1}, 3: {"row:8": 1}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 1                       # 조건이 풀리면 지난다
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 0}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["c6"] == 0
+
+
+def _one(logic, n_in, label="", param=None):
+    """블록 하나 · 입력 행 n_in 개 → 출력 행 90."""
+    blocks = {"G": {"func": logic.upper(), "logic": logic, "group": "", "label": label, "param": param or {}}}
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    ports = [P("G", f"i{k}", "in") for k in range(n_in)] + [P("G", "o", "out")]
+    rows = [{"n": k + 1, "side": "L", "net": f"i{k}"} for k in range(n_in)] + [{"n": 90, "side": "R", "net": "o"}]
+    nets = {f"i{k}": {"segs": []} for k in range(n_in)}
+    nets["o"] = {"segs": []}
+    return {"blocks": blocks, "ports": ports, "rows": rows, "nets": nets}
+
+
+def _out(s, ones=()):
+    return sim.simulate(s, {f"row:{k}": 1 for k in ones})["frames"][-1]["values"]["o"]
+
+
+def test_every_gate_follows_the_legend_g003_truth_table():
+    """L10 — 범례 G003 정의 그대로.  입력 조건이 만족되지 않으면 출력은 나오지 않는다."""
+    import itertools
+    for n in (2, 3):
+        for ones in itertools.chain.from_iterable(itertools.combinations(range(1, n + 1), k) for k in range(n + 1)):
+            k = len(ones)
+            assert _out(_one("and", n), ones) == (1 if k == n else 0)      # ALL INPUTS TRUE
+            assert _out(_one("or", n), ones) == (1 if k >= 1 else 0)       # ANY INPUT TRUE
+            assert _out(_one("nand", n), ones) == (1 if k < n else 0)      # ANY INPUT FALSE
+            assert _out(_one("nor", n), ones) == (1 if k == 0 else 0)      # ALL INPUTS FALSE
+    assert _out(_one("not", 1), (1,)) == 0 and _out(_one("not", 1)) == 1   # NOT
+    vote = _one("unknown", 3, label="2/3")                                   # A/B — AT LEAST A OUT OF B
+    assert [_out(vote, o) for o in ((), (1,), (1, 2), (1, 2, 3))] == [0, 0, 1, 1]
+
+
+def test_a_gate_whose_inputs_were_not_read_gives_no_output():
+    """입력을 다 읽지 못한 게이트는 출력을 내지 않는다 — 읽힌 입력만으로 결과가 정해질 때만 낸다."""
+    assert _out(_one("and", 1), (1,)) == 0           # 하나만 읽힌 AND — 그 하나가 1 이어도 0
+    assert _out(_one("not", 0)) == 0                 # 입력이 안 읽힌 NOT — 1 을 내지 않는다
+    assert _out(_one("nor", 1)) == 0                 # 하나만 읽힌 NOR — 다 0 인지 모른다
+    assert _out(_one("or", 1), (1,)) == 1            # 하나만 읽힌 OR 라도 그 하나가 1 이면 1 (정해진다)
+    assert _out(_one("nand", 1)) == 1                # 읽힌 입력이 0 이면 NAND 는 1 (정해진다)
+    r = sim.simulate(_one("and", 1), {"row:1": 1})
+    assert r["short_gates"] == ["G"] and any("입력을 다 읽지 못한" in n for n in r["notes"])
+    # 몰이가 없는 선(도면에서 끊긴 입력)도 모름 — NOT 뒤로 1 이 나오지 않는다
+    s = _one("not", 1)
+    s["rows"] = [r for r in s["rows"] if r["side"] == "R"]
+    assert sim.simulate(s, {})["frames"][-1]["values"]["o"] == 0
+    # 판정 못 한 블록은 출력을 내지 않는다
+    assert _out(_one("unknown", 2, label="MAN"), (1, 2)) == 0
+
+
+def test_basic_memory_changes_state_when_both_inputs_rise_together():
+    blocks = {"M": {"func": "MEMORY", "logic": "memory", "group": "", "param": {"dominant": ""}}}
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    s = {"blocks": blocks, "rows": [{"n": 1, "side": "L", "net": "a"}, {"n": 2, "side": "L", "net": "b"}],
+         "ports": [P("M", "a", "in", "set"), P("M", "b", "in", "reset"), P("M", "c", "out", "q"), P("M", "d", "out", "qn")],
+         "nets": {k: {"segs": []} for k in "abcd"}}
+    v = sim.simulate(s, {})["frames"][-1]["values"]
+    assert v["c"] == 0 and v["d"] == 1                                        # C · D 는 언제나 반대
+    r = sim.simulate(s, {"row:1": 1, "row:2": 1})                             # 함께 1 → 상태가 바뀐다
+    assert r["frames"][-1]["values"]["c"] == 1
+    r = sim.simulate(s, {"row:1": 1, "row:2": 1}, r["state"])                 # 그대로 유지되면 다시 안 바뀐다
+    assert r["frames"][-1]["values"]["c"] == 1
+    for dom, want in (("set", 1), ("reset", 0)):
+        s["blocks"]["M"]["param"]["dominant"] = dom
+        assert sim.simulate(s, {"row:1": 1, "row:2": 1})["frames"][-1]["values"]["c"] == want
+
+
+def test_moving_signal_reports_design_errors_on_the_to_path():
+    """L11 — TO 를 따라 이동하다 그 시트·행이 없거나 잘못 연결돼 있으면 설계 오류로 알린다."""
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "B1-10"},
+                         {"n": 96, "side": "R", "net": "a2", "desc": "", "to": "B1-11"},
+                         {"n": 97, "side": "R", "net": "a3", "desc": "", "to": "Q9-1"},
+                         {"n": 98, "side": "R", "net": "a4", "desc": "", "to": "B1-77"},
+                         {"n": 99, "side": "R", "net": "a5", "desc": "", "to": "P1-5"}])
+    B = _sheet(2, "B1", [{"n": 10, "side": "L", "net": "b", "desc": "READY", "fm": "Z1-1",
+                          "ref": {"sheet": "Z1", "row": 1, "page": None}},
+                         {"n": 11, "side": "L", "net": "c", "desc": "", "fm": ""},
+                         {"n": 12, "side": "L", "net": "d", "desc": "READY", "fm": "A1-95",
+                          "ref": {"sheet": "A1", "row": 95, "page": 1, "src_row": 95}}])
+    b = sim.simulate_bundle([A, B], {1: {"row:95": 1}}, None, 1)
+    errs = {e["to"]: e for e in b["design_errors"]}
+    assert errs["B1-10"]["kind"] == "error" and "FM 은 Z1-1" in errs["B1-10"]["why"]      # 잘못 연결
+    assert errs["B1-11"]["kind"] == "error" and "비어" in errs["B1-11"]["why"]            # 빈 행
+    assert errs["Q9-1"]["kind"] == "other"                                                # 다른 묶음 계열
+    assert errs["B1-77"]["kind"] == "error" and "77행 입력이 없습니다" in errs["B1-77"]["why"]
+    assert errs["B1-12"]["kind"] == "error" and "TO 는" in errs["B1-12"]["why"]          # FM 은 오는데 TO 목록에 없음
+    assert errs["P1-5"]["kind"] == "other"
+    # 신호가 0 이면 이동하지 않으므로 아무 오류도 없다
+    assert not sim.simulate_bundle([A, B], {}, None, 1)["design_errors"]
+
+
+def test_macro_pins_match_typical_rows_through_the_legend_abbreviations():
+    """L12 — 단자 이름 → (범례 약어표) 뜻 → Typical 시트 행.  코드에 단자 이름이 없다 (도면 글자만)."""
+    from app.logic import macro as M
+    abbr = [("A_OPEN", "AUTO OPEN"), ("EN_OPEN", "OPEN PERMISSIVE CONDITION"), ("OVRID1", "OVERRIDE OPEN"),
+            ("FDbk1", "OPENEND STATUS"), ("FDbk0", "CLOSED STATUS"), ("CMD1", "OPEN COMMAND"), ("CMD0", "CLOSE COMMAND")]
+    rows = [(14, "AUTO OPEN"), (18, "OPEN PERMISSIVE CONDITION"), (26, "OVERRIDE OPEN"),
+            (34, "OPENED STATUS"), (40, "CLOSED STATUS")]
+    got = M._assign([("a", "AOPEN"), ("b", "ENOPEN"), ("c", "OVRD1"), ("d", "FDOPEN"), ("e", "FDCLOSE")], rows, abbr)
+    assert {k: v[0] for k, v in got.items()} == {"a": 14, "b": 18, "c": 26, "d": 34, "e": 40}
+    out = M._assign([("x", "CMD"), ("y", "CMDO")], [(69, "OPEN COMMAND"), (77, "CLOSE COMMAND")], abbr)
+    assert out["x"][0] == 69 and out["y"][0] == 77                   # 끝 글자 못 읽음 · O/0 바꿔 읽음
+    assert M.name_sim("CMD1", "CMD0") < M.NAME_MIN                   # 끝의 1/0 은 뜻이 반대
+    assert M._type_code("MOV BLOCK (OPEN CLOSE) <TYPE-Ⅲ-1>") == "III-1"
+    src = (ROOT / "app/logic/macro.py").read_text(encoding="utf-8")
+    for word in ("A_OPEN", "EN_OPEN", "CMD1", "G012", "MOV BLOCK"):
+        assert f'"{word}"' not in src
+
+
+def test_macro_block_runs_its_typical_sheet_and_drives_its_outputs():
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    typ = _sheet(2, "T1", [{"n": 10, "side": "L", "net": "t1"}, {"n": 11, "side": "L", "net": "t2"},
+                           {"n": 70, "side": "R", "net": "to", "desc": "OPEN COMMAND"}],
+                 {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+                 [P("G", "t1", "in"), P("G", "t2", "in"), P("G", "to", "out")])
+    mac = {"func": "MACRO", "logic": "macro", "group": "", "param": {}, "label": "",
+           "macro": {"sheet": "T1", "page": 2,
+                     "inputs": [{"at": "0,1", "net": "p1", "pin": "A", "row": 10}, {"at": "0,2", "net": "p2", "pin": "B", "row": 11}],
+                     "outputs": [{"at": "9,1", "net": "po", "pin": "CMD", "row": 70}]}}
+    par = _sheet(1, "A1", [{"n": 1, "side": "L", "net": "p1"}, {"n": 2, "side": "L", "net": "p2"},
+                           {"n": 80, "side": "R", "net": "po", "desc": "OPEN CMD"}],
+                 {"M": mac}, [P("M", "p1", "in"), P("M", "p2", "in"), P("M", "po", "out")])
+    v = lambda f: sim.simulate_bundle([par, typ], {1: f}, None, 1)
+    assert v({"row:1": 1})["focus"]["frames"][-1]["values"]["po"] == 0          # AND — 하나만
+    b = v({"row:1": 1, "row:2": 1})
+    assert b["focus"]["frames"][-1]["values"]["po"] == 1                       # 둘 다 → 매크로 출력 1
+    assert b["macros"][1]["M"]["inputs"] == {"10": 1, "11": 1} and b["macros"][1]["M"]["outputs"] == {"70": 1}
+
+
+def test_activation_box_always_outputs_one():
+    """범례 G003 ACTIVATION — 글자 '1' 상자: OUTPUT ALWAYS EXISTS."""
+    blocks = {"A": {"func": "SIGNAL", "logic": "source", "group": "", "label": "1", "param": {}},
+              "Z": {"func": "SIGNAL", "logic": "source", "group": "", "label": "0", "param": {}}}
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    s = {"blocks": blocks, "ports": [P("A", "a", "out"), P("Z", "z", "out")], "rows": [], "nets": {"a": {"segs": []}, "z": {"segs": []}}}
+    v = sim.simulate(s, {})["frames"][-1]["values"]
+    assert v["a"] == 1 and v["z"] == 0
+    assert sim.simulate(s, {"block:A": 0})["frames"][-1]["values"]["a"] == 0    # 사람이 0 으로 줄 수 있다
+
+
+def test_forcing_one_connector_lights_its_partner():
+    """L13 — 같은 글자 연결 기호(A ↔ A)는 한 신호: 한쪽을 1 로 주면 다른 쪽에서 나가는 선도 1."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    blocks = {"C1": {"func": "CONNECTOR", "logic": "connector", "group": "A", "label": "A", "param": {}},
+              "C2": {"func": "CONNECTOR", "logic": "connector", "group": "A", "label": "A", "param": {}}}
+    s = {"blocks": blocks, "rows": [], "ports": [P("C1", "x", "out"), P("C2", "y", "out")],
+         "nets": {"x": {"segs": []}, "y": {"segs": []}}}
+    v = sim.simulate(s, {"net:x": 1})["frames"][-1]["values"]
+    assert v["x"] == 1 and v["y"] == 1
+    v = sim.simulate(s, {"block:C2": 1})["frames"][-1]["values"]
+    assert v["x"] == 1 and v["y"] == 1
+
+
+def test_forcing_a_gate_output_sets_its_inputs_logically():
+    """L13 — AND 뒤를 1 로 주면 그 입력들은 AND 가 1 을 낼 수 있는 값으로 (NOT 을 지나면 반대로)."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    blocks = {"N": {"func": "NOT", "logic": "not", "group": "", "param": {}},
+              "G": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "O": {"func": "OR", "logic": "or", "group": "", "param": {}}}
+    ports = [P("N", "r3", "in"), P("N", "n3", "out"),
+             P("G", "r1", "in"), P("G", "r2", "in"), P("G", "n3", "in"), P("G", "g", "out"),
+             P("O", "r4", "in"), P("O", "r5", "in"), P("O", "o", "out")]
+    rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in (1, 2, 3, 4, 5)]
+    s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in ("r1", "r2", "r3", "r4", "r5", "n3", "g", "o")}}
+    r = sim.simulate(s, {"net:g": 1})
+    assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 0}
+    v = r["frames"][-1]["values"]
+    assert v["r1"] == v["r2"] == 1 and v["r3"] == 0 and v["n3"] == 1 and v["g"] == 1
+    assert sim.simulate(s, {"net:o": 1})["implied"] == {}               # OR=1 — 어느 입력인지 정해지지 않는다
+    assert sim.simulate(s, {"net:o": 0})["implied"] == {"row:4": 0, "row:5": 0}
+    r = sim.simulate(s, {"net:g": 1, "row:3": 1})                      # 사람이 준 값과 어긋나면 모순으로 말한다
+    assert r["conflicts"] and r["implied"].get("row:3") is None
+
+
+def test_logic_first_screen_projects_and_materials(tmp_path, monkeypatch):
+    """L14 — 첫 화면: LOGIC 프로젝트는 실행 전용 · 자료 다섯 중 Logic 만 필수 · 나머지는 보관만."""
+    from fastapi.testclient import TestClient
+    from app import main
+    from app.logic import api, run
+    monkeypatch.setattr(api, "_start", run.run)
+    client = TestClient(main.app)
+    j = client.get("/logic/api/projects").json()
+    kinds = [m["kind"] for m in j["materials"]]
+    assert kinds == ["logic", "loop", "sysdesc", "iolist", "logictable"]
+    assert [m["kind"] for m in j["materials"] if m["required"]] == ["logic"]
+    assert client.post("/logic/api/projects", json={"name": "  "}).status_code == 400
+    p = client.post("/logic/api/projects", json={"name": "HRSG PJT", "author": "홍길동"}).json()
+    assert p["mode"] == "epc" and p["name"] == "HRSG PJT"
+    assert client.post("/logic/api/projects", json={"name": "hrsg pjt"}).status_code == 409
+    pdf = make_pdf(tmp_path / "up.pdf").read_bytes()
+    # Logic 없이 다른 자료만 → 거절
+    r = client.post("/logic/api/jobs", data={"project": "HRSG PJT"},
+                    files={"iolist": ("io.xlsx", b"x", "application/octet-stream")})
+    assert r.status_code == 400 and "필수" in r.json()["detail"]
+    # 없는 프로젝트 → 거절 · 자료 확장자 틀림 → 거절
+    assert client.post("/logic/api/jobs", data={"project": "없음"},
+                       files={"logic": ("a.pdf", pdf, "application/pdf")}).status_code == 400
+    assert client.post("/logic/api/jobs", data={"project": "HRSG PJT"},
+                       files={"logic": ("a.pdf", pdf, "application/pdf"),
+                              "iolist": ("io.exe", b"x", "application/octet-stream")}).status_code == 400
+    r = client.post("/logic/api/jobs", data={"project": "HRSG PJT", "author": "홍길동"},
+                    files={"logic": ("a.pdf", pdf, "application/pdf"),
+                           "iolist": ("io.xlsx", b"io", "application/octet-stream")})
+    assert r.status_code == 200, r.text
+    job = r.json()["id"]
+    assert r.json()["materials"] == {"logic": "a.pdf", "iolist": "io.xlsx"}
+    for _ in range(200):
+        st = client.get(f"/logic/api/jobs/{job}").json()
+        if st["state"] in ("done", "failed"):
+            break
+        time.sleep(0.1)
+    assert st["state"] == "done" and st["project"] == "HRSG PJT"
+    jobs = client.get("/logic/api/jobs").json()["jobs"]
+    me = next(x for x in jobs if x["id"] == job)
+    assert me["project"] == "HRSG PJT" and set(me["materials"]) == {"logic", "iolist"}
+    # Logic 만으로 분석한 것과 같은 결과 — 다른 자료는 판정에 닿지 않는다
+    assert client.get(f"/logic/api/jobs/{job}/sheets").json()["sheets"]
+    # 출력 행 동작 예시 API
+    s = client.get(f"/logic/api/jobs/{job}/sheet/1").json()
+    out = next((r for r in s["rows"] if r["side"] == "R" and r.get("net") is not None), None)
+    if out:
+        sc = client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": f"row:{out['n']}"}).json()
+        assert "ok" in sc
+    assert client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": "x"}).status_code == 400

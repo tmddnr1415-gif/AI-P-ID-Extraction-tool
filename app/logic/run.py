@@ -25,6 +25,12 @@ def run(d: Path):
     store.write_status(d, st)
     last = [0.0]
 
+    try:
+        import pymupdf
+        st["pages"] = len(pymupdf.open(d / "source.pdf"))      # 남은 시간 어림에 쓴다 (장당 시간 × 장수)
+    except Exception:
+        pass
+
     def progress(stage, done, total):
         now = time.time()
         if now - last[0] < 0.5 and done != total:
@@ -35,7 +41,8 @@ def run(d: Path):
     try:
         res = analyse.analyse(str(d / "source.pdf"), progress=progress)
         store.write_result(d, res)
-        st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": ""})
+        st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": "",
+                   "pages": res.get("pdf_pages")})
         store.write_status(d, st)
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
     except analyse.NotLogic as e:

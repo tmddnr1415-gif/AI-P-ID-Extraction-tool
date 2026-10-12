@@ -4927,32 +4927,33 @@ _PROPOSE_LOCK = threading.RLock()
 
 def _propose_page(pdf_path, page_no, layout_moved):
     """그 장의 제안 재료 한 벌.  **값을 만들지 않는다 — 같은 함수를 부른다.**"""
-    key = (str(pdf_path), int(page_no),
-           json.dumps(layout_moved or [], sort_keys=True, default=str))
-    hit = _PROPOSE_CACHE.get("entry")
-    if hit is not None and hit[0] == key:
-        return hit[1]
-    doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
-    pc = pages[0] if pages else None
-    if pc is None:
-        return None
-    lay = ds.LAYOUT
-    outlines = ds.bubble_outlines(pc, lay)
-    outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
-    bubbles = [o.rect for o in outlines]
-    mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
-    marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
-                          bubbles=bubbles, outlines=outlines)
-    boxes = ds.find_package_boxes(pc, lay)
-    box_marks = ds.package_box_marks(boxes, marks, lay)
-    made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
-            "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
-            "box_marks": box_marks,
-            # 53회차 [G] — `probe_point` 가 쓸 자리.  **여기서 채우지 않는다** —
-            # 제안은 이것이 없어도 되고, 채우면 제안이 5초 느려진다.
-            "detect": None}
-    _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
-    return made
+    with _PROPOSE_LOCK:                 # 재진입 자물쇠 — 부르는 쪽이 이미 쥐고 있어도 된다
+        key = (str(pdf_path), int(page_no),
+               json.dumps(layout_moved or [], sort_keys=True, default=str))
+        hit = _PROPOSE_CACHE.get("entry")
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
+        pc = pages[0] if pages else None
+        if pc is None:
+            return None
+        lay = ds.LAYOUT
+        outlines = ds.bubble_outlines(pc, lay)
+        outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
+        bubbles = [o.rect for o in outlines]
+        mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
+        marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
+                              bubbles=bubbles, outlines=outlines)
+        boxes = ds.find_package_boxes(pc, lay)
+        box_marks = ds.package_box_marks(boxes, marks, lay)
+        made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
+                "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
+                "box_marks": box_marks,
+                # 53회차 [G] — `probe_point` 가 쓸 자리.  **여기서 채우지 않는다** —
+                # 제안은 이것이 없어도 되고, 채우면 제안이 5초 느려진다.
+                "detect": None}
+        _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
+        return made
 
 
 class _ProposeCleanup:

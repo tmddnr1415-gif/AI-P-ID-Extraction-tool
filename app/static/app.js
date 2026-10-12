@@ -6827,7 +6827,9 @@ async function showMemo(pageNo) {
   if (!S.job) return;
   S.memoPage = pageNo;
   try {
-    const v = await (await fetch(`/jobs/${S.job.id}/memo/${pageNo}`)).json();
+    const r = await fetch(`/jobs/${S.job.id}/memo/${pageNo}`);
+    if (!r.ok) return;                        // hotfix85 — 404 본문을 메모로 읽어 `history.length` 에서 죽던 것
+    const v = await r.json();
     if (S.memoPage !== pageNo) return;        // 그 사이 다른 장으로 갔다
     S.memoView = v;
   } catch (e) { return; }

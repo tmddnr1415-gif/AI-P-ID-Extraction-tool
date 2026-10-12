@@ -368,6 +368,39 @@ def backup_daily(path: Path, keep: int = BACKUP_KEEP):
     return dest
 
 
+class _Rows:
+    """잠금 안에서 미리 가져온 행 — 커서처럼 `fetchone`·`fetchall`·`fetchmany`·반복을 받는다 (hotfix85)."""
+    __slots__ = ("_rows", "_i", "description", "lastrowid", "rowcount")
+
+    def __init__(self, rows, description):
+        self._rows, self._i = rows, 0
+        self.description, self.lastrowid, self.rowcount = description, None, -1
+
+    def fetchone(self):
+        if self._i >= len(self._rows):
+            return None
+        r = self._rows[self._i]
+        self._i += 1
+        return r
+
+    def fetchmany(self, size=1):
+        out = self._rows[self._i:self._i + max(int(size), 0)]
+        self._i += len(out)
+        return out
+
+    def fetchall(self):
+        out = self._rows[self._i:]
+        self._i = len(self._rows)
+        return out
+
+    def __iter__(self):
+        while self._i < len(self._rows):
+            yield self.fetchone()
+
+    def close(self):
+        self._i = len(self._rows)
+
+
 class _SerialConnection(sqlite3.Connection):
     """한 연결을 여러 스레드가 함께 쓴다 — 호출 하나하나를 잠금으로 줄 세운다 (hotfix74).
 
@@ -404,10 +437,21 @@ class _SerialConnection(sqlite3.Connection):
         elif not self._READ_RE.match(s):
             self.writes["*"] += 1
 
+    # hotfix85 — **읽기는 잠금 안에서 행까지 가져온다.**  `execute` 만 줄 세우고 커서를 돌려주면
+    # `fetchone()` 은 잠금 밖에서 돈다 — 그 사이 다른 스레드가 같은 연결에서 문장을 돌리면 sqlite3 의
+    # 문장 캐시가 첫 커서의 문장을 되감아 **빈 행·None 칸**이 돌아온다 (실측 6스레드 8초: `get_job` 이
+    # None / `pdf_path` None 6번 · 장 그림 500 · 메모 404).  마크업 제안이 작업 스레드로 옮겨가며
+    # 겹침이 늘어 드러났다.  SELECT 는 행 목록을 돌려주고(쓰는 쪽은 `fetchone`·`fetchall`·반복뿐 —
+    # 소스 전수), 쓰기는 `lastrowid` 를 위해 진짜 커서 그대로다.
+    _FETCH_RE = re.compile(r"^\s*(?:SELECT|PRAGMA|EXPLAIN|WITH)\b", re.I)
+
     def execute(self, sql, *a, **k):
         with self._lock:
             self._note(sql)
-            return super().execute(sql, *a, **k)
+            cur = super().execute(sql, *a, **k)
+            if isinstance(sql, str) and self._FETCH_RE.match(sql):
+                return _Rows(cur.fetchall(), cur.description)
+            return cur
 
     def executemany(self, sql, *a, **k):
         with self._lock:
