@@ -466,7 +466,7 @@ function stopAnim() {
     l.setAttribute("stroke-dashoffset", l.dataset.len);
   }
   for (const g of document.querySelectorAll("#ov .net")) g.classList.remove("tr", "tru");
-  for (const b of document.querySelectorAll("#ov .blk")) b.classList.remove("tr");
+  for (const b of document.querySelectorAll("#ov .blk")) b.classList.remove("tr", "trstop");
   $("#timeline").hidden = true;
 }
 
@@ -522,7 +522,16 @@ async function traceFrom(start, up) {
     t = end + STEP_MS;
   }
   const nb = r.blocks.length;
-  $("#info").insertAdjacentHTML("beforeend", `<p class="trace-sum">${up ? "거슬러 올라가" : "따라가"} 선 ${r.order.length}개 · 블록 ${nb}개를 지났습니다.</p>`);
+  // L9 — 게이트 정의로 막힌 블록: 붉게 두르고 사유를 적는다 (AND 는 모든 입력이 따라와야 지난다)
+  const stops = r.blocked || [];
+  for (const b of stops) {
+    L.anim.push(setTimeout(() => { const e = document.querySelector(`#ov .blk[data-block="${CSS.escape(b.block)}"]`); if (e) e.classList.add("trstop"); }, t));
+  }
+  const stopHtml = stops.length
+    ? `<ul class="trace-stop">${stops.map((b) => `<li>⛔ <b>${esc((L.sheet.blocks[b.block] || {}).func || b.logic.toUpperCase())}</b> 에서 멈춤 — ${esc(b.reason)}</li>`).join("")}</ul>`
+    : "";
+  $("#info").insertAdjacentHTML("beforeend", `<p class="trace-sum">${up ? "거슬러 올라가" : "따라가"} 선 ${r.order.length}개 · 블록 ${nb}개를 지났습니다.${
+    stops.length ? ` 게이트 ${stops.length}개에서 멈췄습니다.` : ""}</p>${stopHtml}`);
 }
 
 /* ------------------------------------------------------------------ 동작 시뮬레이션 */
@@ -604,7 +613,18 @@ function timelineShow(label, ms) {
   L.anim.push(setTimeout(() => (tl.hidden = true), ms + 300));
 }
 
+function setMode(m, quiet) {
+  L.mode = m;
+  for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
+  stopAnim();
+  renderHelp();
+  if (m === "sim") { if (!quiet) runSim(false); } else { L.values = {}; L.linked = {}; paint(); }
+  renderInfo(); renderRows(); renderChain(); renderSheetList();
+}
+
 function setForce(key, v) {
+  // L9 — 따라가기 모드에서 입력 동그라미에 1/0 을 고르면 시뮬레이션으로 넘어가 그 값으로 돈다
+  if (L.mode !== "sim") setMode("sim", true);
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
   runSim(true);
 }
@@ -614,7 +634,7 @@ function closeForceMenu() {
   const m = document.getElementById("force-menu");
   if (m) m.remove();
 }
-function forceMenu(key, e, label) {
+function forceMenu(key, e, label, up) {
   closeForceMenu();
   const v = L.forces[key];
   const m = document.createElement("div");
@@ -625,7 +645,8 @@ function forceMenu(key, e, label) {
     (label ? `<div class="fm-h">${esc(label)}</div>` : "") +
     `<button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (activate)</button>` +
     `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성 (deactivate)</button>` +
-    (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "");
+    (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") +
+    (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "");
   document.body.appendChild(m);
   const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
   const r = m.getBoundingClientRect();
@@ -636,6 +657,7 @@ function forceMenu(key, e, label) {
     const b = ev.target.closest("button");
     if (!b) return;
     closeForceMenu();
+    if (b.dataset.v === "t") { traceFrom(key, !!up); return; }
     setForce(key, b.dataset.v === "x" ? null : Number(b.dataset.v));
   });
 }
@@ -659,8 +681,9 @@ function onBlock(bid, e) {
 function onRow(n, e) {
   const row = L.sheet.rows.find((r) => r.n === n);
   L.sel = { row: n, net: row && row.net };
-  if (L.mode === "trace") traceFrom("row:" + n, row && row.side === "R");
-  else if (row && row.side === "L") forceMenu("row:" + n, e, `입력 ${n}` + (row.desc ? " · " + row.desc : ""));
+  // L9 — 입력 동그라미는 어느 모드에서든 1 활성 / 0 비활성 메뉴 (사용자 지시).  출력 행은 따라가기 그대로.
+  if (row) forceMenu("row:" + n, e, `${row.side === "L" ? "입력" : "출력"} ${n}` + (row.desc ? " · " + row.desc : ""),
+                     row.side === "R");
   paint(); renderInfo();
 }
 
@@ -689,7 +712,7 @@ function renderRows() {
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
     const toRest = String(r.to || "").replace(REF_RE, "").replace(/[\s)(]+/g, " ").trim();
     const to = r.side === "R" && toRest ? ` <small>TO ${esc(toRest)}</small>` : "";
-    const right = L.mode === "sim" ? (r.side === "L" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : valTag(L.values[r.net])) : "";
+    const right = L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "";
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
     const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
@@ -776,7 +799,7 @@ function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
     ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다."
-    : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지).";
+    : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. 게이트는 범례대로 — AND 는 모든 입력이 따라와야 지나고, 못 지나면 붉게 멈춥니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지). 행 동그라미(입력·출력)를 누르면 <b>1 활성 / 0 비활성</b>을 고릅니다 — 출력 행이 1 이면 그 행의 TO·FM 으로 이어진 다른 시트로 계속 이어집니다.";
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
     : `<span><i style="background:var(--trace)"></i>따라가는 신호</span><span><i style="background:var(--trace-up)"></i>거슬러 올라감</span><span><i style="background:rgba(47,91,216,.5)"></i>읽은 선</span><span><i style="background:var(--unk)"></i>판정 못 한 블록</span>`;
@@ -1125,13 +1148,7 @@ function bind() {
   };
   $("#mode").onclick = (e) => {
     const m = e.target.dataset.mode;
-    if (!m) return;
-    L.mode = m;
-    for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
-    stopAnim();
-    renderHelp();
-    if (m === "sim") runSim(false); else { L.values = {}; L.linked = {}; paint(); }
-    renderInfo(); renderRows(); renderChain(); renderSheetList();
+    if (m) setMode(m);
   };
   $("#zoom-in").onclick = () => setZoom(L.zoom * 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);
   $("#zoom-out").onclick = () => setZoom(L.zoom / 1.25, [$("#stage").clientWidth / 2, $("#stage").clientHeight / 2]);

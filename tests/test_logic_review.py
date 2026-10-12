@@ -188,9 +188,20 @@ def test_simulation_follows_the_legend_definitions():
 
 
 def test_trace_goes_through_blocks_in_depth_order():
+    # L9 — 아래로 갈 때 AND 는 모든 입력이 따라와야 지난다: in1 → OR 는 지나고 AND 에서 멈춘다
     t = sim.trace(_toy(), "row:1")
     depth = {o["net"]: o["depth"] for o in t["order"]}
-    assert depth["1"] == 0 and depth["3"] == 1 and depth["5"] == 2 and depth["8"] == 4
+    assert depth["1"] == 0 and depth["3"] == 1 and "5" not in depth and "8" not in depth
+    assert [b["block"] for b in t["blocked"]] == ["AND"] and t["blocked"][0]["have"] == 1 and t["blocked"][0]["need"] == 2
+    assert "AND" not in {b["block"] for b in t["blocks"]}
+    # AND 의 두 입력이 한 선(fan-out)에서 오면 지난다 — 같은 토이에서 in4 를 n3 에 묶는다
+    s = _toy()
+    for p in s["ports"]:
+        if p["block"] == "AND" and p["net"] == "4":
+            p["net"] = "3"
+    t2 = sim.trace(s, "row:1")
+    d2 = {o["net"]: o["depth"] for o in t2["order"]}
+    assert d2["5"] == 2 and d2["8"] == 4 and not t2["blocked"]
     up = sim.trace(_toy(), "net:8", "up")
     assert {o["net"] for o in up["order"]} >= {"6", "7", "5", "3", "1", "2", "4"}
 
@@ -413,3 +424,37 @@ def test_gate_values_and_latch_table_are_in_the_screen_code():
     html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
     for i in ("show-ports", "show-latch", "full", "memo-list", "latches"):
         assert f'id="{i}"' in html
+
+
+def _sheet(page, no, rows, blocks=None, ports=None):
+    nets = {r["net"]: {"segs": []} for r in rows}
+    for p in ports or []:
+        nets.setdefault(p["net"], {"segs": []})
+    return {"page": page, "sheet_no": no, "rows": rows, "blocks": blocks or {}, "ports": ports or [], "nets": nets}
+
+
+def test_output_row_force_and_to_links_carry_on_until_a_gate_stops():
+    """L9 — 출력 행을 1 로 주면 그 행의 TO 로 다음 시트 입력이 1, 거기서 AND 가 막으면 머문다.
+
+    A: 출력 95 (설명 있음 · TO B-10) · 96 (설명 없음 · TO C-6 — 95 의 TO 목록이 이어진 것).
+    B: 입력 10 의 FM 은 다른 곳(Z-1 · 도면 어긋남)이어도 A 의 TO 로 받는다 → 그대로 출력 50 → TO C-7.
+    C: 입력 6, 7, 8 → AND → 출력 40.  6·7 만 오면 AND 는 0 (머문다) · 8 까지 주면 1.
+    """
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "B1-10"},
+                         {"n": 96, "side": "R", "net": "a2", "desc": "", "to": "C1-6"}])
+    B = _sheet(2, "B1", [{"n": 10, "side": "L", "net": "b", "desc": "X", "fm": "Z1-1"},
+                         {"n": 50, "side": "R", "net": "b", "desc": "X", "to": "C1-7"}])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6"}, {"n": 7, "side": "L", "net": "c7"},
+                         {"n": 8, "side": "L", "net": "c8"}, {"n": 40, "side": "R", "net": "co", "desc": "Y"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "c8", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 1}}, None, 3)
+    v = b["focus"]["frames"][-1]["values"]
+    assert v["c6"] == 1 and v["c7"] == 1 and v["c8"] == 0 and v["co"] == 0     # AND 가 막아 머문다
+    hops = {c["sheet_no"]: c["hop"] for c in b["pages"]}
+    assert hops["B1"] == 1 and hops["C1"] in (1, 2)
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 1}, 3: {"row:8": 1}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 1                       # 조건이 풀리면 지난다
+    b = sim.simulate_bundle([A, B, C], {1: {"row:95": 0}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["c6"] == 0

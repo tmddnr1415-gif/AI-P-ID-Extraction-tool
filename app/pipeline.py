@@ -29,6 +29,7 @@ import logging
 import os
 import contextlib
 import copy
+import threading
 import hashlib
 import json
 import re
@@ -4698,36 +4699,42 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
 # config 만의 함수**이므로 한 장치 들고 있는다.  **한 장만** 든다 — 33회차
 # `_INK_LAST` 와 같은 규율이고, 다음 장을 읽을 때 앞 장을 놓는다.
 _PROPOSE_CACHE: dict = {}
+# hotfix85 — 제안·행추가는 서버의 **작업 스레드**에서 돈다 (A1 한 장 읽기 3~4초가
+# 이벤트 루프를 붙들어 그동안 모든 요청이 멈추던 것).  스레드가 여럿이 되면
+# `_own_config`(전역 CFG 빌리기) 와 한 장짜리 캐시가 겹칠 수 있으므로 이 자물쇠
+# 하나로 줄 세운다.  `analyse` 는 자식 프로세스라 여기에 들지 않는다.
+_PROPOSE_LOCK = threading.RLock()
 
 
 def _propose_page(pdf_path, page_no, layout_moved):
     """그 장의 제안 재료 한 벌.  **값을 만들지 않는다 — 같은 함수를 부른다.**"""
-    key = (str(pdf_path), int(page_no),
-           json.dumps(layout_moved or [], sort_keys=True, default=str))
-    hit = _PROPOSE_CACHE.get("entry")
-    if hit is not None and hit[0] == key:
-        return hit[1]
-    doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
-    pc = pages[0] if pages else None
-    if pc is None:
-        return None
-    lay = ds.LAYOUT
-    outlines = ds.bubble_outlines(pc, lay)
-    outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
-    bubbles = [o.rect for o in outlines]
-    mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
-    marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
-                          bubbles=bubbles, outlines=outlines)
-    boxes = ds.find_package_boxes(pc, lay)
-    box_marks = ds.package_box_marks(boxes, marks, lay)
-    made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
-            "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
-            "box_marks": box_marks,
-            # 53회차 [G] — `probe_point` 가 쓸 자리.  **여기서 채우지 않는다** —
-            # 제안은 이것이 없어도 되고, 채우면 제안이 5초 느려진다.
-            "detect": None}
-    _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
-    return made
+    with _PROPOSE_LOCK:                 # hotfix85 — 작업 스레드가 여럿이라 한 장 캐시를 줄 세운다
+        key = (str(pdf_path), int(page_no),
+               json.dumps(layout_moved or [], sort_keys=True, default=str))
+        hit = _PROPOSE_CACHE.get("entry")
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        doc, pages = pidcache.load_pages(pdf_path, only=(page_no,))
+        pc = pages[0] if pages else None
+        if pc is None:
+            return None
+        lay = ds.LAYOUT
+        outlines = ds.bubble_outlines(pc, lay)
+        outlines = outlines + ds.dashed_bubble_outlines(pc, outlines)
+        bubbles = [o.rect for o in outlines]
+        mark_dict, glyph_size = ds.read_mark_dictionary(pc, lay)
+        marks = ds.find_marks(pc, lay, glyph_size, allow_sizes=ds.KNOWN_GLYPH_SIZES,
+                              bubbles=bubbles, outlines=outlines)
+        boxes = ds.find_package_boxes(pc, lay)
+        box_marks = ds.package_box_marks(boxes, marks, lay)
+        made = {"doc": doc, "pc": pc, "outlines": outlines, "bubbles": bubbles,
+                "mark_dict": mark_dict, "marks": marks, "boxes": boxes,
+                "box_marks": box_marks,
+                # 53회차 [G] — `probe_point` 가 쓸 자리.  **여기서 채우지 않는다** —
+                # 제안은 이것이 없어도 되고, 채우면 제안이 5초 느려진다.
+                "detect": None}
+        _PROPOSE_CACHE["entry"] = (key, made)     # 앞 장은 여기서 놓인다
+        return made
 
 
 class _ProposeCleanup:
@@ -4766,49 +4773,50 @@ def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
     못 찾은 것과 없는 것을 가를 수 없기 때문이다.
     """
     import types
-    with _own_config(), contextlib.closing(_ProposeCleanup()):
-        if layout_moved:
-            CFG.overlay({m["key"]: m["now"] for m in layout_moved
-                         if isinstance(m, dict) and "key" in m and "now" in m})
-            _rebind_config()
-        # 46회차 — **그 장만 연다.**  사각형 하나마다 58~60장을 다 여는 것이
-        # 실측 1.9~8.6초였다.  `only=` 는 `propose_at` 전용이고 분석 경로는
-        # 쓰지 않는다 (`_scope_by_project` 가 다수결이기 때문 — pidcache 주석).
-        made = _propose_page(pdf_path, page_no, layout_moved)
-        if made is None:
-            return {"error": f"page {page_no} is not in this PDF"}
-        pc = made["pc"]
-        box = pymupdf.Rect(*[float(v) for v in rect])
-        lay = ds.LAYOUT
-        outlines, bubbles = made["outlines"], made["bubbles"]
-        mark_dict, marks = made["mark_dict"], made["marks"]
-        boxes, box_marks = made["boxes"], made["box_marks"]
-        # 이웃 버블은 `others` 로 넘긴다 — 나란한 버블의 별표가 이 사각형에
-        # 세어지지 않게 (16회차 규칙 그대로).
-        others = tuple(b for b in bubbles if not b.intersects(box))
-        rules_hit, mark_ev = ds.read_vendor_mark(box, marks, box_marks, mark_dict,
-                                                 lay, others=others)
-        shim = types.SimpleNamespace(rules_hit=list(rules_hit or []),
-                                     evidence={"vendor_mark": mark_ev} if mark_ev else {})
-        stars = int((mark_ev or {}).get("stars") or 0)
-        scope = _scope_of(shim) if (rules_hit or mark_ev) else ""
-        words = [{"text": t, "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]}
-                 for r, t in pidcache.tokens(pc.words) if r.intersects(box)]
-        notes = [f"[{k}] {v}" for k, v in sorted((mark_dict or {}).items())][:12]
-        return {
-            "scope": scope,
-            "scope_source": "DRAWING" if (rules_hit or mark_ev) else "USER",
-            "scope_evidence": {
-                "stars": stars, "rules": list(rules_hit or []),
-                "meaning": (mark_ev or {}).get("meaning") or "",
-                "source": (mark_ev or {}).get("source") or "",
-                "text": (f"별표 {stars}개 · {(mark_ev or {}).get('meaning') or '이 장 NOTES 에 정의 없음'}"
-                         if (rules_hit or mark_ev) else
-                         f"이 사각형 옆에 별표 없음 · 이 장 NOTES 정의 {len(mark_dict or {})}줄"),
-            },
-            "stars": stars, "notes": notes, "words": words,
-            "marks_on_page": len(marks), "boxes_on_page": len(boxes),
-        }
+    with _PROPOSE_LOCK:                 # hotfix85 — config 빌리기와 한 장 캐시는 한 스레드씩
+      with _own_config(), contextlib.closing(_ProposeCleanup()):
+            if layout_moved:
+                CFG.overlay({m["key"]: m["now"] for m in layout_moved
+                             if isinstance(m, dict) and "key" in m and "now" in m})
+                _rebind_config()
+            # 46회차 — **그 장만 연다.**  사각형 하나마다 58~60장을 다 여는 것이
+            # 실측 1.9~8.6초였다.  `only=` 는 `propose_at` 전용이고 분석 경로는
+            # 쓰지 않는다 (`_scope_by_project` 가 다수결이기 때문 — pidcache 주석).
+            made = _propose_page(pdf_path, page_no, layout_moved)
+            if made is None:
+                return {"error": f"page {page_no} is not in this PDF"}
+            pc = made["pc"]
+            box = pymupdf.Rect(*[float(v) for v in rect])
+            lay = ds.LAYOUT
+            outlines, bubbles = made["outlines"], made["bubbles"]
+            mark_dict, marks = made["mark_dict"], made["marks"]
+            boxes, box_marks = made["boxes"], made["box_marks"]
+            # 이웃 버블은 `others` 로 넘긴다 — 나란한 버블의 별표가 이 사각형에
+            # 세어지지 않게 (16회차 규칙 그대로).
+            others = tuple(b for b in bubbles if not b.intersects(box))
+            rules_hit, mark_ev = ds.read_vendor_mark(box, marks, box_marks, mark_dict,
+                                                     lay, others=others)
+            shim = types.SimpleNamespace(rules_hit=list(rules_hit or []),
+                                         evidence={"vendor_mark": mark_ev} if mark_ev else {})
+            stars = int((mark_ev or {}).get("stars") or 0)
+            scope = _scope_of(shim) if (rules_hit or mark_ev) else ""
+            words = [{"text": t, "rect": [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]}
+                     for r, t in pidcache.tokens(pc.words) if r.intersects(box)]
+            notes = [f"[{k}] {v}" for k, v in sorted((mark_dict or {}).items())][:12]
+            return {
+                "scope": scope,
+                "scope_source": "DRAWING" if (rules_hit or mark_ev) else "USER",
+                "scope_evidence": {
+                    "stars": stars, "rules": list(rules_hit or []),
+                    "meaning": (mark_ev or {}).get("meaning") or "",
+                    "source": (mark_ev or {}).get("source") or "",
+                    "text": (f"별표 {stars}개 · {(mark_ev or {}).get('meaning') or '이 장 NOTES 에 정의 없음'}"
+                             if (rules_hit or mark_ev) else
+                             f"이 사각형 옆에 별표 없음 · 이 장 NOTES 정의 {len(mark_dict or {})}줄"),
+                },
+                "stars": stars, "notes": notes, "words": words,
+                "marks_on_page": len(marks), "boxes_on_page": len(boxes),
+            }
 
 
 def probe_point(pdf_path: Path, page_no: int, x: float, y: float,

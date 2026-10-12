@@ -1,0 +1,7 @@
+팝업까지 31ms · 읽는 중 표시 True · 제안 채워짐 1.82초
+적은 값 보존: qty=7 tag=ZZ-TEST · 제안이 채운 칸: type='' system='P&ID FOR HP STEAM SYSTEM GROUP 10' scope='VENDOR(ST SUPPLIER)'
+근거 줄: D00P-10LBA10-M05-0001 · p6
+       · 사각형 (365, 389, 567, 523) / qty: 도면에서 읽음 — 같은 장 20행이 받은 값을 옮김 — 1 symbol x 2 (unit code 10, L / scope: 도면에서 읽음 — 별표 2개 · DENOTES EQUIPMENT WILL BE SUPPLIED BY ST S
+읽는 동안 /version 6번 · 최대 526ms · 실패 0
+저장: 행 833 → 834 · 새 행 {"qty": 7, "tag": "ZZ-TEST", "mk": {"qs": "USER", "ss": "DRAWING", "prop": true}}
+페이지 오류 0 

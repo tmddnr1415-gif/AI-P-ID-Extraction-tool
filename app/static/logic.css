@@ -98,6 +98,8 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .blk.unknown { stroke: var(--unk); stroke-dasharray: 2 1.5; }
 #ov .blk.act { fill: rgba(0,180,255,.16); stroke: var(--active); }
 #ov .blk.tr { stroke: var(--trace); stroke-width: 1.4; fill: rgba(255,106,0,.08); }
+#ov .blk.trstop { stroke: #c2453f; stroke-width: 1.6; fill: rgba(194,69,63,.14); }   /* L9 — 게이트 정의로 막힘 */
+.trace-stop { margin: 4px 0 0; padding-left: 18px; color: #8a2d28; font-size: 12px; }
 #ov .badge { font: 600 4.2px/1 system-ui, sans-serif; fill: #fff; pointer-events: none; }
 #ov .badge-bg { fill: rgba(31,45,77,.78); pointer-events: none; }
 #ov .badge-bg.unknown { fill: rgba(208,138,20,.9); }
@@ -121,6 +123,7 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .force-menu button:hover { background: #eef6ff; }
 .force-menu button.on { background: #dff5ff; font-weight: 700; }
 .force-menu button.vx { color: var(--soft); }
+.force-menu button.vt { color: var(--trace, #ff6a00); border-top: 1px solid #eee; }
 
 /* 시트 사이 연결 (L4) */
 #ov .rowpin.linked { fill: var(--active); stroke: #003a5c; stroke-width: 1; stroke-dasharray: 1.4 .9; }

@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 DEFAULT_T = 1.0
@@ -75,6 +76,10 @@ def simulate(s, forces=None, state=None, now=0.0):
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
+    # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로 (그 선을 모는 블록보다 이긴다)
+    for r in s["rows"]:
+        if r["side"] == "R" and r["n"] in row_force and r.get("net") is not None:
+            net_force.setdefault(r["net"], row_force[r["n"]])
 
     def block_out(bid, role, cell, val):
         b = B[bid]
@@ -242,14 +247,39 @@ def simulate(s, forces=None, state=None, now=0.0):
     return {"frames": frames, "state": st, "notes": sorted(notes)}
 
 
+# L9 — 따라가기가 게이트를 지날지는 범례 정의가 정한다.  따라가는 신호를 1, 그 게이트의 다른
+# 입력을 0 으로 보고 출력이 1 이 될 때만 뒤로 간다: OR·NAND 는 지나고 AND·NOR·NOT 은 멈춘다
+# (AND 는 **모든** 입력이 따라온 선이어야 지난다 — 사용자 지시 *"AND gate 이면 모든 신호가 active
+# 되어야 후단 output 이 active"*).  메모리·타이머·STEP·연결 기호·판정 못 한 블록은 연결만 본다.
+_GATED = ("and", "nand", "or", "nor", "not")
+
+
+def _gate_passes(lg, iv):
+    if lg == "and":
+        return _and(iv)
+    if lg == "nand":
+        return _not(_and(iv))
+    if lg == "or":
+        return _or(iv)
+    if lg == "nor":
+        return _not(_or(iv))
+    if lg == "not":
+        return _not(iv[0] if iv else 0)
+    return 1
+
+
 def trace(s, start, direction="down"):
-    """논리와 상관없이 연결만 따라간다 — 넷에서 시작해 블록을 지나 다음 넷으로 (깊이 순서).
+    """연결을 따라간다 — 넷에서 시작해 블록을 지나 다음 넷으로 (깊이 순서).
 
     start = "net:<id>" | "row:<n>" | "block:<id>".  연결 기호는 같은 묶음끼리 건너간다.
-    → {"order": [{"net", "depth"}], "blocks": [{"block", "depth"}]}
+    아래로 갈 때 게이트는 범례 정의대로 — 따라온 입력만 1 로 보아 출력이 0 이면 거기서 멈추고
+    `blocked` 에 사유를 적는다 (위로 거슬러 올라갈 때는 어디서 오는지를 전부 본다).
+    → {"order": [{"net", "depth"}], "blocks": [{"block", "depth"}],
+       "blocked": [{"block", "depth", "logic", "have", "need", "reason"}]}
     """
     ins, outs, drivers, sinks, groups = _index(s)
     B = s["blocks"]
+    blocked = []
     nets0 = []
     if start.startswith("net:"):
         nets0 = [start[4:]]
@@ -276,6 +306,17 @@ def trace(s, start, direction="down"):
                     continue
                 seen_b[bid] = depth
                 if direction == "down":
+                    lg = B[bid].get("logic", "")
+                    if lg in _GATED and ins[bid]:
+                        iv = [1 if n in seen_n else 0 for n, _, _ in ins[bid]]
+                        if not _gate_passes(lg, iv):
+                            have, need = sum(iv), len(iv)
+                            reason = (f"AND — 입력 {need}개 중 {have}개만 따라왔습니다 · 모두 활성이어야 뒤로 갑니다"
+                                      if lg == "and" else
+                                      f"{lg.upper()} — 이 입력이 1 이면 출력은 0 입니다 (범례 정의)")
+                            blocked.append({"block": bid, "depth": depth, "logic": lg,
+                                            "have": have, "need": need, "reason": reason})
+                            continue
                     nn = [n for n, _, _ in outs[bid]]
                     if B[bid]["func"] == "CONNECTOR":
                         for gid in groups.get(B[bid]["group"] or bid, []):
@@ -292,13 +333,17 @@ def trace(s, start, direction="down"):
                         seen_n[n] = depth
                         nxt.append(n)
         frontier = nxt
+    stopped = {x["block"] for x in blocked}
     return {"order": [{"net": n, "depth": d} for n, d in sorted(seen_n.items(), key=lambda kv: kv[1])],
-            "blocks": [{"block": b, "depth": d} for b, d in sorted(seen_b.items(), key=lambda kv: kv[1])]}
+            "blocks": [{"block": b, "depth": d} for b, d in sorted(seen_b.items(), key=lambda kv: kv[1])
+                       if b not in stopped],
+            "blocked": blocked}
 
 
 # ------------------------------------------------------------------ 묶음 전체 (시트 사이)
 
 MAX_PASSES = 12
+_TO_REF = re.compile(r"\b([A-Z]+\d+)-(\d+)\b")     # 시트-행 꼴 (시트 이름은 그 묶음에 있는지로 거른다)
 
 
 def _row_values(s, values):
@@ -326,6 +371,23 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             ref = r.get("ref")
             if r["side"] == "L" and ref and ref.get("page") in by_page:
                 feeds[s["page"]].append((r["n"], ref["page"], ref.get("src_row", ref["row"])))
+    # L9 — 보내는 쪽 TO 칸도 연결이다 (`G055-95` 의 TO `G025-10` → G025 시트 10행).  받는 쪽 FM 이 다른 곳을
+    # 가리켜도(도면 어긋남 — from-to 점검이 붉게 말한다) 도면이 TO 로 보냈으면 신호는 간다.  TO 목록은 아래
+    # 행으로 이어지므로 설명 없는 행의 TO 는 위로 처음 설명이 있는 행의 것이다 (fromto 와 같은 규칙).
+    for s in sheets:
+        owner = None
+        for r in sorted((x for x in s["rows"] if x["side"] == "R"), key=lambda x: x["n"]):
+            if (r.get("desc") or "").strip():
+                owner = r["n"]
+            if owner is None:
+                continue
+            for sh, rn in _TO_REF.findall(r.get("to") or ""):
+                t = by_no.get(sh)
+                if not t or not any(x["n"] == int(rn) and x["side"] == "L" for x in t["rows"]):
+                    continue
+                e = (int(rn), s["page"], owner)
+                if e not in feeds[t["page"]]:
+                    feeds[t["page"]].append(e)
     out_rows = {}                     # page → {row: 값}
     results = {}
     link_in = {}                      # page → {row: 값}
@@ -333,7 +395,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
     def inputs_of(page):
         o = {}
         for n, sp, sr in feeds.get(page, ()):
-            o[n] = out_rows.get(sp, {}).get(sr, 0)
+            # 한 입력에 연결이 둘(FM 과 남의 TO)이면 어느 쪽이든 1 이면 1
+            o[n] = 1 if (o.get(n) == 1 or out_rows.get(sp, {}).get(sr, 0) == 1) else 0
         return o
 
     todo = set(by_page)
@@ -386,8 +449,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                           "on_nets": sum(1 for v in vals.values() if v == 1),
                           "from": sorted({(by_page[sp].get("sheet_no"), sr) for n, sp, sr in feeds.get(page, ())
                                           if n in on_in}),
-                          "to": sorted({x["sheet"] for r in s["rows"] if r["side"] == "R" and r["n"] in on_out
-                                        for x in r.get("refs_in", []) if x["sheet"] in by_no})})
+                          "to": sorted({by_page[q].get("sheet_no") for q, fd in feeds.items()
+                                        for _, sp, sr in fd if sp == page and sr in on_out})})
     focus_res = results.get(focus) if focus is not None else None
     return {"focus": focus_res,
             "linked": {p: {n: v for n, v in lin.items() if f"row:{n}" not in forces.get(p, {})}

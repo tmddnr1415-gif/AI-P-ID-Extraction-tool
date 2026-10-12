@@ -6762,7 +6762,9 @@ async function showMemo(pageNo) {
   if (!S.job) return;
   S.memoPage = pageNo;
   try {
-    const v = await (await fetch(`/jobs/${S.job.id}/memo/${pageNo}`)).json();
+    const r = await fetch(`/jobs/${S.job.id}/memo/${pageNo}`);
+    if (!r.ok) return;                        // hotfix85 — 404 본문을 메모로 읽어 `history.length` 에서 죽던 것
+    const v = await r.json();
     if (S.memoPage !== pageNo) return;        // 그 사이 다른 장으로 갔다
     S.memoView = v;
   } catch (e) { return; }
@@ -8605,43 +8607,60 @@ function _sourceLine(src, evidence, what) {
   return `<span class="src user">도면에서 못 읽음 — ${escape(evidence || `${what} 을(를) 직접 적으세요`)}</span>`;
 }
 
-async function markupDialog(rect) {
-  const page = S.page;
-  const body = { page_no: page.page_no, rect };
-  let prop = {};
-  try {
-    const r = await fetch(`/jobs/${S.job.id}/markup/propose`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body) });
-    if (r.ok) prop = await r.json();
-    else prop = { error: (await r.json()).detail || r.statusText };
-  } catch (e) { prop = { error: String(e) }; }
+/* hotfix85 — 팝업은 **바로** 뜨고 제안값은 뒤따라 채운다.
+ *
+ * 그 장을 처음 읽는 제안이 A1 한 장에 3.5~4초(회사 PC 는 더)였고, 예전 코드는 그 답을 받은
+ * **뒤에야** 팝업을 열어 사각형을 그린 사람이 빈 화면을 보며 기다렸다.  이제 사각형을 놓는
+ * 순간 폼이 열리고(사람은 바로 타자할 수 있다), 제안이 오면 **사람이 아직 안 건드린 칸만**
+ * 채운다 (`touched` — 입력이 한 번이라도 있었던 칸은 덮지 않는다).  제안값·출처는 저장 때
+ * `prop` 을 다시 읽으므로 뒤늦게 온 값도 출처 판정(도면/사람)에 그대로 쓰인다.
+ * 서버 쪽 읽기는 한 글자도 안 바뀌었다 — 같은 `/markup/propose` 다. */
+function _mkProposeHtml(prop, rect, page) {
   const scopeEv = prop.scope_evidence || {};
   const scopeVal = prop.scope || "";
   const scopeOpts = [...new Set([...SCOPE_CHOICES, scopeVal].filter(Boolean))];
-  const tabOpts = ["FIELD", "MOV", "BFV", "PNEUMATIC"];
-  const tab0 = prop.tab || (S.tab === "ALL" || S.tab === "REVIEW" || S.tab === "VOC" ? "FIELD" : S.tab);
   const words = (prop.words || []).map(w => w.text).filter(Boolean);
+  return {
+    head: `${escape(page.drawing_no || "(도면번호 없음)")} · p${page.page_no}
+       · 사각형 (${rect.map(v => Math.round(v)).join(", ")})`
+      + (prop.pending ? `<br><span id="mk-pending" class="src user">도면에서 제안값을 읽는 중… (칸을 바로 적어도 됩니다 — 읽히면 빈 칸만 채웁니다)</span>` : "")
+      + (prop.error ? `<br><b class="bad">제안값을 읽지 못했습니다: ${escape(prop.error)}</b>` : ""),
+    type: prop.anchor ? `<span class="src drawing">사각형 안 낱말 ${escape(prop.anchor)} — 앵커 사전에 있음</span>`
+      : prop.pending ? `<span class="src user">사각형 안 낱말을 읽는 중…</span>`
+      : `<span class="src user">사각형 안 낱말: ${escape(words.slice(0, 8).join(" ") || "없음")}${(prop.candidates || []).length > 1 ? ` · 앵커 후보 ${escape(prop.candidates.join(", "))} — 하나를 고르세요` : ""}</span>`,
+    scopeOpts: `<option value="">(빈칸)</option>${
+      scopeOpts.map(v => `<option value="${escape(v)}"${v === scopeVal ? " selected" : ""}>${escape(v)}</option>`).join("")}`,
+    scope: prop.pending ? `<span class="src user">별표·NOTES 를 읽는 중…</span>` : _sourceLine(prop.scope_source, scopeEv.text, "SCOPE"),
+    qty: prop.pending ? `<span class="src user">읽는 중…</span>` : _sourceLine(prop.qty_source, prop.qty_basis, "수량"),
+    system: prop.pending ? `<span class="src user">읽는 중…</span>` : _sourceLine(prop.system_source, prop.system_basis, "SYSTEM"),
+    tagCands: (prop.tag_candidates || []).map(t => `<option value="${escape(t)}">`).join(""),
+    tag: prop.pending ? `<span class="src user">읽는 중…</span>` : _sourceLine(prop.tag_source, prop.tag_basis, "TAG"),
+  };
+}
+
+async function markupDialog(rect) {
+  const page = S.page;
+  const body = { page_no: page.page_no, rect };
+  let prop = { pending: true };
+  const tabOpts = ["FIELD", "MOV", "BFV", "PNEUMATIC"];
+  const tab0 = S.tab === "ALL" || S.tab === "REVIEW" || S.tab === "VOC" ? "FIELD" : S.tab;
+  const h0 = _mkProposeHtml(prop, rect, page);
   openModal("누락 행 추가 — 마크업",
-    `<p class="muted small">${escape(page.drawing_no || "(도면번호 없음)")} · p${page.page_no}
-       · 사각형 (${rect.map(v => Math.round(v)).join(", ")})
-       ${prop.error ? `<br><b class="bad">제안값을 읽지 못했습니다: ${escape(prop.error)}</b>` : ""}</p>
+    `<p class="muted small" id="mk-head">${h0.head}</p>
      <div class="mk-form">
        <label>산출물 <select id="mk-tab">${tabOpts.map(t => `<option${t === tab0 ? " selected" : ""}>${t}</option>`).join("")}</select></label>
-       <label>Type <input id="mk-type" type="text" value="${escape(prop.type || "")}" placeholder="예: PIT">
-         ${prop.anchor ? `<span class="src drawing">사각형 안 낱말 ${escape(prop.anchor)} — 앵커 사전에 있음</span>`
-           : `<span class="src user">사각형 안 낱말: ${escape(words.slice(0, 8).join(" ") || "없음")}${(prop.candidates || []).length > 1 ? ` · 앵커 후보 ${escape(prop.candidates.join(", "))} — 하나를 고르세요` : ""}</span>`}</label>
-       <label>SCOPE <select id="mk-scope"><option value="">(빈칸)</option>${
-         scopeOpts.map(v => `<option value="${escape(v)}"${v === scopeVal ? " selected" : ""}>${escape(v)}</option>`).join("")}</select>
+       <label>Type <input id="mk-type" type="text" value="" placeholder="예: PIT">
+         <span id="mk-type-src">${h0.type}</span></label>
+       <label>SCOPE <select id="mk-scope">${h0.scopeOpts}</select>
          <input id="mk-scope-name" type="text" placeholder="VENDOR 이면 공급자 이름 (선택)" class="mini">
-         ${_sourceLine(prop.scope_source, scopeEv.text, "SCOPE")}</label>
-       <label>Q'ty <input id="mk-qty" type="number" min="0" step="1" value="${prop.qty ?? ""}">
-         ${_sourceLine(prop.qty_source, prop.qty_basis, "수량")}</label>
-       <label>SYSTEM <input id="mk-system" type="text" value="${escape(prop.system || "")}" placeholder="그 장의 도면 제목">
-         ${_sourceLine(prop.system_source, prop.system_basis, "SYSTEM")}</label>
-       <label>TAG No. <input id="mk-tag" type="text" value="${escape(prop.tag_no || "")}" placeholder="예: 00EGD21CP501"
-         list="mk-tag-cands"><datalist id="mk-tag-cands">${(prop.tag_candidates || []).map(t => `<option value="${escape(t)}">`).join("")}</datalist>
-         ${_sourceLine(prop.tag_source, prop.tag_basis, "TAG")}</label>
+         <span id="mk-scope-src">${h0.scope}</span></label>
+       <label>Q'ty <input id="mk-qty" type="number" min="0" step="1" value="">
+         <span id="mk-qty-src">${h0.qty}</span></label>
+       <label>SYSTEM <input id="mk-system" type="text" value="" placeholder="그 장의 도면 제목">
+         <span id="mk-system-src">${h0.system}</span></label>
+       <label>TAG No. <input id="mk-tag" type="text" value="" placeholder="예: 00EGD21CP501"
+         list="mk-tag-cands"><datalist id="mk-tag-cands">${h0.tagCands}</datalist>
+         <span id="mk-tag-src">${h0.tag}</span></label>
        <label>Description <input id="mk-desc" type="text" placeholder="(선택)"></label>
        <label>분류 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
        <label>사유 <input id="mk-note" type="text" placeholder="왜 프로그램이 못 읽었나 / 무엇이 맞나 — 한 줄"></label>
@@ -8653,8 +8672,46 @@ async function markupDialog(rect) {
        <button id="mk-save">행 추가</button>
      </div>`);
   $("#mk-cancel").onclick = closeModal;
+  // 사람이 손댄 칸은 제안이 와도 덮지 않는다
+  const touched = new Set();
+  for (const id of ["mk-tab", "mk-type", "mk-scope", "mk-qty", "mk-system", "mk-tag"]) {
+    const el = $("#" + id);
+    if (el) el.addEventListener("input", () => touched.add(id));
+    if (el && el.tagName === "SELECT") el.addEventListener("change", () => touched.add(id));
+  }
+  const applyProposal = (got) => {
+    prop = got;
+    if (!document.getElementById("mk-save")) return;        // 그 사이 닫혔다
+    const h = _mkProposeHtml(prop, rect, page);
+    const setIf = (id, v) => { const el = $("#" + id); if (el && !touched.has(id) && v != null && v !== "") el.value = String(v); };
+    const put = (id, html) => { const el = $("#" + id); if (el) el.innerHTML = html; };
+    put("mk-head", h.head);
+    put("mk-type-src", h.type); put("mk-scope-src", h.scope); put("mk-qty-src", h.qty);
+    put("mk-system-src", h.system); put("mk-tag-src", h.tag);
+    const dl = $("#mk-tag-cands"); if (dl) dl.innerHTML = h.tagCands;
+    if (!touched.has("mk-tab") && prop.tab) $("#mk-tab").value = prop.tab;
+    if (!touched.has("mk-scope")) { $("#mk-scope").innerHTML = h.scopeOpts; }
+    else {       // 사람이 고른 값은 지키되 제안값도 고를 수 있게 목록만 늘린다
+      const sel = $("#mk-scope"), keep = sel.value; sel.innerHTML = h.scopeOpts; sel.value = keep;
+    }
+    setIf("mk-type", prop.type); setIf("mk-qty", prop.qty); setIf("mk-system", prop.system); setIf("mk-tag", prop.tag_no);
+  };
+  (async () => {
+    let got;
+    try {
+      const r = await fetch(`/jobs/${S.job.id}/markup/propose`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body) });
+      if (r.ok) got = await r.json();
+      else got = { error: (await r.json()).detail || r.statusText };
+    } catch (e) { got = { error: String(e) }; }
+    applyProposal(got);
+  })();
   $("#mk-save").onclick = guarded(async () => {      // hotfix74 — 두 번 눌러도 행은 하나
     if (!vocReasonOk("mk")) return;
+    const scopeEv = prop.scope_evidence || {};
+    const scopeVal = prop.scope || "";
+    const words = (prop.words || []).map(w => w.text).filter(Boolean);
     const scopeSel = $("#mk-scope").value;
     const name = $("#mk-scope-name").value.trim();
     const scope = scopeSel === "VENDOR" && name ? `VENDOR(${name})` : scopeSel;
