@@ -2,9 +2,13 @@
 
 입력은 analyse.py 가 낸 시트 JSON 그대로다 (다시 읽지 않는다).
 
-값은 디지털 둘뿐: 1(활성) · 0(비활성).  "알 수 없음" 을 두지 않는다 (사용자 지시 L3).
+값은 디지털 둘뿐: 1(활성) · 0(비활성) — 화면에는 그 둘만 보인다 (사용자 지시 L3).
   * 왼쪽 행 입력 · 누름단추 · 들어오는 선이 없는 블록은 **사람이 활성화하지 않으면 0** 이다.
-  * 몰이가 없는 선 · 판정 못 한 블록의 출력은 0 이다 (사람이 그 선을 직접 1 로 줄 수는 있다).
+  * L10 — **입력 조건이 만족되지 않으면 출력은 나오지 않는다** (사용자 지시 · 모든 로직 · 모든 프로젝트 같은 원리).
+    도면에서 **읽지 못한 입력**(몰이가 없는 선 · 판정 못 한 블록의 출력 · 범례가 여러 입력으로 그리는 AND/OR/NAND/NOR
+    에서 둘 미만만 읽힌 칸 · 입력이 안 읽힌 NOT)은 안에서 '모름' 으로 계산한다 (Kleene 3값).  모름이 출력을 바꿀 수
+    있으면 그 출력은 0 이고 `unread` 에 남는다 — 예: 입력이 안 읽힌 NOT 은 1 을 내지 않는다 · 입력 하나만 읽힌 AND 는
+    그 하나가 1 이어도 1 을 내지 않는다.  모름과 상관없이 정해지는 출력은 그대로 낸다 (읽힌 입력 하나가 1 인 OR).
   * 선(넷)을 직접 강제하면 그 넷의 값은 몰이와 상관없이 그 값이다.
   * 블록 동작은 범례 G003 정의 (config/logic_symbols.yaml) — AND · OR · NOT · NAND · NOR ·
     메모리(우선 칸) · GT/DT/PD 타이머 (시간은 타이머 옆에 인쇄된 t 를 읽은 값 · 못 읽으면 1초로 보고 그렇게 말한다).
@@ -59,15 +63,92 @@ def _not(v):
     return 0 if v == 1 else 1
 
 
+# L10 — 3값(1 · 0 · None=모름).  범례 G003 정의를 그대로 옮긴 것이고, 모름은 "도면에서 읽지 못한 입력" 이다.
+def _and3(vs):
+    if not vs or any(v == 0 for v in vs):
+        return 0 if vs else None
+    return 1 if all(v == 1 for v in vs) else None
+
+
+def _or3(vs):
+    if any(v == 1 for v in vs):
+        return 1
+    return 0 if vs and all(v == 0 for v in vs) else None
+
+
+def _not3(v):
+    return None if v is None else (0 if v == 1 else 1)
+
+
+def _b(v):
+    """모름은 상태를 바꾸지 않는다 (메모리 S/R · 타이머 입력) — 0 으로 본다."""
+    return 1 if v == 1 else 0
+
+
+# 범례 G003 이 여러 입력(A·B·C…X)으로 그리는 게이트는 입력이 둘 이상이다 · NOT 은 하나다.
+# 그보다 적게 읽혔으면 모자란 칸은 '모름' 이다 (그 칸의 선을 도면에서 못 읽었다).
+MIN_INPUTS = {"and": 2, "nand": 2, "or": 2, "nor": 2, "not": 1}
+_VOTE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")       # 범례 'A/B' — A 개 이상 입력이 있을 때만 출력
+
+
+def _vote_of(b):
+    """판정 못 한 블록이라도 글자가 범례의 A/B 꼴이면 투표 블록이다 (OUTPUT EXISTS ONLY WHEN AT LEAST A OUT OF B
+    INPUTS ARE PRESENT).  → (A, B) | None"""
+    if b.get("logic") == "vote":
+        p = b.get("param", {})
+        return int(p.get("a", 0)), int(p.get("b", 0))
+    if b.get("logic") != "unknown":
+        return None
+    m = _VOTE.match(b.get("label") or "")
+    if not m:
+        return None
+    a, n = int(m.group(1)), int(m.group(2))
+    return (a, n) if 0 < a <= n else None
+
+
+def _vote3(vs, a, n):
+    vs = list(vs) + [None] * max(0, n - len(vs))
+    ones = sum(1 for v in vs if v == 1)
+    unk = sum(1 for v in vs if v is None)
+    if ones >= a:
+        return 1
+    return 0 if ones + unk < a else None
+
+
+def gate3(lg, iv):
+    """범례 정의 게이트 하나 — 읽힌 입력 수가 모자라면 모자란 칸을 모름으로 채운다."""
+    iv = list(iv) + [None] * max(0, MIN_INPUTS.get(lg, 0) - len(iv))
+    if lg == "and":
+        return _and3(iv)
+    if lg == "nand":
+        return _not3(_and3(iv))
+    if lg == "or":
+        return _or3(iv)
+    if lg == "nor":
+        return _not3(_or3(iv))
+    if lg == "not":
+        return _not3(iv[0])
+    return None
+
+
+def _frame(t, val, depth, note):
+    """화면은 1/0 만 본다 — 모름은 0 (출력 없음) 으로 내고 어느 선이 모름이었는지는 `unread` 에 남긴다."""
+    return {"t": t, "values": {n: (0 if v is None else v) for n, v in val.items()},
+            "unread": sorted(n for n, v in val.items() if v is None),
+            "depth": depth, "note": note}
+
+
 def simulate(s, forces=None, state=None, now=0.0):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
 
     → {"frames": [{"t", "values", "depth", "note"}], "state", "notes"}
     """
     forces = dict(forces or {})
-    st = {"mem": {}, "tim": {}, "t": now}
+    st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
+    short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     if state:
         st["mem"].update(state.get("mem", {}))
+        st["sr"].update(state.get("sr", {}))
         st["tim"].update({k: dict(v) for k, v in state.get("tim", {}).items()})
         st["t"] = max(now, state.get("t", 0.0))
     ins, outs, drivers, sinks, groups = _index(s)
@@ -87,39 +168,40 @@ def simulate(s, forces=None, state=None, now=0.0):
         if bid in blk_force:
             return blk_force[bid]
         iv = [val.get(n) for n, _, _ in ins[bid]]
-        if lg in ("source",) or (not ins[bid] and lg in ("unknown", "sink")):
+        if lg == "source":
+            return 0                                   # 누름단추 · HMI — 사람이 누르지 않으면 0
+        if lg == "sink":
             return 0
-        if lg == "and":
-            return _and(iv)
-        if lg == "nand":
-            return _not(_and(iv))
-        if lg == "or":
-            return _or(iv)
-        if lg == "nor":
-            return _not(_or(iv))
-        if lg == "not":
-            return _not(iv[0] if iv else 0)
+        if lg in MIN_INPUTS:
+            if len(iv) < MIN_INPUTS[lg]:
+                short.add(bid)
+            return gate3(lg, iv)
+        vote = _vote_of(b)
+        if vote:
+            if len(iv) < vote[1]:
+                short.add(bid)
+            return _vote3(iv, *vote)
         if lg == "memory":
             q = st["mem"].get(bid, 0)
             return q if role != "qn" else _not(q)
         if lg in ("delay_on", "delay_off", "pulse"):
             return st["tim"].get(bid, {}).get("out", 0)
         if lg == "step":
-            si = _or([val.get(n) for n, r, _ in ins[bid] if r == "step_in"])
-            cr = _or([val.get(n) for n, r, _ in ins[bid] if r == "crit"])
+            si = _or3([val.get(n) for n, r, _ in ins[bid] if r == "step_in"])
+            cr = _or3([val.get(n) for n, r, _ in ins[bid] if r == "crit"])
             notes.add("STEP 상자는 근사 모델입니다 (C_STEP = STEP_IN · STEP_OUT = STEP_IN AND CRIT)")
             if role == "c_step":
                 return si
             if role == "step_out":
-                return _and([si, cr])
+                return _and3([si, cr])
             return si
         if lg == "connector":
             g = groups.get(b["group"] or bid, [bid])
             vals = [val.get(n) for gid in g for n, _, _ in ins[gid]]
-            return _or(vals) if vals else 0
+            return _or3(vals) if vals else None        # 짝 기호의 입력을 못 읽었으면 모름
         if ins[bid]:
-            notes.add("판정 못 한 블록의 출력은 0 으로 보았습니다 (그 선을 직접 1 로 줄 수 있습니다)")
-        return 0
+            notes.add("판정 못 한 블록은 출력을 내지 않습니다 (그 선을 직접 1 로 줄 수 있습니다)")
+        return None
 
     def settle(val_prev):
         val = dict(val_prev)
@@ -130,14 +212,19 @@ def simulate(s, forces=None, state=None, now=0.0):
             for bid, b in B.items():
                 if b["logic"] != "memory" or bid in blk_force:
                     continue
-                S = _or([val.get(n) for n, r, c in ins[bid] if r == "set"])
-                R = _or([val.get(n) for n, r, c in ins[bid] if r == "reset"])
+                if any(n not in val and n in s["nets"] for n, _, _ in ins[bid]):
+                    continue                        # 입력 선이 아직 안 정해졌다 (첫 바퀴) — 정해진 뒤에 본다
+                S = _b(_or3([val.get(n) for n, r, c in ins[bid] if r == "set"]))
+                R = _b(_or3([val.get(n) for n, r, c in ins[bid] if r == "reset"]))
                 q = st["mem"].get(bid, 0)
                 dom = b.get("param", {}).get("dominant", "")
+                both_before = st["sr"].get(bid) == 1
+                st["sr"][bid] = 1 if (S == 1 and R == 1) else 0
                 if S == 1 and R == 1:
-                    nq = 1 if dom == "set" else (0 if dom == "reset" else q)
+                    # 범례 G003: SET 우선 → C=1 · RESET 우선 → C=0 · 기본 메모리 → 상태가 바뀐다 (함께 1 이 되는 순간 한 번)
+                    nq = 1 if dom == "set" else (0 if dom == "reset" else (q if both_before else _not(q)))
                     if not dom:
-                        notes.add("기본 메모리에 S·R 이 함께 1 — 범례는 '상태가 바뀐다' 고 정의합니다 (여기서는 그대로 둡니다)")
+                        notes.add("기본 메모리에 S·R 이 함께 1 — 범례대로 상태를 한 번 바꿨습니다")
                 elif S == 1:
                     nq = 1
                 elif R == 1:
@@ -163,9 +250,9 @@ def simulate(s, forces=None, state=None, now=0.0):
                             dd = [depth.get(n, 0) for n, _, _ in ins[x]]
                             ds.append((max(dd) if dd else 0) + 1)
                     if not vs:
-                        v, d = 0, 0
+                        v, d = None, 0                 # L10 — 몰이가 없는 선 = 도면에서 못 읽은 입력
                     else:
-                        v = _or(vs) if len(vs) > 1 else vs[0]
+                        v = _or3(vs) if len(vs) > 1 else vs[0]
                         d = max(ds) if ds else 0
                 if val.get(nid, "x") != v:
                     val[nid] = v
@@ -185,7 +272,7 @@ def simulate(s, forces=None, state=None, now=0.0):
             if lg not in ("delay_on", "delay_off", "pulse"):
                 continue
             ts = st["tim"].setdefault(bid, {"out": 0, "inp": 0, "due": None, "to": None})
-            inp = _or([val.get(n) for n, _, _ in ins[bid]]) or 0
+            inp = _b(_or3([val.get(n) for n, _, _ in ins[bid]]))
             T = float(b.get("param", {}).get("t") or DEFAULT_T)
             if not b.get("param", {}).get("t"):
                 notes.add("타이머 시간을 읽지 못한 블록은 1초로 보았습니다")
@@ -222,7 +309,7 @@ def simulate(s, forces=None, state=None, now=0.0):
         val, depth = settle(val)
         if not timers_step(val, t):
             break
-    frames.append({"t": t, "values": val, "depth": depth, "note": "누른 순간"})
+    frames.append(_frame(t, val, depth, "누른 순간"))
     while len(frames) < MAX_FRAMES:
         due = [(ts["due"], bid) for bid, ts in st["tim"].items() if ts.get("due") is not None]
         if not due:
@@ -241,10 +328,13 @@ def simulate(s, forces=None, state=None, now=0.0):
             if not timers_step(val, t):
                 break
         labels = [B[b].get("param", {}).get("text") or B[b]["func"] for b in fired]
-        frames.append({"t": t, "values": val, "depth": depth,
-                       "note": f"{', '.join(labels)} 경과", "fired": fired})
+        fr = _frame(t, val, depth, f"{', '.join(labels)} 경과")
+        fr["fired"] = fired
+        frames.append(fr)
     st["t"] = t
-    return {"frames": frames, "state": st, "notes": sorted(notes)}
+    if short:
+        notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
+    return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short)}
 
 
 # L9 — 따라가기가 게이트를 지날지는 범례 정의가 정한다.  따라가는 신호를 1, 그 게이트의 다른
@@ -255,17 +345,8 @@ _GATED = ("and", "nand", "or", "nor", "not")
 
 
 def _gate_passes(lg, iv):
-    if lg == "and":
-        return _and(iv)
-    if lg == "nand":
-        return _not(_and(iv))
-    if lg == "or":
-        return _or(iv)
-    if lg == "nor":
-        return _not(_or(iv))
-    if lg == "not":
-        return _not(iv[0] if iv else 0)
-    return 1
+    """따라온 입력 1 · 나머지 0 · 읽지 못한 칸은 모름 — 출력이 확실히 1 일 때만 지난다 (L10)."""
+    return gate3(lg, iv) == 1
 
 
 def trace(s, start, direction="down"):
@@ -307,13 +388,17 @@ def trace(s, start, direction="down"):
                 seen_b[bid] = depth
                 if direction == "down":
                     lg = B[bid].get("logic", "")
-                    if lg in _GATED and ins[bid]:
+                    if lg in _GATED:
                         iv = [1 if n in seen_n else 0 for n, _, _ in ins[bid]]
                         if not _gate_passes(lg, iv):
                             have, need = sum(iv), len(iv)
-                            reason = (f"AND — 입력 {need}개 중 {have}개만 따라왔습니다 · 모두 활성이어야 뒤로 갑니다"
-                                      if lg == "and" else
-                                      f"{lg.upper()} — 이 입력이 1 이면 출력은 0 입니다 (범례 정의)")
+                            if need < MIN_INPUTS.get(lg, 0):
+                                reason = (f"{lg.upper()} — 입력을 {need}개만 읽었습니다 · 범례는 "
+                                          f"{MIN_INPUTS[lg]}개 이상으로 그립니다 — 입력 조건을 확인할 수 없어 멈춥니다")
+                            elif lg == "and":
+                                reason = f"AND — 입력 {need}개 중 {have}개만 따라왔습니다 · 모두 활성이어야 뒤로 갑니다"
+                            else:
+                                reason = f"{lg.upper()} — 이 입력이 1 이면 출력은 0 입니다 (범례 정의)"
                             blocked.append({"block": bid, "depth": depth, "logic": lg,
                                             "have": have, "need": need, "reason": reason})
                             continue

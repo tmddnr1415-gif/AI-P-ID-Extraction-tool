@@ -458,3 +458,72 @@ def test_output_row_force_and_to_links_carry_on_until_a_gate_stops():
     assert b["focus"]["frames"][-1]["values"]["co"] == 1                       # 조건이 풀리면 지난다
     b = sim.simulate_bundle([A, B, C], {1: {"row:95": 0}}, None, 3)
     assert b["focus"]["frames"][-1]["values"]["c6"] == 0
+
+
+def _one(logic, n_in, label="", param=None):
+    """블록 하나 · 입력 행 n_in 개 → 출력 행 90."""
+    blocks = {"G": {"func": logic.upper(), "logic": logic, "group": "", "label": label, "param": param or {}}}
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    ports = [P("G", f"i{k}", "in") for k in range(n_in)] + [P("G", "o", "out")]
+    rows = [{"n": k + 1, "side": "L", "net": f"i{k}"} for k in range(n_in)] + [{"n": 90, "side": "R", "net": "o"}]
+    nets = {f"i{k}": {"segs": []} for k in range(n_in)}
+    nets["o"] = {"segs": []}
+    return {"blocks": blocks, "ports": ports, "rows": rows, "nets": nets}
+
+
+def _out(s, ones=()):
+    return sim.simulate(s, {f"row:{k}": 1 for k in ones})["frames"][-1]["values"]["o"]
+
+
+def test_every_gate_follows_the_legend_g003_truth_table():
+    """L10 — 범례 G003 정의 그대로.  입력 조건이 만족되지 않으면 출력은 나오지 않는다."""
+    import itertools
+    for n in (2, 3):
+        for ones in itertools.chain.from_iterable(itertools.combinations(range(1, n + 1), k) for k in range(n + 1)):
+            k = len(ones)
+            assert _out(_one("and", n), ones) == (1 if k == n else 0)      # ALL INPUTS TRUE
+            assert _out(_one("or", n), ones) == (1 if k >= 1 else 0)       # ANY INPUT TRUE
+            assert _out(_one("nand", n), ones) == (1 if k < n else 0)      # ANY INPUT FALSE
+            assert _out(_one("nor", n), ones) == (1 if k == 0 else 0)      # ALL INPUTS FALSE
+    assert _out(_one("not", 1), (1,)) == 0 and _out(_one("not", 1)) == 1   # NOT
+    vote = _one("unknown", 3, label="2/3")                                   # A/B — AT LEAST A OUT OF B
+    assert [_out(vote, o) for o in ((), (1,), (1, 2), (1, 2, 3))] == [0, 0, 1, 1]
+
+
+def test_a_gate_whose_inputs_were_not_read_gives_no_output():
+    """입력을 다 읽지 못한 게이트는 출력을 내지 않는다 — 읽힌 입력만으로 결과가 정해질 때만 낸다."""
+    assert _out(_one("and", 1), (1,)) == 0           # 하나만 읽힌 AND — 그 하나가 1 이어도 0
+    assert _out(_one("not", 0)) == 0                 # 입력이 안 읽힌 NOT — 1 을 내지 않는다
+    assert _out(_one("nor", 1)) == 0                 # 하나만 읽힌 NOR — 다 0 인지 모른다
+    assert _out(_one("or", 1), (1,)) == 1            # 하나만 읽힌 OR 라도 그 하나가 1 이면 1 (정해진다)
+    assert _out(_one("nand", 1)) == 1                # 읽힌 입력이 0 이면 NAND 는 1 (정해진다)
+    r = sim.simulate(_one("and", 1), {"row:1": 1})
+    assert r["short_gates"] == ["G"] and any("입력을 다 읽지 못한" in n for n in r["notes"])
+    # 몰이가 없는 선(도면에서 끊긴 입력)도 모름 — NOT 뒤로 1 이 나오지 않는다
+    s = _one("not", 1)
+    s["rows"] = [r for r in s["rows"] if r["side"] == "R"]
+    assert sim.simulate(s, {})["frames"][-1]["values"]["o"] == 0
+    # 판정 못 한 블록은 출력을 내지 않는다
+    assert _out(_one("unknown", 2, label="MAN"), (1, 2)) == 0
+
+
+def test_basic_memory_changes_state_when_both_inputs_rise_together():
+    blocks = {"M": {"func": "MEMORY", "logic": "memory", "group": "", "param": {"dominant": ""}}}
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    s = {"blocks": blocks, "rows": [{"n": 1, "side": "L", "net": "a"}, {"n": 2, "side": "L", "net": "b"}],
+         "ports": [P("M", "a", "in", "set"), P("M", "b", "in", "reset"), P("M", "c", "out", "q"), P("M", "d", "out", "qn")],
+         "nets": {k: {"segs": []} for k in "abcd"}}
+    v = sim.simulate(s, {})["frames"][-1]["values"]
+    assert v["c"] == 0 and v["d"] == 1                                        # C · D 는 언제나 반대
+    r = sim.simulate(s, {"row:1": 1, "row:2": 1})                             # 함께 1 → 상태가 바뀐다
+    assert r["frames"][-1]["values"]["c"] == 1
+    r = sim.simulate(s, {"row:1": 1, "row:2": 1}, r["state"])                 # 그대로 유지되면 다시 안 바뀐다
+    assert r["frames"][-1]["values"]["c"] == 1
+    for dom, want in (("set", 1), ("reset", 0)):
+        s["blocks"]["M"]["param"]["dominant"] = dom
+        assert sim.simulate(s, {"row:1": 1, "row:2": 1})["frames"][-1]["values"]["c"] == want
+
+
+def test_trace_stops_at_a_gate_whose_inputs_were_not_read():
+    t = sim.trace(_one("and", 1), "row:1")
+    assert t["blocked"] and "입력을 1개만 읽었습니다" in t["blocked"][0]["reason"]

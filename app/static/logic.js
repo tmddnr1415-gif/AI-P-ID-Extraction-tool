@@ -550,6 +550,7 @@ async function runSim(animate) {
   L.linked = (b.linked || {})[L.page] || {};
   L.chain = b.pages || [];
   L.notes = [...(r.notes || []), ...(b.notes || [])];
+  L.short = new Set(r.short_gates || []);          // L10 — 입력을 다 읽지 못해 출력을 내지 않는 게이트
   renderSheetList(); renderChain();
   stopAnim();
   if (!animate) {
@@ -770,6 +771,7 @@ function renderInfo() {
       <tr><td>단자</td><td>들어옴 ${ins.length} · 나감 ${outs.length}</td></tr>
       ${L.mode === "sim" && b.func === "MEMORY" ? `<tr><td>상태</td><td>${valTag(mem || 0)}</td></tr>` : ""}
       ${L.mode === "sim" && GATE_LOGIC.has(b.logic) ? `<tr><td>단자 값</td><td>${portValuesText(L.sel.block)}</td></tr>` : ""}
+      ${L.mode === "sim" && L.short && L.short.has(L.sel.block) ? `<tr><td>입력</td><td class="warn">도면에서 입력을 다 읽지 못했습니다 — 범례 조건을 확인할 수 없어 출력을 내지 않습니다</td></tr>` : ""}
       ${L.mode === "sim" && tim ? `<tr><td>타이머</td><td>출력 ${valTag(tim.out)} ${tim.due ? "· 진행 중" : ""}</td></tr>` : ""}
       ${b.func === "STEP" ? `<tr><td>주의</td><td>근사 모델: C_STEP = STEP_IN · STEP_OUT = STEP_IN AND CRIT</td></tr>` : ""}
     </table>
