@@ -306,3 +306,61 @@ body.lg-full .lg-view { position: fixed; inset: 0; z-index: 40; background: var(
 #ov.sim .clink { opacity: .25; }
 #ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.4; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
 #ov .rowpin.implied { stroke: #0f8f80; stroke-width: 1.2; stroke-dasharray: 1.2 .8; }
+.force-menu button.vs { color: #0a7a3c; font-weight: 600; border-top: 1px solid #eee; }
+
+/* ---- L14 첫 화면 — P&ID 첫 화면과 같은 꼴 (프로젝트 · 자료 · 분석 이력) */
+.lg-tohome { background: #2a3a62 !important; color: #fff !important; border-color: #3d4f7c !important; }
+.lh { height: calc(100% - 48px); overflow: auto; padding: 16px 20px 28px; }
+.lh-title h2 { margin: 0; color: var(--blue); font-size: 20px; }
+.lh-title p { margin: 4px 0 12px; color: var(--soft); }
+.lh-intake { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 14px; }
+.lh-lists { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-top: 14px; }
+.lh-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04); min-width: 0; }
+.lh-card h3 { margin: 0 0 10px; font-size: 14px; }
+.lh-card .num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--blue); color: #fff; font-size: 12px; margin-right: 4px; }
+.lh-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.lh-row label { width: 64px; color: var(--soft); }
+.lh-row select, .lh-row input { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.lh-mode { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #e3ebff; color: #1d47b8;
+  font-weight: 700; border: 1px solid #b9cbff; }
+.lh-mode.sm { font-size: 11px; padding: 0 7px; }
+.lh-help { color: var(--soft); font-size: 12px; margin: 6px 0 0; }
+button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+button.primary:disabled { background: #b8c4e6; border-color: #b8c4e6; cursor: default; }
+button.big { padding: 8px 28px; font-size: 15px; font-weight: 700; }
+.lh-mats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.lh-mats li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; position: relative; background: #fbfaf6; }
+.lh-mats li.has { background: #eef7f0; border-color: #9fd3ad; }
+.lh-mats .mh small { color: var(--soft); margin-left: 4px; }
+.lh-mats .req { color: #fff; background: var(--find); border-radius: 8px; padding: 0 6px; font-size: 11px; }
+.lh-mats .opt { color: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; font-size: 11px; }
+.lh-mats .drop { display: block; margin-top: 6px; padding: 14px 8px; text-align: center; border: 1.5px dashed #c5c0b2;
+  border-radius: 7px; cursor: pointer; color: var(--soft); background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-mats .drop.over { border-color: var(--blue); background: #eef2fb; }
+.lh-mats .drop .fn { color: var(--ink); font-weight: 600; }
+.lh-mats .clr { position: absolute; top: 6px; right: 6px; padding: 0 6px; }
+.lh-go { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+.lh-why { color: var(--find); }
+.pj { border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 8px; margin-bottom: 10px; background: #fff; }
+.pj.loose { border-left-color: var(--off); }
+.pjh { display: flex; gap: 10px; align-items: center; padding: 8px 10px; }
+.pjh .ic { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; background: #e3ebff; color: #1d47b8; font-weight: 800; }
+.pjh small { color: var(--soft); }
+.pjj, .lh-recent { list-style: none; margin: 0; padding: 0 10px 8px; }
+.pjj li, .lh-recent li { padding: 6px 8px; border-top: 1px solid #f0ede4; cursor: pointer; }
+.pjj li:hover, .lh-recent li:hover { background: #eef2fb; }
+.pjj li.empty, .lh-recent li.empty { color: var(--soft); cursor: default; }
+.jn { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jm { font-size: 11px; color: var(--soft); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.jm .ok { color: var(--on); } .jm .bad { color: var(--find); } .jm .run { color: var(--blue); font-weight: 600; }
+.jm .chip, .jm .mat { border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; background: #fff; }
+.jm .mat { background: #f3f0e6; }
+.pbar { height: 5px; background: #e6e9f2; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.pbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), #6f8ff0); }
+@media (max-width: 1100px) { .lh-intake, .lh-lists { grid-template-columns: 1fr; } }
+.lg-head > * { white-space: nowrap; flex-shrink: 0; }
+.lg-head .lg-status { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lg-head h1 { white-space: nowrap; }
+#samples { display: inline-flex; gap: 4px; }

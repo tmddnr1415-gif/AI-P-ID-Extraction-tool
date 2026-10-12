@@ -188,22 +188,28 @@ def test_simulation_follows_the_legend_definitions():
 
 
 def test_trace_goes_through_blocks_in_depth_order():
-    # L9 — 아래로 갈 때 AND 는 모든 입력이 따라와야 지난다: in1 → OR 는 지나고 AND 에서 멈춘다
+    # L14 — 연결 따라가기는 연결만 본다: AND 의 다른 입력이 0 이어도 지나간다 (사용자 확정)
     t = sim.trace(_toy(), "row:1")
     depth = {o["net"]: o["depth"] for o in t["order"]}
-    assert depth["1"] == 0 and depth["3"] == 1 and "5" not in depth and "8" not in depth
-    assert [b["block"] for b in t["blocked"]] == ["AND"] and t["blocked"][0]["have"] == 1 and t["blocked"][0]["need"] == 2
-    assert "AND" not in {b["block"] for b in t["blocks"]}
-    # AND 의 두 입력이 한 선(fan-out)에서 오면 지난다 — 같은 토이에서 in4 를 n3 에 묶는다
-    s = _toy()
-    for p in s["ports"]:
-        if p["block"] == "AND" and p["net"] == "4":
-            p["net"] = "3"
-    t2 = sim.trace(s, "row:1")
-    d2 = {o["net"]: o["depth"] for o in t2["order"]}
-    assert d2["5"] == 2 and d2["8"] == 4 and not t2["blocked"]
+    assert depth["1"] == 0 and depth["3"] == 1 and depth["5"] == 2 and depth["8"] == 4
+    assert not t["blocked"] and "AND" in {b["block"] for b in t["blocks"]}
     up = sim.trace(_toy(), "net:8", "up")
     assert {o["net"] for o in up["order"]} >= {"6", "7", "5", "3", "1", "2", "4"}
+
+
+def test_scenario_finds_inputs_that_light_the_whole_chain():
+    """L14 — 출력 하나를 고르면 범례 정의를 거꾸로 따라 입력 조합을 찾고, 앞으로 돌려 확인한다."""
+    s = _toy()
+    r = sim.scenario(s, "row:30")
+    assert r["ok"] and r["forces"].get("row:4") == 1 and (r["forces"].get("row:1") == 1 or r["forces"].get("row:2") == 1)
+    assert "row:7" not in r["forces"] or r["forces"]["row:7"] == 0          # RESET 은 주지 않는다
+    v = sim.simulate(s, r["forces"])
+    assert any(fr["values"]["8"] == 1 for fr in v["frames"])
+    # 몰 길이 없는 출력은 찾았다고 하지 않는다
+    s2 = _toy()
+    s2["ports"] = [p for p in s2["ports"] if not (p["block"] == "AND" and p["net"] == "4")]
+    r2 = sim.scenario(s2, "row:30")
+    assert not r2["ok"] or r2["direct_nets"] == []
 
 
 def test_logic_package_does_not_import_the_pid_engine():
@@ -524,11 +530,6 @@ def test_basic_memory_changes_state_when_both_inputs_rise_together():
         assert sim.simulate(s, {"row:1": 1, "row:2": 1})["frames"][-1]["values"]["c"] == want
 
 
-def test_trace_stops_at_a_gate_whose_inputs_were_not_read():
-    t = sim.trace(_one("and", 1), "row:1")
-    assert t["blocked"] and "입력을 1개만 읽었습니다" in t["blocked"][0]["reason"]
-
-
 def test_moving_signal_reports_design_errors_on_the_to_path():
     """L11 — TO 를 따라 이동하다 그 시트·행이 없거나 잘못 연결돼 있으면 설계 오류로 알린다."""
     A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "B1-10"},
@@ -634,3 +635,55 @@ def test_forcing_a_gate_output_sets_its_inputs_logically():
     assert sim.simulate(s, {"net:o": 0})["implied"] == {"row:4": 0, "row:5": 0}
     r = sim.simulate(s, {"net:g": 1, "row:3": 1})                      # 사람이 준 값과 어긋나면 모순으로 말한다
     assert r["conflicts"] and r["implied"].get("row:3") is None
+
+
+def test_logic_first_screen_projects_and_materials(tmp_path, monkeypatch):
+    """L14 — 첫 화면: LOGIC 프로젝트는 실행 전용 · 자료 다섯 중 Logic 만 필수 · 나머지는 보관만."""
+    from fastapi.testclient import TestClient
+    from app import main
+    from app.logic import api, run
+    monkeypatch.setattr(api, "_start", run.run)
+    client = TestClient(main.app)
+    j = client.get("/logic/api/projects").json()
+    kinds = [m["kind"] for m in j["materials"]]
+    assert kinds == ["logic", "loop", "sysdesc", "iolist", "logictable"]
+    assert [m["kind"] for m in j["materials"] if m["required"]] == ["logic"]
+    assert client.post("/logic/api/projects", json={"name": "  "}).status_code == 400
+    p = client.post("/logic/api/projects", json={"name": "HRSG PJT", "author": "홍길동"}).json()
+    assert p["mode"] == "epc" and p["name"] == "HRSG PJT"
+    assert client.post("/logic/api/projects", json={"name": "hrsg pjt"}).status_code == 409
+    pdf = make_pdf(tmp_path / "up.pdf").read_bytes()
+    # Logic 없이 다른 자료만 → 거절
+    r = client.post("/logic/api/jobs", data={"project": "HRSG PJT"},
+                    files={"iolist": ("io.xlsx", b"x", "application/octet-stream")})
+    assert r.status_code == 400 and "필수" in r.json()["detail"]
+    # 없는 프로젝트 → 거절 · 자료 확장자 틀림 → 거절
+    assert client.post("/logic/api/jobs", data={"project": "없음"},
+                       files={"logic": ("a.pdf", pdf, "application/pdf")}).status_code == 400
+    assert client.post("/logic/api/jobs", data={"project": "HRSG PJT"},
+                       files={"logic": ("a.pdf", pdf, "application/pdf"),
+                              "iolist": ("io.exe", b"x", "application/octet-stream")}).status_code == 400
+    r = client.post("/logic/api/jobs", data={"project": "HRSG PJT", "author": "홍길동"},
+                    files={"logic": ("a.pdf", pdf, "application/pdf"),
+                           "iolist": ("io.xlsx", b"io", "application/octet-stream")})
+    assert r.status_code == 200, r.text
+    job = r.json()["id"]
+    assert r.json()["materials"] == {"logic": "a.pdf", "iolist": "io.xlsx"}
+    for _ in range(200):
+        st = client.get(f"/logic/api/jobs/{job}").json()
+        if st["state"] in ("done", "failed"):
+            break
+        time.sleep(0.1)
+    assert st["state"] == "done" and st["project"] == "HRSG PJT"
+    jobs = client.get("/logic/api/jobs").json()["jobs"]
+    me = next(x for x in jobs if x["id"] == job)
+    assert me["project"] == "HRSG PJT" and set(me["materials"]) == {"logic", "iolist"}
+    # Logic 만으로 분석한 것과 같은 결과 — 다른 자료는 판정에 닿지 않는다
+    assert client.get(f"/logic/api/jobs/{job}/sheets").json()["sheets"]
+    # 출력 행 동작 예시 API
+    s = client.get(f"/logic/api/jobs/{job}/sheet/1").json()
+    out = next((r for r in s["rows"] if r["side"] == "R" and r.get("net") is not None), None)
+    if out:
+        sc = client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": f"row:{out['n']}"}).json()
+        assert "ok" in sc
+    assert client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": "x"}).status_code == 400

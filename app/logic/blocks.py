@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import copy
 from functools import lru_cache
 from pathlib import Path
 
@@ -118,6 +119,7 @@ def classify(sheet, D):
     mem_reset = V["memory_cells"]["reset"]
     mark = V["memory_cells"]["dominant_mark"]
     byid = {p.pid: p for p in sheet.glyph_polys}
+    split = []
     for b in sheet.blocks.values():
         polys = [byid[i] for i in b.glyphs if i in byid]
         b.read = ""
@@ -199,6 +201,17 @@ def classify(sheet, D):
                             seg.append(c)
                         b.lines.append(_seg_line(D, seg, vert))
                     continue
+            # 맞닿아 그린 같은 게이트 둘 (GT 위·아래 · G021) — 칸마다 같은 기능 낱말 한 줄이면 칸마다 블록 하나
+            if len(cells) >= 2 and all(abs(c[0] - cells[0][0]) < 1 and abs(c[2] - cells[0][2]) < 1 for c in cells):
+                got = []
+                for _, cs, vert in reads:
+                    lines = glyphs.lines(cs, vertical=vert) if cs else []
+                    w, s_, m = decode(D, cs, [x for x in words if funcs[words[x]]["logic"] not in ("sink", "source")]) \
+                        if len(lines) == 1 else (None, 0, 0)
+                    got.append((w, s_, m))
+                if all(w and s_ >= MIN_SCORE and m >= MIN_MARGIN for w, s_, m in got) and len({words[w] for w, _, _ in got}) == 1:
+                    split.append((b, got))
+                    continue
             b.func = "UNKNOWN"
             b.logic = "unknown"
             b.label = b.read
@@ -237,6 +250,7 @@ def classify(sheet, D):
             b.func = "UNKNOWN"
             b.logic = "unknown"
             b.label = b.read
+    _split_stacked(sheet, split, funcs, words)
     # 들어오는 단자가 없는 판정 못 한 상자 = 이름 붙은 신호 상자 (FLASH · AUTO 칸 — 입력으로 쓴다)
     has_in = {pt.block for pt in sheet.ports if pt.dir == "in"}
     for b in sheet.blocks.values():
@@ -245,6 +259,39 @@ def classify(sheet, D):
     _connector_groups(sheet)
     _step_roles(sheet, D)
     _macro_pins(sheet)
+
+
+def _split_stacked(sheet, split, funcs, words):
+    """맞닿은 칸을 블록 하나씩으로 — 단자는 그 칸의 높이로 가른다 (위·아래 변 단자는 가까운 칸)."""
+    for b, got in split:
+        cells = list(b.cells)
+        n = max(int(k[1:]) for k in sheet.blocks)
+        ids = []
+        for i, (cell, (w, s_, _)) in enumerate(zip(cells, got)):
+            nb = b if i == 0 else copy.copy(b)
+            if i:
+                n += 1
+                nb.id = f"B{n}"
+                nb.glyphs = []
+                sheet.blocks[nb.id] = nb
+            ids.append(nb.id)
+            nb.cells = [cell]
+            nb.bbox = tuple(cell)
+            nb.func = words[w]
+            nb.logic = funcs[nb.func]["logic"]
+            nb.label = w.replace("*", "t")
+            nb.score = round(s_, 3)
+            nb.roles = {}
+            nb.param = {}
+            nb.bus = [bs for bs in b.bus if min(bs[1], bs[3]) <= cell[3] and max(bs[1], bs[3]) >= cell[1]]
+        for pt in sheet.ports:
+            if pt.block != b.id:
+                continue
+            y = pt.at[1]
+            k = min(range(len(cells)), key=lambda i: 0 if cells[i][1] <= y <= cells[i][3]
+                    else min(abs(y - cells[i][1]), abs(y - cells[i][3])))
+            pt.block = ids[k]
+            pt.cell = 0
 
 
 def _connector_groups(sheet):

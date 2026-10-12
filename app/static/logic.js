@@ -71,8 +71,153 @@ async function loadJobs(select) {
     sel.insertAdjacentHTML("beforeend", `<option value="${x.id}">${esc(x.name)} · ${st}</option>`);
   }
   $("#samples").innerHTML = j.samples.map((n) => `<button data-sample="${esc(n)}" title="data/logic 의 샘플을 분석합니다">샘플: ${esc(n.replace(/\.pdf$/i, ""))}</button>`).join(" ");
-  const want = select || (location.hash.match(/job=([0-9a-f]{12})/) || [])[1] || (j.jobs[0] && j.jobs[0].id);
-  if (want) { sel.value = want; await openJob(want); }
+  sel.insertAdjacentHTML("afterbegin", `<option value="">— 묶음 고르기 —</option>`);
+  L.jobsList = j.jobs;
+  // 주소에 묶음이 있거나 방금 올린 묶음이면 그것을 열고, 아니면 첫 화면 (P&ID 와 같은 꼴 · L14)
+  const want = select || (location.hash.match(/job=([0-9a-f]{12})/) || [])[1];
+  if (want) { sel.value = want; hideHome(); await openJob(want); }
+  else { sel.value = ""; showHome(); }
+}
+
+/* ------------------------------------------------------------------ 첫 화면 (L14) — 프로젝트 · 자료 · 분석 이력 */
+const HOME = { projects: [], materials: [], files: {}, poll: null };
+function author() {
+  const u = new URLSearchParams(location.search).get("user");
+  if (u) return u;
+  try { return localStorage.getItem("pid.author") || ""; } catch (e) { return ""; }
+}
+function showHome() {
+  $("#home").hidden = false;
+  document.querySelector(".lg-main").hidden = true;
+  stopAnim(); closeForceMenu();
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  L.job = null;
+  $("#job").value = "";
+  for (const id of ["#ft-report", "#report"]) $(id).hidden = true;
+  $("#goto").disabled = true;
+  status("");
+  loadHome();
+}
+function hideHome() {
+  $("#home").hidden = true;
+  document.querySelector(".lg-main").hidden = false;
+  if (HOME.poll) { clearTimeout(HOME.poll); HOME.poll = null; }
+}
+async function loadHome() {
+  const [p, j] = await Promise.all([api("/logic/api/projects"), api("/logic/api/jobs")]);
+  HOME.projects = p.projects; HOME.materials = p.materials; L.jobsList = j.jobs;
+  const sel = $("#lh-project"), cur = sel.value || (() => { try { return localStorage.getItem("logic.project") || ""; } catch (e) { return ""; } })();
+  sel.innerHTML = `<option value="">(고르세요)</option>` + HOME.projects.map((x) => `<option value="${esc(x.name)}">${esc(x.name)} — 실행</option>`).join("");
+  if (HOME.projects.some((x) => x.name === cur)) sel.value = cur;
+  renderMaterials(); renderHomeLists(); updateGo();
+  if (HOME.poll) clearTimeout(HOME.poll);
+  if (j.jobs.some((x) => x.state === "queued" || x.state === "running"))
+    HOME.poll = setTimeout(() => { if (!$("#home").hidden) loadHome(); }, 3000);
+}
+function renderMaterials() {
+  $("#lh-materials").innerHTML = HOME.materials.map((m) => {
+    const f = HOME.files[m.kind];
+    return `<li data-kind="${m.kind}" class="${f ? "has" : ""}">
+      <div class="mh"><b>${esc(m.label)}</b> ${m.required ? `<span class="req">필수</span>` : `<span class="opt">선택</span>`}
+        <small>${m.ext.join(" · ")}</small></div>
+      <label class="drop">${f ? `<span class="fn">📄 ${esc(f.name)}</span> <small>${(f.size / 1048576).toFixed(1)} MB</small>`
+        : `여기에 놓거나 <u>파일 선택</u>`}<input type="file" accept="${m.ext.join(",")}" hidden></label>
+      ${f ? `<button class="mini clr" title="빼기">✕</button>` : ""}</li>`;
+  }).join("");
+  for (const li of document.querySelectorAll("#lh-materials li")) {
+    const kind = li.dataset.kind, inp = li.querySelector("input");
+    inp.onchange = () => { if (inp.files[0]) setMaterial(kind, inp.files[0]); };
+    const drop = li.querySelector(".drop");
+    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) setMaterial(kind, f); };
+    const c = li.querySelector(".clr");
+    if (c) c.onclick = () => { delete HOME.files[kind]; renderMaterials(); updateGo(); };
+  }
+}
+function setMaterial(kind, f) {
+  const m = HOME.materials.find((x) => x.kind === kind);
+  const ext = (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+  if (m && !m.ext.includes(ext)) { status(`${m.label} 는 ${m.ext.join(" · ")} 파일만 받습니다`); return; }
+  HOME.files[kind] = f; renderMaterials(); updateGo();
+}
+function updateGo() {
+  const p = $("#lh-project").value, lg = HOME.files.logic;
+  const why = !p ? "① 프로젝트를 먼저 고르세요" : !lg ? "② Logic Diagram PDF 는 필수입니다" : "";
+  $("#lh-why").textContent = why;
+  $("#lh-analyse").disabled = !!why;
+}
+async function analyseHome() {
+  const fd = new FormData();
+  for (const [k, f] of Object.entries(HOME.files)) fd.append(k, f);
+  fd.append("project", $("#lh-project").value);
+  fd.append("author", author());
+  $("#lh-analyse").disabled = true;
+  status("올리는 중…");
+  try {
+    const r = await api("/logic/api/jobs", { method: "POST", body: fd });
+    HOME.files = {};
+    await loadJobs(r.id);
+  } catch (err) { status("올리기 실패 — " + err.message); updateGo(); }
+}
+function fmtDate(t) {
+  if (!t) return "";
+  const d = new Date(t * 1000), z = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function jobLine(x) {
+  const mats = Object.keys(x.materials || { logic: 1 });
+  const lab = Object.fromEntries(HOME.materials.map((m) => [m.kind, m.label]));
+  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>`
+    : x.state === "failed" ? `<span class="bad">● 실패</span>`
+    : `<span class="run">● 분석 중 ${(x.progress && x.progress.percent) || 0}%</span>`;
+  return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
+    <div class="jm">${st} ${mats.map((k) => `<span class="mat">${esc(lab[k] || k)}</span>`).join("")}
+    <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}</div>
+    ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
+}
+function renderHomeLists() {
+  const jobs = L.jobsList || [];
+  const by = {};
+  for (const x of jobs) (by[x.project || ""] = by[x.project || ""] || []).push(x);
+  const cards = HOME.projects.slice().sort((a, b) => (b.created || 0) - (a.created || 0)).map((p) => {
+    const js = by[p.name] || [];
+    const last = js.find((x) => x.state === "done");
+    return `<div class="pj"><div class="pjh"><span class="ic">${esc(p.name.slice(0, 1).toUpperCase())}</span>
+      <div><b>${esc(p.name)}</b> <span class="lh-mode sm">실행</span><br><small>분석 ${js.length}건${last ? ` · 마지막 ${fmtDate(last.created)} · ${last.sheets}장` : ""}</small></div></div>
+      <ul class="pjj">${js.map(jobLine).join("") || `<li class="empty">위 ① 에서 이 프로젝트를 고르고 Logic PDF 를 넣으면 첫 분석이 됩니다.</li>`}</ul></div>`;
+  });
+  if ((by[""] || []).length)
+    cards.push(`<div class="pj loose"><div class="pjh"><span class="ic">–</span><div><b>프로젝트에 안 묶인 분석</b><br><small>${by[""].length}건</small></div></div>
+      <ul class="pjj">${by[""].map(jobLine).join("")}</ul></div>`);
+  $("#lh-projects").innerHTML = cards.join("") || `<p class="lh-help">아직 프로젝트가 없습니다 — 위 ① 의 <b>새 프로젝트</b>.</p>`;
+  $("#lh-recent").innerHTML = jobs.slice(0, 10).map(jobLine).join("") || `<li class="empty">분석 이력이 없습니다.</li>`;
+}
+function bindHome() {
+  $("#to-home").onclick = showHome;
+  $("#lh-project").onchange = (e) => { try { localStorage.setItem("logic.project", e.target.value); } catch (er) {} updateGo(); };
+  $("#lh-newproj").onclick = () => { $("#lh-newbox").hidden = false; $("#lh-newname").focus(); };
+  $("#lh-cancel").onclick = () => { $("#lh-newbox").hidden = true; };
+  const create = async () => {
+    try {
+      const p = await post("/logic/api/projects", { name: $("#lh-newname").value, author: author() });
+      $("#lh-newbox").hidden = true; $("#lh-newname").value = "";
+      try { localStorage.setItem("logic.project", p.name); } catch (e) {}
+      $("#lh-project").value = p.name;
+      await loadHome(); $("#lh-project").value = p.name; updateGo();
+      status(`프로젝트 '${p.name}' 를 만들었습니다 — 실행 프로젝트`);
+    } catch (err) { status("만들지 못했습니다 — " + err.message); }
+  };
+  $("#lh-create").onclick = create;
+  $("#lh-newname").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) create(); };
+  $("#lh-analyse").onclick = analyseHome;
+  $("#home").addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-job]");
+    if (!li) return;
+    hideHome();
+    $("#job").value = li.dataset.job;
+    openJob(li.dataset.job);
+  });
 }
 
 async function openJob(id) {
@@ -780,6 +925,41 @@ function setForce(key, v) {
   runSim(true);
 }
 
+/* L14 — 출력 하나를 고르면 서버가 범례 정의(G003)를 거꾸로 따라 입력 조합을 찾고 앞으로 돌려 확인한다.
+   찾은 조합을 이 시트의 강제 신호로 넣고 흐름을 그린다 — 입력부터 최종 출력까지 모든 신호가 서는 모습. */
+function isOutRow(key) {
+  if (!key.startsWith("row:") || !L.sheet) return false;
+  const n = Number(key.slice(4));
+  return L.sheet.rows.some((r) => r.n === n && r.side === "R" && r.net != null);
+}
+async function runScenario(key) {
+  status("동작 예시를 찾는 중…");
+  let r;
+  try { r = await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/scenario`, { target: key }); }
+  catch (e) { status("동작 예시를 찾지 못했습니다 — " + e.message); return; }
+  if (!r.ok) { status("⚠ " + (r.why || "이 출력까지 가는 입력 조합을 찾지 못했습니다")); L.scenario = { key, ok: false, why: r.why }; renderInfo(); return; }
+  if (L.mode !== "sim") setMode("sim", true);
+  const f = {};
+  for (const [k, v] of Object.entries(r.forces)) if (v === 1 || k.startsWith("net:")) f[k] = v;
+  L.forces = L.allForces[L.page] = f;
+  L.states = {}; L.state = null; L.values = {};
+  L.scenario = { key, ok: true, forces: f, direct: r.direct_nets || [], at: r.at };
+  const ins = Object.keys(f).filter((k) => f[k] === 1).map(scenarioName);
+  status(`⚡ ${key.replace("row:", "출력 ")} 동작 예시 — 입력 ${ins.length}개: ${ins.join(" · ")}` +
+         (r.direct_nets && r.direct_nets.length ? ` (몰이를 못 읽은 선 ${r.direct_nets.length}개는 직접 주었습니다)` : ""));
+  await runSim(true);
+  renderInfo();
+}
+function scenarioName(k) {
+  if (k.startsWith("row:")) {
+    const n = Number(k.slice(4));
+    const row = L.sheet.rows.find((r) => r.n === n && r.side === "L");
+    return `입력 ${n}` + (row && row.desc ? ` ${row.desc}` : "");
+  }
+  if (k.startsWith("block:")) { const b = L.sheet.blocks[k.slice(6)]; return (b && (b.label || b.func)) || k; }
+  return "선 " + k.slice(4);
+}
+
 /* 입력 신호를 누르면 그 자리에 작은 메뉴 — 1 활성 / 0 비활성 / 해제 (사용자 지시 L4) */
 function closeForceMenu() {
   const m = document.getElementById("force-menu");
@@ -797,7 +977,8 @@ function forceMenu(key, e, label, up) {
     `<button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (activate)</button>` +
     `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성 (deactivate)</button>` +
     (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") +
-    (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "");
+    (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "") +
+    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "");
   document.body.appendChild(m);
   const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
   const r = m.getBoundingClientRect();
@@ -809,6 +990,7 @@ function forceMenu(key, e, label, up) {
     if (!b) return;
     closeForceMenu();
     if (b.dataset.v === "t") { traceFrom(key, !!up); return; }
+    if (b.dataset.v === "s") { runScenario(key); return; }
     setForce(key, b.dataset.v === "x" ? null : Number(b.dataset.v));
   });
 }
@@ -947,7 +1129,8 @@ function renderRows() {
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
     const toRest = String(r.to || "").replace(REF_RE, "").replace(/[\s)(]+/g, " ").trim();
     const to = r.side === "R" && toRest ? ` <small>TO ${esc(toRest)}</small>` : "";
-    const right = L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "";
+    const ex = r.side === "R" && r.net != null ? `<button class="mini ex" data-ex="row:${r.n}" title="이 출력까지 입력부터 모든 신호가 서는 동작 예시를 찾아 보여 줍니다">⚡예시</button>` : "";
+    const right = (L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "") + ex;
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
     const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
@@ -956,6 +1139,8 @@ function renderRows() {
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
   $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
+  for (const b of document.querySelectorAll("#out-rows button[data-ex]"))
+    b.onclick = (ev) => { ev.stopPropagation(); runScenario(b.dataset.ex); };
 }
 /* from-to 대조 한 줄 — 서버(app/logic/fromto.py)가 판정한 그대로 */
 function ftText(r) {
@@ -1067,8 +1252,8 @@ function renderInfo() {
 function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
-    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다."
-    : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. 게이트는 범례대로 — AND 는 모든 입력이 따라와야 지나고, 못 지나면 붉게 멈춥니다. <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지). 행 동그라미(입력·출력)를 누르면 <b>1 활성 / 0 비활성</b>을 고릅니다 — 출력 행이 1 이면 그 행의 TO·FM 으로 이어진 다른 시트로 계속 이어집니다.";
+    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다. 출력 행 동그라미나 오른쪽 출력 행의 <b>⚡예시</b> 를 누르면 그 출력까지 <b>입력부터 최종 출력까지 모든 신호가 서는 입력 조합</b>을 찾아 흐름을 보여 줍니다."
+    : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. 게이트의 다른 입력이 활성이 아니어도 연결을 따라 끝까지 갑니다 (게이트 조건은 동작 시뮬레이션이 지킵니다). <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지). 행 동그라미(입력·출력)를 누르면 <b>1 활성 / 0 비활성</b>을 고릅니다 — 출력 행이 1 이면 그 행의 TO·FM 으로 이어진 다른 시트로 계속 이어집니다.";
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
     : `<span><i style="background:var(--trace)"></i>따라가는 신호</span><span><i style="background:var(--trace-up)"></i>거슬러 올라감</span><span><i style="background:rgba(47,91,216,.5)"></i>읽은 선</span><span><i style="background:var(--unk)"></i>판정 못 한 블록</span>`;
@@ -1409,17 +1594,8 @@ function bindExtras() {
 /* ------------------------------------------------------------------ 이벤트 */
 
 function bind() {
-  $("#job").onchange = (e) => e.target.value && openJob(e.target.value);
+  $("#job").onchange = (e) => { if (e.target.value) { hideHome(); openJob(e.target.value); } else showHome(); };
   $("#sheet-filter").oninput = renderSheetList;
-  $("#upload").onchange = async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const fd = new FormData(); fd.append("file", f);
-    status("올리는 중…");
-    try { const r = await api("/logic/api/jobs", { method: "POST", body: fd }); await loadJobs(r.id); }
-    catch (err) { status("올리기 실패 — " + err.message); }
-    e.target.value = "";
-  };
   $("#ft-report").onclick = () => showFromTo();
   $("#ft-modal").onclick = (e) => {
     if (e.target.id === "ft-modal" || e.target.id === "ft-close") { closeFromTo(); return; }
@@ -1511,6 +1687,7 @@ function bind() {
 }
 
 bind();
+bindHome();
 initPan();
 renderHelp();
 loadJobs().catch((e) => status(e.message));

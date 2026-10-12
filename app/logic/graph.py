@@ -138,10 +138,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     groups = _touching_groups(rects, tol)
 
     blocks = []
+    # 블록 이름은 겹치지 않게 — 빗금 표시로 판정해 빠진 블록 뒤에 len+1 을 쓰면 앞 블록과 같은 이름이 되어
+    # 한쪽이 사라졌다 (G009 의 AND 가 램프 G 에 덮였다)
+    nid = lambda: f"B{max([int(b.id[1:]) for b in blocks] + [0]) + 1}"
     for g in groups:
         bb = (min(r.x0 for r in g), min(r.y0 for r in g), max(r.x1 for r in g), max(r.y1 for r in g))
         cells = sorted(((r.x0, r.y0, r.x1, r.y1) for r in g), key=lambda c: (round(c[1], 1), c[0]))
-        blocks.append(Block(f"B{len(blocks) + 1}", "RECT", bb, cells=cells))
+        blocks.append(Block(nid(), "RECT", bb, cells=cells))
 
     # 입력 막대에 붙은 ㄷ자 꺾은선 = 막대와 함께 닫힌 상자 (상자를 qu 대신 선으로 그린 AND 게이트)
     straight = [p for p in wires if len(p.segs) == 1 and (p.segs[0].vert or p.segs[0].horiz)]
@@ -161,7 +164,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                     cell = (bb[0], min(bb[1], s0.y0), bb[2], max(bb[3], s0.y0))
                 if cell[2] - cell[0] < RECT_MIN * P or cell[3] - cell[1] < RECT_MIN * P:
                     continue
-                blocks.append(Block(f"B{len(blocks) + 1}", "RECT", cell, cells=[cell]))
+                blocks.append(Block(nid(), "RECT", cell, cells=[cell]))
                 wires.remove(p)
                 break
 
@@ -232,9 +235,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 원 블록 · 연결 기호 (원 + 칠한 꼭지 삼각형)
     pointer_arrows = set()
-    straight1 = [p for p in wires + glyphs if len(p.segs) == 1]
+    tri_cand = [p for p in wires + glyphs if len(p.segs) <= 3 and all(sg.length > 0 for sg in p.segs)]
     for c in bigc:
-        b = Block(f"B{len(blocks) + 1}", "CIRCLE", c.bbox)
+        b = Block(nid(), "CIRCLE", c.bbox)
         for k, a in enumerate(arrows):
             if abs(_d(a.base, (c.cx, c.cy)) - c.r) <= max(tol, 0.25 * c.r) and _d(a.tip, (c.cx, c.cy)) > c.r:
                 b.kind = "CONNECTOR"
@@ -243,28 +246,35 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 break
         if b.kind == "CIRCLE":
             # 선 둘이 원에서 나와 한 꼭지에서 만나면 꼭지 삼각형 (안을 빗금으로 칠한 양식)
+            # 꼭지 삼각형의 두 변은 한 경로(선 셋)로 그리기도 한다 · 안의 빗금(서로 붙은 짧은 획)이
+            # 원에 닿아 가짜 꼭지를 만들지 않게, 두 변이 원 위에서 벌어져야 하고(밑변 = 현) 가장 먼 꼭지를 쓴다
             on_c = []
-            for p in straight1:
-                e0, e1 = p.segs[0].ends()
-                for a_, t_ in ((e0, e1), (e1, e0)):
-                    if abs(_d(a_, (c.cx, c.cy)) - c.r) <= max(tol, 0.25 * c.r) and _d(t_, (c.cx, c.cy)) > c.r * 1.2:
-                        on_c.append((p, t_))
+            for p in tri_cand:
+                for sg in p.segs:
+                    e0, e1 = sg.ends()
+                    for a_, t_ in ((e0, e1), (e1, e0)):
+                        if abs(_d(a_, (c.cx, c.cy)) - c.r) <= max(tol, 0.25 * c.r) and _d(t_, (c.cx, c.cy)) > c.r * 1.2:
+                            on_c.append((p, t_, a_))
+            best = None
             for i in range(len(on_c)):
                 for j in range(i + 1, len(on_c)):
-                    if _d(on_c[i][1], on_c[j][1]) <= tol:
-                        tip = on_c[i][1]
-                        b.kind = "CONNECTOR"
-                        b.pointer = tip
-                        tri = (min(tip[0], c.cx), min(tip[1], c.cy - c.r), max(tip[0], c.cx), max(tip[1], c.cy + c.r))
-                        drop = {id(on_c[i][0]), id(on_c[j][0])}
-                        drop |= {id(p) for p in glyphs if len(p.segs) == 1 and p.bbox[0] >= min(c.cx + c.r * 0.5, tip[0]) - tol
-                                 and _in_rect((p.bbox[0], p.bbox[1]), tri, tol) and _in_rect((p.bbox[2], p.bbox[3]), tri, tol)
-                                 and not _in_rect(((p.bbox[0] + p.bbox[2]) / 2, (p.bbox[1] + p.bbox[3]) / 2), c.bbox, -tol)}
-                        wires = [p for p in wires if id(p) not in drop]
-                        glyphs = [p for p in glyphs if id(p) not in drop]
-                        break
-                if b.kind == "CONNECTOR":
-                    break
+                    if (on_c[i][0] is not on_c[j][0] or len(on_c[i][0].segs) > 1) and \
+                            _d(on_c[i][1], on_c[j][1]) <= tol and _d(on_c[i][2], on_c[j][2]) >= 0.5 * c.r:
+                        far = _d(on_c[i][1], (c.cx, c.cy))
+                        if best is None or far > best[0]:
+                            best = (far, i, j)
+            if best is not None:
+                _, i, j = best
+                tip = on_c[i][1]
+                b.kind = "CONNECTOR"
+                b.pointer = tip
+                tri = (min(tip[0], c.cx), min(tip[1], c.cy - c.r), max(tip[0], c.cx), max(tip[1], c.cy + c.r))
+                drop = {id(on_c[i][0]), id(on_c[j][0])}
+                drop |= {id(p) for p in glyphs if len(p.segs) == 1 and p.bbox[0] >= min(c.cx + c.r * 0.5, tip[0]) - tol
+                         and _in_rect((p.bbox[0], p.bbox[1]), tri, tol) and _in_rect((p.bbox[2], p.bbox[3]), tri, tol)
+                         and not _in_rect(((p.bbox[0] + p.bbox[2]) / 2, (p.bbox[1] + p.bbox[3]) / 2), c.bbox, -tol)}
+                wires = [p for p in wires if id(p) not in drop]
+                glyphs = [p for p in glyphs if id(p) not in drop]
         b.circle = c
         blocks.append(b)
 
@@ -295,7 +305,11 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         s = p.segs[0]
         if not (s.vert or s.horiz):
             continue
-        if not any(_on_seg(a.tip, s, tol)[0] for a in tip_arrows):
+        # 화살은 막대를 가로질러 꽂힌다 — 화살과 나란한 선은 그 화살이 달린 신호선이지 막대가 아니다
+        # (선이 꼭지를 조금 지나 상자 변까지 그려진 G012 AND 입력 실측)
+        if not any(_on_seg(a.tip, s, tol)[0] and
+                   (abs(a.tip[1] - a.base[1]) > abs(a.tip[0] - a.base[0]) if s.horiz else
+                    abs(a.tip[0] - a.base[0]) > abs(a.tip[1] - a.base[1])) for a in tip_arrows):
             continue
         b = _block_touching_bus(s, blocks, tol)
         if b is not None:
@@ -312,6 +326,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 선 잇기 (union-find on segments)
     segs = []                           # (seg, poly)
+    seen_seg = set()
     flick_tips = []
     for p in wires:
         for s in p.segs:
@@ -319,7 +334,31 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             # 획을 선으로 치면 그 끝이 '닿은 끝' 이 되어 받는 게이트의 단자가 서지 않는다 (G012 OR 입력 막대 실측).
             if not (s.vert or s.horiz) and s.length < GLYPH_MAX * P and _flick(s, p, tol, GLYPH_MAX * P):
                 continue
+            # 같은 선을 두 번 그린 것(겹선)은 하나 — 겹친 짝이 서로의 끝을 '닿은 끝' 으로 만들어 단자가
+            # 서지 않았다 (G037 GT → STEP_IN 실측)
+            k = tuple(sorted(((round(s.x0, 2), round(s.y0, 2)), (round(s.x1, 2), round(s.y1, 2)))))
+            if k in seen_seg:
+                continue
+            seen_seg.add(k)
             segs.append((s, p))
+    # 다른 선 위에 통째로 포개진 짧은 축 선분(덧그린 토막)도 뺀다 — 그 끝이 긴 선의 끝을 '닿은 끝' 으로
+    # 만들어 게이트 출력 단자가 서지 않았다 (G013 OR 출력 위 1.9pt 덧선 실측)
+    lines_ = defaultdict(list)
+    for i, (sg, p) in enumerate(segs):
+        if sg.horiz:
+            lines_[("h", round(sg.y0, 1))].append((min(sg.x0, sg.x1), max(sg.x0, sg.x1), i))
+        elif sg.vert:
+            lines_[("v", round(sg.x0, 1))].append((min(sg.y0, sg.y1), max(sg.y0, sg.y1), i))
+    inner = set()
+    for spans in lines_.values():
+        if len(spans) < 2:
+            continue
+        for a0, a1, i in spans:
+            if any(j != i and b0 <= a0 + 0.01 and b1 >= a1 - 0.01 and (b1 - b0) > (a1 - a0) + 0.01
+                   for b0, b1, j in spans):
+                inner.add(i)
+    if inner:
+        segs = [x for i, x in enumerate(segs) if i not in inner]
     parent = list(range(len(segs)))
 
     def find(i):
@@ -491,6 +530,20 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 선 끝 붙이기
     deg = defaultdict(int)              # 끝점이 다른 조각과 닿는가
+    # 상자 변 위의 속 빈 작은 원 = 그 상자의 단자 (매크로 블록이 단자를 원으로 그린다 · G061 MOTOR GROUP BLOCK)
+    pin_dot = {}
+    for c in dots:
+        for b in blocks:
+            if b.kind != "RECT":
+                continue
+            for ci, cell_ in enumerate(b.cells):
+                side = _rect_edge((c.cx, c.cy), cell_, max(tol, c.r))
+                if side in ("L", "R"):
+                    pin_dot[id(c)] = (b, ci, side)
+                    break
+            if id(c) in pin_dot:
+                break
+    pin_ports = []
     for i, (s, p) in enumerate(segs):
         for e in s.ends():
             if not joinable(e, p):
@@ -504,6 +557,10 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 for c in dots:
                     if _d(e, (c.cx, c.cy)) <= c.r + tol:
                         touched = True
+                        pd = pin_dot.get(id(c))
+                        if pd is not None and (s.horiz if pd[2] in ("L", "R") else s.vert):
+                            b_, ci_, side_ = pd
+                            pin_ports.append((i, b_, ci_, side_, (c.cx, c.cy)))
                         break
             if not touched and any(_d(e, q) < 1e-6 for br in bridged for q in br):
                 touched = True
@@ -511,6 +568,14 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 deg[(i, e)] = 0
 
     used_arrows = set()
+    seen_pin = set()
+    for i, b_, ci_, side_, at in pin_ports:
+        k = (b_.id, round(at[0], 2), round(at[1], 2), seg_net[i])
+        if k in seen_pin:
+            continue
+        seen_pin.add(k)
+        sh.ports.append(Port(b_.id, seg_net[i], "in" if side_ == "L" else "out",
+                             (round(at[0], 2), round(at[1], 2)), side_, ci_))
     for (i, e) in list(deg):
         net = seg_net[i]
         att = _attach(e, segs[i][0], blocks, tip_arrows, bus_of, lay, tol, markers)
@@ -592,14 +657,18 @@ def _assemble_rects(polys, rects, P, tol):
     H.sort(key=lambda h: h[2])
     out, used = [], set()
     have = [(r.x0, r.y0, r.x1, r.y1) for r in rects]
+    edge = set()                            # 이미 어느 상자의 변이 된 가로선 (다른 상자의 변으로 다시 쓰지 않는다)
     for i, (a0, a1, ya, pa) in enumerate(H):
-        if a1 - a0 > 6 * P:
+        if a1 - a0 > 6 * P or i in edge:
             continue
-        for b0, b1, yb, pb in H[i + 1:]:
+        # 마주 보는 아래 변 — 폭이 가장 잘 맞는 것 (겹 테두리 · 깎은 모서리 단추(G013 OPEN/STOP/CLOSE/AUTO)는
+        # 안쪽 테두리가 바깥과 폭이 조금 달라 '처음 맞는 것' 을 고르면 이웃 단추의 변과 짝지어졌다)
+        best = None
+        for k, (b0, b1, yb, pb) in enumerate(H[i + 1:], start=i + 1):
             h = yb - ya
             if h > 6 * P:
                 break
-            if h < RECT_MIN * P:
+            if h < RECT_MIN * P or k in edge:
                 continue
             w = min(a1, b1) - max(a0, b0)
             g = 0.25 * min(w, h)
@@ -614,20 +683,29 @@ def _assemble_rects(polys, rects, P, tol):
                 sides.append(cand[0])
             if len(sides) != 2:
                 continue
-            bb = (x0, ya, x1, yb)
-            area = (bb[2] - bb[0]) * (bb[3] - bb[1])
-            if any(_overlap_frac(bb, q) > 0.5 and (q[2] - q[0]) * (q[3] - q[1]) < 3 * area for q in have):
-                continue
-            out.append(geom.Rect(*bb))
-            have.append(bb)
-            # 상자 변으로만 쓰인 선만 치운다 — 상자보다 긴 세로선은 입력 막대일 수 있다 (그대로 둔다)
-            for q, span in ((pa, (a0, a1)), (pb, (b0, b1))):
-                if len(q.segs) == 1 or q.size <= (x1 - x0) + g:
-                    used.add(id(q))
-            for v in sides:
-                if v[1] - v[0] <= h + 2 * g and (len(v[3].segs) == 1 or v[3].size <= max(h, x1 - x0) + 2 * g):
-                    used.add(id(v[3]))
-            break
+            miss = abs(a0 - b0) + abs(a1 - b1)
+            if best is None or miss < best[0] - 0.01 or (abs(miss - best[0]) <= 0.01 and h < best[1]):
+                best = (miss, h, k, b0, b1, yb, pb, x0, x1, sides, g)
+        if best is None:
+            continue
+        _, h, k, b0, b1, yb, pb, x0, x1, sides, g = best
+        bb = (x0, ya, x1, yb)
+        area = (bb[2] - bb[0]) * (bb[3] - bb[1])
+        if any(_overlap_frac(bb, q) > 0.5 and (q[2] - q[0]) * (q[3] - q[1]) < 3 * area for q in have):
+            continue
+        out.append(geom.Rect(*bb))
+        have.append(bb)
+        edge.update((i, k))
+        # 상자 안쪽의 가로선(겹 테두리의 안쪽 변)도 이 상자의 것이다 — 이웃 상자의 변과 짝짓지 않는다
+        edge.update(j for j, (c0, c1, yc, _) in enumerate(H)
+                    if ya - tol <= yc <= yb + tol and c0 >= x0 - tol and c1 <= x1 + tol)
+        # 상자 변으로만 쓰인 선만 치운다 — 상자보다 긴 세로선은 입력 막대일 수 있다 (그대로 둔다)
+        for q, span in ((pa, (a0, a1)), (pb, (b0, b1))):
+            if len(q.segs) == 1 or q.size <= (x1 - x0) + g:
+                used.add(id(q))
+        for v in sides:
+            if v[1] - v[0] <= h + 2 * g and (len(v[3].segs) == 1 or v[3].size <= max(h, x1 - x0) + 2 * g):
+                used.add(id(v[3]))
     return out, used
 
 
@@ -809,11 +887,33 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
                         return "port", (b, "in", "", 0, tip, k)
             if abs(tip[0] - LX1) <= tol * 3:
                 return "row", ("R", _row_at(lay.right_rows, tip[1]))
+            # 꼭지는 선(연결점)에 꽂히고 밑동이 블록 변에 붙어 있다 — 블록 출력이 화살 하나로 선에 들어간다
+            # (G009 NOT ▶○ FLT 실측: NOT 과 연결점 사이에 선이 없다)
+            for b in blocks:
+                if b.kind == "RECT":
+                    for ci, c in enumerate(b.cells):
+                        side = _rect_edge(a.base, c, tol * 2)
+                        if side:
+                            return "port", (b, "out", side, ci, a.base, None)
+                else:
+                    c = b.circle
+                    if abs(_d(a.base, (c.cx, c.cy)) - c.r) <= tol * 2:
+                        return "port", (b, "out", "", 0, a.base, None)
             return "arrow-nowhere", tip
     # 2) 연결 기호의 꼭지에서 나가는 선
     for b in blocks:
         if b.kind == "CONNECTOR" and b.pointer and _d(e, b.pointer) <= tol * 2:
             return "port", (b, "out", "", 0, e, None)
+        # 선이 꼭지 삼각형 안쪽에서 시작한다 (빗금 칠한 꼭지 · G012 'R' 실측) — 원과 꼭지 사이, 축 가까이
+        if b.kind == "CONNECTOR" and b.pointer and getattr(b, "circle", None) is not None:
+            c = b.circle
+            ax = (b.pointer[0] - c.cx, b.pointer[1] - c.cy)
+            L = math.hypot(*ax)
+            if L > 0:
+                t = ((e[0] - c.cx) * ax[0] + (e[1] - c.cy) * ax[1]) / L
+                off = abs((e[0] - c.cx) * ax[1] - (e[1] - c.cy) * ax[0]) / L
+                if c.r - tol <= t <= L + tol and off <= 0.5 * c.r:
+                    return "port", (b, "out", "", 0, e, None)
     # 3) 상자 변 · 원
     for b in blocks:
         if b.kind == "RECT":

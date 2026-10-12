@@ -9,12 +9,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 import pymupdf
-from fastapi import APIRouter, Body, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, memo, report, sim, store
+from . import fromto, memo, projects, report, sim, store
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -105,19 +105,75 @@ def _samples():
     return sorted(p.name for p in d.glob("*.pdf"))
 
 
+def _safe_file(name: str) -> str:
+    n = Path(name or "file").name
+    n = "".join("_" if c in '\\/:*?"<>|' or ord(c) < 32 else c for c in n).strip() or "file"
+    while len(n.encode("utf-8")) > 150:
+        n = n[:-1]
+    return n
+
+
+@router.get("/logic/api/projects")
+def list_projects():
+    """LOGIC 프로젝트 (실행 전용) 와 자료 종류 — 첫 화면이 읽는다."""
+    return {"projects": projects.load(),
+            "materials": [{"kind": k, "label": lb, "required": req, "ext": list(ex)} for k, lb, req, ex in projects.MATERIALS]}
+
+
+@router.post("/logic/api/projects")
+def create_project(body: dict = Body(...)):
+    try:
+        return projects.create(str(body.get("name", "")), str(body.get("author", "")))
+    except projects.NameError_ as e:
+        raise HTTPException(400, str(e))
+    except FileExistsError as e:
+        raise HTTPException(409, f"같은 이름의 프로젝트가 있습니다: {e}")
+
+
 @router.post("/logic/api/jobs")
-async def upload(file: UploadFile = File(...)):
-    name = Path(file.filename or "logic.pdf").name
+async def upload(file: UploadFile | None = File(None), logic: UploadFile | None = File(None),
+                 loop: UploadFile | None = File(None), sysdesc: UploadFile | None = File(None),
+                 iolist: UploadFile | None = File(None), logictable: UploadFile | None = File(None),
+                 project: str = Form(""), author: str = Form("")):
+    """자료를 받아 분석을 시작한다.  Logic Diagram(`logic`, 옛 이름 `file`)은 필수이고 지금은 그것만 분석한다 —
+    나머지 넷은 분석 폴더의 materials/ 에 그대로 보관한다 (교차 분석은 추후)."""
+    lg = logic or file
+    if lg is None or not (lg.filename or "").strip():
+        raise HTTPException(400, "Logic Diagram PDF 는 필수입니다.")
+    project = (project or "").strip()
+    if project and not projects.exists(project):
+        raise HTTPException(400, f"그런 LOGIC 프로젝트가 없습니다: {project}")
+    extra = {"loop": loop, "sysdesc": sysdesc, "iolist": iolist, "logictable": logictable}
+    allowed = {k: ex for k, _, _, ex in projects.MATERIALS}
+    for k, f in extra.items():
+        if f is not None and (f.filename or "").strip():
+            if not Path(f.filename).suffix.lower() in allowed[k]:
+                raise HTTPException(400, f"{dict((a, b) for a, b, *_ in projects.MATERIALS)[k]} 는 "
+                                         f"{' · '.join(allowed[k])} 파일만 받습니다: {f.filename}")
+    name = Path(lg.filename or "logic.pdf").name
     job, d = store.new_job(name)
     with open(d / "source.pdf", "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        shutil.copyfileobj(lg.file, f)
     try:
         _check_pdf(d / "source.pdf")
     except HTTPException:
         shutil.rmtree(d, ignore_errors=True)
         raise
+    mats = {"logic": name}
+    for k, f in extra.items():
+        if f is None or not (f.filename or "").strip():
+            continue
+        md = d / "materials"
+        md.mkdir(exist_ok=True)
+        fn = _safe_file(f.filename)
+        with open(md / f"{k}__{fn}", "wb") as out:
+            shutil.copyfileobj(f.file, out)
+        mats[k] = fn
+    st = store.read_status(d)
+    st.update({"project": project, "materials": mats, "author": (author or "").strip()[:60]})
+    store.write_status(d, st)
     _start(d)
-    return {"id": job}
+    return {"id": job, "materials": mats}
 
 
 @router.post("/logic/api/jobs/sample")
@@ -288,6 +344,17 @@ def trace(job: str, page: int, body: dict = Body(default={})):
     if not start.split(":", 1)[0] in ("net", "row", "block"):
         raise HTTPException(400, "start 는 net:<id> · row:<n> · block:<id> 입니다.")
     return sim.trace(s, start, direction)
+
+
+@router.post("/logic/api/jobs/{job}/sheet/{page}/scenario")
+def scenario(job: str, page: int, body: dict = Body(default={})):
+    """L14 — 이 출력까지 모든 신호가 서는 입력 조합 (범례 G003 정의를 거꾸로 · 앞으로 돌려 확인)."""
+    res = _result(job)
+    s = _sheet(job, page)
+    target = str(body.get("target", ""))
+    if not (target.startswith("row:") and target[4:].isdigit() or target.startswith("net:")):
+        raise HTTPException(400, "target 은 row:<n> · net:<id> 입니다.")
+    return sim.scenario(s, target, 1, sheets=res["sheets"])
 
 
 @router.delete("/logic/api/jobs/{job}")

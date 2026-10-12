@@ -89,7 +89,8 @@ def jobs() -> list:
             continue
         st = read_status(d)
         out.append({"id": d.name, **{k: st.get(k) for k in ("state", "name", "created", "stage", "done", "total",
-                                                             "error", "sheets", "seconds")}})
+                                                             "error", "sheets", "seconds", "project", "materials",
+                                                             "pages", "author")}})
     return out
     return res
 

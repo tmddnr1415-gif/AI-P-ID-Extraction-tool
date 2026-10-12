@@ -82,6 +82,11 @@ def _rows(sh, D):
         grid[int(((p.bbox[1] + p.bbox[3]) / 2) // max(lay.pitch, 1))].append(p)
 
     def cell_text(x0, x1, a, b):
+        # 진짜 글자로 인쇄한 칸이 먼저다 (G005 처럼 표를 글자로 내보낸 장) — 선 글자 사전으로 읽을 일이 없다
+        ws = sorted((w for w in sh.words if x0 < (w[0] + w[2]) / 2 < x1 and a < (w[1] + w[3]) / 2 < b),
+                    key=lambda w: (round((w[1] + w[3]) / 2), w[0]))
+        if ws:
+            return " ".join(w[4] for w in ws).strip()
         ps = []
         for k in range(int(a // lay.pitch) - 1, int(b // lay.pitch) + 2):
             for p in grid.get(k, []):
