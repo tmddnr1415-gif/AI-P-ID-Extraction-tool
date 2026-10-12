@@ -258,3 +258,51 @@ body.lg-full .lg-view { position: fixed; inset: 0; z-index: 40; background: var(
 .macro-banner small { color: #4a6a80; }
 .force-menu .fm-why { font-size: 12px; color: #8a2d28; padding: 4px 8px; max-width: 320px; }
 #ov .blk.macro { stroke: #00b4ff; stroke-dasharray: 3 2; }
+
+/* L13 — 분석 진행 · From-To 점검 보고 · 리마인드 */
+.lg-prog { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(246,248,252,.92); z-index: 5; }
+.pg-card { width: min(560px, 90%); background: #fff; border: 1px solid #d8deea; border-radius: 10px; padding: 22px 26px; box-shadow: 0 6px 24px rgba(31,45,77,.12); }
+.pg-card h2 { margin: 0 0 4px; font-size: 18px; color: #1f2d4d; }
+.pg-card h2 b { color: #2f5bd8; font-size: 22px; margin-left: 6px; }
+.pg-card.fail h2 { color: #c2453f; }
+.pg-name { margin: 0 0 14px; color: #555e6e; font-size: 13px; word-break: break-all; }
+.pg-bar { height: 14px; border-radius: 7px; background: #e6ebf5; overflow: hidden; }
+.pg-fill { height: 100%; background-color: #2f5bd8; transition: width .6s ease;
+  background-image: linear-gradient(45deg, rgba(255,255,255,.22) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.22) 50%, rgba(255,255,255,.22) 75%, transparent 75%);
+  background-size: 22px 22px; animation: pgmove 1s linear infinite; }
+.pg-bar.unknown .pg-fill { width: 30% !important; animation: pgslide 1.4s ease-in-out infinite; }
+@keyframes pgmove { from { background-position: 0 0; } to { background-position: 22px 0; } }
+@keyframes pgslide { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+.pg-stage { margin: 12px 0 2px; font-weight: 600; color: #1f2d4d; }
+.pg-time { margin: 0; color: #3b4252; font-size: 13px; }
+.pg-basis { margin: 4px 0 0; color: #8a93a6; font-size: 12px; }
+.pg-note { margin: 14px 0 0; padding-top: 10px; border-top: 1px dashed #d8deea; color: #555e6e; font-size: 12.5px; }
+.lg-modal { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.lg-modal[hidden] { display: none; }
+.lg-modal-box { width: min(1100px, 94vw); max-height: 88vh; overflow: auto; background: #fff; border-radius: 10px; padding: 18px 22px; }
+.lg-modal-box h2 { margin: 0 0 12px; font-size: 18px; } .lg-modal-box h2 small { color: #8a93a6; font-weight: 400; font-size: 13px; margin-left: 8px; }
+.lg-modal-box h3 { margin: 16px 0 6px; font-size: 14px; } .lg-modal-box h3 small { color: #8a93a6; font-weight: 400; }
+.ft-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.ft-c { border: 1px solid #d8deea; border-radius: 8px; padding: 10px 12px; } .ft-c b { display: block; font-size: 24px; color: #1f2d4d; }
+.ft-c span { color: #555e6e; font-size: 12.5px; } .ft-c.ok b { color: #0f8f80; } .ft-c.bad { border-color: #d1242f; background: #fff1f0; }
+.ft-c.bad b { color: #d1242f; } .ft-c.warn b { color: #b07614; }
+.ft-scroll { max-height: 42vh; overflow: auto; border: 1px solid #eef1f6; border-radius: 6px; }
+.ft-t { width: 100%; border-collapse: collapse; font-size: 12.5px; } .ft-t th { position: sticky; top: 0; background: #f4f6fa; text-align: left; }
+.ft-t td, .ft-t th { padding: 4px 8px; border-bottom: 1px solid #eef1f6; vertical-align: top; } .ft-t tr[data-ft] { cursor: pointer; }
+.ft-t tr[data-ft]:hover { background: #fff6e0; } .ft-none { color: #0f8f80; }
+.ft-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; } .btn.primary { background: #2f5bd8; color: #fff; }
+.lg-view { position: relative; }
+.lg-remind { position: absolute; top: 56px; right: 14px; z-index: 6; width: 360px; max-height: 60%; overflow: auto; background: #fff;
+  border: 2px solid #d1242f; border-radius: 8px; box-shadow: 0 6px 20px rgba(209,36,47,.25); font-size: 12.5px; }
+.lg-remind[hidden] { display: none; }
+.rm-h { background: #d1242f; color: #fff; padding: 6px 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.rm-h small { font-weight: 400; opacity: .9; } .rm-x { margin-left: auto; background: transparent; color: #fff; border: 0; cursor: pointer; font-size: 14px; }
+.lg-remind ul { list-style: none; margin: 0; padding: 0; } .lg-remind li { padding: 7px 10px; border-bottom: 1px solid #f3d6d4; }
+.lg-remind li small { color: #3b4252; } .lg-remind button[data-go] { font-size: 11px; padding: 1px 6px; margin: 3px 4px 0 0; }
+.rm-more { margin: 4px 10px 8px; color: #8a93a6; }
+
+/* L13 — 연결 기호 A ↔ A 가상 점선 */
+#ov .clink { stroke: #7b4dff; stroke-width: .7; stroke-dasharray: 2.5 2; opacity: .45; pointer-events: stroke; }
+#ov.sim .clink { opacity: .25; }
+#ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.4; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
+#ov .rowpin.implied { stroke: #0f8f80; stroke-width: 1.2; stroke-dasharray: 1.2 .8; }

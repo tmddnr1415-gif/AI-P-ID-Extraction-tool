@@ -14,6 +14,7 @@
   <label class="btn" title="Logic Diagram PDF 를 올립니다">PDF 올리기<input id="upload" type="file" accept=".pdf" hidden></label>
   <span id="samples"></span>
   <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
+  <button id="ft-report" class="btn lg-report" hidden title="From-To 가 정확하게 맞대어졌는지 — 신호를 주기 전에 먼저 봅니다">From-To 보고</button>
   <a id="report" class="btn lg-report" href="#" hidden title="묶음 전체의 점검 결과를 Excel 로 내려받습니다">Excel 보고서</a>
   <span id="status" class="lg-status"></span>
 </header>
@@ -60,6 +61,8 @@
       </div>
       <div id="empty" class="lg-empty">왼쪽에서 시트를 고르세요.</div>
     </div>
+    <div id="prog" class="lg-prog" hidden></div>
+    <div id="remind" class="lg-remind" hidden></div>
     <div id="timeline" class="lg-timeline" hidden>
       <span id="tl-text"></span>
       <div class="tl-bar"><div id="tl-fill"></div></div>
@@ -99,6 +102,7 @@
     <div id="basis" class="lg-basis"></div>
   </aside>
 </main>
+<div id="ft-modal" class="lg-modal" hidden><div class="lg-modal-box" id="ft-box"></div></div>
 <script src="/static/logic.js"></script>
 </body>
 </html>

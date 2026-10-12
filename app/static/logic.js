@@ -66,7 +66,8 @@ async function loadJobs(select) {
   sel.innerHTML = "";
   if (!j.jobs.length) sel.innerHTML = `<option value="">— 분석한 묶음 없음 —</option>`;
   for (const x of j.jobs) {
-    const st = x.state === "done" ? `${x.sheets}장` : x.state === "failed" ? "실패" : "분석 중";
+    const st = x.state === "done" ? `${x.sheets}장` : x.state === "failed" ? "실패"
+      : `분석 중 ${(x.progress && x.progress.percent) || 0}%`;
     sel.insertAdjacentHTML("beforeend", `<option value="${x.id}">${esc(x.name)} · ${st}</option>`);
   }
   $("#samples").innerHTML = j.samples.map((n) => `<button data-sample="${esc(n)}" title="data/logic 의 샘플을 분석합니다">샘플: ${esc(n.replace(/\.pdf$/i, ""))}</button>`).join(" ");
@@ -78,12 +79,14 @@ async function openJob(id) {
   L.job = id;
   const st = await api(`/logic/api/jobs/${id}`);
   if (st.state !== "done") {
-    if (st.state === "failed") { status(`분석 실패 — ${st.error || ""}`); return; }
-    const pct = st.total ? Math.round((100 * st.done) / st.total) : 0;
-    status(`분석 중… ${stageKo(st.stage)} ${pct}%`);
+    if (st.state === "failed") { renderProgress(st); status(`분석 실패 — ${st.error || ""}`); return; }
+    renderProgress(st);
+    status("");
     setTimeout(() => L.job === id && openJob(id), 1200);
     return;
   }
+  const wasRunning = L.progJob === id;
+  renderProgress(null);
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
   const j = await api(`/logic/api/jobs/${id}/sheets`);
   L.sheets = j.sheets;
@@ -95,9 +98,90 @@ async function openJob(id) {
   api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
   L.memos = [];
   loadMemos(id);
+  $("#ft-report").hidden = false;
+  // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
+  let seen = false;
+  try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
+  if (!MACRO_FROM && (wasRunning || !seen)) showFromTo(id);
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   if (p) openSheet(p);
 }
+/* ------------------------------------------------------------------ 분석 진행 (P&ID 와 같은 꼴 · L13) */
+function fmtSec(t) {
+  if (t == null) return "";
+  t = Math.max(0, Math.round(t));
+  return t >= 60 ? `${Math.floor(t / 60)}분 ${t % 60}초` : `${t}초`;
+}
+function renderProgress(st) {
+  const box = $("#prog");
+  if (!st) { box.hidden = true; $("#canvas").style.visibility = ""; L.progJob = null; return; }
+  L.progJob = L.job;
+  $("#canvas").style.visibility = "hidden";
+  $("#empty").hidden = true;
+  box.hidden = false;
+  if (st.state === "failed") {
+    box.innerHTML = `<div class="pg-card fail"><h2>분석하지 못했습니다</h2><p class="pg-name">${esc(st.name || "")}</p>
+      <p>${esc(st.error || "")}</p></div>`;
+    return;
+  }
+  const pr = st.progress || { percent: 0, stage: "기다리는 중" };
+  const known = pr.percent > 0 || st.state === "running";
+  box.innerHTML = `<div class="pg-card">
+    <h2>Logic 분석 중 <b>${pr.percent}%</b></h2>
+    <p class="pg-name">${esc(st.name || "")}${st.pages ? ` · ${st.pages}쪽` : ""}</p>
+    <div class="pg-bar${known ? "" : " unknown"}"><div class="pg-fill" style="width:${pr.percent}%"></div></div>
+    <p class="pg-stage">${esc(pr.stage || "")}</p>
+    <p class="pg-time">${pr.elapsed ? `경과 ${fmtSec(pr.elapsed)}` : ""}${pr.remaining != null ? ` · 남은 시간 약 ${fmtSec(pr.remaining)}` : " · 남은 시간은 아직 어림할 수 없습니다"}</p>
+    ${pr.basis ? `<p class="pg-basis">어림 근거: ${esc(pr.basis)}</p>` : ""}
+    <p class="pg-note">끝나면 <b>From-To 점검 보고</b>를 먼저 보여 드립니다 — 그 뒤 입력 신호를 주어 로직을 확인하세요.</p>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ From-To 점검 보고 (사용자 규칙 1 · L13) */
+async function showFromTo(id) {
+  id = id || L.job;
+  let r;
+  try { r = await api(`/logic/api/jobs/${id}/fromto`); } catch (e) { return; }
+  if (L.job !== id) return;
+  try { localStorage.setItem("logic.ftseen." + id, "1"); } catch (e) {}
+  L.ftReport = r;
+  const c = r.counts;
+  const mis = r.items.filter((x) => x.kind === "mismatch"), dif = r.items.filter((x) => x.kind === "desc");
+  const li = (x, i) => `<tr data-ft="${i}"><td><b>${esc(x.sheet_no)}-${x.row}</b> <small>${x.side === "L" ? "입력" : "출력"}</small></td>
+      <td>${esc(x.desc)}</td><td>${x.side === "L" ? "FM" : "TO"} ${esc(x.ref)}</td><td>${esc(x.why)}</td></tr>`;
+  $("#ft-box").innerHTML = `<h2>From-To 점검 보고 <small>${esc((L.sheets.length ? L.sheets.length + "장 · " : ""))}신호를 주기 전에 먼저 확인합니다</small></h2>
+    <div class="ft-cards">
+      <div class="ft-c ok"><b>${c.ok}</b><span>연결 일치</span></div>
+      <div class="ft-c bad"><b>${c.mismatch}</b><span>일치하지 않음</span></div>
+      <div class="ft-c warn"><b>${c.desc}</b><span>연결은 맞고 설명 다름</span></div>
+      <div class="ft-c"><b>${c.unchecked + c.other}</b><span>확인 못 함 <small>(다른 묶음 ${c.other})</small></span></div>
+    </div>
+    <h3>일치하지 않음 ${mis.length}건 <small>— 누르면 그 시트 그 행으로 갑니다</small></h3>
+    ${mis.length ? `<div class="ft-scroll"><table class="ft-t"><tr><th>시트-행</th><th>설명</th><th>적힌 곳</th><th>사유</th></tr>${mis.map((x) => li(x, r.items.indexOf(x))).join("")}</table></div>` : `<p class="ft-none">없습니다 — 모든 From-To 가 맞대어졌습니다.</p>`}
+    <details><summary>연결은 맞고 설명이 다른 것 ${dif.length}건</summary>
+      <div class="ft-scroll"><table class="ft-t">${dif.map((x) => li(x, r.items.indexOf(x))).join("")}</table></div></details>
+    <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${id}/report.xlsx">Excel 보고서 내려받기</a>
+      <button id="ft-close" class="btn primary">확인 — 신호 주며 로직 보기</button></div>`;
+  $("#ft-modal").hidden = false;
+}
+function closeFromTo() { $("#ft-modal").hidden = true; }
+
+/* ------------------------------------------------------------------ 신호를 주는 중의 리마인드 (사용자 규칙 2 · L13) */
+function renderRemind(fresh) {
+  const box = $("#remind");
+  const errs = (L.design || []).filter((e) => e.kind === "error");
+  if (!errs.length || L.mode !== "sim") { box.hidden = true; return; }
+  if (!fresh.length && box.hidden) return;              // 닫은 뒤 새 것이 없으면 다시 띄우지 않는다
+  box.hidden = false;
+  const show = fresh.length ? fresh : errs;
+  box.innerHTML = `<div class="rm-h">⚠ From-To 가 일치하지 않는 신호 ${errs.length}건${fresh.length ? ` <small>(방금 ${fresh.length}건)</small>` : ""}
+      <button class="rm-x" title="닫기">✕</button></div>
+    <ul>${show.slice(0, 6).map((e) => `<li data-i="${L.design.indexOf(e)}"><b>${esc(e.sheet_no)}-${e.row}</b> ${esc(e.desc || "")}<br>
+      <small>${esc(e.why)}</small><br>
+      <button data-go="src">${esc(e.sheet_no)}-${e.at_row || e.row} 로</button>${e.target_page ? `<button data-go="dst">${esc(e.to)} 로</button>` : ""}</li>`).join("")}</ul>
+    ${show.length > 6 ? `<p class="rm-more">… 나머지는 오른쪽 '설계 오류' 목록</p>` : ""}`;
+}
+
 /* 묶음 전체 점검 (L7) — 서버가 편 목록을 종류로 걸러 보인다.  누르면 그 시트 · 그 자리로. */
 function renderAll() {
   const f = L.all;
@@ -279,6 +363,7 @@ function drawOverlay() {
       tx.textContent = t;
     }
   }
+  drawConnectorLinks(gB);
   for (const r of s.rows) {
     const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
     c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
@@ -438,9 +523,42 @@ function badgeText(b) {
 
 /* ------------------------------------------------------------------ 상태 칠하기 */
 
+/* L13 — 같은 글자 연결 기호(A ↔ A)를 가상의 점선으로 잇는다.  보내는 기호(들어오는 선이 있는 것)에서 받는 기호로.
+   한 신호이므로 그 묶음의 어느 선이든 1 이면 점선도 파랗게 (paint). */
+function connectorGroups() {
+  const s = L.sheet, g = {};
+  for (const [bid, b] of Object.entries(s.blocks)) {
+    if (b.func !== "CONNECTOR" || !b.label || b.label === "?") continue;
+    (g[b.group || bid] = g[b.group || bid] || []).push(bid);
+  }
+  return Object.entries(g).filter(([, m]) => m.length >= 2);
+}
+function drawConnectorLinks(gB) {
+  const s = L.sheet;
+  const gl = el("g", { id: "g-clink" }, gB);
+  gB.insertBefore(gl, gB.firstChild);
+  const mid = (b) => [(b.bbox[0] + b.bbox[2]) / 2, (b.bbox[1] + b.bbox[3]) / 2];
+  for (const [gid, mem] of connectorGroups()) {
+    const hasIn = (bid) => s.ports.some((p) => p.block === bid && p.dir === "in");
+    const src = mem.filter(hasIn), dst = mem.filter((m) => !hasIn(m));
+    const pairs = src.length ? src.flatMap((a) => dst.map((b) => [a, b])) : mem.slice(1).map((b) => [mem[0], b]);
+    for (const [a, b] of pairs) {
+      const [x0, y0] = mid(s.blocks[a]), [x1, y1] = mid(s.blocks[b]);
+      const ln = el("line", { x1: x0, y1: y0, x2: x1, y2: y1, class: "clink", "data-group": gid }, gl);
+      el("title", {}, ln).textContent = `연결 기호 ${s.blocks[a].label} → ${s.blocks[b].label} (같은 신호 — 도면에는 선 대신 같은 글자로 그렸습니다)`;
+    }
+  }
+}
+function connectorGroupOn(gid) {
+  const s = L.sheet;
+  const mem = Object.entries(s.blocks).filter(([bid, b]) => b.func === "CONNECTOR" && (b.group || bid) === gid).map(([bid]) => bid);
+  return s.ports.some((p) => mem.includes(p.block) && L.values[p.net] === 1);
+}
 function paint() {
   const s = L.sheet;
   if (!s) return;
+  for (const ln of document.querySelectorAll("#ov .clink"))
+    ln.classList.toggle("on", L.mode === "sim" && connectorGroupOn(ln.dataset.group));
   $("#ov").classList.toggle("sim", L.mode === "sim");     // 시뮬레이션: 활성(1) 선 말고는 아무 표시도 없다
   for (const g of document.querySelectorAll("#ov .net")) {
     const nid = g.dataset.net;
@@ -461,6 +579,7 @@ function paint() {
     const row = s.rows.find((x) => x.n === n);
     r.classList.toggle("v1", L.mode === "sim" && row && L.values[row.net] === 1);
     r.classList.toggle("forced", ("row:" + n) in L.forces);
+    r.classList.toggle("implied", L.mode === "sim" && ("row:" + n) in (L.implied || {}) && !(("row:" + n) in L.forces));
     r.classList.toggle("linked", L.mode === "sim" && L.linked[n] === 1 && !(("row:" + n) in L.forces));
   }
   const act = new Set();
@@ -575,7 +694,10 @@ async function runSim(animate) {
   L.design = b.design_errors || [];
   const fresh = L.design.filter((e) => e.kind === "error" && !prevErr.has(e.page + ":" + e.row + ":" + e.to));
   if (fresh.length) status(`⚠ 설계 오류 ${fresh.length}건 — 신호가 TO 를 따라가다 어긋난 연결을 만났습니다 (오른쪽 '설계 오류')`);
+  renderRemind(fresh);
   L.notes = [...(r.notes || []), ...(b.notes || [])];
+  L.implied = r.implied || {};                     // L13 — 뒤쪽 값에서 거꾸로 정한 입력 (사람이 준 값이 아니다)
+  if ((r.conflicts || []).length) status("⚠ 거꾸로 맞추기 모순 — " + r.conflicts.slice(0, 2).join(" · "));
   L.short = new Set(r.short_gates || []);          // L10 — 입력을 다 읽지 못해 출력을 내지 않는 게이트
   L.macros = b.macros || {};                        // L12 — 매크로 블록마다 Typical 시트의 입력·출력 행 값
   sendMacroInputs();
@@ -1297,6 +1419,25 @@ function bind() {
     try { const r = await api("/logic/api/jobs", { method: "POST", body: fd }); await loadJobs(r.id); }
     catch (err) { status("올리기 실패 — " + err.message); }
     e.target.value = "";
+  };
+  $("#ft-report").onclick = () => showFromTo();
+  $("#ft-modal").onclick = (e) => {
+    if (e.target.id === "ft-modal" || e.target.id === "ft-close") { closeFromTo(); return; }
+    const tr = e.target.closest("tr[data-ft]");
+    if (tr && L.ftReport) {
+      const x = L.ftReport.items[Number(tr.dataset.ft)];
+      closeFromTo();
+      goToRef(x.sheet_no, x.row, x.side);
+    }
+  };
+  $("#remind").onclick = (e) => {
+    if (e.target.closest(".rm-x")) { $("#remind").hidden = true; return; }
+    const b = e.target.closest("button[data-go]");
+    if (!b) return;
+    const d = (L.design || [])[Number(b.closest("li").dataset.i)];
+    if (!d) return;
+    if (b.dataset.go === "src") goToRef(d.sheet_no, d.at_row || d.row, d.side === "L" ? "L" : "R");
+    else goToRef(d.target_sheet, d.target_row, "L");
   };
   $("#samples").onclick = async (e) => {
     const n = e.target.dataset.sample;

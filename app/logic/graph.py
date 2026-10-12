@@ -312,8 +312,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 선 잇기 (union-find on segments)
     segs = []                           # (seg, poly)
+    flick_tips = []
     for p in wires:
         for s in p.segs:
+            # L13 — 선 끝의 '열린 화살촉' 획: 같은 path 의 축 선분 끝에 붙은 짧은 사선 (글자 크기보다 작다).
+            # 획을 선으로 치면 그 끝이 '닿은 끝' 이 되어 받는 게이트의 단자가 서지 않는다 (G012 OR 입력 막대 실측).
+            if not (s.vert or s.horiz) and s.length < GLYPH_MAX * P and _flick(s, p, tol, GLYPH_MAX * P):
+                continue
             segs.append((s, p))
     parent = list(range(len(segs)))
 
@@ -329,12 +334,22 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             parent[b] = a
 
     # 같은 path 안의 조각은 하나
-    first = {}
+    # L13 — 한 path 에 떨어진 선이 여럿 들어 있을 수 있다 (CAD 가 같은 모양 선을 한 path 로 내보냄).  끝이 맞닿은
+    # 조각만 잇는다 — 파선(틈이 있는 한 줄)만 path 하나를 통째로 한 선으로 본다.
+    by_poly = defaultdict(list)
     for i, (s, p) in enumerate(segs):
-        if id(p) in first:
-            union(first[id(p)], i)
-        else:
-            first[id(p)] = i
+        by_poly[id(p)].append(i)
+    for idx in by_poly.values():
+        p = segs[idx[0]][1]
+        if p.dashed:
+            for i in idx[1:]:
+                union(idx[0], i)
+            continue
+        for a in range(len(idx)):
+            for b in range(a + 1, len(idx)):
+                sa, sb = segs[idx[a]][0], segs[idx[b]][0]
+                if any(_d(x, y) <= tol for x in sa.ends() for y in sb.ends()):
+                    union(idx[a], idx[b])
     # 격자 색인
     cell = max(P, 1.0)
     grid = defaultdict(list)
@@ -360,6 +375,29 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         f = free_of.get(id(p))
         return f is None or (round(e[0], 2), round(e[1], 2)) in f
 
+    def passes_through(i, e, j):
+        """e(선분 i 의 끝)가 선분 j 의 몸통에 닿는데, i 와 한 직선으로 맞은편에 이어지는 선분이 e 에서 시작하면 —
+        두 선이 서로 **지나가는** 교차다 (CAD 가 교차점에서 선을 끊어 그린 것).  범례 G003: 연결은 점(DOT)으로만 표시한다."""
+        sj = segs[j][0]
+        if _d(e, sj.ends()[0]) <= tol or _d(e, sj.ends()[1]) <= tol:
+            return False                                 # j 의 끝 — 꺾임·T 가 아니라 맞닿음
+        si = segs[i][0]
+        if not (si.vert or si.horiz):
+            return False
+        o = si.ends()[1] if _d(e, si.ends()[0]) <= tol else si.ends()[0]
+        out = (e[0] - o[0], e[1] - o[1])
+        for k in near(e):
+            if k in (i, j):
+                continue
+            sk = segs[k][0]
+            if (sk.vert != si.vert) or (sk.horiz != si.horiz):
+                continue
+            qa, qb = sk.ends()
+            for q, r in ((qa, qb), (qb, qa)):
+                if _d(q, e) <= tol and (r[0] - e[0]) * out[0] + (r[1] - e[1]) * out[1] > 0:
+                    return True
+        return False
+
     for i, (s, p) in enumerate(segs):
         for e in s.ends():
             if not joinable(e, p):
@@ -367,7 +405,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             for j in near(e):
                 if j == i or segs[j][1] is p:
                     continue
-                if _on_seg(e, segs[j][0], tol)[0]:
+                if _on_seg(e, segs[j][0], tol)[0] and not passes_through(i, e, j):
                     union(i, j)
     bridged = []
     # 연결점 (칠한 점 · 속 빈 작은 원)
@@ -722,6 +760,19 @@ def _block_edge(q, b, tol):
         return any(_rect_edge(q, c, tol) for c in b.cells)
     c = b.circle
     return abs(_d(q, (c.cx, c.cy)) - c.r) <= tol
+
+
+def _flick(s, p, tol, wire_min):
+    """사선 s 의 한 끝이 같은 path 의 **선 길이** 축 선분(글자 획보다 긴 것) 끝과 맞닿는가 — 열린 화살촉의 한 획.
+    큰 글자(제목)의 사선 획은 짧은 획끼리 붙어 있어 걸리지 않는다."""
+    for t in p.segs:
+        if t is s or not (t.vert or t.horiz) or t.length <= s.length or t.length < wire_min:
+            continue
+        for a in s.ends():
+            for b in t.ends():
+                if _d(a, b) <= tol:
+                    return True
+    return False
 
 
 def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):

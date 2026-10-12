@@ -131,6 +131,67 @@ def gate3(lg, iv):
     return None
 
 
+def _back_propagate(B, ins, drivers, groups, net_force, user):
+    """→ ({"row:n"|"block:id": 값}, [모순 설명]).  사람이 준 선 값에서 앞으로(몰이 쪽으로) 범례 정의를 거꾸로 푼다.
+    AND=1 → 모든 입력 1 · NAND=0 → 모든 입력 1 · OR=0 → 모든 입력 0 · NOR=1 → 모든 입력 0 · NOT → 반대 ·
+    입력 하나뿐인 OR · 타이머(GT/DT/PD)=1 → 입력 1 · 연결 기호 → 묶음의 들어오는 선.  그 밖(OR=1 · AND=0 · 메모리 ·
+    판정 못 한 블록)은 정해지지 않으므로 멈춘다.  사람이 직접 준 값은 바꾸지 않는다."""
+    req, implied, conflicts = {}, {}, []
+
+    def setleaf(key, v):
+        if key in user:
+            if user[key] != v:
+                conflicts.append(f"{key} 를 사람이 {user[key]} 로 주었는데 뒤쪽 조건은 {v} 를 요구")
+            return
+        if implied.get(key, v) != v:
+            conflicts.append(f"{key} 가 0 과 1 을 함께 요구받음")
+            return
+        implied[key] = v
+
+    def back(net, v, depth=0):
+        if depth > 80:
+            return
+        if net in req:
+            if req[net] != v:
+                conflicts.append(f"선 #{net} 이 0 과 1 을 함께 요구받음")
+            return
+        req[net] = v
+        drv = drivers.get(net, [])
+        if len(drv) > 1 and v == 1:
+            return                                    # 몰이가 둘 이상인 선이 1 — 어느 쪽인지 정해지지 않는다
+        for kind, x, role in drv:
+            if kind == "row":
+                setleaf(f"row:{x}", v)
+                continue
+            b = B[x]
+            lg = b.get("logic")
+            iv = [n for n, _, _ in ins[x]]
+            if lg == "source":
+                setleaf(f"block:{x}", v)
+            elif lg == "and" and v == 1 or lg == "nand" and v == 0:
+                for n in iv:
+                    back(n, 1, depth + 1)
+            elif lg == "or" and v == 0 or lg == "nor" and v == 1:
+                for n in iv:
+                    back(n, 0, depth + 1)
+            elif lg == "or" and v == 1 and len(iv) == 1:
+                back(iv[0], 1, depth + 1)
+            elif lg == "not" and iv:
+                back(iv[0], 1 - v, depth + 1)
+            elif lg in ("delay_on", "delay_off", "pulse") and v == 1 and len(iv) == 1:
+                back(iv[0], 1, depth + 1)
+            elif lg == "connector":
+                g = groups.get(b.get("group") or x, [x])
+                gin = [n for gid in g for n, _, _ in ins[gid]]
+                if len(gin) == 1 or v == 0:
+                    for n in gin:
+                        back(n, v, depth + 1)
+
+    for net, v in net_force.items():
+        back(net, v)
+    return implied, conflicts
+
+
 def _frame(t, val, depth, note):
     """화면은 1/0 만 본다 — 모름은 0 (출력 없음) 으로 내고 어느 선이 모름이었는지는 `unread` 에 남긴다."""
     return {"t": t, "values": {n: (0 if v is None else v) for n, v in val.items()},
@@ -157,6 +218,20 @@ def simulate(s, forces=None, state=None, now=0.0):
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
+    # L13 — 연결 기호(같은 글자 A ↔ A)는 한 신호다: 사람이 그 묶음의 어느 기호 · 그 기호에 닿은 선을 1/0 으로 주면
+    # 같은 묶음의 다른 기호에서 나가는 선도 그 값이다 (사용자 지시 — "A 가 활성화되면 반대쪽 A 도").
+    for gid, members in groups.items():
+        if len(members) < 2:
+            continue
+        nets = {n for m in members for n, _, _ in ins[m] + outs[m]}
+        v = next((blk_force[m] for m in members if m in blk_force), None)
+        if v is None:
+            v = next((net_force[n] for n in nets if n in net_force), None)
+        if v is None:
+            continue
+        for m in members:
+            for n, _, _ in outs[m]:
+                net_force.setdefault(n, v)
     # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로 (그 선을 모는 블록보다 이긴다)
     for r in s["rows"]:
         if r["side"] == "R" and r["n"] in row_force and r.get("net") is not None:
@@ -306,6 +381,20 @@ def simulate(s, forces=None, state=None, now=0.0):
             ts["inp"] = inp
         return changed
 
+    # L13 — 거꾸로 맞추기: 사람이 게이트 **뒤** 선(또는 출력 행)을 1/0 으로 주면, 그 값이 나오도록 범례 조건으로
+    # 정해지는 입력을 앞쪽으로 따라가며 정한다 (사용자 지시 — "AND 이후 신호를 활성화하면 Gate input 들은 AND output 이
+    # 나갈 수 있는 조건으로 0 or 1 로 모두 강제").  정해지지 않는 자리(OR=1 · AND=0 · 메모리)에서는 멈춘다.
+    implied, conflicts = _back_propagate(B, ins, drivers, groups, dict(net_force),
+                                         {**{f"row:{k}": v for k, v in row_force.items()},
+                                          **{f"block:{k}": v for k, v in blk_force.items()}})
+    for k, v in implied.items():
+        if k.startswith("row:"):
+            row_force.setdefault(int(k[4:]), v)
+        elif k.startswith("block:"):
+            blk_force.setdefault(k[6:], v)
+    if conflicts:
+        notes.add("거꾸로 맞추기에서 한 신호가 0 과 1 을 함께 요구받았습니다 — " + " · ".join(conflicts[:3]))
+
     frames = []
     t = st["t"]
     val = {}
@@ -338,7 +427,8 @@ def simulate(s, forces=None, state=None, now=0.0):
     st["t"] = t
     if short:
         notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
-    return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short)}
+    return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
+            "implied": implied, "conflicts": conflicts}
 
 
 # L9 — 따라가기가 게이트를 지날지는 범례 정의가 정한다.  따라가는 신호를 1, 그 게이트의 다른
@@ -506,7 +596,15 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             for x in m["outputs"]:
                 if x.get("row") is not None:
                     f[f"net:{x['net']}"] = orow.get(x["row"], 0)
-            view[bid] = {"sheet": m.get("sheet"), "page": m["page"],
+            # 짝 출력(이름 끝 1/0 — CMD1 ↔ CMD0 · 열림 ↔ 닫힘)이 함께 1 이면 모순이다 — 숨기지 않고 알린다
+            conflict = []
+            outs1 = [x for x in m["outputs"] if x.get("row") is not None and orow.get(x["row"]) == 1]
+            for i_, a in enumerate(outs1):
+                for b_ in outs1[i_ + 1:]:
+                    pa, pb = _pin_skel(a.get("pin")), _pin_skel(b_.get("pin"))
+                    if len(pa) >= 3 and pa[:-1] == pb[:-1] and {pa[-1], pb[-1]} == {"I", "O"}:
+                        conflict.append(f"{a.get('pin')} 과 {b_.get('pin')} 이 함께 1 ({m.get('sheet')} {a['row']}행 · {b_['row']}행)")
+            view[bid] = {"sheet": m.get("sheet"), "page": m["page"], "conflict": conflict,
                          "inputs": {str(x["row"]): (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")},
                          "outputs": {str(x["row"]): orow.get(x["row"], 0) for x in m["outputs"] if x.get("row") is not None}}
         return f, view, nst
@@ -576,7 +674,14 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                           "to": sorted({by_page[q].get("sheet_no") for q, fd in feeds.items()
                                         for _, sp, sr in fd if sp == page and sr in on_out})})
     # 사람이 준 신호가 닿은 장(hop)에서 이동하다 만난 것만 — 아무것도 안 줘도 1 인 선(입력 0 의 NOT 등)은 빼고
-    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows) if e["page"] in hop]
+    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results) if e["page"] in hop]
+    for page, view in macro_view.items():
+        for bid, v in view.items():
+            for c in v.get("conflict") or []:
+                design.insert(0, {"page": page, "sheet_no": by_page[page].get("sheet_no") or "", "row": 0, "at_row": 0,
+                                  "to": v.get("sheet") or "", "target_sheet": v.get("sheet") or "", "target_row": 0,
+                                  "target_page": v.get("page"), "desc": "매크로 블록", "kind": "error",
+                                  "why": f"모순 — {c}.  Typical 시트를 읽은 결과가 범례 동작과 맞지 않습니다 (도면 읽기 확인)"})
     for e in design:
         if e["kind"] == "error":
             for c in pages:
@@ -609,11 +714,15 @@ def _to_runs(s):
     return o
 
 
+def _pin_skel(t):
+    return re.sub(r"[^A-Z0-9]", "", (t or "").upper()).replace("0", "O").replace("1", "I")
+
+
 def _norm_desc(t):
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
-def _design_errors(sheets, by_page, by_no, out_rows):
+def _design_errors(sheets, by_page, by_no, out_rows, results=None):
     """**활성(1)인 신호**가 TO · FM 을 따라 이동하는 자리에서 도면끼리 어긋난 곳 (사용자 지시 L11).
 
     보내는 쪽: 1 인 출력 행(주인 행)과 그 아래로 이어지는 TO 줄들의 TO 마다 —
@@ -704,6 +813,21 @@ def _design_errors(sheets, by_page, by_no, out_rows):
                      "kind": "error",
                      "why": f"{me}-{r['n']} 의 FM 은 {r.get('fm')} 인데 {src}-{own} 의 TO 는 "
                             f"{', '.join(f'{a}-{b}' for a, b in tos)} 만 적습니다 (잘못 연결)"})
+    # 1 이 된 입력 행 — 그 행의 FM 이 from-to 대조(L5)에서 일치하지 않으면 (사람이 직접 준 입력 포함, 사용자 규칙 2)
+    for s in sheets:
+        res = (results or {}).get(s["page"])
+        if not res:
+            continue
+        vals = res["frames"][-1]["values"]
+        me = s.get("sheet_no") or ""
+        for r in s["rows"]:
+            ft = r.get("ft") or {}
+            if r["side"] != "L" or ft.get("ok") is not False or vals.get(r["net"]) != 1:
+                continue
+            add({"page": s["page"], "sheet_no": me, "row": r["n"], "at_row": r["n"], "to": r.get("fm") or "",
+                 "target_sheet": me, "target_row": r["n"], "target_page": s["page"], "desc": r.get("desc") or "",
+                 "kind": "error", "side": "L",
+                 "why": f"입력 {me}-{r['n']} 의 FM {r.get('fm') or ''} — " + " · ".join(ft.get("why") or ["일치하지 않습니다"])})
     order = {"error": 0, "warn": 1, "other": 2}
     out.sort(key=lambda e: (order[e["kind"]], e["sheet_no"], e["row"], e["to"]))
     return out

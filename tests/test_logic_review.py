@@ -600,3 +600,37 @@ def test_activation_box_always_outputs_one():
     v = sim.simulate(s, {})["frames"][-1]["values"]
     assert v["a"] == 1 and v["z"] == 0
     assert sim.simulate(s, {"block:A": 0})["frames"][-1]["values"]["a"] == 0    # 사람이 0 으로 줄 수 있다
+
+
+def test_forcing_one_connector_lights_its_partner():
+    """L13 — 같은 글자 연결 기호(A ↔ A)는 한 신호: 한쪽을 1 로 주면 다른 쪽에서 나가는 선도 1."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    blocks = {"C1": {"func": "CONNECTOR", "logic": "connector", "group": "A", "label": "A", "param": {}},
+              "C2": {"func": "CONNECTOR", "logic": "connector", "group": "A", "label": "A", "param": {}}}
+    s = {"blocks": blocks, "rows": [], "ports": [P("C1", "x", "out"), P("C2", "y", "out")],
+         "nets": {"x": {"segs": []}, "y": {"segs": []}}}
+    v = sim.simulate(s, {"net:x": 1})["frames"][-1]["values"]
+    assert v["x"] == 1 and v["y"] == 1
+    v = sim.simulate(s, {"block:C2": 1})["frames"][-1]["values"]
+    assert v["x"] == 1 and v["y"] == 1
+
+
+def test_forcing_a_gate_output_sets_its_inputs_logically():
+    """L13 — AND 뒤를 1 로 주면 그 입력들은 AND 가 1 을 낼 수 있는 값으로 (NOT 을 지나면 반대로)."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    blocks = {"N": {"func": "NOT", "logic": "not", "group": "", "param": {}},
+              "G": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "O": {"func": "OR", "logic": "or", "group": "", "param": {}}}
+    ports = [P("N", "r3", "in"), P("N", "n3", "out"),
+             P("G", "r1", "in"), P("G", "r2", "in"), P("G", "n3", "in"), P("G", "g", "out"),
+             P("O", "r4", "in"), P("O", "r5", "in"), P("O", "o", "out")]
+    rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in (1, 2, 3, 4, 5)]
+    s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in ("r1", "r2", "r3", "r4", "r5", "n3", "g", "o")}}
+    r = sim.simulate(s, {"net:g": 1})
+    assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 0}
+    v = r["frames"][-1]["values"]
+    assert v["r1"] == v["r2"] == 1 and v["r3"] == 0 and v["n3"] == 1 and v["g"] == 1
+    assert sim.simulate(s, {"net:o": 1})["implied"] == {}               # OR=1 — 어느 입력인지 정해지지 않는다
+    assert sim.simulate(s, {"net:o": 0})["implied"] == {"row:4": 0, "row:5": 0}
+    r = sim.simulate(s, {"net:g": 1, "row:3": 1})                      # 사람이 준 값과 어긋나면 모순으로 말한다
+    assert r["conflicts"] and r["implied"].get("row:3") is None

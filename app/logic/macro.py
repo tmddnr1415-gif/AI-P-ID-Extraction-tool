@@ -14,6 +14,7 @@ Logic 시트는 MOV · MCC · 스위치기어 같은 반복 동작을 **매크�
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 NAME_MIN = 0.72          # 단자 이름 ↔ 약어 닮음 하한 (한 글자 다름까지 — OVRD1 ↔ OVRID1)
 PAIR_MIN = 0.42          # 단자 ↔ 행 점수 하한
@@ -40,6 +41,7 @@ def _lev(a, b):
     return prev[-1]
 
 
+@lru_cache(maxsize=200000)
 def name_sim(a, b):
     a, b = _skel(a), _skel(b)
     if not a or not b:
@@ -68,6 +70,7 @@ def _wmatch(a, b):
     return k >= 5 and a[:4] == b[:4] and _lev(a, b) <= 1
 
 
+@lru_cache(maxsize=400000)
 def desc_sim(a, b):
     wa, wb = _words(a), _words(b)
     if not wa or not wb:
@@ -101,6 +104,7 @@ def legend_abbr(doc):
     return out
 
 
+@lru_cache(maxsize=400000)
 def _pin_row_score(pin, desc, abbr):
     best = 0.0
     sk = _skel(pin)
@@ -128,6 +132,7 @@ def _pin_row_score(pin, desc, abbr):
 
 def _assign(pins, rows, abbr):
     """pins = [(key, pin)] · rows = [(n, desc)] → {key: (n, desc, score)} — 점수 순으로 하나씩."""
+    abbr = tuple(abbr)
     cand = []
     for key, pin in pins:
         if not pin:
@@ -174,7 +179,7 @@ def _title_bonus(block, title, caption=""):
 
 def link(doc, sheets):
     """시트 목록을 제자리에서 고친다 — 매크로 블록마다 `macro` = 그 Typical 시트 · 단자 ↔ 행."""
-    abbr = legend_abbr(doc)
+    abbr = tuple(dict.fromkeys(legend_abbr(doc)))       # 같은 줄은 한 번 — 점수 캐시의 열쇠가 된다
     tables = {}
     for s in sheets:
         L = [(t["n"], t.get("desc", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
