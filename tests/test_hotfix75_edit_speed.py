@@ -213,7 +213,7 @@ def test_memo_follows_edits_without_reparsing_and_matches_a_fresh_read(tmp_path,
     asyncio.run(main.rows_edit("j", {"field": "scope", "author": "홍", "items": [{"key": "c", "value": "VENDOR"},
                                                                               {"key": "d", "value": "VENDOR"}]}))
     main.rows_delete("j", {"keys": ["c"], "reason_class": "FALSE_POSITIVE", "author": "홍"})
-    added = asyncio.run(main.add_row("j", {"page_no": 6, "tab": "FIELD", "values": {"type": "PI"}}))["key"]
+    added = main.add_row("j", {"page_no": 6, "tab": "FIELD", "values": {"type": "PI"}})["key"]   # hotfix91 — 스레드풀 함수
     con.execute("UPDATE item SET needs_review='x' WHERE job_id='j' AND key='d'"); con.commit()   # 메모가 모르는 쓰기
     got = {tab: db.merged_rows_cached(con, "j", tab) for tab in ("ALL", "REVIEW", "FIELD")}
     assert len(calls) == 3                            # 마지막 '모르는 쓰기' 만 전부 다시 읽게 했다 (탭 셋)

@@ -3822,7 +3822,7 @@ def _engine_near(job_id: str, page_no: int) -> tuple:
 
 
 @app.post("/jobs/{job_id}/rows")
-async def add_row(job_id: str, payload: dict):
+def add_row(job_id: str, payload: dict):
     """Create a row a reviewer wants that the engine did not propose.
 
     When the reviewer also points at where it is on the drawing (`point`), the
@@ -3916,8 +3916,13 @@ async def add_row(job_id: str, payload: dict):
 
 
 @app.post("/jobs/{job_id}/markup/propose")
-async def markup_propose(job_id: str, payload: dict):
+def markup_propose(job_id: str, payload: dict):
     """마크업 사각형 하나의 제안값 — **아무것도 쓰지 않는다** (§9 ①②).
+
+    hotfix91 — `async def` 가 아니다.  그 장을 처음 읽는 3~5초를 이벤트 루프에서 돌면
+    그동안 서버가 아무 요청에도 답하지 못한다 (사람이 그린 사각형의 제안 · 장 그림 ·
+    대시보드의 `/version`).  스레드에서 돌고, 같은 장을 동시에 읽는 둘은
+    `pipeline._PROPOSE_LOCK` 이 줄 세운다.
 
     별표·NOTES 는 `pipeline.propose_at` 이 파이프라인과 같은 함수로 읽고,
     수량은 같은 장의 행이 받은 값을 옮기며, TYPE 은 사각형 안 낱말이 앵커

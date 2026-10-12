@@ -2304,3 +2304,7 @@ img.tb-ex-big { max-width: min(90vw, 1000px); width: 100%; height: auto; display
 .dxf-guide .dxf-acts { display: flex; gap: 8px; margin-top: 12px; }
 .tbfix-stroke { margin: 4px 0 8px; padding: 6px 10px; border-left: 3px solid #b07614; background: rgba(176, 118, 20, .08); }
 .mwhy.dxf-line { color: #8a5a0a; }
+
+/* hotfix91 — 마크업 판이 제안값을 기다리는 동안의 표시 (칸은 바로 쓸 수 있다) */
+.mk-reading { color: var(--ink-soft); font-style: italic; }
+.mk-form label .src.mk-reading { color: var(--ink-soft); }

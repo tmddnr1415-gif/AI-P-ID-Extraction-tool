@@ -28,6 +28,7 @@ import collections
 import logging
 import os
 import contextlib
+import threading
 import copy
 import hashlib
 import json
@@ -4917,6 +4918,11 @@ def _trace_rows(rows, per_page, style, clock) -> dict:
 # config 만의 함수**이므로 한 장치 들고 있는다.  **한 장만** 든다 — 33회차
 # `_INK_LAST` 와 같은 규율이고, 다음 장을 읽을 때 앞 장을 놓는다.
 _PROPOSE_CACHE: dict = {}
+# hotfix91 — 제안·행추가는 서버 스레드에서 돈다 (`async def` 가 아니다 — 그 장을 처음
+# 읽는 3~5초 동안 서버 전체가 멈추지 않게).  그런데 둘이 **같은 장**을 동시에 읽으면 두 번
+# 읽고(미리 읽기 + 사람이 그린 사각형) `_own_config` · 잉크 캐시 같은 모듈 전역이 겹친다.
+# 그래서 한 번에 하나만 — 둘째는 여기서 기다렸다가 캐시를 그대로 받는다 (실측 5ms).
+_PROPOSE_LOCK = threading.RLock()
 
 
 def _propose_page(pdf_path, page_no, layout_moved):
@@ -4985,7 +4991,8 @@ def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
     못 찾은 것과 없는 것을 가를 수 없기 때문이다.
     """
     import types
-    with _own_config(), contextlib.closing(_ProposeCleanup()):
+    with _PROPOSE_LOCK:                      # hotfix91 — 바깥이어야 한다: 안쪽이면 둘째 스레드가
+      with _own_config(), contextlib.closing(_ProposeCleanup()):   # 첫째가 얹은 config 를 원래 값으로 찍는다
         if layout_moved:
             CFG.overlay({m["key"]: m["now"] for m in layout_moved
                          if isinstance(m, dict) and "key" in m and "now" in m})
@@ -5033,6 +5040,15 @@ def propose_at(pdf_path: Path, page_no: int, rect, layout_moved=None) -> dict:
 def probe_point(pdf_path: Path, page_no: int, x: float, y: float,
                 radius: float = 60.0, layout_moved=None,
                 near_detections=None, near_unmapped=None) -> dict:
+    """`_probe_point` 를 제안과 같은 자물쇠 안에서 (hotfix91 — 같은 장 캐시를 나눠 쓴다)."""
+    with _PROPOSE_LOCK:
+        return _probe_point(pdf_path, page_no, x, y, radius=radius, layout_moved=layout_moved,
+                            near_detections=near_detections, near_unmapped=near_unmapped)
+
+
+def _probe_point(pdf_path: Path, page_no: int, x: float, y: float,
+                 radius: float = 60.0, layout_moved=None,
+                 near_detections=None, near_unmapped=None) -> dict:
     """What is drawn around a point, for the correction history.
 
     Called when a reviewer adds a row the engine missed and says where it is.

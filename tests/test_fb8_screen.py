@@ -74,7 +74,7 @@ def test_the_probe_does_not_rerun_detection():
 
 def test_the_probe_shares_the_proposal_cache_key():
     """열쇠가 다르면 제안이 데워 둔 캐시를 못 쓴다 (실측 5.3초 → 0.2초)."""
-    src = inspect.getsource(pipeline.probe_point)
+    src = inspect.getsource(pipeline._probe_point)     # hotfix91 — `probe_point` 는 자물쇠만 잡고 이것을 부른다
     assert "_propose_page(pdf_path, page_no, layout_moved)" in src
     from app import main
     assert "moved" in inspect.getsource(main._engine_near)
