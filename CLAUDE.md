@@ -4766,6 +4766,16 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
    5(메모 404)를 그대로 받았다.  `_propose_page` 도 같은 재진입 자물쇠를 쥔다.  시험 `test_hotfix85_markup_popup.py` 는
    합친 판의 글자로 고쳤다.
 
+**그 다음 — LOGIC L8~L14 병합 · 같은 마크업 고침 둘을 한 벌로 (hotfix92 · 판정 0줄)**
+
+사용자: *"로직 업데이트 내용과 p&id 분석 업데이트 내용 반영된 pid_dev+ops 파일 만들어줘."*  LOGIC 브랜치
+(`claude/logic-review-design-pd2z75`)의 L8~L14 를 병합했다.  그 브랜치의 L9 커밋이 **hotfix91 과 같은 마크업 팝업 고침**을
+따로 해 두어 여섯 파일이 겹쳤다 — 화면(`markupDialog`)·서버 자물쇠 자리는 hotfix91 판을 남기고, 그쪽의 **공유 연결
+읽기 고침**(`db._Rows` — SELECT 행을 잠금 안에서 가져옴 · 스레드가 겹치면 `get_job` 이 None 을 내던 것)과 **메모 404 처리**를
+받았다.  `_propose_page` 도 같은 재진입 자물쇠.  `tests/test_hotfix85_markup_popup.py` 는 합친 판의 글자로 고쳤다.
+빠른 시험 **1251** 통과 · TAKHIATASH 회귀 "기준선과 같습니다" · 사본 서버에서 `/` · `/logic` · `/logic/api/jobs` 200.
+꾸러미 `out/PID_dev+ops_hotfix92_<날짜>.zip` (97a8732 기준 누적).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
