@@ -1,0 +1,2 @@
+# 회사로 전달한 기준점. 맨 아래 줄이 다음 zip 의 기준. (커밋  이름)
+54f28378e9b4b4b0b5d1dabc06eea537cd9dacbc  dashboard-base (회사 사본 기준판, 2026-10-13)

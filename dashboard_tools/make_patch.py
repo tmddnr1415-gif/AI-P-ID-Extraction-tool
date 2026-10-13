@@ -1,8 +1,10 @@
 r"""dashboard/ 의 바뀐 파일만 담은 회사 PC 적용용 zip 을 만든다.
 
-    python3 dashboard_tools/make_patch.py              # 마지막 전달본(태그) 이후 바뀐 파일
+    python3 dashboard_tools/make_patch.py              # 마지막 전달본 이후 바뀐 파일
     python3 dashboard_tools/make_patch.py --base REF   # 기준을 직접 지정
-    python3 dashboard_tools/make_patch.py --tag        # 만든 뒤 '전달함' 태그를 단다
+    python3 dashboard_tools/make_patch.py --mark       # 만든 뒤 delivered.txt 에 HEAD 를 기록
+
+기준점은 delivered.txt 맨 아래 줄 (태그는 원격에 못 올리는 환경이라 파일로 남긴다).
 
 zip 구성 (최상위 폴더 하나):
     APPLY.bat       ASCII · CRLF · chcp 없음. 회사본이 base\ 와 같을 때만 백업 후 덮어씀,
@@ -26,9 +28,13 @@ def git(*a, binary=False):
     return r.stdout if binary else r.stdout.decode('utf-8')
 
 
+DELIVERED = os.path.join(HERE, 'delivered.txt')
+
+
 def default_base():
-    tags = git('tag', '--list', 'dashboard-delivered-*', '--sort=-creatordate').split()
-    return tags[0] if tags else 'dashboard-base'
+    with open(DELIVERED, encoding='utf-8') as f:
+        rows = [l.split()[0] for l in f if l.strip() and not l.startswith('#')]
+    return rows[-1]
 
 
 def show(ref, path):
@@ -46,7 +52,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--base', default=None)
     ap.add_argument('--out', default=os.path.join(ROOT, 'dashboard_patches'))
-    ap.add_argument('--tag', action='store_true', help="만든 뒤 HEAD 에 dashboard-delivered-<이름> 태그")
+    ap.add_argument('--mark', action='store_true', help='만든 뒤 delivered.txt 에 HEAD 를 기록')
     a = ap.parse_args()
     base = a.base or default_base()
 
@@ -148,9 +154,10 @@ def main():
         print(f'  (삭제됨, 자동 처리 안 함) {r}')
     for w in warn:
         print(f'[주의] {w}')
-    if a.tag:
-        git('tag', f'dashboard-delivered-{name}')
-        print(f'태그: dashboard-delivered-{name}  (git push origin --tags 로 올릴 것)')
+    if a.mark:
+        with open(DELIVERED, 'a', encoding='utf-8') as f:
+            f.write(f'{git("rev-parse", "HEAD").strip()}  {top}\n')
+        print(f'기록: delivered.txt 에 {top} 추가 → 커밋·푸시할 것')
 
 
 if __name__ == '__main__':
