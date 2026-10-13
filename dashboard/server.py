@@ -31,7 +31,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-09.2'
+SERVER_VERSION = '2026-10-13.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -770,6 +770,58 @@ def api_ping(acc, admin=False):
     return {'users': users, 'unread': unread, 'perms': perms_for(acc, admin)}   # 권한이 바뀌면 30초 안에 화면에 반영
 
 
+# ---------------------------------------------------------------- 부서원 프로필 (profiles/{ID}.json) — 유닛분장 조직도에 표시
+PHOTO_RE = re.compile(r'^data:image/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+PHONE_RE = re.compile(r'^[^<>\r\n]{0,30}$')                     # 예: 010-1234-5678, 내선 1234
+
+
+def prof_path(uid):
+    return P('profiles', uid + '.json')
+
+
+def api_profiles(logged_in):
+    """모든 계정의 프로필. 전화번호는 로그인한 사람에게만"""
+    out = []
+    for a in all_accounts():
+        p = read_json(prof_path(a['id'])) or {}
+        d = {'id': a['id'], 'name': a['name'], 'duty': p.get('duty', ''), 'run': p.get('run', []), 'bid': p.get('bid', []),
+             'photo': p.get('photo', ''), 'updatedAt': p.get('updatedAt', '')}
+        if logged_in:
+            d['phone'] = p.get('phone', '')
+        out.append(d)
+    return {'profiles': out}
+
+
+def prof_list(v):
+    if not isinstance(v, list):
+        return []
+    out = []
+    for x in v[:40]:
+        x = re.sub(r'\s+', ' ', str(x or '')).strip()[:100]
+        if x and x not in out:
+            out.append(x)
+    return out
+
+
+def api_profile_put(acc, b):
+    phone = str(b.get('phone') or '').strip()
+    if not PHONE_RE.match(phone):
+        raise ApiError(400, '전화번호는 30자 이내로 입력하세요')
+    duty = re.sub(r'\s+', ' ', str(b.get('duty') or '')).strip()[:100]
+    with LOCK:
+        cur = read_json(prof_path(acc['id'])) or {}
+        photo = cur.get('photo', '')
+        if 'photo' in b:
+            photo = str(b.get('photo') or '')
+            if photo and (len(photo) > 400_000 or not PHOTO_RE.match(photo)):
+                raise ApiError(400, '사진은 JPG·PNG 이미지만, 300KB 이하로 올릴 수 있습니다')
+        rec = {'id': acc['id'], 'phone': phone, 'duty': duty, 'run': prof_list(b.get('run')), 'bid': prof_list(b.get('bid')),
+               'photo': photo, 'updatedAt': stamp()}
+        write_json(prof_path(acc['id']), rec)
+    log.info('프로필 저장: %s', acc['id'])
+    return {'status': 'ok'}
+
+
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
 MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
@@ -879,7 +931,7 @@ def make_backup(keep_days):
     tmp = dest + '.tmp'
     with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files'):
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles'):
                 for dirpath, _, files in os.walk(P(top)):
                     for fn in files:
                         if fn.endswith('.tmp'):
@@ -1217,6 +1269,10 @@ class Handler(BaseHTTPRequestHandler):
                 return api_msg_delete(acc, seg[1], seg[2])
         if m == 'GET' and head == 'all':
             return api_all()
+        if m == 'GET' and head == 'profiles':
+            return api_profiles(bool(session_account(self.token(), False)))
+        if m == 'PUT' and head == 'profile':
+            return api_profile_put(self.need_user(), self.json_body())
         if head == 'rec':
             if m == 'GET' and len(seg) == 3:
                 r = read_json(P('data', sheet(1), rid(2) + '.json'))
@@ -1355,7 +1411,7 @@ def main():
             pass
     if not os.path.isfile(P('dashboard.html')):
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
-    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', os.path.join('data', '_meta')):
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
 
     who = port_in_use(a.port)
