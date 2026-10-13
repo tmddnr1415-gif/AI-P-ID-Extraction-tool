@@ -863,7 +863,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1067,7 +1067,7 @@ async function loadAll() {
     const bn = DB.archives.includes(DB.state.lastClosedWeek) ? DB.state.lastClosedWeek : DB.archives[0];
     if (bn) {
       const key = bn + '|' + (DB.state.lastClosedAt || '');
-      if (DB.baseKey !== key) { DB.baseSheets = (await api('GET', 'archive/' + enc(bn))).arch?.sheets || null; DB.baseKey = key; }
+      if (DB.baseKey !== key) { try { DB.baseSheets = (await api('GET', 'archive/' + enc(bn))).arch?.sheets || null; DB.baseKey = key; } catch (_) {} }   // 실패해도 아래 보관본 저장은 계속
     } else { DB.baseSheets = null; DB.baseKey = ''; }
     if (readOnly()) await loadArchiveView(view.week);
     await loadBoard();
@@ -1294,9 +1294,13 @@ async function cacheSave() {
   try {
     await kv('readwrite', s => s.put({ savedAt:stamp(), server:API_BASE || location.origin, recs:DB.recs, cols:DB.cols, state:DB.state,
       baseSheets:DB.baseSheets || null, baseKey:DB.baseKey || '', board:DB.board || [], profiles:DB.profiles || [], sheetCols:DB.sheetCols || {} }, 'cache'));
-    OFFLINE_AT = stamp();
-  } catch (_) {}
+    OFFLINE_AT = stamp(); CACHE_ERR = '';
+    try { localStorage.setItem(LS_LASTON, OFFLINE_AT); } catch (_) {}             // '이 PC 에서 마지막으로 보관한 시각' (보관본이 사라졌는지 판단용)
+    if (!PERSIST_ASKED && navigator.storage?.persist) { PERSIST_ASKED = true; navigator.storage.persist().catch(() => {}); }   // 저장 공간이 부족해도 보관본을 지우지 않게 요청
+  } catch (e) { CACHE_ERR = e?.message || String(e); }                      // 보관 실패 → 화면 왼쪽 아래에 경고 (서버가 꺼지면 열 수 없음)
 }
+const LS_LASTON = 'dept-last-cache';
+let CACHE_ERR = '', PERSIST_ASKED = false;
 async function cacheLoad() { try { return await kv('readonly', s => s.get('cache')); } catch (_) { return null; } }
 async function queueLoad() { try { QUEUE = (await kv('readonly', s => s.get('queue'))) || []; } catch (_) { QUEUE = []; } }
 async function queueSave() { try { await kv('readwrite', s => s.put(QUEUE, 'queue')); } catch (e) { toast('대기열 저장 실패: ' + e.message, true); } }
@@ -2395,6 +2399,8 @@ function renderHeader() {
   const bq = $('#btnQueue'); bq.style.display = SERVER ? '' : 'none';
   bq.textContent = QUEUE.length ? `대기열 (${QUEUE.length})` : '대기열'; bq.classList.toggle('pri', QUEUE.length > 0);
   $('#netState').innerHTML = (!SERVER ? '' : OFFLINE ? '<span class="net off">● 오프라인</span>' : '<span class="net on">● 서버 연결됨</span>')
+    + (SERVER && !OFFLINE && location.protocol === 'file:' ? (CACHE_ERR ? `<div class="net off" style="margin-top:2px" title="${esc(CACHE_ERR)}">⚠ 이 PC 보관 실패 — 서버가 꺼지면 열 수 없음</div>`
+      : OFFLINE_AT ? `<div style="margin-top:2px;opacity:.85" title="서버가 꺼져 있어도 이 보관본으로 열고 수정할 수 있습니다">💾 이 PC 에 보관됨 ${fmtTime(OFFLINE_AT)}</div>` : '') : '')
     + `<div style="opacity:.7;margin-top:2px">화면 v${APP_VERSION}${SERVER_INFO?.serverVersion ? ` · 서버 v${esc(SERVER_INFO.serverVersion)}` : ''}</div>`;
   if (OFFLINE) ['btnClose', 'btnSaveAll', 'btnTrash'].forEach(i => $('#' + i).disabled = true);
   ['btnTrash', 'btnReload', 'btnCsv', 'btnXlsx'].forEach(i => $('#' + i).disabled = !root);
@@ -4386,7 +4392,13 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     SERVER = false; API_BASE = ''; ADMIN = true; renderMenu(); renderHeader();
     $('#content').innerHTML = `<div class="card welcome"><h2>서버에 연결할 수 없습니다</h2>
       <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC에 보관된 데이터도 아직 없습니다.</p>${BLOCKED ? `<p class="banner bad" style="display:block">⛔ ${esc(BLOCKED)}</p>` : ''}
-      <p class="muted">서버에 한 번이라도 연결되면 그 데이터를 이 PC에 보관해 두었다가, 다음부터는 서버가 꺼져 있어도 오프라인으로 열 수 있습니다.</p>
+      ${(() => { let last = ''; try { last = localStorage.getItem(LS_LASTON) || ''; } catch (_) {}
+        return last ? `<p class="banner bad" style="display:block;text-align:left">⚠ 이 PC 는 <b>${fmtTime(last)}</b> 에 보관본을 저장했는데 지금은 없습니다 → <b>브라우저가 저장 데이터를 지운 것</b>입니다.<br>
+            <span class="muted">Edge 설정 › 개인 정보 › <b>'닫을 때마다 지울 항목 선택'</b> 에서 '쿠키 및 기타 사이트 데이터'가 켜져 있거나, InPrivate 창이거나, 회사 정책입니다. 끌 수 없으면 서버 PC 를 켜 둔 채 쓰세요.</span></p>`
+          : `<p class="muted" style="text-align:left">이 PC(이 브라우저)는 서버에 연결해 보관본을 저장한 기록이 없습니다.<br>
+            ① 서버가 켜져 있을 때 <b>이 파일(${esc(selfName())})</b>을 Edge 로 열고 로그인 → 왼쪽 아래에 <b>'💾 이 PC 에 보관됨 시각'</b> 이 보이면 준비 끝.<br>
+            ② 그렇게 했는데도 이 화면이 나오면 Edge 가 닫힐 때 저장 데이터를 지우는 설정(설정 › 개인 정보 › '닫을 때마다 지울 항목 선택') 또는 InPrivate 창입니다.<br>
+            ③ <b>http://…:8080</b> 주소로 연 화면은 보관본을 쓰지 않습니다 — 반드시 내 PC 의 dashboard.html 파일로.</p>`; })()}
       <button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button> <button class="btn" id="btnLocalMode">폴더 모드로 열기</button></div>`;
     $('#btnRetry').onclick = () => location.reload();
     $('#btnSrv2').onclick = () => setServerUrl();

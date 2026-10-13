@@ -446,3 +446,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - server.py `net_profiles` → `netsh advfirewall show currentprofile` + `netsh wlan show interfaces`(SSID), 공통 함수 `run_text`(cp949 대응). 관리자 화면 '공용 네트워크' 배너는 그대로 동작.
 - **확인한 것**: `py_compile`. 한글 Windows 형식의 ipconfig / netsh 출력 견본으로 net_check 판정 시험: Wi-Fi 165.244.30.5 · SEC-CORP · 공용 프로필 · python 허용(개인,도메인) + 차단(공용) → '차단 규칙 있음 · 공용에서 허용 규칙 없음' 판정, --fix 명령 = 포트 허용 추가 + `name=python.exe program=… profile=public new enable=no`. 서버 net_profiles 견본 → Public · SEC-CORP. 실제 Windows 실행은 회사에서.
 - **회사에서 할 일**: 서버 PC 를 Wi-Fi 로 둔 채 `check_network.bat` → 결과 화면(또는 network_check.txt) 확인 → '✗' 가 있으면 `allow_firewall.bat` 를 관리자 권한으로(권한 없으면 IT 에 'TCP 8080 인바운드 허용') → 모두 '✓' 인데도 안 되면 회사망(Wi-Fi ↔ 유선) 문제.
+
+### 2026-10-13 (17) — 서버를 끄면 부서원 파일이 '이 PC에 보관된 데이터도 아직 없습니다' → 보관 상태 표시 · 원인 안내 (APP_VERSION 2026-10-13.16 / SERVER_VERSION 그대로 2026-10-13.10)
+- **증상**: 서버를 끄고 부서원 PC 의 dashboard.html(file://) 을 열면 안내 화면 "서버에 연결할 수 없습니다 … 이 PC에 보관된 데이터도 아직 없습니다" (오프라인 모드로 안 열림).
+- **원인 후보**: ① 그 PC·그 브라우저로 서버가 켜져 있을 때 이 파일을 연 적이 없음(또는 http:// 주소로만 열었음 — 보관본은 file:// 사본에만) ② Edge 가 닫힐 때 사이트 데이터를 지움(설정 '닫을 때마다 지울 항목 선택' · InPrivate · 회사 정책) ③ 보관 저장이 실패했는데 예전 코드는 조용히 넘어감(`cacheSave` 의 빈 catch) — 또는 그 전 단계 `archive/` 불러오기 실패로 `cacheSave` 까지 못 감.
+- **바꾼 것** (dashboard.html):
+  - `cacheSave`: 성공하면 localStorage `dept-last-cache` 에 시각 기록 + `navigator.storage.persist()` 요청(저장 공간 부족 때 지우지 않게), 실패하면 `CACHE_ERR`.
+  - 왼쪽 아래 상태(`renderHeader` 의 `#netState`, file:// 사본만): **'💾 이 PC 에 보관됨 시각'** 또는 **'⚠ 이 PC 보관 실패 — 서버가 꺼지면 열 수 없음'** → 부서원이 미리 확인 가능.
+  - `loadAll`: 마지막 마감본(archive) 불러오기가 실패해도 보관본 저장은 계속.
+  - 안내 화면(서버 실패 + 보관본 없음): `dept-last-cache` 가 있으면 "○○시에 저장했는데 지금 없음 → 브라우저가 지운 것(Edge 설정 경로)", 없으면 "저장 기록 없음 → ① 서버 켜졌을 때 이 파일을 열고 로그인, 왼쪽 아래 💾 확인 ② 그래도 안 되면 Edge 지우기 설정/InPrivate ③ http:// 주소 화면은 보관 안 함".
+- **확인한 것**: `node --check`. 시험(file:// 사본): 서버 켜짐 → 왼쪽 아래 '💾 이 PC 에 보관됨' → 서버 끔·다시 열기 → 오프라인으로 열림. 보관본(IndexedDB)만 지운 경우 → "저장했는데 지금 없음 → 브라우저가 지운 것". 처음 보는 브라우저 → ①②③ 안내. 스크립트 오류 없음.
+- **회사에서 확인할 것**: 부서원 PC 에서 서버 켜졌을 때 파일을 열고 왼쪽 아래 💾 표시 → Edge 를 완전히 닫았다 다시 열고(서버 끈 채) 오프라인으로 열리는지. 안 열리고 '지운 것' 안내가 나오면 Edge 지우기 설정/회사 정책.
