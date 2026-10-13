@@ -863,7 +863,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3621,7 +3621,7 @@ document.addEventListener('click', e => {
 
 /* =====================================================================
  *  R&R · 투입 분석 (route `alloc`): PJT R&R + 계장 투입인력 + 월말 시수(Man-hour) 파일
- *  Step1 분류(tsClass): Type '근태' → 근태 / '공통' → 부서업무 / '성과품…'·'신사업' → Project Code 로 수행·입찰 PJT 찾기 (PJT 의 'Project Code' 칸, 여러 개는 쉼표·줄바꿈), 코드가 없으면 입찰 / 그 밖의 Type → Type 이름 그대로
+ *  Step1 분류(tsClass): '근태' → 근태 / Project Code 있으면 수행·입찰 PJT 의 'Project Code' 칸(여러 개는 쉼표·줄바꿈)과 대조 / 코드 없음: 공통+Detail 입찰 → 입찰, 공통 → 부서업무, 성과품·신사업 → 입찰, 그 밖의 Type → Type 이름 그대로
  *  Step2 부서원별 월·연간 프로젝트 투입 비율(%) · 그래프 · R&R(역할) · 계획(투입인력) 대비 실제
  *  Step3 실제 시간(h)은 Management 메뉴 권한자에게만 — 서버가 권한 없는 사람에게는 시간 대신 비율 단위만 보냄
  * ===================================================================== */
@@ -3639,16 +3639,21 @@ function projIndex() {
   });
   return m;
 }
-// 시수 Type 분류: '근태' → 근태 한 묶음 / '공통' → 부서업무 / '성과품'(성과품 · 성과품 과정관리 · 과정정리 …) · '신사업' 만 Project Code 로 PJT 찾기
-//   (이 Type 인데 Project Code 가 없으면 '입찰' 로 봄) / 그 밖의 Type → Type 이름 그대로 (기타, 코드가 있어도 PJT 로 안 셈)
+// 시수 분류 (순서대로):
+//  ① Type '근태' → 근태 한 묶음
+//  ② Project Code 가 있으면 → 수행·입찰 PJT 의 'Project Code' 와 대조해 수행/입찰 (어느 PJT 에도 없으면 '미등록 코드')
+//  ③ 코드 없음 + Type '공통' + Detail 에 '입찰' → 입찰 / 코드 없음 + Type '공통' (그 밖의 Detail) → 부서업무
+//  ④ 코드 없음 + Type '성과품'(성과품 · 성과품 과정관리 · 과정정리 …) · '신사업' → 입찰 (코드가 없어 수행 PJT 를 알 수 없음)
+//  ⑤ 코드 없음 + 그 밖의 Type (교육 등) → Type 이름 그대로 (기타)
 const tsIsPjtType = t => t.startsWith('성과품') || t.includes('신사업');
 function tsClass(row, idx) {
-  const t = String(row.type || '').replace(/\s/g, '');
-  if (t === '공통') return { key:'__dept', name:'부서업무 (공통)', kind:'dept' };
+  const t = String(row.type || '').replace(/\s/g, ''), code = String(row.code || '').trim().toUpperCase();
   if (t.includes('근태')) return { key:'__leave', name:'근태', kind:'leave' };
-  if (!tsIsPjtType(t)) return { key:'__type:' + t, name:String(row.type || '').trim() || 'Type 없음', kind:'other' };
-  const code = String(row.code || '').trim().toUpperCase();
-  if (!code) return { key:'__bidnocode', name:'입찰 (Project Code 없음)', kind:'bid' };
+  if (!code) {
+    if (t === '공통') return String(row.detail || '').includes('입찰') ? { key:'__bidcommon', name:'입찰 (공통 · Detail 입찰)', kind:'bid' } : { key:'__dept', name:'부서업무 (공통)', kind:'dept' };
+    if (tsIsPjtType(t)) return { key:'__bidnocode', name:'입찰 (Project Code 없음)', kind:'bid' };
+    return { key:'__type:' + t, name:String(row.type || '').trim() || 'Type 없음', kind:'other' };
+  }
   const p = idx.get(code); if (p) return { ...p, kind:p.sheet };
   return { key:'__unk:' + code, name:`미등록 코드 ${code}`, kind:'unk', code };
 }
@@ -3675,7 +3680,7 @@ function tsAgg(list, idx) {
 const alTag = k => ({ perform:'<span class="atag run">수행</span>', bid:'<span class="atag bid">입찰</span>', dept:'<span class="atag dept">부서업무</span>', unk:'<span class="atag unk">미등록</span>', none:'<span class="atag unk">코드 없음</span>', leave:'<span class="atag leave">근태</span>', other:'<span class="atag dept">기타 Type</span>' }[k] || '');
 function renderAlloc(c, mg) {                             // mg = Management > R&R · 투입 분석: 비율(%) + 실제 시간(h) 병기
   const RT = mg ? 'mgalloc' : 'alloc';
-  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>${mg ? '🛠 Management · R&R · 투입 분석 <small style="font-weight:600;opacity:.85">— 실제 근무시간 병기</small>' : 'R&R · 투입 분석'}</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — Type '근태' = 근태 · '공통' = 부서업무 · '성과품'·'신사업' 은 Project Code 로 수행·입찰 PJT 에 연결 (코드 없으면 입찰).</p></div></div>${inner}</section>${extra}</div>`;
+  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>${mg ? '🛠 Management · R&R · 투입 분석 <small style="font-weight:600;opacity:.85">— 실제 근무시간 병기</small>' : 'R&R · 투입 분석'}</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — '근태' = 근태 · Project Code 가 있으면 수행·입찰 PJT 의 코드와 대조 · 코드 없으면 공통(Detail 입찰 → 입찰, 그 외 → 부서업무) · 성과품/신사업 → 입찰.</p></div></div>${inner}</section>${extra}</div>`;
   const origin = `<span class="al-orig">원본 시트: <button class="btn sm" data-go="rnr">PJT R&R</button> <button class="btn sm" data-go="staffing">계장 투입인력</button></span>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">시수 분석은 서버에 연결되어 있을 때만 쓸 수 있습니다.</div></section>'));
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">🔒 로그인하면 볼 수 있습니다 (시수는 로그인한 부서원만).</div></section>'));
@@ -3924,9 +3929,10 @@ async function openTsUpload(dropped) {
       <div id="tsPrev"></div>
       <div class="fg"><label>부서원${all ? '' : ' (본인)'}<select id="tsP">${opts}</select></label>
         <label>저장할 월<input type="month" id="tsM" value="${defM}"></label></div>
-      <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type '근태' → 근태 (일괄) / '공통' → 부서업무
-        '성과품'(성과품 과정관리 등) · '신사업' → Project 코드(예: D026)로 수행·입찰 PJT 찾기, 코드가 없으면 입찰
-        그 밖의 Type → Type 이름 그대로 (기타)
+      <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type '근태' → 근태 (일괄)
+        Project 코드(예: D026)가 있으면 → 수행·입찰 PJT 의 Project Code 와 대조해 수행/입찰
+        코드 없음: Type '공통' + Detail '입찰' → 입찰 / '공통' 그 외 → 부서업무
+                   '성과품'(과정관리 등) · '신사업' → 입찰 / 그 밖의 Type → Type 이름 그대로 (기타)
 Step 2. 부서원별 월·연간 프로젝트 투입 비율(%) · R&R
 Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은 달을 다시 올리면 바뀜</pre></details></div>
     <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit" id="tsGo" disabled>⬆ 업로드 · 분석</button></div></form>`, true);
