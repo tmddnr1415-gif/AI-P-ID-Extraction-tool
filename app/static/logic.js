@@ -952,6 +952,9 @@ async function runSim(animate) {
   renderRemind(fresh);
   L.notes = [...(r.notes || []), ...(b.notes || [])];
   L.implied = r.implied || {};                     // L13 — 뒤쪽 값에서 거꾸로 정한 입력 (사람이 준 값이 아니다)
+  L.unmet = r.unmet || [];
+  L.pulled = b.pulled || [];                         // L16 — 줄줄이 켠 다른 시트의 출력
+  L.finalValues = r.frames[r.frames.length - 1].values;   // 흐름 그림이 끝난 뒤의 값 (보고는 이것으로)                          // L16 — 목표로 둔 출력 중 게이트 조건이 맞지 않아 나가지 않은 것
   if ((r.conflicts || []).length) status("⚠ 거꾸로 맞추기 모순 — " + r.conflicts.slice(0, 2).join(" · "));
   L.short = new Set(r.short_gates || []);          // L10 — 입력을 다 읽지 못해 출력을 내지 않는 게이트
   L.macros = b.macros || {};                        // L12 — 매크로 블록마다 Typical 시트의 입력·출력 행 값
@@ -1037,6 +1040,21 @@ function setMode(m, quiet) {
   renderInfo(); renderRows(); renderChain(); renderSheetList();
 }
 
+/* L16 — 강제 신호 전체 리셋: 모든 시트에 사람이 준 1/0 · 거꾸로 맞춘 값 · 동작 예시 · 메모리 · 타이머 상태를 지운다.
+   타이머 시간 설정(사람이 바꾼 초)은 신호가 아니라 설정이라 남긴다.  열린 매크로 새 창에도 0 이 된 입력을 보낸다. */
+function resetAll() {
+  const n = Object.values(L.allForces || {}).reduce((a, f) => a + Object.keys(f || {}).length, 0);
+  L.allForces = {}; L.forces = L.allForces[L.page] = {};
+  L.states = {}; L.state = null; L.values = {}; L.linked = {}; L.chain = []; L.design = [];
+  L.implied = {}; L.scenario = null; L.unmet = [];
+  stopAnim();
+  const rb = $("#remind"); if (rb) rb.hidden = true;
+  renderChain(); renderSheetList();
+  if (L.mode === "sim") runSim(false); else paint();
+  renderInfo(); renderRows();
+  status(n ? `⟲ 강제 신호 ${n}개를 모두 지웠습니다 (모든 시트 · 메모리 · 타이머 상태 포함)` : "⟲ 지울 강제 신호가 없습니다 — 메모리 · 타이머 상태를 처음으로 되돌렸습니다");
+}
+
 function setForce(key, v) {
   // L15 — 출력(오른쪽 행 · 블록이 모는 선 · 매크로 출력 단자)을 1 로 주면: 그 출력이 서려면 어떤 입력이 1 이어야
   // 하는지 범례 정의로 찾아 그 입력들을 주황으로 3번 점등하고 실제로 활성화한다 (사용자 지시).
@@ -1044,7 +1062,8 @@ function setForce(key, v) {
   // L9 — 따라가기 모드에서 입력 동그라미에 1/0 을 고르면 시뮬레이션으로 넘어가 그 값으로 돈다
   if (L.mode !== "sim") setMode("sim", true);
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
-  runSim(true);
+  // L16 — 목표로 둔 출력이 게이트 조건을 못 채웠으면 (사람이 준 입력 0 이 막음) 그렇게 말하고 0 인 입력을 짚는다
+  runSim(true).then(() => { if ((L.unmet || []).some((x) => x.want === 1)) reportUnmet(); });
 }
 
 /* ------------------------------------------------------------------ L15 — 출력을 활성화하면 필요한 입력을 찾아 켠다 */
@@ -1074,30 +1093,45 @@ async function activateOutput(key) {
   const sc = await findInputs(L.page, key);
   if (!sc.ok) {
     // 찾지 못하면 예전처럼 그 출력만 강제하고 이유를 말한다 (지어내지 않는다)
+    // L16 — 출력을 직접 켜지 않는다: 목표로 두면 서버가 범례 조건을 거꾸로 따라 앞쪽 입력을 줄줄이 정하고,
+    // 게이트가 판정한다 (조건이 다 맞지 않으면 출력은 나가지 않는다 — 사용자 지시).
     L.forces[key] = 1;
-    status(`⚠ ${name} — ${sc.why || "필요한 입력 조합을 찾지 못했습니다"} · 그 출력만 1 로 강제합니다`);
-    runSim(true);
+    status(`⚠ ${name} — ${sc.why || "필요한 입력 조합을 찾지 못했습니다"} · 앞쪽 입력을 범례 조건대로 맞춰 봅니다 (조건이 다 맞지 않으면 출력은 나가지 않습니다)`);
+    await runSim(true);
+    reportUnmet();
     return;
   }
   const need = needOf(sc.forces);
   // 사람이 이미 준 값은 남기되, 필요한 입력과 겹치는 것 · 다른 출력 강제는 뺀다 (출력은 입력이 정한다)
   const keep = {};
   for (const [k, v] of Object.entries(L.forces)) if (!(k in need) && k !== key && !wantsScenario(k)) keep[k] = v;
-  L.forces = L.allForces[L.page] = { ...keep, ...need };
+  // L16 — 다른 시트에서 이어져 오는 입력 행은 여기서 직접 켜지 않는다: 출력을 목표로 두면 서버가 그 행을 보내는
+  // 시트의 출력까지 줄줄이 켠다 (게이트가 막으면 거기서 머물고 이 출력도 나가지 않는다).
+  const linkedRow = (k) => k.startsWith("row:") && L.sheet.rows.some((r) => r.n === Number(k.slice(4)) && r.side === "L" && r.ref);
+  const local = {};
+  for (const [k, v] of Object.entries(need)) if (!linkedRow(k)) local[k] = v;
+  L.forces = L.allForces[L.page] = { ...keep, ...local, [key]: 1 };
   const on = Object.keys(need).filter((k) => need[k] === 1);
   const names = on.map(scenarioName);
   status(`${name} 을 1 로 — 필요한 입력 ${on.length}개를 주황으로 점등합니다: ${names.join(" · ")}`);
   await flashNeed(on);
   let r = await runSim(true);
   let dropped = false;
+  if (!reachedIn(r, sc.net) && Object.keys(local).length !== Object.keys(need).length) {
+    // 이어진 시트가 막았다 — 그 입력 행은 이 시트에서 직접 준다 (예전 방식)
+    L.forces = L.allForces[L.page] = { ...keep, ...need, [key]: 1 };
+    r = await runSim(true);
+  }
   if (!reachedIn(r, sc.net) && Object.keys(keep).length) {
     dropped = true;
     // 지금 준 다른 값(예: RESET 입력 1)이 막았다 — 필요한 입력만 두고 다시
-    L.forces = L.allForces[L.page] = { ...need };
+    L.forces = L.allForces[L.page] = { ...need, [key]: 1 };
     L.states = {}; L.state = null; L.values = {};
     r = await runSim(true);
     status(`${name} 을 1 로 — 먼저 주었던 다른 값이 이 출력을 막아 풀었습니다 · 필요한 입력: ${names.join(" · ")}`);
   }
+  if (!reachedIn(r, sc.net)) reportUnmet();
+  else if ((L.pulled || []).length) status(`${name} 을 1 로 — 줄줄이: 다른 시트의 출력 ${L.pulled.length}개도 켰습니다 (${L.pulled.slice(0, 6).map((x) => x.from_sheet + "-" + x.from_row).join(" · ")}${L.pulled.length > 6 ? " …" : ""})`);
   L.scenario = { key, ok: true, forces: need, direct: sc.direct_nets || [], at: sc.at, need: on };
   if (MACRO_FROM && L.page === MACRO_FROM.target && window.opener) {
     // 매크로 새 창: 이 Typical 시트의 입력 행 → 부모 창의 매크로 입력 단자도 같이 활성화 (사용자 지시)
@@ -1107,6 +1141,21 @@ async function activateOutput(key) {
     catch (e) { /* 부모 창이 닫힘 */ }
   }
   renderInfo();
+}
+/* L16 — 목표로 준 출력이 게이트 조건을 못 채워 나가지 않았으면 그렇게 말하고, 그 게이트에서 0 인 입력을 주황으로 짚는다 */
+function reportUnmet() {
+  const u = (L.unmet || []).filter((x) => x.want === 1);
+  if (!u.length || !L.sheet) return;
+  const keys = [];
+  const parts = [];
+  for (const x of u) {
+    const b = x.block && L.sheet.blocks[x.block];
+    const zero = L.sheet.ports.filter((p) => p.block === x.block && p.dir === "in" && (L.finalValues || L.values)[p.net] !== 1).map((p) => p.net);
+    for (const n of zero) keys.push("net:" + n);
+    parts.push(`${(b && b.func) || "게이트"} 입력 ${zero.length}개가 0`);
+  }
+  status(`⛔ 출력이 나가지 않습니다 — ${parts.join(" · ")} (게이트 조건이 맞지 않음 · 0 인 입력을 주황으로 짚습니다)`);
+  flashNeed(keys);
 }
 /* 필요한 입력(행 점 · 블록 · 선)을 주황으로 NEED_FLASH 번 점등 */
 function flashNeed(keys, s) {
@@ -1447,7 +1496,7 @@ function renderChain() {
     const fr = c.from.map(([sh, n]) => `${esc(sh)}-${n}`).join(", ");
     const to = c.to.length ? ` → ${c.to.map(esc).join(", ")}` : " · 끝 (더 넘어가는 연결 없음)";
     return `<li data-page="${c.page}" class="${c.page === L.page ? "sel" : ""}"><b>${esc(c.sheet_no || "p" + c.page)}</b>
-      <small>${c.hop === 0 ? "지정한 장" : `연결 ${c.hop}단계 ← ${fr}`}${to} · 활성 선 ${c.on_nets}</small></li>`;
+      <small>${c.hop === 0 ? (c.user ? "지정한 장" : "줄줄이 켬 — 뒤 시트의 출력 조건") : `연결 ${c.hop}단계 ← ${fr}`}${to} · 활성 선 ${c.on_nets}</small></li>`;
   }).join("");
 }
 function renderFindings() {
@@ -1895,7 +1944,7 @@ function bind() {
   $("#all-code").onchange = (e) => { L.allCode = e.target.value; renderAll(); };
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
-  $("#reset").onclick = () => { L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.states = {}; L.linked = {}; L.chain = []; L.design = []; renderChain(); renderSheetList(); L.state = null; L.values = {}; stopAnim(); if (L.mode === "sim") runSim(false); else paint(); renderInfo(); };
+  $("#reset").onclick = resetAll;
   document.body.addEventListener("click", (e) => {
     if (!e.target.closest("#force-menu")) closeForceMenu();
     const fb = e.target.closest(".force button");

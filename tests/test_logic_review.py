@@ -182,9 +182,13 @@ def test_simulation_follows_the_legend_definitions():
     assert r["frames"][-1]["values"]["8"] == 1
     r = sim.simulate(s, {"row:7": 1}, r["state"])
     assert r["frames"][-1]["values"]["8"] == 0
-    # 선 강제는 몰이를 이긴다
+    # L16 — 게이트가 모는 선은 직접 바꾸지 않는다: OR 의 입력이 1 이면 출력 0 을 줘도 1 이고 모순으로 말한다
     r = sim.simulate(s, {"row:1": 1, "net:3": 0})
-    assert r["frames"][-1]["values"]["3"] == 0
+    assert r["frames"][-1]["values"]["3"] == 1 and r["conflicts"] and r["unmet"]
+    # 몰이가 없는 선은 예전처럼 직접 준다
+    s2 = _toy()
+    s2["rows"] = [x for x in s2["rows"] if x["n"] != 4]
+    assert sim.simulate(s2, {"net:4": 1, "row:1": 1})["frames"][-1]["values"]["5"] == 1
 
 
 def test_trace_goes_through_blocks_in_depth_order():
@@ -721,3 +725,58 @@ def test_activating_an_output_finds_and_flashes_the_inputs_it_needs():
     assert "const NEED_FLASH = 3;" in src and "flashNeed(on)" in src
     assert 'type: "macro-need"' in src and "handleMacroNeed" in src, "매크로 새 창 ↔ 부모 창이 같이 활성화"
     assert "timers: L.timers" in src and "startCount(run)" in src, "타이머 시간을 보내고 실제로 센다"
+
+
+def test_forcing_an_and_output_chains_back_and_never_bypasses_the_gate():
+    """L16 — AND 출력을 1 로 주면 앞쪽 입력이 줄줄이 1 이 되고(AND ← AND ← 메모리 SET), 입력 하나라도 0 으로
+    남으면 AND 출력은 나가지 않는다 (사용자 지시 — "12 · 14 번이 활성화 안 되었는데 AND 의 Output 이 나가면 안 된다")."""
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    blocks = {"A1": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "A2": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "M": {"func": "MEMORY", "logic": "memory", "group": "", "param": {}}}
+    ports = [P("A2", "r1", "in"), P("A2", "r2", "in"), P("A2", "a2", "out"),
+             P("M", "r3", "in", "set"), P("M", "r4", "in", "reset"), P("M", "q", "out", "q"),
+             P("A1", "a2", "in"), P("A1", "q", "in"), P("A1", "r5", "in"), P("A1", "o", "out")]
+    rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in (1, 2, 3, 4, 5)] + [{"n": 74, "side": "R", "net": "o"}]
+    s = {"blocks": blocks, "ports": ports, "rows": rows,
+         "nets": {n: {"segs": []} for n in ("r1", "r2", "r3", "r4", "r5", "a2", "q", "o")}}
+    r = sim.simulate(s, {"row:74": 1})
+    assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 1, "row:4": 0, "row:5": 1}
+    v = r["frames"][-1]["values"]
+    assert v["o"] == 1 and v["a2"] == 1 and v["q"] == 1 and not r["unmet"]
+    # 사람이 입력 하나(5행)를 0 으로 두면 AND 는 1 을 내지 않는다 — 출력을 직접 켜지 않는다
+    r = sim.simulate(s, {"row:74": 1, "row:5": 0})
+    assert r["frames"][-1]["values"]["o"] == 0
+    assert r["unmet"] and r["unmet"][0]["block"] == "A1" and r["conflicts"]
+    # 선(net) 으로 줘도 같다
+    assert sim.simulate(s, {"net:o": 1, "row:2": 0})["frames"][-1]["values"]["o"] == 0
+
+
+def test_reset_all_clears_every_forced_signal_in_the_screen():
+    """L16 — 강제 신호 전체 리셋 단추: 모든 시트의 강제 · 상태 · 거꾸로 맞춘 값 · 예시를 지운다."""
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    assert "강제 신호 전체 리셋" in html and '$("#reset").onclick = resetAll' in js
+    body = js[js.index("function resetAll()"):js.index("function setForce(")]
+    for k in ("L.allForces = {}", "L.states = {}", "L.implied = {}", "L.scenario = null"):
+        assert k in body
+
+
+def test_forcing_an_output_chains_through_the_sheet_that_sends_its_input():
+    """L16 — 출력 조건에 다른 시트에서 오는 입력이 있으면 그 시트의 출력까지 줄줄이 켠다 (그 시트의 게이트가 막으면 머문다)."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 1, "side": "L", "net": "a1"}, {"n": 2, "side": "L", "net": "a2"},
+                         {"n": 50, "side": "R", "net": "ao", "desc": "READY"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "a1", "in"), P("G", "a2", "in"), P("G", "ao", "out")])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6", "ref": {"page": 1, "row": 50}},
+                         {"n": 7, "side": "L", "net": "c7"}, {"n": 40, "side": "R", "net": "co"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, C], {3: {"row:40": 1}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 1
+    assert b["chain_forces"] == {1: {"row:50": 1}}
+    assert b["pulled"][0]["from_sheet"] == "A1" and b["pulled"][0]["row"] == 6
+    # 보내는 시트의 입력을 사람이 0 으로 두면 그 시트 AND 가 막고 — 뒤 시트 출력도 나가지 않는다
+    b = sim.simulate_bundle([A, C], {3: {"row:40": 1}, 1: {"row:1": 0}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 0 and b["focus"]["unmet"]

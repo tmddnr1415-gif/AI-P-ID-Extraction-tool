@@ -383,3 +383,7 @@ button.big { padding: 8px 28px; font-size: 15px; font-weight: 700; }
 .force-menu .fm-t input { width: 80px; padding: 3px 5px; }
 .force-menu .fm-t input.bad { outline: 2px solid #d1242f; }
 #ov #g-count, #ov #g-need { pointer-events: none; }
+
+/* L16 — 강제 신호 전체 리셋 (눈에 띄게) */
+.lg-tools button.lg-reset, button.lg-reset { background: #fff4f2; border-color: #d9534f; color: #b52b27; font-weight: 600; }
+button.lg-reset:hover { background: #d9534f; color: #fff; }
