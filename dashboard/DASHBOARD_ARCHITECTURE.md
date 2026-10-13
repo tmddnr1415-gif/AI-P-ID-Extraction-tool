@@ -435,3 +435,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 4. **server.py `api_ts_list`**: Management 권한자(`can_hours`)에게만 행마다 `days`(날짜 → 시간)를 더 보냄. 일반 부서원 응답은 그대로(비율 단위, days 없음).
 - **확인한 것**: `node --check`, `py_compile`. 시험 서버(4명 × 6~9월 시수, 김철수 7/13~17 매일 11시간): 다른 PC 주소로 접속 시 일반 부서원 `canHours false · days 없음`, Management `true · days 있음`. Management 메뉴 하위 2개, #mgmt → #mgalloc. Management › R&R = `%(h)` 병기, 주간업무보고 › R&R = 같은 사람이어도 시간 안 보임. 근무시간 월별 김철수 6~9월 201:50 / 212:30 / 184:00 / 200:20 = 엑셀 합과 같음, 7월 주별 7/13~7/19 55:00 붉은 칸·52시간 초과 1건, 일별 34열(1~31+합계·평균), 개인 상세 23일·212:30h·PJT 93%. 일반 부서원은 메뉴 없음·주소로 들어와도 '접근 권한 없음'. 스크립트 오류 없음.
 - **회사에서 확인할 것**: 시수 파일의 Total 과 근무시간 화면의 그 달 합계가 같은지.
+
+### 2026-10-13 (16) — 접속 점검 bat 가 회사 PC 에서 '액세스가 거부되었습니다' → PowerShell 없이 다시 만듦 (APP_VERSION 그대로 2026-10-13.15 / SERVER_VERSION 2026-10-13.10)
+> **서버 재시작 필요** (server.py). 새 파일 `net_check.py` (서버 폴더).
+- **증상**: 회사 서버 PC 에서 `check_network.bat` 실행 → 첫 줄 다음에 `액세스가 거부되었습니다.` 만 나오고 점검 내용 없음 = **회사 정책으로 powershell.exe 실행이 막혀 있음**. (13·14 의 `allow_firewall.bat`·`check_network.bat`·서버 `net_profiles` 가 모두 PowerShell 을 썼음 → 회사 PC 에서는 동작 안 함)
+- **net_check.py** (Python 표준 라이브러리 + Windows 기본 명령 `ipconfig` · `netsh` · `netstat` 만, 영문·한글 Windows 출력 모두 읽음):
+  `[1]` IP 주소(ipconfig) `[2]` Wi-Fi 이름(netsh wlan) `[3]` 방화벽 지금 프로필 공용/개인/도메인(netsh advfirewall show currentprofile) `[4]` 서버 응답(localhost·각 IP, 프록시 안 거침) + 8080 LISTEN(netstat) `[5]` python·8080 관련 인바운드 규칙(허용/차단·켬/끔·프로필, `netsh advfirewall firewall show rule name=all dir=in verbose`) `[6]` 판정(한국어) → 화면 + `network_check.txt`.
+  `--fix`(관리자): `netsh advfirewall firewall add rule name="DeptDashboard 8080" dir=in action=allow protocol=TCP localport=8080 profile=any` + 지금 켜져 있는 python 인바운드 **차단** 규칙을 이름·프로그램·프로필로 골라 `set rule … new enable=no`.
+- `check_network.bat` = `python net_check.py --port 8080`, `allow_firewall.bat` = 관리자 확인(`net session`) 후 `python net_check.py --port 8080 --fix`. (ASCII · CRLF · chcp 없음 · PowerShell 없음)
+- server.py `net_profiles` → `netsh advfirewall show currentprofile` + `netsh wlan show interfaces`(SSID), 공통 함수 `run_text`(cp949 대응). 관리자 화면 '공용 네트워크' 배너는 그대로 동작.
+- **확인한 것**: `py_compile`. 한글 Windows 형식의 ipconfig / netsh 출력 견본으로 net_check 판정 시험: Wi-Fi 165.244.30.5 · SEC-CORP · 공용 프로필 · python 허용(개인,도메인) + 차단(공용) → '차단 규칙 있음 · 공용에서 허용 규칙 없음' 판정, --fix 명령 = 포트 허용 추가 + `name=python.exe program=… profile=public new enable=no`. 서버 net_profiles 견본 → Public · SEC-CORP. 실제 Windows 실행은 회사에서.
+- **회사에서 할 일**: 서버 PC 를 Wi-Fi 로 둔 채 `check_network.bat` → 결과 화면(또는 network_check.txt) 확인 → '✗' 가 있으면 `allow_firewall.bat` 를 관리자 권한으로(권한 없으면 IT 에 'TCP 8080 인바운드 허용') → 모두 '✓' 인데도 안 되면 회사망(Wi-Fi ↔ 유선) 문제.
