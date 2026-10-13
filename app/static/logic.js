@@ -1525,7 +1525,110 @@ function renderChain() {
     const to = c.to.length ? ` → ${c.to.map(esc).join(", ")}` : " · 끝 (더 넘어가는 연결 없음)";
     return `<li data-page="${c.page}" class="${c.page === L.page ? "sel" : ""}"><b>${esc(c.sheet_no || "p" + c.page)}</b>
       <small>${c.hop === 0 ? (c.user ? "지정한 장" : "줄줄이 켬 — 뒤 시트의 출력 조건") : `연결 ${c.hop}단계 ← ${fr}`}${to} · 활성 선 ${c.on_nets}</small></li>`;
-  }).join("");
+  }).join("");  renderSigPop();
+}
+/* L19 — 신호 현황 팝업: 사람이 준 신호(모든 시트) · 줄줄이 켠 목표 · 그에 따라 나간 출력.
+   값은 서버(simulate_bundle 의 pages)가 낸 그대로 — 화면이 다시 판정하지 않는다.  창은 머리줄을 끌어 옮기고 자리를 기억한다. */
+const SIGPOP_POS = "logic.sigpop.pos", SIGPOP_CLOSED = "logic.sigpop.closed", SIGPOP_MIN = "logic.sigpop.min";
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 막힌 저장소 */ } }
+function sigItem(page, sheet, x, extra) {
+  const v = x.value == null ? 1 : x.value;
+  const what = x.kind === "block" || x.kind === "net"
+    ? `${esc(FUNC_KO[x.func] || x.func || (x.kind === "net" ? "선" : "블록"))}${x.label ? " " + esc(x.label) : ""}${x.kind === "net" ? " 출력 선" : ""}`
+    : `${x.row}행 ${esc(x.desc || "(설명 없음)")}`;
+  return `<li data-page="${page}" data-sheet="${esc(sheet)}" ${x.row ? `data-row="${x.row}" data-side="${esc(x.side || "L")}"` : ""}
+    class="${page === L.page ? "cur" : ""}"><span class="v${v}">${v}</span><span class="sp-sh">${esc(sheet)}</span> ${what}${extra || ""}</li>`;
+}
+function renderSigPop() {
+  const pop = $("#sigpop");
+  if (!pop) return;
+  const tg = $("#sig-toggle");
+  const pages = L.mode === "sim" ? (L.chain || []) : [];
+  const nUser = pages.reduce((a, c) => a + (c.forced || []).length, 0);
+  const open = L.mode === "sim" && lsGet(SIGPOP_CLOSED) !== "1" && (nUser > 0 || L.sigWanted);
+  pop.hidden = !open;
+  if (tg) tg.classList.toggle("on", open);
+  if (!open) return;
+  pop.classList.toggle("min", lsGet(SIGPOP_MIN) === "1");
+  $("#sigpop-min").textContent = pop.classList.contains("min") ? "＋" : "－";
+  const order = [...pages].sort((a, b) => (a.hop ?? 99) - (b.hop ?? 99) || a.page - b.page);
+  const forced = [], chained = [], outs = [], stops = [];
+  let nOut = 0;
+  for (const c of order) {
+    const sh = c.sheet_no || "p" + c.page;
+    for (const x of c.forced || []) forced.push(sigItem(c.page, sh, x));
+    for (const x of c.chained || []) chained.push(sigItem(c.page, sh, x, ` <small>(뒤 시트 출력 조건)</small>`));
+    if (c.hop == null) continue;           // 아무것도 안 줘도 1 인 장(입력 0 의 NOT 등)은 결과로 세지 않는다
+    for (const x of c.outputs || []) {
+      const to = x.ref ? ` <span class="sp-to">→ TO ${esc(x.ref)}</span>` : ` <span class="sp-end">· 최종 출력 (TO 없음)</span>`;
+      outs.push(sigItem(c.page, sh, { ...x, value: 1, kind: "row" }, to));
+      nOut++;
+    }
+    // 신호가 닿았는데 출력이 안 나간 장 — 받은 입력을 적고 거기서 머문다고 말한다
+    if (c.hop > 0 && !(c.outputs || []).length)
+      for (const x of c.inputs || [])
+        stops.push(sigItem(c.page, sh, { ...x, value: 1, kind: "row" }, ` <span class="sp-no">· 출력 없음</span>`));
+  }
+  const unmet = (L.unmet || []).map((u) => {
+    const b = (L.sheet && L.sheet.blocks[u.block]) || {};
+    const name = FUNC_KO[b.func] || b.func || (u.logic || "게이트").toUpperCase();
+    return `<li data-page="${L.page}"><span class="v0">0</span><span class="sp-sh">${esc((L.sheet || {}).sheet_no || "")}</span>
+      <span class="sp-no">${esc(name)} 출력 ${u.want} 이 나가지 않음</span> — ${esc(gateNeedText(u.logic, u.want))}</li>`;
+  });
+  const sec = (h, sub, items, empty) => `<h4>${h} <small>${sub}</small></h4>` +
+    (items.length ? `<ul>${items.join("")}</ul>` : `<div class="sp-empty">${empty}</div>`);
+  $("#sigpop-b").innerHTML =
+    sec("내가 준 신호", `${forced.length}개 · 모든 시트`, forced, "아직 준 신호가 없습니다 — 입력 행의 동그라미를 눌러 1 을 주세요.") +
+    (chained.length ? sec("줄줄이 켬", `${chained.length}개 · 자동`, chained, "") : "") +
+    (unmet.length ? sec("나가지 않은 출력", `${unmet.length}개 · 이 시트`, unmet, "") : "") +
+    sec("나간 출력", `${nOut}개 · 1 인 출력 행`, outs, "아직 1 이 된 출력 행이 없습니다.") +
+    (stops.length ? sec("신호가 닿았지만 멈춘 곳", `${stops.length}개 · 그 시트 게이트 조건이 아직 안 맞음`, stops, "") : "") +
+    `<div class="sp-foot">항목을 누르면 그 시트 그 행으로 갑니다.</div>`;
+  $("#sigpop-sum").textContent = `신호 ${forced.length} → 출력 ${nOut}`;
+  placeSigPop();
+}
+function placeSigPop(x, y) {
+  const pop = $("#sigpop");
+  if (x == null) {
+    try { [x, y] = JSON.parse(lsGet(SIGPOP_POS) || "null") || []; } catch (e) { x = y = null; }
+    if (x == null) { x = innerWidth - 420 - 340; y = 110; }
+  }
+  const w = pop.offsetWidth || 380, h = pop.querySelector(".sp-h").offsetHeight || 30;
+  x = Math.max(4, Math.min(x, innerWidth - w - 4));
+  y = Math.max(4, Math.min(y, innerHeight - h - 4));
+  pop.style.left = x + "px"; pop.style.top = y + "px";
+  return [x, y];
+}
+function bindSigPop() {
+  const pop = $("#sigpop"), head = $("#sigpop-h");
+  if (!pop) return;
+  head.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    const r = pop.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    head.setPointerCapture(e.pointerId);
+    const move = (ev) => placeSigPop(ev.clientX - dx, ev.clientY - dy);
+    const up = () => {
+      head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up);
+      const q = pop.getBoundingClientRect();
+      lsSet(SIGPOP_POS, JSON.stringify([Math.round(q.left), Math.round(q.top)]));
+    };
+    head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
+  });
+  $("#sigpop-x").onclick = () => { lsSet(SIGPOP_CLOSED, "1"); L.sigWanted = false; renderSigPop(); };
+  $("#sigpop-min").onclick = () => { lsSet(SIGPOP_MIN, pop.classList.contains("min") ? null : "1"); renderSigPop(); };
+  $("#sig-toggle").onclick = () => {
+    if (!pop.hidden) { lsSet(SIGPOP_CLOSED, "1"); L.sigWanted = false; renderSigPop(); return; }
+    lsSet(SIGPOP_CLOSED, null); L.sigWanted = true;
+    if (L.mode !== "sim") setMode("sim"); else renderSigPop();
+  };
+  $("#sigpop-b").addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-page]");
+    if (!li) return;
+    if (li.dataset.row) goToRef(li.dataset.sheet, Number(li.dataset.row), li.dataset.side || "L");
+    else if (Number(li.dataset.page) !== L.page) openSheet(Number(li.dataset.page));
+  });
+  addEventListener("resize", () => { if (!pop.hidden) placeSigPop(); });
 }
 function renderFindings() {
   const f = L.sheet.findings;
@@ -1973,6 +2076,7 @@ function bind() {
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = resetAll;
+  bindSigPop();
   document.body.addEventListener("click", (e) => {
     if (!e.target.closest("#force-menu")) closeForceMenu();
     const fb = e.target.closest(".force button");

@@ -869,7 +869,13 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
                           "from": sorted({(by_page[sp].get("sheet_no"), sr) for n, sp, sr in feeds.get(page, ())
                                           if n in on_in}),
                           "to": sorted({by_page[q].get("sheet_no") for q, fd in feeds.items()
-                                        for _, sp, sr in fd if sp == page and sr in on_out})})
+                                        for _, sp, sr in fd if sp == page and sr in on_out}),
+                          # L19 — 현황 팝업: 사람이 준 신호 · 줄줄이 켠 목표 · 들어온 입력 · 나간 출력을 글로
+                          "forced": [_force_label(s, k, v) for k, v in sorted(user.items())],
+                          "chained": [_force_label(s, k, v) for k, v in sorted(chain.get(page, {}).items())
+                                      if k not in user],
+                          "inputs": [_row_label(s, "L", n) for n in on_in],
+                          "outputs": [_row_label(s, "R", n) for n in on_out]})
     # 사람이 준 신호가 닿은 장(hop)에서 이동하다 만난 것만 — 아무것도 안 줘도 1 인 선(입력 0 의 NOT 등)은 빼고
     design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results) if e["page"] in hop]
     for page, view in macro_view.items():
@@ -895,6 +901,39 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
             "pulled": pulls,
             "state": {p: r["state"] for p, r in results.items()},
             "notes": sorted(notes)}
+
+
+def _row_label(s, side, n):
+    """행 하나를 사람 말로 — 설명 · FM/TO 글자 (표에서 읽은 그대로 · 설명 없는 행은 위로 처음 설명이 있는 행)."""
+    rows = [x for x in (s.get("table") or s["rows"]) if x["side"] == side]
+    r = next((x for x in rows if x["n"] == n), None) or next((x for x in s["rows"] if x["side"] == side and x["n"] == n), {})
+    desc = (r.get("desc") or "").strip()
+    if not desc:
+        for x in sorted(rows, key=lambda x: -x["n"]):
+            if x["n"] < n and (x.get("desc") or "").strip():
+                desc = x["desc"].strip()
+                break
+    return {"row": n, "side": side, "desc": desc,
+            "ref": (r.get("fm") if side == "L" else r.get("to")) or ""}
+
+
+def _force_label(s, key, value):
+    """사람이 준 강제 하나를 사람 말로 — row:n 은 그 행 · net 은 그 선을 모는 블록 · block 은 그 블록."""
+    kind, _, k = str(key).partition(":")
+    o = {"key": key, "value": value, "kind": kind}
+    if kind == "row" and k.isdigit():
+        n = int(k)
+        side = "R" if any(x["side"] == "R" and x["n"] == n for x in s["rows"]) and \
+            not any(x["side"] == "L" and x["n"] == n for x in s["rows"]) else "L"
+        o.update(_row_label(s, side, n))
+    elif kind == "block":
+        b = s["blocks"].get(k) or {}
+        o.update({"block": k, "func": b.get("func") or "", "label": b.get("label") or ""})
+    elif kind == "net":
+        drv = next((p["block"] for p in s["ports"] if p.get("net") == k and p.get("dir") == "out"), None)
+        b = s["blocks"].get(drv) or {}
+        o.update({"net": k, "block": drv, "func": b.get("func") or "", "label": b.get("label") or ""})
+    return o
 
 
 # ------------------------------------------------------------------ 이동하다 만난 설계 오류 (L11)

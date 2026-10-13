@@ -887,3 +887,33 @@ def test_no_gate_ever_outputs_against_its_inputs_random_circuits():
                 exp = sim._vote3(iv, *vt) if vt else sim.gate3(b["logic"], iv)
                 for n, _, _ in outs[bid]:
                     assert fr["values"].get(n, 0) == (exp or 0), (case, forces, bid, b["logic"], iv)
+
+
+def test_status_popup_lists_given_signals_and_resulting_outputs():
+    """L19 — 신호 현황 팝업: 사람이 준 신호(모든 시트)와 그에 따라 1 이 된 출력 행을 설명 · TO 와 함께 낸다.
+    신호가 닿았는데 게이트가 막은 시트는 받은 입력이 남는다.  화면은 머리줄을 끌어 옮기고 자리를 기억한다."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "C1-6"}])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6", "desc": "IN6", "fm": "A1-95"},
+                         {"n": 7, "side": "L", "net": "c7", "desc": "IN7"},
+                         {"n": 40, "side": "R", "net": "co", "desc": "OUT", "to": ""}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, C], {1: {"row:95": 1}}, None, 1)
+    pg = {c["sheet_no"]: c for c in b["pages"]}
+    assert pg["A1"]["forced"] == [{"key": "row:95", "value": 1, "kind": "row", "row": 95, "side": "R",
+                                   "desc": "READY", "ref": "C1-6"}]
+    assert [x["row"] for x in pg["A1"]["outputs"]] == [95]
+    assert pg["C1"]["outputs"] == [] and [x["desc"] for x in pg["C1"]["inputs"]] == ["IN6"]   # AND 가 막았다
+    b = sim.simulate_bundle([A, C], {1: {"row:95": 1}, 3: {"row:7": 1}}, None, 1)
+    pg = {c["sheet_no"]: c for c in b["pages"]}
+    assert pg["C1"]["outputs"][0]["desc"] == "OUT" and pg["C1"]["outputs"][0]["ref"] == ""      # 최종 출력
+    assert pg["C1"]["forced"][0]["desc"] == "IN7"
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    assert 'id="sigpop"' in html and 'id="sig-toggle"' in html
+    body = js[js.index("function renderSigPop()"):js.index("function renderFindings()")]
+    assert "pointerdown" in body and "SIGPOP_POS" in body and "goToRef" in body
+    assert "fetch(" not in body and "post(" not in body       # 서버가 낸 값을 읽기만 한다
+    rc = js[js.index("function renderChain()"):js.index("function renderFindings()")]
+    assert "renderSigPop()" in rc

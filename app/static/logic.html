@@ -84,6 +84,7 @@
       <label class="chk" title="S-R 래치 위에 진리표를 그리고 지금 줄을 표시합니다"><input type="checkbox" id="show-latch" checked> S-R 표</label>
       <span class="sep"></span>
       <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
+      <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
       <button id="reset" class="lg-reset" title="모든 시트의 강제 신호(사람이 준 1/0)와 메모리 · 타이머 상태를 한 번에 지웁니다 — 타이머 시간 설정은 남습니다">⟲ 강제 신호 전체 리셋</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
     </div>
@@ -96,6 +97,12 @@
     </div>
     <div id="prog" class="lg-prog" hidden></div>
     <div id="remind" class="lg-remind" hidden></div>
+    <div id="sigpop" class="lg-sigpop" hidden>
+      <div class="sp-h" id="sigpop-h"><b>신호 현황</b> <small id="sigpop-sum"></small>
+        <button class="sp-min" id="sigpop-min" title="접기 / 펼치기">－</button>
+        <button class="sp-x" id="sigpop-x" title="닫기 (도구줄 📋 로 다시 엽니다)">✕</button></div>
+      <div class="sp-b" id="sigpop-b"></div>
+    </div>
     <div id="timeline" class="lg-timeline" hidden>
       <span id="tl-text"></span>
       <div class="tl-bar"><div id="tl-fill"></div></div>
