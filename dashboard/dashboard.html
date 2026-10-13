@@ -265,6 +265,7 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .lvcard h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.lvt td,.lvt th{vertical-align:top;padding:8px 8px}.lvt td:nth-child(2),.lvt td:nth-child(3){white-space:nowrap}
 .lvds{display:flex;flex-wrap:wrap;gap:5px}.lvd{display:inline-flex;align-items:baseline;gap:4px;background:#fff9db;border:1px solid #ffe8a1;border-radius:8px;padding:3px 8px;font-size:12px}
 .lvd.full{background:#ffe066;border-color:#f2c94c}.lvd small{color:var(--sub);font-size:10.5px}.lvd em{font-style:normal;color:#8a6d00;font-size:11px}
+.hc-work{background:#3b5bdb}.hc-off{background:#e03131}.hc-leave{background:#adb5bd}.hcl{display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 3px 0 2px;vertical-align:-1px}
 .hp-pjt{background:#3b5bdb}.hp-leave{background:#f2c94c}.atag.leave{background:#fff3bf;color:#8a6d00}.hp-dept{background:#9aa3bd}.hp-etc{background:#c99be8}
 .hdays{display:flex;align-items:flex-end;gap:3px;padding:6px 4px 0;overflow-x:auto}
 .hdb{flex:1 0 24px;display:flex;flex-direction:column;align-items:center;font-size:10.5px}
@@ -866,7 +867,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.22';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3801,6 +3802,14 @@ function renderAlloc(c, mg) {                             // mg = Management > R
  * ===================================================================== */
 const HS = { view:'month', month:'', person:'' };
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
+// 대한민국 공휴일(대체공휴일·선거일 포함). 새 연도·회사 휴일(창립기념일 등)은 여기에 'YYYY-MM-DD' 를 더하면 됨
+const HOLIDAYS = new Set([
+  '2024-01-01', '2024-02-09', '2024-02-10', '2024-02-11', '2024-02-12', '2024-03-01', '2024-04-10', '2024-05-05', '2024-05-06', '2024-05-15', '2024-06-06', '2024-08-15', '2024-09-16', '2024-09-17', '2024-09-18', '2024-10-01', '2024-10-03', '2024-10-09', '2024-12-25',
+  '2025-01-01', '2025-01-27', '2025-01-28', '2025-01-29', '2025-01-30', '2025-03-01', '2025-03-03', '2025-05-05', '2025-05-06', '2025-06-03', '2025-06-06', '2025-08-15', '2025-10-03', '2025-10-05', '2025-10-06', '2025-10-07', '2025-10-08', '2025-10-09', '2025-12-25',
+  '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01', '2026-03-02', '2026-05-05', '2026-05-24', '2026-05-25', '2026-06-03', '2026-06-06', '2026-08-15', '2026-08-17', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-28', '2026-10-03', '2026-10-05', '2026-10-09', '2026-12-25',
+  '2027-01-01', '2027-02-06', '2027-02-07', '2027-02-08', '2027-02-09', '2027-03-01', '2027-05-05', '2027-05-13', '2027-06-06', '2027-08-15', '2027-08-16', '2027-09-14', '2027-09-15', '2027-09-16', '2027-10-03', '2027-10-04', '2027-10-09', '2027-10-11', '2027-12-25', '2027-12-27',
+]);
+const isOff = dt => dt.getDay() % 6 === 0 || HOLIDAYS.has(ymd(dt));   // 주말 또는 공휴일
 const ymd = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 const monOf = dt => { const x = new Date(dt); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };   // 그 주 월요일
 function hoursIndex(list, idx) {                          // 사람 → { days: Map(YYYY-MM-DD → {t, dept, pjt, etc}), months:Set }
@@ -3847,7 +3856,7 @@ function renderHours(c) {
     if (!HS.month) { const used = new Set(names.flatMap(n => [...P.get(n).days.keys()]).map(k => ymd(monOf(new Date(k))))); cols = cols.filter(cl => used.has(cl.key)); }   // 연간: 시수가 있는 주만
   } else {
     const n = new Date(Y, +HS.month, 0).getDate();
-    cols = Array.from({ length:n }, (_, i) => { const dt = new Date(Y, +HS.month - 1, i + 1), k = ymd(dt); return { key:k, label:`${i + 1}<small>${WD[dt.getDay()]}</small>`, test:x => x === k, cap:10, we:dt.getDay() % 6 === 0 }; });
+    cols = Array.from({ length:n }, (_, i) => { const dt = new Date(Y, +HS.month - 1, i + 1), k = ymd(dt); return { key:k, label:`${i + 1}<small>${WD[dt.getDay()]}</small>`, test:x => x === k, cap:10, we:isOff(dt) }; });
   }
   const cell = (n, cl) => { let t = 0; for (const [k, x] of P.get(n).days) if (cl.test(k)) t += x.t; return t; };
   const M = names.map(n => ({ n, v:cols.map(cl => cell(n, cl)) }));
@@ -3875,11 +3884,14 @@ function renderHours(c) {
   if (sel) {
     const ds = [...P.get(sel).days].filter(([k]) => inRange(k)).sort(([a], [b]) => a.localeCompare(b));
     const lv = ds.reduce((a, [, x]) => a + x.leave, 0);
-    const mx = Math.max(10, ...ds.map(([, x]) => x.t));
-    const bar = ([k, x]) => { const dt = new Date(k); return `<div class="hdb ${dt.getDay() % 6 === 0 ? 'we' : ''}" title="${k} (${WD[dt.getDay()]}) ${fmtH(x.t)}h — PJT ${fmtH(x.pjt)} · 부서업무 ${fmtH(x.dept)} · 기타 ${fmtH(x.etc)}"><em>${x.t >= 1 ? fmtH(x.t) : ''}</em><b class="hbx"><span style="height:${x.t / mx * 100}%">${['etc', 'dept', 'pjt'].map(p => x[p] ? `<i class="hp-${p}" style="flex:${x[p]}"></i>` : '').join('')}</span></b><small>${HS.month ? dt.getDate() : `${dt.getMonth() + 1}/${dt.getDate()}`}</small></div>`; };
-    const st = ds.reduce((a, [, x]) => ({ t:a.t + x.t, pjt:a.pjt + x.pjt, dept:a.dept + x.dept, etc:a.etc + x.etc }), { t:0, pjt:0, dept:0, etc:0 });
-    detail = `<section class="card"><h2>🔎 ${esc(sel)} · ${esc(plabel)} 날짜별 근무시간 <span class="muted">· 막대 = PJT / 부서업무 / 기타 (근태는 제외) · 점선 = 8시간</span><button class="btn sm" data-hperson="" style="margin-left:auto">닫기</button></h2>
-      <div class="hsum"><span>총 <b>${fmtH(st.t)}h</b></span><span>근무일 <b>${ds.length}</b>일</span><span>일 평균 <b>${ds.length ? fmtH(st.t / ds.length) : '-'}h</b></span><span><i class="hp-pjt"></i>PJT <b>${fmtH(st.pjt)}h</b> (${pctOf(st.pjt, st.t)}%)</span><span><i class="hp-dept"></i>부서업무 <b>${fmtH(st.dept)}h</b> (${pctOf(st.dept, st.t)}%)</span><span><i class="hp-etc"></i>기타·미등록 <b>${fmtH(st.etc)}h</b> (${pctOf(st.etc, st.t)}%)</span>${lv ? `<span><i class="hp-leave"></i>근태 <b>${fmtH(lv)}h</b> (근무시간에서 제외)</span>` : ''}</div>
+    const mx = Math.max(10, ...ds.map(([, x]) => x.t + x.leave));
+    // 막대 색: 평일 근무 = 파랑 · 주말/공휴일 근무 = 빨강 · 근태 = 회색(위에 쌓음)
+    const bar = ([k, x]) => { const [yy, mm, dd] = k.split('-').map(Number), dt = new Date(yy, mm - 1, dd), off = isOff(dt), hol = HOLIDAYS.has(k);
+      return `<div class="hdb ${off ? 'we' : ''}" title="${k} (${WD[dt.getDay()]}${hol ? ' · 공휴일' : ''}) 근무 ${fmtH(x.t)}h — PJT ${fmtH(x.pjt)} · 부서업무 ${fmtH(x.dept)} · 기타 ${fmtH(x.etc)}${x.leave ? ` · 근태 ${fmtH(x.leave)}h` : ''}"><em>${x.t + x.leave >= 1 ? fmtH(x.t + x.leave) : ''}</em><b class="hbx"><span style="height:${(x.t + x.leave) / mx * 100}%">${x.t ? `<i class="${off ? 'hc-off' : 'hc-work'}" style="flex:${x.t}"></i>` : ''}${x.leave ? `<i class="hc-leave" style="flex:${x.leave}"></i>` : ''}</span></b><small>${HS.month ? dt.getDate() : `${dt.getMonth() + 1}/${dt.getDate()}`}${hol ? '<br>휴' : ''}</small></div>`; };
+    const st = ds.reduce((a, [k, x]) => { const [yy, mm, dd] = k.split('-').map(Number), off = isOff(new Date(yy, mm - 1, dd));
+      return { t:a.t + x.t, pjt:a.pjt + x.pjt, dept:a.dept + x.dept, etc:a.etc + x.etc, off:a.off + (off ? x.t : 0), offd:a.offd + (off && x.t ? 1 : 0), wd:a.wd + (x.t > 0 ? 1 : 0) }; }, { t:0, pjt:0, dept:0, etc:0, off:0, offd:0, wd:0 });
+    detail = `<section class="card"><h2>🔎 ${esc(sel)} · ${esc(plabel)} 날짜별 근무시간 <span class="muted">· 막대 <i class="hcl hc-work"></i>평일 근무 · <i class="hcl hc-off"></i>주말·공휴일 근무 · <i class="hcl hc-leave"></i>근태 · 점선 = 8시간</span><button class="btn sm" data-hperson="" style="margin-left:auto">닫기</button></h2>
+      <div class="hsum"><span>총 근무 <b>${fmtH(st.t)}h</b></span><span>근무일 <b>${st.wd}</b>일</span><span>일 평균 <b>${st.wd ? fmtH(st.t / st.wd) : '-'}h</b></span><span><i class="hc-off"></i>주말·공휴일 근무 <b>${fmtH(st.off)}h</b> (${st.offd}일)</span><span><i class="hc-leave"></i>근태 <b>${fmtH(lv)}h</b> (근무시간에서 제외)</span><span class="muted">PJT ${fmtH(st.pjt)}h (${pctOf(st.pjt, st.t)}%) · 부서업무 ${fmtH(st.dept)}h (${pctOf(st.dept, st.t)}%) · 기타·미등록 ${fmtH(st.etc)}h (${pctOf(st.etc, st.t)}%)</span></div>
       ${ds.length ? `<div class="hdays" style="--h8:${8 / mx * 100}%">${ds.map(bar).join('')}</div>` : '<div class="empty">이 기간 시수가 없습니다</div>'}</section>`;
   }
   const vbtn = (v, l) => `<button class="wtc ${HS.view === v ? 'on' : ''}" data-hview="${v}">${l}</button>`;
