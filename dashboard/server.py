@@ -16,8 +16,9 @@
 - 계정(accounts/): 로그인한 사용자만 수정 가능, 수정자는 계정의 본명으로 기록. 비회원은 보기만 가능
 - 쪽지(messages/): 로그인 사용자끼리, 180일 지나면 자동 삭제
 """
-import argparse, datetime, hashlib, hmac, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request
+import argparse, datetime, hashlib, hmac, io, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit, parse_qs, unquote, quote
 
 SHEETS = ['perform', 'bid', 'issue', 'rnr', 'general', 'unit', 'techshare', 'todo', 'staffing', 'notice']
@@ -31,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.1'
+SERVER_VERSION = '2026-10-13.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -184,7 +185,7 @@ def add_history(key, rid, entry):
 
 
 def api_all():
-    return {'recs': {k: load_sheet(k) for k in SHEETS},
+    return {'recs': {k: load_sheet(k) for k in SHEETS}, 'sheetCols': sheet_cols(),
             'cols': (read_json(P('data', '_meta', 'staffing-columns.json')) or {}).get('columns', []),
             'state': read_json(P('data', '_meta', 'state.json')) or {},
             'archives': archives()}
@@ -770,6 +771,268 @@ def api_ping(acc, admin=False):
     return {'users': users, 'unread': unread, 'perms': perms_for(acc, admin)}   # 권한이 바뀌면 30초 안에 화면에 반영
 
 
+# ---------------------------------------------------------------- 사용자가 추가한 열 (data/_meta/sheet-columns.json)
+COLNAME_RE = re.compile(r'^[^.<>\r\n]{1,30}$')
+
+
+def sheet_cols():
+    return read_json(P('data', '_meta', 'sheet-columns.json')) or {}
+
+
+def api_sheetcol_add(b):
+    key, name = str(b.get('sheet') or ''), re.sub(r'\s+', ' ', str(b.get('f') or '')).strip()
+    if key not in SHEETS or key == 'staffing':
+        raise ApiError(400, '열을 추가할 수 없는 시트입니다')
+    if not COLNAME_RE.match(name):
+        raise ApiError(400, "열 이름은 30자 이내로, 점(.) 없이 입력하세요")
+    with LOCK:
+        d = sheet_cols()
+        cols = d.setdefault(key, [])
+        if any(c['f'] == name for c in cols) or name in (b.get('base') or []):
+            raise ApiError(409, '같은 이름의 열이 이미 있습니다')
+        cols.append({'f': name, 'w': max(60, min(600, int(b.get('w') or 140))), 'long': bool(b.get('long')), 'by': b.get('by'), 'at': stamp()})
+        write_json(P('data', '_meta', 'sheet-columns.json'), d)
+    log.info('열 추가: %s / %s by %s', key, name, b.get('by'))
+    return {'status': 'ok', 'sheetCols': d}
+
+
+def api_sheetcol_del(key, name, by):
+    with LOCK:
+        d = sheet_cols()
+        before = len(d.get(key, []))
+        d[key] = [c for c in d.get(key, []) if c['f'] != name]
+        if len(d[key]) == before:
+            raise ApiError(404, '없는 열입니다')
+        write_json(P('data', '_meta', 'sheet-columns.json'), d)
+    log.info('열 삭제(값은 행에 남음): %s / %s by %s', key, name, by)
+    return {'status': 'ok', 'sheetCols': d}
+
+
+# ---------------------------------------------------------------- 월말 시수(Man-hour) 파일 → timesheets/{YYYY}/{ID}_{YYYY-MM}.json
+# xlsx 를 표준 라이브러리(zipfile + ElementTree)로 읽는다. 머리글 'Type'·'Project' 가 있는 시트, 그 오른쪽 01~31 날짜 칸의 시간을 합산.
+X_NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+R_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
+MONTH_RE = re.compile(r'^(\d{4})\s*[-./년]\s*(\d{1,2})\s*월?$')
+TIME_FMT_IDS, DATE_FMT_IDS = {18, 19, 20, 21, 45, 46, 47}, {14, 15, 16, 17, 22}
+
+
+def xl_col(ref):
+    n = 0
+    for ch in ref:
+        if not ch.isalpha():
+            break
+        n = n * 26 + ord(ch.upper()) - 64
+    return n
+
+
+def xlsx_sheets(data):
+    """[(시트이름, {행: {열: 값}})] — 값: str / float / ('T', 하루비율) 시간서식 / ('D', 일련번호) 날짜서식"""
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        raise ApiError(400, '엑셀(.xlsx) 파일만 올릴 수 있습니다 (예전 .xls 는 엑셀에서 .xlsx 로 다시 저장)')
+    names = set(z.namelist())
+    ss = []
+    if 'xl/sharedStrings.xml' in names:
+        for si in ET.fromstring(z.read('xl/sharedStrings.xml')).iter(X_NS + 'si'):
+            ss.append(''.join(t.text or '' for t in si.iter(X_NS + 't')))
+    kinds = []                                            # cellXfs 순서대로 'T'(시간) / 'D'(날짜) / ''
+    if 'xl/styles.xml' in names:
+        st = ET.fromstring(z.read('xl/styles.xml'))
+        custom = {int(f.get('numFmtId')): f.get('formatCode', '') for f in st.iter(X_NS + 'numFmt')}
+        xfs = st.find(X_NS + 'cellXfs')
+        for xf in (list(xfs) if xfs is not None else []):
+            i = int(xf.get('numFmtId') or 0)
+            code = re.sub(r'"[^"]*"|\\.', '', custom.get(i, '')).lower()
+            code = re.sub(r'\[(?!h+\]|m+\]|s+\])[^\]]*\]', '', code)
+            tm = i in TIME_FMT_IDS or 'h' in code or '[m' in code
+            dt = i in DATE_FMT_IDS or 'y' in code or 'd' in code
+            kinds.append('T' if tm and not ('y' in code or 'd' in code) else 'D' if dt else '')
+    rels = {}
+    if 'xl/_rels/workbook.xml.rels' in names:
+        for r in ET.fromstring(z.read('xl/_rels/workbook.xml.rels')):
+            rels[r.get('Id')] = r.get('Target', '')
+    out = []
+    for sh in ET.fromstring(z.read('xl/workbook.xml')).iter(X_NS + 'sheet'):
+        t = rels.get(sh.get(R_NS + 'id'), '')
+        path = t.lstrip('/') if t.startswith('/') else 'xl/' + t
+        if path not in names:
+            continue
+        cells = {}
+        for c in ET.fromstring(z.read(path)).iter(X_NS + 'c'):
+            ref = c.get('r') or ''
+            m = re.match(r'([A-Z]+)(\d+)$', ref)
+            if not m or int(m[2]) > 3000:
+                continue
+            typ, v = c.get('t'), c.find(X_NS + 'v')
+            if typ == 's' and v is not None:
+                val = ss[int(v.text)]
+            elif typ == 'inlineStr':
+                val = ''.join(x.text or '' for x in c.iter(X_NS + 't'))
+            elif typ in ('str', 'e', 'b'):
+                val = (v.text or '') if v is not None else ''
+            elif v is not None and v.text:
+                try:
+                    val = float(v.text)
+                except ValueError:
+                    val = v.text
+                k = int(c.get('s') or 0)
+                if isinstance(val, float) and k < len(kinds) and kinds[k]:
+                    val = (kinds[k], val)
+            else:
+                continue
+            cells.setdefault(int(m[2]), {})[xl_col(m[1])] = val
+        out.append((sh.get('name') or '', cells))
+    return out
+
+
+def xl_date(v):
+    return datetime.date(1899, 12, 30) + datetime.timedelta(days=int(v))
+
+
+def ts_text(v):
+    if isinstance(v, tuple):
+        v = v[1]
+    if isinstance(v, float):
+        return str(int(v)) if v == int(v) else str(v)
+    return re.sub(r'\s+', ' ', str(v or '')).strip()
+
+
+def parse_timesheet(data):
+    for sname, cells in xlsx_sheets(data):
+        hdr, cmap = None, {}
+        for r in sorted(cells)[:80]:
+            low = {c: v.strip().lower() for c, v in cells[r].items() if isinstance(v, str)}
+            if 'type' in low.values() and 'project' in low.values():
+                hdr, cmap = r, {v: c for c, v in low.items()}
+                break
+        if not hdr:
+            continue
+        tc, pc = cmap['type'], cmap['project']
+        dc, wc = cmap.get('detail'), cmap.get('work')
+        left = max(c for c in (tc, pc, dc, wc) if c)
+        days, day_row, month = {}, hdr, ''
+        for r in range(max(1, hdr - 5), hdr + 4):           # 01~31 날짜 줄 (숫자·'01' 글자·날짜서식 모두)
+            cand = {}
+            for c, v in cells.get(r, {}).items():
+                if c <= left:
+                    continue
+                d = None
+                if isinstance(v, tuple) and v[0] == 'D' or isinstance(v, float) and v > 20000:
+                    dt = xl_date(v[1] if isinstance(v, tuple) else v)
+                    d, month = dt.day, month or f'{dt.year}-{dt.month:02d}'
+                elif isinstance(v, (float, tuple)):
+                    x = v[1] if isinstance(v, tuple) else v
+                    d = int(x) if x == int(x) and 1 <= x <= 31 else None
+                elif isinstance(v, str) and re.fullmatch(r'\d{1,2}', v.strip()) and 1 <= int(v) <= 31:
+                    d = int(v)
+                if d:
+                    cand[c] = d
+            if len(cand) >= 20:
+                days, day_row = cand, r
+                break
+        if not days:
+            raise ApiError(400, f"'{sname}' 시트에서 날짜(01~31) 줄을 찾지 못했습니다")
+        for r in range(1, max(hdr, day_row) + 1):           # 월: '2026-07' 같은 글자
+            for v in cells.get(r, {}).values():
+                m = MONTH_RE.match(v.strip()) if isinstance(v, str) else None
+                if m and 1 <= int(m[2]) <= 12:
+                    month = f'{m[1]}-{int(m[2]):02d}'
+        top = max(hdr, day_row)
+        nums = [v for r, row in cells.items() if r > top for c, v in row.items() if c in days and isinstance(v, float)]
+        frac = all(v <= 1 for v in nums)                     # 서식 정보가 없는 숫자: 모두 1 이하면 '하루 비율'(시간 서식)로 봄
+
+        def hours(v):
+            if isinstance(v, tuple):
+                return v[1] * 24 if v[0] == 'T' else 0
+            if isinstance(v, float):
+                return v * 24 if frac else v
+            m = re.fullmatch(r'\s*(\d{1,3}):(\d{2})(?::\d{2})?\s*', str(v or ''))
+            return int(m[1]) + int(m[2]) / 60 if m else 0
+        rows = []
+        for r in sorted(cells):
+            if r <= top:
+                continue
+            row = cells[r]
+            if any(isinstance(v, str) and v.strip().lower() in ('total', '합계') for c, v in row.items() if c not in days):
+                continue
+            typ, code = ts_text(row.get(tc)), ts_text(row.get(pc)).upper()
+            dh = {}
+            for c, d in days.items():
+                h = hours(row.get(c))
+                if h > 0:
+                    dh[str(d)] = round(dh.get(str(d), 0) + h, 4)
+            if not typ and not code and not dh:
+                continue
+            rows.append({'type': typ, 'detail': ts_text(row.get(dc)) if dc else '', 'code': code, 'work': ts_text(row.get(wc)) if wc else '',
+                         'days': dh, 'h': round(sum(dh.values()), 4)})
+        return {'month': month, 'rows': rows, 'sheet': sname}
+    raise ApiError(400, "머리글에 'Type'·'Project' 가 있는 시트를 찾지 못했습니다 (시수 입력 양식인지 확인)")
+
+
+def ts_path(month, pid, ext='.json'):
+    return P('timesheets', month[:4], f'{pid}_{month}{ext}')
+
+
+def api_ts_put(acc, can_all, q, data):
+    pid = str(q.get('person') or acc['id']).strip().lower()
+    if pid != acc['id'] and not can_all:
+        raise ApiError(403, '다른 부서원의 시수 파일은 Management 권한자만 올릴 수 있습니다')
+    target = load_account(pid)
+    if not target:
+        raise ApiError(404, '없는 계정입니다')
+    if not data:
+        raise ApiError(400, '빈 파일입니다')
+    res = parse_timesheet(data)
+    month = res['month'] or str(q.get('month') or '')
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', month):
+        raise ApiError(400, '파일에서 월(예: 2026-07)을 찾지 못했습니다. 월을 고르고 다시 올리세요')
+    if not res['rows']:
+        raise ApiError(400, '시수가 입력된 줄이 없습니다')
+    rec = {'person': target['name'], 'personId': pid, 'month': month, 'file': os.path.basename(str(q.get('name') or ''))[:120],
+           'sheet': res['sheet'], 'uploadedBy': acc['name'], 'at': stamp(), 'rows': res['rows']}
+    with LOCK:
+        write_json(ts_path(month, pid), rec)
+        os.makedirs(P('timesheets', month[:4], 'raw'), exist_ok=True)
+        with open(P('timesheets', month[:4], 'raw', f'{pid}_{month}.xlsx'), 'wb') as f:
+            f.write(data)
+    log.info('시수 업로드: %s %s (%d줄) by %s', pid, month, len(res['rows']), acc['id'])
+    return {'status': 'ok', 'person': target['name'], 'month': month, 'rows': len(res['rows']), 'detected': res['month']}
+
+
+def api_ts_list(year, can_hours):
+    """시수 목록. Management 권한이 없으면 실제 시간 대신 '사람·연도별 합계 = 100' 비율 단위(v)로만 보냄"""
+    if not re.fullmatch(r'\d{4}', year or ''):
+        raise ApiError(400, '잘못된 연도')
+    lst = [x for x in (read_json(P('timesheets', year, n)) for n in list_json(P('timesheets', year))) if x]
+    tot = {}
+    for x in lst:
+        tot[x['personId']] = tot.get(x['personId'], 0) + sum(r.get('h', 0) for r in x['rows'])
+    out = []
+    for x in sorted(lst, key=lambda x: (x['person'], x['month'])):
+        k = 1 if can_hours else (100 / tot[x['personId']] if tot[x['personId']] else 0)
+        out.append({**{f: x.get(f) for f in ('person', 'personId', 'month', 'file', 'uploadedBy', 'at')},
+                    'rows': [{'type': r['type'], 'detail': r.get('detail', ''), 'code': r['code'], 'work': r.get('work', ''), 'v': round(r.get('h', 0) * k, 4)} for r in x['rows']]})
+    try:
+        years = sorted(n for n in os.listdir(P('timesheets')) if re.fullmatch(r'\d{4}', n))
+    except FileNotFoundError:
+        years = []
+    return {'year': year, 'canHours': can_hours, 'list': out, 'years': years}
+
+
+def api_ts_delete(acc, can_all, pid, month):
+    if not (UID_RE.match(pid or '') and re.fullmatch(r'\d{4}-\d{2}', month or '')):
+        raise ApiError(400, '잘못된 요청')
+    if pid != acc['id'] and not can_all:
+        raise ApiError(403, '본인 것 또는 Management 권한자만 지울 수 있습니다')
+    with LOCK:
+        if not os.path.exists(ts_path(month, pid)):
+            raise ApiError(404, '없는 시수 파일입니다')
+        os.remove(ts_path(month, pid))
+    log.info('시수 삭제: %s %s by %s', pid, month, acc['id'])
+    return {'status': 'ok'}
+
+
 # ---------------------------------------------------------------- 부서원 프로필 (profiles/{ID}.json) — 유닛분장 조직도에 표시
 PHOTO_RE = re.compile(r'^data:image/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
 PHONE_RE = re.compile(r'^[^<>\r\n]{0,30}$')                     # 예: 010-1234-5678, 내선 1234
@@ -931,7 +1194,7 @@ def make_backup(keep_days):
     tmp = dest + '.tmp'
     with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles'):
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets'):
                 for dirpath, _, files in os.walk(P(top)):
                     for fn in files:
                         if fn.endswith('.tmp'):
@@ -1269,6 +1532,21 @@ class Handler(BaseHTTPRequestHandler):
                 return api_msg_delete(acc, seg[1], seg[2])
         if m == 'GET' and head == 'all':
             return api_all()
+        if head == 'timesheet' or head == 'timesheets':          # 월말 시수: 로그인 필요, 실제 시간은 Management 권한자만
+            acc = self.need_user()
+            can_all = bool(perms_for(acc, self.is_admin()).get('mgmt'))
+            if m == 'GET' and head == 'timesheets':
+                return api_ts_list(q.get('year', ''), can_all)
+            if m == 'PUT' and head == 'timesheet' and len(seg) == 1:
+                self.need_menu('weekly')
+                return api_ts_put(acc, can_all, q, self.raw_body())
+            if m == 'DELETE' and head == 'timesheet' and len(seg) == 3:
+                return api_ts_delete(acc, can_all, seg[1], seg[2])
+        if head == 'sheetcols':                                     # 사용자가 추가한 열
+            if m == 'POST' and len(seg) == 1:
+                return api_sheetcol_add(self.body_by())
+            if m == 'DELETE' and len(seg) == 2:
+                return api_sheetcol_del(seg[1], q.get('f', ''), self.need_menu('weekly')['name'])
         if m == 'GET' and head == 'profiles':
             return api_profiles(bool(session_account(self.token(), False)))
         if m == 'PUT' and head == 'profile':
@@ -1411,7 +1689,7 @@ def main():
             pass
     if not os.path.isfile(P('dashboard.html')):
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
-    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', os.path.join('data', '_meta')):
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
 
     who = port_in_use(a.port)

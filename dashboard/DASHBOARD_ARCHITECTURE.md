@@ -301,3 +301,18 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 새 필터 상태 `fstate().upd` ('upd' 금주 업데이트 / 'not' 미업데이트), `filteredRecs` 에 조건 추가. 공용 `avHtml(name)`. 인쇄 때 현황판 숨김(`.pjhero`).
 - **확인한 것**: `node --check`. 임시 폴더 가짜 데이터로 Chromium 에서 조직도(2026)·수행·입찰 화면, '종결' 카드 → 표 2건, 담당자 막대 → 표 2건으로 걸러짐, 스크립트 오류 없음.
 - **회사에서 확인할 것**: 유닛장 심볼이 나오려면 유닛분장 구성원 칸에 `홍길동(유닛장)` 처럼 써야 함.
+
+### 2026-10-13 (4) — R&R · 투입 분석 (월말 시수 업로드) · Project Code · 열 추가 (APP_VERSION 2026-10-13.4 / SERVER_VERSION 2026-10-13.2)
+> **서버 재시작 필요** (server.py: 시수·열 추가 API, `timesheets/` 폴더).
+1. **메뉴 '👥 R&R · 투입 분석' (route `alloc`)** — PJT R&R(`rnr`) + 계장 투입인력(`staffing`)을 한 화면으로. 두 시트는 사이드바에서 숨김(`SHEETS[].merged:'alloc'`), 데이터·주소(`#rnr` `#staffing`)·화면 오른쪽 위 '원본 시트' 버튼은 그대로.
+2. **월말 시수 파일 업로드** (부서원 개인 집계 엑셀 .xlsx, 예: `개인 집계_7월.xlsx`)
+   - 서버 `parse_timesheet` (표준 라이브러리 zipfile + ElementTree): 머리글에 `Type`·`Project` 가 있는 시트를 찾고, 그 오른쪽에서 `01~31` 날짜 줄(숫자·'01' 글자·날짜서식 모두)을 찾아 줄마다 시간을 합산. 시간 값은 시간서식(`[h]:mm`, 하루 비율 → ×24), `h:mm` 글자, 서식 없는 숫자(모두 1 이하면 하루 비율로 봄) 모두 처리. 'Total'·'합계' 줄은 제외. 월은 파일 안의 `2026-07` 같은 글자/날짜에서, 없으면 업로드 창에서 고른 월.
+   - 저장: `timesheets/{연도}/{계정ID}_{YYYY-MM}.json` (`rows:[{type, detail, code, work, days:{일:h}, h}]`) + 원본 `timesheets/{연도}/raw/…xlsx`. 같은 사람·같은 달은 덮어씀. 일일 백업에 포함.
+   - API: `PUT /api/timesheet?person=ID&month=YYYY-MM&name=파일명` (본문 = xlsx, 로그인+주간업무보고 권한, **다른 사람 것은 Management 권한자만**), `GET /api/timesheets?year=YYYY` (로그인 필요), `DELETE /api/timesheet/{ID}/{YYYY-MM}` (본인 또는 Management).
+   - **Step3 권한**: Management 메뉴 권한(`perms_for(...).mgmt`, 운영자=서버 PC 포함)이 있으면 `canHours:true` + 실제 시간. 없으면 서버가 **시간을 보내지 않고** 사람·연도별 합계가 100 이 되는 비율 단위 `v` 로만 보냄(사람 안의 월·프로젝트 비율은 그대로 정확). 화면 배지 🔒/🔓.
+3. **Step1 분류** (`tsClass`, 화면에서 계산): Type 이 `공통` → 부서업무 / 그 외 → `Project` 코드를 **수행·입찰 PJT 의 새 칸 `Project Code`**(쉼표·줄바꿈으로 여러 개)와 맞춤(`projIndex`) / 못 찾으면 '미등록 코드 X'(경고 띠에 목록) / 코드 없음.
+4. **Step2 화면** (`renderAlloc`, 상태 `AS`): 연도 탭 · 월 칩(연간/1~12월) · KPI(프로젝트 %, 부서업무 %, 미등록 %, 업로드 인원) · 부서원별 100% 막대(마우스 = 상세, Management 는 시간) · 프로젝트별 팀 대비 비율(권한 없으면 사람별 비중 동일 가정이라고 표시) · 개인 분석(도넛, 12개월 구성 막대, **R&R · 계획 대비 실제** 표 = rnr 역할·기간·공정률 + staffing 배정% (열 이름 ↔ PJT명 이름 맞춤 `nmKey`) + 시수 실제%, 차이 %p) · 업로드 현황(부서원×월 ✓, 본인/Management 는 눌러서 삭제). 색은 연도 전체 기준으로 고정.
+5. **수행·입찰 `Project Code` 칸** (PJT명 옆).
+6. **열 추가** (모든 표 시트, 투입인력 매트릭스 제외): [＋ 열 추가] → 이름·한 줄/여러 줄·너비. 정의는 `data/_meta/sheet-columns.json` (`GET all` 의 `sheetCols`), API `POST /api/sheetcols {sheet,f,long,w}` · `DELETE /api/sheetcols/{sheet}?f=`. 화면은 `applyExtraCols()` 가 `render()` 때마다 `s.cols = baseCols + 추가 열`. 지우기 = 그 열 머리글 ▾ → '추가한 이 열 지우기'(정의만 지움, 행의 값은 남음). 열 이름에 `.` `<` `>` 불가(필드 경로 규칙).
+- **확인한 것**: `node --check`, `py_compile`. openpyxl 로 만든 가짜 시수 파일(시간서식/글자 두 방식)을 서버가 읽은 합계 = 엑셀 값과 일치(예: D026 40h, 19LT 21h). 시험 서버(사내망 주소)에서 일반 부서원 = 비율만, Management 권한자 = 시간 표시, 일반 부서원이 다른 사람 것 올리기·지우기 → 403, 비로그인 GET → 401, xlsx 아닌 파일 → 400. 화면: 연간/7월, 개인 분석·R&R 표, 업로드 창, 열 추가 → 저장 확인. 스크립트 오류 없음.
+- **회사에서 확인할 것**: (1) 실제 개인 집계 파일 1개를 올려 합계가 엑셀 'Total' 과 같은지. 양식이 다르면(머리글 이름 등) 오류 문구 그대로 알려 주면 맞춤. (2) 수행·입찰 PJT 에 Project Code(D026, 19LT 등) 입력. (3) 실제 시간을 볼 사람에게 ⚙ 메뉴 권한에서 Management 체크.
