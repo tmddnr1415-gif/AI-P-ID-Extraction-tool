@@ -870,7 +870,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2261,39 +2261,42 @@ function renderModule(c, key) {
 }
 
 /* ---------- P&ID 분석: 같은 PC(대시보드 서버 PC)의 별도 서버를 iframe 으로 연결 (DASHBOARD_ARCHITECTURE.md 7장 방법 B) ---------- */
-const PID_PORT = 8000;                                   // P&ID 추출 도구 서버 포트
-const PID_ROUTES = { pid:{ title:'P&ID 분석' } };      // 메뉴 하나 (입찰/실행 구분은 P&ID 화면에서 프로젝트마다 선택)
+const PID_PORT = 8000;                                   // P&ID 추출 도구 서버 포트 (LOGIC 분석은 PID_ROUTES.logic.port)
+// 별도 분석 도구를 iframe 으로 띄우는 메뉴 (P&ID 와 같은 방식): 대시보드 서버와 같은 호스트의 port, 먼저 /version 확인
+//  - pid   = P&ID 추출 도구 (uvicorn, 8000) — 입찰/실행 구분은 P&ID 화면에서 프로젝트마다 선택
+//  - logic = LOGIC 분석 도구 (8001) — 도구가 켜지면 연결, 꺼져 있으면 안내. 도구는 /version(JSON) 과 /?embed=1&user=본명 을 제공하면 됨
+const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, svc:'부서장 PC 의 run_lan_service.bat' }, logic:{ title:'LOGIC 분석', port:8001, svc:'LOGIC 분석 서버(포트 8001)' } };
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
-function pidBase() {
+function pidBase(key = 'pid') {
   let host = 'localhost';
   if (/^https?:$/.test(location.protocol)) host = location.hostname;
   else { try { host = new URL(API_BASE || savedServer() || DEFAULT_SERVER).hostname; } catch (_) {} }
   if (host.includes(':') && !host.startsWith('[')) host = `[${host}]`;   // IPv6
-  return `http://${host}:${PID_PORT}`;
+  return `http://${host}:${PID_ROUTES[key]?.port || PID_PORT}`;
 }
 function pidUrl(key) {
-  return `${pidBase()}/?embed=1&user=${encodeURIComponent(user || '')}`;   // 로그인한 본명 (비회원은 빈 값)
+  return `${pidBase(key)}/?embed=1&user=${encodeURIComponent(user || '')}`;   // 로그인한 본명 (비회원은 빈 값)
 }
 function renderPid(c, key) {
-  const url = pidUrl(key);
+  const url = pidUrl(key), T = esc(PID_ROUTES[key].title);
   c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}">
-    <div class="pidbar"><b>P&amp;ID 분석</b> · <a href="${esc(url)}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
-    <div class="pidbody"><div class="pidmsg muted">P&amp;ID 분석 서버 연결 확인 중…</div></div></div>`);
+    <div class="pidbar"><b>${T}</b> · <a href="${esc(url)}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
+    <div class="pidbody"><div class="pidmsg muted">${T} 서버 연결 확인 중…</div></div></div>`);
   pidConnect(key);
 }
 // iframe 을 띄우기 전에 /version 확인 (3초, JSON 이 와야 성공). P&ID 는 대시보드 데이터를 쓰지 않으므로 대시보드 오프라인 여부와 무관
 async function pidConnect(key) {
   const wrap = $('#pidwrap'); if (!wrap || wrap.dataset.route !== key) return;
-  const body = $('.pidbody', wrap), base = pidBase(), url = pidUrl(key);
-  body.innerHTML = '<div class="pidmsg muted">P&amp;ID 분석 서버 연결 확인 중…</div>';
+  const body = $('.pidbody', wrap), base = pidBase(key), url = pidUrl(key), R = PID_ROUTES[key], T = esc(R.title);
+  body.innerHTML = `<div class="pidmsg muted">${T} 서버 연결 확인 중…</div>`;
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 3000);
   let ok = false;
   try { const r = await fetch(base + '/version', { signal:ctl.signal, cache:'no-store' }); if (r.ok) { await r.json(); ok = true; } }
   catch (_) {} finally { clearTimeout(timer); }
   if ($('#pidwrap') !== wrap) return;                    // 확인하는 동안 다른 메뉴로 이동함
   body.innerHTML = ok
-    ? `<iframe class="pidframe" src="${esc(url)}" title="P&amp;ID 분석"></iframe>`
-    : `<div class="pidmsg"><p>P&amp;ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요</p>
+    ? `<iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe>`
+    : `<div class="pidmsg"><p>${T} 서버가 꺼져 있습니다 — ${esc(R.svc)} 을 확인하세요</p>
          <p class="muted">${esc(base)}</p><button class="btn pri" data-pidretry>다시 시도</button></div>`;
 }
 
@@ -2350,7 +2353,7 @@ function render() {
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'mgmt', 'mgalloc', 'mghours'];   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'mgmt', 'mgalloc', 'mghours'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : (r === 'mgalloc' || r === 'mghours') ? 'mgmt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
@@ -2373,6 +2376,7 @@ function renderMenu() {
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'📋 주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
     (can('pid') ? btn({ k:'pid', l:'📐 P&ID 분석', n:'', c:0 }, 'top') : '') +
+    (can('logic') ? btn({ k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +

@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.9'
+SERVER_VERSION = '2026-10-13.11'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1127,7 +1127,7 @@ def api_profile_put(acc, b):
 
 
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
-MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
+MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
 MENU_KEYS = [k for k, _ in MENUS]
 DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}   # 기본: 모두 허용, Management 만 권한 부여 필요
