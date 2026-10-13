@@ -170,6 +170,9 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .wbody .fx{max-height:120px;overflow:auto}
 .wpick{display:grid;gap:8px}.wpick span{display:flex;flex-direction:column;border-left:4px solid var(--c);background:#f7f8fc;border-radius:8px;padding:8px 12px}.wpick small{color:var(--sub)}
 @media (max-width:1300px){.wkpis{grid-template-columns:repeat(4,1fr)}.wk-main{grid-column:span 2}.wgrid{grid-template-columns:1fr}}
+.wpeople h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.wpeople .pfold{margin-left:auto}
+.pfmore{display:block;width:100%;margin-top:6px;border:1px dashed var(--line);background:#fafbff;border-radius:10px;padding:7px;color:var(--accent);font-weight:700}
+.pfmore:hover{background:var(--accent-l)}
 /* ---------- 게시판 유형 · 실명 ---------- */
 .bkinds{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
 .wtc2{border:1px solid var(--line);border-radius:99px;padding:6px 14px;background:#fff;font-size:13px;color:var(--c,var(--text))}
@@ -796,7 +799,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.9';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3159,6 +3162,8 @@ function taskHero(s) {
   scope.forEach(i => i.persons.forEach(p => { const o = pm.get(p) || pm.set(p, { h1:0, h2:0, h0:0, by:{} }).get(p); o['h' + i.half]++; const t = i.f['유형'] || ''; o.by[t] = (o.by[t] || 0) + 1; }));
   const people = [...pm].map(([p, o]) => ({ p, ...o, tot:o.h1 + o.h2 + o.h0 })).sort((a, b) => b.tot - a.tot || a.p.localeCompare(b.p, 'ko'));
   const mx = Math.max(1, ...people.map(x => Math.max(x.h1, x.h2)));
+  const pfolded = st.pfold !== false && people.length > 6;                     // 기본: 반으로 접음 (많은 사람이 위쪽, 나머지는 펼치기)
+  const pshown = pfolded ? people.slice(0, Math.ceil(people.length / 2)) : people;
   const prow = x => `<button class="wpr ${st.owner === x.p ? 'on' : ''}" data-wperson="${esc(x.p)}" title="${esc(x.p)}님 업무만 아래 표에">
       <span class="wav">${avHtml(x.p)}</span><span class="wpn">${esc(x.p)}<small>${Object.entries(x.by).map(([t, n]) => `<i style="color:${ttOf(t).color}">${ttOf(t).icon}${n}</i>`).join(' ')}</small></span>
       <span class="wbar"><span class="h1" style="width:${x.h1 / mx * 100}%"></span><em>${x.h1}</em></span><span class="wbar"><span class="h2" style="width:${x.h2 / mx * 100}%"></span><em>${x.h2}</em></span>
@@ -3174,6 +3179,7 @@ function taskHero(s) {
       <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_TYPES.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => normType(i.f['유형']) === t).length}</b></button>`).join('')}</div>
     </section>
     ${(() => { const old = getRecs('task').filter(r => TYPE_ALIAS[r.fields['유형']]); return old.length && add ? `<div class="al-warn">🔤 예전 유형 이름으로 저장된 업무 <b>${old.length}건</b> (과제 → 일반업무, 지시사항 및 Action List → 그룹장 요청 사항). 화면에서는 이미 새 이름으로 묶어 보여 줍니다. <button class="btn sm pri" data-wrename>저장된 값도 새 이름으로 바꾸기</button></div>` : ''; })()}
+    ${(() => { const rc = add ? reclassList() : []; return rc.length ? `<div class="al-warn">🔀 예전 가져오기에서 한꺼번에 들어간 업무 <b>${rc.length}건</b>을 엑셀 시트 구분대로 다시 나눌 수 있습니다 (To do list → To Do List, ITEM PO·MDL → 표준화 담당, 지시사항·Action List → 그룹장 요청 사항). <button class="btn sm pri" data-wreclass>유형 다시 나누기</button></div>` : ''; })()}
     ${legacy.length && add ? `<div class="al-warn">📦 예전 시트(일반업무·To do·기술공유)에 아직 통합 업무로 옮기지 않은 업무가 <b>${legacy.length}건</b> 있습니다. <button class="btn sm pri" data-wimport>기존 업무 가져오기</button> <span class="muted">(복사만 함 · 원본은 그대로 · 두 번 눌러도 중복 없음)</span> <button class="btn sm" data-go="general">일반업무</button> <button class="btn sm" data-go="todo">To do</button> <button class="btn sm" data-go="techshare">기술공유</button></div>` : ''}
     <div class="ttcs">${types.map(tcard).join('')}</div>
     <div class="wkpis">
@@ -3182,9 +3188,9 @@ function taskHero(s) {
       ${kpi('done', '종결', doneN, '부서원이 종결 표시', '🏁')}${kpi('perm', '상시 업무', cnt('perm'), '종료일 없음 · 추적 안 함', '♾')}${kpi('miss', '종료일 미입력', cnt('miss'), '기한인데 날짜 없음', '❔')}
     </div>
     <div class="wgrid">
-      <section class="card wpeople"><h2>👥 부서원별 상·하반기 업무 건수 <span class="muted">· ${esc(ylab)} · 누르면 그 사람 업무만 아래 표에</span></h2>
+      <section class="card wpeople"><h2>👥 부서원별 상·하반기 업무 건수 <span class="muted">· ${esc(ylab)} · 누르면 그 사람 업무만 아래 표에</span>${people.length > 6 ? `<button class="btn sm pfold" data-pfold>${pfolded ? `▼ 나머지 ${people.length - pshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
         <div class="wph"><span></span><span>부서원</span><span><i class="dot h1"></i>상반기 (1~6월)</span><span><i class="dot h2"></i>하반기 (7~12월)</span><span>합계</span></div>
-        ${people.length ? people.map(prow).join('') : '<div class="empty">해당 업무가 없습니다</div>'}</section>
+        ${people.length ? pshown.map(prow).join('') : '<div class="empty">해당 업무가 없습니다</div>'}${pfolded ? `<button class="pfmore" data-pfold>▼ ${people.length - pshown.length}명 더 보기</button>` : ''}</section>
       <section class="card wtrack"><h2>📅 종료 현황 추적 <span class="muted">· 기한 업무만 · 상시는 추적 안 함</span></h2>
         <div class="wseg">${seg.length ? seg.map(x => `<span class="ws-${x.k}" style="flex:${x.n}" title="${esc(WST_LABEL[x.k])} ${x.n}건">${x.n}</span>`).join('') : '<span class="ws-none">기한 업무 없음</span>'}</div>
         <div class="wleg">${['done', 'run', 'soon', 'late', 'miss'].map(k => `<span><i class="ws-${k}"></i>${WST_LABEL[k]} ${tracked.filter(i => i.cls === k).length}</span>`).join('')}</div>
@@ -3193,7 +3199,7 @@ function taskHero(s) {
 }
 function taskHeroClick(st) {
   return async e => {
-    const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport],[data-wrename]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport],[data-wrename],[data-wreclass],[data-pfold]'); if (!t) return;
     const d = t.dataset;
     if (d.year != null) st.year = d.year;
     else if (d.tf != null) st.f['유형'] = d.tf && st.f['유형'] === d.tf ? '' : d.tf;
@@ -3202,6 +3208,8 @@ function taskHeroClick(st) {
     else if (d.tedit) return openEdit('task', d.tedit);
     else if (d.wimport != null) return importLegacy();
     else if (d.wrename != null) return renameOldTypes();
+    else if (d.wreclass != null) return reclassify();
+    else if (d.pfold != null) st.pfold = !(st.pfold !== false);
     else if (d.wadd != null) {
       let ty = st.f['유형'];
       if (!TT[ty]) ty = await ask('어떤 유형의 업무인가요?', `<div class="wpick">${TASK_TYPES.map(t => `<span style="--c:${TT[t].color}">${TT[t].icon} <b>${t}</b><small>${TT[t].desc}</small></span>`).join('')}</div>`,
@@ -3212,12 +3220,53 @@ function taskHeroClick(st) {
     render();
   };
 }
+/* 예전 엑셀 시트 → 통합 업무 유형
+ * 일반업무 시트: 구분·소구분 글자로 나눔 — ITEM PO / MDL / 상품 담당 / PO → 표준화 담당, 지시사항·Action List → 그룹장 요청 사항, 과제·그룹 업무·그 외 → 일반업무
+ * To do list 시트 → To Do List, 기술공유 시트 → 기술공유 */
+function generalType(text) {
+  const t = String(text || '').toUpperCase();
+  if (/ITEM|MDL|상품\s*담당|(^|[^A-Z])PO([^A-Z]|$)/.test(t)) return '표준화 담당';
+  if (/지시|ACTION/.test(t)) return '그룹장 요청 사항';
+  return '일반업무';
+}
+function legacyType(k, f) {
+  if (k === 'todo') return 'To Do List';
+  if (k === 'techshare') return '기술공유';
+  return generalType([f['구분'], f['소구분']].filter(Boolean).join(' '));
+}
+// 이미 가져온 행 중, 예전 가져오기 규칙대로 들어가 있어 다시 나눌 것 (사람이 다른 유형으로 고친 행은 건드리지 않음)
+function reclassList() {
+  const out = [];
+  for (const r of getRecs('task')) {
+    const m = /^task-(general|todo)-/.exec(r.id || ''); if (!m) continue;
+    const k = m[1], cur = normType(r.fields['유형']), auto = k === 'todo' ? '그룹장 요청 사항' : '일반업무';
+    if (cur !== auto) continue;
+    const orig = (DB.recs[k] || []).find(x => 'task-' + x.id === r.id);
+    const to = orig ? legacyType(k, orig.fields) : k === 'todo' ? 'To Do List' : generalType(r.fields['구분']);
+    if (to !== cur) out.push({ r, to });
+  }
+  return out;
+}
+async function reclassify() {
+  const list = reclassList(); if (!list.length || noEdit()) return;
+  const n = t => list.filter(x => x.to === t).length;
+  if (await ask('엑셀 시트 구분대로 유형 다시 나누기', `<p>예전 가져오기에서 한꺼번에 들어간 업무 <b>${list.length}건</b>의 유형을 바꿉니다.</p>
+    <ul style="padding-left:18px;margin:0"><li>엑셀 To do list → <b>To Do List</b> ${n('To Do List')}건</li><li>일반업무 시트의 ITEM PO · MDL · 상품 담당 → <b>표준화 담당</b> ${n('표준화 담당')}건</li><li>일반업무 시트의 지시사항 · Action List → <b>그룹장 요청 사항</b> ${n('그룹장 요청 사항')}건</li></ul>
+    <p class="muted">과제 · 그룹 업무는 일반업무 그대로. 가져온 뒤 사람이 다른 유형으로 바꾼 행은 건드리지 않습니다.</p>`, [{ id:'ok', label:`${list.length}건 바꾸기`, cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
+  let ok = 0;
+  for (const { r, to } of list) {
+    try { const x = await saveEdit('task', r.id, { ...r.fields, 유형:to }, r.meta.rev); if (x.status === 'ok') ok++; }
+    catch (e) { toast(`중단 (${ok}건 완료): ${e.message}`, true); break; }
+    if (ok && ok % 25 === 0) toast(`바꾸는 중… ${ok} / ${list.length}`);
+  }
+  toast(`${ok}건의 유형을 다시 나눴습니다`); await loadAll(); render();
+}
 function legacyToTask(k, f) {
   const end = isoD(f['종료일']), ts = isoD(f['발표일']), closed = f['종결 여부'] === '종결';
   const cat = [f['구분'], f['소구분']].filter(Boolean).join(' · ');
-  if (k === 'general') return { 유형:'일반업무', 구분:cat, '업무 내용':f['업무 내용'] || '', 담당자:f['책임자'] || '', 시작일:f['시작일'] || '', 종료일:f['종료일'] || '',
+  if (k === 'general') return { 유형:legacyType(k, f), 구분:cat, '업무 내용':f['업무 내용'] || '', 담당자:f['책임자'] || '', 시작일:f['시작일'] || '', 종료일:f['종료일'] || '',
     '종료 구분':f['종료 구분'] || '', '종결 여부':closed || (end && end < todayISO() && f['종료 구분'] !== '상시') ? '종결' : '', '진행 사항':f['진행사항'] || '' };
-  if (k === 'todo') return { 유형:'그룹장 요청 사항', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
+  if (k === 'todo') return { 유형:'To Do List', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
     '종료 구분':f['종료 구분'] || '', '종결 여부':closed || f['완료 여부'] === 'O' ? '종결' : '', '진행 사항':f['현황'] || '',
     비고:[f['완료 여부'] && f['완료 여부'] !== 'O' ? `완료 여부: ${f['완료 여부']}` : '', f['그룹장 추가요청 사항'] ? `그룹장 추가요청: ${f['그룹장 추가요청 사항']}` : ''].filter(Boolean).join('\n') };
   return { 유형:'기술공유', 구분:f['연도'] ? `${f['연도']}년 발표` : '', '업무 내용':f['발표 내용'] || '', 담당자:f['발표자'] || '', 시작일:f['발표일'] || '', 종료일:f['발표일'] || '',
@@ -3238,7 +3287,7 @@ async function importLegacy() {
   if (!list.length) return toast('가져올 업무가 없습니다');
   const n = k => list.filter(x => x.k === k).length;
   if (await ask('기존 업무 가져오기', `<p>일반업무 <b>${n('general')}</b> · To do <b>${n('todo')}</b> · 기술공유 <b>${n('techshare')}</b> 건을 <b>통합 업무</b>로 복사합니다.</p>
-    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무 → <b>일반업무</b>, To do(그룹장 지시) → <b>그룹장 요청 사항</b>, 기술공유 → <b>기술공유</b> (나중에 각자 바꿀 수 있음 — 표준화 ITEM 은 '표준화 담당' 으로)</li>
+    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무 시트 → 구분대로 <b>일반업무</b>(과제·그룹 업무) / <b>표준화 담당</b>(ITEM PO·MDL·상품 담당) / <b>그룹장 요청 사항</b>(지시사항·Action List), To do list → <b>To Do List</b>, 기술공유 → <b>기술공유</b> (나중에 각자 바꿀 수 있음)</li>
     <li>예전에 '완료'로 보이던 것(To do 완료 O, 종료일·발표일 지난 일반업무·기술공유)은 <b>종결</b>로 옮깁니다</li>
     <li>예전 시트는 지우지 않습니다. 같은 행을 두 번 가져오지 않습니다</li></ul>`, [{ id:'ok', label:`${list.length}건 가져오기`, cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
   let ok = 0, skip = 0, order = Math.max(0, ...getRecs('task').map(r => r.order || 0)) + 10;
