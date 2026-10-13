@@ -284,6 +284,27 @@ table.t.fx-l{table-layout:fixed}
 table.t.fx-l th{white-space:normal}
 table.t.fx-l td{overflow-wrap:anywhere}
 .rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:6}
+/* 엑셀식 열 필터 (머리글 ▾) */
+table.t th.cfh{padding-right:26px}
+.cfb{position:absolute;right:6px;top:7px;width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--sub);font-size:10px;line-height:16px;cursor:pointer;z-index:5}
+.cfb:hover{border-color:var(--accent);color:var(--accent)}
+.cfb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+table.m th.cfh{padding:6px 4px 22px}
+table.m .cfb{top:auto;bottom:3px;right:50%;margin-right:-8px;width:16px;height:16px;line-height:14px}
+#cfPop{position:fixed;z-index:60;width:260px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(20,30,60,.22);padding:8px;font-size:13px;color:var(--text)}
+#cfPop .cfa{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:6px;cursor:pointer;font:inherit;color:inherit}
+#cfPop .cfa:hover:not(:disabled){background:var(--accent-l)}
+#cfPop .cfa:disabled{color:#aab}
+#cfPop .cfa.cur{font-weight:700;color:var(--accent-d)}
+#cfPop hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+#cfPop input[type=search]{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin-bottom:6px}
+#cfPop .cfl{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:4px 0}
+#cfPop .cfl label{display:flex;gap:6px;align-items:flex-start;padding:3px 8px;cursor:pointer;line-height:1.35}
+#cfPop .cfl label:hover{background:#f5f7ff}
+#cfPop .cfl label span{flex:1;overflow-wrap:anywhere}
+#cfPop .cfl label i{font-style:normal;color:var(--sub);font-size:11px}
+#cfPop .cfl .cfall{font-weight:700;border-bottom:1px solid var(--line);margin-bottom:2px}
+#cfPop .cfbtns{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
 .rh{position:absolute;left:0;right:0;bottom:-4px;height:8px;cursor:row-resize;z-index:6}
 .rz:hover,.rz.on,.rh:hover,.rh.on{background:var(--accent);opacity:.55}
 .cw{max-height:var(--rowmax,none);overflow:auto}
@@ -389,7 +410,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
   header.top{position:static;padding:0 0 8px}
   .tw{max-height:none!important;overflow:visible;border:0}
   .cw{max-height:none!important;height:auto!important;overflow:visible!important}
-  .sizebar,.rz,.rh{display:none!important}
+  .sizebar,.rz,.rh,.cfb{display:none!important}
   td.sel{outline:none!important;box-shadow:none!important}
   table.t th,table.t tr.grp td{position:static}
   table.t{font-size:10px}
@@ -550,7 +571,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-09.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2207,6 +2228,73 @@ function sortRecs(s, arr) {
   if (s?.key !== 'notice') return arr;
   return [...arr].sort((a, b) => (b.fields['일자'] || '').localeCompare(a.fields['일자'] || '') || (b.order - a.order));
 }
+/* ---------- 엑셀식 열 필터: 머리글 ▾ → 정렬 · 값 체크 목록 · 검색 ----------
+ * 상태: fstate(key).cf = {열키:[허용 값…]} (값은 칸의 원래 문자열, 빈 칸 = ''), fstate(key).sort = {k, dir:1|-1}
+ * 열키: 일반 시트 = 필드 이름, 투입인력 = 머리글 data-ck (이름/그룹/분야/_run/_bid/_tot/pjt:열ID/과제/_sum/Remarks) */
+function colVal(s, r, k) {
+  const f = r.fields;
+  if (s.special !== 'matrix') return String(f[k] ?? '');
+  if (k.startsWith('pjt:')) { const a = (f.배정 || {})[k.slice(4)]; return a ? `${a.pct ?? ''}${a.role === 'LE' ? ' (LE)' : ''}` : ''; }
+  if (k === '과제') return String(f['과제+기타업무(%)'] ?? '');
+  if (k[0] === '_') { const st = staffStats(r); return String({ _run:st.run, _bid:st.bid, _tot:st.run + st.bid, _sum:st.sum }[k] ?? ''); }
+  return String(f[k] ?? '');
+}
+const cfLabel = v => { const t = flat(String(v).replace(/~~[\s\S]*?~~/g, '')); return t ? (t.length > 80 ? t.slice(0, 80) + '…' : t) : '(빈 셀)'; };
+const cfCmp = (a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ko', { numeric:true });
+const cfOn = (key, k) => !!(FS[key]?.cf?.[k]) || FS[key]?.sort?.k === k;
+function cfSort(s, arr) {
+  const so = fstate(s.key).sort; if (!so) return arr;
+  const gi = new Map(); if (s.group) arr.forEach(r => { const g = r.fields[s.group]; if (!gi.has(g)) gi.set(g, gi.size); });
+  return arr.map((r, i) => [r, i]).sort(([a, i], [b, j]) => (s.group ? gi.get(a.fields[s.group]) - gi.get(b.fields[s.group]) : 0)
+    || (colVal(s, a, so.k) === '' || colVal(s, b, so.k) === '' ? cfCmp(colVal(s, a, so.k), colVal(s, b, so.k)) : so.dir * cfCmp(colVal(s, a, so.k), colVal(s, b, so.k))) || i - j).map(x => x[0]);
+}
+function closeCf() { $('#cfPop')?.remove(); }
+function openCf(btn) {
+  closeCf();
+  const s = SHEET[route], k = btn.dataset.cf; if (!s) return;
+  const st = fstate(s.key); st.cf = st.cf || {};
+  const cnt = new Map(); filteredRecs(s, k).forEach(r => { const v = colVal(s, r, k); cnt.set(v, (cnt.get(v) || 0) + 1); });
+  const vals = [...cnt.keys()].sort(cfCmp), allow = st.cf[k] ? new Set(st.cf[k]) : null, so = st.sort?.k === k ? st.sort.dir : 0;
+  const pop = document.createElement('div'); pop.id = 'cfPop';
+  pop.innerHTML = `<button class="cfa ${so === 1 ? 'cur' : ''}" data-cfs="1">↑ 오름차순 정렬 (가→하, 1→9)</button><button class="cfa ${so === -1 ? 'cur' : ''}" data-cfs="-1">↓ 내림차순 정렬 (하→가, 9→1)</button>
+    <button class="cfa" data-cfx ${allow || so ? '' : 'disabled'}>✕ 이 열의 필터·정렬 지우기</button><hr>
+    <input type="search" placeholder="검색 (포함된 값만)" aria-label="값 검색">
+    <div class="cfl"><label class="cfall"><input type="checkbox" data-all> <span>(모두 선택)</span></label>${vals.map((v, i) => `<label data-t="${esc(cfLabel(v).toLowerCase())}"><input type="checkbox" data-i="${i}" ${!allow || allow.has(v) ? 'checked' : ''}> <span>${esc(cfLabel(v))}</span><i>${cnt.get(v)}</i></label>`).join('')}</div>
+    <div class="cfbtns"><button class="btn sm" data-cfc>취소</button><button class="btn sm pri" data-cfo>확인</button></div>`;
+  document.body.appendChild(pop);
+  const b = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(b.right - w, innerWidth - w - 8)) + 'px';
+  pop.style.top = (b.bottom + 4 + h > innerHeight - 8 ? Math.max(8, b.top - h - 4) : b.bottom + 4) + 'px';
+  const boxes = [...pop.querySelectorAll('input[data-i]')], all = $('input[data-all]', pop), q = $('input[type=search]', pop);
+  const shown = () => boxes.filter(x => !x.closest('label').hidden);
+  const syncAll = () => { const v = shown(), n = v.filter(x => x.checked).length; all.checked = !!v.length && n === v.length; all.indeterminate = n > 0 && n < v.length; };
+  syncAll();
+  all.onchange = () => shown().forEach(x => { x.checked = all.checked; });
+  pop.onchange = e => { if (e.target.dataset.i != null) syncAll(); };
+  q.oninput = () => { const t = q.value.trim().toLowerCase(); boxes.forEach(x => { const l = x.closest('label'); l.hidden = !!t && !l.dataset.t.includes(t); if (t) x.checked = !l.hidden; }); syncAll(); };
+  const done = () => { closeCf(); drawTable(s); };
+  pop.onclick = e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.cfs) { st.sort = { k, dir:+t.dataset.cfs }; done(); }
+    else if (t.dataset.cfx != null) { delete st.cf[k]; if (st.sort?.k === k) st.sort = null; done(); }
+    else if (t.dataset.cfc != null) closeCf();
+    else if (t.dataset.cfo != null) {
+      const ok = (q.value.trim() ? shown() : boxes).filter(x => x.checked).map(x => vals[+x.dataset.i]);
+      if (!ok.length) { toast('하나 이상 선택하세요', true); return; }
+      if (ok.length === vals.length) delete st.cf[k]; else st.cf[k] = ok;
+      done();
+    }
+  };
+  setTimeout(() => q.focus());
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.cfb'); if (b) { e.stopPropagation(); if ($('#cfPop') && $('#cfPop').dataset.k === b.dataset.cf) closeCf(); else { openCf(b); const p = $('#cfPop'); if (p) p.dataset.k = b.dataset.cf; } return; }
+  if (!e.target.closest('#cfPop')) closeCf();
+}, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#cfPop')) { e.stopPropagation(); closeCf(); } }, true);
+addEventListener('resize', closeCf);
+document.addEventListener('scroll', e => { if (!e.target.closest?.('#cfPop')) closeCf(); }, true);
+
 /* 행 상태: To do 미완료(O 아님)=연한 주황 / 기술공유 발표일·일반업무 종료일이 지났으면=연한 회색(완료) */
 const isPast = v => !!v && (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v <= todayISO());
 function rowState(key, f) {
@@ -2215,10 +2303,12 @@ function rowState(key, f) {
   if (key === 'general' && isPast(f['종료일'])) return 'r-done';
   return '';
 }
-function filteredRecs(s) {
+function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 열 필터는 빼고 (필터 목록 값 계산용)
   const st = fstate(s.key), me = normName(user);
+  const cf = Object.entries(st.cf || {}).filter(([k]) => k !== skipCf).map(([k, a]) => [k, new Set(a)]);
   const list = getRecs(s.key).filter(r => {
     const f = r.fields;
+    for (const [k, a] of cf) if (!a.has(colVal(s, r, k))) return false;
     for (const k of s.filters) if (st.f[k] && f[k] !== st.f[k]) return false;
     if (s.owner) {
       const tk = tokens(f[s.owner]);
@@ -2229,7 +2319,7 @@ function filteredRecs(s) {
     if (s.key === 'todo' && st.done && (st.done === 'done') !== (f['완료 여부'] === 'O')) return false;
     return true;
   });
-  return sortRecs(s, list);
+  return cfSort(s, sortRecs(s, list));
 }
 function renderSheet(c, s) {
   const st = fstate(s.key), recs = getRecs(s.key);
@@ -2281,8 +2371,10 @@ function renderSheet(c, s) {
 
 function drawTable(s) {
   const el = $('#tarea'); if (!el) return;
-  const recs = filteredRecs(s);
+  const recs = filteredRecs(s), st = fstate(s.key), ncf = Object.keys(st.cf || {}).length;
   el.innerHTML = s.special === 'matrix' ? matrixHtml(s, recs) : tableHtml(s, recs);
+  if (!recs.length && ncf) el.insertAdjacentHTML('beforeend', '<div style="text-align:center;margin:-8px 0 12px"><button class="btn sm" id="cfAllOff">열 필터 모두 지우기</button></div>');
+  const off = $('#cfAllOff'); if (off) off.onclick = () => { st.cf = {}; drawTable(s); };
   setTimeout(() => {
     applySel();
     if (JUMP && JUMP.key === s.key) {                      // 팝업에서 고른 항목의 칸으로 이동 + 깜빡임
@@ -2291,7 +2383,7 @@ function drawTable(s) {
       else toast('해당 항목을 찾지 못했습니다', true);
     }
   });
-  el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건 · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
+  el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개 적용 중</b>` : ''} · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
 }
 const actCell = (key, r) => `<td class="act">${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
 
@@ -2539,7 +2631,9 @@ const rowAttr = (L, r) => {
   const h = L.rowh[r.id], cls = [h ? 'rhset' : '', rowState(r.sheet, r.fields)].filter(Boolean).join(' ');
   return `data-rid="${esc(r.id)}"${cls ? ` class="${cls}"` : ''}${h ? ` style="--rowh:${h}px"` : ''}`;
 };
-const thR = (ck, label, extra = '') => `<th data-ck="${esc(ck)}" ${extra}>${label}<span class="rz" title="드래그: 열 너비 조절 · 더블클릭: 기본값"></span></th>`;
+const cfBtn = (key, ck) => { const st = FS[key], on = !!st?.cf?.[ck], so = st?.sort?.k === ck ? st.sort.dir : 0;
+  return `<button type="button" class="cfb${on || so ? ' on' : ''}" data-cf="${esc(ck)}" title="필터 · 정렬${on ? ' (필터 적용 중)' : ''}">${so === 1 ? '↑' : so === -1 ? '↓' : '▾'}</button>`; };
+const thR = (ck, label, extra = '', key = '') => `<th data-ck="${esc(ck)}" ${key ? extra.replace(/class="([^"]*)"/, 'class="$1 cfh"').replace(/^(?![\s\S]*class=)/, 'class="cfh" ') : extra}>${label}${key ? cfBtn(key, ck) : ''}<span class="rz" title="드래그: 열 너비 조절 · 더블클릭: 기본값"></span></th>`;
 
 function tableHtml(s, recs) {
   if (!recs.length) return '<div class="empty">표시할 행이 없습니다</div>';
@@ -2550,7 +2644,7 @@ function tableHtml(s, recs) {
     const h = hlOf(r); h.base = baseFieldsOf(r);
     rows += `<tr ${rowAttr(L, r)}>${s.cols.map(c => cellHtml(s, c, r, h)).join('')}${actCell(s.key, r)}</tr>`;
   }
-  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${s.cols.map(c => thR(c.f, esc(c.label || c.f))).join('')}${thR('__act', '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${s.cols.map(c => thR(c.f, esc(c.label || c.f), '', s.key)).join('')}${thR('__act', '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function staffStats(r) {
@@ -2569,8 +2663,9 @@ function matrixHtml(s, recs) {
   const cg = colgroup(L, [{ k:'이름', w:130 }, { k:'그룹', w:60 }, { k:'분야', w:100 }, { k:'_run', w:50 }, { k:'_bid', w:50 }, { k:'_tot', w:56 },
     ...ordered.map(c => ({ k:'pjt:' + c.id, w:66 })), { k:'과제', w:72 }, { k:'_sum', w:64 }, { k:'Remarks', w:200 }, { k:'__act', w:170 }]);
   const rs = 'rowspan="2"';
-  const head1 = `<tr>${thR('이름', '이름', 'class="nm" ' + rs)}${thR('그룹', '그룹', rs)}${thR('분야', '분야', rs)}${thR('_run', '수행', rs + ' title="투입률>0 인 수행 PJT 수"')}${thR('_bid', '입찰', rs)}${thR('_tot', 'Total', rs)}${groups.map(([k, a]) => `<th colspan="${a.length}">${k}</th>`).join('')}${thR('과제', '과제+기타', rs)}${thR('_sum', '합계%', rs + ' title="PJT 투입률 합 + 과제기타"')}${thR('Remarks', 'Remarks', rs)}${thR('__act', '작업', 'class="act" ' + rs)}</tr>`;
-  const head2 = `<tr>${ordered.map(c => thR('pjt:' + c.id, esc(c.name), 'class="v" style="top:34px"')).join('')}</tr>`;
+  const K = 'staffing';
+  const head1 = `<tr>${thR('이름', '이름', 'class="nm" ' + rs, K)}${thR('그룹', '그룹', rs, K)}${thR('분야', '분야', rs, K)}${thR('_run', '수행', rs + ' title="투입률>0 인 수행 PJT 수"', K)}${thR('_bid', '입찰', rs, K)}${thR('_tot', 'Total', rs, K)}${groups.map(([k, a]) => `<th colspan="${a.length}">${k}</th>`).join('')}${thR('과제', '과제+기타', rs, K)}${thR('_sum', '합계%', rs + ' title="PJT 투입률 합 + 과제기타"', K)}${thR('Remarks', 'Remarks', rs, K)}${thR('__act', '작업', 'class="act" ' + rs)}</tr>`;
+  const head2 = `<tr>${ordered.map(c => thR('pjt:' + c.id, esc(c.name), 'class="v" style="top:34px"', K)).join('')}</tr>`;
   const mck = f => f.startsWith('배정.') ? 'pjt:' + f.slice(3) : f === '과제+기타업무(%)' ? '과제' : f;
   const mc = (r, f, inner, cls = '', hl = false, extra = '') => `<td class="${cls}${hl ? ' hl' : ''}${hl && f !== 'Remarks' && !/\ble\b/.test(cls) ? ' addtxt' : ''}${selCls(r.id, f)}" ${cellAttr(r, f, mck(f))} ${extra}><div class="cw">${inner}</div></td>`;
   let body = '';
