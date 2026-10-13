@@ -111,7 +111,7 @@ def main():
     bat = crlf(bat).encode('ascii')
     assert b'chcp' not in bat.lower()
 
-    lines = [f'[계장ENG그룹 주간업무 Dashboard 수정본 {name}]', '',
+    lines = [f'[계장ENG그룹 Dashboard 수정본 {name}]', '',
              '■ 적용 방법',
              '  1. 이 zip 을 아무 곳에나 풀고, 대시보드 화면(Edge)을 닫는다.',
              '  2. APPLY.bat 을 더블클릭한다. (C:\\Claude 아래 Dashboard 폴더를 스스로 찾는다.',

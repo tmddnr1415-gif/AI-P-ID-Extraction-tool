@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>계장ENG그룹 주간업무 Dashboard</title>
+<title>계장ENG그룹 Dashboard</title>
 <style>
 :root{
   --navy:#1e2a5a; --navy-2:#2a3870; --navy-hi:#3a4a8f;
@@ -170,9 +170,19 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .wbody .fx{max-height:120px;overflow:auto}
 .wpick{display:grid;gap:8px}.wpick span{display:flex;flex-direction:column;border-left:4px solid var(--c);background:#f7f8fc;border-radius:8px;padding:8px 12px}.wpick small{color:var(--sub)}
 @media (max-width:1300px){.wkpis{grid-template-columns:repeat(4,1fr)}.wk-main{grid-column:span 2}.wgrid{grid-template-columns:1fr}}
+/* ---------- 게시판 유형 · 실명 ---------- */
+.bkinds{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.wtc2{border:1px solid var(--line);border-radius:99px;padding:6px 14px;background:#fff;font-size:13px;color:var(--c,var(--text))}
+.wtc2 b{margin-left:3px}.wtc2.on{background:var(--c,var(--accent));border-color:transparent;color:#fff;font-weight:700}
+.bkind{display:inline-block;font-size:11.5px;font-weight:700;color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);border-radius:99px;padding:2px 9px;margin-right:6px;white-space:nowrap}
+.nick.real{background:#e6f4ea;color:#11734c;font-weight:700}
+.bkpick{display:flex;gap:8px;margin-bottom:10px}.bkpick label{cursor:pointer}.bkpick input{display:none}
+.bkpick span{display:inline-block;border:1.5px solid var(--line);border-radius:10px;padding:7px 14px;font-weight:700;color:var(--c)}
+.bkpick input:checked+span{background:var(--c);border-color:var(--c);color:#fff}
+.amode{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text)}.amode select{border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 /* ---------- 통합 업무 현황판 (유형 카드) ---------- */
 .whero.task-hero{background:radial-gradient(circle at 85% -20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(120deg,#1b2a8c 0%,#3b3fd8 45%,#7b4ee8 75%,#d04fa8 100%)}
-.ttcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
+.ttcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px;margin-bottom:16px}
 .ttc{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);overflow:hidden}
 .ttc::before{content:'';position:absolute;inset:0 0 auto 0;height:5px;background:var(--c)}
 .ttc.on{outline:2px solid var(--c);background:color-mix(in srgb,var(--c) 5%,#fff)}
@@ -369,7 +379,9 @@ svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 #taskbar{position:fixed;right:12px;top:130px;z-index:22;width:250px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(30,42,90,.18);font-size:12px}
 #taskbar[hidden]{display:none}
 #taskbar.min{width:auto;background:none;border:0;box-shadow:none}
-#taskbar .tbh{display:flex;gap:6px;align-items:center;padding:9px 10px 4px}
+#taskbar .tbh{display:flex;gap:6px;align-items:center;padding:9px 10px 4px;cursor:move;user-select:none}
+#taskbar .tbgrip{color:#9aa3bd;font-size:14px;cursor:move;padding:0 2px}#taskbar.drag{opacity:.85;box-shadow:0 12px 34px rgba(30,42,90,.3)}
+#taskbar .tbtab{cursor:move}
 #taskbar .tbh b{font-size:13px}
 #taskbar .tbp{margin-left:auto;font-weight:700;color:#b05a00}#taskbar .tbp.all{color:var(--ok)}
 #taskbar .tbh button{border:0;background:#eef1f8;border-radius:6px;width:24px;height:22px;cursor:pointer}
@@ -652,7 +664,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
 <div id="main">
   <header class="top">
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
-    <div class="ttl"><h1>계장ENG그룹 주간업무 Dashboard</h1><p id="subtitle"></p></div>
+    <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
     <div class="actions">
       <select id="weekSel" class="sel" aria-label="주차 선택"></select>
       <button class="btn pri" id="btnSaveAll" title="모든 사용자의 최신 데이터를 모아 전체 저장본(JSON+엑셀)을 공유폴더 saves/ 에 저장">전체 저장</button>
@@ -707,9 +719,9 @@ const SHEETS = [
     {f:'구분', w:110, sug:1}, {f:'소구분', w:70, sug:1}, {f:'업무 내용', w:320, long:1, rows:4, strong:1},
     {f:'책임자', w:90}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1},
     {f:'진행사항', w:380, long:1, rows:6} ]},
-  // 통합 업무: 유형(과제 / 지시사항 및 Action List / To Do List / 기술공유)을 부서원이 고름. 메뉴는 '🚀 통합 업무' (위 현황판 + 아래 표)
+  // 통합 업무: 유형(일반업무 / 표준화 담당 / To Do List / 기술공유 / 그룹장 요청 사항)을 부서원이 고름. 메뉴는 '🚀 통합 업무' (위 현황판 + 아래 표)
   { key:'task', label:'통합 업무', title:'업무 내용', owner:'담당자', filters:['유형'], group:'유형', merged:'task', cols:[
-    {f:'유형', w:150, ttype:1}, {f:'구분', w:90, sug:1}, {f:'업무 내용', w:260, long:1, rows:3, strong:1}, {f:'담당자', w:100, long:1, rows:2},
+    {f:'유형', w:150, ttype:1}, {f:'구분', w:90, sug:1}, {f:'업무 내용', w:260, long:1, rows:3, strong:1}, {f:'담당자', label:'담당자 / ITEM PO', w:110, long:1, rows:2},
     {f:'요청자', w:80, sug:1}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1},
     {f:'진척률', w:70, pct:1}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1}, {f:'진행 사항', w:360, long:1, rows:7}, {f:'비고', w:170, long:1, rows:2} ]},
   // 유닛분장: 연도 탭 + 조직도(기본)/표. 수행·입찰 PJT 열은 없앰 → 각자 '내 정보'에 입력한 PJT 가 조직도에 표시
@@ -784,7 +796,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1473,7 +1485,7 @@ function authDialog(start = 'home') {
       if (p === 'pw' && !curId) p = 'id';
       scr.innerHTML = `<div class="acard"><div class="astrip"></div><div class="abody">
           <div class="alogo"><b>SAMSUNG C&amp;T</b></div>
-          <div class="asub1">I&amp;C팀</div><div class="asub2">계장ENG그룹 주간업무 Dashboard</div>
+          <div class="asub1">I&amp;C팀</div><div class="asub2">계장ENG그룹 Dashboard</div>
           <div class="aform">${pages[p]()}</div></div></div>`;
       scr.dataset.page = p;
       const f = $('input', scr); if (f) { f.focus(); f.select?.(); }
@@ -1633,7 +1645,7 @@ function inputFor(s, c, val) {
     <div class="fup"><input type="file" data-fup accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple><span class="muted">PDF·PPT(X), 파일당 30MB 이하</span></div>`;
   if (c.ai) return `<button type="button" class="btn sm aibtn" data-ai title="이슈사항·종결현황·Remark 내용을 요약해 아래 칸에 채웁니다 (수정 가능)">✨ AI 요약</button><textarea data-f="${esc(c.f)}" rows="${c.rows || 4}">${esc(v)}</textarea>`;
   if (c.long) return `<textarea data-f="${esc(c.f)}" rows="${c.rows || 4}"${guideOn(s, c) ? ' data-guide' : ''}>${esc(v)}</textarea>`;
-  if (c.ttype) return `<select data-f="${esc(c.f)}"><option value="">— 유형을 고르세요 —</option>${TASK_TYPES.map(t => `<option ${v === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}${v && !TT[v] ? `<option selected>${esc(v)}</option>` : ''}</select>`;
+  if (c.ttype) { const nv = normType(v); return `<select data-f="${esc(c.f)}"><option value="">— 유형을 고르세요 —</option>${TASK_TYPES.map(t => `<option ${nv === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}${nv && !TT[nv] ? `<option selected>${esc(nv)}</option>` : ''}</select>`; }
   if (c.closed) return `<select data-f="${esc(c.f)}"><option value="">진행 (기본)</option><option ${v === '진행' ? 'selected' : ''}>진행</option><option ${v === '종결' ? 'selected' : ''}>종결</option></select>`;
   if (c.endk) return `<select data-f="${esc(c.f)}"><option value="">자동 (종료일 있으면 기한)</option><option value="기한" ${v === '기한' ? 'selected' : ''}>📅 기한 — 종료일 있음, 종료 현황 추적</option><option value="상시" ${v === '상시' ? 'selected' : ''}>♾ 상시 — 종료일 없음, 추적 안 함</option></select>`;
   if (c.date) { const ok = !v || /^\d{4}-\d{2}-\d{2}$/.test(v); return `<input data-f="${esc(c.f)}" type="${ok ? 'date' : 'text'}" value="${esc(v)}">`; }
@@ -1707,7 +1719,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
     const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
     s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });   // 내용 없는 글머리 줄 지우기
     if (rec) s.cols.filter(c => c.long && !c.ai).forEach(c => { nf[c.f] = mergeStrike(rec.fields[c.f], nf[c.f]); });   // 지운 내용 → 취소선 (AI 요약은 새로 덮어씀)
-    if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (과제 / 지시사항 및 Action List / To Do List / 기술공유)', true);
+    if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (일반업무 / 표준화 담당 / To Do List / 기술공유 / 그룹장 요청 사항)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
     await submitRecord(key, id, rec, nf, mine);
   };
@@ -1718,7 +1730,8 @@ async function submitRecord(key, id, rec, nf, mine) {
     if (!rec) {
       // 그룹 헤더 시트: 같은 그룹의 마지막 행 바로 뒤에 삽입
       const s = SHEET[key]; let order;
-      if (s.group && nf[s.group]) {
+      if (key === 'perform' || key === 'bid') order = Math.min(0, ...DB.recs[key].map(r => r.order)) - 10;   // 수행·입찰: 새 행은 맨 위
+      else if (s.group && nf[s.group]) {
         const all = DB.recs[key], same = all.filter(r => r.fields[s.group] === nf[s.group]);
         if (same.length) { const mx = Math.max(...same.map(r => r.order)); const nx = all.map(r => r.order).filter(o => o > mx).sort((a, b) => a - b)[0]; order = nx == null ? mx + 10 : (mx + nx) / 2; }
       }
@@ -1894,6 +1907,10 @@ async function tokenHash(t) {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 const boardNick = (anon, nick) => { nick = flat(nick).slice(0, 20); return anon || !nick ? '익명' : nick; };
+const BKINDS = { '블라블라':{ icon:'💬', color:'#5b6b9a' }, '회식제안':{ icon:'🍻', color:'#e8730c' }, 'VOC':{ icon:'📣', color:'#d6336c' } };
+const bKind = p => BKINDS[p.kind] ? p.kind : '블라블라';                 // 유형 없는 예전 글 = 블라블라
+// 작성자 방식: anon(익명) / nick(닉네임) / real(실명 — 서버가 로그인 계정 본명으로 기록)
+const bSend = ({ mode, nick }) => ({ anon:mode === 'anon', nick:mode === 'nick' ? nick : '', real:mode === 'real' });
 const bPublic = p => ({ ...p, tokenHash:undefined, comments:(p.comments || []).map(c => ({ ...c, tokenHash:undefined })) });
 async function bFile(pid) { const d = await sub(['board']), p = await readJSON(d, pid + '.json'); if (!p) throw new Error('삭제된 글입니다'); return [d, p]; }
 const bOnline = () => { if (OFFLINE) throw new Error('오프라인에서는 게시판에 글·댓글을 쓸 수 없습니다 (보기만 가능)'); needLogin(); };
@@ -1907,21 +1924,21 @@ const Board = {
     for (const [, h] of await listFiles(d)) { try { out.push(bPublic(JSON.parse(await (await h.getFile()).text()))); } catch (_) {} }
     return out.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
   },
-  async create({ title, body, anon, nick }) {
-    bOnline(); const token = rndToken(); let p;
-    if (SERVER) p = await api('POST', 'board', { title, body, anon, nick, token });
+  async create({ title, body, kind, mode, nick }) {
+    bOnline(); const token = rndToken(); let p; const a = bSend({ mode, nick });
+    if (SERVER) p = await api('POST', 'board', { title, body, kind, ...a, token });
     else {
       const now = stamp(), id = 'b' + Date.now().toString(16) + rndToken().slice(0, 6);
-      p = { id, title, body, nick:boardNick(anon, nick), createdAt:now, updatedAt:now, tokenHash:await tokenHash(token), comments:[] };
+      p = { id, title, body, kind, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), createdAt:now, updatedAt:now, tokenHash:await tokenHash(token), comments:[] };
       await writeJSON(await sub(['board']), id + '.json', p);
     }
     BT[p.id] = token; saveBT(); return p;
   },
-  async update(pid, { title, body, anon, nick }) {
-    bOnline(); const token = BT[pid];
-    if (SERVER) return api('PUT', 'board/' + enc(pid), { title, body, anon, nick, token });
+  async update(pid, { title, body, kind, mode, nick }) {
+    bOnline(); const token = BT[pid], a = bSend({ mode, nick });
+    if (SERVER) return api('PUT', 'board/' + enc(pid), { title, body, kind, ...a, token });
     const [d, p] = await bFile(pid); await bOwner(p, token);
-    Object.assign(p, { title, body, nick:boardNick(anon, nick), updatedAt:stamp() }); await writeJSON(d, pid + '.json', p);
+    Object.assign(p, { title, body, kind, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), updatedAt:stamp() }); await writeJSON(d, pid + '.json', p);
   },
   async remove(pid) {
     bOnline(); const token = BT[pid];
@@ -1929,12 +1946,12 @@ const Board = {
     else { const [d, p] = await bFile(pid); await bOwner(p, token); await d.removeEntry(pid + '.json'); }
     delete BT[pid]; saveBT();
   },
-  async addComment(pid, { body, anon, nick }) {
-    bOnline(); const token = rndToken(); let cid;
-    if (SERVER) { const p = await api('POST', `board/${enc(pid)}/comments`, { body, anon, nick, token }); cid = p.comments[p.comments.length - 1].id; }
+  async addComment(pid, { body, mode, nick }) {
+    bOnline(); const token = rndToken(); let cid; const a = bSend({ mode, nick });
+    if (SERVER) { const p = await api('POST', `board/${enc(pid)}/comments`, { body, ...a, token }); cid = p.comments[p.comments.length - 1].id; }
     else {
       const [d, p] = await bFile(pid); cid = 'c' + Date.now().toString(16) + rndToken().slice(0, 4);
-      (p.comments = p.comments || []).push({ id:cid, body, nick:boardNick(anon, nick), createdAt:stamp(), tokenHash:await tokenHash(token) });
+      (p.comments = p.comments || []).push({ id:cid, body, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), createdAt:stamp(), tokenHash:await tokenHash(token) });
       await writeJSON(d, pid + '.json', p);
     }
     BT['c:' + cid] = token; saveBT();
@@ -1952,16 +1969,18 @@ const Board = {
 };
 async function loadBoard() { try { DB.board = await Board.list(); } catch (_) { DB.board = DB.board || []; } }
 
-const BS = { q:'', sort:'new', open:new Set() };            // 게시판 보기 상태
+const BS = { q:'', sort:'new', open:new Set(), kind:'' };            // 게시판 보기 상태
 const bAdmin = () => SERVER && ADMIN;                       // 관리자 삭제는 서버 PC에서만
-function nickHtml(n) { return n === '익명' ? '<span class="nick anon">익명</span>' : `<span class="nick">${esc(n)}</span>`; }
-function authorPrefs() { let p = { anon:true, nick:'' }; try { p = { ...p, ...JSON.parse(localStorage.getItem(LS_BNICK) || '{}') }; } catch (_) {} return p; }
-function saveAuthorPrefs(anon, nick) { try { localStorage.setItem(LS_BNICK, JSON.stringify({ anon, nick })); } catch (_) {} }
-const authorFields = (anon, nick, cls = '') => `<label class="chk ${cls}"><input type="checkbox" data-anon ${anon ? 'checked' : ''}> 익명으로 작성</label><input data-nick class="nickin" maxlength="20" placeholder="닉네임 (익명 해제 시)" value="${esc(nick)}" ${anon ? 'disabled' : ''}>`;
+function nickHtml(n, real) { return real ? `<span class="nick real" title="실명 (로그인 계정)">✔ ${esc(n)}</span>` : n === '익명' ? '<span class="nick anon">익명</span>' : `<span class="nick">${esc(n)}</span>`; }
+const kindTag = p => { const k = bKind(p), K = BKINDS[k]; return `<span class="bkind" style="--c:${K.color}">${K.icon} ${esc(k)}</span>`; };
+function authorPrefs() { let p = { mode:'anon', nick:'' }; try { const s = JSON.parse(localStorage.getItem(LS_BNICK) || '{}'); p = { ...p, ...s }; if (!s.mode && 'anon' in s) p.mode = s.anon ? 'anon' : 'nick'; } catch (_) {} return p; }
+function saveAuthorPrefs(mode, nick) { try { localStorage.setItem(LS_BNICK, JSON.stringify({ mode, nick })); } catch (_) {} }
+const authorFields = (mode, nick, cls = '') => `<label class="amode ${cls}">작성자 <select data-amode><option value="anon" ${mode === 'anon' ? 'selected' : ''}>익명</option><option value="nick" ${mode === 'nick' ? 'selected' : ''}>닉네임</option><option value="real" ${mode === 'real' ? 'selected' : ''}>실명 (${esc(AUTH?.name || user || '본명')})</option></select></label><input data-nick class="nickin" maxlength="20" placeholder="닉네임" value="${esc(nick)}" ${mode === 'nick' ? '' : 'hidden'}>`;
 
 function renderBoard(c) {
   c.insertAdjacentHTML('beforeend', `<section class="card"><h2>익명게시판</h2>
-    <p class="muted" style="margin-top:-4px">🔒 작성자 실명은 기록되지 않습니다. <b>익명</b> 또는 <b>닉네임</b>으로 작성하고, 내가 쓴 글·댓글은 <b>이 브라우저에서만</b> 수정·삭제할 수 있습니다. 서로 존중하는 표현을 사용해 주세요.</p>
+    <p class="muted" style="margin-top:-4px">글·댓글마다 작성자를 <b>익명 / 닉네임 / 실명</b> 중에서 고릅니다. 🔒 익명·닉네임은 실명이 기록되지 않고, <b>실명</b>은 로그인 계정의 본명이 표시됩니다(서버가 확인). 내가 쓴 글·댓글은 <b>이 브라우저에서만</b> 수정·삭제할 수 있습니다. 서로 존중하는 표현을 사용해 주세요.</p>
+    <div class="bkinds" id="bkinds"></div>
     <div class="fbar"><label>검색<input type="search" id="bQ" value="${esc(BS.q)}" placeholder="제목·내용·닉네임"></label>
       <label>정렬<select id="bSort"><option value="new">최신순</option><option value="cmt" ${BS.sort === 'cmt' ? 'selected' : ''}>댓글 많은 순</option></select></label>
       <span class="sp"></span><button class="btn pri" id="bWrite">✏ 글쓰기</button></div>
@@ -1969,26 +1988,29 @@ function renderBoard(c) {
   $('#bQ').oninput = e => { BS.q = e.target.value; drawBoard(); };
   $('#bSort').onchange = e => { BS.sort = e.target.value; drawBoard(); };
   $('#bWrite').onclick = () => openPost(null);
+  $('#bkinds').onclick = e => { const b = e.target.closest('[data-bkind]'); if (b) { BS.kind = b.dataset.bkind; drawBoard(); } };
   if (!DB.board) loadBoard().then(drawBoard); else drawBoard();
 }
 function drawBoard() {
   const el = $('#blist'); if (!el) return;
+  const all = DB.board || [], kc = k => all.filter(p => bKind(p) === k).length, kb = $('#bkinds');   // 유형 칩 (글 수는 그릴 때마다 새로)
+  if (kb) kb.innerHTML = `<button class="wtc2 ${!BS.kind ? 'on' : ''}" data-bkind="">전체 <b>${all.length}</b></button>${Object.entries(BKINDS).map(([k, K]) => `<button class="wtc2 ${BS.kind === k ? 'on' : ''}" data-bkind="${esc(k)}" style="--c:${K.color}">${K.icon} ${esc(k)} <b>${kc(k)}</b></button>`).join('')}`;
   const q = BS.q.trim().toLowerCase();
-  let posts = (DB.board || []).filter(p => !q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q));
+  let posts = (DB.board || []).filter(p => (!BS.kind || bKind(p) === BS.kind) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
   if (BS.sort === 'cmt') posts = [...posts].sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0) || (a.createdAt < b.createdAt ? 1 : -1));
   if (!posts.length) { el.innerHTML = `<div class="empty">${DB.board?.length ? '검색 결과가 없습니다' : '아직 글이 없습니다. 첫 글을 남겨 보세요!'}</div>`; return; }
-  const { anon, nick } = authorPrefs();
+  const { mode, nick } = authorPrefs();
   el.innerHTML = posts.map(p => {
     const mine = !!BT[p.id], open = BS.open.has(p.id), cm = p.comments || [];
     return `<article class="post" data-pid="${esc(p.id)}">
-      <div class="ph"><b class="pt">${esc(p.title)}</b>${mine ? '<span class="tag">내 글</span>' : ''}
-        <span class="sp"></span>${nickHtml(p.nick)}<span class="muted">${fmtTime(p.createdAt)}${p.updatedAt && p.updatedAt !== p.createdAt ? ' (수정됨)' : ''}</span>
+      <div class="ph">${kindTag(p)}<b class="pt">${esc(p.title)}</b>${mine ? '<span class="tag">내 글</span>' : ''}
+        <span class="sp"></span>${nickHtml(p.nick, p.real)}<span class="muted">${fmtTime(p.createdAt)}${p.updatedAt && p.updatedAt !== p.createdAt ? ' (수정됨)' : ''}</span>
         ${mine ? '<button class="btn sm" data-bact="edit">수정</button>' : ''}${mine || bAdmin() ? `<button class="btn sm bad" data-bact="del">${mine ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>
       <div class="pb">${fmtText(p.body)}</div>
       <button class="btn sm" data-bact="toggle">💬 댓글 ${cm.length} ${open ? '▲' : '▼'}</button>
       <div class="cmts" ${open ? '' : 'hidden'}>
-        ${cm.map(cmt => { const my = !!BT['c:' + cmt.id]; return `<div class="cmt">${nickHtml(cmt.nick)}<span class="cb">${esc(cmt.body)}</span><span class="muted">${fmtTime(cmt.createdAt)}</span>${my || bAdmin() ? `<button class="btn sm bad" data-bact="cdel" data-cid="${esc(cmt.id)}">${my ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>`; }).join('') || '<div class="muted" style="padding:4px 0">첫 댓글을 남겨 보세요</div>'}
-        <div class="cform">${authorFields(anon, nick)}<input data-cbody maxlength="1000" placeholder="댓글을 입력하세요 (Enter 등록)"><button class="btn sm pri" data-bact="cadd">등록</button></div>
+        ${cm.map(cmt => { const my = !!BT['c:' + cmt.id]; return `<div class="cmt">${nickHtml(cmt.nick, cmt.real)}<span class="cb">${esc(cmt.body)}</span><span class="muted">${fmtTime(cmt.createdAt)}</span>${my || bAdmin() ? `<button class="btn sm bad" data-bact="cdel" data-cid="${esc(cmt.id)}">${my ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>`; }).join('') || '<div class="muted" style="padding:4px 0">첫 댓글을 남겨 보세요</div>'}
+        <div class="cform">${authorFields(mode, nick)}<input data-cbody maxlength="1000" placeholder="댓글을 입력하세요 (Enter 등록)"><button class="btn sm pri" data-bact="cadd">등록</button></div>
       </div></article>`;
   }).join('');
 }
@@ -2006,39 +2028,41 @@ async function boardAction(btn) {
     } else if (act === 'cadd') {
       const f = btn.closest('.cform'), body = $('[data-cbody]', f).value.trim();
       if (!body) return $('[data-cbody]', f).focus();
-      const anon = $('[data-anon]', f).checked, nick = $('[data-nick]', f).value.trim();
-      if (!anon && !nick) return toast('닉네임을 입력하거나 익명을 선택하세요', true);
-      saveAuthorPrefs(anon, nick);
-      await Board.addComment(pid, { body, anon, nick }); BS.open.add(pid);
+      const mode = $('[data-amode]', f).value, nick = $('[data-nick]', f).value.trim();
+      if (mode === 'nick' && !nick) return toast('닉네임을 입력하거나 익명·실명을 고르세요', true);
+      saveAuthorPrefs(mode, nick);
+      await Board.addComment(pid, { body, mode, nick }); BS.open.add(pid);
     } else return;
     await loadBoard(); drawBoard(); renderMenu();
   } catch (e) { toast(e.message, true); }
 }
 function openPost(p) {
   if (GUEST) return toast('비회원은 게시판에 글을 쓸 수 없습니다 — 로그인하세요', true);
-  const pref = authorPrefs(), anon = p ? p.nick === '익명' : pref.anon, nick = p ? (p.nick === '익명' ? '' : p.nick) : pref.nick;
+  const pref = authorPrefs(), mode = p ? (p.real ? 'real' : p.nick === '익명' ? 'anon' : 'nick') : pref.mode, nick = p ? (p.nick === '익명' || p.real ? '' : p.nick) : pref.nick;
+  const kind = p ? bKind(p) : (BS.kind || '블라블라');
   openDlg(dlg, `<form id="pf"><div class="dh"><span>익명게시판 · ${p ? '글 수정' : '글쓰기'}</span><button type="button" class="btn sm" data-close>닫기</button></div>
-    <div class="db"><p class="muted">🔒 실명은 저장되지 않습니다. 수정·삭제는 이 브라우저에서만 가능합니다.</p>
+    <div class="db"><p class="muted">🔒 익명·닉네임은 실명이 저장되지 않습니다. 실명을 고르면 계정 본명이 표시됩니다. 수정·삭제는 이 브라우저에서만 가능합니다.</p>
+      <div class="bkpick">${Object.entries(BKINDS).map(([k, K]) => `<label style="--c:${K.color}"><input type="radio" name="pKind" value="${esc(k)}" ${kind === k ? 'checked' : ''}><span>${K.icon} ${esc(k)}</span></label>`).join('')}</div>
       <div class="fg"><label class="full">제목<input id="pTitle" maxlength="100" value="${esc(p?.title || '')}" required></label>
       <label class="full">내용<textarea id="pBody" rows="10" maxlength="5000" required>${esc(p?.body || '')}</textarea></label>
-      <div class="full authorrow">${authorFields(anon, nick)}</div></div></div>
+      <div class="full authorrow">${authorFields(mode, nick)}</div></div></div>
     <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">${p ? '수정' : '등록'}</button></div></form>`, true);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
   $('#pf').onsubmit = async e => {
     e.preventDefault();
     const title = $('#pTitle').value.trim(), body = $('#pBody').value.replace(/\r/g, '').trim();
-    const anon = $('#pf [data-anon]').checked, nick = $('#pf [data-nick]').value.trim();
+    const mode = $('#pf [data-amode]').value, nick = $('#pf [data-nick]').value.trim(), kind = $('#pf input[name=pKind]:checked')?.value || '블라블라';
     if (!title || !body) return toast('제목과 내용을 입력하세요', true);
-    if (!anon && !nick) return toast('닉네임을 입력하거나 익명을 선택하세요', true);
-    saveAuthorPrefs(anon, nick);
+    if (mode === 'nick' && !nick) return toast('닉네임을 입력하거나 익명·실명을 고르세요', true);
+    saveAuthorPrefs(mode, nick);
     try {
-      if (p) await Board.update(p.id, { title, body, anon, nick }); else await Board.create({ title, body, anon, nick });
+      if (p) await Board.update(p.id, { title, body, kind, mode, nick }); else await Board.create({ title, body, kind, mode, nick });
       dlg.close(); toast(p ? '수정했습니다' : '등록했습니다'); await loadBoard(); drawBoard(); renderMenu();
     } catch (er) { toast((p ? '수정' : '등록') + ' 실패: ' + er.message, true); }
   };
 }
 // 익명 체크 ↔ 닉네임 입력 활성화
-document.addEventListener('change', e => { if (e.target.matches('[data-anon]')) { const n = e.target.closest('.cform,.authorrow')?.querySelector('[data-nick]'); if (n) { n.disabled = e.target.checked; if (!e.target.checked) n.focus(); } } });
+document.addEventListener('change', e => { if (e.target.matches('[data-amode]')) { const n = e.target.closest('.cform,.authorrow')?.querySelector('[data-nick]'); if (n) { n.hidden = e.target.value !== 'nick'; if (!n.hidden) n.focus(); } } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-cbody]')) { e.preventDefault(); e.target.closest('.cform').querySelector('[data-bact="cadd"]').click(); } });
 // 메뉴 NEW(수량): 이 브라우저에서 게시판을 마지막으로 본 이후 올라온 다른 사람의 글·댓글 수
 const LS_BSEEN = 'dept-board-seen';
@@ -2320,8 +2344,8 @@ function myTasks() {
     if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'계장ENG 업무 현황 작성', done:isUpdated(r) });
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
-  for (const { k, r } of workRecs()) {                      // 과제·기술공유는 지연·임박만, 지시사항·To Do 는 종결 전 전부
-    const it = workItem(k, r), all = k === 'todo' || (k === 'task' && !['과제', '기술공유'].includes(it.f['유형']));
+  for (const { k, r } of workRecs()) {                      // To Do·그룹장 요청은 종결 전 전부, 일반업무·표준화·기술공유는 지연·임박만
+    const it = workItem(k, r), all = k === 'todo' || (k === 'task' && ['To Do List', '그룹장 요청 사항'].includes(normType(it.f['유형'])));
     if (it.cls === 'done' || !isMineName(it.personRaw) || !(all || it.cls === 'late' || it.cls === 'soon')) continue;
     out.push({ key:k, rid:r.id, f:'__ack', alarm:true, kind:`🔔 ${k === 'task' ? ttOf(it.f['유형']).short : WORK[k].label}`, label:recLabel(k, r.fields),
       sub:`완료해야 할 업무 · ${it.st}${it.end ? ' · 기한 ' + it.end : ''}`, done:ack.has(ackKey(k, r.id)) });
@@ -2372,7 +2396,7 @@ function startTask(id) {
 /* 오른쪽 '내 업무' 툴바: 완료/미완료 현황, 접기 가능, 작성되면 자동으로 '완료' */
 function renderTaskBar() {
   let el = $('#taskbar');
-  if (!el) { el = document.createElement('div'); el.id = 'taskbar'; document.body.appendChild(el); el.onclick = taskBarClick; }
+  if (!el) { el = document.createElement('div'); el.id = 'taskbar'; document.body.appendChild(el); el.onclick = taskBarClick; tbDragInit(el); }
   const tasks = TB.shown ? myTasks() : [], people = presenceOn() ? PRES.users : [];
   if (!tasks.length && !people.length) { el.hidden = true; return; }
   const done = tasks.filter(t => t.done).length, all = !!tasks.length && done === tasks.length;
@@ -2388,7 +2412,7 @@ function renderTaskBar() {
   el.hidden = false; el.className = min ? 'min' : '';
   el.innerHTML = min
     ? `<button class="tbtab ${all ? 'all' : ''}" data-tb="open" title="내 업무 펼치기">📌<br>내 업무${tasks.length ? `<br><b>${done}/${tasks.length}</b>${all ? '<br>완료' : ''}` : ''}${people.length ? `<br><span class="pdot on">●</span>${onCnt}` : ''}${PRES.unread ? `<br>📨${PRES.unread}` : ''}</button>`
-    : `<div class="tbh"><b>📌 내 업무</b>${tasks.length ? `<span class="tbp ${all ? 'all' : ''}">${all ? '✓ 모두 완료' : `${done}/${tasks.length} 완료`}</span>` : '<span class="tbp"></span>'}
+    : `<div class="tbh"><span class="tbgrip" title="끌어서 옮기기 · 두 번 누르면 원래 자리">⠿</span><b>📌 내 업무</b>${tasks.length ? `<span class="tbp ${all ? 'all' : ''}">${all ? '✓ 모두 완료' : `${done}/${tasks.length} 완료`}</span>` : '<span class="tbp"></span>'}
          ${people.length ? `<button data-tb="msg" title="쪽지함" class="tbmsg">📨${ub}</button>` : ''}${tasks.length ? '<button data-tb="pop" title="업무 목록 팝업">⤢</button>' : ''}<button data-tb="min" title="접기">–</button></div>
        ${tasks.length ? `<div class="tprog"><i style="width:${Math.round(done / tasks.length * 100)}%"></i></div>
        <div class="tbl">${tasks.map(t => `<button class="tbi ${t.done ? 'done' : ''} ${TB.active === taskId(t) ? 'act' : ''}" data-task="${esc(taskId(t))}" title="${esc(t.label + ' · ' + t.sub)}">
@@ -2396,6 +2420,27 @@ function renderTaskBar() {
        ${people.length ? `<div class="tbsec">👥 사용자 <span class="muted">접속 ${onCnt} / ${people.length}명</span></div>
        <div class="tbl tbu">${people.map(u => { const me = u.id === AUTH.id; return `<button class="tbi ${u.online ? '' : 'off'}" ${me ? 'disabled' : `data-msgto="${esc(u.id)}"`} title="${me ? '나' : `${esc(u.name)}님에게 쪽지 보내기 (${u.online ? '접속 중' : '오프라인'})`}">
          <span class="pdot ${u.online ? 'on' : ''}">●</span><span class="tt">${esc(u.name)}${me ? ' (나)' : ''}</span><span class="muted">${esc(u.id)}</span>${me ? '' : '<span class="mto">✉</span>'}</button>`; }).join('')}</div>` : ''}`;
+}
+/* 툴바 위치: 머리(⠿)나 접힌 탭을 끌어서 옮김, 위치는 이 브라우저에 기억 (⠿ 두 번 누르면 원래 자리) */
+const LS_TBPOS = 'dept-taskbar-pos';
+function tbPlace(el) {
+  let p = null; try { p = JSON.parse(localStorage.getItem(LS_TBPOS) || 'null'); } catch (_) {}
+  if (!p) { el.style.left = el.style.top = ''; return; }
+  el.style.left = Math.max(0, Math.min(p.x, innerWidth - 70)) + 'px'; el.style.top = Math.max(0, Math.min(p.y, innerHeight - 50)) + 'px'; el.style.right = 'auto';
+}
+function tbDragInit(el) {
+  tbPlace(el); addEventListener('resize', () => tbPlace(el));
+  el.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.tbgrip, .tbh, .tbtab'); if (!h || e.button !== 0 || (e.target.closest('button') && !e.target.closest('.tbtab'))) return;
+    const r = el.getBoundingClientRect(), sx = e.clientX, sy = e.clientY; let moved = false;
+    const mv = ev => { if (!moved && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 5) return; moved = true; el.classList.add('drag');
+      Object.assign(el.style, { left:Math.max(0, Math.min(r.left + ev.clientX - sx, innerWidth - 70)) + 'px', top:Math.max(0, Math.min(r.top + ev.clientY - sy, innerHeight - 50)) + 'px', right:'auto' }); };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); el.classList.remove('drag');
+      if (moved) { try { localStorage.setItem(LS_TBPOS, JSON.stringify({ x:parseFloat(el.style.left), y:parseFloat(el.style.top) })); } catch (_) {}
+        el.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture:true, once:true }); } };   // 끈 뒤의 클릭은 무시
+    addEventListener('pointermove', mv); addEventListener('pointerup', up);
+  });
+  el.addEventListener('dblclick', e => { if (e.target.closest('.tbgrip')) { try { localStorage.removeItem(LS_TBPOS); } catch (_) {} el.style.left = el.style.top = el.style.right = ''; } });
 }
 function taskBarClick(e) {
   const b = e.target.closest('[data-tb]');
@@ -2485,7 +2530,7 @@ function yearSel(s) { const st = fstate(s.key); if (st.year === undefined) st.ye
 const yearTabs = (cur, years, extra = '') => `<div class="ytabs" role="tablist">${['', ...years].map(y => `<button type="button" class="yt ${y === cur ? 'on' : ''}" data-year="${y}" role="tab">${y ? y + '년' : '전체'}</button>`).join('')}${extra}</div>`;
 /* 주간회의 전달사항은 최신(일자 내림차순)이 위로 */
 function sortRecs(s, arr) {
-  if (s?.key === 'task') { const ti = r => { const i = TASK_TYPES.indexOf(r.fields['유형']); return i < 0 ? 9 : i; }; return [...arr].sort((a, b) => ti(a) - ti(b) || a.order - b.order); }
+  if (s?.key === 'task') { const ti = r => { const i = TASK_TYPES.indexOf(normType(r.fields['유형'])); return i < 0 ? 9 : i; }; return [...arr].sort((a, b) => ti(a) - ti(b) || a.order - b.order); }
   if (s?.key !== 'notice') return arr;
   return [...arr].sort((a, b) => (b.fields['일자'] || '').localeCompare(a.fields['일자'] || '') || (b.order - a.order));
 }
@@ -2577,7 +2622,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     if (ys && yf(r) !== ys) return false;
     if (st.closed && (st.closed === 'closed') === isLive(r)) return false;
     for (const [k, a] of cf) if (!a.has(colVal(s, r, k))) return false;
-    for (const k of s.filters) if (st.f[k] && f[k] !== st.f[k]) return false;
+    for (const k of s.filters) if (st.f[k] && (s.key === 'task' && k === '유형' ? normType(f[k]) : f[k]) !== st.f[k]) return false;
     if (s.owner) {
       const tk = tokens(f[s.owner]);
       if (st.owner && !tk.includes(st.owner)) return false;
@@ -2994,7 +3039,7 @@ const WORK_KEYS = Object.keys(WORK);
 const isoD = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '';
 const WST_ORDER = { late:0, soon:1, miss:2, run:3, perm:4, done:5 };
 function workItem(key, r) {
-  const f = r.fields, w = key === 'task' ? { ...TASK_W, ...ttOf(f['유형']), label:f['유형'] || '유형 미지정' } : WORK[key], start = isoD(f[w.start]), end = isoD(f[w.end]), base = start || end;
+  const f = r.fields, w = key === 'task' ? { ...TASK_W, ...ttOf(f['유형']), label:normType(f['유형']) || '유형 미지정' } : WORK[key], start = isoD(f[w.start]), end = isoD(f[w.end]), base = start || end;
   const yv = String(f['연도'] || '').trim();
   const year = base ? base.slice(0, 4) : (/^\d{4}$/.test(yv) ? yv : '');
   const half = base ? (+base.slice(5, 7) <= 6 ? 1 : 2) : 0;
@@ -3050,18 +3095,22 @@ function pjHero(s) {
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
  * 수행·입찰 PJT 처럼 위 = 현황판(taskHero), 아래 = 엑셀형 표(셀 편집·행 추가·열 추가·열 필터).
- * 유형 = 과제 / 지시사항 및 Action List / To Do List / 기술공유 — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
+ * 유형 = 일반업무(그룹 업무) / 표준화 담당(ITEM PO) / To Do List / 기술공유 / 그룹장 요청 사항 — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
  * 예전 일반업무·To do·기술공유 시트는 숨김(데이터 그대로). [기존 업무 가져오기] 로 복사(ID = 'task-' + 원래 ID, 두 번 눌러도 중복 안 됨). */
-const TASK_TYPES = ['과제', '지시사항 및 Action List', 'To Do List', '기술공유'];
+const TASK_TYPES = ['일반업무', '표준화 담당', 'To Do List', '기술공유', '그룹장 요청 사항'];
 const TT = {
-  '과제':{ icon:'🎯', color:'#5b5bd6', short:'과제', desc:'목표·기간이 있는 개선 과제 · 연구 · 표준화' },
-  '지시사항 및 Action List':{ icon:'📌', color:'#e8730c', short:'지시사항·Action', desc:'그룹장·회의 지시 사항과 후속 조치(Action)' },
+  '일반업무':{ icon:'🗂', color:'#5b5bd6', short:'일반업무', desc:'그룹 업무 · 부서 공통 업무 · 개선 과제' },
+  '표준화 담당':{ icon:'📐', color:'#7c3aed', short:'표준화', desc:'표준화 ITEM — 담당자 = ITEM PO' },
   'To Do List':{ icon:'✅', color:'#0e9f8e', short:'To Do', desc:'개인·부서 할 일, 짧은 기한의 업무' },
   '기술공유':{ icon:'💡', color:'#0b84c6', short:'기술공유', desc:'기술 발표 · 사례 공유 · 세미나 (종료일 = 발표일)' },
+  '그룹장 요청 사항':{ icon:'📌', color:'#e8730c', short:'그룹장 요청', desc:'그룹장 지시·요청 사항과 후속 조치(Action)' },
 };
-const ttOf = v => TT[v] || { icon:'❔', color:'#8a90a6', short:'유형 미지정', desc:'' };
+const TYPE_ALIAS = { '과제':'일반업무', '지시사항 및 Action List':'그룹장 요청 사항' };   // 예전 유형 이름 → 새 이름 (v13.6~13.7 에서 저장된 값)
+const normType = v => TYPE_ALIAS[v] || v || '';
+const ttOf = v => TT[normType(v)] || { icon:'❔', color:'#8a90a6', short:'유형 미지정', desc:'' };
 const TASK_W = { title:'업무 내용', person:'담당자', start:'시작일', end:'종료일', body:'진행 사항', cat:f => flat(f['구분']) };
-const TASK_TPL = { '과제':'1. 목표\n   - \n2. 진행 현황\n   - \n3. 이슈 · 다음 단계\n   - ', '지시사항 및 Action List':'1. 지시 내용\n   - \n2. 조치 계획 (Action)\n   - \n3. 조치 결과\n   - ', 'To Do List':'- \n- ', '기술공유':'1. 발표 주제\n   - \n2. 주요 내용\n   - \n3. 자료 · 질의응답\n   - ' };
+const TASK_TPL = { '일반업무':'1. 목표\n   - \n2. 진행 현황\n   - \n3. 이슈 · 다음 단계\n   - ', '표준화 담당':'1. 표준화 ITEM\n   - \n2. 제·개정 현황\n   - \n3. 검토 · 배포 · 다음 단계\n   - ',
+  'To Do List':'- \n- ', '기술공유':'1. 발표 주제\n   - \n2. 주요 내용\n   - \n3. 자료 · 질의응답\n   - ', '그룹장 요청 사항':'1. 요청 내용\n   - \n2. 조치 계획 (Action)\n   - \n3. 조치 결과\n   - ' };
 const WST_LABEL = { late:'⚠ 지연', soon:'⏰ 임박', miss:'❔ 종료일 미입력', run:'▶ 진행 중', done:'✔ 완료·종결', perm:'♾ 상시 (추적 안 함)' };
 // 통합 업무 + 아직 가져오지 않은 예전 시트 행 (알림·요약·홈에서 씀)
 function workRecs() {
@@ -3078,20 +3127,22 @@ function taskHero(s) {
   const items = getRecs('task').map(r => workItem('task', r));
   const years = [...new Set([...items.map(i => i.year).filter(Boolean), '2024', '2025', ty])].sort().reverse();
   const inY = items.filter(i => !st.year || i.year === st.year);
-  const scope = inY.filter(i => !st.f['유형'] || (i.f['유형'] || '') === st.f['유형']);
+  const scope = inY.filter(i => !st.f['유형'] || normType(i.f['유형']) === st.f['유형']);
   const cnt = k => scope.filter(i => i.cls === k).length, tracked = scope.filter(i => i.track), doneN = cnt('done');
   const rate = tracked.length ? Math.round(tracked.filter(i => i.cls === 'done').length / tracked.length * 100) : 0;
   const ylab = st.year ? st.year + '년' : '전체 연도';
   // 유형별 요약 카드
-  const types = [...TASK_TYPES, ...(inY.some(i => !TT[i.f['유형']]) ? [''] : [])];
+  const types = [...TASK_TYPES, ...(inY.some(i => !TT[normType(i.f['유형'])]) ? [''] : [])];
   const tcard = t => {
-    const its = inY.filter(i => (TT[i.f['유형']] ? i.f['유형'] : '') === t), T = ttOf(t), open = its.filter(i => i.cls !== 'done');
+    const its = inY.filter(i => (TT[normType(i.f['유형'])] ? normType(i.f['유형']) : '') === t), T = ttOf(t), open = its.filter(i => i.cls !== 'done');
     const c = k => its.filter(i => i.cls === k).length, pct = its.length ? Math.round(c('done') / its.length * 100) : 0;
     const prog = open.map(i => num(i.f['진척률'])).filter(v => v > 0), avg = prog.length ? Math.round(prog.reduce((a, b) => a + b, 0) / prog.length) : null;
     const req = [...open.reduce((m, i) => (i.f['요청자'] && m.set(flat(i.f['요청자']), (m.get(flat(i.f['요청자'])) || 0) + 1), m), new Map())].sort((a, b) => b[1] - a[1]).slice(0, 3);
     const week = open.filter(i => i.dd != null && i.dd >= 0 && i.dd <= 7).length;
-    const extra = t === '과제' ? `평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b> <span class="muted">(진행 중 과제)</span>`
-      : t === '지시사항 및 Action List' ? `요청자 ${req.length ? req.map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(' · ') : '<span class="muted">-</span>'}`
+    const pos = new Set(its.flatMap(i => i.persons)).size;
+    const extra = t === '일반업무' ? `평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b> <span class="muted">(진행 중)</span>`
+      : t === '표준화 담당' ? `ITEM <b>${its.length}</b>개 · ITEM PO <b>${pos}</b>명 · 평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b>`
+      : t === '그룹장 요청 사항' ? `요청자 ${req.length ? req.map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(' · ') : '<span class="muted">-</span>'}`
       : t === 'To Do List' ? `7일 안에 마감 <b>${week}</b>건`
       : t === '기술공유' ? (() => { const nx = open.filter(i => i.dd != null && i.dd >= 0).sort((a, b) => a.dd - b.dd)[0];
           return `다음 발표 ${nx ? `<b>${esc(nx.end)}</b> ${esc(trunc(flat(nx.title), 16))} <span class="muted">(${esc(flat(nx.personRaw))})</span>` : '<span class="muted">예정 없음</span>'} · 발표 완료 <b>${c('done')}</b>`; })()
@@ -3118,10 +3169,11 @@ function taskHero(s) {
   const have = new Set(getRecs('task').map(r => r.id));
   const legacy = readOnly() ? [] : WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)));
   return `<div id="taskhero">
-    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>과제 · 지시사항 및 Action List · To Do List · 기술공유 — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
+    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>일반업무(그룹 업무) · 표준화 담당(ITEM PO) · To Do List · 기술공유 · 그룹장 요청 사항 — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
       ${yearTabs(st.year, years, add ? '<button class="btn wadd" data-wadd>＋ 업무 추가</button>' : '')}
-      <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_TYPES.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => i.f['유형'] === t).length}</b></button>`).join('')}</div>
+      <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_TYPES.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => normType(i.f['유형']) === t).length}</b></button>`).join('')}</div>
     </section>
+    ${(() => { const old = getRecs('task').filter(r => TYPE_ALIAS[r.fields['유형']]); return old.length && add ? `<div class="al-warn">🔤 예전 유형 이름으로 저장된 업무 <b>${old.length}건</b> (과제 → 일반업무, 지시사항 및 Action List → 그룹장 요청 사항). 화면에서는 이미 새 이름으로 묶어 보여 줍니다. <button class="btn sm pri" data-wrename>저장된 값도 새 이름으로 바꾸기</button></div>` : ''; })()}
     ${legacy.length && add ? `<div class="al-warn">📦 예전 시트(일반업무·To do·기술공유)에 아직 통합 업무로 옮기지 않은 업무가 <b>${legacy.length}건</b> 있습니다. <button class="btn sm pri" data-wimport>기존 업무 가져오기</button> <span class="muted">(복사만 함 · 원본은 그대로 · 두 번 눌러도 중복 없음)</span> <button class="btn sm" data-go="general">일반업무</button> <button class="btn sm" data-go="todo">To do</button> <button class="btn sm" data-go="techshare">기술공유</button></div>` : ''}
     <div class="ttcs">${types.map(tcard).join('')}</div>
     <div class="wkpis">
@@ -3141,7 +3193,7 @@ function taskHero(s) {
 }
 function taskHeroClick(st) {
   return async e => {
-    const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport],[data-wrename]'); if (!t) return;
     const d = t.dataset;
     if (d.year != null) st.year = d.year;
     else if (d.tf != null) st.f['유형'] = d.tf && st.f['유형'] === d.tf ? '' : d.tf;
@@ -3149,6 +3201,7 @@ function taskHeroClick(st) {
     else if (d.wperson) st.owner = st.owner === d.wperson ? '' : d.wperson;
     else if (d.tedit) return openEdit('task', d.tedit);
     else if (d.wimport != null) return importLegacy();
+    else if (d.wrename != null) return renameOldTypes();
     else if (d.wadd != null) {
       let ty = st.f['유형'];
       if (!TT[ty]) ty = await ask('어떤 유형의 업무인가요?', `<div class="wpick">${TASK_TYPES.map(t => `<span style="--c:${TT[t].color}">${TT[t].icon} <b>${t}</b><small>${TT[t].desc}</small></span>`).join('')}</div>`,
@@ -3162,13 +3215,20 @@ function taskHeroClick(st) {
 function legacyToTask(k, f) {
   const end = isoD(f['종료일']), ts = isoD(f['발표일']), closed = f['종결 여부'] === '종결';
   const cat = [f['구분'], f['소구분']].filter(Boolean).join(' · ');
-  if (k === 'general') return { 유형:'과제', 구분:cat, '업무 내용':f['업무 내용'] || '', 담당자:f['책임자'] || '', 시작일:f['시작일'] || '', 종료일:f['종료일'] || '',
+  if (k === 'general') return { 유형:'일반업무', 구분:cat, '업무 내용':f['업무 내용'] || '', 담당자:f['책임자'] || '', 시작일:f['시작일'] || '', 종료일:f['종료일'] || '',
     '종료 구분':f['종료 구분'] || '', '종결 여부':closed || (end && end < todayISO() && f['종료 구분'] !== '상시') ? '종결' : '', '진행 사항':f['진행사항'] || '' };
-  if (k === 'todo') return { 유형:'지시사항 및 Action List', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
+  if (k === 'todo') return { 유형:'그룹장 요청 사항', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
     '종료 구분':f['종료 구분'] || '', '종결 여부':closed || f['완료 여부'] === 'O' ? '종결' : '', '진행 사항':f['현황'] || '',
     비고:[f['완료 여부'] && f['완료 여부'] !== 'O' ? `완료 여부: ${f['완료 여부']}` : '', f['그룹장 추가요청 사항'] ? `그룹장 추가요청: ${f['그룹장 추가요청 사항']}` : ''].filter(Boolean).join('\n') };
   return { 유형:'기술공유', 구분:f['연도'] ? `${f['연도']}년 발표` : '', '업무 내용':f['발표 내용'] || '', 담당자:f['발표자'] || '', 시작일:f['발표일'] || '', 종료일:f['발표일'] || '',
     '종료 구분':f['종료 구분'] || '기한', '종결 여부':closed || (ts && ts < todayISO()) ? '종결' : '', '진행 사항':'' };
+}
+async function renameOldTypes() {                            // 예전 유형 이름 → 새 이름 (한 번)
+  const old = getRecs('task').filter(r => TYPE_ALIAS[r.fields['유형']]);
+  if (!old.length || noEdit()) return;
+  let n = 0;
+  for (const r of old) { try { const x = await saveEdit('task', r.id, { ...r.fields, 유형:normType(r.fields['유형']) }, r.meta.rev); if (x.status === 'ok') n++; } catch (e) { toast('바꾸기 중단: ' + e.message, true); break; } }
+  toast(`${n}건의 유형 이름을 바꿨습니다`); await loadAll(); render();
 }
 async function importLegacy() {
   if (GUEST || noEdit()) return toast('로그인하면 가져올 수 있습니다', true);
@@ -3178,7 +3238,7 @@ async function importLegacy() {
   if (!list.length) return toast('가져올 업무가 없습니다');
   const n = k => list.filter(x => x.k === k).length;
   if (await ask('기존 업무 가져오기', `<p>일반업무 <b>${n('general')}</b> · To do <b>${n('todo')}</b> · 기술공유 <b>${n('techshare')}</b> 건을 <b>통합 업무</b>로 복사합니다.</p>
-    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무 → <b>과제</b>, To do → <b>지시사항 및 Action List</b>, 기술공유 → <b>기술공유</b> (나중에 각자 바꿀 수 있음)</li>
+    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무 → <b>일반업무</b>, To do(그룹장 지시) → <b>그룹장 요청 사항</b>, 기술공유 → <b>기술공유</b> (나중에 각자 바꿀 수 있음 — 표준화 ITEM 은 '표준화 담당' 으로)</li>
     <li>예전에 '완료'로 보이던 것(To do 완료 O, 종료일·발표일 지난 일반업무·기술공유)은 <b>종결</b>로 옮깁니다</li>
     <li>예전 시트는 지우지 않습니다. 같은 행을 두 번 가져오지 않습니다</li></ul>`, [{ id:'ok', label:`${list.length}건 가져오기`, cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
   let ok = 0, skip = 0, order = Math.max(0, ...getRecs('task').map(r => r.order || 0)) + 10;

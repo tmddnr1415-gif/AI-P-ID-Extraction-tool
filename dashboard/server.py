@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-계장ENG그룹 주간업무 Dashboard 서버 (Python 표준 라이브러리만 사용)
+계장ENG그룹 Dashboard 서버 (Python 표준 라이브러리만 사용)
 
 실행:
     python server.py                          # server.py 가 있는 폴더를 운영 폴더로 사용, 포트 8080
@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.3'
+SERVER_VERSION = '2026-10-13.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -492,6 +492,21 @@ def board_nick(b):
     return '익명' if b.get('anon') or not nick else nick
 
 
+BOARD_KINDS = ('블라블라', '회식제안', 'VOC')
+
+
+def board_author(b, acc):
+    """(표시 이름, 실명 여부). 실명은 브라우저가 보낸 이름이 아니라 로그인 계정 본명으로만 기록"""
+    if b.get('real') and acc:
+        return acc['name'], True
+    return board_nick(b), False
+
+
+def board_kind(b):
+    k = str(b.get('kind') or '')
+    return k if k in BOARD_KINDS else '블라블라'
+
+
 def board_public(p):
     q = {k: v for k, v in p.items() if k != 'tokenHash'}
     q['comments'] = [{k: v for k, v in c.items() if k != 'tokenHash'} for c in p.get('comments', [])]
@@ -533,24 +548,26 @@ def api_board_list():
     return out
 
 
-def api_board_create(b):
+def api_board_create(b, acc=None):
     title, body = board_text(b, 'title', 100), board_text(b, 'body', 5000)
+    nick, real = board_author(b, acc)
     if not b.get('token'):
         raise ApiError(400, '토큰이 없습니다')
     with LOCK:
         pid = f"b{int(time.time() * 1000):x}{os.urandom(3).hex()}"
         now = stamp()
-        p = {'id': pid, 'title': title, 'body': body, 'nick': board_nick(b), 'createdAt': now, 'updatedAt': now,
+        p = {'id': pid, 'title': title, 'body': body, 'kind': board_kind(b), 'nick': nick, 'real': real, 'createdAt': now, 'updatedAt': now,
              'tokenHash': token_hash(b['token']), 'comments': []}
         write_json(P('board', pid + '.json'), p)
     return board_public(p)
 
 
-def api_board_update(pid, b):
+def api_board_update(pid, b, acc=None):
+    nick, real = board_author(b, acc)
     with LOCK:
         p = board_load(pid)
         board_owner(p, b.get('token'), False)
-        p.update(title=board_text(b, 'title', 100), body=board_text(b, 'body', 5000), nick=board_nick(b), updatedAt=stamp())
+        p.update(title=board_text(b, 'title', 100), body=board_text(b, 'body', 5000), kind=board_kind(b), nick=nick, real=real, updatedAt=stamp())
         write_json(P('board', pid + '.json'), p)
     return board_public(p)
 
@@ -563,13 +580,14 @@ def api_board_delete(pid, b, admin):
     return {'status': 'ok'}
 
 
-def api_comment_add(pid, b):
+def api_comment_add(pid, b, acc=None):
     body = board_text(b, 'body', 1000)
+    nick, real = board_author(b, acc)
     if not b.get('token'):
         raise ApiError(400, '토큰이 없습니다')
     with LOCK:
         p = board_load(pid)
-        c = {'id': f"c{int(time.time() * 1000):x}{os.urandom(2).hex()}", 'body': body, 'nick': board_nick(b),
+        c = {'id': f"c{int(time.time() * 1000):x}{os.urandom(2).hex()}", 'body': body, 'nick': nick, 'real': real,
              'createdAt': stamp(), 'tokenHash': token_hash(b['token'])}
         p.setdefault('comments', []).append(c)
         write_json(P('board', pid + '.json'), p)
@@ -1286,7 +1304,7 @@ def _build_deploy():
         f.write(html_bytes())
     os.replace(tmp, P('deploy', 'dashboard.html'))
     urls = server_urls()
-    guide = (f'[계장ENG그룹 주간업무 Dashboard 사용법]  (화면 v{html_version()})\n'
+    guide = (f'[계장ENG그룹 Dashboard 사용법]  (화면 v{html_version()})\n'
              f'1. 이 폴더의 dashboard.html 을 내 PC(바탕화면 등)에 복사한 뒤 Edge로 엽니다.\n'
              f'2. 처음에 [계정 개설]로 ID·본명·비밀번호를 만들고 로그인합니다. (비회원은 보기만 가능, 수정 이력에는 본명이 기록됩니다)\n'
              f'3. 서버 {urls[0]} 에 자동 연결됩니다. 안 되면 왼쪽 아래 [서버 주소 설정]에 {urls[-1]} 을 입력하세요.\n'
@@ -1603,15 +1621,15 @@ class Handler(BaseHTTPRequestHandler):
         if head == 'board':
             if m == 'GET' and len(seg) == 1:
                 return api_board_list()
-            self.need_menu('board', touch=False)              # 글·댓글 쓰기는 로그인 + 게시판 권한 필요 (작성자 실명·접속 시각과 연결하지 않음)
+            acc = self.need_menu('board', touch=False)        # 글·댓글 쓰기는 로그인 + 게시판 권한 필요. 실명을 고른 경우에만 계정 본명을 기록
             if m == 'POST' and len(seg) == 1:
-                return api_board_create(self.json_body())
+                return api_board_create(self.json_body(), acc)
             if m == 'PUT' and len(seg) == 2:
-                return api_board_update(seg[1], self.json_body())
+                return api_board_update(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 2:
                 return api_board_delete(seg[1], self.json_body(), self.is_admin())
             if m == 'POST' and len(seg) == 3 and seg[2] == 'comments':
-                return api_comment_add(seg[1], self.json_body())
+                return api_comment_add(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 4 and seg[2] == 'comments':
                 return api_comment_delete(seg[1], seg[3], self.json_body(), self.is_admin())
         raise ApiError(404, '없는 API')
@@ -1666,7 +1684,7 @@ def lan_ips():
 
 def main():
     global ROOT, PORT, ALLOW_NETS
-    ap = argparse.ArgumentParser(description='계장ENG그룹 주간업무 Dashboard 서버')
+    ap = argparse.ArgumentParser(description='계장ENG그룹 Dashboard 서버')
     ap.add_argument('--root', default=ROOT, help='운영 폴더 (dashboard.html, data/ 가 있는 폴더)')
     ap.add_argument('--host', default='0.0.0.0')
     ap.add_argument('--port', type=int, default=8080)
