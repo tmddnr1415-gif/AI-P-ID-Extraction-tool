@@ -224,7 +224,7 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .al-sub{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px;font-size:12.5px}
 .al-lock{background:rgba(0,0,0,.22);padding:5px 12px;border-radius:99px}.al-lock.open{background:#ffe066;color:#5c3d00;font-weight:700}
 .al-orig{margin-left:auto}.al-orig .btn{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)}
-.alkpis{grid-template-columns:1.4fr repeat(5,1fr)}
+.alkpis{grid-template-columns:1.4fr repeat(5,1fr)}.hrkpis{grid-template-columns:1.4fr repeat(5,1fr)}
 .wk-main.al-main{background:linear-gradient(135deg,#0f6e8c,#38d9a9)}
 .al-warn{background:#fff4e6;border:1px solid #ffd8a8;color:#7a4a00;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px}
 .algrid{grid-template-columns:1.25fr 1fr}
@@ -256,6 +256,9 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .adiff{font-size:12px;font-weight:700}.adiff.up{color:#0ca678}.adiff.dn{color:#e8590c}
 .agrid th,.agrid td{text-align:center;padding:6px 4px}.agrid td:first-child,.agrid th:first-child{text-align:left}
 .aok{border:0;background:linear-gradient(135deg,#38d9a9,#0ca678);color:#fff;font-weight:800;width:26px;height:26px;border-radius:50%}
+.tsinfo{background:#e7f5ff;border:1px solid #a5d8ff;color:#1864ab;border-radius:8px;padding:7px 10px;margin:8px 0;font-size:13px}
+.wecard h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.wet td,.wet th{vertical-align:top;padding:8px}.wet tbody tr{cursor:pointer}.wet tbody tr:hover{background:#fff5f5}
+.wed{display:inline-flex;align-items:baseline;gap:4px;background:#fff5f5;border:1px solid #ffc9c9;border-radius:8px;padding:3px 8px;font-size:12px;margin:0 5px 5px 0}.wed small{color:var(--sub);font-size:10.5px}.wed.hol{background:#ffe3e3;border-color:#ffa8a8}.wed em{font-style:normal;color:#c92a2a;font-size:10.5px;font-weight:700}
 .hrt{font-size:12.5px}.hrt th,.hrt td{text-align:center;padding:6px 6px;white-space:nowrap;border-bottom:1px solid var(--line)}
 .hrt th small{display:block;font-weight:400;color:var(--sub);font-size:10.5px}.hrt .hn{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
 .hrt tbody tr{cursor:pointer}.hrt tbody tr:hover td.hn,.hrt tbody tr.on td.hn{background:#eef2ff}.hrt tbody tr.on td{box-shadow:inset 0 2px 0 #3b5bdb,inset 0 -2px 0 #3b5bdb}
@@ -867,7 +870,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3889,6 +3892,10 @@ function renderHours(c) {
   const longD = dayList.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), over10 = dayList.filter(x => x.t > 10).length;
   const wk = new Map(); dayList.forEach(x => { const k = x.n + '|' + ymd(monOf(new Date(x.k))); wk.set(k, (wk.get(k) || 0) + x.t); });
   const over52 = [...wk.values()].filter(v => v > 52).length;
+  // 주말·공휴일 출근 (근무시간이 있는 토·일·공휴일, 근태 제외)
+  const offList = dayList.filter(x => { const [yy, mm, dd] = x.k.split('-').map(Number); return isOff(new Date(yy, mm - 1, dd)); });
+  const offBy = new Map(); offList.forEach(x => { const o = offBy.get(x.n) || offBy.set(x.n, { n:x.n, h:0, days:[] }).get(x.n); o.h += x.t; o.days.push(x); });
+  const offH = offList.reduce((a, x) => a + x.t, 0);
   const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
   const plabel = HS.month ? `${AS.year}년 ${+HS.month}월` : `${AS.year}년 연간`;
   const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
@@ -3925,8 +3932,11 @@ function renderHours(c) {
       ${kpi('wk-done', '📆', '근무일 평균', `${workDays ? fmtH(tot / workDays) : '-'}h`, '하루 (입력 있는 날)')}
       ${kpi('wk-soon', '⏰', '하루 10시간 초과', `${over10}일`, longD ? `최장 ${fmtH(longD.t)}h · ${esc(longD.n)} ${longD.k.slice(5)}` : '-')}
       ${kpi('wk-late', '⚠', '주 52시간 초과', `${over52}건`, '사람 × 주 (월~일)')}
+      ${kpi('wk-miss', '🗓', '주말·공휴일 출근', `${offList.length}일`, offList.length ? `${offBy.size}명 · ${fmtH(offH)}h` : '없음')}
     </div>
     <section class="card"><h2>⏱ 부서원별 ${({ month:'월별', week:'주별 (월~일)', day:'일별' })[HS.view]} 근무시간 <span class="muted">· ${esc(plabel)} · 진할수록 많음 · 붉은 칸 = ${HS.view === 'week' ? '주 52시간' : HS.view === 'day' ? '하루 10시간' : '-'} 초과 · 이름을 누르면 날짜별 상세</span></h2>${HS.view === 'week' && HS.month ? `<p class="muted" style="margin:0 0 8px">※ 달 경계에 걸친 주(첫 주·마지막 주)는 앞·뒤 달 시간까지 합친 '그 주 전체' 시간입니다. 위 요약 숫자는 ${+HS.month}월 날짜만 셉니다.</p>` : ''}${table}</section>
+    <section class="card wecard"><h2>🗓 주말·공휴일 출근 현황 <span class="muted">· ${esc(plabel)} · 토·일·공휴일에 근무시간이 있는 날 (근태 제외) · 줄을 누르면 날짜별 상세</span></h2>
+      ${offBy.size ? `<table class="t wet"><thead><tr><th>부서원</th><th>출근 일수</th><th>시간</th><th>날짜</th></tr></thead><tbody>${[...offBy.values()].sort((a, b) => b.days.length - a.days.length || b.h - a.h).map(o => `<tr data-hperson="${esc(o.n)}"><td><span class="wperson"><span class="wav sm">${avHtml(o.n)}</span>${esc(o.n)}</span></td><td><b>${o.days.length}</b>일</td><td>${fmtH(o.h)}h</td><td>${o.days.sort((a, b) => a.k.localeCompare(b.k)).map(x => { const [yy, mm, dd] = x.k.split('-').map(Number), dt = new Date(yy, mm - 1, dd), hol = HOLIDAYS.has(x.k); return `<span class="wed ${hol ? 'hol' : ''}" title="${x.k} ${fmtH(x.t)}h">${mm}/${dd}<small>${WD[dt.getDay()]}</small> ${fmtH(x.t)}${hol ? '<em>공휴일</em>' : ''}</span>`; }).join('')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(plabel)} 주말·공휴일 출근이 없습니다</div>`}</section>
     ${detail}</div>`);
   $('#hrsv').addEventListener('click', e => {
     const t = e.target.closest('[data-year],[data-hview],[data-hmonth],[data-hperson],[data-goto]'); if (!t) return;
@@ -3986,7 +3996,7 @@ async function openTsUpload(dropped) {
         <span class="tsd-i">📥</span><b>시수 입력 엑셀(.xlsx)을 여기로 끌어다 놓으세요</b><span class="muted">또는 눌러서 파일 고르기 · 놓으면 먼저 <b>미리보기</b>만 하고, 아래 [업로드] 를 눌러야 저장·분석됩니다</span></label>
       <div id="tsPrev"></div>
       <div class="fg"><label>부서원${all ? '' : ' (본인)'}<select id="tsP">${opts}</select></label>
-        <label>저장할 월<input type="month" id="tsM" value="${defM}"></label></div>
+        <label>저장할 월 <small class="muted">(파일 안의 월로 자동)</small><input type="month" id="tsM" value="${defM}"></label></div>
       <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type '근태' → 근태 (일괄)
         Project 코드(예: D026)가 있으면 → 수행·입찰 PJT 의 Project Code 와 대조해 수행/입찰
         코드 없음: Type '공통' + Detail '입찰' → 입찰 / Detail '교육' → 교육 / '공통' 그 외 → 부서업무
@@ -4005,8 +4015,9 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
     try {
       const r = await api('POST', 'timesheet/preview', undefined, f), idx = projIndex();
       const nm = f.name.match(/(\d{1,2})\s*월/), fileMon = nm ? +nm[1] : 0, det = r.month || '';
-      if (det) $('#tsM').value = det;
-      const warn = det && fileMon && fileMon !== +det.slice(5) ? `<div class="tswarn">⚠ 파일 이름은 <b>${fileMon}월</b>인데 파일 안 날짜는 <b>${esc(det)}</b> 입니다. 아래 <b>저장할 월</b>을 확인해 고르세요.</div>`
+      // 월은 파일 이름이 아니라 파일 안의 월(머리글의 '2026-07' 등)로 정함 → 찾으면 저장할 월을 그 값으로 고정
+      const mi = $('#tsM'); mi.disabled = !!det; if (det) mi.value = det;
+      const warn = det && fileMon && fileMon !== +det.slice(5) ? `<div class="tsinfo">ℹ 파일 이름은 <b>${fileMon}월</b>이지만 <b>파일 안의 월 ${esc(det)}</b> 로 저장합니다.</div>`
         : !det ? '<div class="tswarn">⚠ 파일 안에서 월(예: 2026-07)을 찾지 못했습니다. 아래 <b>저장할 월</b>을 고르세요.</div>' : '';
       const agg = new Map(); r.rows.forEach(x => { if (!(x.h > 0)) return; const k = tsClass(x, idx); const o = agg.get(k.key) || agg.set(k.key, { ...k, h:0 }).get(k.key); o.h += x.h; });
       const its = [...agg.values()].sort((a, b) => b.h - a.h), tot = r.total || 0;
