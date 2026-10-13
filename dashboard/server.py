@@ -1,0 +1,1390 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+계장ENG그룹 주간업무 Dashboard 서버 (Python 표준 라이브러리만 사용)
+
+실행:
+    python server.py                          # server.py 가 있는 폴더를 운영 폴더로 사용, 포트 8080
+    python server.py --root "<운영폴더>" --port 8080 --log server.log --open
+
+- 운영 폴더의 dashboard.html 을 제공하고 data/ history/ trash/ archive/ saves/ 를 그대로 사용
+- 모든 파일 쓰기는 서버 내부 잠금(lock) 안에서 수행 → 동시 저장 안전
+- 관리자 기능(금주 마감, 휴지통 영구삭제)은 이 PC(localhost)에서 접속할 때만 허용
+- 매일 1회 backup/YYYY-MM-DD.zip 자동 백업 (기본 60일 보관)
+- 매주 수요일 12:00 자동 주간 저장 archive/YYYY-Www.json (수요일 오전 11:59 기준, 이후 수정은 다음 주)
+- 수정 이력(history/)은 7일만 보관, 1시간마다 7일 지난 이력 자동 삭제 (--history-days 로 변경)
+- 계정(accounts/): 로그인한 사용자만 수정 가능, 수정자는 계정의 본명으로 기록. 비회원은 보기만 가능
+- 쪽지(messages/): 로그인 사용자끼리, 180일 지나면 자동 삭제
+"""
+import argparse, datetime, hashlib, hmac, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlsplit, parse_qs, unquote, quote
+
+SHEETS = ['perform', 'bid', 'issue', 'rnr', 'general', 'unit', 'techshare', 'todo', 'staffing', 'notice']
+LABEL = {'perform': '수행', 'bid': '입찰', 'issue': '프로젝트 이슈사항', 'rnr': 'PJT R&R', 'general': '일반업무', 'unit': '유닛분장',
+         'techshare': '기술공유', 'todo': 'To do list', 'staffing': '계장 투입인력', 'notice': '주간회의 전달사항'}
+TITLE = {'perform': 'PJT명', 'bid': 'PJT명', 'issue': 'PJT명', 'rnr': 'PJT명', 'general': '업무 내용', 'unit': '유닛',
+         'techshare': '발표 내용', 'todo': '지시 사항', 'staffing': '이름', 'notice': '제목'}
+FILE_TYPES = {'.pdf': 'application/pdf', '.ppt': 'application/vnd.ms-powerpoint',
+              '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'}
+ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
+WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
+MAX_BODY = 30 * 1024 * 1024
+
+SERVER_VERSION = '2026-10-09.2'
+ROOT = os.path.dirname(os.path.abspath(__file__))
+PORT = 8080
+ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
+LOCK = threading.RLock()
+log = logging.getLogger('dashboard')
+
+
+# ---------------------------------------------------------------- 공통
+def stamp():
+    """브라우저 new Date().toISOString() 과 같은 형식 (UTC, 밀리초, Z)"""
+    t = datetime.datetime.now(datetime.timezone.utc)
+    return t.strftime('%Y-%m-%dT%H:%M:%S.') + f'{t.microsecond // 1000:03d}Z'
+
+
+CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12          # 수요일(월=0) 12:00 — 수요일 오전 11:59까지가 그 주 데이터
+
+
+def week_wed(d):
+    """날짜 d 가 속한 ISO 주의 수요일"""
+    return d - datetime.timedelta(days=d.weekday() - CUTOFF_WEEKDAY)
+
+
+def week_id(wed):
+    y, w, _ = wed.isocalendar()
+    return f'{y}-W{w:02d}'
+
+
+def iso_week(now=None):
+    """현재 데이터가 속하는 주차: 수요일 12:00 이후는 다음 주"""
+    now = now or datetime.datetime.now()
+    wed = week_wed(now.date())
+    if now >= datetime.datetime.combine(wed, datetime.time(CUTOFF_HOUR)):
+        wed += datetime.timedelta(days=7)
+    return week_id(wed)
+
+
+def last_cutoff(now=None):
+    """가장 최근에 지난 마감 시각(로컬)과 그 주차"""
+    now = now or datetime.datetime.now()
+    wed = week_wed(now.date())
+    cut = datetime.datetime.combine(wed, datetime.time(CUTOFF_HOUR))
+    if now < cut:
+        cut -= datetime.timedelta(days=7)
+    return cut, week_id(cut.date())
+
+
+def to_z(local_dt):
+    t = local_dt.astimezone(datetime.timezone.utc)
+    return t.strftime('%Y-%m-%dT%H:%M:%S.') + f'{t.microsecond // 1000:03d}Z'
+
+
+def safe_name(s):
+    return re.sub(r'[\\/:*?"<>|\s]+', '_', str(s or '익명'))[:40] or '익명'
+
+
+def P(*parts):
+    return os.path.join(ROOT, *parts)
+
+
+def read_json(path):
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+
+def write_json(path, obj):
+    """임시 파일에 쓴 뒤 교체 (쓰는 도중 다른 사람이 읽어도 깨진 파일을 보지 않음)"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f'{path}.{threading.get_ident()}.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def list_json(d):
+    try:
+        return sorted(n for n in os.listdir(d) if n.endswith('.json'))
+    except FileNotFoundError:
+        return []
+
+
+def flatten(o, pre='', out=None):
+    """dashboard.html 의 flatten 과 같은 경로 규칙 (중첩 객체는 a.b)"""
+    out = {} if out is None else out
+    for k, v in (o or {}).items():
+        p = f'{pre}.{k}' if pre else k
+        if isinstance(v, dict):
+            flatten(v, p, out)
+        else:
+            out[p] = v if isinstance(v, str) else json.dumps(v if v is not None else '', ensure_ascii=False)
+    return out
+
+
+def diff_paths(a, b):
+    x, y = flatten(a), flatten(b)
+    return [k for k in sorted(set(x) | set(y)) if x.get(k, '') != y.get(k, '')]
+
+
+def rec_label(key, f):
+    f = f or {}
+    if key == 'rnr':
+        s = f"{f.get('PJT명', '')} / {f.get('담당자', '')}"
+    elif key == 'unit':
+        s = f"{f.get('연도', '')} {f.get('유닛', '')}"
+    else:
+        s = f.get(TITLE[key]) or '(제목 없음)'
+    s = re.sub(r'\s+', ' ', str(s)).strip()
+    return s if len(s) <= 40 else s[:39] + '…'
+
+
+# ---------------------------------------------------------------- 데이터 작업 (쓰기는 모두 LOCK 안에서)
+_cache = {}   # path -> (mtime, size, obj)
+
+
+def read_cached(path):
+    st = os.stat(path)
+    c = _cache.get(path)
+    if c and c[0] == st.st_mtime_ns and c[1] == st.st_size:
+        return c[2]
+    obj = read_json(path)
+    _cache[path] = (st.st_mtime_ns, st.st_size, obj)
+    return obj
+
+
+def load_sheet(key):
+    d, out = P('data', key), []
+    for n in list_json(d):
+        try:
+            r = read_cached(os.path.join(d, n))
+            if r and r.get('fields') is not None:
+                out.append(r)
+        except Exception as e:
+            log.warning('읽기 실패 %s/%s: %s', key, n, e)
+    return out
+
+
+def archives():
+    return sorted((n[:-5] for n in list_json(P('archive'))), reverse=True)
+
+
+def add_history(key, rid, entry):
+    name = f"{entry['at'].replace(':', '-').replace('.', '-')}_{safe_name(entry['by'])}.json"
+    path = P('history', key, rid, name)
+    i = 1
+    while os.path.exists(path):                       # 같은 밀리초 충돌 방지
+        path = P('history', key, rid, name[:-5] + f'_{i}.json'); i += 1
+    write_json(path, {'sheet': key, 'rid': rid, **entry})
+
+
+def api_all():
+    return {'recs': {k: load_sheet(k) for k in SHEETS},
+            'cols': (read_json(P('data', '_meta', 'staffing-columns.json')) or {}).get('columns', []),
+            'state': read_json(P('data', '_meta', 'state.json')) or {},
+            'archives': archives()}
+
+
+def api_create(key, body):
+    by, fields = body.get('by') or '익명', body.get('fields') or {}
+    with LOCK:
+        rid = body.get('id') or f"{key}-{int(time.time() * 1000):x}{os.urandom(2).hex()}"
+        if not ID_RE.match(rid):
+            raise ApiError(400, '잘못된 ID')
+        path = P('data', key, rid + '.json')
+        if os.path.exists(path):
+            raise ApiError(409, '같은 ID의 행이 이미 존재합니다')
+        order = body.get('order')
+        if order is None:
+            order = max([r.get('order', 0) for r in load_sheet(key)] or [0]) + 10
+        now = stamp()
+        rec = {'id': rid, 'sheet': key, 'order': order, 'fields': fields,
+               'meta': {'createdBy': by, 'createdAt': now, 'updatedBy': by, 'updatedAt': now, 'rev': 1}}
+        write_json(path, rec)
+        add_history(key, rid, {'action': 'create', 'by': by, 'at': now, 'label': rec_label(key, fields),
+                               'before': None, 'after': fields, 'changed': list(flatten(fields))})
+    return {'status': 'ok', 'rec': rec}
+
+
+def api_update(key, rid, body):
+    by, nf = body.get('by') or '익명', body.get('fields') or {}
+    force, action = bool(body.get('force')), body.get('action') or 'update'
+    with LOCK:                                           # 버전 비교 + 쓰기를 한 번에 → 동시 저장 안전
+        path = P('data', key, rid + '.json')
+        cur = read_json(path)
+        if not cur:
+            return {'status': 'deleted'}
+        mismatch = cur['meta'].get('rev') != body.get('baseRev')
+        if mismatch and not force:
+            return {'status': 'conflict', 'cur': cur}
+        changed = diff_paths(cur['fields'], nf)
+        if not changed:
+            return {'status': 'nochange', 'cur': cur}
+        now = stamp()
+        changes = dict(cur['meta'].get('changes') or {})
+        for p in changed:
+            changes[p] = now
+        # 마지막 마감 이후 첫 수정 직전의 내용(orig)을 보관 → 화면/엑셀에서 '추가된 내용'(파란 글씨) 비교 기준
+        since = (read_json(P('data', '_meta', 'state.json')) or {}).get('lastClosedAt', '')
+        m0 = cur['meta']
+        orig = m0['orig'] if m0.get('orig') is not None and m0.get('origSince', '') == since else cur['fields']
+        rec = {**cur, 'fields': nf, 'meta': {**m0, 'updatedBy': by, 'updatedAt': now,
+                                              'rev': m0.get('rev', 1) + 1, 'changes': changes, 'orig': orig, 'origSince': since}}
+        write_json(path, rec)
+        add_history(key, rid, {'action': 'overwrite' if (force and mismatch) else action, 'by': by, 'at': now,
+                               'label': rec_label(key, nf), 'before': cur['fields'], 'after': nf, 'changed': changed,
+                               'prevBy': cur['meta'].get('updatedBy'), 'prevAt': cur['meta'].get('updatedAt')})
+    return {'status': 'ok', 'rec': rec}
+
+
+def api_delete(key, rid, by):
+    with LOCK:
+        path = P('data', key, rid + '.json')
+        cur = read_json(path)
+        if not cur:
+            return {'status': 'none'}
+        now = stamp()
+        write_json(P('trash', key, rid + '.json'), {**cur, 'meta': {**cur['meta'], 'deletedBy': by, 'deletedAt': now}})
+        os.remove(path)
+        add_history(key, rid, {'action': 'delete', 'by': by, 'at': now, 'label': rec_label(key, cur['fields']),
+                               'before': cur['fields'], 'after': None, 'changed': []})
+    return {'status': 'ok'}
+
+
+def api_trash():
+    items = []
+    for k in SHEETS:
+        for n in list_json(P('trash', k)):
+            r = read_json(P('trash', k, n))
+            if r:
+                items.append({'key': k, **r})
+    items.sort(key=lambda r: r.get('meta', {}).get('deletedAt', ''), reverse=True)
+    return items
+
+
+def api_restore(key, rid, by):
+    with LOCK:
+        tp, dp = P('trash', key, rid + '.json'), P('data', key, rid + '.json')
+        t = read_json(tp)
+        if not t:
+            return {'status': 'none'}
+        if os.path.exists(dp):
+            return {'status': 'exists'}
+        now = stamp()
+        meta = {k: v for k, v in t['meta'].items() if k not in ('deletedBy', 'deletedAt')}
+        meta.update(updatedBy=by, updatedAt=now, rev=meta.get('rev', 1) + 1)
+        write_json(dp, {**t, 'meta': meta})
+        os.remove(tp)
+        add_history(key, rid, {'action': 'restore', 'by': by, 'at': now, 'label': rec_label(key, t['fields']),
+                               'before': None, 'after': t['fields'], 'changed': []})
+    return {'status': 'ok'}
+
+
+def api_purge(key, rid, by):
+    with LOCK:
+        tp = P('trash', key, rid + '.json')
+        t = read_json(tp)
+        if not t:
+            return {'status': 'none'}
+        os.remove(tp)
+        add_history(key, rid, {'action': 'purge', 'by': by, 'at': stamp(), 'label': rec_label(key, t['fields']),
+                               'before': t['fields'], 'after': None, 'changed': []})
+    return {'status': 'ok'}
+
+
+def api_history(key, rid):
+    d, out = P('history', key, rid), []
+    for n in list_json(d):
+        e = read_json(os.path.join(d, n))
+        if e:
+            out.append({'n': n, **e})
+    out.sort(key=lambda e: e.get('at', ''), reverse=True)
+    return out
+
+
+def api_recent(limit=10):
+    files = []
+    for k in SHEETS:
+        base = P('history', k)
+        try:
+            rids = os.listdir(base)
+        except FileNotFoundError:
+            continue
+        for rid in rids:
+            for n in list_json(os.path.join(base, rid)):
+                files.append((n, k, os.path.join(base, rid, n)))
+    files.sort(reverse=True)
+    out = []
+    for n, k, path in files[:limit]:
+        e = read_json(path)
+        if e:
+            out.append({**e, 'key': k})
+    return out
+
+
+def api_archive(name):
+    a = read_json(P('archive', name + '.json'))
+    if not a:
+        raise ApiError(404, '마감본이 없습니다')
+    arcs = archives()
+    i = arcs.index(name) if name in arcs else -1
+    prev = read_json(P('archive', arcs[i + 1] + '.json')) if 0 <= i < len(arcs) - 1 else None
+    return {'arch': a, 'prev': prev}
+
+
+def api_close(body):
+    by, name = body.get('by') or '익명', iso_week()
+    with LOCK:
+        path = P('archive', name + '.json')
+        if os.path.exists(path) and not body.get('overwrite'):
+            return {'status': 'exists', 'week': name}
+        now, data = stamp(), api_all()
+        write_json(path, {'week': name, 'closedAt': now, 'closedBy': by, 'sheets': data['recs'], 'staffingColumns': data['cols']})
+        st = read_json(P('data', '_meta', 'state.json')) or {}
+        write_json(P('data', '_meta', 'state.json'), {**st, 'lastClosedAt': now, 'lastClosedWeek': name, 'closedBy': by})
+    log.info('금주 마감 %s by %s', name, by)
+    return {'status': 'ok', 'week': name}
+
+
+def snapshot_at(cz):
+    """마감 시각 cz(UTC ISO) 시점의 전체 데이터 — 그 이후 수정은 이력의 '수정 전' 내용으로 되돌림"""
+    def at_cutoff(key, rec):
+        hd = P('history', key, rec['id'])
+        if not os.path.isdir(hd):
+            return rec
+        after = sorted((e for e in api_history(key, rec['id']) if e.get('at', '') > cz), key=lambda e: e.get('at', ''))
+        if not after:
+            return rec
+        first = after[0]
+        if first.get('action') in ('create', 'restore') or first.get('before') is None:
+            return None                                   # 마감 시각에는 없던 행
+        return {**rec, 'fields': first['before']}
+
+    sheets = {}
+    for k in SHEETS:
+        out = [r for r in (at_cutoff(k, r) for r in load_sheet(k)) if r]
+        live = {r['id'] for r in out}
+        for n in list_json(P('trash', k)):                # 마감 이후 삭제된 행은 마감 시점 내용으로 포함
+            t = read_json(P('trash', k, n))
+            if t and t['meta'].get('deletedAt', '') > cz and t['id'] not in live:
+                r = at_cutoff(k, {**t, 'meta': {kk: v for kk, v in t['meta'].items() if kk not in ('deletedBy', 'deletedAt')}})
+                if r:
+                    out.append(r)
+        sheets[k] = sorted(out, key=lambda r: (r.get('order', 0), r['id']))
+    return sheets
+
+
+def auto_close():
+    """매주 수요일 12:00(=수요일 오전 11:59 마감) 자동 주간 저장. 서버가 꺼져 있었으면 켜진 뒤 이력으로 마감 시점 복원"""
+    cut, week = last_cutoff()
+    cz = to_z(cut)
+    with LOCK:
+        a = read_json(P('archive', week + '.json'))
+        if a and a.get('auto') and a.get('closedAt') == cz:   # 이미 마감 시점으로 자동 저장됨
+            return
+        cols = (read_json(P('data', '_meta', 'staffing-columns.json')) or {}).get('columns', [])
+        write_json(P('archive', week + '.json'), {'week': week, 'closedAt': cz, 'closedBy': '자동 마감(수 11:59)', 'auto': True,
+                                                  'cutoff': cut.strftime('%Y-%m-%d %H:%M'), 'sheets': snapshot_at(cz), 'staffingColumns': cols})
+        st = read_json(P('data', '_meta', 'state.json')) or {}
+        if st.get('lastClosedWeek') in (None, week) or st.get('lastClosedAt', '') <= cz:
+            write_json(P('data', '_meta', 'state.json'), {**st, 'lastClosedAt': cz, 'lastClosedWeek': week, 'closedBy': '자동 마감'})
+    log.info('주간 자동 저장: archive/%s.json (마감 %s 수요일 11:59)', week, cut.strftime('%Y-%m-%d'))
+
+
+def weekly_loop():
+    while True:
+        try:
+            build_deploy()                                # dashboard.html 이 바뀌면 deploy/ 도 자동 갱신
+        except Exception as e:
+            log.error('배포 파일 생성 실패: %s', e)
+        try:
+            auto_close()
+        except Exception as e:
+            log.error('주간 자동 저장 실패: %s', e)
+        time.sleep(30)
+
+
+def api_add_column(body):
+    name, kind, by = (body.get('name') or '').strip(), body.get('kind') or '기타', body.get('by') or '익명'
+    if not name:
+        raise ApiError(400, 'PJT명이 필요합니다')
+    with LOCK:
+        path = P('data', '_meta', 'staffing-columns.json')
+        cur = read_json(path) or {'columns': []}
+        c = next((x for x in cur['columns'] if x['name'] == name), None)
+        if not c:
+            c = {'id': 'c' + format(int(time.time() * 1000), 'x'), 'name': name, 'kind': kind}
+            cur['columns'].append(c)
+            cur.update(updatedBy=by, updatedAt=stamp())
+            write_json(path, cur)
+    return {'column': c, 'columns': cur['columns']}
+
+
+def api_saveall(body):
+    by = body.get('by') or '익명'
+    with LOCK:
+        now, data = stamp(), api_all()
+        tag = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S') + '_' + safe_name(by)
+        counts = {LABEL[k]: len(v) for k, v in data['recs'].items()}
+        write_json(P('saves', f'전체저장_{tag}.json'), {'type': 'full-save', 'week': iso_week(), 'savedAt': now, 'savedBy': by,
+                                                     'counts': counts, 'sheets': data['recs'], 'staffingColumns': data['cols']})
+        st = read_json(P('data', '_meta', 'state.json')) or {}
+        write_json(P('data', '_meta', 'state.json'), {**st, 'lastFullSaveAt': now, 'lastFullSaveBy': by, 'lastFullSaveFile': f'전체저장_{tag}'})
+    return {'status': 'ok', 'tag': tag}
+
+
+def save_xlsx(tag, data):
+    if not re.fullmatch(r'[\w\-가-힣]{1,80}', tag):
+        raise ApiError(400, '잘못된 파일명')
+    with LOCK:
+        os.makedirs(P('saves'), exist_ok=True)
+        tmp = P('saves', f'전체저장_{tag}.xlsx.tmp')
+        with open(tmp, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, P('saves', f'전체저장_{tag}.xlsx'))
+    return {'status': 'ok'}
+
+
+# ---------------------------------------------------------------- 첨부파일 (files/{파일ID}.{확장자} + files/{파일ID}.json)
+def api_file_upload(name, data, by):
+    name = os.path.basename(str(name or '').replace('\\', '/')).strip()[:120]
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in FILE_TYPES:
+        raise ApiError(400, 'PDF 또는 PowerPoint(ppt, pptx) 파일만 올릴 수 있습니다')
+    if not data:
+        raise ApiError(400, '빈 파일입니다')
+    with LOCK:
+        fid = f"f{int(time.time() * 1000):x}{os.urandom(3).hex()}"
+        os.makedirs(P('files'), exist_ok=True)
+        tmp = P('files', fid + ext + '.tmp')
+        with open(tmp, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, P('files', fid + ext))
+        meta = {'id': fid, 'name': name, 'ext': ext, 'size': len(data), 'by': by, 'at': stamp()}
+        write_json(P('files', fid + '.json'), meta)
+    log.info('첨부파일 업로드: %s (%d bytes) by %s', fid + ext, len(data), by)
+    return meta
+
+
+def file_meta(fid):
+    if not ID_RE.match(fid or ''):
+        raise ApiError(400, '잘못된 파일 ID')
+    m = read_json(P('files', fid + '.json'))
+    if not m or not os.path.isfile(P('files', fid + m['ext'])):
+        raise ApiError(404, '첨부파일이 없습니다 (삭제되었거나 다른 서버의 파일)')
+    return m
+
+
+# ---------------------------------------------------------------- 익명게시판 (board/{글ID}.json)
+# 실명은 받지도 저장하지도 않음. 본인 확인은 글/댓글마다 브라우저가 만든 임의 토큰의 해시로만 함.
+def token_hash(t):
+    return hashlib.sha256(('dept-board:' + str(t)).encode('utf-8')).hexdigest() if t else ''
+
+
+def board_nick(b):
+    nick = re.sub(r'\s+', ' ', str(b.get('nick') or '')).strip()[:20]
+    return '익명' if b.get('anon') or not nick else nick
+
+
+def board_public(p):
+    q = {k: v for k, v in p.items() if k != 'tokenHash'}
+    q['comments'] = [{k: v for k, v in c.items() if k != 'tokenHash'} for c in p.get('comments', [])]
+    return q
+
+
+def board_text(b, key, limit, required=True):
+    v = str(b.get(key) or '').replace('\r', '').strip()
+    if required and not v:
+        raise ApiError(400, '내용을 입력하세요')
+    if len(v) > limit:
+        raise ApiError(400, f'{limit}자 이하로 입력하세요')
+    return v
+
+
+def board_owner(rec, token, admin):
+    if admin:
+        return
+    if not token or token_hash(token) != rec.get('tokenHash'):
+        raise ApiError(403, '이 브라우저에서 작성한 글/댓글만 수정·삭제할 수 있습니다')
+
+
+def board_load(pid):
+    if not ID_RE.match(pid):
+        raise ApiError(400, '잘못된 ID')
+    p = read_json(P('board', pid + '.json'))
+    if not p:
+        raise ApiError(404, '삭제된 글입니다')
+    return p
+
+
+def api_board_list():
+    out = []
+    for n in list_json(P('board')):
+        p = read_json(P('board', n))
+        if p:
+            out.append(board_public(p))
+    out.sort(key=lambda p: p.get('createdAt', ''), reverse=True)
+    return out
+
+
+def api_board_create(b):
+    title, body = board_text(b, 'title', 100), board_text(b, 'body', 5000)
+    if not b.get('token'):
+        raise ApiError(400, '토큰이 없습니다')
+    with LOCK:
+        pid = f"b{int(time.time() * 1000):x}{os.urandom(3).hex()}"
+        now = stamp()
+        p = {'id': pid, 'title': title, 'body': body, 'nick': board_nick(b), 'createdAt': now, 'updatedAt': now,
+             'tokenHash': token_hash(b['token']), 'comments': []}
+        write_json(P('board', pid + '.json'), p)
+    return board_public(p)
+
+
+def api_board_update(pid, b):
+    with LOCK:
+        p = board_load(pid)
+        board_owner(p, b.get('token'), False)
+        p.update(title=board_text(b, 'title', 100), body=board_text(b, 'body', 5000), nick=board_nick(b), updatedAt=stamp())
+        write_json(P('board', pid + '.json'), p)
+    return board_public(p)
+
+
+def api_board_delete(pid, b, admin):
+    with LOCK:
+        p = board_load(pid)
+        board_owner(p, b.get('token'), admin)
+        os.remove(P('board', pid + '.json'))
+    return {'status': 'ok'}
+
+
+def api_comment_add(pid, b):
+    body = board_text(b, 'body', 1000)
+    if not b.get('token'):
+        raise ApiError(400, '토큰이 없습니다')
+    with LOCK:
+        p = board_load(pid)
+        c = {'id': f"c{int(time.time() * 1000):x}{os.urandom(2).hex()}", 'body': body, 'nick': board_nick(b),
+             'createdAt': stamp(), 'tokenHash': token_hash(b['token'])}
+        p.setdefault('comments', []).append(c)
+        write_json(P('board', pid + '.json'), p)
+    return board_public(p)
+
+
+def api_comment_delete(pid, cid, b, admin):
+    with LOCK:
+        p = board_load(pid)
+        c = next((x for x in p.get('comments', []) if x['id'] == cid), None)
+        if not c:
+            raise ApiError(404, '삭제된 댓글입니다')
+        board_owner(c, b.get('token'), admin)
+        p['comments'] = [x for x in p['comments'] if x['id'] != cid]
+        write_json(P('board', pid + '.json'), p)
+    return board_public(p)
+
+
+# ---------------------------------------------------------------- 계정 (accounts/{ID}.json, 세션 accounts/_sessions.json)
+# 비밀번호는 PBKDF2-SHA256 해시로만 저장. 메일주소·생년월일도 원문 없이 '비밀번호 재설정 확인용 해시'로만 저장.
+# 모든 쓰기 API 의 수정자(by)는 브라우저가 보낸 값이 아니라 로그인 세션의 본명으로 기록.
+UID_RE = re.compile(r'^[a-z0-9][a-z0-9_.\-]{2,19}$')
+EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+PW_ITER = 200_000
+SESSION_DAYS = 30
+ONLINE_SEC = 75                                         # 마지막 요청 후 이 시간 안이면 '접속 중' (화면이 30초마다 ping)
+_sessions = None                                        # sha256(토큰) -> {'id', 'at'}
+_presence = {}                                          # ID -> 마지막 요청 시각(time.time)
+_fails = {}                                             # (종류, ID) -> [실패 횟수, 첫 실패 시각]
+
+
+def ago_z(days):
+    t = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+    return t.strftime('%Y-%m-%dT%H:%M:%S.') + f'{t.microsecond // 1000:03d}Z'
+
+
+def kdf(secret, salt):
+    return hashlib.pbkdf2_hmac('sha256', secret.encode('utf-8'), bytes.fromhex(salt), PW_ITER).hex()
+
+
+def reset_secret(email, birth):
+    return f"{str(email or '').strip().lower()}|{str(birth or '').strip()}"
+
+
+def acc_path(uid):
+    return P('accounts', uid + '.json')
+
+
+def load_account(uid):
+    return read_json(acc_path(uid)) if UID_RE.match(uid or '') else None
+
+
+def norm_uid(b):
+    uid = str(b.get('id') or '').strip().lower()
+    if not UID_RE.match(uid):
+        raise ApiError(400, 'ID는 영문 소문자·숫자로 시작하는 3~20자 (영문·숫자·_ . -)로 입력하세요')
+    return uid
+
+
+def check_pw(pw):
+    pw = str(pw or '')
+    if not 8 <= len(pw) <= 64:
+        raise ApiError(400, '비밀번호는 8~64자로 입력하세요')
+    return pw
+
+
+def check_reset_info(b):
+    email, birth = str(b.get('email') or '').strip(), str(b.get('birth') or '').strip()
+    if len(email) > 100 or not EMAIL_RE.match(email):
+        raise ApiError(400, '메일주소 형식이 올바르지 않습니다')
+    try:
+        d = datetime.date.fromisoformat(birth)
+    except ValueError:
+        raise ApiError(400, '생년월일을 YYYY-MM-DD 로 입력하세요')
+    if not datetime.date(1900, 1, 1) <= d <= datetime.date.today():
+        raise ApiError(400, '생년월일을 확인하세요')
+    return email, birth
+
+
+def fail_check(key):
+    c = _fails.get(key)
+    if c and c[0] >= 5 and time.time() - c[1] < 600:
+        raise ApiError(429, f'시도 횟수를 초과했습니다. {int((600 - (time.time() - c[1])) // 60) + 1}분 뒤에 다시 시도하세요')
+
+
+def fail_add(key):
+    c = _fails.get(key)
+    if not c or time.time() - c[1] >= 600:
+        c = _fails[key] = [0, time.time()]
+    c[0] += 1
+
+
+def sessions():
+    global _sessions
+    if _sessions is None:
+        lim = ago_z(SESSION_DAYS)
+        _sessions = {k: v for k, v in (read_json(P('accounts', '_sessions.json')) or {}).items() if v.get('at', '') > lim}
+    return _sessions
+
+
+def session_new(uid):
+    token = os.urandom(32).hex()
+    with LOCK:
+        s, lim = sessions(), ago_z(SESSION_DAYS)
+        for k in [k for k, v in s.items() if v.get('at', '') <= lim]:
+            del s[k]
+        s[token_hash(token)] = {'id': uid, 'at': stamp()}
+        write_json(P('accounts', '_sessions.json'), s)
+    return token
+
+
+def session_drop(token=None, uid=None):
+    with LOCK:
+        s = sessions()
+        keys = [token_hash(token)] if token else [k for k, v in s.items() if v.get('id') == uid]
+        removed = [k for k in keys if s.pop(k, None)]
+        if removed:
+            write_json(P('accounts', '_sessions.json'), s)
+
+
+def session_account(token, touch=True):
+    if not token:
+        return None
+    v = sessions().get(token_hash(token))
+    if not v or v.get('at', '') <= ago_z(SESSION_DAYS):
+        return None
+    acc = load_account(v['id'])
+    if acc and touch:
+        _presence[acc['id']] = time.time()
+    return acc
+
+
+def acc_public(acc):
+    return {'id': acc['id'], 'name': acc['name']}
+
+
+def api_register(b):
+    uid = norm_uid(b)
+    name = re.sub(r'\s+', ' ', str(b.get('name') or '')).strip()
+    if not 2 <= len(name) <= 20:
+        raise ApiError(400, '본명을 2~20자로 입력하세요')
+    pw = check_pw(b.get('password'))
+    email, birth = check_reset_info(b)
+    with LOCK:
+        if os.path.exists(acc_path(uid)):
+            raise ApiError(409, '이미 사용 중인 ID입니다')
+        salt, rsalt, now = os.urandom(16).hex(), os.urandom(16).hex(), stamp()
+        acc = {'id': uid, 'name': name, 'salt': salt, 'hash': kdf(pw, salt), 'rsalt': rsalt, 'rhash': kdf(reset_secret(email, birth), rsalt),
+               'iter': PW_ITER, 'createdAt': now, 'pwChangedAt': now}
+        write_json(acc_path(uid), acc)
+    log.info('계정 개설: %s', uid)
+    return {'token': session_new(uid), 'user': acc_public(acc)}
+
+
+def api_login(b):
+    uid = str(b.get('id') or '').strip().lower()
+    fail_check(('login', uid))
+    acc = load_account(uid)
+    if not acc or not hmac.compare_digest(kdf(str(b.get('password') or ''), acc['salt']), acc['hash']):
+        fail_add(('login', uid))
+        raise ApiError(401, 'ID 또는 비밀번호가 맞지 않습니다')
+    _fails.pop(('login', uid), None)
+    return {'token': session_new(uid), 'user': acc_public(acc)}
+
+
+def api_reset(b):
+    uid = str(b.get('id') or '').strip().lower()
+    fail_check(('reset', uid))
+    email, birth = check_reset_info(b)
+    pw = check_pw(b.get('password'))
+    with LOCK:
+        acc = load_account(uid)
+        if not acc or not hmac.compare_digest(kdf(reset_secret(email, birth), acc['rsalt']), acc['rhash']):
+            fail_add(('reset', uid))
+            raise ApiError(401, 'ID·메일주소·생년월일이 가입 정보와 맞지 않습니다')
+        acc['salt'] = os.urandom(16).hex()
+        acc.update(hash=kdf(pw, acc['salt']), pwChangedAt=stamp())
+        write_json(acc_path(uid), acc)
+    _fails.pop(('reset', uid), None)
+    session_drop(uid=uid)                                 # 다른 곳에 로그인된 세션은 모두 로그아웃
+    log.info('비밀번호 재설정: %s', uid)
+    return {'status': 'ok'}
+
+
+def all_accounts():
+    out = []
+    for n in list_json(P('accounts')):
+        a = read_json(P('accounts', n)) if not n.startswith('_') else None
+        if a and a.get('id'):
+            out.append(a)
+    return out
+
+
+def api_ping(acc, admin=False):
+    now = time.time()
+    users = [{**acc_public(a), 'online': now - _presence.get(a['id'], 0) < ONLINE_SEC} for a in all_accounts()]
+    users.sort(key=lambda u: (not u['online'], u['name']))
+    unread = sum(1 for n in list_json(P('messages', acc['id'], 'in')) if not (read_json(P('messages', acc['id'], 'in', n)) or {}).get('read'))
+    return {'users': users, 'unread': unread, 'perms': perms_for(acc, admin)}   # 권한이 바뀌면 30초 안에 화면에 반영
+
+
+# ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
+MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
+         ('board', '익명게시판'), ('mgmt', 'Management')]
+MENU_KEYS = [k for k, _ in MENUS]
+DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}   # 기본: 모두 허용, Management 만 권한 부여 필요
+
+
+def perms_file():
+    return read_json(P('accounts', '_perms.json')) or {}
+
+
+def perms_for(acc, admin=False):
+    """메뉴별 접근 권한. 운영자(서버 PC 접속)는 전부 허용. acc=None 이면 비회원"""
+    if admin:
+        return {k: True for k in MENU_KEYS}
+    f = perms_file()
+    own = (f.get('users') or {}).get(acc['id']) if acc else f.get('guest')
+    return {k: bool((own or {}).get(k, DEFAULT_PERMS[k])) for k in MENU_KEYS}
+
+
+def api_perms_get():
+    f = perms_file()
+    users = [{**acc_public(a), 'perms': perms_for(a)} for a in sorted(all_accounts(), key=lambda a: a['name'])]
+    return {'menus': [{'k': k, 'l': l} for k, l in MENUS], 'defaults': DEFAULT_PERMS, 'users': users,
+            'guest': perms_for(None), 'updatedAt': f.get('updatedAt'), 'updatedBy': f.get('updatedBy')}
+
+
+def api_perms_put(b, by):
+    clean = lambda p: {k: bool((p or {}).get(k, DEFAULT_PERMS[k])) for k in MENU_KEYS}
+    ids = {a['id'] for a in all_accounts()}
+    with LOCK:
+        f = {'users': {uid: clean(p) for uid, p in (b.get('users') or {}).items() if uid in ids},
+             'guest': clean(b.get('guest')), 'updatedAt': stamp(), 'updatedBy': by}
+        write_json(P('accounts', '_perms.json'), f)
+    log.info('메뉴 권한 변경 by %s', by)
+    return api_perms_get()
+
+
+# ---------------------------------------------------------------- 쪽지 (messages/{ID}/in|sent/{쪽지ID}.json)
+def api_msg_list(acc):
+    def box(kind):
+        d = P('messages', acc['id'], kind)
+        return sorted((m for m in (read_json(os.path.join(d, n)) for n in list_json(d)) if m), key=lambda m: m.get('at', ''), reverse=True)[:200]
+    return {'inbox': box('in'), 'sent': box('sent')}
+
+
+def api_msg_send(acc, b):
+    to = load_account(str(b.get('to') or '').strip().lower())
+    if not to:
+        raise ApiError(404, '받는 사람 계정이 없습니다')
+    body = board_text(b, 'body', 1000)
+    with LOCK:
+        mid = f"m{int(time.time() * 1000):x}{os.urandom(3).hex()}"
+        m = {'id': mid, 'from': acc['id'], 'fromName': acc['name'], 'to': to['id'], 'toName': to['name'], 'body': body, 'at': stamp(), 'read': False}
+        write_json(P('messages', to['id'], 'in', mid + '.json'), m)
+        write_json(P('messages', acc['id'], 'sent', mid + '.json'), m)
+    return {'status': 'ok', 'msg': m}
+
+
+def api_msg_read(acc, mid):
+    if not ID_RE.match(mid):
+        raise ApiError(400, '잘못된 ID')
+    with LOCK:
+        path = P('messages', acc['id'], 'in', mid + '.json')
+        m = read_json(path)
+        if not m:
+            raise ApiError(404, '삭제된 쪽지입니다')
+        if not m.get('read'):
+            m.update(read=True, readAt=stamp())
+            write_json(path, m)
+            sp = P('messages', m['from'], 'sent', mid + '.json')   # 보낸 사람 쪽에도 '읽음' 표시
+            s = read_json(sp)
+            if s:
+                write_json(sp, {**s, 'read': True, 'readAt': m['readAt']})
+    return {'status': 'ok'}
+
+
+def api_msg_delete(acc, kind, mid):
+    if kind not in ('in', 'sent') or not ID_RE.match(mid):
+        raise ApiError(400, '잘못된 요청')
+    with LOCK:
+        path = P('messages', acc['id'], kind, mid + '.json')
+        if os.path.exists(path):
+            os.remove(path)
+    return {'status': 'ok'}
+
+
+def prune_messages(days):
+    """쪽지는 days 일 지나면 자동 삭제"""
+    lim = ago_z(days)
+    with LOCK:
+        for uid in (os.listdir(P('messages')) if os.path.isdir(P('messages')) else []):
+            for kind in ('in', 'sent'):
+                d = P('messages', uid, kind)
+                for n in list_json(d):
+                    if (read_json(os.path.join(d, n)) or {}).get('at', '') < lim:
+                        os.remove(os.path.join(d, n))
+
+
+# ---------------------------------------------------------------- 자동 백업
+def make_backup(keep_days):
+    day = datetime.date.today().isoformat()
+    dest = P('backup', f'{day}.zip')
+    if os.path.exists(dest):
+        return
+    os.makedirs(P('backup'), exist_ok=True)
+    tmp = dest + '.tmp'
+    with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
+        with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files'):
+                for dirpath, _, files in os.walk(P(top)):
+                    for fn in files:
+                        if fn.endswith('.tmp'):
+                            continue
+                        full = os.path.join(dirpath, fn)
+                        z.write(full, os.path.relpath(full, ROOT))
+    os.replace(tmp, dest)
+    log.info('자동 백업 완료: backup/%s.zip', day)
+    limit = datetime.date.today() - datetime.timedelta(days=keep_days)
+    for n in os.listdir(P('backup')):
+        m = re.fullmatch(r'(\d{4}-\d{2}-\d{2})\.zip', n)
+        if m and datetime.date.fromisoformat(m[1]) < limit:
+            os.remove(P('backup', n))
+            log.info('오래된 백업 삭제: %s', n)
+
+
+def prune_history(days):
+    """수정 이력은 days 일만 보관: 파일명 앞 24자(저장 시각, UTC)가 기준보다 오래되면 삭제"""
+    t = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+    cutoff = t.strftime('%Y-%m-%dT%H-%M-%S-') + f'{t.microsecond // 1000:03d}Z'
+    removed = 0
+    with LOCK:
+        for k in SHEETS:
+            base = P('history', k)
+            if not os.path.isdir(base):
+                continue
+            for rid in os.listdir(base):
+                d = os.path.join(base, rid)
+                if not os.path.isdir(d):
+                    continue
+                for n in list_json(d):
+                    if n[:24] < cutoff:
+                        os.remove(os.path.join(d, n)); removed += 1
+                if not os.listdir(d):
+                    os.rmdir(d)
+    if removed:
+        log.info('수정 이력 정리: %d일 지난 이력 %d건 삭제', days, removed)
+
+
+def backup_loop(keep_days, history_days):
+    while True:
+        try:
+            make_backup(keep_days)
+        except Exception as e:
+            log.error('백업 실패: %s', e)
+        try:
+            prune_history(history_days)
+        except Exception as e:
+            log.error('이력 정리 실패: %s', e)
+        try:
+            prune_messages(180)
+        except Exception as e:
+            log.error('쪽지 정리 실패: %s', e)
+        time.sleep(3600)                                  # 1시간마다 확인 (백업은 하루 1개)
+
+
+# ---------------------------------------------------------------- HTTP
+def server_urls():
+    """부서원 사본이 접속할 주소: PC 이름 주소 → IP 주소"""
+    return [f'http://{socket.gethostname()}:{PORT}'] + [f'http://{ip}:{PORT}' for ip in lan_ips()]
+
+
+def html_bytes():
+    """dashboard.html 을 읽어 기본 서버 주소를 이 PC 기준으로 바꿔 제공 (부서원 배포본과 동일)"""
+    with open(P('dashboard.html'), encoding='utf-8') as f:
+        s = f.read()
+    s = re.sub(r"const DEFAULT_SERVERS = \[[^\]]*\];", 'const DEFAULT_SERVERS = ' + json.dumps(server_urls()) + ';', s, count=1)
+    return s.encode('utf-8')
+
+
+_deploy_mtime = None
+_deploy_lock = threading.Lock()
+
+
+def build_deploy():
+    with _deploy_lock:                                    # 시작 시·주기 점검이 겹쳐도 한 번에 하나씩
+        _build_deploy()
+
+
+def _build_deploy():
+    """운영 폴더 deploy/ 에 부서원 배포용 dashboard.html 과 사용법 안내문 생성 (원본이 바뀌면 다시 생성)"""
+    global _deploy_mtime
+    m = os.path.getmtime(P('dashboard.html'))
+    if m == _deploy_mtime and os.path.exists(P('deploy', 'dashboard.html')):
+        return
+    os.makedirs(P('deploy'), exist_ok=True)
+    tmp = P('deploy', 'dashboard.html.tmp')
+    with open(tmp, 'wb') as f:
+        f.write(html_bytes())
+    os.replace(tmp, P('deploy', 'dashboard.html'))
+    urls = server_urls()
+    guide = (f'[계장ENG그룹 주간업무 Dashboard 사용법]  (화면 v{html_version()})\n'
+             f'1. 이 폴더의 dashboard.html 을 내 PC(바탕화면 등)에 복사한 뒤 Edge로 엽니다.\n'
+             f'2. 처음에 [계정 개설]로 ID·본명·비밀번호를 만들고 로그인합니다. (비회원은 보기만 가능, 수정 이력에는 본명이 기록됩니다)\n'
+             f'3. 서버 {urls[0]} 에 자동 연결됩니다. 안 되면 왼쪽 아래 [서버 주소 설정]에 {urls[-1]} 을 입력하세요.\n'
+             f'4. 서버가 꺼져 있어도 입력은 내 PC에 보관되며, 서버가 켜지면 자동으로 올라갑니다.\n'
+             f'5. 화면 위에 "새 버전이 있습니다"가 뜨면 [다운로드]한 파일로 내 PC의 dashboard.html 을 바꾸세요.\n')
+    with open(P('deploy', '부서원_사용법.txt'), 'w', encoding='utf-8-sig') as f:
+        f.write(guide)
+    _deploy_mtime = m
+    log.info('배포 파일 생성: deploy/dashboard.html (v%s), deploy/부서원_사용법.txt', html_version())
+
+
+def ip_allowed(ip):
+    try:
+        a = ipaddress.ip_address(ip.split('%')[0])
+    except ValueError:
+        return False
+    if getattr(a, 'ipv4_mapped', None):
+        a = a.ipv4_mapped
+    return a.is_loopback or a.is_private or a.is_link_local or any(a in n for n in ALLOW_NETS)
+
+
+def html_version():
+    """운영 폴더 dashboard.html 의 APP_VERSION (부서원 사본과 비교해 새 버전 안내)"""
+    try:
+        with open(P('dashboard.html'), encoding='utf-8') as f:
+            m = re.search(r"const APP_VERSION = '([^']+)'", f.read(200000))
+        return m[1] if m else ''
+    except OSError:
+        return ''
+
+
+class ApiError(Exception):
+    def __init__(self, code, msg):
+        super().__init__(msg); self.code = code; self.msg = msg
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = 'DeptDashboard/1.0'
+    protocol_version = 'HTTP/1.1'
+
+    def log_message(self, fmt, *args):
+        # 익명게시판 요청은 접속 IP를 남기지 않음 (작성자 추정 방지)
+        who = '-' if '/api/board' in (self.path or '') else self.client_address[0]
+        log.info('%s %s', who, fmt % args)
+
+    def is_admin(self):
+        return self.client_address[0] in ('127.0.0.1', '::1')
+
+    def origin_ok(self):
+        """허용 출처: 없음(직접 접속) / null(부서원 PC의 file:// 사본) / 이 서버 자신의 주소. 그 외 웹페이지에서의 호출은 거부"""
+        o = self.headers.get('Origin')
+        if not o or o == 'null':
+            return True
+        u = urlsplit(o)
+        if u.netloc.lower() == (self.headers.get('Host') or '').lower():   # 같은 주소로 연 서버 화면 (도메인 별칭 포함)
+            return True
+        names = {'localhost', '127.0.0.1', socket.gethostname().lower(), *lan_ips()}
+        return (u.hostname or '').lower() in names and (u.port or 80) == PORT
+
+    def cors(self):
+        # 부서원 PC의 dashboard.html 사본(file:// → Origin: null)과 이 서버 화면에서만 API 호출 허용
+        o = self.headers.get('Origin')
+        if not o or not self.origin_ok():
+            return
+        self.send_header('Access-Control-Allow-Origin', o)
+        self.send_header('Vary', 'Origin')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token')
+        self.send_header('Access-Control-Allow-Private-Network', 'true')
+        self.send_header('Access-Control-Max-Age', '600')
+
+    def send(self, code, body, ctype='application/json; charset=utf-8', extra=None):
+        data = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode('utf-8')
+        self.send_response(code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'no-store')
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
+        self.cors()
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        if not ip_allowed(self.client_address[0]) or not self.origin_ok():
+            return self.send(403, {'error': '허용되지 않은 접속입니다'})
+        self.send_response(204)
+        self.cors()
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def raw_body(self):
+        if self._raw is None:
+            n = int(self.headers.get('Content-Length') or 0)
+            if n > MAX_BODY:
+                self.close_connection = True                 # 읽지 않은 큰 본문이 남으므로 연결 종료
+                raise ApiError(413, '요청이 너무 큽니다')
+            self._raw = self.rfile.read(n) if n else b''
+        return self._raw
+
+    def json_body(self):
+        b = self.raw_body()
+        try:
+            return json.loads(b.decode('utf-8')) if b else {}
+        except ValueError:
+            raise ApiError(400, 'JSON 형식 오류')
+
+    def do_GET(self): self.dispatch('GET')
+    def do_POST(self): self.dispatch('POST')
+    def do_PUT(self): self.dispatch('PUT')
+    def do_DELETE(self): self.dispatch('DELETE')
+
+    def dispatch(self, method):
+        u = urlsplit(self.path)
+        path, q = unquote(u.path), {k: v[0] for k, v in parse_qs(u.query).items()}
+        self._raw = None
+        try:
+            self._dispatch(method, path, q)
+        finally:
+            # 요청 본문을 읽지 않고 응답한 경우(본문 없는 처리, 401/403 등)에도 남은 본문을 비움
+            # → keep-alive 연결에서 다음 요청 앞에 붙어 '{}GET' 처럼 깨지는 것 방지
+            if self._raw is None and not self.close_connection:
+                try:
+                    self.raw_body()
+                except ApiError:
+                    pass
+
+    def _dispatch(self, method, path, q):
+        try:
+            if not ip_allowed(self.client_address[0]):              # 사내망 접속만 허용
+                raise ApiError(403, '사내망에서만 접속할 수 있습니다')
+            if not self.origin_ok():                                 # 다른 웹페이지에서 API 호출 차단
+                raise ApiError(403, '허용되지 않은 출처입니다')
+            if method == 'GET' and path in ('/', '/dashboard.html'):
+                extra = {'Content-Disposition': "attachment; filename*=UTF-8''dashboard.html"} if 'download' in q else None
+                return self.send(200, html_bytes(), 'text/html; charset=utf-8', extra)
+            if method == 'GET' and path.startswith('/apps/'):   # 연결 프로그램 정적 파일 (운영 폴더 apps/)
+                return self.send_app_file(path[len('/apps/'):])
+            if not path.startswith('/api/'):
+                raise ApiError(404, '없는 경로')
+            r = self.api(method, path[5:].strip('/').split('/'), q)
+            if r is not None:                                       # None = 이미 직접 응답함 (첨부파일 내려받기)
+                self.send(200, r)
+        except ApiError as e:
+            self.send(e.code, {'error': e.msg})
+        except FileNotFoundError as e:
+            self.send(404, {'error': str(e)})
+        except Exception as e:
+            log.exception('처리 오류')
+            self.send(500, {'error': f'서버 오류: {e}'})
+
+    def send_app_file(self, rel):
+        """apps/ 아래 파일만 제공 (상위 폴더 접근 차단). 폴더면 index.html"""
+        base = os.path.realpath(P('apps'))
+        full = os.path.realpath(os.path.join(base, rel))
+        if full != base and not full.startswith(base + os.sep):
+            raise ApiError(403, '허용되지 않은 경로')
+        if os.path.isdir(full):
+            full = os.path.join(full, 'index.html')
+        if not os.path.isfile(full):
+            raise ApiError(404, '없는 파일')
+        ctype = mimetypes.guess_type(full)[0] or 'application/octet-stream'
+        if ctype.startswith('text/') or ctype in ('application/javascript', 'application/json'):
+            ctype += '; charset=utf-8'
+        with open(full, 'rb') as f:
+            self.send(200, f.read(), ctype)
+
+    def need_admin(self):
+        if not self.is_admin():
+            raise ApiError(403, '관리자(서버 PC)에서만 사용할 수 있습니다')
+
+    def token(self):
+        return (self.headers.get('X-Auth-Token') or '').strip()
+
+    def need_user(self, touch=True):
+        """로그인한 계정 (비회원은 보기만 가능). touch=False: 접속 표시 시각을 갱신하지 않음(익명게시판)"""
+        acc = session_account(self.token(), touch)
+        if not acc:
+            raise ApiError(401, '로그인이 필요합니다 (비회원은 보기만 할 수 있습니다)')
+        return acc
+
+    def body_by(self, menu='weekly'):
+        """쓰기 요청 본문 + 수정자 = 로그인 계정의 본명 (브라우저가 보낸 by 는 무시). 해당 메뉴 권한도 확인"""
+        name = self.need_menu(menu)['name']
+        return {**self.json_body(), 'by': name}
+
+    def need_menu(self, menu, touch=True):
+        """로그인 + 메뉴 권한 (운영자가 accounts/_perms.json 으로 부여)"""
+        acc = self.need_user(touch)
+        if not perms_for(acc, self.is_admin()).get(menu):
+            raise ApiError(403, f"'{dict(MENUS)[menu]}' 메뉴 권한이 없습니다 (운영자에게 요청하세요)")
+        return acc
+
+    def api(self, m, seg, q):
+        def sheet(i):
+            if len(seg) <= i or seg[i] not in SHEETS:
+                raise ApiError(400, '잘못된 시트')
+            return seg[i]
+
+        def rid(i):
+            if len(seg) <= i or not ID_RE.match(seg[i]):
+                raise ApiError(400, '잘못된 ID')
+            return seg[i]
+
+        head = seg[0] if seg else ''
+        if m == 'GET' and head == 'info':
+            return {'mode': 'server', 'admin': self.is_admin(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
+                    'perms': perms_for(session_account(self.token(), False), self.is_admin()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
+                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls()}
+        if head == 'auth':
+            if m == 'POST' and seg[1:] == ['register']:
+                return api_register(self.json_body())
+            if m == 'POST' and seg[1:] == ['login']:
+                return api_login(self.json_body())
+            if m == 'POST' and seg[1:] == ['reset']:
+                return api_reset(self.json_body())
+            if m == 'POST' and seg[1:] == ['logout']:
+                acc = session_account(self.token())
+                session_drop(token=self.token())
+                if acc:
+                    _presence.pop(acc['id'], None)
+                return {'status': 'ok'}
+            if m == 'GET' and seg[1:] == ['me']:
+                return acc_public(self.need_user())
+            if m == 'POST' and seg[1:] == ['ping']:
+                return api_ping(self.need_user(), self.is_admin())
+        if head == 'admin' and seg[1:] == ['perms']:             # 메뉴 권한 설정: 운영자(서버 PC)만
+            self.need_admin()
+            if m == 'GET':
+                return api_perms_get()
+            if m == 'PUT':
+                acc = session_account(self.token(), False)
+                return api_perms_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'msg':
+            acc = self.need_user()
+            if m == 'GET' and len(seg) == 1:
+                return api_msg_list(acc)
+            if m == 'POST' and len(seg) == 1:
+                return api_msg_send(acc, self.json_body())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'read':
+                return api_msg_read(acc, seg[1])
+            if m == 'DELETE' and len(seg) == 3:
+                return api_msg_delete(acc, seg[1], seg[2])
+        if m == 'GET' and head == 'all':
+            return api_all()
+        if head == 'rec':
+            if m == 'GET' and len(seg) == 3:
+                r = read_json(P('data', sheet(1), rid(2) + '.json'))
+                if not r:
+                    raise ApiError(404, '삭제된 행입니다')
+                return r
+            if m == 'POST' and len(seg) == 2:
+                return api_create(sheet(1), self.body_by())
+            if m == 'PUT' and len(seg) == 3:
+                return api_update(sheet(1), rid(2), self.body_by())
+            if m == 'DELETE' and len(seg) == 3:
+                return api_delete(sheet(1), rid(2), self.need_menu('weekly')['name'])
+        if head == 'trash':
+            if m == 'GET' and len(seg) == 1:
+                return api_trash()
+            if m == 'POST' and len(seg) == 4 and seg[3] == 'restore':
+                return api_restore(sheet(1), rid(2), self.need_menu('weekly')['name'])
+            if m == 'DELETE' and len(seg) == 3:
+                self.need_admin()
+                return api_purge(sheet(1), rid(2), self.need_menu('weekly')['name'])
+        if m == 'GET' and head == 'history' and len(seg) == 3:
+            return api_history(sheet(1), rid(2))
+        if m == 'GET' and head == 'recent':
+            return api_recent()
+        if m == 'GET' and head == 'archive' and len(seg) == 2:
+            if not WEEK_RE.match(seg[1]):
+                raise ApiError(400, '잘못된 주차')
+            return api_archive(seg[1])
+        if m == 'POST' and head == 'close':
+            self.need_admin()
+            return api_close(self.body_by())
+        if m == 'POST' and head == 'columns':
+            return api_add_column(self.body_by())
+        if m == 'POST' and head == 'saveall':
+            return api_saveall(self.body_by())
+        if head == 'files':                                       # 첨부파일: 올리기(로그인+주간업무보고 권한) / 내려받기
+            if m == 'PUT' and len(seg) == 1:
+                by = self.need_menu('weekly')['name']
+                return api_file_upload(q.get('name', ''), self.raw_body(), by)
+            if m == 'GET' and len(seg) == 2:
+                fm = file_meta(seg[1])
+                with open(P('files', fm['id'] + fm['ext']), 'rb') as f:
+                    data = f.read()
+                disp = 'inline' if fm['ext'] == '.pdf' and 'download' not in q else 'attachment'
+                self.send(200, data, FILE_TYPES[fm['ext']], {'Content-Disposition': f"{disp}; filename*=UTF-8''{quote(fm['name'])}"})
+                return None
+        if m == 'PUT' and head == 'saves':
+            self.need_menu('weekly')
+            return save_xlsx(q.get('tag', ''), self.raw_body())
+        if head == 'board':
+            if m == 'GET' and len(seg) == 1:
+                return api_board_list()
+            self.need_menu('board', touch=False)              # 글·댓글 쓰기는 로그인 + 게시판 권한 필요 (작성자 실명·접속 시각과 연결하지 않음)
+            if m == 'POST' and len(seg) == 1:
+                return api_board_create(self.json_body())
+            if m == 'PUT' and len(seg) == 2:
+                return api_board_update(seg[1], self.json_body())
+            if m == 'DELETE' and len(seg) == 2:
+                return api_board_delete(seg[1], self.json_body(), self.is_admin())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'comments':
+                return api_comment_add(seg[1], self.json_body())
+            if m == 'DELETE' and len(seg) == 4 and seg[2] == 'comments':
+                return api_comment_delete(seg[1], seg[3], self.json_body(), self.is_admin())
+        raise ApiError(404, '없는 API')
+
+
+class Server(ThreadingHTTPServer):
+    # Windows 에서 SO_REUSEADDR 는 이미 사용 중인 포트에도 bind 를 허용하므로 끄고, 배타적 사용을 요청
+    allow_reuse_address = False
+    daemon_threads = True
+
+    def server_bind(self):
+        if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def port_in_use(port):
+    """이미 누가 듣고 있으면 무엇인지 반환: 'dashboard' / 'other' / None"""
+    try:
+        with socket.create_connection(('127.0.0.1', port), timeout=1):
+            pass
+    except OSError:
+        return None
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/api/info', timeout=2) as r:
+            if json.loads(r.read()).get('mode') == 'server':
+                return 'dashboard'
+    except Exception:
+        pass
+    return 'other'
+
+
+def port_busy_exit(port, who):
+    msg = (f'[포트 사용 중] 대시보드 서버가 이미 포트 {port} 에서 실행 중입니다. 브라우저에서 http://localhost:{port}/ 로 접속하세요.'
+           if who == 'dashboard' else
+           f'[포트 사용 중] 포트 {port} 을(를) 다른 프로그램이 사용하고 있습니다. 해당 프로그램을 종료하거나 --port 로 다른 포트를 지정하세요.')
+    log.error(msg)
+    if any(isinstance(h, logging.FileHandler) for h in logging.getLogger().handlers):
+        print(msg)                                        # 로그를 파일로 보낼 때도 콘솔에 안내
+    sys.exit(2)
+
+
+def lan_ips():
+    ips = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    return sorted(ip for ip in ips if not ip.startswith('127.'))
+
+
+def main():
+    global ROOT, PORT, ALLOW_NETS
+    ap = argparse.ArgumentParser(description='계장ENG그룹 주간업무 Dashboard 서버')
+    ap.add_argument('--root', default=ROOT, help='운영 폴더 (dashboard.html, data/ 가 있는 폴더)')
+    ap.add_argument('--host', default='0.0.0.0')
+    ap.add_argument('--port', type=int, default=8080)
+    ap.add_argument('--log', help='로그 파일 (지정하지 않으면 콘솔)')
+    ap.add_argument('--open', action='store_true', help='서버 시작 후 브라우저로 http://localhost:포트 열기')
+    ap.add_argument('--backup-keep', type=int, default=60, help='백업 보관 일수')
+    ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
+    ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
+    a = ap.parse_args()
+
+    ROOT, PORT = os.path.abspath(a.root), a.port
+    # 사내망 = 루프백·사설망 + 이 서버 IP 가 속한 /16 대역 + --allow 대역
+    ALLOW_NETS = [ipaddress.ip_network(f'{ip}/16', strict=False) for ip in lan_ips()] + [ipaddress.ip_network(n, strict=False) for n in a.allow]
+    handlers = [logging.FileHandler(os.path.join(ROOT, a.log), encoding='utf-8')] if a.log else [logging.StreamHandler(sys.stdout)]
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', handlers=handlers)
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+        except Exception:
+            pass
+    if not os.path.isfile(P('dashboard.html')):
+        sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', os.path.join('data', '_meta')):
+        os.makedirs(P(d), exist_ok=True)
+
+    who = port_in_use(a.port)
+    if who:
+        port_busy_exit(a.port, who)
+    try:
+        srv = Server((a.host, a.port), Handler)
+    except OSError:
+        port_busy_exit(a.port, port_in_use(a.port) or 'other')
+    threading.Thread(target=backup_loop, args=(a.backup_keep, a.history_days), daemon=True).start()
+    threading.Thread(target=weekly_loop, daemon=True).start()
+    try:
+        build_deploy()
+    except Exception as e:
+        log.error('배포 파일 생성 실패: %s', e)
+    log.info('서버 v%s · 운영 폴더: %s', SERVER_VERSION, ROOT)
+    log.info('허용 대역: 루프백·사설망 + %s', ', '.join(map(str, ALLOW_NETS)) or '-')
+    log.info('부서원 배포 파일: %s', P('deploy'))
+    log.info('접속 주소(이 PC, 관리자): http://localhost:%d/', a.port)
+    for ip in lan_ips():
+        log.info('접속 주소(부서원):       http://%s:%d/', ip, a.port)
+    log.info('종료: Ctrl+C')
+    if a.open:
+        threading.Timer(1.0, lambda: webbrowser.open(f'http://localhost:{a.port}/')).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        log.info('서버 종료')
+
+
+if __name__ == '__main__':
+    main()
