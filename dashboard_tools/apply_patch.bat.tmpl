@@ -1,0 +1,126 @@
+@echo off
+setlocal EnableExtensions DisableDelayedExpansion
+rem ============================================================
+rem  Dashboard patch apply  (__PATCH_NAME__)
+rem  - Overwrites a file ONLY when the company copy equals the
+rem    baseline copy in this package (base\). Original is backed up
+rem    first to  <dashboard>\backup\patch___PATCH_NAME___<time>\
+rem  - If the company copy was changed locally, it is NOT touched:
+rem    the new version is placed next to it as  <file>.new
+rem  - Files that do not exist yet are added.
+rem  Usage: double-click, or drag the dashboard folder onto this file.
+rem ============================================================
+set "PKG=%~dp0"
+set "TARGET=%~1"
+if defined TARGET goto :check
+
+set /a CNT=0
+for /d %%D in ("C:\Claude\*Dashboard*") do if exist "%%D\server.py" (
+  set "TARGET=%%D"
+  set /a CNT+=1
+)
+if "%CNT%"=="1" goto :check
+set "TARGET="
+echo Dashboard folder was not found automatically.
+echo Drag the dashboard folder (the one with server.py) into this window,
+set /p "TARGET=then press Enter: "
+if not defined TARGET goto :nofolder
+
+:check
+set "TARGET=%TARGET:"=%"
+if "%TARGET:~-1%"=="\" set "TARGET=%TARGET:~0,-1%"
+if not exist "%TARGET%\server.py" goto :nofolder
+
+set "TS="
+for /f %%T in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss" 2^>nul') do set "TS=%%T"
+if not defined TS set "TS=%RANDOM%%RANDOM%"
+set "BK=%TARGET%\backup\patch___PATCH_NAME___%TS%"
+
+echo.
+echo Target : "%TARGET%"
+echo Backup : "%BK%"
+echo.
+echo Close the dashboard pages in Edge before continuing.
+choice /c YN /m "Apply this patch now"
+if errorlevel 2 goto :cancel
+
+set /a N_UPD=0, N_ADD=0, N_NEW=0, N_SAME=0, N_ERR=0
+for /r "%PKG%new" %%F in (*) do call :one "%%F"
+
+echo.
+echo ------------------------------------------------------------
+echo  updated : %N_UPD%   added : %N_ADD%   already same : %N_SAME%
+echo  kept as .new (company copy was changed) : %N_NEW%
+echo  errors  : %N_ERR%
+echo ------------------------------------------------------------
+if not "%N_NEW%"=="0" echo  * Files marked [.new] were NOT applied. Ask Claude Code to merge them.
+if not "%N_UPD%%N_ADD%"=="00" echo  * Originals were backed up to: "%BK%"
+__RESTART_NOTE__
+echo.
+pause
+exit /b 0
+
+rem ---------- one file ----------
+:one
+set "SRC=%~1"
+call set "REL=%%SRC:%PKG%new\=%%"
+set "DST=%TARGET%\%REL%"
+set "BASE=%PKG%base\%REL%"
+
+if not exist "%DST%" goto :add
+fc /b "%DST%" "%SRC%" >nul 2>&1
+if not errorlevel 1 goto :same
+if not exist "%BASE%" goto :keep
+fc /b "%DST%" "%BASE%" >nul 2>&1
+if errorlevel 1 goto :keep
+
+rem company copy == baseline -> back up, then overwrite
+for %%P in ("%BK%\%REL%") do if not exist "%%~dpP" mkdir "%%~dpP"
+copy /y "%DST%" "%BK%\%REL%" >nul 2>&1
+if errorlevel 1 goto :bkfail
+copy /y "%SRC%" "%DST%" >nul 2>&1
+if errorlevel 1 goto :err
+set /a N_UPD+=1
+echo   [updated] %REL%
+goto :eof
+
+:add
+for %%P in ("%DST%") do if not exist "%%~dpP" mkdir "%%~dpP"
+copy /y "%SRC%" "%DST%" >nul 2>&1
+if errorlevel 1 goto :err
+set /a N_ADD+=1
+echo   [added]   %REL%
+goto :eof
+
+:same
+set /a N_SAME+=1
+echo   [same]    %REL%
+goto :eof
+
+:keep
+copy /y "%SRC%" "%DST%.new" >nul 2>&1
+if errorlevel 1 goto :err
+set /a N_NEW+=1
+echo   [.new]    %REL%.new   (company copy differs from baseline - not overwritten)
+goto :eof
+
+:bkfail
+set /a N_ERR+=1
+echo   [ERROR]   backup failed, file left unchanged: %REL%
+goto :eof
+
+:err
+set /a N_ERR+=1
+echo   [ERROR]   copy failed: %REL%
+goto :eof
+
+:nofolder
+echo.
+echo [STOP] Dashboard folder (with server.py) not found. Nothing was changed.
+pause
+exit /b 1
+
+:cancel
+echo Cancelled. Nothing was changed.
+pause
+exit /b 1
