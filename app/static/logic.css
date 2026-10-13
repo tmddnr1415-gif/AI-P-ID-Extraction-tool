@@ -87,10 +87,11 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .net:hover .vis { stroke: var(--blue); stroke-width: 2; }
 #ov .net .fx { stroke: transparent; stroke-width: 2.6; pointer-events: none; }
 /* 디지털 1 = 형광 파랑 · 0 = 아무 표시 없음 (사용자 지시 L3) */
-#ov .net.on .fx { stroke: var(--active); stroke-width: 3; filter: drop-shadow(0 0 2.5px var(--active-glow)); }
+/* L18 — 사용자 지시 "강제신호 형광색을 조금 더 얇게": 3 → 1.8 · 빛 2.5 → 1.4px */
+#ov .net.on .fx { stroke: var(--active); stroke-width: 1.8; filter: drop-shadow(0 0 1.4px var(--active-glow)); }
 #ov .net.tr .fx { stroke: var(--trace); filter: drop-shadow(0 0 3px rgba(255,106,0,.5)); }
 #ov .net.tru .fx { stroke: var(--trace-up); }
-#ov .net.on.forced .fx { stroke-width: 3.8; }
+#ov .net.on.forced .fx { stroke-width: 2.3; }
 #ov .net.sel .vis { stroke: #000; stroke-width: 2; }
 #ov .blk { fill: transparent; stroke: transparent; stroke-width: .8; cursor: pointer; }
 #ov .blk:hover { stroke: var(--blue); fill: rgba(47,91,216,.06); }
@@ -110,7 +111,7 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .find { fill: none; stroke: var(--find); stroke-width: 1.2; }
 #ov .timer-txt { font: 600 4px system-ui, sans-serif; fill: var(--unk); }
 #ov .pulse { animation: lgpulse .9s ease-out 2; }
-@keyframes lgpulse { 0% { stroke-width: 6; opacity: .3 } 100% { stroke-width: 2.6; opacity: 1 } }
+@keyframes lgpulse { 0% { stroke-width: 4; opacity: .3 } 100% { stroke-width: 1.8; opacity: 1 } }
 
 /* 입력 신호 메뉴 (L4) */
 .force-menu { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px;
@@ -304,7 +305,7 @@ body.lg-full .lg-view { position: fixed; inset: 0; z-index: 40; background: var(
 /* L13 — 연결 기호 A ↔ A 가상 점선 */
 #ov .clink { stroke: #7b4dff; stroke-width: .7; stroke-dasharray: 2.5 2; opacity: .45; pointer-events: stroke; }
 #ov.sim .clink { opacity: .25; }
-#ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.4; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
+#ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.1; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
 #ov .rowpin.implied { stroke: #0f8f80; stroke-width: 1.2; stroke-dasharray: 1.2 .8; }
 .force-menu button.vs { color: #0a7a3c; font-weight: 600; border-top: 1px solid #eee; }
 
@@ -364,3 +365,60 @@ button.big { padding: 8px 28px; font-size: 15px; font-weight: 700; }
 .lg-head .lg-status { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lg-head h1 { white-space: nowrap; }
 #samples { display: inline-flex; gap: 4px; }
+
+/* L15 — 출력을 활성화했을 때 필요한 입력: 주황 3번 점등 */
+#ov #g-need g.need { animation-name: needflash; animation-timing-function: ease-in-out; animation-fill-mode: forwards; pointer-events: none; }
+#ov #g-need circle, #ov #g-need rect { fill: rgba(255, 140, 0, .28); stroke: #ff8c00; stroke-width: 1.6; }
+#ov #g-need line { stroke: #ff8c00; stroke-width: 3.2; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255,140,0,.8)); }
+@keyframes needflash { 0% { opacity: 0 } 45% { opacity: 1 } 100% { opacity: 0 } }
+.lg-rows li.needli { animation: needli 520ms ease-in-out 3; }
+@keyframes needli { 50% { background: #ffd8a8; box-shadow: inset 3px 0 0 #ff8c00; } }
+/* L15 — 타이머 시간 · 카운트다운 */
+#ov text.tsec { fill: #0b5f8a; text-anchor: middle; font-weight: 600; pointer-events: none; }
+#ov text.tsec.user { fill: #b25a00; }
+#ov text.tsec.default { fill: #6b7280; }
+#ov .tcount rect { fill: #fff7e6; stroke: #ff8c00; stroke-width: .5; }
+#ov .tcount rect.tc-bar { fill: #ff8c00; stroke: none; }
+#ov .tcount text { fill: #8a4200; text-anchor: middle; font-weight: 700; }
+.force-menu .fm-t { display: flex; gap: 6px; align-items: center; padding: 4px 8px; font-size: 12px; }
+.force-menu .fm-t input { width: 80px; padding: 3px 5px; }
+.force-menu .fm-t input.bad { outline: 2px solid #d1242f; }
+#ov #g-count, #ov #g-need { pointer-events: none; }
+
+/* L16 — 강제 신호 전체 리셋 (눈에 띄게) */
+.lg-tools button.lg-reset, button.lg-reset { background: #fff4f2; border-color: #d9534f; color: #b52b27; font-weight: 600; }
+button.lg-reset:hover { background: #d9534f; color: #fff; }
+
+/* L19 — 신호 현황 팝업 (이동 가능 · 위치 기억) */
+.lg-sigpop { position: fixed; z-index: 30; width: 380px; max-height: 70vh; display: flex; flex-direction: column; background: #fff;
+  border: 1px solid #2a3a62; border-radius: 8px; box-shadow: 0 8px 26px rgba(20,30,60,.28); font-size: 12.5px; }
+.lg-sigpop[hidden] { display: none; }
+.lg-sigpop .sp-h { background: #2a3a62; color: #fff; padding: 6px 8px 6px 10px; display: flex; align-items: center; gap: 6px;
+  cursor: move; user-select: none; border-radius: 7px 7px 0 0; touch-action: none; }
+.lg-sigpop .sp-h small { opacity: .85; font-weight: 400; }
+.lg-sigpop .sp-h button { background: transparent; color: #fff; border: 0; cursor: pointer; font-size: 13px; padding: 0 4px; }
+.lg-sigpop .sp-min { margin-left: auto; }
+.lg-sigpop.min .sp-b { display: none; }
+.lg-sigpop .sp-b { overflow: auto; padding: 4px 0 6px; }
+.lg-sigpop h4 { margin: 8px 10px 3px; font-size: 12px; color: #2a3a62; }
+.lg-sigpop h4 small { color: #8a93a6; font-weight: 400; }
+.lg-sigpop ul { list-style: none; margin: 0; padding: 0; }
+.lg-sigpop li { padding: 4px 10px; border-bottom: 1px solid #eef0f5; cursor: pointer; line-height: 1.35; }
+.lg-sigpop li:hover { background: #f1f6ff; }
+.lg-sigpop li.cur { background: #eaf6ff; }
+.lg-sigpop .v1 { display: inline-block; min-width: 16px; text-align: center; border-radius: 3px; background: var(--active, #00b4ff);
+  color: #fff; font-weight: 700; margin-right: 4px; }
+.lg-sigpop .v0 { display: inline-block; min-width: 16px; text-align: center; border-radius: 3px; background: #fff; color: #3b4252;
+  border: 1px solid #b6bdcc; font-weight: 700; margin-right: 4px; }
+.lg-sigpop .sp-sh { font-weight: 600; color: #2a3a62; }
+.lg-sigpop .sp-to { color: #6b5bd2; }
+.lg-sigpop .sp-end { color: #0a7a3c; }
+.lg-sigpop .sp-no { color: #c0392b; }
+.lg-sigpop .sp-empty { padding: 10px; color: #8a93a6; }
+.lg-sigpop .sp-foot { padding: 6px 10px 2px; color: #8a93a6; }
+#sig-toggle.on { background: #2a3a62; color: #fff; }
+.lg-sigpop li { display: flex; align-items: flex-start; gap: 4px; }
+.lg-sigpop li .sp-what { flex: 1; }
+.lg-sigpop .sp-off { margin-left: 6px; flex: none; font-size: 11px; padding: 1px 7px; border: 1px solid #c0392b; color: #c0392b;
+  background: #fff; border-radius: 4px; cursor: pointer; }
+.lg-sigpop .sp-off:hover { background: #c0392b; color: #fff; }

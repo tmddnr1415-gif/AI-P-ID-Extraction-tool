@@ -182,9 +182,13 @@ def test_simulation_follows_the_legend_definitions():
     assert r["frames"][-1]["values"]["8"] == 1
     r = sim.simulate(s, {"row:7": 1}, r["state"])
     assert r["frames"][-1]["values"]["8"] == 0
-    # 선 강제는 몰이를 이긴다
+    # L16 — 게이트가 모는 선은 직접 바꾸지 않는다: OR 의 입력이 1 이면 출력 0 을 줘도 1 이고 모순으로 말한다
     r = sim.simulate(s, {"row:1": 1, "net:3": 0})
-    assert r["frames"][-1]["values"]["3"] == 0
+    assert r["frames"][-1]["values"]["3"] == 1 and r["conflicts"] and r["unmet"]
+    # 몰이가 없는 선은 예전처럼 직접 준다
+    s2 = _toy()
+    s2["rows"] = [x for x in s2["rows"] if x["n"] != 4]
+    assert sim.simulate(s2, {"net:4": 1, "row:1": 1})["frames"][-1]["values"]["5"] == 1
 
 
 def test_trace_goes_through_blocks_in_depth_order():
@@ -631,7 +635,9 @@ def test_forcing_a_gate_output_sets_its_inputs_logically():
     assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 0}
     v = r["frames"][-1]["values"]
     assert v["r1"] == v["r2"] == 1 and v["r3"] == 0 and v["n3"] == 1 and v["g"] == 1
-    assert sim.simulate(s, {"net:o": 1})["implied"] == {}               # OR=1 — 어느 입력인지 정해지지 않는다
+    ro = sim.simulate(s, {"net:o": 1})                                   # L17 — OR=1: 입력 하나를 골라 앞으로 돌려 확인
+    assert ro["choice"] == {"row:4": 1} and ro["implied"] == {"row:4": 1} and not ro["unmet"]
+    assert ro["frames"][-1]["values"]["o"] == 1 and ro["frames"][-1]["values"]["r5"] == 0
     assert sim.simulate(s, {"net:o": 0})["implied"] == {"row:4": 0, "row:5": 0}
     r = sim.simulate(s, {"net:g": 1, "row:3": 1})                      # 사람이 준 값과 어긋나면 모순으로 말한다
     assert r["conflicts"] and r["implied"].get("row:3") is None
@@ -687,3 +693,230 @@ def test_logic_first_screen_projects_and_materials(tmp_path, monkeypatch):
         sc = client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": f"row:{out['n']}"}).json()
         assert "ok" in sc
     assert client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": "x"}).status_code == 400
+
+
+def test_timer_default_is_ten_seconds_and_the_user_can_change_it():
+    """L15 — 도면에 시간이 없는 타이머는 기본 10초 · 사람이 바꾼 시간이 이긴다 · 세는 타이머는 틀에 남는다."""
+    s = _toy()
+    s["blocks"]["PD"]["param"] = {}                                   # 도면이 시간을 적지 않았다
+    assert sim.DEFAULT_T == 10.0
+    r = sim.simulate(s, {"row:1": 1, "row:4": 1})
+    assert r["frames"][-1]["t"] == pytest.approx(10.0)
+    assert any("10초" in n for n in r["notes"])
+    run = r["frames"][0]["running"]
+    assert run == [{"block": "PD", "left": 10.0, "T": 10.0}], "세기 시작한 타이머 · 남은 시간"
+    r = sim.simulate(s, {"row:1": 1, "row:4": 1}, timers={"PD": 3.5})
+    assert r["frames"][-1]["t"] == pytest.approx(3.5) and not any("10초" in n for n in r["notes"])
+    # 도면 값(2초)도 사람이 바꾼 값에 진다 · 틀린 값은 버린다
+    s2 = _toy()
+    assert sim.simulate(s2, {"row:1": 1, "row:4": 1}, timers={"PD": 7})["frames"][-1]["t"] == pytest.approx(7)
+    assert sim.simulate(s2, {"row:1": 1, "row:4": 1}, timers={"PD": -1})["frames"][-1]["t"] == pytest.approx(2)
+    # 묶음째 돌릴 때도 장마다 시간이 간다
+    s2.update(page=3, sheet_no="G003")
+    b = sim.simulate_bundle([s2], {3: {"row:1": 1, "row:4": 1}}, focus=3, timers={3: {"PD": 4}})
+    assert b["focus"]["frames"][-1]["t"] == pytest.approx(4)
+
+
+def test_activating_an_output_finds_and_flashes_the_inputs_it_needs():
+    """L15 — 출력(행 · 블록이 모는 선)을 1 로 주면 범례 정의로 필요한 입력을 찾아 켜고 주황으로 3번 점등한다."""
+    s = _toy()
+    sc = sim.scenario(s, "net:5")                                      # AND 출력 = 블록이 모는 선
+    assert sc["ok"] and {k for k, v in sc["forces"].items() if v == 1} >= {"row:4"}
+    src = (Path(__file__).resolve().parents[1] / "app/static/logic.js").read_text(encoding="utf-8")
+    assert "if (v === 1 && wantsScenario(key)) { activateOutput(key); return; }" in src
+    assert "const NEED_FLASH = 3;" in src and "flashNeed(on)" in src
+    assert 'type: "macro-need"' in src and "handleMacroNeed" in src, "매크로 새 창 ↔ 부모 창이 같이 활성화"
+    assert "timers: L.timers" in src and "startCount(run)" in src, "타이머 시간을 보내고 실제로 센다"
+
+
+def test_forcing_an_and_output_chains_back_and_never_bypasses_the_gate():
+    """L16 — AND 출력을 1 로 주면 앞쪽 입력이 줄줄이 1 이 되고(AND ← AND ← 메모리 SET), 입력 하나라도 0 으로
+    남으면 AND 출력은 나가지 않는다 (사용자 지시 — "12 · 14 번이 활성화 안 되었는데 AND 의 Output 이 나가면 안 된다")."""
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    blocks = {"A1": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "A2": {"func": "AND", "logic": "and", "group": "", "param": {}},
+              "M": {"func": "MEMORY", "logic": "memory", "group": "", "param": {}}}
+    ports = [P("A2", "r1", "in"), P("A2", "r2", "in"), P("A2", "a2", "out"),
+             P("M", "r3", "in", "set"), P("M", "r4", "in", "reset"), P("M", "q", "out", "q"),
+             P("A1", "a2", "in"), P("A1", "q", "in"), P("A1", "r5", "in"), P("A1", "o", "out")]
+    rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in (1, 2, 3, 4, 5)] + [{"n": 74, "side": "R", "net": "o"}]
+    s = {"blocks": blocks, "ports": ports, "rows": rows,
+         "nets": {n: {"segs": []} for n in ("r1", "r2", "r3", "r4", "r5", "a2", "q", "o")}}
+    r = sim.simulate(s, {"row:74": 1})
+    assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 1, "row:4": 0, "row:5": 1}
+    v = r["frames"][-1]["values"]
+    assert v["o"] == 1 and v["a2"] == 1 and v["q"] == 1 and not r["unmet"]
+    # 사람이 입력 하나(5행)를 0 으로 두면 AND 는 1 을 내지 않는다 — 출력을 직접 켜지 않는다
+    r = sim.simulate(s, {"row:74": 1, "row:5": 0})
+    assert r["frames"][-1]["values"]["o"] == 0
+    assert r["unmet"] and r["unmet"][0]["block"] == "A1" and r["conflicts"]
+    # 선(net) 으로 줘도 같다
+    assert sim.simulate(s, {"net:o": 1, "row:2": 0})["frames"][-1]["values"]["o"] == 0
+
+
+def test_reset_all_clears_every_forced_signal_in_the_screen():
+    """L16 — 강제 신호 전체 리셋 단추: 모든 시트의 강제 · 상태 · 거꾸로 맞춘 값 · 예시를 지운다."""
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    assert "강제 신호 전체 리셋" in html and '$("#reset").onclick = resetAll' in js
+    body = js[js.index("function resetAll()"):js.index("function setForce(")]
+    for k in ("L.allForces = {}", "L.states = {}", "L.implied = {}", "L.scenario = null"):
+        assert k in body
+
+
+def test_forcing_an_output_chains_through_the_sheet_that_sends_its_input():
+    """L16 — 출력 조건에 다른 시트에서 오는 입력이 있으면 그 시트의 출력까지 줄줄이 켠다 (그 시트의 게이트가 막으면 머문다)."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 1, "side": "L", "net": "a1"}, {"n": 2, "side": "L", "net": "a2"},
+                         {"n": 50, "side": "R", "net": "ao", "desc": "READY"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "a1", "in"), P("G", "a2", "in"), P("G", "ao", "out")])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6", "ref": {"page": 1, "row": 50}},
+                         {"n": 7, "side": "L", "net": "c7"}, {"n": 40, "side": "R", "net": "co"}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, C], {3: {"row:40": 1}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 1
+    assert b["chain_forces"] == {1: {"row:50": 1}}
+    assert b["pulled"][0]["from_sheet"] == "A1" and b["pulled"][0]["row"] == 6
+    # 보내는 시트의 입력을 사람이 0 으로 두면 그 시트 AND 가 막고 — 뒤 시트 출력도 나가지 않는다
+    b = sim.simulate_bundle([A, C], {3: {"row:40": 1}, 1: {"row:1": 0}}, None, 3)
+    assert b["focus"]["frames"][-1]["values"]["co"] == 0 and b["focus"]["unmet"]
+
+
+def test_forcing_any_gate_output_reaches_it_only_through_its_inputs():
+    """L17 — AND 뿐 아니라 모든 게이트: 출력 행을 1/0 으로 주면 범례 정의로 입력을 골라(정해지지 않으면 갈래 하나를
+    앞으로 돌려 확인) 게이트가 그 값을 낸다.  게이트 출력이 입력과 어긋나는 일은 없다."""
+    def run(s, v, **kw):
+        r = sim.simulate(s, {"row:90": v}, **kw)
+        fr = r["frames"]
+        ins = {p["net"] for p in s["ports"] if p["dir"] == "in"}
+        return r, fr[-1]["values"], [f["values"]["o"] for f in fr], ins
+
+    for lg, n in (("and", 3), ("or", 3), ("nand", 3), ("nor", 3), ("not", 1)):
+        for v in (1, 0):
+            s = _one(lg, n)
+            r, val, outs, _ = run(s, v)
+            assert not r["unmet"] and val["o"] == v, (lg, v)
+            iv = [val[f"i{k}"] for k in range(n)]
+            assert sim.gate3(lg, iv) == v, (lg, v, iv)               # 게이트가 낸 값 — 직접 켠 것이 아니다
+    # OR=1 · NOR=0 은 입력 **하나**만 고른다 (나머지는 0 그대로)
+    for lg, v in (("or", 1), ("nor", 0)):
+        r, val, _, _ = run(_one(lg, 3), v)
+        assert sum(val[f"i{k}"] for k in range(3)) == 1 and len(r["choice"]) == 1
+    # 사람이 0 으로 준 입력은 고르지 않고 다른 입력을 고른다
+    r = sim.simulate(_one("or", 3), {"row:90": 1, "row:1": 0})
+    assert not r["unmet"] and r["frames"][-1]["values"]["i0"] == 0
+    # 투표 2/3 — 두 입력을 1 로
+    r, val, _, _ = run(_one("unknown", 3, label="2/3"), 1)
+    assert not r["unmet"] and sum(val[f"i{k}"] for k in range(3)) == 2
+    # 타이머 — GT 는 t초 뒤 · PD 는 입력이 1 로 바뀌는 순간
+    for lg in ("delay_on", "pulse", "delay_off"):
+        r, val, outs, _ = run(_one(lg, 1, param={"t": 2}), 1)
+        assert not r["unmet"] and 1 in outs and val["i0"] == 1, lg
+    # 입력이 하나뿐인 AND — 조건을 확인할 수 없어 1 을 내지 않는다 (L10) · 블록 자체를 눌러도 같다
+    r, val, _, _ = run(_one("and", 1), 1)
+    assert r["unmet"] and val["o"] == 0
+    r = sim.simulate(_one("and", 0), {"block:G": 1})
+    assert r["unmet"] and r["frames"][-1]["values"]["o"] == 0
+
+
+def test_forcing_a_latched_memory_to_zero_resets_it():
+    """L17 — 이미 SET 된 래치의 Q 를 0 으로 주면 RESET 입력을 1 로 (범례 G003 메모리)."""
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    blocks = {"M": {"func": "MEMORY", "logic": "memory", "group": "", "label": "", "param": {}}}
+    ports = [P("M", "s", "in", "set"), P("M", "r", "in", "reset"), P("M", "o", "out", "q")]
+    rows = [{"n": 1, "side": "L", "net": "s"}, {"n": 2, "side": "L", "net": "r"}, {"n": 90, "side": "R", "net": "o"}]
+    s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in "sro"}}
+    on = sim.simulate(s, {"row:90": 1})
+    assert not on["unmet"] and on["frames"][-1]["values"]["s"] == 1 and on["frames"][-1]["values"]["o"] == 1
+    off = sim.simulate(s, {"row:90": 0}, state=on["state"])
+    v = off["frames"][-1]["values"]
+    assert not off["unmet"] and v["o"] == 0 and v["r"] == 1 and v["s"] == 0
+
+
+def test_no_gate_ever_outputs_against_its_inputs_random_circuits():
+    """L18 — 사용자 확정: *앞으로 모든 Logic 의 논리 게이트는 논리적으로 동작해야 한다.*  무작위 회로 300개에 무작위
+    강제(입력 행 · 게이트 출력 선 · 게이트 블록)를 줘도 **모든 틀**에서 AND·OR·NAND·NOR·NOT·투표의 출력이 그 틀의
+    입력으로 범례 G003 이 내는 값과 같다 (출력 선을 직접 켜서 건너뛰는 일이 없다)."""
+    import random
+    rnd = random.Random(17)
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    kinds = ["and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "pulse"]
+    for case in range(300):
+        nets = [f"r{k}" for k in range(1, 6)]
+        rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in range(1, 6)]
+        blocks, ports = {}, []
+        for i in range(rnd.randint(2, 7)):
+            lg = rnd.choice(kinds)
+            bid, out = f"B{i}", f"o{i}"
+            k = 1 if lg in ("not", "delay_on", "pulse") else (3 if lg == "vote" else rnd.randint(2, 3))
+            src = rnd.sample(nets, min(k, len(nets)))
+            b = {"func": lg.upper(), "logic": "unknown" if lg == "vote" else lg, "group": "",
+                 "label": "2/3" if lg == "vote" else "", "param": {"t": 1} if lg in ("delay_on", "pulse") else {}}
+            blocks[bid] = b
+            if lg == "memory":
+                ports += [P(bid, src[0], "in", "set"), P(bid, src[1], "in", "reset"), P(bid, out, "out", "q")]
+            else:
+                ports += [P(bid, n, "in") for n in src] + [P(bid, out, "out")]
+            nets.append(out)
+        rows.append({"n": 90, "side": "R", "net": nets[-1]})
+        s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in nets}}
+        forces = {}
+        for _ in range(rnd.randint(1, 3)):
+            pick = rnd.choice(["row", "net", "block", "out"])
+            v = rnd.randint(0, 1)
+            if pick == "row":
+                forces[f"row:{rnd.randint(1, 5)}"] = v
+            elif pick == "net":
+                forces[f"net:{rnd.choice(nets[5:])}"] = v
+            elif pick == "block":
+                forces[f"block:{rnd.choice(list(blocks))}"] = v
+            else:
+                forces["row:90"] = v
+        r = sim.simulate(s, forces)
+        ins, outs, drivers, _, _ = sim._index(s)
+        for fr in r["frames"]:
+            unread = set(fr["unread"])
+            val = lambda n: None if n in unread else fr["values"].get(n, 0)
+            for bid, b in blocks.items():
+                vt = sim._vote_of(b)
+                if b["logic"] not in sim.MIN_INPUTS and not vt:
+                    continue
+                iv = [val(n) for n, _, _ in ins[bid]]
+                exp = sim._vote3(iv, *vt) if vt else sim.gate3(b["logic"], iv)
+                for n, _, _ in outs[bid]:
+                    assert fr["values"].get(n, 0) == (exp or 0), (case, forces, bid, b["logic"], iv)
+
+
+def test_status_popup_lists_given_signals_and_resulting_outputs():
+    """L19 — 신호 현황 팝업: 사람이 준 신호(모든 시트)와 그에 따라 1 이 된 출력 행을 설명 · TO 와 함께 낸다.
+    신호가 닿았는데 게이트가 막은 시트는 받은 입력이 남는다.  화면은 머리줄을 끌어 옮기고 자리를 기억한다."""
+    P = lambda b, n, d: {"block": b, "net": n, "dir": d, "role": "", "cell": 0}
+    A = _sheet(1, "A1", [{"n": 95, "side": "R", "net": "a", "desc": "READY", "to": "C1-6"}])
+    C = _sheet(3, "C1", [{"n": 6, "side": "L", "net": "c6", "desc": "IN6", "fm": "A1-95"},
+                         {"n": 7, "side": "L", "net": "c7", "desc": "IN7"},
+                         {"n": 40, "side": "R", "net": "co", "desc": "OUT", "to": ""}],
+               {"G": {"func": "AND", "logic": "and", "group": "", "param": {}}},
+               [P("G", "c6", "in"), P("G", "c7", "in"), P("G", "co", "out")])
+    b = sim.simulate_bundle([A, C], {1: {"row:95": 1}}, None, 1)
+    pg = {c["sheet_no"]: c for c in b["pages"]}
+    assert pg["A1"]["forced"] == [{"key": "row:95", "value": 1, "kind": "row", "row": 95, "side": "R",
+                                   "desc": "READY", "ref": "C1-6"}]
+    assert [x["row"] for x in pg["A1"]["outputs"]] == [95]
+    assert pg["C1"]["outputs"] == [] and [x["desc"] for x in pg["C1"]["inputs"]] == ["IN6"]   # AND 가 막았다
+    b = sim.simulate_bundle([A, C], {1: {"row:95": 1}, 3: {"row:7": 1}}, None, 1)
+    pg = {c["sheet_no"]: c for c in b["pages"]}
+    assert pg["C1"]["outputs"][0]["desc"] == "OUT" and pg["C1"]["outputs"][0]["ref"] == ""      # 최종 출력
+    assert pg["C1"]["forced"][0]["desc"] == "IN7"
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    html = (ROOT / "app/static/logic.html").read_text(encoding="utf-8")
+    assert 'id="sigpop"' in html and 'id="sig-toggle"' in html
+    body = js[js.index("function renderSigPop()"):js.index("function renderFindings()")]
+    assert "pointerdown" in body and "SIGPOP_POS" in body and "goToRef" in body
+    assert "fetch(" not in body and "post(" not in body       # 서버가 낸 값을 읽기만 한다
+    assert "data-off" in body and "unforce(" in body                    # 다른 시트의 신호도 이 창에서 끈다
+    uf = js[js.index("function unforce("):js.index("function placeSigPop(")]
+    assert "delete f[key]" in uf and "runSim(" in uf
+    rc = js[js.index("function renderChain()"):js.index("function renderFindings()")]
+    assert "renderSigPop()" in rc

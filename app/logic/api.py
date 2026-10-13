@@ -333,7 +333,7 @@ def simulate(job: str, page: int, body: dict = Body(default={})):
         if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in ("net", "row", "block"):
             clean[k] = int(v)
     state = body.get("state") if isinstance(body.get("state"), dict) else None
-    return sim.simulate(s, clean, state)
+    return sim.simulate(s, clean, state, timers=_timers(body.get("timers")).get(page))
 
 
 @router.post("/logic/api/jobs/{job}/sheet/{page}/trace")
@@ -383,7 +383,24 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     state = body.get("state") if isinstance(body.get("state"), dict) else None
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
-    return sim.simulate_bundle(res["sheets"], forces, state, focus)
+    timers = _timers(body.get("timers"))
+    out = sim.simulate_bundle(res["sheets"], forces, state, focus, timers=timers)
+    out["default_t"] = sim.DEFAULT_T
+    return out
+
+
+def _timers(raw):
+    """L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}}.  틀린 값은 버린다 (도면 값 · 기본 10초로 돈다)."""
+    if not isinstance(raw, dict):
+        return {}
+    out = {}
+    for pg, d in raw.items():
+        if not str(pg).isdigit() or not isinstance(d, dict):
+            continue
+        c = {str(b): float(v) for b, v in d.items() if sim._secs(v) is not None}
+        if c:
+            out[int(pg)] = c
+    return out
 
 
 @router.get("/logic/api/jobs/{job}/memo")

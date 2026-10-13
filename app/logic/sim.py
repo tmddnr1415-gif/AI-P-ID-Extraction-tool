@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-DEFAULT_T = 1.0
+DEFAULT_T = 10.0          # L15 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 10초)
 MAX_ITER = 300
 MAX_FRAMES = 24
 
@@ -88,6 +88,8 @@ def _b(v):
 # 범례 G003 이 여러 입력(A·B·C…X)으로 그리는 게이트는 입력이 둘 이상이다 · NOT 은 하나다.
 # 그보다 적게 읽혔으면 모자란 칸은 '모름' 이다 (그 칸의 선을 도면에서 못 읽었다).
 MIN_INPUTS = {"and": 2, "nand": 2, "or": 2, "nor": 2, "not": 1}
+# L16 — 이 블록이 모는 선은 사람이 직접 켜지 않는다 (목표로 두고 게이트가 판정한다)
+GATE_LOGIC = {"and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "delay_off", "pulse", "step"}
 _VOTE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")       # 범례 'A/B' — A 개 이상 입력이 있을 때만 출력
 
 
@@ -180,6 +182,18 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
                 back(iv[0], 1 - v, depth + 1)
             elif lg in ("delay_on", "delay_off", "pulse") and v == 1 and len(iv) == 1:
                 back(iv[0], 1, depth + 1)
+            elif lg == "memory":
+                # L16 — Q=1(또는 반대 출력 D=0) 이 나오려면 SET 이 1 이어야 하고 (SET 입력이 하나일 때만 정해진다),
+                # SET 우선이 아니면 RESET 은 0 이어야 한다.  Q=0 은 '한 번도 SET 안 됨' 일 수도 있어 정해지지 않는다.
+                q1 = (v == 1) != (role == "qn")
+                if q1:
+                    sets = [n for n, r_, _ in ins[x] if r_ == "set"]
+                    if len(sets) == 1:
+                        back(sets[0], 1, depth + 1)
+                    if (b.get("param") or {}).get("dominant") != "set":
+                        for n, r_, _ in ins[x]:
+                            if r_ == "reset":
+                                back(n, 0, depth + 1)
             elif lg == "connector":
                 g = groups.get(b.get("group") or x, [x])
                 gin = [n for gid in g for n, _, _ in ins[gid]]
@@ -192,6 +206,24 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
     return implied, conflicts
 
 
+def _secs(v):
+    """사람이 적은 타이머 시간 — 0 보다 크고 하루 이하인 수만."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if 0 < f <= 86400 else None
+
+
+def timer_seconds(b, override=None):
+    """L15 — 타이머 시간: 사람이 바꾼 값 → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
+    for v in (override, (b.get("param") or {}).get("t")):
+        f = _secs(v)
+        if f is not None:
+            return f
+    return DEFAULT_T
+
+
 def _frame(t, val, depth, note):
     """화면은 1/0 만 본다 — 모름은 0 (출력 없음) 으로 내고 어느 선이 모름이었는지는 `unread` 에 남긴다."""
     return {"t": t, "values": {n: (0 if v is None else v) for n, v in val.items()},
@@ -199,12 +231,16 @@ def _frame(t, val, depth, note):
             "depth": depth, "note": note}
 
 
-def simulate(s, forces=None, state=None, now=0.0):
+def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
+    soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
+    요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
+    settled = 보내는 시트에 이미 요청한 입력 행 — 그 시트가 실제로 낸 값을 그대로 쓴다 (그 시트 게이트가 막았으면 0).
 
     → {"frames": [{"t", "values", "depth", "note"}], "state", "notes"}
     """
     forces = dict(forces or {})
+    tset = {str(k): float(v) for k, v in (timers or {}).items() if _secs(v) is not None}
     st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     if state:
@@ -218,6 +254,24 @@ def simulate(s, forces=None, state=None, now=0.0):
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
+    row_force0, blk_force0 = dict(row_force), dict(blk_force)
+    # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로.
+    # L16 — 단 그 선을 **게이트가 몰면** 그 값은 '목표' 다: 선을 직접 그 값으로 두지 않고, 거꾸로 맞추기로 게이트 앞
+    # 입력을 줄줄이 정한 뒤 게이트가 범례대로 판정한다 (사용자 지시 — "AND 의 12 · 14 번이 활성화 안 되었는데 AND 의
+    # Output 이 나가면 안 된다").  몰이가 없는 선 · 판정 못 한 블록 · 연결 기호 · 누름단추가 모는 선은 예전처럼 직접 준다.
+    for r in s["rows"]:
+        if r["side"] == "R" and r["n"] in row_force and r.get("net") is not None:
+            net_force.setdefault(r["net"], row_force[r["n"]])
+    goals = {}
+    for n in list(net_force):
+        if any(kind == "block" and _gate_like(B[x]) for kind, x, _ in drivers.get(n, [])):
+            goals[n] = net_force.pop(n)
+    # L17 — 게이트 블록 자체를 사람이 1/0 으로 주어도 같다 (입력이 안 읽힌 게이트를 눌러 켠 경우): 출력 선을 목표로.
+    for bid in list(blk_force):
+        if bid in B and _gate_like(B[bid]):
+            v = blk_force.pop(bid)
+            for n, role, _ in outs[bid]:
+                goals.setdefault(n, (1 - v) if role == "qn" else v)
     # L13 — 연결 기호(같은 글자 A ↔ A)는 한 신호다: 사람이 그 묶음의 어느 기호 · 그 기호에 닿은 선을 1/0 으로 주면
     # 같은 묶음의 다른 기호에서 나가는 선도 그 값이다 (사용자 지시 — "A 가 활성화되면 반대쪽 A 도").
     for gid, members in groups.items():
@@ -232,10 +286,6 @@ def simulate(s, forces=None, state=None, now=0.0):
         for m in members:
             for n, _, _ in outs[m]:
                 net_force.setdefault(n, v)
-    # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로 (그 선을 모는 블록보다 이긴다)
-    for r in s["rows"]:
-        if r["side"] == "R" and r["n"] in row_force and r.get("net") is not None:
-            net_force.setdefault(r["net"], row_force[r["n"]])
 
     def block_out(bid, role, cell, val):
         b = B[bid]
@@ -352,9 +402,10 @@ def simulate(s, forces=None, state=None, now=0.0):
                 continue
             ts = st["tim"].setdefault(bid, {"out": 0, "inp": 0, "due": None, "to": None})
             inp = _b(_or3([val.get(n) for n, _, _ in ins[bid]]))
-            T = float(b.get("param", {}).get("t") or DEFAULT_T)
-            if not b.get("param", {}).get("t"):
-                notes.add("타이머 시간을 읽지 못한 블록은 1초로 보았습니다")
+            T = timer_seconds(b, tset.get(bid))
+            if bid not in tset and not b.get("param", {}).get("t"):
+                notes.add(f"타이머 시간을 읽지 못한 블록은 {DEFAULT_T:g}초로 보았습니다 (블록을 눌러 바꿀 수 있습니다)")
+            ts["T"] = T
             prev = ts["inp"]
             if lg == "delay_on":
                 if inp == 1 and prev != 1:
@@ -384,16 +435,38 @@ def simulate(s, forces=None, state=None, now=0.0):
     # L13 — 거꾸로 맞추기: 사람이 게이트 **뒤** 선(또는 출력 행)을 1/0 으로 주면, 그 값이 나오도록 범례 조건으로
     # 정해지는 입력을 앞쪽으로 따라가며 정한다 (사용자 지시 — "AND 이후 신호를 활성화하면 Gate input 들은 AND output 이
     # 나갈 수 있는 조건으로 0 or 1 로 모두 강제").  정해지지 않는 자리(OR=1 · AND=0 · 메모리)에서는 멈춘다.
-    implied, conflicts = _back_propagate(B, ins, drivers, groups, dict(net_force),
+    implied, conflicts = _back_propagate(B, ins, drivers, groups, {**net_force, **goals},
                                          {**{f"row:{k}": v for k, v in row_force.items()},
                                           **{f"block:{k}": v for k, v in blk_force.items()}})
+    for k, v in (extra or {}).items():
+        if k not in implied and not (k.startswith("row:") and int(k[4:]) in row_force) \
+                and not (k.startswith("block:") and k[6:] in blk_force):
+            implied[k] = v                             # L17 — 정해지지 않는 자리에서 고른 갈래
     for k, v in implied.items():
         if k.startswith("row:"):
             row_force.setdefault(int(k[4:]), v)
         elif k.startswith("block:"):
             blk_force.setdefault(k[6:], v)
+    pulled = {}
+    user_rows = {int(k[4:]) for k in forces if k.startswith("row:")}
+    for n, v in (soft or {}).items():
+        n = int(n)
+        if n in settled and n not in user_rows:
+            row_force[n] = v
+            continue
+        if n in row_force:
+            if f"row:{n}" in implied and row_force[n] != v:
+                pulled[n] = row_force[n]               # 앞쪽 시트에서 오는 값과 다른 값이 필요하다 — 묶음이 이어서 켠다
+            continue
+        row_force[n] = v
     if conflicts:
         notes.add("거꾸로 맞추기에서 한 신호가 0 과 1 을 함께 요구받았습니다 — " + " · ".join(conflicts[:3]))
+
+    def _running(fr, now_):
+        """L15 — 이 틀에서 시간을 세는 타이머 (화면이 카운트다운을 그린다)."""
+        fr["running"] = [{"block": bid, "left": round(ts["due"] - now_, 3), "T": ts.get("T", DEFAULT_T)}
+                         for bid, ts in sorted(st["tim"].items()) if ts.get("due") is not None]
+        return fr
 
     frames = []
     t = st["t"]
@@ -402,7 +475,7 @@ def simulate(s, forces=None, state=None, now=0.0):
         val, depth = settle(val)
         if not timers_step(val, t):
             break
-    frames.append(_frame(t, val, depth, "누른 순간"))
+    frames.append(_running(_frame(t, val, depth, "누른 순간"), t))
     while len(frames) < MAX_FRAMES:
         due = [(ts["due"], bid) for bid, ts in st["tim"].items() if ts.get("due") is not None]
         if not due:
@@ -421,14 +494,88 @@ def simulate(s, forces=None, state=None, now=0.0):
             if not timers_step(val, t):
                 break
         labels = [B[b].get("param", {}).get("text") or B[b]["func"] for b in fired]
-        fr = _frame(t, val, depth, f"{', '.join(labels)} 경과")
+        fr = _running(_frame(t, val, depth, f"{', '.join(labels)} 경과"), t)
         fr["fired"] = fired
         frames.append(fr)
     st["t"] = t
+    # L16 — 목표로 둔 출력 중 게이트 조건이 끝내 맞지 않은 것 (어느 틀에서든 그 값이 되었으면 맞은 것 — 타이머 뒤)
+    unmet = []
+    for n, want in goals.items():
+        if not any(fr["values"].get(n, 0) == want for fr in frames):
+            blk = next((x for kind, x, _ in drivers.get(n, []) if kind == "block"), None)
+            last_unread = set(frames[-1]["unread"])
+            unmet.append({"net": n, "want": want, "got": frames[-1]["values"].get(n, 0), "block": blk,
+                          "logic": (("vote" if _vote_of(B[blk]) else B[blk].get("logic")) if blk else None),
+                          # L17 — 그 게이트 입력 중 도면에서 몰이를 못 읽은 선 (조건을 확인할 수 없어 출력을 내지 않는다)
+                          "unread": [m for m, _, _ in (ins[blk] if blk else []) if m in last_unread]})
+    if unmet:
+        notes.add(f"출력 선을 직접 켜지 않습니다 — 게이트 조건이 맞을 때만 나갑니다.  조건을 다 채우지 못한 출력 {len(unmet)}개"
+                  " (앞쪽 입력이 0 으로 고정됐거나, OR · 메모리처럼 어느 입력인지 정해지지 않는 자리)")
     if short:
         notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
-            "implied": implied, "conflicts": conflicts}
+            "implied": implied, "conflicts": conflicts,
+            "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled,
+            "_goals": goals, "_user": {**{f"row:{k}": v for k, v in row_force0.items()},
+                                       **{f"block:{k}": v for k, v in blk_force0.items()}}}
+
+
+def _gate_like(b):
+    return b.get("logic") in GATE_LOGIC or bool(_vote_of(b))
+
+
+CHOICE_TRIES = 16          # L17 — 정해지지 않는 자리(OR=1 · AND=0 · 메모리 …)에서 앞으로 돌려 볼 갈래 수
+CHOICE_STEPS = 4000        # 갈래를 찾는 깊이 우선 걸음 상한 (큰 장에서 막히지 않게)
+
+
+def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=()):
+    """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
+    soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
+    요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
+    settled = 보내는 시트에 이미 요청한 입력 행 — 그 시트가 실제로 낸 값을 그대로 쓴다 (그 시트 게이트가 막았으면 0).
+
+    L17 — 게이트가 모는 출력을 1/0 으로 주면 그 값은 목표다.  범례 정의로 정해지는 입력(AND=1 → 전부 1 …)은 바로 정하고,
+    정해지지 않는 자리(OR=1 → 입력 하나 · AND=0 → 입력 하나 · NOR=0 · NAND=1 · 투표 A/B · 메모리 · 타이머 · STEP)는
+    갈래를 하나씩 골라 **앞으로 돌려** 목표가 서는 조합을 쓴다 (출력은 언제나 게이트가 판정한다 — 직접 켜지 않는다).
+
+    → {"frames": [{"t", "values", "depth", "note"}], "state", "notes", "unmet", "choice", …}
+    """
+    import copy
+    st0 = copy.deepcopy(state) if state else None
+    res = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled)
+    goals = res.pop("_goals")
+    user = res.pop("_user")
+    if not res["unmet"]:
+        return res
+    idx = _index(s)
+    unmet_goals = [("net", u["net"], u["want"]) for u in res["unmet"]]
+    best, tried, seen = res, 0, set()
+    for strict0 in (True, False):
+        for leaves in _solutions(s, idx, unmet_goals, False, strict0, {"rows_only": False}, max_steps=CHOICE_STEPS):
+            if tried >= CHOICE_TRIES:
+                break
+            if any(user.get(k, w) != w for k, w in leaves.items()):
+                continue                               # 사람이 직접 준 값과 어긋나는 갈래
+            if any("/" in k for k in leaves):
+                continue                               # 펼친 매크로 안쪽(Typical 의 누름단추 · 행)은 부모 장에서 누를 수 없다
+            key = tuple(sorted(leaves.items()))
+            if key in seen:
+                continue
+            seen.add(key)
+            tried += 1
+            r = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled, extra=leaves)
+            r.pop("_goals"), r.pop("_user")
+            if len(r["unmet"]) < len(best["unmet"]):
+                best = r
+                best["choice"] = {k: v for k, v in leaves.items()}
+            if not r["unmet"]:
+                break
+        if not best["unmet"]:
+            break
+    if best is not res:
+        best["notes"] = sorted(set(best["notes"]) | {
+            "정해지지 않는 게이트(OR · 메모리 · 투표 …)는 입력 갈래를 하나 골라 앞으로 돌려 확인했습니다"})
+    return best
 
 
 # L9 — 따라가기가 게이트를 지날지는 범례 정의가 정한다.  따라가는 신호를 1, 그 게이트의 다른
@@ -505,7 +652,7 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -516,6 +663,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
     """
     forces = {int(k): v for k, v in (forces or {}).items()}
     state = {int(k): v for k, v in (state or {}).items()}
+    timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     by_page = {s["page"]: s for s in sheets}
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
@@ -557,20 +705,73 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             m = b.get("macro") or {}
             if b.get("func") == "MACRO" and m.get("page") in by_page:
                 macros[s0["page"]].append((bid, m))
-    macro_force, macro_view, macro_state = {}, {}, {}
+    macro_view = {}
+    inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
 
-    def eval_macros(page, values):
-        f, view, nst = {}, {}, {}
-        old = (state.get(page) or {}).get("macros", {})
-        for bid, m in macros.get(page, ()):
+    # L15 — 매크로 블록을 펼친다: Typical 시트의 블록·선을 이 장 안에 이름을 붙여 넣고, Typical 입력 행의 선 =
+    # 상자의 입력 단자 선 · Typical 출력 행의 선 = 상자의 출력 단자 선으로 잇는다.  한 장을 한 번에 돌리므로
+    # **시간이 같이 흐른다** — Typical 안의 펄스(PD)·지연 타이머가 그 시간 동안 상자의 출력을 1 로 낸다.
+    # (L12 는 Typical 을 따로 돌려 마지막 틀만 가져와, 펄스로 나가는 STOP · START 명령이 부모 장에 닿지 않았다.)
+    def inlined(page):
+        if page in inline:
+            return inline[page]
+        s0 = by_page[page]
+        items = macros.get(page)
+        if not items:
+            inline[page] = (s0, {})
+            return inline[page]
+        boxes = {bid for bid, _ in items}
+        blocks = {k: v for k, v in s0["blocks"].items() if k not in boxes}
+        ports = [p for p in s0["ports"] if p["block"] not in boxes]
+        nets = dict(s0.get("nets") or {})
+        for bid, m in items:
             ts = by_page[m["page"]]
-            tf = {f"row:{x['row']}": (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")}
-            res = simulate(ts, tf, old.get(bid))
-            nst[bid] = res["state"]
-            orow = _row_values(ts, res["frames"][-1]["values"])
+            alias = {}
+            for x in m["inputs"]:
+                tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "L"), None)
+                if tn is not None and x.get("net") is not None:
+                    alias[tn] = x["net"]
             for x in m["outputs"]:
-                if x.get("row") is not None:
-                    f[f"net:{x['net']}"] = orow.get(x["row"], 0)
+                tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "R"), None)
+                if tn is not None and x.get("net") is not None:
+                    alias[tn] = x["net"]
+            nm = lambda n, bid=bid, alias=alias: alias.get(n, f"{bid}/{n}")
+            for k, v in ts["blocks"].items():
+                nb = dict(v)
+                if nb.get("group"):
+                    nb["group"] = f"{bid}/{nb['group']}"
+                blocks[f"{bid}/{k}"] = nb
+            for p_ in ts["ports"]:
+                ports.append({**p_, "block": f"{bid}/{p_['block']}", "net": nm(p_["net"])})
+            for n in (ts.get("nets") or {}):
+                nets.setdefault(nm(n), {"segs": []})
+        s1 = {**s0, "blocks": blocks, "ports": ports, "nets": nets}
+        inline[page] = (s1, dict(items))
+        return inline[page]
+
+    def strip(res):
+        """펼친 Typical 의 선·블록은 화면의 장에 없다 — 결과에서 뺀다 (값은 상자 단자 선으로 이미 나왔다)."""
+        own = lambda k: "/" not in str(k)
+        for fr in res["frames"]:
+            fr["values"] = {k: v for k, v in fr["values"].items() if own(k)}
+            fr["depth"] = {k: v for k, v in fr["depth"].items() if own(k)}
+            fr["unread"] = [k for k in fr["unread"] if own(k)]
+            # 펼친 Typical 안에서 세는 타이머는 그 매크로 상자 위에서 센다 (남은 시간이 가장 긴 것)
+            run = {}
+            for x in fr.get("running", []):
+                k = str(x["block"]).split("/", 1)[0]
+                if k not in run or x["left"] > run[k]["left"]:
+                    run[k] = {**x, "block": k}
+            fr["running"] = list(run.values())
+            if "fired" in fr:
+                fr["fired"] = [b for b in fr["fired"] if own(b)]
+        res["short_gates"] = [b for b in res["short_gates"] if own(b)]
+        return res
+
+    def macro_views(page, items, values):
+        view = {}
+        for bid, m in items.items():
+            orow = {x["row"]: (1 if values.get(x["net"]) == 1 else 0) for x in m["outputs"] if x.get("row") is not None}
             # 짝 출력(이름 끝 1/0 — CMD1 ↔ CMD0 · 열림 ↔ 닫힘)이 함께 1 이면 모순이다 — 숨기지 않고 알린다
             conflict = []
             outs1 = [x for x in m["outputs"] if x.get("row") is not None and orow.get(x["row"]) == 1]
@@ -581,11 +782,13 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                         conflict.append(f"{a.get('pin')} 과 {b_.get('pin')} 이 함께 1 ({m.get('sheet')} {a['row']}행 · {b_['row']}행)")
             view[bid] = {"sheet": m.get("sheet"), "page": m["page"], "conflict": conflict,
                          "inputs": {str(x["row"]): (1 if values.get(x["net"]) == 1 else 0) for x in m["inputs"] if x.get("row")},
-                         "outputs": {str(x["row"]): orow.get(x["row"], 0) for x in m["outputs"] if x.get("row") is not None}}
-        return f, view, nst
+                         "outputs": {str(r): v for r, v in orow.items()}}
+        return view
 
     todo = set(by_page)
     notes = set()
+    chain = {}                        # L16 — 줄줄이 켜기가 보내는 시트에 준 목표 {page: {row:n: v}} (사람 값 아님)
+    pulls = []
     for _ in range(MAX_PASSES):
         if not todo:
             break
@@ -594,20 +797,37 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
         for page in sorted(todo):
             s = by_page[page]
             lin = inputs_of(page)
-            for _k in range(4 if macros.get(page) else 1):
-                f = {f"row:{n}": v for n, v in lin.items()}
-                f.update(macro_force.get(page, {}))      # 매크로가 모는 출력 선
-                f.update(forces.get(page, {}))           # 사람이 준 값이 이긴다
-                res = simulate(s, f, state.get(page))
-                if not macros.get(page):
-                    break
-                mf, view, nst = eval_macros(page, res["frames"][-1]["values"])
-                macro_view[page], macro_state[page] = view, nst
-                if mf == macro_force.get(page):
-                    break
-                macro_force[page] = mf
-            if macros.get(page):
-                res["state"]["macros"] = macro_state.get(page, {})
+            s_run, items = inlined(page)
+            user = forces.get(page, {})
+            f = {k: v for k, v in chain.get(page, {}).items() if k not in user}
+            f.update(user)                            # 사람이 준 값이 이긴다
+            soft = {n: v for n, v in lin.items() if f"row:{n}" not in f}
+            tm = dict(timers.get(page) or {})
+            for bid, m in items.items():
+                for k, v in (timers.get(m["page"]) or {}).items():
+                    tm[f"{bid}/{k}"] = v
+            asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
+            res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked)
+            # L16 — 줄줄이: 이 시트의 출력을 내려면 다른 시트에서 오는 입력이 1 이어야 하면, 그 입력을 보내는 시트의
+            # 출력 행도 목표로 켠다 (그 시트에서 다시 거꾸로 맞추기 — 게이트가 막으면 거기서 머문다).
+            for n, v in (res.get("pulled") or {}).items():
+                for rn, sp, sr in feeds.get(page, ()):
+                    if rn != n:
+                        continue
+                    k = f"row:{sr}"
+                    if k in forces.get(sp, {}) or chain.get(sp, {}).get(k) == v:
+                        continue
+                    if k in chain.get(sp, {}):
+                        notes.add(f"줄줄이 켜기에서 {by_page[sp].get('sheet_no')} {sr}행이 0 과 1 을 함께 요구받았습니다")
+                        continue
+                    chain.setdefault(sp, {})[k] = v
+                    pulls.append({"page": page, "sheet_no": s.get("sheet_no"), "row": n, "value": v,
+                                  "from_page": sp, "from_sheet": by_page[sp].get("sheet_no"), "from_row": sr})
+                    redo.add(sp)
+                    redo.add(page)
+            if items:
+                macro_view[page] = macro_views(page, items, res["frames"][-1]["values"])
+                strip(res)
             results[page] = res
             link_in[page] = lin
             rv = _row_values(s, res["frames"][-1]["values"])
@@ -621,6 +841,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             notes.add(f"시트 사이 되먹임이 {MAX_PASSES}번 안에 가라앉지 않았습니다 — 마지막 상태를 보입니다")
     # 사람이 준 장에서 1 인 연결을 따라 닿은 장 — 몇 장을 건너왔나 (화면이 그 순서로 보인다)
     hop = {p: 0 for p in forces if forces[p]}
+    for p in chain:
+        hop.setdefault(p, 0)
     frontier = list(hop)
     while frontier:
         nxt = []
@@ -638,7 +860,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
         user = forces.get(page, {})
         on_in = sorted(n for n, v in lin.items() if v == 1)
         on_out = sorted(n for n, v in out_rows.get(page, {}).items() if v == 1)
-        if on_in or user:
+        if on_in or user or chain.get(page):
             vals = results[page]["frames"][-1]["values"]
             pages.append({"page": page, "sheet_no": s.get("sheet_no"), "user": bool(user),
                           "hop": hop.get(page),
@@ -647,7 +869,13 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
                           "from": sorted({(by_page[sp].get("sheet_no"), sr) for n, sp, sr in feeds.get(page, ())
                                           if n in on_in}),
                           "to": sorted({by_page[q].get("sheet_no") for q, fd in feeds.items()
-                                        for _, sp, sr in fd if sp == page and sr in on_out})})
+                                        for _, sp, sr in fd if sp == page and sr in on_out}),
+                          # L19 — 현황 팝업: 사람이 준 신호 · 줄줄이 켠 목표 · 들어온 입력 · 나간 출력을 글로
+                          "forced": [_force_label(s, k, v) for k, v in sorted(user.items())],
+                          "chained": [_force_label(s, k, v) for k, v in sorted(chain.get(page, {}).items())
+                                      if k not in user],
+                          "inputs": [_row_label(s, "L", n) for n in on_in],
+                          "outputs": [_row_label(s, "R", n) for n in on_out]})
     # 사람이 준 신호가 닿은 장(hop)에서 이동하다 만난 것만 — 아무것도 안 줘도 1 인 선(입력 0 의 NOT 등)은 빼고
     design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results) if e["page"] in hop]
     for page, view in macro_view.items():
@@ -669,8 +897,43 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None):
             "linked": {p: {n: v for n, v in lin.items() if f"row:{n}" not in forces.get(p, {})}
                        for p, lin in link_in.items() if lin},
             "pages": pages,
+            "chain_forces": {p: v for p, v in chain.items() if v},
+            "pulled": pulls,
             "state": {p: r["state"] for p, r in results.items()},
             "notes": sorted(notes)}
+
+
+def _row_label(s, side, n):
+    """행 하나를 사람 말로 — 설명 · FM/TO 글자 (표에서 읽은 그대로 · 설명 없는 행은 위로 처음 설명이 있는 행)."""
+    rows = [x for x in (s.get("table") or s["rows"]) if x["side"] == side]
+    r = next((x for x in rows if x["n"] == n), None) or next((x for x in s["rows"] if x["side"] == side and x["n"] == n), {})
+    desc = (r.get("desc") or "").strip()
+    if not desc:
+        for x in sorted(rows, key=lambda x: -x["n"]):
+            if x["n"] < n and (x.get("desc") or "").strip():
+                desc = x["desc"].strip()
+                break
+    return {"row": n, "side": side, "desc": desc,
+            "ref": (r.get("fm") if side == "L" else r.get("to")) or ""}
+
+
+def _force_label(s, key, value):
+    """사람이 준 강제 하나를 사람 말로 — row:n 은 그 행 · net 은 그 선을 모는 블록 · block 은 그 블록."""
+    kind, _, k = str(key).partition(":")
+    o = {"key": key, "value": value, "kind": kind}
+    if kind == "row" and k.isdigit():
+        n = int(k)
+        side = "R" if any(x["side"] == "R" and x["n"] == n for x in s["rows"]) and \
+            not any(x["side"] == "L" and x["n"] == n for x in s["rows"]) else "L"
+        o.update(_row_label(s, side, n))
+    elif kind == "block":
+        b = s["blocks"].get(k) or {}
+        o.update({"block": k, "func": b.get("func") or "", "label": b.get("label") or ""})
+    elif kind == "net":
+        drv = next((p["block"] for p in s["ports"] if p.get("net") == k and p.get("dir") == "out"), None)
+        b = s["blocks"].get(drv) or {}
+        o.update({"net": k, "block": drv, "func": b.get("func") or "", "label": b.get("label") or ""})
+    return o
 
 
 # ------------------------------------------------------------------ 이동하다 만난 설계 오류 (L11)
@@ -866,17 +1129,21 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         if key not in cache:
             cache[key] = scenario(ts, f"row:{out['row']}", 1, rows_only=True, rows_allowed=set(by_row))
         sc = cache[key]
-        if not sc.get("ok") or sc.get("direct_nets"):
+        if not sc.get("ok") or any(sc["forces"].get(k) == 1 for k in sc.get("direct_nets") or ()):
             return []
-        goals = []
+        goals, held = [], {}
         for k, w in sc["forces"].items():
+            if k.startswith("net:"):
+                # L15 — Typical 안에서 몰이를 못 읽어 0 으로 붙든 선: 펼친 장의 그 선(블록 이름/선)을 0 으로 둔다
+                held[f"net:{x}/{k[4:]}"] = 0
+                continue
             if not k.startswith("row:") or w != 1:
                 continue
             n_ = by_row.get(int(k[4:]))
             if n_ is None:
                 return []                              # 그 Typical 입력 행에 닿는 단자를 못 읽었다
             goals.append(("net", n_, 1))
-        return [({}, goals)]
+        return [(held, goals)]
     if lg in ("and", "nand"):
         want_all = (v == 1) == (lg == "and")         # AND=1 · NAND=0 → 모든 입력 1
         if want_all:
@@ -906,7 +1173,9 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         R = [n for n, r, _ in ins[x] if r == "reset"]
         if want == 1:
             return [({}, [("net", n, 1)] + [("net", r, 0) for r in R]) for n in S]
-        return [({}, [("net", n, 0) for n in S])]
+        # Q=0 — SET 이 모두 0 이면 (한 번도 SET 안 된 상태에서) 0 이다.  이미 SET 된 래치는 RESET 하나가 1 이어야 한다
+        # (SET 우선이면 SET 도 모두 0 이어야 한다 — 그래서 어느 갈래든 SET 은 0).
+        return [({}, [("net", n, 0) for n in S])] + [({}, [("net", r, 1)] + [("net", n, 0) for n in S]) for r in R]
     if lg in ("delay_on", "delay_off", "pulse"):
         return one(iv, 1) if v == 1 else allg(iv, 0)
     if lg == "step":
@@ -936,10 +1205,14 @@ def _inverting(s, idx, net):
     return False
 
 
-def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None):
+def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None, max_steps=None):
     """깊이 우선 — (leaves, required nets) 를 하나씩 낸다."""
     stack = [(list(goals), {}, {})]
+    steps = 0
     while stack:
+        steps += 1
+        if max_steps and steps > max_steps:
+            return
         todo, leaves, req = stack.pop()
         if not todo:
             yield leaves
