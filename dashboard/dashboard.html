@@ -707,7 +707,7 @@ const SHEETS = [
     {f:'구분', w:110, sug:1}, {f:'소구분', w:70, sug:1}, {f:'업무 내용', w:320, long:1, rows:4, strong:1},
     {f:'책임자', w:90}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1},
     {f:'진행사항', w:380, long:1, rows:6} ]},
-  // 통합 업무: 유형(과제 / 지시사항 및 Action List / To Do List)을 부서원이 고름. 메뉴는 '🚀 통합 업무' (위 현황판 + 아래 표)
+  // 통합 업무: 유형(과제 / 지시사항 및 Action List / To Do List / 기술공유)을 부서원이 고름. 메뉴는 '🚀 통합 업무' (위 현황판 + 아래 표)
   { key:'task', label:'통합 업무', title:'업무 내용', owner:'담당자', filters:['유형'], group:'유형', merged:'task', cols:[
     {f:'유형', w:150, ttype:1}, {f:'구분', w:90, sug:1}, {f:'업무 내용', w:260, long:1, rows:3, strong:1}, {f:'담당자', w:100, long:1, rows:2},
     {f:'요청자', w:80, sug:1}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1},
@@ -784,7 +784,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1707,7 +1707,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
     const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
     s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });   // 내용 없는 글머리 줄 지우기
     if (rec) s.cols.filter(c => c.long && !c.ai).forEach(c => { nf[c.f] = mergeStrike(rec.fields[c.f], nf[c.f]); });   // 지운 내용 → 취소선 (AI 요약은 새로 덮어씀)
-    if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (과제 / 지시사항 및 Action List / To Do List)', true);
+    if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (과제 / 지시사항 및 Action List / To Do List / 기술공유)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
     await submitRecord(key, id, rec, nf, mine);
   };
@@ -2320,8 +2320,8 @@ function myTasks() {
     if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'계장ENG 업무 현황 작성', done:isUpdated(r) });
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
-  for (const { k, r } of workRecs()) {                      // 과제는 지연·임박만, 지시사항·To Do 는 종결 전 전부
-    const it = workItem(k, r), all = k === 'todo' || (k === 'task' && it.f['유형'] !== '과제');
+  for (const { k, r } of workRecs()) {                      // 과제·기술공유는 지연·임박만, 지시사항·To Do 는 종결 전 전부
+    const it = workItem(k, r), all = k === 'todo' || (k === 'task' && !['과제', '기술공유'].includes(it.f['유형']));
     if (it.cls === 'done' || !isMineName(it.personRaw) || !(all || it.cls === 'late' || it.cls === 'soon')) continue;
     out.push({ key:k, rid:r.id, f:'__ack', alarm:true, kind:`🔔 ${k === 'task' ? ttOf(it.f['유형']).short : WORK[k].label}`, label:recLabel(k, r.fields),
       sub:`완료해야 할 업무 · ${it.st}${it.end ? ' · 기한 ' + it.end : ''}`, done:ack.has(ackKey(k, r.id)) });
@@ -3050,17 +3050,18 @@ function pjHero(s) {
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
  * 수행·입찰 PJT 처럼 위 = 현황판(taskHero), 아래 = 엑셀형 표(셀 편집·행 추가·열 추가·열 필터).
- * 유형 = 과제 / 지시사항 및 Action List / To Do List — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
+ * 유형 = 과제 / 지시사항 및 Action List / To Do List / 기술공유 — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
  * 예전 일반업무·To do·기술공유 시트는 숨김(데이터 그대로). [기존 업무 가져오기] 로 복사(ID = 'task-' + 원래 ID, 두 번 눌러도 중복 안 됨). */
-const TASK_TYPES = ['과제', '지시사항 및 Action List', 'To Do List'];
+const TASK_TYPES = ['과제', '지시사항 및 Action List', 'To Do List', '기술공유'];
 const TT = {
-  '과제':{ icon:'🎯', color:'#5b5bd6', short:'과제', desc:'목표·기간이 있는 개선 과제 · 연구 · 표준화 · 기술공유' },
+  '과제':{ icon:'🎯', color:'#5b5bd6', short:'과제', desc:'목표·기간이 있는 개선 과제 · 연구 · 표준화' },
   '지시사항 및 Action List':{ icon:'📌', color:'#e8730c', short:'지시사항·Action', desc:'그룹장·회의 지시 사항과 후속 조치(Action)' },
   'To Do List':{ icon:'✅', color:'#0e9f8e', short:'To Do', desc:'개인·부서 할 일, 짧은 기한의 업무' },
+  '기술공유':{ icon:'💡', color:'#0b84c6', short:'기술공유', desc:'기술 발표 · 사례 공유 · 세미나 (종료일 = 발표일)' },
 };
 const ttOf = v => TT[v] || { icon:'❔', color:'#8a90a6', short:'유형 미지정', desc:'' };
 const TASK_W = { title:'업무 내용', person:'담당자', start:'시작일', end:'종료일', body:'진행 사항', cat:f => flat(f['구분']) };
-const TASK_TPL = { '과제':'1. 목표\n   - \n2. 진행 현황\n   - \n3. 이슈 · 다음 단계\n   - ', '지시사항 및 Action List':'1. 지시 내용\n   - \n2. 조치 계획 (Action)\n   - \n3. 조치 결과\n   - ', 'To Do List':'- \n- ' };
+const TASK_TPL = { '과제':'1. 목표\n   - \n2. 진행 현황\n   - \n3. 이슈 · 다음 단계\n   - ', '지시사항 및 Action List':'1. 지시 내용\n   - \n2. 조치 계획 (Action)\n   - \n3. 조치 결과\n   - ', 'To Do List':'- \n- ', '기술공유':'1. 발표 주제\n   - \n2. 주요 내용\n   - \n3. 자료 · 질의응답\n   - ' };
 const WST_LABEL = { late:'⚠ 지연', soon:'⏰ 임박', miss:'❔ 종료일 미입력', run:'▶ 진행 중', done:'✔ 완료·종결', perm:'♾ 상시 (추적 안 함)' };
 // 통합 업무 + 아직 가져오지 않은 예전 시트 행 (알림·요약·홈에서 씀)
 function workRecs() {
@@ -3091,7 +3092,10 @@ function taskHero(s) {
     const week = open.filter(i => i.dd != null && i.dd >= 0 && i.dd <= 7).length;
     const extra = t === '과제' ? `평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b> <span class="muted">(진행 중 과제)</span>`
       : t === '지시사항 및 Action List' ? `요청자 ${req.length ? req.map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(' · ') : '<span class="muted">-</span>'}`
-      : t === 'To Do List' ? `7일 안에 마감 <b>${week}</b>건` : '편집 창에서 유형을 골라 주세요';
+      : t === 'To Do List' ? `7일 안에 마감 <b>${week}</b>건`
+      : t === '기술공유' ? (() => { const nx = open.filter(i => i.dd != null && i.dd >= 0).sort((a, b) => a.dd - b.dd)[0];
+          return `다음 발표 ${nx ? `<b>${esc(nx.end)}</b> ${esc(trunc(flat(nx.title), 16))} <span class="muted">(${esc(flat(nx.personRaw))})</span>` : '<span class="muted">예정 없음</span>'} · 발표 완료 <b>${c('done')}</b>`; })()
+      : '편집 창에서 유형을 골라 주세요';
     const urg = open.filter(i => i.cls === 'late' || i.cls === 'soon' || i.cls === 'miss').sort((a, b) => WST_ORDER[a.cls] - WST_ORDER[b.cls] || (a.dd ?? 999) - (b.dd ?? 999)).slice(0, 3);
     return `<div class="ttc ${st.f['유형'] === t && t ? 'on' : ''}" style="--c:${T.color}">
       <button class="ttc-h" data-tf="${esc(t)}" title="${esc(T.desc)}"><span class="ttc-i">${T.icon}</span><span class="ttc-n">${esc(t || '유형 미지정')}<small>${esc(T.desc)}</small></span><span class="ttc-v">${open.length}<small>진행</small></span></button>
@@ -3114,7 +3118,7 @@ function taskHero(s) {
   const have = new Set(getRecs('task').map(r => r.id));
   const legacy = readOnly() ? [] : WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)));
   return `<div id="taskhero">
-    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>과제 · 지시사항 및 Action List · To Do List — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
+    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>과제 · 지시사항 및 Action List · To Do List · 기술공유 — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
       ${yearTabs(st.year, years, add ? '<button class="btn wadd" data-wadd>＋ 업무 추가</button>' : '')}
       <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_TYPES.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => i.f['유형'] === t).length}</b></button>`).join('')}</div>
     </section>
@@ -3163,7 +3167,7 @@ function legacyToTask(k, f) {
   if (k === 'todo') return { 유형:'지시사항 및 Action List', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
     '종료 구분':f['종료 구분'] || '', '종결 여부':closed || f['완료 여부'] === 'O' ? '종결' : '', '진행 사항':f['현황'] || '',
     비고:[f['완료 여부'] && f['완료 여부'] !== 'O' ? `완료 여부: ${f['완료 여부']}` : '', f['그룹장 추가요청 사항'] ? `그룹장 추가요청: ${f['그룹장 추가요청 사항']}` : ''].filter(Boolean).join('\n') };
-  return { 유형:'과제', 구분:'기술공유', '업무 내용':f['발표 내용'] || '', 담당자:f['발표자'] || '', 시작일:f['발표일'] || '', 종료일:f['발표일'] || '',
+  return { 유형:'기술공유', 구분:f['연도'] ? `${f['연도']}년 발표` : '', '업무 내용':f['발표 내용'] || '', 담당자:f['발표자'] || '', 시작일:f['발표일'] || '', 종료일:f['발표일'] || '',
     '종료 구분':f['종료 구분'] || '기한', '종결 여부':closed || (ts && ts < todayISO()) ? '종결' : '', '진행 사항':'' };
 }
 async function importLegacy() {
@@ -3174,7 +3178,7 @@ async function importLegacy() {
   if (!list.length) return toast('가져올 업무가 없습니다');
   const n = k => list.filter(x => x.k === k).length;
   if (await ask('기존 업무 가져오기', `<p>일반업무 <b>${n('general')}</b> · To do <b>${n('todo')}</b> · 기술공유 <b>${n('techshare')}</b> 건을 <b>통합 업무</b>로 복사합니다.</p>
-    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무·기술공유 → <b>과제</b>, To do → <b>지시사항 및 Action List</b> (나중에 각자 바꿀 수 있음)</li>
+    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무 → <b>과제</b>, To do → <b>지시사항 및 Action List</b>, 기술공유 → <b>기술공유</b> (나중에 각자 바꿀 수 있음)</li>
     <li>예전에 '완료'로 보이던 것(To do 완료 O, 종료일·발표일 지난 일반업무·기술공유)은 <b>종결</b>로 옮깁니다</li>
     <li>예전 시트는 지우지 않습니다. 같은 행을 두 번 가져오지 않습니다</li></ul>`, [{ id:'ok', label:`${list.length}건 가져오기`, cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
   let ok = 0, skip = 0, order = Math.max(0, ...getRecs('task').map(r => r.order || 0)) + 10;
