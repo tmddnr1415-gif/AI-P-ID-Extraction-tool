@@ -32,10 +32,12 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.7'
+SERVER_VERSION = '2026-10-13.8'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
-ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
+ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
+EXTRA_NETS = []          # --allow 로 준 대역
+NET_STATE = {'ips': None, 'profiles': [], 'changedAt': ''}   # 지금 IP · Windows 네트워크 종류(공용/개인/도메인) — 관리자 화면 진단용
 LOCK = threading.RLock()
 log = logging.getLogger('dashboard')
 
@@ -399,6 +401,10 @@ def auto_close():
 
 def weekly_loop():
     while True:
+        try:
+            refresh_nets()                                # 유선 LAN ↔ Wi-Fi 전환으로 IP 가 바뀌면 허용 대역·배포본 갱신
+        except Exception as e:
+            log.error('네트워크 확인 실패: %s', e)
         try:
             build_deploy()                                # dashboard.html 이 바뀌면 deploy/ 도 자동 갱신
         except Exception as e:
@@ -1311,7 +1317,7 @@ def build_deploy():
 def _build_deploy():
     """운영 폴더 deploy/ 에 부서원 배포용 dashboard.html 과 사용법 안내문 생성 (원본이 바뀌면 다시 생성)"""
     global _deploy_mtime
-    m = os.path.getmtime(P('dashboard.html'))
+    m = (os.path.getmtime(P('dashboard.html')), tuple(server_urls()))   # 화면 파일이 바뀌거나 서버 주소(IP)가 바뀌면 다시 만듦
     if m == _deploy_mtime and os.path.exists(P('deploy', 'dashboard.html')):
         return
     os.makedirs(P('deploy'), exist_ok=True)
@@ -1324,12 +1330,73 @@ def _build_deploy():
              f'1. 이 폴더의 dashboard.html 을 내 PC(바탕화면 등)에 복사한 뒤 Edge로 엽니다.\n'
              f'2. 처음에 [계정 개설]로 ID·본명·비밀번호를 만들고 로그인합니다. (비회원은 보기만 가능, 수정 이력에는 본명이 기록됩니다)\n'
              f'3. 서버 {urls[0]} 에 자동 연결됩니다. 안 되면 왼쪽 아래 [서버 주소 설정]에 {urls[-1]} 을 입력하세요.\n'
+             f'   (서버 PC 가 유선 LAN ↔ 사내 Wi-Fi 로 바뀌면 IP 가 바뀝니다. 한 번 연결된 주소는 내 PC 가 기억해 두고 차례로 시도합니다)\n'
              f'4. 서버가 꺼져 있어도 입력은 내 PC에 보관되며, 서버가 켜지면 자동으로 올라갑니다.\n'
              f'5. 화면 위에 "새 버전이 있습니다"가 뜨면 [다운로드]한 파일로 내 PC의 dashboard.html 을 바꾸세요.\n')
     with open(P('deploy', '부서원_사용법.txt'), 'w', encoding='utf-8-sig') as f:
         f.write(guide)
     _deploy_mtime = m
     log.info('배포 파일 생성: deploy/dashboard.html (v%s), deploy/부서원_사용법.txt', html_version())
+
+
+def nets_file():
+    return P('data', '_meta', 'server-nets.json')
+
+
+def net_profiles():
+    """Windows: 연결된 네트워크마다 종류(Public 공용 / Private 개인 / DomainAuthenticated 도메인). 공용이면 방화벽이 부서원 접속을 막는 경우가 많음"""
+    if os.name != 'nt':
+        return []
+    import subprocess
+    try:
+        out = subprocess.run(['powershell', '-NoProfile', '-Command',
+                              'Get-NetConnectionProfile | Select-Object InterfaceAlias,Name,@{n="Cat";e={[string]$_.NetworkCategory}} | ConvertTo-Json -Compress'],
+                             capture_output=True, timeout=15, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        try:
+            txt = out.stdout.decode('utf-8').strip()
+        except UnicodeDecodeError:                        # 한글 네트워크 이름: 콘솔 코드페이지(cp949)
+            txt = out.stdout.decode('cp949', 'replace').strip()
+        d = json.loads(txt) if txt else []
+        d = d if isinstance(d, list) else [d]
+        return [{'alias': x.get('InterfaceAlias') or '', 'name': x.get('Name') or '', 'category': x.get('Cat') or ''} for x in d]
+    except Exception as e:
+        log.warning('네트워크 종류 확인 실패: %s', e)
+        return []
+
+
+def refresh_nets(first=False):
+    """서버 PC 의 IP 가 바뀌었는지(유선 LAN ↔ 사내 Wi-Fi) 확인: 새 IP 의 /16 대역을 허용 목록에 더해 파일에 기억(예전 대역도 계속 허용),
+    부서원 배포본(deploy/dashboard.html)의 서버 주소를 새로 만들고, 네트워크 종류를 로그에 남김"""
+    global ALLOW_NETS
+    ips = lan_ips()
+    if ips == NET_STATE['ips'] and not first:
+        return
+    old = NET_STATE['ips']
+    known = set()
+    try:
+        known = set((read_json(nets_file()) or {}).get('nets') or [])
+    except Exception:
+        pass
+    now = {str(ipaddress.ip_network(f'{ip}/16', strict=False)) for ip in ips}
+    if not now <= known:
+        known |= now
+        try:
+            os.makedirs(os.path.dirname(nets_file()), exist_ok=True)
+            with open(nets_file(), 'w', encoding='utf-8') as f:
+                json.dump({'nets': sorted(known), 'updatedAt': datetime.datetime.now().isoformat(timespec='seconds')}, f, ensure_ascii=False, indent=1)
+        except OSError as e:
+            log.warning('허용 대역 저장 실패: %s', e)
+    ALLOW_NETS = [ipaddress.ip_network(n) for n in sorted(known)] + EXTRA_NETS
+    NET_STATE['ips'] = ips
+    NET_STATE['profiles'] = net_profiles()
+    if old is not None:
+        NET_STATE['changedAt'] = datetime.datetime.now().isoformat(timespec='seconds')
+        log.warning('서버 PC 의 IP 가 바뀌었습니다: %s → %s (유선/Wi-Fi 전환 등). 부서원 접속 주소: %s', ', '.join(old) or '-', ', '.join(ips) or '-', ', '.join(server_urls()))
+    for p_ in NET_STATE['profiles']:
+        warn = p_['category'] == 'Public'
+        (log.warning if warn else log.info)('네트워크 %s (%s): %s%s', p_['alias'], p_['name'], p_['category'],
+                                            ' ← 공용 네트워크: Windows 방화벽이 부서원 접속을 막을 수 있음 → allow_firewall.bat (관리자 권한) 실행' if warn else '')
+    log.info('허용 대역: 루프백·사설망 + %s', ', '.join(map(str, ALLOW_NETS)) or '-')
 
 
 def ip_allowed(ip):
@@ -1451,7 +1518,7 @@ class Handler(BaseHTTPRequestHandler):
     def _dispatch(self, method, path, q):
         try:
             if not ip_allowed(self.client_address[0]):              # 사내망 접속만 허용
-                raise ApiError(403, '사내망에서만 접속할 수 있습니다')
+                raise ApiError(403, f'사내망에서만 접속할 수 있습니다 (이 PC 주소 {self.client_address[0]} 가 허용 대역이 아님 — 서버 관리자: server.py --allow 로 대역 추가)')
             if not self.origin_ok():                                 # 다른 웹페이지에서 API 호출 차단
                 raise ApiError(403, '허용되지 않은 출처입니다')
             if method == 'GET' and path in ('/', '/dashboard.html'):
@@ -1529,7 +1596,9 @@ class Handler(BaseHTTPRequestHandler):
         if m == 'GET' and head == 'info':
             return {'mode': 'server', 'admin': self.is_admin(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
                     'perms': perms_for(session_account(self.token(), False), self.is_admin()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
-                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls()}
+                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(),
+                    **({'net': {'ips': NET_STATE['ips'] or [], 'profiles': NET_STATE['profiles'], 'changedAt': NET_STATE['changedAt'],
+                                'allow': [str(n) for n in ALLOW_NETS]}} if self.is_admin() else {})}
         if head == 'auth':
             if m == 'POST' and seg[1:] == ['register']:
                 return api_register(self.json_body())
@@ -1736,7 +1805,7 @@ def main():
 
     ROOT, PORT = os.path.abspath(a.root), a.port
     # 사내망 = 루프백·사설망 + 이 서버 IP 가 속한 /16 대역 + --allow 대역
-    ALLOW_NETS = [ipaddress.ip_network(f'{ip}/16', strict=False) for ip in lan_ips()] + [ipaddress.ip_network(n, strict=False) for n in a.allow]
+    EXTRA_NETS[:] = [ipaddress.ip_network(n, strict=False) for n in a.allow]
     handlers = [logging.FileHandler(os.path.join(ROOT, a.log), encoding='utf-8')] if a.log else [logging.StreamHandler(sys.stdout)]
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', handlers=handlers)
     if hasattr(sys.stdout, 'reconfigure'):
@@ -1748,6 +1817,7 @@ def main():
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
     for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
+    refresh_nets(first=True)                              # 허용 대역(지금까지 쓴 유선·Wi-Fi 대역 모두) · 네트워크 종류 확인
 
     who = port_in_use(a.port)
     if who:
@@ -1765,7 +1835,6 @@ def main():
     except Exception as e:
         log.error('배포 파일 생성 실패: %s', e)
     log.info('서버 v%s · 운영 폴더: %s', SERVER_VERSION, ROOT)
-    log.info('허용 대역: 루프백·사설망 + %s', ', '.join(map(str, ALLOW_NETS)) or '-')
     log.info('부서원 배포 파일: %s', P('deploy'))
     log.info('접속 주소(이 PC, 관리자): http://localhost:%d/', a.port)
     for ip in lan_ips():

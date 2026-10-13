@@ -850,7 +850,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -858,6 +858,30 @@ const DEFAULT_SERVER = DEFAULT_SERVERS[0];
 const LS_SRV = 'dept-server-url';
 const savedServer = () => { try { return (localStorage.getItem(LS_SRV) || '').replace(/\/+$/, ''); } catch (_) { return ''; } };
 const serverUrl = () => savedServer() || API_BASE || DEFAULT_SERVER;
+/* 서버 PC 가 유선 LAN ↔ 사내 Wi-Fi 로 바뀌면 IP 가 바뀜 → 한 번이라도 연결된 서버 주소(info.urls)를 이 PC 에 기억해 두고, 연결 실패 때 모두 동시에 시도 */
+const LS_KNOWN = 'dept-server-known';
+const knownServers = () => { try { const a = JSON.parse(localStorage.getItem(LS_KNOWN) || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } };
+const normUrl = u => String(u || '').replace(/\/+$/, '');
+function rememberServers(info) {
+  try { localStorage.setItem(LS_KNOWN, JSON.stringify([...new Set([API_BASE, ...(info?.urls || []), ...knownServers()].map(normUrl).filter(u => /^https?:\/\//.test(u)))].slice(0, 12))); } catch (_) {}
+}
+const serverCandidates = () => savedServer() ? [savedServer()] : [...new Set([API_BASE, ...DEFAULT_SERVERS, ...knownServers()].map(normUrl).filter(Boolean))];
+let BLOCKED = '';                                        // 서버에는 닿았지만 '사내망 아님'(403)으로 거절된 경우 그 안내
+async function findServer() {                            // 성공하면 API_BASE 를 그 주소로 바꾸고 info 반환, 모두 실패하면 null
+  BLOCKED = '';
+  const probe = async u => {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const res = await fetch(u + '/api/info', { cache:'no-store', signal:ctl.signal, headers:AUTH?.token ? { 'X-Auth-Token':AUTH.token } : {} });
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 403) { BLOCKED = d.error || '서버가 이 PC 의 접속을 허용하지 않습니다'; throw new Error(BLOCKED); }
+      if (!res.ok || d.mode !== 'server') throw new Error('no');
+      return { u, d };
+    } finally { clearTimeout(t); }
+  };
+  try { const { u, d } = await Promise.any(serverCandidates().map(probe)); API_BASE = u; rememberServers(d); return d; }
+  catch (_) { return null; }
+}
 let SERVER_INFO = null;                                 // 서버 /api/info (서버 버전 표시용)
 let SERVER = /^https?:$/.test(location.protocol);       // API 사용 여부 (서버 연결 또는 오프라인 보관본)
 let API_BASE = '';                                      // '' = 이 페이지를 준 서버, 아니면 http://IP:8080
@@ -1362,8 +1386,11 @@ async function trySync(manual) {
   syncing = true;
   try {
     let info;
-    try { info = await api('GET', 'info'); }
-    catch (e) { if (manual) toast('서버에 연결할 수 없습니다. 오프라인 상태를 유지합니다', true); return; }
+    try { info = await api('GET', 'info'); rememberServers(info); }
+    catch (e) {
+      if (location.protocol === 'file:') { const prev = API_BASE; info = await findServer(); if (!info) API_BASE = prev; }   // IP 가 바뀌었을 수 있음 → 기억해 둔 다른 주소들
+      if (!info) { if (manual) toast(BLOCKED || '서버에 연결할 수 없습니다. 오프라인 상태를 유지합니다', true); return; }
+    }
     ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms); checkVersion(info);
     const was = OFFLINE; OFFLINE = false;
     if (was) root = { name:serverLabel() };
@@ -2266,6 +2293,13 @@ function render() {
       <span class="sp"></span><button class="btn sm pri" data-net="sync">지금 재연결</button><button class="btn sm" data-net="queue">대기열</button></div>`;
   else if (SERVER && QUEUE.length) banners += `<div class="banner netbar">⏳ 아직 서버에 올리지 않은 오프라인 수정 <b>${QUEUE.length}</b>건 ('나중에' 선택 포함)
       <span class="sp"></span><button class="btn sm pri" data-net="sync">지금 동기화</button><button class="btn sm" data-net="queue">대기열</button></div>`;
+  const NET = ADMIN && SERVER && !OFFLINE ? SERVER_INFO?.net : null;
+  if (NET) {
+    const pub = (NET.profiles || []).filter(x => x.category === 'Public');
+    if (pub.length) banners += `<div class="banner bad">⚠ 이 서버 PC 의 네트워크 <b>${esc(pub.map(x => `${x.alias}${x.name ? ' (' + x.name + ')' : ''}`).join(', '))}</b> 가 Windows 에서 <b>'공용 네트워크'</b>로 되어 있습니다 — 방화벽이 부서원 접속을 막을 수 있습니다.
+      <span class="muted">서버 폴더의 <b>allow_firewall.bat</b> 를 마우스 오른쪽 → [관리자 권한으로 실행] (권한이 없으면 IT 에 'TCP ${esc(location.port || '8080')} 인바운드 허용' 요청)</span></div>`;
+    if (NET.changedAt) banners += `<div class="banner">📡 서버 PC 의 IP 가 바뀌었습니다 (${fmtTime(NET.changedAt)} · 유선 LAN ↔ Wi-Fi 등) — 지금 주소 <b>${esc((NET.ips || []).join(', ') || '-')}</b>. 부서원 파일은 PC 이름과 예전에 연결됐던 주소를 차례로 시도합니다. 안 되면 부서원 화면 왼쪽 아래 [서버 주소 설정]에 <b>http://${esc((NET.ips || [])[0] || '')}:${esc(location.port || '8080')}</b></div>`;
+  }
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
       <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
   if (readOnly() && !PID_ROUTES[route]) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
@@ -4212,10 +4246,8 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     SERVER = true;
     let info = null;
     // 설정한 주소가 있으면 그 주소만, 없으면 PC 이름 주소 → IP 주소 순으로 시도
-    for (const u of savedServer() ? [savedServer()] : DEFAULT_SERVERS) {
-      API_BASE = u.replace(/\/+$/, '');
-      try { info = await api('GET', 'info'); if (info && info.mode === 'server') break; } catch (_) { info = null; }
-    }
+    API_BASE = normUrl(DEFAULT_SERVERS[0] || '');
+    info = await findServer();                               // 설정한 주소 → 기본 주소(PC 이름 · IP) → 예전에 연결됐던 주소 모두 동시에
     if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms); checkVersion(info); root = { name:serverLabel() }; await startOnline(); return; }
     API_BASE = (await cacheLoad())?.server || API_BASE;     // 오프라인: 마지막으로 연결됐던 서버로 재연결 시도
     const c = await cacheLoad();
@@ -4223,11 +4255,11 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
       OFFLINE = true; root = { name:'오프라인 (이 PC 보관본)' };
       if (AUTH) user = AUTH.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정으로 (서버 연결 시 토큰 재확인), 없으면 보기 전용
       try { await loadAll(); } catch (e) { toast(e.message, true); }
-      render(); showMyTodo(); return;
+      render(); showMyTodo(); if (BLOCKED) toast(BLOCKED, true); return;
     }
     SERVER = false; API_BASE = ''; ADMIN = true; renderMenu(); renderHeader();
     $('#content').innerHTML = `<div class="card welcome"><h2>서버에 연결할 수 없습니다</h2>
-      <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC에 보관된 데이터도 아직 없습니다.</p>
+      <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC에 보관된 데이터도 아직 없습니다.</p>${BLOCKED ? `<p class="banner bad" style="display:block">⛔ ${esc(BLOCKED)}</p>` : ''}
       <p class="muted">서버에 한 번이라도 연결되면 그 데이터를 이 PC에 보관해 두었다가, 다음부터는 서버가 꺼져 있어도 오프라인으로 열 수 있습니다.</p>
       <button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button> <button class="btn" id="btnLocalMode">폴더 모드로 열기</button></div>`;
     $('#btnRetry').onclick = () => location.reload();
