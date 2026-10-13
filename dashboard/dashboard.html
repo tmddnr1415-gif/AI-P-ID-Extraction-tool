@@ -871,7 +871,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3860,7 +3860,7 @@ function hoursIndex(list, idx) {                          // 사람 → { days: 
   return P;
 }
 function renderHours(c) {
-  const hero = inner => `<div id="hrsv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근무시간 <small style="font-weight:600;opacity:.85">— 월별 · 주별 · 일별</small></h2><p>월말 시수 파일의 날짜별 실제 시간으로 부서원 근무시간을 봅니다 (Type '근태' 는 근무시간에서 뺌). 주 = 월요일~일요일. 주 52시간 초과 · 하루 10시간 초과는 붉게 표시합니다.</p></div></div>${inner}</section>`;
+  const hero = inner => `<div id="hrsv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근무시간 <small style="font-weight:600;opacity:.85">— 월별 · 주별 · 일별</small></h2><p>월말 시수 파일의 날짜별 실제 시간으로 부서원 근무시간을 봅니다 (Type '근태' 는 근무시간에서 뺌). 주 = 월요일~일요일. 주별 표는 주 52시간 초과, 일별 표는 하루 8시간 초과를 붉게 표시합니다. 부서원 이름을 누르면 위 숫자가 그 사람 값으로 바뀝니다.</p></div></div>${inner}</section>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
   const d = AS.data[AS.year];
@@ -3886,7 +3886,7 @@ function renderHours(c) {
     if (!HS.month) { const used = new Set(names.flatMap(n => [...P.get(n).days.keys()]).map(k => ymd(monOf(new Date(k))))); cols = cols.filter(cl => used.has(cl.key)); }   // 연간: 시수가 있는 주만
   } else {
     const n = new Date(Y, +HS.month, 0).getDate();
-    cols = Array.from({ length:n }, (_, i) => { const dt = new Date(Y, +HS.month - 1, i + 1), k = ymd(dt); return { key:k, label:`${i + 1}<small>${WD[dt.getDay()]}</small>`, test:x => x === k, cap:10, we:isOff(dt) }; });
+    cols = Array.from({ length:n }, (_, i) => { const dt = new Date(Y, +HS.month - 1, i + 1), k = ymd(dt); return { key:k, label:`${i + 1}<small>${WD[dt.getDay()]}</small>`, test:x => x === k, cap:8, we:isOff(dt) }; });
   }
   const cell = (n, cl) => { let t = 0; for (const [k, x] of P.get(n).days) if (cl.test(k)) t += x.t; return t; };
   const M = names.map(n => ({ n, v:cols.map(cl => cell(n, cl)) }));
@@ -3907,6 +3907,12 @@ function renderHours(c) {
   const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
   const heat = (v, cap) => !v ? '' : cap && v > cap ? 'background:#ffe3e3;color:#c92a2a;font-weight:800' : `background:rgba(59,91,219,${(0.08 + 0.42 * v / vmax).toFixed(3)})`;
   const sel = HS.person && P.has(HS.person) ? HS.person : '';
+  // 위 KPI 칸: 부서원을 누르면 그 사람 값, 아니면 팀 전체 (주 52시간 칸은 뺌)
+  const kdl = sel ? dayList.filter(x => x.n === sel) : dayList, kTot = kdl.reduce((a, x) => a + x.t, 0);
+  const kPM = new Set(kdl.map(x => x.n + '|' + x.k.slice(0, 7))).size;                   // 사람 × 달 (근무시간이 있는 달)
+  const kLong = kdl.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), kOver8 = kdl.filter(x => x.t > 8);
+  const kOff = kdl.filter(x => { const [yy, mm, dd] = x.k.split('-').map(Number); return isOff(new Date(yy, mm - 1, dd)); }), kOffH = kOff.reduce((a, x) => a + x.t, 0);
+  const kLeave = sel ? [...P.get(sel).days].filter(([k]) => inRange(k)).reduce((b, [, x]) => b + x.leave, 0) : leaveTot;
   const rows = M.map(r => { const sum = r.v.reduce((a, b) => a + b, 0), used = r.v.filter(Boolean).length;
     return `<tr class="${r.n === sel ? 'on' : ''}" data-hperson="${esc(r.n)}"><td class="hn"><span class="wperson"><span class="wav sm">${avHtml(r.n)}</span>${esc(r.n)}</span></td>${r.v.map((v, i) => `<td class="${cols[i].we ? 'we' : ''}" style="${heat(v, cols[i].cap)}" title="${esc(r.n)} · ${esc(cols[i].label.replace(/<[^>]+>/g, ' '))} · ${fmtH(v)}h">${v ? fmtH(v) : ''}</td>`).join('')}<td class="hs"><b>${fmtH(sum)}</b></td><td class="hs muted">${used ? fmtH(sum / used) : '-'}</td></tr>`; }).join('');
   const colSum = cols.map((_, i) => M.reduce((a, r) => a + r.v[i], 0));
@@ -3933,14 +3939,14 @@ function renderHours(c) {
       <div class="wtypes">${vbtn('month', '📅 월별')}${vbtn('week', '🗓 주별')}${vbtn('day', '📆 일별')}<span style="width:14px"></span>
         ${HS.view === 'day' ? '' : `<button class="wtc ${!HS.month ? 'on' : ''}" data-hmonth="">연간</button>`}${Array.from({ length:12 }, (_, i) => { const mm = pad(i + 1); return `<button class="wtc ${HS.month === mm ? 'on' : ''} ${monthsWith.includes(mm) ? '' : 'dim'}" data-hmonth="${mm}">${i + 1}월</button>`; }).join('')}</div>`)
     + `<div class="wkpis alkpis">
-      <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} 팀 총 근무시간</span><span class="wkv">${fmtH(tot)}<small>h</small></span><span class="wks">${names.length}명 · 근무일 합 ${workDays}일${leaveTot ? ` · 근태 ${fmtH(leaveTot)}h 제외` : ''}</span></div>
-      ${kpi('wk-run', '👤', '1인 평균', `${names.length ? fmtH(tot / names.length) : '-'}h`, plabel)}
-      ${kpi('wk-done', '📆', '근무일 평균', `${workDays ? fmtH(tot / workDays) : '-'}h`, '하루 (입력 있는 날)')}
-      ${kpi('wk-soon', '⏰', '하루 10시간 초과', `${over10}일`, longD ? `최장 ${fmtH(longD.t)}h · ${esc(longD.n)} ${longD.k.slice(5)}` : '-')}
-      ${kpi('wk-late', '⚠', '주 52시간 초과', `${over52}건`, '사람 × 주 (월~일)')}
-      ${kpi('wk-miss', '🗓', '주말·공휴일 출근', `${offList.length}일`, offList.length ? `${offBy.size}명 · ${fmtH(offH)}h` : '없음')}
+      <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} ${sel ? `<b>${esc(sel)}</b> 총 근무시간` : '팀 총 근무시간'}</span><span class="wkv">${fmtH(kTot)}<small>h</small></span><span class="wks">${sel ? '' : `${names.length}명 · `}근무일 ${kdl.length}일${kLeave ? ` · 근태 ${fmtH(kLeave)}h 제외` : ''}${sel ? ' · <button class="btn sm" data-hperson="" style="padding:1px 8px">팀 전체 보기</button>' : ' · 이름을 누르면 그 사람 값'}</span></div>
+      ${kpi('wk-run', '👤', sel ? '월 평균' : '1인 월 평균', `${kPM ? fmtH(kTot / kPM) : '-'}h`, `근무시간이 있는 ${sel ? '달' : '사람×달'} ${kPM}개`)}
+      ${kpi('wk-done', '📆', '근무일 평균', `${kdl.length ? fmtH(kTot / kdl.length) : '-'}h`, '하루 (입력 있는 날)')}
+      ${kpi('wk-soon', '⏰', '하루 8시간 초과', `${kOver8.length}일`, kLong ? `최장 ${fmtH(kLong.t)}h · ${sel ? '' : esc(kLong.n) + ' '}${kLong.k.slice(5)}` : '-')}
+      ${kpi('wk-miss', '🗓', '주말·공휴일 출근일', `${kOff.length}일`, sel ? '토·일·공휴일' : `${new Set(kOff.map(x => x.n)).size}명`)}
+      ${kpi('wk-late', '⏱', '주말·공휴일 근무시간', `${fmtH(kOffH)}h`, kOff.length ? `하루 평균 ${fmtH(kOffH / kOff.length)}h` : '없음')}
     </div>
-    <section class="card"><h2>⏱ 부서원별 ${({ month:'월별', week:'주별 (월~일)', day:'일별' })[HS.view]} 근무시간 <span class="muted">· ${esc(plabel)} · 진할수록 많음 · 붉은 칸 = ${HS.view === 'week' ? '주 52시간' : HS.view === 'day' ? '하루 10시간' : '-'} 초과 · 이름을 누르면 날짜별 상세</span></h2>${HS.view === 'week' && HS.month ? `<p class="muted" style="margin:0 0 8px">※ 달 경계에 걸친 주(첫 주·마지막 주)는 앞·뒤 달 시간까지 합친 '그 주 전체' 시간입니다. 위 요약 숫자는 ${+HS.month}월 날짜만 셉니다.</p>` : ''}${table}</section>
+    <section class="card"><h2>⏱ 부서원별 ${({ month:'월별', week:'주별 (월~일)', day:'일별' })[HS.view]} 근무시간 <span class="muted">· ${esc(plabel)} · 진할수록 많음 · 붉은 칸 = ${HS.view === 'week' ? '주 52시간' : HS.view === 'day' ? '하루 8시간' : '-'} 초과 · 이름을 누르면 날짜별 상세</span></h2>${HS.view === 'week' && HS.month ? `<p class="muted" style="margin:0 0 8px">※ 달 경계에 걸친 주(첫 주·마지막 주)는 앞·뒤 달 시간까지 합친 '그 주 전체' 시간입니다. 위 요약 숫자는 ${+HS.month}월 날짜만 셉니다.</p>` : ''}${table}</section>
     <section class="card wecard"><h2>🗓 주말·공휴일 출근 현황 <span class="muted">· ${esc(plabel)} · 토·일·공휴일에 근무시간이 있는 날 (근태 제외) · 줄을 누르면 날짜별 상세</span></h2>
       ${offBy.size ? `<table class="t wet"><thead><tr><th>부서원</th><th>출근 일수</th><th>시간</th><th>날짜</th></tr></thead><tbody>${[...offBy.values()].sort((a, b) => b.days.length - a.days.length || b.h - a.h).map(o => `<tr data-hperson="${esc(o.n)}"><td><span class="wperson"><span class="wav sm">${avHtml(o.n)}</span>${esc(o.n)}</span></td><td><b>${o.days.length}</b>일</td><td>${fmtH(o.h)}h</td><td>${o.days.sort((a, b) => a.k.localeCompare(b.k)).map(x => { const [yy, mm, dd] = x.k.split('-').map(Number), dt = new Date(yy, mm - 1, dd), hol = HOLIDAYS.has(x.k); return `<span class="wed ${hol ? 'hol' : ''}" title="${x.k} ${fmtH(x.t)}h">${mm}/${dd}<small>${WD[dt.getDay()]}</small> ${fmtH(x.t)}${hol ? '<em>공휴일</em>' : ''}</span>`; }).join('')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(plabel)} 주말·공휴일 출근이 없습니다</div>`}</section>
     ${detail}</div>`);

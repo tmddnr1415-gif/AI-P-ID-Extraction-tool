@@ -511,3 +511,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - `PID_ROUTES` 에 `path` 추가: pid → `/`, logic → `/logic`(포트 둘 다 `PID_PORT` 8000). iframe 주소 `http://<대시보드 서버 호스트>:8000/logic?embed=1&user=<본명>`. 살아 있나 확인은 같은 `/version`. 꺼져 있으면 '…부서장 PC 의 run_lan_service.bat (P&ID 분석과 같은 서버)' 안내.
 - 필요 조건: 부서장 PC 의 P&ID 도구가 LOGIC 이 결합된 판(hotfix89 이후, 최신 hotfix93)이어야 함. 그 전 판이면 /logic 이 없어 iframe 에 404.
 - **확인한 것**: `node --check`. 실제 P&ID 도구(브랜치 claude/titleblock-parsing-c5st4x = hotfix93 · LOGIC L19)를 시험 PC 에서 8000 으로 켜고 대시보드 → '🔀 LOGIC 분석' → iframe `…:8000/logic?embed=1&user=홍길동`, 화면 제목 'LOGIC 검토', 'Logic 분석 · 어디에 넣을지 · 자료(Logic Diagram 필수 · Loop · System Description · IO List · Logic Table)' 표시. P&ID 분석은 `…:8000/?embed=1&user=…` 그대로. 스크립트 오류 없음.
+
+### 2026-10-13 (29) — 근무시간: 부서원을 누르면 위 숫자가 그 사람 값 · 하루 8시간 기준 · 주 52시간 칸 삭제 (APP_VERSION 2026-10-13.29 / SERVER_VERSION 그대로 2026-10-13.11)
+- Management › 근무시간 위 KPI 칸(`renderHours` 의 `kdl` · `kTot` · `kPM` · `kOver8` · `kOff`): 표·주말 현황에서 **부서원 이름(줄)을 누르면**(`HS.person`) KPI 가 **그 사람 값**, 안 누르면 팀 전체. 큰 칸에 '팀 전체 보기' 단추.
+  - 칸: **총 근무시간** · **(1인) 월 평균** = 근무시간 ÷ 근무시간이 있는 (사람×)달 수 · **근무일 평균** · **하루 8시간 초과** 일수(최장일) · **주말·공휴일 출근일** · **주말·공휴일 근무시간**(하루 평균). **'주 52시간 초과' 칸은 뺌**.
+- 일별 표의 붉은 칸 기준 하루 10시간 → **8시간**(머리글 안내도). 주별 표는 주 52시간 초과 붉게 그대로.
+- **확인한 것**: `node --check`. 9월 팀: 753h · 1인 월 평균 188:15 · 8시간 초과 47일 · 주말·공휴일 14일 111h → 홍길동 누름: 150h · 월 평균 150h · 근무일 평균 7:30 · 8시간 초과 0일 · 주말·공휴일 2일 · 10h(시험 파일과 같음) → 연간으로 바꿔도 홍길동 값 유지 → '팀 전체 보기'로 복귀. 일별 9월 붉은 칸 = 8시간 초과. 스크립트 오류 없음.
