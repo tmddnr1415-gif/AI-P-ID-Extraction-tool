@@ -262,6 +262,9 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .hrt .we{background-color:#f8f9fb}.hrt th.we{color:#c92a2a}.hrt .hs{background:#f3f5fb}.hrt tfoot td{font-weight:700;background:#f3f5fb;border-top:2px solid var(--line)}
 .hr-day td{min-width:40px;padding:6px 3px}.hrtw{max-height:none}
 .hsum{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:4px 0 12px}.hsum i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
+.lvcard h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.lvt td,.lvt th{vertical-align:top;padding:8px 8px}.lvt td:nth-child(2),.lvt td:nth-child(3){white-space:nowrap}
+.lvds{display:flex;flex-wrap:wrap;gap:5px}.lvd{display:inline-flex;align-items:baseline;gap:4px;background:#fff9db;border:1px solid #ffe8a1;border-radius:8px;padding:3px 8px;font-size:12px}
+.lvd.full{background:#ffe066;border-color:#f2c94c}.lvd small{color:var(--sub);font-size:10.5px}.lvd em{font-style:normal;color:#8a6d00;font-size:11px}
 .hp-pjt{background:#3b5bdb}.hp-leave{background:#f2c94c}.atag.leave{background:#fff3bf;color:#8a6d00}.hp-dept{background:#9aa3bd}.hp-etc{background:#c99be8}
 .hdays{display:flex;align-items:flex-end;gap:3px;padding:6px 4px 0;overflow-x:auto}
 .hdb{flex:1 0 24px;display:flex;flex-direction:column;align-items:center;font-size:10.5px}
@@ -863,7 +866,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3625,7 +3628,7 @@ document.addEventListener('click', e => {
  *  Step2 부서원별 월·연간 프로젝트 투입 비율(%) · 그래프 · R&R(역할) · 계획(투입인력) 대비 실제
  *  Step3 실제 시간(h)은 Management 메뉴 권한자에게만 — 서버가 권한 없는 사람에게는 시간 대신 비율 단위만 보냄
  * ===================================================================== */
-const AS = { year:String(new Date().getFullYear()), month:'', person:'', data:{} };   // data[연도] = 서버 응답
+const AS = { year:String(new Date().getFullYear()), month:'', person:'', data:{}, leave:false };   // leave = Management 에서 근태 상세 펼침   // data[연도] = 서버 응답
 const nmKey = s => flat(String(s || '').replace(/~~[\s\S]*?~~/g, '')).toLowerCase().replace(/[\s\-_()·.,]/g, '');
 const codeList = v => String(v || '').toUpperCase().split(/[\s,;/·]+/).map(x => x.trim()).filter(Boolean);
 const AL_PAL = ['#3b5bdb', '#f08c00', '#0ca678', '#e64980', '#1098ad', '#7048e8', '#d6336c', '#74b816', '#f76707', '#4263eb', '#12b886', '#ae3ec9'];
@@ -3761,10 +3764,12 @@ function renderAlloc(c, mg) {                             // mg = Management > R
       <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} 프로젝트 투입 비율</span><span class="wkv">${pct(projV, teamTot)}<small>%</small></span><span class="wks">${people.size}명 · 시수 ${list.length}건${SH ? ` · 총 ${fmtH(teamTot === 1 && !list.length ? 0 : teamTot)}h` : ''}</span></div>
       ${kpi('wk-run', '🏗', '수행·입찰 PJT', `${pct(projV, teamTot)}%`, `${pjs.filter(p => p.kind === 'perform' || p.kind === 'bid').length}개 PJT`)}
       ${kpi('wk-perm', '🏢', '부서업무 (공통)', `${pct(deptV, teamTot)}%`, `Type '공통'${otherV ? ` · 기타 Type ${pct(otherV, teamTot)}%` : ''}`)}
-      ${kpi('wk-soon', '🌴', '근태', `${pct(leaveV, teamTot)}%`, "Type '근태' 일괄")}
+      ${SH ? `<button class="wk wk-soon ${AS.leave ? 'on' : ''}" data-aleave title="누르면 아래에 누가 언제 근태를 몇 시간 썼는지"><span class="wki">🌴</span><span class="wkl">근태</span><span class="wkv">${pct(leaveV, teamTot)}%</span><span class="wks">${fmtH(leaveV)}h · ${AS.leave ? '▲ 상세 닫기' : '▼ 누르면 날짜별 상세'}</span></button>`
+        : kpi('wk-soon', '🌴', '근태', `${pct(leaveV, teamTot)}%`, "Type '근태' 일괄")}
       ${kpi('wk-miss', '❔', '미등록 · 코드 없음', `${pct(unkV, teamTot)}%`, unk.length ? `코드 ${unk.length}개 등록 필요` : '모두 연결됨')}
       ${kpi('wk-done', '📤', '시수 업로드', `${people.size}명`, `${AS.year}년 ${monthsWith.size}개월`)}
     </div>
+    ${SH && AS.leave ? leaveCard(list, idx, plabel) : ''}
     ${unk.length ? `<div class="al-warn">⚠ PJT 에 등록되지 않은 Project Code: ${unk.map(p => `<b>${esc(p.code)}</b> (${pct(p.v, teamTot)}%)`).join(', ')} — <b>수행·입찰 PJT</b>의 <b>Project Code</b> 칸에 넣으면 그 PJT 로 집계됩니다. <button class="btn sm" data-go="perform">수행 PJT</button> <button class="btn sm" data-go="bid">입찰 PJT</button></div>` : ''}
     <div class="wgrid algrid">
       <section class="card"><h2>👤 부서원별 프로젝트 투입 비율 <span class="muted">· ${esc(plabel)} · 막대에 마우스 = 상세 · 누르면 아래에 개인 분석</span></h2>${ppl.length ? ppl.map(prow).join('') : `<div class="empty">${esc(plabel)} 시수 파일이 없습니다. [⬆ 시수 파일 올리기]로 올려 주세요.</div>`}</section>
@@ -3773,7 +3778,8 @@ function renderAlloc(c, mg) {                             // mg = Management > R
     <section class="card"><h2>🔎 개인 분석 — ${esc(sel || '-')} <span class="muted">· ${esc(plabel)}</span></h2>${detail}</section>
     <section class="card"><h2>📤 시수 업로드 현황 <span class="muted">· ${esc(AS.year)}년 · ✓ = 올림${H ? ' (누르면 삭제)' : ' (본인 것은 누르면 삭제)'}</span></h2><div class="tw" style="max-height:none">${grid}</div></section>`));
   $('#allocv').addEventListener('click', async e => {
-    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel],[data-goto]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel],[data-goto],[data-aleave]'); if (!t) return;
+    if (t.dataset.aleave != null) { AS.leave = !AS.leave; return render(); }
     const dd = t.dataset;
     if (dd.goto) { location.hash = '#' + dd.goto; return; }
     if (dd.year != null) { AS.year = dd.year || ty; AS.month = ''; }
@@ -3899,6 +3905,25 @@ function renderHours(c) {
     else if (dd.hperson != null) HS.person = HS.person === dd.hperson ? '' : dd.hperson;
     render();
   });
+}
+/* Management › R&R · 투입 분석: 근태 KPI 를 누르면 — 선택 기간(연간 / 월)에 누가 언제 근태를 몇 시간 썼는지 (Type '근태' 줄의 날짜별 시간 · Detail) */
+function leaveCard(list, idx, plabel) {
+  const ppl = new Map();
+  for (const u of list) for (const r of u.rows) {
+    if (tsClass(r, idx).kind !== 'leave') continue;
+    const [y, m] = u.month.split('-').map(Number);
+    for (const [d, h] of Object.entries(r.days || {})) {
+      if (!(h > 0)) continue;
+      const o = ppl.get(u.person) || ppl.set(u.person, { name:u.person, tot:0, days:new Map() }).get(u.person), k = `${y}-${pad(m)}-${pad(+d)}`;
+      const x = o.days.get(k) || o.days.set(k, { h:0, what:new Set() }).get(k);
+      x.h += h; o.tot += h; const w = String(r.detail || r.work || '').trim(); if (w) x.what.add(w);
+    }
+  }
+  const rows = [...ppl.values()].sort((a, b) => b.tot - a.tot || a.name.localeCompare(b.name, 'ko'));
+  const tot = rows.reduce((a, o) => a + o.tot, 0);
+  const chip = ([k, x]) => { const dt = new Date(k); return `<span class="lvd ${x.h >= 8 ? 'full' : ''}" title="${esc(k)} (${WD[dt.getDay()]}) ${fmtH(x.h)}h${x.what.size ? ' · ' + esc([...x.what].join(', ')) : ''}"><b>${dt.getMonth() + 1}/${dt.getDate()}</b><small>${WD[dt.getDay()]}</small> ${fmtH(x.h)}${x.what.size ? `<em>${esc([...x.what].join(', '))}</em>` : ''}</span>`; };
+  return `<section class="card lvcard"><h2>🌴 근태 상세 — ${esc(plabel)} <span class="muted">· 시수 파일 Type '근태' 줄의 날짜별 시간 · 총 ${fmtH(tot)}h · ${rows.length}명 · 월을 바꾸면 그 달만</span><button class="btn sm" data-aleave style="margin-left:auto">닫기</button></h2>
+    ${rows.length ? `<table class="t lvt"><thead><tr><th>부서원</th><th>근태 합계</th><th>일수</th><th>날짜별 (진한 칸 = 8시간 이상)</th></tr></thead><tbody>${rows.map(o => `<tr><td><span class="wperson"><span class="wav sm">${avHtml(o.name)}</span>${esc(o.name)}</span></td><td><b>${fmtH(o.tot)}h</b></td><td>${o.days.size}일</td><td class="lvds">${[...o.days].sort(([a], [b]) => a.localeCompare(b)).map(chip).join('')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(plabel)} 근태 기록이 없습니다</div>`}</section>`;
 }
 // 올린 시수 파일 지우기: 지울 수 있는 것(본인 것 · Management 는 전부)을 목록으로 보여 주고 하나씩 삭제
 async function openTsDelete(list) {
