@@ -32,17 +32,22 @@ def _code(name: str) -> str:
 # ---------------------------------------------------------------- ① 창에 쓰지 않는다
 def test_the_service_never_writes_the_server_to_its_window():
     body = _code("run_lan_service.bat")
-    srv = [ln for ln in body.splitlines() if "uvicorn app.main:app" in ln or "PID_Extract.exe\" --lan" in ln]
+    # hotfix93 — 소스 서버는 app.lan_serve 가 로그 파일로 띄운다 (cmd 의 `>>` 는 로그를 누가 쥐면 실패했다)
+    srv = [ln for ln in body.splitlines() if "-m app.lan_serve 8000" in ln or "PID_Extract.exe\" --lan" in ln]
     assert len(srv) == 2
-    for ln in srv:
-        assert ln.rstrip().endswith(">> logs\\server.log 2>&1"), ln
+    exe = [ln for ln in srv if "PID_Extract" in ln][0]
+    assert exe.rstrip().endswith(">> logs\\server.log 2>&1"), exe
+    from app import lan_serve
+    import inspect
+    src = inspect.getsource(lan_serve.serve)
+    assert "stdout=log" in src and "stderr=subprocess.STDOUT" in src
 
 
 # ---------------------------------------------------------------- ② 켜기 전에 묻는다
 def test_the_service_asks_before_it_starts():
     body = _code("run_lan_service.bat")
     pre = body.index("-m app.lan_check --preflight")
-    assert pre < body.index("uvicorn app.main:app")
+    assert pre < body.index("-m app.lan_serve 8000")
     # 1·2 는 파이썬이 실패한 코드와 겹친다 — 그때 영영 기다리지 않게 3·4 를 쓴다
     assert "if errorlevel 4 goto busy" in body and "if errorlevel 3 goto already" in body
     assert (lan_check.FREE, lan_check.ALREADY, lan_check.BUSY) == (0, 3, 4)

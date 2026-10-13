@@ -22,6 +22,13 @@ rem hotfix54: PYTHONUTF8=1.  Python writes a redirected log in the Windows code
 rem page (cp949) and cp949 has no em dash; the start-up audit line holds one when
 rem the database has hand-added rows, so the server died while starting and this
 rem window restarted it every 10 s.  When it stops, the end of the log is shown.
+rem
+rem hotfix93: the server is started by app\lan_serve.py, not by cmd redirection.
+rem When logs\server.log was held by another program, '>> logs\server.log' failed
+rem ('the process cannot access the file') and the server never started.  Python
+rem opens the log in shared mode and falls back to logs\server_<time>.log.  The
+rem server also ignores Ctrl+C in this window (it used to stop the server); close
+rem the window to stop it.
 setlocal
 cd /d "%~dp0"
 set PID_LAN=1
@@ -43,8 +50,9 @@ echo PID server - LAN mode, port 8000.  Other PCs connect with:
 %PY% -c "from app import lan; print(chr(10).join('   ' + u for u in lan.urls(8000)))"
 echo.
 echo Server messages go to logs\server.log (not to this window).
-echo Keep this window open; minimise it.  Problems: run check_pid_server.bat
-%PY% -m uvicorn app.main:app --host 0.0.0.0 --port 8000 >> logs\server.log 2>&1
+echo Keep this window open; minimise it.  Ctrl+C does not stop the server - close the window.
+echo Problems: run check_pid_server.bat
+%PY% -m app.lan_serve 8000
 goto stopped
 
 :run_exe
@@ -73,7 +81,7 @@ goto loop
 echo [%date% %time%] server stopped - restarting in 10 seconds>> logs\lan_service.log
 echo.
 echo Server stopped.  End of logs\server.log:
-if exist "PID_Extract.exe" (echo   see logs\server.log) else (%PY% -m app.lan_check --tail)
+if exist "PID_Extract.exe" (echo   see logs\server.log) else (%PY% -m app.lan_serve --tail)
 echo Restarting in 10 seconds.
 timeout /t 10 /nobreak >nul
 goto loop

@@ -16,8 +16,10 @@ UTF-8 한글이 든 LF 파일이었다.  cmd.exe 는 배치 파일을 바이트 
 from __future__ import annotations
 
 import pathlib
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 BATS = sorted(ROOT.glob("*.bat"))
 
 
@@ -46,6 +48,8 @@ def test_the_service_starts_the_server_itself():
     body = "\n".join(code)
     assert "start.bat" not in body                    # 다른 배치 파일을 거치지 않는다
     assert "set PID_LAN=1" in body
-    assert "-m uvicorn app.main:app --host 0.0.0.0 --port 8000" in body
+    assert "-m app.lan_serve 8000" in body             # hotfix93 — 서버 명령은 lan_serve 안에
+    from app import lan_serve
+    assert lan_serve.server_command(8000)[1:] == ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     assert '"PID_Extract.exe" --lan --no-browser 8000' in body
     assert "goto loop" in body and "taskkill" not in body.lower()

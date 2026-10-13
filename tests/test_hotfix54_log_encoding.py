@@ -79,9 +79,9 @@ def _code(name: str) -> str:
 
 def test_service_writes_the_log_in_utf8_and_shows_it_when_stopped():
     body = _code("run_lan_service.bat")
-    assert body.index("set PYTHONUTF8=1") < body.index("uvicorn app.main:app")
+    assert body.index("set PYTHONUTF8=1") < body.index("-m app.lan_serve 8000")   # hotfix93
     stopped = body[body.index(":stopped"):]
-    assert "-m app.lan_check --tail" in stopped
+    assert "-m app.lan_serve --tail" in stopped
     assert "set PYTHONUTF8=1" in _code("check_pid_server.bat")
 
 
