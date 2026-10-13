@@ -5513,12 +5513,7 @@ function scopePop(key) {
           names.map(n => `<option value="${escAttr(n)}">${escape(n)}</option>`).join("")}</select>` : "")
       + `<button type="button" class="sp-b none" data-sp="none" title="그려진 것은 맞지만 공급 대상이 아님 — 식별을 지웁니다 (Excel 에서 빠짐 · 되돌릴 수 있음)">둘 다 아님 — 식별 지우기</button>`
       + `</div><div class="sp-note muted small">Esc 닫기 · 지운 것은 다시 눌러 되돌립니다</div>`;
-  document.body.appendChild(pop);
-  const pw = pop.offsetWidth, ph = pop.offsetHeight;
-  let left = ab.right + 8, top = ab.top - 6;
-  if (left + pw > window.innerWidth - 8) left = Math.max(8, ab.left - pw - 8);
-  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
-  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+  _placePop(pop, ab);
   pop.querySelectorAll("button.sp-b").forEach(b => {
     b.onclick = async (ev) => {
       ev.stopPropagation();
@@ -5531,6 +5526,72 @@ function scopePop(key) {
       const sel = pop.querySelector(".sp-name");
       const name = sel ? sel.value : "";
       await saveField(row, "scope", name ? `${SCOPE_VENDOR_PREFIX}(${name})` : SCOPE_VENDOR_PREFIX);
+    };
+  });
+  const sel = pop.querySelector(".sp-name");
+  if (sel) sel.onclick = (ev) => ev.stopPropagation();
+  closeScopePop._off = (ev) => { if (!pop.contains(ev.target)) closeScopePop(); };
+  setTimeout(() => document.addEventListener("pointerdown", closeScopePop._off, true), 0);
+}
+
+function _placePop(pop, ab) {
+  document.body.appendChild(pop);
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = ab.right + 8, top = ab.top - 6;
+  if (left + pw > window.innerWidth - 8) left = Math.max(8, ab.left - pw - 8);
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
+  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+}
+
+/* hotfix94 — 같은 판을 **Shift 묶음 전체**에.  판은 고르기만 하고 저장은 묶음 판(오른쪽)과 같은 길이다 —
+ * SCT/VENDOR 는 `applyScopeToMulti`(요청 하나 · `editRowsBulk`) · 둘 다 아님은 `dismissRows` · 되돌리기는
+ * `_restoreKeys`.  그래서 목록 칸 · 도면 색 · 되돌리기(Ctrl+Z) · Excel 이 한 행짜리와 똑같이 따라온다. */
+function scopePopGroup(anchorKey) {
+  closeScopePop();
+  const all = multiRows().filter(r => !r.deleted);
+  if (all.length < 2) { if (anchorKey) scopePop(anchorKey); return; }
+  const live = all.filter(r => !r.removed), gone = all.filter(r => r.removed);
+  const box = document.querySelector(`rect.det[data-key="${CSS.escape(anchorKey)}"]`);
+  if (!box) return;
+  const by = {};
+  for (const r of live) { const v = String(cellValue(r, "scope") || "") || "(비어 있음)"; by[v] = (by[v] || 0) + 1; }
+  const now = Object.entries(by).map(([k, n]) => `${escape(k)} ${n}`).join(" · ");
+  const names = vendorNames();
+  const pop = document.createElement("div");
+  pop.className = "scopepop group";
+  pop.setAttribute("role", "dialog");
+  pop.innerHTML = `<div class="sp-h">선택 ${all.length}개 일괄${live.length ? ` · 지금 ${now}` : ""}</div>`
+    + (live.length
+      ? `<div class="sp-btns">`
+        + `<button type="button" class="sp-b sct" data-sp="sct">SCT 공급</button>`
+        + `<button type="button" class="sp-b ven" data-sp="vendor">VENDOR</button>`
+        + (names.length ? `<select class="sp-name" title="VENDOR 이름 (이 도면에서 읽은 것)"><option value="">(이름 없음)</option>${
+            names.map(n => `<option value="${escAttr(n)}">${escape(n)}</option>`).join("")}</select>` : "")
+        + `<button type="button" class="sp-b none" data-sp="none" title="고른 것 전부 — 그려진 것은 맞지만 공급 대상이 아님 · 식별을 지웁니다 (Excel 에서 빠짐 · 되돌릴 수 있음)">둘 다 아님 — 식별 지우기</button>`
+        + `</div>` : "")
+    + (gone.length
+      ? `<div class="sp-btns"><button type="button" class="sp-b" data-sp="restore">지운 ${gone.length}개 되돌리기</button></div>` : "")
+    + `<div class="sp-note muted small">고른 ${live.length}개 전부에 적용 · 추출 목록도 같이 바뀝니다 · Ctrl + 클릭으로 묶음에서 빼기 · Esc 닫기</div>`;
+  _placePop(pop, box.getBoundingClientRect());
+  pop.querySelectorAll("button.sp-b").forEach(b => {
+    b.onclick = async (ev) => {
+      ev.stopPropagation();
+      const what = b.dataset.sp;
+      const sel = pop.querySelector(".sp-name");
+      const name = sel ? sel.value : "";
+      closeScopePop();
+      if (what === "restore") {
+        const keys = gone.map(r => r.key);
+        const ok = await _restoreKeys(keys);
+        if (ok) undoRecord({ kind: "restore", label: `지운 ${keys.length}개 되살리기`, keys,
+                             opts: { reason: "", klass: "FALSE_POSITIVE" } });
+        markMultiRows();
+        editNotice(`${keys.length}개를 되돌렸습니다 — 다시 결과와 Excel 에 들어갑니다`, "in");
+        return;
+      }
+      if (what === "none") return dismissRows(live.map(r => r.key));
+      if (what === "sct") return applyScopeToMulti(SCOPE_DELIVERED);
+      return applyScopeToMulti(name ? `${SCOPE_VENDOR_PREFIX}(${name})` : SCOPE_VENDOR_PREFIX);
     };
   });
   const sel = pop.querySelector(".sp-name");
@@ -5718,7 +5779,7 @@ function showMultiScope() {
 }
 
 async function applyScopeToMulti(value) {
-  const rows = multiRows();
+  const rows = multiRows().filter(r => !r.removed && !r.deleted);   // hotfix94 — 지운 행의 칸은 안 고친다
   if (!rows.length) return;
   const author = await askAuthor(`${rows.length}개 공급 주체 → ${value}`);
   if (author === null) return;                       // 취소 — 한 행도 안 고친다
@@ -8162,6 +8223,11 @@ function drawItem(ov, scale, it) {
     ev.stopPropagation();
     // 56회차 — Shift 를 누르고 누르면 **더한다**.  행이 아닌 것(제외 심볼)은
     // 고칠 SCOPE 칸 자체가 없으므로 묶음에 넣지 않는다.
+    // hotfix94 — Shift 로 묶은 범위 **안의** 상자를 Shift + 왼쪽 클릭하면 그 묶음 전체에 SCT · VENDOR · 둘 다
+    // 아님 판이 뜬다 (사용자: *"Shift 로 범위를 지정하고 Shift 를 누른 채 클릭하면 이 화면 · 결과는 범위 전체에"*).
+    // 묶음에서 하나를 빼는 것은 Ctrl + 클릭이다 (맥 Ctrl + 클릭은 아래 `oncontextmenu` 가 같은 일을 한다).
+    if (ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !S.markup && it.row !== false
+        && S.multi.size > 1 && S.multi.has(it.key)) { scopePopGroup(it.key); return; }
     if (isAddClick(ev) && it.row !== false) { toggleMulti(it.key); return; }
     select(it.key, false, it);
     // 마크업 모드에서 기존 상자를 누르면 오검출 표시 대화상자다 ([D-3]).
@@ -11856,6 +11922,8 @@ const SHORTCUTS = [
     ["끌기", "도면 옮기기"],
     ["Shift / Ctrl + 상자 누름", "여러 개 고르기 (공급 주체 · 승수를 한 번에)"],
     ["Shift + 끌기", "띠로 여러 개 고르기"],
+    ["Shift + 고른 상자 누름", "고른 것 전부에 SCT · VENDOR · 둘 다 아님 (목록도 같이)"],
+    ["Ctrl + 고른 상자 누름", "묶음에서 빼기"],
     ["Esc", "고른 것 풀기 · 전체화면 나가기"],
   ]],
   ["메모", [

@@ -4795,6 +4795,23 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
    를 물을 수 있다 — 그때는 N.
 4. LOGIC L15~L19 병합 (충돌 0) — 기록은 맨 아래 LOGIC 절이 아니라 그 브랜치에 있다.
 
+**그 다음 — Shift 묶음 + Shift 클릭 = 묶음 전체에 SCT · VENDOR · 둘 다 아님 (hotfix94 · 화면 회차 · 판정 0줄)**
+
+사용자(SADARA p6 사진 · hotfix67 판): *"키보드 Shift 로 범위를 지정하고 Shift 를 누른 상태에서 마우스 왼쪽을 클릭하면
+이 화면이 뜨게 하고 그 결과는 Shift 로 범위 지정된 식별된 계기에 모두 일괄 적용 및 추출 List 도 반영되게."*
+시험 `tests/test_hotfix94_shift_group_pop.py` 4건 · 화면 자기검증 `spike/ui_audit_shift_group.py` → `out/hotfix94/ui/`.
+
+1. **묶음 안의 상자를 Shift + 왼쪽 클릭 → `scopePopGroup`** — 같은 판(SCT 공급 · VENDOR + 이름 · 둘 다 아님)이
+   `선택 N개 일괄 · 지금 SCT 3 · VENDOR 1` 머리로 뜨고, 지운 행이 섞여 있으면 `지운 M개 되돌리기`.  예전에는 그 클릭이
+   묶음에서 **빼기**였다 → 빼기는 **Ctrl + 클릭**(맥 Ctrl+클릭은 `oncontextmenu` 가 같은 일).  묶음 **밖** 상자의
+   Shift + 클릭은 그대로 더하기 · 마크업 모드에서는 안 뜬다.
+2. **판은 고르기만 한다** — 저장은 오른쪽 묶음 판과 같은 길: SCT/VENDOR `applyScopeToMulti`(요청 하나 `editRowsBulk`) ·
+   둘 다 아님 `dismissRows` · 되돌리기 `_restoreKeys`.  그래서 목록 칸 · 도면 색 · Ctrl+Z · Excel 이 한 행짜리와 같다.
+   `applyScopeToMulti` 는 이제 **지운 행의 SCOPE 를 고치지 않는다**.  자리 잡기는 `_placePop` 하나(한 행 판과 공용).
+3. 실측 (QFE Rev.B 사본 p15 · `user=홍길동`): 띠로 4개 → Shift+클릭 판 `선택 4개 일괄` · VENDOR(CO2 ABSORBER SUPPLIER)
+   → 서버·목록 칸 4/4 · 고친 사람 홍길동 → SCT 4/4 → Ctrl+클릭으로 하나 빼기 4→3 → 둘 다 아님 3행 removed(뺀 것은 그대로)
+   · 목록 취소선 → Ctrl+Z 로 되살림 → 묶음 밖 Shift+클릭은 더하기(판 없음) · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5260,6 +5277,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `app.js` `saveField`/`syncRowCell`/`saveEdit` · `renderFloatEdit`/`setFull` · `#fedit` · `#full-toggle` | **hotfix64** — 칸 저장의 단 하나의 길(목록 칸 · 도면 위 편집 카드 공용) · 도면 전체화면 · 목록이 안 보일 때 도면 위 편집 |
 | `app.js` `qtyBase`·`pageMultPages`·`pageMultPlan`·`renderPageMult`·`applyPageMult`·`_saveQtyItems` · `main.qty_bulk` | **hotfix65** — 수량 승수 판의 페이지별 승수(지금 결과에 바로).  Q'ty = 기본 개수 × 승수 — 계산은 화면 한 곳 · 서버는 PATCH 와 같은 db 함수로 적기만.  유닛코드 승수(다음 분석부터)와 다른 길 |
 | `app.js` `currentAuthor`·`askAuthor`·`renderWhoChip`·`editorOf`·`stampEditor`·`editedTitle` · `db.last_editors` · `/rows` 의 `edited_by` | **hotfix66** — 작성자는 대시보드 로그인(`?user=`) → 기억된 이름 순 · 편집마다 묻지 않는다(이름이 없을 때 처음 한 번만) · 고친 칸·라벨·근거 패널에 고친 사람 이름 |
+| `app.js` `scopePopGroup`·`_placePop` | **hotfix94** — Shift 묶음 안 상자를 Shift+클릭하면 같은 판을 묶음 전체에 (저장은 `applyScopeToMulti` · `dismissRows` · `_restoreKeys`) · 빼기는 Ctrl+클릭 |
 | `app.js` `scopePop`·`closeScopePop`·`dismissRows`·`deleteRows(keys, opts)` · `markup.CLASSES.NOT_SUPPLY` | **hotfix67** — 도면 상자를 누르면 SCT · VENDOR · 둘 다 아님(식별 지우기) 판.  판은 고르기만 하고 저장은 `saveField` · `deleteRows` · `restoreRow` 그대로 |
 | `app.js` `PANE`·`SYNC`·`popOut`·`rejoin`·`setPane`·`paneRole`·`drawingHidden`·`_nativeOpen`·`syncPost`·`syncReceive`·`syncSel`·`syncPage`·`syncRows`·`hookFetch`·`syncNoteMutation` | **hotfix68** — 도면 · 목록 새 창(듀얼 모니터)과 두 창 연동.  보이는 칸만 고른다 (`body.pane-*`) · 같은 출처 postMessage · 저장은 쓰기 요청이 끝난 것을 보고 알린다 · 받은 창은 그 행만 `/rows?keys=` |
 | `main._ROWS_BODY` · `_rows_payload` · `rows(keys=)` · `GZipMiddleware` | **hotfix68** — `/rows` 본문 메모(도장 `db._db_stamp`) · 압축본 · 몇 행만.  큰 응답 압축(이미 압축된 것 · SSE 제외) |
