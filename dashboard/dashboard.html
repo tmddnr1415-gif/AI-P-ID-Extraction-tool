@@ -850,7 +850,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.12';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1318,7 +1318,7 @@ function diffTable(a, b, la, lb) {
   return `<div class="chg" style="font-weight:700"><span></span><span>${la}</span><span>${lb}</span></div>` +
     (ks.map(k => `<div class="chg"><b>${esc(k)}</b><pre class="b">${esc(x[k] ?? '')}</pre><pre class="a">${esc(y[k] ?? '')}</pre></div>`).join('') || '<p class="muted">내용 차이 없음</p>');
 }
-async function syncOp(op) {
+async function syncOp(op, force) {                       // force: [예 (덮어쓰기)] — 충돌해도 묻지 않고 내 것으로
   const label = `${esc(SHEET[op.key]?.label || op.key)} · <b>${esc(recLabel(op.key, op.fields || op.baseFields || {}))}</b>`;
   const choose = (title, body) => ask(title, body, [{ id:'mine', label:'내 것으로 덮어쓰기', cls:'pri' }, { id:'server', label:'서버 것 유지' }, { id:'later', label:'나중에' }]);
   if (op.op === 'create') {
@@ -1333,7 +1333,7 @@ async function syncOp(op) {
       if (r.status === 'ok' || r.status === 'nochange') return 'done';
     }
     const now = cur || null;
-    const c = await choose('⚠ 오프라인 수정 충돌', now
+    const c = force ? 'mine' : await choose('⚠ 오프라인 수정 충돌', now
       ? `${label}<p>오프라인으로 수정하는 동안 서버에서 <b>${esc(now.meta.updatedBy)}</b>님이 <b>${fmtTime(now.meta.updatedAt)}</b>에 이 행을 수정했습니다.<br><span class="muted">내 오프라인 수정: ${esc(op.by)} · ${fmtTime(op.at)}</span></p>${diffTable(now.fields, op.fields, '서버 최신', '내 오프라인 수정')}`
       : `${label}<p>오프라인으로 수정하는 동안 서버에서 이 행이 <b>삭제</b>되었습니다. [내 것으로 덮어쓰기]를 누르면 내 내용으로 다시 만듭니다.</p>`);
     if (c === 'mine') {
@@ -1346,7 +1346,7 @@ async function syncOp(op) {
   if (op.op === 'delete') {
     if (!cur) return 'done';
     if (cur.meta.rev !== op.baseRev) {
-      const c = await ask('⚠ 오프라인 삭제 충돌', `${label}<p>오프라인으로 삭제한 행을 서버에서 <b>${esc(cur.meta.updatedBy)}</b>님이 <b>${fmtTime(cur.meta.updatedAt)}</b>에 수정했습니다.</p>${diffTable(op.baseFields, cur.fields, '내가 삭제할 때 내용', '서버 최신')}`,
+      const c = force ? 'mine' : await ask('⚠ 오프라인 삭제 충돌', `${label}<p>오프라인으로 삭제한 행을 서버에서 <b>${esc(cur.meta.updatedBy)}</b>님이 <b>${fmtTime(cur.meta.updatedAt)}</b>에 수정했습니다.</p>${diffTable(op.baseFields, cur.fields, '내가 삭제할 때 내용', '서버 최신')}`,
         [{ id:'mine', label:'그래도 삭제(휴지통)', cls:'pri' }, { id:'server', label:'서버 것 유지' }, { id:'later', label:'나중에' }]);
       if (c === 'server') return 'done';
       if (c !== 'mine') return 'later';
@@ -1368,17 +1368,78 @@ async function trySync(manual) {
     const was = OFFLINE; OFFLINE = false;
     if (was) root = { name:serverLabel() };
     let up = 0, later = 0;
+    const mine = QUEUE.filter(op => AUTH && !(op.by && op.by !== AUTH.name));
+    let mode = 'each';
+    if (mine.length) {                                     // 서버가 다시 켜짐 → 꺼져 있을 때 쓴 내용을 덮어쓸지 먼저 물음
+      if (SYNC_HOLD && !manual) mode = 'hold';
+      else { mode = await askOverwrite(mine); SYNC_HOLD = mode === 'hold'; }
+    }
     for (const op of [...QUEUE]) {
       if (!AUTH || (op.by && op.by !== AUTH.name)) { later++; continue; }   // 다른 사람이 이 PC에서 오프라인 수정한 것은 그 사람이 로그인했을 때 업로드
+      if (mode === 'hold') { later++; continue; }
       let r;
-      try { r = await syncOp(op); }
+      try { r = await syncOp(op, mode === 'yes'); }
       catch (e) { if (e.offline) { OFFLINE = true; break; } toast(`업로드 실패 (${SHEET[op.key]?.label}): ${e.message}`, true); r = 'later'; }
       if (r === 'done') { QUEUE = QUEUE.filter(o => o.uid !== op.uid); await queueSave(); up++; } else later++;
     }
     if (OFFLINE) { await loadAll(); render(); toast('업로드 중 연결이 끊겼습니다. 남은 대기열은 다음 연결 때 올립니다', true); return; }
     await loadAll(); render(); presenceStart();
-    if (was || up || manual) toast(`서버에 연결되었습니다${up ? ` · 대기열 ${up}건 업로드` : ''}${later ? ` · ${later}건은 나중에` : ''}`);
+    if (was || up || manual) toast(`서버에 연결되었습니다${up ? ` · 서버가 꺼져 있을 때 쓴 내용 ${up}건 반영` : ''}${later ? ` · ${later}건은 이 PC에 보관 (나중에)` : ''}`);
   } finally { syncing = false; }
+  askUpdate();
+}
+/* 서버가 꺼져 있을 때 이 PC 에서 쓴 내용(대기열) → '덮어쓸까요?' : yes = 모두 반영(충돌도 내 것으로) / each = 충돌 행만 비교 창 / hold = 나중에 */
+let SYNC_HOLD = false;
+async function askOverwrite(list) {
+  const rows = list.slice(0, 40).map(o => `<tr><td>${esc(SHEET[o.key]?.label || o.key)}</td><td>${esc(trunc(recLabel(o.key, o.fields || o.baseFields || {}), 40))}</td><td><span class="tag ${o.op === 'delete' ? 'del' : o.op === 'create' ? 'new' : ''}">${OPNAME[o.op]}</span></td><td>${fmtTime(o.at)}</td></tr>`).join('');
+  const c = await ask('💾 서버가 꺼져 있을 때 작성한 내용이 있습니다',
+    `<p style="margin-top:0">서버가 꺼져 있던 동안 이 PC 에서 작성·수정한 내용 <b>${list.length}건</b>이 있습니다.<br><b style="font-size:15px">켜진 서버에 덮어쓸까요?</b></p>
+    <div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>시트</th><th>항목</th><th>작업</th><th>작성 시각</th></tr></thead><tbody>${rows}</tbody></table></div>${list.length > 40 ? `<p class="muted">… 외 ${list.length - 40}건</p>` : ''}
+    <p class="muted" style="margin-bottom:0">[예] 모두 서버에 반영 — 그 사이 다른 사람이 같은 행을 고쳤어도 <b>내 내용으로 덮어씀</b> (덮어쓴 전 내용은 이력에 남음)<br>[하나씩 확인] 다른 사람이 고친 행만 비교해서 고름 · [나중에] 이 PC 에 계속 보관 (위 배너의 [지금 동기화]로 다시)</p>`,
+    [{ id:'yes', label:'예 (덮어쓰기)', cls:'pri' }, { id:'each', label:'하나씩 확인' }, { id:'later', label:'나중에' }]);
+  await new Promise(ok => setTimeout(ok, 0));
+  return c === 'yes' || c === 'each' ? c : 'hold';
+}
+/* 프로그램 업데이트: 부서원 PC 의 dashboard.html(file://) 이 서버보다 옛 버전이면 '교체하세요' → [예] 를 누르면 그 파일을 새 파일로 덮어씀
+   (Edge/Chrome File System Access API: 처음 한 번 저장 창에서 지금 쓰는 파일을 고르면 그 파일 핸들을 IndexedDB 'self' 에 기억 → 다음부터 창 없이 바로) */
+let UPD_ASKED = '';
+const selfName = () => { try { return decodeURIComponent(location.pathname.split('/').pop()) || 'dashboard.html'; } catch (_) { return 'dashboard.html'; } };
+const selfPath = () => { try { return decodeURIComponent(location.pathname).replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\'); } catch (_) { return location.pathname; } };
+async function newHtml() {
+  const res = await fetch(API_BASE + '/dashboard.html', { cache:'no-store' });
+  if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+  const t = await res.text();
+  if (!t.includes('const APP_VERSION')) throw new Error('받은 파일이 대시보드가 아닙니다');
+  return t;
+}
+async function askUpdate(manual) {
+  if (!NEWVER || OFFLINE || (!manual && (UPD_ASKED === NEWVER || dlg.open || dlg2.open))) return;
+  UPD_ASKED = NEWVER;
+  let html; try { html = await newHtml(); } catch (e) { if (manual) toast('새 버전을 받지 못했습니다: ' + e.message, true); return; }
+  const c = await ask('🆕 프로그램이 업데이트되었습니다',
+    `<p style="margin-top:0;font-size:15px"><b>부서원의 dashboard.html 을 업데이트 파일로 교체하세요.</b></p>
+    <p>내 파일 버전 <b>${esc(APP_VERSION)}</b> → 새 버전 <b style="color:var(--accent)">${esc(NEWVER)}</b><br><span class="muted">지금 쓰는 파일: ${esc(selfPath())}</span></p>
+    <p class="muted" style="margin-bottom:0">[예] 를 누르면 이 PC 의 파일을 새 파일로 덮어쓰고 다시 엽니다.${'showSaveFilePicker' in window ? `<br>처음 한 번은 <b>저장 창</b>이 열립니다 → 위 경로의 <b>${esc(selfName())}</b> 를 고르고 [저장] → [예(바꾸기)]. 다음부터는 창 없이 바로 바뀝니다.` : '<br>이 브라우저는 파일을 직접 덮어쓸 수 없어 새 파일을 내려받습니다 → 내려받은 파일로 직접 바꿔 주세요.'}</p>`,
+    [{ id:'yes', label:'예 (교체)', cls:'pri' }, { id:'no', label:'나중에' }]);
+  if (c === 'yes') await replaceSelf(html);
+}
+async function replaceSelf(html) {
+  const fname = selfName();
+  if (!('showSaveFilePicker' in window)) { location.href = API_BASE + '/dashboard.html?download=1'; return toast('새 파일을 내려받았습니다. 지금 쓰는 dashboard.html 을 그 파일로 바꿔 주세요'); }
+  try {
+    let h = null;
+    try { h = await kv('readonly', st => st.get('self')); } catch (_) {}
+    if (h && h.name !== fname) h = null;                   // 다른 이름의 파일을 열었으면 다시 고름
+    if (h && await h.queryPermission({ mode:'readwrite' }) !== 'granted' && await h.requestPermission({ mode:'readwrite' }) !== 'granted') h = null;
+    if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
+    const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
+    try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
+    if (h.name === fname) { toast('새 버전으로 바꿨습니다. 다시 엽니다…'); setTimeout(() => location.reload(), 1200); }
+    else toast(`새 버전을 '${h.name}' 으로 저장했습니다. 지금 연 파일(${fname}) 대신 그 파일을 여세요`, true);
+  } catch (e) {
+    if (e.name === 'AbortError') return toast('교체를 취소했습니다. 위 배너의 [지금 교체]로 다시 할 수 있습니다', true);
+    toast(`교체하지 못했습니다 (${e.message}) — 배너의 [새 버전 다운로드]로 받아 직접 바꿔 주세요`, true);
+  }
 }
 function checkVersion(info) { NEWVER = info.version && info.version !== APP_VERSION && location.protocol === 'file:' ? info.version : ''; }
 const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : ''})`;
@@ -1452,7 +1513,7 @@ function ask(title, body, buttons) {
     let done = false;
     const fin = v => { if (done) return; done = true; dlg2.close(); res(v); };
     dlg2.onclick = e => { const b = e.target.closest('button[data-id]'); if (b) fin(b.dataset.id); };
-    dlg2.onclose = () => fin(null);
+    dlg2.onclose = () => { if (!dlg2.open) fin(null); };   // 바로 앞 창의 늦게 온 close 이벤트는 무시 (창이 열려 있으면 내 창이 아님)
   });
 }
 async function askName(first) {
@@ -2206,7 +2267,7 @@ function render() {
   else if (SERVER && QUEUE.length) banners += `<div class="banner netbar">⏳ 아직 서버에 올리지 않은 오프라인 수정 <b>${QUEUE.length}</b>건 ('나중에' 선택 포함)
       <span class="sp"></span><button class="btn sm pri" data-net="sync">지금 동기화</button><button class="btn sm" data-net="queue">대기열</button></div>`;
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
-      <span class="sp"></span><a class="btn sm pri" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
+      <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
   if (readOnly() && !PID_ROUTES[route]) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
   // P&ID 화면을 보고 있는 중의 재렌더링(1분 자동 갱신 등)은 iframe 을 그대로 두고 배너만 갱신 → 도구 작업 내용 유지
   const allowed = can(menuOf(route));                      // 메뉴 권한 (주소창으로 직접 들어와도 막음)
@@ -4012,7 +4073,7 @@ $('#content').onclick = e => {
   const pp = e.target.closest('[data-pop]'); if (pp) return openPop(pp.dataset.pop);
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
-  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : openQueue();
+  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true) : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route]) return;
   if (route === 'board') return;
@@ -4183,7 +4244,8 @@ async function startOnline() {
   render();
   showMyTodo();
   presenceStart();
-  if (QUEUE.length) trySync(false);                         // 지난번에 못 올린 오프라인 수정이 있으면 바로 업로드
+  if (QUEUE.length) await trySync(false);                   // 지난번에 못 올린 오프라인 수정이 있으면 '덮어쓸까요?' 후 업로드
+  askUpdate();                                             // 새 버전이 있으면 '교체하세요'
 }
 async function initFolderMode() {
   render();

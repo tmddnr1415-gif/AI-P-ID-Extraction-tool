@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.6'
+SERVER_VERSION = '2026-10-13.7'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -1700,6 +1700,26 @@ def lan_ips():
     return sorted(ip for ip in ips if not ip.startswith('127.'))
 
 
+def keep_awake_loop():
+    """서버가 켜져 있는 동안 서버 PC 가 절전(대기) 모드로 들어가지 않게 함 — 화면 끄기·화면 잠금은 그대로 됨. Windows 전용.
+    (절전되면 부서원은 서버에 못 붙고 '오프라인 모드'가 됨. 노트북 덮개 닫기·전원 단추로 직접 재우는 것은 막지 못함)"""
+    if os.name != 'nt':
+        return
+    import ctypes
+    ES_SYSTEM_REQUIRED = 0x00000001                       # 1분마다 '시스템 사용 중' 알림 → 유휴 절전 타이머 초기화
+    first = True
+    while True:
+        try:
+            ok = ctypes.windll.kernel32.SetThreadExecutionState(ES_SYSTEM_REQUIRED)
+            if first:
+                log.info('절전 방지: %s (서버가 켜져 있는 동안 이 PC 는 절전 모드로 들어가지 않음 · 화면 끄기는 됨 · 끄려면 --allow-sleep)', '켜짐' if ok else '실패')
+                first = False
+        except Exception as e:
+            log.warning('절전 방지 실패: %s', e)
+            return
+        time.sleep(60)
+
+
 def main():
     global ROOT, PORT, ALLOW_NETS
     ap = argparse.ArgumentParser(description='계장ENG그룹 Dashboard 서버')
@@ -1710,6 +1730,7 @@ def main():
     ap.add_argument('--open', action='store_true', help='서버 시작 후 브라우저로 http://localhost:포트 열기')
     ap.add_argument('--backup-keep', type=int, default=60, help='백업 보관 일수')
     ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
+    ap.add_argument('--allow-sleep', action='store_true', help='서버 PC 절전 방지를 끔 (기본: 서버가 켜져 있는 동안 절전 모드 막음)')
     ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
     a = ap.parse_args()
 
@@ -1737,6 +1758,8 @@ def main():
         port_busy_exit(a.port, port_in_use(a.port) or 'other')
     threading.Thread(target=backup_loop, args=(a.backup_keep, a.history_days), daemon=True).start()
     threading.Thread(target=weekly_loop, daemon=True).start()
+    if not a.allow_sleep:
+        threading.Thread(target=keep_awake_loop, daemon=True).start()
     try:
         build_deploy()
     except Exception as e:
