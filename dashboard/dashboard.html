@@ -867,7 +867,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.22';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.23';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2518,7 +2518,24 @@ function myTasks() {
     out.push({ key:k, rid:r.id, f:'__ack', alarm:true, kind:`🔔 ${k === 'task' ? ttOf(it.f['유형']).short : WORK[k].label}`, label:recLabel(k, r.fields),
       sub:`완료해야 할 업무 · ${it.st}${it.end ? ' · 기한 ' + it.end : ''}`, done:ack.has(ackKey(k, r.id)) });
   }
+  // 매달: 직전 달 시수 입력 파일 올리기 — 그 달 1~7일(첫째 주)에 표시, 올리기 전까지는 첫째 주가 지나도 '미완료'로 남음
+  if (TS_DUE && TS_DUE.who === AUTH?.id && (TS_DUE.month === tsDueMonth()) && (!TS_DUE.done || new Date().getDate() <= 7))
+    out.push({ key:'alloc', rid:'ts', f:'__ts', kind:'⏱ 시수', label:`${+TS_DUE.month.slice(5)}월 시수 입력 파일 올리기`, sub:TS_DUE.done ? `${TS_DUE.month} 시수 올림` : `${TS_DUE.month} 월말 시수 파일 → R&R · 투입 분석에서 업로드`, done:TS_DUE.done });
   return out.sort((a, b) => a.done - b.done);             // 미완료가 위
+}
+// 직전 달(YYYY-MM)과 내 시수 업로드 여부 — 서버 시수 목록(로그인 사용자 누구나 볼 수 있음, 비율 단위)에서 내 ID·그 달이 있는지
+let TS_DUE = null;
+const tsDueMonth = () => { const n = new Date(), d = new Date(n.getFullYear(), n.getMonth() - 1, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+function tsDueFrom(year, d) {
+  const m = tsDueMonth(); if (!AUTH || m.slice(0, 4) !== String(year) || !d?.list) return;
+  const done = d.list.some(x => x.personId === AUTH.id && x.month === m), changed = !TS_DUE || TS_DUE.done !== done || TS_DUE.month !== m || TS_DUE.who !== AUTH.id;
+  TS_DUE = { month:m, done, who:AUTH.id };
+  if (changed && TB.shown) renderTaskBar();
+}
+async function tsDueCheck() {
+  if (!SERVER || OFFLINE || !AUTH) return;
+  const y = tsDueMonth().slice(0, 4);
+  try { tsDueFrom(y, AS.data[y] && !AS.data[y].error ? AS.data[y] : await api('GET', 'timesheets?year=' + enc(y))); } catch (_) {}
 }
 const taskId = t => `${t.key}|${t.rid}|${t.f}`;
 const ackKey = (k, rid) => `${curWeek()}|${k}|${rid}`;
@@ -2543,7 +2560,7 @@ function openTaskPopup() {
   const tasks = myTasks(), done = tasks.filter(t => t.done).length, all = tasks.length && done === tasks.length;
   const item = t => `<button class="titem ${t.done ? 'done' : ''}" data-task="${esc(taskId(t))}"><span class="tk">${esc(t.kind)}</span><span class="tt"><b>${esc(t.label)}</b><span class="muted">${esc(t.sub)}</span></span><span class="ts ${t.done ? 'ok' : 'no'}">${t.done ? (t.alarm ? '✓ 확인완료' : '✓ 완료') : (t.alarm ? '확인 필요' : '미완료')}</span></button>`;
   openDlg(dlg, `<div class="dh"><span>${all ? '✅' : '📌'} ${esc(user)}님의 이번 주 업무 · ${done}/${tasks.length} 완료</span><button class="btn sm" data-close>닫기</button></div>
-    <div class="db">${all ? `<div class="alldone">🎉 <b>완료</b> — 이번 주 할당 업무를 모두 수행했습니다.</div>` : `<p class="muted" style="margin-top:0">PJT 업무를 고르면 해당 칸의 편집 창이 열리고, 작성하면 '완료'로 바뀝니다. <b>🔔 완료 알림</b>(통합 업무 미완료)은 한 번 누르면 <b>확인완료</b>로 바뀝니다(편집 창 안 열림, 다음 주에 아직 미완료면 다시 알림). 나머지는 오른쪽 <b>내 업무</b> 툴바에 표시됩니다. (${esc(sinceText())} 기준)</p>`}
+    <div class="db">${all ? `<div class="alldone">🎉 <b>완료</b> — 이번 주 할당 업무를 모두 수행했습니다.</div>` : `<p class="muted" style="margin-top:0">PJT 업무를 고르면 해당 칸의 편집 창이 열리고, 작성하면 '완료'로 바뀝니다. <b>🔔 완료 알림</b>(통합 업무 미완료)은 누르면 <b>확인완료</b>가 되고 그 업무 행으로 이동합니다(편집 창 안 열림, 다음 주에 아직 미완료면 다시 알림). <b>⏱ 시수</b>는 매달 첫째 주에 직전 달 시수 파일을 올리면 완료. 나머지는 오른쪽 <b>내 업무</b> 툴바에 표시됩니다. (${esc(sinceText())} 기준)</p>`}
       <div class="tprog"><i style="width:${tasks.length ? Math.round(done / tasks.length * 100) : 0}%"></i></div>
       ${tasks.map(item).join('')}</div>
     <div class="df"><label class="chk" style="margin-right:auto;font-size:13px"><input type="checkbox" id="todoHide"> 오늘은 팝업 그만 보기</label><button class="btn pri" data-close>${all ? '확인' : '닫고 툴바로 보기'}</button></div>`, true);
@@ -2556,7 +2573,8 @@ function openTaskPopup() {
 }
 function startTask(id) {
   const [k, rid, f] = id.split('|');
-  if (f === '__ack') return ackTask(id);
+  if (f === '__ts') { TB.shown = true; TB.active = id; if (dlg.open) dlg.close(); if (route !== 'alloc') location.hash = 'alloc'; setTimeout(() => openTsUpload(), 400); return renderTaskBar(); }
+  if (f === '__ack') { ackTask(id); TB.active = id; return jumpTo(k, rid, SHEET[k]?.title || '업무 내용', false); }   // 🔔 알림: 확인완료 + 그 업무 행으로 이동만 (편집 창은 열지 않음)
   TB.shown = true; TB.active = id;
   jumpTo(k, rid, f, !noEdit());                           // 해당 칸으로 이동 + 편집 창
   renderTaskBar();
@@ -3662,7 +3680,7 @@ function tsClass(row, idx) {
   return { key:'__unk:' + code, name:`미등록 코드 ${code}`, kind:'unk', code };
 }
 async function loadTs(year) {
-  try { AS.data[year] = await api('GET', 'timesheets?year=' + enc(year)); }
+  try { AS.data[year] = await api('GET', 'timesheets?year=' + enc(year)); tsDueFrom(year, AS.data[year]); }   // 시수를 올리거나 지우면 '내 업무' 시수 항목도 갱신
   catch (e) { AS.data[year] = { error:e.message, list:[], years:[] }; }
   if (route === 'alloc' || route === 'mgalloc' || route === 'mghours') render();
 }
@@ -4008,7 +4026,7 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
       $('#tsGo').disabled = true; toast('업로드·분석 중…');
       const r = await api('PUT', `timesheet?person=${enc($('#tsP').value)}&month=${enc(m)}&useMonth=1&name=${enc(file.name)}`, undefined, file);
       dlg.close(); toast(`✅ ${r.person} · ${r.month} · ${r.rows}줄 업로드·분석 완료`);
-      AS.year = r.month.slice(0, 4); AS.month = r.month.slice(5); AS.person = r.person; delete AS.data[AS.year]; render();
+      AS.year = r.month.slice(0, 4); AS.month = r.month.slice(5); AS.person = r.person; delete AS.data[AS.year]; delete AS.data[tsDueMonth().slice(0, 4)]; render(); tsDueCheck();
     } catch (er) { $('#tsGo').disabled = false; toast('업로드 실패: ' + er.message, true); }
   };
 }
@@ -4455,6 +4473,7 @@ async function startOnline() {
   await refreshPerms();
   try { await loadAll(); } catch (e) { toast('불러오기 실패: ' + e.message, true); }
   render();
+  await tsDueCheck();                                      // 매달 첫째 주: 직전 달 시수 올리기 할 일
   showMyTodo();
   presenceStart();
   if (QUEUE.length) await trySync(false);                   // 지난번에 못 올린 오프라인 수정이 있으면 '덮어쓸까요?' 후 업로드
