@@ -871,7 +871,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2262,11 +2262,12 @@ function renderModule(c, key) {
 }
 
 /* ---------- P&ID 분석: 같은 PC(대시보드 서버 PC)의 별도 서버를 iframe 으로 연결 (DASHBOARD_ARCHITECTURE.md 7장 방법 B) ---------- */
-const PID_PORT = 8000;                                   // P&ID 추출 도구 서버 포트 (LOGIC 분석은 PID_ROUTES.logic.port)
+const PID_PORT = 8000;                                   // P&ID 추출 도구 서버 포트 (LOGIC 분석도 같은 서버의 /logic)
 // 별도 분석 도구를 iframe 으로 띄우는 메뉴 (P&ID 와 같은 방식): 대시보드 서버와 같은 호스트의 port, 먼저 /version 확인
 //  - pid   = P&ID 추출 도구 (uvicorn, 8000) — 입찰/실행 구분은 P&ID 화면에서 프로젝트마다 선택
-//  - logic = LOGIC 분석 도구 (8001) — 도구가 켜지면 연결, 꺼져 있으면 안내. 도구는 /version(JSON) 과 /?embed=1&user=본명 을 제공하면 됨
-const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, svc:'부서장 PC 의 run_lan_service.bat' }, logic:{ title:'LOGIC 분석', port:8001, svc:'LOGIC 분석 서버(포트 8001)' } };
+//  - logic = LOGIC 검토 — P&ID 추출 도구와 **같은 서버(8000)** 의 `/logic` 화면 (P&ID 도구 hotfix89 부터 결합, 브랜치 claude/logic-review-design-pd2z75)
+const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', svc:'부서장 PC 의 run_lan_service.bat' },
+  logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', svc:'부서장 PC 의 run_lan_service.bat (P&ID 분석과 같은 서버)' } };
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
   let host = 'localhost';
@@ -2276,7 +2277,7 @@ function pidBase(key = 'pid') {
   return `http://${host}:${PID_ROUTES[key]?.port || PID_PORT}`;
 }
 function pidUrl(key) {
-  return `${pidBase(key)}/?embed=1&user=${encodeURIComponent(user || '')}`;   // 로그인한 본명 (비회원은 빈 값)
+  return `${pidBase(key)}${PID_ROUTES[key]?.path || '/'}?embed=1&user=${encodeURIComponent(user || '')}`;   // 로그인한 본명 (비회원은 빈 값)
 }
 function renderPid(c, key) {
   const url = pidUrl(key), T = esc(PID_ROUTES[key].title);

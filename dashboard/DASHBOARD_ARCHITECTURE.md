@@ -505,3 +505,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 여러 개(`takeMany`): 파일마다 서버 미리보기(`POST timesheet/preview`, 저장 안 함)를 차례로 → 한 표: 파일 · **저장할 월 = 파일 안의 월** (못 찾으면 그 줄에서 직접 고름) · 시간 있는 줄 수 · 합계 · 분류 막대 · 상태. 월 순서로 정렬. **.xlsx 가 아닌 파일은 빼고 안내**, **같은 달 파일이 여럿이면 '중복' 표시 + 아래쪽(나중) 것이 덮어씀** 안내.
 - [⬆ N개 업로드 · 분석] → 같은 부서원(위 선택)으로 하나씩 `PUT timesheet?…&useMonth=1` → 모두 되면 창 닫고 연간 보기로 다시 그림, 실패가 있으면 창에 남기고 상태 칸에 이유.
 - **확인한 것**: `node --check`. 시험: 박민수 1~6월 6개 + 3월 수정본 + 메모.txt 를 R&R 화면에 한꺼번에 놓기 → 7개 표(월 2026-01~06, 3월 '중복'), txt 제외 안내 → [7개 업로드] → 서버에 1~6월 저장(3월은 수정본). 파일 1개 올리기(받은 6월 파일 → 2026-07 고정)도 그대로. 스크립트 오류 없음.
+
+### 2026-10-13 (28) — LOGIC 분석 메뉴를 실제 LOGIC 검토 화면(P&ID 서버 8000 의 /logic)에 연결 (APP_VERSION 2026-10-13.28 / SERVER_VERSION 그대로 2026-10-13.11)
+- 13.26 에서 LOGIC 분석을 '별도 서버 8001' 로 잡았던 것을 바로잡음: LOGIC 검토는 **P&ID 추출 도구와 같은 서버(부서장 PC 8000)** 에 들어 있음 — 브랜치 `claude/logic-review-design-pd2z75`(L1~L19)를 P&ID 브랜치에 결합(hotfix89~), 화면 주소 **`/logic`** (`app/logic/api.py` 의 `GET /logic` → `logic.html`, `?user=` 를 작성자 이름으로 읽음).
+- `PID_ROUTES` 에 `path` 추가: pid → `/`, logic → `/logic`(포트 둘 다 `PID_PORT` 8000). iframe 주소 `http://<대시보드 서버 호스트>:8000/logic?embed=1&user=<본명>`. 살아 있나 확인은 같은 `/version`. 꺼져 있으면 '…부서장 PC 의 run_lan_service.bat (P&ID 분석과 같은 서버)' 안내.
+- 필요 조건: 부서장 PC 의 P&ID 도구가 LOGIC 이 결합된 판(hotfix89 이후, 최신 hotfix93)이어야 함. 그 전 판이면 /logic 이 없어 iframe 에 404.
+- **확인한 것**: `node --check`. 실제 P&ID 도구(브랜치 claude/titleblock-parsing-c5st4x = hotfix93 · LOGIC L19)를 시험 PC 에서 8000 으로 켜고 대시보드 → '🔀 LOGIC 분석' → iframe `…:8000/logic?embed=1&user=홍길동`, 화면 제목 'LOGIC 검토', 'Logic 분석 · 어디에 넣을지 · 자료(Logic Diagram 필수 · Loop · System Description · IO List · Logic Table)' 표시. P&ID 분석은 `…:8000/?embed=1&user=…` 그대로. 스크립트 오류 없음.
