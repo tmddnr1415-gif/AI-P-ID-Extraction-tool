@@ -256,6 +256,7 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .adiff{font-size:12px;font-weight:700}.adiff.up{color:#0ca678}.adiff.dn{color:#e8590c}
 .agrid th,.agrid td{text-align:center;padding:6px 4px}.agrid td:first-child,.agrid th:first-child{text-align:left}
 .aok{border:0;background:linear-gradient(135deg,#38d9a9,#0ca678);color:#fff;font-weight:800;width:26px;height:26px;border-radius:50%}
+.tsbar.sm{height:12px;min-width:120px;margin:0}.tsmany td{vertical-align:middle}.tsmany input[type=month]{padding:2px 4px}
 .tsinfo{background:#e7f5ff;border:1px solid #a5d8ff;color:#1864ab;border-radius:8px;padding:7px 10px;margin:8px 0;font-size:13px}
 .wecard h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.wet td,.wet th{vertical-align:top;padding:8px}.wet tbody tr{cursor:pointer}.wet tbody tr:hover{background:#fff5f5}
 .wed{display:inline-flex;align-items:baseline;gap:4px;background:#fff5f5;border:1px solid #ffc9c9;border-radius:8px;padding:3px 8px;font-size:12px;margin:0 5px 5px 0}.wed small{color:var(--sub);font-size:10.5px}.wed.hol{background:#ffe3e3;border-color:#ffa8a8}.wed em{font-style:normal;color:#c92a2a;font-size:10.5px;font-weight:700}
@@ -870,7 +871,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3996,11 +3997,11 @@ async function openTsUpload(dropped) {
   let file = null;
   openDlg(dlg, `<form id="tsf"><div class="dh"><span>⬆ 월말 시수 파일 올리기</span><button type="button" class="btn sm" data-close>닫기</button></div>
     <div class="db">
-      <label class="tsdrop" id="tsDrop"><input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-        <span class="tsd-i">📥</span><b>시수 입력 엑셀(.xlsx)을 여기로 끌어다 놓으세요</b><span class="muted">또는 눌러서 파일 고르기 · 놓으면 먼저 <b>미리보기</b>만 하고, 아래 [업로드] 를 눌러야 저장·분석됩니다</span></label>
+      <label class="tsdrop" id="tsDrop"><input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+        <span class="tsd-i">📥</span><b>시수 입력 엑셀(.xlsx)을 여기로 끌어다 놓으세요</b><span class="muted">여러 개 한꺼번에 가능(예: 1~6월 6개) · 또는 눌러서 파일 고르기 · 놓으면 먼저 <b>미리보기</b>만 하고, 아래 [업로드] 를 눌러야 저장·분석됩니다</span></label>
       <div id="tsPrev"></div>
       <div class="fg"><label>부서원${all ? '' : ' (본인)'}<select id="tsP">${opts}</select></label>
-        <label>저장할 월 <small class="muted">(파일 안의 월로 자동)</small><input type="month" id="tsM" value="${defM}"></label></div>
+        <label id="tsMl">저장할 월 <small class="muted">(파일 안의 월로 자동)</small><input type="month" id="tsM" value="${defM}"></label></div>
       <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type '근태' → 근태 (일괄)
         Project 코드(예: D026)가 있으면 → 수행·입찰 PJT 의 Project Code 와 대조해 수행/입찰
         코드 없음: Type '공통' + Detail '입찰' → 입찰 / Detail '교육' → 교육 / '공통' 그 외 → 부서업무
@@ -4010,7 +4011,12 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
     <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit" id="tsGo" disabled>⬆ 업로드 · 분석</button></div></form>`, true);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
   const drop = $('#tsDrop'), prev = $('#tsPrev');
-  const take = async f => {
+  let many = null;                                          // 여러 파일: [{ f, det, month, rows, total, err }]
+  const take = async fs => {                                // FileList / File[] / File
+    fs = [...(fs instanceof File ? [fs] : fs || [])];
+    if (fs.length > 1) return takeMany(fs);
+    many = null; $('#tsMl').hidden = false;
+    const f = fs[0];
     if (!f) return;
     if (!/\.xlsx$/i.test(f.name)) { toast('.xlsx 파일만 올릴 수 있습니다 (예전 .xls 는 엑셀에서 .xlsx 로 다시 저장)', true); return; }
     file = f; $('#tsGo').disabled = true; drop.classList.add('has');
@@ -4032,13 +4038,62 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
       $('#tsGo').disabled = !r.rows.length;
     } catch (er) { prev.innerHTML = `<div class="tswarn">❌ 읽지 못했습니다: ${esc(er.message)}</div>`; file = null; }
   };
-  $('#tsFile').onchange = e => take(e.target.files[0]);
+  // 여러 파일: 파일마다 미리보기(파일 안의 월 · 줄 · 합계 · 분류) → 한 표로 → [업로드] 로 차례대로 저장
+  const takeMany = async fs => {
+    file = null; $('#tsGo').disabled = true; $('#tsMl').hidden = true; drop.classList.add('has');
+    const bad = fs.filter(f => !/\.xlsx$/i.test(f.name)); fs = fs.filter(f => /\.xlsx$/i.test(f.name));
+    drop.querySelector('b').textContent = `📄 ${fs.length}개 파일`;
+    many = fs.map(f => ({ f, det:'', month:'', rows:0, total:0, err:'', its:[] }));
+    const idx = projIndex();
+    const draw = () => {
+      const months = many.filter(x => !x.err && x.month).map(x => x.month), dup = new Set(months.filter((m, i) => months.indexOf(m) !== i));
+      const okN = many.filter(x => !x.err && x.rows && /^\d{4}-\d{2}$/.test(x.month)).length, tot = many.reduce((a, x) => a + (x.err ? 0 : x.total), 0);
+      prev.innerHTML = `${bad.length ? `<div class="tswarn">⚠ .xlsx 가 아닌 파일 ${bad.length}개는 뺐습니다: ${bad.map(f => esc(f.name)).join(', ')}</div>` : ''}
+        ${dup.size ? `<div class="tswarn">⚠ 같은 달 파일이 여러 개: <b>${[...dup].join(', ')}</b> — 아래쪽 파일이 나중에 저장되어 앞의 것을 덮어씁니다.</div>` : ''}
+        <div class="tssum"><span>🧾 파일 <b>${many.length}</b>개 · 올릴 수 있음 <b>${okN}</b>개</span><span>⏱ 합계 <b>${fmtH(tot)}</b> h</span><span class="muted">월 = 각 파일 안의 월</span></div>
+        <table class="t tsprev tsmany"><thead><tr><th>파일</th><th>저장할 월 <small>(파일 안의 월)</small></th><th>줄</th><th>합계</th><th>분류</th><th>상태</th></tr></thead><tbody>${many.map((x, i) => `<tr class="${x.err ? 'z' : ''}">
+          <td>📄 ${esc(x.f.name)}</td><td>${x.err ? '-' : x.det ? `<b>${esc(x.det)}</b>` : `<input type="month" data-mm="${i}" value="${esc(x.month)}" title="파일 안에서 월을 못 찾음 — 직접 고르세요">`}${dup.has(x.month) ? ' <span class="tag del">중복</span>' : ''}</td>
+          <td>${x.err ? '' : x.rows}</td><td>${x.err ? '' : fmtH(x.total)}</td>
+          <td>${x.its.length ? `<div class="tsbar sm">${x.its.map((o, j) => `<span style="flex:${o.h};background:${AL_FIX[o.kind] || AL_PAL[j % AL_PAL.length]}" title="${esc(o.name)} ${fmtH(o.h)}h"></span>`).join('')}</div>` : ''}</td>
+          <td>${x.st || (x.err ? `❌ ${esc(x.err)}` : x.loading ? '읽는 중…' : !x.rows ? '⚠ 시간 없음' : !x.month ? '⚠ 월 고르기' : '✓ 준비')}</td></tr>`).join('')}</tbody></table>`;
+      prev.querySelectorAll('[data-mm]').forEach(inp => inp.onchange = () => { many[+inp.dataset.mm].month = inp.value; draw(); });
+      $('#tsGo').disabled = !okN; $('#tsGo').textContent = `⬆ ${okN}개 업로드 · 분석`;
+    };
+    many.forEach(x => x.loading = true); draw();
+    for (const x of many) {                                 // 서버에 하나씩 (미리보기 = 저장 안 함)
+      try {
+        const r = await api('POST', 'timesheet/preview', undefined, x.f);
+        x.det = r.month || ''; x.month = x.det; x.rows = r.rows.filter(y => y.h > 0).length; x.total = r.total || 0;
+        const agg = new Map(); r.rows.forEach(y => { if (!(y.h > 0)) return; const k = tsClass(y, idx); const o = agg.get(k.key) || agg.set(k.key, { ...k, h:0 }).get(k.key); o.h += y.h; });
+        x.its = [...agg.values()].sort((a, b) => b.h - a.h);
+      } catch (er) { x.err = er.message; }
+      x.loading = false; if (many) draw();
+    }
+    many.sort((a, b) => (a.month || '9999').localeCompare(b.month || '9999')); draw();   // 월 순서로
+  };
+  $('#tsFile').onchange = e => take(e.target.files);
   drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
   drop.ondragleave = () => drop.classList.remove('over');
-  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); take(e.dataTransfer.files[0]); };
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); take(e.dataTransfer.files); };
   if (dropped) take(dropped);
   $('#tsf').onsubmit = async e => {
-    e.preventDefault(); if (!file) return;
+    e.preventDefault();
+    if (many) {                                             // 여러 파일 차례로 저장
+      const go = many.filter(x => !x.err && x.rows && /^\d{4}-\d{2}$/.test(x.month)); if (!go.length) return;
+      $('#tsGo').disabled = true; let ok = 0, last = null;
+      for (const x of go) {
+        x.st = '⬆ 올리는 중…';
+        try { last = await api('PUT', `timesheet?person=${enc($('#tsP').value)}&month=${enc(x.month)}&useMonth=1&name=${enc(x.f.name)}`, undefined, x.f); x.st = '✅ 저장'; ok++; }
+        catch (er) { x.st = '❌ ' + er.message; }
+      }
+      const fail = go.length - ok;
+      if (!fail) dlg.close();
+      toast(`${ok ? `✅ ${last.person} · 시수 ${ok}개 업로드·분석 완료` : ''}${fail ? ` · ❌ ${fail}개 실패 (창의 상태 칸 확인)` : ''}`, !!fail);
+      if (fail) { $('#tsGo').disabled = false; prev.querySelectorAll('.tsmany tbody tr').forEach((tr, i) => { const x = many[i]; if (x?.st) tr.lastElementChild.textContent = x.st; }); }
+      if (last) { AS.year = last.month.slice(0, 4); AS.month = ''; AS.person = last.person; Object.keys(AS.data).forEach(k => delete AS.data[k]); if (!fail) render(); tsDueCheck(); }
+      return;
+    }
+    if (!file) return;
     const m = $('#tsM').value; if (!/^\d{4}-\d{2}$/.test(m)) return toast('저장할 월을 고르세요', true);
     try {
       $('#tsGo').disabled = true; toast('업로드·분석 중…');
@@ -4050,7 +4105,7 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
 }
 // R&R · 투입 분석 화면 어디에 놓아도 올리기 창이 열림
 document.addEventListener('dragover', e => { if ((route === 'alloc' || route === 'mgalloc') && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
-document.addEventListener('drop', e => { if ((route !== 'alloc' && route !== 'mgalloc') || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload(e.dataTransfer.files[0]); });
+document.addEventListener('drop', e => { if ((route !== 'alloc' && route !== 'mgalloc') || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload([...e.dataTransfer.files]); });
 
 /* ---------- 열 추가: 시트마다 사용자가 열을 더함 (서버 data/_meta/sheet-columns.json, 값은 각 행에 저장) ---------- */
 function applyExtraCols() {
