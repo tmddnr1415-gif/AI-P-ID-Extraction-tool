@@ -4776,6 +4776,25 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
 빠른 시험 **1251** 통과 · TAKHIATASH 회귀 "기준선과 같습니다" · 사본 서버에서 `/` · `/logic` · `/logic/api/jobs` 200.
 꾸러미 `out/PID_dev+ops_hotfix92_<날짜>.zip` (97a8732 기준 누적).
 
+**그 다음 — 서비스 창이 서버를 다시 못 띄우던 것 · LOGIC L15~L19 병합 (hotfix93 · 판정 0줄)**
+
+현장(회사 PC 사진): 서버가 멈춘 뒤 다시 띄울 때 *"다른 프로세스가 파일을 사용 중이기 때문에 프로세스가 액세스 할 수
+없습니다"* 만 나오고 서버가 곧바로 멈췄다 — 대시보드 *"P&ID 서버가 꺼져 있습니다"*.  `run_lan_service.bat` 의
+`… uvicorn … >> logs\server.log` 는 **cmd 가** 로그를 열므로, 누가 그 파일을 쥐고 있으면 서버를 띄우지도 않고 끝났다.
+창에서 Ctrl+C 를 누르면 서버도 같이 꺼졌다 (사진의 `^C`).
+
+1. `app/lan_serve.py` — 로그는 파이썬이 함께 쓰는 방식으로 열고, 안 되면 `logs\server_<시각>.log`(최근 셋만)로 쓰고 서버는
+   띄운다 · 쓰는 이름은 `logs\server.current` · 멈추면 `python -m app.lan_serve --tail`.  서버는 Windows
+   `CREATE_NEW_PROCESS_GROUP` 으로 띄워 Ctrl+C 가 닿지 않는다 (창 닫기는 닿는다) · 창 글은 ASCII.
+   ⚠ `lan_check.py` 는 회사 판이 있어(MERGERS) 건드리지 않았다 — `tail()` 을 부르기만 한다.
+2. `run_lan_service.bat` 은 `%PY% -m app.lan_serve 8000` (exe 줄은 그대로).  ★ **운영 적용(`--runtime`)은 `app/` · `config/` 만
+   얹으므로 이 bat 은 꾸러미의 `service/` 폴더로 따로 가고 사람이 창을 닫은 뒤 바꾼다** — 돌고 있는 배치 파일을 덮으면
+   cmd 가 바이트 위치로 다시 읽어 엉뚱한 줄을 돈다.  lan_serve 는 옛 bat 에서도 해를 끼치지 않는다 (부르지 않을 뿐).
+3. 리눅스에서 실측: SIGINT 를 보내도 서버 응답 · 서버를 끄면 launcher 가 그 코드를 돌려준다 · 로그를 쥔 상태 흉내(디렉터리)
+   에서 새 이름으로 서버가 뜬다.  ⚠ Windows 에서는 못 돌렸다.  ⚠ cmd 는 Ctrl+C 뒤 서버가 끝날 때 *"일괄 작업을 끝내시겠습니까"*
+   를 물을 수 있다 — 그때는 N.
+4. LOGIC L15~L19 병합 (충돌 0) — 기록은 맨 아래 LOGIC 절이 아니라 그 브랜치에 있다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
