@@ -635,7 +635,9 @@ def test_forcing_a_gate_output_sets_its_inputs_logically():
     assert r["implied"] == {"row:1": 1, "row:2": 1, "row:3": 0}
     v = r["frames"][-1]["values"]
     assert v["r1"] == v["r2"] == 1 and v["r3"] == 0 and v["n3"] == 1 and v["g"] == 1
-    assert sim.simulate(s, {"net:o": 1})["implied"] == {}               # OR=1 — 어느 입력인지 정해지지 않는다
+    ro = sim.simulate(s, {"net:o": 1})                                   # L17 — OR=1: 입력 하나를 골라 앞으로 돌려 확인
+    assert ro["choice"] == {"row:4": 1} and ro["implied"] == {"row:4": 1} and not ro["unmet"]
+    assert ro["frames"][-1]["values"]["o"] == 1 and ro["frames"][-1]["values"]["r5"] == 0
     assert sim.simulate(s, {"net:o": 0})["implied"] == {"row:4": 0, "row:5": 0}
     r = sim.simulate(s, {"net:g": 1, "row:3": 1})                      # 사람이 준 값과 어긋나면 모순으로 말한다
     assert r["conflicts"] and r["implied"].get("row:3") is None
@@ -780,3 +782,54 @@ def test_forcing_an_output_chains_through_the_sheet_that_sends_its_input():
     # 보내는 시트의 입력을 사람이 0 으로 두면 그 시트 AND 가 막고 — 뒤 시트 출력도 나가지 않는다
     b = sim.simulate_bundle([A, C], {3: {"row:40": 1}, 1: {"row:1": 0}}, None, 3)
     assert b["focus"]["frames"][-1]["values"]["co"] == 0 and b["focus"]["unmet"]
+
+
+def test_forcing_any_gate_output_reaches_it_only_through_its_inputs():
+    """L17 — AND 뿐 아니라 모든 게이트: 출력 행을 1/0 으로 주면 범례 정의로 입력을 골라(정해지지 않으면 갈래 하나를
+    앞으로 돌려 확인) 게이트가 그 값을 낸다.  게이트 출력이 입력과 어긋나는 일은 없다."""
+    def run(s, v, **kw):
+        r = sim.simulate(s, {"row:90": v}, **kw)
+        fr = r["frames"]
+        ins = {p["net"] for p in s["ports"] if p["dir"] == "in"}
+        return r, fr[-1]["values"], [f["values"]["o"] for f in fr], ins
+
+    for lg, n in (("and", 3), ("or", 3), ("nand", 3), ("nor", 3), ("not", 1)):
+        for v in (1, 0):
+            s = _one(lg, n)
+            r, val, outs, _ = run(s, v)
+            assert not r["unmet"] and val["o"] == v, (lg, v)
+            iv = [val[f"i{k}"] for k in range(n)]
+            assert sim.gate3(lg, iv) == v, (lg, v, iv)               # 게이트가 낸 값 — 직접 켠 것이 아니다
+    # OR=1 · NOR=0 은 입력 **하나**만 고른다 (나머지는 0 그대로)
+    for lg, v in (("or", 1), ("nor", 0)):
+        r, val, _, _ = run(_one(lg, 3), v)
+        assert sum(val[f"i{k}"] for k in range(3)) == 1 and len(r["choice"]) == 1
+    # 사람이 0 으로 준 입력은 고르지 않고 다른 입력을 고른다
+    r = sim.simulate(_one("or", 3), {"row:90": 1, "row:1": 0})
+    assert not r["unmet"] and r["frames"][-1]["values"]["i0"] == 0
+    # 투표 2/3 — 두 입력을 1 로
+    r, val, _, _ = run(_one("unknown", 3, label="2/3"), 1)
+    assert not r["unmet"] and sum(val[f"i{k}"] for k in range(3)) == 2
+    # 타이머 — GT 는 t초 뒤 · PD 는 입력이 1 로 바뀌는 순간
+    for lg in ("delay_on", "pulse", "delay_off"):
+        r, val, outs, _ = run(_one(lg, 1, param={"t": 2}), 1)
+        assert not r["unmet"] and 1 in outs and val["i0"] == 1, lg
+    # 입력이 하나뿐인 AND — 조건을 확인할 수 없어 1 을 내지 않는다 (L10) · 블록 자체를 눌러도 같다
+    r, val, _, _ = run(_one("and", 1), 1)
+    assert r["unmet"] and val["o"] == 0
+    r = sim.simulate(_one("and", 0), {"block:G": 1})
+    assert r["unmet"] and r["frames"][-1]["values"]["o"] == 0
+
+
+def test_forcing_a_latched_memory_to_zero_resets_it():
+    """L17 — 이미 SET 된 래치의 Q 를 0 으로 주면 RESET 입력을 1 로 (범례 G003 메모리)."""
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    blocks = {"M": {"func": "MEMORY", "logic": "memory", "group": "", "label": "", "param": {}}}
+    ports = [P("M", "s", "in", "set"), P("M", "r", "in", "reset"), P("M", "o", "out", "q")]
+    rows = [{"n": 1, "side": "L", "net": "s"}, {"n": 2, "side": "L", "net": "r"}, {"n": 90, "side": "R", "net": "o"}]
+    s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in "sro"}}
+    on = sim.simulate(s, {"row:90": 1})
+    assert not on["unmet"] and on["frames"][-1]["values"]["s"] == 1 and on["frames"][-1]["values"]["o"] == 1
+    off = sim.simulate(s, {"row:90": 0}, state=on["state"])
+    v = off["frames"][-1]["values"]
+    assert not off["unmet"] and v["o"] == 0 and v["r"] == 1 and v["s"] == 0

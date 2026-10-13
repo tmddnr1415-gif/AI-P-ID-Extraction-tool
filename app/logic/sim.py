@@ -231,7 +231,7 @@ def _frame(t, val, depth, note):
             "depth": depth, "note": note}
 
 
-def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=()):
+def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
     soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
     요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
@@ -254,6 +254,7 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
+    row_force0, blk_force0 = dict(row_force), dict(blk_force)
     # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로.
     # L16 — 단 그 선을 **게이트가 몰면** 그 값은 '목표' 다: 선을 직접 그 값으로 두지 않고, 거꾸로 맞추기로 게이트 앞
     # 입력을 줄줄이 정한 뒤 게이트가 범례대로 판정한다 (사용자 지시 — "AND 의 12 · 14 번이 활성화 안 되었는데 AND 의
@@ -263,9 +264,14 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
             net_force.setdefault(r["net"], row_force[r["n"]])
     goals = {}
     for n in list(net_force):
-        if any(kind == "block" and (B[x].get("logic") in GATE_LOGIC or _vote_of(B[x]))
-               for kind, x, _ in drivers.get(n, [])):
+        if any(kind == "block" and _gate_like(B[x]) for kind, x, _ in drivers.get(n, [])):
             goals[n] = net_force.pop(n)
+    # L17 — 게이트 블록 자체를 사람이 1/0 으로 주어도 같다 (입력이 안 읽힌 게이트를 눌러 켠 경우): 출력 선을 목표로.
+    for bid in list(blk_force):
+        if bid in B and _gate_like(B[bid]):
+            v = blk_force.pop(bid)
+            for n, role, _ in outs[bid]:
+                goals.setdefault(n, (1 - v) if role == "qn" else v)
     # L13 — 연결 기호(같은 글자 A ↔ A)는 한 신호다: 사람이 그 묶음의 어느 기호 · 그 기호에 닿은 선을 1/0 으로 주면
     # 같은 묶음의 다른 기호에서 나가는 선도 그 값이다 (사용자 지시 — "A 가 활성화되면 반대쪽 A 도").
     for gid, members in groups.items():
@@ -432,6 +438,10 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
     implied, conflicts = _back_propagate(B, ins, drivers, groups, {**net_force, **goals},
                                          {**{f"row:{k}": v for k, v in row_force.items()},
                                           **{f"block:{k}": v for k, v in blk_force.items()}})
+    for k, v in (extra or {}).items():
+        if k not in implied and not (k.startswith("row:") and int(k[4:]) in row_force) \
+                and not (k.startswith("block:") and k[6:] in blk_force):
+            implied[k] = v                             # L17 — 정해지지 않는 자리에서 고른 갈래
     for k, v in implied.items():
         if k.startswith("row:"):
             row_force.setdefault(int(k[4:]), v)
@@ -492,8 +502,12 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
     unmet = []
     for n, want in goals.items():
         if not any(fr["values"].get(n, 0) == want for fr in frames):
-            unmet.append({"net": n, "want": want, "got": frames[-1]["values"].get(n, 0),
-                          "block": next((x for kind, x, _ in drivers.get(n, []) if kind == "block"), None)})
+            blk = next((x for kind, x, _ in drivers.get(n, []) if kind == "block"), None)
+            last_unread = set(frames[-1]["unread"])
+            unmet.append({"net": n, "want": want, "got": frames[-1]["values"].get(n, 0), "block": blk,
+                          "logic": (("vote" if _vote_of(B[blk]) else B[blk].get("logic")) if blk else None),
+                          # L17 — 그 게이트 입력 중 도면에서 몰이를 못 읽은 선 (조건을 확인할 수 없어 출력을 내지 않는다)
+                          "unread": [m for m, _, _ in (ins[blk] if blk else []) if m in last_unread]})
     if unmet:
         notes.add(f"출력 선을 직접 켜지 않습니다 — 게이트 조건이 맞을 때만 나갑니다.  조건을 다 채우지 못한 출력 {len(unmet)}개"
                   " (앞쪽 입력이 0 으로 고정됐거나, OR · 메모리처럼 어느 입력인지 정해지지 않는 자리)")
@@ -501,7 +515,67 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
         notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
             "implied": implied, "conflicts": conflicts,
-            "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled}
+            "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled,
+            "_goals": goals, "_user": {**{f"row:{k}": v for k, v in row_force0.items()},
+                                       **{f"block:{k}": v for k, v in blk_force0.items()}}}
+
+
+def _gate_like(b):
+    return b.get("logic") in GATE_LOGIC or bool(_vote_of(b))
+
+
+CHOICE_TRIES = 16          # L17 — 정해지지 않는 자리(OR=1 · AND=0 · 메모리 …)에서 앞으로 돌려 볼 갈래 수
+CHOICE_STEPS = 4000        # 갈래를 찾는 깊이 우선 걸음 상한 (큰 장에서 막히지 않게)
+
+
+def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=()):
+    """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
+    soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
+    요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
+    settled = 보내는 시트에 이미 요청한 입력 행 — 그 시트가 실제로 낸 값을 그대로 쓴다 (그 시트 게이트가 막았으면 0).
+
+    L17 — 게이트가 모는 출력을 1/0 으로 주면 그 값은 목표다.  범례 정의로 정해지는 입력(AND=1 → 전부 1 …)은 바로 정하고,
+    정해지지 않는 자리(OR=1 → 입력 하나 · AND=0 → 입력 하나 · NOR=0 · NAND=1 · 투표 A/B · 메모리 · 타이머 · STEP)는
+    갈래를 하나씩 골라 **앞으로 돌려** 목표가 서는 조합을 쓴다 (출력은 언제나 게이트가 판정한다 — 직접 켜지 않는다).
+
+    → {"frames": [{"t", "values", "depth", "note"}], "state", "notes", "unmet", "choice", …}
+    """
+    import copy
+    st0 = copy.deepcopy(state) if state else None
+    res = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled)
+    goals = res.pop("_goals")
+    user = res.pop("_user")
+    if not res["unmet"]:
+        return res
+    idx = _index(s)
+    unmet_goals = [("net", u["net"], u["want"]) for u in res["unmet"]]
+    best, tried, seen = res, 0, set()
+    for strict0 in (True, False):
+        for leaves in _solutions(s, idx, unmet_goals, False, strict0, {"rows_only": False}, max_steps=CHOICE_STEPS):
+            if tried >= CHOICE_TRIES:
+                break
+            if any(user.get(k, w) != w for k, w in leaves.items()):
+                continue                               # 사람이 직접 준 값과 어긋나는 갈래
+            if any("/" in k for k in leaves):
+                continue                               # 펼친 매크로 안쪽(Typical 의 누름단추 · 행)은 부모 장에서 누를 수 없다
+            key = tuple(sorted(leaves.items()))
+            if key in seen:
+                continue
+            seen.add(key)
+            tried += 1
+            r = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled, extra=leaves)
+            r.pop("_goals"), r.pop("_user")
+            if len(r["unmet"]) < len(best["unmet"]):
+                best = r
+                best["choice"] = {k: v for k, v in leaves.items()}
+            if not r["unmet"]:
+                break
+        if not best["unmet"]:
+            break
+    if best is not res:
+        best["notes"] = sorted(set(best["notes"]) | {
+            "정해지지 않는 게이트(OR · 메모리 · 투표 …)는 입력 갈래를 하나 골라 앞으로 돌려 확인했습니다"})
+    return best
 
 
 # L9 — 따라가기가 게이트를 지날지는 범례 정의가 정한다.  따라가는 신호를 1, 그 게이트의 다른
@@ -1060,7 +1134,9 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         R = [n for n, r, _ in ins[x] if r == "reset"]
         if want == 1:
             return [({}, [("net", n, 1)] + [("net", r, 0) for r in R]) for n in S]
-        return [({}, [("net", n, 0) for n in S])]
+        # Q=0 — SET 이 모두 0 이면 (한 번도 SET 안 된 상태에서) 0 이다.  이미 SET 된 래치는 RESET 하나가 1 이어야 한다
+        # (SET 우선이면 SET 도 모두 0 이어야 한다 — 그래서 어느 갈래든 SET 은 0).
+        return [({}, [("net", n, 0) for n in S])] + [({}, [("net", r, 1)] + [("net", n, 0) for n in S]) for r in R]
     if lg in ("delay_on", "delay_off", "pulse"):
         return one(iv, 1) if v == 1 else allg(iv, 0)
     if lg == "step":
@@ -1090,10 +1166,14 @@ def _inverting(s, idx, net):
     return False
 
 
-def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None):
+def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None, max_steps=None):
     """깊이 우선 — (leaves, required nets) 를 하나씩 낸다."""
     stack = [(list(goals), {}, {})]
+    steps = 0
     while stack:
+        steps += 1
+        if max_steps and steps > max_steps:
+            return
         todo, leaves, req = stack.pop()
         if not todo:
             yield leaves

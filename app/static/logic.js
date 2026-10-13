@@ -1063,7 +1063,7 @@ function setForce(key, v) {
   if (L.mode !== "sim") setMode("sim", true);
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
   // L16 — 목표로 둔 출력이 게이트 조건을 못 채웠으면 (사람이 준 입력 0 이 막음) 그렇게 말하고 0 인 입력을 짚는다
-  runSim(true).then(() => { if ((L.unmet || []).some((x) => x.want === 1)) reportUnmet(); });
+  runSim(true).then(() => { if ((L.unmet || []).length) reportUnmet(); });
 }
 
 /* ------------------------------------------------------------------ L15 — 출력을 활성화하면 필요한 입력을 찾아 켠다 */
@@ -1144,18 +1144,46 @@ async function activateOutput(key) {
 }
 /* L16 — 목표로 준 출력이 게이트 조건을 못 채워 나가지 않았으면 그렇게 말하고, 그 게이트에서 0 인 입력을 주황으로 짚는다 */
 function reportUnmet() {
-  const u = (L.unmet || []).filter((x) => x.want === 1);
+  // L17 — 모든 게이트: 원하는 출력에 필요한 입력 조건(범례 G003)을 말하고, 맞지 않는 입력을 주황으로 짚는다
+  const u = L.unmet || [];
   if (!u.length || !L.sheet) return;
+  const vals = L.finalValues || L.values;
   const keys = [];
   const parts = [];
   for (const x of u) {
     const b = x.block && L.sheet.blocks[x.block];
-    const zero = L.sheet.ports.filter((p) => p.block === x.block && p.dir === "in" && (L.finalValues || L.values)[p.net] !== 1).map((p) => p.net);
-    for (const n of zero) keys.push("net:" + n);
-    parts.push(`${(b && b.func) || "게이트"} 입력 ${zero.length}개가 0`);
+    const name = (b && b.func) || "게이트";
+    const ins = L.sheet.ports.filter((p) => p.block === x.block && p.dir === "in");
+    if ((x.unread || []).length) {
+      for (const n of x.unread) keys.push("net:" + n);
+      parts.push(`${name} 입력선 ${x.unread.length}개를 도면에서 읽지 못해 ${x.want} 을 낼 수 없음`);
+      continue;
+    }
+    const need = gateNeed(x.logic, x.want);
+    const off = ins.filter((p) => need == null || (vals[p.net] === 1 ? 1 : 0) !== need).map((p) => p.net);
+    for (const n of off) keys.push("net:" + n);
+    parts.push(`${name} = ${x.want} 조건: ${gateNeedText(x.logic, x.want)}`);
   }
-  status(`⛔ 출력이 나가지 않습니다 — ${parts.join(" · ")} (게이트 조건이 맞지 않음 · 0 인 입력을 주황으로 짚습니다)`);
+  status(`⛔ 출력이 나가지 않습니다 — ${parts.join(" · ")} (게이트가 범례대로 판정 · 맞지 않는 입력을 주황으로 짚습니다)`);
   flashNeed(keys);
+}
+/* 그 출력을 내려면 입력이 모두 이 값이어야 하는 게이트 (정해지지 않으면 null — 모든 입력을 짚는다) */
+function gateNeed(lg, want) {
+  if ((lg === "and" && want === 1) || (lg === "nand" && want === 0)) return 1;
+  if ((lg === "or" && want === 0) || (lg === "nor" && want === 1)) return 0;
+  if (lg === "not") return 1 - want;
+  return null;
+}
+function gateNeedText(lg, want) {
+  const t = {
+    "and:1": "입력이 모두 1", "and:0": "입력 하나가 0", "nand:0": "입력이 모두 1", "nand:1": "입력 하나가 0",
+    "or:1": "입력 하나가 1", "or:0": "입력이 모두 0", "nor:1": "입력이 모두 0", "nor:0": "입력 하나가 1",
+    "not:1": "입력이 0", "not:0": "입력이 1", "memory:1": "SET 이 1 (RESET 0)", "memory:0": "RESET 이 1 (SET 0)",
+    "delay_on:1": "입력이 1 로 t초 유지", "delay_on:0": "입력이 0", "delay_off:1": "입력이 1", "delay_off:0": "입력이 0 으로 t초",
+    "pulse:1": "입력이 0 → 1 로 바뀜", "pulse:0": "입력이 0 (또는 t초 경과)", "step:1": "STEP_IN (와 조건) 이 1", "step:0": "STEP_IN 이 0",
+    "vote:1": "A/B 중 A 개 이상 1", "vote:0": "1 인 입력이 A 개 미만",
+  };
+  return t[`${lg}:${want}`] || "앞쪽 입력 조건이 맞지 않음";
 }
 /* 필요한 입력(행 점 · 블록 · 선)을 주황으로 NEED_FLASH 번 점등 */
 function flashNeed(keys, s) {
