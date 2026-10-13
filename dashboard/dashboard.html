@@ -170,6 +170,21 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .wbody .fx{max-height:120px;overflow:auto}
 .wpick{display:grid;gap:8px}.wpick span{display:flex;flex-direction:column;border-left:4px solid var(--c);background:#f7f8fc;border-radius:8px;padding:8px 12px}.wpick small{color:var(--sub)}
 @media (max-width:1300px){.wkpis{grid-template-columns:repeat(4,1fr)}.wk-main{grid-column:span 2}.wgrid{grid-template-columns:1fr}}
+/* ---------- 수행·입찰 PJT 현황판 ---------- */
+.whero.pj-perform{background:radial-gradient(circle at 85% -20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(120deg,#0b2f86 0%,#1f5fd6 45%,#1597c9 72%,#12b39a 100%)}
+.whero.pj-bid{background:radial-gradient(circle at 85% -20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(120deg,#5b1a7a 0%,#b0307a 40%,#e8590c 75%,#f7a000 100%)}
+.whero.pj-perform .wtc.on{color:#1f5fd6}.whero.pj-bid .wtc.on{color:#c2410c}
+.pjkpis{grid-template-columns:1.4fr repeat(4,1fr)}
+.wk-main.pjm-bid{background:linear-gradient(135deg,#f7971e,#e8590c)}
+.pjgrid{grid-template-columns:1fr 1fr}
+.ppr{display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;width:100%;border:0;background:none;padding:6px 8px;border-radius:10px;text-align:left}
+.ppr.pp2{grid-template-columns:34px 90px 1fr 40px}
+.ppr:hover{background:#f4f6ff}.ppr.on{background:#e8ecfc}
+.ppn{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbar{display:flex;height:18px;background:#f1f3f9;border-radius:7px;overflow:hidden}
+.pbar span{height:100%}.pbar .pl{background:linear-gradient(90deg,#1f5fd6,#2fb4c9)}.pbar .pl.bid{background:linear-gradient(90deg,#e8590c,#f7a000)}.pbar .pe{background:#c3c8d6}
+.ppv{font-weight:800;font-size:15px;text-align:right}.ppv small{font-weight:400;font-size:11px;color:var(--sub)}
+@media (max-width:1300px){.pjkpis{grid-template-columns:repeat(3,1fr)}.pjgrid{grid-template-columns:1fr}}
 /* ---------- 유닛 조직도 ---------- */
 .org{--ol:rgba(170,200,255,.8);position:relative;border-radius:18px;padding:22px 18px 16px;color:#fff;overflow-x:auto;
   background:radial-gradient(ellipse at 20% 0%,rgba(90,140,255,.45),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(0,200,255,.25),transparent 50%),linear-gradient(160deg,#0a1f8f,#1739d6 55%,#0b2a9c)}
@@ -196,6 +211,17 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .opill.lead{max-width:270px;background:linear-gradient(180deg,#fff,#fff6dc)}
 .oav{display:inline-flex;width:48px;height:48px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(80,120,255,.5)}
 .oav img{width:100%;height:100%;object-fit:cover}.oav b{display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#fff;font-size:20px}
+.oav{position:relative;overflow:visible}.oav img,.oav b{border-radius:50%}
+.osym{position:absolute;right:-8px;bottom:-6px;z-index:2;display:flex;align-items:center;justify-content:center;width:28px;height:28px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.osym.gold{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c2,#ffd34d 40%,#d99a00 75%,#a86f00);color:#7a4b00;font-size:17px;font-weight:900;box-shadow:inset 0 0 0 1.5px #fff3b0}
+.osym.dia i{display:block;width:17px;height:17px;transform:rotate(45deg);border-radius:2px;background:linear-gradient(135deg,#ffffff 0%,#c9f3ff 30%,#7fd8ff 55%,#b18cff 80%,#e6f9ff 100%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9),0 0 10px rgba(140,220,255,.9)}
+.osym.dia{width:30px;height:30px;border-radius:50%;background:#0d2a9e;box-shadow:0 0 0 2px #bff0ff}
+.opill.r-dia{background:linear-gradient(135deg,#ffffff 0%,#e3f7ff 45%,#efe6ff 100%);box-shadow:0 0 0 2px #bfefff,0 0 22px rgba(150,220,255,.75),0 8px 18px rgba(0,0,20,.35)}
+.opill.r-dia .oav{box-shadow:0 0 0 3px #fff,0 0 0 6px #8fdcff}
+.opill.r-gold{background:linear-gradient(135deg,#fffdf3 0%,#fff1c4 100%);box-shadow:0 0 0 2px #ffd34d,0 6px 14px rgba(0,0,20,.3)}
+.opill.r-gold .oav{box-shadow:0 0 0 3px #fff,0 0 0 5px #f2b705}
+.opill.r-gold .otx i{color:#9a6a00;font-weight:700}.opill.r-dia .otx i{color:#3156c8;font-weight:700}
+.olg{display:inline-flex;align-items:center;gap:6px;margin-right:6px}.olg .osym{position:static}.olg small{opacity:.75}
 .oav.xl{width:96px;height:96px}.oav.xl b{font-size:38px}
 .otx{display:flex;flex-direction:column;min-width:0}.otx b{font-size:14px}.otx i{font-style:normal;font-size:11.5px;color:#5a6488;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.otx small{font-size:11px;color:#2b44c9}
 .ochips{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:3px;padding:2px 0 3px 4px}
@@ -527,7 +553,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
   header.top{position:static;padding:0 0 8px}
   .tw{max-height:none!important;overflow:visible;border:0}
   .cw{max-height:none!important;height:auto!important;overflow:visible!important}
-  .sizebar,.rz,.rh,.cfb,.ytabs,.org-foot,.wadd,.gbar{display:none!important}
+  .sizebar,.rz,.rh,.cfb,.ytabs,.org-foot,.wadd,.gbar,.pjhero{display:none!important}
   .org,.whero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   td.sel{outline:none!important;box-shadow:none!important}
   table.t th,table.t tr.grp td{position:static}
@@ -689,7 +715,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2352,7 +2378,7 @@ function renderHome(c) {
 /* =====================================================================
  *  시트 화면
  * ===================================================================== */
-function fstate(key) { return FS[key] || (FS[key] = { f:{}, owner:'', mine:false, q:'', done:'', closed:'', year:undefined, view:'org' }); }
+function fstate(key) { return FS[key] || (FS[key] = { f:{}, owner:'', mine:false, q:'', done:'', closed:'', upd:'', year:undefined, view:'org' }); }
 /* 연도 탭: 주간회의 전달사항(일자) · 유닛분장(연도). 처음엔 가장 최근 연도, '전체' 선택 가능 */
 const YEAR_OF = { notice:r => String(r.fields['일자'] || '').slice(0, 4), unit:r => String(r.fields['연도'] || '').trim().slice(0, 4) };
 const yearsOf = s => [...new Set(getRecs(s.key).map(YEAR_OF[s.key]).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
@@ -2457,6 +2483,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     }
     if (st.q && !JSON.stringify(Object.values(f)).toLowerCase().includes(st.q.toLowerCase())) return false;
     if (s.key === 'todo' && st.done && (st.done === 'done') !== (f['완료 여부'] === 'O')) return false;
+    if (st.upd && (st.upd === 'upd') !== isUpdated(r)) return false;
     return true;
   });
   return cfSort(s, sortRecs(s, list));
@@ -2468,6 +2495,7 @@ function renderSheet(c, s) {
   const owners = s.owner ? [...ownerTokens(recs, s.owner).keys()].sort((a, b) => a.localeCompare(b, 'ko')) : [];
   const yt = YEAR_OF[s.key] ? yearTabs(yearSel(s), yearsOf(s), s.key === 'unit' ? `<span class="vtog" style="margin-left:14px"><button type="button" class="yt ${st.view !== 'table' ? 'on' : ''}" data-view="org">🏢 조직도</button><button type="button" class="yt ${st.view === 'table' ? 'on' : ''}" data-view="table">📋 표</button></span>` : '') : '';
   const pjSel = s.key === 'perform' || s.key === 'bid' ? `<label>진행 상태<select data-filter="closed"><option value="">전체</option><option value="live" ${st.closed === 'live' ? 'selected' : ''}>진행 중</option><option value="closed" ${st.closed === 'closed' ? 'selected' : ''}>종결</option></select></label>` : '';
+  if (s.key === 'perform' || s.key === 'bid') c.insertAdjacentHTML('beforeend', pjHero(s));
   c.insertAdjacentHTML('beforeend', `<section class="card"><h2>${esc(s.label)}</h2>${yt}
     <div class="fbar">${filters}${pjSel}${s.owner ? sel('owner', '담당자', owners, st.owner) : ''}
       ${s.key === 'todo' ? `<label>완료 여부<select data-filter="done"><option value="">전체</option><option value="done" ${st.done === 'done' ? 'selected' : ''}>완료 (O)</option><option value="open" ${st.done === 'open' ? 'selected' : ''}>미완료</option></select></label>` : ''}
@@ -2503,6 +2531,15 @@ function renderSheet(c, s) {
   };
   $('#fQ').oninput = e => { st.q = e.target.value; drawTable(s); };
   $('#fReset').onclick = () => { FS[s.key] = null; render(); };
+  const hero = $('#pjhero'); if (hero) hero.onclick = e => {   // 현황판 카드·칩·막대 → 아래 표 필터
+    const t = e.target.closest('[data-pjf]'); if (!t) return;
+    const [k, v] = t.dataset.pjf.split('|');
+    if (k === 'all') Object.assign(st, { closed:'', upd:'', owner:'' }, { f:{ ...st.f, 사업군:'' } });
+    else if (k === 'biz') st.f['사업군'] = st.f['사업군'] === v ? '' : v;
+    else if (k === 'owner') st.owner = st.owner === v ? '' : v;
+    else st[k] = st[k] === v ? '' : v;
+    render();
+  };
   c.lastElementChild.addEventListener('click', e => {        // 연도 탭 · 조직도/표 전환
     const y = e.target.closest('[data-year]'); if (y) { st.year = y.dataset.year; return render(); }
     const v = e.target.closest('[data-view]'); if (v) { st.view = v.dataset.view; return render(); }
@@ -2871,6 +2908,35 @@ function workItem(key, r) {
   }
   return { key, r, w, f, title:f[w.title] || '', personRaw:f[w.person] || '', persons:tokens(f[w.person]), cat:w.cat(f), start, end, year, half, track, auto:!set, st, cls, dd };
 }
+/* 수행·입찰 PJT 현황판 (통합 업무와 같은 색감) — 카드·칩·막대를 누르면 아래 엑셀형 표가 걸러짐 */
+const avHtml = name => { const pr = profOf(name); return pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(String(name).slice(0, 1))}</b>`; };
+function pjHero(s) {
+  const st = fstate(s.key), recs = getRecs(s.key), live = recs.filter(isLive), closed = recs.length - live.length;
+  const upd = live.filter(isUpdated).length, rate = live.length ? Math.round(upd / live.length * 100) : 0;
+  const bid = s.key === 'bid', on = (k, v) => st[k] === v ? 'on' : '';
+  const biz = new Map(); recs.forEach(r => { const g = cell1(r.fields['사업군']); const o = biz.get(g) || biz.set(g, { live:0, end:0, raw:r.fields['사업군'] || '' }).get(g); isLive(r) ? o.live++ : o.end++; });
+  const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
+  const own = [...ownerTokens(live, s.owner)].sort((a, b) => b[1] - a[1]).slice(0, 8), omx = Math.max(1, ...own.map(x => x[1]));
+  const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
+  const kpi = (k, v, l, n, sub, icon, cls) => `<button class="wk ${cls} ${on(k, v)}" data-pjf="${k}|${v}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${n}</span><span class="wks">${sub}</span></button>`;
+  return `<div id="pjhero" class="pjhero">
+    <section class="whero pj-${s.key}">
+      <div class="wh-top"><div><h2>${bid ? '📈 입찰 PJT 보드' : '🏗 수행 PJT 보드'}</h2><p>${bid ? '입찰 진행 현황과 담당자별 PJT 를 한눈에 — 아래 표는 엑셀 형태 그대로 편집합니다.' : '수행 중인 PJT 와 담당자별 현황을 한눈에 — 아래 표는 엑셀 형태 그대로 편집합니다.'}</p></div></div>
+      <div class="wtypes"><button class="wtc ${!st.f['사업군'] && !st.closed && !st.upd && !st.owner ? 'on' : ''}" data-pjf="all|">전체 <b>${recs.length}</b></button>${bizs.map(([g, o]) => `<button class="wtc ${st.f['사업군'] === o.raw && o.raw ? 'on' : ''}" data-pjf="biz|${esc(o.raw)}">${esc(g)} <b>${o.live + o.end}</b></button>`).join('')}</div>
+    </section>
+    <div class="wkpis pjkpis">
+      <div class="wk wk-main ${bid ? 'pjm-bid' : ''}"><span class="wkl">금주 업데이트율 (진행 PJT)</span><span class="wkr">${ring}<span class="wkv">${rate}<small>%</small></span></span><span class="wks">진행 ${live.length}건 중 ${upd}건 작성</span></div>
+      ${kpi('closed', 'live', '진행 중', live.length, '종결 제외', '▶', 'wk-run')}${kpi('closed', 'closed', '종결', closed, '집계 제외 · 회색 행', '🏁', 'wk-perm')}
+      ${kpi('upd', 'upd', '금주 업데이트', upd, '마감 이후 작성', '✍', 'wk-done')}${kpi('upd', 'not', '미업데이트', live.length - upd, '이번 주 작성 필요', '⏰', 'wk-soon')}
+    </div>
+    <div class="wgrid pjgrid">
+      <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결</span></h2>
+        ${bizs.map(([g, o]) => `<button class="ppr ${st.f['사업군'] === o.raw && o.raw ? 'on' : ''}" data-pjf="biz|${esc(o.raw)}"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
+        <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
+      <section class="card"><h2>👥 담당자별 진행 PJT <span class="muted">· 상위 8 · 누르면 그 사람 PJT 만</span></h2>
+        ${own.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}</section>
+    </div></div>`;
+}
 const WS = { year:'', type:'', person:'', st:'', q:'' };   // 통합 업무 화면 상태 (메모리)
 const WST_LABEL = { late:'⚠ 지연', soon:'⏰ 임박', miss:'❔ 종료일 미입력', run:'▶ 진행 중', done:'✔ 완료', perm:'♾ 상시 (추적 안 함)' };
 function renderWork(c) {
@@ -2975,18 +3041,22 @@ async function loadProfiles() {
 // 구성원 칸: 줄·쉼표로 나눈 이름, '이름(직책)' 이면 괄호 안을 직책으로
 const parseMembers = v => String(v || '').replace(/~~[\s\S]*?~~/g, '').split(/[\n,/·]+/).map(x => x.trim()).filter(Boolean)
   .map(x => { const m = x.match(/^([^()]+?)\s*\(([^)]*)\)\s*$/); return m ? { name:m[1].trim(), title:m[2].trim() } : { name:x, title:'' }; });
+// 직책 심볼: 그룹장 = 다이아(💎), 유닛장 = 골드(★). 구성원 칸에 '이름(유닛장)' 으로 쓰면 유닛장
+const isUnitLead = t => /유닛장|unit\s*leader|^UL$/i.test(t || '');
 function orgPill(name, title, lead) {
   const pr = profOf(name), run = pr?.run || [], bid = pr?.bid || [];
   const chips = [...run.map(x => ['run', x]), ...bid.map(x => ['bid', x])];
-  return `<button class="opill ${lead ? 'lead' : ''}" data-prof="${esc(name)}" title="${esc(name)} — 눌러서 정보 보기">
-    <span class="oav">${pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(name.slice(0, 1))}</b>`}</span>
+  const rank = lead ? 'dia' : isUnitLead(title) ? 'gold' : '';
+  const sym = rank === 'dia' ? '<span class="osym dia" title="그룹장"><i></i></span>' : rank === 'gold' ? '<span class="osym gold" title="유닛장">★</span>' : '';
+  return `<button class="opill ${lead ? 'lead' : ''} ${rank ? 'r-' + rank : ''}" data-prof="${esc(name)}" title="${esc(name)} — 눌러서 정보 보기">
+    <span class="oav">${pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(name.slice(0, 1))}</b>`}${sym}</span>
     <span class="otx"><b>${esc(name)}</b><i>${esc(title || pr?.duty || (lead ? '그룹장' : ''))}</i>${pr?.phone ? `<small>☎ ${esc(pr.phone)}</small>` : ''}</span>
     ${chips.length ? `<span class="ochips">${chips.slice(0, 4).map(([k, x]) => `<span class="oc ${k}" title="${k === 'run' ? '수행' : '입찰'} · ${esc(x)}">${k === 'run' ? '수행' : '입찰'} ${esc(trunc(x, 14))}</span>`).join('')}${chips.length > 4 ? `<span class="oc more">+${chips.length - 4}</span>` : ''}</span>` : ''}</button>`;
 }
 function orgHtml(recs, year) {
   if (!recs.length) return '<div class="empty">이 연도의 유닛분장이 없습니다. [+ 행 추가]로 유닛을 등록하세요.</div>';
   const heads = [...new Set(recs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)))];
-  const units = recs.map(r => ({ r, name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)) }));
+  const units = recs.map(r => ({ r, name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) }));
   const total = new Set(units.flatMap(u => u.mem.map(m => m.name))).size + heads.length;
   const noProf = SERVER && !OFFLINE && !(DB.profiles || []).length;
   return `<div class="org">
@@ -2995,7 +3065,7 @@ function orgHtml(recs, year) {
     <div class="org-units">${units.map(u => `<div class="org-unit">
         <div class="org-uh" data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"><b>${esc(u.name)}</b>${u.duty ? `<span>${esc(trunc(u.duty, 40))}</span>` : ''}<em>${u.mem.length}명</em></div>
         <div class="org-mem">${u.mem.map(m => orgPill(m.name, m.title)).join('') || '<span class="org-ghost">구성원 없음</span>'}</div></div>`).join('')}</div>
-    <div class="org-foot">${AUTH ? '<button class="btn sm" data-myprof>🙋 내 정보 입력 (사진 · 전화번호 · 담당 업무 · PJT)</button>' : ''}<span>사람을 누르면 상세 정보 · <span class="oc run">수행</span> <span class="oc bid">입찰</span> = 각자 <b>내 정보</b>에 입력한 PJT${noProf ? ' · 아직 입력된 프로필이 없습니다' : ''}${!SERVER ? ' · 폴더 모드에서는 프로필을 쓸 수 없습니다' : ''}</span></div>
+    <div class="org-foot">${AUTH ? '<button class="btn sm" data-myprof>🙋 내 정보 입력 (사진 · 전화번호 · 담당 업무 · PJT)</button>' : ''}<span><span class="olg"><span class="osym dia"><i></i></span> 그룹장</span> <span class="olg"><span class="osym gold">★</span> 유닛장 <small>(구성원 칸에 '이름(유닛장)')</small></span> · 사람을 누르면 상세 정보 · <span class="oc run">수행</span> <span class="oc bid">입찰</span> = 각자 <b>내 정보</b>에 입력한 PJT${noProf ? ' · 아직 입력된 프로필이 없습니다' : ''}${!SERVER ? ' · 폴더 모드에서는 프로필을 쓸 수 없습니다' : ''}</span></div>
   </div>`;
 }
 function orgClick(e) {
