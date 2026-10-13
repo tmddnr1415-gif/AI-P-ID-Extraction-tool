@@ -417,3 +417,8 @@ button.lg-reset:hover { background: #d9534f; color: #fff; }
 .lg-sigpop .sp-empty { padding: 10px; color: #8a93a6; }
 .lg-sigpop .sp-foot { padding: 6px 10px 2px; color: #8a93a6; }
 #sig-toggle.on { background: #2a3a62; color: #fff; }
+.lg-sigpop li { display: flex; align-items: flex-start; gap: 4px; }
+.lg-sigpop li .sp-what { flex: 1; }
+.lg-sigpop .sp-off { margin-left: 6px; flex: none; font-size: 11px; padding: 1px 7px; border: 1px solid #c0392b; color: #c0392b;
+  background: #fff; border-radius: 4px; cursor: pointer; }
+.lg-sigpop .sp-off:hover { background: #c0392b; color: #fff; }

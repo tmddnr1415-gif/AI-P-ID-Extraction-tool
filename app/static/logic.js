@@ -1532,13 +1532,14 @@ function renderChain() {
 const SIGPOP_POS = "logic.sigpop.pos", SIGPOP_CLOSED = "logic.sigpop.closed", SIGPOP_MIN = "logic.sigpop.min";
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 막힌 저장소 */ } }
-function sigItem(page, sheet, x, extra) {
+function sigItem(page, sheet, x, extra, off) {
   const v = x.value == null ? 1 : x.value;
   const what = x.kind === "block" || x.kind === "net"
     ? `${esc(FUNC_KO[x.func] || x.func || (x.kind === "net" ? "선" : "블록"))}${x.label ? " " + esc(x.label) : ""}${x.kind === "net" ? " 출력 선" : ""}`
     : `${x.row}행 ${esc(x.desc || "(설명 없음)")}`;
   return `<li data-page="${page}" data-sheet="${esc(sheet)}" ${x.row ? `data-row="${x.row}" data-side="${esc(x.side || "L")}"` : ""}
-    class="${page === L.page ? "cur" : ""}"><span class="v${v}">${v}</span><span class="sp-sh">${esc(sheet)}</span> ${what}${extra || ""}</li>`;
+    class="${page === L.page ? "cur" : ""}"><span class="v${v}">${v}</span><span class="sp-sh">${esc(sheet)}</span> <span class="sp-what">${what}${extra || ""}</span>${
+    off ? `<button class="sp-off" data-off="${esc(x.key)}" title="이 신호를 끕니다 (강제 풀기 — 도면이 정한 값으로 돌아갑니다)">끄기</button>` : ""}</li>`;
 }
 function renderSigPop() {
   const pop = $("#sigpop");
@@ -1557,7 +1558,7 @@ function renderSigPop() {
   let nOut = 0;
   for (const c of order) {
     const sh = c.sheet_no || "p" + c.page;
-    for (const x of c.forced || []) forced.push(sigItem(c.page, sh, x));
+    for (const x of c.forced || []) forced.push(sigItem(c.page, sh, x, "", true));
     for (const x of c.chained || []) chained.push(sigItem(c.page, sh, x, ` <small>(뒤 시트 출력 조건)</small>`));
     if (c.hop == null) continue;           // 아무것도 안 줘도 1 인 장(입력 0 의 NOT 등)은 결과로 세지 않는다
     for (const x of c.outputs || []) {
@@ -1584,9 +1585,19 @@ function renderSigPop() {
     (unmet.length ? sec("나가지 않은 출력", `${unmet.length}개 · 이 시트`, unmet, "") : "") +
     sec("나간 출력", `${nOut}개 · 1 인 출력 행`, outs, "아직 1 이 된 출력 행이 없습니다.") +
     (stops.length ? sec("신호가 닿았지만 멈춘 곳", `${stops.length}개 · 그 시트 게이트 조건이 아직 안 맞음`, stops, "") : "") +
-    `<div class="sp-foot">항목을 누르면 그 시트 그 행으로 갑니다.</div>`;
+    `<div class="sp-foot">항목을 누르면 그 시트 그 행으로 갑니다 · 오른쪽 '끄기' 로 그 신호만 풉니다 (다른 시트에 있어도).</div>`;
   $("#sigpop-sum").textContent = `신호 ${forced.length} → 출력 ${nOut}`;
   placeSigPop();
+}
+/* 다른 시트에서 준 신호도 이 창에서 끈다 — 그 시트로 가지 않고 강제만 푼다 (사람이 준 값을 지우면 도면이 정한 값) */
+function unforce(page, key) {
+  const f = L.allForces[page];
+  if (!f || !(key in f)) return;
+  delete f[key];
+  if (page === L.page) L.forces = f;
+  const s = (L.chain || []).find((c) => c.page === page);
+  status(`${(s && s.sheet_no) || "p" + page} 의 신호를 껐습니다 — 남은 신호로 다시 돌립니다`);
+  runSim(false);
 }
 function placeSigPop(x, y) {
   const pop = $("#sigpop");
@@ -1623,6 +1634,8 @@ function bindSigPop() {
     if (L.mode !== "sim") setMode("sim"); else renderSigPop();
   };
   $("#sigpop-b").addEventListener("click", (e) => {
+    const off = e.target.closest("button[data-off]");
+    if (off) { e.stopPropagation(); unforce(Number(off.closest("li").dataset.page), off.dataset.off); return; }
     const li = e.target.closest("li[data-page]");
     if (!li) return;
     if (li.dataset.row) goToRef(li.dataset.sheet, Number(li.dataset.row), li.dataset.side || "L");

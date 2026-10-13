@@ -915,5 +915,8 @@ def test_status_popup_lists_given_signals_and_resulting_outputs():
     body = js[js.index("function renderSigPop()"):js.index("function renderFindings()")]
     assert "pointerdown" in body and "SIGPOP_POS" in body and "goToRef" in body
     assert "fetch(" not in body and "post(" not in body       # 서버가 낸 값을 읽기만 한다
+    assert "data-off" in body and "unforce(" in body                    # 다른 시트의 신호도 이 창에서 끈다
+    uf = js[js.index("function unforce("):js.index("function placeSigPop(")]
+    assert "delete f[key]" in uf and "runSim(" in uf
     rc = js[js.index("function renderChain()"):js.index("function renderFindings()")]
     assert "renderSigPop()" in rc
