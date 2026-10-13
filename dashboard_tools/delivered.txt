@@ -18,3 +18,4 @@ cf00b7b3166cdc752683d0f821b3657a908cadc8  dashboard_patch_20261013_0204
 2d8be539d3df119674890e388a8ebc4407d20fa2  UPDATE_from_v13.14/v13.15_to_v13.16 (net_check, SERVER 13.10) / FULL_from_original_v13.16
 2f76d28aeb54eb7130fc3031cd0bd9d725709393  UPDATE_from_v13.15/v13.16_to_v13.17 / FULL_from_original_v13.17
 7e39f9974d85c71e81e2930b75c870f8ad96e09a  UPDATE_from_v13.16/v13.17_to_v13.18 / FULL_from_original_v13.18
+0929eb79afa7f6256bc854af908bb58718d1274d  UPDATE_from_v13.15_to_v13.19 (13.15 로 되돌림 + 시수 Type 분류) / FULL_from_original_v13.19
