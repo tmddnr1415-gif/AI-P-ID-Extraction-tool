@@ -436,38 +436,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - **확인한 것**: `node --check`, `py_compile`. 시험 서버(4명 × 6~9월 시수, 김철수 7/13~17 매일 11시간): 다른 PC 주소로 접속 시 일반 부서원 `canHours false · days 없음`, Management `true · days 있음`. Management 메뉴 하위 2개, #mgmt → #mgalloc. Management › R&R = `%(h)` 병기, 주간업무보고 › R&R = 같은 사람이어도 시간 안 보임. 근무시간 월별 김철수 6~9월 201:50 / 212:30 / 184:00 / 200:20 = 엑셀 합과 같음, 7월 주별 7/13~7/19 55:00 붉은 칸·52시간 초과 1건, 일별 34열(1~31+합계·평균), 개인 상세 23일·212:30h·PJT 93%. 일반 부서원은 메뉴 없음·주소로 들어와도 '접근 권한 없음'. 스크립트 오류 없음.
 - **회사에서 확인할 것**: 시수 파일의 Total 과 근무시간 화면의 그 달 합계가 같은지.
 
-### 2026-10-13 (16) — 접속 점검 bat 가 회사 PC 에서 '액세스가 거부되었습니다' → PowerShell 없이 다시 만듦 (APP_VERSION 그대로 2026-10-13.15 / SERVER_VERSION 2026-10-13.10)
-> **서버 재시작 필요** (server.py). 새 파일 `net_check.py` (서버 폴더).
-- **증상**: 회사 서버 PC 에서 `check_network.bat` 실행 → 첫 줄 다음에 `액세스가 거부되었습니다.` 만 나오고 점검 내용 없음 = **회사 정책으로 powershell.exe 실행이 막혀 있음**. (13·14 의 `allow_firewall.bat`·`check_network.bat`·서버 `net_profiles` 가 모두 PowerShell 을 썼음 → 회사 PC 에서는 동작 안 함)
-- **net_check.py** (Python 표준 라이브러리 + Windows 기본 명령 `ipconfig` · `netsh` · `netstat` 만, 영문·한글 Windows 출력 모두 읽음):
-  `[1]` IP 주소(ipconfig) `[2]` Wi-Fi 이름(netsh wlan) `[3]` 방화벽 지금 프로필 공용/개인/도메인(netsh advfirewall show currentprofile) `[4]` 서버 응답(localhost·각 IP, 프록시 안 거침) + 8080 LISTEN(netstat) `[5]` python·8080 관련 인바운드 규칙(허용/차단·켬/끔·프로필, `netsh advfirewall firewall show rule name=all dir=in verbose`) `[6]` 판정(한국어) → 화면 + `network_check.txt`.
-  `--fix`(관리자): `netsh advfirewall firewall add rule name="DeptDashboard 8080" dir=in action=allow protocol=TCP localport=8080 profile=any` + 지금 켜져 있는 python 인바운드 **차단** 규칙을 이름·프로그램·프로필로 골라 `set rule … new enable=no`.
-- `check_network.bat` = `python net_check.py --port 8080`, `allow_firewall.bat` = 관리자 확인(`net session`) 후 `python net_check.py --port 8080 --fix`. (ASCII · CRLF · chcp 없음 · PowerShell 없음)
-- server.py `net_profiles` → `netsh advfirewall show currentprofile` + `netsh wlan show interfaces`(SSID), 공통 함수 `run_text`(cp949 대응). 관리자 화면 '공용 네트워크' 배너는 그대로 동작.
-- **확인한 것**: `py_compile`. 한글 Windows 형식의 ipconfig / netsh 출력 견본으로 net_check 판정 시험: Wi-Fi 165.244.30.5 · SEC-CORP · 공용 프로필 · python 허용(개인,도메인) + 차단(공용) → '차단 규칙 있음 · 공용에서 허용 규칙 없음' 판정, --fix 명령 = 포트 허용 추가 + `name=python.exe program=… profile=public new enable=no`. 서버 net_profiles 견본 → Public · SEC-CORP. 실제 Windows 실행은 회사에서.
-- **회사에서 할 일**: 서버 PC 를 Wi-Fi 로 둔 채 `check_network.bat` → 결과 화면(또는 network_check.txt) 확인 → '✗' 가 있으면 `allow_firewall.bat` 를 관리자 권한으로(권한 없으면 IT 에 'TCP 8080 인바운드 허용') → 모두 '✓' 인데도 안 되면 회사망(Wi-Fi ↔ 유선) 문제.
-
-### 2026-10-13 (17) — 서버를 끄면 부서원 파일이 '이 PC에 보관된 데이터도 아직 없습니다' → 보관 상태 표시 · 원인 안내 (APP_VERSION 2026-10-13.16 / SERVER_VERSION 그대로 2026-10-13.10)
-- **증상**: 서버를 끄고 부서원 PC 의 dashboard.html(file://) 을 열면 안내 화면 "서버에 연결할 수 없습니다 … 이 PC에 보관된 데이터도 아직 없습니다" (오프라인 모드로 안 열림).
-- **원인 후보**: ① 그 PC·그 브라우저로 서버가 켜져 있을 때 이 파일을 연 적이 없음(또는 http:// 주소로만 열었음 — 보관본은 file:// 사본에만) ② Edge 가 닫힐 때 사이트 데이터를 지움(설정 '닫을 때마다 지울 항목 선택' · InPrivate · 회사 정책) ③ 보관 저장이 실패했는데 예전 코드는 조용히 넘어감(`cacheSave` 의 빈 catch) — 또는 그 전 단계 `archive/` 불러오기 실패로 `cacheSave` 까지 못 감.
-- **바꾼 것** (dashboard.html):
-  - `cacheSave`: 성공하면 localStorage `dept-last-cache` 에 시각 기록 + `navigator.storage.persist()` 요청(저장 공간 부족 때 지우지 않게), 실패하면 `CACHE_ERR`.
-  - 왼쪽 아래 상태(`renderHeader` 의 `#netState`, file:// 사본만): **'💾 이 PC 에 보관됨 시각'** 또는 **'⚠ 이 PC 보관 실패 — 서버가 꺼지면 열 수 없음'** → 부서원이 미리 확인 가능.
-  - `loadAll`: 마지막 마감본(archive) 불러오기가 실패해도 보관본 저장은 계속.
-  - 안내 화면(서버 실패 + 보관본 없음): `dept-last-cache` 가 있으면 "○○시에 저장했는데 지금 없음 → 브라우저가 지운 것(Edge 설정 경로)", 없으면 "저장 기록 없음 → ① 서버 켜졌을 때 이 파일을 열고 로그인, 왼쪽 아래 💾 확인 ② 그래도 안 되면 Edge 지우기 설정/InPrivate ③ http:// 주소 화면은 보관 안 함".
-- **확인한 것**: `node --check`. 시험(file:// 사본): 서버 켜짐 → 왼쪽 아래 '💾 이 PC 에 보관됨' → 서버 끔·다시 열기 → 오프라인으로 열림. 보관본(IndexedDB)만 지운 경우 → "저장했는데 지금 없음 → 브라우저가 지운 것". 처음 보는 브라우저 → ①②③ 안내. 스크립트 오류 없음.
-- **회사에서 확인할 것**: 부서원 PC 에서 서버 켜졌을 때 파일을 열고 왼쪽 아래 💾 표시 → Edge 를 완전히 닫았다 다시 열고(서버 끈 채) 오프라인으로 열리는지. 안 열리고 '지운 것' 안내가 나오면 Edge 지우기 설정/회사 정책.
-
-### 2026-10-13 (18) — 오프라인 데이터를 dashboard.html 파일 자체에 담기 · 시수 Type 분류(근태 · 성과품 · 신사업) (APP_VERSION 2026-10-13.17 / SERVER_VERSION 그대로 2026-10-13.10)
-1. **파일에 담는 오프라인 보관본** — 브라우저 저장소(IndexedDB·localStorage)가 지워져도(Edge '닫을 때 지우기'·회사 정책) 서버가 꺼졌을 때 부서원 파일만으로 열리게.
-   - 코드 안에 자리: `const EMBED = /*EMBED*/null/*/EMBED*/;` (서버·배포본은 null). 내용 `{ v, savedAt, user:{id,name}, cache:{cachePayload() 와 같은 것}, queue:[아직 못 올린 수정] }`.
-   - 쓰기(`fileSave`, File System Access API): 처음 한 번 배너/왼쪽 아래 **[📎 이 파일에 데이터 담기]** → 파일 고르기(`showOpenFilePicker`)에서 지금 쓰는 dashboard.html → '편집 허용'. 핸들은 IndexedDB `self`(업데이트 교체 `replaceSelf` 와 같은 키). 파일 안 `const EMBED = …` 한 줄만 바꿔 씀(`injectEmbed`, `<`·`/`·U+2028/9 이스케이프, 대시보드 파일이 아니면 거부). 권한이 있으면 `cacheSave`(서버에서 받을 때마다) · `queueSave`(오프라인 수정 때마다) 에서 **바뀐 것이 있을 때만** 조용히 다시 씀. Edge 가 '방문할 때마다 허용'을 물으면 그것을 고르면 다음부터 자동.
-   - 읽기: `cacheLoad` = 브라우저 보관본과 파일 보관본 중 더 새것(`fromFile`). 로그인 정보가 지워졌으면 파일에 담긴 이름으로 오프라인 수정 가능(`EMBED.user`). 오프라인 배너에 '이 파일에 담긴 데이터'.
-   - 파일에 남아 있던 대기열은 브라우저 보관본이 없을 때만 되살림(`queueLoad`, `fromFile`) — 올릴 때 서버 행이 그 수정보다 나중에 바뀌었으면 건너뜀(`syncOp`, 이미 올렸거나 더 새 내용을 덮어쓰지 않게).
-   - 업데이트 교체(`replaceSelf`) 때도 새 파일에 지금 데이터를 담아서 씀.
-   - 왼쪽 아래: '📎 파일에도 담김 시각' 또는 [📎 이 파일에 데이터 담기].
-2. **시수 Type 분류** (`tsClass`, `tsIsPjtType`): Type **'근태'** → '근태' 한 묶음(kind `leave`, 노랑) / **'공통'** → 부서업무 / **'성과품…'**(성과품 · 성과품 과정관리 · 과정정리 등 '성과품'으로 시작) · **'신사업'** → Project Code 로 수행·입찰 PJT 찾기 / **그 밖의 Type**(교육 등) → Type 이름 그대로(kind `other`, '기타 Type'), 코드가 있어도 PJT 로 안 셈.
-   - R&R · 투입 분석: 근태 KPI 추가(`.alkpis` 6칸), 부서업무 KPI 에 기타 Type %, 프로젝트별 순서 = 프로젝트 → 미등록 → 기타 Type → 부서업무 → 근태(`AL_RANK`).
-   - 근무시간 화면: **근태는 근무시간에서 뺌**(합계·52시간·10시간 계산 제외), 요약에 '근태 ○h 제외', 개인 상세에 근태 시간 따로.
-- **확인한 것**: `node --check`. 시험 시수(공통 · 성과품 과정관리 19LT · 신사업 19LT · 근태 X1 · 교육 19LT · 근태): 예시수행-A 101:00h(성과품+신사업), 교육 17:00h(기타 Type, 코드 무시), 부서업무 16:00h, 근태 56:00h(두 줄 한 묶음). 근무시간 134:00h = 190 − 근태 56. 파일 담기: 배너 → 담기 → 실제 파일에 데이터(수행 8행·이름) 기록, 왼쪽 아래 '📎 파일에도 담김' → 서버 끔 + 저장소 없는 새 브라우저로 파일 열기 → '오프라인 · 이 파일에 담긴 데이터'로 열림 · 편집 가능 · 대기 1건. 서버 쪽 dashboard.html 은 그대로 null. 스크립트 오류 없음. (파일 고르기 창·권한 창은 자동 시험이라 흉내)
-- **회사에서 확인할 것**: 부서원 PC 에서 서버 켜졌을 때 [📎 이 파일에 데이터 담기] → 지금 쓰는 파일 고르기 → 허용 → 왼쪽 아래 '📎 파일에도 담김'. Edge 를 닫고 서버 끈 뒤 그 파일을 열어 오프라인으로 열리는지.
+### 2026-10-13 (19) — 13.15 로 되돌린 뒤 시수 Type 분류만 추가 (APP_VERSION 2026-10-13.19 / SERVER_VERSION 그대로 2026-10-13.9)
+> **되돌림**: 사용자 요청으로 dashboard/ 전체를 2026-10-13.15 (커밋 5707be4, Management 근무시간까지) 상태로 되돌림. 그 뒤에 만들었던 13.16(net_check.py · PowerShell 없는 점검 bat · 서버 netsh), 13.17(보관 상태 표시), 13.18(파일에 데이터 담기 EMBED) 은 **회사에 적용하지 않음** — git 기록(커밋 2d8be53 · 2f76d28 · 7e39f99)에만 있음. 회사 운영본은 13.15 에서 이 변경으로 바로 감. 서버 재시작 필요 없음(server.py 는 13.15 와 같음).
+- **시수 Type 분류** (`tsClass`, `tsIsPjtType`):
+  - Type **'근태'** → '근태' 한 묶음 (kind `leave`, 노랑) — 여러 줄이어도 하나로, Project 코드가 있어도 무시.
+  - Type **'공통'** → 부서업무 (전과 같음).
+  - Type **'성과품'**으로 시작(성과품 · 성과품 과정관리 · 성과품 과정정리 …) 또는 **'신사업'** → Project Code 로 수행·입찰 PJT 찾기. **Project Code 가 비어 있으면 '입찰 (Project Code 없음)'** (kind `bid`, 입찰 PJT 로 셈). 코드가 있는데 PJT 에 없으면 전처럼 '미등록 코드'.
+  - **그 밖의 Type**(교육 등) → Type 이름 그대로 (kind `other`, '기타 Type'), 코드가 있어도 PJT 로 안 셈.
+- R&R · 투입 분석: 근태 KPI 추가(`.alkpis` 6칸), 부서업무 KPI 에 기타 Type %, 프로젝트별 순서 프로젝트 → 미등록 → 기타 Type → 부서업무 → 근태(`AL_RANK`). 업로드 미리보기·설명 문구도 새 규칙.
+- 근무시간 화면(`hoursIndex`, `renderHours`): **근태는 근무시간에서 뺌**(합계 · 주 52시간 · 하루 10시간 계산 제외), 요약 '근태 ○h 제외', 개인 상세에 근태 따로.
+- **확인한 것**: `node --check`. 시험 시수(공통 · 성과품 과정관리 19LT · 성과품 과정관리 코드 없음 · 신사업 코드 없음 · 근태 X1 · 교육 19LT): 입찰 (Project Code 없음) 52:00h, 예시수행-A 45:00h, 교육 17:00h(기타 Type), 부서업무 15:00h, 근태 20:00h → 프로젝트 투입 65.1%(입찰 포함), 근무시간 129:00h = 149 − 근태 20. 스크립트 오류 없음.

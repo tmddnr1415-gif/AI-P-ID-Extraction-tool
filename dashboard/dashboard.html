@@ -863,7 +863,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -899,7 +899,7 @@ let SERVER_INFO = null;                                 // 서버 /api/info (서
 let SERVER = /^https?:$/.test(location.protocol);       // API 사용 여부 (서버 연결 또는 오프라인 보관본)
 let API_BASE = '';                                      // '' = 이 페이지를 준 서버, 아니면 http://IP:8080
 let OFFLINE = false;                                    // 오프라인 모드 (보관본 + 대기열)
-let OFFLINE_AT = '', OFFLINE_FROM_FILE = false;                                    // 보관본의 마지막 동기화 시각
+let OFFLINE_AT = '';                                    // 보관본의 마지막 동기화 시각
 let NEWVER = '';                                        // 서버에 더 새 버전이 있으면 그 버전
 let ADMIN = !SERVER;                                    // 서버 모드에서는 localhost 접속일 때만 관리자
 // 계정 로그인 (서버 모드): 토큰·ID·본명을 이 브라우저에 보관. 수정자는 서버가 토큰으로 확인한 본명으로 기록
@@ -907,9 +907,6 @@ const LS_AUTH = 'dept-auth';
 let AUTH = null;                                        // { token, id, name }
 try { AUTH = JSON.parse(localStorage.getItem(LS_AUTH) || 'null'); } catch (_) {}
 let GUEST = false;                                      // 비회원 접속 = 보기 전용
-// 이 dashboard.html 파일 자체에 담긴 오프라인 보관본 { savedAt, user:{id,name}, cache:{…cacheSave 와 같은 내용}, queue:[…] }.
-// 서버에 연결돼 있을 때 부서원 PC 의 파일에 덮어써 둠(fileSave) → 브라우저 저장소(IndexedDB)가 지워져도 서버가 꺼졌을 때 이 데이터로 열림. 서버·배포본은 null.
-const EMBED = /*EMBED*/null/*/EMBED*/;
 // 메뉴 권한: 서버가 /api/info·ping 으로 알려 줌 (운영자=서버 PC 는 전부 허용). 오프라인 대비 마지막 값 보관
 const LS_PERMS = 'dept-perms';
 let PERMS = null;
@@ -1058,7 +1055,7 @@ async function loadAll() {
     SHEETS.forEach(s => DB.recs[s.key] = (cp.recs?.[s.key] || []).sort(byOrder));
     DB.cols = cp.cols || []; DB.state = cp.state || {}; DB.archives = []; DB.recent = [];
     DB.baseSheets = cp.baseSheets || null; DB.baseKey = cp.baseKey || ''; DB.board = cp.board || []; DB.profiles = cp.profiles || []; DB.sheetCols = cp.sheetCols || {};
-    OFFLINE_AT = c.savedAt; OFFLINE_FROM_FILE = !!c.fromFile;
+    OFFLINE_AT = c.savedAt;
     QUEUE.forEach(applyOp);
     view.week = 'current'; view.arch = null;
     return;
@@ -1070,7 +1067,7 @@ async function loadAll() {
     const bn = DB.archives.includes(DB.state.lastClosedWeek) ? DB.state.lastClosedWeek : DB.archives[0];
     if (bn) {
       const key = bn + '|' + (DB.state.lastClosedAt || '');
-      if (DB.baseKey !== key) { try { DB.baseSheets = (await api('GET', 'archive/' + enc(bn))).arch?.sheets || null; DB.baseKey = key; } catch (_) {} }   // 실패해도 아래 보관본 저장은 계속
+      if (DB.baseKey !== key) { DB.baseSheets = (await api('GET', 'archive/' + enc(bn))).arch?.sheets || null; DB.baseKey = key; }
     } else { DB.baseSheets = null; DB.baseKey = ''; }
     if (readOnly()) await loadArchiveView(view.week);
     await loadBoard();
@@ -1293,76 +1290,16 @@ async function closeWeek() {
  * ===================================================================== */
 let QUEUE = [];
 const opId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const cachePayload = () => ({ savedAt:stamp(), server:API_BASE || location.origin, recs:DB.recs, cols:DB.cols, state:DB.state,
-  baseSheets:DB.baseSheets || null, baseKey:DB.baseKey || '', board:DB.board || [], profiles:DB.profiles || [], sheetCols:DB.sheetCols || {} });
 async function cacheSave() {
-  fileSave(false);                                         // 권한이 있으면 파일에도 (조용히, 바뀐 것이 있을 때만)
   try {
-    await kv('readwrite', s => s.put(cachePayload(), 'cache'));
-    OFFLINE_AT = stamp(); CACHE_ERR = '';
-    try { localStorage.setItem(LS_LASTON, OFFLINE_AT); } catch (_) {}             // '이 PC 에서 마지막으로 보관한 시각' (보관본이 사라졌는지 판단용)
-    if (!PERSIST_ASKED && navigator.storage?.persist) { PERSIST_ASKED = true; navigator.storage.persist().catch(() => {}); }   // 저장 공간이 부족해도 보관본을 지우지 않게 요청
-  } catch (e) { CACHE_ERR = e?.message || String(e); }                      // 보관 실패 → 화면 왼쪽 아래에 경고 (서버가 꺼지면 열 수 없음)
+    await kv('readwrite', s => s.put({ savedAt:stamp(), server:API_BASE || location.origin, recs:DB.recs, cols:DB.cols, state:DB.state,
+      baseSheets:DB.baseSheets || null, baseKey:DB.baseKey || '', board:DB.board || [], profiles:DB.profiles || [], sheetCols:DB.sheetCols || {} }, 'cache'));
+    OFFLINE_AT = stamp();
+  } catch (_) {}
 }
-const LS_LASTON = 'dept-last-cache';
-let CACHE_ERR = '', PERSIST_ASKED = false;
-async function cacheLoadDb() { try { return await kv('readonly', s => s.get('cache')); } catch (_) { return null; } }
-async function cacheLoad() {                               // 브라우저 보관본과 파일에 담긴 보관본 중 더 새것
-  const c = await cacheLoadDb(), e = EMBED?.cache;
-  return e && (!c || (e.savedAt || '') > (c.savedAt || '')) ? { ...e, fromFile:true } : c;
-}
-async function queueLoad() {
-  try { QUEUE = (await kv('readonly', s => s.get('queue'))) || []; } catch (_) { QUEUE = []; }
-  // 브라우저 저장소가 지워진 경우: 파일에 담겨 있던 '아직 못 올린 수정'을 되살림 (fromFile — 서버가 더 새로우면 올릴 때 건너뜀)
-  if (!QUEUE.length && EMBED?.queue?.length && !(await cacheLoadDb())) { QUEUE = EMBED.queue.map(o => ({ ...o, fromFile:true })); try { await kv('readwrite', s => s.put(QUEUE, 'queue')); } catch (_) {} }
-}
-async function queueSave() { try { await kv('readwrite', s => s.put(QUEUE, 'queue')); } catch (e) { toast('대기열 저장 실패: ' + e.message, true); } fileSave(false); }
-
-/* 파일에 담기 (File System Access API · Edge/Chrome): 처음 한 번 지금 쓰는 dashboard.html 을 골라 '편집 허용' → 핸들을 IndexedDB 'self' 에 기억(업데이트 교체와 같은 키).
-   Edge 가 '방문할 때마다 허용'을 물으면 그것을 고르면 다음부터 창 없이 자동. 파일 안의 `const EMBED = …` 한 줄만 바꿔 씀 */
-let FILE_H = null, FILE_OK = false, FILE_AT = '', FILE_LAST = '', FILE_BUSY = false, FILE_ERR = '', FILE_HIDE = false;
-const fileCapable = () => location.protocol === 'file:' && 'showOpenFilePicker' in window;
-const embedPayload = () => ({ v:1, savedAt:OFFLINE_AT || stamp(), user:AUTH ? { id:AUTH.id, name:AUTH.name } : (EMBED?.user || null), cache:cachePayload(), queue:QUEUE });
-function injectEmbed(html, payload) {
-  const A = '/*EM' + 'BED*/', B = '/*/EM' + 'BED*/', head = 'const EMBED = ' + A, i = html.indexOf(head), j = i < 0 ? -1 : html.indexOf(B, i);
-  if (i < 0 || j < 0 || !html.includes('const APP_VERSION')) throw new Error('고른 파일이 이 대시보드가 아니거나 옛 버전입니다');
-  const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\//g, '\\/').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-  return html.slice(0, i) + head + json + html.slice(j);
-}
-async function fileHandle(ask) {
-  if (!FILE_H) { try { FILE_H = await kv('readonly', st => st.get('self')); } catch (_) {} if (FILE_H && FILE_H.name !== selfName()) FILE_H = null; }
-  if (FILE_H) {
-    let st = await FILE_H.queryPermission({ mode:'readwrite' });
-    if (st !== 'granted' && ask) st = await FILE_H.requestPermission({ mode:'readwrite' });
-    if (st === 'granted') return FILE_H;
-    if (!ask) return null;
-  }
-  if (!ask) return null;
-  const [h] = await window.showOpenFilePicker({ id:'dept-dashboard-self', types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
-  if (h.name !== selfName() && await ask2(`고른 파일(${h.name})이 지금 연 파일(${selfName()})과 이름이 다릅니다. 그래도 이 파일에 담을까요?`) !== 'ok') return null;
-  if (await h.requestPermission({ mode:'readwrite' }) !== 'granted') return null;
-  FILE_H = h; try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
-  return h;
-}
-const ask2 = msg => ask('파일 확인', esc(msg), [{ id:'ok', label:'예', cls:'pri' }, { id:'no', label:'아니요' }]);
-async function fileSave(ask) {
-  if (!fileCapable() || FILE_BUSY || !SERVER) return;
-  if (!ask && !FILE_H && FILE_OK === false && FILE_ERR === 'none') return;
-  FILE_BUSY = true;
-  try {
-    const h = await fileHandle(ask);
-    if (!h) { FILE_OK = false; if (!ask) FILE_ERR = FILE_ERR || 'none'; return; }
-    const p = embedPayload(), body = JSON.stringify({ ...p, savedAt:'', cache:{ ...p.cache, savedAt:'' } });
-    if (body === FILE_LAST) { FILE_OK = true; return; }      // 바뀐 것 없음
-    const out = injectEmbed(await (await h.getFile()).text(), p);
-    const w = await h.createWritable(); await w.write(new Blob([out], { type:'text/html' })); await w.close();
-    FILE_LAST = body; FILE_OK = true; FILE_AT = stamp(); FILE_ERR = '';
-    if (ask) toast('이 파일(' + h.name + ')에 오프라인 데이터를 담았습니다. 서버가 꺼져도 이 파일로 열립니다');
-  } catch (e) {
-    FILE_OK = false; FILE_ERR = e?.name === 'AbortError' ? FILE_ERR : (e?.message || String(e));
-    if (ask && e?.name !== 'AbortError') toast('파일에 담지 못했습니다: ' + e.message, true);
-  } finally { FILE_BUSY = false; if (root) { try { renderHeader(); } catch (_) {} } }
-}
+async function cacheLoad() { try { return await kv('readonly', s => s.get('cache')); } catch (_) { return null; } }
+async function queueLoad() { try { QUEUE = (await kv('readonly', s => s.get('queue'))) || []; } catch (_) { QUEUE = []; } }
+async function queueSave() { try { await kv('readwrite', s => s.put(QUEUE, 'queue')); } catch (e) { toast('대기열 저장 실패: ' + e.message, true); } }
 
 /* 대기열 작업을 화면 데이터에 반영 (보관본 위에 겹쳐 보기) */
 function applyOp(op) {
@@ -1427,7 +1364,6 @@ async function syncOp(op, force) {                       // force: [예 (덮어�
     return 'done';
   }
   const cur = await getServerRec(op.key, op.id);
-  if (op.fromFile && cur && (cur.meta.updatedAt || '') > (op.at || '')) return 'done';   // 파일에 남아 있던 예전 수정인데 서버가 그 뒤에 바뀜 → 이미 올렸거나 더 새 내용 → 덮어쓰지 않음
   if (op.op === 'update') {
     if (cur && cur.meta.rev === op.baseRev) {
       const r = await api('PUT', `rec/${op.key}/${enc(op.id)}`, { fields:op.fields, baseRev:op.baseRev, by:op.by });
@@ -1536,10 +1472,8 @@ async function replaceSelf(html) {
     if (h && h.name !== fname) h = null;                   // 다른 이름의 파일을 열었으면 다시 고름
     if (h && await h.queryPermission({ mode:'readwrite' }) !== 'granted' && await h.requestPermission({ mode:'readwrite' }) !== 'granted') h = null;
     if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
-    try { html = injectEmbed(html, embedPayload()); } catch (_) {}   // 새 버전 파일에도 지금 데이터를 담아서
     const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
     try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
-    FILE_H = h;
     if (h.name === fname) { toast('새 버전으로 바꿨습니다. 다시 엽니다…'); setTimeout(() => location.reload(), 1200); }
     else toast(`새 버전을 '${h.name}' 으로 저장했습니다. 지금 연 파일(${fname}) 대신 그 파일을 여세요`, true);
   } catch (e) {
@@ -2367,7 +2301,7 @@ function render() {
   if (!root) return renderWelcome(c);
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
   let banners = '';
-  if (OFFLINE) banners += `<div class="banner bad netbar">📴 <b>오프라인 · ${fmtTime(OFFLINE_AT) || '-'} 기준</b> (${OFFLINE_FROM_FILE ? '이 파일에 담긴 데이터' : '이 PC에 보관된 최신본'}) · 대기 <b>${QUEUE.length}</b>건
+  if (OFFLINE) banners += `<div class="banner bad netbar">📴 <b>오프라인 · ${fmtTime(OFFLINE_AT) || '-'} 기준</b> (이 PC에 보관된 최신본) · 대기 <b>${QUEUE.length}</b>건
       <span class="muted">— 수정 내용은 이 PC에 보관되었다가 서버가 연결되면 자동 업로드됩니다 (30초마다 재연결 시도)</span>
       <span class="sp"></span><button class="btn sm pri" data-net="sync">지금 재연결</button><button class="btn sm" data-net="queue">대기열</button></div>`;
   else if (SERVER && QUEUE.length) banners += `<div class="banner netbar">⏳ 아직 서버에 올리지 않은 오프라인 수정 <b>${QUEUE.length}</b>건 ('나중에' 선택 포함)
@@ -2379,9 +2313,6 @@ function render() {
       <span class="muted">서버 폴더의 <b>allow_firewall.bat</b> 를 마우스 오른쪽 → [관리자 권한으로 실행] (권한이 없으면 IT 에 'TCP ${esc(location.port || '8080')} 인바운드 허용' 요청)</span></div>`;
     if (NET.changedAt) banners += `<div class="banner">📡 서버 PC 의 IP 가 바뀌었습니다 (${fmtTime(NET.changedAt)} · 유선 LAN ↔ Wi-Fi 등) — 지금 주소 <b>${esc((NET.ips || []).join(', ') || '-')}</b>. 부서원 파일은 PC 이름과 예전에 연결됐던 주소를 차례로 시도합니다. 안 되면 부서원 화면 왼쪽 아래 [서버 주소 설정]에 <b>http://${esc((NET.ips || [])[0] || '')}:${esc(location.port || '8080')}</b></div>`;
   }
-  if (SERVER && !OFFLINE && fileCapable() && !FILE_OK && !FILE_HIDE && !readOnly()) banners += `<div class="banner netbar">📎 <b>서버가 꺼져도 이 파일로 열리게</b> — 지금 데이터를 이 dashboard.html 파일에 담아 둡니다.
-      <span class="muted">처음 한 번: 파일 고르기 창에서 <b>지금 쓰는 ${esc(selfName())}</b> 선택 → '편집 허용' (Edge 가 <b>'방문할 때마다 허용'</b>을 물으면 그것을 고르면 다음부터 자동)</span>
-      <span class="sp"></span><button class="btn sm pri" data-net="file">📎 이 파일에 데이터 담기</button><button class="btn sm" data-net="filehide">다음에</button></div>`;
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
       <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
   if (readOnly() && !PID_ROUTES[route]) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
@@ -2464,10 +2395,6 @@ function renderHeader() {
   const bq = $('#btnQueue'); bq.style.display = SERVER ? '' : 'none';
   bq.textContent = QUEUE.length ? `대기열 (${QUEUE.length})` : '대기열'; bq.classList.toggle('pri', QUEUE.length > 0);
   $('#netState').innerHTML = (!SERVER ? '' : OFFLINE ? '<span class="net off">● 오프라인</span>' : '<span class="net on">● 서버 연결됨</span>')
-    + (SERVER && !OFFLINE && location.protocol === 'file:' ? (CACHE_ERR ? `<div class="net off" style="margin-top:2px" title="${esc(CACHE_ERR)}">⚠ 이 PC 보관 실패 — 서버가 꺼지면 열 수 없음</div>`
-      : OFFLINE_AT ? `<div style="margin-top:2px;opacity:.85" title="서버가 꺼져 있어도 이 보관본으로 열고 수정할 수 있습니다">💾 이 PC 에 보관됨 ${fmtTime(OFFLINE_AT)}</div>` : '') : '')
-    + (SERVER && fileCapable() ? (FILE_OK ? `<div style="margin-top:2px;opacity:.85" title="브라우저 저장소가 지워져도 이 파일로 열립니다">📎 파일에도 담김 ${fmtTime(FILE_AT) || ''}</div>`
-      : !OFFLINE ? `<div style="margin-top:3px"><button class="btn sm" data-net="file" title="서버가 꺼져도 이 dashboard.html 파일만으로 열리게 지금 데이터를 파일에 담습니다">📎 이 파일에 데이터 담기</button></div>` : '') : '')
     + `<div style="opacity:.7;margin-top:2px">화면 v${APP_VERSION}${SERVER_INFO?.serverVersion ? ` · 서버 v${esc(SERVER_INFO.serverVersion)}` : ''}</div>`;
   if (OFFLINE) ['btnClose', 'btnSaveAll', 'btnTrash'].forEach(i => $('#' + i).disabled = true);
   ['btnTrash', 'btnReload', 'btnCsv', 'btnXlsx'].forEach(i => $('#' + i).disabled = !root);
@@ -3694,7 +3621,7 @@ document.addEventListener('click', e => {
 
 /* =====================================================================
  *  R&R · 투입 분석 (route `alloc`): PJT R&R + 계장 투입인력 + 월말 시수(Man-hour) 파일
- *  Step1 분류(tsClass): Type '근태' → 근태 / '공통' → 부서업무 / '성과품…'·'신사업' → Project Code 로 수행·입찰 PJT 찾기 (PJT 의 'Project Code' 칸, 여러 개는 쉼표·줄바꿈) / 그 밖의 Type → Type 이름 그대로
+ *  Step1 분류(tsClass): Type '근태' → 근태 / '공통' → 부서업무 / '성과품…'·'신사업' → Project Code 로 수행·입찰 PJT 찾기 (PJT 의 'Project Code' 칸, 여러 개는 쉼표·줄바꿈), 코드가 없으면 입찰 / 그 밖의 Type → Type 이름 그대로
  *  Step2 부서원별 월·연간 프로젝트 투입 비율(%) · 그래프 · R&R(역할) · 계획(투입인력) 대비 실제
  *  Step3 실제 시간(h)은 Management 메뉴 권한자에게만 — 서버가 권한 없는 사람에게는 시간 대신 비율 단위만 보냄
  * ===================================================================== */
@@ -3712,7 +3639,8 @@ function projIndex() {
   });
   return m;
 }
-// 시수 Type 분류: '근태' → 근태 한 묶음 / '공통' → 부서업무 / '성과품'(성과품 · 성과품 과정관리 · 과정정리 …) · '신사업' 만 Project Code 로 PJT 찾기 / 그 밖의 Type → Type 이름 그대로 (기타)
+// 시수 Type 분류: '근태' → 근태 한 묶음 / '공통' → 부서업무 / '성과품'(성과품 · 성과품 과정관리 · 과정정리 …) · '신사업' 만 Project Code 로 PJT 찾기
+//   (이 Type 인데 Project Code 가 없으면 '입찰' 로 봄) / 그 밖의 Type → Type 이름 그대로 (기타, 코드가 있어도 PJT 로 안 셈)
 const tsIsPjtType = t => t.startsWith('성과품') || t.includes('신사업');
 function tsClass(row, idx) {
   const t = String(row.type || '').replace(/\s/g, '');
@@ -3720,7 +3648,7 @@ function tsClass(row, idx) {
   if (t.includes('근태')) return { key:'__leave', name:'근태', kind:'leave' };
   if (!tsIsPjtType(t)) return { key:'__type:' + t, name:String(row.type || '').trim() || 'Type 없음', kind:'other' };
   const code = String(row.code || '').trim().toUpperCase();
-  if (!code) return { key:'__none', name:'Project 코드 없음', kind:'none' };
+  if (!code) return { key:'__bidnocode', name:'입찰 (Project Code 없음)', kind:'bid' };
   const p = idx.get(code); if (p) return { ...p, kind:p.sheet };
   return { key:'__unk:' + code, name:`미등록 코드 ${code}`, kind:'unk', code };
 }
@@ -3747,7 +3675,7 @@ function tsAgg(list, idx) {
 const alTag = k => ({ perform:'<span class="atag run">수행</span>', bid:'<span class="atag bid">입찰</span>', dept:'<span class="atag dept">부서업무</span>', unk:'<span class="atag unk">미등록</span>', none:'<span class="atag unk">코드 없음</span>', leave:'<span class="atag leave">근태</span>', other:'<span class="atag dept">기타 Type</span>' }[k] || '');
 function renderAlloc(c, mg) {                             // mg = Management > R&R · 투입 분석: 비율(%) + 실제 시간(h) 병기
   const RT = mg ? 'mgalloc' : 'alloc';
-  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>${mg ? '🛠 Management · R&R · 투입 분석 <small style="font-weight:600;opacity:.85">— 실제 근무시간 병기</small>' : 'R&R · 투입 분석'}</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — Type '근태' = 근태 · '공통' = 부서업무 · '성과품'·'신사업' 은 Project Code 로 수행·입찰 PJT 에 연결합니다.</p></div></div>${inner}</section>${extra}</div>`;
+  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>${mg ? '🛠 Management · R&R · 투입 분석 <small style="font-weight:600;opacity:.85">— 실제 근무시간 병기</small>' : 'R&R · 투입 분석'}</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — Type '근태' = 근태 · '공통' = 부서업무 · '성과품'·'신사업' 은 Project Code 로 수행·입찰 PJT 에 연결 (코드 없으면 입찰).</p></div></div>${inner}</section>${extra}</div>`;
   const origin = `<span class="al-orig">원본 시트: <button class="btn sm" data-go="rnr">PJT R&R</button> <button class="btn sm" data-go="staffing">계장 투입인력</button></span>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">시수 분석은 서버에 연결되어 있을 때만 쓸 수 있습니다.</div></section>'));
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">🔒 로그인하면 볼 수 있습니다 (시수는 로그인한 부서원만).</div></section>'));
@@ -3997,7 +3925,7 @@ async function openTsUpload(dropped) {
       <div class="fg"><label>부서원${all ? '' : ' (본인)'}<select id="tsP">${opts}</select></label>
         <label>저장할 월<input type="month" id="tsM" value="${defM}"></label></div>
       <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type '근태' → 근태 (일괄) / '공통' → 부서업무
-        '성과품'(성과품 과정관리 등) · '신사업' → Project 코드(예: D026)로 수행·입찰 PJT 찾기
+        '성과품'(성과품 과정관리 등) · '신사업' → Project 코드(예: D026)로 수행·입찰 PJT 찾기, 코드가 없으면 입찰
         그 밖의 Type → Type 이름 그대로 (기타)
 Step 2. 부서원별 월·연간 프로젝트 투입 비율(%) · R&R
 Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은 달을 다시 올리면 바뀜</pre></details></div>
@@ -4317,7 +4245,7 @@ $('#content').onclick = e => {
   const pp = e.target.closest('[data-pop]'); if (pp) return openPop(pp.dataset.pop);
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
-  const nb = e.target.closest('[data-net]'); if (nb) { const k = nb.dataset.net; return k === 'sync' ? trySync(true) : k === 'upd' ? askUpdate(true) : k === 'file' ? fileSave(true) : k === 'filehide' ? (FILE_HIDE = true, render()) : openQueue(); }
+  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true) : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route]) return;
   if (route === 'board') return;
@@ -4463,20 +4391,14 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     const c = await cacheLoad();
     if (c) {
       OFFLINE = true; root = { name:'오프라인 (이 PC 보관본)' };
-      if (AUTH) user = AUTH.name; else if (c.fromFile && EMBED?.user?.name) user = EMBED.user.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정(없으면 파일에 담긴 이름)으로, 둘 다 없으면 보기 전용
+      if (AUTH) user = AUTH.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정으로 (서버 연결 시 토큰 재확인), 없으면 보기 전용
       try { await loadAll(); } catch (e) { toast(e.message, true); }
       render(); showMyTodo(); if (BLOCKED) toast(BLOCKED, true); return;
     }
     SERVER = false; API_BASE = ''; ADMIN = true; renderMenu(); renderHeader();
     $('#content').innerHTML = `<div class="card welcome"><h2>서버에 연결할 수 없습니다</h2>
       <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC에 보관된 데이터도 아직 없습니다.</p>${BLOCKED ? `<p class="banner bad" style="display:block">⛔ ${esc(BLOCKED)}</p>` : ''}
-      ${(() => { let last = ''; try { last = localStorage.getItem(LS_LASTON) || ''; } catch (_) {}
-        return last ? `<p class="banner bad" style="display:block;text-align:left">⚠ 이 PC 는 <b>${fmtTime(last)}</b> 에 보관본을 저장했는데 지금은 없습니다 → <b>브라우저가 저장 데이터를 지운 것</b>입니다.<br>
-            <span class="muted">Edge 설정 › 개인 정보 › <b>'닫을 때마다 지울 항목 선택'</b> 에서 '쿠키 및 기타 사이트 데이터'가 켜져 있거나, InPrivate 창이거나, 회사 정책입니다. 끌 수 없으면 서버 PC 를 켜 둔 채 쓰세요.</span></p>`
-          : `<p class="muted" style="text-align:left">이 PC(이 브라우저)는 서버에 연결해 보관본을 저장한 기록이 없습니다.<br>
-            ① 서버가 켜져 있을 때 <b>이 파일(${esc(selfName())})</b>을 Edge 로 열고 로그인 → 왼쪽 아래에 <b>'💾 이 PC 에 보관됨 시각'</b> 이 보이면 준비 끝.<br>
-            ② 그렇게 했는데도 이 화면이 나오면 Edge 가 닫힐 때 저장 데이터를 지우는 설정(설정 › 개인 정보 › '닫을 때마다 지울 항목 선택') 또는 InPrivate 창입니다.<br>
-            ③ <b>http://…:8080</b> 주소로 연 화면은 보관본을 쓰지 않습니다 — 반드시 내 PC 의 dashboard.html 파일로.</p>`; })()}
+      <p class="muted">서버에 한 번이라도 연결되면 그 데이터를 이 PC에 보관해 두었다가, 다음부터는 서버가 꺼져 있어도 오프라인으로 열 수 있습니다.</p>
       <button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button> <button class="btn" id="btnLocalMode">폴더 모드로 열기</button></div>`;
     $('#btnRetry').onclick = () => location.reload();
     $('#btnSrv2').onclick = () => setServerUrl();

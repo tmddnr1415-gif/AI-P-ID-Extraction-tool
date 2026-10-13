@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.10'
+SERVER_VERSION = '2026-10-13.9'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1344,44 +1344,22 @@ def nets_file():
     return P('data', '_meta', 'server-nets.json')
 
 
-def run_text(cmd, timeout=20):
-    """Windows 명령 실행 결과(한글 Windows = cp949)를 글자로. PowerShell 은 회사 정책으로 막힐 수 있어 netsh·ipconfig 만 씀"""
-    import subprocess
-    try:
-        out = subprocess.run(cmd, capture_output=True, timeout=timeout, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    except Exception as e:
-        return ''
-    b = out.stdout + out.stderr
-    for enc in ('utf-8', 'cp949'):
-        try:
-            return b.decode(enc)
-        except UnicodeDecodeError:
-            pass
-    return b.decode('utf-8', 'replace')
-
-
 def net_profiles():
-    """Windows 방화벽의 지금 프로필(공용 Public / 개인 Private / 도메인 Domain) — 공용이면 방화벽이 부서원 접속을 막는 경우가 많음.
-    `netsh advfirewall show currentprofile` (영문·한글 Windows 모두), Wi-Fi 이름은 `netsh wlan show interfaces` 의 SSID"""
+    """Windows: 연결된 네트워크마다 종류(Public 공용 / Private 개인 / DomainAuthenticated 도메인). 공용이면 방화벽이 부서원 접속을 막는 경우가 많음"""
     if os.name != 'nt':
         return []
+    import subprocess
     try:
-        txt = run_text(['netsh', 'advfirewall', 'show', 'currentprofile'])
-        ssid = ''
-        for line in run_text(['netsh', 'wlan', 'show', 'interfaces']).splitlines():
-            m = re.match(r'\s*SSID\s*:\s*(.+)$', line)
-            if m:
-                ssid = m[1].strip()
-                break
-        out = []
-        for line in txt.splitlines():
-            t = line.strip()
-            if not t.endswith(':') or not re.search(r'(Profile|프로필)', t):
-                continue
-            cat = 'Public' if re.search(r'Public|공용', t) else 'Private' if re.search(r'Private|개인', t) else 'DomainAuthenticated' if re.search(r'Domain|도메인', t) else ''
-            if cat:
-                out.append({'alias': 'Windows 방화벽 현재 프로필', 'name': ssid if cat == 'Public' else '', 'category': cat})
-        return out
+        out = subprocess.run(['powershell', '-NoProfile', '-Command',
+                              'Get-NetConnectionProfile | Select-Object InterfaceAlias,Name,@{n="Cat";e={[string]$_.NetworkCategory}} | ConvertTo-Json -Compress'],
+                             capture_output=True, timeout=15, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        try:
+            txt = out.stdout.decode('utf-8').strip()
+        except UnicodeDecodeError:                        # 한글 네트워크 이름: 콘솔 코드페이지(cp949)
+            txt = out.stdout.decode('cp949', 'replace').strip()
+        d = json.loads(txt) if txt else []
+        d = d if isinstance(d, list) else [d]
+        return [{'alias': x.get('InterfaceAlias') or '', 'name': x.get('Name') or '', 'category': x.get('Cat') or ''} for x in d]
     except Exception as e:
         log.warning('네트워크 종류 확인 실패: %s', e)
         return []
