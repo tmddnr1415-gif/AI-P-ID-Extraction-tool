@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.4'
+SERVER_VERSION = '2026-10-13.5'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -919,10 +919,14 @@ def ts_text(v):
 def parse_timesheet(data):
     for sname, cells in xlsx_sheets(data):
         hdr, cmap = None, {}
-        for r in sorted(cells)[:80]:
-            low = {c: v.strip().lower() for c, v in cells[r].items() if isinstance(v, str)}
-            if 'type' in low.values() and 'project' in low.values():
-                hdr, cmap = r, {v: c for c, v in low.items()}
+        for r in sorted(cells)[:80]:                        # 머리글이 두 줄로 나뉜 양식(1행 Project·Work, 2행 Type·Detail)도 찾음
+            cmap = {}
+            for rr in (r, r + 1):
+                for c, v in cells.get(rr, {}).items():
+                    if isinstance(v, str) and v.strip():
+                        cmap.setdefault(v.strip().lower(), c)
+            if 'type' in cmap and 'project' in cmap:
+                hdr = r + 1 if any(isinstance(v, str) and v.strip().lower() in ('type', 'project') for v in cells.get(r + 1, {}).values()) else r
                 break
         if not hdr:
             continue
@@ -1002,7 +1006,7 @@ def api_ts_put(acc, can_all, q, data):
     if not data:
         raise ApiError(400, '빈 파일입니다')
     res = parse_timesheet(data)
-    month = res['month'] or str(q.get('month') or '')
+    month = str(q.get('month') or '') if q.get('useMonth') == '1' else (res['month'] or str(q.get('month') or ''))   # 화면에서 고른 월을 우선(useMonth=1)
     if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', month):
         raise ApiError(400, '파일에서 월(예: 2026-07)을 찾지 못했습니다. 월을 고르고 다시 올리세요')
     if not res['rows']:
@@ -1016,6 +1020,15 @@ def api_ts_put(acc, can_all, q, data):
             f.write(data)
     log.info('시수 업로드: %s %s (%d줄) by %s', pid, month, len(res['rows']), acc['id'])
     return {'status': 'ok', 'person': target['name'], 'month': month, 'rows': len(res['rows']), 'detected': res['month']}
+
+
+def api_ts_preview(data):
+    """저장하지 않고 읽기만 — 올리기 전에 화면에서 월·줄·시간을 확인 (본인 손에 있는 파일이라 시간 그대로)"""
+    if not data:
+        raise ApiError(400, '빈 파일입니다')
+    res = parse_timesheet(data)
+    return {'month': res['month'], 'sheet': res['sheet'], 'rows': [{k: r[k] for k in ('type', 'detail', 'code', 'work', 'h')} | {'days': len(r['days'])} for r in res['rows']],
+            'total': round(sum(r['h'] for r in res['rows']), 4)}
 
 
 def api_ts_list(year, can_hours):
@@ -1555,6 +1568,8 @@ class Handler(BaseHTTPRequestHandler):
             can_all = bool(perms_for(acc, self.is_admin()).get('mgmt'))
             if m == 'GET' and head == 'timesheets':
                 return api_ts_list(q.get('year', ''), can_all)
+            if m == 'POST' and head == 'timesheet' and seg[1:] == ['preview']:
+                return api_ts_preview(self.raw_body())
             if m == 'PUT' and head == 'timesheet' and len(seg) == 1:
                 self.need_menu('weekly')
                 return api_ts_put(acc, can_all, q, self.raw_body())

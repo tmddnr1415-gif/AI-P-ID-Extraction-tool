@@ -207,6 +207,17 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .psum li{font-size:12.5px;line-height:1.4}.psum li small{display:block;color:var(--sub);font-size:11.5px}.psum li .wst{font-size:10.5px;padding:1px 6px}
 .btn.wclose{border-color:#b7e4c7;color:#11734c;background:#effaf3}
 @media (max-width:900px){.psums{grid-template-columns:1fr}}
+/* ---------- 시수 올리기 (끌어다 놓기 · 미리보기) ---------- */
+.tsdrop{display:flex;flex-direction:column;align-items:center;gap:4px;border:2.5px dashed #a9b6e8;border-radius:16px;padding:22px 16px;background:linear-gradient(135deg,#f5f8ff,#f9f2ff);cursor:pointer;text-align:center;transition:all .15s;margin-bottom:12px}
+.tsdrop:hover,.tsdrop.over{border-color:var(--accent);background:linear-gradient(135deg,#e8eeff,#f3e8ff);transform:scale(1.01)}
+.tsdrop.has{border-style:solid;border-color:#38b27f;background:linear-gradient(135deg,#effaf3,#f3fbff)}
+.tsd-i{font-size:34px}.tsdrop b{font-size:15px}.tsdrop .muted{font-size:12px}
+.tswarn{background:#fff4e6;border:1px solid #ffd8a8;color:#7a4a00;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px}
+.tssum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;margin-bottom:8px}
+.tsbar{display:flex;height:26px;border-radius:8px;overflow:hidden;margin-bottom:8px}
+.tsbar span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:3px}
+.tsprev{margin-bottom:8px;font-size:12.5px}.tsprev td,.tsprev th{padding:5px 8px}.tsprev tr.z td{color:#aab}
+.tsrule pre{font-size:12px;background:#f7f8fc;border-radius:8px;padding:8px;margin:6px 0 0}
 /* ---------- R&R · 투입 분석 ---------- */
 .whero.al-hero{background:radial-gradient(circle at 85% -20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(120deg,#0b3a5c 0%,#0f6e8c 40%,#2b44c9 75%,#6a4ce0 100%)}
 .whero.al-hero .wtc.on{color:#0f6e8c}.whero .wtc.dim{opacity:.55}
@@ -641,6 +652,43 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
   td.hl{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:#fff}
 }
+/* ---------- 조직도 v2 (화려하게) ---------- */
+.org{--ol:rgba(150,205,255,.95);isolation:isolate;padding:30px 22px 20px;border-radius:22px;box-shadow:0 20px 50px rgba(10,15,60,.45);
+  background:radial-gradient(circle at 12% 8%,rgba(120,160,255,.50),transparent 38%),radial-gradient(circle at 88% 92%,rgba(255,110,200,.30),transparent 42%),
+    radial-gradient(circle at 60% 40%,rgba(0,220,255,.14),transparent 55%),radial-gradient(rgba(255,255,255,.10) 1px,transparent 1.6px) 0 0/22px 22px,
+    linear-gradient(160deg,#080d38 0%,#12237e 48%,#1b0f57 100%)}
+.org::before{content:'';position:absolute;inset:-40%;z-index:-1;pointer-events:none;opacity:.35;filter:blur(40px);
+  background:conic-gradient(from 0deg,transparent,rgba(90,200,255,.55),transparent 30%,rgba(190,110,255,.5),transparent 60%,rgba(255,150,210,.45),transparent 85%);animation:orgAurora 26s linear infinite}
+@keyframes orgAurora{to{transform:rotate(360deg)}}
+.org-title > span{font-size:34px;letter-spacing:8px;background:linear-gradient(90deg,#8fe3ff,#ffffff 45%,#ffc8f2);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 4px 18px rgba(120,200,255,.55))}
+.org-title b{font-size:15px;margin-top:4px;color:#dfe8ff}
+.org-stats{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.org-title .org-stats span{display:inline-block;letter-spacing:0;font-weight:400;text-shadow:none;filter:none;-webkit-background-clip:border-box;background-clip:border-box;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);border-radius:99px;padding:5px 13px;font-size:12px;color:#e8eeff}
+.org-title .org-stats b{display:inline;margin:0 1px 0 3px;color:#fff;font-size:14px}
+.org-top{padding-bottom:30px}.org-top::after{height:30px;filter:drop-shadow(0 0 5px #7cc4ff)}
+.org-units{display:grid;justify-content:center;min-width:max-content;margin:0 auto}
+.org-unit{max-width:none;padding:28px 10px 0}
+.org-unit::before,.org-unit::after{height:28px;filter:drop-shadow(0 0 5px #7cc4ff)}
+.org-uh{min-width:220px;width:100%;max-width:280px;padding:12px 14px 10px;border-radius:18px;color:#1d1236;gap:4px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--uc) 55%,#fff),var(--uc));box-shadow:0 12px 28px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.45),0 0 26px color-mix(in srgb,var(--uc) 60%,transparent);transition:transform .15s}
+.org-uh:hover{transform:translateY(-3px)}
+.org-ui{position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;background:#fff;color:#1d1236;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px var(--uc),0 4px 10px rgba(0,0,0,.35)}
+.org-uh b{font-size:17px;letter-spacing:.5px;margin-top:4px}
+.org-dc{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:2px 0}
+.org-dc i{font-style:normal;font-size:11px;font-weight:700;background:rgba(255,255,255,.62);border-radius:99px;padding:1px 8px;color:#2a1c48}
+.org-uh em{font-size:11.5px;opacity:.85}
+.org-mem{gap:11px;padding-top:18px}
+.org-mem::before{border-left:2px dashed color-mix(in srgb,var(--uc) 70%,transparent);bottom:30px}
+.opill{border-radius:18px;max-width:280px;border-left:6px solid var(--uc,#7aa2ff);background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(236,242,255,.95));
+  box-shadow:0 8px 18px rgba(0,0,30,.35);transition:transform .18s,box-shadow .18s}
+.opill:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 16px 30px rgba(0,0,30,.45),0 0 0 2px var(--uc,#7aa2ff),0 0 22px color-mix(in srgb,var(--uc,#7aa2ff) 70%,transparent)}
+.opill .oav{box-shadow:0 0 0 3px #fff,0 0 0 5px var(--uc,#7aa2ff)}
+.opill.r-gold{border-left-color:#f2b705;background:linear-gradient(135deg,#fffdf2,#ffefb8)}
+.org-top .opill.lead{max-width:330px;padding:8px 20px 8px 8px;border-left:6px solid #8fdcff;animation:orgGlow 3.2s ease-in-out infinite}
+.org-top .opill.lead .oav{width:60px;height:60px}.org-top .opill.lead .otx b{font-size:16px}
+@keyframes orgGlow{0%,100%{box-shadow:0 0 0 2px #bfefff,0 0 18px rgba(150,220,255,.6),0 8px 18px rgba(0,0,20,.35)}50%{box-shadow:0 0 0 2px #e6f9ff,0 0 34px rgba(150,220,255,.95),0 8px 18px rgba(0,0,20,.35)}}
+.org-foot{margin-top:22px}
+@media print{.org::before{display:none}.opill,.org-top .opill.lead{animation:none}}
 </style>
 </head>
 <body>
@@ -799,7 +847,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.9';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3333,13 +3381,19 @@ function orgHtml(recs, year) {
   if (!recs.length) return '<div class="empty">이 연도의 유닛분장이 없습니다. [+ 행 추가]로 유닛을 등록하세요.</div>';
   const heads = [...new Set(recs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)))];
   const units = recs.map(r => ({ r, name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) }));
-  const total = new Set(units.flatMap(u => u.mem.map(m => m.name))).size + heads.length;
+  const names = [...new Set([...heads, ...units.flatMap(u => u.mem.map(m => m.name))])], total = names.length;
   const noProf = SERVER && !OFFLINE && !(DB.profiles || []).length;
+  const pjs = (ns, k) => new Set(ns.flatMap(n => profOf(n)?.[k] || [])).size;
+  const UC = ['#ffb84d', '#4fd1c5', '#f687b3', '#a78bfa', '#63b3ed', '#68d391', '#fc8181', '#f6e05e'];
+  const chipsOf = t => t.split(/[,/·]+/).map(x => x.trim()).filter(Boolean).slice(0, 6);
   return `<div class="org">
-    <div class="org-title"><span>ORGANIZATION</span><b>계장ENG그룹 ${esc(year ? year + '년' : '')} 유닛 조직도</b><em>${units.length}개 유닛 · ${total}명</em></div>
+    <div class="org-title"><span>ORGANIZATION</span><b>계장ENG그룹 ${esc(year ? year + '년' : '')} 유닛 조직도</b>
+      <div class="org-stats"><span>🧩 유닛 <b>${units.length}</b></span><span>👥 인원 <b>${total}</b>명</span><span>📸 프로필 <b>${names.filter(profOf).length}</b>/${total}</span><span>🏗 수행 PJT <b>${pjs(names, 'run')}</b></span><span>📈 입찰 PJT <b>${pjs(names, 'bid')}</b></span></div></div>
     <div class="org-top">${heads.length ? heads.map(h => orgPill(h, '그룹장', true)).join('') : '<span class="org-ghost">그룹장 미지정</span>'}</div>
-    <div class="org-units">${units.map(u => `<div class="org-unit">
-        <div class="org-uh" data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"><b>${esc(u.name)}</b>${u.duty ? `<span>${esc(trunc(u.duty, 40))}</span>` : ''}<em>${u.mem.length}명</em></div>
+    <div class="org-units" style="grid-template-columns:repeat(${units.length}, minmax(240px, 300px))">${units.map((u, i) => `<div class="org-unit" style="--uc:${UC[i % UC.length]}">
+        <div class="org-uh" data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"><span class="org-ui">${i + 1}</span><b>${esc(u.name)}</b>
+          ${u.duty ? `<span class="org-dc">${chipsOf(u.duty).map(c => `<i>${esc(c)}</i>`).join('')}</span>` : ''}
+          <em>👥 ${u.mem.length}명 · 🏗 ${pjs(u.mem.map(m => m.name), 'run')} · 📈 ${pjs(u.mem.map(m => m.name), 'bid')}</em></div>
         <div class="org-mem">${u.mem.map(m => orgPill(m.name, m.title)).join('') || '<span class="org-ghost">구성원 없음</span>'}</div></div>`).join('')}</div>
     <div class="org-foot">${AUTH ? '<button class="btn sm" data-myprof>🙋 내 정보 입력 (사진 · 전화번호 · 담당 업무 · PJT)</button>' : ''}<span><span class="olg"><span class="osym dia"><i></i></span> 그룹장</span> <span class="olg"><span class="osym gold">★</span> 유닛장 <small>(구성원 칸에 '이름(유닛장)')</small></span> · 사람을 누르면 상세 정보 · <span class="oc run">수행</span> <span class="oc bid">입찰</span> = 각자 <b>내 정보</b>에 입력한 PJT${noProf ? ' · 아직 입력된 프로필이 없습니다' : ''}${!SERVER ? ' · 폴더 모드에서는 프로필을 쓸 수 없습니다' : ''}</span></div>
   </div>`;
@@ -3587,7 +3641,7 @@ function renderAlloc(c) {
       const x = up.get(n + '|' + String(i + 1).padStart(2, '0'));
       return `<td>${x ? `<button class="aok" ${H || x.personId === AUTH.id ? `data-adel="${esc(x.personId)}|${esc(x.month)}"` : ''} title="${esc(`${x.file || ''} · ${x.uploadedBy} ${fmtTime(x.at)}${H || x.personId === AUTH.id ? ' · 누르면 삭제' : ''}`)}">✓</button>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
   const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
-  c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, `<button class="btn wadd" data-aup>⬆ 시수 파일 올리기</button>`)}
+  c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, `<button class="btn wadd" data-aup>⬆ 시수 파일 올리기 <small style="font-weight:400;opacity:.75">(끌어다 놓기 가능)</small></button>`)}
       <div class="wtypes"><button class="wtc ${!AS.month ? 'on' : ''}" data-amonth="">연간</button>${Array.from({ length:12 }, (_, i) => { const mm = String(i + 1).padStart(2, '0'); return `<button class="wtc ${AS.month === mm ? 'on' : ''} ${monthsWith.has(mm) ? '' : 'dim'}" data-amonth="${mm}">${i + 1}월</button>`; }).join('')}</div>
       <div class="al-sub"><span class="al-lock ${H ? 'open' : ''}">${H ? '🔓 실제 시간(h) 표시 중 — Management 권한' : '🔒 비율(%)만 표시 — 실제 시간은 Management 권한자만 볼 수 있습니다'}</span>${origin}</div>`,
     `${d.error ? `<section class="card"><div class="empty">불러오지 못했습니다: ${esc(d.error)}</div></section>` : ''}
@@ -3620,34 +3674,66 @@ function renderAlloc(c) {
     render();
   });
 }
-async function openTsUpload() {
+// 시수 파일 올리기: 끌어다 놓기(또는 눌러서 고르기) → 서버가 읽기만 해서 미리보기(월·줄·분류) → 월 확인 → [업로드] 를 눌러야 저장·분석
+async function openTsUpload(dropped) {
   const d = AS.data[AS.year] || {}, all = !!d.canHours;
   const now = new Date(), pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const defM = `${pm.getFullYear()}-${String(pm.getMonth() + 1).padStart(2, '0')}`;
   const opts = all ? (DB.profiles || []).map(p => `<option value="${esc(p.id)}" ${p.id === AUTH.id ? 'selected' : ''}>${esc(p.name)} (${esc(p.id)})</option>`).join('') : `<option value="${esc(AUTH.id)}">${esc(AUTH.name)} (${esc(AUTH.id)})</option>`;
+  let file = null;
   openDlg(dlg, `<form id="tsf"><div class="dh"><span>⬆ 월말 시수 파일 올리기</span><button type="button" class="btn sm" data-close>닫기</button></div>
-    <div class="db"><div class="gbox"><b>📋 이렇게 집계합니다</b><pre>Step 1. Type 이 '공통' → 부서업무
-        그 외 → Project 코드(예: D026) 로 수행·입찰 PJT 찾기
-Step 2. 부서원별 월·연간 프로젝트 투입 비율(%) · R&R
-Step 3. 실제 시간(h)은 Management 권한자만 봄</pre><span>시수 입력 엑셀(.xlsx)을 그대로 올리세요. 머리글 <b>Type · Project</b> 와 날짜 <b>01~31</b> 칸을 찾아 읽습니다. 같은 사람·같은 달을 다시 올리면 바뀝니다.</span></div>
+    <div class="db">
+      <label class="tsdrop" id="tsDrop"><input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <span class="tsd-i">📥</span><b>시수 입력 엑셀(.xlsx)을 여기로 끌어다 놓으세요</b><span class="muted">또는 눌러서 파일 고르기 · 놓으면 먼저 <b>미리보기</b>만 하고, 아래 [업로드] 를 눌러야 저장·분석됩니다</span></label>
+      <div id="tsPrev"></div>
       <div class="fg"><label>부서원${all ? '' : ' (본인)'}<select id="tsP">${opts}</select></label>
-        <label>월 <span class="muted" style="font-size:11px">(파일 안에 '2026-07' 같은 월이 있으면 그것을 씀)</span><input type="month" id="tsM" value="${defM}"></label>
-        <label class="full">시수 파일 (.xlsx)<input type="file" id="tsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label></div></div>
-    <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">올리기</button></div></form>`, true);
+        <label>저장할 월<input type="month" id="tsM" value="${defM}"></label></div>
+      <details class="tsrule"><summary>📋 집계 방법</summary><pre>Step 1. Type 이 '공통' → 부서업무 / 그 외 → Project 코드(예: D026)로 수행·입찰 PJT 찾기
+Step 2. 부서원별 월·연간 프로젝트 투입 비율(%) · R&R
+Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은 달을 다시 올리면 바뀜</pre></details></div>
+    <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit" id="tsGo" disabled>⬆ 업로드 · 분석</button></div></form>`, true);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
-  $('#tsf').onsubmit = async e => {
-    e.preventDefault();
-    const f = $('#tsFile').files[0]; if (!f) return;
-    if (!/\.xlsx$/i.test(f.name)) return toast('.xlsx 파일만 올릴 수 있습니다 (예전 .xls 는 엑셀에서 .xlsx 로 다시 저장)', true);
+  const drop = $('#tsDrop'), prev = $('#tsPrev');
+  const take = async f => {
+    if (!f) return;
+    if (!/\.xlsx$/i.test(f.name)) { toast('.xlsx 파일만 올릴 수 있습니다 (예전 .xls 는 엑셀에서 .xlsx 로 다시 저장)', true); return; }
+    file = f; $('#tsGo').disabled = true; drop.classList.add('has');
+    drop.querySelector('b').textContent = `📄 ${f.name}`;
+    prev.innerHTML = '<div class="empty">파일을 읽는 중…</div>';
     try {
-      toast('올리는 중…');
-      const r = await api('PUT', `timesheet?person=${enc($('#tsP').value)}&month=${enc($('#tsM').value)}&name=${enc(f.name)}`, undefined, f);
-      dlg.close();
-      toast(`${r.person} · ${r.month} · ${r.rows}줄 반영${r.detected && r.detected !== $('#tsM').value ? ` (파일 안의 월 ${r.detected} 사용)` : ''}`);
+      const r = await api('POST', 'timesheet/preview', undefined, f), idx = projIndex();
+      const nm = f.name.match(/(\d{1,2})\s*월/), fileMon = nm ? +nm[1] : 0, det = r.month || '';
+      if (det) $('#tsM').value = det;
+      const warn = det && fileMon && fileMon !== +det.slice(5) ? `<div class="tswarn">⚠ 파일 이름은 <b>${fileMon}월</b>인데 파일 안 날짜는 <b>${esc(det)}</b> 입니다. 아래 <b>저장할 월</b>을 확인해 고르세요.</div>`
+        : !det ? '<div class="tswarn">⚠ 파일 안에서 월(예: 2026-07)을 찾지 못했습니다. 아래 <b>저장할 월</b>을 고르세요.</div>' : '';
+      const agg = new Map(); r.rows.forEach(x => { if (!(x.h > 0)) return; const k = tsClass(x, idx); const o = agg.get(k.key) || agg.set(k.key, { ...k, h:0 }).get(k.key); o.h += x.h; });
+      const its = [...agg.values()].sort((a, b) => b.h - a.h), tot = r.total || 0;
+      prev.innerHTML = `${warn}<div class="tssum"><span>📅 파일 안의 월 <b>${esc(det || '없음')}</b></span><span>🧾 ${r.rows.length}줄 · 시간 입력 ${r.rows.filter(x => x.h > 0).length}줄</span><span>⏱ 합계 <b>${fmtH(tot)}</b> h</span><span class="muted">시트 '${esc(r.sheet)}'</span></div>
+        ${its.length ? `<div class="tsbar">${its.map(o => `<span style="flex:${o.h};background:${AL_FIX[o.kind] || AL_PAL[its.indexOf(o) % AL_PAL.length]}" title="${esc(o.name)} ${fmtH(o.h)}h">${o.h / tot >= .1 ? Math.round(o.h / tot * 100) + '%' : ''}</span>`).join('')}</div>
+        <table class="t tsprev"><thead><tr><th>분류 (Step 1)</th><th>시간</th><th>비율</th></tr></thead><tbody>${its.map(o => `<tr><td>${esc(o.name)} ${alTag(o.kind)}</td><td>${fmtH(o.h)}</td><td>${Math.round(o.h / tot * 1000) / 10}%</td></tr>`).join('')}</tbody></table>` : '<div class="tswarn">⚠ 시간이 입력된 칸이 없습니다 (날짜 01~31 칸에 h:mm 로 입력되어 있는지 확인)</div>'}
+        <details><summary>파일 내용 줄별 보기 (${r.rows.length}줄)</summary><table class="t tsprev"><thead><tr><th>Type</th><th>Detail</th><th>Project</th><th>Work</th><th>시간</th></tr></thead><tbody>${r.rows.map(x => `<tr class="${x.h > 0 ? '' : 'z'}"><td>${esc(x.type)}</td><td>${esc(x.detail)}</td><td>${esc(x.code || '-')}</td><td>${esc(x.work)}</td><td>${x.h > 0 ? fmtH(x.h) : '-'}</td></tr>`).join('')}</tbody></table></details>`;
+      $('#tsGo').disabled = !r.rows.length;
+    } catch (er) { prev.innerHTML = `<div class="tswarn">❌ 읽지 못했습니다: ${esc(er.message)}</div>`; file = null; }
+  };
+  $('#tsFile').onchange = e => take(e.target.files[0]);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); take(e.dataTransfer.files[0]); };
+  if (dropped) take(dropped);
+  $('#tsf').onsubmit = async e => {
+    e.preventDefault(); if (!file) return;
+    const m = $('#tsM').value; if (!/^\d{4}-\d{2}$/.test(m)) return toast('저장할 월을 고르세요', true);
+    try {
+      $('#tsGo').disabled = true; toast('업로드·분석 중…');
+      const r = await api('PUT', `timesheet?person=${enc($('#tsP').value)}&month=${enc(m)}&useMonth=1&name=${enc(file.name)}`, undefined, file);
+      dlg.close(); toast(`✅ ${r.person} · ${r.month} · ${r.rows}줄 업로드·분석 완료`);
       AS.year = r.month.slice(0, 4); AS.month = r.month.slice(5); AS.person = r.person; delete AS.data[AS.year]; render();
-    } catch (er) { toast('올리기 실패: ' + er.message, true); }
+    } catch (er) { $('#tsGo').disabled = false; toast('업로드 실패: ' + er.message, true); }
   };
 }
+// R&R · 투입 분석 화면 어디에 놓아도 올리기 창이 열림
+document.addEventListener('dragover', e => { if (route === 'alloc' && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => { if (route !== 'alloc' || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload(e.dataTransfer.files[0]); });
 
 /* ---------- 열 추가: 시트마다 사용자가 열을 더함 (서버 data/_meta/sheet-columns.json, 값은 각 행에 저장) ---------- */
 function applyExtraCols() {
