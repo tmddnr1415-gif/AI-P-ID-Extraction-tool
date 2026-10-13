@@ -419,3 +419,19 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - **바뀐 곳**: server.py `refresh_nets`, `net_profiles`, `nets_file`, `NET_STATE`, `EXTRA_NETS`, `_build_deploy`, `weekly_loop`, `main`, `_dispatch`(403 메시지), info / dashboard.html `findServer`, `rememberServers`, `serverCandidates`, `knownServers`, `BLOCKED`, `trySync`, init(file://), `render` 관리자 배너.
 - **확인한 것**: `node --check`, `py_compile`, bat ASCII·CRLF. 서버 함수 시험: 유선 65.3.x → Wi-Fi 165.244.x 로 IP 바꿈 → 허용 대역 두 개 모두(유선 부서원 65.3.99.1 허용, 외부 8.8.8.8 거절), Wi-Fi 상태로 다시 시작해도 유선 대역 유지, 배포본 주소가 새 IP 로 바뀜. 화면 시험: 부서원 파일로 한 번 연결 → 주소 기억 → 기본 주소가 닿지 않는 파일로 열어도 1.7초 만에 기억한 주소로 연결. 관리자 화면 경고 배너(Windows 정보는 흉내). bat 은 Windows 에서만 실행 가능해 여기서는 형식만 확인.
 - **회사에서 할 일**: ① 서버 재시작 ② 서버 PC 를 Wi-Fi 로 바꾼 뒤 `check_network.bat` → 'Public' 이나 python 'Block' 이 보이면 `allow_firewall.bat` 를 관리자 권한으로 ③ 부서원 PC 에서 `http://서버PC이름:8080/` 이 열리는지, 안 되면 `http://(Wi-Fi IP):8080/` ④ 둘 다 안 되면 IT 에 '사내 Wi-Fi ↔ 유선 PC 간 TCP 8080 허용' 요청.
+
+### 2026-10-13 (15) — Management 메뉴: R&R · 투입 분석(실제 시간 병기) · 근무시간(월별·주별·일별) (APP_VERSION 2026-10-13.15 / SERVER_VERSION 2026-10-13.9)
+> **서버 재시작 필요** (server.py: Management 권한자에게 일별 시간도 보냄).
+1. **메뉴**: '🛠 Management' 가 하위 메뉴 묶음이 됨(접기/펼치기, localStorage `dept-nav-mgmt-open`) — **R&R · 투입 분석**(route `mgalloc`) · **근무시간 (월·주·일)**(route `mghours`). 머리(#mgmt)를 누르면 #mgalloc 으로. 두 화면 모두 메뉴 권한 키 `mgmt`(`menuOf`). 예전 `MODULES.mgmt`(준비 중 빈 화면) 삭제.
+2. **R&R · 투입 분석 두 곳으로 나눔** (`renderAlloc(c, mg)`): 같은 화면·같은 데이터, 표시만 다름. `H` = 서버가 실제 시간을 줌(권한), `SH = H && mg` = 화면에 시간 표시.
+   - 주간업무보고 › R&R · 투입 분석(`alloc`): **누구나 비율(%)만**. Management 권한자에게는 '실제 시간은 [Management › R&R · 투입 분석]' 단추.
+   - Management › R&R · 투입 분석(`mgalloc`): **비율과 실제 시간 병기** — 예: `54.6% (116:00h)`, 프로젝트별 `53.6% … 437:40h`, 부서원 막대 오른쪽 총 시간, 도넛 가운데 총 시간, R&R 표 실제 투입 `54.6% 116:00h`, 월별 추이 위 월 합계.
+   - 시수 올리기·삭제는 두 곳 모두.
+3. **근무시간 (월·주·일)** (`renderHours`, `hoursIndex`, 상태 `HS`): 시수 파일의 **날짜별 실제 시간**(rows[].days)으로 부서원 × 기간 표.
+   - [📅 월별] 1~12월 · [🗓 주별] 월요일~일요일(연간 = 시수가 있는 주만, 월 선택 = 그 달에 걸친 주 — 달 경계 주는 앞뒤 달 시간 포함 '그 주 전체') · [📆 일별] 한 달 1~31일(요일, 주말 회색).
+   - 칸 색: 많을수록 진하게, **주 52시간 초과 · 하루 10시간 초과는 붉게**. 합계 열 · 평균 열(입력 있는 달/주/날 기준) · 팀 합계 줄.
+   - 요약: 팀 총 근무시간, 1인 평균, 근무일 평균(하루), 하루 10시간 초과 일수(최장일), 주 52시간 초과 건수(사람 × 주).
+   - 이름을 누르면 개인 상세: 날짜별 막대(PJT / 부서업무 / 기타·미등록 쌓기, 점선 = 8시간) + 합계·비율.
+4. **server.py `api_ts_list`**: Management 권한자(`can_hours`)에게만 행마다 `days`(날짜 → 시간)를 더 보냄. 일반 부서원 응답은 그대로(비율 단위, days 없음).
+- **확인한 것**: `node --check`, `py_compile`. 시험 서버(4명 × 6~9월 시수, 김철수 7/13~17 매일 11시간): 다른 PC 주소로 접속 시 일반 부서원 `canHours false · days 없음`, Management `true · days 있음`. Management 메뉴 하위 2개, #mgmt → #mgalloc. Management › R&R = `%(h)` 병기, 주간업무보고 › R&R = 같은 사람이어도 시간 안 보임. 근무시간 월별 김철수 6~9월 201:50 / 212:30 / 184:00 / 200:20 = 엑셀 합과 같음, 7월 주별 7/13~7/19 55:00 붉은 칸·52시간 초과 1건, 일별 34열(1~31+합계·평균), 개인 상세 23일·212:30h·PJT 93%. 일반 부서원은 메뉴 없음·주소로 들어와도 '접근 권한 없음'. 스크립트 오류 없음.
+- **회사에서 확인할 것**: 시수 파일의 Total 과 근무시간 화면의 그 달 합계가 같은지.

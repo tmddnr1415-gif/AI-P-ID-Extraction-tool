@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.8'
+SERVER_VERSION = '2026-10-13.9'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1049,7 +1049,8 @@ def api_ts_list(year, can_hours):
     for x in sorted(lst, key=lambda x: (x['person'], x['month'])):
         k = 1 if can_hours else (100 / tot[x['personId']] if tot[x['personId']] else 0)
         out.append({**{f: x.get(f) for f in ('person', 'personId', 'month', 'file', 'uploadedBy', 'at')},
-                    'rows': [{'type': r['type'], 'detail': r.get('detail', ''), 'code': r['code'], 'work': r.get('work', ''), 'v': round(r.get('h', 0) * k, 4)} for r in x['rows']]})
+                    'rows': [{'type': r['type'], 'detail': r.get('detail', ''), 'code': r['code'], 'work': r.get('work', ''), 'v': round(r.get('h', 0) * k, 4),
+                              **({'days': r.get('days') or {}} if can_hours else {})} for r in x['rows']]})   # 일별 시간(날짜 → h)은 Management 권한자만 (근무시간 화면)
     try:
         years = sorted(n for n in os.listdir(P('timesheets')) if re.fullmatch(r'\d{4}', n))
     except FileNotFoundError:

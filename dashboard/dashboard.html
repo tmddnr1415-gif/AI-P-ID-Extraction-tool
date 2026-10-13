@@ -256,6 +256,19 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .adiff{font-size:12px;font-weight:700}.adiff.up{color:#0ca678}.adiff.dn{color:#e8590c}
 .agrid th,.agrid td{text-align:center;padding:6px 4px}.agrid td:first-child,.agrid th:first-child{text-align:left}
 .aok{border:0;background:linear-gradient(135deg,#38d9a9,#0ca678);color:#fff;font-weight:800;width:26px;height:26px;border-radius:50%}
+.hrt{font-size:12.5px}.hrt th,.hrt td{text-align:center;padding:6px 6px;white-space:nowrap;border-bottom:1px solid var(--line)}
+.hrt th small{display:block;font-weight:400;color:var(--sub);font-size:10.5px}.hrt .hn{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
+.hrt tbody tr{cursor:pointer}.hrt tbody tr:hover td.hn,.hrt tbody tr.on td.hn{background:#eef2ff}.hrt tbody tr.on td{box-shadow:inset 0 2px 0 #3b5bdb,inset 0 -2px 0 #3b5bdb}
+.hrt .we{background-color:#f8f9fb}.hrt th.we{color:#c92a2a}.hrt .hs{background:#f3f5fb}.hrt tfoot td{font-weight:700;background:#f3f5fb;border-top:2px solid var(--line)}
+.hr-day td{min-width:40px;padding:6px 3px}.hrtw{max-height:none}
+.hsum{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:4px 0 12px}.hsum i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}
+.hp-pjt{background:#3b5bdb}.hp-dept{background:#9aa3bd}.hp-etc{background:#c99be8}
+.hdays{display:flex;align-items:flex-end;gap:3px;padding:6px 4px 0;overflow-x:auto}
+.hdb{flex:1 0 24px;display:flex;flex-direction:column;align-items:center;font-size:10.5px}
+.hbx{position:relative;display:block;width:100%;height:150px;border-bottom:1px solid var(--line)}
+.hbx::after{content:'';position:absolute;left:0;right:0;bottom:var(--h8);border-top:1px dashed #f08c00;pointer-events:none}
+.hbx span{position:absolute;bottom:0;left:15%;width:70%;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden}.hbx span i{display:block;width:100%}
+.hdb em{font-style:normal;color:var(--sub);font-size:10px}.hdb small{color:var(--sub);margin-top:3px;height:16px}.hdb.we small{color:#c92a2a}
 .aok b{display:none}.aok.del{cursor:pointer}.aok.del:hover{background:linear-gradient(135deg,#ff8787,#e03131)}.aok.del:hover span{display:none}.aok.del:hover b{display:inline}
 .wadd.tsdel{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.45);margin-left:6px}
 .tdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
@@ -850,7 +863,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2222,7 +2235,6 @@ const boardTyping = () => route === 'board' && [...document.querySelectorAll('#b
 const MODULES = {
   bidpjt: { title:'입찰 프로젝트', src:'' },
   runpjt: { title:'실행 프로젝트', src:'' },
-  mgmt:   { title:'Management', src:'' },                 // 운영자가 권한을 준 사용자만 (⚙ 메뉴 권한 설정)
 };
 function renderModule(c, key) {
   const m = MODULES[key];
@@ -2279,7 +2291,8 @@ async function pidConnect(key) {
 }
 
 function render() {
-  if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }   // 예전 주소 #work → 통합 업무 시트
+  if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }
+  if (route === 'mgmt') { route = 'mgalloc'; try { history.replaceState(null, '', '#mgalloc'); } catch (_) {} }   // Management 머리 → 첫 하위 메뉴   // 예전 주소 #work → 통합 업무 시트
   applyExtraCols();                                        // 사용자가 추가한 열 반영
   renderMenu(); renderHeader();
   const c = $('#content');
@@ -2315,7 +2328,7 @@ function render() {
   if (!allowed) {
     document.body.classList.remove('pid-mode');
     c.insertAdjacentHTML('beforeend', `<div class="card welcome"><h2>🔒 접근 권한이 없습니다</h2>
-      <p>이 메뉴(${esc(menuOf(route) === 'weekly' ? '주간업무보고' : MODULES[route]?.title || PID_ROUTES[route]?.title || (route === 'board' ? '익명게시판' : route))})는 운영자가 권한을 부여해야 사용할 수 있습니다.</p>
+      <p>이 메뉴(${esc(menuOf(route) === 'weekly' ? '주간업무보고' : menuOf(route) === 'mgmt' ? 'Management' : MODULES[route]?.title || PID_ROUTES[route]?.title || (route === 'board' ? '익명게시판' : route))})는 운영자가 권한을 부여해야 사용할 수 있습니다.</p>
       <p class="muted">${AUTH ? '운영자(서버 PC)에게 권한을 요청하세요. 권한이 부여되면 30초 안에 메뉴가 나타납니다.' : '로그인하면 계정에 부여된 메뉴를 사용할 수 있습니다.'}</p></div>`);
     return;
   }
@@ -2323,16 +2336,18 @@ function render() {
   else if (PID_ROUTES[route]) renderPid(c, route);
   else if (MODULES[route]) renderModule(c, route);
   else if (route === 'alloc') renderAlloc(c);
+  else if (route === 'mgalloc') renderAlloc(c, true);
+  else if (route === 'mghours') renderHours(c);
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'mgmt'];   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
-const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : r;   // 화면(route) → 권한 메뉴 키
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'mgmt', 'mgalloc', 'mghours'];   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
+const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : (r === 'mgalloc' || r === 'mghours') ? 'mgmt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
-const NAV_LS = { weekly:'dept-nav-weekly-open' };
+const NAV_LS = { weekly:'dept-nav-weekly-open', mgmt:'dept-nav-mgmt-open' };
 const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { return localStorage.getItem(ls) !== '0'; } catch (_) { return true; } })()]));
 function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
@@ -2354,7 +2369,7 @@ function renderMenu() {
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
-    (can('mgmt') ? btn({ k:'mgmt', l:'🛠 Management', n:'', c:0 }, 'top') : '');
+    (can('mgmt') ? group('mgmt', { k:'mgmt', l:'🛠 Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }], route === 'mgmt' || route === 'mgalloc' || route === 'mghours') : '');
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름
@@ -3633,7 +3648,7 @@ function tsClass(row, idx) {
 async function loadTs(year) {
   try { AS.data[year] = await api('GET', 'timesheets?year=' + enc(year)); }
   catch (e) { AS.data[year] = { error:e.message, list:[], years:[] }; }
-  if (route === 'alloc') render();
+  if (route === 'alloc' || route === 'mgalloc' || route === 'mghours') render();
 }
 // 사람별 집계: Map(이름 → { tot, by:Map(분류키 → {…분류, v}), months:Set })
 function tsAgg(list, idx) {
@@ -3651,14 +3666,15 @@ function tsAgg(list, idx) {
   return { people, proj };
 }
 const alTag = k => ({ perform:'<span class="atag run">수행</span>', bid:'<span class="atag bid">입찰</span>', dept:'<span class="atag dept">부서업무</span>', unk:'<span class="atag unk">미등록</span>', none:'<span class="atag unk">코드 없음</span>' }[k] || '');
-function renderAlloc(c) {
-  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>👥 R&R · 투입 분석</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — Type '공통' = 부서업무, 그 외는 Project Code 로 수행·입찰 PJT 에 연결합니다.</p></div></div>${inner}</section>${extra}</div>`;
+function renderAlloc(c, mg) {                             // mg = Management > R&R · 투입 분석: 비율(%) + 실제 시간(h) 병기
+  const RT = mg ? 'mgalloc' : 'alloc';
+  const hero = (inner, extra = '') => `<div id="allocv"><section class="whero al-hero"><div class="wh-top"><div><h2>${mg ? '🛠 Management · R&R · 투입 분석 <small style="font-weight:600;opacity:.85">— 실제 근무시간 병기</small>' : 'R&R · 투입 분석'}</h2><p>PJT R&R · 계장 투입인력 · 월말 시수 파일을 한 화면에서 — Type '공통' = 부서업무, 그 외는 Project Code 로 수행·입찰 PJT 에 연결합니다.</p></div></div>${inner}</section>${extra}</div>`;
   const origin = `<span class="al-orig">원본 시트: <button class="btn sm" data-go="rnr">PJT R&R</button> <button class="btn sm" data-go="staffing">계장 투입인력</button></span>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">시수 분석은 서버에 연결되어 있을 때만 쓸 수 있습니다.</div></section>'));
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">🔒 로그인하면 볼 수 있습니다 (시수는 로그인한 부서원만).</div></section>'));
   const d = AS.data[AS.year];
   if (!d) { c.insertAdjacentHTML('beforeend', hero(origin, '<section class="card"><div class="empty">불러오는 중…</div></section>')); loadTs(AS.year); return; }
-  const H = !!d.canHours, idx = projIndex();
+  const H = !!d.canHours, SH = H && mg, idx = projIndex();   // H = 서버가 실제 시간을 줌(권한) · SH = 화면에 시간 표시 (Management 메뉴에서만)
   const ty = String(new Date().getFullYear());
   const years = [...new Set([...(d.years || []), '2024', '2025', ty, AS.year])].sort().reverse();
   const monthsWith = new Set(d.list.map(x => x.month.slice(5)));
@@ -3673,7 +3689,7 @@ function renderAlloc(c) {
   const sumKind = f => [...proj.values()].filter(f).reduce((a, p) => a + p.v, 0);
   const projV = sumKind(p => p.kind === 'perform' || p.kind === 'bid'), deptV = sumKind(p => p.kind === 'dept'), unkV = sumKind(p => p.kind === 'unk' || p.kind === 'none');
   const plabel = AS.month ? `${AS.year}년 ${+AS.month}월` : `${AS.year}년 연간`;
-  const valTxt = (v, t) => `${pct(v, t)}%${H ? ` · ${fmtH(v)}h` : ''}`;
+  const valTxt = (v, t) => `${pct(v, t)}%${SH ? ` (${fmtH(v)}h)` : ''}`;
   const tip = (title, items, t) => tipHtml(title, items.map(o => `<i class="tdot" style="background:${colOf(o.key)}"></i>${esc(o.name)} <b>${valTxt(o.v, t)}</b>`));
   // 부서원별 100% 막대
   const ppl = [...people.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
@@ -3681,7 +3697,7 @@ function renderAlloc(c) {
   const stack = P => { const its = [...P.by.values()].sort((a, b) => b.v - a.v);
     return `<span class="astk" data-tip="${esc(tip(`${P.name} · ${plabel}`, its, P.tot))}">${its.map(o => `<span style="flex:${o.v};background:${colOf(o.key)}">${pct(o.v, P.tot) >= 9 ? Math.round(pct(o.v, P.tot)) + '%' : ''}</span>`).join('')}</span>`; };
   const prow = P => { const pv = [...P.by.values()].filter(o => o.kind === 'perform' || o.kind === 'bid').reduce((a, o) => a + o.v, 0);
-    return `<button class="apr ${P.name === sel ? 'on' : ''}" data-aperson="${esc(P.name)}"><span class="wav">${avHtml(P.name)}</span><span class="apn"><b>${esc(P.name)}</b><small>${P.months.size}개월 · 프로젝트 ${Math.round(pct(pv, P.tot))}%</small></span>${stack(P)}<span class="aval">${H ? fmtH(P.tot) + 'h' : ''}</span></button>`; };
+    return `<button class="apr ${P.name === sel ? 'on' : ''}" data-aperson="${esc(P.name)}"><span class="wav">${avHtml(P.name)}</span><span class="apn"><b>${esc(P.name)}</b><small>${P.months.size}개월 · 프로젝트 ${Math.round(pct(pv, P.tot))}%</small></span>${stack(P)}<span class="aval">${SH ? fmtH(P.tot) + 'h' : ''}</span></button>`; };
   // 선택한 사람: 도넛 + 월별 추이 + R&R(계획 대비 실제)
   const S = people.get(sel);
   let detail = '<div class="empty">시수 데이터가 없습니다</div>';
@@ -3689,12 +3705,12 @@ function renderAlloc(c) {
     const its = [...S.by.values()].sort((a, b) => b.v - a.v);
     const R = 54, C = 2 * Math.PI * R; let off = 0;
     const arcs = its.map(o => { const len = o.v / S.tot * C, x = `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${colOf(o.key)}" stroke-width="22" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)" data-tip="${esc(tipHtml(o.name, [valTxt(o.v, S.tot)]))}"/>`; off += len; return x; }).join('');
-    const donut = `<svg viewBox="0 0 140 140" class="adonut">${arcs}<text x="70" y="66" text-anchor="middle" font-size="13" fill="#667089">${H ? '총 시간' : '프로젝트'}</text><text x="70" y="86" text-anchor="middle" font-size="19" font-weight="800" fill="#1b2238">${H ? fmtH(S.tot) : Math.round(pct(its.filter(o => o.kind === 'perform' || o.kind === 'bid').reduce((a, o) => a + o.v, 0), S.tot)) + '%'}</text></svg>`;
-    const legend = its.map(o => `<div class="aleg"><i style="background:${colOf(o.key)}"></i><span>${esc(o.name)} ${alTag(o.kind)}</span><b>${pct(o.v, S.tot)}%</b>${H ? `<em>${fmtH(o.v)}h</em>` : ''}</div>`).join('');
+    const donut = `<svg viewBox="0 0 140 140" class="adonut">${arcs}<text x="70" y="66" text-anchor="middle" font-size="13" fill="#667089">${SH ? '총 시간' : '프로젝트'}</text><text x="70" y="86" text-anchor="middle" font-size="19" font-weight="800" fill="#1b2238">${SH ? fmtH(S.tot) : Math.round(pct(its.filter(o => o.kind === 'perform' || o.kind === 'bid').reduce((a, o) => a + o.v, 0), S.tot)) + '%'}</text></svg>`;
+    const legend = its.map(o => `<div class="aleg"><i style="background:${colOf(o.key)}"></i><span>${esc(o.name)} ${alTag(o.kind)}</span><b>${pct(o.v, S.tot)}%</b>${SH ? `<em>${fmtH(o.v)}h</em>` : ''}</div>`).join('');
     // 월별 추이 (선택 연도 12개월, 100% 막대)
     const byM = new Map(); d.list.filter(x => x.person === sel).forEach(u => byM.set(u.month.slice(5), tsAgg([u], idx).people.get(sel)));
     const trend = Array.from({ length:12 }, (_, i) => { const mm = String(i + 1).padStart(2, '0'), M = byM.get(mm);
-      return `<div class="amc ${AS.month === mm ? 'on' : ''}" data-amonth="${mm}"><div class="amh">${M ? (H ? fmtH(M.tot) : '✓') : ''}</div><div class="amb">${M ? [...M.by.values()].sort((a, b) => b.v - a.v).map(o => `<span style="flex:${o.v};background:${colOf(o.key)}"></span>`).join('') : '<span class="amz"></span>'}</div><div class="aml">${i + 1}월</div></div>`; }).join('');
+      return `<div class="amc ${AS.month === mm ? 'on' : ''}" data-amonth="${mm}"><div class="amh">${M ? (SH ? fmtH(M.tot) : '✓') : ''}</div><div class="amb">${M ? [...M.by.values()].sort((a, b) => b.v - a.v).map(o => `<span style="flex:${o.v};background:${colOf(o.key)}"></span>`).join('') : '<span class="amz"></span>'}</div><div class="aml">${i + 1}월</div></div>`; }).join('');
     // R&R · 계획(투입인력) · 실제(시수)
     const me = normName(sel), rr = new Map();
     const find = n => { const k = nmKey(n); if (!k) return null; for (const [kk, v] of rr) if (kk === k || (k.length >= 4 && kk.length >= 4 && (kk.includes(k) || k.includes(kk)))) return v; const v = { name:flat(n) }; rr.set(k, v); return v; };
@@ -3708,15 +3724,15 @@ function renderAlloc(c) {
     const rrTable = `<table class="t art"><thead><tr><th>PJT</th><th>구분</th><th>R&R 역할</th><th>기간 · 공정률</th><th>계획 투입 <small>(투입인력)</small></th><th>실제 투입 <small>(시수 · ${esc(plabel)})</small></th><th>차이</th></tr></thead><tbody>
       ${rows.map(v => `<tr><td><b>${esc(v.name)}</b></td><td>${esc(v.gubun || '')}</td><td>${v.role ? `<span class="arole ${/LE/.test(v.role) ? 'le' : ''}">${esc(v.role)}</span>` : '<span class="muted">-</span>'}</td><td class="muted">${esc(v.period || '')}${v.prog ? ` · ${esc(v.prog)}%` : ''}</td>
         <td>${v.plan != null ? `<span class="abar"><i style="width:${Math.min(100, v.plan)}%" class="pl"></i></span>${v.plan}%` : '<span class="muted">-</span>'}</td>
-        <td>${v.actual != null ? `<span class="abar"><i style="width:${Math.min(100, v.actual)}%" class="ac"></i></span>${v.actual}%${H ? ` <small class="muted">${fmtH(v.h)}h</small>` : ''}` : '<span class="muted">0%</span>'}</td><td>${diff(v)}</td></tr>`).join('')}
-      ${other.map(o => `<tr class="aoth"><td>${esc(o.name)}</td><td>${alTag(o.kind)}</td><td></td><td></td><td></td><td>${pct(o.v, S.tot)}%${H ? ` <small class="muted">${fmtH(o.v)}h</small>` : ''}</td><td></td></tr>`).join('')}</tbody></table>`;
+        <td>${v.actual != null ? `<span class="abar"><i style="width:${Math.min(100, v.actual)}%" class="ac"></i></span>${v.actual}%${SH ? ` <small class="muted">${fmtH(v.h)}h</small>` : ''}` : '<span class="muted">0%</span>'}</td><td>${diff(v)}</td></tr>`).join('')}
+      ${other.map(o => `<tr class="aoth"><td>${esc(o.name)}</td><td>${alTag(o.kind)}</td><td></td><td></td><td></td><td>${pct(o.v, S.tot)}%${SH ? ` <small class="muted">${fmtH(o.v)}h</small>` : ''}</td><td></td></tr>`).join('')}</tbody></table>`;
     detail = `<div class="adet"><div class="adl">${donut}<div class="alegs">${legend}</div></div>
       <div class="adr"><h3>📅 ${esc(sel)} · ${esc(AS.year)}년 월별 투입 구성 <span class="muted">(누르면 그 달만)</span></h3><div class="amt">${trend}</div></div></div>
       <h3 style="margin:16px 0 8px">🎯 R&R · 계획 대비 실제 투입 <span class="muted">· PJT R&R + 계장 투입인력 + 시수</span></h3>${rows.length || other.length ? rrTable : '<div class="empty">R&R·투입 정보가 없습니다</div>'}`;
   }
   // 프로젝트별
   const projRows = pjs.map(p => `<div class="aprj"><i class="adot" style="background:${colOf(p.key)}"></i><span class="apjn">${esc(p.name)} ${alTag(p.kind)}${p.live === false ? '<span class="atag end">종결</span>' : ''}</span>
-      <span class="abar wide"><i style="width:${pct(p.v, teamTot)}%;background:${colOf(p.key)}"></i></span><b>${pct(p.v, teamTot)}%</b><span class="aav">${[...p.ppl.keys()].slice(0, 5).map(n => `<span class="wav sm" title="${esc(n)} ${valTxt(p.ppl.get(n), people.get(n).tot)}">${avHtml(n)}</span>`).join('')}${p.ppl.size > 5 ? `<small>+${p.ppl.size - 5}</small>` : ''}</span><em>${H ? fmtH(p.v) + 'h' : `${p.ppl.size}명`}</em></div>`).join('');
+      <span class="abar wide"><i style="width:${pct(p.v, teamTot)}%;background:${colOf(p.key)}"></i></span><b>${pct(p.v, teamTot)}%</b><span class="aav">${[...p.ppl.keys()].slice(0, 5).map(n => `<span class="wav sm" title="${esc(n)} ${valTxt(p.ppl.get(n), people.get(n).tot)}">${avHtml(n)}</span>`).join('')}${p.ppl.size > 5 ? `<small>+${p.ppl.size - 5}</small>` : ''}</span><em>${SH ? fmtH(p.v) + 'h' : `${p.ppl.size}명`}</em></div>`).join('');
   const unk = pjs.filter(p => p.kind === 'unk');
   // 업로드 현황 (부서원 × 월)
   const names = [...new Set([...(DB.profiles || []).map(p => p.name), ...d.list.map(x => x.person)])].sort((a, b) => a.localeCompare(b, 'ko'));
@@ -3727,10 +3743,10 @@ function renderAlloc(c) {
   const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
   c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, `<button class="btn wadd" data-aup>⬆ 시수 파일 올리기 <small style="font-weight:400;opacity:.75">(끌어다 놓기 가능)</small></button>${d.list.some(x => H || x.personId === AUTH.id) ? '<button class="btn wadd tsdel" data-atsdel>🗑 올린 파일 삭제</button>' : ''}`)}
       <div class="wtypes"><button class="wtc ${!AS.month ? 'on' : ''}" data-amonth="">연간</button>${Array.from({ length:12 }, (_, i) => { const mm = String(i + 1).padStart(2, '0'); return `<button class="wtc ${AS.month === mm ? 'on' : ''} ${monthsWith.has(mm) ? '' : 'dim'}" data-amonth="${mm}">${i + 1}월</button>`; }).join('')}</div>
-      <div class="al-sub"><span class="al-lock ${H ? 'open' : ''}">${H ? '🔓 실제 시간(h) 표시 중 — Management 권한' : '🔒 비율(%)만 표시 — 실제 시간은 Management 권한자만 볼 수 있습니다'}</span>${origin}</div>`,
+      <div class="al-sub"><span class="al-lock ${SH ? 'open' : ''}">${SH ? '🔓 Management · 비율(%)과 실제 시간(h) 병기' : H ? '🔒 비율(%)만 표시 — 실제 시간은 <button class="btn sm" data-goto="mgalloc">Management › R&R · 투입 분석</button>' : '🔒 비율(%)만 표시 — 실제 시간은 Management 권한자만 볼 수 있습니다'}</span>${origin}</div>`,
     `${d.error ? `<section class="card"><div class="empty">불러오지 못했습니다: ${esc(d.error)}</div></section>` : ''}
     <div class="wkpis alkpis">
-      <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} 프로젝트 투입 비율</span><span class="wkv">${pct(projV, teamTot)}<small>%</small></span><span class="wks">${people.size}명 · 시수 ${list.length}건${H ? ` · 총 ${fmtH(teamTot === 1 && !list.length ? 0 : teamTot)}h` : ''}</span></div>
+      <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} 프로젝트 투입 비율</span><span class="wkv">${pct(projV, teamTot)}<small>%</small></span><span class="wks">${people.size}명 · 시수 ${list.length}건${SH ? ` · 총 ${fmtH(teamTot === 1 && !list.length ? 0 : teamTot)}h` : ''}</span></div>
       ${kpi('wk-run', '🏗', '수행·입찰 PJT', `${pct(projV, teamTot)}%`, `${pjs.filter(p => p.kind === 'perform' || p.kind === 'bid').length}개 PJT`)}
       ${kpi('wk-perm', '🏢', '부서업무 (공통)', `${pct(deptV, teamTot)}%`, "Type '공통'")}
       ${kpi('wk-miss', '❔', '미등록 · 코드 없음', `${pct(unkV, teamTot)}%`, unk.length ? `코드 ${unk.length}개 등록 필요` : '모두 연결됨')}
@@ -3744,8 +3760,9 @@ function renderAlloc(c) {
     <section class="card"><h2>🔎 개인 분석 — ${esc(sel || '-')} <span class="muted">· ${esc(plabel)}</span></h2>${detail}</section>
     <section class="card"><h2>📤 시수 업로드 현황 <span class="muted">· ${esc(AS.year)}년 · ✓ = 올림${H ? ' (누르면 삭제)' : ' (본인 것은 누르면 삭제)'}</span></h2><div class="tw" style="max-height:none">${grid}</div></section>`));
   $('#allocv').addEventListener('click', async e => {
-    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel],[data-goto]'); if (!t) return;
     const dd = t.dataset;
+    if (dd.goto) { location.hash = '#' + dd.goto; return; }
     if (dd.year != null) { AS.year = dd.year || ty; AS.month = ''; }
     else if (dd.amonth != null) AS.month = AS.month === dd.amonth && t.classList.contains('amc') ? '' : dd.amonth;
     else if (dd.aperson) AS.person = dd.aperson;
@@ -3756,6 +3773,115 @@ function renderAlloc(c) {
       if (await ask('시수 파일 삭제', `<b>${esc(pid)}</b> · ${esc(mon)} 시수를 지웁니다. 다시 올리면 됩니다.`, [{ id:'ok', label:'삭제', cls:'bad' }, { id:'no', label:'취소' }]) !== 'ok') return;
       try { await api('DELETE', `timesheet/${enc(pid)}/${enc(mon)}`); toast('지웠습니다'); delete AS.data[AS.year]; } catch (er) { return toast('삭제 실패: ' + er.message, true); }
     }
+    render();
+  });
+}
+/* =====================================================================
+ *  Management › 근무시간 (route `mghours`): 월말 시수 파일의 '날짜별 실제 시간'으로 부서원 근무시간을 월별 · 주별(월~일) · 일별로
+ *  서버는 일별 시간(rows[].days = { '1': h, … })을 Management 권한자에게만 보냄
+ * ===================================================================== */
+const HS = { view:'month', month:'', person:'' };
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const ymd = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+const monOf = dt => { const x = new Date(dt); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };   // 그 주 월요일
+function hoursIndex(list, idx) {                          // 사람 → { days: Map(YYYY-MM-DD → {t, dept, pjt, etc}), months:Set }
+  const P = new Map();
+  for (const u of list) {
+    const o = P.get(u.person) || P.set(u.person, { name:u.person, id:u.personId, days:new Map(), months:new Set() }).get(u.person);
+    o.months.add(u.month);
+    const [y, m] = u.month.split('-').map(Number);
+    for (const r of u.rows) {
+      const kind = tsClass(r, idx).kind, part = kind === 'dept' ? 'dept' : kind === 'perform' || kind === 'bid' ? 'pjt' : 'etc';
+      for (const [d, h] of Object.entries(r.days || {})) {
+        if (!(h > 0)) continue;
+        const k = `${y}-${pad(m)}-${pad(+d)}`, x = o.days.get(k) || o.days.set(k, { t:0, dept:0, pjt:0, etc:0 }).get(k);
+        x.t += h; x[part] += h;
+      }
+    }
+  }
+  return P;
+}
+function renderHours(c) {
+  const hero = inner => `<div id="hrsv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근무시간 <small style="font-weight:600;opacity:.85">— 월별 · 주별 · 일별</small></h2><p>월말 시수 파일의 날짜별 실제 시간으로 부서원 근무시간을 봅니다. 주 = 월요일~일요일. 주 52시간 초과 · 하루 10시간 초과는 붉게 표시합니다.</p></div></div>${inner}</section>`;
+  if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
+  if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
+  const d = AS.data[AS.year];
+  if (!d) { c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">불러오는 중…</div></section></div>'); loadTs(AS.year); return; }
+  if (!d.canHours) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 실제 근무시간은 Management 권한자만 볼 수 있습니다.</div></section></div>');
+  const ty = String(new Date().getFullYear()), Y = +AS.year;
+  const years = [...new Set([...(d.years || []), '2024', '2025', ty, AS.year])].sort().reverse();
+  const monthsWith = [...new Set(d.list.map(x => x.month.slice(5)))].sort();
+  if (HS.view === 'day' && !HS.month) HS.month = monthsWith[monthsWith.length - 1] || pad(new Date().getMonth() + 1);   // 일별은 한 달씩
+  const P = hoursIndex(d.list, projIndex());
+  const names = [...P.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
+  const inRange = k => k.startsWith(AS.year + '-') && (!HS.month || k.slice(5, 7) === HS.month);
+  // 열(기간) 만들기
+  let cols = [];
+  if (HS.view === 'month') cols = Array.from({ length:12 }, (_, i) => ({ key:pad(i + 1), label:`${i + 1}월`, test:k => k.slice(5, 7) === pad(i + 1) && k.startsWith(AS.year + '-'), cap:null }));
+  else if (HS.view === 'week') {
+    const first = HS.month ? new Date(Y, +HS.month - 1, 1) : new Date(Y, 0, 1), last = HS.month ? new Date(Y, +HS.month, 0) : new Date(Y, 11, 31);
+    for (let m = monOf(first); m <= last; m.setDate(m.getDate() + 7)) {
+      const a = new Date(m), b = new Date(m); b.setDate(b.getDate() + 6);
+      const ka = ymd(a), kb = ymd(b);
+      cols.push({ key:ka, label:`${a.getMonth() + 1}/${a.getDate()}~${b.getMonth() + 1}/${b.getDate()}`, test:k => k >= ka && k <= kb, cap:52 });
+    }
+    if (!HS.month) { const used = new Set(names.flatMap(n => [...P.get(n).days.keys()]).map(k => ymd(monOf(new Date(k))))); cols = cols.filter(cl => used.has(cl.key)); }   // 연간: 시수가 있는 주만
+  } else {
+    const n = new Date(Y, +HS.month, 0).getDate();
+    cols = Array.from({ length:n }, (_, i) => { const dt = new Date(Y, +HS.month - 1, i + 1), k = ymd(dt); return { key:k, label:`${i + 1}<small>${WD[dt.getDay()]}</small>`, test:x => x === k, cap:10, we:dt.getDay() % 6 === 0 }; });
+  }
+  const cell = (n, cl) => { let t = 0; for (const [k, x] of P.get(n).days) if (cl.test(k)) t += x.t; return t; };
+  const M = names.map(n => ({ n, v:cols.map(cl => cell(n, cl)) }));
+  const vmax = Math.max(1, ...M.flatMap(r => r.v));
+  // 요약 (선택 기간)
+  const dayList = names.flatMap(n => [...P.get(n).days].filter(([k]) => inRange(k)).map(([k, x]) => ({ n, k, ...x })));
+  const tot = dayList.reduce((a, x) => a + x.t, 0), workDays = dayList.length;
+  const longD = dayList.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), over10 = dayList.filter(x => x.t > 10).length;
+  const wk = new Map(); dayList.forEach(x => { const k = x.n + '|' + ymd(monOf(new Date(x.k))); wk.set(k, (wk.get(k) || 0) + x.t); });
+  const over52 = [...wk.values()].filter(v => v > 52).length;
+  const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const plabel = HS.month ? `${AS.year}년 ${+HS.month}월` : `${AS.year}년 연간`;
+  const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
+  const heat = (v, cap) => !v ? '' : cap && v > cap ? 'background:#ffe3e3;color:#c92a2a;font-weight:800' : `background:rgba(59,91,219,${(0.08 + 0.42 * v / vmax).toFixed(3)})`;
+  const sel = HS.person && P.has(HS.person) ? HS.person : '';
+  const rows = M.map(r => { const sum = r.v.reduce((a, b) => a + b, 0), used = r.v.filter(Boolean).length;
+    return `<tr class="${r.n === sel ? 'on' : ''}" data-hperson="${esc(r.n)}"><td class="hn"><span class="wperson"><span class="wav sm">${avHtml(r.n)}</span>${esc(r.n)}</span></td>${r.v.map((v, i) => `<td class="${cols[i].we ? 'we' : ''}" style="${heat(v, cols[i].cap)}" title="${esc(r.n)} · ${esc(cols[i].label.replace(/<[^>]+>/g, ' '))} · ${fmtH(v)}h">${v ? fmtH(v) : ''}</td>`).join('')}<td class="hs"><b>${fmtH(sum)}</b></td><td class="hs muted">${used ? fmtH(sum / used) : '-'}</td></tr>`; }).join('');
+  const colSum = cols.map((_, i) => M.reduce((a, r) => a + r.v[i], 0));
+  const avgLbl = { month:'월 평균', week:'주 평균', day:'일 평균' }[HS.view];
+  const table = names.length ? `<div class="tw hrtw"><table class="t hrt hr-${HS.view}"><thead><tr><th class="hn">부서원</th>${cols.map(cl => `<th class="${cl.we ? 'we' : ''}">${cl.label}</th>`).join('')}<th>합계</th><th>${avgLbl}<small>(입력 있는 ${({ month:'달', week:'주', day:'날' })[HS.view]})</small></th></tr></thead>
+      <tbody>${rows}</tbody><tfoot><tr><td class="hn"><b>팀 합계</b></td>${colSum.map((v, i) => `<td class="${cols[i].we ? 'we' : ''}">${v ? fmtH(v) : ''}</td>`).join('')}<td class="hs"><b>${fmtH(colSum.reduce((a, b) => a + b, 0))}</b></td><td></td></tr></tfoot></table></div>` : '<div class="empty">시수 파일이 없습니다. R&R · 투입 분석에서 시수 파일을 올려 주세요.</div>';
+  // 개인 상세: 선택 기간 날짜별 막대 (부서업무 / PJT / 기타)
+  let detail = '';
+  if (sel) {
+    const ds = [...P.get(sel).days].filter(([k]) => inRange(k)).sort(([a], [b]) => a.localeCompare(b));
+    const mx = Math.max(10, ...ds.map(([, x]) => x.t));
+    const bar = ([k, x]) => { const dt = new Date(k); return `<div class="hdb ${dt.getDay() % 6 === 0 ? 'we' : ''}" title="${k} (${WD[dt.getDay()]}) ${fmtH(x.t)}h — PJT ${fmtH(x.pjt)} · 부서업무 ${fmtH(x.dept)} · 기타 ${fmtH(x.etc)}"><em>${x.t >= 1 ? fmtH(x.t) : ''}</em><b class="hbx"><span style="height:${x.t / mx * 100}%">${['etc', 'dept', 'pjt'].map(p => x[p] ? `<i class="hp-${p}" style="flex:${x[p]}"></i>` : '').join('')}</span></b><small>${HS.month ? dt.getDate() : `${dt.getMonth() + 1}/${dt.getDate()}`}</small></div>`; };
+    const st = ds.reduce((a, [, x]) => ({ t:a.t + x.t, pjt:a.pjt + x.pjt, dept:a.dept + x.dept, etc:a.etc + x.etc }), { t:0, pjt:0, dept:0, etc:0 });
+    detail = `<section class="card"><h2>🔎 ${esc(sel)} · ${esc(plabel)} 날짜별 근무시간 <span class="muted">· 막대 = PJT / 부서업무 / 기타 · 점선 = 8시간</span><button class="btn sm" data-hperson="" style="margin-left:auto">닫기</button></h2>
+      <div class="hsum"><span>총 <b>${fmtH(st.t)}h</b></span><span>근무일 <b>${ds.length}</b>일</span><span>일 평균 <b>${ds.length ? fmtH(st.t / ds.length) : '-'}h</b></span><span><i class="hp-pjt"></i>PJT <b>${fmtH(st.pjt)}h</b> (${pctOf(st.pjt, st.t)}%)</span><span><i class="hp-dept"></i>부서업무 <b>${fmtH(st.dept)}h</b> (${pctOf(st.dept, st.t)}%)</span><span><i class="hp-etc"></i>기타·미등록 <b>${fmtH(st.etc)}h</b> (${pctOf(st.etc, st.t)}%)</span></div>
+      ${ds.length ? `<div class="hdays" style="--h8:${8 / mx * 100}%">${ds.map(bar).join('')}</div>` : '<div class="empty">이 기간 시수가 없습니다</div>'}</section>`;
+  }
+  const vbtn = (v, l) => `<button class="wtc ${HS.view === v ? 'on' : ''}" data-hview="${v}">${l}</button>`;
+  c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, '<button class="btn wadd" data-goto="mgalloc">R&R · 투입 분석 →</button>')}
+      <div class="wtypes">${vbtn('month', '📅 월별')}${vbtn('week', '🗓 주별')}${vbtn('day', '📆 일별')}<span style="width:14px"></span>
+        ${HS.view === 'day' ? '' : `<button class="wtc ${!HS.month ? 'on' : ''}" data-hmonth="">연간</button>`}${Array.from({ length:12 }, (_, i) => { const mm = pad(i + 1); return `<button class="wtc ${HS.month === mm ? 'on' : ''} ${monthsWith.includes(mm) ? '' : 'dim'}" data-hmonth="${mm}">${i + 1}월</button>`; }).join('')}</div>`)
+    + `<div class="wkpis alkpis">
+      <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} 팀 총 근무시간</span><span class="wkv">${fmtH(tot)}<small>h</small></span><span class="wks">${names.length}명 · 근무일 합 ${workDays}일</span></div>
+      ${kpi('wk-run', '👤', '1인 평균', `${names.length ? fmtH(tot / names.length) : '-'}h`, plabel)}
+      ${kpi('wk-done', '📆', '근무일 평균', `${workDays ? fmtH(tot / workDays) : '-'}h`, '하루 (입력 있는 날)')}
+      ${kpi('wk-soon', '⏰', '하루 10시간 초과', `${over10}일`, longD ? `최장 ${fmtH(longD.t)}h · ${esc(longD.n)} ${longD.k.slice(5)}` : '-')}
+      ${kpi('wk-late', '⚠', '주 52시간 초과', `${over52}건`, '사람 × 주 (월~일)')}
+    </div>
+    <section class="card"><h2>⏱ 부서원별 ${({ month:'월별', week:'주별 (월~일)', day:'일별' })[HS.view]} 근무시간 <span class="muted">· ${esc(plabel)} · 진할수록 많음 · 붉은 칸 = ${HS.view === 'week' ? '주 52시간' : HS.view === 'day' ? '하루 10시간' : '-'} 초과 · 이름을 누르면 날짜별 상세</span></h2>${HS.view === 'week' && HS.month ? `<p class="muted" style="margin:0 0 8px">※ 달 경계에 걸친 주(첫 주·마지막 주)는 앞·뒤 달 시간까지 합친 '그 주 전체' 시간입니다. 위 요약 숫자는 ${+HS.month}월 날짜만 셉니다.</p>` : ''}${table}</section>
+    ${detail}</div>`);
+  $('#hrsv').addEventListener('click', e => {
+    const t = e.target.closest('[data-year],[data-hview],[data-hmonth],[data-hperson],[data-goto]'); if (!t) return;
+    const dd = t.dataset;
+    if (dd.goto) { location.hash = '#' + dd.goto; return; }
+    if (dd.year != null) { AS.year = dd.year || ty; HS.month = ''; }
+    else if (dd.hview) HS.view = dd.hview;
+    else if (dd.hmonth != null) HS.month = dd.hmonth;
+    else if (dd.hperson != null) HS.person = HS.person === dd.hperson ? '' : dd.hperson;
     render();
   });
 }
@@ -3832,8 +3958,8 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
   };
 }
 // R&R · 투입 분석 화면 어디에 놓아도 올리기 창이 열림
-document.addEventListener('dragover', e => { if (route === 'alloc' && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
-document.addEventListener('drop', e => { if (route !== 'alloc' || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload(e.dataTransfer.files[0]); });
+document.addEventListener('dragover', e => { if ((route === 'alloc' || route === 'mgalloc') && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => { if ((route !== 'alloc' && route !== 'mgalloc') || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload(e.dataTransfer.files[0]); });
 
 /* ---------- 열 추가: 시트마다 사용자가 열을 더함 (서버 data/_meta/sheet-columns.json, 값은 각 행에 저장) ---------- */
 function applyExtraCols() {
