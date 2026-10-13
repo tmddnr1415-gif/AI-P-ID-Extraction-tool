@@ -833,3 +833,57 @@ def test_forcing_a_latched_memory_to_zero_resets_it():
     off = sim.simulate(s, {"row:90": 0}, state=on["state"])
     v = off["frames"][-1]["values"]
     assert not off["unmet"] and v["o"] == 0 and v["r"] == 1 and v["s"] == 0
+
+
+def test_no_gate_ever_outputs_against_its_inputs_random_circuits():
+    """L18 — 사용자 확정: *앞으로 모든 Logic 의 논리 게이트는 논리적으로 동작해야 한다.*  무작위 회로 300개에 무작위
+    강제(입력 행 · 게이트 출력 선 · 게이트 블록)를 줘도 **모든 틀**에서 AND·OR·NAND·NOR·NOT·투표의 출력이 그 틀의
+    입력으로 범례 G003 이 내는 값과 같다 (출력 선을 직접 켜서 건너뛰는 일이 없다)."""
+    import random
+    rnd = random.Random(17)
+    P = lambda b, n, d, role="": {"block": b, "net": n, "dir": d, "role": role, "cell": 0}
+    kinds = ["and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "pulse"]
+    for case in range(300):
+        nets = [f"r{k}" for k in range(1, 6)]
+        rows = [{"n": k, "side": "L", "net": f"r{k}"} for k in range(1, 6)]
+        blocks, ports = {}, []
+        for i in range(rnd.randint(2, 7)):
+            lg = rnd.choice(kinds)
+            bid, out = f"B{i}", f"o{i}"
+            k = 1 if lg in ("not", "delay_on", "pulse") else (3 if lg == "vote" else rnd.randint(2, 3))
+            src = rnd.sample(nets, min(k, len(nets)))
+            b = {"func": lg.upper(), "logic": "unknown" if lg == "vote" else lg, "group": "",
+                 "label": "2/3" if lg == "vote" else "", "param": {"t": 1} if lg in ("delay_on", "pulse") else {}}
+            blocks[bid] = b
+            if lg == "memory":
+                ports += [P(bid, src[0], "in", "set"), P(bid, src[1], "in", "reset"), P(bid, out, "out", "q")]
+            else:
+                ports += [P(bid, n, "in") for n in src] + [P(bid, out, "out")]
+            nets.append(out)
+        rows.append({"n": 90, "side": "R", "net": nets[-1]})
+        s = {"blocks": blocks, "ports": ports, "rows": rows, "nets": {n: {"segs": []} for n in nets}}
+        forces = {}
+        for _ in range(rnd.randint(1, 3)):
+            pick = rnd.choice(["row", "net", "block", "out"])
+            v = rnd.randint(0, 1)
+            if pick == "row":
+                forces[f"row:{rnd.randint(1, 5)}"] = v
+            elif pick == "net":
+                forces[f"net:{rnd.choice(nets[5:])}"] = v
+            elif pick == "block":
+                forces[f"block:{rnd.choice(list(blocks))}"] = v
+            else:
+                forces["row:90"] = v
+        r = sim.simulate(s, forces)
+        ins, outs, drivers, _, _ = sim._index(s)
+        for fr in r["frames"]:
+            unread = set(fr["unread"])
+            val = lambda n: None if n in unread else fr["values"].get(n, 0)
+            for bid, b in blocks.items():
+                vt = sim._vote_of(b)
+                if b["logic"] not in sim.MIN_INPUTS and not vt:
+                    continue
+                iv = [val(n) for n, _, _ in ins[bid]]
+                exp = sim._vote3(iv, *vt) if vt else sim.gate3(b["logic"], iv)
+                for n, _, _ in outs[bid]:
+                    assert fr["values"].get(n, 0) == (exp or 0), (case, forces, bid, b["logic"], iv)

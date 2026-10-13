@@ -87,10 +87,11 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .net:hover .vis { stroke: var(--blue); stroke-width: 2; }
 #ov .net .fx { stroke: transparent; stroke-width: 2.6; pointer-events: none; }
 /* 디지털 1 = 형광 파랑 · 0 = 아무 표시 없음 (사용자 지시 L3) */
-#ov .net.on .fx { stroke: var(--active); stroke-width: 3; filter: drop-shadow(0 0 2.5px var(--active-glow)); }
+/* L18 — 사용자 지시 "강제신호 형광색을 조금 더 얇게": 3 → 1.8 · 빛 2.5 → 1.4px */
+#ov .net.on .fx { stroke: var(--active); stroke-width: 1.8; filter: drop-shadow(0 0 1.4px var(--active-glow)); }
 #ov .net.tr .fx { stroke: var(--trace); filter: drop-shadow(0 0 3px rgba(255,106,0,.5)); }
 #ov .net.tru .fx { stroke: var(--trace-up); }
-#ov .net.on.forced .fx { stroke-width: 3.8; }
+#ov .net.on.forced .fx { stroke-width: 2.3; }
 #ov .net.sel .vis { stroke: #000; stroke-width: 2; }
 #ov .blk { fill: transparent; stroke: transparent; stroke-width: .8; cursor: pointer; }
 #ov .blk:hover { stroke: var(--blue); fill: rgba(47,91,216,.06); }
@@ -110,7 +111,7 @@ button:hover, .btn:hover { border-color: var(--blue); }
 #ov .find { fill: none; stroke: var(--find); stroke-width: 1.2; }
 #ov .timer-txt { font: 600 4px system-ui, sans-serif; fill: var(--unk); }
 #ov .pulse { animation: lgpulse .9s ease-out 2; }
-@keyframes lgpulse { 0% { stroke-width: 6; opacity: .3 } 100% { stroke-width: 2.6; opacity: 1 } }
+@keyframes lgpulse { 0% { stroke-width: 4; opacity: .3 } 100% { stroke-width: 1.8; opacity: 1 } }
 
 /* 입력 신호 메뉴 (L4) */
 .force-menu { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 8px;
@@ -304,7 +305,7 @@ body.lg-full .lg-view { position: fixed; inset: 0; z-index: 40; background: var(
 /* L13 — 연결 기호 A ↔ A 가상 점선 */
 #ov .clink { stroke: #7b4dff; stroke-width: .7; stroke-dasharray: 2.5 2; opacity: .45; pointer-events: stroke; }
 #ov.sim .clink { opacity: .25; }
-#ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.4; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
+#ov .clink.on { stroke: var(--active, #00b4ff); stroke-width: 1.1; opacity: .95; filter: drop-shadow(0 0 2px rgba(0,180,255,.6)); }
 #ov .rowpin.implied { stroke: #0f8f80; stroke-width: 1.2; stroke-dasharray: 1.2 .8; }
 .force-menu button.vs { color: #0a7a3c; font-weight: 600; border-top: 1px solid #eee; }
 
