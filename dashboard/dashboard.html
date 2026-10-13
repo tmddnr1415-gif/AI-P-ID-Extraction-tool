@@ -256,6 +256,8 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .adiff{font-size:12px;font-weight:700}.adiff.up{color:#0ca678}.adiff.dn{color:#e8590c}
 .agrid th,.agrid td{text-align:center;padding:6px 4px}.agrid td:first-child,.agrid th:first-child{text-align:left}
 .aok{border:0;background:linear-gradient(135deg,#38d9a9,#0ca678);color:#fff;font-weight:800;width:26px;height:26px;border-radius:50%}
+.aok b{display:none}.aok.del{cursor:pointer}.aok.del:hover{background:linear-gradient(135deg,#ff8787,#e03131)}.aok.del:hover span{display:none}.aok.del:hover b{display:inline}
+.wadd.tsdel{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.45);margin-left:6px}
 .tdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
 @media (max-width:1300px){.algrid,.adet{grid-template-columns:1fr}.alkpis{grid-template-columns:repeat(3,1fr)}}
 /* ---------- 수행·입찰 PJT 현황판 ---------- */
@@ -848,7 +850,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.12';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1717,7 +1719,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
   const s = SHEET[key];
   if (s.special === 'matrix') return openStaffEdit(id, { mine, preset });
   const rec = id ? DB.recs[key].find(r => r.id === id) : null;
-  const f = rec ? rec.fields : { ...(preset || {}) };
+  const f = rec ? Object.fromEntries(Object.entries(rec.fields).map(([k, v]) => [k, typeof v === 'string' ? purgeStrike(v) : v])) : { ...(preset || {}) };   // 예전 ~~취소선~~ 은 입력란에 안 보임
   if (!rec) s.cols.forEach(c => { if (guideOn(s, c) && !f[c.f]) f[c.f] = guideTpl(c, f); });   // 행 추가: 작성 가이드 틀
   const hasGuide = s.cols.some(c => guideOn(s, c));
   const body = s.cols.map(c => {
@@ -1729,9 +1731,8 @@ async function openEdit(key, id, { mine, preset } = {}) {
   }).join('');
   openDlg(dlg, `<form id="ef"><div class="dh"><span>${esc(s.label)} · ${rec ? '편집' : '행 추가'}</span><button type="button" class="btn sm" data-close>닫기</button></div>
     <div class="db">${rec ? `<p class="muted">최종 수정: ${esc(rec.meta.updatedBy)} · ${fmtTime(rec.meta.updatedAt)} (rev ${rec.meta.rev})</p>` : ''}
-      ${rec ? `<p class="muted" style="background:#fff3f2;padding:6px 10px;border-radius:8px">✂ 지운 내용은 저장 시 <b style="color:#D00000;text-decoration:line-through">붉은 취소선</b>으로 남습니다(입력란에는 <b>~~내용~~</b>으로 보임). <b>~~ ~~</b> 부분을 한 번 더 지우고 저장하면 완전히 삭제됩니다.</p>` : ''}
       ${mineBox(s, mine)}${hasGuide ? GUIDE_BOX : ''}<div class="fg">${body}</div></div>
-    <div class="df">${rec ? '<button type="button" class="btn bad" id="btnPurge" style="margin-right:auto" title="입력란의 ~~ ~~ 내용을 모두 지웁니다. 저장해야 반영됩니다">취소선 내용 모두 완전 삭제</button>' : ''}<button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">저장</button></div></form>`, true);
+    <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">저장</button></div></form>`, true);
   dlg.onclick = e => {
     if (e.target.closest('[data-close]')) return dlg.close();
     const rm = e.target.closest('[data-frm]');                // 첨부파일 목록에서 빼기 (서버 파일은 남음 → 이력에서 복원 가능)
@@ -1761,16 +1762,11 @@ async function openEdit(key, id, { mine, preset } = {}) {
     }
     fup.value = '';
   };
-  const pb = $('#btnPurge');
-  if (pb) pb.onclick = () => {
-    let n = 0; dlg.querySelectorAll('textarea[data-f]').forEach(t => { const v = purgeStrike(t.value); if (v !== t.value) { t.value = v; n++; } });
-    toast(n ? `${n}개 항목의 취소선 내용을 지웠습니다. [저장]을 눌러야 반영됩니다` : '취소선 내용이 없습니다');
-  };
   $('#ef').onsubmit = async e => {
     e.preventDefault();
     const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
     s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });   // 내용 없는 글머리 줄 지우기
-    if (rec) s.cols.filter(c => c.long && !c.ai).forEach(c => { nf[c.f] = mergeStrike(rec.fields[c.f], nf[c.f]); });   // 지운 내용 → 취소선 (AI 요약은 새로 덮어씀)
+    s.cols.forEach(c => { if (nf[c.f]) nf[c.f] = purgeStrike(nf[c.f]); });   // 지운 내용은 그냥 지움 (예전 ~~취소선~~ 도 저장 때 정리) · 추가만 파란 글씨
     if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (일반업무 / 표준화 담당 / To Do List / 기술공유 / 그룹장 요청 사항)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
     await submitRecord(key, id, rec, nf, mine);
@@ -2597,7 +2593,12 @@ function sortRecs(s, arr) {
  * 열키: 일반 시트 = 필드 이름, 투입인력 = 머리글 data-ck (이름/그룹/분야/_run/_bid/_tot/pjt:열ID/과제/_sum/Remarks) */
 function colVal(s, r, k) {
   const f = r.fields;
-  if (s.special !== 'matrix') return String(f[k] ?? '');
+  if (s.special !== 'matrix') {
+    const c = s.cols.find(x => x.f === k);
+    if (c?.closed) return f[k] === '종결' ? '종결' : '진행';                            // 빈 칸 = 진행
+    if (c?.endk && !f[k] && (s.key === 'task' || WORK[s.key])) return workItem(s.key, r).track ? '기한' : '상시';   // 빈 칸 = 자동(화면에 보이는 값)
+    return String(f[k] ?? '');
+  }
   if (k.startsWith('pjt:')) { const a = (f.배정 || {})[k.slice(4)]; return a ? `${a.pct ?? ''}${a.role === 'LE' ? ' (LE)' : ''}` : ''; }
   if (k === '과제') return String(f['과제+기타업무(%)'] ?? '');
   if (k[0] === '_') { const st = staffStats(r); return String({ _run:st.run, _bid:st.bid, _tot:st.run + st.bid, _sum:st.sum }[k] ?? ''); }
@@ -2613,6 +2614,11 @@ function cfSort(s, arr) {
     || (colVal(s, a, so.k) === '' || colVal(s, b, so.k) === '' ? cfCmp(colVal(s, a, so.k), colVal(s, b, so.k)) : so.dir * cfCmp(colVal(s, a, so.k), colVal(s, b, so.k))) || i - j).map(x => x[0]);
 }
 function closeCf() { $('#cfPop')?.remove(); }
+function placeCf(pop, btn) {                            // 필터 창을 머리글 ▾ 단추 바로 아래(공간 없으면 위)에
+  const b = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(b.right - w, innerWidth - w - 8)) + 'px';
+  pop.style.top = (b.bottom + 4 + h > innerHeight - 8 ? Math.max(8, b.top - h - 4) : b.bottom + 4) + 'px';
+}
 function openCf(btn) {
   closeCf();
   const k = btn.dataset.cf, s = SHEET[route]; if (!s) return;
@@ -2627,9 +2633,7 @@ function openCf(btn) {
     <div class="cfl"><label class="cfall"><input type="checkbox" data-all> <span>(모두 선택)</span></label>${vals.map((v, i) => `<label data-t="${esc(cfLabel(v).toLowerCase())}"><input type="checkbox" data-i="${i}" ${!allow || allow.has(v) ? 'checked' : ''}> <span>${esc(cfLabel(v))}</span><i>${cnt.get(v)}</i></label>`).join('')}</div>
     <div class="cfbtns"><button class="btn sm" data-cfc>취소</button><button class="btn sm pri" data-cfo>확인</button></div>`;
   document.body.appendChild(pop);
-  const b = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-  pop.style.left = Math.max(8, Math.min(b.right - w, innerWidth - w - 8)) + 'px';
-  pop.style.top = (b.bottom + 4 + h > innerHeight - 8 ? Math.max(8, b.top - h - 4) : b.bottom + 4) + 'px';
+  pop._btn = btn; placeCf(pop, btn);
   const boxes = [...pop.querySelectorAll('input[data-i]')], all = $('input[data-all]', pop), q = $('input[type=search]', pop);
   const shown = () => boxes.filter(x => !x.closest('label').hidden);
   const syncAll = () => { const v = shown(), n = v.filter(x => x.checked).length; all.checked = !!v.length && n === v.length; all.indeterminate = n > 0 && n < v.length; };
@@ -2659,7 +2663,8 @@ document.addEventListener('click', e => {
 }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#cfPop')) { e.stopPropagation(); closeCf(); } }, true);
 addEventListener('resize', closeCf);
-document.addEventListener('scroll', e => { if (!e.target.closest?.('#cfPop')) closeCf(); }, true);
+// 마우스 휠로 화면을 굴려도 필터 창은 닫지 않고 ▾ 단추를 따라감 (다른 곳 클릭 · Esc 로 닫힘)
+document.addEventListener('scroll', e => { const p = $('#cfPop'); if (!p || e.target.closest?.('#cfPop')) return; if (p._btn?.isConnected) placeCf(p, p._btn); }, true);
 
 /* 행 상태: To do 미완료(O 아님)=연한 주황 / 기술공유 발표일·일반업무 종료일이 지났으면=연한 회색(완료) */
 const isLive = r => (r.fields['종결 여부'] || '') !== '종결';   // 수행·입찰 PJT: 종결이 아니면 진행 중 (빈 칸 = 진행)
@@ -2701,11 +2706,11 @@ function renderSheet(c, s) {
   const filters = s.filters.map(k => sel('f:' + k, k, [...new Set(recs.map(r => r.fields[k]).filter(Boolean))], st.f[k])).join('');
   const owners = s.owner ? [...ownerTokens(recs, s.owner).keys()].sort((a, b) => a.localeCompare(b, 'ko')) : [];
   const yt = YEAR_OF[s.key] && s.key !== 'task' ? yearTabs(yearSel(s), yearsOf(s), s.key === 'unit' ? `<span class="vtog" style="margin-left:14px"><button type="button" class="yt ${st.view !== 'table' ? 'on' : ''}" data-view="org">🏢 조직도</button><button type="button" class="yt ${st.view === 'table' ? 'on' : ''}" data-view="table">📋 표</button></span>` : '') : '';
-  const pjSel = s.key === 'perform' || s.key === 'bid' ? `<label>진행 상태<select data-filter="closed"><option value="">전체</option><option value="live" ${st.closed === 'live' ? 'selected' : ''}>진행 중</option><option value="closed" ${st.closed === 'closed' ? 'selected' : ''}>종결</option></select></label>` : '';
+  const pjSel = s.key === 'perform' || s.key === 'bid' || s.key === 'task' ? `<label>진행 상태<select data-filter="closed"><option value="">전체</option><option value="live" ${st.closed === 'live' ? 'selected' : ''}>진행 중</option><option value="closed" ${st.closed === 'closed' ? 'selected' : ''}>종결</option></select></label>` : '';
   if (s.key === 'perform' || s.key === 'bid') c.insertAdjacentHTML('beforeend', pjHero(s));
   else if (s.key === 'task') c.insertAdjacentHTML('beforeend', taskHero(s));
   c.insertAdjacentHTML('beforeend', `<section class="card"><h2>${esc(s.label)}</h2>${yt}
-    <div class="fbar">${filters}${pjSel}${s.owner ? sel('owner', '담당자', owners, st.owner) : ''}
+    <div class="fbar">${filters}${s.key === 'task' ? '' : pjSel}${s.owner ? sel('owner', '담당자', owners, st.owner) : ''}${s.key === 'task' ? pjSel : ''}
       ${s.key === 'todo' ? `<label>완료 여부<select data-filter="done"><option value="">전체</option><option value="done" ${st.done === 'done' ? 'selected' : ''}>완료 (O)</option><option value="open" ${st.done === 'open' ? 'selected' : ''}>미완료</option></select></label>` : ''}
       ${s.owner ? `<label class="chk"><input type="checkbox" id="fMine" ${st.mine ? 'checked' : ''}> 내 업무만 보기</label>` : ''}
       <label>검색<input type="search" id="fQ" value="${esc(st.q)}" placeholder="내용 검색"></label>
@@ -2791,7 +2796,7 @@ const actCell = (key, r) => `<td class="act">${key === 'task' && !noEdit() ? (r.
 /* 셀 텍스트 서식: 1. / 1) / (1) / 가. / - / -> / ※ / ㅇ□■▶ 등 글머리와 날짜를 인식해 정리 */
 const DATE_RE = /^['`΄‘’]?\d{2}(?:\d{2})?\s?[.\/]\s?\d{1,2}(?:\s?[.\/]\s?\d{1,2})?\.?(?:\s?[~∼-]\s?['`΄‘’]?\d{1,4}(?:\s?[.\/]\s?\d{1,2}){0,2}\.?)?/;
 function fmtText(v) {
-  const lines = String(v ?? '').replace(/\r/g, '').split('\n');
+  const lines = purgeStrike(v ?? '').replace(/\r/g, '').split('\n');
   while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
   let base = 0;
   return '<div class="fx">' + lines.map(raw => {
@@ -2825,52 +2830,13 @@ const mkey = (rid, f) => rid + '\u0001' + f;
 const selCls = (rid, f) => SEL && SEL.route === route && SEL.rid === rid && SEL.f === f ? ' sel' : '';
 const cellAttr = (r, f, ck = f) => `data-rid="${esc(r.id)}" data-f="${esc(f)}" data-ck="${esc(ck)}"`;
 
-/* ---------- 삭제 표시(취소선) : 편집에서 지운 내용은 ~~내용~~ 으로 남기고, 표시된 내용을 다시 지우면 완전 삭제 ---------- */
+/* ---------- 예전 삭제 표시(~~내용~~) : 2026-10-13.12 부터 새로 만들지 않음. 남아 있는 것은 화면·엑셀에서 숨기고(purgeStrike) 편집 저장 때 지움 ---------- */
 function strikeTokens(s) {
   const out = [], re = /~~([\s\S]*?)~~/g; let last = 0, m;
   const push = (txt, st) => (txt.match(/\n|[ \t]+|[^\s]+/g) || []).forEach(t => out.push({ t, st: st && t !== '\n' }));
   while ((m = re.exec(s))) { push(s.slice(last, m.index), false); push(m[1], true); last = re.lastIndex; }
   push(s.slice(last), false);
   return out;
-}
-function joinTokens(arr) {
-  let s = '', run = '';
-  const flush = () => { if (run.trim()) s += '~~' + run + '~~'; run = ''; };   // 공백만 지운 것은 표시하지 않음
-  for (const k of arr) { if (k.st) run += k.t; else { flush(); s += k.t; } }
-  flush();
-  return s;
-}
-function mergeStrike(oldV, newV) {
-  oldV = oldV || ''; newV = newV || '';
-  if (oldV === newV || !oldV) return newV;
-  const a = strikeTokens(oldV), b = strikeTokens(newV), n = a.length, m = b.length, W = m + 1;
-  if (n * m > 4e6) return newV;                                        // 너무 긴 경우 비교 생략
-  const eq = (x, y) => x.t === y.t && x.st === y.st, dp = new Uint32Array((n + 1) * W);
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
-    dp[i * W + j] = eq(a[i], b[j]) ? dp[(i + 1) * W + j + 1] + 1 : Math.max(dp[(i + 1) * W + j], dp[i * W + j + 1]);
-  const ops = []; let i = 0, j = 0;
-  while (i < n && j < m) {
-    if (eq(a[i], b[j])) { ops.push({ k:'eq', tok:b[j] }); i++; j++; }
-    else if (dp[(i + 1) * W + j] >= dp[i * W + j + 1]) ops.push({ k:'del', tok:a[i++] });
-    else ops.push({ k:'ins', tok:b[j++] });
-  }
-  while (i < n) ops.push({ k:'del', tok:a[i++] });
-  while (j < m) ops.push({ k:'ins', tok:b[j++] });
-  const strikes = o => o && o.k === 'del' && !o.tok.st && o.tok.t.trim() && o.tok.t !== '\n';
-  const out = [];
-  ops.forEach((o, x) => {
-    if (o.k !== 'del') return out.push(o.tok);
-    if (o.tok.st) return;                                              // 이미 삭제 표시된 내용을 지움 → 완전 삭제
-    if (o.tok.t === '\n') {                                            // 지운 줄의 줄바꿈은 그 줄에 삭제 표시가 남을 때만 유지
-      let p = x - 1, q = x + 1;
-      while (p >= 0 && ops[p].tok.t !== '\n' && !ops[p].tok.t.trim()) p--;
-      while (q < ops.length && ops[q].tok.t !== '\n' && !ops[q].tok.t.trim()) q++;
-      if (strikes(ops[p]) || strikes(ops[q])) out.push({ t:'\n', st:false });
-      return;
-    }
-    out.push({ t:o.tok.t, st:true });
-  });
-  return joinTokens(out);
 }
 /* 추가된 내용 표시: 기준 내용 대비 새로 들어간 단어·줄을 … 로 감싸 반환 (화면=파란 글씨, 엑셀=파란 글씨) */
 const ADD_S = '', ADD_E = '', markCache = new Map();
@@ -3662,9 +3628,9 @@ function renderAlloc(c) {
   const up = new Map(d.list.map(x => [x.person + '|' + x.month.slice(5), x]));
   const grid = `<table class="t agrid"><thead><tr><th>부서원</th>${Array.from({ length:12 }, (_, i) => `<th>${i + 1}월</th>`).join('')}</tr></thead><tbody>${names.map(n => `<tr><td><span class="wperson"><span class="wav sm">${avHtml(n)}</span>${esc(n)}</span></td>${Array.from({ length:12 }, (_, i) => {
       const x = up.get(n + '|' + String(i + 1).padStart(2, '0'));
-      return `<td>${x ? `<button class="aok" ${H || x.personId === AUTH.id ? `data-adel="${esc(x.personId)}|${esc(x.month)}"` : ''} title="${esc(`${x.file || ''} · ${x.uploadedBy} ${fmtTime(x.at)}${H || x.personId === AUTH.id ? ' · 누르면 삭제' : ''}`)}">✓</button>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+      return `<td>${x ? `<button class="aok${H || x.personId === AUTH.id ? ' del' : ''}" ${H || x.personId === AUTH.id ? `data-adel="${esc(x.personId)}|${esc(x.month)}"` : ''} title="${esc(`${x.file || ''} · ${x.uploadedBy} ${fmtTime(x.at)}${H || x.personId === AUTH.id ? ' · 누르면 삭제' : ''}`)}"><span>✓</span><b>✕</b></button>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
   const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
-  c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, `<button class="btn wadd" data-aup>⬆ 시수 파일 올리기 <small style="font-weight:400;opacity:.75">(끌어다 놓기 가능)</small></button>`)}
+  c.insertAdjacentHTML('beforeend', hero(`${yearTabs(AS.year, years, `<button class="btn wadd" data-aup>⬆ 시수 파일 올리기 <small style="font-weight:400;opacity:.75">(끌어다 놓기 가능)</small></button>${d.list.some(x => H || x.personId === AUTH.id) ? '<button class="btn wadd tsdel" data-atsdel>🗑 올린 파일 삭제</button>' : ''}`)}
       <div class="wtypes"><button class="wtc ${!AS.month ? 'on' : ''}" data-amonth="">연간</button>${Array.from({ length:12 }, (_, i) => { const mm = String(i + 1).padStart(2, '0'); return `<button class="wtc ${AS.month === mm ? 'on' : ''} ${monthsWith.has(mm) ? '' : 'dim'}" data-amonth="${mm}">${i + 1}월</button>`; }).join('')}</div>
       <div class="al-sub"><span class="al-lock ${H ? 'open' : ''}">${H ? '🔓 실제 시간(h) 표시 중 — Management 권한' : '🔒 비율(%)만 표시 — 실제 시간은 Management 권한자만 볼 수 있습니다'}</span>${origin}</div>`,
     `${d.error ? `<section class="card"><div class="empty">불러오지 못했습니다: ${esc(d.error)}</div></section>` : ''}
@@ -3683,12 +3649,13 @@ function renderAlloc(c) {
     <section class="card"><h2>🔎 개인 분석 — ${esc(sel || '-')} <span class="muted">· ${esc(plabel)}</span></h2>${detail}</section>
     <section class="card"><h2>📤 시수 업로드 현황 <span class="muted">· ${esc(AS.year)}년 · ✓ = 올림${H ? ' (누르면 삭제)' : ' (본인 것은 누르면 삭제)'}</span></h2><div class="tw" style="max-height:none">${grid}</div></section>`));
   $('#allocv').addEventListener('click', async e => {
-    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel]'); if (!t) return;
     const dd = t.dataset;
     if (dd.year != null) { AS.year = dd.year || ty; AS.month = ''; }
     else if (dd.amonth != null) AS.month = AS.month === dd.amonth && t.classList.contains('amc') ? '' : dd.amonth;
     else if (dd.aperson) AS.person = dd.aperson;
     else if (dd.aup != null) return openTsUpload();
+    else if (dd.atsdel != null) return openTsDelete(d.list.filter(x => H || x.personId === AUTH.id));
     else if (dd.adel) {
       const [pid, mon] = dd.adel.split('|');
       if (await ask('시수 파일 삭제', `<b>${esc(pid)}</b> · ${esc(mon)} 시수를 지웁니다. 다시 올리면 됩니다.`, [{ id:'ok', label:'삭제', cls:'bad' }, { id:'no', label:'취소' }]) !== 'ok') return;
@@ -3696,6 +3663,21 @@ function renderAlloc(c) {
     }
     render();
   });
+}
+// 올린 시수 파일 지우기: 지울 수 있는 것(본인 것 · Management 는 전부)을 목록으로 보여 주고 하나씩 삭제
+async function openTsDelete(list) {
+  list = [...list].sort((a, b) => b.month.localeCompare(a.month) || a.person.localeCompare(b.person, 'ko'));
+  if (!list.length) return toast('지울 수 있는 시수 파일이 없습니다', true);
+  const rows = list.map((x, i) => `<tr><td><b>${esc(x.person)}</b> <span class="muted">${esc(x.personId)}</span></td><td>${esc(x.month)}</td><td class="muted">${esc(x.file || '')}</td><td class="muted">${esc(x.uploadedBy || '')} ${esc(fmtTime(x.at))}</td><td><button class="btn sm bad" data-id="d${i}">삭제</button></td></tr>`).join('');
+  const r = await ask(`🗑 올린 시수 파일 삭제 · ${AS.year}년`, `<p class="muted" style="margin:0 0 8px">지운 달은 분석에서 빠집니다. 같은 달을 다시 올리면 됩니다.</p><div class="tw" style="max-height:55vh"><table class="t"><thead><tr><th>부서원</th><th>월</th><th>파일</th><th>올린 사람</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`, [{ id:'no', label:'닫기' }]);
+  if (!r || r[0] !== 'd') return;
+  const x = list[+r.slice(1)];
+  await new Promise(ok => setTimeout(ok, 0));            // 앞 창이 완전히 닫힌 뒤 확인 창을 엶
+  if (await ask('시수 파일 삭제', `<b>${esc(x.person)}</b> · ${esc(x.month)} 시수를 지울까요?`, [{ id:'ok', label:'삭제', cls:'bad' }, { id:'no', label:'취소' }]) !== 'ok') { await new Promise(ok => setTimeout(ok, 0)); return openTsDelete(list); }
+  try { await api('DELETE', `timesheet/${enc(x.personId)}/${enc(x.month)}`); toast(`${x.person} ${x.month} 시수를 지웠습니다`); }
+  catch (er) { return toast('삭제 실패: ' + er.message, true); }
+  delete AS.data[AS.year]; render();
+  const rest = list.filter(y => y !== x); if (rest.length) openTsDelete(rest);
 }
 // 시수 파일 올리기: 끌어다 놓기(또는 눌러서 고르기) → 서버가 읽기만 해서 미리보기(월·줄·분류) → 월 확인 → [업로드] 를 눌러야 저장·분석
 async function openTsUpload(dropped) {
@@ -3855,7 +3837,7 @@ const xesc = s => String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').replace
 const colL = i => { let s = '', n = i + 1; while (n) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
 
 function xlCell(r, c, cell) {
-  const ref = colL(c) + r, v = cell.v, s = cell.s;
+  const ref = colL(c) + r, v = typeof cell.v === 'string' ? purgeStrike(cell.v) : cell.v, s = cell.s;   // 예전 ~~삭제 표시~~ 는 내보내지 않음
   if (typeof v === 'number') return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
   if (v === '' || v == null) return `<c r="${ref}" s="${s}"/>`;
   if (typeof v === 'string' && (/~~[\s\S]*?~~/.test(v) || v.includes(ADD_S))) {   // 서식 있는 텍스트: 삭제=붉은 취소선, 추가=파란 글씨

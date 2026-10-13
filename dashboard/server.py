@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.5'
+SERVER_VERSION = '2026-10-13.6'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역
@@ -1060,6 +1060,9 @@ def api_ts_delete(acc, can_all, pid, month):
         if not os.path.exists(ts_path(month, pid)):
             raise ApiError(404, '없는 시수 파일입니다')
         os.remove(ts_path(month, pid))
+        raw = P('timesheets', month[:4], 'raw', f'{pid}_{month}.xlsx')     # 올린 원본 엑셀도 함께 지움
+        if os.path.exists(raw):
+            os.remove(raw)
     log.info('시수 삭제: %s %s by %s', pid, month, acc['id'])
     return {'status': 'ok'}
 
