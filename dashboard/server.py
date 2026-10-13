@@ -21,18 +21,18 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit, parse_qs, unquote, quote
 
-SHEETS = ['perform', 'bid', 'issue', 'rnr', 'general', 'unit', 'techshare', 'todo', 'staffing', 'notice']
+SHEETS = ['perform', 'bid', 'issue', 'rnr', 'general', 'unit', 'techshare', 'todo', 'staffing', 'notice', 'task']   # task = 통합 업무
 LABEL = {'perform': '수행', 'bid': '입찰', 'issue': '프로젝트 이슈사항', 'rnr': 'PJT R&R', 'general': '일반업무', 'unit': '유닛분장',
-         'techshare': '기술공유', 'todo': 'To do list', 'staffing': '계장 투입인력', 'notice': '주간회의 전달사항'}
+         'techshare': '기술공유', 'todo': 'To do list', 'staffing': '계장 투입인력', 'notice': '주간회의 전달사항', 'task': '통합 업무'}
 TITLE = {'perform': 'PJT명', 'bid': 'PJT명', 'issue': 'PJT명', 'rnr': 'PJT명', 'general': '업무 내용', 'unit': '유닛',
-         'techshare': '발표 내용', 'todo': '지시 사항', 'staffing': '이름', 'notice': '제목'}
+         'techshare': '발표 내용', 'todo': '지시 사항', 'staffing': '이름', 'notice': '제목', 'task': '업무 내용'}
 FILE_TYPES = {'.pdf': 'application/pdf', '.ppt': 'application/vnd.ms-powerpoint',
               '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'}
 ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.2'
+SERVER_VERSION = '2026-10-13.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16) + --allow 로 추가한 대역

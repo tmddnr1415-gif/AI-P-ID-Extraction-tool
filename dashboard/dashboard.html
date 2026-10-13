@@ -170,6 +170,22 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .wbody .fx{max-height:120px;overflow:auto}
 .wpick{display:grid;gap:8px}.wpick span{display:flex;flex-direction:column;border-left:4px solid var(--c);background:#f7f8fc;border-radius:8px;padding:8px 12px}.wpick small{color:var(--sub)}
 @media (max-width:1300px){.wkpis{grid-template-columns:repeat(4,1fr)}.wk-main{grid-column:span 2}.wgrid{grid-template-columns:1fr}}
+/* ---------- 통합 업무 현황판 (유형 카드) ---------- */
+.whero.task-hero{background:radial-gradient(circle at 85% -20%,rgba(255,255,255,.25),transparent 45%),linear-gradient(120deg,#1b2a8c 0%,#3b3fd8 45%,#7b4ee8 75%,#d04fa8 100%)}
+.ttcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
+.ttc{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);overflow:hidden}
+.ttc::before{content:'';position:absolute;inset:0 0 auto 0;height:5px;background:var(--c)}
+.ttc.on{outline:2px solid var(--c);background:color-mix(in srgb,var(--c) 5%,#fff)}
+.ttc-h{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;width:100%;border:0;background:none;padding:4px 0 8px;text-align:left}
+.ttc-i{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;font-size:22px;background:color-mix(in srgb,var(--c) 14%,#fff)}
+.ttc-n{font-weight:800;font-size:15px;color:var(--c);display:flex;flex-direction:column}.ttc-n small{font-weight:400;font-size:11.5px;color:var(--sub)}
+.ttc-v{font-size:30px;font-weight:900;color:var(--c);text-align:right;line-height:1}.ttc-v small{display:block;font-size:11px;font-weight:400;color:var(--sub)}
+.ttc-s{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}.ttc-s .wst{font-size:11px;padding:1px 7px}
+.ttc-b{height:8px;border-radius:5px;background:#eef0f5;overflow:hidden}.ttc-b i{display:block;height:100%;background:var(--c)}
+.ttc-x{font-size:12px;margin:6px 0 8px}
+.ttc-u{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;width:100%;border:1px solid var(--line);background:#fafbff;border-radius:9px;padding:5px 8px;margin-top:5px;font-size:12.5px;text-align:left}
+.ttc-u:hover{border-color:var(--c)}.ttc-u .wst{font-size:10.5px;padding:1px 6px}.ttc-u em{font-style:normal;color:var(--sub);font-size:11.5px}
+.ttc-ok{font-size:12px;color:var(--ok);margin-top:6px}
 /* ---------- 담당 업무 요약 · 종결 버튼 ---------- */
 .psums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .psum{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,#fff,#f7f9ff)}
@@ -691,6 +707,11 @@ const SHEETS = [
     {f:'구분', w:110, sug:1}, {f:'소구분', w:70, sug:1}, {f:'업무 내용', w:320, long:1, rows:4, strong:1},
     {f:'책임자', w:90}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1},
     {f:'진행사항', w:380, long:1, rows:6} ]},
+  // 통합 업무: 유형(과제 / 지시사항 및 Action List / To Do List)을 부서원이 고름. 메뉴는 '🚀 통합 업무' (위 현황판 + 아래 표)
+  { key:'task', label:'통합 업무', title:'업무 내용', owner:'담당자', filters:['유형'], group:'유형', merged:'task', cols:[
+    {f:'유형', w:150, ttype:1}, {f:'구분', w:90, sug:1}, {f:'업무 내용', w:260, long:1, rows:3, strong:1}, {f:'담당자', w:100, long:1, rows:2},
+    {f:'요청자', w:80, sug:1}, {f:'시작일', w:100, date:1}, {f:'종료일', w:100, date:1}, {f:'종료 구분', w:120, opts:['기한','상시'], endk:1},
+    {f:'진척률', w:70, pct:1}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1}, {f:'진행 사항', w:360, long:1, rows:7}, {f:'비고', w:170, long:1, rows:2} ]},
   // 유닛분장: 연도 탭 + 조직도(기본)/표. 수행·입찰 PJT 열은 없앰 → 각자 '내 정보'에 입력한 PJT 가 조직도에 표시
   { key:'unit', label:'유닛분장', title:'유닛', owner:'구성원', filters:[], group:'연도', cols:[
     {f:'연도', w:60, sug:1}, {f:'유닛', w:100, strong:1}, {f:'그룹장', w:90},
@@ -763,7 +784,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -880,33 +901,43 @@ function baseMaps() {
   if (!m) { m = {}; for (const k in sh) m[k] = new Map(sh[k].map(r => [r.id, r])); mapCache.set(sh, m); }
   return m;
 }
+// 통합 업무로 가져온 행(ID 'task-원래ID'): 마감본에 그 행이 없으면 예전 시트의 원래 행을 바꿔 비교 기준으로 (가져오기만으로 노란 음영이 생기지 않게)
+const isImported = rec => rec.sheet === 'task' && /^task-/.test(rec.id || '');
+function baseRec(bm, rec) {
+  const b = bm[rec.sheet]?.get(rec.id); if (b || !isImported(rec)) return b;
+  const oid = rec.id.slice(5);
+  for (const k of WORK_KEYS) { const o = bm[k]?.get(oid); if (o) return { id:rec.id, fields:legacyToTask(k, o.fields) }; }
+  return undefined;
+}
+const freshImport = rec => isImported(rec) && (rec.meta?.rev || 1) === 1;   // 가져온 뒤 아직 안 고친 행
 function hlOf(rec) {
   const bm = baseMaps();
   if (bm) {
-    const b = bm[rec.sheet]?.get(rec.id);
-    if (!b) return { all:true, has:() => true };                       // 마감 이후 새로 추가된 행
+    const b = baseRec(bm, rec);
+    if (!b) return freshImport(rec) ? { all:false, has:() => false } : { all:true, has:() => true };                       // 마감 이후 새로 추가된 행
     const d = new Set(diffPaths(b.fields, rec.fields));
     return { all:false, has:p => d.has(p) };
   }
   const { since, until } = period(), m = rec.meta || {};
   const inP = t => t && t > since && t <= until;
-  const all = m.createdBy !== IMPORT_BY && inP(m.createdAt);
+  const all = m.createdBy !== IMPORT_BY && inP(m.createdAt) && !freshImport(rec);
   return { all, has: p => all || inP((m.changes || {})[p]) };
 }
 /* '추가된 내용' 비교 기준 필드: object = 기준 내용, null = 새로 추가된 행(전부 추가), undefined = 알 수 없음 */
 function baseFieldsOf(rec) {
   const bm = baseMaps();
-  if (bm) { const b = bm[rec.sheet]?.get(rec.id); return b ? b.fields : null; }
+  if (bm) { const b = baseRec(bm, rec); return b ? b.fields : freshImport(rec) ? rec.fields : null; }
   const { since, until } = period(), m = rec.meta || {};
   if (m.orig != null && (m.origSince || '') === since) return m.orig;
+  if (freshImport(rec)) return rec.fields;
   if (m.createdBy !== IMPORT_BY && m.createdAt > since && m.createdAt <= until) return null;
   return m.updatedBy === IMPORT_BY ? rec.fields : undefined;
 }
 function isUpdated(rec) {
   const bm = baseMaps();
-  if (bm) { const b = bm[rec.sheet]?.get(rec.id); return !b || diffPaths(b.fields, rec.fields).length > 0; }
+  if (bm) { const b = baseRec(bm, rec); return b ? diffPaths(b.fields, rec.fields).length > 0 : !freshImport(rec); }
   const { since, until } = period(), m = rec.meta || {};
-  return m.updatedBy !== IMPORT_BY && m.updatedAt > since && m.updatedAt <= until;
+  return m.updatedBy !== IMPORT_BY && m.updatedAt > since && m.updatedAt <= until && !freshImport(rec);
 }
 
 /* =====================================================================
@@ -1602,6 +1633,7 @@ function inputFor(s, c, val) {
     <div class="fup"><input type="file" data-fup accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple><span class="muted">PDF·PPT(X), 파일당 30MB 이하</span></div>`;
   if (c.ai) return `<button type="button" class="btn sm aibtn" data-ai title="이슈사항·종결현황·Remark 내용을 요약해 아래 칸에 채웁니다 (수정 가능)">✨ AI 요약</button><textarea data-f="${esc(c.f)}" rows="${c.rows || 4}">${esc(v)}</textarea>`;
   if (c.long) return `<textarea data-f="${esc(c.f)}" rows="${c.rows || 4}"${guideOn(s, c) ? ' data-guide' : ''}>${esc(v)}</textarea>`;
+  if (c.ttype) return `<select data-f="${esc(c.f)}"><option value="">— 유형을 고르세요 —</option>${TASK_TYPES.map(t => `<option ${v === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}${v && !TT[v] ? `<option selected>${esc(v)}</option>` : ''}</select>`;
   if (c.closed) return `<select data-f="${esc(c.f)}"><option value="">진행 (기본)</option><option ${v === '진행' ? 'selected' : ''}>진행</option><option ${v === '종결' ? 'selected' : ''}>종결</option></select>`;
   if (c.endk) return `<select data-f="${esc(c.f)}"><option value="">자동 (종료일 있으면 기한)</option><option value="기한" ${v === '기한' ? 'selected' : ''}>📅 기한 — 종료일 있음, 종료 현황 추적</option><option value="상시" ${v === '상시' ? 'selected' : ''}>♾ 상시 — 종료일 없음, 추적 안 함</option></select>`;
   if (c.date) { const ok = !v || /^\d{4}-\d{2}-\d{2}$/.test(v); return `<input data-f="${esc(c.f)}" type="${ok ? 'date' : 'text'}" value="${esc(v)}">`; }
@@ -1622,7 +1654,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
   if (s.special === 'matrix') return openStaffEdit(id, { mine, preset });
   const rec = id ? DB.recs[key].find(r => r.id === id) : null;
   const f = rec ? rec.fields : { ...(preset || {}) };
-  if (!rec) s.cols.forEach(c => { if (guideOn(s, c) && !f[c.f]) f[c.f] = guideTpl(c); });   // 행 추가: 작성 가이드 틀
+  if (!rec) s.cols.forEach(c => { if (guideOn(s, c) && !f[c.f]) f[c.f] = guideTpl(c, f); });   // 행 추가: 작성 가이드 틀
   const hasGuide = s.cols.some(c => guideOn(s, c));
   const body = s.cols.map(c => {
     const full = c.long || c.file || c.f === s.title ? 'full' : '';
@@ -1646,6 +1678,8 @@ async function openEdit(key, id, { mine, preset } = {}) {
       toast('요약을 채웠습니다. 필요하면 고친 뒤 [저장]하세요');
     }
   };
+  const tsel = key === 'task' && $('select[data-f="유형"]', dlg);   // 유형을 바꾸면, 아직 손대지 않은 진행 사항 틀도 그 유형 틀로
+  if (tsel) tsel.onchange = () => { const ta = $('textarea[data-f="진행 사항"]', dlg); if (ta && (!ta.value.trim() || [GUIDE_TPL, ...Object.values(TASK_TPL)].includes(ta.value))) ta.value = TASK_TPL[tsel.value] || GUIDE_TPL; };
   const fup = $('[data-fup]', dlg);
   if (fup) fup.onchange = async () => {                      // 첨부파일 올리기: 서버 files/ 에 저장 후 목록에 추가
     if (!SERVER || OFFLINE) { fup.value = ''; return toast('첨부파일은 서버에 연결되어 있을 때만 올릴 수 있습니다', true); }
@@ -1673,6 +1707,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
     const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
     s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });   // 내용 없는 글머리 줄 지우기
     if (rec) s.cols.filter(c => c.long && !c.ai).forEach(c => { nf[c.f] = mergeStrike(rec.fields[c.f], nf[c.f]); });   // 지운 내용 → 취소선 (AI 요약은 새로 덮어씀)
+    if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (과제 / 지시사항 및 Action List / To Do List)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
     await submitRecord(key, id, rec, nf, mine);
   };
@@ -2084,6 +2119,7 @@ async function pidConnect(key) {
 }
 
 function render() {
+  if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }   // 예전 주소 #work → 통합 업무 시트
   applyExtraCols();                                        // 사용자가 추가한 열 반영
   renderMenu(); renderHeader();
   const c = $('#content');
@@ -2119,14 +2155,13 @@ function render() {
   if (route === 'home') renderHome(c); else if (route === 'board') renderBoard(c);
   else if (PID_ROUTES[route]) renderPid(c, route);
   else if (MODULES[route]) renderModule(c, route);
-  else if (route === 'work') renderWork(c);
   else if (route === 'alloc') renderAlloc(c);
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'mgmt'];   // work = 통합 업무(일반업무·To do·기술공유)   // bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'mgmt'];   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
@@ -2137,7 +2172,7 @@ function renderMenu() {
   const cntOf = keys => ({ n:root ? keys.reduce((a, k) => a + getRecs(k).length, 0) : '', c:root ? keys.reduce((a, k) => a + getRecs(k).filter(isUpdated).length, 0) : 0 });
   const sub = SHEETS.filter(s => !s.merged).map(s => ({ k:s.key, l:s.label, ...cntOf([s.key]), t:'수정·변경된 행' }));
   sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'alloc', l:'👥 R&R · 투입 분석', ...cntOf(['rnr', 'staffing']), t:'수정·변경된 행' });
-  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'work', l:'🚀 통합 업무', ...cntOf(WORK_KEYS), t:'수정·변경된 행' });
+  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'task', l:'🚀 통합 업무', ...cntOf(['task']), t:'수정·변경된 행' });
   const subNew = sub.reduce((a, i) => a + i.c, 0), inWeekly = route === 'home' || route === 'work' || route === 'alloc' || !!SHEET[route];
   const btn = (i, cls = '') => `<button class="mi ${cls} ${route === i.k ? 'on' : ''}" data-k="${i.k}">${i.c ? '<span class="chgmark">!</span>' : ''}<span class="ml" title="${esc(i.l)}">${esc(i.l)}</span>${i.c ? `<span class="chgtag" title="${i.t} ${i.c}건">!(${i.c})</span>` : ''}${i.n !== '' ? `<span class="n">${i.n}</span>` : ''}</button>`;
   // 상위 메뉴 + 접기/펼치기 + 하위 메뉴 묶음
@@ -2241,16 +2276,17 @@ document.addEventListener('mousemove', e => {
 });
 
 /* 홈 팝업: 미업데이트 PJT / 기한 지난 To do / 금주 업데이트 → 항목 클릭 시 해당 입력 칸으로 이동 */
-const todoOverdue = () => getRecs('todo').filter(r => r.fields['완료 여부'] !== 'O' && /^\d{4}-\d{2}-\d{2}$/.test(r.fields['Target Date'] || '') && r.fields['Target Date'] < todayISO());
+const workAll = () => readOnly() ? [] : workRecs().map(({ k, r }) => workItem(k, r));
+const todoOverdue = () => workAll().filter(i => i.cls === 'late');                  // 기한 지난 통합 업무 (종결 안 함)
 const sinceText = () => DB.state.lastClosedWeek ? `마지막 마감(${weekLabel(DB.state.lastClosedWeek)} 수 11:59) 이후` : '엑셀 이관 이후';
 function popData(kind) {
   const R = k => getRecs(k);
   if (kind === 'notupd') return { title:'이번 주 미업데이트 PJT', desc:`${sinceText()} 내용이 바뀌지 않은 PJT입니다. 항목을 누르면 해당 PJT의 <b>계장ENG 업무 현황</b> 칸으로 이동합니다.`,
     groups:['perform', 'bid'].map(k => ({ key:k, items:R(k).filter(r => isLive(r) && !isUpdated(r)).map(r => ({ rid:r.id, f:'업무 현황', label:recLabel(k, r.fields),
       sub:`${flat(r.fields['사업군'])} · 담당 ${flat(r.fields['담당자']) || '-'} · 최종 수정 ${r.meta.updatedBy || ''} ${fmtTime(r.meta.updatedAt)}` })) })) };
-  if (kind === 'overdue') return { title:'기한 지난 To do', desc:'Target Date 가 지났는데 완료(O)되지 않은 지시 사항입니다. 항목을 누르면 해당 행의 <b>현황</b> 칸으로 이동합니다.',
-    groups:[{ key:'todo', items:todoOverdue().map(r => ({ rid:r.id, f:'현황', label:recLabel('todo', r.fields),
-      sub:`기한 ${r.fields['Target Date']} · PO ${flat(r.fields.PO) || '-'} · ${r.fields['구분'] || ''}${r.fields['완료 여부'] ? ' · 상태 ' + r.fields['완료 여부'] : ''}` })) }] };
+  if (kind === 'overdue') return { title:'기한 지난 통합 업무', desc:'종료일이 지났는데 종결하지 않은 업무입니다. 항목을 누르면 해당 행으로 이동합니다 (끝났으면 [🏁 종결]).',
+    groups:['task', ...WORK_KEYS].map(k => ({ key:k, items:todoOverdue().filter(i => i.key === k).map(i => ({ rid:i.r.id, f:i.w.body || i.w.title, label:recLabel(k, i.f),
+      sub:`기한 ${i.end} · ${i.st} · 담당 ${flat(i.personRaw) || '-'} · ${i.w.label}` })) })) };
   return { title:'금주 업데이트', desc:`${sinceText()} 수정·추가된 행입니다. 메뉴를 고르거나, 항목을 눌러 바뀐 칸으로 바로 이동하세요.`,
     groups:SHEETS.map(s => ({ key:s.key, items:R(s.key).filter(isUpdated).sort((a, b) => (a.meta.updatedAt < b.meta.updatedAt ? 1 : -1)).map(r => {
       const h = hlOf(r), chg = s.cols ? s.cols.filter(c => h.has(c.f)) : [];
@@ -2284,10 +2320,10 @@ function myTasks() {
     if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'계장ENG 업무 현황 작성', done:isUpdated(r) });
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
-  for (const k of WORK_KEYS) for (const r of DB.recs[k] || []) {
-    const it = workItem(k, r);
-    if (it.cls === 'done' || !isMineName(it.personRaw) || !(k === 'todo' || it.cls === 'late' || it.cls === 'soon')) continue;
-    out.push({ key:k, rid:r.id, f:'__ack', alarm:true, kind:`🔔 ${WORK[k].label}`, label:recLabel(k, r.fields),
+  for (const { k, r } of workRecs()) {                      // 과제는 지연·임박만, 지시사항·To Do 는 종결 전 전부
+    const it = workItem(k, r), all = k === 'todo' || (k === 'task' && it.f['유형'] !== '과제');
+    if (it.cls === 'done' || !isMineName(it.personRaw) || !(all || it.cls === 'late' || it.cls === 'soon')) continue;
+    out.push({ key:k, rid:r.id, f:'__ack', alarm:true, kind:`🔔 ${k === 'task' ? ttOf(it.f['유형']).short : WORK[k].label}`, label:recLabel(k, r.fields),
       sub:`완료해야 할 업무 · ${it.st}${it.end ? ' · 기한 ' + it.end : ''}`, done:ack.has(ackKey(k, r.id)) });
   }
   return out.sort((a, b) => a.done - b.done);             // 미완료가 위
@@ -2388,17 +2424,17 @@ function renderHome(c) {
   const closedN = [...R('perform'), ...R('bid')].length - pj.length;
   const upd = SHEETS.map(s => ({ l:s.label, v:R(s.key).filter(isUpdated).length })).filter(x => x.v);
   const updTotal = upd.reduce((a, x) => a + x.v, 0);
-  const todoOpen = R('todo').filter(r => r.fields['완료 여부'] !== 'O');
+  const todoOpen = workAll().filter(i => i.cls !== 'done' && i.cls !== 'perm');
   const overdue = todoOverdue();
   const notUpd = pj.filter(r => !isUpdated(r)).length;
   const kp = [
     ['수행 PJT 수 (진행 중)', live('perform').length, 'perform', '건'], ['입찰 PJT 수 (진행 중)', live('bid').length, 'bid', '건'],
     ['금주 업데이트 건수', updTotal, route, '건'], ['종결 PJT (집계 제외)', closedN, 'perform', '건'],
-    ['To do 미완료', todoOpen.length, 'work', '건'], ['투입인력 합계', R('staffing').length, 'staffing', '명'],
+    ['통합 업무 미종결 (기한)', todoOpen.length, 'task', '건'], ['투입인력 합계', R('staffing').length, 'staffing', '명'],
   ];
   c.insertAdjacentHTML('beforeend', `<div class="badges">
     <button class="badge red ${notUpd ? '' : 'zero'}" data-pop="notupd" title="눌러서 목록 보기">이번 주 미업데이트 PJT <b>${notUpd}</b></button>
-    <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 To do <b>${overdue.length}</b></button></div>
+    <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 업무 <b>${overdue.length}</b></button></div>
    <div class="kpis">${kp.map(([l, v, go, u], i) => i === 2
       ? `<button class="kpi" data-pop="upd"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="go">메뉴 선택 →</div></button>`
       : `<button class="kpi" data-go="${go}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="go">바로가기 →</div></button>`).join('')}</div>`);
@@ -2441,14 +2477,15 @@ function renderHome(c) {
 /* =====================================================================
  *  시트 화면
  * ===================================================================== */
-function fstate(key) { return FS[key] || (FS[key] = { f:{}, owner:'', mine:false, q:'', done:'', closed:'', upd:'', kw:'', year:undefined, view:'org' }); }
+function fstate(key) { return FS[key] || (FS[key] = { f:{}, owner:'', mine:false, q:'', done:'', closed:'', upd:'', kw:'', wst:'', year:undefined, view:'org' }); }
 /* 연도 탭: 주간회의 전달사항(일자) · 유닛분장(연도). 처음엔 가장 최근 연도, '전체' 선택 가능 */
-const YEAR_OF = { notice:r => String(r.fields['일자'] || '').slice(0, 4), unit:r => String(r.fields['연도'] || '').trim().slice(0, 4) };
+const YEAR_OF = { task:r => (isoD(r.fields['시작일']) || isoD(r.fields['종료일'])).slice(0, 4), notice:r => String(r.fields['일자'] || '').slice(0, 4), unit:r => String(r.fields['연도'] || '').trim().slice(0, 4) };
 const yearsOf = s => [...new Set(getRecs(s.key).map(YEAR_OF[s.key]).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
-function yearSel(s) { const st = fstate(s.key); if (st.year === undefined) st.year = yearsOf(s)[0] || ''; return st.year; }
+function yearSel(s) { const st = fstate(s.key); if (st.year === undefined) st.year = s.key === 'task' ? '' : yearsOf(s)[0] || ''; return st.year; }
 const yearTabs = (cur, years, extra = '') => `<div class="ytabs" role="tablist">${['', ...years].map(y => `<button type="button" class="yt ${y === cur ? 'on' : ''}" data-year="${y}" role="tab">${y ? y + '년' : '전체'}</button>`).join('')}${extra}</div>`;
 /* 주간회의 전달사항은 최신(일자 내림차순)이 위로 */
 function sortRecs(s, arr) {
+  if (s?.key === 'task') { const ti = r => { const i = TASK_TYPES.indexOf(r.fields['유형']); return i < 0 ? 9 : i; }; return [...arr].sort((a, b) => ti(a) - ti(b) || a.order - b.order); }
   if (s?.key !== 'notice') return arr;
   return [...arr].sort((a, b) => (b.fields['일자'] || '').localeCompare(a.fields['일자'] || '') || (b.order - a.order));
 }
@@ -2475,9 +2512,9 @@ function cfSort(s, arr) {
 function closeCf() { $('#cfPop')?.remove(); }
 function openCf(btn) {
   closeCf();
-  const k = btn.dataset.cf, wk = route === 'work', s = wk ? null : SHEET[route]; if (!wk && !s) return;
-  const st = wk ? WS : fstate(s.key); st.cf = st.cf || {};
-  const rows = wk ? workList(k) : filteredRecs(s, k), val = wk ? workVal : (r, kk) => colVal(s, r, kk);
+  const k = btn.dataset.cf, s = SHEET[route]; if (!s) return;
+  const st = fstate(s.key); st.cf = st.cf || {};
+  const rows = filteredRecs(s, k), val = (r, kk) => colVal(s, r, kk);
   const cnt = new Map(); rows.forEach(r => { const v = val(r, k); cnt.set(v, (cnt.get(v) || 0) + 1); });
   const vals = [...cnt.keys()].sort(cfCmp), allow = st.cf[k] ? new Set(st.cf[k]) : null, so = st.sort?.k === k ? st.sort.dir : 0;
   const pop = document.createElement('div'); pop.id = 'cfPop';
@@ -2497,7 +2534,7 @@ function openCf(btn) {
   all.onchange = () => shown().forEach(x => { x.checked = all.checked; });
   pop.onchange = e => { if (e.target.dataset.i != null) syncAll(); };
   q.oninput = () => { const t = q.value.trim().toLowerCase(); boxes.forEach(x => { const l = x.closest('label'); l.hidden = !!t && !l.dataset.t.includes(t); if (t) x.checked = !l.hidden; }); syncAll(); };
-  const done = () => { closeCf(); wk ? render() : drawTable(s); };
+  const done = () => { closeCf(); drawTable(s); };
   pop.onclick = e => {
     const t = e.target.closest('button'); if (!t) return;
     if (t.dataset.cfs) { st.sort = { k, dir:+t.dataset.cfs }; done(); }
@@ -2549,6 +2586,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     if (st.q && !JSON.stringify(Object.values(f)).toLowerCase().includes(st.q.toLowerCase())) return false;
     if (s.key === 'todo' && st.done && (st.done === 'done') !== (f['완료 여부'] === 'O')) return false;
     if (st.upd && (st.upd === 'upd') !== isUpdated(r)) return false;
+    if (s.key === 'task' && st.wst && workItem('task', r).cls !== st.wst) return false;
     if (st.kw && !(st.kw === '(미분류)' ? !bizTok(f['사업군']).length : bizTok(f['사업군']).includes(st.kw))) return false;
     return true;
   });
@@ -2559,9 +2597,10 @@ function renderSheet(c, s) {
   const sel = (id, label, vals, cur) => `<label>${esc(label)}<select data-filter="${esc(id)}"><option value="">전체</option>${vals.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(flat(v))}</option>`).join('')}</select></label>`;
   const filters = s.filters.map(k => sel('f:' + k, k, [...new Set(recs.map(r => r.fields[k]).filter(Boolean))], st.f[k])).join('');
   const owners = s.owner ? [...ownerTokens(recs, s.owner).keys()].sort((a, b) => a.localeCompare(b, 'ko')) : [];
-  const yt = YEAR_OF[s.key] ? yearTabs(yearSel(s), yearsOf(s), s.key === 'unit' ? `<span class="vtog" style="margin-left:14px"><button type="button" class="yt ${st.view !== 'table' ? 'on' : ''}" data-view="org">🏢 조직도</button><button type="button" class="yt ${st.view === 'table' ? 'on' : ''}" data-view="table">📋 표</button></span>` : '') : '';
+  const yt = YEAR_OF[s.key] && s.key !== 'task' ? yearTabs(yearSel(s), yearsOf(s), s.key === 'unit' ? `<span class="vtog" style="margin-left:14px"><button type="button" class="yt ${st.view !== 'table' ? 'on' : ''}" data-view="org">🏢 조직도</button><button type="button" class="yt ${st.view === 'table' ? 'on' : ''}" data-view="table">📋 표</button></span>` : '') : '';
   const pjSel = s.key === 'perform' || s.key === 'bid' ? `<label>진행 상태<select data-filter="closed"><option value="">전체</option><option value="live" ${st.closed === 'live' ? 'selected' : ''}>진행 중</option><option value="closed" ${st.closed === 'closed' ? 'selected' : ''}>종결</option></select></label>` : '';
   if (s.key === 'perform' || s.key === 'bid') c.insertAdjacentHTML('beforeend', pjHero(s));
+  else if (s.key === 'task') c.insertAdjacentHTML('beforeend', taskHero(s));
   c.insertAdjacentHTML('beforeend', `<section class="card"><h2>${esc(s.label)}</h2>${yt}
     <div class="fbar">${filters}${pjSel}${s.owner ? sel('owner', '담당자', owners, st.owner) : ''}
       ${s.key === 'todo' ? `<label>완료 여부<select data-filter="done"><option value="">전체</option><option value="done" ${st.done === 'done' ? 'selected' : ''}>완료 (O)</option><option value="open" ${st.done === 'open' ? 'selected' : ''}>미완료</option></select></label>` : ''}
@@ -2597,6 +2636,7 @@ function renderSheet(c, s) {
   };
   $('#fQ').oninput = e => { st.q = e.target.value; drawTable(s); };
   $('#fReset').onclick = () => { FS[s.key] = null; render(); };
+  const th = $('#taskhero'); if (th) th.onclick = taskHeroClick(st);
   const hero = $('#pjhero'); if (hero) hero.onclick = e => {   // 현황판 카드·칩·막대 → 아래 표 필터
     const t = e.target.closest('[data-pjf]'); if (!t) return;
     const [k, v] = t.dataset.pjf.split('|');
@@ -2638,7 +2678,7 @@ function drawTable(s) {
   });
   el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개 적용 중</b>` : ''}${st.kw ? ` · <b style="color:var(--accent)">사업군에 '${esc(st.kw)}' 포함</b>` : ''} · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
 }
-const actCell = (key, r) => `<td class="act">${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
+const actCell = (key, r) => `<td class="act">${key === 'task' && !noEdit() ? (r.fields['종결 여부'] === '종결' ? `<button class="btn sm" data-wclose="task|${r.id}" title="종결 표시를 풀고 진행으로">↩ 진행</button> ` : `<button class="btn sm wclose" data-wclose="task|${r.id}" title="이 업무를 종결로 표시">🏁 종결</button> `) : ''}${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
 
 /* 셀 텍스트 서식: 1. / 1) / (1) / 가. / - / -> / ※ / ㅇ□■▶ 등 글머리와 날짜를 인식해 정리 */
 const DATE_RE = /^['`΄‘’]?\d{2}(?:\d{2})?\s?[.\/]\s?\d{1,2}(?:\s?[.\/]\s?\d{1,2})?\.?(?:\s?[~∼-]\s?['`΄‘’]?\d{1,4}(?:\s?[.\/]\s?\d{1,2}){0,2}\.?)?/;
@@ -2886,7 +2926,7 @@ const rowAttr = (L, r) => {
   const h = L.rowh[r.id], cls = [h ? 'rhset' : '', rowState(r.sheet, r.fields)].filter(Boolean).join(' ');
   return `data-rid="${esc(r.id)}"${cls ? ` class="${cls}"` : ''}${h ? ` style="--rowh:${h}px"` : ''}`;
 };
-const cfBtn = (key, ck) => { const st = key === 'work' ? WS : FS[key], on = !!st?.cf?.[ck], so = st?.sort?.k === ck ? st.sort.dir : 0;
+const cfBtn = (key, ck) => { const st = FS[key], on = !!st?.cf?.[ck], so = st?.sort?.k === ck ? st.sort.dir : 0;
   return `<button type="button" class="cfb${on || so ? ' on' : ''}" data-cf="${esc(ck)}" title="필터 · 정렬${on ? ' (필터 적용 중)' : ''}">${so === 1 ? '↑' : so === -1 ? '↓' : '▾'}</button>`; };
 const thR = (ck, label, extra = '', key = '') => `<th data-ck="${esc(ck)}" ${key ? extra.replace(/class="([^"]*)"/, 'class="$1 cfh"').replace(/^(?![\s\S]*class=)/, 'class="cfh" ') : extra}>${label}${key ? cfBtn(key, ck) : ''}<span class="rz" title="드래그: 열 너비 조절 · 더블클릭: 기본값"></span></th>`;
 
@@ -2895,7 +2935,7 @@ function tableHtml(s, recs) {
   const L = lay(s.key), cg = colgroup(L, [...s.cols.map(c => ({ k:c.f, w:c.w + 20 })), { k:'__act', w:170 }]);
   let last = null, rows = '';
   for (const r of recs) {
-    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${s.cols.length + 1}">${esc(last || '(미분류)')}</td></tr>`; }
+    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${s.cols.length + 1}">${s.key === 'task' ? `<span style="color:${ttOf(last).color}">${ttOf(last).icon}</span> ${esc(last || '유형 미지정')}` : esc(last || '(미분류)')}</td></tr>`; }
     const h = hlOf(r); h.base = baseFieldsOf(r);
     rows += `<tr ${rowAttr(L, r)}>${s.cols.map(c => cellHtml(s, c, r, h)).join('')}${actCell(s.key, r)}</tr>`;
   }
@@ -2954,7 +2994,7 @@ const WORK_KEYS = Object.keys(WORK);
 const isoD = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '';
 const WST_ORDER = { late:0, soon:1, miss:2, run:3, perm:4, done:5 };
 function workItem(key, r) {
-  const w = WORK[key], f = r.fields, start = isoD(f[w.start]), end = isoD(f[w.end]), base = start || end;
+  const f = r.fields, w = key === 'task' ? { ...TASK_W, ...ttOf(f['유형']), label:f['유형'] || '유형 미지정' } : WORK[key], start = isoD(f[w.start]), end = isoD(f[w.end]), base = start || end;
   const yv = String(f['연도'] || '').trim();
   const year = base ? base.slice(0, 4) : (/^\d{4}$/.test(yv) ? yv : '');
   const half = base ? (+base.slice(5, 7) <= 6 ? 1 : 2) : 0;
@@ -2965,7 +3005,7 @@ function workItem(key, r) {
   else if (key === 'todo' && f['완료 여부'] === 'O') { st = '완료'; cls = 'done'; }
   else if (!track) { st = '상시 · 추적 안 함'; cls = 'perm'; }
   else if (!end) { st = key === 'techshare' ? '발표일 미정' : '종료일 미입력'; cls = 'miss'; }
-  else if (key === 'todo') {
+  else if (key === 'todo' || key === 'task') {                 // 통합 업무: 종결 전까지 기한이 지나면 지연
     if (f['완료 여부'] === 'O') { st = '완료'; cls = 'done'; }
     else if (dd < 0) { st = `지연 ${-dd}일`; cls = 'late'; }
     else if (dd <= 7) { st = dd ? `임박 D-${dd}` : '오늘 마감'; cls = 'soon'; }
@@ -3008,115 +3048,147 @@ function pjHero(s) {
         ${own.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}</section>
     </div></div>`;
 }
-const WS = { year:'', type:'', person:'', st:'', q:'', cf:{}, sort:null };
-const WCOLS = [['wtype', '유형', 110], ['wcat', '구분', 110], ['wtitle', '업무 내용', 220], ['wperson', '담당', 130], ['wstart', '시작', 104], ['wend', '종료(기한)', 110], ['wst', '종료 관리', 134], ['wbody', '진행 내용', 260]];
-function workVal(i, k) {
-  return String({ wtype:i.w.label, wcat:i.cat, wtitle:flat(String(i.title).replace(/~~[\s\S]*?~~/g, '')), wperson:flat(i.personRaw), wstart:i.start, wend:i.end,
-    wst:i.st, wbody:i.w.body ? flat(String(i.f[i.w.body] || '').replace(/~~[\s\S]*?~~/g, '')) : '' }[k] ?? '');
-}
-function workScope() {
-  const all = WORK_KEYS.flatMap(k => getRecs(k).map(r => workItem(k, r)));
-  const inYear = all.filter(i => !WS.year || i.year === WS.year);
-  return { all, inYear, scope:inYear.filter(i => !WS.type || i.key === WS.type) };
-}
-function workList(skipCf) {                                  // 화면 목록 = 연도·유형·담당·상태·검색·열 필터 · 정렬
-  const cf = Object.entries(WS.cf || {}).filter(([k]) => k !== skipCf).map(([k, a]) => [k, new Set(a)]);
-  const list = workScope().scope.filter(i => (!WS.person || i.persons.includes(WS.person)) && (!WS.st || i.cls === WS.st)
-      && (!WS.q || JSON.stringify(i.f).toLowerCase().includes(WS.q.toLowerCase())) && cf.every(([k, a]) => a.has(workVal(i, k))));
-  const so = WS.sort;
-  return list.sort((a, b) => so ? (workVal(a, so.k) === '' || workVal(b, so.k) === '' ? cfCmp(workVal(a, so.k), workVal(b, so.k)) : so.dir * cfCmp(workVal(a, so.k), workVal(b, so.k)))
-    : WST_ORDER[a.cls] - WST_ORDER[b.cls] || (a.end || '9').localeCompare(b.end || '9') || WORK_KEYS.indexOf(a.key) - WORK_KEYS.indexOf(b.key));
+/* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
+ * 수행·입찰 PJT 처럼 위 = 현황판(taskHero), 아래 = 엑셀형 표(셀 편집·행 추가·열 추가·열 필터).
+ * 유형 = 과제 / 지시사항 및 Action List / To Do List — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
+ * 예전 일반업무·To do·기술공유 시트는 숨김(데이터 그대로). [기존 업무 가져오기] 로 복사(ID = 'task-' + 원래 ID, 두 번 눌러도 중복 안 됨). */
+const TASK_TYPES = ['과제', '지시사항 및 Action List', 'To Do List'];
+const TT = {
+  '과제':{ icon:'🎯', color:'#5b5bd6', short:'과제', desc:'목표·기간이 있는 개선 과제 · 연구 · 표준화 · 기술공유' },
+  '지시사항 및 Action List':{ icon:'📌', color:'#e8730c', short:'지시사항·Action', desc:'그룹장·회의 지시 사항과 후속 조치(Action)' },
+  'To Do List':{ icon:'✅', color:'#0e9f8e', short:'To Do', desc:'개인·부서 할 일, 짧은 기한의 업무' },
+};
+const ttOf = v => TT[v] || { icon:'❔', color:'#8a90a6', short:'유형 미지정', desc:'' };
+const TASK_W = { title:'업무 내용', person:'담당자', start:'시작일', end:'종료일', body:'진행 사항', cat:f => flat(f['구분']) };
+const TASK_TPL = { '과제':'1. 목표\n   - \n2. 진행 현황\n   - \n3. 이슈 · 다음 단계\n   - ', '지시사항 및 Action List':'1. 지시 내용\n   - \n2. 조치 계획 (Action)\n   - \n3. 조치 결과\n   - ', 'To Do List':'- \n- ' };
+const WST_LABEL = { late:'⚠ 지연', soon:'⏰ 임박', miss:'❔ 종료일 미입력', run:'▶ 진행 중', done:'✔ 완료·종결', perm:'♾ 상시 (추적 안 함)' };
+// 통합 업무 + 아직 가져오지 않은 예전 시트 행 (알림·요약·홈에서 씀)
+function workRecs() {
+  const have = new Set((DB.recs.task || []).map(r => r.id));
+  return [...(DB.recs.task || []).map(r => ({ k:'task', r })), ...WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)).map(r => ({ k, r })))];
 }
 async function workToggleClose(k, id) {                      // [🏁 종결] / [↩ 진행] 한 번에
   const rec = (DB.recs[k] || []).find(r => r.id === id); if (!rec) return;
   const nf = { ...rec.fields, '종결 여부':rec.fields['종결 여부'] === '종결' ? '' : '종결' };
   try { const r = await saveEdit(k, id, nf, rec.meta.rev); await afterSave(r, k, id, nf); } catch (e) { toast('저장 실패: ' + e.message, true); }
-}   // 통합 업무 화면 상태 (메모리)
-const WST_LABEL = { late:'⚠ 지연', soon:'⏰ 임박', miss:'❔ 종료일 미입력', run:'▶ 진행 중', done:'✔ 완료', perm:'♾ 상시 (추적 안 함)' };
-function renderWork(c) {
-  const { all, inYear, scope } = workScope();
-  const ty = String(new Date().getFullYear());
-  const years = [...new Set([...all.map(i => i.year).filter(Boolean), '2024', '2025', ty])].sort().reverse();
-  const list = workList(), ncf = Object.keys(WS.cf || {}).length;
+}
+function taskHero(s) {
+  const st = fstate(s.key), ty = String(new Date().getFullYear()), add = !noEdit();
+  const items = getRecs('task').map(r => workItem('task', r));
+  const years = [...new Set([...items.map(i => i.year).filter(Boolean), '2024', '2025', ty])].sort().reverse();
+  const inY = items.filter(i => !st.year || i.year === st.year);
+  const scope = inY.filter(i => !st.f['유형'] || (i.f['유형'] || '') === st.f['유형']);
   const cnt = k => scope.filter(i => i.cls === k).length, tracked = scope.filter(i => i.track), doneN = cnt('done');
-  const rate = tracked.length ? Math.round(doneN / tracked.length * 100) : 0;
-  const ylab = WS.year ? WS.year + '년' : '전체 연도';
+  const rate = tracked.length ? Math.round(tracked.filter(i => i.cls === 'done').length / tracked.length * 100) : 0;
+  const ylab = st.year ? st.year + '년' : '전체 연도';
+  // 유형별 요약 카드
+  const types = [...TASK_TYPES, ...(inY.some(i => !TT[i.f['유형']]) ? [''] : [])];
+  const tcard = t => {
+    const its = inY.filter(i => (TT[i.f['유형']] ? i.f['유형'] : '') === t), T = ttOf(t), open = its.filter(i => i.cls !== 'done');
+    const c = k => its.filter(i => i.cls === k).length, pct = its.length ? Math.round(c('done') / its.length * 100) : 0;
+    const prog = open.map(i => num(i.f['진척률'])).filter(v => v > 0), avg = prog.length ? Math.round(prog.reduce((a, b) => a + b, 0) / prog.length) : null;
+    const req = [...open.reduce((m, i) => (i.f['요청자'] && m.set(flat(i.f['요청자']), (m.get(flat(i.f['요청자'])) || 0) + 1), m), new Map())].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const week = open.filter(i => i.dd != null && i.dd >= 0 && i.dd <= 7).length;
+    const extra = t === '과제' ? `평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b> <span class="muted">(진행 중 과제)</span>`
+      : t === '지시사항 및 Action List' ? `요청자 ${req.length ? req.map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(' · ') : '<span class="muted">-</span>'}`
+      : t === 'To Do List' ? `7일 안에 마감 <b>${week}</b>건` : '편집 창에서 유형을 골라 주세요';
+    const urg = open.filter(i => i.cls === 'late' || i.cls === 'soon' || i.cls === 'miss').sort((a, b) => WST_ORDER[a.cls] - WST_ORDER[b.cls] || (a.dd ?? 999) - (b.dd ?? 999)).slice(0, 3);
+    return `<div class="ttc ${st.f['유형'] === t && t ? 'on' : ''}" style="--c:${T.color}">
+      <button class="ttc-h" data-tf="${esc(t)}" title="${esc(T.desc)}"><span class="ttc-i">${T.icon}</span><span class="ttc-n">${esc(t || '유형 미지정')}<small>${esc(T.desc)}</small></span><span class="ttc-v">${open.length}<small>진행</small></span></button>
+      <div class="ttc-s"><span class="wst late">지연 ${c('late')}</span><span class="wst soon">임박 ${c('soon')}</span><span class="wst run">진행 ${c('run')}</span><span class="wst perm">상시 ${c('perm')}</span><span class="wst done">종결 ${c('done')}</span></div>
+      <div class="ttc-b"><i style="width:${pct}%"></i></div><div class="ttc-x">${extra} <span class="muted">· 종결 ${pct}%</span></div>
+      ${urg.length ? urg.map(i => `<button class="ttc-u" data-tedit="${esc(i.r.id)}"><span class="wst ${i.cls}">${esc(i.st)}</span>${esc(trunc(flat(i.title), 34))}<em>${esc(flat(i.personRaw))}</em></button>`).join('') : '<div class="ttc-ok">급한 업무 없음 👍</div>'}</div>`;
+  };
   // 부서원별 상·하반기
   const pm = new Map();
-  scope.forEach(i => i.persons.forEach(p => { const o = pm.get(p) || pm.set(p, { h1:0, h2:0, h0:0, by:{} }).get(p); o['h' + i.half]++; o.by[i.key] = (o.by[i.key] || 0) + 1; }));
+  scope.forEach(i => i.persons.forEach(p => { const o = pm.get(p) || pm.set(p, { h1:0, h2:0, h0:0, by:{} }).get(p); o['h' + i.half]++; const t = i.f['유형'] || ''; o.by[t] = (o.by[t] || 0) + 1; }));
   const people = [...pm].map(([p, o]) => ({ p, ...o, tot:o.h1 + o.h2 + o.h0 })).sort((a, b) => b.tot - a.tot || a.p.localeCompare(b.p, 'ko'));
   const mx = Math.max(1, ...people.map(x => Math.max(x.h1, x.h2)));
-  const avatar = name => { const pr = profOf(name); return pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(String(name).slice(0, 1))}</b>`; };
-  const prow = x => `<button class="wpr ${WS.person === x.p ? 'on' : ''}" data-wperson="${esc(x.p)}" title="${esc(x.p)}님 업무만 보기">
-      <span class="wav">${avatar(x.p)}</span><span class="wpn">${esc(x.p)}<small>${WORK_KEYS.filter(k => x.by[k]).map(k => `<i style="color:${WORK[k].color}">${WORK[k].icon}${x.by[k]}</i>`).join(' ')}</small></span>
-      <span class="wbar"><span class="h1" style="width:${x.h1 / mx * 100}%"></span><em>${x.h1}</em></span>
-      <span class="wbar"><span class="h2" style="width:${x.h2 / mx * 100}%"></span><em>${x.h2}</em></span>
+  const prow = x => `<button class="wpr ${st.owner === x.p ? 'on' : ''}" data-wperson="${esc(x.p)}" title="${esc(x.p)}님 업무만 아래 표에">
+      <span class="wav">${avHtml(x.p)}</span><span class="wpn">${esc(x.p)}<small>${Object.entries(x.by).map(([t, n]) => `<i style="color:${ttOf(t).color}">${ttOf(t).icon}${n}</i>`).join(' ')}</small></span>
+      <span class="wbar"><span class="h1" style="width:${x.h1 / mx * 100}%"></span><em>${x.h1}</em></span><span class="wbar"><span class="h2" style="width:${x.h2 / mx * 100}%"></span><em>${x.h2}</em></span>
       <span class="wtot">${x.tot}${x.h0 ? `<small title="날짜 없는 업무">+${x.h0}</small>` : ''}</span></button>`;
-  const kpi = (k, l, v, sub, icon) => `<button class="wk wk-${k} ${WS.st === k ? 'on' : ''}" data-wst="${k}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></button>`;
+  const kpi = (k, l, v, sub, icon) => `<button class="wk wk-${k} ${st.wst === k ? 'on' : ''}" data-wst="${k}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></button>`;
   const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
-  const urgent = scope.filter(i => i.cls === 'late' || i.cls === 'soon').sort((a, b) => a.dd - b.dd).slice(0, 6);
-  const seg = ['done', 'run', 'soon', 'late', 'miss'].map(k => ({ k, n:cnt(k) })).filter(x => x.n);
-  const row = i => `<tr class="wrow ${i.cls === 'done' ? 'r-done' : ''}">
-      <td><span class="wtype" style="--c:${i.w.color}">${i.w.icon} ${esc(i.w.label)}</span>${isUpdated(i.r) ? '<span class="wnew">NEW</span>' : ''}</td>
-      <td class="muted">${esc(i.cat)}</td>
-      <td><b class="wtitle">${esc(flat(String(i.title).replace(/~~[\s\S]*?~~/g, '')) || '(제목 없음)')}</b></td>
-      <td>${i.persons.length ? i.persons.map(p => `<span class="wperson"><span class="wav sm">${avatar(p)}</span>${esc(p)}</span>`).join('') : '<span class="muted">-</span>'}</td>
-      <td class="wd">${esc(i.start || '-')}</td><td class="wd">${esc(i.end || '-')}</td>
-      <td><span class="wst ${i.cls}">${i.track ? '📅 기한' : '♾ 상시'}${i.auto ? '<small> 자동</small>' : ''}</span><div class="wsl">${esc(i.st)}</div></td>
-      <td class="wbody">${i.w.body ? fmtText(i.f[i.w.body]) : ''}</td>
-      <td class="act">${noEdit() ? '' : `<button class="btn sm ${i.closed ? '' : 'wclose'}" data-wclose="${i.key}|${esc(i.r.id)}" title="${i.closed ? '종결 표시를 풀고 진행으로' : '이 업무를 종결로 표시 (완료로 집계)'}">${i.closed ? '↩ 진행' : '🏁 종결'}</button> <button class="btn sm" data-wedit="${i.key}|${esc(i.r.id)}">편집</button> `}<button class="btn sm" data-whist="${i.key}|${esc(i.r.id)}" ${readOnly() ? 'disabled' : ''}>이력</button>${noEdit() ? '' : ` <button class="btn sm bad" data-wdel="${i.key}|${esc(i.r.id)}">삭제</button>`}</td></tr>`;
-  c.insertAdjacentHTML('beforeend', `<div id="workv"><section class="whero">
-      <div class="wh-top"><div><h2>🚀 통합 업무 보드</h2><p>일반업무 · To do · 기술공유를 한 곳에서 보고, 부서원별 상·하반기 실적과 종료 현황을 추적합니다.</p></div></div>
-      ${yearTabs(WS.year, years, noEdit() ? '' : '<button class="btn wadd" data-wadd>＋ 업무 추가</button>')}
-      <div class="wtypes"><button class="wtc ${!WS.type ? 'on' : ''}" data-wtype="">전체 <b>${inYear.length}</b></button>${WORK_KEYS.map(k => `<button class="wtc ${WS.type === k ? 'on' : ''}" data-wtype="${k}" style="--c:${WORK[k].color}">${WORK[k].icon} ${WORK[k].label} <b>${inYear.filter(i => i.key === k).length}</b></button>`).join('')}</div>
+  const seg = ['done', 'run', 'soon', 'late', 'miss'].map(k => ({ k, n:tracked.filter(i => i.cls === k).length })).filter(x => x.n);
+  const have = new Set(getRecs('task').map(r => r.id));
+  const legacy = readOnly() ? [] : WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)));
+  return `<div id="taskhero">
+    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>과제 · 지시사항 및 Action List · To Do List — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
+      ${yearTabs(st.year, years, add ? '<button class="btn wadd" data-wadd>＋ 업무 추가</button>' : '')}
+      <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_TYPES.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => i.f['유형'] === t).length}</b></button>`).join('')}</div>
     </section>
+    ${legacy.length && add ? `<div class="al-warn">📦 예전 시트(일반업무·To do·기술공유)에 아직 통합 업무로 옮기지 않은 업무가 <b>${legacy.length}건</b> 있습니다. <button class="btn sm pri" data-wimport>기존 업무 가져오기</button> <span class="muted">(복사만 함 · 원본은 그대로 · 두 번 눌러도 중복 없음)</span> <button class="btn sm" data-go="general">일반업무</button> <button class="btn sm" data-go="todo">To do</button> <button class="btn sm" data-go="techshare">기술공유</button></div>` : ''}
+    <div class="ttcs">${types.map(tcard).join('')}</div>
     <div class="wkpis">
-      <div class="wk wk-main"><span class="wkl">${esc(ylab)} 종료 추적 완료율</span><span class="wkr">${ring}<span class="wkv">${rate}<small>%</small></span></span><span class="wks">기한 업무 ${tracked.length}건 중 ${doneN}건 완료</span></div>
-      ${kpi('run', '진행 중', cnt('run'), '기한 남음', '▶')}${kpi('soon', '임박 (7일 이내)', cnt('soon'), '곧 마감', '⏰')}${kpi('late', '지연', cnt('late'), '기한 지남 · 미완료', '⚠')}
-      ${kpi('done', '완료', doneN, '종료·발표·완료', '✔')}${kpi('perm', '상시 업무', cnt('perm'), '종료일 없음 · 추적 안 함', '♾')}${kpi('miss', '종료일 미입력', cnt('miss'), '기한인데 날짜 없음', '❔')}
+      <div class="wk wk-main"><span class="wkl">${esc(ylab)}${st.f['유형'] ? ' · ' + esc(ttOf(st.f['유형']).short) : ''} 종결률 (기한 업무)</span><span class="wkr">${ring}<span class="wkv">${rate}<small>%</small></span></span><span class="wks">기한 업무 ${tracked.length}건</span></div>
+      ${kpi('run', '진행 중', cnt('run'), '기한 남음', '▶')}${kpi('soon', '임박 (7일 이내)', cnt('soon'), '곧 마감', '⏰')}${kpi('late', '지연', cnt('late'), '기한 지남 · 미종결', '⚠')}
+      ${kpi('done', '종결', doneN, '부서원이 종결 표시', '🏁')}${kpi('perm', '상시 업무', cnt('perm'), '종료일 없음 · 추적 안 함', '♾')}${kpi('miss', '종료일 미입력', cnt('miss'), '기한인데 날짜 없음', '❔')}
     </div>
     <div class="wgrid">
-      <section class="card wpeople"><h2>👥 부서원별 상·하반기 수행 건수 <span class="muted">· ${esc(ylab)}${WS.type ? ' · ' + WORK[WS.type].label : ''}</span></h2>
+      <section class="card wpeople"><h2>👥 부서원별 상·하반기 업무 건수 <span class="muted">· ${esc(ylab)} · 누르면 그 사람 업무만 아래 표에</span></h2>
         <div class="wph"><span></span><span>부서원</span><span><i class="dot h1"></i>상반기 (1~6월)</span><span><i class="dot h2"></i>하반기 (7~12월)</span><span>합계</span></div>
-        ${people.length ? people.map(prow).join('') : '<div class="empty">해당 연도의 업무가 없습니다</div>'}
-        <p class="muted" style="margin:8px 2px 0">기준일 = 시작일(To do 는 Issue Date, 기술공유는 발표일). 날짜가 없으면 합계 옆 <b>+n</b> 으로 따로 셉니다. 이름을 누르면 그 사람 업무만 봅니다.</p></section>
-      <section class="card wtrack"><h2>📅 종료 현황 추적 <span class="muted">· 기한 업무만</span></h2>
+        ${people.length ? people.map(prow).join('') : '<div class="empty">해당 업무가 없습니다</div>'}</section>
+      <section class="card wtrack"><h2>📅 종료 현황 추적 <span class="muted">· 기한 업무만 · 상시는 추적 안 함</span></h2>
         <div class="wseg">${seg.length ? seg.map(x => `<span class="ws-${x.k}" style="flex:${x.n}" title="${esc(WST_LABEL[x.k])} ${x.n}건">${x.n}</span>`).join('') : '<span class="ws-none">기한 업무 없음</span>'}</div>
-        <div class="wleg">${['done', 'run', 'soon', 'late', 'miss'].map(k => `<span><i class="ws-${k}"></i>${WST_LABEL[k]} ${cnt(k)}</span>`).join('')}</div>
-        <h3>🔥 지금 챙길 업무</h3>
-        ${urgent.length ? urgent.map(i => `<button class="wurg" data-wedit="${i.key}|${esc(i.r.id)}" ${noEdit() ? 'disabled' : ''}><span class="wst ${i.cls}">${esc(i.st)}</span><b>${esc(flat(i.title))}</b><span class="muted">${esc(i.w.label)} · ${esc(i.personRaw ? flat(i.personRaw) : '-')} · ${esc(i.end)}</span></button>`).join('') : '<div class="empty">임박·지연 업무가 없습니다 👍</div>'}
-        <p class="muted" style="margin:10px 2px 0">♾ <b>상시</b> 업무(종료일을 정할 수 없는 업무)는 추적하지 않습니다. 편집 창의 <b>종료 구분</b>에서 기한/상시를 고를 수 있습니다.</p></section>
-    </div>
-    <section class="card"><h2>📋 업무 목록 <span class="muted">${list.length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개</b>` : ''}${WS.person ? ' · ' + esc(WS.person) : ''}${WS.st ? ' · ' + esc(WST_LABEL[WS.st]) : ''}</span></h2>
-      <div class="fbar"><label>담당자<select data-wf="person"><option value="">전체</option>${[...new Set(scope.flatMap(i => i.persons))].sort((a, b) => a.localeCompare(b, 'ko')).map(p => `<option ${p === WS.person ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></label>
-        <label>종료 현황<select data-wf="st"><option value="">전체</option>${Object.entries(WST_LABEL).map(([k, l]) => `<option value="${k}" ${k === WS.st ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        <label>검색<input type="search" id="wQ" value="${esc(WS.q)}" placeholder="내용 검색"></label><button class="btn sm" data-wreset>필터 초기화</button>
-        <span class="sp"></span><span class="muted">원본 시트 보기:</span>${WORK_KEYS.map(k => `<button class="btn sm" data-go="${k}">${WORK[k].icon} ${WORK[k].label}</button>`).join('')}</div>
-      ${list.length ? `<div class="tw"><table class="t wtable"><thead><tr>${WCOLS.map(([k, l, w]) => `<th class="cfh" style="${k === 'wtitle' || k === 'wbody' ? 'min-width' : 'width'}:${w}px">${l}${cfBtn('work', k)}</th>`).join('')}<th class="act" style="width:210px">작업</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>` : `<div class="empty">조건에 맞는 업무가 없습니다${ncf ? ' <button class="btn sm" data-wcfoff>열 필터 모두 지우기</button>' : ''}</div>`}
-    </section></div>`);
-  const wv = $('#workv');
-  wv.querySelectorAll('[data-wf]').forEach(el => el.onchange = () => { WS[el.dataset.wf] = el.value; render(); });
-  const q = $('#wQ'); if (q) q.oninput = () => { WS.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { render(); const n = $('#wQ'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 300); };
-  wv.addEventListener('click', async e => {
-    const t = e.target.closest('[data-year],[data-wtype],[data-wst],[data-wperson],[data-wreset],[data-wadd],[data-wedit],[data-whist],[data-wdel],[data-wclose],[data-wcfoff]'); if (!t) return;
+        <div class="wleg">${['done', 'run', 'soon', 'late', 'miss'].map(k => `<span><i class="ws-${k}"></i>${WST_LABEL[k]} ${tracked.filter(i => i.cls === k).length}</span>`).join('')}</div>
+        <p class="muted" style="margin:8px 2px 0">종결은 표 오른쪽 <b>[🏁 종결]</b> 한 번으로. 기한이 지났는데 종결하지 않으면 <b>지연</b>. 종료일을 정할 수 없는 업무는 <b>종료 구분 = 상시</b>.</p></section>
+    </div></div>`;
+}
+function taskHeroClick(st) {
+  return async e => {
+    const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport]'); if (!t) return;
     const d = t.dataset;
-    if (d.year != null) WS.year = d.year;
-    else if (d.wtype != null) WS.type = d.wtype;
-    else if (d.wst) WS.st = WS.st === d.wst ? '' : d.wst;
-    else if (d.wperson) WS.person = WS.person === d.wperson ? '' : d.wperson;
-    else if (d.wreset != null || d.wcfoff != null) Object.assign(WS, d.wcfoff != null ? { cf:{}, sort:null } : { type:'', person:'', st:'', q:'', cf:{}, sort:null });
-    else if (d.wclose) { const [k, id] = d.wclose.split('|'); return workToggleClose(k, id); }
+    if (d.year != null) st.year = d.year;
+    else if (d.tf != null) st.f['유형'] = d.tf && st.f['유형'] === d.tf ? '' : d.tf;
+    else if (d.wst) st.wst = st.wst === d.wst ? '' : d.wst;
+    else if (d.wperson) st.owner = st.owner === d.wperson ? '' : d.wperson;
+    else if (d.tedit) return openEdit('task', d.tedit);
+    else if (d.wimport != null) return importLegacy();
     else if (d.wadd != null) {
-      const k = await ask('어떤 업무를 추가할까요?', `<div class="wpick">${WORK_KEYS.map(k => `<span style="--c:${WORK[k].color}">${WORK[k].icon} <b>${WORK[k].label}</b><small>${{ general:'담당·책임 업무, 개선 과제 등', todo:'그룹장 지시 사항 · 기한 관리', techshare:'기술 발표 · 공유 일정' }[k]}</small></span>`).join('')}</div>`,
-        [...WORK_KEYS.map(k => ({ id:k, label:`${WORK[k].icon} ${WORK[k].label}`, cls:'pri' })), { id:'no', label:'취소' }]);
-      if (WORK[k]) openEdit(k, null, { preset:{} });
+      let ty = st.f['유형'];
+      if (!TT[ty]) ty = await ask('어떤 유형의 업무인가요?', `<div class="wpick">${TASK_TYPES.map(t => `<span style="--c:${TT[t].color}">${TT[t].icon} <b>${t}</b><small>${TT[t].desc}</small></span>`).join('')}</div>`,
+        [...TASK_TYPES.map(t => ({ id:t, label:`${TT[t].icon} ${TT[t].short}`, cls:'pri' })), { id:'no', label:'취소' }]);
+      if (TT[ty]) openEdit('task', null, { preset:{ 유형:ty } });
       return;
-    } else {
-      const [k, id] = (d.wedit || d.whist || d.wdel).split('|');
-      if (d.wedit) return openEdit(k, id); if (d.whist) return openHistory(k, id); return doDelete(k, id);
     }
     render();
-  });
+  };
+}
+function legacyToTask(k, f) {
+  const end = isoD(f['종료일']), ts = isoD(f['발표일']), closed = f['종결 여부'] === '종결';
+  const cat = [f['구분'], f['소구분']].filter(Boolean).join(' · ');
+  if (k === 'general') return { 유형:'과제', 구분:cat, '업무 내용':f['업무 내용'] || '', 담당자:f['책임자'] || '', 시작일:f['시작일'] || '', 종료일:f['종료일'] || '',
+    '종료 구분':f['종료 구분'] || '', '종결 여부':closed || (end && end < todayISO() && f['종료 구분'] !== '상시') ? '종결' : '', '진행 사항':f['진행사항'] || '' };
+  if (k === 'todo') return { 유형:'지시사항 및 Action List', 구분:cat, '업무 내용':f['지시 사항'] || '', 담당자:f['PO'] || '', 시작일:f['Issue Date'] || '', 종료일:f['Target Date'] || '',
+    '종료 구분':f['종료 구분'] || '', '종결 여부':closed || f['완료 여부'] === 'O' ? '종결' : '', '진행 사항':f['현황'] || '',
+    비고:[f['완료 여부'] && f['완료 여부'] !== 'O' ? `완료 여부: ${f['완료 여부']}` : '', f['그룹장 추가요청 사항'] ? `그룹장 추가요청: ${f['그룹장 추가요청 사항']}` : ''].filter(Boolean).join('\n') };
+  return { 유형:'과제', 구분:'기술공유', '업무 내용':f['발표 내용'] || '', 담당자:f['발표자'] || '', 시작일:f['발표일'] || '', 종료일:f['발표일'] || '',
+    '종료 구분':f['종료 구분'] || '기한', '종결 여부':closed || (ts && ts < todayISO()) ? '종결' : '', '진행 사항':'' };
+}
+async function importLegacy() {
+  if (GUEST || noEdit()) return toast('로그인하면 가져올 수 있습니다', true);
+  if (!SERVER || OFFLINE) return toast('가져오기는 서버에 연결되어 있을 때만 할 수 있습니다', true);
+  const have = new Set(getRecs('task').map(r => r.id));
+  const list = WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)).map(r => ({ k, r })));
+  if (!list.length) return toast('가져올 업무가 없습니다');
+  const n = k => list.filter(x => x.k === k).length;
+  if (await ask('기존 업무 가져오기', `<p>일반업무 <b>${n('general')}</b> · To do <b>${n('todo')}</b> · 기술공유 <b>${n('techshare')}</b> 건을 <b>통합 업무</b>로 복사합니다.</p>
+    <ul class="muted" style="padding-left:18px;margin:0"><li>유형: 일반업무·기술공유 → <b>과제</b>, To do → <b>지시사항 및 Action List</b> (나중에 각자 바꿀 수 있음)</li>
+    <li>예전에 '완료'로 보이던 것(To do 완료 O, 종료일·발표일 지난 일반업무·기술공유)은 <b>종결</b>로 옮깁니다</li>
+    <li>예전 시트는 지우지 않습니다. 같은 행을 두 번 가져오지 않습니다</li></ul>`, [{ id:'ok', label:`${list.length}건 가져오기`, cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
+  let ok = 0, skip = 0, order = Math.max(0, ...getRecs('task').map(r => r.order || 0)) + 10;
+  for (const { k, r } of list) {
+    try { await createRecord('task', legacyToTask(k, r.fields), { id:'task-' + r.id, order }); ok++; order += 10; }
+    catch (e) {
+      if (e.status === 409) { skip++; continue; }
+      if (/잘못된 시트/.test(e.message)) return toast('서버가 예전 버전입니다 — 서버를 다시 켠 뒤(uninstall → install_autostart.bat) 가져오세요', true);
+      toast(`가져오기 중단 (${ok}건 완료): ${e.message}`, true); break;
+    }
+    if ((ok + skip) % 25 === 0) toast(`가져오는 중… ${ok + skip} / ${list.length}`);
+  }
+  toast(`가져오기 완료: ${ok}건${skip ? ` (이미 있던 ${skip}건 건너뜀)` : ''} — 각자 유형이 맞는지 확인해 주세요`);
+  await loadAll(); render();
 }
 
 /* =====================================================================
@@ -3171,7 +3243,7 @@ function personSummary(name) {
   const me = normName(name), mine = v => tokens(v).includes(me);
   const pj = k => (DB.recs[k] || []).filter(r => isLive(r) && mine(r.fields['담당자']));
   const pjLi = r => `<li><b>${esc(flat(r.fields['PJT명']) || '(PJT명 없음)')}</b> <span class="muted">${esc(flat(r.fields['사업군']))}</span>${brief(r.fields['업무 현황']) ? `<small>${esc(brief(r.fields['업무 현황']))}</small>` : ''}</li>`;
-  const wk = WORK_KEYS.flatMap(k => (DB.recs[k] || []).map(r => workItem(k, r))).filter(i => mine(i.personRaw) && i.cls !== 'done').sort((a, b) => WST_ORDER[a.cls] - WST_ORDER[b.cls]);
+  const wk = workRecs().map(({ k, r }) => workItem(k, r)).filter(i => mine(i.personRaw) && i.cls !== 'done').sort((a, b) => WST_ORDER[a.cls] - WST_ORDER[b.cls]);
   const box = (icon, title, n, inner) => `<div class="psum"><h4>${icon} ${title} <span>${n}</span></h4>${n ? `<ul>${inner}</ul>` : '<div class="muted">없음</div>'}</div>`;
   const run = pj('perform'), bid = pj('bid');
   return `<div class="psums">${box('🏗', '수행 PJT', run.length, run.slice(0, 8).map(pjLi).join(''))}${box('📈', '입찰 PJT', bid.length, bid.slice(0, 8).map(pjLi).join(''))}
@@ -3238,11 +3310,11 @@ async function openMyInfo() {
  *  - 1. 큰 항목 / (3칸 들여쓰기) - 세부 내용 / ※ 참고 · Enter = 다음 줄도 같은 글머리, Tab/Shift+Tab = 들여쓰기
  *  - 저장할 때 내용 없이 글머리만 남은 줄은 지움
  * ===================================================================== */
-const GUIDE_SKIP = new Set(['담당자', 'PO', '구성원', '그룹장', '발표자', '책임자']);
+const GUIDE_SKIP = new Set(['담당자', 'PO', '구성원', '그룹장', '발표자', '책임자', '비고']);
 const guideOn = (s, c) => c.long && !c.ai && c.f !== s.title && !GUIDE_SKIP.has(c.f);
 const GUIDE_TPL = '1. \n   - \n   - \n2. \n   - ';
 const GUIDE_TPL_DATE = '- YY.MM.DD : \n- YY.MM.DD : ';
-const guideTpl = c => /일정/.test(c.f) ? GUIDE_TPL_DATE : GUIDE_TPL;
+const guideTpl = (c, f) => (c.f === '진행 사항' && TASK_TPL[f?.['유형']]) || (/일정/.test(c.f) ? GUIDE_TPL_DATE : GUIDE_TPL);
 const cleanGuide = v => String(v || '').split('\n').filter(l => !/^\s*(?:\d{1,2}\.|[-•※]|- YY\.MM\.DD :)\s*$/.test(l)).join('\n').replace(/\s+$/, '');
 const GUIDE_BOX = `<div class="gbox"><b>✍ 작성 가이드</b> — 모두 같은 모양으로 쓰면 표·엑셀이 깔끔해집니다.
   <pre>1. 큰 항목 (번호 + 점)\n   - 세부 내용 (3칸 들여쓰고 -)\n      → 결과·후속 조치 (6칸 + →)\n   ※ 참고 사항\n- 26.10.13 : 날짜는 YY.MM.DD</pre>
@@ -3750,7 +3822,8 @@ $('#content').onclick = e => {
     applySel(); return;
   }
   const t = e.target.closest('button'); if (!t || route === 'home') return;
-  if (t.dataset.edit) openEdit(route, t.dataset.edit);
+  if (t.dataset.wclose) { const [k, id] = t.dataset.wclose.split('|'); workToggleClose(k, id); }
+  else if (t.dataset.edit) openEdit(route, t.dataset.edit);
   else if (t.dataset.hist) openHistory(route, t.dataset.hist);
   else if (t.dataset.del) doDelete(route, t.dataset.del);
 };
