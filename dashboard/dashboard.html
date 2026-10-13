@@ -267,6 +267,7 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .pjgrid{grid-template-columns:1fr 1fr}
 .ppr{display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;width:100%;border:0;background:none;padding:6px 8px;border-radius:10px;text-align:left}
 .ppr.pp2{grid-template-columns:34px 90px 1fr 40px}
+.pjgrid h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.pjgrid .pfold{margin-left:auto}
 .ppr:hover{background:#f4f6ff}.ppr.on{background:#e8ecfc}
 .ppn{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pbar{display:flex;height:18px;background:#f1f3f9;border-radius:7px;overflow:hidden}
@@ -847,7 +848,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2246,8 +2247,8 @@ function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
   const cntOf = keys => ({ n:root ? keys.reduce((a, k) => a + getRecs(k).length, 0) : '', c:root ? keys.reduce((a, k) => a + getRecs(k).filter(isUpdated).length, 0) : 0 });
   const sub = SHEETS.filter(s => !s.merged).map(s => ({ k:s.key, l:s.label, ...cntOf([s.key]), t:'수정·변경된 행' }));
-  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'alloc', l:'👥 R&R · 투입 분석', ...cntOf(['rnr', 'staffing']), t:'수정·변경된 행' });
-  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'task', l:'🚀 통합 업무', ...cntOf(['task']), t:'수정·변경된 행' });
+  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'alloc', l:'R&R · 투입 분석', ...cntOf(['rnr', 'staffing']), t:'수정·변경된 행' });
+  sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'task', l:'통합 업무', ...cntOf(['task']), t:'수정·변경된 행' });
   const subNew = sub.reduce((a, i) => a + i.c, 0), inWeekly = route === 'home' || route === 'work' || route === 'alloc' || !!SHEET[route];
   const btn = (i, cls = '') => `<button class="mi ${cls} ${route === i.k ? 'on' : ''}" data-k="${i.k}">${i.c ? '<span class="chgmark">!</span>' : ''}<span class="ml" title="${esc(i.l)}">${esc(i.l)}</span>${i.c ? `<span class="chgtag" title="${i.t} ${i.c}건">!(${i.c})</span>` : ''}${i.n !== '' ? `<span class="n">${i.n}</span>` : ''}</button>`;
   // 상위 메뉴 + 접기/펼치기 + 하위 메뉴 묶음
@@ -2302,6 +2303,12 @@ function renderWelcome(c) {
 /* =====================================================================
  *  홈
  * ===================================================================== */
+// 부서원 명단: 가장 최근 연도 유닛분장의 구성원 (그룹장 제외)
+function deptNames() {
+  const recs = DB.recs?.unit || [], y = recs.map(r => String(r.fields['연도'] || '')).sort().pop();
+  const rs = recs.filter(r => String(r.fields['연도'] || '') === y), heads = new Set(rs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)));
+  return [...new Set(rs.flatMap(r => parseMembers(r.fields['구성원']).map(m => m.name)))].filter(n => n && !heads.has(n));
+}
 function ownerTokens(recs, f) { const m = new Map(); recs.forEach(r => tokens(r.fields[f]).forEach(t => m.set(t, (m.get(t) || 0) + 1))); return m; }
 const cell1 = v => String(v || '').split('\n')[0].replace(/\(.*?\)/g, '').trim() || '(미분류)';
 
@@ -2727,11 +2734,15 @@ function renderSheet(c, s) {
   c.querySelectorAll('[data-sz]').forEach(b => b.onclick = () => resizeSel(b.dataset.sz));
   c.onchange = e => {
     const t = e.target, id = t.dataset.filter;
-    if (id) { if (id === 'owner') st.owner = t.value; else if (id === 'done') st.done = t.value; else if (id === 'closed') st.closed = t.value; else st.f[id.slice(2)] = t.value; drawTable(s); }
+    if (id) { if (id === 'owner') st.owner = t.value; else if (id === 'done') st.done = t.value; else if (id === 'closed') st.closed = t.value; else if (s.key === 'task' && id === 'f:유형') { taskTypeSwitch(st, t.value); return render(); } else st.f[id.slice(2)] = t.value; drawTable(s); }
     if (t.id === 'fMine') { st.mine = t.checked; drawTable(s); }
   };
   $('#fQ').oninput = e => { st.q = e.target.value; drawTable(s); };
-  $('#fReset').onclick = () => { FS[s.key] = null; render(); };
+  $('#fReset').onclick = () => {                              // 통합 업무: 지금 보는 유형의 필터만 지움
+    if (s.key === 'task') { const o = FS.task || {}; FS.task = null; Object.assign(fstate('task'), { year:o.year, byType:o.byType, pfold:o.pfold, view:o.view }).f['유형'] = o.f?.['유형'] || ''; }
+    else FS[s.key] = null;
+    render();
+  };
   const th = $('#taskhero'); if (th) th.onclick = taskHeroClick(st);
   const hero = $('#pjhero'); if (hero) hero.onclick = e => {   // 현황판 카드·칩·막대 → 아래 표 필터
     const t = e.target.closest('[data-pjf]'); if (!t) return;
@@ -2739,6 +2750,7 @@ function renderSheet(c, s) {
     if (k === 'all') Object.assign(st, { closed:'', upd:'', owner:'', kw:'' }, { f:{ ...st.f, 사업군:'' } });
     else if (k === 'kw') { st.kw = st.kw === v ? '' : v; st.f['사업군'] = ''; }
     else if (k === 'owner') st.owner = st.owner === v ? '' : v;
+    else if (k === 'pfold') st.pfold = !(st.pfold !== false);
     else st[k] = st[k] === v ? '' : v;
     render();
   };
@@ -3123,7 +3135,9 @@ function pjHero(s) {
   const bid = s.key === 'bid', on = (k, v) => st[k] === v ? 'on' : '';
   const biz = new Map(); recs.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0 }).get(g); isLive(r) ? o.live++ : o.end++; }); });
   const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
-  const own = [...ownerTokens(live, s.owner)].sort((a, b) => b[1] - a[1]).slice(0, 8), omx = Math.max(1, ...own.map(x => x[1]));
+  const om = ownerTokens(live, s.owner); deptNames().forEach(n => om.has(n) || om.set(n, 0));   // 전체 부서원 (PJT 0건도 표시)
+  const own = [...om].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
+  const ofold = st.pfold !== false && own.length > 6, oshown = ofold ? own.slice(0, Math.ceil(own.length / 2)) : own;
   const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
   const kpi = (k, v, l, n, sub, icon, cls) => `<button class="wk ${cls} ${on(k, v)}" data-pjf="${k}|${v}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${n}</span><span class="wks">${sub}</span></button>`;
   return `<div id="pjhero" class="pjhero">
@@ -3140,8 +3154,8 @@ function pjHero(s) {
       <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결 · 누르면 그 단어가 들어간 PJT 만</span></h2>
         ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" title="사업군에 '${esc(g)}' 가 들어간 PJT 만 아래 표에"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
         <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
-      <section class="card"><h2>👥 담당자별 진행 PJT <span class="muted">· 상위 8 · 누르면 그 사람 PJT 만</span></h2>
-        ${own.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}</section>
+      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 누르면 그 사람 PJT 만</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
+        ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
     </div></div>`;
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
@@ -3245,12 +3259,21 @@ function taskHero(s) {
         <p class="muted" style="margin:8px 2px 0">종결은 표 오른쪽 <b>[🏁 종결]</b> 한 번으로. 기한이 지났는데 종결하지 않으면 <b>지연</b>. 종료일을 정할 수 없는 업무는 <b>종료 구분 = 상시</b>.</p></section>
     </div></div>`;
 }
+// 유형(전체 · 일반업무 · 표준화 담당 · To Do List · 기술공유 · 그룹장 요청 사항)마다 필터를 따로 기억 — 한 유형에서 건 필터가 다른 유형에 안 넘어감 (연도 탭은 함께 씀)
+const TASK_FKEYS = ['owner', 'mine', 'q', 'done', 'closed', 'wst', 'cf', 'sort'];
+function taskTypeSwitch(st, ty) {
+  const cur = st.f['유형'] || '', bt = st.byType || (st.byType = {});
+  if (cur === ty) return;
+  bt[cur] = { f:{ ...st.f }, ...Object.fromEntries(TASK_FKEYS.map(k => [k, st[k]])) };
+  const nx = bt[ty] || { f:{}, owner:'', mine:false, q:'', done:'', closed:'', wst:'', cf:{}, sort:null };
+  TASK_FKEYS.forEach(k => st[k] = nx[k]); st.f = { ...nx.f, 유형:ty };
+}
 function taskHeroClick(st) {
   return async e => {
     const t = e.target.closest('[data-year],[data-tf],[data-wst],[data-wperson],[data-wadd],[data-tedit],[data-wimport],[data-wrename],[data-wreclass],[data-pfold]'); if (!t) return;
     const d = t.dataset;
     if (d.year != null) st.year = d.year;
-    else if (d.tf != null) st.f['유형'] = d.tf && st.f['유형'] === d.tf ? '' : d.tf;
+    else if (d.tf != null) taskTypeSwitch(st, d.tf && st.f['유형'] === d.tf ? '' : d.tf);
     else if (d.wst) st.wst = st.wst === d.wst ? '' : d.wst;
     else if (d.wperson) st.owner = st.owner === d.wperson ? '' : d.wperson;
     else if (d.tedit) return openEdit('task', d.tedit);
