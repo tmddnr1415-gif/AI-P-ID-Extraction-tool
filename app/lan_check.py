@@ -64,28 +64,45 @@ def probe(url: str, timeout: float) -> dict:
                 "ms": round((time.monotonic() - t0) * 1000)}
 
 
+def _run_text(cmd: list[str], timeout: float) -> str:
+    """명령의 출력 글 (hotfix96).  netstat · tasklist 는 콘솔 코드페이지(한국어 Windows 는 cp949)로
+    쓰는데, 서비스 창이 `PYTHONUTF8=1` 을 켜 두면 `text=True` 가 UTF-8 로 풀다 실패해 출력이 None 이
+    되고 진단이 `'NoneType' object has no attribute 'splitlines'` 로 죽었다 (회사 PC 사진).
+    바이트로 받아 UTF-8 → 로캘 → cp949 순으로 풀고, 그래도 안 되면 못 읽는 글자만 바꾼다."""
+    raw = subprocess.run(cmd, capture_output=True, timeout=timeout).stdout or b""
+    import locale
+    for enc in ("utf-8", locale.getpreferredencoding(False), "cp949"):
+        try:
+            return raw.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def owners(port: int = PORT) -> list[dict]:
     """Windows `netstat -ano` 에서 그 포트를 LISTENING 하는 (주소, PID, 프로그램 이름).
     다른 운영체제에서는 빈 목록이다 (현장은 Windows 다)."""
     if sys.platform != "win32":
         return []
     try:
-        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True,
-                             timeout=20).stdout
+        out = _run_text(["netstat", "-ano"], 20)
     except Exception:  # noqa: BLE001
         return []
     found = []
     for line in out.splitlines():
         parts = line.split()
-        if len(parts) < 5 or parts[0].upper() != "TCP" or parts[3].upper() != "LISTENING":
+        # 상태 낱말은 언어마다 다르다 (한국어 Windows 는 "수신 대기" — 두 낱말).  기다리는 소켓은
+        # 상대 주소가 `:0` 이고 PID 는 줄 끝이다 (hotfix96 — restart_pid_server 와 같은 판정).
+        if len(parts) < 4 or parts[0].upper() != "TCP" or not parts[-1].isdigit():
             continue
-        if not parts[1].endswith(f":{port}"):
+        if not parts[1].endswith(f":{port}") or not parts[2].endswith(":0"):
             continue
-        found.append({"address": parts[1], "pid": parts[4]})
+        if any(f["pid"] == parts[-1] and f["address"] == parts[1] for f in found):
+            continue
+        found.append({"address": parts[1], "pid": parts[-1]})
     for f in found:
         try:
-            row = subprocess.run(["tasklist", "/FI", f"PID eq {f['pid']}", "/FO", "CSV", "/NH"],
-                                 capture_output=True, text=True, timeout=10).stdout.strip()
+            row = _run_text(["tasklist", "/FI", f"PID eq {f['pid']}", "/FO", "CSV", "/NH"], 10).strip()
             f["program"] = row.split('","')[0].strip('"') if row.startswith('"') else "?"
         except Exception:  # noqa: BLE001
             f["program"] = "?"
