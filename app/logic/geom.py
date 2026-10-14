@@ -162,7 +162,7 @@ def words(page):
     `get_text` 는 회전 전 좌표를 준다.  그림 요소는 `rotation_matrix` 를 곱해 표시 좌표로 읽으므로
     글자도 같은 자로 옮긴다 — 안 옮기면 270° 로 저장된 장(1A5J)에서 글자가 하나도 표 칸에 안 든다.
     회전 0 이면 받은 그대로다 (HRSG · 19VA 불변)."""
-    ws = page.get_text("words")
+    ws = _one_print(page.get_text("words"))
     if not page.rotation:
         return [(w[0], w[1], w[2], w[3], w[4]) for w in ws]
     m = page.rotation_matrix
@@ -170,6 +170,20 @@ def words(page):
     for w in ws:
         b = _rot_box(w[:4], m)
         out.append((b[0], b[1], b[2], b[3], w[4]))
+    return out
+
+
+def _one_print(ws):
+    """같은 자리에 같은 글자를 겹쳐 찍은 것은 한 낱말이다 (L24 — 1A1Y 는 `AND` 를 같은 자리에 두 번 찍어 블록 글자가
+    `AND AND` 가 되어 판정을 못 했다 · P&ID QFE 도 세 번 겹쳐 찍는다).  자리는 0.1pt 로 반올림 — 나란히 쓴 같은 낱말은 남는다."""
+    seen = set()
+    out = []
+    for w in ws:
+        k = (round(w[0], 1), round(w[1], 1), round(w[2], 1), round(w[3], 1), w[4])
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(w)
     return out
 
 

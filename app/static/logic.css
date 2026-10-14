@@ -443,3 +443,44 @@ button.mini.ed { color: #8a4bd1; }
 button.mini.ed.on { background: #efe6fb; }
 .jm .jdel { margin-left: auto; border: 1px solid #e3c7c4; background: #fff; color: #a3352e; border-radius: 6px; font-size: 11px; padding: 0 7px; cursor: pointer; }
 .jm .jdel:hover { background: #fbeceb; }
+
+/* L24 — 래치 실시간 값 줄 */
+#ov .lt .lt-now { fill: #eef6fb; stroke: #0078b0; stroke-width: .35; }
+#ov .lt .lt-now.q1 { fill: rgba(0,180,255,.55); }
+#ov .lt text.lt-nowt { font-weight: 800; fill: #00466a; text-anchor: middle; }
+
+/* L24 — 식별률 카드 */
+.lg-idrate { margin: 8px 8px 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: #f3faf5; font-size: 12px; }
+.lg-idrate.low { background: #fff1f0; border-color: #e08a80; }
+.lg-idrate .idr-h { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.lg-idrate .idr-h b { font-size: 16px; color: #17703a; }
+.lg-idrate.low .idr-h b { color: #b3261e; }
+.lg-idrate .idr-h small { color: var(--soft); }
+.lg-idrate.low .idr-h small { color: #b3261e; font-weight: 600; }
+.lg-idrate .idr-parts { list-style: none; margin: 4px 0; padding: 0; }
+.lg-idrate .idr-parts li { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+.lg-idrate .idr-parts li span { flex: 1; color: var(--soft); }
+.lg-idrate .idr-parts li small { min-width: 64px; text-align: right; }
+.lg-idrate .idr-parts li small { color: var(--soft); font-size: 10px; }
+.lg-idrate .idr-parts li.low b { color: #b3261e; }
+.lg-idrate .idr-un { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.lg-idrate .idr-un .mini { margin-left: auto; font-size: 11px; padding: 1px 6px; }
+.lg-idrate .idr-items { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow: auto; }
+.lg-idrate .idr-items li { padding: 2px 4px; border-bottom: 1px dotted var(--line); cursor: pointer; }
+.lg-idrate .idr-items li:hover { background: #fff8d6; }
+.lg-idrate .idr-help { margin: 4px 0 0; color: var(--soft); }
+
+/* L24 — 마크업 */
+#markup.on { background: #1f8f4e; color: #fff; }
+.lg-stage.marking { cursor: crosshair; }
+#ov .mk .mk-box { fill: rgba(31,143,78,.08); stroke: #1f8f4e; stroke-width: .8; stroke-dasharray: 2.2 1.2; cursor: pointer; }
+#ov .mk.bad .mk-box { stroke: #c0392b; fill: rgba(192,57,43,.08); }
+#ov .mk .mk-tag { fill: #1f8f4e; cursor: pointer; }
+#ov .mk.bad .mk-tag { fill: #c0392b; }
+#ov .mk text { fill: #fff; font-weight: 700; font-family: system-ui, sans-serif; pointer-events: none; }
+#ov .mk-draft { fill: rgba(31,143,78,.12); stroke: #1f8f4e; stroke-width: .7; stroke-dasharray: 2 1; pointer-events: none; }
+#ov .mk-hint { fill: none; stroke: #ff9800; stroke-width: 1.4; pointer-events: none; animation: mkblink .5s 4 alternate; }
+@keyframes mkblink { from { opacity: 1; } to { opacity: .15; } }
+.mk-menu .mk-kinds { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.mk-menu .mk-f { margin: 4px 0; }
+.lh-recent .chip.low, .pjj .chip.low { background: #fde3e0; color: #b3261e; }

@@ -41,7 +41,7 @@ def _index(s):
             outs[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
             drivers[p["net"]].append(("block", p["block"], p.get("role", "")))
     for r in s["rows"]:
-        if r["side"] == "L":
+        if r["side"] == "L" and r.get("net") is not None:          # 사람이 만든 행(L24)은 선이 없을 수 있다
             drivers[r["net"]].append(("row", r["n"], ""))
     # 연결 기호: 같은 묶음의 '들어가는' 기호 넷 → '나오는' 기호의 출력
     groups = defaultdict(list)
@@ -600,7 +600,7 @@ def trace(s, start, direction="down"):
         nets0 = [start[4:]]
     elif start.startswith("row:"):
         n = int(start[4:])
-        nets0 = [r["net"] for r in s["rows"] if r["n"] == n]
+        nets0 = [r["net"] for r in s["rows"] if r["n"] == n and r.get("net") is not None]
     elif start.startswith("block:"):
         bid = start[6:]
         nets0 = [n for n, _, _ in (outs[bid] if direction == "down" else ins[bid])]

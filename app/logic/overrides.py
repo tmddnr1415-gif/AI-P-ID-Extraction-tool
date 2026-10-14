@@ -4,6 +4,7 @@
       "blocks": {쪽: {블록: {choice, func, logic, label, param, author, at, was}}},
       "cells":  {쪽: {"L:12": {"fm": 값, author, at, was}, "R:30": {"to": 값, ...}}},
       "timers": {쪽: {블록: {t: 초, author, at}}},
+      "marks":  {쪽: {id: {kind, rect, value, n, choice, param, author, at}}},     (L24 마크업)
       "history": [{kind, page, key, value, was, author, at}],
   }
 
@@ -61,7 +62,7 @@ def _path(d: Path) -> Path:
 
 
 def empty():
-    return {"blocks": {}, "cells": {}, "timers": {}, "history": []}
+    return {"blocks": {}, "cells": {}, "timers": {}, "marks": {}, "history": []}
 
 
 def load(d: Path) -> dict:
@@ -86,7 +87,7 @@ def mtime(d: Path):
 
 
 def has_any(ov: dict) -> bool:
-    return any(ov.get(k) for k in ("blocks", "cells", "timers"))
+    return any(ov.get(k) for k in ("blocks", "cells", "timers", "marks"))
 
 
 def _save(d: Path, data: dict):
@@ -197,6 +198,70 @@ def set_timer(d: Path, page: int, bid: str, sec, author) -> dict:
         return ent
 
 
+MARK_KINDS = {"FROM": "FROM (어디서 오는 신호)", "TO": "TO (어디로 가는 신호)", "SHEET": "시트 이름", "GATE": "게이트 종류"}
+
+
+def _rect(rect):
+    try:
+        x0, y0, x1, y1 = (float(v) for v in rect)
+    except (TypeError, ValueError):
+        raise ValueError("사각형(x0, y0, x1, y1)이 없습니다 — 도면에서 끌어 그려 주세요.")
+    x0, x1 = sorted((x0, x1))
+    y0, y1 = sorted((y0, y1))
+    if x1 - x0 < 0.5 or y1 - y0 < 0.5:
+        raise ValueError("사각형이 너무 작습니다.")
+    return [round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2)]
+
+
+def set_mark(d: Path, page: int, mid, kind, rect, value, author, n=None, choice=None, param=None) -> dict:
+    """마크업 하나 (L24 · P&ID 마크업과 같은 생각) — 도면 위에 사람이 그은 사각형 + 값.
+
+    FROM/TO: 그 사각형이 걸친 표 행(또는 사람이 적은 행 번호)의 FM/TO 를 그 값으로 — 표에 그 행이 없으면 행을 만든다.
+    SHEET: 그 장의 시트 이름.  GATE: 사각형 안 블록의 종류 (블록 종류 정하기와 같은 어휘).
+    value(·choice) None 이고 mid 가 있으면 지운다 (이력은 남는다)."""
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        pg = data["marks"].setdefault(str(page), {})
+        if mid and value is None and choice is None:
+            old = pg.pop(str(mid), None)
+            if not pg:
+                data["marks"].pop(str(page), None)
+            data["history"].append({"kind": "mark", "page": page, "key": mid, "value": None,
+                                    "was": (old or {}).get("value") or (old or {}).get("choice"), "author": author, "at": _now()})
+            _save(d, data)
+            return {"removed": bool(old)}
+        kind = str(kind or "").upper()
+        if kind not in MARK_KINDS:
+            raise ValueError(f"모르는 마크업 종류입니다: {kind}")
+        ent = {"kind": kind, "rect": _rect(rect), "author": author, "at": _now()}
+        if kind == "GATE":
+            if choice not in CHOICES:
+                raise ValueError("게이트 종류를 골라 주세요.")
+            ent["choice"] = choice
+            if choice == "VOTE":
+                ent["param"] = _vote(param or {})
+        else:
+            v = re.sub(r"\s+", " ", str(value or "")).strip().upper()[:MAX_CELL]
+            if not v:
+                raise ValueError("값을 적어 주세요.")
+            ent["value"] = v
+        if kind in ("FROM", "TO") and n not in (None, ""):
+            try:
+                ent["n"] = int(n)
+            except (TypeError, ValueError):
+                raise ValueError("행 번호는 숫자입니다.")
+            if not (0 < ent["n"] < 10000):
+                raise ValueError("행 번호가 이상합니다.")
+        mid = str(mid or "") or f"M{int(time.time() * 1000) % 10**10:010d}"
+        was = pg.get(mid)
+        pg[mid] = ent
+        data["history"].append({"kind": "mark", "page": page, "key": mid, "value": ent.get("value") or ent.get("choice"),
+                                "was": (was or {}).get("value") or (was or {}).get("choice"), "author": author, "at": ent["at"]})
+        _save(d, data)
+        return {"id": mid, **ent}
+
+
 def timers_of(ov: dict) -> dict:
     """{쪽(int): {블록: 초}} — 시뮬레이터가 받는 꼴."""
     out = {}
@@ -232,7 +297,11 @@ def apply(res: dict, ov: dict) -> dict:
     from .analyse import _findings
     by_page = {s["page"]: s for s in res.get("sheets", [])}
     touched = set()
-    for pg, m in (ov.get("blocks") or {}).items():
+    gate_marks, cells_from_marks = _apply_marks(res, ov, by_page)
+    blocks_ov = {k: dict(v) for k, v in (ov.get("blocks") or {}).items() if isinstance(v, dict)}
+    for pg, m in gate_marks.items():
+        blocks_ov.setdefault(pg, {}).update(m)            # 사각형으로 고른 게이트 종류 — 블록 종류 정하기와 같은 길
+    for pg, m in blocks_ov.items():
         s = by_page.get(int(pg)) if str(pg).isdigit() else None
         if s is None:
             continue
@@ -290,11 +359,105 @@ def apply(res: dict, ov: dict) -> dict:
                                                            "at": e.get("at", "")}
                         r[field] = e[field]
             cells = True
+    cells = cells or cells_from_marks
     for p in touched:
         by_page[p]["findings"] = _findings(by_page[p])
     if touched or cells:
         fromto.check(res["sheets"])
     res["_overrides"] = {"blocks": sum(len(v) for v in (ov.get("blocks") or {}).values()),
                          "cells": sum(len(v) for v in (ov.get("cells") or {}).values()),
-                         "timers": sum(len(v) for v in (ov.get("timers") or {}).values())}
+                         "timers": sum(len(v) for v in (ov.get("timers") or {}).values()),
+                         "marks": sum(len(v) for v in (ov.get("marks") or {}).values())}
     return res
+
+
+def _overlap(a, b):
+    w = min(a[2], b[2]) - max(a[0], b[0])
+    h = min(a[3], b[3]) - max(a[1], b[1])
+    return w * h if w > 0 and h > 0 else 0.0
+
+
+def _row_net(s, side, y0, y1):
+    """사람이 만든 행이 이어질 선 — 그 행 높이 안에서 LOGIC 영역 그 쪽 가장자리 가까이 끝나는 선 (없으면 None)."""
+    lg = s.get("logic") or [0, 0, 0, 0]
+    P = s.get("pitch") or 11.5
+    edge = lg[0] if side == "L" else lg[2]
+    best = None
+    for nid, segs in (s.get("order") or {}).items():
+        for sg in segs:
+            for x, y in ((sg[0], sg[1]), (sg[2], sg[3])):
+                if y0 - 0.5 <= y <= y1 + 0.5 and abs(x - edge) <= 3 * P:
+                    d = abs(x - edge)
+                    if best is None or d < best[0]:
+                        best = (d, nid, [x, y])
+    return (best[1], best[2]) if best else (None, None)
+
+
+def _apply_marks(res, ov, by_page):
+    """마크업을 결과에 얹는다 — 장마다 `marks` (화면이 그린다) · 시트 이름 · FM/TO 칸 · 게이트 종류.
+    → ({쪽: {블록: 블록 종류 항목}}, FM/TO 를 바꿨는가)."""
+    gates, changed = {}, False
+    for pg, m in (ov.get("marks") or {}).items():
+        s = by_page.get(int(pg)) if str(pg).isdigit() else None
+        if s is None or not isinstance(m, dict):
+            continue
+        out = []
+        for mid, e in m.items():
+            if not isinstance(e, dict) or e.get("kind") not in MARK_KINDS or not isinstance(e.get("rect"), list):
+                continue
+            rect = e["rect"]
+            mk = {"id": mid, **e, "ok": True, "why": ""}
+            if e["kind"] == "SHEET":
+                mk["was"] = s.get("sheet_no") or ""
+                s.setdefault("user_sheet", {"was": s.get("sheet_no") or "", "author": e.get("author", "")})
+                s["sheet_no"] = e["value"]
+                changed = True
+            elif e["kind"] == "GATE":
+                hit = max(((_overlap(rect, b["bbox"]), bid) for bid, b in s["blocks"].items()), default=(0, None))
+                if not hit[1] or hit[0] <= 0:
+                    mk["ok"], mk["why"] = False, "사각형 안에 블록이 없습니다 — 블록을 감싸게 그려 주세요"
+                else:
+                    func, logic, label, prm = CHOICES[e["choice"]]
+                    gates.setdefault(str(pg), {})[hit[1]] = {"choice": e["choice"], "param": e.get("param") or {},
+                                                             "label": f"{e['param']['a']}/{e['param']['b']}" if e.get("param") else label,
+                                                             "author": e.get("author", ""), "at": e.get("at", "")}
+                    mk["block"] = hit[1]
+            else:
+                side = "L" if e["kind"] == "FROM" else "R"
+                field = "fm" if side == "L" else "to"
+                cy = (rect[1] + rect[3]) / 2
+                tab = [t for t in s.get("table", []) if t["side"] == side]
+                t = None
+                if e.get("n"):
+                    t = next((x for x in tab if x["n"] == e["n"]), None)
+                else:
+                    t = next((x for x in tab if x.get("y0") is not None and x["y0"] <= cy <= x["y1"]), None)
+                if t is None and not e.get("n"):
+                    mk["ok"], mk["why"] = False, "이 자리에 표 행이 없습니다 — 행 번호를 적어 주세요"
+                    out.append(mk)
+                    continue
+                if t is None:                      # 표가 그 행을 못 읽었다 — 사람이 적은 행을 만든다
+                    t = {"n": e["n"], "side": side, "y0": rect[1], "y1": rect[3], "desc": "", "kks": "",
+                         field + "_box": rect, field: "", "user_row": True}
+                    s.setdefault("table", []).append(t)
+                    s["table"].sort(key=lambda x: (x["side"], x["n"]))
+                    mk["made_row"] = True
+                n = t["n"]
+                mk["n"] = n
+                r = next((x for x in s["rows"] if x["side"] == side and x["n"] == n), None)
+                if r is None:
+                    net, at = _row_net(s, side, t.get("y0", rect[1]), t.get("y1", rect[3]))
+                    lg = s.get("logic") or rect
+                    r = {"n": n, "side": side, "net": net, "at": at or [lg[0] if side == "L" else lg[2], cy],
+                         "y0": t.get("y0"), "y1": t.get("y1"), "desc": t.get("desc", ""), "kks": t.get("kks", ""),
+                         "user_row": True}
+                    s["rows"].append(r)
+                    mk["net"] = net
+                for x in (t, r):
+                    x.setdefault("user", {})[field] = {"was": x.get(field) or "", "author": e.get("author", ""),
+                                                       "at": e.get("at", ""), "mark": mid}
+                    x[field] = e["value"]
+                changed = True
+            out.append(mk)
+        s["marks"] = out
+    return gates, changed

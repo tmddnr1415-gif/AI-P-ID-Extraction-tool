@@ -177,7 +177,8 @@ function fmtDate(t) {
 function jobLine(x) {
   const mats = Object.keys(x.materials || { logic: 1 });
   const lab = Object.fromEntries(HOME.materials.map((m) => [m.kind, m.label]));
-  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>`
+  const idr = x.idrate != null ? ` <span class="chip${(x.idrate_low || []).length ? " low" : ""}" title="식별률 — 시트 이름 · FROM/TO 칸 · 연결 · 게이트${(x.idrate_low || []).length ? " (90% 아래 항목 있음 — 열어서 마크업으로 넣으세요)" : ""}">식별 ${(Math.floor(x.idrate * 1000) / 10).toFixed(1)}%</span>` : "";
+  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>${idr}`
     : x.state === "failed" ? `<span class="bad">● 실패</span>`
     : `<span class="run">● 분석 중 ${(x.progress && x.progress.percent) || 0}%</span>`;
   return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
@@ -278,6 +279,7 @@ async function openJob(id) {
   api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
   L.memos = [];
   loadMemos(id);
+  L.idrate = null; L.idrateOpen = false; loadIdrate();
   $("#ft-report").hidden = false;
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
@@ -593,6 +595,7 @@ function drawOverlay() {
   el("g", { id: "g-count" }, ov);     // L15 — 세는 타이머의 남은 시간
   el("g", { id: "g-need" }, ov);      // L15 — 출력을 활성화했을 때 필요한 입력 (주황 3번 점등)
   drawPins();
+  drawMarks();
   $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   paint();
@@ -2061,8 +2064,11 @@ function drawSimMarks() {
         el("title", {}, gg).textContent = `${FUNC_KO[b.func] || b.func} ${p.dir === "in" ? "입력" : "출력"}${p.role ? " " + p.role.toUpperCase() : ""} = ${v}`;
       }
     }
-    if (b.logic === "memory" && showTables && (live || showAllGates)) drawLatchTable(g, bid, fs);
   }
+  // L24 — 래치는 실시간 값 표를 언제나 단다 (사용자 지시: "Latch 는 실시간 값 테이블이 있어야 한다").
+  // 예전에는 1 이 하나라도 있는 래치에만 그려, 처음(S=0 · R=0 · Q=0)에는 표가 없어 래치가 무엇을 기다리는지 안 보였다.
+  // 단자 역할을 못 읽은 래치(사람이 메모리로 정한 블록 등)도 표는 선다.
+  if (showTables) for (const [bid, b] of Object.entries(s.blocks)) if (b.logic === "memory") drawLatchTable(g, bid, fs);
 }
 function drawLatchTable(g, bid, fs) {
   const b = L.sheet.blocks[bid];
@@ -2072,7 +2078,12 @@ function drawLatchTable(g, bid, fs) {
   const W = cw[0] + cw[1] + cw[2], H = ch * (rows.length + 1);
   const [x0, y0] = b.bbox;
   const x = x0, y = y0 - 6.2 - H;                         // 블록 이름표(위 5.6) 바로 위
-  const gg = el("g", { class: "lt" }, g);
+  const gg = el("g", { class: "lt" + (st.Q ? " q1" : "") }, g);
+  // 맨 위 한 줄 = 지금 값 (실시간 — 시뮬레이션 틀마다 바뀐다)
+  const nowY = y - ch * 1.05;
+  el("rect", { x, y: nowY, width: W, height: ch, rx: fs * 0.2, class: "lt-now" + (st.Q ? " q1" : "") }, gg);
+  const nt = el("text", { x: x + W / 2, y: nowY + ch * 0.75, "font-size": fs * 0.85, class: "lt-nowt" }, gg);
+  nt.textContent = `S${st.S} R${st.R} → Q${st.Q}`;
   el("rect", { x, y, width: W, height: H, class: "lt-bg" }, gg);
   const head = ["S", "R", "Q"];
   const cells = [head, ...rows.map((r) => [String(r.S), String(r.R), r.S === st.S && r.R === st.R && !r.S && !r.R ? `${r.q}=${st.Q}` : r.q])];
@@ -2294,6 +2305,253 @@ function bindExtras() {
   }, true);
 }
 
+/* ------------------------------------------------------------------ 식별률 · 마크업 (L24)
+
+   식별률: 분석이 이 묶음을 얼마나 읽었나 (시트 이름 · FROM/TO 칸 · 연결 · 게이트).  90% 아래면 붉게 말하고
+   못 읽은 것을 하나씩 늘어놓는다 — 누르면 그 자리로 가서 마크업 창이 열린다.
+   마크업: P&ID 마크업과 같은 방법.  ✎ 마크업 을 누르고 도면에 사각형을 그으면 무엇인지(FROM · TO · 시트 이름 ·
+   게이트 종류) 고르고 값을 적는다.  저장한 값은 분석 결과와 따로 남고(다시 분석해도 남는다) 연결 · From-To 점검 ·
+   시뮬레이션 · 이동이 그 값을 쓴다.  FROM/TO 마크업을 누르면 그 시트 그 행으로 간다. */
+
+const IDR_KO = { sheet: "시트 이름", cell: "FROM/TO 칸", link: "시트 사이 연결", gate: "게이트" };
+const MARK_KO = { FROM: "FROM", TO: "TO", SHEET: "시트 이름", GATE: "게이트" };
+const pct = (v) => (v == null ? "—" : (Math.floor(v * 1000) / 10).toFixed(1) + "%");
+async function loadIdrate() {
+  const id = L.job;
+  try {
+    const r = await api(`/logic/api/jobs/${id}/idrate`);
+    if (L.job !== id) return;
+    L.idrate = r;
+  } catch (e) { L.idrate = null; }
+  renderIdrate();
+}
+function renderIdrate() {
+  const box = $("#idrate");
+  const r = L.idrate;
+  if (!box) return;
+  if (!r) { box.hidden = true; return; }
+  box.hidden = false;
+  const low = r.low && r.low.length;
+  const parts = Object.keys(IDR_KO).map((k) => {
+    const c = r.counts[k] || {};
+    const v = r.rate[k];
+    return `<li class="${v != null && v < r.target ? "low" : ""}"><span>${IDR_KO[k]}</span><b>${pct(v)}</b><small>${c.ok || 0}/${c.all || 0}</small></li>`;
+  }).join("");
+  const open = L.idrateOpen;
+  const items = (r.items || []).map((it, i) =>
+    `<li data-i="${i}" title="누르면 그 자리로 가서 마크업 창을 엽니다"><b>${esc(it.sheet_no || "p" + it.page)}</b> ${esc(it.text)}</li>`).join("");
+  box.className = "lg-idrate" + (low ? " low" : "");
+  box.innerHTML = `<div class="idr-h">식별률 <b>${pct(r.overall)}</b>
+      <small>${low ? `⚠ ${r.low.map((k) => IDR_KO[k]).join(" · ")} 가 ${Math.round(r.target * 100)}% 아래입니다` : `목표 ${Math.round(r.target * 100)}% 이상`}</small></div>
+    <ul class="idr-parts">${parts}</ul>
+    <div class="idr-un">못 읽은 것 <b>${r.unread}</b>${r.empty_cells ? ` <small>· 비어 있는 FM/TO 칸 ${r.empty_cells} (도면에 안 적혔거나 못 읽음)</small>` : ""}
+      ${r.unread ? `<button class="mini" id="idr-toggle">${open ? "접기" : "펼치기"}</button>` : ""}</div>
+    ${open && r.unread ? `<ul class="idr-items" id="idr-items">${items}</ul><p class="idr-help">✎ 마크업 으로 직접 넣으면 식별률에 바로 반영됩니다.</p>` : ""}`;
+}
+function gotoIdItem(it) {
+  const go = () => {
+    const at = it.at;
+    if (at) {
+      const st = $("#stage");
+      setZoom(Math.max(L.zoom, 1.8));
+      st.scrollLeft = ((at[0] + at[2]) / 2) * L.zoom - st.clientWidth / 2;
+      st.scrollTop = ((at[1] + at[3]) / 2) * L.zoom - st.clientHeight / 2;
+      L.markHint = { rect: at, until: Date.now() + 2500 };
+      drawMarks();
+      const kind = it.kind === "LINK" ? "FROM" : it.kind;
+      const r = $("#ov").getBoundingClientRect(), [W, H] = L.sheet.size;
+      const e = { clientX: r.left + at[2] * r.width / W, clientY: r.top + at[3] * r.height / H };
+      if (it.kind === "GATE" && it.block) { gateMenu(it.block, e); return; }
+      markDialog(at.slice(), e, { kind, n: it.row });
+    } else {
+      markDialog(null, null, { kind: it.kind === "SHEET" ? "SHEET" : "FROM" });
+    }
+  };
+  if (!L.sheet || L.sheet.page !== it.page) { L.focus = null; L.afterFit = go; openSheet(it.page); }
+  else go();
+}
+
+function setMarkMode(on) {
+  L.markMode = on;
+  $("#stage").classList.toggle("marking", on);
+  $("#markup").classList.toggle("on", on);
+  if (on) { setPinMode(false); status("마크업 — 도면에서 못 읽은 자리를 사각형으로 끌어 그으세요 (Esc 로 끝)"); }
+}
+function guessKind(rect) {
+  const s = L.sheet, lg = s.logic || [0, 0, 0, 0];
+  const cx = (rect[0] + rect[2]) / 2;
+  if (cx < lg[0]) return "FROM";
+  if (cx > lg[2]) return "TO";
+  const hit = Object.values(s.blocks).some((b) => b.bbox[0] < rect[2] && b.bbox[2] > rect[0] && b.bbox[1] < rect[3] && b.bbox[3] > rect[1]);
+  return hit ? "GATE" : "FROM";
+}
+function rowAt(rect, side) {
+  if (!rect) return null;
+  const cy = (rect[1] + rect[3]) / 2;
+  return (L.sheet.table || []).find((t) => t.side === side && t.y0 != null && t.y0 <= cy && cy <= t.y1) || null;
+}
+function markDialog(rect, e, preset) {
+  closeForceMenu();
+  preset = preset || {};
+  const s = L.sheet;
+  const old = preset.mark || null;
+  let kind = (old && old.kind) || preset.kind || (rect ? guessKind(rect) : "SHEET");
+  if (!rect) rect = old ? old.rect : [s.size[0] * 0.85, s.size[1] * 0.9, s.size[0] * 0.95, s.size[1] * 0.95];
+  const choices = (L.choices || []).map((c) => `<option value="${esc(c.key)}">${esc(c.label)}</option>`).join("");
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu mk-menu";
+  m.innerHTML = `<div class="fm-h">${old ? "마크업 고치기" : "마크업 — 이 자리는 무엇인가요"}</div>
+    <div class="mk-kinds">${Object.keys(MARK_KO).map((k) => `<label><input type="radio" name="mk-k" value="${k}"> ${MARK_KO[k]}</label>`).join("")}</div>
+    <div class="mk-f mk-val"><label>값 <input id="mk-v" type="text" maxlength="120" placeholder="예: 0016/72 · G031-81" style="width:150px"></label></div>
+    <div class="mk-f mk-row"><label>행 번호 <input id="mk-n" type="number" min="1" style="width:70px"></label> <small id="mk-rowhint"></small></div>
+    <div class="mk-f mk-gate"><label>종류 <select id="mk-c">${choices}</select></label>
+      <span id="mk-vote" hidden> A <input id="mk-a" type="number" min="1" value="2" style="width:40px"> / B <input id="mk-b" type="number" min="1" value="3" style="width:40px"></span></div>
+    <div class="fm-why" id="mk-why"></div>
+    <button data-t="ok" class="v1">저장</button>
+    ${old ? `<button data-t="del" class="vx">이 마크업 지우기</button>` : ""}
+    <button data-t="cancel">취소</button>`;
+  placeMenu(m, e);
+  const q = (x) => m.querySelector(x);
+  const refresh = () => {
+    kind = (m.querySelector("input[name=mk-k]:checked") || {}).value || kind;
+    q(".mk-val").hidden = kind === "GATE";
+    q(".mk-row").hidden = !(kind === "FROM" || kind === "TO");
+    q(".mk-gate").hidden = kind !== "GATE";
+    q("#mk-vote").hidden = q("#mk-c").value !== "VOTE";
+    const side = kind === "FROM" ? "L" : "R";
+    const t = (kind === "FROM" || kind === "TO") ? rowAt(rect, side) : null;
+    q("#mk-rowhint").textContent = t ? `표의 ${t.n}행 (${t.desc || "설명 없음"})` : "표에서 행을 못 찾았습니다 — 행 번호를 적어 주세요";
+    if (t && !q("#mk-n").value) q("#mk-n").placeholder = String(t.n);
+    q("#mk-v").placeholder = kind === "SHEET" ? `예: ${(L.sheets.find((x) => x.sheet_no) || {}).sheet_no || "G031"}` : "예: 0016/72 · G031-81";
+    q("#mk-why").textContent = kind === "FROM" ? "FROM = 이 행의 신호가 어디(시트-행)에서 오는가.  저장하면 그 행과 이어지고 누르면 그리로 갑니다."
+      : kind === "TO" ? "TO = 이 행의 신호가 어디(시트-행)로 가는가.  여럿은 쉼표로."
+      : kind === "SHEET" ? "이 장의 시트 이름 — 다른 장의 FM/TO 가 이 이름으로 이 장을 찾습니다."
+      : "사각형 안 블록의 종류 — 그 게이트로 시뮬레이션합니다.";
+  };
+  for (const r of m.querySelectorAll("input[name=mk-k]")) { r.checked = r.value === kind; r.onchange = refresh; }
+  q("#mk-c").onchange = refresh;
+  if (old) {
+    if (old.value) q("#mk-v").value = old.value;
+    if (old.n) q("#mk-n").value = old.n;
+    if (old.choice) q("#mk-c").value = old.choice;
+    if (old.param) { q("#mk-a").value = old.param.a; q("#mk-b").value = old.param.b; }
+  } else if (preset.n) q("#mk-n").value = preset.n;
+  refresh();
+  (kind === "GATE" ? q("#mk-c") : q("#mk-v")).focus();
+  const save = async (del) => {
+    const who = needAuthor();
+    if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
+    const body = { page: s.page, id: old ? old.id : undefined, kind, rect, author: who };
+    if (!del) {
+      if (kind === "GATE") {
+        body.choice = q("#mk-c").value;
+        if (body.choice === "VOTE") body.param = { a: Number(q("#mk-a").value), b: Number(q("#mk-b").value) };
+      } else {
+        body.value = q("#mk-v").value.trim();
+        if (!body.value) { status("값을 적어 주세요"); q("#mk-v").focus(); return; }
+        const n = q("#mk-n").value || ((kind === "FROM" || kind === "TO") && rowAt(rect, kind === "FROM" ? "L" : "R") || {}).n;
+        if (n) body.row = Number(n);
+      }
+    }
+    closeForceMenu();
+    try {
+      const r = await post(`/logic/api/jobs/${L.job}/overrides/mark`, body);
+      const mk = r.mark;
+      if (del) status("마크업을 지웠습니다 — 도면 판정으로 돌아갑니다");
+      else if (mk && mk.ok === false) status(`저장했지만 닿지 못했습니다 — ${mk.why}`);
+      else {
+        const f = r.ft;
+        status(`${MARK_KO[kind]} 마크업 저장 (${who})` + (kind === "SHEET" ? ` — 이 장은 이제 ${r.sheet_no}` : "")
+          + (mk && mk.n ? ` — ${mk.n}행` : "") + (mk && mk.made_row ? " (표에 없던 행을 만들었습니다)" : "")
+          + (f ? (f.ok === false ? ` — ✕ 아직 맞지 않습니다: ${(f.why || []).join(" · ")}` : f.ok ? " — ✓ 연결이 맞습니다" : "") : ""));
+      }
+    } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+    setMarkMode(false);
+    await refreshSheet();
+    loadIdrate();
+  };
+  q("#mk-v").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) save(false); if (ev.key === "Escape") closeForceMenu(); });
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest("button[data-t]");
+    if (!b) return;
+    if (b.dataset.t === "ok") save(false);
+    else if (b.dataset.t === "del") save(true);
+    else { closeForceMenu(); L.markDraft = null; drawMarks(); }
+  });
+}
+function drawMarks() {
+  const ov = $("#ov");
+  if (!ov || !L.sheet) return;
+  const old = $("#g-marks");
+  if (old) old.remove();
+  const g = el("g", { id: "g-marks" }, ov);
+  if ($("#show-marks") && !$("#show-marks").checked) return;
+  const P = L.sheet.pitch || 11.5;
+  const fs = Math.max(2.6, Math.min(4.4, P * 0.32));
+  for (const mk of L.sheet.marks || []) {
+    const [x0, y0, x1, y1] = mk.rect;
+    const gg = el("g", { class: `mk ${mk.kind.toLowerCase()}${mk.ok === false ? " bad" : ""}`, "data-mark": mk.id }, g);
+    el("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, class: "mk-box" }, gg);
+    const label = mk.kind === "GATE" ? `게이트 ${choiceLabel(mk.choice)}` : `${MARK_KO[mk.kind]} ${mk.value}`;
+    const tw = label.length * fs * 0.55 + fs;
+    el("rect", { x: x0, y: y0 - fs * 1.35, width: tw, height: fs * 1.25, rx: fs * 0.25, class: "mk-tag" }, gg);
+    const t = el("text", { x: x0 + fs * 0.4, y: y0 - fs * 0.4, "font-size": fs }, gg);
+    t.textContent = label + " ✎";
+    const refs = (mk.kind === "FROM" || mk.kind === "TO") ? refsIn(mk.value) : [];
+    el("title", {}, gg).textContent = `마크업 — ${label}${mk.n ? ` (${mk.n}행)` : ""} · ${mk.author} · ${mk.at}`
+      + (mk.ok === false ? `\n⚠ ${mk.why}` : "") + (refs.length ? "\n누르면 그 시트 그 행으로 갑니다 · 오른쪽 단추 = 고치기" : "\n누르면 고칩니다");
+    gg.addEventListener("click", (e) => {
+      if (L.justPanned) return;
+      e.stopPropagation();
+      if (refs.length && !e.altKey) chooseRef(refs, mk.kind === "FROM" ? "R" : "L", e);
+      else markDialog(mk.rect.slice(), e, { mark: mk });
+    });
+    gg.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); markDialog(mk.rect.slice(), e, { mark: mk }); });
+  }
+  const d = L.markDraft;
+  if (d) el("rect", { x: Math.min(d[0], d[2]), y: Math.min(d[1], d[3]), width: Math.abs(d[2] - d[0]), height: Math.abs(d[3] - d[1]), class: "mk-draft" }, g);
+  const h = L.markHint;
+  if (h && h.until > Date.now()) {
+    const [x0, y0, x1, y1] = h.rect;
+    el("rect", { x: x0 - 2, y: y0 - 2, width: x1 - x0 + 4, height: y1 - y0 + 4, class: "mk-hint" }, g);
+  }
+}
+function bindMarkup() {
+  $("#markup").onclick = () => { if (!L.sheet) { status("먼저 시트를 고르세요"); return; } setMarkMode(!L.markMode); };
+  $("#show-marks").onchange = drawMarks;
+  const st = $("#stage");
+  let start = null;
+  st.addEventListener("pointerdown", (e) => {
+    if (!L.markMode || e.button !== 0 || !L.sheet) return;
+    e.stopPropagation(); e.preventDefault();
+    start = sheetPoint(e);
+    L.markDraft = [start[0], start[1], start[0], start[1]];
+  }, true);
+  window.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const p = sheetPoint(e);
+    L.markDraft = [start[0], start[1], p[0], p[1]];
+    drawMarks();
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (!start) return;
+    const p = sheetPoint(e);
+    const r = [Math.min(start[0], p[0]), Math.min(start[1], p[1]), Math.max(start[0], p[0]), Math.max(start[1], p[1])];
+    start = null;
+    L.markJust = true; setTimeout(() => (L.markJust = false), 0);
+    if (r[2] - r[0] < 1.5 || r[3] - r[1] < 1.5) { L.markDraft = null; drawMarks(); status("사각형이 너무 작습니다 — 끌어서 그으세요"); return; }
+    markDialog(r, e);
+  });
+  st.addEventListener("click", (e) => { if (L.markJust || L.markMode) { e.stopPropagation(); e.preventDefault(); } }, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && L.markMode) { setMarkMode(false); L.markDraft = null; drawMarks(); status(""); } });
+  $("#idrate").addEventListener("click", (e) => {
+    if (e.target.closest("#idr-toggle")) { L.idrateOpen = !L.idrateOpen; renderIdrate(); return; }
+    const li = e.target.closest("#idr-items li[data-i]");
+    if (li && L.idrate) gotoIdItem(L.idrate.items[Number(li.dataset.i)]);
+  });
+}
+
 /* ------------------------------------------------------------------ 이벤트 */
 
 function bind() {
@@ -2392,6 +2650,7 @@ function bind() {
     if (document.body.classList.contains("lg-full")) setFull(false);
   });
   bindExtras();
+  bindMarkup();
 }
 
 bind();

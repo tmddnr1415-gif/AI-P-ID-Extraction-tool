@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, library, memo, overrides, projects, report, sim, store
+from . import fromto, idrate, library, memo, overrides, projects, report, sim, store
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -501,6 +501,7 @@ def overrides_get(job: str):
     d = _dir(job)
     ov = overrides.load(d)
     return {**ov, "choices": [{"key": k, "label": overrides.CHOICE_KO[k], "logic": v[1]} for k, v in overrides.CHOICES.items()],
+            "mark_kinds": overrides.MARK_KINDS,
             "timers_flat": {str(p): v for p, v in overrides.timers_of(ov).items()}, "default_t": sim.DEFAULT_T}
 
 
@@ -565,6 +566,40 @@ def overrides_cell(job: str, body: dict = Body(...)):
     ent = _ov_call(overrides.set_cell, d, page, side, n, None if v is None else str(v), str(body.get("author") or ""), was)
     r2 = next((r for r in _sheet(job, page)["rows"] if r["side"] == side and r["n"] == n), None)
     return {"saved": ent, "ft": (r2 or {}).get("ft"), "ref": (r2 or {}).get("ref")}
+
+
+@router.get("/logic/api/jobs/{job}/idrate")
+def job_idrate(job: str):
+    """식별률 (L24) — 시트 이름 · FROM/TO 칸 · 연결 · 게이트 를 얼마나 읽었나 + 못 읽은 것 목록 (사람이 마크업으로 넣는다).
+    사람이 얹은 값(마크업 · 칸 · 게이트 종류)까지 반영한 결과로 센다."""
+    res = _result(job)
+    hit = res.get("_idrate")
+    if hit is None:
+        hit = res["_idrate"] = idrate.measure(res)
+    return hit
+
+
+@router.post("/logic/api/jobs/{job}/overrides/mark")
+def overrides_mark(job: str, body: dict = Body(...)):
+    """마크업 (L24) — {page, id?, kind: FROM|TO|SHEET|GATE, rect: [x0,y0,x1,y1], value?, row?, choice?, param?, author}.
+    id 와 value·choice 가 모두 없으면 그 마크업을 지운다.  저장 뒤 그 장에서 이 마크업이 어디에 닿았는지 돌려준다."""
+    d = _dir(job)
+    page = body.get("page")
+    if not isinstance(page, int):
+        raise HTTPException(400, "page(정수) 가 필요합니다.")
+    _sheet(job, page)
+    v = body.get("value")
+    ent = _ov_call(overrides.set_mark, d, page, body.get("id"), body.get("kind"), body.get("rect"),
+                   None if v is None else str(v), str(body.get("author") or ""), body.get("row"),
+                   body.get("choice"), body.get("param"))
+    s2 = _sheet(job, page)
+    mk = next((m for m in s2.get("marks") or [] if m.get("id") == ent.get("id")), None)
+    row = None
+    if mk and mk.get("n") and mk["kind"] in ("FROM", "TO"):
+        side = "L" if mk["kind"] == "FROM" else "R"
+        row = next((r for r in s2["rows"] if r["side"] == side and r["n"] == mk["n"]), None)
+    return {"saved": ent, "mark": mk, "ft": (row or {}).get("ft"), "ref": (row or {}).get("ref"),
+            "sheet_no": s2.get("sheet_no")}
 
 
 @router.post("/logic/api/jobs/{job}/overrides/timer")

@@ -55,6 +55,7 @@
 
 <main class="lg-main">
   <aside class="lg-sheets">
+    <div id="idrate" class="lg-idrate" hidden></div>
     <div class="lg-side-h">시트 <span id="sheet-count"></span></div>
     <input id="sheet-filter" placeholder="시트 번호 · 제목 찾기">
     <ul id="sheet-list"></ul>
@@ -82,7 +83,10 @@
       <label class="chk"><input type="checkbox" id="show-blocks" checked> 블록 이름</label>
       <label class="chk" title="시뮬레이션 중 게이트 입력·출력 단자에 1/0 을 적습니다"><input type="checkbox" id="show-ports" checked> 게이트 1/0</label>
       <label class="chk" title="1 이 하나도 없는 게이트에도 1/0 을 적습니다"><input type="checkbox" id="show-all-gates"> 모든 게이트</label>
-      <label class="chk" title="S-R 래치 위에 진리표를 그리고 지금 줄을 표시합니다"><input type="checkbox" id="show-latch" checked> S-R 표</label>
+      <label class="chk" title="시뮬레이션 중 모든 S-R 래치 위에 실시간 값 표(S · R · Q)를 그리고 지금 줄을 칠합니다"><input type="checkbox" id="show-latch" checked> 래치 값 표</label>
+      <span class="sep"></span>
+      <button id="markup" title="도면에 사각형을 그어 못 읽은 FROM · TO · 시트 이름 · 게이트 종류를 직접 넣습니다 (P&ID 마크업과 같은 방법)">✎ 마크업</button>
+      <label class="chk" title="사람이 넣은 마크업 상자를 도면에 보입니다"><input type="checkbox" id="show-marks" checked> 마크업 보이기</label>
       <span class="sep"></span>
       <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
       <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
