@@ -12,9 +12,8 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import fromto, geom, glyphs, graph, macro
-
-REF = re.compile(r"^([A-Z]\d{3}[A-Z]?)-(\d{1,3})$")     # 시트-행 (설계 S6 · 판독한 글자에서)
+from . import fromto, geom, glyphs, graph, legend, library, macro
+from .refs import REF, series                          # 시트-행 (설계 S6 · L21 계통 접두)
 
 
 def analyse(pdf_path, progress=None):
@@ -36,6 +35,20 @@ def analyse(pdf_path, progress=None):
         raise NotLogic("Logic 표(왼쪽 입력 · 가운데 LOGIC · 오른쪽 출력)를 그린 장을 한 장도 찾지 못했습니다.")
     say("glyphs", 0, 1)
     D = glyphs.learn(doc, sheets)
+    # 범례 표(FUNCTION | SYMBOL | DEFINITION) — 모양으로 그린 게이트의 뜻 (L21 · 없으면 빈 사전)
+    pitch = _modal_pitch(sheets)
+    leg = legend.read(doc, kinds, pitch, B.vocab()) if pitch else {"map": {}, "names": {}, "figures": [], "rows": [], "pages": []}
+    # L22 — 학습 사전: 묶음 범례가 말하지 않은 열쇠만 보태고, 범례 표가 없으면 진짜 글자가 열쇠와 맞을 때만 쓴다
+    lib = library.load()
+    lib_leg = library.as_legend(lib)
+    if leg["map"] or leg["figures"]:
+        use = library.merge(leg, lib_leg)
+    elif lib_leg["map"] or lib_leg["names"]:
+        use = {**lib_leg, "library_only": True}
+    else:
+        use = None
+    for sh in sheets.values():
+        sh.legend = use
     out_sheets = []
     for pno, sh in sorted(sheets.items()):
         say("blocks", pno, len(doc))
@@ -44,21 +57,39 @@ def analyse(pdf_path, progress=None):
         rows = _rows(sh, D)
         timers = _timer_params(sh, D)
         out_sheets.append(_export(sh, pno, sheet_no, " ".join(sub), rows, timers))
+        if not sub:
+            out_sheets[-1]["_title_lines"] = glyphs._title_lines(doc[pno - 1])
+    _titles_from_lines(out_sheets)
     _cross_refs(out_sheets)
     for s in out_sheets:
         s["findings"] = _findings(s)
     fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
     say("macros", 0, 1)
-    macro.link(doc, out_sheets)              # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12)
+    lib_sheets = macro.link(doc, out_sheets, library=lib)   # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12 · L22 사전)
     return {
         "pdf_pages": len(doc),
         "sheets": out_sheets,
         "kinds": kinds,
         "dictionary": D.to_json(),
+        "legend": {"pages": leg["pages"], "symbols": {k: v["name"] for k, v in leg["map"].items()},
+                   "figures": sorted({f["name"] for f in leg["figures"]}),
+                   # L22 — 학습 사전에 남길 것 (이 묶음 범례가 말한 것만)
+                   "learn": {"map": {k: {kk: v[kk] for kk in ("name", "logic", "label", "page")} for k, v in leg["map"].items()},
+                             "names": dict(leg.get("names") or {}),
+                             "figures": [{kk: f[kk] for kk in ("fig", "name", "logic", "label")} for f in leg["figures"]]},
+                   "library": {"used": use is not None and not (leg["map"] or leg["figures"]),
+                               "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
+        "library_sheets": lib_sheets or [],
         "seconds": round(time.time() - t0, 1),
         "note": "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
                 "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
     }
+
+
+def _modal_pitch(sheets):
+    from collections import Counter
+    c = Counter(round(sh.layout.pitch, 1) for sh in sheets.values())
+    return c.most_common(1)[0][0] if c else 0
 
 
 class NotLogic(Exception):
@@ -81,12 +112,21 @@ def _rows(sh, D):
     for p in sh.all_glyphs:
         grid[int(((p.bbox[1] + p.bbox[3]) / 2) // max(lay.pitch, 1))].append(p)
 
+    # 표의 행 번호를 진짜 글자로 인쇄한 장은 표 전체가 글자다 (19VA · L21) — 빈 칸을 선 글자로 읽지 않는다
+    nums = {str(n) for n, _, _ in lay.left_rows + lay.right_rows}
+    t_y0 = min((a for _, a, _ in lay.left_rows + lay.right_rows), default=0)
+    t_y1 = max((b for _, _, b in lay.left_rows + lay.right_rows), default=0)
+    real_table = len(nums) >= 10 and \
+        len({w[4] for w in sh.words if w[4] in nums and t_y0 < (w[1] + w[3]) / 2 < t_y1}) >= 0.8 * len(nums)
+
     def cell_text(x0, x1, a, b):
         # 진짜 글자로 인쇄한 칸이 먼저다 (G005 처럼 표를 글자로 내보낸 장) — 선 글자 사전으로 읽을 일이 없다
         ws = sorted((w for w in sh.words if x0 < (w[0] + w[2]) / 2 < x1 and a < (w[1] + w[3]) / 2 < b),
                     key=lambda w: (round((w[1] + w[3]) / 2), w[0]))
         if ws:
             return " ".join(w[4] for w in ws).strip()
+        if real_table:
+            return ""
         ps = []
         for k in range(int(a // lay.pitch) - 1, int(b // lay.pitch) + 2):
             for p in grid.get(k, []):
@@ -119,12 +159,17 @@ def _rows(sh, D):
             for i in range(len(cs) - 1):
                 cells.append(cell_text(cs[i], cs[i + 1], a, b))
             out.append({"n": n, "side": side, "y0": a, "y1": b, "cells": cells, "xs": list(cs)})
-    # 칸 이름 — 행 번호 칸(글자가 행 번호와 같은 칸)을 기준으로 앞뒤를 정한다
+    # 칸 이름 — 머리글을 진짜 글자로 인쇄했으면 머리글이 정한다 (L21 · 양식마다 칸 순서가 다르다).
+    # 못 읽으면 행 번호 칸(글자가 행 번호와 같은 칸)을 기준으로 앞뒤를 정한다 (HRSG).
     for side in ("L", "R"):
         rs = [r for r in out if r["side"] == side]
         if not rs:
             continue
         ncell = len(rs[0]["cells"])
+        roles = _header_roles(sh, rs[0]["xs"], min(r["y0"] for r in rs), lay.pitch)
+        if roles:
+            _apply_roles(rs, roles, side)
+            continue
         hit = [sum(1 for r in rs if r["cells"][k].replace(" ", "") == str(r["n"])) for k in range(ncell)]
         k_no = max(range(ncell), key=lambda k: hit[k]) if hit else None
         for r in rs:
@@ -150,6 +195,70 @@ def _rows(sh, D):
                 r["to"] = c[k_no + 1] if k_no is not None and k_no + 1 < ncell else ""
             del r["cells"]
     return out
+
+
+def _header_roles(sh, xs, top, pitch):
+    """표 머리글(첫 행 위 세 칸 높이 안)의 진짜 글자 → 칸 번호별 역할 {k: role}.  역할 둘 이상을 못 읽으면 None."""
+    V = B.vocab().get("table_headers") or {}
+    if not V:
+        return None
+    words = [w for w in sh.words if top - 3 * pitch <= (w[1] + w[3]) / 2 < top]
+    roles = {}
+    for k in range(len(xs) - 1):
+        toks = [w[4].upper() for w in words if xs[k] < (w[0] + w[2]) / 2 < xs[k + 1]]
+        if not toks:
+            continue
+        for role, keys in V.items():               # 순서가 우선순위 — 'TAG NO.' 는 NO. 보다 TAG 가 먼저
+            if any(t in [x.upper() for x in keys] for t in toks):
+                roles[k] = str(role)
+                break
+    got = set(roles.values())
+    return roles if len(got) >= 2 and ("no" in got or "fm" in got or "to" in got) else None
+
+
+def _apply_roles(rs, roles, side):
+    by = {}
+    for k, role in roles.items():
+        by.setdefault(role, k)
+    for r in rs:
+        c = r["cells"]
+        xs = r.pop("xs")
+
+        def box(k, r=r, xs=xs):
+            return [round(xs[k], 2), round(r["y0"], 2), round(xs[k + 1], 2), round(r["y1"], 2)] \
+                if k is not None and 0 <= k < len(xs) - 1 else None
+        get = lambda role: c[by[role]] if role in by and by[role] < len(c) else ""
+        r["no_box"] = box(by.get("no"))
+        r["no_read"] = get("no")
+        r["desc"] = get("desc")
+        r["kks"] = get("kks")
+        if "abv" in by:
+            r["abv"] = get("abv")                  # 단자 약어 (Typical 시트 · 매크로 단자와 글자 그대로 맞댄다)
+        if side == "L":
+            r["fm_box"] = box(by.get("fm"))
+            r["fm"] = get("fm")
+        else:
+            r["to_box"] = box(by.get("to"))
+            r["to"] = get("to")
+        del r["cells"]
+
+
+def _titles_from_lines(sheets):
+    """제목 칸 글줄 중 묶음 대부분(절반 넘게)에 같은 줄은 프로젝트 이름 · 문서 이름이다 — 빼고 남은 줄이 그 장의 제목."""
+    got = [s for s in sheets if s.get("_title_lines")]
+    if not got:
+        for s in sheets:
+            s.pop("_title_lines", None)
+        return
+    cnt = defaultdict(int)
+    for s in got:
+        for ln in set(s["_title_lines"]):
+            cnt[ln] += 1
+    common = {ln for ln, c in cnt.items() if c > 0.5 * len(got) and len(got) >= 3}
+    for s in sheets:
+        lines_ = s.pop("_title_lines", None)
+        if lines_ and not s.get("title"):
+            s["title"] = " ".join(ln for ln in lines_ if ln not in common)
 
 
 def _fix_o0(t):
@@ -179,6 +288,15 @@ def _timer_params(sh, D):
             continue
         x0, y0, x1, y1 = b.bbox
         h = y1 - y0
+        # 진짜 글자로 인쇄한 시간 (19VA `1 SEC` · `T = 10 SEC` — 블록 바로 아래·위, L21)
+        near = sorted((w for w in sh.words if w[2] > x0 - h and w[0] < x1 + h and
+                       ((y1 - 0.5 <= w[1] < y1 + 1.3 * h) or (y0 - 1.3 * h < w[3] <= y0 + 0.5))),
+                      key=lambda w: (round(w[1]), w[0]))
+        m = re.search(r"(\d+(?:\.\d+)?)\s*(SEC|S|MIN|M)\b", " ".join(w[4] for w in near).upper())
+        if m:
+            v = float(m.group(1)) * (60 if m.group(2).startswith("M") else 1)
+            out[b.id] = {"t": int(v) if v == int(v) else v, "text": f"t={m.group(1)}{m.group(2).lower()}"}
+            continue
         ps = [p for p in sh.glyph_polys if p.bbox[2] > x0 - h and p.bbox[0] < x1 + h and
               ((y0 - 1.3 * h < p.bbox[3] <= y0 + 0.5) or (y1 - 0.5 <= p.bbox[1] < y1 + 1.3 * h))]
         cs = sorted(glyphs.chars(ps), key=lambda c: c.cx)
@@ -220,6 +338,10 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             "param": dict(getattr(b, "param", {})), "group": getattr(b, "group", ""),
             "pointer": b.pointer, "roles": getattr(b, "roles", {}),
         }
+        if b.kind in ("RECT", "CIRCLE"):
+            blks[b.id]["key"] = legend.keys_of(b, sh.words)[0]      # L22 — 모양|안 글자 (사람이 종류를 정하면 사전 열쇠)
+        if getattr(b, "learned", ""):
+            blks[b.id]["learned"] = b.learned
         if getattr(b, "func", "") == "MACRO":
             blks[b.id]["pins"] = dict(getattr(b, "pins", {}))
             blks[b.id]["lines"] = [list(ln) for ln in getattr(b, "lines", [])]
@@ -250,7 +372,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             continue
         info = rmap.get((r["side"], r["n"]), {})
         srows.append({"n": r["n"], "side": r["side"], "net": str(r["net"]), "at": list(r["at"]),
-                      **{k: v for k, v in info.items() if k in ("fm", "desc", "kks", "to", "no_read", "y0", "y1", "fm_box", "to_box", "no_box")}})
+                      **{k: v for k, v in info.items() if k in ("fm", "desc", "kks", "abv", "to", "no_read", "y0", "y1", "fm_box", "to_box", "no_box")}})
     lay = sh.layout
     out = {
         "page": pno, "sheet_no": sheet_no or "", "title": title,
@@ -318,7 +440,7 @@ def _net_order(s):
 def _cross_refs(sheets):
     """왼쪽 행의 FM `G031-81` → G031 장의 81행 (오른쪽 출력).  읽은 글자 그대로 맞댄다."""
     by_no = {s["sheet_no"]: s for s in sheets if s["sheet_no"]}
-    prefixes = {s["sheet_no"][0] for s in sheets if s["sheet_no"]}
+    prefixes = {series(s["sheet_no"]) for s in sheets if s["sheet_no"]}
     for s in sheets:
         for r in s["rows"]:
             if r["side"] != "L":
@@ -329,7 +451,7 @@ def _cross_refs(sheets):
                 continue
             tgt = by_no.get(m.group(1))
             r["ref"] = {"sheet": m.group(1), "row": int(m.group(2)), "page": tgt["page"] if tgt else None,
-                        "other_bundle": m.group(1)[0] not in prefixes}   # 다른 묶음 (Logic 의 P… = Loop 장)
+                        "other_bundle": series(m.group(1)) not in prefixes}   # 다른 묶음 (Logic 의 P… = Loop 장)
             if tgt:
                 for tr in tgt["rows"]:
                     if tr["side"] == "R" and tr["n"] == int(m.group(2)):

@@ -49,6 +49,7 @@ class Poly:                     # 꺾은선 한 path
     bbox: tuple
     dashed: bool = False
     pid: int = 0
+    curved: bool = False         # 곡선(c)만으로 그린 열린 호 — 둥근 상자의 끝 (L21 · 19VA ON/OFF DELAY)
 
     @property
     def size(self):
@@ -99,6 +100,7 @@ class Prims:
     words: list = field(default_factory=list)
     markers: list = field(default_factory=list)   # 칠한 ◆ ■ (선 위의 신호 인터페이스 표시)
     blobs: list = field(default_factory=list)     # 칠한 작은 조각의 bbox (연결점을 조각으로 칠한 양식)
+    rings: list = field(default_factory=list)     # 호 조각들이 닫힌 원 후보 [(Circle, {pid})] (L21)
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
 
 
@@ -127,6 +129,8 @@ def read(page, pno: int) -> Prims:
     out = Prims(pno, page.rect.width, page.rect.height)
     out.words = [(w[0], w[1], w[2], w[3], w[4]) for w in page.get_text("words")]
     pid = 0
+    arcs = []
+    tris = []
     for d in page.get_drawings():
         items = d.get("items") or []
         if not items:
@@ -150,6 +154,7 @@ def read(page, pno: int) -> Prims:
                 out.blobs.append(_bbox(pts))
             if kinds == ["l", "l", "l"] and len(pts) == 3:
                 out.arrows.append(_arrow(pts))
+                tris.append(pts)
             elif len(pts) >= 12:
                 bb = _bbox(pts)
                 w, h = bb[2] - bb[0], bb[3] - bb[1]
@@ -175,12 +180,27 @@ def read(page, pno: int) -> Prims:
                     out.markers.append(bb)
             continue
         pid += 1
+        if all(k == "c" for k in kinds) and len(kinds) < 4 and not ("f" in typ):
+            # 호 조각 — 원을 사분원 넷으로 따로 그린 양식(19VA)은 아래에서 다시 모은다
+            arcs.append((pid, [(_pt(it[1], m), _pt(it[2], m), _pt(it[3], m), _pt(it[4], m)) for it in items]))
+            continue
         if all(k == "c" for k in kinds) and len(kinds) >= 4:
             pts = [_pt(it[1], m) for it in items] + [_pt(it[4], m) for it in items]
             bb = _bbox(pts)
             w, h = bb[2] - bb[0], bb[3] - bb[1]
             if w > 0 and 0.8 < h / w < 1.25:
                 out.circles.append(Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb))
+                continue
+            st, en = _pt(items[0][1], m), _pt(items[-1][4], m)
+            if w > 0 and h > 0 and abs(st[0] - en[0]) < 0.05 and abs(st[1] - en[1]) < 0.05:
+                # 닫힌 납작한 고리(타원) — 범례 ALM 'ANN' (L21).  원 후보와 같이 graph.py 가 크기로 정한다
+                c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
+                c.oval = True
+                out.rings.append((c, {pid}))
+                segs = [Seg(*_pt(it[1], m), *_pt(it[4], m)) for it in items]
+                pl = Poly(segs, _bbox(pts), pid=pid, curved=True)
+                pl.cbbox = bb
+                out.polys.append(pl)
                 continue
         segs = []
         for it in items:
@@ -210,9 +230,121 @@ def read(page, pno: int) -> Prims:
         if rr is not None:
             out.rects.append(rr)
             continue
+        diag = _crossed_rect(segs)
+        if diag is not None:                       # 축 변 넷 + 대각선 — ⊠ (19VA NOT · L21): 상자와 그 안의 획
+            rr, rest = diag
+            out.rects.append(rr)
+            out.polys.append(Poly(rest, _bbox([q for sg in rest for q in sg.ends()]), pid=pid))
+            continue
         pts = [p for s in segs for p in s.ends()]
-        out.polys.append(Poly(segs, _bbox(pts), pid=pid))
+        pl = Poly(segs, _bbox(pts), pid=pid)
+        if len(segs) >= 12 and not all(sg.horiz or sg.vert for sg in segs) and \
+                abs(segs[0].x0 - segs[-1].x1) < 0.05 and abs(segs[0].y0 - segs[-1].y1) < 0.05:
+            # 잘게 꺾은선으로 그린 닫힌 고리 (범례 ALM 타원 · L21) — 원 후보 (graph.py 가 크기로 정한다)
+            bb = pl.bbox
+            w, h = bb[2] - bb[0], bb[3] - bb[1]
+            if w > 0 and h > 0:
+                c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
+                c.oval = not (0.8 < h / w < 1.25)
+                out.rings.append((c, {pid}))
+                pl.curved = True
+                pl.cbbox = bb
+        out.polys.append(pl)
+    _gather_arcs(out, arcs)
+    _drop_fans(out, tris)
     return out
+
+
+def _drop_fans(out, tris):
+    """한 점에 꼭짓점을 모은 칠한 삼각형 여럿(부채꼴)은 화살촉이 아니라 연결점을 조각내 칠한 것 (19VA · L21).
+    화살촉은 혼자 있다 — 서로 다른 삼각형 여섯 이상이 한 꼭짓점을 나눠 가지면 점의 조각(blob)으로 돌린다."""
+    if len(tris) < 6:
+        return
+    key = lambda q: (round(q[0], 2), round(q[1], 2))
+    uniq = list({tuple(sorted(key(q) for q in t)): t for t in tris}.values())
+    grid = {}
+    for i, t in enumerate(uniq):
+        for q in t:
+            grid.setdefault((int(q[0] * 4), int(q[1] * 4)), []).append((q, i))
+
+    def sharers(q):
+        gx, gy = int(q[0] * 4), int(q[1] * 4)
+        return {i for dx in (-1, 0, 1) for dy in (-1, 0, 1) for p_, i in grid.get((gx + dx, gy + dy), [])
+                if abs(p_[0] - q[0]) < 0.05 and abs(p_[1] - q[1]) < 0.05}
+    fan = [t for t in uniq if any(len(sharers(q)) >= 6 for q in t)]
+    if not fan:
+        return
+    boxes = [_bbox(t) for t in fan]
+    same = lambda a, b: all(abs(u - v) < 1e-6 for u, v in zip(a, b))
+    out.arrows = [a for a in out.arrows if not any(same(a.bbox, bb) for bb in boxes)]
+    out.blobs.extend(boxes)
+
+def _gather_arcs(out, arcs):
+    """따로 그린 호 조각들 (L21 · 19VA 는 원을 사분원 넷으로 따로 그린다).
+
+    조각은 예전처럼 꺾은선(현)으로 남기되 곡선 표시(curved)를 단다.  끝끼리 이어 닫히고 정사각 둘레인 무리는
+    원 **후보**(rings)로 따로 적는다 — 원으로 쓸지는 행 간격을 아는 graph.py 가 크기로 정한다 (글자 O 는 원이 아니다).
+    """
+    if not arcs:
+        return
+    n = len(arcs)
+    par = list(range(n))
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    ends = [(cs[0][0], cs[-1][3]) for _, cs in arcs]
+    close = lambda a, b: abs(a[0] - b[0]) < 0.05 and abs(a[1] - b[1]) < 0.05
+    for i in range(n):
+        for j in range(i + 1, n):
+            if any(close(a, b) for a in ends[i] for b in ends[j]):
+                par[f(j)] = f(i)
+    groups = {}
+    for i in range(n):
+        groups.setdefault(f(i), []).append(i)
+    for i in range(n):
+        pid, cs = arcs[i]
+        segs = [Seg(c[0][0], c[0][1], c[3][0], c[3][1]) for c in cs]
+        pl = Poly(segs, _bbox([q for sg in segs for q in sg.ends()]), pid=pid, curved=True)
+        pl.cbbox = _bbox([q for c in cs for q in (c[0], c[3], _arc_mid(c))])      # 곡선이 실제로 닿는 둘레
+        out.polys.append(pl)
+    for g in groups.values():
+        if len(g) < 3:
+            continue
+        es = [e for i in g for e in ends[i]]
+        # 닫힘 = 끝마다 맞닿은 끝이 꼭 하나 (반올림 칸으로 세면 524.55 ↔ 524.5499 가 갈린다)
+        if not all(sum(1 for q in es if close(e, q)) == 2 for e in es):
+            continue
+        bb = _bbox([q for i in g for c in arcs[i][1] for q in (c[0], c[3])] +
+                   [_arc_mid(c) for i in g for c in arcs[i][1]])
+        w, h = bb[2] - bb[0], bb[3] - bb[1]
+        if w > 0 and h > 0:
+            c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
+            c.oval = not (0.8 < h / w < 1.25)          # 납작한 고리(타원) — 범례 ALM 'ANN' 처럼 둥근 상자
+            out.rings.append((c, {arcs[i][0] for i in g}))
+
+
+def _arc_mid(c):
+    """3차 베지어의 가운데 점 (t=0.5)."""
+    p0, p1, p2, p3 = c
+    return ((p0[0] + 3 * p1[0] + 3 * p2[0] + p3[0]) / 8, (p0[1] + 3 * p1[1] + 3 * p2[1] + p3[1]) / 8)
+
+
+def _crossed_rect(segs):
+    """축 선분 넷이 닫힌 사각형이고 나머지가 그 안의 대각선이면 (사각형, 대각선들)."""
+    ax = [sg for sg in segs if sg.horiz or sg.vert]
+    dg = [sg for sg in segs if not (sg.horiz or sg.vert)]
+    if len(ax) != 4 or not dg:
+        return None
+    rr = _closed_rect(ax)
+    if rr is None:
+        return None
+    t = 0.05
+    if all(rr.x0 - t <= x <= rr.x1 + t and rr.y0 - t <= y <= rr.y1 + t for sg in dg for x, y in sg.ends()):
+        return rr, dg
+    return None
 
 
 def _vertices(items, m):
@@ -288,7 +420,7 @@ def layout(prims: Prims):
         if r.h > 0.6 * H and r.w < 0.01:
             vs.append((r.x0, r.y0, r.y1))
     if len(vs) < 5:
-        return None
+        return _cell_layout(prims) or _coverage_layout(prims)
     vs.sort()
     xs = []
     for x, a, b in vs:
@@ -309,6 +441,8 @@ def layout(prims: Prims):
     if not lrows or not rrows:
         return None
     pitch = Counter(round(b - a, 1) for a, b in lrows + rrows).most_common(1)[0][0]
+    if x0 - left_cols[0] < 2 * pitch or right_cols[-1] - x1 < 2 * pitch:
+        return None              # 양쪽 표가 글자 한 칸도 못 담는다 — 도면 테두리 띠다 (19VA 표지 · L21)
     # LOGIC 영역의 위·아래는 표의 첫 행 위 · 마지막 행 아래 (머리글 칸은 영역이 아니다)
     y0 = min(lrows[0][0], rrows[0][0])
     y1 = max(lrows[-1][1], rrows[-1][1])
@@ -316,6 +450,116 @@ def layout(prims: Prims):
     R = [(len(L) + k + 1, a, b) for k, (a, b) in enumerate(rrows)]
     return Layout((x0, y0, x1, y1), pitch, L, R, [x for x, _, _ in xs],
                   note="행 번호는 표의 위→아래 순서 (왼쪽 1부터, 오른쪽은 이어서)")
+
+
+def _cell_layout(prims):
+    """표를 긴 괘선이 아니라 **칸마다 사각형**으로 그린 양식 (19VA · L21).
+
+    같은 크기의 칸이 같은 x 에 여러 번(행마다) 되풀이되는 사각형만 표 칸으로 본다 — 블록 상자는 되풀이되지 않는다.
+    칸 높이의 최빈값이 P 이고, LOGIC 영역은 표 칸 경계 사이의 가장 넓은 틈이다 (긴 괘선 양식과 같은 정의).
+    """
+    H = prims.height
+    cnt = Counter((round(r.x0, 1), round(r.w, 1), round(r.h, 1)) for r in prims.rects
+                  if 1 < r.h < 0.1 * H and r.w > 1)          # 점 크기 사각형(0.1pt — CAD 의 삽입점 흔적)은 칸이 아니다
+    if not cnt:
+        return None
+    reps = sorted(cnt.values(), reverse=True)
+    need = max(5, reps[0] // 2)                 # 표의 열은 행 수만큼 되풀이된다 — 가장 많은 열의 절반 이상
+    cols = {k for k, v in cnt.items() if v >= need}
+    if len(cols) < 4:
+        return None
+    cells = [r for r in prims.rects if (round(r.x0, 1), round(r.w, 1), round(r.h, 1)) in cols]
+    pitch = Counter(round(r.h, 1) for r in cells).most_common(1)[0][0]
+    edges = sorted({round(r.x0, 1) for r in cells} | {round(r.x1, 1) for r in cells})
+    xs = []
+    for x in edges:
+        if not xs or x - xs[-1] > 0.5:
+            xs.append(x)
+    gaps = [(xs[i + 1] - xs[i], i) for i in range(len(xs) - 1)]
+    w, i = max(gaps)
+    left_cols, right_cols = xs[: i + 1], xs[i + 1:]
+    if len(left_cols) < 2 or len(right_cols) < 2:
+        return None
+    x0, x1 = xs[i], xs[i + 1]
+
+    def side_rows(a, b):
+        ys = sorted({(round(r.y0, 2), round(r.y1, 2)) for r in cells
+                     if a - 0.5 <= r.x0 and r.x1 <= b + 0.5 and abs(r.h - pitch) <= 0.2 * pitch})
+        out = []
+        for y0, y1 in ys:
+            if out and y0 < out[-1][1] - 0.2 * pitch:
+                continue
+            out.append((y0, y1))
+        return out
+    lrows = side_rows(left_cols[0], x0)
+    rrows = side_rows(x1, right_cols[-1])
+    if len(lrows) < 3 or len(rrows) < 3:
+        return None
+    y0 = min(lrows[0][0], rrows[0][0])
+    y1 = max(lrows[-1][1], rrows[-1][1])
+    L = [(k + 1, a, b) for k, (a, b) in enumerate(lrows)]
+    R = [(len(L) + k + 1, a, b) for k, (a, b) in enumerate(rrows)]
+    return Layout((x0, y0, x1, y1), pitch, L, R, xs,
+                  note="표 칸을 사각형으로 그린 양식 — 칸 경계로 열을, 칸 높이로 행을 읽었다")
+
+
+def _coverage_layout(prims):
+    """표의 세로 괘선을 **행마다 끊어** 그린 양식 (19VA 의 Typical 시트 · L21).
+
+    같은 x 의 세로 토막을 모아 그 길이 합이 종이 높이의 0.6 이상이면 괘선이다 (긴 괘선 양식과 같은 문턱).
+    파선 테두리(묶음 틀)는 토막이 많아도 합이 표 높이에 못 미친다.  행은 칸 하나를 가로지르는 가로선의 높이다.
+    """
+    H = prims.height
+    cov = {}
+    for s in _straight(prims):
+        if s.vert:
+            x = round(s.x0, 1)
+            cov[x] = cov.get(x, 0.0) + abs(s.y1 - s.y0)
+    fr = prims.frame
+    xs = []
+    for x in sorted(x for x, c in cov.items() if c > 0.6 * H
+                    and (fr is None or fr[0] - 1 <= x <= fr[2] + 1) and 1 < x < prims.width - 1):     # 종이 가장자리 선은 표가 아니다
+        if not xs or x - xs[-1] > 0.5:
+            xs.append(x)
+    if len(xs) < 5:
+        return None
+    gaps = [(xs[i + 1] - xs[i], i) for i in range(len(xs) - 1)]
+    w, i = max(gaps)
+    left_cols, right_cols = xs[: i + 1], xs[i + 1:]
+    if len(left_cols) < 2 or len(right_cols) < 2:
+        return None
+    x0, x1 = xs[i], xs[i + 1]
+    lrows = _rows_cols(prims, left_cols)
+    rrows = _rows_cols(prims, right_cols)
+    if len(lrows) < 3 or len(rrows) < 3:
+        return None
+    pitch = Counter(round(b - a, 1) for a, b in lrows + rrows).most_common(1)[0][0]
+    y0 = min(lrows[0][0], rrows[0][0])
+    y1 = max(lrows[-1][1], rrows[-1][1])
+    L = [(k + 1, a, b) for k, (a, b) in enumerate(lrows)]
+    R = [(len(L) + k + 1, a, b) for k, (a, b) in enumerate(rrows)]
+    return Layout((x0, y0, x1, y1), pitch, L, R, xs,
+                  note="표 괘선을 행마다 끊어 그린 양식 — 토막 길이 합으로 열을, 칸 가로선으로 행을 읽었다")
+
+
+def _rows_cols(prims, cols):
+    """칸(이웃한 두 괘선 사이) 하나 이상을 가로지르는 가로선의 높이 → 행."""
+    ys = Counter()
+    for s in _straight(prims):
+        if not s.horiz:
+            continue
+        a, b = min(s.x0, s.x1), max(s.x0, s.x1)
+        for k in range(len(cols) - 1):
+            w = cols[k + 1] - cols[k]
+            if a <= cols[k] + 0.1 * w and b >= cols[k + 1] - 0.1 * w:
+                ys[round(s.y0, 1)] += 1             # 칸마다 센다 — 표 아래 테두리처럼 한 선이 여러 칸을 덮는다
+    need = max(1, (len(cols) - 1) // 2)
+    y = sorted(v for v, c in ys.items() if c >= need)
+    if len(y) < 3:
+        return []
+    gaps = [y[k + 1] - y[k] for k in range(len(y) - 1)]
+    pitch = Counter(round(g, 1) for g in gaps).most_common(1)[0][0]
+    return [(y[k], y[k + 1]) for k, g in enumerate(gaps) if abs(g - pitch) <= 0.2 * pitch]
 
 
 def _rows(prims, xa, xb, y0, y1):

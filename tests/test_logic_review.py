@@ -297,7 +297,13 @@ def test_api_round_trip(tmp_path, monkeypatch):
     assert client.post("/logic/api/jobs", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 400
     assert client.get("/logic/api/jobs/zzz").status_code == 404
     assert client.get("/logic").status_code == 200
-    assert client.delete(f"/logic/api/jobs/{job}").status_code == 204
+    # L22 — 지우는 사람 이름이 있어야 지운다 · 지운 기록은 남는다
+    assert client.delete(f"/logic/api/jobs/{job}").status_code == 400
+    assert client.delete(f"/logic/api/jobs/{job}", params={"author": "홍길동"}).status_code == 204
+    import json as _j
+    log = _j.loads((store.root() / "deletion_log.json").read_text(encoding="utf-8"))
+    assert log[-1]["job"] == job and log[-1]["author"] == "홍길동"
+    assert client.get(f"/logic/api/jobs/{job}").status_code == 404
 
 
 def test_every_line_is_digital_and_gate_waits_for_all_inputs():
@@ -696,18 +702,18 @@ def test_logic_first_screen_projects_and_materials(tmp_path, monkeypatch):
     assert client.post(f"/logic/api/jobs/{job}/sheet/1/scenario", json={"target": "x"}).status_code == 400
 
 
-def test_timer_default_is_ten_seconds_and_the_user_can_change_it():
-    """L15 — 도면에 시간이 없는 타이머는 기본 10초 · 사람이 바꾼 시간이 이긴다 · 세는 타이머는 틀에 남는다."""
+def test_timer_default_is_five_seconds_and_the_user_can_change_it():
+    """L15 — 도면에 시간이 없는 타이머는 기본 5초 (L22 · L15 는 10초) · 사람이 바꾼 시간이 이긴다 · 세는 타이머는 틀에 남는다."""
     s = _toy()
     s["blocks"]["PD"]["param"] = {}                                   # 도면이 시간을 적지 않았다
-    assert sim.DEFAULT_T == 10.0
+    assert sim.DEFAULT_T == 5.0
     r = sim.simulate(s, {"row:1": 1, "row:4": 1})
-    assert r["frames"][-1]["t"] == pytest.approx(10.0)
-    assert any("10초" in n for n in r["notes"])
+    assert r["frames"][-1]["t"] == pytest.approx(5.0)
+    assert any("5초" in n for n in r["notes"])
     run = r["frames"][0]["running"]
-    assert run == [{"block": "PD", "left": 10.0, "T": 10.0}], "세기 시작한 타이머 · 남은 시간"
+    assert run == [{"block": "PD", "left": 5.0, "T": 5.0}], "세기 시작한 타이머 · 남은 시간"
     r = sim.simulate(s, {"row:1": 1, "row:4": 1}, timers={"PD": 3.5})
-    assert r["frames"][-1]["t"] == pytest.approx(3.5) and not any("10초" in n for n in r["notes"])
+    assert r["frames"][-1]["t"] == pytest.approx(3.5) and not any("5초" in n for n in r["notes"])
     # 도면 값(2초)도 사람이 바꾼 값에 진다 · 틀린 값은 버린다
     s2 = _toy()
     assert sim.simulate(s2, {"row:1": 1, "row:4": 1}, timers={"PD": 7})["frames"][-1]["t"] == pytest.approx(7)

@@ -91,6 +91,7 @@ def write_status(d: Path, st: dict) -> bool:
 
 
 _LAST_STATUS: dict = {}
+_DEL_LOCK = __import__("threading").Lock()
 
 
 def read_status(d: Path) -> dict:
@@ -162,3 +163,17 @@ def page_png(d: Path, page: int) -> Path:
         if not cache.exists():
             raise
     return cache
+
+
+def log_deletion(entry: dict):
+    """L22 — 누가 언제 어느 분석을 지웠는지 (지운 뒤에도 남는다) — `{data}/logic/deletion_log.json`."""
+    p = root() / "deletion_log.json"
+    with _DEL_LOCK:
+        try:
+            items = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(items, list):
+                items = []
+        except Exception:
+            items = []
+        items.append({**entry, "at": time.strftime("%Y-%m-%d %H:%M:%S")})
+        _atomic(p, json.dumps(items, ensure_ascii=False, indent=1))

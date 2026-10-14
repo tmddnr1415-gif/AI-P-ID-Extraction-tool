@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-DEFAULT_T = 10.0          # L15 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 10초)
+DEFAULT_T = 5.0           # L22 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 5초 · L15 는 10초였다)
 MAX_ITER = 300
 MAX_FRAMES = 24
 
@@ -216,8 +216,9 @@ def _secs(v):
 
 
 def timer_seconds(b, override=None):
-    """L15 — 타이머 시간: 사람이 바꾼 값 → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
-    for v in (override, (b.get("param") or {}).get("t")):
+    """L15 — 타이머 시간: 사람이 바꾼 값(요청 · L22 저장된 값) → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
+    prm = b.get("param") or {}
+    for v in (override, prm.get("t_user"), prm.get("t")):
         f = _secs(v)
         if f is not None:
             return f
@@ -644,7 +645,7 @@ def trace(s, start, direction="down"):
 # ------------------------------------------------------------------ 묶음 전체 (시트 사이)
 
 MAX_PASSES = 12
-_TO_REF = re.compile(r"\b([A-Z]+\d+)-(\d+)\b")     # 시트-행 꼴 (시트 이름은 그 묶음에 있는지로 거른다)
+from .refs import TO_ANY as _TO_REF, series as _series   # noqa: E402  (L21)     # 시트-행 꼴 (시트 이름은 그 묶음에 있는지로 거른다)
 
 
 def _row_values(s, values):
@@ -971,7 +972,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
     받는 쪽: FM 으로 1 을 받은 입력 행 — 보내는 행의 TO 목록에 이 장-행이 없으면(TO 가 다른 곳만 적음) 설계 오류.
     판정은 읽은 글자 그대로이고(fromto 와 같은 규칙) 고치지 않는다.
     """
-    prefixes = {no[:1] for no in by_no}
+    prefixes = {_series(no) for no in by_no}
     out = []
     seen = set()
 
@@ -1000,7 +1001,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
                     rn = int(rn)
                     base = {"page": page, "sheet_no": me, "row": owner, "at_row": at, "to": f"{sh}-{rn}",
                             "target_sheet": sh, "target_row": rn, "desc": od}
-                    if sh[:1] not in prefixes:
+                    if _series(sh) not in prefixes:
                         add({**base, "kind": "other", "target_page": None,
                              "why": f"TO {sh}-{rn} — 다른 묶음(이 묶음에 없는 시트 계열)으로 갑니다 · 여기서는 확인할 수 없습니다"})
                         continue
@@ -1043,7 +1044,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
-                   for a, b in _TO_REF.findall(text.replace(" ", "")) if a[:1] in prefixes]
+                   for a, b in _TO_REF.findall(text.replace(" ", "")) if _series(a) in prefixes]
             if tos and (me, r["n"]) not in tos:
                 src = by_page[sp].get("sheet_no") or ""
                 add({"page": sp, "sheet_no": src, "row": own, "at_row": own, "to": f"{me}-{r['n']}",

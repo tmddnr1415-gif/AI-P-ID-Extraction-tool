@@ -66,6 +66,11 @@ def run(d: Path):
                    "pages": res.get("pdf_pages")})
         _final(d, st)
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
+        try:                                         # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로
+            from app.logic import library
+            library.learn_from_result(res, d, st.get("name") or d.name, job=d.name)
+        except Exception:
+            pass
     except analyse.NotLogic as e:
         st.update({"state": "failed", "error": str(e)})
     except Exception as e:                               # 사유를 남기고 멈춘다

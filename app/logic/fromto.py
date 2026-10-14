@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-REF_ANY = re.compile(r"([A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)")
+from .refs import REF_ANY, series
 
 
 def _norm(t):
@@ -63,7 +63,7 @@ def _run(table_r, owner):
 def check(sheets):
     """시트 목록을 제자리에서 고친다 — 행마다 `ref`(src_row) · `refs_in` · `ft`, 장마다 FT 찾은 것.  여러 번 불러도 같다."""
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
-    prefixes = {s["sheet_no"][0] for s in sheets if s.get("sheet_no")}
+    prefixes = {series(s["sheet_no"]) for s in sheets if s.get("sheet_no")}
     tab = {}
     for s in sheets:
         tab[s["page"]] = {"L": {r["n"]: r for r in s.get("table", []) if r["side"] == "L"},
@@ -107,7 +107,7 @@ def check(sheets):
                 r.pop("ref", None)
                 continue
             src, k = refs[0]
-            other = src[0] not in prefixes
+            other = series(src) not in prefixes
             t = by_no.get(src)
             r["ref"] = {"sheet": src, "row": k, "page": t["page"] if t else None, "other_bundle": other}
             if other:
@@ -122,7 +122,7 @@ def check(sheets):
                 add(s, r["n"], "L", False, [f"{src} {k}행에 출력 신호가 없습니다"], f"{src}-{k}")
                 continue
             r["ref"]["src_row"] = own
-            to_refs = [x for x in _refs(tr[k].get("to")) if x[0][0] in prefixes]
+            to_refs = [x for x in _refs(tr[k].get("to")) if series(x[0]) in prefixes]
             recip = None
             if to_refs:
                 recip = (me, r["n"]) in to_refs
@@ -150,7 +150,7 @@ def check(sheets):
             if not row.get("desc"):
                 continue
             run = _run(tr, own)
-            targets = [x for j in run for x in _refs(tr[j].get("to")) if x[0][0] in prefixes]
+            targets = [x for j in run for x in _refs(tr[j].get("to")) if series(x[0]) in prefixes]
             if not targets:
                 continue
             whys = []

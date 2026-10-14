@@ -296,7 +296,7 @@ class Dictionary:
         return {ch: {"n": len(v), "from": sorted(self.source[ch])[:6]} for ch, v in sorted(self.ex.items())}
 
 
-SHEET_WORD = re.compile(r"^[A-Z]\d{3}[A-Z]?$")
+from .refs import SHEET_RE as SHEET_WORD   # noqa: E402  (L21 — 계통 접두 시트 이름도)
 
 
 def _title_words(page):
@@ -309,6 +309,9 @@ def _title_words(page):
     words = page.get_text("words")
     W, H = page.rect.width, page.rect.height
     cand = [w for w in words if SHEET_WORD.match(w[4]) and w[1] > 0.85 * H]
+    if not cand:
+        # 범례·Typical 장은 쪽 번호가 숫자 넷이다 (19VA `0007` · L21) — 오른쪽 아래 칸의 숫자 넷만
+        cand = [w for w in words if re.fullmatch(r"\d{4}", w[4]) and w[1] > 0.9 * H and w[0] > 0.85 * W]
     if not cand:
         return None, []
     sw = max(cand, key=lambda w: w[1])
@@ -330,6 +333,28 @@ def _title_words(page):
             lines_.append([cy, [w]])
     last = sorted(lines_[-1][1], key=lambda w: w[0])
     return sw[4], [w[4] for w in last]
+
+
+def _title_lines(page):
+    """타이틀블록의 글줄 (위→아래) — 도면번호(숫자-숫자 꼴) 위 · 그 칸 폭 안 (19VA 처럼 제목이 도면번호 위에 있는 양식, L21).
+    묶음 전체에 되풀이되는 줄(프로젝트 이름 · 'CONTROL LOGIC & LOOP DIAGRAM')은 부르는 쪽이 뺀다."""
+    words = page.get_text("words")
+    W, H = page.rect.width, page.rect.height
+    dn = [w for w in words if re.search(r"\d+-\d+", w[4]) and w[1] > 0.85 * H and w[0] > W / 2]
+    if not dn:
+        return []
+    d = max(dn, key=lambda w: w[1])
+    span = d[2] - d[0]
+    pool = [w for w in words if w[1] > 0.85 * H and w[3] <= d[1] + 0.5 and len(w[4]) > 1
+            and d[0] - span <= (w[0] + w[2]) / 2 <= d[2] + span]
+    lines_ = []
+    for w in sorted(pool, key=lambda w: (w[1] + w[3]) / 2):
+        cy = (w[1] + w[3]) / 2
+        if lines_ and abs(lines_[-1][0] - cy) <= 0.5 * (w[3] - w[1]):
+            lines_[-1][1].append(w)
+        else:
+            lines_.append([cy, [w]])
+    return [" ".join(x[4] for x in sorted(ln, key=lambda w: w[0])) for _, ln in lines_]
 
 
 def learn(doc, sheets):
