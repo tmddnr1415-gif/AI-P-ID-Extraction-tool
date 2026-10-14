@@ -12,6 +12,7 @@ L23 — 묶음마다 꼴이 다르다.  그래서 **옛 꼴을 먼저** 보고(H
 """
 from __future__ import annotations
 
+import functools
 import re
 
 SHEET = r"(?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?"
@@ -53,6 +54,23 @@ def _gen_text(text):
     return re.sub(r"\s*([-/:])\s*", r"\1", t).strip()
 
 
+_NAMES = [None, 0, ()]                  # 마지막 묶음 하나만 든다 (결과를 붙들어 메모리를 늘리지 않게)
+
+
+def _names(known):
+    """그 묶음의 시트 이름 — 긴 것부터 (한 묶음에서 수만 번 불린다 · 같은 목록이면 다시 정렬하지 않는다)."""
+    if _NAMES[0] is known and _NAMES[1] == len(known):
+        return _NAMES[2]
+    names = sorted({k.upper() for k in known if k}, key=len, reverse=True)
+    _NAMES[:] = [known, len(known), names]
+    return names
+
+
+@functools.lru_cache(maxsize=8192)
+def _name_re(no):
+    return re.compile(rf"(?<![A-Z0-9_]){re.escape(no)}\s*(?:[-/.:#]|\s)\s*(\d{{1,3}})(?!\d)")
+
+
 def _known(text, known):
     """그 묶음이 가진 시트 이름이 글에 그대로 있고 뒤에 행 번호가 붙은 것 — 꼴을 몰라도 읽는다."""
     if not known:
@@ -60,8 +78,10 @@ def _known(text, known):
     t = _gen_text(text)
     out = []
     taken = []
-    for no in sorted({k.upper() for k in known if k}, key=len, reverse=True):
-        for m in re.finditer(rf"(?<![A-Z0-9_]){re.escape(no)}\s*(?:[-/.:#]|\s)\s*(\d{{1,3}})(?!\d)", t):
+    for no in _names(known):
+        if no not in t:
+            continue                       # 글에 그 이름이 없으면 맞대지 않는다 (같은 답 · 큰 묶음에서 빠르게 — L25)
+        for m in _name_re(no).finditer(t):
             if any(a <= m.start() < b for a, b in taken):
                 continue
             taken.append((m.start(), m.end()))

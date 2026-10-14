@@ -302,6 +302,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             return 0                                   # 누름단추 · HMI — 사람이 누르지 않으면 0
         if lg == "sink":
             return 0
+        if lg == "pass":                               # 이음점 · 그대로 넘김 (사람이 가르친 종류 · L25)
+            return _or3(iv) if iv else None
         if lg in MIN_INPUTS:
             if len(iv) < MIN_INPUTS[lg]:
                 short.add(bid)

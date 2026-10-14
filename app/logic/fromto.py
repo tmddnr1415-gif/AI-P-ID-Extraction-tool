@@ -60,10 +60,21 @@ def _run(table_r, owner):
     return out
 
 
-def check(sheets):
-    """시트 목록을 제자리에서 고친다 — 행마다 `ref`(src_row) · `refs_in` · `ft`, 장마다 FT 찾은 것.  여러 번 불러도 같다."""
+def check(sheets, links=None):
+    """시트 목록을 제자리에서 고친다 — 행마다 `ref`(src_row) · `refs_in` · `ft`, 장마다 FT 찾은 것.  여러 번 불러도 같다.
+
+    links (L25 가르치기) — {"external": [시트 이름], "aliases": {시트 이름: 이 묶음의 시트}}.  사람이 '다른 문서' 라고 답한
+    이름은 다른 묶음으로, '이 묶음의 시트 X' 라고 답한 이름은 그 시트로 읽는다.  없으면 예전과 한 글자도 같다."""
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     bundle = RF.Bundle(by_no)
+    links = links or {}
+    external = {str(x).upper() for x in links.get("external") or []}
+    for a, t in (links.get("aliases") or {}).items():
+        if t in by_no and a not in by_no:
+            by_no[str(a).upper()] = by_no[t]
+
+    def _is_mine(n):
+        return n not in external and (n in by_no or bundle.mine(n))
     tab = {}
     for s in sheets:
         tab[s["page"]] = {"L": {r["n"]: r for r in s.get("table", []) if r["side"] == "L"},
@@ -107,7 +118,7 @@ def check(sheets):
                 r.pop("ref", None)
                 continue
             src, k = refs[0]
-            other = bundle.other(src)
+            other = not _is_mine(src) and (bundle.other(src) or src in external)
             t = by_no.get(src)
             r["ref"] = {"sheet": src, "row": k, "page": t["page"] if t else None, "other_bundle": other}
             if other:
@@ -122,7 +133,8 @@ def check(sheets):
                 add(s, r["n"], "L", False, [f"{src} {k}행에 출력 신호가 없습니다"], f"{src}-{k}")
                 continue
             r["ref"]["src_row"] = own
-            to_refs = [x for x in _refs(tr[k].get("to"), by_no) if bundle.mine(x[0])]
+            to_refs = [x for x in _refs(tr[k].get("to"), by_no) if _is_mine(x[0])]
+            to_refs = [(by_no[a]["sheet_no"] if a in by_no else a, b) for a, b in to_refs]
             recip = None
             if to_refs:
                 recip = (me, r["n"]) in to_refs
@@ -150,7 +162,7 @@ def check(sheets):
             if not row.get("desc"):
                 continue
             run = _run(tr, own)
-            targets = [x for j in run for x in _refs(tr[j].get("to"), by_no) if bundle.mine(x[0])]
+            targets = [x for j in run for x in _refs(tr[j].get("to"), by_no) if _is_mine(x[0])]
             if not targets:
                 continue
             whys = []
@@ -166,7 +178,7 @@ def check(sheets):
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 칸이 비어 있습니다")
                 elif not RF.full(fm, by_no):
                     continue                      # 꼴이 아닌 FM (못 읽은 글자) — 확인 못 함
-                elif not (back[0][0] == me and back[0][1] in run):
+                elif not ((by_no[back[0][0]]["sheet_no"] if back[0][0] in by_no else back[0][0]) == me and back[0][1] in run):
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 은 {fm} 를 가리킵니다")
             mine = row_obj(s, "R", own)
             prev = (mine or {}).get("ft")

@@ -280,6 +280,9 @@ async function openJob(id) {
   L.memos = [];
   loadMemos(id);
   L.idrate = null; L.idrateOpen = false; loadIdrate();
+  // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
+  const teachOpen = !$("#teach").hidden && TEACH.job === id;
+  loadTeach(id, teachOpen || lsGet("logic.teachclosed." + id) !== "1");
   $("#ft-report").hidden = false;
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
@@ -316,7 +319,12 @@ function renderProgress(st) {
     <p class="pg-time">${pr.elapsed ? `경과 ${fmtSec(pr.elapsed)}` : ""}${pr.remaining != null ? ` · 남은 시간 약 ${fmtSec(pr.remaining)}` : " · 남은 시간은 아직 어림할 수 없습니다"}</p>
     ${pr.basis ? `<p class="pg-basis">어림 근거: ${esc(pr.basis)}</p>` : ""}
     <p class="pg-note">끝나면 <b>From-To 점검 보고</b>를 먼저 보여 드립니다 — 그 뒤 입력 신호를 주어 로직을 확인하세요.</p>
+    ${st.preview ? `<p class="pg-teach">🎓 지금까지 읽은 <b>${st.preview}</b>장으로 질문을 만들었습니다 — 분석이 도는 동안 답하면
+      끝난 결과의 모든 장에 들어갑니다. <button id="pg-teach">가르치기 시작</button></p>` : ""}
   </div>`;
+  const tb = $("#pg-teach");
+  if (tb) tb.onclick = () => { $("#teach").hidden = false; placeTeach(); loadTeach(L.job, true); };
+  if (st.preview && st.preview !== TEACH.seenPreview && !$("#teach").hidden) { TEACH.seenPreview = st.preview; loadTeach(L.job); }
 }
 
 /* ------------------------------------------------------------------ From-To 점검 보고 (사용자 규칙 1 · L13) */
@@ -1666,6 +1674,7 @@ async function refreshSheet() {
   if (L.job !== id || L.page !== page) return;
   if (j.sheets) { L.sheets = j.sheets; renderSheetList(); }
   L.sheet = s;
+  $("#sheet-head").textContent = `${s.sheet_no} · ${s.title}`;      // 시트 이름을 가르치거나 마크업하면 머리도 (L25)
   L.states = {}; L.state = null; L.values = {};
   drawOverlay(); renderRows(); renderFindings(); renderInfo(); renderLatches();
   api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
@@ -2344,9 +2353,10 @@ function renderIdrate() {
   box.innerHTML = `<div class="idr-h">식별률 <b>${pct(r.overall)}</b>
       <small>${low ? `⚠ ${r.low.map((k) => IDR_KO[k]).join(" · ")} 가 ${Math.round(r.target * 100)}% 아래입니다` : `목표 ${Math.round(r.target * 100)}% 이상`}</small></div>
     <ul class="idr-parts">${parts}</ul>
+    ${teachLine()}
     <div class="idr-un">못 읽은 것 <b>${r.unread}</b>${r.empty_cells ? ` <small>· 비어 있는 FM/TO 칸 ${r.empty_cells} (도면에 안 적혔거나 못 읽음)</small>` : ""}
       ${r.unread ? `<button class="mini" id="idr-toggle">${open ? "접기" : "펼치기"}</button>` : ""}</div>
-    ${open && r.unread ? `<ul class="idr-items" id="idr-items">${items}</ul><p class="idr-help">✎ 마크업 으로 직접 넣으면 식별률에 바로 반영됩니다.</p>` : ""}`;
+    ${open && r.unread ? `<ul class="idr-items" id="idr-items">${items}</ul><p class="idr-help">먼저 🎓 가르치기 — 한 번 답하면 모든 장에 들어갑니다.  그래도 남은 것만 ✎ 마크업 으로 하나씩 넣습니다.</p>` : ""}`;
 }
 function gotoIdItem(it) {
   const go = () => {
@@ -2358,6 +2368,8 @@ function gotoIdItem(it) {
       st.scrollTop = ((at[1] + at[3]) / 2) * L.zoom - st.clientHeight / 2;
       L.markHint = { rect: at, until: Date.now() + 2500 };
       drawMarks();
+      setTimeout(drawMarks, 2600);
+      if (it.look) return;                 // 가르치기 '도면에서 보기' — 자리만 보인다
       const kind = it.kind === "LINK" ? "FROM" : it.kind;
       const r = $("#ov").getBoundingClientRect(), [W, H] = L.sheet.size;
       const e = { clientX: r.left + at[2] * r.width / W, clientY: r.top + at[3] * r.height / H };
@@ -2523,7 +2535,7 @@ function bindMarkup() {
   const st = $("#stage");
   let start = null;
   st.addEventListener("pointerdown", (e) => {
-    if (!L.markMode || e.button !== 0 || !L.sheet) return;
+    if ((!L.markMode && !TEACH.draw) || e.button !== 0 || !L.sheet) return;
     e.stopPropagation(); e.preventDefault();
     start = sheetPoint(e);
     L.markDraft = [start[0], start[1], start[0], start[1]];
@@ -2541,15 +2553,309 @@ function bindMarkup() {
     start = null;
     L.markJust = true; setTimeout(() => (L.markJust = false), 0);
     if (r[2] - r[0] < 1.5 || r[3] - r[1] < 1.5) { L.markDraft = null; drawMarks(); status("사각형이 너무 작습니다 — 끌어서 그으세요"); return; }
+    if (TEACH.draw) { teachRegion(r); return; }
     markDialog(r, e);
   });
-  st.addEventListener("click", (e) => { if (L.markJust || L.markMode) { e.stopPropagation(); e.preventDefault(); } }, true);
+  st.addEventListener("click", (e) => { if (L.markJust || L.markMode || TEACH.draw) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && L.markMode) { setMarkMode(false); L.markDraft = null; drawMarks(); status(""); } });
   $("#idrate").addEventListener("click", (e) => {
     if (e.target.closest("#idr-toggle")) { L.idrateOpen = !L.idrateOpen; renderIdrate(); return; }
+    if (e.target.closest("#idr-teach")) { $("#teach").hidden = false; placeTeach(); loadTeach(L.job, true); return; }
     const li = e.target.closest("#idr-items li[data-i]");
     if (li && L.idrate) gotoIdItem(L.idrate.items[Number(li.dataset.i)]);
   });
+}
+
+/* ------------------------------------------------------------------ L25 가르치기 — 최소한의 질문으로 전 장을
+
+   못 읽은 것은 대개 같은 것의 되풀이다.  모양 · 글자 · 크기 · 그림이 같은 판정 못 한 블록 무리마다 질문 하나,
+   시트 이름 자리 · FM/TO 열은 한 장에서 두르면 모든 장의 같은 자리, 없는 시트 이름은 이름마다 한 번.
+   보기 장은 질문들을 가장 적은 장에 몰아서 고른다 (서버 teach.questions).  답은 규칙으로 남아 다시 분석해도 ·
+   분석이 끝나기 전에 답해도(분석 중 미리본 장) 끝난 결과 전체에 들어간다.  마크업은 이것으로 안 되는 것만. */
+const TEACH = { job: null, data: null, cur: 0, draw: null, preview: null, openAns: false, busy: false };
+const TC_KIND = { GATE: "판정 못 한 모양", SHEET: "시트 이름 자리", FROM: "FM 열", TO: "TO 열", LINK: "묶음에 없는 시트" };
+const TC_FIRST = ["AND", "OR", "NOT", "NAND", "NOR", "GT", "DT", "PD", "MEMORY", "MEMORY_S", "MEMORY_R", "VOTE",
+                  "PASS", "ANN", "SIGNAL", "PB", "CONST1", "CONST0", "ANALOG"];
+const TEACH_POS = "logic.teach.pos";
+
+async function loadTeach(id, open) {
+  id = id || L.job;
+  if (!id) return;
+  let r = null;
+  try { r = await api(`/logic/api/jobs/${id}/teach`); } catch (e) { r = null; }
+  if (L.job && L.job !== id) return;
+  if (TEACH.job !== id) { TEACH.cur = 0; TEACH.preview = null; TEACH.draw = null; TEACH.msg = ""; }
+  TEACH.job = id;
+  TEACH.data = r;
+  if (r && TEACH.cur >= r.questions.length) TEACH.cur = Math.max(0, r.questions.length - 1);
+  renderTeachBtn();
+  if (open && r && r.questions.length) { $("#teach").hidden = false; placeTeach(); }
+  renderTeach();
+  renderIdrate();
+}
+function renderTeachBtn() {
+  const n = TEACH.data ? TEACH.data.questions.length : 0;
+  $("#teach-n").textContent = n ? String(n) : "";
+  $("#teach-btn").classList.toggle("has", n > 0);
+}
+function teachLine() {
+  const r = TEACH.data;
+  if (!r || !r.questions.length || TEACH.job !== L.job) return "";
+  return `<div class="idr-teach">🎓 질문 <b>${r.questions.length}</b>개 · 보기 <b>${r.pages.length}</b>장에 답하면
+    ${pct(r.now)} → <b>${pct(r.gain)}</b> <button class="mini" id="idr-teach">가르치기</button></div>`;
+}
+function clipOf(at, P) {
+  const w = at[2] - at[0], h = at[3] - at[1];
+  const pad = Math.max(2.2 * Math.max(w, h), 2 * (P || 11.5));
+  return [at[0] - pad, at[1] - pad, at[2] + pad, at[3] + pad];
+}
+function cropHtml(page, at, P) {
+  if (!at) return "";
+  const c = clipOf(at, P);
+  const cw = c[2] - c[0], ch = c[3] - c[1];
+  const q = `page=${page}&x0=${c[0].toFixed(1)}&y0=${c[1].toFixed(1)}&x1=${c[2].toFixed(1)}&y1=${c[3].toFixed(1)}`;
+  const hl = `left:${((at[0] - c[0]) / cw * 100).toFixed(2)}%;top:${((at[1] - c[1]) / ch * 100).toFixed(2)}%;`
+    + `width:${((at[2] - at[0]) / cw * 100).toFixed(2)}%;height:${((at[3] - at[1]) / ch * 100).toFixed(2)}%`;
+  return `<div class="tc-crop"><img src="/logic/api/jobs/${TEACH.job}/teach/crop.png?${q}" alt=""><i style="${hl}"></i></div>`;
+}
+function renderTeach() {
+  const box = $("#teach");
+  if (box.hidden) return;
+  const r = TEACH.data;
+  const body = $("#teach-b");
+  if (!r) { $("#teach-sum").textContent = ""; body.innerHTML = `<p class="tc-empty">질문을 불러오지 못했습니다 — 분석이 조금 더 진행된 뒤에 다시 여세요.</p>`; return; }
+  const qs = r.questions;
+  $("#teach-sum").textContent = qs.length ? `질문 ${qs.length}개 · 보기 ${r.pages.length}장 · ${pct(r.now)} → ${pct(r.gain)}` : `식별 ${pct(r.now)}`;
+  const head = r.final ? "" : `<p class="tc-part">⏳ 분석 중 — 지금까지 읽은 <b>${r.partial ? r.partial.sheets : 0}</b>장으로 낸 질문입니다.
+     답은 분석이 끝난 결과의 <b>모든 장</b>에 들어갑니다.</p>`;
+  let main;
+  if (!qs.length) {
+    main = `<p class="tc-empty">더 물을 것이 없습니다 — 남은 것은 마크업(✎)으로 하나씩 넣습니다.</p>`;
+  } else {
+    const q = qs[TEACH.cur];
+    const ex = q.example || {};
+    const where = `${esc(ex.sheet_no || "p" + ex.page)}`;
+    const nav = `<div class="tc-nav"><button data-tc="prev" ${TEACH.cur ? "" : "disabled"}>◀</button>
+       <span>${TEACH.cur + 1} / ${qs.length} · ${TC_KIND[q.kind] || q.kind} · 보기 ${where}</span>
+       <button data-tc="next" ${TEACH.cur < qs.length - 1 ? "" : "disabled"}>▶</button></div>`;
+    main = nav + teachCard(q, r);
+  }
+  const lib = r.from_library ? `<p class="tc-lib">📚 학습 사전(다른 묶음에서 가르친 답)으로 <b>${r.from_library}</b>개를 이미 읽었습니다 —
+     틀렸으면 그 블록을 눌러 종류를 고치면 됩니다.</p>` : "";
+  body.innerHTML = head + lib + (TEACH.msg ? `<p class="tc-msg">✓ ${esc(TEACH.msg)}</p>` : "") + main + teachAnswered(r);
+}
+function teachCard(q, r) {
+  const ex = q.example || {};
+  const P = ((L.sheets || []).find((s) => s.page === ex.page) || {}).pitch || 11.5;
+  const look = r.final ? `<button data-tc="look">도면에서 보기</button>` : "";
+  const skip = `<button data-tc="skip" class="tc-skip" title="이 질문은 묻지 않습니다 (되돌릴 수 있습니다)">모르겠음 · 건너뛰기</button>`;
+  if (q.kind === "GATE") {
+    const order = TC_FIRST.filter((k) => r.choices.some((c) => c.id === k));
+    const label = (k) => (r.choices.find((c) => c.id === k) || {}).ko || k;
+    return `${cropHtml(ex.page, ex.at, P)}
+      <p class="tc-q">이 모양이 <b>${q.count}</b>개 · <b>${q.sheets}</b>장에 있습니다${q.text ? ` <small>(안 글자 '${esc(q.text)}')</small>` : ""}.<br>
+      무엇입니까?  한 번 고르면 <b>모든 장의 같은 모양</b>에 들어가고 학습 사전에도 남아 다른 프로젝트에서도 씁니다.</p>
+      <div class="tc-choices">${order.map((k) => `<button data-choice="${k}">${esc(label(k))}</button>`).join("")}</div>
+      <div class="tc-foot">${look}${skip}</div>`;
+  }
+  if (q.kind === "SHEET") {
+    return `<p class="tc-q">시트 이름을 못 읽은 장이 <b>${q.count}</b>장입니다.<br>
+      한 장에서 <b>시트 이름이 인쇄된 자리</b>를 사각형으로 두르면 모든 장의 같은 자리를 읽습니다
+      ${q.named_example ? ` <small>(다른 장은 '${esc(q.named_example)}' 처럼 읽었습니다)</small>` : ""}.</p>
+      ${teachDrawPart(q, r)}<div class="tc-foot">${skip}</div>`;
+  }
+  if (q.kind === "FROM" || q.kind === "TO") {
+    return `${cropHtml(ex.page, ex.at, P)}
+      <p class="tc-q">${q.kind === "FROM" ? "FM(어디서 오는 신호)" : "TO(어디로 가는 신호)"} 칸을 못 읽은 행이 <b>${q.count}</b>개 · <b>${q.sheets}</b>장입니다.<br>
+      보기 장에서 <b>그 열 전체</b>를 위에서 아래로 사각형으로 두르면 모든 장의 같은 열을 행마다 읽습니다.</p>
+      ${teachDrawPart(q, r)}<div class="tc-foot">${skip}</div>`;
+  }
+  if (q.kind === "LINK") {
+    const opts = (q.candidates || []).map((n) => `<option>${esc(n)}</option>`).join("");
+    return `${cropHtml(ex.page, ex.at, P)}
+      <p class="tc-q">FM <b>${q.count}</b>개가 <b>${esc(q.target)}</b> 을 가리키는데 이 묶음에 그 시트가 없습니다
+      <small>(예: ${esc(ex.sheet_no || "")} ${ex.row || ""}행 · '${esc(ex.fm || "")}')</small>.</p>
+      <div class="tc-choices"><button data-link="OTHER" title="다른 도면 묶음(문서)의 시트입니다 — 불일치로 세지 않습니다">다른 문서의 시트입니다</button></div>
+      <div class="tc-alias">이 묶음의 <select id="tc-alias"><option value="">시트 고르기…</option>${opts}</select> 입니다
+        <button data-link="ALIAS">저장</button></div>
+      <div class="tc-foot">${look}${skip}</div>`;
+  }
+  return "";
+}
+function teachDrawPart(q, r) {
+  if (!r.final) return `<p class="tc-wait">이 질문은 분석이 끝나면 도면에서 답합니다.</p>`;
+  const pv = TEACH.preview;
+  if (pv && pv.qid === q.id) {
+    const p = pv.data;
+    const rows = q.kind === "SHEET"
+      ? p.sample.slice(0, 12).map((x) => `<li><b>p${x.page}</b> ${esc(x.value)}${x.now ? ` <small>(지금 ${esc(x.now)})</small>` : ""}</li>`).join("")
+      : p.sample.slice(0, 12).map((x) => `<li><b>p${x.page}</b> ${x.row}행 ${esc(x.value)}</li>`).join("");
+    const warn = q.kind === "SHEET" && p.same_everywhere && p.same_everywhere.length
+      ? `<p class="tc-warn">⚠ '${esc(p.same_everywhere[0])}' 가 여러 장에 똑같이 나옵니다 — 시트 이름이 아니라 문서 번호일 수 있습니다.</p>` : "";
+    const cnt = q.kind === "SHEET" ? `모든 장에서 ${p.read}장을 읽었습니다 — 못 읽은 ${p.missing}장 중 <b>${p.fills}</b>장을 채웁니다.`
+      : `${p.pages}장에서 <b>${p.read}</b>칸을 읽었습니다 (읽힌 칸은 덮지 않고 빈 칸 · 못 읽은 칸만 채웁니다).`;
+    return `<div class="tc-pv"><p>${cnt}</p>${warn}<ul>${rows}</ul>
+      <button data-tc="region-save" class="v1">이대로 저장</button> <button data-tc="draw">다시 두르기</button></div>`;
+  }
+  const on = TEACH.draw && TEACH.draw.qid === q.id;
+  return `<div class="tc-choices"><button data-tc="draw" class="${on ? "on" : ""}">${on ? "도면에서 사각형을 끌어 그으세요…" : "▭ 도면에서 두르기"}</button></div>`;
+}
+function teachAnswered(r) {
+  const a = r.answered || {};
+  const items = [];
+  for (const g of a.gates || []) {
+    items.push(`<li>모양${g.text ? ` '${esc(g.text)}'` : ""} → <b>${esc(((r.choices || []).find((c) => c.id === g.choice) || {}).ko || g.choice)}</b>
+      <small>${esc(g.author || "")}</small> <button class="mini" data-undo="gate" data-id="${esc(g.id)}">되돌리기</button></li>`);
+  }
+  if (a.sheet) items.push(`<li>시트 이름 자리 <button class="mini" data-undo="sheet">되돌리기</button></li>`);
+  for (const c of a.cols || []) items.push(`<li>${c === "L" ? "FM" : "TO"} 열 <button class="mini" data-undo="col" data-side="${c}">되돌리기</button></li>`);
+  for (const [k, v] of Object.entries(a.links || {}))
+    items.push(`<li>${esc(k)} → ${v.mode === "OTHER" ? "다른 문서" : esc(v.sheet)} <button class="mini" data-undo="link" data-id="${esc(k)}">되돌리기</button></li>`);
+  for (const s of a.skipped || []) items.push(`<li>건너뛴 질문 <button class="mini" data-undo="skip" data-id="${esc(s)}">다시 묻기</button></li>`);
+  if (!items.length) return "";
+  return `<div class="tc-ans"><button class="mini" data-tc="ans">답한 것 ${items.length} ${TEACH.openAns ? "접기" : "보기"}</button>
+    ${TEACH.openAns ? `<ul>${items.join("")}</ul>` : ""}</div>`;
+}
+async function teachPost(body, msg) {
+  const who = needAuthor();
+  if (!who) { status("이름이 없어 저장하지 않았습니다"); return null; }
+  if (TEACH.busy) return null;
+  TEACH.busy = true;
+  try {
+    const before = TEACH.data ? TEACH.data.now : null;
+    const r = await post(`/logic/api/jobs/${TEACH.job}/teach`, { ...body, author: who });
+    const after = r.idrate ? r.idrate.overall : null;
+    TEACH.msg = msg + (after != null ? ` — 식별 ${pct(before)} → ${pct(after)}` : " — 분석이 끝나면 모든 장에 들어갑니다");
+    status(TEACH.msg);
+    TEACH.preview = null; TEACH.draw = null;
+    setTeachDraw(null);
+    await loadTeach(TEACH.job);
+    if (L.sheet && TEACH.data && TEACH.data.final) { await refreshSheet(); loadIdrate(); }
+    return r;
+  } catch (err) { status("저장하지 못했습니다 — " + err.message); return null; }
+  finally { TEACH.busy = false; }
+}
+function teachLook(q) {
+  const ex = q.example || {};
+  gotoIdItem({ kind: "LOOK", look: true, page: ex.page, at: ex.at });
+}
+function setTeachDraw(d) {
+  TEACH.draw = d;
+  $("#stage").classList.toggle("marking", !!d || !!L.markMode);
+}
+async function teachRegion(rect) {
+  const d = TEACH.draw;
+  if (!d) return;
+  setTeachDraw(null);
+  status("모든 장의 같은 자리를 읽는 중…");
+  try {
+    const p = await post(`/logic/api/jobs/${TEACH.job}/teach/preview`, { kind: d.kind, page: L.sheet.page, rect });
+    TEACH.preview = { qid: d.qid, kind: d.kind, page: L.sheet.page, rect, data: p };
+    status("");
+  } catch (err) { status("읽지 못했습니다 — " + err.message); }
+  L.markDraft = null; drawMarks();
+  $("#teach").hidden = false;
+  renderTeach();
+}
+function placeTeach(x, y) {
+  const box = $("#teach");
+  if (x == null) {
+    try { [x, y] = JSON.parse(lsGet(TEACH_POS) || "null") || []; } catch (e) { x = y = null; }
+    if (x == null) { x = innerWidth - 400 - 24; y = 120; }
+  }
+  const w = box.offsetWidth || 390, h = (box.querySelector(".tc-h") || {}).offsetHeight || 30;
+  x = Math.max(4, Math.min(x, innerWidth - w - 4));
+  y = Math.max(4, Math.min(y, innerHeight - h - 4));
+  box.style.left = x + "px"; box.style.top = y + "px";
+}
+function bindTeach() {
+  const box = $("#teach"), head = $("#teach-h");
+  head.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    const r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    head.setPointerCapture(e.pointerId);
+    const move = (ev) => placeTeach(ev.clientX - dx, ev.clientY - dy);
+    const up = () => {
+      head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up);
+      const q = box.getBoundingClientRect();
+      lsSet(TEACH_POS, JSON.stringify([Math.round(q.left), Math.round(q.top)]));
+    };
+    head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
+  });
+  $("#teach-x").onclick = () => { box.hidden = true; setTeachDraw(null); if (TEACH.job) lsSet("logic.teachclosed." + TEACH.job, "1"); };
+  $("#teach-btn").onclick = () => {
+    if (!box.hidden) { box.hidden = true; setTeachDraw(null); return; }
+    box.hidden = false; placeTeach(); loadTeach(L.job, true);
+  };
+  box.addEventListener("click", async (e) => {
+    const r = TEACH.data;
+    if (!r) return;
+    const q = r.questions[TEACH.cur];
+    const b = e.target.closest("button");
+    if (!b) return;
+    e.stopPropagation();
+    const t = b.dataset.tc;
+    if (t) TEACH.msg = "";
+    if (t === "prev") { TEACH.cur = Math.max(0, TEACH.cur - 1); TEACH.preview = null; renderTeach(); return; }
+    if (t === "next") { TEACH.cur = Math.min(r.questions.length - 1, TEACH.cur + 1); TEACH.preview = null; renderTeach(); return; }
+    if (t === "ans") { TEACH.openAns = !TEACH.openAns; renderTeach(); return; }
+    if (t === "look" && q) { teachLook(q); return; }
+    if (t === "skip" && q) { await teachPost({ kind: "SKIP", qid: q.id }, "건너뛰었습니다"); return; }
+    if (t === "draw" && q) {
+      TEACH.preview = null;
+      const ex = q.example || {};
+      const go = () => {
+        setTeachDraw({ kind: q.kind, qid: q.id });
+        status(q.kind === "SHEET" ? "시트 이름이 인쇄된 자리를 사각형으로 두르세요 (Esc 로 취소)"
+          : `${q.kind === "FROM" ? "FM" : "TO"} 열 전체를 위에서 아래로 사각형으로 두르세요 (Esc 로 취소)`);
+        renderTeach();
+      };
+      if (ex.page && (!L.sheet || L.sheet.page !== ex.page)) { L.focus = null; L.afterFit = go; openSheet(ex.page); }
+      else go();
+      return;
+    }
+    if (t === "region-save" && TEACH.preview) {
+      const pv = TEACH.preview;
+      await teachPost({ kind: pv.kind, page: pv.page, rect: pv.rect },
+        pv.kind === "SHEET" ? `시트 이름 자리를 가르쳤습니다 — ${pv.data.fills}장을 채웠습니다` : `${pv.kind === "FROM" ? "FM" : "TO"} 열을 가르쳤습니다`);
+      return;
+    }
+    if (b.dataset.choice && q) {
+      const choice = b.dataset.choice;
+      let param;
+      if (choice === "VOTE") {
+        const v = (prompt("투표 블록 — B 개 중 A 개 이상 (예: 2/3)", "2/3") || "").match(/(\d+)\s*\/\s*(\d+)/);
+        if (!v) return;
+        param = { a: Number(v[1]), b: Number(v[2]) };
+      }
+      const lab = b.textContent;
+      await teachPost({ kind: "GATE", qid: q.id, sig: q.sig, fig: q.fig, choice, param,
+                        example: { page: q.example.page, block: q.example.block } },
+        `같은 모양 ${q.count}개에 '${lab}' 를 넣었습니다`);
+      return;
+    }
+    if (b.dataset.link && q) {
+      const mode = b.dataset.link;
+      const sheet = mode === "ALIAS" ? ($("#tc-alias") || {}).value : null;
+      if (mode === "ALIAS" && !sheet) { status("이 묶음의 어느 시트인지 고르세요"); return; }
+      await teachPost({ kind: "LINK", target: q.target, mode, sheet },
+        mode === "OTHER" ? `${q.target} 는 다른 문서로 봅니다 (FM ${q.count}개)` : `${q.target} = ${sheet} 로 잇습니다 (FM ${q.count}개)`);
+      return;
+    }
+    const u = b.dataset.undo;
+    if (u) {
+      const a = r.answered || {};
+      if (u === "gate") {
+        const g = (a.gates || []).find((x) => x.id === b.dataset.id);
+        if (g) await teachPost({ kind: "GATE", qid: g.id, sig: g.sig, fig: g.fig, choice: null }, "가르친 모양을 되돌렸습니다");
+      } else if (u === "sheet") await teachPost({ kind: "SHEET", rect: null }, "시트 이름 자리를 되돌렸습니다");
+      else if (u === "col") await teachPost({ kind: b.dataset.side === "L" ? "FROM" : "TO", rect: null }, "열을 되돌렸습니다");
+      else if (u === "link") await teachPost({ kind: "LINK", target: b.dataset.id, mode: null }, "되돌렸습니다");
+      else if (u === "skip") await teachPost({ kind: "SKIP", qid: b.dataset.id, undo: true }, "다시 묻습니다");
+    }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && TEACH.draw) { setTeachDraw(null); L.markDraft = null; drawMarks(); status(""); renderTeach(); } });
+  addEventListener("resize", () => { if (!box.hidden) placeTeach(); });
 }
 
 /* ------------------------------------------------------------------ 이벤트 */
@@ -2651,6 +2957,7 @@ function bind() {
   });
   bindExtras();
   bindMarkup();
+  bindTeach();
 }
 
 bind();

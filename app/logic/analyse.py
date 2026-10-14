@@ -12,34 +12,63 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import fromto, geom, glyphs, graph, legend, library, macro
+from . import fromto, geom, glyphs, graph, legend, library, macro, teach
 from . import refs as RF                              # 시트-행 (설계 S6 · L21 계통 접두 · L23 일반 꼴)
 
 
-def analyse(pdf_path, progress=None):
+def analyse(pdf_path, progress=None, partial=None):
     t0 = time.time()
     say = progress or (lambda *a, **k: None)
     doc = pymupdf.open(pdf_path)
     sheets = {}
     kinds = {}
+    lib = library.load()
+    marks = _preview_marks(len(doc)) if partial else set()
     for i in range(len(doc)):
         say("reading", i + 1, len(doc))
         pr = geom.read(doc[i], i + 1)
         sh = graph.build(pr)
         if sh is None:
             kinds[i + 1] = "OTHER"
-            continue
-        sheets[i + 1] = sh
-        kinds[i + 1] = "LOGIC"
+        else:
+            sheets[i + 1] = sh
+            kinds[i + 1] = "LOGIC"
+        if partial and i + 1 in marks and len(sheets) >= 2:
+            _preview(doc, sheets, kinds, lib, partial)
     if not sheets:
         raise NotLogic("Logic 표(왼쪽 입력 · 가운데 LOGIC · 오른쪽 출력)를 그린 장을 한 장도 찾지 못했습니다.")
+    D, leg, lib_leg, use, out_sheets = _classify_all(doc, sheets, kinds, lib, say)
+    say("macros", 0, 1)
+    lib_sheets = macro.link(doc, out_sheets, library=lib)   # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12 · L22 사전)
+    return {
+        "pdf_pages": len(doc),
+        "sheets": out_sheets,
+        "kinds": kinds,
+        "dictionary": D.to_json(),
+        "legend": {"pages": leg["pages"], "symbols": {k: v["name"] for k, v in leg["map"].items()},
+                   "figures": sorted({f["name"] for f in leg["figures"]}),
+                   # L22 — 학습 사전에 남길 것 (이 묶음 범례가 말한 것만)
+                   "learn": {"map": {k: {kk: v[kk] for kk in ("name", "logic", "label", "page")} for k, v in leg["map"].items()},
+                             "names": dict(leg.get("names") or {}),
+                             "figures": [{kk: f[kk] for kk in ("fig", "name", "logic", "label")} for f in leg["figures"]]},
+                   "library": {"used": use is not None and not (leg["map"] or leg["figures"]),
+                               "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
+        "library_sheets": lib_sheets or [],
+        "seconds": round(time.time() - t0, 1),
+        "note": _no_text_note(doc, out_sheets) +
+                "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
+                "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
+    }
+
+
+def _classify_all(doc, sheets, kinds, lib, say):
+    """글자 사전 → 범례 → 블록 판정 → 내보내기 → 시트 사이 연결.  분석과 분석 중 미리보기(L25)가 같은 길을 쓴다."""
     say("glyphs", 0, 1)
     D = glyphs.learn(doc, sheets)
     # 범례 표(FUNCTION | SYMBOL | DEFINITION) — 모양으로 그린 게이트의 뜻 (L21 · 없으면 빈 사전)
     pitch = _modal_pitch(sheets)
     leg = legend.read(doc, kinds, pitch, B.vocab()) if pitch else {"map": {}, "names": {}, "figures": [], "rows": [], "pages": []}
     # L22 — 학습 사전: 묶음 범례가 말하지 않은 열쇠만 보태고, 범례 표가 없으면 진짜 글자가 열쇠와 맞을 때만 쓴다
-    lib = library.load()
     lib_leg = library.as_legend(lib)
     if leg["map"] or leg["figures"]:
         use = library.merge(leg, lib_leg)
@@ -74,27 +103,32 @@ def analyse(pdf_path, progress=None):
     for s in out_sheets:
         s["findings"] = _findings(s)
     fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
-    say("macros", 0, 1)
-    lib_sheets = macro.link(doc, out_sheets, library=lib)   # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12 · L22 사전)
-    return {
-        "pdf_pages": len(doc),
-        "sheets": out_sheets,
-        "kinds": kinds,
-        "dictionary": D.to_json(),
-        "legend": {"pages": leg["pages"], "symbols": {k: v["name"] for k, v in leg["map"].items()},
-                   "figures": sorted({f["name"] for f in leg["figures"]}),
-                   # L22 — 학습 사전에 남길 것 (이 묶음 범례가 말한 것만)
-                   "learn": {"map": {k: {kk: v[kk] for kk in ("name", "logic", "label", "page")} for k, v in leg["map"].items()},
-                             "names": dict(leg.get("names") or {}),
-                             "figures": [{kk: f[kk] for kk in ("fig", "name", "logic", "label")} for f in leg["figures"]]},
-                   "library": {"used": use is not None and not (leg["map"] or leg["figures"]),
-                               "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
-        "library_sheets": lib_sheets or [],
-        "seconds": round(time.time() - t0, 1),
-        "note": _no_text_note(doc, out_sheets) +
-                "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
-                "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
-    }
+    return D, leg, lib_leg, use, out_sheets
+
+
+PREVIEW_MAX = 60                         # 미리보기에 쓰는 장 수 상한 (질문의 무리는 고르게 뽑은 장으로 충분하다 — 끝나면 전 장으로 다시)
+
+
+def _preview_marks(n):
+    """분석 중 미리보기를 낼 쪽 — 여덟째 쪽 · 4분의 1 · 절반 (읽기가 분석 시간의 대부분이다 — 1A5J 실측 18.5초 중 17.8초)."""
+    return {p for p in (8, round(n * 0.25), round(n * 0.5)) if 2 <= p < n}
+
+
+def _preview(doc, sheets, kinds, lib, partial):
+    """L25 — 지금까지 읽은 장만으로 블록 판정까지 해 본다 (사본에서 · 분석 본체는 건드리지 않는다).
+    사람이 이것을 보고 가르치기 질문에 답하는 동안 분석은 계속되고, 답은 규칙으로 남아 끝난 결과에 얹힌다."""
+    import copy
+    try:
+        keys = sorted(sheets)
+        if len(keys) > PREVIEW_MAX:          # 큰 묶음은 고르게 뽑은 장만 (미리보기가 분석을 두 배로 만들지 않게)
+            step = len(keys) / PREVIEW_MAX
+            keys = sorted({keys[int(i * step)] for i in range(PREVIEW_MAX)})
+        sub = copy.deepcopy({k: sheets[k] for k in keys})
+        k2 = {i + 1: kinds.get(i + 1, "LOGIC") for i in range(len(doc))}      # 아직 안 읽은 쪽은 범례로 읽지 않는다
+        _, _, _, _, out = _classify_all(doc, sub, k2, lib, lambda *a, **k: None)
+        partial({"pdf_pages": len(doc), "sheets": out, "partial": True, "read_pages": max(kinds) if kinds else 0})
+    except Exception:
+        pass
 
 
 def _no_text_note(doc, sheets):
@@ -396,6 +430,11 @@ def _export(sh, pno, sheet_no, title, rows, timers):
         }
         if b.kind in ("RECT", "CIRCLE"):
             blks[b.id]["key"] = legend.keys_of(b, sh.words)[0]      # L22 — 모양|안 글자 (사람이 종류를 정하면 사전 열쇠)
+            if getattr(b, "func", "") == "UNKNOWN":
+                # L25 — 판정 못 한 블록의 안 그림 (16×16) · 같은 그림끼리 무리를 지어 질문 하나로 묻는다 (teach)
+                blks[b.id]["fig"] = teach.fig_hex(legend.figure(b, sh.glyph_polys))
+                if getattr(b, "shape", ""):
+                    blks[b.id]["shape"] = b.shape
         if getattr(b, "learned", ""):
             blks[b.id]["learned"] = b.learned
         if getattr(b, "func", "") == "MACRO":

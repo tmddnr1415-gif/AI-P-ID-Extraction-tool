@@ -5,6 +5,8 @@
       "cells":  {쪽: {"L:12": {"fm": 값, author, at, was}, "R:30": {"to": 값, ...}}},
       "timers": {쪽: {블록: {t: 초, author, at}}},
       "marks":  {쪽: {id: {kind, rect, value, n, choice, param, author, at}}},     (L24 마크업)
+      "teach":  {"gates": [규칙], "sheet": {page, rect, values, author}, "cols": {"L"|"R": {...}},
+                 "links": {시트 이름: {mode: OTHER|ALIAS, sheet}}, "skipped": [질문]},      (L25 가르치기)
       "history": [{kind, page, key, value, was, author, at}],
   }
 
@@ -47,13 +49,14 @@ CHOICES = {
     "CONST0": ("CONST", "source", "0", {}),
     "ANN": ("ANN", "sink", "ANN", {}),                      # 경보 · 표시 · 기록 — 받기만
     "ANALOG": ("ANALOG", "unknown", "ANALOG", {}),          # 아날로그 연산 (이진 출력이 아니다)
+    "PASS": ("BUFFER", "pass", "→", {}),                    # 이음점 · 그대로 넘김 (선 위 속 빈 원 · IEC '1' — L25)
 }
 CHOICE_KO = {
     "AND": "AND", "OR": "OR", "NOT": "NOT", "NAND": "NAND", "NOR": "NOR", "VOTE": "투표 (B 개 중 A 개)",
     "GT": "ON DELAY (GT)", "DT": "OFF DELAY (DT)", "PD": "PULSE (PD)", "MEMORY": "메모리 (기본)",
     "MEMORY_S": "메모리 (SET 우선)", "MEMORY_R": "메모리 (RESET 우선)", "PB": "누름단추 (입력)",
     "SIGNAL": "신호 상자 (입력)", "CONST1": "언제나 1", "CONST0": "언제나 0", "ANN": "경보 · 표시 (받기만)",
-    "ANALOG": "아날로그 연산 (이진 아님)",
+    "ANALOG": "아날로그 연산 (이진 아님)", "PASS": "이음점 · 그대로 넘김",
 }
 
 
@@ -62,7 +65,11 @@ def _path(d: Path) -> Path:
 
 
 def empty():
-    return {"blocks": {}, "cells": {}, "timers": {}, "marks": {}, "history": []}
+    return {"blocks": {}, "cells": {}, "timers": {}, "marks": {}, "teach": _teach0(), "history": []}
+
+
+def _teach0():
+    return {"gates": [], "sheet": {}, "cols": {}, "links": {}, "skipped": []}
 
 
 def load(d: Path) -> dict:
@@ -73,6 +80,11 @@ def load(d: Path) -> dict:
             for k in out:
                 if isinstance(data.get(k), type(out[k])):
                     out[k] = data[k]
+            t = _teach0()
+            for k in t:
+                if isinstance(out["teach"].get(k), type(t[k])):
+                    t[k] = out["teach"][k]
+            out["teach"] = t
             return out
     except Exception:
         pass
@@ -87,7 +99,7 @@ def mtime(d: Path):
 
 
 def has_any(ov: dict) -> bool:
-    return any(ov.get(k) for k in ("blocks", "cells", "timers", "marks"))
+    return any(ov.get(k) for k in ("blocks", "cells", "timers", "marks")) or any((ov.get("teach") or {}).values())
 
 
 def _save(d: Path, data: dict):
@@ -291,16 +303,23 @@ def _memory_roles(s, bid, b):
             p["role"] = "q" if (top or len(outs) == 1) else "qn"
 
 
-def apply(res: dict, ov: dict) -> dict:
+def apply(res: dict, ov: dict, lib_rules=None) -> dict:
     """결과(새로 읽은 사본)에 사람 값을 얹는다 — 제자리.  FM/TO 를 고쳤으면 from-to 연결을 다시 맞댄다."""
     from . import fromto
     from .analyse import _findings
+    from . import teach as T
     by_page = {s["page"]: s for s in res.get("sheets", [])}
     touched = set()
+    tc = ov.get("teach") or {}
+    taught_cells = T.apply_sheet_and_cols(res, tc)        # L25 — 한 장에서 두른 자리를 모든 장에서 읽은 값 (빈 칸에만)
     gate_marks, cells_from_marks = _apply_marks(res, ov, by_page)
     blocks_ov = {k: dict(v) for k, v in (ov.get("blocks") or {}).items() if isinstance(v, dict)}
     for pg, m in gate_marks.items():
         blocks_ov.setdefault(pg, {}).update(m)            # 사각형으로 고른 게이트 종류 — 블록 종류 정하기와 같은 길
+    rules = [dict(r, **{"from": "job"}) for r in tc.get("gates") or [] if isinstance(r, dict) and r.get("choice") in CHOICES]
+    rules += [r for r in (lib_rules or []) if r.get("choice") in CHOICES]
+    for pg, m in T.gate_entries(res, rules, blocks_ov).items():
+        blocks_ov.setdefault(pg, {}).update(m)            # L25 — 무리마다 한 번 답한 규칙 (사람이 그 블록 하나를 정했으면 그것이 이긴다)
     for pg, m in blocks_ov.items():
         s = by_page.get(int(pg)) if str(pg).isdigit() else None
         if s is None:
@@ -312,6 +331,9 @@ def apply(res: dict, ov: dict) -> dict:
             func, logic, label, prm = CHOICES[e["choice"]]
             b["user"] = {"choice": e["choice"], "author": e.get("author", ""), "at": e.get("at", ""),
                          "was_func": b.get("func", ""), "was_logic": b.get("logic", ""), "was_label": b.get("label", "")}
+            if e.get("taught"):
+                b["user"]["taught"] = e["taught"]
+                b["user"]["from"] = e.get("from", "job")
             b["func"], b["logic"] = func, logic
             if e["choice"] == "VOTE":
                 b["label"] = e.get("label") or label
@@ -359,15 +381,19 @@ def apply(res: dict, ov: dict) -> dict:
                                                            "at": e.get("at", "")}
                         r[field] = e[field]
             cells = True
-    cells = cells or cells_from_marks
+    cells = cells or cells_from_marks or taught_cells
+    links = T.links_of(tc)
     for p in touched:
         by_page[p]["findings"] = _findings(by_page[p])
-    if touched or cells:
-        fromto.check(res["sheets"])
+    if touched or cells or links["external"] or links["aliases"]:
+        fromto.check(res["sheets"], links)
     res["_overrides"] = {"blocks": sum(len(v) for v in (ov.get("blocks") or {}).values()),
                          "cells": sum(len(v) for v in (ov.get("cells") or {}).values()),
                          "timers": sum(len(v) for v in (ov.get("timers") or {}).values()),
-                         "marks": sum(len(v) for v in (ov.get("marks") or {}).values())}
+                         "marks": sum(len(v) for v in (ov.get("marks") or {}).values()),
+                         "taught": {"gates": len(tc.get("gates") or []), "library": len(lib_rules or []),
+                                    "sheet": bool(tc.get("sheet")), "cols": sorted((tc.get("cols") or {}).keys()),
+                                    "links": len(tc.get("links") or {})}}
     return res
 
 
@@ -461,3 +487,99 @@ def _apply_marks(res, ov, by_page):
             out.append(mk)
         s["marks"] = out
     return gates, changed
+
+
+# ------------------------------------------------------------------ L25 가르치기 — 무리마다 한 번
+
+def _teach_hist(data, kind, key, value, author):
+    data["history"].append({"kind": "teach-" + kind, "page": None, "key": key, "value": value, "author": author, "at": _now()})
+
+
+def teach_gate(d: Path, qid, sig, fig, choice, author, param=None, example=None) -> dict:
+    """판정 못 한 블록 무리 하나의 종류 — 같은 서명 · 같은 그림의 블록 전부에 (choice None 이면 그 규칙을 지운다)."""
+    from . import teach as T
+    author = _author(author)
+    if not isinstance(sig, dict) or not sig.get("kind"):
+        raise ValueError("어느 무리인지(서명)가 없습니다.")
+    with _LOCK:
+        data = load(d)
+        g = data["teach"]["gates"]
+        keep = [r for r in g if not T._same(r.get("sig") or {}, r.get("fig") or "", sig, fig or "")]
+        removed = len(keep) != len(g)
+        if choice is None:
+            data["teach"]["gates"] = keep
+            _teach_hist(data, "gate", qid, None, author)
+            _save(d, data)
+            return {"removed": removed}
+        if choice not in CHOICES:
+            raise ValueError(f"모르는 종류입니다: {choice}")
+        rule = {"id": str(qid or "")[:16], "sig": {k: sig.get(k) for k in ("kind", "shape", "text", "cells", "size", "aspect", "ins", "outs")},
+                "fig": str(fig or "")[:64], "choice": choice, "author": author, "at": _now(), "example": example or {}}
+        if choice == "VOTE":
+            rule["param"] = _vote(param or {})
+        keep.append(rule)
+        data["teach"]["gates"] = keep
+        _teach_hist(data, "gate", qid, choice, author)
+        _save(d, data)
+        return rule
+
+
+def teach_region(d: Path, kind, page, rect, values, author, side=None) -> dict:
+    """한 장에서 두른 자리(시트 이름 · FM 열 · TO 열)와 그 자리에서 모든 장을 읽은 값.  rect None 이면 지운다."""
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        if rect is None:
+            if kind == "SHEET":
+                data["teach"]["sheet"] = {}
+            else:
+                data["teach"]["cols"].pop(side, None)
+            _teach_hist(data, kind.lower(), side or "", None, author)
+            _save(d, data)
+            return {"removed": True}
+        ent = {"page": int(page), "rect": _rect(rect), "values": {str(k): v for k, v in (values or {}).items()},
+               "author": author, "at": _now()}
+        if kind == "SHEET":
+            data["teach"]["sheet"] = ent
+        else:
+            data["teach"]["cols"][side] = ent
+        _teach_hist(data, kind.lower(), side or "", len(ent["values"]), author)
+        _save(d, data)
+        return ent
+
+
+def teach_link(d: Path, name, mode, sheet, author) -> dict:
+    """묶음에 없는 시트 이름 — OTHER(다른 문서) · ALIAS(이 묶음의 시트) · None(지움)."""
+    author = _author(author)
+    name = re.sub(r"\s+", "", str(name or "")).upper()[:60]
+    if not name:
+        raise ValueError("시트 이름이 없습니다.")
+    with _LOCK:
+        data = load(d)
+        if mode is None:
+            data["teach"]["links"].pop(name, None)
+        elif mode == "OTHER":
+            data["teach"]["links"][name] = {"mode": "OTHER", "author": author, "at": _now()}
+        elif mode == "ALIAS":
+            sh = re.sub(r"\s+", "", str(sheet or "")).upper()[:60]
+            if not sh:
+                raise ValueError("이 묶음의 어느 시트인지 골라 주세요.")
+            data["teach"]["links"][name] = {"mode": "ALIAS", "sheet": sh, "author": author, "at": _now()}
+        else:
+            raise ValueError("OTHER 또는 ALIAS 입니다.")
+        _teach_hist(data, "link", name, mode, author)
+        _save(d, data)
+        return data["teach"]["links"].get(name, {"removed": True})
+
+
+def teach_skip(d: Path, qid, author, undo=False) -> dict:
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        sk = [q for q in data["teach"]["skipped"] if q != qid]
+        if not undo:
+            sk.append(str(qid)[:16])
+        data["teach"]["skipped"] = sk
+        _teach_hist(data, "skip", qid, not undo, author)
+        _save(d, data)
+        return {"skipped": sk}
