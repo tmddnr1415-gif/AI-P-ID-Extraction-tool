@@ -12,58 +12,32 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import fromto, geom, glyphs, graph, legend, library, macro
-from .refs import REF, series                          # 시트-행 (설계 S6 · L21 계통 접두)
+from . import fromto, geom, glyphs, graph, legend, library, macro, teach
+from . import refs as RF                              # 시트-행 (설계 S6 · L21 계통 접두 · L23 일반 꼴)
 
 
-def analyse(pdf_path, progress=None):
+def analyse(pdf_path, progress=None, partial=None):
     t0 = time.time()
     say = progress or (lambda *a, **k: None)
     doc = pymupdf.open(pdf_path)
     sheets = {}
     kinds = {}
+    lib = library.load()
+    marks = _preview_marks(len(doc)) if partial else set()
     for i in range(len(doc)):
         say("reading", i + 1, len(doc))
         pr = geom.read(doc[i], i + 1)
         sh = graph.build(pr)
         if sh is None:
             kinds[i + 1] = "OTHER"
-            continue
-        sheets[i + 1] = sh
-        kinds[i + 1] = "LOGIC"
+        else:
+            sheets[i + 1] = sh
+            kinds[i + 1] = "LOGIC"
+        if partial and i + 1 in marks and len(sheets) >= 2:
+            _preview(doc, sheets, kinds, lib, partial)
     if not sheets:
         raise NotLogic("Logic 표(왼쪽 입력 · 가운데 LOGIC · 오른쪽 출력)를 그린 장을 한 장도 찾지 못했습니다.")
-    say("glyphs", 0, 1)
-    D = glyphs.learn(doc, sheets)
-    # 범례 표(FUNCTION | SYMBOL | DEFINITION) — 모양으로 그린 게이트의 뜻 (L21 · 없으면 빈 사전)
-    pitch = _modal_pitch(sheets)
-    leg = legend.read(doc, kinds, pitch, B.vocab()) if pitch else {"map": {}, "names": {}, "figures": [], "rows": [], "pages": []}
-    # L22 — 학습 사전: 묶음 범례가 말하지 않은 열쇠만 보태고, 범례 표가 없으면 진짜 글자가 열쇠와 맞을 때만 쓴다
-    lib = library.load()
-    lib_leg = library.as_legend(lib)
-    if leg["map"] or leg["figures"]:
-        use = library.merge(leg, lib_leg)
-    elif lib_leg["map"] or lib_leg["names"]:
-        use = {**lib_leg, "library_only": True}
-    else:
-        use = None
-    for sh in sheets.values():
-        sh.legend = use
-    out_sheets = []
-    for pno, sh in sorted(sheets.items()):
-        say("blocks", pno, len(doc))
-        B.classify(sh, D)
-        sheet_no, sub = glyphs._title_words(doc[pno - 1])
-        rows = _rows(sh, D)
-        timers = _timer_params(sh, D)
-        out_sheets.append(_export(sh, pno, sheet_no, " ".join(sub), rows, timers))
-        if not sub:
-            out_sheets[-1]["_title_lines"] = glyphs._title_lines(doc[pno - 1])
-    _titles_from_lines(out_sheets)
-    _cross_refs(out_sheets)
-    for s in out_sheets:
-        s["findings"] = _findings(s)
-    fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
+    D, leg, lib_leg, use, out_sheets = _classify_all(doc, sheets, kinds, lib, say)
     say("macros", 0, 1)
     lib_sheets = macro.link(doc, out_sheets, library=lib)   # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12 · L22 사전)
     return {
@@ -81,9 +55,90 @@ def analyse(pdf_path, progress=None):
                                "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
         "library_sheets": lib_sheets or [],
         "seconds": round(time.time() - t0, 1),
-        "note": "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
+        "note": _no_text_note(doc, out_sheets) +
+                "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
                 "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
     }
+
+
+def _classify_all(doc, sheets, kinds, lib, say):
+    """글자 사전 → 범례 → 블록 판정 → 내보내기 → 시트 사이 연결.  분석과 분석 중 미리보기(L25)가 같은 길을 쓴다."""
+    say("glyphs", 0, 1)
+    D = glyphs.learn(doc, sheets)
+    # 범례 표(FUNCTION | SYMBOL | DEFINITION) — 모양으로 그린 게이트의 뜻 (L21 · 없으면 빈 사전)
+    pitch = _modal_pitch(sheets)
+    leg = legend.read(doc, kinds, pitch, B.vocab()) if pitch else {"map": {}, "names": {}, "figures": [], "rows": [], "pages": []}
+    # L22 — 학습 사전: 묶음 범례가 말하지 않은 열쇠만 보태고, 범례 표가 없으면 진짜 글자가 열쇠와 맞을 때만 쓴다
+    lib_leg = library.as_legend(lib)
+    if leg["map"] or leg["figures"]:
+        use = library.merge(leg, lib_leg)
+    elif lib_leg["map"] or lib_leg["names"]:
+        use = {**lib_leg, "library_only": True}
+    else:
+        use = None
+    for sh in sheets.values():
+        sh.legend = use
+    out_sheets = []
+    for pno, sh in sorted(sheets.items()):
+        say("blocks", pno, len(doc))
+        B.classify(sh, D)
+        sheet_no, sub = glyphs._title_words(doc[pno - 1])
+        sheet_no = (sheet_no or "").upper()                  # 소문자로 인쇄한 양식도 같은 이름 (L23b)
+        rows = _rows(sh, D)
+        _printed_numbers(sh, rows)
+        timers = _timer_params(sh, D)
+        out_sheets.append(_export(sh, pno, sheet_no, " ".join(sub), rows, timers))
+        if not sub:
+            out_sheets[-1]["_title_lines"] = glyphs._title_lines(doc[pno - 1])
+    # 세 장 이상이 같은 '시트 이름' 이면 그것은 시트 이름이 아니라 문서 번호다 (DWG. NO. 칸이 장마다 같은 양식 · L23b)
+    seen = defaultdict(int)
+    for s_ in out_sheets:
+        if s_["sheet_no"]:
+            seen[s_["sheet_no"]] += 1
+    for s_ in out_sheets:
+        if seen.get(s_["sheet_no"], 0) >= 3:
+            s_["sheet_no"] = ""
+    _titles_from_lines(out_sheets)
+    _cross_refs(out_sheets)
+    for s in out_sheets:
+        s["findings"] = _findings(s)
+    fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
+    return D, leg, lib_leg, use, out_sheets
+
+
+PREVIEW_MAX = 60                         # 미리보기에 쓰는 장 수 상한 (질문의 무리는 고르게 뽑은 장으로 충분하다 — 끝나면 전 장으로 다시)
+
+
+def _preview_marks(n):
+    """분석 중 미리보기를 낼 쪽 — 여덟째 쪽 · 4분의 1 · 절반 (읽기가 분석 시간의 대부분이다 — 1A5J 실측 18.5초 중 17.8초)."""
+    return {p for p in (8, round(n * 0.25), round(n * 0.5)) if 2 <= p < n}
+
+
+def _preview(doc, sheets, kinds, lib, partial):
+    """L25 — 지금까지 읽은 장만으로 블록 판정까지 해 본다 (사본에서 · 분석 본체는 건드리지 않는다).
+    사람이 이것을 보고 가르치기 질문에 답하는 동안 분석은 계속되고, 답은 규칙으로 남아 끝난 결과에 얹힌다."""
+    import copy
+    try:
+        keys = sorted(sheets)
+        if len(keys) > PREVIEW_MAX:          # 큰 묶음은 고르게 뽑은 장만 (미리보기가 분석을 두 배로 만들지 않게)
+            step = len(keys) / PREVIEW_MAX
+            keys = sorted({keys[int(i * step)] for i in range(PREVIEW_MAX)})
+        sub = copy.deepcopy({k: sheets[k] for k in keys})
+        k2 = {i + 1: kinds.get(i + 1, "LOGIC") for i in range(len(doc))}      # 아직 안 읽은 쪽은 범례로 읽지 않는다
+        _, _, _, _, out = _classify_all(doc, sub, k2, lib, lambda *a, **k: None)
+        partial({"pdf_pages": len(doc), "sheets": out, "partial": True, "read_pages": max(kinds) if kinds else 0})
+    except Exception:
+        pass
+
+
+def _no_text_note(doc, sheets):
+    """L23b — 글자 층이 한 장에도 없고 시트 이름도 하나 못 읽었으면 먼저 그렇게 말한다 (FM/TO · 시트 사이 연결이 빈 이유)."""
+    if any(s.get("sheet_no") for s in sheets):
+        return ""
+    if any(pg.get_text("text").strip() for pg in doc):
+        return ""
+    return ("⚠ 이 PDF 에는 글자 층이 없습니다 (글자를 그림이나 선으로 내보냈습니다) — 시트 이름 · FM/TO 를 읽지 못해 "
+            "시트 사이 연결은 되지 않습니다.  선 · 게이트는 읽었습니다.  CAD 에서 글자를 TrueType 으로 다시 내보내면 됩니다.  ")
 
 
 def _modal_pitch(sheets):
@@ -151,8 +206,24 @@ def _rows(sh, D):
             prev = c
         return _fix_o0("".join(txt).strip())
 
-    lcols = [page_left - 1] + left if left and page_left < left[0] else left
     page_right = max((p.bbox[2] for p in sh.all_glyphs), default=right[-1] + 60) + 1
+    fr = getattr(sh, "frame", None)
+    # 표 바깥 변을 장 테두리가 겸하고 글자를 진짜 글자로 인쇄한 양식 (1A1Y · L23) — 선 글자가 FROM 칸 안쪽에만 있어
+    # 바깥 변을 못 잡으면 FROM · TO 칸이 통째로 빠진다.  그때만 장 테두리 안쪽 변을 표 바깥 변으로 쓴다.
+    V = B.vocab().get("table_headers") or {}
+    t_top = min((a for _, a, _ in lay.left_rows + lay.right_rows), default=0)
+    head = [w for w in sh.words if t_top - 3 * lay.pitch <= (w[1] + w[3]) / 2 < t_top]
+    hw = lambda role: {x.upper() for x in V.get(role, [])}
+    fm_h = [w for w in head if w[4].upper() in hw("fm") and (w[0] + w[2]) / 2 < (left[0] if left else 0)]
+    to_h = [w for w in head if w[4].upper() in hw("to") and (w[0] + w[2]) / 2 > (right[-1] if right else 1e9)]
+    if fm_h:
+        # FROM 머리글이 읽은 열보다 바깥이다 — 그 칸의 바깥 변은 장 테두리(있으면) 또는 머리글 글자 왼쪽 끝 너머
+        edge = fr[0] + 1 if fr and fr[0] < left[0] - lay.pitch else min(w[0] for w in fm_h) - lay.pitch
+        page_left = min(page_left, edge)
+    if to_h:
+        edge = fr[2] - 1 if fr and fr[2] > right[-1] + lay.pitch else max(w[2] for w in to_h) + lay.pitch
+        page_right = max(page_right, edge)
+    lcols = [page_left - 1] + left if left and page_left < left[0] else left
     for side, cs, rows in (("L", lcols, lay.left_rows), ("R", right + [page_right], lay.right_rows)):
         for n, a, b in rows:
             cells = []
@@ -195,6 +266,25 @@ def _rows(sh, D):
                 r["to"] = c[k_no + 1] if k_no is not None and k_no + 1 < ncell else ""
             del r["cells"]
     return out
+
+
+def _printed_numbers(sh, rows):
+    """NO. 칸에 인쇄된 번호가 센 순서와 **한결같이** 어긋나면(0 부터 · 앞 장에 이어 101 부터) 인쇄된 번호를 쓴다 (L23b).
+    FM · TO 는 인쇄된 번호를 가리키기 때문이다.  쪽마다 · 쪽(왼쪽/오른쪽)마다, 읽힌 번호의 8할 이상이 같은 차이일 때만."""
+    for side in ("L", "R"):
+        diffs = [int(r["no_read"]) - r["n"] for r in rows
+                 if r["side"] == side and re.fullmatch(r"\d{1,4}", (r.get("no_read") or "").strip())]
+        if len(diffs) < 5:
+            continue
+        c = max(set(diffs), key=diffs.count)
+        if c == 0 or diffs.count(c) < 0.8 * len(diffs):
+            continue
+        for r in rows:
+            if r["side"] == side:
+                r["n"] += c
+        for r in sh.rows:
+            if r["side"] == side:
+                r["n"] += c
 
 
 def _header_roles(sh, xs, top, pitch):
@@ -340,6 +430,11 @@ def _export(sh, pno, sheet_no, title, rows, timers):
         }
         if b.kind in ("RECT", "CIRCLE"):
             blks[b.id]["key"] = legend.keys_of(b, sh.words)[0]      # L22 — 모양|안 글자 (사람이 종류를 정하면 사전 열쇠)
+            if getattr(b, "func", "") == "UNKNOWN":
+                # L25 — 판정 못 한 블록의 안 그림 (16×16) · 같은 그림끼리 무리를 지어 질문 하나로 묻는다 (teach)
+                blks[b.id]["fig"] = teach.fig_hex(legend.figure(b, sh.glyph_polys))
+                if getattr(b, "shape", ""):
+                    blks[b.id]["shape"] = b.shape
         if getattr(b, "learned", ""):
             blks[b.id]["learned"] = b.learned
         if getattr(b, "func", "") == "MACRO":
@@ -440,21 +535,21 @@ def _net_order(s):
 def _cross_refs(sheets):
     """왼쪽 행의 FM `G031-81` → G031 장의 81행 (오른쪽 출력).  읽은 글자 그대로 맞댄다."""
     by_no = {s["sheet_no"]: s for s in sheets if s["sheet_no"]}
-    prefixes = {series(s["sheet_no"]) for s in sheets if s["sheet_no"]}
+    bundle = RF.Bundle(by_no)
     for s in sheets:
         for r in s["rows"]:
             if r["side"] != "L":
                 continue
-            fm = (r.get("fm") or "").replace(" ", "")
-            m = REF.match(fm)
+            m = RF.full(r.get("fm"), by_no)
             if not m:
                 continue
-            tgt = by_no.get(m.group(1))
-            r["ref"] = {"sheet": m.group(1), "row": int(m.group(2)), "page": tgt["page"] if tgt else None,
-                        "other_bundle": series(m.group(1)) not in prefixes}   # 다른 묶음 (Logic 의 P… = Loop 장)
+            sh, rn = m
+            tgt = by_no.get(sh)
+            r["ref"] = {"sheet": sh, "row": rn, "page": tgt["page"] if tgt else None,
+                        "other_bundle": bundle.other(sh)}   # 다른 묶음 (Logic 의 P… = Loop 장 · 다른 문서)
             if tgt:
                 for tr in tgt["rows"]:
-                    if tr["side"] == "R" and tr["n"] == int(m.group(2)):
+                    if tr["side"] == "R" and tr["n"] == rn:
                         tr.setdefault("refs_in", []).append({"sheet": s["sheet_no"], "page": s["page"], "row": r["n"]})
 
 

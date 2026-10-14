@@ -47,7 +47,7 @@ def typ_dir() -> Path:
 
 
 def _empty():
-    return {"symbols": {}, "figures": [], "typicals": {}, "learned_jobs": []}
+    return {"symbols": {}, "figures": [], "typicals": {}, "learned_jobs": [], "taught": []}
 
 
 def _read(p: Path) -> dict:
@@ -93,7 +93,7 @@ def load() -> dict:
         sym.pop(k, None)
     figs = [f for f in seed["figures"] + mine["figures"] if isinstance(f, dict) and f.get("fig")]
     return {"symbols": sym, "figures": figs, "typicals": mine["typicals"], "learned_jobs": mine["learned_jobs"],
-            "conflicts": sorted(bad)}
+            "conflicts": sorted(bad), "taught": [r for r in mine["taught"] if isinstance(r, dict)]}
 
 
 def as_legend(lib=None) -> dict:
@@ -245,9 +245,41 @@ def learn_from_result(res: dict, job_dir: Path, bundle: str, job: str = "") -> d
     return got
 
 
+def mtime():
+    try:
+        return data_path().stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+def taught_rules(exclude_bundle="") -> list:
+    """L25 — 다른 묶음에서 사람이 가르친 게이트 규칙 (모양 서명 + 그림 → 종류).  같은 묶음의 것은 그 묶음 규칙이 이미 있다."""
+    out = []
+    for r in _read(data_path())["taught"]:
+        if not isinstance(r, dict) or not r.get("sig") or r.get("from") == exclude_bundle:
+            continue
+        out.append({**r, "from": "library", "bundle": r.get("from", "")})
+    return out
+
+
+def learn_rule(rule: dict, bundle: str) -> dict:
+    """사람이 가르친 게이트 규칙을 사전에 — 같은 서명 · 같은 그림이면 새 답이 이긴다 (사람이 고친 것이 최신 판단)."""
+    from . import teach as T
+    with _LOCK:
+        d = _read(data_path())
+        keep = [r for r in d["taught"] if not (isinstance(r, dict) and
+                                                T._same(r.get("sig") or {}, r.get("fig") or "", rule["sig"], rule.get("fig") or ""))]
+        if rule.get("choice"):
+            keep.append({k: rule.get(k) for k in ("id", "sig", "fig", "choice", "param", "author", "at")} | {"from": bundle})
+        d["taught"] = keep
+        _save(d)
+    return {"rules": len(keep)}
+
+
 def summary() -> dict:
     lib = load()
     return {"symbols": len(lib["symbols"]), "figures": len(lib["figures"]), "typicals": len(lib["typicals"]),
+            "taught": len(lib["taught"]),
             "user_symbols": sum(1 for v in lib["symbols"].values() if any(s.get("kind") == "USER" for s in v.get("sources", []))),
             "conflicts": lib["conflicts"],
             "items": [{"key": k, "name": v.get("name"), "logic": v.get("logic"),

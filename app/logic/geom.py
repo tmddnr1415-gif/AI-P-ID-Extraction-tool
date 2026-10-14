@@ -11,6 +11,7 @@ LOGIC 영역은 표의 세로 괘선 중 **가장 넓은 사이**다 (양쪽 표
 from __future__ import annotations
 
 import math
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -104,12 +105,34 @@ class Prims:
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
 
 
-def _ink(c):
-    """잉크(검정·회색)만 — 빨강 개정 클라우드는 도면의 표시가 아니다 (P&ID 엔진과 같은 생각)."""
+def _ink(c, inks=()):
+    """잉크(검정·회색)만 — 빨강 개정 클라우드는 도면의 표시가 아니다 (P&ID 엔진과 같은 생각).
+    L23b — 그 장이 선을 **그 색으로 그린** 양식(파랑 신호선 등)이면 그 색도 잉크다 (`_page_inks`)."""
     if c is None:
         return True
     r, g, b = c[:3]
-    return abs(r - g) < 0.15 and abs(g - b) < 0.15
+    return (abs(r - g) < 0.15 and abs(g - b) < 0.15) or _ckey(c) in inks
+
+
+def _ckey(c):
+    return tuple(round(v, 2) for v in c[:3])
+
+
+def _page_inks(drawings):
+    """그 장에서 곧은 선을 많이 그린 회색 아닌 색 — 곧은 선만으로 된 path 의 2할 이상이고 20개 이상.
+    개정 표시(빨간 구름 · 삼각형)는 곡선이거나 몇 개뿐이다 (네 묶음 실측: 장당 곧은 빨간 선 0~5)."""
+    cnt = {}
+    total = 0
+    for d in drawings:
+        c = d.get("color")
+        items = d.get("items") or []
+        if not items or "s" not in (d.get("type") or "") or any(it[0] != "l" for it in items):
+            continue
+        total += 1
+        if c is not None and not (abs(c[0] - c[1]) < 0.15 and abs(c[1] - c[2]) < 0.15):
+            k = _ckey(c)
+            cnt[k] = cnt.get(k, 0) + 1
+    return {k for k, n in cnt.items() if n >= 20 and n >= 0.2 * total}
 
 
 def _pt(p, m):
@@ -123,22 +146,85 @@ def _bbox(pts):
     return (min(xs), min(ys), max(xs), max(ys))
 
 
+def _rot_box(b, m):
+    r = fitz_rect(b) * m
+    return (r.x0, r.y0, r.x1, r.y1)
+
+
+def fitz_rect(b):
+    import pymupdf
+    return pymupdf.Rect(b[0], b[1], b[2], b[3])
+
+
+def words(page):
+    """그 장의 진짜 글자 낱말 — **표시 좌표** (L23).
+
+    `get_text` 는 회전 전 좌표를 준다.  그림 요소는 `rotation_matrix` 를 곱해 표시 좌표로 읽으므로
+    글자도 같은 자로 옮긴다 — 안 옮기면 270° 로 저장된 장(1A5J)에서 글자가 하나도 표 칸에 안 든다.
+    회전 0 이면 받은 그대로다 (HRSG · 19VA 불변)."""
+    ws = _one_print(page.get_text("words"))
+    if not page.rotation:
+        return [(w[0], w[1], w[2], w[3], w[4]) for w in ws]
+    m = page.rotation_matrix
+    out = []
+    for w in ws:
+        b = _rot_box(w[:4], m)
+        out.append((b[0], b[1], b[2], b[3], w[4]))
+    return out
+
+
+def _one_print(ws):
+    """같은 자리에 같은 글자를 겹쳐 찍은 것은 한 낱말이다 (L24 — 1A1Y 는 `AND` 를 같은 자리에 두 번 찍어 블록 글자가
+    `AND AND` 가 되어 판정을 못 했다 · P&ID QFE 도 세 번 겹쳐 찍는다).  자리는 0.1pt 로 반올림 — 나란히 쓴 같은 낱말은 남는다."""
+    seen = set()
+    out = []
+    for w in ws:
+        k = (round(w[0], 1), round(w[1], 1), round(w[2], 1), round(w[3], 1), w[4])
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(w)
+    return out
+
+
+def text_lines(page):
+    """진짜 글자 줄 [(bbox, 글)] — 표시 좌표 (L23 · `words` 와 같은 자)."""
+    m = page.rotation_matrix if page.rotation else None
+    out = []
+    for b in page.get_text("dict").get("blocks", []):
+        for ln in b.get("lines", []):
+            t = "".join(sp["text"] for sp in ln["spans"]).strip()
+            if t:
+                bb = tuple(ln["bbox"])
+                out.append((_rot_box(bb, m) if m is not None else bb, t))
+    return out
+
+
+def _pdf_dashed(d):
+    """PDF 의 선 무늬(dash pattern)로 그린 파선 (L23).  지금까지의 네 묶음은 파선을 토막으로 따로 그려 무늬가 비어 있다
+    (`[] 0`) — 무늬로 그리는 양식이 오면 같은 파선으로 읽는다."""
+    t = str(d.get("dashes") or "")
+    return bool(re.match(r"\[\s*\d", t.strip()))
+
+
 def read(page, pno: int) -> Prims:
     """한 장의 그림 요소.  좌표는 표시 좌표 (회전 행렬을 곱한다)."""
     m = page.rotation_matrix
     out = Prims(pno, page.rect.width, page.rect.height)
-    out.words = [(w[0], w[1], w[2], w[3], w[4]) for w in page.get_text("words")]
+    out.words = words(page)
     pid = 0
     arcs = []
     tris = []
-    for d in page.get_drawings():
+    drawings = page.get_drawings()
+    inks = _page_inks(drawings)
+    for d in drawings:
         items = d.get("items") or []
         if not items:
             continue
         typ = d.get("type") or ""
-        if "f" in typ and not _ink(d.get("fill")):
+        if "f" in typ and not _ink(d.get("fill"), inks):
             continue
-        if "s" in typ and not _ink(d.get("color")):
+        if "s" in typ and not _ink(d.get("color"), inks):
             continue
         kinds = [it[0] for it in items]
         if d.get("fill") is not None and (d.get("width") or 0) == 0:
@@ -237,7 +323,7 @@ def read(page, pno: int) -> Prims:
             out.polys.append(Poly(rest, _bbox([q for sg in rest for q in sg.ends()]), pid=pid))
             continue
         pts = [p for s in segs for p in s.ends()]
-        pl = Poly(segs, _bbox(pts), pid=pid)
+        pl = Poly(segs, _bbox(pts), pid=pid, dashed=_pdf_dashed(d))
         if len(segs) >= 12 and not all(sg.horiz or sg.vert for sg in segs) and \
                 abs(segs[0].x0 - segs[-1].x1) < 0.05 and abs(segs[0].y0 - segs[-1].y1) < 0.05:
             # 잘게 꺾은선으로 그린 닫힌 고리 (범례 ALM 타원 · L21) — 원 후보 (graph.py 가 크기로 정한다)
@@ -304,14 +390,60 @@ def _gather_arcs(out, arcs):
     groups = {}
     for i in range(n):
         groups.setdefault(f(i), []).append(i)
+    # 구름 무리는 따로 묶는다 — 구름 조각은 끝이 정확히 닿지 않는다 (1A1Y 실측 틈 0.02~0.1pt).  틈 허용은 조각 크기(현)의
+    # 0.3 배 — 원을 이루는 호 묶기(정확히 닿음)와 섞지 않는다.
+    chords = [math.hypot(cs[-1][3][0] - cs[0][0][0], cs[-1][3][1] - cs[0][0][1]) for _, cs in arcs]
+    cpar = list(range(n))
+
+    def cf(i):
+        while cpar[i] != i:
+            cpar[i] = cpar[cpar[i]]
+            i = cpar[i]
+        return i
+    cell = max(max(chords, default=1.0), 1e-3)
+    grid = {}
+    for i, (a, b) in enumerate(ends):
+        for q in (a, b):
+            grid.setdefault((int(q[0] // cell), int(q[1] // cell)), []).append(i)
+    for i, (a, b) in enumerate(ends):
+        for q in (a, b):
+            gx, gy = int(q[0] // cell), int(q[1] // cell)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for j in grid.get((gx + dx, gy + dy), ()):
+                        if j <= i:
+                            continue
+                        t = 0.3 * min(chords[i], chords[j])
+                        if any(math.hypot(q[0] - e[0], q[1] - e[1]) <= t for e in ends[j]):
+                            cpar[cf(j)] = cf(i)
+    cgroups = {}
     for i in range(n):
+        cgroups.setdefault(cf(i), []).append(i)
+    cloud = set()
+    for g in cgroups.values():
+        # 개정 구름 — 작은 호 여덟 이상을 끝끼리 이은 줄이고 무리 전체가 호 하나보다 훨씬 크다 (1A1Y 의 검은 개정
+        # 구름 · L23).  원은 호 넷쯤이고 무리 크기가 호 크기와 같은 자리수다.  구름은 도면의 표시가 아니다 (잉크 색으로
+        # 거르는 빨간 구름과 같은 생각) — 신호선으로 두면 선 끝 수십 개가 매달린다.
+        if len(g) < 8:
+            continue
+        chord = max(math.hypot(arcs[i][1][-1][3][0] - arcs[i][1][0][0][0], arcs[i][1][-1][3][1] - arcs[i][1][0][0][1])
+                    for i in g)
+        pts = [q for i in g for c in arcs[i][1] for q in (c[0], c[3])]
+        bb = _bbox(pts)
+        if max(bb[2] - bb[0], bb[3] - bb[1]) >= 4 * chord and \
+                sum(1 for i in g if _bulge(arcs[i][1]) >= 0.25) >= 0.8 * len(g):
+            # 조각마다 크게 부푼다 (구름 한 조각은 반달) — 원을 잘게 나눈 호(램프 원 · 1A5J)는 거의 곧다
+            cloud.update(g)
+    for i in range(n):
+        if i in cloud:
+            continue
         pid, cs = arcs[i]
         segs = [Seg(c[0][0], c[0][1], c[3][0], c[3][1]) for c in cs]
         pl = Poly(segs, _bbox([q for sg in segs for q in sg.ends()]), pid=pid, curved=True)
         pl.cbbox = _bbox([q for c in cs for q in (c[0], c[3], _arc_mid(c))])      # 곡선이 실제로 닿는 둘레
         out.polys.append(pl)
     for g in groups.values():
-        if len(g) < 3:
+        if len(g) < 3 or cloud.intersection(g):
             continue
         es = [e for i in g for e in ends[i]]
         # 닫힘 = 끝마다 맞닿은 끝이 꼭 하나 (반올림 칸으로 세면 524.55 ↔ 524.5499 가 갈린다)
@@ -324,6 +456,16 @@ def _gather_arcs(out, arcs):
             c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
             c.oval = not (0.8 < h / w < 1.25)          # 납작한 고리(타원) — 범례 ALM 'ANN' 처럼 둥근 상자
             out.rings.append((c, {arcs[i][0] for i in g}))
+
+
+def _bulge(cs):
+    """호 조각이 얼마나 부풀었나 — 현에서 가장 먼 곡선 위 점까지의 거리 ÷ 현 길이."""
+    a, b = cs[0][0], cs[-1][3]
+    L = math.hypot(b[0] - a[0], b[1] - a[1])
+    if L <= 0:
+        return 0.0
+    pts = [q for c in cs for q in (c[3], _arc_mid(c))]
+    return max(abs((b[0] - a[0]) * (a[1] - q[1]) - (a[0] - q[0]) * (b[1] - a[1])) / L for q in pts) / L
 
 
 def _arc_mid(c):
@@ -427,6 +569,10 @@ def layout(prims: Prims):
         if xs and abs(x - xs[-1][0]) < 0.5:
             continue
         xs.append((x, a, b))
+    if len(xs) < 2:
+        # 긴 세로선이 다섯 이상인데 x 가 하나뿐 — 표 괘선이 아니라 한 자리에 겹쳐 그린 선이다 (1A1Y · L23).
+        # 예전엔 여기서 `max()` 가 빈 목록으로 죽어 분석 전체가 멈췄다 → 다른 양식의 표 읽기로 넘긴다.
+        return _cell_layout(prims) or _coverage_layout(prims)
     gaps = [(xs[i + 1][0] - xs[i][0], i) for i in range(len(xs) - 1)]
     w, i = max(gaps)
     left_cols = [x for x, _, _ in xs[: i + 1]]
@@ -489,6 +635,13 @@ def _cell_layout(prims):
         for y0, y1 in ys:
             if out and y0 < out[-1][1] - 0.2 * pitch:
                 continue
+            gap = y0 - out[-1][1] if out else 0
+            m = round(gap / pitch) if pitch > 0 else 0
+            if 1 <= m <= 4 and abs(gap - m * pitch) <= 0.2 * pitch:
+                # 칸 하나가 다른 모양(합친 칸 · 빠진 칸)이라 그 행이 안 잡혔다 — 그 아래 행 번호가 밀리지 않게 채운다 (1A5J · L23)
+                a, step = out[-1][1], gap / m
+                for j in range(m):
+                    out.append((a + j * step, a + (j + 1) * step))
             out.append((y0, y1))
         return out
     lrows = side_rows(left_cols[0], x0)
@@ -511,13 +664,21 @@ def _coverage_layout(prims):
     """
     H = prims.height
     cov = {}
+    pieces = Counter()
     for s in _straight(prims):
         if s.vert:
             x = round(s.x0, 1)
             cov[x] = cov.get(x, 0.0) + abs(s.y1 - s.y0)
+            pieces[x] += 1
+    # 표 괘선은 **행마다** 끊겨 토막이 행 수만큼이다.  LOGIC 영역의 긴 신호선도 길이 합은 넘지만 토막이 몇 개뿐이다
+    # (1A5J · L23: 신호선 넷이 괘선으로 읽혀 LOGIC 영역이 엉뚱한 틈으로 잡히고 행 번호가 밀렸다).
+    most = max(pieces.values(), default=0)
+    core = [x for x, c in cov.items() if c > 0.6 * H and pieces[x] >= 0.25 * most]
+    lo, hi = (min(core), max(core)) if core else (0.0, 0.0)
     fr = prims.frame
     xs = []
-    for x in sorted(x for x, c in cov.items() if c > 0.6 * H
+    # 표 바깥 변(긴 선 하나로 그린 테두리)은 토막이 적어도 괘선이다 — 걸러 내는 것은 표 **안쪽** 열 사이의 신호선뿐
+    for x in sorted(x for x, c in cov.items() if c > 0.6 * H and (pieces[x] >= 0.25 * most or x < lo or x > hi)
                     and (fr is None or fr[0] - 1 <= x <= fr[2] + 1) and 1 < x < prims.width - 1):     # 종이 가장자리 선은 표가 아니다
         if not xs or x - xs[-1] > 0.5:
             xs.append(x)
@@ -559,7 +720,7 @@ def _rows_cols(prims, cols):
         return []
     gaps = [y[k + 1] - y[k] for k in range(len(y) - 1)]
     pitch = Counter(round(g, 1) for g in gaps).most_common(1)[0][0]
-    return [(y[k], y[k + 1]) for k, g in enumerate(gaps) if abs(g - pitch) <= 0.2 * pitch]
+    return _pitch_rows(y, gaps, pitch)
 
 
 def _rows(prims, xa, xb, y0, y1):
@@ -574,8 +735,25 @@ def _rows(prims, xa, xb, y0, y1):
         return []
     gaps = [ys[k + 1] - ys[k] for k in range(len(ys) - 1)]
     pitch = Counter(round(g, 1) for g in gaps).most_common(1)[0][0]
+    return _pitch_rows(ys, gaps, pitch)
+
+
+def _pitch_rows(ys, gaps, pitch):
+    """가로선 사이마다 한 행.  틈이 P 의 정수배(둘 이상)면 그 사이의 행 괘선이 빠진 것이다 — 행을 그 수만큼 나눈다
+    (1A5J · L23: 격자 표시 눈금 자리에서 행 괘선이 끊겨 그 아래 행 번호가 하나씩 밀렸다).  정수배가 아닌 틈은 행이 아니다."""
     rows = []
     for k, g in enumerate(gaps):
         if abs(g - pitch) <= 0.2 * pitch:
             rows.append((ys[k], ys[k + 1]))
+            continue
+        m = round(g / pitch) if pitch > 0 else 0
+        if 2 <= m <= 4 and abs(g - m * pitch) <= 0.2 * pitch and _between_rows(rows, ys, gaps, k, pitch):
+            step = g / m
+            for j in range(m):
+                rows.append((ys[k] + j * step, ys[k] + (j + 1) * step))
     return rows
+
+
+def _between_rows(rows, ys, gaps, k, pitch):
+    """그 틈이 표 행 사이에 끼어 있는가 — 바로 앞 틈도 바로 뒤 틈도 P 간격 행이다 (표 끝 너머 · 범례 칸 사이는 아니다)."""
+    return bool(rows) and rows[-1][1] == ys[k] and k + 1 < len(gaps) and abs(gaps[k + 1] - pitch) <= 0.2 * pitch

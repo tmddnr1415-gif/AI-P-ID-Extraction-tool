@@ -60,10 +60,19 @@ def run(d: Path):
         st.update({"stage": stage, "done": done, "total": total})
         _note(d, st)
     try:
-        res = analyse.analyse(str(d / "source.pdf"), progress=progress)
+        res = analyse.analyse(str(d / "source.pdf"), progress=progress,
+                              partial=lambda part: (store.write_partial(d, part), st.update({"preview": len(part["sheets"])}), _note(d, st)))
         store.write_result(d, res)
+        store.drop_partial(d)
         st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": "",
                    "pages": res.get("pdf_pages")})
+        try:                                         # L24 — 식별률을 끝날 때 한 번 센다 (조용한 실패를 첫 화면에서 말한다)
+            from app.logic import fromto, idrate
+            fromto.check(res["sheets"])
+            m = idrate.measure(res)
+            st.update({"idrate": m["overall"], "idrate_low": m["low"]})
+        except Exception:
+            pass
         _final(d, st)
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
         try:                                         # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로

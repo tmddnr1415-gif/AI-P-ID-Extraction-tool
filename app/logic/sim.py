@@ -41,7 +41,7 @@ def _index(s):
             outs[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
             drivers[p["net"]].append(("block", p["block"], p.get("role", "")))
     for r in s["rows"]:
-        if r["side"] == "L":
+        if r["side"] == "L" and r.get("net") is not None:          # 사람이 만든 행(L24)은 선이 없을 수 있다
             drivers[r["net"]].append(("row", r["n"], ""))
     # 연결 기호: 같은 묶음의 '들어가는' 기호 넷 → '나오는' 기호의 출력
     groups = defaultdict(list)
@@ -302,6 +302,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             return 0                                   # 누름단추 · HMI — 사람이 누르지 않으면 0
         if lg == "sink":
             return 0
+        if lg == "pass":                               # 이음점 · 그대로 넘김 (사람이 가르친 종류 · L25)
+            return _or3(iv) if iv else None
         if lg in MIN_INPUTS:
             if len(iv) < MIN_INPUTS[lg]:
                 short.add(bid)
@@ -600,7 +602,7 @@ def trace(s, start, direction="down"):
         nets0 = [start[4:]]
     elif start.startswith("row:"):
         n = int(start[4:])
-        nets0 = [r["net"] for r in s["rows"] if r["n"] == n]
+        nets0 = [r["net"] for r in s["rows"] if r["n"] == n and r.get("net") is not None]
     elif start.startswith("block:"):
         bid = start[6:]
         nets0 = [n for n, _, _ in (outs[bid] if direction == "down" else ins[bid])]
@@ -645,7 +647,7 @@ def trace(s, start, direction="down"):
 # ------------------------------------------------------------------ 묶음 전체 (시트 사이)
 
 MAX_PASSES = 12
-from .refs import TO_ANY as _TO_REF, series as _series   # noqa: E402  (L21)     # 시트-행 꼴 (시트 이름은 그 묶음에 있는지로 거른다)
+from . import refs as _RF   # noqa: E402  (L21 · L23 일반 꼴)     # 시트-행 꼴 (시트 이름은 그 묶음에 있는지로 거른다)
 
 
 def _row_values(s, values):
@@ -680,7 +682,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
     for s in sheets:
         for owner, tos in _to_runs(s).items():
             for _, text in tos:
-              for sh, rn in _TO_REF.findall(text.replace(" ", "")):
+              for sh, rn in _RF.find(text, wide=True, known=by_no):
                 t = by_no.get(sh)
                 if not t or not any(x["n"] == int(rn) and x["side"] == "L" for x in t["rows"]):
                     continue
@@ -972,7 +974,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
     받는 쪽: FM 으로 1 을 받은 입력 행 — 보내는 행의 TO 목록에 이 장-행이 없으면(TO 가 다른 곳만 적음) 설계 오류.
     판정은 읽은 글자 그대로이고(fromto 와 같은 규칙) 고치지 않는다.
     """
-    prefixes = {_series(no) for no in by_no}
+    bundle = _RF.Bundle(by_no)
     out = []
     seen = set()
 
@@ -997,11 +999,11 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
                 continue
             od = next((r.get("desc") for r in s["rows"] if r["side"] == "R" and r["n"] == owner), "")
             for at, text in tos:
-                for sh, rn in _TO_REF.findall(text.replace(" ", "")):
+                for sh, rn in _RF.find(text, wide=True, known=by_no):
                     rn = int(rn)
                     base = {"page": page, "sheet_no": me, "row": owner, "at_row": at, "to": f"{sh}-{rn}",
                             "target_sheet": sh, "target_row": rn, "desc": od}
-                    if _series(sh) not in prefixes:
+                    if bundle.other(sh):
                         add({**base, "kind": "other", "target_page": None,
                              "why": f"TO {sh}-{rn} — 다른 묶음(이 묶음에 없는 시트 계열)으로 갑니다 · 여기서는 확인할 수 없습니다"})
                         continue
@@ -1023,7 +1025,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
                         add({**base, "kind": "error", "why": f"TO {sh}-{rn} — 그 행에 FM 이 없습니다 (어디서 오는지 적혀 있지 않음)"})
                         continue
                     # FM 이 이 신호(주인 행 또는 그 아래로 이어진 TO 줄)를 가리키는가
-                    back = [(a, int(b)) for a, b in _TO_REF.findall(fm.replace(" ", ""))]
+                    back = [(a, int(b)) for a, b in _RF.find(fm, wide=True, known=by_no)]
                     mine = {(me, n) for n, _ in tos} | {(me, owner)}
                     if not any(x in mine for x in back):
                         add({**base, "kind": "error",
@@ -1044,7 +1046,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
-                   for a, b in _TO_REF.findall(text.replace(" ", "")) if _series(a) in prefixes]
+                   for a, b in _RF.find(text, wide=True, known=by_no) if bundle.mine(a)]
             if tos and (me, r["n"]) not in tos:
                 src = by_page[sp].get("sheet_no") or ""
                 add({"page": sp, "sheet_no": src, "row": own, "at_row": own, "to": f"{me}-{r['n']}",

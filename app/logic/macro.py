@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 
 import re
+
+from . import geom
 from functools import lru_cache
 
 NAME_MIN = 0.72          # 단자 이름 ↔ 약어 닮음 하한 (한 글자 다름까지 — OVRD1 ↔ OVRID1)
@@ -86,12 +88,7 @@ def legend_abbr(doc):
     """범례 약어표 — 진짜 글자로 인쇄된 `<약어>   : <뜻>` 줄 (같은 높이 · 약어가 바로 왼쪽).  → [(약어, 뜻)]"""
     out = []
     for page in doc:
-        lines = []
-        for b in page.get_text("dict").get("blocks", []):
-            for ln in b.get("lines", []):
-                t = "".join(sp["text"] for sp in ln["spans"]).strip()
-                if t:
-                    lines.append((ln["bbox"], t))
+        lines = geom.text_lines(page)
         defs = [(bb, t) for bb, t in lines if t.startswith(":") and len(t) > 2]
         if len(defs) < 3:
             continue
@@ -156,9 +153,41 @@ def _assign(pins, rows, abbr):
     return got
 
 
+def _name_fit(name, title):
+    """매크로 이름의 번호 붙은 낱말(`PS4` · `MTS1`)이 시트 제목에 있나 (L23 · 1A5J MACRO-PS2~PS5).
+    True = 같은 낱말이 있다 · False = 같은 글자에 다른 번호만 있다 · None = 말할 것이 없다."""
+    tok = lambda t: set(re.findall(r"(?<![A-Z0-9])([A-Z]{1,4})(\d{1,3})(?![A-Z0-9])", (t or "").upper().replace("-", " ").replace("_", " ")))
+    a, b = tok(name), tok(title)
+    a = {x for x in a if x[0] not in ("TYPE",)}
+    if not a or not b:
+        return None
+    if a & b:
+        return True
+    if {x[0] for x in a} & {x[0] for x in b}:
+        return False
+    return None
+
+
+def _top_line(page, bbox, first_pin_y=None):
+    """상자 안 첫 단자보다 위에 인쇄된 글 (단자가 없으면 맨 윗줄) — 매크로 이름."""
+    ws = [w for w in geom.words(page)
+          if bbox[0] - 1 <= (w[0] + w[2]) / 2 <= bbox[2] + 1 and bbox[1] - 1 <= (w[1] + w[3]) / 2 <= bbox[3] + 1]
+    if not ws:
+        return ""
+    h = min(w[3] - w[1] for w in ws)
+    if first_pin_y is not None:
+        keep = [w for w in ws if (w[1] + w[3]) / 2 < first_pin_y - 0.5 * h]
+    else:
+        keep = []
+    if not keep:
+        top = min((w[1] + w[3]) / 2 for w in ws)
+        keep = [w for w in ws if (w[1] + w[3]) / 2 - top <= 0.5 * h]
+    return " ".join(w[4] for w in sorted(keep, key=lambda w: (round(w[1]), w[0])))
+
+
 def _caption(page, bbox):
     """매크로 상자 안에 **진짜 글자**로 인쇄된 이름 (`MOV BLOCK (OPEN CLOSE) <TYPE-Ⅲ-1>`)."""
-    ws = [w for w in page.get_text("words")
+    ws = [w for w in geom.words(page)
           if bbox[0] - 1 <= (w[0] + w[2]) / 2 <= bbox[2] + 1 and bbox[1] - 1 <= (w[1] + w[3]) / 2 <= bbox[3] + 1]
     ws.sort(key=lambda w: (round(w[1]), w[0]))
     t = " ".join(w[4] for w in ws)
@@ -193,8 +222,8 @@ def link(doc, sheets, library=None):
     lib_tables, lib_pages, lib_sheets = {}, {}, []
     for tid, ty in lib_typ.items():
         st = ty.get("sheet") or {}
-        L_ = [(r["n"], r.get("desc", ""), r.get("abv", "")) for r in st.get("table", []) if r["side"] == "L" and r.get("desc")]
-        R_ = [(r["n"], r.get("desc", ""), r.get("abv", "")) for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
+        L_ = [(r["n"], r.get("desc", ""), r.get("abv", "") or r.get("kks", "")) for r in st.get("table", []) if r["side"] == "L" and r.get("desc")]
+        R_ = [(r["n"], r.get("desc", ""), r.get("abv", "") or r.get("kks", "")) for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
         if L_ and R_:
             lib_tables[tid] = (L_, R_)
 
@@ -225,8 +254,8 @@ def link(doc, sheets, library=None):
         return score, tid, gi, go
     tables = {}
     for s in sheets:
-        L = [(t["n"], t.get("desc", ""), t.get("abv", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
-        R = [(t["n"], t.get("desc", ""), t.get("abv", "")) for t in s.get("table", []) if t["side"] == "R" and t.get("desc")]
+        L = [(t["n"], t.get("desc", ""), t.get("abv", "") or t.get("kks", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
+        R = [(t["n"], t.get("desc", ""), t.get("abv", "") or t.get("kks", "")) for t in s.get("table", []) if t["side"] == "R" and t.get("desc")]
         if L and R:
             tables[s["page"]] = (L, R)
     for s in sheets:
@@ -236,6 +265,7 @@ def link(doc, sheets, library=None):
             ports = [p for p in s["ports"] if p["block"] == bid]
             cap = _caption(doc[s["page"] - 1], b["bbox"])
             b["caption"] = cap
+            name = _top_line(doc[s["page"] - 1], b["bbox"], min((p["at"][1] for p in ports), default=None))   # 첫 단자 위 글 = 매크로 이름 (단자 이름 L_PS3 를 섞지 않는다)
             pin_in = [(f"{p['at'][0]},{p['at'][1]}", p.get("pin", "")) for p in ports if p["dir"] == "in"]
             pin_out = [(f"{p['at'][0]},{p['at'][1]}", p.get("pin", "")) for p in ports if p["dir"] == "out"]
             ranked = []
@@ -247,6 +277,11 @@ def link(doc, sheets, library=None):
                 n_pins = len([p for p in pin_in + pin_out if p[1]]) or 1
                 score = (sum(v[2] for v in gi.values()) + sum(v[2] for v in go.values())) / n_pins
                 score += (0.6 if cap else 0.25) * _title_bonus(b, t.get("title", ""), cap)
+                nm = _name_fit(name, t.get("title", ""))
+                if nm is False:
+                    continue                       # 이름이 같은 계열 다른 번호 (PS4 ↔ PS3) — 고르지 않는다 (L23)
+                if nm:
+                    score += 0.5
                 ranked.append((score, t, gi, go))
             ranked.sort(key=lambda r: -r[0])
             tc = _type_code(cap) or _type_code(b.get("read", ""))

@@ -103,7 +103,7 @@ def read(doc, kinds, pitch, vocab):
         if kinds.get(i + 1) == "LOGIC":
             continue
         page = doc[i]
-        words = page.get_text("words")
+        words = geom.words(page)
         heads = _headers(words)
         if not heads:
             continue

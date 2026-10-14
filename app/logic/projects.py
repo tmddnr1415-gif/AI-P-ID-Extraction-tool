@@ -64,3 +64,14 @@ def create(name: str, author: str = "") -> dict:
 
 def exists(name: str) -> bool:
     return any(p["name"] == name for p in load())
+
+
+@jsonstore.serialized
+def remove(name: str) -> dict | None:
+    """장부에서 그 프로젝트를 뺀다 (분석 폴더는 api 가 지운다) — 뺀 항목, 없으면 None."""
+    ps = load()
+    hit = next((p for p in ps if p["name"] == name), None)
+    if hit is None:
+        return None
+    jsonstore.write(_path(), {"projects": [p for p in ps if p["name"] != name]})
+    return hit

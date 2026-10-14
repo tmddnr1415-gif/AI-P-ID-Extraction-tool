@@ -170,6 +170,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         cells = sorted(((r.x0, r.y0, r.x1, r.y1) for r in g), key=lambda c: (round(c[1], 1), c[0]))
         blocks.append(Block(nid(), "RECT", bb, cells=cells))
         blocks[-1].rounded = any(getattr(r, "rounded", False) for r in g)
+        blocks[-1].round_side = "".join(sorted({c for r in g for c in getattr(r, "round_side", "")}))
 
     # 입력 막대에 붙은 ㄷ자 꺾은선 = 막대와 함께 닫힌 상자 (상자를 qu 대신 선으로 그린 AND 게이트)
     straight = [p for p in wires if len(p.segs) == 1 and (p.segs[0].vert or p.segs[0].horiz)]
@@ -263,8 +264,10 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     tri_cand = [p for p in wires + glyphs if len(p.segs) <= 3 and all(sg.length > 0 for sg in p.segs)]
     marks_in = []
     for c in bigc:
-        if getattr(c, "ring", False) and any(
-                bl.kind == "RECT" and _in_rect((c.cx, c.cy), bl.bbox, 0) and c.bbox[0] >= bl.bbox[0] - tol
+        if any(
+                bl.kind == "RECT" and _in_rect((c.cx, c.cy), bl.bbox, 0)
+                and (getattr(c, "ring", False) or 2 * c.r >= 0.6 * min(bl.bbox[2] - bl.bbox[0], bl.bbox[3] - bl.bbox[1]))
+                # L23 — 칸을 채우는 원(글자를 두른 원 · 1A1Y 메모리 R)만 표시다.  큰 매크로 상자 안의 연결 기호 원은 블록이다 and c.bbox[0] >= bl.bbox[0] - tol
                 and c.bbox[2] <= bl.bbox[2] + tol and c.bbox[1] >= bl.bbox[1] - tol and c.bbox[3] <= bl.bbox[3] + tol
                 for bl in blocks):
             marks_in.append(c)            # 상자 안 글자를 두른 원 = 그 칸의 표시 (메모리 우선 칸 · 범례 MEMORY) — 블록이 아니다
@@ -309,6 +312,33 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 glyphs = [p for p in glyphs if id(p) not in drop]
         b.circle = c
         blocks.append(b)
+
+    # ---- L23b 삼각형 게이트 (ANSI 의 ▷ · ▷○) — 축에 선 밑변 하나 + 오른쪽 꼭지로 모이는 사선 둘, 닫힌 세 변.
+    # 꼭지에 붙은 속 빈 작은 원은 부정 표시다.  상자처럼 다룬다 (밑변 = 입력 변 L · 꼭지(원) = 출력 변 R).
+    for p in list(wires + glyphs):
+        tb = _triangle(p, P)
+        if tb is None:
+            continue
+        bb, apex = tb
+        if any(_in_rect(((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2), bl.bbox, 0) for bl in blocks):
+            continue                    # 상자 안의 그림(글자 · 범례 그림)
+        neg = None
+        for c in dots:
+            if abs(_d((c.cx, c.cy), apex) - c.r) <= max(tol, c.r) and c.cx > apex[0]:
+                neg = c
+                break
+        if neg is not None:
+            dots.remove(neg)
+            bb = (bb[0], bb[1], neg.cx + neg.r, bb[3])
+        b = Block(nid(), "RECT", bb, cells=[bb])
+        b.tri = True
+        if neg is not None:
+            b.neg = {"R"}
+        blocks.append(b)
+        if p in wires:
+            wires.remove(p)
+        else:
+            glyphs.remove(p)
 
     # 블록 사이를 잇는 짧은 토막 — 글자 크기라도 두 끝이 다 블록 · 화살촉 · 선에 닿으면 선이다
     wire_segs0 = [sg for p in wires for sg in p.segs]
@@ -363,6 +393,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     taken = {id(p) for p in glyphs + short} - {id(p) for p in rest}
     glyphs = [p for p in glyphs if id(p) not in taken]
     wires = [p for p in wires if id(p) not in taken] + dashed
+    pdf_dashed = [p for p in wires if p.dashed]
+    keep = {id(p) for p in _drop_dashed_frames(pdf_dashed, (LX1 - LX0, LY1 - LY0), tol, P)}
+    wires = [p for p in wires if not p.dashed or id(p) in keep]
 
     # ---- 선 잇기 (union-find on segments)
     segs = []                           # (seg, poly)
@@ -583,6 +616,18 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                     break
             if id(c) in pin_dot:
                 break
+    # L23b — 상자 변 **바깥**에 붙은 작은 원 = 부정 표시(IEC · ANSI 의 bubble).  단자 원(L13)은 변 위에 중심이 있다.
+    for c in dots:
+        pd = pin_dot.get(id(c))
+        if pd is None:
+            continue
+        b_, ci_, side_ = pd
+        cell_ = b_.cells[ci_]
+        out_by = (c.cx - cell_[2]) if side_ == "R" else (cell_[0] - c.cx)
+        if out_by >= 0.5 * c.r:
+            neg = getattr(b_, "neg", None) or set()
+            neg.add(side_)
+            b_.neg = neg
     pin_ports = []
     for i, (s, p) in enumerate(segs):
         for e in s.ends():
@@ -702,7 +747,16 @@ def _bar_gate(s, blocks, tol):
         h = y1 - y0
         if touch and lo <= y0 + tol and hi >= y1 - tol and (hi - lo) >= h and abs((lo + hi) / 2 - cy) <= 0.25 * (hi - lo):
             return b
-    return None
+    # L23 — 막대가 한쪽으로만 길게 뻗은 그림 (1A5J LEAD SELECTION 의 AND: 상자 위 변에서 아래 입력까지).  가운데 조건만
+    # 풀고, 막대가 상자 높이를 다 덮으며 상자 높이의 1.5 배 이상이고 그 상자 하나에만 붙을 때만.
+    hit = []
+    for b in blocks:
+        if b.kind != "RECT" or len(b.cells) != 1:
+            continue
+        x0, y0, x1, y1 = b.bbox
+        if abs(s.x0 - x0) <= tol and lo <= y0 + tol and hi >= y1 - tol and (hi - lo) >= 1.5 * (y1 - y0):
+            hit.append(b)
+    return hit[0] if len(hit) == 1 else None
 
 
 def _shape_of(b, glyphs, tol):
@@ -718,6 +772,8 @@ def _shape_of(b, glyphs, tol):
         return ""
     if bar:
         return "BAR_BOX"
+    if getattr(b, "tri", False):
+        return "TRIANGLE"
     if getattr(b, "rounded", False):
         return "ROUND_BOX"
     x0, y0, x1, y1 = b.bbox
@@ -834,6 +890,7 @@ def _assemble_rects(polys, rects, P, tol):
             continue
         rr = geom.Rect(*bb)
         rr.rounded = rounded
+        rr.round_side = ("L" if sides[0][4] != sides[0][2] else "") + ("R" if sides[1][4] != sides[1][2] else "")
         out.append(rr)
         have.append(bb)
         edge.update((i, k))
@@ -1071,6 +1128,9 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
                     return "port", (b, d, side, ci, e, None)
         else:
             c = b.circle
+            # L23b — 원 안쪽 왼쪽 절반에서 끝나는 선 = 그 원의 입력 (ANSI OR 은 오목한 등 안쪽까지 선을 긋는다)
+            if b.kind == "CIRCLE" and _d(e, (c.cx, c.cy)) < c.r - tol * 2 and e[0] < c.cx - 0.3 * c.r:
+                return "port", (b, "in", "", 0, e, None)
             if abs(_d(e, (c.cx, c.cy)) - c.r) <= tol * 2:
                 # 꼭지 있는 연결 기호의 몸통 = 들어감 · 꼭지 없는 원은 넷 안에서 정한다 (다른 몰이가 있으면 들어감)
                 d = "in" if b.kind == "CONNECTOR" else "?"
@@ -1083,11 +1143,92 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
     return None
 
 
+def _triangle(p, P):
+    """닫힌 세 변 삼각형 — 세로 밑변 하나(왼쪽) + 오른쪽 꼭지로 모이는 사선 둘 → (bbox, 꼭지) | None.
+    크기는 한 행 높이 ~ 3P (선 끝 화살촉보다 크다)."""
+    segs = [sg for sg in p.segs if sg.length > 0]
+    if len(segs) != 3:
+        return None
+    cnt = defaultdict(int)
+    for sg in segs:
+        for q in sg.ends():
+            cnt[(round(q[0], 1), round(q[1], 1))] += 1
+    if len(cnt) != 3 or any(v != 2 for v in cnt.values()):
+        return None
+    vert = [sg for sg in segs if sg.vert]
+    diag = [sg for sg in segs if not (sg.vert or sg.horiz)]
+    if len(vert) != 1 or len(diag) != 2:
+        return None
+    base = vert[0]
+    apex = next((q for q in cnt if abs(q[0] - base.x0) > 0.5), None)
+    if apex is None:
+        return None
+    h = base.length
+    w = apex[0] - base.x0
+    # 게이트 삼각형은 한 행 높이 이상이고 납작하지 않다 — 선 끝의 속 빈 화살촉(19VA · 높이 7 · 폭 3.5)은 아니다
+    if not (P <= h <= 3 * P and 0.6 * h <= w <= 2 * h):
+        return None
+    ya, yb = sorted((base.y0, base.y1))
+    if not (ya + 0.3 * h <= apex[1] <= yb - 0.3 * h):
+        return None
+    return (base.x0, ya, apex[0], yb), apex
+
+
 def _row_at(rows, y):
     for n, a, b in rows:
         if a <= y <= b:
             return n
     return None
+
+
+def _drop_dashed_frames(dashed, span, tol, P):
+    """파선으로 두른 큰 네모(매크로 · 묶음 틀)는 신호선이 아니다 (1A5J MACRO-PS 의 점선 틀 · L23).
+
+    서로 끝이 닿는 파선 줄들을 묶어, 그 묶음의 모든 선분이 묶음 바깥 네모의 네 변 위에 있고 네 변을 다 쓰며
+    그 네모가 LOGIC 영역 가로·세로의 3분의 1 이상이면 틀이다.  틀을 신호선으로 두면 틀에 걸친 단자 원들이 한 선으로
+    이어져 서로 다른 신호가 한 값이 된다."""
+    if len(dashed) < 2:
+        return dashed
+    par = list(range(len(dashed)))
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    ends = [[q for sg in p.segs for q in sg.ends()] for p in dashed]
+    for i in range(len(dashed)):
+        for j in range(i + 1, len(dashed)):
+            if any(_d(a, b) <= P for a in ends[i] for b in ends[j]):     # 틀 위 단자 원(< P)이 끊은 자리도 잇는다
+                par[f(i)] = f(j)
+    groups = defaultdict(list)
+    for i in range(len(dashed)):
+        groups[f(i)].append(i)
+    drop = set()
+    for idx in groups.values():
+        segs = [sg for i in idx for sg in dashed[i].segs]
+        xs = [v for sg in segs for v in (sg.x0, sg.x1)]
+        ys = [v for sg in segs for v in (sg.y0, sg.y1)]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        if x1 - x0 < span[0] / 3 or y1 - y0 < span[1] / 3:
+            continue
+        sides = set()
+        ok = True
+        for sg in segs:
+            if sg.horiz and abs(sg.y0 - y0) <= tol:
+                sides.add("T")
+            elif sg.horiz and abs(sg.y0 - y1) <= tol:
+                sides.add("B")
+            elif sg.vert and abs(sg.x0 - x0) <= tol:
+                sides.add("L")
+            elif sg.vert and abs(sg.x0 - x1) <= tol:
+                sides.add("R")
+            else:
+                ok = False
+                break
+        if ok and len(sides) == 4:
+            drop.update(idx)
+    return [p for i, p in enumerate(dashed) if i not in drop]
 
 
 def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):

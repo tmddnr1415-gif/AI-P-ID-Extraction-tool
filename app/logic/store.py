@@ -115,6 +115,28 @@ def write_result(d: Path, res: dict):
         (d / "result.json").write_text(text, encoding="utf-8")
 
 
+def write_partial(d: Path, part: dict):
+    """L25 — 분석 중 지금까지 읽은 장 (가르치기 질문을 분석이 끝나기 전에 낸다).  실패해도 분석은 그대로."""
+    try:
+        _atomic(d / "partial.json", json.dumps(part, ensure_ascii=False))
+    except Exception:
+        pass
+
+
+def read_partial(d: Path):
+    try:
+        return json.loads((d / "partial.json").read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def drop_partial(d: Path):
+    try:
+        (d / "partial.json").unlink()
+    except OSError:
+        pass
+
+
 _RES = {}
 
 
