@@ -308,3 +308,13 @@ def test_project_without_its_own_legend_reads_gates_from_the_library(tmp_path, m
     monkeypatch.setattr(analyse.library, "load", lambda: {"symbols": {}, "figures": [], "typicals": {}, "learned_jobs": [], "conflicts": []})
     s = analyse.analyse(str(p))["sheets"][0]
     assert not any(b["logic"] in ("and", "or") for b in s["blocks"].values()), "사전이 없으면 모양만으로 게이트를 정하지 않는다"
+
+
+def test_logic_screen_uses_no_browser_dialogs():
+    """대시보드 iframe 은 prompt · confirm · alert 를 막는다 (L25c — 회사 PC 에서 '프로젝트 삭제' 가 아무 말 없이 안 됐다).
+    LOGIC 화면은 화면 안 대화상자(askModal)만 쓴다."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "app/static/logic.js").read_text(encoding="utf-8")
+    assert not re.search(r"(?<![\w.])(prompt|confirm|alert)\s*\(", src)
+    assert "function askModal(" in src

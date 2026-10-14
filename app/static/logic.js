@@ -239,9 +239,14 @@ function bindHome() {
 /* L22 — 부서원이 첫 화면에서 분석 기록을 지운다 (분석 중이면 서버가 거절 · 누가 지웠는지 남긴다) */
 async function deleteJob(id) {
   const x = (L.jobsList || []).find((j) => j.id === id) || {};
-  const who = needAuthor();
-  if (!who) return;
-  if (!confirm(`'${x.name || id}' 분석 기록을 지웁니다.\n분석 결과 · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간)이 함께 지워지고 되돌릴 수 없습니다.\n지운 사람: ${who}`)) return;
+  const ans = await askModal({
+    title: "분석 기록 지우기", danger: true, ok: "지우기",
+    html: `<p><b>'${esc(x.name || id)}'</b> 분석 기록을 지웁니다.</p>
+      <p>분석 결과 · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간)이 함께 지워지고 되돌릴 수 없습니다.</p>`,
+    fields: authorField(),
+  });
+  if (!ans) return;
+  const who = takeAuthor(ans);
   try {
     await api(`/logic/api/jobs/${id}?author=${encodeURIComponent(who)}`, { method: "DELETE" });
     status(`'${x.name || id}' 를 지웠습니다 (${who})`);
@@ -254,19 +259,25 @@ async function deleteProject(name) {
   let pv;
   try { pv = await api(`/logic/api/projects/${encodeURIComponent(name)}/delete_preview`); }
   catch (err) { status("지우지 못했습니다 — " + err.message); return; }
-  if (pv.running.length) { alert(`'${name}' 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.`); return; }
-  const who = needAuthor();
-  if (!who) return;
-  const others = pv.authors.filter((a) => a !== who);
-  const typed = prompt(`프로젝트 '${name}' 를 지웁니다.\n`
-    + `함께 지워지는 것: 분석 ${pv.jobs}건 (${pv.sheets}장) · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간 · 가르치기 답)\n`
-    + (others.length ? `⚠ 다른 사람이 올린 분석이 있습니다: ${others.join(", ")}\n` : "")
-    + `되돌릴 수 없습니다.  학습 사전(다른 프로젝트도 쓰는 기호)은 남습니다.\n`
-    + `지운 사람: ${who}\n\n확인하려면 프로젝트 이름을 그대로 적으세요:`);
-  if (typed == null) return;
-  if (typed.trim() !== name) { status("이름이 달라 지우지 않았습니다"); return; }
+  if (pv.running.length) {
+    await askModal({ title: "프로젝트 삭제", ok: "확인", cancel: false,
+      html: `<p><b>'${esc(name)}'</b> 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.</p>` });
+    return;
+  }
+  const who0 = currentAuthor();
+  const others = pv.authors.filter((a) => a !== who0);
+  const ans = await askModal({
+    title: "프로젝트 삭제", danger: true, ok: "프로젝트 지우기",
+    html: `<p>프로젝트 <b>'${esc(name)}'</b> 를 지웁니다.</p>
+      <p>함께 지워지는 것: 분석 <b>${pv.jobs}건</b> (${pv.sheets}장) · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간 · 가르치기 답)</p>
+      ${others.length ? `<p class="warn">⚠ 다른 사람이 올린 분석이 있습니다: ${esc(others.join(", "))}</p>` : ""}
+      <p>되돌릴 수 없습니다.  학습 사전(다른 프로젝트도 쓰는 기호)은 남습니다.</p>`,
+    fields: [...authorField(), { id: "confirm", label: "확인하려면 프로젝트 이름을 그대로 적으세요", placeholder: name, mustEqual: name }],
+  });
+  if (!ans) return;
+  const who = takeAuthor(ans);
   try {
-    const r = await api(`/logic/api/projects/${encodeURIComponent(name)}?author=${encodeURIComponent(who)}&confirm=${encodeURIComponent(typed.trim())}`, { method: "DELETE" });
+    const r = await api(`/logic/api/projects/${encodeURIComponent(name)}?author=${encodeURIComponent(who)}&confirm=${encodeURIComponent(ans.confirm)}`, { method: "DELETE" });
     status(`프로젝트 '${name}' 와 분석 ${r.jobs}건을 지웠습니다 (${who})`);
     try { if (localStorage.getItem("logic.project") === name) localStorage.removeItem("logic.project"); } catch (e) {}
     if ($("#lh-project").value === name) $("#lh-project").value = "";
@@ -274,12 +285,59 @@ async function deleteProject(name) {
   loadHome();
 }
 /* 누가 정했는지 남긴다 — 대시보드 로그인 · 기억된 이름, 없으면 한 번 묻는다 */
-function needAuthor() {
-  let who = currentAuthor();
+async function needAuthor() {
+  const who = currentAuthor();
   if (who) return who;
-  who = (prompt("이름을 적어 주세요 — 누가 정했는지 남깁니다") || "").trim();
-  if (who) rememberAuthor(who);
-  return who;
+  const ans = await askModal({ title: "이름", ok: "확인", html: "<p>누가 정했는지 남깁니다.</p>", fields: authorField() });
+  return ans ? takeAuthor(ans) : "";
+}
+function authorField() {
+  return currentAuthor() ? [] : [{ id: "author", label: "이름", placeholder: "이름을 적어 주세요", required: true }];
+}
+function takeAuthor(ans) {
+  if (ans.author) { rememberAuthor(ans.author); return ans.author; }
+  return currentAuthor();
+}
+/* 화면 안 대화상자 — 브라우저의 prompt · confirm · alert 는 대시보드 iframe 에서 막혀
+   아무 말 없이 null 을 돌려준다 (회사 PC 에서 '프로젝트 삭제' 가 그래서 안 됐다).
+   fields: [{id, label, value, placeholder, required, mustEqual}] → 확인이면 {id: 값}, 취소면 null */
+function askModal({ title, html = "", fields = [], ok = "확인", cancel = "취소", danger = false }) {
+  return new Promise((resolve) => {
+    document.querySelectorAll(".lmodal-back").forEach((n) => n.remove());
+    const back = document.createElement("div");
+    back.className = "lmodal-back";
+    back.innerHTML = `<div class="lmodal" role="dialog" aria-modal="true">
+      <h3>${esc(title || "")}</h3><div class="lm-body">${html}</div>
+      ${fields.map((f) => `<label class="lm-f"><span>${esc(f.label || "")}</span>
+        <input data-f="${esc(f.id)}" value="${esc(f.value || "")}" placeholder="${esc(f.placeholder || "")}" autocomplete="off"></label>`).join("")}
+      <div class="lm-err"></div>
+      <div class="lm-btns">${cancel === false ? "" : `<button data-m="no">${esc(cancel)}</button>`}
+        <button data-m="ok" class="${danger ? "danger" : "primary"}">${esc(ok)}</button></div></div>`;
+    document.body.appendChild(back);
+    const inputs = [...back.querySelectorAll("input[data-f]")];
+    const okBtn = back.querySelector('[data-m="ok"]');
+    const vals = () => Object.fromEntries(inputs.map((i) => [i.dataset.f, i.value.trim()]));
+    const valid = () => fields.every((f) => {
+      const v = vals()[f.id] || "";
+      if (f.mustEqual != null) return v === f.mustEqual;
+      return !f.required || !!v;
+    });
+    const refresh = () => { okBtn.disabled = !valid(); };
+    const done = (v) => { back.remove(); document.removeEventListener("keydown", key, true); resolve(v); };
+    const key = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(null); }
+      else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); if (valid()) done(vals()); }
+    };
+    document.addEventListener("keydown", key, true);
+    inputs.forEach((i) => i.addEventListener("input", refresh));
+    back.addEventListener("click", (e) => {
+      const m = e.target.closest("[data-m]");
+      if (m) { if (m.dataset.m === "ok") { if (valid()) done(vals()); } else done(null); return; }
+      if (e.target === back) done(null);
+    });
+    refresh();
+    (inputs[0] || okBtn).focus();
+  });
 }
 
 async function openJob(id) {
@@ -946,7 +1004,7 @@ async function loadTimers() {
   }
 }
 async function setTimer(bid, sec) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   const p = L.page;
   try {
@@ -1647,7 +1705,7 @@ function gateMenu(bid, e) {
   });
 }
 async function saveGate(bid, choice, param, same) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   try {
     const r = await post(`/logic/api/jobs/${L.job}/overrides/block`, { page: L.page, block: bid, choice, author: who, param, same_shape: same });
@@ -1683,7 +1741,7 @@ function cellEditor(t, e) {
   });
 }
 async function saveCell(side, n, value) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   try {
     const r = await post(`/logic/api/jobs/${L.job}/overrides/cell`, { page: L.page, side, row: n, value, author: who });
@@ -2478,7 +2536,7 @@ function markDialog(rect, e, preset) {
   refresh();
   (kind === "GATE" ? q("#mk-c") : q("#mk-v")).focus();
   const save = async (del) => {
-    const who = needAuthor();
+    const who = await needAuthor();
     if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
     const body = { page: s.page, id: old ? old.id : undefined, kind, rect, author: who };
     if (!del) {
@@ -2744,7 +2802,7 @@ function teachAnswered(r) {
     ${TEACH.openAns ? `<ul>${items.join("")}</ul>` : ""}</div>`;
 }
 async function teachPost(body, msg) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return null; }
   if (TEACH.busy) return null;
   TEACH.busy = true;
@@ -2851,7 +2909,9 @@ function bindTeach() {
       const choice = b.dataset.choice;
       let param;
       if (choice === "VOTE") {
-        const v = (prompt("투표 블록 — B 개 중 A 개 이상 (예: 2/3)", "2/3") || "").match(/(\d+)\s*\/\s*(\d+)/);
+        const va = await askModal({ title: "투표 블록", ok: "확인",
+          fields: [{ id: "v", label: "B 개 중 A 개 이상 (예: 2/3)", value: "2/3", required: true }] });
+        const v = ((va && va.v) || "").match(/(\d+)\s*\/\s*(\d+)/);
         if (!v) return;
         param = { a: Number(v[1]), b: Number(v[2]) };
       }

@@ -5871,3 +5871,13 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * 지우는 것: 그 프로젝트의 분석 폴더 전부(결과 · 메모 · 사람이 정한 값 · 가르치기 답) + 장부 항목(`projects.remove`).
   **학습 사전은 남긴다** (다른 프로젝트도 쓰는 기호 · Typical).  `deletion_log.json` 에 분석마다 한 줄(`with_project`) + 프로젝트 한 줄(`kind: project`).
 * 시험 `test_delete_project_removes_its_jobs_only` (다른 프로젝트 분석은 남음) · 화면 확인(사본 데이터 · 크롬) 페이지 오류 0.
+
+### L25c — '프로젝트 삭제' 가 대시보드 안에서 아무 말 없이 안 되던 것 (2026-10-14)
+
+* 현장(회사 PC · 대시보드 iframe): `프로젝트 삭제` 를 눌러도 아무 일이 없었다.  원인은 브라우저 대화상자 — 삭제가 이름 묻기(`prompt`)와
+  확인(`confirm`)을 썼는데 **대시보드 iframe 은 그것을 막고 아무 말 없이 null 을 돌려준다** → 함수가 조용히 끝났다.  L25b 검증은
+  iframe 밖에서만 해서 놓쳤다.
+* `logic.js askModal` — 화면 안 대화상자 하나 (제목 · 설명 · 입력 칸 · 필수/일치 조건이 맞아야 확인 단추가 켜짐 · Enter/Esc).
+  프로젝트 삭제 · 분석 기록 지우기 · 이름 묻기(`needAuthor` → 이제 async · 부르는 곳 다섯에 `await`) · 투표 블록 A/B 가 전부 이것을 쓴다.
+  LOGIC 화면에 `prompt`/`confirm`/`alert` 가 없음을 시험이 못박는다.
+* 확인: sandbox iframe(allow-modals 없음) 안에서 눌러 대화상자 → 이름·프로젝트 이름 적음 → 지워짐 · 페이지 오류 0.
