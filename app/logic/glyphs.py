@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from . import geom
+
 N = 32                      # 래스터 한 변
 
 
@@ -306,12 +308,14 @@ def _title_words(page):
     부제 = 쪽 번호 칸 높이 안 · 쪽 번호 왼쪽 · 도면번호(숫자-숫자 꼴) 오른쪽에 있는 줄 중 **가장 아래 줄**
     (부제는 큰 제목 밑에 인쇄된다).
     """
-    words = page.get_text("words")
+    words = geom.words(page)
     W, H = page.rect.width, page.rect.height
     cand = [w for w in words if SHEET_WORD.match(w[4]) and w[1] > 0.85 * H]
     if not cand:
         # 범례·Typical 장은 쪽 번호가 숫자 넷이다 (19VA `0007` · L21) — 오른쪽 아래 칸의 숫자 넷만
         cand = [w for w in words if re.fullmatch(r"\d{4}", w[4]) and w[1] > 0.9 * H and w[0] > 0.85 * W]
+    if not cand:
+        cand = _under_sheet_caption(words, W, H)
     if not cand:
         return None, []
     sw = max(cand, key=lambda w: w[1])
@@ -335,10 +339,26 @@ def _title_words(page):
     return sw[4], [w[4] for w in last]
 
 
+def _under_sheet_caption(words, W, H):
+    """타이틀블록 캡션 `SHEET` 바로 아래 칸의 값 (L23 — 1A5J `FG_G-101` 처럼 시트 이름이 정해진 꼴이 아닌 양식).
+
+    시트 이름의 **모양**을 외워두지 않고 양식이 인쇄한 캡션 자리를 읽는다.  값 = 캡션과 가로로 겹치고 캡션 바로
+    아래(캡션 높이 3배 안)에 있는 가장 가까운 낱말.  앞의 두 꼴(글자+숫자 셋 · 숫자 넷)이 못 찾았을 때만 부른다."""
+    caps = [w for w in words if w[4].rstrip(".:").upper() == "SHEET" and w[1] > 0.85 * H]
+    out = []
+    for c in caps:
+        h = c[3] - c[1]
+        below = [w for w in words if w is not c and w[2] > c[0] - h and w[0] < c[2] + h
+                 and c[3] - 0.2 * h <= w[1] <= c[3] + 3 * h and any(ch.isdigit() for ch in w[4])]
+        if below:
+            out.append(min(below, key=lambda w: w[1] - c[3]))
+    return out
+
+
 def _title_lines(page):
     """타이틀블록의 글줄 (위→아래) — 도면번호(숫자-숫자 꼴) 위 · 그 칸 폭 안 (19VA 처럼 제목이 도면번호 위에 있는 양식, L21).
     묶음 전체에 되풀이되는 줄(프로젝트 이름 · 'CONTROL LOGIC & LOOP DIAGRAM')은 부르는 쪽이 뺀다."""
-    words = page.get_text("words")
+    words = geom.words(page)
     W, H = page.rect.width, page.rect.height
     dn = [w for w in words if re.search(r"\d+-\d+", w[4]) and w[1] > 0.85 * H and w[0] > W / 2]
     if not dn:

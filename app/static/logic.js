@@ -391,8 +391,20 @@ function gotoFinding(i) {
 }
 /* 이동 칸 — `G049-40` 꼴을 읽어 그 시트의 그 행으로 (출력 행 먼저 · 없으면 입력 행) */
 function gotoTyped(text) {
-  const m = String(text || "").toUpperCase().replace(/\s+/g, "").match(/^((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)(?:-(\d{1,3}))?$/);   // L21 — HH10_G144 꼴도
-  if (!m) { status("시트-행 꼴이 아닙니다 (예: G049-40)"); return; }
+  // L23 — 이 묶음이 실제로 가진 시트 이름으로 읽는다 (꼴을 외우지 않는다): 시트 이름 그대로 · 시트 이름 + `-`/`/` + 행
+  const t0 = String(text || "").toUpperCase().replace(/\s+/g, "");
+  const nos = L.sheets.map((x) => x.sheet_no).filter(Boolean).sort((a, b) => b.length - a.length);
+  let m = null;
+  if (nos.includes(t0)) m = [t0, t0, ""];
+  else {
+    const hit = nos.find((no) => t0.startsWith(no) && /^[-\/]\d{1,3}$/.test(t0.slice(no.length)));
+    if (hit) m = [t0, hit, t0.slice(hit.length + 1)];
+    else {
+      const r = refsIn(t0)[0] || (t0.match(/^((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)$/) ? { sheet: t0, row: "" } : null);
+      if (r) m = [t0, r.sheet, String(r.row || "")];
+    }
+  }
+  if (!m) { status(`시트-행 꼴이 아닙니다 (예: ${nos[0] || "G049"}-40)`); return; }
   const t = sheetByNo(m[1]);
   if (!t) { status(`${m[1]} 시트는 이 묶음에 없습니다`); return; }
   if (!m[2]) { L.focus = null; openSheet(t.page); return; }
@@ -591,10 +603,24 @@ function drawOverlay() {
    표기는 표가 적은 그 칸 위에, 누르면 그 시트의 그 행으로 간다. */
 
 const REF_RE = /(?<![A-Z_])((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)/g;   // app/logic/refs.py 와 같은 꼴 (L21)
+// L23 — 일반 꼴 `<시트>[-/]<행>` (1A5J `0016/72` · `FG_G-301-64` · 1A1Y `HR_G908/75`).  refs.py 의 GEN_ANY · _gen_ok 와 같다.
+const REF_GEN = /(?<![A-Z0-9_\/\-])((?=[A-Z0-9_\-]*\d)[A-Z0-9][A-Z0-9_]+(?:-[A-Z0-9_]+)*?)([-\/])(\d{1,3})(?![\dA-Z_]|[-\/][A-Z0-9])/g;
+const REF_OLD_SHAPE = /^(?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]+\d+[A-Z]?$/;
+function refMatches(text) {
+  const raw = String(text || "");
+  const old = [...raw.replace(/\s+/g, "").matchAll(REF_RE)];
+  if (old.length) return old.map((m) => ({ sheet: m[1], row: Number(m[2]), text: m[0] }));
+  const g = raw.toUpperCase().trim().replace(/\s*([-\/])\s*/g, "$1");
+  return [...g.matchAll(REF_GEN)].filter((m) => !(m[2] === "-" && REF_OLD_SHAPE.test(m[1])))
+    .map((m) => ({ sheet: m[1], row: Number(m[3]), text: m[0] }));
+}
 function refsIn(text) {
-  const out = [];
-  for (const m of String(text || "").replace(/\s+/g, "").matchAll(REF_RE)) out.push({ sheet: m[1], row: Number(m[2]) });
-  return out;
+  return refMatches(text).map((x) => ({ sheet: x.sheet, row: x.row }));
+}
+function refRest(text) {
+  let t = String(text || "").toUpperCase().replace(/\s*([-\/])\s*/g, "$1");
+  for (const x of refMatches(text)) t = t.replace(x.text, " ");
+  return t.replace(/[\s)(]+/g, " ").trim();
 }
 function sheetByNo(no) { return L.sheets.find((x) => x.sheet_no === no); }
 function drawRefTags(ov) {
@@ -1637,8 +1663,8 @@ function renderRows() {
     const ins = [...toRefs, ...extra].map((x) => ` <span class="ref to${hot}" data-ref-sheet="${esc(x.sheet)}" data-ref-row="${x.row}" data-ref-side="L" title="TO — ${esc(x.sheet)} 시트 ${x.row}행으로 갑니다">TO ${esc(x.sheet)}-${x.row}</span>`).join("");
     const lk = L.mode === "sim" && r.side === "L" && r.n in L.linked && !(("row:" + r.n) in L.forces)
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
-    const toRest = String(r.to || "").replace(REF_RE, "").replace(/[\s)(]+/g, " ").trim();
-    const to = r.side === "R" && toRest ? ` <small>TO ${esc(toRest)}</small>` : "";
+    const toRest = refRest(r.to);
+    const to = r.side === "R" && toRest ? ` <small>${/^TO\b/.test(toRest) ? "" : "TO "}${esc(toRest)}</small>` : "";   // 도면이 'TO DRIVE' 로 적으면 그대로 (L23)
     const tr = (s.table || []).find((x) => x.side === r.side && x.n === r.n);
     const uc = tr && tr.user && tr.user[r.side === "L" ? "fm" : "to"];
     const ed = tr ? `<button class="mini ed${uc ? " on" : ""}" data-cell="${r.side}:${r.n}" title="${r.side === "L" ? "FM" : "TO"} 칸 값 적기 · 고치기${uc ? ` — 사람이 적음 (${esc(uc.author)})` : ""}">✎${r.side === "L" ? "FM" : "TO"}</button>` : "";

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-from .refs import REF_ANY, series
+from . import refs as RF
 
 
 def _norm(t):
@@ -27,7 +27,7 @@ def _norm(t):
 
 
 def _refs(text):
-    return [(m.group(1), int(m.group(2))) for m in REF_ANY.finditer((text or "").replace(" ", ""))]
+    return RF.find(text)
 
 
 def _owner(table_r, k):
@@ -63,7 +63,7 @@ def _run(table_r, owner):
 def check(sheets):
     """시트 목록을 제자리에서 고친다 — 행마다 `ref`(src_row) · `refs_in` · `ft`, 장마다 FT 찾은 것.  여러 번 불러도 같다."""
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
-    prefixes = {series(s["sheet_no"]) for s in sheets if s.get("sheet_no")}
+    bundle = RF.Bundle(by_no)
     tab = {}
     for s in sheets:
         tab[s["page"]] = {"L": {r["n"]: r for r in s.get("table", []) if r["side"] == "L"},
@@ -103,11 +103,11 @@ def check(sheets):
             if r["side"] != "L":
                 continue
             refs = _refs(r.get("fm"))
-            if len(refs) != 1 or refs[0][0] == "" or not REF_ANY.fullmatch((r.get("fm") or "").replace(" ", "")):
+            if len(refs) != 1 or refs[0][0] == "" or not RF.full(r.get("fm")):
                 r.pop("ref", None)
                 continue
             src, k = refs[0]
-            other = series(src) not in prefixes
+            other = bundle.other(src)
             t = by_no.get(src)
             r["ref"] = {"sheet": src, "row": k, "page": t["page"] if t else None, "other_bundle": other}
             if other:
@@ -122,7 +122,7 @@ def check(sheets):
                 add(s, r["n"], "L", False, [f"{src} {k}행에 출력 신호가 없습니다"], f"{src}-{k}")
                 continue
             r["ref"]["src_row"] = own
-            to_refs = [x for x in _refs(tr[k].get("to")) if series(x[0]) in prefixes]
+            to_refs = [x for x in _refs(tr[k].get("to")) if bundle.mine(x[0])]
             recip = None
             if to_refs:
                 recip = (me, r["n"]) in to_refs
@@ -150,7 +150,7 @@ def check(sheets):
             if not row.get("desc"):
                 continue
             run = _run(tr, own)
-            targets = [x for j in run for x in _refs(tr[j].get("to")) if series(x[0]) in prefixes]
+            targets = [x for j in run for x in _refs(tr[j].get("to")) if bundle.mine(x[0])]
             if not targets:
                 continue
             whys = []
@@ -164,7 +164,7 @@ def check(sheets):
                 back = _refs(fm)
                 if not lr or not fm:
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 칸이 비어 있습니다")
-                elif not REF_ANY.fullmatch(fm.replace(" ", "")):
+                elif not RF.full(fm):
                     continue                      # 꼴이 아닌 FM (못 읽은 글자) — 확인 못 함
                 elif not (back[0][0] == me and back[0][1] in run):
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 은 {fm} 를 가리킵니다")

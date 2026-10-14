@@ -263,8 +263,10 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     tri_cand = [p for p in wires + glyphs if len(p.segs) <= 3 and all(sg.length > 0 for sg in p.segs)]
     marks_in = []
     for c in bigc:
-        if getattr(c, "ring", False) and any(
-                bl.kind == "RECT" and _in_rect((c.cx, c.cy), bl.bbox, 0) and c.bbox[0] >= bl.bbox[0] - tol
+        if any(
+                bl.kind == "RECT" and _in_rect((c.cx, c.cy), bl.bbox, 0)
+                and (getattr(c, "ring", False) or 2 * c.r >= 0.6 * min(bl.bbox[2] - bl.bbox[0], bl.bbox[3] - bl.bbox[1]))
+                # L23 — 칸을 채우는 원(글자를 두른 원 · 1A1Y 메모리 R)만 표시다.  큰 매크로 상자 안의 연결 기호 원은 블록이다 and c.bbox[0] >= bl.bbox[0] - tol
                 and c.bbox[2] <= bl.bbox[2] + tol and c.bbox[1] >= bl.bbox[1] - tol and c.bbox[3] <= bl.bbox[3] + tol
                 for bl in blocks):
             marks_in.append(c)            # 상자 안 글자를 두른 원 = 그 칸의 표시 (메모리 우선 칸 · 범례 MEMORY) — 블록이 아니다
@@ -363,6 +365,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     taken = {id(p) for p in glyphs + short} - {id(p) for p in rest}
     glyphs = [p for p in glyphs if id(p) not in taken]
     wires = [p for p in wires if id(p) not in taken] + dashed
+    pdf_dashed = [p for p in wires if p.dashed]
+    keep = {id(p) for p in _drop_dashed_frames(pdf_dashed, (LX1 - LX0, LY1 - LY0), tol, P)}
+    wires = [p for p in wires if not p.dashed or id(p) in keep]
 
     # ---- 선 잇기 (union-find on segments)
     segs = []                           # (seg, poly)
@@ -702,7 +707,16 @@ def _bar_gate(s, blocks, tol):
         h = y1 - y0
         if touch and lo <= y0 + tol and hi >= y1 - tol and (hi - lo) >= h and abs((lo + hi) / 2 - cy) <= 0.25 * (hi - lo):
             return b
-    return None
+    # L23 — 막대가 한쪽으로만 길게 뻗은 그림 (1A5J LEAD SELECTION 의 AND: 상자 위 변에서 아래 입력까지).  가운데 조건만
+    # 풀고, 막대가 상자 높이를 다 덮으며 상자 높이의 1.5 배 이상이고 그 상자 하나에만 붙을 때만.
+    hit = []
+    for b in blocks:
+        if b.kind != "RECT" or len(b.cells) != 1:
+            continue
+        x0, y0, x1, y1 = b.bbox
+        if abs(s.x0 - x0) <= tol and lo <= y0 + tol and hi >= y1 - tol and (hi - lo) >= 1.5 * (y1 - y0):
+            hit.append(b)
+    return hit[0] if len(hit) == 1 else None
 
 
 def _shape_of(b, glyphs, tol):
@@ -1088,6 +1102,56 @@ def _row_at(rows, y):
         if a <= y <= b:
             return n
     return None
+
+
+def _drop_dashed_frames(dashed, span, tol, P):
+    """파선으로 두른 큰 네모(매크로 · 묶음 틀)는 신호선이 아니다 (1A5J MACRO-PS 의 점선 틀 · L23).
+
+    서로 끝이 닿는 파선 줄들을 묶어, 그 묶음의 모든 선분이 묶음 바깥 네모의 네 변 위에 있고 네 변을 다 쓰며
+    그 네모가 LOGIC 영역 가로·세로의 3분의 1 이상이면 틀이다.  틀을 신호선으로 두면 틀에 걸친 단자 원들이 한 선으로
+    이어져 서로 다른 신호가 한 값이 된다."""
+    if len(dashed) < 2:
+        return dashed
+    par = list(range(len(dashed)))
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    ends = [[q for sg in p.segs for q in sg.ends()] for p in dashed]
+    for i in range(len(dashed)):
+        for j in range(i + 1, len(dashed)):
+            if any(_d(a, b) <= P for a in ends[i] for b in ends[j]):     # 틀 위 단자 원(< P)이 끊은 자리도 잇는다
+                par[f(i)] = f(j)
+    groups = defaultdict(list)
+    for i in range(len(dashed)):
+        groups[f(i)].append(i)
+    drop = set()
+    for idx in groups.values():
+        segs = [sg for i in idx for sg in dashed[i].segs]
+        xs = [v for sg in segs for v in (sg.x0, sg.x1)]
+        ys = [v for sg in segs for v in (sg.y0, sg.y1)]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        if x1 - x0 < span[0] / 3 or y1 - y0 < span[1] / 3:
+            continue
+        sides = set()
+        ok = True
+        for sg in segs:
+            if sg.horiz and abs(sg.y0 - y0) <= tol:
+                sides.add("T")
+            elif sg.horiz and abs(sg.y0 - y1) <= tol:
+                sides.add("B")
+            elif sg.vert and abs(sg.x0 - x0) <= tol:
+                sides.add("L")
+            elif sg.vert and abs(sg.x0 - x1) <= tol:
+                sides.add("R")
+            else:
+                ok = False
+                break
+        if ok and len(sides) == 4:
+            drop.update(idx)
+    return [p for i, p in enumerate(dashed) if i not in drop]
 
 
 def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):

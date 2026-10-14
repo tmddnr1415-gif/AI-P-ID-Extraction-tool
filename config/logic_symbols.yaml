@@ -65,6 +65,10 @@ legend_functions:
   FORCED INPUT: const
   PUSH BUTTON: source
   SIGNAL MONITOR: source
+  # ISA-S5.2 의 시간 기능 약어 (L23 · 1A1Y 처럼 상자 안에 약어만 인쇄한 양식) — DI = delay of initiation (켜짐 지연) ·
+  # DT = delay of termination (꺼짐 지연) · PO = pulse output.  범례 표에 이 이름 행이 있으면 범례가 이긴다.
+  DI: delay_on
+  PO: pulse
 # 기능 칸이 여러 행을 묶은 경우(SPECIAL) — 정의 문장에 이 구절이 있으면 그 동작
 legend_definitions:
   pulse: ["FOR TIME T WHEN INPUT TRANSIT"]

@@ -13,7 +13,7 @@ import pymupdf
 
 from . import blocks as B
 from . import fromto, geom, glyphs, graph, legend, library, macro
-from .refs import REF, series                          # 시트-행 (설계 S6 · L21 계통 접두)
+from . import refs as RF                              # 시트-행 (설계 S6 · L21 계통 접두 · L23 일반 꼴)
 
 
 def analyse(pdf_path, progress=None):
@@ -151,8 +151,24 @@ def _rows(sh, D):
             prev = c
         return _fix_o0("".join(txt).strip())
 
-    lcols = [page_left - 1] + left if left and page_left < left[0] else left
     page_right = max((p.bbox[2] for p in sh.all_glyphs), default=right[-1] + 60) + 1
+    fr = getattr(sh, "frame", None)
+    # 표 바깥 변을 장 테두리가 겸하고 글자를 진짜 글자로 인쇄한 양식 (1A1Y · L23) — 선 글자가 FROM 칸 안쪽에만 있어
+    # 바깥 변을 못 잡으면 FROM · TO 칸이 통째로 빠진다.  그때만 장 테두리 안쪽 변을 표 바깥 변으로 쓴다.
+    V = B.vocab().get("table_headers") or {}
+    t_top = min((a for _, a, _ in lay.left_rows + lay.right_rows), default=0)
+    head = [w for w in sh.words if t_top - 3 * lay.pitch <= (w[1] + w[3]) / 2 < t_top]
+    hw = lambda role: {x.upper() for x in V.get(role, [])}
+    fm_h = [w for w in head if w[4].upper() in hw("fm") and (w[0] + w[2]) / 2 < (left[0] if left else 0)]
+    to_h = [w for w in head if w[4].upper() in hw("to") and (w[0] + w[2]) / 2 > (right[-1] if right else 1e9)]
+    if fm_h:
+        # FROM 머리글이 읽은 열보다 바깥이다 — 그 칸의 바깥 변은 장 테두리(있으면) 또는 머리글 글자 왼쪽 끝 너머
+        edge = fr[0] + 1 if fr and fr[0] < left[0] - lay.pitch else min(w[0] for w in fm_h) - lay.pitch
+        page_left = min(page_left, edge)
+    if to_h:
+        edge = fr[2] - 1 if fr and fr[2] > right[-1] + lay.pitch else max(w[2] for w in to_h) + lay.pitch
+        page_right = max(page_right, edge)
+    lcols = [page_left - 1] + left if left and page_left < left[0] else left
     for side, cs, rows in (("L", lcols, lay.left_rows), ("R", right + [page_right], lay.right_rows)):
         for n, a, b in rows:
             cells = []
@@ -440,21 +456,21 @@ def _net_order(s):
 def _cross_refs(sheets):
     """왼쪽 행의 FM `G031-81` → G031 장의 81행 (오른쪽 출력).  읽은 글자 그대로 맞댄다."""
     by_no = {s["sheet_no"]: s for s in sheets if s["sheet_no"]}
-    prefixes = {series(s["sheet_no"]) for s in sheets if s["sheet_no"]}
+    bundle = RF.Bundle(by_no)
     for s in sheets:
         for r in s["rows"]:
             if r["side"] != "L":
                 continue
-            fm = (r.get("fm") or "").replace(" ", "")
-            m = REF.match(fm)
+            m = RF.full(r.get("fm"))
             if not m:
                 continue
-            tgt = by_no.get(m.group(1))
-            r["ref"] = {"sheet": m.group(1), "row": int(m.group(2)), "page": tgt["page"] if tgt else None,
-                        "other_bundle": series(m.group(1)) not in prefixes}   # 다른 묶음 (Logic 의 P… = Loop 장)
+            sh, rn = m
+            tgt = by_no.get(sh)
+            r["ref"] = {"sheet": sh, "row": rn, "page": tgt["page"] if tgt else None,
+                        "other_bundle": bundle.other(sh)}   # 다른 묶음 (Logic 의 P… = Loop 장 · 다른 문서)
             if tgt:
                 for tr in tgt["rows"]:
-                    if tr["side"] == "R" and tr["n"] == int(m.group(2)):
+                    if tr["side"] == "R" and tr["n"] == rn:
                         tr.setdefault("refs_in", []).append({"sheet": s["sheet_no"], "page": s["page"], "row": r["n"]})
 
 
