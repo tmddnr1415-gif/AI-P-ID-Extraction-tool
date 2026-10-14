@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-DEFAULT_T = 10.0          # L15 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 10초)
+DEFAULT_T = 5.0           # L22 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 5초 · L15 는 10초였다)
 MAX_ITER = 300
 MAX_FRAMES = 24
 
@@ -216,8 +216,9 @@ def _secs(v):
 
 
 def timer_seconds(b, override=None):
-    """L15 — 타이머 시간: 사람이 바꾼 값 → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
-    for v in (override, (b.get("param") or {}).get("t")):
+    """L15 — 타이머 시간: 사람이 바꾼 값(요청 · L22 저장된 값) → 도면이 적은 값(`t= 3sec`) → 기본 DEFAULT_T."""
+    prm = b.get("param") or {}
+    for v in (override, prm.get("t_user"), prm.get("t")):
         f = _secs(v)
         if f is not None:
             return f

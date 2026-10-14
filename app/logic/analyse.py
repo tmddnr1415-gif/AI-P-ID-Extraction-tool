@@ -12,7 +12,7 @@ from collections import defaultdict
 import pymupdf
 
 from . import blocks as B
-from . import fromto, geom, glyphs, graph, legend, macro
+from . import fromto, geom, glyphs, graph, legend, library, macro
 from .refs import REF, series                          # 시트-행 (설계 S6 · L21 계통 접두)
 
 
@@ -38,8 +38,17 @@ def analyse(pdf_path, progress=None):
     # 범례 표(FUNCTION | SYMBOL | DEFINITION) — 모양으로 그린 게이트의 뜻 (L21 · 없으면 빈 사전)
     pitch = _modal_pitch(sheets)
     leg = legend.read(doc, kinds, pitch, B.vocab()) if pitch else {"map": {}, "names": {}, "figures": [], "rows": [], "pages": []}
+    # L22 — 학습 사전: 묶음 범례가 말하지 않은 열쇠만 보태고, 범례 표가 없으면 진짜 글자가 열쇠와 맞을 때만 쓴다
+    lib = library.load()
+    lib_leg = library.as_legend(lib)
+    if leg["map"] or leg["figures"]:
+        use = library.merge(leg, lib_leg)
+    elif lib_leg["map"] or lib_leg["names"]:
+        use = {**lib_leg, "library_only": True}
+    else:
+        use = None
     for sh in sheets.values():
-        sh.legend = leg if (leg["map"] or leg["figures"]) else None
+        sh.legend = use
     out_sheets = []
     for pno, sh in sorted(sheets.items()):
         say("blocks", pno, len(doc))
@@ -56,14 +65,21 @@ def analyse(pdf_path, progress=None):
         s["findings"] = _findings(s)
     fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
     say("macros", 0, 1)
-    macro.link(doc, out_sheets)              # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12)
+    lib_sheets = macro.link(doc, out_sheets, library=lib)   # 매크로 블록 → Typical 시트 · 단자 ↔ 행 (L12 · L22 사전)
     return {
         "pdf_pages": len(doc),
         "sheets": out_sheets,
         "kinds": kinds,
         "dictionary": D.to_json(),
         "legend": {"pages": leg["pages"], "symbols": {k: v["name"] for k, v in leg["map"].items()},
-                   "figures": sorted({f["name"] for f in leg["figures"]})},
+                   "figures": sorted({f["name"] for f in leg["figures"]}),
+                   # L22 — 학습 사전에 남길 것 (이 묶음 범례가 말한 것만)
+                   "learn": {"map": {k: {kk: v[kk] for kk in ("name", "logic", "label", "page")} for k, v in leg["map"].items()},
+                             "names": dict(leg.get("names") or {}),
+                             "figures": [{kk: f[kk] for kk in ("fig", "name", "logic", "label")} for f in leg["figures"]]},
+                   "library": {"used": use is not None and not (leg["map"] or leg["figures"]),
+                               "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
+        "library_sheets": lib_sheets or [],
         "seconds": round(time.time() - t0, 1),
         "note": "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
                 "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
@@ -322,6 +338,10 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             "param": dict(getattr(b, "param", {})), "group": getattr(b, "group", ""),
             "pointer": b.pointer, "roles": getattr(b, "roles", {}),
         }
+        if b.kind in ("RECT", "CIRCLE"):
+            blks[b.id]["key"] = legend.keys_of(b, sh.words)[0]      # L22 — 모양|안 글자 (사람이 종류를 정하면 사전 열쇠)
+        if getattr(b, "learned", ""):
+            blks[b.id]["learned"] = b.learned
         if getattr(b, "func", "") == "MACRO":
             blks[b.id]["pins"] = dict(getattr(b, "pins", {}))
             blks[b.id]["lines"] = [list(ln) for ln in getattr(b, "lines", [])]

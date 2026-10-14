@@ -422,3 +422,24 @@ button.lg-reset:hover { background: #d9534f; color: #fff; }
 .lg-sigpop .sp-off { margin-left: 6px; flex: none; font-size: 11px; padding: 1px 7px; border: 1px solid #c0392b; color: #c0392b;
   background: #fff; border-radius: 4px; cursor: pointer; }
 .lg-sigpop .sp-off:hover { background: #c0392b; color: #fff; }
+
+/* L22 — 사람이 정한 값 · 지우기 · 학습 사전 */
+#ov .blk.user { stroke: #8a4bd1; stroke-width: 1; }
+#ov .badge-bg.user { fill: rgba(138,75,209,.9); }
+#ov .reftag.user { stroke-width: 1.3; stroke-dasharray: none; }
+#ov .reftag.empty { stroke: #d08a14; stroke-dasharray: 1.6 1.2; fill: rgba(208,138,20,.07); }
+#ov .reftag.empty:hover { fill: rgba(208,138,20,.22); stroke-width: 1.3; }
+#ov .reftag.empty.user { stroke: #8a4bd1; stroke-dasharray: none; fill: rgba(138,75,209,.08); }
+.gate-menu { max-width: 360px; }
+.gate-menu .fm-why { color: var(--soft); white-space: normal; }
+.gate-menu .gm-g { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; padding: 3px 4px; border-top: 1px solid #f0ede5; }
+.gate-menu .gm-g > span { font-size: 11px; color: var(--soft); width: 64px; }
+.gate-menu .gm-g button { border: 1px solid var(--line); background: #fff; padding: 2px 7px; }
+.gate-menu .gm-g button.on { background: #efe6fb; border-color: #8a4bd1; }
+.gate-menu .fm-t input[type=number] { width: 44px; }
+.gate-menu .fm-t { flex-wrap: wrap; font-size: 11px; }
+.lg-rows button.mini { font-size: 10px; padding: 0 4px; margin-left: 2px; }
+button.mini.ed { color: #8a4bd1; }
+button.mini.ed.on { background: #efe6fb; }
+.jm .jdel { margin-left: auto; border: 1px solid #e3c7c4; background: #fff; color: #a3352e; border-radius: 6px; font-size: 11px; padding: 0 7px; cursor: pointer; }
+.jm .jdel:hover { background: #fbeceb; }

@@ -13,6 +13,8 @@ Logic 시트는 MOV · MCC · 스위치기어 같은 반복 동작을 **매크�
 """
 from __future__ import annotations
 
+import json
+
 import re
 from functools import lru_cache
 
@@ -180,9 +182,47 @@ def _title_bonus(block, title, caption=""):
     return frac + (0.5 if tc and tc == _type_code(title) else 0.0)
 
 
-def link(doc, sheets):
-    """시트 목록을 제자리에서 고친다 — 매크로 블록마다 `macro` = 그 Typical 시트 · 단자 ↔ 행."""
+def link(doc, sheets, library=None):
+    """시트 목록을 제자리에서 고친다 — 매크로 블록마다 `macro` = 그 Typical 시트 · 단자 ↔ 행.
+
+    L22 — 그 묶음에 Typical 시트가 없으면 학습 사전(library.typicals — 다른 묶음에서 배운 Typical)을 단자 이름으로
+    맞대 본다 (문턱 library.MATCH_MIN).  고르면 그 Typical 시트 사본을 돌려준다 (가짜 쪽 번호 · 결과의 library_sheets)."""
+    from . import library as LB
     abbr = tuple(dict.fromkeys(legend_abbr(doc)))       # 같은 줄은 한 번 — 점수 캐시의 열쇠가 된다
+    lib_typ = (library or {}).get("typicals") or {}
+    lib_tables, lib_pages, lib_sheets = {}, {}, []
+    for tid, ty in lib_typ.items():
+        st = ty.get("sheet") or {}
+        L_ = [(r["n"], r.get("desc", ""), r.get("abv", "")) for r in st.get("table", []) if r["side"] == "L" and r.get("desc")]
+        R_ = [(r["n"], r.get("desc", ""), r.get("abv", "")) for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
+        if L_ and R_:
+            lib_tables[tid] = (L_, R_)
+
+    def from_library(b, pin_in, pin_out, n_pins, cap, tc):
+        best = None
+        for tid, (L_, R_) in lib_tables.items():
+            ty = lib_typ[tid]
+            ttc = _type_code(ty.get("title", "")) or _type_code(ty.get("caption", ""))
+            if tc and ttc and tc != ttc:
+                continue
+            gi, go = _assign(pin_in, L_, abbr), _assign(pin_out, R_, abbr)
+            score = (sum(v[2] for v in gi.values()) + sum(v[2] for v in go.values())) / n_pins
+            score += (0.6 if cap else 0.25) * _title_bonus(b, ty.get("title", ""), cap)
+            if best is None or score > best[0]:
+                best = (score, tid, gi, go)
+        if best is None or best[0] < LB.MATCH_MIN:
+            return None
+        score, tid, gi, go = best
+        if tid not in lib_pages:
+            pg = LB.LIB_PAGE0 + len(lib_pages) + 1
+            lib_pages[tid] = pg
+            ty = lib_typ[tid]
+            cp = json.loads(json.dumps(ty["sheet"]))
+            cp["page"] = pg
+            cp["sheet_no"] = f"LIB {ty.get('sheet_no', '')}".strip()   # 이 묶음의 시트 번호와 섞이지 않게 (FM/TO 로 안 맞는다)
+            cp["library"] = {"id": tid, "from": ty.get("from", ""), "png": ty.get("png"), "sheet_no": ty.get("sheet_no", "")}
+            lib_sheets.append(cp)
+        return score, tid, gi, go
     tables = {}
     for s in sheets:
         L = [(t["n"], t.get("desc", ""), t.get("abv", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
@@ -210,6 +250,26 @@ def link(doc, sheets):
                 ranked.append((score, t, gi, go))
             ranked.sort(key=lambda r: -r[0])
             tc = _type_code(cap) or _type_code(b.get("read", ""))
+            n_pins_ = len([p for p in pin_in + pin_out if p[1]]) or 1
+            no_typ = (tc and ranked and not any(_type_code(r[1].get("title", "")) == tc for r in ranked)) or \
+                not ranked or ranked[0][0] < 0.3
+            lib = from_library(b, pin_in, pin_out, n_pins_, cap, tc) if (no_typ and lib_tables) else None
+            if lib:
+                score, tid, gi, go = lib
+                pmap = {f"{p['at'][0]},{p['at'][1]}": p for p in ports}
+                ty = lib_typ[tid]
+
+                def items_(pins, got, pmap=pmap):
+                    return [{"at": key, "net": pmap[key]["net"], "pin": pin, "row": got[key][0] if key in got else None,
+                             "desc": got[key][1] if key in got else "", "score": got[key][2] if key in got else 0}
+                            for key, pin in pins]
+                b["macro"] = {"sheet": ty.get("sheet_no", ""), "page": lib_pages[tid], "title": ty.get("title", ""),
+                              "score": round(score, 3), "inputs": items_(pin_in, gi), "outputs": items_(pin_out, go),
+                              "library": {"id": tid, "from": ty.get("from", "")},
+                              "why": f"이 묶음에 Typical 시트가 없어 학습 사전의 '{ty.get('sheet_no', '')} {ty.get('title', '')}' "
+                                     f"({ty.get('from', '')}) 로 맞댔습니다",
+                              "cands": [{"sheet": r[1]["sheet_no"], "page": r[1]["page"], "score": round(r[0], 3)} for r in ranked[:3]]}
+                continue
             if tc and ranked and not any(_type_code(r[1].get("title", "")) == tc for r in ranked):
                 # 이름이 TYPE 번호를 말하는데 그 번호의 Typical 시트가 이 묶음에 없다 — 닮은 다른 시트를 고르지 않는다
                 b["macro"] = {"sheet": "", "page": None,
@@ -234,3 +294,4 @@ def link(doc, sheets):
             b["macro"] = {"sheet": t["sheet_no"], "page": t["page"], "title": t.get("title", ""), "score": round(score, 3),
                           "inputs": items(pin_in, gi), "outputs": items(pin_out, go),
                           "cands": [{"sheet": r[1]["sheet_no"], "page": r[1]["page"], "score": round(r[0], 3)} for r in ranked[:3]]}
+    return lib_sheets

@@ -288,6 +288,13 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
         return False                  # 범례 표가 없는 묶음(HRSG — 선 글자)은 예전 길 그대로
     texts = LG.block_text(b, sheet.words)
     shape = getattr(b, "shape", "")
+    lib_only = bool(leg.get("library_only"))
+    if lib_only:
+        # L22 — 범례 표가 없는 묶음: 학습 사전으로 읽되 ① 블록 안에 진짜 글자가 있거나 ② 글자도 선 글자도 없는 빈 상자
+        # (모양으로만 그린 게이트 — 19VA 의 AND · OR)만.  선 글자가 든 상자(HRSG)는 예전 길 그대로 (⊠ 는 모양 자체가 획).
+        bare = not any(texts) and (not getattr(b, "glyphs", None) or shape == "CROSS_BOX")
+        if not any(texts) and not bare:
+            return False
     if not any(texts) and not shape and not leg.get("figures"):
         return False
     up = [t.replace(" ", "") for t in texts]
@@ -355,6 +362,8 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
         b.label = whole
         b.lines = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
         return True
+    if lib_only:
+        return False                  # 사전에 없는 글자 상자 — 예전 길에 맡긴다 (지어내지 않는다)
     b.func, b.logic, b.label = "UNKNOWN", "unknown", whole
     return True
 
@@ -393,6 +402,12 @@ def _set_from_legend(b, hit, text):
     lg = hit["logic"]
     b.score = 1.0
     b.legend = {"name": hit["name"], "page": hit["page"]}
+    if hit.get("lib") is not None:
+        b.learned = hit.get("lib") or "학습 사전"          # L22 — 이 묶음의 범례가 아니라 학습 사전이 정했다
+    if lg == "vote" and hit.get("param"):
+        b.func, b.logic, b.label = "VOTE", "vote", text or hit["name"]
+        b.param = dict(hit["param"])
+        return
     if lg == "const":
         # FORCED INPUT 1/0 · ACTIVATION ON — 언제나 그 값 (sim: 글자 '1' 인 들어오는 단자 없는 source = 1)
         b.func, b.logic = "CONST", "source"
@@ -405,7 +420,7 @@ def _set_from_legend(b, hit, text):
     if lg == "memory":
         b.func, b.logic, b.label = "MEMORY", "memory", text or "S/R"
         b.roles = {"set_cell": 0, "reset_cell": 1}
-        b.param = {"dominant": ""}
+        b.param = {"dominant": (hit.get("param") or {}).get("dominant", "")}
         return
     b.func = {"and": "AND", "or": "OR", "not": "NOT", "nand": "NAND", "nor": "NOR",
               "delay_on": "GT", "delay_off": "DT", "pulse": "PD"}.get(lg, hit["name"])

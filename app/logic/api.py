@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, memo, projects, report, sim, store
+from . import fromto, library, memo, overrides, projects, report, sim, store
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -53,6 +53,7 @@ def _check_pdf(path: Path):
 
 @router.get("/logic/api/jobs")
 def list_jobs():
+    library.backfill_async()
     jobs = store.jobs()
     for j in jobs:
         if j.get("state") in ("queued", "running"):
@@ -237,6 +238,9 @@ def fromto_report(job: str):
     return {"counts": n, "items": items}
 
 
+_APPLIED = {}                    # job → (결과 mtime, 사람 값 mtime, 사람 값을 얹은 결과) — L22
+
+
 def _result(job):
     d = _dir(job)
     if not (d / "result.json").exists():
@@ -245,10 +249,35 @@ def _result(job):
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
         fromto.check(res["sheets"])
         res["_ft"] = True
-    return res
+    # L22 — 사람이 정한 값(게이트 종류 · FM/TO · 타이머)을 얹는다.  분석 결과 파일은 그대로이고 사본에 얹는다.
+    om = overrides.mtime(d)
+    if om is None:
+        _APPLIED.pop(job, None)
+        return res
+    rm = (d / "result.json").stat().st_mtime_ns
+    hit = _APPLIED.get(job)
+    if hit and hit[0] == rm and hit[1] == om:
+        return hit[2]
+    ov = overrides.load(d)
+    if not overrides.has_any(ov):
+        return res
+    import json as _json
+    fresh = _json.loads((d / "result.json").read_text(encoding="utf-8"))
+    overrides.apply(fresh, ov)
+    fresh["_ft"] = True
+    if len(_APPLIED) > 3:
+        _APPLIED.clear()
+    _APPLIED[job] = (rm, om, fresh)
+    return fresh
 
 
 def _size(job, d, page):
+    if page >= library.LIB_PAGE0:
+        try:
+            pm = pymupdf.Pixmap(str(_lib_png(job, page)))
+            return [pm.width / ZOOM, pm.height / ZOOM]
+        except HTTPException:
+            return None
     sz = _SIZES.get(job)
     if sz is None:
         sz = {}
@@ -263,11 +292,26 @@ def _size(job, d, page):
     return sz.get(page)
 
 
+def _all_sheets(res):
+    """묶음 시트 + 학습 사전에서 가져온 Typical 시트 (L22 · 가짜 쪽 번호 library.LIB_PAGE0+)."""
+    return res["sheets"] + list(res.get("library_sheets") or [])
+
+
 def _sheet(job, page):
-    for s in _result(job)["sheets"]:
+    for s in _all_sheets(_result(job)):
         if s["page"] == page:
             return s
     raise HTTPException(404, "그 쪽은 Logic 표 시트가 아닙니다.")
+
+
+def _lib_png(job, page):
+    """학습 사전 Typical 시트의 그림 (분석한 묶음이 아니라 사전에 남은 그림)."""
+    s = _sheet(job, page)
+    png = (s.get("library") or {}).get("png")
+    f = library.typ_dir() / png if png else None
+    if not f or not f.is_file():
+        raise HTTPException(404, "학습 사전에 그 Typical 시트의 그림이 없습니다.")
+    return f
 
 
 @router.get("/logic/api/jobs/{job}/sheets")
@@ -315,6 +359,8 @@ def report_xlsx(job: str):
 @router.get("/logic/api/jobs/{job}/page/{page}.png")
 def page_png(job: str, page: int):
     d = _dir(job)
+    if page >= library.LIB_PAGE0:
+        return FileResponse(_lib_png(job, page), media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
     try:
         cache = store.page_png(d, page)
     except IndexError:
@@ -354,14 +400,24 @@ def scenario(job: str, page: int, body: dict = Body(default={})):
     target = str(body.get("target", ""))
     if not (target.startswith("row:") and target[4:].isdigit() or target.startswith("net:")):
         raise HTTPException(400, "target 은 row:<n> · net:<id> 입니다.")
-    return sim.scenario(s, target, 1, sheets=res["sheets"])
+    return sim.scenario(s, target, 1, sheets=_all_sheets(res))
 
 
 @router.delete("/logic/api/jobs/{job}")
-def delete(job: str):
+def delete(job: str, author: str = ""):
+    """L22 — 첫 화면에서 분석 하나를 지운다 (부서원).  분석 중이면 거절 · 누가 언제 무엇을 지웠는지 남긴다."""
     d = _dir(job)
+    st = store.read_status(d)
+    if st.get("state") in ("queued", "running"):
+        raise HTTPException(409, "분석 중인 묶음은 지울 수 없습니다 — 끝난 뒤에 지우세요.")
+    who = (author or "").strip()[:60]
+    if not who:
+        raise HTTPException(400, "지운 사람 이름이 없습니다 — 누가 지웠는지 남깁니다.")
+    store.log_deletion({"job": job, "name": st.get("name"), "project": st.get("project"), "sheets": st.get("sheets"),
+                        "created": st.get("created"), "author": who})
     shutil.rmtree(d, ignore_errors=True)
     _SIZES.pop(job, None)
+    _APPLIED.pop(job, None)
     return Response(status_code=204)
 
 
@@ -384,13 +440,13 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
-    out = sim.simulate_bundle(res["sheets"], forces, state, focus, timers=timers)
+    out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers)
     out["default_t"] = sim.DEFAULT_T
     return out
 
 
 def _timers(raw):
-    """L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}}.  틀린 값은 버린다 (도면 값 · 기본 10초로 돈다)."""
+    """L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}}.  틀린 값은 버린다 (도면 값 · 기본 5초로 돈다)."""
     if not isinstance(raw, dict):
         return {}
     out = {}
@@ -436,3 +492,94 @@ def memo_update(job: str, mid: str, body: dict = Body(...)):
         raise HTTPException(404, "그런 메모가 없습니다.")
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ------------------------------------------------------------------ L22 — 사람이 정한 값 (게이트 종류 · FM/TO · 타이머)
+
+@router.get("/logic/api/jobs/{job}/overrides")
+def overrides_get(job: str):
+    d = _dir(job)
+    ov = overrides.load(d)
+    return {**ov, "choices": [{"key": k, "label": overrides.CHOICE_KO[k], "logic": v[1]} for k, v in overrides.CHOICES.items()],
+            "timers_flat": {str(p): v for p, v in overrides.timers_of(ov).items()}, "default_t": sim.DEFAULT_T}
+
+
+def _ov_call(fn, *a, **k):
+    try:
+        return fn(*a, **k)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/logic/api/jobs/{job}/overrides/block")
+def overrides_block(job: str, body: dict = Body(...)):
+    """게이트 종류 — {page, block, choice | null, author, same_shape?, param?}.  same_shape 면 이 묶음에서 같은
+    모양·같은 글자(범례 열쇠)의 판정 못 한 블록에도 같이 정하고, 그 열쇠를 학습 사전에 남긴다 (다른 프로젝트에서도 쓰인다)."""
+    d = _dir(job)
+    page, bid = body.get("page"), str(body.get("block") or "")
+    if not isinstance(page, int) or not bid:
+        raise HTTPException(400, "page(정수) 와 block 이 필요합니다.")
+    s = _sheet(job, page)
+    b = s["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    choice = body.get("choice")
+    author = str(body.get("author") or "")
+    was = (b.get("user") or {}).get("was_func") or b.get("func", "")
+    done = [{"page": page, "block": bid}]
+    _ov_call(overrides.set_block, d, page, bid, choice, author, was, body.get("param"))
+    key = b.get("key") or ""
+    if body.get("same_shape") and choice and library.specific(key):
+        for s2 in _result(job)["sheets"]:
+            for k2, b2 in s2["blocks"].items():
+                if (s2["page"], k2) == (page, bid) or b2.get("key") != key:
+                    continue
+                if (b2.get("user") or {}).get("was_func", b2.get("func")) != "UNKNOWN":
+                    continue
+                _ov_call(overrides.set_block, d, s2["page"], k2, choice, author, "UNKNOWN", body.get("param"))
+                done.append({"page": s2["page"], "block": k2})
+    learned = None
+    if choice and library.specific(key):
+        func, logic, label, prm = overrides.CHOICES[choice]
+        if choice == "VOTE":
+            prm = overrides._vote(body.get("param") or {})
+        learned = library.learn_user(key, func, logic, label if choice in ("CONST1", "CONST0") else "", author,
+                                     store.read_status(d).get("name") or job, param=prm or None)
+    return {"set": done, "learned": learned}
+
+
+@router.post("/logic/api/jobs/{job}/overrides/cell")
+def overrides_cell(job: str, body: dict = Body(...)):
+    """FM(왼쪽 행) · TO(오른쪽 행) 칸 — {page, side, row, value | null, author}.  저장하면 from-to 연결을 다시 맞댄다."""
+    d = _dir(job)
+    page, side, n = body.get("page"), body.get("side"), body.get("row")
+    if not isinstance(page, int) or not isinstance(n, int):
+        raise HTTPException(400, "page · row 는 정수입니다.")
+    s = _sheet(job, page)
+    row = next((r for r in s.get("table", []) if r["side"] == side and r["n"] == n), None)
+    if row is None:
+        raise HTTPException(404, "그 행이 없습니다.")
+    field = "fm" if side == "L" else "to"
+    was = ((row.get("user") or {}).get(field) or {}).get("was", row.get(field) or "")
+    v = body.get("value")
+    ent = _ov_call(overrides.set_cell, d, page, side, n, None if v is None else str(v), str(body.get("author") or ""), was)
+    r2 = next((r for r in _sheet(job, page)["rows"] if r["side"] == side and r["n"] == n), None)
+    return {"saved": ent, "ft": (r2 or {}).get("ft"), "ref": (r2 or {}).get("ref")}
+
+
+@router.post("/logic/api/jobs/{job}/overrides/timer")
+def overrides_timer(job: str, body: dict = Body(...)):
+    """타이머 시간 — {page, block, sec | null, author}.  기본은 도면 값 · 도면에 없으면 sim.DEFAULT_T(5초)."""
+    d = _dir(job)
+    page, bid = body.get("page"), str(body.get("block") or "")
+    if not isinstance(page, int) or not bid:
+        raise HTTPException(400, "page(정수) 와 block 이 필요합니다.")
+    if _sheet(job, page)["blocks"].get(bid) is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    return _ov_call(overrides.set_timer, d, page, bid, body.get("sec"), str(body.get("author") or ""))
+
+
+@router.get("/logic/api/library")
+def library_get():
+    """학습 사전 — 모양 열쇠 → 기능 · Typical 시트 (어느 묶음 · 누가 가르쳤는지)."""
+    return library.summary()

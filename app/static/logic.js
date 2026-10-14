@@ -12,7 +12,7 @@ const L = {
   focus: null, back: [], afterFit: null,          // FROM/TO 로 간 행 · 돌아갈 자리 (L6)
   all: null, allCode: "", allSel: null,            // 묶음 전체 점검 목록 (L7)
   memos: [], memoEdit: null, pinMode: false, pendingAt: null, memoFlash: null,   // 메모 (L8)
-  timers: {}, defaultT: 10, count: {},              // L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}} · 세는 중인 타이머
+  timers: {}, defaultT: 5, count: {}, choices: [],              // L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}} · 세는 중인 타이머
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -46,6 +46,7 @@ const FUNC_KO = {
   MEMORY: "메모리", GT: "지연 ON 타이머 (GT)", DT: "지연 OFF 타이머 (DT)", PD: "펄스 타이머 (PD)",
   PB: "누름단추", STEP: "STEP (시퀀스 단계)", CONNECTOR: "연결 기호", LIGHT: "램프", ANN: "경보 (ANN)",
   SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함", MACRO: "매크로 블록",
+  VOTE: "투표 (B 개 중 A 개)", CONST: "언제나 같은 값", ANALOG: "아날로그 연산 (이진 아님)",
 };
 
 /* L12 — 매크로 블록의 새 창: 주소의 macro=<부모 장>:<블록>&in=<행>:<값>,… (부모 창이 입력 단자 값을 보낸다) */
@@ -113,6 +114,11 @@ async function loadHome() {
   sel.innerHTML = `<option value="">(고르세요)</option>` + HOME.projects.map((x) => `<option value="${esc(x.name)}">${esc(x.name)} — 실행</option>`).join("");
   if (HOME.projects.some((x) => x.name === cur)) sel.value = cur;
   renderMaterials(); renderHomeLists(); updateGo();
+  api("/logic/api/library").then((lb) => {
+    $("#lh-library").innerHTML = `학습 사전 — Signal Processing 기호 <b>${lb.symbols}</b>개 · 그림 기호 ${lb.figures}개 · MACRO Typical <b>${lb.typicals}</b>개`
+      + (lb.user_symbols ? ` (사람이 가르친 기호 ${lb.user_symbols}개)` : "")
+      + `.  새 프로젝트 Logic 은 그 묶음의 범례가 먼저이고, 범례가 말하지 않은 기호 · 없는 Typical 은 이 사전으로 읽습니다.`;
+  }).catch(() => {});
   if (HOME.poll) clearTimeout(HOME.poll);
   if (j.jobs.some((x) => x.state === "queued" || x.state === "running"))
     HOME.poll = setTimeout(() => { if (!$("#home").hidden) loadHome(); }, 3000);
@@ -176,7 +182,8 @@ function jobLine(x) {
     : `<span class="run">● 분석 중 ${(x.progress && x.progress.percent) || 0}%</span>`;
   return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
     <div class="jm">${st} ${mats.map((k) => `<span class="mat">${esc(lab[k] || k)}</span>`).join("")}
-    <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}</div>
+    <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}
+    ${x.state === "queued" || x.state === "running" ? "" : `<button class="jdel" data-del="${x.id}" title="이 분석 기록을 지웁니다 (분석 결과 · 메모 · 사람이 정한 값)">지우기</button>`}</div>
     ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
 }
 function renderHomeLists() {
@@ -215,6 +222,8 @@ function bindHome() {
   $("#lh-newname").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) create(); };
   $("#lh-analyse").onclick = analyseHome;
   $("#home").addEventListener("click", (e) => {
+    const del = e.target.closest("button[data-del]");
+    if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
     const li = e.target.closest("li[data-job]");
     if (!li) return;
     hideHome();
@@ -223,9 +232,31 @@ function bindHome() {
   });
 }
 
+/* L22 — 부서원이 첫 화면에서 분석 기록을 지운다 (분석 중이면 서버가 거절 · 누가 지웠는지 남긴다) */
+async function deleteJob(id) {
+  const x = (L.jobsList || []).find((j) => j.id === id) || {};
+  const who = needAuthor();
+  if (!who) return;
+  if (!confirm(`'${x.name || id}' 분석 기록을 지웁니다.\n분석 결과 · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간)이 함께 지워지고 되돌릴 수 없습니다.\n지운 사람: ${who}`)) return;
+  try {
+    await api(`/logic/api/jobs/${id}?author=${encodeURIComponent(who)}`, { method: "DELETE" });
+    status(`'${x.name || id}' 를 지웠습니다 (${who})`);
+    if (L.job === id) L.job = null;
+  } catch (err) { status("지우지 못했습니다 — " + err.message); }
+  loadHome();
+}
+/* 누가 정했는지 남긴다 — 대시보드 로그인 · 기억된 이름, 없으면 한 번 묻는다 */
+function needAuthor() {
+  let who = currentAuthor();
+  if (who) return who;
+  who = (prompt("이름을 적어 주세요 — 누가 정했는지 남깁니다") || "").trim();
+  if (who) rememberAuthor(who);
+  return who;
+}
+
 async function openJob(id) {
   L.job = id;
-  loadTimers();
+  await loadTimers();
   const st = await api(`/logic/api/jobs/${id}`);
   if (st.state !== "done") {
     if (st.state === "failed") { renderProgress(st); status(`분석 실패 — ${st.error || ""}`); return; }
@@ -499,7 +530,7 @@ function drawOverlay() {
   }
   for (const [bid, b] of Object.entries(s.blocks)) {
     const [x0, y0, x1, y1] = b.bbox;
-    const cls = "blk" + (b.func === "UNKNOWN" ? " unknown" : "") + (b.func === "MACRO" ? " macro" : "");
+    const cls = "blk" + (b.func === "UNKNOWN" ? " unknown" : "") + (b.func === "MACRO" ? " macro" : "") + (b.user ? " user" : "");
     const r = b.kind === "RECT"
       ? el("rect", { x: x0 - 0.6, y: y0 - 0.6, width: x1 - x0 + 1.2, height: y1 - y0 + 1.2, class: cls, "data-block": bid }, gB)
       : el("circle", { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, r: (x1 - x0) / 2 + 0.8, class: cls, "data-block": bid }, gB);
@@ -507,7 +538,7 @@ function drawOverlay() {
     if (b.func !== "CONNECTOR") {
       const t = badgeText(b);
       const w = t.length * 2.55 + 2.4;
-      el("rect", { x: x0, y: y0 - 5.6, width: w, height: 5, rx: 1, class: "badge-bg" + (b.func === "UNKNOWN" ? " unknown" : "") }, gB);
+      el("rect", { x: x0, y: y0 - 5.6, width: w, height: 5, rx: 1, class: "badge-bg" + (b.func === "UNKNOWN" ? " unknown" : "") + (b.user ? " user" : "") }, gB);
       const tx = el("text", { x: x0 + 1.2, y: y0 - 1.9, class: "badge" }, gB);
       tx.textContent = t;
     }
@@ -572,26 +603,39 @@ function drawRefTags(ov) {
   for (const t of s.table || []) {
     const box = t.side === "L" ? t.fm_box : t.to_box;
     if (!box) continue;
-    const refs = refsIn(t.side === "L" ? t.fm : t.to);
-    if (!refs.length) continue;
+    const field = t.side === "L" ? "fm" : "to";
+    const refs = refsIn(t[field]);
+    const user = t.user && t.user[field];
     const kind = t.side === "L" ? "from" : "to";
+    if (!refs.length) {
+      // L22 — 읽지 못한 칸 · 시트-행 꼴이 아닌 칸: 눌러서 값을 적는다 (그 행에 신호가 있을 때만 — 빈 행은 두지 않는다)
+      // 칸에 글이 있는데 시트-행 꼴이 아닌 것(DCS · NOTE 3)은 도면이 그렇게 적은 것이다 — 목록의 ✎ 로만 고친다
+      if (!user && (!t.desc || (t[field] && !/\?/.test(t[field])))) continue;
+      const rc = el("rect", { x: box[0] + 0.4, y: box[1] + 0.4, width: box[2] - box[0] - 0.8, height: box[3] - box[1] - 0.8,
+        class: `reftag empty ${kind}${user ? " user" : ""}`, "data-side": t.side, "data-row": t.n }, g);
+      el("title", {}, rc).textContent = `${kind === "from" ? "FM" : "TO"} 칸 — ${t[field] ? `'${t[field]}' — 글자를 다 읽지 못했습니다` : "비어 있습니다 (못 읽었거나 도면에 없음)"}.  눌러서 값(예: G031-81)을 적으면 이어집니다`;
+      rc.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); cellEditor(t, e); });
+      continue;
+    }
     const ok = refs.some((r) => sheetByNo(r.sheet));
     const bad = L.mode === "sim" && designErrorsOnPage()[t.side].has(t.n);
     const rc = el("rect", { x: box[0] + 0.4, y: box[1] + 0.4, width: box[2] - box[0] - 0.8, height: box[3] - box[1] - 0.8,
-      class: `reftag ${kind}${ok ? "" : " other"}${bad ? " design-err" : ""}`, "data-side": t.side, "data-row": t.n }, g);
-    const tag = kind === "from" ? "FROM" : "TO";
+      class: `reftag ${kind}${ok ? "" : " other"}${bad ? " design-err" : ""}${user ? " user" : ""}`, "data-side": t.side, "data-row": t.n }, g);
+    const tag = (kind === "from" ? "FROM" : "TO") + (user ? " ✎" : "");
     const tx = el("text", { x: kind === "from" ? box[0] - 1 : box[2] + 1, y: (box[1] + box[3]) / 2 + 1.5,
       class: `reftxt ${kind}`, "text-anchor": kind === "from" ? "end" : "start" }, g);
     tx.textContent = tag;
     const list = refs.map((r) => `${r.sheet} 시트 ${r.row}행` + (sheetByNo(r.sheet) ? "" : " (이 묶음에 없음)")).join(", ");
     const why = bad ? (L.design || []).filter((e) => e.kind === "error" && ((t.side === "R" && e.page === L.page && (e.at_row || e.row) === t.n)
       || (t.side === "L" && e.target_page === L.page && e.target_row === t.n))).map((e) => "\n⚠ 설계 오류 — " + e.why).join("") : "";
-    el("title", {}, rc).textContent = `${tag} ${refs.map((r) => r.sheet + "-" + r.row).join(", ")} → ${list}${ok ? " — 누르면 그 행으로 갑니다" : ""}${why}`;
+    el("title", {}, rc).textContent = `${tag} ${refs.map((r) => r.sheet + "-" + r.row).join(", ")} → ${list}${ok ? " — 누르면 그 행으로 갑니다" : ""}${user ? `\n✎ 사람이 적음 (${user.author}) · 도면 글자 '${user.was || ""}'` : ""}\n오른쪽 단추 · Alt+누름 = 값 고치기${why}`;
     rc.addEventListener("click", (e) => {
       if (L.justPanned) return;
       e.stopPropagation();
+      if (e.altKey) { cellEditor(t, e); return; }
       chooseRef(refs, t.side === "L" ? "R" : "L", e);
     });
+    rc.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); cellEditor(t, e); });
   }
 }
 /* 여러 곳이면 고르는 작은 메뉴, 하나면 바로 */
@@ -664,7 +708,12 @@ function drawGoto() {
   if (Date.now() - f.at > 3000) r.classList.add("still");
 }
 function badgeText(b) {
+  return badgeBase(b) + (b.user ? " ✎" : b.learned ? " ⓛ" : "");
+}
+function badgeBase(b) {
   if (b.func === "UNKNOWN") return "?";
+  if (b.func === "VOTE") return b.label || "A/B";
+  if (b.func === "CONST") return b.label === "0" ? "0" : "1";
   if (b.func === "MEMORY") return b.param.dominant === "set" ? "MEM S우선" : b.param.dominant === "reset" ? "MEM R우선" : "MEM";
   if (["GT", "DT", "PD"].includes(b.func)) return `${b.func}${b.param.text ? " " + b.param.text.replace("t=", "") : ""}`;
   if (b.func === "PB") return "PB";
@@ -762,7 +811,7 @@ function stopAnim() {
   stopCount();
 }
 
-/* ------------------------------------------------------------------ L15 — 타이머 시간 (사람이 바꿈 · 기본 10초) · 카운트다운 */
+/* ------------------------------------------------------------------ L15 — 타이머 시간 (사람이 바꿈 · 기본 5초 — L22) · 카운트다운 */
 
 const TIMER_LOGIC = new Set(["delay_on", "delay_off", "pulse"]);
 function fmtSec(s) {
@@ -779,19 +828,42 @@ function timerSec(bid, page) {
   if (d > 0) return { sec: d, src: "drawing" };
   return { sec: L.defaultT, src: "default" };
 }
-function timersKey() { return "logic.timers." + L.job; }
-function loadTimers() {
-  try { L.timers = JSON.parse(localStorage.getItem(timersKey()) || "{}") || {}; } catch (e) { L.timers = {}; }
+/* L22 — 사람이 바꾼 시간은 서버(overrides.json)에 남는다 — 다른 PC · 다른 사람에게도 같은 시간.  기본 5초. */
+async function loadTimers() {
+  L.timers = {};
+  try {
+    const o = await api(`/logic/api/jobs/${L.job}/overrides`);
+    L.timers = o.timers_flat || {};
+    L.defaultT = o.default_t || 5;
+    L.choices = o.choices || [];
+  } catch (e) { /* 예전 서버 */ }
+  // 예전(L15)에 이 브라우저에만 적어 둔 시간은 한 번 서버로 옮긴다
+  let old = null;
+  try { old = JSON.parse(localStorage.getItem("logic.timers." + L.job) || "null"); } catch (e) { old = null; }
+  if (old && typeof old === "object" && !Object.keys(L.timers).length) {
+    const who = currentAuthor() || "이 브라우저에 남은 값";
+    for (const [pg, m] of Object.entries(old))
+      for (const [bid, sec] of Object.entries(m || {})) {
+        try {
+          await post(`/logic/api/jobs/${L.job}/overrides/timer`, { page: Number(pg), block: bid, sec, author: who });
+          (L.timers[pg] = L.timers[pg] || {})[bid] = sec;
+        } catch (e) { /* 그 블록이 없어졌다 */ }
+      }
+    try { localStorage.removeItem("logic.timers." + L.job); } catch (e) {}
+  }
 }
-function saveTimers() { try { localStorage.setItem(timersKey(), JSON.stringify(L.timers)); } catch (e) { /* 막힌 저장소 */ } }
-function setTimer(bid, sec) {
+async function setTimer(bid, sec) {
+  const who = needAuthor();
+  if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   const p = L.page;
+  try {
+    await post(`/logic/api/jobs/${L.job}/overrides/timer`, { page: p, block: bid, sec, author: who });
+  } catch (err) { status("시간을 저장하지 못했습니다 — " + err.message); return; }
   L.timers[p] = L.timers[p] || {};
   if (sec == null) delete L.timers[p][bid]; else L.timers[p][bid] = sec;
   if (!Object.keys(L.timers[p]).length) delete L.timers[p];
-  saveTimers();
   const ts = timerSec(bid);
-  status(`타이머 ${bid} — ${fmtSec(ts.sec)} (${ts.src === "user" ? "사람이 바꿈" : ts.src === "drawing" ? "도면 값" : "도면에 없음 · 기본"})`);
+  status(`타이머 ${bid} — ${fmtSec(ts.sec)} (${ts.src === "user" ? "사람이 바꿈 · " + who : ts.src === "drawing" ? "도면 값" : "도면에 없음 · 기본"})`);
   if (L.mode === "sim") { L.states = {}; L.state = null; L.values = {}; runSim(true); }
   else { paint(); renderInfo(); }
 }
@@ -1418,6 +1490,7 @@ function onBlock(bid, e) {
   L.sel = { block: bid };
   const b = L.sheet.blocks[bid];
   if (b.func === "MACRO") { macroMenu(bid, e); paint(); renderInfo(); return; }
+  if (b.func === "UNKNOWN" || (b.user && e.altKey)) { gateMenu(bid, e); paint(); renderInfo(); return; }   // L22
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
   if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
@@ -1431,6 +1504,114 @@ function onRow(n, e) {
   if (row) forceMenu("row:" + n, e, `${row.side === "L" ? "입력" : "출력"} ${n}` + (row.desc ? " · " + row.desc : ""),
                      row.side === "R");
   paint(); renderInfo();
+}
+
+/* ------------------------------------------------------------------ L22 — 사람이 정한다: 게이트 종류 · FM/TO 칸
+
+   도면에서 판정하지 못한 블록은 눌러서 종류를 고르면 그 게이트로 그려지고 그대로 시뮬레이션된다.  값은 서버
+   (overrides.json)에 남아 다른 사람 · 다시 분석해도 그대로이고, 블록 안에 글자가 있으면 그 모양이 학습 사전에 들어가
+   다른 프로젝트의 같은 모양도 그 기준으로 읽힌다.  FM / TO 칸을 못 읽었으면 그 칸을 눌러 값을 적으면 이어진다. */
+const GATE_GROUPS = [["게이트", ["AND", "OR", "NOT", "NAND", "NOR", "VOTE"]], ["타이머", ["GT", "DT", "PD"]],
+  ["메모리", ["MEMORY", "MEMORY_S", "MEMORY_R"]], ["입력 · 출력", ["PB", "SIGNAL", "CONST1", "CONST0", "ANN", "ANALOG"]]];
+function keySpecific(k) {
+  const tx = String(k || "").split("|")[1];
+  return tx != null && tx.trim() !== "" && tx.trim() !== "?";
+}
+function choiceLabel(c) { const x = (L.choices || []).find((y) => y.key === c); return x ? x.label : c; }
+function placeMenu(m, e) {
+  document.body.appendChild(m);
+  const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x + 8, innerWidth - r.width - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(y + 8, innerHeight - r.height - 4)) + "px";
+}
+function gateMenu(bid, e) {
+  closeForceMenu();
+  const b = L.sheet.blocks[bid];
+  const u = b.user;
+  const same = keySpecific(b.key) ? Object.values(L.sheet.blocks).filter((x) => x.key === b.key && (x.user ? x.user.was_func : x.func) === "UNKNOWN").length : 0;
+  const vote = String(b.label || "").match(/(\d+)\D+(\d+)/);
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu gate-menu";
+  m.innerHTML = `<div class="fm-h">이 블록은 무엇인가요?</div>
+    <div class="fm-why">${u ? `지금: <b>${esc(choiceLabel(u.choice))}</b> — ${esc(u.author)} 이 정함 · 도면 판정은 ${esc(FUNC_KO[u.was_func] || u.was_func || "")}`
+      : `도면에서 판정하지 못했습니다${b.read ? ` — 읽은 글자 '${esc(b.read)}'` : ""}`}</div>` +
+    GATE_GROUPS.map(([g, cs]) => `<div class="gm-g"><span>${g}</span>${cs.map((c) =>
+      `<button data-c="${c}" class="${u && u.choice === c ? "on" : ""}">${esc(choiceLabel(c))}</button>`).join("")}</div>`).join("") +
+    `<label class="fm-t gm-vote">투표 <input id="gm-a" type="number" min="1" max="32" value="${vote ? vote[1] : 2}"> / <input id="gm-b" type="number" min="1" max="32" value="${vote ? vote[2] : 3}"> <small>B 개 중 A 개 이상이면 1</small></label>` +
+    (keySpecific(b.key) ? `<label class="fm-t"><input id="gm-same" type="checkbox" checked> 같은 모양 · 같은 글자('${esc(String(b.key).split("|")[1])}')의 판정 못 한 블록에도${same > 1 ? ` (이 장 ${same}개 · 다른 장 포함)` : " (다른 장 포함)"} — 학습 사전에 남겨 다른 프로젝트도 이 기준으로</label>` : "") +
+    (u ? `<button data-c="x" class="vx">도면 판정으로 되돌리기</button>` : "");
+  placeMenu(m, e);
+  m.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button[data-c]");
+    if (!btn) return;
+    const c = btn.dataset.c === "x" ? null : btn.dataset.c;
+    const param = c === "VOTE" ? { a: Number(m.querySelector("#gm-a").value), b: Number(m.querySelector("#gm-b").value) } : undefined;
+    const sameOn = !!(m.querySelector("#gm-same") || {}).checked;
+    closeForceMenu();
+    await saveGate(bid, c, param, sameOn);
+  });
+}
+async function saveGate(bid, choice, param, same) {
+  const who = needAuthor();
+  if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/overrides/block`, { page: L.page, block: bid, choice, author: who, param, same_shape: same });
+    const n = (r.set || []).length;
+    status(choice ? `${n}개 블록을 ${choiceLabel(choice)} 로 정했습니다 (${who})` + (r.learned ? " · 학습 사전에 남겼습니다 — 다른 프로젝트의 같은 모양도 이 기준으로 읽습니다" : "")
+      : `블록 ${bid} 를 도면 판정으로 되돌렸습니다`);
+  } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+  await refreshSheet();
+}
+function cellEditor(t, e) {
+  closeForceMenu();
+  const field = t.side === "L" ? "fm" : "to";
+  const name = t.side === "L" ? "FM (어디서 오는 신호)" : "TO (어디로 가는 신호)";
+  const u = t.user && t.user[field];
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu";
+  m.innerHTML = `<div class="fm-h">${t.n}행 ${name}</div>
+    <div class="fm-why">${u ? `사람이 적음 — ${esc(u.author)} · 도면 글자 '${esc(u.was || "(비어 있음)")}'` : `도면 글자: '${esc(t[field] || "(읽지 못함)")}'`}</div>
+    <label class="fm-t">값 <input id="fm-cell" type="text" maxlength="120" value="${esc(t[field] || "")}" placeholder="예: G031-81" style="width:160px"></label>
+    <div class="fm-why" style="color:var(--soft)">시트-행 꼴(G031-81)이면 그 행과 이어지고 From-To 점검이 다시 돕니다.  여럿은 쉼표로.</div>
+    <button data-t="ok" class="v1">저장 — 이 값으로 잇기</button>
+    ${u ? `<button data-t="x" class="vx">도면 글자로 되돌리기</button>` : ""}`;
+  placeMenu(m, e);
+  const inp = m.querySelector("#fm-cell");
+  inp.focus(); inp.select();
+  const ok = () => { const v = inp.value.trim(); closeForceMenu(); saveCell(t.side, t.n, v); };
+  inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) ok(); if (ev.key === "Escape") closeForceMenu(); });
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.t === "ok") ok(); else { closeForceMenu(); saveCell(t.side, t.n, null); }
+  });
+}
+async function saveCell(side, n, value) {
+  const who = needAuthor();
+  if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/overrides/cell`, { page: L.page, side, row: n, value, author: who });
+    const f = r.ft;
+    const what = side === "L" ? "FM" : "TO";
+    status(value == null ? `${n}행 ${what} 을 도면 글자로 되돌렸습니다`
+      : `${n}행 ${what} = ${value} (${who})` + (f ? (f.ok === false ? ` — ✕ 아직 맞지 않습니다: ${(f.why || []).join(" · ")}` : f.ok ? " — ✓ 연결이 맞습니다" : "") : " — 시트-행 꼴이 아니라 잇지 못했습니다"));
+  } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+  await refreshSheet();
+}
+/* 사람이 정한 값이 바뀌면 지금 장 · 장 목록 · 묶음 점검을 다시 받는다 (확대 · 위치는 그대로) */
+async function refreshSheet() {
+  const id = L.job, page = L.page;
+  const [j, s] = await Promise.all([api(`/logic/api/jobs/${id}/sheets`), api(`/logic/api/jobs/${id}/sheet/${page}`)]);
+  if (L.job !== id || L.page !== page) return;
+  if (j.sheets) { L.sheets = j.sheets; renderSheetList(); }
+  L.sheet = s;
+  L.states = {}; L.state = null; L.values = {};
+  drawOverlay(); renderRows(); renderFindings(); renderInfo(); renderLatches();
+  api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
+  if (L.mode === "sim") runSim();
 }
 
 /* ------------------------------------------------------------------ 오른쪽 판 */
@@ -1458,8 +1639,11 @@ function renderRows() {
       ? ` <span class="lk${L.linked[r.n] === 1 ? " hot" : ""}" title="다른 장의 출력이 이 입력을 몹니다">← ${esc(r.fm)} = ${L.linked[r.n]}</span>` : "";
     const toRest = String(r.to || "").replace(REF_RE, "").replace(/[\s)(]+/g, " ").trim();
     const to = r.side === "R" && toRest ? ` <small>TO ${esc(toRest)}</small>` : "";
+    const tr = (s.table || []).find((x) => x.side === r.side && x.n === r.n);
+    const uc = tr && tr.user && tr.user[r.side === "L" ? "fm" : "to"];
+    const ed = tr ? `<button class="mini ed${uc ? " on" : ""}" data-cell="${r.side}:${r.n}" title="${r.side === "L" ? "FM" : "TO"} 칸 값 적기 · 고치기${uc ? ` — 사람이 적음 (${esc(uc.author)})` : ""}">✎${r.side === "L" ? "FM" : "TO"}</button>` : "";
     const ex = r.side === "R" && r.net != null ? `<button class="mini ex" data-ex="row:${r.n}" title="이 출력까지 입력부터 모든 신호가 서는 동작 예시를 찾아 보여 줍니다">⚡예시</button>` : "";
-    const right = (L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "") + ex;
+    const right = (L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "") + ex + ed;
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
     const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
@@ -1470,6 +1654,13 @@ function renderRows() {
   $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
   for (const b of document.querySelectorAll("#out-rows button[data-ex]"))
     b.onclick = (ev) => { ev.stopPropagation(); runScenario(b.dataset.ex); };
+  for (const b of document.querySelectorAll(".lg-rows button[data-cell]"))
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      const [side, n] = b.dataset.cell.split(":");
+      const tr = (s.table || []).find((x) => x.side === side && x.n === Number(n));
+      if (tr) cellEditor(tr, ev);
+    };
 }
 /* from-to 대조 한 줄 — 서버(app/logic/fromto.py)가 판정한 그대로 */
 function ftText(r) {
@@ -1661,6 +1852,8 @@ function renderInfo() {
     box.innerHTML = `<table>
       <tr><td>종류</td><td><b>${esc(FUNC_KO[b.func] || b.func)}</b> ${b.func === "MEMORY" ? `(${b.param.dominant === "set" ? "SET 우선" : b.param.dominant === "reset" ? "RESET 우선" : "기본"})` : ""}</td></tr>
       <tr><td>도면 글자</td><td>${esc(b.label || "")} <small>(읽은 그대로: ${esc(b.read || "—")})</small></td></tr>
+      ${b.user ? `<tr><td>사람이 정함</td><td>✎ ${esc(choiceLabel(b.user.choice))} — ${esc(b.user.author)} · ${esc(b.user.at)} <small>(도면 판정: ${esc(FUNC_KO[b.user.was_func] || b.user.was_func || "")})</small></td></tr>` : ""}
+      ${b.learned && !b.user ? `<tr><td>판정 근거</td><td>ⓛ 학습 사전 <small>(${esc(b.learned)} 에서 배운 기준 — 이 묶음 범례에는 없음)</small></td></tr>` : ""}
       ${b.score ? `<tr><td>맞음</td><td>${Math.round(b.score * 100)}% <small>범례 어휘와 글자 모양</small></td></tr>` : ""}
       ${TIMER_LOGIC.has(b.logic) ? (() => { const ts = timerSec(L.sel.block); return `<tr><td>시간</td><td><b>${fmtSec(ts.sec)}</b> <small>${ts.src === "user" ? "사람이 바꿈" : ts.src === "drawing" ? "도면 " + esc(b.param.text || "") : "도면에 없음 — 기본"}</small> <button data-timer="${esc(L.sel.block)}">시간 바꾸기</button></td></tr>`; })()
         : b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
@@ -1674,6 +1867,7 @@ function renderInfo() {
     </table>
     ${b.func === "MACRO" && (b.macro || {}).page ? `<div class="acts"><button data-macro="${esc(L.sel.block)}">↗ 내부 동작 보기 (새 창) — ${esc(b.macro.sheet)}</button></div>` : ""}
     ${b.func === "MEMORY" ? latchTableHtml(L.sel.block) : ""}
+    ${b.func !== "CONNECTOR" && b.func !== "MACRO" ? `<div class="acts"><button data-gate="${esc(L.sel.block)}">${b.func === "UNKNOWN" ? "이 블록의 종류 정하기" : "종류 바꾸기 (사람이 정함)"}</button></div>` : ""}
     <div class="acts">${L.mode === "sim" && (!ins.length || b.logic === "source") ? forceBtns("block:" + L.sel.block) : ""}
       ${L.mode === "trace" ? `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>` : ""}</div>`;
     return;
@@ -2105,6 +2299,8 @@ function bind() {
     if (al) { gotoFinding(Number(al.dataset.i)); return; }
     const tb = e.target.closest("button[data-timer]");
     if (tb) { timerMenu(tb.dataset.timer, e); return; }
+    const gb = e.target.closest("button[data-gate]");
+    if (gb) { gateMenu(gb.dataset.gate, e); return; }
     const mb = e.target.closest("button[data-macro]");
     if (mb) { openMacro(mb.dataset.macro); return; }
     const dg = e.target.closest("#design-err button[data-go]");
