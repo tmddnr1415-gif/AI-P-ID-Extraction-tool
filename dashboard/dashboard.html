@@ -871,7 +871,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.30';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-13.31';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1892,7 +1892,12 @@ async function submitRecord(key, id, rec, nf, mine) {
         const all = DB.recs[key], same = all.filter(r => r.fields[s.group] === nf[s.group]);
         if (same.length) { const mx = Math.max(...same.map(r => r.order)); const nx = all.map(r => r.order).filter(o => o > mx).sort((a, b) => a - b)[0]; order = nx == null ? mx + 10 : (mx + nx) / 2; }
       }
-      await createRecord(key, nf, { order }); dlg.close(); toast('추가되었습니다'); await loadAll(); return render();
+      const nr = await createRecord(key, nf, { order }); dlg.close(); toast('추가되었습니다'); await loadAll();
+      if ((key === 'perform' || key === 'bid') && nr?.id) {   // 새 행: 맨 위 고정 + 그 행으로 이동·깜빡임
+        (NEW_TOP[key] || (NEW_TOP[key] = new Set())).add(nr.id);
+        JUMP = { key, rid:nr.id, f:s.title, edit:false }; SEL = { route:key, rid:nr.id, f:s.title }; MSEL = new Set([mkey(nr.id, s.title)]); ANCHOR = SEL;
+      }
+      return render();
     }
     const r = await saveEdit(key, id, nf, rec.meta.rev);
     await afterSave(r, key, id, nf);
@@ -2820,6 +2825,7 @@ function rowState(key, f) {
   if (key === 'general' && isPast(f['종료일'])) return 'r-done';
   return '';
 }
+const NEW_TOP = {};                                       // 시트 → Set(방금 추가한 행 id) — 수행·입찰 새 행 맨 위 고정
 function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 열 필터는 빼고 (필터 목록 값 계산용)
   const st = fstate(s.key), me = normName(user);
   const cf = Object.entries(st.cf || {}).filter(([k]) => k !== skipCf).map(([k, a]) => [k, new Set(a)]);
@@ -2842,7 +2848,11 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     if (st.kw && !(st.kw === '(미분류)' ? !bizTok(f['사업군']).length : bizTok(f['사업군']).includes(st.kw))) return false;
     return true;
   });
-  return cfSort(s, sortRecs(s, list));
+  const out = cfSort(s, sortRecs(s, list));
+  // 수행·입찰: 이 화면에서 방금 추가한 행은 열 정렬·필터와 상관없이 맨 위에 고정 (새로고침하면 원래 순서 = order 가 가장 작아 어차피 맨 위)
+  const pin = NEW_TOP[s.key]; if (!pin?.size || skipCf) return out;
+  const top = [...pin].map(id => getRecs(s.key).find(r => r.id === id)).filter(Boolean);
+  return [...top.reverse(), ...out.filter(r => !pin.has(r.id))];
 }
 function renderSheet(c, s) {
   const st = fstate(s.key), recs = getRecs(s.key);
