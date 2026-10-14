@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import time
 from pathlib import Path
 
@@ -920,3 +921,32 @@ def test_status_popup_lists_given_signals_and_resulting_outputs():
     assert "delete f[key]" in uf and "runSim(" in uf
     rc = js[js.index("function renderChain()"):js.index("function renderFindings()")]
     assert "renderSigPop()" in rc
+
+
+def test_status_write_survives_windows_lock(tmp_path, monkeypatch):
+    """L20 — Windows 에서 화면이 status.json 을 읽는 순간 os.replace 가 WinError 5 로 거절돼도 분석은 멈추지 않는다."""
+    from app.logic import store
+    monkeypatch.setattr(store, "REPLACE_WAIT", 0.0)
+    real = os.replace
+    calls = {"n": 0}
+
+    def flaky(a, b):
+        calls["n"] += 1
+        if calls["n"] <= 3:
+            raise PermissionError(5, "Access is denied")
+        return real(a, b)
+
+    monkeypatch.setattr(store.os, "replace", flaky)
+    store.write_status(tmp_path, {"state": "running", "done": 1})
+    assert store.read_status(tmp_path)["done"] == 1
+    assert not list(tmp_path.glob("*.tmp*"))
+
+    def always(a, b):
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr(store.os, "replace", always)
+    store.write_status(tmp_path, {"state": "running", "done": 2})     # 예외 없이 — 자리에 바로 쓴다
+    assert store.read_status(tmp_path)["done"] == 2
+    assert not list(tmp_path.glob("*.tmp*"))
+    (tmp_path / "status.json").write_text("{깨진", encoding="utf-8")
+    assert store.read_status(tmp_path)["done"] == 2                 # 반쯤 쓴 글이면 직전 상태

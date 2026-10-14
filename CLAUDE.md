@@ -5625,3 +5625,12 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * **뒤이은 사용자 정정**: *팝업이 아니라 "다른 페이지에서 내가 뭘 켰더라?" 를 확인하는 자리다 · 내가 준 신호를 누르면 그 페이지로 · 오른쪽을 눌러 끌 수 있게.*
   → 머리 `시뮬레이션 현황 — 내가 켠 것` · 내가 준 신호마다 오른쪽 `끄기`(`unforce` — 그 시트로 가지 않고 그 강제만 풀고 다시 돈다) ·
   항목을 누르면 그 시트 그 행.  실측: G055 에서 준 신호를 G024 를 보면서 끄고, 항목을 눌러 G055 33행으로 이동 · 화면 오류 0.
+
+### L20회차 — 새 프로젝트 Logic 분석이 WinError 5 로 멈추던 것 (2026-10-14)
+
+* 현장(회사 PC · `19VA-00GEN00-J09-0001_R1_Control Logic & Loop Diagram.pdf`): *분석 중 오류: [WinError 5] 액세스가 거부되었습니다:
+  '…\logic\<job>\status.json.tmp41896' -> '…\status.json'*.  도면 문제가 아니다 — 분석 프로세스가 진행을 쓰는 순간 서버(화면이 진행을 묻는다)나
+  백신이 그 파일을 열고 있으면 Windows 의 `os.replace` 가 거절된다.  P&ID 쪽은 hotfix74 `jsonstore` 가 이미 다시 시도하고 있었고 LOGIC `store._atomic` 만 맨손이었다.
+* `store._replace` — PermissionError 면 0.05초부터 늘려 12번 다시 (result.json · 장 그림 캐시도 같은 길).  `write_status` 는 끝내 막히면 그 자리에 바로 쓰고
+  그것도 안 되면 그 한 줄만 건너뛴다 — **진행 표시가 분석을 멈추지 않는다**.  `read_status` 는 잠겼거나 반쯤 쓴 글이면 직전 상태를 돌려준다.  남은 임시 파일 0.
+* 시험 36건 (`test_status_write_survives_windows_lock`).  ⚠ Windows 에서는 못 돌렸다 — 흉내(PermissionError 주입)로만.  회사 PC 는 업데이트 뒤 **다시 분석**.
