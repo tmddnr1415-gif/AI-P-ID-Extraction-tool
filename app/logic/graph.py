@@ -170,6 +170,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         cells = sorted(((r.x0, r.y0, r.x1, r.y1) for r in g), key=lambda c: (round(c[1], 1), c[0]))
         blocks.append(Block(nid(), "RECT", bb, cells=cells))
         blocks[-1].rounded = any(getattr(r, "rounded", False) for r in g)
+        blocks[-1].round_side = "".join(sorted({c for r in g for c in getattr(r, "round_side", "")}))
 
     # 입력 막대에 붙은 ㄷ자 꺾은선 = 막대와 함께 닫힌 상자 (상자를 qu 대신 선으로 그린 AND 게이트)
     straight = [p for p in wires if len(p.segs) == 1 and (p.segs[0].vert or p.segs[0].horiz)]
@@ -311,6 +312,33 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 glyphs = [p for p in glyphs if id(p) not in drop]
         b.circle = c
         blocks.append(b)
+
+    # ---- L23b 삼각형 게이트 (ANSI 의 ▷ · ▷○) — 축에 선 밑변 하나 + 오른쪽 꼭지로 모이는 사선 둘, 닫힌 세 변.
+    # 꼭지에 붙은 속 빈 작은 원은 부정 표시다.  상자처럼 다룬다 (밑변 = 입력 변 L · 꼭지(원) = 출력 변 R).
+    for p in list(wires + glyphs):
+        tb = _triangle(p, P)
+        if tb is None:
+            continue
+        bb, apex = tb
+        if any(_in_rect(((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2), bl.bbox, 0) for bl in blocks):
+            continue                    # 상자 안의 그림(글자 · 범례 그림)
+        neg = None
+        for c in dots:
+            if abs(_d((c.cx, c.cy), apex) - c.r) <= max(tol, c.r) and c.cx > apex[0]:
+                neg = c
+                break
+        if neg is not None:
+            dots.remove(neg)
+            bb = (bb[0], bb[1], neg.cx + neg.r, bb[3])
+        b = Block(nid(), "RECT", bb, cells=[bb])
+        b.tri = True
+        if neg is not None:
+            b.neg = {"R"}
+        blocks.append(b)
+        if p in wires:
+            wires.remove(p)
+        else:
+            glyphs.remove(p)
 
     # 블록 사이를 잇는 짧은 토막 — 글자 크기라도 두 끝이 다 블록 · 화살촉 · 선에 닿으면 선이다
     wire_segs0 = [sg for p in wires for sg in p.segs]
@@ -588,6 +616,18 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                     break
             if id(c) in pin_dot:
                 break
+    # L23b — 상자 변 **바깥**에 붙은 작은 원 = 부정 표시(IEC · ANSI 의 bubble).  단자 원(L13)은 변 위에 중심이 있다.
+    for c in dots:
+        pd = pin_dot.get(id(c))
+        if pd is None:
+            continue
+        b_, ci_, side_ = pd
+        cell_ = b_.cells[ci_]
+        out_by = (c.cx - cell_[2]) if side_ == "R" else (cell_[0] - c.cx)
+        if out_by >= 0.5 * c.r:
+            neg = getattr(b_, "neg", None) or set()
+            neg.add(side_)
+            b_.neg = neg
     pin_ports = []
     for i, (s, p) in enumerate(segs):
         for e in s.ends():
@@ -732,6 +772,8 @@ def _shape_of(b, glyphs, tol):
         return ""
     if bar:
         return "BAR_BOX"
+    if getattr(b, "tri", False):
+        return "TRIANGLE"
     if getattr(b, "rounded", False):
         return "ROUND_BOX"
     x0, y0, x1, y1 = b.bbox
@@ -848,6 +890,7 @@ def _assemble_rects(polys, rects, P, tol):
             continue
         rr = geom.Rect(*bb)
         rr.rounded = rounded
+        rr.round_side = ("L" if sides[0][4] != sides[0][2] else "") + ("R" if sides[1][4] != sides[1][2] else "")
         out.append(rr)
         have.append(bb)
         edge.update((i, k))
@@ -1085,6 +1128,9 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
                     return "port", (b, d, side, ci, e, None)
         else:
             c = b.circle
+            # L23b — 원 안쪽 왼쪽 절반에서 끝나는 선 = 그 원의 입력 (ANSI OR 은 오목한 등 안쪽까지 선을 긋는다)
+            if b.kind == "CIRCLE" and _d(e, (c.cx, c.cy)) < c.r - tol * 2 and e[0] < c.cx - 0.3 * c.r:
+                return "port", (b, "in", "", 0, e, None)
             if abs(_d(e, (c.cx, c.cy)) - c.r) <= tol * 2:
                 # 꼭지 있는 연결 기호의 몸통 = 들어감 · 꼭지 없는 원은 넷 안에서 정한다 (다른 몰이가 있으면 들어감)
                 d = "in" if b.kind == "CONNECTOR" else "?"
@@ -1095,6 +1141,37 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
     if abs(e[0] - LX1) <= tol * 3:
         return "row", ("R", _row_at(lay.right_rows, e[1]))
     return None
+
+
+def _triangle(p, P):
+    """닫힌 세 변 삼각형 — 세로 밑변 하나(왼쪽) + 오른쪽 꼭지로 모이는 사선 둘 → (bbox, 꼭지) | None.
+    크기는 한 행 높이 ~ 3P (선 끝 화살촉보다 크다)."""
+    segs = [sg for sg in p.segs if sg.length > 0]
+    if len(segs) != 3:
+        return None
+    cnt = defaultdict(int)
+    for sg in segs:
+        for q in sg.ends():
+            cnt[(round(q[0], 1), round(q[1], 1))] += 1
+    if len(cnt) != 3 or any(v != 2 for v in cnt.values()):
+        return None
+    vert = [sg for sg in segs if sg.vert]
+    diag = [sg for sg in segs if not (sg.vert or sg.horiz)]
+    if len(vert) != 1 or len(diag) != 2:
+        return None
+    base = vert[0]
+    apex = next((q for q in cnt if abs(q[0] - base.x0) > 0.5), None)
+    if apex is None:
+        return None
+    h = base.length
+    w = apex[0] - base.x0
+    # 게이트 삼각형은 한 행 높이 이상이고 납작하지 않다 — 선 끝의 속 빈 화살촉(19VA · 높이 7 · 폭 3.5)은 아니다
+    if not (P <= h <= 3 * P and 0.6 * h <= w <= 2 * h):
+        return None
+    ya, yb = sorted((base.y0, base.y1))
+    if not (ya + 0.3 * h <= apex[1] <= yb - 0.3 * h):
+        return None
+    return (base.x0, ya, apex[0], yb), apex
 
 
 def _row_at(rows, y):

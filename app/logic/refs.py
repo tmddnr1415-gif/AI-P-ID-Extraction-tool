@@ -22,11 +22,11 @@ REF_ANY = re.compile(rf"(?<![A-Z_])({SHEET})-(\d{{1,3}})(?!\d)")
 TO_ANY = re.compile(r"(?<![A-Z_])((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]+\d+[A-Z]?)-(\d+)(?!\d)")
 _SERIES = re.compile(r"([A-Z])\d{3}[A-Z]?$")
 
-# 일반 꼴 (L23): 시트 = 숫자가 든 덩어리(밑줄 · 안쪽 `-` 허용) · 구분 `-` 또는 `/` · 행 = 끝 숫자 1~3자리.
-# 행 뒤에 `-숫자`/`/숫자` 가 이어지면 그것까지 시트다 (`FG_G-301-64` → 시트 FG_G-301 · 행 64).
-_GSHEET = r"(?=[A-Z0-9_\-]*\d)[A-Z0-9][A-Z0-9_]+(?:-[A-Z0-9_]+)*?"
-GEN_ANY = re.compile(rf"(?<![A-Z0-9_/\-])({_GSHEET})[-/](\d{{1,3}})(?![\dA-Z_]|[-/][A-Z0-9])")
-GEN_FULL = re.compile(rf"({_GSHEET})[-/](\d{{1,3}})")
+# 일반 꼴 (L23 · L23b): 시트 = 숫자가 든 덩어리(밑줄 · 안쪽 `-`/`.` 허용) · 구분 `-` `/` `.` `:` · 행 = 끝 숫자 1~3자리.
+# 행 뒤에 구분+글자/숫자가 이어지면 그것까지 시트다 (`FG_G-301-64` → 시트 FG_G-301 · 행 64 · `LD.01.001-51`).
+_GSHEET = r"(?=[A-Z0-9_\-.]*\d)[A-Z0-9][A-Z0-9_]+(?:[-.][A-Z0-9_]+)*?"
+GEN_ANY = re.compile(rf"(?<![A-Z0-9_/\-.:])({_GSHEET})([-/.:])(\d{{1,3}})(?![\dA-Z_]|[-/.:][A-Z0-9])")
+GEN_FULL = re.compile(rf"({_GSHEET})([-/.:])(\d{{1,3}})")
 
 
 _OLD_SHAPE = re.compile(r"(?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]+\d+[A-Z]?")
@@ -34,34 +34,68 @@ _OLD_SHAPE = re.compile(r"(?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]+\d+[A-Z]?")
 
 def _gen_ok(m):
     """일반 꼴이 옛 꼴의 땅을 넘보지 않는다 — `글자+숫자-행` 은 옛 꼴이 정하는 자리다 (`G54-85` 는 `G054-85` 를 잘못 읽은 것 ·
-    HRSG 불변).  일반 꼴이 더하는 것은 `/` 구분 · 숫자로 시작하는 시트 · 안에 `-` 가 든 시트뿐이다."""
-    sep = m.string[m.end(1)]
-    return not (sep == "-" and _OLD_SHAPE.fullmatch(m.group(1)))
+    HRSG 불변).  `.` · `:` 구분은 시트에 글자가 있을 때만 (`10.5 SEC` 같은 숫자를 참조로 읽지 않는다)."""
+    sh, sep = m.group(1), m.group(2)
+    if sep == "-" and _OLD_SHAPE.fullmatch(sh):
+        return False
+    if sep in ".:" and not re.search(r"[A-Z]", sh):
+        return False
+    return True
 
 
 def _gen_text(text):
-    """구분 기호 둘레의 빈칸만 지운다 — 낱말 사이 빈칸은 참조 목록의 경계다 (`0016/72 0016/77`)."""
-    return re.sub(r"\s*([-/])\s*", r"\1", (text or "").upper().strip())
+    """구분 기호 둘레의 빈칸만 지운다 — 낱말 사이 빈칸은 참조 목록의 경계다 (`0016/72 0016/77`).
+    괄호는 벗기고, `SH.` `SHT` `SHEET` 머리말과 행 앞의 `NO.` `ROW` `LINE` 은 구분 기호로 읽는다 (`SH.AB-101 NO.51`)."""
+    t = (text or "").upper().strip()
+    t = re.sub(r"[()\[\]{}<>]", " ", t)
+    t = re.sub(r"(?<![A-Z0-9])(?:SHEET|SHT|SH)\.?\s*(?=[A-Z0-9])", " ", t)
+    t = re.sub(r"\s*(?<![A-Z0-9])(?:NO|ROW|LINE)\.?\s*(?=\d)", "-", t)
+    return re.sub(r"\s*([-/:])\s*", r"\1", t).strip()
 
 
-def find(text, wide=False):
-    """글 안의 시트-행 참조 [(시트, 행)].  옛 꼴이 하나라도 맞으면 옛 꼴 그대로 (HRSG · 19VA 불변)."""
+def _known(text, known):
+    """그 묶음이 가진 시트 이름이 글에 그대로 있고 뒤에 행 번호가 붙은 것 — 꼴을 몰라도 읽는다."""
+    if not known:
+        return []
+    t = _gen_text(text)
+    out = []
+    taken = []
+    for no in sorted({k.upper() for k in known if k}, key=len, reverse=True):
+        for m in re.finditer(rf"(?<![A-Z0-9_]){re.escape(no)}\s*(?:[-/.:#]|\s)\s*(\d{{1,3}})(?!\d)", t):
+            if any(a <= m.start() < b for a, b in taken):
+                continue
+            taken.append((m.start(), m.end()))
+            out.append((m.start(), no, int(m.group(1))))
+    return [(a, b) for _, a, b in sorted(out)]
+
+
+def find(text, wide=False, known=None):
+    """글 안의 시트-행 참조 [(시트, 행)].  옛 꼴이 하나라도 맞으면 옛 꼴 그대로 (HRSG · 19VA 불변).
+    다음은 그 묶음의 시트 이름(known)으로, 그다음 일반 꼴로."""
     old = TO_ANY if wide else REF_ANY
-    got = [(m.group(1), int(m.group(2))) for m in old.finditer((text or "").replace(" ", ""))]
+    got = [(m.group(1), int(m.group(2))) for m in old.finditer((text or "").upper().replace(" ", ""))]
     if got:
         return got
-    return [(m.group(1), int(m.group(2))) for m in GEN_ANY.finditer(_gen_text(text)) if _gen_ok(m)]
+    kn = _known(text, known)
+    if kn:
+        return kn
+    return [(m.group(1), int(m.group(3))) for m in GEN_ANY.finditer(_gen_text(text)) if _gen_ok(m)]
 
 
-def full(text):
+def full(text, known=None):
     """칸 전체가 참조 하나면 (시트, 행) — 아니면 None (`HMI` · `FROM DRIVE` · `THIS SHEET. 100`)."""
-    s = (text or "").replace(" ", "")
+    s = (text or "").upper().replace(" ", "")
     m = REF_ANY.fullmatch(s)
     if m:
         return m.group(1), int(m.group(2))
-    m = GEN_FULL.fullmatch(_gen_text(text))
+    g = _gen_text(text)
+    kn = _known(text, known)
+    if len(kn) == 1 and re.fullmatch(rf"{re.escape(kn[0][0])}\s*(?:[-/.:#]|\s)\s*{kn[0][1]:d}|"
+                                    rf"{re.escape(kn[0][0])}\s*(?:[-/.:#]|\s)\s*0*{kn[0][1]}", g):
+        return kn[0]
+    m = GEN_FULL.fullmatch(g)
     if m and _gen_ok(m):
-        return m.group(1), int(m.group(2))
+        return m.group(1), int(m.group(3))
     return None
 
 

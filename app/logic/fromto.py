@@ -26,8 +26,8 @@ def _norm(t):
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
-def _refs(text):
-    return RF.find(text)
+def _refs(text, known=None):
+    return RF.find(text, known=known)
 
 
 def _owner(table_r, k):
@@ -102,8 +102,8 @@ def check(sheets):
         for r in s["rows"]:
             if r["side"] != "L":
                 continue
-            refs = _refs(r.get("fm"))
-            if len(refs) != 1 or refs[0][0] == "" or not RF.full(r.get("fm")):
+            refs = _refs(r.get("fm"), by_no)
+            if len(refs) != 1 or refs[0][0] == "" or not RF.full(r.get("fm"), by_no):
                 r.pop("ref", None)
                 continue
             src, k = refs[0]
@@ -122,7 +122,7 @@ def check(sheets):
                 add(s, r["n"], "L", False, [f"{src} {k}행에 출력 신호가 없습니다"], f"{src}-{k}")
                 continue
             r["ref"]["src_row"] = own
-            to_refs = [x for x in _refs(tr[k].get("to")) if bundle.mine(x[0])]
+            to_refs = [x for x in _refs(tr[k].get("to"), by_no) if bundle.mine(x[0])]
             recip = None
             if to_refs:
                 recip = (me, r["n"]) in to_refs
@@ -150,7 +150,7 @@ def check(sheets):
             if not row.get("desc"):
                 continue
             run = _run(tr, own)
-            targets = [x for j in run for x in _refs(tr[j].get("to")) if bundle.mine(x[0])]
+            targets = [x for j in run for x in _refs(tr[j].get("to"), by_no) if bundle.mine(x[0])]
             if not targets:
                 continue
             whys = []
@@ -161,10 +161,10 @@ def check(sheets):
                     continue
                 lr = tab[t["page"]]["L"].get(n)
                 fm = (lr or {}).get("fm") or ""
-                back = _refs(fm)
+                back = _refs(fm, by_no)
                 if not lr or not fm:
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 칸이 비어 있습니다")
-                elif not RF.full(fm):
+                elif not RF.full(fm, by_no):
                     continue                      # 꼴이 아닌 FM (못 읽은 글자) — 확인 못 함
                 elif not (back[0][0] == me and back[0][1] in run):
                     whys.append(f"TO {sh}-{n} — 그 행의 FM 은 {fm} 를 가리킵니다")

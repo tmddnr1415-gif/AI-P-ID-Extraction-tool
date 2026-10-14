@@ -340,19 +340,52 @@ def _title_words(page):
 
 
 def _under_sheet_caption(words, W, H):
-    """타이틀블록 캡션 `SHEET` 바로 아래 칸의 값 (L23 — 1A5J `FG_G-101` 처럼 시트 이름이 정해진 꼴이 아닌 양식).
-
-    시트 이름의 **모양**을 외워두지 않고 양식이 인쇄한 캡션 자리를 읽는다.  값 = 캡션과 가로로 겹치고 캡션 바로
-    아래(캡션 높이 3배 안)에 있는 가장 가까운 낱말.  앞의 두 꼴(글자+숫자 셋 · 숫자 넷)이 못 찾았을 때만 부른다."""
-    caps = [w for w in words if w[4].rstrip(".:").upper() == "SHEET" and w[1] > 0.85 * H]
-    out = []
-    for c in caps:
-        h = c[3] - c[1]
-        below = [w for w in words if w is not c and w[2] > c[0] - h and w[0] < c[2] + h
-                 and c[3] - 0.2 * h <= w[1] <= c[3] + 3 * h and any(ch.isdigit() for ch in w[4])]
-        if below:
-            out.append(min(below, key=lambda w: w[1] - c[3]))
-    return out
+    """타이틀블록 캡션(`SHEET` · `SHEET NO.` · `PAGE` · `DWG. NO.` … config `sheet_captions`) 바로 아래 · 오른쪽 칸의 값
+    (L23 · L23b — 시트 이름이 정해진 꼴이 아닌 양식).  시트 이름의 **모양**을 외워두지 않고 양식이 인쇄한 캡션 자리를 읽는다.
+    캡션은 config 순서대로 — 먼저 찾은 캡션의 값을 쓴다.  앞의 두 꼴(글자+숫자 셋 · 숫자 넷)이 못 찾았을 때만 부른다."""
+    from .blocks import vocab
+    caps_cfg = vocab().get("sheet_captions") or ["SHEET"]
+    low = sorted((w for w in words if w[1] > 0.8 * H), key=lambda w: (round((w[1] + w[3]) / 2), w[0]))
+    norm = lambda t: re.sub(r"[^A-Z0-9]", "", t.upper())
+    for cap in caps_cfg:
+        toks = [norm(t) for t in cap.split() if norm(t)]
+        found = []
+        for i, w in enumerate(low):
+            if norm(w[4]) != toks[0]:
+                continue
+            seq = [w]
+            cy, h = (w[1] + w[3]) / 2, w[3] - w[1]
+            rest = [x for x in low if x is not w and abs((x[1] + x[3]) / 2 - cy) <= 0.5 * h and x[0] >= w[2] - 0.5]
+            rest.sort(key=lambda x: x[0])
+            ok = True
+            for t in toks[1:]:
+                nxt = rest[0] if rest else None
+                if nxt is None or norm(nxt[4]) != t or nxt[0] - seq[-1][2] > 2 * h:
+                    ok = False
+                    break
+                seq.append(nxt)
+                rest = rest[1:]
+            if not ok:
+                continue
+            # 캡션 다음 낱말이 또 글자면(PROJECT DWG NO. 의 PROJECT 처럼 앞에 다른 낱말) 그 캡션이 아니다 — 앞 낱말 검사
+            before = [x for x in low if abs((x[1] + x[3]) / 2 - cy) <= 0.5 * h and x[2] <= w[0] + 0.5 and w[0] - x[2] < 1.5 * h]
+            if before:
+                continue
+            found.append((seq, h))
+        out = []
+        for seq, h in found:
+            x0, x1, y1 = seq[0][0], seq[-1][2], max(x[3] for x in seq)
+            below = [x for x in words if x not in seq and x[2] > x0 - h and x[0] < x1 + h
+                     and y1 - 0.2 * h <= x[1] <= y1 + 3 * h and any(ch.isdigit() for ch in x[4])]
+            right = [x for x in words if x not in seq and abs((x[1] + x[3]) / 2 - (seq[0][1] + seq[0][3]) / 2) <= 0.5 * h
+                     and 0 <= x[0] - x1 <= 6 * h and any(ch.isdigit() for ch in x[4])]
+            if below:
+                out.append(min(below, key=lambda x: x[1] - y1))
+            elif right:
+                out.append(min(right, key=lambda x: x[0] - x1))
+        if out:
+            return out
+    return []
 
 
 def _title_lines(page):

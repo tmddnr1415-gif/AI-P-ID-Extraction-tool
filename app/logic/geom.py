@@ -105,12 +105,34 @@ class Prims:
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
 
 
-def _ink(c):
-    """잉크(검정·회색)만 — 빨강 개정 클라우드는 도면의 표시가 아니다 (P&ID 엔진과 같은 생각)."""
+def _ink(c, inks=()):
+    """잉크(검정·회색)만 — 빨강 개정 클라우드는 도면의 표시가 아니다 (P&ID 엔진과 같은 생각).
+    L23b — 그 장이 선을 **그 색으로 그린** 양식(파랑 신호선 등)이면 그 색도 잉크다 (`_page_inks`)."""
     if c is None:
         return True
     r, g, b = c[:3]
-    return abs(r - g) < 0.15 and abs(g - b) < 0.15
+    return (abs(r - g) < 0.15 and abs(g - b) < 0.15) or _ckey(c) in inks
+
+
+def _ckey(c):
+    return tuple(round(v, 2) for v in c[:3])
+
+
+def _page_inks(drawings):
+    """그 장에서 곧은 선을 많이 그린 회색 아닌 색 — 곧은 선만으로 된 path 의 2할 이상이고 20개 이상.
+    개정 표시(빨간 구름 · 삼각형)는 곡선이거나 몇 개뿐이다 (네 묶음 실측: 장당 곧은 빨간 선 0~5)."""
+    cnt = {}
+    total = 0
+    for d in drawings:
+        c = d.get("color")
+        items = d.get("items") or []
+        if not items or "s" not in (d.get("type") or "") or any(it[0] != "l" for it in items):
+            continue
+        total += 1
+        if c is not None and not (abs(c[0] - c[1]) < 0.15 and abs(c[1] - c[2]) < 0.15):
+            k = _ckey(c)
+            cnt[k] = cnt.get(k, 0) + 1
+    return {k for k, n in cnt.items() if n >= 20 and n >= 0.2 * total}
 
 
 def _pt(p, m):
@@ -179,14 +201,16 @@ def read(page, pno: int) -> Prims:
     pid = 0
     arcs = []
     tris = []
-    for d in page.get_drawings():
+    drawings = page.get_drawings()
+    inks = _page_inks(drawings)
+    for d in drawings:
         items = d.get("items") or []
         if not items:
             continue
         typ = d.get("type") or ""
-        if "f" in typ and not _ink(d.get("fill")):
+        if "f" in typ and not _ink(d.get("fill"), inks):
             continue
-        if "s" in typ and not _ink(d.get("color")):
+        if "s" in typ and not _ink(d.get("color"), inks):
             continue
         kinds = [it[0] for it in items]
         if d.get("fill") is not None and (d.get("width") or 0) == 0:

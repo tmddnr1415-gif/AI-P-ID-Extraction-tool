@@ -680,7 +680,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
     for s in sheets:
         for owner, tos in _to_runs(s).items():
             for _, text in tos:
-              for sh, rn in _RF.find(text, wide=True):
+              for sh, rn in _RF.find(text, wide=True, known=by_no):
                 t = by_no.get(sh)
                 if not t or not any(x["n"] == int(rn) and x["side"] == "L" for x in t["rows"]):
                     continue
@@ -997,7 +997,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
                 continue
             od = next((r.get("desc") for r in s["rows"] if r["side"] == "R" and r["n"] == owner), "")
             for at, text in tos:
-                for sh, rn in _RF.find(text, wide=True):
+                for sh, rn in _RF.find(text, wide=True, known=by_no):
                     rn = int(rn)
                     base = {"page": page, "sheet_no": me, "row": owner, "at_row": at, "to": f"{sh}-{rn}",
                             "target_sheet": sh, "target_row": rn, "desc": od}
@@ -1023,7 +1023,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
                         add({**base, "kind": "error", "why": f"TO {sh}-{rn} — 그 행에 FM 이 없습니다 (어디서 오는지 적혀 있지 않음)"})
                         continue
                     # FM 이 이 신호(주인 행 또는 그 아래로 이어진 TO 줄)를 가리키는가
-                    back = [(a, int(b)) for a, b in _RF.find(fm, wide=True)]
+                    back = [(a, int(b)) for a, b in _RF.find(fm, wide=True, known=by_no)]
                     mine = {(me, n) for n, _ in tos} | {(me, owner)}
                     if not any(x in mine for x in back):
                         add({**base, "kind": "error",
@@ -1044,7 +1044,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
-                   for a, b in _RF.find(text, wide=True) if bundle.mine(a)]
+                   for a, b in _RF.find(text, wide=True, known=by_no) if bundle.mine(a)]
             if tos and (me, r["n"]) not in tos:
                 src = by_page[sp].get("sheet_no") or ""
                 add({"page": sp, "sheet_no": src, "row": own, "at_row": own, "to": f"{me}-{r['n']}",

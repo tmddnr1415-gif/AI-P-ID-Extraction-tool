@@ -54,11 +54,21 @@ def analyse(pdf_path, progress=None):
         say("blocks", pno, len(doc))
         B.classify(sh, D)
         sheet_no, sub = glyphs._title_words(doc[pno - 1])
+        sheet_no = (sheet_no or "").upper()                  # 소문자로 인쇄한 양식도 같은 이름 (L23b)
         rows = _rows(sh, D)
+        _printed_numbers(sh, rows)
         timers = _timer_params(sh, D)
         out_sheets.append(_export(sh, pno, sheet_no, " ".join(sub), rows, timers))
         if not sub:
             out_sheets[-1]["_title_lines"] = glyphs._title_lines(doc[pno - 1])
+    # 세 장 이상이 같은 '시트 이름' 이면 그것은 시트 이름이 아니라 문서 번호다 (DWG. NO. 칸이 장마다 같은 양식 · L23b)
+    seen = defaultdict(int)
+    for s_ in out_sheets:
+        if s_["sheet_no"]:
+            seen[s_["sheet_no"]] += 1
+    for s_ in out_sheets:
+        if seen.get(s_["sheet_no"], 0) >= 3:
+            s_["sheet_no"] = ""
     _titles_from_lines(out_sheets)
     _cross_refs(out_sheets)
     for s in out_sheets:
@@ -81,9 +91,20 @@ def analyse(pdf_path, progress=None):
                                "symbols": len(lib_leg["map"]) + len(lib_leg["names"]), "typicals": len(lib["typicals"])}},
         "library_sheets": lib_sheets or [],
         "seconds": round(time.time() - t0, 1),
-        "note": "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
+        "note": _no_text_note(doc, out_sheets) +
+                "글자는 묶음 안의 짝(표의 행 번호 · 도면 목록 ↔ 타이틀블록)으로 배운 사전으로 읽었습니다. "
                 "블록 종류는 범례 G003 어휘에 맞대 골랐고, 맞는 낱말이 없으면 UNKNOWN 으로 남겼습니다.",
     }
+
+
+def _no_text_note(doc, sheets):
+    """L23b — 글자 층이 한 장에도 없고 시트 이름도 하나 못 읽었으면 먼저 그렇게 말한다 (FM/TO · 시트 사이 연결이 빈 이유)."""
+    if any(s.get("sheet_no") for s in sheets):
+        return ""
+    if any(pg.get_text("text").strip() for pg in doc):
+        return ""
+    return ("⚠ 이 PDF 에는 글자 층이 없습니다 (글자를 그림이나 선으로 내보냈습니다) — 시트 이름 · FM/TO 를 읽지 못해 "
+            "시트 사이 연결은 되지 않습니다.  선 · 게이트는 읽었습니다.  CAD 에서 글자를 TrueType 으로 다시 내보내면 됩니다.  ")
 
 
 def _modal_pitch(sheets):
@@ -211,6 +232,25 @@ def _rows(sh, D):
                 r["to"] = c[k_no + 1] if k_no is not None and k_no + 1 < ncell else ""
             del r["cells"]
     return out
+
+
+def _printed_numbers(sh, rows):
+    """NO. 칸에 인쇄된 번호가 센 순서와 **한결같이** 어긋나면(0 부터 · 앞 장에 이어 101 부터) 인쇄된 번호를 쓴다 (L23b).
+    FM · TO 는 인쇄된 번호를 가리키기 때문이다.  쪽마다 · 쪽(왼쪽/오른쪽)마다, 읽힌 번호의 8할 이상이 같은 차이일 때만."""
+    for side in ("L", "R"):
+        diffs = [int(r["no_read"]) - r["n"] for r in rows
+                 if r["side"] == side and re.fullmatch(r"\d{1,4}", (r.get("no_read") or "").strip())]
+        if len(diffs) < 5:
+            continue
+        c = max(set(diffs), key=diffs.count)
+        if c == 0 or diffs.count(c) < 0.8 * len(diffs):
+            continue
+        for r in rows:
+            if r["side"] == side:
+                r["n"] += c
+        for r in sh.rows:
+            if r["side"] == side:
+                r["n"] += c
 
 
 def _header_roles(sh, xs, top, pitch):
@@ -461,7 +501,7 @@ def _cross_refs(sheets):
         for r in s["rows"]:
             if r["side"] != "L":
                 continue
-            m = RF.full(r.get("fm"))
+            m = RF.full(r.get("fm"), by_no)
             if not m:
                 continue
             sh, rn = m

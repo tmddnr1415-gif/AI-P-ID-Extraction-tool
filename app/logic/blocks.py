@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 from collections import defaultdict
+import math
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -287,6 +288,8 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
     블록 안에 진짜 글자도 모양도 없으면 False (예전 길 — 선 글자 사전).
     """
     from . import legend as LG
+    if _ansi(b, sheet):
+        return True
     if not leg:
         return False                  # 범례 표가 없는 묶음(HRSG — 선 글자)은 예전 길 그대로
     texts = LG.block_text(b, sheet.words)
@@ -300,6 +303,8 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
             return False
     if not any(texts) and not shape and not leg.get("figures"):
         return False
+    if any(texts) and _iec(b, sheet, texts):
+        return True
     up = [t.replace(" ", "") for t in texts]
     memory = b.kind == "RECT" and len(b.cells) == 2 and up[0] in mem_set and up[1] in mem_reset
     if b.kind == "RECT" and len(b.cells) >= 2 and not memory and all(texts) and \
@@ -428,6 +433,97 @@ def _shape_fallback(sheet, leg):
                 b.score = m["score"]
 
 
+IEC_TIMERS = {"T0": ("GT", "delay_on"), "TON": ("GT", "delay_on"), "0T": ("DT", "delay_off"), "TOF": ("DT", "delay_off"),
+              "TP": ("PD", "pulse")}
+
+
+def _iec(b, sheet, texts):
+    """IEC 60617 이진 논리 기호의 한정 기호 (L23b) — 상자 안 글자가 `&` · `≥1` · `≥n` · `=1` · `1` · `T 0` · `0 T` · `TP`.
+    업계 표준 기호이고 프로젝트 값이 아니다.  들어오는 선이 있는 상자만 · 범례 표 · 학습 사전보다 먼저 보되 이 글자들은
+    범례 표의 기능 이름과 겹치지 않는다 (19VA 의 '1' 은 들어오는 선이 없는 ACTIVATION).  출력 쪽 부정 원(bubble)이 있으면
+    AND → NAND · OR → NOR · '1' → NOT.  '1' 에 부정이 없으면 신호를 그대로 넘기는 상자(buffer)라 이음점처럼 잇는다."""
+    if len([t for t in texts if t]) != 1:
+        return False
+    if not any(pt.block == b.id and pt.dir == "in" for pt in sheet.ports):
+        return False
+    t = re.sub(r"\s+", "", " ".join(t for t in texts if t)).upper().replace("≧", "≥").replace("=>", ">=")
+    neg = "R" in (getattr(b, "neg", None) or ())
+    n_in = len({pt.net for pt in sheet.ports if pt.block == b.id and pt.dir == "in"})
+    hit = None
+    if t == "&":
+        hit = ("NAND", "nand") if neg else ("AND", "and")
+    elif t in ("≥1", ">=1"):
+        hit = ("NOR", "nor") if neg else ("OR", "or")
+    elif re.fullmatch(r"(?:≥|>=)(\d+)", t):
+        k = int(re.sub(r"\D", "", t))
+        if 1 < k <= max(n_in, k):
+            b.func, b.logic, b.label = "VOTE", "vote", f"{k}/{n_in}"
+            b.param = {"a": k, "b": n_in}
+            b.score = 1.0
+            b.legend = {"name": "VOTE", "page": None, "basis": "IEC 60617 한정 기호"}
+            return True
+    elif t == "=1":
+        b.func, b.logic, b.label = "XOR", "unknown", "=1"
+        b.legend = {"name": "XOR", "page": None, "basis": "IEC 60617 한정 기호 — 배타적 OR 은 시뮬레이션하지 않습니다 (종류를 고르세요)"}
+        return True
+    elif t == "1":
+        if neg:
+            hit = ("NOT", "not")
+        else:
+            b.func, b.logic, b.label = "BUFFER", "pass", "1"
+            b.legend = {"name": "BUFFER", "page": None, "basis": "IEC 60617 한정 기호 — 신호를 그대로 넘긴다"}
+            return True
+    elif t in IEC_TIMERS:
+        hit = IEC_TIMERS[t]
+    if not hit:
+        return False
+    b.func, b.logic, b.label = hit[0], hit[1], " ".join(x for x in texts if x)
+    b.score = 1.0
+    b.legend = {"name": hit[0], "page": None, "basis": "IEC 60617 한정 기호"}
+    return True
+
+
+def _ansi(b, sheet):
+    """ANSI/IEEE Std 91 모양 게이트 (L23b) — 글자 없이 모양만으로 그린 것.  업계 표준 모양이고 프로젝트 값이 아니다.
+    ▷ (삼각형) = BUFFER · ▷○ = NOT · D 모양(오른쪽 = 출력 쪽이 둥근 상자 · 입력 둘 이상) = AND · 그 출력에 ○ = NAND ·
+    굽은 OR(원처럼 닫힌 곡선 무리 · 입력 둘 이상) = OR.  상자 안에 진짜 글자도 선 글자 획도 없을 때만 —
+    글자가 있으면 그 글자(범례 · 사전 · IEC)가 정한다 (19VA 의 ON DELAY 는 'ON' 이 든 둥근 상자다)."""
+    from . import legend as LG
+    shape = getattr(b, "shape", "")
+    if not (shape in ("TRIANGLE", "ROUND_BOX") or (b.kind == "CIRCLE" and not shape)):
+        return False
+    if any(LG.block_text(b, sheet.words)) or _text_strokes(b, sheet):
+        return False
+    ins = {pt.net for pt in sheet.ports if pt.block == b.id and pt.dir == "in"}
+    outs = {pt.net for pt in sheet.ports if pt.block == b.id and pt.dir == "out"}
+    if len(outs) != 1 or not ins:
+        return False
+    neg = "R" in (getattr(b, "neg", None) or ())
+    hit = None
+    if shape == "TRIANGLE" and len(ins) == 1:
+        if neg:
+            hit = ("NOT", "not")
+        else:
+            b.func, b.logic, b.label, b.score = "BUFFER", "pass", "", 1.0
+            b.legend = {"name": "BUFFER", "page": None, "basis": "ANSI 모양 — 신호를 그대로 넘긴다"}
+            return True
+    elif shape == "ROUND_BOX" and getattr(b, "round_side", "") == "R" and len(ins) >= 2:
+        hit = ("NAND", "nand") if neg else ("AND", "and")
+    elif b.kind == "CIRCLE" and len(ins) >= 2:
+        # 굽은 OR 은 입력선이 오목한 등 **안쪽**에서 끝난다 — 둘레에 닿기만 하는 원(선이 지나는 작은 원)은 아니다
+        x0, y0, x1, y1 = b.bbox
+        cx, cy, r = (x0 + x1) / 2, (y0 + y1) / 2, min(x1 - x0, y1 - y0) / 2
+        deep = {pt.net for pt in sheet.ports if pt.block == b.id and pt.dir == "in"
+                and math.hypot(pt.at[0] - cx, pt.at[1] - cy) < 0.85 * r and pt.at[0] < cx}
+        if len(deep) >= 2:
+            hit = ("OR", "or")
+    if not hit:
+        return False
+    b.func, b.logic, b.label, b.score = hit[0], hit[1], "", 1.0
+    b.legend = {"name": hit[0], "page": None, "basis": "ANSI 모양 게이트"}
+    return True
+
+
 def _stretch(pts):
     """16×16 그림 점들을 자기 둘레에 가로·세로 따로 맞춘다 (모양만 남기고 높이 비는 버린다)."""
     if not pts:
@@ -449,10 +545,12 @@ def _pass_points(sheet):
     words = sheet.words
     gl = {p.pid for p in sheet.glyph_polys}
     for b in list(sheet.blocks.values()):
-        if b.kind != "CIRCLE" or getattr(b, "func", "") != "UNKNOWN" or getattr(b, "glyphs", None):
-            continue
-        if any(b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3] for w in words):
-            continue
+        buffer = getattr(b, "logic", "") == "pass"            # IEC '1' 상자 (L23b) — 신호를 그대로 넘긴다
+        if not buffer:
+            if b.kind != "CIRCLE" or getattr(b, "func", "") != "UNKNOWN" or getattr(b, "glyphs", None):
+                continue
+            if any(b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3] for w in words):
+                continue
         ins = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "in"]
         outs = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "out"]
         if len({pt.net for pt in ins}) != 1 or not outs:

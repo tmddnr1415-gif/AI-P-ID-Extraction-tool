@@ -603,23 +603,52 @@ function drawOverlay() {
    표기는 표가 적은 그 칸 위에, 누르면 그 시트의 그 행으로 간다. */
 
 const REF_RE = /(?<![A-Z_])((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)/g;   // app/logic/refs.py 와 같은 꼴 (L21)
-// L23 — 일반 꼴 `<시트>[-/]<행>` (1A5J `0016/72` · `FG_G-301-64` · 1A1Y `HR_G908/75`).  refs.py 의 GEN_ANY · _gen_ok 와 같다.
-const REF_GEN = /(?<![A-Z0-9_\/\-])((?=[A-Z0-9_\-]*\d)[A-Z0-9][A-Z0-9_]+(?:-[A-Z0-9_]+)*?)([-\/])(\d{1,3})(?![\dA-Z_]|[-\/][A-Z0-9])/g;
+// L23 · L23b — 일반 꼴 `<시트>[-/.:]<행>` (1A5J `0016/72` · `FG_G-301-64` · 1A1Y `HR_G908/75` · `LD.01.001-51`).
+// app/logic/refs.py 의 GEN_ANY · _gen_ok · _gen_text · _known 과 같다 — 옛 꼴 → 이 묶음의 시트 이름 → 일반 꼴 순.
+const REF_GEN = /(?<![A-Z0-9_\/\-.:])((?=[A-Z0-9_\-.]*\d)[A-Z0-9][A-Z0-9_]+(?:[-.][A-Z0-9_]+)*?)([-\/.:])(\d{1,3})(?![\dA-Z_]|[-\/.:][A-Z0-9])/g;
 const REF_OLD_SHAPE = /^(?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]+\d+[A-Z]?$/;
+function refGenText(text) {
+  let t = String(text || "").toUpperCase().trim();
+  t = t.replace(/[()\[\]{}<>]/g, " ");
+  t = t.replace(/(?<![A-Z0-9])(?:SHEET|SHT|SH)\.?\s*(?=[A-Z0-9])/g, " ");
+  t = t.replace(/\s*(?<![A-Z0-9])(?:NO|ROW|LINE)\.?\s*(?=\d)/g, "-");
+  return t.replace(/\s*([-\/:])\s*/g, "$1").trim();
+}
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function refKnown(text) {
+  const known = [...new Set(((typeof L !== "undefined" && L.sheets) || []).map((x) => String(x.sheet_no || "").toUpperCase()).filter(Boolean))]
+    .sort((a, b) => b.length - a.length);
+  if (!known.length) return [];
+  const t = refGenText(text);
+  const out = [], taken = [];
+  for (const no of known) {
+    const re = new RegExp(`(?<![A-Z0-9_])${reEsc(no)}\\s*(?:[-/.:#]|\\s)\\s*(\\d{1,3})(?!\\d)`, "g");
+    for (const m of t.matchAll(re)) {
+      if (taken.some(([a, b]) => a <= m.index && m.index < b)) continue;
+      taken.push([m.index, m.index + m[0].length]);
+      out.push({ at: m.index, sheet: no, row: Number(m[1]), text: m[0] });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
 function refMatches(text) {
   const raw = String(text || "");
-  const old = [...raw.replace(/\s+/g, "").matchAll(REF_RE)];
-  if (old.length) return old.map((m) => ({ sheet: m[1], row: Number(m[2]), text: m[0] }));
-  const g = raw.toUpperCase().trim().replace(/\s*([-\/])\s*/g, "$1");
-  return [...g.matchAll(REF_GEN)].filter((m) => !(m[2] === "-" && REF_OLD_SHAPE.test(m[1])))
+  const old = [...raw.toUpperCase().replace(/\s+/g, "").matchAll(REF_RE)];
+  if (old.length) return old.map((m) => ({ sheet: m[1], row: Number(m[2]), text: m[0], old: true }));
+  const kn = refKnown(text);
+  if (kn.length) return kn;
+  const g = refGenText(raw);
+  return [...g.matchAll(REF_GEN)]
+    .filter((m) => !(m[2] === "-" && REF_OLD_SHAPE.test(m[1])) && !(".:".includes(m[2]) && !/[A-Z]/.test(m[1])))
     .map((m) => ({ sheet: m[1], row: Number(m[3]), text: m[0] }));
 }
 function refsIn(text) {
   return refMatches(text).map((x) => ({ sheet: x.sheet, row: x.row }));
 }
 function refRest(text) {
-  let t = String(text || "").toUpperCase().replace(/\s*([-\/])\s*/g, "$1");
-  for (const x of refMatches(text)) t = t.replace(x.text, " ");
+  const ms = refMatches(text);
+  let t = ms.length && ms[0].old ? String(text || "").toUpperCase().replace(/\s*([-\/])\s*/g, "$1") : refGenText(text);
+  for (const x of ms) t = t.replace(x.text, " ");
   return t.replace(/[\s)(]+/g, " ").trim();
 }
 function sheetByNo(no) { return L.sheets.find((x) => x.sheet_no === no); }

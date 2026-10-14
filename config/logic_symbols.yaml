@@ -36,13 +36,17 @@ memory_cells:
 connector_chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 # 표 머리글 낱말 → 칸 역할 (L21 · 19VA 처럼 머리글을 진짜 글자로 인쇄한 양식).  칸 순서가 양식마다 달라도
 # (FROM|NO.|TAG NO.|SERVICE · NO.|SERVICE|TAG NO.) 머리글이 칸을 정한다.  머리글을 못 읽으면 예전처럼 NO. 열 기준.
+# 타이틀블록에서 시트 이름이 든 칸의 캡션 (L23b) — 순서가 우선순위.  시트 이름이 정해진 꼴(G031 · 0016)이 아닐 때만 쓴다.
+# 앞에 다른 낱말이 붙은 캡션(PROJECT DWG NO.)은 그 캡션이 아니다.
+sheet_captions: [SHEET, SHT, "SHEET NO.", "SHT NO.", PAGE, "PAGE NO.", "DWG. NO.", "DWG NO.", "DRAWING NO."]
+# L23b — 처음 보는 양식이 쓰는 다른 낱말도 (SOURCE · DESTINATION · SIGNAL NAME · INSTRUMENT · LINE/ROW 번호).
 table_headers:
   abv:  [ABV, ABBREVIATION]
-  kks:  [TAG, KKS]
-  desc: [SERVICE, DESCRIPTION]
-  fm:   [FROM, FM]
-  to:   [TO]
-  "no": ["NO.", "NO"]
+  kks:  [TAG, KKS, INSTRUMENT, INST.]
+  desc: [SERVICE, DESCRIPTION, SIGNAL, DESC., DESC]
+  fm:   [FROM, FM, SOURCE, ORIGIN]
+  to:   [TO, DESTINATION, DEST., DEST]
+  "no": ["NO.", "NO", "LINE", "ROW", "#"]
 # 범례 표(FUNCTION | SYMBOL | DEFINITION)의 기능 이름 → 동작 (L21 · 19VA "SIGNAL PROCESSING SYMBOLS").
 # 어느 **모양**이 어느 기능인지는 그 묶음의 범례가 말하고(legend.py), 여기는 기능 이름(ISA-S5.2 어휘)의 동작만 적는다.
 # 이름은 괄호 안을 뺀 FUNCTION 칸 글자와 정확히 같아야 한다 (QUALIFIED OR 를 OR 로 읽지 않게).
