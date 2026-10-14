@@ -5634,3 +5634,7 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * `store._replace` — PermissionError 면 0.05초부터 늘려 12번 다시 (result.json · 장 그림 캐시도 같은 길).  `write_status` 는 끝내 막히면 그 자리에 바로 쓰고
   그것도 안 되면 그 한 줄만 건너뛴다 — **진행 표시가 분석을 멈추지 않는다**.  `read_status` 는 잠겼거나 반쯤 쓴 글이면 직전 상태를 돌려준다.  남은 임시 파일 0.
 * 시험 36건 (`test_status_write_survives_windows_lock`).  ⚠ Windows 에서는 못 돌렸다 — 흉내(PermissionError 주입)로만.  회사 PC 는 업데이트 뒤 **다시 분석**.
+* **둘째 현장 사진 (같은 날)** — 846쪽 PDF 가 23쪽에서 *같은 문장*으로 멈췄다.  고친 코드라면 이 문장이 나올 수 없다 (`write_status` 가 그 예외를
+  삼킨다) — 회사 PC 에 아직 옛 `store.py` 가 돈 것으로 본다.  그래도 한 겹 더: 분석 프로세스의 진행 기록(`run._note`)은 **어떤 예외도** 분석으로 올리지 않고,
+  끝 상태(완료·실패)는 `_final` 이 30초까지 다시 써 화면이 기다림에 갇히지 않으며, 결과 파일은 바꿔 넣기가 끝내 막히면 그 자리에 쓴다.  다시 시도 12 → 20번.
+  시험 37건 (`test_analysis_finishes_even_if_every_file_swap_is_refused` — 바꿔 넣기를 **매번** 거절해도 분석 완료).

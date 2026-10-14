@@ -18,11 +18,32 @@ def _prerender(d: Path, res: dict):
             return
 
 
+def _note(d: Path, st: dict):
+    """진행 한 줄 — 무슨 일이 있어도 분석을 멈추지 않는다 (L20 · 현장 WinError 5 가 두 번 분석을 죽였다)."""
+    from app.logic import store
+    try:
+        store.write_status(d, st)
+    except Exception:
+        pass
+
+
+def _final(d: Path, st: dict):
+    """끝 상태(완료 · 실패)는 반드시 남아야 화면이 기다림을 멈춘다 — 막히면 30초까지 다시."""
+    from app.logic import store
+    for _ in range(60):
+        try:
+            if store.write_status(d, st):
+                return
+        except Exception:
+            pass
+        time.sleep(0.5)
+
+
 def run(d: Path):
     from app.logic import analyse, store
     st = store.read_status(d)
     st.update({"state": "running", "started": time.time()})
-    store.write_status(d, st)
+    _note(d, st)
     last = [0.0]
 
     try:
@@ -37,19 +58,19 @@ def run(d: Path):
             return
         last[0] = now
         st.update({"stage": stage, "done": done, "total": total})
-        store.write_status(d, st)
+        _note(d, st)
     try:
         res = analyse.analyse(str(d / "source.pdf"), progress=progress)
         store.write_result(d, res)
         st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": "",
                    "pages": res.get("pdf_pages")})
-        store.write_status(d, st)
+        _final(d, st)
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
     except analyse.NotLogic as e:
         st.update({"state": "failed", "error": str(e)})
     except Exception as e:                               # 사유를 남기고 멈춘다
         st.update({"state": "failed", "error": f"분석 중 오류: {e}", "trace": traceback.format_exc()[-4000:]})
-    store.write_status(d, st)
+    _final(d, st)
 
 
 if __name__ == "__main__":

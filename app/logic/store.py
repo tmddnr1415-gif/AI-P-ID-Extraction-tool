@@ -45,7 +45,7 @@ def new_job(name: str) -> tuple[str, Path]:
     return job, d
 
 
-REPLACE_TRIES = 12             # Windows: 다른 프로세스(화면이 진행을 읽는 서버 · 백신)가 그 파일을 잠깐 열고 있으면
+REPLACE_TRIES = 20             # Windows: 다른 프로세스(화면이 진행을 읽는 서버 · 백신)가 그 파일을 잠깐 열고 있으면
 REPLACE_WAIT = 0.05            # os.replace 가 WinError 5 로 거절된다 — 잠깐 기다렸다 다시 (P&ID jsonstore 와 같은 길)
 
 
@@ -67,23 +67,27 @@ def _atomic(path: Path, data: str):
     tmp.write_text(data, encoding="utf-8")
     try:
         _replace(tmp, path)
-    except PermissionError:
-        tmp.unlink(missing_ok=True)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise
 
 
-def write_status(d: Path, st: dict):
-    """진행 상태 — 표시용이라 못 써도 분석을 멈추지 않는다 (L20 · 현장 WinError 5)."""
+def write_status(d: Path, st: dict) -> bool:
+    """진행 상태 — 표시용이라 못 써도 분석을 멈추지 않는다 (L20 · 현장 WinError 5).  썼으면 True."""
     text = json.dumps(st, ensure_ascii=False)
     try:
         _atomic(d / "status.json", text)
-        return
-    except PermissionError:
+        return True
+    except OSError:
         pass
     try:                        # 바꿔 넣기가 끝내 막히면 그 자리에 바로 쓴다 (읽는 쪽은 깨진 글을 견딘다)
         (d / "status.json").write_text(text, encoding="utf-8")
+        return True
     except OSError:
-        pass                    # 이번 진행 한 줄은 건너뛴다 — 다음 진행이 다시 쓴다
+        return False            # 이번 진행 한 줄은 건너뛴다 — 다음 진행이 다시 쓴다
 
 
 _LAST_STATUS: dict = {}
@@ -103,7 +107,11 @@ def read_status(d: Path) -> dict:
 
 
 def write_result(d: Path, res: dict):
-    _atomic(d / "result.json", json.dumps(res, ensure_ascii=False))
+    text = json.dumps(res, ensure_ascii=False)
+    try:
+        _atomic(d / "result.json", text)
+    except OSError:             # 끝내 막히면 그 자리에 바로 쓴다 — 결과는 버리지 않는다
+        (d / "result.json").write_text(text, encoding="utf-8")
 
 
 _RES = {}
