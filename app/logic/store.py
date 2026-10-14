@@ -45,25 +45,73 @@ def new_job(name: str) -> tuple[str, Path]:
     return job, d
 
 
+REPLACE_TRIES = 20             # Windows: 다른 프로세스(화면이 진행을 읽는 서버 · 백신)가 그 파일을 잠깐 열고 있으면
+REPLACE_WAIT = 0.05            # os.replace 가 WinError 5 로 거절된다 — 잠깐 기다렸다 다시 (P&ID jsonstore 와 같은 길)
+
+
+def _replace(tmp: Path, path: Path):
+    wait = REPLACE_WAIT
+    for i in range(REPLACE_TRIES):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if i == REPLACE_TRIES - 1:
+                raise
+            time.sleep(wait)
+            wait = min(wait * 2, 0.5)
+
+
 def _atomic(path: Path, data: str):
     tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}")
     tmp.write_text(data, encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        _replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
 
 
-def write_status(d: Path, st: dict):
-    _atomic(d / "status.json", json.dumps(st, ensure_ascii=False))
+def write_status(d: Path, st: dict) -> bool:
+    """진행 상태 — 표시용이라 못 써도 분석을 멈추지 않는다 (L20 · 현장 WinError 5).  썼으면 True."""
+    text = json.dumps(st, ensure_ascii=False)
+    try:
+        _atomic(d / "status.json", text)
+        return True
+    except OSError:
+        pass
+    try:                        # 바꿔 넣기가 끝내 막히면 그 자리에 바로 쓴다 (읽는 쪽은 깨진 글을 견딘다)
+        (d / "status.json").write_text(text, encoding="utf-8")
+        return True
+    except OSError:
+        return False            # 이번 진행 한 줄은 건너뛴다 — 다음 진행이 다시 쓴다
+
+
+_LAST_STATUS: dict = {}
 
 
 def read_status(d: Path) -> dict:
+    """쓰는 중이라 못 읽거나(잠김 · 반쯤 쓴 글) 깨졌으면 직전에 읽은 상태를 돌려준다."""
+    key = str(d)
     try:
-        return json.loads((d / "status.json").read_text(encoding="utf-8"))
+        st = json.loads((d / "status.json").read_text(encoding="utf-8"))
     except Exception:
-        return {"state": "unknown"}
+        return dict(_LAST_STATUS.get(key) or {"state": "unknown"})
+    if len(_LAST_STATUS) > 256:
+        _LAST_STATUS.clear()
+    _LAST_STATUS[key] = st
+    return st
 
 
 def write_result(d: Path, res: dict):
-    _atomic(d / "result.json", json.dumps(res, ensure_ascii=False))
+    text = json.dumps(res, ensure_ascii=False)
+    try:
+        _atomic(d / "result.json", text)
+    except OSError:             # 끝내 막히면 그 자리에 바로 쓴다 — 결과는 버리지 않는다
+        (d / "result.json").write_text(text, encoding="utf-8")
 
 
 _RES = {}
@@ -92,7 +140,6 @@ def jobs() -> list:
                                                              "error", "sheets", "seconds", "project", "materials",
                                                              "pages", "author")}})
     return out
-    return res
 
 
 def page_png(d: Path, page: int) -> Path:
@@ -108,5 +155,10 @@ def page_png(d: Path, page: int) -> Path:
     pix = doc[page - 1].get_pixmap(matrix=pymupdf.Matrix(ZOOM, ZOOM), alpha=False)
     tmp = cache.with_suffix(f".tmp{os.getpid()}.png")
     pix.save(tmp)
-    os.replace(tmp, cache)
+    try:
+        _replace(tmp, cache)
+    except PermissionError:
+        tmp.unlink(missing_ok=True)
+        if not cache.exists():
+            raise
     return cache
