@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-13.11'
+SERVER_VERSION = '2026-10-14.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -62,11 +62,22 @@ def week_id(wed):
     return f'{y}-W{w:02d}'
 
 
+def manual_closed_week():
+    """[금주 마감] 으로 앞당겨 마감한 마지막 주차 (state.json manualClosedWeek) — 그 주차까지는 끝난 주"""
+    try:
+        return (read_json(P('data', '_meta', 'state.json')) or {}).get('manualClosedWeek') or ''
+    except Exception:
+        return ''
+
+
 def iso_week(now=None):
-    """현재 데이터가 속하는 주차: 수요일 12:00 이후는 다음 주"""
+    """현재 데이터가 속하는 주차: 수요일 12:00 이후는 다음 주. [금주 마감] 을 누른 주차는 이미 끝났으므로 그다음 주"""
     now = now or datetime.datetime.now()
     wed = week_wed(now.date())
     if now >= datetime.datetime.combine(wed, datetime.time(CUTOFF_HOUR)):
+        wed += datetime.timedelta(days=7)
+    closed = manual_closed_week()
+    while closed and week_id(wed) <= closed:
         wed += datetime.timedelta(days=7)
     return week_id(wed)
 
@@ -349,8 +360,8 @@ def api_close(body):
         now, data = stamp(), api_all()
         write_json(path, {'week': name, 'closedAt': now, 'closedBy': by, 'sheets': data['recs'], 'staffingColumns': data['cols']})
         st = read_json(P('data', '_meta', 'state.json')) or {}
-        write_json(P('data', '_meta', 'state.json'), {**st, 'lastClosedAt': now, 'lastClosedWeek': name, 'closedBy': by})
-    log.info('금주 마감 %s by %s', name, by)
+        write_json(P('data', '_meta', 'state.json'), {**st, 'lastClosedAt': now, 'lastClosedWeek': name, 'closedBy': by, 'manualClosedWeek': name})
+    log.info('금주 마감 %s by %s (바로 다음 주차 %s 로 넘어감)', name, by, iso_week())
     return {'status': 'ok', 'week': name}
 
 
@@ -389,6 +400,8 @@ def auto_close():
     with LOCK:
         a = read_json(P('archive', week + '.json'))
         if a and a.get('auto') and a.get('closedAt') == cz:   # 이미 마감 시점으로 자동 저장됨
+            return
+        if a and not a.get('auto') and manual_closed_week() >= week:   # [금주 마감] 으로 이미 앞당겨 마감한 주 → 자동 마감이 덮어쓰지 않음
             return
         cols = (read_json(P('data', '_meta', 'staffing-columns.json')) or {}).get('columns', [])
         write_json(P('archive', week + '.json'), {'week': week, 'closedAt': cz, 'closedBy': '자동 마감(수 11:59)', 'auto': True,

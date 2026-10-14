@@ -871,7 +871,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-13.31';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-14.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -981,9 +981,11 @@ const readOnly = () => view.week !== 'current';
 const noEdit = () => readOnly() || GUEST;                // 편집 버튼 숨김: 지난 주차 마감본 또는 비회원
 function needLogin() { if (GUEST) throw new Error('비회원은 보기만 할 수 있습니다 — 왼쪽 아래 [로그인 / 계정 개설]을 누르세요'); }
 /* 주차 기준: 수요일 오전 11:59까지가 그 주 데이터, 수요일 12:00부터는 다음 주 (서버가 매주 수 12:00에 자동 저장) */
-function curWeek() {
+function curWeek() {                                       // 수요일 12:00 이후는 다음 주 · [금주 마감] 을 누른 주(state.manualClosedWeek)까지는 끝난 주 → 그다음 주
   const n = new Date(), wed = new Date(n.getFullYear(), n.getMonth(), n.getDate() - ((n.getDay() + 6) % 7) + 2, 12, 0, 0);
   if (n >= wed) wed.setDate(wed.getDate() + 7);
+  const closed = DB?.state?.manualClosedWeek || '';
+  for (let i = 0; closed && isoWeek(wed) <= closed && i < 60; i++) wed.setDate(wed.getDate() + 7);
   return isoWeek(wed);
 }
 function wedOf(id) {                                     // ISO 주차 → 그 주 수요일
@@ -1267,11 +1269,12 @@ async function closeWeek() {
   if (!ADMIN) return toast('금주 마감은 서버 PC(관리자)에서만 할 수 있습니다', true);
   if (SERVER) {
     const name = curWeek(), exists = DB.archives.includes(name);
-    const msg = `<p>주간 저장은 <b>매주 수요일 오전 11:59 기준으로 서버가 자동</b>으로 합니다. 지금 수동으로 마감하면 현재 데이터를 <b>${weekLabel(name)}</b> 마감본으로 미리 저장합니다.</p>`
+    const nx = (() => { const d = wedOf(name); d.setDate(d.getDate() + 7); return isoWeek(d); })();
+    const msg = `<p>누르지 않으면 <b>수요일 오전 11:59</b>에 서버가 자동 마감합니다. 지금 마감하면 현재 데이터를 <b>${weekLabel(name)}</b> 마감본으로 <b>바로 마감</b>하고, <b>다음 주차 ${weekLabel(nx)}</b> 로 넘어갑니다.</p>`
       + (exists ? `<p>${weekLabel(name)} 마감본이 이미 있어 <b>덮어씁니다.</b></p>` : '')
-      + `<span class="muted">수요일 12:00 자동 저장 때 마감 시점 데이터로 다시 저장됩니다. 마감 후 노란 음영과 금주 업데이트 건수가 초기화됩니다.</span>`;
+      + `<span class="muted">이 주는 수요일 자동 마감이 다시 덮어쓰지 않습니다. 마감 후 노란 음영과 금주 업데이트 건수가 초기화되고, 이후 수정은 ${weekLabel(nx)} 로 기록됩니다.</span>`;
     if (await ask('금주 마감', msg, [{ id:'ok', label:'마감', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
-    try { const r = await api('POST', 'close', { by:user, overwrite:true }); toast(`${weekLabel(r.week)} 마감 완료`); await loadAll(); render(); }
+    try { const r = await api('POST', 'close', { by:user, overwrite:true }); await loadAll(); render(); toast(`${weekLabel(r.week)} 마감 완료 → 지금부터 ${weekLabel(curWeek())}`); }
     catch (e) { toast('마감 실패: ' + e.message, true); }
     return;
   }
@@ -1285,7 +1288,7 @@ async function closeWeek() {
     await writeJSON(ad, name + '.json', { week:name, closedAt:now, closedBy:user, sheets, staffingColumns:DB.cols });
     const md = await sub(['data', '_meta']);
     const prevState = (await readJSON(md, 'state.json')) || {};
-    await writeJSON(md, 'state.json', { ...prevState, lastClosedAt:now, lastClosedWeek:name, closedBy:user });
+    await writeJSON(md, 'state.json', { ...prevState, lastClosedAt:now, lastClosedWeek:name, closedBy:user, manualClosedWeek:name });   // 바로 다음 주차로
     toast(`${name} 마감 완료`); await loadAll(); render();
   } catch (e) { toast('마감 실패: ' + e.message, true); }
 }
