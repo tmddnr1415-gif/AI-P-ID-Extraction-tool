@@ -360,7 +360,7 @@ function gotoFinding(i) {
 }
 /* 이동 칸 — `G049-40` 꼴을 읽어 그 시트의 그 행으로 (출력 행 먼저 · 없으면 입력 행) */
 function gotoTyped(text) {
-  const m = String(text || "").toUpperCase().replace(/\s+/g, "").match(/^([A-Z]\d{3}[A-Z]?)(?:-(\d{1,3}))?$/);
+  const m = String(text || "").toUpperCase().replace(/\s+/g, "").match(/^((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)(?:-(\d{1,3}))?$/);   // L21 — HH10_G144 꼴도
   if (!m) { status("시트-행 꼴이 아닙니다 (예: G049-40)"); return; }
   const t = sheetByNo(m[1]);
   if (!t) { status(`${m[1]} 시트는 이 묶음에 없습니다`); return; }
@@ -559,7 +559,7 @@ function drawOverlay() {
    FM 칸 `G049-40` = G049 시트 40행(오른쪽 출력)에서 온 신호 · TO 칸 `G025-7` = G025 시트 7행(왼쪽 입력)으로 가는 신호.
    표기는 표가 적은 그 칸 위에, 누르면 그 시트의 그 행으로 간다. */
 
-const REF_RE = /([A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)/g;
+const REF_RE = /(?<![A-Z_])((?:[A-Z][A-Z0-9]{0,5}_)?[A-Z]\d{3}[A-Z]?)-(\d{1,3})(?!\d)/g;   // app/logic/refs.py 와 같은 꼴 (L21)
 function refsIn(text) {
   const out = [];
   for (const m of String(text || "").replace(/\s+/g, "").matchAll(REF_RE)) out.push({ sheet: m[1], row: Number(m[2]) });

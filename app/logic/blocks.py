@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -120,12 +121,20 @@ def classify(sheet, D):
     mark = V["memory_cells"]["dominant_mark"]
     byid = {p.pid: p for p in sheet.glyph_polys}
     split = []
-    for b in sheet.blocks.values():
+    leg = getattr(sheet, "legend", None)
+    cell_split = []
+    for b in list(sheet.blocks.values()):
         polys = [byid[i] for i in b.glyphs if i in byid]
         b.read = ""
         b.score = 0.0
         b.roles = {}
         b.param = {}
+        got = _drawn(b, sheet, leg, mem_set, mem_reset)
+        if got == "split":
+            cell_split.append(b)
+            continue
+        if got:
+            continue
         if b.kind == "RECT":
             cells = b.cells
             reads = []
@@ -251,6 +260,10 @@ def classify(sheet, D):
             b.logic = "unknown"
             b.label = b.read
     _split_stacked(sheet, split, funcs, words)
+    for b in cell_split:                       # 칸마다 다른 단추 · 표시 (19VA P/B AUTO · MAN … 세로 줄)
+        for nb in _split_cells(sheet, b):
+            if not _drawn(nb, sheet, leg, mem_set, mem_reset):
+                nb.func, nb.logic, nb.label = "UNKNOWN", "unknown", nb.read
     # 들어오는 단자가 없는 판정 못 한 상자 = 이름 붙은 신호 상자 (FLASH · AUTO 칸 — 입력으로 쓴다)
     has_in = {pt.block for pt in sheet.ports if pt.dir == "in"}
     for b in sheet.blocks.values():
@@ -259,6 +272,145 @@ def classify(sheet, D):
     _connector_groups(sheet)
     _step_roles(sheet, D)
     _macro_pins(sheet)
+
+
+def _drawn(b, sheet, leg, mem_set, mem_reset):
+    """진짜 글자 · 모양으로 그린 블록 (19VA · L21) — 판정했으면 True.
+
+    ① 메모리: 위·아래 두 칸에 S · R (우선 칸 = 글자를 원으로 두른 칸 · 범례 MEMORY "A CIRCLE AROUND S OR R")
+    ② 범례 열쇠(모양|안 글자) — legend.py 가 범례 표에서 읽은 뜻
+    ③ 글자 없는 상자 안 그림(⎍ · △ …) — 범례 그림과 맞댄다
+    ④ 글줄이 셋 이상인 큰 상자 = 매크로 (단자 이름이 진짜 글자)
+    블록 안에 진짜 글자도 모양도 없으면 False (예전 길 — 선 글자 사전).
+    """
+    from . import legend as LG
+    if not leg:
+        return False                  # 범례 표가 없는 묶음(HRSG — 선 글자)은 예전 길 그대로
+    texts = LG.block_text(b, sheet.words)
+    shape = getattr(b, "shape", "")
+    if not any(texts) and not shape and not leg.get("figures"):
+        return False
+    up = [t.replace(" ", "") for t in texts]
+    memory = b.kind == "RECT" and len(b.cells) == 2 and up[0] in mem_set and up[1] in mem_reset
+    if b.kind == "RECT" and len(b.cells) >= 2 and not memory and all(texts) and \
+            all(abs(c[0] - b.cells[0][0]) < 1 and abs(c[2] - b.cells[0][2]) < 1 for c in b.cells):
+        return "split"
+    if memory:
+        cells = b.cells
+        dom = ""
+        for (cx, cy), r in getattr(b, "marks", []):
+            if cells[0][1] <= cy <= cells[0][3]:
+                dom = "set"
+            elif cells[1][1] <= cy <= cells[1][3]:
+                dom = "reset"
+        if not dom:
+            dom = "set" if "O" in up[0][1:] else ("reset" if "O" in up[1][1:] else "")
+        b.func, b.logic = "MEMORY", "memory"
+        b.param = {"dominant": dom}
+        b.label = f"{texts[0]}/{texts[1]}"
+        b.read = b.label
+        b.score = 1.0
+        b.roles = {"set_cell": 0, "reset_cell": 1}
+        return True
+    b.read = " | ".join(t for t in texts if t)
+    if leg:
+        whole_ = " ".join(t for t in texts if t)
+        for k in LG.keys_of(b, sheet.words):
+            hit = leg["map"].get(k)
+            if hit:
+                _set_from_legend(b, hit, whole_)
+                return True
+            nm = leg.get("names", {}).get(k)
+            if nm:                                    # 범례가 이름을 주지만 이진 동작이 아닌 블록 (아날로그 연산)
+                b.func, b.logic, b.label = nm, "unknown", whole_
+                return True
+        # 범례 글자(둘 이상)가 블록 글자에 다 들어 있고 남는 글자가 이름 — 누름단추 'P B' + 'AUTO'
+        toks = whole_.split()
+        for k, hit in leg["map"].items():
+            sh_, lt = k.split("|", 1)
+            lts = lt.split()
+            if sh_ or len(lts) < 2 or not all(toks.count(t) >= lts.count(t) for t in set(lts)) or len(toks) <= len(lts):
+                continue
+            rest = list(toks)
+            for t in lts:
+                rest.remove(t)
+            _set_from_legend(b, hit, " ".join(rest))
+            return True
+        if not any(texts) and shape in ("", "PULSE_BOX"):
+            m = LG.match_figure(LG.figure(b, sheet.glyph_polys), leg.get("figures", []))
+            if m:
+                if m["logic"]:
+                    _set_from_legend(b, m, "")
+                else:
+                    b.func, b.logic, b.label = m["name"], "unknown", m["name"]      # 아날로그 연산 — 이진 출력이 아니다
+                b.score = m["score"]
+                return True
+    if not any(texts):
+        return False
+    whole = " ".join(t for t in texts if t)
+    ws = [w for w in sheet.words if b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3]]
+    rows = {round((w[1] + w[3]) / 2) for w in ws}
+    if b.kind == "RECT" and len(rows) >= 3 and len(ws) >= 3:
+        b.func, b.logic = "MACRO", "macro"
+        b.label = whole
+        b.lines = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
+        return True
+    b.func, b.logic, b.label = "UNKNOWN", "unknown", whole
+    return True
+
+
+def _split_cells(sheet, b):
+    """세로로 쌓인 같은 폭의 칸을 블록 하나씩으로 — 단자는 그 칸의 높이로."""
+    cells = list(b.cells)
+    n = max(int(k[1:]) for k in sheet.blocks)
+    out = []
+    ids = []
+    for i, cell in enumerate(cells):
+        nb = b if i == 0 else copy.copy(b)
+        if i:
+            n += 1
+            nb.id = f"B{n}"
+            nb.glyphs = []
+            sheet.blocks[nb.id] = nb
+        nb.cells = [cell]
+        nb.bbox = tuple(cell)
+        nb.roles, nb.param, nb.read = {}, {}, ""
+        nb.bus = []
+        ids.append(nb.id)
+        out.append(nb)
+    for pt in sheet.ports:
+        if pt.block != b.id:
+            continue
+        y = pt.at[1]
+        k = min(range(len(cells)), key=lambda i: 0 if cells[i][1] <= y <= cells[i][3]
+                else min(abs(y - cells[i][1]), abs(y - cells[i][3])))
+        pt.block = ids[k]
+        pt.cell = 0
+    return out
+
+
+def _set_from_legend(b, hit, text):
+    lg = hit["logic"]
+    b.score = 1.0
+    b.legend = {"name": hit["name"], "page": hit["page"]}
+    if lg == "const":
+        # FORCED INPUT 1/0 · ACTIVATION ON — 언제나 그 값 (sim: 글자 '1' 인 들어오는 단자 없는 source = 1)
+        b.func, b.logic = "CONST", "source"
+        t = re.sub(r"[^0-9A-Z]", "", text.upper())
+        b.label = "0" if t == "0" else "1"
+        return
+    if lg == "source":
+        b.func, b.logic, b.label = hit["name"], "source", text or hit["name"]
+        return
+    if lg == "memory":
+        b.func, b.logic, b.label = "MEMORY", "memory", text or "S/R"
+        b.roles = {"set_cell": 0, "reset_cell": 1}
+        b.param = {"dominant": ""}
+        return
+    b.func = {"and": "AND", "or": "OR", "not": "NOT", "nand": "NAND", "nor": "NOR",
+              "delay_on": "GT", "delay_off": "DT", "pulse": "PD"}.get(lg, hit["name"])
+    b.logic = lg
+    b.label = text or hit["name"]
 
 
 def _split_stacked(sheet, split, funcs, words):

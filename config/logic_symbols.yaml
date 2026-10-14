@@ -34,3 +34,37 @@ memory_cells:
   dominant_mark: O
 # 연결 기호 — 원 안 글자 한 자 (같은 장에서 같은 글자끼리 이어진다)
 connector_chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+# 표 머리글 낱말 → 칸 역할 (L21 · 19VA 처럼 머리글을 진짜 글자로 인쇄한 양식).  칸 순서가 양식마다 달라도
+# (FROM|NO.|TAG NO.|SERVICE · NO.|SERVICE|TAG NO.) 머리글이 칸을 정한다.  머리글을 못 읽으면 예전처럼 NO. 열 기준.
+table_headers:
+  abv:  [ABV, ABBREVIATION]
+  kks:  [TAG, KKS]
+  desc: [SERVICE, DESCRIPTION]
+  fm:   [FROM, FM]
+  to:   [TO]
+  "no": ["NO.", "NO"]
+# 범례 표(FUNCTION | SYMBOL | DEFINITION)의 기능 이름 → 동작 (L21 · 19VA "SIGNAL PROCESSING SYMBOLS").
+# 어느 **모양**이 어느 기능인지는 그 묶음의 범례가 말하고(legend.py), 여기는 기능 이름(ISA-S5.2 어휘)의 동작만 적는다.
+# 이름은 괄호 안을 뺀 FUNCTION 칸 글자와 정확히 같아야 한다 (QUALIFIED OR 를 OR 로 읽지 않게).
+#   source  — 사람이 주는 입력 (누름단추 · 아날로그 감시의 상태 — 값은 도면이 정하지 않는다)
+#   const   — 언제나 그 글자 값 (FORCED INPUT 의 1 · 0 · ACTIVATION 의 ON = 1)
+legend_functions:
+  AND: and
+  OR: or
+  NOT: not
+  NAND: nand
+  NOR: nor
+  ON DELAY: delay_on
+  OFF DELAY: delay_off
+  MEMORY: memory
+  ALM: sink
+  SER: sink
+  DISPLAY: sink
+  INDICATION: sink
+  ACTIVATION: const
+  FORCED INPUT: const
+  PUSH BUTTON: source
+  SIGNAL MONITOR: source
+# 기능 칸이 여러 행을 묶은 경우(SPECIAL) — 정의 문장에 이 구절이 있으면 그 동작
+legend_definitions:
+  pulse: ["FOR TIME T WHEN INPUT TRANSIT"]

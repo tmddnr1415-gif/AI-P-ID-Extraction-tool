@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from . import geom
@@ -119,6 +119,26 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         (glyphs if p.size < GLYPH_MAX * P else wires).append(p)
 
     circles = [c for c in prims.circles if inside(c.bbox)]
+    # 따로 그린 호 조각이 닫힌 원 (L21 · 19VA OR · 메모리 우선 표시 원) — 글자보다 큰 것만 원이다
+    ring_pids = set()
+    ovals = []
+    for c, pids in getattr(prims, "rings", []):
+        if inside(c.bbox) and 2 * c.r >= GLYPH_MAX * P:
+            c.ring = True
+            if getattr(c, "oval", False):
+                # 타원은 둥근 상자로 — 단자는 왼쪽·오른쪽 끝.  안에 진짜 글자(ANN)가 있을 때만 (선 글자 묶음은 예전 그대로)
+                if not any(c.bbox[0] <= (w[0] + w[2]) / 2 <= c.bbox[2] and c.bbox[1] <= (w[1] + w[3]) / 2 <= c.bbox[3]
+                           for w in prims.words):
+                    continue
+                r_ = geom.Rect(*c.bbox)
+                r_.rounded = True
+                ovals.append(r_)
+            else:
+                circles.append(c)
+            ring_pids |= pids
+    if ring_pids:
+        wires = [p for p in wires if p.pid not in ring_pids or not getattr(p, "curved", False)]
+        glyphs = [p for p in glyphs if p.pid not in ring_pids or not getattr(p, "curved", False)]
     dots = [c for c in circles if 2 * c.r < DOT_MAX * P]
     dots += _blob_dots([b for b in prims.blobs if inside(b)], P)
     bigc = [c for c in circles if 2 * c.r >= DOT_MAX * P]
@@ -126,7 +146,11 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 상자: 겹친 사각형(이중 테두리)은 하나로, 변을 나눈 사각형(S/Ro · PB|START)은 한 블록의 칸으로
     rects = [r for r in prims.rects if inside((r.x0, r.y0, r.x1, r.y1))
-             and r.w >= RECT_MIN * P and r.h >= RECT_MIN * P]
+             and r.w >= RECT_MIN * P and r.h >= RECT_MIN * P] + ovals
+    rects, split_by = _split_by_divider(rects, wires + glyphs, P, tol)
+    if split_by:
+        wires = [p for p in wires if id(p) not in split_by]
+        glyphs = [p for p in glyphs if id(p) not in split_by]
     assembled, used = _assemble_rects(wires + glyphs, rects, P, tol)
     if assembled:
         rects += assembled
@@ -145,6 +169,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         bb = (min(r.x0 for r in g), min(r.y0 for r in g), max(r.x1 for r in g), max(r.y1 for r in g))
         cells = sorted(((r.x0, r.y0, r.x1, r.y1) for r in g), key=lambda c: (round(c[1], 1), c[0]))
         blocks.append(Block(nid(), "RECT", bb, cells=cells))
+        blocks[-1].rounded = any(getattr(r, "rounded", False) for r in g)
 
     # 입력 막대에 붙은 ㄷ자 꺾은선 = 막대와 함께 닫힌 상자 (상자를 qu 대신 선으로 그린 AND 게이트)
     straight = [p for p in wires if len(p.segs) == 1 and (p.segs[0].vert or p.segs[0].horiz)]
@@ -236,7 +261,14 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     # ---- 원 블록 · 연결 기호 (원 + 칠한 꼭지 삼각형)
     pointer_arrows = set()
     tri_cand = [p for p in wires + glyphs if len(p.segs) <= 3 and all(sg.length > 0 for sg in p.segs)]
+    marks_in = []
     for c in bigc:
+        if getattr(c, "ring", False) and any(
+                bl.kind == "RECT" and _in_rect((c.cx, c.cy), bl.bbox, 0) and c.bbox[0] >= bl.bbox[0] - tol
+                and c.bbox[2] <= bl.bbox[2] + tol and c.bbox[1] >= bl.bbox[1] - tol and c.bbox[3] <= bl.bbox[3] + tol
+                for bl in blocks):
+            marks_in.append(c)            # 상자 안 글자를 두른 원 = 그 칸의 표시 (메모리 우선 칸 · 범례 MEMORY) — 블록이 아니다
+            continue
         b = Block(nid(), "CIRCLE", c.bbox)
         for k, a in enumerate(arrows):
             if abs(_d(a.base, (c.cx, c.cy)) - c.r) <= max(tol, 0.25 * c.r) and _d(a.tip, (c.cx, c.cy)) > c.r:
@@ -310,6 +342,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if not any(_on_seg(a.tip, s, tol)[0] and
                    (abs(a.tip[1] - a.base[1]) > abs(a.tip[0] - a.base[0]) if s.horiz else
                     abs(a.tip[0] - a.base[0]) > abs(a.tip[1] - a.base[1])) for a in tip_arrows):
+            # L21 — 화살 없이 선이 막대에 닿는 양식 (19VA AND · OR): 막대가 작은 블록의 들어오는 변 가운데에
+            # 붙고 그 블록보다 위아래로 길게 뻗으면 입력 막대다 (범례 SIGNAL PROCESSING SYMBOLS 의 AND · OR 그림)
+            b = _bar_gate(s, blocks, tol)
+            if b is not None:
+                bus_of[id(p)] = b
+                b.bus.append((s.x0, s.y0, s.x1, s.y1))
+                b.bar = True
             continue
         b = _block_touching_bus(s, blocks, tol)
         if b is not None:
@@ -319,7 +358,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 파선: 글자 크기 조각 중 한 줄로 늘어선 것 (끝이 선이나 단자에 닿는 줄만)
     short = [p for p in wires if p.size < P]
-    dashed, rest = _dash_chains(glyphs + short, [p for p in wires if p.size >= P], blocks, arrows, dots, P, tol)
+    dashed, rest = _dash_chains(glyphs + short, [p for p in wires if p.size >= P], blocks, arrows, dots, P, tol,
+                                bounds=(LX0, LX1))
     taken = {id(p) for p in glyphs + short} - {id(p) for p in rest}
     glyphs = [p for p in glyphs if id(p) not in taken]
     wires = [p for p in wires if id(p) not in taken] + dashed
@@ -627,6 +667,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             cx, cy = (p.bbox[0] + p.bbox[2]) / 2, (p.bbox[1] + p.bbox[3]) / 2
             if _in_rect((cx, cy), bb, 0):
                 b.glyphs.append(p.pid)
+    for b in blocks:
+        b.shape = _shape_of(b, glyphs, tol)
+        b.marks = [((c.cx, c.cy), c.r) for c in marks_in if _in_rect((c.cx, c.cy), b.bbox, 0)]
     sh.blocks = {b.id: b for b in blocks}
     sh.glyph_polys = glyphs
     fr = prims.frame
@@ -635,6 +678,84 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                      (fr is None or (p.bbox[0] >= fr[0] and p.bbox[2] <= fr[2] and p.bbox[1] >= fr[1] and p.bbox[3] <= fr[3]))]          # 표 칸 글자는 한 행 안에 든다
     sh.words = prims.words
     return sh
+
+
+def _bar_gate(s, blocks, tol):
+    """세로 막대 s 가 작은 블록(상자 · 원)의 왼쪽(들어오는 쪽) 가운데에 붙고 그 블록보다 위아래로 길면 그 블록."""
+    if not s.vert:
+        return None
+    lo, hi = sorted((s.y0, s.y1))
+    for b in blocks:
+        if b.kind == "RECT":
+            if len(b.cells) != 1:
+                continue
+            x0, y0, x1, y1 = b.bbox
+            touch = abs(s.x0 - x0) <= tol
+            cy = (y0 + y1) / 2
+        elif b.kind == "CIRCLE":
+            c = b.circle
+            x0, y0, x1, y1 = c.bbox
+            touch = abs(s.x0 - (c.cx - c.r)) <= tol
+            cy = c.cy
+        else:
+            continue
+        h = y1 - y0
+        if touch and lo <= y0 + tol and hi >= y1 - tol and (hi - lo) >= h and abs((lo + hi) / 2 - cy) <= 0.25 * (hi - lo):
+            return b
+    return None
+
+
+def _shape_of(b, glyphs, tol):
+    """블록 모양 열쇠 — 범례 그림과 맞대는 단위 (legend.py · blocks.classify 가 같은 열쇠를 쓴다).
+
+    BAR_BOX  입력 막대 + 작은 네모    BAR_CIRCLE  입력 막대 + 작은 원
+    CROSS_BOX  대각선 둘이 가로지르는 네모 (⊠)    ROUND_BOX  한쪽 끝이 둥근 상자    PULSE_BOX  ⎍ 획이 든 네모
+    """
+    bar = getattr(b, "bar", False) or bool(b.bus)
+    if b.kind == "CIRCLE":
+        return "BAR_CIRCLE" if bar else ""
+    if b.kind != "RECT" or len(b.cells) != 1:
+        return ""
+    if bar:
+        return "BAR_BOX"
+    if getattr(b, "rounded", False):
+        return "ROUND_BOX"
+    x0, y0, x1, y1 = b.bbox
+    w, h = x1 - x0, y1 - y0
+    inner = [p for p in glyphs if p.bbox[0] >= x0 - tol and p.bbox[2] <= x1 + tol and p.bbox[1] >= y0 - tol and p.bbox[3] <= y1 + tol]
+    diag = [sg for p in inner for sg in p.segs if not (sg.vert or sg.horiz) and sg.length >= 0.8 * math.hypot(w, h)]
+    if len(diag) >= 2:
+        return "CROSS_BOX"
+    for p in inner:
+        ax = [sg for sg in p.segs if sg.vert or sg.horiz]
+        if len(p.segs) >= 5 and len(ax) == len(p.segs) and sum(1 for sg in ax if sg.vert) >= 2 and \
+                (p.bbox[2] - p.bbox[0]) >= 0.4 * w:
+            return "PULSE_BOX"
+    return ""
+
+
+def _split_by_divider(rects, polys, P, tol):
+    """네모 하나를 가로로 가르는 선(양 끝이 좌·우 변에 닿는 가로선) = 위·아래 두 칸 (19VA MEMORY S/R · L21)."""
+    out, used = [], set()
+    for r in rects:
+        hit = None
+        if RECT_MIN * P <= r.w <= 3 * P and r.h >= 1.5 * r.w * 0.9:
+            for p in polys:
+                if len(p.segs) != 1 or not p.segs[0].horiz:
+                    continue
+                sg = p.segs[0]
+                a, b = sorted((sg.x0, sg.x1))
+                if abs(a - r.x0) <= tol and abs(b - r.x1) <= tol and r.y0 + 0.3 * r.h < sg.y0 < r.y1 - 0.3 * r.h:
+                    hit = (sg.y0, p)
+                    break
+        if hit is None:
+            out.append(r)
+            continue
+        y, p = hit
+        out.append(geom.Rect(r.x0, r.y0, r.x1, y))
+        out.append(geom.Rect(r.x0, y, r.x1, r.y1))
+        used.add(id(p))
+    return out, used
 
 
 def _assemble_rects(polys, rects, P, tol):
@@ -647,13 +768,24 @@ def _assemble_rects(polys, rects, P, tol):
     for p in polys:
         if len(p.segs) > 6:                 # 글자 획 (곡선을 잘게 그린 것)
             continue
+        if getattr(p, "curved", False):
+            # L21 — 둥근 끝(곡선으로 그린 반원): 두 끝이 한 세로줄이면 그 줄이 상자의 변이고, 상자는 곡선이 닿는 데까지
+            fe = _free_ends(p.segs)
+            cb = getattr(p, "cbbox", p.bbox)
+            if len(fe) == 2 and abs(fe[0][0] - fe[1][0]) < 0.05 and abs(fe[0][1] - fe[1][1]) >= RECT_MIN * P:
+                x = fe[0][0]
+                ext = cb[2] if cb[2] - x > x - cb[0] else cb[0]
+                if abs(ext - x) < 0.1 * abs(fe[0][1] - fe[1][1]):
+                    ext = x                 # 거의 곧은 곡선 — 둥근 끝이 아니다
+                V.append((min(fe[0][1], fe[1][1]), max(fe[0][1], fe[1][1]), x, p, ext))
+            continue
         for sg in p.segs:
             if sg.length < RECT_MIN * P * 0.5:
                 continue
             if sg.horiz:
                 H.append((min(sg.x0, sg.x1), max(sg.x0, sg.x1), sg.y0, p))
             elif sg.vert:
-                V.append((min(sg.y0, sg.y1), max(sg.y0, sg.y1), sg.x0, p))
+                V.append((min(sg.y0, sg.y1), max(sg.y0, sg.y1), sg.x0, p, sg.x0))
     H.sort(key=lambda h: h[2])
     out, used = [], set()
     have = [(r.x0, r.y0, r.x1, r.y1) for r in rects]
@@ -680,6 +812,8 @@ def _assemble_rects(polys, rects, P, tol):
                 cand = [v for v in V if abs(v[2] - xx) <= g and v[0] <= ya + g and v[1] >= yb - g]
                 if not cand:
                     break
+                # 곧은 변이 있으면 곧은 변 (곡선 끝은 곧은 변이 없을 때만 — 예전 상자를 바꾸지 않는다)
+                cand.sort(key=lambda v: getattr(v[3], "curved", False))
                 sides.append(cand[0])
             if len(sides) != 2:
                 continue
@@ -689,11 +823,18 @@ def _assemble_rects(polys, rects, P, tol):
         if best is None:
             continue
         _, h, k, b0, b1, yb, pb, x0, x1, sides, g = best
+        rounded = any(v[4] != v[2] for v in sides)
+        if sides[0][4] != sides[0][2]:
+            x0 = min(x0, sides[0][4])           # 둥근 끝 — 상자는 곡선이 닿는 데까지
+        if sides[1][4] != sides[1][2]:
+            x1 = max(x1, sides[1][4])
         bb = (x0, ya, x1, yb)
         area = (bb[2] - bb[0]) * (bb[3] - bb[1])
         if any(_overlap_frac(bb, q) > 0.5 and (q[2] - q[0]) * (q[3] - q[1]) < 3 * area for q in have):
             continue
-        out.append(geom.Rect(*bb))
+        rr = geom.Rect(*bb)
+        rr.rounded = rounded
+        out.append(rr)
         have.append(bb)
         edge.update((i, k))
         # 상자 안쪽의 가로선(겹 테두리의 안쪽 변)도 이 상자의 것이다 — 이웃 상자의 변과 짝짓지 않는다
@@ -914,6 +1055,12 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
                 off = abs((e[0] - c.cx) * ax[1] - (e[1] - c.cy) * ax[0]) / L
                 if c.r - tol <= t <= L + tol and off <= 0.5 * c.r:
                     return "port", (b, "out", "", 0, e, None)
+    # 2b) 화살 없이 입력 막대에 닿은 끝 (L21 · 19VA) — 막대의 블록으로 들어간다
+    for b in blocks:
+        if getattr(b, "bar", False):
+            for bs in b.bus:
+                if _on_seg(e, geom.Seg(*bs), tol)[0]:
+                    return "port", (b, "in", "BUS", 0, e, None)
     # 3) 상자 변 · 원
     for b in blocks:
         if b.kind == "RECT":
@@ -943,7 +1090,7 @@ def _row_at(rows, y):
     return None
 
 
-def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol):
+def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
     """파선 — 한 직선 위에 늘어선 짧은 조각들.
 
     조각은 축정렬 선분 하나 또는 꺾인 두 선분이다.  이웃 조각과 같은 직선 위에 있고 틈이 조각 길이의
@@ -1018,6 +1165,10 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol):
         groups[f(k)].append(k)
     out, taken = [], set()
     wire_segs = [s for p in wires for s in p.segs]
+    # 끝에 작은 화살촉 획이 붙은 짧은 토막(파선의 마지막 토막 · 19VA) — 그 곧은 몸통은 파선에 이어 붙인다
+    tipped = [(p, [sg for sg in p.segs if (sg.vert or sg.horiz) and sg.length >= 2 * tol]) for p in glyphs
+              if 2 <= len(p.segs) <= 6 and any(not (x.vert or x.horiz) for x in p.segs)]
+    tipped = [(p, ax) for p, ax in tipped if len(ax) == 1]
 
     def touches(q):
         return (any(_on_seg(q, w, tol)[0] for w in wire_segs) or
@@ -1040,12 +1191,28 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol):
         # 파선은 고르다 — 토막 길이와 틈이 서로 두 배 안 (글자 획은 고르지 않다)
         lens = [sg.length for k in ks for sg in pieces[k].segs]
         gaps_ = [_d(qa, qb) for qa, qb, ka in bridges if ka in kset]
-        if max(lens) > 2 * min(lens) or (gaps_ and max(gaps_) > 2 * min(gaps_)):
+        even = max(lens) <= 2 * min(lens)
+        if not even and len(ks) >= 4:
+            # 쇄선(긴 토막 + 짧은 토막이 번갈아 · 19VA 신호선) — 가장 흔한 길이가 가장 긴 토막이면 고른 파선이다
+            common = Counter(round(x, 1) for x in lens).most_common(1)[0][0]
+            even = common >= 0.9 * max(lens)
+        gaps_ok = not gaps_ or max(gaps_) <= 2 * min(gaps_) or \
+            (len(ks) >= 4 and sorted(gaps_)[len(gaps_) // 2] * 2 >= max(lens) * 0.4)   # 쇄선 · 점(길이 0)을 건너뛴 틈 — 틈 대부분이 고르면
+        if not even or not gaps_ok:
             continue
         Lmed = sorted(lens)[len(lens) // 2]
         near_arrow = lambda q: any(_d(q, a.base) <= 1.5 * Lmed for a in arrows)
         hit = sum(1 for q in free if touches(q) or near_arrow(q))
-        if not ((len(ks) >= 3 and hit >= 1) or (len(ks) == 2 and hit >= 2 and len(free) == 2)):
+        # 고른 토막 넷 이상이 한 직선에 늘어선 것은 그 자체로 파선이다 — 끝이 다른 파선에만 닿아도 (19VA 는
+        # 신호선 대부분이 파선이라 '실선에 닿는 끝' 을 요구하면 파선끼리 이어진 그물이 통째로 빠졌다 · L21)
+        # 틈마다 다른 선이 가로지르면 파선이 아니라 건너뛰기(홉)로 끊어 그린 실선이다 — 그때는 예전 규칙만
+        crossed = sum(1 for qa, qb, ka in bridges if ka in kset and any(
+            _on_seg(((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2), w, tol)[0] and (w.vert != (abs(qa[0] - qb[0]) < 0.05))
+            for w in wire_segs))
+        long_run = len(ks) >= 4 and crossed * 2 < len(ks)
+        if bounds and long_run:
+            hit += sum(1 for q in free if min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= 1.2 * max(gaps_ + [Lmed]))
+        if not ((len(ks) >= 3 and hit >= 1) or (len(ks) == 2 and hit >= 2 and len(free) == 2) or long_run):
             continue
         # 파선이 화살촉 앞에서 틈 하나를 두고 끝나면 그 틈도 잇는다 (토막 길이 1.5배 안 · 같은 직선)
         Lmed = sorted(lens)[len(lens) // 2]
@@ -1054,6 +1221,40 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol):
                 if _d(q, a.base) <= 1.5 * Lmed and (abs(q[0] - a.base[0]) < tol or abs(q[1] - a.base[1]) < tol):
                     segs.append(geom.Seg(q[0], q[1], a.base[0], a.base[1]))
                     break
+        # 파선이 블록 · 막대 · 실선 앞에서 틈 하나를 두고 끝나면 그 틈을 잇는다 (19VA — 마지막 토막이 기호에 안 닿는다 · L21)
+        if long_run:
+            reach = 1.2 * max(gaps_ + [Lmed])        # 틈 하나 또는 토막 하나 길이까지
+            for q0 in free:
+                q = q0
+                for _ in range(2):                    # 끝 → (화살촉 토막) → 그 끝에서 한 번 더
+                    if touches(q) or (bounds and min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= tol):
+                        break
+                    sg = next((x for x in segs if _d(q, x.ends()[0]) < 0.01 or _d(q, x.ends()[1]) < 0.01), None)
+                    if sg is None or not (sg.vert or sg.horiz):
+                        break
+                    o = sg.ends()[1] if _d(q, sg.ends()[0]) < 0.01 else sg.ends()[0]
+                    L_ = _d(q, o) or 1.0
+                    ux, uy = (q[0] - o[0]) / L_, (q[1] - o[1]) / L_
+                    t, nxt = 0.25, None
+                    while t <= reach:
+                        pt = (q[0] + ux * t, q[1] + uy * t)
+                        tip = next(((p, ax) for p, ax in tipped if id(p) not in taken and
+                                    _on_seg(pt, ax[0], tol)[0] and (ax[0].vert == sg.vert)), None)
+                        if tip is not None:
+                            a0, a1 = sorted(tip[1][0].ends(), key=lambda e: _d(e, q))
+                            segs.append(geom.Seg(q[0], q[1], a0[0], a0[1]))
+                            segs.extend(tip[1])
+                            taken.add(id(tip[0]))
+                            nxt = a1
+                            break
+                        edge = bounds and sg.horiz and min(abs(pt[0] - bounds[0]), abs(pt[0] - bounds[1])) <= 0.5 * tol
+                        if edge or touches(pt) or any(_on_seg(pt, geom.Seg(*bs), tol)[0] for b in blocks for bs in b.bus):
+                            segs.append(geom.Seg(q[0], q[1], pt[0], pt[1]))
+                            break
+                        t += 0.25
+                    if nxt is None:
+                        break
+                    q = nxt
         pts = [q for s in segs for q in s.ends()]
         out.append(geom.Poly(segs, geom._bbox(pts), dashed=True, pid=pieces[ks[0]].pid))
         taken.update(id(pieces[k]) for k in ks)

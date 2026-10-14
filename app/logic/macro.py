@@ -131,14 +131,17 @@ def _pin_row_score(pin, desc, abbr):
 
 
 def _assign(pins, rows, abbr):
-    """pins = [(key, pin)] · rows = [(n, desc)] → {key: (n, desc, score)} — 점수 순으로 하나씩."""
+    """pins = [(key, pin)] · rows = [(n, desc, abv)] → {key: (n, desc, score)} — 점수 순으로 하나씩."""
     abbr = tuple(abbr)
     cand = []
     for key, pin in pins:
         if not pin:
             continue
-        for n, desc in rows:
-            s = _pin_row_score(pin, desc, abbr)
+        for row in rows:
+            n, desc = row[0], row[1]
+            abv = row[2] if len(row) > 2 else ""
+            # 표가 단자 약어(ABV) 칸을 인쇄했으면 그 글자가 답이다 (19VA Typical · L21)
+            s = 1.0 if abv and _skel(abv) == _skel(pin) else _pin_row_score(pin, desc, abbr)
             if s >= PAIR_MIN:
                 cand.append((s, key, n, desc))
     cand.sort(key=lambda c: -c[0])
@@ -182,8 +185,8 @@ def link(doc, sheets):
     abbr = tuple(dict.fromkeys(legend_abbr(doc)))       # 같은 줄은 한 번 — 점수 캐시의 열쇠가 된다
     tables = {}
     for s in sheets:
-        L = [(t["n"], t.get("desc", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
-        R = [(t["n"], t.get("desc", "")) for t in s.get("table", []) if t["side"] == "R" and t.get("desc")]
+        L = [(t["n"], t.get("desc", ""), t.get("abv", "")) for t in s.get("table", []) if t["side"] == "L" and t.get("desc")]
+        R = [(t["n"], t.get("desc", ""), t.get("abv", "")) for t in s.get("table", []) if t["side"] == "R" and t.get("desc")]
         if L and R:
             tables[s["page"]] = (L, R)
     for s in sheets:
