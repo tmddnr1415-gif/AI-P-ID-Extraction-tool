@@ -131,6 +131,46 @@ def create_project(body: dict = Body(...)):
         raise HTTPException(409, f"같은 이름의 프로젝트가 있습니다: {e}")
 
 
+def _project_jobs(name: str) -> list:
+    return [j for j in store.jobs() if (j.get("project") or "") == name]
+
+
+@router.get("/logic/api/projects/{name}/delete_preview")
+def project_delete_preview(name: str):
+    """프로젝트를 지우기 전에 — 함께 지워질 분석 수 · 분석 중인 것."""
+    if not projects.exists(name):
+        raise HTTPException(404, f"프로젝트가 없습니다: {name}")
+    js = _project_jobs(name)
+    return {"name": name, "jobs": len(js), "sheets": sum(j.get("sheets") or 0 for j in js),
+            "running": [j["id"] for j in js if j.get("state") in ("queued", "running")],
+            "authors": sorted({j.get("author") for j in js if j.get("author")})}
+
+
+@router.delete("/logic/api/projects/{name}")
+def delete_project(name: str, author: str = "", confirm: str = ""):
+    """프로젝트 하나와 그 분석 전부를 지운다.  이름을 옮겨 적어야 하고(실수 방지) 분석 중이면 거절 ·
+    누가 언제 무엇을 지웠는지 남긴다.  학습 사전(다른 프로젝트도 쓰는 기호 · Typical)은 남긴다."""
+    if not projects.exists(name):
+        raise HTTPException(404, f"프로젝트가 없습니다: {name}")
+    who = (author or "").strip()[:60]
+    if not who:
+        raise HTTPException(400, "지운 사람 이름이 없습니다 — 누가 지웠는지 남깁니다.")
+    if confirm.strip() != name:
+        raise HTTPException(400, "확인 칸에 프로젝트 이름을 그대로 적어야 지웁니다.")
+    js = _project_jobs(name)
+    if any(j.get("state") in ("queued", "running") for j in js):
+        raise HTTPException(409, "이 프로젝트에 분석 중인 묶음이 있습니다 — 끝난 뒤에 지우세요.")
+    for j in js:
+        store.log_deletion({"job": j["id"], "name": j.get("name"), "project": name, "sheets": j.get("sheets"),
+                            "created": j.get("created"), "author": who, "with_project": True})
+        shutil.rmtree(store.job_dir(j["id"]), ignore_errors=True)
+        _SIZES.pop(j["id"], None)
+        _APPLIED.pop(j["id"], None)
+    projects.remove(name)
+    store.log_deletion({"project": name, "kind": "project", "jobs": len(js), "author": who})
+    return {"deleted": name, "jobs": len(js)}
+
+
 @router.post("/logic/api/jobs")
 async def upload(file: UploadFile | None = File(None), logic: UploadFile | None = File(None),
                  loop: UploadFile | None = File(None), sysdesc: UploadFile | None = File(None),

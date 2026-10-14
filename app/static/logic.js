@@ -195,7 +195,8 @@ function renderHomeLists() {
     const js = by[p.name] || [];
     const last = js.find((x) => x.state === "done");
     return `<div class="pj"><div class="pjh"><span class="ic">${esc(p.name.slice(0, 1).toUpperCase())}</span>
-      <div><b>${esc(p.name)}</b> <span class="lh-mode sm">실행</span><br><small>분석 ${js.length}건${last ? ` · 마지막 ${fmtDate(last.created)} · ${last.sheets}장` : ""}</small></div></div>
+      <div><b>${esc(p.name)}</b> <span class="lh-mode sm">실행</span><br><small>분석 ${js.length}건${last ? ` · 마지막 ${fmtDate(last.created)} · ${last.sheets}장` : ""}</small></div>
+      <button class="pjdel" data-pdel="${esc(p.name)}" title="이 프로젝트와 그 안의 분석 전부를 지웁니다">프로젝트 삭제</button></div>
       <ul class="pjj">${js.map(jobLine).join("") || `<li class="empty">위 ① 에서 이 프로젝트를 고르고 Logic PDF 를 넣으면 첫 분석이 됩니다.</li>`}</ul></div>`;
   });
   if ((by[""] || []).length)
@@ -223,6 +224,8 @@ function bindHome() {
   $("#lh-newname").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) create(); };
   $("#lh-analyse").onclick = analyseHome;
   $("#home").addEventListener("click", (e) => {
+    const pdel = e.target.closest("button[data-pdel]");
+    if (pdel) { e.stopPropagation(); deleteProject(pdel.dataset.pdel); return; }
     const del = e.target.closest("button[data-del]");
     if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
     const li = e.target.closest("li[data-job]");
@@ -243,6 +246,30 @@ async function deleteJob(id) {
     await api(`/logic/api/jobs/${id}?author=${encodeURIComponent(who)}`, { method: "DELETE" });
     status(`'${x.name || id}' 를 지웠습니다 (${who})`);
     if (L.job === id) L.job = null;
+  } catch (err) { status("지우지 못했습니다 — " + err.message); }
+  loadHome();
+}
+/* 프로젝트 하나와 그 분석 전부를 지운다 — 함께 지워질 것을 먼저 보이고, 이름을 옮겨 적어야 지운다 */
+async function deleteProject(name) {
+  let pv;
+  try { pv = await api(`/logic/api/projects/${encodeURIComponent(name)}/delete_preview`); }
+  catch (err) { status("지우지 못했습니다 — " + err.message); return; }
+  if (pv.running.length) { alert(`'${name}' 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.`); return; }
+  const who = needAuthor();
+  if (!who) return;
+  const others = pv.authors.filter((a) => a !== who);
+  const typed = prompt(`프로젝트 '${name}' 를 지웁니다.\n`
+    + `함께 지워지는 것: 분석 ${pv.jobs}건 (${pv.sheets}장) · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간 · 가르치기 답)\n`
+    + (others.length ? `⚠ 다른 사람이 올린 분석이 있습니다: ${others.join(", ")}\n` : "")
+    + `되돌릴 수 없습니다.  학습 사전(다른 프로젝트도 쓰는 기호)은 남습니다.\n`
+    + `지운 사람: ${who}\n\n확인하려면 프로젝트 이름을 그대로 적으세요:`);
+  if (typed == null) return;
+  if (typed.trim() !== name) { status("이름이 달라 지우지 않았습니다"); return; }
+  try {
+    const r = await api(`/logic/api/projects/${encodeURIComponent(name)}?author=${encodeURIComponent(who)}&confirm=${encodeURIComponent(typed.trim())}`, { method: "DELETE" });
+    status(`프로젝트 '${name}' 와 분석 ${r.jobs}건을 지웠습니다 (${who})`);
+    try { if (localStorage.getItem("logic.project") === name) localStorage.removeItem("logic.project"); } catch (e) {}
+    if ($("#lh-project").value === name) $("#lh-project").value = "";
   } catch (err) { status("지우지 못했습니다 — " + err.message); }
   loadHome();
 }

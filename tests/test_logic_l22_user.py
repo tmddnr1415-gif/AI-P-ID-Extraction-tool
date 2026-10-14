@@ -200,6 +200,37 @@ def test_delete_refuses_while_running_and_logs(client):
     assert log[-1]["job"] == job and log[-1]["author"] == "홍길동" and log[-1]["name"] == "toy.pdf"
 
 
+def test_delete_project_removes_its_jobs_only(client):
+    assert client.post("/logic/api/projects", json={"name": "PJT-A", "author": "홍길동"}).status_code == 200
+    client.post("/logic/api/projects", json={"name": "PJT-B", "author": "홍길동"})
+    mine, other = [], []
+    for proj, bag in (("PJT-A", mine), ("PJT-A", mine), ("PJT-B", other)):
+        job, d = _job(_bundle())
+        st = store.read_status(d)
+        st["project"] = proj
+        store.write_status(d, st)
+        bag.append(d)
+    pv = client.get("/logic/api/projects/PJT-A/delete_preview").json()
+    assert pv["jobs"] == 2 and pv["running"] == []
+    url = "/logic/api/projects/PJT-A"
+    assert client.delete(url, params={"confirm": "PJT-A"}).status_code == 400, "이름 없이는 안 지운다"
+    assert client.delete(url, params={"author": "홍길동", "confirm": "PJT"}).status_code == 400, "이름을 그대로 적어야"
+    st = store.read_status(mine[0])
+    st["state"] = "running"
+    store.write_status(mine[0], st)
+    assert client.delete(url, params={"author": "홍길동", "confirm": "PJT-A"}).status_code == 409
+    st["state"] = "done"
+    store.write_status(mine[0], st)
+    r = client.delete(url, params={"author": "홍길동", "confirm": "PJT-A"})
+    assert r.status_code == 200 and r.json()["jobs"] == 2
+    assert not any(d.exists() for d in mine) and other[0].exists(), "다른 프로젝트 분석은 남는다"
+    names = [p["name"] for p in client.get("/logic/api/projects").json()["projects"]]
+    assert "PJT-A" not in names and "PJT-B" in names
+    log = json.loads((store.root() / "deletion_log.json").read_text(encoding="utf-8"))
+    assert log[-1]["kind"] == "project" and log[-1]["project"] == "PJT-A" and log[-1]["author"] == "홍길동"
+    assert client.delete(url, params={"author": "홍길동", "confirm": "PJT-A"}).status_code == 404
+
+
 def test_library_merge_keeps_the_bundle_legend_first():
     leg = {"map": {"BAR_BOX|": {"name": "AND", "logic": "and", "page": 3, "label": ""}}, "names": {},
            "figures": [{"fig": [[1, 1]], "name": "INTEGRAL", "logic": "", "page": 3, "label": ""}]}

@@ -522,3 +522,6 @@ button.mini.ed.on { background: #efe6fb; }
 .lg-teach .tc-msg { margin: 0 0 8px; padding: 4px 7px; background: #eaf7ee; border: 1px solid #b9e2c6; border-radius: 5px; color: #1d6b39; }
 .lg-teach .tc-crop { width: 64%; margin: 0 auto; }
 .lg-teach .tc-lib { margin: 0 0 8px; padding: 4px 7px; background: #eef3ff; border: 1px solid #c9d6f5; border-radius: 5px; color: #2a3a62; }
+.pjh .pjdel { margin-left: auto; border: 1px solid #e3c7c4; background: #fff; color: #a3352e; border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; opacity: .55; }
+.pj:hover .pjdel, .pjh .pjdel:focus { opacity: 1; }
+.pjh .pjdel:hover { background: #fbeceb; }

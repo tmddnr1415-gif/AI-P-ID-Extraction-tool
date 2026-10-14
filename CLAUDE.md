@@ -5862,3 +5862,12 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   **19VA 분석 881초 → 277초**, 식별률 세기 수 분 → 0.1초.  분석 중 미리보기는 고르게 뽑은 60장까지 (`PREVIEW_MAX`).
 * **회귀**: HRSG 50장 · 1A5J · 1A1Y · 19VA 결과가 직전 코드와 **같다** (판정 못 한 블록에 붙인 `fig`·`shape` 만 다름).
   시험 `tests/test_logic_l25_teach.py` 10건 · 빠른 시험 1229 통과 (hotfix75 교착 시험 제외 — 전부터).
+
+### L25b — LOGIC 프로젝트 통째로 지우기 (2026-10-14)
+
+* 사용자 지시: *분석되었던 프로젝트 자체를 삭제할 수 있도록.*  첫 화면 '저장된 프로젝트' 카드마다 `프로젝트 삭제`.
+* 먼저 `GET /logic/api/projects/{name}/delete_preview` 로 함께 지워질 분석 수 · 장 수 · 분석 중인 것 · 다른 사람이 올린 분석을 보이고,
+  **프로젝트 이름을 그대로 옮겨 적어야** `DELETE /logic/api/projects/{name}?author=&confirm=` 가 지운다.  분석 중이면 409 · 이름 없으면 400.
+* 지우는 것: 그 프로젝트의 분석 폴더 전부(결과 · 메모 · 사람이 정한 값 · 가르치기 답) + 장부 항목(`projects.remove`).
+  **학습 사전은 남긴다** (다른 프로젝트도 쓰는 기호 · Typical).  `deletion_log.json` 에 분석마다 한 줄(`with_project`) + 프로젝트 한 줄(`kind: project`).
+* 시험 `test_delete_project_removes_its_jobs_only` (다른 프로젝트 분석은 남음) · 화면 확인(사본 데이터 · 크롬) 페이지 오류 0.
