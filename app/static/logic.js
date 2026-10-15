@@ -1123,17 +1123,29 @@ function analogSourceOf(bid) {
   }
   return null;
 }
+/* L27 — 사람이 주는 아날로그 값은 4~20 mA (기본 8 mA).  공학값은 서버가 범위(도면 `0~250 barg` · 사람이 적은 값)로 바꾼다. */
+const MA_LO = 4, MA_HI = 20, DEFAULT_MA = 8;
+function anKey(key) { return (((L.analogRes || {}).keys) || {})[key] || null; }
 function analogValueOf(key) {
   const mine = (L.analog[L.page] || {})[key];
-  if (mine != null) return { v: mine, src: "user" };
-  const linked = ((L.analogGiven || {})[L.page] || {})[key];
-  if (linked != null) return { v: linked, src: "linked" };
-  if (key.startsWith("block:")) {
-    const v = ((L.analogRes || {}).blocks || {})[key.slice(6)];
-    if (v != null) return { v, src: "calc" };
-  }
-  return { v: null, src: null };
+  const k = anKey(key);
+  if (mine != null) return { ma: mine, eng: k ? k.eng : null, range: k ? k.range : keyRange(key), src: "user" };
+  if (k) return { ma: k.ma, eng: k.eng, range: k.range, src: k.src };
+  return { ma: null, eng: null, range: keyRange(key), src: null };
 }
+/* 그 입력의 범위 — 사람이 적은 것 → 도면이 선 아래 인쇄한 것 (서버 결과가 없을 때 화면이 바로 읽는 자리) */
+function keyRange(key) {
+  let x = null;
+  if (key.startsWith("row:")) x = L.sheet.rows.find((r) => r.side === "L" && r.n === Number(key.slice(4)));
+  else x = (L.sheet.blocks[key.slice(6)] || {}).param;
+  if (!x) return null;
+  const r = x.range_user || x.range;
+  return r && r.lo != null ? { lo: Number(r.lo), hi: Number(r.hi), unit: r.unit || "", src: x.range_user ? "user" : "drawing" } : null;
+}
+function maToEng(ma, rg) { return rg ? rg.lo + (ma - MA_LO) / (MA_HI - MA_LO) * (rg.hi - rg.lo) : null; }
+function engToMa(v, rg) { return rg && rg.hi !== rg.lo ? MA_LO + (v - rg.lo) / (rg.hi - rg.lo) * (MA_HI - MA_LO) : null; }
+function fmtMa(ma) { return ma == null ? "—" : (Math.round(ma * 100) / 100) + " mA"; }
+function engText(v, rg) { return v == null ? "" : `${fmtNum(v)}${rg && rg.unit ? " " + rg.unit : ""}`; }
 function keyName(key) {
   if (key.startsWith("row:")) {
     const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4)));
@@ -1142,41 +1154,86 @@ function keyName(key) {
   const b = L.sheet.blocks[key.slice(6)];
   return `${b.label || FUNC_KO[b.func] || b.func} — ${FUNC_KO[b.func] || b.func}`;
 }
+function monLevel(b) { return (b.param || {}).sp_level || (b.label || "").replace("/", "").trim() || "감시"; }
 function monLabel(bid) {
   const b = L.sheet.blocks[bid], k = monKind(b);
-  return `${(b.label || "").replace("/", "").trim() || "감시"} ${k === "high" ? "넘으면 1" : "못 미치면 1"}`;
+  return `${monLevel(b)} ${k === "high" ? "넘으면 1" : "못 미치면 1"}`;
 }
-function spRowHtml(bid) {
+/* 감시 블록 설정값 칸 — 도면에서 읽은 수가 기본값.  못 읽었으면 비워 두고 '직접 입력' 이라고 말한다 (지어내지 않는다) */
+function spRowHtml(bid, rg) {
   const b = L.sheet.blocks[bid], ms = monSp(b), p = b.param || {};
   const d = p.sp != null ? Number(p.sp) : null;
-  return `<label class="fm-t an-sp"><span class="an-mon">${esc(monLabel(bid))}</span>
-    <input data-sp="${esc(bid)}" type="number" step="any" value="${ms.sp == null ? "" : ms.sp}" placeholder="설정값"> ${esc(p.sp_unit || "")}
-    <small>${ms.src === "user" ? `✎ ${esc(p.sp_user_by || "")}${d != null ? " · 도면 " + fmtNum(d) : ""}` : d != null ? "도면 값" : "도면에 없음"}</small></label>`;
+  const unit = p.sp_unit || (rg && rg.unit) || "";
+  const ma = ms.sp != null ? engToMa(ms.sp, rg) : null;
+  const why = ms.src === "user" ? `✎ ${esc(p.sp_user_by || "")}${d != null ? " · 도면 " + fmtNum(d) : ""}`
+    : d != null ? "도면 값" : p.sp_label ? `도면 표기 '${esc(p.sp_label)}' (수가 아님) — 직접 입력` : "도면에 없음 — 직접 입력";
+  return `<label class="fm-t an-sp${ms.sp == null ? " need" : ""}"><span class="an-mon">${esc(monLabel(bid))}</span>
+    <input data-sp="${esc(bid)}" type="number" step="any" value="${ms.sp == null ? "" : ms.sp}" placeholder="설정값"> ${esc(unit)}
+    <small>${why}${ma != null ? ` · ≈ ${fmtMa(ma)}` : ""}</small></label>`;
+}
+function rangeRowHtml(key, rg) {
+  const p = rg ? (rg.src === "user" ? "사람이 적음" : "도면 값") : "도면에 없음 — 적어 주세요";
+  return `<div class="fm-sub">범위 — 4 mA 일 때 · 20 mA 일 때 <small>${p}</small></div>
+    <label class="fm-t an-rg${rg ? "" : " need"}"><input data-rg="lo" type="number" step="any" value="${rg ? rg.lo : ""}" placeholder="4 mA">
+      ~ <input data-rg="hi" type="number" step="any" value="${rg ? rg.hi : ""}" placeholder="20 mA">
+      <input data-rg="unit" class="unit" value="${esc(rg ? rg.unit : "")}" placeholder="단위"></label>`;
+}
+function menuRange(m) {
+  const g = (k) => (m.querySelector(`input[data-rg="${k}"]`) || {}).value;
+  const lo = g("lo"), hi = g("hi");
+  if (lo == null || String(lo).trim() === "" || String(hi).trim() === "") return null;
+  const a = Number(lo), b = Number(hi);
+  return isFinite(a) && isFinite(b) && a !== b ? { lo: a, hi: b, unit: String(g("unit") || "").trim() } : null;
+}
+function maInputHtml(id, cur) {
+  const v = cur.src === "user" ? cur.ma : "";
+  const ph = cur.ma != null ? fmtNum(cur.ma) : DEFAULT_MA;
+  return `<label class="fm-t">값 <input id="${id}" type="number" min="${MA_LO}" max="${MA_HI}" step="0.1" value="${v}" placeholder="${ph}"> mA
+    <small>4~20 mA · 비우면 기본 ${DEFAULT_MA} mA</small></label><div class="fm-why an-eng"></div>`;
+}
+function liveEng(m, inp, cur) {
+  const out = m.querySelector(".an-eng");
+  const upd = () => {
+    const rg = menuRange(m) || cur.range;
+    const raw = inp.value.trim();
+    const ma = raw === "" ? (cur.src === "user" ? null : (cur.ma != null ? cur.ma : DEFAULT_MA)) : Number(raw);
+    if (raw !== "" && !(ma >= MA_LO && ma <= MA_HI)) { out.textContent = "4~20 mA 사이로 적어 주세요"; out.classList.add("bad"); return; }
+    out.classList.remove("bad");
+    out.textContent = ma == null ? "" : rg ? `= ${engText(maToEng(ma, rg), rg)}  (범위 ${fmtNum(rg.lo)}~${fmtNum(rg.hi)}${rg.unit ? " " + rg.unit : ""})`
+      : cur.src === "calc" || cur.src === "linked" || cur.src === "pass" ? `지금 ${engText(cur.eng, cur.range)}` : "범위를 몰라 공학값으로 바꿀 수 없습니다 — 아래 범위를 적어 주세요";
+  };
+  m.addEventListener("input", upd);
+  upd();
 }
 function analogMenu(key, e) {
   closeForceMenu();
   const mons = monitorsFrom(key);
   const cur = analogValueOf(key);
-  const unit = mons.map((m) => (L.sheet.blocks[m].param || {}).sp_unit).find((u) => u) || "";
   const b = key.startsWith("block:") ? L.sheet.blocks[key.slice(6)] : null;
-  const how = b && /MEDIAN/.test(b.func) ? "값을 비우면 그 입력에 준 값들의 중간값 (범례 MEDIAN SELECTION)" : "";
+  const how = b && /MEDIAN/.test(b.func) ? "값을 비우면 그 입력들의 중간값 (범례 MEDIAN SELECTION)"
+    : cur.src === "pass" ? "보정 계산식은 도면에 없어 주 입력 값을 그대로 넘겼습니다" : "";
+  const ownRange = key.startsWith("row:") || !cur.range || (b && (b.param || {}).range_user);
   const m = document.createElement("div");
   m.id = "force-menu"; m.className = "force-menu an-menu";
-  m.innerHTML = `<div class="fm-h">${esc(keyName(key))} — 아날로그 값</div>
-    <label class="fm-t">값 <input id="an-v" type="number" step="any" value="${cur.src === "user" ? cur.v : ""}" placeholder="${cur.v != null ? fmtNum(cur.v) : "값"}"> ${esc(unit)}</label>
-    <div class="fm-why an-why">${cur.src === "linked" ? `다른 시트에서 들어온 값 ${fmtNum(cur.v)} — 적으면 이 값이 이깁니다` : cur.src === "calc" ? `지금 계산된 값 ${fmtNum(cur.v)}` : ""}${how ? (cur.src ? " · " : "") + how : ""}</div>
-    ${mons.length ? `<div class="fm-sub">이 값을 받는 감시 블록 — 설정값 (넘으면 1)</div>${mons.map(spRowHtml).join("")}`
+  m.innerHTML = `<div class="fm-h">${esc(keyName(key))} — 아날로그 값 (4~20 mA)</div>
+    ${maInputHtml("an-v", cur)}
+    ${how ? `<div class="fm-why an-why">${how}</div>` : ""}
+    ${ownRange ? rangeRowHtml(key, keyRange(key) || (key.startsWith("row:") ? null : cur.range)) : ""}
+    ${mons.length ? `<div class="fm-sub">이 값을 받는 감시 블록 — 설정값 (기본 = 도면 값)</div>${mons.map((x) => spRowHtml(x, cur.range)).join("")}`
                   : `<div class="fm-why an-why">이 값을 받는 감시 블록(HH · HHH …)이 이 시트에 없습니다</div>`}
     <button data-a="ok" class="v1">적용 — 동작 시뮬레이션에서 맞대기</button>
-    ${cur.src === "user" ? `<button data-a="x" class="vx">값 지우기</button>` : ""}
+    ${cur.src === "user" ? `<button data-a="x" class="vx">기본 ${DEFAULT_MA} mA 로</button>` : ""}
     ${L.mode === "trace" ? `<button data-a="t" class="vt">↪ 연결만 따라가기</button>` : ""}`;
   placeMenu(m, e);
   const inp = m.querySelector("#an-v");
-  inp.focus(); inp.select();
+  liveEng(m, inp, cur);
+  const first = m.querySelector(".need input") || inp;
+  first.focus(); first.select && first.select();
   const ok = async () => {
     const raw = inp.value.trim();
     const v = raw === "" ? null : Number(raw);
-    if (raw !== "" && !isFinite(v)) { inp.classList.add("bad"); return; }
+    if (raw !== "" && !(v >= MA_LO && v <= MA_HI)) { inp.classList.add("bad"); return; }
+    if (ownRange && !(await saveRange(m, key))) return;
     if (!(await saveSetpoints(m))) return;
     closeForceMenu();
     setAnalog(key, v);
@@ -1196,34 +1253,40 @@ function monitorMenu(bid, e) {
   const b = L.sheet.blocks[bid];
   const st = monState(bid);
   const src = analogSourceOf(bid);
-  const cur = src ? analogValueOf(src) : { v: st && st.value, src: null };
+  const cur = src ? analogValueOf(src) : { ma: null, eng: st && st.value, range: st && st.range, src: null };
+  const rg = (st && st.range) || cur.range;
   const v = L.forces["block:" + bid];
+  const ms = monSp(b);
   const m = document.createElement("div");
   m.id = "force-menu"; m.className = "force-menu an-menu";
-  m.innerHTML = `<div class="fm-h">${esc(b.label || "")} 신호 감시 — ${monKind(b) === "high" ? "값이 설정값을 넘으면 1" : "값이 설정값에 못 미치면 1"}</div>
-    ${spRowHtml(bid)}
-    ${src ? `<label class="fm-t">들어오는 값 <input id="an-v" type="number" step="any" value="${(L.analog[L.page] || {})[src] ?? ""}" placeholder="${cur.v != null ? fmtNum(cur.v) : "값"}"> <small>${esc(keyName(src))}</small></label>` : ""}
-    <div class="fm-why an-why">${st && st.out != null ? `지금 ${fmtNum(st.value)} ${monKind(b) === "high" ? ">" : "<"} ${fmtNum(st.sp)} → <b>${st.out}</b>` : "값이 없으면 예전처럼 1/0 을 직접 줄 수 있습니다"}</div>
+  m.innerHTML = `<div class="fm-h">${esc(b.label || "")} 신호 감시 (Alarm) — ${monKind(b) === "high" ? "값이 설정값을 넘으면 1" : "값이 설정값에 못 미치면 1"}</div>
+    ${ms.sp == null ? `<div class="fm-why">도면에서 설정값을 읽지 못했습니다 — 직접 입력해 주세요</div>` : ""}
+    ${spRowHtml(bid, rg)}
+    ${src ? `<div class="fm-sub">들어오는 값 — ${esc(keyName(src))}</div>${maInputHtml("an-v", cur)}` : ""}
+    ${src && !cur.range ? rangeRowHtml(src, null) : ""}
+    <div class="fm-why an-why">${st && st.out != null ? `지금 ${engText(st.value, rg)} ${monKind(b) === "high" ? ">" : "<"} ${fmtNum(st.sp)} → <b>${st.out}</b>` : "값과 설정값이 다 있어야 맞댑니다 — 없으면 1/0 을 직접 줄 수 있습니다"}</div>
     <button data-a="ok" class="v1">적용 — 동작 시뮬레이션에서 맞대기</button>
-    ${monSp(b).src === "user" ? `<button data-a="d" class="vx">${(b.param || {}).sp != null ? "도면 설정값으로" : "설정값 지우기"}</button>` : ""}
+    ${ms.src === "user" ? `<button data-a="d" class="vx">${(b.param || {}).sp != null ? "도면 설정값으로" : "설정값 지우기"}</button>` : ""}
     <button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (값과 무관하게)</button>
     <button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성</button>
     ${v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : ""}
     ${L.mode === "trace" ? `<button data-a="t" class="vt">↪ 연결만 따라가기</button>` : ""}`;
   placeMenu(m, e);
-  const inp = m.querySelector("#an-v") || m.querySelector("input[data-sp]");
+  const vi = m.querySelector("#an-v");
+  if (vi) liveEng(m, vi, cur);
+  const inp = m.querySelector("input[data-sp]");
   inp.focus(); inp.select();
   const ok = async () => {
-    const vi = m.querySelector("#an-v");
     let nv;
     if (vi) {
       const raw = vi.value.trim();
       nv = raw === "" ? null : Number(raw);
-      if (raw !== "" && !isFinite(nv)) { vi.classList.add("bad"); return; }
+      if (raw !== "" && !(nv >= MA_LO && nv <= MA_HI)) { vi.classList.add("bad"); return; }
     }
+    if (src && !cur.range && !(await saveRange(m, src))) return;
     if (!(await saveSetpoints(m))) return;
     closeForceMenu();
-    if (vi && src) setAnalog(src, nv); else rerunAnalog();
+    if (vi && src && (nv != null || cur.src === "user")) setAnalog(src, nv); else rerunAnalog();
   };
   m.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) ok(); });
   m.addEventListener("click", async (ev) => {
@@ -1236,6 +1299,26 @@ function monitorMenu(bid, e) {
     closeForceMenu();
     setForce("block:" + bid, btn.dataset.v === "x" ? null : Number(btn.dataset.v));
   });
+}
+async function saveRange(m, key) {
+  const cur = keyRange(key);
+  const lo = m.querySelector('input[data-rg="lo"]'), hi = m.querySelector('input[data-rg="hi"]');
+  if (!lo) return true;
+  const want = menuRange(m);
+  if (!want) {
+    if (lo.value.trim() === "" && hi.value.trim() === "") return true;      // 범위 없이 둔다
+    lo.classList.add("bad"); hi.classList.add("bad"); return false;
+  }
+  if (cur && cur.lo === want.lo && cur.hi === want.hi && (cur.unit || "") === want.unit) return true;
+  const who = await needAuthor();
+  if (!who) { status("이름이 없어 범위를 저장하지 않았습니다"); return false; }
+  try {
+    await post(`/logic/api/jobs/${L.job}/overrides/range`, { page: L.page, key, lo: want.lo, hi: want.hi, unit: want.unit, author: who });
+  } catch (err) { status("범위를 저장하지 못했습니다 — " + err.message); return false; }
+  const ent = { lo: want.lo, hi: want.hi, unit: want.unit, by: who };
+  if (key.startsWith("row:")) { const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r) r.range_user = ent; }
+  else { const b = L.sheet.blocks[key.slice(6)]; b.param = b.param || {}; b.param.range_user = ent; }
+  return true;
 }
 async function saveSetpoints(m) {
   for (const inp of m.querySelectorAll("input[data-sp]")) {
@@ -1270,7 +1353,7 @@ function setAnalog(key, v) {
   L.analog[p] = L.analog[p] || {};
   if (v == null) delete L.analog[p][key]; else L.analog[p][key] = v;
   if (!Object.keys(L.analog[p]).length) delete L.analog[p];
-  if (v != null) status(`∿ ${keyName(key)} = ${fmtNum(v)} — 감시 블록이 설정값과 맞댑니다`);
+  status(v != null ? `∿ ${keyName(key)} = ${fmtMa(v)} — 감시 블록이 설정값과 맞댑니다` : `∿ ${keyName(key)} — 기본 ${DEFAULT_MA} mA 로`);
   rerunAnalog();
 }
 function rerunAnalog() {
@@ -1282,42 +1365,44 @@ function analogInfoRows(bid) {
   const b = L.sheet.blocks[bid];
   if (monKind(b)) {
     const ms = monSp(b), st = monState(bid), p = b.param || {};
-    return `<tr><td>설정값</td><td><b>${ms.sp == null ? "없음" : fmtNum(ms.sp) + " " + esc(p.sp_unit || "")}</b> <small>${ms.src === "user" ? "✎ 사람이 정함 · " + esc(p.sp_user_by || "") + (p.sp != null ? " (도면 " + fmtNum(Number(p.sp)) + ")" : "") : ms.src === "drawing" ? "도면 " + esc(p.sp_text || "") : "도면에 없음"}</small> <button data-an="mon:${esc(bid)}">설정값 바꾸기</button></td></tr>
-      ${L.mode === "sim" && st && st.value != null ? `<tr><td>맞대기</td><td>값 ${fmtNum(st.value)} ${monKind(b) === "high" ? ">" : "<"} ${ms.sp == null ? "?" : fmtNum(ms.sp)} → ${st.out == null ? "설정값 없음" : valTag(st.out)}</td></tr>` : ""}`;
+    const rg = st && st.range;
+    return `<tr><td>설정값</td><td><b>${ms.sp == null ? "없음 — 직접 입력" : fmtNum(ms.sp) + " " + esc(p.sp_unit || (rg && rg.unit) || "")}</b> <small>${ms.src === "user" ? "✎ 사람이 정함 · " + esc(p.sp_user_by || "") + (p.sp != null ? " (도면 " + fmtNum(Number(p.sp)) + ")" : "") : ms.src === "drawing" ? "도면 " + esc(p.sp_text || "") : p.sp_label ? "도면 표기 " + esc(p.sp_label) + " (수가 아님)" : "도면에서 못 읽음"}</small> <button data-an="mon:${esc(bid)}">${ms.sp == null ? "설정값 입력" : "설정값 바꾸기"}</button></td></tr>
+      ${L.mode === "sim" && st && st.value != null ? `<tr><td>맞대기</td><td>값 ${engText(st.value, rg)} ${monKind(b) === "high" ? ">" : "<"} ${ms.sp == null ? "?" : fmtNum(ms.sp)} → ${st.out == null ? "설정값 없음" : valTag(st.out)}</td></tr>` : ""}`;
   }
   if (isAnalogBlock(b)) {
     const cur = analogValueOf("block:" + bid);
     const mons = monitorsFrom("block:" + bid);
-    return `<tr><td>아날로그 값</td><td><b>${cur.v == null ? "없음" : fmtNum(cur.v)}</b> <small>${cur.src === "user" ? "사람이 넣음" : cur.src === "calc" ? "입력에서 계산" : cur.src === "linked" ? "다른 시트에서" : ""}</small> <button data-an="block:${esc(bid)}">값 넣기</button></td></tr>
+    return `<tr><td>아날로그 값</td><td><b>${cur.eng == null ? (cur.ma == null ? "없음" : fmtMa(cur.ma)) : engText(cur.eng, cur.range)}</b>${cur.ma != null && cur.eng != null ? ` <small>(${fmtMa(cur.ma)})</small>` : ""} <small>${cur.src === "user" ? "사람이 넣음" : cur.src === "calc" ? "입력에서 계산" : cur.src === "pass" ? "주 입력 그대로" : cur.src === "linked" ? "다른 시트에서" : ""}</small> <button data-an="block:${esc(bid)}">값 넣기 (mA)</button></td></tr>
       ${mons.length ? `<tr><td>감시</td><td>${mons.map((m) => { const st = monState(m); const sp = monSp(L.sheet.blocks[m]).sp; return `${esc(L.sheet.blocks[m].label)} ${sp == null ? "설정값 없음" : fmtNum(sp)}${L.mode === "sim" && st && st.out != null ? " → " + valTag(st.out) : ""}`; }).join(" · ")}</td></tr>` : ""}`;
   }
   return "";
 }
-/* 도면 위: 아날로그 블록 아래 '= 195' · 감시 블록 아래 'SP 191 · 195 → 1' */
+/* 도면 위: 아날로그 블록 아래 '= 62.5 barg (8 mA)' · 감시 블록 아래 'SP 191 · 62.5 → 0' · 설정값이 없으면 붉은 'SP ? 직접 입력' */
 function drawAnalogMarks(g, fs) {
   const s = L.sheet;
   for (const [bid, b] of Object.entries(s.blocks)) {
     const [x0, , x1, y1] = b.bbox || [0, 0, 0, 0];
     if (monKind(b)) {
       const ms = monSp(b), st = monState(bid);
-      const parts = [ms.sp == null ? "SP ?" : `SP ${fmtNum(ms.sp)}${ms.src === "user" ? " ✎" : ""}`];
-      if (st && st.value != null) parts.push(`${fmtNum(st.value)} → ${st.out == null ? "?" : st.out}`);
+      const parts = [ms.sp == null ? `SP ? 직접 입력${(b.param || {}).sp_label ? " (" + b.param.sp_label + ")" : ""}` : `SP ${fmtNum(ms.sp)}${ms.src === "user" ? " ✎" : ""}`];
+      if (L.mode === "sim" && st && st.value != null) parts.push(`${fmtNum(st.value)} → ${st.out == null ? "?" : st.out}`);
       const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.6, "font-size": fs * 1.25,
-                              class: "ansp" + (st && st.out === 1 ? " on" : "") + (ms.src === "user" ? " user" : "") }, g);
+                              class: "ansp" + (st && st.out === 1 && L.mode === "sim" ? " on" : "") + (ms.src === "user" ? " user" : "") + (ms.sp == null ? " need" : "") }, g);
       tx.textContent = parts.join(" · ");
-    } else if (isAnalogBlock(b)) {
+    } else if (isAnalogBlock(b) && L.mode === "sim") {
       const cur = analogValueOf("block:" + bid);
-      if (cur.v == null) continue;
+      if (cur.eng == null && cur.ma == null) continue;
       const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.7, "font-size": fs * 1.4, class: "anv " + cur.src }, g);
-      tx.textContent = `= ${fmtNum(cur.v)}${cur.src === "user" ? " ✎" : ""}`;
+      tx.textContent = `= ${cur.eng != null ? engText(cur.eng, cur.range) : ""}${cur.ma != null ? (cur.eng != null ? " (" + fmtMa(cur.ma) + ")" : fmtMa(cur.ma)) : ""}${cur.src === "user" ? " ✎" : ""}`;
     }
   }
-  for (const [k, v] of Object.entries(Object.assign({}, ((L.analogGiven || {})[L.page] || {}), L.analog[L.page] || {}))) {
+  if (L.mode !== "sim") return;
+  for (const [k, info] of Object.entries(((L.analogRes || {}).keys) || {})) {
     if (!k.startsWith("row:")) continue;
     const r = s.rows.find((x) => x.side === "L" && x.n === Number(k.slice(4)));
     if (!r || !r.at) continue;
-    const tx = el("text", { x: r.at[0] + fs, y: r.at[1] - fs * 0.5, "font-size": fs * 0.9, class: "anv row" }, g);
-    tx.textContent = `∿ ${fmtNum(v)}`;
+    const tx = el("text", { x: r.at[0] + fs, y: r.at[1] - fs * 0.5, "font-size": fs * 0.95, class: "anv row " + info.src }, g);
+    tx.textContent = `∿ ${info.ma != null ? fmtMa(info.ma) : ""}${info.eng != null ? " = " + engText(info.eng, info.range) : ""}${info.src === "user" ? " ✎" : ""}`;
   }
 }
 /* 세는 타이머의 남은 시간을 블록 위에 줄여 간다 (실제 시간) */
@@ -2403,7 +2488,9 @@ function drawSimMarks() {
   const g = $("#g-sim");
   if (!g) return;
   g.innerHTML = "";
-  if (L.mode !== "sim" || !L.sheet) return;
+  if (!L.sheet) return;
+  drawAnalogMarks(g, Math.max(2.4, Math.min(4.6, (L.sheet.pitch || 11.5) * 0.34)));   // L27 — 설정값(SP)은 어느 모드든
+  if (L.mode !== "sim") return;
   const s = L.sheet;
   const showAllGates = $("#show-all-gates") && $("#show-all-gates").checked;
   const showVals = !$("#show-ports") || $("#show-ports").checked;
@@ -2420,7 +2507,6 @@ function drawSimMarks() {
     const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.3, "font-size": fs * 0.95, class: "tsec " + ts.src }, g);
     tx.textContent = `t=${fmtSec(ts.sec)}${ts.src === "user" ? " ✎" : ts.src === "default" ? " (기본)" : ""}`;
   }
-  drawAnalogMarks(g, fs);
   for (const [bid, ps] of Object.entries(byBlock)) {
     const b = s.blocks[bid];
     if (!b || !GATE_LOGIC.has(b.logic)) continue;

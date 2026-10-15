@@ -5,6 +5,7 @@
       "cells":  {쪽: {"L:12": {"fm": 값, author, at, was}, "R:30": {"to": 값, ...}}},
       "timers": {쪽: {블록: {t: 초, author, at}}},
       "setpoints": {쪽: {블록: {sp: 수, author, at}}},          (L26 감시 블록 HHH · HH … 설정값)
+      "ranges": {쪽: {"row:<n>"|"block:<id>": {lo, hi, unit, author, at}}},   (L27 4~20 mA ↔ 공학값 범위)
       "marks":  {쪽: {id: {kind, rect, value, n, choice, param, author, at}}},     (L24 마크업)
       "teach":  {"gates": [규칙], "sheet": {page, rect, values, author}, "cols": {"L"|"R": {...}},
                  "links": {시트 이름: {mode: OTHER|ALIAS, sheet}}, "skipped": [질문]},      (L25 가르치기)
@@ -66,7 +67,7 @@ def _path(d: Path) -> Path:
 
 
 def empty():
-    return {"blocks": {}, "cells": {}, "timers": {}, "setpoints": {}, "marks": {}, "teach": _teach0(), "history": []}
+    return {"blocks": {}, "cells": {}, "timers": {}, "setpoints": {}, "ranges": {}, "marks": {}, "teach": _teach0(), "history": []}
 
 
 def _teach0():
@@ -100,7 +101,7 @@ def mtime(d: Path):
 
 
 def has_any(ov: dict) -> bool:
-    return any(ov.get(k) for k in ("blocks", "cells", "timers", "setpoints", "marks")) or any((ov.get("teach") or {}).values())
+    return any(ov.get(k) for k in ("blocks", "cells", "timers", "setpoints", "ranges", "marks")) or any((ov.get("teach") or {}).values())
 
 
 def _save(d: Path, data: dict):
@@ -236,6 +237,33 @@ def set_setpoint(d: Path, page: int, bid: str, sp, author) -> dict:
         pg[str(bid)] = ent
         data["history"].append({"kind": "setpoint", "page": page, "key": bid, "value": v, "was": old.get("sp"),
                                 "author": author, "at": ent["at"]})
+        _save(d, data)
+        return ent
+
+
+def set_range(d: Path, page: int, key: str, lo, hi, unit, author) -> dict:
+    """L27 — 아날로그 입력의 공학 범위 (4 mA = lo · 20 mA = hi).  lo None 이면 지우고 도면 범위로 돌아간다."""
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        pg = data["ranges"].setdefault(str(page), {})
+        if lo is None:
+            old = pg.pop(key, None)
+            if not pg:
+                data["ranges"].pop(str(page), None)
+            data["history"].append({"kind": "range", "page": page, "key": key, "value": None,
+                                    "was": old and [old.get("lo"), old.get("hi")], "author": author, "at": _now()})
+            _save(d, data)
+            return {"removed": bool(old)}
+        try:
+            a, b = float(str(lo).replace(",", ".")), float(str(hi).replace(",", "."))
+        except (TypeError, ValueError):
+            raise ValueError("범위는 수 둘입니다 (4 mA 일 때 · 20 mA 일 때).")
+        if a == b or max(abs(a), abs(b)) >= 1e12:
+            raise ValueError("범위의 두 끝이 같거나 너무 큽니다.")
+        ent = {"lo": a, "hi": b, "unit": str(unit or "").strip()[:12], "author": author, "at": _now()}
+        pg[key] = ent
+        data["history"].append({"kind": "range", "page": page, "key": key, "value": [a, b], "author": author, "at": ent["at"]})
         _save(d, data)
         return ent
 
@@ -402,6 +430,22 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
                 b.setdefault("param", {})["sp_user"] = float(e["sp"])
                 b["param"]["sp_user_by"] = e.get("author", "")
                 b["param"]["sp_user_at"] = e.get("at", "")
+    for pg, m in (ov.get("ranges") or {}).items():
+        s = by_page.get(int(pg)) if str(pg).isdigit() else None
+        if s is None:
+            continue
+        for key, e in m.items():
+            if not isinstance(e, dict) or not isinstance(e.get("lo"), (int, float)):
+                continue
+            ent = {"lo": float(e["lo"]), "hi": float(e["hi"]), "unit": e.get("unit", ""), "by": e.get("author", "")}
+            kind, _, x = key.partition(":")
+            if kind == "row" and x.isdigit():
+                for coll in (s.get("rows", []), s.get("table", [])):
+                    for r in coll:
+                        if r["side"] == "L" and r["n"] == int(x):
+                            r["range_user"] = ent
+            elif kind == "block" and x in s["blocks"]:
+                s["blocks"][x].setdefault("param", {})["range_user"] = ent
     cells = False
     for pg, m in (ov.get("cells") or {}).items():
         s = by_page.get(int(pg)) if str(pg).isdigit() else None
@@ -431,6 +475,7 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
                          "cells": sum(len(v) for v in (ov.get("cells") or {}).values()),
                          "timers": sum(len(v) for v in (ov.get("timers") or {}).values()),
                          "setpoints": sum(len(v) for v in (ov.get("setpoints") or {}).values()),
+                         "ranges": sum(len(v) for v in (ov.get("ranges") or {}).values()),
                          "marks": sum(len(v) for v in (ov.get("marks") or {}).values()),
                          "taught": {"gates": len(tc.get("gates") or []), "library": len(lib_rules or []),
                                     "sheet": bool(tc.get("sheet")), "cols": sorted((tc.get("cols") or {}).keys()),

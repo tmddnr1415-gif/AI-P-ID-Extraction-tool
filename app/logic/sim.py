@@ -255,8 +255,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     B = s["blocks"]
     notes = set()
     # L26 — 아날로그 값(MED · 입력 행)과 감시 블록(HHH · HH …)의 설정값: 값과 설정값이 다 있으면 감시 출력이 1/0
-    an_net, an_blk = A.nets(s, analog, (ins, outs, drivers))
-    mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers))}
+    an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks))
+    mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))}
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
@@ -527,7 +527,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     if any(m["value"] is not None and m["sp"] is None for m in mons.values()):
         notes.add("설정값이 없는 감시 블록은 값을 맞대지 못했습니다 — 블록을 눌러 설정값을 적을 수 있습니다")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
-            "analog": {"nets": an_net, "blocks": an_blk, "monitors": list(mons.values())},
+            "analog": {"nets": an_net, "blocks": an_blk, "keys": an_keys, "monitors": list(mons.values()),
+                       "default_ma": A.DEFAULT_MA},
             "implied": implied, "conflicts": conflicts,
             "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled,
             "_goals": goals, "_user": {**{f"row:{k}": v for k, v in row_force0.items()},
@@ -926,25 +927,35 @@ def _analog_bundle(by_page, feeds, analog):
     (사람이 그 입력 행에 직접 준 값이 이긴다).  시간이 없는 값이라 가라앉을 때까지 몇 번 돌리면 된다.
     → {page: {"block:<id>"|"row:<n>": 값}}"""
     given = {p: dict(v) for p, v in analog.items() if p in by_page}
-    if not given:
-        return {}
+    # L27 — 사람이 아무것도 안 줘도 아날로그 입력은 기본 8 mA 라 감시 블록이 맞댈 값이 선다 → 시트 사이로도 간다
+    idxs = {}
+    src_pages = set(given)
+    for p, s in by_page.items():
+        if any(A.is_analog_block(b) or A.monitor_kind(b) for b in s["blocks"].values()):
+            idxs[p] = _index(s)
+            src_pages.add(p)
+    if not src_pages:
+        return given
     for _ in range(MAX_PASSES):
         moved = False
+        memo = {}
         for page, fd in feeds.items():
             for n, sp, sr in fd:
-                if sp not in given:
+                if sp not in src_pages:
                     continue
                 s = by_page[sp]
                 src = next((r for r in s["rows"] if r["side"] == "R" and r["n"] == sr and r.get("net") is not None), None)
                 if src is None:
                     continue
-                net_v, _ = A.nets(s, given[sp], _index(s)[:3])
-                v = net_v.get(src["net"])
+                if sp not in memo:
+                    memo[sp] = A.nets(s, given.get(sp), idxs.get(sp) or _index(s))[0]
+                v = memo[sp].get(src["net"])
                 k = f"row:{n}"
                 user = analog.get(page, {})
-                if v is None or k in user or given.get(page, {}).get(k) == v:
+                if v is None or k in user or given.get(page, {}).get(k) == {"eng": v}:
                     continue
-                given.setdefault(page, {})[k] = v
+                given.setdefault(page, {})[k] = {"eng": v}
+                src_pages.add(page)
                 moved = True
         if not moved:
             break

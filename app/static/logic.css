@@ -557,3 +557,11 @@ button.mini.ed.on { background: #efe6fb; }
 #ov text.ansp.on { fill: #0a8fd4; }
 #ov text.anv { fill: #6a3fb5; text-anchor: middle; font-weight: 700; pointer-events: none; }
 #ov text.anv.row { text-anchor: start; }
+/* L27 — 4~20 mA · 범위 · 직접 입력 */
+#ov text.ansp.need { fill: #c2453f; }
+.force-menu .an-sp.need .an-mon, .force-menu .an-rg.need { color: #c2453f; }
+.force-menu .an-sp.need input, .force-menu .an-rg.need input { outline: 1.5px solid #e2a19c; }
+.force-menu .an-rg input { width: 64px; }
+.force-menu .an-rg input.unit { width: 52px; }
+.force-menu .an-eng { color: #6a3fb5; white-space: normal; }
+.force-menu .an-eng.bad { color: #c2453f; }

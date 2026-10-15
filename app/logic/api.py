@@ -336,8 +336,11 @@ def _drawing_sp(job, d, res):
         for s in probe["sheets"]:
             for bid, b in s["blocks"].items():
                 p = b.get("param") or {}
-                if "sp" in p and analog.monitor_kind(b):
-                    got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text") if k in p}
+                if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
+                    got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
+            for r in s["rows"]:
+                if r.get("range"):
+                    got[(s["page"], "row:%d" % r["n"])] = r["range"]
         if len(_SP) > 6:
             _SP.clear()
         _SP[job] = hit = (rm, got)
@@ -346,6 +349,11 @@ def _drawing_sp(job, d, res):
             e = hit[1].get((s["page"], bid))
             if e:
                 b.setdefault("param", {}).update(e)
+        for coll in (s.get("rows", []), s.get("table", [])):
+            for r in coll:
+                e = hit[1].get((s["page"], "row:%d" % r["n"])) if r["side"] == "L" else None
+                if e:
+                    r["range"] = dict(e)
     res["_sp"] = True
 
 
@@ -560,7 +568,7 @@ def _timers(raw):
 
 
 def _analog(raw):
-    """L26 — 사람이 준 아날로그 값 {쪽: {"block:<id>"|"row:<n>": 수}}.  수가 아닌 값은 버린다."""
+    """L26 · L27 — 사람이 준 아날로그 값 {쪽: {"block:<id>"|"row:<n>": mA}} (4~20 mA).  그 밖은 버린다."""
     if not isinstance(raw, dict):
         return {}
     out = {}
@@ -569,8 +577,8 @@ def _analog(raw):
             continue
         c = {}
         for k, v in d.items():
-            if isinstance(k, str) and k.split(":", 1)[0] in ("block", "row") and analog.num(v) is not None:
-                c[k] = analog.num(v)
+            if isinstance(k, str) and k.split(":", 1)[0] in ("block", "row") and analog.ma_ok(v) is not None:
+                c[k] = analog.ma_ok(v)                      # L27 — 4~20 mA 밖의 값은 버린다
         if c:
             out[int(pg)] = c
     return out
@@ -747,6 +755,22 @@ def overrides_setpoint(job: str, body: dict = Body(...)):
     if sp is not None and analog.num(sp) is None:
         raise HTTPException(400, "설정값은 수입니다.")
     return _ov_call(overrides.set_setpoint, d, page, bid, sp, str(body.get("author") or ""))
+
+
+@router.post("/logic/api/jobs/{job}/overrides/range")
+def overrides_range(job: str, body: dict = Body(...)):
+    """L27 — 아날로그 입력 범위 {page, key: "row:<n>"|"block:<id>", lo, hi, unit, author}.  lo null 이면 도면 범위로."""
+    d = _dir(job)
+    page, key = body.get("page"), str(body.get("key") or "")
+    if not isinstance(page, int):
+        raise HTTPException(400, "page(정수) 가 필요합니다.")
+    s = _sheet(job, page)
+    kind, _, x = key.partition(":")
+    if not ((kind == "row" and x.isdigit() and any(r["side"] == "L" and r["n"] == int(x) for r in s["rows"]))
+            or (kind == "block" and x in s["blocks"])):
+        raise HTTPException(400, "key 는 이 시트의 입력 행(row:<n>) 이나 블록(block:<id>) 입니다.")
+    return _ov_call(overrides.set_range, d, page, key, body.get("lo"), body.get("hi"), body.get("unit"),
+                    str(body.get("author") or ""))
 
 
 @router.get("/logic/api/library")

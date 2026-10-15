@@ -10,6 +10,9 @@
     ③ 없음(그 블록은 예전처럼 사람이 1/0 을 준다).  값은 지어내지 않는다.
   * 아날로그 값은 시뮬레이션 입력이다 (사람이 준 1/0 강제와 같은 자리) — 블록(`block:B16`) 이나 입력 행(`row:34`).
     MED 에 값을 안 주고 그 앞 블록 · 입력 행에 값을 주면 MED 는 범례 이름대로 **중간값**을 낸다.
+  * L27 — 사람이 주는 값은 **4~20 mA** 다 (디지털 1/0 과 다르다 · 사용자 지시).  기본 **8 mA**.  공학값으로 바꾸는 범위는
+    도면이 그 입력선 바로 아래에 인쇄한 것(`0~250 barg`)을 읽고, 없으면 사람이 적는다 (`ranges` · 작성자).
+    범위를 모르는 입력은 공학값이 없어 감시 블록이 맞대지 않는다 (예전처럼 1/0).
 """
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ import re
 import statistics
 
 MONITOR_FUNC = "SIGNAL MONITOR"
+MA_LO, MA_HI, DEFAULT_MA = 4.0, 20.0, 8.0          # L27 — 계장 신호 4~20 mA · 기본 8 mA (사용자 지시)
 _MON = re.compile(r"^\s*(H+)\s*/\s*$|^\s*/\s*(L+)\s*$")
 _NUM = re.compile(r"^[-+−]?\d+(?:[.,]\d+)?$")
 # 범례 이름이 값을 어떻게 고르는지 말하는 아날로그 블록 (이름 → 계산).  이름은 범례(학습 사전)가 붙인 것.
@@ -78,48 +82,168 @@ def _calc(how, vs):
     return max(vs) if how == "max" else min(vs)
 
 
-def nets(s, given, idx):
-    """사람이 준 아날로그 값 {"block:<id>"|"row:<n>": 수} → ({넷: 값}, {블록: 값}).
+def ma_ok(v):
+    f = num(v)
+    return f if f is not None and MA_LO <= f <= MA_HI else None
 
-    선택 블록(MED …)은 값을 안 받았으면 입력이 **모두** 정해졌을 때만 범례 이름대로 계산한다 (하나라도 모르면 모름)."""
-    ins, outs, drivers = idx[0], idx[1], idx[2]
+
+def to_eng(ma, rng):
+    lo, hi = float(rng["lo"]), float(rng["hi"])
+    return round(lo + (ma - MA_LO) / (MA_HI - MA_LO) * (hi - lo), 6)
+
+
+def to_ma(v, rng):
+    lo, hi = float(rng["lo"]), float(rng["hi"])
+    return None if hi == lo else round(MA_LO + (v - lo) / (hi - lo) * (MA_HI - MA_LO), 3)
+
+
+def _rng(x):
+    """사람이 적은 범위가 도면 범위를 이긴다."""
+    for k in ("range_user", "range"):
+        r = x.get(k) if isinstance(x, dict) else None
+        if isinstance(r, dict) and num(r.get("lo")) is not None and num(r.get("hi")) is not None and \
+                num(r.get("lo")) != num(r.get("hi")):
+            return {"lo": num(r["lo"]), "hi": num(r["hi"]), "unit": r.get("unit") or "", "src": "user" if k == "range_user" else "drawing"}
+    return None
+
+
+def is_analog_block(b):
+    return b.get("logic") == "unknown" and b.get("func") not in ("UNKNOWN", "MACRO", "XOR") and not monitor_kind(b)
+
+
+def consumers(s, idx):
+    """아날로그 값을 받는 넷 — 감시 블록 · 아날로그 블록(MED · f(x) …)의 입력."""
+    ins = idx[0]
+    out = set()
+    for bid, b in s["blocks"].items():
+        if monitor_kind(b) or is_analog_block(b):
+            out.update(n for n, _, _ in ins[bid])
+    return out
+
+
+def ranges(s, idx):
+    """넷마다 공학 범위 — 입력 행(도면 · 사람) · 블록(사람)에서 시작해 아날로그 블록을 지나 퍼진다."""
+    ins, outs = idx[0], idx[1]
     B = s["blocks"]
-    net_v, blk_v = {}, {}
-    rows = {r["n"]: r for r in s["rows"] if r["side"] == "L" and r.get("net") is not None}
-    for k, v in (given or {}).items():
-        f = num(v)
-        if f is None or not isinstance(k, str):
+    side = {(p["block"], p["net"]): p.get("side") for p in s["ports"]}
+    nr = {}
+    for r in s["rows"]:
+        if r["side"] == "L" and r.get("net") is not None and _rng(r):
+            nr[r["net"]] = _rng(r)
+    for bid, b in B.items():
+        rg = _rng(b.get("param") or {})
+        if rg:
+            for n, _, _ in outs[bid]:
+                nr[n] = rg
+    # 설정값을 % 로 적은 감시 블록(19VA `L : 14%`)에 들어오는 값은 범위를 몰라도 % 다 — 4 mA = 0 % · 20 mA = 100 %
+    for bid, b in B.items():
+        if monitor_kind(b) and str((b.get("param") or {}).get("sp_unit") or "").strip() == "%":
+            for n, _, _ in ins[bid]:
+                nr.setdefault(n, {"lo": 0.0, "hi": 100.0, "unit": "%", "src": "percent"})
+    for _ in range(len(B) + 1):
+        moved = False
+        for bid, b in B.items():
+            if not is_analog_block(b) or any(n in nr for n, _, _ in outs[bid]):
+                continue
+            got = [(nr[n], side.get((bid, n))) for n, _, _ in ins[bid] if n in nr]
+            if not got:
+                continue
+            same = all((g[0]["lo"], g[0]["hi"]) == (got[0][0]["lo"], got[0][0]["hi"]) for g in got)
+            rg = got[0][0] if same else next((g[0] for g in got if g[1] == "L"), got[0][0])
+            for n, _, _ in outs[bid]:
+                nr[n] = rg
+            moved = True
+        if not moved:
+            break
+    return nr
+
+
+def nets(s, given, idx):
+    """사람이 준 값 {"block:<id>"|"row:<n>": mA | {"eng": 공학값}} → ({넷: 공학값}, {블록: 공학값}, {키: 정보}).
+
+    아날로그 값을 받는 입력 행은 사람이 안 주면 기본 8 mA (범위를 알 때만 공학값이 선다).
+    선택 블록(MED …)은 값을 안 받았으면 입력이 **모두** 정해졌을 때만 범례 이름대로 계산한다 (하나라도 모르면 모름)."""
+    ins, outs = idx[0], idx[1]
+    B = s["blocks"]
+    given = dict(given or {})
+    nr = ranges(s, idx)
+    feeds = consumers(s, idx)
+    side = {(p["block"], p["net"]): p.get("side") for p in s["ports"]}
+    net_v, blk_v, keys = {}, {}, {}
+
+    def put(key, raw, rg, src):
+        if isinstance(raw, dict) and num(raw.get("eng")) is not None:
+            eng = num(raw["eng"])
+            keys[key] = {"ma": to_ma(eng, rg) if rg else None, "eng": eng, "range": rg, "src": "linked"}
+            return eng
+        ma = ma_ok(raw)
+        if ma is None:
+            return None
+        eng = to_eng(ma, rg) if rg else None
+        keys[key] = {"ma": ma, "eng": eng, "range": rg, "src": src}
+        return eng
+
+    for r in s["rows"]:
+        if r["side"] != "L" or r.get("net") is None:
             continue
-        kind, _, x = k.partition(":")
-        if kind == "row" and x.isdigit() and int(x) in rows:
-            net_v[rows[int(x)]["net"]] = f
-        elif kind == "block" and x in B:
-            blk_v[x] = f
+        k = f"row:{r['n']}"
+        rg = nr.get(r["net"])
+        if k in given:
+            v = put(k, given[k], rg, "user")
+        elif r["net"] in feeds:
+            v = put(k, DEFAULT_MA, rg, "default")
+        else:
+            continue
+        if v is not None:
+            net_v[r["net"]] = v
+    for k, raw in given.items():
+        kind, _, x = str(k).partition(":")
+        if kind != "block" or x not in B:
+            continue
+        rg = next((nr[n] for n, _, _ in outs[x] if n in nr), None)
+        v = put(k, raw, rg, "user")
+        if v is not None:
+            blk_v[x] = v
             for n, _, _ in outs[x]:
-                net_v[n] = f
+                net_v[n] = v
     for _ in range(len(B) + 1):
         moved = False
         for bid, b in B.items():
             if bid in blk_v:
                 continue
             how = selector_of(b)
+            if not how and is_analog_block(b) and ins[bid]:
+                # 보정 함수(f(x)) 같은 블록 — 계산식은 도면이 말하지 않는다.  왼쪽(주 입력) 값이 하나뿐이면 그대로 넘긴다
+                main = [net_v.get(n) for n, _, _ in ins[bid] if side.get((bid, n)) == "L"]
+                if len(main) == 1 and main[0] is not None:
+                    blk_v[bid] = main[0]
+                    rg = next((nr[n] for n, _, _ in outs[bid] if n in nr), None)
+                    keys[f"block:{bid}"] = {"ma": to_ma(main[0], rg) if rg else None, "eng": main[0], "range": rg,
+                                            "src": "pass"}
+                    for n, _, _ in outs[bid]:
+                        net_v[n] = main[0]
+                    moved = True
+                continue
             if not how or not ins[bid]:
                 continue
             vs = [net_v.get(n) for n, _, _ in ins[bid]]
             if any(v is None for v in vs):
                 continue
             blk_v[bid] = round(_calc(how, vs), 6)
+            rg = next((nr[n] for n, _, _ in outs[bid] if n in nr), None)
+            keys[f"block:{bid}"] = {"ma": to_ma(blk_v[bid], rg) if rg else None, "eng": blk_v[bid], "range": rg, "src": "calc"}
             for n, _, _ in outs[bid]:
                 net_v[n] = blk_v[bid]
             moved = True
         if not moved:
             break
-    return net_v, blk_v
+    return net_v, blk_v, keys
 
 
-def monitors(s, net_v, idx):
+def monitors(s, net_v, idx, nr=None):
     """감시 블록마다 {block, label, kind, value, sp, sp_src, unit, out} — 값과 설정값이 다 있을 때만 out 이 1/0."""
     ins = idx[0]
+    nr = nr if nr is not None else ranges(s, idx)
     out = []
     for bid, b in s["blocks"].items():
         k = monitor_kind(b)
@@ -128,14 +252,126 @@ def monitors(s, net_v, idx):
         v = next((net_v[n] for n, _, _ in ins[bid] if n in net_v), None)
         sp, src = setpoint(b)
         p = b.get("param") or {}
+        rg = next((nr[n] for n, _, _ in ins[bid] if n in nr), None)
         out.append({"block": bid, "label": b.get("label") or "", "kind": k[0], "value": v, "sp": sp, "sp_src": src,
                     "sp_drawing": num(p.get("sp")) if p.get("sp") is not None else None,
-                    "unit": p.get("sp_unit") or "",
+                    "sp_label": p.get("sp_label") or "", "level": p.get("sp_level") or k[1],
+                    "sp_ma": to_ma(sp, rg) if (rg and sp is not None) else None, "range": rg,
+                    "unit": p.get("sp_unit") or (rg or {}).get("unit") or "",
                     "out": compare(k[0], v, sp) if (v is not None and sp is not None) else None})
     return out
 
 
 # ------------------------------------------------------------------ 도면이 인쇄한 설정값
+
+_RANGE = re.compile(r"(?<![\w.])\(?([-+−]?\d+(?:[.,]\d+)?)\s*~\s*([-+−]?\d+(?:[.,]\d+)?)(?![\w.,])\)?(?:\s+([^\s~]{1,8}))?")
+
+
+def _read_ranges(s, ws):
+    """L27 — 아날로그 입력 행의 공학 범위: 그 행의 선(가로 토막) 바로 아래에 인쇄한 `0~250 barg`.
+    선 아래 행 간격 1.5 배 안 · 가로로 그 토막 위에 있는 글줄만.  `4~20mA` 처럼 단위가 붙은 것은 신호 범위라 안 받는다."""
+    idx = _idx(s)
+    feeds = consumers(s, idx)
+    P = s.get("pitch") or 10.0
+    n = 0
+    for r in s["rows"]:
+        if r["side"] != "L" or r.get("net") not in feeds:
+            continue
+        best = None
+        for x0, y0, x1, y1 in (s["nets"].get(r["net"]) or {}).get("segs") or []:
+            if abs(y1 - y0) > 0.5:
+                continue
+            lo, hi = min(x0, x1), max(x0, x1)
+            cand = [w for w in ws if y0 < w[1] <= y0 + 1.5 * P and w[0] >= lo - 2 and w[0] <= hi]
+            for w in cand:
+                if "~" not in w[4]:
+                    continue
+                line = sorted((u for u in cand if abs(u[3] - w[3]) < 1.0 and u[0] >= w[0] - 1), key=lambda u: u[0])
+                m = _RANGE.match(" ".join(u[4] for u in line))
+                if not m:
+                    continue
+                gap = w[1] - y0
+                if best is None or gap < best[0]:
+                    best = (gap, m)
+        if best:
+            m = best[1]
+            unit = (m.group(3) or "")
+            if re.fullmatch(r"\d.*", unit):
+                unit = ""
+            r["range"] = {"lo": num(m.group(1)), "hi": num(m.group(2)), "unit": unit, "text": m.group(0).strip()}
+            n += 1
+    return n
+
+
+def _idx(s):
+    from collections import defaultdict
+    ins, outs = defaultdict(list), defaultdict(list)
+    for p in s["ports"]:
+        (ins if p["dir"] == "in" else outs)[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
+    return ins, outs
+
+
+_TAGGED = re.compile(r"^(H+\d?|L+\d?)?\s*[:=]\s*([-+−]?\d+(?:[.,]\d+)?)\s*(\S{0,8})")
+_LEAD = re.compile(r"^([-+−]?\d+(?:[.,]\d+)?)\s*(\S{0,8})")
+
+
+def _lines(ws, h):
+    """낱말을 글줄로 (바닥이 행 높이 0.4 배 안이면 한 줄 · 왼쪽부터)."""
+    out = []
+    for w in sorted(ws, key=lambda t: (t[3], t[0])):
+        for ln in out:
+            if abs(ln[0][3] - w[3]) < h * 0.4:
+                ln.append(w)
+                break
+        else:
+            out.append([w])
+    return [sorted(ln, key=lambda t: t[0]) for ln in out]
+
+
+def _read_setpoint(b, ws):
+    """감시 블록 하나의 설정값 — 두 꼴을 읽는다 (그 밖은 지어내지 않는다).
+    ① 그 블록의 글자를 이름으로 단 값 `L : 14%` · `HH = 191` — 블록 위 · 오른쪽 위 (19VA)
+    ② 블록 바로 위의 수 `202.4 barg` (1A1Y) · 수가 아닌 이름 `N2` 은 이름만 (1A5J)."""
+    x0, y0, x1, y1 = b["bbox"]
+    h, w = max(1.0, y1 - y0), max(1.0, x1 - x0)
+    letters = re.sub(r"[^HL]", "", (b.get("label") or "").upper())
+    near = [t for t in ws if t[3] <= (y0 + y1) / 2 and t[3] >= y0 - 2 * h and t[2] >= x0 - w and t[0] <= x1 + 3 * w]
+    p = b.setdefault("param", {})
+    best = None
+    for ln in _lines(near, h):
+        m = _TAGGED.match(" ".join(t[4] for t in ln))
+        # 같은 쪽 글자면 그 블록의 값 — 19VA 는 상자를 `H/` 하나로 그리고 단계를 글자에 적는다 (`HH : 95degC`)
+        # · `: 0` (글자 없이 · 19VA p59) 도 그 블록의 값
+        if m and (m.group(1) is None or m.group(1)[0] == letters[:1]):
+            d = abs(ln[0][3] - y0)
+            if best is None or d < best[0]:
+                best = (d, m, ln)
+    if best:
+        _, m, ln = best
+        p["sp"], p["sp_unit"] = num(m.group(2)), m.group(3)
+        if m.group(1) and m.group(1) != letters:
+            p["sp_level"] = m.group(1)                  # 도면이 글자로 적은 경보 단계 (HH · LL …)
+        p["sp_text"] = " ".join(t[4] for t in ln)[:40]
+        return 1
+    cand = [t for t in near if t[3] <= y0 + 0.5 and t[0] <= x1 + w]
+    if not cand:
+        return 0
+    yb = max(t[3] for t in cand)                      # 블록에 가장 가까운 줄
+    line = sorted((t for t in cand if abs(t[3] - yb) < h * 0.4), key=lambda t: t[0])
+    if not line:
+        return 0
+    m = _LEAD.match(" ".join(t[4] for t in line))
+    if not m:
+        # 1A5J — `N2` 처럼 수가 아닌 이름을 인쇄한 설정값: 이름만 남기고 값은 사람이 적는다
+        if len(line) == 1 and re.fullmatch(r"[A-Z][A-Z0-9_.\-]{0,7}", line[0][4]):
+            p["sp_label"] = line[0][4]
+        return 0
+    if num(m.group(1)) is None:
+        return 0
+    p["sp"], p["sp_unit"] = num(m.group(1)), m.group(2)
+    p["sp_text"] = " ".join(t[4] for t in line)[:40]
+    return 1
+
 
 def read_drawing(pdf_path, sheets):
     """감시 블록 바로 위에 인쇄한 설정값(`202.4 barg` · `-830 mm`)을 블록 param 에 얹는다 (sp · sp_unit · sp_text).
@@ -149,7 +385,7 @@ def read_drawing(pdf_path, sheets):
         if s.get("page", 0) <= 0:
             continue
         mons = [(bid, b) for bid, b in s["blocks"].items() if monitor_kind(b) and b.get("bbox")]
-        if mons:
+        if mons or any(is_analog_block(b) for b in s["blocks"].values()):
             want[s["page"]] = (s, mons)
     if not want:
         return 0
@@ -164,23 +400,7 @@ def read_drawing(pdf_path, sheets):
             if page - 1 >= len(doc):
                 continue
             ws = geom.words(doc[page - 1])
+            n += _read_ranges(s, ws)
             for bid, b in mons:
-                x0, y0, x1, y1 = b["bbox"]
-                h, w = max(1.0, y1 - y0), max(1.0, x1 - x0)
-                cand = [t for t in ws if t[3] <= y0 + 0.5 and t[3] >= y0 - 2 * h
-                        and t[2] >= x0 - w and t[0] <= x1 + w]
-                if not cand:
-                    continue
-                yb = max(t[3] for t in cand)                  # 블록에 가장 가까운 줄
-                line = sorted((t for t in cand if abs(t[3] - yb) < h * 0.4), key=lambda t: t[0])
-                if not line or not _NUM.match(line[0][4]):
-                    continue
-                f = num(line[0][4])
-                if f is None:
-                    continue
-                p = b.setdefault("param", {})
-                p["sp"] = f
-                p["sp_unit"] = " ".join(t[4] for t in line[1:3] if not _NUM.match(t[4]))[:12]
-                p["sp_text"] = " ".join(t[4] for t in line)[:40]
-                n += 1
+                n += _read_setpoint(b, ws)
     return n
