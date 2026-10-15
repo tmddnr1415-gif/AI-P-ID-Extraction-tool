@@ -1385,11 +1385,21 @@ async function postSetpoint(bid, sp) {
   status(`${b.label || "감시"} 설정값 — ${sp == null ? (b.param.sp != null ? "도면 값 " + fmtNum(Number(b.param.sp)) : "없음") : fmtNum(sp) + " (" + who + ")"}`);
   return true;
 }
-function setAnalog(key, v) {
-  const p = L.page;
+function setAnalog(key, v, page) {
+  const p = page == null ? L.page : page;
   L.analog[p] = L.analog[p] || {};
   if (v == null) delete L.analog[p][key]; else L.analog[p][key] = v;
   if (!Object.keys(L.analog[p]).length) delete L.analog[p];
+  // L29 — 한 입력에는 한 가지만: 아날로그 값을 넣으면 그 입력에 준 디지털 1/0 강제는 푼다
+  if (v != null && L.allForces[p] && key in L.allForces[p]) {
+    delete L.allForces[p][key];
+    if (p === L.page) L.forces = L.allForces[p];
+  }
+  if (p !== L.page) {
+    status(v != null ? `∿ ${p} 쪽 ${key} = ${fmtMa(v)}` : `∿ ${p} 쪽 ${key} — 기본 ${DEFAULT_MA} mA 로`);
+    rerunAnalog();
+    return;
+  }
   status(v != null ? `∿ ${keyName(key)} = ${fmtMa(v)} — 감시 블록이 설정값과 맞댑니다` : `∿ ${keyName(key)} — 기본 ${DEFAULT_MA} mA 로`);
   rerunAnalog();
 }
@@ -1434,12 +1444,23 @@ function drawAnalogMarks(g, fs) {
     }
   }
   if (L.mode !== "sim") return;
-  for (const [k, info] of Object.entries(((L.analogRes || {}).keys) || {})) {
-    if (!k.startsWith("row:")) continue;
-    const r = s.rows.find((x) => x.side === "L" && x.n === Number(k.slice(4)));
-    if (!r || !r.at) continue;
-    const tx = el("text", { x: r.at[0] + fs, y: r.at[1] - fs * 0.5, "font-size": fs * 0.95, class: "anv row " + info.src }, g);
-    tx.textContent = `∿ ${info.ma != null ? fmtMa(info.ma) : ""}${info.eng != null ? " = " + engText(info.eng, info.range) : ""}${info.src === "user" ? " ✎" : ""}`;
+  // L29 — 입력마다 지금 들어가 있는 것을 꼬리표로: 아날로그(보라 · 내가 넣은 값은 진하게 · 기본값은 테두리만) ·
+  // 디지털로 준 1(파랑) / 0(회색).  누르면 그 입력의 메뉴가 열린다.
+  for (const r of s.rows) {
+    if (r.side !== "L" || !r.at) continue;
+    const key = "row:" + r.n;
+    const n = signalNow(key);
+    if (n.kind !== "analog" && !n.user) continue;
+    const label = n.kind === "analog" ? `${n.text}${n.user ? " ✎" : " 기본"}` : `${n.text} ✎`;
+    const cls = n.kind === "analog" ? "sigtag an" + (n.user ? " user" : "") : "sigtag dg v" + n.v;
+    const fz = (s.pitch || 11.5) * 0.52, w = label.length * fz * 0.6 + fz, h = fz * 1.4;   // 행 높이의 비율 — 맞춤 배율에서도 읽힌다
+    const x = r.at[0] + fs * 0.9, y = r.at[1] - h - fs * 0.25;
+    const gg = el("g", { class: cls, "data-key": key }, g);
+    el("rect", { x, y, width: w, height: h, rx: h / 2 }, gg);
+    const tx = el("text", { x: x + w / 2, y: y + h * 0.72, "font-size": fz }, gg);
+    tx.textContent = label;
+    el("title", {}, gg).textContent = `${r.n}행 · ${n.kind === "analog" ? "아날로그 입력" : "디지털 입력"} — ${n.how} · 눌러서 바꾸기`;
+    gg.addEventListener("click", (ev) => { ev.stopPropagation(); forceMenu(key, ev, `입력 ${r.n}` + (r.desc ? " · " + r.desc : "")); });
   }
 }
 /* 세는 타이머의 남은 시간을 블록 위에 줄여 간다 (실제 시간) */
@@ -1682,6 +1703,11 @@ function setForce(key, v) {
   // L9 — 따라가기 모드에서 입력 동그라미에 1/0 을 고르면 시뮬레이션으로 넘어가 그 값으로 돈다
   if (L.mode !== "sim") setMode("sim", true);
   if (v === null) delete L.forces[key]; else L.forces[key] = v;
+  // L29 — 한 입력에는 한 가지만: 디지털 1/0 을 주면 그 입력에 넣어 둔 아날로그 값은 뺀다
+  if (v !== null && (L.analog[L.page] || {})[key] != null) {
+    delete L.analog[L.page][key];
+    if (!Object.keys(L.analog[L.page]).length) delete L.analog[L.page];
+  }
   // L16 — 목표로 둔 출력이 게이트 조건을 못 채웠으면 (사람이 준 입력 0 이 막음) 그렇게 말하고 0 인 입력을 짚는다
   runSim(true).then(() => { if ((L.unmet || []).length) reportUnmet(); });
 }
@@ -1906,31 +1932,93 @@ function closeForceMenu() {
   const m = document.getElementById("force-menu");
   if (m) m.remove();
 }
+/* L29 — 입력 하나에 지금 무엇이 들어가 있나 — 디지털(1 활성 / 0 비활성) · 아날로그(mA = 공학값) · 내가 준 것인가 기본값인가.
+   메뉴 · 오른쪽 행 목록 · 도면 표시가 모두 이것 하나를 읽는다 (서로 다른 말을 하지 않게). */
+const MA_PRESETS = [4, 8, 12, 16, 20];
+function signalNow(key) {
+  const dv = L.forces[key];
+  if (dv !== undefined) return { kind: "digital", user: true, v: dv, text: dv === 1 ? "1 활성" : "0 비활성", how: "내가 줌" };
+  if (key.startsWith("row:") && analogRow(key)) {
+    const a = analogValueOf(key);
+    const ma = a.ma != null ? a.ma : DEFAULT_MA;
+    const eng = a.eng != null ? a.eng : maToEng(ma, a.range);
+    return { kind: "analog", user: a.src === "user", ma, eng, range: a.range,
+             text: `∿ ${fmtMa(ma)}${eng != null ? " = " + engText(eng, a.range) : ""}`,
+             how: a.src === "user" ? "내가 넣음" : a.src === "linked" ? "다른 시트에서" : `기본값 (${DEFAULT_MA} mA)` };
+  }
+  if (L.mode !== "sim") return { kind: "digital", user: false, v: null, text: "", how: "" };
+  const r = key.startsWith("row:") ? L.sheet.rows.find((x) => x.n === Number(key.slice(4)) && x.side === "L") : null;
+  const lk = r && r.n in (L.linked || {});
+  const v = r ? (L.values[r.net] === 1 ? 1 : 0) : null;
+  return { kind: "digital", user: false, v, text: v == null ? "" : v === 1 ? "1 활성" : "0 비활성",
+           how: lk ? `다른 시트에서 (${r.fm || ""})` : "도면 값 (아무도 안 줌)" };
+}
+function nowLine(key) {
+  const n = signalNow(key);
+  if (!n.text) return "";
+  return `<div class="fm-now ${n.kind}${n.user ? " user" : ""}${n.kind === "digital" && n.v === 1 ? " on" : ""}">지금 <b>${esc(n.text)}</b> <small>${esc(n.how)}</small></div>`;
+}
 function forceMenu(key, e, label, up) {
   closeForceMenu();
   const v = L.forces[key];
+  const isAn = analogRow(key) && key.startsWith("row:");
   const m = document.createElement("div");
   m.id = "force-menu";
-  m.className = "force-menu";
+  m.className = "force-menu" + (isAn ? " sig-an" : "");
   m.dataset.key = key;
+  const cur = isAn ? analogValueOf(key) : null;
   m.innerHTML =
-    (label ? `<div class="fm-h">${esc(label)}</div>` : "") +
-    `<button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (activate)</button>` +
-    `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성 (deactivate)</button>` +
-    (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") +
+    (label ? `<div class="fm-h">${esc(label)}${isAn ? ` <span class="fm-kind an">아날로그 입력</span>` : key.startsWith("row:") && !isOutRow(key) ? ` <span class="fm-kind dg">디지털 입력</span>` : ""}</div>` : "") +
+    nowLine(key) +
+    (isAn ? `<div class="fm-sec an">∿ 아날로그 값 넣기 <small>4 ~ 20 mA</small></div>
+      <div class="fm-an"><input id="an-q" type="number" min="${MA_LO}" max="${MA_HI}" step="0.1"
+        value="${cur.src === "user" ? cur.ma : ""}" placeholder="${cur.ma != null ? fmtNum(cur.ma) : DEFAULT_MA}"> mA
+        <span class="an-q-eng"></span></div>
+      <div class="fm-chips">${MA_PRESETS.map((x) => `<button data-ma="${x}" class="chip${cur.src === "user" && cur.ma === x ? " on" : ""}">${x}</button>`).join("")}<small>mA</small></div>
+      <button data-v="aok" class="va">∿ 이 값 넣기</button>
+      ${cur.src === "user" ? `<button data-v="ax" class="vx">기본 ${DEFAULT_MA} mA 로 되돌리기</button>` : ""}
+      <button data-v="a" class="vmore">범위 · 감시(HH · HHH) 설정값 자세히 …</button>
+      <div class="fm-sec dg">디지털로 강제 <small>값과 무관하게 선을 1 / 0 으로</small></div>` : "") +
+    `<div class="fm-dg"><button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성</button>` +
+    `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성</button>` +
+    (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") + `</div>` +
     (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "") +
-    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "") +
-    (analogRow(key) ? `<button data-v="a" class="va">∿ 아날로그 값 넣기 — 감시 블록(HH · HHH …)이 설정값과 맞댑니다</button>` : "");
+    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "");
   document.body.appendChild(m);
   const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
   const r = m.getBoundingClientRect();
   m.style.left = Math.max(4, Math.min(x + 8, innerWidth - r.width - 4)) + "px";
   m.style.top = Math.max(4, Math.min(y + 8, innerHeight - r.height - 4)) + "px";
+  const q = m.querySelector("#an-q");
+  const applyAn = (raw) => {
+    const val = String(raw).trim() === "" ? null : Number(raw);
+    if (val != null && !(val >= MA_LO && val <= MA_HI)) { q.classList.add("bad"); return; }
+    closeForceMenu();
+    setAnalog(key, val);
+  };
+  if (q) {
+    const out = m.querySelector(".an-q-eng");
+    const upd = () => {
+      const raw = q.value.trim(), ma = raw === "" ? (cur.ma != null ? cur.ma : DEFAULT_MA) : Number(raw);
+      q.classList.remove("bad");
+      if (raw !== "" && !(ma >= MA_LO && ma <= MA_HI)) { out.textContent = "4~20 mA 사이"; out.className = "an-q-eng bad"; return; }
+      const eng = maToEng(ma, cur.range);
+      out.className = "an-q-eng";
+      out.textContent = eng != null ? `= ${engText(eng, cur.range)}` : "범위 없음 — '자세히' 에서 적어 주세요";
+    };
+    q.addEventListener("input", upd);
+    q.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) applyAn(q.value); });
+    upd();
+    q.focus();
+  }
   m.addEventListener("click", (ev) => {
     ev.stopPropagation();
     const b = ev.target.closest("button");
     if (!b) return;
+    if (b.dataset.ma) { applyAn(b.dataset.ma); return; }
+    if (b.dataset.v === "aok") { applyAn(q.value); return; }
     closeForceMenu();
+    if (b.dataset.v === "ax") { setAnalog(key, null); return; }
     if (b.dataset.v === "t") { traceFrom(key, !!up); return; }
     if (b.dataset.v === "s") { runScenario(key); return; }
     if (b.dataset.v === "a") { analogMenu(key, e); return; }
@@ -2173,6 +2261,14 @@ function valTag(v) {
   if (L.mode !== "sim") return "";
   return v === 1 ? `<span class="val v1">1</span>` : `<span class="val v0">0</span>`;
 }
+/* L29 — 행 목록의 입력 칩: 아날로그 입력은 '∿ 12 mA = 125 barg' (누르면 값 넣기) · 디지털로 준 것은 '1 활성 ✎' */
+function sigChip(key) {
+  const n = signalNow(key);
+  if (n.kind === "analog")
+    return `<button class="sigchip an${n.user ? " user" : ""}" data-an-row="${esc(key)}" title="아날로그 입력 — ${esc(n.how)} · 눌러서 값 넣기">${esc(n.text)}${n.user ? " ✎" : ""}</button>`;
+  if (n.user) return `<span class="sigchip dg v${n.v}" title="디지털 — 내가 줌">${esc(n.text)} ✎</span>`;
+  return "";
+}
 function forceBtns(key) {
   const v = L.forces[key];
   return `<span class="force" data-key="${esc(key)}"><button class="v1 ${v === 1 ? "on" : ""}" data-v="1" title="1 로 강제">1</button><button class="v0 ${v === 0 ? "on" : ""}" data-v="0" title="0 으로 강제">0</button><button data-v="x" title="강제 풀기">×</button></span>`;
@@ -2196,7 +2292,7 @@ function renderRows() {
     const uc = tr && tr.user && tr.user[r.side === "L" ? "fm" : "to"];
     const ed = tr ? `<button class="mini ed${uc ? " on" : ""}" data-cell="${r.side}:${r.n}" title="${r.side === "L" ? "FM" : "TO"} 칸 값 적기 · 고치기${uc ? ` — 사람이 적음 (${esc(uc.author)})` : ""}">✎${r.side === "L" ? "FM" : "TO"}</button>` : "";
     const ex = r.side === "R" && r.net != null ? `<button class="mini ex" data-ex="row:${r.n}" title="이 출력까지 입력부터 모든 신호가 서는 동작 예시를 찾아 보여 줍니다">⚡예시</button>` : "";
-    const right = (L.mode === "sim" ? forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "") + ex + ed;
+    const right = (L.mode === "sim" ? (r.side === "L" ? sigChip("row:" + r.n) : "") + forceBtns("row:" + r.n) + valTag(L.values[r.net]) : "") + ex + ed;
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
     const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
@@ -2205,6 +2301,12 @@ function renderRows() {
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";
   $("#out-rows").innerHTML = rows.filter((r) => r.side === "R").map(mk).join("") || "<li>없음</li>";
+  for (const b of document.querySelectorAll("#in-rows button[data-an-row]"))
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      const k = b.dataset.anRow, r = s.rows.find((x) => x.side === "L" && x.n === Number(k.slice(4)));
+      forceMenu(k, ev, `입력 ${k.slice(4)}` + (r && r.desc ? " · " + r.desc : ""));
+    };
   for (const b of document.querySelectorAll("#out-rows button[data-ex]"))
     b.onclick = (ev) => { ev.stopPropagation(); runScenario(b.dataset.ex); };
   for (const b of document.querySelectorAll(".lg-rows button[data-cell]"))
@@ -2290,7 +2392,8 @@ function renderSigPop() {
   if (!pop) return;
   const tg = $("#sig-toggle");
   const pages = L.mode === "sim" ? (L.chain || []) : [];
-  const nUser = pages.reduce((a, c) => a + (c.forced || []).length, 0);
+  const anList = L.mode === "sim" ? analogGivenItems() : [];
+  const nUser = pages.reduce((a, c) => a + (c.forced || []).length, 0) + anList.length;
   const open = L.mode === "sim" && lsGet(SIGPOP_CLOSED) !== "1" && (nUser > 0 || L.sigWanted);
   pop.hidden = !open;
   if (tg) tg.classList.toggle("on", open);
@@ -2324,14 +2427,34 @@ function renderSigPop() {
   const sec = (h, sub, items, empty) => `<h4>${h} <small>${sub}</small></h4>` +
     (items.length ? `<ul>${items.join("")}</ul>` : `<div class="sp-empty">${empty}</div>`);
   $("#sigpop-b").innerHTML =
-    sec("내가 준 신호", `${forced.length}개 · 모든 시트`, forced, "아직 준 신호가 없습니다 — 입력 행의 동그라미를 눌러 1 을 주세요.") +
+    sec("내가 준 디지털 신호", `${forced.length}개 · 1 활성 / 0 비활성 · 모든 시트`, forced, "아직 준 신호가 없습니다 — 입력 행의 동그라미를 눌러 1 을 주세요.") +
+    (anList.length ? sec("내가 넣은 아날로그 값", `${anList.length}개 · 4~20 mA · 모든 시트`, anList, "") : "") +
     (chained.length ? sec("줄줄이 켬", `${chained.length}개 · 자동`, chained, "") : "") +
     (unmet.length ? sec("나가지 않은 출력", `${unmet.length}개 · 이 시트`, unmet, "") : "") +
     sec("나간 출력", `${nOut}개 · 1 인 출력 행`, outs, "아직 1 이 된 출력 행이 없습니다.") +
     (stops.length ? sec("신호가 닿았지만 멈춘 곳", `${stops.length}개 · 그 시트 게이트 조건이 아직 안 맞음`, stops, "") : "") +
     `<div class="sp-foot">항목을 누르면 그 시트 그 행으로 갑니다 · 오른쪽 '끄기' 로 그 신호만 풉니다 (다른 시트에 있어도).</div>`;
-  $("#sigpop-sum").textContent = `신호 ${forced.length} → 출력 ${nOut}`;
+  $("#sigpop-sum").textContent = `신호 ${forced.length}${anList.length ? ` · 아날로그 ${anList.length}` : ""} → 출력 ${nOut}`;
   placeSigPop();
+}
+/* L29 — 사람이 넣은 아날로그 값 (모든 시트) — 신호 현황 창의 한 구획 */
+function analogGivenItems() {
+  const out = [];
+  for (const [p, vals] of Object.entries(L.analog || {})) {
+    const page = Number(p), sh = ((L.sheets || []).find((x) => x.page === page) || {}).sheet_no || "p" + page;
+    for (const [key, ma] of Object.entries(vals)) {
+      let what = key.startsWith("row:") ? `${key.slice(4)}행` : `블록 ${key.slice(6)}`, eng = "";
+      if (page === L.page && L.sheet) {
+        if (key.startsWith("row:")) { const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r && r.desc) what += " " + r.desc; }
+        else { const b = L.sheet.blocks[key.slice(6)]; if (b) what = `${b.label || FUNC_KO[b.func] || b.func}`; }
+        const a = analogValueOf(key);
+        if (a.eng != null) eng = ` = ${engText(a.eng, a.range)}`;
+      }
+      const rowAttr = key.startsWith("row:") ? `data-row="${key.slice(4)}" data-side="L"` : "";
+      out.push(`<li data-page="${page}" data-sheet="${esc(sh)}" ${rowAttr} class="${page === L.page ? "cur" : ""}"><span class="van">∿</span><span class="sp-sh">${esc(sh)}</span> <span class="sp-what">${esc(what)} — <b>${fmtMa(ma)}${esc(eng)}</b></span><button class="sp-off" data-an-off="${esc(key)}" title="이 값을 뺍니다 (기본 ${DEFAULT_MA} mA 로)">끄기</button></li>`);
+    }
+  }
+  return out;
 }
 /* 다른 시트에서 준 신호도 이 창에서 끈다 — 그 시트로 가지 않고 강제만 푼다 (사람이 준 값을 지우면 도면이 정한 값) */
 function unforce(page, key) {
@@ -2378,6 +2501,8 @@ function bindSigPop() {
     if (L.mode !== "sim") setMode("sim"); else renderSigPop();
   };
   $("#sigpop-b").addEventListener("click", (e) => {
+    const aoff = e.target.closest("button[data-an-off]");
+    if (aoff) { e.stopPropagation(); setAnalog(aoff.dataset.anOff, null, Number(aoff.closest("li").dataset.page)); return; }
     const off = e.target.closest("button[data-off]");
     if (off) { e.stopPropagation(); unforce(Number(off.closest("li").dataset.page), off.dataset.off); return; }
     const li = e.target.closest("li[data-page]");

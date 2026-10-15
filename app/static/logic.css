@@ -567,3 +567,39 @@ button.mini.ed.on { background: #efe6fb; }
 .force-menu .an-rg input.unit { width: 52px; }
 .force-menu .an-eng { color: #6a3fb5; white-space: normal; }
 .force-menu .an-eng.bad { color: #c2453f; }
+
+/* L29 — 입력 신호의 종류와 값을 분명히: 디지털(1 활성 · 0 비활성) · 아날로그(∿ mA = 공학값) */
+.force-menu .fm-kind { font-size: 10px; padding: 0 5px; border-radius: 8px; margin-left: 4px; color: #fff; }
+.force-menu .fm-kind.an { background: #6a3fb5; } .force-menu .fm-kind.dg { background: #3a6fd8; }
+.force-menu .fm-h { white-space: normal; }
+.force-menu .fm-now { margin: 4px 6px 2px; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: #f3f4f6; color: #374151; }
+.force-menu .fm-now.analog { background: #f1ebfb; color: #4b2a8a; } .force-menu .fm-now.analog.user { background: #6a3fb5; color: #fff; }
+.force-menu .fm-now.digital.on { background: #dff5ff; color: #0a6aa3; } .force-menu .fm-now.digital.user { outline: 1.5px solid #0a8fd4; }
+.force-menu .fm-now small { opacity: .8; margin-left: 4px; }
+.force-menu .fm-sec { font-size: 11px; font-weight: 700; padding: 6px 6px 2px; border-top: 1px solid #f0ede5; margin-top: 4px; }
+.force-menu .fm-sec.an { color: #6a3fb5; } .force-menu .fm-sec.dg { color: #3a6fd8; }
+.force-menu .fm-sec small { font-weight: 400; color: var(--soft); margin-left: 4px; }
+.force-menu .fm-an { padding: 2px 8px; font-size: 12px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.force-menu .fm-an input { width: 64px; font-size: 13px; padding: 2px 4px; }
+.force-menu .fm-an input.bad { outline: 2px solid #c2453f; }
+.force-menu .an-q-eng { font-weight: 700; color: #6a3fb5; } .force-menu .an-q-eng.bad { color: #c2453f; }
+.force-menu .fm-chips { display: flex; gap: 3px; padding: 2px 8px 4px; align-items: center; }
+.force-menu .fm-chips .chip { border: 1px solid #c9b8ea; background: #faf7ff; padding: 1px 7px; border-radius: 10px; color: #4b2a8a; }
+.force-menu .fm-chips .chip.on { background: #6a3fb5; color: #fff; }
+.force-menu .fm-chips small { color: var(--soft); font-size: 10px; }
+.force-menu button.va { color: #fff; background: #6a3fb5; margin: 2px 6px; text-align: center; font-weight: 700; }
+.force-menu button.va:hover { background: #5a31a0; }
+.force-menu button.vmore { color: #6a3fb5; font-size: 11px; }
+.force-menu .fm-dg { display: flex; gap: 2px; padding: 0 2px; }
+.sigchip { font-size: 11px; padding: 0 6px; border-radius: 9px; margin-right: 4px; white-space: nowrap; border: 1px solid transparent; }
+button.sigchip { cursor: pointer; }
+.sigchip.an { color: #4b2a8a; background: #f6f2fd; border-color: #c9b8ea; } .sigchip.an.user { color: #fff; background: #6a3fb5; border-color: #6a3fb5; }
+.sigchip.dg.v1 { color: #fff; background: var(--active, #0a8fd4); } .sigchip.dg.v0 { color: #fff; background: #59616f; }
+#ov .sigtag { cursor: pointer; }
+#ov .sigtag rect { stroke-width: .5; }
+#ov .sigtag text { text-anchor: middle; font-weight: 700; pointer-events: none; }
+#ov .sigtag.an rect { fill: #fff; stroke: #6a3fb5; } #ov .sigtag.an text { fill: #6a3fb5; }
+#ov .sigtag.an.user rect { fill: #6a3fb5; } #ov .sigtag.an.user text { fill: #fff; }
+#ov .sigtag.dg rect { stroke: none; } #ov .sigtag.dg.v1 rect { fill: #0a8fd4; } #ov .sigtag.dg.v0 rect { fill: #59616f; }
+#ov .sigtag.dg text { fill: #fff; }
+.lg-sigpop .van { display: inline-block; width: 16px; text-align: center; border-radius: 4px; background: #6a3fb5; color: #fff; font-weight: 700; margin-right: 4px; }

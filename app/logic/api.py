@@ -311,6 +311,8 @@ def _result_locked(job):
     # L25 — 다른 묶음에서 사람이 가르친 게이트 규칙(학습 사전)도 얹는다 (그 묶음의 규칙이 이기고, 블록 하나를 정한 것이 더 이긴다)
     lm = library.mtime()
     lib_rules = _lib_rules(lm, job)
+    # L29 — 사전 파일이 바뀌어도(다른 묶음을 배움) 이 묶음에 닿는 규칙이 같으면 캐시를 버리지 않는다 — 열쇠는 규칙 내용
+    lm = _rules_key(lib_rules)
     om = overrides.mtime(d)
     if om is None and not lib_rules:
         _APPLIED.pop(job, None)
@@ -405,6 +407,11 @@ def _sp_save(d, rm, got):
             ensure_ascii=False))
     except Exception:
         pass
+
+
+def _rules_key(rules):
+    return __import__("hashlib").blake2b(json.dumps(rules, sort_keys=True, default=str).encode(), digest_size=12).hexdigest() \
+        if rules else ""
 
 
 def _lib_rules(lm, job):

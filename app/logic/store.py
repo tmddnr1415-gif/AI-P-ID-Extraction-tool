@@ -9,6 +9,7 @@ DB 를 쓰지 않는다 — 기존 표에 손대지 않고(지시문 §3), 이 �
 """
 from __future__ import annotations
 
+import gc
 import json
 import os
 import re
@@ -160,6 +161,10 @@ def read_result(d: Path) -> dict:
         if hit and hit[0] == st:
             return hit[1]
         res = json.loads(p.read_text(encoding="utf-8"))
+        # L29 — 846쪽 결과는 파이썬 객체 수십만 개다.  순환 참조가 없는 나무라 쓰레기 수거기(GC)가 훑을 일이 없는데,
+        # 그대로 두면 큰 수거 때마다 전부 훑어 화면 요청이 0.8초씩 멈췄다 — 영구 세대로 옮긴다 (놓으면 참조 수로 그대로 풀린다)
+        gc.collect(1)
+        gc.freeze()
         _RES[key] = (st, res)
         _RES.move_to_end(key)
         while len(_RES) > RES_KEEP:
