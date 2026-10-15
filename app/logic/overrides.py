@@ -67,7 +67,8 @@ def _path(d: Path) -> Path:
 
 
 def empty():
-    return {"blocks": {}, "cells": {}, "timers": {}, "setpoints": {}, "ranges": {}, "marks": {}, "teach": _teach0(), "history": []}
+    return {"blocks": {}, "cells": {}, "timers": {}, "setpoints": {}, "ranges": {}, "marks": {}, "aparams": {}, "teach": _teach0(),
+            "history": []}
 
 
 def _teach0():
@@ -101,7 +102,7 @@ def mtime(d: Path):
 
 
 def has_any(ov: dict) -> bool:
-    return any(ov.get(k) for k in ("blocks", "cells", "timers", "setpoints", "ranges", "marks")) or any((ov.get("teach") or {}).values())
+    return any(ov.get(k) for k in ("blocks", "cells", "timers", "setpoints", "ranges", "marks", "aparams")) or any((ov.get("teach") or {}).values())
 
 
 def _save(d: Path, data: dict):
@@ -264,6 +265,85 @@ def set_range(d: Path, page: int, key: str, lo, hi, unit, author) -> dict:
         ent = {"lo": a, "hi": b, "unit": str(unit or "").strip()[:12], "author": author, "at": _now()}
         pg[key] = ent
         data["history"].append({"kind": "range", "page": page, "key": key, "value": [a, b], "author": author, "at": ent["at"]})
+        _save(d, data)
+        return ent
+
+
+APARAM_NUM = ("value", "k", "b", "h", "l", "n", "d", "out", "c")
+
+
+def clean_aparams(raw) -> dict:
+    """L30 — 아날로그 연산자에 사람이 넣는 값 (수만 · 틀린 것은 거절).
+    value 상수 · k 비례 · b 바이어스 · h/l 상·하한 · n 지수 · d 편차 · out 출력값(정해지지 않는 연산) · c 전환 조건 0/1 ·
+    coef {넷: 계수} · order [넷 앞, 넷 뒤] · table [[x, y] …] (F(X) 꺾은선) · vars {글자: 값} (수식) · op (연산 이름)."""
+    from . import aops
+    if not isinstance(raw, dict):
+        raise ValueError("값은 {이름: 수} 입니다.")
+    out = {}
+
+    def num(v, what):
+        try:
+            f = float(str(v).replace(",", "."))
+        except (TypeError, ValueError):
+            raise ValueError(f"{what} 은(는) 수입니다.")
+        if f != f or abs(f) >= 1e12:
+            raise ValueError(f"{what} 이(가) 너무 큽니다.")
+        return f
+    for k in APARAM_NUM:
+        if raw.get(k) not in (None, ""):
+            out[k] = num(raw[k], k)
+    if "c" in out:
+        if out["c"] not in (0.0, 1.0):
+            raise ValueError("전환 조건은 0 또는 1 입니다.")
+        out["c"] = int(out["c"])
+    if isinstance(raw.get("coef"), dict):
+        c = {str(n): num(v, "계수") for n, v in raw["coef"].items() if v not in (None, "")}
+        if c:
+            out["coef"] = c
+    if isinstance(raw.get("order"), list) and len(raw["order"]) == 2:
+        out["order"] = [str(x) for x in raw["order"]]
+    if isinstance(raw.get("table"), list):
+        tb = []
+        for pt in raw["table"]:
+            if isinstance(pt, (list, tuple)) and len(pt) == 2:
+                tb.append([num(pt[0], "X"), num(pt[1], "Y")])
+        if len(tb) >= 2:
+            out["table"] = sorted(tb)
+        elif raw["table"]:
+            raise ValueError("F(X) 표는 점이 둘 이상 있어야 합니다 (X, Y).")
+    if isinstance(raw.get("vars"), dict):
+        v = {str(k).upper()[:4]: num(x, k) for k, x in raw["vars"].items() if x not in (None, "")}
+        if v:
+            out["vars"] = v
+    if raw.get("op"):
+        if raw["op"] not in (aops.vocab().get("ops") or {}) and raw["op"] not in (aops.vocab().get("digital_ops") or {}):
+            raise ValueError("모르는 연산입니다.")
+        out["op"] = raw["op"]
+    return out
+
+
+def set_aparam(d: Path, page: int, bid: str, params, author) -> dict:
+    """L30 — 아날로그 연산자 값 (블록 하나 · 통째로 바꾼다).  params None 이면 지우고 도면 값으로 돌아간다."""
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        pg = data["aparams"].setdefault(str(page), {})
+        old = pg.get(str(bid)) or {}
+        if params is None:
+            pg.pop(str(bid), None)
+            if not pg:
+                data["aparams"].pop(str(page), None)
+            data["history"].append({"kind": "aparam", "page": page, "key": bid, "value": None,
+                                    "was": {k: v for k, v in old.items() if k not in ("author", "at")}, "author": author,
+                                    "at": _now()})
+            _save(d, data)
+            return {"removed": bool(old)}
+        p = clean_aparams(params)
+        ent = {**p, "author": author, "at": _now()}
+        pg[str(bid)] = ent
+        data["history"].append({"kind": "aparam", "page": page, "key": bid, "value": p,
+                                "was": {k: v for k, v in old.items() if k not in ("author", "at")}, "author": author,
+                                "at": ent["at"]})
         _save(d, data)
         return ent
 
@@ -465,6 +545,25 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
                 b.setdefault("param", {})["sp_user"] = float(e["sp"])
                 b["param"]["sp_user_by"] = e.get("author", "")
                 b["param"]["sp_user_at"] = e.get("at", "")
+    for pg, m in (ov.get("aparams") or {}).items():
+        s = by_page.get(int(pg)) if str(pg).isdigit() else None
+        if s is None:
+            continue
+        for bid, e in m.items():
+            b = s["blocks"].get(bid)
+            if b is None or not isinstance(e, dict):
+                continue
+            prm = dict(b.get("param") or {})
+            prm["a_user"] = {k: v for k, v in e.items() if k not in ("author", "at")}
+            prm["a_user"]["by"], prm["a_user"]["at"] = e.get("author", ""), e.get("at", "")
+            b["param"] = prm
+            if e.get("op") and (b.get("logic") == "unknown" and b.get("func") in ("UNKNOWN", "ANALOG") or b.get("aop_was")):
+                from . import aops as _ao
+                names = _ao.info(e["op"]).get("names") or []
+                b["aop"] = e["op"]
+                b["func"] = names[0] if names else e["op"].upper()
+                b["logic"] = "unknown"                    # 표시등으로 읽힌 상자도 사람이 연산자라고 하면 연산자
+                touched.add(s["page"])
     for pg, m in (ov.get("ranges") or {}).items():
         s = by_page.get(int(pg)) if str(pg).isdigit() else None
         if s is None:
@@ -511,6 +610,7 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
                          "timers": sum(len(v) for v in (ov.get("timers") or {}).values()),
                          "setpoints": sum(len(v) for v in (ov.get("setpoints") or {}).values()),
                          "ranges": sum(len(v) for v in (ov.get("ranges") or {}).values()),
+                         "aparams": sum(len(v) for v in (ov.get("aparams") or {}).values()),
                          "marks": sum(len(v) for v in (ov.get("marks") or {}).values()),
                          "taught": {"gates": len(tc.get("gates") or []), "library": len(lib_rules or []),
                                     "sheet": bool(tc.get("sheet")), "cols": sorted((tc.get("cols") or {}).keys()),

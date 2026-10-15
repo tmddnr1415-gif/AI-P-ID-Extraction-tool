@@ -73,7 +73,10 @@ def run(d: Path):
         st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": "",
                    "pages": res.get("pdf_pages")})
         try:                                         # L24 — 식별률을 끝날 때 한 번 센다 (조용한 실패를 첫 화면에서 말한다)
-            from app.logic import fromto, idrate
+            from app.logic import aops, fromto, idrate
+            _bp = {s["page"]: s for s in res["sheets"]}
+            for _pg in aops.identify(res["sheets"]):  # L30 — 화면이 결과를 읽을 때와 같은 이름 (아날로그 연산자 · 표시등)
+                _bp[_pg]["findings"] = analyse._findings(_bp[_pg])
             fromto.check(res["sheets"])
             m = idrate.measure(res)
             st.update({"idrate": m["overall"], "idrate_low": m["low"]})

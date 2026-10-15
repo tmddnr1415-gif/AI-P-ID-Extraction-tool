@@ -2,6 +2,7 @@
 
   `{data}/logic/<job>/memo.json` = {"items": [...]}
   항목 = {id, page, sheet_no, text, author, time, at: [x, y] | None, done, hidden, history: [{text, author, time}]}
+         L30 — rect: [x0, y0, x1, y1] (끌어서 두른 영역 · at 은 그 오른쪽 위) · block: 블록 이름 (연산자 판에서 단 메모)
 
   * 지우지 않는다 — 글을 고치면 앞 글이 history 로 · '완료'·'숨김' 은 표시뿐.
   * 자리(at)는 그 장의 PDF 좌표 (오버레이와 같은 좌표계).  없으면 장 메모.
@@ -53,7 +54,17 @@ def _clean_at(at):
     raise ValueError("자리(at)는 [x, y] 숫자 둘이어야 합니다.")
 
 
-def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None) -> dict:
+def _clean_rect(rect):
+    if rect is None:
+        return None
+    if isinstance(rect, (list, tuple)) and len(rect) == 4 and all(isinstance(v, (int, float)) and v == v and abs(v) < 1e6 for v in rect):
+        x0, x1 = sorted((float(rect[0]), float(rect[2])))
+        y0, y1 = sorted((float(rect[1]), float(rect[3])))
+        return [round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2)]
+    raise ValueError("영역(rect)은 [x0, y0, x1, y1] 숫자 넷이어야 합니다.")
+
+
+def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None, rect=None, block=None) -> dict:
     text = (text or "").strip()
     author = (author or "").strip()
     if not text:
@@ -63,6 +74,13 @@ def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None) -> d
     item = {"id": uuid.uuid4().hex[:10], "page": int(page), "sheet_no": str(sheet_no or ""),
             "text": text[:MAX_TEXT], "author": author[:80], "time": _now(), "at": _clean_at(at),
             "done": False, "hidden": False, "history": []}
+    rect = _clean_rect(rect)
+    if rect:
+        item["rect"] = rect
+        if item["at"] is None:
+            item["at"] = [rect[2], rect[1]]
+    if block:
+        item["block"] = str(block)[:24]
     with _LOCK:
         data = load(d)
         data["items"].append(item)

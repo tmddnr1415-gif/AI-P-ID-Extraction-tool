@@ -364,7 +364,7 @@ async function openJob(id) {
   L.all = null; L.allSel = null;
   api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
   L.memos = [];
-  loadMemos(id);
+  loadMemos(id); aopVocab();
   L.idrate = null; L.idrateOpen = false; loadIdrate();
   // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
@@ -1410,6 +1410,14 @@ function rerunAnalog() {
 }
 function analogInfoRows(bid) {
   const b = L.sheet.blocks[bid];
+  const opRow = b.aop ? (() => {
+    const v = (L.aopVocab && ((L.aopVocab.ops || {})[b.aop] || (L.aopVocab.digital_ops || {})[b.aop])) || {};
+    const d = L.mode === "sim" && L.analogResPage === L.page ? ((L.analogRes || {}).ops || {})[bid] : null;
+    const u = aopUser(b);
+    return `<tr><td>연산자</td><td><b>${esc(v.ko || b.aop)}</b>${v.eq ? ` <small>${esc(v.eq)}</small>` : ""}${Object.keys(u).length ? ` <small>✎ ${esc((b.param.a_user || {}).by || "")}</small>` : ""} <button data-opopen="${esc(bid)}">입력 · 설정 보기</button></td></tr>` +
+      (d ? `<tr><td>계산</td><td>${(d.inputs || []).map((i) => `${esc(i.pin || "—")} ${opValText(i.value)}`).join(" · ")} → <b>${d.dig != null ? d.dig : opValText(d.out)}</b>${d.why ? ` <small>${esc(d.why)}</small>` : ""}</td></tr>` : "");
+  })() : "";
+  if (b.aop && !monKind(b)) return opRow;
   if (monKind(b)) {
     const ms = monSp(b), st = monState(bid), p = b.param || {};
     const rg = st && st.range;
@@ -1427,6 +1435,7 @@ function analogInfoRows(bid) {
 /* 도면 위: 아날로그 블록 아래 '= 62.5 barg (8 mA)' · 감시 블록 아래 'SP 191 · 62.5 → 0' · 설정값이 없으면 붉은 'SP ? 직접 입력' */
 function drawAnalogMarks(g, fs) {
   const s = L.sheet;
+  drawOpMarks(g, fs);                                              // L30 — 연산자 값 · 값이 필요한 자리
   for (const [bid, b] of Object.entries(s.blocks)) {
     const [x0, , x1, y1] = b.bbox || [0, 0, 0, 0];
     if (monKind(b)) {
@@ -1461,6 +1470,196 @@ function drawAnalogMarks(g, fs) {
     tx.textContent = label;
     el("title", {}, gg).textContent = `${r.n}행 · ${n.kind === "analog" ? "아날로그 입력" : "디지털 입력"} — ${n.how} · 눌러서 바꾸기`;
     gg.addEventListener("click", (ev) => { ev.stopPropagation(); forceMenu(key, ev, `입력 ${r.n}` + (r.desc ? " · " + r.desc : "")); });
+  }
+}
+/* ------------------------------------------------------------------ L30 — 아날로그 연산자 (∑ · △ · ÷ · × · A · T · 수식 · PID …)
+
+   식별·계산은 서버(app/logic/aops.py · analog.py)가 한다 — 범례 식 그대로, 입력 이름(IN1 · IN2 : -1 · + · −)과 옆 상수
+   (A : 5%)는 도면에서 읽는다.  도면이 말하지 않는 값(K · b · H · L · F(X) 표 · PID 출력 …)은 사람이 이 판에 넣는다
+   (작성자와 함께 서버에 남는다 · 다시 분석해도 남는다).  입력 값은 시뮬레이션 입력이라 저장하지 않는다. */
+const AOP_NEED_KEYS = { value: "상수", k: "K", b: "b", h: "H", l: "L", n: "n", d: "D", out: "출력", c: "C" };
+async function aopVocab() {
+  if (!L.aopVocab) { try { L.aopVocab = await api("/logic/api/aops"); } catch (e) { L.aopVocab = { ops: {}, digital_ops: {}, needs: {} }; } }
+  return L.aopVocab;
+}
+function opOf(bid) { const b = L.sheet && L.sheet.blocks[bid]; return b ? b.aop || null : null; }
+/* 지금 계산 — 동작 시뮬레이션 중이면 그 결과(다른 장에서 이어진 값까지), 아니면 그 장만 서버가 센다 */
+async function opDetail(bid) {
+  const ops = L.analogResPage === L.page ? ((L.analogRes || {}).ops || {}) : {};
+  if (L.mode === "sim" && ops[bid]) return ops[bid];
+  try {
+    return await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/aop`, { block: bid, analog: L.analog[L.page] || {} });
+  } catch (e) { return null; }
+}
+function aopUser(b) { const u = ((b && b.param) || {}).a_user || {}; const o = {}; for (const [k, v] of Object.entries(u)) if (k !== "by" && k !== "at") o[k] = v; return o; }
+function aopDrawing(b, k) {
+  const p = (b && b.param) || {};
+  if (k === "value" && p.a_const && p.a_const.v != null) return { v: p.a_const.v, text: p.a_const.text };
+  const d = (p.a_drawing || {})[k];
+  return d && d.v != null ? { v: d.v, text: d.text } : null;
+}
+function opValText(v) { return v == null ? "모름" : fmtNum(v); }
+function netSource(net, self) {
+  const s = L.sheet;
+  const r = s.rows.find((x) => x.side === "L" && x.net != null && String(x.net) === String(net));
+  if (r) return `입력 ${r.n}행${r.desc ? " · " + r.desc : ""}`;
+  const on = s.ports.filter((q) => String(q.net) === String(net) && q.block !== self);
+  const p = on.find((q) => (s.blocks[q.block] || {}).aop === "const") || on.find((q) => q.dir === "out");
+  if (p) { const b = s.blocks[p.block]; return `${b.label || FUNC_KO[b.func] || b.func} (${p.block})`; }
+  return "선 " + net;
+}
+async function opMenu(bid, e, chooseOp) {
+  closeForceMenu();
+  const b = L.sheet.blocks[bid];
+  const voc = await aopVocab();
+  const d = (await opDetail(bid)) || { op: b.aop, inputs: [], out: null, why: "" };
+  const op = d.op || b.aop || null;
+  const info = (voc.ops || {})[op] || (voc.digital_ops || {})[op] || {};
+  const u = aopUser(b);
+  const needs = (voc.needs || {})[op] || [];
+  const mine = L.analog[L.page] || {};
+  const allOps = Object.entries({ ...(voc.ops || {}), ...(voc.digital_ops || {}) });
+  const numRow = (k, label) => {
+    const dr = aopDrawing(b, k), cur = u[k];
+    return `<label class="fm-t op-p"><span>${esc(label)}</span><input data-op="${k}" type="number" step="any" value="${cur == null ? "" : cur}" placeholder="${dr ? fmtNum(dr.v) : "값"}">
+      <small>${cur != null ? `✎ ${esc((b.param.a_user || {}).by || "")}${dr ? " · 도면 " + esc(dr.text) : ""}` : dr ? "도면 " + esc(dr.text) : "도면에 없음 — 넣어 주세요"}</small></label>`;
+  };
+  const ins = d.inputs || [];
+  const coefOn = needs.some((x) => x[0] === "coef");
+  const insHtml = ins.length ? `<table class="op-io"><tr><th>입력</th><th>어디서</th>${coefOn ? "<th>계수</th>" : ""}<th>값</th></tr>${ins.map((i) => {
+      const nk = "net:" + i.net, given = mine[nk];
+      const cuc = (u.coef || {})[i.net];
+      return `<tr><td><b>${esc(i.pin || "—")}</b>${i.coef != null && !coefOn ? ` <small>×${fmtNum(i.coef)}</small>` : ""}</td><td><small>${esc(netSource(i.net, bid))}</small></td>
+        ${coefOn ? `<td><input data-coef="${esc(i.net)}" type="number" step="any" value="${cuc == null ? "" : cuc}" placeholder="${i.coef != null ? fmtNum(i.coef) : 1}"></td>` : ""}
+        <td>${String(i.net) === String(d.cond) ? `<b>${L.mode === "sim" ? (L.values[String(i.net)] === 1 ? 1 : 0) : "—"}</b> <small>디지털 조건</small>`
+          : `<input data-in="${esc(i.net)}" type="number" step="any" value="${given && given.eng != null ? given.eng : ""}" placeholder="${i.value == null ? "모름" : fmtNum(i.value)}">`}</td></tr>`;
+    }).join("")}</table><div class="fm-why">값 칸에 수를 넣으면 그 입력선을 그 값으로 보고 돌립니다 (시뮬레이션 입력 · 저장 안 함)</div>`
+    : op === "const" ? "" : `<div class="fm-why">입력선을 도면에서 읽지 못했습니다</div>`;
+  let pHtml = "";
+  for (const [k, label] of needs) {
+    if (AOP_NEED_KEYS[k]) pHtml += k === "c"
+      ? `<label class="fm-t op-p"><span>${esc(label)}</span><select data-op="c"><option value="">신호대로</option><option value="1"${u.c === 1 ? " selected" : ""}>1 → IN1</option><option value="0"${u.c === 0 ? " selected" : ""}>0 → IN2</option></select></label>`
+      : numRow(k, label);
+    else if (k === "table") pHtml += `<label class="fm-t op-p col"><span>${esc(label)}</span><textarea data-op="table" rows="3" placeholder="0, 0&#10;100, 50">${esc((u.table || []).map((p) => p.join(", ")).join("\n"))}</textarea><small>한 줄에 X, Y — 그 사이는 곧은 선으로 잇습니다</small></label>`;
+    else if (k === "vars") {
+      const vars = (d.why.match(/수식의 (.+?) 값을/) || [])[1];
+      const names = Array.from(new Set([...(vars ? vars.split(/,\s*/) : []), ...Object.keys(u.vars || {})]));
+      pHtml += names.length ? names.map((nm) => `<label class="fm-t op-p"><span>수식 ${esc(nm)}</span><input data-var="${esc(nm)}" type="number" step="any" value="${(u.vars || {})[nm] == null ? "" : u.vars[nm]}"></label>`).join("")
+        : `<div class="fm-why">수식의 글자는 입력선 이름에서 읽었습니다</div>`;
+    } else if (k === "order" && ins.length >= 2) {
+      const o = u.order || [];
+      const opt = (sel) => ins.map((i) => `<option value="${esc(i.net)}"${sel === i.net ? " selected" : ""}>${esc(i.pin || "선 " + i.net)}</option>`).join("");
+      pHtml += `<label class="fm-t op-p"><span>${esc(label)}</span><select data-ord="0"><option value="">도면대로</option>${opt(o[0])}</select> · <select data-ord="1"><option value="">도면대로</option>${opt(o[1])}</select></label>`;
+    }
+  }
+  const outTxt = d.dig != null ? `<b>${d.dig}</b> (1/0)` : d.out != null ? `<b>${fmtNum(d.out)}</b>${d.key && d.key.range ? " " + esc(d.key.range.unit || "") : ""}` : "<b>모름</b>";
+  const memos = (L.memos || []).filter((m) => m.page === L.page && m.block === bid && !m.hidden);
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu an-menu op-menu";
+  m.innerHTML = `<div class="fm-h">${esc(b.label || "")} ${esc(info.ko || "아날로그 연산자")} <small>${esc(bid)}</small></div>
+    ${info.eq ? `<div class="op-eq">${esc(info.eq)}</div>` : ""}
+    ${!op || chooseOp ? `<label class="fm-t op-p"><span>연산 종류</span><select data-op="op"><option value="">${op ? "그대로" : "고르세요"}</option>${allOps.map(([k, v]) => `<option value="${k}"${u.op === k ? " selected" : ""}>${esc(v.ko)}</option>`).join("")}</select></label>` : ""}
+    ${insHtml}
+    <div class="op-out">출력 = ${outTxt}${d.why ? ` <small>${esc(d.why)}</small>` : ""}${L.mode === "sim" ? "" : ` <small>(이 장만 — 동작 시뮬레이션에서는 다른 장에서 이어진 값까지)</small>`}</div>
+    ${pHtml ? `<div class="fm-sub">값 · 설정 (기본 = 도면 값)</div>${pHtml}` : ""}
+    <details class="op-more"><summary>더 — 출력값 고정 · 연산 종류 바꾸기</summary>
+      ${needs.some((x) => x[0] === "out") ? "" : numRow("out", "출력값 고정")}
+      ${op && !chooseOp ? `<label class="fm-t op-p"><span>연산 종류</span><select data-op="op"><option value="">그대로 (${esc(info.ko || op)})</option>${allOps.map(([k, v]) => `<option value="${k}"${u.op === k ? " selected" : ""}>${esc(v.ko)}</option>`).join("")}</select></label>` : ""}
+      ${isAnalogBlock(b) && monitorsFrom("block:" + bid).length ? `<button data-a="ma" class="vt">출력을 mA 로 넣고 감시 블록 설정값 보기</button>` : ""}
+    </details>
+    ${memos.length ? `<div class="fm-sub">이 연산자 메모</div>${memos.map((x) => `<div class="op-memo" data-memo="${esc(x.id)}"><b>${esc(x.author)}</b> <small>${esc(x.time)}</small><div>${esc(x.text)}</div></div>`).join("")}` : ""}
+    <div class="op-btns"><button data-a="ok" class="v1">적용 — 동작 시뮬레이션</button>
+    ${Object.keys(u).length ? `<button data-a="reset" class="vx">도면 값으로</button>` : ""}
+    <button data-a="memo" class="vt">📌 메모 달기</button></div>`;
+  placeMenu(m, e);
+  const first = m.querySelector(".op-p input:placeholder-shown[placeholder='값'], .op-p input") || m.querySelector("input[data-in]");
+  if (first) first.focus();
+  const collect = () => {
+    const p = { ...u };
+    for (const inp of m.querySelectorAll("[data-op]")) {
+      const k = inp.dataset.op, raw = String(inp.value || "").trim();
+      if (k === "table") {
+        const pts = raw.split(/\n+/).map((ln) => ln.split(/[,\s]+/).filter(Boolean).map(Number)).filter((x) => x.length === 2 && x.every(isFinite));
+        if (raw && pts.length < 2) return { bad: inp };
+        if (pts.length) p.table = pts; else delete p.table;
+      } else if (k === "op") { if (raw) p.op = raw; else if (inp.closest(".op-more") || op) delete p.op; }
+      else if (k === "c") { if (raw === "") delete p.c; else p.c = Number(raw); }
+      else if (raw === "") delete p[k];
+      else if (!isFinite(Number(raw))) return { bad: inp };
+      else p[k] = Number(raw);
+    }
+    const coef = { ...(u.coef || {}) };
+    for (const inp of m.querySelectorAll("[data-coef]")) { const raw = inp.value.trim(); if (raw === "") delete coef[inp.dataset.coef]; else if (!isFinite(Number(raw))) return { bad: inp }; else coef[inp.dataset.coef] = Number(raw); }
+    if (Object.keys(coef).length) p.coef = coef; else delete p.coef;
+    const vars = { ...(u.vars || {}) };
+    for (const inp of m.querySelectorAll("[data-var]")) { const raw = inp.value.trim(); if (raw === "") delete vars[inp.dataset.var]; else if (!isFinite(Number(raw))) return { bad: inp }; else vars[inp.dataset.var] = Number(raw); }
+    if (Object.keys(vars).length) p.vars = vars; else delete p.vars;
+    const o = [...m.querySelectorAll("[data-ord]")].map((x) => x.value);
+    if (o.length === 2 && o[0] && o[1] && o[0] !== o[1]) p.order = o; else if (o.length === 2) delete p.order;
+    return { p };
+  };
+  const ok = async () => {
+    const c = collect();
+    if (c.bad) { c.bad.classList.add("bad"); c.bad.focus(); status("수를 적어 주세요"); return; }
+    if (JSON.stringify(sortKeys(c.p)) !== JSON.stringify(sortKeys(u))) {
+      if (!(await saveAparam(bid, Object.keys(c.p).length ? c.p : null))) return;
+    }
+    for (const inp of m.querySelectorAll("[data-in]")) {
+      const raw = inp.value.trim(), nk = "net:" + inp.dataset.in;
+      L.analog[L.page] = L.analog[L.page] || {};
+      if (raw === "") delete L.analog[L.page][nk];
+      else if (isFinite(Number(raw))) L.analog[L.page][nk] = { eng: Number(raw) };
+      if (!Object.keys(L.analog[L.page]).length) delete L.analog[L.page];
+    }
+    closeForceMenu();
+    rerunAnalog();
+  };
+  m.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing && ev.target.tagName !== "TEXTAREA") ok(); });
+  m.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    const mm = ev.target.closest("[data-memo]");
+    if (mm) { closeForceMenu(); selectMemo(mm.dataset.memo, true); return; }
+    const btn = ev.target.closest("button[data-a]");
+    if (!btn) return;
+    if (btn.dataset.a === "ok") ok();
+    else if (btn.dataset.a === "reset") { closeForceMenu(); if (await saveAparam(bid, null)) rerunAnalog(); }
+    else if (btn.dataset.a === "ma") { closeForceMenu(); analogMenu("block:" + bid, ev); }
+    else if (btn.dataset.a === "memo") {
+      closeForceMenu();
+      const [x0, y0, x1] = b.bbox;
+      pinForm([x1, y0], { block: bid, rect: b.bbox, title: `${b.label || info.ko || "연산자"} (${bid}) 메모` }, ev);
+    }
+  });
+}
+function sortKeys(o) { return Object.keys(o).sort().reduce((a, k) => { a[k] = o[k]; return a; }, {}); }
+async function saveAparam(bid, params) {
+  const who = await needAuthor();
+  if (!who) { status("이름이 없어 저장하지 않았습니다"); return false; }
+  try {
+    await post(`/logic/api/jobs/${L.job}/overrides/aparam`, { page: L.page, block: bid, params, author: who });
+  } catch (err) { status("저장하지 못했습니다 — " + err.message); return false; }
+  status(params ? `연산자 ${bid} 값을 저장했습니다 (${who}) — 다시 분석해도 남습니다` : `연산자 ${bid} — 도면 값으로 되돌렸습니다`);
+  await refreshSheet();
+  return true;
+}
+/* 도면 위: 연산자 아래 '= 15 %' (시뮬레이션) · 값이 필요한데 없으면 붉은 '? 값 입력' (어느 모드든 — 상수는 바로 안다) */
+function drawOpMarks(g, fs) {
+  const s = L.sheet, ops = L.analogResPage === L.page ? ((L.analogRes || {}).ops || {}) : {};
+  for (const [bid, b] of Object.entries(s.blocks)) {
+    if (!b.aop || !b.bbox) continue;
+    const [x0, , x1, y1] = b.bbox;
+    const d = L.mode === "sim" ? ops[bid] : null;
+    const u = aopUser(b);
+    let txt = null, cls = "opv";
+    if (d) {
+      if (d.dig != null) { txt = `→ ${d.dig}`; cls += d.dig === 1 ? " on" : ""; }
+      else if (d.out != null) { if (isAnalogBlock(b) && analogValueOf("block:" + bid).eng != null) continue; txt = `= ${fmtNum(d.out)}`; }
+      else if (/눌러서|넣어 주세요/.test(d.why || "")) { txt = "? 값 입력"; cls += " need"; }
+    } else if (b.aop === "const" && !aopDrawing(b, "value") && u.value == null) { txt = "? 값 입력"; cls += " need"; }
+    if (!txt) continue;
+    if (Object.keys(u).length) txt += " ✎";
+    const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.7, "font-size": fs * 1.35, class: cls }, g);
+    tx.textContent = txt;
   }
 }
 /* 세는 타이머의 남은 시간을 블록 위에 줄여 간다 (실제 시간) */
@@ -1574,12 +1773,14 @@ async function runSim(animate) {
   for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
   const analog = {};
   for (const [p, a] of Object.entries(L.analog || {})) if (Object.keys(a).length) analog[p] = a;
+  const askPage = L.page;
   const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page, timers: L.timers, analog });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
-  if (!r) return;
+  if (!r || L.page !== askPage) return;            // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
   L.states = b.state || {};
   L.state = L.states[L.page] || r.state;
+  L.analogResPage = askPage;
   L.analogRes = r.analog || {};                    // L26 — 아날로그 값 · 감시 블록 (값 · 설정값 · 출력)
   L.analogGiven = b.analog_given || {};
   L.linked = (b.linked || {})[L.page] || {};
@@ -2131,6 +2332,7 @@ function onBlock(bid, e) {
   if (b.func === "UNKNOWN" || (b.user && e.altKey)) { gateMenu(bid, e); paint(); renderInfo(); return; }   // L22
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
   if (monKind(b)) monitorMenu(bid, e);                             // L26 — 감시 블록 (HHH · HH …) 설정값 (어느 모드든)
+  else if (b.aop) opMenu(bid, e);                                  // L30 — 아날로그 연산자 판 (어느 모드든)
   else if (isAnalogBlock(b)) analogMenu("block:" + bid, e);        // L26 — MED 같은 아날로그 블록 값 (어느 모드든)
   else if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
@@ -2180,10 +2382,12 @@ function gateMenu(bid, e) {
       `<button data-c="${c}" class="${u && u.choice === c ? "on" : ""}">${esc(choiceLabel(c))}</button>`).join("")}</div>`).join("") +
     `<label class="fm-t gm-vote">투표 <input id="gm-a" type="number" min="1" max="32" value="${vote ? vote[1] : 2}"> / <input id="gm-b" type="number" min="1" max="32" value="${vote ? vote[2] : 3}"> <small>B 개 중 A 개 이상이면 1</small></label>` +
     (keySpecific(b.key) ? `<label class="fm-t"><input id="gm-same" type="checkbox" checked> 같은 모양 · 같은 글자('${esc(String(b.key).split("|")[1])}')의 판정 못 한 블록에도${same > 1 ? ` (이 장 ${same}개 · 다른 장 포함)` : " (다른 장 포함)"} — 학습 사전에 남겨 다른 프로젝트도 이 기준으로</label>` : "") +
+    `<button data-aop="1" class="vt">∿ 아날로그 연산자 (∑ · △ · ÷ · × · A · T …) 로 정하기</button>` +
     (u ? `<button data-c="x" class="vx">도면 판정으로 되돌리기</button>` : "");
   placeMenu(m, e);
   m.addEventListener("click", async (ev) => {
     ev.stopPropagation();
+    if (ev.target.closest("button[data-aop]")) { closeForceMenu(); opMenu(bid, ev, true); return; }   // L30
     const btn = ev.target.closest("button[data-c]");
     if (!btn) return;
     const c = btn.dataset.c === "x" ? null : btn.dataset.c;
@@ -2443,6 +2647,10 @@ function analogGivenItems() {
   for (const [p, vals] of Object.entries(L.analog || {})) {
     const page = Number(p), sh = ((L.sheets || []).find((x) => x.page === page) || {}).sheet_no || "p" + page;
     for (const [key, ma] of Object.entries(vals)) {
+      if (key.startsWith("net:")) {            // L30 — 연산자 판에서 그 입력선에 바로 넣은 공학값
+        out.push(`<li data-page="${page}" data-sheet="${esc(sh)}" class="${page === L.page ? "cur" : ""}"><span class="van">∿</span><span class="sp-sh">${esc(sh)}</span> <span class="sp-what">선 ${esc(key.slice(4))} — <b>${fmtNum((ma || {}).eng)}</b></span><button class="sp-off" data-an-off="${esc(key)}" title="이 값을 뺍니다">끄기</button></li>`);
+        continue;
+      }
       let what = key.startsWith("row:") ? `${key.slice(4)}행` : `블록 ${key.slice(6)}`, eng = "";
       if (page === L.page && L.sheet) {
         if (key.startsWith("row:")) { const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r && r.desc) what += " " + r.desc; }
@@ -2755,7 +2963,8 @@ async function loadMemos(job) {
     const m = await api(`/logic/api/jobs/${job}/memo`);
     if (L.job !== job) return;
     L.memos = m.items || [];
-  } catch (e) { L.memos = []; }
+    L.memoOthers = m.others || [];                 // L30 — 같은 프로젝트 다른 분석의 같은 시트 메모
+  } catch (e) { L.memos = []; L.memoOthers = []; }
   renderMemo(); renderSheetList(); if (L.sheet) drawPins();
 }
 function memoCount(page) { return L.memos.filter((m) => m.page === page && !m.hidden && !m.done).length; }
@@ -2775,7 +2984,7 @@ function renderMemo() {
   $("#memo-who").textContent = who ? `작성자 ${who}` : "작성자 이름을 적어 주세요 (한 번만)";
   const pinBtn = $("#memo-pin");
   pinBtn.classList.toggle("on", L.pinMode || !!L.pendingAt);
-  pinBtn.textContent = L.pendingAt ? "📌 자리 지정됨 (Esc 취소)" : L.pinMode ? "📌 도면을 누르세요" : "📌 핀 메모";
+  pinBtn.textContent = L.pendingAt ? "📌 자리 지정됨 (Esc 취소)" : L.pinMode ? "📌 도면을 누르세요 (끌면 영역)" : "📌 핀 메모";
   $("#memo-save").textContent = L.memoEdit ? "고친 글 저장" : "저장";
   const items = pageMemos();
   $("#memo-count").textContent = items.length ? `${items.length}건` : "";
@@ -2784,10 +2993,19 @@ function renderMemo() {
     const n = m.at ? pinNo(m) : 0;
     return `<li data-memo="${esc(m.id)}" class="${m.done ? "done" : ""}${m.hidden ? " hid" : ""}${L.memoFlash === m.id ? " flash" : ""}">
       <div class="mh">${n ? `<span class="pinno" title="도면 위 핀 번호">${n}</span>` : ""}<b>${esc(m.author)}</b> <small>${esc(m.time)}${m.history && m.history.length ? ` · 고친 이력 ${m.history.length}` : ""}</small></div>
+      ${m.block ? `<div class="mb">⊡ ${esc(blockName(m.block))}${m.rect ? " · 영역" : ""}</div>` : m.rect ? `<div class="mb">▭ 영역 메모</div>` : ""}
       <div class="mt">${esc(m.text)}</div>
-      <div class="ma"><button data-mact="edit">고치기</button><button data-mact="done">${m.done ? "완료 풀기" : "완료"}</button><button data-mact="hide">${m.hidden ? "다시 보기" : "숨김"}</button></div>
+      ${L.memoHist === m.id && m.history && m.history.length ? `<div class="mhist">${m.history.slice().reverse().map((h) => `<div><small>${esc(h.author)} · ${esc(h.time)}</small><div>${esc(h.text)}</div></div>`).join("")}</div>` : ""}
+      <div class="ma"><button data-mact="edit">고치기</button><button data-mact="done">${m.done ? "완료 풀기" : "완료"}</button><button data-mact="hide">${m.hidden ? "다시 보기" : "숨김"}</button>${m.history && m.history.length ? `<button data-mact="hist">${L.memoHist === m.id ? "이력 닫기" : "고친 이력"}</button>` : ""}</div>
     </li>`;
   }).join("") : `<li class="empty">이 장의 메모가 없습니다.</li>`;
+  const oth = otherMemos();
+  if (oth.length) box.innerHTML += `<li class="oth-h">같은 프로젝트 다른 분석의 이 시트 메모 ${oth.length}건 (읽기만)</li>` + oth.map((m) =>
+    `<li class="oth" data-oth="${esc(m.id)}"><div class="mh"><span class="pinno oth">R</span><b>${esc(m.author)}</b> <small>${esc(m.time)} · ${esc(m.from_name)}</small></div><div class="mt">${esc(m.text)}</div></li>`).join("");
+}
+function blockName(bid) {
+  const b = L.sheet && L.sheet.blocks[bid];
+  return b ? `${b.label || FUNC_KO[b.func] || b.func} (${bid})` : bid;
 }
 function drawPins() {
   const ov = $("#ov");
@@ -2810,11 +3028,26 @@ function drawPins() {
       if (L.memoFlash === m.id) gg.classList.add("flash");
     }
   };
+  const box = (r, cls) => el("rect", { x: r[0], y: r[1], width: r[2] - r[0], height: r[3] - r[1], class: "pinarea " + cls }, g);
   for (const m of L.memos) {
     if (m.page !== L.sheet.page || !m.at || m.hidden) continue;
+    if (m.rect) box(m.rect, (m.done ? "done" : "") + (L.memoFlash === m.id ? " flash" : ""));
     one(m.at[0], m.at[1], String(pinNo(m)), m.done ? "done" : "", m);
   }
+  // L30 — 같은 프로젝트의 다른 분석(Rev)에서 같은 시트에 단 메모 — 파란 핀 (읽기만)
+  for (const m of otherMemos()) {
+    if (!m.at) continue;
+    if (m.rect) box(m.rect, "other");
+    one(m.at[0], m.at[1], "R", "other", null);
+    const gg = g.lastChild;
+    el("title", {}, gg).textContent = `다른 분석 '${m.from_name}' 에서 — ${m.author} · ${m.time}\n${m.text}`;
+  }
+  if (L.pinDraft) box(L.pinDraft, "pending");
+  if (L.pendingRect) box(L.pendingRect, "pending");
   if (L.pendingAt) one(L.pendingAt[0], L.pendingAt[1], "+", "pending", null);
+}
+function otherMemos() {
+  return (L.memoOthers || []).filter((m) => L.sheet && m.sheet_no && m.sheet_no === L.sheet.sheet_no);
 }
 function setPinMode(on) {
   L.pinMode = on;
@@ -2854,6 +3087,7 @@ async function memoAction(id, act) {
   const m = L.memos.find((x) => x.id === id);
   if (!m) return;
   if (act === "edit") { L.memoEdit = id; $("#memo-text").value = m.text; $("#memo-text").focus(); renderMemo(); return; }
+  if (act === "hist") { L.memoHist = L.memoHist === id ? null : id; renderMemo(); return; }
   const author = currentAuthor() || $("#memo-author").value.trim();
   if (!author) { status("작성자 이름을 적어 주세요"); $("#memo-author").focus(); return; }
   const body = act === "done" ? { done: !m.done, author } : { hidden: !m.hidden, author };
@@ -2900,6 +3134,12 @@ function bindExtras() {
   };
   $("#memo-hidden").onchange = renderMemo;
   $("#memo-list").addEventListener("click", (e) => {
+    const lo = e.target.closest("li[data-oth]");
+    if (lo) {
+      const m = otherMemos().find((x) => x.id === lo.dataset.oth);
+      if (m && m.at) { const st = $("#stage"); setZoom(Math.max(L.zoom, 1.6)); st.scrollLeft = m.at[0] * L.zoom - st.clientWidth / 2; st.scrollTop = m.at[1] * L.zoom - st.clientHeight / 2; }
+      return;
+    }
     const li = e.target.closest("li[data-memo]");
     if (!li) return;
     const b = e.target.closest("button[data-mact]");
@@ -2916,16 +3156,80 @@ function bindExtras() {
     st.scrollLeft = ((b.bbox[0] + b.bbox[2]) / 2) * L.zoom - st.clientWidth / 2;
     st.scrollTop = ((b.bbox[1] + b.bbox[3]) / 2) * L.zoom - st.clientHeight / 2;
   });
-  // 핀 자리 고르기 — 선·블록 누르기보다 먼저 (붙잡는 단계)
-  $("#stage").addEventListener("click", (e) => {
-    if (!L.pinMode || L.justPanned || !L.sheet) return;
+  // 핀 자리 고르기 — 선·블록 누르기보다 먼저 (붙잡는 단계).  L30 — 누르면 그 점 · 끌면 영역 (P&ID hotfix76 · 77 처럼)
+  let pinStart = null;
+  $("#stage").addEventListener("pointerdown", (e) => {
+    if (!L.pinMode || e.button !== 0 || !L.sheet) return;
     e.stopPropagation(); e.preventDefault();
-    L.pendingAt = sheetPoint(e);
-    setPinMode(false);
-    drawPins(); renderMemo();
-    $("#memo-text").focus();
-    status("자리를 골랐습니다 — 메모 내용을 적고 저장하세요 (Ctrl+Enter)");
+    pinStart = sheetPoint(e);
   }, true);
+  window.addEventListener("pointermove", (e) => {
+    if (!pinStart) return;
+    const p = sheetPoint(e);
+    L.pinDraft = [Math.min(pinStart[0], p[0]), Math.min(pinStart[1], p[1]), Math.max(pinStart[0], p[0]), Math.max(pinStart[1], p[1])];
+    drawPins();
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (!pinStart) return;
+    const p = sheetPoint(e), s0 = pinStart;
+    pinStart = null; L.pinDraft = null;
+    L.pinJust = true; setTimeout(() => (L.pinJust = false), 0);
+    const r = [Math.min(s0[0], p[0]), Math.min(s0[1], p[1]), Math.max(s0[0], p[0]), Math.max(s0[1], p[1])];
+    setPinMode(false);
+    if (r[2] - r[0] > 3 && r[3] - r[1] > 3) pinForm([r[2], r[1]], { rect: r }, e);
+    else pinForm(s0, {}, e);
+  });
+  $("#stage").addEventListener("click", (e) => { if (L.pinJust) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+/* L30 — 핀 메모 작성칸 (P&ID hotfix77): 날짜(지금) · 작성자(로그인 이름 · 기억된 이름) · 메모 내용.  핀 옆에 뜬다. */
+function pinForm(at, opts, e) {
+  closePinForm();
+  opts = opts || {};
+  L.pendingAt = at; L.pendingRect = opts.rect || null; L.pendingBlock = opts.block || null;
+  drawPins(); renderMemo();
+  const who = currentAuthor();
+  const f = document.createElement("div");
+  f.id = "pin-form"; f.className = "force-menu pin-form";
+  const now = () => { const d = new Date(), z = (x) => String(x).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+  f.innerHTML = `<div class="fm-h">📌 ${esc(opts.title || (opts.rect ? "영역 메모" : "핀 메모"))} <small>${esc(L.sheet.sheet_no || "")}</small></div>
+    <div class="pf-row"><span>날짜</span><b class="pf-date">${now()}</b></div>
+    <div class="pf-row"><span>작성자</span>${who ? `<b>${esc(who)}</b>` : `<input id="pf-who" placeholder="이름 (한 번만 적으면 기억합니다)">`}</div>
+    <textarea id="pf-text" rows="4" placeholder="메모 내용 (Ctrl+Enter 저장)"></textarea>
+    <div class="op-btns"><button data-a="save" class="v1">저장</button><button data-a="x" class="vx">취소 (Esc)</button></div>`;
+  placeMenu(f, e);
+  const tick = setInterval(() => { const d = f.querySelector(".pf-date"); if (!document.body.contains(f)) clearInterval(tick); else d.textContent = now(); }, 15000);
+  const ta = f.querySelector("#pf-text");
+  (f.querySelector("#pf-who") || ta).focus();
+  const save = async () => {
+    const text = ta.value.trim();
+    let author = who;
+    if (!author) { author = (f.querySelector("#pf-who").value || "").trim(); if (!author) { status("작성자 이름을 적어 주세요"); f.querySelector("#pf-who").focus(); return; } rememberAuthor(author); }
+    if (!text) { status("메모 내용을 적어 주세요"); ta.focus(); return; }
+    try {
+      const m = await post(`/logic/api/jobs/${L.job}/memo`, { page: L.sheet.page, sheet_no: L.sheet.sheet_no, text, author,
+                                                            at: L.pendingAt, rect: L.pendingRect, block: L.pendingBlock });
+      L.memos.push(m);
+      closePinForm();
+      drawPins(); renderMemo(); renderSheetList();
+      status("메모를 저장했습니다");
+      selectMemo(m.id, false);
+    } catch (err) { status("메모 저장 실패 — " + err.message); }
+  };
+  f.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); save(); }
+    if (ev.key === "Escape") { ev.stopPropagation(); closePinForm(); }
+  });
+  f.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const b = ev.target.closest("button[data-a]");
+    if (!b) return;
+    if (b.dataset.a === "save") save(); else closePinForm();
+  });
+}
+function closePinForm() {
+  const f = document.getElementById("pin-form");
+  if (f) f.remove();
+  if (L.pendingAt || L.pendingRect) { L.pendingAt = null; L.pendingRect = null; L.pendingBlock = null; if (L.sheet) drawPins(); renderMemo(); }
 }
 
 /* ------------------------------------------------------------------ 식별률 · 마크업 (L24)
@@ -3536,6 +3840,8 @@ function bind() {
     if (tb) { timerMenu(tb.dataset.timer, e); return; }
     const gb = e.target.closest("button[data-gate]");
     if (gb) { gateMenu(gb.dataset.gate, e); return; }
+    const ob = e.target.closest("button[data-opopen]");
+    if (ob) { opMenu(ob.dataset.opopen, e); return; }
     const ab = e.target.closest("button[data-an]");
     if (ab) { const k = ab.dataset.an; if (k.startsWith("mon:")) monitorMenu(k.slice(4), e); else analogMenu(k, e); return; }
     const mb = e.target.closest("button[data-macro]");
@@ -3569,6 +3875,7 @@ function bind() {
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (document.querySelector("#force-menu")) { closeForceMenu(); return; }
+    if (document.getElementById("pin-form")) { closePinForm(); return; }
     if (L.pinMode || L.pendingAt) { setPinMode(false); L.pendingAt = null; drawPins(); renderMemo(); return; }
     stopAnim();
     if (document.body.classList.contains("lg-full")) setFull(false);

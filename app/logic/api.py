@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import analog, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
+from . import analog, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -303,7 +303,8 @@ def _result_locked(job):
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
     res = store.read_result(d)
-    _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이)
+    _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이) · L30 연산자 입력 이름 · 안 그림
+    _identify(res)                           # L30 — 아날로그 연산자 · 표시등 이름 (다시 분석 없이 · 결과마다 한 번)
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
         fromto.check(res["sheets"])
         res["_ft"] = True
@@ -337,6 +338,16 @@ _LIB_RULES = {}
 _SP = {}
 
 
+def _identify(res):
+    if res.get("_aop"):
+        return
+    from .analyse import _findings
+    by_page = {s["page"]: s for s in res["sheets"]}
+    for pg in aops.identify(res["sheets"]):
+        by_page[pg]["findings"] = _findings(by_page[pg])
+    res["_aop"] = True
+
+
 def _drawing_sp(job, d, res):
     """L26 — 감시 블록(HHH · HH …) 바로 위에 도면이 인쇄한 설정값을 블록 param 에 얹는다.  PDF 는 결과마다 한 번만 읽는다."""
     if res.get("_sp"):
@@ -367,7 +378,7 @@ def _drawing_sp(job, d, res):
     res["_sp"] = True
 
 
-SP_VERSION = 1                   # L28 — analog.read_drawing 규칙을 바꾸면 올린다 (분석 폴더의 drawing_sp.json 을 다시 만든다)
+SP_VERSION = "2.%d" % aops.IDENT_VERSION                   # L28 — analog.read_drawing 규칙을 바꾸면 올린다 (분석 폴더의 drawing_sp.json 을 다시 만든다)
 
 
 def _sp_read(d, res):
@@ -384,6 +395,8 @@ def _sp_read(d, res):
             p = b.get("param") or {}
             if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
                 got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
+            elif any(k in p for k in ("pins", "a_const", "a_drawing", "aop_fig")):
+                got[(s["page"], bid)] = {k: p[k] for k in ("pins", "a_const", "a_drawing", "aop_fig") if k in p}
         for r in s["rows"]:
             if r.get("range"):
                 got[(s["page"], "row:%d" % r["n"])] = r["range"]
@@ -688,6 +701,8 @@ def _analog(raw):
         for k, v in d.items():
             if isinstance(k, str) and k.split(":", 1)[0] in ("block", "row") and analog.ma_ok(v) is not None:
                 c[k] = analog.ma_ok(v)                      # L27 — 4~20 mA 밖의 값은 버린다
+            elif isinstance(k, str) and k.startswith("net:") and isinstance(v, dict) and analog.num(v.get("eng")) is not None:
+                c[k] = {"eng": analog.num(v["eng"])}         # L30 — 연산자 판에서 그 입력선에 공학값을 바로
         if c:
             out[int(pg)] = c
     return out
@@ -695,8 +710,24 @@ def _analog(raw):
 
 @router.get("/logic/api/jobs/{job}/memo")
 def memo_list(job: str):
-    """이 묶음의 메모 전부 (L8) — 화면이 장마다 거른다."""
-    return memo.load(_dir(job))
+    """이 묶음의 메모 전부 (L8) — 화면이 장마다 거른다.
+    L30 — 같은 프로젝트의 다른 분석(다른 Rev)에서 같은 시트 이름에 단 메모도 `others` 로 (P&ID hotfix63 — 장 메모는
+    도면번호로 Rev 사이에 이어진다).  읽기만 — 고치는 것은 그 분석에서."""
+    d = _dir(job)
+    out = memo.load(d)
+    st = store.read_status(d)
+    proj = st.get("project")
+    others = []
+    if proj:
+        for j in store.jobs():
+            if j.get("id") == job or j.get("project") != proj:
+                continue
+            for it in memo.load(store.job_dir(j["id"]))["items"]:
+                if it.get("sheet_no") and not it.get("hidden"):
+                    others.append({**it, "from_job": j["id"], "from_name": j.get("name") or j["id"],
+                                   "from_created": j.get("created") or ""})
+    out["others"] = others
+    return out
 
 
 @router.post("/logic/api/jobs/{job}/memo")
@@ -707,7 +738,7 @@ def memo_add(job: str, body: dict = Body(...)):
         raise HTTPException(400, "page 는 쪽 번호(정수)여야 합니다.")
     try:
         return memo.add(d, page, str(body.get("sheet_no") or ""), str(body.get("text") or ""),
-                        str(body.get("author") or ""), body.get("at"))
+                        str(body.get("author") or ""), body.get("at"), body.get("rect"), body.get("block"))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -880,6 +911,48 @@ def overrides_range(job: str, body: dict = Body(...)):
         raise HTTPException(400, "key 는 이 시트의 입력 행(row:<n>) 이나 블록(block:<id>) 입니다.")
     return _ov_call(overrides.set_range, d, page, key, body.get("lo"), body.get("hi"), body.get("unit"),
                     str(body.get("author") or ""))
+
+
+@router.post("/logic/api/jobs/{job}/sheet/{page}/aop")
+def sheet_aop(job: str, page: int, body: dict = Body(default={})):
+    """L30 — 아날로그 연산자 하나의 지금 계산 (입력 · 계수 · 출력 · 이유).  시뮬레이션을 돌리지 않고 그 장만 센다
+    (동작 시뮬레이션 중이면 화면이 시뮬레이션 결과를 쓴다 — 다른 장에서 이어진 값까지)."""
+    s = _sheet(job, page)
+    bid = str(body.get("block") or "")
+    if bid not in s["blocks"]:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    given = _analog({str(page): body.get("analog") or {}}).get(page, {})
+    det = {}
+    nv, bv, keys = analog.nets(s, given, sim._index(s)[:4], None, det)
+    d = det.get(bid)
+    if d is None:
+        return {"op": None, "block": bid}
+    return {**d, "block": bid, "key": keys.get(f"block:{bid}")}
+
+
+@router.post("/logic/api/jobs/{job}/overrides/aparam")
+def overrides_aparam(job: str, body: dict = Body(...)):
+    """L30 — 아날로그 연산자 값 {page, block, params | null, author}.  params 는 overrides.clean_aparams 를 보라."""
+    d = _dir(job)
+    page, bid = body.get("page"), str(body.get("block") or "")
+    if not isinstance(page, int) or not bid:
+        raise HTTPException(400, "page(정수) 와 block 이 필요합니다.")
+    b = _sheet(job, page)["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    params = body.get("params")
+    if params is not None and not (aops.op_of(b) or (params or {}).get("op") or b.get("func") in ("UNKNOWN", "ANALOG")):
+        raise HTTPException(400, "아날로그 연산자에만 값을 넣습니다.")
+    return _ov_call(overrides.set_aparam, d, page, bid, params, str(body.get("author") or ""))
+
+
+@router.get("/logic/api/aops")
+def aops_vocab():
+    """L30 — 아날로그 연산자 어휘 (이름 · 식 · 화면이 물을 값)."""
+    v = aops.vocab()
+    return {"ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("ops") or {}).items()},
+            "digital_ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("digital_ops") or {}).items()},
+            "needs": aops.NEEDS}
 
 
 @router.get("/logic/api/library")

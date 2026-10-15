@@ -258,8 +258,27 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     B = s["blocks"]
     notes = set()
     # L26 — 아날로그 값(MED · 입력 행)과 감시 블록(HHH · HH …)의 설정값: 값과 설정값이 다 있으면 감시 출력이 1/0
-    an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks))
+    # L30 — 아날로그 연산자(Σ · ÷ · A · T · 수식 …)는 범례 식대로 계산하고(an_ops 에 근거), 1/0 을 내는 것(DEV)은
+    # 디지털 출력으로 · 전환(T)의 조건이 1/0 이면 그 값이 바뀔 때마다 아날로그를 다시 센다 (settle 안에서)
+    an_ops = {}
+    an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks), None, an_ops)
     mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))}
+    an_dig = {bid: d["dig"] for bid, d in an_ops.items() if d.get("dig") is not None}
+    tr_conds = sorted({d["cond"] for d in an_ops.values() if d.get("cond") is not None}, key=str)
+    an_last = {"dig": None}
+
+    def analog_refresh(val):
+        nonlocal an_net, an_blk, an_keys
+        dig = {n: val.get(n) for n in tr_conds}
+        if dig == an_last["dig"]:
+            return
+        an_last["dig"] = dig
+        an_ops.clear()
+        an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks), dig, an_ops)
+        mons.clear()
+        mons.update({m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))})
+        an_dig.clear()
+        an_dig.update({bid: d["dig"] for bid, d in an_ops.items() if d.get("dig") is not None})
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
@@ -342,7 +361,9 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             g = groups.get(b["group"] or bid, [bid])
             vals = [val.get(n) for gid in g for n, _, _ in ins[gid]]
             return _or3(vals) if vals else None        # 짝 기호의 입력을 못 읽었으면 모름
-        if ins[bid]:
+        if bid in an_dig:
+            return an_dig[bid]                         # L30 — DEV 처럼 아날로그 값을 맞대어 1/0 을 내는 연산자
+        if ins[bid] and not b.get("aop"):
             notes.add("판정 못 한 블록은 출력을 내지 않습니다 (그 선을 직접 1 로 줄 수 있습니다)")
         return None
 
@@ -351,6 +372,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         depth = {}
         for it in range(MAX_ITER):
             changed = False
+            if tr_conds:
+                analog_refresh(val)
             # 메모리 상태 갱신
             for bid, b in B.items():
                 if b["logic"] != "memory" or bid in blk_force:
@@ -531,7 +554,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         notes.add("설정값이 없는 감시 블록은 값을 맞대지 못했습니다 — 블록을 눌러 설정값을 적을 수 있습니다")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
             "analog": {"nets": an_net, "blocks": an_blk, "keys": an_keys, "monitors": list(mons.values()),
-                       "default_ma": A.DEFAULT_MA},
+                       "default_ma": A.DEFAULT_MA, "ops": an_ops},
             "implied": implied, "conflicts": conflicts,
             "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled,
             "_goals": goals, "_user": {**{f"row:{k}": v for k, v in row_force0.items()},
@@ -722,7 +745,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                 macros[s0["page"]].append((bid, m))
     inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
     if cache is not None:
-        for k in ("topo", "analog", "idx", "run_of", "fp"):
+        for k in ("topo", "analog", "idx", "run_of", "fp", "an_nets"):
             cache.pop(k, None)
         cache["topo"] = (by_page, by_no, feeds, macros, inline)
         cache["n_sheets"] = len(sheets)
@@ -755,7 +778,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         if ak not in an_memo:
             if len(an_memo) > 64:
                 an_memo.clear()
-            an_memo[ak] = _analog_bundle(by_page, feeds, analog, idx_cache=cache.setdefault("idx", {}))
+            an_memo[ak] = _analog_bundle(by_page, feeds, analog, idx_cache=cache.setdefault("idx", {}),
+                                         nets_memo=cache.setdefault("an_nets", {}))
         an_given = pickle.loads(pickle.dumps(an_memo[ak]))   # 부르는 쪽이 고쳐도 기억이 안 바뀌게
         page_memo = cache.setdefault("pages", {})
         if len(page_memo) > BUNDLE_MEMO_MAX:
@@ -1003,7 +1027,7 @@ def _fresh(packed):
     return res, mv
 
 
-def _analog_bundle(by_page, feeds, analog, idx_cache=None):
+def _analog_bundle(by_page, feeds, analog, idx_cache=None, nets_memo=None):
     """L26 — 아날로그 값도 시트 사이로 간다: 출력 행의 선이 값을 가지면 그 행을 받는 입력 행도 그 값
     (사람이 그 입력 행에 직접 준 값이 이긴다).  시간이 없는 값이라 가라앉을 때까지 몇 번 돌리면 된다.
     → {page: {"block:<id>"|"row:<n>": 값}}"""
@@ -1036,7 +1060,15 @@ def _analog_bundle(by_page, feeds, analog, idx_cache=None):
                 if src is None:
                     continue
                 if sp not in memo:
-                    memo[sp] = A.nets(s, given.get(sp), idxs.get(sp) or _index(s))[0]
+                    mk = (sp, _memo_key(given.get(sp)))
+                    if nets_memo is not None and mk in nets_memo:
+                        memo[sp] = nets_memo[mk]          # L30 — 그 장에 준 값이 같으면 그 장의 아날로그 계산도 같다
+                    else:
+                        memo[sp] = A.nets(s, given.get(sp), idxs.get(sp) or _index(s))[0]
+                        if nets_memo is not None:
+                            if len(nets_memo) > 4000:
+                                nets_memo.clear()
+                            nets_memo[mk] = memo[sp]
                 v = memo[sp].get(src["net"])
                 k = f"row:{n}"
                 user = analog.get(page, {})
