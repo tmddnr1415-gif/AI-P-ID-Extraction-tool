@@ -718,7 +718,9 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
 /* 생일: 고깔모자 · 축하 팝업(폭죽) */
 .bhat{position:absolute;left:50%;top:-36px;width:36px;height:46px;transform:translateX(-50%) rotate(-14deg);z-index:3;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none}
 .acct .an .bhat{position:static;width:16px;height:20px;transform:rotate(-14deg);margin-right:2px;vertical-align:-3px}
-#bdpop{position:fixed;inset:0;z-index:9999;background:rgba(12,14,40,.62);display:flex;align-items:center;justify-content:center}
+#bdpop{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;margin:0;border-radius:0;box-shadow:none;background:rgba(12,14,40,.62);display:flex;align-items:center;justify-content:center;overflow:hidden}
+#bdpop::backdrop{background:transparent}
+.bdbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 #bdpop canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .bdcard{position:relative;background:linear-gradient(160deg,#fff,#fff4fa);border-radius:22px;padding:26px 34px 22px;max-width:520px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 4px #ffd43b;animation:bdIn .5s cubic-bezier(.2,1.4,.4,1)}
 .bdcake{font-size:64px;line-height:1;animation:bdBob 1.6s ease-in-out infinite}
@@ -739,8 +741,11 @@ table.wtt tr[data-wtp],table.wtm tr[data-wtp]{cursor:pointer}table.wtt tr.on td,
 .wtst{font-style:normal;font-size:11px;font-weight:700;color:#c92a2a}.wtlow{color:#c92a2a;font-weight:800}.wtdiff{color:#a35a00;font-weight:700}
 table.wtm td.wtc0{background:#e9f7ef}table.wtm td.wtc1{background:#ffe8b0;font-weight:700}table.wtm td.wtc2{background:#ffc9c9;color:#c92a2a;font-weight:800}
 .wtchart{position:relative;display:flex;align-items:flex-end;gap:10px;height:200px;padding:6px 6px 0;margin-bottom:14px;border-bottom:1px solid var(--line)}
-.wtchart::before,.wtchart::after{content:'';position:absolute;left:0;right:0;pointer-events:none}
-.wtchart::before{bottom:calc(var(--l40) * .8 + 22px);border-top:2px dashed #868e96}.wtchart::after{bottom:calc(var(--l52) * .8 + 22px);border-top:2px solid #e03131}
+.wtchart::after{content:'';position:absolute;left:0;right:0;pointer-events:none;bottom:calc(var(--l52) * .8 + 22px);border-top:2px solid #e03131}
+.wtcol b{position:relative}
+button.wk.hkpi{cursor:pointer;text-align:left;font:inherit;transition:transform .12s,box-shadow .12s}button.wk.hkpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(20,30,70,.15)}
+button.wk.hkpi.on{box-shadow:0 0 0 3px var(--kc,#2b44c9)}
+table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt tr[data-hperson]{cursor:pointer}table.hkt tr.on td{background:#eef2ff}.wtcol b i.s40{position:absolute;left:-6px;right:-6px;height:0;border-top:2px dashed #495057}
 .wtcol{display:flex;flex-direction:column;align-items:center;width:46px;height:100%;justify-content:flex-end}
 .wtcol b{display:flex;align-items:flex-end;width:28px;height:80%}.wtcol b span{width:100%;border-radius:6px 6px 0 0;background:#3b5bdb}.wtcol b span.lv1{background:#f59f00}.wtcol b span.lv2{background:#e03131}
 .wtcol em{font-style:normal;font-size:11px;font-weight:700}.wtcol small{font-size:11px;color:var(--muted);height:22px;line-height:22px}
@@ -909,7 +914,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1120,7 +1125,7 @@ async function loadAll() {
     if (readOnly()) await loadArchiveView(view.week);
     await loadBoard();
     await loadProfiles();
-    await loadBirthdays(); setTimeout(bdayCheck, 800);    // 부서원 생일: 하루 전 · 당일 축하 팝업 (하루 한 번)
+    await loadBirthdays(); bdayCheck();                    // 부서원 생일 명단 갱신 (팝업은 이 화면에서 아직 안 띄웠을 때만)
     await cacheSave();                                     // 받은 데이터 전체를 이 PC(IndexedDB)에 최신본으로 보관
     QUEUE.forEach(applyOp);                                // 아직 올리지 못한 내 오프라인 수정은 화면에 겹쳐 표시
     return;
@@ -1642,7 +1647,8 @@ async function authStart() {
   await authDialog();
 }
 async function refreshPerms() { try { setPerms((await api('GET', 'info')).perms); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
-async function afterAuth() { await refreshPerms(); TB.prev = null; TB.active = ''; todoShown = false; render(); showMyTodo(); presenceStart(); }
+async function afterAuth() { BD.shown = false; loadBirthdays().then(bdayCheck);   // 로그인하면 생일 팝업 다시
+  await refreshPerms(); TB.prev = null; TB.active = ''; todoShown = false; render(); showMyTodo(); presenceStart(); }
 // 첫 화면: 전체 화면 로그인 (ID 입력 → 비밀번호 입력 2단계, 계정 개설·비밀번호 재설정·비회원 보기)
 const LS_LASTID = 'dept-auth-lastid';
 function authDialog(start = 'home') {
@@ -3941,7 +3947,8 @@ function renderAlloc(c, mg) {                             // mg = Management > R
  *  Management › 근무시간 (route `mghours`): 월말 시수 파일의 '날짜별 실제 시간'으로 부서원 근무시간을 월별 · 주별(월~일) · 일별로
  *  서버는 일별 시간(rows[].days = { '1': h, … })을 Management 권한자에게만 보냄
  * ===================================================================== */
-const HS = { view:'month', month:'', person:'' };
+const EPS_H = 1 / 120;                                    // 30초: 시수 칸 합의 반올림 찌꺼기(예: 8.0001h)를 '8시간 초과' 로 세지 않게
+const HS = { view:'month', month:'', person:'', kpi:'' };   // kpi = 위 숫자 칸을 눌러 펼친 부서원별 상세 (pm / dayavg / over8 / off / offh)
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 // 대한민국 공휴일(대체공휴일·선거일 포함). 새 연도·회사 휴일(창립기념일 등)은 여기에 'YYYY-MM-DD' 를 더하면 됨
 const HOLIDAYS = new Set([
@@ -4015,13 +4022,13 @@ function renderHours(c) {
   const offH = offList.reduce((a, x) => a + x.t, 0);
   const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
   const plabel = HS.month ? `${AS.year}년 ${+HS.month}월` : `${AS.year}년 연간`;
-  const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
-  const heat = (v, cap) => !v ? '' : cap && v > cap ? 'background:#ffe3e3;color:#c92a2a;font-weight:800' : `background:rgba(59,91,219,${(0.08 + 0.42 * v / vmax).toFixed(3)})`;
+  const kpi = (cls, icon, l, v, sub, k) => `<button class="wk ${cls} hkpi ${HS.kpi === k ? 'on' : ''}" data-hkpi="${k}" title="누르면 부서원별 상세"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></button>`;
+  const heat = (v, cap) => !v ? '' : cap && v > cap + EPS_H ? 'background:#ffe3e3;color:#c92a2a;font-weight:800' : `background:rgba(59,91,219,${(0.08 + 0.42 * v / vmax).toFixed(3)})`;
   const sel = HS.person && P.has(HS.person) ? HS.person : '';
   // 위 KPI 칸: 부서원을 누르면 그 사람 값, 아니면 팀 전체 (주 52시간 칸은 뺌)
   const kdl = sel ? dayList.filter(x => x.n === sel) : dayList, kTot = kdl.reduce((a, x) => a + x.t, 0);
   const kPM = new Set(kdl.map(x => x.n + '|' + x.k.slice(0, 7))).size;                   // 사람 × 달 (근무시간이 있는 달)
-  const kLong = kdl.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), kOver8 = kdl.filter(x => x.t > 8);
+  const kLong = kdl.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), kOver8 = kdl.filter(x => x.t > 8 + EPS_H);
   const kOff = kdl.filter(x => { const [yy, mm, dd] = x.k.split('-').map(Number); return isOff(new Date(yy, mm - 1, dd)); }), kOffH = kOff.reduce((a, x) => a + x.t, 0);
   const kLeave = sel ? [...P.get(sel).days].filter(([k]) => inRange(k)).reduce((b, [, x]) => b + x.leave, 0) : leaveTot;
   const rows = M.map(r => { const sum = r.v.reduce((a, b) => a + b, 0), used = r.v.filter(Boolean).length;
@@ -4030,6 +4037,34 @@ function renderHours(c) {
   const avgLbl = { month:'월 평균', week:'주 평균', day:'일 평균' }[HS.view];
   const table = names.length ? `<div class="tw hrtw"><table class="t hrt hr-${HS.view}"><thead><tr><th class="hn">부서원</th>${cols.map(cl => `<th class="${cl.we ? 'we' : ''}">${cl.label}</th>`).join('')}<th>합계</th><th>${avgLbl}<small>(입력 있는 ${({ month:'달', week:'주', day:'날' })[HS.view]})</small></th></tr></thead>
       <tbody>${rows}</tbody><tfoot><tr><td class="hn"><b>팀 합계</b></td>${colSum.map((v, i) => `<td class="${cols[i].we ? 'we' : ''}">${v ? fmtH(v) : ''}</td>`).join('')}<td class="hs"><b>${fmtH(colSum.reduce((a, b) => a + b, 0))}</b></td><td></td></tr></tfoot></table></div>` : '<div class="empty">시수 파일이 없습니다. R&R · 투입 분석에서 시수 파일을 올려 주세요.</div>';
+  // 위 숫자 칸을 누르면: 그 숫자에 들어간 부서원별 상세 (이름을 누르면 그 사람 값 · 날짜별 막대)
+  let kpiDetail = '';
+  if (HS.kpi) {
+    const isOffK = k => { const [yy, mm, dd] = k.split('-').map(Number); return isOff(new Date(yy, mm - 1, dd)); };
+    const by = new Map(); kdl.forEach(x => (by.get(x.n) || by.set(x.n, []).get(x.n)).push(x));
+    const chip = x => { const [yy, mm, dd] = x.k.split('-').map(Number), dt = new Date(yy, mm - 1, dd), hol = HOLIDAYS.has(x.k); return `<span class="wed ${hol ? 'hol' : ''}" title="${x.k} ${fmtH(x.t)}h">${mm}/${dd}<small>${WD[dt.getDay()]}</small> ${fmtH(x.t)}${hol ? '<em>공휴일</em>' : ''}</span>`; };
+    const KD = {
+      pm:{ t:'👤 1인 월 평균 — 부서원별', h:['총 근무시간', '근무한 달', '월 평균'], sort:o => o.mavg,
+        row:o => [`<b>${fmtH(o.tot)}h</b>`, `${o.mons}개월`, `<b>${fmtH(o.mavg)}h</b>`, [...o.mmap].sort(([a], [b]) => a.localeCompare(b)).map(([m, h]) => `<span class="wed">${+m.slice(5)}월 ${fmtH(h)}</span>`).join('')] },
+      dayavg:{ t:'📆 근무일 평균 — 부서원별', h:['근무일', '총 근무시간', '하루 평균'], sort:o => o.davg,
+        row:o => [`${o.days.length}일`, fmtH(o.tot) + 'h', `<b>${fmtH(o.davg)}h</b>`, ''] },
+      over8:{ t:'⏰ 하루 8시간 초과 — 부서원별', h:['초과한 날', '최장', '초과 시간 합'], sort:o => o.over.length, skip:o => !o.over.length,
+        row:o => [`<b>${o.over.length}일</b>`, o.long ? `${fmtH(o.long.t)}h <small class="muted">${o.long.k.slice(5)}</small>` : '-', fmtH(o.over.reduce((a, x) => a + x.t - 8, 0)) + 'h', o.over.sort((a, b) => a.k.localeCompare(b.k)).map(chip).join('')] },
+      off:{ t:'🗓 주말·공휴일 출근일 — 부서원별', h:['출근일', '근무시간', '하루 평균'], sort:o => o.off.length, skip:o => !o.off.length,
+        row:o => [`<b>${o.off.length}일</b>`, fmtH(o.offH) + 'h', fmtH(o.offH / o.off.length) + 'h', o.off.sort((a, b) => a.k.localeCompare(b.k)).map(chip).join('')] },
+      offh:{ t:'⏱ 주말·공휴일 근무시간 — 부서원별', h:['근무시간', '출근일', '하루 평균'], sort:o => o.offH, skip:o => !o.off.length,
+        row:o => [`<b>${fmtH(o.offH)}h</b>`, `${o.off.length}일`, fmtH(o.offH / o.off.length) + 'h', o.off.sort((a, b) => a.k.localeCompare(b.k)).map(chip).join('')] },
+    }[HS.kpi];
+    if (KD) {
+      const ps = [...by].map(([n, xs]) => { const tot = xs.reduce((a, x) => a + x.t, 0), mmap = new Map(); xs.forEach(x => mmap.set(x.k.slice(0, 7), (mmap.get(x.k.slice(0, 7)) || 0) + x.t));
+        const over = xs.filter(x => x.t > 8 + EPS_H), off = xs.filter(x => isOffK(x.k));
+        return { n, tot, days:xs, mons:mmap.size, mmap, mavg:mmap.size ? tot / mmap.size : 0, davg:xs.length ? tot / xs.length : 0, over, long:xs.reduce((m, x) => x.t > (m?.t || 0) ? x : m, null), off, offH:off.reduce((a, x) => a + x.t, 0) }; })
+        .filter(o => !KD.skip || !KD.skip(o)).sort((a, b) => KD.sort(b) - KD.sort(a) || a.n.localeCompare(b.n, 'ko'));
+      kpiDetail = `<section class="card hkcard"><h2>${KD.t} <span class="muted">· ${esc(plabel)}${sel ? ` · ${esc(sel)}` : ` · ${ps.length}명`} · 많은 순 · 이름을 누르면 그 사람 값 · 날짜별 상세</span><button class="btn sm" data-hkpi="" style="margin-left:auto">닫기</button></h2>
+        ${ps.length ? `<div class="tw"><table class="t hkt"><thead><tr><th>부서원</th>${KD.h.map(h => `<th>${h}</th>`).join('')}<th>${HS.kpi === 'pm' ? '달별' : HS.kpi === 'dayavg' ? '' : '날짜'}</th></tr></thead><tbody>${ps.map(o => { const c = KD.row(o);
+          return `<tr data-hperson="${esc(o.n)}" class="${o.n === sel ? 'on' : ''}"><td><span class="wperson"><span class="wav sm">${avHtml(o.n)}</span>${esc(o.n)}</span></td>${c.slice(0, 3).map(v => `<td>${v}</td>`).join('')}<td class="lvds">${c[3]}</td></tr>`; }).join('')}</tbody></table></div>` : `<div class="empty">${esc(plabel)} 해당하는 부서원이 없습니다</div>`}</section>`;
+    }
+  }
   // 개인 상세: 선택 기간 날짜별 막대 (부서업무 / PJT / 기타)
   let detail = '';
   if (sel) {
@@ -4051,20 +4086,21 @@ function renderHours(c) {
         ${HS.view === 'day' ? '' : `<button class="wtc ${!HS.month ? 'on' : ''}" data-hmonth="">연간</button>`}${Array.from({ length:12 }, (_, i) => { const mm = pad(i + 1); return `<button class="wtc ${HS.month === mm ? 'on' : ''} ${monthsWith.includes(mm) ? '' : 'dim'}" data-hmonth="${mm}">${i + 1}월</button>`; }).join('')}</div>`)
     + `<div class="wkpis alkpis">
       <div class="wk wk-main al-main"><span class="wkl">${esc(plabel)} ${sel ? `<b>${esc(sel)}</b> 총 근무시간` : '팀 총 근무시간'}</span><span class="wkv">${fmtH(kTot)}<small>h</small></span><span class="wks">${sel ? '' : `${names.length}명 · `}근무일 ${kdl.length}일${kLeave ? ` · 근태 ${fmtH(kLeave)}h 제외` : ''}${sel ? ' · <button class="btn sm" data-hperson="" style="padding:1px 8px">팀 전체 보기</button>' : ' · 이름을 누르면 그 사람 값'}</span></div>
-      ${kpi('wk-run', '👤', sel ? '월 평균' : '1인 월 평균', `${kPM ? fmtH(kTot / kPM) : '-'}h`, `근무시간이 있는 ${sel ? '달' : '사람×달'} ${kPM}개`)}
-      ${kpi('wk-done', '📆', '근무일 평균', `${kdl.length ? fmtH(kTot / kdl.length) : '-'}h`, '하루 (입력 있는 날)')}
-      ${kpi('wk-soon', '⏰', '하루 8시간 초과', `${kOver8.length}일`, kLong ? `최장 ${fmtH(kLong.t)}h · ${sel ? '' : esc(kLong.n) + ' '}${kLong.k.slice(5)}` : '-')}
-      ${kpi('wk-miss', '🗓', '주말·공휴일 출근일', `${kOff.length}일`, sel ? '토·일·공휴일' : `${new Set(kOff.map(x => x.n)).size}명`)}
-      ${kpi('wk-late', '⏱', '주말·공휴일 근무시간', `${fmtH(kOffH)}h`, kOff.length ? `하루 평균 ${fmtH(kOffH / kOff.length)}h` : '없음')}
-    </div>
+      ${kpi('wk-run', '👤', sel ? '월 평균' : '1인 월 평균', `${kPM ? fmtH(kTot / kPM) : '-'}h`, `근무시간이 있는 ${sel ? '달' : '사람×달'} ${kPM}개`, 'pm')}
+      ${kpi('wk-done', '📆', '근무일 평균', `${kdl.length ? fmtH(kTot / kdl.length) : '-'}h`, '하루 (입력 있는 날)', 'dayavg')}
+      ${kpi('wk-soon', '⏰', '하루 8시간 초과', `${kOver8.length}일`, kLong ? `최장 ${fmtH(kLong.t)}h · ${sel ? '' : esc(kLong.n) + ' '}${kLong.k.slice(5)}` : '-', 'over8')}
+      ${kpi('wk-miss', '🗓', '주말·공휴일 출근일', `${kOff.length}일`, sel ? '토·일·공휴일' : `${new Set(kOff.map(x => x.n)).size}명`, 'off')}
+      ${kpi('wk-late', '⏱', '주말·공휴일 근무시간', `${fmtH(kOffH)}h`, kOff.length ? `하루 평균 ${fmtH(kOffH / kOff.length)}h` : '없음', 'offh')}
+    </div>${kpiDetail}
     <section class="card"><h2>⏱ 부서원별 ${({ month:'월별', week:'주별 (월~일)', day:'일별' })[HS.view]} 근무시간 <span class="muted">· ${esc(plabel)} · 진할수록 많음 · 붉은 칸 = ${HS.view === 'week' ? '주 52시간' : HS.view === 'day' ? '하루 8시간' : '-'} 초과 · 이름을 누르면 날짜별 상세</span></h2>${HS.view === 'week' && HS.month ? `<p class="muted" style="margin:0 0 8px">※ 달 경계에 걸친 주(첫 주·마지막 주)는 앞·뒤 달 시간까지 합친 '그 주 전체' 시간입니다. 위 요약 숫자는 ${+HS.month}월 날짜만 셉니다.</p>` : ''}${table}</section>
     <section class="card wecard"><h2>🗓 주말·공휴일 출근 현황 <span class="muted">· ${esc(plabel)} · 토·일·공휴일에 근무시간이 있는 날 (근태 제외) · 줄을 누르면 날짜별 상세</span></h2>
       ${offBy.size ? `<table class="t wet"><thead><tr><th>부서원</th><th>출근 일수</th><th>시간</th><th>날짜</th></tr></thead><tbody>${[...offBy.values()].sort((a, b) => b.days.length - a.days.length || b.h - a.h).map(o => `<tr data-hperson="${esc(o.n)}"><td><span class="wperson"><span class="wav sm">${avHtml(o.n)}</span>${esc(o.n)}</span></td><td><b>${o.days.length}</b>일</td><td>${fmtH(o.h)}h</td><td>${o.days.sort((a, b) => a.k.localeCompare(b.k)).map(x => { const [yy, mm, dd] = x.k.split('-').map(Number), dt = new Date(yy, mm - 1, dd), hol = HOLIDAYS.has(x.k); return `<span class="wed ${hol ? 'hol' : ''}" title="${x.k} ${fmtH(x.t)}h">${mm}/${dd}<small>${WD[dt.getDay()]}</small> ${fmtH(x.t)}${hol ? '<em>공휴일</em>' : ''}</span>`; }).join('')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(plabel)} 주말·공휴일 출근이 없습니다</div>`}</section>
     ${detail}</div>`);
   $('#hrsv').addEventListener('click', e => {
-    const t = e.target.closest('[data-year],[data-hview],[data-hmonth],[data-hperson],[data-goto]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-hview],[data-hmonth],[data-hperson],[data-goto],[data-hkpi]'); if (!t) return;
     const dd = t.dataset;
     if (dd.goto) { location.hash = '#' + dd.goto; return; }
+    if (dd.hkpi != null) { HS.kpi = HS.kpi === dd.hkpi ? '' : dd.hkpi; return render(); }
     if (dd.year != null) { AS.year = dd.year || ty; HS.month = ''; }
     else if (dd.hview) HS.view = dd.hview;
     else if (dd.hmonth != null) HS.month = dd.hmonth;
@@ -4096,10 +4132,16 @@ function leaveCard(list, idx, plabel) {
  *  명단 = 이름 · 직급 · 생일(월·일) · 양력/음력. 음력은 브라우저의 한국 음력 달력(Intl 'dangi')으로 그해 양력 날짜를 계산
  *  서버: GET /api/birthdays (로그인), PUT /api/birthdays · POST /api/birthdays/preview (엑셀 읽기) — Management 권한자만 고침
  * ===================================================================== */
-const BD = { list:[], at:'', by:'', loaded:false };
-async function loadBirthdays() {
-  if (!SERVER || OFFLINE || !AUTH) return;
-  try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true; } catch (_) {}
+const BD = { list:[], at:'', by:'', loaded:false, shown:false };
+const LS_BDAY = 'dept-bday-cache', LS_BDHIDE = 'dept-bday-hide';
+async function loadBirthdays() {                             // 명단은 로그인 없이도 받음 (팝업은 비회원 화면에도)
+  if (!SERVER || OFFLINE) return;
+  try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true;
+    try { localStorage.setItem(LS_BDAY, JSON.stringify({ list:BD.list, at:BD.at })); } catch (_) {} } catch (_) {}
+}
+function bdayBoot() {                                        // 화면을 열자마자: 이 PC 에 보관한 명단으로 바로 팝업 (서버 응답·오프라인과 상관없이)
+  try { const c = JSON.parse(localStorage.getItem(LS_BDAY) || 'null'); if (c?.list) { BD.list = c.list; BD.at = c.at || ''; } } catch (_) {}
+  bdayCheck();
 }
 const LUNAR = new Map();
 function lunarToSolar(y, m, d) {                            // 음력 m월 d일(윤달 아님) → 양력 y년의 날짜 (없으면 null)
@@ -4128,24 +4170,27 @@ function bdayToday(name) {                                 // 오늘이 그 사�
   return !!name && BDT.set.has(normName(name));
 }
 const HAT = '<svg class="bhat" viewBox="0 0 32 40" aria-label="생일 고깔모자"><path d="M16 5 L29 36 H3 Z" fill="#ff5fa2"/><path d="M11.6 15.5 H20.4 L22.9 21.5 H9.1 Z" fill="#ffd43b"/><path d="M7.3 25.7 H24.7 L27.2 31.7 H4.8 Z" fill="#4dabf7"/><path d="M2.5 36 H29.5" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="5" r="4" fill="#ffd43b" stroke="#fff" stroke-width="1"/></svg>';
-function bdayCheck() {                                      // 하루 전 · 당일: 하루 한 번 축하 팝업 (이 브라우저 · 이 계정)
-  if (!AUTH || !BD.list.length || $('#bdpop')) return;
-  if (dlg.open || dlg2.open) return setTimeout(bdayCheck, 5000);
+function bdayCheck() {                                      // 생일 하루 전 · 당일: 화면을 열 때마다 · 로그인할 때 바로 축하 팝업 ('오늘 하루 안 보기' 를 누르면 그날은 안 뜸)
+  if (BD.shown || !BD.list.length || $('#bdpop')) return;
   const t = new Date(), tm = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1), today = bdOn(t), tom = bdOn(tm);
   if (!today.length && !tom.length) return;
-  const key = `${ymd(t)}|${AUTH.id}|${[...today, ...tom].map(b => b.name).join(',')}`;
-  try { if (localStorage.getItem('dept-bday-shown') === key) return; localStorage.setItem('dept-bday-shown', key); } catch (_) {}
-  showBdayPop(today, tom);
+  const key = `${ymd(t)}|${[...today, ...tom].map(b => b.name).join(',')}`;
+  try { if (localStorage.getItem(LS_BDHIDE) === key) return; } catch (_) {}
+  BD.shown = true; showBdayPop(today, tom, key);
 }
-function showBdayPop(today, tom) {
+function showBdayPop(today, tom, hideKey) {
   const tm = new Date(); tm.setDate(tm.getDate() + 1);
   const ln = (bs, when, icon) => bs.length ? `<p class="bdl">${icon} ${when} <b>${bs.map(b => esc(bdName(b))).join(', ')}</b>의 생일입니다!<br><span>축하해 주세요 🎉</span></p>` : '';
-  const el = document.createElement('div'); el.id = 'bdpop';
-  el.innerHTML = `<canvas></canvas><div class="bdcard" role="dialog" aria-label="생일 축하"><div class="bdcake">🎂</div>${ln(today, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<button class="btn pri" data-bdclose>축하합니다! 🎉</button></div>`;
-  document.body.appendChild(el);
+  // <dialog> 로 띄움 → 로그인 창·업데이트 안내 등 다른 창이 떠 있어도 그 위에 바로 보임
+  const el = document.createElement('dialog'); el.id = 'bdpop';
+  el.innerHTML = `<canvas></canvas><div class="bdcard" aria-label="생일 축하"><div class="bdcake">🎂</div>${ln(today, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<div class="bdbtns"><button class="btn pri" data-bdclose>축하합니다! 🎉</button>${hideKey ? '<button class="btn" data-bdhide>오늘 하루 안 보기</button>' : ''}</div></div>`;
+  document.body.appendChild(el); el.showModal();
   const stop = fireworks(el.querySelector('canvas'));
-  const close = () => { stop(); el.remove(); };
-  el.onclick = e => { if (e.target.closest('[data-bdclose]') || e.target === el) close(); };
+  el.addEventListener('close', () => { stop(); el.remove(); });
+  el.onclick = e => {
+    if (e.target.closest('[data-bdhide]')) { try { localStorage.setItem(LS_BDHIDE, hideKey); } catch (_) {} return el.close(); }
+    if (e.target.closest('[data-bdclose]') || e.target === el) el.close();
+  };
   el.querySelector('[data-bdclose]').focus();
 }
 function fireworks(cv) {                                   // 폭죽 (외부 라이브러리 없이 canvas)
@@ -4253,19 +4298,31 @@ function wtJudge(r) {
   if (r.remainMax != null && r.remainMax <= WT_REMAIN) { lv = Math.max(lv, 1); why.push(`이번 달 더 일할 수 있는 시간 ${wtN(r.remainMax)}h`); }
   return { lv, wk, why };
 }
+/* 그달 주 평균 소정근로시간: 주 40h 에서 평일(월~금) 공휴일(HOLIDAYS) 하루마다 8h 뺌 — 예) 월요일이 공휴일인 주 = 40 − 8 = 32h.
+ * 달 단위 = 40h × (그달 일수 ÷ 7) − 평일 공휴일 × 8h = 월 소정, ÷ (그달 일수 ÷ 7) = 주 평균 소정 (공휴일 없는 달 = 40h, 파일의 '주평균근무' 와 같은 주 수) */
+const WTSTD = new Map();
+function wtStd(month) {
+  if (WTSTD.has(month)) return WTSTD.get(month);
+  const [y, m] = month.split('-').map(Number), n = new Date(y, m, 0).getDate(), hol = [];
+  let wd = 0;
+  for (let d = 1; d <= n; d++) { const dt = new Date(y, m - 1, d); if (dt.getDay() % 6 === 0) continue; if (HOLIDAYS.has(ymd(dt))) hol.push(`${m}/${d}(${WD[dt.getDay()]})`); else wd++; }
+  const W = n / 7, mon = WT_STD * W - hol.length * 8;
+  const o = { wk:mon / W, mon, wd, hol, tip:`${y}년 ${m}월: 주 40h × ${wtN(W)}주(${n}일 ÷ 7) − 평일 공휴일 ${hol.length}일 × 8h${hol.length ? ` (${hol.join(', ')})` : ''} = 월 소정 ${wtN(mon)}h → 주 평균 소정 ${wtN(mon / W)}h (공휴일 없는 주 40h, 평일 공휴일 하루마다 −8h)` };
+  WTSTD.set(month, o); return o;
+}
 function wtTs(name, month) {                               // 시수 파일(R&R · 투입 분석)의 그달 합계 (근태 제외) — 없으면 null
   const d = AS.data[month.slice(0, 4)]; if (!d || d.error || !d.canHours) return null;
   const idx = projIndex(); let t = null;
   for (const u of d.list) if (u.month === month && normName(u.person) === normName(name)) for (const r of u.rows) if (tsClass(r, idx).kind !== 'leave') t = (t || 0) + (r.v || 0);
   return t;
 }
-function wtBar(wk, lv) {
+function wtBar(wk, lv, std = WT_STD) {
   if (wk == null) return '-';
   const X = 64, pc = v => Math.min(100, v / X * 100);
-  return `<span class="wtbar" title="주 평균 ${wtN(wk)}h · 점선 = 소정 40h · 빨간 선 = 한도 52h"><i class="lv${lv}" style="width:${pc(wk)}%"></i><b class="m40" style="left:${pc(WT_STD)}%"></b><b class="m52" style="left:${pc(WT_MAX)}%"></b></span><span class="wtv lv${lv}">${wtN(wk)}h</span>`;
+  return `<span class="wtbar" title="주 평균 ${wtN(wk)}h · 점선 = 그달 주 평균 소정 ${wtN(std)}h (공휴일 반영) · 빨간 선 = 한도 52h"><i class="lv${lv}" style="width:${pc(wk)}%"></i><b class="m40" style="left:${pc(std)}%"></b><b class="m52" style="left:${pc(WT_MAX)}%"></b></span><span class="wtv lv${lv}">${wtN(wk)}h</span>`;
 }
 function renderWork(c) {
-  const hero = inner => `<div id="wtv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근로시간 관리 <small style="font-weight:600;opacity:.85">— 주 평균 소정 40h · 월 평균 주 52h 한도</small></h2><p>회사 근태 시스템의 월별 근무시간 엑셀(작업년월 · 성명 · 실근무 · 주평균근무 · 연장 · 휴일 · 월잔여 …)을 올리면 부서원별로 <b style="color:#ffd0d0">위험</b> · <b style="color:#ffe8b0">우려</b>를 표시합니다. <b>위험</b> = 월 평균 주 52시간 초과 또는 근태 시스템 판정 '위험' · <b>우려</b> = 주 평균 48시간 이상 · 판정 '우려' · 이번 달 더 일할 수 있는 시간(월잔여 최대근무가능) 10시간 이하. 파일 올리기·지우기는 Management 권한자만.</p></div></div>${inner}</section>`;
+  const hero = inner => `<div id="wtv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근로시간 관리 <small style="font-weight:600;opacity:.85">— 주 소정 40h (평일 공휴일 하루마다 −8h) · 월 평균 주 52h 한도</small></h2><p>회사 근태 시스템의 월별 근무시간 엑셀(작업년월 · 성명 · 실근무 · 주평균근무 · 연장 · 휴일 · 월잔여 …)을 올리면 부서원별로 <b style="color:#ffd0d0">위험</b> · <b style="color:#ffe8b0">우려</b>를 표시합니다. <b>위험</b> = 월 평균 주 52시간 초과 또는 근태 시스템 판정 '위험' · <b>우려</b> = 주 평균 48시간 이상 · 판정 '우려' · 이번 달 더 일할 수 있는 시간(월잔여 최대근무가능) 10시간 이하. 파일 올리기·지우기는 Management 권한자만.</p></div></div>${inner}</section>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
   if (!WT.data) { c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">불러오는 중…</div></section></div>'); loadWt(); return; }
@@ -4283,24 +4340,25 @@ function renderWork(c) {
   let body = '';
   if (!rows.length) body = `<section class="card"><div class="empty">아직 올린 근무시간 파일이 없습니다. 위 [⬆ 근무시간 엑셀 올리기] 로 근태 시스템에서 받은 엑셀(.xlsx)을 올리세요 (여러 개 한꺼번에 가능). 화면에 끌어다 놓아도 됩니다.</div></section>`;
   else if (WT.month !== 'all') {
+    const sd = wtStd(WT.month);                             // 그달 주 평균 소정 (공휴일 반영)
     const ms = rows.filter(r => r.month === WT.month).map(r => ({ r, j:wtJudge(r), ts:wtTs(r.name, r.month) }))
       .sort((a, b) => b.j.lv - a.j.lv || (b.j.wk ?? -1) - (a.j.wk ?? -1) || a.r.name.localeCompare(b.r.name, 'ko'));
     const wks = ms.map(x => x.j.wk).filter(v => v != null), avg = wks.length ? wks.reduce((a, b) => a + b, 0) / wks.length : null, top = ms.filter(x => x.j.wk != null).sort((a, b) => b.j.wk - a.j.wk)[0];
     const sum = f => ms.reduce((a, x) => a + (x.r[f] || 0), 0), names = lv => ms.filter(x => x.j.lv === lv).map(x => x.r.name);
     const tr = ({ r, j, ts }) => `<tr class="wtr lv${j.lv} ${WT.person === r.name ? 'on' : ''}" data-wtp="${esc(r.name)}"><td>${lvTag(j)}</td><td>${who(r.name)}<small class="muted"> ${esc(r.title || '')}</small></td><td>${esc(r.state || '-')}</td>
-      <td>${wtN(r.realH)}${r.realState ? ` <em class="wtst">${esc(r.realState)}</em>` : ''}</td><td class="wtbc">${wtBar(j.wk, j.lv)}${r.wkState ? ` <em class="wtst">${esc(r.wkState)}</em>` : ''}</td>
-      <td>${j.wk != null ? (j.wk > WT_STD ? `<b>+${wtN(j.wk - WT_STD)}</b>` : wtN(j.wk - WT_STD)) : '-'}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td>
+      <td>${wtN(r.realH)}${r.realState ? ` <em class="wtst">${esc(r.realState)}</em>` : ''}</td><td class="wtbc">${wtBar(j.wk, j.lv, sd.wk)}${r.wkState ? ` <em class="wtst">${esc(r.wkState)}</em>` : ''}</td>
+      <td title="${esc(sd.tip)}">${j.wk != null ? (j.wk > sd.wk ? `<b>+${wtN(j.wk - sd.wk)}</b>` : wtN(j.wk - sd.wk)) : '-'}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td>
       <td>${r.flexP || r.flexM ? `+${wtN(r.flexP)} / −${wtN(r.flexM)}` : wtN(r.flex)}</td><td class="${r.remainMax != null && r.remainMax <= WT_REMAIN ? 'wtlow' : ''}">${wtN(r.remainMax)}</td><td>${wtN(r.remainStd)}</td>
       <td>${ts != null ? `${wtN(ts)}${r.realH != null && Math.abs(ts - r.realH) >= 8 ? ` <small class="wtdiff" title="근태 시스템 실근무와 8시간 이상 차이">Δ${wtN(ts - r.realH)}</small>` : ''}` : '<span class="muted">-</span>'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`;
     body = `<div class="wkpis alkpis">
-        <div class="wk wk-main al-main"><span class="wkl">${esc(mlab(WT.month))} 팀 주 평균 근무</span><span class="wkv">${wtN(avg)}<small>h</small></span><span class="wks">${ms.length}명 · 소정 ${WT_STD}h ${avg != null ? (avg > WT_STD ? `대비 +${wtN(avg - WT_STD)}h` : '이내') : ''} · 한도 ${WT_MAX}h</span></div>
+        <div class="wk wk-main al-main"><span class="wkl">${esc(mlab(WT.month))} 팀 주 평균 근무</span><span class="wkv">${wtN(avg)}<small>h</small></span><span class="wks" title="${esc(sd.tip)}">${ms.length}명 · 주 소정 ${wtN(sd.wk)}h${sd.hol.length ? ` (공휴일 ${sd.hol.length}일 반영)` : ''} ${avg != null ? (avg > sd.wk ? `대비 +${wtN(avg - sd.wk)}h` : '이내') : ''} · 한도 ${WT_MAX}h</span></div>
         ${kpi('wk-late', '🔴', '위험', `${names(2).length}명`, esc(names(2).join(', ') || '없음'))}
         ${kpi('wk-soon', '🟠', '우려', `${names(1).length}명`, esc(names(1).join(', ') || '없음'))}
         ${kpi('wk-run', '⏫', '최고 주 평균', top ? `${wtN(top.j.wk)}h` : '-', top ? esc(top.r.name) : '-')}
         ${kpi('wk-miss', '⏱', '연장근로 합계', `${wtN(sum('ot'))}h`, `1인 평균 ${ms.length ? wtN(sum('ot') / ms.length) : '-'}h`)}
         ${kpi('wk-done', '🗓', '휴일근무 합계', `${wtN(sum('hol') + sum('holOt'))}h`, `휴일 ${wtN(sum('hol'))} · 휴일연장 ${wtN(sum('holOt'))}`)}</div>
-      <section class="card"><h2>⏱ ${esc(mlab(WT.month))} 부서원별 근로시간 <span class="muted">· 위험 → 우려 → 주 평균 높은 순 · 막대 점선 = 소정 40h, 빨간 선 = 52h · 이름을 누르면 월별 추이 · 단위 h</span></h2>
-        <div class="tw"><table class="t wtt"><thead><tr><th>판정</th><th>부서원</th><th>근무상태</th><th>실근무<small>(평일+휴일)</small></th><th>주 평균</th><th>40h 대비</th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>탄력 (+/−)</th><th>월잔여<small>최대근무가능</small></th><th>월잔여<small>소정</small></th><th>시수 파일<small>합계(근태 제외)</small></th><th>사유</th></tr></thead><tbody>${ms.map(tr).join('')}</tbody></table></div></section>`;
+      <section class="card"><h2>⏱ ${esc(mlab(WT.month))} 부서원별 근로시간 <span class="muted">· 위험 → 우려 → 주 평균 높은 순 · 막대 점선 = 그달 주 평균 소정 ${wtN(sd.wk)}h (평일 공휴일 ${sd.hol.length}일 × 8h 차감${sd.hol.length ? ': ' + esc(sd.hol.join(', ')) : ''}), 빨간 선 = 52h · 이름을 누르면 월별 추이 · 단위 h</span></h2>
+        <div class="tw"><table class="t wtt"><thead><tr><th>판정</th><th>부서원</th><th>근무상태</th><th>실근무<small>(평일+휴일)</small></th><th>주 평균</th><th title="${esc(sd.tip)}">소정 대비<small>주 소정 ${wtN(sd.wk)}h</small></th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>탄력 (+/−)</th><th>월잔여<small>최대근무가능</small></th><th>월잔여<small>소정</small></th><th>시수 파일<small>합계(근태 제외)</small></th><th>사유</th></tr></thead><tbody>${ms.map(tr).join('')}</tbody></table></div></section>`;
   } else {
     const ppl = [...new Set(rows.map(r => r.name))].sort((a, b) => a.localeCompare(b, 'ko')), asc = [...months].reverse();
     const at = (n, m) => rows.find(r => r.name === n && r.month === m);
@@ -4316,10 +4374,10 @@ function renderWork(c) {
   let detail = '';
   if (WT.person && rows.some(r => r.name === WT.person)) {
     const pr = rows.filter(r => r.name === WT.person).sort((a, b) => a.month.localeCompare(b.month)).map(r => ({ r, j:wtJudge(r) })), mx = Math.max(60, ...pr.map(x => x.j.wk || 0));
-    detail = `<section class="card"><h2>🔎 ${esc(WT.person)} · 월별 근로시간 <span class="muted">· 막대 = 주 평균 · 점선 = 40h · 빨간 선 = 52h</span><button class="btn sm" data-wtp="" style="margin-left:auto">닫기</button></h2>
-      <div class="wtchart" style="--l40:${WT_STD / mx * 100}%;--l52:${WT_MAX / mx * 100}%">${pr.map(({ r, j }) => `<div class="wtcol" title="${esc(mlab(r.month))} 주 평균 ${wtN(j.wk)}h · 실근무 ${wtN(r.realH)}h · 연장 ${wtN(r.ot)}h · 휴일 ${wtN(r.hol)}h${j.why.length ? ' · ' + esc(j.why.join(' · ')) : ''}"><em>${wtN(j.wk)}</em><b><span class="lv${j.lv}" style="height:${(j.wk || 0) / mx * 100}%"></span></b><small>${esc(mlab(r.month).slice(2))}</small></div>`).join('')}</div>
-      <div class="tw"><table class="t wtt"><thead><tr><th>월</th><th>판정</th><th>실근무</th><th>주 평균</th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>월잔여 최대</th><th>시수 파일</th><th>사유</th></tr></thead><tbody>${[...pr].reverse().map(({ r, j }) => { const ts = wtTs(r.name, r.month);
-        return `<tr class="wtr lv${j.lv}"><td>${esc(mlab(r.month))}</td><td>${lvTag(j)}</td><td>${wtN(r.realH)}</td><td>${wtN(j.wk)}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td><td>${wtN(r.remainMax)}</td><td>${ts != null ? wtN(ts) : '-'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
+    detail = `<section class="card"><h2>🔎 ${esc(WT.person)} · 월별 근로시간 <span class="muted">· 막대 = 주 평균 · 점선 = 그달 주 평균 소정 (공휴일 반영) · 빨간 선 = 52h</span><button class="btn sm" data-wtp="" style="margin-left:auto">닫기</button></h2>
+      <div class="wtchart" style="--l52:${WT_MAX / mx * 100}%">${pr.map(({ r, j }) => `<div class="wtcol" title="${esc(mlab(r.month))} 주 평균 ${wtN(j.wk)}h · 주 소정 ${wtN(wtStd(r.month).wk)}h · 실근무 ${wtN(r.realH)}h · 연장 ${wtN(r.ot)}h · 휴일 ${wtN(r.hol)}h${j.why.length ? ' · ' + esc(j.why.join(' · ')) : ''}"><em>${wtN(j.wk)}</em><b><span class="lv${j.lv}" style="height:${(j.wk || 0) / mx * 100}%"></span><i class="s40" style="bottom:${wtStd(r.month).wk / mx * 100}%"></i></b><small>${esc(mlab(r.month).slice(2))}</small></div>`).join('')}</div>
+      <div class="tw"><table class="t wtt"><thead><tr><th>월</th><th>판정</th><th>실근무</th><th>주 평균</th><th>주 소정<small>(공휴일 반영)</small></th><th>소정 대비</th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>월잔여 최대</th><th>시수 파일</th><th>사유</th></tr></thead><tbody>${[...pr].reverse().map(({ r, j }) => { const ts = wtTs(r.name, r.month);
+        return `<tr class="wtr lv${j.lv}"><td>${esc(mlab(r.month))}</td><td>${lvTag(j)}</td><td>${wtN(r.realH)}</td><td>${wtN(j.wk)}</td><td title="${esc(wtStd(r.month).tip)}">${wtN(wtStd(r.month).wk)}${wtStd(r.month).hol.length ? ` <small class="muted">(공휴일 ${wtStd(r.month).hol.length})</small>` : ''}</td><td>${j.wk != null ? (j.wk > wtStd(r.month).wk ? `<b>+${wtN(j.wk - wtStd(r.month).wk)}</b>` : wtN(j.wk - wtStd(r.month).wk)) : '-'}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td><td>${wtN(r.remainMax)}</td><td>${ts != null ? wtN(ts) : '-'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
   }
   c.insertAdjacentHTML('beforeend', hero(tools) + body + detail + '</div>');
   const fileIn = $('#wtFile');
@@ -4902,6 +4960,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
 
 (async function init() {
   const k = location.hash.slice(1); route = validRoute(k) ? k : 'home';
+  bdayBoot();                                              // 생일 팝업: 화면을 열자마자 (이 PC 에 보관한 명단)
   await queueLoad();
   if (SERVER) {                                            // 서버 모드: 폴더 선택 없이 바로 접속
     let info = null;
@@ -4950,6 +5009,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
   await initFolderMode();
 })();
 async function startOnline() {
+  loadBirthdays().then(bdayCheck);                          // 생일 팝업: 로그인 창보다 먼저, 기다리지 않고
   user = ''; await authStart();                             // 서버 모드: 로그인 / 계정 개설 / 비회원
   await refreshPerms();
   try { await loadAll(); } catch (e) { toast('불러오기 실패: ' + e.message, true); }

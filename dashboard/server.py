@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-15.2'
+SERVER_VERSION = '2026-10-15.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1877,9 +1877,8 @@ class Handler(BaseHTTPRequestHandler):
                 return api_ts_delete(acc, can_all, seg[1], seg[2])
         if head == 'order' and m == 'PUT' and len(seg) == 2:          # 행 순서 바꾸기 (선택한 행 위로/아래로)
             return api_reorder(sheet(1), self.json_body(), self.need_menu('weekly')['name'])
-        if head == 'birthdays':                                     # 부서원 생일: 보기 = 로그인, 고치기·엑셀 = Management 권한
+        if head == 'birthdays':                                     # 부서원 생일: 보기 = 누구나(비회원 화면에도 축하 팝업), 고치기·엑셀 = Management 권한
             if m == 'GET' and len(seg) == 1:
-                self.need_user()
                 return api_bday_get()
             if m == 'PUT' and len(seg) == 1:
                 return api_bday_put(self.json_body(), self.need_menu('mgmt')['name'])
