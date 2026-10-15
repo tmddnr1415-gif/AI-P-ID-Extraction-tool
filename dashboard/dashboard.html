@@ -375,6 +375,9 @@ table.t td.hl .overdue,table.t td.hl .ox{background:none}
 /* 행 상태: To do 미완료=연한 주황, 발표 완료/종료=연한 회색 */
 table.t tr.r-open td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#FFF1E2}
 table.t tr.r-done td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#F0F1F4;color:#8b90a0}
+table.t tr.newrow td:not(.sel):not(.msel),table.t tr.newrow:hover td:not(.sel):not(.msel){background:var(--hl)}
+table.t tr.newrow td:first-child{box-shadow:inset 4px 0 0 #f2b705}
+.lg-new{background:var(--hl);border-left:4px solid #f2b705;padding:0 5px}
 .donetag{display:inline-block;margin-left:6px;padding:0 7px;border-radius:99px;background:#dfe2ea;color:#5f6475;font-size:11px;font-weight:700;white-space:nowrap}
 /* 다중 선택 */
 table.t td.msel:not(.sel){box-shadow:inset 0 0 0 9999px rgba(43,68,201,.16);outline:1px solid rgba(43,68,201,.5);outline-offset:-1px}
@@ -712,6 +715,38 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
 .org-top .opill.lead .oav{width:60px;height:60px}.org-top .opill.lead .otx b{font-size:16px}
 @keyframes orgGlow{0%,100%{box-shadow:0 0 0 2px #bfefff,0 0 18px rgba(150,220,255,.6),0 8px 18px rgba(0,0,20,.35)}50%{box-shadow:0 0 0 2px #e6f9ff,0 0 34px rgba(150,220,255,.95),0 8px 18px rgba(0,0,20,.35)}}
 .org-foot{margin-top:22px}
+/* 생일: 고깔모자 · 축하 팝업(폭죽) */
+.bhat{position:absolute;left:50%;top:-36px;width:36px;height:46px;transform:translateX(-50%) rotate(-14deg);z-index:3;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none}
+.acct .an .bhat{position:static;width:16px;height:20px;transform:rotate(-14deg);margin-right:2px;vertical-align:-3px}
+#bdpop{position:fixed;inset:0;z-index:9999;background:rgba(12,14,40,.62);display:flex;align-items:center;justify-content:center}
+#bdpop canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bdcard{position:relative;background:linear-gradient(160deg,#fff,#fff4fa);border-radius:22px;padding:26px 34px 22px;max-width:520px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 4px #ffd43b;animation:bdIn .5s cubic-bezier(.2,1.4,.4,1)}
+.bdcake{font-size:64px;line-height:1;animation:bdBob 1.6s ease-in-out infinite}
+.bdl{font-size:19px;margin:12px 0;color:#2b2140;line-height:1.5}.bdl b{color:#d6336c}.bdl span{font-size:15px;color:#6b5f80}
+.bdcard .btn{margin-top:8px;font-size:15px;padding:9px 22px}
+@keyframes bdIn{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes bdBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+table.bdt tr.bd0 td{background:#ffe3ef}table.bdt tr.bd1 td{background:#fff0f6}table.bdt tr.bdm td{background:#fff9db}
+/* 근로시간 관리 */
+.wtbar{position:relative;display:inline-block;width:120px;height:12px;background:#eef1f8;border-radius:6px;vertical-align:middle;margin-right:6px;overflow:hidden}
+.wtbar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:#3b5bdb}.wtbar i.lv1{background:#f59f00}.wtbar i.lv2{background:#e03131}
+.wtbar b{position:absolute;top:-2px;bottom:-2px;width:0}.wtbar b.m40{border-left:2px dashed #495057}.wtbar b.m52{border-left:2px solid #e03131}
+.wtv{font-weight:700}.wtv.lv1{color:#c77700}.wtv.lv2{color:#d63a2f}
+.wtlv{display:inline-block;font-weight:800;font-size:12px;border-radius:99px;padding:2px 9px;white-space:nowrap;background:#e6f6ee;color:#168a5c}.wtlv.lv1{background:#fff1d6;color:#a35a00}.wtlv.lv2{background:#ffe3e3;color:#c92a2a}
+table.wtt td,table.wtm td{white-space:nowrap;text-align:center}table.wtt td.wtwhy{white-space:normal;text-align:left;min-width:200px;font-size:12px}table.wtt td.wtbc{text-align:left}
+table.wtt tr.lv2 td{background:#fff5f5}table.wtt tr.lv1 td{background:#fffaf0}
+table.wtt tr[data-wtp],table.wtm tr[data-wtp]{cursor:pointer}table.wtt tr.on td,table.wtm tr.on td{box-shadow:inset 0 0 0 9999px rgba(43,68,201,.08)}
+.wtst{font-style:normal;font-size:11px;font-weight:700;color:#c92a2a}.wtlow{color:#c92a2a;font-weight:800}.wtdiff{color:#a35a00;font-weight:700}
+table.wtm td.wtc0{background:#e9f7ef}table.wtm td.wtc1{background:#ffe8b0;font-weight:700}table.wtm td.wtc2{background:#ffc9c9;color:#c92a2a;font-weight:800}
+.wtchart{position:relative;display:flex;align-items:flex-end;gap:10px;height:200px;padding:6px 6px 0;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.wtchart::before,.wtchart::after{content:'';position:absolute;left:0;right:0;pointer-events:none}
+.wtchart::before{bottom:calc(var(--l40) * .8 + 22px);border-top:2px dashed #868e96}.wtchart::after{bottom:calc(var(--l52) * .8 + 22px);border-top:2px solid #e03131}
+.wtcol{display:flex;flex-direction:column;align-items:center;width:46px;height:100%;justify-content:flex-end}
+.wtcol b{display:flex;align-items:flex-end;width:28px;height:80%}.wtcol b span{width:100%;border-radius:6px 6px 0 0;background:#3b5bdb}.wtcol b span.lv1{background:#f59f00}.wtcol b span.lv2{background:#e03131}
+.wtcol em{font-style:normal;font-size:11px;font-weight:700}.wtcol small{font-size:11px;color:var(--muted);height:22px;line-height:22px}
+
+.org-unit.iec .org-ui{width:auto;padding:0 8px;font-size:11px;border-radius:99px}
+.iectag{font-size:10px;font-weight:800;color:#c2410c;background:#ffedd5;border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
 @media print{.org::before{display:none}.opill,.org-top .opill.lead{animation:none}}
 </style>
 </head>
@@ -773,8 +808,8 @@ const SHEETS = [
   { key:'perform', label:'수행', title:'PJT명', owner:'담당자', filters:['사업군'], cols:[
     {f:'사업군', w:80, sug:1}, {f:'PJT명', w:130, strong:1}, {f:'Project Code', w:96}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1}, {f:'PJT 개요', w:250, long:1, rows:5},
     {f:'PJT 주요 일정', w:220, long:1, rows:5}, {f:'담당자', w:120, long:1, rows:3},
-    {f:'업무 현황', label:'계장ENG 업무 현황', w:380, long:1, rows:8},
-    {f:'현안', label:'계장ENG 현안 (Cost/Schedule Impact)', w:300, long:1, rows:6} ]},
+    {f:'업무 현황', label:'업무 현황', w:380, long:1, rows:8},
+    {f:'현안', label:'현안 (Cost/Schedule Impact)', w:300, long:1, rows:6} ]},
   { key:'bid', label:'입찰', title:'PJT명', owner:'담당자', filters:['사업군'], cols:[
     {f:'사업군', w:80, sug:1}, {f:'PJT명', w:130, strong:1}, {f:'Project Code', w:96}, {f:'종결 여부', w:76, opts:['진행','종결'], closed:1}, {f:'PJT 개요', w:250, long:1, rows:5},
     {f:'PJT 주요 일정', w:220, long:1, rows:5}, {f:'담당자', w:120, long:1, rows:3},
@@ -874,7 +909,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1085,6 +1120,7 @@ async function loadAll() {
     if (readOnly()) await loadArchiveView(view.week);
     await loadBoard();
     await loadProfiles();
+    await loadBirthdays(); setTimeout(bdayCheck, 800);    // 부서원 생일: 하루 전 · 당일 축하 팝업 (하루 한 번)
     await cacheSave();                                     // 받은 데이터 전체를 이 PC(IndexedDB)에 최신본으로 보관
     QUEUE.forEach(applyOp);                                // 아직 올리지 못한 내 오프라인 수정은 화면에 겹쳐 표시
     return;
@@ -1893,13 +1929,13 @@ async function submitRecord(key, id, rec, nf, mine) {
     if (!rec) {
       // 그룹 헤더 시트: 같은 그룹의 마지막 행 바로 뒤에 삽입
       const s = SHEET[key]; let order;
-      if (key === 'perform' || key === 'bid') order = Math.min(0, ...DB.recs[key].map(r => r.order)) - 10;   // 수행·입찰: 새 행은 맨 위
+      if (TOP_NEW.has(key)) order = Math.min(0, ...DB.recs[key].map(r => r.order)) - 10;   // 수행·입찰·통합 업무: 새 행은 맨 위
       else if (s.group && nf[s.group]) {
         const all = DB.recs[key], same = all.filter(r => r.fields[s.group] === nf[s.group]);
         if (same.length) { const mx = Math.max(...same.map(r => r.order)); const nx = all.map(r => r.order).filter(o => o > mx).sort((a, b) => a - b)[0]; order = nx == null ? mx + 10 : (mx + nx) / 2; }
       }
       const nr = await createRecord(key, nf, { order }); dlg.close(); toast('추가되었습니다'); await loadAll();
-      if ((key === 'perform' || key === 'bid') && nr?.id) {   // 새 행: 맨 위 고정 + 그 행으로 이동·깜빡임
+      if (TOP_NEW.has(key) && nr?.id) {   // 새 행: 맨 위 고정 + 그 행으로 이동·깜빡임
         (NEW_TOP[key] || (NEW_TOP[key] = new Set())).add(nr.id);
         JUMP = { key, rid:nr.id, f:s.title, edit:false }; SEL = { route:key, rid:nr.id, f:s.title }; MSEL = new Set([mkey(nr.id, s.title)]); ANCHOR = SEL;
       }
@@ -2364,13 +2400,16 @@ function render() {
   else if (route === 'alloc') renderAlloc(c);
   else if (route === 'mgalloc') renderAlloc(c, true);
   else if (route === 'mghours') renderHours(c);
+  else if (route === 'mgwork') renderWork(c);
+  else if (route === 'mgbday') renderBday(c);
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'mgmt', 'mgalloc', 'mghours'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
-const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : (r === 'mgalloc' || r === 'mghours') ? 'mgmt' : r;   // 화면(route) → 권한 메뉴 키
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
+const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
 const NAV_LS = { weekly:'dept-nav-weekly-open', mgmt:'dept-nav-mgmt-open' };
@@ -2396,13 +2435,13 @@ function renderMenu() {
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
-    (can('mgmt') ? group('mgmt', { k:'mgmt', l:'🛠 Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }], route === 'mgmt' || route === 'mgalloc' || route === 'mghours') : '');
+    (can('mgmt') ? group('mgmt', { k:'mgmt', l:'🛠 Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름
   $('#whoName').textContent = user || '-';
   if (acct) {
-    $('#acctName').textContent = AUTH ? `${AUTH.name} 님` : '비회원';
+    $('#acctName').innerHTML = AUTH ? `${bdayToday(AUTH.name) ? HAT : ''}${esc(AUTH.name)} 님` : '비회원';   // 생일 당일 = 고깔모자
     $('#acctSub').textContent = AUTH ? `${AUTH.id} · 계장ENG그룹` : '보기 전용 · 로그인하면 편집 가능';
     $('#acctAct').innerHTML = AUTH ? '<span>⇥</span> 로그아웃' : '<span>⇥</span> 로그인 / 계정 개설';
     $('#acctProf').hidden = !AUTH; $('#acctPw').hidden = !AUTH || OFFLINE;
@@ -2437,10 +2476,22 @@ function renderWelcome(c) {
  *  홈
  * ===================================================================== */
 // 부서원 명단: 가장 최근 연도 유닛분장의 구성원 (그룹장 제외)
-function deptNames() {
+function deptNames() {                                     // IEC(India Engineering Center) 유닛·영문 이름은 빼고
   const recs = DB.recs?.unit || [], y = recs.map(r => String(r.fields['연도'] || '')).sort().pop();
-  const rs = recs.filter(r => String(r.fields['연도'] || '') === y), heads = new Set(rs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)));
-  return [...new Set(rs.flatMap(r => parseMembers(r.fields['구성원']).map(m => m.name)))].filter(n => n && !heads.has(n));
+  const rs = recs.filter(r => String(r.fields['연도'] || '') === y && !isIecUnit(r)), heads = new Set(rs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)));
+  return [...new Set(rs.flatMap(r => parseMembers(r.fields['구성원']).map(m => m.name)))].filter(n => n && !heads.has(n) && !isEng(n));
+}
+/* IEC 인력 (India Engineering Center, 영문 이름): 가장 최근 연도 유닛분장의 IEC 유닛('I&C ENG Group' · 'IEC' 가 들어간 유닛) 구성원.
+ * 유닛분장 표에 아직 등록하지 않았으면 기본 명단(IEC_DEFAULT). 수행 PJT 그래프는 영문 이름을 세지 않고, 입찰 PJT 그래프는 IEC 인원도 셈 */
+const isEng = t => /[a-z]/i.test(t) && !/[가-힣]/.test(t);
+const IEC_RE = /\bIEC\b|I\s*&\s*C\s*ENG/i;
+const isIecUnit = r => IEC_RE.test(r.fields['유닛'] || '') || IEC_RE.test(r.fields['담당'] || '');
+const IEC_DEFAULT = { unit:'I&C ENG Group', duty:'IEC 인력 구성 · India Engineering Center',
+  mem:'Ranjit Malakar(Part Leader)\nAbhishek Sinha(Pro)\nNikhil Aggarwal(Pro)\nGurbaksh Singh(Pro)\nSakshi Tiwari(Pro)\nPrakash Chand Jaiswal(Pro)\nAbhishek Rai(Pro)\nDinesh Kumar(Pro)\nVikas Khare(Pro)\nSurabhi Gupta(Pro - expected)\nSonal Gupta(Pro - GET*)\nSamridhi(Pro - GET*)' };
+function iecNames() {
+  const recs = DB.recs?.unit || [], y = recs.map(r => String(r.fields['연도'] || '')).sort().pop();
+  const rs = recs.filter(r => String(r.fields['연도'] || '') === y && isIecUnit(r));
+  return [...new Set((rs.length ? rs.map(r => r.fields['구성원']) : [IEC_DEFAULT.mem]).flatMap(v => parseMembers(v).map(m => m.name)))].filter(Boolean);
 }
 function ownerTokens(recs, f) { const m = new Map(); recs.forEach(r => tokens(r.fields[f]).forEach(t => m.set(t, (m.get(t) || 0) + 1))); return m; }
 const cell1 = v => String(v || '').split('\n')[0].replace(/\(.*?\)/g, '').trim() || '(미분류)';
@@ -2496,7 +2547,7 @@ const todoOverdue = () => workAll().filter(i => i.cls === 'late');              
 const sinceText = () => DB.state.lastClosedWeek ? `마지막 마감(${weekLabel(DB.state.lastClosedWeek)} 수 11:59) 이후` : '엑셀 이관 이후';
 function popData(kind) {
   const R = k => getRecs(k);
-  if (kind === 'notupd') return { title:'이번 주 미업데이트 PJT', desc:`${sinceText()} 내용이 바뀌지 않은 PJT입니다. 항목을 누르면 해당 PJT의 <b>계장ENG 업무 현황</b> 칸으로 이동합니다.`,
+  if (kind === 'notupd') return { title:'이번 주 미업데이트 PJT', desc:`${sinceText()} 내용이 바뀌지 않은 PJT입니다. 항목을 누르면 해당 PJT의 <b>업무 현황</b> 칸으로 이동합니다.`,
     groups:['perform', 'bid'].map(k => ({ key:k, items:R(k).filter(r => isLive(r) && !isUpdated(r)).map(r => ({ rid:r.id, f:'업무 현황', label:recLabel(k, r.fields),
       sub:`${flat(r.fields['사업군'])} · 담당 ${flat(r.fields['담당자']) || '-'} · 최종 수정 ${r.meta.updatedBy || ''} ${fmtTime(r.meta.updatedAt)}` })) })) };
   if (kind === 'overdue') return { title:'기한 지난 통합 업무', desc:'종료일이 지났는데 종결하지 않은 업무입니다. 항목을 누르면 해당 행으로 이동합니다 (끝났으면 [🏁 종결]).',
@@ -2532,7 +2583,7 @@ function myTasks() {
   if (!root || !user || readOnly() || !can('weekly')) return [];
   const out = [];
   for (const k of ['perform', 'bid']) for (const r of DB.recs[k] || [])
-    if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'계장ENG 업무 현황 작성', done:isUpdated(r) });
+    if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'업무 현황 작성', done:isUpdated(r) });
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
   for (const { k, r } of workRecs()) {                      // To Do·그룹장 요청은 종결 전 전부, 일반업무·표준화·기술공유는 지연·임박만
@@ -2831,7 +2882,8 @@ function rowState(key, f) {
   if (key === 'general' && isPast(f['종료일'])) return 'r-done';
   return '';
 }
-const NEW_TOP = {};                                       // 시트 → Set(방금 추가한 행 id) — 수행·입찰 새 행 맨 위 고정
+const NEW_TOP = {};                                       // 시트 → Set(방금 추가한 행 id) — 수행·입찰·통합 업무 새 행 맨 위 고정
+const TOP_NEW = new Set(['perform', 'bid', 'task']);      // 새 행 맨 위 + [⬆ 위로]/[⬇ 아래로] 로 행 순서 옮기기
 function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 열 필터는 빼고 (필터 목록 값 계산용)
   const st = fstate(s.key), me = normName(user);
   const cf = Object.entries(st.cf || {}).filter(([k]) => k !== skipCf).map(([k, a]) => [k, new Set(a)]);
@@ -2855,10 +2907,28 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     return true;
   });
   const out = cfSort(s, sortRecs(s, list));
-  // 수행·입찰: 이 화면에서 방금 추가한 행은 열 정렬·필터와 상관없이 맨 위에 고정 (새로고침하면 원래 순서 = order 가 가장 작아 어차피 맨 위)
+  // 수행·입찰·통합 업무: 이 화면에서 방금 추가한 행은 열 정렬·필터와 상관없이 맨 위에 고정 (새로고침하면 원래 순서 = order 가 가장 작아 어차피 맨 위)
   const pin = NEW_TOP[s.key]; if (!pin?.size || skipCf) return out;
   const top = [...pin].map(id => getRecs(s.key).find(r => r.id === id)).filter(Boolean);
   return [...top.reverse(), ...out.filter(r => !pin.has(r.id))];
+}
+/* 선택한 행을 한 칸 위/아래로: 지금 표에 보이는 바로 위·아래 행과 order 를 맞바꿈 (서버 PUT /api/order/{시트}, 내용·수정 이력은 그대로) */
+async function moveRow(dir) {
+  const s = SHEET[route]; if (!s || !TOP_NEW.has(s.key) || noEdit()) return;
+  if (!SEL || SEL.route !== route) return toast('옮길 행의 셀을 먼저 클릭하세요', true);
+  if (!SERVER || OFFLINE) return toast('행 순서 옮기기는 서버에 연결되어 있을 때만 됩니다', true);
+  const st = fstate(s.key); if (st.sort) return toast('열 정렬(머리글 ▾)을 풀어야 순서를 옮길 수 있습니다', true);
+  delete NEW_TOP[s.key];                                    // 방금 추가해 맨 위에 고정한 행도 실제 순서로
+  const list = filteredRecs(s), i = list.findIndex(r => r.id === SEL.rid), a = list[i], b = list[i + dir];
+  if (!a) return;
+  if (!b) return toast(dir < 0 ? '이미 맨 위입니다' : '이미 맨 아래입니다');
+  if (s.group && normType(a.fields[s.group]) !== normType(b.fields[s.group])) return toast(`같은 ${s.group} 안에서만 옮길 수 있습니다`, true);
+  const oa = a.order !== b.order ? b.order : b.order + dir * 0.5, ob = a.order !== b.order ? a.order : a.order;
+  try { await api('PUT', 'order/' + s.key, { orders:{ [a.id]:oa, [b.id]:ob } }); }
+  catch (e) { return toast('옮기지 못했습니다: ' + e.message, true); }
+  a.order = oa; b.order = ob; DB.recs[s.key].sort(byOrder);
+  drawTable(s);
+  setTimeout(() => { const td = selTd(); if (td) td.scrollIntoView({ block:'nearest', inline:'nearest' }); });
 }
 function renderSheet(c, s) {
   const st = fstate(s.key), recs = getRecs(s.key);
@@ -2875,7 +2945,7 @@ function renderSheet(c, s) {
       ${s.owner ? `<label class="chk"><input type="checkbox" id="fMine" ${st.mine ? 'checked' : ''}> 내 업무만 보기</label>` : ''}
       <label>검색<input type="search" id="fQ" value="${esc(st.q)}" placeholder="내용 검색"></label>
       <button class="btn sm" id="fReset">필터 초기화</button><span class="sp"></span>
-      ${noEdit() || s.special === 'matrix' ? '' : '<button class="btn" id="btnAddCol" title="이 시트에 열을 하나 더 만듭니다">＋ 열 추가</button>'}${noEdit() ? '' : '<button class="btn pri" id="btnAdd">+ 행 추가</button>'}</div>
+      ${noEdit() || s.special === 'matrix' ? '' : '<button class="btn" id="btnAddCol" title="이 시트에 열을 하나 더 만듭니다">＋ 열 추가</button>'}${noEdit() || !TOP_NEW.has(s.key) ? '' : '<button class="btn" data-mv="-1" title="선택한 셀의 행을 한 칸 위로 (Alt+Shift+↑)">⬆ 위로</button><button class="btn" data-mv="1" title="선택한 셀의 행을 한 칸 아래로 (Alt+Shift+↓)">⬇ 아래로</button>'}${noEdit() ? '' : '<button class="btn pri" id="btnAdd">+ 행 추가</button>'}</div>
     <div class="fbar sizebar">
       <span>행 높이</span><input type="range" id="fRow" min="40" max="600" step="20" value="${lay(s.key).rowmax}" aria-label="행 높이"><b id="fRowV" style="min-width:42px">${lay(s.key).rowmax >= 600 ? '자동' : lay(s.key).rowmax + 'px'}</b>
       <span style="margin-left:10px">글자 크기</span><button class="btn sm" id="fFm" aria-label="글자 축소">－</button><b id="fFv">${lay(s.key).font}</b><button class="btn sm" id="fFp" aria-label="글자 확대">＋</button>
@@ -2924,6 +2994,7 @@ function renderSheet(c, s) {
     const v = e.target.closest('[data-view]'); if (v) { st.view = v.dataset.view; return render(); }
   });
   const addc = $('#btnAddCol'); if (addc) addc.onclick = () => openAddCol(s);
+  c.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => moveRow(+b.dataset.mv));
   const add = $('#btnAdd'); if (add) add.onclick = () => {
     const preset = {}; if (s.group && st.f[s.group]) preset[s.group] = st.f[s.group];
     if (s.key === 'unit' && st.year) preset['연도'] = st.year;
@@ -2949,7 +3020,7 @@ function drawTable(s) {
       else toast('해당 항목을 찾지 못했습니다', true);
     }
   });
-  el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개 적용 중</b>` : ''}${st.kw ? ` · <b style="color:var(--accent)">사업군에 '${esc(st.kw)}' 포함</b>` : ''} · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
+  el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개 적용 중</b>` : ''}${st.kw ? ` · <b style="color:var(--accent)">사업군에 '${esc(st.kw)}' 포함</b>` : ''} · <span class="lg-new">노란 행</span> = 새로 추가한 행 · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
 }
 const actCell = (key, r) => `<td class="act">${key === 'task' && !noEdit() ? (r.fields['종결 여부'] === '종결' ? `<button class="btn sm" data-wclose="task|${r.id}" title="종결 표시를 풀고 진행으로">↩ 진행</button> ` : `<button class="btn sm wclose" data-wclose="task|${r.id}" title="이 업무를 종결로 표시">🏁 종결</button> `) : ''}${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
 
@@ -3157,7 +3228,7 @@ function colgroup(L, spec) {
 }
 const tableStyle = (L, total) => `width:${total}px;font-size:${L.font}px;${L.rowmax < 600 ? `--rowmax:${L.rowmax}px;` : ''}`;
 const rowAttr = (L, r) => {
-  const h = L.rowh[r.id], cls = [h ? 'rhset' : '', rowState(r.sheet, r.fields)].filter(Boolean).join(' ');
+  const h = L.rowh[r.id], cls = [h ? 'rhset' : '', rowState(r.sheet, r.fields), hlOf(r).all || NEW_TOP[r.sheet]?.has(r.id) ? 'newrow' : ''].filter(Boolean).join(' ');   // newrow = 마감 이후 새로 추가한 행 (행 전체 노란 음영)
   return `data-rid="${esc(r.id)}"${cls ? ` class="${cls}"` : ''}${h ? ` style="--rowh:${h}px"` : ''}`;
 };
 const cfBtn = (key, ck) => { const st = FS[key], on = !!st?.cf?.[ck], so = st?.sort?.k === ck ? st.sort.dir : 0;
@@ -3262,7 +3333,11 @@ function pjHero(s) {
   const biz = new Map(); recs.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0 }).get(g); isLive(r) ? o.live++ : o.end++; }); });
   const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
   // 부서원별: 담당자 칸에 그 이름이 '들어 있는' 진행 PJT 수 (부서원 명단 + 명단에 없는 담당자 이름)
-  const dn = deptNames(), extra = [...ownerTokens(live, s.owner).keys()].filter(t => !dn.some(n => t.includes(nk(n)) || nk(t).includes(nk(n))));
+  // 수행 = 영문 이름(IEC)은 세지 않음 · 입찰 = IEC 인원(영문 이름)도 셈
+  const iec = bid ? iecNames() : [], iecK = new Set(iec.map(nk)), dn = [...deptNames(), ...iec];
+  const extra = [...ownerTokens(live, s.owner).keys()].filter(t => !dn.some(n => t.includes(nk(n)) || nk(t).includes(nk(n))))
+    .filter(t => bid || !isEng(t)).map(t => isEng(t) ? t.replace(/\b[a-z]/g, ch => ch.toUpperCase()) : t);
+  const isIec = n => iecK.has(nk(n)) || isEng(n);
   const pjOf = n => live.filter(r => hasName(r.fields[s.owner], n)), endOf = n => recs.filter(r => !isLive(r) && hasName(r.fields[s.owner], n));
   const own = [...new Set([...dn, ...extra])].map(n => [n, pjOf(n).length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
   const ownTip = n => { const rs = pjOf(n), e = endOf(n).length; return tipHtml(`${n} · 진행 ${rs.length}건${e ? ` (+종결 ${e})` : ''}`, rs.length ? rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')} <span class="tm">${esc(cell1(r.fields['사업군']))}</span>`) : ['담당 PJT 없음'], 16); };
@@ -3283,8 +3358,8 @@ function pjHero(s) {
       <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결 · 누르면 그 단어가 들어간 PJT 만</span></h2>
         ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" title="사업군에 '${esc(g)}' 가 들어간 PJT 만 아래 표에"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
         <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
-      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
-        ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}" data-tip="${esc(ownTip(p))}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
+      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만 · ${bid ? 'IEC 인원(영문 이름) 포함' : 'IEC 인원(영문 이름)은 세지 않음'}</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
+        ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}" data-tip="${esc(ownTip(p))}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}${isIec(p) ? '<small class="iectag">IEC</small>' : ''}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
     </div></div>`;
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
@@ -3518,42 +3593,56 @@ async function loadProfiles() {
 const parseMembers = v => String(v || '').replace(/~~[\s\S]*?~~/g, '').split(/[\n,/·]+/).map(x => x.trim()).filter(Boolean)
   .map(x => { const m = x.match(/^([^()]+?)\s*\(([^)]*)\)\s*$/); return m ? { name:m[1].trim(), title:m[2].trim() } : { name:x, title:'' }; });
 // 직책 심볼: 그룹장 = 다이아(💎), 유닛장 = 골드(★). 구성원 칸에 '이름(유닛장)' 으로 쓰면 유닛장
-const isUnitLead = t => /유닛장|unit\s*leader|^UL$/i.test(t || '');
+const isUnitLead = t => /유닛장|unit\s*leader|part\s*leader|^UL$/i.test(t || '');
 function orgPill(name, title, lead) {
   const pr = profOf(name), run = pr?.run || [], bid = pr?.bid || [];
   const chips = [...run.map(x => ['run', x]), ...bid.map(x => ['bid', x])];
   const rank = lead ? 'dia' : isUnitLead(title) ? 'gold' : '';
   const sym = rank === 'dia' ? '<span class="osym dia" title="그룹장"><i></i></span>' : rank === 'gold' ? '<span class="osym gold" title="유닛장">★</span>' : '';
   return `<button class="opill ${lead ? 'lead' : ''} ${rank ? 'r-' + rank : ''}" data-prof="${esc(name)}" title="${esc(name)} — 눌러서 정보 보기">
-    <span class="oav">${pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(name.slice(0, 1))}</b>`}${sym}</span>
-    <span class="otx"><b>${esc(name)}</b><i>${esc(title || pr?.duty || (lead ? '그룹장' : ''))}</i>${pr?.phone ? `<small>☎ ${esc(pr.phone)}</small>` : ''}</span>
+    <span class="oav">${pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(name.slice(0, 1))}</b>`}${sym}${bdayToday(name) ? HAT : ''}</span>
+    <span class="otx"><b>${esc(name)}${bdayToday(name) ? ' 🎂' : ''}</b><i>${esc(title || pr?.duty || (lead ? '그룹장' : ''))}</i>${pr?.phone ? `<small>☎ ${esc(pr.phone)}</small>` : ''}</span>
     ${chips.length ? `<span class="ochips">${chips.slice(0, 4).map(([k, x]) => `<span class="oc ${k}" title="${k === 'run' ? '수행' : '입찰'} · ${esc(x)}">${k === 'run' ? '수행' : '입찰'} ${esc(trunc(x, 14))}</span>`).join('')}${chips.length > 4 ? `<span class="oc more">+${chips.length - 4}</span>` : ''}</span>` : ''}</button>`;
 }
 function orgHtml(recs, year) {
   if (!recs.length) return '<div class="empty">이 연도의 유닛분장이 없습니다. [+ 행 추가]로 유닛을 등록하세요.</div>';
   const heads = [...new Set(recs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)))];
-  const units = recs.map(r => ({ r, name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) }));
-  const names = [...new Set([...heads, ...units.flatMap(u => u.mem.map(m => m.name))])], total = names.length;
+  const units = recs.map(r => ({ r, iec:isIecUnit(r), name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) }))
+    .sort((a, b) => a.iec - b.iec);                         // IEC 유닛은 Unit 1 · Unit 2 … 오른쪽
+  // IEC 인력 구성: 가장 최근 연도인데 유닛분장 표에 IEC 유닛이 없으면 기본 명단으로 보여 주고 [표에 등록] 단추 (등록하면 표에서 고칠 수 있음)
+  const ly = (DB.recs.unit || []).map(r => String(r.fields['연도'] || '')).sort().pop() || '';
+  if (!units.some(u => u.iec) && (!year || year === ly)) units.push({ r:null, iec:true, virtual:true, name:IEC_DEFAULT.unit, duty:IEC_DEFAULT.duty, mem:parseMembers(IEC_DEFAULT.mem).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) });
+  const iecN = new Set(units.filter(u => u.iec).flatMap(u => u.mem.map(m => m.name))).size;
+  const names = [...new Set([...heads, ...units.filter(u => !u.iec).flatMap(u => u.mem.map(m => m.name))])], total = names.length;
+  let un = 0;
   const noProf = SERVER && !OFFLINE && !(DB.profiles || []).length;
   const pjs = (ns, k) => new Set(ns.flatMap(n => profOf(n)?.[k] || [])).size;
   const UC = ['#ffb84d', '#4fd1c5', '#f687b3', '#a78bfa', '#63b3ed', '#68d391', '#fc8181', '#f6e05e'];
   const chipsOf = t => t.split(/[,/·]+/).map(x => x.trim()).filter(Boolean).slice(0, 6);
   return `<div class="org">
     <div class="org-title"><span>ORGANIZATION</span><b>계장ENG그룹 ${esc(year ? year + '년' : '')} 유닛 조직도</b>
-      <div class="org-stats"><span>🧩 유닛 <b>${units.length}</b></span><span>👥 인원 <b>${total}</b>명</span><span>📸 프로필 <b>${names.filter(profOf).length}</b>/${total}</span><span>🏗 수행 PJT <b>${pjs(names, 'run')}</b></span><span>📈 입찰 PJT <b>${pjs(names, 'bid')}</b></span></div></div>
+      <div class="org-stats"><span>🧩 유닛 <b>${units.filter(u => !u.iec).length}</b></span><span>👥 인원 <b>${total}</b>명</span>${iecN ? `<span>🌏 IEC <b>${iecN}</b>명</span>` : ''}<span>📸 프로필 <b>${names.filter(profOf).length}</b>/${total}</span><span>🏗 수행 PJT <b>${pjs(names, 'run')}</b></span><span>📈 입찰 PJT <b>${pjs(names, 'bid')}</b></span></div></div>
     <div class="org-top">${heads.length ? heads.map(h => orgPill(h, '그룹장', true)).join('') : '<span class="org-ghost">그룹장 미지정</span>'}</div>
-    <div class="org-units" style="grid-template-columns:repeat(${units.length}, minmax(240px, 300px))">${units.map((u, i) => `<div class="org-unit" style="--uc:${UC[i % UC.length]}">
-        <div class="org-uh" data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"><span class="org-ui">${i + 1}</span><b>${esc(u.name)}</b>
+    <div class="org-units" style="grid-template-columns:repeat(${units.length}, minmax(240px, 300px))">${units.map((u, i) => `<div class="org-unit ${u.iec ? 'iec' : ''}" style="--uc:${u.iec ? '#ff9f43' : UC[i % UC.length]}">
+        <div class="org-uh" ${u.virtual ? `data-iecadd="${esc(year || ly)}" title="${noEdit() ? 'IEC 인력 구성 (기본 명단)' : '눌러서 유닛분장 표에 등록 → 그다음부터 고칠 수 있음'}"` : `data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"`}><span class="org-ui">${u.iec ? 'IEC' : ++un}</span><b>${esc(u.name)}</b>
           ${u.duty ? `<span class="org-dc">${chipsOf(u.duty).map(c => `<i>${esc(c)}</i>`).join('')}</span>` : ''}
-          <em>👥 ${u.mem.length}명 · 🏗 ${pjs(u.mem.map(m => m.name), 'run')} · 📈 ${pjs(u.mem.map(m => m.name), 'bid')}</em></div>
+          <em>👥 ${u.mem.length}명${u.iec ? '' : ` · 🏗 ${pjs(u.mem.map(m => m.name), 'run')} · 📈 ${pjs(u.mem.map(m => m.name), 'bid')}`}${u.virtual && !noEdit() ? ' · <u>＋ 표에 등록</u>' : ''}</em></div>
         <div class="org-mem">${u.mem.map(m => orgPill(m.name, m.title)).join('') || '<span class="org-ghost">구성원 없음</span>'}</div></div>`).join('')}</div>
     <div class="org-foot">${AUTH ? '<button class="btn sm" data-myprof>🙋 내 정보 입력 (사진 · 전화번호 · 담당 업무 · PJT)</button>' : ''}<span><span class="olg"><span class="osym dia"><i></i></span> 그룹장</span> <span class="olg"><span class="osym gold">★</span> 유닛장 <small>(구성원 칸에 '이름(유닛장)')</small></span> · 사람을 누르면 상세 정보 · <span class="oc run">수행</span> <span class="oc bid">입찰</span> = 각자 <b>내 정보</b>에 입력한 PJT${noProf ? ' · 아직 입력된 프로필이 없습니다' : ''}${!SERVER ? ' · 폴더 모드에서는 프로필을 쓸 수 없습니다' : ''}</span></div>
   </div>`;
 }
 function orgClick(e) {
   const me = e.target.closest('[data-myprof]'); if (me) return openMyInfo();
+  const ia = e.target.closest('[data-iecadd]'); if (ia) return iecRegister(ia.dataset.iecadd);
   const u = e.target.closest('[data-uedit]'); if (u && !noEdit()) return openEdit('unit', u.dataset.uedit);
   const p = e.target.closest('[data-prof]'); if (p) return openProfile(p.dataset.prof);
+}
+async function iecRegister(year) {                          // 기본 IEC 명단을 유닛분장 표의 행으로 등록 (그다음부터 표·조직도에서 고침)
+  if (noEdit()) return toast('로그인하면 등록할 수 있습니다', true);
+  if (await ask('IEC 인력 구성 등록', `<p><b>${esc(year || '')}년</b> 유닛분장 표에 <b>${esc(IEC_DEFAULT.unit)}</b> (IEC 인력 구성) 행을 만듭니다.</p><p class="muted">등록한 뒤에는 조직도의 유닛 제목을 눌러 구성원을 고칠 수 있습니다. 'Part Leader' 는 ★ 로 표시됩니다.</p>`,
+    [{ id:'ok', label:'등록', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
+  try { await createRecord('unit', { '연도':year, '유닛':IEC_DEFAULT.unit, '그룹장':'', '구성원':IEC_DEFAULT.mem, '담당':IEC_DEFAULT.duty }); toast('IEC 인력 구성을 등록했습니다'); await loadAll(); render(); }
+  catch (er) { toast('등록 실패: ' + er.message, true); }
 }
 // 긴 글 첫 1~2줄 (글머리·취소선 빼고)
 const brief = (t, n = 2, max = 90) => { const ls = String(t || '').replace(/~~[\s\S]*?~~/g, '').split(/\n+/).map(l => l.replace(/^\s*(?:[-•·*▶■□ㅇ※>→]+|\(?\d+[.)]|[가-힣][.)])\s*/, '').trim()).filter(Boolean);
@@ -3716,7 +3805,7 @@ function tsClass(row, idx) {
 async function loadTs(year) {
   try { AS.data[year] = await api('GET', 'timesheets?year=' + enc(year)); tsDueFrom(year, AS.data[year]); }   // 시수를 올리거나 지우면 '내 업무' 시수 항목도 갱신
   catch (e) { AS.data[year] = { error:e.message, list:[], years:[] }; }
-  if (route === 'alloc' || route === 'mgalloc' || route === 'mghours') render();
+  if (route === 'alloc' || route === 'mgalloc' || route === 'mghours' || route === 'mgwork') render();
 }
 // 사람별 집계: Map(이름 → { tot, by:Map(분류키 → {…분류, v}), months:Set })
 function tsAgg(list, idx) {
@@ -4002,6 +4091,272 @@ function leaveCard(list, idx, plabel) {
   return `<section class="card lvcard"><h2>🌴 근태 상세 — ${esc(plabel)} <span class="muted">· 시수 파일 Type '근태' 줄의 날짜별 시간 · 총 ${fmtH(tot)}h · ${rows.length}명 · 월을 바꾸면 그 달만</span><button class="btn sm" data-aleave style="margin-left:auto">닫기</button></h2>
     ${rows.length ? `<table class="t lvt"><thead><tr><th>부서원</th><th>근태 합계</th><th>일수</th><th>날짜별 (진한 칸 = 8시간 이상)</th></tr></thead><tbody>${rows.map(o => `<tr><td><span class="wperson"><span class="wav sm">${avHtml(o.name)}</span>${esc(o.name)}</span></td><td><b>${fmtH(o.tot)}h</b></td><td>${o.days.size}일</td><td class="lvds">${[...o.days].sort(([a], [b]) => a.localeCompare(b)).map(chip).join('')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${esc(plabel)} 근태 기록이 없습니다</div>`}</section>`;
 }
+/* =====================================================================
+ *  부서원 생일 (route `mgbday` = Management › 부서원 생일): 하루 전 · 당일에 축하 팝업(폭죽), 당일에는 유닛분장 조직도와 왼쪽 위 로그인 정보에 고깔모자
+ *  명단 = 이름 · 직급 · 생일(월·일) · 양력/음력. 음력은 브라우저의 한국 음력 달력(Intl 'dangi')으로 그해 양력 날짜를 계산
+ *  서버: GET /api/birthdays (로그인), PUT /api/birthdays · POST /api/birthdays/preview (엑셀 읽기) — Management 권한자만 고침
+ * ===================================================================== */
+const BD = { list:[], at:'', by:'', loaded:false };
+async function loadBirthdays() {
+  if (!SERVER || OFFLINE || !AUTH) return;
+  try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true; } catch (_) {}
+}
+const LUNAR = new Map();
+function lunarToSolar(y, m, d) {                            // 음력 m월 d일(윤달 아님) → 양력 y년의 날짜 (없으면 null)
+  const key = `${y}-${m}-${d}`; if (LUNAR.has(key)) return LUNAR.get(key);
+  let out = null;
+  try {
+    const f = new Intl.DateTimeFormat('ko-KR-u-ca-dangi', { month:'numeric', day:'numeric' });
+    if (f.resolvedOptions().calendar === 'dangi') for (let t = new Date(y, 0, 1); t.getFullYear() === y; t.setDate(t.getDate() + 1)) {
+      const p = f.formatToParts(t), mo = p.find(x => x.type === 'month')?.value, da = p.find(x => x.type === 'day')?.value;
+      if (mo === String(m) && +da === d) { out = new Date(t); break; }
+    }
+  } catch (_) {}
+  LUNAR.set(key, out); return out;
+}
+function bdayDate(b, y) {
+  const [m, d] = String(b.md || '').split('-').map(Number); if (!m || !d) return null;
+  if (!b.lunar) { const dt = new Date(y, m - 1, d); return dt.getMonth() === m - 1 ? dt : new Date(y, m - 1, 28); }   // 2/29 → 평년 2/28
+  return lunarToSolar(y, m, d) || (d === 30 ? lunarToSolar(y, m, 29) : null);                                         // 음력 30일이 없는 달 → 29일
+}
+const bdOn = dt => BD.list.filter(b => { const x = bdayDate(b, dt.getFullYear()); return x && ymd(x) === ymd(dt); });
+const bdName = b => `${b.name} ${b.title || '프로'}`;
+let BDT = { key:'', set:new Set() };
+function bdayToday(name) {                                 // 오늘이 그 사람 생일인가 (고깔모자)
+  const k = ymd(new Date()) + '|' + BD.at + '|' + BD.list.length;
+  if (BDT.key !== k) BDT = { key:k, set:new Set(bdOn(new Date()).map(b => normName(b.name))) };
+  return !!name && BDT.set.has(normName(name));
+}
+const HAT = '<svg class="bhat" viewBox="0 0 32 40" aria-label="생일 고깔모자"><path d="M16 5 L29 36 H3 Z" fill="#ff5fa2"/><path d="M11.6 15.5 H20.4 L22.9 21.5 H9.1 Z" fill="#ffd43b"/><path d="M7.3 25.7 H24.7 L27.2 31.7 H4.8 Z" fill="#4dabf7"/><path d="M2.5 36 H29.5" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="5" r="4" fill="#ffd43b" stroke="#fff" stroke-width="1"/></svg>';
+function bdayCheck() {                                      // 하루 전 · 당일: 하루 한 번 축하 팝업 (이 브라우저 · 이 계정)
+  if (!AUTH || !BD.list.length || $('#bdpop')) return;
+  if (dlg.open || dlg2.open) return setTimeout(bdayCheck, 5000);
+  const t = new Date(), tm = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1), today = bdOn(t), tom = bdOn(tm);
+  if (!today.length && !tom.length) return;
+  const key = `${ymd(t)}|${AUTH.id}|${[...today, ...tom].map(b => b.name).join(',')}`;
+  try { if (localStorage.getItem('dept-bday-shown') === key) return; localStorage.setItem('dept-bday-shown', key); } catch (_) {}
+  showBdayPop(today, tom);
+}
+function showBdayPop(today, tom) {
+  const tm = new Date(); tm.setDate(tm.getDate() + 1);
+  const ln = (bs, when, icon) => bs.length ? `<p class="bdl">${icon} ${when} <b>${bs.map(b => esc(bdName(b))).join(', ')}</b>의 생일입니다!<br><span>축하해 주세요 🎉</span></p>` : '';
+  const el = document.createElement('div'); el.id = 'bdpop';
+  el.innerHTML = `<canvas></canvas><div class="bdcard" role="dialog" aria-label="생일 축하"><div class="bdcake">🎂</div>${ln(today, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<button class="btn pri" data-bdclose>축하합니다! 🎉</button></div>`;
+  document.body.appendChild(el);
+  const stop = fireworks(el.querySelector('canvas'));
+  const close = () => { stop(); el.remove(); };
+  el.onclick = e => { if (e.target.closest('[data-bdclose]') || e.target === el) close(); };
+  el.querySelector('[data-bdclose]').focus();
+}
+function fireworks(cv) {                                   // 폭죽 (외부 라이브러리 없이 canvas)
+  const ctx = cv.getContext('2d'), P = [], C = ['#ff5fa2', '#ffd43b', '#4dabf7', '#69db7c', '#b197fc', '#ff922b', '#ffffff'];
+  let raf = 0, t = 0;
+  const fit = () => { cv.width = innerWidth; cv.height = innerHeight; }; fit();
+  const boom = () => { const x = cv.width * (0.12 + Math.random() * 0.76), y = cv.height * (0.1 + Math.random() * 0.42), col = C[Math.random() * C.length | 0], n = 60 + (Math.random() * 30 | 0);
+    for (let i = 0; i < n; i++) { const a = Math.PI * 2 * i / n, v = 1.8 + Math.random() * 3.6; P.push({ x, y, vx:Math.cos(a) * v, vy:Math.sin(a) * v, life:55 + Math.random() * 35, col }); } };
+  const step = () => {
+    ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.globalCompositeOperation = 'lighter';
+    if (t++ % 24 === 0) boom();
+    for (let i = P.length - 1; i >= 0; i--) {
+      const p = P[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.vx *= 0.985; p.vy *= 0.985;
+      if (--p.life <= 0) { P.splice(i, 1); continue; }
+      ctx.globalAlpha = Math.min(1, p.life / 40); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, 2.3, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1; raf = requestAnimationFrame(step);
+  };
+  step(); addEventListener('resize', fit);
+  return () => { cancelAnimationFrame(raf); removeEventListener('resize', fit); };
+}
+function renderBday(c) {
+  const hero = inner => `<div id="bdv"><section class="whero al-hero"><div class="wh-top"><div><h2>🎂 Management · 부서원 생일</h2><p>생일 <b>하루 전</b>과 <b>당일</b>에 로그인한 모든 부서원 화면에 축하 팝업(폭죽)이 뜨고, 당일에는 유닛분장 조직도와 왼쪽 위 로그인 정보에 고깔모자가 씌워집니다. 음력 생일은 해마다 그해 양력 날짜로 바꿔 계산합니다. 명단 이름은 유닛분장·계정 이름과 같아야 고깔모자가 연결됩니다.</p></div></div>${inner}</section>`;
+  if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
+  if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
+  if (!BD.loaded) { c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">불러오는 중…</div></section></div>'); loadBirthdays().then(() => { if (route === 'mgbday') render(); }); return; }
+  const now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()), Y = now.getFullYear();
+  const next = b => { const a = bdayDate(b, Y); return a && a >= t0 ? a : bdayDate(b, Y + 1); };
+  const L = BD.list.map((b, i) => ({ b, i, d:bdayDate(b, Y), n:next(b) })).sort((x, y) => (x.n ? x.n - 0 : 9e15) - (y.n ? y.n - 0 : 9e15));
+  const dd = x => x.n ? Math.round((x.n - t0) / 864e5) : null;
+  const md = b => { const [m, d] = b.md.split('-').map(Number); return `${m}월 ${d}일`; };
+  const rows = L.map(x => { const k = dd(x), cls = k === 0 ? 'bd0' : k === 1 ? 'bd1' : x.d && x.d.getMonth() === now.getMonth() ? 'bdm' : '';
+    return `<tr class="${cls}"><td><span class="wperson"><span class="wav sm">${avHtml(x.b.name)}</span>${esc(x.b.name)}</span></td><td>${esc(x.b.title)}</td><td>${md(x.b)}</td><td>${x.b.lunar ? '<span class="atag leave">음력</span>' : '양력'}</td>
+      <td>${x.d ? `${x.d.getMonth() + 1}/${x.d.getDate()} (${WD[x.d.getDay()]})` : '<span class="muted">계산 안 됨</span>'}</td><td>${k === 0 ? '<b>🎂 오늘</b>' : k === 1 ? '<b>🎈 내일</b>' : k != null ? `D-${k}` : '-'}</td>
+      <td><button class="btn sm" data-bded="${x.i}">편집</button> <button class="btn sm bad" data-bddel="${x.i}">삭제</button></td></tr>`; }).join('');
+  const thisM = L.filter(x => x.d && x.d.getMonth() === now.getMonth());
+  c.insertAdjacentHTML('beforeend', hero(`<div class="wtypes"><button class="wtc" data-bdup>⬆ 생일 엑셀 올리기</button><button class="wtc" data-bdadd>＋ 한 명 추가</button><button class="wtc" data-bdtry>🎉 팝업 미리보기</button><input type="file" id="bdFile" accept=".xlsx" hidden></div>`)
+    + `<div class="wkpis alkpis"><div class="wk wk-main al-main"><span class="wkl">등록된 부서원</span><span class="wkv">${BD.list.length}<small>명</small></span><span class="wks">${BD.at ? `최종 수정 ${esc(fmtTime(BD.at))} · ${esc(BD.by)}` : '아직 명단이 없습니다'}</span></div>
+      <div class="wk wk-soon"><span class="wki">🎂</span><span class="wkl">이번 달 생일</span><span class="wkv">${thisM.length}명</span><span class="wks">${esc(thisM.map(x => x.b.name).join(', ') || '-')}</span></div>
+      <div class="wk wk-run"><span class="wki">🗓</span><span class="wkl">다음 생일</span><span class="wkv">${L[0]?.n ? `${L[0].n.getMonth() + 1}/${L[0].n.getDate()}` : '-'}</span><span class="wks">${esc(L.filter(x => x.n && L[0].n && ymd(x.n) === ymd(L[0].n)).map(x => x.b.name).join(', ') || '-')}</span></div></div>
+    <section class="card"><h2>🎂 생일 명단 <span class="muted">· 다가오는 순 · 엑셀 양식: 이름 · 직급 · 생일('10월 13일') · 양력('생일(양)' / '생일(음)') · 노란 줄 = 이번 달</span></h2>
+      ${L.length ? `<div class="tw"><table class="t bdt"><thead><tr><th>이름</th><th>직급</th><th>생일</th><th>양력/음력</th><th>올해 날짜</th><th>남은 날</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">명단이 없습니다. [⬆ 생일 엑셀 올리기] 또는 [＋ 한 명 추가]</div>'}</section></div>`);
+  const save = async list => { try { const d = await api('PUT', 'birthdays', { list }); BD.list = d.list; BD.at = d.updatedAt; BD.by = d.updatedBy; toast('저장했습니다'); render(); } catch (e) { toast('저장 실패: ' + e.message, true); } };
+  const fileIn = $('#bdFile');
+  fileIn.onchange = async () => {
+    const f = fileIn.files[0]; fileIn.value = ''; if (!f) return;
+    let r; try { r = await api('POST', 'birthdays/preview', undefined, f); } catch (e) { return toast('읽기 실패: ' + e.message, true); }
+    if (!r.list.length) return toast('생일을 읽은 줄이 없습니다', true);
+    const pv = r.list.slice(0, 40).map(b => `<tr><td>${esc(b.name)}</td><td>${esc(b.title)}</td><td>${esc(b.md)}</td><td>${b.lunar ? '음력' : '양력'}</td></tr>`).join('');
+    if (await ask('생일 명단 바꾸기', `<p><b>${esc(f.name)}</b> 에서 <b>${r.list.length}명</b>을 읽었습니다. 지금 명단(${BD.list.length}명)을 이 명단으로 <b>바꿀까요?</b></p><div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>이름</th><th>직급</th><th>월-일</th><th>양력/음력</th></tr></thead><tbody>${pv}</tbody></table></div>`,
+      [{ id:'ok', label:'바꾸기', cls:'pri' }, { id:'no', label:'취소' }]) === 'ok') save(r.list);
+  };
+  const editOne = async i => {
+    const b = i == null ? { name:'', title:'프로', md:'', lunar:false } : BD.list[i], [m, d] = String(b.md || '').split('-');
+    const inp = (id, l, v, w) => `<label style="display:inline-block;margin:6px 10px 6px 0">${l}<br><input id="${id}" value="${esc(v || '')}" style="width:${w}px;padding:7px;border:1px solid var(--line);border-radius:8px"></label>`;
+    const r = await ask(i == null ? '생일 추가' : '생일 고치기', `${inp('bdN', '이름', b.name, 120)}${inp('bdT', '직급', b.title, 90)}${inp('bdM', '월', m ? +m : '', 50)}${inp('bdD', '일', d ? +d : '', 50)}<label class="chk" style="display:block;margin-top:6px"><input type="checkbox" id="bdL" ${b.lunar ? 'checked' : ''}> 음력 생일</label>`,
+      [{ id:'ok', label:'저장', cls:'pri' }, { id:'no', label:'취소' }]);
+    if (r !== 'ok') return;
+    const nb = { name:$('#bdN').value.trim(), title:$('#bdT').value.trim(), md:`${$('#bdM').value.trim()}-${$('#bdD').value.trim()}`, lunar:$('#bdL').checked };
+    if (!nb.name || !/^\d{1,2}-\d{1,2}$/.test(nb.md)) return toast('이름과 월·일(숫자)을 입력하세요', true);
+    const list = [...BD.list]; if (i == null) list.push(nb); else list[i] = nb; save(list);
+  };
+  $('#bdv').addEventListener('click', async e => {
+    const t = e.target.closest('[data-bdup],[data-bdadd],[data-bdtry],[data-bded],[data-bddel]'); if (!t) return;
+    const ds = t.dataset;
+    if (ds.bdup != null) fileIn.click();
+    else if (ds.bdadd != null) editOne(null);
+    else if (ds.bdtry != null) { const x = L.filter(y => y.n); if (!x.length) return toast('명단이 없습니다', true); const a = x.filter(y => dd(y) === 0).map(y => y.b), b = x.filter(y => dd(y) === 1).map(y => y.b); showBdayPop(a.length || b.length ? a : [x[0].b], b); }
+    else if (ds.bded != null) editOne(+ds.bded);
+    else if (ds.bddel != null) { const b = BD.list[+ds.bddel]; if (await ask('생일 삭제', `<b>${esc(b.name)}</b> 을(를) 명단에서 지울까요?`, [{ id:'ok', label:'삭제', cls:'bad' }, { id:'no', label:'취소' }]) === 'ok') save(BD.list.filter((_, j) => j !== +ds.bddel)); }
+  });
+}
+
+/* =====================================================================
+ *  Management › 근로시간 관리 (route `mgwork`): 회사 근태 시스템의 월별 근무시간 엑셀
+ *  (작업년월 · 성명 · 사번 · 직급명 · 근무상태 · 평일의무/평일근무 · 실근무(평일+휴일) 상태/시간 · 주평균근무 상태/시간 · 연장 · 심야 · 휴일 · 휴일연장 · 탄력 · 월잔여 최대근무가능/소정)
+ *  기준: 주 평균 소정 근로 40시간 · 월 평균 주 52시간 이하
+ *   위험 = 주 평균 52시간 초과 또는 파일 판정 '위험' / 우려 = 주 평균 48시간 이상 또는 파일 판정 '우려' 또는 월잔여 최대근무가능 10시간 이하
+ *   주 평균 = 파일의 '주평균근무 시간' (없으면 실근무 ÷ (그달 일수 ÷ 7))
+ *  같은 사람(사번, 없으면 이름)·같은 달이 여러 파일에 있으면 나중에 올린 파일 값. 시수 파일(R&R · 투입 분석)의 그달 합계(근태 제외)도 나란히
+ *  서버: GET · PUT /api/worktime, DELETE /api/worktime/{ID} — Management 권한자만
+ * ===================================================================== */
+const WT = { data:null, month:'', person:'', tsReq:new Set() };
+const WT_STD = 40, WT_MAX = 52, WT_WARN = 48, WT_REMAIN = 10, WT_LV = ['정상', '우려', '위험'];
+async function loadWt() {
+  try { WT.data = await api('GET', 'worktime'); } catch (e) { WT.data = { error:e.message, uploads:[] }; }
+  if (route === 'mgwork') render();
+}
+function wtRows() {
+  const m = new Map();
+  for (const u of WT.data?.uploads || []) for (const r of u.rows || []) m.set(r.month + '|' + (r.empNo || r.name), { ...r, src:u.id, file:u.file });
+  return [...m.values()];
+}
+const wtN = v => v == null || isNaN(v) ? '-' : String(Math.round(v * 10) / 10);
+const wtWeek = r => r.wkH != null ? r.wkH : r.realH != null ? r.realH / (new Date(+r.month.slice(0, 4), +r.month.slice(5), 0).getDate() / 7) : null;
+function wtJudge(r) {
+  const wk = wtWeek(r), why = []; let lv = 0;
+  if (wk != null && wk > WT_MAX) { lv = 2; why.push(`주 평균 ${wtN(wk)}h > ${WT_MAX}h`); }
+  else if (wk != null && wk >= WT_WARN) { lv = 1; why.push(`주 평균 ${wtN(wk)}h (${WT_MAX}h 근접)`); }
+  const fs = `${r.realState || ''} ${r.wkState || ''}`;
+  if (/위험/.test(fs)) { lv = 2; why.push(`근태 시스템 판정 '위험'${r.wkState === '위험' ? ' (주평균)' : r.realState === '위험' ? ' (실근무)' : ''}`); }
+  else if (/우려/.test(fs)) { lv = Math.max(lv, 1); why.push(`근태 시스템 판정 '우려'${r.wkState === '우려' ? ' (주평균)' : r.realState === '우려' ? ' (실근무)' : ''}`); }
+  if (/우려/.test(r.realState || '') && /위험/.test(r.wkState || '')) why.push("실근무 '우려'");
+  if (r.remainMax != null && r.remainMax <= WT_REMAIN) { lv = Math.max(lv, 1); why.push(`이번 달 더 일할 수 있는 시간 ${wtN(r.remainMax)}h`); }
+  return { lv, wk, why };
+}
+function wtTs(name, month) {                               // 시수 파일(R&R · 투입 분석)의 그달 합계 (근태 제외) — 없으면 null
+  const d = AS.data[month.slice(0, 4)]; if (!d || d.error || !d.canHours) return null;
+  const idx = projIndex(); let t = null;
+  for (const u of d.list) if (u.month === month && normName(u.person) === normName(name)) for (const r of u.rows) if (tsClass(r, idx).kind !== 'leave') t = (t || 0) + (r.v || 0);
+  return t;
+}
+function wtBar(wk, lv) {
+  if (wk == null) return '-';
+  const X = 64, pc = v => Math.min(100, v / X * 100);
+  return `<span class="wtbar" title="주 평균 ${wtN(wk)}h · 점선 = 소정 40h · 빨간 선 = 한도 52h"><i class="lv${lv}" style="width:${pc(wk)}%"></i><b class="m40" style="left:${pc(WT_STD)}%"></b><b class="m52" style="left:${pc(WT_MAX)}%"></b></span><span class="wtv lv${lv}">${wtN(wk)}h</span>`;
+}
+function renderWork(c) {
+  const hero = inner => `<div id="wtv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근로시간 관리 <small style="font-weight:600;opacity:.85">— 주 평균 소정 40h · 월 평균 주 52h 한도</small></h2><p>회사 근태 시스템의 월별 근무시간 엑셀(작업년월 · 성명 · 실근무 · 주평균근무 · 연장 · 휴일 · 월잔여 …)을 올리면 부서원별로 <b style="color:#ffd0d0">위험</b> · <b style="color:#ffe8b0">우려</b>를 표시합니다. <b>위험</b> = 월 평균 주 52시간 초과 또는 근태 시스템 판정 '위험' · <b>우려</b> = 주 평균 48시간 이상 · 판정 '우려' · 이번 달 더 일할 수 있는 시간(월잔여 최대근무가능) 10시간 이하. 파일 올리기·지우기는 Management 권한자만.</p></div></div>${inner}</section>`;
+  if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
+  if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
+  if (!WT.data) { c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">불러오는 중…</div></section></div>'); loadWt(); return; }
+  if (WT.data.error) return c.insertAdjacentHTML('beforeend', hero('') + `<section class="card"><div class="empty">🔒 ${esc(WT.data.error)}</div></section></div>`);
+  const rows = wtRows(), months = [...new Set(rows.map(r => r.month))].sort().reverse(), ups = WT.data.uploads || [];
+  if (WT.month !== 'all' && !months.includes(WT.month)) WT.month = months[0] || '';
+  [...new Set(months.map(m => m.slice(0, 4)))].forEach(y => { if (!AS.data[y] && !WT.tsReq.has(y)) { WT.tsReq.add(y); loadTs(y); } });   // 시수 파일 합계를 나란히 보려고
+  const mlab = m => `${m.slice(0, 4)}.${m.slice(5)}`;
+  const tools = `<div class="wtypes"><button class="wtc" data-wtup>⬆ 근무시간 엑셀 올리기</button><button class="wtc" data-wtlist>🗑 올린 파일 ${ups.length}개</button><input type="file" id="wtFile" accept=".xlsx" multiple hidden>
+      <span style="width:14px"></span>${months.map(m => `<button class="wtc ${WT.month === m ? 'on' : ''}" data-wtm="${m}">${mlab(m)}</button>`).join('')}${months.length ? `<button class="wtc ${WT.month === 'all' ? 'on' : ''}" data-wtm="all">📈 월별 추이</button>` : ''}
+      <span style="width:14px"></span><button class="btn wadd" data-goto="mghours">근무시간 (월·주·일) →</button><button class="btn wadd" data-goto="mgalloc">R&R · 투입 분석 →</button></div>`;
+  const kpi = (cls, icon, l, v, sub) => `<div class="wk ${cls}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${v}</span><span class="wks">${sub}</span></div>`;
+  const lvTag = j => `<span class="wtlv lv${j.lv}" title="${esc(j.why.join(' · ') || '기준 이내')}">${['🟢', '🟠', '🔴'][j.lv]} ${WT_LV[j.lv]}</span>`;
+  const who = n => `<span class="wperson"><span class="wav sm">${avHtml(n)}</span>${esc(n)}</span>`;
+  let body = '';
+  if (!rows.length) body = `<section class="card"><div class="empty">아직 올린 근무시간 파일이 없습니다. 위 [⬆ 근무시간 엑셀 올리기] 로 근태 시스템에서 받은 엑셀(.xlsx)을 올리세요 (여러 개 한꺼번에 가능). 화면에 끌어다 놓아도 됩니다.</div></section>`;
+  else if (WT.month !== 'all') {
+    const ms = rows.filter(r => r.month === WT.month).map(r => ({ r, j:wtJudge(r), ts:wtTs(r.name, r.month) }))
+      .sort((a, b) => b.j.lv - a.j.lv || (b.j.wk ?? -1) - (a.j.wk ?? -1) || a.r.name.localeCompare(b.r.name, 'ko'));
+    const wks = ms.map(x => x.j.wk).filter(v => v != null), avg = wks.length ? wks.reduce((a, b) => a + b, 0) / wks.length : null, top = ms.filter(x => x.j.wk != null).sort((a, b) => b.j.wk - a.j.wk)[0];
+    const sum = f => ms.reduce((a, x) => a + (x.r[f] || 0), 0), names = lv => ms.filter(x => x.j.lv === lv).map(x => x.r.name);
+    const tr = ({ r, j, ts }) => `<tr class="wtr lv${j.lv} ${WT.person === r.name ? 'on' : ''}" data-wtp="${esc(r.name)}"><td>${lvTag(j)}</td><td>${who(r.name)}<small class="muted"> ${esc(r.title || '')}</small></td><td>${esc(r.state || '-')}</td>
+      <td>${wtN(r.realH)}${r.realState ? ` <em class="wtst">${esc(r.realState)}</em>` : ''}</td><td class="wtbc">${wtBar(j.wk, j.lv)}${r.wkState ? ` <em class="wtst">${esc(r.wkState)}</em>` : ''}</td>
+      <td>${j.wk != null ? (j.wk > WT_STD ? `<b>+${wtN(j.wk - WT_STD)}</b>` : wtN(j.wk - WT_STD)) : '-'}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td>
+      <td>${r.flexP || r.flexM ? `+${wtN(r.flexP)} / −${wtN(r.flexM)}` : wtN(r.flex)}</td><td class="${r.remainMax != null && r.remainMax <= WT_REMAIN ? 'wtlow' : ''}">${wtN(r.remainMax)}</td><td>${wtN(r.remainStd)}</td>
+      <td>${ts != null ? `${wtN(ts)}${r.realH != null && Math.abs(ts - r.realH) >= 8 ? ` <small class="wtdiff" title="근태 시스템 실근무와 8시간 이상 차이">Δ${wtN(ts - r.realH)}</small>` : ''}` : '<span class="muted">-</span>'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`;
+    body = `<div class="wkpis alkpis">
+        <div class="wk wk-main al-main"><span class="wkl">${esc(mlab(WT.month))} 팀 주 평균 근무</span><span class="wkv">${wtN(avg)}<small>h</small></span><span class="wks">${ms.length}명 · 소정 ${WT_STD}h ${avg != null ? (avg > WT_STD ? `대비 +${wtN(avg - WT_STD)}h` : '이내') : ''} · 한도 ${WT_MAX}h</span></div>
+        ${kpi('wk-late', '🔴', '위험', `${names(2).length}명`, esc(names(2).join(', ') || '없음'))}
+        ${kpi('wk-soon', '🟠', '우려', `${names(1).length}명`, esc(names(1).join(', ') || '없음'))}
+        ${kpi('wk-run', '⏫', '최고 주 평균', top ? `${wtN(top.j.wk)}h` : '-', top ? esc(top.r.name) : '-')}
+        ${kpi('wk-miss', '⏱', '연장근로 합계', `${wtN(sum('ot'))}h`, `1인 평균 ${ms.length ? wtN(sum('ot') / ms.length) : '-'}h`)}
+        ${kpi('wk-done', '🗓', '휴일근무 합계', `${wtN(sum('hol') + sum('holOt'))}h`, `휴일 ${wtN(sum('hol'))} · 휴일연장 ${wtN(sum('holOt'))}`)}</div>
+      <section class="card"><h2>⏱ ${esc(mlab(WT.month))} 부서원별 근로시간 <span class="muted">· 위험 → 우려 → 주 평균 높은 순 · 막대 점선 = 소정 40h, 빨간 선 = 52h · 이름을 누르면 월별 추이 · 단위 h</span></h2>
+        <div class="tw"><table class="t wtt"><thead><tr><th>판정</th><th>부서원</th><th>근무상태</th><th>실근무<small>(평일+휴일)</small></th><th>주 평균</th><th>40h 대비</th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>탄력 (+/−)</th><th>월잔여<small>최대근무가능</small></th><th>월잔여<small>소정</small></th><th>시수 파일<small>합계(근태 제외)</small></th><th>사유</th></tr></thead><tbody>${ms.map(tr).join('')}</tbody></table></div></section>`;
+  } else {
+    const ppl = [...new Set(rows.map(r => r.name))].sort((a, b) => a.localeCompare(b, 'ko')), asc = [...months].reverse();
+    const at = (n, m) => rows.find(r => r.name === n && r.month === m);
+    const cnt = lv => new Set(rows.filter(r => wtJudge(r).lv === lv).map(r => r.name + '|' + r.month)).size;
+    body = `<div class="wkpis alkpis"><div class="wk wk-main al-main"><span class="wkl">월별 추이 · ${esc(mlab(asc[0]))} ~ ${esc(mlab(asc[asc.length - 1]))}</span><span class="wkv">${ppl.length}<small>명</small></span><span class="wks">${asc.length}개월 · 칸 = 그달 주 평균 근무시간</span></div>
+        ${kpi('wk-late', '🔴', '위험 (사람×달)', cnt(2), '주 평균 52h 초과 · 판정 위험')}${kpi('wk-soon', '🟠', '우려 (사람×달)', cnt(1), '48h 이상 · 판정 우려 · 잔여 10h 이하')}</div>
+      <section class="card"><h2>📈 부서원 × 월 주 평균 근무시간 <span class="muted">· 🔴 위험 · 🟠 우려 · 이름을 누르면 상세</span></h2>
+        <div class="tw"><table class="t wtm"><thead><tr><th>부서원</th>${asc.map(m => `<th>${esc(mlab(m))}</th>`).join('')}<th>평균</th></tr></thead><tbody>${ppl.map(n => {
+          const v = asc.map(m => { const r = at(n, m); return r ? { r, j:wtJudge(r) } : null; }), ok = v.filter(x => x && x.j.wk != null);
+          return `<tr class="${WT.person === n ? 'on' : ''}" data-wtp="${esc(n)}"><td>${who(n)}</td>${v.map(x => x ? `<td class="wtc${x.j.lv}" title="${esc(x.j.why.join(' · ') || '기준 이내')}">${wtN(x.j.wk)}</td>` : '<td class="muted">-</td>').join('')}<td><b>${ok.length ? wtN(ok.reduce((a, x) => a + x.j.wk, 0) / ok.length) : '-'}</b></td></tr>`; }).join('')}</tbody></table></div></section>`;
+  }
+  // 개인 상세: 그 사람의 달별 주 평균 막대 (40h · 52h 선) + 표
+  let detail = '';
+  if (WT.person && rows.some(r => r.name === WT.person)) {
+    const pr = rows.filter(r => r.name === WT.person).sort((a, b) => a.month.localeCompare(b.month)).map(r => ({ r, j:wtJudge(r) })), mx = Math.max(60, ...pr.map(x => x.j.wk || 0));
+    detail = `<section class="card"><h2>🔎 ${esc(WT.person)} · 월별 근로시간 <span class="muted">· 막대 = 주 평균 · 점선 = 40h · 빨간 선 = 52h</span><button class="btn sm" data-wtp="" style="margin-left:auto">닫기</button></h2>
+      <div class="wtchart" style="--l40:${WT_STD / mx * 100}%;--l52:${WT_MAX / mx * 100}%">${pr.map(({ r, j }) => `<div class="wtcol" title="${esc(mlab(r.month))} 주 평균 ${wtN(j.wk)}h · 실근무 ${wtN(r.realH)}h · 연장 ${wtN(r.ot)}h · 휴일 ${wtN(r.hol)}h${j.why.length ? ' · ' + esc(j.why.join(' · ')) : ''}"><em>${wtN(j.wk)}</em><b><span class="lv${j.lv}" style="height:${(j.wk || 0) / mx * 100}%"></span></b><small>${esc(mlab(r.month).slice(2))}</small></div>`).join('')}</div>
+      <div class="tw"><table class="t wtt"><thead><tr><th>월</th><th>판정</th><th>실근무</th><th>주 평균</th><th>연장</th><th>심야</th><th>휴일</th><th>휴일연장</th><th>월잔여 최대</th><th>시수 파일</th><th>사유</th></tr></thead><tbody>${[...pr].reverse().map(({ r, j }) => { const ts = wtTs(r.name, r.month);
+        return `<tr class="wtr lv${j.lv}"><td>${esc(mlab(r.month))}</td><td>${lvTag(j)}</td><td>${wtN(r.realH)}</td><td>${wtN(j.wk)}</td><td>${wtN(r.ot)}</td><td>${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td><td>${wtN(r.remainMax)}</td><td>${ts != null ? wtN(ts) : '-'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
+  }
+  c.insertAdjacentHTML('beforeend', hero(tools) + body + detail + '</div>');
+  const fileIn = $('#wtFile');
+  fileIn.onchange = () => { const fs = [...fileIn.files]; fileIn.value = ''; if (fs.length) wtUpload(fs); };
+  $('#wtv').addEventListener('click', e => {
+    const t = e.target.closest('[data-wtup],[data-wtlist],[data-wtm],[data-wtp],[data-goto]'); if (!t) return;
+    const ds = t.dataset;
+    if (ds.goto) { location.hash = '#' + ds.goto; return; }
+    if (ds.wtup != null) return fileIn.click();
+    if (ds.wtlist != null) return wtFiles();
+    if (ds.wtm) WT.month = ds.wtm;
+    else if (ds.wtp != null) WT.person = WT.person === ds.wtp ? '' : ds.wtp;
+    render();
+  });
+}
+async function wtUpload(fs) {
+  let ok = 0; const msg = [];
+  for (const f of fs) {
+    try { const r = await api('PUT', 'worktime?name=' + enc(f.name), undefined, f); ok++; msg.push(`${f.name}: ${r.people}명 · ${r.months.join(', ')}`); }
+    catch (e) { msg.push(`${f.name}: 실패 — ${e.message}`); }
+  }
+  toast(ok === fs.length ? `근무시간 파일 ${ok}개를 올렸습니다` : `${fs.length}개 중 ${ok}개 올림 — ${msg.filter(m => m.includes('실패')).join(' / ')}`, ok !== fs.length);
+  WT.month = ''; await loadWt();
+}
+async function wtFiles() {
+  const ups = [...(WT.data?.uploads || [])].reverse();
+  if (!ups.length) return toast('올린 파일이 없습니다', true);
+  const rows = ups.map((u, i) => `<tr><td>${esc(u.file || '(이름 없음)')}</td><td>${esc((u.months || []).map(m => m.replace('-', '.')).join(', '))}</td><td>${u.people}명 · ${(u.rows || []).length}줄</td><td class="muted">${esc(u.by || '')} ${esc(fmtTime(u.at))}</td><td><button class="btn sm bad" data-id="d${i}">삭제</button></td></tr>`).join('');
+  const r = await ask('🗑 올린 근무시간 파일', `<p class="muted" style="margin:0 0 8px">지우면 그 파일의 값만 빠집니다 (같은 사람·같은 달을 다른 파일이 갖고 있으면 그 값이 보임).</p><div class="tw" style="max-height:55vh"><table class="t"><thead><tr><th>파일</th><th>월</th><th>내용</th><th>올린 사람</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`, [{ id:'no', label:'닫기' }]);
+  if (!r || r[0] !== 'd') return;
+  const u = ups[+r.slice(1)];
+  await new Promise(ok => setTimeout(ok, 0));
+  if (await ask('근무시간 파일 삭제', `<b>${esc(u.file || u.id)}</b> 을(를) 지울까요?`, [{ id:'ok', label:'삭제', cls:'bad' }, { id:'no', label:'취소' }]) !== 'ok') { await new Promise(ok => setTimeout(ok, 0)); return wtFiles(); }
+  try { await api('DELETE', 'worktime/' + enc(u.id)); toast('지웠습니다'); } catch (e) { return toast('삭제 실패: ' + e.message, true); }
+  await loadWt();
+  if ((WT.data?.uploads || []).length) wtFiles();
+}
 // 올린 시수 파일 지우기: 지울 수 있는 것(본인 것 · Management 는 전부)을 목록으로 보여 주고 하나씩 삭제
 async function openTsDelete(list) {
   list = [...list].sort((a, b) => b.month.localeCompare(a.month) || a.person.localeCompare(b.person, 'ko'));
@@ -4133,8 +4488,8 @@ Step 3. 실제 시간(h)은 Management 권한자만 봄 · 같은 사람·같은
   };
 }
 // R&R · 투입 분석 화면 어디에 놓아도 올리기 창이 열림
-document.addEventListener('dragover', e => { if ((route === 'alloc' || route === 'mgalloc') && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
-document.addEventListener('drop', e => { if ((route !== 'alloc' && route !== 'mgalloc') || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) openTsUpload([...e.dataTransfer.files]); });
+document.addEventListener('dragover', e => { if ((route === 'alloc' || route === 'mgalloc' || route === 'mgwork') && !dlg.open && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => { if ((route !== 'alloc' && route !== 'mgalloc' && route !== 'mgwork') || dlg.open || !e.dataTransfer?.files?.length) return; e.preventDefault(); if (AUTH && SERVER && !OFFLINE) (route === 'mgwork' ? wtUpload : openTsUpload)([...e.dataTransfer.files]); });   // 근로시간 관리: 근태 시스템 엑셀
 
 /* ---------- 열 추가: 시트마다 사용자가 열을 더함 (서버 data/_meta/sheet-columns.json, 값은 각 행에 저장) ---------- */
 function applyExtraCols() {
@@ -4435,7 +4790,8 @@ document.addEventListener('keydown', e => {
   if (dlg.open || dlg2.open || route === 'home' || !SEL) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
   const k = e.key;
-  if (e.altKey && k.startsWith('Arrow')) { e.preventDefault(); resizeSel({ ArrowLeft:'c-', ArrowRight:'c+', ArrowUp:'r-', ArrowDown:'r+' }[k]); }
+  if (e.altKey && e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown') && TOP_NEW.has(route)) { e.preventDefault(); moveRow(k === 'ArrowUp' ? -1 : 1); }   // 행 위로/아래로
+  else if (e.altKey && k.startsWith('Arrow')) { e.preventDefault(); resizeSel({ ArrowLeft:'c-', ArrowRight:'c+', ArrowUp:'r-', ArrowDown:'r+' }[k]); }
   else if (k.startsWith('Arrow')) { e.preventDefault(); moveSel(k); }
   else if (k === 'Enter') { e.preventDefault(); editAt(selTd()); }
   else if (k === 'Escape') { SEL = null; MSEL = new Set(); applySel(); }

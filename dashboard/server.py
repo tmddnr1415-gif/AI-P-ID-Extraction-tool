@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-15.1'
+SERVER_VERSION = '2026-10-15.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1108,6 +1108,197 @@ def api_ts_delete(acc, can_all, pid, month):
     return {'status': 'ok'}
 
 
+# ---------------------------------------------------------------- 행 순서 바꾸기 (수행·입찰·통합 업무: 선택한 행 위로/아래로) — 내용(rev)은 그대로, order 만
+def api_reorder(key, b, by):
+    orders = b.get('orders') or {}
+    if not isinstance(orders, dict) or not 0 < len(orders) <= 50:
+        raise ApiError(400, '잘못된 요청')
+    with LOCK:
+        recs = {}
+        for rid, o in orders.items():
+            if not ID_RE.match(str(rid)) or not isinstance(o, (int, float)):
+                raise ApiError(400, '잘못된 요청')
+            cur = read_json(P('data', key, rid + '.json'))
+            if not cur:
+                raise ApiError(404, '삭제된 행이 있습니다. 새로고침하세요')
+            recs[rid] = cur
+        for rid, cur in recs.items():
+            write_json(P('data', key, rid + '.json'), {**cur, 'order': orders[rid]})
+    log.info('행 순서 변경: %s %s by %s', key, ','.join(orders), by)
+    return {'status': 'ok'}
+
+
+# ---------------------------------------------------------------- 부서원 생일 (profiles/_birthdays.json) — 하루 전·당일 축하 팝업, 당일 고깔모자
+# Management 권한자가 엑셀(이름 · 직급 · 생일 '10월 13일' · 양력 '생일(양)/생일(음)')을 올리거나 화면에서 고침. 연도는 저장하지 않음(월·일만)
+BDAY_RE = re.compile(r'(\d{1,2})\s*(?:월|[-./])\s*(\d{1,2})')
+
+
+def bday_path():
+    return P('profiles', '_birthdays.json')
+
+
+def bday_clean(lst):
+    out = []
+    for x in (lst or [])[:300]:
+        if not isinstance(x, dict):
+            continue
+        name = re.sub(r'\s+', ' ', str(x.get('name') or '')).strip()[:40]
+        m = BDAY_RE.search(str(x.get('md') or ''))
+        if not name or not m or not (1 <= int(m[1]) <= 12 and 1 <= int(m[2]) <= 31):
+            continue
+        out.append({'name': name, 'title': re.sub(r'\s+', ' ', str(x.get('title') or '')).strip()[:20],
+                    'md': f'{int(m[1]):02d}-{int(m[2]):02d}', 'lunar': bool(x.get('lunar'))})
+    return out
+
+
+def parse_birthdays(data):
+    for sname, cells in xlsx_sheets(data):
+        for r in sorted(cells)[:40]:
+            hm = {re.sub(r'\s+', '', v): c for c, v in cells[r].items() if isinstance(v, str)}
+            nc = hm.get('이름') or hm.get('성명')
+            bc = hm.get('생일') or hm.get('생년월일')
+            if not (nc and bc):
+                continue
+            tc, lc = hm.get('직급') or hm.get('직책'), hm.get('양력') or hm.get('음력') or hm.get('양력/음력') or hm.get('구분')
+            out = []
+            for rr in sorted(x for x in cells if x > r):
+                row = cells[rr]
+                name, v = ts_text(row.get(nc)), row.get(bc)
+                if not name or v in (None, ''):
+                    continue
+                if isinstance(v, tuple) or isinstance(v, float) and v > 20000:
+                    d = xl_date(v[1] if isinstance(v, tuple) else v)
+                    md = f'{d.month:02d}-{d.day:02d}'
+                else:
+                    md = ts_text(v)
+                kind = ts_text(row.get(lc)) if lc else ''
+                out.append({'name': name, 'title': ts_text(row.get(tc)) if tc else '', 'md': md, 'lunar': '음' in kind})
+            return bday_clean(out)
+    raise ApiError(400, "머리글에 '이름'·'생일' 이 있는 시트를 찾지 못했습니다")
+
+
+def api_bday_get():
+    d = read_json(bday_path()) or {}
+    return {'list': d.get('list', []), 'updatedAt': d.get('updatedAt', ''), 'updatedBy': d.get('updatedBy', '')}
+
+
+def api_bday_put(b, by):
+    lst = bday_clean(b.get('list'))
+    with LOCK:
+        write_json(bday_path(), {'list': lst, 'updatedAt': stamp(), 'updatedBy': by})
+    log.info('부서원 생일 저장: %d명 by %s', len(lst), by)
+    return api_bday_get()
+
+
+# ---------------------------------------------------------------- 근로시간 관리 (worktime/uploads/{ID}.json) — 회사 근태 시스템의 월별 근무시간 엑셀
+# 양식: 1~2행 머리글(작업년월 · 성명 · 사번 · 부서명 · 직급명 · … · 실근무(평일+휴일) 상태/시간 · 주평균근무 상태/시간 · 연장 · 심야 · 휴일 · 휴일연장 · 탄력 · 월잔여 …)
+# 같은 사람·같은 달이 여러 파일에 있으면 화면에서 나중에 올린 파일 값을 씀. 파일을 지우면 그 파일 값만 빠짐
+WT_COLS = {'작업년월': 'month', '성명': 'name', '사번': 'empNo', '부서명': 'dept', '직급명': 'title', '근무스케줄타입': 'sched', '근무조': 'shift',
+           '근무상태': 'state', '평일의무근로시간': 'wdReq', '평일근무시간': 'wdWork', '실근무(평일+휴일)|상태': 'realState', '실근무(평일+휴일)|시간': 'realH',
+           '주평균근무|상태': 'wkState', '주평균근무|시간': 'wkH', '연장근로시간': 'ot', '심야근무시간': 'night', '휴일근무시간': 'hol', '휴일연장근로시간': 'holOt',
+           '탄력': 'flex', '탄력근무(+)': 'flexP', '탄력근무(-)': 'flexM', '월잔여최대근무가능시간': 'remainMax', '월잔여소정근로시간': 'remainStd'}
+WT_TEXT = {'month', 'name', 'empNo', 'dept', 'title', 'sched', 'shift', 'state', 'realState', 'wkState'}
+WT_ID_RE = re.compile(r'^wt-[0-9a-f]{6,40}$')
+
+
+def wt_hours(v):
+    if isinstance(v, tuple):
+        return round(v[1] * 24, 4) if v[0] == 'T' else None
+    if isinstance(v, float):
+        return v
+    s = str(v or '').strip()
+    m = re.fullmatch(r'(-?\d{1,4}):(\d{2})(?::\d{2})?', s)
+    if m:
+        h = abs(int(m[1])) + int(m[2]) / 60
+        return round(-h if s.startswith('-') else h, 4)
+    try:
+        return float(s.replace(',', ''))
+    except ValueError:
+        return None
+
+
+def wt_month(v):
+    if isinstance(v, tuple) or isinstance(v, float) and v > 20000:
+        d = xl_date(v[1] if isinstance(v, tuple) else v)
+        return f'{d.year}-{d.month:02d}'
+    if isinstance(v, float):                              # 2026.1 = 2026.10 (숫자로 저장된 경우)
+        y, mm = int(v), round((v - int(v)) * 100)
+        return f'{y}-{mm:02d}' if 1 <= mm <= 12 else ''
+    m = re.search(r'(\d{4})\s*[-./년]\s*(\d{1,2})', str(v or ''))
+    return f'{m[1]}-{int(m[2]):02d}' if m and 1 <= int(m[2]) <= 12 else ''
+
+
+def parse_worktime(data):
+    for sname, cells in xlsx_sheets(data):
+        for r in sorted(cells)[:20]:
+            top = {c: re.sub(r'\s+', '', v) for c, v in cells[r].items() if isinstance(v, str)}
+            if '성명' not in top.values() or '작업년월' not in top.values():
+                continue
+            sub = {c: re.sub(r'\s+', '', v) for c, v in cells.get(r + 1, {}).items() if isinstance(v, str)}
+            two = '작업년월' in sub.values() or '상태' in sub.values()
+            cmap, last = {}, ''
+            for c in sorted(set(top) | set(sub)):
+                h1 = top.get(c) or ''
+                h1 = h1 or (last if two else '')
+                last = h1 or last
+                h2 = sub.get(c, '') if two else ''
+                for k in ((h1 + '|' + h2) if h2 in ('상태', '시간') else '', h2, h1):
+                    if k and k in WT_COLS and WT_COLS[k] not in cmap.values():
+                        cmap[c] = WT_COLS[k]
+                        break
+            if 'name' not in cmap.values():
+                continue
+            start, rows = r + (2 if two else 1), []
+            for rr in sorted(x for x in cells if x >= start):
+                row, o = cells[rr], {}
+                for c, f in cmap.items():
+                    v = row.get(c)
+                    if v in (None, ''):
+                        continue
+                    o[f] = wt_month(v) if f == 'month' else ts_text(v)[:60] if f in WT_TEXT else wt_hours(v)
+                if not o.get('name') or not o.get('month'):
+                    continue
+                rows.append({k: v for k, v in o.items() if v not in (None, '', '-')})
+            if rows:
+                return {'sheet': sname, 'rows': rows}
+    raise ApiError(400, "머리글에 '작업년월'·'성명' 이 있는 근무시간 표를 찾지 못했습니다")
+
+
+def api_wt_list():
+    ups = [x for x in (read_json(P('worktime', 'uploads', n)) for n in list_json(P('worktime', 'uploads'))) if x]
+    return {'uploads': sorted(ups, key=lambda x: x.get('at', ''))}
+
+
+def api_wt_put(acc, q, data):
+    if not data:
+        raise ApiError(400, '빈 파일입니다')
+    res = parse_worktime(data)
+    uid = 'wt-' + os.urandom(6).hex()
+    rec = {'id': uid, 'file': os.path.basename(str(q.get('name') or ''))[:120], 'sheet': res['sheet'], 'by': acc['name'], 'at': stamp(),
+           'months': sorted({r['month'] for r in res['rows']}), 'people': len({r['name'] for r in res['rows']}), 'rows': res['rows']}
+    with LOCK:
+        write_json(P('worktime', 'uploads', uid + '.json'), rec)
+        os.makedirs(P('worktime', 'raw'), exist_ok=True)
+        with open(P('worktime', 'raw', uid + '.xlsx'), 'wb') as f:
+            f.write(data)
+    log.info('근무시간 엑셀 업로드: %s (%d줄) by %s', uid, len(res['rows']), acc['id'])
+    return {'status': 'ok', 'id': uid, 'rows': len(res['rows']), 'months': rec['months'], 'people': rec['people']}
+
+
+def api_wt_delete(uid, by):
+    if not WT_ID_RE.match(uid or ''):
+        raise ApiError(400, '잘못된 요청')
+    with LOCK:
+        p = P('worktime', 'uploads', uid + '.json')
+        if not os.path.exists(p):
+            raise ApiError(404, '없는 파일입니다')
+        os.remove(p)
+        raw = P('worktime', 'raw', uid + '.xlsx')
+        if os.path.exists(raw):
+            os.remove(raw)
+    log.info('근무시간 엑셀 삭제: %s by %s', uid, by)
+    return {'status': 'ok'}
+
 # ---------------------------------------------------------------- 부서원 프로필 (profiles/{ID}.json) — 유닛분장 조직도에 표시
 PHOTO_RE = re.compile(r'^data:image/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
 PHONE_RE = re.compile(r'^[^<>\r\n]{0,30}$')                     # 예: 010-1234-5678, 내선 1234
@@ -1269,7 +1460,7 @@ def make_backup(keep_days):
     tmp = dest + '.tmp'
     with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets'):
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime'):
                 for dirpath, _, files in os.walk(P(top)):
                     for fn in files:
                         if fn.endswith('.tmp'):
@@ -1684,6 +1875,25 @@ class Handler(BaseHTTPRequestHandler):
                 return api_ts_put(acc, can_all, q, self.raw_body())
             if m == 'DELETE' and head == 'timesheet' and len(seg) == 3:
                 return api_ts_delete(acc, can_all, seg[1], seg[2])
+        if head == 'order' and m == 'PUT' and len(seg) == 2:          # 행 순서 바꾸기 (선택한 행 위로/아래로)
+            return api_reorder(sheet(1), self.json_body(), self.need_menu('weekly')['name'])
+        if head == 'birthdays':                                     # 부서원 생일: 보기 = 로그인, 고치기·엑셀 = Management 권한
+            if m == 'GET' and len(seg) == 1:
+                self.need_user()
+                return api_bday_get()
+            if m == 'PUT' and len(seg) == 1:
+                return api_bday_put(self.json_body(), self.need_menu('mgmt')['name'])
+            if m == 'POST' and seg[1:] == ['preview']:
+                self.need_menu('mgmt')
+                return {'list': parse_birthdays(self.raw_body())}
+        if head == 'worktime':                                      # 근로시간 관리: Management 권한자만 (보기·올리기·지우기)
+            acc = self.need_menu('mgmt')
+            if m == 'GET' and len(seg) == 1:
+                return api_wt_list()
+            if m == 'PUT' and len(seg) == 1:
+                return api_wt_put(acc, q, self.raw_body())
+            if m == 'DELETE' and len(seg) == 2:
+                return api_wt_delete(seg[1], acc['name'])
         if head == 'sheetcols':                                     # 사용자가 추가한 열
             if m == 'POST' and len(seg) == 1:
                 return api_sheetcol_add(self.body_by())
@@ -1852,7 +2062,7 @@ def main():
             pass
     if not os.path.isfile(P('dashboard.html')):
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
-    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', os.path.join('data', '_meta')):
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
     refresh_nets(first=True)                              # 허용 대역(지금까지 쓴 유선·Wi-Fi 대역 모두) · 네트워크 종류 확인
 
