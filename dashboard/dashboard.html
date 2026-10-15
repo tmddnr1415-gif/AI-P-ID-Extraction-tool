@@ -721,7 +721,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
   <div class="logo"><b>SAMSUNG C&amp;T</b><span>계장ENG그룹</span></div>
   <div class="acct" id="acct" hidden>
     <button class="abtn" id="acctBtn" aria-haspopup="menu"><span class="an"><span id="acctName"></span><i>▼</i></span><span class="as" id="acctSub"></span></button>
-    <div class="amenu" id="acctMenu" role="menu" hidden><button id="acctProf" role="menuitem"><span>🙋</span> 내 정보 (사진·전화·PJT)</button><button id="acctAct" role="menuitem"></button></div>
+    <div class="amenu" id="acctMenu" role="menu" hidden><button id="acctProf" role="menuitem"><span>🙋</span> 내 정보 (사진·전화·PJT)</button><button id="acctPw" role="menuitem"><span>🔑</span> 비밀번호 변경</button><button id="acctAct" role="menuitem"></button></div>
   </div>
   <div class="menu-title">MENU<button id="btnPerm" hidden title="메뉴 권한 설정 (운영자 전용)" aria-label="메뉴 권한 설정">⚙</button></div>
   <nav id="menu"></nav>
@@ -837,6 +837,9 @@ const isoWeek = d => {
 const safeName = s => String(s).replace(/[\\/:*?"<>|\s]+/g, '_');
 const normName = s => String(s || '').replace(/\(.*?\)/g, '').replace(/프로|님/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 const tokens = v => String(v || '').split(/[\n,/·]+/).map(normName).filter(Boolean);
+// 담당자 칸에 그 사람 이름이 들어 있나 ('구충현 프로', 'PM 구충현', '구충현 이기훈' 처럼 한 줄에 직함·여러 이름이 있어도) — 띄어쓰기 무시
+const nk = v => normName(v).replace(/\s+/g, '');
+const hasName = (v, n) => { const k = nk(n); return k.length >= 2 && nk(v).includes(k); };
 const newId = key => `${key}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
@@ -871,7 +874,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-14.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2402,7 +2405,7 @@ function renderMenu() {
     $('#acctName').textContent = AUTH ? `${AUTH.name} 님` : '비회원';
     $('#acctSub').textContent = AUTH ? `${AUTH.id} · 계장ENG그룹` : '보기 전용 · 로그인하면 편집 가능';
     $('#acctAct').innerHTML = AUTH ? '<span>⇥</span> 로그아웃' : '<span>⇥</span> 로그인 / 계정 개설';
-    $('#acctProf').hidden = !AUTH;
+    $('#acctProf').hidden = !AUTH; $('#acctPw').hidden = !AUTH || OFFLINE;
   }
   $('#folderName').textContent = root ? '📁 ' + root.name : '';
 }
@@ -2841,7 +2844,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     for (const k of s.filters) if (st.f[k] && (s.key === 'task' && k === '유형' ? normType(f[k]) : f[k]) !== st.f[k]) return false;
     if (s.owner) {
       const tk = tokens(f[s.owner]);
-      if (st.owner && !tk.includes(st.owner)) return false;
+      if (st.owner && !(tk.includes(st.owner) || hasName(f[s.owner], st.owner))) return false;   // 담당자 칸에 그 이름이 들어 있으면
       if (st.mine && !tk.some(t => t === me || (me && (t.includes(me) || me.includes(t))))) return false;
     }
     if (st.q && !JSON.stringify(Object.values(f)).toLowerCase().includes(st.q.toLowerCase())) return false;
@@ -2861,7 +2864,7 @@ function renderSheet(c, s) {
   const st = fstate(s.key), recs = getRecs(s.key);
   const sel = (id, label, vals, cur) => `<label>${esc(label)}<select data-filter="${esc(id)}"><option value="">전체</option>${vals.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(flat(v))}</option>`).join('')}</select></label>`;
   const filters = s.filters.map(k => sel('f:' + k, k, [...new Set(recs.map(r => r.fields[k]).filter(Boolean))], st.f[k])).join('');
-  const owners = s.owner ? [...ownerTokens(recs, s.owner).keys()].sort((a, b) => a.localeCompare(b, 'ko')) : [];
+  const owners = s.owner ? [...new Set([...ownerTokens(recs, s.owner).keys(), ...(st.owner ? [st.owner] : [])])].sort((a, b) => a.localeCompare(b, 'ko')) : [];   // 그래프에서 고른 이름도 목록에
   const yt = YEAR_OF[s.key] && s.key !== 'task' ? yearTabs(yearSel(s), yearsOf(s), s.key === 'unit' ? `<span class="vtog" style="margin-left:14px"><button type="button" class="yt ${st.view !== 'table' ? 'on' : ''}" data-view="org">🏢 조직도</button><button type="button" class="yt ${st.view === 'table' ? 'on' : ''}" data-view="table">📋 표</button></span>` : '') : '';
   const pjSel = s.key === 'perform' || s.key === 'bid' || s.key === 'task' ? `<label>진행 상태<select data-filter="closed"><option value="">전체</option><option value="live" ${st.closed === 'live' ? 'selected' : ''}>진행 중</option><option value="closed" ${st.closed === 'closed' ? 'selected' : ''}>종결</option></select></label>` : '';
   if (s.key === 'perform' || s.key === 'bid') c.insertAdjacentHTML('beforeend', pjHero(s));
@@ -3258,8 +3261,11 @@ function pjHero(s) {
   const bid = s.key === 'bid', on = (k, v) => st[k] === v ? 'on' : '';
   const biz = new Map(); recs.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0 }).get(g); isLive(r) ? o.live++ : o.end++; }); });
   const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
-  const om = ownerTokens(live, s.owner); deptNames().forEach(n => om.has(n) || om.set(n, 0));   // 전체 부서원 (PJT 0건도 표시)
-  const own = [...om].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
+  // 부서원별: 담당자 칸에 그 이름이 '들어 있는' 진행 PJT 수 (부서원 명단 + 명단에 없는 담당자 이름)
+  const dn = deptNames(), extra = [...ownerTokens(live, s.owner).keys()].filter(t => !dn.some(n => t.includes(nk(n)) || nk(t).includes(nk(n))));
+  const pjOf = n => live.filter(r => hasName(r.fields[s.owner], n)), endOf = n => recs.filter(r => !isLive(r) && hasName(r.fields[s.owner], n));
+  const own = [...new Set([...dn, ...extra])].map(n => [n, pjOf(n).length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
+  const ownTip = n => { const rs = pjOf(n), e = endOf(n).length; return tipHtml(`${n} · 진행 ${rs.length}건${e ? ` (+종결 ${e})` : ''}`, rs.length ? rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')} <span class="tm">${esc(cell1(r.fields['사업군']))}</span>`) : ['담당 PJT 없음'], 16); };
   const ofold = st.pfold !== false && own.length > 6, oshown = ofold ? own.slice(0, Math.ceil(own.length / 2)) : own;
   const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
   const kpi = (k, v, l, n, sub, icon, cls) => `<button class="wk ${cls} ${on(k, v)}" data-pjf="${k}|${v}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${n}</span><span class="wks">${sub}</span></button>`;
@@ -3277,8 +3283,8 @@ function pjHero(s) {
       <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결 · 누르면 그 단어가 들어간 PJT 만</span></h2>
         ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" title="사업군에 '${esc(g)}' 가 들어간 PJT 만 아래 표에"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
         <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
-      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 누르면 그 사람 PJT 만</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
-        ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
+      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
+        ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}" data-tip="${esc(ownTip(p))}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
     </div></div>`;
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
@@ -4488,6 +4494,29 @@ async function setServerUrl() {
 $('#acctBtn').onclick = e => { e.stopPropagation(); $('#acctMenu').hidden = !$('#acctMenu').hidden; };
 $('#acctAct').onclick = () => { $('#acctMenu').hidden = true; whoAction(); };
 $('#acctProf').onclick = () => { $('#acctMenu').hidden = true; openMyInfo(); };
+$('#acctPw').onclick = () => { $('#acctMenu').hidden = true; openChangePw(); };
+// 비밀번호 변경 (로그인한 상태): 지금 비밀번호 + 새 비밀번호 두 번 → 서버 POST auth/password → 다른 곳 로그인은 끊기고 이 화면은 새 토큰으로 계속
+function openChangePw() {
+  if (!AUTH || !SERVER || OFFLINE) return toast('서버에 로그인되어 있을 때만 바꿀 수 있습니다', true);
+  const f = (id, l, ac) => `<label style="display:block;margin:8px 0">${l}<input type="password" id="${id}" maxlength="64" autocomplete="${ac}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;margin-top:4px"></label>`;
+  openDlg(dlg, `<form id="pwf"><div class="dh"><span>🔑 비밀번호 변경 · ${esc(AUTH.name)} (${esc(AUTH.id)})</span><button type="button" class="btn sm" data-close>닫기</button></div>
+    <div class="db">${f('pw0', '지금 비밀번호', 'current-password')}${f('pw1', '새 비밀번호 (8자 이상)', 'new-password')}${f('pw2', '새 비밀번호 확인', 'new-password')}
+      <p class="muted" style="margin:6px 0 0">바꾸면 다른 PC·브라우저에 로그인된 것은 로그아웃됩니다. 이 화면은 그대로 쓸 수 있습니다.</p><p id="pwErr" class="tswarn" hidden></p></div>
+    <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">변경</button></div></form>`);
+  dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
+  const err = m => { const p = $('#pwErr'); p.textContent = m; p.hidden = !m; };
+  $('#pw0').focus();
+  $('#pwf').onsubmit = async e => {
+    e.preventDefault();
+    const a = $('#pw0').value, b = $('#pw1').value, c = $('#pw2').value;
+    if (!a) return err('지금 비밀번호를 입력하세요');
+    if (b.length < 8) return err('새 비밀번호는 8자 이상');
+    if (b !== c) return err('새 비밀번호 확인이 일치하지 않습니다');
+    if (a === b) return err('지금 비밀번호와 다른 비밀번호를 입력하세요');
+    try { const r = await api('POST', 'auth/password', { password:a, newPassword:b }); authSave(r.token, r.user); dlg.close(); toast('🔑 비밀번호를 바꿨습니다'); }
+    catch (er) { err(er.message); }
+  };
+}
 document.addEventListener('click', e => { if (!e.target.closest('#acct')) $('#acctMenu').hidden = true; });
 $('#btnWho').onclick = () => whoAction();
 $('#btnPerm').onclick = () => openPerms();

@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-14.1'
+SERVER_VERSION = '2026-10-15.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -789,6 +789,27 @@ def api_reset(b):
     session_drop(uid=uid)                                 # 다른 곳에 로그인된 세션은 모두 로그아웃
     log.info('비밀번호 재설정: %s', uid)
     return {'status': 'ok'}
+
+
+def api_change_pw(acc, b):
+    """로그인한 사람이 지금 비밀번호를 알고 새 비밀번호로 바꿈. 다른 곳에 로그인된 세션은 모두 끊고, 이 화면에는 새 로그인 토큰을 줌"""
+    uid = acc['id']
+    fail_check(('chpw', uid))
+    pw = check_pw(b.get('newPassword'))
+    with LOCK:
+        cur = load_account(uid)
+        if not cur or not hmac.compare_digest(kdf(str(b.get('password') or ''), cur['salt']), cur['hash']):
+            fail_add(('chpw', uid))
+            raise ApiError(401, '지금 비밀번호가 맞지 않습니다')
+        if hmac.compare_digest(kdf(pw, cur['salt']), cur['hash']):
+            raise ApiError(400, '지금 비밀번호와 다른 비밀번호를 입력하세요')
+        cur['salt'] = os.urandom(16).hex()
+        cur.update(hash=kdf(pw, cur['salt']), pwChangedAt=stamp())
+        write_json(acc_path(uid), cur)
+    _fails.pop(('chpw', uid), None)
+    session_drop(uid=uid)
+    log.info('비밀번호 변경: %s', uid)
+    return {'status': 'ok', 'token': session_new(uid), 'user': acc_public(cur)}
 
 
 def all_accounts():
@@ -1620,6 +1641,8 @@ class Handler(BaseHTTPRequestHandler):
                 return api_login(self.json_body())
             if m == 'POST' and seg[1:] == ['reset']:
                 return api_reset(self.json_body())
+            if m == 'POST' and seg[1:] == ['password']:            # 로그인한 상태에서 비밀번호 변경
+                return api_change_pw(self.need_user(), self.json_body())
             if m == 'POST' and seg[1:] == ['logout']:
                 acc = session_account(self.token())
                 session_drop(token=self.token())
