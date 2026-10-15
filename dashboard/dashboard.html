@@ -724,6 +724,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
 #bdpop canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .bdcard{position:relative;background:linear-gradient(160deg,#fff,#fff4fa);border-radius:22px;padding:26px 34px 22px;max-width:520px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 4px #ffd43b;animation:bdIn .5s cubic-bezier(.2,1.4,.4,1)}
 .bdcake{font-size:64px;line-height:1;animation:bdBob 1.6s ease-in-out infinite}
+.bdme{font-size:22px !important}.bdl.bdme b{color:#7048e8}
 .bdl{font-size:19px;margin:12px 0;color:#2b2140;line-height:1.5}.bdl b{color:#d6336c}.bdl span{font-size:15px;color:#6b5f80}
 .bdcard .btn{margin-top:8px;font-size:15px;padding:9px 22px}
 @keyframes bdIn{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
@@ -739,6 +740,7 @@ table.wtt td,table.wtm td{white-space:nowrap;text-align:center}table.wtt td.wtwh
 table.wtt tr.lv2 td{background:#fff5f5}table.wtt tr.lv1 td{background:#fffaf0}
 table.wtt tr[data-wtp],table.wtm tr[data-wtp]{cursor:pointer}table.wtt tr.on td,table.wtm tr.on td{box-shadow:inset 0 0 0 9999px rgba(43,68,201,.08)}
 .wtsys{display:block;font-size:10.5px;font-weight:400}
+.wtbasis p{margin:6px 0;font-size:13px;line-height:1.55}.wtbasis details{margin:4px 0 0 18px;font-size:12px}
 .wtst{font-style:normal;font-size:11px;font-weight:700;color:#c92a2a}.wtlow{color:#c92a2a;font-weight:800}.wtdiff{color:#a35a00;font-weight:700}
 table.wtm td.wtc0{background:#e9f7ef}table.wtm td.wtc1{background:#ffe8b0;font-weight:700}table.wtm td.wtc2{background:#ffc9c9;color:#c92a2a;font-weight:800}
 .wtchart{position:relative;display:flex;align-items:flex-end;gap:10px;height:200px;padding:6px 6px 0;margin-bottom:14px;border-bottom:1px solid var(--line)}
@@ -915,7 +917,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4134,19 +4136,19 @@ function leaveCard(list, idx, plabel) {
  *  명단 = 이름 · 직급 · 생일(월·일) · 양력/음력. 음력은 브라우저의 한국 음력 달력(Intl 'dangi')으로 그해 양력 날짜를 계산
  *  서버: GET /api/birthdays (로그인), PUT /api/birthdays · POST /api/birthdays/preview (엑셀 읽기) — Management 권한자만 고침
  * ===================================================================== */
-const BD = { list:[], at:'', by:'', loaded:false, shownFor:null };   // shownFor = 이 화면에서 팝업을 이미 보여 준 사용자(계정 ID, 비회원 'guest')
+const BD = { list:[], at:'', by:'', loaded:false, shownFor:null, hidden:[] };   // hidden = 로그인한 사람이 서버에 남긴 '오늘 하루 안 보기' 키   // shownFor = 이 화면에서 팝업을 이미 보여 준 사용자(계정 ID, 비회원 'guest')
 const LS_BDAY = 'dept-bday-cache', LS_BDHIDE = 'dept-bday-hide';
 async function loadBirthdays() {                             // 명단은 로그인 없이도 받음 (팝업은 비회원 화면에도)
   if (!SERVER || OFFLINE) return;
-  try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true;
+  try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true; BD.hidden = d.hidden || [];
     try { localStorage.setItem(LS_BDAY, JSON.stringify({ list:BD.list, at:BD.at })); } catch (_) {} } catch (_) {}
 }
 function bdayBoot() {                                        // html 을 켜자마자: 이 PC 에 보관한 명단으로 바로 팝업 (저장된 로그인이 있을 때 — 없으면 로그인 화면을 지난 뒤)
   try { const c = JSON.parse(localStorage.getItem(LS_BDAY) || 'null'); if (c?.list) { BD.list = c.list; BD.at = c.at || ''; } } catch (_) {}
-  if (AUTH) bdayCheck();
+  setTimeout(() => { if (AUTH) bdayCheck(); }, 1500);       // 보통은 그 전에 서버 명단(그 사람의 '오늘 하루 안 보기' 포함)으로 뜸 — 서버가 안 닿으면 1.5초 뒤 보관 명단으로
 }
 const bdUid = () => AUTH?.id || 'guest';
-const bdHidden = () => { try { const a = JSON.parse(localStorage.getItem(LS_BDHIDE) || '[]'); return Array.isArray(a) ? a.filter(k => k.startsWith(ymd(new Date()) + '|')) : []; } catch (_) { return []; } };
+const bdHidden = () => { let a = []; try { a = JSON.parse(localStorage.getItem(LS_BDHIDE) || '[]'); } catch (_) {} return [...(Array.isArray(a) ? a : []), ...(BD.hidden || [])].filter(k => k.startsWith(ymd(new Date()) + '|')); };   // 이 PC + 그 계정(서버, 다른 PC 에서 누른 것)
 const LUNAR = new Map();
 function lunarToSolar(y, m, d) {                            // 음력 m월 d일(윤달 아님) → 양력 y년의 날짜 (없으면 null)
   const key = `${y}-${m}-${d}`; if (LUNAR.has(key)) return LUNAR.get(key);
@@ -4186,13 +4188,19 @@ function showBdayPop(today, tom, hideKey) {
   const tm = new Date(); tm.setDate(tm.getDate() + 1);
   const ln = (bs, when, icon) => bs.length ? `<p class="bdl">${icon} ${when} <b>${bs.map(b => esc(bdName(b))).join(', ')}</b>의 생일입니다!<br><span>축하해 주세요 🎉</span></p>` : '';
   // <dialog> 로 띄움 → 로그인 창·업데이트 안내 등 다른 창이 떠 있어도 그 위에 바로 보임
+  const me = AUTH ? today.find(b => normName(b.name) === normName(AUTH.name)) : null;   // 로그인한 사람이 오늘 생일이면 그 사람에게 축하 인사
+  const others = me ? today.filter(b => b !== me) : today;
   const el = document.createElement('dialog'); el.id = 'bdpop';
-  el.innerHTML = `<canvas></canvas><div class="bdcard" aria-label="생일 축하"><div class="bdcake">🎂</div>${ln(today, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<div class="bdbtns"><button class="btn pri" data-bdclose>축하합니다! 🎉</button>${hideKey ? '<button class="btn" data-bdhide>오늘 하루 안 보기</button>' : ''}</div></div>`;
+  el.innerHTML = `<canvas></canvas><div class="bdcard" aria-label="생일 축하"><div class="bdcake">🎂</div>${me ? `<p class="bdl bdme">🎉 <b>${esc(bdName(me))}</b>님,<br>생일 축하합니다! <span>계장ENG그룹이 함께 축하합니다 🎈</span></p>` : ''}${ln(others, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<div class="bdbtns"><button class="btn pri" data-bdclose>축하합니다! 🎉</button>${hideKey ? '<button class="btn" data-bdhide>오늘 하루 안 보기</button>' : ''}</div></div>`;
   document.body.appendChild(el); el.showModal();
   const stop = fireworks(el.querySelector('canvas'));
   el.addEventListener('close', () => { if (el.open) return; stop(); el.remove(); });   // bdRaise 로 다시 연 경우는 그대로
   el.onclick = e => {
-    if (e.target.closest('[data-bdhide]')) { try { localStorage.setItem(LS_BDHIDE, JSON.stringify([...bdHidden(), hideKey])); } catch (_) {} return el.close(); }
+    if (e.target.closest('[data-bdhide]')) {                // 이 PC 에 + 로그인했으면 그 계정(서버)에도 → 그 사람의 다른 PC 에서도 그날은 안 뜸
+      try { localStorage.setItem(LS_BDHIDE, JSON.stringify([...bdHidden(), hideKey])); } catch (_) {}
+      if (AUTH && SERVER && !OFFLINE) api('POST', 'birthdays/hide', { key:hideKey }).then(d => { BD.hidden = d.hidden || []; }).catch(() => {});
+      return el.close();
+    }
     if (e.target.closest('[data-bdclose]') || e.target === el) el.close();
   };
   el.querySelector('[data-bdclose]').focus();
@@ -4285,12 +4293,13 @@ async function loadWt() {
   if (route === 'mgwork') render();
 }
 function wtRows() {
+  const C = wtCache(); if (C.rows) return C.rows;
   const m = new Map();
   for (const u of WT.data?.uploads || []) for (const r of u.rows || []) m.set(r.month + '|' + (r.empNo || r.name), { ...r, src:u.id, file:u.file });
-  return [...m.values()];
+  return C.rows = [...m.values()];
 }
 const wtN = v => v == null || isNaN(v) ? '-' : String(Math.round(v * 10) / 10);
-const wtWeek = r => r.wkH != null ? r.wkH : r.realH != null ? r.realH / (new Date(+r.month.slice(0, 4), +r.month.slice(5), 0).getDate() / 7) : null;
+const wtWeek = r => r.wkH != null ? r.wkH : r.realH != null ? r.realH / wtWeeks(r.month).W : null;   // 주 평균 = 엑셀 값 우선
 function wtJudge(r) {
   const wk = wtWeek(r), why = []; let lv = 0;
   if (wk != null && wk > WT_MAX) { lv = 2; why.push(`주 평균 ${wtN(wk)}h > ${WT_MAX}h`); }
@@ -4302,23 +4311,69 @@ function wtJudge(r) {
   if (r.remainMax != null && r.remainMax <= WT_REMAIN) { lv = Math.max(lv, 1); why.push(`이번 달 더 일할 수 있는 시간 ${wtN(r.remainMax)}h`); }
   return { lv, wk, why };
 }
-/* 그달 주 평균 소정근로시간: 주 40h 에서 평일(월~금) 공휴일(HOLIDAYS) 하루마다 8h 뺌 — 예) 월요일이 공휴일인 주 = 40 − 8 = 32h.
- * 달 단위 = 40h × (그달 일수 ÷ 7) − 평일 공휴일 × 8h = 월 소정, ÷ (그달 일수 ÷ 7) = 주 평균 소정 (공휴일 없는 달 = 40h, 파일의 '주평균근무' 와 같은 주 수) */
-const WTSTD = new Map();
-function wtStd(month) {
-  if (WTSTD.has(month)) return WTSTD.get(month);
+/* 소정근로시간 · 연장 — 엑셀(근태 시스템) 값이 우선, 달력 계산은 비교용
+ *  달력: 월 소정 = (평일 − 평일 공휴일) × 8h (주 40h 에서 평일 공휴일 하루마다 −8h 를 그달 날짜에 적용) · 주 소정 = 40h − 8h × 평일 공휴일 ÷ 주 수
+ *  엑셀: 월 소정 = '평일의무근로시간' (그 사람 값) · 주 수 = 실근무 ÷ 주평균근무 (그달 엑셀 값들의 가운데 값 → k일 ÷ 7 로 맞춤)
+ *  연장 = 엑셀 '연장근로시간' (없으면 계산 = 실근무 − 월 소정, 소정 초과 전부) — 계산값은 칸 아래 작게, 1h 이상 다르면 표시
+ *  심야(오후 8시 이후)는 출퇴근 시각이 없어 계산 불가 → 엑셀 값 그대로. 엑셀이 어떤 기준으로 셌는지는 `wtBasis` 카드에서 그달 데이터로 확인 */
+let WTC = { d:null, rows:[], std:new Map() };              // WT.data 가 바뀌면 다시 계산
+const wtCache = () => { if (WTC.d !== WT.data) WTC = { d:WT.data, rows:null, std:new Map() }; return WTC; };
+function wtCal(month) {
   const [y, m] = month.split('-').map(Number), n = new Date(y, m, 0).getDate(), hol = [];
   let wd = 0;
   for (let d = 1; d <= n; d++) { const dt = new Date(y, m - 1, d); if (dt.getDay() % 6 === 0) continue; if (HOLIDAYS.has(ymd(dt))) hol.push(`${m}/${d}(${WD[dt.getDay()]})`); else wd++; }
-  const W = n / 7, mon = WT_STD * W - hol.length * 8;
-  const o = { wk:mon / W, mon, wd, hol, tip:`${y}년 ${m}월: 주 40h × ${wtN(W)}주(${n}일 ÷ 7) − 평일 공휴일 ${hol.length}일 × 8h${hol.length ? ` (${hol.join(', ')})` : ''} = 월 소정 ${wtN(mon)}h → 주 평균 소정 ${wtN(mon / W)}h (공휴일 없는 주 40h, 평일 공휴일 하루마다 −8h)` };
-  WTSTD.set(month, o); return o;
+  return { y, m, n, wd, hol, mon:wd * 8 };
 }
-/* 연장 = 소정근로시간(공휴일 반영)을 넘긴 시간 전부: 실근무(평일+휴일) − 그달 월 소정 (= (주 평균 − 주 소정) × 그달 주 수). 근태 시스템의 '연장근로시간' 값은 옆에 작게.
- * 심야(오후 8시 이후)는 출퇴근 시각이 있어야 계산할 수 있어 지금은 근태 시스템 값을 그대로 보여 줌 */
-const wtOt = r => r.realH == null ? null : Math.max(0, r.realH - wtStd(r.month).mon);
+function wtWeeks(month) {                                  // 엑셀이 주평균을 낼 때 나눈 주 수
+  const n = wtCal(month).n, rs = wtRows().filter(r => r.month === month && r.realH > 0 && r.wkH > 0).map(r => r.realH / r.wkH).sort((a, b) => a - b);
+  if (!rs.length) return { W:n / 7, src:'달력', days:n, k:0, of:0 };
+  const med = rs[rs.length >> 1], d = Math.round(med * 7), snap = Math.abs(med - d / 7) < 0.03, W = snap ? d / 7 : med;
+  return { W, src:'엑셀', days:snap ? d : null, k:rs.filter(x => Math.abs(x - W) < 0.03).length, of:rs.length };
+}
+function wtStd(month) {
+  const C = wtCache(); if (C.std.has(month)) return C.std.get(month);
+  const c = wtCal(month), w = wtWeeks(month), cnt = new Map();
+  wtRows().filter(r => r.month === month && r.wdReq != null).forEach(r => cnt.set(r.wdReq, (cnt.get(r.wdReq) || 0) + 1));
+  const xl = [...cnt].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null, mon = xl ?? c.mon, wk = WT_STD - 8 * c.hol.length / w.W;
+  const o = { mon, monCal:c.mon, monXl:xl, xlCnt:cnt, wk, W:w.W, w, hol:c.hol, wd:c.wd, n:c.n,
+    tip:`${c.y}년 ${c.m}월 — 월 소정: ${xl != null ? `엑셀 평일의무근로시간 ${wtN(xl)}h (달력 계산 ${c.mon}h${Math.abs(xl - c.mon) >= 0.5 ? ' · 다름' : ' · 같음'})` : `달력 평일 ${c.wd + c.hol.length}일 − 공휴일 ${c.hol.length}일 = ${c.wd}일 × 8h = ${c.mon}h`}`
+      + ` · 주 수 ${wtN(w.W)}주${w.days ? ` (${w.days}일 ÷ 7)` : ''} ${w.src === '엑셀' ? '— 엑셀 실근무 ÷ 주평균' : ''} · 주 소정 = 40h − 8h × 평일 공휴일 ${c.hol.length}일${c.hol.length ? ` (${c.hol.join(', ')})` : ''} ÷ ${wtN(w.W)}주 = ${wtN(wk)}h` };
+  C.std.set(month, o); return o;
+}
+const wtMon = r => r.wdReq ?? wtStd(r.month).mon;                       // 그 사람 월 소정 (엑셀 우선)
+const wtOtCalc = r => r.realH == null ? null : Math.max(0, r.realH - wtMon(r));
+const wtOtV = r => r.ot ?? wtOtCalc(r);                                 // 표시하는 연장 (엑셀 우선)
 const WT_NIGHT_TIP = "근태 시스템 엑셀의 '심야근무시간' 그대로 — 오후 8시 이후 근무로 다시 계산하려면 출퇴근 시각(일별)이 들어 있는 파일이 필요";
-const otCell = r => { const o = wtOt(r); return `<td title="실근무 ${wtN(r.realH)}h − 월 소정 ${wtN(wtStd(r.month).mon)}h (공휴일 반영) = 소정 초과 전부${r.ot != null ? ` · 근태 시스템 연장근로시간 ${wtN(r.ot)}h` : ''}">${o != null ? (o > 0 ? `<b>${wtN(o)}</b>` : '0') : wtN(r.ot)}${o != null && r.ot != null ? `<small class="muted wtsys">시스템 ${wtN(r.ot)}</small>` : ''}</td>`; };
+const wtCmp = (xl, calc, tip) => `<td title="${esc(tip)}">${xl != null ? `<b>${wtN(xl)}</b>` : calc != null ? `${wtN(calc)}<small class="muted wtsys">계산 (엑셀 없음)</small>` : '-'}${xl != null && calc != null ? `<small class="wtsys ${Math.abs(xl - calc) >= 1 ? 'wtdiff' : 'muted'}">계산 ${wtN(calc)}${Math.abs(xl - calc) >= 1 ? ` (Δ${wtN(calc - xl)})` : ''}</small>` : ''}</td>`;
+const otCell = r => wtCmp(r.ot, wtOtCalc(r), `엑셀 연장근로시간 ${wtN(r.ot)}h · 계산 = 실근무 ${wtN(r.realH)}h − 월 소정 ${wtN(wtMon(r))}h(${r.wdReq != null ? '엑셀 평일의무' : '달력'}) = 소정 초과 전부`);
+const monCell = r => wtCmp(r.wdReq, wtStd(r.month).monCal, `엑셀 평일의무근로시간 ${wtN(r.wdReq)}h · 달력 = 평일 − 평일 공휴일 = ${wtStd(r.month).wd}일 × 8h = ${wtStd(r.month).monCal}h`);
+/* 엑셀 기준 확인: 그달 엑셀 값으로 ① 주평균의 주 수 ② 평일의무근로시간 ③ 연장근로시간이 어떤 계산과 맞는지 */
+function wtBasis(month) {
+  const st = wtStd(month), rs = wtRows().filter(r => r.month === month), w = st.w, ok = '✅', no = '⚠';
+  const L = [];
+  if (w.of) L.push(`${w.days && w.days !== st.n ? no : ok} <b>주평균근무</b> = 실근무 ÷ <b>${wtN(w.W)}주</b>${w.days ? ` (${w.days}일 ÷ 7)` : ''} — ${w.k}/${w.of}명 일치.${w.days && w.days !== st.n ? ` 그달은 ${st.n}일(${wtN(st.n / 7)}주)인데 엑셀은 ${w.days}일로 나눔 → 주평균이 ${w.days > st.n ? '낮게' : '높게'} 나옴 (근태 시스템의 집계 기간이 달력 월과 다를 수 있음)` : ' 그달 일수와 같음'}`);
+  else L.push(`ℹ 엑셀에 실근무·주평균근무가 함께 있는 줄이 없어 주 수를 확인할 수 없음 → 달력 ${st.n}일 ÷ 7`);
+  if (st.xlCnt.size) L.push(`${[...st.xlCnt.keys()].every(v => Math.abs(v - st.monCal) < 0.5) ? ok : no} <b>평일의무근로시간</b> ${[...st.xlCnt].sort((a, b) => b[1] - a[1]).map(([v, k]) => `${wtN(v)}h ${k}명`).join(' · ')} ↔ 달력 (평일 ${st.wd + st.hol.length}일 − 공휴일 ${st.hol.length}일) × 8h = <b>${st.monCal}h</b>${[...st.xlCnt.keys()].some(v => Math.abs(v - st.monCal) >= 0.5) ? ' — 다른 값은 개인 휴가·입사·휴직 등을 뺀 것일 수 있음' : ' — 같음 (엑셀도 평일 공휴일 하루마다 8h 를 뺌)'}`);
+  else L.push('ℹ 엑셀에 평일의무근로시간이 없음 → 월 소정은 달력 계산');
+  const H = [
+    ['실근무 − 평일의무근로시간', r => r.realH != null && r.wdReq != null ? r.realH - r.wdReq : null],
+    ['평일근무 − 평일의무근로시간', r => r.wdWork != null && r.wdReq != null ? r.wdWork - r.wdReq : null],
+    ['(실근무 − 휴일 − 휴일연장) − 평일의무근로시간', r => r.realH != null && r.wdReq != null ? r.realH - (r.hol || 0) - (r.holOt || 0) - r.wdReq : null],
+    ['실근무 − 달력 월 소정 (평일 공휴일 −8h)', r => r.realH != null ? r.realH - st.monCal : null],
+    ['(주평균 − 주 소정) × 주 수', r => r.wkH != null ? (r.wkH - st.wk) * st.W : null],
+    ['(주평균 − 40h) × 주 수', r => r.wkH != null ? (r.wkH - WT_STD) * st.W : null],
+  ];
+  const withOt = rs.filter(r => r.ot > 0);
+  if (withOt.length) {
+    const res = H.map(([l, f]) => { const v = withOt.map(r => f(r)).filter(x => x != null); return { l, of:v.length, k:withOt.filter(r => { const x = f(r); return x != null && Math.abs(Math.max(0, x) - r.ot) <= 0.5; }).length }; }).filter(h => h.of);
+    const best = res.sort((a, b) => b.k / b.of - a.k / a.of)[0];
+    L.push(best && best.k / best.of >= 0.6 ? `${ok} <b>연장근로시간</b> ≈ <b>${esc(best.l)}</b> — 연장이 있는 ${best.of}명 중 ${best.k}명 일치 (±0.5h)`
+      : `${no} <b>연장근로시간</b>은 아래 월 단위 계산 어느 것과도 맞지 않음 (가장 가까운 것: ${best ? `${esc(best.l)} ${best.k}/${best.of}명` : '-'}) → 근태 시스템은 <b>하루 8시간 초과분 합계 · 승인된 연장</b> 등 일별 기준으로 세는 것으로 보임 (엑셀에 일별 값이 없어 확인 불가). 화면은 엑셀 값을 쓰고, 칸 아래 '계산'(소정 초과 전부)과 비교`);
+    L.push(`<details><summary class="muted">계산 방식별 일치 수</summary>${res.map(h => `<div class="muted">· ${esc(h.l)}: ${h.k}/${h.of}명</div>`).join('')}</details>`);
+  } else L.push('ℹ 그달 엑셀에 연장근로시간 값이 있는 줄이 없음');
+  L.push(`ℹ <b>심야</b>: 엑셀 값 그대로 (출퇴근 시각이 없어 오후 8시 기준으로 다시 셀 수 없음)`);
+  return `<section class="card wtbasis"><h2>📐 ${month.replace('-', '.')} 엑셀 기준 확인 <span class="muted">· 화면 숫자는 엑셀 값이 우선, 계산 값은 비교용 (칸 아래 작게, 1h 이상 다르면 주황)</span></h2>${L.map(x => x.startsWith('<details') ? x : `<p>${x}</p>`).join('')}</section>`;
+}
 function wtTs(name, month) {                               // 시수 파일(R&R · 투입 분석)의 그달 합계 (근태 제외) — 없으면 null
   const d = AS.data[month.slice(0, 4)]; if (!d || d.error || !d.canHours) return null;
   const idx = projIndex(); let t = null;
@@ -4331,7 +4386,7 @@ function wtBar(wk, lv, std = WT_STD) {
   return `<span class="wtbar" title="주 평균 ${wtN(wk)}h · 점선 = 그달 주 평균 소정 ${wtN(std)}h (공휴일 반영) · 빨간 선 = 한도 52h"><i class="lv${lv}" style="width:${pc(wk)}%"></i><b class="m40" style="left:${pc(std)}%"></b><b class="m52" style="left:${pc(WT_MAX)}%"></b></span><span class="wtv lv${lv}">${wtN(wk)}h</span>`;
 }
 function renderWork(c) {
-  const hero = inner => `<div id="wtv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근로시간 관리 <small style="font-weight:600;opacity:.85">— 주 소정 40h (평일 공휴일 하루마다 −8h) · 월 평균 주 52h 한도</small></h2><p>회사 근태 시스템의 월별 근무시간 엑셀(작업년월 · 성명 · 실근무 · 주평균근무 · 연장 · 휴일 · 월잔여 …)을 올리면 부서원별로 <b style="color:#ffd0d0">위험</b> · <b style="color:#ffe8b0">우려</b>를 표시합니다. <b>위험</b> = 월 평균 주 52시간 초과 또는 근태 시스템 판정 '위험' · <b>우려</b> = 주 평균 48시간 이상 · 판정 '우려' · 이번 달 더 일할 수 있는 시간(월잔여 최대근무가능) 10시간 이하. 파일 올리기·지우기는 Management 권한자만.</p></div></div>${inner}</section>`;
+  const hero = inner => `<div id="wtv"><section class="whero al-hero hr-hero"><div class="wh-top"><div><h2>🛠 Management · 근로시간 관리 <small style="font-weight:600;opacity:.85">— 엑셀 값 우선 · 주 소정 40h (평일 공휴일 하루마다 −8h) · 월 평균 주 52h 한도</small></h2><p>회사 근태 시스템의 월별 근무시간 엑셀(작업년월 · 성명 · 실근무 · 주평균근무 · 연장 · 휴일 · 월잔여 …)을 올리면 부서원별로 <b style="color:#ffd0d0">위험</b> · <b style="color:#ffe8b0">우려</b>를 표시합니다. <b>위험</b> = 월 평균 주 52시간 초과 또는 근태 시스템 판정 '위험' · <b>우려</b> = 주 평균 48시간 이상 · 판정 '우려' · 이번 달 더 일할 수 있는 시간(월잔여 최대근무가능) 10시간 이하. 파일 올리기·지우기는 Management 권한자만.</p></div></div>${inner}</section>`;
   if (!SERVER || OFFLINE) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">서버에 연결되어 있을 때만 볼 수 있습니다.</div></section></div>');
   if (!AUTH) return c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">🔒 로그인하세요.</div></section></div>');
   if (!WT.data) { c.insertAdjacentHTML('beforeend', hero('') + '<section class="card"><div class="empty">불러오는 중…</div></section></div>'); loadWt(); return; }
@@ -4353,9 +4408,9 @@ function renderWork(c) {
     const ms = rows.filter(r => r.month === WT.month).map(r => ({ r, j:wtJudge(r), ts:wtTs(r.name, r.month) }))
       .sort((a, b) => b.j.lv - a.j.lv || (b.j.wk ?? -1) - (a.j.wk ?? -1) || a.r.name.localeCompare(b.r.name, 'ko'));
     const wks = ms.map(x => x.j.wk).filter(v => v != null), avg = wks.length ? wks.reduce((a, b) => a + b, 0) / wks.length : null, top = ms.filter(x => x.j.wk != null).sort((a, b) => b.j.wk - a.j.wk)[0];
-    const sum = f => ms.reduce((a, x) => a + ((f === 'ot' ? wtOt(x.r) ?? x.r.ot : x.r[f]) || 0), 0), names = lv => ms.filter(x => x.j.lv === lv).map(x => x.r.name);
+    const sum = f => ms.reduce((a, x) => a + ((f === 'ot' ? wtOtV(x.r) : x.r[f]) || 0), 0), names = lv => ms.filter(x => x.j.lv === lv).map(x => x.r.name);
     const tr = ({ r, j, ts }) => `<tr class="wtr lv${j.lv} ${WT.person === r.name ? 'on' : ''}" data-wtp="${esc(r.name)}"><td>${lvTag(j)}</td><td>${who(r.name)}<small class="muted"> ${esc(r.title || '')}</small></td><td>${esc(r.state || '-')}</td>
-      <td>${wtN(r.realH)}${r.realState ? ` <em class="wtst">${esc(r.realState)}</em>` : ''}</td><td class="wtbc">${wtBar(j.wk, j.lv, sd.wk)}${r.wkState ? ` <em class="wtst">${esc(r.wkState)}</em>` : ''}</td>
+      <td>${wtN(r.realH)}${r.realState ? ` <em class="wtst">${esc(r.realState)}</em>` : ''}</td>${monCell(r)}<td class="wtbc">${wtBar(j.wk, j.lv, sd.wk)}${r.wkState ? ` <em class="wtst">${esc(r.wkState)}</em>` : ''}</td>
       <td title="${esc(sd.tip)}">${j.wk != null ? (j.wk > sd.wk ? `<b>+${wtN(j.wk - sd.wk)}</b>` : wtN(j.wk - sd.wk)) : '-'}</td>${otCell(r)}<td title="${WT_NIGHT_TIP}">${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td>
       <td>${r.flexP || r.flexM ? `+${wtN(r.flexP)} / −${wtN(r.flexM)}` : wtN(r.flex)}</td><td class="${r.remainMax != null && r.remainMax <= WT_REMAIN ? 'wtlow' : ''}">${wtN(r.remainMax)}</td><td>${wtN(r.remainStd)}</td>
       <td>${ts != null ? `${wtN(ts)}${r.realH != null && Math.abs(ts - r.realH) >= 8 ? ` <small class="wtdiff" title="근태 시스템 실근무와 8시간 이상 차이">Δ${wtN(ts - r.realH)}</small>` : ''}` : '<span class="muted">-</span>'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`;
@@ -4364,10 +4419,10 @@ function renderWork(c) {
         ${kpi('wk-late', '🔴', '위험', `${names(2).length}명`, esc(names(2).join(', ') || '없음'))}
         ${kpi('wk-soon', '🟠', '우려', `${names(1).length}명`, esc(names(1).join(', ') || '없음'))}
         ${kpi('wk-run', '⏫', '최고 주 평균', top ? `${wtN(top.j.wk)}h` : '-', top ? esc(top.r.name) : '-')}
-        ${kpi('wk-miss', '⏱', '연장근로 합계', `${wtN(sum('ot'))}h`, `소정 초과 전부 · 1인 평균 ${ms.length ? wtN(sum('ot') / ms.length) : '-'}h`)}
+        ${kpi('wk-miss', '⏱', '연장근로 합계', `${wtN(sum('ot'))}h`, `엑셀 값 · 1인 평균 ${ms.length ? wtN(sum('ot') / ms.length) : '-'}h`)}
         ${kpi('wk-done', '🗓', '휴일근무 합계', `${wtN(sum('hol') + sum('holOt'))}h`, `휴일 ${wtN(sum('hol'))} · 휴일연장 ${wtN(sum('holOt'))}`)}</div>
       <section class="card"><h2>⏱ ${esc(mlab(WT.month))} 부서원별 근로시간 <span class="muted">· 위험 → 우려 → 주 평균 높은 순 · 막대 점선 = 그달 주 평균 소정 ${wtN(sd.wk)}h (평일 공휴일 ${sd.hol.length}일 × 8h 차감${sd.hol.length ? ': ' + esc(sd.hol.join(', ')) : ''}), 빨간 선 = 52h · 이름을 누르면 월별 추이 · 단위 h</span></h2>
-        <div class="tw"><table class="t wtt"><thead><tr><th>판정</th><th>부서원</th><th>근무상태</th><th>실근무<small>(평일+휴일)</small></th><th>주 평균</th><th title="${esc(sd.tip)}">소정 대비<small>주 소정 ${wtN(sd.wk)}h</small></th><th title="소정근로시간(평일 공휴일 하루마다 −8h)을 넘긴 시간은 모두 연장 = 실근무 − 월 소정">연장<small>소정 초과 전부</small></th><th title="${WT_NIGHT_TIP}">심야<small>근태 시스템 값</small></th><th>휴일</th><th>휴일연장</th><th>탄력 (+/−)</th><th>월잔여<small>최대근무가능</small></th><th>월잔여<small>소정</small></th><th>시수 파일<small>합계(근태 제외)</small></th><th>사유</th></tr></thead><tbody>${ms.map(tr).join('')}</tbody></table></div></section>`;
+        <div class="tw"><table class="t wtt"><thead><tr><th>판정</th><th>부서원</th><th>근무상태</th><th>실근무<small>(평일+휴일)</small></th><th title="엑셀 평일의무근로시간 · 아래 작게 = 달력 계산">월 소정<small>엑셀 평일의무</small></th><th>주 평균<small>엑셀</small></th><th title="${esc(sd.tip)}">소정 대비<small>주 소정 ${wtN(sd.wk)}h</small></th><th title="엑셀 연장근로시간 · 아래 작게 = 계산(실근무 − 월 소정, 소정 초과 전부)">연장<small>엑셀 · 계산</small></th><th title="${WT_NIGHT_TIP}">심야<small>근태 시스템 값</small></th><th>휴일</th><th>휴일연장</th><th>탄력 (+/−)</th><th>월잔여<small>최대근무가능</small></th><th>월잔여<small>소정</small></th><th>시수 파일<small>합계(근태 제외)</small></th><th>사유</th></tr></thead><tbody>${ms.map(tr).join('')}</tbody></table></div></section>${wtBasis(WT.month)}`;
   } else {
     const ppl = [...new Set(rows.map(r => r.name))].sort((a, b) => a.localeCompare(b, 'ko')), asc = [...months].reverse();
     const at = (n, m) => rows.find(r => r.name === n && r.month === m);
@@ -4384,9 +4439,9 @@ function renderWork(c) {
   if (WT.person && rows.some(r => r.name === WT.person)) {
     const pr = rows.filter(r => r.name === WT.person).sort((a, b) => a.month.localeCompare(b.month)).map(r => ({ r, j:wtJudge(r) })), mx = Math.max(60, ...pr.map(x => x.j.wk || 0));
     detail = `<section class="card"><h2>🔎 ${esc(WT.person)} · 월별 근로시간 <span class="muted">· 막대 = 주 평균 · 점선 = 그달 주 평균 소정 (공휴일 반영) · 빨간 선 = 52h</span><button class="btn sm" data-wtp="" style="margin-left:auto">닫기</button></h2>
-      <div class="wtchart" style="--l52:${WT_MAX / mx * 100}%">${pr.map(({ r, j }) => `<div class="wtcol" title="${esc(mlab(r.month))} 주 평균 ${wtN(j.wk)}h · 주 소정 ${wtN(wtStd(r.month).wk)}h · 실근무 ${wtN(r.realH)}h · 연장 ${wtN(wtOt(r) ?? r.ot)}h · 휴일 ${wtN(r.hol)}h${j.why.length ? ' · ' + esc(j.why.join(' · ')) : ''}"><em>${wtN(j.wk)}</em><b><span class="lv${j.lv}" style="height:${(j.wk || 0) / mx * 100}%"></span><i class="s40" style="bottom:${wtStd(r.month).wk / mx * 100}%"></i></b><small>${esc(mlab(r.month).slice(2))}</small></div>`).join('')}</div>
-      <div class="tw"><table class="t wtt"><thead><tr><th>월</th><th>판정</th><th>실근무</th><th>주 평균</th><th>주 소정<small>(공휴일 반영)</small></th><th>소정 대비</th><th title="소정근로시간(평일 공휴일 하루마다 −8h)을 넘긴 시간은 모두 연장 = 실근무 − 월 소정">연장<small>소정 초과 전부</small></th><th title="${WT_NIGHT_TIP}">심야<small>근태 시스템 값</small></th><th>휴일</th><th>휴일연장</th><th>월잔여 최대</th><th>시수 파일</th><th>사유</th></tr></thead><tbody>${[...pr].reverse().map(({ r, j }) => { const ts = wtTs(r.name, r.month);
-        return `<tr class="wtr lv${j.lv}"><td>${esc(mlab(r.month))}</td><td>${lvTag(j)}</td><td>${wtN(r.realH)}</td><td>${wtN(j.wk)}</td><td title="${esc(wtStd(r.month).tip)}">${wtN(wtStd(r.month).wk)}${wtStd(r.month).hol.length ? ` <small class="muted">(공휴일 ${wtStd(r.month).hol.length})</small>` : ''}</td><td>${j.wk != null ? (j.wk > wtStd(r.month).wk ? `<b>+${wtN(j.wk - wtStd(r.month).wk)}</b>` : wtN(j.wk - wtStd(r.month).wk)) : '-'}</td>${otCell(r)}<td title="${WT_NIGHT_TIP}">${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td><td>${wtN(r.remainMax)}</td><td>${ts != null ? wtN(ts) : '-'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
+      <div class="wtchart" style="--l52:${WT_MAX / mx * 100}%">${pr.map(({ r, j }) => `<div class="wtcol" title="${esc(mlab(r.month))} 주 평균 ${wtN(j.wk)}h · 주 소정 ${wtN(wtStd(r.month).wk)}h · 실근무 ${wtN(r.realH)}h · 연장 ${wtN(wtOtV(r))}h · 휴일 ${wtN(r.hol)}h${j.why.length ? ' · ' + esc(j.why.join(' · ')) : ''}"><em>${wtN(j.wk)}</em><b><span class="lv${j.lv}" style="height:${(j.wk || 0) / mx * 100}%"></span><i class="s40" style="bottom:${wtStd(r.month).wk / mx * 100}%"></i></b><small>${esc(mlab(r.month).slice(2))}</small></div>`).join('')}</div>
+      <div class="tw"><table class="t wtt"><thead><tr><th>월</th><th>판정</th><th>실근무</th><th>월 소정<small>엑셀 평일의무</small></th><th>주 평균<small>엑셀</small></th><th>주 소정<small>(공휴일 반영)</small></th><th>소정 대비</th><th>연장<small>엑셀 · 계산</small></th><th title="${WT_NIGHT_TIP}">심야<small>근태 시스템 값</small></th><th>휴일</th><th>휴일연장</th><th>월잔여 최대</th><th>시수 파일</th><th>사유</th></tr></thead><tbody>${[...pr].reverse().map(({ r, j }) => { const ts = wtTs(r.name, r.month);
+        return `<tr class="wtr lv${j.lv}"><td>${esc(mlab(r.month))}</td><td>${lvTag(j)}</td><td>${wtN(r.realH)}</td>${monCell(r)}<td>${wtN(j.wk)}</td><td title="${esc(wtStd(r.month).tip)}">${wtN(wtStd(r.month).wk)}${wtStd(r.month).hol.length ? ` <small class="muted">(공휴일 ${wtStd(r.month).hol.length})</small>` : ''}</td><td>${j.wk != null ? (j.wk > wtStd(r.month).wk ? `<b>+${wtN(j.wk - wtStd(r.month).wk)}</b>` : wtN(j.wk - wtStd(r.month).wk)) : '-'}</td>${otCell(r)}<td title="${WT_NIGHT_TIP}">${wtN(r.night)}</td><td>${wtN(r.hol)}</td><td>${wtN(r.holOt)}</td><td>${wtN(r.remainMax)}</td><td>${ts != null ? wtN(ts) : '-'}</td><td class="wtwhy">${esc(j.why.join(' · ')) || '<span class="muted">기준 이내</span>'}</td></tr>`; }).join('')}</tbody></table></div></section>`;
   }
   c.insertAdjacentHTML('beforeend', hero(tools) + body + detail + '</div>');
   const fileIn = $('#wtFile');

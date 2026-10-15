@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-15.3'
+SERVER_VERSION = '2026-10-15.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1177,9 +1177,28 @@ def parse_birthdays(data):
     raise ApiError(400, "머리글에 '이름'·'생일' 이 있는 시트를 찾지 못했습니다")
 
 
-def api_bday_get():
+def api_bday_get(acc=None):
     d = read_json(bday_path()) or {}
-    return {'list': d.get('list', []), 'updatedAt': d.get('updatedAt', ''), 'updatedBy': d.get('updatedBy', '')}
+    out = {'list': d.get('list', []), 'updatedAt': d.get('updatedAt', ''), 'updatedBy': d.get('updatedBy', '')}
+    if acc:                                               # 로그인한 사람이 '오늘 하루 안 보기' 를 누른 키 (다른 PC 에서 누른 것도)
+        out['hidden'] = (read_json(P('profiles', '_bdhide.json')) or {}).get(acc['id'], [])
+    return out
+
+
+def api_bday_hide(acc, b):
+    """생일 팝업 '오늘 하루 안 보기' — 계정마다 서버에 기록 (키 = 'YYYY-MM-DD|생일자|계정ID', 화면이 만듦). 오늘·어제 것만 남김"""
+    key = str(b.get('key') or '')[:300]
+    m = re.match(r'^(\d{4}-\d{2}-\d{2})\|', key)
+    if not m:
+        raise ApiError(400, '잘못된 요청')
+    keep = {m[1], (datetime.date.fromisoformat(m[1]) - datetime.timedelta(days=1)).isoformat()}
+    with LOCK:
+        d = read_json(P('profiles', '_bdhide.json')) or {}
+        lst = [k for k in d.get(acc['id'], []) if k[:10] in keep and k != key] + [key]
+        d[acc['id']] = lst[-20:]
+        d = {u: v for u, v in d.items() if any(k[:10] in keep for k in v)}
+        write_json(P('profiles', '_bdhide.json'), d)
+    return {'status': 'ok', 'hidden': d.get(acc['id'], [])}
 
 
 def api_bday_put(b, by):
@@ -1879,7 +1898,9 @@ class Handler(BaseHTTPRequestHandler):
             return api_reorder(sheet(1), self.json_body(), self.need_menu('weekly')['name'])
         if head == 'birthdays':                                     # 부서원 생일: 보기 = 누구나(비회원 화면에도 축하 팝업), 고치기·엑셀 = Management 권한
             if m == 'GET' and len(seg) == 1:
-                return api_bday_get()
+                return api_bday_get(session_account(self.token(), False))
+            if m == 'POST' and seg[1:] == ['hide']:
+                return api_bday_hide(self.need_user(), self.json_body())
             if m == 'PUT' and len(seg) == 1:
                 return api_bday_put(self.json_body(), self.need_menu('mgmt')['name'])
             if m == 'POST' and seg[1:] == ['preview']:
