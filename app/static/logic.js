@@ -508,22 +508,41 @@ function gotoTyped(text) {
 }
 function stageKo(s) { return { reading: "선 읽는 중", glyphs: "글자 배우는 중", blocks: "블록 판정 중" }[s] || ""; }
 
+// L28 — 827장 목록을 매번 통째로 다시 만들지 않는다: 목록(시트 · 검색어)이 같으면 줄마다 바뀐 칸(고른 장 · 연결 표시 ·
+// 점검 · 메모 수)만 고친다.  처음 한 번은 글 한 덩이로 붓는다 (줄마다 createElement 하던 것).
+const SL = { sheets: null, q: null, rows: new Map() };
+function sheetMeta(s, ch, mc) {
+  return `${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}${mc ? ` · <i class="mc">✎${mc}</i>` : ""}`;
+}
 function renderSheetList() {
   const q = $("#sheet-filter").value.trim().toUpperCase();
   const ul = $("#sheet-list");
-  ul.innerHTML = "";
-  const list = L.sheets.filter((s) => !q || (s.sheet_no + " " + s.title).toUpperCase().includes(q));
   $("#sheet-count").textContent = `${L.sheets.length}장`;
-  for (const s of list) {
-    const li = document.createElement("li");
-    li.dataset.page = s.page;
-    if (s.page === L.page) li.className = "sel";
-    const ch = L.mode === "sim" && L.chain.find((c) => c.page === s.page && c.hop != null);
-    if (ch) li.classList.add("chain");
-    li.innerHTML = `<span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
-      <span class="meta">${ch ? `<i class="chain-dot"></i>${ch.hop === 0 ? "지정한 장" : `연결 ${ch.hop}단계`} · ` : ""}블록 ${s.blocks} · 선 ${s.nets}${s.mismatch ? ` · <b>from-to 불일치 ${s.mismatch}</b>` : ""}${s.descdiff ? ` · <i class="dd">설명 다름 ${s.descdiff}</i>` : ""}${s.findings ? ` · <b>점검 ${s.findings}</b>` : ""}${memoCount(s.page) ? ` · <i class="mc">✎${memoCount(s.page)}</i>` : ""}</span>`;
-    li.onclick = () => { L.focus = null; openSheet(s.page); };
-    ul.appendChild(li);
+  const chains = new Map();
+  if (L.mode === "sim") for (const c of L.chain || []) if (c.hop != null && !chains.has(c.page)) chains.set(c.page, c);
+  if (SL.sheets !== L.sheets || SL.q !== q || !ul.firstChild && L.sheets.length) {
+    SL.sheets = L.sheets; SL.q = q; SL.rows = new Map();
+    const list = L.sheets.filter((s) => !q || (s.sheet_no + " " + s.title).toUpperCase().includes(q));
+    ul.innerHTML = list.map((s) => `<li data-page="${s.page}"><span class="no">${esc(s.sheet_no || "p" + s.page)}</span><span class="t">${esc(s.title)}</span>
+      <span class="meta"></span></li>`).join("");
+    const lis = ul.children;
+    list.forEach((s, i) => SL.rows.set(s.page, { s, li: lis[i], meta: null, cls: null }));
+    if (!ul.dataset.bound) {
+      ul.dataset.bound = "1";
+      ul.addEventListener("click", (e) => {
+        const li = e.target.closest("li[data-page]");
+        if (li) { L.focus = null; openSheet(Number(li.dataset.page)); }
+      });
+    }
+  }
+  const mcs = new Map();
+  for (const m of L.memos || []) if (!m.hidden && !m.done) mcs.set(m.page, (mcs.get(m.page) || 0) + 1);
+  for (const [page, r] of SL.rows) {
+    const ch = chains.get(page);
+    const cls = (page === L.page ? "sel" : "") + (ch ? " chain" : "");
+    if (cls !== r.cls) { r.li.className = cls.trim(); r.cls = cls; }
+    const meta = sheetMeta(r.s, ch, mcs.get(page) || 0);
+    if (meta !== r.meta) { r.li.lastElementChild.innerHTML = meta; r.meta = meta; }
   }
 }
 
@@ -712,14 +731,32 @@ function refGenText(text) {
   return t.replace(/\s*([-\/:])\s*/g, "$1").trim();
 }
 const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// L28 — 묶음의 시트 이름 목록과 이름마다의 식은 시트 목록이 바뀔 때만 만든다 (846쪽 묶음에서 칸마다 827개 식을
+// 새로 만들어 장 하나 여는 데 0.2초를 썼다).  글에 그 이름이 없으면 식을 돌리지 않는다 — 찾는 결과는 같다.
+const REF_KNOWN = { sheets: null, known: [], re: new Map() };
+function refKnownList() {
+  const sh = (typeof L !== "undefined" && L.sheets) || null;
+  if (REF_KNOWN.sheets !== sh) {
+    REF_KNOWN.sheets = sh;
+    REF_KNOWN.known = [...new Set((sh || []).map((x) => String(x.sheet_no || "").toUpperCase()).filter(Boolean))]
+      .sort((a, b) => b.length - a.length);
+    REF_KNOWN.re = new Map();
+  }
+  return REF_KNOWN.known;
+}
 function refKnown(text) {
-  const known = [...new Set(((typeof L !== "undefined" && L.sheets) || []).map((x) => String(x.sheet_no || "").toUpperCase()).filter(Boolean))]
-    .sort((a, b) => b.length - a.length);
+  const known = refKnownList();
   if (!known.length) return [];
   const t = refGenText(text);
   const out = [], taken = [];
   for (const no of known) {
-    const re = new RegExp(`(?<![A-Z0-9_])${reEsc(no)}\\s*(?:[-/.:#]|\\s)\\s*(\\d{1,3})(?!\\d)`, "g");
+    if (!t.includes(no)) continue;
+    let re = REF_KNOWN.re.get(no);
+    if (!re) {
+      re = new RegExp(`(?<![A-Z0-9_])${reEsc(no)}\\s*(?:[-/.:#]|\\s)\\s*(\\d{1,3})(?!\\d)`, "g");
+      REF_KNOWN.re.set(no, re);
+    }
+    re.lastIndex = 0;
     for (const m of t.matchAll(re)) {
       if (taken.some(([a, b]) => a <= m.index && m.index < b)) continue;
       taken.push([m.index, m.index + m[0].length]);

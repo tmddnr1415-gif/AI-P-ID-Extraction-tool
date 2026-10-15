@@ -135,9 +135,67 @@ def _page_inks(drawings):
     return {k for k, n in cnt.items() if n >= 20 and n >= 0.2 * total}
 
 
+def _f32(v):
+    return _F32.unpack(_F32.pack(v))[0]
+
+
+def _rot_fast(m):
+    """회전 · 이동뿐인 행렬(성분 0 · ±1 · 이동이 float 로 정확)이면 (a, b, c, d, e, f) — 아니면 None."""
+    a, b, c, d, e, f = m.a, m.b, m.c, m.d, m.e, m.f
+    if a in _UNIT and b in _UNIT and c in _UNIT and d in _UNIT and e == _f32(e) and f == _f32(f):
+        return (a, b, c, d, e, f)
+    return None
+
+
 def _pt(p, m):
+    # L28 — 쪽 회전 행렬은 성분이 0 · ±1 이라 MuPDF 의 float 계산을 double 로 한 뒤 float 로 한 번 반올림하면 같은 값이다
+    # (P&ID hotfix70 과 같은 길 · 엔진은 가져오지 않는다).  PyMuPDF 를 부르는 것이 장마다 수만 번이라 분석의 1할이었다.
+    # 처음 한 번 PyMuPDF 와 맞대 보고(_PT_OK) 다르면 예전 길로 간다.
+    if _PT_OK:
+        if _LAST_M[0] is m:                      # 한 장의 점은 같은 행렬 하나를 쓴다
+            r = _LAST_M[1]
+        else:
+            r = _rot_fast(m)
+            _LAST_M[0], _LAST_M[1] = m, r
+        if r is not None:
+            a, b, c, d, e, f = r
+            x, y = p.x, p.y
+            return (_f32(x * a + y * c + e), _f32(x * b + y * d + f))
     q = p * m
     return (q.x, q.y)
+
+
+def _pt_selfcheck():
+    import random
+
+    import pymupdf
+    rnd = random.Random(5)
+    try:
+        for rot in (0, 90, 180, 270):
+            for w, h in ((1191.0, 842.0), (842.0, 1191.0), (2384.0, 1684.0)):
+                doc = pymupdf.open()
+                pg = doc.new_page(width=w, height=h)
+                pg.set_rotation(rot)
+                m = pg.rotation_matrix
+                if _rot_fast(m) is None:
+                    continue
+                for _ in range(400):
+                    pt = pymupdf.Point(_f32(rnd.uniform(-50, w + 50)), _f32(rnd.uniform(-50, h + 50)))
+                    q = pt * m
+                    a, b, c, d, e, f = _rot_fast(m)
+                    if (q.x, q.y) != (_f32(pt.x * a + pt.y * c + e), _f32(pt.x * b + pt.y * d + f)):
+                        return False
+        return True
+    except Exception:
+        return False
+
+
+import struct as _struct  # noqa: E402
+
+_F32 = _struct.Struct("f")
+_UNIT = (0.0, 1.0, -1.0)
+_LAST_M = [None, None]
+_PT_OK = _pt_selfcheck()
 
 
 def _bbox(pts):
@@ -362,7 +420,14 @@ def _drop_fans(out, tris):
         return
     boxes = [_bbox(t) for t in fan]
     same = lambda a, b: all(abs(u - v) < 1e-6 for u, v in zip(a, b))
-    out.arrows = [a for a in out.arrows if not any(same(a.bbox, bb) for bb in boxes)]
+    bgrid = {}                                   # L28 — 화살촉마다 모든 부채꼴과 견주지 않는다 (0.001 칸 이웃만)
+    for bb in boxes:
+        bgrid.setdefault((math.floor(bb[0] * 1000), math.floor(bb[1] * 1000)), []).append(bb)
+
+    def fanned(a):
+        gx, gy = math.floor(a.bbox[0] * 1000), math.floor(a.bbox[1] * 1000)
+        return any(same(a.bbox, bb) for dx in (-1, 0, 1) for dy in (-1, 0, 1) for bb in bgrid.get((gx + dx, gy + dy), ()))
+    out.arrows = [a for a in out.arrows if not fanned(a)]
     out.blobs.extend(boxes)
 
 def _gather_arcs(out, arcs):
@@ -490,13 +555,20 @@ def _crossed_rect(segs):
 
 
 def _vertices(items, m):
+    # L28 — 이미 받은 점과 1e-3 안이면 같은 점.  예전에는 받은 점 전부와 견줘(점 수의 제곱) 큰 path 하나에 수 초를
+    # 썼다 — 0.001 칸 격자에서 이웃 칸만 본다 (판정 식은 그대로 · 같은 순서 · 같은 결과).
     pts = []
+    grid = {}
     for it in items:
         if it[0] != "l":
             continue
         for q in (_pt(it[1], m), _pt(it[2], m)):
-            if not any(abs(q[0] - a) < 1e-3 and abs(q[1] - b) < 1e-3 for a, b in pts):
-                pts.append(q)
+            gx, gy = math.floor(q[0] * 1000), math.floor(q[1] * 1000)
+            if any(abs(q[0] - a) < 1e-3 and abs(q[1] - b) < 1e-3
+                   for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2) for a, b in grid.get((gx + dx, gy + dy), ())):
+                continue
+            pts.append(q)
+            grid.setdefault((gx, gy), []).append(q)
     return pts
 
 

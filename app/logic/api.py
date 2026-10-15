@@ -1,6 +1,8 @@
 """LOGIC 검토 API — /logic (화면) · /logic/api/* (데이터).  main.py 는 이 라우터를 붙이기만 한다."""
 from __future__ import annotations
 
+import json
+
 import shutil
 import subprocess
 import sys
@@ -281,7 +283,22 @@ def fromto_report(job: str):
 _APPLIED = {}                    # job → (결과 mtime, 사람 값 mtime, 사람 값을 얹은 결과) — L22
 
 
+_RESULT_LOCK = threading.RLock()   # L28 — 화면이 열 때 요청 대여섯을 함께 보낸다 · 같은 결과를 동시에 준비(설정값 · from-to · 사람 값)하지 않게
+
+
 def _result(job):
+    with _RESULT_LOCK:
+        return _result_locked(job)
+
+
+def _lru_put(cache, key, value, keep=3):
+    cache.pop(key, None)
+    cache[key] = value
+    while len(cache) > keep:
+        cache.pop(next(iter(cache)))
+
+
+def _result_locked(job):
     d = _dir(job)
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
@@ -303,16 +320,14 @@ def _result(job):
     if hit and hit[0] == rm and hit[1] == om and hit[3] == lm:
         return hit[2]
     ov = overrides.load(d) if om is not None else overrides.empty()
-    if not overrides.has_any(ov) and not _lib_hits(res, lib_rules):
+    if not overrides.has_any(ov) and not _memo(res, "libhits", lambda: _lib_hits(res, lib_rules), lm):
         return res
-    import json as _json
-    fresh = _json.loads((d / "result.json").read_text(encoding="utf-8"))
-    _drawing_sp(job, d, fresh)
+    # L28 — 37MB 결과를 통째로 다시 읽지 않는다: 사람 값이 고치는 칸(블록 · 단자 · 행 · 점검)만 복사한 사본에 얹는다
+    # (원본 캐시는 그대로 — 시험이 원본 불변과 '다시 읽어 얹은 것과 같음' 을 못박는다)
+    fresh = overrides.working_copy(res)
     overrides.apply(fresh, ov, lib_rules)
     fresh["_ft"] = True
-    if len(_APPLIED) > 3:
-        _APPLIED.clear()
-    _APPLIED[job] = (rm, om, fresh, lm)
+    _lru_put(_APPLIED, job, (rm, om, fresh, lm))
     return fresh
 
 
@@ -330,17 +345,10 @@ def _drawing_sp(job, d, res):
         rm = None
     hit = _SP.get(job)
     if hit is None or hit[0] != rm:
-        probe = __import__("json").loads((d / "result.json").read_text(encoding="utf-8")) if rm else {"sheets": []}
-        analog.read_drawing(d / "source.pdf", probe["sheets"])
-        got = {}
-        for s in probe["sheets"]:
-            for bid, b in s["blocks"].items():
-                p = b.get("param") or {}
-                if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
-                    got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
-            for r in s["rows"]:
-                if r.get("range"):
-                    got[(s["page"], "row:%d" % r["n"])] = r["range"]
+        got = _sp_disk(d, rm)                # L28 — 한 번 읽은 설정값은 분석 폴더에 남긴다 (서버를 다시 켜도 PDF 를 다시 안 읽는다)
+        if got is None:
+            got = _sp_read(d, res) if rm else {}
+            _sp_save(d, rm, got)
         if len(_SP) > 6:
             _SP.clear()
         _SP[job] = hit = (rm, got)
@@ -355,6 +363,48 @@ def _drawing_sp(job, d, res):
                 if e:
                     r["range"] = dict(e)
     res["_sp"] = True
+
+
+SP_VERSION = 1                   # L28 — analog.read_drawing 규칙을 바꾸면 올린다 (분석 폴더의 drawing_sp.json 을 다시 만든다)
+
+
+def _sp_read(d, res):
+    """감시 블록 · 입력 행에 도면이 인쇄한 값을 읽는다.  결과는 건드리지 않는다 — read_drawing 이 고치는
+    칸(블록 param · 행)만 얕게 복사한 가벼운 사본에 읽는다 (예전에는 result.json 을 통째로 다시 읽었다)."""
+    probe = []
+    for s in res["sheets"]:
+        probe.append({**s, "blocks": {k: {**b, "param": dict(b.get("param") or {})} for k, b in s["blocks"].items()},
+                      "rows": [dict(r) for r in s.get("rows", [])]})
+    analog.read_drawing(d / "source.pdf", probe)
+    got = {}
+    for s in probe:
+        for bid, b in s["blocks"].items():
+            p = b.get("param") or {}
+            if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
+                got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
+        for r in s["rows"]:
+            if r.get("range"):
+                got[(s["page"], "row:%d" % r["n"])] = r["range"]
+    return got
+
+
+def _sp_disk(d, rm):
+    try:
+        x = __import__("json").loads((d / "drawing_sp.json").read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if x.get("rm") != rm or x.get("v") != SP_VERSION:
+        return None
+    return {(int(pg), k): v for pg, k, v in x.get("got") or []}
+
+
+def _sp_save(d, rm, got):
+    try:
+        store._atomic(d / "drawing_sp.json", __import__("json").dumps(
+            {"rm": rm, "v": SP_VERSION, "got": [[pg, k, v] for (pg, k), v in sorted(got.items(), key=lambda x: (x[0][0], x[0][1]))]},
+            ensure_ascii=False))
+    except Exception:
+        pass
 
 
 def _lib_rules(lm, job):
@@ -421,9 +471,44 @@ def _lib_png(job, page):
     return f
 
 
+def _memo(res, name, fn, *key):
+    """L28 — 결과 하나에 한 번만 센다 (사람 값을 고치면 결과가 새 사본이 되어 다시 센다)."""
+    m = res.setdefault("_memo", {})
+    k = json.dumps([name, *key], default=str)
+    if k not in m:
+        m[k] = fn()
+    return m[k]
+
+
 @router.get("/logic/api/jobs/{job}/sheets")
 def sheets(job: str):
     res = _result(job)
+    _warm_bundle(job, res)
+    return _memo(res, "sheets", lambda: _sheets_body(res))
+
+
+def _warm_bundle(job, res):
+    """L28 — 묶음을 열면 시뮬레이션 첫 계산(모든 장을 한 번)을 뒤에서 미리 해 둔다 — '동작 시뮬레이션' 을 처음
+    누를 때 기다리지 않게.  결과는 같은 기억에 들어갈 뿐이라 답은 그대로다."""
+    import os
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0":
+        return
+    cache = _bundle_cache(job, res)
+    if cache.get("topo") is not None or cache.get("_warming"):
+        return
+    cache["_warming"] = True
+
+    def go():
+        try:
+            with cache.setdefault("_lock", threading.Lock()):
+                if cache.get("topo") is None:
+                    sim.simulate_bundle(_all_sheets(res), {}, {}, None, cache=cache)
+        except Exception:
+            pass
+    threading.Thread(target=go, daemon=True).start()
+
+
+def _sheets_body(res):
     out = []
     for s in res["sheets"]:
         funcs = {}
@@ -449,7 +534,7 @@ def sheet(job: str, page: int):
 def findings(job: str):
     """묶음 전체의 점검 목록 — 장마다의 `findings` 를 한 줄로 편다 (새 판정 0 · 화면의 '묶음 점검' 이 읽는다)."""
     res = _result(job)
-    return report.findings(res["sheets"])
+    return _memo(res, "findings", lambda: report.findings(res["sheets"]))
 
 
 @router.get("/logic/api/jobs/{job}/report.xlsx")
@@ -526,6 +611,7 @@ def delete(job: str, author: str = ""):
     shutil.rmtree(d, ignore_errors=True)
     _SIZES.pop(job, None)
     _APPLIED.pop(job, None)
+    _BUNDLE.pop(job, None)
     return Response(status_code=204)
 
 
@@ -548,9 +634,25 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
-    out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=_analog(body.get("analog")))
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers,
+                                  analog=_analog(body.get("analog")), cache=cache)
     out["default_t"] = sim.DEFAULT_T
     return out
+
+
+_BUNDLE = {}                      # job → (결과 객체, 묶음 계산 기억) — L28 · 결과가 바뀌면(사람 값 · 다시 분석) 새로
+
+
+def _bundle_cache(job, res):
+    hit = _BUNDLE.get(job)
+    if hit is None or hit[0] is not res:
+        # 사람 값을 고쳐 결과가 새 사본이 되어도 장마다의 계산 기억은 넘겨준다 — 열쇠에 그 장의 내용 지문이 들어 있어
+        # 바뀐 장만 다시 센다 (sim._sheet_fp)
+        hit = (res, {"pages": hit[1].get("pages", {})} if hit else {})
+        _lru_put(_BUNDLE, job, hit, keep=2)
+    return hit[1]
 
 
 def _timers(raw):
@@ -802,7 +904,9 @@ def _teach_source(job):
 def teach_get(job: str):
     """남은 질문 — 무리마다 하나 · 해결하는 건수 순 · 보기 장은 가장 적은 장에 몰아서.  이미 답한 규칙도 함께."""
     res, done = _teach_source(job)
-    q = teach.questions(res, overrides.load(_dir(job)).get("teach"))
+    tc = overrides.load(_dir(job)).get("teach")
+    q = dict(_memo(res, "teach", lambda: teach.questions(res, tc), json.dumps(tc, sort_keys=True, default=str))
+             if done else teach.questions(res, tc))
     q["final"] = done
     q["partial"] = None if done else {"sheets": len(res.get("sheets", [])), "pages": res.get("pdf_pages")}
     ov = overrides.load(_dir(job))

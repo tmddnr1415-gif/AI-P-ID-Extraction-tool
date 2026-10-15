@@ -361,6 +361,41 @@ def _memory_roles(s, bid, b):
             p["role"] = "q" if (top or len(outs) == 1) else "qn"
 
 
+def working_copy(res: dict) -> dict:
+    """L28 — `apply` 가 고치는 칸만 복사한 사본 (선 · 좌표처럼 큰 것은 원본과 함께 쓴다).
+
+    apply · fromto.check · _apply_marks · teach.apply_sheet_and_cols 가 고치는 것: 장의 맨 위 칸(sheet_no · marks ·
+    findings …) · 블록과 그 param · 단자 · 행(표 행)과 그 안의 user · ref · 목록(rows · table · findings).
+    그 밖(nets · order · segs …)은 읽기만 한다.  새 칸을 고치게 되면 여기에도 더해야 한다 — 시험이 원본이
+    한 글자도 안 바뀌는지와 result.json 을 다시 읽어 얹은 것과 같은지를 본다."""
+    def row(r):
+        r = dict(r)
+        for k in ("user", "ref"):
+            if isinstance(r.get(k), dict):
+                r[k] = dict(r[k])
+        return r
+    sheets = []
+    for s in res.get("sheets", []):
+        c = dict(s)
+        c["blocks"] = {k: {**b, **({"param": dict(b["param"])} if isinstance(b.get("param"), dict) else {}),
+                           **({"user": dict(b["user"])} if isinstance(b.get("user"), dict) else {})}
+                       for k, b in s["blocks"].items()}
+        c["ports"] = [dict(p) for p in s.get("ports", [])]
+        c["rows"] = [row(r) for r in s.get("rows", [])]
+        if "table" in s:
+            c["table"] = [row(r) for r in s["table"]]
+        c["findings"] = list(s.get("findings", []))
+        if "marks" in s:
+            c["marks"] = list(s["marks"])
+        sheets.append(c)
+    out = {k: v for k, v in res.items() if k not in _CACHE_KEYS}     # 원본에 얹어 둔 셈(식별률 · 목록)은 사본의 것이 아니다
+    out["sheets"] = sheets
+    return out
+
+
+_CACHE_KEYS = ("_memo", "_idrate")
+
+
 def apply(res: dict, ov: dict, lib_rules=None) -> dict:
     """결과(새로 읽은 사본)에 사람 값을 얹는다 — 제자리.  FM/TO 를 고쳤으면 from-to 연결을 다시 맞댄다."""
     from . import fromto

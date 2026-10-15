@@ -21,6 +21,9 @@
 from __future__ import annotations
 
 import re
+import hashlib
+import json
+import pickle
 from collections import defaultdict
 
 from . import analog as A
@@ -668,7 +671,7 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -681,6 +684,12 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
     state = {int(k): v for k, v in (state or {}).items()}
     timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     analog = {int(k): v for k, v in (analog or {}).items() if str(k).isdigit() and isinstance(v, dict)}
+    # L28 — 경량화: cache(부르는 쪽이 그 결과마다 하나 들고 있는 dict)가 있으면 묶음의 연결(feeds · 매크로 · 펼친 장)을
+    # 한 번만 만들고, 장마다 같은 입력이면 지난번 계산을 그대로 쓴다.  846쪽 묶음에서 신호 하나를 줄 때 바뀌는 것은
+    # 그 신호가 닿는 장 몇 장뿐이다.  결과는 cache 없이 돌린 것과 글자까지 같다 (시험).
+    if cache is not None and cache.get("topo") is not None and cache.get("n_sheets") == len(sheets):
+        by_page, by_no, feeds, macros, inline = cache["topo"]
+        return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline)
     by_page = {s["page"]: s for s in sheets}
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
@@ -703,7 +712,57 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                 e = (int(rn), s["page"], owner)
                 if e not in feeds[t["page"]]:
                     feeds[t["page"]].append(e)
-    an_given = _analog_bundle(by_page, feeds, analog)
+    # L12 — 매크로 블록: 그 상자의 입력 단자 값을 Typical 시트의 입력 행에 주고 그 시트를 돌려, 출력 행 값을
+    # 상자의 출력 단자 선으로 낸다 (그 장 안에서 되먹임이 가라앉을 때까지 다시 돈다).
+    macros = defaultdict(list)
+    for s0 in sheets:
+        for bid, b in s0["blocks"].items():
+            m = b.get("macro") or {}
+            if b.get("func") == "MACRO" and m.get("page") in by_page:
+                macros[s0["page"]].append((bid, m))
+    inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
+    if cache is not None:
+        for k in ("topo", "analog", "idx", "run_of", "fp"):
+            cache.pop(k, None)
+        cache["topo"] = (by_page, by_no, feeds, macros, inline)
+        cache["n_sheets"] = len(sheets)
+    return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline)
+
+
+BUNDLE_MEMO_MAX = 6000                # L28 — 장마다 기억하는 계산 (넘으면 비운다 — 맞음에는 닿지 않는다)
+
+
+def _sheet_fp(cache, page, s_run):
+    """그 장이 시뮬레이터에 주는 것 전부(블록 · 단자 · 행 · 선 이름 순서 · 행 간격 — 매크로를 펼친 장이면 Typical 까지)의 지문.
+    기억의 열쇠에 넣어 두면 사람 값을 고쳐 결과가 새 사본이 되어도, 바뀌지 않은 장의 계산은 그대로 쓴다 (바뀐 장은 지문이 달라
+    새로 센다 — 맞음에 닿지 않는다)."""
+    fps = cache.setdefault("fp", {})
+    if page not in fps:
+        fps[page] = hashlib.blake2b(pickle.dumps(
+            (page, s_run["blocks"], s_run["ports"], s_run["rows"], list(s_run.get("nets") or {}), s_run.get("pitch"),
+             s_run.get("sheet_no")), protocol=pickle.HIGHEST_PROTOCOL), digest_size=16).hexdigest()
+    return fps[page]
+
+
+def _memo_key(*parts):
+    return json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline):
+    if cache is not None:
+        ak = _memo_key(analog)
+        an_memo = cache.setdefault("analog", {})
+        if ak not in an_memo:
+            if len(an_memo) > 64:
+                an_memo.clear()
+            an_memo[ak] = _analog_bundle(by_page, feeds, analog, idx_cache=cache.setdefault("idx", {}))
+        an_given = pickle.loads(pickle.dumps(an_memo[ak]))   # 부르는 쪽이 고쳐도 기억이 안 바뀌게
+        page_memo = cache.setdefault("pages", {})
+        if len(page_memo) > BUNDLE_MEMO_MAX:
+            page_memo.clear()
+    else:
+        an_given = _analog_bundle(by_page, feeds, analog)
+        page_memo = None
     out_rows = {}                     # page → {row: 값}
     results = {}
     link_in = {}                      # page → {row: 값}
@@ -715,16 +774,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
             o[n] = 1 if (o.get(n) == 1 or out_rows.get(sp, {}).get(sr, 0) == 1) else 0
         return o
 
-    # L12 — 매크로 블록: 그 상자의 입력 단자 값을 Typical 시트의 입력 행에 주고 그 시트를 돌려, 출력 행 값을
-    # 상자의 출력 단자 선으로 낸다 (그 장 안에서 되먹임이 가라앉을 때까지 다시 돈다).
-    macros = defaultdict(list)
-    for s0 in sheets:
-        for bid, b in s0["blocks"].items():
-            m = b.get("macro") or {}
-            if b.get("func") == "MACRO" and m.get("page") in by_page:
-                macros[s0["page"]].append((bid, m))
     macro_view = {}
-    inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
 
     # L15 — 매크로 블록을 펼친다: Typical 시트의 블록·선을 이 장 안에 이름을 붙여 넣고, Typical 입력 행의 선 =
     # 상자의 입력 단자 선 · Typical 출력 행의 선 = 상자의 출력 단자 선으로 잇는다.  한 장을 한 번에 돌리므로
@@ -825,7 +875,19 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                 for k, v in (timers.get(m["page"]) or {}).items():
                     tm[f"{bid}/{k}"] = v
             asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
-            res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
+            mk = hit = None
+            if page_memo is not None:
+                try:
+                    mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, state.get(page), tm, soft, sorted(asked),
+                                   an_given.get(page))
+                    hit = page_memo.get(mk)
+                except (TypeError, ValueError):
+                    mk = None
+            if mk is not None and hit is not None:
+                res, mv = _fresh(hit)
+            else:
+                res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
+                mv = None
             # L16 — 줄줄이: 이 시트의 출력을 내려면 다른 시트에서 오는 입력이 1 이어야 하면, 그 입력을 보내는 시트의
             # 출력 행도 목표로 켠다 (그 시트에서 다시 거꾸로 맞추기 — 게이트가 막으면 거기서 머문다).
             for n, v in (res.get("pulled") or {}).items():
@@ -844,8 +906,12 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                     redo.add(sp)
                     redo.add(page)
             if items:
-                macro_view[page] = macro_views(page, items, res["frames"][-1]["values"])
-                strip(res)
+                if mv is None:
+                    mv = macro_views(page, items, res["frames"][-1]["values"])
+                    strip(res)
+                macro_view[page] = mv
+            if mk is not None and hit is None:
+                page_memo[mk] = _pack((res, mv))
             results[page] = res
             link_in[page] = lin
             rv = _row_values(s, res["frames"][-1]["values"])
@@ -895,7 +961,11 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                           "inputs": [_row_label(s, "L", n) for n in on_in],
                           "outputs": [_row_label(s, "R", n) for n in on_out]})
     # 사람이 준 신호가 닿은 장(hop)에서 이동하다 만난 것만 — 아무것도 안 줘도 1 인 선(입력 0 의 NOT 등)은 빼고
-    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results) if e["page"] in hop]
+    run_of = cache.get("run_of") if cache is not None else None
+    if cache is not None and run_of is None:
+        run_of = cache["run_of"] = {x["page"]: _to_runs(x) for x in sheets}
+    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop))
+              if e["page"] in hop]
     for page, view in macro_view.items():
         for bid, v in view.items():
             for c in v.get("conflict") or []:
@@ -922,7 +992,18 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
             "notes": sorted(notes)}
 
 
-def _analog_bundle(by_page, feeds, analog):
+def _pack(x):
+    """기억에 넣을 때는 바이트로 — 꺼낼 때마다 새 객체라 부르는 쪽(응답 · 다음 장 계산)이 고쳐도 기억이 안 바뀐다
+    (pickle 은 정수 열쇠 · 튜플을 그대로 지킨다 — JSON 으로 하면 행 번호 열쇠가 글이 되어 줄줄이 켜기가 틀린다)."""
+    return pickle.dumps(x, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def _fresh(packed):
+    res, mv = pickle.loads(packed)
+    return res, mv
+
+
+def _analog_bundle(by_page, feeds, analog, idx_cache=None):
     """L26 — 아날로그 값도 시트 사이로 간다: 출력 행의 선이 값을 가지면 그 행을 받는 입력 행도 그 값
     (사람이 그 입력 행에 직접 준 값이 이긴다).  시간이 없는 값이라 가라앉을 때까지 몇 번 돌리면 된다.
     → {page: {"block:<id>"|"row:<n>": 값}}"""
@@ -931,9 +1012,16 @@ def _analog_bundle(by_page, feeds, analog):
     idxs = {}
     src_pages = set(given)
     for p, s in by_page.items():
+        if idx_cache is not None and p in idx_cache:
+            if idx_cache[p] is not None:
+                idxs[p] = idx_cache[p]
+                src_pages.add(p)
+            continue
         if any(A.is_analog_block(b) or A.monitor_kind(b) for b in s["blocks"].values()):
             idxs[p] = _index(s)
             src_pages.add(p)
+        if idx_cache is not None:
+            idx_cache[p] = idxs.get(p)
     if not src_pages:
         return given
     for _ in range(MAX_PASSES):
@@ -1019,7 +1107,7 @@ def _norm_desc(t):
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
-def _design_errors(sheets, by_page, by_no, out_rows, results=None):
+def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, only=None):
     """**활성(1)인 신호**가 TO · FM 을 따라 이동하는 자리에서 도면끼리 어긋난 곳 (사용자 지시 L11).
 
     보내는 쪽: 1 인 출력 행(주인 행)과 그 아래로 이어지는 TO 줄들의 TO 마다 —
@@ -1040,7 +1128,8 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
             seen.add(k)
             out.append(e)
 
-    run_of = {s["page"]: _to_runs(s) for s in sheets}
+    if run_of is None:
+        run_of = {s["page"]: _to_runs(s) for s in sheets}
 
     def in_table(t, rn):
         for x in t.get("table") or t["rows"]:
@@ -1049,6 +1138,8 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
         return None
     for s in sheets:
         page, me = s["page"], s.get("sheet_no") or ""
+        if only is not None and page not in only:      # L28 — 부르는 쪽이 어차피 거른다 (같은 결과 · 덜 센다)
+            continue
         on = {n for n, v in out_rows.get(page, {}).items() if v == 1}
         for owner, tos in run_of[page].items():
             if owner not in on:
@@ -1099,6 +1190,8 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None):
             if r["side"] != "L" or ref.get("page") not in by_page:
                 continue
             sp, own = ref["page"], ref.get("src_row", ref.get("row"))
+            if only is not None and sp not in only:
+                continue
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])

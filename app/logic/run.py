@@ -11,11 +11,17 @@ from pathlib import Path
 def _prerender(d: Path, res: dict):
     """인식한 시트의 장 그림을 미리 그린다 — 실패해도 분석 결과는 그대로다 (요청 때 다시 그린다)."""
     from app.logic import store
-    for s in res.get("sheets", []):
-        try:
-            store.page_png(d, s["page"])
-        except Exception:
-            return
+    try:
+        import pymupdf
+        doc = pymupdf.open(d / "source.pdf")
+    except Exception:
+        return
+    with doc:
+        for s in res.get("sheets", []):
+            try:
+                store.page_png(d, s["page"], doc=doc)
+            except Exception:
+                return
 
 
 def _note(d: Path, st: dict):
