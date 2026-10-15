@@ -914,7 +914,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1587,8 +1587,9 @@ async function importQueue(file) {
 const dlg = $('#dlg'), dlg2 = $('#dlg2');
 function openDlg(el, html, wide) {
   el.className = wide ? 'wide' : ''; el.innerHTML = html;
-  if (!el.open) { el.removeAttribute('style'); el.showModal(); }            // 새로 열 때는 가운데 위치로
+  if (!el.open) { el.removeAttribute('style'); el.showModal(); bdRaise(); }   // 새로 열 때는 가운데 위치로 · 생일 팝업이 떠 있으면 그 위로 다시
 }
+function bdRaise() { const d = document.getElementById('bdpop'); if (d?.open) { d.close(); d.showModal(); } }   // 생일 팝업을 맨 위로 (내 할 일·업데이트 안내보다 위)
 /* 팝업 위쪽(제목 줄)을 끌어서 이동 */
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('dialog .dh');
@@ -1647,7 +1648,7 @@ async function authStart() {
   await authDialog();
 }
 async function refreshPerms() { try { setPerms((await api('GET', 'info')).perms); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
-async function afterAuth() { BD.shown = false; loadBirthdays().then(bdayCheck);   // 로그인하면 생일 팝업 다시
+async function afterAuth() { loadBirthdays().then(bdayCheck);   // 로그인하면(사용자가 바뀌면) 생일 팝업 다시
   await refreshPerms(); TB.prev = null; TB.active = ''; todoShown = false; render(); showMyTodo(); presenceStart(); }
 // 첫 화면: 전체 화면 로그인 (ID 입력 → 비밀번호 입력 2단계, 계정 개설·비밀번호 재설정·비회원 보기)
 const LS_LASTID = 'dept-auth-lastid';
@@ -4132,17 +4133,19 @@ function leaveCard(list, idx, plabel) {
  *  명단 = 이름 · 직급 · 생일(월·일) · 양력/음력. 음력은 브라우저의 한국 음력 달력(Intl 'dangi')으로 그해 양력 날짜를 계산
  *  서버: GET /api/birthdays (로그인), PUT /api/birthdays · POST /api/birthdays/preview (엑셀 읽기) — Management 권한자만 고침
  * ===================================================================== */
-const BD = { list:[], at:'', by:'', loaded:false, shown:false };
+const BD = { list:[], at:'', by:'', loaded:false, shownFor:null };   // shownFor = 이 화면에서 팝업을 이미 보여 준 사용자(계정 ID, 비회원 'guest')
 const LS_BDAY = 'dept-bday-cache', LS_BDHIDE = 'dept-bday-hide';
 async function loadBirthdays() {                             // 명단은 로그인 없이도 받음 (팝업은 비회원 화면에도)
   if (!SERVER || OFFLINE) return;
   try { const d = await api('GET', 'birthdays'); BD.list = d.list || []; BD.at = d.updatedAt || ''; BD.by = d.updatedBy || ''; BD.loaded = true;
     try { localStorage.setItem(LS_BDAY, JSON.stringify({ list:BD.list, at:BD.at })); } catch (_) {} } catch (_) {}
 }
-function bdayBoot() {                                        // 화면을 열자마자: 이 PC 에 보관한 명단으로 바로 팝업 (서버 응답·오프라인과 상관없이)
+function bdayBoot() {                                        // html 을 켜자마자: 이 PC 에 보관한 명단으로 바로 팝업 (저장된 로그인이 있을 때 — 없으면 로그인 화면을 지난 뒤)
   try { const c = JSON.parse(localStorage.getItem(LS_BDAY) || 'null'); if (c?.list) { BD.list = c.list; BD.at = c.at || ''; } } catch (_) {}
-  bdayCheck();
+  if (AUTH) bdayCheck();
 }
+const bdUid = () => AUTH?.id || 'guest';
+const bdHidden = () => { try { const a = JSON.parse(localStorage.getItem(LS_BDHIDE) || '[]'); return Array.isArray(a) ? a.filter(k => k.startsWith(ymd(new Date()) + '|')) : []; } catch (_) { return []; } };
 const LUNAR = new Map();
 function lunarToSolar(y, m, d) {                            // 음력 m월 d일(윤달 아님) → 양력 y년의 날짜 (없으면 null)
   const key = `${y}-${m}-${d}`; if (LUNAR.has(key)) return LUNAR.get(key);
@@ -4170,13 +4173,13 @@ function bdayToday(name) {                                 // 오늘이 그 사�
   return !!name && BDT.set.has(normName(name));
 }
 const HAT = '<svg class="bhat" viewBox="0 0 32 40" aria-label="생일 고깔모자"><path d="M16 5 L29 36 H3 Z" fill="#ff5fa2"/><path d="M11.6 15.5 H20.4 L22.9 21.5 H9.1 Z" fill="#ffd43b"/><path d="M7.3 25.7 H24.7 L27.2 31.7 H4.8 Z" fill="#4dabf7"/><path d="M2.5 36 H29.5" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="5" r="4" fill="#ffd43b" stroke="#fff" stroke-width="1"/></svg>';
-function bdayCheck() {                                      // 생일 하루 전 · 당일: 화면을 열 때마다 · 로그인할 때 바로 축하 팝업 ('오늘 하루 안 보기' 를 누르면 그날은 안 뜸)
-  if (BD.shown || !BD.list.length || $('#bdpop')) return;
+function bdayCheck() {                                      // 생일 하루 전 · 당일: html 을 켤 때마다 · 로그인할 때마다 축하 팝업 — 그 사용자가 '오늘 하루 안 보기' 를 누르기 전까지
+  if (bdUid() === BD.shownFor || !BD.list.length || $('#bdpop')) return;   // 같은 화면·같은 사용자에게는 한 번 (1분 자동 갱신 때 다시 안 뜸)
   const t = new Date(), tm = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1), today = bdOn(t), tom = bdOn(tm);
   if (!today.length && !tom.length) return;
-  const key = `${ymd(t)}|${[...today, ...tom].map(b => b.name).join(',')}`;
-  try { if (localStorage.getItem(LS_BDHIDE) === key) return; } catch (_) {}
-  BD.shown = true; showBdayPop(today, tom, key);
+  const key = `${ymd(t)}|${[...today, ...tom].map(b => b.name).join(',')}|${bdUid()}`;   // 사용자마다 따로 (같은 PC 를 여러 명이 써도)
+  if (bdHidden().includes(key)) return;
+  BD.shownFor = bdUid(); showBdayPop(today, tom, key);
 }
 function showBdayPop(today, tom, hideKey) {
   const tm = new Date(); tm.setDate(tm.getDate() + 1);
@@ -4186,9 +4189,9 @@ function showBdayPop(today, tom, hideKey) {
   el.innerHTML = `<canvas></canvas><div class="bdcard" aria-label="생일 축하"><div class="bdcake">🎂</div>${ln(today, '오늘은', '🥳')}${ln(tom, `내일(${tm.getMonth() + 1}/${tm.getDate()})은`, '🎈')}<div class="bdbtns"><button class="btn pri" data-bdclose>축하합니다! 🎉</button>${hideKey ? '<button class="btn" data-bdhide>오늘 하루 안 보기</button>' : ''}</div></div>`;
   document.body.appendChild(el); el.showModal();
   const stop = fireworks(el.querySelector('canvas'));
-  el.addEventListener('close', () => { stop(); el.remove(); });
+  el.addEventListener('close', () => { if (el.open) return; stop(); el.remove(); });   // bdRaise 로 다시 연 경우는 그대로
   el.onclick = e => {
-    if (e.target.closest('[data-bdhide]')) { try { localStorage.setItem(LS_BDHIDE, hideKey); } catch (_) {} return el.close(); }
+    if (e.target.closest('[data-bdhide]')) { try { localStorage.setItem(LS_BDHIDE, JSON.stringify([...bdHidden(), hideKey])); } catch (_) {} return el.close(); }
     if (e.target.closest('[data-bdclose]') || e.target === el) el.close();
   };
   el.querySelector('[data-bdclose]').focus();
@@ -4994,7 +4997,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
       OFFLINE = true; root = { name:'오프라인 (이 PC 보관본)' };
       if (AUTH) user = AUTH.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정으로 (서버 연결 시 토큰 재확인), 없으면 보기 전용
       try { await loadAll(); } catch (e) { toast(e.message, true); }
-      render(); showMyTodo(); if (BLOCKED) toast(BLOCKED, true); return;
+      render(); showMyTodo(); bdayCheck(); if (BLOCKED) toast(BLOCKED, true); return;   // 오프라인으로 연 파일: 보관 명단으로 생일 팝업
     }
     SERVER = false; API_BASE = ''; ADMIN = true; renderMenu(); renderHeader();
     $('#content').innerHTML = `<div class="card welcome"><h2>서버에 연결할 수 없습니다</h2>
@@ -5009,8 +5012,10 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
   await initFolderMode();
 })();
 async function startOnline() {
-  loadBirthdays().then(bdayCheck);                          // 생일 팝업: 로그인 창보다 먼저, 기다리지 않고
-  user = ''; await authStart();                             // 서버 모드: 로그인 / 계정 개설 / 비회원
+  const bdp = loadBirthdays();                               // 생일 명단: 기다리지 않고 미리 받음
+  if (AUTH) bdp.then(bdayCheck);                            // 저장된 로그인으로 들어오면 바로 팝업
+  user = ''; await authStart();
+  bdp.then(bdayCheck);                                      // 로그인 화면에서 로그인(또는 비회원 보기)한 뒤 팝업 — 그 사용자에게 아직 안 보였으면                             // 서버 모드: 로그인 / 계정 개설 / 비회원
   await refreshPerms();
   try { await loadAll(); } catch (e) { toast('불러오기 실패: ' + e.message, true); }
   render();
