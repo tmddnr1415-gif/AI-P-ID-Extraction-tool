@@ -2,6 +2,7 @@
 분석이 GIL 을 오래 쥐면 화면 요청이 늦어진다)."""
 from __future__ import annotations
 
+import json
 import sys
 import time
 import traceback
@@ -11,11 +12,17 @@ from pathlib import Path
 def _prerender(d: Path, res: dict):
     """인식한 시트의 장 그림을 미리 그린다 — 실패해도 분석 결과는 그대로다 (요청 때 다시 그린다)."""
     from app.logic import store
-    for s in res.get("sheets", []):
-        try:
-            store.page_png(d, s["page"])
-        except Exception:
-            return
+    try:
+        import pymupdf
+        doc = pymupdf.open(d / "source.pdf")
+    except Exception:
+        return
+    with doc:
+        for s in res.get("sheets", []):
+            try:
+                store.page_png(d, s["page"], doc=doc)
+            except Exception:
+                return
 
 
 def _note(d: Path, st: dict):
@@ -67,7 +74,10 @@ def run(d: Path):
         st.update({"state": "done", "sheets": len(res["sheets"]), "seconds": res["seconds"], "stage": "", "error": "",
                    "pages": res.get("pdf_pages")})
         try:                                         # L24 — 식별률을 끝날 때 한 번 센다 (조용한 실패를 첫 화면에서 말한다)
-            from app.logic import fromto, idrate
+            from app.logic import aops, fromto, idrate
+            _bp = {s["page"]: s for s in res["sheets"]}
+            for _pg in aops.identify(res["sheets"]):  # L30 — 화면이 결과를 읽을 때와 같은 이름 (아날로그 연산자 · 표시등)
+                _bp[_pg]["findings"] = analyse._findings(_bp[_pg])
             fromto.check(res["sheets"])
             m = idrate.measure(res)
             st.update({"idrate": m["overall"], "idrate_low": m["low"]})
@@ -87,5 +97,18 @@ def run(d: Path):
     _final(d, st)
 
 
+def prerender_missing(d: Path):
+    """L31 — 그림이 아직 없는 시트만 그린다 (L7 이전 분석 · 미리 그리기가 중간에 끊긴 분석).  서버와 따로 돌아
+    화면 요청을 막지 않는다.  이미 있는 그림은 건드리지 않는다."""
+    try:
+        res = json.loads((d / "result.json").read_text(encoding="utf-8"))
+    except Exception:
+        return
+    _prerender(d, res)
+
+
 if __name__ == "__main__":
-    run(Path(sys.argv[1]))
+    if len(sys.argv) > 2 and sys.argv[1] == "--pages":
+        prerender_missing(Path(sys.argv[2]))
+    else:
+        run(Path(sys.argv[1]))

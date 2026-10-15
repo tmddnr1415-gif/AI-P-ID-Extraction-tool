@@ -9,6 +9,7 @@ DB 를 쓰지 않는다 — 기존 표에 손대지 않고(지시문 §3), 이 �
 """
 from __future__ import annotations
 
+import gc
 import json
 import os
 import re
@@ -137,19 +138,37 @@ def drop_partial(d: Path):
         pass
 
 
-_RES = {}
+from collections import OrderedDict
+
+RES_KEEP = 3                   # L28 — 메모리에 들고 있는 결과 수 (846쪽 묶음 하나가 파이썬 객체로 약 200MB) · 가장 오래 안 본 것부터 놓는다
+_RES = OrderedDict()
+_RES_LOCK = __import__("threading").Lock()
 
 
 def read_result(d: Path) -> dict:
     p = d / "result.json"
     st = p.stat().st_mtime
-    hit = _RES.get(str(p))
+    key = str(p)
+    hit = _RES.get(key)
     if hit and hit[0] == st:
+        try:
+            _RES.move_to_end(key)
+        except KeyError:
+            pass
         return hit[1]
-    res = json.loads(p.read_text(encoding="utf-8"))
-    if len(_RES) > 4:
-        _RES.clear()
-    _RES[str(p)] = (st, res)
+    with _RES_LOCK:                # 두 요청이 같은 37MB 를 동시에 읽지 않게 (화면은 열 때 요청 대여섯을 함께 보낸다)
+        hit = _RES.get(key)
+        if hit and hit[0] == st:
+            return hit[1]
+        res = json.loads(p.read_text(encoding="utf-8"))
+        # L29 — 846쪽 결과는 파이썬 객체 수십만 개다.  순환 참조가 없는 나무라 쓰레기 수거기(GC)가 훑을 일이 없는데,
+        # 그대로 두면 큰 수거 때마다 전부 훑어 화면 요청이 0.8초씩 멈췄다 — 영구 세대로 옮긴다 (놓으면 참조 수로 그대로 풀린다)
+        gc.collect(1)
+        gc.freeze()
+        _RES[key] = (st, res)
+        _RES.move_to_end(key)
+        while len(_RES) > RES_KEEP:
+            _RES.popitem(last=False)
     return res
 
 
@@ -165,14 +184,16 @@ def jobs() -> list:
     return out
 
 
-def page_png(d: Path, page: int) -> Path:
-    """장 그림 캐시 파일 — 없으면 그린다 (api 가 요청 때, run 이 분석 끝에 미리).  임시 파일 → replace."""
+def page_png(d: Path, page: int, doc=None) -> Path:
+    """장 그림 캐시 파일 — 없으면 그린다 (api 가 요청 때, run 이 분석 끝에 미리).  임시 파일 → replace.
+    doc — 여러 장을 그릴 때 PDF 를 한 번만 연다 (L28 · 846쪽 묶음에서 장마다 다시 열던 것)."""
     import pymupdf
     cache = d / "pages" / f"p{page}_z{ZOOM}.png"
     if cache.exists():
         return cache
     cache.parent.mkdir(exist_ok=True)
-    doc = pymupdf.open(d / "source.pdf")
+    if doc is None:
+        doc = pymupdf.open(d / "source.pdf")
     if not (1 <= page <= len(doc)):
         raise IndexError(page)
     pix = doc[page - 1].get_pixmap(matrix=pymupdf.Matrix(ZOOM, ZOOM), alpha=False)

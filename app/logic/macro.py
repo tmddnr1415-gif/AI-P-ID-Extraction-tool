@@ -25,12 +25,22 @@ PAIR_MIN = 0.42          # 단자 ↔ 행 점수 하한
 
 
 def _norm(t):
+    return _norm_s(t or "") if isinstance(t, str) or not t else re.sub(r"[^A-Z0-9]", "", (t or "").upper())
+
+
+@lru_cache(maxsize=65536)
+def _norm_s(t):                 # L28 — 같은 단자 이름 · 행 설명을 수십만 번 다시 다듬었다 (값은 같다)
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
 def _skel(t):
     """O/0 · I/1 을 같은 글자로 — 선으로 그린 글자는 둘을 자주 바꿔 읽는다 (CMD0 ↔ CMDO)."""
-    return _norm(t).replace("0", "O").replace("1", "I")
+    return _skel_s(t or "") if isinstance(t, str) or not t else _norm(t).replace("0", "O").replace("1", "I")
+
+
+@lru_cache(maxsize=65536)
+def _skel_s(t):
+    return _norm_s(t).replace("0", "O").replace("1", "I")
 
 
 def _lev(a, b):

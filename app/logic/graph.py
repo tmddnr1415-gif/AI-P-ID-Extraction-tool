@@ -56,6 +56,48 @@ def _rect_edge(p, r, tol):
     return side if dd <= tol else None
 
 
+# ------------------------------------------------------------------ L28 — 점 근처 후보만 (같은 판정 · 덜 센다)
+
+class _BoxIndex:
+    """(사각형, 물건) 목록을 격자 칸에 넣어 둔다 — 점 하나에 닿을 수 있는 물건만 돌려준다.  사각형은 부르는 쪽이
+    판정 허용치만큼 넓혀 넣는다 (그 밖의 물건은 판정이 언제나 거짓이다 — 그래서 결과가 같다)."""
+
+    def __init__(self, items, cell=40.0):
+        self.cell, self.items, self.g = cell, items, defaultdict(list)
+        for k, (b, _) in enumerate(items):
+            for gx in range(math.floor(b[0] / cell), math.floor(b[2] / cell) + 1):
+                for gy in range(math.floor(b[1] / cell), math.floor(b[3] / cell) + 1):
+                    self.g[(gx, gy)].append(k)
+
+    def near(self, q):
+        ks = self.g.get((math.floor(q[0] / self.cell), math.floor(q[1] / self.cell)))
+        return [self.items[k][1] for k in ks] if ks else []
+
+
+def _edge_box(b, tol):
+    """_block_edge 가 참일 수 있는 자리 — 상자는 칸들을 감싼 사각형, 원은 원을 감싼 사각형 (허용치만큼 넓힘)."""
+    if b.kind == "RECT":
+        if not b.cells:
+            return None
+        return (min(c[0] for c in b.cells) - tol, min(c[1] for c in b.cells) - tol,
+                max(c[2] for c in b.cells) + tol, max(c[3] for c in b.cells) + tol)
+    c = b.circle
+    return (c.cx - c.r - tol, c.cy - c.r - tol, c.cx + c.r + tol, c.cy + c.r + tol)
+
+
+def _block_index(blocks, tol):
+    return _BoxIndex([(bx, b) for b in blocks for bx in [_edge_box(b, tol)] if bx is not None])
+
+
+def _seg_index(segs, tol):
+    return _BoxIndex([((min(w.x0, w.x1) - tol, min(w.y0, w.y1) - tol, max(w.x0, w.x1) + tol, max(w.y0, w.y1) + tol), w)
+                      for w in segs])
+
+
+def _rect_index(rects_of, tol):
+    return _BoxIndex([((r[0] - tol, r[1] - tol, r[2] + tol, r[3] + tol), a) for a, r in rects_of])
+
+
 # ------------------------------------------------------------------ 결과 구조
 
 @dataclass
@@ -343,10 +385,12 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     # 블록 사이를 잇는 짧은 토막 — 글자 크기라도 두 끝이 다 블록 · 화살촉 · 선에 닿으면 선이다
     wire_segs0 = [sg for p in wires for sg in p.segs]
 
+    bix, aix, wix = _block_index(blocks, tol), _rect_index([(a, a.bbox) for a in arrows], tol), _seg_index(wire_segs0, tol)
+
     def anchored(q):
-        return (any(_block_edge(q, b, tol) for b in blocks) or
-                any(_in_rect(q, a.bbox, tol) for a in arrows) or
-                any(_on_seg(q, w, tol)[0] for w in wire_segs0))
+        return (any(_block_edge(q, b, tol) for b in bix.near(q)) or
+                any(_in_rect(q, a.bbox, tol) for a in aix.near(q)) or
+                any(_on_seg(q, w, tol)[0] for w in wix.near(q)))
     for p in list(glyphs):
         if len(p.segs) != 1 or not (p.segs[0].vert or p.segs[0].horiz):
             continue
@@ -1197,8 +1241,21 @@ def _drop_dashed_frames(dashed, span, tol, P):
             i = par[i]
         return i
     ends = [[q for sg in p.segs for q in sg.ends()] for p in dashed]
+    # L28 — 모든 짝의 모든 끝을 견주지 않는다: P 칸 격자에서 이웃 칸의 끝만 (같은 판정 식 · 같은 무리)
+    egrid = defaultdict(set)
+    for i, es in enumerate(ends):
+        for a in es:
+            egrid[(math.floor(a[0] / P), math.floor(a[1] / P))].add(i)
     for i in range(len(dashed)):
-        for j in range(i + 1, len(dashed)):
+        near = set()
+        for a in ends[i]:
+            gx, gy = math.floor(a[0] / P), math.floor(a[1] / P)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    near |= egrid.get((gx + dx, gy + dy), set())
+        for j in sorted(near):
+            if j <= i:
+                continue
             if any(_d(a, b) <= P for a in ends[i] for b in ends[j]):     # 틀 위 단자 원(< P)이 끊은 자리도 잇는다
                 par[f(i)] = f(j)
     groups = defaultdict(list)
@@ -1263,9 +1320,15 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             par[i] = par[par[i]]
             i = par[i]
         return i
+    tix, tbx, tmemo = _rect_index([(a, a.bbox) for a in arrows], tol), _block_index(blocks, tol), {}
+
     def term(q):
         # 화살촉 · 블록 변에 닿은 끝은 거기서 끝난다 — 건너뛰어 잇지 않는다
-        return any(_in_rect(q, a.bbox, tol) for a in arrows) or any(_block_edge(q, b, tol) for b in blocks)
+        k = (q[0], q[1])
+        if k not in tmemo:
+            tmemo[k] = (any(_in_rect(q, a.bbox, tol) for a in tix.near(q)) or
+                        any(_block_edge(q, b, tol) for b in tbx.near(q)))
+        return tmemo[k]
 
     grid = defaultdict(list)
     for idx, (q, k, ax, L) in enumerate(ends):

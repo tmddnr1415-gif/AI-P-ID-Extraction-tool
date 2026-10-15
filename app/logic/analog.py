@@ -112,16 +112,60 @@ def is_analog_block(b):
 
 
 def consumers(s, idx):
+    return _topo(s, idx)["feeds"]
+
+
+def _consumers(s, idx):
     """아날로그 값을 받는 넷 — 감시 블록 · 아날로그 블록(MED · f(x) …)의 입력."""
+    from . import aops
     ins = idx[0]
-    out = set()
+    out, dig = set(), set()
     for bid, b in s["blocks"].items():
         if monitor_kind(b) or is_analog_block(b):
             out.update(n for n, _, _ in ins[bid])
-    return out
+            if b.get("logic") == "unknown" and aops.op_of(b) == "transfer":
+                c = aops.cond_net(s, bid, idx)          # L30 — 전환(T)의 조건(Flag)은 1/0 이다 (아날로그 입력이 아니다)
+                if c is not None:
+                    dig.add(c)
+    return out - dig
+
+
+_TOPO = {}
+
+
+def _topo(s, idx):
+    """장마다 한 번 — 아날로그 배선(범위 · 값을 받는 선 · 연산자와 그 입출력).  장 사본(사람 값을 얹은 새 결과)이면
+    새로 센다 — 열쇠는 그 장의 블록 · 단자 객체 (L28 기억과 같은 규칙: 맞음에는 닿지 않고 같은 계산을 다시 안 한다)."""
+    from . import aops
+    B = s["blocks"]
+    # 범위 · 연산 판정이 읽는 칸의 지문 — 같은 장 객체를 제자리에서 고쳐도(범위를 적음 · 사람 값) 다시 센다
+    fp = repr(([(r["n"], r.get("net"), r.get("range"), r.get("range_user")) for r in s["rows"] if r["side"] == "L"],
+               [(bid, b.get("func"), b.get("logic"), b.get("label"), b.get("aop"),
+                 {k: v for k, v in (b.get("param") or {}).items() if k in _TOPO_PARAMS}) for bid, b in B.items()]))
+    k = (id(B), id(s["ports"]), id(s["rows"]))
+    hit = _TOPO.get(k)
+    if hit is not None and hit[0] is B and hit[1] is s["ports"] and hit[2] is s["rows"] and hit[4] == fp:
+        return hit[3]
+    ops = {bid: aops.op_of(b) for bid, b in B.items() if b.get("logic") == "unknown"}
+    ops = {bid: op for bid, op in ops.items() if op}
+    io = {bid: aops._io(s, bid, idx) for bid in ops}
+    data = {"nr": _ranges(s, idx), "feeds": _consumers(s, idx), "ops": ops, "io": io,
+            "side": {(p["block"], p["net"]): p.get("side") for p in s["ports"]},
+            "sel": {bid: selector_of(b) for bid, b in B.items()}}
+    if len(_TOPO) > 512:
+        _TOPO.clear()
+    _TOPO[k] = (B, s["ports"], s["rows"], data, fp)
+    return data
+
+
+_TOPO_PARAMS = ("range", "range_user", "sp_unit", "a_user", "aop_fig", "pins")
 
 
 def ranges(s, idx):
+    return _topo(s, idx)["nr"]
+
+
+def _ranges(s, idx):
     """넷마다 공학 범위 — 입력 행(도면 · 사람) · 블록(사람)에서 시작해 아날로그 블록을 지나 퍼진다."""
     ins, outs = idx[0], idx[1]
     B = s["blocks"]
@@ -140,35 +184,63 @@ def ranges(s, idx):
         if monitor_kind(b) and str((b.get("param") or {}).get("sp_unit") or "").strip() == "%":
             for n, _, _ in ins[bid]:
                 nr.setdefault(n, {"lo": 0.0, "hi": 100.0, "unit": "%", "src": "percent"})
-    for _ in range(len(B) + 1):
-        moved = False
-        for bid, b in B.items():
-            if not is_analog_block(b) or any(n in nr for n, _, _ in outs[bid]):
-                continue
-            got = [(nr[n], side.get((bid, n))) for n, _, _ in ins[bid] if n in nr]
-            if not got:
-                continue
-            same = all((g[0]["lo"], g[0]["hi"]) == (got[0][0]["lo"], got[0][0]["hi"]) for g in got)
-            rg = got[0][0] if same else next((g[0] for g in got if g[1] == "L"), got[0][0])
-            for n, _, _ in outs[bid]:
-                nr[n] = rg
-            moved = True
-        if not moved:
-            break
+    from . import aops
+
+    def spread():
+        for _ in range(len(B) + 1):
+            moved = False
+            for bid, b in B.items():
+                if not is_analog_block(b) or any(n in nr for n, _, _ in outs[bid]):
+                    continue
+                op = aops.op_of(b) if b.get("logic") == "unknown" else None
+                if op and op not in aops.SAME_UNIT:
+                    continue                                 # L30 — 곱 · 나눗셈 · 수식 … 은 단위가 바뀐다
+                got = [(nr[n], side.get((bid, n))) for n, _, _ in ins[bid] if n in nr]
+                if not got:
+                    continue
+                same = all((g[0]["lo"], g[0]["hi"]) == (got[0][0]["lo"], got[0][0]["hi"]) for g in got)
+                rg = got[0][0] if same else next((g[0] for g in got if g[1] == "L"), got[0][0])
+                for n, _, _ in outs[bid]:
+                    nr[n] = rg
+                moved = True
+            if not moved:
+                break
+    spread()
+    # L30 — 연산자(Σ · ÷ · × · T · 수식 …)에 들어오는 값의 범위를 도면이 말하지 않으면 4~20 mA 의 정의대로 신호 % (0~100 %).
+    # 계장 신호의 뜻 그 자체라 지어낸 값이 아니다 — 'span' 으로 표시하고, 단위가 다른 감시 설정값과는 맞대지 않는다.
+    more = False
+    driven = {n for bid in B for n, _, _ in outs[bid]}          # 블록이 모는 선은 그 블록이 범위를 정한다 (물려받거나 없음)
+    for bid, b in B.items():
+        op = aops.op_of(b) if b.get("logic") == "unknown" else None
+        if op and op != "const" and not selector_of(b):
+            cn = aops.cond_net(s, bid, idx) if op == "transfer" else None
+            for n, _, _ in ins[bid]:
+                if n == cn or n in driven:
+                    continue
+                if n not in nr:
+                    nr[n] = dict(SPAN)
+                    more = True
+    if more:
+        spread()
     return nr
 
 
-def nets(s, given, idx):
+SPAN = {"lo": 0.0, "hi": 100.0, "unit": "%", "src": "span"}
+
+
+def nets(s, given, idx, dig=None, detail=None):
     """사람이 준 값 {"block:<id>"|"row:<n>": mA | {"eng": 공학값}} → ({넷: 공학값}, {블록: 공학값}, {키: 정보}).
 
     아날로그 값을 받는 입력 행은 사람이 안 주면 기본 8 mA (범위를 알 때만 공학값이 선다).
-    선택 블록(MED …)은 값을 안 받았으면 입력이 **모두** 정해졌을 때만 범례 이름대로 계산한다 (하나라도 모르면 모름)."""
+    선택 블록(MED …)은 값을 안 받았으면 입력이 **모두** 정해졌을 때만 범례 이름대로 계산한다 (하나라도 모르면 모름).
+    L30 — 그 밖의 아날로그 연산자(Σ · ÷ · × · A · T · 수식 …)는 aops.compute 가 범례 식대로 계산한다.
+    dig = {넷: 1/0} — 전환(TRANSFER) 조건 · detail = {} 를 주면 연산자마다 입력 · 출력 · 이유를 담는다 (화면 근거)."""
+    from . import aops
     ins, outs = idx[0], idx[1]
     B = s["blocks"]
     given = dict(given or {})
-    nr = ranges(s, idx)
-    feeds = consumers(s, idx)
-    side = {(p["block"], p["net"]): p.get("side") for p in s["ports"]}
+    tp = _topo(s, idx)
+    nr, feeds, side, sel = tp["nr"], tp["feeds"], tp["side"], tp["sel"]
     net_v, blk_v, keys = {}, {}, {}
 
     def put(key, raw, rg, src):
@@ -206,22 +278,58 @@ def nets(s, given, idx):
             blk_v[x] = v
             for n, _, _ in outs[x]:
                 net_v[n] = v
+    for k, raw in given.items():
+        kind, _, x = str(k).partition(":")
+        if kind != "net" or x not in s["nets"]:
+            continue
+        eng = num(raw.get("eng")) if isinstance(raw, dict) else num(raw)
+        if eng is not None:                                 # L30 — 연산자 판에서 사람이 그 입력선에 공학값을 바로 넣음
+            rg = nr.get(x)
+            keys[k] = {"ma": to_ma(eng, rg) if rg else None, "eng": eng, "range": rg, "src": "user"}
+            net_v[x] = eng
+    ops, io = tp["ops"], tp["io"]
+    dig_out = {}
+
+    user_nets = {str(k)[4:] for k in given if str(k).startswith("net:")}
+
+    def emit(bid, v, src, out_nets):
+        out_nets = [n for n in out_nets if n not in user_nets]      # 사람이 그 선에 넣은 값이 이긴다
+        blk_v[bid] = round(v, 6)
+        rg = next((nr[n] for n in out_nets if n in nr), None)
+        ma = to_ma(blk_v[bid], rg) if rg else None
+        if src == "op" and ma is not None and not (MA_LO - 0.8 <= ma <= MA_HI + 0.8):
+            ma = None                                   # 연산 결과가 신호 범위를 벗어났다 — mA 로 말하지 않는다
+        keys[f"block:{bid}"] = {"ma": ma, "eng": blk_v[bid], "range": rg, "src": src}
+        for n in out_nets:
+            net_v[n] = blk_v[bid]
+
     for _ in range(len(B) + 1):
         moved = False
         for bid, b in B.items():
-            if bid in blk_v:
+            if bid in blk_v or bid in dig_out:
                 continue
-            how = selector_of(b)
+            how = sel[bid]
+            op = ops.get(bid)
+            if not how and op and not (op == "fx" and not aops.params(b).get("table")):
+                ii = io[bid][0]
+                if aops.is_digital(op):
+                    d = _dev(b, ii, net_v)
+                    if d is not None:
+                        dig_out[bid] = d
+                        moved = True
+                    continue
+                v, _why = aops.compute(op, b, ii, net_v, dig)
+                if v is not None and isinstance(v, float) and (v != v or abs(v) >= 1e12):
+                    v = None                                 # 너무 큰 값 · 계산 불가 — 근거 패널이 말한다
+                if v is not None:
+                    emit(bid, v, "op", io[bid][1])
+                    moved = True
+                continue
             if not how and is_analog_block(b) and ins[bid]:
                 # 보정 함수(f(x)) 같은 블록 — 계산식은 도면이 말하지 않는다.  왼쪽(주 입력) 값이 하나뿐이면 그대로 넘긴다
                 main = [net_v.get(n) for n, _, _ in ins[bid] if side.get((bid, n)) == "L"]
                 if len(main) == 1 and main[0] is not None:
-                    blk_v[bid] = main[0]
-                    rg = next((nr[n] for n, _, _ in outs[bid] if n in nr), None)
-                    keys[f"block:{bid}"] = {"ma": to_ma(main[0], rg) if rg else None, "eng": main[0], "range": rg,
-                                            "src": "pass"}
-                    for n, _, _ in outs[bid]:
-                        net_v[n] = main[0]
+                    emit(bid, main[0], "pass", [n for n, _, _ in outs[bid]])
                     moved = True
                 continue
             if not how or not ins[bid]:
@@ -229,15 +337,43 @@ def nets(s, given, idx):
             vs = [net_v.get(n) for n, _, _ in ins[bid]]
             if any(v is None for v in vs):
                 continue
-            blk_v[bid] = round(_calc(how, vs), 6)
-            rg = next((nr[n] for n, _, _ in outs[bid] if n in nr), None)
-            keys[f"block:{bid}"] = {"ma": to_ma(blk_v[bid], rg) if rg else None, "eng": blk_v[bid], "range": rg, "src": "calc"}
-            for n, _, _ in outs[bid]:
-                net_v[n] = blk_v[bid]
+            emit(bid, _calc(how, vs), "calc", [n for n, _, _ in outs[bid]])
             moved = True
         if not moved:
             break
+    if detail is not None:
+        for bid, op in ops.items():
+            b = B[bid]
+            ii = io[bid][0]
+            if aops.is_digital(op):
+                why = "" if bid in dig_out else ("입력 둘의 값과 편차 D 를 알아야 합니다" if aops.params(b).get("d") is None
+                                                  else "입력 둘의 값을 다 알아야 합니다")
+            elif bid in blk_v:
+                why = aops.compute(op, b, ii, net_v, dig)[1] if not selector_of(b) else ""
+                if keys.get(f"block:{bid}", {}).get("src") == "user":
+                    why = "사람이 넣은 값 (mA)"
+            else:
+                v0, why = aops.compute(op, b, ii, net_v, dig) if not selector_of(b) else (None, "입력 값을 다 모르면 계산하지 않습니다")
+                if v0 is not None and not why:
+                    why = "계산 값이 너무 큽니다 — 입력 값 · 범위를 확인해 주세요 (값 %.3g)" % v0
+            nfo = aops.info(op)
+            detail[bid] = {"op": op, "ko": nfo.get("ko", op), "eq": nfo.get("eq", ""),
+                           "inputs": [{"net": str(n), "pin": (pn or {}).get("name", ""), "coef": (pn or {}).get("coef"),
+                                       "value": net_v.get(n)} for n, pn in ii],
+                           "outputs": [str(n) for n in io[bid][1]],
+                           "out": blk_v.get(bid), "dig": dig_out.get(bid), "why": why,
+                           "params": aops.params(b), "cond": aops._cond(ii) if op == "transfer" else None}
     return net_v, blk_v, keys
+
+
+def _dev(b, ii, net_v):
+    """범례 DEVIATION — |X1 − X2| > D 이면 1 (같으면 0).  D 는 도면(옆 'D : 5') · 사람 값.  모르면 None."""
+    from . import aops
+    vals = [net_v.get(n) for n, pn in ii if not (pn and pn["name"] in ("FLAG", "C", "COND", "TR", "TRK"))]
+    d = aops.params(b).get("d")
+    if len(vals) < 2 or any(v is None for v in vals[:2]) or d is None:
+        return None
+    return 1 if abs(vals[0] - vals[1]) > float(d) else 0
 
 
 def monitors(s, net_v, idx, nr=None):
@@ -253,6 +389,9 @@ def monitors(s, net_v, idx, nr=None):
         sp, src = setpoint(b)
         p = b.get("param") or {}
         rg = next((nr[n] for n, _, _ in ins[bid] if n in nr), None)
+        unit = str(p.get("sp_unit") or "").strip()
+        if rg and rg.get("src") == "span" and unit not in ("", "%"):
+            v = None                                     # 신호 % 와 barg 같은 단위는 맞대지 않는다 — 범위를 적으면 맞댄다
         out.append({"block": bid, "label": b.get("label") or "", "kind": k[0], "value": v, "sp": sp, "sp_src": src,
                     "sp_drawing": num(p.get("sp")) if p.get("sp") is not None else None,
                     "sp_label": p.get("sp_label") or "", "level": p.get("sp_level") or k[1],
@@ -379,13 +518,14 @@ def read_drawing(pdf_path, sheets):
     자리: 블록 위 변에서 블록 높이 두 배 안 · 가로로 블록과 겹치는(블록 폭만큼 넓힌) 진짜 글자 줄.  그 줄의 첫 낱말이
     수일 때만 — 수가 아니면 설정값이 아니다.  글자가 선으로 그려진 묶음(HRSG)은 낱말이 없어 아무것도 얹지 않는다.
     → 얹은 블록 수"""
-    from . import geom
+    from . import geom, aops
     want = {}
     for s in sheets:
         if s.get("page", 0) <= 0:
             continue
         mons = [(bid, b) for bid, b in s["blocks"].items() if monitor_kind(b) and b.get("bbox")]
-        if mons or any(is_analog_block(b) for b in s["blocks"].values()):
+        if mons or any(is_analog_block(b) or aops.op_of(b) or (b.get("func") == "UNKNOWN" and not (b.get("label") or b.get("read")))
+                       for b in s["blocks"].values()):
             want[s["page"]] = (s, mons)
     if not want:
         return 0
@@ -395,12 +535,22 @@ def read_drawing(pdf_path, sheets):
     except Exception:
         return 0
     n = 0
+    figs = None
     with doc:
         for page, (s, mons) in want.items():
             if page - 1 >= len(doc):
                 continue
+            if any(b.get("func") == "UNKNOWN" and not (b.get("label") or b.get("read")) for b in s["blocks"].values()):
+                if figs is None:
+                    from . import library
+                    try:
+                        figs = library.load()["figures"]
+                    except Exception:
+                        figs = []
+                n += aops.read_figures(s, doc[page - 1], figs)   # L30 — 글자 없이 그림만 든 연산자 (△ · ∫ …)
             ws = geom.words(doc[page - 1])
             n += _read_ranges(s, ws)
             for bid, b in mons:
                 n += _read_setpoint(b, ws)
+            n += aops.read_pins(s, ws)                  # L30 — 연산자 입력 이름(IN1 · IN2 : -1 · + · −) · 옆 상수(A : 5%)
     return n

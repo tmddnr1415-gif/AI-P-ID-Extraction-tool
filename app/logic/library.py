@@ -290,6 +290,7 @@ def summary() -> dict:
 
 
 _BACKFILL = {"started": False}
+BACKFILL_PAUSE = 0.5
 
 
 def backfill_async():
@@ -310,6 +311,9 @@ def backfill_async():
                     learn_from_result(res, d, j.get("name") or j["id"], job=j["id"])
                 except Exception:
                     continue
+                finally:
+                    res = None
+                time.sleep(BACKFILL_PAUSE)         # L29 — 한 묶음씩 쉬어 가며 — 그동안 화면 요청이 먼저 돈다
         except Exception:
             pass
     threading.Thread(target=work, daemon=True).start()

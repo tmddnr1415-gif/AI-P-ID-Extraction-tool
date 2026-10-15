@@ -1,6 +1,8 @@
 """LOGIC 검토 API — /logic (화면) · /logic/api/* (데이터).  main.py 는 이 라우터를 붙이기만 한다."""
 from __future__ import annotations
 
+import json
+
 import shutil
 import subprocess
 import sys
@@ -14,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import analog, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
+from . import analog, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -281,12 +283,28 @@ def fromto_report(job: str):
 _APPLIED = {}                    # job → (결과 mtime, 사람 값 mtime, 사람 값을 얹은 결과) — L22
 
 
+_RESULT_LOCK = threading.RLock()   # L28 — 화면이 열 때 요청 대여섯을 함께 보낸다 · 같은 결과를 동시에 준비(설정값 · from-to · 사람 값)하지 않게
+
+
 def _result(job):
+    with _RESULT_LOCK:
+        return _result_locked(job)
+
+
+def _lru_put(cache, key, value, keep=3):
+    cache.pop(key, None)
+    cache[key] = value
+    while len(cache) > keep:
+        cache.pop(next(iter(cache)))
+
+
+def _result_locked(job):
     d = _dir(job)
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
     res = store.read_result(d)
-    _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이)
+    _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이) · L30 연산자 입력 이름 · 안 그림
+    _identify(res)                           # L30 — 아날로그 연산자 · 표시등 이름 (다시 분석 없이 · 결과마다 한 번)
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
         fromto.check(res["sheets"])
         res["_ft"] = True
@@ -294,6 +312,8 @@ def _result(job):
     # L25 — 다른 묶음에서 사람이 가르친 게이트 규칙(학습 사전)도 얹는다 (그 묶음의 규칙이 이기고, 블록 하나를 정한 것이 더 이긴다)
     lm = library.mtime()
     lib_rules = _lib_rules(lm, job)
+    # L29 — 사전 파일이 바뀌어도(다른 묶음을 배움) 이 묶음에 닿는 규칙이 같으면 캐시를 버리지 않는다 — 열쇠는 규칙 내용
+    lm = _rules_key(lib_rules)
     om = overrides.mtime(d)
     if om is None and not lib_rules:
         _APPLIED.pop(job, None)
@@ -303,21 +323,29 @@ def _result(job):
     if hit and hit[0] == rm and hit[1] == om and hit[3] == lm:
         return hit[2]
     ov = overrides.load(d) if om is not None else overrides.empty()
-    if not overrides.has_any(ov) and not _lib_hits(res, lib_rules):
+    if not overrides.has_any(ov) and not _memo(res, "libhits", lambda: _lib_hits(res, lib_rules), lm):
         return res
-    import json as _json
-    fresh = _json.loads((d / "result.json").read_text(encoding="utf-8"))
-    _drawing_sp(job, d, fresh)
+    # L28 — 37MB 결과를 통째로 다시 읽지 않는다: 사람 값이 고치는 칸(블록 · 단자 · 행 · 점검)만 복사한 사본에 얹는다
+    # (원본 캐시는 그대로 — 시험이 원본 불변과 '다시 읽어 얹은 것과 같음' 을 못박는다)
+    fresh = overrides.working_copy(res)
     overrides.apply(fresh, ov, lib_rules)
     fresh["_ft"] = True
-    if len(_APPLIED) > 3:
-        _APPLIED.clear()
-    _APPLIED[job] = (rm, om, fresh, lm)
+    _lru_put(_APPLIED, job, (rm, om, fresh, lm))
     return fresh
 
 
 _LIB_RULES = {}
 _SP = {}
+
+
+def _identify(res):
+    if res.get("_aop"):
+        return
+    from .analyse import _findings
+    by_page = {s["page"]: s for s in res["sheets"]}
+    for pg in aops.identify(res["sheets"]):
+        by_page[pg]["findings"] = _findings(by_page[pg])
+    res["_aop"] = True
 
 
 def _drawing_sp(job, d, res):
@@ -330,17 +358,10 @@ def _drawing_sp(job, d, res):
         rm = None
     hit = _SP.get(job)
     if hit is None or hit[0] != rm:
-        probe = __import__("json").loads((d / "result.json").read_text(encoding="utf-8")) if rm else {"sheets": []}
-        analog.read_drawing(d / "source.pdf", probe["sheets"])
-        got = {}
-        for s in probe["sheets"]:
-            for bid, b in s["blocks"].items():
-                p = b.get("param") or {}
-                if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
-                    got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
-            for r in s["rows"]:
-                if r.get("range"):
-                    got[(s["page"], "row:%d" % r["n"])] = r["range"]
+        got = _sp_disk(d, rm)                # L28 — 한 번 읽은 설정값은 분석 폴더에 남긴다 (서버를 다시 켜도 PDF 를 다시 안 읽는다)
+        if got is None:
+            got = _sp_read(d, res) if rm else {}
+            _sp_save(d, rm, got)
         if len(_SP) > 6:
             _SP.clear()
         _SP[job] = hit = (rm, got)
@@ -355,6 +376,55 @@ def _drawing_sp(job, d, res):
                 if e:
                     r["range"] = dict(e)
     res["_sp"] = True
+
+
+SP_VERSION = "2.%d" % aops.IDENT_VERSION                   # L28 — analog.read_drawing 규칙을 바꾸면 올린다 (분석 폴더의 drawing_sp.json 을 다시 만든다)
+
+
+def _sp_read(d, res):
+    """감시 블록 · 입력 행에 도면이 인쇄한 값을 읽는다.  결과는 건드리지 않는다 — read_drawing 이 고치는
+    칸(블록 param · 행)만 얕게 복사한 가벼운 사본에 읽는다 (예전에는 result.json 을 통째로 다시 읽었다)."""
+    probe = []
+    for s in res["sheets"]:
+        probe.append({**s, "blocks": {k: {**b, "param": dict(b.get("param") or {})} for k, b in s["blocks"].items()},
+                      "rows": [dict(r) for r in s.get("rows", [])]})
+    analog.read_drawing(d / "source.pdf", probe)
+    got = {}
+    for s in probe:
+        for bid, b in s["blocks"].items():
+            p = b.get("param") or {}
+            if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
+                got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
+            elif any(k in p for k in ("pins", "a_const", "a_drawing", "aop_fig")):
+                got[(s["page"], bid)] = {k: p[k] for k in ("pins", "a_const", "a_drawing", "aop_fig") if k in p}
+        for r in s["rows"]:
+            if r.get("range"):
+                got[(s["page"], "row:%d" % r["n"])] = r["range"]
+    return got
+
+
+def _sp_disk(d, rm):
+    try:
+        x = __import__("json").loads((d / "drawing_sp.json").read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if x.get("rm") != rm or x.get("v") != SP_VERSION:
+        return None
+    return {(int(pg), k): v for pg, k, v in x.get("got") or []}
+
+
+def _sp_save(d, rm, got):
+    try:
+        store._atomic(d / "drawing_sp.json", __import__("json").dumps(
+            {"rm": rm, "v": SP_VERSION, "got": [[pg, k, v] for (pg, k), v in sorted(got.items(), key=lambda x: (x[0][0], x[0][1]))]},
+            ensure_ascii=False))
+    except Exception:
+        pass
+
+
+def _rules_key(rules):
+    return __import__("hashlib").blake2b(json.dumps(rules, sort_keys=True, default=str).encode(), digest_size=12).hexdigest() \
+        if rules else ""
 
 
 def _lib_rules(lm, job):
@@ -421,9 +491,72 @@ def _lib_png(job, page):
     return f
 
 
+def _memo(res, name, fn, *key):
+    """L28 — 결과 하나에 한 번만 센다 (사람 값을 고치면 결과가 새 사본이 되어 다시 센다)."""
+    m = res.setdefault("_memo", {})
+    k = json.dumps([name, *key], default=str)
+    if k not in m:
+        m[k] = fn()
+    return m[k]
+
+
 @router.get("/logic/api/jobs/{job}/sheets")
 def sheets(job: str):
     res = _result(job)
+    _warm_bundle(job, res)
+    _warm_pages(job, res)
+    return _memo(res, "sheets", lambda: _sheets_body(res))
+
+
+_PAGES_WARM = {}                  # job → 미리 그리기 프로세스 (서버 하나에 묶음마다 한 번)
+
+
+def _warm_pages(job, res):
+    """L31 — 그림이 아직 없는 시트가 있으면 따로 된 프로세스가 미리 그린다 — 시트를 처음 열 때 서버가 그 자리에서
+    그리느라(A3 한 장 0.2~0.3초) 기다리지 않게.  분석이 끝날 때 이미 다 그렸으면(L7) 아무 일도 안 한다."""
+    import os
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0" or job in _PAGES_WARM:
+        return
+    d = _dir(job)
+    have = {f.name for f in (d / "pages").glob("p*_z*.png")} if (d / "pages").is_dir() else set()
+    missing = [s for s in res["sheets"] if f"p{s['page']}_z{ZOOM}.png" not in have]
+    _PAGES_WARM[job] = None
+    if not missing:
+        return
+    if paths.frozen():
+        from .run import prerender_missing
+        threading.Thread(target=prerender_missing, args=(d,), daemon=True).start()
+        return
+    root = Path(__file__).resolve().parent.parent.parent
+    try:
+        _PAGES_WARM[job] = subprocess.Popen([sys.executable, "-m", "app.logic.run", "--pages", str(d)], cwd=str(root),
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+def _warm_bundle(job, res):
+    """L28 — 묶음을 열면 시뮬레이션 첫 계산(모든 장을 한 번)을 뒤에서 미리 해 둔다 — '동작 시뮬레이션' 을 처음
+    누를 때 기다리지 않게.  결과는 같은 기억에 들어갈 뿐이라 답은 그대로다."""
+    import os
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0":
+        return
+    cache = _bundle_cache(job, res)
+    if cache.get("topo") is not None or cache.get("_warming"):
+        return
+    cache["_warming"] = True
+
+    def go():
+        try:
+            with cache.setdefault("_lock", threading.Lock()):
+                if cache.get("topo") is None:
+                    sim.simulate_bundle(_all_sheets(res), {}, {}, None, cache=cache)
+        except Exception:
+            pass
+    threading.Thread(target=go, daemon=True).start()
+
+
+def _sheets_body(res):
     out = []
     for s in res["sheets"]:
         funcs = {}
@@ -449,7 +582,7 @@ def sheet(job: str, page: int):
 def findings(job: str):
     """묶음 전체의 점검 목록 — 장마다의 `findings` 를 한 줄로 편다 (새 판정 0 · 화면의 '묶음 점검' 이 읽는다)."""
     res = _result(job)
-    return report.findings(res["sheets"])
+    return _memo(res, "findings", lambda: report.findings(res["sheets"]))
 
 
 @router.get("/logic/api/jobs/{job}/report.xlsx")
@@ -526,6 +659,7 @@ def delete(job: str, author: str = ""):
     shutil.rmtree(d, ignore_errors=True)
     _SIZES.pop(job, None)
     _APPLIED.pop(job, None)
+    _BUNDLE.pop(job, None)
     return Response(status_code=204)
 
 
@@ -548,9 +682,59 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
-    out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=_analog(body.get("analog")))
-    out["default_t"] = sim.DEFAULT_T
-    return out
+    analog = _analog(body.get("analog"))
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        hit = _bundle_reuse(cache, forces, state, timers, analog)
+        if hit is None:
+            out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=analog, cache=cache)
+            hit = _bundle_keep(cache, forces, state, timers, analog, out)
+    body_json, results = hit
+    f = results.get(focus) if focus is not None else None
+    # 묶음 몸통은 한 번만 글로 바꿔 두고 화면이 보는 장의 결과만 그때 붙인다 (L31 — 846쪽 묶음 몸통 약 220KB)
+    return Response(b'{"focus":' + _dumps(f) + b"," + body_json[1:], media_type="application/json")
+
+
+BUNDLE_LAST = 4                   # L31 — 기억하는 묶음 계산 (입력 조합) 수
+
+
+def _bundle_inputs_key(forces, state, timers, analog):
+    return json.dumps([forces, state, timers, analog], sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _dumps(x) -> bytes:
+    """JSONResponse 와 같은 꼴 (FastAPI 의 jsonable_encoder 를 거치지 않는다 — 큰 dict 에서 수십 ms)."""
+    return json.dumps(x, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+
+
+def _bundle_keep(cache, forces, state, timers, analog, out):
+    """L31 — 시트를 옮길 때마다 묶음 전체를 다시 돌리지 않는다.  같은 입력(강제 · 상태 · 타이머 · 아날로그)이면 묶음의
+    답은 같고 달라지는 것은 화면이 보는 장(focus) 하나뿐이다 — 그 장의 결과는 지난 계산이 장마다 이미 냈다."""
+    results = cache.pop("_last_results", None) or {}
+    body = {k: v for k, v in out.items() if k != "focus"}
+    body["default_t"] = sim.DEFAULT_T
+    # 글로 바꿀 때 dict 열쇠(쪽 번호)가 글이 되는 것은 JSONResponse 와 같다.  장마다의 결과는 꺼낼 때 그때 글로 바꾼다 —
+    # 그래서 기억 안의 객체를 아무도 고치지 않는다.
+    hit = (_dumps(body), results)
+    _lru_put(cache.setdefault("_last", {}), _bundle_inputs_key(forces, state, timers, analog), hit, keep=BUNDLE_LAST)
+    return hit
+
+
+def _bundle_reuse(cache, forces, state, timers, analog):
+    return (cache.get("_last") or {}).get(_bundle_inputs_key(forces, state, timers, analog))
+
+
+_BUNDLE = {}                      # job → (결과 객체, 묶음 계산 기억) — L28 · 결과가 바뀌면(사람 값 · 다시 분석) 새로
+
+
+def _bundle_cache(job, res):
+    hit = _BUNDLE.get(job)
+    if hit is None or hit[0] is not res:
+        # 사람 값을 고쳐 결과가 새 사본이 되어도 장마다의 계산 기억은 넘겨준다 — 열쇠에 그 장의 내용 지문이 들어 있어
+        # 바뀐 장만 다시 센다 (sim._sheet_fp)
+        hit = (res, {"pages": hit[1].get("pages", {})} if hit else {})
+        _lru_put(_BUNDLE, job, hit, keep=2)
+    return hit[1]
 
 
 def _timers(raw):
@@ -579,6 +763,8 @@ def _analog(raw):
         for k, v in d.items():
             if isinstance(k, str) and k.split(":", 1)[0] in ("block", "row") and analog.ma_ok(v) is not None:
                 c[k] = analog.ma_ok(v)                      # L27 — 4~20 mA 밖의 값은 버린다
+            elif isinstance(k, str) and k.startswith("net:") and isinstance(v, dict) and analog.num(v.get("eng")) is not None:
+                c[k] = {"eng": analog.num(v["eng"])}         # L30 — 연산자 판에서 그 입력선에 공학값을 바로
         if c:
             out[int(pg)] = c
     return out
@@ -586,8 +772,24 @@ def _analog(raw):
 
 @router.get("/logic/api/jobs/{job}/memo")
 def memo_list(job: str):
-    """이 묶음의 메모 전부 (L8) — 화면이 장마다 거른다."""
-    return memo.load(_dir(job))
+    """이 묶음의 메모 전부 (L8) — 화면이 장마다 거른다.
+    L30 — 같은 프로젝트의 다른 분석(다른 Rev)에서 같은 시트 이름에 단 메모도 `others` 로 (P&ID hotfix63 — 장 메모는
+    도면번호로 Rev 사이에 이어진다).  읽기만 — 고치는 것은 그 분석에서."""
+    d = _dir(job)
+    out = memo.load(d)
+    st = store.read_status(d)
+    proj = st.get("project")
+    others = []
+    if proj:
+        for j in store.jobs():
+            if j.get("id") == job or j.get("project") != proj:
+                continue
+            for it in memo.load(store.job_dir(j["id"]))["items"]:
+                if it.get("sheet_no") and not it.get("hidden"):
+                    others.append({**it, "from_job": j["id"], "from_name": j.get("name") or j["id"],
+                                   "from_created": j.get("created") or ""})
+    out["others"] = others
+    return out
 
 
 @router.post("/logic/api/jobs/{job}/memo")
@@ -598,7 +800,7 @@ def memo_add(job: str, body: dict = Body(...)):
         raise HTTPException(400, "page 는 쪽 번호(정수)여야 합니다.")
     try:
         return memo.add(d, page, str(body.get("sheet_no") or ""), str(body.get("text") or ""),
-                        str(body.get("author") or ""), body.get("at"))
+                        str(body.get("author") or ""), body.get("at"), body.get("rect"), body.get("block"))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -773,6 +975,48 @@ def overrides_range(job: str, body: dict = Body(...)):
                     str(body.get("author") or ""))
 
 
+@router.post("/logic/api/jobs/{job}/sheet/{page}/aop")
+def sheet_aop(job: str, page: int, body: dict = Body(default={})):
+    """L30 — 아날로그 연산자 하나의 지금 계산 (입력 · 계수 · 출력 · 이유).  시뮬레이션을 돌리지 않고 그 장만 센다
+    (동작 시뮬레이션 중이면 화면이 시뮬레이션 결과를 쓴다 — 다른 장에서 이어진 값까지)."""
+    s = _sheet(job, page)
+    bid = str(body.get("block") or "")
+    if bid not in s["blocks"]:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    given = _analog({str(page): body.get("analog") or {}}).get(page, {})
+    det = {}
+    nv, bv, keys = analog.nets(s, given, sim._index(s)[:4], None, det)
+    d = det.get(bid)
+    if d is None:
+        return {"op": None, "block": bid}
+    return {**d, "block": bid, "key": keys.get(f"block:{bid}")}
+
+
+@router.post("/logic/api/jobs/{job}/overrides/aparam")
+def overrides_aparam(job: str, body: dict = Body(...)):
+    """L30 — 아날로그 연산자 값 {page, block, params | null, author}.  params 는 overrides.clean_aparams 를 보라."""
+    d = _dir(job)
+    page, bid = body.get("page"), str(body.get("block") or "")
+    if not isinstance(page, int) or not bid:
+        raise HTTPException(400, "page(정수) 와 block 이 필요합니다.")
+    b = _sheet(job, page)["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    params = body.get("params")
+    if params is not None and not (aops.op_of(b) or (params or {}).get("op") or b.get("func") in ("UNKNOWN", "ANALOG")):
+        raise HTTPException(400, "아날로그 연산자에만 값을 넣습니다.")
+    return _ov_call(overrides.set_aparam, d, page, bid, params, str(body.get("author") or ""))
+
+
+@router.get("/logic/api/aops")
+def aops_vocab():
+    """L30 — 아날로그 연산자 어휘 (이름 · 식 · 화면이 물을 값)."""
+    v = aops.vocab()
+    return {"ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("ops") or {}).items()},
+            "digital_ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("digital_ops") or {}).items()},
+            "needs": aops.NEEDS}
+
+
 @router.get("/logic/api/library")
 def library_get():
     """학습 사전 — 모양 열쇠 → 기능 · Typical 시트 (어느 묶음 · 누가 가르쳤는지)."""
@@ -802,7 +1046,9 @@ def _teach_source(job):
 def teach_get(job: str):
     """남은 질문 — 무리마다 하나 · 해결하는 건수 순 · 보기 장은 가장 적은 장에 몰아서.  이미 답한 규칙도 함께."""
     res, done = _teach_source(job)
-    q = teach.questions(res, overrides.load(_dir(job)).get("teach"))
+    tc = overrides.load(_dir(job)).get("teach")
+    q = dict(_memo(res, "teach", lambda: teach.questions(res, tc), json.dumps(tc, sort_keys=True, default=str))
+             if done else teach.questions(res, tc))
     q["final"] = done
     q["partial"] = None if done else {"sheets": len(res.get("sheets", [])), "pages": res.get("pdf_pages")}
     ov = overrides.load(_dir(job))
