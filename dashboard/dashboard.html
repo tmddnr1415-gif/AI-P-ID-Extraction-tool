@@ -917,7 +917,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-15.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2498,6 +2498,14 @@ const IEC_RE = /\bIEC\b|I\s*&\s*C\s*ENG/i;
 const isIecUnit = r => IEC_RE.test(r.fields['유닛'] || '') || IEC_RE.test(r.fields['담당'] || '');
 const IEC_DEFAULT = { unit:'I&C ENG Group', duty:'IEC 인력 구성 · India Engineering Center',
   mem:'Ranjit Malakar(Part Leader)\nAbhishek Sinha(Pro)\nNikhil Aggarwal(Pro)\nGurbaksh Singh(Pro)\nSakshi Tiwari(Pro)\nPrakash Chand Jaiswal(Pro)\nAbhishek Rai(Pro)\nDinesh Kumar(Pro)\nVikas Khare(Pro)\nSurabhi Gupta(Pro - expected)\nSonal Gupta(Pro - GET*)\nSamridhi(Pro - GET*)' };
+/* 담당자 칸 → 사람별 묶음 (모든 그래프 공통): 부서원 명단 + 칸에만 있는 이름. 칸에 그 이름이 '들어 있으면' 그 사람 것
+ * ('홍길동 프로' · 'PM 김철수' · '홍길동 이영희' · '박민수(LE), 홍길동' 모두). eng = 'skip' 영문 이름(IEC) 뺌 · 'keep' 칸에 있는 영문 이름은 셈 · 'iec' IEC 명단까지 */
+function personGroups(recs, getV, eng = 'skip') {
+  const iec = eng === 'iec' ? iecNames() : [], dn = [...deptNames(), ...iec], toks = new Set();
+  recs.forEach(r => tokens(getV(r)).forEach(t => toks.add(t)));
+  const extra = [...toks].filter(t => !dn.some(n => t.includes(nk(n)) || nk(t).includes(nk(n)))).filter(t => eng !== 'skip' || !isEng(t)).map(t => isEng(t) ? t.replace(/\b[a-z]/g, ch => ch.toUpperCase()) : t);
+  return [...new Set([...dn, ...extra])].map(n => [n, recs.filter(r => hasName(getV(r), n))]);
+}
 function iecNames() {
   const recs = DB.recs?.unit || [], y = recs.map(r => String(r.fields['연도'] || '')).sort().pop();
   const rs = recs.filter(r => String(r.fields['연도'] || '') === y && isIecUnit(r));
@@ -2756,11 +2764,13 @@ function renderHome(c) {
 
   // 차트 데이터 + 마우스 올리면 보이는 상세(툴팁)
   const tagOf = r => r.sheet === 'bid' ? '입찰' : '수행';
-  const grp = new Map(); pj.forEach(r => { const g = cell1(r.fields['사업군']); (grp.get(g) || grp.set(g, []).get(g)).push(r); });
+  const grp = new Map(); pj.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => (grp.get(g) || grp.set(g, []).get(g)).push(r)); });   // 수행·입찰 PJT 보드와 같은 사업군 단어 (여럿이면 각각)
   const grpItems = [...grp].sort((a, b) => b[1].length - a[1].length).map(([l, rs]) => ({ l, v:rs.length,
     tip:tipHtml(`${l} · ${rs.length}개 PJT`, rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}`)) }));
-  const own = [...ownerTokens(pj, '담당자')].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([l, v]) => ({ l, v,
-    tip:tipHtml(`${l} · 담당 ${v}건`, pj.filter(r => tokens(r.fields['담당자']).includes(l)).map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${flat(r.fields['사업군']) ? ` <span class="tm">· ${esc(cell1(r.fields['사업군']))}</span>` : ''}`)) }));
+  // 담당자: 칸에 이름이 들어 있으면 (수행 = 영문 이름 뺌, 입찰 = IEC 포함 — 수행·입찰 PJT 보드와 같은 규칙)
+  const og = new Map(); [[live('perform'), 'skip'], [live('bid'), 'iec']].forEach(([rs, e]) => personGroups(rs, r => r.fields['담당자'], e).forEach(([n, xs]) => og.set(n, [...(og.get(n) || []), ...xs])));
+  const own = [...og].map(([l, rs]) => [l, rs.length, rs]).filter(x => x[1]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).slice(0, 12).map(([l, v, rs]) => ({ l, v,
+    tip:tipHtml(`${l} · 담당 ${v}건`, rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${flat(r.fields['사업군']) ? ` <span class="tm">· ${esc(cell1(r.fields['사업군']))}</span>` : ''}`)) }));
   const upd2 = SHEETS.map(s => { const rs = R(s.key).filter(isUpdated).sort((a, b) => (a.meta.updatedAt < b.meta.updatedAt ? 1 : -1));
     return { l:s.label, v:rs.length, tip:tipHtml(`${s.label} · 금주 업데이트 ${rs.length}건`, rs.map(r => `<b style="color:#9fd0ff">${esc(r.meta.updatedBy || '')}</b> <span class="tm">${fmtTime(r.meta.updatedAt)}</span> · ${esc(recLabel(s.key, r.fields))}`)) }; }).filter(x => x.v);
   const pv = new Map(); R('staffing').forEach(r => Object.entries(r.fields.배정 || {}).forEach(([cid, a]) => { if (num(a.pct) > 0) (pv.get(cid) || pv.set(cid, []).get(cid)).push({ r, a }); }));
@@ -2770,8 +2780,8 @@ function renderHome(c) {
       tip:tipHtml(`${colName[k] || k} · ${(Math.round(sum) / 100).toFixed(1)}명 (${list.length}명 참여)`, list.sort((a, b) => num(b.a.pct) - num(a.a.pct)).map(x => `${esc(x.r.fields.이름)} <b>${x.a.pct}%</b>${x.a.role === 'LE' ? ' <span style="color:#ff9b8f">LE</span>' : ' <span class="tm">RE</span>'}`), 20) }));
   const memo = sortRecs(SHEET.notice, R('notice'))[0];
   c.insertAdjacentHTML('beforeend', `<div class="charts">
-    <section class="card"><h2>사업군별 PJT 수 (수행+입찰)</h2>${svgBars(grpItems)}</section>
-    <section class="card"><h2>담당자별 담당 건수 (상위 12)</h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
+    <section class="card"><h2>사업군별 PJT 수 (수행+입찰 · 진행 중)</h2>${svgBars(grpItems)}</section>
+    <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12)</h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
     <section class="card"><h2>시트별 금주 업데이트 비율</h2>${svgDonut(upd2)}</section>
     <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100)</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
    <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 PJT·담당자·업데이트 내역을 볼 수 있습니다.</p>
@@ -3344,12 +3354,9 @@ function pjHero(s) {
   const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
   // 부서원별: 담당자 칸에 그 이름이 '들어 있는' 진행 PJT 수 (부서원 명단 + 명단에 없는 담당자 이름)
   // 수행 = 영문 이름(IEC)은 세지 않음 · 입찰 = IEC 인원(영문 이름)도 셈
-  const iec = bid ? iecNames() : [], iecK = new Set(iec.map(nk)), dn = [...deptNames(), ...iec];
-  const extra = [...ownerTokens(live, s.owner).keys()].filter(t => !dn.some(n => t.includes(nk(n)) || nk(t).includes(nk(n))))
-    .filter(t => bid || !isEng(t)).map(t => isEng(t) ? t.replace(/\b[a-z]/g, ch => ch.toUpperCase()) : t);
-  const isIec = n => iecK.has(nk(n)) || isEng(n);
+  const iecK = new Set(bid ? iecNames().map(nk) : []), isIec = n => iecK.has(nk(n)) || isEng(n);
   const pjOf = n => live.filter(r => hasName(r.fields[s.owner], n)), endOf = n => recs.filter(r => !isLive(r) && hasName(r.fields[s.owner], n));
-  const own = [...new Set([...dn, ...extra])].map(n => [n, pjOf(n).length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
+  const own = personGroups(live, r => r.fields[s.owner], bid ? 'iec' : 'skip').map(([n, rs]) => [n, rs.length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
   const ownTip = n => { const rs = pjOf(n), e = endOf(n).length; return tipHtml(`${n} · 진행 ${rs.length}건${e ? ` (+종결 ${e})` : ''}`, rs.length ? rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')} <span class="tm">${esc(cell1(r.fields['사업군']))}</span>`) : ['담당 PJT 없음'], 16); };
   const ofold = st.pfold !== false && own.length > 6, oshown = ofold ? own.slice(0, Math.ceil(own.length / 2)) : own;
   const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
@@ -3418,7 +3425,7 @@ function taskHero(s) {
     const prog = open.map(i => num(i.f['진척률'])).filter(v => v > 0), avg = prog.length ? Math.round(prog.reduce((a, b) => a + b, 0) / prog.length) : null;
     const req = [...open.reduce((m, i) => (i.f['요청자'] && m.set(flat(i.f['요청자']), (m.get(flat(i.f['요청자'])) || 0) + 1), m), new Map())].sort((a, b) => b[1] - a[1]).slice(0, 3);
     const week = open.filter(i => i.dd != null && i.dd >= 0 && i.dd <= 7).length;
-    const pos = new Set(its.flatMap(i => i.persons)).size;
+    const pos = personGroups(its, i => i.personRaw, 'keep').filter(([, xs]) => xs.length).length;
     const extra = t === '일반업무' ? `평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b> <span class="muted">(진행 중)</span>`
       : t === '표준화 담당' ? `ITEM <b>${its.length}</b>개 · ITEM PO <b>${pos}</b>명 · 평균 진척률 <b>${avg == null ? '-' : avg + '%'}</b>`
       : t === '그룹장 요청 사항' ? `요청자 ${req.length ? req.map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(' · ') : '<span class="muted">-</span>'}`
@@ -3435,7 +3442,7 @@ function taskHero(s) {
   };
   // 부서원별 상·하반기
   const pm = new Map();
-  scope.forEach(i => i.persons.forEach(p => { const o = pm.get(p) || pm.set(p, { h1:0, h2:0, h0:0, by:{} }).get(p); o['h' + i.half]++; const t = i.f['유형'] || ''; o.by[t] = (o.by[t] || 0) + 1; }));
+  personGroups(scope, i => i.personRaw, 'keep').forEach(([p, xs]) => xs.forEach(i => { const o = pm.get(p) || pm.set(p, { h1:0, h2:0, h0:0, by:{} }).get(p); o['h' + i.half]++; const t = normType(i.f['유형']); o.by[t] = (o.by[t] || 0) + 1; }));   // 담당 칸에 이름이 들어 있으면
   const people = [...pm].map(([p, o]) => ({ p, ...o, tot:o.h1 + o.h2 + o.h0 })).sort((a, b) => b.tot - a.tot || a.p.localeCompare(b.p, 'ko'));
   const mx = Math.max(1, ...people.map(x => Math.max(x.h1, x.h2)));
   const pfolded = st.pfold !== false && people.length > 6;                     // 기본: 반으로 접음 (많은 사람이 위쪽, 나머지는 펼치기)
@@ -3658,7 +3665,7 @@ async function iecRegister(year) {                          // 기본 IEC 명단
 const brief = (t, n = 2, max = 90) => { const ls = String(t || '').replace(/~~[\s\S]*?~~/g, '').split(/\n+/).map(l => l.replace(/^\s*(?:[-•·*▶■□ㅇ※>→]+|\(?\d+[.)]|[가-힣][.)])\s*/, '').trim()).filter(Boolean);
   const x = ls.slice(0, n).join(' / '); return x.length > max ? x.slice(0, max - 1) + '…' : x; };
 function personSummary(name) {
-  const me = normName(name), mine = v => tokens(v).includes(me);
+  const mine = v => hasName(v, name);
   const pj = k => (DB.recs[k] || []).filter(r => isLive(r) && mine(r.fields['담당자']));
   const pjLi = r => `<li><b>${esc(flat(r.fields['PJT명']) || '(PJT명 없음)')}</b> <span class="muted">${esc(flat(r.fields['사업군']))}</span>${brief(r.fields['업무 현황']) ? `<small>${esc(brief(r.fields['업무 현황']))}</small>` : ''}</li>`;
   const wk = workRecs().map(({ k, r }) => workItem(k, r)).filter(i => mine(i.personRaw) && i.cls !== 'done').sort((a, b) => WST_ORDER[a.cls] - WST_ORDER[b.cls]);
@@ -3847,7 +3854,8 @@ function renderAlloc(c, mg) {                             // mg = Management > R
   const monthsWith = new Set(d.list.map(x => x.month.slice(5)));
   const list = d.list.filter(x => !AS.month || x.month.slice(5) === AS.month);
   const { people, proj } = tsAgg(list, idx);
-  const teamTot = [...people.values()].reduce((a, p) => a + p.tot, 0) || 1;
+  if (!H) for (const q of proj.values()) q.v = [...q.ppl].reduce((a, [n, v]) => a + (people.get(n).tot ? v / people.get(n).tot * 100 : 0), 0);   // 비율만 받는 경우: 고른 기간 안에서 사람마다 100 으로 맞춰 같은 비중 (월을 골라도 그 달 기준)
+  const teamTot = (H ? [...people.values()].reduce((a, p) => a + p.tot, 0) : [...people.values()].filter(p => p.tot > 0).length * 100) || 1;
   const pjs = [...proj.values()].sort((a, b) => (AL_RANK[a.kind] ?? 2) - (AL_RANK[b.kind] ?? 2) || b.v - a.v);
   const color = new Map(); let ci = 0;
   [...tsAgg(d.list, idx).proj.values()].sort((a, b) => b.v - a.v).forEach(p => color.set(p.key, AL_FIX[p.kind] || AL_PAL[ci++ % AL_PAL.length]));   // 색은 연도 전체 기준으로 고정 (월을 바꿔도 같은 색)
@@ -3881,7 +3889,7 @@ function renderAlloc(c, mg) {                             // mg = Management > R
     // R&R · 계획(투입인력) · 실제(시수)
     const me = normName(sel), rr = new Map();
     const find = n => { const k = nmKey(n); if (!k) return null; for (const [kk, v] of rr) if (kk === k || (k.length >= 4 && kk.length >= 4 && (kk.includes(k) || k.includes(kk)))) return v; const v = { name:flat(n) }; rr.set(k, v); return v; };
-    (DB.recs.rnr || []).filter(r => tokens(r.fields['담당자']).includes(me)).forEach(r => Object.assign(find(r.fields['PJT명']), { gubun:r.fields['구분'] || '', role:r.fields['역할'] || '', period:[r.fields['시작일'], r.fields['종료일']].filter(Boolean).join(' ~ '), prog:r.fields['설계공정률'] || '' }));
+    (DB.recs.rnr || []).filter(r => hasName(r.fields['담당자'], sel)).forEach(r => Object.assign(find(r.fields['PJT명']), { gubun:r.fields['구분'] || '', role:r.fields['역할'] || '', period:[r.fields['시작일'], r.fields['종료일']].filter(Boolean).join(' ~ '), prog:r.fields['설계공정률'] || '' }));
     const st = (DB.recs.staffing || []).find(r => normName(r.fields.이름) === me), cols = getCols();
     if (st) Object.entries(st.fields.배정 || {}).forEach(([cid, a]) => { const col = cols.find(x => x.id === cid); if (!col || !(num(a.pct) > 0)) return; const v = find(col.name); v.plan = num(a.pct); v.gubun = v.gubun || col.kind; v.role = v.role || a.role; });
     its.filter(o => o.kind === 'perform' || o.kind === 'bid').forEach(o => { const v = find(o.name); v.actual = pct(o.v, S.tot); v.h = o.v; v.gubun = v.gubun || (o.kind === 'bid' ? '입찰' : '수행'); });
