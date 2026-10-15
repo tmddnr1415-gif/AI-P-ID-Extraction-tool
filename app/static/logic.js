@@ -546,18 +546,70 @@ function renderSheetList() {
   }
 }
 
+/* L31 — 시트 사이 이동을 가볍게: 받은 시트는 기억하고(사람 값을 고치면 refreshSheet 가 비운다) · 앞뒤 시트의 내용과
+   그림을 쉬는 동안 미리 받아 풀어 둔다 · 그림은 다 풀린 뒤에 바꿔 끼운다(옛 그림 위에 새 시트의 선이 그려지지 않게). */
+const SHEET_KEEP = 60;          // 기억하는 시트 수 (846쪽 묶음에서 한 장 20~100KB)
+const IMG_KEEP = 8;             // 미리 풀어 둔 그림 수
+const SC = { job: null, map: new Map(), img: new Map() };
+function sheetCacheClear() { SC.map.clear(); }
+function getSheet(page) {
+  if (SC.job !== L.job) { SC.job = L.job; SC.map.clear(); SC.img.clear(); }
+  const m = SC.map;
+  let p = m.get(page);
+  if (p) { m.delete(page); m.set(page, p); return p; }
+  p = api(`/logic/api/jobs/${L.job}/sheet/${page}`);
+  p.catch(() => { if (m.get(page) === p) m.delete(page); });
+  m.set(page, p);
+  while (m.size > SHEET_KEEP) m.delete(m.keys().next().value);
+  return p;
+}
+function pageImgUrl(page) { return `/logic/api/jobs/${L.job}/page/${page}.png`; }
+function preloadImg(page) {
+  if (SC.job !== L.job) { SC.job = L.job; SC.map.clear(); SC.img.clear(); }
+  let im = SC.img.get(page);
+  if (im) { SC.img.delete(page); SC.img.set(page, im); return im; }
+  im = new Image();
+  im.decoding = "async";
+  im.src = pageImgUrl(page);
+  im.ready = (im.decode ? im.decode() : Promise.resolve()).catch(() => {});
+  SC.img.set(page, im);
+  while (SC.img.size > IMG_KEEP) SC.img.delete(SC.img.keys().next().value);
+  return im;
+}
+function neighbours(page) {
+  const list = (L.sheets || []).map((x) => x.page);
+  const i = list.indexOf(page);
+  if (i < 0) return [];
+  return [list[i + 1], list[i - 1], list[i + 2]].filter((x) => x != null);
+}
+function prefetchAround(page) {
+  const job = L.job;
+  const go = () => {
+    if (L.job !== job || L.page !== page) return;
+    for (const q of neighbours(page)) { getSheet(q).catch(() => {}); preloadImg(q); }
+  };
+  if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 150);
+}
+
 async function openSheet(page) {
   L.page = page;
   location.hash = `job=${L.job}&page=${page}`;
   renderSheetList();
-  const s = await api(`/logic/api/jobs/${L.job}/sheet/${page}`);
+  const im = preloadImg(page);
+  const s = await getSheet(page);
+  if (L.page !== page) return;                     // 받는 동안 다른 시트로 옮겼다
   L.sheet = s;
   L.forces = L.allForces[page] = L.allForces[page] || {};
   L.state = L.states[page] || null; L.values = {}; L.sel = null; stopAnim();
   L.linked = {};
   $("#empty").hidden = true;
   const img = $("#page");
-  img.src = `/logic/api/jobs/${L.job}/page/${page}.png`;
+  // 그림은 풀린 뒤에 바꾼다 — 기다리는 동안은 옛 그림을 숨겨 새 시트의 선이 남의 그림 위에 서지 않게
+  const url = pageImgUrl(page);
+  if (img.getAttribute("src") !== url) {
+    if (im.complete && im.naturalWidth) img.src = url;
+    else { img.style.visibility = "hidden"; im.ready.then(() => { if (L.page === page) { img.src = url; } }); }
+  }
   $("#canvas").style.width = s.size[0] + "px";
   $("#canvas").style.height = s.size[1] + "px";
   $("#ov").setAttribute("viewBox", `0 0 ${s.size[0]} ${s.size[1]}`);
@@ -565,14 +617,16 @@ async function openSheet(page) {
   drawOverlay();
   renderRows(); renderFindings(); renderInfo(); renderHelp(); renderLatches();
   L.pendingAt = null; L.memoEdit = null; renderMemo();
-  img.onload = () => fit();
-  if (img.complete) fit();
+  img.onload = () => { img.style.visibility = ""; if (L.page === page) fit(); };
+  img.onerror = () => { img.style.visibility = ""; };
+  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fit(); }
+  prefetchAround(page);
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
     applyMacroInputs(MACRO_FROM.inputs);
     return;
   }
-  if (L.mode === "sim") runSim();
+  if (L.mode === "sim") runSim(false, true);
 }
 
 /* ------------------------------------------------------------------ 확대 · 이동 */
@@ -1765,7 +1819,7 @@ async function traceFrom(start, up) {
 
 /* ------------------------------------------------------------------ 동작 시뮬레이션 */
 
-async function runSim(animate) {
+async function runSim(animate, pageOnly) {
   if (!L.sheet) return;
   const prev = { ...L.values };
   // 묶음 전체를 함께 돌린다 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 (서버가 판정)
@@ -1774,7 +1828,13 @@ async function runSim(animate) {
   const analog = {};
   for (const [p, a] of Object.entries(L.analog || {})) if (Object.keys(a).length) analog[p] = a;
   const askPage = L.page;
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page, timers: L.timers, analog });
+  // L31 — 시트만 옮겼고 준 신호가 그대로면 지난 계산의 입력을 그대로 보낸다: 묶음의 답은 같고 이 장의 결과만 꺼내면 된다
+  // (돌려받은 상태를 다시 보내면 서버가 시간을 한 번 더 흘린 것으로 보고 묶음 전체를 다시 센다).
+  const inputs = JSON.stringify([forces, L.timers, analog]);
+  const last = L.lastSim;
+  const state = pageOnly && last && last.job === L.job && last.inputs === inputs ? last.state : L.states;
+  L.lastSim = { job: L.job, inputs, state };
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r || L.page !== askPage) return;            // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
@@ -2070,7 +2130,7 @@ async function handleMacroNeed(d) {
   if (!L.job || MACRO_FROM) return;
   const page = Number(d.parent);
   let s = L.page === page ? L.sheet : null;
-  if (!s) { try { s = await api(`/logic/api/jobs/${L.job}/sheet/${page}`); } catch (e) { return; } }
+  if (!s) { try { s = await getSheet(page); } catch (e) { return; } }
   const b = s.blocks[d.block];
   const m = (b && b.macro) || {};
   const pins = (m.inputs || []).filter((x) => x.row && d.rows[String(x.row)] === 1 && x.net != null);
@@ -2448,7 +2508,8 @@ async function saveCell(side, n, value) {
 /* 사람이 정한 값이 바뀌면 지금 장 · 장 목록 · 묶음 점검을 다시 받는다 (확대 · 위치는 그대로) */
 async function refreshSheet() {
   const id = L.job, page = L.page;
-  const [j, s] = await Promise.all([api(`/logic/api/jobs/${id}/sheets`), api(`/logic/api/jobs/${id}/sheet/${page}`)]);
+  sheetCacheClear();                               // L31 — 사람 값은 다른 시트에도 얹힐 수 있다 (같은 모양 전부 · 가르치기)
+  const [j, s] = await Promise.all([api(`/logic/api/jobs/${id}/sheets`), getSheet(page)]);
   if (L.job !== id || L.page !== page) return;
   if (j.sheets) { L.sheets = j.sheets; renderSheetList(); }
   L.sheet = s;

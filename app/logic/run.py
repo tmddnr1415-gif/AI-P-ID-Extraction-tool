@@ -2,6 +2,7 @@
 분석이 GIL 을 오래 쥐면 화면 요청이 늦어진다)."""
 from __future__ import annotations
 
+import json
 import sys
 import time
 import traceback
@@ -96,5 +97,18 @@ def run(d: Path):
     _final(d, st)
 
 
+def prerender_missing(d: Path):
+    """L31 — 그림이 아직 없는 시트만 그린다 (L7 이전 분석 · 미리 그리기가 중간에 끊긴 분석).  서버와 따로 돌아
+    화면 요청을 막지 않는다.  이미 있는 그림은 건드리지 않는다."""
+    try:
+        res = json.loads((d / "result.json").read_text(encoding="utf-8"))
+    except Exception:
+        return
+    _prerender(d, res)
+
+
 if __name__ == "__main__":
-    run(Path(sys.argv[1]))
+    if len(sys.argv) > 2 and sys.argv[1] == "--pages":
+        prerender_missing(Path(sys.argv[2]))
+    else:
+        run(Path(sys.argv[1]))

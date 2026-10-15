@@ -1003,6 +1003,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                 if c["page"] == e["page"]:
                     c["errors"] = c.get("errors", 0) + 1
     focus_res = results.get(focus) if focus is not None else None
+    if cache is not None:
+        cache["_last_results"] = results      # L31 — 같은 입력으로 다른 장만 볼 때 api 가 이 장의 결과를 꺼낸다
     return {"focus": focus_res,
             "design_errors": design,
             "macros": {p: v for p, v in macro_view.items() if v},

@@ -504,7 +504,35 @@ def _memo(res, name, fn, *key):
 def sheets(job: str):
     res = _result(job)
     _warm_bundle(job, res)
+    _warm_pages(job, res)
     return _memo(res, "sheets", lambda: _sheets_body(res))
+
+
+_PAGES_WARM = {}                  # job → 미리 그리기 프로세스 (서버 하나에 묶음마다 한 번)
+
+
+def _warm_pages(job, res):
+    """L31 — 그림이 아직 없는 시트가 있으면 따로 된 프로세스가 미리 그린다 — 시트를 처음 열 때 서버가 그 자리에서
+    그리느라(A3 한 장 0.2~0.3초) 기다리지 않게.  분석이 끝날 때 이미 다 그렸으면(L7) 아무 일도 안 한다."""
+    import os
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0" or job in _PAGES_WARM:
+        return
+    d = _dir(job)
+    have = {f.name for f in (d / "pages").glob("p*_z*.png")} if (d / "pages").is_dir() else set()
+    missing = [s for s in res["sheets"] if f"p{s['page']}_z{ZOOM}.png" not in have]
+    _PAGES_WARM[job] = None
+    if not missing:
+        return
+    if paths.frozen():
+        from .run import prerender_missing
+        threading.Thread(target=prerender_missing, args=(d,), daemon=True).start()
+        return
+    root = Path(__file__).resolve().parent.parent.parent
+    try:
+        _PAGES_WARM[job] = subprocess.Popen([sys.executable, "-m", "app.logic.run", "--pages", str(d)], cwd=str(root),
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
 
 
 def _warm_bundle(job, res):
@@ -654,12 +682,46 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
+    analog = _analog(body.get("analog"))
     cache = _bundle_cache(job, res)
     with cache.setdefault("_lock", __import__("threading").Lock()):
-        out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers,
-                                  analog=_analog(body.get("analog")), cache=cache)
-    out["default_t"] = sim.DEFAULT_T
-    return out
+        hit = _bundle_reuse(cache, forces, state, timers, analog)
+        if hit is None:
+            out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=analog, cache=cache)
+            hit = _bundle_keep(cache, forces, state, timers, analog, out)
+    body_json, results = hit
+    f = results.get(focus) if focus is not None else None
+    # 묶음 몸통은 한 번만 글로 바꿔 두고 화면이 보는 장의 결과만 그때 붙인다 (L31 — 846쪽 묶음 몸통 약 220KB)
+    return Response(b'{"focus":' + _dumps(f) + b"," + body_json[1:], media_type="application/json")
+
+
+BUNDLE_LAST = 4                   # L31 — 기억하는 묶음 계산 (입력 조합) 수
+
+
+def _bundle_inputs_key(forces, state, timers, analog):
+    return json.dumps([forces, state, timers, analog], sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _dumps(x) -> bytes:
+    """JSONResponse 와 같은 꼴 (FastAPI 의 jsonable_encoder 를 거치지 않는다 — 큰 dict 에서 수십 ms)."""
+    return json.dumps(x, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+
+
+def _bundle_keep(cache, forces, state, timers, analog, out):
+    """L31 — 시트를 옮길 때마다 묶음 전체를 다시 돌리지 않는다.  같은 입력(강제 · 상태 · 타이머 · 아날로그)이면 묶음의
+    답은 같고 달라지는 것은 화면이 보는 장(focus) 하나뿐이다 — 그 장의 결과는 지난 계산이 장마다 이미 냈다."""
+    results = cache.pop("_last_results", None) or {}
+    body = {k: v for k, v in out.items() if k != "focus"}
+    body["default_t"] = sim.DEFAULT_T
+    # 글로 바꿀 때 dict 열쇠(쪽 번호)가 글이 되는 것은 JSONResponse 와 같다.  장마다의 결과는 꺼낼 때 그때 글로 바꾼다 —
+    # 그래서 기억 안의 객체를 아무도 고치지 않는다.
+    hit = (_dumps(body), results)
+    _lru_put(cache.setdefault("_last", {}), _bundle_inputs_key(forces, state, timers, analog), hit, keep=BUNDLE_LAST)
+    return hit
+
+
+def _bundle_reuse(cache, forces, state, timers, analog):
+    return (cache.get("_last") or {}).get(_bundle_inputs_key(forces, state, timers, analog))
 
 
 _BUNDLE = {}                      # job → (결과 객체, 묶음 계산 기억) — L28 · 결과가 바뀌면(사람 값 · 다시 분석) 새로
