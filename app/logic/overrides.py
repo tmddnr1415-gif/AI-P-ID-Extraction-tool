@@ -4,6 +4,7 @@
       "blocks": {쪽: {블록: {choice, func, logic, label, param, author, at, was}}},
       "cells":  {쪽: {"L:12": {"fm": 값, author, at, was}, "R:30": {"to": 값, ...}}},
       "timers": {쪽: {블록: {t: 초, author, at}}},
+      "setpoints": {쪽: {블록: {sp: 수, author, at}}},          (L26 감시 블록 HHH · HH … 설정값)
       "marks":  {쪽: {id: {kind, rect, value, n, choice, param, author, at}}},     (L24 마크업)
       "teach":  {"gates": [규칙], "sheet": {page, rect, values, author}, "cols": {"L"|"R": {...}},
                  "links": {시트 이름: {mode: OTHER|ALIAS, sheet}}, "skipped": [질문]},      (L25 가르치기)
@@ -65,7 +66,7 @@ def _path(d: Path) -> Path:
 
 
 def empty():
-    return {"blocks": {}, "cells": {}, "timers": {}, "marks": {}, "teach": _teach0(), "history": []}
+    return {"blocks": {}, "cells": {}, "timers": {}, "setpoints": {}, "marks": {}, "teach": _teach0(), "history": []}
 
 
 def _teach0():
@@ -99,7 +100,7 @@ def mtime(d: Path):
 
 
 def has_any(ov: dict) -> bool:
-    return any(ov.get(k) for k in ("blocks", "cells", "timers", "marks")) or any((ov.get("teach") or {}).values())
+    return any(ov.get(k) for k in ("blocks", "cells", "timers", "setpoints", "marks")) or any((ov.get("teach") or {}).values())
 
 
 def _save(d: Path, data: dict):
@@ -206,6 +207,35 @@ def set_timer(d: Path, page: int, bid: str, sec, author) -> dict:
         ent = {"t": t, "author": author, "at": _now()}
         pg[str(bid)] = ent
         data["history"].append({"kind": "timer", "page": page, "key": bid, "value": t, "author": author, "at": ent["at"]})
+        _save(d, data)
+        return ent
+
+
+def set_setpoint(d: Path, page: int, bid: str, sp, author) -> dict:
+    """L26 — 감시 블록(HHH · HH · H · /L …) 설정값.  sp None 이면 지우고 도면 값(없으면 없음)으로 돌아간다."""
+    author = _author(author)
+    with _LOCK:
+        data = load(d)
+        pg = data["setpoints"].setdefault(str(page), {})
+        if sp is None:
+            old = pg.pop(str(bid), None)
+            if not pg:
+                data["setpoints"].pop(str(page), None)
+            data["history"].append({"kind": "setpoint", "page": page, "key": bid, "value": None,
+                                    "was": (old or {}).get("sp"), "author": author, "at": _now()})
+            _save(d, data)
+            return {"removed": bool(old)}
+        try:
+            v = float(str(sp).replace(",", "."))
+        except (TypeError, ValueError):
+            raise ValueError("설정값은 수입니다.")
+        if not (abs(v) < 1e12):
+            raise ValueError("설정값이 너무 큽니다.")
+        old = pg.get(str(bid)) or {}
+        ent = {"sp": v, "author": author, "at": _now()}
+        pg[str(bid)] = ent
+        data["history"].append({"kind": "setpoint", "page": page, "key": bid, "value": v, "was": old.get("sp"),
+                                "author": author, "at": ent["at"]})
         _save(d, data)
         return ent
 
@@ -362,6 +392,16 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
             if b is not None and isinstance(e, dict) and isinstance(e.get("t"), (int, float)):
                 b.setdefault("param", {})["t_user"] = float(e["t"])
                 b["param"]["t_user_by"] = e.get("author", "")
+    for pg, m in (ov.get("setpoints") or {}).items():
+        s = by_page.get(int(pg)) if str(pg).isdigit() else None
+        if s is None:
+            continue
+        for bid, e in m.items():
+            b = s["blocks"].get(bid)
+            if b is not None and isinstance(e, dict) and isinstance(e.get("sp"), (int, float)):
+                b.setdefault("param", {})["sp_user"] = float(e["sp"])
+                b["param"]["sp_user_by"] = e.get("author", "")
+                b["param"]["sp_user_at"] = e.get("at", "")
     cells = False
     for pg, m in (ov.get("cells") or {}).items():
         s = by_page.get(int(pg)) if str(pg).isdigit() else None
@@ -390,6 +430,7 @@ def apply(res: dict, ov: dict, lib_rules=None) -> dict:
     res["_overrides"] = {"blocks": sum(len(v) for v in (ov.get("blocks") or {}).values()),
                          "cells": sum(len(v) for v in (ov.get("cells") or {}).values()),
                          "timers": sum(len(v) for v in (ov.get("timers") or {}).values()),
+                         "setpoints": sum(len(v) for v in (ov.get("setpoints") or {}).values()),
                          "marks": sum(len(v) for v in (ov.get("marks") or {}).values()),
                          "taught": {"gates": len(tc.get("gates") or []), "library": len(lib_rules or []),
                                     "sheet": bool(tc.get("sheet")), "cols": sorted((tc.get("cols") or {}).keys()),

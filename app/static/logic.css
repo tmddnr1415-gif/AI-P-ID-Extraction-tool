@@ -542,3 +542,18 @@ button.mini.ed.on { background: #efe6fb; }
 .lmodal .lm-btns button.primary { background: #2f5bd8; color: #fff; border-color: #2f5bd8; }
 .lmodal .lm-btns button.danger { background: #c2453f; color: #fff; border-color: #c2453f; }
 .lmodal .lm-btns button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* L26 — 아날로그 값 · 감시 블록 설정값 */
+.force-menu.an-menu { min-width: 260px; }
+.force-menu.an-menu .fm-h { max-width: 340px; }
+.force-menu .fm-sub { font-size: 11px; color: var(--soft); padding: 6px 8px 2px; border-top: 1px solid #f0ede5; }
+.force-menu .an-sp .an-mon { min-width: 96px; font-weight: 600; }
+.force-menu .an-sp small, .force-menu .fm-t small { color: var(--soft); }
+.force-menu .an-why { color: var(--soft); white-space: normal; }
+.force-menu button.va { color: #6a3fb5; border-top: 1px solid #eee; }
+#ov text.ansp, #ov text.anv { paint-order: stroke; stroke: #fff; stroke-width: 0.9px; }
+#ov text.ansp { fill: #6b7280; text-anchor: middle; font-weight: 600; pointer-events: none; }
+#ov text.ansp.user { fill: #b25a00; }
+#ov text.ansp.on { fill: #0a8fd4; }
+#ov text.anv { fill: #6a3fb5; text-anchor: middle; font-weight: 700; pointer-events: none; }
+#ov text.anv.row { text-anchor: start; }

@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
+from . import analog, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -286,6 +286,7 @@ def _result(job):
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
     res = store.read_result(d)
+    _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이)
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
         fromto.check(res["sheets"])
         res["_ft"] = True
@@ -306,6 +307,7 @@ def _result(job):
         return res
     import json as _json
     fresh = _json.loads((d / "result.json").read_text(encoding="utf-8"))
+    _drawing_sp(job, d, fresh)
     overrides.apply(fresh, ov, lib_rules)
     fresh["_ft"] = True
     if len(_APPLIED) > 3:
@@ -315,6 +317,36 @@ def _result(job):
 
 
 _LIB_RULES = {}
+_SP = {}
+
+
+def _drawing_sp(job, d, res):
+    """L26 — 감시 블록(HHH · HH …) 바로 위에 도면이 인쇄한 설정값을 블록 param 에 얹는다.  PDF 는 결과마다 한 번만 읽는다."""
+    if res.get("_sp"):
+        return
+    try:
+        rm = (d / "result.json").stat().st_mtime_ns
+    except OSError:
+        rm = None
+    hit = _SP.get(job)
+    if hit is None or hit[0] != rm:
+        probe = __import__("json").loads((d / "result.json").read_text(encoding="utf-8")) if rm else {"sheets": []}
+        analog.read_drawing(d / "source.pdf", probe["sheets"])
+        got = {}
+        for s in probe["sheets"]:
+            for bid, b in s["blocks"].items():
+                p = b.get("param") or {}
+                if "sp" in p and analog.monitor_kind(b):
+                    got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text") if k in p}
+        if len(_SP) > 6:
+            _SP.clear()
+        _SP[job] = hit = (rm, got)
+    for s in res["sheets"]:
+        for bid, b in s["blocks"].items():
+            e = hit[1].get((s["page"], bid))
+            if e:
+                b.setdefault("param", {}).update(e)
+    res["_sp"] = True
 
 
 def _lib_rules(lm, job):
@@ -446,7 +478,8 @@ def simulate(job: str, page: int, body: dict = Body(default={})):
         if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in ("net", "row", "block"):
             clean[k] = int(v)
     state = body.get("state") if isinstance(body.get("state"), dict) else None
-    return sim.simulate(s, clean, state, timers=_timers(body.get("timers")).get(page))
+    return sim.simulate(s, clean, state, timers=_timers(body.get("timers")).get(page),
+                        analog=_analog(body.get("analog")).get(page))
 
 
 @router.post("/logic/api/jobs/{job}/sheet/{page}/trace")
@@ -507,7 +540,7 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = body.get("page")
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
-    out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers)
+    out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=_analog(body.get("analog")))
     out["default_t"] = sim.DEFAULT_T
     return out
 
@@ -521,6 +554,23 @@ def _timers(raw):
         if not str(pg).isdigit() or not isinstance(d, dict):
             continue
         c = {str(b): float(v) for b, v in d.items() if sim._secs(v) is not None}
+        if c:
+            out[int(pg)] = c
+    return out
+
+
+def _analog(raw):
+    """L26 — 사람이 준 아날로그 값 {쪽: {"block:<id>"|"row:<n>": 수}}.  수가 아닌 값은 버린다."""
+    if not isinstance(raw, dict):
+        return {}
+    out = {}
+    for pg, d in raw.items():
+        if not str(pg).isdigit() or not isinstance(d, dict):
+            continue
+        c = {}
+        for k, v in d.items():
+            if isinstance(k, str) and k.split(":", 1)[0] in ("block", "row") and analog.num(v) is not None:
+                c[k] = analog.num(v)
         if c:
             out[int(pg)] = c
     return out
@@ -679,6 +729,24 @@ def overrides_timer(job: str, body: dict = Body(...)):
     if _sheet(job, page)["blocks"].get(bid) is None:
         raise HTTPException(404, "그 블록이 없습니다.")
     return _ov_call(overrides.set_timer, d, page, bid, body.get("sec"), str(body.get("author") or ""))
+
+
+@router.post("/logic/api/jobs/{job}/overrides/setpoint")
+def overrides_setpoint(job: str, body: dict = Body(...)):
+    """L26 — 감시 블록 설정값 {page, block, sp | null, author}.  기본은 도면이 블록 위에 인쇄한 값."""
+    d = _dir(job)
+    page, bid = body.get("page"), str(body.get("block") or "")
+    if not isinstance(page, int) or not bid:
+        raise HTTPException(400, "page(정수) 와 block 이 필요합니다.")
+    b = _sheet(job, page)["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    if not analog.monitor_kind(b):
+        raise HTTPException(400, "설정값은 감시 블록(HHH · HH · H · /L · /LL …)에만 적습니다.")
+    sp = body.get("sp")
+    if sp is not None and analog.num(sp) is None:
+        raise HTTPException(400, "설정값은 수입니다.")
+    return _ov_call(overrides.set_setpoint, d, page, bid, sp, str(body.get("author") or ""))
 
 
 @router.get("/logic/api/library")
