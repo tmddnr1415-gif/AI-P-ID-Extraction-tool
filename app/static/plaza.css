@@ -1,0 +1,51 @@
+/* 가상 광장 — 옛 온라인 RPG 마을 느낌 (가는 글씨 · 반투명 창 · 둥근 말풍선은 canvas 가 그린다) */
+html, body { margin: 0; height: 100%; background: #1b2414; overflow: hidden; }
+body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "WenQuanYi Zen Hei", sans-serif; }
+.pz { position: relative; width: 100%; height: 100%; }
+#pz-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none;
+  image-rendering: pixelated; cursor: default; }
+
+.pz-top { position: absolute; left: 8px; top: 8px; display: flex; gap: 8px; align-items: center;
+  font-size: 12px; color: #fff; pointer-events: none; }
+.pz-title { background: rgba(60, 30, 10, .82); border: 1px solid #c9a35a; color: #ffe7a6;
+  padding: 3px 9px; border-radius: 3px; font-weight: bold; letter-spacing: .02em;
+  text-shadow: 0 1px 0 #000; }
+.pz-online { background: rgba(0, 0, 0, .55); padding: 3px 8px; border-radius: 3px; }
+.pz-help { background: rgba(0, 0, 0, .45); padding: 3px 8px; border-radius: 3px; color: #dfe6d2; }
+
+.pz-who { position: absolute; right: 8px; top: 8px; max-height: 45%; overflow: auto;
+  background: rgba(20, 16, 10, .62); border: 1px solid rgba(201, 163, 90, .7); border-radius: 3px;
+  font-size: 12px; color: #f1ead6; padding: 5px 9px; min-width: 96px; }
+.pz-who b { display: block; color: #ffe7a6; font-size: 11.5px; margin-bottom: 3px; }
+.pz-who div { line-height: 1.55; white-space: nowrap; }
+.pz-who .me { color: #ffd84a; }
+
+.pz-chat { position: absolute; left: 8px; bottom: 8px; width: min(440px, calc(100% - 16px)); }
+.pz-log { height: 104px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+  background: rgba(0, 0, 0, .52); border: 1px solid rgba(255, 255, 255, .18); border-bottom: 0;
+  border-radius: 3px 3px 0 0; padding: 4px 8px; font-size: 12.5px; color: #fff; }
+.pz-log div { line-height: 1.5; text-shadow: 0 1px 1px #000; overflow-wrap: anywhere; }
+.pz-log .t { color: #9aa48c; margin-right: 5px; font-size: 11px; }
+.pz-log .n { color: #ffe066; margin-right: 4px; }
+.pz-log .mine .n { color: #8fe3ff; }
+.pz-log .sys { color: #b6f0a2; }
+.pz-inputrow { display: flex; align-items: center; background: rgba(0, 0, 0, .7);
+  border: 1px solid rgba(255, 255, 255, .25); border-radius: 0 0 3px 3px; }
+.pz-me { color: #8fe3ff; font-size: 12px; padding: 0 6px 0 8px; white-space: nowrap; }
+.pz-input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: inherit;
+  font-size: 13px; padding: 6px 6px; outline: none; }
+.pz-input::placeholder { color: #9b9b9b; }
+.pz-chat.typing .pz-inputrow { border-color: #ffd84a; box-shadow: 0 0 0 1px #ffd84a inset; }
+
+.pz-focus { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, .6); color: #fff; font-size: 13px; padding: 7px 14px;
+  border-radius: 4px; pointer-events: none; }
+
+.pz-name { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .45); }
+.pz-name[hidden], .pz-focus[hidden] { display: none; }
+.pz-namebox { background: #2b2010; border: 2px solid #c9a35a; border-radius: 4px; padding: 14px 16px;
+  color: #ffe7a6; display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+.pz-namebox input { font: inherit; padding: 5px 7px; border: 1px solid #c9a35a; background: #fff8e6; }
+.pz-namebox button { font: inherit; padding: 5px; background: #8b2f1c; color: #fff;
+  border: 1px solid #e3b866; cursor: pointer; }

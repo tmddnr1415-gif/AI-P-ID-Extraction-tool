@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가상 광장</title>
+<link rel="stylesheet" href="/static/plaza.css">
+</head>
+<body>
+<div id="pz" class="pz">
+  <canvas id="pz-map" tabindex="0" aria-label="가상 광장 — 방향키로 움직이고 Enter 로 대화"></canvas>
+
+  <div class="pz-top">
+    <span class="pz-title">계장 마을 광장</span>
+    <span id="pz-online" class="pz-online">접속 0명</span>
+    <span class="pz-help">방향키/WASD 이동 · Enter 대화 · Esc 취소</span>
+  </div>
+
+  <div id="pz-who" class="pz-who" aria-label="광장에 있는 사람"></div>
+
+  <div class="pz-chat">
+    <div id="pz-log" class="pz-log" aria-live="polite"></div>
+    <div class="pz-inputrow">
+      <span id="pz-me" class="pz-me"></span>
+      <input id="pz-input" class="pz-input" maxlength="80" autocomplete="off"
+             placeholder="Enter 를 눌러 대화하기">
+    </div>
+  </div>
+
+  <div id="pz-focus" class="pz-focus" hidden>클릭하면 캐릭터를 움직일 수 있습니다</div>
+
+  <div id="pz-name" class="pz-name" hidden>
+    <div class="pz-namebox">
+      <b>광장에 들어갈 이름</b>
+      <input id="pz-namein" maxlength="20" placeholder="이름">
+      <button id="pz-nameok" type="button">들어가기</button>
+    </div>
+  </div>
+</div>
+<script src="/static/plaza.js"></script>
+</body>
+</html>
