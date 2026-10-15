@@ -13,6 +13,7 @@ const L = {
   all: null, allCode: "", allSel: null,            // 묶음 전체 점검 목록 (L7)
   memos: [], memoEdit: null, pinMode: false, pendingAt: null, memoFlash: null,   // 메모 (L8)
   timers: {}, defaultT: 5, count: {}, choices: [],              // L15 — 사람이 바꾼 타이머 시간 {쪽: {블록: 초}} · 세는 중인 타이머
+  analog: {}, analogRes: {}, analogGiven: {},                    // L26 — 사람이 준 아날로그 값 {쪽: {키: 수}} · 그 결과
 };
 const SPEED = 900;          // 선 위를 신호가 흐르는 속도 (pt/초)
 const STEP_MS = 260;        // 블록 하나를 지날 때마다 기다림
@@ -239,9 +240,14 @@ function bindHome() {
 /* L22 — 부서원이 첫 화면에서 분석 기록을 지운다 (분석 중이면 서버가 거절 · 누가 지웠는지 남긴다) */
 async function deleteJob(id) {
   const x = (L.jobsList || []).find((j) => j.id === id) || {};
-  const who = needAuthor();
-  if (!who) return;
-  if (!confirm(`'${x.name || id}' 분석 기록을 지웁니다.\n분석 결과 · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간)이 함께 지워지고 되돌릴 수 없습니다.\n지운 사람: ${who}`)) return;
+  const ans = await askModal({
+    title: "분석 기록 지우기", danger: true, ok: "지우기",
+    html: `<p><b>'${esc(x.name || id)}'</b> 분석 기록을 지웁니다.</p>
+      <p>분석 결과 · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간)이 함께 지워지고 되돌릴 수 없습니다.</p>`,
+    fields: authorField(),
+  });
+  if (!ans) return;
+  const who = takeAuthor(ans);
   try {
     await api(`/logic/api/jobs/${id}?author=${encodeURIComponent(who)}`, { method: "DELETE" });
     status(`'${x.name || id}' 를 지웠습니다 (${who})`);
@@ -254,19 +260,25 @@ async function deleteProject(name) {
   let pv;
   try { pv = await api(`/logic/api/projects/${encodeURIComponent(name)}/delete_preview`); }
   catch (err) { status("지우지 못했습니다 — " + err.message); return; }
-  if (pv.running.length) { alert(`'${name}' 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.`); return; }
-  const who = needAuthor();
-  if (!who) return;
-  const others = pv.authors.filter((a) => a !== who);
-  const typed = prompt(`프로젝트 '${name}' 를 지웁니다.\n`
-    + `함께 지워지는 것: 분석 ${pv.jobs}건 (${pv.sheets}장) · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간 · 가르치기 답)\n`
-    + (others.length ? `⚠ 다른 사람이 올린 분석이 있습니다: ${others.join(", ")}\n` : "")
-    + `되돌릴 수 없습니다.  학습 사전(다른 프로젝트도 쓰는 기호)은 남습니다.\n`
-    + `지운 사람: ${who}\n\n확인하려면 프로젝트 이름을 그대로 적으세요:`);
-  if (typed == null) return;
-  if (typed.trim() !== name) { status("이름이 달라 지우지 않았습니다"); return; }
+  if (pv.running.length) {
+    await askModal({ title: "프로젝트 삭제", ok: "확인", cancel: false,
+      html: `<p><b>'${esc(name)}'</b> 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.</p>` });
+    return;
+  }
+  const who0 = currentAuthor();
+  const others = pv.authors.filter((a) => a !== who0);
+  const ans = await askModal({
+    title: "프로젝트 삭제", danger: true, ok: "프로젝트 지우기",
+    html: `<p>프로젝트 <b>'${esc(name)}'</b> 를 지웁니다.</p>
+      <p>함께 지워지는 것: 분석 <b>${pv.jobs}건</b> (${pv.sheets}장) · 메모 · 사람이 정한 값(게이트 종류 · FM/TO · 시간 · 가르치기 답)</p>
+      ${others.length ? `<p class="warn">⚠ 다른 사람이 올린 분석이 있습니다: ${esc(others.join(", "))}</p>` : ""}
+      <p>되돌릴 수 없습니다.  학습 사전(다른 프로젝트도 쓰는 기호)은 남습니다.</p>`,
+    fields: [...authorField(), { id: "confirm", label: "확인하려면 프로젝트 이름을 그대로 적으세요", placeholder: name, mustEqual: name }],
+  });
+  if (!ans) return;
+  const who = takeAuthor(ans);
   try {
-    const r = await api(`/logic/api/projects/${encodeURIComponent(name)}?author=${encodeURIComponent(who)}&confirm=${encodeURIComponent(typed.trim())}`, { method: "DELETE" });
+    const r = await api(`/logic/api/projects/${encodeURIComponent(name)}?author=${encodeURIComponent(who)}&confirm=${encodeURIComponent(ans.confirm)}`, { method: "DELETE" });
     status(`프로젝트 '${name}' 와 분석 ${r.jobs}건을 지웠습니다 (${who})`);
     try { if (localStorage.getItem("logic.project") === name) localStorage.removeItem("logic.project"); } catch (e) {}
     if ($("#lh-project").value === name) $("#lh-project").value = "";
@@ -274,12 +286,59 @@ async function deleteProject(name) {
   loadHome();
 }
 /* 누가 정했는지 남긴다 — 대시보드 로그인 · 기억된 이름, 없으면 한 번 묻는다 */
-function needAuthor() {
-  let who = currentAuthor();
+async function needAuthor() {
+  const who = currentAuthor();
   if (who) return who;
-  who = (prompt("이름을 적어 주세요 — 누가 정했는지 남깁니다") || "").trim();
-  if (who) rememberAuthor(who);
-  return who;
+  const ans = await askModal({ title: "이름", ok: "확인", html: "<p>누가 정했는지 남깁니다.</p>", fields: authorField() });
+  return ans ? takeAuthor(ans) : "";
+}
+function authorField() {
+  return currentAuthor() ? [] : [{ id: "author", label: "이름", placeholder: "이름을 적어 주세요", required: true }];
+}
+function takeAuthor(ans) {
+  if (ans.author) { rememberAuthor(ans.author); return ans.author; }
+  return currentAuthor();
+}
+/* 화면 안 대화상자 — 브라우저의 prompt · confirm · alert 는 대시보드 iframe 에서 막혀
+   아무 말 없이 null 을 돌려준다 (회사 PC 에서 '프로젝트 삭제' 가 그래서 안 됐다).
+   fields: [{id, label, value, placeholder, required, mustEqual}] → 확인이면 {id: 값}, 취소면 null */
+function askModal({ title, html = "", fields = [], ok = "확인", cancel = "취소", danger = false }) {
+  return new Promise((resolve) => {
+    document.querySelectorAll(".lmodal-back").forEach((n) => n.remove());
+    const back = document.createElement("div");
+    back.className = "lmodal-back";
+    back.innerHTML = `<div class="lmodal" role="dialog" aria-modal="true">
+      <h3>${esc(title || "")}</h3><div class="lm-body">${html}</div>
+      ${fields.map((f) => `<label class="lm-f"><span>${esc(f.label || "")}</span>
+        <input data-f="${esc(f.id)}" value="${esc(f.value || "")}" placeholder="${esc(f.placeholder || "")}" autocomplete="off"></label>`).join("")}
+      <div class="lm-err"></div>
+      <div class="lm-btns">${cancel === false ? "" : `<button data-m="no">${esc(cancel)}</button>`}
+        <button data-m="ok" class="${danger ? "danger" : "primary"}">${esc(ok)}</button></div></div>`;
+    document.body.appendChild(back);
+    const inputs = [...back.querySelectorAll("input[data-f]")];
+    const okBtn = back.querySelector('[data-m="ok"]');
+    const vals = () => Object.fromEntries(inputs.map((i) => [i.dataset.f, i.value.trim()]));
+    const valid = () => fields.every((f) => {
+      const v = vals()[f.id] || "";
+      if (f.mustEqual != null) return v === f.mustEqual;
+      return !f.required || !!v;
+    });
+    const refresh = () => { okBtn.disabled = !valid(); };
+    const done = (v) => { back.remove(); document.removeEventListener("keydown", key, true); resolve(v); };
+    const key = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(null); }
+      else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); if (valid()) done(vals()); }
+    };
+    document.addEventListener("keydown", key, true);
+    inputs.forEach((i) => i.addEventListener("input", refresh));
+    back.addEventListener("click", (e) => {
+      const m = e.target.closest("[data-m]");
+      if (m) { if (m.dataset.m === "ok") { if (valid()) done(vals()); } else done(null); return; }
+      if (e.target === back) done(null);
+    });
+    refresh();
+    (inputs[0] || okBtn).focus();
+  });
 }
 
 async function openJob(id) {
@@ -946,7 +1005,7 @@ async function loadTimers() {
   }
 }
 async function setTimer(bid, sec) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   const p = L.page;
   try {
@@ -991,6 +1050,360 @@ function timerMenu(bid, e) {
     if (!btn) return;
     if (btn.dataset.t === "ok") ok(); else { closeForceMenu(); setTimer(bid, null); }
   });
+}
+/* ------------------------------------------------------------------ L26 — 아날로그 값 (MED …) · 감시 블록 설정값 (HHH · HH …)
+
+   시뮬레이터는 1/0 이다.  MED 같은 아날로그 블록 뒤의 감시 블록(범례 SIGNAL MONITOR — 글자 HHH/ · HH/ · H/ · /L · /LL)은
+   값이 설정값을 넘는지(못 미치는지)로 1/0 을 낸다.  사람이 MED 값을 주면 감시 블록마다 맞대어 —
+   HH 는 넘지만 HHH 보다 낮으면 HH 만 1 · HHH 보다 높으면 HH · HHH 둘 다 1 (사용자 지시).  판정은 서버(app/logic/analog.py)가 한다.
+   설정값은 사람이 적은 값(서버 · 작성자) → 도면이 블록 위에 인쇄한 값 → 없음. */
+const MON_RE = /^\s*(H+)\s*\/\s*$|^\s*\/\s*(L+)\s*$/;
+function monKind(b) {
+  if (!b) return null;
+  const m = MON_RE.exec(String(b.label || b.read || "").toUpperCase());
+  if (!m) return null;
+  if (b.func !== "SIGNAL MONITOR" && !["source", "unknown"].includes(b.logic)) return null;
+  return m[1] ? "high" : "low";
+}
+function isAnalogBlock(b) {
+  return !!b && b.logic === "unknown" && !["UNKNOWN", "MACRO", "XOR"].includes(b.func) && !monKind(b);
+}
+function monSp(b) {
+  const p = (b && b.param) || {};
+  if (p.sp_user != null && p.sp_user !== "") return { sp: Number(p.sp_user), src: "user" };
+  if (p.sp != null && p.sp !== "") return { sp: Number(p.sp), src: "drawing" };
+  return { sp: null, src: null };
+}
+function fmtNum(v) {
+  if (v == null || !isFinite(v)) return "—";
+  const a = Math.abs(v);
+  return String(a >= 1000 ? Math.round(v) : Math.round(v * 1000) / 1000);
+}
+function monState(bid) {
+  return ((L.analogRes || {}).monitors || []).find((m) => m.block === bid) || null;
+}
+/* 이 키(블록 · 입력 행)의 값을 받는 감시 블록들 — 아날로그 블록(MED …)을 지나 몇 단계까지 */
+function monitorsFrom(key) {
+  const s = L.sheet;
+  let nets = [];
+  if (key.startsWith("row:")) { const r = s.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r && r.net != null) nets = [String(r.net)]; }
+  else nets = s.ports.filter((p) => p.block === key.slice(6) && p.dir === "out").map((p) => String(p.net));
+  const seen = new Set(), mons = [];
+  for (let depth = 0; depth < 4 && nets.length; depth++) {
+    const next = [];
+    for (const n of nets) {
+      if (seen.has(n)) continue;
+      seen.add(n);
+      for (const p of s.ports) {
+        if (String(p.net) !== n || p.dir !== "in") continue;
+        const b = s.blocks[p.block];
+        if (monKind(b)) { if (!mons.includes(p.block)) mons.push(p.block); }
+        else if (isAnalogBlock(b)) next.push(...s.ports.filter((q) => q.block === p.block && q.dir === "out").map((q) => String(q.net)));
+      }
+    }
+    nets = next;
+  }
+  return mons;
+}
+function analogRow(key) {
+  if (!key.startsWith("row:") || !L.sheet) return false;
+  const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4)));
+  if (!r || r.net == null) return false;
+  return L.sheet.ports.some((p) => String(p.net) === String(r.net) && p.dir === "in" &&
+                                    (monKind(L.sheet.blocks[p.block]) || isAnalogBlock(L.sheet.blocks[p.block])));
+}
+/* 감시 블록에 들어오는 값을 누가 주나 — 그 선을 모는 아날로그 블록 · 입력 행 (사람이 값을 넣는 자리) */
+function analogSourceOf(bid) {
+  const s = L.sheet;
+  for (const p of s.ports.filter((q) => q.block === bid && q.dir === "in")) {
+    const drv = s.ports.find((q) => String(q.net) === String(p.net) && q.dir === "out" && isAnalogBlock(s.blocks[q.block]));
+    if (drv) return "block:" + drv.block;
+    const r = s.rows.find((x) => x.side === "L" && x.net != null && String(x.net) === String(p.net));
+    if (r) return "row:" + r.n;
+  }
+  return null;
+}
+/* L27 — 사람이 주는 아날로그 값은 4~20 mA (기본 8 mA).  공학값은 서버가 범위(도면 `0~250 barg` · 사람이 적은 값)로 바꾼다. */
+const MA_LO = 4, MA_HI = 20, DEFAULT_MA = 8;
+function anKey(key) { return (((L.analogRes || {}).keys) || {})[key] || null; }
+function analogValueOf(key) {
+  const mine = (L.analog[L.page] || {})[key];
+  const k = anKey(key);
+  if (mine != null) return { ma: mine, eng: k ? k.eng : null, range: k ? k.range : keyRange(key), src: "user" };
+  if (k) return { ma: k.ma, eng: k.eng, range: k.range, src: k.src };
+  return { ma: null, eng: null, range: keyRange(key), src: null };
+}
+/* 그 입력의 범위 — 사람이 적은 것 → 도면이 선 아래 인쇄한 것 (서버 결과가 없을 때 화면이 바로 읽는 자리) */
+function keyRange(key) {
+  let x = null;
+  if (key.startsWith("row:")) x = L.sheet.rows.find((r) => r.side === "L" && r.n === Number(key.slice(4)));
+  else x = (L.sheet.blocks[key.slice(6)] || {}).param;
+  if (!x) return null;
+  const r = x.range_user || x.range;
+  return r && r.lo != null ? { lo: Number(r.lo), hi: Number(r.hi), unit: r.unit || "", src: x.range_user ? "user" : "drawing" } : null;
+}
+function maToEng(ma, rg) { return rg ? rg.lo + (ma - MA_LO) / (MA_HI - MA_LO) * (rg.hi - rg.lo) : null; }
+function engToMa(v, rg) { return rg && rg.hi !== rg.lo ? MA_LO + (v - rg.lo) / (rg.hi - rg.lo) * (MA_HI - MA_LO) : null; }
+function fmtMa(ma) { return ma == null ? "—" : (Math.round(ma * 100) / 100) + " mA"; }
+function engText(v, rg) { return v == null ? "" : `${fmtNum(v)}${rg && rg.unit ? " " + rg.unit : ""}`; }
+function keyName(key) {
+  if (key.startsWith("row:")) {
+    const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4)));
+    return `입력 ${key.slice(4)}행` + (r && r.desc ? " · " + r.desc : "");
+  }
+  const b = L.sheet.blocks[key.slice(6)];
+  return `${b.label || FUNC_KO[b.func] || b.func} — ${FUNC_KO[b.func] || b.func}`;
+}
+function monLevel(b) { return (b.param || {}).sp_level || (b.label || "").replace("/", "").trim() || "감시"; }
+function monLabel(bid) {
+  const b = L.sheet.blocks[bid], k = monKind(b);
+  return `${monLevel(b)} ${k === "high" ? "넘으면 1" : "못 미치면 1"}`;
+}
+/* 감시 블록 설정값 칸 — 도면에서 읽은 수가 기본값.  못 읽었으면 비워 두고 '직접 입력' 이라고 말한다 (지어내지 않는다) */
+function spRowHtml(bid, rg) {
+  const b = L.sheet.blocks[bid], ms = monSp(b), p = b.param || {};
+  const d = p.sp != null ? Number(p.sp) : null;
+  const unit = p.sp_unit || (rg && rg.unit) || "";
+  const ma = ms.sp != null ? engToMa(ms.sp, rg) : null;
+  const why = ms.src === "user" ? `✎ ${esc(p.sp_user_by || "")}${d != null ? " · 도면 " + fmtNum(d) : ""}`
+    : d != null ? "도면 값" : p.sp_label ? `도면 표기 '${esc(p.sp_label)}' (수가 아님) — 직접 입력` : "도면에 없음 — 직접 입력";
+  return `<label class="fm-t an-sp${ms.sp == null ? " need" : ""}"><span class="an-mon">${esc(monLabel(bid))}</span>
+    <input data-sp="${esc(bid)}" type="number" step="any" value="${ms.sp == null ? "" : ms.sp}" placeholder="설정값"> ${esc(unit)}
+    <small>${why}${ma != null ? ` · ≈ ${fmtMa(ma)}` : ""}</small></label>`;
+}
+function rangeRowHtml(key, rg) {
+  const p = rg ? (rg.src === "user" ? "사람이 적음" : "도면 값") : "도면에 없음 — 적어 주세요";
+  return `<div class="fm-sub">범위 — 4 mA 일 때 · 20 mA 일 때 <small>${p}</small></div>
+    <label class="fm-t an-rg${rg ? "" : " need"}"><input data-rg="lo" type="number" step="any" value="${rg ? rg.lo : ""}" placeholder="4 mA">
+      ~ <input data-rg="hi" type="number" step="any" value="${rg ? rg.hi : ""}" placeholder="20 mA">
+      <input data-rg="unit" class="unit" value="${esc(rg ? rg.unit : "")}" placeholder="단위"></label>`;
+}
+function menuRange(m) {
+  const g = (k) => (m.querySelector(`input[data-rg="${k}"]`) || {}).value;
+  const lo = g("lo"), hi = g("hi");
+  if (lo == null || String(lo).trim() === "" || String(hi).trim() === "") return null;
+  const a = Number(lo), b = Number(hi);
+  return isFinite(a) && isFinite(b) && a !== b ? { lo: a, hi: b, unit: String(g("unit") || "").trim() } : null;
+}
+function maInputHtml(id, cur) {
+  const v = cur.src === "user" ? cur.ma : "";
+  const ph = cur.ma != null ? fmtNum(cur.ma) : DEFAULT_MA;
+  return `<label class="fm-t">값 <input id="${id}" type="number" min="${MA_LO}" max="${MA_HI}" step="0.1" value="${v}" placeholder="${ph}"> mA
+    <small>4~20 mA · 비우면 기본 ${DEFAULT_MA} mA</small></label><div class="fm-why an-eng"></div>`;
+}
+function liveEng(m, inp, cur) {
+  const out = m.querySelector(".an-eng");
+  const upd = () => {
+    const rg = menuRange(m) || cur.range;
+    const raw = inp.value.trim();
+    const ma = raw === "" ? (cur.src === "user" ? null : (cur.ma != null ? cur.ma : DEFAULT_MA)) : Number(raw);
+    if (raw !== "" && !(ma >= MA_LO && ma <= MA_HI)) { out.textContent = "4~20 mA 사이로 적어 주세요"; out.classList.add("bad"); return; }
+    out.classList.remove("bad");
+    out.textContent = ma == null ? "" : rg ? `= ${engText(maToEng(ma, rg), rg)}  (범위 ${fmtNum(rg.lo)}~${fmtNum(rg.hi)}${rg.unit ? " " + rg.unit : ""})`
+      : cur.src === "calc" || cur.src === "linked" || cur.src === "pass" ? `지금 ${engText(cur.eng, cur.range)}` : "범위를 몰라 공학값으로 바꿀 수 없습니다 — 아래 범위를 적어 주세요";
+  };
+  m.addEventListener("input", upd);
+  upd();
+}
+function analogMenu(key, e) {
+  closeForceMenu();
+  const mons = monitorsFrom(key);
+  const cur = analogValueOf(key);
+  const b = key.startsWith("block:") ? L.sheet.blocks[key.slice(6)] : null;
+  const how = b && /MEDIAN/.test(b.func) ? "값을 비우면 그 입력들의 중간값 (범례 MEDIAN SELECTION)"
+    : cur.src === "pass" ? "보정 계산식은 도면에 없어 주 입력 값을 그대로 넘겼습니다" : "";
+  const ownRange = key.startsWith("row:") || !cur.range || (b && (b.param || {}).range_user);
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu an-menu";
+  m.innerHTML = `<div class="fm-h">${esc(keyName(key))} — 아날로그 값 (4~20 mA)</div>
+    ${maInputHtml("an-v", cur)}
+    ${how ? `<div class="fm-why an-why">${how}</div>` : ""}
+    ${ownRange ? rangeRowHtml(key, keyRange(key) || (key.startsWith("row:") ? null : cur.range)) : ""}
+    ${mons.length ? `<div class="fm-sub">이 값을 받는 감시 블록 — 설정값 (기본 = 도면 값)</div>${mons.map((x) => spRowHtml(x, cur.range)).join("")}`
+                  : `<div class="fm-why an-why">이 값을 받는 감시 블록(HH · HHH …)이 이 시트에 없습니다</div>`}
+    <button data-a="ok" class="v1">적용 — 동작 시뮬레이션에서 맞대기</button>
+    ${cur.src === "user" ? `<button data-a="x" class="vx">기본 ${DEFAULT_MA} mA 로</button>` : ""}
+    ${L.mode === "trace" ? `<button data-a="t" class="vt">↪ 연결만 따라가기</button>` : ""}`;
+  placeMenu(m, e);
+  const inp = m.querySelector("#an-v");
+  liveEng(m, inp, cur);
+  const first = m.querySelector(".need input") || inp;
+  first.focus(); first.select && first.select();
+  const ok = async () => {
+    const raw = inp.value.trim();
+    const v = raw === "" ? null : Number(raw);
+    if (raw !== "" && !(v >= MA_LO && v <= MA_HI)) { inp.classList.add("bad"); return; }
+    if (ownRange && !(await saveRange(m, key))) return;
+    if (!(await saveSetpoints(m))) return;
+    closeForceMenu();
+    setAnalog(key, v);
+  };
+  m.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) ok(); });
+  m.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.a === "ok") ok();
+    else if (btn.dataset.a === "t") { closeForceMenu(); traceFrom(key, false); }
+    else { closeForceMenu(); setAnalog(key, null); }
+  });
+}
+function monitorMenu(bid, e) {
+  closeForceMenu();
+  const b = L.sheet.blocks[bid];
+  const st = monState(bid);
+  const src = analogSourceOf(bid);
+  const cur = src ? analogValueOf(src) : { ma: null, eng: st && st.value, range: st && st.range, src: null };
+  const rg = (st && st.range) || cur.range;
+  const v = L.forces["block:" + bid];
+  const ms = monSp(b);
+  const m = document.createElement("div");
+  m.id = "force-menu"; m.className = "force-menu an-menu";
+  m.innerHTML = `<div class="fm-h">${esc(b.label || "")} 신호 감시 (Alarm) — ${monKind(b) === "high" ? "값이 설정값을 넘으면 1" : "값이 설정값에 못 미치면 1"}</div>
+    ${ms.sp == null ? `<div class="fm-why">도면에서 설정값을 읽지 못했습니다 — 직접 입력해 주세요</div>` : ""}
+    ${spRowHtml(bid, rg)}
+    ${src ? `<div class="fm-sub">들어오는 값 — ${esc(keyName(src))}</div>${maInputHtml("an-v", cur)}` : ""}
+    ${src && !cur.range ? rangeRowHtml(src, null) : ""}
+    <div class="fm-why an-why">${st && st.out != null ? `지금 ${engText(st.value, rg)} ${monKind(b) === "high" ? ">" : "<"} ${fmtNum(st.sp)} → <b>${st.out}</b>` : "값과 설정값이 다 있어야 맞댑니다 — 없으면 1/0 을 직접 줄 수 있습니다"}</div>
+    <button data-a="ok" class="v1">적용 — 동작 시뮬레이션에서 맞대기</button>
+    ${ms.src === "user" ? `<button data-a="d" class="vx">${(b.param || {}).sp != null ? "도면 설정값으로" : "설정값 지우기"}</button>` : ""}
+    <button data-v="1" class="v1${v === 1 ? " on" : ""}"><b>1</b> 활성 (값과 무관하게)</button>
+    <button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성</button>
+    ${v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : ""}
+    ${L.mode === "trace" ? `<button data-a="t" class="vt">↪ 연결만 따라가기</button>` : ""}`;
+  placeMenu(m, e);
+  const vi = m.querySelector("#an-v");
+  if (vi) liveEng(m, vi, cur);
+  const inp = m.querySelector("input[data-sp]");
+  inp.focus(); inp.select();
+  const ok = async () => {
+    let nv;
+    if (vi) {
+      const raw = vi.value.trim();
+      nv = raw === "" ? null : Number(raw);
+      if (raw !== "" && !(nv >= MA_LO && nv <= MA_HI)) { vi.classList.add("bad"); return; }
+    }
+    if (src && !cur.range && !(await saveRange(m, src))) return;
+    if (!(await saveSetpoints(m))) return;
+    closeForceMenu();
+    if (vi && src && (nv != null || cur.src === "user")) setAnalog(src, nv); else rerunAnalog();
+  };
+  m.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.isComposing) ok(); });
+  m.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.a === "ok") { ok(); return; }
+    if (btn.dataset.a === "d") { closeForceMenu(); if (await postSetpoint(bid, null)) rerunAnalog(); return; }
+    if (btn.dataset.a === "t") { closeForceMenu(); traceFrom("block:" + bid, false); return; }
+    closeForceMenu();
+    setForce("block:" + bid, btn.dataset.v === "x" ? null : Number(btn.dataset.v));
+  });
+}
+async function saveRange(m, key) {
+  const cur = keyRange(key);
+  const lo = m.querySelector('input[data-rg="lo"]'), hi = m.querySelector('input[data-rg="hi"]');
+  if (!lo) return true;
+  const want = menuRange(m);
+  if (!want) {
+    if (lo.value.trim() === "" && hi.value.trim() === "") return true;      // 범위 없이 둔다
+    lo.classList.add("bad"); hi.classList.add("bad"); return false;
+  }
+  if (cur && cur.lo === want.lo && cur.hi === want.hi && (cur.unit || "") === want.unit) return true;
+  const who = await needAuthor();
+  if (!who) { status("이름이 없어 범위를 저장하지 않았습니다"); return false; }
+  try {
+    await post(`/logic/api/jobs/${L.job}/overrides/range`, { page: L.page, key, lo: want.lo, hi: want.hi, unit: want.unit, author: who });
+  } catch (err) { status("범위를 저장하지 못했습니다 — " + err.message); return false; }
+  const ent = { lo: want.lo, hi: want.hi, unit: want.unit, by: who };
+  if (key.startsWith("row:")) { const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r) r.range_user = ent; }
+  else { const b = L.sheet.blocks[key.slice(6)]; b.param = b.param || {}; b.param.range_user = ent; }
+  return true;
+}
+async function saveSetpoints(m) {
+  for (const inp of m.querySelectorAll("input[data-sp]")) {
+    const bid = inp.dataset.sp, b = L.sheet.blocks[bid];
+    const raw = inp.value.trim();
+    const cur = monSp(b);
+    if (raw === "" && cur.sp == null) continue;
+    const v = raw === "" ? null : Number(raw);
+    if (raw !== "" && !isFinite(v)) { inp.classList.add("bad"); return false; }
+    if (v != null && cur.sp != null && Math.abs(v - cur.sp) < 1e-9) continue;
+    if (v == null && cur.src !== "user") continue;
+    if (v != null && cur.src === "drawing" && Math.abs(v - Number(b.param.sp)) < 1e-9) continue;
+    if (!(await postSetpoint(bid, v))) return false;
+  }
+  return true;
+}
+async function postSetpoint(bid, sp) {
+  const who = await needAuthor();
+  if (!who) { status("이름이 없어 설정값을 저장하지 않았습니다"); return false; }
+  try {
+    await post(`/logic/api/jobs/${L.job}/overrides/setpoint`, { page: L.page, block: bid, sp, author: who });
+  } catch (err) { status("설정값을 저장하지 못했습니다 — " + err.message); return false; }
+  const b = L.sheet.blocks[bid];
+  b.param = b.param || {};
+  if (sp == null) { delete b.param.sp_user; delete b.param.sp_user_by; }
+  else { b.param.sp_user = sp; b.param.sp_user_by = who; }
+  status(`${b.label || "감시"} 설정값 — ${sp == null ? (b.param.sp != null ? "도면 값 " + fmtNum(Number(b.param.sp)) : "없음") : fmtNum(sp) + " (" + who + ")"}`);
+  return true;
+}
+function setAnalog(key, v) {
+  const p = L.page;
+  L.analog[p] = L.analog[p] || {};
+  if (v == null) delete L.analog[p][key]; else L.analog[p][key] = v;
+  if (!Object.keys(L.analog[p]).length) delete L.analog[p];
+  status(v != null ? `∿ ${keyName(key)} = ${fmtMa(v)} — 감시 블록이 설정값과 맞댑니다` : `∿ ${keyName(key)} — 기본 ${DEFAULT_MA} mA 로`);
+  rerunAnalog();
+}
+function rerunAnalog() {
+  if (L.mode !== "sim") setMode("sim", true);
+  L.states = {}; L.state = null; L.values = {};
+  runSim(true).then(() => renderInfo());
+}
+function analogInfoRows(bid) {
+  const b = L.sheet.blocks[bid];
+  if (monKind(b)) {
+    const ms = monSp(b), st = monState(bid), p = b.param || {};
+    const rg = st && st.range;
+    return `<tr><td>설정값</td><td><b>${ms.sp == null ? "없음 — 직접 입력" : fmtNum(ms.sp) + " " + esc(p.sp_unit || (rg && rg.unit) || "")}</b> <small>${ms.src === "user" ? "✎ 사람이 정함 · " + esc(p.sp_user_by || "") + (p.sp != null ? " (도면 " + fmtNum(Number(p.sp)) + ")" : "") : ms.src === "drawing" ? "도면 " + esc(p.sp_text || "") : p.sp_label ? "도면 표기 " + esc(p.sp_label) + " (수가 아님)" : "도면에서 못 읽음"}</small> <button data-an="mon:${esc(bid)}">${ms.sp == null ? "설정값 입력" : "설정값 바꾸기"}</button></td></tr>
+      ${L.mode === "sim" && st && st.value != null ? `<tr><td>맞대기</td><td>값 ${engText(st.value, rg)} ${monKind(b) === "high" ? ">" : "<"} ${ms.sp == null ? "?" : fmtNum(ms.sp)} → ${st.out == null ? "설정값 없음" : valTag(st.out)}</td></tr>` : ""}`;
+  }
+  if (isAnalogBlock(b)) {
+    const cur = analogValueOf("block:" + bid);
+    const mons = monitorsFrom("block:" + bid);
+    return `<tr><td>아날로그 값</td><td><b>${cur.eng == null ? (cur.ma == null ? "없음" : fmtMa(cur.ma)) : engText(cur.eng, cur.range)}</b>${cur.ma != null && cur.eng != null ? ` <small>(${fmtMa(cur.ma)})</small>` : ""} <small>${cur.src === "user" ? "사람이 넣음" : cur.src === "calc" ? "입력에서 계산" : cur.src === "pass" ? "주 입력 그대로" : cur.src === "linked" ? "다른 시트에서" : ""}</small> <button data-an="block:${esc(bid)}">값 넣기 (mA)</button></td></tr>
+      ${mons.length ? `<tr><td>감시</td><td>${mons.map((m) => { const st = monState(m); const sp = monSp(L.sheet.blocks[m]).sp; return `${esc(L.sheet.blocks[m].label)} ${sp == null ? "설정값 없음" : fmtNum(sp)}${L.mode === "sim" && st && st.out != null ? " → " + valTag(st.out) : ""}`; }).join(" · ")}</td></tr>` : ""}`;
+  }
+  return "";
+}
+/* 도면 위: 아날로그 블록 아래 '= 62.5 barg (8 mA)' · 감시 블록 아래 'SP 191 · 62.5 → 0' · 설정값이 없으면 붉은 'SP ? 직접 입력' */
+function drawAnalogMarks(g, fs) {
+  const s = L.sheet;
+  for (const [bid, b] of Object.entries(s.blocks)) {
+    const [x0, , x1, y1] = b.bbox || [0, 0, 0, 0];
+    if (monKind(b)) {
+      const ms = monSp(b), st = monState(bid);
+      const parts = [ms.sp == null ? `SP ? 직접 입력${(b.param || {}).sp_label ? " (" + b.param.sp_label + ")" : ""}` : `SP ${fmtNum(ms.sp)}${ms.src === "user" ? " ✎" : ""}`];
+      if (L.mode === "sim" && st && st.value != null) parts.push(`${fmtNum(st.value)} → ${st.out == null ? "?" : st.out}`);
+      const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.6, "font-size": fs * 1.25,
+                              class: "ansp" + (st && st.out === 1 && L.mode === "sim" ? " on" : "") + (ms.src === "user" ? " user" : "") + (ms.sp == null ? " need" : "") }, g);
+      tx.textContent = parts.join(" · ");
+    } else if (isAnalogBlock(b) && L.mode === "sim") {
+      const cur = analogValueOf("block:" + bid);
+      if (cur.eng == null && cur.ma == null) continue;
+      const tx = el("text", { x: (x0 + x1) / 2, y: y1 + fs * 1.7, "font-size": fs * 1.4, class: "anv " + cur.src }, g);
+      tx.textContent = `= ${cur.eng != null ? engText(cur.eng, cur.range) : ""}${cur.ma != null ? (cur.eng != null ? " (" + fmtMa(cur.ma) + ")" : fmtMa(cur.ma)) : ""}${cur.src === "user" ? " ✎" : ""}`;
+    }
+  }
+  if (L.mode !== "sim") return;
+  for (const [k, info] of Object.entries(((L.analogRes || {}).keys) || {})) {
+    if (!k.startsWith("row:")) continue;
+    const r = s.rows.find((x) => x.side === "L" && x.n === Number(k.slice(4)));
+    if (!r || !r.at) continue;
+    const tx = el("text", { x: r.at[0] + fs, y: r.at[1] - fs * 0.5, "font-size": fs * 0.95, class: "anv row " + info.src }, g);
+    tx.textContent = `∿ ${info.ma != null ? fmtMa(info.ma) : ""}${info.eng != null ? " = " + engText(info.eng, info.range) : ""}${info.src === "user" ? " ✎" : ""}`;
+  }
 }
 /* 세는 타이머의 남은 시간을 블록 위에 줄여 간다 (실제 시간) */
 function startCount(run) {
@@ -1101,12 +1514,16 @@ async function runSim(animate) {
   // 묶음 전체를 함께 돌린다 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 (서버가 판정)
   const forces = {};
   for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page, timers: L.timers });
+  const analog = {};
+  for (const [p, a] of Object.entries(L.analog || {})) if (Object.keys(a).length) analog[p] = a;
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state: L.states, page: L.page, timers: L.timers, analog });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r) return;
   L.states = b.state || {};
   L.state = L.states[L.page] || r.state;
+  L.analogRes = r.analog || {};                    // L26 — 아날로그 값 · 감시 블록 (값 · 설정값 · 출력)
+  L.analogGiven = b.analog_given || {};
   L.linked = (b.linked || {})[L.page] || {};
   L.chain = b.pages || [];
   // L11 — TO 를 따라 이동하다 만난 설계 오류 (TO 시트·행 없음 · 빈 행 · FM 이 다른 곳 · TO 목록에 없음)
@@ -1210,6 +1627,7 @@ function setMode(m, quiet) {
 function resetAll() {
   const n = Object.values(L.allForces || {}).reduce((a, f) => a + Object.keys(f || {}).length, 0);
   L.allForces = {}; L.forces = L.allForces[L.page] = {};
+  L.analog = {}; L.analogRes = {}; L.analogGiven = {};
   L.states = {}; L.state = null; L.values = {}; L.linked = {}; L.chain = []; L.design = [];
   L.implied = {}; L.scenario = null; L.unmet = [];
   stopAnim();
@@ -1464,7 +1882,8 @@ function forceMenu(key, e, label, up) {
     `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성 (deactivate)</button>` +
     (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") +
     (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "") +
-    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "");
+    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "") +
+    (analogRow(key) ? `<button data-v="a" class="va">∿ 아날로그 값 넣기 — 감시 블록(HH · HHH …)이 설정값과 맞댑니다</button>` : "");
   document.body.appendChild(m);
   const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
   const r = m.getBoundingClientRect();
@@ -1477,6 +1896,7 @@ function forceMenu(key, e, label, up) {
     closeForceMenu();
     if (b.dataset.v === "t") { traceFrom(key, !!up); return; }
     if (b.dataset.v === "s") { runScenario(key); return; }
+    if (b.dataset.v === "a") { analogMenu(key, e); return; }
     setForce(key, b.dataset.v === "x" ? null : Number(b.dataset.v));
   });
 }
@@ -1585,7 +2005,9 @@ function onBlock(bid, e) {
   if (b.func === "MACRO") { macroMenu(bid, e); paint(); renderInfo(); return; }
   if (b.func === "UNKNOWN" || (b.user && e.altKey)) { gateMenu(bid, e); paint(); renderInfo(); return; }   // L22
   const hasIn = L.sheet.ports.some((p) => p.block === bid && p.dir === "in");
-  if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
+  if (monKind(b)) monitorMenu(bid, e);                             // L26 — 감시 블록 (HHH · HH …) 설정값 (어느 모드든)
+  else if (isAnalogBlock(b)) analogMenu("block:" + bid, e);        // L26 — MED 같은 아날로그 블록 값 (어느 모드든)
+  else if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
   else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
   paint(); renderInfo();
@@ -1647,7 +2069,7 @@ function gateMenu(bid, e) {
   });
 }
 async function saveGate(bid, choice, param, same) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   try {
     const r = await post(`/logic/api/jobs/${L.job}/overrides/block`, { page: L.page, block: bid, choice, author: who, param, same_shape: same });
@@ -1683,7 +2105,7 @@ function cellEditor(t, e) {
   });
 }
 async function saveCell(side, n, value) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
   try {
     const r = await post(`/logic/api/jobs/${L.job}/overrides/cell`, { page: L.page, side, row: n, value, author: who });
@@ -1951,6 +2373,7 @@ function renderInfo() {
       ${b.score ? `<tr><td>맞음</td><td>${Math.round(b.score * 100)}% <small>범례 어휘와 글자 모양</small></td></tr>` : ""}
       ${TIMER_LOGIC.has(b.logic) ? (() => { const ts = timerSec(L.sel.block); return `<tr><td>시간</td><td><b>${fmtSec(ts.sec)}</b> <small>${ts.src === "user" ? "사람이 바꿈" : ts.src === "drawing" ? "도면 " + esc(b.param.text || "") : "도면에 없음 — 기본"}</small> <button data-timer="${esc(L.sel.block)}">시간 바꾸기</button></td></tr>`; })()
         : b.param.text ? `<tr><td>시간</td><td>${esc(b.param.text)}</td></tr>` : ""}
+      ${analogInfoRows(L.sel.block)}
       <tr><td>단자</td><td>들어옴 ${ins.length} · 나감 ${outs.length}</td></tr>
       ${L.mode === "sim" && b.func === "MEMORY" ? `<tr><td>상태</td><td>${valTag(mem || 0)}</td></tr>` : ""}
       ${L.mode === "sim" && GATE_LOGIC.has(b.logic) ? `<tr><td>단자 값</td><td>${portValuesText(L.sel.block)}</td></tr>` : ""}
@@ -2065,7 +2488,9 @@ function drawSimMarks() {
   const g = $("#g-sim");
   if (!g) return;
   g.innerHTML = "";
-  if (L.mode !== "sim" || !L.sheet) return;
+  if (!L.sheet) return;
+  drawAnalogMarks(g, Math.max(2.4, Math.min(4.6, (L.sheet.pitch || 11.5) * 0.34)));   // L27 — 설정값(SP)은 어느 모드든
+  if (L.mode !== "sim") return;
   const s = L.sheet;
   const showAllGates = $("#show-all-gates") && $("#show-all-gates").checked;
   const showVals = !$("#show-ports") || $("#show-ports").checked;
@@ -2478,7 +2903,7 @@ function markDialog(rect, e, preset) {
   refresh();
   (kind === "GATE" ? q("#mk-c") : q("#mk-v")).focus();
   const save = async (del) => {
-    const who = needAuthor();
+    const who = await needAuthor();
     if (!who) { status("이름이 없어 저장하지 않았습니다"); return; }
     const body = { page: s.page, id: old ? old.id : undefined, kind, rect, author: who };
     if (!del) {
@@ -2744,7 +3169,7 @@ function teachAnswered(r) {
     ${TEACH.openAns ? `<ul>${items.join("")}</ul>` : ""}</div>`;
 }
 async function teachPost(body, msg) {
-  const who = needAuthor();
+  const who = await needAuthor();
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return null; }
   if (TEACH.busy) return null;
   TEACH.busy = true;
@@ -2851,7 +3276,9 @@ function bindTeach() {
       const choice = b.dataset.choice;
       let param;
       if (choice === "VOTE") {
-        const v = (prompt("투표 블록 — B 개 중 A 개 이상 (예: 2/3)", "2/3") || "").match(/(\d+)\s*\/\s*(\d+)/);
+        const va = await askModal({ title: "투표 블록", ok: "확인",
+          fields: [{ id: "v", label: "B 개 중 A 개 이상 (예: 2/3)", value: "2/3", required: true }] });
+        const v = ((va && va.v) || "").match(/(\d+)\s*\/\s*(\d+)/);
         if (!v) return;
         param = { a: Number(v[1]), b: Number(v[2]) };
       }
@@ -2947,6 +3374,8 @@ function bind() {
     if (tb) { timerMenu(tb.dataset.timer, e); return; }
     const gb = e.target.closest("button[data-gate]");
     if (gb) { gateMenu(gb.dataset.gate, e); return; }
+    const ab = e.target.closest("button[data-an]");
+    if (ab) { const k = ab.dataset.an; if (k.startsWith("mon:")) monitorMenu(k.slice(4), e); else analogMenu(k, e); return; }
     const mb = e.target.closest("button[data-macro]");
     if (mb) { openMacro(mb.dataset.macro); return; }
     const dg = e.target.closest("#design-err button[data-go]");

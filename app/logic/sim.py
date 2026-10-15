@@ -23,6 +23,8 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
+from . import analog as A
+
 DEFAULT_T = 5.0           # L22 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 5초 · L15 는 10초였다)
 MAX_ITER = 300
 MAX_FRAMES = 24
@@ -232,7 +234,7 @@ def _frame(t, val, depth, note):
             "depth": depth, "note": note}
 
 
-def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None):
+def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None, analog=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
     soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
     요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
@@ -252,6 +254,9 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     ins, outs, drivers, sinks, groups = _index(s)
     B = s["blocks"]
     notes = set()
+    # L26 — 아날로그 값(MED · 입력 행)과 감시 블록(HHH · HH …)의 설정값: 값과 설정값이 다 있으면 감시 출력이 1/0
+    an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks))
+    mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))}
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
@@ -299,6 +304,9 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             # (MOV 블록의 EN_OPEN · EN_CLOSE 허가처럼 언제나 서 있는 조건 · 사람이 0 으로 줄 수는 있다)
             if not ins[bid] and re.sub(r"[^0-9A-Z]", "", (b.get("label") or "").upper()) == "1":
                 return 1
+            m = mons.get(bid)
+            if m and m["out"] is not None:
+                return m["out"]                        # L26 — 아날로그 값이 설정값을 넘었는가
             return 0                                   # 누름단추 · HMI — 사람이 누르지 않으면 0
         if lg == "sink":
             return 0
@@ -516,7 +524,11 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                   " (앞쪽 입력이 0 으로 고정됐거나, OR · 메모리처럼 어느 입력인지 정해지지 않는 자리)")
     if short:
         notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
+    if any(m["value"] is not None and m["sp"] is None for m in mons.values()):
+        notes.add("설정값이 없는 감시 블록은 값을 맞대지 못했습니다 — 블록을 눌러 설정값을 적을 수 있습니다")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),
+            "analog": {"nets": an_net, "blocks": an_blk, "keys": an_keys, "monitors": list(mons.values()),
+                       "default_ma": A.DEFAULT_MA},
             "implied": implied, "conflicts": conflicts,
             "goals": [{"net": n, "want": v} for n, v in goals.items()], "unmet": unmet, "pulled": pulled,
             "_goals": goals, "_user": {**{f"row:{k}": v for k, v in row_force0.items()},
@@ -531,7 +543,7 @@ CHOICE_TRIES = 16          # L17 — 정해지지 않는 자리(OR=1 · AND=0 ·
 CHOICE_STEPS = 4000        # 갈래를 찾는 깊이 우선 걸음 상한 (큰 장에서 막히지 않게)
 
 
-def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=()):
+def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), analog=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
     soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
     요구하면 그 값이 이긴다 (`pulled` 에 남아 묶음이 보내는 시트의 출력까지 줄줄이 켠다).
@@ -545,7 +557,7 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
     """
     import copy
     st0 = copy.deepcopy(state) if state else None
-    res = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled)
+    res = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled, analog=analog)
     goals = res.pop("_goals")
     user = res.pop("_user")
     if not res["unmet"]:
@@ -566,7 +578,8 @@ def simulate(s, forces=None, state=None, now=0.0, timers=None, soft=None, settle
                 continue
             seen.add(key)
             tried += 1
-            r = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled, extra=leaves)
+            r = _simulate_once(s, forces, copy.deepcopy(st0) if st0 else None, now, timers, soft, settled, extra=leaves,
+                               analog=analog)
             r.pop("_goals"), r.pop("_user")
             if len(r["unmet"]) < len(best["unmet"]):
                 best = r
@@ -655,7 +668,7 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -667,6 +680,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
     forces = {int(k): v for k, v in (forces or {}).items()}
     state = {int(k): v for k, v in (state or {}).items()}
     timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
+    analog = {int(k): v for k, v in (analog or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     by_page = {s["page"]: s for s in sheets}
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
@@ -689,6 +703,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
                 e = (int(rn), s["page"], owner)
                 if e not in feeds[t["page"]]:
                     feeds[t["page"]].append(e)
+    an_given = _analog_bundle(by_page, feeds, analog)
     out_rows = {}                     # page → {row: 값}
     results = {}
     link_in = {}                      # page → {row: 값}
@@ -810,7 +825,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
                 for k, v in (timers.get(m["page"]) or {}).items():
                     tm[f"{bid}/{k}"] = v
             asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
-            res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked)
+            res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
             # L16 — 줄줄이: 이 시트의 출력을 내려면 다른 시트에서 오는 입력이 1 이어야 하면, 그 입력을 보내는 시트의
             # 출력 행도 목표로 켠다 (그 시트에서 다시 거꾸로 맞추기 — 게이트가 막으면 거기서 머문다).
             for n, v in (res.get("pulled") or {}).items():
@@ -901,9 +916,50 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None):
                        for p, lin in link_in.items() if lin},
             "pages": pages,
             "chain_forces": {p: v for p, v in chain.items() if v},
+            "analog_given": an_given,
             "pulled": pulls,
             "state": {p: r["state"] for p, r in results.items()},
             "notes": sorted(notes)}
+
+
+def _analog_bundle(by_page, feeds, analog):
+    """L26 — 아날로그 값도 시트 사이로 간다: 출력 행의 선이 값을 가지면 그 행을 받는 입력 행도 그 값
+    (사람이 그 입력 행에 직접 준 값이 이긴다).  시간이 없는 값이라 가라앉을 때까지 몇 번 돌리면 된다.
+    → {page: {"block:<id>"|"row:<n>": 값}}"""
+    given = {p: dict(v) for p, v in analog.items() if p in by_page}
+    # L27 — 사람이 아무것도 안 줘도 아날로그 입력은 기본 8 mA 라 감시 블록이 맞댈 값이 선다 → 시트 사이로도 간다
+    idxs = {}
+    src_pages = set(given)
+    for p, s in by_page.items():
+        if any(A.is_analog_block(b) or A.monitor_kind(b) for b in s["blocks"].values()):
+            idxs[p] = _index(s)
+            src_pages.add(p)
+    if not src_pages:
+        return given
+    for _ in range(MAX_PASSES):
+        moved = False
+        memo = {}
+        for page, fd in feeds.items():
+            for n, sp, sr in fd:
+                if sp not in src_pages:
+                    continue
+                s = by_page[sp]
+                src = next((r for r in s["rows"] if r["side"] == "R" and r["n"] == sr and r.get("net") is not None), None)
+                if src is None:
+                    continue
+                if sp not in memo:
+                    memo[sp] = A.nets(s, given.get(sp), idxs.get(sp) or _index(s))[0]
+                v = memo[sp].get(src["net"])
+                k = f"row:{n}"
+                user = analog.get(page, {})
+                if v is None or k in user or given.get(page, {}).get(k) == {"eng": v}:
+                    continue
+                given.setdefault(page, {})[k] = {"eng": v}
+                src_pages.add(page)
+                moved = True
+        if not moved:
+            break
+    return given
 
 
 def _row_label(s, side, n):

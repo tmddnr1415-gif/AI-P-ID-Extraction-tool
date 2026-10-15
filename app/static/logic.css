@@ -525,3 +525,43 @@ button.mini.ed.on { background: #efe6fb; }
 .pjh .pjdel { margin-left: auto; border: 1px solid #e3c7c4; background: #fff; color: #a3352e; border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; opacity: .55; }
 .pj:hover .pjdel, .pjh .pjdel:focus { opacity: 1; }
 .pjh .pjdel:hover { background: #fbeceb; }
+
+/* L25c — 화면 안 대화상자 (대시보드 iframe 은 prompt · confirm 을 막는다) */
+.lmodal-back { position: fixed; inset: 0; background: rgba(20,24,32,.42); z-index: 9000;
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+.lmodal { background: #fff; color: #1d2433; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.28);
+  width: min(460px, 100%); padding: 18px 20px 16px; font-size: 13.5px; line-height: 1.55; }
+.lmodal h3 { margin: 0 0 10px; font-size: 16px; }
+.lmodal .lm-body p { margin: 0 0 8px; }
+.lmodal .lm-body .warn { color: #b3261e; }
+.lmodal .lm-f { display: block; margin: 10px 0 0; }
+.lmodal .lm-f span { display: block; font-size: 12.5px; color: #555e6e; margin-bottom: 4px; }
+.lmodal .lm-f input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #c5cad3; border-radius: 6px; font-size: 14px; }
+.lmodal .lm-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.lmodal .lm-btns button { padding: 7px 14px; border-radius: 6px; border: 1px solid #c5cad3; background: #f6f7f9; cursor: pointer; font-size: 13.5px; }
+.lmodal .lm-btns button.primary { background: #2f5bd8; color: #fff; border-color: #2f5bd8; }
+.lmodal .lm-btns button.danger { background: #c2453f; color: #fff; border-color: #c2453f; }
+.lmodal .lm-btns button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* L26 — 아날로그 값 · 감시 블록 설정값 */
+.force-menu.an-menu { min-width: 260px; }
+.force-menu.an-menu .fm-h { max-width: 340px; }
+.force-menu .fm-sub { font-size: 11px; color: var(--soft); padding: 6px 8px 2px; border-top: 1px solid #f0ede5; }
+.force-menu .an-sp .an-mon { min-width: 96px; font-weight: 600; }
+.force-menu .an-sp small, .force-menu .fm-t small { color: var(--soft); }
+.force-menu .an-why { color: var(--soft); white-space: normal; }
+.force-menu button.va { color: #6a3fb5; border-top: 1px solid #eee; }
+#ov text.ansp, #ov text.anv { paint-order: stroke; stroke: #fff; stroke-width: 0.9px; }
+#ov text.ansp { fill: #6b7280; text-anchor: middle; font-weight: 600; pointer-events: none; }
+#ov text.ansp.user { fill: #b25a00; }
+#ov text.ansp.on { fill: #0a8fd4; }
+#ov text.anv { fill: #6a3fb5; text-anchor: middle; font-weight: 700; pointer-events: none; }
+#ov text.anv.row { text-anchor: start; }
+/* L27 — 4~20 mA · 범위 · 직접 입력 */
+#ov text.ansp.need { fill: #c2453f; }
+.force-menu .an-sp.need .an-mon, .force-menu .an-rg.need { color: #c2453f; }
+.force-menu .an-sp.need input, .force-menu .an-rg.need input { outline: 1.5px solid #e2a19c; }
+.force-menu .an-rg input { width: 64px; }
+.force-menu .an-rg input.unit { width: 52px; }
+.force-menu .an-eng { color: #6a3fb5; white-space: normal; }
+.force-menu .an-eng.bad { color: #c2453f; }
