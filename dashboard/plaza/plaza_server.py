@@ -44,7 +44,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-16.3'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-16.4'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -221,8 +221,22 @@ def api_join(body: dict) -> dict:
     except (TypeError, ValueError):
         x, y = MAP_W // 2, MAP_H // 2
     face, role, now = saved_look(name) or clean_look(body.get("face")), role_of(name), time.time()
+    ip = str(body.get("_ip") or "")                # 서버가 넣는 접속 주소 (화면이 보낸 값은 do_POST 에서 덮어씀)
     with LOCK:
         prune(now)
+        # 한 PC(IP)에 캐릭터 하나 (2026-10-16 대시보드): 대시보드 창을 여러 개 열어도 같은 캐릭터를 함께 씀 · 같은 PC 에서 다른 이름으로 들어오면 그 사람으로 바뀜
+        same = [pid for pid, q in STATE["players"].items() if ip and q.get("ip") == ip]
+        for pid in same:
+            q = STATE["players"][pid]
+            if q["name"] == name:
+                q["seen"] = now
+                if "status" in body:
+                    q["status"] = clean(body.get("status"), STATUS_MAX)
+                STATE["ver"] += 1
+                return {"id": pid, "name": name, "look": q["look"], "face": q["face"], "role": q["role"], "say_max": SAY_MAX,
+                        "x": q["x"], "y": q["y"], "dir": q["dir"], "shared": True}
+        for pid in same:
+            log_system(f"{STATE['players'].pop(pid)['name']} 님이 광장을 떠났습니다.", now)
         if len(STATE["players"]) >= PLAYERS_MAX:
             raise ApiError(503, "광장이 꽉 찼습니다 — 잠시 뒤에 들어오세요.")
         pid = secrets.token_hex(6)
@@ -231,11 +245,12 @@ def api_join(body: dict) -> dict:
             "x": min(max(x, 0), MAP_W - 1), "y": min(max(y, 0), MAP_H - 1), "dir": 0,
             "say": "", "say_at": 0.0, "say_seq": 0, "seen": now, "streams": 0,
             "act_seq": 0, "act_at": 0.0, "hit_seq": 0, "hit_at": 0.0, "hit_by": "",
-            "status": clean(body.get("status"), STATUS_MAX),
+            "status": clean(body.get("status"), STATUS_MAX), "ip": ip,
         }
         log_system(f"{name} 님이 광장에 들어왔습니다.", now)
         STATE["ver"] += 1
-    return {"id": pid, "name": name, "look": look, "face": face, "role": role, "say_max": SAY_MAX}
+    return {"id": pid, "name": name, "look": look, "face": face, "role": role, "say_max": SAY_MAX,
+            "x": STATE["players"][pid]["x"], "y": STATE["players"][pid]["y"], "dir": 0, "shared": False}
 
 
 def api_move(body: dict) -> dict:
@@ -347,7 +362,12 @@ def api_status(body: dict) -> dict:
 def api_leave(body: dict) -> dict:
     now = time.time()
     with LOCK:
-        p = STATE["players"].pop(str(body.get("id") or ""), None)
+        pid = str(body.get("id") or "")
+        q = STATE["players"].get(pid)
+        if q is not None and q["streams"] > 1:        # 같은 캐릭터를 쓰는 다른 대시보드 창이 아직 열려 있음 → 남김
+            q["left_at"] = now                        # 그 창들도 곧 닫히면(연결이 모두 끊기면) 바로 나감 (_stream finally)
+            return {"ok": True, "kept": True}
+        p = STATE["players"].pop(pid, None)
         if p is not None:
             log_system(f"{p['name']} 님이 광장을 떠났습니다.", now)
             STATE["ver"] += 1
@@ -464,6 +484,8 @@ class Handler(BaseHTTPRequestHandler):
                 body = {}
         except ValueError:
             body = {}
+        ip = ipaddress.ip_address(self.client_address[0].split("%")[0])
+        body["_ip"] = str(getattr(ip, "ipv4_mapped", None) or ip)   # 접속 주소 = 서버가 정함
         try:
             self._json(200, fn(body))
         except ApiError as e:
@@ -489,7 +511,7 @@ class Handler(BaseHTTPRequestHandler):
                     last = ver
                     self.wfile.write(f"data: {json.dumps(snapshot(), ensure_ascii=False)}\n\n".encode("utf-8"))
                     self.wfile.flush()
-                elif ticks % 150 == 0:
+                elif ticks % 25 == 0:                 # 2초마다 — 창이 닫혀 끊긴 연결을 빨리 알아챔 (같은 PC 의 창 수 세기)
                     self.wfile.write(b": ping\n\n")
                     self.wfile.flush()
                 ticks += 1
@@ -503,6 +525,10 @@ class Handler(BaseHTTPRequestHandler):
                 if p is not None:
                     p["streams"] -= 1
                     p["seen"] = time.time()
+                    if p["streams"] <= 0 and p.get("left_at") and p["seen"] - p["left_at"] < 30:   # 창을 모두 닫음 → 바로 나감
+                        STATE["players"].pop(pid, None)
+                        log_system(f"{p['name']} 님이 광장을 떠났습니다.", p["seen"])
+                        STATE["ver"] += 1
 
 
 def main(argv=None) -> None:

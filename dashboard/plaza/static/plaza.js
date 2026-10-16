@@ -512,7 +512,10 @@ async function join() {
     const [sx, sy] = S.me ? [S.me.tx, S.me.ty] : spawn();
     const res = await post("/plaza/api/join", { name: S.name, look: S.look, face: S.face || storedFace(), x: sx, y: sy, status: S.status });
     S.id = res.id; S.face = res.face || S.face; S.role = res.role || "member";
-    if (!S.me) S.me = newActor({ id: res.id, name: res.name, face: S.face, role: S.role, x: sx, y: sy, dir: 0 });
+    // 같은 PC 의 다른 대시보드 창이 이미 이 캐릭터로 들어와 있으면(shared) 그 자리에서 시작 — 한 PC 에 캐릭터 하나
+    const jx = res.shared ? res.x : sx, jy = res.shared ? res.y : sy;
+    if (!S.me) S.me = newActor({ id: res.id, name: res.name, face: S.face, role: S.role, x: jx, y: jy, dir: res.dir || 0 });
+    else if (res.shared) { S.me.tx = jx; S.me.ty = jy; S.me.x = jx * T; S.me.y = jy * T; S.me.moving = false; }
     S.me.id = res.id; S.me.face = S.face; S.me.role = S.role;
     $("#pz-roles").hidden = S.role !== "operator";
     if (es) es.close();
@@ -524,6 +527,7 @@ async function join() {
 }
 function sendMove() {
   if (!S.id || !S.me) return;
+  S.lastMove = performance.now();
   post("/plaza/api/move", { id: S.id, x: S.me.tx, y: S.me.ty, dir: S.me.dir })
     .then(r => { if (r && r.blocked && S.me) { S.me.tx = r.x; S.me.ty = r.y; S.me.x = r.x * T; S.me.y = r.y * T; S.me.moving = false; } })   // 남이 먼저 선 칸 → 되돌아감
     .catch(e => { if (e.status === 404) join().catch(() => {}); });
@@ -540,6 +544,10 @@ function applySnapshot(s) {
       if (p.say && p.say_seq !== S.me.sayseq) S.me.sayseq = p.say_seq;
       if (p.hit_seq !== S.me.hitseq) { S.me.hitseq = p.hit_seq; if (p.hit_age < .8) S.me.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
       if (p.role && p.role !== S.role) { S.role = S.me.role = p.role; $("#pz-roles").hidden = S.role !== "operator"; }
+      // 같은 캐릭터를 다른 창에서 움직였으면(이 창에서 1초 넘게 안 움직임) 서버 자리를 따름
+      if (!S.me.moving && tnow - (S.lastMove || 0) > 1000 && (p.x !== S.me.tx || p.y !== S.me.ty)) {
+        S.me.tx = p.x; S.me.ty = p.y; S.me.x = p.x * T; S.me.y = p.y * T; S.me.dir = p.dir; }
+      S.me.status = p.status || "";
       continue;
     }
     let a = S.others.get(p.id);
