@@ -29,6 +29,11 @@ OUT = Path(sys.argv[1]).resolve()
 OUT.mkdir(parents=True, exist_ok=True)
 data = Path(tempfile.mkdtemp(prefix="plaza_")) / "data"
 data.mkdir(parents=True)
+(data / "plaza").mkdir()
+(data / "plaza" / "roles.json").write_text(json.dumps({                     # 시험용 역할
+    "group_leader": ["이영희"], "unit_leaders": ["김철수"], "operators": ["홍길동"]}, ensure_ascii=False), encoding="utf-8")
+(data / "plaza" / "looks.json").write_text(json.dumps({                     # 박민수는 안경 · 덥수룩 수염
+    "박민수": {"hair": 6, "hairc": 2, "skin": 1, "eyes": 4, "beard": 3, "cloth": 2, "pants": 5}}, ensure_ascii=False), encoding="utf-8")
 
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT), PID_PAGE_WARM="0",
@@ -174,11 +179,11 @@ with sync_playwright() as pw:
     hx, hy = pp["hong"]
     mx, my = pp["me"]
     kim.click("#pz-map")
-    # 홍길동의 오른쪽 세 칸 → 왼쪽으로 두 칸 걸어 와서 왼쪽을 보고 선다
-    walk(kim, [("ArrowRight" if hx + 3 > mx else "ArrowLeft", abs(hx + 3 - mx))])
-    mx, my = pos()["me"]
-    walk(kim, [("ArrowDown" if hy > my else "ArrowUp", abs(hy - my))])
-    walk(kim, [("ArrowLeft", 2)])
+    # 홍길동의 오른쪽 칸에 세우고 왼쪽을 보게 한다 (시험 장치 — 길찾기 대신 자리를 옮긴다)
+    kim.evaluate("""([x, y]) => { const m = window.__plaza.me; m.tx = m.gx = x; m.ty = m.gy = y; m.x = x * 32; m.y = y * 32;
+        m.dir = 2; m.moving = false;
+        return fetch('/plaza/api/move', {method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: window.__plaza.id, x, y, dir: 2})}); }""", [hx + 1, hy])
     time.sleep(0.4)
     facts["attack_from"] = pos()
     import base64
@@ -191,6 +196,22 @@ with sync_playwright() as pw:
     time.sleep(0.6)
     facts["hong_hit_log"] = kim.evaluate("[...window.__plaza.others.values()].filter(a => a.hit).map(a => a.name + ' ← ' + a.hit.by)")
 
+    # ── 역할 · 머리 모양 한눈에 (도트 원본 4배) ──────────────────────────────
+    url = kim.evaluate("""() => {
+      const D = window.__plazaDebug, c = document.createElement('canvas'), z = 4;
+      c.width = 10 * 44 * z / 2 + 20; c.height = 330; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      g.fillStyle = '#c8834a'; g.fillRect(0, 0, c.width, c.height);
+      g.font = 'bold 13px "WenQuanYi Zen Hei", sans-serif'; g.fillStyle = '#2a1a10'; g.textAlign = 'center';
+      const roles = [['leader', '그룹장 · 왕관'], ['unit', '유닛장 · 사모'], ['member', '부서원 · 관모'], ['operator', '운영자 · 노비']];
+      const f = {hair: 0, hairc: 0, skin: 0, eyes: 1, beard: 0, cloth: 1, pants: 0};
+      roles.forEach(([r, t], i) => { const s = D.charSprite({...f, cloth: [1, 2, 0, 3][i], beard: i === 1 ? 1 : 0}, r, 0, 0);
+        const x = 30 + i * 220; g.drawImage(s, x, 4, s.width * 3, s.height * 3); g.fillText(t, x + s.width * 1.5, 190); });
+      const hairs = ['상투', '단발', '댕기머리', '쪽머리', '양갈래', '똥머리', '삐죽머리', '긴 생머리', '민머리', '포니테일'];
+      hairs.forEach((t, i) => { const s = D.charSprite({...f, hair: i, hairc: i % 8, eyes: i % 5, beard: i === 8 ? 3 : 0, cloth: i}, 'bare', i % 2 ? 2 : 0, 0);
+        const x = 10 + i * 88; g.drawImage(s, x, 200, s.width * 2, s.height * 2); g.fillText(t, x + s.width, 322); });
+      return c.toDataURL('image/png'); }""")
+    (OUT / "10_역할_머리모양.png").write_bytes(base64.b64decode(url.split(",", 1)[1]))
+
     dash.evaluate("window.scrollTo(0, 0)")
     dash.screenshot(path=str(OUT / "1_대시보드_광장.png"))
     dash.locator(".plaza").screenshot(path=str(OUT / "2_광장_확대.png"))
@@ -198,6 +219,20 @@ with sync_playwright() as pw:
     facts["online"] = fl.locator("#pz-online").inner_text()
     facts["who"] = fl.locator("#pz-who").inner_text()
     facts["log"] = fl.locator("#pz-log").inner_text()
+
+    # ── 얼굴 바꾸기 · 역할 지정 판 (홍길동 = 운영자) ───────────────────────────
+    fl.locator("#pz-face-btn").click()
+    fl.locator(".hairbtn").nth(4).click()                       # 양갈래
+    fl.locator("#pz-facerows .frow").nth(0).locator(".chip").nth(4).click()   # 금발
+    time.sleep(0.5)
+    dash.locator(".plaza").screenshot(path=str(OUT / "8_얼굴바꾸기.png"))
+    fl.locator("#pz-face-save").click()
+    time.sleep(0.4)
+    fl.locator("#pz-roles").click()
+    time.sleep(0.6)
+    dash.locator(".plaza").screenshot(path=str(OUT / "9_역할지정_운영자.png"))
+    fl.locator("#pz-role-close").click()
+    facts["saved_face"] = json.loads((data / "plaza" / "looks.json").read_text(encoding="utf-8")).get("홍길동")
 
     dash.click("#fold")
     time.sleep(0.5)

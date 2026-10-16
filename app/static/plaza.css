@@ -5,7 +5,7 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 #pz-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none;
   image-rendering: pixelated; cursor: default; }
 
-.pz-top { position: absolute; left: 8px; top: 8px; display: flex; gap: 8px; align-items: center;
+.pz-top { position: absolute; left: 22px; top: 22px; display: flex; gap: 8px; align-items: center;
   font-size: 12px; color: #fff; pointer-events: none; }
 .pz-title { background: rgba(60, 30, 10, .82); border: 1px solid #c9a35a; color: #ffe7a6;
   padding: 3px 9px; border-radius: 3px; font-weight: bold; letter-spacing: .02em;
@@ -13,14 +13,14 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-online { background: rgba(0, 0, 0, .55); padding: 3px 8px; border-radius: 3px; }
 .pz-help { background: rgba(0, 0, 0, .45); padding: 3px 8px; border-radius: 3px; color: #dfe6d2; }
 
-.pz-who { position: absolute; right: 8px; top: 8px; max-height: 45%; overflow: auto;
+.pz-who { position: absolute; right: 22px; top: 34px; max-height: 45%; overflow: auto;
   background: rgba(20, 16, 10, .62); border: 1px solid rgba(201, 163, 90, .7); border-radius: 3px;
   font-size: 12px; color: #f1ead6; padding: 5px 9px; min-width: 96px; }
 .pz-who b { display: block; color: #ffe7a6; font-size: 11.5px; margin-bottom: 3px; }
 .pz-who div { line-height: 1.55; white-space: nowrap; }
 .pz-who .me { color: #ffd84a; }
 
-.pz-chat { position: absolute; left: 8px; bottom: 8px; width: min(440px, calc(100% - 16px)); }
+.pz-chat { position: absolute; left: 22px; bottom: 22px; width: min(420px, calc(100% - 44px)); }
 .pz-log { height: 104px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
   background: rgba(0, 0, 0, .52); border: 1px solid rgba(255, 255, 255, .18); border-bottom: 0;
   border-radius: 3px 3px 0 0; padding: 4px 8px; font-size: 12.5px; color: #fff; }
@@ -49,3 +49,42 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-namebox input { font: inherit; padding: 5px 7px; border: 1px solid #c9a35a; background: #fff8e6; }
 .pz-namebox button { font: inherit; padding: 5px; background: #8b2f1c; color: #fff;
   border: 1px solid #e3b866; cursor: pointer; }
+
+.pz-who .role { font-size: 10.5px; margin-right: 4px; padding: 0 4px; border-radius: 2px; color: #1a1208; }
+.pz-who .role.leader { background: #ffd84a; } .pz-who .role.unit { background: #ffb36b; } .pz-who .role.operator { background: #d8c59a; }
+
+/* 오른쪽 아래 단추 · 판 — 바람의나라 나무 창 느낌 */
+.pz-btns { position: absolute; right: 22px; bottom: 22px; display: flex; gap: 6px; }
+.pz-btns button, .pz-boxfoot button, .pz-faceright button, .rrow button {
+  font: inherit; font-size: 12px; cursor: pointer; color: #fff4d6; background: linear-gradient(#8c4a26, #5e2c14);
+  border: 1px solid #e0b46a; border-radius: 3px; padding: 4px 10px; text-shadow: 0 1px 0 #000; }
+.pz-btns button:hover, .pz-boxfoot button:hover { filter: brightness(1.15); }
+.pz-boxfoot button.ok { background: linear-gradient(#2f6e3b, #1d4a26); }
+.pz-panel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(20, 10, 4, .45); }
+.pz-panel[hidden] { display: none; }
+.pz-box { background: #f1e2bf; border: 3px solid #6e2a14; outline: 2px solid #d4a24c; border-radius: 4px; color: #2a1a10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5); font-size: 12.5px; max-height: calc(100% - 20px); overflow: auto; }
+.pz-boxhead { background: linear-gradient(#6e2a14, #4a1a0a); color: #ffe7a6; font-weight: bold; padding: 6px 12px; letter-spacing: .05em; }
+.pz-facebody { display: flex; gap: 12px; padding: 10px 12px 0; }
+#pz-preview { image-rendering: pixelated; border: 2px solid #8c5a2c; border-radius: 3px; flex: none; }
+.pz-sub { font-weight: bold; margin-bottom: 4px; color: #6e2a14; }
+.pz-hairs { display: grid; grid-template-columns: repeat(5, 58px); gap: 4px; margin-bottom: 8px; }
+.pz-hairs .hairbtn { display: flex; flex-direction: column; align-items: center; padding: 2px; background: #c8834a; border: 2px solid #8c5a2c;
+  border-radius: 3px; cursor: pointer; color: #fff; font: inherit; font-size: 10.5px; text-shadow: 0 1px 1px #000; }
+.pz-hairs .hairbtn canvas { image-rendering: pixelated; width: 48px; height: 48px; }
+.pz-hairs .hairbtn.on { border-color: #ffd84a; box-shadow: 0 0 0 2px #6e2a14; }
+.frow { display: flex; align-items: center; gap: 4px; margin: 4px 0; flex-wrap: wrap; }
+.frow label { width: 56px; font-weight: bold; color: #6e2a14; }
+.frow .chip { width: 20px; height: 20px; padding: 0; border: 2px solid #5a3a1a; border-radius: 2px; cursor: pointer; }
+.frow .chip.on { outline: 2px solid #ffd84a; outline-offset: 1px; }
+.frow .fval { min-width: 72px; text-align: center; }
+.frow button { padding: 1px 7px; }
+.pz-note { padding: 6px 12px 0; color: #6e2a14; min-height: 16px; }
+.pz-boxfoot { display: flex; gap: 6px; padding: 8px 12px 10px; }
+.pz-boxfoot .sp { flex: 1; }
+.pz-rolebox { min-width: 360px; }
+.pz-rolelist { max-height: 240px; overflow: auto; padding: 8px 12px 0; }
+.rrow { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.rrow span { flex: 1; } .rrow.add { padding: 6px 12px 0; }
+.rrow input, .rrow select { font: inherit; font-size: 12px; padding: 3px 5px; border: 1px solid #8c5a2c; background: #fffaf0; }
+.rrow input { flex: 1; min-width: 0; }

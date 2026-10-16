@@ -10,7 +10,15 @@ P&ID · LOGIC 판정과 아무 관계가 없고, DB 도 파일도 쓰지 않는�
   POST /plaza/api/move         {id, x, y, dir}      (칸 좌표)
   POST /plaza/api/say          {id, text}           (최대 SAY_MAX 글자)
   POST /plaza/api/attack       {id}                 (스페이스 — 바라보는 앞 칸의 사람을 때린다)
+  POST /plaza/api/look         {id, look}           (외형 바꾸기 — 이름마다 파일에 남는다)
+  POST /plaza/api/role         {id, target, role}   (운영자만 — 역할 지정)
+  GET  /plaza/api/roles?id=    (운영자만 — 역할 목록)
   POST /plaza/api/leave        {id}                 (창을 닫을 때 sendBeacon)
+
+역할(머리 장식)은 서버가 정한다 — 자기가 고를 수 없다 (왕관을 아무나 쓰지 않게).
+  `<data>/plaza/roles.json`  {"group_leader": [이름], "unit_leaders": [...], "operators": [...]}
+  없으면 빈 틀을 만든다.  처음 운영자 한 사람은 이 파일에 손으로 적고, 그 뒤로는 화면의 '역할 지정' 판에서.
+  그룹장 = 왕관 · 유닛장 = 사모(날개 달린 관모) · 부서원 = 관모 · 운영자 = 노비 차림(두건 · 무명옷).
   GET  /plaza/api/stream?id=   SSE — 바뀔 때마다 광장 전체 상태
 
 사람이 적은 글은 화면이 textContent / canvas 글자로만 그린다 (HTML 로 넣지 않는다).
@@ -27,6 +35,8 @@ from collections import deque
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+
+from app import jsonstore, paths
 from fastapi.responses import FileResponse, StreamingResponse
 
 router = APIRouter()
@@ -42,6 +52,11 @@ IDLE_S = 45.0                # 이 시간 동안 소식이 없고 스트림도 �
 PLAYERS_MAX = 80
 ATTACK_GAP_S = 0.3           # 한 번 휘두르는 시간 — 그보다 빨리 오면 무시한다
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}   # 아래 · 위 · 왼쪽 · 오른쪽 (plaza.js 와 같다)
+
+# 외형 — 고를 수 있는 값의 개수 (plaza.js 의 표와 같다 · 시험이 맞댄다)
+LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
+ROLES = ("member", "unit", "leader", "operator")
+_ROLE_KEYS = {"leader": "group_leader", "unit": "unit_leaders", "operator": "operators"}
 
 _LOCK = threading.Lock()
 _STATE: dict = {"ver": 0, "players": {}, "log": deque(maxlen=LOG_KEEP), "seq": 0}
@@ -82,7 +97,7 @@ def snapshot(now: float | None = None) -> dict:
         for pid, p in _STATE["players"].items():
             age = now - p["say_at"] if p["say"] else None
             players.append({
-                "id": pid, "name": p["name"], "look": p["look"],
+                "id": pid, "name": p["name"], "look": p["look"], "face": p["face"], "role": p["role"],
                 "x": p["x"], "y": p["y"], "dir": p["dir"],
                 "say": p["say"] if age is not None and age < BUBBLE_S else "",
                 "say_seq": p["say_seq"],
@@ -101,6 +116,94 @@ def reset() -> None:
         _STATE["players"].clear()
         _STATE["log"].clear()
         _STATE["ver"] += 1
+    _ROLE_CACHE.update(mtime=None, data=None)
+
+
+def _dir() -> Path:
+    return paths.data_dir() / "plaza"
+
+
+_ROLE_CACHE: dict = {"mtime": None, "data": None}
+_ROLE_TEMPLATE = {
+    "_설명": "가상 광장 역할.  이름은 대시보드 로그인 이름 그대로.  "
+             "group_leader = 왕관 · unit_leaders = 사모(날개 관모) · operators = 노비 차림.  "
+             "적지 않은 사람은 부서원(관모).  운영자는 광장의 '역할 지정' 판에서 바꿀 수 있다.",
+    "group_leader": [], "unit_leaders": [], "operators": [],
+}
+
+
+def _roles_file() -> Path:
+    return _dir() / "roles.json"
+
+
+def roles() -> dict:
+    """역할 파일 — 바뀌었을 때만 다시 읽는다.  없으면 빈 틀을 만든다."""
+    f = _roles_file()
+    if not f.exists():
+        try:
+            jsonstore.write(f, _ROLE_TEMPLATE)
+        except OSError:
+            return {k: [] for k in _ROLE_KEYS.values()}
+    try:
+        mt = f.stat().st_mtime
+    except OSError:
+        mt = None
+    if mt is not None and mt == _ROLE_CACHE["mtime"] and _ROLE_CACHE["data"] is not None:
+        return _ROLE_CACHE["data"]
+    raw = jsonstore.read(f, {}, what="가상 광장 역할", expect=dict)
+    data = {k: [_clean(n, NAME_MAX) for n in (raw.get(k) or []) if _clean(n, NAME_MAX)]
+            for k in _ROLE_KEYS.values()}
+    _ROLE_CACHE.update(mtime=mt, data=data)
+    return data
+
+
+def role_of(name: str) -> str:
+    r = roles()
+    for role in ("leader", "unit", "operator"):        # 한 사람이 둘에 있으면 높은 쪽
+        if name in r[_ROLE_KEYS[role]]:
+            return role
+    return "member"
+
+
+def _set_role(name: str, role: str) -> None:
+    r = {k: list(v) for k, v in roles().items()}
+    for key in _ROLE_KEYS.values():
+        r[key] = [n for n in r[key] if n != name]
+    if role in _ROLE_KEYS:
+        r[_ROLE_KEYS[role]].append(name)
+    raw = jsonstore.read(_roles_file(), {}, what="가상 광장 역할", expect=dict)
+    raw = {**_ROLE_TEMPLATE, **raw, **r}
+    jsonstore.write(_roles_file(), raw)
+    _ROLE_CACHE["mtime"] = None
+
+
+def clean_look(look) -> dict | None:
+    """화면이 보낸 외형 — 아는 칸만 · 범위 안의 정수만.  하나라도 못 읽으면 None (이름에서 정한 외형)."""
+    if not isinstance(look, dict):
+        return None
+    out = {}
+    for k, n in LOOK_RANGES.items():
+        try:
+            v = int(look.get(k))
+        except (TypeError, ValueError):
+            return None
+        out[k] = v % n
+    return out
+
+
+def _looks_file() -> Path:
+    return _dir() / "looks.json"
+
+
+def saved_look(name: str) -> dict | None:
+    data = jsonstore.read(_looks_file(), {}, what="가상 광장 외형", expect=dict)
+    return clean_look(data.get(name))
+
+
+def _save_look(name: str, look: dict) -> None:
+    data = jsonstore.read(_looks_file(), {}, what="가상 광장 외형", expect=dict)
+    data[name] = look
+    jsonstore.write(_looks_file(), data)
 
 
 def _player(pid: str) -> dict:
@@ -130,20 +233,71 @@ def plaza_join(body: dict):
     except (TypeError, ValueError):
         x, y = MAP_W // 2, MAP_H // 2
     now = time.time()
+    face = saved_look(name) or clean_look((body or {}).get("face"))
+    role = role_of(name)
     with _LOCK:
         _prune(now)
         if len(_STATE["players"]) >= PLAYERS_MAX:
             raise HTTPException(503, "광장이 꽉 찼습니다 — 잠시 뒤에 들어오세요.")
         pid = secrets.token_hex(6)
         _STATE["players"][pid] = {
-            "name": name, "look": look,
+            "name": name, "look": look, "face": face, "role": role,
             "x": min(max(x, 0), MAP_W - 1), "y": min(max(y, 0), MAP_H - 1), "dir": 0,
             "say": "", "say_at": 0.0, "say_seq": 0, "seen": now, "streams": 0,
             "act_seq": 0, "act_at": 0.0, "hit_seq": 0, "hit_at": 0.0, "hit_by": "",
         }
         _log_system(f"{name} 님이 광장에 들어왔습니다.", now)
         _bump()
-    return {"id": pid, "name": name, "look": look, "say_max": SAY_MAX}
+    return {"id": pid, "name": name, "look": look, "face": face, "role": role, "say_max": SAY_MAX}
+
+
+@router.post("/plaza/api/look")
+def plaza_look(body: dict):
+    """외형 바꾸기 — 이름마다 남겨 다음에 들어와도 같은 얼굴."""
+    face = clean_look((body or {}).get("look"))
+    if face is None:
+        raise HTTPException(400, "외형 값을 읽지 못했습니다.")
+    with _LOCK:
+        p = _player((body or {}).get("id"))
+        p["face"], p["seen"] = face, time.time()
+        name = p["name"]
+        _bump()
+    _save_look(name, face)
+    return {"ok": True, "face": face}
+
+
+def _need_operator(pid) -> dict:
+    with _LOCK:
+        p = _player(pid)
+    if role_of(p["name"]) != "operator":
+        raise HTTPException(403, "운영자만 역할을 바꿀 수 있습니다.")
+    return p
+
+
+@router.get("/plaza/api/roles")
+def plaza_roles(id: str = ""):
+    _need_operator(id)
+    return roles()
+
+
+@router.post("/plaza/api/role")
+def plaza_role(body: dict):
+    body = body or {}
+    me = _need_operator(body.get("id"))
+    target = _clean(body.get("target"), NAME_MAX)
+    role = str(body.get("role") or "")
+    if not target or role not in ROLES:
+        raise HTTPException(400, "이름과 역할(member · unit · leader · operator)을 주세요.")
+    _set_role(target, role)
+    label = {"member": "부서원", "unit": "유닛장", "leader": "그룹장", "operator": "운영자"}[role]
+    now = time.time()
+    with _LOCK:
+        for q in _STATE["players"].values():
+            if q["name"] == target:
+                q["role"] = role
+        _log_system(f"{me['name']} 님이 {target} 님을 {label}(으)로 정했습니다.", now)
+        _bump()
+    return {"ok": True, "roles": roles()}
 
 
 @router.post("/plaza/api/move")

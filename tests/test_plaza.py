@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture()
 def client():
+    import shutil
+    shutil.rmtree(plaza._dir(), ignore_errors=True)        # 시험마다 역할 · 외형 파일을 비운다
     plaza.reset()
     with TestClient(app) as c:
         yield c
@@ -95,3 +97,48 @@ def test_space_attack_hits_whoever_stands_in_front(client):
     assert c["id"] and b["id"]
     js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
     assert '"/plaza/api/attack"' in js and 'ev.code === "Space"' in js
+
+
+def test_face_ranges_match_the_screen():
+    js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
+    names = {"hair": "HAIRS", "hairc": "HAIRC", "skin": "SKINS", "eyes": "EYES", "beard": "BEARDS",
+             "cloth": "CLOTHS", "pants": "PANTS"}
+    for key, const in names.items():
+        m = re.search(rf"const {const} = \[(.*?)\];", js, re.S)
+        assert m, const
+        assert len(re.findall(r'"[^"]*"', m.group(1))) == plaza.LOOK_RANGES[key], key
+
+
+def test_face_is_saved_per_name_and_comes_back(client):
+    a = client.post("/plaza/api/join", json={"name": "박민수"}).json()
+    assert a["face"] is None and a["role"] == "member"
+    face = {"hair": 6, "hairc": 2, "skin": 1, "eyes": 4, "beard": 3, "cloth": 2, "pants": 5}
+    assert client.post("/plaza/api/look", json={"id": a["id"], "look": face}).json()["face"] == face
+    assert client.post("/plaza/api/look", json={"id": a["id"], "look": {"hair": "x"}}).status_code == 400
+    assert plaza.clean_look({**face, "hair": 99})["hair"] == 99 % plaza.LOOK_RANGES["hair"]
+    client.post("/plaza/api/leave", content=f'{{"id": "{a["id"]}"}}')
+    b = client.post("/plaza/api/join", json={"name": "박민수", "face": {**face, "hair": 0}}).json()
+    assert b["face"] == face                              # 저장된 얼굴이 이긴다
+
+
+def test_roles_come_from_the_server_and_only_operators_change_them(client):
+    rolefile = plaza._roles_file()
+    a = client.post("/plaza/api/join", json={"name": "홍길동"}).json()
+    assert rolefile.exists() and a["role"] == "member"   # 빈 틀을 만든다
+    import json
+    rolefile.write_text(json.dumps({"operators": ["홍길동"], "group_leader": ["이영희"]}, ensure_ascii=False), encoding="utf-8")
+    import os, time
+    os.utime(rolefile, (time.time() + 5, time.time() + 5))
+    b = client.post("/plaza/api/join", json={"name": "김철수"}).json()
+    assert b["role"] == "member"
+    assert client.post("/plaza/api/role", json={"id": b["id"], "target": "김철수", "role": "leader"}).status_code == 403
+    assert client.get(f"/plaza/api/roles?id={b['id']}").status_code == 403
+    op = client.post("/plaza/api/join", json={"name": "홍길동"}).json()
+    assert op["role"] == "operator"
+    r = client.post("/plaza/api/role", json={"id": op["id"], "target": "김철수", "role": "unit"}).json()
+    assert "김철수" in r["roles"]["unit_leaders"]
+    assert {p["name"]: p["role"] for p in plaza.snapshot()["players"]}["김철수"] == "unit"
+    assert client.post("/plaza/api/role", json={"id": op["id"], "target": "김철수", "role": "king"}).status_code == 400
+    assert plaza.role_of("이영희") == "leader"
+    js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
+    assert "왕관" in js and "사모" in js and "노비" in js and "부여성 남쪽" in js
