@@ -9,6 +9,7 @@ P&ID · LOGIC 판정과 아무 관계가 없고, DB 도 파일도 쓰지 않는�
   POST /plaza/api/join         {name, look} → {id, ...}
   POST /plaza/api/move         {id, x, y, dir}      (칸 좌표)
   POST /plaza/api/say          {id, text}           (최대 SAY_MAX 글자)
+  POST /plaza/api/attack       {id}                 (스페이스 — 바라보는 앞 칸의 사람을 때린다)
   POST /plaza/api/leave        {id}                 (창을 닫을 때 sendBeacon)
   GET  /plaza/api/stream?id=   SSE — 바뀔 때마다 광장 전체 상태
 
@@ -39,6 +40,8 @@ LOG_KEEP = 60
 BUBBLE_S = 7.0               # 말풍선이 머리 위에 떠 있는 시간
 IDLE_S = 45.0                # 이 시간 동안 소식이 없고 스트림도 없으면 광장에서 나간다
 PLAYERS_MAX = 80
+ATTACK_GAP_S = 0.3           # 한 번 휘두르는 시간 — 그보다 빨리 오면 무시한다
+DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}   # 아래 · 위 · 왼쪽 · 오른쪽 (plaza.js 와 같다)
 
 _LOCK = threading.Lock()
 _STATE: dict = {"ver": 0, "players": {}, "log": deque(maxlen=LOG_KEEP), "seq": 0}
@@ -83,6 +86,8 @@ def snapshot(now: float | None = None) -> dict:
                 "x": p["x"], "y": p["y"], "dir": p["dir"],
                 "say": p["say"] if age is not None and age < BUBBLE_S else "",
                 "say_seq": p["say_seq"],
+                "act_seq": p["act_seq"], "act_age": round(now - p["act_at"], 2),
+                "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
                 "say_left": round(BUBBLE_S - age, 2) if age is not None and age < BUBBLE_S else 0,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
@@ -134,6 +139,7 @@ def plaza_join(body: dict):
             "name": name, "look": look,
             "x": min(max(x, 0), MAP_W - 1), "y": min(max(y, 0), MAP_H - 1), "dir": 0,
             "say": "", "say_at": 0.0, "say_seq": 0, "seen": now, "streams": 0,
+            "act_seq": 0, "act_at": 0.0, "hit_seq": 0, "hit_at": 0.0, "hit_by": "",
         }
         _log_system(f"{name} 님이 광장에 들어왔습니다.", now)
         _bump()
@@ -173,6 +179,30 @@ def plaza_say(body: dict):
                               "text": text, "sys": False})
         _bump()
     return {"ok": True, "text": text}
+
+
+@router.post("/plaza/api/attack")
+def plaza_attack(body: dict):
+    """스페이스 — 휘두른다.  바라보는 앞 칸(또는 같은 칸)에 서 있는 사람이 맞는다."""
+    now = time.time()
+    with _LOCK:
+        p = _player((body or {}).get("id"))
+        p["seen"] = now
+        if now - p["act_at"] < ATTACK_GAP_S:
+            return {"ok": True, "hit": []}
+        p["act_at"] = now
+        p["act_seq"] += 1
+        dx, dy = DIRV.get(p["dir"], (0, 1))
+        front = {(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])}
+        hit = []
+        for qid, q in _STATE["players"].items():
+            if q is p or (q["x"], q["y"]) not in front:
+                continue
+            q["hit_seq"] += 1
+            q["hit_at"], q["hit_by"] = now, p["name"]
+            hit.append(q["name"])
+        _bump()
+    return {"ok": True, "hit": hit}
 
 
 @router.post("/plaza/api/leave")

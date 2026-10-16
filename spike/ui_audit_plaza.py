@@ -114,7 +114,8 @@ def watch(page, who):
 def walk(page, keys):
     for k, n in keys:
         for _ in range(n):
-            page.keyboard.press(k, delay=210)
+            page.keyboard.press(k, delay=90)      # 한 칸(190ms)보다 짧게 눌러 한 번에 한 칸
+            time.sleep(0.16)
 
 
 def chat(page, text):
@@ -162,6 +163,33 @@ with sync_playwright() as pw:
     time.sleep(0.6)
     chat(others[2][1], "P&ID 검토 끝나고 갈게요")
     time.sleep(1.2)
+
+    # ── 스페이스 공격: 김철수가 홍길동 아래로 걸어가 위를 보고 휘두른다 ──────────
+    kim = others[0][1]
+    def pos():
+        return kim.evaluate("""() => { const S = window.__plaza, h = [...S.others.values()].find(a => a.name === '홍길동');
+          return {me: [S.me.tx, S.me.ty], hong: h ? [h.tx, h.ty] : null}; }""")
+    time.sleep(0.8)
+    pp = pos()
+    hx, hy = pp["hong"]
+    mx, my = pp["me"]
+    kim.click("#pz-map")
+    # 홍길동의 오른쪽 세 칸 → 왼쪽으로 두 칸 걸어 와서 왼쪽을 보고 선다
+    walk(kim, [("ArrowRight" if hx + 3 > mx else "ArrowLeft", abs(hx + 3 - mx))])
+    mx, my = pos()["me"]
+    walk(kim, [("ArrowDown" if hy > my else "ArrowUp", abs(hy - my))])
+    walk(kim, [("ArrowLeft", 2)])
+    time.sleep(0.4)
+    facts["attack_from"] = pos()
+    import base64
+    url = kim.evaluate("""() => new Promise(res => {
+        document.dispatchEvent(new KeyboardEvent('keydown', {key: ' ', code: 'Space', bubbles: true}));
+        setTimeout(() => res(document.querySelector('#pz-map').toDataURL('image/png')), 125); })""")
+    (OUT / "5_공격_휘두르기.png").write_bytes(base64.b64decode(url.split(",", 1)[1]))
+    time.sleep(0.15)
+    dash.locator(".plaza").screenshot(path=str(OUT / "6_대시보드_맞음_퍽.png"))
+    time.sleep(0.6)
+    facts["hong_hit_log"] = kim.evaluate("[...window.__plaza.others.values()].filter(a => a.hit).map(a => a.name + ' ← ' + a.hit.by)")
 
     dash.evaluate("window.scrollTo(0, 0)")
     dash.screenshot(path=str(OUT / "1_대시보드_광장.png"))

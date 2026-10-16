@@ -76,3 +76,22 @@ def test_screen_rules():
     assert "/plaza" not in (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     m = re.search(r"const T = 32, W = (\d+), H = (\d+);", js)
     assert m and (int(m.group(1)), int(m.group(2))) == (plaza.MAP_W, plaza.MAP_H)
+
+
+def test_space_attack_hits_whoever_stands_in_front(client):
+    a = client.post("/plaza/api/join", json={"name": "김철수", "x": 29, "y": 15}).json()
+    b = client.post("/plaza/api/join", json={"name": "홍길동", "x": 28, "y": 15}).json()
+    c = client.post("/plaza/api/join", json={"name": "이영희", "x": 29, "y": 20}).json()
+    client.post("/plaza/api/move", json={"id": a["id"], "x": 29, "y": 15, "dir": 2})   # 왼쪽을 본다
+    r = client.post("/plaza/api/attack", json={"id": a["id"]}).json()
+    assert r["hit"] == ["홍길동"]
+    snap = {p["name"]: p for p in plaza.snapshot()["players"]}
+    assert snap["홍길동"]["hit_seq"] == 1 and snap["홍길동"]["hit_by"] == "김철수"
+    assert snap["김철수"]["act_seq"] == 1 and snap["이영희"]["hit_seq"] == 0
+    # 한 번 휘두르는 동안 또 누르면 무시
+    assert client.post("/plaza/api/attack", json={"id": a["id"]}).json()["hit"] == []
+    assert plaza.snapshot()["players"][0]["act_seq"] == 1
+    assert client.post("/plaza/api/attack", json={"id": "nope"}).status_code == 404
+    assert c["id"] and b["id"]
+    js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
+    assert '"/plaza/api/attack"' in js and 'ev.code === "Space"' in js

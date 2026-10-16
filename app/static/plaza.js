@@ -9,6 +9,7 @@
 const T = 32, W = 56, H = 32;               // 칸 크기 · 지도 칸 수 (서버 MAP_W/MAP_H 와 같다)
 const STEP_MS = 190;                        // 한 칸 걷는 시간
 const PX = 2;                               // 캐릭터 한 점 = 2px
+const ATK_MS = 280, HIT_MS = 520;          // 휘두르기 · 맞은 표시 시간
 const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get("embed") === "1";
@@ -338,13 +339,39 @@ function charSprite(look, dir, frame) {
   spriteCache.set(key, c); return c;
 }
 function shadeOk(c) { return shade(c, -.22); }
+const tintCache = new WeakMap();
+function tinted(img) {                      // 맞은 순간 — 붉게 번쩍
+  let c = tintCache.get(img); if (c) return c;
+  c = canvas(img.width, img.height); const g = c.getContext("2d");
+  g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(255,70,50,.65)"; g.fillRect(0, 0, c.width, c.height);
+  tintCache.set(img, c); return c;
+}
+// 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
+const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
+function drawSwing(g, sx, sy, dir, k) {
+  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 6 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);
+  const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
+  const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
+  g.save();
+  g.globalAlpha = .75 * (1 - k * .6); g.strokeStyle = "#ffffff"; g.lineWidth = 5; g.lineCap = "round";
+  g.beginPath(); g.arc(px, py, 22, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+  g.globalAlpha = .35 * (1 - k); g.lineWidth = 9; g.strokeStyle = "#cfe9ff";
+  g.beginPath(); g.arc(px, py, 19, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+  g.globalAlpha = 1; g.translate(px, py); g.rotate(ang);
+  g.fillStyle = "#2a1a12"; g.fillRect(3, -3, 25, 6);                       // 테두리
+  g.fillStyle = "#d8b07a"; g.fillRect(9, -2, 18, 4); g.fillStyle = "#f0d3a2"; g.fillRect(9, -2, 18, 1);   // 목검 날
+  g.fillStyle = "#2a1a12"; g.fillRect(8, -5, 3, 10);                       // 코등이
+  g.fillStyle = "#6e4527"; g.fillRect(3, -2, 5, 4);                        // 손잡이
+  g.restore();
+}
 
 // ── 상태 ───────────────────────────────────────────────────────────────
 const S = { id: null, name: "", look: 0, me: null, others: new Map(), logSeq: 0, typing: false, keys: new Set(), lastDir: 0 };
 const cv = $("#pz-map"), ctx = cv.getContext("2d");
 
 function newActor(p) { return { id: p.id, name: p.name, look: p.look, tx: p.x, ty: p.y, x: p.x * T, y: p.y * T,
-  dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0 }; }
+  dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0,
+  actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null }; }
 
 function walkable(x, y) { return inside(x, y) && !solid[at(x, y)]; }
 function spawn() {                          // 이름마다 늘 같은 자리에서 시작한다
@@ -386,13 +413,20 @@ function applySnapshot(s) {
   const seen = new Set();
   for (const p of s.players) {
     seen.add(p.id);
-    if (p.id === S.id) { if (p.say && p.say_seq !== S.me.sayseq) { S.me.sayseq = p.say_seq; } continue; }
+    const tnow = performance.now();
+    if (p.id === S.id) {
+      if (p.say && p.say_seq !== S.me.sayseq) S.me.sayseq = p.say_seq;
+      if (p.hit_seq !== S.me.hitseq) { S.me.hitseq = p.hit_seq; if (p.hit_age < .8) S.me.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
+      continue;
+    }
     let a = S.others.get(p.id);
     if (!a) { a = newActor(p); S.others.set(p.id, a); }
     a.name = p.name; a.look = p.look;
     a.gx = p.x; a.gy = p.y;
     if (Math.abs(p.x - a.tx) + Math.abs(p.y - a.ty) > 3) { a.tx = p.x; a.ty = p.y; a.x = p.x * T; a.y = p.y * T; a.moving = false; }
     if (!a.moving && a.tx === a.gx && a.ty === a.gy) a.dir = p.dir;
+    if (p.act_seq !== a.actseq) { a.actseq = p.act_seq; if (p.act_age < .6) a.attack = tnow - p.act_age * 1000; }
+    if (p.hit_seq !== a.hitseq) { a.hitseq = p.hit_seq; if (p.hit_age < .8) a.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
     if (p.say && p.say_seq !== a.sayseq) { a.sayseq = p.say_seq; a.bubble = { text: p.say, until: performance.now() + p.say_left * 1000 }; }
   }
   for (const id of [...S.others.keys()]) if (!seen.has(id)) S.others.delete(id);
@@ -423,7 +457,7 @@ function stepActor(a, now, mine) {
     a.x = (a.from[0] + (a.tx - a.from[0]) * k) * T; a.y = (a.from[1] + (a.ty - a.from[1]) * k) * T;
     if (k >= 1) { a.moving = false; a.steps++; }
   }
-  if (!a.moving && mine) {
+  if (!a.moving && mine && !(a.attack && now - a.attack < ATK_MS)) {
     const d = heldDir();
     if (d != null && !S.typing) {
       const [dx, dy] = DIRV[d]; const changed = a.dir !== d; a.dir = d;
@@ -507,8 +541,17 @@ function frame(now) {
     const a = it.a, k = a.moving ? Math.min(1, (now - a.t0) / STEP_MS) : 0;
     const fr = a.moving && k > .15 && k < .85 ? (a.steps % 2 ? 1 : 2) : 0;
     const sx = Math.round(a.x - cx), sy = Math.round(a.y - cy);
+    const atk = a.attack && now - a.attack < ATK_MS ? (now - a.attack) / ATK_MS : -1;
+    const hit = a.hit && now - a.hit.t0 < HIT_MS ? (now - a.hit.t0) / HIT_MS : -1;
+    let ox = 0, oy = 0;
+    if (atk >= 0) { const [dx, dy] = DIRV[a.dir], l = Math.sin(atk * Math.PI) * 3; ox = Math.round(dx * l); oy = Math.round(dy * l); }
+    if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
     ell(ctx, sx + 16, sy + 28, 10, 4, "rgba(0,0,0,.25)");
-    ctx.drawImage(charSprite(a.look, a.dir, fr), sx - 2, sy + 28 - 46 - 2 - (fr ? 1 : 0));
+    if (atk >= 0 && a.dir === 1) drawSwing(ctx, sx + ox, sy + oy, a.dir, atk);
+    const spr = charSprite(a.look, a.dir, atk >= 0 ? 0 : fr);
+    ctx.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
+                  sx - 2 + ox, sy + 28 - 46 - 2 - (fr && atk < 0 ? 1 : 0) + oy);
+    if (atk >= 0 && a.dir !== 1) drawSwing(ctx, sx + ox, sy + oy, a.dir, atk);
   }
   const boxes = [];
   for (const a of actors) {                 // 이름 · 말풍선은 맨 위
@@ -528,11 +571,28 @@ function frame(now) {
     placed.push(b);
   }
   for (const b of placed) drawBubble(ctx, b);
+  for (const a of actors) if (a.hit && now - a.hit.t0 < HIT_MS + 300) {   // 퍽!
+    const k = (now - a.hit.t0) / (HIT_MS + 300), sx = Math.round(a.x - cx) + 16, sy = Math.round(a.y - cy);
+    ctx.save(); ctx.globalAlpha = Math.max(0, 1 - k * k);
+    ctx.font = `bold ${15 + Math.round((1 - k) * 4)}px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    const ty = sy + 2 - Math.round(k * 16), tx = sx + 24;      // 머리 옆 (말풍선 꼬리와 겹치지 않게)
+    ctx.lineWidth = 4; ctx.strokeStyle = "#3a0d06"; ctx.strokeText("퍽!", tx, ty);
+    ctx.fillStyle = "#ffdf3d"; ctx.fillText("퍽!", tx, ty);
+    if (k < .45) for (let i = 0; i < 6; i++) { const ang = i / 6 * Math.PI * 2 + k * 3, r = 10 + k * 24;
+      ctx.fillStyle = i % 2 ? "#fff6b0" : "#ff9a3c"; ctx.fillRect(Math.round(sx + Math.cos(ang) * r) - 2, Math.round(sy + 6 + Math.sin(ang) * r * .7) - 2, 4, 4); }
+    ctx.restore();
+  }
 }
 
 // ── 자판 · 대화 ─────────────────────────────────────────────────────────
 const input = $("#pz-input"), chatBox = document.querySelector(".pz-chat");
 function setTyping(on) { S.typing = on; chatBox.classList.toggle("typing", on); if (on) { S.keys.clear(); input.focus(); } else { input.blur(); cv.focus(); } }
+function attack() {                         // 스페이스 — 앞을 휘두른다 (맞은 사람은 서버가 가린다)
+  const now = performance.now();
+  if (!S.me || !S.id || (S.me.attack && now - S.me.attack < ATK_MS + 20)) return;
+  S.me.attack = now;
+  post("/plaza/api/attack", { id: S.id }).catch(e => { if (e.status === 404) join().catch(() => {}); });
+}
 async function say(text) {
   text = text.replace(/\s+/g, " ").trim().slice(0, 80); if (!text || !S.id) return;
   S.me.bubble = { text, until: performance.now() + 7000 };
@@ -549,6 +609,7 @@ document.addEventListener("keydown", ev => {
   }
   if (ev.key === "Escape" && S.typing) { input.value = ""; setTyping(false); return; }
   if (S.typing) return;
+  if (ev.key === " " || ev.code === "Space") { ev.preventDefault(); if (!ev.repeat) attack(); return; }
   if (ev.key in KEYDIR) { ev.preventDefault(); S.keys.delete(ev.key); S.keys.add(ev.key); }
 });
 document.addEventListener("keyup", ev => { S.keys.delete(ev.key); if (ev.key.length === 1) { S.keys.delete(ev.key.toLowerCase()); S.keys.delete(ev.key.toUpperCase()); } });
