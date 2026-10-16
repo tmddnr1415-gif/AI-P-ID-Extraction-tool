@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-15.4'
+SERVER_VERSION = '2026-10-16.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1841,7 +1841,7 @@ class Handler(BaseHTTPRequestHandler):
         if m == 'GET' and head == 'info':
             return {'mode': 'server', 'admin': self.is_admin(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
                     'perms': perms_for(session_account(self.token(), False), self.is_admin()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
-                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(),
+                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(), 'plazaPort': PLAZA['port'],
                     **({'net': {'ips': NET_STATE['ips'] or [], 'profiles': NET_STATE['profiles'], 'changedAt': NET_STATE['changedAt'],
                                 'allow': [str(n) for n in ALLOW_NETS]}} if self.is_admin() else {})}
         if head == 'auth':
@@ -2056,6 +2056,58 @@ def keep_awake_loop():
         time.sleep(60)
 
 
+# ---------------------------------------------------------------- 가상 광장 (plaza/plaza_server.py, 포트 8100) — 대시보드 서버가 함께 띄움
+# 꺼지면 30초 안에 다시 띄우고, 대시보드 서버가 끝날 때 그 PID 하나만 끔 (python 일괄 종료 안 함).
+# 이미 그 포트에서 광장이 돌고 있으면(예: 지난번에 창을 닫아 남은 것) 그대로 씀. 역할·얼굴 = data/plaza/
+PLAZA = {'proc': None, 'port': 8100, 'fails': 0}
+
+
+def plaza_alive(port):
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/version', timeout=2) as r:
+            return json.loads(r.read()).get('app') == 'plaza'
+    except Exception:
+        return False
+
+
+def plaza_loop():
+    import subprocess
+    port, script = PLAZA['port'], P('plaza', 'plaza_server.py')
+    if not os.path.isfile(script):
+        log.info('가상 광장: plaza/plaza_server.py 가 없어 띄우지 않음')
+        return
+    while True:
+        p = PLAZA['proc']
+        if (p is None or p.poll() is not None) and not plaza_alive(port):
+            if p is not None:
+                PLAZA['fails'] += 1
+                log.warning('가상 광장 서버가 꺼졌습니다 (종료 코드 %s) — 다시 띄웁니다', p.returncode)
+            if PLAZA['fails'] >= 3:                              # 포트를 다른 프로그램이 쓰는 등 → 10분 쉬고 다시
+                log.warning('가상 광장 서버가 계속 꺼집니다 (포트 %d 를 다른 프로그램이 쓰는지 확인) — 10분 뒤 다시 시도', port)
+                PLAZA['fails'] = 0
+                time.sleep(600)
+                continue
+            args = [sys.executable, script, '--port', str(port), '--data', P('data', 'plaza'), '--nets-file', nets_file()]
+            for n in EXTRA_NETS:
+                args += ['--allow', str(n)]
+            PLAZA['proc'] = subprocess.Popen(args, cwd=P('plaza'), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+                                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            log.info('가상 광장 서버 시작: 포트 %d (PID %d)', port, PLAZA['proc'].pid)
+        elif p is not None and p.poll() is None:
+            PLAZA['fails'] = 0
+        time.sleep(30)
+
+
+def plaza_stop():
+    p = PLAZA['proc']
+    if p is not None and p.poll() is None:                     # 내가 띄운 그 프로세스(PID)만
+        p.terminate()
+        try:
+            p.wait(5)
+        except Exception:
+            p.kill()
+
+
 def main():
     global ROOT, PORT, ALLOW_NETS
     ap = argparse.ArgumentParser(description='계장ENG그룹 Dashboard 서버')
@@ -2068,7 +2120,9 @@ def main():
     ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
     ap.add_argument('--allow-sleep', action='store_true', help='서버 PC 절전 방지를 끔 (기본: 서버가 켜져 있는 동안 절전 모드 막음)')
     ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
+    ap.add_argument('--plaza-port', type=int, default=8100, help='가상 광장 서버 포트 (0 = 띄우지 않음)')
     a = ap.parse_args()
+    PLAZA['port'] = a.plaza_port
 
     ROOT, PORT = os.path.abspath(a.root), a.port
     # 사내망 = 루프백·사설망 + 이 서버 IP 가 속한 /16 대역 + --allow 대역
@@ -2097,6 +2151,10 @@ def main():
     threading.Thread(target=weekly_loop, daemon=True).start()
     if not a.allow_sleep:
         threading.Thread(target=keep_awake_loop, daemon=True).start()
+    if a.plaza_port:
+        import atexit
+        atexit.register(plaza_stop)
+        threading.Thread(target=plaza_loop, daemon=True).start()
     try:
         build_deploy()
     except Exception as e:

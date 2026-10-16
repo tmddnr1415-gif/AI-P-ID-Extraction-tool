@@ -401,6 +401,15 @@ svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 /* 홈 하단: 최근 이력 + 메모 */
 .homebottom{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:16px;margin-top:16px;align-items:start}
 .homebottom .card{margin:0}
+.hcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+#recent.half{overflow:hidden;position:relative}
+#recent.half::after{content:'';position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(rgba(255,255,255,0),#fff);pointer-events:none}
+#plazaSlot{height:470px;border-radius:8px;background:#24361b}
+#plazaHost{position:absolute;z-index:5;border-radius:8px;overflow:hidden;background:#24361b}
+#plazaHost[hidden]{display:none}
+#plazaHost .pzframe{width:100%;height:100%;border:0;border-radius:8px;display:block;background:#24361b}
+#plazaHost .pzmsg{height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#e8f0dc;font-size:14px;padding:0 16px;text-align:center}
+@media print{#plazaHost,.plazacard{display:none}}
 .memo{background:#FFF8C4;border-radius:4px 4px 14px 4px;box-shadow:0 6px 16px rgba(120,100,0,.18);padding:16px 18px 14px;position:relative;border-top:28px solid #FFE98A}
 .memo .mt{position:absolute;top:-23px;left:16px;font-weight:700;font-size:13px;color:#6b5600}
 .memo .md{font-size:12px;color:#8a7300;margin-bottom:6px}
@@ -917,7 +926,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-15.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-16.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1651,7 +1660,7 @@ async function authStart() {
   await authDialog();
 }
 async function refreshPerms() { try { setPerms((await api('GET', 'info')).perms); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
-async function afterAuth() { loadBirthdays().then(bdayCheck);   // 로그인하면(사용자가 바뀌면) 생일 팝업 다시
+async function afterAuth() { loadBirthdays().then(bdayCheck); plazaOff();   // 사용자가 바뀌면 광장도 새 이름으로   // 로그인하면(사용자가 바뀌면) 생일 팝업 다시
   await refreshPerms(); TB.prev = null; TB.active = ''; todoShown = false; render(); showMyTodo(); presenceStart(); }
 // 첫 화면: 전체 화면 로그인 (ID 입력 → 비밀번호 입력 2단계, 계정 개설·비밀번호 재설정·비회원 보기)
 const LS_LASTID = 'dept-auth-lastid';
@@ -2404,6 +2413,7 @@ function render() {
       <p class="muted">${AUTH ? '운영자(서버 PC)에게 권한을 요청하세요. 권한이 부여되면 30초 안에 메뉴가 나타납니다.' : '로그인하면 계정에 부여된 메뉴를 사용할 수 있습니다.'}</p></div>`);
     return;
   }
+  if (route !== 'home') plazaOff();
   if (route === 'home') renderHome(c); else if (route === 'board') renderBoard(c);
   else if (PID_ROUTES[route]) renderPid(c, route);
   else if (MODULES[route]) renderModule(c, route);
@@ -2415,6 +2425,7 @@ function render() {
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
+  if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
 const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
@@ -2785,8 +2796,9 @@ function renderHome(c) {
     <section class="card"><h2>시트별 금주 업데이트 비율</h2>${svgDonut(upd2)}</section>
     <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100)</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
    <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 PJT·담당자·업데이트 내역을 볼 수 있습니다.</p>
-   <div class="homebottom">
-     <section class="card"><h2>최근 변경 이력 <span class="muted" style="font-weight:400">· ${esc(weekLabel(curWeek()))} (${sinceText()})</span></h2><div id="recent"><div class="empty">불러오는 중…</div></div></section>
+   <div class="homebottom"><div class="hcol">
+     <section class="card"><h2>최근 변경 이력 <span class="muted" style="font-weight:400">· ${esc(weekLabel(curWeek()))} (${sinceText()})</span><button class="btn sm" id="recentHalf" style="margin-left:auto">${recentHalf() ? '펼치기 ▾' : '반으로 접기 ▴'}</button></h2><div id="recent" class="${recentHalf() ? 'half' : ''}"><div class="empty">불러오는 중…</div></div></section>
+     <section class="card plazacard"><h2>가상 광장 <span class="muted" style="font-weight:400">· 부서원이 캐릭터로 모이는 곳 — 방향키 이동 · Enter 대화 · Space 목검</span></h2><div id="plazaSlot"></div></section></div>
      <section class="memo"><span class="mt">📌 주간회의 전달사항 (최신)</span>
        ${memo ? `<div class="md">${esc(memo.fields['일자'] || '')} · ${esc(memo.fields['제목'] || '')}</div><div class="mb">${fmtText(memo.fields['내용'])}</div>` : '<div class="mb muted">등록된 전달사항이 없습니다</div>'}
        <div class="mf"><button class="btn sm" data-go="notice">전체 보기 →</button></div></section>
@@ -2795,9 +2807,66 @@ function renderHome(c) {
     const el = $('#recent'); if (!el) return;
     const since = DB.state.lastClosedAt || '', list = (DB.recent || []).filter(e => (e.at || '') > since && e.by !== IMPORT_BY);   // 마감(Cutoff) 이후 이력만 (엑셀 이관·정리 작업 제외)
     el.innerHTML = !list.length ? '<div class="empty">이번 주(마감 이후) 변경 이력이 없습니다</div>' : `<ul class="recent">${list.map(e => `<li><span class="muted">${fmtTime(e.at)}</span><b>${esc(e.by)}</b><span><span class="tag ${(ACT[e.action] || [])[1] || ''}">${esc((ACT[e.action] || [e.action])[0])}</span> ${esc(SHEET[e.key]?.label)}</span><span>${esc(e.label || '')}</span></li>`).join('')}</ul>`;
+    fitRecent(); placePlaza();
   };
+  $('#recentHalf').onclick = () => { const h = !recentHalf(); try { localStorage.setItem('dash.history.half', h ? '1' : '0'); } catch (_) {} $('#recentHalf').textContent = h ? '펼치기 ▾' : '반으로 접기 ▴'; $('#recent').classList.toggle('half', h); fitRecent(); placePlaza(); };
+  plazaOn();
   if (DB.recent) drawRecent(); else loadRecent().then(drawRecent).catch(() => { const el = $('#recent'); if (el) el.innerHTML = '<div class="empty">이력을 읽지 못했습니다</div>'; });
 }
+
+/* 최근 변경 이력: 반으로 접기 (기본 접힘 · localStorage 'dash.history.half') — 접히면 목록 높이의 절반만, 아래는 흐리게 */
+const recentHalf = () => { try { return localStorage.getItem('dash.history.half') !== '0'; } catch (_) { return true; } };
+function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHeight = el.classList.contains('half') ? Math.max(110, Math.round(el.scrollHeight / 2)) + 'px' : ''; }
+/* =====================================================================
+ *  가상 광장 (plaza/plaza_server.py, 포트 8100 — 대시보드 서버가 함께 띄움): 홈 '최근 변경 이력' 바로 아래 카드에 iframe 하나
+ *  - 주소 http://<대시보드 서버 호스트>:8100/plaza?embed=1&user=<로그인 이름>, 띄우기 전에 /version 을 3초 안에 확인
+ *  - 홈을 다시 그려도(1분 자동 갱신 등) iframe 을 새로 만들지 않음: iframe 은 #content 밖(#plazaHost)에 두고 카드 자리(#plazaSlot) 위에 맞춰 올림
+ *    (iframe 을 DOM 에서 옮기거나 새로 만들면 캐릭터가 광장에서 나갔다 다시 들어옴). 홈을 떠나면 iframe 을 닫음(광장에서 나감)
+ *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 광장 화면 규칙은 plaza/README_인계.md §5
+ * ===================================================================== */
+const PZ = { url:'', state:'', tries:0 };
+const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
+function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
+function plazaHost() {
+  let h = $('#plazaHost');
+  if (!h) { h = document.createElement('div'); h.id = 'plazaHost'; h.hidden = true; document.body.appendChild(h); }
+  return h;
+}
+function placePlaza() {
+  const h = $('#plazaHost'), slot = $('#plazaSlot'); if (!h) return;
+  if (route !== 'home' || !slot || !slot.isConnected) { h.hidden = true; return; }
+  const r = slot.getBoundingClientRect();
+  Object.assign(h.style, { left:r.left + scrollX + 'px', top:r.top + scrollY + 'px', width:r.width + 'px', height:r.height + 'px' });
+  h.hidden = false;
+}
+function plazaMsg(text, retry) {
+  const h = plazaHost(); h.textContent = ''; PZ.url = '';
+  const d = document.createElement('div'); d.className = 'pzmsg'; d.textContent = text;
+  if (retry) { const b = document.createElement('button'); b.className = 'btn sm'; b.textContent = '다시 시도'; b.onclick = () => { PZ.state = ''; plazaOn(); }; d.appendChild(b); }
+  h.appendChild(d); placePlaza();
+}
+async function plazaOn() {
+  plazaHost(); placePlaza();
+  if (!SERVER || OFFLINE) { if (PZ.state !== 'off') { PZ.state = 'off'; plazaMsg('가상 광장은 서버에 연결되어 있을 때만 열립니다'); } return; }
+  if (!AUTH) { if (PZ.state !== 'guest') { PZ.state = 'guest'; plazaMsg('로그인하면 가상 광장에 들어갈 수 있습니다 (이름 = 로그인 이름)'); } return; }
+  const url = `${plazaBase()}/plaza?embed=1&user=${encodeURIComponent(AUTH.name)}`;
+  if (PZ.url === url || PZ.state === 'checking') return;   // 이미 떠 있음 → 그대로 (새로 만들지 않음)
+  PZ.state = 'checking';
+  let ok = false;
+  try { const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 3000); const r = await fetch(`${plazaBase()}/version`, { cache:'no-store', signal:ctl.signal }); clearTimeout(t); ok = r.ok; } catch (_) {}
+  if (route !== 'home') { PZ.state = ''; return; }
+  if (!ok) { PZ.state = 'down'; plazaMsg(`가상 광장 서버가 꺼져 있습니다 (포트 ${plazaPort()}) — 대시보드 서버를 다시 켜면 함께 켜집니다`, true); return; }
+  const h = plazaHost(); h.textContent = '';
+  const f = document.createElement('iframe'); f.src = url; f.title = '가상 광장'; f.className = 'pzframe';
+  h.appendChild(f); PZ.url = url; PZ.state = 'on'; placePlaza();
+}
+function plazaOff() {                                      // 홈을 떠나면 광장에서 나감
+  const h = $('#plazaHost'); if (!h) return;
+  if (PZ.url || PZ.state) { h.textContent = ''; PZ.url = ''; PZ.state = ''; }
+  h.hidden = true;
+}
+addEventListener('resize', () => placePlaza());
+new ResizeObserver(() => placePlaza()).observe(document.body);
 
 /* =====================================================================
  *  시트 화면

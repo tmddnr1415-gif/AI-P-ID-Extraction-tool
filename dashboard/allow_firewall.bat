@@ -5,7 +5,8 @@ rem  Use when members can connect while this PC is on wired LAN
 rem  but NOT when it is on company Wi-Fi.
 rem  Right-click this file -> "Run as administrator".
 rem  It does 2 things (Windows Firewall, this PC only):
-rem   1) allows inbound TCP 8080 on every network type
+rem   1) allows inbound TCP 8080 (dashboard) and 8100 (virtual plaza)
+rem      on every network type
 rem      (Domain / Private / Public - Wi-Fi is often "Public")
 rem   2) turns off inbound BLOCK rules for python.exe / pythonw.exe
 rem      (made when "Public networks" was unchecked in the
@@ -27,6 +28,8 @@ if errorlevel 1 (
 echo [1/3] Allow inbound TCP %PORT% on all network types ...
 netsh advfirewall firewall delete rule name="DeptDashboard %PORT%" >nul 2>&1
 netsh advfirewall firewall add rule name="DeptDashboard %PORT%" dir=in action=allow protocol=TCP localport=%PORT% profile=any
+netsh advfirewall firewall delete rule name="DeptDashboard Plaza 8100" >nul 2>&1
+netsh advfirewall firewall add rule name="DeptDashboard Plaza 8100" dir=in action=allow protocol=TCP localport=8100 profile=any
 if errorlevel 1 (
   echo [ERROR] Could not add the firewall rule. Company policy may manage the firewall - ask IT.
   pause
