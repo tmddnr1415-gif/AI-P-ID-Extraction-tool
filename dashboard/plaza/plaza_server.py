@@ -12,7 +12,7 @@
   POST /plaza/api/join         {name, look, face, x, y} → {id, name, face, role, ...}
   POST /plaza/api/move         {id, x, y, dir}
   POST /plaza/api/say          {id, text}            (80자)
-  POST /plaza/api/attack       {id}                  (Space — 앞 칸 · 같은 칸 사람을 때림 · 0.3초에 한 번)
+  POST /plaza/api/attack       {id}                  (Space — 앞 칸 · 같은 칸 사람을 때림 · 0.3초에 한 번 · 맞으면 체력 -1)
   POST /plaza/api/look         {id, look}            (얼굴 — 이름마다 looks.json 에 남음)
   POST /plaza/api/role         {id, target, role}    (운영자만)
   GET  /plaza/api/roles?id=    (운영자만)
@@ -21,8 +21,13 @@
   GET  /plaza/api/stream?id=   SSE — 바뀔 때마다 광장 전체
   GET  /version                {"ok": true} (살아 있나 — 다른 출처 허용)
 
-상태(사람 · 말)는 메모리에만 있다.  파일은 둘 — `<data>/roles.json` (역할 · 없으면 빈 틀) ·
-`<data>/looks.json` (얼굴).  사내망(사설 주소 · 루프백) 밖에서 오면 403.
+상태(사람 · 말)는 메모리에만 있다.  파일은 셋 — `<data>/roles.json` (역할 · 없으면 빈 틀) ·
+`<data>/looks.json` (얼굴) · `<data>/hp.json` (체력 · 이번 주차).
+
+체력 (2026-10-16 대시보드): 모두 100 에서 시작, 한 대 맞을 때마다 1 씩 줄고 0 이 되면 유령(공격 못 함 · 안 맞음 ·
+남과 겹쳐 지나감).  주간 마감(수요일 12:00, 대시보드에서 [금주 마감] 을 누르면 그때)이 지나 주차가 바뀌면 모두 100 으로
+부활.  주차 계산은 대시보드 server.py `iso_week` 와 같고, [금주 마감] 은 `<data>/../_meta/state.json` 의
+manualClosedWeek 로 안다 (대시보드가 띄우면 --data = 대시보드 data/plaza).  사내망(사설 주소 · 루프백) 밖에서 오면 403.
 
 대시보드에서 (2026-10-16): 대시보드 server.py 가 이 서버를 함께 띄운다 (`--nets-file` = 대시보드가 기억하는
 사내 대역 파일 data/_meta/server-nets.json · `--allow` = 대시보드 --allow 대역).  회사 대역이 사설 주소가 아니어도
@@ -31,6 +36,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import ipaddress
 import json
 import os
@@ -44,7 +50,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-16.6'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-16.7'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -52,6 +58,8 @@ MAP_W, MAP_H = 56, 32        # plaza.js 의 지도 크기와 같다
 NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
+HP_MAX = 100                 # 체력 — 맞을 때마다 1, 0 이면 유령 (주간 마감에 부활)
+CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간 마감 (수요일 12:00)
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
 LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
 ROLES = ("member", "unit", "leader", "operator")
@@ -66,6 +74,7 @@ DATA = HERE / "plaza_data"
 LOCK = threading.Lock()
 FILE_LOCK = threading.Lock()
 STATE: dict = {"ver": 0, "players": {}, "log": deque(maxlen=LOG_KEEP), "seq": 0}
+HP: dict = {"week": "", "hp": {}, "dirty": False, "checked": 0.0}   # 이름 → 체력 (100 이 아닌 사람만) · 그 주차
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -166,6 +175,97 @@ def save_look(name: str, look: dict) -> None:
         write_json(DATA / "looks.json", data)
 
 
+# ── 체력 · 주간 마감 부활 ──────────────────────────────────────────────
+_WEEK_CACHE: dict = {"mtime": None, "closed": ""}
+
+
+def manual_closed_week() -> str:
+    """대시보드에서 [금주 마감] 으로 앞당겨 마감한 주차 (대시보드 data/_meta/state.json) — 없으면 ''"""
+    f = DATA.parent / "_meta" / "state.json"
+    try:
+        mt = f.stat().st_mtime
+    except OSError:
+        return ""
+    if mt != _WEEK_CACHE["mtime"]:
+        _WEEK_CACHE.update(mtime=mt, closed=str(read_json(f, {}).get("manualClosedWeek") or ""))
+    return _WEEK_CACHE["closed"]
+
+
+def plaza_week(now: datetime.datetime | None = None) -> str:
+    """지금 주차 — 대시보드 server.py iso_week 와 같은 규칙 (수요일 12:00 이 지나면 다음 주 · [금주 마감] 한 주는 끝난 주)"""
+    now = now or datetime.datetime.now()
+    wed = now.date() - datetime.timedelta(days=now.weekday() - CUTOFF_WEEKDAY)
+    if now >= datetime.datetime.combine(wed, datetime.time(CUTOFF_HOUR)):
+        wed += datetime.timedelta(days=7)
+    closed = manual_closed_week()
+    for _ in range(60):
+        y, w, _d = wed.isocalendar()
+        wid = f"{y}-W{w:02d}"
+        if not closed or wid > closed:
+            return wid
+        wed += datetime.timedelta(days=7)
+    return wid
+
+
+def load_hp() -> None:
+    raw = read_json(DATA / "hp.json", {})
+    hp = {}
+    for k, v in (raw.get("hp") or {}).items() if isinstance(raw.get("hp"), dict) else []:
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= n < HP_MAX and clean(k, NAME_MAX):
+            hp[clean(k, NAME_MAX)] = n
+    HP.update(week=str(raw.get("week") or ""), hp=hp, dirty=False, checked=0.0)
+
+
+def check_week(now: float, force: bool = False) -> None:
+    """주차가 바뀌었으면(주간 마감) 모두 부활 — LOCK 안에서 부름 · 5초에 한 번만 봄"""
+    if not force and now - HP["checked"] < 5:
+        return
+    HP["checked"] = now
+    week = plaza_week()
+    if week == HP["week"]:
+        return
+    first = not HP["week"]
+    revived = sum(1 for v in HP["hp"].values() if v <= 0)
+    HP.update(week=week, hp={}, dirty=True)
+    if not first:
+        log_system(f"주간 마감 — 새 주차 {week}. 모두 체력 {HP_MAX} 으로 돌아왔습니다." + (f" (유령 {revived}명 부활)" if revived else ""), now)
+        STATE["ver"] += 1
+
+
+def hp_of(name: str) -> int:
+    return HP["hp"].get(name, HP_MAX)
+
+
+def save_hp() -> None:
+    with LOCK:
+        if not HP["dirty"]:
+            return
+        data = {"week": HP["week"], "hp": dict(HP["hp"]),
+                "_설명": f"계장 광장 체력 (이름 → 남은 체력, 없으면 {HP_MAX}). 0 = 유령. 주차가 바뀌면(주간 마감) 모두 {HP_MAX} 으로 부활."}
+        HP["dirty"] = False
+    try:
+        with FILE_LOCK:
+            write_json(DATA / "hp.json", data)
+    except OSError:
+        with LOCK:
+            HP["dirty"] = True
+
+
+def hp_loop() -> None:                             # 2초마다 체력 저장 · 30초마다 주간 마감(부활) 확인 — 아무도 안 움직여도
+    n = 0
+    while True:
+        time.sleep(2)
+        n += 1
+        if n % 15 == 0:
+            with LOCK:
+                check_week(time.time(), force=True)
+        save_hp()
+
+
 # ── 광장 상태 ──────────────────────────────────────────────────────────
 def log_system(text: str, now: float) -> None:
     STATE["seq"] += 1
@@ -184,6 +284,7 @@ def snapshot(now: float | None = None) -> dict:
     now = time.time() if now is None else now
     with LOCK:
         prune(now)
+        check_week(now)
         players = []
         for pid, p in STATE["players"].items():
             age = now - p["say_at"] if p["say"] else None
@@ -195,10 +296,11 @@ def snapshot(now: float | None = None) -> dict:
                 "act_seq": p["act_seq"], "act_age": round(now - p["act_at"], 2),
                 "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
                 "status": p.get("status", ""),
+                "hp": hp_of(p["name"]), "hp_max": HP_MAX, "ghost": hp_of(p["name"]) <= 0,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
-        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players)}
+        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"]}
 
 
 def player(pid) -> dict:
@@ -263,7 +365,9 @@ def api_move(body: dict) -> dict:
         x, y = min(max(x, 0), MAP_W - 1), min(max(y, 0), MAP_H - 1)
         p["seen"] = time.time()
         # 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 선 칸으로는 못 감 → 제자리 칸을 돌려줌 (화면이 되돌아감)
-        if (x, y) != (p["x"], p["y"]) and any(q is not p and (q["x"], q["y"]) == (x, y) for q in STATE["players"].values()):
+        # 유령은 남과 겹쳐 지나가고, 남도 유령 칸은 지나감
+        if (x, y) != (p["x"], p["y"]) and hp_of(p["name"]) > 0 and any(
+                q is not p and (q["x"], q["y"]) == (x, y) and hp_of(q["name"]) > 0 for q in STATE["players"].values()):
             if d % 4 != p["dir"]:
                 p["dir"] = d % 4
                 STATE["ver"] += 1
@@ -294,18 +398,30 @@ def api_attack(body: dict) -> dict:
     with LOCK:
         p = player(body.get("id"))
         p["seen"] = now
+        check_week(now)
+        if hp_of(p["name"]) <= 0:                  # 유령은 못 때림
+            return {"ok": True, "hit": [], "ghost": True}
         if now - p["act_at"] < ATTACK_GAP_S:
             return {"ok": True, "hit": []}
         p["act_at"] = now
         p["act_seq"] += 1
         dx, dy = DIRV.get(p["dir"], (0, 1))
         front = {(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])}
-        hit = []
+        hit, done = [], set()
         for q in STATE["players"].values():
-            if q is not p and (q["x"], q["y"]) in front:
-                q["hit_seq"] += 1
-                q["hit_at"], q["hit_by"] = now, p["name"]
-                hit.append(q["name"])
+            if q is p or (q["x"], q["y"]) not in front or q["name"] == p["name"] or hp_of(q["name"]) <= 0:
+                continue
+            q["hit_seq"] += 1
+            q["hit_at"], q["hit_by"] = now, p["name"]
+            if q["name"] in done:                  # 같은 이름이 둘이어도 체력은 한 번만
+                continue
+            done.add(q["name"])
+            left = hp_of(q["name"]) - 1             # 한 대에 1
+            HP["hp"][q["name"]] = left
+            HP["dirty"] = True
+            hit.append(q["name"])
+            if left <= 0:
+                log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 때 부활)", now)
         STATE["ver"] += 1
     return {"ok": True, "hit": hit}
 
@@ -544,6 +660,11 @@ def main(argv=None) -> None:
     EXTRA_NETS[:] = [ipaddress.ip_network(n, strict=False) for n in a.allow]
     NETS_FILE = Path(a.nets_file).resolve() if a.nets_file else None
     roles()                                        # 역할 파일 빈 틀을 만들어 둔다
+    load_hp()
+    with LOCK:
+        check_week(time.time(), force=True)        # 꺼져 있는 동안 마감이 지났으면 바로 부활
+    save_hp()
+    threading.Thread(target=hp_loop, daemon=True).start()
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     srv.daemon_threads = True
     try:                                           # 한글 Windows(cp949) 출력에서 '—' 같은 글자로 멈추지 않게 (2026-10-16 실제로 겪음: 시작하자마자 꺼짐)

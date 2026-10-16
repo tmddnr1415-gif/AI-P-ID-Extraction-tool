@@ -454,6 +454,13 @@ function tinted(img) {                      // 맞은 순간 — 붉게 번쩍
   g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(255,70,50,.65)"; g.fillRect(0, 0, c.width, c.height);
   tintCache.set(img, c); return c;
 }
+const ghostCache = new Map();
+function ghostly(img) {                      // 유령 — 희푸르게
+  let c = ghostCache.get(img); if (c) return c;
+  c = canvas(img.width, img.height); const g = c.getContext("2d");
+  g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(205,228,255,.7)"; g.fillRect(0, 0, c.width, c.height);
+  ghostCache.set(img, c); return c;
+}
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
 function drawSwing(g, sx, sy, dir, k) {
@@ -480,11 +487,14 @@ const cv = $("#pz-map"), ctx = cv.getContext("2d");
 
 function newActor(p) { return { id: p.id, name: p.name, face: p.face || null, role: p.role || "member", tx: p.x, ty: p.y, x: p.x * T, y: p.y * T,
   dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0,
-  actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null, status: p.status || "" }; }
+  actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null, status: p.status || "",
+  hp: p.hp ?? 100, hpMax: p.hp_max || 100, ghost: !!p.ghost }; }
 
 function walkable(x, y) { return inside(x, y) && !solid[at(x, y)]; }
 // 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 서 있거나(서버 칸) 가고 있는 칸은 막힘 — 서버도 같은 규칙으로 막음
-function occupied(x, y) { for (const a of S.others.values()) if ((a.gx === x && a.gy === y) || (a.tx === x && a.ty === y)) return true; return false; }
+// 유령(체력 0)은 남과 겹쳐 지나가고, 남도 유령 칸은 지나감 (서버와 같은 규칙)
+function occupied(x, y) { if (S.me && S.me.ghost) return false;
+  for (const a of S.others.values()) if (!a.ghost && ((a.gx === x && a.gy === y) || (a.tx === x && a.ty === y))) return true; return false; }
 function freeNear(x, y) {                   // 들어오자마자 남과 같은 칸이면 가장 가까운 빈 칸으로
   for (let r = 1; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
@@ -548,11 +558,13 @@ function applySnapshot(s) {
       if (!S.me.moving && tnow - (S.lastMove || 0) > 1000 && (p.x !== S.me.tx || p.y !== S.me.ty)) {
         S.me.tx = p.x; S.me.ty = p.y; S.me.x = p.x * T; S.me.y = p.y * T; S.me.dir = p.dir; }
       S.me.status = p.status || "";
+      S.me.hp = p.hp ?? 100; S.me.hpMax = p.hp_max || 100; S.me.ghost = !!p.ghost;
       continue;
     }
     let a = S.others.get(p.id);
     if (!a) { a = newActor(p); S.others.set(p.id, a); }
     a.name = p.name; a.face = p.face || null; a.role = p.role || "member"; a.status = p.status || "";
+    a.hp = p.hp ?? 100; a.hpMax = p.hp_max || 100; a.ghost = !!p.ghost;
     a.gx = p.x; a.gy = p.y;
     if (Math.abs(p.x - a.tx) + Math.abs(p.y - a.ty) > 3) { a.tx = p.x; a.ty = p.y; a.x = p.x * T; a.y = p.y * T; a.moving = false; }
     if (!a.moving && a.tx === a.gx && a.ty === a.gy) a.dir = p.dir;
@@ -565,14 +577,14 @@ function applySnapshot(s) {
     const f = freeNear(S.me.tx, S.me.ty); if (f) { S.me.tx = f[0]; S.me.ty = f[1]; S.me.x = f[0] * T; S.me.y = f[1] * T; sendMove(); }
   }
   S.online = s.players;
-  $("#pz-online").textContent = `접속 ${s.online}명`;
+  $("#pz-online").textContent = `접속 ${s.online}명` + (S.me ? (S.me.ghost ? " · 나는 유령 (주간 마감 때 부활)" : ` · 내 체력 ${S.me.hp}/${S.me.hpMax}`) : "");
   const who = $("#pz-who"); who.textContent = "";
   const b = document.createElement("b"); b.textContent = "광장에 있는 사람"; who.append(b);
   const order = { leader: 0, unit: 1, member: 2, operator: 3 };
   for (const p of [...s.players].sort((u, v) => (order[u.role] ?? 2) - (order[v.role] ?? 2))) {
     const d = document.createElement("div");
     if (ROLE_LABEL[p.role]) { const t = document.createElement("span"); t.className = "role " + p.role; t.textContent = ROLE_LABEL[p.role]; d.append(t); }
-    d.append(document.createTextNode(p.name + (p.id === S.id ? " (나)" : "") + (p.status ? ` (${p.status})` : "")));
+    d.append(document.createTextNode(p.name + (p.id === S.id ? " (나)" : "") + (p.ghost ? " [유령]" : "") + (p.status ? ` (${p.status})` : "")));
     if (p.id === S.id) d.classList.add("me");
     who.append(d);
   }
@@ -653,6 +665,14 @@ function nameTag(g, cx, y, a, mine) {       // [그룹장] 이름 — 칭호는 
   g.strokeText(a.name, x0 + tw, y); g.fillStyle = mine ? "#ffe066" : "#ffffff"; g.fillText(a.name, x0 + tw, y);
 }
 
+function hpBar(g, cx, y, a) {               // 이름 밑 체력 막대 (100) — 유령이면 '유령'
+  if (a.ghost) { g.font = `bold 11px ${FONT}`; g.textBaseline = "top"; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "#111";
+    g.strokeText("유령", cx, y); g.fillStyle = "#cfe3ff"; g.fillText("유령", cx, y); g.textAlign = "left"; return; }
+  const w = 32, k = Math.max(0, Math.min(1, a.hp / (a.hpMax || 100))), x = Math.round(cx - w / 2);
+  g.fillStyle = "#111"; g.fillRect(x - 1, y - 1, w + 2, 6);
+  g.fillStyle = "#4a1410"; g.fillRect(x, y, w, 4);
+  g.fillStyle = k > .5 ? "#4cd964" : k > .2 ? "#ffcc33" : "#ff4b3a"; g.fillRect(x, y, Math.max(k > 0 ? 1 : 0, Math.round(w * k)), 4);
+}
 function statusTag(g, cx, y, text) {       // 대시보드에서 보는 화면 — '(P&ID 분석 중...)' (글자로만 그림)
   g.font = `bold 11px ${FONT}`; g.textBaseline = "top"; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "#111";
   const t = `(${text})`; g.strokeText(t, cx, y); g.fillStyle = "#8fe3ff"; g.fillText(t, cx, y); g.textAlign = "left";
@@ -681,6 +701,11 @@ function drawActor(g, a, sx, sy, now) {
   let ox = 0, oy = 0;
   if (atk >= 0) { const [dx, dy] = DIRV[a.dir], l = Math.sin(atk * Math.PI) * 3; ox = Math.round(dx * l); oy = Math.round(dy * l); }
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
+  if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
+    const spr = ghostly(charSprite(faceOf(a), a.role, a.dir, 0)), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
+    g.save(); g.globalAlpha = .5; g.drawImage(spr, sx - OX * PX, sy + 28 - 46 - OY * PX + bob); g.restore();
+    return;
+  }
   ell(g, sx + 16, sy + 28, 10, 4, "rgba(40,20,5,.3)");
   if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
   const spr = charSprite(faceOf(a), a.role, a.dir, atk >= 0 ? 0 : fr);
@@ -716,6 +741,7 @@ function frame(now) {
   for (const a of actors) {                 // 이름 · 말풍선은 맨 위
     const sx = Math.round(a.x - cx) + 16, sy = Math.round(a.y - cy);
     nameTag(ctx, sx, sy + 32, a, a === S.me);
+    hpBar(ctx, sx, sy + 48, a);
     if (a.status) statusTag(ctx, sx, sy - 40, a.status);     // 머리 위 — '(주간업무보고 중...)' 등
     if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - 46 - 6 - (a.status ? 16 : 0), a.name, a.bubble.text));   // 상태가 있으면 말풍선을 그 위로
     else a.bubble = null;
@@ -849,8 +875,13 @@ function setTyping(on) { S.typing = on; chatBox.classList.toggle("typing", on); 
 function attack() {                         // 스페이스 — 앞을 휘두른다 (맞은 사람은 서버가 가린다) · 꾹 누르면 0.32초마다 (서버는 0.3초에 한 번)
   const now = performance.now();
   if (!S.me || !S.id || (S.me.attack && now - S.me.attack < ATK_MS + 40)) return;
+  if (S.me.ghost) { if (now - (S.ghostNote || 0) > 4000) { S.ghostNote = now; localNote("유령은 공격할 수 없습니다 — 주간 마감 때 체력 100 으로 부활합니다."); } return; }
   S.me.attack = now;
   post("/plaza/api/attack", { id: S.id }).catch(e => { if (e.status === 404) join().catch(() => {}); });
+}
+function localNote(text) {                  // 대화창에 나만 보는 안내 한 줄
+  const log = $("#pz-log"), d = document.createElement("div"); d.className = "sys"; d.textContent = text;
+  log.append(d); while (log.childElementCount > 40) log.firstElementChild.remove(); log.scrollTop = log.scrollHeight;
 }
 async function say(text) {
   text = text.replace(/\s+/g, " ").trim().slice(0, 80); if (!text || !S.id) return;
@@ -900,6 +931,7 @@ function showCtx(a, x, y) {
   t.textContent = (ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "") + a.name + (a === S.me ? " (나)" : "");
   ctxMenu.append(t);
   if (a.status) { const st = document.createElement("small"); st.textContent = a.status; ctxMenu.append(st); }
+  const hp = document.createElement("small"); hp.textContent = a.ghost ? "유령 (주간 마감 때 부활)" : `체력 ${a.hp}/${a.hpMax}`; ctxMenu.append(hp);
   const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "캐릭터 정보";
   btn.onclick = () => { hideCtx(); cv.focus();
     if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");

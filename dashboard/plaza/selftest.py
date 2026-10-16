@@ -1,6 +1,6 @@
 """가상 광장 서버 자가 점검 — 표준 라이브러리만.  `python selftest.py`
 
-빈 임시 폴더로 서버를 띄우고 들어오기 · 걷기 · 말하기 · 때리기 · 얼굴 · 역할(운영자만) · 나가기를
+빈 임시 폴더로 서버를 띄우고 들어오기 · 걷기 · 말하기 · 때리기 · 체력 · 유령 · 주간 마감 부활 · 얼굴 · 역할(운영자만) · 나가기를
 API 로 한 번씩 해 본다.  마지막 줄이 "모두 통과" 면 된다.
 """
 from __future__ import annotations
@@ -17,7 +17,14 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-data = Path(tempfile.mkdtemp(prefix="plaza_selftest_"))
+root = Path(tempfile.mkdtemp(prefix="plaza_selftest_"))
+data = root / "data" / "plaza"                      # 대시보드처럼 data/plaza — [금주 마감] 은 data/_meta/state.json
+data.mkdir(parents=True)
+sys.path.insert(0, str(HERE))
+import plaza_server  # noqa: E402  (주차 계산만 빌려 씀)
+plaza_server.DATA = data
+week = plaza_server.plaza_week()
+(data / "hp.json").write_text(json.dumps({"week": week, "hp": {"이몽룡": 1}}, ensure_ascii=False), encoding="utf-8")
 (data / "roles.json").write_text(json.dumps({"operators": ["홍길동"], "group_leader": ["이영희"]}, ensure_ascii=False), encoding="utf-8")
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 srv = subprocess.Popen([sys.executable, str(HERE / "plaza_server.py"), "--host", "127.0.0.1", "--port", str(port), "--data", str(data)])
@@ -68,6 +75,28 @@ try:
     ok.append(("한 PC 한 캐릭터 — 창을 더 열어도 같은 캐릭터", a2["id"] == a["id"] and a2["shared"] is True and (a2["x"], a2["y"]) == (29, 15)))
     _, d = call("/plaza/api/join", {"name": "최지우", "x": 5, "y": 5}, C)
     ok.append(("한 PC 한 캐릭터 — 같은 PC 에서 다른 사람이 들어오면 바뀜", d["id"] != c["id"] and call("/plaza/api/move", {"id": c["id"], "x": 1, "y": 1}, C)[0] == 404))
+    # 2026-10-16 (7) 체력: 100 · 한 대에 -1 · 0 이면 유령 · 주간 마감에 부활
+    E, F = "127.0.0.5", "127.0.0.6"
+    _, m = call("/plaza/api/join", {"name": "이몽룡", "x": 41, "y": 20}, E)
+    _, h = call("/plaza/api/join", {"name": "성춘향", "x": 42, "y": 20}, F)
+    call("/plaza/api/move", {"id": h["id"], "x": 42, "y": 20, "dir": 2}, F)
+    ok.append(("체력 — 남은 1 을 맞으면 유령", call("/plaza/api/attack", {"id": h["id"]}, F)[1]["hit"] == ["이몽룡"]))
+    ok.append(("유령 — 공격 못 함", call("/plaza/api/attack", {"id": m["id"]}, E)[1].get("ghost") is True))
+    time.sleep(0.35)
+    ok.append(("유령 — 안 맞음", call("/plaza/api/attack", {"id": h["id"]}, F)[1]["hit"] == []))
+    ok.append(("유령 — 남과 겹쳐 지나감", call("/plaza/api/move", {"id": m["id"], "x": 42, "y": 20, "dir": 3}, E)[1].get("ok") is True))
+    time.sleep(2.5)
+    saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
+    ok.append(("체력 — 파일에 남음 (홍길동 99 · 이몽룡 0)", saved["hp"].get("홍길동") == 99 and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
+    (root / "data" / "_meta").mkdir()
+    (root / "data" / "_meta" / "state.json").write_text(json.dumps({"manualClosedWeek": week}), encoding="utf-8")   # [금주 마감]
+    time.sleep(5.2)
+    call("/plaza/api/move", {"id": m["id"], "x": 43, "y": 20, "dir": 3}, E)
+    time.sleep(0.4)
+    ok.append(("주간 마감 — 유령 부활 (다시 때릴 수 있음)", call("/plaza/api/attack", {"id": m["id"]}, E)[1].get("ghost") is None))
+    time.sleep(2.5)
+    saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
+    ok.append(("주간 마감 — 모두 100 · 새 주차", saved["hp"] == {} and saved["week"] > week))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)
