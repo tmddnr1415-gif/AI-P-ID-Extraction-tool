@@ -616,7 +616,13 @@ function charSprite(F, role, dir, frame, armed = false) {
       if (side) { rbox(17, -2, 6, 3, B); box(18, -1, 4, 1, Bh); }
       else { rbox(-3, 0, 6, 3, B); rbox(19, 0, 6, 3, B); box(-2, 1, 4, 1, Bh); box(20, 1, 4, 1, Bd); }
     }
-  }                                         // 노비(운영자)는 모자 없이 산발 (위 '노비 — 산발')
+  } else if (role === "operator") {         // 노비 — 산발 위에 흰 머리띠 (좀 때 탄 무명) + 묶은 끝이 늘어짐
+    const B = "#f2eee4", Bd = "#cfc8b6", Bdd = "#a59d88";
+    box(L, 4, R - L + 1, 2, B); box(L, 5, R - L + 1, 1, Bd); put(L + 4, 4, Bd); put(R - 5, 5, Bdd); put(L + 9, 5, Bdd);   // 띠 · 주름 · 때
+    if (up) { box(10, 6, 2, 2, B); put(9, 8, B); box(9, 9, 1, 3, Bd); box(12, 8, 1, 4, B); put(12, 11, Bd); }          // 뒤통수 매듭 · 늘어진 두 끝
+    else if (side) { box(19, 4, 2, 2, B); box(20, 6, 1, 4, B); put(21, 7, Bd); box(21, 8, 1, 3, Bd); }                // 옆 — 뒤로 늘어진 끝
+    else { put(R + 1, 4, B); put(R + 2, 5, Bd); put(R + 1, 6, B); put(R + 2, 7, Bd); }                                 // 앞 — 옆으로 삐져나온 끝
+  }
 
   // ── 외곽선 · 칠하기 ──
   const c = canvas(CW * PX, CH * PX), g = c.getContext("2d");
@@ -962,7 +968,7 @@ function openFace() {
   if (!S.me) return;
   draft = { ...faceOf(S.me) }; S.panel = "face"; S.keys.clear();
   $("#pz-face").hidden = false; buildFace();
-  $("#pz-face-note").textContent = S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
+  $("#pz-face-note").textContent = S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발에 흰 머리띠, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
     : S.role === "leader" ? "그룹장은 왕관을 씁니다." : S.role === "unit" ? "유닛장은 날개 달린 관모(사모)를 씁니다." : "부서원은 관모를 씁니다.";
 }
 function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = null; cv.focus(); }
