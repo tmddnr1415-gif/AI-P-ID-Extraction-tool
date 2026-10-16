@@ -48,6 +48,47 @@ function shade(hex, k) {                    // k<0 어둡게 · k>0 밝게
   return "#" + [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => f(v).toString(16).padStart(2, "0")).join("");
 }
 function ell(g, x, y, rx, ry, c) { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); }
+// 2026-10-16 (9) 지도 그림도 캐릭터와 같은 굵기로: 소품을 보통 크기로 그린 뒤 pixelize 가 2px 한 점으로 바꾼다
+//   반으로 줄여 색을 고름 → 반투명 가장자리 없앰 → 둘레에 짙은 외곽선(옆 색을 어둡게) → 2배.  그림자(c.shadow)는 따로 점으로,
+//   글자(c.after)는 다 바꾼 뒤 또렷하게 덧쓴다.  결과는 둘레로 한 점(PX)씩 커진다.
+function layers(w, h) { const c = canvas(w, h), s = canvas(w, h); c.shadow = s; return [c, c.getContext("2d"), s.getContext("2d")]; }
+function shrink(src, w, h) {
+  const s = canvas(w + 2, h + 2), g = s.getContext("2d", { willReadFrequently: true });
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high"; g.drawImage(src, 1, 1, w, h);
+  return [s, g, g.getImageData(0, 0, w + 2, h + 2)];
+}
+function palette(src, n) {                  // 원래 그림에서 가장 많이 쓴 색 n 개 (섞인 중간색을 없애 또렷하게)
+  const d = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, src.width, src.height).data, cnt = new Map();
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255) { const k = d[i] << 16 | d[i + 1] << 8 | d[i + 2]; cnt.set(k, (cnt.get(k) || 0) + 1); }
+  const min = d.length / 4 * .002;               // 아주 조금 쓴 색(가장자리 섞임)은 뺌
+  return [...cnt.entries()].filter(([, v]) => v >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => [k >> 16 & 255, k >> 8 & 255, k & 255]);
+}
+function pixelize(src) {
+  const w = Math.ceil(src.width / PX), h = Math.ceil(src.height / PX), sw = w + 2, sh = h + 2;
+  const [s, g, img] = shrink(src, w, h), d = img.data, op = new Uint8Array(sw * sh), pal = palette(src, 16);
+  for (let i = 0; i < sw * sh; i++) if (d[i * 4 + 3] >= 128) {
+    op[i] = 1; d[i * 4 + 3] = 255;
+    let best = null, bd = 1e9;
+    for (const p of pal) { const e = (p[0] - d[i * 4]) ** 2 * 2 + (p[1] - d[i * 4 + 1]) ** 2 * 4 + (p[2] - d[i * 4 + 2]) ** 2 * 3; if (e < bd) { bd = e; best = p; } }
+    if (best) { d[i * 4] = best[0]; d[i * 4 + 1] = best[1]; d[i * 4 + 2] = best[2]; }
+  } else d[i * 4 + 3] = 0;
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+    const i = y * sw + x; if (op[i]) continue;
+    const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => { const xx = x + dx, yy = y + dy; return xx >= 0 && yy >= 0 && xx < sw && yy < sh && op[yy * sw + xx] ? yy * sw + xx : -1; }).find(j => j >= 0);
+    if (n == null) continue;
+    d[i * 4] = d[n * 4] * .3 + 8; d[i * 4 + 1] = d[n * 4 + 1] * .28 + 5; d[i * 4 + 2] = d[n * 4 + 2] * .26 + 4; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const out = canvas(sw * PX, sh * PX), og = out.getContext("2d"); og.imageSmoothingEnabled = false;
+  if (src.shadow) {                          // 그림자 — 점으로 · 반투명 그대로
+    const [ss, sg2, si] = shrink(src.shadow, w, h), sd = si.data;
+    for (let i = 0; i < sw * sh; i++) { const on = sd[i * 4 + 3] >= 30; sd[i * 4] = 30; sd[i * 4 + 1] = 20; sd[i * 4 + 2] = 10; sd[i * 4 + 3] = on ? 70 : 0; }
+    sg2.putImageData(si, 0, 0); og.drawImage(ss, 0, 0, out.width, out.height);
+  }
+  og.drawImage(s, 0, 0, out.width, out.height);
+  if (src.after) { og.save(); og.translate(PX, PX); src.after(og); og.restore(); }
+  return out;
+}
 
 // ── 땅 (한 번 그린다) ────────────────────────────────────────────────────
 const groundImg = canvas(W * T, H * T);
@@ -100,12 +141,25 @@ const groundImg = canvas(W * T, H * T);
       g.fillStyle = shade(c, .25); g.fillRect(X, Y, 2, 2); g.fillRect(X + 4, Y - 3, 2, 2);
     } else { g.fillStyle = "#9c8a72"; g.fillRect(X, Y, 4, 3); g.fillStyle = "#c2ae93"; g.fillRect(X, Y, 2, 1); }
   }
+  // 땅도 2px 한 점으로 (생울타리의 둥근 덤불이 점 덩어리가 됨) · 생울타리 둘레에 짙은 선
+  const sw = W * T / PX, sh = H * T / PX, s = canvas(sw, sh), sg = s.getContext("2d");
+  sg.imageSmoothingEnabled = true; sg.imageSmoothingQuality = "high"; sg.drawImage(groundImg, 0, 0, sw, sh);
+  g.imageSmoothingEnabled = false; g.clearRect(0, 0, W * T, H * T); g.drawImage(s, 0, 0, W * T, H * T);
+  g.fillStyle = "#26341a";
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!isLawn(x, y)) continue;
+    const X = x * T, Y = y * T;
+    if (inside(x, y + 1) && !isLawn(x, y + 1)) g.fillRect(X, Y + T - 2, T, 2);
+    if (inside(x, y - 1) && !isLawn(x, y - 1)) g.fillRect(X, Y, T, 2);
+    if (inside(x - 1, y) && !isLawn(x - 1, y)) g.fillRect(X, Y, 2, T);
+    if (inside(x + 1, y) && !isLawn(x + 1, y)) g.fillRect(X + T - 2, Y, 2, T);
+  }
 })();
 
 // ── 소품 그림 ──────────────────────────────────────────────────────────
 function treeImg(seed, big) {               // 바랜 올리브빛 나무 (부여성 잔디밭의 나무)
-  const r = rng(seed), w = big ? 120 : 76, h = big ? 136 : 92, c = canvas(w, h), g = c.getContext("2d"), cx = w / 2;
-  ell(g, cx + 6, h - 6, big ? 40 : 24, big ? 10 : 7, "rgba(30,25,10,.28)");
+  const r = rng(seed), w = big ? 120 : 76, h = big ? 136 : 92, [c, g, sg] = layers(w, h), cx = w / 2;
+  ell(sg, cx + 6, h - 6, big ? 40 : 24, big ? 10 : 7, "#000");
   g.fillStyle = "#5e4428"; g.fillRect(cx - (big ? 7 : 4), h - (big ? 50 : 34), big ? 14 : 8, big ? 46 : 30);
   g.fillStyle = "#4a331d"; g.fillRect(cx - (big ? 7 : 4), h - (big ? 50 : 34), 3, big ? 46 : 30);
   g.strokeStyle = "#5e4428"; g.lineWidth = big ? 4 : 3;                    // 뻗은 가지
@@ -118,7 +172,7 @@ function treeImg(seed, big) {               // 바랜 올리브빛 나무 (부�
   }
   if (big) { g.fillStyle = "#e8d7a0"; g.fillRect(cx - 9, h - 28, 18, 3);       // 당산나무 금줄
     for (let i = 0; i < 4; i++) { g.fillStyle = "#ffffff"; g.fillRect(cx - 7 + i * 4, h - 25, 2, 6); } }
-  return c;
+  return pixelize(c);
 }
 
 function roof(g, x, y, w, h, col) {         // 기와 지붕 — 처마 끝이 올라간다
@@ -138,8 +192,8 @@ function roof(g, x, y, w, h, col) {         // 기와 지붕 — 처마 끝이 �
 }
 
 function houseImg(seed, wTiles, roofCol) {
-  const r = rng(seed), w = wTiles * T, h = 4 * T + 56, c = canvas(w + 40, h), g = c.getContext("2d"), ox = 20;
-  ell(g, ox + w / 2, h - 8, w / 2 + 6, 10, "rgba(0,0,0,.22)");
+  const r = rng(seed), w = wTiles * T, h = 4 * T + 56, [c, g, sg] = layers(w + 40, h), ox = 20;
+  ell(sg, ox + w / 2, h - 8, w / 2 + 6, 10, "#000");
   g.fillStyle = "#a8a296"; g.fillRect(ox, h - 30, w, 22);                          // 기단
   for (let i = 0; i < w; i += 16) { g.fillStyle = (i / 16) % 2 ? "#9a9488" : "#b3ad9f"; g.fillRect(ox + i, h - 30 + ((i / 16) % 2) * 11, 16, 11); }
   g.fillStyle = "#7d776a"; g.fillRect(ox, h - 30, w, 2);
@@ -158,29 +212,29 @@ function houseImg(seed, wTiles, roofCol) {
     for (let k = 0; k <= 26; k += 6) g.fillRect(x0, wallTop + 2 + k, ww, 1);
   }
   roof(g, ox, 0, w, wallTop + 6, roofCol);
-  return c;
+  return pixelize(c);
 }
 
 function gateImg() {                        // 잔디밭의 작은 문 (지붕 얹은 두 기둥 — 부여성 남쪽의 그 문)
-  const c = canvas(80, 84), g = c.getContext("2d");
-  ell(g, 40, 78, 34, 5, "rgba(30,25,10,.25)");
+  const [c, g, sg] = layers(80, 84);
+  ell(sg, 40, 78, 34, 5, "#000");
   for (const x of [12, 62]) { g.fillStyle = "#6b6b5a"; g.fillRect(x, 26, 6, 52); g.fillStyle = "#545446"; g.fillRect(x, 26, 2, 52); }
   g.fillStyle = "#6b6b5a"; g.fillRect(10, 34, 60, 4); g.fillRect(14, 52, 52, 3);
   for (let x = 18; x < 62; x += 6) { g.fillStyle = "#7b7b68"; g.fillRect(x, 38, 2, 14); }
   roof(g, 8, 0, 64, 30, "#59604d");
-  return c;
+  return pixelize(c);
 }
 function fenceImg(len) {                    // 살 울타리
-  const c = canvas(len * T, 52), g = c.getContext("2d");
-  g.fillStyle = "rgba(30,25,10,.2)"; g.fillRect(2, 46, len * T - 4, 5);
+  const [c, g, sg] = layers(len * T, 52);
+  sg.fillStyle = "#000"; sg.fillRect(2, 46, len * T - 4, 5);
   g.fillStyle = "#6b5a3e"; g.fillRect(0, 10, len * T, 4); g.fillRect(0, 30, len * T, 4);
   for (let x = 2; x < len * T; x += 8) { g.fillStyle = "#7d6a49"; g.fillRect(x, 4, 3, 44); g.fillStyle = "#5a4a31"; g.fillRect(x, 4, 1, 44); }
   for (let x = 0; x < len * T; x += 32) { g.fillStyle = "#4a3c27"; g.fillRect(x, 0, 5, 48); }
-  return c;
+  return pixelize(c);
 }
 function southGateImg() {                   // 남문 — 돌 기단에 무지개문 · 그 위 문루
-  const w = 16 * T, h = 248, c = canvas(w + 48, h), g = c.getContext("2d"), ox = 24, base = h - 112;
-  g.fillStyle = "rgba(30,20,10,.3)"; g.fillRect(ox - 6, h - 10, w + 12, 10);
+  const w = 16 * T, h = 248, [c, g, sg] = layers(w + 48, h), ox = 24, base = h - 112;
+  sg.fillStyle = "#000"; sg.fillRect(ox - 6, h - 10, w + 12, 10);
   for (let y = base; y < h - 4; y += 12) for (let x = ox - ((y / 12) % 2) * 12; x < ox + w; x += 24) {   // 성돌
     g.fillStyle = ["#a59d8b", "#968e7c", "#b2aa98", "#8b836f"][Math.floor(((x * 7 + y * 13) % 97) / 25)];
     g.fillRect(Math.max(ox, x), y, Math.min(23, ox + w - Math.max(ox, x)), 11);
@@ -196,10 +250,10 @@ function southGateImg() {                   // 남문 — 돌 기단에 무지�
   g.fillStyle = "#2f7a6b"; g.fillRect(ox + 56, top + 6, w - 112, 8);          // 단청
   for (let x = ox + 58; x < ox + w - 58; x += 8) { g.fillStyle = x % 16 ? "#e0b24b" : "#c8423a"; g.fillRect(x, top + 8, 4, 4); }
   g.fillStyle = "#2a1a10"; g.fillRect(ox + w / 2 - 44, top + 24, 88, 22);      // 현판
-  g.fillStyle = "#e8d39a"; g.font = "bold 14px 'Malgun Gothic','Apple SD Gothic Neo','WenQuanYi Zen Hei',serif"; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("南 門", ox + w / 2, top + 35);
+  c.after = a => { a.fillStyle = "#e8d39a"; a.font = "bold 14px 'Malgun Gothic','Apple SD Gothic Neo','WenQuanYi Zen Hei',serif"; a.textAlign = "center"; a.textBaseline = "middle";
+    a.fillText("南 門", ox + w / 2, top + 35); };                                  // 글자는 점으로 바꾼 뒤 또렷하게
   roof(g, ox + 30, 0, w - 60, top + 8, "#4a5560");
-  return c;
+  return pixelize(c);
 }
 function castleWallImg(len) {
   const c = canvas(len * T, 92), g = c.getContext("2d");
@@ -210,45 +264,45 @@ function castleWallImg(len) {
   g.fillStyle = "#4b5560"; g.fillRect(0, 12, len * T, 14); g.fillStyle = "#3a434d"; for (let x = 0; x < len * T; x += 6) g.fillRect(x, 14, 2, 12);
   g.fillStyle = "#2f363e"; g.fillRect(0, 8, len * T, 5);
   for (let x = 0; x < len * T; x += 24) { g.fillStyle = "#8b836f"; g.fillRect(x + 4, 0, 14, 10); }   // 여장
-  return c;
+  return pixelize(c);
 }
 function wellImg() {
-  const c = canvas(72, 80), g = c.getContext("2d");
-  ell(g, 36, 70, 30, 8, "rgba(0,0,0,.22)");
+  const [c, g, sg] = layers(72, 80);
+  ell(sg, 36, 70, 30, 8, "#000");
   g.fillStyle = "#6e4527"; g.fillRect(8, 6, 6, 52); g.fillRect(58, 6, 6, 52); g.fillRect(4, 4, 64, 6);
   g.fillStyle = "#4b4b4b"; g.fillRect(34, 10, 2, 22); g.fillStyle = "#8a5a33"; g.fillRect(28, 30, 14, 10);
   ell(g, 36, 56, 28, 14, "#9a9488"); ell(g, 36, 54, 22, 9, "#2a4256"); ell(g, 33, 52, 6, 2, "rgba(255,255,255,.25)");
   for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#aaa497" : "#86806f"; g.fillRect(10 + i * 7, 60 + Math.round(Math.sin(i) * 2), 7, 6); }
-  return c;
+  return pixelize(c);
 }
 function lanternImg() {
-  const c = canvas(28, 72), g = c.getContext("2d");
-  ell(g, 14, 66, 9, 3, "rgba(0,0,0,.22)");
+  const [c, g, sg] = layers(28, 72);
+  ell(sg, 14, 66, 9, 3, "#000");
   g.fillStyle = "#5a361c"; g.fillRect(12, 14, 4, 54); g.fillRect(4, 12, 20, 3);
   g.fillStyle = "#c8323a"; g.fillRect(6, 18, 16, 10); g.fillStyle = "#2e5ea8"; g.fillRect(6, 28, 16, 8);
   g.fillStyle = "#f2c94c"; g.fillRect(6, 16, 16, 2); g.fillRect(6, 36, 16, 2);
-  return c;
+  return pixelize(c);
 }
 function jangseungImg(top) {
-  const c = canvas(28, 84), g = c.getContext("2d");
-  ell(g, 14, 78, 10, 3, "rgba(0,0,0,.25)");
+  const [c, g, sg] = layers(28, 84);
+  ell(sg, 14, 78, 10, 3, "#000");
   g.fillStyle = "#9b6a3f"; g.fillRect(6, 10, 16, 68); g.fillStyle = "#7d522d"; g.fillRect(6, 10, 3, 68);
   g.fillStyle = "#1e1e1e"; g.fillRect(4, 4, 20, 8); g.fillRect(9, 0, 10, 6);
   g.fillStyle = "#f2efe6"; g.fillRect(9, 16, 4, 3); g.fillRect(15, 16, 4, 3);
   g.fillStyle = "#111"; g.fillRect(10, 17, 2, 2); g.fillRect(16, 17, 2, 2);
   g.fillStyle = "#b8332d"; g.fillRect(12, 22, 4, 6); g.fillStyle = "#f2efe6"; g.fillRect(9, 30, 10, 3);
-  g.fillStyle = "#111"; g.font = "bold 9px serif"; g.textAlign = "center";
-  [...(top ? "天下大將軍" : "地下女將軍")].forEach((ch, i) => g.fillText(ch, 14, 44 + i * 8));
-  return c;
+  c.after = a => { a.fillStyle = "#111"; a.font = "bold 9px serif"; a.textAlign = "center";
+    [...(top ? "天下大將軍" : "地下女將軍")].forEach((ch, i) => a.fillText(ch, 14, 44 + i * 8)); };
+  return pixelize(c);
 }
 function stallImg() {
-  const w = 3 * T, c = canvas(w + 8, 92), g = c.getContext("2d");
-  ell(g, w / 2 + 4, 84, w / 2, 7, "rgba(0,0,0,.22)");
+  const w = 3 * T, [c, g, sg] = layers(w + 8, 92);
+  ell(sg, w / 2 + 4, 84, w / 2, 7, "#000");
   g.fillStyle = "#6e4527"; g.fillRect(8, 18, 5, 66); g.fillRect(w - 5, 18, 5, 66);
   for (let i = 0; i < w; i += 12) { g.fillStyle = (i / 12) % 2 ? "#f2ead3" : "#c7423a"; g.fillRect(4 + i, 8, 12, 20); }
   g.fillStyle = "#8b5a32"; g.fillRect(4, 56, w, 14); g.fillStyle = "#a8743f"; g.fillRect(4, 56, w, 4);
   [["#d65a2f", 20], ["#e8b83a", 36], ["#7fb24b", 52], ["#9c5530", 70]].forEach(([col, x]) => { ell(g, x, 52, 7, 6, col); ell(g, x - 2, 49, 2, 2, "rgba(255,255,255,.4)"); });
-  return c;
+  return pixelize(c);
 }
 
 // ── 소품 놓기 ───────────────────────────────────────────────────────────
