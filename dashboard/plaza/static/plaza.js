@@ -426,11 +426,11 @@ function charSprite(F, role, dir, frame, armed = false) {
   const H_ = HAIRC[F.hairc], Hd = shade(H_, -.34), Hdd = shade(H_, -.55), Hh = shade(H_, F.hairc === 0 ? .3 : .32), Hs = shade(H_, .55);
   const SK = SKINS[F.skin], SKd = shade(SK, -.15), SKdd = shade(SK, -.28), SKh = shade(SK, .45);
   const nobi = role === "operator", hat = role === "member" || role === "unit" || role === "leader";
-  const CL = nobi ? "#c8b48a" : CLOTHS[F.cloth], CLd = shade(CL, -.25), CLdd = shade(CL, -.45), CLh = shade(CL, .3);
-  const PA = nobi ? "#8c7a5a" : PANTS[F.pants], PAd = shade(PA, -.2), PAdd = shade(PA, -.38), PAh = shade(PA, .2);
+  const CL = nobi ? "#a8956c" : CLOTHS[F.cloth], CLd = shade(CL, -.25), CLdd = shade(CL, -.45), CLh = shade(CL, .3);
+  const PA = nobi ? "#7d6c4e" : PANTS[F.pants], PAd = shade(PA, -.2), PAdd = shade(PA, -.38), PAh = shade(PA, .2);
   const RIB = ["#c0262d", "#7a1fa2", "#d9480f"][F.cloth % 3], RIBh = shade(RIB, .3), RIBd = shade(RIB, -.3);
   const WH = "#fbf6ea", WHd = "#d9d2c0", SH = "#2a211c", SHh = "#5a4a3c", GOLD = "#d4af37";
-  const step = frame === 1 ? 1 : frame === 2 ? -1 : 0, hs = F.hair, bald = hs === 8;
+  const step = frame === 1 ? 1 : frame === 2 ? -1 : 0, hs = nobi ? -1 : F.hair, bald = hs === 8;   // 노비 = 머리 모양 대신 늘 산발
   // 목검 — 키보다 길게, 손에 세워 듦 (휘두를 때는 drawSwing 이 그림).  x = 날 왼쪽, y0 = 칼끝, hy = 코등이 줄
   const sword = (x, y0, hy) => {
     put(x + 1, y0, "#e9c99a"); put(x + 1, y0 + 1, "#f6dfb6"); put(x + 2, y0 + 1, "#c99d68");
@@ -491,10 +491,28 @@ function charSprite(F, role, dir, frame, armed = false) {
     rbox(9 + step, 17, 4, 6, CL); box(9 + step, 18, 1, 4, CLh); box(12 + step, 18, 1, 4, CLdd); box(9 + step, 22, 4, 1, CLdd);
     rbox(9 + step, 23, 4, 2, SK); put(12 + step, 24, SKd); put(9 + step, 23, SKh);
   }
-  if (nobi) {                               // 노비 — 무명옷 기운 자국 · 새끼줄 허리띠
-    const bx = side ? 7 : 6, bw = side ? 8 : 10;
-    box(bx, 22, bw, 1, "#7a5a30"); for (let i = bx; i < bx + bw; i += 2) put(i, 22, "#a07a44");
-    put(side ? 10 : 8, 19, "#a8946a"); put(side ? 11 : 9, 20, "#a8946a"); put(side ? 12 : 13, 23, "#a8946a");
+  if (nobi) {                               // 노비 — 거지 같은 누더기: 기운 헝겊 · 얼룩 · 너덜한 밑단 · 찢어진 소매 · 새끼줄 띠 · 맨 정강이 · 짚신
+    const bx = side ? 7 : 6, bw = side ? 8 : 10, P1 = "#6e7f8c", P2 = "#8a6440", ST = "#3e3424", DIRT = shade(CL, -.5);
+    if (!side) {
+      box(7, 19, 3, 2, up ? P2 : P1); put(7, 19, shade(up ? P2 : P1, .25)); put(9, 20, ST); put(7, 21, ST);       // 기운 헝겊 + 바늘땀
+      box(13, 21, 2, 2, up ? P1 : P2); put(14, 20, ST); put(12, 22, ST);
+      for (const [x, y] of [[8, 23], [12, 18], [14, 19], [6, 21]]) put(x, y, DIRT);                                // 얼룩
+      for (const [x, h] of [[6, 1], [8, 2], [9, 1], [11, 2], [13, 1], [15, 2]]) for (let k = 0; k < h; k++) put(x, 25 + k, k ? CLd : CL);   // 너덜한 밑단
+      for (const x of [3, 16]) { box(x, 21, 3, 1, SK); put(x + 1, 22, SK); put(x + (x < 10 ? 2 : 0), 22, CL); put(x + (x < 10 ? 0 : 2), 22, SKd); }   // 찢어진 소매 — 팔뚝이 보임
+      box(7, 26, 2, 1, SK); put(8, 27, SKd); box(13, 26, 2, 1, SK); put(13, 27, SKd);                                 // 무릎 구멍
+    } else {
+      box(9, 19, 3, 2, P2); put(11, 20, ST); for (const [x, y] of [[13, 21], [8, 23]]) put(x, y, DIRT);
+      for (const [x, h] of [[7, 1], [9, 2], [11, 1], [13, 2]]) for (let k = 0; k < h; k++) put(x, 25 + k, k ? CLd : CL);
+      box(9 + step, 21, 4, 1, SK); put(10 + step, 22, SK); box(8, 26, 2, 1, SK);
+    }
+    box(bx, 22, bw, 1, "#6a4c26"); for (let i = bx; i < bx + bw; i += 2) put(i, 22, "#9a7440");                     // 새끼줄 띠
+    if (!up) { put(bx + bw - 2, 23, "#6a4c26"); put(bx + bw - 2, 24, "#9a7440"); }                                 // 띠 끝 늘어짐
+    // 맨 정강이 + 짚신
+    const STRAW = "#b8954a", STRAWh = "#dcbc72", STRAWd = "#8a6a30";
+    const legs = side ? [[7 - step, 4], [11 + step, 4]] : [[5, 4], [12, 4]], lift = side ? [0, 0] : [step > 0 ? 1 : 0, step < 0 ? 1 : 0];
+    legs.forEach(([x, w], i) => { const d = lift[i]; box(x, 28 - d, w, 1, SKd); put(x + 1, 28 - d, SK);
+      box(x - (side && i === 0 ? 1 : 0), 29 - d, w + 1, 2, STRAW); box(x, 29 - d, w, 1, STRAWh); for (let k = x; k < x + w + 1; k += 2) put(k, 30 - d, STRAWd);
+      if (!up) put(side ? x - 1 : x + 1, 29 - d, SK); });                                                             // 발가락
   }
   // ── 머리 뒤 장식 (몸 위 · 얼굴 아래) ──
   if (!bald && hs === 2 && !down) {         // 댕기머리 — 땋은 머리 + 댕기
@@ -544,6 +562,18 @@ function charSprite(F, role, dir, frame, armed = false) {
       rbox(10, 10, 3, 4, SK); put(11, 11, SKdd); put(12, 12, SKd); put(10, 10, SKh);         // 귀
     }
   } else { if (up) blob(11, 9.8, 7.6, 6.4, SK, null, SKd); box(7, 4, 3, 1, SKh); box(6, 5, 2, 1, SKh); }   // 민머리 빛
+  // 노비 — 산발: 사방으로 뻗친 머리칼 · 엉킨 옆머리 · 들쭉날쭉 긴 앞머리 (머리 모양 고른 것과 상관없이)
+  if (nobi) {
+    const spike = (x, y, dx, dy, n, col) => { for (let k = 0; k < n; k++) put(x + dx * k, y + dy * k, k === n - 1 ? Hd : col || H_); };
+    for (const [x, y, dx, dy, n] of [[4, 0, -1, -1, 3], [7, -1, 0, -1, 3], [10, -1, 1, -1, 2], [12, -2, 0, -1, 2], [15, -1, 1, -1, 3], [18, 1, 1, -1, 3],
+      [1, 4, -1, 0, 3], [0, 8, -1, 1, 2], [20, 4, 1, 0, 3], [21, 8, 1, 1, 2], [2, 2, -1, -1, 2], [19, 2, 1, -1, 2]]) spike(x, y, dx, dy, n);
+    for (const [x, y0, y1] of [[1, 9, 15], [2, 8, 18], [3, 12, 17], [20, 9, 17], [19, 8, 19], [18, 13, 16]]) for (let y = y0; y < y1; y++) put(x, y, (x + y) % 3 ? H_ : Hd);   // 엉킨 옆머리
+    for (const [x, y] of [[0, 15], [3, 18], [21, 16], [18, 17], [1, 17]]) put(x, y, Hd);                              // 삐져나온 가닥
+    if (up) for (let x = 4; x < 19; x++) { const b = 15 + ((x * 7) % 4); for (let y = 14; y < b; y++) put(x, y, (x + y) % 3 ? H_ : Hd); }   // 뒤 — 들쭉날쭉 긴 뒷머리
+    else if (down) { for (const [x, b] of [[4, 11], [5, 9], [7, 11], [8, 8], [10, 10], [11, 12], [12, 9], [15, 11], [16, 9], [17, 12]]) for (let y = 7; y < b; y++) put(x, y, y === b - 1 ? Hd : H_); }
+    else for (const [x, b] of [[3, 11], [5, 10], [7, 12], [8, 9]]) for (let y = 7; y < b; y++) put(x, y, y === b - 1 ? Hd : H_);
+    put(8, 3, Hs); put(13, 2, Hs);
+  }
   // 얼굴 — 눈은 세로 4점 (속눈썹 · 눈동자 · 빛 두 점)
   const e = F.eyes, BL = "#f39a92", IR = "#3a2216", IM = "#6b3a20", IL = "#9a5a32";
   const eye = (x, out) => {                  // x = 눈 왼쪽 칸, out = 바깥쪽 (-1 왼쪽 · 1 오른쪽)
@@ -559,14 +589,16 @@ function charSprite(F, role, dir, frame, armed = false) {
   if (down) {
     eye(6, -1); eye(13, 1);
     if (e === 4) box(10, 11, 2, 1, "#2a2a2a");
-    if (e !== 4 && F.beard !== 3) { box(4, 14, 2, 1, BL); box(16, 14, 2, 1, BL); }
+    if (e !== 4 && F.beard !== 3 && !nobi) { box(4, 14, 2, 1, BL); box(16, 14, 2, 1, BL); }
+    if (nobi) { put(5, 14, SKdd); put(16, 13, SKdd); put(15, 15, SKd); put(7, 15, SKd); for (let y = 9; y < 13; y++) put(14, y, y === 12 ? Hd : H_); put(15, 10, H_); }   // 때 자국 · 눈을 덮는 머리칼
     put(10, 14, "#b0574a"); put(11, 14, "#8a3a32");
     if (F.beard === 1) { box(8, 14, 2, 1, H_); box(12, 14, 2, 1, H_); put(10, 14, H_); put(11, 14, Hd); put(10, 15, "#8a3a32"); }
     else if (F.beard === 2) { box(10, 15, 2, 3, H_); put(10, 17, Hd); }
     else if (F.beard === 3) { box(5, 14, 12, 2, H_); box(6, 16, 10, 1, Hd); box(10, 14, 2, 1, "#8a3a32"); put(4, 13, H_); put(17, 13, H_); }
   } else if (side) {
     eye(4, -1);
-    if (e !== 4) box(6, 14, 2, 1, BL); put(3, 14, "#8a3a32"); put(2, 11, SK); put(2, 12, SKd);   // 볼 · 입 · 코
+    if (e !== 4 && !nobi) box(6, 14, 2, 1, BL); if (nobi) { put(6, 14, SKdd); put(8, 12, SKdd); for (let y = 9; y < 12; y++) put(5, y, H_); }
+    put(3, 14, "#8a3a32"); put(2, 11, SK); put(2, 12, SKd);   // 볼 · 입 · 코
     if (F.beard === 1) box(2, 14, 3, 1, H_); else if (F.beard === 2) box(3, 15, 2, 3, H_); else if (F.beard === 3) { box(3, 13, 7, 3, H_); put(3, 14, "#8a3a32"); }
   }
   // ── 역할 머리 장식 (서버가 정한 것) ──
@@ -584,11 +616,7 @@ function charSprite(F, role, dir, frame, armed = false) {
       if (side) { rbox(17, -2, 6, 3, B); box(18, -1, 4, 1, Bh); }
       else { rbox(-3, 0, 6, 3, B); rbox(19, 0, 6, 3, B); box(-2, 1, 4, 1, Bh); box(20, 1, 4, 1, Bd); }
     }
-  } else if (role === "operator") {         // 노비 — 두건
-    const B = "#e7dfc8", Bd = "#c9bd9c", Bh = "#f7f1e2";
-    box(L, 3, R - L + 1, 3, B); box(L, 3, R - L + 1, 1, Bh); box(L, 5, R - L + 1, 1, Bd);
-    if (up) { box(10, 6, 2, 4, B); box(11, 7, 1, 3, Bd); } else if (side) { box(19, 3, 3, 2, B); box(20, 5, 2, 3, Bd); }
-  }
+  }                                         // 노비(운영자)는 모자 없이 산발 (위 '노비 — 산발')
 
   // ── 외곽선 · 칠하기 ──
   const c = canvas(CW * PX, CH * PX), g = c.getContext("2d");
@@ -934,7 +962,7 @@ function openFace() {
   if (!S.me) return;
   draft = { ...faceOf(S.me) }; S.panel = "face"; S.keys.clear();
   $("#pz-face").hidden = false; buildFace();
-  $("#pz-face-note").textContent = S.role === "operator" ? "운영자는 노비 차림이라 옷 색 대신 무명옷을 입습니다."
+  $("#pz-face-note").textContent = S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
     : S.role === "leader" ? "그룹장은 왕관을 씁니다." : S.role === "unit" ? "유닛장은 날개 달린 관모(사모)를 씁니다." : "부서원은 관모를 씁니다.";
 }
 function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = null; cv.focus(); }
