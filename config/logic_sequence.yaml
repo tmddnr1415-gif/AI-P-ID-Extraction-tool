@@ -1,0 +1,20 @@
+# L32 — 순차 동작 시뮬레이션 어휘.
+#
+# 출력 행의 설명(SERVICE)에서 '어떤 동작' 인지 가르는 낱말이다.  발전 플랜트 계장 영어와 그 약어라 프로젝트 값이
+# 아니고, 새 묶음이 다른 약어를 쓰면 여기 한 줄 더한다 (코드는 고치지 않는다).
+# 장비 이름은 그 행 설명에서 이 낱말들과 꼬리 낱말(kind)을 뗀 나머지다 — 지어내지 않는다.
+actions:
+  START: [START, STRT]          # STR 은 스트레이너(STRAINER) 약어로도 쓴다 — 넣지 않는다
+  RUN:   [RUN, RUNNING]
+  STOP:  [STOP, STP, STOPPED]
+  OPEN:  [OPEN, OPN, OP, OPENED]
+  CLOSE: [CLOSE, CLS, CL, CLOSED, CLSD]
+  TRIP:  [TRIP, TRP, TRIPPED]
+# 꼬리 낱말 — 그 행이 명령인지 요청인지 상태인지.  명령을 먼저 보인다.
+kinds:
+  command: [CMD, COMMAND, COMD]
+  request: [REQ, REQUEST, REQEUST, RQ]
+# 동작 낱말이 들어 있어도 동작 행이 아닌 것 — 이 낱말이 함께 있으면 고장 · 알림 행이다.
+exclude: [FAIL, FAULT, DISCREPANCY, ALARM, ALM, FLT, PERMISSIVE, PERM, OVERRIDE, BYPASS, FEEDBACK, POSN, POSITION, TIME, TIMER, SELECT, MODE]
+# 상태 행으로 볼 낱말 (명령 · 요청 꼬리가 없을 때) — 이 동작은 이미 된 상태를 말한다.
+status_words: [RUNNING, STOPPED, OPENED, CLOSED, CLSD, TRIPPED]

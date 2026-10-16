@@ -90,6 +90,7 @@
       <label class="chk" title="사람이 넣은 마크업 상자를 도면에 보입니다"><input type="checkbox" id="show-marks" checked> 마크업 보이기</label>
       <span class="sep"></span>
       <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
+      <button id="seq-btn" title="START · STOP · OPEN · CLOSE · TRIP 한 동작을 고르면 그 조건을 차례로 묻고 끝까지 시뮬레이션합니다">▶ 순차 동작</button>
       <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
       <button id="reset" class="lg-reset" title="모든 시트의 강제 신호(사람이 준 1/0)와 메모리 · 타이머 상태를 한 번에 지웁니다 — 타이머 시간 설정은 남습니다">⟲ 강제 신호 전체 리셋</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
@@ -108,6 +109,12 @@
         <button class="sp-min" id="sigpop-min" title="접기 / 펼치기">－</button>
         <button class="sp-x" id="sigpop-x" title="닫기 (도구줄 📋 로 다시 엽니다)">✕</button></div>
       <div class="sp-b" id="sigpop-b"></div>
+    </div>
+    <div id="seq" class="lg-sigpop lg-seq" hidden>
+      <div class="sp-h" id="seq-h"><b>▶ 순차 동작 시뮬레이션</b> <small id="seq-sum"></small>
+        <button class="sp-min" id="seq-min" title="접기 / 펼치기">－</button>
+        <button class="sp-x" id="seq-x" title="닫기 (도구줄 ▶ 로 다시 엽니다 — 주었던 신호는 그대로)">✕</button></div>
+      <div class="sp-b" id="seq-b"></div>
     </div>
     <div id="teach" class="lg-teach" hidden>
       <div class="tc-h" id="teach-h"><b>🎓 가르치기</b> <small id="teach-sum"></small>

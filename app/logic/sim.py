@@ -282,6 +282,9 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     net_force = {k[4:]: v for k, v in forces.items() if k.startswith("net:")}
     row_force = {int(k[4:]): v for k, v in forces.items() if k.startswith("row:")}
     blk_force = {k[6:]: v for k, v in forces.items() if k.startswith("block:")}
+    # L32 — 입력선을 도면에서 다 읽지 못한 게이트(L10)의 출력에 사람이 '그 빠진 입력은 만족' 이라고 답한 값.
+    # 읽힌 입력만으로 출력이 정해지면 게이트가 정한다 (논리 원칙 L18) — 정해지지 않을 때(모름)만 이 값을 쓴다.
+    hold = {k[5:]: v for k, v in forces.items() if k.startswith("hold:")}
     row_force0, blk_force0 = dict(row_force), dict(blk_force)
     # L9 — 오른쪽(출력) 행을 사람이 1/0 으로 주면 그 행의 선을 그 값으로.
     # L16 — 단 그 선을 **게이트가 몰면** 그 값은 '목표' 다: 선을 직접 그 값으로 두지 않고, 거꾸로 맞추기로 게이트 앞
@@ -315,6 +318,14 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             for n, _, _ in outs[m]:
                 net_force.setdefault(n, v)
 
+    def _held(bid, role, o):
+        if o is not None or not hold:
+            return o
+        for n, r_, _ in outs[bid]:
+            if r_ == role and n in hold:
+                return hold[n]
+        return o
+
     def block_out(bid, role, cell, val):
         b = B[bid]
         lg = b["logic"]
@@ -337,11 +348,13 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         if lg in MIN_INPUTS:
             if len(iv) < MIN_INPUTS[lg]:
                 short.add(bid)
+                return _held(bid, role, gate3(lg, iv))
             return gate3(lg, iv)
         vote = _vote_of(b)
         if vote:
             if len(iv) < vote[1]:
                 short.add(bid)
+                return _held(bid, role, _vote3(iv, *vote))
             return _vote3(iv, *vote)
         if lg == "memory":
             q = st["mem"].get(bid, 0)

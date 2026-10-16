@@ -644,6 +644,27 @@ def scenario(job: str, page: int, body: dict = Body(default={})):
     return sim.scenario(s, target, 1, sheets=_all_sheets(res))
 
 
+@router.get("/logic/api/jobs/{job}/commands")
+def commands(job: str):
+    """L32 — 순차 동작 시뮬레이션: 묶음의 START · STOP · RUN · OPEN · CLOSE · TRIP 행을 장비마다."""
+    res = _result(job)
+    from . import sequence
+    return {"items": _memo(res, "commands", lambda: sequence.commands(_all_sheets(res)))}
+
+
+@router.post("/logic/api/jobs/{job}/sequence")
+def sequence_plan(job: str, body: dict = Body(default={})):
+    """L32 — 그 출력 행이 서려면 무엇이 필요한지 조건 나무 (묻는 순서 · 판정 0줄)."""
+    res = _result(job)
+    from . import sequence
+    try:
+        page, row = int(body.get("page")), int(body.get("row"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page · row 가 필요합니다.")
+    value = 0 if body.get("value") in (0, "0") else 1
+    return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value), page, row, value)
+
+
 @router.delete("/logic/api/jobs/{job}")
 def delete(job: str, author: str = ""):
     """L22 — 첫 화면에서 분석 하나를 지운다 (부서원).  분석 중이면 거절 · 누가 언제 무엇을 지웠는지 남긴다."""
@@ -663,6 +684,53 @@ def delete(job: str, author: str = ""):
     return Response(status_code=204)
 
 
+FORCE_KINDS = ("net", "row", "block", "hold")     # L32 hold — 입력을 다 읽지 못한 게이트의 출력에 사람이 답한 값
+
+
+def _clean_forces(raw):
+    if not isinstance(raw, dict):
+        raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+    forces = {}
+    for pg, fs in raw.items():
+        if not isinstance(fs, dict) or not str(pg).isdigit():
+            raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+        clean = {k: int(v) for k, v in fs.items()
+                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
+        if clean:
+            forces[int(pg)] = clean
+    return forces
+
+
+@router.post("/logic/api/jobs/{job}/sequence/try")
+def sequence_try(job: str, body: dict = Body(default={})):
+    """L32 — 갈래 고르기에서 갈래마다 '그 갈래의 조건을 다 주면 목표가 서는가' 를 같은 시뮬레이터로 미리 돌려 본다.
+    판정은 시뮬레이터가 한다 (나무의 짐작이 아니라) — 화면은 선 갈래를 권한다."""
+    res = _result(job)
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    net = str(body.get("net") or "")
+    want = 0 if body.get("want") in (0, "0") else 1
+    base = _clean_forces(body.get("forces") or {})
+    opts = body.get("options") or []
+    if not isinstance(opts, list) or len(opts) > 48:
+        raise HTTPException(400, "options 는 갈래마다 forces 목록입니다 (48개까지).")
+    timers = _timers(body.get("timers"))
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)               # 장마다 같은 입력이면 지난 계산 — 갈래가 바꾸는 장만 다시 센다 (L28)
+    out = []
+    for o in opts:
+        f = {p: dict(v) for p, v in base.items()}
+        for p, v in _clean_forces(o).items():
+            f.setdefault(p, {}).update(v)
+        with cache.setdefault("_lock", __import__("threading").Lock()):
+            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)["focus"] or {"frames": []}
+        vals = [fr["values"].get(net) for fr in r["frames"]]
+        out.append({"reached": want in vals, "steady": bool(vals) and vals[-1] == want})
+    return {"options": out}
+
+
 @router.post("/logic/api/jobs/{job}/simulate")
 def simulate_bundle(job: str, body: dict = Body(default={})):
     """묶음 전체 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1 (도면이 적은 FM 연결)."""
@@ -675,7 +743,7 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
         if not isinstance(fs, dict) or not str(pg).isdigit():
             raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
         clean = {k: int(v) for k, v in fs.items()
-                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in ("net", "row", "block")}
+                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
         if clean:
             forces[int(pg)] = clean
     state = body.get("state") if isinstance(body.get("state"), dict) else None
