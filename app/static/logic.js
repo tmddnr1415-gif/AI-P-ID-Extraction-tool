@@ -592,6 +592,7 @@ function prefetchAround(page) {
 }
 
 async function openSheet(page) {
+  hidePressCard();
   L.page = page;
   location.hash = `job=${L.job}&page=${page}`;
   renderSheetList();
@@ -1937,7 +1938,7 @@ function setMode(m, quiet) {
   for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
   stopAnim();
   renderHelp();
-  if (m === "sim") { if (!quiet) runSim(false); } else { L.values = {}; L.linked = {}; paint(); }
+  if (m === "sim") { if (!quiet) runSim(false); } else { L.values = {}; L.linked = {}; hidePressCard(); paint(); }
   renderInfo(); renderRows(); renderChain(); renderSheetList();
 }
 
@@ -1951,6 +1952,7 @@ function resetAll() {
   L.implied = {}; L.scenario = null; L.unmet = [];
   stopAnim();
   const rb = $("#remind"); if (rb) rb.hidden = true;
+  hidePressCard();
   renderChain(); renderSheetList();
   if (L.mode === "sim") runSim(false); else paint();
   renderInfo(); renderRows();
@@ -1971,6 +1973,135 @@ function setForce(key, v) {
   }
   // L16 — 목표로 둔 출력이 게이트 조건을 못 채웠으면 (사람이 준 입력 0 이 막음) 그렇게 말하고 0 인 입력을 짚는다
   runSim(true).then(() => { if ((L.unmet || []).length) reportUnmet(); });
+  // L34 — 누름단추를 1 로 누르면 그 신호가 어디까지 갔는지 · 어디서 왜 멈췄는지 · 누른 채로 동작시키려면 무엇을 더 켤지
+  if (v === 1 && isPress(key)) pressReport(key.slice(6), L.page);
+  else if (key.startsWith("block:")) hidePressCard();
+}
+
+/* ------------------------------------------------------------------ L34 — 누름단추를 누른다
+
+   사용자 지시 "Push button 을 활성 누르면 해당 신호가 동작하도록".  눌러서 생긴 신호는 묶음 시뮬레이션이 범례대로
+   퍼뜨린다 (L18 — 게이트는 언제나 논리대로).  그 신호가 출력까지 못 가면 어디서 왜 멈췄는지 말하고, 단추를 누른 채로
+   그 동작(단추 이름의 낱말이 든 출력)이 나가려면 어떤 입력을 더 켜야 하는지 서버가 찾아 확인한 조합을 권한다. */
+function isPress(key, s) {
+  s = s || L.sheet;
+  if (!s || !key.startsWith("block:")) return false;
+  const bid = key.slice(6), b = s.blocks[bid];
+  return !!b && b.logic === "source" && !s.ports.some((p) => p.block === bid && p.dir === "in");
+}
+function pressLabel(b) {
+  const nm = b.label || b.func || "신호원";
+  return /PUSH|PB/.test(b.func || "") ? `누름단추 · ${nm}` : nm;
+}
+function pressCard() {
+  let c = document.getElementById("pbcard");
+  if (!c) {
+    c = document.createElement("div");
+    c.id = "pbcard"; c.className = "lg-pbcard"; c.hidden = true;
+    const rm = $("#remind");
+    (rm ? rm.parentNode : document.body).appendChild(c);
+    c.addEventListener("click", onPressCard);
+  }
+  return c;
+}
+function hidePressCard() { const c = document.getElementById("pbcard"); if (c) c.hidden = true; L.press = null; }
+function keyText(k, s) {
+  s = s || L.sheet;
+  if (k.startsWith("row:")) {
+    const n = Number(k.slice(4)), r = s.rows.find((x) => x.n === n && x.side === "L") || s.rows.find((x) => x.n === n);
+    return `입력 ${n}행${r && r.desc ? " · " + r.desc : ""}`;
+  }
+  if (k.startsWith("block:")) { const b = s.blocks[k.slice(6)]; return b ? pressLabel(b) : k; }
+  return "선 " + k.slice(4);
+}
+async function pressReport(bid, page) {
+  const forces = {};
+  for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
+  const analog = {};
+  for (const [p, a] of Object.entries(L.analog || {})) if (Object.keys(a).length) analog[p] = a;
+  const state = (L.lastSim && L.lastSim.job === L.job) ? L.lastSim.state : L.states;
+  let r;
+  try { r = await post(`/logic/api/jobs/${L.job}/sheet/${page}/press`, { block: bid, forces, state, timers: L.timers, analog }); }
+  catch (e) { return; }
+  if (L.page !== page || L.forces["block:" + bid] !== 1) return;     // 기다리는 동안 다른 장 · 단추를 뗐다
+  L.press = { ...r, page };
+  renderPressCard();
+}
+function stopText(st) {
+  const s = L.sheet;
+  const where = st.macro ? `매크로 ${esc(st.macro.title || st.macro.sheet || "")} 안의 ` : "";
+  const name = esc(st.func || "블록") + (st.label && st.label !== st.func ? ` ${esc(st.label)}` : "");
+  if (st.dead_end) return `${where}${name} 까지는 신호가 갔지만 그 뒤 선을 도면에서 더 읽지 못했습니다 (끊긴 연결 — 마크업 · 도면 확인)`;
+  if (st.logic === "unknown") return `${where}판정 못 한 블록에서 멈췄습니다 — 그 블록 종류를 정하면 이어집니다`;
+  if (st.short) return `${where}${name} — 입력선을 다 읽지 못해 출력을 내지 않습니다 (도면 확인)`;
+  if (st.already) return `${where}${name} — 출력이 이미 그 값이라 눌러도 바뀌는 것이 없습니다`;
+  const off = (st.inputs || []).filter((x) => x.value !== 1).length;
+  return `${where}${name} 에서 멈췄습니다 — 조건: ${esc(gateNeedText(st.logic, 1))}${off ? ` · 0 인 입력 ${off}개 (주황)` : ""}`;
+}
+function renderPressCard() {
+  const r = L.press, c = pressCard();
+  if (!r || L.mode !== "sim" || r.page !== L.page) { c.hidden = true; return; }
+  const b = L.sheet.blocks[r.block] || {};
+  let html = `<div class="pb-h">● 눌렀습니다 — ${esc(pressLabel(b))}<button class="pb-x" title="닫기">✕</button></div><div class="pb-b">`;
+  if (r.why) html += `<p>${esc(r.why)}</p>`;
+  if (r.ok) {
+    html += `<p class="pb-ok">✔ 신호가 동작했습니다 — 눌러서 새로 1 이 된 출력</p><ul>` +
+      r.reached.slice(0, 6).map((t, i) => `<li><button data-go="${i}">${esc(t.label)}</button></li>`).join("") + `</ul>`;
+  } else if (!r.why) {
+    html += `<p class="pb-stop">⛔ 신호가 출력까지 가지 못했습니다 — 게이트가 범례대로 판정한 결과입니다.</p>`;
+    if (r.stop) html += `<p>${stopText(r.stop)} <button data-v="stop">그 자리 보기</button></p>`;
+    if (r.plan) {
+      const t = r.plan.target, keys = Object.keys(r.plan.add);
+      html += `<div class="pb-plan"><b>단추를 누른 채로</b> ${keys.length ? "아래 입력도 켜면" : ""} <b>${esc(t.label)}</b> 이 나갑니다${r.plan.steady ? "" : " (잠깐 서는 펄스)"}:
+        <ul>${keys.map((k) => `<li>${esc(keyText(k))} = ${r.plan.add[k]}</li>`).join("") || "<li>더 켤 것 없음</li>"}</ul>
+        <button data-v="plan" class="pb-go">▶ 조건 채워 동작시키기</button></div>`;
+    } else if (r.targets) {
+      html += `<p class="pb-none">이 단추에서 닿는 출력 ${r.targets}개 중 누른 채로 서는 조합을 찾지 못했습니다 — 길에 다른 시트의 조건이나 도면 읽기 빈틈이 있습니다 (▶ 순차 동작에서 조건을 하나씩 물어볼 수 있습니다).</p>`;
+    } else {
+      html += `<p class="pb-none">이 단추에서 연결로 닿는 출력 행 · 매크로 출력이 없습니다.</p>`;
+    }
+  }
+  c.innerHTML = html + `</div>`;
+  c.hidden = false;
+  if (!r.ok && r.stop && !r.stop.already) flashNeed(stopKeys(r.stop));
+}
+function stopKeys(st) {
+  if (st.macro) return ["block:" + st.macro.block];
+  const k = (st.inputs || []).filter((x) => x.value !== 1 && !String(x.net).includes("/")).map((x) => "net:" + x.net);
+  return k.length ? k : (st.block && !String(st.block).includes("/") ? ["block:" + st.block] : []);
+}
+function centerAt(at) {
+  if (!at) return;
+  const st = $("#stage");
+  setZoom(Math.max(L.zoom, 1.6));
+  st.scrollLeft = at[0] * L.zoom - st.clientWidth / 2;
+  st.scrollTop = at[1] * L.zoom - st.clientHeight / 2;
+}
+function onPressCard(e) {
+  const r = L.press;
+  const btn = e.target.closest("button");
+  if (!btn || !r) return;
+  e.stopPropagation();
+  if (btn.classList.contains("pb-x")) { hidePressCard(); return; }
+  if (btn.dataset.go != null) {
+    const t = r.reached[Number(btn.dataset.go)];
+    if (t.kind === "row") { L.focus = { page: L.page, row: t.row, side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
+    else if (t.block) { L.sel = { block: t.block }; paint(); renderInfo(); centerAt(L.sheet.blocks[t.block].bbox.slice(0, 2)); }
+    return;
+  }
+  if (btn.dataset.v === "stop" && r.stop) {
+    const bid = r.stop.macro ? r.stop.macro.block : r.stop.block;
+    const b = bid && L.sheet.blocks[bid];
+    if (b) { L.sel = { block: bid }; paint(); renderInfo(); centerAt(b.bbox.slice(0, 2)); }
+    flashNeed(stopKeys(r.stop));
+    return;
+  }
+  if (btn.dataset.v === "plan" && r.plan) {
+    const add = r.plan.add, keys = Object.keys(add);
+    for (const k of keys) L.forces[k] = add[k];
+    status(`▶ ${pressLabel(L.sheet.blocks[r.block] || {})} — 누른 채로 ${keys.length}개 입력을 켭니다 — ${r.plan.target.label}`);
+    flashNeed(keys.filter((k) => add[k] === 1)).then(() => runSim(true).then(() => pressReport(r.block, r.page)));
+  }
 }
 
 /* ------------------------------------------------------------------ L15 — 출력을 활성화하면 필요한 입력을 찾아 켠다 */
@@ -2397,6 +2528,8 @@ function onBlock(bid, e) {
   if (monKind(b)) monitorMenu(bid, e);                             // L26 — 감시 블록 (HHH · HH …) 설정값 (어느 모드든)
   else if (b.aop) opMenu(bid, e);                                  // L30 — 아날로그 연산자 판 (어느 모드든)
   else if (isAnalogBlock(b)) analogMenu("block:" + bid, e);        // L26 — MED 같은 아날로그 블록 값 (어느 모드든)
+  // L34 — 누름단추 · 신호원은 어느 모드에서든 1 활성 / 0 비활성 메뉴 (입력 행 동그라미와 같다 · 따라가기는 메뉴 안에)
+  else if (!hasIn && b.logic === "source") forceMenu("block:" + bid, e, pressLabel(b));
   else if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
   else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
@@ -3404,7 +3537,7 @@ function renderInfo() {
 function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
-    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다. 출력 행 동그라미나 오른쪽 출력 행의 <b>⚡예시</b> 를 누르면 그 출력까지 <b>입력부터 최종 출력까지 모든 신호가 서는 입력 조합</b>을 찾아 흐름을 보여 줍니다."
+    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기.  누름단추를 1 로 누르면 그 신호가 어디까지 갔는지, 못 갔으면 어디서 왜 멈췄는지 카드로 알리고 <b>누른 채로 조건을 채워 동작시키기</b>를 권합니다. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다. 출력 행 동그라미나 오른쪽 출력 행의 <b>⚡예시</b> 를 누르면 그 출력까지 <b>입력부터 최종 출력까지 모든 신호가 서는 입력 조합</b>을 찾아 흐름을 보여 줍니다."
     : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. 게이트의 다른 입력이 활성이 아니어도 연결을 따라 끝까지 갑니다 (게이트 조건은 동작 시뮬레이션이 지킵니다). <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지). 행 동그라미(입력·출력)를 누르면 <b>1 활성 / 0 비활성</b>을 고릅니다 — 출력 행이 1 이면 그 행의 TO·FM 으로 이어진 다른 시트로 계속 이어집니다.";
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`

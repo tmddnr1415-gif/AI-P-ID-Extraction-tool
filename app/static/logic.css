@@ -711,3 +711,15 @@ button.sigchip { cursor: pointer; }
 .lg-seq .sq-act .lk { font-style: normal; margin-left: 4px; font-size: 11px; }
 .lg-seq .sq-act .lk.ok { color: #0a7a3c; }
 .lg-seq .sq-act .lk.no { color: #c0392b; }
+
+/* L34 — 누름단추를 눌렀을 때 그 신호가 어디까지 갔나 */
+.lg-pbcard { position: absolute; top: 56px; left: 14px; z-index: 6; width: 380px; max-height: 60%; overflow: auto; background: #fff;
+  border: 2px solid #0a84c6; border-radius: 8px; box-shadow: 0 6px 20px rgba(10,132,198,.25); font-size: 12.5px; }
+.lg-pbcard[hidden] { display: none; }
+.pb-h { background: #0a84c6; color: #fff; padding: 6px 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.pb-x { margin-left: auto; background: transparent; color: #fff; border: 0; cursor: pointer; font-size: 14px; }
+.pb-b { padding: 6px 10px 8px; } .pb-b p { margin: 4px 0; } .pb-b ul { margin: 2px 0 4px 16px; padding: 0; }
+.pb-ok { color: #0a7a3c; font-weight: 600; } .pb-stop { color: #b42318; font-weight: 600; } .pb-none { color: #6b7385; }
+.pb-b button { font-size: 11.5px; padding: 1px 7px; margin: 2px 0; }
+.pb-plan { margin-top: 6px; padding: 6px 8px; background: #fff7e6; border: 1px solid #f0c36d; border-radius: 6px; }
+.pb-go { background: #0a7a3c; color: #fff; border: 0; border-radius: 4px; padding: 3px 10px !important; font-weight: 600; cursor: pointer; }

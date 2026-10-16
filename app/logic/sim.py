@@ -836,10 +836,16 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                 tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "L"), None)
                 if tn is not None and x.get("net") is not None:
                     alias[tn] = x["net"]
+            passes = []
             for x in m["outputs"]:
                 tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "R"), None)
                 if tn is not None and x.get("net") is not None:
-                    alias[tn] = x["net"]
+                    if tn in alias and alias[tn] != x["net"]:
+                        # L34 — Typical 의 입력 행과 출력 행이 한 선이다 (RUNNING 입력이 그대로 RUNNING 출력으로 나감).
+                        # 그 선을 출력 단자 이름으로만 바꾸면 입력 단자 선이 끊긴다 — 입력 단자 → 출력 단자로 그대로 넘긴다.
+                        passes.append((alias[tn], x["net"], x.get("row")))
+                    else:
+                        alias[tn] = x["net"]
             nm = lambda n, bid=bid, alias=alias: alias.get(n, f"{bid}/{n}")
             for k, v in ts["blocks"].items():
                 nb = dict(v)
@@ -850,6 +856,11 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                 ports.append({**p_, "block": f"{bid}/{p_['block']}", "net": nm(p_["net"])})
             for n in (ts.get("nets") or {}):
                 nets.setdefault(nm(n), {"segs": []})
+            for src, dst, row in passes:
+                pid = f"{bid}/~pass{row}"
+                blocks[pid] = {"func": "BUFFER", "logic": "pass", "label": "", "param": {}, "bbox": [0, 0, 0, 0]}
+                ports.append({"block": pid, "net": src, "dir": "in", "role": "", "cell": 0})
+                ports.append({"block": pid, "net": dst, "dir": "out", "role": "", "cell": 0})
         s1 = {**s0, "blocks": blocks, "ports": ports, "nets": nets}
         inline[page] = (s1, dict(items))
         return inline[page]
@@ -1353,6 +1364,10 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         if want_one:
             return one(iv, 1)
         return ([] if (short and v == 1) else allg(iv, 0)) if iv else ([({}, [])] if v == 0 else [])
+    if lg == "pass":                                 # 이음점 · 그대로 넘김 (L34 — 펼친 매크로의 통과 선도)
+        if not iv:
+            return [({}, [])] if v == 0 else []
+        return one(iv, 1) if v == 1 else allg(iv, 0)
     if lg == "not":
         if not iv:
             return [({}, [])] if v == 0 else []      # 입력이 안 읽힌 NOT 은 1 을 내지 않는다 (0 으로 보인다)
@@ -1492,3 +1507,157 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
            "입력을 다 읽지 못한 게이트가 길에 있습니다") if tried == 0 else \
           f"조합 {tried}개를 앞으로 돌려 봤지만 출력이 서지 않았습니다 (되먹임 · 타이머 · 도면 읽기 확인)"
     return {"ok": False, "net": net, "forces": {}, "why": why, "tried": tried}
+
+
+# ------------------------------------------------------------------ L34 — 누름단추를 누른다
+
+PRESS_TARGETS = 6          # 동작시키기에서 앞으로 돌려 볼 목적지(출력) 수
+PRESS_TRIES = 24           # 한 목적지에서 앞으로 돌려 볼 입력 조합 수
+
+
+def press(sheets, page, bid, forces=None, state=None, timers=None, analog=None, cache=None):
+    """누름단추(또는 들어오는 선이 없는 신호원) 하나를 눌렀을 때 그 신호가 어디까지 가는가 — 사용자 지시 *"Push button 을
+    활성 누르면 해당 신호가 동작하도록"*.  판정은 화면과 같은 묶음 시뮬레이션이다 (게이트는 범례대로 · L18).
+
+    ① 누른 채로 묶음을 돌려 그 단추에서 연결로 닿는 출력(오른쪽 행 · 매크로 출력 단자) 중 1 이 된 것 = `reached`
+    ② 하나도 안 섰으면 신호가 멈춘 첫 블록과 그 블록이 원하는 조건 · 0 인 입력 = `stop` (매크로 안이면 그 상자)
+    ③ 단추를 **누른 채로** 그 출력이 나가려면 어떤 입력을 더 켜야 하는가 = `plan` — 범례 정의를 거꾸로 읽어 고른
+       조합을 앞으로 돌려 확인한 것만 (출력 선을 직접 켜지 않는다 · 매크로 안의 누름단추는 누를 수 없으니 쓰지 않는다)
+    """
+    cache = {} if cache is None else cache
+    forces = {int(k): dict(v) for k, v in (forces or {}).items()}
+    state = {int(k): v for k, v in (state or {}).items() if str(k).isdigit()}
+    timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
+    key = f"block:{bid}"
+    f1 = {**forces, page: {**forces.get(page, {}), key: 1}}
+    out = simulate_bundle(sheets, f1, state, page, timers=timers, analog=analog, cache=cache)
+    s = next(x for x in sheets if x["page"] == page)
+    topo = cache.get("topo")
+    s_run = topo[4][page][0] if topo and page in topo[4] else s
+    # 묶음 결과의 장은 펼친 매크로 안쪽 선을 뺐다 — 멈춘 자리를 찾으려고 펼친 장을 한 번 더 돌린다 (들어온 연결 그대로)
+    tm = dict((timers or {}).get(page) or {})
+    for mb, m in (topo[4][page][1].items() if topo and page in topo[4] else ()):
+        for k, v in ((timers or {}).get(m["page"]) or {}).items():
+            tm[f"{mb}/{k}"] = v
+    soft = {int(n): v for n, v in ((out.get("linked") or {}).get(page) or {}).items() if f"row:{n}" not in f1[page]}
+    inner = simulate(s_run, f1[page], (state or {}).get(page), timers=tm, soft=soft)
+    on = set()
+    for fr in inner["frames"]:
+        on |= {n for n, v in fr["values"].items() if v == 1}
+    # 누르지 않아도 1 인 선(입력 0 의 NOT · 이미 켜진 출력)은 이 단추가 일으킨 것이 아니다
+    base_f = {k: v for k, v in f1[page].items() if k != key}
+    base = simulate(s_run, base_f, (state or {}).get(page), timers=tm, soft=soft)
+    was = set()
+    for fr in base["frames"]:
+        was |= {n for n, v in fr["values"].items() if v == 1}
+    ins, outs, drivers, sinks, groups = _index(s_run)
+    own = {n for n, _, _ in outs.get(bid, [])}
+    if not own:
+        return {"block": bid, "ok": False, "why": "이 누름단추에서 나가는 선을 도면에서 읽지 못했습니다", "reached": [],
+                "stop": None, "plan": None}
+    tr = trace(s_run, key, "down")
+    depth = {x["net"]: x["depth"] for x in tr["order"]}
+    out_rows = {r["net"]: r for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
+    pins = {}
+    for mb, b in s["blocks"].items():
+        for x in ((b.get("macro") or {}).get("outputs") or []):
+            if x.get("net") is not None:
+                pins.setdefault(x["net"], (mb, x))
+    targets = []
+    for n, d in sorted(depth.items(), key=lambda kv: (kv[1], str(kv[0]))):
+        if n in own or "/" in str(n):
+            continue
+        if n in out_rows:
+            r = out_rows[n]
+            targets.append({"net": n, "depth": d, "kind": "row", "row": r["n"], "label": f"출력 {r['n']}행 · {r.get('desc') or ''}".strip(" ·")})
+        elif n in pins:
+            mb, x = pins[n]
+            targets.append({"net": n, "depth": d, "kind": "pin", "block": mb, "pin": x.get("pin"),
+                            "label": f"매크로 출력 {x.get('pin') or ''} · {x.get('desc') or ''}".strip(" ·")})
+    new = on - was
+    # 단추 이름의 낱말(START · OPEN · AUTO …)이 든 출력을 먼저 — 그 단추가 일으키라고 그린 동작이다 (낱말은 도면이 인쇄한 것)
+    words = {w for w in re.findall(r"[A-Z]{3,}", (s["blocks"].get(bid, {}).get("label") or "").upper())}
+    for t in targets:
+        t["match"] = bool(words & set(re.findall(r"[A-Z]{3,}", t["label"].upper())))
+    targets.sort(key=lambda t: (not t["match"], t["depth"]))
+    reached = [t for t in targets if t["net"] in new]
+    stop = None
+    if not reached:
+        B = s_run["blocks"]
+        for x in tr["blocks"]:
+            b2 = x["block"]
+            lg = B[b2].get("logic")
+            if lg in (None, "sink", "connector", "unknown") or B[b2].get("func") in ("CONNECTOR", "UNKNOWN"):
+                if B[b2].get("func") == "UNKNOWN" and any(n in on for n, _, _ in ins[b2]):
+                    stop = {"block": b2, "logic": "unknown", "func": "UNKNOWN"}
+                    break
+                continue
+            iv = [n for n, _, _ in ins[b2]]
+            if not any(n in new for n in iv) or any(n in new for n, _, _ in outs[b2]):
+                continue
+            onets = [n for n, _, _ in outs[b2]]
+            stop = {"block": b2, "logic": "vote" if _vote_of(B[b2]) else lg, "func": B[b2].get("func"),
+                    "label": B[b2].get("label") or "",
+                    "inputs": [{"net": n, "role": r_, "value": 1 if n in on else 0} for n, r_, _ in ins[b2]],
+                    "short": b2 in set(inner.get("short_gates") or []),
+                    # 출력이 이미 1 이었다 — 눌러도 바뀌는 것이 없다 (OR 의 다른 입력 · 래치가 이미 켜짐)
+                    "already": bool(onets) and all(n in was for n in onets)}
+            if all(n in on for n in onets) and onets:
+                # 출력은 1 인데 그 선이 도면에서 더 이어지지 않는다 — 신호는 나갔지만 받는 곳을 못 읽었다
+                stop["dead_end"] = all(not sinks.get(n) and n not in out_rows and n not in pins for n in onets)
+            break
+        else:
+            # 게이트가 막지 않았는데 출력에 안 닿았다 — 마지막으로 1 이 된 선이 도면에서 더 이어지지 않는 자리
+            ends = [n for n in new if n in depth and not sinks.get(n) and n not in out_rows and n not in pins]
+            if ends:
+                last = max(ends, key=lambda n: depth[n])
+                drv = next((x for k_, x, _ in drivers.get(last, []) if k_ == "block"), None)
+                stop = {"block": drv, "net": last, "logic": "dead_end", "func": (B.get(drv) or {}).get("func"),
+                        "label": (B.get(drv) or {}).get("label") or "", "inputs": [], "dead_end": True}
+        if stop and stop.get("block") and "/" in stop["block"]:
+            mb = stop["block"].split("/", 1)[0]
+            m = s["blocks"].get(mb, {}).get("macro") or {}
+            stop["macro"] = {"block": mb, "sheet": m.get("sheet"), "title": m.get("title"), "page": m.get("page")}
+    plan = None
+    if not reached and targets:
+        cand = [t for t in targets if t["net"] not in was]
+        if any(t["match"] for t in cand):
+            cand = [t for t in cand if t["match"]]   # START 단추로 STOP 명령을 내는 조합을 권하지 않는다
+        plan = _press_plan(sheets, s_run, page, key, own, f1, state, timers, analog, cache, cand)
+    return {"block": bid, "ok": bool(reached), "reached": reached, "targets": len(targets), "stop": stop, "plan": plan}
+
+
+def _press_plan(sheets, s_run, page, key, own, f1, state, timers, analog, cache, targets):
+    """단추를 누른 채로 그 단추에서 닿는 출력 하나가 서려면 무엇을 더 켜야 하나 — 가까운 출력부터."""
+    idx = _index(s_run)
+    user = f1[page]
+    for t in targets[:PRESS_TARGETS]:
+        cands, seen = [], set()
+        for strict0 in (True, False):
+            for leaves in _solutions(s_run, idx, [("net", t["net"], 1)], False, strict0, {"rows_only": False},
+                                     max_steps=CHOICE_STEPS):
+                if len(cands) >= PRESS_TRIES:
+                    break
+                if leaves.get(key) == 0 or any(user.get(k, w) != w for k, w in leaves.items()):
+                    continue                         # 단추를 떼는 갈래 · 사람이 직접 준 값과 어긋나는 갈래
+                if any("/" in k and w == 1 for k, w in leaves.items()):
+                    continue                         # 펼친 매크로 안쪽의 누름단추 · 선은 부모 장에서 누를 수 없다
+                add = {k: w for k, w in leaves.items() if k != key and k not in user
+                       and not (w == 0 and not k.startswith("net:"))}
+                if any(k.startswith("net:") and w == 1 for k, w in add.items()):
+                    continue                         # 몰이를 못 읽은 선을 1 로 짐작하지 않는다
+                sig = tuple(sorted(add.items()))
+                if sig in seen:
+                    continue
+                seen.add(sig)
+                # 단추에서 온 선을 쓰는 갈래를 먼저 — 그 단추가 그 동작을 일으키는 길
+                uses = key in leaves
+                cands.append((0 if uses else 1, len(add), add))
+            if len(cands) >= PRESS_TRIES:
+                break
+        for _, _, add in sorted(cands, key=lambda c: (c[0], c[1])):
+            f2 = {**f1, page: {**user, **add}}
+            r = simulate_bundle(sheets, f2, state, page, timers=timers, analog=analog, cache=cache)["focus"]
+            if any(fr["values"].get(t["net"]) == 1 for fr in r["frames"]):
+                return {"target": t, "add": add, "steady": r["frames"][-1]["values"].get(t["net"]) == 1}
+    return None

@@ -815,6 +815,35 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     return Response(b'{"focus":' + _dumps(f) + b"," + body_json[1:], media_type="application/json")
 
 
+@router.post("/logic/api/jobs/{job}/sheet/{page}/press")
+def sheet_press(job: str, page: int, body: dict = Body(default={})):
+    """L34 — 누름단추를 누른다 {block, forces, state, timers, analog} → 그 신호가 어디까지 갔나 · 어디서 왜 멈췄나 ·
+    누른 채로 그 동작이 나가려면 더 켤 입력 (sim.press).  판정은 화면과 같은 묶음 시뮬레이션이다."""
+    res = _result(job)
+    s = _sheet(job, page)
+    bid = str(body.get("block") or "")
+    b = s["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    if any(p_["block"] == bid and p_["dir"] == "in" for p_ in s["ports"]) and b.get("logic") != "source":
+        raise HTTPException(400, "들어오는 선이 없는 신호원(누름단추 · HMI)만 누를 수 있습니다.")
+    raw = body.get("forces") or {}
+    forces = {}
+    for pg, fs in (raw.items() if isinstance(raw, dict) else ()):
+        if isinstance(fs, dict) and str(pg).isdigit():
+            clean = {k: int(v) for k, v in fs.items()
+                     if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
+            if clean:
+                forces[int(pg)] = clean
+    state = body.get("state") if isinstance(body.get("state"), dict) else None
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        out = sim.press(_all_sheets(res), page, bid, forces, state, timers=_timers(body.get("timers")),
+                        analog=_analog(body.get("analog")), cache=cache)
+        cache.pop("_last_results", None)
+    return out
+
+
 BUNDLE_LAST = 4                   # L31 — 기억하는 묶음 계산 (입력 조합) 수
 
 
