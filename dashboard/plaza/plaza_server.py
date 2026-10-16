@@ -35,6 +35,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import threading
 import time
 from collections import deque
@@ -492,7 +493,12 @@ def main(argv=None) -> None:
     roles()                                        # 역할 파일 빈 틀을 만들어 둔다
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     srv.daemon_threads = True
-    print(f"가상 광장 — http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
+    try:                                           # 한글 Windows(cp949) 출력에서 '—' 같은 글자로 멈추지 않게 (2026-10-16 실제로 겪음: 시작하자마자 꺼짐)
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        print(f"가상 광장 - http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
+    except Exception:
+        pass
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

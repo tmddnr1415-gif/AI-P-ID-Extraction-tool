@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-16.1'
+SERVER_VERSION = '2026-10-16.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2081,7 +2081,7 @@ def plaza_loop():
         if (p is None or p.poll() is not None) and not plaza_alive(port):
             if p is not None:
                 PLAZA['fails'] += 1
-                log.warning('가상 광장 서버가 꺼졌습니다 (종료 코드 %s) — 다시 띄웁니다', p.returncode)
+                log.warning('가상 광장 서버가 꺼졌습니다 (종료 코드 %s, 이유는 plaza.log) — 다시 띄웁니다', p.returncode)
             if PLAZA['fails'] >= 3:                              # 포트를 다른 프로그램이 쓰는 등 → 10분 쉬고 다시
                 log.warning('가상 광장 서버가 계속 꺼집니다 (포트 %d 를 다른 프로그램이 쓰는지 확인) — 10분 뒤 다시 시도', port)
                 PLAZA['fails'] = 0
@@ -2090,9 +2090,19 @@ def plaza_loop():
             args = [sys.executable, script, '--port', str(port), '--data', P('data', 'plaza'), '--nets-file', nets_file()]
             for n in EXTRA_NETS:
                 args += ['--allow', str(n)]
-            PLAZA['proc'] = subprocess.Popen(args, cwd=P('plaza'), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-                                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            log.info('가상 광장 서버 시작: 포트 %d (PID %d)', port, PLAZA['proc'].pid)
+            try:                                                 # 광장 서버가 꺼진 이유는 plaza.log 에 (2MB 넘으면 새로)
+                if os.path.getsize(P('plaza.log')) > 2_000_000:
+                    os.replace(P('plaza.log'), P('plaza.log.old'))
+            except OSError:
+                pass
+            errf = open(P('plaza.log'), 'ab')
+            errf.write(f"\n--- {datetime.datetime.now():%Y-%m-%d %H:%M:%S} 시작 (포트 {port})\n".encode('utf-8'))
+            errf.flush()
+            env = {**os.environ, 'PYTHONIOENCODING': 'utf-8'}       # 한글 Windows(cp949)에서 출력 글자 때문에 꺼지지 않게
+            PLAZA['proc'] = subprocess.Popen(args, cwd=P('plaza'), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), env=env,
+                                             stdin=subprocess.DEVNULL, stdout=errf, stderr=errf)
+            errf.close()
+            log.info('가상 광장 서버 시작: 포트 %d (PID %d) · 기록 plaza.log', port, PLAZA['proc'].pid)
         elif p is not None and p.poll() is None:
             PLAZA['fails'] = 0
         time.sleep(30)

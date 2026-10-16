@@ -651,3 +651,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - allow_firewall.bat: TCP 8100 도 엶 (규칙 이름 'DeptDashboard Plaza 8100').
 - **확인한 것**: `node --check`, `py_compile`, `plaza/selftest.py` 모두 통과, 허용 대역 단위 시험(165.244.1.2: 파일 없으면 거절 → 대역 파일 있으면 허용, 파일이 바뀌면 바로 반영, --allow 65.3/16 허용). 시험 서버(가짜 계정)에서 대시보드 서버를 켜면 광장 서버가 8100 으로 함께 켜짐. 브라우저 두 사람(홍길동·김철수): 홈 카드 자리 = 광장 창 위치, 방향키로 걷기([23,15]→[27,17]), Enter 대화가 상대 대화 기록에 보임, Space 목검, 얼굴 바꾸기 → `data/plaza/looks.json` 저장, [새로고침] 뒤에도 같은 iframe·같은 광장 ID, 접기 풀면 광장 창이 따라 내려감, 수행 메뉴로 가면 나감(상대 화면 접속 2→1명), 홈으로 오면 다시 들어옴(1→2명), 생일 팝업 Esc 로 닫힘. 스크립트 오류 없음.
 - **회사에서 확인할 것**: 서버 재시작 + Ctrl+F5 → 홈 아래 '가상 광장'. **처음 한 번** `data/plaza/roles.json` 의 `"operators": []` 에 운영자 이름(대시보드 로그인 이름)을 적으면 그 사람 광장 화면에 [역할 지정]. 부서원이 Wi-Fi 에서 광장만 안 보이면 `allow_firewall.bat` 을 관리자 권한으로 다시 실행. 이름은 iframe 주소의 user= 로 정해지므로 주소를 손으로 바꾸면 다른 이름으로 들어갈 수 있음(역할·얼굴은 장식이라 그대로 둠).
+
+### 2026-10-16 (2) — 가상 광장 서버가 회사 PC(한글 Windows)에서 켜지자마자 꺼지던 것 고침 (APP_VERSION 그대로 2026-10-16.1 / SERVER_VERSION 2026-10-16.2)
+> **서버 재시작 필요** (server.py · plaza/plaza_server.py).
+- 증상: 홈 '가상 광장' 카드에 "가상 광장 서버가 꺼져 있습니다 (포트 8100)". `data/plaza/roles.json` 은 생겼음.
+- 원인: `plaza_server.py` 가 시작 안내를 print 할 때 '—'(U+2014) 이 있는데, 대시보드가 띄울 때 출력이 콘솔이 아니라서 한글 Windows 기본 글자표 cp949 로 쓰다가 UnicodeEncodeError → 바로 종료. roles.json 은 print 직전에 만들어져 파일만 남음. (시험 환경 리눅스는 UTF-8 이라 못 잡음 — `PYTHONIOENCODING=cp949` 로 재현함.)
+- 고침: ① plaza_server.py — stdout 을 utf-8(errors=replace)로 바꾸고 print 실패해도 계속, '—' 대신 '-'. ② server.py `plaza_loop` — 광장 서버를 `PYTHONIOENCODING=utf-8` 로 띄우고, 광장 서버의 출력·오류를 운영 폴더 `plaza.log` 에 남김(2MB 넘으면 plaza.log.old) → 다음에 꺼지면 이유가 거기 있음.
+- **확인한 것**: `py_compile`, `plaza/selftest.py` 모두 통과. 고치기 전: `PYTHONIOENCODING=cp949` 로 실행 → roles.json 만 생기고 종료(UnicodeEncodeError). 고친 뒤: 같은 조건에서 /version 응답, 대시보드 서버(cp949 환경)가 광장 서버를 띄우고 plaza.log 에 시작 기록.
+- **회사에서 확인할 것**: 적용 → 대시보드 서버 다시 켬 → 홈 F5 → 광장 보임. 안 되면 운영 폴더의 `plaza.log` 내용을 보내 줄 것.
