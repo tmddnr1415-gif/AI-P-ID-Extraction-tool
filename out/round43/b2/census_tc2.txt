@@ -1,0 +1,9 @@
+TC2 layout act_box (9.0, 34.0) body_short (2.5, 15.0)
+TC2 CHECK bodies 248 | THREE-WAY candidates 0 | overlapping bodies of different kind 5 | phantom round bodies 0 | uncovered apex-to-apex triangle pairs 0
+bodies by kind {'BALL': 134, 'BOWTIE_OTHER': 11, 'BUTTERFLY': 106, 'CHECK': 248, 'DIAPHRAGM': 4, 'GATE': 749, 'GLOBE': 1031, 'NEEDLE': 10}
+bodies with actuator {'BUTTERFLY/MOTOR': 4, 'GATE/PNEUMATIC': 30, 'GLOBE/PNEUMATIC': 15}
+  overlap (7, 'CHECK', [613, 759, 617, 762], 'GATE', [613, 759, 621, 764], 'NONE', 'NONE')
+  overlap (7, 'CHECK', [617, 759, 621, 762], 'GATE', [613, 759, 621, 764], 'NONE', 'NONE')
+  overlap (23, 'BOWTIE_OTHER', [257, 274, 262, 283], 'BUTTERFLY', [258, 274, 261, 283], 'NONE', 'NONE')
+  overlap (24, 'BOWTIE_OTHER', [503, 522, 508, 530], 'BUTTERFLY', [504, 522, 507, 530], 'NONE', 'NONE')
+  overlap (24, 'BOWTIE_OTHER', [538, 274, 543, 283], 'BUTTERFLY', [538, 274, 542, 283], 'NONE', 'NONE')

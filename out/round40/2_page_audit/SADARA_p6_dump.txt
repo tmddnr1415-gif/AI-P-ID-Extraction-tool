@@ -1,0 +1,13 @@
+page 6 kind=PID dwg=1A46-10LBA10-M05-0001 rev=None size=Rect(0.0, 0.0, 3370.0, 2384.0) rot=270 rows=10
+  FIELD     PIT    q=None scope=SCT                          tag= rect=[1774, 620, 1870, 654] desc='UNIT #10 HHP STEAM HHP-LP LETDOWN VALVE ' rev="unit code '10' is not in the l"
+  FIELD     PIT    q=None scope=SCT                          tag= rect=[1879, 620, 1975, 654] desc='UNIT #10 HHP STEAM HHP-LP LETDOWN VALVE ' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=SCT                          tag= rect=[1987, 620, 2083, 654] desc='UNIT #10 HHP STEAM HHP-LP LETDOWN VALVE ' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=SCT                          tag= rect=[2092, 620, 2188, 654] desc='UNIT #10 HHP STEAM HHP-LP LETDOWN VALVE ' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=VENDOR(ST OEM)               tag= rect=[2196, 620, 2293, 654] desc='' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=VENDOR(ST OEM)               tag= rect=[2301, 620, 2398, 654] desc='' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=VENDOR(ST OEM)               tag= rect=[2403, 620, 2500, 654] desc='' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=SCT                          tag= rect=[335, 1888, 431, 1922] desc='UNIT #10 HHP STEAM TEMPERATURE A' rev="unit code '10' is not in the l"
+  FIELD     TIT    q=None scope=SCT                          tag= rect=[335, 1937, 431, 1971] desc='UNIT #10 HHP STEAM TEMPERATURE B' rev="unit code '10' is not in the l"
+  MOV       GATE   q=None scope=SCT                          tag= rect=[485, 2099, 507, 2112] desc='TO CLEAN DRAIN TANK GATE VALVE' rev="unit code '10' has no multipli"
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(147, 1747, 'DETAIL'), (190, 746, 'FROM'), (200, 1747, 'OF'), (222, 746, 'HRSG'), (223, 1747, 'DRAIN'), (270, 1747, 'CONFIGURATION'), (273, 761, 'LATER'), (390, 1747, 'FOR'), (423, 1747, 'DRAIN'), (482, 805, 'HRSG'), (510, 731, 'SCT'), (561, 2027, 'MOV'), (562, 900, 'ASME'), (629, 901, 'ASME'), (632, 2079, 'TO'), (648, 2079, 'CLEAN'), (679, 775, 'DN'), (684, 2079, 'DRAIN'), (718, 2079, 'TANK'), (1117, 843, 'DRAIN'), (1875, 775, 'DN'), (1875, 920, 'DN'), (1875, 1064, 'DN'), (1875, 1203, 'DN'), (1875, 1345, 'DN'), (2177, 843, 'DRAIN'), (2481, 888, 'TO'), (2483, 744, 'TO'), (2483, 1033, 'HHP-LP'), (2483, 1172, 'HHP-MP'), (2483, 1314, 'HHP-HP'), (2498, 888, 'AUX'), (2500, 744, 'STG'), (2521, 888, 'STEAM'), (2522, 1033, 'LETDOWN'), (2523, 1314, 'LETDOWN'), (2524, 1172, 'LETDOWN'), (2558, 888, 'LETDOWN'), (2574, 1033, 'VALVE'), (2576, 1314, 'VALVE'), (2577, 1172, 'VALVE'), (2610, 888, 'VALVE')] 
+unjudged on page: [('VALVE_BODY', [256, 2233, 270, 2239], None)]

@@ -1,0 +1,172 @@
+{
+ "v00_base": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 66.3,
+  "verdict": "기준"
+ },
+ "v01_nested": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 65.2,
+  "verdict": "OK"
+ },
+ "v02_cp949_names": {
+  "ok": true,
+  "rows": 507,
+  "fp": "59c05bc7",
+  "tabs": {
+   "FIELD": 423,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2,
+   "PNEUMATIC": 23
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 67.6,
+  "verdict": "OK"
+ },
+ "v03_extra_files": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "['readme.txt', 'Thumbs.db', 'plot.pdf', '._x.dxf (macOS 속성 파일)']",
+  "roles_note": "",
+  "s": 66.5,
+  "verdict": "OK"
+ },
+ "v04_lf_only": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 65.2,
+  "verdict": "OK"
+ },
+ "v05_one_empty": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 73.9,
+  "verdict": "OK"
+ },
+ "v06_one_truncated": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 65.5,
+  "verdict": "OK"
+ },
+ "v07_one_garbage": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "",
+  "roles_note": "",
+  "s": 63.9,
+  "verdict": "OK"
+ },
+ "v08_no_legend": {
+  "ok": false,
+  "kind": "LegendUnavailable",
+  "msg": "이 DXF 묶음(28장)에 Symbol & Legend 장이 없습니다 — DXF 는 블록의 뜻(계기·밸브)을 범례 장에서 읽으므로 범례 DXF 를 함께 넣어 주세요 (제목에 SYMBOL · LEGEND 가 든 장).",
+  "s": 51.3,
+  "verdict": "OK"
+ },
+ "v09_only_garbage": {
+  "ok": false,
+  "kind": "TitleBlockUnreadable",
+  "msg": "이 DXF 묶음(1장)에서 P&ID 장을 찾지 못했습니다 — 도면번호를 읽은 장 0장 · 범례 장 0장.  타이틀블록에 도면번호가 있는 P&ID DXF 를 넣어 주세요.",
+  "s": 0.3,
+  "verdict": "OK"
+ },
+ "v10_dup_sheet": {
+  "ok": true,
+  "rows": 507,
+  "fp": "a32c02a6",
+  "tabs": {
+   "FIELD": 423,
+   "PNEUMATIC": 23,
+   "REVIEW": 51,
+   "MOV": 8,
+   "BFV": 2
+  },
+  "skipped": "['copy of 010. 1A5J-00EKG00-M05-0005_P&ID FOR FUEL GAS SYSTEM (5 OF 5)-FGC INTERCONNECTION_Rev2.dxf (내용이 010. 1A5J-00EKG00-M05-0005_P&ID FOR FUEL GAS SYSTEM (5 OF 5)-FGC INTERCONNECTION_Rev2.dxf 와 같음 ",
+  "roles_note": "",
+  "s": 67.0,
+  "verdict": "OK"
+ },
+ "v11_small_set": {
+  "ok": true,
+  "rows": 1,
+  "fp": "1505e295",
+  "tabs": {
+   "PNEUMATIC": 1
+  },
+  "skipped": "",
+  "roles_note": "계기 블록의 TYPE·태그 속성을 배우지 못했습니다 — 같은 태그 모양이 두 장 이상에서 되풀이돼야 배웁니다 (P&ID 장 2장).  장이 적으면 계기 행이 크게 줄 수 있습니다 — 같은 계통의 DXF 를 함께 넣어 주세요.",
+  "s": 12.7,
+  "verdict": "OK"
+ }
+}

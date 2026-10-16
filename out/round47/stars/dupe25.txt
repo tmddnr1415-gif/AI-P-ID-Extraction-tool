@@ -1,0 +1,6 @@
+p25 이 버블의 창에 든 마크 2:
+   (229.32, 211.10) stars=1 form=GLYPH
+   (263.58, 200.84) stars=1 form=GLYPH
+p15 이 버블의 창에 든 마크 2:
+   (654.00, 523.58) stars=1 form=GLYPH
+   (677.34, 535.70) stars=1 form=GLYPH

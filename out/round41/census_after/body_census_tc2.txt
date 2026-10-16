@@ -1,0 +1,19 @@
+TC2 layout act_box (9.0, 34.0) body_short (5.0, 30.0)
+TC2 CHECK bodies 90 | THREE-WAY candidates 0 | overlapping bodies of different kind 0 | phantom round bodies 0 | uncovered apex-to-apex triangle pairs 15
+bodies by kind {'BALL': 530, 'BUTTERFLY': 210, 'CHECK': 90, 'DIAPHRAGM': 3, 'GATE': 307, 'GLOBE': 366}
+bodies with actuator {'BALL/PNEUMATIC': 5, 'BUTTERFLY/MOTOR': 4, 'GATE/PNEUMATIC': 15}
+  apexpair (13, [559, 349, 564, 357])
+  apexpair (36, [206, 148, 214, 152])
+  apexpair (36, [206, 532, 214, 536])
+  apexpair (38, [401, 183, 406, 191])
+  apexpair (38, [383, 319, 388, 327])
+  apexpair (38, [170, 298, 174, 306])
+  apexpair (38, [170, 655, 174, 663])
+  apexpair (39, [340, 680, 345, 689])
+  apexpair (39, [391, 680, 395, 689])
+  apexpair (39, [417, 680, 422, 689])
+  apexpair (39, [467, 680, 472, 689])
+  apexpair (39, [494, 680, 498, 689])
+  apexpair (39, [544, 680, 549, 689])
+  apexpair (39, [570, 680, 575, 689])
+  apexpair (39, [620, 680, 625, 689])

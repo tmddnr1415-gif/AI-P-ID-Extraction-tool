@@ -1,0 +1,8 @@
+SEG_RELEASE: seg_span (1.0, 1000000000.0)
+UAD layout act_box (9.0, 34.0) body_short (2.45, 14.700000000000001)
+UAD CHECK bodies 113 | THREE-WAY candidates 3 | overlapping bodies of different kind 0 | phantom round bodies 0 | uncovered apex-to-apex triangle pairs 0
+bodies by kind {'BALL': 544, 'CHECK': 113, 'GATE': 206, 'GLOBE': 150}
+bodies with actuator {'GATE/PNEUMATIC': 11}
+  3way (25, [731, 512, 734, 517], 'NONE', [729, 512, 734, 517])
+  3way (25, [726, 510, 731, 512], 'NONE', [729, 512, 734, 517])
+  3way (25, [726, 510, 736, 515], 'NONE', [729, 512, 734, 517])

@@ -1,0 +1,22 @@
+page 21 kind=PID dwg=1A5J-00GHC10-M05-0001 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=19
+  FIELD     PDIT   q=1 scope=VENDOR(TANK ACCESSORIES SUPPLIER) tag=00GHC01CP001 rect=[410, 194, 444, 205] desc='' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LI     q=1 scope=VENDOR                       tag=00GHC01CL501 rect=[219, 254, 230, 288] desc='GHC1 BR401 DEMINERALIZED WATER STORAGE T' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC31CP501 rect=[719, 265, 753, 276] desc='** C0 ABSORBER 00GHC01 00GHC01CL001 00GH' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag=00GHC21CP001 rect=[564, 272, 598, 283] desc='** C0 ABSORBER 00GHC01 00GHC01CL001 00GH' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC21CP501 rect=[609, 272, 643, 283] desc='** C0 ABSORBER 00GHC01 00GHC01CL001 00GH' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=VENDOR                       tag=00GHC01CL001A rect=[267, 276, 301, 288] desc='GHC1 BR401 DEMINERALIZED WATER STORAGE T' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=VENDOR                       tag=00GHC01CL001B rect=[309, 276, 343, 288] desc='DEMINERALIZED WATER DISTRIBUTION ** C0 A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC32CP501 rect=[729, 400, 763, 412] desc='00GHC33 AA301 00GHC23 BR001 C0 ABSORBER ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag=00GHC22CP001 rect=[560, 407, 594, 419] desc='DEMIN WATER SUPPLY PUMP A 00GHC21AP001 A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC22CP501 rect=[608, 407, 642, 419] desc='DEMIN WATER SUPPLY PUMP A 00GHC21AP001 A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00GHC40CP001A rect=[883, 519, 894, 554] desc='DEMIN WATER SUPPLY PUMP B 00GHC22AP001 D' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00GHC40CP001B rect=[898, 519, 909, 554] desc='FROM 00GHC33 AA301 00GHC23 BR001 C0 ABSO' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=VENDOR(TANK ACCESSORIES SUPPLIER) tag=00GHC02CP001 rect=[410, 541, 444, 552] desc='' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC33CP501 rect=[731, 550, 765, 561] desc='00GHC33 AA301 00GHC23 BR001 C0 ABSORBER ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PDIT   q=1 scope=SCT                          tag=00GHC23CP001 rect=[558, 557, 592, 568] desc='00GHC33 AA301 00GHC23 BR001 C0 ABSORBER ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PI     q=1 scope=SCT                          tag=00GHC23CP501 rect=[607, 557, 641, 568] desc='00GHC33 AA301 00GHC23 BR001 C0 ABSORBER ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LI     q=1 scope=VENDOR                       tag=00GHC02CL501 rect=[219, 601, 230, 635] desc='DEMINERALIZED WATER STORAGE TANK-B 00GHC' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=VENDOR                       tag=00GHC02CL001A rect=[267, 626, 301, 637] desc='DEMINERALIZED WATER STORAGE TANK A / B L' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     LIT    q=1 scope=VENDOR                       tag=00GHC02CL001B rect=[309, 626, 343, 637] desc='DEMINERALIZED WATER STORAGE TANK A / B L' rev="unit code '00' 의 승수 x1 는 이 도면의"
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(35, 773, 'PDC'), (61, 772, 'PRESSURE'), (64, 766, 'DESIGN'), (96, 772, 'TEMPERATURE'), (103, 766, 'DESIGN'), (113, 136, 'SCT'), (140, 766, 'OPERATING'), (141, 772, 'PRESSURE'), (179, 772, 'TEMPERATURE'), (183, 766, 'OPERATING'), (188, 788, 'AMB'), (188, 797, 'AMB'), (188, 807, 'AMB'), (203, 471, 'MOV'), (207, 124, 'MOV'), (224, 773, 'PMC'), (237, 416, 'SCT'), (245, 770, 'INSULATION'), (249, 776, 'TYPE'), (264, 429, 'SUPPLIER'), (275, 140, 'MH'), (275, 487, 'MH'), (288, 243, 'LICA++,+,-,Z--'), (288, 593, 'LICA++,+,-,Z--'), (347, 88, 'SUPPLIER'), (375, 115, 'SCT'), (428, 259, 'AT'), (428, 606, 'AT'), (749, 188, 'RO'), (774, 188, 'RO'), (824, 188, 'RO'), (889, 459, 'PIA++,+,-,--')] 
+unjudged on page: [('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None)]

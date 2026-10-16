@@ -1,0 +1,73 @@
+[감사] 산출 대상 3087행 / job 3개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 17.5 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+INFO:     Started server process [4995]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8130 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50510 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50520 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50526 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50526 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/img/tree-corner.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "GET /static/img/paper-texture.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50556 - "GET /jobs/9c4d2af01d56 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/clouds.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "GET /static/img/r-brand.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50540 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50556 - "GET /static/img/r-goose-upload.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/img/r-flower-pot.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/scene-desk.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50540 - "GET /static/img/grass-border.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/img/logo-mark-simple.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50540 - "GET /static/img/r-goose-sign.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "GET /jobs/9c4d2af01d56/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50572 - "GET /static/img/r-goose-flowers.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50556 - "GET /static/img/corner-branch.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/img/r-goose-magnifier.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50526 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50526 - "GET /jobs/9c4d2af01d56/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/9c4d2af01d56/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58014 - "GET /jobs/9c4d2af01d56/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/a1600f18f979/page/2.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58022 - "GET /jobs/a1600f18f979/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58024 - "GET /jobs/a1600f18f979/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/pages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/legend_profile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/rows?tab=ALL HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/axis_overrides HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/feedback?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /templates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "GET /jobs/464789122c62/page/6.png?zoom=1.6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58038 - "GET /jobs/464789122c62/legend_profile HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4995]

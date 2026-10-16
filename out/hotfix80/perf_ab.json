@@ -1,0 +1,248 @@
+{
+ "old": "/tmp/wt79b",
+ "new": "/home/user/AI-P-ID-Extraction-tool",
+ "rounds": [
+  {
+   "A": {
+    "open_ms": 4885,
+    "rows_ms": 2401,
+    "gridscroll": {
+     "ms": 1816,
+     "longtasks": 18,
+     "longtask_ms": 1484
+    },
+    "search_key": {
+     "ms": 355,
+     "longtasks": 3
+    },
+    "rowclick": {
+     "ms": 522,
+     "longtasks": 10
+    },
+    "edit": {
+     "ms": 1404,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 2227,
+    "errors": []
+   },
+   "B": {
+    "open_ms": 3535,
+    "rows_ms": 1426,
+    "gridscroll": {
+     "ms": 1167,
+     "longtasks": 3,
+     "longtask_ms": 236
+    },
+    "search_key": {
+     "ms": 297,
+     "longtasks": 3
+    },
+    "rowclick": {
+     "ms": 208,
+     "longtasks": 3
+    },
+    "edit": {
+     "ms": 774,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 2368,
+    "errors": []
+   }
+  },
+  {
+   "A": {
+    "open_ms": 1109,
+    "rows_ms": 153,
+    "gridscroll": {
+     "ms": 1816,
+     "longtasks": 18,
+     "longtask_ms": 1482
+    },
+    "search_key": {
+     "ms": 363,
+     "longtasks": 5
+    },
+    "rowclick": {
+     "ms": 249,
+     "longtasks": 3
+    },
+    "edit": {
+     "ms": 198,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 1714,
+    "errors": []
+   },
+   "B": {
+    "open_ms": 1076,
+    "rows_ms": 170,
+    "gridscroll": {
+     "ms": 1149,
+     "longtasks": 5,
+     "longtask_ms": 288
+    },
+    "search_key": {
+     "ms": 296,
+     "longtasks": 0
+    },
+    "rowclick": {
+     "ms": 198,
+     "longtasks": 1
+    },
+    "edit": {
+     "ms": 624,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 1116,
+    "errors": []
+   }
+  },
+  {
+   "A": {
+    "open_ms": 1034,
+    "rows_ms": 196,
+    "gridscroll": {
+     "ms": 1834,
+     "longtasks": 18,
+     "longtask_ms": 1489
+    },
+    "search_key": {
+     "ms": 371,
+     "longtasks": 4
+    },
+    "rowclick": {
+     "ms": 252,
+     "longtasks": 3
+    },
+    "edit": {
+     "ms": 611,
+     "longtasks": 1,
+     "longtask_ms": 59
+    },
+    "rows_after_edit_ms": 971,
+    "errors": []
+   },
+   "B": {
+    "open_ms": 1148,
+    "rows_ms": 173,
+    "gridscroll": {
+     "ms": 1117,
+     "longtasks": 3,
+     "longtask_ms": 208
+    },
+    "search_key": {
+     "ms": 296,
+     "longtasks": 2
+    },
+    "rowclick": {
+     "ms": 200,
+     "longtasks": 4
+    },
+    "edit": {
+     "ms": 251,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 1373,
+    "errors": []
+   }
+  },
+  {
+   "A": {
+    "open_ms": 1179,
+    "rows_ms": 141,
+    "gridscroll": {
+     "ms": 2067,
+     "longtasks": 18,
+     "longtask_ms": 1701
+    },
+    "search_key": {
+     "ms": 364,
+     "longtasks": 6
+    },
+    "rowclick": {
+     "ms": 328,
+     "longtasks": 3
+    },
+    "edit": {
+     "ms": 493,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 1505,
+    "errors": []
+   },
+   "B": {
+    "open_ms": 1209,
+    "rows_ms": 217,
+    "gridscroll": {
+     "ms": 1185,
+     "longtasks": 2,
+     "longtask_ms": 139
+    },
+    "search_key": {
+     "ms": 297,
+     "longtasks": 3
+    },
+    "rowclick": {
+     "ms": 282,
+     "longtasks": 5
+    },
+    "edit": {
+     "ms": 237,
+     "longtasks": 0,
+     "longtask_ms": 0
+    },
+    "rows_after_edit_ms": 659,
+    "errors": []
+   }
+  }
+ ],
+ "summary": {
+  "open_ms": {
+   "A": 1144.0,
+   "B": 1178.5
+  },
+  "rows_ms": {
+   "A": 174.5,
+   "B": 195.0
+  },
+  "gridscroll_ms": {
+   "A": 1825.0,
+   "B": 1158.0
+  },
+  "gridscroll_long": {
+   "A": 18.0,
+   "B": 3.0
+  },
+  "search_ms": {
+   "A": 363.5,
+   "B": 296.5
+  },
+  "search_long": {
+   "A": 4.5,
+   "B": 2.5
+  },
+  "rowclick_ms": {
+   "A": 290.0,
+   "B": 204.0
+  },
+  "rowclick_long": {
+   "A": 3.0,
+   "B": 3.5
+  },
+  "edit_ms": {
+   "A": 552.0,
+   "B": 437.5
+  },
+  "rows_after_edit_ms": {
+   "A": 1609.5,
+   "B": 1244.5
+  }
+ }
+}

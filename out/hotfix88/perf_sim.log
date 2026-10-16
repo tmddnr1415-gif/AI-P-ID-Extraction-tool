@@ -1,0 +1,13 @@
+round 0: open 5617ms · page med 163.0ms · rowclick med 198.5ms · errors 0
+round 1: open 893ms · page med 156.5ms · rowclick med 173.0ms · errors 0
+round 2: open 1811ms · page med 164.5ms · rowclick med 198.5ms · errors 0
+  open        n=  3  중앙    1811ms  최대    5617ms  long   0건/     0ms  최악프레임 0ms
+  page        n= 24  중앙     156ms  최대     857ms  long   1건/   215ms  최악프레임 367ms
+  zoom        n= 12  중앙      24ms  최대      35ms  long   0건/     0ms  최악프레임 33ms
+  pan         n=  3  중앙     362ms  최대     364ms  long   0건/     0ms  최악프레임 17ms
+  rowclick    n= 24  중앙     178ms  최대     319ms  long  11건/   669ms  최악프레임 100ms
+  boxclick    n= 12  중앙      41ms  최대      57ms  long   0건/     0ms  최악프레임 67ms
+  search_key  n= 18  중앙     118ms  최대     183ms  long   0건/     0ms  최악프레임 83ms
+  gridscroll  n=  3  중앙     950ms  최대    1061ms  long   3건/   162ms  최악프레임 50ms
+  edit        n=  3  중앙     156ms  최대     172ms  long   0건/     0ms  최악프레임 33ms
+  popout      n=  1  중앙    1876ms  최대    1876ms  long   0건/     0ms  최악프레임 0ms

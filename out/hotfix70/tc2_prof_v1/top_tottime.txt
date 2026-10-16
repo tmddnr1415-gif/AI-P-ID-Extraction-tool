@@ -1,0 +1,53 @@
+         1284490407 function calls (1284106163 primitive calls) in 747.073 seconds
+
+   Ordered by: internal time
+   List reduced from 3697 to 45 due to restriction <45>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+  3093938   65.233    0.000   75.946    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1330(_index_put)
+ 26903770   53.253    0.000  103.770    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:95(xy)
+ 14324342   51.098    0.000   84.973    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24193(util_make_rect)
+ 53917618   37.779    0.000   50.592    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:79(_f32)
+       60   33.258    0.554   33.258    0.554 {built-in method pymupdf._extra.get_cdrawings}
+ 28124007   21.415    0.000   27.928    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14337(__init__)
+      617   20.767    0.034   20.767    0.034 {built-in method pymupdf._mupdf.fz_new_display_list_from_page}
+      334   19.119    0.057   27.508    0.082 /home/user/AI-P-ID-Extraction-tool/app/engine/legend_rules.py:230(stroke_index)
+ 14324342   18.289    0.000   33.875    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24232(handle_args)
+ 20447262   17.947    0.000  122.206    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:98(pt)
+ 14324342   17.939    0.000  102.912    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14783(__init__)
+        5   14.160    2.832   14.179    2.836 /home/user/AI-P-ID-Extraction-tool/app/engine/typical.py:290(<listcomp>)
+       60   13.724    0.229   82.126    1.369 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:11694(get_drawings)
+207516306   13.271    0.000   13.271    0.000 {built-in method builtins.abs}
+  3228254   13.196    0.000   85.513    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:105(rect)
+      167   12.060    0.072   18.101    0.108 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:391(bubble_outlines)
+86332645/86099921   11.976    0.000   12.275    0.000 {built-in method builtins.max}
+158905849/158905504   11.657    0.000   12.041    0.000 {built-in method builtins.len}
+ 29412748   11.463    0.000   11.463    0.000 {built-in method builtins.round}
+       49    9.334    0.190   42.361    0.865 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:462(_dash_pieces)
+       49    8.868    0.181   20.396    0.416 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:550(_link_pieces)
+   152409    8.262    0.000   15.932    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:501(_cell_pairs)
+   747465    7.951    0.000    7.951    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+       10    7.469    0.747   11.038    1.104 /home/user/AI-P-ID-Extraction-tool/app/engine/diaphragm_seal.py:190(link)
+     1036    7.461    0.007  175.074    0.169 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:177(drawings)
+        1    7.365    7.365    8.604    8.604 /home/user/AI-P-ID-Extraction-tool/app/pipeline.py:2262(_bubble_links)
+ 53917618    7.350    0.000    7.350    0.000 {method 'unpack' of '_struct.Struct' objects}
+48864328/48722582    7.183    0.000   10.107    0.000 {built-in method builtins.min}
+ 10923162    6.804    0.000    8.984    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24222(make_tuple)
+      231    6.641    0.029    9.622    0.042 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:1613(_strokes_in)
+      216    6.498    0.030    8.166    0.038 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1520(broken_runs)
+ 65473613    6.462    0.000    6.484    0.000 {built-in method builtins.isinstance}
+      173    5.951    0.034    8.980    0.052 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:585(_index_segments)
+      168    5.860    0.035    5.861    0.035 {built-in method pymupdf._extra.page_get_textpage}
+ 47738851    5.855    0.000    5.855    0.000 {built-in method builtins.hasattr}
+ 53949885    5.758    0.000    5.758    0.000 {method 'get' of 'dict' objects}
+ 53917618    5.462    0.000    5.462    0.000 {method 'pack' of '_struct.Struct' objects}
+      120    5.424    0.045    7.332    0.061 /home/user/AI-P-ID-Extraction-tool/app/engine/derive_layout.py:83(_rules)
+ 51176026    4.990    0.000    4.990    0.000 {method 'append' of 'list' objects}
+ 16661386    4.671    0.000    4.671    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14777(__getitem__)
+      206    4.289    0.021  133.083    0.646 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1152(star_groups)
+       54    4.115    0.076  121.455    2.249 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1305(_ink_index)
+  3680077    4.073    0.000   11.397    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:701(_is_ink)
+     1572    3.927    0.002   21.057    0.013 /home/user/AI-P-ID-Extraction-tool/app/engine/diaphragm_seal.py:92(_boxes)
+     2644    3.920    0.001    3.920    0.001 {method 'at' of 'numpy.ufunc' objects}
+
+

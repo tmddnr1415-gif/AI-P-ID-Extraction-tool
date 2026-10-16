@@ -1,0 +1,2323 @@
+{
+"_about": "LOGIC 학습 사전 씨앗 (L22) — 19VA Control Logic & Loop Diagram 범례 표 'SIGNAL PROCESSING SYMBOLS'(FUNCTION | SYMBOL | DEFINITION)에서 읽은 모양 열쇠(모양|블록 안 글자) → 기능 이름 · 동작, 그리고 상자 안 그림(16x16 점). ISA-S5.2 기호의 모양이지 도면 내용이 아니다. 묶음 범례가 말하면 그쪽이 이긴다 (app/logic/library.py).",
+"symbols": {
+"BAR_BOX|": {
+"name": "AND",
+"logic": "and",
+"label": "AND",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"BAR_BOX|S": {
+"name": "MEMORY",
+"logic": "memory",
+"label": "MEMORY",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"BAR_CIRCLE|": {
+"name": "OR",
+"logic": "or",
+"label": "OR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"CROSS_BOX|": {
+"name": "NOT",
+"logic": "not",
+"label": "NOT",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"ROUND_BOX|ANN": {
+"name": "ALM",
+"logic": "sink",
+"label": "ALM",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"ROUND_BOX|OFF": {
+"name": "OFF DELAY",
+"logic": "delay_off",
+"label": "OFF DELAY (DELAY TERMINATION)",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"ROUND_BOX|ON": {
+"name": "ON DELAY",
+"logic": "delay_on",
+"label": "ON DELAY (DELAY INITIATION)",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|/L": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|/LL": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|/LLL": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|0": {
+"name": "FORCED INPUT",
+"logic": "const",
+"label": "FORCED INPUT",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|1": {
+"name": "FORCED INPUT",
+"logic": "const",
+"label": "FORCED INPUT",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|B.Q": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|H/": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|HH/": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|HHH/": {
+"name": "SIGNAL MONITOR",
+"logic": "source",
+"label": "SIGNAL MONITOR",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 17
+}
+]
+},
+"|I": {
+"name": "INDICATION",
+"logic": "sink",
+"label": "INDICATION",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 16
+}
+]
+},
+"|ON": {
+"name": "ACTIVATION",
+"logic": "const",
+"label": "ACTIVATION",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|P B": {
+"name": "PUSH BUTTON",
+"logic": "source",
+"label": "PUSH BUTTON (OR HMI DISPLAY)",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|R": {
+"name": "DISPLAY",
+"logic": "sink",
+"label": "DISPLAY",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"|S": {
+"name": "SER",
+"logic": "sink",
+"label": "SER",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)",
+"page": 15
+}
+]
+},
+"BAR_BOX|IN>N": {
+"name": "QUALIFIED OR",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|+": {
+"name": "BIAS",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|-": {
+"name": "BIAS",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|-+": {
+"name": "BIAS",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|-K": {
+"name": "REVERSE PROPORTIONAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|/N": {
+"name": "DUAL SELECTION",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|<": {
+"name": "LOW SELECTOR",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|>": {
+"name": "HIGH SELECTOR",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|A": {
+"name": "ANALOG SIGNAL GENERATOR",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|ABS": {
+"name": "ABSOLUTE VALUE",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|AVG": {
+"name": "AVERAGING",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|BIT_CNT IN1 OUT IN18": {
+"name": "BIT COUNTER",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|D/DT": {
+"name": "DERIVATIVE",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|DEV": {
+"name": "DEVIATION",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|EN UL IN OUT RESET SV": {
+"name": "SPECIAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|F(T)": {
+"name": "TIME FUNCTION",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|F(X)": {
+"name": "FUNCTION GENERATOR",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|FL": {
+"name": "SPECIAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|K": {
+"name": "PROPORTIONAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|LAG": {
+"name": "FIRST ORDER SIGNAL DELAY",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|MED": {
+"name": "MEDIAN SELECTION",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|STATEMENT OF SPECIAL REQUIREMENTS": {
+"name": "SPECIAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|T": {
+"name": "TRANSFER",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|X": {
+"name": "MULTIPLYING",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|X /X 1 2": {
+"name": "CONVERTER",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+},
+"|XN": {
+"name": "EXPONENTIAL",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+]
+}
+},
+"figures": [
+{
+"fig": [
+[
+0,
+10
+],
+[
+1,
+10
+],
+[
+2,
+10
+],
+[
+3,
+5
+],
+[
+3,
+6
+],
+[
+3,
+7
+],
+[
+3,
+8
+],
+[
+3,
+9
+],
+[
+3,
+10
+],
+[
+4,
+5
+],
+[
+5,
+5
+],
+[
+6,
+5
+],
+[
+7,
+5
+],
+[
+8,
+5
+],
+[
+9,
+5
+],
+[
+10,
+5
+],
+[
+11,
+5
+],
+[
+12,
+5
+],
+[
+12,
+6
+],
+[
+12,
+7
+],
+[
+12,
+8
+],
+[
+12,
+9
+],
+[
+12,
+10
+],
+[
+13,
+10
+],
+[
+14,
+10
+],
+[
+15,
+10
+]
+],
+"name": "SPECIAL",
+"logic": "pulse",
+"label": "SPECIAL",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+0
+],
+[
+0,
+15
+],
+[
+1,
+0
+],
+[
+1,
+15
+],
+[
+2,
+0
+],
+[
+2,
+1
+],
+[
+2,
+14
+],
+[
+2,
+15
+],
+[
+3,
+0
+],
+[
+3,
+2
+],
+[
+3,
+13
+],
+[
+3,
+15
+],
+[
+4,
+0
+],
+[
+4,
+3
+],
+[
+4,
+12
+],
+[
+4,
+15
+],
+[
+5,
+0
+],
+[
+5,
+4
+],
+[
+5,
+11
+],
+[
+5,
+15
+],
+[
+6,
+0
+],
+[
+6,
+4
+],
+[
+6,
+5
+],
+[
+6,
+10
+],
+[
+6,
+11
+],
+[
+6,
+15
+],
+[
+7,
+0
+],
+[
+7,
+5
+],
+[
+7,
+6
+],
+[
+7,
+9
+],
+[
+7,
+10
+],
+[
+7,
+15
+],
+[
+8,
+0
+],
+[
+8,
+6
+],
+[
+8,
+7
+],
+[
+8,
+8
+],
+[
+8,
+9
+],
+[
+8,
+15
+],
+[
+9,
+0
+],
+[
+9,
+7
+],
+[
+9,
+8
+],
+[
+9,
+15
+],
+[
+10,
+0
+],
+[
+10,
+7
+],
+[
+10,
+8
+],
+[
+10,
+15
+],
+[
+11,
+0
+],
+[
+11,
+15
+],
+[
+12,
+0
+],
+[
+12,
+15
+],
+[
+13,
+0
+],
+[
+13,
+15
+],
+[
+14,
+0
+],
+[
+14,
+15
+],
+[
+15,
+0
+],
+[
+15,
+15
+]
+],
+"name": "SUMMING",
+"logic": null,
+"label": "SUMMING",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+13
+],
+[
+0,
+14
+],
+[
+1,
+11
+],
+[
+1,
+12
+],
+[
+1,
+14
+],
+[
+2,
+10
+],
+[
+2,
+11
+],
+[
+2,
+14
+],
+[
+3,
+8
+],
+[
+3,
+9
+],
+[
+3,
+14
+],
+[
+4,
+6
+],
+[
+4,
+7
+],
+[
+4,
+8
+],
+[
+4,
+14
+],
+[
+5,
+4
+],
+[
+5,
+5
+],
+[
+5,
+14
+],
+[
+6,
+3
+],
+[
+6,
+4
+],
+[
+6,
+14
+],
+[
+7,
+1
+],
+[
+7,
+2
+],
+[
+7,
+14
+],
+[
+8,
+1
+],
+[
+8,
+2
+],
+[
+8,
+14
+],
+[
+9,
+3
+],
+[
+9,
+4
+],
+[
+9,
+14
+],
+[
+10,
+4
+],
+[
+10,
+5
+],
+[
+10,
+14
+],
+[
+11,
+6
+],
+[
+11,
+7
+],
+[
+11,
+14
+],
+[
+12,
+8
+],
+[
+12,
+9
+],
+[
+12,
+14
+],
+[
+13,
+10
+],
+[
+13,
+11
+],
+[
+13,
+14
+],
+[
+14,
+11
+],
+[
+14,
+12
+],
+[
+14,
+14
+],
+[
+15,
+13
+],
+[
+15,
+14
+]
+],
+"name": "DIFFERENCE",
+"logic": null,
+"label": "DIFFERENCE",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+5,
+15
+],
+[
+6,
+14
+],
+[
+6,
+15
+],
+[
+7,
+4
+],
+[
+7,
+5
+],
+[
+7,
+6
+],
+[
+7,
+7
+],
+[
+7,
+11
+],
+[
+7,
+12
+],
+[
+7,
+13
+],
+[
+7,
+14
+],
+[
+8,
+1
+],
+[
+8,
+2
+],
+[
+8,
+3
+],
+[
+8,
+8
+],
+[
+8,
+9
+],
+[
+8,
+10
+],
+[
+8,
+11
+],
+[
+9,
+0
+],
+[
+9,
+1
+],
+[
+10,
+0
+]
+],
+"name": "INTEGRAL",
+"logic": null,
+"label": "INTEGRAL",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+7
+],
+[
+1,
+7
+],
+[
+2,
+7
+],
+[
+3,
+7
+],
+[
+4,
+7
+],
+[
+5,
+7
+],
+[
+6,
+0
+],
+[
+6,
+1
+],
+[
+6,
+2
+],
+[
+6,
+7
+],
+[
+6,
+13
+],
+[
+6,
+14
+],
+[
+6,
+15
+],
+[
+7,
+0
+],
+[
+7,
+1
+],
+[
+7,
+2
+],
+[
+7,
+7
+],
+[
+7,
+13
+],
+[
+7,
+14
+],
+[
+7,
+15
+],
+[
+8,
+0
+],
+[
+8,
+1
+],
+[
+8,
+2
+],
+[
+8,
+7
+],
+[
+8,
+13
+],
+[
+8,
+14
+],
+[
+8,
+15
+],
+[
+9,
+0
+],
+[
+9,
+1
+],
+[
+9,
+2
+],
+[
+9,
+7
+],
+[
+9,
+13
+],
+[
+9,
+14
+],
+[
+9,
+15
+],
+[
+10,
+7
+],
+[
+11,
+7
+],
+[
+12,
+7
+],
+[
+13,
+7
+],
+[
+14,
+7
+],
+[
+15,
+7
+]
+],
+"name": "DIVIDING",
+"logic": null,
+"label": "DIVIDING",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+9
+],
+[
+0,
+10
+],
+[
+1,
+11
+],
+[
+1,
+12
+],
+[
+2,
+12
+],
+[
+2,
+13
+],
+[
+3,
+14
+],
+[
+3,
+15
+],
+[
+4,
+0
+],
+[
+4,
+1
+],
+[
+4,
+2
+],
+[
+4,
+3
+],
+[
+4,
+4
+],
+[
+4,
+5
+],
+[
+4,
+6
+],
+[
+4,
+7
+],
+[
+4,
+8
+],
+[
+4,
+9
+],
+[
+4,
+10
+],
+[
+4,
+11
+],
+[
+4,
+12
+],
+[
+4,
+13
+],
+[
+4,
+14
+],
+[
+4,
+15
+],
+[
+5,
+0
+],
+[
+6,
+0
+],
+[
+7,
+0
+],
+[
+8,
+0
+],
+[
+9,
+0
+],
+[
+10,
+0
+],
+[
+11,
+0
+],
+[
+12,
+0
+],
+[
+13,
+0
+],
+[
+14,
+0
+],
+[
+15,
+0
+]
+],
+"name": "ROOT EXTRACTION",
+"logic": null,
+"label": "ROOT EXTRACTION",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+1,
+1
+],
+[
+1,
+13
+],
+[
+2,
+1
+],
+[
+2,
+2
+],
+[
+2,
+12
+],
+[
+2,
+13
+],
+[
+3,
+2
+],
+[
+3,
+12
+],
+[
+4,
+2
+],
+[
+4,
+3
+],
+[
+4,
+12
+],
+[
+5,
+3
+],
+[
+5,
+11
+],
+[
+6,
+3
+],
+[
+6,
+4
+],
+[
+6,
+11
+],
+[
+7,
+4
+],
+[
+7,
+10
+],
+[
+8,
+4
+],
+[
+8,
+10
+],
+[
+9,
+0
+],
+[
+9,
+1
+],
+[
+9,
+2
+],
+[
+9,
+3
+],
+[
+9,
+4
+],
+[
+9,
+5
+],
+[
+9,
+6
+],
+[
+9,
+7
+],
+[
+9,
+8
+],
+[
+9,
+9
+],
+[
+9,
+10
+],
+[
+9,
+11
+],
+[
+9,
+12
+],
+[
+9,
+13
+],
+[
+9,
+14
+],
+[
+9,
+15
+],
+[
+10,
+5
+],
+[
+10,
+9
+],
+[
+11,
+6
+],
+[
+11,
+8
+],
+[
+11,
+9
+],
+[
+12,
+6
+],
+[
+12,
+8
+],
+[
+13,
+6
+],
+[
+13,
+7
+],
+[
+13,
+8
+],
+[
+14,
+7
+]
+],
+"name": "HIGH LIMITING",
+"logic": null,
+"label": "HIGH LIMITING",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+1,
+7
+],
+[
+2,
+6
+],
+[
+2,
+7
+],
+[
+2,
+8
+],
+[
+3,
+6
+],
+[
+3,
+8
+],
+[
+4,
+6
+],
+[
+4,
+8
+],
+[
+4,
+9
+],
+[
+5,
+5
+],
+[
+5,
+9
+],
+[
+6,
+5
+],
+[
+6,
+9
+],
+[
+6,
+10
+],
+[
+7,
+0
+],
+[
+7,
+1
+],
+[
+7,
+2
+],
+[
+7,
+3
+],
+[
+7,
+4
+],
+[
+7,
+5
+],
+[
+7,
+6
+],
+[
+7,
+7
+],
+[
+7,
+8
+],
+[
+7,
+9
+],
+[
+7,
+10
+],
+[
+7,
+11
+],
+[
+7,
+12
+],
+[
+7,
+13
+],
+[
+7,
+14
+],
+[
+7,
+15
+],
+[
+8,
+4
+],
+[
+8,
+10
+],
+[
+9,
+3
+],
+[
+9,
+4
+],
+[
+9,
+11
+],
+[
+10,
+3
+],
+[
+10,
+11
+],
+[
+11,
+2
+],
+[
+11,
+3
+],
+[
+11,
+12
+],
+[
+12,
+2
+],
+[
+12,
+12
+],
+[
+13,
+1
+],
+[
+13,
+2
+],
+[
+13,
+12
+],
+[
+13,
+13
+],
+[
+14,
+1
+],
+[
+14,
+13
+]
+],
+"name": "LOW LIMITING",
+"logic": null,
+"label": "LOW LIMITING",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+12
+],
+[
+0,
+13
+],
+[
+0,
+14
+],
+[
+1,
+11
+],
+[
+1,
+12
+],
+[
+1,
+14
+],
+[
+2,
+9
+],
+[
+2,
+10
+],
+[
+2,
+14
+],
+[
+3,
+8
+],
+[
+3,
+9
+],
+[
+3,
+14
+],
+[
+4,
+6
+],
+[
+4,
+7
+],
+[
+4,
+14
+],
+[
+5,
+5
+],
+[
+5,
+6
+],
+[
+5,
+14
+],
+[
+6,
+3
+],
+[
+6,
+4
+],
+[
+6,
+14
+],
+[
+7,
+1
+],
+[
+7,
+2
+],
+[
+7,
+3
+],
+[
+7,
+14
+],
+[
+8,
+1
+],
+[
+8,
+2
+],
+[
+8,
+3
+],
+[
+8,
+14
+],
+[
+9,
+3
+],
+[
+9,
+4
+],
+[
+9,
+14
+],
+[
+10,
+5
+],
+[
+10,
+6
+],
+[
+10,
+14
+],
+[
+11,
+6
+],
+[
+11,
+7
+],
+[
+11,
+14
+],
+[
+12,
+8
+],
+[
+12,
+9
+],
+[
+12,
+14
+],
+[
+13,
+9
+],
+[
+13,
+10
+],
+[
+13,
+14
+],
+[
+14,
+11
+],
+[
+14,
+12
+],
+[
+14,
+14
+],
+[
+15,
+12
+],
+[
+15,
+13
+],
+[
+15,
+14
+]
+],
+"name": "ABSOLUTE VALUE",
+"logic": null,
+"label": "ABSOLUTE VALUE",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+},
+{
+"fig": [
+[
+0,
+3
+],
+[
+0,
+4
+],
+[
+0,
+5
+],
+[
+1,
+5
+],
+[
+1,
+6
+],
+[
+1,
+7
+],
+[
+2,
+8
+],
+[
+2,
+9
+],
+[
+2,
+10
+],
+[
+3,
+11
+],
+[
+3,
+12
+],
+[
+4,
+10
+],
+[
+4,
+11
+],
+[
+5,
+7
+],
+[
+5,
+8
+],
+[
+5,
+9
+],
+[
+6,
+4
+],
+[
+6,
+5
+],
+[
+6,
+6
+],
+[
+6,
+7
+],
+[
+7,
+3
+],
+[
+7,
+4
+],
+[
+8,
+3
+],
+[
+8,
+12
+],
+[
+9,
+3
+],
+[
+9,
+4
+],
+[
+9,
+11
+],
+[
+9,
+12
+],
+[
+10,
+4
+],
+[
+10,
+11
+],
+[
+11,
+1
+],
+[
+11,
+2
+],
+[
+11,
+3
+],
+[
+11,
+4
+],
+[
+11,
+5
+],
+[
+11,
+6
+],
+[
+11,
+7
+],
+[
+11,
+8
+],
+[
+11,
+9
+],
+[
+11,
+10
+],
+[
+11,
+11
+],
+[
+11,
+12
+],
+[
+11,
+13
+],
+[
+11,
+14
+],
+[
+12,
+5
+],
+[
+12,
+6
+],
+[
+12,
+9
+],
+[
+12,
+10
+],
+[
+13,
+6
+],
+[
+13,
+9
+],
+[
+14,
+7
+],
+[
+14,
+8
+],
+[
+15,
+7
+],
+[
+15,
+8
+]
+],
+"name": "VELOCITY LIMITING",
+"logic": null,
+"label": "VELOCITY LIMITING",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례)"
+}
+],
+"typicals": {},
+"learned_jobs": []
+}
