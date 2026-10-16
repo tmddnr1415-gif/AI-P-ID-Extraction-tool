@@ -3098,7 +3098,55 @@ function seqLearnLine() {
     return `<div class="sq-learn">🧠 동작을 배우는 중… ${p.total ? `${p.done}/${p.total}` : ""} — 모든 명령을 시뮬레이터로 켜고 꺼 보는 중입니다${r ? " (아래 표시는 지난번 학습)" : ""}</div>`;
   }
   if (!r) return "";
-  return `<div class="sq-learn">🧠 학습한 동작 <b>${r.reached}/${r.total}</b> 이 섭니다${r.with_hold ? ` · 그중 ${r.with_hold}개는 도면 읽기 빈틈을 '만족' 으로 보고` : ""} <small>(✔ 선다 · ⛔ 안 선다 — 동작 단추에 표시)</small></div>`;
+  return `<div class="sq-learn">🧠 학습한 동작 <b>${r.reached}/${r.total}</b> 이 섭니다${r.with_hold ? ` · 그중 ${r.with_hold}개는 도면 읽기 빈틈을 '만족' 으로 보고` : ""} <small>(✔ 선다 · ⛔ 안 선다 — 동작 단추에 표시)</small>
+    ${r.summary ? `<button data-a="insight" class="pri sq-insbtn">🔎 이 묶음의 로직 이해 — 무엇이 켜고 · 막고 · 유지하는가</button>` : ""}</div>`;
+}
+/* L35 — 로직 이해: 동작 학습이 명령마다 시뮬레이터로 켜고 · 막고 · 놓아 보고 · 꺼 본 결과를 사람 말로.
+   판정은 서버 학습(behavior.understand)이 이미 했다 — 화면은 옮겨 적기만 한다. */
+function lblList(ls, cls) {
+  return `<ul class="${cls || ""}">${(ls || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>`;
+}
+function understandHtml(x) {
+  if (!x || !x.reached || !("always_on" in x)) return "";
+  const parts = [];
+  if (x.always_on) parts.push(`<div class="un-warn">아무 신호도 주지 않아도 <b>이 명령은 서 있습니다</b> — 아래 신호가 들어와야 꺼지는 '건강 신호를 받아야 풀리는' 쪽 설계이거나, 도면 확인 대상입니다.</div>`);
+  if (x.tied_off) parts.push(`<div class="un-warn">이 명령은 <b>${esc(x.tied_off[0])}</b> 를 뒤집어야만 섭니다 — 도면이 이 길을 상수로 묶어 두었습니다 (지금 도면으로는 쓰지 않는 길).</div>`);
+  if (x.latch === true) parts.push(`<div class="un-ok">● <b>자기유지</b> — ${x.latch_released === "buttons" ? "누름단추를 놓아도" : "주었던 신호를 모두 거둬도"} 명령이 그대로 서 있습니다 (메모리 · 래치).</div>`);
+  else if (x.latch === false) parts.push(`<div class="un-mid">○ <b>누르는 동안만</b> — ${x.latch_released === "buttons" ? "누름단추를 놓으면" : "신호를 거두면"} 명령이 꺼집니다 (조건이 서 있는 동안만 나감).</div>`);
+  else if ("latch" in x) parts.push(`<div class="un-mid">⏱ <b>잠깐 나가는 명령 (펄스)</b> — 조건이 서면 정해진 시간만 나가고 꺼집니다.</div>`);
+  if ((x.interlocks || []).length) parts.push(`<div class="un-h">⛔ 이 신호가 1 이면 명령이 안 섭니다 (인터록 · 트립 · 반대 명령)</div>${lblList(x.interlocks, "un-l")}`);
+  if ((x.stoppers || []).length) parts.push(`<div class="un-h">■ 서 있는 명령을 끄는 신호</div>${lblList(x.stoppers, "un-l")}`);
+  if ((x.drops || []).length) parts.push(`<div class="un-h">↓ 이 허가가 0 이 되면 꺼집니다</div>${lblList(x.drops, "un-l")}`);
+  if (!parts.length) return "";
+  return `<div class="sq-under"><div class="un-t">🔎 로직 이해 — 시뮬레이터로 켜고 · 막고 · 놓아 본 결과</div>${parts.join("")}</div>`;
+}
+function seqInsightHtml() {
+  const r = SEQ.learn, s = r && r.summary;
+  if (!s) return `<div class="sp-empty">아직 배운 것이 없습니다.</div><div class="sq-foot"><button data-a="pickagain">◀ 동작 고르기</button></div>`;
+  const items = r.items || [];
+  const idx = (e) => items.findIndex((x) => x.page === e.page && x.row === e.row);
+  const go = (e, t) => `<li data-li="${idx(e)}">${t}</li>`;
+  const pairBoth = (s.both_on || []).map((p) => `<li class="ins-pair"><b>${esc(p.equip)}</b> — ${p.a} · ${p.b} 두 명령을 <b>함께</b> 낼 수 있습니다 (논리 안에 서로를 막는 신호가 없음)
+      <div class="ins-c"><span class="ins-a" data-li="${idx({ page: p.a_at[0], row: p.a_at[1] })}">${p.a}: ${esc((p.a_need || []).join(" · ") || "—")}</span>
+      <span class="ins-a" data-li="${idx({ page: p.b_at[0], row: p.b_at[1] })}">${p.b}: ${esc((p.b_need || []).join(" · ") || "—")}</span></div>
+      <small>두 조건이 현장에서 함께 서지 않는 것(열림/닫힘 · 압력 낮음/높음)에 기대는지 확인하세요.</small></li>`).join("");
+  const sigs = (ls, unit) => (ls || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <small>— 명령 ${x.count}개${unit}</small></li>`).join("");
+  return `<div class="sq-ins">
+    <div class="ins-top">🔎 <b>로직 이해</b> — 명령 ${s.commands}개를 하나씩 시뮬레이터로 켜고 · 막고 · 놓고 · 꺼 본 결과입니다.</div>
+    <div class="ins-cards">
+      <div><b>${s.reached}</b><small>서는 명령</small></div>
+      <div><b>${s.latched}</b><small>자기유지</small></div>
+      <div><b>${s.momentary}</b><small>누르는 동안만</small></div>
+      <div><b>${s.pulse}</b><small>펄스</small></div>
+      <div><b>${s.with_interlock}</b><small>인터록 있음</small></div>
+      <div class="${s.unreached ? "bad" : ""}"><b>${s.unreached}</b><small>지금 도면으로 안 섬</small></div></div>
+    ${pairBoth ? `<div class="ins-h warn">⚠ 반대 명령을 함께 낼 수 있는 장비 ${s.both_on.length}</div><ul>${pairBoth}</ul>` : ""}
+    ${(s.always_on || []).length ? `<div class="ins-h warn">⚠ 아무 신호 없이도 서 있는 명령 ${s.always_on.length}</div><ul>${s.always_on.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — 들어와야 꺼지는 신호를 보세요</small>`)).join("")}</ul>` : ""}
+    ${(s.tied_off || []).length ? `<div class="ins-h warn">⚠ 도면이 상수로 묶어 둔 길로만 서는 명령 ${s.tied_off.length}</div><ul>${s.tied_off.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — ${esc(e.text)}</small>`)).join("")}</ul>` : ""}
+    ${(s.common_need || []).length ? `<div class="ins-h">여러 명령이 함께 기다리는 허가 신호</div><ul class="ins-sig">${sigs(s.common_need, "에 필요")}</ul>` : ""}
+    ${(s.common_block || []).length ? `<div class="ins-h">여러 명령을 한꺼번에 막는 신호 (트립 · 정지)</div><ul class="ins-sig">${sigs(s.common_block, "을 막음")}</ul>` : ""}
+    <div class="ins-note">항목을 누르면 그 명령을 조건부터 차례로 묻습니다.  판정은 전부 같은 시뮬레이터가 냈고 도면을 고치지 않습니다.</div>
+  </div><div class="sq-foot"><button data-a="pickagain">◀ 동작 고르기</button></div>`;
 }
 function seqLearnCard(t) {
   const x = seqLearned(t.page, t.row);
@@ -3111,6 +3159,7 @@ function seqLearnCard(t) {
   const real = (x.labels || []).filter((l) => !l.assumed), assumed = (x.labels || []).filter((l) => l.assumed);
   return `<div class="sq-learncard">🧠 학습 결과 — 꼭 필요한 신호 <b>${real.length}개</b>${assumed.length ? ` + 도면 읽기 빈틈 ${assumed.length}곳을 만족으로 보면` : ""} ${x.steady ? "서 있습니다" : "잠깐 섭니다 (펄스)"}
     <ul>${(x.labels || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>
+    ${understandHtml(x)}
     <button data-a="learned" class="pri">▶ 학습한 조합으로 바로 돌리기</button></div>`;
 }
 async function seqRunLearned() {
@@ -3300,7 +3349,7 @@ function renderSeq() {
   $("#seq").classList.toggle("min", lsGet("logic.seq.min") === "1");
   $("#seq-min").textContent = $("#seq").classList.contains("min") ? "＋" : "－";
   if (SEQ.busy) { b.innerHTML = `<div class="sp-empty">${esc(SEQ.busy)}</div>`; return; }
-  b.innerHTML = SEQ.view === "pick" ? seqPickHtml() : SEQ.view === "err" ? seqErrHtml() : SEQ.view === "done" ? seqDoneHtml()
+  b.innerHTML = SEQ.view === "pick" ? seqPickHtml() : SEQ.view === "insight" ? seqInsightHtml() : SEQ.view === "err" ? seqErrHtml() : SEQ.view === "done" ? seqDoneHtml()
     : SEQ.view === "fail" ? `<div class="sq-err">${esc(SEQ.failWhy || "")}</div><div class="sq-foot"><button data-a="pickagain">다른 동작 고르기</button></div>` : seqStepHtml();
   $("#seq-sum").textContent = SEQ.target && SEQ.view !== "pick" ? `${SEQ.target.act || ""} · ${SEQ.hist.length}단계 답함` : "";
   const q = $("#seq-q");
@@ -3456,6 +3505,12 @@ function bindSeq() {
       const eq = SEQ.cmds[Number(rl.dataset.eq)], r = (eq.actions.find((x) => x.action === rl.dataset.act) || {}).rows[Number(rl.dataset.j)];
       seqStart({ ...r, equip: eq.equip, action: rl.dataset.act }); return;
     }
+    const il = e.target.closest(".sq-ins [data-li]");
+    if (il) {
+      const x = ((SEQ.learn && SEQ.learn.items) || [])[Number(il.dataset.li)];
+      if (x) seqStart({ page: x.page, row: x.row, sheet: x.sheet, desc: x.desc, kind: x.kind, equip: x.equip, action: x.action });
+      return;
+    }
     const hl = e.target.closest(".sq-hist li");
     if (hl) { seqLocate(seqNodeById(hl.dataset.id)); return; }
     const el_ = e.target.closest(".sq-unmet li[data-ei]");
@@ -3465,6 +3520,7 @@ function bindSeq() {
     const a = b.dataset.a;
     if (a === "look") { seqLocate(SEQ.cur && SEQ.cur.node); return; }
     if (a === "learned") { seqRunLearned(); return; }
+    if (a === "insight") { SEQ.view = "insight"; renderSeq(); return; }
     if (a === "pick") {
       const tr = SEQ.cur && SEQ.tries[SEQ.cur.node.id];
       const o = Array.isArray(tr) ? tr[Number(b.dataset.i)] : null;

@@ -48,7 +48,9 @@ def vocab():
             kinds[str(w).upper()] = k
     return {"act": word_act, "kind": kinds, "exclude": {str(x).upper() for x in v.get("exclude") or []},
             "status": {str(x).upper() for x in v.get("status_words") or []},
-            "order": list((v.get("actions") or {}).keys())}
+            "negation": {str(x).upper() for x in v.get("negation") or []},
+            "order": list((v.get("actions") or {}).keys()),
+            "opposites": [tuple(x) for x in v.get("opposites") or [] if isinstance(x, (list, tuple)) and len(x) == 2]}
 
 
 def _words(t):
@@ -65,6 +67,10 @@ def classify(desc):
     if len({a for _, a in acts}) != 1:
         return None
     act = acts[0][1]
+    # L35 — `NO TRIP` · `NOT OPEN` 은 그 동작이 아니라 '그 동작이 없음' 이라는 상태다 (1A1Y `#11 HRSG NO TRIP`: 트립 조건이
+    # 하나라도 들어오면 꺼지는 건강 신호 — 동작 학습이 그렇게 읽었다)
+    if any(i > 0 and ws[i - 1] in V["negation"] for i, _ in acts):
+        return None
     kind = next((V["kind"][w] for w in ws if w in V["kind"]), None)
     if kind is None:
         kind = "state" if any(w in V["status"] for w in ws) else "action"
