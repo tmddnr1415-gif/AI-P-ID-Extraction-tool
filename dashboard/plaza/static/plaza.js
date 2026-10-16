@@ -396,10 +396,11 @@ function faceOf(a) {                       // 서버가 준 값도 범위 밖이
   return out;
 }
 
-// 2026-10-16 (8) 그림체: 큰 머리(2.2등신) · 큰 눈(속눈썹 · 눈동자 · 빛) · 진한 외곽선 · 3단 음영 · 손에 목검.  옷은 우리 것(저고리 · 고름 · 바지 · 노비 무명옷)
+// 2026-10-16 (10) 그림체 한 번 더: 사용자가 보낸 도트 캐릭터처럼 — 얼굴보다 넓고 풍성한 머리(가닥 · 빛띠) · 세로로 큰 눈(4점, 빛 두 점) ·
+// 키보다 긴 목검 · 둥근 3단 음영 · 진한 외곽선.  옷은 우리 것(저고리 · 흰 깃 · 고름 · 통 넓은 바지 · 대님 · 노비 무명옷) 그대로.
 // 점 판(격자)에 색을 칠한 뒤, 빈 칸 가운데 그림에 닿은 칸을 외곽선으로 둘러 그린다.
-const OL = "#1b120e", K = "#161616", OX = 4, OY = 5;   // 장식 · 목검 · 날개가 나갈 여백 (점 단위)
-const GW = 20, GH = 28;                     // 몸 격자 (가로 20 · 세로 28 — 발바닥 = 28 줄)
+const OL = "#150e0b", K = "#141010", OX = 4, OY = 6;   // 장식 · 목검 · 날개가 나갈 여백 (점 단위)
+const GW = 22, GH = 31;                     // 몸 격자 (가로 22 · 세로 31 — 발바닥 = 31 줄) · 머리 = 위 16 줄
 const CW = GW + OX * 2, CH = GH + OY + 1;
 const FOOT = (OY + GH) * PX;                // 그림 위에서 발바닥까지 (px)
 const HEAD_PX = (GH + 4) * PX;              // 발바닥에서 모자 꼭대기까지 — 상태 글자 · 말풍선 자리
@@ -410,160 +411,194 @@ function charSprite(F, role, dir, frame, armed = false) {
   const grid = new Array(CW * CH).fill(null);
   const flip = dir === 3, side = dir >= 2, up = dir === 1, down = dir === 0;
   const put = (x, y, col) => { const X = OX + (flip ? GW - 1 - x : x), Y = OY + y; if (col && X >= 0 && X < CW && Y >= 0 && Y < CH) grid[Y * CW + X] = col; };
+  const get = (x, y) => { const X = OX + (flip ? GW - 1 - x : x), Y = OY + y; return X >= 0 && X < CW && Y >= 0 && Y < CH ? grid[Y * CW + X] : null; };
   const box = (x, y, w, h, col) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, col); };
   const rbox = (x, y, w, h, col) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     if ((i === 0 || i === w - 1) && (j === 0 || j === h - 1) && w > 2 && h > 2) continue; put(x + i, y + j, col); } };
-  const H_ = HAIRC[F.hairc], Hd = shade(H_, -.32), Hh = shade(H_, F.hairc === 0 ? .28 : .3);
-  const SK = SKINS[F.skin], SKd = shade(SK, -.16), SKh = shade(SK, .4);
+  // 둥근 덩어리 — 왼쪽 위가 밝고 오른쪽 아래 둘레가 어두움 (3단 음영) · keep(x, y) 로 일부만
+  const blob = (cx, cy, rx, ry, col, hi, dk, keep) => {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      const nx = (x + .5 - cx) / rx, ny = (y + .5 - cy) / ry, r = nx * nx + ny * ny;
+      if (r > 1 || (keep && !keep(x, y))) continue;
+      put(x, y, nx * .55 + ny * .8 > .62 && r > .42 ? dk : hi && nx * .5 + ny * .85 < -.5 && r > .2 && r < .75 ? hi : col);
+    }
+  };
+  const H_ = HAIRC[F.hairc], Hd = shade(H_, -.34), Hdd = shade(H_, -.55), Hh = shade(H_, F.hairc === 0 ? .3 : .32), Hs = shade(H_, .55);
+  const SK = SKINS[F.skin], SKd = shade(SK, -.15), SKdd = shade(SK, -.28), SKh = shade(SK, .45);
   const nobi = role === "operator", hat = role === "member" || role === "unit" || role === "leader";
-  const CL = nobi ? "#c8b48a" : CLOTHS[F.cloth], CLd = shade(CL, -.26), CLdd = shade(CL, -.45), CLh = shade(CL, .28);
-  const PA = nobi ? "#8c7a5a" : PANTS[F.pants], PAd = shade(PA, -.22), PAdd = shade(PA, -.38);
-  const RIB = ["#c0262d", "#7a1fa2", "#d9480f"][F.cloth % 3], WH = "#fbf6ea", SH = "#2e2420", SHh = "#5a4a3c";
-  const step = frame === 1 ? 1 : frame === 2 ? -1 : 0, hs = F.hair;
-  // 목검 — 손에 세워 듦 (휘두를 때는 drawSwing 이 그림)
-  const sword = (x, y0) => { put(x, y0 - 1, "#d8b07a");
-    for (let y = y0; y < y0 + 13; y++) { put(x, y, "#f0d3a2"); put(x + 1, y, "#d8b07a"); }
-    box(x - 1, y0 + 13, 4, 1, "#4a3020"); box(x, y0 + 14, 2, 3, "#6e4527"); put(x, y0 + 14, "#8a5a32"); };
+  const CL = nobi ? "#c8b48a" : CLOTHS[F.cloth], CLd = shade(CL, -.25), CLdd = shade(CL, -.45), CLh = shade(CL, .3);
+  const PA = nobi ? "#8c7a5a" : PANTS[F.pants], PAd = shade(PA, -.2), PAdd = shade(PA, -.38), PAh = shade(PA, .2);
+  const RIB = ["#c0262d", "#7a1fa2", "#d9480f"][F.cloth % 3], RIBh = shade(RIB, .3), RIBd = shade(RIB, -.3);
+  const WH = "#fbf6ea", WHd = "#d9d2c0", SH = "#2a211c", SHh = "#5a4a3c", GOLD = "#d4af37";
+  const step = frame === 1 ? 1 : frame === 2 ? -1 : 0, hs = F.hair, bald = hs === 8;
+  // 목검 — 키보다 길게, 손에 세워 듦 (휘두를 때는 drawSwing 이 그림).  x = 날 왼쪽, y0 = 칼끝, hy = 코등이 줄
+  const sword = (x, y0, hy) => {
+    put(x + 1, y0, "#e9c99a"); put(x + 1, y0 + 1, "#f6dfb6"); put(x + 2, y0 + 1, "#c99d68");
+    for (let y = y0 + 2; y < hy; y++) { put(x, y, "#f6dfb6"); put(x + 1, y, "#dcb47e"); put(x + 2, y, "#b0814e"); }
+    for (let y = y0 + 4; y < hy - 2; y += 5) put(x + 1, y, "#c99d68");                    // 나뭇결
+    box(x - 1, hy, 5, 1, "#3e2818"); put(x - 1, hy, "#5a3a22");
+    for (let y = hy + 1; y < hy + 6; y++) { put(x, y, "#7a4a28"); put(x + 1, y, "#5e3820"); put(x + 2, y, "#4a2c18"); }
+    for (let y = hy + 2; y < hy + 6; y += 2) box(x, y, 3, 1, "#a06a3a");                 // 손잡이 감은 끈
+    box(x, hy + 6, 3, 1, "#3e2818");
+  };
 
-  // ── 몸 뒤 (긴 머리 · 댕기 · 등 뒤 목검) ──
-  if (armed && side) sword(14, 5);
-  if (armed && up) sword(16, 6);
-  if (hs === 7) { if (up) { rbox(3, 6, 14, 15, H_); box(5, 8, 1, 12, Hh); box(14, 9, 1, 11, Hd); }
-    else if (side) { rbox(9, 6, 7, 14, H_); box(14, 8, 1, 11, Hd); } else { rbox(2, 6, 16, 14, H_); box(2, 9, 1, 10, Hd); box(17, 9, 1, 10, Hd); } }
-  if (hs === 4 && !up) { if (side) { rbox(13, 7, 4, 8, H_); put(14, 7, RIB); put(15, 7, RIB); }
-    else { rbox(0, 8, 3, 8, H_); rbox(17, 8, 3, 8, H_); box(0, 8, 3, 1, RIB); box(17, 8, 3, 1, RIB); put(1, 11, Hh); put(18, 11, Hh); } }
-  if (hs === 9 && side) { rbox(14, 4, 4, 11, H_); put(15, 4, RIB); put(16, 4, RIB); box(15, 7, 1, 6, Hh); }
+  // ── 몸 뒤 (긴 머리 · 양갈래 · 포니테일 · 등 뒤 목검) ──
+  if (armed && side) sword(16, 1, 21);
+  if (armed && up) sword(18, 0, 21);
+  if (!bald && hs === 7) {
+    if (up) blob(11, 16, 9.5, 9, H_, Hh, Hd, (x, y) => y >= 9);
+    else if (side) blob(14, 15, 6, 9, H_, Hh, Hd, (x, y) => y >= 8);
+    else { blob(11, 15, 10, 9, H_, null, Hd, (x, y) => y >= 8); for (const x of [2, 19]) box(x, 12, 1, 10, Hd); }
+  }
+  if (hs === 4 && !up) {
+    const tail = x => { blob(x, 14, 2.6, 5.5, H_, Hh, Hd); box(Math.round(x - 2), 9, 4, 1, RIB); put(Math.round(x - 1), 9, RIBh); for (let y = 12; y < 19; y += 3) put(Math.round(x), y, Hd); };
+    if (side) tail(17); else { tail(1); tail(20); }
+  }
+  if (hs === 9 && side) { blob(18, 9, 3, 7, H_, Hh, Hd); box(16, 3, 3, 1, RIB); for (let y = 6; y < 15; y += 3) put(18, y, Hd); }
 
-  // ── 다리 · 신 (바지 + 대님) ──
+  // ── 다리 · 신 (통 넓은 바지 + 대님) ──
   if (!side) {
     const l = step > 0 ? 1 : 0, r = step < 0 ? 1 : 0;
-    box(5, 22, 10, 2, PA); box(5, 22, 1, 2, shade(PA, .15)); box(9, 23, 2, 1, PAd);
-    box(5, 24 - l, 4, 1, PA); box(11, 24 - r, 4, 1, PA); box(5, 25 - l, 4, 1, PAdd); box(11, 25 - r, 4, 1, PAdd);
-    box(5, 26 - l, 4, 2, SH); box(11, 26 - r, 4, 2, SH); box(5, 26 - l, 3, 1, SHh); box(12, 26 - r, 3, 1, SHh);
+    rbox(5, 25, 12, 3, PA); box(5, 25, 2, 3, PAh); box(15, 25, 2, 3, PAd); box(10, 26, 2, 2, PAdd);
+    box(6, 28 - l, 4, 1, PAdd); box(12, 28 - r, 4, 1, PAdd); box(6, 28 - l, 4, 1, PAdd);
+    for (const [x, d] of [[5, l], [12, r]]) { rbox(x, 29 - d, 5, 2, SH); box(x + 1, 29 - d, 3, 1, SHh); }
   } else {
-    box(6, 22, 8, 2, PA); box(13, 22, 1, 2, PAd);
-    box(6 - step, 24, 4, 1, PA); box(10 + step, 24, 4, 1, PAd); box(6 - step, 25, 4, 1, PAdd); box(10 + step, 25, 4, 1, PAdd);
-    box(5 - step, 26, 5, 2, SH); box(10 + step, 26, 4, 2, SH); box(5 - step, 26, 3, 1, SHh);
+    rbox(6, 25, 10, 3, PA); box(6, 25, 2, 3, PAh); box(14, 25, 2, 3, PAd);
+    box(7 - step, 28, 4, 1, PAdd); box(11 + step, 28, 4, 1, PAdd);
+    rbox(5 - step, 29, 6, 2, SH); box(6 - step, 29, 3, 1, SHh); rbox(11 + step, 29, 5, 2, SH);
   }
   // ── 몸 (저고리) · 팔 ──
   if (!side) {
-    rbox(5, 15, 10, 7, CL); box(5, 16, 1, 5, CLh); box(14, 16, 1, 5, CLd); box(6, 21, 8, 1, CLd);
+    rbox(6, 17, 10, 8, CL); box(5, 18, 12, 2, CL); box(6, 18, 1, 6, CLh); box(15, 18, 1, 6, CLd); box(7, 24, 8, 1, CLd); box(6, 23, 10, 1, CLd);
+    if (down && armed) sword(1, 0, 22);
     const la = step > 0 ? -1 : step < 0 ? 1 : 0;
-    if (armed && down) sword(1, 5);
-    for (const [x, d] of [[3, la], [15, -la]]) { rbox(x, 15 + d, 2, 5, CL); box(x, 19 + d, 2, 1, CLdd); put(x + (x < 9 ? 0 : 1), 16 + d, x < 9 ? CLh : CLd);
-      rbox(x, 20 + d, 2, 2, SK); put(x + (x < 9 ? 0 : 1), 21 + d, SKd); }
+    for (const [x, d] of [[3, la], [16, -la]]) {
+      const left = x < 10;
+      rbox(x, 17 + d, 3, 6, CL); box(left ? x + 2 : x, 18 + d, 1, 4, CLdd); box(left ? x : x + 2, 18 + d, 1, 4, left ? CLh : CLd);
+      box(x, 22 + d, 3, 1, CLdd);
+      rbox(x, 23 + d, 3, 2, SK); put(left ? x + 2 : x, 24 + d, SKd); put(left ? x : x + 2, 23 + d, SKh);
+    }
     if (down) {
-      if (!nobi) { put(7, 15, WH); put(8, 15, WH); put(8, 16, WH); put(9, 17, WH); put(12, 15, WH); put(11, 15, WH); put(11, 16, WH);
-        put(9, 15, SK); put(10, 15, SK); put(9, 16, SKd); put(10, 16, SK); put(10, 17, CLd);
-        put(10, 18, RIB); put(11, 18, RIB); put(9, 18, shade(RIB, -.3)); put(10, 19, RIB); put(10, 20, RIB); put(11, 19, shade(RIB, .2)); put(11, 20, RIB); put(11, 21, RIB); }
-      else { put(9, 15, SK); put(10, 15, SK); put(8, 15, CLd); put(11, 15, CLd); }
-    } else { box(7, 15, 6, 1, WH); box(8, 15, 4, 1, CLd); box(9, 16, 2, 4, CLd); }
+      if (!nobi) {
+        for (const [x, y] of [[8, 17], [9, 17], [9, 18], [10, 18], [10, 19], [13, 17], [12, 17], [12, 18]]) put(x, y, WH);
+        put(10, 17, SK); put(11, 17, SK); put(11, 18, SKd); put(11, 19, CLd); put(13, 18, WHd);
+        put(11, 20, RIBd); put(12, 20, RIB); put(10, 20, RIB); box(11, 21, 1, 4, RIB); box(12, 21, 1, 3, RIBh); put(12, 24, RIB);
+      } else { put(10, 17, SK); put(11, 17, SK); put(9, 17, CLd); put(12, 17, CLd); }
+    } else { box(8, 17, 6, 1, WH); box(9, 17, 4, 1, WHd); box(10, 18, 2, 5, CLd); }
   } else {
-    rbox(6, 15, 8, 7, CL); box(12, 16, 2, 5, CLd); box(7, 21, 7, 1, CLd); box(6, 16, 1, 5, CLh);
-    if (!nobi) { put(6, 15, WH); put(7, 15, WH); put(7, 16, WH); put(7, 18, RIB); put(6, 18, RIB); put(6, 19, RIB); put(7, 20, RIB); }
-    rbox(8 + step, 15, 3, 5, CL); box(8 + step, 19, 3, 1, CLdd); box(10 + step, 16, 1, 3, CLd);
-    rbox(8 + step, 20, 3, 2, SK); put(10 + step, 21, SKd);
+    rbox(7, 17, 8, 8, CL); box(7, 18, 1, 6, CLh); box(13, 18, 2, 6, CLd); box(8, 24, 7, 1, CLd);
+    if (!nobi) { put(7, 17, WH); put(8, 17, WH); put(8, 18, WH); put(7, 21, RIB); put(8, 21, RIBd); put(7, 22, RIB); put(6, 23, RIB); put(7, 24, RIBh); }
+    rbox(9 + step, 17, 4, 6, CL); box(9 + step, 18, 1, 4, CLh); box(12 + step, 18, 1, 4, CLdd); box(9 + step, 22, 4, 1, CLdd);
+    rbox(9 + step, 23, 4, 2, SK); put(12 + step, 24, SKd); put(9 + step, 23, SKh);
   }
   if (nobi) {                               // 노비 — 무명옷 기운 자국 · 새끼줄 허리띠
-    const bx = side ? 6 : 5, bw = side ? 8 : 10;
-    box(bx, 19, bw, 1, "#7a5a30"); for (let i = bx; i < bx + bw; i += 2) put(i, 19, "#a07a44");
-    put(side ? 9 : 7, 16, "#a8946a"); put(side ? 10 : 8, 17, "#a8946a"); put(side ? 11 : 12, 20, "#a8946a");
+    const bx = side ? 7 : 6, bw = side ? 8 : 10;
+    box(bx, 22, bw, 1, "#7a5a30"); for (let i = bx; i < bx + bw; i += 2) put(i, 22, "#a07a44");
+    put(side ? 10 : 8, 19, "#a8946a"); put(side ? 11 : 9, 20, "#a8946a"); put(side ? 12 : 13, 23, "#a8946a");
   }
   // ── 머리 뒤 장식 (몸 위 · 얼굴 아래) ──
-  if (hs === 2 && !down) { if (up) { box(9, 13, 2, 8, H_); for (let y = 14; y < 21; y += 2) put(9, y, Hd); box(9, 21, 2, 2, RIB); }
-    else { box(14, 11, 2, 9, H_); for (let y = 12; y < 20; y += 2) put(14, y, Hd); box(14, 20, 2, 2, RIB); } }
-  if (hs === 3 && !down) { if (up) { rbox(7, 9, 6, 5, H_); box(8, 10, 2, 1, Hh); box(4, 11, 12, 1, "#d4af37"); }
-    else { rbox(13, 8, 5, 5, H_); put(14, 9, Hh); box(12, 10, 7, 1, "#d4af37"); } }
-  if (hs === 9 && up) { rbox(8, 6, 4, 11, H_); box(8, 6, 4, 1, RIB); box(9, 8, 1, 7, Hh); }
+  if (!bald && hs === 2 && !down) {         // 댕기머리 — 땋은 머리 + 댕기
+    const bx = up ? 10 : 15;
+    for (let y = up ? 15 : 13; y < 24; y++) { put(bx, y, (y % 2) ? Hd : H_); put(bx + 1, y, (y % 2) ? H_ : Hh); }
+    box(bx - 1, 24, 4, 2, RIB); put(bx - 1, 24, RIBh); put(bx, 26, RIBd); put(bx + 2, 26, RIBd);
+  }
+  if (!bald && hs === 3 && !down) {         // 쪽머리 — 뒤통수 쪽 + 비녀
+    if (up) { blob(11, 12, 3.6, 3, H_, Hh, Hd); box(5, 12, 12, 1, GOLD); put(5, 12, "#fff0a0"); }
+    else { blob(17, 11, 3, 3, H_, Hh, Hd); box(14, 11, 8, 1, GOLD); put(21, 11, "#fff0a0"); }
+  }
+  if (!bald && hs === 9 && up) { blob(11, 13, 2.6, 6, H_, Hh, Hd); box(9, 7, 5, 1, RIB); }
 
   // ── 머리 (큰 얼굴) ──
-  const HX = 3, HW = side ? 13 : 14;
-  rbox(HX, 1, HW, 13, up && hs !== 8 ? H_ : SK);
-  if (down) box(HX + 1, 13, HW - 2, 1, SKd); else if (side) box(HX + 1, 13, 5, 1, SKd);   // 턱 그늘
+  const fcx = side ? 9.8 : 11, frx = side ? 6.8 : 7.6;
+  if (up && !bald) blob(11, 8.6, 8.4, 7.6, H_, Hh, Hd);
+  else blob(fcx, 9.8, frx, 6.4, SK, null, SKd);                                           // 얼굴
+  if (!up) { for (let x = 5; x < 18; x++) if (get(x, 15) === SK) put(x, 15, SKd); }         // 턱 그늘
+  if (side && !bald) { blob(13.4, 8.4, 6.6, 7.4, H_, Hh, Hd, (x, y) => x >= 9 || y <= 6); }  // 옆: 뒤통수 머리
   // 머리 위 장식 (모자 쓴 역할은 가려져 안 그림)
-  if (!hat) {
-    if (hs === 0) { rbox(8, -2, 4, 4, H_); put(9, -1, Hh); box(8, 0, 4, 1, "#7a5a30"); }
-    if (hs === 5) { rbox(6, -3, 8, 5, H_); box(8, -2, 3, 1, Hh); box(7, 1, 6, 1, Hd); }
-    if (hs === 6) { for (const [x, h] of [[4, 2], [7, 3], [10, 3], [13, 2]]) { box(x, 1 - h, 2, h, H_); put(x, 1 - h, Hh); } }
+  if (!hat && !bald) {
+    if (hs === 0) { blob(11, -1.6, 2.4, 2.4, H_, Hh, Hd); box(9, 0, 5, 1, "#7a5a30"); }
+    if (hs === 5) { blob(11, -1.2, 4.4, 3.6, H_, Hh, Hd); for (const x of [9, 12]) put(x, -1, Hd); }
+    if (hs === 6) for (const [x, h] of [[3, 3], [6, 4], [10, 5], [14, 4], [17, 3]]) for (let k = 0; k < h; k++) {
+      const w = Math.max(1, Math.round((h - k) * .7)); box(x + (side ? 1 : 0), 2 - k, w, 1, k === h - 1 ? Hh : H_); }
   }
-  if (hs !== 8) {
-    if (up) { box(HX + 2, 2, 5, 1, Hh); box(HX + 1, 3, 2, 1, Hh); box(HX + 1, 12, HW - 2, 1, Hd); box(HX + HW - 2, 4, 1, 8, Hd); put(HX + 2, 13, H_); put(HX + HW - 3, 13, H_); }
+  if (!bald) {
+    if (up) { box(6, 2, 6, 1, Hh); box(5, 3, 2, 1, Hh); box(13, 2, 2, 1, Hs);                  // 뒤: 빛띠 · 가닥
+      for (const x of [6, 9, 13, 16]) box(x, 7, 1, 7, Hd); for (let x = 4; x < 19; x++) if (get(x, 15) === H_) put(x, 15, Hd); }
     else if (down) {
-      rbox(3, 1, 14, 7, H_);                                                       // 머리 덮개
-      for (const x of [3, 4, 5, 7, 8, 11, 12, 14, 15, 16]) put(x, 7, H_);         // 앞머리 끝 (들쭉날쭉)
-      put(4, 8, H_); put(15, 8, H_); put(8, 8, Hd); put(12, 8, Hd);
-      const sideLen = hs === 1 ? 13 : hs === 7 ? 14 : 11;                          // 옆머리
-      box(3, 8, 1, sideLen - 8, H_); box(16, 8, 1, sideLen - 8, H_); if (hs === 1 || hs === 7) { box(4, 9, 1, sideLen - 9, Hd); box(15, 9, 1, sideLen - 9, Hd); }
-      box(6, 2, 4, 1, Hh); box(5, 3, 2, 1, Hh); put(11, 2, Hh); box(4, 6, 12, 1, Hd); for (const x of [6, 9, 13]) put(x, 6, H_);
-      if (hs === 3) { box(9, 1, 2, 3, SKh); }                                      // 쪽머리 가르마
-      if (hs === 3) { put(1, 11, "#d4af37"); put(2, 11, "#d4af37"); put(17, 11, "#d4af37"); put(18, 11, "#d4af37"); }   // 비녀 끝
-      if (hs === 9) { rbox(16, 7, 3, 7, H_); put(17, 9, Hh); }                    // 포니테일 끝
-    } else {                                                                       // 옆 (왼쪽 보기)
-      rbox(3, 1, 13, 6, H_); rbox(8, 3, 8, 10, H_); box(3, 7, 3, 1, H_); put(3, 8, H_); put(6, 7, Hd);
-      box(5, 2, 4, 1, Hh); put(4, 3, Hh); box(13, 4, 1, 7, Hd); box(9, 12, 6, 1, Hd);
-      if (hs === 1) { box(8, 12, 7, 2, H_); } if (hs === 7) box(9, 12, 7, 3, H_);
-      rbox(9, 8, 2, 3, SK); put(10, 9, SKd);                                       // 귀
-      box(9, 13, 6, 1, Hd);                                                        // 목덜미 (머리 뒤 아래)
+      blob(11, 7.2, 9.4, 7.6, H_, Hh, Hd, (x, y) => y <= 7 || x <= 3 || x >= 18);               // 머리 덮개 (얼굴보다 넓게)
+      const sideLen = hs === 1 ? 16 : hs === 7 ? 17 : hs === 2 ? 14 : 13;                      // 옆머리
+      for (const x of [2, 3, 18, 19]) for (let y = 8; y < sideLen - (x === 2 || x === 19 ? 1 : 0); y++) put(x, y, x === 3 || x === 18 ? H_ : Hd);
+      const bang = [9, 10, 9, 8, 10, 10, 9, 8, 9, 10, 10, 9, 8, 9];                            // 앞머리 가닥 (들쭉날쭉)
+      for (let i = 0; i < bang.length; i++) { const x = 4 + i;
+        for (let y = 6; y < bang[i]; y++) put(x, y, y === bang[i] - 1 ? Hd : H_); }
+      for (const x of [6, 9, 12, 15]) put(x, 7, Hd);                                          // 가닥 사이 그늘
+      box(6, 2, 5, 1, Hh); box(5, 3, 2, 1, Hh); put(11, 2, Hs); box(14, 3, 2, 1, Hh); put(13, 2, Hh);   // 빛띠
+      if (hs === 3) { box(10, 1, 2, 4, SKh); put(10, 5, SKd); }                               // 쪽머리 가르마
+      if (hs === 3) { for (const x of [0, 1, 20, 21]) put(x, 12, GOLD); }                    // 비녀 끝
+      if (hs === 9) { blob(19.5, 11, 1.8, 4, H_, null, Hd); put(19, 7, RIB); put(20, 7, RIB); }   // 포니테일 끝
+    } else {                                                                                   // 옆 (왼쪽 보기)
+      blob(10.5, 7, 8.6, 7.2, H_, Hh, Hd, (x, y) => y <= 6 || x >= 10);
+      for (const [x, b] of [[3, 8], [4, 9], [5, 8], [6, 9], [7, 8], [8, 7]]) for (let y = 6; y < b; y++) put(x, y, y === b - 1 ? Hd : H_);
+      box(5, 2, 5, 1, Hh); box(4, 3, 2, 1, Hh); put(11, 2, Hs); for (const x of [13, 16]) box(x, 6, 1, 7, Hd);
+      if (hs === 1) blob(14, 13, 5, 3, H_, null, Hd, (x, y) => y >= 12); if (hs === 7) blob(14, 14, 5.4, 4, H_, null, Hd, (x, y) => y >= 12);
+      rbox(10, 10, 3, 4, SK); put(11, 11, SKdd); put(12, 12, SKd); put(10, 10, SKh);         // 귀
     }
-  } else { put(6, 3, SKh); put(7, 3, SKh); put(6, 4, SKh); box(4, 7, 12, 1, SKd); }   // 민머리 빛
-  // 얼굴
-  const e = F.eyes, BL = "#f3a29a", IR = "#3a2418", IL = "#7a4a2a";
+  } else { if (up) blob(11, 9.8, 7.6, 6.4, SK, null, SKd); box(7, 4, 3, 1, SKh); box(6, 5, 2, 1, SKh); }   // 민머리 빛
+  // 얼굴 — 눈은 세로 4점 (속눈썹 · 눈동자 · 빛 두 점)
+  const e = F.eyes, BL = "#f39a92", IR = "#3a2216", IM = "#6b3a20", IL = "#9a5a32";
+  const eye = (x, out) => {                  // x = 눈 왼쪽 칸, out = 바깥쪽 (-1 왼쪽 · 1 오른쪽)
+    const o = out < 0 ? x - 1 : x + 3, hiX = x;
+    if (e === 0) { box(x, 11, 2, 3, K); put(x + (out < 0 ? 0 : 1), 10, K); put(hiX, 11, "#ffffff"); put(x + 1, 13, "#3a3030"); }
+    else if (e === 1) { box(x, 10, 3, 1, K); put(o, 10, K); put(o, 11, K);
+      box(x, 11, 3, 1, IR); put(hiX, 11, "#ffffff"); box(x, 12, 3, 1, IM); put(x + 1, 12, IR); box(x, 13, 3, 1, IL); put(x + 2, 12, "#ffffff"); }
+    else if (e === 2) { put(x - (out < 0 ? 1 : 0), 12, K); box(x, 11, 3, 1, K); put(x + 3 - (out < 0 ? 0 : 0), 12, K); }
+    else if (e === 3) { box(x, 11, 3, 1, K); box(x, 12, 3, 1, IR); put(hiX, 12, "#ffffff"); put(o, 9, K); put(out < 0 ? x : x + 2, 9, K); put(x + 1, 10, K); }
+    else { box(x - 1, 10, 5, 1, "#2a2a2a"); box(x - 1, 13, 5, 1, "#2a2a2a"); box(x - 1, 11, 1, 2, "#2a2a2a"); box(x + 3, 11, 1, 2, "#2a2a2a");
+      box(x, 11, 3, 2, "#cfe8ff"); put(x, 11, "#ffffff"); box(x + 1, 12, 1, 1, K); }
+  };
   if (down) {
-    for (const [x, m] of [[6, 1], [12, -1]]) {                                     // 왼눈 · 오른눈 (m = 바깥쪽)
-      const o = m > 0 ? x - 1 : x + 2;
-      if (e === 0) { box(x, 10, 2, 3, K); put(x, 10, "#ffffff"); put(x + 1, 12, "#3a3a3a"); }                 // 까만 눈 · 빛 한 점
-      else if (e === 1) { box(x, 9, 2, 1, K); put(o, 9, K); put(x, 10, "#ffffff"); put(x + 1, 10, IR); put(x, 11, IR); put(x + 1, 11, IR); box(x, 12, 2, 1, IL); put(o, 10, K); }   // 속눈썹 · 갈색 눈동자
-      else if (e === 2) { put(o, 11, K); box(x, 10, 2, 1, K); put(m > 0 ? x + 2 : x - 1, 11, K); }
-      else if (e === 3) { box(x, 10, 2, 1, K); put(x + (m > 0 ? 1 : 0), 11, IR); put(x + (m > 0 ? 0 : 1), 11, IL); put(o, 8, K); put(x + (m > 0 ? 0 : 1), 8, K); put(x + (m > 0 ? 1 : 0), 9, K); }
-      else { box(x - 1, 9, 4, 1, "#2a2a2a"); box(x - 1, 12, 4, 1, "#2a2a2a"); box(x - 1, 10, 1, 2, "#2a2a2a"); box(x + 2, 10, 1, 2, "#2a2a2a");
-        box(x, 10, 2, 2, "#cfe8ff"); put(x, 10, "#ffffff"); put(x + 1, 11, K); }
-    }
-    if (e === 4) box(9, 10, 2, 1, "#2a2a2a");
-    if (e !== 4 && F.beard !== 3) { put(5, 12, BL); put(14, 12, BL); }
-    put(9, 13, "#b0574a"); put(10, 13, "#8a3a32");
-    if (F.beard === 1) box(8, 12, 4, 1, H_), put(9, 12, Hd);   // 콧수염 (입 위)
-    else if (F.beard === 2) { box(9, 13, 2, 2, H_); put(9, 14, Hd); }
-    else if (F.beard === 3) { box(5, 12, 10, 2, H_); box(6, 13, 8, 1, Hd); box(9, 13, 2, 1, "#8a3a32"); }
+    eye(6, -1); eye(13, 1);
+    if (e === 4) box(10, 11, 2, 1, "#2a2a2a");
+    if (e !== 4 && F.beard !== 3) { box(4, 14, 2, 1, BL); box(16, 14, 2, 1, BL); }
+    put(10, 14, "#b0574a"); put(11, 14, "#8a3a32");
+    if (F.beard === 1) { box(8, 14, 2, 1, H_); box(12, 14, 2, 1, H_); put(10, 14, H_); put(11, 14, Hd); put(10, 15, "#8a3a32"); }
+    else if (F.beard === 2) { box(10, 15, 2, 3, H_); put(10, 17, Hd); }
+    else if (F.beard === 3) { box(5, 14, 12, 2, H_); box(6, 16, 10, 1, Hd); box(10, 14, 2, 1, "#8a3a32"); put(4, 13, H_); put(17, 13, H_); }
   } else if (side) {
-    const x = 4;
-    if (e === 0) { box(x, 10, 2, 3, K); put(x, 10, "#ffffff"); }
-    else if (e === 1) { box(x, 9, 2, 1, K); put(x, 10, "#ffffff"); put(x + 1, 10, IR); put(x, 11, IR); put(x + 1, 11, IR); box(x, 12, 2, 1, IL); put(x + 2, 9, K); }
-    else if (e === 2) { put(x - 1, 11, K); box(x, 10, 2, 1, K); put(x + 2, 11, K); }
-    else if (e === 3) { box(x, 10, 2, 1, K); put(x, 11, IR); put(x + 1, 11, IL); put(x + 1, 8, K); put(x + 2, 8, K); put(x, 9, K); }
-    else { box(x - 1, 9, 4, 1, "#2a2a2a"); box(x - 1, 12, 4, 1, "#2a2a2a"); put(x - 1, 10, "#2a2a2a"); put(x - 1, 11, "#2a2a2a"); box(x, 10, 2, 2, "#cfe8ff"); put(x, 10, "#ffffff"); box(x + 3, 10, 5, 1, "#2a2a2a"); }
-    if (e !== 4) put(6, 12, BL); put(3, 13, "#8a3a32"); put(2, 10, SK);           // 볼 · 입 · 코
-    if (F.beard === 1) box(2, 12, 3, 1, H_); else if (F.beard === 2) { box(3, 13, 2, 2, H_); } else if (F.beard === 3) { box(3, 11, 6, 3, H_); put(3, 12, "#8a3a32"); }
+    eye(4, -1);
+    if (e !== 4) box(6, 14, 2, 1, BL); put(3, 14, "#8a3a32"); put(2, 11, SK); put(2, 12, SKd);   // 볼 · 입 · 코
+    if (F.beard === 1) box(2, 14, 3, 1, H_); else if (F.beard === 2) box(3, 15, 2, 3, H_); else if (F.beard === 3) { box(3, 13, 7, 3, H_); put(3, 14, "#8a3a32"); }
   }
   // ── 역할 머리 장식 (서버가 정한 것) ──
-  const sw = side ? 13 : 14;
+  const L = side ? 3 : 2, R = side ? 19 : 19;                                  // 머리 폭 (모자 둘레)
   if (role === "leader") {                  // 왕관
-    const G = "#e8b923", Gd = "#b8860b", Gh = "#fff0a0";
-    box(4, 0, sw - 2, 3, G); box(4, 0, sw - 2, 1, Gh); box(4, 2, sw - 2, 1, Gd);
-    for (const x of side ? [4, 8, 12] : [4, 9, 14]) { box(x, -2, 2, 2, G); put(x, -2, Gh); }
-    put(side ? 6 : 6, -1, G); put(side ? 10 : 12, -1, G);
-    if (!up) { put(side ? 6 : 9, 1, "#d62d3a"); put(side ? 6 : 10, 1, "#d62d3a"); if (!side) { put(6, 1, "#2e7bd6"); put(13, 1, "#2e7bd6"); } else put(10, 1, "#2e7bd6"); }
+    const G = "#e8b923", Gd = "#a8780b", Gh = "#fff0a0";
+    box(L + 1, 0, R - L - 1, 3, G); box(L + 1, 0, R - L - 1, 1, Gh); box(L + 1, 2, R - L - 1, 1, Gd);
+    for (const [x, h] of side ? [[4, 2], [8, 3], [12, 2], [16, 2]] : [[3, 2], [7, 3], [10, 4], [13, 3], [17, 2]]) { box(x, -h, 2, h, G); put(x, -h, Gh); put(x + 1, -1, Gd); }
+    if (!up) { const gx = side ? 7 : 10; box(gx, 1, 2, 1, "#d62d3a"); put(gx, 1, "#ff8a8a"); for (const x of side ? [12] : [5, 15]) put(x, 1, "#2e7bd6"); }
   } else if (role === "unit" || role === "member") {   // 사모(날개 관모) · 관모
-    const B = "#262626", Bh = "#4a4a4a", Bd = "#111111";
-    rbox(5, -2, sw - 4, 3, B); rbox(4, 0, sw - 2, 3, B); box(6, -1, 3, 1, Bh); box(4, 2, sw - 2, 1, "#3a2c1e"); put(5, 1, Bh);
+    const B = "#242424", Bh = "#4c4c4c", Bd = "#0e0e0e";
+    rbox(L + 3, -3, R - L - 5, 4, B); rbox(L + 1, -1, R - L - 1, 4, B); box(L + 4, -2, 4, 1, Bh); put(L + 3, -1, Bh);
+    box(L + 1, 2, R - L - 1, 1, "#3a2c1e"); box(L + 2, 2, 3, 1, "#5a4630");
     if (role === "unit") {
-      if (side) { rbox(14, -1, 5, 3, B); box(15, 0, 3, 1, Bh); }
-      else { rbox(-1, 0, 5, 3, B); rbox(16, 0, 5, 3, B); box(0, 1, 3, 1, Bh); box(17, 1, 3, 1, Bd); }
+      if (side) { rbox(17, -2, 6, 3, B); box(18, -1, 4, 1, Bh); }
+      else { rbox(-3, 0, 6, 3, B); rbox(19, 0, 6, 3, B); box(-2, 1, 4, 1, Bh); box(20, 1, 4, 1, Bd); }
     }
   } else if (role === "operator") {         // 노비 — 두건
-    const B = "#e7dfc8", Bd = "#cfc4a4";
-    box(3, 3, sw, 2, B); box(3, 4, sw, 1, Bd);
-    if (up) { box(9, 5, 1, 3, B); box(10, 5, 1, 2, Bd); } else if (side) { box(14, 3, 3, 2, B); box(15, 5, 2, 2, Bd); }
+    const B = "#e7dfc8", Bd = "#c9bd9c", Bh = "#f7f1e2";
+    box(L, 3, R - L + 1, 3, B); box(L, 3, R - L + 1, 1, Bh); box(L, 5, R - L + 1, 1, Bd);
+    if (up) { box(10, 6, 2, 4, B); box(11, 7, 1, 3, Bd); } else if (side) { box(19, 3, 3, 2, B); box(20, 5, 2, 3, Bd); }
   }
 
   // ── 외곽선 · 칠하기 ──
   const c = canvas(CW * PX, CH * PX), g = c.getContext("2d");
-  const out = grid.slice();
+  const outG = grid.slice();
   for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) {
     if (grid[Y * CW + X]) continue;
     const n = (dx, dy) => { const x = X + dx, y = Y + dy; return x >= 0 && y >= 0 && x < CW && y < CH && grid[y * CW + x]; };
-    if (n(1, 0) || n(-1, 0) || n(0, 1) || n(0, -1)) out[Y * CW + X] = OL;
+    if (n(1, 0) || n(-1, 0) || n(0, 1) || n(0, -1)) outG[Y * CW + X] = OL;
   }
-  for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) { const col = out[Y * CW + X]; if (col) { g.fillStyle = col; g.fillRect(X * PX, Y * PX, PX, PX); } }
+  for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) { const col = outG[Y * CW + X]; if (col) { g.fillStyle = col; g.fillRect(X * PX, Y * PX, PX, PX); } }
   spriteCache.set(key, c); return c;
 }
 
@@ -584,15 +619,15 @@ function ghostly(img) {                      // 유령 — 희푸르게
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
 function drawSwing(g, sx, sy, dir, k) {
-  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 10 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
+  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 12 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
   const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
   const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
   g.save();
   g.globalAlpha = .75 * (1 - k * .6); g.strokeStyle = "#ffffff"; g.lineWidth = 5; g.lineCap = "round";
-  g.beginPath(); g.arc(px, py, 22, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+  g.beginPath(); g.arc(px, py, 30, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
   g.globalAlpha = .35 * (1 - k); g.lineWidth = 9; g.strokeStyle = "#cfe9ff";
-  g.beginPath(); g.arc(px, py, 19, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
-  g.globalAlpha = 1; g.translate(px, py); g.rotate(ang);
+  g.beginPath(); g.arc(px, py, 26, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+  g.globalAlpha = 1; g.translate(px, py); g.rotate(ang); g.scale(1.4, 1.4);   // 손의 긴 목검에 맞춰 크게
   g.fillStyle = "#2a1a12"; g.fillRect(3, -3, 25, 6);
   g.fillStyle = "#d8b07a"; g.fillRect(9, -2, 18, 4); g.fillStyle = "#f0d3a2"; g.fillRect(9, -2, 18, 1);
   g.fillStyle = "#2a1a12"; g.fillRect(8, -5, 3, 10);
@@ -826,7 +861,7 @@ function drawActor(g, a, sx, sy, now) {
     g.save(); g.globalAlpha = .5; g.drawImage(spr, sx + 16 - spr.width / 2, sy + 28 - FOOT + bob); g.restore();
     return;
   }
-  ell(g, sx + 16, sy + 28, 10, 4, "rgba(40,20,5,.3)");
+  ell(g, sx + 16, sy + 28, 14, 5, "rgba(40,20,5,.3)");
   if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
   const spr = charSprite(faceOf(a), a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0);   // 휘두를 때는 손의 목검 대신 drawSwing
   g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
@@ -909,7 +944,7 @@ function buildFace() {
     const b = document.createElement("button"); b.type = "button"; b.className = "hairbtn" + (draft.hair === i ? " on" : "");
     const c = canvas(48, 48), g = c.getContext("2d"); g.imageSmoothingEnabled = false;
     const spr = charSprite({ ...draft, hair: i }, "bare", 0, 0);
-    g.drawImage(spr, 0, 0, spr.width, (OY + 15) * PX, 0, 2, 48, (OY + 15) * PX * 48 / spr.width);
+    g.drawImage(spr, 0, 0, spr.width, (OY + 17) * PX, 0, 2, 48, (OY + 17) * PX * 48 / spr.width);
     const l = document.createElement("span"); l.textContent = nm;
     b.append(c, l); b.onclick = () => { draft.hair = i; buildFace(); };
     grid.append(b);
