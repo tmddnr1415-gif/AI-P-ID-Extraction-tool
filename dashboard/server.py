@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-16.2'
+SERVER_VERSION = '2026-10-16.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2056,34 +2056,87 @@ def keep_awake_loop():
         time.sleep(60)
 
 
-# ---------------------------------------------------------------- 가상 광장 (plaza/plaza_server.py, 포트 8100) — 대시보드 서버가 함께 띄움
+# ---------------------------------------------------------------- 계장 광장 (plaza/plaza_server.py, 포트 8100) — 대시보드 서버가 함께 띄움
 # 꺼지면 30초 안에 다시 띄우고, 대시보드 서버가 끝날 때 그 PID 하나만 끔 (python 일괄 종료 안 함).
 # 이미 그 포트에서 광장이 돌고 있으면(예: 지난번에 창을 닫아 남은 것) 그대로 씀. 역할·얼굴 = data/plaza/
 PLAZA = {'proc': None, 'port': 8100, 'fails': 0}
 
 
-def plaza_alive(port):
+def plaza_info(port):
     try:
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/version', timeout=2) as r:
-            return json.loads(r.read()).get('app') == 'plaza'
+            d = json.loads(r.read())
+            return d if d.get('app') == 'plaza' else None
     except Exception:
-        return False
+        return None
+
+
+def plaza_alive(port):
+    return plaza_info(port) is not None
+
+
+def plaza_file_ver():
+    try:
+        with open(P('plaza', 'plaza_server.py'), encoding='utf-8') as f:
+            m = re.search(r"^PLAZA_VERSION = '([^']+)'", f.read(), re.M)
+        return m[1] if m else ''
+    except OSError:
+        return ''
+
+
+def plaza_retire(port):
+    """돌고 있는 옛 판 광장 서버를 끔 (업데이트 뒤 새 판으로 바꾸려고). ① /plaza/api/quit ② 그게 없는 옛 판이면
+    Windows netstat 으로 그 포트를 듣는 PID 하나를 찾아 python 인지 확인하고 그 PID 만 taskkill (python 일괄 종료 안 함)"""
+    import subprocess
+    try:
+        req = urllib.request.Request(f'http://127.0.0.1:{port}/plaza/api/quit', data=b'{}', headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=3).read()
+    except Exception:
+        if os.name == 'nt':
+            try:
+                flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+                out = subprocess.run(['netstat', '-ano', '-p', 'TCP'], capture_output=True, text=True, creationflags=flags, timeout=15).stdout
+                pids = {ln.split()[-1] for ln in out.splitlines() if 'LISTENING' in ln and re.search(rf':{port}\s', ln)}
+                for pid in pids:
+                    img = subprocess.run(['tasklist', '/FI', f'PID eq {pid}', '/FO', 'CSV', '/NH'], capture_output=True, text=True, creationflags=flags, timeout=15).stdout
+                    if 'python' in img.lower():
+                        subprocess.run(['taskkill', '/PID', pid, '/F'], capture_output=True, creationflags=flags, timeout=15)
+                        log.info('옛 판 계장 광장 서버(PID %s)를 끔', pid)
+            except Exception as e:
+                log.warning('옛 판 계장 광장 서버를 끄지 못함: %s', e)
+    for _ in range(10):
+        if not plaza_alive(port):
+            return True
+        time.sleep(0.5)
+    return False
 
 
 def plaza_loop():
     import subprocess
     port, script = PLAZA['port'], P('plaza', 'plaza_server.py')
     if not os.path.isfile(script):
-        log.info('가상 광장: plaza/plaza_server.py 가 없어 띄우지 않음')
+        log.info('계장 광장: plaza/plaza_server.py 가 없어 띄우지 않음')
         return
     while True:
         p = PLAZA['proc']
-        if (p is None or p.poll() is not None) and not plaza_alive(port):
+        info, want = plaza_info(port), plaza_file_ver()
+        if info and want and info.get('ver') != want:            # 돌고 있는 게 옛 판(업데이트 전 · 지난번에 남은 것) → 끄고 새 판으로
+            log.info('계장 광장 서버가 옛 판(%s)이라 새 판(%s)으로 바꿉니다', info.get('ver') or '-', want)
+            if p is not None and p.poll() is None:
+                plaza_stop()
+            else:
+                plaza_retire(port)
+            info = plaza_info(port)
+            if info and info.get('ver') != want:
+                log.warning('옛 판 계장 광장 서버가 꺼지지 않습니다 — PC 를 다시 켜거나 작업 관리자에서 그 python 을 끄세요')
+                time.sleep(600)
+                continue
+        if (p is None or p.poll() is not None) and not info:
             if p is not None:
                 PLAZA['fails'] += 1
-                log.warning('가상 광장 서버가 꺼졌습니다 (종료 코드 %s, 이유는 plaza.log) — 다시 띄웁니다', p.returncode)
+                log.warning('계장 광장 서버가 꺼졌습니다 (종료 코드 %s, 이유는 plaza.log) — 다시 띄웁니다', p.returncode)
             if PLAZA['fails'] >= 3:                              # 포트를 다른 프로그램이 쓰는 등 → 10분 쉬고 다시
-                log.warning('가상 광장 서버가 계속 꺼집니다 (포트 %d 를 다른 프로그램이 쓰는지 확인) — 10분 뒤 다시 시도', port)
+                log.warning('계장 광장 서버가 계속 꺼집니다 (포트 %d 를 다른 프로그램이 쓰는지 확인) — 10분 뒤 다시 시도', port)
                 PLAZA['fails'] = 0
                 time.sleep(600)
                 continue
@@ -2102,7 +2155,7 @@ def plaza_loop():
             PLAZA['proc'] = subprocess.Popen(args, cwd=P('plaza'), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), env=env,
                                              stdin=subprocess.DEVNULL, stdout=errf, stderr=errf)
             errf.close()
-            log.info('가상 광장 서버 시작: 포트 %d (PID %d) · 기록 plaza.log', port, PLAZA['proc'].pid)
+            log.info('계장 광장 서버 시작: 포트 %d (PID %d) · 기록 plaza.log', port, PLAZA['proc'].pid)
         elif p is not None and p.poll() is None:
             PLAZA['fails'] = 0
         time.sleep(30)
@@ -2130,7 +2183,7 @@ def main():
     ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
     ap.add_argument('--allow-sleep', action='store_true', help='서버 PC 절전 방지를 끔 (기본: 서버가 켜져 있는 동안 절전 모드 막음)')
     ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
-    ap.add_argument('--plaza-port', type=int, default=8100, help='가상 광장 서버 포트 (0 = 띄우지 않음)')
+    ap.add_argument('--plaza-port', type=int, default=8100, help='계장 광장 서버 포트 (0 = 띄우지 않음)')
     a = ap.parse_args()
     PLAZA['port'] = a.plaza_port
 

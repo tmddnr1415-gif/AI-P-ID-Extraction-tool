@@ -17,6 +17,7 @@
   POST /plaza/api/role         {id, target, role}    (운영자만)
   GET  /plaza/api/roles?id=    (운영자만)
   POST /plaza/api/leave        {id}                  (창을 닫을 때 sendBeacon — text/plain)
+  POST /plaza/api/status       {id, text}            (대시보드에서 지금 보는 화면 — 'P&ID 분석 중...' 등, 머리 위에 표시 · 24자)
   GET  /plaza/api/stream?id=   SSE — 바뀔 때마다 광장 전체
   GET  /version                {"ok": true} (살아 있나 — 다른 출처 허용)
 
@@ -43,11 +44,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+PLAZA_VERSION = '2026-10-16.3'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
 MAP_W, MAP_H = 56, 32        # plaza.js 의 지도 크기와 같다
-NAME_MAX, SAY_MAX, LOG_KEEP = 20, 80, 60
+NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
@@ -192,6 +194,7 @@ def snapshot(now: float | None = None) -> dict:
                 "say": p["say"] if live else "", "say_seq": p["say_seq"], "say_left": round(BUBBLE_S - age, 2) if live else 0,
                 "act_seq": p["act_seq"], "act_age": round(now - p["act_at"], 2),
                 "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
+                "status": p.get("status", ""),
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
@@ -228,6 +231,7 @@ def api_join(body: dict) -> dict:
             "x": min(max(x, 0), MAP_W - 1), "y": min(max(y, 0), MAP_H - 1), "dir": 0,
             "say": "", "say_at": 0.0, "say_seq": 0, "seen": now, "streams": 0,
             "act_seq": 0, "act_at": 0.0, "hit_seq": 0, "hit_at": 0.0, "hit_by": "",
+            "status": clean(body.get("status"), STATUS_MAX),
         }
         log_system(f"{name} 님이 광장에 들어왔습니다.", now)
         STATE["ver"] += 1
@@ -243,6 +247,12 @@ def api_move(body: dict) -> dict:
             raise ApiError(400, "칸 좌표는 정수입니다.")
         x, y = min(max(x, 0), MAP_W - 1), min(max(y, 0), MAP_H - 1)
         p["seen"] = time.time()
+        # 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 선 칸으로는 못 감 → 제자리 칸을 돌려줌 (화면이 되돌아감)
+        if (x, y) != (p["x"], p["y"]) and any(q is not p and (q["x"], q["y"]) == (x, y) for q in STATE["players"].values()):
+            if d % 4 != p["dir"]:
+                p["dir"] = d % 4
+                STATE["ver"] += 1
+            return {"ok": False, "blocked": True, "x": p["x"], "y": p["y"]}
         if (x, y, d % 4) != (p["x"], p["y"], p["dir"]):
             p["x"], p["y"], p["dir"] = x, y, d % 4
             STATE["ver"] += 1
@@ -323,6 +333,17 @@ def api_role(body: dict) -> dict:
     return {"ok": True, "roles": roles()}
 
 
+def api_status(body: dict) -> dict:
+    text = clean(body.get("text"), STATUS_MAX)
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = time.time()
+        if p.get("status", "") != text:
+            p["status"] = text
+            STATE["ver"] += 1
+    return {"ok": True, "status": text}
+
+
 def api_leave(body: dict) -> dict:
     now = time.time()
     with LOCK:
@@ -335,7 +356,7 @@ def api_leave(body: dict) -> dict:
 
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
-         "/plaza/api/leave": api_leave}
+         "/plaza/api/leave": api_leave, "/plaza/api/status": api_status}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8")}
@@ -406,7 +427,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         q = parse_qs(url.query)
         if url.path == "/version":
-            return self._json(200, {"ok": True, "app": "plaza"}, {"Access-Control-Allow-Origin": "*"})
+            return self._json(200, {"ok": True, "app": "plaza", "ver": PLAZA_VERSION}, {"Access-Control-Allow-Origin": "*"})
         if url.path in FILES:
             name, ctype = FILES[url.path]
             try:
@@ -425,6 +446,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self._gate():
+            return
+        if urlparse(self.path).path == "/plaza/api/quit":       # 대시보드 서버가 새 판으로 바꿀 때 — 이 PC(루프백)에서만
+            if not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback:
+                return self._json(403, {"detail": "이 PC 에서만 됩니다."})
+            self._json(200, {"ok": True})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
             return
         fn = POSTS.get(urlparse(self.path).path)
         n = int(self.headers.get("Content-Length") or 0)
@@ -496,7 +523,7 @@ def main(argv=None) -> None:
     try:                                           # 한글 Windows(cp949) 출력에서 '—' 같은 글자로 멈추지 않게 (2026-10-16 실제로 겪음: 시작하자마자 꺼짐)
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        print(f"가상 광장 - http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
+        print(f"계장 광장 - http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
     except Exception:
         pass
     try:

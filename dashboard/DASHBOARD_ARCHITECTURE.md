@@ -659,3 +659,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 고침: ① plaza_server.py — stdout 을 utf-8(errors=replace)로 바꾸고 print 실패해도 계속, '—' 대신 '-'. ② server.py `plaza_loop` — 광장 서버를 `PYTHONIOENCODING=utf-8` 로 띄우고, 광장 서버의 출력·오류를 운영 폴더 `plaza.log` 에 남김(2MB 넘으면 plaza.log.old) → 다음에 꺼지면 이유가 거기 있음.
 - **확인한 것**: `py_compile`, `plaza/selftest.py` 모두 통과. 고치기 전: `PYTHONIOENCODING=cp949` 로 실행 → roles.json 만 생기고 종료(UnicodeEncodeError). 고친 뒤: 같은 조건에서 /version 응답, 대시보드 서버(cp949 환경)가 광장 서버를 띄우고 plaza.log 에 시작 기록.
 - **회사에서 확인할 것**: 적용 → 대시보드 서버 다시 켬 → 홈 F5 → 광장 보임. 안 되면 운영 폴더의 `plaza.log` 내용을 보내 줄 것.
+
+### 2026-10-16 (3) — 계장 광장: 이름 · 다른 메뉴에서도 캐릭터 유지 · P&ID/LOGIC 분석 중 표시 · 겹치지 않음 · Space 꾹 (APP_VERSION 2026-10-16.3 / SERVER_VERSION 2026-10-16.3 · PLAZA_VERSION 2026-10-16.3)
+> **서버 재시작 필요** (server.py · plaza/plaza_server.py). 돌고 있던 옛 판 광장 서버는 대시보드 서버가 알아서 바꿔 띄움(아래).
+- 이름 '가상 광장' → **'계장 광장'** (홈 카드 · 안내 · iframe 제목 · plaza.html 제목 · 로그).
+- **다른 메뉴로 가도 캐릭터 유지**: iframe 을 한 번만 만들고 계속 둠 — 홈이 아니면 `#plazaHost.away`(화면 밖 · 보이지 않음 · 접속 그대로). `render()` 첫머리에서 어느 메뉴든 `plazaOn()` (처음부터 다른 메뉴로 들어와도 광장에 들어감). 로그아웃 · 다른 사람 로그인 때만 `plazaOff` (나감).
+- **P&ID 분석 · LOGIC 분석 메뉴에 있으면** 광장의 그 캐릭터 이름 아래 '(P&ID 분석 중...)' · '(LOGIC 분석 중...)' — 대시보드 `plazaStatus` 가 iframe 에 postMessage({type:'plaza-status'}) → plaza.js `setStatus` → 서버 `POST /plaza/api/status` (24자, 들어올 때 join 에도 실림) → 모두의 화면(머리 위 글자 · '광장에 있는 사람' 목록). 메시지는 부모 창에서 온 것만 받음. 글자로만 그림(§5 규칙 1).
+- **캐릭터끼리 겹치지 않음**: 서버 `api_move` 가 다른 사람이 선 칸으로 가는 걸 막고 `{blocked, x, y}` 를 돌려줌 → 화면이 제자리로 되돌림. 화면도 미리 막음(`occupied` — 남의 서버 칸 · 가고 있는 칸). 들어오자마자 남과 같은 칸이면 가장 가까운 빈 칸으로 비켜섬(`freeNear`).
+- **Space 꾹 누르면 계속 휘두름**: keydown 에서 `S.atkHeld`, keyup · 창 벗어남에서 풂, 그리는 동안 0.32초마다 `attack()` (서버는 그대로 0.3초에 한 번).
+- **옛 판 광장 서버 바꿔 띄우기**: plaza_server.py 에 `PLAZA_VERSION`, `/version` 에 `ver`, `POST /plaza/api/quit`(이 PC·루프백에서만 → 스스로 끔). server.py `plaza_loop` 가 돌고 있는 광장의 ver 가 파일과 다르면(업데이트 전 · 서버 창을 닫아 남은 것) 끄고 새로 띄움 — 내가 띄운 것이면 그 PID 를 terminate, 아니면 quit 요청, quit 이 없는 16.2 판이면 Windows `netstat -ano` 로 8100 을 듣는 PID 하나를 찾아 `tasklist` 로 python 인지 확인 후 그 PID 만 `taskkill` (python 일괄 종료 안 함). 그래도 안 꺼지면 로그에 안내하고 10분 뒤 다시.
+- **확인한 것**: `node --check`(dashboard · plaza.js), `py_compile`, `plaza/selftest.py` 모두 통과(+ 겹치지 않음 · 상태 24자 · 판 번호). 옛 판(ver 'old') 광장을 8100 에 띄워 둔 채 대시보드 서버 시작 → '옛 판(old)이라 새 판으로 바꿉니다' → ver 2026-10-16.3. 브라우저 두 사람: 홍길동이 수행 → P&ID → LOGIC → 게시판 → 홈으로 가는 동안 같은 iframe(새로 안 만듦), 김철수 화면 '홍길동 (P&ID 분석 중...)' → '(LOGIC 분석 중...)' → 표시 없음, 접속 2명 그대로. 김철수를 홍길동 옆 칸에 세우고 홍길동이 그쪽으로 → 못 감(화면 · 서버 둘 다 blocked). Space 1.7초 꾹 → 6번 휘두름, 떼면 멈춤. 스크립트 오류 없음. (netstat·taskkill 경로는 Windows 에서만 — 시험 환경에서는 quit 경로만 확인.)
+- **회사에서 확인할 것**: 적용 → 대시보드 서버 다시 켬(server.log 에 '옛 판 … 새 판으로 바꿉니다') → 홈 F5. 그래도 옛 모습이면 plaza.log · server.log 를 보내 줄 것.

@@ -475,14 +475,22 @@ function drawSwing(g, sx, sy, dir, k) {
 
 // ── 상태 ───────────────────────────────────────────────────────────────
 const S = { id: null, name: "", look: 0, face: null, role: "member", me: null, others: new Map(), logSeq: 0,
-  typing: false, keys: new Set(), panel: false };
+  typing: false, keys: new Set(), panel: false, status: "", atkHeld: false };
 const cv = $("#pz-map"), ctx = cv.getContext("2d");
 
 function newActor(p) { return { id: p.id, name: p.name, face: p.face || null, role: p.role || "member", tx: p.x, ty: p.y, x: p.x * T, y: p.y * T,
   dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0,
-  actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null }; }
+  actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null, status: p.status || "" }; }
 
 function walkable(x, y) { return inside(x, y) && !solid[at(x, y)]; }
+// 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 서 있거나(서버 칸) 가고 있는 칸은 막힘 — 서버도 같은 규칙으로 막음
+function occupied(x, y) { for (const a of S.others.values()) if ((a.gx === x && a.gy === y) || (a.tx === x && a.ty === y)) return true; return false; }
+function freeNear(x, y) {                   // 들어오자마자 남과 같은 칸이면 가장 가까운 빈 칸으로
+  for (let r = 1; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const nx = x + dx, ny = y + dy; if (walkable(nx, ny) && !occupied(nx, ny)) return [nx, ny]; }
+  return null;
+}
 function spawn() {                          // 이름마다 늘 같은 자리에서 시작한다 (흙마당 가운데)
   const r = rng(hash(S.name || "x"));
   for (let i = 0; i < 200; i++) { const x = 22 + Math.floor(r() * 12), y = 13 + Math.floor(r() * 8); if (walkable(x, y) && ground[at(x, y)] !== LAWN) return [x, y]; }
@@ -502,7 +510,7 @@ async function join() {
   if (joining) return joining;
   joining = (async () => {
     const [sx, sy] = S.me ? [S.me.tx, S.me.ty] : spawn();
-    const res = await post("/plaza/api/join", { name: S.name, look: S.look, face: S.face || storedFace(), x: sx, y: sy });
+    const res = await post("/plaza/api/join", { name: S.name, look: S.look, face: S.face || storedFace(), x: sx, y: sy, status: S.status });
     S.id = res.id; S.face = res.face || S.face; S.role = res.role || "member";
     if (!S.me) S.me = newActor({ id: res.id, name: res.name, face: S.face, role: S.role, x: sx, y: sy, dir: 0 });
     S.me.id = res.id; S.me.face = S.face; S.me.role = S.role;
@@ -516,7 +524,9 @@ async function join() {
 }
 function sendMove() {
   if (!S.id || !S.me) return;
-  post("/plaza/api/move", { id: S.id, x: S.me.tx, y: S.me.ty, dir: S.me.dir }).catch(e => { if (e.status === 404) join().catch(() => {}); });
+  post("/plaza/api/move", { id: S.id, x: S.me.tx, y: S.me.ty, dir: S.me.dir })
+    .then(r => { if (r && r.blocked && S.me) { S.me.tx = r.x; S.me.ty = r.y; S.me.x = r.x * T; S.me.y = r.y * T; S.me.moving = false; } })   // 남이 먼저 선 칸 → 되돌아감
+    .catch(e => { if (e.status === 404) join().catch(() => {}); });
 }
 setInterval(sendMove, 15000);
 window.addEventListener("pagehide", () => { if (S.id) navigator.sendBeacon("/plaza/api/leave", JSON.stringify({ id: S.id })); });
@@ -534,7 +544,7 @@ function applySnapshot(s) {
     }
     let a = S.others.get(p.id);
     if (!a) { a = newActor(p); S.others.set(p.id, a); }
-    a.name = p.name; a.face = p.face || null; a.role = p.role || "member";
+    a.name = p.name; a.face = p.face || null; a.role = p.role || "member"; a.status = p.status || "";
     a.gx = p.x; a.gy = p.y;
     if (Math.abs(p.x - a.tx) + Math.abs(p.y - a.ty) > 3) { a.tx = p.x; a.ty = p.y; a.x = p.x * T; a.y = p.y * T; a.moving = false; }
     if (!a.moving && a.tx === a.gx && a.ty === a.gy) a.dir = p.dir;
@@ -543,6 +553,9 @@ function applySnapshot(s) {
     if (p.say && p.say_seq !== a.sayseq) { a.sayseq = p.say_seq; a.bubble = { text: p.say, until: performance.now() + p.say_left * 1000 }; }
   }
   for (const id of [...S.others.keys()]) if (!seen.has(id)) S.others.delete(id);
+  if (S.me && !S.me.moving && occupied(S.me.tx, S.me.ty)) {   // 남과 같은 칸 → 가장 가까운 빈 칸으로 비켜섬
+    const f = freeNear(S.me.tx, S.me.ty); if (f) { S.me.tx = f[0]; S.me.ty = f[1]; S.me.x = f[0] * T; S.me.y = f[1] * T; sendMove(); }
+  }
   S.online = s.players;
   $("#pz-online").textContent = `접속 ${s.online}명`;
   const who = $("#pz-who"); who.textContent = "";
@@ -551,7 +564,7 @@ function applySnapshot(s) {
   for (const p of [...s.players].sort((u, v) => (order[u.role] ?? 2) - (order[v.role] ?? 2))) {
     const d = document.createElement("div");
     if (ROLE_LABEL[p.role]) { const t = document.createElement("span"); t.className = "role " + p.role; t.textContent = ROLE_LABEL[p.role]; d.append(t); }
-    d.append(document.createTextNode(p.name + (p.id === S.id ? " (나)" : "")));
+    d.append(document.createTextNode(p.name + (p.id === S.id ? " (나)" : "") + (p.status ? ` (${p.status})` : "")));
     if (p.id === S.id) d.classList.add("me");
     who.append(d);
   }
@@ -585,7 +598,7 @@ function stepActor(a, now, mine) {
     const d = heldDir();
     if (d != null && !S.typing && !S.panel) {
       const [dx, dy] = DIRV[d]; const changed = a.dir !== d; a.dir = d;
-      if (walkable(a.tx + dx, a.ty + dy)) { a.from = [a.tx, a.ty]; a.tx += dx; a.ty += dy; a.t0 = now; a.moving = true; sendMove(); }
+      if (walkable(a.tx + dx, a.ty + dy) && !occupied(a.tx + dx, a.ty + dy)) { a.from = [a.tx, a.ty]; a.tx += dx; a.ty += dy; a.t0 = now; a.moving = true; sendMove(); }
       else if (changed) sendMove();
     }
   }
@@ -632,6 +645,19 @@ function nameTag(g, cx, y, a, mine) {       // [그룹장] 이름 — 칭호는 
   g.strokeText(a.name, x0 + tw, y); g.fillStyle = mine ? "#ffe066" : "#ffffff"; g.fillText(a.name, x0 + tw, y);
 }
 
+function statusTag(g, cx, y, text) {       // 대시보드에서 보는 화면 — '(P&ID 분석 중...)' (글자로만 그림)
+  g.font = `bold 11px ${FONT}`; g.textBaseline = "top"; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "#111";
+  const t = `(${text})`; g.strokeText(t, cx, y); g.fillStyle = "#8fe3ff"; g.fillText(t, cx, y); g.textAlign = "left";
+}
+// 대시보드(부모 창)가 지금 보는 화면을 알려 줌 → 서버에 남겨 모두에게 보임
+function setStatus(text) {
+  S.status = String(text || "").replace(/\s+/g, " ").trim().slice(0, 24);
+  if (S.id) post("/plaza/api/status", { id: S.id, text: S.status }).catch(e => { if (e.status === 404) join().catch(() => {}); });
+}
+window.addEventListener("message", ev => {
+  if (ev.source !== window.parent || !ev.data || ev.data.type !== "plaza-status") return;
+  setStatus(ev.data.text);
+});
 function resize() {
   const dpr = window.devicePixelRatio || 1, r = cv.getBoundingClientRect();
   cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
@@ -659,6 +685,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   if (S.panel) drawPreview(now);
   if (!S.me) return;
+  if (S.atkHeld && !S.typing && !S.panel) attack();   // Space 를 누르고 있는 동안 계속 휘두름
   stepActor(S.me, now, true);
   for (const a of S.others.values()) stepActor(a, now, false);
   const vw = cv.clientWidth, vh = cv.clientHeight;
@@ -680,6 +707,7 @@ function frame(now) {
   for (const a of actors) {                 // 이름 · 말풍선은 맨 위
     const sx = Math.round(a.x - cx) + 16, sy = Math.round(a.y - cy);
     nameTag(ctx, sx, sy + 32, a, a === S.me);
+    if (a.status) statusTag(ctx, sx, sy + 47, a.status);
     if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - 46 - 6, a.name, a.bubble.text));
     else a.bubble = null;
   }
@@ -809,9 +837,9 @@ $("#pz-role-add").onclick = () => { const n = $("#pz-role-name").value.replace(/
 // ── 자판 · 대화 ─────────────────────────────────────────────────────────
 const input = $("#pz-input"), chatBox = document.querySelector(".pz-chat");
 function setTyping(on) { S.typing = on; chatBox.classList.toggle("typing", on); if (on) { S.keys.clear(); input.focus(); } else { input.blur(); cv.focus(); } }
-function attack() {                         // 스페이스 — 앞을 휘두른다 (맞은 사람은 서버가 가린다)
+function attack() {                         // 스페이스 — 앞을 휘두른다 (맞은 사람은 서버가 가린다) · 꾹 누르면 0.32초마다 (서버는 0.3초에 한 번)
   const now = performance.now();
-  if (!S.me || !S.id || (S.me.attack && now - S.me.attack < ATK_MS + 20)) return;
+  if (!S.me || !S.id || (S.me.attack && now - S.me.attack < ATK_MS + 40)) return;
   S.me.attack = now;
   post("/plaza/api/attack", { id: S.id }).catch(e => { if (e.status === 404) join().catch(() => {}); });
 }
@@ -834,14 +862,14 @@ document.addEventListener("keydown", ev => {
   }
   if (ev.key === "Escape" && S.typing) { input.value = ""; setTyping(false); return; }
   if (S.typing) return;
-  if (ev.key === " " || ev.code === "Space") { ev.preventDefault(); if (!ev.repeat) attack(); return; }
+  if (ev.key === " " || ev.code === "Space" || ev.keyCode === 32) { ev.preventDefault(); S.atkHeld = true; if (!ev.repeat) attack(); return; }   // 꾹 누르면 계속 (frame 에서)
 });
-document.addEventListener("keyup", ev => { const a = arrowOf(ev); if (a) S.keys.delete(a); });
+document.addEventListener("keyup", ev => { const a = arrowOf(ev); if (a) S.keys.delete(a); if (ev.key === " " || ev.code === "Space" || ev.keyCode === 32) S.atkHeld = false; });
 input.addEventListener("focus", () => { S.typing = true; chatBox.classList.add("typing"); S.keys.clear(); });
 input.addEventListener("blur", () => { S.typing = false; chatBox.classList.remove("typing"); });
 cv.addEventListener("mousedown", () => { if (S.typing) setTyping(false); cv.focus(); });
 function focusHint() { $("#pz-focus").hidden = !S.id || S.panel || document.hasFocus(); }
-window.addEventListener("focus", focusHint); window.addEventListener("blur", () => { S.keys.clear(); focusHint(); });
+window.addEventListener("focus", focusHint); window.addEventListener("blur", () => { S.keys.clear(); S.atkHeld = false; focusHint(); });
 setInterval(focusHint, 1000);
 
 // ── 이름 ───────────────────────────────────────────────────────────────

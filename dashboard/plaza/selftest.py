@@ -53,10 +53,21 @@ try:
     ok.append(("역할 지정 — 부서원은 못 함", call("/plaza/api/role", {"id": a["id"], "target": "김철수", "role": "leader"})[0] == 403))
     ok.append(("역할 지정 — 운영자는 됨", call("/plaza/api/role", {"id": b["id"], "target": "김철수", "role": "unit"})[0] == 200))
     ok.append(("화면 파일", urllib.request.urlopen(base + "/plaza?embed=1&user=x").status == 200))
+    # 2026-10-16 대시보드: 겹치지 않음 · 보는 화면 표시 · 판 · 끄기
+    _, c = call("/plaza/api/join", {"name": "박민수", "x": 10, "y": 10})
+    call("/plaza/api/move", {"id": c["id"], "x": 10, "y": 10, "dir": 0})
+    _, mv = call("/plaza/api/move", {"id": b["id"], "x": 10, "y": 10, "dir": 0})
+    ok.append(("겹치지 않음 — 남이 선 칸으로 못 감", mv.get("blocked") is True))
+    ok.append(("보는 화면 표시 — 24자", call("/plaza/api/status", {"id": c["id"], "text": "P&ID 분석 중..." + "x" * 40})[1]["status"] == ("P&ID 분석 중..." + "x" * 40)[:24]))
+    ok.append(("판 번호", bool(call("/version")[1].get("ver"))))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)
     print("모두 통과" if all(g for _, g in ok) else "실패가 있습니다")
     sys.exit(0 if all(g for _, g in ok) else 1)
 finally:
-    srv.terminate()
+    try:
+        call("/plaza/api/quit", {})                 # 이 PC 에서 끄기
+        srv.wait(5)
+    except Exception:
+        srv.terminate()
