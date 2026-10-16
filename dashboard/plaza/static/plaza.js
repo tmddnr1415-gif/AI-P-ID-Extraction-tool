@@ -700,6 +700,7 @@ function frame(now) {
   let cx = Math.round(S.me.x + T / 2 - vw / 2), cy = Math.round(S.me.y + T / 2 - vh / 2);
   cx = W * T <= vw ? Math.round((W * T - vw) / 2) : Math.max(-FRAME, Math.min(W * T - vw + FRAME, cx));
   cy = H * T <= vh ? Math.round((H * T - vh) / 2) : Math.max(-FRAME, Math.min(H * T - vh + FRAME, cy));
+  S.cam = [cx, cy];                          // 캐릭터 누르기(actorAt)에 씀
   ctx.fillStyle = "#3a2414"; ctx.fillRect(0, 0, vw, vh);
   ctx.drawImage(groundImg, -cx, -cy);
   const actors = [S.me, ...S.others.values()];
@@ -876,6 +877,43 @@ document.addEventListener("keyup", ev => { const a = arrowOf(ev); if (a) S.keys.
 input.addEventListener("focus", () => { S.typing = true; chatBox.classList.add("typing"); S.keys.clear(); });
 input.addEventListener("blur", () => { S.typing = false; chatBox.classList.remove("typing"); });
 cv.addEventListener("mousedown", () => { if (S.typing) setTyping(false); cv.focus(); });
+
+// ── 캐릭터 누르기 → [캐릭터 정보] (2026-10-16 대시보드) ─────────────────────
+// 대시보드 카드 안이면 대시보드(부모 창)에 이름을 알려 그 부서원 정보 창(사진 · 전화 · 담당 업무 · PJT · 업무 요약)을 연다.
+// 이름 · 상태는 글자로만 넣는다 (textContent — README §5 규칙 1)
+function actorAt(px, py) {
+  if (!S.cam || !S.me) return null;
+  const [cx, cy] = S.cam; let best = null, bd = 1e9;
+  for (const a of [S.me, ...S.others.values()]) {
+    const sx = a.x - cx, sy = a.y - cy;                       // 몸 + 이름표 자리
+    if (px >= sx - 2 && px <= sx + T + 2 && py >= sy - 26 && py <= sy + 48) {
+      const d = Math.hypot(px - sx - T / 2, py - sy - 10); if (d < bd) { bd = d; best = a; }
+    }
+  }
+  return best;
+}
+const ctxMenu = document.createElement("div"); ctxMenu.className = "pz-ctx"; ctxMenu.hidden = true; $("#pz").append(ctxMenu);
+function hideCtx() { ctxMenu.hidden = true; }
+function showCtx(a, x, y) {
+  ctxMenu.textContent = "";
+  const t = document.createElement("b");
+  t.textContent = (ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "") + a.name + (a === S.me ? " (나)" : "");
+  ctxMenu.append(t);
+  if (a.status) { const st = document.createElement("small"); st.textContent = a.status; ctxMenu.append(st); }
+  const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "캐릭터 정보";
+  btn.onclick = () => { hideCtx(); cv.focus();
+    if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");
+    else { const n = document.createElement("small"); n.textContent = "대시보드 안에서 열면 부서원 정보를 볼 수 있습니다"; ctxMenu.textContent = ""; ctxMenu.append(n); ctxMenu.hidden = false; setTimeout(hideCtx, 2500); } };
+  ctxMenu.append(btn); ctxMenu.hidden = false;
+  const box = $("#pz").getBoundingClientRect(), w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
+  ctxMenu.style.left = Math.max(6, Math.min(x + 8, box.width - w - 6)) + "px";
+  ctxMenu.style.top = Math.max(6, Math.min(y + 8, box.height - h - 6)) + "px";
+}
+cv.addEventListener("click", ev => {
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, a = actorAt(x, y);
+  if (a) showCtx(a, x, y); else hideCtx();
+});
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") hideCtx(); }, true);
 function focusHint() { $("#pz-focus").hidden = !S.id || S.panel || document.hasFocus(); }
 window.addEventListener("focus", focusHint); window.addEventListener("blur", () => { S.keys.clear(); S.atkHeld = false; focusHint(); });
 setInterval(focusHint, 1000);

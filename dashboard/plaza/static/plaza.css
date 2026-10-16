@@ -88,3 +88,12 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .rrow span { flex: 1; } .rrow.add { padding: 6px 12px 0; }
 .rrow input, .rrow select { font: inherit; font-size: 12px; padding: 3px 5px; border: 1px solid #8c5a2c; background: #fffaf0; }
 .rrow input { flex: 1; min-width: 0; }
+
+/* 캐릭터 누르기 → [캐릭터 정보] (2026-10-16 대시보드) */
+.pz-ctx { position: absolute; z-index: 20; min-width: 130px; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px;
+  background: rgba(40, 24, 10, .94); border: 2px solid #c9a34a; border-radius: 6px; color: #f3ead2; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+.pz-ctx[hidden] { display: none; }
+.pz-ctx b { color: #ffe066; white-space: nowrap; }
+.pz-ctx small { color: #8fe3ff; }
+.pz-ctx button { margin-top: 2px; padding: 4px 8px; border: 1px solid #c9a34a; border-radius: 4px; background: #6b3f17; color: #fff; font: inherit; cursor: pointer; }
+.pz-ctx button:hover { filter: brightness(1.2); }
