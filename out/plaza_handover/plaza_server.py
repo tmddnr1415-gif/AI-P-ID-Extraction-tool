@@ -378,7 +378,8 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         q = parse_qs(url.query)
         if url.path == "/version":
-            return self._json(200, {"ok": True, "app": "plaza"}, {"Access-Control-Allow-Origin": "*"})
+            return self._json(200, {"ok": True, "app": "plaza", "update": update_info()},
+                              {"Access-Control-Allow-Origin": "*"})
         if url.path in FILES:
             name, ctype = FILES[url.path]
             try:
@@ -450,18 +451,45 @@ class Handler(BaseHTTPRequestHandler):
                     p["seen"] = time.time()
 
 
+def update_info():
+    """이 폴더에 깔린 업데이트 딱지 (`_update.json` — 업데이트 zip 이 적는다).  없으면 None."""
+    try:
+        return json.loads((HERE / "_update.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def open_log(path: Path):
+    """서버 글을 파일로.  그 파일을 누가 쥐고 있으면(Windows) 시각 붙은 새 이름으로 — 서버는 그래도 뜬다."""
+    import sys
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for cand in (path, path.with_name(f"{path.stem}_{time.strftime('%Y%m%d_%H%M%S')}{path.suffix}")):
+        try:
+            f = open(cand, "a", encoding="utf-8", buffering=1, errors="replace")
+        except OSError:
+            continue
+        sys.stdout = sys.stderr = f
+        return cand
+    return None
+
+
 def main(argv=None) -> None:
     global DATA
     ap = argparse.ArgumentParser(description="가상 광장 서버 (표준 라이브러리만)")
     ap.add_argument("--port", type=int, default=8100)
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--data", default=str(HERE / "plaza_data"), help="roles.json · looks.json 을 둘 폴더")
+    ap.add_argument("--log", default="", help="서버 글을 이 파일에 (창에 쓰지 않는다 — 창을 누르면 서버가 멈출 수 있다)")
     a = ap.parse_args(argv)
+    if a.log:
+        open_log(Path(a.log))
     DATA = Path(a.data).resolve()
     roles()                                        # 역할 파일 빈 틀을 만들어 둔다
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     srv.daemon_threads = True
-    print(f"가상 광장 — http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
+    up = update_info() or {}
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} 가상 광장 {up.get('name', '')} — "
+          f"http://localhost:{a.port}/plaza?embed=1&user=이름   (데이터 {DATA})", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
