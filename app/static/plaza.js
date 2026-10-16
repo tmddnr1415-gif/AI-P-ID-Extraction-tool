@@ -569,8 +569,11 @@ function applySnapshot(s) {
 
 // ── 이동 ───────────────────────────────────────────────────────────────
 const DIRV = { 0: [0, 1], 1: [0, -1], 2: [-1, 0], 3: [1, 0] };
-const KEYDIR = { ArrowDown: 0, ArrowUp: 1, ArrowLeft: 2, ArrowRight: 3, s: 0, w: 1, a: 2, d: 3, S: 0, W: 1, A: 2, D: 3,
-  "ㄴ": 0, "ㅈ": 1, "ㅁ": 2, "ㅇ": 3 };
+// 이동은 키보드 방향키(←↑→↓)만.  key 대신 code 를 먼저 본다 — 한글 입력기가 켜져 있으면 key 가
+// "Process"/"Unidentified" 로 오는 PC 가 있다.  "Up"/"Down" … 은 옛 브라우저가 쓰는 이름.
+const KEYDIR = { ArrowDown: 0, ArrowUp: 1, ArrowLeft: 2, ArrowRight: 3, Down: 0, Up: 1, Left: 2, Right: 3 };
+const KEYCODE = { 40: "ArrowDown", 38: "ArrowUp", 37: "ArrowLeft", 39: "ArrowRight" };
+function arrowOf(ev) { return [ev.code, ev.key, KEYCODE[ev.keyCode]].find(k => k && k in KEYDIR) || null; }
 function heldDir() { const ks = [...S.keys]; return ks.length ? KEYDIR[ks[ks.length - 1]] : null; }
 function stepActor(a, now, mine) {
   if (a.moving) {
@@ -820,6 +823,8 @@ async function say(text) {
 }
 document.addEventListener("keydown", ev => {
   if (!$("#pz-name").hidden) return;
+  const arrow = !S.typing && !S.panel ? arrowOf(ev) : null;
+  if (arrow) { ev.preventDefault(); S.keys.delete(arrow); S.keys.add(arrow); return; }   // 입력기가 켜져 있어도 걷는다
   if (ev.isComposing || ev.keyCode === 229) return;          // 한글 조합 중
   if (S.panel) { if (ev.key === "Escape") { S.panel === "face" ? closeFace() : closeRoles(); } return; }
   if (ev.key === "Enter") {
@@ -830,9 +835,8 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape" && S.typing) { input.value = ""; setTyping(false); return; }
   if (S.typing) return;
   if (ev.key === " " || ev.code === "Space") { ev.preventDefault(); if (!ev.repeat) attack(); return; }
-  if (ev.key in KEYDIR) { ev.preventDefault(); S.keys.delete(ev.key); S.keys.add(ev.key); }
 });
-document.addEventListener("keyup", ev => { S.keys.delete(ev.key); if (ev.key.length === 1) { S.keys.delete(ev.key.toLowerCase()); S.keys.delete(ev.key.toUpperCase()); } });
+document.addEventListener("keyup", ev => { const a = arrowOf(ev); if (a) S.keys.delete(a); });
 input.addEventListener("focus", () => { S.typing = true; chatBox.classList.add("typing"); S.keys.clear(); });
 input.addEventListener("blur", () => { S.typing = false; chatBox.classList.remove("typing"); });
 cv.addEventListener("mousedown", () => { if (S.typing) setTyping(false); cv.focus(); });

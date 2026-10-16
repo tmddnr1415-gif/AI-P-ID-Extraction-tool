@@ -142,3 +142,11 @@ def test_roles_come_from_the_server_and_only_operators_change_them(client):
     assert plaza.role_of("이영희") == "leader"
     js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
     assert "왕관" in js and "사모" in js and "노비" in js and "부여성 남쪽" in js
+
+
+def test_movement_is_arrow_keys_only():
+    js = (ROOT / "app/static/plaza.js").read_text(encoding="utf-8")
+    m = re.search(r"const KEYDIR = \{(.*?)\};", js, re.S)
+    keys = set(re.findall(r"(\w+):", m.group(1)))
+    assert keys == {"ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Down", "Up", "Left", "Right"}
+    assert "arrowOf(ev)" in js                              # code · keyCode 도 본다 (입력기 켜진 PC)

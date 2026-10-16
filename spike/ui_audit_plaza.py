@@ -26,10 +26,12 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = Path(sys.argv[1]).resolve()
+STDLIB = "--stdlib" in sys.argv          # 인계용 표준 라이브러리 서버(out/plaza_handover/plaza_server.py)로 돌린다
 OUT.mkdir(parents=True, exist_ok=True)
 data = Path(tempfile.mkdtemp(prefix="plaza_")) / "data"
 data.mkdir(parents=True)
 (data / "plaza").mkdir()
+PZ = data / "plaza"
 (data / "plaza" / "roles.json").write_text(json.dumps({                     # 시험용 역할
     "group_leader": ["이영희"], "unit_leaders": ["김철수"], "operators": ["홍길동"]}, ensure_ascii=False), encoding="utf-8")
 (data / "plaza" / "looks.json").write_text(json.dumps({                     # 박민수는 안경 · 덥수룩 수염
@@ -38,9 +40,10 @@ data.mkdir(parents=True)
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 env = dict(os.environ, PID_DATA_DIR=str(data), PYTHONPATH=str(ROOT), PID_PAGE_WARM="0",
            PID_ROWS_WARM="0", PID_LOGIC_WARM="0")
-srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
-                        "--port", str(port)], cwd=str(ROOT), env=env,
-                       stdout=open(OUT / "server.log", "w"), stderr=subprocess.STDOUT)
+cmd = ([sys.executable, str(ROOT / "out/plaza_handover/plaza_server.py"), "--host", "127.0.0.1", "--port", str(port),
+        "--data", str(PZ)] if STDLIB else
+       [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)])
+srv = subprocess.Popen(cmd, cwd=str(ROOT), env=env, stdout=open(OUT / "server.log", "w"), stderr=subprocess.STDOUT)
 base = f"http://127.0.0.1:{port}"
 for _ in range(120):
     try:
@@ -179,6 +182,11 @@ with sync_playwright() as pw:
     hx, hy = pp["hong"]
     mx, my = pp["me"]
     kim.click("#pz-map")
+    # 한글 입력기가 켜진 PC 처럼 key="Process" · keyCode 229 로 와도 방향키로 걷는가
+    facts["ime_arrow"] = kim.evaluate("""() => new Promise(res => {
+        const m = window.__plaza.me, x0 = m.tx, y0 = m.ty, ok = (dx) => res({from: [x0, y0], to: [m.tx, m.ty]});
+        const ev = (t) => document.dispatchEvent(new KeyboardEvent(t, {key: 'Process', code: 'ArrowDown', keyCode: 229, bubbles: true}));
+        ev('keydown'); setTimeout(() => { ev('keyup'); setTimeout(ok, 250); }, 120); })""")
     # 홍길동의 오른쪽 칸에 세우고 왼쪽을 보게 한다 (시험 장치 — 길찾기 대신 자리를 옮긴다)
     kim.evaluate("""([x, y]) => { const m = window.__plaza.me; m.tx = m.gx = x; m.ty = m.gy = y; m.x = x * 32; m.y = y * 32;
         m.dir = 2; m.moving = false;
@@ -232,7 +240,7 @@ with sync_playwright() as pw:
     time.sleep(0.6)
     dash.locator(".plaza").screenshot(path=str(OUT / "9_역할지정_운영자.png"))
     fl.locator("#pz-role-close").click()
-    facts["saved_face"] = json.loads((data / "plaza" / "looks.json").read_text(encoding="utf-8")).get("홍길동")
+    facts["saved_face"] = json.loads((PZ / "looks.json").read_text(encoding="utf-8")).get("홍길동")
 
     dash.click("#fold")
     time.sleep(0.5)

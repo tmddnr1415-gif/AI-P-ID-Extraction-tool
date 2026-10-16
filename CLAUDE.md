@@ -4827,6 +4827,10 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
 **역할 머리 장식은 서버가 정한다** — `<data>/plaza/roles.json`(없으면 빈 틀 · 그룹장 왕관 · 유닛장 사모 · 부서원 관모 ·
 운영자 노비) · 운영자만 `POST /plaza/api/role`.  **얼굴은 사람이 고른다** — `POST /plaza/api/look` · `<data>/plaza/looks.json` ·
 칸 개수는 `plaza.LOOK_RANGES` ↔ plaza.js 표 (시험이 맞댄다).  ⚠ `hash()` 는 부호 없는 수라 `>>>` 로 자른다 (`>>` 면 음수 → 빈 색 → 그리기가 죽었다).
+**이동은 키보드 방향키만** (WASD · 한글 자모 뺌 · `ev.code`/`keyCode` 도 봐서 한글 입력기가 켜져 있어도 걷는다).
+**★ 사용자 지시 (2026-10-16): 가상 광장은 이제 대시보드 개발 창에서 이어 만든다 — 이 저장소(타이틀블록 파싱)에서는 더 논의하지 않는다.**
+인계 꾸러미 `out/plaza_handover_2026-10-16.zip` (표준 라이브러리 서버 `plaza_server.py` — FastAPI 판과 같은 길·응답 ·
+화면 그대로 · `selftest.py` · README 와 대시보드 Claude 용 프롬프트).  `app/plaza.py` 는 남겨 두되 새 기능을 더하지 않는다.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
