@@ -342,108 +342,174 @@ function faceOf(a) {                       // 서버가 준 값도 범위 밖이
   return out;
 }
 
-const OL = "#2a1a12", K = "#161616", OX = 2, OY = 4;   // 장식이 머리 위 · 옆으로 나갈 여백 (점 단위)
+// 2026-10-16 (8) 그림체: 큰 머리(2.2등신) · 큰 눈(속눈썹 · 눈동자 · 빛) · 진한 외곽선 · 3단 음영 · 손에 목검.  옷은 우리 것(저고리 · 고름 · 바지 · 노비 무명옷)
+// 점 판(격자)에 색을 칠한 뒤, 빈 칸 가운데 그림에 닿은 칸을 외곽선으로 둘러 그린다.
+const OL = "#1b120e", K = "#161616", OX = 4, OY = 5;   // 장식 · 목검 · 날개가 나갈 여백 (점 단위)
+const GW = 20, GH = 28;                     // 몸 격자 (가로 20 · 세로 28 — 발바닥 = 28 줄)
+const CW = GW + OX * 2, CH = GH + OY + 1;
+const FOOT = (OY + GH) * PX;                // 그림 위에서 발바닥까지 (px)
+const HEAD_PX = (GH + 4) * PX;              // 발바닥에서 모자 꼭대기까지 — 상태 글자 · 말풍선 자리
 const spriteCache = new Map();
-// dir: 0 아래 · 1 위 · 2 왼쪽 · 3 오른쪽 / frame: 0 섬 · 1 · 2 걸음 / role: member · unit · leader · operator · bare
-function charSprite(F, role, dir, frame) {
-  const key = `${JSON.stringify(F)}|${role}|${dir}|${frame}`; if (spriteCache.has(key)) return spriteCache.get(key);
-  const c = canvas((16 + OX * 2) * PX, (24 + OY) * PX), g = c.getContext("2d");
+// dir: 0 아래 · 1 위 · 2 왼쪽 · 3 오른쪽 / frame: 0 섬 · 1 · 2 걸음 / role: member · unit · leader · operator · bare / armed: 목검 들기
+function charSprite(F, role, dir, frame, armed = false) {
+  const key = `${JSON.stringify(F)}|${role}|${dir}|${frame}|${armed ? 1 : 0}`; if (spriteCache.has(key)) return spriteCache.get(key);
+  const grid = new Array(CW * CH).fill(null);
   const flip = dir === 3, side = dir >= 2, up = dir === 1, down = dir === 0;
-  const H_ = HAIRC[F.hairc], SK = SKINS[F.skin];
-  const nobi = role === "operator";
-  const CL = nobi ? "#c8b48a" : CLOTHS[F.cloth], PA = nobi ? "#8c7a5a" : PANTS[F.pants];
-  const RIB = ["#c0262d", "#7a1fa2", "#d9480f"][F.cloth % 3];
-  const rect = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect((OX + (flip ? 16 - x - w : x)) * PX, (OY + y) * PX, w * PX, h * PX); };
-  function draw(parts) {                     // 테두리 먼저, 그다음 색
-    for (const [x, y, w, h, , rnd, ol] of parts) if (ol !== false) {
-      if (rnd) { rect(x, y - 1, w, h + 2, OL); rect(x - 1, y, w + 2, h, OL); } else rect(x - 1, y - 1, w + 2, h + 2, OL);
-    }
-    for (const [x, y, w, h, col, rnd] of parts) {
-      if (rnd && w > 2 && h > 2) { rect(x + 1, y, w - 2, h, col); rect(x, y + 1, w, h - 2, col); } else rect(x, y, w, h, col);
-    }
-  }
+  const put = (x, y, col) => { const X = OX + (flip ? GW - 1 - x : x), Y = OY + y; if (col && X >= 0 && X < CW && Y >= 0 && Y < CH) grid[Y * CW + X] = col; };
+  const box = (x, y, w, h, col) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, col); };
+  const rbox = (x, y, w, h, col) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    if ((i === 0 || i === w - 1) && (j === 0 || j === h - 1) && w > 2 && h > 2) continue; put(x + i, y + j, col); } };
+  const H_ = HAIRC[F.hairc], Hd = shade(H_, -.32), Hh = shade(H_, F.hairc === 0 ? .28 : .3);
+  const SK = SKINS[F.skin], SKd = shade(SK, -.16), SKh = shade(SK, .4);
+  const nobi = role === "operator", hat = role === "member" || role === "unit" || role === "leader";
+  const CL = nobi ? "#c8b48a" : CLOTHS[F.cloth], CLd = shade(CL, -.26), CLdd = shade(CL, -.45), CLh = shade(CL, .28);
+  const PA = nobi ? "#8c7a5a" : PANTS[F.pants], PAd = shade(PA, -.22), PAdd = shade(PA, -.38);
+  const RIB = ["#c0262d", "#7a1fa2", "#d9480f"][F.cloth % 3], WH = "#fbf6ea", SH = "#2e2420", SHh = "#5a4a3c";
   const step = frame === 1 ? 1 : frame === 2 ? -1 : 0, hs = F.hair;
-  const back = [], P = [];
-  // 몸 뒤로 늘어지는 머리
-  if (hs === 7) back.push(up ? [3, 3, 10, 14, H_] : side ? [8, 4, 5, 12, H_] : [2, 5, 12, 11, H_]);
-  if (hs === 4) { if (!side) { back.push([0, 6, 3, 6, H_, true], [13, 6, 3, 6, H_, true]); } else back.push([11, 6, 3, 6, H_, true]); }
-  draw(back);
-  // 다리 · 신
+  // 목검 — 손에 세워 듦 (휘두를 때는 drawSwing 이 그림)
+  const sword = (x, y0) => { put(x, y0 - 1, "#d8b07a");
+    for (let y = y0; y < y0 + 13; y++) { put(x, y, "#f0d3a2"); put(x + 1, y, "#d8b07a"); }
+    box(x - 1, y0 + 13, 4, 1, "#4a3020"); box(x, y0 + 14, 2, 3, "#6e4527"); put(x, y0 + 14, "#8a5a32"); };
+
+  // ── 몸 뒤 (긴 머리 · 댕기 · 등 뒤 목검) ──
+  if (armed && side) sword(14, 5);
+  if (armed && up) sword(16, 6);
+  if (hs === 7) { if (up) { rbox(3, 6, 14, 15, H_); box(5, 8, 1, 12, Hh); box(14, 9, 1, 11, Hd); }
+    else if (side) { rbox(9, 6, 7, 14, H_); box(14, 8, 1, 11, Hd); } else { rbox(2, 6, 16, 14, H_); box(2, 9, 1, 10, Hd); box(17, 9, 1, 10, Hd); } }
+  if (hs === 4 && !up) { if (side) { rbox(13, 7, 4, 8, H_); put(14, 7, RIB); put(15, 7, RIB); }
+    else { rbox(0, 8, 3, 8, H_); rbox(17, 8, 3, 8, H_); box(0, 8, 3, 1, RIB); box(17, 8, 3, 1, RIB); put(1, 11, Hh); put(18, 11, Hh); } }
+  if (hs === 9 && side) { rbox(14, 4, 4, 11, H_); put(15, 4, RIB); put(16, 4, RIB); box(15, 7, 1, 6, Hh); }
+
+  // ── 다리 · 신 (바지 + 대님) ──
   if (!side) {
-    P.push([5, 19 - (step > 0 ? 1 : 0), 2, 3, PA], [9, 19 - (step < 0 ? 1 : 0), 2, 3, PA],
-           [5, 22 - (step > 0 ? 1 : 0), 2, 1, "#3a2a20"], [9, 22 - (step < 0 ? 1 : 0), 2, 1, "#3a2a20"]);
-  } else P.push([6 - step, 19, 2, 3, PA], [8 + step, 19, 2, 3, PA], [5 - step, 22, 3, 1, "#3a2a20"], [8 + step, 22, 3, 1, "#3a2a20"]);
-  // 몸 · 팔
-  if (!side) {
-    const la = step > 0 ? -1 : step < 0 ? 1 : 0;
-    P.push([4, 13, 8, 6, CL, true], [2, 14 + la, 2, 4, CL], [12, 14 - la, 2, 4, CL],
-           [2, 18 + la, 2, 1, SK, false, false], [12, 18 - la, 2, 1, SK, false, false]);
-  } else P.push([5, 13, 6, 6, CL, true], [7 + step, 14, 2, 4, shade(CL, -.22)], [7 + step, 18, 2, 1, SK, false, false]);
-  // 머리 뒤 장식
-  if (hs === 3 && !down) P.push(up ? [6, 8, 4, 4, H_, true] : [11, 6, 4, 4, H_, true]);
-  if (hs === 2 && !down) P.push(up ? [7, 11, 2, 7, H_] : [11, 10, 2, 8, H_]);
-  if (hs === 9 && !down) P.push(up ? [7, 9, 2, 8, H_] : [12, 5, 3, 7, H_, true]);
-  // 머리
-  P.push([3, 3, 10, 10, up && hs !== 8 ? H_ : SK, true]);
-  if (hs === 5) P.push(side ? [8, 0, 3, 3, H_, true] : [2, 0, 3, 3, H_, true], ...(side ? [] : [[11, 0, 3, 3, H_, true]]));
-  if (hs === 0) P.push([side ? 7 : 6, 0, side ? 3 : 4, 3, H_, true]);
-  if (hs === 6) P.push([4, 0, 2, 3, H_], [7, -1, 2, 4, H_], [10, 0, 2, 3, H_]);
-  if (hs !== 8) P.push([3, 2, 10, 4, H_, true]);
-  draw(P);
-  // 얼굴 · 머리 결 · 옷 무늬 (테두리 없음)
-  const px = rect;
-  if (down) {
-    if (hs !== 8) { px(3, 5, 1, hs === 1 ? 6 : 4, H_); px(12, 5, 1, hs === 1 ? 6 : 4, H_); px(4, 5, 3, 1, H_); px(9, 5, 3, 1, H_); }
-    else px(5, 4, 2, 1, "#fff2d8");
-    const e = F.eyes;
-    if (e === 1) { px(4, 8, 2, 2, "#fff"); px(5, 8, 1, 2, K); px(10, 8, 2, 2, "#fff"); px(10, 8, 1, 2, K); }
-    else if (e === 2) { px(4, 9, 1, 1, K); px(5, 8, 1, 1, K); px(6, 9, 1, 1, K); px(9, 9, 1, 1, K); px(10, 8, 1, 1, K); px(11, 9, 1, 1, K); }
-    else if (e === 4) { px(4, 7, 3, 3, "#2a2a2a"); px(5, 8, 1, 1, "#bfe0ff"); px(9, 7, 3, 3, "#2a2a2a"); px(10, 8, 1, 1, "#bfe0ff"); px(7, 8, 2, 1, "#2a2a2a"); }
-    else { px(5, 8, 1, 2, K); px(10, 8, 1, 2, K); if (e === 3) { px(4, 6, 2, 1, K); px(6, 7, 1, 1, K); px(10, 6, 2, 1, K); px(9, 7, 1, 1, K); } }
-    if (e !== 4 && F.beard !== 3) { px(4, 10, 1, 1, "#f19a8f"); px(11, 10, 1, 1, "#f19a8f"); }
-    px(7, 11, 2, 1, "#a8483f");
-    if (F.beard === 1) px(6, 11, 4, 1, H_); else if (F.beard === 2) px(7, 12, 2, 2, H_);
-    else if (F.beard === 3) { px(4, 10, 8, 3, H_); px(7, 11, 2, 1, "#a8483f"); }
-    px(7, 13, 2, 1, SK); px(6, 13, 1, 1, "#fbf6ea"); px(7, 14, 1, 1, "#fbf6ea"); px(9, 13, 1, 1, "#fbf6ea"); px(8, 14, 1, 1, "#fbf6ea");
-    if (!nobi) { px(8, 15, 1, 3, RIB); px(9, 15, 1, 2, RIB); }
-    px(4, 18, 8, 1, shade(CL, -.22));
-  } else if (up) {
-    px(5, 12, 6, 1, SK); if (hs !== 8) px(4, 4, 2, 1, shade(H_, .2)); px(4, 18, 8, 1, shade(CL, -.22));
-    if (hs === 2) px(7, 17, 2, 2, RIB); if (hs === 3) px(3, 9, 10, 1, "#d4af37");
+    const l = step > 0 ? 1 : 0, r = step < 0 ? 1 : 0;
+    box(5, 22, 10, 2, PA); box(5, 22, 1, 2, shade(PA, .15)); box(9, 23, 2, 1, PAd);
+    box(5, 24 - l, 4, 1, PA); box(11, 24 - r, 4, 1, PA); box(5, 25 - l, 4, 1, PAdd); box(11, 25 - r, 4, 1, PAdd);
+    box(5, 26 - l, 4, 2, SH); box(11, 26 - r, 4, 2, SH); box(5, 26 - l, 3, 1, SHh); box(12, 26 - r, 3, 1, SHh);
   } else {
-    if (hs !== 8) { px(8, 4, 5, hs === 1 ? 8 : 6, H_); px(11, 9, 2, 2, H_); px(3, 5, 2, 1, H_); } else px(6, 4, 2, 1, "#fff2d8");
-    const e = F.eyes;
-    if (e === 1) { px(3, 8, 2, 2, "#fff"); px(4, 8, 1, 2, K); }
-    else if (e === 2) { px(3, 9, 1, 1, K); px(4, 8, 1, 1, K); px(5, 9, 1, 1, K); }
-    else if (e === 4) { px(3, 7, 3, 3, "#2a2a2a"); px(4, 8, 1, 1, "#bfe0ff"); px(6, 8, 3, 1, "#2a2a2a"); }
-    else { px(4, 8, 1, 2, K); if (e === 3) { px(3, 6, 2, 1, K); px(5, 7, 1, 1, K); } }
-    if (e !== 4) px(4, 10, 1, 1, "#f19a8f"); px(3, 9, 1, 1, SK);
-    if (F.beard === 1) px(3, 11, 3, 1, H_); else if (F.beard === 2) px(3, 12, 2, 2, H_); else if (F.beard === 3) px(3, 10, 5, 3, H_);
-    px(5, 13, 1, 1, "#fbf6ea"); px(6, 14, 1, 1, "#fbf6ea"); px(5, 18, 6, 1, shade(CL, -.22));
-    if (hs === 2) px(11, 17, 2, 2, RIB); if (hs === 3) px(10, 7, 5, 1, "#d4af37");
+    box(6, 22, 8, 2, PA); box(13, 22, 1, 2, PAd);
+    box(6 - step, 24, 4, 1, PA); box(10 + step, 24, 4, 1, PAd); box(6 - step, 25, 4, 1, PAdd); box(10 + step, 25, 4, 1, PAdd);
+    box(5 - step, 26, 5, 2, SH); box(10 + step, 26, 4, 2, SH); box(5 - step, 26, 3, 1, SHh);
+  }
+  // ── 몸 (저고리) · 팔 ──
+  if (!side) {
+    rbox(5, 15, 10, 7, CL); box(5, 16, 1, 5, CLh); box(14, 16, 1, 5, CLd); box(6, 21, 8, 1, CLd);
+    const la = step > 0 ? -1 : step < 0 ? 1 : 0;
+    if (armed && down) sword(1, 5);
+    for (const [x, d] of [[3, la], [15, -la]]) { rbox(x, 15 + d, 2, 5, CL); box(x, 19 + d, 2, 1, CLdd); put(x + (x < 9 ? 0 : 1), 16 + d, x < 9 ? CLh : CLd);
+      rbox(x, 20 + d, 2, 2, SK); put(x + (x < 9 ? 0 : 1), 21 + d, SKd); }
+    if (down) {
+      if (!nobi) { put(7, 15, WH); put(8, 15, WH); put(8, 16, WH); put(9, 17, WH); put(12, 15, WH); put(11, 15, WH); put(11, 16, WH);
+        put(9, 15, SK); put(10, 15, SK); put(9, 16, SKd); put(10, 16, SK); put(10, 17, CLd);
+        put(10, 18, RIB); put(11, 18, RIB); put(9, 18, shade(RIB, -.3)); put(10, 19, RIB); put(10, 20, RIB); put(11, 19, shade(RIB, .2)); put(11, 20, RIB); put(11, 21, RIB); }
+      else { put(9, 15, SK); put(10, 15, SK); put(8, 15, CLd); put(11, 15, CLd); }
+    } else { box(7, 15, 6, 1, WH); box(8, 15, 4, 1, CLd); box(9, 16, 2, 4, CLd); }
+  } else {
+    rbox(6, 15, 8, 7, CL); box(12, 16, 2, 5, CLd); box(7, 21, 7, 1, CLd); box(6, 16, 1, 5, CLh);
+    if (!nobi) { put(6, 15, WH); put(7, 15, WH); put(7, 16, WH); put(7, 18, RIB); put(6, 18, RIB); put(6, 19, RIB); put(7, 20, RIB); }
+    rbox(8 + step, 15, 3, 5, CL); box(8 + step, 19, 3, 1, CLdd); box(10 + step, 16, 1, 3, CLd);
+    rbox(8 + step, 20, 3, 2, SK); put(10 + step, 21, SKd);
   }
   if (nobi) {                               // 노비 — 무명옷 기운 자국 · 새끼줄 허리띠
-    px(side ? 6 : 5, 15, 2, 2, "#a8946a"); px(side ? 9 : 10, 16, 1, 1, "#a8946a"); px(side ? 5 : 4, 17, side ? 6 : 8, 1, "#7a5a30");
+    const bx = side ? 6 : 5, bw = side ? 8 : 10;
+    box(bx, 19, bw, 1, "#7a5a30"); for (let i = bx; i < bx + bw; i += 2) put(i, 19, "#a07a44");
+    put(side ? 9 : 7, 16, "#a8946a"); put(side ? 10 : 8, 17, "#a8946a"); put(side ? 11 : 12, 20, "#a8946a");
   }
-  // 역할 머리 장식 (서버가 정한 것)
-  const HAT = [];
+  // ── 머리 뒤 장식 (몸 위 · 얼굴 아래) ──
+  if (hs === 2 && !down) { if (up) { box(9, 13, 2, 8, H_); for (let y = 14; y < 21; y += 2) put(9, y, Hd); box(9, 21, 2, 2, RIB); }
+    else { box(14, 11, 2, 9, H_); for (let y = 12; y < 20; y += 2) put(14, y, Hd); box(14, 20, 2, 2, RIB); } }
+  if (hs === 3 && !down) { if (up) { rbox(7, 9, 6, 5, H_); box(8, 10, 2, 1, Hh); box(4, 11, 12, 1, "#d4af37"); }
+    else { rbox(13, 8, 5, 5, H_); put(14, 9, Hh); box(12, 10, 7, 1, "#d4af37"); } }
+  if (hs === 9 && up) { rbox(8, 6, 4, 11, H_); box(8, 6, 4, 1, RIB); box(9, 8, 1, 7, Hh); }
+
+  // ── 머리 (큰 얼굴) ──
+  const HX = 3, HW = side ? 13 : 14;
+  rbox(HX, 1, HW, 13, up && hs !== 8 ? H_ : SK);
+  if (down) box(HX + 1, 13, HW - 2, 1, SKd); else if (side) box(HX + 1, 13, 5, 1, SKd);   // 턱 그늘
+  // 머리 위 장식 (모자 쓴 역할은 가려져 안 그림)
+  if (!hat) {
+    if (hs === 0) { rbox(8, -2, 4, 4, H_); put(9, -1, Hh); box(8, 0, 4, 1, "#7a5a30"); }
+    if (hs === 5) { rbox(6, -3, 8, 5, H_); box(8, -2, 3, 1, Hh); box(7, 1, 6, 1, Hd); }
+    if (hs === 6) { for (const [x, h] of [[4, 2], [7, 3], [10, 3], [13, 2]]) { box(x, 1 - h, 2, h, H_); put(x, 1 - h, Hh); } }
+  }
+  if (hs !== 8) {
+    if (up) { box(HX + 2, 2, 5, 1, Hh); box(HX + 1, 3, 2, 1, Hh); box(HX + 1, 12, HW - 2, 1, Hd); box(HX + HW - 2, 4, 1, 8, Hd); put(HX + 2, 13, H_); put(HX + HW - 3, 13, H_); }
+    else if (down) {
+      rbox(3, 1, 14, 7, H_);                                                       // 머리 덮개
+      for (const x of [3, 4, 5, 7, 8, 11, 12, 14, 15, 16]) put(x, 7, H_);         // 앞머리 끝 (들쭉날쭉)
+      put(4, 8, H_); put(15, 8, H_); put(8, 8, Hd); put(12, 8, Hd);
+      const sideLen = hs === 1 ? 13 : hs === 7 ? 14 : 11;                          // 옆머리
+      box(3, 8, 1, sideLen - 8, H_); box(16, 8, 1, sideLen - 8, H_); if (hs === 1 || hs === 7) { box(4, 9, 1, sideLen - 9, Hd); box(15, 9, 1, sideLen - 9, Hd); }
+      box(6, 2, 4, 1, Hh); box(5, 3, 2, 1, Hh); put(11, 2, Hh); box(4, 6, 12, 1, Hd); for (const x of [6, 9, 13]) put(x, 6, H_);
+      if (hs === 3) { box(9, 1, 2, 3, SKh); }                                      // 쪽머리 가르마
+      if (hs === 3) { put(1, 11, "#d4af37"); put(2, 11, "#d4af37"); put(17, 11, "#d4af37"); put(18, 11, "#d4af37"); }   // 비녀 끝
+      if (hs === 9) { rbox(16, 7, 3, 7, H_); put(17, 9, Hh); }                    // 포니테일 끝
+    } else {                                                                       // 옆 (왼쪽 보기)
+      rbox(3, 1, 13, 6, H_); rbox(8, 3, 8, 10, H_); box(3, 7, 3, 1, H_); put(3, 8, H_); put(6, 7, Hd);
+      box(5, 2, 4, 1, Hh); put(4, 3, Hh); box(13, 4, 1, 7, Hd); box(9, 12, 6, 1, Hd);
+      if (hs === 1) { box(8, 12, 7, 2, H_); } if (hs === 7) box(9, 12, 7, 3, H_);
+      rbox(9, 8, 2, 3, SK); put(10, 9, SKd);                                       // 귀
+      box(9, 13, 6, 1, Hd);                                                        // 목덜미 (머리 뒤 아래)
+    }
+  } else { put(6, 3, SKh); put(7, 3, SKh); put(6, 4, SKh); box(4, 7, 12, 1, SKd); }   // 민머리 빛
+  // 얼굴
+  const e = F.eyes, BL = "#f3a29a", IR = "#3a2418", IL = "#7a4a2a";
+  if (down) {
+    for (const [x, m] of [[6, 1], [12, -1]]) {                                     // 왼눈 · 오른눈 (m = 바깥쪽)
+      const o = m > 0 ? x - 1 : x + 2;
+      if (e === 0) { box(x, 10, 2, 3, K); put(x, 10, "#ffffff"); put(x + 1, 12, "#3a3a3a"); }                 // 까만 눈 · 빛 한 점
+      else if (e === 1) { box(x, 9, 2, 1, K); put(o, 9, K); put(x, 10, "#ffffff"); put(x + 1, 10, IR); put(x, 11, IR); put(x + 1, 11, IR); box(x, 12, 2, 1, IL); put(o, 10, K); }   // 속눈썹 · 갈색 눈동자
+      else if (e === 2) { put(o, 11, K); box(x, 10, 2, 1, K); put(m > 0 ? x + 2 : x - 1, 11, K); }
+      else if (e === 3) { box(x, 10, 2, 1, K); put(x + (m > 0 ? 1 : 0), 11, IR); put(x + (m > 0 ? 0 : 1), 11, IL); put(o, 8, K); put(x + (m > 0 ? 0 : 1), 8, K); put(x + (m > 0 ? 1 : 0), 9, K); }
+      else { box(x - 1, 9, 4, 1, "#2a2a2a"); box(x - 1, 12, 4, 1, "#2a2a2a"); box(x - 1, 10, 1, 2, "#2a2a2a"); box(x + 2, 10, 1, 2, "#2a2a2a");
+        box(x, 10, 2, 2, "#cfe8ff"); put(x, 10, "#ffffff"); put(x + 1, 11, K); }
+    }
+    if (e === 4) box(9, 10, 2, 1, "#2a2a2a");
+    if (e !== 4 && F.beard !== 3) { put(5, 12, BL); put(14, 12, BL); }
+    put(9, 13, "#b0574a"); put(10, 13, "#8a3a32");
+    if (F.beard === 1) box(8, 12, 4, 1, H_), put(9, 12, Hd);   // 콧수염 (입 위)
+    else if (F.beard === 2) { box(9, 13, 2, 2, H_); put(9, 14, Hd); }
+    else if (F.beard === 3) { box(5, 12, 10, 2, H_); box(6, 13, 8, 1, Hd); box(9, 13, 2, 1, "#8a3a32"); }
+  } else if (side) {
+    const x = 4;
+    if (e === 0) { box(x, 10, 2, 3, K); put(x, 10, "#ffffff"); }
+    else if (e === 1) { box(x, 9, 2, 1, K); put(x, 10, "#ffffff"); put(x + 1, 10, IR); put(x, 11, IR); put(x + 1, 11, IR); box(x, 12, 2, 1, IL); put(x + 2, 9, K); }
+    else if (e === 2) { put(x - 1, 11, K); box(x, 10, 2, 1, K); put(x + 2, 11, K); }
+    else if (e === 3) { box(x, 10, 2, 1, K); put(x, 11, IR); put(x + 1, 11, IL); put(x + 1, 8, K); put(x + 2, 8, K); put(x, 9, K); }
+    else { box(x - 1, 9, 4, 1, "#2a2a2a"); box(x - 1, 12, 4, 1, "#2a2a2a"); put(x - 1, 10, "#2a2a2a"); put(x - 1, 11, "#2a2a2a"); box(x, 10, 2, 2, "#cfe8ff"); put(x, 10, "#ffffff"); box(x + 3, 10, 5, 1, "#2a2a2a"); }
+    if (e !== 4) put(6, 12, BL); put(3, 13, "#8a3a32"); put(2, 10, SK);           // 볼 · 입 · 코
+    if (F.beard === 1) box(2, 12, 3, 1, H_); else if (F.beard === 2) { box(3, 13, 2, 2, H_); } else if (F.beard === 3) { box(3, 11, 6, 3, H_); put(3, 12, "#8a3a32"); }
+  }
+  // ── 역할 머리 장식 (서버가 정한 것) ──
+  const sw = side ? 13 : 14;
   if (role === "leader") {                  // 왕관
-    const G = "#e8b923";
-    HAT.push([4, 1, 8, 2, G], [4, -1, 2, 2, G], [7, -2, 2, 3, G], [10, -1, 2, 2, G]);
-    draw(HAT); px(4, 1, 8, 1, "#fff0a0"); px(7, 1, 2, 1, "#d62d3a"); px(5, 2, 1, 1, "#2e7bd6"); px(10, 2, 1, 1, "#2e7bd6"); px(7, -2, 2, 1, "#fff0a0");
-  } else if (role === "unit") {             // 사모 — 날개 달린 관모
-    HAT.push([5, -1, 6, 2, K, true], [4, 0, 8, 4, K, true]);
-    if (side) HAT.push([12, -1, 2, 4, K, true]); else HAT.push([-1, 1, 4, 2, K, true], [13, 1, 4, 2, K, true]);
-    draw(HAT); px(4, 3, 8, 1, "#3a2c1e"); if (down) px(7, 1, 2, 1, "#c9a227"); px(5, 0, 2, 1, "#3c3c3c");
-  } else if (role === "member") {           // 관모
-    HAT.push([5, -1, 6, 2, "#2a2a2a", true], [4, 0, 8, 4, "#2a2a2a", true]);
-    draw(HAT); px(4, 3, 8, 1, "#4a3a2a"); px(5, 0, 2, 1, "#474747");
+    const G = "#e8b923", Gd = "#b8860b", Gh = "#fff0a0";
+    box(4, 0, sw - 2, 3, G); box(4, 0, sw - 2, 1, Gh); box(4, 2, sw - 2, 1, Gd);
+    for (const x of side ? [4, 8, 12] : [4, 9, 14]) { box(x, -2, 2, 2, G); put(x, -2, Gh); }
+    put(side ? 6 : 6, -1, G); put(side ? 10 : 12, -1, G);
+    if (!up) { put(side ? 6 : 9, 1, "#d62d3a"); put(side ? 6 : 10, 1, "#d62d3a"); if (!side) { put(6, 1, "#2e7bd6"); put(13, 1, "#2e7bd6"); } else put(10, 1, "#2e7bd6"); }
+  } else if (role === "unit" || role === "member") {   // 사모(날개 관모) · 관모
+    const B = "#262626", Bh = "#4a4a4a", Bd = "#111111";
+    rbox(5, -2, sw - 4, 3, B); rbox(4, 0, sw - 2, 3, B); box(6, -1, 3, 1, Bh); box(4, 2, sw - 2, 1, "#3a2c1e"); put(5, 1, Bh);
+    if (role === "unit") {
+      if (side) { rbox(14, -1, 5, 3, B); box(15, 0, 3, 1, Bh); }
+      else { rbox(-1, 0, 5, 3, B); rbox(16, 0, 5, 3, B); box(0, 1, 3, 1, Bh); box(17, 1, 3, 1, Bd); }
+    }
   } else if (role === "operator") {         // 노비 — 두건
-    const B = "#e7dfc8";
-    HAT.push([3, 4, 10, 2, B]);
-    if (up) HAT.push([7, 6, 1, 3, B], [8, 6, 1, 2, B]); else if (side) HAT.push([12, 4, 3, 2, B], [13, 6, 2, 2, B]);
-    draw(HAT); px(3, 5, 10, 1, "#cfc4a4");
+    const B = "#e7dfc8", Bd = "#cfc4a4";
+    box(3, 3, sw, 2, B); box(3, 4, sw, 1, Bd);
+    if (up) { box(9, 5, 1, 3, B); box(10, 5, 1, 2, Bd); } else if (side) { box(14, 3, 3, 2, B); box(15, 5, 2, 2, Bd); }
   }
+
+  // ── 외곽선 · 칠하기 ──
+  const c = canvas(CW * PX, CH * PX), g = c.getContext("2d");
+  const out = grid.slice();
+  for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) {
+    if (grid[Y * CW + X]) continue;
+    const n = (dx, dy) => { const x = X + dx, y = Y + dy; return x >= 0 && y >= 0 && x < CW && y < CH && grid[y * CW + x]; };
+    if (n(1, 0) || n(-1, 0) || n(0, 1) || n(0, -1)) out[Y * CW + X] = OL;
+  }
+  for (let Y = 0; Y < CH; Y++) for (let X = 0; X < CW; X++) { const col = out[Y * CW + X]; if (col) { g.fillStyle = col; g.fillRect(X * PX, Y * PX, PX, PX); } }
   spriteCache.set(key, c); return c;
 }
 
@@ -464,7 +530,7 @@ function ghostly(img) {                      // 유령 — 희푸르게
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
 function drawSwing(g, sx, sy, dir, k) {
-  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 6 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);
+  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 10 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
   const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
   const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
   g.save();
@@ -703,14 +769,14 @@ function drawActor(g, a, sx, sy, now) {
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
     const spr = ghostly(charSprite(faceOf(a), a.role, a.dir, 0)), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
-    g.save(); g.globalAlpha = .5; g.drawImage(spr, sx - OX * PX, sy + 28 - 46 - OY * PX + bob); g.restore();
+    g.save(); g.globalAlpha = .5; g.drawImage(spr, sx + 16 - spr.width / 2, sy + 28 - FOOT + bob); g.restore();
     return;
   }
   ell(g, sx + 16, sy + 28, 10, 4, "rgba(40,20,5,.3)");
   if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-  const spr = charSprite(faceOf(a), a.role, a.dir, atk >= 0 ? 0 : fr);
+  const spr = charSprite(faceOf(a), a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0);   // 휘두를 때는 손의 목검 대신 drawSwing
   g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
-              sx - OX * PX + ox, sy + 28 - 46 - OY * PX - (fr && atk < 0 ? 1 : 0) + oy);
+              sx + 16 - spr.width / 2 + ox, sy + 28 - FOOT - (fr && atk < 0 ? 1 : 0) + oy);
   if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
 }
 
@@ -742,8 +808,8 @@ function frame(now) {
     const sx = Math.round(a.x - cx) + 16, sy = Math.round(a.y - cy);
     nameTag(ctx, sx, sy + 32, a, a === S.me);
     hpBar(ctx, sx, sy + 48, a);
-    if (a.status) statusTag(ctx, sx, sy - 40, a.status);     // 머리 위 — '(주간업무보고 중...)' 등
-    if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - 46 - 6 - (a.status ? 16 : 0), a.name, a.bubble.text));   // 상태가 있으면 말풍선을 그 위로
+    if (a.status) statusTag(ctx, sx, sy + 28 - HEAD_PX - 14, a.status);     // 머리 위 — '(주간업무보고 중...)' 등
+    if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - HEAD_PX + 2 - (a.status ? 16 : 0), a.name, a.bubble.text));   // 상태가 있으면 말풍선을 그 위로
     else a.bubble = null;
   }
   boxes.sort((u, v) => v.tip - u.tip);      // 아래 사람부터 자리를 잡고 겹치면 위로
@@ -789,7 +855,7 @@ function buildFace() {
     const b = document.createElement("button"); b.type = "button"; b.className = "hairbtn" + (draft.hair === i ? " on" : "");
     const c = canvas(48, 48), g = c.getContext("2d"); g.imageSmoothingEnabled = false;
     const spr = charSprite({ ...draft, hair: i }, "bare", 0, 0);
-    g.drawImage(spr, 0, 0, spr.width, 18 * PX, 0, -2, 48, 18 * PX * 48 / spr.width);
+    g.drawImage(spr, 0, 0, spr.width, (OY + 15) * PX, 0, 2, 48, (OY + 15) * PX * 48 / spr.width);
     const l = document.createElement("span"); l.textContent = nm;
     b.append(c, l); b.onclick = () => { draft.hair = i; buildFace(); };
     grid.append(b);
@@ -818,9 +884,9 @@ function drawPreview(now) {
   g.fillStyle = "#c8834a"; g.fillRect(0, 0, c.width, c.height);
   g.fillStyle = "#b9743c"; for (let i = 0; i < 40; i++) g.fillRect((i * 37) % c.width, (i * 53) % c.height, 4, 4);
   const dir = [0, 2, 1, 3][Math.floor(now / 900) % 4], fr = Math.floor(now / 220) % 4;
-  const spr = charSprite(draft, S.role, dir, fr === 1 ? 1 : fr === 3 ? 2 : 0), z = 3;
+  const spr = charSprite(draft, S.role, dir, fr === 1 ? 1 : fr === 3 ? 2 : 0, true), z = 2;
   ell(g, c.width / 2, c.height - 22, 30, 8, "rgba(40,20,5,.3)");
-  g.drawImage(spr, Math.round(c.width / 2 - spr.width * z / 2), Math.round(c.height - 22 - (OY + 23) * PX * z), spr.width * z, spr.height * z);
+  g.drawImage(spr, Math.round(c.width / 2 - spr.width * z / 2), Math.round(c.height - 22 - FOOT * z), spr.width * z, spr.height * z);
 }
 async function saveFace() {
   const f = { ...draft };
@@ -917,8 +983,8 @@ function actorAt(px, py) {
   const [cx, cy] = S.cam; let best = null, bd = 1e9;
   for (const a of [S.me, ...S.others.values()]) {
     const sx = a.x - cx, sy = a.y - cy;                       // 몸 + 이름표 자리
-    if (px >= sx - 2 && px <= sx + T + 2 && py >= sy - 26 && py <= sy + 48) {
-      const d = Math.hypot(px - sx - T / 2, py - sy - 10); if (d < bd) { bd = d; best = a; }
+    if (px >= sx - 4 && px <= sx + T + 4 && py >= sy + 28 - HEAD_PX && py <= sy + 54) {
+      const d = Math.hypot(px - sx - T / 2, py - sy); if (d < bd) { bd = d; best = a; }
     }
   }
   return best;
