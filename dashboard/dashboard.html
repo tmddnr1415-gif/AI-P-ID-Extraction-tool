@@ -926,7 +926,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-16.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-16.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2822,7 +2822,8 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 주소 http://<대시보드 서버 호스트>:8100/plaza?embed=1&user=<로그인 이름>, 띄우기 전에 /version 을 3초 안에 확인
  *  - iframe 은 #content 밖(#plazaHost)에 한 번만 만들고 계속 둠: 홈에서는 카드 자리(#plazaSlot) 위에 맞춰 보이고, 다른 메뉴에서는 화면 밖으로 치워 둠(.away)
  *    → 다른 메뉴로 가도 캐릭터가 광장에 그대로 있음 (iframe 을 DOM 에서 옮기거나 새로 만들면 캐릭터가 나갔다 다시 들어옴)
- *  - P&ID 분석 · LOGIC 분석 메뉴에 있으면 머리 위에 '(P&ID 분석 중...)' · '(LOGIC 분석 중...)' — postMessage 로 광장 화면에 알려 줌(plazaStatus)
+ *  - P&ID 분석 · LOGIC 분석 메뉴에 있으면 머리 위에 '(P&ID 분석 중...)' · '(LOGIC 분석 중...)', 주간업무보고의 홈이 아닌 화면(시트 · R&R · 통합 업무 …)이면 '(주간업무보고 중...)'
+ *    — postMessage 로 광장 화면에 알려 줌(plazaStatus)
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
@@ -2842,7 +2843,7 @@ function placePlaza() {
   h.classList.remove('away');
 }
 function plazaStatus(force) {                              // 지금 보는 메뉴 → 광장 머리 위 표시
-  const f = $('#plazaHost iframe'), text = PZ_STATUS[route] || '';
+  const f = $('#plazaHost iframe'), text = PZ_STATUS[route] || (route !== 'home' && menuOf(route) === 'weekly' ? '주간업무보고 중...' : '');   // 홈(광장이 보이는 곳)은 표시 없음
   if (!f || (!force && PZ.sent === text)) return;
   try { f.contentWindow.postMessage({ type:'plaza-status', text }, plazaBase()); PZ.sent = text; } catch (_) {}
 }

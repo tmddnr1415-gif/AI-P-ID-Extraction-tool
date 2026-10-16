@@ -715,8 +715,8 @@ function frame(now) {
   for (const a of actors) {                 // 이름 · 말풍선은 맨 위
     const sx = Math.round(a.x - cx) + 16, sy = Math.round(a.y - cy);
     nameTag(ctx, sx, sy + 32, a, a === S.me);
-    if (a.status) statusTag(ctx, sx, sy + 47, a.status);
-    if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - 46 - 6, a.name, a.bubble.text));
+    if (a.status) statusTag(ctx, sx, sy - 40, a.status);     // 머리 위 — '(주간업무보고 중...)' 등
+    if (a.bubble && now < a.bubble.until) boxes.push(bubbleBox(ctx, sx, sy + 28 - 46 - 6 - (a.status ? 16 : 0), a.name, a.bubble.text));   // 상태가 있으면 말풍선을 그 위로
     else a.bubble = null;
   }
   boxes.sort((u, v) => v.tip - u.tip);      // 아래 사람부터 자리를 잡고 겹치면 위로
