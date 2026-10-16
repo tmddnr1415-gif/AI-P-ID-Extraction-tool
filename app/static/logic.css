@@ -703,3 +703,11 @@ button.sigchip { cursor: pointer; }
 .lg-seq .sq-unmet li { display: list-item; border: 0; padding: 2px 0; }
 .lg-seq .sq-ok { color: #0a7a3c; font-weight: 700; }
 .lg-seq .sq-no { color: #c0392b; font-weight: 700; }
+.lg-seq .sq-learn { margin: 6px 8px 0; padding: 5px 8px; border-radius: 6px; background: #f2f0ff; color: #3d2f86; font-size: 12px; }
+.lg-seq .sq-learncard { margin: 4px 8px; padding: 7px 9px; border-radius: 8px; background: #f2f0ff; border: 1px solid #c9bff2; color: #2b2161; }
+.lg-seq .sq-learncard.no { background: #fff4ec; border-color: #f0c19a; color: #7a3d00; }
+.lg-seq .sq-learncard ul { margin: 4px 0 6px; padding-left: 4px; list-style: none; }
+.lg-seq .sq-learncard li { display: block; border: 0; padding: 1px 0; cursor: default; }
+.lg-seq .sq-act .lk { font-style: normal; margin-left: 4px; font-size: 11px; }
+.lg-seq .sq-act .lk.ok { color: #0a7a3c; }
+.lg-seq .sq-act .lk.no { color: #c0392b; }

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 import shutil
+import time
 import subprocess
 import sys
 import threading
@@ -699,6 +700,57 @@ def _clean_forces(raw):
         if clean:
             forces[int(pg)] = clean
     return forces
+
+
+_LEARNING = {}
+
+
+@router.get("/logic/api/jobs/{job}/behavior")
+def behavior_get(job: str, start: int = 1):
+    """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다."""
+    from . import behavior
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    cur = behavior.load(d)
+    fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    running = None
+    try:
+        running = json.loads((d / behavior.RUNNING).read_text(encoding="utf-8"))
+        if time.time() - running.get("at", 0) > 600:
+            running = None                        # 오래된 표시 — 배우던 프로세스가 죽었다
+    except Exception:
+        running = None
+    if not fresh and not running and start:
+        _start_learning(job, d)
+        cur = behavior.load(d)                   # 그 자리에서 배운 경우 (PID_LOGIC_WARM=0)
+        fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+        running = None if fresh else {"done": 0, "total": None}
+    return {"state": "done" if fresh else ("running" if running else ("stale" if cur else "none")),
+            "progress": running, "result": cur}
+
+
+def _start_learning(job, d):
+    import os
+    from . import behavior
+    p = _LEARNING.get(job)
+    if p is not None and getattr(p, "poll", lambda: 0)() is None:
+        return
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0":
+        behavior.learn_dir(d)                    # 시험 — 그 자리에서
+        _LEARNING[job] = None
+        return
+    if paths.frozen():
+        th = threading.Thread(target=behavior.learn_dir, args=(d,), daemon=True)
+        th.start()
+        _LEARNING[job] = type("T", (), {"poll": lambda self: None if th.is_alive() else 0})()
+        return
+    root = Path(__file__).resolve().parent.parent.parent
+    try:
+        _LEARNING[job] = subprocess.Popen([sys.executable, "-m", "app.logic.run", "--behavior", str(d)], cwd=str(root),
+                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        _LEARNING[job] = None
 
 
 @router.post("/logic/api/jobs/{job}/sequence/try")

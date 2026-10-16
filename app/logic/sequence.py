@@ -162,6 +162,12 @@ def plan(sheets, page, row, value=1, timers=None):
                 # Typical 의 입력 행 — 상자의 그 입력 단자 선으로 나가 이 시트의 조건이 된다
                 pnet = C["rowmap"].get(n)
                 if pnet is None:
+                    # 상자에 이 입력의 단자가 없다(그리지 않았거나 못 읽음) — 펼친 매크로 안에서 그 Typical 행의 선은 몰이가
+                    # 없는 선이라 직접 답할 수 있다 (L33).  지어낸 연결이 아니라 '사람이 답한 값' 으로 남는다.
+                    if rr.get("net") is not None:
+                        return base("terminal", w, f"매크로 입력 '{rr.get('desc') or n}' — 상자에 이 단자가 없습니다 (직접 답함)",
+                                    key="net:" + C["prefix"] + str(rr["net"]), block=C["macro"],
+                                    at=(top["s"]["blocks"].get(C["macro"].split("/")[0]) or {}).get("at"))
                     return base("stuck", w, f"매크로 입력 '{rr.get('desc') or n}' 에 닿는 상자 단자를 읽지 못했습니다",
                                 block=C["macro"], at=(C["parent"]["s"]["blocks"].get(C["macro"]) or {}).get("at"))
                 sub = expand(C["parent"], ("net", pnet, int(w)), depth + 1, path)
@@ -275,7 +281,7 @@ def plan(sheets, page, row, value=1, timers=None):
                     return sub
                 items, seen_k = [], set()
                 for lf in _first_leaves(sub):
-                    if lf.get("key") and lf.get("kind") in ("row", "button", "monitor", "net") and lf["key"] not in seen_k:
+                    if lf.get("key") and lf.get("kind") in ("row", "button", "monitor", "net", "terminal") and lf["key"] not in seen_k:
                         seen_k.add(lf["key"])
                         items.append({k: lf.get(k) for k in ("key", "text", "want", "at", "fm", "ref", "ft", "n", "block")})
                 return base("zero", 0, "이 신호들이 없어야 합니다 (아무것도 주지 않으면 0)", items=items, auto=not items,
@@ -360,7 +366,7 @@ def link(p):
     return N[p["root"]]
 
 
-ASK = ("row", "button", "monitor", "net", "held", "stuck", "zero", "deep")
+ASK = ("row", "button", "monitor", "net", "held", "terminal", "stuck", "zero", "deep")
 
 
 def _first_leaves(n):

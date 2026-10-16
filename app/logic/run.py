@@ -90,6 +90,11 @@ def run(d: Path):
             library.learn_from_result(res, d, st.get("name") or d.name, job=d.name)
         except Exception:
             pass
+        try:                                         # L33 — 동작 학습 (START · STOP · OPEN · CLOSE · TRIP 마다 무엇이 그 명령을 내는가)
+            from app.logic import behavior
+            behavior.learn_dir(d)
+        except Exception:
+            pass
     except analyse.NotLogic as e:
         st.update({"state": "failed", "error": str(e)})
     except Exception as e:                               # 사유를 남기고 멈춘다
@@ -110,5 +115,8 @@ def prerender_missing(d: Path):
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--pages":
         prerender_missing(Path(sys.argv[2]))
+    elif len(sys.argv) > 2 and sys.argv[1] == "--behavior":
+        from app.logic import behavior
+        behavior.learn_dir(Path(sys.argv[2]))
     else:
         run(Path(sys.argv[1]))

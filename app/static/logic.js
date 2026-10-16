@@ -2796,6 +2796,7 @@ function renderFindings() {
    OR 는 '하나를 고르세요' · 다른 시트에서 오는 조건은 '그 시트 조건부터' · from-to 가 어긋난 자리 · 새로 생긴 설계 오류 ·
    읽지 못한 게이트 입력에서는 멈춰 어떻게 할지 묻는다.  끝나면 처음부터 흐름을 그려 그 명령이 나가는지 말한다. */
 const SEQ = { job: null, cmds: null, q: "", open: null, plan: null, target: null, ans: {}, sub: {}, hist: [], tries: {}, hint: {}, nofollow: {},
+  learn: null, learnState: null, learnMap: {},
   view: "pick", cur: null, err: null, done: null, busy: false };
 const ACT_KO = { START: "기동", RUN: "운전", STOP: "정지", OPEN: "열림", CLOSE: "닫힘", TRIP: "트립" };
 const KIND_KO = { command: "명령", request: "요청", action: "동작", state: "상태" };
@@ -2853,7 +2854,7 @@ function seqForces(assume) {
       if (!a) {
         // 미리 돌려 볼 때 '만족' 으로 보는 것은 실제 신호(입력 행 · 누름단추 · 감시)와 읽지 못한 게이트(hold)뿐 —
         // 매크로 안쪽의 몰이를 못 읽은 선은 짐작하지 않는다 (그 선이 AUTO 모드처럼 다른 길을 막을 수 있다)
-        if (assume && n.key && ["row", "button", "monitor", "stuck"].includes(n.kind)) put(n.page, n.key, n.want);
+        if (assume && n.key && ["row", "button", "monitor", "stuck", "terminal", "net"].includes(n.kind) && ((F[n.page] || {})[n.key] !== 1)) put(n.page, n.key, n.want);
         return;
       }
       if (a.v === "follow") { const sp = SEQ.sub[n.id]; if (sp && sp.tree) visit(sp.tree); return; }
@@ -2937,6 +2938,55 @@ async function seqOpen() {
     catch (e) { $("#seq-b").innerHTML = `<div class="sp-empty">${esc(e.message)}</div>`; return; }
   }
   renderSeq();
+  seqLoadLearn();
+}
+/* L33 — 동작 학습: 서버가 모든 명령을 시뮬레이터로 켜고 꺼 보며 배운 것 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막힌 자리).
+   없거나 결과 · 사람 값이 바뀌었으면 서버가 뒤에서 다시 배우고, 화면은 그동안 몇 개째인지 보인다. */
+async function seqLoadLearn() {
+  if (!L.job) return;
+  const job = L.job;
+  let r;
+  try { r = await api(`/logic/api/jobs/${job}/behavior`); } catch (e) { return; }
+  if (job !== L.job) return;
+  SEQ.learnState = r;
+  SEQ.learn = r.result && r.state === "done" ? r.result : (r.result || null);
+  SEQ.learnMap = {};
+  for (const x of (SEQ.learn && SEQ.learn.items) || []) SEQ.learnMap[x.page + ":" + x.row] = x;
+  renderSeq();
+  if (r.state === "running" && !$("#seq").hidden) setTimeout(seqLoadLearn, 3000);
+}
+function seqLearned(page, row) { return SEQ.learnMap[page + ":" + row] || null; }
+function seqLearnLine() {
+  const st = SEQ.learnState;
+  if (!st) return "";
+  const r = SEQ.learn;
+  if (st.state === "running") {
+    const p = st.progress || {};
+    return `<div class="sq-learn">🧠 동작을 배우는 중… ${p.total ? `${p.done}/${p.total}` : ""} — 모든 명령을 시뮬레이터로 켜고 꺼 보는 중입니다${r ? " (아래 표시는 지난번 학습)" : ""}</div>`;
+  }
+  if (!r) return "";
+  return `<div class="sq-learn">🧠 학습한 동작 <b>${r.reached}/${r.total}</b> 이 섭니다${r.with_hold ? ` · 그중 ${r.with_hold}개는 도면 읽기 빈틈을 '만족' 으로 보고` : ""} <small>(✔ 선다 · ⛔ 안 선다 — 동작 단추에 표시)</small></div>`;
+}
+function seqLearnCard(t) {
+  const x = seqLearned(t.page, t.row);
+  if (!x) return "";
+  if (!x.reached) {
+    const b = x.blocked_at;
+    return `<div class="sq-learncard no">🧠 학습 결과 — <b>이 동작은 지금 도면으로는 서지 않습니다</b>: ${esc(x.why || "")}${
+      b ? `<br><small>막힌 자리: ${esc(b.label)} — 바라는 값 ${b.want} · 입력 ${(b.inputs || []).map((i) => i.value == null ? "모름" : i.value).join(" · ")}</small>` : ""}</div>`;
+  }
+  const real = (x.labels || []).filter((l) => !l.assumed), assumed = (x.labels || []).filter((l) => l.assumed);
+  return `<div class="sq-learncard">🧠 학습 결과 — 꼭 필요한 신호 <b>${real.length}개</b>${assumed.length ? ` + 도면 읽기 빈틈 ${assumed.length}곳을 만족으로 보면` : ""} ${x.steady ? "서 있습니다" : "잠깐 섭니다 (펄스)"}
+    <ul>${(x.labels || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>
+    <button data-a="learned" class="pri">▶ 학습한 조합으로 바로 돌리기</button></div>`;
+}
+async function seqRunLearned() {
+  const x = seqLearned(SEQ.target.page, SEQ.target.row);
+  if (!x || !x.reached) return;
+  const F = {};
+  for (const [p, fs] of Object.entries(x.forces || {})) F[Number(p)] = { ...fs };
+  SEQ.ans = {}; SEQ.hist = []; SEQ.sub = {}; SEQ.tries = {};
+  await seqFinish(false, F, "학습한 조합");
 }
 function seqClose() { $("#seq").hidden = true; $("#seq-btn").classList.remove("on"); }
 function placeSeq(x, y) {
@@ -2956,12 +3006,16 @@ function seqPickHtml() {
   const shown = list.slice(0, 120);
   const items = shown.map((e, i) => {
     const gi = SEQ.cmds.indexOf(e);
-    const acts = e.actions.map((a) => `<button class="sq-act a-${a.action}" data-eq="${gi}" data-act="${a.action}" title="${esc(a.rows.map((r) => `${r.sheet}-${r.row} ${r.desc} (${KIND_KO[r.kind] || r.kind})`).join("\n"))}">${a.action}<small>${ACT_KO[a.action] || ""}</small></button>`).join("");
+    const acts = e.actions.map((a) => {
+      const lx = seqLearned(a.rows[0].page, a.rows[0].row);
+      const mk = lx ? (lx.reached ? `<i class="lk ok" title="학습: 이 동작이 섭니다 — 꼭 필요한 신호 ${lx.signals}개">✔</i>` : `<i class="lk no" title="학습: 지금 도면으로는 서지 않습니다 — ${esc(lx.why || "")}">⛔</i>`) : "";
+      return `<button class="sq-act a-${a.action}" data-eq="${gi}" data-act="${a.action}" title="${esc(a.rows.map((r) => `${r.sheet}-${r.row} ${r.desc} (${KIND_KO[r.kind] || r.kind})`).join("\n"))}">${a.action}<small>${ACT_KO[a.action] || ""}</small>${mk}</button>`;
+    }).join("");
     const open = SEQ.open && SEQ.open.eq === gi ? (e.actions.find((a) => a.action === SEQ.open.act) || {}).rows || [] : [];
     const rows = open.length ? `<ul class="sq-rows">${open.map((r, j) => `<li data-eq="${gi}" data-act="${SEQ.open.act}" data-j="${j}"><span class="sq-k k-${r.kind}">${KIND_KO[r.kind] || r.kind}</span> <b>${esc(r.sheet)}-${r.row}</b> ${esc(r.desc)}</li>`).join("")}</ul>` : "";
     return `<li class="sq-eq"><div class="sq-name">${esc(e.equip)}</div>${e.titles.length ? `<div class="sq-title">${esc(e.titles[0])}</div>` : ""}<div class="sq-acts">${acts}</div>${rows}</li>`;
   }).join("");
-  return `<div class="sq-intro">기기 · 밸브의 동작을 고르면 그 동작에 필요한 조건을 <b>도면 순서대로 하나씩</b> 묻고, 답한 대로 신호를 주며
+  return seqLearnLine() + `<div class="sq-intro">기기 · 밸브의 동작을 고르면 그 동작에 필요한 조건을 <b>도면 순서대로 하나씩</b> 묻고, 답한 대로 신호를 주며
       끝까지 시뮬레이션합니다.  중간에 정합성 오류가 있으면 그 단계에서 어떻게 할지 묻습니다.</div>
     <input id="seq-q" class="sq-q" placeholder="기기 이름 · 태그 · START/OPEN … 검색" value="${esc(SEQ.q)}">
     <div class="sq-count">장비 ${list.length}개${list.length > shown.length ? ` (앞 ${shown.length}개만 — 검색으로 좁히세요)` : ""} · 동작 단추를 누르면 그 동작의 행(명령 · 요청 · 상태)을 고릅니다</div>
@@ -3005,7 +3059,7 @@ function seqStepHtml() {
     btns = `<button data-a="yes" class="pri">✔ 모두 없음 — 다음</button>`;
   } else {
     const kindT = { row: "입력 신호", button: "누름단추 · HMI", monitor: "아날로그 감시", net: "도면에서 몰이를 못 읽은 선",
-      held: "매크로 안쪽 선", stuck: "도면 읽기 빈틈", deep: "조건이 깊음" }[n.kind] || "조건";
+      held: "매크로 안쪽 선", terminal: "매크로 단자 없음", stuck: "도면 읽기 빈틈", deep: "조건이 깊음" }[n.kind] || "조건";
     body = `<div class="sq-q-t"><span class="sq-kind">${kindT}</span> ${esc(n.text)}</div>
       <div class="sq-where">${seqWhere(n)} — ${seqWant(n)}</div>`;
     if (n.ft) body += `<div class="sq-err">⚠ 정합성 오류 — ${(n.ft.why || []).map(esc).join(" · ")}${n.ft.peer ? ` <small>(${esc(n.ft.peer)})</small>` : ""}<br>
@@ -3016,7 +3070,7 @@ function seqStepHtml() {
     if (SEQ.nofollow[n.id]) body += `<div class="sq-err">${esc(n.ref.sheet)}-${n.ref.row} 의 조건을 따라갈 수 없습니다 — ${esc(SEQ.nofollow[n.id])}.  이 조건에 직접 답하거나 여기서 멈추세요.</div>`;
     const tl = SEQ.tries[n.id];
     const tr = tl && typeof tl === "object" ? tl : null;
-    const canTry = ["row", "button", "monitor", "net", "held", "stuck"].includes(n.kind) && n.key;
+    const canTry = ["row", "button", "monitor", "net", "held", "terminal", "stuck"].includes(n.kind) && n.key;
     if (canTry && !tl) setTimeout(() => seqTryLeaf(n), 0);
     const mark = (v) => (tr && tr[v] ? (tr[v].reached ? ` <span class="sq-ok">✔</span>` : ` <span class="sq-no">✕</span>`) : "");
     const best = tr ? ["yes", "no", "skip"].find((v) => tr[v] && tr[v].reached) : null;
@@ -3032,6 +3086,7 @@ function seqStepHtml() {
   }
   const answered = SEQ.hist.length;
   return `<div class="sq-target"><b>${esc(SEQ.target.label)}</b> <small>${esc(SEQ.target.where)}</small></div>
+    ${answered === 0 ? seqLearnCard(SEQ.target) : ""}
     <div class="sq-prog">단계 ${answered + 1} · ${crumbs ? `<span class="sq-crumb">${crumbs}</span>` : "맨 위 조건"}</div>
     <div class="sq-card">${body}${conflict}<div class="sq-btns">${btns}
       <button data-a="look" class="ghost">🔍 도면에서 보기</button></div></div>
@@ -3068,10 +3123,11 @@ function seqDoneHtml() {
   const ok = d.value === SEQ.target.want;
   const unmet = (d.unmet || []).map((u) => `<li>${esc((u.logic || "게이트").toUpperCase())} 출력 ${u.want} 이 나가지 않음 — ${esc(gateNeedText(u.logic, u.want))}</li>`).join("");
   return `<div class="sq-target"><b>${esc(SEQ.target.label)}</b> <small>${esc(SEQ.target.where)}</small></div>
-    <div class="sq-result ${ok ? "ok" : "no"}">${ok ? `✔ ${esc(SEQ.target.desc)} 이(가) <b>${SEQ.target.want}</b> 이 됩니다 — 처음부터 흐름을 그렸습니다` :
+    <div class="sq-result ${ok ? "ok" : "no"}">${SEQ.via ? `<small>${esc(SEQ.via)}으로 돌렸습니다</small><br>` : ""}${ok ? `✔ ${esc(SEQ.target.desc)} 이(가) <b>${SEQ.target.want}</b> 이 됩니다 — 처음부터 흐름을 그렸습니다` :
       `⛔ ${esc(SEQ.target.desc)} 이(가) ${SEQ.target.want} 이 되지 않습니다${d.stopped ? " (중간에 멈춤)" : ""}`}</div>
     ${!ok && unmet ? `<div class="sq-note">막힌 자리 (이 시트):</div><ul class="sq-unmet">${unmet}</ul>` : ""}
     ${!ok ? seqWhyNot() : ""}
+    ${!ok && !SEQ.via ? seqLearnCard(SEQ.target) : ""}
     ${(d.design || []).length ? `<div class="sq-err">설계 오류 ${d.design.length}건 — 신호가 TO 를 따라가다 어긋난 연결을 만났습니다 (오른쪽 '설계 오류')</div>` : ""}
     <div class="sq-foot"><button data-a="replay" class="pri">↻ 흐름 다시 보기</button><button data-a="back" ${SEQ.hist.length ? "" : "disabled"}>◀ 마지막 단계 고치기</button>
       <button data-a="restart">처음부터</button><button data-a="pickagain">다른 동작 고르기</button></div>
@@ -3126,7 +3182,7 @@ async function seqStart(t) {
   const want = 1;
   SEQ.target = { page: t.page, row: t.row, want, desc: t.desc || `${t.row}행`, act: t.action, label: t.equip ? `${t.equip} — ${t.action} ${ACT_KO[t.action] || ""}` : t.desc || `${t.row}행`,
     where: `${t.sheet || (r && r.sheet_no) || ""}-${t.row} ${t.desc || ""}${t.kind ? " · " + (KIND_KO[t.kind] || t.kind) : ""}` };
-  Object.assign(SEQ, { plan: null, ans: {}, sub: {}, hist: [], tries: {}, hint: {}, nofollow: {}, err: null, done: null, view: "step", busy: "조건을 도면에서 거꾸로 읽는 중…" });
+  Object.assign(SEQ, { plan: null, ans: {}, sub: {}, hist: [], tries: {}, hint: {}, nofollow: {}, via: null, err: null, done: null, view: "step", busy: "조건을 도면에서 거꾸로 읽는 중…" });
   renderSeq();
   let plan;
   try { plan = await post(`/logic/api/jobs/${L.job}/sequence`, { page: t.page, row: t.row, value: want }); }
@@ -3218,11 +3274,12 @@ async function seqBack() {
   SEQ.busy = false;
   seqNext();
 }
-async function seqFinish(stopped) {
+async function seqFinish(stopped, forced, via) {
   const t = SEQ.target;
   SEQ.busy = "처음부터 흐름을 그리는 중…"; renderSeq();
   if (t.page !== L.page) { await openSheet(t.page); await new Promise((r) => setTimeout(r, 120)); }
-  L.allForces = seqForces(); L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  L.allForces = forced || seqForces(); L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  SEQ.via = via || null;
   L.states = {}; L.state = null; L.values = {};
   const r = await runSim(true);
   const vals = (r && r.frames && r.frames.length) ? r.frames[r.frames.length - 1].values : (L.finalValues || {});
@@ -3274,6 +3331,7 @@ function bindSeq() {
     if (!b) return;
     const a = b.dataset.a;
     if (a === "look") { seqLocate(SEQ.cur && SEQ.cur.node); return; }
+    if (a === "learned") { seqRunLearned(); return; }
     if (a === "pick") {
       const tr = SEQ.cur && SEQ.tries[SEQ.cur.node.id];
       const o = Array.isArray(tr) ? tr[Number(b.dataset.i)] : null;
