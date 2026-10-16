@@ -6152,5 +6152,7 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * 실측 (명령 · 서는 것 · 자기유지 · 누르는 동안만 · 펄스 · 인터록 있음): HRSG 71 · 54 · 15 · 31 · 8 · 27 (GT IGNITION START = PB START + 허가 → 래치 ·
   PB STOP · SHUTDOWN COMPLETED · TRIP 이 끔 — 도면 그대로) · 1A5J 59 · 50 · 4 · 41 · 5 · 5 · 1A1Y 52 · 45 · 0 · 45.
   HRSG 동시 지령 가능 4장비 (HP/LP DRAIN MOV · HP/LP START-UP VENT MOV — 조건이 압력 낮음/높음 · ISOL 열림/닫힘이라 현장 신호가 함께 안 서는 것에 기댐).
-  학습 시간 HRSG 6초 · 1A5J 5초 · 1A1Y 1초.
-* 시험 `tests/test_logic_l35_understand.py` 9건.
+  19VA 686 · 611 · 90 · 345 · 176 · 111 — 동시 지령 가능 75장비(대부분 PCV · SSV OPEN/CLOSE) · 늘 켜짐 68(START 24 · STOP 20 · CLOSE 12 …
+  예: `AB HHP MAIN STM DRN MOV 1 STP REQ` 는 `T<Tsat(P)+30` 이 들어와야 꺼짐) · 여러 명령을 막는 신호 1위 `HRSG TRIP (GT TRIP REQUEST)`.
+  학습 시간 HRSG 6초 · 1A5J 5초 · 1A1Y 1초 · 19VA 656초 (뒤에서 · 분석이 끝날 때).
+* 시험 `tests/test_logic_l35_understand.py` 9건 · 빠른 시험 1325 통과 (hotfix75 교착 시험 제외).
