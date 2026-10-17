@@ -2589,13 +2589,25 @@ function forceMenu(key, e, label, up) {
    상자를 누르면 작은 메뉴 — 내부 동작을 정의한 Typical 시트를 새 창으로 연다.  새 창은 이 상자의 입력 단자 값을
    그 시트의 입력 행에 주고 돌린다 (시뮬레이션이 다시 돌 때마다 이 창이 새 값을 보낸다). */
 L.childWins = {};
+function macroName(b) {
+  // 상자 글줄에 단자 이름이 섞여 있으면 (1A5J 'FG COMPR SYS GRP A_MODE S_AUTO …') 그 낱말을 뗀다 — 이름만 남긴다
+  const pins = new Set(((b.macro || {}).inputs || []).concat((b.macro || {}).outputs || [])
+    .map((x) => String(x.pin || "").toUpperCase()).filter(Boolean));
+  const words = String(b.caption || "").split(/\s+/).filter(Boolean);
+  const keep = [];
+  for (const w of words) {
+    if (pins.has(w.toUpperCase()) || /^[A-Z]{1,4}_[A-Z0-9]+$/.test(w)) break;      // 첫 단자 이름부터는 단자 줄
+    keep.push(w);
+  }
+  return keep.join(" ") || b.caption || "";
+}
 function macroView(bid) { return ((L.macros || {})[L.page] || {})[bid] || null; }
 function macroMenu(bid, e) {
   closeForceMenu();
   const b = L.sheet.blocks[bid], m = b.macro || {};
   const box = document.createElement("div");
   box.id = "force-menu"; box.className = "force-menu";
-  box.innerHTML = `<div class="fm-h">${esc(b.caption || "매크로 블록")}</div>` +
+  box.innerHTML = `<div class="fm-h">${esc(macroName(b) || "매크로 블록")}</div>` +
     (m.page ? `<button data-m="open" class="v1">↗ 내부 동작 보기 (새 창) — ${esc(m.sheet)}</button>`
             : `<div class="fm-why">${esc(m.why || "이 블록의 Typical 시트를 찾지 못했습니다")}</div>`) +
     (L.mode === "trace" ? `<button data-m="trace" class="vt">↪ 연결만 따라가기</button>` : "");
@@ -2625,7 +2637,7 @@ function openMacro(bid) {
   const b = L.sheet.blocks[bid], m = b.macro || {};
   if (!m.page) return;
   const inp = Object.entries(macroInputs(bid)).map(([r, v]) => `${r}:${v}`).join(",");
-  const from = encodeURIComponent(`${L.sheet.sheet_no} · ${b.caption || "매크로"}`);
+  const from = encodeURIComponent(`${L.sheet.sheet_no} · ${macroName(b) || "매크로"}`);
   const url = `/logic${location.search}#job=${L.job}&page=${m.page}&macro=${L.page}:${bid}&in=${inp}&from=${from}`;
   const key = `${L.page}:${bid}`;
   const w = window.open(url, `macro-${L.job}-${key}`, "width=1500,height=950");
