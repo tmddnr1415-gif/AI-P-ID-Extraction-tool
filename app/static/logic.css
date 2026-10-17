@@ -805,3 +805,5 @@ button.sigchip { cursor: pointer; }
 @keyframes rvflash { from { stroke-opacity: 1; } to { stroke-opacity: .15; } }
 #g-review .rv-tagtx { fill: #fff; font-size: 4.4px; font-weight: 700; pointer-events: none; }
 .rvchip b { font-weight: 600; } .rvchip .e { color: #db1a1a; } .rvchip .c { color: #d47a00; } .rvchip .g { color: #4059d9; }
+.rv-t td:nth-child(2), .rv-t td:nth-child(3), .rv-t td:nth-child(1) { white-space: nowrap; }
+.rv-t td { padding-top: 4px; padding-bottom: 4px; }

@@ -99,7 +99,7 @@ function showHome() {
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   L.job = null;
   $("#job").value = "";
-  for (const id of ["#ft-report", "#report"]) $(id).hidden = true;
+  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf"]) $(id).hidden = true;
   $("#goto").disabled = true;
   status("");
   loadHome();
@@ -362,6 +362,8 @@ async function openJob(id) {
   const wasRunning = L.progJob === id;
   renderProgress(null);
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
+  const opt = $("#job").querySelector(`option[value="${id}"]`);          // 분석 중에 그린 '분석 중 N%' 를 끝난 값으로
+  if (opt && st.sheets != null) opt.textContent = `${st.name || ""} · ${st.sheets}장`;
   const j = await api(`/logic/api/jobs/${id}/sheets`);
   L.sheets = j.sheets;
   $("#basis").innerHTML = `${esc(j.note)}<br><br>배운 글자: ${Object.keys(j.dictionary).map(esc).join(" ")}`;
