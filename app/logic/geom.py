@@ -780,6 +780,13 @@ def _coverage_layout(prims):
             x = round(s.x0, 1)
             cov[x] = cov.get(x, 0.0) + abs(s.y1 - s.y0)
             pieces[x] += 1
+    # 칸 몇 개를 사각형으로 그린 줄도 같은 괘선이다 — 그 칸의 세로 변도 길이에 더한다 (1A5J 0034 · SERVICE 칸 오른쪽
+    # 괘선이 선 토막 + 칸 사각형으로 섞여 길이 합 0.58H 로 문턱에 못 미쳐 LOGIC 영역 왼쪽 경계가 틀렸다 · L39)
+    for r in prims.rects:
+        if 1 < r.h < 0.1 * H and r.w > 1:
+            for x in (round(r.x0, 1), round(r.x1, 1)):
+                cov[x] = cov.get(x, 0.0) + r.h
+                pieces[x] += 1
     # 표 괘선은 **행마다** 끊겨 토막이 행 수만큼이다.  LOGIC 영역의 긴 신호선도 길이 합은 넘지만 토막이 몇 개뿐이다
     # (1A5J · L23: 신호선 넷이 괘선으로 읽혀 LOGIC 영역이 엉뚱한 틈으로 잡히고 행 번호가 밀렸다).
     most = max(pieces.values(), default=0)

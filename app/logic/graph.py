@@ -140,6 +140,7 @@ class Sheet:
 
 # ------------------------------------------------------------------ 만들기
 
+DASH_JOIN_MAX = 0.8      # 파선 끝끼리 잇는 틈 · 모서리 거리 상한 (행 간격 배수) — 1A5J 끊긴 파선 끝 짝 0~0.75P (L39)
 BREAK_GAP_MAX = 2.5      # 끊어 그린 교차의 틈 상한 (행 간격 배수) — 1A1Y 실측 1.06~2.23 · HRSG 0.3~1.4 (L39)
 
 
@@ -673,6 +674,72 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         union(ia, ib)
         bridged.append((ea, eb))
 
+    # 파선끼리 — 같은 직선 위의 틈 · 꺾이는 모서리에서 끊긴 채 그린 파선 신호선 (1A5J 0001/0002 · L39).
+    # 두 끝이 모두 파선의 끝이고, 같은 직선이면 마주 보며 틈이, 직각이면 두 직선이 만나는 모서리까지가 각각
+    # DASH_JOIN_MAX 행 간격 안일 때 잇는다.  끝마다 가장 가까운 짝 하나만.  이은 자리에는 선분을 그려 넣는다 (화면 · 흐름)
+    dl = [k for k in range(len(loose)) if segs[loose[k][1]][1].dashed and loose[k][0] not in used]
+    R = DASH_JOIN_MAX * P
+    cand = []
+    for x in range(len(dl)):
+        ea, ia, axa, va = loose[dl[x]]
+        for y in range(x + 1, len(dl)):
+            eb, ib, axb, vb = loose[dl[y]]
+            if ia == ib or _d(ea, eb) > 2 * R:
+                continue
+            if axa == axb:
+                if (axa == "v" and abs(ea[0] - eb[0]) > 0.3) or (axa == "h" and abs(ea[1] - eb[1]) > 0.3):
+                    continue
+                g = _d(ea, eb)
+                if g == 0 or g > R:
+                    continue
+                if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0 or (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
+                    continue
+                cand.append((g, ea, eb, ia, ib, None))
+            else:
+                C = (eb[0], ea[1]) if axa == "h" else (ea[0], eb[1])
+                da, db = _d(ea, C), _d(eb, C)
+                if da > R or db > R:
+                    continue
+                # 각 끝이 모서리를 바라본다 (모서리가 끝 바깥쪽에 있다 · 끝 위면 됨)
+                if da > 0.01 and (C[0] - ea[0]) * va[0] + (C[1] - ea[1]) * va[1] <= 0:
+                    continue
+                if db > 0.01 and (C[0] - eb[0]) * vb[0] + (C[1] - eb[1]) * vb[1] <= 0:
+                    continue
+                cand.append((da + db, ea, eb, ia, ib, C))
+    dash_links = []
+    for g, ea, eb, ia, ib, C in sorted(cand, key=lambda t: t[0]):
+        if ea in used or eb in used or find(ia) == find(ib):
+            continue
+        used.update((ea, eb))
+        union(ia, ib)
+        dash_links.append((ea, eb, ia, C))
+
+    # 파선 끝이 블록 · 화살촉 · 입력 막대 앞에서 틈 하나를 두고 끝나면 그 틈까지 늘인다 (1A5J — 마지막 토막이 기호에
+    # 안 닿는다 · L21 은 긴 파선에서만 했다 · L39).  끝이 바라보는 방향으로만 · DASH_JOIN_MAX 행 간격까지.
+    for k in dl:
+        e, i, ax_, v = loose[k]
+        if e in used:
+            continue
+        L_ = math.hypot(*v) or 1.0
+        ux, uy = v[0] / L_, v[1] / L_
+        t, hit = 0.25, None
+        while t <= R:
+            q = (e[0] + ux * t, e[1] + uy * t)
+            if any(_in_rect(q, a.bbox, tol) for a in arrows) or any(_block_edge(q, b, tol) for b in blocks) or \
+                    any(_on_seg(q, geom.Seg(*bs), tol)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
+                hit = q
+                break
+            t += 0.25
+        if hit is None:
+            continue
+        sg, sp = segs[i]
+        a0, a1 = sg.ends()
+        segs[i] = (geom.Seg(hit[0], hit[1], a1[0], a1[1]) if _d(a0, e) < 1e-6 else geom.Seg(a0[0], a0[1], hit[0], hit[1]), sp)
+        f = free_of.get(id(sp))
+        if f is not None:                           # 늘인 끝도 파선의 바깥 끝이다
+            f.add((round(hit[0], 2), round(hit[1], 2)))
+        used.add(e)
+
     roots = {}
     for i in range(len(segs)):
         r = find(i)
@@ -683,6 +750,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         n["segs"].append((round(s.x0, 2), round(s.y0, 2), round(s.x1, 2), round(s.y1, 2)))
         if p.dashed:
             n["dashed"] = True
+
+    for ea, eb, ia, C in dash_links:
+        pts = [ea, C, eb] if C else [ea, eb]
+        for q0, q1 in zip(pts, pts[1:]):
+            if _d(q0, q1) > 0.01:
+                sh.nets[seg_net[ia]]["segs"].append((round(q0[0], 2), round(q0[1], 2), round(q1[0], 2), round(q1[1], 2)))
+    linked_ends = [q for ea, eb, _, _ in dash_links for q in (ea, eb)]
 
     for ea, eb in bridged:
         for i, (sg, p) in enumerate(segs):
@@ -737,7 +811,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                             b_, ci_, side_ = pd
                             pin_ports.append((i, b_, ci_, side_, (c.cx, c.cy)))
                         break
-            if not touched and any(_d(e, q) < 1e-6 for br in bridged for q in br):
+            if not touched and (any(_d(e, q) < 1e-6 for br in bridged for q in br) or
+                                any(_d(e, q) < 1e-6 for q in linked_ends)):
                 touched = True
             if not touched:
                 deg[(i, e)] = 0
@@ -776,7 +851,16 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             continue
         xs = [v for sg in sh.nets[nid]["segs"] for v in (sg[0], sg[2])]
         ys = [v for sg in sh.nets[nid]["segs"] for v in (sg[1], sg[3])]
-        if max(max(xs) - min(xs), max(ys) - min(ys)) < P:
+        span = max(max(xs) - min(xs), max(ys) - min(ys))
+        # 행 옆의 펄스 표시(⎍ · 1A5J 0001/0002 — 입력 신호 종류 표시)처럼 실선으로 그린 작은 외톨이 기호도 신호가 아니다:
+        # 아무 데도 안 닿고 · 2 행 간격 안 · 파선 아님 · 끝이 둘뿐 (꺾인 한 줄) (L39)
+        de = [d for d in sh.dangling if d[2] == nid]
+        sg_ = sh.nets[nid]["segs"]
+        glyph = (span < 2 * P and not sh.nets[nid].get("dashed") and len(de) == 2 and 3 <= len(sg_) <= 6 and
+                 # 양 끝이 한 바닥선 위 (⎍ · ⎎) — 꺾인 신호선 조각(ㄱ · ㄴ)은 끝이 대각으로 놓인다
+                 (abs(de[0][1] - de[1][1]) < 0.5 or abs(de[0][0] - de[1][0]) < 0.5) and
+                 math.hypot(de[0][0] - de[1][0], de[0][1] - de[1][1]) >= 0.4 * span)
+        if span < P or glyph:
             del sh.nets[nid]
             sh.dangling = [d for d in sh.dangling if d[2] != nid]
             sh.stray_arrows = [d for d in sh.stray_arrows if d[2] != nid]
