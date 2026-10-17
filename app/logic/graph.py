@@ -609,6 +609,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             if any(_block_edge(e, b, tol * 2) for b in blocks) or any(_in_rect(e, a.bbox, tol) for a in arrows):
                 continue
+            # 게이트 입력 막대 위의 끝 — 막대에 붙을 끝이다 (L39 · 19VA BL11_P303: 파선 잇기가 이 끝을 가져가 입력을 잃었다)
+            if any(_on_seg(e, geom.Seg(*bs), tol * 2)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
+                continue
             # 바깥쪽 방향 (선분 안쪽 → 끝)
             o = s.ends()[1] if e == s.ends()[0] else s.ends()[0]
             loose.append((e, i, ax_, (e[0] - o[0], e[1] - o[1])))
@@ -716,6 +719,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # 파선 끝이 블록 · 화살촉 · 입력 막대 앞에서 틈 하나를 두고 끝나면 그 틈까지 늘인다 (1A5J — 마지막 토막이 기호에
     # 안 닿는다 · L21 은 긴 파선에서만 했다 · L39).  끝이 바라보는 방향으로만 · DASH_JOIN_MAX 행 간격까지.
+    forced = set()                                  # 늘여서 변 · 막대에 닿게 한 끝 — 그 자리의 다른 토막과 맞물려도 단자로 붙는다
     for k in dl:
         e, i, ax_, v = loose[k]
         if e in used:
@@ -725,9 +729,19 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         t, hit = 0.25, None
         while t <= R:
             q = (e[0] + ux * t, e[1] + uy * t)
-            if any(_in_rect(q, a.bbox, tol) for a in arrows) or any(_block_edge(q, b, tol) for b in blocks) or \
+            ar = next((a for a in arrows if _in_rect(q, a.bbox, tol)), None)
+            if ar is not None:
+                hit = ar.base if _d(ar.base, e) <= R + tol else q       # 화살촉이면 그 밑동까지 (화살 선이 끝나는 자리)
+                break
+            if any(_block_edge(q, b, tol) for b in blocks) or \
                     any(_on_seg(q, geom.Seg(*bs), tol)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
-                hit = q
+                # 변 · 막대 바로 위까지 (허용치만큼 앞에서 멈추면 그 자리에 이미 붙은 다른 토막과 맞물려 단자를 잃는다)
+                while t <= R + tol and not (any(_block_edge(q, b, 0.05) for b in blocks) or
+                                            any(_on_seg(q, geom.Seg(*bs), 0.05)[0] for b in blocks for bs in getattr(b, "bus", ()) or ())):
+                    t += 0.05
+                    q = (e[0] + ux * t, e[1] + uy * t)
+                hit = (round(q[0], 2), round(q[1], 2))
+                forced.add(hit)
                 break
             t += 0.25
         if hit is None:
@@ -799,6 +813,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             touched = False
             for j in near(e):
+                if (round(e[0], 2), round(e[1], 2)) in forced:
+                    break
                 if j != i and (segs[j][1] is p or joinable(e, p)) and _on_seg(e, segs[j][0], tol)[0]:
                     touched = True
                     break

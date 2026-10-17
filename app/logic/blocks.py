@@ -281,6 +281,19 @@ def classify(sheet, D):
     for b in sheet.blocks.values():
         if b.kind == "RECT" and getattr(b, "func", "") == "UNKNOWN" and b.id not in has_in:
             b.func, b.logic = "SIGNAL", "source"
+    # L39 — 판정 못 한 상자 중 (가) 글자가 범례 A/B 꼴이면 투표 블록 (선 글자로 읽은 `2/3` · HRSG G067)
+    # (나) 선이 들어오기만 하고 나가지 않으며 안에 낱말이 있으면 상태 표시 상자 (REMOTE · LOCAL · SERVICE — 받기만 · HRSG)
+    has_out = {pt.block for pt in sheet.ports if pt.dir == "out"}
+    for b in sheet.blocks.values():
+        if b.kind != "RECT" or getattr(b, "func", "") != "UNKNOWN":
+            continue
+        rd = (getattr(b, "read", "") or "").strip()
+        mv = re.fullmatch(r"(\d+)\s*/\s*(\d+)", rd)
+        if mv and 0 < int(mv.group(1)) <= int(mv.group(2)) and b.id in has_in:
+            b.func, b.logic, b.label = "VOTE", "vote", rd.replace(" ", "")
+            b.param = {"a": int(mv.group(1)), "b": int(mv.group(2))}
+        elif b.id in has_in and b.id not in has_out and len(re.sub(r"[^A-Z]", "", rd.upper())) >= 3:
+            b.func, b.logic, b.label = "DISPLAY", "sink", rd
     _pass_points(sheet)
     _shape_fallback(sheet, leg)
     _connector_groups(sheet)

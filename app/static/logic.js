@@ -48,6 +48,7 @@ const FUNC_KO = {
   PB: "누름단추", STEP: "STEP (시퀀스 단계)", CONNECTOR: "연결 기호", LIGHT: "램프", ANN: "경보 (ANN)",
   SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함", MACRO: "매크로 블록",
   VOTE: "투표 (B 개 중 A 개)", CONST: "언제나 같은 값", ANALOG: "아날로그 연산 (이진 아님)",
+  DISPLAY: "상태 표시 (받기만)", "PUSH BUTTON": "누름단추",
 };
 
 /* L12 — 매크로 블록의 새 창: 주소의 macro=<부모 장>:<블록>&in=<행>:<값>,… (부모 창이 입력 단자 값을 보낸다) */
