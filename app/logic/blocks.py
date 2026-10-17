@@ -287,7 +287,8 @@ def classify(sheet, D):
     for b in sheet.blocks.values():
         if b.kind != "RECT" or getattr(b, "func", "") != "UNKNOWN":
             continue
-        rd = (getattr(b, "read", "") or "").strip()
+        rd = (getattr(b, "read", "") or "").strip() or " ".join(
+            w[4] for w in sheet.words if b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3]).strip()
         mv = re.fullmatch(r"(\d+)\s*/\s*(\d+)", rd)
         if mv and 0 < int(mv.group(1)) <= int(mv.group(2)) and b.id in has_in:
             b.func, b.logic, b.label = "VOTE", "vote", rd.replace(" ", "")
