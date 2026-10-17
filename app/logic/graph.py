@@ -203,7 +203,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         wires = [p for p in wires if id(p) not in used]
         glyphs = [p for p in glyphs if id(p) not in used]
     rects = _dedupe_nested(rects, tol * 4)
-    frames = _group_frames(rects, bigc)
+    frames = _group_frames(rects, bigc, wires, tol)
     rects = [r for r in rects if id(r) not in frames]
     groups = _touching_groups(rects, tol)
 
@@ -1144,14 +1144,44 @@ def _dedupe_nested(rects, gap):
     return out
 
 
-def _group_frames(rects, circles):
+def _group_frames(rects, circles, wires=(), tol=0.0):
     frames = set()
     for r in rects:
         n = sum(1 for o in rects if o is not r and o.x0 >= r.x0 and o.x1 <= r.x1 and o.y0 >= r.y0 and o.y1 <= r.y1)
         n += sum(1 for c in circles if r.x0 <= c.cx <= r.x1 and r.y0 <= c.cy <= r.y1)
-        if n >= 3:
+        if n >= 3 and (_edge_pins(r, wires, tol) < 2 or _inner_wires(r, wires, tol) >= 3):
             frames.add(id(r))
     return frames
+
+
+def _inner_wires(r, wires, tol):
+    """사각형 안쪽에 통째로 들어 있는 배선 토막 수 — 묶음 틀은 안에 게이트를 잇는 선을 품고, 매크로 상자는 글자 ·
+    운전 버튼 칸뿐이다 (HRSG Typical 의 'MOTOR SUB-GROUP BLOCK' 틀 ↔ 1A1Y MTS MACRO · L39)."""
+    n = 0
+    for p in wires:
+        for sg in p.segs:
+            if (r.x0 + tol < min(sg.x0, sg.x1) and max(sg.x0, sg.x1) < r.x1 - tol and
+                    r.y0 + tol < min(sg.y0, sg.y1) and max(sg.y0, sg.y1) < r.y1 - tol and sg.length > 0):
+                n += 1
+    return n
+
+
+def _edge_pins(r, wires, tol):
+    """사각형의 왼쪽 · 오른쪽 변에 바깥에서 들어와 끝나는 가로선 수 — 단자다.  묶음 틀은 선이 변을 지나가거나 닿지 않는다.
+    (1A1Y MTS MACRO — 안에 운전 버튼 칸 다섯을 품은 매크로 상자가 '묶음 틀' 로 버려졌다 · L39)"""
+    n = 0
+    tol = max(tol * 2, 1.5 * tol + 1.2)       # 단자 원(반지름 약 1pt) 바깥에서 끝나는 선도 단자다
+    for p in wires:
+        for sg in p.segs:
+            if not sg.horiz:
+                continue
+            y = sg.y0
+            if not (r.y0 + tol < y < r.y1 - tol):
+                continue
+            a, b = min(sg.x0, sg.x1), max(sg.x0, sg.x1)
+            if abs(b - r.x0) <= tol and a < r.x0 - tol or abs(a - r.x1) <= tol and b > r.x1 + tol:
+                n += 1
+    return n
 
 
 def _touching_groups(rects, tol):

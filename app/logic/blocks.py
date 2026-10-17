@@ -286,6 +286,7 @@ def classify(sheet, D):
     _connector_groups(sheet)
     _step_roles(sheet, D)
     _macro_pins(sheet)
+    _inner_buttons(sheet)
 
 
 def _drawn(b, sheet, leg, mem_set, mem_reset):
@@ -768,6 +769,32 @@ def _macro_pins(sheet):
             _, by0, by1 = best
             parts = sorted((x0, t) for y0, y1, x0, t in side if y0 <= by1 and y1 >= by0)
             b.pins[f"{pt.at[0]},{pt.at[1]}"] = "".join(t for _, t in parts)
+
+
+def _inner_buttons(sheet):
+    """매크로 상자 **안**에 붙여 그린 운전 버튼 칸 (1A1Y MTS MACRO 오른쪽 아래 A_SEL · M_SEL · M_OPN … · L39) —
+    선 없이 상자 안에 있으므로 그 칸 이름이 곧 매크로의 입력 단자다.  칸(신호 상자) → 매크로 입력을 짧은 선으로 잇는다.
+    칸은 누름단추처럼 사람이 1/0 을 준다.  단자 이름은 칸 글자 그대로 (Typical 표의 ABV 와 맞댄다)."""
+    from .graph import TOUCH, Port
+    tol = TOUCH * sheet.layout.pitch
+    has = {pt.block for pt in sheet.ports}
+    for m in [b for b in sheet.blocks.values() if getattr(b, "func", "") == "MACRO"]:
+        mx0, my0, mx1, my1 = m.bbox
+        for b in list(sheet.blocks.values()):
+            if b is m or b.id in has or getattr(b, "func", "") != "SIGNAL" or not (b.label or "").strip():
+                continue
+            x0, y0, x1, y1 = b.bbox
+            if not (x0 >= mx0 - tol and x1 <= mx1 + tol and y0 >= my0 - tol and y1 <= my1 + tol):
+                continue
+            nid = max([n for n in sheet.nets if isinstance(n, int)] + [0]) + 1
+            cy = round((y0 + y1) / 2, 2)
+            at = (round(x0, 2), cy) if (x0 - mx0) > (mx1 - x1) else (round(x1, 2), cy)
+            sheet.nets[nid] = {"segs": [(at[0], cy, at[0], cy)], "dashed": False, "inner": True}
+            sheet.ports.append(Port(b.id, nid, "out", at, "L" if at[0] == round(x0, 2) else "R", 0))
+            sheet.ports.append(Port(m.id, nid, "in", at, "", 0))
+            m.pins = getattr(m, "pins", None) or {}
+            m.pins[f"{at[0]},{at[1]}"] = b.label.strip()
+            b.func, b.logic = "PUSH BUTTON", "source"  # 사람이 누르는 칸 (누름단추와 같이 — 순차 동작 · 누름 확인이 쓴다)
 
 
 def _step_roles(sheet, D):
