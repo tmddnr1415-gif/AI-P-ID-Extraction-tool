@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import itertools
+import re
 import time
 
 from . import sequence, sim
@@ -208,7 +209,8 @@ def _labels(sheets, forces):
             elif kind == "block":
                 box, _, inner = x.partition("/")
                 mac = (s.get("blocks", {}).get(box) or {}).get("macro") or {}
-                ib = ((by.get(mac.get("page")) or {}).get("blocks") or {}).get(inner) or {}
+                mp = re.match(r"P(\d+)\.(.+)$", inner)       # L38 — 여러 장 매크로의 다른 장 블록
+                ib = ((by.get(int(mp.group(1)) if mp else mac.get("page")) or {}).get("blocks") or {}).get(mp.group(2) if mp else inner) or {}
                 lab = (ib.get("label") or ib.get("func") or "").strip()
                 text = f"매크로 안쪽 {lab} ({mac.get('sheet') or box})" if lab else f"매크로 {box} 안쪽 블록"
             elif kind == "hold":

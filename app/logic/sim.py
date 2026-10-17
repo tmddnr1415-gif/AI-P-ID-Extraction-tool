@@ -27,6 +27,7 @@ import pickle
 from collections import defaultdict
 
 from . import analog as A
+from . import macro as _MC
 
 DEFAULT_T = 5.0           # L22 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 5초 · L15 는 10초였다)
 MAX_ITER = 300
@@ -830,7 +831,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         ports = [p for p in s0["ports"] if p["block"] not in boxes]
         nets = dict(s0.get("nets") or {})
         for bid, m in items:
-            ts = by_page[m["page"]]
+            ts = _MC.body(by_page, m)                   # L38 — 여러 장 매크로는 합친 본문
             alias = {}
             for x in m["inputs"]:
                 tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "L"), None)
@@ -922,6 +923,10 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             for bid, m in items.items():
                 for k, v in (timers.get(m["page"]) or {}).items():
                     tm[f"{bid}/{k}"] = v
+                for pg in (m.get("parts") or []):
+                    if pg != m["page"]:
+                        for k, v in (timers.get(pg) or {}).items():
+                            tm[f"{bid}/P{pg}.{k}"] = v
             asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
             mk = hit = None
             if page_memo is not None:
@@ -1327,7 +1332,7 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
     if b.get("func") == "MACRO":
         # L12 매크로 — 그 출력 단자의 Typical 행이 1 이 되는 Typical 입력 행 조합을 찾아 상자의 입력 단자 선으로 옮긴다
         m = b.get("macro") or {}
-        ts = (ctx.get("by_page") or {}).get(m.get("page"))
+        ts = _MC.body(ctx.get("by_page") or {}, m)
         if v == 0:
             return [({}, [])]
         out = next((o for o in m.get("outputs", []) if o.get("net") == onet and o.get("row") is not None), None)
@@ -1539,6 +1544,10 @@ def press(sheets, page, bid, forces=None, state=None, timers=None, analog=None, 
     for mb, m in (topo[4][page][1].items() if topo and page in topo[4] else ()):
         for k, v in ((timers or {}).get(m["page"]) or {}).items():
             tm[f"{mb}/{k}"] = v
+        for pg in (m.get("parts") or []):
+            if pg != m["page"]:
+                for k, v in ((timers or {}).get(pg) or {}).items():
+                    tm[f"{mb}/P{pg}.{k}"] = v
     soft = {int(n): v for n, v in ((out.get("linked") or {}).get(page) or {}).items() if f"row:{n}" not in f1[page]}
     inner = simulate(s_run, f1[page], (state or {}).get(page), timers=tm, soft=soft)
     on = set()

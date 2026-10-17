@@ -507,13 +507,38 @@ def _gather_arcs(out, arcs):
         pl = Poly(segs, _bbox([q for sg in segs for q in sg.ends()]), pid=pid, curved=True)
         pl.cbbox = _bbox([q for c in cs for q in (c[0], c[3], _arc_mid(c))])      # 곡선이 실제로 닿는 둘레
         out.polys.append(pl)
+    todo = []
     for g in groups.values():
         if len(g) < 3 or cloud.intersection(g):
             continue
         es = [e for i in g for e in ends[i]]
         # 닫힘 = 끝마다 맞닿은 끝이 꼭 하나 (반올림 칸으로 세면 524.55 ↔ 524.5499 가 갈린다)
-        if not all(sum(1 for q in es if close(e, q)) == 2 for e in es):
+        if all(sum(1 for q in es if close(e, q)) == 2 for e in es):
+            todo.append(g)
             continue
+        # L38 — 맞닿게 쌓아 그린 원들(1A5J 표시등 R·G·R·G·Y 세로 줄)은 위 원의 아래 끝이 아래 원의 위 끝이라 끝으로
+        # 묶으면 한 무리가 되고 닫힘이 깨진다.  그때만 조각마다 자기 원의 중심(시작·가운데·끝 세 점의 외심)으로 다시
+        # 가르고 갈래마다 닫힘을 본다 — 닫힌 무리는 이 갈래에 오지 않으므로 이미 읽히던 원은 그대로다.
+        cen = {}
+        for i in g:
+            cc = _arc_centre(arcs[i][1])
+            if cc is not None:
+                cen[i] = cc
+        sub = {}
+        for i, (cx, cy, r) in cen.items():
+            for k, (kx, ky, kr) in list(sub.items()):
+                if math.hypot(cx - kx, cy - ky) < 0.15 * max(r, kr) and abs(r - kr) < 0.15 * max(r, kr):
+                    sub[k + (i,)] = sub.pop(k)
+                    break
+            else:
+                sub[(i,)] = (cx, cy, r)
+        for part in sub:
+            if len(part) < 3:
+                continue
+            ps = [e for i in part for e in ends[i]]
+            if all(sum(1 for q in ps if close(e, q)) == 2 for e in ps):
+                todo.append(list(part))
+    for g in todo:
         bb = _bbox([q for i in g for c in arcs[i][1] for q in (c[0], c[3])] +
                    [_arc_mid(c) for i in g for c in arcs[i][1]])
         w, h = bb[2] - bb[0], bb[3] - bb[1]
@@ -521,6 +546,19 @@ def _gather_arcs(out, arcs):
             c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
             c.oval = not (0.8 < h / w < 1.25)          # 납작한 고리(타원) — 범례 ALM 'ANN' 처럼 둥근 상자
             out.rings.append((c, {arcs[i][0] for i in g}))
+
+
+def _arc_centre(cs):
+    """호 조각이 놓인 원의 (중심 x, 중심 y, 반지름) — 시작 · 가운데 · 끝 세 점의 외심.  곧으면 None."""
+    a, b = cs[0][0], cs[-1][3]
+    mid = _arc_mid(cs[len(cs) // 2]) if len(cs) % 2 else cs[len(cs) // 2][0]
+    ax, ay, bx, by, cx, cy = a[0], a[1], mid[0], mid[1], b[0], b[1]
+    d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-9:
+        return None
+    ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
+    uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
+    return ux, uy, math.hypot(ax - ux, ay - uy)
 
 
 def _bulge(cs):

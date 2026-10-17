@@ -247,6 +247,16 @@ def classify(sheet, D):
                 b.label = ch if s >= MIN_SCORE else "?"
                 b.score = round(s, 3)
                 continue
+            if b.kind == "CIRCLE" and len(diag) >= 2 and not rest:
+                # L38 — 같은 램프인데 글자가 진짜 글자인 양식 (1A5J 표시등 R·G·Y) — 선 글자는 둘레 빗살뿐이다
+                from . import legend as LG
+                tx = [t.replace(" ", "") for t in LG.block_text(b, sheet.words) if t and t.strip()]
+                if len(tx) == 1 and len(tx[0]) == 1 and tx[0].isalpha():
+                    b.func = "LIGHT"
+                    b.logic = "sink"
+                    b.label = tx[0].upper()
+                    b.score = 1.0
+                    continue
             if len(cs) == 1 or b.kind == "CONNECTOR":
                 if cs:
                     c0 = max(cs, key=lambda c: c.w * c.h + c.h)       # 원 안 글자 — 가장 큰 무리

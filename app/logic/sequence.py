@@ -16,6 +16,8 @@
 from __future__ import annotations
 
 import re
+
+from . import macro as _MC
 from functools import lru_cache
 from pathlib import Path
 
@@ -85,6 +87,7 @@ KIND_RANK = {"command": 0, "request": 1, "action": 2, "state": 3}
 def commands(sheets):
     """묶음의 동작 행을 장비마다.  Typical 시트(매크로 안쪽)는 뺀다 — 그 행은 어느 장비의 것도 아니다."""
     typical = {(b.get("macro") or {}).get("page") for s in sheets for b in s["blocks"].values() if b.get("func") == "MACRO"}
+    typical |= {pg for s in sheets for b in s["blocks"].values() if b.get("func") == "MACRO" for pg in ((b.get("macro") or {}).get("parts") or [])}
     eq = {}
     for s in sheets:
         if s["page"] in typical or s.get("library"):
@@ -231,7 +234,7 @@ def plan(sheets, page, row, value=1, timers=None):
     def macro_node(C, x, want, onet, depth, path):
         b = C["s"]["blocks"][x]
         m = b.get("macro") or {}
-        ts = by_page.get(m.get("page"))
+        ts = _MC.body(by_page, m)                       # L38 — 여러 장 매크로는 합친 본문
         out = next((o for o in m.get("outputs", []) if o.get("net") == onet and o.get("row") is not None), None)
         direct = "net:" + C["prefix"] + str(onet)      # 매크로 안을 못 읽으면 그 출력 단자 선에 직접 답한다 (몰이가 없는 선)
         if ts is None or out is None:
