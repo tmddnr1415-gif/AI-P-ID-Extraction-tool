@@ -179,12 +179,15 @@ function jobLine(x) {
   const mats = Object.keys(x.materials || { logic: 1 });
   const lab = Object.fromEntries(HOME.materials.map((m) => [m.kind, m.label]));
   const idr = x.idrate != null ? ` <span class="chip${(x.idrate_low || []).length ? " low" : ""}" title="식별률 — 시트 이름 · FROM/TO 칸 · 연결 · 게이트${(x.idrate_low || []).length ? " (90% 아래 항목 있음 — 열어서 마크업으로 넣으세요)" : ""}">식별 ${(Math.floor(x.idrate * 1000) / 10).toFixed(1)}%</span>` : "";
-  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>${idr}`
+  const rv = x.review;
+  const rvc = rv ? ` <span class="chip rvchip" title="정합성 검토 — 설계 오류 · 설계 확인 · 읽기 빈틈 (툴 판정 ${rv.judged != null ? (rv.judged * 100).toFixed(1) + "%" : "—"})">검토 <b class="e">E${rv.error}</b> <b class="c">C${rv.check}</b> <b class="g">G${rv.gap}</b></span>` : "";
+  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>${idr}${rvc}`
     : x.state === "failed" ? `<span class="bad">● 실패</span>`
     : `<span class="run">● 분석 중 ${(x.progress && x.progress.percent) || 0}%</span>`;
   return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
     <div class="jm">${st} ${mats.map((k) => `<span class="mat">${esc(lab[k] || k)}</span>`).join("")}
     <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}
+    ${x.state === "done" ? `<a class="jgt" href="/logic/api/jobs/${x.id}/review.pdf" title="정합성 검토 결과를 입력 PDF 에 마크업한 파일">📋 검토 PDF</a>` : ""}
     ${x.state === "done" ? `<button class="jgt" data-gt="${x.id}" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험합니다">🧪 그룹 시험</button>` : ""}
     ${x.state === "queued" || x.state === "running" ? "" : `<button class="jdel" data-del="${x.id}" title="이 분석 기록을 지웁니다 (분석 결과 · 메모 · 사람이 정한 값)">지우기</button>`}</div>
     ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
@@ -373,6 +376,9 @@ async function openJob(id) {
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
   loadTeach(id, teachOpen || lsGet("logic.teachclosed." + id) !== "1");
   $("#ft-report").hidden = false;
+  RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
+  $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
+  loadReview(id);
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
@@ -460,10 +466,137 @@ async function showFromTo(id) {
     <details><summary>연결은 맞고 설명이 다른 것 ${dif.length}건</summary>
       <div class="ft-scroll"><table class="ft-t">${dif.map((x) => li(x, r.items.indexOf(x))).join("")}</table></div></details>
     <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${id}/report.xlsx">Excel 보고서 내려받기</a>
+      <button class="btn" onclick="closeFromTo();renderReview()">📋 정합성 검토 전체 보기</button>
       <button id="ft-close" class="btn primary">확인 — 신호 주며 로직 보기</button></div>`;
   $("#ft-modal").hidden = false;
 }
 function closeFromTo() { $("#ft-modal").hidden = true; }
+
+/* ------------------------------------------------------------------ 정합성 검토 결과 한 장 (L39) */
+const RV = { data: null, cat: "ALL", topic: "", q: "", on: false, focus: null, poll: null };
+const RV_KO = { ERROR: "설계 오류", CHECK: "설계 확인", GAP: "읽기 빈틈", INFO: "참고" };
+const RV_TAG = { ERROR: "E", CHECK: "C", GAP: "G", INFO: "I" };
+const RV_TOPIC = { fromto: "from-to", line: "선 연결", gate: "게이트", command: "명령 동작", pair: "반대 명령", read: "읽기" };
+async function loadReview(id, open) {
+  id = id || L.job;
+  let r;
+  try { r = await api(`/logic/api/jobs/${id}/review`); } catch (e) { status(e.message); return; }
+  if (L.job !== id) return;
+  RV.data = r;
+  const c = r.count || {};
+  $("#rv-btn").innerHTML = `📋 정합성 검토 <b class="rv-n e">${c.ERROR || 0}</b><b class="rv-n c">${c.CHECK || 0}</b><b class="rv-n g">${c.GAP || 0}</b>`;
+  clearTimeout(RV.poll);
+  if (r.learning && r.learning.state === "running") RV.poll = setTimeout(() => L.job === id && loadReview(id), 6000);
+  if (open || !$("#rv-modal").hidden) renderReview();
+  if (L.sheet) drawOverlay();
+}
+function rvItems() {
+  const r = RV.data;
+  if (!r) return [];
+  const q = RV.q.trim().toUpperCase();
+  return r.items.filter((it) => (RV.cat === "ALL" ? it.cat !== "INFO" : it.cat === RV.cat) && (!RV.topic || it.topic === RV.topic) &&
+    (!q || `${it.sheet_no} ${it.title} ${it.text}`.toUpperCase().includes(q)));
+}
+function renderReview() {
+  const r = RV.data;
+  if (!r) { loadReview(L.job, true); return; }
+  const c = r.count, rate = r.rate, tl = rate.tally || {};
+  const learning = r.learning && r.learning.state === "running";
+  const items = rvItems();
+  const shown = items.slice(0, 600);
+  const topics = Object.entries(r.by_topic || {});
+  $("#rv-box").innerHTML = `<h2>정합성 검토 결과 <small>${esc(r.name || "")} · ${r.sheets}장</small></h2>
+    <div class="rv-cards">
+      <div class="rv-c"><b>${pct(rate.read)}</b><span>도면 읽기</span></div>
+      <div class="rv-c"><b>${pct(rate.judged)}</b><span>툴 판정</span></div>
+      <div class="rv-c e" data-cat="ERROR"><b>${c.ERROR}</b><span>설계 오류</span></div>
+      <div class="rv-c c" data-cat="CHECK"><b>${c.CHECK}</b><span>설계 확인</span></div>
+      <div class="rv-c g" data-cat="GAP"><b>${c.GAP}</b><span>읽기 빈틈</span></div>
+    </div>
+    <p class="rv-parts">툴 판정 — ${Object.entries(rate.parts || {}).filter(([, v]) => v != null)
+      .map(([k, v]) => `${RV_TOPIC[k] || k} <b>${pct(v)}</b> <small>(${tl[k].done}/${tl[k].all})</small>`).join(" · ")}
+      ${learning ? `<br><span class="rv-learn">⏳ 동작 학습 중${r.learning.progress && r.learning.progress.total ? ` ${r.learning.progress.done}/${r.learning.progress.total}` : ""} — 끝나면 명령 · 반대 명령 검토가 더해집니다</span>` : ""}
+      ${r.behavior && !r.behavior.learned && !learning ? `<br><span class="rv-learn">명령 · 반대 명령 검토는 동작 학습이 끝난 뒤 더해집니다</span>` : ""}</p>
+    <div class="rv-legend"><span class="e">E 설계 오류</span> 도면이 어긋남 · <span class="c">C 설계 확인</span> 의도인지 판단 · <span class="g">G 읽기 빈틈</span> 툴이 다 못 읽음 — 가르치기 · 마크업</div>
+    <div class="rv-filter">
+      ${["ALL", "ERROR", "CHECK", "GAP", "INFO"].map((k) => `<button data-f="${k}" class="${RV.cat === k ? "on" : ""}">${k === "ALL" ? "모두" : RV_KO[k]} ${k === "ALL" ? c.ERROR + c.CHECK + c.GAP : c[k]}</button>`).join("")}
+      <select id="rv-topic"><option value="">주제 전부</option>${topics.map(([k, d]) => `<option value="${k}" ${RV.topic === k ? "selected" : ""}>${RV_TOPIC[k] || k} (${d.ERROR + d.CHECK + d.GAP})</option>`).join("")}</select>
+      <input id="rv-q" placeholder="시트 · 낱말 찾기" value="${esc(RV.q)}">
+      <label class="rv-on"><input type="checkbox" id="rv-on" ${RV.on ? "checked" : ""}> 도면에 표시</label>
+    </div>
+    <div class="ft-scroll rv-scroll"><table class="ft-t rv-t"><tr><th>번호</th><th>분류</th><th>시트</th><th>제목</th><th>내용</th></tr>
+      ${shown.map((it) => `<tr data-rv="${it.id}" class="${it.cat.toLowerCase()}"><td><b class="rv-tag ${it.cat.toLowerCase()}">${RV_TAG[it.cat]}${it.id}</b></td>
+        <td>${RV_KO[it.cat]}<br><small>${RV_TOPIC[it.topic] || it.topic}</small></td><td>${esc(it.sheet_no || "p" + it.page)}</td>
+        <td>${esc(it.title)}</td><td><small>${esc(it.text)}</small></td></tr>`).join("") || `<tr><td colspan="5" class="ft-none">없습니다</td></tr>`}
+    </table>${items.length > shown.length ? `<p class="ft-none">앞 ${shown.length}건만 보입니다 — 거르거나 Excel · PDF 로 보세요 (모두 ${items.length}건)</p>` : ""}</div>
+    <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${L.job}/review.xlsx">Excel</a>
+      <a class="btn primary" href="/logic/api/jobs/${L.job}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}">검토 PDF 내려받기 (마크업)</a>
+      <button id="rv-close" class="btn">닫기</button></div>`;
+  $("#rv-modal").hidden = false;
+}
+function bindReview() {
+  const box = $("#rv-box");
+  $("#rv-btn").onclick = () => renderReview();
+  $("#rv-modal").addEventListener("click", (e) => { if (e.target.id === "rv-modal") $("#rv-modal").hidden = true; });
+  box.addEventListener("click", (e) => {
+    const f = e.target.closest("[data-f]");
+    if (f) { RV.cat = f.dataset.f; renderReview(); return; }
+    const cd = e.target.closest(".rv-c[data-cat]");
+    if (cd) { RV.cat = cd.dataset.cat; renderReview(); return; }
+    if (e.target.id === "rv-close") { $("#rv-modal").hidden = true; return; }
+    const tr = e.target.closest("tr[data-rv]");
+    if (tr) { const it = RV.data.items.find((x) => x.id === Number(tr.dataset.rv)); if (it) goReview(it); }
+  });
+  box.addEventListener("change", (e) => {
+    if (e.target.id === "rv-topic") { RV.topic = e.target.value; renderReview(); }
+    if (e.target.id === "rv-on") { RV.on = e.target.checked; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay(); }
+  });
+  box.addEventListener("input", (e) => {
+    if (e.target.id !== "rv-q") return;
+    RV.q = e.target.value;
+    clearTimeout(RV.qt);
+    RV.qt = setTimeout(() => { const pos = e.target.selectionStart; renderReview(); const q = $("#rv-q"); q.focus(); q.setSelectionRange(pos, pos); }, 250);
+  });
+  RV.on = lsGet("logic.rvon") === "1";
+}
+/* 검토 항목 하나로 — 그 쪽으로 가서 그 자리를 두르고 깜박인다 */
+async function goReview(it) {
+  $("#rv-modal").hidden = true;
+  RV.focus = { id: it.id, at: Date.now() };
+  const look = () => {
+    if (!it.rect) return;
+    const st = $("#stage");
+    const [x0, y0, x1, y1] = it.rect;
+    setZoom(Math.max(L.zoom, 1.6));
+    st.scrollLeft = ((x0 + x1) / 2) * L.zoom - st.clientWidth / 2;
+    st.scrollTop = ((y0 + y1) / 2) * L.zoom - st.clientHeight / 2;
+  };
+  if (it.page !== L.page) {
+    if (L.sheet) { const st = $("#stage"); L.back.push({ page: L.page, zoom: L.zoom, sl: st.scrollLeft, stp: st.scrollTop }); $("#go-back").disabled = false; }
+    L.focus = null; L.afterFit = look;
+    await openSheet(it.page);
+  } else { drawOverlay(); look(); }
+  status(`${RV_TAG[it.cat]}${it.id} ${RV_KO[it.cat]} — ${it.title} · ${it.text}`);
+}
+function drawReview() {
+  const r = RV.data, s = L.sheet;
+  if (!r || !s) return;
+  const its = r.items.filter((it) => it.page === s.page && it.rect && it.cat !== "INFO" &&
+    (RV.on || (RV.focus && RV.focus.id === it.id)));
+  if (!its.length) return;
+  const g = el("g", { id: "g-review" }, $("#ov"));
+  for (const it of its) {
+    const [x0, y0, x1, y1] = it.rect;
+    const cls = "rv-box " + it.cat.toLowerCase() + (RV.focus && RV.focus.id === it.id ? (Date.now() - RV.focus.at < 3000 ? " flash" : " sel") : "");
+    const b = el("rect", { x: x0 - 1.5, y: y0 - 1.5, width: x1 - x0 + 3, height: y1 - y0 + 3, class: cls }, g);
+    const t = `${RV_TAG[it.cat]}${it.id}`;
+    el("rect", { x: x1 + 1.5, y: y0 - 7, width: t.length * 3.1 + 2, height: 5.6, class: "rv-tagbg " + it.cat.toLowerCase() }, g);
+    const tx = el("text", { x: x1 + 2.4, y: y0 - 2.6, class: "rv-tagtx" }, g);
+    tx.textContent = t;
+    const tip = el("title", {}, b);
+    tip.textContent = `${t} ${RV_KO[it.cat]} — ${it.title}\n${it.text}`;
+  }
+}
 
 /* ------------------------------------------------------------------ 신호를 주는 중의 리마인드 (사용자 규칙 2 · L13) */
 function renderRemind(fresh) {
@@ -641,9 +774,12 @@ async function openSheet(page) {
   drawOverlay();
   renderRows(); renderFindings(); renderInfo(); renderHelp(); renderLatches();
   L.pendingAt = null; L.memoEdit = null; renderMemo();
-  img.onload = () => { img.style.visibility = ""; if (L.page === page) fit(); };
+  // 맞춤은 한 번만 — 그림이 이미 풀려 있으면 곧바로 맞추고 뒤이어 오는 load 는 무시한다 (두 번 맞추면 이동한 자리 · 확대가 지워진다)
+  let fitted = false;
+  const fitOnce = () => { if (fitted || L.page !== page) return; fitted = true; fit(); };
+  img.onload = () => { img.style.visibility = ""; fitOnce(); };
   img.onerror = () => { img.style.visibility = ""; };
-  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fit(); }
+  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fitOnce(); }
   prefetchAround(page);
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
@@ -782,6 +918,7 @@ function drawOverlay() {
     if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
   }
   if (L.focus && L.focus.page === s.page) drawGoto();
+  drawReview();
   el("g", { id: "g-sim" }, ov);       // 게이트 단자 1/0 · S-R 표 (L8) — paint 가 채운다
   el("g", { id: "g-count" }, ov);     // L15 — 세는 타이머의 남은 시간
   el("g", { id: "g-need" }, ov);      // L15 — 출력을 활성화했을 때 필요한 입력 (주황 3번 점등)
@@ -4721,6 +4858,7 @@ function bind() {
   $("#job").onchange = (e) => { if (e.target.value) { hideHome(); openJob(e.target.value); } else showHome(); };
   $("#sheet-filter").oninput = renderSheetList;
   $("#ft-report").onclick = () => showFromTo();
+  bindReview();
   $("#ft-modal").onclick = (e) => {
     if (e.target.id === "ft-modal" || e.target.id === "ft-close") { closeFromTo(); return; }
     const tr = e.target.closest("tr[data-ft]");

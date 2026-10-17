@@ -770,3 +770,38 @@ button.sigchip { cursor: pointer; }
 .lg-seq .sq-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #00b4ff, #2f5bd8); transition: width .4s; }
 .lg-seq .sq-bar span { position: relative; display: block; text-align: center; font-size: 11px; line-height: 16px; color: #1f2a44; font-weight: 600; }
 .lg-seq .sq-big { font-size: 16px; font-weight: 800; }
+
+/* L39 — 정합성 검토 결과 한 장 */
+.lg-rv .rv-n { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 3px; border-radius: 8px; color: #fff; font-size: 11px; font-weight: 600; }
+.rv-n.e, .rv-tag.error, .rv-tagbg.error { background: #db1a1a; fill: #db1a1a; }
+.rv-n.c, .rv-tag.check, .rv-tagbg.check { background: #f28c00; fill: #f28c00; }
+.rv-n.g, .rv-tag.gap, .rv-tagbg.gap { background: #4059d9; fill: #4059d9; }
+.rv-tag.info { background: #8c8c8c; }
+.rv-tag { color: #fff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.rv-cards { display: flex; gap: 10px; margin-bottom: 8px; }
+.rv-c { flex: 1; border: 1px solid #e3e7ef; border-radius: 8px; padding: 8px 12px; background: #f8fafc; }
+.rv-c[data-cat] { cursor: pointer; }
+.rv-c b { display: block; font-size: 24px; color: #1f3a70; }
+.rv-c span { color: #5b6476; font-size: 12px; }
+.rv-c.e b { color: #db1a1a; } .rv-c.c b { color: #d47a00; } .rv-c.g b { color: #4059d9; }
+.rv-parts { margin: 4px 0 6px; font-size: 13px; color: #374151; line-height: 1.6; }
+.rv-parts small { color: #8a93a6; }
+.rv-learn { color: #6b4fd8; }
+.rv-legend { font-size: 12px; color: #5b6476; margin-bottom: 8px; }
+.rv-legend .e { color: #db1a1a; font-weight: 600; } .rv-legend .c { color: #d47a00; font-weight: 600; } .rv-legend .g { color: #4059d9; font-weight: 600; }
+.rv-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.rv-filter button { border: 1px solid #d5dae4; background: #fff; border-radius: 14px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.rv-filter button.on { background: #1f3a70; color: #fff; border-color: #1f3a70; }
+.rv-filter select, .rv-filter input { font-size: 12px; padding: 3px 6px; }
+.rv-on { font-size: 12px; margin-left: auto; }
+.rv-scroll { max-height: 46vh; }
+.rv-t tr[data-rv] { cursor: pointer; }
+.rv-t tr[data-rv]:hover td { background: #f1f5ff; }
+.rv-t td small { color: #4b5563; }
+#g-review .rv-box { fill: none; stroke-width: 1.4; }
+#g-review .rv-box.error { stroke: #db1a1a; } #g-review .rv-box.check { stroke: #f28c00; } #g-review .rv-box.gap { stroke: #4059d9; stroke-dasharray: 3 2; }
+#g-review .rv-box.sel { stroke-width: 2.4; }
+#g-review .rv-box.flash { stroke-width: 2.6; animation: rvflash .5s ease-in-out 6 alternate; }
+@keyframes rvflash { from { stroke-opacity: 1; } to { stroke-opacity: .15; } }
+#g-review .rv-tagtx { fill: #fff; font-size: 4.4px; font-weight: 700; pointer-events: none; }
+.rvchip b { font-weight: 600; } .rvchip .e { color: #db1a1a; } .rvchip .c { color: #d47a00; } .rvchip .g { color: #4059d9; }

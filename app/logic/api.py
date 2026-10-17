@@ -682,6 +682,84 @@ def report_xlsx(job: str):
                     headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
 
 
+def _review(job, start=True):
+    """L39 — 정합성 검토 결과.  결과 · 사람 값 · 동작 학습이 같으면 저장한 것을, 바뀌었으면 다시 모은다 (1~2초).
+    동작 학습이 아직이면 뒤에서 배우게 하고 정적 검토(from-to · 선 · 게이트 · 읽기)만으로 먼저 낸다."""
+    from . import review
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    beh = behavior_get(job, 1 if start else 0)
+    cur = review.load(d)
+    if cur and cur.get("key") == review.key_of(d):
+        return cur, beh
+    with _REVIEW_LOCK.setdefault(job, threading.Lock()):
+        cur = review.load(d)
+        if cur and cur.get("key") == review.key_of(d):
+            return cur, beh
+        res = _result(job)
+        cache = _bundle_cache(job, res)
+        with cache.setdefault("_lock", threading.Lock()):
+            try:
+                cur = review.build_dir(d, res, cache)
+            finally:
+                cache.pop("_last_results", None)
+    try:
+        st = store.read_status(d)
+        st["review"] = review.summary_of(cur)
+        store.write_status(d, st)
+    except Exception:
+        pass
+    return cur, beh
+
+
+_REVIEW_LOCK = {}
+
+
+@router.get("/logic/api/jobs/{job}/review")
+def review_get(job: str):
+    """L39 — 정합성 검토 결과 한 장 (설계 오류 · 설계 확인 · 읽기 빈틈 · 툴 판정율)."""
+    cur, beh = _review(job)
+    out = dict(cur)
+    out["learning"] = {"state": beh["state"], "progress": beh["progress"]}
+    out["name"] = store.read_status(_dir(job)).get("name")
+    return _dumps_resp(out)
+
+
+def _dumps_resp(x):
+    return Response(_dumps(x), media_type="application/json")
+
+
+@router.get("/logic/api/jobs/{job}/review.pdf")
+def review_pdf(job: str, info: int = 0, author: str = ""):
+    """L39 — 검토 결과를 입력 PDF 에 마크업한 파일 (맨 앞 요약 장 · 쪽마다 색 상자 · 번호 · 주석 · 책갈피)."""
+    from . import review
+    cur, _ = _review(job)
+    d = _dir(job)
+    try:
+        out = review.pdf_dir(d, cur, include_info=bool(info), author=author[:60])
+    except Exception as ex:
+        raise HTTPException(500, f"PDF 를 만들지 못했습니다 — {ex}")
+    if not out:
+        raise HTTPException(409, "검토 결과가 아직 없습니다.")
+    name = store.read_status(d).get("name") or "logic"
+    fn = Path(name).stem + "_정합성검토.pdf"
+    return FileResponse(out, media_type="application/pdf",
+                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn), "Cache-Control": "no-store"})
+
+
+@router.get("/logic/api/jobs/{job}/review.xlsx")
+def review_xlsx(job: str):
+    from . import review
+    cur, _ = _review(job)
+    d = _dir(job)
+    name = store.read_status(d).get("name") or "logic"
+    data = review.workbook(cur, name)
+    fn = Path(name).stem + "_정합성검토.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
 @router.get("/logic/api/jobs/{job}/page/{page}.png")
 def page_png(job: str, page: int):
     d = _dir(job)

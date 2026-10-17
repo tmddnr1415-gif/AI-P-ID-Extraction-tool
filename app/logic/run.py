@@ -95,6 +95,12 @@ def run(d: Path):
             behavior.learn_dir(d)
         except Exception:
             pass
+        try:                                         # L39 — 정합성 검토 결과 한 장 + 원본 PDF 에 마크업
+            from app.logic import review
+            review.after_learning(d)
+            st = store.read_status(d)
+        except Exception:
+            pass
     except analyse.NotLogic as e:
         st.update({"state": "failed", "error": str(e)})
     except Exception as e:                               # 사유를 남기고 멈춘다
@@ -116,7 +122,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--pages":
         prerender_missing(Path(sys.argv[2]))
     elif len(sys.argv) > 2 and sys.argv[1] == "--behavior":
-        from app.logic import behavior
+        from app.logic import behavior, review
         behavior.learn_dir(Path(sys.argv[2]))
+        try:
+            review.after_learning(Path(sys.argv[2]))
+        except Exception:
+            pass
     else:
         run(Path(sys.argv[1]))
