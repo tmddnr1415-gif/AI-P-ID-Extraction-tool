@@ -3132,16 +3132,16 @@ function lblList(ls, cls) {
 function understandHtml(x) {
   if (!x || !x.reached || !("always_on" in x)) return "";
   const parts = [];
-  if (x.always_on) parts.push(`<div class="un-warn">아무 신호도 주지 않아도 <b>이 명령은 서 있습니다</b> — 아래 신호가 들어와야 꺼지는 '건강 신호를 받아야 풀리는' 쪽 설계이거나, 도면 확인 대상입니다.</div>`);
-  if (x.tied_off) parts.push(`<div class="un-warn">이 명령은 <b>${esc(x.tied_off[0])}</b> 를 뒤집어야만 섭니다 — 도면이 이 길을 상수로 묶어 두었습니다 (지금 도면으로는 쓰지 않는 길).</div>`);
-  if (x.latch === true) parts.push(`<div class="un-ok">● <b>자기유지</b> — ${x.latch_released === "buttons" ? "누름단추를 놓아도" : "주었던 신호를 모두 거둬도"} 명령이 그대로 서 있습니다 (메모리 · 래치).</div>`);
-  else if (x.latch === false) parts.push(`<div class="un-mid">○ <b>누르는 동안만</b> — ${x.latch_released === "buttons" ? "누름단추를 놓으면" : "신호를 거두면"} 명령이 꺼집니다 (조건이 서 있는 동안만 나감).</div>`);
-  else if ("latch" in x) parts.push(`<div class="un-mid">⏱ <b>잠깐 나가는 명령 (펄스)</b> — 조건이 서면 정해진 시간만 나가고 꺼집니다.</div>`);
-  if ((x.interlocks || []).length) parts.push(`<div class="un-h">⛔ 이 신호가 1 이면 명령이 안 섭니다 (인터록 · 트립 · 반대 명령)</div>${lblList(x.interlocks, "un-l")}`);
-  if ((x.stoppers || []).length) parts.push(`<div class="un-h">■ 서 있는 명령을 끄는 신호</div>${lblList(x.stoppers, "un-l")}`);
-  if ((x.drops || []).length) parts.push(`<div class="un-h">↓ 이 허가가 0 이 되면 꺼집니다</div>${lblList(x.drops, "un-l")}`);
+  if (x.always_on) parts.push(`<div class="un-warn">⚠ <b>신호 없이도 켜져 있음</b> — 아래 신호가 와야 꺼짐 (확인)</div>`);
+  if (x.tied_off) parts.push(`<div class="un-warn">⚠ <b>상수로 막힌 길뿐</b> — ${esc(x.tied_off[0])}</div>`);
+  if (x.latch === true) parts.push(`<div class="un-ok">● <b>자기유지</b> — ${x.latch_released === "buttons" ? "단추를 놓아도" : "신호를 거둬도"} 유지</div>`);
+  else if (x.latch === false) parts.push(`<div class="un-mid">○ <b>누르는 동안만</b> — ${x.latch_released === "buttons" ? "단추를 놓으면" : "신호를 거두면"} 꺼짐</div>`);
+  else if ("latch" in x) parts.push(`<div class="un-mid">⏱ <b>펄스</b> — 정해진 시간만 나가고 꺼짐</div>`);
+  if ((x.interlocks || []).length) parts.push(`<div class="un-h">⛔ 막는 신호 (1 이면 안 섬)</div>${lblList(x.interlocks, "un-l")}`);
+  if ((x.stoppers || []).length) parts.push(`<div class="un-h">■ 끄는 신호</div>${lblList(x.stoppers, "un-l")}`);
+  if ((x.drops || []).length) parts.push(`<div class="un-h">↓ 0 이 되면 꺼지는 허가</div>${lblList(x.drops, "un-l")}`);
   if (!parts.length) return "";
-  return `<div class="sq-under"><div class="un-t">🔎 로직 이해 — 시뮬레이터로 켜고 · 막고 · 놓아 본 결과</div>${parts.join("")}</div>`;
+  return `<div class="sq-under"><div class="un-t">🔎 로직 이해</div>${parts.join("")}</div>`;
 }
 function seqInsightHtml() {
   const r = SEQ.learn, s = r && r.summary;
@@ -3149,26 +3149,25 @@ function seqInsightHtml() {
   const items = r.items || [];
   const idx = (e) => items.findIndex((x) => x.page === e.page && x.row === e.row);
   const go = (e, t) => `<li data-li="${idx(e)}">${t}</li>`;
-  const pairBoth = (s.both_on || []).map((p) => `<li class="ins-pair"><b>${esc(p.equip)}</b> — ${p.a} · ${p.b} 두 명령을 <b>함께</b> 낼 수 있습니다 (논리 안에 서로를 막는 신호가 없음)
+  const pairBoth = (s.both_on || []).map((p) => `<li class="ins-pair"><b>${esc(p.equip)}</b> — ${p.a} · ${p.b} 동시 가능
       <div class="ins-c"><span class="ins-a" data-li="${idx({ page: p.a_at[0], row: p.a_at[1] })}">${p.a}: ${esc((p.a_need || []).join(" · ") || "—")}</span>
-      <span class="ins-a" data-li="${idx({ page: p.b_at[0], row: p.b_at[1] })}">${p.b}: ${esc((p.b_need || []).join(" · ") || "—")}</span></div>
-      <small>두 조건이 현장에서 함께 서지 않는 것(열림/닫힘 · 압력 낮음/높음)에 기대는지 확인하세요.</small></li>`).join("");
-  const sigs = (ls, unit) => (ls || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <small>— 명령 ${x.count}개${unit}</small></li>`).join("");
+      <span class="ins-a" data-li="${idx({ page: p.b_at[0], row: p.b_at[1] })}">${p.b}: ${esc((p.b_need || []).join(" · ") || "—")}</span></div></li>`).join("");
+  const sigs = (ls, unit) => (ls || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <small>· ${x.count}개</small></li>`).join("");
   return `<div class="sq-ins">
-    <div class="ins-top">🔎 <b>로직 이해</b> — 명령 ${s.commands}개를 하나씩 시뮬레이터로 켜고 · 막고 · 놓고 · 꺼 본 결과입니다.</div>
+    <div class="ins-top">🔎 <b>로직 이해</b> — 명령 ${s.commands}개</div>
     <div class="ins-cards">
       <div><b>${s.reached}</b><small>서는 명령</small></div>
       <div><b>${s.latched}</b><small>자기유지</small></div>
       <div><b>${s.momentary}</b><small>누르는 동안만</small></div>
       <div><b>${s.pulse}</b><small>펄스</small></div>
       <div><b>${s.with_interlock}</b><small>인터록 있음</small></div>
-      <div class="${s.unreached ? "bad" : ""}"><b>${s.unreached}</b><small>지금 도면으로 안 섬</small></div></div>
-    ${pairBoth ? `<div class="ins-h warn">⚠ 반대 명령을 함께 낼 수 있는 장비 ${s.both_on.length}</div><ul>${pairBoth}</ul>` : ""}
-    ${(s.always_on || []).length ? `<div class="ins-h warn">⚠ 아무 신호 없이도 서 있는 명령 ${s.always_on.length}</div><ul>${s.always_on.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — 들어와야 꺼지는 신호를 보세요</small>`)).join("")}</ul>` : ""}
-    ${(s.tied_off || []).length ? `<div class="ins-h warn">⚠ 도면이 상수로 묶어 둔 길로만 서는 명령 ${s.tied_off.length}</div><ul>${s.tied_off.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — ${esc(e.text)}</small>`)).join("")}</ul>` : ""}
-    ${(s.common_need || []).length ? `<div class="ins-h">여러 명령이 함께 기다리는 허가 신호</div><ul class="ins-sig">${sigs(s.common_need, "에 필요")}</ul>` : ""}
-    ${(s.common_block || []).length ? `<div class="ins-h">여러 명령을 한꺼번에 막는 신호 (트립 · 정지)</div><ul class="ins-sig">${sigs(s.common_block, "을 막음")}</ul>` : ""}
-    <div class="ins-note">항목을 누르면 그 명령을 조건부터 차례로 묻습니다.  판정은 전부 같은 시뮬레이터가 냈고 도면을 고치지 않습니다.</div>
+      <div class="${s.unreached ? "bad" : ""}"><b>${s.unreached}</b><small>안 섬</small></div></div>
+    ${pairBoth ? `<div class="ins-h warn">⚠ 반대 명령 동시 가능 ${s.both_on.length}</div><ul>${pairBoth}</ul>` : ""}
+    ${(s.always_on || []).length ? `<div class="ins-h warn">⚠ 신호 없이 켜짐 ${s.always_on.length}</div><ul>${s.always_on.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row}</small>`)).join("")}</ul>` : ""}
+    ${(s.tied_off || []).length ? `<div class="ins-h warn">⚠ 상수로 막힌 길뿐 ${s.tied_off.length}</div><ul>${s.tied_off.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — ${esc(e.text)}</small>`)).join("")}</ul>` : ""}
+    ${(s.common_need || []).length ? `<div class="ins-h">공통 허가</div><ul class="ins-sig">${sigs(s.common_need, "에 필요")}</ul>` : ""}
+    ${(s.common_block || []).length ? `<div class="ins-h">공통 트립 · 정지</div><ul class="ins-sig">${sigs(s.common_block, "을 막음")}</ul>` : ""}
+    <div class="ins-note">누르면 그 명령을 차례로 묻습니다.</div>
   </div><div class="sq-foot"><button data-a="pickagain">◀ 동작 고르기</button></div>`;
 }
 function seqLearnCard(t) {
@@ -3176,14 +3175,14 @@ function seqLearnCard(t) {
   if (!x) return "";
   if (!x.reached) {
     const b = x.blocked_at;
-    return `<div class="sq-learncard no">🧠 학습 결과 — <b>이 동작은 지금 도면으로는 서지 않습니다</b>: ${esc(x.why || "")}${
-      b ? `<br><small>막힌 자리: ${esc(b.label)} — 바라는 값 ${b.want} · 입력 ${(b.inputs || []).map((i) => i.value == null ? "모름" : i.value).join(" · ")}</small>` : ""}</div>`;
+    return `<div class="sq-learncard no">🧠 <b>안 섬</b> — ${esc(x.why || "")}${
+      b ? `<br><small>막힌 곳: ${esc(b.label)}</small>` : ""}</div>`;
   }
   const real = (x.labels || []).filter((l) => !l.assumed), assumed = (x.labels || []).filter((l) => l.assumed);
-  return `<div class="sq-learncard">🧠 학습 결과 — 꼭 필요한 신호 <b>${real.length}개</b>${assumed.length ? ` + 도면 읽기 빈틈 ${assumed.length}곳을 만족으로 보면` : ""} ${x.steady ? "서 있습니다" : "잠깐 섭니다 (펄스)"}
+  return `<div class="sq-learncard">🧠 필요한 신호 <b>${real.length}개</b>${assumed.length ? ` + 빈틈 ${assumed.length}` : ""} → ${x.steady ? "섬" : "펄스"}
     <ul>${(x.labels || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>
     ${understandHtml(x)}
-    <button data-a="learned" class="pri">▶ 학습한 조합으로 바로 돌리기</button></div>`;
+    <button data-a="learned" class="pri">▶ 이 조합으로 돌리기</button></div>`;
 }
 async function seqRunLearned() {
   const x = seqLearned(SEQ.target.page, SEQ.target.row);
@@ -3213,7 +3212,7 @@ function seqPickHtml() {
     const gi = SEQ.cmds.indexOf(e);
     const acts = e.actions.map((a) => {
       const lx = seqLearned(a.rows[0].page, a.rows[0].row);
-      const mk = lx ? (lx.reached ? `<i class="lk ok" title="학습: 이 동작이 섭니다 — 꼭 필요한 신호 ${lx.signals}개">✔</i>` : `<i class="lk no" title="학습: 지금 도면으로는 서지 않습니다 — ${esc(lx.why || "")}">⛔</i>`) : "";
+      const mk = lx ? (lx.reached ? `<i class="lk ok" title="섬 · 필요 신호 ${lx.signals}개">✔</i>` : `<i class="lk no" title="안 섬 — ${esc(lx.why || "")}">⛔</i>`) : "";
       return `<button class="sq-act a-${a.action}" data-eq="${gi}" data-act="${a.action}" title="${esc(a.rows.map((r) => `${r.sheet}-${r.row} ${r.desc} (${KIND_KO[r.kind] || r.kind})`).join("\n"))}">${a.action}<small>${ACT_KO[a.action] || ""}</small>${mk}</button>`;
     }).join("");
     const open = SEQ.open && SEQ.open.eq === gi ? (e.actions.find((a) => a.action === SEQ.open.act) || {}).rows || [] : [];
@@ -3270,7 +3269,7 @@ function seqStepHtml() {
     if (n.ft) body += `<div class="sq-err">⚠ 정합성 오류 — ${(n.ft.why || []).map(esc).join(" · ")}${n.ft.peer ? ` <small>(${esc(n.ft.peer)})</small>` : ""}<br>
         이 신호가 FM 대로 오는지 도면이 어긋납니다.  어떻게 할까요?</div>`;
     if (n.ref && n.ref.other) body += `<div class="sq-note">다른 묶음(${esc(n.ref.sheet)})에서 오는 신호입니다 — 여기서 직접 답합니다.</div>`;
-    if (n.kind === "stuck" || n.kind === "deep") body += `<div class="sq-err">도면을 다 읽지 못한 자리라 시뮬레이터가 이 값을 정할 수 없습니다.  어떻게 할까요?</div>`;
+    if (n.kind === "stuck" || n.kind === "deep") body += `<div class="sq-err">도면 읽기 빈틈 — 값을 정할 수 없습니다.  어떻게 할까요?</div>`;
     const follow = n.ref && !n.ref.other && n.ref.page != null && !SEQ.nofollow[n.id];
     if (SEQ.nofollow[n.id]) body += `<div class="sq-err">${esc(n.ref.sheet)}-${n.ref.row} 의 조건을 따라갈 수 없습니다 — ${esc(SEQ.nofollow[n.id])}.  이 조건에 직접 답하거나 여기서 멈추세요.</div>`;
     const tl = SEQ.tries[n.id];

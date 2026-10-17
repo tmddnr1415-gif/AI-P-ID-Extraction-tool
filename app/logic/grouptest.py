@@ -50,7 +50,7 @@ def _chk(kind, x, title, expect, got, status, why="", forces=None, at=None, key=
 
 
 def _say(v):
-    return "켜짐(1)" if v == 1 else "꺼짐(0)" if v == 0 else "모름"
+    return "1" if v == 1 else "0" if v == 0 else "모름"
 
 
 def test_command(sheets, x, cache, timers=None):
@@ -60,45 +60,45 @@ def test_command(sheets, x, cache, timers=None):
     if not x.get("reached"):
         # 학습이 어느 조합으로도 세우지 못한 명령 — 시험이 틀린 것이 아니라 시험할 길이 없다 (도면 읽기 빈틈 · 되먹임)
         b = x.get("blocked_at") or {}
-        why = (x.get("why") or "지금 도면으로는 서지 않습니다") + (f" — 막힌 자리: {b.get('label')}" if b.get("label") else "")
-        out.append(_chk("on", x, f"{act} 명령이 선다", "켜짐(1)", "안 섬", "gap", why))
+        why = (x.get("why") or "안 섬") + (f" · 막힌 곳 {b.get('label')}" if b.get("label") else "")
+        out.append(_chk("on", x, f"{act} 켜짐", "1", "안 섬", "gap", why))
         return out
     net = x.get("net")
     page = x["page"]
     if net is None:                                     # 예전 학습 (v2 이전) — 선이 없다
-        out.append(_chk("on", x, f"{act} 명령이 선다", "켜짐(1)", "모름", "skip", "다시 배워야 합니다"))
+        out.append(_chk("on", x, f"{act} 켜짐", "1", "모름", "skip", "다시 학습 필요"))
         return out
     F = _F(x.get("forces"))
     vals, st = _run(sheets, F, None, page, net, cache, timers)
     on = 1 in vals
     real = [l["text"] for l in x.get("labels") or [] if not l.get("assumed")]
-    out.append(_chk("on", x, f"{act} 명령이 선다 — " + (" + ".join(real[:4]) or "아무 신호 없이"),
-                    "켜짐(1)", _say(1 if on else (vals[-1] if vals else None)), "pass" if on else "fail",
-                    "" if on else "학습 때 선 조합인데 지금은 서지 않습니다 (사람이 고친 값 · 다시 분석으로 바뀜)", F))
+    out.append(_chk("on", x, f"{act} 켜짐 ← " + (" + ".join(real[:4]) or "신호 없음"),
+                    "1", _say(1 if on else (vals[-1] if vals else None)), "pass" if on else "fail",
+                    "" if on else "학습 때와 다름 — 지금은 안 섬", F))
     if not on:
         return out
     if x.get("always_on"):
         v0, _ = _run(sheets, {}, None, page, net, cache, timers)
-        out.append(_chk("always", x, f"{act} 명령이 아무 신호 없이 서 있는지", "꺼짐(0)", _say(v0[-1] if v0 else None),
+        out.append(_chk("always", x, f"{act} 신호 없이 켜짐?", "0", _say(v0[-1] if v0 else None),
                         "warn" if v0 and v0[-1] == 1 else "pass",
-                        "건강 신호가 와야 풀리는 안전 쪽 설계인지 확인하세요 (그 신호가 아래 '막는 신호' 입니다)"))
+                        "안전 쪽 설계인지 확인"))
     if x.get("tied_off"):
-        out.append(_chk("tied", x, f"{act} 명령이 도면이 상수로 묶은 신호를 뒤집어야만 섬", "다른 길", "상수 길뿐", "warn",
+        out.append(_chk("tied", x, f"{act} 상수로 막힘", "다른 길", "상수 길뿐", "warn",
                         x["tied_off"][0]))
     for i, a in enumerate(x.get("alts") or []):
         G = _F(a.get("forces"))
         v, _ = _run(sheets, G, None, page, net, cache, timers)
         ok = 1 in v
         out.append(_chk("alt", x, f"다른 길 {i + 1} — " + " + ".join(l["text"] for l in a.get("labels") or [] if not l.get("assumed"))[:160],
-                        "켜짐(1)", _say(1 if ok else (v[-1] if v else None)), "pass" if ok else "fail",
-                        "" if ok else "학습 때와 다릅니다", G))
+                        "1", _say(1 if ok else (v[-1] if v else None)), "pass" if ok else "fail",
+                        "" if ok else "학습 때와 다름", G))
     for l in x.get("interlocks") or []:
         G = _plus(F, l["page"], l["key"], 1)
         v, _ = _run(sheets, G, None, page, net, cache, timers)
         ok = 1 not in v
-        out.append(_chk("block", x, f"막는 신호 {l.get('sheet') or ''} {l['text']} = 1 이면 {act} 이 안 섬",
-                        "꺼짐(0)", _say(1 if not ok else 0), "pass" if ok else "fail",
-                        "" if ok else "이 신호가 들어와도 명령이 나갑니다 (학습 때와 다름)", G,
+        out.append(_chk("block", x, f"{l.get('sheet') or ''} {l['text']} = 1 → {act} 막힘",
+                        "0", _say(1 if not ok else 0), "pass" if ok else "fail",
+                        "" if ok else "막지 못함 (학습 때와 다름)", G,
                         at={"page": l["page"], "sheet": l.get("sheet"), "key": l["key"]}, key=l["key"]))
     latch = x.get("latch")
     if latch is not None and vals and vals[-1] == 1:
@@ -107,25 +107,25 @@ def test_command(sheets, x, cache, timers=None):
         rest = {p: d for p, d in rest.items() if d}
         v2, st2 = _run(sheets, rest, st, page, net, cache, timers)
         now = v2[-1] if v2 else None
-        what = "누름단추를 놓아도" if x.get("latch_released") == "buttons" else "신호를 거둬도"
+        what = "단추 놓음" if x.get("latch_released") == "buttons" else "신호 거둠"
         if latch:
-            out.append(_chk("hold", x, f"{what} {act} 이 유지 (자기유지)", "켜짐(1)", _say(now),
-                            "pass" if now == 1 else "fail", "" if now == 1 else "학습 때와 다릅니다", rest))
+            out.append(_chk("hold", x, f"{what} → {act} 유지", "1", _say(now),
+                            "pass" if now == 1 else "fail", "" if now == 1 else "학습 때와 다름", rest))
             for l in x.get("stoppers") or []:
                 G = _plus(rest, l["page"], l["key"], 1)
                 v3, _ = _run(sheets, G, st2, page, net, cache, timers)
                 ok = bool(v3) and v3[-1] != 1
-                out.append(_chk("stop", x, f"{l.get('sheet') or ''} {l['text']} = 1 이면 서 있던 {act} 이 꺼짐",
-                                "꺼짐(0)", _say(v3[-1] if v3 else None), "pass" if ok else "fail",
-                                "" if ok else "이 신호로 꺼지지 않습니다 (학습 때와 다름)", G,
+                out.append(_chk("stop", x, f"{l.get('sheet') or ''} {l['text']} = 1 → {act} 꺼짐",
+                                "0", _say(v3[-1] if v3 else None), "pass" if ok else "fail",
+                                "" if ok else "꺼지지 않음 (학습 때와 다름)", G,
                                 at={"page": l["page"], "sheet": l.get("sheet"), "key": l["key"]}, key=l["key"]))
         else:
-            out.append(_chk("hold", x, f"{what} {act} 이 꺼짐 (누르는 동안만)", "꺼짐(0)", _say(now),
-                            "pass" if now != 1 else "fail", "" if now != 1 else "학습 때와 다릅니다 — 지금은 유지됩니다", rest))
+            out.append(_chk("hold", x, f"{what} → {act} 꺼짐", "0", _say(now),
+                            "pass" if now != 1 else "fail", "" if now != 1 else "학습 때와 다름 — 유지됨", rest))
     elif x.get("pulse_s") is not None:
         ends = bool(vals) and vals[-1] != 1
-        out.append(_chk("hold", x, f"{act} 은 펄스 — {x['pulse_s']}초 나가고 꺼짐", "꺼짐(0)", _say(vals[-1] if vals else None),
-                        "pass" if ends else "fail", "" if ends else "학습 때와 다릅니다", F))
+        out.append(_chk("hold", x, f"{act} 펄스 {x['pulse_s']}초", "0", _say(vals[-1] if vals else None),
+                        "pass" if ends else "fail", "" if ends else "학습 때와 다름", F))
     return out
 
 
@@ -137,7 +137,7 @@ def test_group(sheets, items, cache, timers=None, opposites=None):
         try:
             checks += test_command(sheets, x, cache, timers)
         except Exception as ex:                          # 한 명령이 실패해도 나머지는 시험한다 — 사유를 남긴다
-            checks.append(_chk("on", x, f"{x.get('action')} 시험", "", "오류", "fail", f"시뮬레이션 실패 — {ex}"))
+            checks.append(_chk("on", x, f"{x.get('action')} 시험", "", "오류", "fail", f"시뮬레이션 오류 — {ex}"))
     by = {x["action"]: x for x in items if x.get("reached") and x.get("net") is not None}
     for a, b in opposites if opposites is not None else (sequence.vocab().get("opposites") or []):
         if a not in by or b not in by:
@@ -150,9 +150,9 @@ def test_group(sheets, items, cache, timers=None, opposites=None):
         va, _ = _run(sheets, G, None, A["page"], A["net"], cache, timers)
         vb, _ = _run(sheets, G, None, B["page"], B["net"], cache, timers)
         both = bool(va) and bool(vb) and va[-1] == 1 and vb[-1] == 1
-        checks.append(_chk("pair", A, f"{a} · {b} 조건을 함께 주어도 둘이 함께 나가지 않음", "하나만", "둘 다 켜짐" if both else "하나만",
+        checks.append(_chk("pair", A, f"{a} · {b} 동시 금지", "하나만", "둘 다 1" if both else "하나만",
                            "warn" if both else "pass",
-                           "논리 안에 두 명령을 서로 막는 신호가 없습니다 — 두 조건이 현장에서 함께 서지 않는 것에 기대는지 확인하세요"
+                           "서로 막는 신호 없음 — 확인"
                            if both else "", G))
         if A.get("latch"):
             vals, st = _run(sheets, FA, None, A["page"], A["net"], cache, timers)
@@ -163,9 +163,9 @@ def test_group(sheets, items, cache, timers=None, opposites=None):
                     H.setdefault(p, {}).update(d)
                 v2, _ = _run(sheets, H, st, A["page"], A["net"], cache, timers)
                 kept = bool(v2) and v2[-1] == 1
-                checks.append(_chk("cancel", A, f"서 있는 {a} 에 {b} 조건을 주면 {a} 이 꺼짐", "꺼짐(0)", _say(v2[-1] if v2 else None),
+                checks.append(_chk("cancel", A, f"{b} 조건 → {a} 꺼짐", "0", _say(v2[-1] if v2 else None),
                                    "warn" if kept else "pass",
-                                   f"{b} 조건을 줘도 {a} 명령이 남습니다 — {b} 가 {a} 를 끄지 않는 설계인지 확인하세요" if kept else "", H))
+                                   f"{a} 가 남음 — 확인" if kept else "", H))
     n = {s: sum(1 for c in checks if c["status"] == s) for s in ("pass", "fail", "warn", "gap", "skip")}
     worst = next((s for s in ("fail", "warn", "gap", "pass") if n[s]), "skip")
     return {"status": worst, "counts": n, "checks": checks, "seconds": round(time.time() - t0, 2), "at": time.time()}

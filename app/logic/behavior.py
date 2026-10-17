@@ -87,12 +87,12 @@ def _minimize(sheets, forces, page, net, want, cache, timers):
 def learn_one(sheets, page, row, want=1, cache=None, timers=None, deep=False):
     p = sequence.plan(sheets, page, row, want)
     if not p.get("ok"):
-        return {"page": page, "row": row, "reached": False, "why": p.get("why") or "조건 나무를 만들지 못했습니다"}
+        return {"page": page, "row": row, "reached": False, "why": p.get("why") or "조건을 읽지 못함"}
     tree = sequence.link(p)
     if tree["t"] == "leaf" and tree.get("key") == f"net:{p['net']}":
         # 출력 선 자체를 모는 것이 없다 — 그 선을 직접 주는 것은 답이 아니다 (도면에서 선이 끊긴 자리)
         return {"page": page, "row": row, "reached": False, "tried": 0, "undriven": True,
-                "why": "이 출력 행의 선을 모는 블록을 도면에서 읽지 못했습니다 (선이 끊김 — 마크업 · 가르치기로 이을 수 있습니다)"}
+                "why": "출력선이 끊김 (마크업으로 이을 수 있음)"}
     anys = _anys(tree)[:INNER_ANY_DEEP if deep else INNER_ANY]
     choices = [{}]
     for a in anys:                                   # 나무가 권한 갈래부터 · 하나씩만 바꾼 조합 → 둘 …
@@ -134,8 +134,8 @@ def learn_one(sheets, page, row, want=1, cache=None, timers=None, deep=False):
              for v in p["nodes"].values() if v.get("kind") == "stuck"]
     if best is None:
         return {"page": page, "row": row, "reached": False, "tried": tried, "stuck": stuck[:6], "blocked_at": blk,
-                "why": ("도면을 다 읽지 못한 자리(판정 못 한 블록 · 못 읽은 단자)가 길에 있습니다" if stuck else
-                        "어느 조합으로도 서지 않습니다 (되먹임 · 다른 시트 조건)")}
+                "why": ("도면 읽기 빈틈이 길에 있음" if stuck else
+                        "어느 조합으로도 안 섬 (되먹임 · 다른 시트)")}
     need = _minimize(sheets, best[0], page, p["net"], want, cache, timers)
     labels = _labels(sheets, need)
     holds = sum(1 for v in need.values() for k in v if k.startswith("hold:") or (k.startswith("net:") and "/" in k))

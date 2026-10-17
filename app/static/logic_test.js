@@ -52,7 +52,7 @@ async function loadJobs() {
     `<option value="${x.id}">${esc(x.name)}${x.project ? " · " + esc(x.project) : ""} · ${x.sheets || x.total || ""}장</option>`).join("");
   const want = (location.hash.match(/job=([0-9a-f]{12})/) || [])[1] || (done[0] && done[0].id);
   if (want) { sel.value = want; await openJob(want); }
-  else $("#empty").hidden = false, $("#empty").textContent = "분석이 끝난 Logic 묶음이 없습니다 — LOGIC 검토 첫 화면에서 분석하세요.";
+  else $("#empty").hidden = false, $("#empty").textContent = "분석된 Logic 묶음이 없습니다.";
 }
 async function openJob(id) {
   G.job = id; G.results = {}; G.open = null; G.learn = null;
@@ -68,7 +68,7 @@ async function refresh() {
   catch (e) { $("#empty").hidden = false; $("#empty").textContent = e.message; return; }
   if (id !== G.job) return;
   G.data = d;
-  $("#sub").textContent = `${d.name || ""}${d.project ? " · " + d.project : ""} — 장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험합니다`;
+  $("#sub").textContent = `${d.name || ""}${d.project ? " · " + d.project : ""}`;
   renderLearn(); render();
   if (d.state === "running" || d.state === "none") setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000);
 }
@@ -78,8 +78,7 @@ function renderLearn() {
   const p = d.progress || {};
   const pct = p.total ? Math.round(100 * p.done / p.total) : 0;
   box.hidden = false;
-  box.innerHTML = `🧠 <b>동작을 배우는 중입니다</b> — 모든 명령을 시뮬레이터로 켜고 · 막고 · 놓고 · 꺼 보는 중 ${p.total ? `(${p.done}/${p.total})` : ""}.
-    끝나면 표가 저절로 채워집니다${d.groups.length ? " (아래는 지난번 학습)" : ""}.<div class="lp"><i style="width:${pct}%"></i></div>`;
+  box.innerHTML = `🧠 <b>학습 중</b> ${p.total ? `${p.done}/${p.total}` : ""}${d.groups.length ? " · 아래는 지난 학습" : ""}<div class="lp"><i style="width:${pct}%"></i></div>`;
 }
 
 /* ------------------------------------------------------------------ 위쪽 카드 · 그래프 */
@@ -91,7 +90,7 @@ function tally(gs) {
 function renderTop() {
   const d = G.data, gs = d.groups, s = d.summary || {};
   const n = tally(gs);
-  const cards = [["all", "장비 그룹", gs.length, "var(--navy2)"], ["cmd", "명령 (서는 것)", `${s.reached ?? "–"}<small>/${s.commands ?? "–"}</small>`, "var(--blue)"],
+  const cards = [["all", "장비", gs.length, "var(--navy2)"], ["cmd", "서는 명령", `${s.reached ?? "–"}<small>/${s.commands ?? "–"}</small>`, "var(--blue)"],
     ["pass", "통과", n.pass, ST_C.pass], ["warn", "확인 필요", n.warn, ST_C.warn], ["fail", "실패", n.fail, ST_C.fail],
     ["gap", "시험 불가", n.gap, ST_C.gap], ["none", "미시험", n.none, ST_C.none]];
   $("#kpis").innerHTML = cards.map(([k, t, v, c]) => `<div class="gt-kpi ${G.filter === k ? "on" : ""}" data-f="${k}" style="--c:${c}"><b>${v}</b><small>${t}</small></div>`).join("");
@@ -99,11 +98,11 @@ function renderTop() {
   $("#bar").innerHTML = ["pass", "warn", "fail", "gap", "none"].map((k) => n[k] ? `<i style="width:${100 * n[k] / tot}%;background:${ST_C[k]}" title="${ST_KO[k]} ${n[k]}"></i>` : "").join("");
   $("#bar-leg").innerHTML = ["pass", "warn", "fail", "gap", "none"].map((k) => `<span style="--c:${ST_C[k]}">${ST_KO[k]} ${n[k]}</span>`).join("");
   $("#kinds").innerHTML = [["latched", "자기유지", "놓아도 남는 명령"], ["momentary", "누르는 동안만", "놓으면 꺼짐"], ["pulse", "펄스", "정해진 시간만"],
-    ["with_interlock", "인터록 있음", "막는 신호가 있는 명령"], ["unreached", "지금 안 섬", "도면 읽기 빈틈 · 되먹임"],
+    ["with_interlock", "인터록 있음", "막는 신호가 있는 명령"], ["unreached", "안 섬", "도면 읽기 빈틈 · 되먹임"],
     ["both", "반대 명령 동시", "함께 나갈 수 있는 장비"]].map(([k, t, h]) =>
     `<div title="${h}"><b>${k === "both" ? (s.both_on || []).length : (s[k] ?? "–")}</b><small>${t}</small></div>`).join("");
-  $("#blockers").innerHTML = (s.common_block || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <em>— 명령 ${x.count}개를 막음</em></li>`).join("")
-    || `<li><em>여러 명령을 한꺼번에 막는 신호가 없습니다</em></li>`;
+  $("#blockers").innerHTML = (s.common_block || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <em>· ${x.count}개</em></li>`).join("")
+    || `<li><em>없음</em></li>`;
 }
 
 /* ------------------------------------------------------------------ 표 */
@@ -136,7 +135,7 @@ function rowHtml(g, i) {
   const st = G.running === g.equip ? "run" : stOf(g);
   const r = G.results[g.equip] || g.test;
   const sum = (k) => g.actions.reduce((a, x) => a + (x[k] || 0), 0);
-  const acts = g.actions.map((a) => `<span class="act ${a.reached ? "ok" : "no"}" title="${esc(`${a.sheet}-${a.row} ${a.desc}`)}${a.reached ? "" : " — 지금 도면으로 안 섬"}">${esc(a.action)}</span>`).join("");
+  const acts = g.actions.map((a) => `<span class="act ${a.reached ? "ok" : "no"}" title="${esc(`${a.sheet}-${a.row} ${a.desc}`)}${a.reached ? "" : " — 안 섬"}">${esc(a.action)}</span>`).join("");
   const open = G.open === g.equip;
   return `<tr class="g ${open ? "open" : ""}" data-i="${i}">
     <td><span class="st ${st}">${st === "run" ? "시험 중" : ST_KO[st]}</span></td>
@@ -162,7 +161,7 @@ function render() {
   const em = $("#empty");
   em.hidden = gs.length > 0;
   if (!gs.length) em.textContent = G.data.groups.length ? "조건에 맞는 장비가 없습니다." : (G.data.state === "done" ? "이 묶음에서 START · STOP · OPEN · CLOSE · TRIP 명령 행을 찾지 못했습니다." : "동작을 배우는 중입니다…");
-  $("#run-all").textContent = G.running ? "■ 멈추기" : `▶ 보이는 그룹 모두 시험 (${gs.length})`;
+  $("#run-all").textContent = G.running ? "■ 멈추기" : `▶ 모두 시험 (${gs.length})`;
   $("#run-all").className = "gt-btn " + (G.running ? "stop" : "pri");
   $("#run-all").disabled = !gs.length && !G.running;
 }
@@ -173,15 +172,15 @@ function understandOf(x) {
   if (!x) return "";
   if (!x.reached) {
     const b = x.blocked_at || {};
-    return `<div class="u"><h4>${esc(x.action)} — 지금 도면으로 안 섬</h4><div class="why">${esc(x.why || "")}${b.label ? ` · 막힌 자리 ${esc(b.label)}` : ""}</div></div>`;
+    return `<div class="u"><h4>${esc(x.action)} — 안 섬</h4><div class="why">${esc(x.why || "")}${b.label ? ` · 막힌 곳 ${esc(b.label)}` : ""}</div></div>`;
   }
-  const hold = x.latch === true ? "● 자기유지 — 놓아도 남음" : x.latch === false ? "○ 누르는 동안만" : x.pulse_s != null ? `⏱ 펄스 ${x.pulse_s}초` : "";
+  const hold = x.latch === true ? "● 자기유지" : x.latch === false ? "○ 누르는 동안만" : x.pulse_s != null ? `⏱ 펄스 ${x.pulse_s}초` : "";
   return `<div class="u"><h4>${esc(x.action)} <small>${esc(x.sheet)}-${x.row} · ${esc(hold)}</small></h4>
-    <b>켜는 신호</b><ul>${lbl(x.labels) || "<li>아무 신호 없이 섬</li>"}</ul>
+    <b>켜는 신호</b><ul>${lbl(x.labels) || "<li>신호 없이 섬</li>"}</ul>
     ${(x.alts || []).map((a, i) => `<b>다른 길 ${i + 1}</b><ul>${lbl(a.labels)}</ul>`).join("")}
     ${(x.interlocks || []).length ? `<b>막는 신호</b><ul>${lbl(x.interlocks)}</ul>` : ""}
     ${(x.stoppers || []).length ? `<b>끄는 신호</b><ul>${lbl(x.stoppers)}</ul>` : ""}
-    ${(x.effects || []).length ? `<b>함께 켜지는 출력</b><ul>${x.effects.slice(0, 8).map((e) => `<li><b>${esc(e.sheet)}-${e.row}</b> ${esc(e.text)}${e.to ? ` <small>→ ${esc(e.to)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>`;
+    ${(x.effects || []).length ? `<b>함께 켜짐</b><ul>${x.effects.slice(0, 8).map((e) => `<li><b>${esc(e.sheet)}-${e.row}</b> ${esc(e.text)}${e.to ? ` <small>→ ${esc(e.to)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>`;
 }
 function simLink(i, c) {
   const at = c.at || {};
@@ -189,16 +188,16 @@ function simLink(i, c) {
 }
 function detailHtml(g) {
   const items = G.learn ? G.learn.items.filter((x) => x.equip === g.equip) : null;
-  const und = items ? `<div class="understand">${items.map(understandOf).join("")}</div>` : `<div class="det-h">로직 이해를 불러오는 중…</div>`;
+  const und = items ? `<div class="understand">${items.map(understandOf).join("")}</div>` : `<div class="det-h">불러오는 중…</div>`;
   const r = G.results[g.equip];
-  if (!r) return und + `<div class="det-h">${g.test ? "시험 결과를 불러오는 중…" : "아직 시험하지 않았습니다 — 오른쪽 <b>▶ 시험</b> 을 누르세요."}</div>`;
+  if (!r) return und + `<div class="det-h">${g.test ? "시험 결과를 불러오는 중…" : "미시험 — <b>▶ 시험</b> 을 누르세요."}</div>`;
   const rows = (r.checks || []).map((c, i) => `<tr class="${c.status}">
       <td><span class="st ${c.status}">${ST_KO[c.status]}</span></td><td>${esc(c.action || "")}</td><td>${esc(KIND_KO[c.kind] || c.kind)}</td>
       <td>${esc(c.title)}${c.why ? `<div class="why">${esc(c.why)}</div>` : ""}</td><td>${esc(c.expect)}</td><td>${esc(c.got)}</td>
-      <td>${c.at && c.at.page ? `<a href="${simLink(i, c)}" title="LOGIC 검토 화면에서 이 시험의 신호를 주고 흐름을 봅니다">도면에서 보기 →</a>` : ""}</td></tr>`).join("");
+      <td>${c.at && c.at.page ? `<a href="${simLink(i, c)}" title="LOGIC 검토 화면에서 이 시험의 신호를 주고 흐름을 봅니다">도면 →</a>` : ""}</td></tr>`).join("");
   return und + `<div class="det-h"><b>시험 항목 ${(r.checks || []).length}</b> · ${esc(r.author || "이름 없음")} · ${when(r.at)} · ${r.seconds ?? ""}초
-      ${r.learned_fresh === false ? " · ⚠ 배운 것이 낡았습니다 (뒤에서 다시 배우는 중)" : ""}</div>
-    <table class="ck"><thead><tr><th>판정</th><th>동작</th><th>항목</th><th>시험 내용</th><th>기대</th><th>결과</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+      ${r.learned_fresh === false ? " · ⚠ 다시 학습 중" : ""}</div>
+    <table class="ck"><thead><tr><th>판정</th><th>동작</th><th>항목</th><th>내용</th><th>기대</th><th>결과</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 async function ensureLearn() {
   if (G.learn || !G.job) return;
