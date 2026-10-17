@@ -140,6 +140,9 @@ class Sheet:
 
 # ------------------------------------------------------------------ 만들기
 
+BREAK_GAP_MAX = 2.5      # 끊어 그린 교차의 틈 상한 (행 간격 배수) — 1A1Y 실측 1.06~2.23 · HRSG 0.3~1.4 (L39)
+
+
 def build(prims: geom.Prims, lay=None) -> Sheet | None:
     lay = lay or geom.layout(prims)
     if lay is None:
@@ -583,8 +586,18 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     # 끊어 그린 교차 — 한 직선의 두 끝이 마주 보고 그 틈을 다른 선이 직각으로 지나가면 같은 선이다
     # (범례 G003: "BROKEN LINE REPRESENTS NO LOGIC CONNECTION" — 지나가는 선과는 잇지 않는다)
     loose = []
+
+    def axial(s):
+        # 거의 곧은 선 — CAD 가 0.1pt 남짓 기울게 낸 세로선도 (1A1Y HR_P011 · 60pt 에 0.12pt) 같은 직선으로 본다
+        dx, dy = abs(s.x1 - s.x0), abs(s.y1 - s.y0)
+        if s.vert or dx <= max(0.15, 0.004 * dy) and dy > dx:
+            return "v"
+        if s.horiz or dy <= max(0.15, 0.004 * dx) and dx > dy:
+            return "h"
+        return None
     for i, (s, p) in enumerate(segs):
-        if not (s.vert or s.horiz):
+        ax_ = axial(s)
+        if ax_ is None:
             continue
         for e in s.ends():
             if not joinable(e, p):
@@ -597,35 +610,68 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             # 바깥쪽 방향 (선분 안쪽 → 끝)
             o = s.ends()[1] if e == s.ends()[0] else s.ends()[0]
-            loose.append((e, i, ("v" if s.vert else "h"), (e[0] - o[0], e[1] - o[1])))
-    for a in range(len(loose)):
+            loose.append((e, i, ax_, (e[0] - o[0], e[1] - o[1])))
+    def facing(a, b):
         ea, ia, axa, va = loose[a]
+        eb, ib, axb, vb = loose[b]
+        if axa != axb or ia == ib:
+            return None
+        if axa == "v" and abs(ea[0] - eb[0]) > 0.3:
+            return None
+        if axa == "h" and abs(ea[1] - eb[1]) > 0.3:
+            return None
+        g = _d(ea, eb)
+        if g == 0 or g > BREAK_GAP_MAX * P:
+            return None
+        # 서로를 향하는가
+        if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0:
+            return None
+        if (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
+            return None
+        mid = ((ea[0] + eb[0]) / 2, (ea[1] + eb[1]) / 2)
+        # 틈이 행 간격보다 넓으면 (1A1Y — CAD 가 교차 자리를 1~2.2 행 간격 비운다 · L39) 지나가는 선이 틈 한가운데
+        # (틈의 1/4 안)를 지나고 그 선이 틈보다 길거나 파선이어야 한다 — 글자 획 · 짧은 표시가 사이에 있는 것과 가른다
+        wide = g > P
+        for j in near(mid):
+            t, tp = segs[j]
+            if not (axa == "v" and t.horiz or axa == "h" and t.vert):
+                continue
+            if wide and ((t.length < g and not tp.dashed) or not _on_seg(mid, t, g / 4)[0]):
+                continue
+            if _on_seg(mid, t, g / 2)[0]:
+                return g
+        return None
+    # 좁은 틈 (행 간격 안) — 예전 규칙 그대로
+    for a in range(len(loose)):
+        ea, ia, _, _ = loose[a]
         for b in range(a + 1, len(loose)):
-            eb, ib, axb, vb = loose[b]
-            if axa != axb or find(ia) == find(ib):
+            eb, ib, _, _ = loose[b]
+            if find(ia) == find(ib):
                 continue
-            if axa == "v" and abs(ea[0] - eb[0]) > 0.05:
-                continue
-            if axa == "h" and abs(ea[1] - eb[1]) > 0.05:
-                continue
-            g = _d(ea, eb)
-            if g == 0 or g > P:
-                continue
-            # 서로를 향하는가
-            if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0:
-                continue
-            if (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
-                continue
-            mid = ((ea[0] + eb[0]) / 2, (ea[1] + eb[1]) / 2)
-            crossed = False
-            for j in near(mid):
-                t = segs[j][0]
-                if (axa == "v" and t.horiz or axa == "h" and t.vert) and _on_seg(mid, t, g / 2)[0]:
-                    crossed = True
-                    break
-            if crossed:
+            g = facing(a, b)
+            if g is not None and g <= P:
                 union(ia, ib)
                 bridged.append((ea, eb))
+    # 넓은 틈 — 끝마다 가장 가까운 짝 하나만 (먼 짝을 이으면 홉 여럿을 건너뛴 다리가 생긴다 · 1A5J 0008)
+    used = {q for br in bridged for q in br}
+    cand = []
+    for a in range(len(loose)):
+        if loose[a][0] in used:
+            continue
+        for b in range(a + 1, len(loose)):
+            if loose[b][0] in used:
+                continue
+            g = facing(a, b)
+            if g is not None and g > P:
+                cand.append((g, a, b))
+    for g, a, b in sorted(cand):
+        ea, ia, _, _ = loose[a]
+        eb, ib, _, _ = loose[b]
+        if ea in used or eb in used or find(ia) == find(ib):
+            continue
+        used.update((ea, eb))
+        union(ia, ib)
+        bridged.append((ea, eb))
 
     roots = {}
     for i in range(len(segs)):
