@@ -586,6 +586,91 @@ def findings(job: str):
     return _memo(res, "findings", lambda: report.findings(res["sheets"]))
 
 
+@router.get("/logic/test")
+def logic_test_page():
+    """L36 — 블록 그룹 시험 대시보드."""
+    return FileResponse(_static("logic_test.html"), headers={"Cache-Control": "no-store"})
+
+
+def _learned(job, start=True):
+    from . import behavior
+    d = _dir(job)
+    cur = behavior.load(d)
+    fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    if not fresh and start:
+        behavior_get(job, 1)
+        cur = behavior.load(d)
+        fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    return cur, fresh
+
+
+@router.get("/logic/api/jobs/{job}/groups")
+def groups_get(job: str):
+    """L36 — 장비(블록 그룹)마다 배운 동작과 마지막 시험 결과.  배운 것이 없거나 낡았으면 뒤에서 다시 배운다."""
+    from . import behavior, grouptest
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    st = behavior_get(job, 1)
+    cur = st["result"]
+    tested = grouptest.load(d)
+    gs = grouptest.groups(cur)
+    key = cur.get("key") if cur else None
+    for g in gs:
+        r = (tested.get("groups") or {}).get(g["equip"])
+        g["test"] = None if not r else {k: r.get(k) for k in ("status", "counts", "author", "at", "seconds")} | {
+            "stale": r.get("key") != key}
+    status = store.read_status(d)
+    return {"state": st["state"], "progress": st["progress"], "name": status.get("name"), "project": status.get("project"),
+            "summary": (cur or {}).get("summary"), "learned_at": (cur or {}).get("learned_at"),
+            "groups": gs, "history": (tested.get("history") or [])[-30:]}
+
+
+@router.post("/logic/api/jobs/{job}/grouptest")
+def grouptest_run(job: str, body: dict = Body(default={})):
+    """L36 — 장비 하나 원 버튼 시험.  지금 결과(사람이 고친 값까지)로 배운 것을 다시 돌린다."""
+    from . import grouptest
+    equip = str(body.get("equip") or "")
+    if not equip:
+        raise HTTPException(400, "equip 가 필요합니다.")
+    cur, fresh = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 잠시 뒤 다시 누르세요.")
+    items = grouptest.items_of(cur, equip)
+    if not items:
+        raise HTTPException(404, f"'{equip}' 장비를 배운 것이 없습니다.")
+    res = _result(job)
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):
+        out = grouptest.test_group(sheets, items, cache, _timers(body.get("timers")))
+        cache.pop("_last_results", None)
+    out = grouptest.save(_dir(job), equip, out, str(body.get("author") or "")[:60], cur.get("key"))
+    out["learned_fresh"] = fresh
+    return out
+
+
+@router.get("/logic/api/jobs/{job}/grouptest")
+def grouptest_get(job: str, equip: str):
+    from . import grouptest
+    r = (grouptest.load(_dir(job)).get("groups") or {}).get(equip)
+    if not r:
+        raise HTTPException(404, "아직 시험하지 않았습니다.")
+    return r
+
+
+@router.get("/logic/api/jobs/{job}/grouptest.xlsx")
+def grouptest_xlsx(job: str):
+    from . import grouptest
+    d = _dir(job)
+    cur, _ = _learned(job, start=False)
+    name = store.read_status(d).get("name") or "logic"
+    data = grouptest.workbook(cur, grouptest.load(d), name)
+    fn = Path(name).stem + "_group_test.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
 @router.get("/logic/api/jobs/{job}/report.xlsx")
 def report_xlsx(job: str):
     res = _result(job)

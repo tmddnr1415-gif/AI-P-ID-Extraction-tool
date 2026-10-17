@@ -16,8 +16,10 @@ import time
 from . import sequence, sim
 
 LEARN_TRIES = 64          # 동작 하나에 돌려 보는 갈래 조합 수 상한
+LEARN_TRIES_DEEP = 400   # L36 — 첫 학습에서 안 선 명령은 더 깊이 (시간이 걸려도 좋다 — 사용자)
+INNER_ANY_DEEP = 10
 INNER_ANY = 6             # 조합을 바꿔 보는 갈래(OR · 메모리 …) 수 상한 — 나머지는 나무가 권한 갈래
-VERSION = 2              # L35 — 이해(막는 신호 · 유지 · 반대 명령 짝)를 더했다 · 바뀌면 다시 배운다
+VERSION = 3              # L36 — 다른 길 · 함께 바뀌는 출력 · 펄스 길이 (L35 이해) — 이해(막는 신호 · 유지 · 반대 명령 짝)를 더했다 · 바뀌면 다시 배운다
 REAL = ("row", "button", "monitor", "stuck", "terminal", "net")
 
 
@@ -82,7 +84,7 @@ def _minimize(sheets, forces, page, net, want, cache, timers):
     return cur
 
 
-def learn_one(sheets, page, row, want=1, cache=None, timers=None):
+def learn_one(sheets, page, row, want=1, cache=None, timers=None, deep=False):
     p = sequence.plan(sheets, page, row, want)
     if not p.get("ok"):
         return {"page": page, "row": row, "reached": False, "why": p.get("why") or "조건 나무를 만들지 못했습니다"}
@@ -91,7 +93,7 @@ def learn_one(sheets, page, row, want=1, cache=None, timers=None):
         # 출력 선 자체를 모는 것이 없다 — 그 선을 직접 주는 것은 답이 아니다 (도면에서 선이 끊긴 자리)
         return {"page": page, "row": row, "reached": False, "tried": 0, "undriven": True,
                 "why": "이 출력 행의 선을 모는 블록을 도면에서 읽지 못했습니다 (선이 끊김 — 마크업 · 가르치기로 이을 수 있습니다)"}
-    anys = _anys(tree)[:INNER_ANY]
+    anys = _anys(tree)[:INNER_ANY_DEEP if deep else INNER_ANY]
     choices = [{}]
     for a in anys:                                   # 나무가 권한 갈래부터 · 하나씩만 바꾼 조합 → 둘 …
         alts = [i for i in range(len(a["kids"])) if i != a.get("pick", 0)]
@@ -100,7 +102,13 @@ def learn_one(sheets, page, row, want=1, cache=None, timers=None):
         for i in range(len(a["kids"])):
             for j in range(len(b["kids"])):
                 choices.append({a["id"]: i, b["id"]: j})
-    tried, seen, best = 0, set(), None
+    if deep:                                         # L36 — 깊이 배우기: 갈래 셋을 함께 바꾼 조합까지
+        for a, b, c in itertools.combinations(anys, 3):
+            for i in range(len(a["kids"])):
+                for j in range(len(b["kids"])):
+                    for k in range(len(c["kids"])):
+                        choices.append({a["id"]: i, b["id"]: j, c["id"]: k})
+    tried, seen, best, hits, stop_at = 0, set(), None, [], None
     # 한 신호를 두 자리가 반대로 바라면 — 1 을 두는 조합과 앞자리(나무 순서) 것을 두는 조합을 둘 다 돌려 본다
     for ch, prefer in ((c, pr) for c in choices for pr in (1, 0)):
         F = _forces(tree, ch, prefer)
@@ -109,15 +117,17 @@ def learn_one(sheets, page, row, want=1, cache=None, timers=None):
             continue
         seen.add(key)
         tried += 1
-        if tried > LEARN_TRIES:
+        if tried > (LEARN_TRIES_DEEP if deep else LEARN_TRIES) or (stop_at is not None and tried > stop_at):
             break
         hit, steady, _ = _hit(sheets, F, page, p["net"], want, cache, timers)
         # L35 — 도면이 상수(FORCED INPUT 0/1)로 묶어 둔 신호를 뒤집는 조합은 마지막에 고른다 (그 길은 도면이 막아 둔 길)
         clean = not _flips_const(sheets, F)
+        if hit and clean:
+            hits.append(F)
         if hit and (best is None or (clean, steady) > (best[2], best[1])):
             best = (F, steady, clean)
-            if steady and clean:
-                break
+            if steady and clean and stop_at is None:
+                stop_at = tried + ALT_SEARCH       # L36 — 찾은 뒤에도 몇 조합 더 돌려 다른 길을 찾는다
     if best is None:
         blk = _blocker(sheets, page, tree, _forces(tree, {}), cache)
     stuck = [{"text": v.get("text"), "page": v.get("page"), "block": v.get("block")}
@@ -135,6 +145,41 @@ def learn_one(sheets, page, row, want=1, cache=None, timers=None):
         out.update(understand(sheets, p, need, page, want, cache, timers))
     except Exception as ex:                          # 이해가 실패해도 배운 조합은 남긴다
         out["understand_error"] = str(ex)
+    try:
+        out["alts"] = _alternatives(sheets, hits, need, page, p["net"], want, cache, timers)
+    except Exception as ex:
+        out["alts"] = []
+        out["understand_error"] = out.get("understand_error") or str(ex)
+    return out
+
+
+ALT_SEARCH = 12           # 첫 길을 찾은 뒤 더 돌려 보는 조합 수
+ALT_MAX = 3               # 다른 길(다른 최소 조합)을 몇 개까지 남기나 — L36
+
+
+def _alternatives(sheets, hits, need, page, net, want, cache, timers):
+    """L36 — 같은 명령을 내는 **다른 길**.  학습 중 선 조합(상수를 뒤집지 않은 것) 가운데 줄이고 나서 남는 신호의
+    모음이 앞의 것과 다른 것 (OR 갈래 · 자동/수동 · 다른 시트에서 오는 요청).  판정은 시뮬레이터가 이미 했다."""
+    sig = lambda F: frozenset((pg, k, v) for pg, d in F.items() for k, v in d.items())
+    if not sig(need):
+        return []                                     # 아무것도 안 줘도 서는 명령 — 다른 길을 말할 것이 없다
+    known = {sig(need)}
+    out = []
+    for F in hits:
+        if len(out) >= ALT_MAX:
+            break
+        if sig(F) in known:
+            continue
+        m = _minimize(sheets, F, page, net, want, cache, timers)
+        s = sig(m)
+        if s in known or not s:
+            known.add(sig(F))
+            continue
+        known |= {s, sig(F)}
+        ls = _labels(sheets, m)
+        if all(l.get("assumed") or "const" in l for l in ls):
+            continue                                  # 도면 읽기 빈틈에만 기대는 길은 '다른 길' 이 아니다
+        out.append({"forces": m, "labels": ls})
     return out
 
 
@@ -273,7 +318,7 @@ def understand(sheets, p, need, page, want, cache, timers):
       * stoppers — 유지되는 명령에서 그 신호가 1 이 되면 꺼지는 것 · drops — 그 허가가 0 이 되면 꺼지는 것"""
     net = p["net"]
     out = {}
-    p = dict(p, _blocks=next((s["blocks"] for s in sheets if s["page"] == page), {}))
+    p = dict(p, _blocks=next((s["blocks"] for s in sheets if s["page"] == page), {}), row_n=p.get("row"))
     tied = [l["text"] for l in _labels(sheets, need) if "const" in l and l["const"] != l["value"]]
     if tied:
         out["tied_off"] = tied                        # 상수에 묶인 신호를 뒤집어야만 선다 — 도면이 이 명령을 쓰지 않게 묶어 둠
@@ -287,7 +332,14 @@ def understand(sheets, p, need, page, want, cache, timers):
         if not _hit(sheets, F, page, net, want, cache, timers)[0]:
             inter.setdefault(page, {})[k] = 1
     out["interlocks"] = _labels(sheets, inter)
-    v1, vals, st = _last(sheets, need, None, page, net, cache, timers)
+    r1 = sim.simulate_bundle(sheets, need, None, page, timers=timers, cache=cache)
+    fr = (r1["focus"] or {}).get("frames") or []
+    v1, st = (fr[-1]["values"].get(net) if fr else None), r1.get("state") or {}
+    out["pulse_s"] = _pulse_len(fr, net, want)
+    try:
+        out["effects"] = _effects(sheets, r1, page, p["row_n"], cache, timers)
+    except Exception:
+        out["effects"] = []
     if v1 != want:
         out["latch"] = None                           # 잠깐 서는 명령 (펄스) — 놓으면 꺼지는 것이 정의다
         return out
@@ -319,6 +371,47 @@ def understand(sheets, p, need, page, want, cache, timers):
                 drop.setdefault(pg, {})[k] = 0
     out["stoppers"] = _labels(sheets, stop)
     out["drops"] = _labels(sheets, drop)
+    return out
+
+
+EFFECT_MAX = 24
+
+
+def _pulse_len(frames, net, want):
+    """잠깐 나가는 명령이면 몇 초 나가는가 — 틀의 시각(t) 으로 (서 있으면 None)."""
+    on = None
+    for f in frames:
+        v = f["values"].get(net)
+        if v == want and on is None:
+            on = f.get("t", 0)
+        elif v != want and on is not None:
+            return round((f.get("t", 0) or 0) - (on or 0), 2)
+    return None
+
+
+def _effects(sheets, r1, page, row, cache, timers):
+    """L36 — 그 명령이 서면 묶음에서 **함께 1 이 되는 출력 행** (다른 장비 · 다른 시트로 이어지는 것).
+    신호가 닿은 장(hop)의 출력만 보고, 아무것도 안 줬을 때도 1 인 것은 뺀다 — 이 명령 때문에 바뀐 것만."""
+    by = {s["page"]: s for s in sheets}
+    cand = [(c["page"], n, c.get("hop")) for c in r1.get("pages") or [] if c.get("hop") is not None
+            for n in c.get("on_out") or [] if not (c["page"] == page and n == row)]
+    if not cand:
+        return []
+    sim.simulate_bundle(sheets, {}, None, page, timers=timers, cache=cache)
+    res0 = (cache or {}).get("_last_results") or {}
+    out = []
+    for pg, n, hop in sorted(cand, key=lambda x: (x[2], x[0], x[1])):
+        s = by.get(pg) or {}
+        r = next((x for x in s.get("rows", []) if x["side"] == "R" and x["n"] == n), None)
+        if not r or r.get("net") is None:
+            continue
+        fr0 = (res0.get(pg) or {}).get("frames") or []
+        if fr0 and fr0[-1]["values"].get(r["net"]) == 1:
+            continue
+        out.append({"page": pg, "sheet": s.get("sheet_no"), "row": n, "text": r.get("desc") or f"{n}행",
+                    "to": r.get("to") or "", "hop": hop})
+        if len(out) >= EFFECT_MAX:
+            break
     return out
 
 
@@ -403,6 +496,16 @@ def learn(sheets, cache=None, timers=None, progress=None):
                 res = learn_one(sheets, r["page"], r["row"], 1, cache, timers)
             except Exception as ex:                  # 한 동작이 실패해도 나머지는 배운다 — 사유를 남긴다
                 res = {"page": r["page"], "row": r["row"], "reached": False, "why": f"시뮬레이션 실패 — {ex}"}
+            if not res.get("reached") and not res.get("undriven") and not res.get("stuck"):
+                try:                                  # 갈래 조합이 모자랐을 수 있다 — 더 깊이 다시
+                    deep = learn_one(sheets, r["page"], r["row"], 1, cache, timers, deep=True)
+                    deep["deep"] = True
+                    if deep.get("reached"):
+                        res = deep
+                    else:
+                        res["deep_tried"] = deep.get("tried")
+                except Exception:
+                    pass
             res.update(equip=e["equip"], action=a["action"], sheet=r["sheet"], desc=r["desc"], kind=r["kind"])
             out.append(res)
             done += 1

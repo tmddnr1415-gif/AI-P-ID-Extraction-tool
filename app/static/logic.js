@@ -185,6 +185,7 @@ function jobLine(x) {
   return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
     <div class="jm">${st} ${mats.map((k) => `<span class="mat">${esc(lab[k] || k)}</span>`).join("")}
     <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}
+    ${x.state === "done" ? `<button class="jgt" data-gt="${x.id}" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험합니다">🧪 그룹 시험</button>` : ""}
     ${x.state === "queued" || x.state === "running" ? "" : `<button class="jdel" data-del="${x.id}" title="이 분석 기록을 지웁니다 (분석 결과 · 메모 · 사람이 정한 값)">지우기</button>`}</div>
     ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
 }
@@ -229,6 +230,8 @@ function bindHome() {
     if (pdel) { e.stopPropagation(); deleteProject(pdel.dataset.pdel); return; }
     const del = e.target.closest("button[data-del]");
     if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
+    const gt = e.target.closest("button[data-gt]");
+    if (gt) { e.stopPropagation(); location.href = `/logic/test${location.search}#job=${gt.dataset.gt}`; return; }
     const li = e.target.closest("li[data-job]");
     if (!li) return;
     hideHome();
@@ -375,7 +378,27 @@ async function openJob(id) {
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
   if (!MACRO_FROM && (wasRunning || !seen)) showFromTo(id);
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
-  if (p) openSheet(p);
+  const test = location.hash.match(/[#&]test=([^&]+)/);
+  if (p) { if (test) { await openSheet(p); applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p); }
+}
+/* L36 — 블록 그룹 시험 대시보드에서 '도면에서 보기' 로 왔을 때: 그 시험 항목의 신호를 그대로 주고 흐름을 그린다 */
+async function applyHashTest(id, equip) {
+  const ci = Number((location.hash.match(/[#&]chk=(\d+)/) || [])[1] || 0);
+  let r;
+  try { r = await api(`/logic/api/jobs/${id}/grouptest?equip=${encodeURIComponent(equip)}`); } catch (e) { status(e.message); return; }
+  const c = (r.checks || [])[ci];
+  if (!c || id !== L.job) return;
+  L.allForces = {};
+  for (const [pg, f] of Object.entries(c.forces || {})) L.allForces[Number(pg)] = { ...f };
+  const at = c.at || {};
+  if (at.page && at.page !== L.page) await openSheet(at.page);
+  L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  L.states = {}; L.state = null; L.values = {};
+  setMode("sim", true);
+  await runSim(true);
+  if (at.row) { L.focus = { page: at.page, row: at.row, side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
+  status(`🧪 그룹 시험 '${equip}' — ${c.title} · 기대 ${c.expect} → 결과 ${c.got}`);
+  renderChain();
 }
 /* ------------------------------------------------------------------ 분석 진행 (P&ID 와 같은 꼴 · L13) */
 function fmtSec(t) {
@@ -3489,6 +3512,7 @@ function bindSeq() {
   });
   $("#seq-x").onclick = seqClose;
   $("#seq-min").onclick = () => { lsSet("logic.seq.min", pop.classList.contains("min") ? null : "1"); renderSeq(); };
+  $("#gt-btn").onclick = () => { location.href = `/logic/test${location.search}${L.job ? "#job=" + L.job : ""}`; };
   $("#seq-btn").onclick = () => { if (!pop.hidden) seqClose(); else seqOpen(); };
   $("#seq-b").addEventListener("click", (e) => {
     if (SEQ.busy) return;

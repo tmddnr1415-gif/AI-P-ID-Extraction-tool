@@ -751,3 +751,7 @@ button.sigchip { cursor: pointer; }
 .lg-seq .sq-ins li { display: block; padding: 3px 4px; border-bottom: 1px dotted #e1e6ee; }
 .lg-seq .sq-ins .ins-a { display: block; }
 .lg-seq .sq-ins li small { display: block; color: #667; }
+/* L36 — 첫 화면 분석 이력의 그룹 시험 */
+.jm .jgt { margin-left: auto; border: 1px solid #b9c8ee; background: #fff; color: #2f5bd8; border-radius: 6px; font-size: 11px; padding: 0 7px; cursor: pointer; }
+.jm .jgt:hover { background: #eef3ff; }
+.jm .jgt + .jdel { margin-left: 4px; }
