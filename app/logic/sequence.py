@@ -430,3 +430,74 @@ def _order(parts):
             return 2
         return 0
     return sorted(parts, key=rank)
+
+
+# ---------------------------------------------------------------- L37 — 안내: 이 신호를 켜면 무엇이 달라지나
+EFFECT_MAX = 8
+
+
+def _on(res, net):
+    """그 선이 어느 틀에서든 1 이었나 (펄스도 센다) · 마지막 틀 값."""
+    if not res or net is None:
+        return False, 0
+    vals = [fr["values"].get(net) for fr in res["frames"]]
+    return 1 in vals, 1 if vals and vals[-1] == 1 else 0
+
+
+def effect(sheets, page, net, want, forces, add, timers=None, gate=None, cache=None):
+    """지금까지의 답(forces)에 이 신호(add)를 더하면 — 같은 묶음 시뮬레이터로 앞뒤를 돌려 차이만 낸다 (판정 0줄).
+
+    → {"target": {"before", "after", "steady"}, "gate": {입력 수 · 1 인 입력 수 앞뒤 · 출력 앞뒤} | None,
+       "gained": [새로 1 이 된 출력 행 (목표 먼저)], "linked": [다른 시트로 넘어가 1 이 된 입력 행], "nets": 이 장에서 새로 1 인 선 수}"""
+    cache = {} if cache is None else cache
+    by_page = {s["page"]: s for s in sheets}
+
+    def run(f):
+        sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)
+        return cache.pop("_last_results", None) or {}
+
+    after_f = {p: dict(v) for p, v in forces.items()}
+    for p, v in add.items():
+        after_f.setdefault(p, {}).update(v)
+    rb, ra = run(forces), run(after_f)
+    tb, ta = _on(rb.get(page), net), _on(ra.get(page), net)
+    out = {"target": {"before": int(tb[0]) if want == 1 else tb[1], "after": int(ta[0]) if want == 1 else ta[1],
+                      "steady": ta[1] == want}}
+    gained, linked, nets = [], [], 0
+    for p, s in sorted(by_page.items()):
+        a, b = ra.get(p), rb.get(p)
+        if a is None:
+            continue
+        for side in ("R", "L"):
+            for r in s["rows"]:
+                if r["side"] != side or r.get("net") is None:
+                    continue
+                k = f"row:{r['n']}"
+                if side == "L" and k in after_f.get(p, {}):
+                    continue                       # 사람이 준 입력은 '넘어간 신호' 가 아니다
+                if _on(a, r["net"])[0] and not _on(b, r["net"])[0]:
+                    lab = dict(sim._row_label(s, side, r["n"]), page=p, sheet=s.get("sheet_no") or f"p{p}")
+                    (gained if side == "R" else linked).append(lab)
+        if p == page:
+            va = a["frames"][-1]["values"] if a["frames"] else {}
+            vb = (b["frames"][-1]["values"] if b and b["frames"] else {})
+            nets = sum(1 for k, v in va.items() if v == 1 and vb.get(k) != 1)
+    gained.sort(key=lambda x: (not (x["page"] == page and _row_net(by_page[page], x["row"]) == net), x["page"], x["row"]))
+    out["gained"], out["linked"], out["nets"] = gained[:EFFECT_MAX], linked[:EFFECT_MAX], nets
+    out["more"] = max(0, len(gained) - EFFECT_MAX) + max(0, len(linked) - EFFECT_MAX)
+    if gate and gate.get("block") and "/" not in str(gate["block"]) and gate.get("page") in by_page:
+        gs, bid = by_page[gate["page"]], str(gate["block"])
+        ins = [p_["net"] for p_ in gs["ports"] if p_.get("block") == bid and p_.get("dir") == "in" and p_.get("net") is not None]
+        outs = [p_["net"] for p_ in gs["ports"] if p_.get("block") == bid and p_.get("dir") == "out" and p_.get("net") is not None]
+        a, b = ra.get(gate["page"]), rb.get(gate["page"])
+        if ins and a is not None:
+            out["gate"] = {"inputs": len(ins),
+                           "on_before": sum(1 for x in ins if _on(b, x)[1]), "on_after": sum(1 for x in ins if _on(a, x)[1]),
+                           "out_before": max([_on(b, x)[1] for x in outs] or [0]),
+                           "out_after": max([_on(a, x)[1] for x in outs] or [0])}
+    return out
+
+
+def _row_net(s, n):
+    r = _row(s, "R", n)
+    return r.get("net") if r else None

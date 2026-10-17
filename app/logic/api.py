@@ -868,6 +868,30 @@ def sequence_try(job: str, body: dict = Body(default={})):
     return {"options": out}
 
 
+@router.post("/logic/api/jobs/{job}/sequence/effect")
+def sequence_effect(job: str, body: dict = Body(default={})):
+    """L37 — 안내: 지금까지의 답(forces)에 이 신호(add)를 더하면 무엇이 1 이 되나 · 목표 출력이 서나 · 이 신호가 들어가는
+    게이트의 입력이 몇 개 찼나.  같은 묶음 시뮬레이터로 앞뒤를 돌린 차이다 (판정 0줄)."""
+    from . import sequence
+    res = _result(job)
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    want = 0 if body.get("want") in (0, "0") else 1
+    gate = body.get("gate") if isinstance(body.get("gate"), dict) else None
+    if gate is not None:
+        try:
+            gate = {"block": str(gate.get("block") or ""), "page": int(gate.get("page"))}
+        except (TypeError, ValueError):
+            gate = None
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        return sequence.effect(_all_sheets(res), page, str(body.get("net") or ""), want,
+                               _clean_forces(body.get("forces") or {}), _clean_forces(body.get("add") or {}),
+                               timers=_timers(body.get("timers")), gate=gate, cache=cache)
+
+
 @router.post("/logic/api/jobs/{job}/simulate")
 def simulate_bundle(job: str, body: dict = Body(default={})):
     """묶음 전체 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1 (도면이 적은 FM 연결)."""

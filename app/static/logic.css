@@ -755,3 +755,18 @@ button.sigchip { cursor: pointer; }
 .jm .jgt { margin-left: auto; border: 1px solid #b9c8ee; background: #fff; color: #2f5bd8; border-radius: 6px; font-size: 11px; padding: 0 7px; cursor: pointer; }
 .jm .jgt:hover { background: #eef3ff; }
 .jm .jgt + .jdel { margin-left: 4px; }
+/* L37 — 순차 동작 안내: 무엇 · 왜 · 켜면 · 활성시키겠습니까? */
+.lg-seq .sq-guide { margin: 6px 0 2px; padding: 6px 8px; border-radius: 6px; background: #f2f6ff; border: 1px solid #d9e2f5; font-size: 12.5px; line-height: 1.45; }
+.lg-seq .gd-row { display: flex; gap: 8px; align-items: flex-start; margin: 2px 0; }
+.lg-seq .gd-k { flex: 0 0 auto; min-width: 38px; padding: 0 5px; border-radius: 4px; background: #1f3a8a; color: #fff; font-size: 11px; font-weight: 700; text-align: center; line-height: 18px; }
+.lg-seq .gd-list { margin: 0; padding-left: 16px; }
+.lg-seq .gd-list li { display: list-item; margin: 1px 0; padding: 0; border: 0; cursor: default; }
+.lg-seq .gd-list li:hover { background: none; }
+.lg-seq .gd-goal { color: #0a7a3c; font-weight: 700; }
+.lg-seq .gd-dim { color: #7a8396; }
+.lg-seq .gd-list .v1 { color: #0072c6; }
+.lg-seq .sq-ask { margin: 8px 0 2px; font-size: 14px; font-weight: 700; color: #1f2a44; }
+.lg-seq .sq-bar { position: relative; margin: 4px 8px 0; height: 16px; border-radius: 8px; background: #e6ebf5; overflow: hidden; }
+.lg-seq .sq-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #00b4ff, #2f5bd8); transition: width .4s; }
+.lg-seq .sq-bar span { position: relative; display: block; text-align: center; font-size: 11px; line-height: 16px; color: #1f2a44; font-weight: 600; }
+.lg-seq .sq-big { font-size: 16px; font-weight: 800; }
