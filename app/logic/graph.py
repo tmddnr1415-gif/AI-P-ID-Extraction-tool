@@ -140,6 +140,10 @@ class Sheet:
 
 # ------------------------------------------------------------------ 만들기
 
+DASH_JOIN_MAX = 0.8      # 파선 끝끼리 잇는 틈 · 모서리 거리 상한 (행 간격 배수) — 1A5J 끊긴 파선 끝 짝 0~0.75P (L39)
+BREAK_GAP_MAX = 2.5      # 끊어 그린 교차의 틈 상한 (행 간격 배수) — 1A1Y 실측 1.06~2.23 · HRSG 0.3~1.4 (L39)
+
+
 def build(prims: geom.Prims, lay=None) -> Sheet | None:
     lay = lay or geom.layout(prims)
     if lay is None:
@@ -199,7 +203,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         wires = [p for p in wires if id(p) not in used]
         glyphs = [p for p in glyphs if id(p) not in used]
     rects = _dedupe_nested(rects, tol * 4)
-    frames = _group_frames(rects, bigc)
+    frames = _group_frames(rects, bigc, wires, tol)
     rects = [r for r in rects if id(r) not in frames]
     groups = _touching_groups(rects, tol)
 
@@ -583,8 +587,18 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     # 끊어 그린 교차 — 한 직선의 두 끝이 마주 보고 그 틈을 다른 선이 직각으로 지나가면 같은 선이다
     # (범례 G003: "BROKEN LINE REPRESENTS NO LOGIC CONNECTION" — 지나가는 선과는 잇지 않는다)
     loose = []
+
+    def axial(s):
+        # 거의 곧은 선 — CAD 가 0.1pt 남짓 기울게 낸 세로선도 (1A1Y HR_P011 · 60pt 에 0.12pt) 같은 직선으로 본다
+        dx, dy = abs(s.x1 - s.x0), abs(s.y1 - s.y0)
+        if s.vert or dx <= max(0.15, 0.004 * dy) and dy > dx:
+            return "v"
+        if s.horiz or dy <= max(0.15, 0.004 * dx) and dx > dy:
+            return "h"
+        return None
     for i, (s, p) in enumerate(segs):
-        if not (s.vert or s.horiz):
+        ax_ = axial(s)
+        if ax_ is None:
             continue
         for e in s.ends():
             if not joinable(e, p):
@@ -595,37 +609,150 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             if any(_block_edge(e, b, tol * 2) for b in blocks) or any(_in_rect(e, a.bbox, tol) for a in arrows):
                 continue
+            # 게이트 입력 막대 위의 끝 — 막대에 붙을 끝이다 (L39 · 19VA BL11_P303: 파선 잇기가 이 끝을 가져가 입력을 잃었다)
+            if any(_on_seg(e, geom.Seg(*bs), tol * 2)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
+                continue
             # 바깥쪽 방향 (선분 안쪽 → 끝)
             o = s.ends()[1] if e == s.ends()[0] else s.ends()[0]
-            loose.append((e, i, ("v" if s.vert else "h"), (e[0] - o[0], e[1] - o[1])))
-    for a in range(len(loose)):
+            loose.append((e, i, ax_, (e[0] - o[0], e[1] - o[1])))
+    def facing(a, b):
         ea, ia, axa, va = loose[a]
+        eb, ib, axb, vb = loose[b]
+        if axa != axb or ia == ib:
+            return None
+        if axa == "v" and abs(ea[0] - eb[0]) > 0.3:
+            return None
+        if axa == "h" and abs(ea[1] - eb[1]) > 0.3:
+            return None
+        g = _d(ea, eb)
+        if g == 0 or g > BREAK_GAP_MAX * P:
+            return None
+        # 서로를 향하는가
+        if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0:
+            return None
+        if (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
+            return None
+        mid = ((ea[0] + eb[0]) / 2, (ea[1] + eb[1]) / 2)
+        # 틈이 행 간격보다 넓으면 (1A1Y — CAD 가 교차 자리를 1~2.2 행 간격 비운다 · L39) 지나가는 선이 틈 한가운데
+        # (틈의 1/4 안)를 지나고 그 선이 틈보다 길거나 파선이어야 한다 — 글자 획 · 짧은 표시가 사이에 있는 것과 가른다
+        wide = g > P
+        for j in near(mid):
+            t, tp = segs[j]
+            if not (axa == "v" and t.horiz or axa == "h" and t.vert):
+                continue
+            if wide and ((t.length < g and not tp.dashed) or not _on_seg(mid, t, g / 4)[0]):
+                continue
+            if _on_seg(mid, t, g / 2)[0]:
+                return g
+        return None
+    # 좁은 틈 (행 간격 안) — 예전 규칙 그대로
+    for a in range(len(loose)):
+        ea, ia, _, _ = loose[a]
         for b in range(a + 1, len(loose)):
-            eb, ib, axb, vb = loose[b]
-            if axa != axb or find(ia) == find(ib):
+            eb, ib, _, _ = loose[b]
+            if find(ia) == find(ib):
                 continue
-            if axa == "v" and abs(ea[0] - eb[0]) > 0.05:
-                continue
-            if axa == "h" and abs(ea[1] - eb[1]) > 0.05:
-                continue
-            g = _d(ea, eb)
-            if g == 0 or g > P:
-                continue
-            # 서로를 향하는가
-            if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0:
-                continue
-            if (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
-                continue
-            mid = ((ea[0] + eb[0]) / 2, (ea[1] + eb[1]) / 2)
-            crossed = False
-            for j in near(mid):
-                t = segs[j][0]
-                if (axa == "v" and t.horiz or axa == "h" and t.vert) and _on_seg(mid, t, g / 2)[0]:
-                    crossed = True
-                    break
-            if crossed:
+            g = facing(a, b)
+            if g is not None and g <= P:
                 union(ia, ib)
                 bridged.append((ea, eb))
+    # 넓은 틈 — 끝마다 가장 가까운 짝 하나만 (먼 짝을 이으면 홉 여럿을 건너뛴 다리가 생긴다 · 1A5J 0008)
+    used = {q for br in bridged for q in br}
+    cand = []
+    for a in range(len(loose)):
+        if loose[a][0] in used:
+            continue
+        for b in range(a + 1, len(loose)):
+            if loose[b][0] in used:
+                continue
+            g = facing(a, b)
+            if g is not None and g > P:
+                cand.append((g, a, b))
+    for g, a, b in sorted(cand):
+        ea, ia, _, _ = loose[a]
+        eb, ib, _, _ = loose[b]
+        if ea in used or eb in used or find(ia) == find(ib):
+            continue
+        used.update((ea, eb))
+        union(ia, ib)
+        bridged.append((ea, eb))
+
+    # 파선끼리 — 같은 직선 위의 틈 · 꺾이는 모서리에서 끊긴 채 그린 파선 신호선 (1A5J 0001/0002 · L39).
+    # 두 끝이 모두 파선의 끝이고, 같은 직선이면 마주 보며 틈이, 직각이면 두 직선이 만나는 모서리까지가 각각
+    # DASH_JOIN_MAX 행 간격 안일 때 잇는다.  끝마다 가장 가까운 짝 하나만.  이은 자리에는 선분을 그려 넣는다 (화면 · 흐름)
+    dl = [k for k in range(len(loose)) if segs[loose[k][1]][1].dashed and loose[k][0] not in used]
+    R = DASH_JOIN_MAX * P
+    cand = []
+    for x in range(len(dl)):
+        ea, ia, axa, va = loose[dl[x]]
+        for y in range(x + 1, len(dl)):
+            eb, ib, axb, vb = loose[dl[y]]
+            if ia == ib or _d(ea, eb) > 2 * R:
+                continue
+            if axa == axb:
+                if (axa == "v" and abs(ea[0] - eb[0]) > 0.3) or (axa == "h" and abs(ea[1] - eb[1]) > 0.3):
+                    continue
+                g = _d(ea, eb)
+                if g == 0 or g > R:
+                    continue
+                if (eb[0] - ea[0]) * va[0] + (eb[1] - ea[1]) * va[1] <= 0 or (ea[0] - eb[0]) * vb[0] + (ea[1] - eb[1]) * vb[1] <= 0:
+                    continue
+                cand.append((g, ea, eb, ia, ib, None))
+            else:
+                C = (eb[0], ea[1]) if axa == "h" else (ea[0], eb[1])
+                da, db = _d(ea, C), _d(eb, C)
+                if da > R or db > R:
+                    continue
+                # 각 끝이 모서리를 바라본다 (모서리가 끝 바깥쪽에 있다 · 끝 위면 됨)
+                if da > 0.01 and (C[0] - ea[0]) * va[0] + (C[1] - ea[1]) * va[1] <= 0:
+                    continue
+                if db > 0.01 and (C[0] - eb[0]) * vb[0] + (C[1] - eb[1]) * vb[1] <= 0:
+                    continue
+                cand.append((da + db, ea, eb, ia, ib, C))
+    dash_links = []
+    for g, ea, eb, ia, ib, C in sorted(cand, key=lambda t: t[0]):
+        if ea in used or eb in used or find(ia) == find(ib):
+            continue
+        used.update((ea, eb))
+        union(ia, ib)
+        dash_links.append((ea, eb, ia, C))
+
+    # 파선 끝이 블록 · 화살촉 · 입력 막대 앞에서 틈 하나를 두고 끝나면 그 틈까지 늘인다 (1A5J — 마지막 토막이 기호에
+    # 안 닿는다 · L21 은 긴 파선에서만 했다 · L39).  끝이 바라보는 방향으로만 · DASH_JOIN_MAX 행 간격까지.
+    forced = set()                                  # 늘여서 변 · 막대에 닿게 한 끝 — 그 자리의 다른 토막과 맞물려도 단자로 붙는다
+    for k in dl:
+        e, i, ax_, v = loose[k]
+        if e in used:
+            continue
+        L_ = math.hypot(*v) or 1.0
+        ux, uy = v[0] / L_, v[1] / L_
+        t, hit = 0.25, None
+        while t <= R:
+            q = (e[0] + ux * t, e[1] + uy * t)
+            ar = next((a for a in arrows if _in_rect(q, a.bbox, tol)), None)
+            if ar is not None:
+                hit = ar.base if _d(ar.base, e) <= R + tol else q       # 화살촉이면 그 밑동까지 (화살 선이 끝나는 자리)
+                break
+            if any(_block_edge(q, b, tol) for b in blocks) or \
+                    any(_on_seg(q, geom.Seg(*bs), tol)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
+                # 변 · 막대 바로 위까지 (허용치만큼 앞에서 멈추면 그 자리에 이미 붙은 다른 토막과 맞물려 단자를 잃는다)
+                while t <= R + tol and not (any(_block_edge(q, b, 0.05) for b in blocks) or
+                                            any(_on_seg(q, geom.Seg(*bs), 0.05)[0] for b in blocks for bs in getattr(b, "bus", ()) or ())):
+                    t += 0.05
+                    q = (e[0] + ux * t, e[1] + uy * t)
+                hit = (round(q[0], 2), round(q[1], 2))
+                forced.add(hit)
+                break
+            t += 0.25
+        if hit is None:
+            continue
+        sg, sp = segs[i]
+        a0, a1 = sg.ends()
+        segs[i] = (geom.Seg(hit[0], hit[1], a1[0], a1[1]) if _d(a0, e) < 1e-6 else geom.Seg(a0[0], a0[1], hit[0], hit[1]), sp)
+        f = free_of.get(id(sp))
+        if f is not None:                           # 늘인 끝도 파선의 바깥 끝이다
+            f.add((round(hit[0], 2), round(hit[1], 2)))
+        used.add(e)
 
     roots = {}
     for i in range(len(segs)):
@@ -637,6 +764,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         n["segs"].append((round(s.x0, 2), round(s.y0, 2), round(s.x1, 2), round(s.y1, 2)))
         if p.dashed:
             n["dashed"] = True
+
+    for ea, eb, ia, C in dash_links:
+        pts = [ea, C, eb] if C else [ea, eb]
+        for q0, q1 in zip(pts, pts[1:]):
+            if _d(q0, q1) > 0.01:
+                sh.nets[seg_net[ia]]["segs"].append((round(q0[0], 2), round(q0[1], 2), round(q1[0], 2), round(q1[1], 2)))
+    linked_ends = [q for ea, eb, _, _ in dash_links for q in (ea, eb)]
 
     for ea, eb in bridged:
         for i, (sg, p) in enumerate(segs):
@@ -679,6 +813,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             touched = False
             for j in near(e):
+                if (round(e[0], 2), round(e[1], 2)) in forced:
+                    break
                 if j != i and (segs[j][1] is p or joinable(e, p)) and _on_seg(e, segs[j][0], tol)[0]:
                     touched = True
                     break
@@ -691,7 +827,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                             b_, ci_, side_ = pd
                             pin_ports.append((i, b_, ci_, side_, (c.cx, c.cy)))
                         break
-            if not touched and any(_d(e, q) < 1e-6 for br in bridged for q in br):
+            if not touched and (any(_d(e, q) < 1e-6 for br in bridged for q in br) or
+                                any(_d(e, q) < 1e-6 for q in linked_ends)):
                 touched = True
             if not touched:
                 deg[(i, e)] = 0
@@ -730,7 +867,16 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             continue
         xs = [v for sg in sh.nets[nid]["segs"] for v in (sg[0], sg[2])]
         ys = [v for sg in sh.nets[nid]["segs"] for v in (sg[1], sg[3])]
-        if max(max(xs) - min(xs), max(ys) - min(ys)) < P:
+        span = max(max(xs) - min(xs), max(ys) - min(ys))
+        # 행 옆의 펄스 표시(⎍ · 1A5J 0001/0002 — 입력 신호 종류 표시)처럼 실선으로 그린 작은 외톨이 기호도 신호가 아니다:
+        # 아무 데도 안 닿고 · 2 행 간격 안 · 파선 아님 · 끝이 둘뿐 (꺾인 한 줄) (L39)
+        de = [d for d in sh.dangling if d[2] == nid]
+        sg_ = sh.nets[nid]["segs"]
+        glyph = (span < 2 * P and not sh.nets[nid].get("dashed") and len(de) == 2 and 3 <= len(sg_) <= 6 and
+                 # 양 끝이 한 바닥선 위 (⎍ · ⎎) — 꺾인 신호선 조각(ㄱ · ㄴ)은 끝이 대각으로 놓인다
+                 (abs(de[0][1] - de[1][1]) < 0.5 or abs(de[0][0] - de[1][0]) < 0.5) and
+                 math.hypot(de[0][0] - de[1][0], de[0][1] - de[1][1]) >= 0.4 * span)
+        if span < P or glyph:
             del sh.nets[nid]
             sh.dangling = [d for d in sh.dangling if d[2] != nid]
             sh.stray_arrows = [d for d in sh.stray_arrows if d[2] != nid]
@@ -1014,14 +1160,44 @@ def _dedupe_nested(rects, gap):
     return out
 
 
-def _group_frames(rects, circles):
+def _group_frames(rects, circles, wires=(), tol=0.0):
     frames = set()
     for r in rects:
         n = sum(1 for o in rects if o is not r and o.x0 >= r.x0 and o.x1 <= r.x1 and o.y0 >= r.y0 and o.y1 <= r.y1)
         n += sum(1 for c in circles if r.x0 <= c.cx <= r.x1 and r.y0 <= c.cy <= r.y1)
-        if n >= 3:
+        if n >= 3 and (_edge_pins(r, wires, tol) < 2 or _inner_wires(r, wires, tol) >= 3):
             frames.add(id(r))
     return frames
+
+
+def _inner_wires(r, wires, tol):
+    """사각형 안쪽에 통째로 들어 있는 배선 토막 수 — 묶음 틀은 안에 게이트를 잇는 선을 품고, 매크로 상자는 글자 ·
+    운전 버튼 칸뿐이다 (HRSG Typical 의 'MOTOR SUB-GROUP BLOCK' 틀 ↔ 1A1Y MTS MACRO · L39)."""
+    n = 0
+    for p in wires:
+        for sg in p.segs:
+            if (r.x0 + tol < min(sg.x0, sg.x1) and max(sg.x0, sg.x1) < r.x1 - tol and
+                    r.y0 + tol < min(sg.y0, sg.y1) and max(sg.y0, sg.y1) < r.y1 - tol and sg.length > 0):
+                n += 1
+    return n
+
+
+def _edge_pins(r, wires, tol):
+    """사각형의 왼쪽 · 오른쪽 변에 바깥에서 들어와 끝나는 가로선 수 — 단자다.  묶음 틀은 선이 변을 지나가거나 닿지 않는다.
+    (1A1Y MTS MACRO — 안에 운전 버튼 칸 다섯을 품은 매크로 상자가 '묶음 틀' 로 버려졌다 · L39)"""
+    n = 0
+    tol = max(tol * 2, 1.5 * tol + 1.2)       # 단자 원(반지름 약 1pt) 바깥에서 끝나는 선도 단자다
+    for p in wires:
+        for sg in p.segs:
+            if not sg.horiz:
+                continue
+            y = sg.y0
+            if not (r.y0 + tol < y < r.y1 - tol):
+                continue
+            a, b = min(sg.x0, sg.x1), max(sg.x0, sg.x1)
+            if abs(b - r.x0) <= tol and a < r.x0 - tol or abs(a - r.x1) <= tol and b > r.x1 + tol:
+                n += 1
+    return n
 
 
 def _touching_groups(rects, tol):

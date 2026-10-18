@@ -48,6 +48,7 @@ const FUNC_KO = {
   PB: "누름단추", STEP: "STEP (시퀀스 단계)", CONNECTOR: "연결 기호", LIGHT: "램프", ANN: "경보 (ANN)",
   SOE: "이벤트 기록 (SOE)", SIGNAL: "신호 이름 상자 (입력)", UNKNOWN: "판정 못 함", MACRO: "매크로 블록",
   VOTE: "투표 (B 개 중 A 개)", CONST: "언제나 같은 값", ANALOG: "아날로그 연산 (이진 아님)",
+  DISPLAY: "상태 표시 (받기만)", "PUSH BUTTON": "누름단추",
 };
 
 /* L12 — 매크로 블록의 새 창: 주소의 macro=<부모 장>:<블록>&in=<행>:<값>,… (부모 창이 입력 단자 값을 보낸다) */
@@ -62,6 +63,64 @@ const MACRO_FROM = (() => {
   return { parent: Number(m[1]), block: m[2], target: Number((location.hash.match(/page=(\d+)/) || [])[1]),
            from: decodeURIComponent((location.hash.match(/from=([^&]*)/) || [])[1] || ""), inputs: inp };
 })();
+
+/* L41 — 듀얼 모니터: 검토 결과 창 (pane=review) · 그룹 시험 창이 이 창과 신호를 주고받는다 */
+const PANE_REVIEW = /[#&]pane=review(&|$)/.test(location.hash);
+const WINS = { review: null, gt: null };
+function logicWin() {                     // 검토 결과 창 · 그룹 시험 창이 가리키는 LOGIC 창
+  if (window.opener && !window.opener.closed) {
+    try { if (window.opener.location.origin === location.origin && /^\/logic\/?$/.test(window.opener.location.pathname)) return window.opener; } catch (e) {}
+  }
+  return WINS.logic && !WINS.logic.closed ? WINS.logic : null;
+}
+function tellLogic(msg, fallbackHash) {   // 이어진 LOGIC 창에 보낸다 · 없으면 새 LOGIC 창을 그 자리로 연다
+  const w = logicWin();
+  if (w) { w.postMessage(msg, location.origin); try { w.focus(); } catch (e) {} return true; }
+  if (fallbackHash) WINS.logic = window.open(`/logic${location.search}#${fallbackHash}`, `logic-main-${msg.job}`);
+  return false;
+}
+function popReview() {
+  if (!L.job) return;
+  const w = window.open(`/logic${location.search}#job=${L.job}&pane=review`, `logic-review-${L.job}`, "width=1400,height=950");
+  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요"); return; }
+  WINS.review = w; $("#rv-modal").hidden = true;
+  status("검토 결과를 새 창으로 열었습니다 — 항목을 누르면 이 창이 그 자리로 갑니다");
+}
+function popGroupTest(job) {
+  job = job || L.job;
+  const w = window.open(`/logic/test${location.search}${job ? "#job=" + job : ""}`, `logic-gt-${job || "home"}`, "width=1500,height=950");
+  if (!w) { location.href = `/logic/test${location.search}${job ? "#job=" + job : ""}`; return; }
+  WINS.gt = w;
+}
+/* 다른 창에서 온 요청 — 그 묶음이 아니면 그 묶음을 연다 (hash 에 할 일을 적어 openJob 이 이어 한다) */
+async function fromOtherWindow(d) {
+  if (d.type === "review-on") { RV.on = !!d.on; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay(); return; }
+  if (d.type === "review-marks") { if (d.job === L.job) loadReview(L.job); return; }
+  if (!/^[0-9a-f]{12}$/.test(d.job || "")) return;
+  try { window.focus(); } catch (e) {}
+  const want = d.type === "review-go" ? `rvgo=${Number(d.id)}`
+    : `page=${Number(d.page) || ""}&test=${encodeURIComponent(d.equip || "")}&chk=${Number(d.chk) || 0}`;
+  if (d.job !== L.job || !L.sheets) {
+    history.replaceState(null, "", `${location.pathname}${location.search}#job=${d.job}&${want}`);
+    hideHome(); $("#job").value = d.job; closeFromTo && closeFromTo();
+    await openJob(d.job);
+    return;
+  }
+  if (typeof closeFromTo === "function") closeFromTo();
+  if (d.type === "review-go") {
+    if (!RV.data) await loadReview(L.job);
+    const it = RV.data && RV.data.items.find((x) => x.id === Number(d.id));
+    if (it) goReview(it); else status(`검토 항목 ${d.id} 를 찾지 못했습니다 — 검토를 다시 모았을 수 있습니다`);
+  } else applyHashTest(L.job, d.equip, Number(d.chk) || 0);
+}
+async function startReviewPane() {
+  document.body.classList.add("pane-review");
+  const id = (location.hash.match(/job=([0-9a-f]{12})/) || [])[1];
+  if (!id) { status("묶음이 없습니다"); return; }
+  L.job = id;
+  document.title = "정합성 검토 결과 — LOGIC";
+  await loadReview(id, true);
+}
 
 /* ------------------------------------------------------------------ 묶음 · 시트 */
 
@@ -98,7 +157,7 @@ function showHome() {
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   L.job = null;
   $("#job").value = "";
-  for (const id of ["#ft-report", "#report"]) $(id).hidden = true;
+  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf"]) $(id).hidden = true;
   $("#goto").disabled = true;
   status("");
   loadHome();
@@ -179,12 +238,16 @@ function jobLine(x) {
   const mats = Object.keys(x.materials || { logic: 1 });
   const lab = Object.fromEntries(HOME.materials.map((m) => [m.kind, m.label]));
   const idr = x.idrate != null ? ` <span class="chip${(x.idrate_low || []).length ? " low" : ""}" title="식별률 — 시트 이름 · FROM/TO 칸 · 연결 · 게이트${(x.idrate_low || []).length ? " (90% 아래 항목 있음 — 열어서 마크업으로 넣으세요)" : ""}">식별 ${(Math.floor(x.idrate * 1000) / 10).toFixed(1)}%</span>` : "";
-  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>${idr}`
+  const rv = x.review;
+  const rvc = rv ? ` <span class="chip rvchip" title="정합성 검토 — 설계 오류 · 설계 확인 · 읽기 빈틈 (툴 판정 ${rv.judged != null ? (rv.judged * 100).toFixed(1) + "%" : "—"})">검토 <b class="e">E${rv.error}</b> <b class="c">C${rv.check}</b> <b class="g">G${rv.gap}</b></span>` : "";
+  const st = x.state === "done" ? `<span class="ok">● 완료</span> <span class="chip">${x.sheets}장</span>${idr}${rvc}`
     : x.state === "failed" ? `<span class="bad">● 실패</span>`
     : `<span class="run">● 분석 중 ${(x.progress && x.progress.percent) || 0}%</span>`;
   return `<li data-job="${x.id}"><div class="jn">${esc(x.name || "")}</div>
     <div class="jm">${st} ${mats.map((k) => `<span class="mat">${esc(lab[k] || k)}</span>`).join("")}
     <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}
+    ${x.state === "done" ? `<a class="jgt" href="/logic/api/jobs/${x.id}/review.pdf" title="정합성 검토 결과를 입력 PDF 에 마크업한 파일">📋 검토 PDF</a>` : ""}
+    ${x.state === "done" ? `<button class="jgt" data-gt="${x.id}" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험합니다">🧪 그룹 시험</button>` : ""}
     ${x.state === "queued" || x.state === "running" ? "" : `<button class="jdel" data-del="${x.id}" title="이 분석 기록을 지웁니다 (분석 결과 · 메모 · 사람이 정한 값)">지우기</button>`}</div>
     ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
 }
@@ -229,6 +292,8 @@ function bindHome() {
     if (pdel) { e.stopPropagation(); deleteProject(pdel.dataset.pdel); return; }
     const del = e.target.closest("button[data-del]");
     if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
+    const gt = e.target.closest("button[data-gt]");
+    if (gt) { e.stopPropagation(); popGroupTest(gt.dataset.gt); return; }
     const li = e.target.closest("li[data-job]");
     if (!li) return;
     hideHome();
@@ -355,6 +420,8 @@ async function openJob(id) {
   const wasRunning = L.progJob === id;
   renderProgress(null);
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
+  const opt = $("#job").querySelector(`option[value="${id}"]`);          // 분석 중에 그린 '분석 중 N%' 를 끝난 값으로
+  if (opt && st.sheets != null) opt.textContent = `${st.name || ""} · ${st.sheets}장`;
   const j = await api(`/logic/api/jobs/${id}/sheets`);
   L.sheets = j.sheets;
   $("#basis").innerHTML = `${esc(j.note)}<br><br>배운 글자: ${Object.keys(j.dictionary).map(esc).join(" ")}`;
@@ -370,12 +437,41 @@ async function openJob(id) {
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
   loadTeach(id, teachOpen || lsGet("logic.teachclosed." + id) !== "1");
   $("#ft-report").hidden = false;
+  RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
+  $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
+  loadReview(id);
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
-  if (!MACRO_FROM && (wasRunning || !seen)) showFromTo(id);
+  const test = location.hash.match(/[#&]test=([^&]+)/);
+  const rvgo = Number((location.hash.match(/[#&]rvgo=(\d+)/) || [])[1]);
+  if (!MACRO_FROM && !test && !rvgo && (wasRunning || !seen)) showFromTo(id);
+  if (rvgo) {                                  // L41 — 검토 결과 창에서 왔다
+    await loadReview(id);
+    const it = RV.data && RV.data.items.find((x) => x.id === rvgo);
+    if (it) { goReview(it); return; }
+  }
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
-  if (p) openSheet(p);
+  if (p) { if (test) { await openSheet(p); applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p); }
+}
+/* L36 — 블록 그룹 시험 대시보드에서 '도면에서 보기' 로 왔을 때: 그 시험 항목의 신호를 그대로 주고 흐름을 그린다 */
+async function applyHashTest(id, equip, chk) {
+  const ci = chk != null ? chk : Number((location.hash.match(/[#&]chk=(\d+)/) || [])[1] || 0);
+  let r;
+  try { r = await api(`/logic/api/jobs/${id}/grouptest?equip=${encodeURIComponent(equip)}`); } catch (e) { status(e.message); return; }
+  const c = (r.checks || [])[ci];
+  if (!c || id !== L.job) return;
+  L.allForces = {};
+  for (const [pg, f] of Object.entries(c.forces || {})) L.allForces[Number(pg)] = { ...f };
+  const at = c.at || {};
+  if (at.page && at.page !== L.page) await openSheet(at.page);
+  L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  L.states = {}; L.state = null; L.values = {};
+  setMode("sim", true);
+  await runSim(true);
+  if (at.row) { L.focus = { page: at.page, row: at.row, side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
+  status(`🧪 그룹 시험 '${equip}' — ${c.title} · 기대 ${c.expect} → 결과 ${c.got}`);
+  renderChain();
 }
 /* ------------------------------------------------------------------ 분석 진행 (P&ID 와 같은 꼴 · L13) */
 function fmtSec(t) {
@@ -437,10 +533,189 @@ async function showFromTo(id) {
     <details><summary>연결은 맞고 설명이 다른 것 ${dif.length}건</summary>
       <div class="ft-scroll"><table class="ft-t">${dif.map((x) => li(x, r.items.indexOf(x))).join("")}</table></div></details>
     <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${id}/report.xlsx">Excel 보고서 내려받기</a>
+      <button class="btn" onclick="closeFromTo();renderReview()">📋 정합성 검토 전체 보기</button>
       <button id="ft-close" class="btn primary">확인 — 신호 주며 로직 보기</button></div>`;
   $("#ft-modal").hidden = false;
 }
 function closeFromTo() { $("#ft-modal").hidden = true; }
+
+/* ------------------------------------------------------------------ 정합성 검토 결과 한 장 (L39) */
+const RV = { data: null, cat: "ALL", topic: "", q: "", on: false, focus: null, poll: null, mk: "" };
+const RV_VD = { OK: "맞음", WRONG: "툴 오판", HOLD: "보류" };
+const RV_KO = { ERROR: "설계 오류", CHECK: "설계 확인", GAP: "읽기 빈틈", INFO: "참고" };
+const RV_TAG = { ERROR: "E", CHECK: "C", GAP: "G", INFO: "I" };
+const RV_TOPIC = { fromto: "from-to", line: "선 연결", gate: "게이트", command: "명령 동작", pair: "반대 명령", read: "읽기" };
+async function loadReview(id, open) {
+  id = id || L.job;
+  let r;
+  try { r = await api(`/logic/api/jobs/${id}/review`); } catch (e) { status(e.message); return; }
+  if (L.job !== id) return;
+  RV.data = r;
+  const c = r.count || {};
+  $("#rv-btn").innerHTML = `📋 정합성 검토 <b class="rv-n e">${c.ERROR || 0}</b><b class="rv-n c">${c.CHECK || 0}</b><b class="rv-n g">${c.GAP || 0}</b>`;
+  clearTimeout(RV.poll);
+  if (r.learning && r.learning.state === "running") RV.poll = setTimeout(() => L.job === id && loadReview(id), 6000);
+  if (open || !$("#rv-modal").hidden) renderReview();
+  if (L.sheet) drawOverlay();
+}
+function rvItems() {
+  const r = RV.data;
+  if (!r) return [];
+  const q = RV.q.trim().toUpperCase();
+  const vd = (it) => (it.mark && it.mark.verdict) || "";
+  return r.items.filter((it) => (RV.cat === "ALL" ? it.cat !== "INFO" : it.cat === RV.cat) && (!RV.topic || it.topic === RV.topic) &&
+    (!RV.mk || (RV.mk === "OPEN" ? !vd(it) : vd(it) === RV.mk)) &&
+    (!q || `${it.sheet_no} ${it.title} ${it.text}`.toUpperCase().includes(q)));
+}
+/* 사람 판단 칸 — 맞음 · 툴 오판 · 보류 (다시 누르면 거둔다) */
+function rvMarkCell(it) {
+  const v = (it.mark && it.mark.verdict) || "";
+  const who = it.mark ? `${it.mark.author || ""}${it.mark.note ? " · " + it.mark.note : ""}` : "";
+  return `<td class="rv-mk" title="${esc(who)}">${Object.entries(RV_VD).map(([k, t]) =>
+    `<button data-mk="${k}" class="${k.toLowerCase()}${v === k ? " on" : ""}">${t}</button>`).join("")}</td>`;
+}
+async function rvSetMark(it, verdict) {
+  if (it.mark && it.mark.verdict === verdict) verdict = null;
+  let note = "";
+  if (verdict === "WRONG") {
+    const ans = await askModal({ title: "툴 오판", ok: "저장", html: "<p>툴이 잘못 본 까닭을 한 줄로 (비워도 됩니다).</p>",
+      fields: [...authorField(), { id: "note", label: "까닭", placeholder: "예: 다른 권의 시트" }] });
+    if (!ans) return;
+    takeAuthor(ans); note = ans.note || "";
+  }
+  const author = await needAuthor();
+  if (!author) return;
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/review/mark`, { keys: [it.key], verdict, author, note });
+    it.mark = r.set[it.key] || null;
+    if (r.marks) RV.data.marks = r.marks;
+    renderReview();
+    if (PANE_REVIEW) tellLogic({ type: "review-marks", job: L.job });
+    else if (WINS.review && !WINS.review.closed) WINS.review.postMessage({ type: "review-marks", job: L.job }, location.origin);
+  } catch (e) { status("판단을 저장하지 못했습니다 — " + e.message); }
+}
+function renderReview() {
+  const r = RV.data;
+  if (!r) { loadReview(L.job, true); return; }
+  const c = r.count, rate = r.rate, tl = rate.tally || {};
+  const learning = r.learning && r.learning.state === "running";
+  const items = rvItems();
+  const shown = items.slice(0, 600);
+  const topics = Object.entries(r.by_topic || {});
+  $("#rv-box").innerHTML = `<h2>정합성 검토 결과 <small>${esc(r.name || "")} · ${r.sheets}장</small>
+      ${PANE_REVIEW ? `<span class="rv-link ${logicWin() ? "on" : ""}">${logicWin() ? "● LOGIC 창과 이어짐 — 항목을 누르면 그 자리로" : "○ LOGIC 창 없음 — 항목을 누르면 새 LOGIC 창을 엽니다"}</span>`
+        : `<button id="rv-pop" class="btn" title="듀얼 모니터 — 검토 결과를 다른 창에 띄우고 항목을 누르면 이 창이 그 자리로 갑니다">⧉ 새 창으로</button>`}</h2>
+    <div class="rv-cards">
+      <div class="rv-c"><b>${pct(rate.read)}</b><span>도면 읽기</span></div>
+      <div class="rv-c"><b>${pct(rate.judged)}</b><span>툴 판정</span></div>
+      <div class="rv-c e" data-cat="ERROR"><b>${c.ERROR}</b><span>설계 오류</span></div>
+      <div class="rv-c c" data-cat="CHECK"><b>${c.CHECK}</b><span>설계 확인</span></div>
+      <div class="rv-c g" data-cat="GAP"><b>${c.GAP}</b><span>읽기 빈틈</span></div>
+      ${(() => { const dz = (r.marks || {}).design || {}; return `<div class="rv-c m" title="설계 오류 · 설계 확인 중 사람이 '맞음' 으로 본 비율"><b>${dz.precision != null ? pct(dz.precision) : "—"}</b><span>판단 맞음 ${dz.OK || 0} · 오판 ${dz.WRONG || 0}</span></div>`; })()}
+    </div>
+    <p class="rv-parts">툴 판정 — ${Object.entries(rate.parts || {}).filter(([, v]) => v != null)
+      .map(([k, v]) => `${RV_TOPIC[k] || k} <b>${pct(v)}</b> <small>(${tl[k].done}/${tl[k].all})</small>`).join(" · ")}
+      ${learning ? `<br><span class="rv-learn">⏳ 동작 학습 중${r.learning.progress && r.learning.progress.total ? ` ${r.learning.progress.done}/${r.learning.progress.total}` : ""} — 끝나면 명령 · 반대 명령 검토가 더해집니다</span>` : ""}
+      ${r.behavior && !r.behavior.learned && !learning ? `<br><span class="rv-learn">명령 · 반대 명령 검토는 동작 학습이 끝난 뒤 더해집니다</span>` : ""}</p>
+    <div class="rv-legend"><span class="e">E 설계 오류</span> 도면이 어긋남 · <span class="c">C 설계 확인</span> 의도인지 판단 · <span class="g">G 읽기 빈틈</span> 툴이 다 못 읽음 — 가르치기 · 마크업</div>
+    <div class="rv-filter">
+      ${["ALL", "ERROR", "CHECK", "GAP", "INFO"].map((k) => `<button data-f="${k}" class="${RV.cat === k ? "on" : ""}">${k === "ALL" ? "모두" : RV_KO[k]} ${k === "ALL" ? c.ERROR + c.CHECK + c.GAP : c[k]}</button>`).join("")}
+      <select id="rv-topic"><option value="">주제 전부</option>${topics.map(([k, d]) => `<option value="${k}" ${RV.topic === k ? "selected" : ""}>${RV_TOPIC[k] || k} (${d.ERROR + d.CHECK + d.GAP})</option>`).join("")}</select>
+      <input id="rv-q" placeholder="시트 · 낱말 찾기" value="${esc(RV.q)}">
+      <select id="rv-mk"><option value="">판단 전부</option>${[["OPEN", "미처리"], ["OK", "맞음"], ["WRONG", "툴 오판"], ["HOLD", "보류"]].map(([k, t]) => `<option value="${k}" ${RV.mk === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+      <label class="rv-on"><input type="checkbox" id="rv-on" ${RV.on ? "checked" : ""}> 도면에 표시</label>
+    </div>
+    <div class="ft-scroll rv-scroll"><table class="ft-t rv-t"><tr><th>번호</th><th>분류</th><th>시트</th><th>제목</th><th>내용</th><th>판단</th></tr>
+      ${shown.map((it) => `<tr data-rv="${it.id}" class="${it.cat.toLowerCase()}"><td><b class="rv-tag ${it.cat.toLowerCase()}">${RV_TAG[it.cat]}${it.id}</b></td>
+        <td>${RV_KO[it.cat]}<br><small>${RV_TOPIC[it.topic] || it.topic}</small></td><td>${esc(it.sheet_no || "p" + it.page)}</td>
+        <td>${esc(it.title)}</td><td><small>${esc(it.text)}</small></td>${rvMarkCell(it)}</tr>`).join("") || `<tr><td colspan="6" class="ft-none">없습니다</td></tr>`}
+    </table>${items.length > shown.length ? `<p class="ft-none">앞 ${shown.length}건만 보입니다 — 거르거나 Excel · PDF 로 보세요 (모두 ${items.length}건)</p>` : ""}</div>
+    <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${L.job}/review.xlsx">Excel</a>
+      <a class="btn primary" href="/logic/api/jobs/${L.job}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}">검토 PDF 내려받기 (마크업)</a>
+      <button id="rv-close" class="btn">${PANE_REVIEW ? "창 닫기" : "닫기"}</button></div>`;
+  $("#rv-modal").hidden = false;
+}
+function bindReview() {
+  const box = $("#rv-box");
+  $("#rv-btn").onclick = () => renderReview();
+  $("#rv-modal").addEventListener("click", (e) => { if (e.target.id === "rv-modal") $("#rv-modal").hidden = true; });
+  box.addEventListener("click", (e) => {
+    const f = e.target.closest("[data-f]");
+    if (f) { RV.cat = f.dataset.f; renderReview(); return; }
+    const cd = e.target.closest(".rv-c[data-cat]");
+    if (cd) { RV.cat = cd.dataset.cat; renderReview(); return; }
+    if (e.target.id === "rv-close") { if (PANE_REVIEW) window.close(); else $("#rv-modal").hidden = true; return; }
+    if (e.target.id === "rv-pop") { popReview(); return; }
+    const mb = e.target.closest("button[data-mk]");
+    if (mb) { const it = RV.data.items.find((x) => x.id === Number(mb.closest("tr").dataset.rv)); if (it) rvSetMark(it, mb.dataset.mk); return; }
+    const tr = e.target.closest("tr[data-rv]");
+    if (tr) {
+      const it = RV.data.items.find((x) => x.id === Number(tr.dataset.rv));
+      if (!it) return;
+      if (!PANE_REVIEW) { goReview(it); return; }
+      RV.focus = { id: it.id, at: Date.now() };
+      box.querySelectorAll("tr.cur").forEach((x) => x.classList.remove("cur")); tr.classList.add("cur");
+      tellLogic({ type: "review-go", job: L.job, id: it.id }, `job=${L.job}&rvgo=${it.id}`);
+    }
+  });
+  box.addEventListener("change", (e) => {
+    if (e.target.id === "rv-topic") { RV.topic = e.target.value; renderReview(); }
+    if (e.target.id === "rv-mk") { RV.mk = e.target.value; renderReview(); }
+    if (e.target.id === "rv-on") { RV.on = e.target.checked; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay();
+      if (PANE_REVIEW) tellLogic({ type: "review-on", job: L.job, on: RV.on }); }
+  });
+  box.addEventListener("input", (e) => {
+    if (e.target.id !== "rv-q") return;
+    RV.q = e.target.value;
+    clearTimeout(RV.qt);
+    RV.qt = setTimeout(() => { const pos = e.target.selectionStart; renderReview(); const q = $("#rv-q"); q.focus(); q.setSelectionRange(pos, pos); }, 250);
+  });
+  RV.on = lsGet("logic.rvon") === "1";
+}
+/* 검토 항목 하나로 — 그 쪽으로 가서 그 자리를 두르고 깜박인다 */
+async function goReview(it) {
+  $("#rv-modal").hidden = true;
+  RV.focus = { id: it.id, at: Date.now() };
+  const look = () => {
+    if (!it.rect) return;
+    const st = $("#stage");
+    const [x0, y0, x1, y1] = it.rect;
+    setZoom(Math.max(L.zoom, 1.6));
+    st.scrollLeft = ((x0 + x1) / 2) * L.zoom - st.clientWidth / 2;
+    st.scrollTop = ((y0 + y1) / 2) * L.zoom - st.clientHeight / 2;
+  };
+  if (it.page !== L.page) {
+    if (L.sheet) { const st = $("#stage"); L.back.push({ page: L.page, zoom: L.zoom, sl: st.scrollLeft, stp: st.scrollTop }); $("#go-back").disabled = false; }
+    L.focus = null; L.afterFit = look;
+    await openSheet(it.page);
+  } else { drawOverlay(); look(); }
+  status(`${RV_TAG[it.cat]}${it.id} ${RV_KO[it.cat]} — ${it.title} · ${it.text}`);
+}
+function drawReview() {
+  const r = RV.data, s = L.sheet;
+  if (!r || !s) return;
+  const its = r.items.filter((it) => it.page === s.page && it.rect && it.cat !== "INFO" &&
+    (RV.on || (RV.focus && RV.focus.id === it.id)));
+  if (!its.length) return;
+  const g = el("g", { id: "g-review" }, $("#ov"));
+  for (const it of its) {
+    const [x0, y0, x1, y1] = it.rect;
+    const cls = "rv-box " + it.cat.toLowerCase() + (RV.focus && RV.focus.id === it.id ? (Date.now() - RV.focus.at < 3000 ? " flash" : " sel") : "");
+    if (cls.endsWith(" flash")) {                 // L41 — 노란 바탕으로 세 번 (다시 그려도 지난 시간만큼 당긴다)
+      const pad = Math.max(6, (x1 - x0) * 0.15);
+      el("rect", { x: x0 - pad, y: y0 - pad, width: x1 - x0 + 2 * pad, height: y1 - y0 + 2 * pad, rx: 3, class: "rv-halo",
+        style: `animation-delay:-${Date.now() - RV.focus.at}ms` }, g);
+    }
+    const b = el("rect", { x: x0 - 1.5, y: y0 - 1.5, width: x1 - x0 + 3, height: y1 - y0 + 3, class: cls,
+      style: cls.endsWith(" flash") ? `animation-delay:-${Date.now() - RV.focus.at}ms` : "" }, g);
+    const t = `${RV_TAG[it.cat]}${it.id}`;
+    el("rect", { x: x1 + 1.5, y: y0 - 7, width: t.length * 3.1 + 2, height: 5.6, class: "rv-tagbg " + it.cat.toLowerCase() }, g);
+    const tx = el("text", { x: x1 + 2.4, y: y0 - 2.6, class: "rv-tagtx" }, g);
+    tx.textContent = t;
+    const tip = el("title", {}, b);
+    tip.textContent = `${t} ${RV_KO[it.cat]} — ${it.title}\n${it.text}`;
+  }
+}
 
 /* ------------------------------------------------------------------ 신호를 주는 중의 리마인드 (사용자 규칙 2 · L13) */
 function renderRemind(fresh) {
@@ -592,6 +867,7 @@ function prefetchAround(page) {
 }
 
 async function openSheet(page) {
+  hidePressCard();
   L.page = page;
   location.hash = `job=${L.job}&page=${page}`;
   renderSheetList();
@@ -617,9 +893,12 @@ async function openSheet(page) {
   drawOverlay();
   renderRows(); renderFindings(); renderInfo(); renderHelp(); renderLatches();
   L.pendingAt = null; L.memoEdit = null; renderMemo();
-  img.onload = () => { img.style.visibility = ""; if (L.page === page) fit(); };
+  // 맞춤은 한 번만 — 그림이 이미 풀려 있으면 곧바로 맞추고 뒤이어 오는 load 는 무시한다 (두 번 맞추면 이동한 자리 · 확대가 지워진다)
+  let fitted = false;
+  const fitOnce = () => { if (fitted || L.page !== page) return; fitted = true; fit(); };
+  img.onload = () => { img.style.visibility = ""; fitOnce(); };
   img.onerror = () => { img.style.visibility = ""; };
-  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fit(); }
+  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fitOnce(); }
   prefetchAround(page);
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
@@ -758,6 +1037,7 @@ function drawOverlay() {
     if (f.at) el("circle", { cx: f.at[0], cy: f.at[1], r: 4, class: "find" }, gF);
   }
   if (L.focus && L.focus.page === s.page) drawGoto();
+  drawReview();
   el("g", { id: "g-sim" }, ov);       // 게이트 단자 1/0 · S-R 표 (L8) — paint 가 채운다
   el("g", { id: "g-count" }, ov);     // L15 — 세는 타이머의 남은 시간
   el("g", { id: "g-need" }, ov);      // L15 — 출력을 활성화했을 때 필요한 입력 (주황 3번 점등)
@@ -1937,7 +2217,7 @@ function setMode(m, quiet) {
   for (const b of document.querySelectorAll("#mode button")) b.classList.toggle("on", b.dataset.mode === m);
   stopAnim();
   renderHelp();
-  if (m === "sim") { if (!quiet) runSim(false); } else { L.values = {}; L.linked = {}; paint(); }
+  if (m === "sim") { if (!quiet) runSim(false); } else { L.values = {}; L.linked = {}; hidePressCard(); paint(); }
   renderInfo(); renderRows(); renderChain(); renderSheetList();
 }
 
@@ -1951,6 +2231,7 @@ function resetAll() {
   L.implied = {}; L.scenario = null; L.unmet = [];
   stopAnim();
   const rb = $("#remind"); if (rb) rb.hidden = true;
+  hidePressCard();
   renderChain(); renderSheetList();
   if (L.mode === "sim") runSim(false); else paint();
   renderInfo(); renderRows();
@@ -1971,6 +2252,135 @@ function setForce(key, v) {
   }
   // L16 — 목표로 둔 출력이 게이트 조건을 못 채웠으면 (사람이 준 입력 0 이 막음) 그렇게 말하고 0 인 입력을 짚는다
   runSim(true).then(() => { if ((L.unmet || []).length) reportUnmet(); });
+  // L34 — 누름단추를 1 로 누르면 그 신호가 어디까지 갔는지 · 어디서 왜 멈췄는지 · 누른 채로 동작시키려면 무엇을 더 켤지
+  if (v === 1 && isPress(key)) pressReport(key.slice(6), L.page);
+  else if (key.startsWith("block:")) hidePressCard();
+}
+
+/* ------------------------------------------------------------------ L34 — 누름단추를 누른다
+
+   사용자 지시 "Push button 을 활성 누르면 해당 신호가 동작하도록".  눌러서 생긴 신호는 묶음 시뮬레이션이 범례대로
+   퍼뜨린다 (L18 — 게이트는 언제나 논리대로).  그 신호가 출력까지 못 가면 어디서 왜 멈췄는지 말하고, 단추를 누른 채로
+   그 동작(단추 이름의 낱말이 든 출력)이 나가려면 어떤 입력을 더 켜야 하는지 서버가 찾아 확인한 조합을 권한다. */
+function isPress(key, s) {
+  s = s || L.sheet;
+  if (!s || !key.startsWith("block:")) return false;
+  const bid = key.slice(6), b = s.blocks[bid];
+  return !!b && b.logic === "source" && !s.ports.some((p) => p.block === bid && p.dir === "in");
+}
+function pressLabel(b) {
+  const nm = b.label || b.func || "신호원";
+  return /PUSH|PB/.test(b.func || "") ? `누름단추 · ${nm}` : nm;
+}
+function pressCard() {
+  let c = document.getElementById("pbcard");
+  if (!c) {
+    c = document.createElement("div");
+    c.id = "pbcard"; c.className = "lg-pbcard"; c.hidden = true;
+    const rm = $("#remind");
+    (rm ? rm.parentNode : document.body).appendChild(c);
+    c.addEventListener("click", onPressCard);
+  }
+  return c;
+}
+function hidePressCard() { const c = document.getElementById("pbcard"); if (c) c.hidden = true; L.press = null; }
+function keyText(k, s) {
+  s = s || L.sheet;
+  if (k.startsWith("row:")) {
+    const n = Number(k.slice(4)), r = s.rows.find((x) => x.n === n && x.side === "L") || s.rows.find((x) => x.n === n);
+    return `입력 ${n}행${r && r.desc ? " · " + r.desc : ""}`;
+  }
+  if (k.startsWith("block:")) { const b = s.blocks[k.slice(6)]; return b ? pressLabel(b) : k; }
+  return "선 " + k.slice(4);
+}
+async function pressReport(bid, page) {
+  const forces = {};
+  for (const [p, f] of Object.entries(L.allForces)) if (Object.keys(f).length) forces[p] = f;
+  const analog = {};
+  for (const [p, a] of Object.entries(L.analog || {})) if (Object.keys(a).length) analog[p] = a;
+  const state = (L.lastSim && L.lastSim.job === L.job) ? L.lastSim.state : L.states;
+  let r;
+  try { r = await post(`/logic/api/jobs/${L.job}/sheet/${page}/press`, { block: bid, forces, state, timers: L.timers, analog }); }
+  catch (e) { return; }
+  if (L.page !== page || L.forces["block:" + bid] !== 1) return;     // 기다리는 동안 다른 장 · 단추를 뗐다
+  L.press = { ...r, page };
+  renderPressCard();
+}
+function stopText(st) {
+  const s = L.sheet;
+  const where = st.macro ? `매크로 ${esc(st.macro.title || st.macro.sheet || "")} 안의 ` : "";
+  const name = esc(st.func || "블록") + (st.label && st.label !== st.func ? ` ${esc(st.label)}` : "");
+  if (st.dead_end) return `${where}${name} 까지는 신호가 갔지만 그 뒤 선을 도면에서 더 읽지 못했습니다 (끊긴 연결 — 마크업 · 도면 확인)`;
+  if (st.logic === "unknown") return `${where}판정 못 한 블록에서 멈췄습니다 — 그 블록 종류를 정하면 이어집니다`;
+  if (st.short) return `${where}${name} — 입력선을 다 읽지 못해 출력을 내지 않습니다 (도면 확인)`;
+  if (st.already) return `${where}${name} — 출력이 이미 그 값이라 눌러도 바뀌는 것이 없습니다`;
+  const off = (st.inputs || []).filter((x) => x.value !== 1).length;
+  return `${where}${name} 에서 멈췄습니다 — 조건: ${esc(gateNeedText(st.logic, 1))}${off ? ` · 0 인 입력 ${off}개 (주황)` : ""}`;
+}
+function renderPressCard() {
+  const r = L.press, c = pressCard();
+  if (!r || L.mode !== "sim" || r.page !== L.page) { c.hidden = true; return; }
+  const b = L.sheet.blocks[r.block] || {};
+  let html = `<div class="pb-h">● 눌렀습니다 — ${esc(pressLabel(b))}<button class="pb-x" title="닫기">✕</button></div><div class="pb-b">`;
+  if (r.why) html += `<p>${esc(r.why)}</p>`;
+  if (r.ok) {
+    html += `<p class="pb-ok">✔ 신호가 동작했습니다 — 눌러서 새로 1 이 된 출력</p><ul>` +
+      r.reached.slice(0, 6).map((t, i) => `<li><button data-go="${i}">${esc(t.label)}</button></li>`).join("") + `</ul>`;
+  } else if (!r.why) {
+    html += `<p class="pb-stop">⛔ 신호가 출력까지 가지 못했습니다 — 게이트가 범례대로 판정한 결과입니다.</p>`;
+    if (r.stop) html += `<p>${stopText(r.stop)} <button data-v="stop">그 자리 보기</button></p>`;
+    if (r.plan) {
+      const t = r.plan.target, keys = Object.keys(r.plan.add);
+      html += `<div class="pb-plan"><b>단추를 누른 채로</b> ${keys.length ? "아래 입력도 켜면" : ""} <b>${esc(t.label)}</b> 이 나갑니다${r.plan.steady ? "" : " (잠깐 서는 펄스)"}:
+        <ul>${keys.map((k) => `<li>${esc(keyText(k))} = ${r.plan.add[k]}</li>`).join("") || "<li>더 켤 것 없음</li>"}</ul>
+        <button data-v="plan" class="pb-go">▶ 조건 채워 동작시키기</button></div>`;
+    } else if (r.targets) {
+      html += `<p class="pb-none">이 단추에서 닿는 출력 ${r.targets}개 중 누른 채로 서는 조합을 찾지 못했습니다 — 길에 다른 시트의 조건이나 도면 읽기 빈틈이 있습니다 (▶ 순차 동작에서 조건을 하나씩 물어볼 수 있습니다).</p>`;
+    } else {
+      html += `<p class="pb-none">이 단추에서 연결로 닿는 출력 행 · 매크로 출력이 없습니다.</p>`;
+    }
+  }
+  c.innerHTML = html + `</div>`;
+  c.hidden = false;
+  if (!r.ok && r.stop && !r.stop.already) flashNeed(stopKeys(r.stop));
+}
+function stopKeys(st) {
+  if (st.macro) return ["block:" + st.macro.block];
+  const k = (st.inputs || []).filter((x) => x.value !== 1 && !String(x.net).includes("/")).map((x) => "net:" + x.net);
+  return k.length ? k : (st.block && !String(st.block).includes("/") ? ["block:" + st.block] : []);
+}
+function centerAt(at) {
+  if (!at) return;
+  const st = $("#stage");
+  setZoom(Math.max(L.zoom, 1.6));
+  st.scrollLeft = at[0] * L.zoom - st.clientWidth / 2;
+  st.scrollTop = at[1] * L.zoom - st.clientHeight / 2;
+}
+function onPressCard(e) {
+  const r = L.press;
+  const btn = e.target.closest("button");
+  if (!btn || !r) return;
+  e.stopPropagation();
+  if (btn.classList.contains("pb-x")) { hidePressCard(); return; }
+  if (btn.dataset.go != null) {
+    const t = r.reached[Number(btn.dataset.go)];
+    if (t.kind === "row") { L.focus = { page: L.page, row: t.row, side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
+    else if (t.block) { L.sel = { block: t.block }; paint(); renderInfo(); centerAt(L.sheet.blocks[t.block].bbox.slice(0, 2)); }
+    return;
+  }
+  if (btn.dataset.v === "stop" && r.stop) {
+    const bid = r.stop.macro ? r.stop.macro.block : r.stop.block;
+    const b = bid && L.sheet.blocks[bid];
+    if (b) { L.sel = { block: bid }; paint(); renderInfo(); centerAt(b.bbox.slice(0, 2)); }
+    flashNeed(stopKeys(r.stop));
+    return;
+  }
+  if (btn.dataset.v === "plan" && r.plan) {
+    const add = r.plan.add, keys = Object.keys(add);
+    for (const k of keys) L.forces[k] = add[k];
+    status(`▶ ${pressLabel(L.sheet.blocks[r.block] || {})} — 누른 채로 ${keys.length}개 입력을 켭니다 — ${r.plan.target.label}`);
+    flashNeed(keys.filter((k) => add[k] === 1)).then(() => runSim(true).then(() => pressReport(r.block, r.page)));
+  }
 }
 
 /* ------------------------------------------------------------------ L15 — 출력을 활성화하면 필요한 입력을 찾아 켠다 */
@@ -2244,7 +2654,8 @@ function forceMenu(key, e, label, up) {
     `<button data-v="0" class="v0${v === 0 ? " on" : ""}"><b>0</b> 비활성</button>` +
     (v !== undefined ? `<button data-v="x" class="vx">강제 풀기</button>` : "") + `</div>` +
     (L.mode === "trace" ? `<button data-v="t" class="vt">${up ? "↩ 어디서 오는지 거슬러 올라가기" : "↪ 연결만 따라가기"}</button>` : "") +
-    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` : "");
+    (isOutRow(key) ? `<button data-v="s" class="vs">⚡ 이 출력까지 동작 예시 — 입력부터 최종 출력까지</button>` +
+      `<button data-v="q" class="vs">▶ 이 출력을 조건부터 차례로 묻기 (순차 동작)</button>` : "");
   document.body.appendChild(m);
   const x = (e && e.clientX) || innerWidth / 2, y = (e && e.clientY) || innerHeight / 2;
   const r = m.getBoundingClientRect();
@@ -2282,6 +2693,8 @@ function forceMenu(key, e, label, up) {
     if (b.dataset.v === "ax") { setAnalog(key, null); return; }
     if (b.dataset.v === "t") { traceFrom(key, !!up); return; }
     if (b.dataset.v === "s") { runScenario(key); return; }
+    if (b.dataset.v === "q") { const n = Number(key.slice(4)), r = L.sheet.rows.find((x) => x.side === "R" && x.n === n);
+      seqStart({ page: L.page, sheet: L.sheet.sheet_no, row: n, desc: (r && r.desc) || "", action: "", kind: "" }); return; }
     if (b.dataset.v === "a") { analogMenu(key, e); return; }
     setForce(key, b.dataset.v === "x" ? null : Number(b.dataset.v));
   });
@@ -2292,13 +2705,25 @@ function forceMenu(key, e, label, up) {
    상자를 누르면 작은 메뉴 — 내부 동작을 정의한 Typical 시트를 새 창으로 연다.  새 창은 이 상자의 입력 단자 값을
    그 시트의 입력 행에 주고 돌린다 (시뮬레이션이 다시 돌 때마다 이 창이 새 값을 보낸다). */
 L.childWins = {};
+function macroName(b) {
+  // 상자 글줄에 단자 이름이 섞여 있으면 (1A5J 'FG COMPR SYS GRP A_MODE S_AUTO …') 그 낱말을 뗀다 — 이름만 남긴다
+  const pins = new Set(((b.macro || {}).inputs || []).concat((b.macro || {}).outputs || [])
+    .map((x) => String(x.pin || "").toUpperCase()).filter(Boolean));
+  const words = String(b.caption || "").split(/\s+/).filter(Boolean);
+  const keep = [];
+  for (const w of words) {
+    if (pins.has(w.toUpperCase()) || /^[A-Z]{1,4}_[A-Z0-9]+$/.test(w)) break;      // 첫 단자 이름부터는 단자 줄
+    keep.push(w);
+  }
+  return keep.join(" ") || b.caption || "";
+}
 function macroView(bid) { return ((L.macros || {})[L.page] || {})[bid] || null; }
 function macroMenu(bid, e) {
   closeForceMenu();
   const b = L.sheet.blocks[bid], m = b.macro || {};
   const box = document.createElement("div");
   box.id = "force-menu"; box.className = "force-menu";
-  box.innerHTML = `<div class="fm-h">${esc(b.caption || "매크로 블록")}</div>` +
+  box.innerHTML = `<div class="fm-h">${esc(macroName(b) || "매크로 블록")}</div>` +
     (m.page ? `<button data-m="open" class="v1">↗ 내부 동작 보기 (새 창) — ${esc(m.sheet)}</button>`
             : `<div class="fm-why">${esc(m.why || "이 블록의 Typical 시트를 찾지 못했습니다")}</div>`) +
     (L.mode === "trace" ? `<button data-m="trace" class="vt">↪ 연결만 따라가기</button>` : "");
@@ -2328,7 +2753,7 @@ function openMacro(bid) {
   const b = L.sheet.blocks[bid], m = b.macro || {};
   if (!m.page) return;
   const inp = Object.entries(macroInputs(bid)).map(([r, v]) => `${r}:${v}`).join(",");
-  const from = encodeURIComponent(`${L.sheet.sheet_no} · ${b.caption || "매크로"}`);
+  const from = encodeURIComponent(`${L.sheet.sheet_no} · ${macroName(b) || "매크로"}`);
   const url = `/logic${location.search}#job=${L.job}&page=${m.page}&macro=${L.page}:${bid}&in=${inp}&from=${from}`;
   const key = `${L.page}:${bid}`;
   const w = window.open(url, `macro-${L.job}-${key}`, "width=1500,height=950");
@@ -2346,6 +2771,8 @@ function sendMacroInputs() {
 window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
+  if (PANE_REVIEW) { if (e.data.type === "review-marks" && e.data.job === L.job) loadReview(L.job, true); return; }
+  if (["review-go", "review-on", "review-marks", "grouptest-apply"].includes(e.data.type)) { fromOtherWindow(e.data); return; }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
   applyMacroInputs(e.data.inputs);
 });
@@ -2394,6 +2821,8 @@ function onBlock(bid, e) {
   if (monKind(b)) monitorMenu(bid, e);                             // L26 — 감시 블록 (HHH · HH …) 설정값 (어느 모드든)
   else if (b.aop) opMenu(bid, e);                                  // L30 — 아날로그 연산자 판 (어느 모드든)
   else if (isAnalogBlock(b)) analogMenu("block:" + bid, e);        // L26 — MED 같은 아날로그 블록 값 (어느 모드든)
+  // L34 — 누름단추 · 신호원은 어느 모드에서든 1 활성 / 0 비활성 메뉴 (입력 행 동그라미와 같다 · 따라가기는 메뉴 안에)
+  else if (!hasIn && b.logic === "source") forceMenu("block:" + bid, e, pressLabel(b));
   else if (L.mode === "trace") traceFrom("block:" + bid, e.shiftKey);
   else if (TIMER_LOGIC.has(b.logic)) timerMenu(bid, e);          // L15 — 시간을 바꾼다
   else if (!hasIn || b.logic === "source") forceMenu("block:" + bid, e, b.label || b.func || "신호원");
@@ -2786,6 +3215,723 @@ function renderFindings() {
   $("#find-count").textContent = f.length ? `${f.length}건` : "이상 없음";
   $("#findings").innerHTML = f.map((x, i) => `<li data-i="${i}">${esc(x.text)} <code>${esc(x.code)}</code></li>`).join("");
 }
+/* ------------------------------------------------------------------ L32 — 순차 동작 시뮬레이션
+
+   START · STOP · RUN · OPEN · CLOSE · TRIP 한 동작을 고르면 서버가 그 출력의 조건 나무를 낸다 (범례 정의를 거꾸로 —
+   판정은 하지 않는다).  화면은 그 나무를 위에서부터 한 단계씩 묻고, 답마다 강제 신호를 주어 같은 시뮬레이터로 돌린다.
+   OR 는 '하나를 고르세요' · 다른 시트에서 오는 조건은 '그 시트 조건부터' · from-to 가 어긋난 자리 · 새로 생긴 설계 오류 ·
+   읽지 못한 게이트 입력에서는 멈춰 어떻게 할지 묻는다.  끝나면 처음부터 흐름을 그려 그 명령이 나가는지 말한다. */
+const SEQ = { job: null, cmds: null, q: "", open: null, plan: null, target: null, ans: {}, sub: {}, hist: [], tries: {}, hint: {}, nofollow: {}, eff: {},
+  learn: null, learnState: null, learnMap: {},
+  view: "pick", cur: null, err: null, done: null, busy: false };
+const ACT_KO = { START: "기동", RUN: "운전", STOP: "정지", OPEN: "열림", CLOSE: "닫힘", TRIP: "트립" };
+const KIND_KO = { command: "명령", request: "요청", action: "동작", state: "상태" };
+const SEQ_SKIP = new Set(["const", "loop", "default0"]);
+function seqLink(p) {
+  // 서버는 같은 마디를 여러 자리에서 쓰므로 마디 표 + id 로 보낸다 — 같은 id 는 같은 객체로 잇는다 (한 번 답하면 모든 자리)
+  if (!p || !p.ok) return p;
+  const N = p.nodes;
+  for (const n of Object.values(N)) if (n.kids && typeof n.kids[0] !== "object") n.kids = n.kids.map((id) => N[id]);
+  p.tree = N[p.root];
+  return p;
+}
+function seqKeyOf(n) { return n.key ? n.page + "|" + n.key : null; }
+function seqAsks(n) { return !(n.auto || SEQ_SKIP.has(n.kind) || (n.kind === "zero" && !(n.items || []).length)); }
+function seqKeyAnswer(n) {
+  // 같은 신호가 나무의 다른 자리에 또 나오면 (REMOTE 처럼) 같은 값을 바라는 한 다시 묻지 않는다
+  const k = seqKeyOf(n);
+  if (!k) return null;
+  for (const id of SEQ.hist) {
+    const a = SEQ.ans[id];
+    if (a && a.key === k && a.want === n.want && (a.v === "yes" || a.v === "no")) return a;
+  }
+  return null;
+}
+function seqWalk() {
+  // gate = 이 단계에 가장 가까운 게이트 (L37 안내 — '왜 필요한가' · '켜면 그 게이트 입력이 몇 개 차나')
+  function visit(n, gates, gate) {
+    const g = n.gate ? [...gates, n.gate.label] : n.via ? [...gates, n.via.text] : gates;
+    const gt = n.gate ? { ...n.gate, page: n.page } : gate;
+    if (n.t === "leaf") {
+      if (!seqAsks(n)) return null;
+      const a = SEQ.ans[n.id];
+      if (!a) return seqKeyAnswer(n) ? null : { node: n, gates: g, gate: gt };
+      if (a.v === "follow") {
+        const sp = SEQ.sub[n.id];
+        if (sp && sp.tree) return visit(sp.tree, [...g, `${n.ref.sheet}-${n.ref.row} 의 조건`], null);
+      }
+      return null;
+    }
+    if (n.t === "any") {
+      const a = SEQ.ans[n.id];
+      if (!a) return { node: n, gates: g, gate: gt };
+      return visit(n.kids[a.v], g, gt);
+    }
+    for (const k of n.kids) { const r = visit(k, g, gt); if (r) return r; }
+    return null;
+  }
+  return SEQ.plan && SEQ.plan.tree ? visit(SEQ.plan.tree, [], null) : null;
+}
+function seqRemain() {
+  // 아직 답하지 않은 단계 수 (고른 갈래 · 권하는 갈래를 따라 — 대략의 총 단계)
+  const seen = new Set();
+  let c = 0;
+  function visit(n) {
+    if (n.t === "leaf") {
+      if (!seqAsks(n) || SEQ.ans[n.id] || seqKeyAnswer(n)) {
+        const a = SEQ.ans[n.id];
+        if (a && a.v === "follow") { const sp = SEQ.sub[n.id]; if (sp && sp.tree) visit(sp.tree); }
+        return;
+      }
+      const k = seqKeyOf(n) || n.id;
+      if (!seen.has(k)) { seen.add(k); c++; }
+      return;
+    }
+    if (n.t === "any") {
+      const a = SEQ.ans[n.id];
+      if (!a) c++;
+      return visit(n.kids[a ? a.v : SEQ.hint[n.id] != null ? SEQ.hint[n.id] : (n.pick || 0)]);
+    }
+    n.kids.forEach(visit);
+  }
+  if (SEQ.plan && SEQ.plan.tree) visit(SEQ.plan.tree);
+  return c;
+}
+async function seqEffect(st) {
+  // L37 — 이 신호를 지금 켜면 무엇이 달라지나: 지금까지의 답 + 이 신호만으로 묶음을 돌려 앞뒤 차이를 받는다 (짐작 없음)
+  const n = st.node;
+  if (SEQ.eff[n.id] || !n.key) return;
+  SEQ.eff[n.id] = "busy";
+  try {
+    SEQ.eff[n.id] = await post(`/logic/api/jobs/${L.job}/sequence/effect`, { page: SEQ.target.page, net: SEQ.target.net, want: SEQ.target.want,
+      forces: seqForces(), add: { [n.page]: { [n.key]: n.want } }, timers: L.timers,
+      gate: st.gate && st.gate.block ? { block: st.gate.block, page: st.gate.page } : null });
+  } catch (e) { SEQ.eff[n.id] = "fail"; }
+  if (SEQ.cur && SEQ.cur.node.id === n.id) renderSeq();
+}
+const SEQ_KIND_SAY = {
+  row: "다른 곳에서 들어오는 입력 신호", button: "운전원이 누르는 단추 · HMI 명령", monitor: "아날로그 값이 설정값을 넘는지 보는 감시 신호",
+  net: "도면에서 어디서 오는지 읽지 못한 선", held: "매크로(Typical) 안쪽 선", terminal: "매크로 입력 — 상자에 단자가 안 그려짐",
+  stuck: "도면 읽기 빈틈 — 이 자리 값을 정할 수 없음" };
+function seqGuideHtml(st) {
+  // L37 — 안내 카드: 이 신호가 무엇인지 · 왜 필요한지 · 켜면 어떻게 되는지
+  const n = st.node, g = st.gate;
+  const what = [`<div class="gd-row"><span class="gd-k">무엇</span><span>${esc(SEQ_KIND_SAY[n.kind] || "조건")}`];
+  if (n.kind === "row") {
+    if (n.fm) what.push(` — <b>${esc(n.fm)}</b> 에서 옴${n.ref && n.ref.other ? " (다른 문서)" : ""}`);
+    else if (n.ref && n.ref.sheet) what.push(` — <b>${esc(n.ref.sheet)}-${n.ref.row}</b> 에서 옴`);
+    if (n.kks) what.push(` · <small>${esc(n.kks)}</small>`);
+  }
+  what.push(`</span></div>`);
+  let why = "";
+  if (g) {
+    const need = g.logic ? gateNeedText(g.logic, g.want) : "";
+    why = `<div class="gd-row"><span class="gd-k">왜</span><span><b>${esc(g.label)}</b>${need ? ` — ${esc(need)}이어야 출력 ${g.want}` : ""}</span></div>`;
+  }
+  const e = SEQ.eff[n.id];
+  let then = "";
+  if (e === "busy") then = `<span class="gd-dim">미리 돌려 보는 중…</span>`;
+  else if (e === "fail" || !e) then = n.key ? `<span class="gd-dim">미리 돌려 보지 못했습니다</span>` : `<span class="gd-dim">값을 줄 자리가 없음</span>`;
+  else {
+    const parts = [];
+    if (e.gate) {
+      const gg = e.gate;
+      parts.push(`<li>그 게이트 입력 ${gg.inputs}개 중 1 인 것 <b>${gg.on_before} → ${gg.on_after}</b> · 출력 <b class="v${gg.out_after}">${gg.out_before} → ${gg.out_after}</b></li>`);
+    }
+    const tgt = e.target || {};
+    if (tgt.after === SEQ.target.want && tgt.before !== SEQ.target.want) parts.push(`<li class="gd-goal">✔ 최종 출력 <b>${esc(SEQ.target.desc)}</b> 이(가) 이것으로 나갑니다${tgt.steady ? "" : " (잠깐 · 펄스)"}</li>`);
+    else if (tgt.after === SEQ.target.want) parts.push(`<li class="gd-goal">최종 출력은 이미 ${SEQ.target.want}</li>`);
+    const rest = seqRemain() - 1;
+    if (tgt.after !== SEQ.target.want) parts.push(`<li>최종 출력은 아직 — 남은 단계 약 ${Math.max(rest, 0)}개</li>`);
+    const gn = (e.gained || []).filter((x) => !(x.page === SEQ.target.page && x.row === SEQ.target.row));
+    if (gn.length) parts.push(`<li>새로 켜지는 출력: ${gn.slice(0, 4).map((x) => `<b>${esc(x.sheet)}-${x.row}</b> ${esc(x.desc)}`).join(" · ")}${gn.length > 4 ? ` 외 ${gn.length - 4}` : ""}</li>`);
+    if ((e.linked || []).length) parts.push(`<li>다른 시트로 넘어감: ${e.linked.slice(0, 3).map((x) => `<b>${esc(x.sheet)}-${x.row}</b>`).join(" · ")}${e.linked.length > 3 ? ` 외 ${e.linked.length - 3}` : ""}</li>`);
+    if (!parts.length || (!e.gate && !gn.length && !(e.linked || []).length && e.nets === 0 && tgt.after !== SEQ.target.want)) parts.push(`<li class="gd-dim">혼자서는 아직 바뀌는 것 없음 — 다른 조건과 함께 필요</li>`);
+    then = `<ul class="gd-list">${parts.join("")}</ul>`;
+  }
+  return `<div class="sq-guide">${what.join("")}${why}<div class="gd-row"><span class="gd-k">${n.want ? "켜면" : "0 이면"}</span><div>${then}</div></div></div>`;
+}
+function seqForces(assume) {
+  // assume = {id, i} — 갈래를 미리 돌려 볼 때: 아직 답하지 않은 조건은 모두 '만족' 으로, 그 갈래 고르기는 i 번으로 본다
+  const F = {};
+  const put = (p, k, v) => { if (k) (F[p] = F[p] || {})[k] = v; };
+  function visit(n) {
+    if (n.t === "leaf") {
+      const a = (assume && assume.leaf && assume.leaf.id === n.id ? assume.leaf : null) || SEQ.ans[n.id] || seqKeyAnswer(n);
+      if (!a) {
+        // 미리 돌려 볼 때 '만족' 으로 보는 것은 실제 신호(입력 행 · 누름단추 · 감시)와 읽지 못한 게이트(hold)뿐 —
+        // 매크로 안쪽의 몰이를 못 읽은 선은 짐작하지 않는다 (그 선이 AUTO 모드처럼 다른 길을 막을 수 있다)
+        if (assume && n.key && ["row", "button", "monitor", "stuck", "terminal", "net"].includes(n.kind) && ((F[n.page] || {})[n.key] !== 1)) put(n.page, n.key, n.want);
+        return;
+      }
+      if (a.v === "follow") { const sp = SEQ.sub[n.id]; if (sp && sp.tree) visit(sp.tree); return; }
+      if (n.kind === "zero") { if (a.item != null) { const it = n.items[a.item]; put(n.page, it.key, 1); } return; }
+      if (a.v === "yes") put(n.page, n.key, n.want);
+      else if (a.v === "no" && !(n.key || "").startsWith("hold:")) put(n.page, n.key, 1 - n.want);
+      return;
+    }
+    if (n.t === "any") {
+      const a = SEQ.ans[n.id];
+      if (a) visit(n.kids[a.v]);
+      else if (assume) visit(n.kids[assume.id === n.id ? assume.i : (assume.choice && assume.choice[n.id] != null ? assume.choice[n.id]
+        : SEQ.hint[n.id] != null ? SEQ.hint[n.id] : (n.pick || 0))]);
+      return;
+    }
+    n.kids.forEach(visit);
+  }
+  if (SEQ.plan && SEQ.plan.tree) visit(SEQ.plan.tree);
+  return F;
+}
+async function seqTryLeaf(n) {
+  // 이 단계의 답마다 (만족 · 만족 안 됨 · 건너뛰기) — 남은 조건은 모두 만족으로 보고 미리 돌려 본다
+  if (SEQ.tries[n.id]) return;
+  SEQ.tries[n.id] = "busy";
+  const vs = ["yes", "no", "skip"];
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/sequence/try`, { page: SEQ.target.page, net: SEQ.target.net, want: SEQ.target.want,
+      forces: {}, options: vs.map((v) => seqForces({ leaf: { id: n.id, v } })), timers: L.timers });
+    const o = {};
+    vs.forEach((v, i) => { o[v] = (r.options || [])[i] || {}; });
+    SEQ.tries[n.id] = o;
+  } catch (e) { SEQ.tries[n.id] = "fail"; }
+  if (SEQ.cur && SEQ.cur.node.id === n.id) renderSeq();
+}
+async function seqTry(n) {
+  // 갈래마다 — 지금까지의 답 + 이 갈래 + 남은 조건은 모두 만족 으로 같은 시뮬레이터에 돌려 본다 (짐작이 아니라 시험)
+  if (SEQ.tries[n.id]) return;
+  SEQ.tries[n.id] = "busy";
+  // 갈래 안에 또 갈래가 있으면 그 조합도 몇 개 함께 돌려 본다 (갈래마다 TRY_PER 개까지) — 선 조합은 다음 단계의 권장이 된다
+  const TRY_PER = 12;
+  const variants = [];
+  n.kids.forEach((k, i) => {
+    const inner = [];
+    const walk = (x) => { if (inner.length >= 5) return; if (x.t === "any") inner.push(x); (x.kids || []).forEach(walk); };
+    walk(k);
+    let combos = [{}];
+    for (const a of inner) {
+      const next = [];
+      for (const c of combos) for (let j = 0; j < a.kids.length; j++) next.push({ ...c, [a.id]: j });
+      combos = next;
+      if (combos.length >= TRY_PER) break;
+    }
+    // 서버가 권한 갈래 조합을 맨 앞에
+    combos.sort((x, y) => Object.entries(x).filter(([id, j]) => (seqNodeById(id) || {}).pick !== j).length -
+                          Object.entries(y).filter(([id, j]) => (seqNodeById(id) || {}).pick !== j).length);
+    for (const c of combos.slice(0, TRY_PER)) variants.push({ i, choice: c });
+  });
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/sequence/try`, { page: SEQ.target.page, net: SEQ.target.net, want: SEQ.target.want,
+      forces: {}, options: variants.map((v) => seqForces({ id: n.id, i: v.i, choice: v.choice })), timers: L.timers });
+    const out = n.kids.map(() => ({ reached: false, steady: false }));
+    (r.options || []).forEach((o, j) => {
+      const v = variants[j], cur = out[v.i];
+      if (o.reached && (!cur.reached || (o.steady && !cur.steady))) { out[v.i] = { ...o, choice: v.choice }; }
+    });
+    SEQ.tries[n.id] = out;
+  } catch (e) { SEQ.tries[n.id] = "fail"; }
+  if (SEQ.cur && SEQ.cur.node.id === n.id) renderSeq();
+}
+function seqSheetName(page) { const s = (L.sheets || []).find((x) => x.page === page); return s ? s.sheet_no || "p" + page : "p" + page; }
+async function seqOpen() {
+  const box = $("#seq");
+  if (!L.job) return;
+  box.hidden = false;
+  $("#seq-btn").classList.add("on");
+  if (SEQ.job !== L.job) { Object.assign(SEQ, { job: L.job, cmds: null, plan: null, view: "pick", hist: [], ans: {}, sub: {} }); }
+  placeSeq();
+  if (!SEQ.cmds) {
+    $("#seq-b").innerHTML = `<div class="sp-empty">묶음에서 START · STOP · OPEN · CLOSE · TRIP 행을 찾는 중…</div>`;
+    try { SEQ.cmds = (await api(`/logic/api/jobs/${L.job}/commands`)).items || []; }
+    catch (e) { $("#seq-b").innerHTML = `<div class="sp-empty">${esc(e.message)}</div>`; return; }
+  }
+  renderSeq();
+  seqLoadLearn();
+}
+/* L33 — 동작 학습: 서버가 모든 명령을 시뮬레이터로 켜고 꺼 보며 배운 것 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막힌 자리).
+   없거나 결과 · 사람 값이 바뀌었으면 서버가 뒤에서 다시 배우고, 화면은 그동안 몇 개째인지 보인다. */
+async function seqLoadLearn() {
+  if (!L.job) return;
+  const job = L.job;
+  let r;
+  try { r = await api(`/logic/api/jobs/${job}/behavior`); } catch (e) { return; }
+  if (job !== L.job) return;
+  SEQ.learnState = r;
+  SEQ.learn = r.result && r.state === "done" ? r.result : (r.result || null);
+  SEQ.learnMap = {};
+  for (const x of (SEQ.learn && SEQ.learn.items) || []) SEQ.learnMap[x.page + ":" + x.row] = x;
+  renderSeq();
+  if (r.state === "running" && !$("#seq").hidden) setTimeout(seqLoadLearn, 3000);
+}
+function seqLearned(page, row) { return SEQ.learnMap[page + ":" + row] || null; }
+function seqLearnLine() {
+  const st = SEQ.learnState;
+  if (!st) return "";
+  const r = SEQ.learn;
+  if (st.state === "running") {
+    const p = st.progress || {};
+    return `<div class="sq-learn">🧠 동작을 배우는 중… ${p.total ? `${p.done}/${p.total}` : ""} — 모든 명령을 시뮬레이터로 켜고 꺼 보는 중입니다${r ? " (아래 표시는 지난번 학습)" : ""}</div>`;
+  }
+  if (!r) return "";
+  return `<div class="sq-learn">🧠 학습한 동작 <b>${r.reached}/${r.total}</b> 이 섭니다${r.with_hold ? ` · 그중 ${r.with_hold}개는 도면 읽기 빈틈을 '만족' 으로 보고` : ""} <small>(✔ 선다 · ⛔ 안 선다 — 동작 단추에 표시)</small>
+    ${r.summary ? `<button data-a="insight" class="pri sq-insbtn">🔎 이 묶음의 로직 이해 — 무엇이 켜고 · 막고 · 유지하는가</button>` : ""}</div>`;
+}
+/* L35 — 로직 이해: 동작 학습이 명령마다 시뮬레이터로 켜고 · 막고 · 놓아 보고 · 꺼 본 결과를 사람 말로.
+   판정은 서버 학습(behavior.understand)이 이미 했다 — 화면은 옮겨 적기만 한다. */
+function lblList(ls, cls) {
+  return `<ul class="${cls || ""}">${(ls || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>`;
+}
+function understandHtml(x) {
+  if (!x || !x.reached || !("always_on" in x)) return "";
+  const parts = [];
+  if (x.always_on) parts.push(`<div class="un-warn">⚠ <b>신호 없이도 켜져 있음</b> — 아래 신호가 와야 꺼짐 (확인)</div>`);
+  if (x.tied_off) parts.push(`<div class="un-warn">⚠ <b>상수로 막힌 길뿐</b> — ${esc(x.tied_off[0])}</div>`);
+  if (x.latch === true) parts.push(`<div class="un-ok">● <b>자기유지</b> — ${x.latch_released === "buttons" ? "단추를 놓아도" : "신호를 거둬도"} 유지</div>`);
+  else if (x.latch === false) parts.push(`<div class="un-mid">○ <b>누르는 동안만</b> — ${x.latch_released === "buttons" ? "단추를 놓으면" : "신호를 거두면"} 꺼짐</div>`);
+  else if ("latch" in x) parts.push(`<div class="un-mid">⏱ <b>펄스</b> — 정해진 시간만 나가고 꺼짐</div>`);
+  if ((x.interlocks || []).length) parts.push(`<div class="un-h">⛔ 막는 신호 (1 이면 안 섬)</div>${lblList(x.interlocks, "un-l")}`);
+  if ((x.stoppers || []).length) parts.push(`<div class="un-h">■ 끄는 신호</div>${lblList(x.stoppers, "un-l")}`);
+  if ((x.drops || []).length) parts.push(`<div class="un-h">↓ 0 이 되면 꺼지는 허가</div>${lblList(x.drops, "un-l")}`);
+  if (!parts.length) return "";
+  return `<div class="sq-under"><div class="un-t">🔎 로직 이해</div>${parts.join("")}</div>`;
+}
+function seqInsightHtml() {
+  const r = SEQ.learn, s = r && r.summary;
+  if (!s) return `<div class="sp-empty">아직 배운 것이 없습니다.</div><div class="sq-foot"><button data-a="pickagain">◀ 동작 고르기</button></div>`;
+  const items = r.items || [];
+  const idx = (e) => items.findIndex((x) => x.page === e.page && x.row === e.row);
+  const go = (e, t) => `<li data-li="${idx(e)}">${t}</li>`;
+  const pairBoth = (s.both_on || []).map((p) => `<li class="ins-pair"><b>${esc(p.equip)}</b> — ${p.a} · ${p.b} 동시 가능
+      <div class="ins-c"><span class="ins-a" data-li="${idx({ page: p.a_at[0], row: p.a_at[1] })}">${p.a}: ${esc((p.a_need || []).join(" · ") || "—")}</span>
+      <span class="ins-a" data-li="${idx({ page: p.b_at[0], row: p.b_at[1] })}">${p.b}: ${esc((p.b_need || []).join(" · ") || "—")}</span></div></li>`).join("");
+  const sigs = (ls, unit) => (ls || []).map((x) => `<li><b>${esc(x.sheet)}</b> ${esc(x.text)} <small>· ${x.count}개</small></li>`).join("");
+  return `<div class="sq-ins">
+    <div class="ins-top">🔎 <b>로직 이해</b> — 명령 ${s.commands}개</div>
+    <div class="ins-cards">
+      <div><b>${s.reached}</b><small>서는 명령</small></div>
+      <div><b>${s.latched}</b><small>자기유지</small></div>
+      <div><b>${s.momentary}</b><small>누르는 동안만</small></div>
+      <div><b>${s.pulse}</b><small>펄스</small></div>
+      <div><b>${s.with_interlock}</b><small>인터록 있음</small></div>
+      <div class="${s.unreached ? "bad" : ""}"><b>${s.unreached}</b><small>안 섬</small></div></div>
+    ${pairBoth ? `<div class="ins-h warn">⚠ 반대 명령 동시 가능 ${s.both_on.length}</div><ul>${pairBoth}</ul>` : ""}
+    ${(s.always_on || []).length ? `<div class="ins-h warn">⚠ 신호 없이 켜짐 ${s.always_on.length}</div><ul>${s.always_on.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row}</small>`)).join("")}</ul>` : ""}
+    ${(s.tied_off || []).length ? `<div class="ins-h warn">⚠ 상수로 막힌 길뿐 ${s.tied_off.length}</div><ul>${s.tied_off.map((e) => go(e, `<b>${esc(e.equip)}</b> ${e.action} <small>${esc(e.sheet)}-${e.row} — ${esc(e.text)}</small>`)).join("")}</ul>` : ""}
+    ${(s.common_need || []).length ? `<div class="ins-h">공통 허가</div><ul class="ins-sig">${sigs(s.common_need, "에 필요")}</ul>` : ""}
+    ${(s.common_block || []).length ? `<div class="ins-h">공통 트립 · 정지</div><ul class="ins-sig">${sigs(s.common_block, "을 막음")}</ul>` : ""}
+    <div class="ins-note">누르면 그 명령을 차례로 묻습니다.</div>
+  </div><div class="sq-foot"><button data-a="pickagain">◀ 동작 고르기</button></div>`;
+}
+function seqLearnCard(t) {
+  const x = seqLearned(t.page, t.row);
+  if (!x) return "";
+  if (!x.reached) {
+    const b = x.blocked_at;
+    return `<div class="sq-learncard no">🧠 <b>안 섬</b> — ${esc(x.why || "")}${
+      b ? `<br><small>막힌 곳: ${esc(b.label)}</small>` : ""}</div>`;
+  }
+  const real = (x.labels || []).filter((l) => !l.assumed), assumed = (x.labels || []).filter((l) => l.assumed);
+  return `<div class="sq-learncard">🧠 필요한 신호 <b>${real.length}개</b>${assumed.length ? ` + 빈틈 ${assumed.length}` : ""} → ${x.steady ? "섬" : "펄스"}
+    <ul>${(x.labels || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join("")}</ul>
+    ${understandHtml(x)}
+    <button data-a="learned" class="pri">▶ 이 조합으로 돌리기</button></div>`;
+}
+async function seqRunLearned() {
+  const x = seqLearned(SEQ.target.page, SEQ.target.row);
+  if (!x || !x.reached) return;
+  const F = {};
+  for (const [p, fs] of Object.entries(x.forces || {})) F[Number(p)] = { ...fs };
+  SEQ.ans = {}; SEQ.hist = []; SEQ.sub = {}; SEQ.tries = {};
+  await seqFinish(false, F, "학습한 조합");
+}
+function seqClose() { $("#seq").hidden = true; $("#seq-btn").classList.remove("on"); }
+function placeSeq(x, y) {
+  const pop = $("#seq");
+  if (x == null) {
+    try { [x, y] = JSON.parse(lsGet("logic.seq.pos") || "null") || []; } catch (e) { x = y = null; }
+    if (x == null) { x = innerWidth - 470 - 30; y = 96; }
+  }
+  const w = pop.offsetWidth || 460, h = pop.querySelector(".sp-h").offsetHeight || 30;
+  pop.style.left = Math.max(4, Math.min(x, innerWidth - w - 4)) + "px";
+  pop.style.top = Math.max(4, Math.min(y, innerHeight - h - 4)) + "px";
+}
+function seqPickHtml() {
+  const q = SEQ.q.trim().toUpperCase();
+  const list = (SEQ.cmds || []).filter((e) => !q || e.equip.includes(q) || e.titles.some((t) => t.toUpperCase().includes(q)) ||
+    e.actions.some((a) => a.action.includes(q) || (ACT_KO[a.action] || "").includes(SEQ.q.trim())));
+  const shown = list.slice(0, 120);
+  const items = shown.map((e, i) => {
+    const gi = SEQ.cmds.indexOf(e);
+    const acts = e.actions.map((a) => {
+      const lx = seqLearned(a.rows[0].page, a.rows[0].row);
+      const mk = lx ? (lx.reached ? `<i class="lk ok" title="섬 · 필요 신호 ${lx.signals}개">✔</i>` : `<i class="lk no" title="안 섬 — ${esc(lx.why || "")}">⛔</i>`) : "";
+      return `<button class="sq-act a-${a.action}" data-eq="${gi}" data-act="${a.action}" title="${esc(a.rows.map((r) => `${r.sheet}-${r.row} ${r.desc} (${KIND_KO[r.kind] || r.kind})`).join("\n"))}">${a.action}<small>${ACT_KO[a.action] || ""}</small>${mk}</button>`;
+    }).join("");
+    const open = SEQ.open && SEQ.open.eq === gi ? (e.actions.find((a) => a.action === SEQ.open.act) || {}).rows || [] : [];
+    const rows = open.length ? `<ul class="sq-rows">${open.map((r, j) => `<li data-eq="${gi}" data-act="${SEQ.open.act}" data-j="${j}"><span class="sq-k k-${r.kind}">${KIND_KO[r.kind] || r.kind}</span> <b>${esc(r.sheet)}-${r.row}</b> ${esc(r.desc)}</li>`).join("")}</ul>` : "";
+    return `<li class="sq-eq"><div class="sq-name">${esc(e.equip)}</div>${e.titles.length ? `<div class="sq-title">${esc(e.titles[0])}</div>` : ""}<div class="sq-acts">${acts}</div>${rows}</li>`;
+  }).join("");
+  return seqLearnLine() + `<div class="sq-intro">기기 · 밸브의 동작을 고르면 그 동작에 필요한 조건을 <b>도면 순서대로 하나씩</b> 묻고, 답한 대로 신호를 주며
+      끝까지 시뮬레이션합니다.  중간에 정합성 오류가 있으면 그 단계에서 어떻게 할지 묻습니다.</div>
+    <input id="seq-q" class="sq-q" placeholder="기기 이름 · 태그 · START/OPEN … 검색" value="${esc(SEQ.q)}">
+    <div class="sq-count">장비 ${list.length}개${list.length > shown.length ? ` (앞 ${shown.length}개만 — 검색으로 좁히세요)` : ""} · 동작 단추를 누르면 그 동작의 행(명령 · 요청 · 상태)을 고릅니다</div>
+    <ul class="sq-list">${items || `<li class="sp-empty">찾은 동작 행이 없습니다.</li>`}</ul>`;
+}
+function seqWhere(n) {
+  const sh = seqSheetName(n.page);
+  if (n.kind === "row") return `${sh} ${n.n}행 (입력)` + (n.fm ? ` · FM <b>${esc(n.fm)}</b>` : "");
+  if (n.block) return `${sh} · 블록 ${esc(n.block)}`;
+  return sh;
+}
+function seqWant(n) { return n.want === 1 ? `<span class="v1">1</span> 활성이어야 합니다` : `<span class="v0">0</span> 이어야 합니다 (없어야 함)`; }
+function seqStepHtml() {
+  const st = SEQ.cur, n = st.node;
+  const crumbs = st.gates.slice(-3).map(esc).join(" › ");
+  const conflict = (() => {
+    const k = seqKeyOf(n);
+    if (!k) return "";
+    for (const id of SEQ.hist) { const a = SEQ.ans[id]; if (a && a.key === k && a.want !== n.want) return `<div class="sq-warn">앞 단계에서 이 신호를 ${a.v === "yes" ? a.want : 1 - a.want} 으로 주었습니다 — 여기서는 ${n.want} 이 필요합니다.  두 조건이 서로 반대입니다.</div>`; }
+    return "";
+  })();
+  let body = "", btns = "";
+  if (n.t === "any") {
+    const tr = SEQ.tries[n.id];
+    const res = Array.isArray(tr) ? tr : null;
+    const okFirst = res ? res.findIndex((x) => x.reached) : -1;
+    const rec = res ? okFirst : n.pick;
+    body = `<div class="sq-q-t">갈래 고르기 — 다음 중 <b>하나</b>가 만족되면 됩니다</div>
+      <div class="sq-note">${tr === "busy" ? "갈래마다 미리 돌려 보는 중…" : res ? (okFirst >= 0 ? "★ 는 미리 돌려 보니 목표 출력까지 서는 갈래입니다 (남은 조건은 모두 만족한다고 보고)" :
+        "어느 갈래도 미리 돌려 본 결과 목표 출력이 서지 않습니다 — 도면 읽기 빈틈이나 다른 조건이 막고 있습니다") : ""}</div><ol class="sq-opts">` + n.kids.map((k, i) => {
+      const s = (k.summary || []).filter(Boolean);
+      const badge = res && res[i] ? (res[i].reached ? `<span class="sq-ok">✔ 서는 갈래${res[i].steady ? "" : " (잠깐 섬)"}</span>` : `<span class="sq-no">✕ 서지 않음</span>`) : "";
+      return `<li><button data-a="pick" data-i="${i}" class="${i === rec ? "rec" : ""}">${i === rec ? "★ " : ""}${s.length ? s.map(esc).join(" · ") : "추가 조건 없음"}</button>
+        <small>${badge} ${k.asks || 0}단계${k.viable ? "" : " · ⚠ 도면에서 다 읽지 못한 자리가 있음"}</small></li>`;
+    }).join("") + `</ol>`;
+    if (!tr) setTimeout(() => seqTry(n), 0);
+  } else if (n.kind === "zero") {
+    body = `<div class="sq-q-t">아래 신호가 <b>없어야</b> 합니다 (고장 · 트립 · 반대 명령 · 인터록) — 아무것도 주지 않으면 0 입니다</div>
+      <ul class="sq-zero">${n.items.map((it, i) => `<li><span class="v0">0</span> ${esc(it.text || it.key)} <small>${esc(seqSheetName(n.page))}</small>
+        <button data-a="zero1" data-i="${i}" title="이 신호를 1 로 주어 동작이 막히는지 봅니다">1 로 해서 막히는지 보기</button></li>`).join("")}</ul>`;
+    btns = `<button data-a="yes" class="pri">✔ 모두 없음 — 다음</button>`;
+  } else {
+    const kindT = { row: "입력 신호", button: "누름단추 · HMI", monitor: "아날로그 감시", net: "도면에서 몰이를 못 읽은 선",
+      held: "매크로 안쪽 선", terminal: "매크로 단자 없음", stuck: "도면 읽기 빈틈", deep: "조건이 깊음" }[n.kind] || "조건";
+    body = `<div class="sq-q-t"><span class="sq-kind">${kindT}</span> ${esc(n.text)}</div>
+      <div class="sq-where">${seqWhere(n)} — ${seqWant(n)}</div>` + seqGuideHtml(st);
+    if (n.key && !SEQ.eff[n.id]) setTimeout(() => seqEffect(st), 0);
+    if (n.ft) body += `<div class="sq-err">⚠ 정합성 오류 — ${(n.ft.why || []).map(esc).join(" · ")}${n.ft.peer ? ` <small>(${esc(n.ft.peer)})</small>` : ""}<br>
+        이 신호가 FM 대로 오는지 도면이 어긋납니다.  어떻게 할까요?</div>`;
+    if (n.ref && n.ref.other) body += `<div class="sq-note">다른 묶음(${esc(n.ref.sheet)})에서 오는 신호입니다 — 여기서 직접 답합니다.</div>`;
+    if (n.kind === "stuck" || n.kind === "deep") body += `<div class="sq-err">도면 읽기 빈틈 — 값을 정할 수 없습니다.  어떻게 할까요?</div>`;
+    const follow = n.ref && !n.ref.other && n.ref.page != null && !SEQ.nofollow[n.id];
+    if (SEQ.nofollow[n.id]) body += `<div class="sq-err">${esc(n.ref.sheet)}-${n.ref.row} 의 조건을 따라갈 수 없습니다 — ${esc(SEQ.nofollow[n.id])}.  이 조건에 직접 답하거나 여기서 멈추세요.</div>`;
+    const tl = SEQ.tries[n.id];
+    const tr = tl && typeof tl === "object" ? tl : null;
+    const canTry = ["row", "button", "monitor", "net", "held", "terminal", "stuck"].includes(n.kind) && n.key;
+    if (canTry && !tl) setTimeout(() => seqTryLeaf(n), 0);
+    const mark = (v) => (tr && tr[v] ? (tr[v].reached ? ` <span class="sq-ok">✔</span>` : ` <span class="sq-no">✕</span>`) : "");
+    const best = tr ? ["yes", "no", "skip"].find((v) => tr[v] && tr[v].reached) : null;
+    if (canTry) body += `<div class="sq-note">${tl === "busy" ? "답마다 미리 돌려 보는 중…" : tr ? (best ? `✔ 는 미리 돌려 보니 목표 출력까지 서는 답입니다 (남은 조건은 모두 만족한다고 보고)` :
+      "어느 답으로도 미리 돌려 본 결과 목표 출력이 서지 않습니다 — 다른 단계에서 막히고 있을 수 있습니다") : ""}</div>`;
+    const pri = (v) => (best ? best === v : v === "yes") ? "pri" : "";
+    const yesT = n.kind === "button" ? (n.want ? "누르기 (1)" : "누르지 않음 (0)") : n.kind === "monitor" ? (n.want ? "설정값을 넘김 (1)" : "넘지 않음 (0)")
+      : n.kind === "stuck" ? "만족으로 보고 넘어가기" : n.want ? "활성 (1)" : "없음 (0) 으로 둠";
+    if (n.key && n.kind !== "deep") body += `<div class="sq-ask">${n.kind === "stuck" ? "이 자리를 만족으로 보고 넘어갈까요?" : n.want ? "이 신호를 활성시키겠습니까?" : "이 신호를 0 (없음) 으로 두겠습니까?"}</div>`;
+    btns = (follow ? `<button data-a="follow" class="pri">⤵ ${n.ft ? "FM 대로 " : ""}그 시트(${esc(n.ref.sheet)}-${n.ref.row}) 조건부터 차례로</button>` : "") +
+      (n.kind !== "deep" && n.key ? `<button data-a="yes" class="${follow ? "" : pri("yes")}">▶ ${yesT}${mark("yes")}</button>` : "") +
+      (n.kind !== "stuck" && n.kind !== "deep" && n.key ? `<button data-a="no" class="${follow ? "" : pri("no")}">✕ 아니오 — ${1 - n.want} 로${mark("no")}</button>` : "") +
+      `<button data-a="skip" class="${follow ? "" : pri("skip")}">건너뛰기${mark("skip")}</button>`;
+  }
+  const answered = SEQ.hist.length;
+  return `<div class="sq-target"><b>${esc(SEQ.target.label)}</b> <small>${esc(SEQ.target.where)}</small></div>
+    ${seqBarHtml(answered)}
+    <div class="sq-prog">단계 ${answered + 1} · ${crumbs ? `<span class="sq-crumb">${crumbs}</span>` : "맨 위 조건"}</div>
+    <div class="sq-card">${body}${conflict}<div class="sq-btns">${btns}
+      <button data-a="look" class="ghost">🔍 도면에서 보기</button></div></div>
+    <div class="sq-foot"><button data-a="back" ${answered ? "" : "disabled"}>◀ 이전 단계</button>
+      <button data-a="restart">처음부터</button><button data-a="stop">여기서 멈추고 결과 보기</button><button data-a="pickagain">다른 동작 고르기</button></div>
+    ${answered === 0 ? seqLearnCard(SEQ.target) : ""}
+    ${seqHistHtml()}`;
+}
+function seqBarHtml(answered) {
+  const total = answered + Math.max(seqRemain(), 1);
+  const pct = Math.round(100 * answered / total);
+  return `<div class="sq-bar" title="답한 단계 ${answered} · 남은 단계 약 ${total - answered}"><i style="width:${pct}%"></i><span>${answered} / 약 ${total}단계</span></div>`;
+}
+function seqAnsText(n, a) {
+  if (!a) return "";
+  if (a.v === "follow") return "그 시트 조건부터";
+  if (a.v === "skip") return "건너뜀";
+  if (n.t === "any") return `갈래 ${a.v + 1}`;
+  if (n.kind === "zero") return a.item != null ? `${(n.items[a.item] || {}).text || ""} 를 1 로` : "모두 없음";
+  if (a.v === "yes") return `${n.want} 로 줌`;
+  if (a.v === "no") return `${1 - n.want} 로 줌 (만족 안 됨)`;
+  return a.v;
+}
+function seqNodeById(id) {
+  if (SEQ.plan && SEQ.plan.nodes && SEQ.plan.nodes[id]) return SEQ.plan.nodes[id];
+  for (const sp of Object.values(SEQ.sub)) if (sp && sp.nodes && sp.nodes[id]) return sp.nodes[id];
+  return null;
+}
+function seqHistHtml() {
+  if (!SEQ.hist.length) return "";
+  return `<h4>답한 단계 <small>${SEQ.hist.length}개 · 누르면 그 자리</small></h4><ol class="sq-hist">` + SEQ.hist.map((id) => {
+    const n = seqNodeById(id); if (!n) return "";
+    const a = SEQ.ans[id];
+    const what = n.t === "any" ? "갈래 고르기" : (n.text || n.kind);
+    return `<li data-id="${id}"><span class="sq-hs">${esc(seqSheetName(n.page))}</span> ${esc(what)} → <b>${esc(seqAnsText(n, a))}</b></li>`;
+  }).join("") + `</ol>`;
+}
+function seqDoneHtml() {
+  const d = SEQ.done;
+  const ok = d.value === SEQ.target.want;
+  const unmet = (d.unmet || []).map((u) => `<li>${esc((u.logic || "게이트").toUpperCase())} 출력 ${u.want} 이 나가지 않음 — ${esc(gateNeedText(u.logic, u.want))}</li>`).join("");
+  return `<div class="sq-target"><b>${esc(SEQ.target.label)}</b> <small>${esc(SEQ.target.where)}</small></div>
+    <div class="sq-result ${ok ? "ok" : "no"}">${SEQ.via ? `<small>${esc(SEQ.via)}으로 돌렸습니다</small><br>` : ""}${ok ? `<span class="sq-big">✔ 최종 출력 활성</span><br>${esc(SEQ.target.desc)} = <b>${SEQ.target.want}</b> — ${SEQ.hist.length}단계${SEQ.reachedEarly ? " (남은 조건 없이 섬)" : ""} · 처음부터 흐름을 그렸습니다` :
+      `⛔ ${esc(SEQ.target.desc)} 이(가) ${SEQ.target.want} 이 되지 않습니다${d.stopped ? " (중간에 멈춤)" : ""}`}</div>
+    ${!ok && unmet ? `<div class="sq-note">막힌 자리 (이 시트):</div><ul class="sq-unmet">${unmet}</ul>` : ""}
+    ${!ok ? seqWhyNot() : ""}
+    ${!ok && !SEQ.via ? seqLearnCard(SEQ.target) : ""}
+    ${(d.design || []).length ? `<div class="sq-err">설계 오류 ${d.design.length}건 — 신호가 TO 를 따라가다 어긋난 연결을 만났습니다 (오른쪽 '설계 오류')</div>` : ""}
+    <div class="sq-foot"><button data-a="replay" class="pri">↻ 흐름 다시 보기</button><button data-a="back" ${SEQ.hist.length ? "" : "disabled"}>◀ 마지막 단계 고치기</button>
+      <button data-a="restart">처음부터</button><button data-a="pickagain">다른 동작 고르기</button></div>
+    ${seqHistHtml()}`;
+}
+function seqWhyNot() {
+  // 출력이 서지 않았을 때 — 답한 단계 가운데 무엇이 그 길을 막았을 수 있는지 (판정이 아니라 답의 목록)
+  const no = [], skip = [], left = [];
+  for (const id of SEQ.hist) {
+    const n = seqNodeById(id), a = SEQ.ans[id];
+    if (!n || !a) continue;
+    const name = `${seqSheetName(n.page)} ${n.text || ""}`;
+    if (a.v === "no" || (n.kind === "zero" && a.item != null)) no.push(name);
+    else if (a.v === "skip") skip.push(name);
+  }
+  const rest = seqWalk();
+  if (rest) left.push(rest.node.t === "any" ? "갈래 고르기" : `${seqSheetName(rest.node.page)} ${rest.node.text || ""}`);
+  const li = (xs) => xs.slice(0, 6).map((x) => `<li>${esc(x)}</li>`).join("");
+  return (no.length ? `<div class="sq-note">'만족 안 됨' 으로 답한 조건 ${no.length}개:</div><ul class="sq-unmet">${li(no)}</ul>` : "") +
+    (skip.length ? `<div class="sq-note">건너뛴 조건 ${skip.length}개 (주지 않음 — 0):</div><ul class="sq-unmet">${li(skip)}</ul>` : "") +
+    (left.length ? `<div class="sq-note">아직 답하지 않은 단계가 남아 있습니다: ${esc(left[0])}</div>` : "") +
+    (!no.length && !skip.length && !left.length ? `<div class="sq-note">모든 조건에 답했는데도 서지 않았습니다 — 되먹임 · 타이머 · 도면 읽기 빈틈(Typical 안 게이트)을 보세요.  '◀ 마지막 단계 고치기' 로 다른 갈래를 골라 볼 수 있습니다.</div>` : "");
+}
+function seqErrHtml() {
+  const e = SEQ.err;
+  return `<div class="sq-target"><b>${esc(SEQ.target.label)}</b> <small>${esc(SEQ.target.where)}</small></div>
+    <div class="sq-card"><div class="sq-err">⚠ 이 단계에서 정합성 오류 ${e.length}건이 생겼습니다 — 신호가 TO 를 따라가다 어긋난 연결을 만났습니다.</div>
+    <ul class="sq-unmet">${e.slice(0, 6).map((x, i) => `<li data-ei="${i}"><b>${esc(x.sheet_no || "")}-${x.at_row || x.row}</b> ${esc(x.desc || "")} — ${esc(x.why || "")}</li>`).join("")}</ul>
+    <div class="sq-q-t">어떻게 할까요?</div>
+    <div class="sq-btns"><button data-a="errgo" class="pri">계속 — 다음 단계로</button><button data-a="errlook">그 행 보기</button>
+      <button data-a="back">이 단계 되돌리기</button><button data-a="stop">여기서 멈추고 결과 보기</button></div></div>
+    ${seqHistHtml()}`;
+}
+function renderSeq() {
+  const b = $("#seq-b");
+  if (!b || $("#seq").hidden) return;
+  $("#seq").classList.toggle("min", lsGet("logic.seq.min") === "1");
+  $("#seq-min").textContent = $("#seq").classList.contains("min") ? "＋" : "－";
+  if (SEQ.busy) { b.innerHTML = `<div class="sp-empty">${esc(SEQ.busy)}</div>`; return; }
+  b.innerHTML = SEQ.view === "pick" ? seqPickHtml() : SEQ.view === "insight" ? seqInsightHtml() : SEQ.view === "err" ? seqErrHtml() : SEQ.view === "done" ? seqDoneHtml()
+    : SEQ.view === "fail" ? `<div class="sq-err">${esc(SEQ.failWhy || "")}</div><div class="sq-foot"><button data-a="pickagain">다른 동작 고르기</button></div>` : seqStepHtml();
+  $("#seq-sum").textContent = SEQ.target && SEQ.view !== "pick" ? `${SEQ.target.act || ""} · ${SEQ.hist.length}단계 답함` : "";
+  const q = $("#seq-q");
+  if (q) { q.oninput = () => { SEQ.q = q.value; const pos = q.selectionStart; renderSeq(); const q2 = $("#seq-q"); q2.focus(); q2.setSelectionRange(pos, pos); }; }
+  placeSeq(parseFloat($("#seq").style.left), parseFloat($("#seq").style.top));
+}
+async function seqStart(t) {
+  if (!L.job) return;
+  if ($("#seq").hidden) { $("#seq").hidden = false; $("#seq-btn").classList.add("on"); placeSeq(); }
+  SEQ.job = L.job;
+  const r = (L.sheets || []).find((x) => x.page === t.page);
+  const want = 1;
+  SEQ.target = { page: t.page, row: t.row, want, desc: t.desc || `${t.row}행`, act: t.action, label: t.equip ? `${t.equip} — ${t.action} ${ACT_KO[t.action] || ""}` : t.desc || `${t.row}행`,
+    where: `${t.sheet || (r && r.sheet_no) || ""}-${t.row} ${t.desc || ""}${t.kind ? " · " + (KIND_KO[t.kind] || t.kind) : ""}` };
+  Object.assign(SEQ, { plan: null, ans: {}, sub: {}, hist: [], tries: {}, eff: {}, hint: {}, nofollow: {}, via: null, reachedEarly: false, err: null, done: null, view: "step", busy: "조건을 도면에서 거꾸로 읽는 중…" });
+  renderSeq();
+  let plan;
+  try { plan = await post(`/logic/api/jobs/${L.job}/sequence`, { page: t.page, row: t.row, value: want }); }
+  catch (e) { plan = { ok: false, why: e.message }; }
+  seqLink(plan);
+  if (!plan.ok) { SEQ.busy = false; SEQ.view = "fail"; SEQ.failWhy = plan.why || "조건 나무를 만들지 못했습니다"; renderSeq(); return; }
+  SEQ.plan = plan;
+  SEQ.target.net = plan.net;
+  // 순차 동작은 처음 상태에서 시작한다 — 사람이 앞서 준 신호 · 메모리 · 타이머 상태를 지운다 (타이머 시간 설정은 남는다)
+  const had = Object.values(L.allForces || {}).reduce((a, f) => a + Object.keys(f || {}).length, 0);
+  L.allForces = {}; L.forces = L.allForces[L.page] = {}; L.analog = {}; L.states = {}; L.state = null; L.values = {};
+  if (L.mode !== "sim") setMode("sim", true);
+  status(`▶ 순차 동작 — ${SEQ.target.label}${had ? ` · 앞서 준 강제 신호 ${had}개를 지우고 처음 상태에서 시작합니다` : ""}`);
+  await seqApply(true);
+  SEQ.busy = false;
+  seqNext();
+}
+async function seqApply(quiet, animate) {
+  const before = new Set((L.design || []).filter((e) => e.kind === "error").map((e) => e.page + ":" + e.row + ":" + e.to));
+  L.allForces = seqForces();
+  L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  await runSim(!!animate);
+  if (quiet) return [];
+  return (L.design || []).filter((e) => e.kind === "error" && !before.has(e.page + ":" + e.row + ":" + e.to));
+}
+async function seqLocate(n) {
+  if (!n) return;
+  const page = n.page;
+  if (page !== L.page) { await openSheet(page); await new Promise((r) => setTimeout(r, 120)); }
+  if (!L.sheet || L.sheet.page !== page) return;
+  if (n.t === "any") {
+    const g = (SEQ.cur.gates || []);
+    status(`▶ 갈래 고르기 — ${g[g.length - 1] || ""}`);
+    return;
+  }
+  if (n.kind === "row") { L.focus = { page, row: n.n, side: "L", at: Date.now() }; drawOverlay(); focusRow(); }
+  const keys = n.kind === "zero" ? (n.items || []).map((x) => x.key) : n.key ? [n.key.replace(/^hold:/, "net:")] : [];
+  const local = keys.filter((k) => !k.includes("/"));
+  if (n.block && !n.block.includes("/") && L.sheet.blocks[n.block]) {
+    const bb = L.sheet.blocks[n.block].bbox, st = $("#stage");
+    st.scrollLeft = ((bb[0] + bb[2]) / 2) * L.zoom - st.clientWidth / 2;
+    st.scrollTop = ((bb[1] + bb[3]) / 2) * L.zoom - st.clientHeight / 2;
+  }
+  if (local.length) flashNeed(local);
+  else if (n.at) { const g = $("#g-need"); if (g) { g.innerHTML = ""; const gg = el("g", { class: "need", style: `animation-duration:${NEED_MS}ms;animation-iteration-count:${NEED_FLASH}` }, g);
+    el("circle", { cx: n.at[0], cy: n.at[1], r: 9 }, gg); setTimeout(() => gg.remove(), NEED_FLASH * NEED_MS + 60); } }
+}
+function seqNext() {
+  const st = seqWalk();
+  if (!st) { seqFinish(false); return; }
+  SEQ.cur = st; SEQ.view = "step";
+  renderSeq();
+  seqLocate(st.node);
+}
+async function seqAnswer(a) {
+  const n = SEQ.cur.node;
+  a.key = seqKeyOf(n); a.want = n.want;
+  if (a.v === "follow") {
+    SEQ.busy = `${n.ref.sheet}-${n.ref.row} 의 조건을 읽는 중…`; renderSeq();
+    let sp;
+    try { sp = await post(`/logic/api/jobs/${L.job}/sequence`, { page: n.ref.page, row: n.ref.row, value: n.want }); }
+    catch (e) { sp = { ok: false, why: e.message }; }
+    SEQ.busy = false;
+    if (!sp.ok) {
+      // 따라갈 수 없다 — 그 사유를 이 단계에 남기고 다시 묻지 않는다 (직접 답하거나 멈춘다)
+      SEQ.nofollow[n.id] = sp.why || "조건을 읽지 못했습니다";
+      renderSeq(); return;
+    }
+    SEQ.sub[n.id] = seqLink(sp);
+  }
+  const eff = SEQ.eff[n.id];
+  SEQ.ans[n.id] = a;
+  SEQ.hist.push(n.id);
+  SEQ.tries = {}; SEQ.eff = {};
+  SEQ.busy = a.v === "yes" ? `${n.want ? "활성" : "0 으로"} — 신호가 흐르는 것을 그립니다…` : "시뮬레이션 중…"; renderSeq();
+  // L37 — 활성은 그 장에서 흐름을 그린다 (다음 단계가 다른 장이면 잠깐 보여 준 뒤 옮긴다)
+  if (a.v === "yes" && n.page !== L.page && !n.key.includes("/")) { await openSheet(n.page); await new Promise((r) => setTimeout(r, 120)); }
+  const fresh = await seqApply(false, a.v === "yes");
+  SEQ.busy = false;
+  if (fresh.length) { SEQ.err = fresh; SEQ.view = "err"; renderSeq(); return; }
+  // 지금까지의 답만으로 최종 출력이 선다 (미리 돌려 본 결과) — 남은 질문 없이 끝을 보인다
+  if (a.v === "yes" && eff && typeof eff === "object" && eff.target && eff.target.after === SEQ.target.want && eff.target.steady) {
+    SEQ.reachedEarly = true;
+    await new Promise((r) => setTimeout(r, 900));
+    seqFinish(false); return;
+  }
+  const nx = seqWalk();
+  if (a.v === "yes" && nx && nx.node.page !== L.page) await new Promise((r) => setTimeout(r, 1100));
+  seqNext();
+}
+async function seqBack() {
+  const id = SEQ.hist.pop();
+  if (!id) return;
+  delete SEQ.ans[id]; delete SEQ.sub[id];
+  SEQ.tries = {}; SEQ.eff = {}; SEQ.reachedEarly = false;
+  for (const k of Object.keys(SEQ.sub)) if (!SEQ.ans[k]) delete SEQ.sub[k];
+  L.states = {}; L.state = null;                 // 메모리 · 타이머 상태도 처음부터 (되돌린 신호가 래치에 남지 않게)
+  SEQ.busy = "되돌리는 중…"; renderSeq();
+  await seqApply(true);
+  SEQ.busy = false;
+  seqNext();
+}
+async function seqFinish(stopped, forced, via) {
+  const t = SEQ.target;
+  SEQ.busy = "처음부터 흐름을 그리는 중…"; renderSeq();
+  if (t.page !== L.page) { await openSheet(t.page); await new Promise((r) => setTimeout(r, 120)); }
+  L.allForces = forced || seqForces(); L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  SEQ.via = via || null;
+  L.states = {}; L.state = null; L.values = {};
+  const r = await runSim(true);
+  const vals = (r && r.frames && r.frames.length) ? r.frames[r.frames.length - 1].values : (L.finalValues || {});
+  SEQ.busy = false;
+  SEQ.done = { value: vals[t.net] === 1 ? 1 : 0, unmet: L.unmet || [], design: (L.design || []).filter((e) => e.kind === "error"), stopped };
+  SEQ.view = "done";
+  renderSeq();
+  L.focus = { page: t.page, row: t.row, side: "R", at: Date.now() }; drawOverlay(); focusRow();
+  status(SEQ.done.value === t.want ? `✔ ${t.label} — 조건을 모두 주었고 ${t.desc} 이(가) 나갑니다` : `⛔ ${t.label} — ${t.desc} 이(가) 나가지 않습니다 (패널의 막힌 자리를 보세요)`);
+}
+function bindSeq() {
+  const pop = $("#seq"), head = $("#seq-h");
+  if (!pop) return;
+  head.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    const r = pop.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    head.setPointerCapture(e.pointerId);
+    const move = (ev) => placeSeq(ev.clientX - dx, ev.clientY - dy);
+    const up = () => {
+      head.removeEventListener("pointermove", move); head.removeEventListener("pointerup", up);
+      const q = pop.getBoundingClientRect();
+      lsSet("logic.seq.pos", JSON.stringify([Math.round(q.left), Math.round(q.top)]));
+    };
+    head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
+  });
+  $("#seq-x").onclick = seqClose;
+  $("#seq-min").onclick = () => { lsSet("logic.seq.min", pop.classList.contains("min") ? null : "1"); renderSeq(); };
+  $("#gt-btn").onclick = () => popGroupTest(L.job);
+  $("#seq-btn").onclick = () => { if (!pop.hidden) seqClose(); else seqOpen(); };
+  $("#seq-b").addEventListener("click", (e) => {
+    if (SEQ.busy) return;
+    const act = e.target.closest("button.sq-act");
+    if (act) {
+      const gi = Number(act.dataset.eq), a = act.dataset.act, eq = SEQ.cmds[gi];
+      const rows = (eq.actions.find((x) => x.action === a) || {}).rows || [];
+      if (rows.length === 1) { const r = rows[0]; seqStart({ ...r, equip: eq.equip, action: a }); return; }
+      SEQ.open = SEQ.open && SEQ.open.eq === gi && SEQ.open.act === a ? null : { eq: gi, act: a };
+      renderSeq(); return;
+    }
+    const rl = e.target.closest(".sq-rows li");
+    if (rl) {
+      const eq = SEQ.cmds[Number(rl.dataset.eq)], r = (eq.actions.find((x) => x.action === rl.dataset.act) || {}).rows[Number(rl.dataset.j)];
+      seqStart({ ...r, equip: eq.equip, action: rl.dataset.act }); return;
+    }
+    const il = e.target.closest(".sq-ins [data-li]");
+    if (il) {
+      const x = ((SEQ.learn && SEQ.learn.items) || [])[Number(il.dataset.li)];
+      if (x) seqStart({ page: x.page, row: x.row, sheet: x.sheet, desc: x.desc, kind: x.kind, equip: x.equip, action: x.action });
+      return;
+    }
+    const hl = e.target.closest(".sq-hist li");
+    if (hl) { seqLocate(seqNodeById(hl.dataset.id)); return; }
+    const el_ = e.target.closest(".sq-unmet li[data-ei]");
+    if (el_) { const x = SEQ.err[Number(el_.dataset.ei)]; if (x) goToRef(x.sheet_no || seqSheetName(x.page), x.at_row || x.row, "R"); return; }
+    const b = e.target.closest("button[data-a]");
+    if (!b) return;
+    const a = b.dataset.a;
+    if (a === "look") { seqLocate(SEQ.cur && SEQ.cur.node); return; }
+    if (a === "learned") { seqRunLearned(); return; }
+    if (a === "insight") { SEQ.view = "insight"; renderSeq(); return; }
+    if (a === "pick") {
+      const tr = SEQ.cur && SEQ.tries[SEQ.cur.node.id];
+      const o = Array.isArray(tr) ? tr[Number(b.dataset.i)] : null;
+      if (o && o.reached && o.choice) Object.assign(SEQ.hint, o.choice);   // 미리 돌려 본 조합 — 안쪽 갈래의 권장이 된다
+      seqAnswer({ v: Number(b.dataset.i) }); return;
+    }
+    if (a === "zero1") { seqAnswer({ v: "yes", item: Number(b.dataset.i) }); return; }
+    if (["yes", "no", "skip", "follow"].includes(a)) { seqAnswer({ v: a }); return; }
+    if (a === "back") { if (SEQ.view === "done" || SEQ.view === "err") SEQ.view = "step"; seqBack(); return; }
+    if (a === "restart") { seqStart({ ...SEQ.target, sheet: (SEQ.target.where || "").split("-")[0], desc: SEQ.target.desc, equip: (SEQ.target.label || "").split(" — ")[0], action: SEQ.target.act }); return; }
+    if (a === "stop") { seqFinish(true); return; }
+    if (a === "replay") { seqFinish(SEQ.done && SEQ.done.stopped); return; }
+    if (a === "pickagain") { SEQ.view = "pick"; renderSeq(); return; }
+    if (a === "errgo") { SEQ.err = null; seqNext(); return; }
+    if (a === "errlook") { const x = (SEQ.err || [])[0]; if (x) goToRef(x.sheet_no || seqSheetName(x.page), x.at_row || x.row, "R"); return; }
+  });
+  addEventListener("resize", () => { if (!pop.hidden) placeSeq(parseFloat(pop.style.left), parseFloat(pop.style.top)); });
+}
 function renderInfo() {
   const s = L.sheet;
   const box = $("#info");
@@ -2840,7 +3986,7 @@ function renderInfo() {
 function renderHelp() {
   const sim = L.mode === "sim";
   $("#help").innerHTML = sim
-    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다. 출력 행 동그라미나 오른쪽 출력 행의 <b>⚡예시</b> 를 누르면 그 출력까지 <b>입력부터 최종 출력까지 모든 신호가 서는 입력 조합</b>을 찾아 흐름을 보여 줍니다."
+    ? "<b>동작 시뮬레이션</b> — 모든 선은 디지털 1/0 입니다. 왼쪽 입력 행의 점, 누름단추(PB), 또는 아무 선이나 누르면 작은 메뉴가 뜹니다 — <b>1 활성</b> / <b>0 비활성</b> / 강제 풀기.  누름단추를 1 로 누르면 그 신호가 어디까지 갔는지, 못 갔으면 어디서 왜 멈췄는지 카드로 알리고 <b>누른 채로 조건을 채워 동작시키기</b>를 권합니다. 활성인 선만 <b>형광 파랑</b>으로 보이고, 게이트는 범례 G003 정의대로 조건이 맞을 때만 뒤 신호를 내보냅니다 (예: AND 는 입력이 모두 1 · NOT 은 입력 0 이면 1). 출력 행이 1 이 되면 그 행을 FM 으로 받는 <b>다른 장의 입력도 1</b> 이 되고 그 장의 로직도 이어서 돕니다 — 오른쪽 '활성 연결' 에서 그 장으로 갑니다. 타이머는 시간이 흐르는 모습을 아래에 보입니다. 출력 행 동그라미나 오른쪽 출력 행의 <b>⚡예시</b> 를 누르면 그 출력까지 <b>입력부터 최종 출력까지 모든 신호가 서는 입력 조합</b>을 찾아 흐름을 보여 줍니다."
     : "<b>연결 따라가기</b> — 선이나 블록, 행 점을 누르면 그 신호가 어디로 가는지 주황색으로 이어 그립니다. 게이트의 다른 입력이 활성이 아니어도 연결을 따라 끝까지 갑니다 (게이트 조건은 동작 시뮬레이션이 지킵니다). <b>Shift</b>+누름은 거슬러 올라갑니다 (어디서 오는지). 행 동그라미(입력·출력)를 누르면 <b>1 활성 / 0 비활성</b>을 고릅니다 — 출력 행이 1 이면 그 행의 TO·FM 으로 이어진 다른 시트로 계속 이어집니다.";
   $("#legend").innerHTML = sim
     ? `<span><i style="background:var(--active);box-shadow:0 0 4px var(--active-glow)"></i>1 활성</span><span><i style="background:transparent;border:1px dashed #ccc"></i>0 — 표시 없음</span><span><i style="background:rgba(0,180,255,.35)"></i>켜진 메모리·타이머</span>`
@@ -3845,6 +4991,7 @@ function bind() {
   $("#job").onchange = (e) => { if (e.target.value) { hideHome(); openJob(e.target.value); } else showHome(); };
   $("#sheet-filter").oninput = renderSheetList;
   $("#ft-report").onclick = () => showFromTo();
+  bindReview();
   $("#ft-modal").onclick = (e) => {
     if (e.target.id === "ft-modal" || e.target.id === "ft-close") { closeFromTo(); return; }
     const tr = e.target.closest("tr[data-ft]");
@@ -3884,6 +5031,7 @@ function bind() {
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = resetAll;
   bindSigPop();
+  bindSeq();
   document.body.addEventListener("click", (e) => {
     if (!e.target.closest("#force-menu")) closeForceMenu();
     const fb = e.target.closest(".force button");
@@ -3950,4 +5098,5 @@ bind();
 bindHome();
 initPan();
 renderHelp();
-loadJobs().catch((e) => status(e.message));
+if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
+else loadJobs().catch((e) => status(e.message));

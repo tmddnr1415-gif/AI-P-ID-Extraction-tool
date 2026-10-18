@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 import shutil
+import time
 import subprocess
 import sys
 import threading
@@ -585,6 +586,91 @@ def findings(job: str):
     return _memo(res, "findings", lambda: report.findings(res["sheets"]))
 
 
+@router.get("/logic/test")
+def logic_test_page():
+    """L36 — 블록 그룹 시험 대시보드."""
+    return FileResponse(_static("logic_test.html"), headers={"Cache-Control": "no-store"})
+
+
+def _learned(job, start=True):
+    from . import behavior
+    d = _dir(job)
+    cur = behavior.load(d)
+    fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    if not fresh and start:
+        behavior_get(job, 1)
+        cur = behavior.load(d)
+        fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    return cur, fresh
+
+
+@router.get("/logic/api/jobs/{job}/groups")
+def groups_get(job: str):
+    """L36 — 장비(블록 그룹)마다 배운 동작과 마지막 시험 결과.  배운 것이 없거나 낡았으면 뒤에서 다시 배운다."""
+    from . import behavior, grouptest
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    st = behavior_get(job, 1)
+    cur = st["result"]
+    tested = grouptest.load(d)
+    gs = grouptest.groups(cur)
+    key = cur.get("key") if cur else None
+    for g in gs:
+        r = (tested.get("groups") or {}).get(g["equip"])
+        g["test"] = None if not r else {k: r.get(k) for k in ("status", "counts", "author", "at", "seconds")} | {
+            "stale": r.get("key") != key}
+    status = store.read_status(d)
+    return {"state": st["state"], "progress": st["progress"], "name": status.get("name"), "project": status.get("project"),
+            "summary": (cur or {}).get("summary"), "learned_at": (cur or {}).get("learned_at"),
+            "groups": gs, "history": (tested.get("history") or [])[-30:]}
+
+
+@router.post("/logic/api/jobs/{job}/grouptest")
+def grouptest_run(job: str, body: dict = Body(default={})):
+    """L36 — 장비 하나 원 버튼 시험.  지금 결과(사람이 고친 값까지)로 배운 것을 다시 돌린다."""
+    from . import grouptest
+    equip = str(body.get("equip") or "")
+    if not equip:
+        raise HTTPException(400, "equip 가 필요합니다.")
+    cur, fresh = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 잠시 뒤 다시 누르세요.")
+    items = grouptest.items_of(cur, equip)
+    if not items:
+        raise HTTPException(404, f"'{equip}' 장비를 배운 것이 없습니다.")
+    res = _result(job)
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):
+        out = grouptest.test_group(sheets, items, cache, _timers(body.get("timers")))
+        cache.pop("_last_results", None)
+    out = grouptest.save(_dir(job), equip, out, str(body.get("author") or "")[:60], cur.get("key"))
+    out["learned_fresh"] = fresh
+    return out
+
+
+@router.get("/logic/api/jobs/{job}/grouptest")
+def grouptest_get(job: str, equip: str):
+    from . import grouptest
+    r = (grouptest.load(_dir(job)).get("groups") or {}).get(equip)
+    if not r:
+        raise HTTPException(404, "아직 시험하지 않았습니다.")
+    return r
+
+
+@router.get("/logic/api/jobs/{job}/grouptest.xlsx")
+def grouptest_xlsx(job: str):
+    from . import grouptest
+    d = _dir(job)
+    cur, _ = _learned(job, start=False)
+    name = store.read_status(d).get("name") or "logic"
+    data = grouptest.workbook(cur, grouptest.load(d), name)
+    fn = Path(name).stem + "_group_test.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
 @router.get("/logic/api/jobs/{job}/report.xlsx")
 def report_xlsx(job: str):
     res = _result(job)
@@ -592,6 +678,102 @@ def report_xlsx(job: str):
     name = store.read_status(d).get("name") or "logic"
     data = report.workbook(res, name)
     fn = Path(name).stem + "_logic_review.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
+def _review(job, start=True):
+    """L39 — 정합성 검토 결과.  결과 · 사람 값 · 동작 학습이 같으면 저장한 것을, 바뀌었으면 다시 모은다 (1~2초).
+    동작 학습이 아직이면 뒤에서 배우게 하고 정적 검토(from-to · 선 · 게이트 · 읽기)만으로 먼저 낸다."""
+    from . import review
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    beh = behavior_get(job, 1 if start else 0)
+    cur = review.load(d)
+    if cur and cur.get("key") == review.key_of(d):
+        return cur, beh
+    with _REVIEW_LOCK.setdefault(job, threading.Lock()):
+        cur = review.load(d)
+        if cur and cur.get("key") == review.key_of(d):
+            return cur, beh
+        res = _result(job)
+        cache = _bundle_cache(job, res)
+        with cache.setdefault("_lock", threading.Lock()):
+            try:
+                cur = review.build_dir(d, res, cache)
+            finally:
+                cache.pop("_last_results", None)
+    try:
+        st = store.read_status(d)
+        st["review"] = review.summary_of(cur)
+        store.write_status(d, st)
+    except Exception:
+        pass
+    return cur, beh
+
+
+_REVIEW_LOCK = {}
+
+
+@router.get("/logic/api/jobs/{job}/review")
+def review_get(job: str):
+    """L39 — 정합성 검토 결과 한 장 (설계 오류 · 설계 확인 · 읽기 빈틈 · 툴 판정율)."""
+    cur, beh = _review(job)
+    out = review_mod().with_marks(cur, review_mod().load_marks(_dir(job)))
+    out["learning"] = {"state": beh["state"], "progress": beh["progress"]}
+    out["name"] = store.read_status(_dir(job)).get("name")
+    return _dumps_resp(out)
+
+
+def review_mod():
+    from . import review
+    return review
+
+
+@router.post("/logic/api/jobs/{job}/review/mark")
+def review_mark(job: str, body: dict = Body(...)):
+    """검토 항목에 사람 판단 — {keys: [...], verdict: OK|WRONG|HOLD|null, author, note}.  지우는 길은 없다 (이력)."""
+    d = _dir(job)
+    try:
+        m = review_mod().set_marks(d, body.get("keys") or [], body.get("verdict"), body.get("author"), body.get("note") or "")
+    except ValueError as ex:
+        raise HTTPException(400, str(ex))
+    cur = review_mod().load(d)
+    return {"ok": True, "marks": review_mod().mark_stats(cur, m) if cur else None,
+            "set": {k: m["marks"].get(k) for k in body.get("keys") or []}}
+
+
+def _dumps_resp(x):
+    return Response(_dumps(x), media_type="application/json")
+
+
+@router.get("/logic/api/jobs/{job}/review.pdf")
+def review_pdf(job: str, info: int = 0, author: str = ""):
+    """L39 — 검토 결과를 입력 PDF 에 마크업한 파일 (맨 앞 요약 장 · 쪽마다 색 상자 · 번호 · 주석 · 책갈피)."""
+    from . import review
+    cur, _ = _review(job)
+    d = _dir(job)
+    try:
+        out = review.pdf_dir(d, cur, include_info=bool(info), author=author[:60])
+    except Exception as ex:
+        raise HTTPException(500, f"PDF 를 만들지 못했습니다 — {ex}")
+    if not out:
+        raise HTTPException(409, "검토 결과가 아직 없습니다.")
+    name = store.read_status(d).get("name") or "logic"
+    fn = Path(name).stem + "_정합성검토.pdf"
+    return FileResponse(out, media_type="application/pdf",
+                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn), "Cache-Control": "no-store"})
+
+
+@router.get("/logic/api/jobs/{job}/review.xlsx")
+def review_xlsx(job: str):
+    from . import review
+    cur, _ = _review(job)
+    d = _dir(job)
+    name = store.read_status(d).get("name") or "logic"
+    data = review.workbook(review.with_marks(cur, review.load_marks(d)), name)
+    fn = Path(name).stem + "_정합성검토.xlsx"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
 
@@ -644,6 +826,27 @@ def scenario(job: str, page: int, body: dict = Body(default={})):
     return sim.scenario(s, target, 1, sheets=_all_sheets(res))
 
 
+@router.get("/logic/api/jobs/{job}/commands")
+def commands(job: str):
+    """L32 — 순차 동작 시뮬레이션: 묶음의 START · STOP · RUN · OPEN · CLOSE · TRIP 행을 장비마다."""
+    res = _result(job)
+    from . import sequence
+    return {"items": _memo(res, "commands", lambda: sequence.commands(_all_sheets(res)))}
+
+
+@router.post("/logic/api/jobs/{job}/sequence")
+def sequence_plan(job: str, body: dict = Body(default={})):
+    """L32 — 그 출력 행이 서려면 무엇이 필요한지 조건 나무 (묻는 순서 · 판정 0줄)."""
+    res = _result(job)
+    from . import sequence
+    try:
+        page, row = int(body.get("page")), int(body.get("row"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page · row 가 필요합니다.")
+    value = 0 if body.get("value") in (0, "0") else 1
+    return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value), page, row, value)
+
+
 @router.delete("/logic/api/jobs/{job}")
 def delete(job: str, author: str = ""):
     """L22 — 첫 화면에서 분석 하나를 지운다 (부서원).  분석 중이면 거절 · 누가 언제 무엇을 지웠는지 남긴다."""
@@ -663,6 +866,128 @@ def delete(job: str, author: str = ""):
     return Response(status_code=204)
 
 
+FORCE_KINDS = ("net", "row", "block", "hold")     # L32 hold — 입력을 다 읽지 못한 게이트의 출력에 사람이 답한 값
+
+
+def _clean_forces(raw):
+    if not isinstance(raw, dict):
+        raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+    forces = {}
+    for pg, fs in raw.items():
+        if not isinstance(fs, dict) or not str(pg).isdigit():
+            raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
+        clean = {k: int(v) for k, v in fs.items()
+                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
+        if clean:
+            forces[int(pg)] = clean
+    return forces
+
+
+_LEARNING = {}
+
+
+@router.get("/logic/api/jobs/{job}/behavior")
+def behavior_get(job: str, start: int = 1):
+    """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다."""
+    from . import behavior
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    cur = behavior.load(d)
+    fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+    running = None
+    try:
+        running = json.loads((d / behavior.RUNNING).read_text(encoding="utf-8"))
+        if time.time() - running.get("at", 0) > 600:
+            running = None                        # 오래된 표시 — 배우던 프로세스가 죽었다
+    except Exception:
+        running = None
+    if not fresh and not running and start:
+        _start_learning(job, d)
+        cur = behavior.load(d)                   # 그 자리에서 배운 경우 (PID_LOGIC_WARM=0)
+        fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
+        running = None if fresh else {"done": 0, "total": None}
+    return {"state": "done" if fresh else ("running" if running else ("stale" if cur else "none")),
+            "progress": running, "result": cur}
+
+
+def _start_learning(job, d):
+    import os
+    from . import behavior
+    p = _LEARNING.get(job)
+    if p is not None and getattr(p, "poll", lambda: 0)() is None:
+        return
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0":
+        behavior.learn_dir(d)                    # 시험 — 그 자리에서
+        _LEARNING[job] = None
+        return
+    if paths.frozen():
+        th = threading.Thread(target=behavior.learn_dir, args=(d,), daemon=True)
+        th.start()
+        _LEARNING[job] = type("T", (), {"poll": lambda self: None if th.is_alive() else 0})()
+        return
+    root = Path(__file__).resolve().parent.parent.parent
+    try:
+        _LEARNING[job] = subprocess.Popen([sys.executable, "-m", "app.logic.run", "--behavior", str(d)], cwd=str(root),
+                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        _LEARNING[job] = None
+
+
+@router.post("/logic/api/jobs/{job}/sequence/try")
+def sequence_try(job: str, body: dict = Body(default={})):
+    """L32 — 갈래 고르기에서 갈래마다 '그 갈래의 조건을 다 주면 목표가 서는가' 를 같은 시뮬레이터로 미리 돌려 본다.
+    판정은 시뮬레이터가 한다 (나무의 짐작이 아니라) — 화면은 선 갈래를 권한다."""
+    res = _result(job)
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    net = str(body.get("net") or "")
+    want = 0 if body.get("want") in (0, "0") else 1
+    base = _clean_forces(body.get("forces") or {})
+    opts = body.get("options") or []
+    if not isinstance(opts, list) or len(opts) > 48:
+        raise HTTPException(400, "options 는 갈래마다 forces 목록입니다 (48개까지).")
+    timers = _timers(body.get("timers"))
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)               # 장마다 같은 입력이면 지난 계산 — 갈래가 바꾸는 장만 다시 센다 (L28)
+    out = []
+    for o in opts:
+        f = {p: dict(v) for p, v in base.items()}
+        for p, v in _clean_forces(o).items():
+            f.setdefault(p, {}).update(v)
+        with cache.setdefault("_lock", __import__("threading").Lock()):
+            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)["focus"] or {"frames": []}
+        vals = [fr["values"].get(net) for fr in r["frames"]]
+        out.append({"reached": want in vals, "steady": bool(vals) and vals[-1] == want})
+    return {"options": out}
+
+
+@router.post("/logic/api/jobs/{job}/sequence/effect")
+def sequence_effect(job: str, body: dict = Body(default={})):
+    """L37 — 안내: 지금까지의 답(forces)에 이 신호(add)를 더하면 무엇이 1 이 되나 · 목표 출력이 서나 · 이 신호가 들어가는
+    게이트의 입력이 몇 개 찼나.  같은 묶음 시뮬레이터로 앞뒤를 돌린 차이다 (판정 0줄)."""
+    from . import sequence
+    res = _result(job)
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    want = 0 if body.get("want") in (0, "0") else 1
+    gate = body.get("gate") if isinstance(body.get("gate"), dict) else None
+    if gate is not None:
+        try:
+            gate = {"block": str(gate.get("block") or ""), "page": int(gate.get("page"))}
+        except (TypeError, ValueError):
+            gate = None
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        return sequence.effect(_all_sheets(res), page, str(body.get("net") or ""), want,
+                               _clean_forces(body.get("forces") or {}), _clean_forces(body.get("add") or {}),
+                               timers=_timers(body.get("timers")), gate=gate, cache=cache)
+
+
 @router.post("/logic/api/jobs/{job}/simulate")
 def simulate_bundle(job: str, body: dict = Body(default={})):
     """묶음 전체 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1 (도면이 적은 FM 연결)."""
@@ -675,7 +1000,7 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
         if not isinstance(fs, dict) or not str(pg).isdigit():
             raise HTTPException(400, "forces 는 {쪽: {키: 0|1}} 이어야 합니다.")
         clean = {k: int(v) for k, v in fs.items()
-                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in ("net", "row", "block")}
+                 if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
         if clean:
             forces[int(pg)] = clean
     state = body.get("state") if isinstance(body.get("state"), dict) else None
@@ -693,6 +1018,35 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     f = results.get(focus) if focus is not None else None
     # 묶음 몸통은 한 번만 글로 바꿔 두고 화면이 보는 장의 결과만 그때 붙인다 (L31 — 846쪽 묶음 몸통 약 220KB)
     return Response(b'{"focus":' + _dumps(f) + b"," + body_json[1:], media_type="application/json")
+
+
+@router.post("/logic/api/jobs/{job}/sheet/{page}/press")
+def sheet_press(job: str, page: int, body: dict = Body(default={})):
+    """L34 — 누름단추를 누른다 {block, forces, state, timers, analog} → 그 신호가 어디까지 갔나 · 어디서 왜 멈췄나 ·
+    누른 채로 그 동작이 나가려면 더 켤 입력 (sim.press).  판정은 화면과 같은 묶음 시뮬레이션이다."""
+    res = _result(job)
+    s = _sheet(job, page)
+    bid = str(body.get("block") or "")
+    b = s["blocks"].get(bid)
+    if b is None:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    if any(p_["block"] == bid and p_["dir"] == "in" for p_ in s["ports"]) and b.get("logic") != "source":
+        raise HTTPException(400, "들어오는 선이 없는 신호원(누름단추 · HMI)만 누를 수 있습니다.")
+    raw = body.get("forces") or {}
+    forces = {}
+    for pg, fs in (raw.items() if isinstance(raw, dict) else ()):
+        if isinstance(fs, dict) and str(pg).isdigit():
+            clean = {k: int(v) for k, v in fs.items()
+                     if v in (0, 1) and isinstance(k, str) and k.split(":", 1)[0] in FORCE_KINDS}
+            if clean:
+                forces[int(pg)] = clean
+    state = body.get("state") if isinstance(body.get("state"), dict) else None
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", __import__("threading").Lock()):
+        out = sim.press(_all_sheets(res), page, bid, forces, state, timers=_timers(body.get("timers")),
+                        analog=_analog(body.get("analog")), cache=cache)
+        cache.pop("_last_results", None)
+    return out
 
 
 BUNDLE_LAST = 4                   # L31 — 기억하는 묶음 계산 (입력 조합) 수

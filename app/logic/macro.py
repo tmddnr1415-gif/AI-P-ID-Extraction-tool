@@ -336,7 +336,144 @@ def link(doc, sheets, library=None):
                     out.append({"at": key, "net": p["net"], "pin": pin,
                                 "row": g[0] if g else None, "desc": g[1] if g else "", "score": g[2] if g else 0})
                 return out
-            b["macro"] = {"sheet": t["sheet_no"], "page": t["page"], "title": t.get("title", ""), "score": round(score, 3),
-                          "inputs": items(pin_in, gi), "outputs": items(pin_out, go),
-                          "cands": [{"sheet": r[1]["sheet_no"], "page": r[1]["page"], "score": round(r[0], 3)} for r in ranked[:3]]}
+            m_ = {"sheet": t["sheet_no"], "page": t["page"], "title": t.get("title", ""), "score": round(score, 3),
+                  "inputs": items(pin_in, gi), "outputs": items(pin_out, go),
+                  "cands": [{"sheet": r[1]["sheet_no"], "page": r[1]["page"], "score": round(r[0], 3)} for r in ranked[:3]]}
+            fam = [q for q in sheets if q is not t and q is not s and q["page"] in tables and _family(t, q, name)
+                   and not any(bb.get("func") == "MACRO" for bb in q["blocks"].values())]
+            if fam:
+                _spread(m_, fam, tables, pin_in, pin_out, abbr)
+            b["macro"] = m_
     return lib_sheets
+
+
+# L38 — 내부 동작을 여러 장에 나눠 그린 매크로 (1A5J MACRO-PS3 <PRESELECTION (1/4)> … (4/4) · PS4 · PS5 는 열 장 넘게).
+# 예전에는 첫 장 하나에만 이어 PS3 단자 35개 중 22개가 '연결 못 함' 이었다.  같은 매크로의 다른 장(제목의 머리가 같고 ·
+# (k/n) 이 붙었거나 매크로 이름의 번호 낱말이 같은 장 · TYPE 번호가 다르지 않은 장)도 단자와 맞대고, 시뮬레이션 · 순차
+# 동작은 그 장들을 한 장으로 합친 본문(`body`)을 쓴다 — 장 사이 FM 연결은 그 본문 안의 한 선이 된다.
+ROW_PAGE = 1000          # 합친 본문에서 다른 장 행의 번호 = 쪽 × 1000 + 행 (한 장의 행은 1000 을 넘지 않는다)
+ALSO_MIN = 0.6           # 같은 입력 단자를 받는 다른 장의 입력 행 (같은 신호가 여러 장에 들어간다) — 이 점수 이상만
+
+
+def _stem(title):
+    return _norm((title or "").split("<")[0])
+
+
+def _family(t, q, name):
+    if not _stem(t.get("title")) or _stem(t.get("title")) != _stem(q.get("title")):
+        return False
+    a, b = _type_code(t.get("title", "")), _type_code(q.get("title", ""))
+    if a and b and a != b:
+        return False
+    part = re.compile(r"\(\s*\d+\s*/\s*\d+\s*\)")
+    return bool(part.search(t.get("title", "")) or part.search(q.get("title", ""))) or _name_fit(name, q.get("title", "")) is True
+
+
+def _spread(m, fam, tables, pin_in, pin_out, abbr):
+    """첫 장에서 못 이은 단자를 같은 매크로의 다른 장 행과 맞댄다 → 행 번호 = 쪽 × ROW_PAGE + 행 · `parts` = 그 장들."""
+    enc = lambda pg, n: pg * ROW_PAGE + n
+    used_parts = set()
+    for side, pins, key in (("in", pin_in, "inputs"), ("out", pin_out, "outputs")):
+        got = {}
+        for q in fam:
+            L, R = tables[q["page"]]
+            for k, (n, desc, sc) in _assign(pins, L if side == "in" else R, abbr).items():
+                got.setdefault(k, []).append((sc, q["page"], n, desc))
+        for x in m[key]:
+            cands = sorted(got.get(x["at"], []), key=lambda c: -c[0])
+            if not cands:
+                continue
+            if x.get("row") is None:
+                sc, pg, n, desc = cands[0]
+                x.update(row=enc(pg, n), desc=desc, score=sc, page=pg)
+                used_parts.add(pg)
+                cands = cands[1:]
+            if side == "in":
+                also = [enc(pg, n) for sc, pg, n, _ in cands if sc >= ALSO_MIN and enc(pg, n) != x["row"]]
+                if also:
+                    x["also"] = also
+                    used_parts.update(r // ROW_PAGE for r in also)
+    if used_parts:
+        m["parts"] = sorted(used_parts | {q["page"] for q in fam})
+
+
+_BODY = {}
+
+
+def body(by_page, m):
+    """매크로의 내부 동작 본문 — 한 장이면 그 Typical 시트, 여러 장이면 합친 한 장 (다른 장의 블록 · 선 이름 앞에 `P<쪽>.`,
+    행 번호는 쪽 × ROW_PAGE + 행).  장 사이 FM(같은 매크로의 다른 장 출력 행을 가리키는 입력 행)은 그 출력 선과 한 선이 되고
+    그 입력 행은 본문에서 빠진다.  같은 단자를 받는 다른 장 입력 행(`also`)도 그 단자의 행과 한 선."""
+    ts = by_page.get(m.get("page"))
+    parts = [p for p in (m.get("parts") or []) if p in by_page and p != m.get("page")]
+    if ts is None or not parts:
+        return ts
+    key = (id(ts), tuple(id(by_page[p]) for p in parts), json.dumps([[x.get("row"), x.get("also")] for x in m.get("inputs", [])]))
+    hit = _BODY.get(key)
+    if hit and hit[0] is ts:
+        return hit[1]
+    pages = [m["page"]] + parts
+    pre = {pg: ("" if pg == m["page"] else f"P{pg}.") for pg in pages}
+    enc = {pg: (0 if pg == m["page"] else pg * ROW_PAGE) for pg in pages}
+    net_of = {}                                         # (쪽, 행) → 합친 본문의 선 이름 (R 행)
+    for pg in pages:
+        for r in by_page[pg]["rows"]:
+            if r["side"] == "R" and r.get("net") is not None:
+                net_of[(pg, r["n"])] = pre[pg] + str(r["net"])
+    alias, drop = {}, set()
+    pin_rows = {x.get("row") for x in m.get("inputs", [])} | {a for x in m.get("inputs", []) for a in (x.get("also") or [])}
+    for pg in pages:
+        for r in by_page[pg]["rows"]:
+            ref = r.get("ref") or {}
+            if r["side"] == "L" and r.get("net") is not None and ref.get("page") in pre and enc[pg] + r["n"] not in pin_rows:
+                src = net_of.get((ref["page"], ref.get("src_row") or ref.get("row")))
+                if src is not None:
+                    alias[pre[pg] + str(r["net"])] = src
+                    drop.add((pg, r["n"]))
+    lrow = {}
+    for pg in pages:
+        for r in by_page[pg]["rows"]:
+            if r["side"] == "L" and r.get("net") is not None:
+                lrow[enc[pg] + r["n"]] = pre[pg] + str(r["net"])
+    for x in m.get("inputs", []):
+        prim = lrow.get(x.get("row"))
+        for a in x.get("also") or []:
+            if prim is not None and lrow.get(a) is not None and lrow[a] != prim:
+                alias[lrow[a]] = prim
+
+    def nm(n):
+        seen = set()
+        while n in alias and n not in seen:
+            seen.add(n)
+            n = alias[n]
+        return n
+    blocks, ports, nets, rows, table = {}, [], {}, [], []
+    for pg in pages:
+        s = by_page[pg]
+        for k, v in s["blocks"].items():
+            nb = dict(v)
+            if pre[pg] and nb.get("group"):
+                nb["group"] = pre[pg] + nb["group"]
+            blocks[pre[pg] + k] = nb
+        for p_ in s["ports"]:
+            ports.append({**p_, "block": pre[pg] + p_["block"], "net": nm(pre[pg] + str(p_["net"]))})
+        for n, v in (s.get("nets") or {}).items():
+            nets.setdefault(nm(pre[pg] + str(n)), v if not pre[pg] else {"segs": []})
+        for r in s["rows"]:
+            if (pg, r["n"]) in drop:
+                continue
+            rr = {**r, "n": enc[pg] + r["n"]}
+            if r.get("net") is not None:
+                rr["net"] = nm(pre[pg] + str(r["net"]))
+            if pre[pg]:
+                rr["ref"] = None
+            rows.append(rr)
+        for r in s.get("table", []):
+            if (pg, r["n"]) not in drop:
+                table.append({**r, "n": enc[pg] + r["n"]})
+    merged = {**ts, "blocks": blocks, "ports": ports, "nets": nets, "rows": rows, "table": table,
+              "parts": pages, "dangling": [], "findings": []}
+    if len(_BODY) > 64:
+        _BODY.clear()
+    _BODY[key] = (ts, merged)
+    return merged

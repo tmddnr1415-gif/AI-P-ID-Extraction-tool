@@ -15,6 +15,8 @@
   <span id="samples"></span>
   <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
   <button id="ft-report" class="btn lg-report" hidden title="From-To 가 정확하게 맞대어졌는지 — 신호를 주기 전에 먼저 봅니다">From-To 보고</button>
+  <button id="rv-btn" class="btn lg-report lg-rv" hidden title="툴이 끝낸 정합성 검토 한 장 — 설계 오류 · 설계 확인 · 읽기 빈틈">📋 정합성 검토</button>
+  <a id="rv-pdf" class="btn lg-report" href="#" hidden title="검토 결과를 입력 PDF 에 마크업한 파일 (맨 앞 요약 · 쪽마다 색 상자와 주석)">검토 PDF</a>
   <a id="report" class="btn lg-report" href="#" hidden title="묶음 전체의 점검 결과를 Excel 로 내려받습니다">Excel 보고서</a>
   <span id="status" class="lg-status"></span>
 </header>
@@ -90,6 +92,8 @@
       <label class="chk" title="사람이 넣은 마크업 상자를 도면에 보입니다"><input type="checkbox" id="show-marks" checked> 마크업 보이기</label>
       <span class="sep"></span>
       <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
+      <button id="gt-btn" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험하는 대시보드">🧪 그룹 시험</button>
+      <button id="seq-btn" title="START · STOP · OPEN · CLOSE · TRIP 한 동작을 고르면 그 조건을 차례로 묻고 끝까지 시뮬레이션합니다">▶ 순차 동작</button>
       <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
       <button id="reset" class="lg-reset" title="모든 시트의 강제 신호(사람이 준 1/0)와 메모리 · 타이머 상태를 한 번에 지웁니다 — 타이머 시간 설정은 남습니다">⟲ 강제 신호 전체 리셋</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
@@ -108,6 +112,12 @@
         <button class="sp-min" id="sigpop-min" title="접기 / 펼치기">－</button>
         <button class="sp-x" id="sigpop-x" title="닫기 (도구줄 📋 로 다시 엽니다)">✕</button></div>
       <div class="sp-b" id="sigpop-b"></div>
+    </div>
+    <div id="seq" class="lg-sigpop lg-seq" hidden>
+      <div class="sp-h" id="seq-h"><b>▶ 순차 동작 시뮬레이션</b> <small id="seq-sum"></small>
+        <button class="sp-min" id="seq-min" title="접기 / 펼치기">－</button>
+        <button class="sp-x" id="seq-x" title="닫기 (도구줄 ▶ 로 다시 엽니다 — 주었던 신호는 그대로)">✕</button></div>
+      <div class="sp-b" id="seq-b"></div>
     </div>
     <div id="teach" class="lg-teach" hidden>
       <div class="tc-h" id="teach-h"><b>🎓 가르치기</b> <small id="teach-sum"></small>
@@ -153,6 +163,7 @@
     <div id="basis" class="lg-basis"></div>
   </aside>
 </main>
+<div id="rv-modal" class="lg-modal" hidden><div class="lg-modal-box rv-box" id="rv-box"></div></div>
 <div id="ft-modal" class="lg-modal" hidden><div class="lg-modal-box" id="ft-box"></div></div>
 <script src="/static/logic.js"></script>
 </body>
