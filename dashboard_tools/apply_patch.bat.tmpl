@@ -70,11 +70,12 @@ set "BASE=%PKG%base\%REL%"
 if not exist "%DST%" goto :add
 fc /b "%DST%" "%SRC%" >nul 2>&1
 if not errorlevel 1 goto :same
-if not exist "%BASE%" goto :keep
-fc /b "%DST%" "%BASE%" >nul 2>&1
-if errorlevel 1 goto :keep
+rem company copy == baseline (or == any earlier delivered version in known\) -> back up, then overwrite
+if exist "%BASE%" fc /b "%DST%" "%BASE%" >nul 2>&1 && goto :upd
+for /d %%K in ("%PKG%known\*") do if exist "%%K\%REL%" fc /b "%DST%" "%%K\%REL%" >nul 2>&1 && goto :upd
+goto :keep
 
-rem company copy == baseline -> back up, then overwrite
+:upd
 for %%P in ("%BK%\%REL%") do if not exist "%%~dpP" mkdir "%%~dpP"
 copy /y "%DST%" "%BK%\%REL%" >nul 2>&1
 if errorlevel 1 goto :bkfail

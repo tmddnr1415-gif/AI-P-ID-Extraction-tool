@@ -53,8 +53,11 @@ def main():
     ap.add_argument('--base', default=None)
     ap.add_argument('--out', default=os.path.join(ROOT, 'dashboard_patches'))
     ap.add_argument('--mark', action='store_true', help='만든 뒤 delivered.txt 에 HEAD 를 기록')
+    ap.add_argument('--any', action='store_true',
+                    help='회사가 어느 판이든 맞게: 기준 = 원본 기준판, delivered.txt 의 모든 전달본 내용을 known/ 에 넣어 그중 하나와 같으면 덮어씀')
     a = ap.parse_args()
-    base = a.base or default_base()
+    points = [l.split()[0] for l in open(DELIVERED, encoding='utf-8') if l.strip() and not l.startswith('#')]
+    base = points[0] if a.any else (a.base or default_base())
 
     if git('status', '--porcelain', '--', APP).strip():
         sys.exit(f'[중단] {APP}/ 에 커밋하지 않은 변경이 있다. 커밋 후 다시 실행.')
@@ -125,6 +128,9 @@ def main():
     if restart:
         lines += ['  4. server.py 가 바뀌었으므로 서버를 다시 켠다',
                   '     (uninstall_autostart.bat → install_autostart.bat).']
+    if a.any:
+        lines += ['  ※ 어느 판에서든 쓰는 zip: 회사본이 원본 기준판이거나 그동안 보낸 어느 판과 같으면 백업 후 바꾼다',
+                  '     (known 폴더 = 그동안 보낸 판들의 내용, 비교용).']
     lines += ['  되돌리기: backup\\patch_… 폴더의 파일을 원래 자리로 복사하면 된다.', '',
               f'■ 바뀐 파일 ({len(changed)}개)'] + [f'  - {r}' for r in changed]
     if deleted:
@@ -143,6 +149,13 @@ def main():
             old = show(base, rel)
             if old is not None:
                 z.writestr(f'{top}/base/{rel}', old)
+            if a.any:                              # 그동안 보낸 판마다 다른 내용 (원본 · 새 판과 같은 것 · 중복은 뺌)
+                seen = {old, show('HEAD', rel)}
+                for ref in points[1:]:
+                    blob = show(ref, rel)
+                    if blob is not None and blob not in seen:
+                        seen.add(blob)
+                        z.writestr(f'{top}/known/{ref[:7]}/{rel}', blob)
 
     print(f'기준: {base}  →  HEAD {git("rev-parse", "--short", "HEAD").strip()}')
     print(f'만듦: {zpath}')
