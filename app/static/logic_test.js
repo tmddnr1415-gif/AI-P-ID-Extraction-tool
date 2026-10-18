@@ -182,9 +182,38 @@ function understandOf(x) {
     ${(x.stoppers || []).length ? `<b>끄는 신호</b><ul>${lbl(x.stoppers)}</ul>` : ""}
     ${(x.effects || []).length ? `<b>함께 켜짐</b><ul>${x.effects.slice(0, 8).map((e) => `<li><b>${esc(e.sheet)}-${e.row}</b> ${esc(e.text)}${e.to ? ` <small>→ ${esc(e.to)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>`;
 }
-function simLink(i, c) {
+/* L41 — 듀얼 모니터: 이 창이 LOGIC 창과 이어져 있으면 시험 신호를 그 창으로 보낸다 */
+const LINK = { win: null };
+function logicWin() {
+  if (window.opener && !window.opener.closed) {
+    try { if (window.opener.location.origin === location.origin && /^\/logic\/?$/.test(window.opener.location.pathname)) return window.opener; } catch (e) {}
+  }
+  return LINK.win && !LINK.win.closed ? LINK.win : null;
+}
+function renderLink() {
+  const w = logicWin(), el = $("#link");
+  if (!el) return;
+  el.className = "gt-link" + (w ? " on" : "");
+  el.textContent = w ? "● LOGIC 창과 이어짐" : "○ LOGIC 창 없음";
+  el.title = w ? "시험하면 LOGIC 창이 그 신호를 받아 흐름을 그립니다" : "도면 → 을 누르면 LOGIC 창을 새로 엽니다 — 그 뒤로는 이어집니다";
+}
+/* 시험 항목 하나를 LOGIC 창에서 — 이어진 창이 있으면 보내고, 없으면 새 LOGIC 창을 그 자리로 연다 (open=false 면 열지 않는다) */
+function showInLogic(equip, i, c, open = true) {
+  const at = (c && c.at) || {};
+  const w = logicWin();
+  if (w) {
+    w.postMessage({ type: "grouptest-apply", job: G.job, equip, chk: i, page: at.page || null }, location.origin);
+    try { w.focus(); } catch (e) {}
+    toast(`LOGIC 창에 보냄 — ${equip} · ${c ? c.title : ""}`);
+  } else if (open) {
+    LINK.win = window.open(simLink(i, c, equip), `logic-main-${G.job}`);
+    if (!LINK.win) toast("새 창을 열지 못했습니다 — 팝업 차단을 풀어 주세요", 5000);
+  }
+  renderLink();
+}
+function simLink(i, c, equip) {
   const at = c.at || {};
-  return `/logic${location.search}#job=${G.job}&page=${at.page || ""}&test=${encodeURIComponent(G.open)}&chk=${i}`;
+  return `/logic${location.search}#job=${G.job}&page=${at.page || ""}&test=${encodeURIComponent(equip || G.open)}&chk=${i}`;
 }
 function detailHtml(g) {
   const items = G.learn ? G.learn.items.filter((x) => x.equip === g.equip) : null;
@@ -194,7 +223,7 @@ function detailHtml(g) {
   const rows = (r.checks || []).map((c, i) => `<tr class="${c.status}">
       <td><span class="st ${c.status}">${ST_KO[c.status]}</span></td><td>${esc(c.action || "")}</td><td>${esc(KIND_KO[c.kind] || c.kind)}</td>
       <td>${esc(c.title)}${c.why ? `<div class="why">${esc(c.why)}</div>` : ""}</td><td>${esc(c.expect)}</td><td>${esc(c.got)}</td>
-      <td>${c.at && c.at.page ? `<a href="${simLink(i, c)}" title="LOGIC 검토 화면에서 이 시험의 신호를 주고 흐름을 봅니다">도면 →</a>` : ""}</td></tr>`).join("");
+      <td>${c.at && c.at.page ? `<a href="${simLink(i, c)}" data-chk="${i}" title="LOGIC 창에서 이 시험의 신호를 주고 흐름을 봅니다 (듀얼 모니터면 다른 창)">도면 →</a>` : ""}</td></tr>`).join("");
   return und + `<div class="det-h"><b>시험 항목 ${(r.checks || []).length}</b> · ${esc(r.author || "이름 없음")} · ${when(r.at)} · ${r.seconds ?? ""}초
       ${r.learned_fresh === false ? " · ⚠ 다시 학습 중" : ""}</div>
     <table class="ck"><thead><tr><th>판정</th><th>동작</th><th>항목</th><th>내용</th><th>기대</th><th>결과</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -266,10 +295,24 @@ function bind() {
     const f = e.target.closest("[data-f]");
     if (f) { G.filter = f.dataset.f === G.filter ? "all" : f.dataset.f; render(); return; }
     const b = e.target.closest("button[data-run]");
-    if (b) { e.stopPropagation(); const g = G.shown[Number(b.dataset.run)]; if (g && !G.running) runOne(g).then(() => { if (G.open !== g.equip) toggle(g); else render(); }); return; }
+    if (b) { e.stopPropagation(); const g = G.shown[Number(b.dataset.run)]; if (g && !G.running) runOne(g).then((r) => {
+      if (G.open !== g.equip) toggle(g); else render();
+      const cs = (r && r.checks) || [];
+      const i = Math.max(0, cs.findIndex((c) => c.kind === "on" && c.at && c.at.page));
+      if (cs[i] && cs[i].at && cs[i].at.page) showInLogic(g.equip, i, cs[i], false);
+    }); return; }
+    const a = e.target.closest("a[data-chk]");
+    if (a) {
+      e.preventDefault();
+      const r = G.results[G.open], i = Number(a.dataset.chk);
+      if (r && r.checks[i]) showInLogic(G.open, i, r.checks[i]);
+      return;
+    }
+    if (e.target.closest("#back") && logicWin()) { e.preventDefault(); try { logicWin().focus(); } catch (er) {} return; }
     const tr = e.target.closest("tr.g");
     if (tr && !e.target.closest("a")) { const g = G.shown[Number(tr.dataset.i)]; if (g) toggle(g); }
   });
 }
 bind();
 loadJobs();
+renderLink(); setInterval(renderLink, 2000);

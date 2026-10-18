@@ -116,3 +116,7 @@ tr.det td { background: #fbfcff; padding: 0 8px 12px 38px; }
   .gt-kpis { grid-template-columns: repeat(4, 1fr); }
   .gt-row2 { grid-template-columns: 1fr; }
 }
+
+/* L41 — LOGIC 창과 이어짐 */
+.gt-link { font-size: 12px; color: #aab3c5; white-space: nowrap; }
+.gt-link.on { color: #6ee7a8; }

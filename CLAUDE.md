@@ -6303,3 +6303,15 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * 시험 `tests/test_logic_l40_review_marks.py` 4건 · 빠른 시험 1346 통과 (hotfix75 교착 시험 제외).  화면 확인(1A5J · 크롬): 맞음 · 툴 오판(까닭) → 50.0% · 페이지 오류 0.
 * **남은 것 (상업화)**: 프로젝트 몇 개에서 사람 판단을 쌓아 정밀도를 실제로 재기 · Windows 회사 PC 에서 전 흐름 · 짧은 사용 설명서 ·
   1A5J 읽기 빈틈 241(선 끝 · 판정 못 한 블록) · 매크로 새 창 펄스.
+
+### L41회차 — 듀얼 모니터: 검토 결과 창 · 그룹 시험 창이 LOGIC 창과 이어진다 (2026-10-18)
+
+* 사용자 지시: *검토 결과를 새 창으로 — 한쪽은 Logic 한쪽은 검토결과 · 항목을 누르면 Logic 이 그 자리로 가서 2~3번 점등 · 블록 그룹 시험도 새 창으로 logic 과 연동.*  판정 0줄 · 화면만.
+* **검토 결과 창** — 검토 판의 `⧉ 새 창으로` → `/logic#job=…&pane=review` (같은 logic.html · `body.pane-review` 가 검토 판만 남긴다 · `startReviewPane`).
+  항목을 누르면 LOGIC 창에 `review-go` (postMessage · 같은 출처) → `goReview` (그 쪽 · 확대 · 가운데) + 노란 바탕 `rv-halo` 가 세 번 깜박임
+  (다시 그려도 지난 시간만큼 `animation-delay` 를 당긴다).  LOGIC 창이 없으면 새 LOGIC 창을 `#…&rvgo=<번호>` 로 연다 — `openJob` 이 그 항목으로 간다
+  (From-To 보고를 띄우지 않는다).  '도면에 표시' · 사람 판단도 두 창이 주고받는다 (`review-on` · `review-marks`).
+* **그룹 시험 창** — LOGIC 의 `🧪 그룹 시험` · 첫 화면 이력 단추가 새 창으로 연다 (`popGroupTest` · 팝업이 막히면 예전처럼 이동).
+  그룹 시험 창에서 ▶ 시험이 끝나면 '켜기' 항목을 · `도면 →` 은 그 항목을 LOGIC 창에 `grouptest-apply` 로 보내고 LOGIC 이 `applyHashTest(job, equip, chk)` 로
+  신호를 주고 흐름을 그린다.  다른 묶음이면 그 묶음을 연다.  모두 시험 중에는 보내지 않는다.  머리줄 `● LOGIC 창과 이어짐`.
+* 시험 `tests/test_logic_l41_dualwin.py` 3건 · LOGIC 214 통과.  화면 확인(크롬 · 두 창): 검토 C3 · C8 → LOGIC 이 0018 · 0020 으로 · GT IGNITION 시험 → LOGIC G034 흐름 · PB STOP 항목 → START 막힘.

@@ -64,6 +64,64 @@ const MACRO_FROM = (() => {
            from: decodeURIComponent((location.hash.match(/from=([^&]*)/) || [])[1] || ""), inputs: inp };
 })();
 
+/* L41 — 듀얼 모니터: 검토 결과 창 (pane=review) · 그룹 시험 창이 이 창과 신호를 주고받는다 */
+const PANE_REVIEW = /[#&]pane=review(&|$)/.test(location.hash);
+const WINS = { review: null, gt: null };
+function logicWin() {                     // 검토 결과 창 · 그룹 시험 창이 가리키는 LOGIC 창
+  if (window.opener && !window.opener.closed) {
+    try { if (window.opener.location.origin === location.origin && /^\/logic\/?$/.test(window.opener.location.pathname)) return window.opener; } catch (e) {}
+  }
+  return WINS.logic && !WINS.logic.closed ? WINS.logic : null;
+}
+function tellLogic(msg, fallbackHash) {   // 이어진 LOGIC 창에 보낸다 · 없으면 새 LOGIC 창을 그 자리로 연다
+  const w = logicWin();
+  if (w) { w.postMessage(msg, location.origin); try { w.focus(); } catch (e) {} return true; }
+  if (fallbackHash) WINS.logic = window.open(`/logic${location.search}#${fallbackHash}`, `logic-main-${msg.job}`);
+  return false;
+}
+function popReview() {
+  if (!L.job) return;
+  const w = window.open(`/logic${location.search}#job=${L.job}&pane=review`, `logic-review-${L.job}`, "width=1400,height=950");
+  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요"); return; }
+  WINS.review = w; $("#rv-modal").hidden = true;
+  status("검토 결과를 새 창으로 열었습니다 — 항목을 누르면 이 창이 그 자리로 갑니다");
+}
+function popGroupTest(job) {
+  job = job || L.job;
+  const w = window.open(`/logic/test${location.search}${job ? "#job=" + job : ""}`, `logic-gt-${job || "home"}`, "width=1500,height=950");
+  if (!w) { location.href = `/logic/test${location.search}${job ? "#job=" + job : ""}`; return; }
+  WINS.gt = w;
+}
+/* 다른 창에서 온 요청 — 그 묶음이 아니면 그 묶음을 연다 (hash 에 할 일을 적어 openJob 이 이어 한다) */
+async function fromOtherWindow(d) {
+  if (d.type === "review-on") { RV.on = !!d.on; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay(); return; }
+  if (d.type === "review-marks") { if (d.job === L.job) loadReview(L.job); return; }
+  if (!/^[0-9a-f]{12}$/.test(d.job || "")) return;
+  try { window.focus(); } catch (e) {}
+  const want = d.type === "review-go" ? `rvgo=${Number(d.id)}`
+    : `page=${Number(d.page) || ""}&test=${encodeURIComponent(d.equip || "")}&chk=${Number(d.chk) || 0}`;
+  if (d.job !== L.job || !L.sheets) {
+    history.replaceState(null, "", `${location.pathname}${location.search}#job=${d.job}&${want}`);
+    hideHome(); $("#job").value = d.job; closeFromTo && closeFromTo();
+    await openJob(d.job);
+    return;
+  }
+  if (typeof closeFromTo === "function") closeFromTo();
+  if (d.type === "review-go") {
+    if (!RV.data) await loadReview(L.job);
+    const it = RV.data && RV.data.items.find((x) => x.id === Number(d.id));
+    if (it) goReview(it); else status(`검토 항목 ${d.id} 를 찾지 못했습니다 — 검토를 다시 모았을 수 있습니다`);
+  } else applyHashTest(L.job, d.equip, Number(d.chk) || 0);
+}
+async function startReviewPane() {
+  document.body.classList.add("pane-review");
+  const id = (location.hash.match(/job=([0-9a-f]{12})/) || [])[1];
+  if (!id) { status("묶음이 없습니다"); return; }
+  L.job = id;
+  document.title = "정합성 검토 결과 — LOGIC";
+  await loadReview(id, true);
+}
+
 /* ------------------------------------------------------------------ 묶음 · 시트 */
 
 async function loadJobs(select) {
@@ -235,7 +293,7 @@ function bindHome() {
     const del = e.target.closest("button[data-del]");
     if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
     const gt = e.target.closest("button[data-gt]");
-    if (gt) { e.stopPropagation(); location.href = `/logic/test${location.search}#job=${gt.dataset.gt}`; return; }
+    if (gt) { e.stopPropagation(); popGroupTest(gt.dataset.gt); return; }
     const li = e.target.closest("li[data-job]");
     if (!li) return;
     hideHome();
@@ -385,14 +443,20 @@ async function openJob(id) {
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
-  if (!MACRO_FROM && (wasRunning || !seen)) showFromTo(id);
-  const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   const test = location.hash.match(/[#&]test=([^&]+)/);
+  const rvgo = Number((location.hash.match(/[#&]rvgo=(\d+)/) || [])[1]);
+  if (!MACRO_FROM && !test && !rvgo && (wasRunning || !seen)) showFromTo(id);
+  if (rvgo) {                                  // L41 — 검토 결과 창에서 왔다
+    await loadReview(id);
+    const it = RV.data && RV.data.items.find((x) => x.id === rvgo);
+    if (it) { goReview(it); return; }
+  }
+  const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   if (p) { if (test) { await openSheet(p); applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p); }
 }
 /* L36 — 블록 그룹 시험 대시보드에서 '도면에서 보기' 로 왔을 때: 그 시험 항목의 신호를 그대로 주고 흐름을 그린다 */
-async function applyHashTest(id, equip) {
-  const ci = Number((location.hash.match(/[#&]chk=(\d+)/) || [])[1] || 0);
+async function applyHashTest(id, equip, chk) {
+  const ci = chk != null ? chk : Number((location.hash.match(/[#&]chk=(\d+)/) || [])[1] || 0);
   let r;
   try { r = await api(`/logic/api/jobs/${id}/grouptest?equip=${encodeURIComponent(equip)}`); } catch (e) { status(e.message); return; }
   const c = (r.checks || [])[ci];
@@ -526,6 +590,8 @@ async function rvSetMark(it, verdict) {
     it.mark = r.set[it.key] || null;
     if (r.marks) RV.data.marks = r.marks;
     renderReview();
+    if (PANE_REVIEW) tellLogic({ type: "review-marks", job: L.job });
+    else if (WINS.review && !WINS.review.closed) WINS.review.postMessage({ type: "review-marks", job: L.job }, location.origin);
   } catch (e) { status("판단을 저장하지 못했습니다 — " + e.message); }
 }
 function renderReview() {
@@ -536,7 +602,9 @@ function renderReview() {
   const items = rvItems();
   const shown = items.slice(0, 600);
   const topics = Object.entries(r.by_topic || {});
-  $("#rv-box").innerHTML = `<h2>정합성 검토 결과 <small>${esc(r.name || "")} · ${r.sheets}장</small></h2>
+  $("#rv-box").innerHTML = `<h2>정합성 검토 결과 <small>${esc(r.name || "")} · ${r.sheets}장</small>
+      ${PANE_REVIEW ? `<span class="rv-link ${logicWin() ? "on" : ""}">${logicWin() ? "● LOGIC 창과 이어짐 — 항목을 누르면 그 자리로" : "○ LOGIC 창 없음 — 항목을 누르면 새 LOGIC 창을 엽니다"}</span>`
+        : `<button id="rv-pop" class="btn" title="듀얼 모니터 — 검토 결과를 다른 창에 띄우고 항목을 누르면 이 창이 그 자리로 갑니다">⧉ 새 창으로</button>`}</h2>
     <div class="rv-cards">
       <div class="rv-c"><b>${pct(rate.read)}</b><span>도면 읽기</span></div>
       <div class="rv-c"><b>${pct(rate.judged)}</b><span>툴 판정</span></div>
@@ -564,7 +632,7 @@ function renderReview() {
     </table>${items.length > shown.length ? `<p class="ft-none">앞 ${shown.length}건만 보입니다 — 거르거나 Excel · PDF 로 보세요 (모두 ${items.length}건)</p>` : ""}</div>
     <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${L.job}/review.xlsx">Excel</a>
       <a class="btn primary" href="/logic/api/jobs/${L.job}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}">검토 PDF 내려받기 (마크업)</a>
-      <button id="rv-close" class="btn">닫기</button></div>`;
+      <button id="rv-close" class="btn">${PANE_REVIEW ? "창 닫기" : "닫기"}</button></div>`;
   $("#rv-modal").hidden = false;
 }
 function bindReview() {
@@ -576,16 +644,25 @@ function bindReview() {
     if (f) { RV.cat = f.dataset.f; renderReview(); return; }
     const cd = e.target.closest(".rv-c[data-cat]");
     if (cd) { RV.cat = cd.dataset.cat; renderReview(); return; }
-    if (e.target.id === "rv-close") { $("#rv-modal").hidden = true; return; }
+    if (e.target.id === "rv-close") { if (PANE_REVIEW) window.close(); else $("#rv-modal").hidden = true; return; }
+    if (e.target.id === "rv-pop") { popReview(); return; }
     const mb = e.target.closest("button[data-mk]");
     if (mb) { const it = RV.data.items.find((x) => x.id === Number(mb.closest("tr").dataset.rv)); if (it) rvSetMark(it, mb.dataset.mk); return; }
     const tr = e.target.closest("tr[data-rv]");
-    if (tr) { const it = RV.data.items.find((x) => x.id === Number(tr.dataset.rv)); if (it) goReview(it); }
+    if (tr) {
+      const it = RV.data.items.find((x) => x.id === Number(tr.dataset.rv));
+      if (!it) return;
+      if (!PANE_REVIEW) { goReview(it); return; }
+      RV.focus = { id: it.id, at: Date.now() };
+      box.querySelectorAll("tr.cur").forEach((x) => x.classList.remove("cur")); tr.classList.add("cur");
+      tellLogic({ type: "review-go", job: L.job, id: it.id }, `job=${L.job}&rvgo=${it.id}`);
+    }
   });
   box.addEventListener("change", (e) => {
     if (e.target.id === "rv-topic") { RV.topic = e.target.value; renderReview(); }
     if (e.target.id === "rv-mk") { RV.mk = e.target.value; renderReview(); }
-    if (e.target.id === "rv-on") { RV.on = e.target.checked; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay(); }
+    if (e.target.id === "rv-on") { RV.on = e.target.checked; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay();
+      if (PANE_REVIEW) tellLogic({ type: "review-on", job: L.job, on: RV.on }); }
   });
   box.addEventListener("input", (e) => {
     if (e.target.id !== "rv-q") return;
@@ -624,7 +701,13 @@ function drawReview() {
   for (const it of its) {
     const [x0, y0, x1, y1] = it.rect;
     const cls = "rv-box " + it.cat.toLowerCase() + (RV.focus && RV.focus.id === it.id ? (Date.now() - RV.focus.at < 3000 ? " flash" : " sel") : "");
-    const b = el("rect", { x: x0 - 1.5, y: y0 - 1.5, width: x1 - x0 + 3, height: y1 - y0 + 3, class: cls }, g);
+    if (cls.endsWith(" flash")) {                 // L41 — 노란 바탕으로 세 번 (다시 그려도 지난 시간만큼 당긴다)
+      const pad = Math.max(6, (x1 - x0) * 0.15);
+      el("rect", { x: x0 - pad, y: y0 - pad, width: x1 - x0 + 2 * pad, height: y1 - y0 + 2 * pad, rx: 3, class: "rv-halo",
+        style: `animation-delay:-${Date.now() - RV.focus.at}ms` }, g);
+    }
+    const b = el("rect", { x: x0 - 1.5, y: y0 - 1.5, width: x1 - x0 + 3, height: y1 - y0 + 3, class: cls,
+      style: cls.endsWith(" flash") ? `animation-delay:-${Date.now() - RV.focus.at}ms` : "" }, g);
     const t = `${RV_TAG[it.cat]}${it.id}`;
     el("rect", { x: x1 + 1.5, y: y0 - 7, width: t.length * 3.1 + 2, height: 5.6, class: "rv-tagbg " + it.cat.toLowerCase() }, g);
     const tx = el("text", { x: x1 + 2.4, y: y0 - 2.6, class: "rv-tagtx" }, g);
@@ -2688,6 +2771,8 @@ function sendMacroInputs() {
 window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
+  if (PANE_REVIEW) { if (e.data.type === "review-marks" && e.data.job === L.job) loadReview(L.job, true); return; }
+  if (["review-go", "review-on", "review-marks", "grouptest-apply"].includes(e.data.type)) { fromOtherWindow(e.data); return; }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
   applyMacroInputs(e.data.inputs);
 });
@@ -3796,7 +3881,7 @@ function bindSeq() {
   });
   $("#seq-x").onclick = seqClose;
   $("#seq-min").onclick = () => { lsSet("logic.seq.min", pop.classList.contains("min") ? null : "1"); renderSeq(); };
-  $("#gt-btn").onclick = () => { location.href = `/logic/test${location.search}${L.job ? "#job=" + L.job : ""}`; };
+  $("#gt-btn").onclick = () => popGroupTest(L.job);
   $("#seq-btn").onclick = () => { if (!pop.hidden) seqClose(); else seqOpen(); };
   $("#seq-b").addEventListener("click", (e) => {
     if (SEQ.busy) return;
@@ -5013,4 +5098,5 @@ bind();
 bindHome();
 initPan();
 renderHelp();
-loadJobs().catch((e) => status(e.message));
+if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
+else loadJobs().catch((e) => status(e.message));
