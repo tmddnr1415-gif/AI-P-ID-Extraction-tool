@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import functools
 import time
 
 import pymupdf
@@ -18,14 +19,9 @@ TAG = {"ERROR": "E", "CHECK": "C", "GAP": "G", "INFO": "I"}
 CAT_KO = {"ERROR": "설계 오류", "CHECK": "설계 확인", "GAP": "읽기 빈틈", "INFO": "참고"}
 TOPIC_KO = {"fromto": "from-to", "line": "선 연결", "gate": "게이트", "command": "명령 동작", "pair": "반대 명령",
             "read": "읽기"}
-_FONT = None
-
-
+@functools.lru_cache(maxsize=1)
 def _font():
-    global _FONT
-    if _FONT is None:
-        _FONT = pymupdf.Font("korea")
-    return _FONT
+    return pymupdf.Font("korea")
 
 
 def _pct(v):
@@ -80,6 +76,17 @@ class _Writer:
         self.y += size * 1.5
 
 
+VERDICT_KO = {"OK": "맞음", "WRONG": "툴 오판", "HOLD": "보류"}
+
+
+def _mark_txt(it):
+    m = it.get("mark") or {}
+    if not m.get("verdict"):
+        return ""
+    return f"[{VERDICT_KO.get(m['verdict'], m['verdict'])}" + (f" · {m['author']}" if m.get("author") else "") + "]" + \
+        (f" {m['note']}" if m.get("note") else "")
+
+
 def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
     doc = pymupdf.open(src_pdf)
     items = [it for it in review.get("items") or [] if include_info or it["cat"] != "INFO"]
@@ -109,7 +116,7 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
             a.set_border(width=1.4 if it["cat"] != "INFO" else 0.8, dashes=None if it["cat"] in ("ERROR", "CHECK") else [3, 2])
             a.set_opacity(0.95)
             a.set_info(title=f"{TAG[it['cat']]}{it['id']} {CAT_KO[it['cat']]}", subject=TOPIC_KO.get(it["topic"], it["topic"]),
-                       content=f"{it['title']}\n{it['text']}")
+                       content=f"{it['title']}\n{it['text']}" + (f"\n판단 {_mark_txt(it)}" if _mark_txt(it) else ""))
             a.update()
             # 번호표 — 상자 오른쪽 위 (화면 좌표로 정하고 회전 전으로)
             tag = f"{TAG[it['cat']]}{it['id']}"
@@ -137,6 +144,11 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
         for k, v in parts.items() if v is not None), 9.5, (0.3, 0.3, 0.3))
     W.text("빨강 E = 설계 오류 (도면이 어긋남)   주황 C = 설계 확인 (의도인지 판단)   파랑 G = 읽기 빈틈 (툴이 다 읽지 못함 — 가르치기 · 마크업)",
            9, (0.3, 0.3, 0.3))
+    mk = review.get("marks") or {}
+    dz = mk.get("design") or {}
+    if dz.get("OK") or dz.get("WRONG"):
+        W.text(f"사람 판단 — 맞음 {dz.get('OK', 0)} · 툴 오판 {dz.get('WRONG', 0)} · 툴 검토 정밀도 {_pct(dz.get('precision'))}"
+               "  (설계 오류 · 설계 확인 중 판단한 것)", 9.5, (0.1, 0.4, 0.2))
     note_page, note_y = W.idx, W.y                     # 안내 한 줄 — 요약 장 수를 안 뒤 쓴다
     W.y += 9 * 1.55
     W.y += 8
@@ -164,7 +176,8 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
     xs = [W.m, W.m + 48, W.m + 112, W.m + 170, W.m + 420]
     W.cells(["번호", "분류", "시트", "제목", "내용"], xs, 8, fill=(0.88, 0.91, 0.97))
     for it in items:
-        W.cells([f"{TAG[it['cat']]}{it['id']}", CAT_KO[it["cat"]], it["sheet_no"] or f"p{it['page']}", it["title"], it["text"]],
+        W.cells([f"{TAG[it['cat']]}{it['id']}", CAT_KO[it["cat"]], it["sheet_no"] or f"p{it['page']}",
+                 (_mark_txt(it) + " " if _mark_txt(it) else "") + it["title"], it["text"]],
                 xs, 8, colors=[COLOR[it["cat"]], COLOR[it["cat"]], None, None, (0.3, 0.3, 0.3)])
         links.append((W.idx, W.y - 8 * 1.5, it["page"]))
     n = len(W.pages)

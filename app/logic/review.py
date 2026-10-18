@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import re
 import time
 
 from . import behavior as BH
@@ -23,7 +24,7 @@ from . import idrate as IDR
 from . import report as RP
 from . import sequence, sim
 
-VERSION = 1
+VERSION = 2              # 2 — 묶음에 없는 시트를 가리키는 from-to 는 시트마다 한 건(CHECK)으로 묶는다
 CANCEL_MAX = 600          # 반대 명령이 끄는가 — 장비 수 상한 (시간)
 
 CAT_KO = {"ERROR": "설계 오류", "CHECK": "설계 확인", "GAP": "읽기 빈틈", "INFO": "참고"}
@@ -65,7 +66,17 @@ def _item(cat, topic, code, s, title, text, rect=None, **kw):
 
 # ------------------------------------------------------------------ 정적 — 읽기 · from-to · 선 · 게이트
 
-def _static(sheets, items, tally):
+_MISSING = re.compile(r"묶음에 (\S+) 장이 없습니다")
+
+
+def _missing_names(whys):
+    """from-to 사유가 전부 '묶음에 X 장이 없습니다' 이면 그 시트 이름들, 아니면 None."""
+    names = [m.group(1) for w in whys or [] for m in [_MISSING.search(w)] if m]
+    return names if whys and len(names) == len(whys) else None
+
+
+def _static(sheets, items, tally, missing=None):
+    missing = missing if missing is not None else {}
     for s in sheets:
         blocks = s.get("blocks", {})
         ins = {}
@@ -82,7 +93,16 @@ def _static(sheets, items, tally):
             tally["fromto"][1] += 1
             rect = _row_rect(s, r["side"], r["n"])
             ref = f"{s.get('sheet_no')}-{r['n']}"
-            if ft.get("ok") is False:
+            names = _missing_names(ft.get("why")) if ft.get("ok") is False else None
+            if names:
+                # 이 묶음에 없는 시트를 가리킨다 — 행마다 '오류' 로 세면 다른 권의 시트를 참조하는 정상 도면이 오류로 뒤덮인다
+                # (1A5J 실측 22건 전부).  시트마다 한 건으로 묶어 사람이 '다른 문서인가' 를 한 번 판단한다.
+                tally["fromto"][0] += 1
+                for nm in dict.fromkeys(names):
+                    missing.setdefault(nm, []).append({"page": s["page"], "sheet_no": s.get("sheet_no") or "",
+                                                       "row": r["n"], "side": r["side"], "rect": rect,
+                                                       "desc": r.get("desc")})
+            elif ft.get("ok") is False:
                 tally["fromto"][0] += 1
                 items.append(_item("ERROR", "fromto", "FT_MISMATCH", s, f"{ref} from-to 불일치",
                                    f"{'FM' if r['side'] == 'L' else 'TO'} {ft.get('peer') or ''} — " +
@@ -145,13 +165,28 @@ def _static(sheets, items, tally):
             tally["gate"][0] += 1
 
 
-def _reading(res, items):
+def _missing_items(sheets, missing, items):
+    by = {s["page"]: s for s in sheets}
+    for nm, refs in sorted(missing.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        refs.sort(key=lambda x: (x["page"], x["row"]))
+        f = refs[0]
+        s = by.get(f["page"]) or {"page": f["page"], "sheet_no": f["sheet_no"]}
+        where = ", ".join(f"{x['sheet_no']}-{x['row']}" for x in refs[:8]) + (f" 외 {len(refs) - 8}" if len(refs) > 8 else "")
+        items.append(_item("CHECK", "fromto", "FT_MISSING_SHEET", s, f"없는 시트 {nm} — {len(refs)}행이 가리킴",
+                           f"이 묶음에 {nm} 시트가 없습니다 ({where}).  다른 문서의 시트면 가르치기에서 '다른 문서' 로 답하고, "
+                           "이 묶음의 시트면 시트 이름 · 참조 글자를 확인하세요", f["rect"], row=f["row"], side=f["side"],
+                           target=nm, refs=[{k: x[k] for k in ("page", "sheet_no", "row", "side")} for x in refs]))
+
+
+def _reading(res, items, grouped=()):
     """시트 이름 · FM/TO 칸 · 없는 시트 — 식별률이 센 못 읽은 것 중 게이트 아닌 것."""
     m = IDR.measure(res)
     by = {s["page"]: s for s in res.get("sheets", [])}
     for it in m.get("items") or []:
         if it["kind"] == "GATE":
             continue
+        if it["kind"] == "LINK" and (it["page"], it.get("row")) in grouped:
+            continue                                   # '없는 시트' 한 건에 이미 들어 있다
         s = by.get(it["page"]) or {"page": it["page"], "sheet_no": it.get("sheet_no")}
         cat = "GAP"
         title = {"SHEET": "시트 이름 못 읽음", "FROM": "FM 칸 못 읽음", "TO": "TO 칸 못 읽음", "LINK": "없는 시트"}[it["kind"]]
@@ -261,6 +296,19 @@ def _cancel(sheets, A, B, cache):
     return bool(f2) and f2[-1]["values"].get(A["net"]) == 1
 
 
+# ------------------------------------------------------------------ 항목 열쇠 — 다시 모아도 같은 항목은 같은 열쇠 (사람 판단을 잇는다)
+
+def item_key(it):
+    """번호(id)는 다시 모을 때마다 바뀐다 — 사람 판단은 이 열쇠로 붙는다.  시트 이름이 있으면 시트 이름으로(쪽이 밀려도 같다)."""
+    where = it.get("sheet_no") or f"p{it.get('page')}"
+    parts = [it["code"], where]
+    for k in ("side", "row", "block", "net", "equip", "action", "target"):
+        v = it.get(k)
+        if v not in (None, ""):
+            parts.append(f"{k}={v}")
+    return "|".join(str(x) for x in parts)
+
+
 # ------------------------------------------------------------------ 모으기
 
 def build(res, learned=None, cache=None, seconds=120):
@@ -271,14 +319,18 @@ def build(res, learned=None, cache=None, seconds=120):
     allsheets = sheets + list(res.get("library_sheets") or [])
     items = []
     tally = {k: [0, 0] for k in ("fromto", "line", "gate", "command", "pair")}     # [툴이 판정을 끝냄, 모두]
-    _static(sheets, items, tally)
-    idr = _reading(res, items)
+    missing = {}
+    _static(sheets, items, tally, missing)
+    _missing_items(sheets, missing, items)
+    grouped = {(x["page"], x["row"]) for refs in missing.values() for x in refs if x["side"] == "L"}
+    idr = _reading(res, items, grouped)
     beh = _behavior(allsheets, learned, items, tally, cache, t0 + seconds)
     items = [it for it in items if it["page"] in {s["page"] for s in sheets}]
     rank = {c: i for i, c in enumerate(CAT_ORDER)}
     items.sort(key=lambda it: (rank[it["cat"]], it["page"], it.get("row") or 0, it["code"]))
     for i, it in enumerate(items, 1):
         it["id"] = i
+        it["key"] = item_key(it)
     count = {c: sum(1 for it in items if it["cat"] == c) for c in CAT_ORDER}
     by_topic = {}
     for it in items:
@@ -336,6 +388,101 @@ def build_dir(d, res=None, cache=None):
     return out
 
 
+# ------------------------------------------------------------------ 사람 판단 — 항목마다 '맞음 · 툴 오판 · 보류'
+# 검토 결과(review.json)와 따로 둔다: 결과를 다시 모아도 판단은 열쇠로 이어 붙고, 지우는 길이 없다 (이력에 쌓는다).
+# '맞음' 과 '툴 오판' 의 비가 곧 이 묶음에서 잰 툴 검토의 정밀도다 — 정답지 없는 LOGIC 검토를 사람이 재는 자리.
+
+MARKS = "review_marks.json"
+VERDICTS = {"OK": "맞음", "WRONG": "툴 오판", "HOLD": "보류"}
+
+
+def load_marks(d):
+    import json
+    try:
+        m = json.loads((d / MARKS).read_text(encoding="utf-8"))
+        if isinstance(m, dict):
+            m.setdefault("marks", {})
+            m.setdefault("history", [])
+            return m
+    except Exception:
+        pass
+    return {"marks": {}, "history": []}
+
+
+_MARK_LOCK = __import__("threading").Lock()
+
+
+def set_marks(d, keys, verdict, author, note=""):
+    """keys 의 항목에 판단을 적는다 (verdict None/"" 이면 판단을 거둔다 — 이력에는 남는다)."""
+    import json
+    from . import store
+    author = (author or "").strip()[:60]
+    if not author:
+        raise ValueError("이름이 필요합니다.")
+    if verdict and verdict not in VERDICTS:
+        raise ValueError(f"판단은 {', '.join(VERDICTS)} 중 하나입니다.")
+    note = (note or "").strip()[:500]
+    keys = [str(k)[:300] for k in keys or [] if k][:5000]
+    if not keys:
+        raise ValueError("항목이 없습니다.")
+    now = time.time()
+    with _MARK_LOCK:
+        m = load_marks(d)
+        for k in keys:
+            old = m["marks"].get(k)
+            if verdict:
+                m["marks"][k] = {"verdict": verdict, "note": note, "author": author, "at": now}
+            else:
+                m["marks"].pop(k, None)
+            m["history"].append({"key": k, "verdict": verdict or None, "note": note, "author": author, "at": now,
+                                 "was": (old or {}).get("verdict")})
+        m["history"] = m["history"][-20000:]
+        store._atomic(d / MARKS, json.dumps(m, ensure_ascii=False))
+    return m
+
+
+def mark_stats(rv, marks):
+    """분류마다 판단 수 · 사람이 잰 정밀도 (맞음 / (맞음 + 툴 오판))."""
+    mk = (marks or {}).get("marks") or {}
+    out = {}
+    for c in CAT_ORDER:
+        its = [it for it in rv.get("items") or [] if it["cat"] == c]
+        n = {v: 0 for v in VERDICTS}
+        for it in its:
+            v = (mk.get(it.get("key") or item_key(it)) or {}).get("verdict")
+            if v in n:
+                n[v] += 1
+        judged = n["OK"] + n["WRONG"]
+        out[c] = {"all": len(its), **n, "open": len(its) - sum(n.values()),
+                  "precision": round(n["OK"] / judged, 4) if judged else None}
+    ok = sum(out[c]["OK"] for c in ("ERROR", "CHECK"))
+    wr = sum(out[c]["WRONG"] for c in ("ERROR", "CHECK"))
+    out["design"] = {"OK": ok, "WRONG": wr, "precision": round(ok / (ok + wr), 4) if ok + wr else None}
+    return out
+
+
+def with_marks(rv, marks):
+    """검토 결과 사본에 판단을 얹는다 (원본은 그대로)."""
+    mk = (marks or {}).get("marks") or {}
+    out = dict(rv)
+    items = []
+    for it in rv.get("items") or []:
+        k = it.get("key") or item_key(it)
+        m = mk.get(k)
+        items.append({**it, "key": k, "mark": m} if m else ({**it, "key": k} if "key" not in it else it))
+    out["items"] = items
+    out["marks"] = mark_stats(rv, marks)
+    return out
+
+
+def marks_fp(marks):
+    import hashlib
+    import json
+    mk = (marks or {}).get("marks") or {}
+    return hashlib.sha1(json.dumps({k: [v.get("verdict"), v.get("note")] for k, v in sorted(mk.items())},
+                                   ensure_ascii=False).encode()).hexdigest()[:12]
+
+
 PDF = "review.pdf"
 PDF_META = "review_pdf.json"
 
@@ -347,7 +494,10 @@ def pdf_dir(d, review_out=None, include_info=False, author=""):
     rv = review_out or load(d)
     if not rv:
         return None
-    want = {"key": rv.get("key"), "at": rv.get("at"), "info": bool(include_info), "author": author or ""}
+    marks = load_marks(d)
+    rv = with_marks(rv, marks)
+    want = {"key": rv.get("key"), "at": rv.get("at"), "info": bool(include_info), "author": author or "",
+            "marks": marks_fp(marks)}
     try:
         meta = json.loads((d / PDF_META).read_text(encoding="utf-8"))
     except Exception:
@@ -402,6 +552,8 @@ def workbook(rv, name=""):
     ws.append(["도면 읽기 %", pct(rate.get("read")), "툴 판정 %", pct(rate.get("judged"))])
     ws.append(["설계 오류", rv["count"].get("ERROR", 0), "설계 확인", rv["count"].get("CHECK", 0),
                "읽기 빈틈", rv["count"].get("GAP", 0), "참고", rv["count"].get("INFO", 0)])
+    dz = (rv.get("marks") or {}).get("design") or {}
+    ws.append(["사람 판단 — 맞음", dz.get("OK", 0), "툴 오판", dz.get("WRONG", 0), "툴 검토 정밀도 %", pct(dz.get("precision"))])
     ws.append([])
     ws.append(["툴 판정", "끝냄", "모두", "%"])
     for k, v in (rate.get("tally") or {}).items():
@@ -419,8 +571,10 @@ def workbook(rv, name=""):
     fill = {"ERROR": "F8D7D7", "CHECK": "FFF1C2", "GAP": "DCE3FA", "INFO": "EEEEEE"}
     tag = {"ERROR": "E", "CHECK": "C", "GAP": "G", "INFO": "I"}
     for it in rv.get("items") or []:
+        m = it.get("mark") or {}
         ws2.append([f"{tag[it['cat']]}{it['id']}", CAT_KO[it["cat"]], TOPIC_KO.get(it["topic"], it["topic"]), it["sheet_no"],
-                    it["page"], it.get("row"), it["title"], it["text"], "", ""])
+                    it["page"], it.get("row"), it["title"], it["text"],
+                    VERDICTS.get(m.get("verdict"), "") + (f" ({m['author']})" if m.get("author") else ""), m.get("note") or ""])
         ws2.cell(ws2.max_row, 2).fill = PatternFill("solid", fgColor=fill[it["cat"]])
     for i, w in enumerate((8, 10, 10, 12, 6, 6, 40, 90, 14, 30)):
         ws2.column_dimensions[chr(65 + i)].width = w

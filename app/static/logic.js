@@ -476,7 +476,8 @@ async function showFromTo(id) {
 function closeFromTo() { $("#ft-modal").hidden = true; }
 
 /* ------------------------------------------------------------------ 정합성 검토 결과 한 장 (L39) */
-const RV = { data: null, cat: "ALL", topic: "", q: "", on: false, focus: null, poll: null };
+const RV = { data: null, cat: "ALL", topic: "", q: "", on: false, focus: null, poll: null, mk: "" };
+const RV_VD = { OK: "맞음", WRONG: "툴 오판", HOLD: "보류" };
 const RV_KO = { ERROR: "설계 오류", CHECK: "설계 확인", GAP: "읽기 빈틈", INFO: "참고" };
 const RV_TAG = { ERROR: "E", CHECK: "C", GAP: "G", INFO: "I" };
 const RV_TOPIC = { fromto: "from-to", line: "선 연결", gate: "게이트", command: "명령 동작", pair: "반대 명령", read: "읽기" };
@@ -497,8 +498,35 @@ function rvItems() {
   const r = RV.data;
   if (!r) return [];
   const q = RV.q.trim().toUpperCase();
+  const vd = (it) => (it.mark && it.mark.verdict) || "";
   return r.items.filter((it) => (RV.cat === "ALL" ? it.cat !== "INFO" : it.cat === RV.cat) && (!RV.topic || it.topic === RV.topic) &&
+    (!RV.mk || (RV.mk === "OPEN" ? !vd(it) : vd(it) === RV.mk)) &&
     (!q || `${it.sheet_no} ${it.title} ${it.text}`.toUpperCase().includes(q)));
+}
+/* 사람 판단 칸 — 맞음 · 툴 오판 · 보류 (다시 누르면 거둔다) */
+function rvMarkCell(it) {
+  const v = (it.mark && it.mark.verdict) || "";
+  const who = it.mark ? `${it.mark.author || ""}${it.mark.note ? " · " + it.mark.note : ""}` : "";
+  return `<td class="rv-mk" title="${esc(who)}">${Object.entries(RV_VD).map(([k, t]) =>
+    `<button data-mk="${k}" class="${k.toLowerCase()}${v === k ? " on" : ""}">${t}</button>`).join("")}</td>`;
+}
+async function rvSetMark(it, verdict) {
+  if (it.mark && it.mark.verdict === verdict) verdict = null;
+  let note = "";
+  if (verdict === "WRONG") {
+    const ans = await askModal({ title: "툴 오판", ok: "저장", html: "<p>툴이 잘못 본 까닭을 한 줄로 (비워도 됩니다).</p>",
+      fields: [...authorField(), { id: "note", label: "까닭", placeholder: "예: 다른 권의 시트" }] });
+    if (!ans) return;
+    takeAuthor(ans); note = ans.note || "";
+  }
+  const author = await needAuthor();
+  if (!author) return;
+  try {
+    const r = await post(`/logic/api/jobs/${L.job}/review/mark`, { keys: [it.key], verdict, author, note });
+    it.mark = r.set[it.key] || null;
+    if (r.marks) RV.data.marks = r.marks;
+    renderReview();
+  } catch (e) { status("판단을 저장하지 못했습니다 — " + e.message); }
 }
 function renderReview() {
   const r = RV.data;
@@ -515,6 +543,7 @@ function renderReview() {
       <div class="rv-c e" data-cat="ERROR"><b>${c.ERROR}</b><span>설계 오류</span></div>
       <div class="rv-c c" data-cat="CHECK"><b>${c.CHECK}</b><span>설계 확인</span></div>
       <div class="rv-c g" data-cat="GAP"><b>${c.GAP}</b><span>읽기 빈틈</span></div>
+      ${(() => { const dz = (r.marks || {}).design || {}; return `<div class="rv-c m" title="설계 오류 · 설계 확인 중 사람이 '맞음' 으로 본 비율"><b>${dz.precision != null ? pct(dz.precision) : "—"}</b><span>판단 맞음 ${dz.OK || 0} · 오판 ${dz.WRONG || 0}</span></div>`; })()}
     </div>
     <p class="rv-parts">툴 판정 — ${Object.entries(rate.parts || {}).filter(([, v]) => v != null)
       .map(([k, v]) => `${RV_TOPIC[k] || k} <b>${pct(v)}</b> <small>(${tl[k].done}/${tl[k].all})</small>`).join(" · ")}
@@ -525,12 +554,13 @@ function renderReview() {
       ${["ALL", "ERROR", "CHECK", "GAP", "INFO"].map((k) => `<button data-f="${k}" class="${RV.cat === k ? "on" : ""}">${k === "ALL" ? "모두" : RV_KO[k]} ${k === "ALL" ? c.ERROR + c.CHECK + c.GAP : c[k]}</button>`).join("")}
       <select id="rv-topic"><option value="">주제 전부</option>${topics.map(([k, d]) => `<option value="${k}" ${RV.topic === k ? "selected" : ""}>${RV_TOPIC[k] || k} (${d.ERROR + d.CHECK + d.GAP})</option>`).join("")}</select>
       <input id="rv-q" placeholder="시트 · 낱말 찾기" value="${esc(RV.q)}">
+      <select id="rv-mk"><option value="">판단 전부</option>${[["OPEN", "미처리"], ["OK", "맞음"], ["WRONG", "툴 오판"], ["HOLD", "보류"]].map(([k, t]) => `<option value="${k}" ${RV.mk === k ? "selected" : ""}>${t}</option>`).join("")}</select>
       <label class="rv-on"><input type="checkbox" id="rv-on" ${RV.on ? "checked" : ""}> 도면에 표시</label>
     </div>
-    <div class="ft-scroll rv-scroll"><table class="ft-t rv-t"><tr><th>번호</th><th>분류</th><th>시트</th><th>제목</th><th>내용</th></tr>
+    <div class="ft-scroll rv-scroll"><table class="ft-t rv-t"><tr><th>번호</th><th>분류</th><th>시트</th><th>제목</th><th>내용</th><th>판단</th></tr>
       ${shown.map((it) => `<tr data-rv="${it.id}" class="${it.cat.toLowerCase()}"><td><b class="rv-tag ${it.cat.toLowerCase()}">${RV_TAG[it.cat]}${it.id}</b></td>
         <td>${RV_KO[it.cat]}<br><small>${RV_TOPIC[it.topic] || it.topic}</small></td><td>${esc(it.sheet_no || "p" + it.page)}</td>
-        <td>${esc(it.title)}</td><td><small>${esc(it.text)}</small></td></tr>`).join("") || `<tr><td colspan="5" class="ft-none">없습니다</td></tr>`}
+        <td>${esc(it.title)}</td><td><small>${esc(it.text)}</small></td>${rvMarkCell(it)}</tr>`).join("") || `<tr><td colspan="6" class="ft-none">없습니다</td></tr>`}
     </table>${items.length > shown.length ? `<p class="ft-none">앞 ${shown.length}건만 보입니다 — 거르거나 Excel · PDF 로 보세요 (모두 ${items.length}건)</p>` : ""}</div>
     <div class="ft-acts"><a class="btn" href="/logic/api/jobs/${L.job}/review.xlsx">Excel</a>
       <a class="btn primary" href="/logic/api/jobs/${L.job}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}">검토 PDF 내려받기 (마크업)</a>
@@ -547,11 +577,14 @@ function bindReview() {
     const cd = e.target.closest(".rv-c[data-cat]");
     if (cd) { RV.cat = cd.dataset.cat; renderReview(); return; }
     if (e.target.id === "rv-close") { $("#rv-modal").hidden = true; return; }
+    const mb = e.target.closest("button[data-mk]");
+    if (mb) { const it = RV.data.items.find((x) => x.id === Number(mb.closest("tr").dataset.rv)); if (it) rvSetMark(it, mb.dataset.mk); return; }
     const tr = e.target.closest("tr[data-rv]");
     if (tr) { const it = RV.data.items.find((x) => x.id === Number(tr.dataset.rv)); if (it) goReview(it); }
   });
   box.addEventListener("change", (e) => {
     if (e.target.id === "rv-topic") { RV.topic = e.target.value; renderReview(); }
+    if (e.target.id === "rv-mk") { RV.mk = e.target.value; renderReview(); }
     if (e.target.id === "rv-on") { RV.on = e.target.checked; lsSet("logic.rvon", RV.on ? "1" : "0"); if (L.sheet) drawOverlay(); }
   });
   box.addEventListener("input", (e) => {

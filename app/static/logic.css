@@ -807,3 +807,11 @@ button.sigchip { cursor: pointer; }
 .rvchip b { font-weight: 600; } .rvchip .e { color: #db1a1a; } .rvchip .c { color: #d47a00; } .rvchip .g { color: #4059d9; }
 .rv-t td:nth-child(2), .rv-t td:nth-child(3), .rv-t td:nth-child(1) { white-space: nowrap; }
 .rv-t td { padding-top: 4px; padding-bottom: 4px; }
+
+/* L40 — 검토 항목 사람 판단 */
+.rv-t td.rv-mk{white-space:nowrap}
+.rv-mk button{font-size:11px;padding:1px 6px;margin:0 1px;border:1px solid #c9d0dc;background:#fff;border-radius:3px;cursor:pointer;color:#555}
+.rv-mk button.ok.on{background:#1f8a4c;border-color:#1f8a4c;color:#fff}
+.rv-mk button.wrong.on{background:#c2453f;border-color:#c2453f;color:#fff}
+.rv-mk button.hold.on{background:#8a7a20;border-color:#8a7a20;color:#fff}
+.rv-c.m b{color:#1f8a4c}

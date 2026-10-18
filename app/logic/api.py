@@ -720,10 +720,28 @@ _REVIEW_LOCK = {}
 def review_get(job: str):
     """L39 — 정합성 검토 결과 한 장 (설계 오류 · 설계 확인 · 읽기 빈틈 · 툴 판정율)."""
     cur, beh = _review(job)
-    out = dict(cur)
+    out = review_mod().with_marks(cur, review_mod().load_marks(_dir(job)))
     out["learning"] = {"state": beh["state"], "progress": beh["progress"]}
     out["name"] = store.read_status(_dir(job)).get("name")
     return _dumps_resp(out)
+
+
+def review_mod():
+    from . import review
+    return review
+
+
+@router.post("/logic/api/jobs/{job}/review/mark")
+def review_mark(job: str, body: dict = Body(...)):
+    """검토 항목에 사람 판단 — {keys: [...], verdict: OK|WRONG|HOLD|null, author, note}.  지우는 길은 없다 (이력)."""
+    d = _dir(job)
+    try:
+        m = review_mod().set_marks(d, body.get("keys") or [], body.get("verdict"), body.get("author"), body.get("note") or "")
+    except ValueError as ex:
+        raise HTTPException(400, str(ex))
+    cur = review_mod().load(d)
+    return {"ok": True, "marks": review_mod().mark_stats(cur, m) if cur else None,
+            "set": {k: m["marks"].get(k) for k in body.get("keys") or []}}
 
 
 def _dumps_resp(x):
@@ -754,7 +772,7 @@ def review_xlsx(job: str):
     cur, _ = _review(job)
     d = _dir(job)
     name = store.read_status(d).get("name") or "logic"
-    data = review.workbook(cur, name)
+    data = review.workbook(review.with_marks(cur, review.load_marks(d)), name)
     fn = Path(name).stem + "_정합성검토.xlsx"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
