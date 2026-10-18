@@ -25,7 +25,7 @@ LOGIC 검토 (이번에 새로 들어간 것)
        → "[완료] 서버가 다시 떴습니다 — 업데이트 hotfix100" 가 나오면 됩니다
   3) 대시보드에서 P&ID 분석 · LOGIC 을 다시 열고 Ctrl+F5
   4) 서버 창 파일(run_lan_service.bat)을 이미 새 것으로 바꿨으면 건너뛰세요.
-     아직이면 zip 의 service 폴더의 run_lan_service.bat 을 C:\Claude\PID 에 넣습니다
+     아직이면 zip 의 files 폴더에 있는 run_lan_service.bat 을 C:\Claude\PID 에 넣습니다
      (서버 창을 모두 닫은 뒤, 옛 파일은 .old 로).
 
 문제가 생기면:  rollback_PID_ops.bat 더블클릭.
