@@ -37,7 +37,7 @@ def _plus(F, page, key, v):
 
 
 def _run(sheets, F, state, page, net, cache, timers):
-    r = sim.simulate_bundle(sheets, F, state, page, timers=timers, cache=cache)
+    r = sim.simulate_bundle(sheets, F, state, page, timers=timers, cache=cache, light=True)
     fr = (r["focus"] or {}).get("frames") or []
     vals = [f["values"].get(net) for f in fr]
     return vals, r.get("state") or {}
@@ -166,9 +166,25 @@ def test_group(sheets, items, cache, timers=None, opposites=None):
                 checks.append(_chk("cancel", A, f"{b} 조건 → {a} 꺼짐", "0", _say(v2[-1] if v2 else None),
                                    "warn" if kept else "pass",
                                    f"{a} 가 남음 — 확인" if kept else "", H))
+    _locate(sheets, checks, {x.get("action"): x for x in items})
     n = {s: sum(1 for c in checks if c["status"] == s) for s in ("pass", "fail", "warn", "gap", "skip")}
     worst = next((s for s in ("fail", "warn", "gap", "pass") if n[s]), "skip")
     return {"status": worst, "counts": n, "checks": checks, "seconds": round(time.time() - t0, 2), "at": time.time()}
+
+
+def _locate(sheets, checks, by_action):
+    """L42 — 항목마다 '어느 시트 어느 행' 을 싣는다: 명령의 자리(cmd)와 그 시험이 준 신호마다의 자리(signals).
+    글은 behavior._labels 그대로 (학습 카드와 같은 말)."""
+    for c in checks:
+        x = by_action.get(c.get("action")) or {}
+        if x.get("page"):
+            c["cmd"] = {"page": x["page"], "row": x.get("row"), "sheet": x.get("sheet")}
+        try:
+            ls = behavior._labels(sheets, _F(c.get("forces")))
+        except Exception:
+            ls = []
+        c["signals"] = [{k: l.get(k) for k in ("page", "sheet", "row", "key", "value", "text", "assumed") if l.get(k) is not None}
+                        for l in ls][:24]
 
 
 def groups(learned):
@@ -200,12 +216,30 @@ def items_of(learned, equip):
 FILE = "grouptest.json"
 
 
+_LOADED = {}
+
+
 def load(d):
+    """L42 — 파일이 그대로면 다시 읽지 않는다 (19VA '모두 시험' 은 장비마다 이 파일을 읽고 썼다).
+    돌려준 것은 함께 쓰는 객체다 — 고치는 곳은 _save 하나이고 잠금 안에서 고친 뒤 바로 쓴다."""
     import json
+    p = d / FILE
     try:
-        return json.loads((d / FILE).read_text(encoding="utf-8"))
+        st = p.stat()
+    except OSError:
+        return {"groups": {}, "history": []}
+    sig = (st.st_mtime_ns, st.st_size)
+    hit = _LOADED.get(str(p))
+    if hit and hit[0] == sig:
+        return hit[1]
+    try:
+        obj = json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return {"groups": {}, "history": []}
+    if len(_LOADED) > 6:
+        _LOADED.clear()
+    _LOADED[str(p)] = (sig, obj)
+    return obj
 
 
 _SAVE = threading.Lock()
@@ -226,6 +260,11 @@ def _save(d, equip, res, author, key):
                                           "author": author or "", "at": res["at"]})
     cur["history"] = cur["history"][-2000:]
     store._atomic(d / FILE, json.dumps(cur, ensure_ascii=False))
+    try:                                                 # 방금 쓴 것을 기억 — 다음 읽기가 파일을 다시 열지 않게
+        st = (d / FILE).stat()
+        _LOADED[str(d / FILE)] = ((st.st_mtime_ns, st.st_size), cur)
+    except OSError:
+        pass
     return res
 
 

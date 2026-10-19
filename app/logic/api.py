@@ -888,11 +888,11 @@ _LEARNING = {}
 
 
 @router.get("/logic/api/jobs/{job}/behavior")
-def behavior_get(job: str, start: int = 1):
+def behavior_get(job: str, start: int = 1, equip: str = ""):
     """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다.
 
     hotfix101 — 배우다 죽은 것은 사유와 함께 `failed` 로 말하고 저절로 다시 띄우지 않는다 (같은 자리에서 또 죽어 화면이
-    '학습 중' 에 갇혔다).  start=2 는 사람이 누른 '다시 배우기'."""
+    '학습 중' 에 갇혔다).  start=2 는 사람이 누른 '다시 배우기'.  L42 — equip 이면 그 장비 하나만 돌려준다."""
     from . import behavior
     d = _dir(job)
     if not (d / "result.json").exists():
@@ -919,6 +919,10 @@ def behavior_get(job: str, start: int = 1):
         failed = bool(err) and err.get("key") == behavior.key_of(d) and not fresh
         running = None if (fresh or failed) else (behavior.running(d) or {"done": 0, "total": None, "phase": "start",
                                                                            "started": time.time()})
+    if equip and cur:                            # L42 — 그룹 시험 창은 펼친 장비 하나만 받는다 (19VA 전체는 수 MB)
+        cur = {k: v for k, v in cur.items() if k not in ("items", "pairs")} | {
+            "items": [x for x in cur.get("items") or [] if x.get("equip") == equip],
+            "pairs": [x for x in cur.get("pairs") or [] if x.get("equip") == equip]}
     state = "done" if fresh else ("running" if running else ("failed" if failed else ("stale" if cur else "none")))
     return {"state": state, "progress": running, "result": cur,
             "error": (err or {}).get("error") if state == "failed" else None}

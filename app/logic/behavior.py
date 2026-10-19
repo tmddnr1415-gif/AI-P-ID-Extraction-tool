@@ -219,6 +219,8 @@ def _labels(sheets, forces):
                 text = "매크로 단자 없음 · 몰이를 못 읽은 선 — 직접 줌" if "/" in x else "몰이를 못 읽은 선 — 직접 줌"
             item = {"page": pg, "sheet": s.get("sheet_no"), "key": k, "value": v, "text": text,
                     "assumed": kind == "hold" or kind == "net"}
+            if kind == "row":                            # L42 — 어느 시트 어느 행인지 (화면이 'BL10_P301-112' 로 적는다)
+                item["row"] = int(x)
             if kind == "block" and "/" not in x and _const(s.get("blocks", {}).get(x) or {}) is not None:
                 item["const"] = _const(s["blocks"][x])
             out.append(item)
@@ -553,12 +555,30 @@ def key_of(d):
     return f"v{VERSION}:{rm}:{overrides.mtime(d)}"
 
 
+_LOADED = {}
+
+
 def load(d):
+    """배운 것.  L42 — 파일이 그대로면 다시 읽지 않는다 (19VA 는 수 MB 이고 그룹 시험 · 목록이 누를 때마다 읽었다).
+    돌려준 것은 함께 쓰는 객체다 — 고치지 말 것 (고칠 곳은 사본을 만든다)."""
     import json
+    p = d / FILE
     try:
-        return json.loads((d / FILE).read_text(encoding="utf-8"))
+        st = p.stat()
+    except OSError:
+        return None
+    sig = (st.st_mtime_ns, st.st_size)
+    hit = _LOADED.get(str(p))
+    if hit and hit[0] == sig:
+        return hit[1]
+    try:
+        obj = json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
+    if len(_LOADED) > 6:
+        _LOADED.clear()
+    _LOADED[str(p)] = (sig, obj)
+    return obj
 
 
 def load_error(d):

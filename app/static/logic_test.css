@@ -124,3 +124,18 @@ tr.det td { background: #fbfcff; padding: 0 8px 12px 38px; }
 /* hotfix101 — 학습이 멈췄을 때 */
 .gt-learn.failed { background: #fdecea; border-color: #e8a29b; color: #8a1f17; }
 .gt-learn .lr { margin-top: 6px; color: #5b2420; }
+
+/* L42 — 어느 시트 어느 행 */
+a.loc { color: #1d4ed8; font-weight: 700; text-decoration: none; border-bottom: 1px dotted #93a4d6; white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; }
+a.loc:hover { background: #e8eefc; border-radius: 3px; }
+td.loc-c { white-space: nowrap; }
+.sigs { display: flex; flex-wrap: wrap; gap: 3px 6px; margin-top: 4px; }
+.sigs .sg { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; background: #f4f6fb; border: 1px solid #e1e6f0; border-radius: 10px; padding: 0 7px 0 2px; max-width: 420px; }
+.sigs .sg em { font-style: normal; color: #4a5263; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.sigs .sg i { font-style: normal; font-weight: 700; color: #fff; background: #2563eb; border-radius: 8px; padding: 0 5px; font-size: 10.5px; }
+.sigs .sg i.v0 { background: #6b7280; }
+.sigs .sg.key { border-color: #f59e0b; background: #fff7e6; }
+.sigs .sg.gap em { color: #9a6b00; }
+.understand .u .vb { display: inline-block; min-width: 15px; text-align: center; color: #fff; background: var(--blue); border-radius: 8px; font-size: 10.5px; padding: 0 4px; margin-right: 2px; }
+.understand .u .vb.v0 { background: #6b7280; color: #fff; }
+table.ck td:nth-child(2), table.ck td:nth-child(3), table.ck td:nth-child(6), table.ck td:nth-child(7) { white-space: nowrap; }
