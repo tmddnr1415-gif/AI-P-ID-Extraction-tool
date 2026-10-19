@@ -7,7 +7,7 @@
  */
 (() => {
 "use strict";
-const T = 32, W = 56, H = 32;               // 칸 크기 · 지도 칸 수 (서버 MAP_W/MAP_H 와 같다)
+const T = 32, W = 64, H = 44;               // 칸 크기 · 지도 칸 수 (서버 MAP_W/MAP_H 와 같다)
 const STEP_MS = 190;                        // 한 칸 걷는 시간
 const PX = 2;                               // 캐릭터 한 점 = 2px
 const ATK_MS = 280, HIT_MS = 520;          // 휘두르기 · 맞은 표시 시간
@@ -23,24 +23,41 @@ function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
   return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function hash(s) { let h = 2166136261; for (const ch of String(s)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 
-// ── 지도: 부여성 남쪽 — 주황 흙마당 · 생울타리 두른 잔디 · 남문과 성벽 ───────────
-const DIRT = 0, LAWN = 1, PAVE = 2, WATER = 3;
+// ── 지도: 조선 마을 (2026-10-19) — 북쪽 관아 · 서쪽 주거 · 가운데 광장 · 동쪽 시장 · 북동 연못 · 남쪽 성문, 둘레는 숲 ─────────
+// 땅 종류만 칸마다 정하고(이동 · 충돌은 칸 단위), 그림은 buildWorld 가 한 번 그린다.
+const DIRT = 0, LAWN = 1, PAVE = 2, WATER = 3, MOSS = 4;
 const ground = new Uint8Array(W * H), solid = new Uint8Array(W * H);
 const at = (x, y) => y * W + x;
 const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 function fill(t, x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inside(x, y)) ground[at(x, y)] = t; }
+function oval(t, cx, cy, rx, ry) { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++)
+  if (inside(x, y) && ((x + .5 - cx) / rx) ** 2 + ((y + .5 - cy) / ry) ** 2 <= 1) ground[at(x, y)] = t; }
 function block(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inside(x, y)) solid[at(x, y)] = 1; }
-const props = [];                           // {x, y(바닥 px), img}
+function unblock(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inside(x, y)) solid[at(x, y)] = 0; }
+const props = [];                           // {img, x, y(바닥 px), z(정렬), fade(뒤에 서면 반투명)}
 
-fill(LAWN, 1, 1, 21, 10);                   // 왼쪽 위 큰 잔디밭
-fill(LAWN, 33, 1, 54, 8);                   // 오른쪽 위 (민가)
-fill(LAWN, 1, 13, 9, 21);                   // 왼쪽 가운데
-fill(LAWN, 44, 12, 54, 25); fill(DIRT, 47, 16, 51, 22);   // 오른쪽 — 가운데가 빈 잔디 테
-fill(WATER, 48, 17, 50, 21); block(48, 17, 50, 21);       // 2026-10-19 그 안에 연못 (마을 시트처럼)
-fill(LAWN, 27, 17, 28, 18);                 // 마당 가운데 작은 화단
-fill(LAWN, 1, 24, 13, 28);                  // 왼쪽 아래
-fill(PAVE, 25, 23, 30, 28);                 // 남문 앞 돌길
-block(0, 0, W - 1, 0); block(0, 0, 0, H - 1); block(W - 1, 0, W - 1, H - 1);   // 지도 가장자리
+fill(LAWN, 0, 0, W - 1, H - 1);             // 바탕은 풀
+// 길 — 관아(북) → 광장 → 성문(남) 큰길, 광장에서 서쪽(주거) · 동쪽(시장)
+fill(PAVE, 26, 10, 37, 13);                 // 관아 앞 돌판 마당
+fill(DIRT, 29, 13, 34, 16);
+oval(DIRT, 31.5, 21.5, 10.5, 7);            // 가운데 광장 (흙)
+oval(LAWN, 31.5, 20.6, 2.6, 2);             // 당산나무 둘레 풀
+fill(PAVE, 29, 28, 34, 37);                 // 성문 가는 돌길
+fill(MOSS, 26, 36, 37, 37);                 // 성문 앞 이끼 낀 돌
+fill(DIRT, 3, 20, 22, 23);                  // 서쪽 길
+fill(DIRT, 11, 4, 13, 36);                  // 주거 골목 (남북)
+fill(DIRT, 3, 12, 10, 14); fill(DIRT, 14, 12, 20, 13);   // 집 앞마당
+fill(DIRT, 2, 31, 10, 33); fill(DIRT, 14, 31, 20, 32);
+fill(DIRT, 41, 20, 59, 23);                 // 동쪽 길
+fill(DIRT, 43, 24, 59, 34);                 // 시장 마당
+fill(DIRT, 51, 12, 53, 19);                 // 연못 가는 길
+oval(WATER, 47, 8.6, 3.8, 3.6); oval(WATER, 56.6, 8.6, 3.2, 3.4); fill(WATER, 49, 8, 55, 10);   // 연못 두 개 + 잇는 물길
+fill(DIRT, 51, 5, 53, 7);                   // 다리 건너 정자 앞
+fill(LAWN, 0, 41, W - 1, H - 1);            // 성 밖
+
+block(0, 0, W - 1, 1); block(0, 0, 1, H - 1); block(W - 2, 0, W - 1, H - 1); block(0, 38, W - 1, H - 1);   // 둘레 숲 · 성벽 너머
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (ground[at(x, y)] === WATER) block(x, y, x, y);
+unblock(51, 8, 53, 10);                     // 물길 위 나무다리
 
 // ── 그림 도구 ───────────────────────────────────────────────────────────
 function canvas(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
@@ -91,202 +108,228 @@ function pixelize(src) {
   return out;
 }
 
-// ── 땅 (한 번 그린다) ────────────────────────────────────────────────────
+// ── 마을 그림 (2026-10-19) ───────────────────────────────────────────────
+// 캐릭터: 사용자가 준 '마을' 시트에서 뽑은 static/village_chars.png
+// 배경: 사용자가 준 '조선 마을 타일셋'에서 뽑은 static/joseon.png — 덩어리(배경으로 떨어진 그림)마다 그 덩어리의 픽셀만 썼고
+//       땅 타일은 덩어리 안쪽만 (경계 추측 없음).  배경 투명 · 그림 한 칸 = 원래 도트 한 점 · 화면엔 PX 배 (흐리지 않게)
+// 기준점: [x, y, w, h, 가운데 x, 발바닥 y] — 그림 안 점 단위
+const CHR_FR = {"cat_d0":[0,0,22,30,10.7,29],"cat_d1":[23,0,21,29,9.8,28],"cat_d2":[45,0,22,29,10.3,27],"cat_d3":[68,0,21,29,9.5,28],"cat_s0":[90,0,22,29,10.3,28],"cat_s1":[113,0,20,29,9.9,27],"cat_a":[134,0,37,28,13.9,26],"panda_d0":[172,0,19,30,8.7,29],"panda_d1":[192,0,20,29,9.4,28],"panda_s0":[213,0,21,28,10.4,27],"panda_s1":[235,0,20,29,9.8,28],"panda_a":[256,0,30,30,11.3,29],"lion_d0":[287,0,23,30,10.9,29],"lion_d1":[311,0,22,30,10.8,28],"lion_d2":[334,0,22,30,10.0,29],"lion_d3":[357,0,20,29,9.2,28],"lion_s0":[378,0,22,30,10.3,29],"lion_s1":[401,0,22,28,10.5,27],"lion_a":[424,0,46,33,16.9,32],"tiger_d0":[471,0,22,28,10.3,27],"tiger_d1":[0,34,20,28,9.0,27],"tiger_a":[21,34,48,29,25.6,28],"nobi_d0":[70,34,20,26,8.5,24],"nobi_d1":[91,34,19,28,9.2,27],"nobi_s0":[111,34,21,26,10.0,24],"nobi_s1":[133,34,20,26,8.9,25],"nobi_s2":[154,34,20,26,9.1,24],"nobi_s3":[175,34,18,26,8.0,24],"p_cat":[194,34,64,90,33.4,89],"p_panda":[259,34,58,88,28.9,86],"p_lion":[318,34,66,91,32.4,90],"p_tiger":[385,34,63,88,30.5,87],"p_nobi":[449,34,57,72,27.3,71]};
+const JOS_FR = {"dirt":[574,91,40,40,20.0,40],"dirt2":[958,91,36,32,18.0,32],"grass":[615,91,36,40,18.0,40],"grass2":[51,143,36,30,18.0,30],"grass3":[652,91,38,40,19.0,40],"pave":[691,91,40,40,20.0,40],"moss":[732,91,38,38,19.0,38],"water":[482,176,28,13,14.0,13],"bush1":[23,143,27,31,13.5,31],"bush2":[879,91,30,34,15.0,34],"bush3":[910,91,30,34,15.0,34],"patch1":[657,143,30,22,15.0,22],"patch2":[885,143,22,21,11.0,21],"patch3":[294,176,22,18,11.0,18],"bushR":[908,143,23,21,11.5,21],"flowY":[999,143,23,20,11.5,20],"flowW":[932,143,27,21,13.5,21],"flowP":[0,176,24,20,12.0,20],"flowP2":[25,176,22,20,11.0,20],"sap1":[454,143,20,24,10.0,24],"sap2":[638,143,18,23,9.0,23],"sap3":[688,143,18,22,9.0,22],"sap4":[48,176,17,20,8.5,20],"clump":[66,176,28,20,14.0,20],"cherry1":[580,0,44,58,22.0,58],"cherry2":[183,91,37,47,18.5,47],"cherry3":[707,143,16,22,8.0,22],"cherry4":[822,0,42,53,21.0,53],"pine":[724,0,31,56,15.5,56],"tree1":[625,0,42,58,21.0,58],"bigtree":[668,0,55,58,27.5,58],"tree2":[349,91,36,44,18.0,44],"lantern":[278,143,14,26,7.0,26],"fenceP":[138,143,34,29,17.0,29],"rocks1":[95,176,28,20,14.0,20],"rocks2":[124,176,24,20,12.0,20],"treeS1":[225,143,22,27,11.0,27],"treeS2":[293,143,18,26,9.0,26],"treeS3":[149,176,18,20,9.0,20],"pinkbush":[511,176,16,13,8.0,13],"stump":[435,176,18,14,9.0,14],"tuft1":[545,176,14,11,7.0,11],"tuft2":[454,176,14,14,7.0,14],"tuft3":[528,176,16,12,8.0,12],"fl1":[415,176,19,15,9.5,15],"fl2":[383,176,13,16,6.5,16],"fl3":[397,176,17,16,8.5,16],"well":[832,91,36,36,18.0,36],"post":[869,91,9,36,4.5,36],"lanternW":[475,143,12,24,6.0,24],"stall1":[474,91,46,42,23.0,42],"potstall":[88,143,22,30,11.0,30],"stall2":[111,143,26,30,13.0,30],"banner1":[995,91,13,32,6.5,32],"barrel":[168,176,14,20,7.0,20],"fence1":[407,143,46,25,23.0,25],"fence2":[312,143,38,26,19.0,26],"swall1":[183,176,58,20,29.0,20],"bucket":[469,176,12,14,6.0,14],"bushtree":[192,143,32,28,16.0,28],"shelf":[0,143,22,32,11.0,32],"barrels":[269,176,24,19,12.0,19],"table":[724,143,36,22,18.0,22],"vegstall":[248,143,29,27,14.5,27],"rack":[173,143,18,29,9.0,29],"swall2":[960,143,20,21,10.0,21],"swall3":[242,176,26,20,13.0,20],"swall4":[761,143,38,22,19.0,22],"swall5":[800,143,41,22,20.5,22],"cart":[488,143,28,24,14.0,24],"tub":[981,143,17,21,8.5,21],"crates":[842,143,28,22,14.0,22],"bannerR":[351,143,16,26,8.0,26],"bannerB":[941,91,16,33,8.0,33],"house1":[350,0,108,68,54.0,68],"house2":[459,0,59,68,29.5,68],"house3":[265,0,84,69,42.0,69],"house4":[880,0,86,52,43.0,52],"house5":[0,91,40,51,20.0,51],"pole":[865,0,14,53,7.0,53],"bannerW":[386,91,14,44,7.0,44],"pondbr":[0,0,74,90,37.0,90],"rockbush":[517,143,45,24,22.5,24],"pine2":[204,0,60,73,30.0,73],"barrel2":[366,176,16,17,8.0,17],"rockwater":[221,91,34,46,17.0,46],"stall3":[521,91,52,41,26.0,41],"lantern2":[563,143,12,24,6.0,24],"lanternR":[871,143,13,22,6.5,22],"steps":[771,91,60,38,30.0,38],"hall":[75,0,128,82,64.0,82],"bannerP":[756,0,18,56,9.0,56],"wallroof":[41,91,106,50,53.0,50],"wallseg":[148,91,34,50,17.0,50],"bannerP2":[775,0,16,54,8.0,54],"bridge":[256,91,92,46,46.0,46],"stream":[519,0,60,68,30.0,68],"tree3":[967,0,32,52,16.0,52],"bamboo":[317,176,48,18,24.0,18],"jars":[576,143,61,24,30.5,24],"bushrock":[368,143,38,26,19.0,26],"wallpill":[792,0,29,54,14.5,54],"gatewall":[401,91,72,44,36.0,44]};
+const JOS = { data: null, ready: false }, CHR = { data: null, ready: false };
+function loadAtlas(o, src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { const c = canvas(im.width, im.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+      o.data = g.getImageData(0, 0, im.width, im.height); o.ready = true; res(); };
+    im.onerror = () => res();                 // 못 받으면 그림 없이 땅 색만
+    im.src = src;
+  });
+}
+function atlasSprite(A, FR, name, mirror, scale = PX) {   // 한 칸 → scale 배 (뒤집기) · canvas.cx · canvas.foot (px)
+  const key = `${A === JOS ? "j" : "c"}|${name}|${mirror ? 1 : 0}|${scale}`; if (spriteCache.has(key)) return spriteCache.get(key);
+  const [fx, fy, fw, fh, cx, foot] = FR[name], src = A.data, small = new ImageData(fw, fh);
+  for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+    const si = ((fy + y) * src.width + fx + x) * 4; if (src.data[si + 3] < 128) continue;
+    const di = (y * fw + (mirror ? fw - 1 - x : x)) * 4;
+    small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255;
+  }
+  const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0);
+  const c = canvas(fw * scale, fh * scale), g = c.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(s1, 0, 0, c.width, c.height);
+  c.cx = (mirror ? fw - cx : cx) * scale; c.foot = foot * scale;
+  spriteCache.set(key, c); return c;
+}
+const js = (name, mirror) => atlasSprite(JOS, JOS_FR, name, mirror);
+
+// 값 잡음 (부드러운 난수 면) — 땅 경계를 일렁이게 · 풀 무늬를 섞는 데 씀
+function vnoise(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const v = (a, b) => (hash(`${a},${b},${seed}`) & 1023) / 1023;
+  return (v(xi, yi) * (1 - sx) + v(xi + 1, yi) * sx) * (1 - sy) + (v(xi, yi + 1) * (1 - sx) + v(xi + 1, yi + 1) * sx) * sy;
+}
+
+// ── 땅 (한 번 그린다 — 점 해상도로 칠한 뒤 PX 배) ─────────────────────────
 const groundImg = canvas(W * T, H * T);
 function drawGround() {
-  const g = groundImg.getContext("2d"), r = rng(7);
-  if (VIL.ready) return drawGroundVil(g);
-  const isLawn = (x, y) => inside(x, y) && ground[at(x, y)] === LAWN;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const t = ground[at(x, y)], X = x * T, Y = y * T;
-    if (t === DIRT) {
-      g.fillStyle = "#c8834a"; g.fillRect(X, Y, T, T);
-      for (let i = 0; i < 26; i++) { const v = r(); g.fillStyle = v < .4 ? "#b9743c" : v < .75 ? "#d2925a" : "#a9672f";
-        g.fillRect(X + Math.floor(r() * 16) * 2, Y + Math.floor(r() * 16) * 2, 2, 2); }
-    } else if (t === LAWN) {
-      g.fillStyle = "#8d9a4f"; g.fillRect(X, Y, T, T);
-      for (let i = 0; i < 30; i++) { const v = r(); g.fillStyle = v < .45 ? "#7b8a42" : v < .8 ? "#9ba85a" : "#6c7a39";
-        g.fillRect(X + Math.floor(r() * 16) * 2, Y + Math.floor(r() * 16) * 2, 2, 2); }
-    } else if (t === WATER) {
-      g.fillStyle = "#3d7393"; g.fillRect(X, Y, T, T); g.fillStyle = "#5d93ad"; g.fillRect(X + 4, Y + 6, 10, 2); g.fillRect(X + 18, Y + 20, 8, 2);
-    } else if (t === PAVE) {
-      g.fillStyle = "#b39a7c"; g.fillRect(X, Y, T, T);
-      g.fillStyle = "#937b5f"; g.fillRect(X, Y, T, 2); g.fillRect(X, Y, 2, T); g.fillRect(X + (y % 2 ? 16 : 0), Y + 16, 2, 16); g.fillRect(X, Y + 16, T, 2);
-      g.fillStyle = "#c7b091"; g.fillRect(X + 3, Y + 3, 10, 2);
+  const g = groundImg.getContext("2d"), TP = T / PX, AW = W * TP, AH = H * TP;   // TP = 한 칸의 점 수 (16)
+  const img = new ImageData(AW, AH), D = img.data, tmap = new Uint8Array(AW * AH);
+  const tile = (ax, ay) => { const x = Math.min(W - 1, Math.max(0, Math.floor(ax / TP))), y = Math.min(H - 1, Math.max(0, Math.floor(ay / TP))); return ground[at(x, y)]; };
+  // 1) 점마다 땅 종류 — 흙 · 풀 · 물 경계는 잡음으로 일렁이게 (돌판은 반듯하게)
+  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
+    let t = tile(x, y);
+    if (t !== PAVE && t !== MOSS) {
+      const jx = (vnoise(x / 7, y / 7, 1) - .5) * 11, jy = (vnoise(x / 7, y / 7, 2) - .5) * 11, t2 = tile(x + jx, y + jy);
+      if (t2 !== PAVE && t2 !== MOSS) t = t2;
+    }
+    tmap[y * AW + x] = t;
+  }
+  // 2) 색 — 시트 타일을 거울처럼 뒤집어 이어 깜 (이음매 없음) · 풀은 세 가지를 잡음으로 섞어 넓은 단색 · 되풀이 무늬를 줄임
+  const TX = {}, tex = n => TX[n] || (TX[n] = JOS_FR[n]);
+  const refl = (u, n) => { const p = ((u % (2 * n)) + 2 * n) % (2 * n); return p < n ? p : 2 * n - 1 - p; };
+  const pick = (t, x, y) => {
+    if (t === LAWN) { const v = vnoise(x / 46, y / 46, 3); return v < .62 ? "grass" : v < .82 ? "grass2" : "grass3"; }
+    if (t === DIRT) return vnoise(x / 38, y / 38, 4) < .55 ? "dirt" : "dirt2";
+    return t === PAVE ? "pave" : t === MOSS ? "moss" : "water";
+  };
+  // 칸(16점)마다 타일의 다른 자리를 떼어 쓰고 뒤집기도 칸마다 달리 — 같은 무늬가 규칙적으로 되풀이되지 않음 (점은 늘이지 않아 선명)
+  // 물은 시트 연못의 밝은 청록 4 색을 잡음으로 섞고 가끔 물결
+  const A = JOS.data, WC = [[52, 138, 176], [62, 152, 188], [44, 122, 162], [98, 180, 208]];
+  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
+    const t = tmap[y * AW + x], di = (y * AW + x) * 4;
+    if (t === WATER) {
+      const v = vnoise(x / 4, y / 3, 9), c = WC[v < .45 ? 0 : v < .75 ? 1 : v < .93 ? 2 : 3];
+      const wave = Math.sin(x / 4 + vnoise(x / 24, y / 24, 8) * 10) > .9 && (hash(`w${x >> 3},${y}`) % 9 === 0);
+      D[di] = wave ? 196 : c[0]; D[di + 1] = wave ? 232 : c[1]; D[di + 2] = wave ? 240 : c[2]; D[di + 3] = 255; continue;
+    }
+    const [fx, fy, fw, fh] = tex(pick(t, x, y)), cx = Math.floor(x / TP), cy = Math.floor(y / TP), hc = hash(`c${cx},${cy},${t}`);
+    const ou = hc % (fw - TP + 1), ov = (hc >>> 8) % (fh - TP + 1), ru = x - cx * TP, rv = y - cy * TP;   // 이 칸이 쓸 타일 조각 (16×16) 의 자리
+    const u = ou + (hc & 0x10000 ? TP - 1 - ru : ru), w = ov + (hc & 0x20000 ? TP - 1 - rv : rv);       // 좌우 · 위아래 뒤집기
+    const si = ((fy + Math.max(0, Math.min(fh - 1, w))) * A.width + fx + Math.max(0, Math.min(fw - 1, u))) * 4;
+    D[di] = A.data[si]; D[di + 1] = A.data[si + 1]; D[di + 2] = A.data[si + 2]; D[di + 3] = 255;
+  }
+  // 3) 경계 그늘 · 물가 — 풀이 흙 · 돌을 만나는 곳은 풀 끝을 어둡게, 물가는 돌 · 짙은 물
+  const tAt = (x, y) => x < 0 || y < 0 || x >= AW || y >= AH ? LAWN : tmap[y * AW + x];
+  const mul = (di, k) => { D[di] *= k; D[di + 1] *= k; D[di + 2] *= k; };
+  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
+    const t = tmap[y * AW + x], di = (y * AW + x) * 4;
+    if (t === LAWN && (tAt(x, y + 1) !== LAWN || tAt(x + 1, y) !== LAWN || tAt(x - 1, y) !== LAWN || tAt(x, y - 1) !== LAWN) && tAt(x, y + 1) !== WATER) mul(di, .72);
+    else if (t === DIRT && (tAt(x, y - 1) === LAWN || tAt(x, y - 2) === LAWN)) mul(di, .88);     // 풀 아래 흙에 그늘
+    else if (t === WATER) {
+      let near = 9; for (let r = 1; r <= 2 && near > 8; r++) if (tAt(x - r, y) !== WATER || tAt(x + r, y) !== WATER || tAt(x, y - r) !== WATER || tAt(x, y + r) !== WATER) near = r;
+      if (near === 1) { const v = hash(`s${x >> 1},${y >> 1}`) % 3; D[di] = [138, 132, 118][v]; D[di + 1] = [136, 128, 112][v]; D[di + 2] = [126, 118, 104][v]; }   // 물가 돌
+      else if (near === 2) mul(di, .7);
     }
   }
-  // 생울타리 — 잔디밭 바깥 둘레에 짙은 덤불 띠 (부여성 남쪽처럼)
-  const hedge = ["#3e5524", "#4b6629", "#5a7a31", "#6d8a3a"];
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (!isLawn(x, y)) continue;
-    const X = x * T, Y = y * T;
-    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-      if (isLawn(x + dx, y + dy) || !inside(x + dx, y + dy)) continue;
-      const bx = dx > 0 ? X + T - 12 : X, by = dy > 0 ? Y + T - 12 : Y, bw = dx ? 12 : T, bh = dy ? 12 : T;
-      g.fillStyle = "rgba(60,30,10,.35)";                                    // 흙 쪽 그늘
-      if (dy > 0) g.fillRect(X, Y + T, T, 3); if (dx > 0) g.fillRect(X + T, Y, 3, T);
-      g.fillStyle = hedge[0]; g.fillRect(bx, by, bw, bh);
-      for (let i = 0; i < 14; i++) {
-        const cx = bx + 2 + r() * (bw - 4), cy = by + 2 + r() * (bh - 4), rr = 3 + r() * 3;
-        ell(g, cx, cy, rr, rr * .85, hedge[1 + Math.floor(r() * 3)]);
-      }
-      for (let i = 0; i < 5; i++) { g.fillStyle = "#86a548"; g.fillRect(Math.round(bx + r() * (bw - 2)), Math.round(by + r() * (bh - 2)), 2, 2); }
-    }
+  g.imageSmoothingEnabled = false;
+  const s1 = canvas(AW, AH); s1.getContext("2d").putImageData(img, 0, 0); g.drawImage(s1, 0, 0, W * T, H * T);
+  // 4) 흩뿌림 — 풀포기 · 작은 꽃 · 흙자국 · 연잎 (밟고 지나가는 땅 그림)
+  const r = rng(21), grassOK = (x, y) => inside(x, y) && ground[at(x, y)] === LAWN && !solid[at(x, y)];
+  for (let i = 0; i < 520; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H), v = r();
+    if (!grassOK(x, y)) continue;
+    const n = v < .35 ? ["tuft1", "tuft2", "tuft3"][i % 3] : v < .62 ? ["fl1", "fl2", "fl3"][i % 3] : v < .7 ? ["patch1", "patch2", "patch3"][i % 3] : v < .86 ? ["flowY", "flowW", "flowP", "flowP2"][i % 4] : "clump";
+    const s = js(n, i & 1); g.drawImage(s, Math.round(x * T + r() * 12 - s.width / 2 + 16), Math.round(y * T + 28 - s.height + r() * 6));
   }
-  // 마른 풀포기 · 자갈 (흙마당)
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 900; i++) {            // 흙 · 돌판 위 자갈 (1~2 점)
+    const x = Math.floor(r() * W), y = Math.floor(r() * H), t = inside(x, y) && ground[at(x, y)];
+    if (t !== DIRT && t !== PAVE) continue;
+    const X = x * T + Math.floor(r() * 15) * 2, Y = y * T + Math.floor(r() * 15) * 2, v = r();
+    g.fillStyle = v < .5 ? "#9c8466" : v < .8 ? "#c9b08a" : "#7d6a52"; g.fillRect(X, Y, 2 + (v < .3 ? 2 : 0), 2); g.fillStyle = "rgba(60,40,20,.35)"; g.fillRect(X, Y + 2, 2, 2);
+  }
+  for (let i = 0; i < 160; i++) {            // 흙길 가장자리 풀포기
     const x = Math.floor(r() * W), y = Math.floor(r() * H);
-    if (ground[at(x, y)] !== DIRT) continue;
-    const X = x * T + 6 + Math.floor(r() * 10) * 2, Y = y * T + 8 + Math.floor(r() * 8) * 2;
-    if (r() < .7) {
-      const c = r() < .5 ? "#8a5a2c" : "#7d7a3c";
-      g.fillStyle = c; g.fillRect(X, Y, 2, 6); g.fillRect(X - 4, Y - 2, 2, 4); g.fillRect(X - 2, Y + 1, 2, 2);
-      g.fillRect(X + 4, Y - 3, 2, 4); g.fillRect(X + 2, Y, 2, 2); g.fillRect(X - 6, Y + 2, 2, 2);
-      g.fillStyle = shade(c, .25); g.fillRect(X, Y, 2, 2); g.fillRect(X + 4, Y - 3, 2, 2);
-    } else { g.fillStyle = "#9c8a72"; g.fillRect(X, Y, 4, 3); g.fillStyle = "#c2ae93"; g.fillRect(X, Y, 2, 1); }
+    if (!inside(x, y) || ground[at(x, y)] !== DIRT || ![[0, 1], [0, -1], [1, 0], [-1, 0]].some(([a, b]) => inside(x + a, y + b) && ground[at(x + a, y + b)] === LAWN)) continue;
+    const s2 = js(["tuft1", "tuft2", "tuft3"][i % 3], i & 1); g.drawImage(s2, Math.round(x * T + r() * 16), Math.round(y * T + r() * 12));
   }
-  // 땅도 2px 한 점으로 (생울타리의 둥근 덤불이 점 덩어리가 됨) · 생울타리 둘레에 짙은 선
-  const sw = W * T / PX, sh = H * T / PX, s = canvas(sw, sh), sg = s.getContext("2d");
-  sg.imageSmoothingEnabled = true; sg.imageSmoothingQuality = "high"; sg.drawImage(groundImg, 0, 0, sw, sh);
-  g.imageSmoothingEnabled = false; g.clearRect(0, 0, W * T, H * T); g.drawImage(s, 0, 0, W * T, H * T);
-  g.fillStyle = "#26341a";
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (!isLawn(x, y)) continue;
-    const X = x * T, Y = y * T;
-    if (inside(x, y + 1) && !isLawn(x, y + 1)) g.fillRect(X, Y + T - 2, T, 2);
-    if (inside(x, y - 1) && !isLawn(x, y - 1)) g.fillRect(X, Y, T, 2);
-    if (inside(x - 1, y) && !isLawn(x - 1, y)) g.fillRect(X, Y, 2, T);
-    if (inside(x + 1, y) && !isLawn(x + 1, y)) g.fillRect(X + T - 2, Y, 2, T);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (ground[at(x, y)] === WATER && hash(`l${x},${y}`) % 4 === 0) {   // 연잎
+    const X = x * T + 6 + hash(`a${x},${y}`) % 14, Y = y * T + 6 + hash(`b${x},${y}`) % 14;
+    g.fillStyle = "#1f3a1c"; g.fillRect(X - 2, Y - 2, 14, 10); g.fillStyle = "#4f8a34"; g.fillRect(X, Y, 10, 6); g.fillStyle = "#79b04a"; g.fillRect(X + 2, Y, 4, 2);
+    if (hash(`f${x},${y}`) % 3 === 0) { g.fillStyle = "#f2a2c0"; g.fillRect(X + 6, Y - 2, 4, 4); g.fillStyle = "#fff0f6"; g.fillRect(X + 6, Y - 2, 2, 2); }
   }
+}
+function drawGroundPlain() {                // 그림 파일을 못 받았을 때 — 땅 색만
+  const g = groundImg.getContext("2d"), C = { [DIRT]: "#c8a060", [LAWN]: "#6f9a3c", [PAVE]: "#b8ad94", [WATER]: "#3d7393", [MOSS]: "#7e8460" };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { g.fillStyle = C[ground[at(x, y)]]; g.fillRect(x * T, y * T, T, T); }
 }
 
-// ── 소품 그림 ──────────────────────────────────────────────────────────
-function treeImg(seed, big) {               // 바랜 올리브빛 나무 (부여성 잔디밭의 나무)
-  const r = rng(seed), w = big ? 120 : 76, h = big ? 136 : 92, [c, g, sg] = layers(w, h), cx = w / 2;
-  ell(sg, cx + 6, h - 6, big ? 40 : 24, big ? 10 : 7, "#000");
-  g.fillStyle = "#5e4428"; g.fillRect(cx - (big ? 7 : 4), h - (big ? 50 : 34), big ? 14 : 8, big ? 46 : 30);
-  g.fillStyle = "#4a331d"; g.fillRect(cx - (big ? 7 : 4), h - (big ? 50 : 34), 3, big ? 46 : 30);
-  g.strokeStyle = "#5e4428"; g.lineWidth = big ? 4 : 3;                    // 뻗은 가지
-  for (let i = 0; i < (big ? 5 : 3); i++) { g.beginPath(); g.moveTo(cx, h - (big ? 44 : 30));
-    g.lineTo(cx + (r() - .5) * w * .7, h - (big ? 70 : 48) - r() * 20); g.stroke(); }
-  const pal = ["#4f5f2c", "#62733a", "#7b8b49", "#93a25a"], blobs = big ? 18 : 10, cy = big ? 48 : 34, sr = big ? 46 : 28;
-  for (let k = 0; k < 4; k++) for (let i = 0; i < blobs; i++) {
-    const a = r() * Math.PI * 2, d = r() * sr * (1 - k * .22);
-    ell(g, cx + Math.cos(a) * d, cy + Math.sin(a) * d * .6 - k * 3, (big ? 15 : 9) - k + r() * 4, ((big ? 15 : 9) - k + r() * 4) * .8, pal[k]);
-  }
-  if (big) { g.fillStyle = "#e8d7a0"; g.fillRect(cx - 9, h - 28, 18, 3);       // 당산나무 금줄
-    for (let i = 0; i < 4; i++) { g.fillStyle = "#ffffff"; g.fillRect(cx - 7 + i * 4, h - 25, 2, 6); } }
-  return pixelize(c);
+// ── 장독대 — 시트에 없어 같은 화풍(2px 점 · 짙은 외곽선 · 3단 음영)으로 그림 ─────────────────
+function jangdokImg() {
+  const w = 34, h = 22, c = canvas(w, h), g = c.getContext("2d");
+  const px = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y, ww, hh); };
+  px(1, 14, 32, 7, "#8d8778"); px(1, 14, 32, 1, "#b3ad9c"); px(1, 20, 32, 1, "#5f5a4e");          // 돌 단
+  for (let x = 3; x < 32; x += 6) px(x, 16, 1, 3, "#6e695c");
+  const jar = (x, y, r, hh) => {                // 옹기 — 몸통 · 빛 · 뚜껑
+    for (let j = 0; j < hh; j++) { const k = Math.round(r * Math.sin(Math.PI * (j + .5) / hh) + 1); px(x - k, y + j, k * 2, 1, j < hh * .35 ? "#7a4a2a" : "#5a3420"); }
+    px(x - 2, y + 1, 1, Math.max(1, hh - 4), "#a8703e"); px(x - r + 1, y - 2, (r - 1) * 2, 2, "#3e2416"); px(x - 1, y - 3, 2, 1, "#5a3420");
+  };
+  jar(7, 7, 4, 9); jar(16, 4, 5, 11); jar(26, 7, 4, 9); jar(11, 10, 3, 6); jar(22, 10, 3, 6);
+  const d = g.getImageData(0, 0, w, h), o = new Uint8ClampedArray(d.data);   // 외곽선
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (d.data[i + 3]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const xx = x + a, yy = y + b; return xx >= 0 && yy >= 0 && xx < w && yy < h && d.data[(yy * w + xx) * 4 + 3]; })) { o[i] = 27; o[i + 1] = 18; o[i + 2] = 14; o[i + 3] = 255; } }
+  g.putImageData(new ImageData(o, w, h), 0, 0);
+  const big = canvas(w * PX, h * PX), bg = big.getContext("2d"); bg.imageSmoothingEnabled = false; bg.drawImage(c, 0, 0, big.width, big.height);
+  return big;
 }
 
-function roof(g, x, y, w, h, col) {         // 기와 지붕 — 처마 끝이 올라간다
-  g.fillStyle = col; g.beginPath();
-  g.moveTo(x - 14, y + h - 16); g.quadraticCurveTo(x + 2, y + h + 2, x + 26, y + h);
-  g.lineTo(x + w - 26, y + h); g.quadraticCurveTo(x + w - 2, y + h + 2, x + w + 14, y + h - 16);
-  g.lineTo(x + w - 20, y + 12); g.lineTo(x + 20, y + 12); g.closePath(); g.fill();
-  g.save(); g.clip();
-  g.fillStyle = shade(col, -.25); for (let i = x - 14; i < x + w + 14; i += 6) g.fillRect(i, y + 12, 2, h);
-  g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(x - 14, y + 12, w + 28, 10);
-  g.restore();
-  g.fillStyle = shade(col, -.45); g.fillRect(x + 14, y + 4, w - 28, 10);         // 용마루
-  g.beginPath(); g.moveTo(x + 14, y + 14); g.quadraticCurveTo(x + 4, y + 10, x + 6, y - 2); g.lineTo(x + 16, y + 4); g.fill();
-  g.beginPath(); g.moveTo(x + w - 14, y + 14); g.quadraticCurveTo(x + w - 4, y + 10, x + w - 6, y - 2); g.lineTo(x + w - 16, y + 4); g.fill();
-  g.fillStyle = "#e2ddd0"; g.fillRect(x + 16, y + 8, w - 32, 2);
-  for (let i = x + 26; i < x + w - 26; i += 8) { ell(g, i, y + h - 1, 3, 3, shade(col, .25)); ell(g, i, y + h - 1, 1.5, 1.5, shade(col, .55)); }
-}
+// ── 소품 놓기 — buildWorld 가 그림을 받은 뒤 한 번에 만든다 ───────────────────────────────
+// put(그림, 왼쪽 칸, 바닥 칸, { fw: 차지 폭(칸), solid: 막는 칸 [x0,y0,x1,y1], fade: 뒤에 서면 반투명, flat: 땅처럼 밑에 그림, mirror })
+const PLACES = [];
+function put(name, tx, ty, opts = {}) { PLACES.push({ name, tx, ty, opts }); if (opts.solid) block(...opts.solid); }
+// 건물 — 지붕은 막지 않음(뒤로 지나가면 지붕에 가려지고 반투명해짐), 아래 벽 · 기단만 막음
+function bld(name, tx, ty, fw, rows, mirror) { put(name, tx, ty, { fw, fade: true, mirror, solid: [tx, ty - rows + 1, tx + fw - 1, ty] }); }
+// 북쪽 관아
+bld("house1", 28, 9, 7, 3);
+put("lantern", 27, 12, { solid: [27, 12, 27, 12] }); put("lantern", 36, 12, { solid: [36, 12, 36, 12] });
+put("bannerP", 26, 10, { solid: [26, 10, 26, 10] }); put("bannerP2", 37, 10, { solid: [37, 10, 37, 10] });
+// 가운데 광장 — 당산나무 · 석등 넷 · 우물 · 장승
+put("bigtree", 31, 21, { fw: 2, solid: [31, 20, 32, 21] });
+for (const [x, y] of [[24, 17], [39, 17], [24, 26], [39, 26]]) put(y < 20 ? "lantern2" : "lanternR", x, y, { solid: [x, y, x, y] });
+put("well", 36, 18, { fw: 2, solid: [36, 17, 37, 18] });
+put("@jang1", 27, 33, { solid: [27, 33, 27, 33] }); put("@jang2", 36, 33, { solid: [36, 33, 36, 33] });
+// 서쪽 주거 — 한옥 넷 · 돌담 · 울타리 · 장독대 · 우물
+bld("house3", 4, 11, 6, 3); bld("house2", 15, 11, 4, 3);
+bld("house4", 3, 30, 6, 2); bld("house5", 16, 30, 3, 2);
+put("@jang", 8, 16, { fw: 2, solid: [8, 16, 9, 16] }); put("@jang", 4, 35, { fw: 2, solid: [4, 35, 5, 35] }); put("@jang", 19, 15, { fw: 2, solid: [19, 15, 20, 15] });
+put("swall1", 3, 17, { fw: 4, solid: [3, 17, 6, 17] }); put("swall4", 14, 17, { fw: 3, solid: [14, 17, 16, 17] }); put("swall3", 18, 17, { fw: 2, solid: [18, 17, 19, 17] });
+put("swall2", 2, 26, { fw: 2, solid: [2, 26, 3, 26] }); put("swall5", 5, 26, { fw: 3, solid: [5, 26, 7, 26] }); put("swall1", 15, 26, { fw: 4, solid: [15, 26, 18, 26] });
+put("fence1", 7, 35, { fw: 3, solid: [7, 35, 9, 35] }); put("fence2", 15, 35, { fw: 3, solid: [15, 35, 17, 35] });
+put("tub", 9, 33, { solid: [9, 33, 9, 33] }); put("bucket", 19, 32, {}); put("barrel2", 20, 31, { solid: [20, 31, 20, 31] });
+put("cart", 15, 24, { fw: 2, solid: [15, 24, 16, 24] }); put("post", 10, 15, { solid: [10, 15, 10, 15] });
+// 동쪽 시장 — 좌판 두 줄 (가운데 줄은 비워 걸어 다님) · 수레 · 통 · 깃발
+put("stall1", 44, 27, { fw: 3, fade: true, solid: [44, 26, 46, 27] }); put("stall2", 48, 27, { fw: 2, solid: [48, 26, 49, 27] });
+put("stall3", 51, 27, { fw: 3, fade: true, solid: [51, 26, 53, 27] }); put("vegstall", 55, 27, { fw: 2, solid: [55, 26, 56, 27] }); put("potstall", 58, 27, { solid: [58, 26, 58, 27] });
+put("table", 44, 32, { fw: 3, solid: [44, 31, 46, 32] }); put("shelf", 48, 32, { solid: [48, 31, 48, 32] }); put("jars", 51, 32, { fw: 4, solid: [51, 32, 54, 32] });
+put("cart", 56, 32, { fw: 2, solid: [56, 32, 57, 32] }); put("barrels", 58, 32, { solid: [58, 32, 58, 32] });
+put("bannerR", 43, 24, { solid: [43, 24, 43, 24] }); put("bannerB", 59, 24, { solid: [59, 24, 59, 24] }); put("rack", 59, 30, { solid: [59, 30, 59, 30] });
+put("crates", 47, 34, { fw: 2, solid: [47, 34, 48, 34] }); put("barrel", 50, 34, { solid: [50, 34, 50, 34] }); put("stall2", 54, 34, { fw: 2, mirror: true, solid: [54, 33, 55, 34] });
+// 북동 연못 — 나무다리 · 정자 · 바위 · 대나무 울타리
+put("bridge", 50, 11, { fw: 5, flat: true });                 // 다리는 땅처럼 (위로 걸어감)
+bld("house5", 51, 5, 3, 2, true);
+for (const [n, x, y] of [["rocks1", 43, 12], ["rocks2", 45, 13], ["rockbush", 58, 13], ["bushrock", 54, 13], ["rocks1", 59, 5], ["rocks2", 42, 6]]) put(n, x, y, { fw: 2, solid: [x, y, x + 1, y] });
+put("bamboo", 44, 3, { fw: 3, solid: [44, 3, 46, 3] }); put("lanternW", 50, 13, { solid: [50, 13, 50, 13] }); put("lanternW", 54, 12, { solid: [54, 12, 54, 12] });
+// 남쪽 성문 — 기와 담장 · 문루(붉은 대문 · 깃발) · 석등
+for (const x of [0, 6, 12, 18, 22]) put("wallroof", x, 40, { fw: 6, fade: true });
+for (const x of [36, 42, 48, 54, 58]) put("wallroof", x, 40, { fw: 6, fade: true });
+put("hall", 28, 40, { fw: 8, fade: true, solid: [28, 35, 35, 40] });   // 문루 지붕 앞에서 멈춤
+put("lantern", 27, 36, { solid: [27, 36, 27, 36] }); put("lantern", 36, 36, { solid: [36, 36, 36, 36] });
 
-function houseImg(seed, wTiles, roofCol) {
-  const r = rng(seed), w = wTiles * T, h = 4 * T + 56, [c, g, sg] = layers(w + 40, h), ox = 20;
-  ell(sg, ox + w / 2, h - 8, w / 2 + 6, 10, "#000");
-  g.fillStyle = "#a8a296"; g.fillRect(ox, h - 30, w, 22);                          // 기단
-  for (let i = 0; i < w; i += 16) { g.fillStyle = (i / 16) % 2 ? "#9a9488" : "#b3ad9f"; g.fillRect(ox + i, h - 30 + ((i / 16) % 2) * 11, 16, 11); }
-  g.fillStyle = "#7d776a"; g.fillRect(ox, h - 30, w, 2);
-  const wallTop = h - 88;
-  g.fillStyle = "#efe6d0"; g.fillRect(ox + 6, wallTop, w - 12, 58);
-  const posts = Math.max(3, Math.round(w / 48));
-  for (let i = 0; i <= posts; i++) { const px = ox + 6 + Math.round((w - 18) * i / posts);
-    g.fillStyle = "#6e4527"; g.fillRect(px, wallTop - 4, 6, 62); g.fillStyle = "#5a361c"; g.fillRect(px, wallTop - 4, 2, 62); }
-  g.fillStyle = "#6e4527"; g.fillRect(ox + 6, wallTop - 6, w - 12, 6); g.fillRect(ox + 6, wallTop + 30, w - 12, 4);
-  for (let i = 0; i < posts; i++) {                                                  // 창살문
-    const x0 = ox + 14 + Math.round((w - 18) * i / posts), ww = Math.round((w - 18) / posts) - 14;
-    if (r() < .25) continue;
-    g.fillStyle = "#f6efdc"; g.fillRect(x0, wallTop + 2, ww, 26);
-    g.fillStyle = "#8b5a32";
-    for (let k = 0; k <= ww; k += 6) g.fillRect(x0 + k, wallTop + 2, 1, 26);
-    for (let k = 0; k <= 26; k += 6) g.fillRect(x0, wallTop + 2 + k, ww, 1);
+const TREES = ["tree1", "tree2", "tree3", "pine", "pine2", "cherry1", "cherry2", "bushtree", "treeS1", "treeS2"];
+function scatter() {                        // 둘레 숲 + 풀밭 나무 · 덤불 · 꽃 (길 · 건물 · 이미 막힌 칸은 피함)
+  const r = rng(77);
+  const near = (x, y, k) => { for (let yy = y - k; yy <= y + k; yy++) for (let xx = x - k; xx <= x + k; xx++) if (inside(xx, yy) && (ground[at(xx, yy)] !== LAWN || solid[at(xx, yy)])) return true; return false; };
+  const edge = (x, y) => x <= 1 || y <= 1 || x >= W - 2 || y >= 41;
+  for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) {      // 둘레 숲 (막힌 칸 위)
+    const jx = x + (hash(`tx${x},${y}`) % 2), jy = y + (hash(`ty${x},${y}`) % 2);
+    if (!edge(jx, jy) || (jy >= 38 && jy <= 40)) continue;
+    const n = TREES[hash(`t${x},${y}`) % TREES.length]; PLACES.push({ name: n, tx: jx, ty: jy, opts: { mirror: (x + y) & 2 } });
   }
-  roof(g, ox, 0, w, wallTop + 6, roofCol);
-  return pixelize(c);
-}
-
-function gateImg() {                        // 잔디밭의 작은 문 (지붕 얹은 두 기둥 — 부여성 남쪽의 그 문)
-  const [c, g, sg] = layers(80, 84);
-  ell(sg, 40, 78, 34, 5, "#000");
-  for (const x of [12, 62]) { g.fillStyle = "#6b6b5a"; g.fillRect(x, 26, 6, 52); g.fillStyle = "#545446"; g.fillRect(x, 26, 2, 52); }
-  g.fillStyle = "#6b6b5a"; g.fillRect(10, 34, 60, 4); g.fillRect(14, 52, 52, 3);
-  for (let x = 18; x < 62; x += 6) { g.fillStyle = "#7b7b68"; g.fillRect(x, 38, 2, 14); }
-  roof(g, 8, 0, 64, 30, "#59604d");
-  return pixelize(c);
-}
-function fenceImg(len) {                    // 살 울타리
-  const [c, g, sg] = layers(len * T, 52);
-  sg.fillStyle = "#000"; sg.fillRect(2, 46, len * T - 4, 5);
-  g.fillStyle = "#6b5a3e"; g.fillRect(0, 10, len * T, 4); g.fillRect(0, 30, len * T, 4);
-  for (let x = 2; x < len * T; x += 8) { g.fillStyle = "#7d6a49"; g.fillRect(x, 4, 3, 44); g.fillStyle = "#5a4a31"; g.fillRect(x, 4, 1, 44); }
-  for (let x = 0; x < len * T; x += 32) { g.fillStyle = "#4a3c27"; g.fillRect(x, 0, 5, 48); }
-  return pixelize(c);
-}
-function southGateImg() {                   // 남문 — 돌 기단에 무지개문 · 그 위 문루
-  const w = 16 * T, h = 248, [c, g, sg] = layers(w + 48, h), ox = 24, base = h - 112;
-  sg.fillStyle = "#000"; sg.fillRect(ox - 6, h - 10, w + 12, 10);
-  for (let y = base; y < h - 4; y += 12) for (let x = ox - ((y / 12) % 2) * 12; x < ox + w; x += 24) {   // 성돌
-    g.fillStyle = ["#a59d8b", "#968e7c", "#b2aa98", "#8b836f"][Math.floor(((x * 7 + y * 13) % 97) / 25)];
-    g.fillRect(Math.max(ox, x), y, Math.min(23, ox + w - Math.max(ox, x)), 11);
+  for (let i = 0; i < 900; i++) {                                      // 안쪽 풀밭
+    const x = 2 + Math.floor(r() * (W - 4)), y = 2 + Math.floor(r() * 35), v = r();
+    if (ground[at(x, y)] !== LAWN || solid[at(x, y)]) continue;
+    if (v < .5) { if (near(x, y, 1)) continue; const n = TREES[Math.floor(r() * TREES.length)]; block(x, y, x, y); PLACES.push({ name: n, tx: x, ty: y, opts: { mirror: i & 1 } }); }
+    else if (v < .8) { if (near(x, y, 0)) continue; PLACES.push({ name: ["bush1", "bush2", "bush3", "bushR", "pinkbush", "sap1", "sap2", "sap3", "sap4"][i % 9], tx: x, ty: y, opts: { mirror: i & 1 } }); block(x, y, x, y); }
+    else PLACES.push({ name: ["flowY", "flowW", "flowP", "flowP2", "clump"][i % 5], tx: x, ty: y, opts: { flat: true, mirror: i & 1 } });
   }
-  g.fillStyle = "#6d6656"; g.fillRect(ox, base, w, 3);
-  const aw = 96, ax = ox + w / 2 - aw / 2;   // 무지개문
-  g.fillStyle = "#2a1d14"; g.beginPath(); g.moveTo(ax, h - 4); g.lineTo(ax, base + 50); g.arc(ax + aw / 2, base + 50, aw / 2, Math.PI, 0); g.lineTo(ax + aw, h - 4); g.fill();
-  g.fillStyle = "#8b2f1c"; g.fillRect(ax + 6, base + 58, aw / 2 - 8, h - base - 62); g.fillRect(ax + aw / 2 + 2, base + 58, aw / 2 - 8, h - base - 62);
-  for (let k = 0; k < 4; k++) { g.fillStyle = "#d9a520"; g.fillRect(ax + 14, base + 70 + k * 10, 3, 3); g.fillRect(ax + aw - 17, base + 70 + k * 10, 3, 3); }
-  const top = base - 64;                     // 문루
-  g.fillStyle = "#efe6d0"; g.fillRect(ox + 60, top + 14, w - 120, 50);
-  for (let x = ox + 60; x <= ox + w - 66; x += 46) { g.fillStyle = "#a8382a"; g.fillRect(x, top + 10, 7, 56); }
-  g.fillStyle = "#2f7a6b"; g.fillRect(ox + 56, top + 6, w - 112, 8);          // 단청
-  for (let x = ox + 58; x < ox + w - 58; x += 8) { g.fillStyle = x % 16 ? "#e0b24b" : "#c8423a"; g.fillRect(x, top + 8, 4, 4); }
-  g.fillStyle = "#2a1a10"; g.fillRect(ox + w / 2 - 44, top + 24, 88, 22);      // 현판
-  c.after = a => { a.fillStyle = "#e8d39a"; a.font = "bold 14px 'Malgun Gothic','Apple SD Gothic Neo','WenQuanYi Zen Hei',serif"; a.textAlign = "center"; a.textBaseline = "middle";
-    a.fillText("南 門", ox + w / 2, top + 35); };                                  // 글자는 점으로 바꾼 뒤 또렷하게
-  roof(g, ox + 30, 0, w - 60, top + 8, "#4a5560");
-  return pixelize(c);
+  for (const [x, y] of [[44, 15], [41, 4], [57, 15], [22, 15], [6, 18], [20, 27], [41, 36], [57, 36]]) if (!solid[at(x, y)] && ground[at(x, y)] === LAWN) {
+    block(x, y, x, y); PLACES.push({ name: ["cherry1", "cherry2", "cherry4"][x % 3], tx: x, ty: y, opts: {} }); }   // 눈에 띄는 자리 벚꽃
 }
-function castleWallImg(len) {
-  const c = canvas(len * T, 92), g = c.getContext("2d");
-  for (let y = 26; y < 92; y += 11) for (let x = -((y / 11) % 2) * 11; x < len * T; x += 22) {
-    g.fillStyle = ["#a59d8b", "#968e7c", "#b2aa98", "#8b836f"][Math.floor(((x * 7 + y * 13) % 97) / 25)];
-    g.fillRect(Math.max(0, x), y, 21, 10);
-  }
-  g.fillStyle = "#4b5560"; g.fillRect(0, 12, len * T, 14); g.fillStyle = "#3a434d"; for (let x = 0; x < len * T; x += 6) g.fillRect(x, 14, 2, 12);
-  g.fillStyle = "#2f363e"; g.fillRect(0, 8, len * T, 5);
-  for (let x = 0; x < len * T; x += 24) { g.fillStyle = "#8b836f"; g.fillRect(x + 4, 0, 14, 10); }   // 여장
-  return pixelize(c);
+const WORLD = { ready: false, built: false };
+WORLD.promise = new Promise(res => { WORLD.done = res; });
+function buildWorld() {                     // 나무 흩기 → 땅 → 소품 그림 (한 번만)
+  if (WORLD.built) return; WORLD.built = true;
+  scatter();
+  if (JOS.ready) {
+    drawGround();
+    const special = { "@jang": jangdokImg, "@jang1": () => jangseungImg(true), "@jang2": () => jangseungImg(false) };
+    for (const p of PLACES) {
+      const img = special[p.name] ? special[p.name]() : JOS_FR[p.name] ? js(p.name, p.opts.mirror) : null; if (!img) continue;
+      const fw = p.opts.fw || 1, y = (p.ty + 1) * T - (p.opts.flat ? 0 : 2);
+      props.push({ img, x: Math.round(p.tx * T + fw * T / 2 - img.width / 2), y, z: p.opts.flat ? y - 3 * T : y, fade: !!p.opts.fade });
+    }
+  } else drawGroundPlain();
+  WORLD.ready = true; WORLD.done();
 }
-function wellImg() {
-  const [c, g, sg] = layers(72, 80);
-  ell(sg, 36, 70, 30, 8, "#000");
-  g.fillStyle = "#6e4527"; g.fillRect(8, 6, 6, 52); g.fillRect(58, 6, 6, 52); g.fillRect(4, 4, 64, 6);
-  g.fillStyle = "#4b4b4b"; g.fillRect(34, 10, 2, 22); g.fillStyle = "#8a5a33"; g.fillRect(28, 30, 14, 10);
-  ell(g, 36, 56, 28, 14, "#9a9488"); ell(g, 36, 54, 22, 9, "#2a4256"); ell(g, 33, 52, 6, 2, "rgba(255,255,255,.25)");
-  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#aaa497" : "#86806f"; g.fillRect(10 + i * 7, 60 + Math.round(Math.sin(i) * 2), 7, 6); }
-  return pixelize(c);
-}
-function lanternImg() {
-  const [c, g, sg] = layers(28, 72);
-  ell(sg, 14, 66, 9, 3, "#000");
-  g.fillStyle = "#5a361c"; g.fillRect(12, 14, 4, 54); g.fillRect(4, 12, 20, 3);
-  g.fillStyle = "#c8323a"; g.fillRect(6, 18, 16, 10); g.fillStyle = "#2e5ea8"; g.fillRect(6, 28, 16, 8);
-  g.fillStyle = "#f2c94c"; g.fillRect(6, 16, 16, 2); g.fillRect(6, 36, 16, 2);
-  return pixelize(c);
-}
+Promise.all([loadAtlas(JOS, "/static/joseon.png"), loadAtlas(CHR, "/static/village_chars.png")]).then(buildWorld);
+setTimeout(buildWorld, 8000);               // 그림이 끝내 안 오면 땅 색만으로
 function jangseungImg(top) {
   const [c, g, sg] = layers(28, 84);
   ell(sg, 14, 78, 10, 3, "#000");
@@ -299,142 +342,6 @@ function jangseungImg(top) {
     [...(top ? "天下大將軍" : "地下女將軍")].forEach((ch, i) => a.fillText(ch, 14, 44 + i * 8)); };
   return pixelize(c);
 }
-function stallImg() {
-  const w = 3 * T, [c, g, sg] = layers(w + 8, 92);
-  ell(sg, w / 2 + 4, 84, w / 2, 7, "#000");
-  g.fillStyle = "#6e4527"; g.fillRect(8, 18, 5, 66); g.fillRect(w - 5, 18, 5, 66);
-  for (let i = 0; i < w; i += 12) { g.fillStyle = (i / 12) % 2 ? "#f2ead3" : "#c7423a"; g.fillRect(4 + i, 8, 12, 20); }
-  g.fillStyle = "#8b5a32"; g.fillRect(4, 56, w, 14); g.fillStyle = "#a8743f"; g.fillRect(4, 56, w, 4);
-  [["#d65a2f", 20], ["#e8b83a", 36], ["#7fb24b", 52], ["#9c5530", 70]].forEach(([col, x]) => { ell(g, x, 52, 7, 6, col); ell(g, x - 2, 49, 2, 2, "rgba(255,255,255,.4)"); });
-  return pixelize(c);
-}
-
-// ── 마을 그림 (2026-10-19) ───────────────────────────────────────────────
-// 사용자가 준 '마을' 시트에서 땅 타일 · 건물 · 나무 · 소품만 뽑은 그림 static/village.png, 캐릭터 static/village_chars.png
-// (배경 투명 · 그림 한 칸 = 원래 도트 한 점 · 화면엔 PX 배, 흐리지 않게).  기준점: [x, y, w, h, 가운데 x, 발바닥 y]
-const CHR_FR = {"cat_d0":[0,0,22,30,10.7,29],"cat_d1":[23,0,21,29,9.8,28],"cat_d2":[45,0,22,29,10.3,27],"cat_d3":[68,0,21,29,9.5,28],"cat_s0":[90,0,22,29,10.3,28],"cat_s1":[113,0,20,29,9.9,27],"cat_a":[134,0,37,28,13.9,26],"panda_d0":[172,0,19,30,8.7,29],"panda_d1":[192,0,20,29,9.4,28],"panda_s0":[213,0,21,28,10.4,27],"panda_s1":[235,0,20,29,9.8,28],"panda_a":[256,0,30,30,11.3,29],"lion_d0":[287,0,23,30,10.9,29],"lion_d1":[311,0,22,30,10.8,28],"lion_d2":[334,0,22,30,10.0,29],"lion_d3":[357,0,20,29,9.2,28],"lion_s0":[378,0,22,30,10.3,29],"lion_s1":[401,0,22,28,10.5,27],"lion_a":[424,0,46,33,16.9,32],"tiger_d0":[471,0,22,28,10.3,27],"tiger_d1":[0,34,20,28,9.0,27],"tiger_a":[21,34,48,29,25.6,28],"nobi_d0":[70,34,20,26,8.5,24],"nobi_d1":[91,34,19,28,9.2,27],"nobi_s0":[111,34,21,26,10.0,24],"nobi_s1":[133,34,20,26,8.9,25],"nobi_s2":[154,34,20,26,9.1,24],"nobi_s3":[175,34,18,26,8.0,24],"p_cat":[194,34,64,90,33.4,89],"p_panda":[259,34,58,88,28.9,86],"p_lion":[318,34,66,91,32.4,90],"p_tiger":[385,34,63,88,30.5,87],"p_nobi":[449,34,57,72,27.3,71]};
-const VIL_FR = {"t_dirt":[0,0,16,16,7.5,16],"t_grass":[17,0,16,16,7.5,16],"t_water":[34,0,16,16,7.5,16],"t_sand":[51,0,16,16,7.5,16],"t_cobble":[68,0,16,16,7.5,16],"t_stone":[85,0,16,16,7.5,16],"b_house":[102,0,56,52,27.2,51],"b_small":[159,0,46,44,22.9,42],"b_hall":[206,0,70,57,34.4,56],"b_gate":[277,0,72,58,34.5,57],"tree1":[350,0,36,37,18.0,37],"tree2":[387,0,33,37,13.0,37],"tree3":[421,0,35,38,16.0,37],"gate":[457,0,38,29,18.9,29],"fence":[0,59,28,18,17.6,15],"fountain":[29,59,34,26,18.4,24],"flowers":[64,59,39,32,18.0,29],"banner_b":[104,59,18,35,7.9,35],"banner_r":[123,59,19,41,8.9,41],"shrine":[143,59,21,46,8.9,43],"lantern":[165,59,14,29,6.4,27],"lantern2":[180,59,16,28,7.6,26],"cart":[197,59,32,24,14.7,23],"barrel":[230,59,16,24,7.5,23],"barrel2":[247,59,15,20,7.0,19],"stall":[263,59,35,38,17.6,38],"tub":[299,59,23,22,10.6,21],"bush":[323,59,19,16,9.8,16],"bush2":[343,59,21,26,10.5,23],"bush3":[365,59,28,18,17.1,18],"wall":[394,59,39,19,16.8,19],"roofwall":[434,59,48,18,23.7,15]};
-const VIL = { data: null, ready: false }, CHR = { data: null, ready: false };
-function loadAtlas(o, src) {
-  return new Promise(res => {
-    const im = new Image();
-    im.onload = () => { const c = canvas(im.width, im.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-      o.data = g.getImageData(0, 0, im.width, im.height); o.ready = true; res(); };
-    im.onerror = () => res();                 // 못 받으면 예전 손그림으로
-    im.src = src;
-  });
-}
-function atlasSprite(A, FR, name, mirror, scale = PX) {   // 한 칸 → scale 배 (뒤집기) · canvas.cx · canvas.foot (px)
-  const key = `${A === VIL ? "v" : "c"}|${name}|${mirror ? 1 : 0}|${scale}`; if (spriteCache.has(key)) return spriteCache.get(key);
-  const [fx, fy, fw, fh, cx, foot] = FR[name], src = A.data, small = new ImageData(fw, fh);
-  for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
-    const si = ((fy + y) * src.width + fx + x) * 4; if (src.data[si + 3] < 128) continue;
-    const di = (y * fw + (mirror ? fw - 1 - x : x)) * 4;
-    small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255;
-  }
-  const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0);
-  const c = canvas(fw * scale, fh * scale), g = c.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(s1, 0, 0, c.width, c.height);
-  c.cx = (mirror ? fw - cx : cx) * scale; c.foot = foot * scale;
-  spriteCache.set(key, c); return c;
-}
-const vs = (name, mirror) => atlasSprite(VIL, VIL_FR, name, mirror);
-function vFence(n) {                        // 울타리 칸을 n 칸 길이로 이어 붙임
-  const one = vs("fence"), c = canvas(n * T, one.height), g = c.getContext("2d");
-  for (let x = 0; x < n * T; x += one.width - 4) g.drawImage(one, x, 0);
-  return c;
-}
-function drawGroundVil(g) {                 // 땅: 시트의 흙 · 풀 · 돌길 · 물 타일 (16점 → 32px), 잔디 둘레는 덤불, 연못 둘레는 돌
-  // 흙 · 풀 · 물: 시트 타일의 색(많이 쓴 4 색)만 뽑아 2px 점을 흩뿌림 — 시트 타일을 그대로 깔면 칸 가장자리 선이 격자로 보여서
-  // 돌길: 시트의 밝은 돌판 타일 그대로 (좌우를 섞어 되풀이 무늬를 덜 보이게) · 물: 색만 뽑아 점 + 물결
-  const tones = name => { const [fx, fy, fw, fh] = VIL_FR[name], d = VIL.data, cnt = new Map();
-    for (let y = 2; y < fh - 2; y++) for (let x = 2; x < fw - 2; x++) { const i = ((fy + y) * d.width + fx + x) * 4, k = d.data[i] << 16 | d.data[i + 1] << 8 | d.data[i + 2]; cnt.set(k, (cnt.get(k) || 0) + 1); }
-    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => "#" + k.toString(16).padStart(6, "0")); };
-  const TONE = { [DIRT]: tones("t_dirt"), [LAWN]: tones("t_grass"), [WATER]: tones("t_water") }, r = rng(11);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const t = ground[at(x, y)], X = x * T, Y = y * T;
-    if (TONE[t]) {
-      const P = TONE[t]; g.fillStyle = P[0]; g.fillRect(X, Y, T, T);
-      for (let i = 0; i < 34; i++) { const v = r(); g.fillStyle = v < .45 ? P[1] : v < .8 ? P[2] : P[3]; g.fillRect(X + Math.floor(r() * 16) * 2, Y + Math.floor(r() * 16) * 2, 2, 2); }
-      if (t === WATER) { g.fillStyle = "rgba(255,255,255,.45)"; for (let k = 0; k < 2; k++) g.fillRect(X + Math.floor(r() * 10) * 2, Y + Math.floor(r() * 14) * 2, 6 + Math.floor(r() * 3) * 2, 2); }   // 물결
-      if (t === LAWN && r() < .5) { g.fillStyle = P[3]; const bx = X + Math.floor(r() * 12) * 2, by = Y + Math.floor(r() * 12) * 2; g.fillRect(bx, by, 2, 4); g.fillRect(bx + 4, by + 2, 2, 4); }   // 풀포기
-    } else g.drawImage(vs("t_sand", hash(`${x},${y}`) & 1), X, Y);   // 돌길 — 시트의 밝은 돌판
-  }
-  const is = (x, y, k) => inside(x, y) && ground[at(x, y)] === k;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (is(x, y, WATER)) {                  // 물가 돌
-      g.fillStyle = "#8b8d84";
-      if (!is(x, y - 1, WATER)) g.fillRect(x * T, y * T, T, 4); if (!is(x, y + 1, WATER)) g.fillRect(x * T, y * T + T - 4, T, 4);
-      if (!is(x - 1, y, WATER)) g.fillRect(x * T, y * T, 4, T); if (!is(x + 1, y, WATER)) g.fillRect(x * T + T - 4, y * T, 4, T);
-    }
-    if (is(x, y, LAWN) && [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => inside(x + dx, y + dy) && !is(x + dx, y + dy, LAWN))) {
-      const b = vs(hash(`b${x},${y}`) % 3 ? "bush" : "bush3", (x + y) & 1);   // 잔디 둘레 덤불 (생울타리)
-      g.drawImage(b, Math.round(x * T + T / 2 - b.width / 2), y * T + T - b.height);
-    }
-  }
-}
-// ── 소품 놓기 ── 그림을 받은 뒤 buildWorld 가 한 번에 만든다.  vil = 마을 그림 · vsolid = 마을 그림일 때 막는 칸 · vilOnly = 마을 그림일 때만
-const PLACES = [];
-function place(make, tx, ty, opts = {}) { PLACES.push({ make, tx, ty, opts }); }
-place(() => southGateImg(), 20, 31, { fw: 16, solid: [20, 28, 35, 31] });          // 남문
-place(() => castleWallImg(20), 0, 31, { fw: 20, solid: [0, 30, 19, 31] });
-place(() => castleWallImg(20), 36, 31, { fw: 20, solid: [36, 30, 55, 31] });
-place(() => jangseungImg(true), 23, 26, { solid: [23, 26, 23, 26] });
-place(() => jangseungImg(false), 32, 26, { solid: [32, 26, 32, 26] });
-for (const [x, y] of [[24, 22], [31, 22]]) place(() => lanternImg(), x, y, { solid: [x, y, x, y], vil: () => vs("lantern") });
-place(null, 22, 23, { vilOnly: true, solid: [22, 23, 22, 23], vil: () => vs("banner_b") });     // 남문 앞 깃발
-place(null, 33, 23, { vilOnly: true, solid: [33, 23, 33, 23], vil: () => vs("banner_r") });
-[[36, 2, 6, "#4b5560"], [45, 2, 6, "#56606a"]].forEach(([x, y, w, col], i) =>
-  place(() => houseImg(100 + i, w, col), x, y + 3, { fw: w, solid: [x, y, x + w - 1, y + 3],
-    vil: () => vs(i ? "b_house" : "b_hall"), vsolid: i ? [x + 1, y + 1, x + 4, y + 3] : [x, y + 1, x + 4, y + 3] }));
-place(null, 52, 5, { vilOnly: true, fw: 2, solid: [52, 3, 53, 5], vil: () => vs("b_small") });
-place(() => gateImg(), 10, 10, { fw: 2, solid: [10, 10, 10, 10], vil: () => vs("gate") });
-place(() => gateImg(), 49, 12, { fw: 2, solid: [49, 12, 49, 12], vil: () => vs("gate") });
-place(() => gateImg(), 5, 21, { fw: 2, solid: [5, 21, 5, 21], vil: () => vs("gate") });
-place(() => fenceImg(5), 14, 6, { fw: 5, solid: [14, 6, 18, 6], vil: () => vFence(5) });
-place(() => fenceImg(4), 3, 26, { fw: 4, solid: [3, 26, 6, 26], vil: () => vFence(4) });
-place(() => wellImg(), 20, 15, { fw: 2, solid: [20, 14, 21, 15], dy: -4, vil: () => vs("tub") });
-place(() => stallImg(), 37, 13, { fw: 3, solid: [37, 12, 39, 13], vil: () => vs("stall") });
-place(null, 41, 13, { vilOnly: true, solid: [41, 13, 41, 13], vil: () => vs("cart") });          // 좌판 옆 수레 · 항아리
-place(null, 36, 13, { vilOnly: true, solid: [36, 13, 36, 13], vil: () => vs("barrel") });
-place(null, 36, 12, { vilOnly: true, solid: [36, 12, 36, 12], vil: () => vs("barrel2") });
-place(null, 49, 20, { vilOnly: true, vil: () => vs("fountain") });
-place(null, 6, 5, { vilOnly: true, fw: 4, solid: [4, 3, 8, 5], vil: () => vs("b_gate") });       // 왼쪽 위 잔디의 문채 (깃발)
-place(null, 18, 16, { vilOnly: true, solid: [18, 16, 18, 16], vil: () => vs("lantern2") });   // 우물 옆 · 좌판 옆 석등
-place(null, 42, 16, { vilOnly: true, solid: [42, 16, 42, 16], vil: () => vs("lantern2") });
-place(null, 43, 9, { vilOnly: true, solid: [43, 9, 43, 9], vil: () => vs("banner_r") });                             // 연못 가운데 (물은 이미 막힘)
-place(() => treeImg(77, true), 27, 18, { fw: 2, solid: [27, 18, 28, 18] });         // 가운데 화단의 당산나무 (손그림 그대로)
-function trees(V) {                         // 잔디밭 나무 — 마을 그림이면 시트의 나무 3가지(벚꽃 포함) · 잔디엔 꽃덤불도
-  const r = rng(99);
-  const free = (x, y) => inside(x, y) && !solid[at(x, y)] && ground[at(x, y)] === LAWN;
-  for (let i = 0; i < 90; i++) {
-    const x = 2 + Math.floor(r() * (W - 4)), y = 2 + Math.floor(r() * (H - 4)), pick = r();
-    let ok = true; for (let yy = y - 1; yy <= y + 1 && ok; yy++) for (let xx = x - 1; xx <= x + 1; xx++) if (!free(xx, yy)) { ok = false; break; }
-    if (ok) { block(x, y, x, y); PLACES.push({ make: () => treeImg(1000 + x * 64 + y, false), tx: x, ty: y, opts: { vil: () => vs(pick < .28 ? "tree3" : pick < .64 ? "tree1" : "tree2", x & 1) } }); }
-  }
-  if (V) for (let i = 0; i < 60; i++) {     // 꽃덤불 (밟고 지나감)
-    const x = 1 + Math.floor(r() * (W - 2)), y = 1 + Math.floor(r() * (H - 2)), pick = r();
-    if (free(x, y) && free(x + 1, y) && free(x - 1, y)) PLACES.push({ make: null, tx: x, ty: y, opts: { vilOnly: true, flat: true, vil: () => vs(pick < .5 ? "flowers" : "bush2", x & 1) } });
-  }
-}
-const WORLD = { ready: false, built: false };
-WORLD.promise = new Promise(res => { WORLD.done = res; });
-function buildWorld() {                     // 막는 칸 → 나무 → 땅 → 소품 그림 (한 번만)
-  if (WORLD.built) return; WORLD.built = true;
-  const V = VIL.ready;
-  for (const p of PLACES) { if (p.opts.vilOnly && !V) continue; const sd = (V && p.opts.vsolid) || p.opts.solid; if (sd) block(...sd); }
-  trees(V);
-  drawGround();
-  for (const p of PLACES) {
-    if (p.opts.vilOnly && !V) continue;
-    const img = V && p.opts.vil ? p.opts.vil() : p.make && p.make(); if (!img) continue;
-    const fw = p.opts.fw || 1;
-    const y = (p.ty + 1) * T + (p.opts.dy || 0);
-    props.push({ img, x: Math.round(p.tx * T + fw * T / 2 - img.width / 2), y, z: p.opts.flat ? y - 2 * T : y });   // 꽃덤불은 사람보다 먼저(아래) 그림
-  }
-  WORLD.ready = true; WORLD.done();
-}
-Promise.all([loadAtlas(VIL, "/static/village.png"), loadAtlas(CHR, "/static/village_chars.png")]).then(buildWorld);
-setTimeout(buildWorld, 6000);               // 그림이 끝내 안 오면 손그림으로
 
 // ── 화면 틀 (붉은 꼰 기둥 · 모서리 장식 · 지명 현판) ──────────────────────
 function twist(len, horiz) {
@@ -912,10 +819,13 @@ function freeNear(x, y) {                   // 들어오자마자 남과 같은 
     const nx = x + dx, ny = y + dy; if (walkable(nx, ny) && !occupied(nx, ny)) return [nx, ny]; }
   return null;
 }
-function spawn() {                          // 이름마다 늘 같은 자리에서 시작한다 (흙마당 가운데)
+function spawn() {                          // 이름마다 늘 같은 자리 — 광장 둘레 고리(가운데에서 4~9칸)에 흩어져 시작 (성문 앞에 몰리지 않게)
   const r = rng(hash(S.name || "x"));
-  for (let i = 0; i < 200; i++) { const x = 22 + Math.floor(r() * 12), y = 13 + Math.floor(r() * 8); if (walkable(x, y) && ground[at(x, y)] !== LAWN) return [x, y]; }
-  return [27, 15];
+  for (let i = 0; i < 400; i++) {
+    const a = r() * Math.PI * 2, d = 4 + r() * 5, x = Math.round(31.5 + Math.cos(a) * d * 1.4), y = Math.round(21.5 + Math.sin(a) * d * .8);
+    if (walkable(x, y) && !occupied(x, y) && ground[at(x, y)] !== WATER) return [x, y];
+  }
+  return [30, 25];
 }
 
 // ── 서버 ───────────────────────────────────────────────────────────────
@@ -1184,7 +1094,14 @@ function frame(now) {
   for (const a of actors) items.push({ y: a.y + 28, a });
   items.sort((u, v) => u.y - v.y);
   for (const it of items) {
-    if (it.p) { ctx.drawImage(it.p.img, Math.round(it.p.x - cx), Math.round(it.p.y - it.p.img.height - cy)); continue; }
+    if (it.p) {
+      const p = it.p, mx = S.me.x + 16, my = S.me.y + 28;    // 건물 · 큰 좌판 뒤에 내가 서면 반투명하게 (가려도 보이게)
+      const behind = p.fade && mx > p.x + 6 && mx < p.x + p.img.width - 6 && my < p.y - 4 && my > p.y - p.img.height + 24;
+      if (behind) { ctx.save(); ctx.globalAlpha = .55; }
+      ctx.drawImage(p.img, Math.round(p.x - cx), Math.round(p.y - p.img.height - cy));
+      if (behind) ctx.restore();
+      continue;
+    }
     drawActor(ctx, it.a, Math.round(it.a.x - cx), Math.round(it.a.y - cy), now);
   }
   const boxes = [];
@@ -1467,7 +1384,7 @@ function askName() {
   $("#pz-nameok").onclick = go;
   inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); go(); } });
 }
-window.__plazaDebug = { charSprite, defaultFace, RANGES, catSprite, CAT };
+window.__plazaDebug = { charSprite, defaultFace, RANGES, catSprite, CAT, solid, ground, W, H, props, WORLD };
 if (EMBED) document.body.classList.add("embed");
 resize(); requestAnimationFrame(frame);
 const nm = (Q.get("user") || "").trim() || storedName();

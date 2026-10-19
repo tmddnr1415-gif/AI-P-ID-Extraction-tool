@@ -51,11 +51,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-19.3'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-19.4'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
-MAP_W, MAP_H = 56, 32        # plaza.js 의 지도 크기와 같다
+MAP_W, MAP_H = 64, 44        # plaza.js 의 지도 크기와 같다 (2026-10-19 조선 마을로 넓힘)
 NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
@@ -519,7 +519,7 @@ FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
          "/static/catknight.png": ("catknight.png", "image/png"),
-         "/static/village.png": ("village.png", "image/png"),            # 마을 시트에서 뽑은 땅 타일 · 건물 · 나무 · 소품
+         "/static/joseon.png": ("joseon.png", "image/png"),              # 조선 마을 타일셋에서 뽑은 땅 타일 · 한옥 · 담장 · 나무 · 소품
          "/static/village_chars.png": ("village_chars.png", "image/png")}  # 마을 시트에서 뽑은 캐릭터 5종   # 고양이 기사 그림 (사용자가 준 시트에서 캐릭터만 뽑은 것)
 
 
