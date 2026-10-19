@@ -899,7 +899,7 @@ function prefetchAround(page) {
   if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 150);
 }
 
-async function openSheet(page) {
+async function openSheet(page, opt) {
   hidePressCard();
   L.page = page;
   location.hash = `job=${L.job}&page=${page}`;
@@ -907,21 +907,28 @@ async function openSheet(page) {
   const im = preloadImg(page);
   const s = await getSheet(page);
   if (L.page !== page) return;                     // 받는 동안 다른 시트로 옮겼다
+  stopAnim();                                      // L43 — 앞 장의 흐름이 이 장의 선을 칠하지 않게 (시트를 바꾸기 전에 멈춘다)
   L.sheet = s;
   L.forces = L.allForces[page] = L.allForces[page] || {};
-  L.state = L.states[page] || null; L.values = {}; L.sel = null; stopAnim();
+  L.state = L.states[page] || null; L.values = {}; L.sel = null;
   L.linked = {};
   $("#empty").hidden = true;
-  const img = $("#page");
-  // 그림은 풀린 뒤에 바꾼다 — 기다리는 동안은 옛 그림을 숨겨 새 시트의 선이 남의 그림 위에 서지 않게
+  const img = $("#page"), ov = $("#ov");
+  // 그림은 풀린 뒤에 바꾼다 — 기다리는 동안은 옛 그림을 숨겨 새 시트의 선이 남의 그림 위에 서지 않게.
+  // L43 — 선(#ov)도 그 장의 그림이 실제로 화면에 선 뒤에 보인다 (표 칸은 장마다 같아 표는 맞고 LOGIC 영역 선만 어긋나 보이던 것).
   const url = pageImgUrl(page);
-  if (img.getAttribute("src") !== url) {
-    if (im.complete && im.naturalWidth) img.src = url;
-    else { img.style.visibility = "hidden"; im.ready.then(() => { if (L.page === page) { img.src = url; } }); }
-  }
+  const shown = () => { if (L.page !== page) return; img.style.visibility = ""; ov.style.visibility = ""; img.dataset.page = page; };
+  if (img.getAttribute("src") !== url || img.dataset.page !== String(page)) {
+    img.style.visibility = "hidden"; ov.style.visibility = "hidden";
+    im.ready.then(() => {
+      if (L.page !== page) return;
+      if (img.getAttribute("src") !== url) img.src = url;
+      (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).then(shown);
+    });
+  } else shown();
   $("#canvas").style.width = s.size[0] + "px";
   $("#canvas").style.height = s.size[1] + "px";
-  $("#ov").setAttribute("viewBox", `0 0 ${s.size[0]} ${s.size[1]}`);
+  ov.setAttribute("viewBox", `0 0 ${s.size[0]} ${s.size[1]}`);
   $("#sheet-head").textContent = `${s.sheet_no} · ${s.title}`;
   drawOverlay();
   renderRows(); renderFindings(); renderInfo(); renderHelp(); renderLatches();
@@ -929,16 +936,16 @@ async function openSheet(page) {
   // 맞춤은 한 번만 — 그림이 이미 풀려 있으면 곧바로 맞추고 뒤이어 오는 load 는 무시한다 (두 번 맞추면 이동한 자리 · 확대가 지워진다)
   let fitted = false;
   const fitOnce = () => { if (fitted || L.page !== page) return; fitted = true; fit(); };
-  img.onload = () => { img.style.visibility = ""; fitOnce(); };
-  img.onerror = () => { img.style.visibility = ""; };
-  if (img.complete && img.getAttribute("src") === url) { img.style.visibility = ""; fitOnce(); }
+  img.onload = fitOnce;
+  img.onerror = shown;
+  if (img.complete && img.getAttribute("src") === url) fitOnce();
   prefetchAround(page);
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
     applyMacroInputs(MACRO_FROM.inputs);
     return;
   }
-  if (L.mode === "sim") runSim(false, true);
+  if (L.mode === "sim" && !(opt && opt.noSim)) runSim(false, true);   // 순차 동작은 곧이어 자기 계산을 돌린다 — 두 번 보내지 않는다
 }
 
 /* ------------------------------------------------------------------ 확대 · 이동 */
@@ -2134,7 +2141,8 @@ async function traceFrom(start, up) {
 /* ------------------------------------------------------------------ 동작 시뮬레이션 */
 
 async function runSim(animate, pageOnly) {
-  if (!L.sheet) return;
+  if (!L.sheet || L.sheet.page !== L.page) return;   // L43 — 장을 받는 중(시트와 쪽이 아직 다름)에는 돌리지 않는다 — 받은 뒤 openSheet 가 돌린다
+  const askSheet = L.sheet;
   const prev = { ...L.values };
   // 묶음 전체를 함께 돌린다 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력도 1 (서버가 판정)
   const forces = {};
@@ -2151,7 +2159,7 @@ async function runSim(animate, pageOnly) {
   const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
-  if (!r || L.page !== askPage) return;            // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
+  if (!r || L.page !== askPage || L.sheet !== askSheet) return;   // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
   L.states = b.state || {};
   L.state = L.states[L.page] || r.state;
   L.analogResPage = askPage;
@@ -3859,7 +3867,7 @@ async function seqAnswer(a) {
   SEQ.tries = {}; SEQ.eff = {};
   SEQ.busy = a.v === "yes" ? `${n.want ? "활성" : "0 으로"} — 신호가 흐르는 것을 그립니다…` : "시뮬레이션 중…"; renderSeq();
   // L37 — 활성은 그 장에서 흐름을 그린다 (다음 단계가 다른 장이면 잠깐 보여 준 뒤 옮긴다)
-  if (a.v === "yes" && n.page !== L.page && !n.key.includes("/")) { await openSheet(n.page); await new Promise((r) => setTimeout(r, 120)); }
+  if (a.v === "yes" && n.page !== L.page && !n.key.includes("/")) await openSheet(n.page, { noSim: true });
   const fresh = await seqApply(false, a.v === "yes");
   SEQ.busy = false;
   if (fresh.length) { SEQ.err = fresh; SEQ.view = "err"; renderSeq(); return; }
@@ -3888,7 +3896,7 @@ async function seqBack() {
 async function seqFinish(stopped, forced, via) {
   const t = SEQ.target;
   SEQ.busy = "처음부터 흐름을 그리는 중…"; renderSeq();
-  if (t.page !== L.page) { await openSheet(t.page); await new Promise((r) => setTimeout(r, 120)); }
+  if (t.page !== L.page) await openSheet(t.page, { noSim: true });
   L.allForces = forced || seqForces(); L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
   SEQ.via = via || null;
   L.states = {}; L.state = null; L.values = {};
