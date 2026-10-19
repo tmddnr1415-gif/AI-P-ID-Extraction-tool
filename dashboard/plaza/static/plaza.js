@@ -24,7 +24,7 @@ function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
 function hash(s) { let h = 2166136261; for (const ch of String(s)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 
 // ── 지도: 부여성 남쪽 — 주황 흙마당 · 생울타리 두른 잔디 · 남문과 성벽 ───────────
-const DIRT = 0, LAWN = 1, PAVE = 2;
+const DIRT = 0, LAWN = 1, PAVE = 2, WATER = 3;
 const ground = new Uint8Array(W * H), solid = new Uint8Array(W * H);
 const at = (x, y) => y * W + x;
 const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
@@ -36,6 +36,7 @@ fill(LAWN, 1, 1, 21, 10);                   // 왼쪽 위 큰 잔디밭
 fill(LAWN, 33, 1, 54, 8);                   // 오른쪽 위 (민가)
 fill(LAWN, 1, 13, 9, 21);                   // 왼쪽 가운데
 fill(LAWN, 44, 12, 54, 25); fill(DIRT, 47, 16, 51, 22);   // 오른쪽 — 가운데가 빈 잔디 테
+fill(WATER, 48, 17, 50, 21); block(48, 17, 50, 21);       // 2026-10-19 그 안에 연못 (마을 시트처럼)
 fill(LAWN, 27, 17, 28, 18);                 // 마당 가운데 작은 화단
 fill(LAWN, 1, 24, 13, 28);                  // 왼쪽 아래
 fill(PAVE, 25, 23, 30, 28);                 // 남문 앞 돌길
@@ -92,8 +93,9 @@ function pixelize(src) {
 
 // ── 땅 (한 번 그린다) ────────────────────────────────────────────────────
 const groundImg = canvas(W * T, H * T);
-(function drawGround() {
+function drawGround() {
   const g = groundImg.getContext("2d"), r = rng(7);
+  if (VIL.ready) return drawGroundVil(g);
   const isLawn = (x, y) => inside(x, y) && ground[at(x, y)] === LAWN;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const t = ground[at(x, y)], X = x * T, Y = y * T;
@@ -105,6 +107,8 @@ const groundImg = canvas(W * T, H * T);
       g.fillStyle = "#8d9a4f"; g.fillRect(X, Y, T, T);
       for (let i = 0; i < 30; i++) { const v = r(); g.fillStyle = v < .45 ? "#7b8a42" : v < .8 ? "#9ba85a" : "#6c7a39";
         g.fillRect(X + Math.floor(r() * 16) * 2, Y + Math.floor(r() * 16) * 2, 2, 2); }
+    } else if (t === WATER) {
+      g.fillStyle = "#3d7393"; g.fillRect(X, Y, T, T); g.fillStyle = "#5d93ad"; g.fillRect(X + 4, Y + 6, 10, 2); g.fillRect(X + 18, Y + 20, 8, 2);
     } else if (t === PAVE) {
       g.fillStyle = "#b39a7c"; g.fillRect(X, Y, T, T);
       g.fillStyle = "#937b5f"; g.fillRect(X, Y, T, 2); g.fillRect(X, Y, 2, T); g.fillRect(X + (y % 2 ? 16 : 0), Y + 16, 2, 16); g.fillRect(X, Y + 16, T, 2);
@@ -154,7 +158,7 @@ const groundImg = canvas(W * T, H * T);
     if (inside(x - 1, y) && !isLawn(x - 1, y)) g.fillRect(X, Y, 2, T);
     if (inside(x + 1, y) && !isLawn(x + 1, y)) g.fillRect(X + T - 2, Y, 2, T);
   }
-})();
+}
 
 // ── 소품 그림 ──────────────────────────────────────────────────────────
 function treeImg(seed, big) {               // 바랜 올리브빛 나무 (부여성 잔디밭의 나무)
@@ -305,37 +309,132 @@ function stallImg() {
   return pixelize(c);
 }
 
-// ── 소품 놓기 ───────────────────────────────────────────────────────────
-function place(img, tx, ty, opts = {}) {   // img 바닥 가운데를 (tx..tx+fw-1, ty 행 바닥)에 맞춘다
-  const fw = opts.fw || 1;
-  props.push({ img, x: tx * T + fw * T / 2 - img.width / 2, y: (ty + 1) * T + (opts.dy || 0) });
-  if (opts.solid) block(...opts.solid);
+// ── 마을 그림 (2026-10-19) ───────────────────────────────────────────────
+// 사용자가 준 '마을' 시트에서 땅 타일 · 건물 · 나무 · 소품만 뽑은 그림 static/village.png, 캐릭터 static/village_chars.png
+// (배경 투명 · 그림 한 칸 = 원래 도트 한 점 · 화면엔 PX 배, 흐리지 않게).  기준점: [x, y, w, h, 가운데 x, 발바닥 y]
+const CHR_FR = {"cat_d0":[0,0,22,30,10.7,29],"cat_d1":[23,0,21,29,9.8,28],"cat_d2":[45,0,22,29,10.3,27],"cat_d3":[68,0,21,29,9.5,28],"cat_s0":[90,0,22,29,10.3,28],"cat_s1":[113,0,20,29,9.9,27],"cat_a":[134,0,37,28,13.9,26],"panda_d0":[172,0,19,30,8.7,29],"panda_d1":[192,0,20,29,9.4,28],"panda_s0":[213,0,21,28,10.4,27],"panda_s1":[235,0,20,29,9.8,28],"panda_a":[256,0,30,30,11.3,29],"lion_d0":[287,0,23,30,10.9,29],"lion_d1":[311,0,22,30,10.8,28],"lion_d2":[334,0,22,30,10.0,29],"lion_d3":[357,0,20,29,9.2,28],"lion_s0":[378,0,22,30,10.3,29],"lion_s1":[401,0,22,28,10.5,27],"lion_a":[424,0,46,33,16.9,32],"tiger_d0":[471,0,22,28,10.3,27],"tiger_d1":[0,34,20,28,9.0,27],"tiger_a":[21,34,48,29,25.6,28],"nobi_d0":[70,34,20,26,8.5,24],"nobi_d1":[91,34,19,28,9.2,27],"nobi_s0":[111,34,21,26,10.0,24],"nobi_s1":[133,34,20,26,8.9,25],"nobi_s2":[154,34,20,26,9.1,24],"nobi_s3":[175,34,18,26,8.0,24],"p_cat":[194,34,64,90,33.4,89],"p_panda":[259,34,58,88,28.9,86],"p_lion":[318,34,66,91,32.4,90],"p_tiger":[385,34,63,88,30.5,87],"p_nobi":[449,34,57,72,27.3,71]};
+const VIL_FR = {"t_dirt":[0,0,16,16,7.5,16],"t_grass":[17,0,16,16,7.5,16],"t_water":[34,0,16,16,7.5,16],"t_sand":[51,0,16,16,7.5,16],"t_cobble":[68,0,16,16,7.5,16],"t_stone":[85,0,16,16,7.5,16],"b_house":[102,0,56,52,27.2,51],"b_small":[159,0,46,44,22.9,42],"b_hall":[206,0,70,57,34.4,56],"b_gate":[277,0,72,58,34.5,57],"tree1":[350,0,36,37,18.0,37],"tree2":[387,0,33,37,13.0,37],"tree3":[421,0,35,38,16.0,37],"gate":[457,0,38,29,18.9,29],"fence":[0,59,28,18,17.6,15],"fountain":[29,59,34,26,18.4,24],"flowers":[64,59,39,32,18.0,29],"banner_b":[104,59,18,35,7.9,35],"banner_r":[123,59,19,41,8.9,41],"shrine":[143,59,21,46,8.9,43],"lantern":[165,59,14,29,6.4,27],"lantern2":[180,59,16,28,7.6,26],"cart":[197,59,32,24,14.7,23],"barrel":[230,59,16,24,7.5,23],"barrel2":[247,59,15,20,7.0,19],"stall":[263,59,35,38,17.6,38],"tub":[299,59,23,22,10.6,21],"bush":[323,59,19,16,9.8,16],"bush2":[343,59,21,26,10.5,23],"bush3":[365,59,28,18,17.1,18],"wall":[394,59,39,19,16.8,19],"roofwall":[434,59,48,18,23.7,15]};
+const VIL = { data: null, ready: false }, CHR = { data: null, ready: false };
+function loadAtlas(o, src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { const c = canvas(im.width, im.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+      o.data = g.getImageData(0, 0, im.width, im.height); o.ready = true; res(); };
+    im.onerror = () => res();                 // 못 받으면 예전 손그림으로
+    im.src = src;
+  });
 }
-place(southGateImg(), 20, 31, { fw: 16, solid: [20, 28, 35, 31] });          // 남문
-place(castleWallImg(20), 0, 31, { fw: 20, solid: [0, 30, 19, 31] });
-place(castleWallImg(20), 36, 31, { fw: 20, solid: [36, 30, 55, 31] });
-place(jangseungImg(true), 23, 26, { solid: [23, 26, 23, 26] });
-place(jangseungImg(false), 32, 26, { solid: [32, 26, 32, 26] });
-for (const [x, y] of [[24, 22], [31, 22]]) place(lanternImg(), x, y, { solid: [x, y, x, y] });
+function atlasSprite(A, FR, name, mirror, scale = PX) {   // 한 칸 → scale 배 (뒤집기) · canvas.cx · canvas.foot (px)
+  const key = `${A === VIL ? "v" : "c"}|${name}|${mirror ? 1 : 0}|${scale}`; if (spriteCache.has(key)) return spriteCache.get(key);
+  const [fx, fy, fw, fh, cx, foot] = FR[name], src = A.data, small = new ImageData(fw, fh);
+  for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+    const si = ((fy + y) * src.width + fx + x) * 4; if (src.data[si + 3] < 128) continue;
+    const di = (y * fw + (mirror ? fw - 1 - x : x)) * 4;
+    small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255;
+  }
+  const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0);
+  const c = canvas(fw * scale, fh * scale), g = c.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(s1, 0, 0, c.width, c.height);
+  c.cx = (mirror ? fw - cx : cx) * scale; c.foot = foot * scale;
+  spriteCache.set(key, c); return c;
+}
+const vs = (name, mirror) => atlasSprite(VIL, VIL_FR, name, mirror);
+function vFence(n) {                        // 울타리 칸을 n 칸 길이로 이어 붙임
+  const one = vs("fence"), c = canvas(n * T, one.height), g = c.getContext("2d");
+  for (let x = 0; x < n * T; x += one.width - 4) g.drawImage(one, x, 0);
+  return c;
+}
+function drawGroundVil(g) {                 // 땅: 시트의 흙 · 풀 · 돌길 · 물 타일 (16점 → 32px), 잔디 둘레는 덤불, 연못 둘레는 돌
+  // 흙 · 풀 · 물: 시트 타일의 색(많이 쓴 4 색)만 뽑아 2px 점을 흩뿌림 — 시트 타일을 그대로 깔면 칸 가장자리 선이 격자로 보여서
+  // 돌길: 시트의 밝은 돌판 타일 그대로 (좌우를 섞어 되풀이 무늬를 덜 보이게) · 물: 색만 뽑아 점 + 물결
+  const tones = name => { const [fx, fy, fw, fh] = VIL_FR[name], d = VIL.data, cnt = new Map();
+    for (let y = 2; y < fh - 2; y++) for (let x = 2; x < fw - 2; x++) { const i = ((fy + y) * d.width + fx + x) * 4, k = d.data[i] << 16 | d.data[i + 1] << 8 | d.data[i + 2]; cnt.set(k, (cnt.get(k) || 0) + 1); }
+    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => "#" + k.toString(16).padStart(6, "0")); };
+  const TONE = { [DIRT]: tones("t_dirt"), [LAWN]: tones("t_grass"), [WATER]: tones("t_water") }, r = rng(11);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = ground[at(x, y)], X = x * T, Y = y * T;
+    if (TONE[t]) {
+      const P = TONE[t]; g.fillStyle = P[0]; g.fillRect(X, Y, T, T);
+      for (let i = 0; i < 34; i++) { const v = r(); g.fillStyle = v < .45 ? P[1] : v < .8 ? P[2] : P[3]; g.fillRect(X + Math.floor(r() * 16) * 2, Y + Math.floor(r() * 16) * 2, 2, 2); }
+      if (t === WATER) { g.fillStyle = "rgba(255,255,255,.45)"; for (let k = 0; k < 2; k++) g.fillRect(X + Math.floor(r() * 10) * 2, Y + Math.floor(r() * 14) * 2, 6 + Math.floor(r() * 3) * 2, 2); }   // 물결
+      if (t === LAWN && r() < .5) { g.fillStyle = P[3]; const bx = X + Math.floor(r() * 12) * 2, by = Y + Math.floor(r() * 12) * 2; g.fillRect(bx, by, 2, 4); g.fillRect(bx + 4, by + 2, 2, 4); }   // 풀포기
+    } else g.drawImage(vs("t_sand", hash(`${x},${y}`) & 1), X, Y);   // 돌길 — 시트의 밝은 돌판
+  }
+  const is = (x, y, k) => inside(x, y) && ground[at(x, y)] === k;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (is(x, y, WATER)) {                  // 물가 돌
+      g.fillStyle = "#8b8d84";
+      if (!is(x, y - 1, WATER)) g.fillRect(x * T, y * T, T, 4); if (!is(x, y + 1, WATER)) g.fillRect(x * T, y * T + T - 4, T, 4);
+      if (!is(x - 1, y, WATER)) g.fillRect(x * T, y * T, 4, T); if (!is(x + 1, y, WATER)) g.fillRect(x * T + T - 4, y * T, 4, T);
+    }
+    if (is(x, y, LAWN) && [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => inside(x + dx, y + dy) && !is(x + dx, y + dy, LAWN))) {
+      const b = vs(hash(`b${x},${y}`) % 3 ? "bush" : "bush3", (x + y) & 1);   // 잔디 둘레 덤불 (생울타리)
+      g.drawImage(b, Math.round(x * T + T / 2 - b.width / 2), y * T + T - b.height);
+    }
+  }
+}
+// ── 소품 놓기 ── 그림을 받은 뒤 buildWorld 가 한 번에 만든다.  vil = 마을 그림 · vsolid = 마을 그림일 때 막는 칸 · vilOnly = 마을 그림일 때만
+const PLACES = [];
+function place(make, tx, ty, opts = {}) { PLACES.push({ make, tx, ty, opts }); }
+place(() => southGateImg(), 20, 31, { fw: 16, solid: [20, 28, 35, 31] });          // 남문
+place(() => castleWallImg(20), 0, 31, { fw: 20, solid: [0, 30, 19, 31] });
+place(() => castleWallImg(20), 36, 31, { fw: 20, solid: [36, 30, 55, 31] });
+place(() => jangseungImg(true), 23, 26, { solid: [23, 26, 23, 26] });
+place(() => jangseungImg(false), 32, 26, { solid: [32, 26, 32, 26] });
+for (const [x, y] of [[24, 22], [31, 22]]) place(() => lanternImg(), x, y, { solid: [x, y, x, y], vil: () => vs("lantern") });
+place(null, 22, 23, { vilOnly: true, solid: [22, 23, 22, 23], vil: () => vs("banner_b") });     // 남문 앞 깃발
+place(null, 33, 23, { vilOnly: true, solid: [33, 23, 33, 23], vil: () => vs("banner_r") });
 [[36, 2, 6, "#4b5560"], [45, 2, 6, "#56606a"]].forEach(([x, y, w, col], i) =>
-  place(houseImg(100 + i, w, col), x, y + 3, { fw: w, solid: [x, y, x + w - 1, y + 3] }));
-place(gateImg(), 10, 10, { fw: 2, solid: [10, 10, 10, 10] });
-place(gateImg(), 49, 12, { fw: 2, solid: [49, 12, 49, 12] });
-place(gateImg(), 5, 21, { fw: 2, solid: [5, 21, 5, 21] });
-place(fenceImg(5), 14, 6, { fw: 5, solid: [14, 6, 18, 6] });
-place(fenceImg(4), 3, 26, { fw: 4, solid: [3, 26, 6, 26] });
-place(wellImg(), 20, 15, { fw: 2, solid: [20, 14, 21, 15], dy: -4 });
-place(stallImg(), 37, 13, { fw: 3, solid: [37, 12, 39, 13] });
-place(treeImg(77, true), 27, 18, { fw: 2, solid: [27, 18, 28, 18] });         // 가운데 화단의 당산나무
-(function trees() {
+  place(() => houseImg(100 + i, w, col), x, y + 3, { fw: w, solid: [x, y, x + w - 1, y + 3],
+    vil: () => vs(i ? "b_house" : "b_hall"), vsolid: i ? [x + 1, y + 1, x + 4, y + 3] : [x, y + 1, x + 4, y + 3] }));
+place(null, 52, 5, { vilOnly: true, fw: 2, solid: [52, 3, 53, 5], vil: () => vs("b_small") });
+place(() => gateImg(), 10, 10, { fw: 2, solid: [10, 10, 10, 10], vil: () => vs("gate") });
+place(() => gateImg(), 49, 12, { fw: 2, solid: [49, 12, 49, 12], vil: () => vs("gate") });
+place(() => gateImg(), 5, 21, { fw: 2, solid: [5, 21, 5, 21], vil: () => vs("gate") });
+place(() => fenceImg(5), 14, 6, { fw: 5, solid: [14, 6, 18, 6], vil: () => vFence(5) });
+place(() => fenceImg(4), 3, 26, { fw: 4, solid: [3, 26, 6, 26], vil: () => vFence(4) });
+place(() => wellImg(), 20, 15, { fw: 2, solid: [20, 14, 21, 15], dy: -4, vil: () => vs("tub") });
+place(() => stallImg(), 37, 13, { fw: 3, solid: [37, 12, 39, 13], vil: () => vs("stall") });
+place(null, 41, 13, { vilOnly: true, solid: [41, 13, 41, 13], vil: () => vs("cart") });          // 좌판 옆 수레 · 항아리
+place(null, 36, 13, { vilOnly: true, solid: [36, 13, 36, 13], vil: () => vs("barrel") });
+place(null, 36, 12, { vilOnly: true, solid: [36, 12, 36, 12], vil: () => vs("barrel2") });
+place(null, 49, 20, { vilOnly: true, vil: () => vs("fountain") });
+place(null, 6, 5, { vilOnly: true, fw: 4, solid: [4, 3, 8, 5], vil: () => vs("b_gate") });       // 왼쪽 위 잔디의 문채 (깃발)
+place(null, 18, 16, { vilOnly: true, solid: [18, 16, 18, 16], vil: () => vs("lantern2") });   // 우물 옆 · 좌판 옆 석등
+place(null, 42, 16, { vilOnly: true, solid: [42, 16, 42, 16], vil: () => vs("lantern2") });
+place(null, 43, 9, { vilOnly: true, solid: [43, 9, 43, 9], vil: () => vs("banner_r") });                             // 연못 가운데 (물은 이미 막힘)
+place(() => treeImg(77, true), 27, 18, { fw: 2, solid: [27, 18, 28, 18] });         // 가운데 화단의 당산나무 (손그림 그대로)
+function trees(V) {                         // 잔디밭 나무 — 마을 그림이면 시트의 나무 3가지(벚꽃 포함) · 잔디엔 꽃덤불도
   const r = rng(99);
   const free = (x, y) => inside(x, y) && !solid[at(x, y)] && ground[at(x, y)] === LAWN;
   for (let i = 0; i < 90; i++) {
-    const x = 2 + Math.floor(r() * (W - 4)), y = 2 + Math.floor(r() * (H - 4));
+    const x = 2 + Math.floor(r() * (W - 4)), y = 2 + Math.floor(r() * (H - 4)), pick = r();
     let ok = true; for (let yy = y - 1; yy <= y + 1 && ok; yy++) for (let xx = x - 1; xx <= x + 1; xx++) if (!free(xx, yy)) { ok = false; break; }
-    if (ok) place(treeImg(1000 + x * 64 + y, false), x, y, { solid: [x, y, x, y] });
+    if (ok) { block(x, y, x, y); PLACES.push({ make: () => treeImg(1000 + x * 64 + y, false), tx: x, ty: y, opts: { vil: () => vs(pick < .28 ? "tree3" : pick < .64 ? "tree1" : "tree2", x & 1) } }); }
   }
-})();
+  if (V) for (let i = 0; i < 60; i++) {     // 꽃덤불 (밟고 지나감)
+    const x = 1 + Math.floor(r() * (W - 2)), y = 1 + Math.floor(r() * (H - 2)), pick = r();
+    if (free(x, y) && free(x + 1, y) && free(x - 1, y)) PLACES.push({ make: null, tx: x, ty: y, opts: { vilOnly: true, flat: true, vil: () => vs(pick < .5 ? "flowers" : "bush2", x & 1) } });
+  }
+}
+const WORLD = { ready: false, built: false };
+WORLD.promise = new Promise(res => { WORLD.done = res; });
+function buildWorld() {                     // 막는 칸 → 나무 → 땅 → 소품 그림 (한 번만)
+  if (WORLD.built) return; WORLD.built = true;
+  const V = VIL.ready;
+  for (const p of PLACES) { if (p.opts.vilOnly && !V) continue; const sd = (V && p.opts.vsolid) || p.opts.solid; if (sd) block(...sd); }
+  trees(V);
+  drawGround();
+  for (const p of PLACES) {
+    if (p.opts.vilOnly && !V) continue;
+    const img = V && p.opts.vil ? p.opts.vil() : p.make && p.make(); if (!img) continue;
+    const fw = p.opts.fw || 1;
+    const y = (p.ty + 1) * T + (p.opts.dy || 0);
+    props.push({ img, x: Math.round(p.tx * T + fw * T / 2 - img.width / 2), y, z: p.opts.flat ? y - 2 * T : y });   // 꽃덤불은 사람보다 먼저(아래) 그림
+  }
+  WORLD.ready = true; WORLD.done();
+}
+Promise.all([loadAtlas(VIL, "/static/village.png"), loadAtlas(CHR, "/static/village_chars.png")]).then(buildWorld);
+setTimeout(buildWorld, 6000);               // 그림이 끝내 안 오면 손그림으로
 
 // ── 화면 틀 (붉은 꼰 기둥 · 모서리 장식 · 지명 현판) ──────────────────────
 function twist(len, horiz) {
@@ -382,7 +481,7 @@ const BEARDS = ["수염 없음", "콧수염", "염소수염", "덥수룩"];
 const CLOTHS = ["#8fb06a", "#c23b2e", "#2e6db4", "#2f8c58", "#d9a520", "#7a4ea3", "#e0789a", "#34507a", "#9c5530", "#efe7d2", "#1f8a8a", "#5a5a66"];
 const PANTS = ["#f1e9d4", "#55597a", "#e6d29f", "#6b705c", "#8a8f99", "#3b3b44"];
 // 2026-10-19 고양이 기사 — 종류 · 동물(털) · 갑옷 · 망토 (서버 LOOK_EXTRA 와 같은 개수)
-const KINDS = ["고양이 기사", "사람"];
+const KINDS = ["고양이 기사", "사람", "고양이 양반", "팬더 학자", "사자 무관", "호랑이 무관", "노비"];   // 2~6 = 마을 시트 캐릭터 (노비는 운영자만)
 const FURS = ["치즈 고양이", "회색 고양이", "검은 고양이", "흰 고양이", "호랑이", "여우"];
 const ARMORS = ["은빛 갑옷", "황금 갑옷", "흑철 갑옷", "청동 갑옷", "푸른 강철", "백은 갑옷"];
 const CAPES = ["빨간 망토", "파란 망토", "초록 망토", "보라 망토", "검은 망토", "흰 망토", "노란 망토"];
@@ -716,9 +815,29 @@ function catPose(a, now, atk, hit) {
   return [["down", "up", "left", "right"][a.dir] || "down", false];
 }
 const isCat = F => F.kind === 0 && CAT.ready;
+// 마을 시트 캐릭터 (2026-10-19): d = 앞모습 대기 칸(번갈아 숨쉬기) · w = 앞으로 걷기 · s = 옆(비스듬) 칸 · sf = 옆 칸이 보는 쪽 · a = 공격 칸 · af = 공격 칸이 보는 쪽 · p = 큰 그림(얼굴 판)
+// 시트에 뒷모습은 없어 위로 갈 때도 앞모습 칸을 씀
+const KIND_FR = {
+  2: { d: ["cat_d0", "cat_d1"], w: ["cat_d2", "cat_d3", "cat_d0", "cat_d1"], s: ["cat_s0", "cat_s1"], sf: "R", a: "cat_a", af: "R", p: "p_cat" },
+  3: { d: ["panda_d0", "panda_d1"], w: ["panda_d1", "panda_d0"], s: ["panda_s0", "panda_s1"], sf: "L", a: "panda_a", af: "R", p: "p_panda" },
+  4: { d: ["lion_d0", "lion_d1"], w: ["lion_d2", "lion_d3", "lion_d0", "lion_d1"], s: ["lion_s0", "lion_s1"], sf: "L", a: "lion_a", af: "R", p: "p_lion" },
+  5: { d: ["tiger_d0", "tiger_d1"], w: ["tiger_d0", "tiger_d1"], s: ["tiger_d1", "tiger_d0"], sf: "L", a: "tiger_a", af: "L", p: "p_tiger" },
+  6: { d: ["nobi_d0", "nobi_d1"], w: ["nobi_d1", "nobi_d0"], s: ["nobi_s0", "nobi_s1", "nobi_s2", "nobi_s3"], sf: "L", a: null, p: "p_nobi" },
+};
+const isChr = F => F.kind >= 2 && CHR.ready && !!KIND_FR[F.kind];
+const chrSprite = (name, mirror) => atlasSprite(CHR, CHR_FR, name, mirror);
+function chrPose(K, a, now, atk, seed = 0) {
+  const side = a.dir >= 2, want = a.dir === 2 ? "L" : "R";
+  if (atk >= 0 && K.a) return [K.a, side ? K.af !== want : false];
+  if (side) { const L = a.moving ? K.s : [K.s[0]]; return [L[Math.floor(now / 150) % L.length], K.sf !== want]; }
+  if (a.moving) return [K.w[Math.floor(now / 160) % K.w.length], false];
+  return [K.d[Math.floor((now + seed) / 650) % K.d.length], false];
+}
 // 2026-10-19 역할: 그룹장 = 황금 갑옷 + 금빛 후광 · 유닛장 = 은색(백은) 갑옷 + 은빛 후광 — 역할이 정하므로 갑옷은 고를 수 없음
 const ROLE_ARMOR = { leader: 1, unit: 5 };
-const roleFace = (F, role) => role in ROLE_ARMOR ? { ...F, armor: ROLE_ARMOR[role] } : F;
+const roleFace = (F, role) => role === "operator" ? { ...F, kind: 6 }               // 운영자 = 늘 노비
+  : F.kind === 6 ? { ...F, kind: 0 }                                                     // 노비는 운영자만
+  : role in ROLE_ARMOR ? { ...F, armor: ROLE_ARMOR[role] } : F;
 const AURA = { leader: ["255,236,120", "#fff6c8", "#ffd23a", "#d99a10"], unit: ["226,236,250", "#ffffff", "#d6e2f2", "#a9b9cf"] };   // 빛 · 반짝이 두 색 · 고리 테
 function drawAura(g, cx, footY, role, now, seed) {   // 몸 뒤 후광 — 천천히 숨쉬는 빛 + 둘레를 도는 반짝이 점 (점은 PX 칸에 맞춤)
   const A = AURA[role]; if (!A) return;
@@ -811,6 +930,7 @@ let es = null, joining = null;
 async function join() {
   if (joining) return joining;
   joining = (async () => {
+    await WORLD.promise;                     // 막는 칸이 다 정해진 뒤 시작 자리를 고른다
     const [sx, sy] = S.me ? [S.me.tx, S.me.ty] : spawn();
     const res = await post("/plaza/api/join", { name: S.name, look: S.look, face: S.face || storedFace(), x: sx, y: sy, status: S.status });
     S.id = res.id; S.face = res.face || S.face; S.role = res.role || "member";
@@ -1007,9 +1127,19 @@ function drawActor(g, a, sx, sy, now) {
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
   const F = roleFace(faceOf(a), a.role);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
-    const base = isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : charSprite(F, a.role, a.dir, 0);
+    const base = isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : isChr(F) ? chrSprite(KIND_FR[F.kind].d[0], false) : charSprite(F, a.role, a.dir, 0);
     const spr = ghostly(base), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
     g.save(); g.globalAlpha = .5; g.drawImage(spr, Math.round(sx + 16 - (base.cx ?? spr.width / 2)), sy + 28 - (base.foot ?? FOOT) + bob); g.restore();
+    return;
+  }
+  if (isChr(F)) {                            // 마을 시트 캐릭터 — 대기 칸 번갈아 · 걷기 칸 · 옆 칸 · 공격 칸
+    drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
+    ell(g, sx + 16, sy + 28, 12, 4, "rgba(40,20,5,.3)");
+    const K = KIND_FR[F.kind], [nm, mir] = chrPose(K, a, now, atk, hash(a.name) % 650), spr = chrSprite(nm, mir);
+    const bob = a.moving && a.dir < 2 && fr ? -PX : 0;
+    if (atk >= 0 && !K.a && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+    if (atk >= 0 && !K.a && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);   // 공격 칸이 없는 노비는 예전 휘두르기
     return;
   }
   if (isCat(F)) {                            // 고양이 기사 — 시트의 포즈 (서기 · 걷기 · 공격 · 피격)
@@ -1050,7 +1180,7 @@ function frame(now) {
   ctx.drawImage(groundImg, -cx, -cy);
   const actors = [S.me, ...S.others.values()];
   const items = [];
-  for (const p of props) if (p.x - cx < vw + 40 && p.x + p.img.width - cx > -40 && p.y - cy > -10 && p.y - p.img.height - cy < vh + 10) items.push({ y: p.y, p });
+  for (const p of props) if (p.x - cx < vw + 40 && p.x + p.img.width - cx > -40 && p.y - cy > -10 && p.y - p.img.height - cy < vh + 10) items.push({ y: p.z ?? p.y, p });
   for (const a of actors) items.push({ y: a.y + 28, a });
   items.sort((u, v) => u.y - v.y);
   for (const it of items) {
@@ -1103,26 +1233,38 @@ function openFace() {
 function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = null; cv.focus(); }
 const CAT_ROWS = [["fur", "동물 · 털", FURS], ["armor", "갑옷", ARMORS], ["cape", "망토", CAPES]];
 function faceNote() {
+  const RK = roleFace(draft, S.role).kind;
+  if (RK >= 2) { $("#pz-face-note").textContent = RK === 6 ? "운영자는 노비 — 마을 시트의 노비(평민) 그대로입니다." : `${KINDS[RK]} — 마을 시트의 캐릭터 그대로입니다 (색은 고르지 않음).` + (S.role === "leader" ? " 그룹장 금빛 후광." : S.role === "unit" ? " 유닛장 은빛 후광." : ""); return; }
   $("#pz-face-note").textContent = isCat(draft) ? (S.role === "leader" ? "그룹장 — 황금 갑옷에 금빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
       : S.role === "unit" ? "유닛장 — 은색(백은) 갑옷에 은빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
       : "고양이 기사 — 동물(털) · 갑옷 · 망토 색을 고릅니다. 황금 검은 그대로. 칭호(그룹장 · 유닛장 · 운영자)는 이름 앞에 나옵니다.")
     : S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발에 흰 머리띠, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
     : S.role === "leader" ? "그룹장은 왕관을 쓰고 금빛 후광이 나옵니다." : S.role === "unit" ? "유닛장은 날개 달린 관모(사모)를 쓰고 은빛 후광이 나옵니다." : "부서원은 관모를 씁니다.";
 }
-function arrowRow(k, label, list) {         // ◀ 값 ▶
+function arrowRow(k, label, list, skip) {   // ◀ 값 ▶ (skip(i) 이 참인 값은 건너뜀)
   const row = document.createElement("div"); row.className = "frow";
   const l = document.createElement("label"); l.textContent = label; row.append(l);
   const prev = document.createElement("button"), next = document.createElement("button"), v = document.createElement("span");
   prev.type = next.type = "button"; prev.textContent = "◀"; next.textContent = "▶"; v.className = "fval"; v.textContent = list[draft[k]];
-  prev.onclick = () => { draft[k] = (draft[k] + list.length - 1) % list.length; buildFace(); };
-  next.onclick = () => { draft[k] = (draft[k] + 1) % list.length; buildFace(); };
+  const go = d => { let i = draft[k]; do i = (i + d + list.length) % list.length; while (skip && skip(i) && i !== draft[k]); draft[k] = i; buildFace(); };
+  prev.onclick = () => go(-1); next.onclick = () => go(1);
   row.append(prev, v, next); return row;
+}
+function kindRow() {                       // 종류 — 운영자는 노비로 고정, 다른 사람은 노비를 못 고름
+  if (S.role === "operator") { const row = document.createElement("div"); row.className = "frow"; const l = document.createElement("label"); l.textContent = "종류";
+    const v = document.createElement("span"); v.className = "fval"; v.textContent = "노비 (운영자)"; row.append(l, v); return row; }
+  return arrowRow("kind", "종류", KINDS, i => i === 6);
 }
 function buildFace() {
   faceNote();
+  const RF = roleFace(draft, S.role);
+  if (isChr(RF) || (RF.kind >= 2 && KIND_FR[RF.kind])) {   // 마을 시트 캐릭터 — 고를 것은 종류뿐
+    $("#pz-hairs").hidden = true; $("#pz-hairs").previousElementSibling.hidden = true;
+    const rows = $("#pz-facerows"); rows.textContent = ""; rows.append(kindRow()); return;
+  }
   const cat = isCat(draft);
   $("#pz-hairs").hidden = cat; $("#pz-hairs").previousElementSibling.hidden = cat;   // '머리 모양' 은 사람일 때만
-  if (cat) { const rows = $("#pz-facerows"); rows.textContent = ""; rows.append(arrowRow("kind", "종류", KINDS));
+  if (cat) { const rows = $("#pz-facerows"); rows.textContent = ""; rows.append(kindRow());
     for (const [k, label, list] of CAT_ROWS) {
       if (k === "armor" && S.role in ROLE_ARMOR) {   // 그룹장 · 유닛장 — 역할 갑옷 (고를 수 없음)
         const row = document.createElement("div"); row.className = "frow"; const l = document.createElement("label"); l.textContent = label;
@@ -1142,7 +1284,7 @@ function buildFace() {
     grid.append(b);
   });
   const rows = $("#pz-facerows"); rows.textContent = "";
-  rows.append(arrowRow("kind", "종류", KINDS));
+  rows.append(kindRow());
   for (const [k, label, list] of FACE_ROWS) {
     const row = document.createElement("div"); row.className = "frow";
     const l = document.createElement("label"); l.textContent = label; row.append(l);
@@ -1167,6 +1309,12 @@ function drawPreview(now) {
   g.fillStyle = "#b9743c"; for (let i = 0; i < 40; i++) g.fillRect((i * 37) % c.width, (i * 53) % c.height, 4, 4);
   const dir = [0, 2, 1, 3][Math.floor(now / 900) % 4], fr = Math.floor(now / 220) % 4;
   ell(g, c.width / 2, c.height - 22, 30, 8, "rgba(40,20,5,.3)");
+  const RF = roleFace(draft, S.role);
+  if (isChr(RF)) {                           // 마을 시트 캐릭터 — 시트 맨 위의 큰 그림
+    const spr = chrSprite(KIND_FR[RF.kind].p, false);
+    g.drawImage(spr, Math.round(c.width / 2 - spr.cx), Math.round(c.height - 22 - spr.foot));
+    return;
+  }
   if (isCat(draft)) {                        // 고양이 기사 — 아래 · 왼쪽 걷기 · 위 · 오른쪽 걷기 를 돌려 보임 (2배)
     const [nm, mir] = catPose({ dir, moving: dir >= 2 }, now, -1, -1), spr = catSprite(roleFace(draft, S.role), nm, mir), z = 2;
     g.drawImage(spr, Math.round(c.width / 2 - spr.cx * z), Math.round(c.height - 22 - spr.foot * z), spr.width * z, spr.height * z);

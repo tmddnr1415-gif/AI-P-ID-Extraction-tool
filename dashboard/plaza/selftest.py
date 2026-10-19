@@ -63,6 +63,9 @@ try:
     cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2}
     call("/plaza/api/look", {"id": a["id"], "look": cat})
     ok.append(("얼굴 — 고양이 기사 (호랑이 · 황금 갑옷 · 초록 망토)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == cat))
+    ok.append(("그림 파일 — 마을 · 마을 캐릭터 (PNG)", all(urllib.request.urlopen(base + f"/static/{n}.png").read()[:4] == b"\x89PNG" for n in ("village", "village_chars"))))
+    call("/plaza/api/look", {"id": a["id"], "look": {**face, "kind": 4}})
+    ok.append(("얼굴 — 마을 캐릭터 (사자 무관)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"]["kind"] == 4))
     ok.append(("그림 파일 — 고양이 기사 (PNG)", urllib.request.urlopen(base + "/static/catknight.png").read()[:8] == b"\x89PNG\r\n\x1a\n"))
     ok.append(("역할 지정 — 부서원은 못 함", call("/plaza/api/role", {"id": a["id"], "target": "김철수", "role": "leader"})[0] == 403))
     ok.append(("역할 지정 — 운영자는 됨", call("/plaza/api/role", {"id": b["id"], "target": "김철수", "role": "unit"})[0] == 200))
