@@ -744,3 +744,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자 요청 '노비는 흰색 머리띠도'. 산발 위 이마 높이에 흰 무명 머리띠(좀 때 탄 주름 · 얼룩). 앞에서는 옆으로 삐져나온 끝, 옆에서는 뒤로 늘어진 끝, 뒤에서는 뒤통수 매듭 + 늘어진 두 끝.
 - 바뀐 곳: plaza.js `charSprite` 역할 장식의 `role === "operator"` 덩어리(11 에서 지운 두건 자리), `openFace` 안내 문구 '머리는 늘 산발에 흰 머리띠'.
 - 확인한 것: `node --check`, 노비 4 방향 × 걸음 3 그려 봄(오류 없음).
+
+### 2026-10-19 (1) — 계장 광장: 처치 수 · killer · 이름이 점점 짙은 붉은색 (PLAZA_VERSION 2026-10-19.1 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 (대시보드 서버가 30초 안에 새 판 광장으로 바꿈) → 적용 후 30초 뒤 Ctrl+F5.
+- 무엇을: 사용자 요청 '사용자를 많이 죽이면 killer 로 표기하면서 이름을 점점 짙은 붉은색으로'. 상대 체력을 0(유령)으로 만들면 처치 1.
+  - 이름 색: 1명부터 붉어짐 — 연분홍(1) → 새빨강(5쯤) → 짙은 붉은색(10명 이상). 테두리는 늘 검정.
+  - **3명부터** 이름 앞에 **[killer n]**(빨강) + 이름 둘레 붉은 빛무리. 3명이 되는 순간 대화창 '⚔ ○○ 님이 이번 주 3명을 쓰러뜨려 killer 가 되었습니다!'.
+  - 오른쪽 사람 목록: killer 딱지 + 이름 붉은색, 캐릭터 누른 판: '체력 … · 이번 주 n명 처치 (killer)'.
+  - 처치 수는 **주마다 새로**: 주간 마감(부활)할 때 체력과 함께 0. (계속 쌓이게 하려면 plaza_server.py `check_week` 의 `kills={}` 를 빼면 됨)
+- 바뀐 곳: plaza_server.py `KILLER_AT`(3) · `HP["kills"]` · `load_hp` · `check_week` · `save_hp`(hp.json 에 kills) · `api_attack`(0 으로 만든 사람에게 +1) · `snapshot`(players 에 kills · killer). plaza.js `killColor` · `nameTag` · `newActor` · `applySnapshot`(사람 목록) · `showCtx`. plaza.css `.pz-who .role.killer`. selftest.py 처치 수 시험(3명 → killer · 마감에 0).
+- 확인한 것: `py_compile`, `node --check`, `python plaza/selftest.py` 모두 통과. 대시보드 서버가 광장을 2026-10-19.1 로 스스로 바꿈. 브라우저: 처치 0 · 1 · 3 · 6 · 10 의 이름 색과 [killer n], 사람 목록 딱지, 캐릭터 판 문구. 스크립트 오류 없음.

@@ -97,3 +97,6 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-ctx small { color: #8fe3ff; }
 .pz-ctx button { margin-top: 2px; padding: 4px 8px; border: 1px solid #c9a34a; border-radius: 4px; background: #6b3f17; color: #fff; font: inherit; cursor: pointer; }
 .pz-ctx button:hover { filter: brightness(1.2); }
+
+/* 2026-10-19 처치 수 — 사람 목록의 killer 표시 */
+.pz-who .role.killer { background: #8b0000; color: #ffe2e2; }

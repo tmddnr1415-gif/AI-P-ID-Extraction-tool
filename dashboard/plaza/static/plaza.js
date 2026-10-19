@@ -677,7 +677,7 @@ const cv = $("#pz-map"), ctx = cv.getContext("2d");
 function newActor(p) { return { id: p.id, name: p.name, face: p.face || null, role: p.role || "member", tx: p.x, ty: p.y, x: p.x * T, y: p.y * T,
   dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0,
   actseq: p.act_seq || 0, hitseq: p.hit_seq || 0, attack: 0, hit: null, status: p.status || "",
-  hp: p.hp ?? 100, hpMax: p.hp_max || 100, ghost: !!p.ghost }; }
+  hp: p.hp ?? 100, hpMax: p.hp_max || 100, ghost: !!p.ghost, kills: p.kills || 0, killer: !!p.killer }; }
 
 function walkable(x, y) { return inside(x, y) && !solid[at(x, y)]; }
 // 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 서 있거나(서버 칸) 가고 있는 칸은 막힘 — 서버도 같은 규칙으로 막음
@@ -747,13 +747,13 @@ function applySnapshot(s) {
       if (!S.me.moving && tnow - (S.lastMove || 0) > 1000 && (p.x !== S.me.tx || p.y !== S.me.ty)) {
         S.me.tx = p.x; S.me.ty = p.y; S.me.x = p.x * T; S.me.y = p.y * T; S.me.dir = p.dir; }
       S.me.status = p.status || "";
-      S.me.hp = p.hp ?? 100; S.me.hpMax = p.hp_max || 100; S.me.ghost = !!p.ghost;
+      S.me.hp = p.hp ?? 100; S.me.hpMax = p.hp_max || 100; S.me.ghost = !!p.ghost; S.me.kills = p.kills || 0; S.me.killer = !!p.killer;
       continue;
     }
     let a = S.others.get(p.id);
     if (!a) { a = newActor(p); S.others.set(p.id, a); }
     a.name = p.name; a.face = p.face || null; a.role = p.role || "member"; a.status = p.status || "";
-    a.hp = p.hp ?? 100; a.hpMax = p.hp_max || 100; a.ghost = !!p.ghost;
+    a.hp = p.hp ?? 100; a.hpMax = p.hp_max || 100; a.ghost = !!p.ghost; a.kills = p.kills || 0; a.killer = !!p.killer;
     a.gx = p.x; a.gy = p.y;
     if (Math.abs(p.x - a.tx) + Math.abs(p.y - a.ty) > 3) { a.tx = p.x; a.ty = p.y; a.x = p.x * T; a.y = p.y * T; a.moving = false; }
     if (!a.moving && a.tx === a.gx && a.ty === a.gy) a.dir = p.dir;
@@ -773,7 +773,9 @@ function applySnapshot(s) {
   for (const p of [...s.players].sort((u, v) => (order[u.role] ?? 2) - (order[v.role] ?? 2))) {
     const d = document.createElement("div");
     if (ROLE_LABEL[p.role]) { const t = document.createElement("span"); t.className = "role " + p.role; t.textContent = ROLE_LABEL[p.role]; d.append(t); }
+    if (p.killer) { const t = document.createElement("span"); t.className = "role killer"; t.textContent = `killer ${p.kills}`; d.append(t); }
     d.append(document.createTextNode(p.name + (p.id === S.id ? " (나)" : "") + (p.ghost ? " [유령]" : "") + (p.status ? ` (${p.status})` : "")));
+    if (p.kills) d.style.color = killColor(p.kills);
     if (p.id === S.id) d.classList.add("me");
     who.append(d);
   }
@@ -846,12 +848,22 @@ function drawBubble(g, b) {                 // 겹치면 위로 올린 자리에
   lines.forEach((l, i) => g.fillText(l, x + 8, y + 5 + i * 16));
 }
 function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-function nameTag(g, cx, y, a, mine) {       // [그룹장] 이름 — 칭호는 역할 색
+// 처치 수 (2026-10-19): 1명부터 이름이 붉어지고 많이 쓰러뜨릴수록 짙은 붉은색 (10명 이상 가장 짙음) · 3명부터 [killer n]
+function killColor(k) {
+  const t = Math.min(1, Math.max(0, (k - 1) / 9)), stops = [[255, 125, 125], [255, 35, 35], [170, 0, 0]];   // 연분홍 → 새빨강 → 짙은 붉은색
+  const [a, b, u] = t < .5 ? [stops[0], stops[1], t * 2] : [stops[1], stops[2], (t - .5) * 2];
+  return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * u).toString(16).padStart(2, "0")).join("");
+}
+function nameTag(g, cx, y, a, mine) {       // [killer n] [그룹장] 이름 — 칭호는 역할 색
   g.font = `bold 12px ${FONT}`; g.textBaseline = "top"; g.textAlign = "left"; g.lineWidth = 3; g.strokeStyle = "#111";
-  const title = ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "";
-  const tw = g.measureText(title).width, nw = g.measureText(a.name).width, x0 = Math.round(cx - (tw + nw) / 2);
-  if (title) { g.strokeText(title, x0, y); g.fillStyle = ROLE_COLOR[a.role]; g.fillText(title, x0, y); }
-  g.strokeText(a.name, x0 + tw, y); g.fillStyle = mine ? "#ffe066" : "#ffffff"; g.fillText(a.name, x0 + tw, y);
+  const kt = a.killer ? `[killer ${a.kills}] ` : "", title = ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "";
+  const kw = g.measureText(kt).width, tw = g.measureText(title).width, nw = g.measureText(a.name).width, x0 = Math.round(cx - (kw + tw + nw) / 2);
+  const kc = a.kills ? killColor(a.kills) : null;
+  if (a.killer) { g.save(); g.shadowColor = "rgba(255,0,0,.75)"; g.shadowBlur = 6; }      // killer — 붉은 빛무리
+  if (kt) { g.strokeText(kt, x0, y); g.fillStyle = "#ff3030"; g.fillText(kt, x0, y); }
+  if (title) { g.strokeText(title, x0 + kw, y); g.fillStyle = ROLE_COLOR[a.role]; g.fillText(title, x0 + kw, y); }
+  g.strokeText(a.name, x0 + kw + tw, y); g.fillStyle = kc || (mine ? "#ffe066" : "#ffffff"); g.fillText(a.name, x0 + kw + tw, y);
+  if (a.killer) g.restore();
 }
 
 function hpBar(g, cx, y, a) {               // 이름 밑 체력 막대 (100) — 유령이면 '유령'
@@ -1120,7 +1132,7 @@ function showCtx(a, x, y) {
   t.textContent = (ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "") + a.name + (a === S.me ? " (나)" : "");
   ctxMenu.append(t);
   if (a.status) { const st = document.createElement("small"); st.textContent = a.status; ctxMenu.append(st); }
-  const hp = document.createElement("small"); hp.textContent = a.ghost ? "유령 (주간 마감 때 부활)" : `체력 ${a.hp}/${a.hpMax}`; ctxMenu.append(hp);
+  const hp = document.createElement("small"); hp.textContent = (a.ghost ? "유령 (주간 마감 때 부활)" : `체력 ${a.hp}/${a.hpMax}`) + (a.kills ? ` · 이번 주 ${a.kills}명 처치${a.killer ? " (killer)" : ""}` : ""); ctxMenu.append(hp);
   const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "캐릭터 정보";
   btn.onclick = () => { hideCtx(); cv.focus();
     if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");

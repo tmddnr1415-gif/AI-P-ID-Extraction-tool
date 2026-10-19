@@ -24,6 +24,7 @@
 상태(사람 · 말)는 메모리에만 있다.  파일은 셋 — `<data>/roles.json` (역할 · 없으면 빈 틀) ·
 `<data>/looks.json` (얼굴) · `<data>/hp.json` (체력 · 이번 주차).
 
+처치 수 (2026-10-19): 상대를 0 으로 만들면 1 — 이번 주 3명부터 [killer n], 이름은 1명부터 점점 짙은 붉은색 · 주간 마감에 0.
 체력 (2026-10-16 대시보드): 모두 100 에서 시작, 한 대 맞을 때마다 1 씩 줄고 0 이 되면 유령(공격 못 함 · 안 맞음 ·
 남과 겹쳐 지나감).  주간 마감(수요일 12:00, 대시보드에서 [금주 마감] 을 누르면 그때)이 지나 주차가 바뀌면 모두 100 으로
 부활.  주차 계산은 대시보드 server.py `iso_week` 와 같고, [금주 마감] 은 `<data>/../_meta/state.json` 의
@@ -50,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-16.7'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-19.1'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -59,6 +60,7 @@ NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
 HP_MAX = 100                 # 체력 — 맞을 때마다 1, 0 이면 유령 (주간 마감에 부활)
+KILLER_AT = 3                # 이번 주에 이만큼 쓰러뜨리면 이름 앞에 [killer n] (이름 붉은색은 1명부터 점점 짙게 · 화면이 정함)
 CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간 마감 (수요일 12:00)
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
 LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
@@ -74,7 +76,7 @@ DATA = HERE / "plaza_data"
 LOCK = threading.Lock()
 FILE_LOCK = threading.Lock()
 STATE: dict = {"ver": 0, "players": {}, "log": deque(maxlen=LOG_KEEP), "seq": 0}
-HP: dict = {"week": "", "hp": {}, "dirty": False, "checked": 0.0}   # 이름 → 체력 (100 이 아닌 사람만) · 그 주차
+HP: dict = {"week": "", "hp": {}, "kills": {}, "dirty": False, "checked": 0.0}   # 이름 → 체력 (100 이 아닌 사람만) · 그 주차
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -217,7 +219,15 @@ def load_hp() -> None:
             continue
         if 0 <= n < HP_MAX and clean(k, NAME_MAX):
             hp[clean(k, NAME_MAX)] = n
-    HP.update(week=str(raw.get("week") or ""), hp=hp, dirty=False, checked=0.0)
+    kills = {}
+    for k, v in (raw.get("kills") or {}).items() if isinstance(raw.get("kills"), dict) else []:
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            continue
+        if n > 0 and clean(k, NAME_MAX):
+            kills[clean(k, NAME_MAX)] = min(n, 9999)
+    HP.update(week=str(raw.get("week") or ""), hp=hp, kills=kills, dirty=False, checked=0.0)
 
 
 def check_week(now: float, force: bool = False) -> None:
@@ -230,7 +240,7 @@ def check_week(now: float, force: bool = False) -> None:
         return
     first = not HP["week"]
     revived = sum(1 for v in HP["hp"].values() if v <= 0)
-    HP.update(week=week, hp={}, dirty=True)
+    HP.update(week=week, hp={}, kills={}, dirty=True)   # 처치 수도 주마다 새로
     if not first:
         log_system(f"주간 마감 — 새 주차 {week}. 모두 체력 {HP_MAX} 으로 돌아왔습니다." + (f" (유령 {revived}명 부활)" if revived else ""), now)
         STATE["ver"] += 1
@@ -244,8 +254,9 @@ def save_hp() -> None:
     with LOCK:
         if not HP["dirty"]:
             return
-        data = {"week": HP["week"], "hp": dict(HP["hp"]),
-                "_설명": f"계장 광장 체력 (이름 → 남은 체력, 없으면 {HP_MAX}). 0 = 유령. 주차가 바뀌면(주간 마감) 모두 {HP_MAX} 으로 부활."}
+        data = {"week": HP["week"], "hp": dict(HP["hp"]), "kills": dict(HP["kills"]),
+                "_설명": f"계장 광장 체력 (이름 → 남은 체력, 없으면 {HP_MAX}). 0 = 유령. kills = 이번 주에 쓰러뜨린 수. "
+                         f"주차가 바뀌면(주간 마감) 모두 {HP_MAX} 으로 부활 · kills 0."}
         HP["dirty"] = False
     try:
         with FILE_LOCK:
@@ -297,6 +308,7 @@ def snapshot(now: float | None = None) -> dict:
                 "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
                 "status": p.get("status", ""),
                 "hp": hp_of(p["name"]), "hp_max": HP_MAX, "ghost": hp_of(p["name"]) <= 0,
+                "kills": HP["kills"].get(p["name"], 0), "killer": HP["kills"].get(p["name"], 0) >= KILLER_AT,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
@@ -421,7 +433,10 @@ def api_attack(body: dict) -> dict:
             HP["dirty"] = True
             hit.append(q["name"])
             if left <= 0:
+                k = HP["kills"][p["name"]] = min(HP["kills"].get(p["name"], 0) + 1, 9999)   # 처치 수
                 log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 때 부활)", now)
+                if k == KILLER_AT:
+                    log_system(f"⚔ {p['name']} 님이 이번 주 {k}명을 쓰러뜨려 killer 가 되었습니다!", now)
         STATE["ver"] += 1
     return {"ok": True, "hit": hit}
 

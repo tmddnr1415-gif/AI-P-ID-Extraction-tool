@@ -24,7 +24,7 @@ sys.path.insert(0, str(HERE))
 import plaza_server  # noqa: E402  (주차 계산만 빌려 씀)
 plaza_server.DATA = data
 week = plaza_server.plaza_week()
-(data / "hp.json").write_text(json.dumps({"week": week, "hp": {"이몽룡": 1}}, ensure_ascii=False), encoding="utf-8")
+(data / "hp.json").write_text(json.dumps({"week": week, "hp": {"이몽룡": 1, "변학도": 1, "방자": 1}}, ensure_ascii=False), encoding="utf-8")
 (data / "roles.json").write_text(json.dumps({"operators": ["홍길동"], "group_leader": ["이영희"]}, ensure_ascii=False), encoding="utf-8")
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 srv = subprocess.Popen([sys.executable, str(HERE / "plaza_server.py"), "--host", "127.0.0.1", "--port", str(port), "--data", str(data)])
@@ -85,8 +85,16 @@ try:
     time.sleep(0.35)
     ok.append(("유령 — 안 맞음", call("/plaza/api/attack", {"id": h["id"]}, F)[1]["hit"] == []))
     ok.append(("유령 — 남과 겹쳐 지나감", call("/plaza/api/move", {"id": m["id"], "x": 42, "y": 20, "dir": 3}, E)[1].get("ok") is True))
+    # 2026-10-19 처치 수: 3명 쓰러뜨리면 killer
+    G1, G2 = "127.0.0.7", "127.0.0.8"
+    for nm, ip, x in (("변학도", G1, 46), ("방자", G2, 48)):
+        call("/plaza/api/join", {"name": nm, "x": x, "y": 24}, ip)
+        call("/plaza/api/move", {"id": h["id"], "x": x + 1, "y": 24, "dir": 2}, F)
+        time.sleep(0.35)
+        call("/plaza/api/attack", {"id": h["id"]}, F)
     time.sleep(2.5)
     saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
+    ok.append(("처치 수 — 3명 쓰러뜨림 (killer)", saved.get("kills", {}).get("성춘향") == 3))
     ok.append(("체력 — 파일에 남음 (홍길동 99 · 이몽룡 0)", saved["hp"].get("홍길동") == 99 and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
     (root / "data" / "_meta").mkdir()
     (root / "data" / "_meta" / "state.json").write_text(json.dumps({"manualClosedWeek": week}), encoding="utf-8")   # [금주 마감]
@@ -96,7 +104,7 @@ try:
     ok.append(("주간 마감 — 유령 부활 (다시 때릴 수 있음)", call("/plaza/api/attack", {"id": m["id"]}, E)[1].get("ghost") is None))
     time.sleep(2.5)
     saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
-    ok.append(("주간 마감 — 모두 100 · 새 주차", saved["hp"] == {} and saved["week"] > week))
+    ok.append(("주간 마감 — 모두 100 · 처치 수 0 · 새 주차", saved["hp"] == {} and saved.get("kills") == {} and saved["week"] > week))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)
