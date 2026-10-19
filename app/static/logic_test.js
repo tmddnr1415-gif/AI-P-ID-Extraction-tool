@@ -3,7 +3,7 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
-const G = { job: null, data: null, learn: null, filter: "all", q: "", sort: "status", open: null, results: {}, running: null, stop: false };
+const G = { job: null, data: null, learn: {}, filter: "all", q: "", sort: "status", open: null, results: {}, running: null, stop: false };
 const ST_KO = { pass: "통과", fail: "실패", warn: "확인 필요", gap: "시험 불가", none: "미시험", skip: "시험 안 함" };
 const ST_C = { pass: "var(--pass)", warn: "var(--warn)", fail: "var(--fail)", gap: "var(--gap)", none: "var(--none)" };
 const KIND_KO = { on: "켜기", alt: "다른 길", block: "막는 신호", hold: "유지/놓기", stop: "끄는 신호", always: "늘 켜짐",
@@ -55,7 +55,7 @@ async function loadJobs() {
   else $("#empty").hidden = false, $("#empty").textContent = "분석된 Logic 묶음이 없습니다.";
 }
 async function openJob(id) {
-  G.job = id; G.results = {}; G.open = null; G.learn = null;
+  G.job = id; G.results = {}; G.open = null; G.learn = {};
   history.replaceState(null, "", `${location.pathname}${location.search}#job=${id}`);
   $("#back").href = `/logic${location.search}#job=${id}`;
   $("#xlsx").href = `/logic/api/jobs/${id}/grouptest.xlsx`;
@@ -67,7 +67,9 @@ async function refresh() {
   try { d = await api(`/logic/api/jobs/${id}/groups`); }
   catch (e) { $("#empty").hidden = false; $("#empty").textContent = e.message; return; }
   if (id !== G.job) return;
+  const same = G.data && G.data.learned_at === d.learned_at && G.data.groups.length === d.groups.length && d.state !== "done";
   G.data = d;
+  if (same) { renderLearn(); setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000); return; }   // L42 — 배우는 동안 표를 3초마다 다시 만들지 않는다
   $("#sub").textContent = `${d.name || ""}${d.project ? " · " + d.project : ""}`;
   renderLearn(); render();
   if (d.state === "running" || d.state === "none") setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000);
@@ -149,6 +151,30 @@ function rowHtml(g, i) {
     <td><button class="go" data-run="${i}" ${G.running ? "disabled" : ""}>▶ 시험</button></td></tr>
     ${open ? `<tr class="det"><td colspan="11">${detailHtml(g)}</td></tr>` : ""}`;
 }
+/* L42 — 393 장비짜리 묶음(19VA)에서 누를 때마다 표 전체를 다시 만들던 것을: 위 카드 · 칩만 다시 세고 바뀐 줄만 바꾼다 */
+function renderHead() {
+  renderTop();
+  const n = tally(G.data.groups);
+  $("#chips").innerHTML = [["all", "전체", G.data.groups.length], ["fail", "실패", n.fail], ["warn", "확인 필요", n.warn], ["gap", "시험 불가", n.gap],
+    ["none", "미시험", n.none], ["pass", "통과", n.pass]].map(([k, t, c]) => `<button data-f="${k}" class="${G.filter === k || (k === "all" && G.filter === "cmd") ? "on" : ""}">${t}<i>${c}</i></button>`).join("");
+  $("#run-all").textContent = G.running ? "■ 멈추기" : `▶ 모두 시험 (${(G.shown || []).length})`;
+  $("#run-all").className = "gt-btn " + (G.running ? "stop" : "pri");
+  $("#run-all").disabled = !(G.shown || []).length && !G.running;
+}
+function paintRow(g) {
+  if (!G.data) return;
+  const i = (G.shown || []).indexOf(g);
+  const tr = i < 0 ? null : document.querySelector(`#rows tr.g[data-i="${i}"]`);
+  if (!tr) return;
+  const nx = tr.nextElementSibling;
+  if (nx && nx.classList.contains("det")) nx.remove();
+  tr.insertAdjacentHTML("afterend", rowHtml(g, i));
+  tr.remove();
+}
+function setRunning(v) {               // ▶ 시험 단추의 막힘만 바꾼다 (줄을 다시 만들지 않는다)
+  G.running = v;
+  for (const b of document.querySelectorAll("#rows button[data-run]")) b.disabled = !!v;
+}
 function render() {
   if (!G.data) return;
   renderTop();
@@ -167,20 +193,34 @@ function render() {
 }
 
 /* ------------------------------------------------------------------ 펼친 장비 — 로직 이해 + 시험 항목 */
-function lbl(ls) { return (ls || []).map((l) => `<li><span class="v${l.value}">${l.value}</span> <b>${esc(l.sheet || "")}</b> ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join(""); }
+/* L42 — 신호마다 '어느 시트 어느 행' (BL10_P301-112) · 누르면 LOGIC 창이 그 자리로 간다.  행이 아닌 블록은 '시트 · 블록' */
+function rowOf(l) { return l.row != null ? l.row : (/^row:(\d+)$/.exec(l.key || "") || [])[1]; }
+function locHtml(l, side) {
+  if (!l || !l.page) return "";
+  const r = rowOf(l), sh = esc(l.sheet || `p${l.page}`);
+  const blk = !r && /^block:/.test(l.key || "");
+  const t = r ? `${sh}-${r}` : blk ? `${sh} · 블록` : sh;
+  return `<a class="loc" data-pg="${l.page}" data-row="${r || ""}" data-side="${side || "L"}" data-key="${esc(l.key || "")}" title="LOGIC 창에서 ${t} 로 갑니다">${t}</a>`;
+}
+function lbl(ls) { return (ls || []).map((l) => `<li><span class="vb v${l.value}">${l.value}</span> ${locHtml(l)} ${esc(l.text)}${l.assumed ? " <small>(빈틈)</small>" : ""}</li>`).join(""); }
+function sigsHtml(c) {
+  const ss = c.signals || [];
+  if (!ss.length) return "";
+  return `<div class="sigs">${ss.map((l) => `<span class="sg${c.key && l.key === c.key && l.page === (c.at || {}).page ? " key" : ""}${l.assumed ? " gap" : ""}" title="${esc(l.text)}"><i class="v${l.value}">${l.value}</i>${locHtml(l)} <em>${esc(l.text)}</em></span>`).join("")}</div>`;
+}
 function understandOf(x) {
   if (!x) return "";
   if (!x.reached) {
     const b = x.blocked_at || {};
-    return `<div class="u"><h4>${esc(x.action)} — 안 섬</h4><div class="why">${esc(x.why || "")}${b.label ? ` · 막힌 곳 ${esc(b.label)}` : ""}</div></div>`;
+    return `<div class="u"><h4>${esc(x.action)} — 안 섬 <small>${locHtml({ page: x.page, sheet: x.sheet, row: x.row }, "R")}</small></h4><div class="why">${esc(x.why || "")}${b.label ? ` · 막힌 곳 ${esc(b.label)}` : ""}</div></div>`;
   }
   const hold = x.latch === true ? "● 자기유지" : x.latch === false ? "○ 누르는 동안만" : x.pulse_s != null ? `⏱ 펄스 ${x.pulse_s}초` : "";
-  return `<div class="u"><h4>${esc(x.action)} <small>${esc(x.sheet)}-${x.row} · ${esc(hold)}</small></h4>
+  return `<div class="u"><h4>${esc(x.action)} <small>${locHtml({ page: x.page, sheet: x.sheet, row: x.row }, "R")}${hold ? " · " + esc(hold) : ""}</small></h4>
     <b>켜는 신호</b><ul>${lbl(x.labels) || "<li>신호 없이 섬</li>"}</ul>
     ${(x.alts || []).map((a, i) => `<b>다른 길 ${i + 1}</b><ul>${lbl(a.labels)}</ul>`).join("")}
     ${(x.interlocks || []).length ? `<b>막는 신호</b><ul>${lbl(x.interlocks)}</ul>` : ""}
     ${(x.stoppers || []).length ? `<b>끄는 신호</b><ul>${lbl(x.stoppers)}</ul>` : ""}
-    ${(x.effects || []).length ? `<b>함께 켜짐</b><ul>${x.effects.slice(0, 8).map((e) => `<li><b>${esc(e.sheet)}-${e.row}</b> ${esc(e.text)}${e.to ? ` <small>→ ${esc(e.to)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>`;
+    ${(x.effects || []).length ? `<b>함께 켜짐</b><ul>${x.effects.slice(0, 8).map((e) => `<li>${locHtml(e, "R")} ${esc(e.text)}${e.to ? ` <small>→ ${esc(e.to)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>`;
 }
 /* L41 — 듀얼 모니터: 이 창이 LOGIC 창과 이어져 있으면 시험 신호를 그 창으로 보낸다 */
 const LINK = { win: null };
@@ -211,56 +251,71 @@ function showInLogic(equip, i, c, open = true) {
   }
   renderLink();
 }
+/* L42 — 시트 · 행 하나로 LOGIC 창을 옮긴다 (신호는 주지 않는다) */
+function goInLogic(page, row, side, key) {
+  if (!page) return;
+  const w = logicWin();
+  const msg = { type: "goto", job: G.job, page, row: row || null, side: side || "L", key: key || "" };
+  if (w) { w.postMessage(msg, location.origin); try { w.focus(); } catch (e) {} }
+  else {
+    const h = `job=${G.job}&page=${page}${row ? `&row=${row}&side=${side || "L"}` : ""}${/^block:/.test(key || "") ? "&blk=" + encodeURIComponent(key.slice(6)) : ""}`;
+    LINK.win = window.open(`/logic${location.search}#${h}`, `logic-main-${G.job}`);
+    if (!LINK.win) toast("새 창을 열지 못했습니다 — 팝업 차단을 풀어 주세요", 5000);
+  }
+  renderLink();
+}
 function simLink(i, c, equip) {
   const at = c.at || {};
   return `/logic${location.search}#job=${G.job}&page=${at.page || ""}&test=${encodeURIComponent(equip || G.open)}&chk=${i}`;
 }
 function detailHtml(g) {
-  const items = G.learn ? G.learn.items.filter((x) => x.equip === g.equip) : null;
+  const items = G.learn[g.equip] || null;
   const und = items ? `<div class="understand">${items.map(understandOf).join("")}</div>` : `<div class="det-h">불러오는 중…</div>`;
   const r = G.results[g.equip];
   if (!r) return und + `<div class="det-h">${g.test ? "시험 결과를 불러오는 중…" : "미시험 — <b>▶ 시험</b> 을 누르세요."}</div>`;
   const rows = (r.checks || []).map((c, i) => `<tr class="${c.status}">
       <td><span class="st ${c.status}">${ST_KO[c.status]}</span></td><td>${esc(c.action || "")}</td><td>${esc(KIND_KO[c.kind] || c.kind)}</td>
-      <td>${esc(c.title)}${c.why ? `<div class="why">${esc(c.why)}</div>` : ""}</td><td>${esc(c.expect)}</td><td>${esc(c.got)}</td>
+      <td class="loc-c">${locHtml(c.cmd || ((c.at || {}).row ? c.at : null), "R")}</td>
+      <td>${esc(c.title)}${c.why ? `<div class="why">${esc(c.why)}</div>` : ""}${sigsHtml(c)}</td><td>${esc(c.expect)}</td><td>${esc(c.got)}</td>
       <td>${c.at && c.at.page ? `<a href="${simLink(i, c)}" data-chk="${i}" title="LOGIC 창에서 이 시험의 신호를 주고 흐름을 봅니다 (듀얼 모니터면 다른 창)">도면 →</a>` : ""}</td></tr>`).join("");
   return und + `<div class="det-h"><b>시험 항목 ${(r.checks || []).length}</b> · ${esc(r.author || "이름 없음")} · ${when(r.at)} · ${r.seconds ?? ""}초
       ${r.learned_fresh === false ? " · ⚠ 다시 학습 중" : ""}</div>
-    <table class="ck"><thead><tr><th>판정</th><th>동작</th><th>항목</th><th>내용</th><th>기대</th><th>결과</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    <table class="ck"><thead><tr><th>판정</th><th>동작</th><th>항목</th><th title="그 명령이 나가는 출력 행">명령 자리</th><th>내용 · 준 신호</th><th>기대</th><th>결과</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-async function ensureLearn() {
-  if (G.learn || !G.job) return;
+async function ensureLearn(equip) {          // L42 — 펼친 장비 하나만 받는다
+  if (G.learn[equip] || !G.job) return;
   const id = G.job;
-  try { const b = await api(`/logic/api/jobs/${id}/behavior?start=0`); if (id === G.job) G.learn = b.result || { items: [] }; }
-  catch (e) { G.learn = { items: [] }; }
+  try { const b = await api(`/logic/api/jobs/${id}/behavior?start=0&equip=${encodeURIComponent(equip)}`); if (id === G.job) G.learn[equip] = (b.result || {}).items || []; }
+  catch (e) { G.learn[equip] = []; }
 }
 async function toggle(g) {
+  const prev = G.open && G.data.groups.find((x) => x.equip === G.open);
   G.open = G.open === g.equip ? null : g.equip;
-  render();
+  if (prev && prev !== g) paintRow(prev);
+  paintRow(g);
   if (!G.open) return;
-  await ensureLearn();
-  if (!G.results[g.equip] && g.test) {
-    try { G.results[g.equip] = await api(`/logic/api/jobs/${G.job}/grouptest?equip=${encodeURIComponent(g.equip)}`); } catch (e) {}
-  }
-  render();
+  await Promise.all([ensureLearn(g.equip),
+    !G.results[g.equip] && g.test ? api(`/logic/api/jobs/${G.job}/grouptest?equip=${encodeURIComponent(g.equip)}`).then((r) => { G.results[g.equip] = r; }).catch(() => {}) : null]);
+  if (G.open === g.equip) paintRow(g);
 }
 
 /* ------------------------------------------------------------------ 원 버튼 시험 · 모두 시험 */
-async function runOne(g) {
-  G.running = g.equip; render();
+async function runOne(g, many) {
+  setRunning(g.equip); paintRow(g);
   try {
     const r = await post(`/logic/api/jobs/${G.job}/grouptest`, { equip: g.equip, author: author() });
     G.results[g.equip] = r;
     g.test = { status: r.status, counts: r.counts, author: r.author, at: r.at, stale: false };
     return r;
   } catch (e) { toast(`${g.equip} — ${e.message}`, 5000); return null; }
-  finally { G.running = null; render(); }
+  finally { setRunning(many ? "__all" : null); paintRow(g); renderHead(); }
 }
 async function runAll() {
   if (G.running) { G.stop = true; return; }
   const list = G.shown.slice();
   if (!list.length) return;
   G.stop = false;
+  setRunning("__all"); renderHead();
   const line = $("#runline");
   line.hidden = false;
   const t0 = Date.now();
@@ -269,10 +324,9 @@ async function runAll() {
     if (G.stop) break;
     k++;
     line.innerHTML = `▶ ${k}/${list.length} — <b>${esc(g.equip)}</b> 시험 중<div class="rp"><i style="width:${100 * (k - 1) / list.length}%"></i></div>`;
-    await runOne(g);
-    G.running = "__all";                                  // 사이사이 다른 단추를 막는다
+    await runOne(g, true);                                // 사이사이 다른 단추를 막는다 (줄은 그 줄만 바꾼다)
   }
-  G.running = null;
+  setRunning(null);
   const n = tally(list);
   line.innerHTML = `${G.stop ? "■ 멈춤" : "✔ 끝"} — ${k}개 시험 · ${Math.round((Date.now() - t0) / 1000)}초 · 통과 ${n.pass} · 확인 ${n.warn} · 실패 ${n.fail} · 불가 ${n.gap}
     <div class="rp"><i style="width:100%"></i></div>`;
@@ -296,11 +350,17 @@ function bind() {
     if (f) { G.filter = f.dataset.f === G.filter ? "all" : f.dataset.f; render(); return; }
     const b = e.target.closest("button[data-run]");
     if (b) { e.stopPropagation(); const g = G.shown[Number(b.dataset.run)]; if (g && !G.running) runOne(g).then((r) => {
-      if (G.open !== g.equip) toggle(g); else render();
+      if (G.open !== g.equip) toggle(g);
       const cs = (r && r.checks) || [];
       const i = Math.max(0, cs.findIndex((c) => c.kind === "on" && c.at && c.at.page));
       if (cs[i] && cs[i].at && cs[i].at.page) showInLogic(g.equip, i, cs[i], false);
     }); return; }
+    const lc = e.target.closest("a.loc");
+    if (lc) {
+      e.preventDefault(); e.stopPropagation();
+      goInLogic(Number(lc.dataset.pg), Number(lc.dataset.row) || 0, lc.dataset.side, lc.dataset.key || "");
+      return;
+    }
     const a = e.target.closest("a[data-chk]");
     if (a) {
       e.preventDefault();

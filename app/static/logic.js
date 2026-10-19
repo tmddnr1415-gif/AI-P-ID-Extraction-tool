@@ -99,6 +99,7 @@ async function fromOtherWindow(d) {
   if (!/^[0-9a-f]{12}$/.test(d.job || "")) return;
   try { window.focus(); } catch (e) {}
   const want = d.type === "review-go" ? `rvgo=${Number(d.id)}`
+    : d.type === "goto" ? `page=${Number(d.page) || ""}&row=${Number(d.row) || ""}&side=${d.side === "R" ? "R" : "L"}${d.key && d.key.startsWith("block:") ? "&blk=" + encodeURIComponent(d.key.slice(6)) : ""}`
     : `page=${Number(d.page) || ""}&test=${encodeURIComponent(d.equip || "")}&chk=${Number(d.chk) || 0}`;
   if (d.job !== L.job || !L.sheets) {
     history.replaceState(null, "", `${location.pathname}${location.search}#job=${d.job}&${want}`);
@@ -111,7 +112,8 @@ async function fromOtherWindow(d) {
     if (!RV.data) await loadReview(L.job);
     const it = RV.data && RV.data.items.find((x) => x.id === Number(d.id));
     if (it) goReview(it); else status(`검토 항목 ${d.id} 를 찾지 못했습니다 — 검토를 다시 모았을 수 있습니다`);
-  } else applyHashTest(L.job, d.equip, Number(d.chk) || 0);
+  } else if (d.type === "goto") goLoc(Number(d.page), Number(d.row) || 0, d.side, d.key || "");
+  else applyHashTest(L.job, d.equip, Number(d.chk) || 0);
 }
 async function startReviewPane() {
   document.body.classList.add("pane-review");
@@ -435,7 +437,8 @@ async function openJob(id) {
   L.idrate = null; L.idrateOpen = false; loadIdrate();
   // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
-  loadTeach(id, teachOpen || lsGet("logic.teachclosed." + id) !== "1");
+  const fromWin = /[#&](test|rvgo|row|blk)=/.test(location.hash);      // L42 — 다른 창(그룹 시험 · 검토)에서 자리를 짚어 왔으면 창을 덮지 않는다
+  loadTeach(id, !fromWin && (teachOpen || lsGet("logic.teachclosed." + id) !== "1"));
   $("#ft-report").hidden = false;
   RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
   $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
@@ -445,17 +448,47 @@ async function openJob(id) {
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
   const test = location.hash.match(/[#&]test=([^&]+)/);
   const rvgo = Number((location.hash.match(/[#&]rvgo=(\d+)/) || [])[1]);
-  if (!MACRO_FROM && !test && !rvgo && (wasRunning || !seen)) showFromTo(id);
+  if (!MACRO_FROM && !fromWin && (wasRunning || !seen)) showFromTo(id);
   if (rvgo) {                                  // L41 — 검토 결과 창에서 왔다
     await loadReview(id);
     const it = RV.data && RV.data.items.find((x) => x.id === rvgo);
     if (it) { goReview(it); return; }
   }
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
+  const hrow = Number((location.hash.match(/[#&]row=(\d+)/) || [])[1]) || 0;     // L42 — 그룹 시험 창의 '시트-행' 에서 왔다
+  const hblk = (location.hash.match(/[#&]blk=([^&]+)/) || [])[1];
+  if (p && !test && (hrow || hblk)) { await goLoc(p, hrow, (location.hash.match(/[#&]side=([LR])/) || [])[1], hblk ? "block:" + decodeURIComponent(hblk) : ""); return; }
   if (p) { if (test) { await openSheet(p); applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p); }
+}
+/* L42 — 시트 · 행(또는 블록) 자리로 간다.  그룹 시험 창이 신호마다 'BL10_P301-112' 를 누르면 여기로 온다 */
+async function goLoc(page, row, side, key) {
+  if (!page) return;
+  if (row) {
+    L.focus = { page, row, side: side || "L", at: Date.now() };
+    if (page === L.page && L.sheet) { drawOverlay(); focusRow(); } else await openSheet(page);
+    return;
+  }
+  if (page !== L.page || !L.sheet) await openSheet(page);
+  const bid = key && key.startsWith("block:") ? key.slice(6).split("/")[0] : null;
+  const b = bid && L.sheet && L.sheet.blocks[bid];
+  if (!b) return;
+  L.sel = { block: bid }; paint(); renderInfo();
+  const st = $("#stage");
+  setZoom(Math.max(L.zoom, 1.6));
+  st.scrollLeft = ((b.bbox[0] + b.bbox[2]) / 2) * L.zoom - st.clientWidth / 2;
+  st.scrollTop = ((b.bbox[1] + b.bbox[3]) / 2) * L.zoom - st.clientHeight / 2;
 }
 /* L36 — 블록 그룹 시험 대시보드에서 '도면에서 보기' 로 왔을 때: 그 시험 항목의 신호를 그대로 주고 흐름을 그린다 */
 async function applyHashTest(id, equip, chk) {
+  try { await applyHashTest_(id, equip, chk); }
+  catch (e) { console.error(e); status(`시험 신호를 그리지 못했습니다 — ${e.message} (${whereErr(e)})`); }
+}
+/* L42 — 화면 오류가 어디서 났는지 한 마디 (다음 신고 때 바로 찾게) */
+function whereErr(e) {
+  const m = /at (\S+) \(.*?logic\.js[^:]*:(\d+)/.exec(String((e && e.stack) || ""));
+  return m ? `${m[1]} · ${m[2]}줄` : "위치 모름";
+}
+async function applyHashTest_(id, equip, chk) {
   const ci = chk != null ? chk : Number((location.hash.match(/[#&]chk=(\d+)/) || [])[1] || 0);
   let r;
   try { r = await api(`/logic/api/jobs/${id}/grouptest?equip=${encodeURIComponent(equip)}`); } catch (e) { status(e.message); return; }
@@ -1005,6 +1038,7 @@ function drawOverlay() {
   }
   drawConnectorLinks(gB);
   for (const r of s.rows) {
+    if (!r.at) continue;                               // L42 — 자리 없는 행(사람이 더한 행 · 예전 결과)은 점을 그리지 않는다
     const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
     c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
     const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}` + (r.ft && r.ft.ok === false ? `\n✕ from-to 일치하지 않습니다 — ${r.ft.why.join(" · ")}` : r.ft && r.ft.warn && r.ft.warn.length ? `\n⚠ 연결은 맞고 설명만 다릅니다 — ${r.ft.warn.join(" · ")}` : "");
@@ -2514,7 +2548,7 @@ function flashNeed(keys, s) {
     if (k.startsWith("row:")) {
       const n = Number(k.slice(4));
       const row = s.rows.find((r) => r.n === n && r.side === "L") || s.rows.find((r) => r.n === n);
-      if (row) {
+      if (row && row.at) {
         el("circle", { cx: row.at[0], cy: row.at[1], r: 4.8 }, gg);
         if (row.net != null) for (const [x0, y0, x1, y1] of (s.order[row.net] || [])) el("line", { x1: x0, y1: y0, x2: x1, y2: y1 }, gg);
         const li = document.querySelector(`.lg-rows li[data-row="${n}"]`);
@@ -2772,7 +2806,10 @@ window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
   if (PANE_REVIEW) { if (e.data.type === "review-marks" && e.data.job === L.job) loadReview(L.job, true); return; }
-  if (["review-go", "review-on", "review-marks", "grouptest-apply"].includes(e.data.type)) { fromOtherWindow(e.data); return; }
+  if (["review-go", "review-on", "review-marks", "grouptest-apply", "goto"].includes(e.data.type)) {
+    fromOtherWindow(e.data).catch((er) => { console.error(er); status(`다른 창에서 온 신호를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
+    return;
+  }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
   applyMacroInputs(e.data.inputs);
 });
@@ -4091,6 +4128,7 @@ function drawSimMarks() {
     if (!live && !showAllGates) continue;
     if (showVals) {
       for (const p of ps) {
+        if (!p.at) continue;
         const v = portVal(p);
         const w = fs * 1.15, h = fs * 1.2, pad = fs * 0.25;
         const x = p.dir === "in" ? p.at[0] - pad - w : p.at[0] + pad;
@@ -5099,4 +5137,4 @@ bindHome();
 initPan();
 renderHelp();
 if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
-else loadJobs().catch((e) => status(e.message));
+else loadJobs().catch((e) => { console.error(e); status(`화면 오류 — ${e.message} (${whereErr(e)})`); });

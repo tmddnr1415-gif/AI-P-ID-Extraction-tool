@@ -61,7 +61,11 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-info td:first-child { color: var(--soft); width: 86px; }
 .lg-info .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
 .lg-rows { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
-.lg-rows li { display: grid; grid-template-columns: 30px 1fr auto; gap: 4px; align-items: center; padding: 3px 4px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.lg-rows li { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; padding: 3px 4px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+/* L42 — 아날로그 칩 · 1/0 단추가 넓어도 설명이 한 글자씩 세로로 접히지 않게: 자리가 모자라면 오른쪽 칸이 다음 줄로 */
+.lg-rows li > .n { flex: 0 0 30px; }
+.lg-rows li > .d { flex: 1 1 150px; min-width: 150px; }
+.lg-rows li > span:last-child:not(.d) { flex: 0 0 auto; margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px; }
 .lg-rows li:hover { background: #f2f4fa; }
 .lg-rows .n { color: var(--soft); text-align: right; }
 .lg-rows .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

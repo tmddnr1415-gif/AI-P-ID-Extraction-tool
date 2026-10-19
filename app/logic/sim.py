@@ -708,7 +708,7 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None, light=False):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -726,7 +726,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
     # 그 신호가 닿는 장 몇 장뿐이다.  결과는 cache 없이 돌린 것과 글자까지 같다 (시험).
     if cache is not None and cache.get("topo") is not None and cache.get("n_sheets") == len(sheets):
         by_page, by_no, feeds, macros, inline = cache["topo"]
-        return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline)
+        return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline, light)
     by_page = {s["page"]: s for s in sheets}
     by_no = {s["sheet_no"]: s for s in sheets if s.get("sheet_no")}
     # 받는 쪽: page → [(row n, 보내는 page, 보내는 row)]
@@ -763,7 +763,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
             cache.pop(k, None)
         cache["topo"] = (by_page, by_no, feeds, macros, inline)
         cache["n_sheets"] = len(sheets)
-    return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline)
+    return _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline, light)
 
 
 BUNDLE_MEMO_MAX = 6000                # L28 — 장마다 기억하는 계산 (넘으면 비운다 — 맞음에는 닿지 않는다)
@@ -785,7 +785,7 @@ def _memo_key(*parts):
     return json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
 
 
-def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline):
+def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline, light=False):
     if cache is not None:
         ak = _memo_key(analog)
         an_memo = cache.setdefault("analog", {})
@@ -802,7 +802,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         an_given = _analog_bundle(by_page, feeds, analog)
         page_memo = None
     out_rows = {}                     # page → {row: 값}
-    results = {}
+    results = _LazyResults()          # L42 — 기억에서 꺼낸 장은 쓸 때만 푼다 (827장을 매번 다 풀던 것)
     link_in = {}                      # page → {row: 값}
 
     def inputs_of(page):
@@ -936,14 +936,17 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                     hit = page_memo.get(mk)
                 except (TypeError, ValueError):
                     mk = None
-            if mk is not None and hit is not None:
-                res, mv = _fresh(hit)
+            hit_rv = None
+            if mk is not None and hit is not None and not items:
+                res, mv, hit_rv = _LazyRes(hit[0], hit[2]), None, hit[1]
+            elif mk is not None and hit is not None:
+                res, mv = _fresh(hit[0])
             else:
                 res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
                 mv = None
             # L16 — 줄줄이: 이 시트의 출력을 내려면 다른 시트에서 오는 입력이 1 이어야 하면, 그 입력을 보내는 시트의
             # 출력 행도 목표로 켠다 (그 시트에서 다시 거꾸로 맞추기 — 게이트가 막으면 거기서 머문다).
-            for n, v in (res.get("pulled") or {}).items():
+            for n, v in ((hit[3] if hit_rv is not None else res.get("pulled")) or {}).items():
                 for rn, sp, sr in feeds.get(page, ()):
                     if rn != n:
                         continue
@@ -963,11 +966,11 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                     mv = macro_views(page, items, res["frames"][-1]["values"])
                     strip(res)
                 macro_view[page] = mv
+            rv = hit_rv if hit_rv is not None else _row_values(s, res["frames"][-1]["values"])
             if mk is not None and hit is None:
-                page_memo[mk] = _pack((res, mv))
+                page_memo[mk] = (_pack((res, mv)), rv, _pack(res.get("state")), dict(res.get("pulled") or {}))
             results[page] = res
             link_in[page] = lin
-            rv = _row_values(s, res["frames"][-1]["values"])
             if rv != out_rows.get(page):
                 out_rows[page] = rv
                 changed_out.add(page)
@@ -992,7 +995,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                     nxt.append(q)
         frontier = nxt
     pages = []
-    for page, s in sorted(by_page.items()):
+    # L42 — light: 그룹 시험 · 학습처럼 그 장의 틀과 상태만 보는 부르는 쪽은 장마다의 글(현황) · 설계 오류를 만들지 않는다
+    for page, s in ([] if light else sorted(by_page.items())):
         lin = {n: v for n, v in link_in.get(page, {}).items() if f"row:{n}" not in forces.get(page, {})}
         user = forces.get(page, {})
         on_in = sorted(n for n, v in lin.items() if v == 1)
@@ -1017,8 +1021,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
     run_of = cache.get("run_of") if cache is not None else None
     if cache is not None and run_of is None:
         run_of = cache["run_of"] = {x["page"]: _to_runs(x) for x in sheets}
-    design = [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop))
-              if e["page"] in hop]
+    design = [] if light else [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop))
+                               if e["page"] in hop]
     for page, view in macro_view.items():
         for bid, v in view.items():
             for c in v.get("conflict") or []:
@@ -1043,8 +1047,47 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             "chain_forces": {p: v for p, v in chain.items() if v},
             "analog_given": an_given,
             "pulled": pulls,
-            "state": {p: r["state"] for p, r in results.items()},
+            "state": {p: results.state_of(p) for p in results},
             "notes": sorted(notes)}
+
+
+class _LazyRes:
+    """기억에서 꺼낸 한 장의 결과 — 바이트 그대로 들고 있다가 처음 쓸 때 푼다 (state 는 따로 작게)."""
+    __slots__ = ("packed", "st", "obj")
+
+    def __init__(self, packed, st):
+        self.packed, self.st, self.obj = packed, st, None
+
+    def get_obj(self):
+        if self.obj is None:
+            self.obj = _fresh(self.packed)[0]
+        return self.obj
+
+
+class _LazyResults(dict):
+    """page → 결과.  값이 _LazyRes 면 꺼낼 때 푼다 (부르는 쪽에는 언제나 보통의 dict 가 간다)."""
+
+    def __getitem__(self, k):
+        v = dict.__getitem__(self, k)
+        if isinstance(v, _LazyRes):
+            v = v.get_obj()
+            dict.__setitem__(self, k, v)
+        return v
+
+    def get(self, k, d=None):
+        return self[k] if k in self else d
+
+    def items(self):
+        return [(k, self[k]) for k in list(self.keys())]
+
+    def values(self):
+        return [self[k] for k in list(self.keys())]
+
+    def state_of(self, k):
+        v = dict.__getitem__(self, k)
+        if isinstance(v, _LazyRes):
+            return pickle.loads(v.st) if v.obj is None else v.obj["state"]
+        return v["state"]
 
 
 def _pack(x):

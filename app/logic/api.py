@@ -887,7 +887,7 @@ _LEARNING = {}
 
 
 @router.get("/logic/api/jobs/{job}/behavior")
-def behavior_get(job: str, start: int = 1):
+def behavior_get(job: str, start: int = 1, equip: str = ""):
     """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다."""
     from . import behavior
     d = _dir(job)
@@ -907,6 +907,10 @@ def behavior_get(job: str, start: int = 1):
         cur = behavior.load(d)                   # 그 자리에서 배운 경우 (PID_LOGIC_WARM=0)
         fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
         running = None if fresh else {"done": 0, "total": None}
+    if equip and cur:                            # L42 — 그룹 시험 창은 펼친 장비 하나만 받는다 (19VA 전체는 수 MB)
+        cur = {k: v for k, v in cur.items() if k not in ("items", "pairs")} | {
+            "items": [x for x in cur.get("items") or [] if x.get("equip") == equip],
+            "pairs": [x for x in cur.get("pairs") or [] if x.get("equip") == equip]}
     return {"state": "done" if fresh else ("running" if running else ("stale" if cur else "none")),
             "progress": running, "result": cur}
 
