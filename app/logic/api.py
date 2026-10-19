@@ -621,7 +621,8 @@ def groups_get(job: str):
         g["test"] = None if not r else {k: r.get(k) for k in ("status", "counts", "author", "at", "seconds")} | {
             "stale": r.get("key") != key}
     status = store.read_status(d)
-    return {"state": st["state"], "progress": st["progress"], "name": status.get("name"), "project": status.get("project"),
+    return {"state": st["state"], "progress": st["progress"], "error": st.get("error"),
+            "name": status.get("name"), "project": status.get("project"),
             "summary": (cur or {}).get("summary"), "learned_at": (cur or {}).get("learned_at"),
             "groups": gs, "history": (tested.get("history") or [])[-30:]}
 
@@ -888,34 +889,69 @@ _LEARNING = {}
 
 @router.get("/logic/api/jobs/{job}/behavior")
 def behavior_get(job: str, start: int = 1):
-    """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다."""
+    """L33 — 배운 동작 (명령마다 선다/안 선다 · 꼭 필요한 신호 · 막는 자리).  없거나 결과 · 사람 값이 바뀌었으면 뒤에서 다시 배운다.
+
+    hotfix101 — 배우다 죽은 것은 사유와 함께 `failed` 로 말하고 저절로 다시 띄우지 않는다 (같은 자리에서 또 죽어 화면이
+    '학습 중' 에 갇혔다).  start=2 는 사람이 누른 '다시 배우기'."""
     from . import behavior
     d = _dir(job)
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
     cur = behavior.load(d)
-    fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
-    running = None
-    try:
-        running = json.loads((d / behavior.RUNNING).read_text(encoding="utf-8"))
-        if time.time() - running.get("at", 0) > 600:
-            running = None                        # 오래된 표시 — 배우던 프로세스가 죽었다
-    except Exception:
-        running = None
-    if not fresh and not running and start:
+    key = behavior.key_of(d)
+    fresh = bool(cur) and cur.get("key") == key
+    running = behavior.running(d)
+    if not running and _learner_alive(job, d):
+        running = {"done": 0, "total": None, "phase": "start"}
+    err = behavior.load_error(d)
+    failed = bool(err) and err.get("key") == key and not fresh and not running
+    if start == 2 and not running:
+        try:
+            (d / behavior.ERROR).unlink()
+        except OSError:
+            pass
+        failed, err = False, None
+    if not fresh and not running and not failed and start:
         _start_learning(job, d)
         cur = behavior.load(d)                   # 그 자리에서 배운 경우 (PID_LOGIC_WARM=0)
         fresh = bool(cur) and cur.get("key") == behavior.key_of(d)
-        running = None if fresh else {"done": 0, "total": None}
-    return {"state": "done" if fresh else ("running" if running else ("stale" if cur else "none")),
-            "progress": running, "result": cur}
+        err = behavior.load_error(d)
+        failed = bool(err) and err.get("key") == behavior.key_of(d) and not fresh
+        running = None if (fresh or failed) else (behavior.running(d) or {"done": 0, "total": None, "phase": "start",
+                                                                           "started": time.time()})
+    state = "done" if fresh else ("running" if running else ("failed" if failed else ("stale" if cur else "none")))
+    return {"state": state, "progress": running, "result": cur,
+            "error": (err or {}).get("error") if state == "failed" else None}
+
+
+def _learner_alive(job, d):
+    """서버가 띄운 학습 프로세스가 살아 있나.  죽었는데 사유를 못 남겼으면(가져오기 오류 · 메모리) 그 로그 끝을 사유로 남긴다."""
+    from . import behavior
+    p = _LEARNING.get(job)
+    if p is None:
+        return False
+    rc = getattr(p, "poll", lambda: 0)()
+    if rc is None:
+        return True
+    _LEARNING[job] = None
+    if rc and not (behavior.load(d) or {}).get("key") == behavior.key_of(d) and not behavior.load_error(d):
+        tail = ""
+        try:
+            tail = (d / "behavior.log").read_text(encoding="utf-8", errors="replace")[-1500:]
+        except OSError:
+            pass
+        try:
+            store._atomic(d / behavior.ERROR, json.dumps({"key": behavior.key_of(d), "at": time.time(), "trace": tail,
+                                                           "error": f"학습 프로세스가 멈췄습니다 (종료 코드 {rc})"}, ensure_ascii=False))
+        except Exception:
+            pass
+    return False
 
 
 def _start_learning(job, d):
     import os
     from . import behavior
-    p = _LEARNING.get(job)
-    if p is not None and getattr(p, "poll", lambda: 0)() is None:
+    if _learner_alive(job, d):
         return
     if os.environ.get("PID_LOGIC_WARM", "1") == "0":
         behavior.learn_dir(d)                    # 시험 — 그 자리에서
@@ -928,10 +964,17 @@ def _start_learning(job, d):
         return
     root = Path(__file__).resolve().parent.parent.parent
     try:
+        log = open(d / "behavior.log", "wb")
         _LEARNING[job] = subprocess.Popen([sys.executable, "-m", "app.logic.run", "--behavior", str(d)], cwd=str(root),
-                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
+                                          stdout=log, stderr=subprocess.STDOUT)
+        log.close()
+    except Exception as e:
         _LEARNING[job] = None
+        try:
+            store._atomic(d / behavior.ERROR, json.dumps({"key": behavior.key_of(d), "at": time.time(),
+                                                           "error": f"학습 프로세스를 띄우지 못했습니다 — {e}"[:400]}, ensure_ascii=False))
+        except Exception:
+            pass
 
 
 @router.post("/logic/api/jobs/{job}/sequence/try")

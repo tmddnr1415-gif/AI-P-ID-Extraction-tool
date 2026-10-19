@@ -70,15 +70,33 @@ async function refresh() {
   G.data = d;
   $("#sub").textContent = `${d.name || ""}${d.project ? " · " + d.project : ""}`;
   renderLearn(); render();
-  if (d.state === "running" || d.state === "none") setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000);
+  // hotfix101 — 배우는 중이거나 낡아 다시 배우기 시작했으면 끝날 때까지 다시 묻는다 (예전에는 'stale' 에서 멈췄다)
+  if (["running", "none", "stale"].includes(d.state)) setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000);
 }
+const PHASE_KO = { prepare: "분석 마무리 (장 그림 · 학습 사전)", start: "학습 시작", learn: "명령마다 켜고 꺼 보는 중", review: "정합성 검토 정리" };
 function renderLearn() {
   const d = G.data, box = $("#learn");
   if (d.state === "done") { box.hidden = true; return; }
+  box.hidden = false;
+  box.classList.toggle("failed", d.state === "failed");
+  if (d.state === "failed") {
+    box.innerHTML = `⚠ <b>동작 학습이 멈췄습니다</b> — ${esc(d.error || "사유를 남기지 못했습니다")}` +
+      `<div class="lr">${d.groups.length ? "아래는 지난 학습입니다. " : ""}도면을 고쳤거나(가르치기 · 마크업) 업데이트한 뒤라면 다시 배워 보세요.` +
+      ` <button id="relearn" class="gt-btn pri">다시 배우기</button></div>`;
+    $("#relearn").onclick = async () => {
+      $("#relearn").disabled = true;
+      try { await api(`/logic/api/jobs/${G.job}/behavior?start=2`); } catch (e) { toast(e.message); }
+      refresh();
+    };
+    return;
+  }
   const p = d.progress || {};
   const pct = p.total ? Math.round(100 * p.done / p.total) : 0;
-  box.hidden = false;
-  box.innerHTML = `🧠 <b>학습 중</b> ${p.total ? `${p.done}/${p.total}` : ""}${d.groups.length ? " · 아래는 지난 학습" : ""}<div class="lp"><i style="width:${pct}%"></i></div>`;
+  const ph = PHASE_KO[p.phase] || "";
+  const el = p.started ? Math.max(0, Math.round((Date.now() / 1000 - p.started) / 60)) : null;
+  box.innerHTML = `🧠 <b>동작 학습 중</b> ${p.total ? `명령 ${p.done}/${p.total}` : ""}${ph ? ` · ${esc(ph)}` : ""}` +
+    `${el != null ? ` · ${el}분 지남` : ""}${d.groups.length ? " · 아래는 지난 학습" : " · 큰 묶음은 몇 분 걸립니다 — 이 화면을 열어 두면 끝날 때 저절로 채워집니다"}` +
+    `<div class="lp"><i style="width:${p.total ? pct : 4}%"></i></div>`;
 }
 
 /* ------------------------------------------------------------------ 위쪽 카드 · 그래프 */
@@ -160,7 +178,8 @@ function render() {
   $("#rows").innerHTML = gs.map(rowHtml).join("");
   const em = $("#empty");
   em.hidden = gs.length > 0;
-  if (!gs.length) em.textContent = G.data.groups.length ? "조건에 맞는 장비가 없습니다." : (G.data.state === "done" ? "이 묶음에서 START · STOP · OPEN · CLOSE · TRIP 명령 행을 찾지 못했습니다." : "동작을 배우는 중입니다…");
+  if (!gs.length) em.textContent = G.data.groups.length ? "조건에 맞는 장비가 없습니다." : (G.data.state === "done" ? "이 묶음에서 START · STOP · OPEN · CLOSE · TRIP 명령 행을 찾지 못했습니다 (출력 행 설명에 그 낱말이 없습니다)." :
+    G.data.state === "failed" ? "동작 학습이 멈춰 시험할 장비가 없습니다 — 위 '다시 배우기'." : "동작을 배우는 중입니다…");
   $("#run-all").textContent = G.running ? "■ 멈추기" : `▶ 모두 시험 (${gs.length})`;
   $("#run-all").className = "gt-btn " + (G.running ? "stop" : "pri");
   $("#run-all").disabled = !gs.length && !G.running;

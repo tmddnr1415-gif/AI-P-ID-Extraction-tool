@@ -526,7 +526,11 @@ def learn(sheets, cache=None, timers=None, progress=None):
         except Exception:
             pass
     ok = sum(1 for x in out if x["reached"])
-    return {"version": VERSION, "pairs": pairs, "summary": summarize(out, pairs), "seconds": round(time.time() - t0, 1), "total": total, "reached": ok,
+    try:
+        summ = summarize(out, pairs)
+    except Exception as ex:                          # 요약이 실패해도 배운 명령은 남긴다
+        summ = {"commands": len(out), "reached": ok, "error": f"요약 실패 — {ex}"}
+    return {"version": VERSION, "pairs": pairs, "summary": summ, "seconds": round(time.time() - t0, 1), "total": total, "reached": ok,
             "with_hold": sum(1 for x in out if x.get("holds")), "items": out}
 
 
@@ -534,6 +538,9 @@ def learn(sheets, cache=None, timers=None, progress=None):
 
 FILE = "behavior.json"
 RUNNING = "behavior.running"
+ERROR = "behavior.error.json"
+BEAT_S = 20               # 배우는 프로세스가 살아 있다고 이 간격으로 적는다
+STALE_S = 120             # 그보다 오래 소식이 없으면 그 프로세스는 죽었다 (예전 표시는 박동이 없어 600초)
 
 
 def key_of(d):
@@ -554,32 +561,119 @@ def load(d):
         return None
 
 
-def learn_dir(d):
-    """분석 폴더 하나 — 사람 값까지 얹은 결과로 배운다 (화면이 시뮬레이션하는 것과 같은 결과)."""
+def load_error(d):
     import json
-    from . import api, store
-    job = d.name
-    res = api._result(job)
-    sheets = api._all_sheets(res)
-    key = key_of(d)
-    t0 = [0.0]
+    try:
+        return json.loads((d / ERROR).read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
-    def progress(done, total):
-        if time.time() - t0[0] < 1 and done != total:
-            return
-        t0[0] = time.time()
+
+def running(d):
+    """배우는 중인가 — 표시가 있고 그 프로세스가 아직 박동을 적고 있으면 그 표시.  없거나 죽었으면 None."""
+    import json
+    try:
+        r = json.loads((d / RUNNING).read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    limit = STALE_S if r.get("beat") else 600
+    return r if time.time() - (r.get("at") or 0) <= limit else None
+
+
+class Beat:
+    """hotfix101 — 배우는 동안(분석 끝 정리 · 장 그림 미리 그리기 포함) 표시를 살려 둔다.
+
+    예전에는 첫 명령을 다 배운 뒤에야 표시가 섰다 — 그 사이(큰 묶음은 몇 분) 그룹 시험 화면을 열면 서버가 '아무도 안 배운다'
+    고 보고 두 번째 학습을 띄웠고, 한쪽이 끝나며 표시를 지워 세 번째가 섰다.  이제 분석이 끝나는 순간부터 표시를 세우고
+    BEAT_S 마다 시각을 고쳐 적는다 — 프로세스가 죽으면 STALE_S 뒤 화면이 다시 띄운다."""
+
+    def __init__(self, d, phase="prepare"):
+        import os
+        import threading
+        self.d, self.state = d, {"done": 0, "total": None, "phase": phase, "pid": os.getpid(),
+                                 "started": time.time(), "beat": BEAT_S}
+        self._stop = threading.Event()
+        self._t = None
+
+    def _write(self):
+        import json
+        from . import store
         try:
-            store._atomic(d / RUNNING, json.dumps({"done": done, "total": total, "at": time.time()}))
+            store._atomic(self.d / RUNNING, json.dumps({**self.state, "at": time.time()}))
         except Exception:
             pass
+
+    def start(self):
+        import threading
+        self._write()
+
+        def loop():
+            while not self._stop.wait(BEAT_S):
+                self._write()
+        self._t = threading.Thread(target=loop, daemon=True)
+        self._t.start()
+        return self
+
+    def update(self, **kw):
+        self.state.update(kw)
+        self._write()
+
+    def stop(self):
+        self._stop.set()
+        try:
+            (self.d / RUNNING).unlink()
+        except OSError:
+            pass
+
+
+def learn_dir(d, beat=None):
+    """분석 폴더 하나 — 사람 값까지 얹은 결과로 배운다 (화면이 시뮬레이션하는 것과 같은 결과).
+
+    실패하면 사유를 behavior.error.json 에 남긴다 (예전에는 조용히 지나가 화면이 '학습 중' 에 갇혔다 — 다시 띄운 학습이
+    같은 자리에서 또 죽었다).  화면은 그 사유를 보이고 사람이 '다시 배우기' 를 누를 때만 다시 띄운다."""
+    import json
+    import traceback
+    from . import api, store
+    own = beat is None
+    hb = beat or Beat(d)
+    if own:
+        hb.start()
+    hb.update(phase="learn", done=0, total=None)
+    key = key_of(d)
+    last = [0.0]
+
+    def progress(done, total):
+        if time.time() - last[0] < 1 and done != total:
+            return
+        last[0] = time.time()
+        hb.update(done=done, total=total)
+    out = None
     try:
+        res = api._result(d.name)
+        sheets = api._all_sheets(res)
         out = learn(sheets, {}, progress=progress)
         out["key"] = key
         out["learned_at"] = time.time()
-        store._atomic(d / FILE, json.dumps(out, ensure_ascii=False))
-    finally:
+        store._atomic(d / FILE, json.dumps(out, ensure_ascii=False, default=_jsonable))
         try:
-            (d / RUNNING).unlink()
+            (d / ERROR).unlink()
         except OSError:
             pass
+    except Exception as e:
+        try:
+            store._atomic(d / ERROR, json.dumps({"key": key, "error": f"{type(e).__name__}: {e}"[:400],
+                                                 "trace": traceback.format_exc()[-4000:], "at": time.time()}, ensure_ascii=False))
+        except Exception:
+            pass
+        out = None
+    finally:
+        if own:
+            hb.stop()
     return out
+
+
+def _jsonable(o):
+    """배운 것 안에 집합 · 튜플 같은 것이 섞여도 저장이 멈추지 않게."""
+    if isinstance(o, (set, frozenset, tuple)):
+        return list(o)
+    return str(o)

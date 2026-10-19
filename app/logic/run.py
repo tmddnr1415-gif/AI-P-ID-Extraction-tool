@@ -84,23 +84,28 @@ def run(d: Path):
         except Exception:
             pass
         _final(d, st)
-        _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
-        try:                                         # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로
-            from app.logic import library
-            library.learn_from_result(res, d, st.get("name") or d.name, job=d.name)
-        except Exception:
-            pass
-        try:                                         # L33 — 동작 학습 (START · STOP · OPEN · CLOSE · TRIP 마다 무엇이 그 명령을 내는가)
-            from app.logic import behavior
-            behavior.learn_dir(d)
-        except Exception:
-            pass
-        try:                                         # L39 — 정합성 검토 결과 한 장 + 원본 PDF 에 마크업
-            from app.logic import review
-            review.after_learning(d)
-            st = store.read_status(d)
-        except Exception:
-            pass
+        from app.logic import behavior
+        hb = behavior.Beat(d, phase="prepare").start()   # hotfix101 — 지금부터 '배우는 중' (장 그림 · 사전 · 학습 · 검토)
+        try:
+            _prerender(d, res)                       # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
+            try:                                     # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로
+                from app.logic import library
+                library.learn_from_result(res, d, st.get("name") or d.name, job=d.name)
+            except Exception:
+                pass
+            try:                                     # L33 — 동작 학습 (START · STOP · OPEN · CLOSE · TRIP 마다 무엇이 그 명령을 내는가)
+                behavior.learn_dir(d, beat=hb)       # 실패하면 사유를 behavior.error.json 에 남긴다 (hotfix101)
+            except Exception:
+                pass
+            try:                                     # L39 — 정합성 검토 결과 한 장 + 원본 PDF 에 마크업
+                from app.logic import review
+                hb.update(phase="review")
+                review.after_learning(d)
+                st = store.read_status(d)
+            except Exception:
+                pass
+        finally:
+            hb.stop()
     except analyse.NotLogic as e:
         st.update({"state": "failed", "error": str(e)})
     except Exception as e:                               # 사유를 남기고 멈춘다
@@ -123,10 +128,14 @@ if __name__ == "__main__":
         prerender_missing(Path(sys.argv[2]))
     elif len(sys.argv) > 2 and sys.argv[1] == "--behavior":
         from app.logic import behavior, review
-        behavior.learn_dir(Path(sys.argv[2]))
+        _hb = behavior.Beat(Path(sys.argv[2]), phase="learn").start()
         try:
+            behavior.learn_dir(Path(sys.argv[2]), beat=_hb)
+            _hb.update(phase="review")
             review.after_learning(Path(sys.argv[2]))
         except Exception:
             pass
+        finally:
+            _hb.stop()
     else:
         run(Path(sys.argv[1]))

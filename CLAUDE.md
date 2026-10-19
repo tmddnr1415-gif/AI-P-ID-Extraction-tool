@@ -6683,3 +6683,18 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   그룹 시험 창에서 ▶ 시험이 끝나면 '켜기' 항목을 · `도면 →` 은 그 항목을 LOGIC 창에 `grouptest-apply` 로 보내고 LOGIC 이 `applyHashTest(job, equip, chk)` 로
   신호를 주고 흐름을 그린다.  다른 묶음이면 그 묶음을 연다.  모두 시험 중에는 보내지 않는다.  머리줄 `● LOGIC 창과 이어짐`.
 * 시험 `tests/test_logic_l41_dualwin.py` 3건 · LOGIC 214 통과.  화면 확인(크롬 · 두 창): 검토 C3 · C8 → LOGIC 이 0018 · 0020 으로 · GT IGNITION 시험 → LOGIC G034 흐름 · PB STOP 항목 → START 막힘.
+
+### hotfix101 — 새 프로젝트에서 그룹 시험이 '학습 중' 에 갇히던 것 (2026-10-19)
+
+* 현장: *"그룹시험이 다른 pjt 에서는 안 된다 — PDF 넣고 분석 누르면?"*  그 PDF 는 이 환경에 없다.  합성 묶음으로 실제 업로드 →
+  분석 → `/groups` 끝까지는 서는 것을 확인했고, 실패할 수 있는 길 셋을 막았다 (판정 0줄):
+  ① **동작 학습이 실패하면 조용했다** — `run.py` 가 예외를 삼키고 표시를 지워, 화면이 3초마다 다시 띄운 학습이 같은 자리에서 또 죽었다
+  (화면은 영원히 '학습 중').  이제 `behavior.learn_dir` 가 사유를 `behavior.error.json`(결과·사람 값 열쇠와 함께)에 남기고 `/behavior` ·
+  `/groups` 가 `state: failed` + `error` 를 낸다 · 같은 열쇠로는 저절로 다시 띄우지 않는다 · 화면 `다시 배우기`(`?start=2`).
+  서버가 띄운 학습 프로세스가 사유 없이 죽으면(가져오기 오류 · 메모리) `behavior.log` 끝을 사유로 (`api._learner_alive`).
+  ② **분석 끝 정리(장 그림 · 학습 사전) 동안 '배우는 중' 표시가 없었다** — 그 사이 그룹 시험을 열면 두 번째 학습이 섰다.
+  `behavior.Beat` 가 분석이 끝나는 순간부터 표시를 세우고 20초마다 박동 · 120초 소식 없으면 죽은 것 (예전 표시는 600초).
+  ③ 화면이 `stale`(다시 배우는 중)에서 묻기를 멈췄다 → `running · none · stale` 에서 3초마다 · 단계(분석 마무리 · 명령마다 켜고 꺼 봄 ·
+  검토 정리) · 지난 분 표시.  저장은 집합·튜플이 섞여도 멈추지 않는다 (`_jsonable`) · 요약이 깨져도 배운 명령은 남는다.
+* 시험 `tests/test_hotfix101_grouptest_learning.py` 5건.  ⚠ 출력 행 설명에 START · STOP · OPEN · CLOSE · TRIP 낱말이 없는 프로젝트는
+  여전히 장비 0 이다 (화면이 그렇게 말한다) — 그 낱말이 다르면 `config/logic_sequence.yaml` 에 한 줄.
