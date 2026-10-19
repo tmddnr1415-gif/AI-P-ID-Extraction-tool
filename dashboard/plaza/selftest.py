@@ -59,7 +59,11 @@ try:
     ok.append(("말하기 — 80자", len(call("/plaza/api/say", {"id": a["id"], "text": "가" * 200})[1]["text"]) == 80))
     face = {"hair": 4, "hairc": 4, "skin": 1, "eyes": 2, "beard": 0, "cloth": 3, "pants": 1}
     call("/plaza/api/look", {"id": a["id"], "look": face})
-    ok.append(("얼굴 — 파일에 남음", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == face))
+    ok.append(("얼굴 — 파일에 남음 (예전 값만 보내면 고양이 기사 기본값이 붙음)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == {**face, "kind": 0, "fur": 0, "armor": 0, "cape": 0}))
+    cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2}
+    call("/plaza/api/look", {"id": a["id"], "look": cat})
+    ok.append(("얼굴 — 고양이 기사 (호랑이 · 황금 갑옷 · 초록 망토)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == cat))
+    ok.append(("그림 파일 — 고양이 기사 (PNG)", urllib.request.urlopen(base + "/static/catknight.png").read()[:8] == b"\x89PNG\r\n\x1a\n"))
     ok.append(("역할 지정 — 부서원은 못 함", call("/plaza/api/role", {"id": a["id"], "target": "김철수", "role": "leader"})[0] == 403))
     ok.append(("역할 지정 — 운영자는 됨", call("/plaza/api/role", {"id": b["id"], "target": "김철수", "role": "unit"})[0] == 200))
     ok.append(("화면 파일", urllib.request.urlopen(base + "/plaza?embed=1&user=x").status == 200))

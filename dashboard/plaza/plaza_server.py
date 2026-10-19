@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-19.1'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-19.2'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -64,6 +64,8 @@ KILLER_AT = 3                # 이번 주에 이만큼 쓰러뜨리면 이름 �
 CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간 마감 (수요일 12:00)
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
 LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
+# 2026-10-19 고양이 기사: 종류(0 고양이 기사 · 1 사람) · 털(동물) · 갑옷 · 망토 — 예전에 저장한 얼굴엔 없으므로 없으면 0 (= 원본 고양이 기사)
+LOOK_EXTRA = {"kind": 2, "fur": 6, "armor": 6, "cape": 7}
 ROLES = ("member", "unit", "leader", "operator")
 ROLE_KEYS = {"leader": "group_leader", "unit": "unit_leaders", "operator": "operators"}
 ROLE_TEMPLATE = {
@@ -163,6 +165,11 @@ def clean_look(look):
             out[k] = int(look.get(k)) % n
         except (TypeError, ValueError):
             return None
+    for k, n in LOOK_EXTRA.items():
+        try:
+            out[k] = int(look.get(k) or 0) % n
+        except (TypeError, ValueError):
+            out[k] = 0
     return out
 
 
@@ -510,7 +517,8 @@ POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/s
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
-         "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8")}
+         "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
+         "/static/catknight.png": ("catknight.png", "image/png")}   # 고양이 기사 그림 (사용자가 준 시트에서 캐릭터만 뽑은 것)
 
 
 EXTRA_NETS: list = []                              # --allow 대역

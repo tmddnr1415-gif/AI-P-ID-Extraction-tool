@@ -754,3 +754,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 처치 수는 **주마다 새로**: 주간 마감(부활)할 때 체력과 함께 0. (계속 쌓이게 하려면 plaza_server.py `check_week` 의 `kills={}` 를 빼면 됨)
 - 바뀐 곳: plaza_server.py `KILLER_AT`(3) · `HP["kills"]` · `load_hp` · `check_week` · `save_hp`(hp.json 에 kills) · `api_attack`(0 으로 만든 사람에게 +1) · `snapshot`(players 에 kills · killer). plaza.js `killColor` · `nameTag` · `newActor` · `applySnapshot`(사람 목록) · `showCtx`. plaza.css `.pz-who .role.killer`. selftest.py 처치 수 시험(3명 → killer · 마감에 0).
 - 확인한 것: `py_compile`, `node --check`, `python plaza/selftest.py` 모두 통과. 대시보드 서버가 광장을 2026-10-19.1 로 스스로 바꿈. 브라우저: 처치 0 · 1 · 3 · 6 · 10 의 이름 색과 [killer n], 사람 목록 딱지, 캐릭터 판 문구. 스크립트 오류 없음.
+
+### 2026-10-19 (2) — 계장 광장: 고양이 기사 캐릭터 (사용자가 준 시트에서 뽑은 그림) · 동물 6 · 갑옷 6 · 망토 7 · 사람도 고를 수 있음 (PLAZA_VERSION 2026-10-19.2 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 (대시보드 서버가 30초 안에 새 판 광장으로 바꿈) → 적용 후 30초 뒤 Ctrl+F5.
+- 무엇을: 사용자가 준 '고양이 기사' 캐릭터 시트(1254×1254 PNG — 갈색 고양이 얼굴 · 은빛 갑옷 · 빨간 망토 · 황금 검, 8방향 · 걷기 · 달리기 · 공격 · 피격 · 점프 · 사망 칸)를 기준으로 광장 캐릭터를 바꿈. **모두 처음엔 원본 고양이 기사**, [얼굴 바꾸기] 에서 종류(고양이 기사 / 사람) · 동물(치즈 · 회색 · 검은 · 흰 고양이 · 호랑이 · 여우) · 갑옷(은빛 · 황금 · 흑철 · 청동 · 푸른 강철 · 백은) · 망토(빨강 · 파랑 · 초록 · 보라 · 검정 · 흰 · 노랑). '사람' 을 고르면 예전 사람 캐릭터(머리 · 눈 · 수염 · 옷 · 역할 모자 · 노비)가 그대로.
+- 그림 만든 방법 (회사에서 다시 만들 일은 없음 — 결과 PNG 만 씀): 시트 전체는 쓰지 않고 캐릭터 칸만 잘라 → 남색 배경을 테두리에서부터 지워 투명 → 시트의 점 크기(방향 줄 약 3.1px · 걷기/공격 줄 약 2.7px, AI 그림이라 줄마다 다름)에 맞춰 한 점 크기로 줄이고(칠한 픽셀만 평균) → 원본 캐릭터 픽셀에서 뽑은 40 색 팔레트로 맞춰 번짐 없앰 → `plaza/static/catknight.png`(548×48 · 25KB, 16 칸). 화면에서는 2배(PX) 로 키우되 imageSmoothing 끔 → 흐리지 않음.
+  - 쓴 칸: 서 있기 = 시트의 DOWN · UP · LEFT · RIGHT, 걷기 = WALK 4~8번(오른쪽 보는 5칸, 왼쪽은 좌우 뒤집음 — 1~3번은 왼쪽을 봐서 안 씀), 공격 = ATTACK 1 · 2 · 3(뒤집음) · 4(뒤집음) · 6 (칼바람 포함 — 옆으로 공격할 때), 맞음 = HURT 1번(옆), idle 큰 그림은 칸 목록엔 있지만 지금은 안 씀.
+  - 시트에 없는 것은 만들지 않음: 위 · 아래로 걸을 때는 서 있는 칸을 한 점씩 들썩임, 서 있을 때는 0.8초마다 한 점 오르내림(숨쉬기), 위 · 아래 공격은 예전 칼 휘두르기(색만 황금 검)를 겹침, 유령은 서 있는 칸을 반투명하게.
+- 바뀐 곳:
+  - plaza.js: `KINDS` `FURS` `ARMORS` `CAPES` · `RANGES`(kind · fur · armor · cape) · `defaultFace`(kind 0 = 고양이 기사) · 새 `CAT_FR`(칸 자리 · 가운데 · 발바닥) · `CAT_PAL`(40 색 + 묶음: O 외곽선 · F 털 · f 털(머리 쪽만 — 갑옷 반사에도 쓰인 색) · m 주둥이 · A 갑옷 · G 금 장식 · C 망토) · `loadCat` · `rgb2hsl` · `hsl2rgb` · `FUR_T` `MUZ_T` `ARM_T` `CAPE_T`(색 바꾸는 법) · `catMap` · `catSprite`(색 바꾸기 + 2배 + 뒤집기, canvas.cx · canvas.foot) · `catPose`(서기 · 걷기 · 공격 · 맞음 칸 고르기) · `isCat`. `drawActor`(고양이 기사 · 유령) · `drawSwing(…, gold)` · `drawPreview` · `buildFace` · `faceNote` · `arrowRow` · 무작위(종류는 그대로).
+  - plaza_server.py: `LOOK_EXTRA`(kind 2 · fur 6 · armor 6 · cape 7, 없으면 0 — 예전에 저장한 얼굴도 그대로 읽힘) · `clean_look` · FILES 에 `/static/catknight.png`.
+  - plaza.html: [얼굴 바꾸기] 단추 설명. selftest.py: 얼굴 저장(예전 값 → 기본값 붙음 · 고양이 기사 값) · PNG 파일 시험.
+- 확인한 것: `py_compile`, `node --check`, `python plaza/selftest.py` 모두 통과. 대시보드 서버가 광장을 2026-10-19.2 로 스스로 바꿈. 브라우저 두 사람: 서 있기 · 오른쪽/왼쪽 걷기(걷기 칸 돌아감) · 위 · 옆 공격(칼바람 칸) · 이름 · 체력 막대 · 상태 자리, 얼굴 판(고양이 줄 · 사람 줄로 바꾸기 · 미리보기 · 저장 → 상대 화면에도 같은 모습), 동물 6 · 갑옷 6 · 망토 7 을 한 장에 그려 봄. 스크립트 오류 없음.
+- 회사에서 확인할 것: 예전에 '얼굴 바꾸기' 로 사람 모습을 저장한 사람도 이번엔 고양이 기사로 나옴(종류 값이 없던 저장본 = 고양이 기사). 사람으로 돌리려면 [얼굴 바꾸기] → 종류 ▶ 사람 → 저장.

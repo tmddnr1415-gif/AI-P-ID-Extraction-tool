@@ -381,14 +381,19 @@ const EYES = ["점 눈", "큰 눈", "웃는 눈", "매서운 눈", "안경"];
 const BEARDS = ["수염 없음", "콧수염", "염소수염", "덥수룩"];
 const CLOTHS = ["#8fb06a", "#c23b2e", "#2e6db4", "#2f8c58", "#d9a520", "#7a4ea3", "#e0789a", "#34507a", "#9c5530", "#efe7d2", "#1f8a8a", "#5a5a66"];
 const PANTS = ["#f1e9d4", "#55597a", "#e6d29f", "#6b705c", "#8a8f99", "#3b3b44"];
+// 2026-10-19 고양이 기사 — 종류 · 동물(털) · 갑옷 · 망토 (서버 LOOK_EXTRA 와 같은 개수)
+const KINDS = ["고양이 기사", "사람"];
+const FURS = ["치즈 고양이", "회색 고양이", "검은 고양이", "흰 고양이", "호랑이", "여우"];
+const ARMORS = ["은빛 갑옷", "황금 갑옷", "흑철 갑옷", "청동 갑옷", "푸른 강철", "백은 갑옷"];
+const CAPES = ["빨간 망토", "파란 망토", "초록 망토", "보라 망토", "검은 망토", "흰 망토", "노란 망토"];
 const RANGES = { hair: HAIRS.length, hairc: HAIRC.length, skin: SKINS.length, eyes: EYES.length, beard: BEARDS.length,
-  cloth: CLOTHS.length, pants: PANTS.length };
+  cloth: CLOTHS.length, pants: PANTS.length, kind: KINDS.length, fur: FURS.length, armor: ARMORS.length, cape: CAPES.length };
 const ROLE_LABEL = { leader: "그룹장", unit: "유닛장", operator: "운영자", member: "" };
 const ROLE_COLOR = { leader: "#ffd84a", unit: "#ffb36b", operator: "#d8c59a" };
 function defaultFace(name) {                // 처음 들어온 사람 — 이름에서 정한 외형
   const n = hash(name);
   return { hair: n % 10, hairc: (n >>> 4) % 3, skin: (n >>> 7) % 3, eyes: (n >>> 9) % 3, beard: 0,
-    cloth: (n >>> 12) % 12, pants: (n >>> 16) % 6 };
+    cloth: (n >>> 12) % 12, pants: (n >>> 16) % 6, kind: 0, fur: 0, armor: 0, cape: 0 };   // 처음엔 누구나 원본 고양이 기사 (갈색 털 · 은빛 갑옷 · 빨간 망토)
 }
 function faceOf(a) {                       // 서버가 준 값도 범위 밖이면 이름에서 정한 값으로
   const d = defaultFace(a.name), f = a.face || d, out = {};
@@ -636,6 +641,82 @@ function charSprite(F, role, dir, frame, armed = false) {
   spriteCache.set(key, c); return c;
 }
 
+// ── 고양이 기사 (2026-10-19) ─────────────────────────────────────────────
+// 사용자가 준 캐릭터 시트에서 캐릭터 부분만 뽑은 그림 static/catknight.png (배경 투명 · 그림 한 칸 = 원래 도트 한 점).
+// 화면에는 PX 배로 키워 붙인다 (imageSmoothing 끔 — 흐리지 않게).  털 · 갑옷 · 망토는 팔레트 묶음별로 색만 바꾼다.
+// 칸: down · up · left · right (서 있기) · walk0~4 (오른쪽 걷기, 왼쪽은 뒤집음) · atk0~4 (오른쪽 공격, 칼바람 포함) · hurt · idle(얼굴 판 미리보기)
+// 기준점: [x, y, w, h, 가운데 x, 발바닥 y] — 그림 안 점 단위
+const CAT_FR = {"down":[0,0,31,37,15.6,36],"up":[32,0,29,36,14.0,35],"left":[62,0,33,39,16.9,38],"right":[96,0,33,36,13.7,35],"walk0":[130,0,32,35,14.7,34],"walk1":[163,0,31,35,13.8,34],"walk2":[195,0,28,34,13.4,33],"walk3":[224,0,28,34,13.1,33],"walk4":[253,0,30,34,13.7,33],"atk0":[284,0,30,33,13.8,31],"atk1":[315,0,34,32,15.3,31],"atk2":[350,0,46,34,18.7,33],"atk3":[397,0,54,31,23.1,29],"atk4":[452,0,31,31,13.7,30],"hurt":[484,0,26,30,12.5,29],"idle":[511,0,36,48,17.1,47]};
+const CAT_PAL = "0d0d12O571c18C2b1211O949288A090508O884522Fcc372bC020102O715743ffdfbedGe6b16cf5e6b76A4e443fOa85427Fdc8239F2d3039Aaf2c27C1c222cAfae7a3Gbe8f57f401515C384556Afaf3c5G9b6c3ff412b23ff8ba4cG8f2122C741b1dC68361ff15161dOada390mf8d888G877765Ocebe9em1b090aOfbd368Gc46b30F4b5967A777f83Aec9a47F";
+// CAT_PAL = 7자씩 "rrggbbG" — G: O 외곽선 · 눈(안 바꿈) · F 털 · f 털(머리 쪽에 있을 때만 — 갑옷 반사에도 쓰인 색) · m 주둥이(머리 쪽만) · A 갑옷 · G 금 장식 · 검(안 바꿈) · C 망토
+const CAT = { data: null, ready: false };
+(function loadCat() {
+  const im = new Image();
+  im.onload = () => { const c = canvas(im.width, im.height), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+    CAT.data = g.getImageData(0, 0, im.width, im.height); CAT.ready = true; };
+  im.src = "/static/catknight.png";
+})();
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+  const h = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function hsl2rgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360; s = Math.max(0, Math.min(1, s)); l = Math.max(0, Math.min(1, l));
+  if (!s) return [l * 255, l * 255, l * 255].map(Math.round);
+  const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [f(h + 1 / 3), f(h), f(h - 1 / 3)].map(v => Math.round(v * 255));
+}
+// 바꾸는 방법 — h: 색상(원래 색의 흔들림은 일부 남김) · s: 채도(수 또는 함수) · l: 밝기 함수.  0 번 = 원본 그대로
+const FUR_T = [null, { h: 210, s: .07 }, { h: 230, s: .1, l: l => l * .36 + .03 }, { h: 38, s: .16, l: l => .58 + l * .42 },
+  { h: 26, s: x => Math.min(1, x * 1.35), l: l => l < .3 ? l * .4 : Math.min(.9, l * 1.08) }, { h: 14, s: x => Math.min(1, x * 1.25), l: l => l * .96 }];
+const MUZ_T = [null, { s: .05 }, { h: 220, s: .06, l: l => l * .5 }, { h: 40, s: .08, l: l => .84 + l * .14 }, null, { h: 40, s: .05, l: l => .86 + l * .12 }];
+const ARM_T = [null, { h: 42, s: .62, l: l => Math.min(.9, l * 1.1 + .06) }, { h: 228, s: .14, l: l => l * .55 }, { h: 24, s: .5, l: l => l * 1.04 },
+  { h: 212, s: .5, l: l => l * 1.06 }, { h: 210, s: .05, l: l => Math.min(.95, .22 + l * .9) }];
+const CAPE_T = [null, { h: 218 }, { h: 128, s: x => x * .85 }, { h: 282 }, { h: 0, s: .1, l: l => l * .42 },
+  { h: 30, s: .06, l: l => Math.min(.95, .45 + l * 1.1) }, { h: 44, l: l => Math.min(.85, l * 1.3 + .05) }];
+const catMaps = new Map();
+function catMap(F) {                         // 원본 색 → 이 사람 색
+  const key = `${F.fur}|${F.armor}|${F.cape}`; if (catMaps.has(key)) return catMaps.get(key);
+  const m = new Map();
+  for (let i = 0; i < CAT_PAL.length; i += 7) {
+    const n = parseInt(CAT_PAL.slice(i, i + 6), 16), grp = CAT_PAL[i + 6], r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+    const t = grp === "F" || grp === "f" ? FUR_T[F.fur] : grp === "m" ? MUZ_T[F.fur] : grp === "A" ? ARM_T[F.armor] : grp === "C" ? CAPE_T[F.cape] : null;
+    if (!t) continue;
+    let [h, s, l] = rgb2hsl(r, g, b); const h0 = h > 180 ? h - 360 : h;
+    if (t.h != null) h = t.h + (grp === "C" ? h0 : grp === "F" || grp === "f" ? (h - 25) * .6 : 0);   // 망토 · 털은 원래 색 흔들림을 조금 남김 (갑옷 · 주둥이는 회색이 섞여 한 색으로)
+    s = typeof t.s === "function" ? t.s(s) : t.s ?? s; l = t.l ? t.l(l) : l;
+    m.set(n, { c: hsl2rgb(h, s, l), head: grp === "f" || grp === "m" });
+  }
+  catMaps.set(key, m); return m;
+}
+function catSprite(F, name, mirror) {      // 한 칸을 이 사람 색으로 · PX 배 · (뒤집기)  → canvas 에 cx · foot(px) 를 붙여 돌려줌
+  const key = `cat|${F.fur}|${F.armor}|${F.cape}|${name}|${mirror ? 1 : 0}`; if (spriteCache.has(key)) return spriteCache.get(key);
+  const [fx, fy, fw, fh, cx, foot] = CAT_FR[name], src = CAT.data, map = catMap(F), small = new ImageData(fw, fh);
+  for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+    const si = ((fy + y) * src.width + fx + x) * 4; if (src.data[si + 3] < 128) continue;
+    const n = src.data[si] << 16 | src.data[si + 1] << 8 | src.data[si + 2], e = map.get(n), c = e && (!e.head || y < foot * .47) ? e.c : null;   // 머리 쪽 = 발바닥 높이의 위 47%
+    const di = (y * fw + (mirror ? fw - 1 - x : x)) * 4;
+    small.data[di] = c ? c[0] : src.data[si]; small.data[di + 1] = c ? c[1] : src.data[si + 1]; small.data[di + 2] = c ? c[2] : src.data[si + 2]; small.data[di + 3] = 255;
+  }
+  const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0);
+  const c = canvas(fw * PX, fh * PX), g = c.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(s1, 0, 0, c.width, c.height);
+  c.cx = (mirror ? fw - cx : cx) * PX; c.foot = foot * PX;
+  spriteCache.set(key, c); return c;
+}
+// 지금 모습에 맞는 칸 — 시트에 있는 포즈만 쓴다 (위 · 아래 걷기 칸은 시트에 없어 서 있는 칸을 한 점씩 들썩임)
+function catPose(a, now, atk, hit) {
+  const side = a.dir >= 2, left = a.dir === 2;
+  if (atk >= 0 && side) return [`atk${Math.min(4, Math.floor(atk * 5))}`, left];
+  if (hit >= 0 && hit < .7 && side) return ["hurt", left];
+  if (a.moving && side) return [`walk${Math.floor(now / 110) % 5}`, left];
+  return [["down", "up", "left", "right"][a.dir] || "down", false];
+}
+const isCat = F => F.kind === 0 && CAT.ready;
+
 const tintCache = new WeakMap();
 function tinted(img) {                      // 맞은 순간 — 붉게 번쩍
   let c = tintCache.get(img); if (c) return c;
@@ -652,7 +733,7 @@ function ghostly(img) {                      // 유령 — 희푸르게
 }
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
-function drawSwing(g, sx, sy, dir, k) {
+function drawSwing(g, sx, sy, dir, k, gold) {   // gold = 고양이 기사의 황금 검
   const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 12 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
   const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
   const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
@@ -663,9 +744,9 @@ function drawSwing(g, sx, sy, dir, k) {
   g.beginPath(); g.arc(px, py, 26, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
   g.globalAlpha = 1; g.translate(px, py); g.rotate(ang); g.scale(1.4, 1.4);   // 손의 긴 목검에 맞춰 크게
   g.fillStyle = "#2a1a12"; g.fillRect(3, -3, 25, 6);
-  g.fillStyle = "#d8b07a"; g.fillRect(9, -2, 18, 4); g.fillStyle = "#f0d3a2"; g.fillRect(9, -2, 18, 1);
-  g.fillStyle = "#2a1a12"; g.fillRect(8, -5, 3, 10);
-  g.fillStyle = "#6e4527"; g.fillRect(3, -2, 5, 4);
+  g.fillStyle = gold ? "#f8ba4c" : "#d8b07a"; g.fillRect(9, -2, 18, 4); g.fillStyle = gold ? "#fbe7a3" : "#f0d3a2"; g.fillRect(9, -2, 18, 1);
+  g.fillStyle = "#2a1a12"; g.fillRect(8, -5, 3, 10); if (gold) { g.fillStyle = "#d4a020"; g.fillRect(9, -4, 1, 8); }
+  g.fillStyle = gold ? "#8a5a20" : "#6e4527"; g.fillRect(3, -2, 5, 4);
   g.restore();
 }
 
@@ -902,14 +983,28 @@ function drawActor(g, a, sx, sy, now) {
   let ox = 0, oy = 0;
   if (atk >= 0) { const [dx, dy] = DIRV[a.dir], l = Math.sin(atk * Math.PI) * 3; ox = Math.round(dx * l); oy = Math.round(dy * l); }
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
+  const F = faceOf(a);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
-    const spr = ghostly(charSprite(faceOf(a), a.role, a.dir, 0)), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
-    g.save(); g.globalAlpha = .5; g.drawImage(spr, sx + 16 - spr.width / 2, sy + 28 - FOOT + bob); g.restore();
+    const base = isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : charSprite(F, a.role, a.dir, 0);
+    const spr = ghostly(base), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
+    g.save(); g.globalAlpha = .5; g.drawImage(spr, Math.round(sx + 16 - (base.cx ?? spr.width / 2)), sy + 28 - (base.foot ?? FOOT) + bob); g.restore();
+    return;
+  }
+  if (isCat(F)) {                            // 고양이 기사 — 시트의 포즈 (서기 · 걷기 · 공격 · 피격)
+    ell(g, sx + 16, sy + 28, 13, 5, "rgba(40,20,5,.3)");
+    const side = a.dir >= 2, [nm, mir] = catPose(a, now, atk, hit), spr = catSprite(F, nm, mir);
+    let bob = 0;
+    if (a.moving && !side) bob = fr ? -PX : 0;                                          // 위 · 아래로 걸을 때 한 점 들썩
+    else if (!a.moving && atk < 0) bob = Math.floor((now + (hash(a.name) % 1600)) / 800) % 2 ? -PX : 0;   // 서 있을 때 숨쉬기 (한 점)
+    if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);
+    g.drawImage(nm !== "hurt" && hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
+                Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+    if (atk >= 0 && a.dir === 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);    // 옆 공격은 시트의 칼바람 칸이 그림
     return;
   }
   ell(g, sx + 16, sy + 28, 14, 5, "rgba(40,20,5,.3)");
   if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-  const spr = charSprite(faceOf(a), a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0);   // 휘두를 때는 손의 목검 대신 drawSwing
+  const spr = charSprite(F, a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0);   // 휘두를 때는 손의 목검 대신 drawSwing
   g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
               sx + 16 - spr.width / 2 + ox, sy + 28 - FOOT - (fr && atk < 0 ? 1 : 0) + oy);
   if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
@@ -980,11 +1075,28 @@ function openFace() {
   if (!S.me) return;
   draft = { ...faceOf(S.me) }; S.panel = "face"; S.keys.clear();
   $("#pz-face").hidden = false; buildFace();
-  $("#pz-face-note").textContent = S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발에 흰 머리띠, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
-    : S.role === "leader" ? "그룹장은 왕관을 씁니다." : S.role === "unit" ? "유닛장은 날개 달린 관모(사모)를 씁니다." : "부서원은 관모를 씁니다.";
 }
 function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = null; cv.focus(); }
+const CAT_ROWS = [["fur", "동물 · 털", FURS], ["armor", "갑옷", ARMORS], ["cape", "망토", CAPES]];
+function faceNote() {
+  $("#pz-face-note").textContent = isCat(draft) ? "고양이 기사 — 동물(털) · 갑옷 · 망토 색을 고릅니다. 황금 검은 그대로. 칭호(그룹장 · 유닛장 · 운영자)는 이름 앞에 나옵니다."
+    : S.role === "operator" ? "운영자는 노비 차림 — 머리는 늘 산발에 흰 머리띠, 옷은 기운 누더기에 짚신입니다 (머리 모양 · 옷 색 · 바지 색은 안 씀)."
+    : S.role === "leader" ? "그룹장은 왕관을 씁니다." : S.role === "unit" ? "유닛장은 날개 달린 관모(사모)를 씁니다." : "부서원은 관모를 씁니다.";
+}
+function arrowRow(k, label, list) {         // ◀ 값 ▶
+  const row = document.createElement("div"); row.className = "frow";
+  const l = document.createElement("label"); l.textContent = label; row.append(l);
+  const prev = document.createElement("button"), next = document.createElement("button"), v = document.createElement("span");
+  prev.type = next.type = "button"; prev.textContent = "◀"; next.textContent = "▶"; v.className = "fval"; v.textContent = list[draft[k]];
+  prev.onclick = () => { draft[k] = (draft[k] + list.length - 1) % list.length; buildFace(); };
+  next.onclick = () => { draft[k] = (draft[k] + 1) % list.length; buildFace(); };
+  row.append(prev, v, next); return row;
+}
 function buildFace() {
+  faceNote();
+  const cat = isCat(draft);
+  $("#pz-hairs").hidden = cat; $("#pz-hairs").previousElementSibling.hidden = cat;   // '머리 모양' 은 사람일 때만
+  if (cat) { const rows = $("#pz-facerows"); rows.textContent = ""; rows.append(arrowRow("kind", "종류", KINDS)); for (const [k, label, list] of CAT_ROWS) rows.append(arrowRow(k, label, list)); return; }
   const grid = $("#pz-hairs"); grid.textContent = "";
   HAIRS.forEach((nm, i) => {               // 머리 모양 — 대가리 고르기
     const b = document.createElement("button"); b.type = "button"; b.className = "hairbtn" + (draft.hair === i ? " on" : "");
@@ -996,6 +1108,7 @@ function buildFace() {
     grid.append(b);
   });
   const rows = $("#pz-facerows"); rows.textContent = "";
+  rows.append(arrowRow("kind", "종류", KINDS));
   for (const [k, label, list] of FACE_ROWS) {
     const row = document.createElement("div"); row.className = "frow";
     const l = document.createElement("label"); l.textContent = label; row.append(l);
@@ -1019,8 +1132,13 @@ function drawPreview(now) {
   g.fillStyle = "#c8834a"; g.fillRect(0, 0, c.width, c.height);
   g.fillStyle = "#b9743c"; for (let i = 0; i < 40; i++) g.fillRect((i * 37) % c.width, (i * 53) % c.height, 4, 4);
   const dir = [0, 2, 1, 3][Math.floor(now / 900) % 4], fr = Math.floor(now / 220) % 4;
-  const spr = charSprite(draft, S.role, dir, fr === 1 ? 1 : fr === 3 ? 2 : 0, true), z = 2;
   ell(g, c.width / 2, c.height - 22, 30, 8, "rgba(40,20,5,.3)");
+  if (isCat(draft)) {                        // 고양이 기사 — 아래 · 왼쪽 걷기 · 위 · 오른쪽 걷기 를 돌려 보임 (2배)
+    const [nm, mir] = catPose({ dir, moving: dir >= 2 }, now, -1, -1), spr = catSprite(draft, nm, mir), z = 2;
+    g.drawImage(spr, Math.round(c.width / 2 - spr.cx * z), Math.round(c.height - 22 - spr.foot * z), spr.width * z, spr.height * z);
+    return;
+  }
+  const spr = charSprite(draft, S.role, dir, fr === 1 ? 1 : fr === 3 ? 2 : 0, true), z = 2;
   g.drawImage(spr, Math.round(c.width / 2 - spr.width * z / 2), Math.round(c.height - 22 - FOOT * z), spr.width * z, spr.height * z);
 }
 async function saveFace() {
@@ -1034,7 +1152,7 @@ async function saveFace() {
 $("#pz-face-btn").onclick = openFace;
 $("#pz-face-save").onclick = saveFace;
 $("#pz-face-cancel").onclick = closeFace;
-$("#pz-face-rand").onclick = () => { for (const k of Object.keys(RANGES)) draft[k] = Math.floor(Math.random() * RANGES[k]); buildFace(); };
+$("#pz-face-rand").onclick = () => { for (const k of Object.keys(RANGES)) if (k !== "kind") draft[k] = Math.floor(Math.random() * RANGES[k]); buildFace(); };   // 종류(고양이 · 사람)는 그대로
 
 // ── 역할 지정 판 (운영자만 — 서버도 운영자만 받는다) ──────────────────────
 async function openRoles() {
@@ -1167,7 +1285,7 @@ function askName() {
   $("#pz-nameok").onclick = go;
   inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.stopPropagation(); go(); } });
 }
-window.__plazaDebug = { charSprite, defaultFace, RANGES };
+window.__plazaDebug = { charSprite, defaultFace, RANGES, catSprite, CAT };
 if (EMBED) document.body.classList.add("embed");
 resize(); requestAnimationFrame(frame);
 const nm = (Q.get("user") || "").trim() || storedName();
