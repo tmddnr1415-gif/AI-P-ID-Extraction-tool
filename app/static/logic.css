@@ -832,3 +832,10 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 #g-review .rv-halo { fill: #ffd400; stroke: #f2a500; stroke-width: 1; fill-opacity: 0; stroke-opacity: 0;
   animation: rvhalo .5s ease-in-out 6 alternate; pointer-events: none; }
 @keyframes rvhalo { from { fill-opacity: .55; stroke-opacity: 1; } to { fill-opacity: 0; stroke-opacity: 0; } }
+
+/* L44 — 매크로 새 창: Typical 행이 이어진 부모 시트의 실제 행 */
+#ov .mlink-bg { fill: #f3e8ff; stroke: #7c3aed; stroke-width: 0.3; opacity: 0.95; pointer-events: none; }
+#ov .mlink-bg.nopin { fill: #fff3e0; stroke: #e08a00; }
+#ov .mlink { fill: #5b21b6; font-weight: 700; font-family: sans-serif; pointer-events: auto; }
+.lg-rows .mlk { color: #5b21b6; font-size: 11px; margin-left: 4px; background: #f3e8ff; border-radius: 3px; padding: 0 3px; }
+.lg-rows .mlk.hot { color: #fff; background: #0083c2; }

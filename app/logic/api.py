@@ -1018,10 +1018,17 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
         if hit is None:
             out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=analog, cache=cache)
             hit = _bundle_keep(cache, forces, state, timers, analog, out)
-    body_json, results = hit
+    body_json, results, inner = hit
     f = results.get(focus) if focus is not None else None
+    # L44 — 열린 매크로 새 창마다 부모 장에 펼쳐 같이 돈 값 (body 의 inner: ["쪽:상자", …])
+    want = {}
+    for k in (body.get("inner") or []) if isinstance(body.get("inner"), list) else []:
+        pg, _, bid = str(k).partition(":")
+        if pg.isdigit() and bid and bid in (inner.get(int(pg)) or {}):
+            want[f"{pg}:{bid}"] = inner[int(pg)][bid]
+    extra = b'"macro_inner":' + _dumps(want) + b"," if want else b""
     # 묶음 몸통은 한 번만 글로 바꿔 두고 화면이 보는 장의 결과만 그때 붙인다 (L31 — 846쪽 묶음 몸통 약 220KB)
-    return Response(b'{"focus":' + _dumps(f) + b"," + body_json[1:], media_type="application/json")
+    return Response(b'{"focus":' + _dumps(f) + b"," + extra + body_json[1:], media_type="application/json")
 
 
 @router.post("/logic/api/jobs/{job}/sheet/{page}/press")
@@ -1069,11 +1076,11 @@ def _bundle_keep(cache, forces, state, timers, analog, out):
     """L31 — 시트를 옮길 때마다 묶음 전체를 다시 돌리지 않는다.  같은 입력(강제 · 상태 · 타이머 · 아날로그)이면 묶음의
     답은 같고 달라지는 것은 화면이 보는 장(focus) 하나뿐이다 — 그 장의 결과는 지난 계산이 장마다 이미 냈다."""
     results = cache.pop("_last_results", None) or {}
-    body = {k: v for k, v in out.items() if k != "focus"}
+    body = {k: v for k, v in out.items() if k not in ("focus", "macro_inner")}
     body["default_t"] = sim.DEFAULT_T
     # 글로 바꿀 때 dict 열쇠(쪽 번호)가 글이 되는 것은 JSONResponse 와 같다.  장마다의 결과는 꺼낼 때 그때 글로 바꾼다 —
     # 그래서 기억 안의 객체를 아무도 고치지 않는다.
-    hit = (_dumps(body), results)
+    hit = (_dumps(body), results, out.get("macro_inner") or {})
     _lru_put(cache.setdefault("_last", {}), _bundle_inputs_key(forces, state, timers, analog), hit, keep=BUNDLE_LAST)
     return hit
 

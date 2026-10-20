@@ -6354,3 +6354,23 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   (`openSheet(page, {noSim})`) · 그 사이 120ms 기다림을 뺐다.
 * 확인 (사본 데이터 · 크롬): HRSG GT IGNITION START 를 G034 → G031 → G023 → G049 로 넘어가며 흐름을 그려도 어긋난 틀 0 · 화면 오류 0.
   시험 `tests/test_logic_l43_pairing.py` 3건 · 빠른 시험 1356 통과 (hotfix75 교착 시험 제외).
+
+### L44회차 — 매크로 새 창은 부모 시트의 실제 행과 값으로 (2026-10-20)
+
+* 사용자 지시 (19VA `BL11_G131` · 매크로 `10LAE11AA251 SOV` 사진): *엔지니어는 Typical 을 참조해 실제 시트에서 입력 행을
+  마음대로 배치한다 (OP REQ 를 14행으로) · 새 창은 Typical 행(16행)과 값을 띄워 맞지 않고 동작하지 않는다 · Logic Sheet 상의
+  실제 Input · Output 행과 연결시키고 그 값을 띄워라.*
+* **원인** — 새 창이 부모의 **마지막 틀** 입력만 받아 Typical 을 따로 돌렸다 (L39 가 적은 빈틈 — 펄스로 잠깐 서는 값이 사라짐).
+  행 번호도 Typical 것만 보였다.
+* **고친 것** (판정 0줄): `sim.simulate_bundle` 이 매크로를 펼쳐 같이 돈 값을 **틀마다** Typical 선 이름으로 되돌려
+  `macro_inner` 로 낸다 (`macro_inner()` · 1 인 선만 · 펼친 이름 기억 `inline["_names"]`).  Typical 입력·출력 행마다 부모 시트의
+  실제 행(`links` — 단자 선과 같은 선의 부모 행 · 행이 아니면 그 단자를 모는 부모 블록 이름 `src`)을 붙인다.  화면 몸통
+  (`macros`)에는 싣지 않고, `/simulate` 의 `inner: ["쪽:상자"]` (열린 새 창)일 때만 붙인다 (`api._bundle_keep` 세 칸).
+* **새 창** (`logic.js`): 부모에게 `macro-ask` → 부모가 그 값을 보내고 새 창은 **따로 돌리지 않고** 그 틀을 그대로 그린다
+  (`applyMacroInner` · `playFrames` — runSim 의 그리기를 떼어 냄).  도면의 Typical 행 옆에 `← BL11_G131-14` 보라 꼬리표 ·
+  목록에 `← BL11_G131-14 … OP REQ (A_OPN)` · 머리 띠.  새 창에서 입력 행을 누르면 부모 시트의 **그 실제 행**(행이 아니면 단자 선)에
+  준다 (`macro-set` · `handleMacroSet`) · 출력 행은 필요한 입력을 찾아 부모에 요구 (`macro-need`).  주소로 직접 연 창(부모 없음)은
+  예전처럼 Typical 만 돈다.  새 창에 가르치기 창을 띄우지 않는다.
+* 실측 (19VA 사본 · 크롬): 부모 14행 OP REQ = 1 → 새 창 16행(A_OPN) 켜짐 · 꼬리표 21개 · 새 창 9행(A_SEL) 누름 → 부모 단자 선 강제 ·
+  부모 OP CMD 를 켜면 새 창 70행이 부모 73행과 같은 값 · 화면 오류 0 · 신호 하나 0.1~0.24초.
+* 시험 `tests/test_logic_l44_macro_window.py` 2건 (L31 시험 둘은 응답에 `macro_inner` 가 물을 때만 붙는 것에 맞춤) · 빠른 시험 1371 통과.

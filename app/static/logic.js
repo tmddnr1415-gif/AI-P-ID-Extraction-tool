@@ -438,7 +438,7 @@ async function openJob(id) {
   // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
   const fromWin = /[#&](test|rvgo|row|blk)=/.test(location.hash);      // L42 — 다른 창(그룹 시험 · 검토)에서 자리를 짚어 왔으면 창을 덮지 않는다
-  loadTeach(id, !fromWin && (teachOpen || lsGet("logic.teachclosed." + id) !== "1"));
+  loadTeach(id, !fromWin && !MACRO_FROM && (teachOpen || lsGet("logic.teachclosed." + id) !== "1"));
   $("#ft-report").hidden = false;
   RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
   $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
@@ -942,7 +942,9 @@ async function openSheet(page, opt) {
   prefetchAround(page);
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
-    applyMacroInputs(MACRO_FROM.inputs);
+    // L44 — 부모 시트에 펼쳐 같이 돈 값을 받아 그린다.  부모 창이 없으면(주소로 직접 연 창) 예전처럼 이 Typical 만 돌린다
+    if (MACRO_FROM.pending) applyMacroInner(MACRO_FROM.pending, true);
+    else if (!askParentMacro()) applyMacroInputs(MACRO_FROM.inputs);
     return;
   }
   if (L.mode === "sim" && !(opt && opt.noSim)) runSim(false, true);   // 순차 동작은 곧이어 자기 계산을 돌린다 — 두 번 보내지 않는다
@@ -1048,6 +1050,18 @@ function drawOverlay() {
     if (!r.at) continue;                               // L42 — 자리 없는 행(사람이 더한 행 · 예전 결과)은 점을 그리지 않는다
     const c = el("circle", { cx: r.at[0], cy: r.at[1], r: 2.4, class: "rowpin", "data-row": r.n }, gR);
     c.addEventListener("click", (e) => { if (L.justPanned) return; e.stopPropagation(); onRow(r.n, e); });
+    const ml = MACRO_FROM && L.macroLink && s.page === MACRO_FROM.target ? macroLinkOf(r.side, r.n) : null;
+    if (ml) {                                          // L44 — 매크로 새 창: 이 Typical 행이 이어진 부모 시트의 실제 행
+      const pr = (ml.rows || [])[0];
+      const h = r.y0 != null && r.y1 != null ? Math.max(3.5, Math.min(7, (r.y1 - r.y0) * 0.62)) : 5;
+      const txt = pr ? `${r.side === "L" ? "←" : "→"} ${L.macroLink.sheet_no || ""}-${pr.n}` : `${r.side === "L" ? "←" : "→"} ${ml.src || ml.pin || "단자"}`;
+      const w = txt.length * h * 0.56 + 2;
+      const x = r.side === "L" ? r.at[0] + 4 : r.at[0] - 4 - w;
+      el("rect", { x, y: r.at[1] - h * 0.6, width: w, height: h * 1.2, rx: 1, class: "mlink-bg" + (pr ? "" : " nopin") }, gR);
+      const tx = el("text", { x: x + 1, y: r.at[1] + h * 0.35, class: "mlink", "font-size": h }, gR);
+      tx.textContent = txt;
+      el("title", {}, tx).textContent = pr ? `부모 시트 ${L.macroLink.sheet_no || ""} ${pr.n}행 ${pr.desc} — 매크로 단자 ${ml.pin}` : ml.src ? `부모 시트 ${L.macroLink.sheet_no || ""} 의 ${ml.src} — 매크로 단자 ${ml.pin}` : `매크로 단자 ${ml.pin} — 부모 시트의 행과 바로 이어지지 않음`;
+    }
     const t = el("title", {}, c); t.textContent = `${r.n}행 · ${r.desc || ""}` + (r.ft && r.ft.ok === false ? `\n✕ from-to 일치하지 않습니다 — ${r.ft.why.join(" · ")}` : r.ft && r.ft.warn && r.ft.warn.length ? `\n⚠ 연결은 맞고 설명만 다릅니다 — ${r.ft.warn.join(" · ")}` : "");
     const ftWarn = r.ft && r.ft.ok !== false && r.ft.warn && r.ft.warn.length;
     if (ftWarn) {
@@ -2141,6 +2155,7 @@ async function traceFrom(start, up) {
 /* ------------------------------------------------------------------ 동작 시뮬레이션 */
 
 async function runSim(animate, pageOnly) {
+  if (macroLinked()) { askParentMacro(); return; }   // L44 — 매크로 새 창의 값은 부모 시트의 묶음 계산이 정한다
   if (!L.sheet || L.sheet.page !== L.page) return;   // L43 — 장을 받는 중(시트와 쪽이 아직 다름)에는 돌리지 않는다 — 받은 뒤 openSheet 가 돌린다
   const askSheet = L.sheet;
   const prev = { ...L.values };
@@ -2156,7 +2171,8 @@ async function runSim(animate, pageOnly) {
   const last = L.lastSim;
   const state = pageOnly && last && last.job === L.job && last.inputs === inputs ? last.state : L.states;
   L.lastSim = { job: L.job, inputs, state };
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog });
+  const inner = Object.entries(L.childWins || {}).filter(([, c]) => c.win && !c.win.closed).map(([k]) => k);
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog, inner });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r || L.page !== askPage || L.sheet !== askSheet) return;   // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
@@ -2181,15 +2197,22 @@ async function runSim(animate, pageOnly) {
   if ((r.conflicts || []).length) status("⚠ 거꾸로 맞추기 모순 — " + r.conflicts.slice(0, 2).join(" · "));
   L.short = new Set(r.short_gates || []);          // L10 — 입력을 다 읽지 못해 출력을 내지 않는 게이트
   L.macros = b.macros || {};                        // L12 — 매크로 블록마다 Typical 시트의 입력·출력 행 값
+  L.macroInner = b.macro_inner || {};               // L44 — 열린 매크로 새 창이 그릴 부모 장의 펼친 값
   sendMacroInputs();
   renderSheetList(); renderChain();
   stopAnim();
+  playFrames(r.frames, prev, animate);
+  return r;
+}
+/* 틀을 그린다 — 묶음 계산의 결과든 (runSim) 매크로 새 창이 부모에게서 받은 값이든 (L44) 같은 길 */
+function playFrames(frames, prev, animate) {
+  const r = { frames };
   if (!animate) {
     const last = r.frames[r.frames.length - 1];
     L.values = last.values;
     showAll(Object.keys(L.values), true);
     paint(); renderInfo();
-    return r;
+    return;
   }
   // 틀마다: 값이 바뀐 넷을 깊이 순서로 그리고, 타이머 틀 사이에는 경과를 보인다
   let t = 0;
@@ -2232,7 +2255,6 @@ async function runSim(animate, pageOnly) {
     cur = fr.values;
   });
   L.animUntil = Date.now() + t + 50;          // 이 뒤로는 다시 그려도 활성 선을 바로 보인다 (paint)
-  return r;
 }
 function paintNet(nid) {
   const g = document.querySelector(`#ov .net[data-net="${CSS.escape(nid)}"]`);
@@ -2281,6 +2303,7 @@ function resetAll() {
 }
 
 function setForce(key, v) {
+  if (macroLinked()) { macroWindowForce(key, v); return; }   // L44 — 매크로 새 창: 부모 시트의 실제 행으로 준다
   // L15 — 출력(오른쪽 행 · 블록이 모는 선 · 매크로 출력 단자)을 1 로 주면: 그 출력이 서려면 어떤 입력이 1 이어야
   // 하는지 범례 정의로 찾아 그 입력들을 주황으로 3번 점등하고 실제로 활성화한다 (사용자 지시).
   if (v === 1 && wantsScenario(key)) { activateOutput(key); return; }
@@ -2807,19 +2830,22 @@ function sendMacroInputs() {
     if (!c.win || c.win.closed) { delete L.childWins[key]; continue; }
     if (c.page !== L.page && !(L.macros || {})[c.page]) continue;
     const v = ((L.macros || {})[c.page] || {})[c.bid];
-    if (v) c.win.postMessage({ type: "macro-inputs", key, inputs: v.inputs }, location.origin);
+    if (v) c.win.postMessage({ type: "macro-inputs", key, inputs: v.inputs, inner: (L.macroInner || {})[key] || null }, location.origin);
   }
 }
 window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
   if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
+  if (e.data.type === "macro-ask") { handleMacroAsk(e.data, e.source); return; }   // L44
+  if (e.data.type === "macro-set") { handleMacroSet(e.data); return; }             // L44
   if (PANE_REVIEW) { if (e.data.type === "review-marks" && e.data.job === L.job) loadReview(L.job, true); return; }
   if (["review-go", "review-on", "review-marks", "grouptest-apply", "goto"].includes(e.data.type)) {
     fromOtherWindow(e.data).catch((er) => { console.error(er); status(`다른 창에서 온 신호를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
     return;
   }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
-  applyMacroInputs(e.data.inputs);
+  if (e.data.inner) applyMacroInner(e.data.inner);
+  else applyMacroInputs(e.data.inputs);
 });
 async function applyMacroInputs(inputs) {
   if (!MACRO_FROM || !L.sheet || L.page !== MACRO_FROM.target) return;
@@ -2836,6 +2862,113 @@ async function applyMacroInputs(inputs) {
   if (fresh.length && L.macroApplied) await flashNeed(fresh);
   runSim(true);
 }
+/* L44 — 매크로 새 창은 Typical 을 따로 돌리지 않는다 (사용자 지시: "Logic Sheet 상의 실제 Input 과 Output 의 행과
+   연결시키고 그 값을 띄워라").  엔지니어는 Typical 을 참조해 실제 시트에서 행 번호를 마음대로 배치한다 — 그래서
+   Typical 입력 행마다 부모 시트의 실제 행(예: 14행 OP REQ → 단자 A_OPN)을 붙이고, 값은 부모 장에 펼쳐 같이 돈
+   묶음 계산을 그대로 그린다 (펄스 · 지연도 같은 시간으로). */
+function macroLinked() { return !!(MACRO_FROM && L.macroLink && L.page === MACRO_FROM.target); }
+function askParentMacro() {
+  if (!MACRO_FROM || !window.opener || window.opener.closed) return false;
+  try { window.opener.postMessage({ type: "macro-ask", parent: MACRO_FROM.parent, block: MACRO_FROM.block }, location.origin); return true; }
+  catch (e) { return false; }
+}
+function macroLinkOf(side, n) {
+  return ((L.macroLink && L.macroLink.links) || []).find((x) => x.side === side && x.row === n) || null;
+}
+function macroRowLabel(x) {
+  const pr = (x.rows || [])[0];
+  return pr ? `${x.row}행 ← ${L.macroLink.sheet_no || ""}-${pr.n}${pr.desc ? " " + pr.desc : ""}` : `${x.row}행 ← ${x.src || x.pin || "단자"}`;
+}
+function macroRowOn(n) {
+  const r = L.sheet && L.sheet.rows.find((x) => x.side === "L" && x.n === n);
+  return !!(r && L.values[r.net] === 1);
+}
+async function applyMacroInner(inner, first) {
+  if (!MACRO_FROM) return;
+  if (!L.sheet || L.page !== MACRO_FROM.target) { MACRO_FROM.pending = inner; return; }
+  const was = L.macroLink;
+  const lastJson = was ? JSON.stringify(was.frames[was.frames.length - 1].values) : null;
+  L.macroLink = inner;
+  if (L.mode !== "sim") setMode("sim", true);
+  const s = L.sheet;
+  const all = new Set(Object.keys(s.nets || {}));
+  for (const p of s.ports) all.add(String(p.net));
+  for (const r of s.rows) if (r.net != null) all.add(String(r.net));
+  const frames = (inner.frames || []).map((fr) => {
+    const v = {};
+    for (const n of all) v[n] = 0;
+    Object.assign(v, fr.values || {});
+    return { ...fr, values: v, depth: fr.depth || {} };
+  });
+  if (!frames.length) return;
+  L.forces = L.allForces[L.page] = {};             // 이 창에서 따로 준 값은 없다 — 부모 시트가 정한다
+  L.implied = {}; L.unmet = []; L.short = new Set(); L.design = []; L.chain = []; L.linked = {};
+  L.notes = []; L.pulled = [];
+  L.finalValues = frames[frames.length - 1].values;
+  const prev = { ...L.values };
+  const changed = lastJson !== JSON.stringify(inner.frames[inner.frames.length - 1].values) || frames.length > 1;
+  // 부모 시트에서 새로 1 이 된 입력 행은 주황으로 3번 점등 (L15)
+  const fresh = s.rows.filter((r) => r.side === "L" && r.net != null && frames[frames.length - 1].values[r.net] === 1 && prev[r.net] !== 1)
+    .map((r) => "row:" + r.n);
+  renderMacroBanner(); renderRows();
+  stopAnim();
+  if (!was) drawOverlay();
+  if (fresh.length && !first && was) await flashNeed(fresh);
+  playFrames(frames, prev, changed);
+  renderMacroBanner(); renderRows();
+}
+async function macroWindowForce(key, v) {
+  const ln = L.macroLink;
+  if (key.startsWith("row:")) {
+    const n = Number(key.slice(4));
+    const inRow = L.sheet.rows.find((r) => r.side === "L" && r.n === n);
+    if (inRow) {
+      const x = macroLinkOf("L", n);
+      if (!x) { status(`${n}행은 부모 시트의 매크로 입력 단자와 이어지지 않았습니다 — 부모 시트에서 주세요`); return; }
+      window.opener.postMessage({ type: "macro-set", parent: MACRO_FROM.parent, block: MACRO_FROM.block, row: n, value: v }, location.origin);
+      status(`${macroRowLabel(x)} 을 ${v === null ? "풀기" : v} — 부모 시트(${ln.sheet_no || ""})에 줍니다`);
+      return;
+    }
+    if (v === 1 && isOutRow(key)) {
+      status(`출력 ${n}행이 1 이 되려면 어떤 입력이 1 이어야 하는지 찾는 중…`);
+      const sc = await findInputs(L.page, key);
+      if (!sc.ok) { status("⚠ " + (sc.why || "이 출력까지 가는 입력 조합을 찾지 못했습니다")); return; }
+      const rows = {}, keys = [];
+      for (const [k, val] of Object.entries(needOf(sc.forces))) if (k.startsWith("row:") && val === 1) { rows[k.slice(4)] = 1; keys.push(k); }
+      await flashNeed(keys);
+      window.opener.postMessage({ type: "macro-need", parent: MACRO_FROM.parent, block: MACRO_FROM.block, rows, fresh: false }, location.origin);
+      return;
+    }
+  }
+  status(`이 창의 값은 부모 시트(${ln.sheet_no || ""})의 계산 그대로입니다 — 입력 행을 누르거나 부모 시트에서 신호를 주세요`);
+}
+/* 부모 창 쪽 — 새 창이 값을 달라 할 때 · 새 창의 입력 행을 부모 시트의 실제 행으로 줄 때 */
+async function handleMacroAsk(d, src) {
+  if (!L.job || MACRO_FROM) return;
+  const key = `${d.parent}:${d.block}`;
+  if (src && (!L.childWins[key] || L.childWins[key].win !== src)) L.childWins[key] = { win: src, page: Number(d.parent), bid: d.block };
+  if (L.mode !== "sim") { setMode("sim"); return; }          // runSim → sendMacroInputs
+  if ((L.macroInner || {})[key]) sendMacroInputs();
+  else runSim(false);
+}
+async function handleMacroSet(d) {
+  if (!L.job || MACRO_FROM) return;
+  const page = Number(d.parent);
+  let s = L.page === page ? L.sheet : null;
+  if (!s) { try { s = await getSheet(page); } catch (e) { return; } }
+  const m = ((s.blocks[d.block] || {}).macro) || {};
+  const x = (m.inputs || []).find((p) => p.row === Number(d.row) && p.net != null);
+  if (!x) return;
+  const pr = s.rows.find((r) => r.side === "L" && r.net === x.net);
+  const k = pr ? "row:" + pr.n : "net:" + x.net;
+  const f = { ...(L.allForces[page] || {}) };
+  if (d.value === null || d.value === undefined) delete f[k]; else f[k] = d.value === 1 ? 1 : 0;
+  L.allForces[page] = f;
+  if (page === L.page) L.forces = f;
+  if (L.mode !== "sim") setMode("sim", true);
+  status(`매크로 새 창 — ${s.sheet_no} ${pr ? pr.n + "행" : "단자 " + (x.pin || "")} 을 ${d.value == null ? "풀기" : d.value}`);
+  runSim(true);
+}
 function renderMacroBanner() {
   if (!MACRO_FROM) return;
   let el = document.getElementById("macro-banner");
@@ -2843,6 +2976,12 @@ function renderMacroBanner() {
     el = document.createElement("div");
     el.id = "macro-banner"; el.className = "macro-banner";
     document.body.prepend(el);
+  }
+  if (L.macroLink) {
+    const ln = L.macroLink, on = (ln.links || []).filter((x) => x.side === "L" && macroRowOn(x.row));
+    el.innerHTML = `<b>매크로 내부 동작</b> — ${esc(MACRO_FROM.from || ln.sheet_no || "부모 시트")} 의 실제 입력·출력 행과 이어져 있습니다 · ` +
+      `켜진 입력 ${on.length ? on.map((x) => esc(macroRowLabel(x))).join(", ") : "없음"} <small>(값은 부모 시트의 계산 그대로 · 입력 행을 누르면 부모 시트의 그 행에 줍니다)</small>`;
+    return;
   }
   const on = Object.entries(MACRO_FROM.inputs || {}).filter(([, v]) => v === 1).map(([r]) => r);
   el.innerHTML = `<b>매크로 내부 동작</b> — ${esc(MACRO_FROM.from || "부모 시트")} 의 입력 단자 값으로 이 Typical 시트를 돌립니다 · ` +
@@ -3035,7 +3174,10 @@ function renderRows() {
     const bad = r.ft && r.ft.ok === false;
     const warn = !bad && r.ft && r.ft.warn && r.ft.warn.length;
     const ftl = r.ft ? `<span class="ftline ${bad ? "bad" : warn ? "warn" : r.ft.ok ? "ok" : ""}">${ftText(r)}</span>` : "";
-    return `<li data-row="${r.n}" class="${bad ? "ftbad" : warn ? "ftwarn" : ""}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${ref}${to}${ins}${lk}${ftl}</span><span>${right}</span></li>`;
+    const ml = MACRO_FROM && L.macroLink && s.page === MACRO_FROM.target ? macroLinkOf(r.side, r.n) : null;
+    const pr = ml && (ml.rows || [])[0];
+    const mlk = ml ? ` <span class="mlk${L.values[r.net] === 1 ? " hot" : ""}" title="매크로 단자 ${esc(ml.pin)}">${r.side === "L" ? "←" : "→"} ${pr ? `${esc(L.macroLink.sheet_no || "")}-${pr.n} ${esc(pr.desc)}` : ml.src ? `${esc(L.macroLink.sheet_no || "")} ${esc(ml.src)}` : "단자"} (${esc(ml.pin)})</span>` : "";
+    return `<li data-row="${r.n}" class="${bad ? "ftbad" : warn ? "ftwarn" : ""}"><span class="n">${r.n}</span><span class="d" title="${esc(r.desc || "")}">${esc(r.desc || "(글 없음)")}${mlk}${ref}${to}${ins}${lk}${ftl}</span><span>${right}</span></li>`;
   };
   const rows = [...s.rows].sort((a, b) => a.n - b.n);
   $("#in-rows").innerHTML = rows.filter((r) => r.side === "L").map(mk).join("") || "<li>없음</li>";

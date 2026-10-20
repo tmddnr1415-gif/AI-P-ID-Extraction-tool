@@ -59,6 +59,7 @@ def _fresh(res, forces, state, focus):
     out = sim.simulate_bundle(res["sheets"], {int(k): v for k, v in forces.items()},
                               {int(k): v for k, v in state.items()}, focus, timers={}, analog={}, cache=None)
     out["default_t"] = sim.DEFAULT_T
+    out.pop("macro_inner", None)          # L44 — 매크로 새 창 몫은 열린 창이 물을 때만 싣는다
     return json.loads(json.dumps(out))
 
 
@@ -103,7 +104,7 @@ def test_reused_answer_is_a_new_object_each_time():
     req = {"forces": {"1": {"row:1": 1}}, "page": 1}
     a = c.post(f"/logic/api/jobs/{job}/simulate", json=req).json()
     cache = api._BUNDLE[job][1]
-    body_json, results = next(iter(cache["_last"].values()))
+    body_json, results, _inner = next(iter(cache["_last"].values()))
     before = json.dumps(results, sort_keys=True, default=str)
     a["focus"]["frames"].clear()
     b = c.post(f"/logic/api/jobs/{job}/simulate", json=req).json()
