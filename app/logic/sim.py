@@ -813,6 +813,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         return o
 
     macro_view = {}
+    inner_names = inline.setdefault("_names", {})   # L44 — (장, 매크로 상자) → (Typical 본문, Typical 선 → 부모 단자 선) · 펼친 장과 같이 기억
 
     # L15 — 매크로 블록을 펼친다: Typical 시트의 블록·선을 이 장 안에 이름을 붙여 넣고, Typical 입력 행의 선 =
     # 상자의 입력 단자 선 · Typical 출력 행의 선 = 상자의 출력 단자 선으로 잇는다.  한 장을 한 번에 돌리므로
@@ -833,6 +834,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         for bid, m in items:
             ts = _MC.body(by_page, m)                   # L38 — 여러 장 매크로는 합친 본문
             alias = {}
+            inner_names[(page, bid)] = (ts, alias)
             for x in m["inputs"]:
                 tn = next((r["net"] for r in ts["rows"] if r["n"] == x.get("row") and r["side"] == "L"), None)
                 if tn is not None and x.get("net") is not None:
@@ -884,6 +886,51 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                 fr["fired"] = [b for b in fr["fired"] if own(b)]
         res["short_gates"] = [b for b in res["short_gates"] if own(b)]
         return res
+
+    def macro_inner(page, items, frames):
+        """L44 — 매크로 새 창은 Typical 을 따로 돌리지 않는다.  부모 장에 펼쳐 같이 돈 그 값(틀마다)을 Typical 선
+        이름으로 돌려주고, Typical 입력·출력 행마다 부모 시트의 실제 행(엔지니어가 배치한 No.)을 붙인다.
+        값은 1 인 선만 담는다 (나머지는 0)."""
+        s0 = by_page[page]
+        out = {}
+        for bid, m in items.items():
+            ts, alias = inner_names.get((page, bid), (None, {}))
+            if ts is None:
+                continue
+            tnets = set()
+            for r in ts["rows"]:
+                if r.get("net") is not None:
+                    tnets.add(r["net"])
+            for p_ in ts["ports"]:
+                tnets.add(p_["net"])
+            name = {tn: alias.get(tn, f"{bid}/{tn}") for tn in tnets}
+            fr_out = []
+            for fr in frames:
+                vals, dep = fr["values"], fr["depth"]
+                on = {str(tn): 1 for tn, nm in name.items() if vals.get(nm) == 1}
+                fr_out.append({"t": fr.get("t", 0), "note": fr.get("note", ""),
+                               "values": on,
+                               "depth": {str(tn): dep[name[tn]] for tn in name if name[tn] in dep and str(tn) in on},
+                               "running": [{**x, "block": str(x["block"]).split("/", 1)[1]} for x in fr.get("running", [])
+                                           if str(x["block"]).startswith(f"{bid}/")]})
+            links = []
+            for side, key in (("L", "inputs"), ("R", "outputs")):
+                for x in m.get(key) or []:
+                    if x.get("row") is None or x.get("net") is None:
+                        continue
+                    prow = [{"n": r["n"], "desc": r.get("desc") or ""} for r in s0["rows"]
+                            if r.get("net") == x["net"] and r["side"] == side]
+                    src = ""
+                    if not prow and side == "L":
+                        # 부모 시트의 행이 아니라 블록(누름단추 · NOT · 펄스 …)이 그 단자를 몬다 — 그 블록 이름
+                        for p_ in s0["ports"]:
+                            if p_["net"] == x["net"] and p_["dir"] == "out" and p_["block"] in s0["blocks"]:
+                                b_ = s0["blocks"][p_["block"]]
+                                src = " ".join(t for t in (b_.get("func") or "", b_.get("label") or "") if t).strip()
+                                break
+                    links.append({"side": side, "row": x["row"], "pin": x.get("pin") or "", "rows": prow, "src": src})
+            out[bid] = {"sheet_no": s0.get("sheet_no"), "frames": fr_out, "links": links}
+        return out
 
     def macro_views(page, items, values):
         view = {}
@@ -964,6 +1011,10 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             if items:
                 if mv is None:
                     mv = macro_views(page, items, res["frames"][-1]["values"])
+                    inner = macro_inner(page, items, res["frames"])
+                    for bid, v in mv.items():
+                        if bid in inner:
+                            v["_inner"] = inner[bid]
                     strip(res)
                 macro_view[page] = mv
             rv = hit_rv if hit_rv is not None else _row_values(s, res["frames"][-1]["values"])
@@ -1040,7 +1091,11 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         cache["_last_results"] = results      # L31 — 같은 입력으로 다른 장만 볼 때 api 가 이 장의 결과를 꺼낸다
     return {"focus": focus_res,
             "design_errors": design,
-            "macros": {p: v for p, v in macro_view.items() if v},
+            "macros": {p: {b: {k: x for k, x in v.items() if k != "_inner"} for b, v in view.items()}
+                       for p, view in macro_view.items() if view},
+            # L44 — 매크로 새 창이 그릴 부모 장의 펼친 값 (장 → 상자 → 틀 · 부모 행 연결) — 화면 몸통에는 싣지 않는다
+            "macro_inner": {p: {b: v["_inner"] for b, v in view.items() if "_inner" in v}
+                            for p, view in macro_view.items() if any("_inner" in v for v in view.values())},
             "linked": {p: {n: v for n, v in lin.items() if f"row:{n}" not in forces.get(p, {})}
                        for p, lin in link_in.items() if lin},
             "pages": pages,
