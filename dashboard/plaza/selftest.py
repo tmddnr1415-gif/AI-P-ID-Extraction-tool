@@ -55,7 +55,7 @@ try:
     _, b = call("/plaza/api/join", {"name": "홍길동", "x": 28, "y": 15}, B)
     ok.append(("역할 — 운영자", b["role"] == "operator" and a["role"] == "member"))
     call("/plaza/api/move", {"id": a["id"], "x": 29, "y": 15, "dir": 2}, A)
-    ok.append(("때리기 — 앞 칸 사람이 맞음", call("/plaza/api/attack", {"id": a["id"]}, A)[1]["hit"] == ["홍길동"]))
+    ok.append(("때리기 — 운영자(홍길동)는 무적 (안 맞음)", call("/plaza/api/attack", {"id": a["id"]}, A)[1]["hit"] == []))
     ok.append(("말하기 — 80자", len(call("/plaza/api/say", {"id": a["id"], "text": "가" * 200})[1]["text"]) == 80))
     face = {"hair": 4, "hairc": 4, "skin": 1, "eyes": 2, "beard": 0, "cloth": 3, "pants": 1}
     call("/plaza/api/look", {"id": a["id"], "look": face})
@@ -102,8 +102,26 @@ try:
     time.sleep(2.5)
     saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
     ok.append(("처치 수 — 3명 쓰러뜨림 (killer)", saved.get("kills", {}).get("성춘향") == 3))
-    # 홍길동(99)은 바로 옆 유닛장 김철수(위에서 unit 으로 지정)의 회복 오라로 100 이 됨 → hp.json 에서 빠짐
-    ok.append(("체력 — 파일에 남음 (이몽룡 0) · 유닛장 곁 홍길동은 회복되어 100", "홍길동" not in saved["hp"] and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
+    ok.append(("체력 — 파일에 남음 (이몽룡 0) · 운영자 홍길동은 무적이라 기록 없음", "홍길동" not in saved["hp"] and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
+    # 2026-10-22 판3: 아이템 — 들어오면 3 개 · 쓰러지면 그 자리에 떨어뜨림 · 밟으면 주움 / 운영자 무적 · 곁의 유령 부활
+    items = json.loads((data / "items.json").read_text(encoding="utf-8"))
+    ok.append(("아이템 — 들어오면 무작위 3 개", len(items["inv"].get("성춘향", [])) == 3 and items["inv"].get("변학도") == []
+               and sum(1 for g in items["ground"] if (g["x"], g["y"]) == (46, 24)) == 3))
+    _, pk = call("/plaza/api/move", {"id": h["id"], "x": 46, "y": 24, "dir": 0}, F)
+    ok.append(("아이템 — 쓰러진 자리를 밟으면 주움", len(pk.get("picked", [])) == 3))
+    ok.append(("부활 — 부서원은 못 함", call("/plaza/api/revive", {"id": h["id"], "target": "변학도"}, F)[0] == 403))
+    ok.append(("부활 — 운영자도 멀면 거절", call("/plaza/api/revive", {"id": b["id"], "target": "변학도"}, B)[0] == 400))
+    call("/plaza/api/move", {"id": b["id"], "x": 46, "y": 25, "dir": 1}, B)
+    ok.append(("부활 — 운영자가 곁에서 하면 됨", call("/plaza/api/revive", {"id": b["id"], "target": "변학도"}, B)[0] == 200))
+    ok.append(("부활 — 유령 아닌 사람은 거절", call("/plaza/api/revive", {"id": b["id"], "target": "변학도"}, B)[0] == 400))
+    call("/plaza/api/move", {"id": h["id"], "x": 47, "y": 25, "dir": 2}, F)
+    time.sleep(0.35)
+    ok.append(("운영자 무적 — 맞아도 체력 그대로", call("/plaza/api/attack", {"id": h["id"]}, F)[1]["hit"] == []))
+    time.sleep(2.5)
+    items = json.loads((data / "items.json").read_text(encoding="utf-8"))
+    saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
+    ok.append(("아이템 · 부활 — 파일에 남음 (주운 사람 6 개 · 부활한 사람 새 3 개 · 체력 100)",
+               len(items["inv"]["성춘향"]) == 6 and len(items["inv"]["변학도"]) == 3 and "변학도" not in saved["hp"] and "홍길동" not in saved["hp"]))
     (root / "data" / "_meta").mkdir()
     (root / "data" / "_meta" / "state.json").write_text(json.dumps({"manualClosedWeek": week}), encoding="utf-8")   # [금주 마감]
     time.sleep(5.2)

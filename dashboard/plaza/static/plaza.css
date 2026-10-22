@@ -122,6 +122,9 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-hud .r em { width: 46px; text-align: right; font-style: normal; color: #c9d4e0; font-size: 10.5px; }
 .pz-hud .w { margin-top: 4px; color: #c9d4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pz-hud .q { display: flex; gap: 4px; align-items: center; margin-top: 2px; color: #ffe7a6; white-space: nowrap; overflow: hidden; }
+.pz-hud .inv { display: flex; gap: 2px; margin-top: 4px; }
+.pz-hud .inv canvas { width: 22px; height: 22px; image-rendering: pixelated; background: #101c2e; border: 1px solid #2c4a6e; border-radius: 3px; }
+.pz-hud .inv canvas.on { border-color: #b08a2c; background: #1c2a40; }
 .pz-tools { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 4px; pointer-events: none;
   background: rgba(9, 15, 27, .82); border: 2px solid #3d6a9a; border-radius: 6px; padding: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .3); }
 .pz-tools .slot { width: 40px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center;

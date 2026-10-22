@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.2'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.3'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -248,6 +248,7 @@ def check_week(now: float, force: bool = False) -> None:
     first = not HP["week"]
     revived = sum(1 for v in HP["hp"].values() if v <= 0)
     HP.update(week=week, hp={}, kills={}, dirty=True)   # 처치 수도 주마다 새로
+    items_new_week(now)                                 # 바닥 아이템 치우고 빈 가방은 새로 채움
     if not first:
         log_system(f"주간 마감 — 새 주차 {week}. 모두 체력 {HP_MAX} 으로 돌아왔습니다." + (f" (유령 {revived}명 부활)" if revived else ""), now)
         STATE["ver"] += 1
@@ -255,6 +256,10 @@ def check_week(now: float, force: bool = False) -> None:
 
 def hp_of(name: str) -> int:
     return HP["hp"].get(name, HP_MAX)
+
+
+def hp_p(p: dict) -> int:                          # 광장에 있는 사람의 체력 — 운영자는 무적(늘 가득)
+    return HP_MAX if p.get("role") == "operator" else hp_of(p["name"])
 
 
 def save_hp() -> None:
@@ -287,6 +292,7 @@ def hp_loop() -> None:                             # 1초마다 회복 오라 ·
         if n % 2 == 0:
             save_hp()
             save_xp()
+            save_items()
 
 
 # ── EPC 발전플랜트 (2026-10-22): 계장 설비 · 점검/수리 · 경험치 · 유닛장 회복 오라 ─────────────
@@ -371,13 +377,13 @@ def eq_near(p: dict, e) -> bool:
 
 
 def heal_tick(now: float) -> None:                 # LOCK 안에서 — 유닛장 둘레 HEAL_RADIUS 칸 안 팀원 체력 +HEAL_PER_SEC
-    healers = [p for p in STATE["players"].values() if p.get("role") in HEAL_ROLES and hp_of(p["name"]) > 0]
+    healers = [p for p in STATE["players"].values() if p.get("role") in HEAL_ROLES and hp_p(p) > 0]
     if not healers:
         return
     done = set()
     for q in STATE["players"].values():
         name = q["name"]
-        if name in done or hp_of(name) <= 0 or hp_of(name) >= HP_MAX:
+        if name in done or hp_p(q) <= 0 or hp_p(q) >= HP_MAX:
             continue
         if any(h is not q and h["name"] != name and ((h["x"] - q["x"]) ** 2 + (h["y"] - q["y"]) ** 2) ** .5 <= HEAL_RADIUS for h in healers):
             done.add(name)
@@ -409,6 +415,120 @@ def save_xp() -> None:
             XP["dirty"] = True
 
 
+# ── 아이템 (2026-10-22 판3): 들어오면 무작위 3 개 · 쓰러지면 그 자리에 떨어뜨림 · 산 사람이 그 칸을 밟으면 주움 ──────
+ITEM_NAMES = {"HART": "HART 통신기", "MULTI": "멀티미터", "CALIB": "루프 교정기", "SPOOL": "케이블 드럼", "ICABLE": "계장 케이블",
+              "GLAND": "케이블 글랜드", "TB": "단자대", "AIRTUBE": "에어 튜브", "IMPULSE": "임펄스 튜브", "POSITIONER": "포지셔너",
+              "CALPUMP": "교정 펌프", "HELMET": "안전모", "VEST": "안전 조끼", "WRENCH": "렌치", "SCREW": "드라이버",
+              "LAPTOP": "노트북", "CHECK": "점검표", "RADIO": "무전기", "PG": "압력계", "DCSCARD": "DCS 카드"}   # 그림 = EPC 시트 i_<키>
+ITEM_START = 3                  # 처음(그리고 빈 가방으로 부활할 때) 받는 개수
+ITEM_MAX = 8                    # 가방 칸
+GROUND_MAX = 80                 # 바닥에 남는 수 상한 (넘으면 오래된 것부터 사라짐)
+REVIVE_DIST = 2.5               # 운영자가 부활시킬 수 있는 거리 (칸)
+ITEMS: dict = {"inv": {}, "ground": [], "seq": 0, "dirty": False}   # inv: 이름 → [키] · ground: [{id, it, x, y, at}] (<data>/items.json)
+
+
+def load_items() -> None:
+    raw = read_json(DATA / "items.json", {})
+    inv = {}
+    for k, v in (raw.get("inv") or {}).items() if isinstance(raw.get("inv"), dict) else []:
+        if clean(k, NAME_MAX) and isinstance(v, list):
+            inv[clean(k, NAME_MAX)] = [i for i in v if i in ITEM_NAMES][:ITEM_MAX]
+    ground = []
+    for g in raw.get("ground") or [] if isinstance(raw.get("ground"), list) else []:
+        try:
+            if g["it"] in ITEM_NAMES:
+                ground.append({"id": int(g["id"]), "it": g["it"], "x": int(g["x"]) % MAP_W, "y": int(g["y"]) % MAP_H, "at": float(g.get("at") or 0)})
+        except (KeyError, TypeError, ValueError):
+            continue
+    ITEMS.update(inv=inv, ground=ground[-GROUND_MAX:], seq=max([g["id"] for g in ground] + [0]), dirty=False)
+
+
+def save_items() -> None:
+    with LOCK:
+        if not ITEMS["dirty"]:
+            return
+        data = {"inv": {k: list(v) for k, v in ITEMS["inv"].items()}, "ground": [dict(g) for g in ITEMS["ground"]],
+                "_설명": "계장 광장 아이템. inv = 이름 → 가방 (처음 무작위 3 개). ground = 쓰러진 사람이 떨어뜨린 것 (밟으면 주움). 주간 마감에 바닥은 치우고 빈 가방은 새로 채움."}
+        ITEMS["dirty"] = False
+    try:
+        with FILE_LOCK:
+            write_json(DATA / "items.json", data)
+    except OSError:
+        with LOCK:
+            ITEMS["dirty"] = True
+
+
+def give_items(name: str, force: bool = False) -> None:   # LOCK 안에서 — 처음 오거나(가방 없음) force 이면서 빈 가방이면 무작위로
+    import random
+    have = ITEMS["inv"].get(name)
+    if have is None or (force and not have):
+        ITEMS["inv"][name] = random.sample(list(ITEM_NAMES), ITEM_START)
+        ITEMS["dirty"] = True
+
+
+def drop_items(q: dict, now: float) -> list:       # LOCK 안에서 — 가방을 그 자리 바닥에
+    lost = ITEMS["inv"].get(q["name"]) or []
+    for it in lost:
+        ITEMS["seq"] += 1
+        ITEMS["ground"].append({"id": ITEMS["seq"], "it": it, "x": q["x"], "y": q["y"], "at": now})
+    del ITEMS["ground"][:-GROUND_MAX]
+    ITEMS["inv"][q["name"]] = []
+    ITEMS["dirty"] = True
+    return list(lost)
+
+
+def pick_up(p: dict, now: float) -> list:         # LOCK 안에서 — 선 칸의 아이템을 가방이 찰 때까지
+    bag = ITEMS["inv"].setdefault(p["name"], [])
+    got = []
+    for g in [g for g in ITEMS["ground"] if (g["x"], g["y"]) == (p["x"], p["y"])]:
+        if len(bag) >= ITEM_MAX:
+            break
+        if now - g["at"] < 0.8:                    # 떨어지는 중(그림이 튀는 동안)은 못 주움
+            continue
+        ITEMS["ground"].remove(g)
+        bag.append(g["it"])
+        got.append(g["it"])
+    if got:
+        ITEMS["dirty"] = True
+        log_system(f"{p['name']} 님이 {' · '.join(ITEM_NAMES[i] for i in got)} 을(를) 주웠습니다.", now)
+        STATE["ver"] += 1
+    return got
+
+
+def items_new_week(now: float) -> None:            # LOCK 안에서 (check_week)
+    ITEMS["ground"].clear()
+    for name in [k for k, v in ITEMS["inv"].items() if not v]:
+        del ITEMS["inv"][name]
+    for q in STATE["players"].values():
+        give_items(q["name"])
+    ITEMS["dirty"] = True
+
+
+def api_revive(body: dict) -> dict:               # 운영자가 곁(REVIVE_DIST 칸 안)의 유령을 부활
+    now = time.time()
+    target = clean(body.get("target"), NAME_MAX)
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        if p.get("role") != "operator":
+            raise ApiError(403, "운영자만 부활시킬 수 있습니다.")
+        qs = [q for q in STATE["players"].values() if q["name"] == target]
+        if not qs:
+            raise ApiError(404, "광장에 없는 사람입니다.")
+        if hp_of(target) > 0:
+            raise ApiError(400, f"{target} 님은 유령이 아닙니다.")
+        if min(((q["x"] - p["x"]) ** 2 + (q["y"] - p["y"]) ** 2) ** .5 for q in qs) > REVIVE_DIST:
+            raise ApiError(400, "유령 곁(두 칸 안)으로 가서 하세요.")
+        HP["hp"].pop(target, None)
+        HP["dirty"] = True
+        give_items(target, force=True)
+        for q in qs:
+            q["revive_at"], q["revive_by"] = now, p["name"]
+        log_system(f"✨ 운영자 {p['name']} 님이 {target} 님을 부활시켰습니다. (체력 {HP_MAX})", now)
+        STATE["ver"] += 1
+    return {"ok": True, "target": target, "hp": HP_MAX}
+
+
 def api_work(body: dict) -> dict:
     eid, phase, now = str(body.get("eq") or ""), str(body.get("phase") or ""), time.time()
     e = next((x for x in EQUIP if x[0] == eid), None)
@@ -425,7 +545,7 @@ def api_work(body: dict) -> dict:
                     st["busy"] = ""
                 STATE["ver"] += 1
             return {"ok": True}
-        if hp_of(p["name"]) <= 0:
+        if hp_p(p) <= 0:
             raise ApiError(400, "유령은 작업할 수 없습니다 — 주간 마감 때 부활합니다.")
         if not eq_near(p, e):
             raise ApiError(400, "설비 바로 옆(한 칸 안)으로 가서 하세요.")
@@ -466,7 +586,8 @@ def api_work(body: dict) -> dict:
 
 def equip_defs() -> dict:
     return {"equip": [{"id": i, "t": t, "x": x, "y": y, "w": w, "name": n} for i, t, x, y, w, n in EQUIP],
-            "jobs": list(JOBS), "heal_radius": HEAL_RADIUS, "heal_per_sec": HEAL_PER_SEC}
+            "jobs": list(JOBS), "heal_radius": HEAL_RADIUS, "heal_per_sec": HEAL_PER_SEC,
+            "items": ITEM_NAMES, "revive_dist": REVIVE_DIST}
 
 
 # ── 광장 상태 ──────────────────────────────────────────────────────────
@@ -499,18 +620,21 @@ def snapshot(now: float | None = None) -> dict:
                 "act_seq": p["act_seq"], "act_age": round(now - p["act_at"], 2),
                 "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
                 "status": p.get("status", ""),
-                "hp": hp_of(p["name"]), "hp_max": HP_MAX, "ghost": hp_of(p["name"]) <= 0,
+                "hp": hp_p(p), "hp_max": HP_MAX, "ghost": hp_p(p) <= 0, "inf": p.get("role") == "operator",
                 "kills": HP["kills"].get(p["name"], 0), "killer": HP["kills"].get(p["name"], 0) >= KILLER_AT,
                 "xp": XP["xp"].get(p["name"], 0), "lv": level_of(XP["xp"].get(p["name"], 0)), "job": job_of(p),
-                "healer": p.get("role") in HEAL_ROLES and hp_of(p["name"]) > 0,
+                "healer": p.get("role") in HEAL_ROLES and hp_p(p) > 0,
                 "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2),
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
+                "items": list(ITEMS["inv"].get(p["name"], [])), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
                 "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
         eq = {k: [v["st"], v["busy"]] for k, v in EQ.items()}
-        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"], "eq": eq, "heal_r": HEAL_RADIUS}
+        ground = [[g["id"], g["it"], g["x"], g["y"], round(now - g["at"], 2)] for g in ITEMS["ground"]]
+        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"], "eq": eq, "heal_r": HEAL_RADIUS,
+                "ground": ground}
 
 
 def player(pid) -> dict:
@@ -560,6 +684,7 @@ def api_join(body: dict) -> dict:
             "status": clean(body.get("status"), STATUS_MAX), "ip": ip,
         }
         log_system(f"{name} 님이 광장에 들어왔습니다.", now)
+        give_items(name)
         STATE["ver"] += 1
     return {"id": pid, "name": name, "look": look, "face": face, "role": role, "say_max": SAY_MAX,
             "x": STATE["players"][pid]["x"], "y": STATE["players"][pid]["y"], "dir": 0, "shared": False}
@@ -576,8 +701,8 @@ def api_move(body: dict) -> dict:
         p["seen"] = time.time()
         # 캐릭터끼리 겹치지 않음 (2026-10-16 대시보드): 다른 사람이 선 칸으로는 못 감 → 제자리 칸을 돌려줌 (화면이 되돌아감)
         # 유령은 남과 겹쳐 지나가고, 남도 유령 칸은 지나감
-        if (x, y) != (p["x"], p["y"]) and hp_of(p["name"]) > 0 and any(
-                q is not p and (q["x"], q["y"]) == (x, y) and hp_of(q["name"]) > 0 for q in STATE["players"].values()):
+        if (x, y) != (p["x"], p["y"]) and hp_p(p) > 0 and any(
+                q is not p and (q["x"], q["y"]) == (x, y) and hp_p(q) > 0 for q in STATE["players"].values()):
             if d % 4 != p["dir"]:
                 p["dir"] = d % 4
                 STATE["ver"] += 1
@@ -590,7 +715,8 @@ def api_move(body: dict) -> dict:
         if (x, y, d % 4) != (p["x"], p["y"], p["dir"]):
             p["x"], p["y"], p["dir"] = x, y, d % 4
             STATE["ver"] += 1
-    return {"ok": True}
+        got = pick_up(p, time.time()) if hp_p(p) > 0 else []
+    return {"ok": True, "picked": got}
 
 
 def api_say(body: dict) -> dict:
@@ -614,7 +740,7 @@ def api_attack(body: dict) -> dict:
         p = player(body.get("id"))
         p["seen"] = now
         check_week(now)
-        if hp_of(p["name"]) <= 0:                  # 유령은 못 때림
+        if hp_p(p) <= 0:                           # 유령은 못 때림
             return {"ok": True, "hit": [], "ghost": True}
         if now - p["act_at"] < ATTACK_GAP_S:
             return {"ok": True, "hit": []}
@@ -624,11 +750,11 @@ def api_attack(body: dict) -> dict:
         front = {(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])}
         hit, done = [], set()
         for q in STATE["players"].values():
-            if q is p or (q["x"], q["y"]) not in front or q["name"] == p["name"] or hp_of(q["name"]) <= 0:
+            if q is p or (q["x"], q["y"]) not in front or q["name"] == p["name"] or hp_p(q) <= 0:
                 continue
             q["hit_seq"] += 1
             q["hit_at"], q["hit_by"] = now, p["name"]
-            if q["name"] in done:                  # 같은 이름이 둘이어도 체력은 한 번만
+            if q["name"] in done or q.get("role") == "operator":   # 같은 이름이 둘이어도 체력은 한 번만 · 운영자는 무적
                 continue
             done.add(q["name"])
             left = hp_of(q["name"]) - 1             # 한 대에 1
@@ -637,7 +763,9 @@ def api_attack(body: dict) -> dict:
             hit.append(q["name"])
             if left <= 0:
                 k = HP["kills"][p["name"]] = min(HP["kills"].get(p["name"], 0) + 1, 9999)   # 처치 수
-                log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 때 부활)", now)
+                lost = drop_items(q, now)
+                log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 · 운영자가 부활)"
+                           + (f" — {' · '.join(ITEM_NAMES[i] for i in lost)} 을(를) 떨어뜨렸습니다." if lost else ""), now)
                 if k == KILLER_AT:
                     log_system(f"⚔ {p['name']} 님이 이번 주 {k}명을 쓰러뜨려 killer 가 되었습니다!", now)
         STATE["ver"] += 1
@@ -710,7 +838,8 @@ def api_leave(body: dict) -> dict:
 
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
-         "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work}
+         "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
+         "/plaza/api/revive": api_revive}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
@@ -884,6 +1013,7 @@ def main(argv=None) -> None:
     NETS_FILE = Path(a.nets_file).resolve() if a.nets_file else None
     roles()                                        # 역할 파일 빈 틀을 만들어 둔다
     load_hp()
+    load_items()
     eq_init()
     with LOCK:
         check_week(time.time(), force=True)        # 꺼져 있는 동안 마감이 지났으면 바로 부활

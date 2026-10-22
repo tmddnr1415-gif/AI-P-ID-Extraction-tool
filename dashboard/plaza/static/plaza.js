@@ -458,7 +458,7 @@ function eqImg(t) { const ic = EQ_ICON[t] && eps(EQ_ICON[t]); if (ic) return ic;
 async function loadEquip() {
   try { const r = await fetch("/plaza/api/equip", { cache: "no-store" }); if (!r.ok) return; const d = await r.json();
     for (const e of d.equip || []) { EQUIP.push(e); EQ_BY.set(e.id, e); block(e.x, e.y, e.x + (e.w || 1) - 1, e.y); }
-    if (d.heal_radius) S.healR = d.heal_radius; if (Array.isArray(d.jobs)) S.jobs = d.jobs;
+    if (d.heal_radius) S.healR = d.heal_radius; if (Array.isArray(d.jobs)) S.jobs = d.jobs; if (d.items) S.itemNames = d.items;
   } catch (_) { /* 설비 없이 */ }
 }
 
@@ -466,8 +466,10 @@ async function loadEquip() {
 const CHR_FR = {"cat_d0":[0,0,22,30,10.7,29],"cat_d1":[23,0,21,29,9.8,28],"cat_d2":[45,0,22,29,10.3,27],"cat_d3":[68,0,21,29,9.5,28],"cat_s0":[90,0,22,29,10.3,28],"cat_s1":[113,0,20,29,9.9,27],"cat_a":[134,0,37,28,13.9,26],"panda_d0":[172,0,19,30,8.7,29],"panda_d1":[192,0,20,29,9.4,28],"panda_s0":[213,0,21,28,10.4,27],"panda_s1":[235,0,20,29,9.8,28],"panda_a":[256,0,30,30,11.3,29],"lion_d0":[287,0,23,30,10.9,29],"lion_d1":[311,0,22,30,10.8,28],"lion_d2":[334,0,22,30,10.0,29],"lion_d3":[357,0,20,29,9.2,28],"lion_s0":[378,0,22,30,10.3,29],"lion_s1":[401,0,22,28,10.5,27],"lion_a":[424,0,46,33,16.9,32],"tiger_d0":[471,0,22,28,10.3,27],"tiger_d1":[0,34,20,28,9.0,27],"tiger_a":[21,34,48,29,25.6,28],"nobi_d0":[70,34,20,26,8.5,24],"nobi_d1":[91,34,19,28,9.2,27],"nobi_s0":[111,34,21,26,10.0,24],"nobi_s1":[133,34,20,26,8.9,25],"nobi_s2":[154,34,20,26,9.1,24],"nobi_s3":[175,34,18,26,8.0,24],"p_cat":[194,34,64,90,33.4,89],"p_panda":[259,34,58,88,28.9,86],"p_lion":[318,34,66,91,32.4,90],"p_tiger":[385,34,63,88,30.5,87],"p_nobi":[449,34,57,72,27.3,71]};
 const CHR = { data: null, ready: false };
 // EPC 시트(사용자 첨부, 2026-10-22): 안전모 쓴 직무 캐릭터 5종 × 동작 15칸(대기 · 걷기 5 · 점검 · HART · 케이블 · DCS · 수리 · 점프 · 피격 · 축하 · 지침) ·
-// 큰 초상 p_* · 장비/도구 아이콘 i_* · UI 효과 아이콘 f_* — static/epc.png (배경 투명 · 한 점 = 캐릭터와 같은 크기 · 원본 96 색)
-const EPC_FR = {"cat_idle":[194,0,23,34,9.6,34],"cat_w0":[269,95,18,29,6.4,29],"cat_w1":[288,95,16,29,6.9,29],"cat_w2":[193,126,16,28,6.3,28],"cat_w3":[305,95,15,29,5.7,29],"cat_w4":[210,126,15,28,5.2,28],"cat_inspect":[271,62,22,31,10.8,31],"cat_hart":[0,95,28,30,14.3,30],"cat_cable":[294,62,23,31,10.3,31],"cat_dcs":[29,95,22,30,10.3,30],"cat_repair":[321,95,18,29,8.3,29],"cat_jump":[340,95,18,29,8.9,29],"cat_hurt":[359,95,17,29,8.5,29],"cat_cheer":[318,62,21,31,9.1,31],"cat_tired":[370,0,22,32,8.9,32],"panda_idle":[393,0,24,32,11.0,32],"panda_w0":[377,95,17,29,7.0,29],"panda_w1":[395,95,15,29,6.2,29],"panda_w2":[226,126,15,28,6.4,28],"panda_w3":[411,95,15,29,6.2,29],"panda_w4":[242,126,15,28,6.3,28],"panda_inspect":[418,0,19,32,9.0,32],"panda_hart":[438,0,24,32,11.1,32],"panda_cable":[463,0,23,32,10.7,32],"panda_dcs":[487,0,22,32,10.4,32],"panda_repair":[340,62,19,31,8.7,31],"panda_jump":[0,62,17,32,7.8,32],"panda_hurt":[52,95,18,30,7.9,30],"panda_cheer":[427,95,16,29,7.6,29],"panda_tired":[360,62,18,31,8.0,31],"lion_idle":[18,62,24,32,11.4,32],"lion_w0":[258,126,18,28,7.7,28],"lion_w1":[444,95,15,29,6.1,29],"lion_w2":[460,95,15,29,6.4,29],"lion_w3":[476,95,15,29,6.0,29],"lion_w4":[277,126,16,28,6.7,28],"lion_inspect":[379,62,22,31,10.0,31],"lion_hart":[43,62,25,32,11.4,32],"lion_cable":[69,62,23,32,11.1,32],"lion_dcs":[402,62,22,31,10.4,31],"lion_repair":[71,95,21,30,10.7,30],"lion_jump":[492,95,16,29,7.7,29],"lion_hurt":[0,126,18,29,7.7,29],"lion_cheer":[19,126,19,29,7.8,29],"lion_tired":[425,62,18,31,7.9,31],"tiger_idle":[218,0,23,34,11.4,34],"tiger_w0":[93,62,18,32,7.0,32],"tiger_w1":[112,62,17,32,7.2,32],"tiger_w2":[93,95,15,30,6.1,30],"tiger_w3":[109,95,15,30,5.7,30],"tiger_w4":[125,95,15,30,5.8,30],"tiger_inspect":[267,0,19,33,9.0,33],"tiger_hart":[287,0,28,33,12.0,33],"tiger_cable":[130,62,27,32,11.5,32],"tiger_dcs":[316,0,24,33,11.0,33],"tiger_repair":[141,95,18,30,7.5,30],"tiger_jump":[444,62,19,31,8.4,31],"tiger_hurt":[464,62,17,31,6.7,31],"tiger_cheer":[482,62,18,31,8.1,31],"tiger_tired":[158,62,19,32,9.0,32],"worker_idle":[242,0,24,34,10.7,34],"worker_w0":[160,95,18,30,7.7,30],"worker_w1":[39,126,15,29,5.9,29],"worker_w2":[55,126,16,29,6.5,29],"worker_w3":[72,126,15,29,5.8,29],"worker_w4":[179,95,15,30,5.4,30],"worker_inspect":[178,62,20,32,9.6,32],"worker_hart":[341,0,28,33,11.6,33],"worker_cable":[199,62,24,32,11.5,32],"worker_dcs":[224,62,23,32,11.3,32],"worker_repair":[195,95,18,30,8.6,30],"worker_jump":[214,95,18,30,8.3,30],"worker_hurt":[233,95,16,30,7.3,30],"worker_cheer":[250,95,18,30,7.3,30],"worker_tired":[248,62,22,32,10.1,32],"p_cat":[44,0,36,60,18.1,60],"p_panda":[120,0,38,59,18.8,59],"p_lion":[0,0,43,61,22.3,61],"p_tiger":[81,0,38,60,18.8,60],"p_worker":[159,0,34,52,15.9,52],"i_PT":[445,126,21,24,10.0,24],"i_DPT":[467,126,18,24,8.1,24],"i_TT":[337,126,18,26,7.3,26],"i_FT":[124,156,20,23,9.6,23],"i_LT":[294,126,18,28,7.7,28],"i_HART":[356,126,17,25,5.9,25],"i_MULTI":[486,126,18,24,8.0,24],"i_CALIB":[374,126,20,25,8.0,25],"i_SPOOL":[395,126,24,25,11.5,25],"i_ICABLE":[420,126,24,25,11.7,25],"i_GLAND":[0,156,12,24,5.2,24],"i_JB":[345,156,21,20,10.4,20],"i_TB":[367,156,25,20,13.0,20],"i_MC":[88,126,25,29,12.5,29],"i_DCSCARD":[393,156,22,20,8.1,20],"i_IO":[224,156,23,22,10.9,22],"i_PLC":[114,126,28,29,11.5,29],"i_CON":[143,126,26,29,12.3,29],"i_AIRTUBE":[416,156,21,20,8.9,20],"i_IMPULSE":[248,156,21,22,9.2,22],"i_POSITIONER":[13,156,21,24,8.6,24],"i_CV":[170,126,22,29,10.4,29],"i_PG":[145,156,16,23,7.6,23],"i_CALPUMP":[313,126,23,28,10.5,28],"i_HELMET":[438,156,21,20,9.5,20],"i_VEST":[35,156,31,24,10.5,24],"i_WRENCH":[162,156,30,23,14.3,23],"i_SCREW":[67,156,31,24,24.0,24],"i_LAPTOP":[193,156,30,23,14.2,23],"i_CHECK":[318,156,26,21,14.2,21],"i_RADIO":[460,156,10,20,4.0,20],"f_HP":[127,181,16,12,7.4,12],"f_ST":[46,181,12,14,5.1,14],"f_XP":[59,181,16,14,7.5,14],"f_QUEST":[34,181,11,15,4.8,15],"f_OK":[112,181,14,13,6.7,13],"f_ALARM":[76,181,16,14,7.4,14],"f_SIGNAL":[93,181,18,14,7.7,14],"f_LED":[16,181,17,18,8.5,18],"f_HARTSIG":[270,156,20,22,7.1,22],"f_SPARK":[471,156,22,20,10.1,20],"f_SCAN":[291,156,26,22,11.9,22],"f_AURA":[99,156,24,24,11.7,24],"f_LVUP":[494,156,18,20,8.6,20],"f_CABLECON":[0,181,15,20,6.9,20]};
+// 큰 초상 p_* · 장비/도구 아이콘 i_* · UI 효과 아이콘 f_* · 뒷모습 *_back_* (맨 아래 줄) — static/epc.png (배경 투명 · 한 점 = 캐릭터와 같은 크기)
+const EPC_FR = {"cat_idle":[194,0,23,34,9.6,34],"cat_w0":[269,95,18,29,6.4,29],"cat_w1":[288,95,16,29,6.9,29],"cat_w2":[193,126,16,28,6.3,28],"cat_w3":[305,95,15,29,5.7,29],"cat_w4":[210,126,15,28,5.2,28],"cat_inspect":[271,62,22,31,10.8,31],"cat_hart":[0,95,28,30,14.3,30],"cat_cable":[294,62,23,31,10.3,31],"cat_dcs":[29,95,22,30,10.3,30],"cat_repair":[321,95,18,29,8.3,29],"cat_jump":[340,95,18,29,8.9,29],"cat_hurt":[359,95,17,29,8.5,29],"cat_cheer":[318,62,21,31,9.1,31],"cat_tired":[370,0,22,32,8.9,32],"panda_idle":[393,0,24,32,11.0,32],"panda_w0":[377,95,17,29,7.0,29],"panda_w1":[395,95,15,29,6.2,29],"panda_w2":[226,126,15,28,6.4,28],"panda_w3":[411,95,15,29,6.2,29],"panda_w4":[242,126,15,28,6.3,28],"panda_inspect":[418,0,19,32,9.0,32],"panda_hart":[438,0,24,32,11.1,32],"panda_cable":[463,0,23,32,10.7,32],"panda_dcs":[487,0,22,32,10.4,32],"panda_repair":[340,62,19,31,8.7,31],"panda_jump":[0,62,17,32,7.8,32],"panda_hurt":[52,95,18,30,7.9,30],"panda_cheer":[427,95,16,29,7.6,29],"panda_tired":[360,62,18,31,8.0,31],"lion_idle":[18,62,24,32,11.4,32],"lion_w0":[258,126,18,28,7.7,28],"lion_w1":[444,95,15,29,6.1,29],"lion_w2":[460,95,15,29,6.4,29],"lion_w3":[476,95,15,29,6.0,29],"lion_w4":[277,126,16,28,6.7,28],"lion_inspect":[379,62,22,31,10.0,31],"lion_hart":[43,62,25,32,11.4,32],"lion_cable":[69,62,23,32,11.1,32],"lion_dcs":[402,62,22,31,10.4,31],"lion_repair":[71,95,21,30,10.7,30],"lion_jump":[492,95,16,29,7.7,29],"lion_hurt":[0,126,18,29,7.7,29],"lion_cheer":[19,126,19,29,7.8,29],"lion_tired":[425,62,18,31,7.9,31],"tiger_idle":[218,0,23,34,11.4,34],"tiger_w0":[93,62,18,32,7.0,32],"tiger_w1":[112,62,17,32,7.2,32],"tiger_w2":[93,95,15,30,6.1,30],"tiger_w3":[109,95,15,30,5.7,30],"tiger_w4":[125,95,15,30,5.8,30],"tiger_inspect":[267,0,19,33,9.0,33],"tiger_hart":[287,0,28,33,12.0,33],"tiger_cable":[130,62,27,32,11.5,32],"tiger_dcs":[316,0,24,33,11.0,33],"tiger_repair":[141,95,18,30,7.5,30],"tiger_jump":[444,62,19,31,8.4,31],"tiger_hurt":[464,62,17,31,6.7,31],"tiger_cheer":[482,62,18,31,8.1,31],"tiger_tired":[158,62,19,32,9.0,32],"worker_idle":[242,0,24,34,10.7,34],"worker_w0":[160,95,18,30,7.7,30],"worker_w1":[39,126,15,29,5.9,29],"worker_w2":[55,126,16,29,6.5,29],"worker_w3":[72,126,15,29,5.8,29],"worker_w4":[179,95,15,30,5.4,30],"worker_inspect":[178,62,20,32,9.6,32],"worker_hart":[341,0,28,33,11.6,33],"worker_cable":[199,62,24,32,11.5,32],"worker_dcs":[224,62,23,32,11.3,32],"worker_repair":[195,95,18,30,8.6,30],"worker_jump":[214,95,18,30,8.3,30],"worker_hurt":[233,95,16,30,7.3,30],"worker_cheer":[250,95,18,30,7.3,30],"worker_tired":[248,62,22,32,10.1,32],"p_cat":[44,0,36,60,18.1,60],"p_panda":[120,0,38,59,18.8,59],"p_lion":[0,0,43,61,22.3,61],"p_tiger":[81,0,38,60,18.8,60],"p_worker":[159,0,34,52,15.9,52],"i_PT":[445,126,21,24,10.0,24],"i_DPT":[467,126,18,24,8.1,24],"i_TT":[337,126,18,26,7.3,26],"i_FT":[124,156,20,23,9.6,23],"i_LT":[294,126,18,28,7.7,28],"i_HART":[356,126,17,25,5.9,25],"i_MULTI":[486,126,18,24,8.0,24],"i_CALIB":[374,126,20,25,8.0,25],"i_SPOOL":[395,126,24,25,11.5,25],"i_ICABLE":[420,126,24,25,11.7,25],"i_GLAND":[0,156,12,24,5.2,24],"i_JB":[345,156,21,20,10.4,20],"i_TB":[367,156,25,20,13.0,20],"i_MC":[88,126,25,29,12.5,29],"i_DCSCARD":[393,156,22,20,8.1,20],"i_IO":[224,156,23,22,10.9,22],"i_PLC":[114,126,28,29,11.5,29],"i_CON":[143,126,26,29,12.3,29],"i_AIRTUBE":[416,156,21,20,8.9,20],"i_IMPULSE":[248,156,21,22,9.2,22],"i_POSITIONER":[13,156,21,24,8.6,24],"i_CV":[170,126,22,29,10.4,29],"i_PG":[145,156,16,23,7.6,23],"i_CALPUMP":[313,126,23,28,10.5,28],"i_HELMET":[438,156,21,20,9.5,20],"i_VEST":[35,156,31,24,10.5,24],"i_WRENCH":[162,156,30,23,14.3,23],"i_SCREW":[67,156,31,24,24.0,24],"i_LAPTOP":[193,156,30,23,14.2,23],"i_CHECK":[318,156,26,21,14.2,21],"i_RADIO":[460,156,10,20,4.0,20],"f_HP":[127,181,16,12,7.4,12],"f_ST":[46,181,12,14,5.1,14],"f_XP":[59,181,16,14,7.5,14],"f_QUEST":[34,181,11,15,4.8,15],"f_OK":[112,181,14,13,6.7,13],"f_ALARM":[76,181,16,14,7.4,14],"f_SIGNAL":[93,181,18,14,7.7,14],"f_LED":[16,181,17,18,8.5,18],"f_HARTSIG":[270,156,20,22,7.1,22],"f_SPARK":[471,156,22,20,10.1,20],"f_SCAN":[291,156,26,22,11.9,22],"f_AURA":[99,156,24,24,11.7,24],"f_LVUP":[494,156,18,20,8.6,20],"f_CABLECON":[0,181,15,20,6.9,20],
+  // 뒷모습 (2026-10-22 판3) — 시트에 없어 앞모습에서 만듦: 안전모 로고 지움 · 얼굴 → 털/머리 뒤통수 · 등 반사띠 · 꼬리 (대기 · 걷기 5)
+  "cat_back_idle":[0,202,29,34,9.6,34],"cat_back_w0":[30,202,24,29,6.4,29],"cat_back_w1":[55,202,22,29,6.9,29],"cat_back_w2":[78,202,22,28,6.3,28],"cat_back_w3":[101,202,21,29,5.7,29],"cat_back_w4":[123,202,21,28,5.2,28],"panda_back_idle":[145,202,24,32,11.0,32],"panda_back_w0":[170,202,17,29,7.0,29],"panda_back_w1":[188,202,15,29,6.2,29],"panda_back_w2":[204,202,15,28,6.4,28],"panda_back_w3":[220,202,15,29,6.2,29],"panda_back_w4":[236,202,15,28,6.3,28],"lion_back_idle":[252,202,30,32,11.4,32],"lion_back_w0":[283,202,24,28,7.7,28],"lion_back_w1":[308,202,21,29,6.1,29],"lion_back_w2":[330,202,21,29,6.4,29],"lion_back_w3":[352,202,21,29,6.0,29],"lion_back_w4":[374,202,22,28,6.7,28],"tiger_back_idle":[397,202,29,34,11.4,34],"tiger_back_w0":[427,202,24,32,7.0,32],"tiger_back_w1":[452,202,23,32,7.2,32],"tiger_back_w2":[476,202,21,30,6.1,30],"tiger_back_w3":[0,237,21,30,5.7,30],"tiger_back_w4":[22,237,21,30,5.8,30],"worker_back_idle":[44,237,24,34,10.7,34],"worker_back_w0":[69,237,18,30,7.7,30],"worker_back_w1":[88,237,15,29,5.9,29],"worker_back_w2":[104,237,16,29,6.5,29],"worker_back_w3":[121,237,15,29,5.8,29],"worker_back_w4":[137,237,15,30,5.4,30]};
 const EPC = { data: null, ready: false };
 const eps = (name, mirror, scale = PX) => EPC_FR[name] && EPC.ready ? atlasSprite(EPC, EPC_FR, name, mirror, scale) : null;
 function loadAtlas(o, src) {
@@ -928,8 +930,10 @@ function epcPose(who, a, now, atk, hit, w, seed) {   // 시트에 있는 칸만 
   if (hit >= 0 && hit < .8) return who + "_hurt";
   if (a.cheer && now - a.cheer < 900) return who + (Math.floor((now - a.cheer) / 220) % 2 ? "_cheer" : "_jump");
   if (w) return who + "_" + workPose(w);
-  if (atk >= 0) return who + "_repair";
-  if (a.moving) return who + "_w" + (Math.floor(now / (a.running || (a.stepMs || STEP_MS) < 150 ? 85 : 125)) % 5);
+  const back = a.dir === 1 && EPC_FR[who + "_back_idle"] ? "_back_" : "_";     // 위로 = 뒷모습
+  if (atk >= 0) return back === "_" ? who + "_repair" : who + "_back_idle";
+  if (a.moving) return who + back + "w" + (Math.floor(now / (a.running || (a.stepMs || STEP_MS) < 150 ? 85 : 125)) % 5);
+  if (back !== "_") return who + "_back_idle";
   if (a === S.me && S.stamina < ST_TIRED) return who + "_tired";
   return who + (Math.floor((now + seed) / 4200) % 5 === 4 ? "_inspect" : "_idle");   // 가끔 둘러봄
 }
@@ -1235,7 +1239,7 @@ function paintIcons() {                       // 상태판 · 도구칸의 작�
     g.drawImage(s1, Math.round((c.width - s1.width * z) / 2), Math.round((c.height - s1.height * z) / 2), s1.width * z, s1.height * z);
   }
 }
-let hudIcons = false, hudFace = "";
+let hudIcons = false, hudFace = "", hudInv = null;
 function hudPortrait() {                     // 내 직무 초상 (유닛장은 사자)
   const c = document.getElementById("hud-face"); if (!c || !EPC.ready) return;
   const who = S.role === "unit" ? "lion" : JOB_CHAR[S.me.job ?? 0] || "cat"; if (who === hudFace) return; hudFace = who;
@@ -1250,7 +1254,13 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
   const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
   const bar = (id, k) => { const el = document.getElementById(id); if (el) el.style.width = Math.round(Math.max(0, Math.min(1, k)) * 100) + "%"; };
   const hp = Math.round(S.me.hpShow ?? S.me.hp), lv = S.me.lv || 1, xp = S.me.xp || 0, lo = 25 * (lv - 1) ** 2, hi = 25 * lv ** 2;
-  bar("hud-hp", hp / (S.me.hpMax || 100)); set("hud-hpt", S.me.ghost ? "유령" : `${hp}/${S.me.hpMax || 100}`);
+  bar("hud-hp", S.me.inf ? 1 : hp / (S.me.hpMax || 100)); set("hud-hpt", S.me.inf ? "∞ 무적" : S.me.ghost ? "유령" : `${hp}/${S.me.hpMax || 100}`);
+  const ik = (S.me.items || []).join(",");
+  if (ik !== hudInv && EPC.ready) { hudInv = ik; const box = document.getElementById("hud-inv");   // 가방 8 칸
+    if (box) { box.textContent = ""; for (let i = 0; i < 8; i++) { const it = (S.me.items || [])[i], c = document.createElement("canvas"); c.width = c.height = 22;
+      c.className = it ? "on" : ""; if (it) { c.title = itemName(it); const s1 = eps("i_" + it, false, 1), g = c.getContext("2d");
+        if (s1) { const z = Math.min(1, 20 / Math.max(s1.width, s1.height)); g.imageSmoothingEnabled = false; g.drawImage(s1, Math.round((22 - s1.width * z) / 2), Math.round((22 - s1.height * z) / 2), s1.width * z, s1.height * z); } }
+      box.append(c); } } }
   bar("hud-st", S.stamina / ST_MAX); set("hud-stt", `${Math.round(S.stamina)}` + (S.stamina < ST_TIRED ? " 지침" : ""));
   bar("hud-xp", (xp - lo) / Math.max(1, hi - lo)); set("hud-lv", `Lv ${lv}`); set("hud-xpt", `${xp} XP`);
   set("hud-job", `${(S.jobs || [])[S.me.job ?? 0] || ""}${S.role === "unit" ? " · 회복 오라" : ""}`);
@@ -1327,10 +1337,65 @@ function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오
     for (let i = 0; i < 5; i++) puff(a.x + 8 + Math.random() * 16, a.y + 20, (Math.random() - .5) * 10, -34 - Math.random() * 20, 900, i % 2 ? "#7cffc8" : "#c8fff0"); }
     a.healseq = p.heal_seq || 0; }
   if (p.cheer_age != null && p.cheer_age < 1 && a !== S.me) a.cheer = tnow - p.cheer_age * 1000;
+  a.inf = !!p.inf;                                                   // 운영자 — 무적
+  const items = Array.isArray(p.items) ? p.items : [];
+  if (a === S.me && a.items && !a.ghost) for (const it of items.slice(a.items.length)) floater(a, "+ " + itemName(it), "#ffe066", 1600);   // 주움
+  a.items = items;
+  if (p.revive_age != null && p.revive_age < 2) { const t = tnow - p.revive_age * 1000;   // 부활 — 빛기둥
+    if (!a.revive || t - a.revive > 2500) { a.revive = t; floater(a, "부활!", "#fff2a8", 1800); } }
+}
+// ── 아이템 (2026-10-22 판3): 가방(서버) · 바닥에 떨어진 것 — 그림은 EPC 시트 i_<키> ─────────────
+const ITEM_DEF = { HART: "HART 통신기", MULTI: "멀티미터", CALIB: "루프 교정기", SPOOL: "케이블 드럼", ICABLE: "계장 케이블", GLAND: "케이블 글랜드",
+  TB: "단자대", AIRTUBE: "에어 튜브", IMPULSE: "임펄스 튜브", POSITIONER: "포지셔너", CALPUMP: "교정 펌프", HELMET: "안전모", VEST: "안전 조끼",
+  WRENCH: "렌치", SCREW: "드라이버", LAPTOP: "노트북", CHECK: "점검표", RADIO: "무전기", PG: "압력계", DCSCARD: "DCS 카드" };
+const itemName = it => (S.itemNames && S.itemNames[it]) || ITEM_DEF[it] || it;
+const GROUND = [], G_SEEN = new Map();        // [id, 키, x, y, 나이] · id → 처음 본 시각 (떨어지는 그림)
+const G_OFF = [[0, 0], [-10, 5], [10, 5], [-6, -7], [7, -7], [0, 10], [-12, -2], [12, -2]];
+function drawGroundItems(g, cx, cy, now) {   // 바닥 층 — 쓰러진 자리에서 튀어 나와 흩어지고, 반짝임
+  const per = new Map();
+  for (const [id, it, x, y, age] of GROUND) {
+    const n = per.get(x + "," + y) || 0; per.set(x + "," + y, n + 1);
+    const s1 = eps("i_" + it, false, 1); if (!s1) continue;
+    const [ox, oy] = G_OFF[n % G_OFF.length], tx = x * T + 16 + ox - cx, ty = y * T + 26 + oy - cy;
+    if (tx < -40 || ty < -40 || tx > cv.clientWidth + 40 || ty > cv.clientHeight + 40) continue;
+    const t0 = G_SEEN.get(id) ?? now, k = Math.min(1, (now - t0) / 700);
+    const px = x * T + 16 - cx + (tx - (x * T + 16 - cx)) * k, py = y * T + 22 - cy + (ty - (y * T + 22 - cy)) * k;
+    const hop = k < 1 ? Math.sin(k * Math.PI) * 22 : Math.round(Math.sin(now / 380 + id) * 1.5);
+    ell(g, px, py, 7, 2.5, "rgba(5,10,20,.4)");
+    g.drawImage(s1, Math.round(px - s1.width / 2), Math.round(py - s1.height - hop));
+    if (k >= 1 && Math.floor(now / 140 + id * 3) % 11 === 0) { g.fillStyle = "#fff"; const sx = Math.round(px + s1.width / 3), sy = Math.round(py - s1.height + 3);
+      g.fillRect(sx - 1, sy - 3, 2, 6); g.fillRect(sx - 3, sy - 1, 6, 2); }
+    if (S.me && !S.me.ghost && Math.abs(S.me.tx - x) + Math.abs(S.me.ty - y) <= 1 && n === 0) {   // 가까이 가면 이름
+      const lab = [...GROUND].filter(v => v[2] === x && v[3] === y).map(v => itemName(v[1])).join(" · ");
+      g.font = `bold 10px ${FONT}`; g.textAlign = "center"; g.textBaseline = "bottom"; g.lineWidth = 3; g.strokeStyle = "#0b111c";
+      g.strokeText(lab, x * T + 16 - cx, y * T - 4 - cy); g.fillStyle = "#ffe7a6"; g.fillText(lab, x * T + 16 - cx, y * T - 4 - cy); g.textAlign = "left"; }
+  }
+}
+function drawRevive(g, a, cx, cy, now) {      // 부활 — 빛기둥 · 퍼지는 고리 · 올라가는 금빛
+  const k = (now - a.revive) / 1800; if (k < 0 || k > 1) return;
+  const x = a.x + 16 - cx, y = a.y + 28 - cy, al = k < .2 ? k / .2 : 1 - (k - .2) / .8;
+  g.save(); g.globalAlpha = .55 * al;
+  const gr = g.createLinearGradient(0, y - 120, 0, y); gr.addColorStop(0, "rgba(255,248,200,0)"); gr.addColorStop(1, "rgba(255,240,170,1)");
+  g.fillStyle = gr; g.fillRect(Math.round(x - 14), y - 120, 28, 120);
+  g.globalAlpha = al; g.strokeStyle = "#fff2a8"; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, 10 + k * 34, 4 + k * 12, 0, 0, Math.PI * 2); g.stroke();
+  g.restore();
+  if (Math.random() < .6) puff(a.x + 6 + Math.random() * 20, a.y + 26, (Math.random() - .5) * 12, -40 - Math.random() * 30, 900, Math.random() < .5 ? "#fff2a8" : "#ffd84a");
+}
+const REVIVE_D = 2.5;
+function nearGhost() { if (S.role !== "operator" || !S.me) return null; let best = null, bd = 1e9;
+  for (const a of S.others.values()) { if (!a.ghost) continue; const d = Math.hypot(a.tx - S.me.tx, a.ty - S.me.ty); if (d <= REVIVE_D && d < bd) { bd = d; best = a; } }
+  return best; }
+async function revive(a) {
+  if (!a) { localNote("부활시킬 유령이 곁(두 칸 안)에 없습니다."); return; }
+  try { await post("/plaza/api/revive", { id: S.id, target: a.name }); }
+  catch (e) { localNote(String(e.message || e)); }
 }
 function applySnapshot(s) {
   if (s.eq) Object.assign(EQ_ST, s.eq);
   if (s.heal_r) S.healR = s.heal_r;
+  if (Array.isArray(s.ground)) { const tn = performance.now(), ids = new Set();
+    GROUND.length = 0; for (const g of s.ground) { GROUND.push(g); ids.add(g[0]); if (!G_SEEN.has(g[0])) G_SEEN.set(g[0], g[4] < .7 ? tn - g[4] * 1000 : tn - 9999); }
+    for (const id of [...G_SEEN.keys()]) if (!ids.has(id)) G_SEEN.delete(id); }
   const seen = new Set();
   for (const p of s.players) {
     seen.add(p.id);
@@ -1365,7 +1430,7 @@ function applySnapshot(s) {
     const f = freeNear(S.me.tx, S.me.ty); if (f) { S.me.tx = f[0]; S.me.ty = f[1]; S.me.x = f[0] * T; S.me.y = f[1] * T; sendMove(); }
   }
   S.online = s.players;
-  $("#pz-online").textContent = `접속 ${s.online}명` + (S.me && S.me.ghost ? " · 나는 유령 (주간 마감 때 부활)" : "");
+  $("#pz-online").textContent = `접속 ${s.online}명` + (S.me && S.me.ghost ? " · 나는 유령 (주간 마감 · 운영자가 부활)" : "");
   const who = $("#pz-who"); who.textContent = "";
   const b = document.createElement("b"); b.textContent = "광장에 있는 사람"; who.append(b);
   const order = { leader: 0, unit: 1, member: 2, operator: 3 };
@@ -1476,6 +1541,8 @@ function hpBar(g, cx, y, a) {               // 이름 밑 체력 막대 (100, �
   if (a.ghost) { g.font = `bold 11px ${FONT}`; g.textBaseline = "top"; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "#111";
     g.strokeText("유령", cx, y); g.fillStyle = "#cfe3ff"; g.fillText("유령", cx, y); g.textAlign = "left"; return; }
   const w = 32, k = Math.max(0, Math.min(1, (a.hpShow ?? a.hp) / (a.hpMax || 100))), x = Math.round(cx - w / 2);
+  if (a.inf) { g.fillStyle = "#111"; g.fillRect(x - 1, y - 1, w + 2, 6); g.fillStyle = Math.floor(performance.now() / 300) % 2 ? "#ffd84a" : "#ffe98a"; g.fillRect(x, y, w, 4);   // 운영자 무적
+    g.font = `bold 10px ${FONT}`; g.textBaseline = "middle"; g.textAlign = "left"; g.lineWidth = 3; g.strokeStyle = "#111"; g.strokeText("∞", x + w + 3, y + 2); g.fillStyle = "#ffd84a"; g.fillText("∞", x + w + 3, y + 2); return; }
   g.fillStyle = "#111"; g.fillRect(x - 1, y - 1, w + 2, 6);
   g.fillStyle = "#4a1410"; g.fillRect(x, y, w, 4);
   g.fillStyle = k > .5 ? "#4cd964" : k > .2 ? "#ffcc33" : "#ff4b3a"; g.fillRect(x, y, Math.max(k > 0 ? 1 : 0, Math.round(w * k)), 4);
@@ -1524,7 +1591,7 @@ function drawActorBody(g, a, sx, sy, now) {
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
   const F = a.npc ? a.face : roleFace(faceOf(a), a.role);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
-    const base = isEpc(F) ? eps(epcWho(a, F) + "_idle", false) : isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : isChr(F) ? chrSprite(KIND_FR[F.kind].d[0], false) : charSprite(F, a.role, a.dir, 0);
+    const base = isEpc(F) ? eps(epcWho(a, F) + (a.dir === 1 ? "_back_idle" : "_idle"), false) || eps(epcWho(a, F) + "_idle", false) : isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : isChr(F) ? chrSprite(KIND_FR[F.kind].d[0], false) : charSprite(F, a.role, a.dir, 0);
     const spr = ghostly(base), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
     g.save(); g.globalAlpha = .5; g.drawImage(spr, Math.round(sx + 16 - (base.cx ?? spr.width / 2)), sy + 28 - (base.foot ?? FOOT) + bob); g.restore();
     return;
@@ -1594,6 +1661,7 @@ function frame(now) {
   ctx.fillStyle = "#0d1320"; ctx.fillRect(0, 0, vw, vh);
   ctx.drawImage(groundImg, -cx, -cy);
   for (const h of healers) drawHealAura(ctx, h, cx, cy, now);     // 바닥 효과 층 (사람 · 설비보다 밑)
+  drawGroundItems(ctx, cx, cy, now);                               // 떨어진 아이템
   const actors = [S.me, ...S.others.values()], npcs = NPCS.map(n => n.a);
   const items = [];
   for (const p of props) if (p.x - cx < vw + 40 && p.x + p.img.width - cx > -40 && p.y - cy > -10 && p.y - p.img.height - cy < vh + 10) items.push({ y: p.z ?? p.y, p });
@@ -1644,6 +1712,10 @@ function frame(now) {
       ctx.fillStyle = i % 2 ? "#fff6b0" : "#ff9a3c"; ctx.fillRect(Math.round(sx + Math.cos(ang) * r) - 2, Math.round(sy + 6 + Math.sin(ang) * r * .7) - 2, 4, 4); }
     ctx.restore();
   }
+  for (const a of actors) if (a.revive) drawRevive(ctx, a, cx, cy, now);
+  const ng = nearGhost(); if (ng) { const x = Math.round(ng.x - cx) + 16, y = Math.round(ng.y - cy) + 28 - HEAD_PX - 4;   // [R] 부활 안내 (운영자)
+    ctx.font = `bold 11px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.lineWidth = 3; ctx.strokeStyle = "#0b111c";
+    ctx.strokeText("[R] 부활", x, y); ctx.fillStyle = Math.floor(now / 400) % 2 ? "#fff2a8" : "#ffd84a"; ctx.fillText("[R] 부활", x, y); ctx.textAlign = "left"; }
   for (const a of actors) if (a.lvup && now - a.lvup < 1600) { const k = (now - a.lvup) / 1600; fxIcon(ctx, "f_LVUP", a.x + 16 - cx, a.y - 30 - cy - k * 30, 1 - k * k); }   // 레벨 업
   drawPops(ctx, cx, cy, now);
   drawFloats(ctx, cx, cy, now);
@@ -1820,7 +1892,7 @@ function setTyping(on) { S.typing = on; chatBox.classList.toggle("typing", on); 
 function attack() {                         // 스페이스 — 앞을 휘두른다 (맞은 사람은 서버가 가린다) · 꾹 누르면 0.32초마다 (서버는 0.3초에 한 번)
   const now = performance.now();
   if (!S.me || !S.id || (S.me.attack && now - S.me.attack < ATK_MS + 40)) return;
-  if (S.me.ghost) { if (now - (S.ghostNote || 0) > 4000) { S.ghostNote = now; localNote("유령은 공격할 수 없습니다 — 주간 마감 때 체력 100 으로 부활합니다."); } return; }
+  if (S.me.ghost) { if (now - (S.ghostNote || 0) > 4000) { S.ghostNote = now; localNote("유령은 공격할 수 없습니다 — 주간 마감 때, 또는 운영자가 곁에서 부활시키면 체력 100 으로 돌아옵니다."); } return; }
   S.me.attack = now;
   post("/plaza/api/attack", { id: S.id }).catch(e => { if (e.status === 404) join().catch(() => {}); });
 }
@@ -1838,6 +1910,7 @@ document.addEventListener("keydown", ev => {
   if (!$("#pz-name").hidden) return;
   S.run = ev.shiftKey;
   if (!S.typing && !S.panel && (ev.code === "KeyE" || ev.key === "e" || ev.key === "E")) { ev.preventDefault(); if (!ev.repeat) interact(); return; }   // 점검 · 수리
+  if (!S.typing && !S.panel && S.role === "operator" && (ev.code === "KeyR" || ev.key === "r" || ev.key === "R")) { ev.preventDefault(); if (!ev.repeat) revive(nearGhost()); return; }   // 운영자 — 곁의 유령 부활
   const arrow = !S.typing && !S.panel ? arrowOf(ev) : null;
   if (arrow) { ev.preventDefault(); S.keys.delete(arrow); S.keys.add(arrow); return; }   // 입력기가 켜져 있어도 걷는다
   if (ev.isComposing || ev.keyCode === 229) return;          // 한글 조합 중
@@ -1878,12 +1951,16 @@ function showCtx(a, x, y) {
   t.textContent = (ROLE_LABEL[a.role] ? `[${ROLE_LABEL[a.role]}] ` : "") + a.name + (a === S.me ? " (나)" : "");
   ctxMenu.append(t);
   if (a.status) { const st = document.createElement("small"); st.textContent = a.status; ctxMenu.append(st); }
-  const hp = document.createElement("small"); hp.textContent = (a.ghost ? "유령 (주간 마감 때 부활)" : `체력 ${a.hp}/${a.hpMax}`) + (a.kills ? ` · 이번 주 ${a.kills}명 처치${a.killer ? " (killer)" : ""}` : ""); ctxMenu.append(hp);
+  const hp = document.createElement("small"); hp.textContent = (a.inf ? "체력 ∞ (운영자 무적)" : a.ghost ? "유령 (주간 마감 · 운영자가 부활)" : `체력 ${a.hp}/${a.hpMax}`) + (a.kills ? ` · 이번 주 ${a.kills}명 처치${a.killer ? " (killer)" : ""}` : ""); ctxMenu.append(hp);
   const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "캐릭터 정보";
   btn.onclick = () => { hideCtx(); cv.focus();
     if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");
     else { const n = document.createElement("small"); n.textContent = "대시보드 안에서 열면 부서원 정보를 볼 수 있습니다"; ctxMenu.textContent = ""; ctxMenu.append(n); ctxMenu.hidden = false; setTimeout(hideCtx, 2500); } };
-  ctxMenu.append(btn); ctxMenu.hidden = false;
+  if (a.items && a.items.length) { const iv = document.createElement("small"); iv.textContent = "가방: " + a.items.map(itemName).join(" · "); ctxMenu.append(iv); }
+  ctxMenu.append(btn);
+  if (a.ghost && a !== S.me && S.role === "operator") { const rb = document.createElement("button"); rb.type = "button"; rb.textContent = "부활 (운영자)";
+    rb.onclick = () => { hideCtx(); cv.focus(); revive(a); }; ctxMenu.append(rb); }
+  ctxMenu.hidden = false;
   const box = $("#pz").getBoundingClientRect(), w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
   ctxMenu.style.left = Math.max(6, Math.min(x + 8, box.width - w - 6)) + "px";
   ctxMenu.style.top = Math.max(6, Math.min(y + 8, box.height - h - 6)) + "px";
