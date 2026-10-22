@@ -141,6 +141,7 @@ svg text{font-family:var(--f-mono)}
     <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
+    <button id="bCol" title="기둥 편집: 빈 곳 클릭 = 기둥 추가 · 기둥 Drag = 이동 · Delete = 삭제 (Esc = 끝)">기둥 편집</button>
     <span class="sep"></span>
     <button id="bRL" title="반시계 90° (Shift+R)">⟲ 90°</button>
     <button id="bRR" title="시계 90° (R)">⟳ 90°</button>
@@ -192,7 +193,8 @@ svg text{font-family:var(--f-mono)}
           <label>Spare 공간 (%)<input type="number" id="rSp" min="0" max="200" step="5" title="향후 증설분. 필요 영역을 이 비율만큼 늘려 권장 실 크기를 냅니다 (기본 0 = 미적용)"></label>
           <label>증설 방향<select id="rSd"><option value="x">X (Width) 쪽</option><option value="y">Y (Length) 쪽</option></select></label>
         </div>
-        <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 벽 이격 · Spare 는 권장 실 크기 계산에만 쓰입니다 (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
+        <div class="row" id="colCustom" style="margin-top:6px;align-items:center" hidden><span class="muted" id="colCustomTxt"></span><button id="bColReset" title="직접 고친 기둥을 버리고 위 Span · 크기로 다시 만듭니다">격자로 다시 만들기</button></div>
+        <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 기둥 하나씩 옮기기 · 추가 · 삭제는 도구줄 [기둥 편집]. 벽 이격 · Spare 는 권장 실 크기 계산에만 쓰입니다 (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
       </section>
 
       <section class="sec">
@@ -341,7 +343,7 @@ try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample()
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
 function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);
 const LOGIN=(Q.get('user')||'').trim();                    // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 const author=()=>S.info.author.trim()||LOGIN;
@@ -350,7 +352,8 @@ const revOf=()=>S.info.rev.trim()||'-';
 const fnPart=v=>String(v||'').trim().replace(/[\\/:*?"<>|\s]+/g,'_');
 function fname(kind,ext){const a=[fnPart(S.info.project),fnPart(S.info.room),S.info.rev.trim()?'Rev'+fnPart(S.info.rev):''].filter(Boolean);return `${a.length?a.join('_'):'ControlRoom'}_${kind}_${today()}.${ext}`}
 let sel=new Set();
-let mode='select';           // select | box | place
+let mode='select';           // select | box | place | col(기둥 편집)
+let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
 const show={clr:true,dim:true,lbl:true,door:true};
 const V={s:0.04,ox:60,oy:60};
@@ -391,10 +394,14 @@ function doors(g){
   });
   return out;
 }
+function toCustomCols(){if(!Array.isArray(S.cols))S.cols=columns().map(c=>({id:uid(),cx:c.cx,cy:c.cy,w:c.w,h:c.h}))}   // 첫 편집 때 격자 → 목록
+function hitCol(w){const cs=columns();for(let i=cs.length-1;i>=0;i--){const c=cs[i];if(w.x>=c.x&&w.x<=c.x+c.w&&w.y>=c.y&&w.y<=c.y+c.h)return c}return null}
 const ov=(a,b)=>a.w>0&&a.h>0&&b.w>0&&b.h>0&&a.x<b.x+b.w-0.5&&b.x<a.x+a.w-0.5&&a.y<b.y+b.h-0.5&&b.y<a.y+a.h-0.5;
 const inside=(a,R)=>a.x>=-0.5&&a.y>=-0.5&&a.x+a.w<=R.w+0.5&&a.y+a.h<=R.l+0.5;
 function spans(str){return String(str||'').split(/[,\s]+/).map(Number).filter(n=>n>0)}
+// 기둥: S.cols 가 배열이면 사람이 직접 고친 목록(중심 cx · cy, 크기 w · h), 아니면 Span 격자에서 만든다
 function columns(){
+  if(Array.isArray(S.cols))return S.cols.map(c=>({x:c.cx-c.w/2,y:c.cy-c.h/2,w:c.w,h:c.h,cx:c.cx,cy:c.cy,id:c.id}));
   const sx=spans(S.room.spX), sy=spans(S.room.spY), c=+S.room.col||0;
   if(!sx.length||!sy.length||c<=0)return[];
   const xs=[0],ys=[0]; sx.forEach(v=>xs.push(xs[xs.length-1]+v)); sy.forEach(v=>ys.push(ys[ys.length-1]+v));
@@ -539,7 +546,7 @@ function render(){
   let g=`<rect x="${a.x}" y="${a.y}" width="${b.x-a.x}" height="${b.y-a.y}" fill="url(#gp)"/>`;
   g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".35" stroke="${C('--wall')}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
   // columns
-  const cols=columns(); cols.forEach(c=>{g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"/>`});
+  const cols=columns(); cols.forEach(c=>{const on=mode==='col'&&c.id&&c.id===selCol;g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"${on?` stroke="${acc}" stroke-width="2.5" vector-effect="non-scaling-stroke"`:mode==='col'?` stroke="${acc}" stroke-opacity=".5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"`:''}/>`});
   // clearances
   const G=S.panels.map(p=>({p,g:geom(p)}));
   if(show.clr) G.forEach(({g:q})=>{[q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="${clr}" stroke-dasharray="4 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`})});
@@ -604,10 +611,12 @@ function render(){
 /* ---------- side panels ---------- */
 function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#snap').value=String(S.snap)}
+function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#snap').value=String(S.snap);
+  const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
 ['rW','rL','rSX','rSY','rC','rM','rSp','rSd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
   const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir'}[id], v=e.target.value;
   S.room[k]=(k==='spX'||k==='spY'||k==='spareDir')?v:Math.max(0,+v||0); commit();
+  if(Array.isArray(S.cols)&&(k==='spX'||k==='spY'||k==='col'))toast('기둥을 직접 고친 상태라 Span · 크기가 바로 반영되지 않습니다 — 반영하려면 [격자로 다시 만들기]');
 }));
 function buildTypes(){   // 삽입 줄: Type 단추(그림 · 이름 · 치수 · 배치 수) + [＋ 새 Type]
   $('#palette').innerHTML=S.types.map(t=>{const n=S.panels.filter(p=>p.type===t.id).length, on=mode==='place'&&placeType===t.id;
@@ -675,6 +684,7 @@ $('#tdCancel').onclick=()=>{$('#tdlg').hidden=true};
 $('#tdDel').onclick=()=>{if(!tEdit||S.panels.some(p=>p.type===tEdit.id))return;const nm=tEdit.name;S.types=S.types.filter(x=>x!==tEdit);$('#tdlg').hidden=true;commit();buildTypes();toast(`${nm} Type 을 지웠습니다 (Ctrl+Z 로 되돌림)`)};
 $('#tdlg').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#tdlg').hidden=true}else if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='checkbox'){e.preventDefault();tdSave(false)}});
 $('#bAddType').onclick=()=>openTypeDlg(null);
+$('#bColReset').onclick=()=>{const n=Array.isArray(S.cols)?S.cols.length:0;S.cols=null;selCol=null;commit();buildRoom();buildProps();toast(`직접 고친 기둥 ${n}개를 버리고 Span 격자로 다시 만들었습니다 (Ctrl+Z 로 되돌림)`)};
 
 /* ---------- 이 PC 의 Type 라이브러리 (localStorage crspace.lib.v1) — 프로젝트를 넘어 다시 쓰기 ---------- */
 const LIB_KEY='crspace.lib.v1';
@@ -699,6 +709,17 @@ $('#libList').addEventListener('click',e=>{
 
 function buildProps(){
   const box=$('#props'), ps=S.panels.filter(p=>sel.has(p.id));
+  if(mode==='col'){                                        // 기둥 편집: 고른 기둥의 중심 · 크기
+    const c=Array.isArray(S.cols)&&S.cols.find(x=>x.id===selCol);
+    $('#selInfo').textContent=c?'기둥 1':'기둥 없음';
+    if(!c){box.className='muted';box.innerHTML='기둥을 누르면 고르고 끌어 옮깁니다. 빈 곳을 누르면 기둥이 생깁니다.';return}
+    box.className='';
+    box.innerHTML=`<div class="f"><label>X (중심)<input type="number" id="cX" step="${S.snap}" value="${c.cx}"></label><label>Y (중심)<input type="number" id="cY" step="${S.snap}" value="${c.cy}"></label>
+      <label>W<input type="number" id="cW" step="50" min="50" value="${c.w}"></label><label>H<input type="number" id="cH" step="50" min="50" value="${c.h}"></label></div>
+      <div class="row" style="margin-top:6px"><button id="cDel">기둥 삭제 (Delete)</button></div>`;
+    [['#cX','cx'],['#cY','cy'],['#cW','w'],['#cH','h']].forEach(([id,k])=>$(id).addEventListener('change',e=>{const v=+e.target.value;if(!isFinite(v)||((k==='w'||k==='h')&&v<=0))return buildProps();c[k]=v;commit()}));
+    $('#cDel').onclick=delCol; return;
+  }
   $('#selInfo').textContent=ps.length?ps.length+' EA':'없음';
   if(!ps.length){box.className='muted';box.innerHTML='판넬을 클릭하거나 Shift+Drag로 여러 개를 선택하세요.';return}
   box.className='';
@@ -790,6 +811,7 @@ function rotSel(d){
   if(mode==='place'){placeRot=((placeRot+d)%360+360)%360;ghost=cursorW?makeGhost(cursorW):null;render();return}
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return; rotateAbout(ps,null,d); commit();
 }
+function delCol(){if(!selCol||!Array.isArray(S.cols))return;S.cols=S.cols.filter(c=>c.id!==selCol);selCol=null;commit();buildRoom()}
 function delSel(){if(!sel.size)return;S.panels=S.panels.filter(p=>!sel.has(p.id));sel.clear();commit()}
 function dupSel(){
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
@@ -800,12 +822,12 @@ function dupSel(){
 }
 function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});commit()}
 function setMode(m){
-  mode=m; if(m!=='place'){ghost=null}
-  $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box');
+  mode=m; if(m!=='place'){ghost=null} if(m!=='col')selCol=null;
+  $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col');
   const t=S.types.find(x=>x.id===placeType);
-  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':'선택';
-  $('#stHint').textContent=m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
-  buildTypes(); render();
+  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':'선택';
+  $('#stHint').textContent=m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
+  buildTypes(); buildProps(); render();
 }
 
 /* ---------- pointer ---------- */
@@ -818,6 +840,12 @@ svg.addEventListener('pointerdown',e=>{
   const w=toW(sp.x,sp.y);
   if(e.button===1){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}
   if(mode==='place'){const gh=makeGhost(w);if(gh){S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=makeGhost(w);render()}return}
+  if(mode==='col'){                                        // 기둥 편집: 기둥 누르기 = 고르기 · 끌어 옮기기, 빈 곳 = 추가
+    toCustomCols(); const c=hitCol(w);
+    if(c){const o=S.cols.find(x=>x.id===c.id);selCol=o.id;drag={k:'col',w0:w,o,ox:o.cx,oy:o.cy,moved:false};buildProps();render();return}
+    if(e.shiftKey){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}   // Shift+Drag = 화면 이동
+    const sz=+S.room.col||600, n={id:uid(),cx:snapV(w.x),cy:snapV(w.y),w:sz,h:sz}; S.cols.push(n); selCol=n.id; commit(); buildRoom(); return;
+  }
   const p=hit(w);
   if(p&&mode!=='box'){
     if(e.shiftKey||e.ctrlKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}
@@ -839,11 +867,13 @@ svg.addEventListener('pointermove',e=>{
   if(drag.k==='pan'){const dx=sp.x-drag.sx,dy=sp.y-drag.sy;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;V.ox=drag.ox+dx;V.oy=drag.oy+dy;req()}
   else if(drag.k==='move'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.orig.forEach(o=>{o.q.x=o.x+dx;o.q.y=o.y+dy});check();req()}
   else if(drag.k==='box'){marquee.x1=w.x;marquee.y1=w.y;req()}
+  else if(drag.k==='col'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.o.cx=drag.ox+dx;drag.o.cy=drag.oy+dy;check();req()}
 });
 function endPtr(e){
   ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
   if(!drag)return; const d=drag; drag=null;
   if(d.k==='move'){if(d.moved)commit();else render()}
+  else if(d.k==='col'){if(d.moved)commit();else render()}
   else if(d.k==='pan'){if(!d.moved&&sel.size){sel.clear();buildProps();render()}}
   else if(d.k==='box'){const r=marquee,x0=Math.min(r.x0,r.x1),x1=Math.max(r.x0,r.x1),y0=Math.min(r.y0,r.y1),y1=Math.max(r.y0,r.y1);
     if(!r.add)sel.clear();
@@ -863,7 +893,7 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&k==='d'){e.preventDefault();dupSel();return}
   if((e.ctrlKey||e.metaKey)&&k==='a'){e.preventDefault();sel=new Set(S.panels.map(p=>p.id));buildProps();render();return}
   if(k==='r'){rotSel(e.shiftKey?-90:90);return}
-  if(k==='delete'||k==='backspace'){delSel();return}
+  if(k==='delete'||k==='backspace'){if(mode==='col')delCol();else delSel();return}
   if(k==='escape'){if(mode!=='select')setMode('select');else{sel.clear();buildProps();render()}return}
   if(k==='f'){fit();return}
   const st=e.shiftKey?S.snap*10:S.snap;
@@ -872,7 +902,7 @@ document.addEventListener('keydown',e=>{
 });
 function doUndo(){if(!undo.length)return;redo.push(lastSnap);restore(undo.pop())}
 function doRedo(){if(!redo.length)return;undo.push(lastSnap);restore(redo.pop())}
-$('#bSel').onclick=()=>setMode('select'); $('#bBox').onclick=()=>setMode(mode==='box'?'select':'box');
+$('#bSel').onclick=()=>setMode('select'); $('#bBox').onclick=()=>setMode(mode==='box'?'select':'box'); $('#bCol').onclick=()=>setMode(mode==='col'?'select':'col');
 $('#bRL').onclick=()=>rotSel(-90); $('#bRR').onclick=()=>rotSel(90);
 $('#bDel').onclick=delSel; $('#bDup').onclick=dupSel;
 $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
@@ -908,7 +938,7 @@ $('#bReq').onclick=()=>{
   L.push(`   ${spareTxt()}`+(sm.sp&&sm.envS?` 포함: ${fmt(sm.envS.w)} (W) x ${fmt(sm.envS.h)} (L) = ${(sm.envS.w*sm.envS.h/1e6).toFixed(1)} m2`:''));
   L.push(`2. 권장 실 내부 치수 (${spareTxt()} · 벽 이격 ${fmt(S.room.margin)} 반영, 100 단위 올림)`);
   L.push(sm.rec?`   ${fmt(sm.rec.w)} (W) x ${fmt(sm.rec.h)} (L) = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m2`:'   -');
-  L.push(`3. 검토 기준 실 크기: ${fmt(S.room.w)} x ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m2)`+(cols.length?`, 기둥 ${S.room.col}x${S.room.col} / Span X ${S.room.spX} / Y ${S.room.spY}`:', 기둥 없음'));
+  L.push(`3. 검토 기준 실 크기: ${fmt(S.room.w)} x ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m2)`+(!cols.length?', 기둥 없음':Array.isArray(S.cols)?`, 기둥 ${cols.length}개 (직접 배치)`:`, 기둥 ${S.room.col}x${S.room.col} / Span X ${S.room.spX} / Y ${S.room.spY}`));
   L.push('');
   L.push('4. 판넬 수량 및 치수');
   sm.by.forEach(o=>L.push(`   - ${o.t.name}: ${o.n} EA  (${o.t.w}W x ${o.t.d}D x ${o.t.h}H, 전면 ${o.t.front} / 후면 ${o.t.rear}, 도어 ${DOOR_AT[o.t.door]}${o.t.door!=='none'?' '+HINGE[o.t.hinge]:''})`));
