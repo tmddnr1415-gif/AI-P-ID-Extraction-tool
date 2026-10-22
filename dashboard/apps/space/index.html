@@ -101,6 +101,46 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .hl li .m{color:var(--ink-2);font-size:11px;font-family:var(--f-mono)}
 .hl li .tx{white-space:pre-wrap;word-break:break-word;margin-top:2px}
 .hl li.pj{cursor:pointer}.hl li .acts{display:flex;gap:4px;justify-content:flex-end;margin-top:3px}
+/* ===== 첫 화면 — P&ID 분석 · LOGIC 분석 첫 화면과 같은 틀 (① 어디에 넣을지 · ② 시작 · 저장된 프로젝트 · 최근 이력), 밝은 화면 고정 */
+body.home .app{display:none}
+#home{display:none}
+body.home #home{display:block;position:fixed;inset:0;overflow:auto;padding:16px 20px 28px;
+  --paper:#eef1f8; --sheet:#fff; --ink:#1b2238; --ink-2:#667089; --line:#dfe4ee; --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.1);
+  --panel-bg:#fff; --hover:#f4f6fd; --err:#d63a2f; --ok:#168a5c; --warn:#c77700; color-scheme:light; background:var(--paper); color:var(--ink)}
+.lh-title h2{margin:0;color:var(--accent);font-size:20px}
+.lh-title p{margin:4px 0 12px;color:var(--ink-2)}
+.lh-intake{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:14px}
+.lh-lists{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px}
+.lh-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);min-width:0}
+.lh-card h3{margin:0 0 10px;font-size:14px}
+.lh-card .num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;margin-right:4px}
+.lh-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.lh-row label{width:64px;color:var(--ink-2);flex:none}
+.lh-row select,.lh-row input{flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+.lh-help{color:var(--ink-2);font-size:12px;margin:6px 0 0}
+.lh-start{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.lh-start li{border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;background:#fbfcfe}
+.lh-start li:hover{border-color:var(--accent)}
+.lh-start li.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:#eef2fb}
+.lh-start li.off{opacity:.45;cursor:not-allowed}
+.lh-start li b{display:block}.lh-start li small{color:var(--ink-2);display:block;margin-top:2px}
+.lh-start li .fn{color:var(--ink);font-weight:600}
+.lh-go{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:12px}
+.lh-why{color:var(--err)}
+button.big{padding:8px 28px;font-size:15px;font-weight:700}
+button.primary:disabled{background:#b8c4e6;border-color:#b8c4e6;opacity:1}
+.pj{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;margin-bottom:10px;background:#fff}
+.pjh{display:flex;gap:10px;align-items:center;padding:8px 10px;cursor:pointer}
+.pjh .ic{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;background:#e3ebff;color:#1d47b8;font-weight:800;flex:none}
+.pjh small{color:var(--ink-2)}
+.pjj,.lh-recent{list-style:none;margin:0;padding:0 10px 8px}
+.pjj li,.lh-recent li{padding:6px 8px;border-top:1px solid #eef0f5;cursor:pointer}
+.pjj li:hover,.lh-recent li:hover{background:#eef2fb}
+.pjj li.empty,.lh-recent li.empty{color:var(--ink-2);cursor:default}
+.jn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jm{font-size:11px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.jm .chip{border:1px solid var(--line);border-radius:8px;padding:0 6px;background:#fff}
+@media (max-width:1100px){.lh-intake,.lh-lists{grid-template-columns:1fr}}
 .lib{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}
 .lib li{display:grid;grid-template-columns:46px 1fr auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 .lib li .ic{width:46px;height:46px;background:var(--paper);border-radius:4px;display:flex}.lib li .ic svg{width:100%;height:100%}
@@ -154,8 +194,39 @@ svg text{font-family:var(--f-mono)}
 </style>
 </head>
 <body>
+<section id="home" aria-label="판넬 공간확보 첫 화면">
+  <div class="lh-title"><h2>판넬 공간확보</h2>
+    <p>계장 판넬 Type 을 만들어 배치하고 <b>필요 면적 · 권장 실 크기</b>를 건축에 전달합니다. 프로젝트를 고르고 <b>배치 시작</b>을 누르세요.</p></div>
+  <div class="lh-intake">
+    <div class="lh-card">
+      <h3><span class="num">1</span> 어디에 넣을지</h3>
+      <div class="lh-row"><label>프로젝트</label><select id="hmProj"><option value="">(고르세요)</option></select><button id="hmNewBtn">새 프로젝트</button></div>
+      <div class="lh-row" id="hmNewBox" hidden><input id="hmNewName" placeholder="새 프로젝트 이름"><button id="hmCreate" class="primary">만들기</button><button id="hmCancel">취소</button></div>
+      <div class="lh-row"><label>Room</label><input id="hmRoom" placeholder="예: CCR / Rack Room (선택)"></div>
+      <div class="lh-row"><label>Rev</label><input id="hmRev" placeholder="예: A (선택)"></div>
+      <p class="lh-help" id="hmSrvHelp">저장은 서버의 이 프로젝트에 <b>날짜별로</b> 쌓이고, 부서원 모두 저장 이력 · 노트를 봅니다.</p>
+    </div>
+    <div class="lh-card">
+      <h3><span class="num">2</span> 어떻게 시작할지</h3>
+      <ul class="lh-start" id="hmStart">
+        <li data-st="last"><b>이 프로젝트의 최근 저장본 이어서</b><small id="hmLastTxt">① 에서 프로젝트를 고르면 나옵니다</small></li>
+        <li data-st="cont"><b>이 PC 에서 하던 작업 이어서</b><small id="hmContTxt"></small></li>
+        <li data-st="blank"><b>빈 실에서 새로 배치</b><small>지금 Panel Type 은 그대로, 판넬 · 노트 없이</small></li>
+        <li data-st="sample"><b>예시 배치로 시작</b><small>System · Marshalling · Rack · PD · UPS 예시</small></li>
+        <li data-st="file"><b>배치안 파일(JSON) 불러오기</b><small id="hmFileTxt">[배치안 저장 (JSON)] 으로 만든 파일 — 눌러서 고르기</small><input type="file" id="hmFile" accept=".json,application/json" hidden></li>
+      </ul>
+      <div class="lh-go"><span class="lh-why" id="hmWhy"></span><button id="hmGo" class="primary big">배치 시작</button></div>
+      <p class="lh-help">배치 화면 위 <b>⌂ 첫 화면</b> 으로 언제든 돌아옵니다 (작업은 그대로 남습니다).</p>
+    </div>
+  </div>
+  <div class="lh-lists">
+    <div class="lh-card"><h3>저장된 프로젝트</h3><div id="hmProjects"></div></div>
+    <div class="lh-card"><h3>최근 저장 이력</h3><ul class="lh-recent" id="hmRecent"></ul></div>
+  </div>
+</section>
 <div class="app">
   <div class="bar">
+    <button id="bHome" title="프로젝트 고르기 · 저장 이력 첫 화면으로 (작업은 그대로 남습니다)">⌂ 첫 화면</button>
     <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
@@ -398,7 +469,8 @@ function sample(){
   return {room:{w:21000,l:18000,spX:'7000,7000,7000',spY:'6000,6000,6000',col:600,margin:1000},snap:100,types,panels};
 }
 let S;
-try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
+let HAD_LOCAL=false;                                       // 이 PC(브라우저)에 하던 작업이 있었나 — 첫 화면 '이어서'
+try{const raw=localStorage.getItem('crspace.v1'); HAD_LOCAL=!!raw; S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
 function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
@@ -976,7 +1048,7 @@ svg.addEventListener('wheel',e=>{e.preventDefault();const sp=local(e),w=toW(sp.x
 
 /* ---------- keys & buttons ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.target.matches('input,select,textarea'))return; if(document.querySelector('.modal:not([hidden])')){if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>m.hidden=true);return}
+  if(e.target.matches('input,select,textarea')||document.body.classList.contains('home'))return; if(document.querySelector('.modal:not([hidden])')){if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>m.hidden=true);return}
   const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return}
@@ -1191,10 +1263,74 @@ function setTheme(t){if(t==='light')document.documentElement.dataset.theme='ligh
 $('#bTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
 try{if(localStorage.getItem('crspace.theme')==='light')setTheme('light')}catch(e){}
 
+/* ---------- 첫 화면 (P&ID · LOGIC 첫 화면과 같은 흐름): ① 어디에 넣을지 → ② 어떻게 시작할지 → [배치 시작] ---------- */
+let HM={projects:[],recent:[],st:'',file:null};
+function showHome(){HM.st='';HM.file=null;HAD_LOCAL=HAD_LOCAL||S.panels.length>0;document.body.classList.add('home');setMode('select');hmRender();hmLoad()}
+function showEditor(){document.body.classList.remove('home');requestAnimationFrame(()=>{fit();render()})}
+async function hmLoad(){
+  if(!SRV_OK){$('#hmProj').disabled=$('#hmNewBtn').disabled=true;$('#hmSrvHelp').textContent='파일로 직접 연 상태라 서버 프로젝트를 쓸 수 없습니다 — 대시보드의 [판넬 공간확보] 메뉴에서 여세요. 아래 ② 로는 시작할 수 있습니다.';
+    $('#hmProjects').innerHTML='<p class="lh-help">서버 없음</p>';$('#hmRecent').innerHTML='<li class="empty">서버 없음</li>';return hmRender()}
+  try{const [a,b]=await Promise.all([sapi('GET','/projects'),sapi('GET','/recent?n=60')]);HM.projects=a.projects;HM.recent=b.saves}
+  catch(e){$('#hmProjects').innerHTML=`<p class="lh-help" style="color:var(--err)">프로젝트를 못 읽었습니다: ${esc(e.message)} — 대시보드 서버 연결을 확인하세요.</p>`;return}
+  const sel=$('#hmProj'), cur=sel.value||S.srv?.pid||'';
+  sel.innerHTML='<option value="">(고르세요)</option>'+HM.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.value=HM.projects.some(p=>p.id===cur)?cur:'';
+  const line=m=>`<li data-pid="${m.pid}" data-sid="${m.id}" title="이 저장본을 열어 이어서 작업"><div class="jn">${esc(m.memo||'(메모 없음)')}</div><div class="jm"><span>${esc(lt(m.at))}</span><span>${esc(m.by)}</span>${m.rev?`<span class="chip">Rev ${esc(m.rev)}</span>`:''}<span class="chip">판넬 ${m.panels}</span>${m.sum&&m.sum.recW?`<span class="chip">권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}</span>`:''}</div></li>`;
+  $('#hmProjects').innerHTML=HM.projects.length?HM.projects.map(p=>{const ss=HM.recent.filter(m=>m.pid===p.id).slice(0,3);
+    return `<div class="pj"><div class="pjh" data-pick="${p.id}" title="① 에서 이 프로젝트 고르기"><span class="ic">${esc([...p.name.replace(/\s+/g,'')].slice(0,2).join('').toUpperCase())}</span><div><b>${esc(p.name)}</b><br><small>저장 ${p.saves} · 노트 ${p.notes} · 만듦 ${esc(lt(p.createdAt).slice(0,10))} ${esc(p.createdBy)}</small></div></div>
+      <ul class="pjj">${ss.map(line).join('')||'<li class="empty">아직 저장 없음 — 위 ① 에서 이 프로젝트를 고르고 배치 시작 → 💾 서버에 저장</li>'}</ul></div>`}).join('')
+    :'<p class="lh-help">아직 프로젝트가 없습니다 — 위 ① 의 <b>새 프로젝트</b>.</p>';
+  $('#hmRecent').innerHTML=HM.recent.slice(0,12).map(m=>line(m).replace('<div class="jn">',`<div class="jn">${esc(m.pname)} · `)).join('')||'<li class="empty">저장 이력이 없습니다.</li>';
+  hmRender();
+}
+function hmLast(){const pid=$('#hmProj').value;return pid?HM.recent.find(m=>m.pid===pid)||null:null}
+function hmRender(){
+  const pid=$('#hmProj').value, last=hmLast();
+  const ok={last:!!last,cont:HAD_LOCAL,blank:true,sample:true,file:true};
+  if(!HM.st||!ok[HM.st])HM.st=last?'last':HAD_LOCAL?'cont':'blank';
+  $('#hmLastTxt').textContent=last?`${lt(last.at)} · ${last.by}${last.memo?' · '+last.memo:''}`:pid?'이 프로젝트에는 아직 저장이 없습니다':'① 에서 프로젝트를 고르면 나옵니다';
+  $('#hmContTxt').textContent=HAD_LOCAL?`판넬 ${S.panels.length} EA${S.srv?` · ${S.srv.name}`:''}${S.info.project&&!S.srv?` · ${S.info.project}`:''}`:'이 PC 에 하던 작업이 없습니다';
+  document.querySelectorAll('#hmStart li').forEach(li=>{li.classList.toggle('on',li.dataset.st===HM.st);li.classList.toggle('off',!ok[li.dataset.st])});
+  const why=SRV_OK&&!pid?'① 프로젝트를 먼저 고르세요':HM.st==='file'&&!HM.file?'② 불러올 배치안 파일을 고르세요':'';
+  $('#hmWhy').textContent=why; $('#hmGo').disabled=!!why;
+}
+$('#hmProj').onchange=()=>{HM.st='';hmRender()};
+$('#hmStart').addEventListener('click',e=>{const li=e.target.closest('[data-st]');if(!li||li.classList.contains('off'))return;HM.st=li.dataset.st;if(HM.st==='file'&&!HM.file)$('#hmFile').click();hmRender()});
+$('#hmFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;HM.file={name:f.name,d};$('#hmFileTxt').innerHTML=`<span class="fn">${esc(f.name)}</span> · 판넬 ${d.panels.length} EA`}
+  catch(err){HM.file=null;$('#hmFileTxt').textContent='[배치안 저장 (JSON)] 으로 만든 파일 — 눌러서 고르기';toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음).`,true)}hmRender()};r.readAsText(f);e.target.value=''};
+$('#hmNewBtn').onclick=()=>{$('#hmNewBox').hidden=false;$('#hmNewName').focus()};
+$('#hmCancel').onclick=()=>{$('#hmNewBox').hidden=true};
+$('#hmCreate').onclick=async()=>{const name=$('#hmNewName').value.trim();if(!name)return toast('새 프로젝트 이름을 적으세요.',true);
+  if(!AUTH_TOKEN)return toast('로그인해야 프로젝트를 만들 수 있습니다 — 대시보드에서 로그인하세요 (비회원은 보기만).',true);
+  try{const p=await sapi('POST','/projects',{name});$('#hmNewName').value='';$('#hmNewBox').hidden=true;await hmLoad();$('#hmProj').value=p.id;HM.st='';hmRender();toast(`프로젝트 ${p.name} 을(를) 만들었습니다 — ② 를 고르고 [배치 시작]`)}catch(e){toast(e.message,true)}};
+$('#hmProjects').addEventListener('click',e=>{const pk=e.target.closest('[data-pick]');if(pk){$('#hmProj').value=pk.dataset.pick;HM.st='';hmRender();return}hmOpenLine(e)});
+$('#hmRecent').addEventListener('click',hmOpenLine);
+async function hmOpenLine(e){const li=e.target.closest('[data-sid]');if(!li)return;await hmOpen(li.dataset.pid,li.dataset.sid)}
+async function hmOpen(pid,sid){
+  try{const {meta,data}=await sapi('GET',`/${pid}/saves/${sid}`), pj=HM.projects.find(p=>p.id===pid);
+    S=norm(data);S.srv={pid,name:pj?pj.name:(S.srv?.name||''),sid:meta.id,at:meta.at,by:meta.by};sel.clear();selNote=null;selCol=null;
+    commit();buildRoom();buildTypes();srvSnap=lastSnap;updSrv();showEditor();
+    toast(`${S.srv.name} · ${lt(meta.at)} ${meta.by} 저장본을 열었습니다${meta.memo?' — '+meta.memo:''}`)}
+  catch(err){toast(`저장본을 못 열었습니다: ${err.message}`,true)}
+}
+$('#hmGo').onclick=async()=>{
+  const pid=$('#hmProj').value, pj=HM.projects.find(p=>p.id===pid), st=HM.st;
+  if(st==='last'){const m=hmLast();if(m)return hmOpen(m.pid,m.id)}
+  if(st==='blank'){const d=sample();S=norm({room:{...d.room},snap:S.snap||100,types:S.types.length?S.types:d.types,panels:[],notes:[],revs:[],info:{}})}
+  else if(st==='sample')S=norm(sample());
+  else if(st==='file'&&HM.file)S=norm(HM.file.d);
+  if(pj){if(!S.srv||S.srv.pid!==pj.id)S.srv={pid:pj.id,name:pj.name,sid:'',at:'',by:''};if(!S.info.project)S.info.project=pj.name}
+  const rm=$('#hmRoom').value.trim(), rv=$('#hmRev').value.trim(); if(rm)S.info.room=rm; if(rv)S.info.rev=rv;
+  sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();if(st!=='cont')srvSnap=null;updSrv();showEditor();
+  toast(pj?`${pj.name} — 배치를 시작합니다. 저장은 ① 의 [💾 서버에 저장]`:'배치를 시작합니다');
+};
+$('#bHome').onclick=showHome;
+
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); updSrv(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
+showHome();                                                // 메뉴에 들어오면 첫 화면부터 (P&ID · LOGIC 과 같음)
 })();
 </script>
 </body>
