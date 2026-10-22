@@ -1757,6 +1757,19 @@ async function showIntake() {
   const b = document.getElementById("intake-btn");
   if (b) b.addEventListener("click", () => { if (S.job) showIntake(); });
 })();
+/* hotfix107 — 간략화 DCS 그래픽 (새 창).  이 창의 `open(jobId)` 는 결과 열기라 `_nativeOpen` 으로. */
+(function bindDcsButton() {
+  const b = document.getElementById("dcs-btn");
+  if (!b) return;
+  b.addEventListener("click", () => {
+    if (!S.job) return;
+    const u = currentAuthor ? (currentAuthor() || "") : "";
+    const pno = (S.page && typeof S.page === "object") ? (S.page.page_no || "") : (S.page || "");
+    const url = `/dcs?job=${encodeURIComponent(S.job.id)}&page=${encodeURIComponent(pno)}` + (u ? `&user=${encodeURIComponent(u)}` : "");
+    const w = _nativeOpen(url, `pid-dcs-${S.job.id}`, "");
+    if (!w) location.assign(url);
+  });
+})();
 
 /* 달라진 곳 — 무엇이 무엇에서 무엇으로.  **자동 갱신은 없다.** */
 function legendChangeBlock(f) {

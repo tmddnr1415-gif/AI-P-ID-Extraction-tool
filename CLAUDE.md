@@ -4840,6 +4840,39 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
 **대시보드 업데이트 zip** `out/Dashboard_plaza_update_<rev>_<날짜>.zip` — `python3 spike/pack_plaza_update.py --rev N` 이 만들고 풀어서 자가 점검까지 한다 (대시보드 폴더에 풀면 `plaza\` · 역할/얼굴 파일 `plaza_data` 는 zip 에 없어 안 덮임 · `run_plaza_server.bat` 반복 켜기 · `restart_plaza_server.bat` 은 8100 을 잡은 PID 만 · dashboard.html 은 조각 `dashboard_snippet/plaza_card.html` + 대시보드 Claude 프롬프트).  인계 꾸러미 `out/plaza_handover_2026-10-16.zip` (표준 라이브러리 서버 `plaza_server.py` — FastAPI 판과 같은 길·응답 ·
 화면 그대로 · `selftest.py` · README 와 대시보드 Claude 용 프롬프트).  `app/plaza.py` 는 남겨 두되 새 기능을 더하지 않는다.
 
+**그 다음 — 판넬 공간확보를 P&ID 서버로 · 간략화 DCS 그래픽 (hotfix106 · hotfix107)**
+
+사용자: *"기존 Logic 과 PID 와 같은 서버를 사용할 수 있는 판넬 공간확보까지 포함하는 zip"* · *"P&ID 식별 이후 첨부와 같이
+간략화 DCS graphic — tag number 가 있는 실행 P&ID 기준에서만 · 각 계기의 tag number 를 따와야 한다 · 향후 로직의 식별 tag 와
+연계해서 로직 시뮬레이션을 이미지로 보여주기 위함."*  **판정 0줄 · 네 프로젝트 지문 무관** (둘 다 저장된 결과를 읽기만 한다).
+
+1. **hotfix106 — `/space`** (`app/space.py` · `app/static/space/index.html`).  대시보드 브랜치 `ccr-d82d97fa-bb3ty3` 의
+   `dashboard/apps/space/index.html` 을 들여오고 저장 API(`api_space_*`)를 **같은 경로 꼴 · 같은 파일 구조**
+   (`{data}/space/<프로젝트ID>/index.json` · `saves/<저장ID>.json`)로 옮겼다.  작성자는 P&ID · LOGIC 처럼 대시보드가 넘긴
+   `?user=`(화면이 `X-Author` 머리로) — 이름이 없으면 보기만.  **`POST /space/api/import_dashboard`** 가 같은 PC 대시보드
+   서버(8080)의 판넬 자료를 **같은 ID 로** 들인다 (이미 있는 저장본 · 노트는 건너뜀 — 여러 번 눌러도 한 벌 · 첫 화면 ① 카드의
+   단추).  대시보드 iframe 은 `confirm()` 을 막으므로 화면 안 확인창(`askYes`).  실제 대시보드 서버를 띄워 가져오기 → 열기 →
+   저장 → 노트 → 지우기까지 확인 (`out/hotfix106/ui`).  **대시보드 쪽은 메뉴 주소 한 줄만** —
+   `APP_ROUTES.space.src` 를 `:8000/space?embed=1&user=` 로 (P&ID · LOGIC 과 같은 `pidBase` 방식).
+2. **hotfix107 — `/dcs`** (`app/dcs.py` · `app/static/dcs.html` · 결과 화면 더보기 ▾ [DCS 그래픽] → 새 창).
+   **그리는 것은 분석이 저장해 둔 것뿐**: 계기 = FIELD 행(버블 자리 · TYPE · **태그 번호** · 공급 주체 · 라인 번호 · 버블 가운데
+   선) · 밸브 = 밸브 행(몸체 · 액추에이터 · 태그) · 배관 = 판정축이 **탭한 런** + trunk · mid_runs + 라인 깃발이 선 런 (전체
+   배관망이 아니라 식별된 것이 걸린 선 — 그래서 '간략화') · 기기 = 판정 후보의 기기 라벨 · 커넥터 = 런 끝의 `TO/FROM`.
+   좌표는 **그 장 PDF 좌표 그대로**(자리를 지어내지 않는다 · §9).  SVG 는 서버가 글로 만들고 PNG 는 PyMuPDF 가 SVG 를 열어
+   낸다(브라우저 없음 — MuPDF 는 `100%` 크기 · pattern 을 안 그려 절대 크기 · 선 격자로).  요소마다 `data-tag`.
+   **실행(태그 있는) P&ID 만** — `main._mode_facts(job).effective == "epc"` 와 `tagged_rows` 로 가르고(판정하는 곳 하나)
+   아니면 사유를 말한다.  칸은 **그 버블의 폭**을 넘지 않고(나란한 LS 묶음이 서로 덮지 않게 · 좁으면 태그를 위·아래 번갈아)
+   태그 없는 계기는 점선 칸만(이름을 지어내지 않는다).  값은 로직 연동 전까지 `----`.
+   **로직 연동 자리 둘**: `POST /dcs/api/jobs/{id}/sheet/{p}/render {"states": {태그: {"v","u","s","open","alarm"}}, "format"}`
+   → 칠한 SVG/PNG · 화면은 같은 출처 `postMessage {kind:"dcs-states", states}` 를 받아 다시 그린다.  `GET …/tags` 가 태그 →
+   장 · 자리 · 종류 표 (LOGIC 이 같은 글자로 찾는다).  `GET …/export.zip` = 전 장 SVG · PNG · 모델 JSON · tags.json.
+   AL NOUF1 태그 합성본(`out/round41/verify/08b_tagged_same_size.pdf` · 실행 모드 분석 · 태그 37행)으로 확인 —
+   PNG(`out/hotfix107/p5_plain.png` · `p5_painted.png`) · 화면(`out/hotfix107/ui`: 단추 → 새 창 · 누름 → 정보 · 경보 → 붉은
+   깜박임 · 예시 값 · postMessage → 밸브 열림 색 · 둘째 장 · 오류 0).  시험 `tests/test_hotfix106_space.py` 8 ·
+   `tests/test_hotfix107_dcs.py` 7.
+   ⚠ 기기 상자는 후보에 든 라벨 자리(글자 상자)라 실제 기기 크기가 아니다 · 전체 배관망 · 기기 심볼 모양 · 자동 배치(겹침 풀기)는
+   넣지 않았다 — 다음 후보.  LOGIC 쪽에서 시뮬레이션 틀마다 `states` 를 보내 그림을 만드는 연결은 **다음 회차**(지금은 자리만).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

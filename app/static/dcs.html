@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCS 그래픽</title>
+<style>
+  :root{--bg:#1c2026;--panel:#262b33;--line:#3b434f;--ink:#e6ebf1;--muted:#9fb2c8;--acc:#4ea1ff;--warn:#f0b429;--err:#ff5a5a;--ok:#39e07a}
+  *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 "Malgun Gothic",Arial,sans-serif}
+  header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#12161b;border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;margin:0 8px 0 0} header a{color:var(--muted);text-decoration:none} header .sp{flex:1}
+  header .muted{color:var(--muted);font-size:12px}
+  button,select,input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+  button{cursor:pointer} button:hover{border-color:var(--acc)} button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+  main{display:grid;grid-template-columns:260px 1fr 300px;height:calc(100% - 46px)}
+  aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:10px}
+  aside h3,#side h3{font-size:12px;color:var(--muted);margin:6px 0;text-transform:uppercase;letter-spacing:.04em}
+  .sheet{padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:4px}
+  .sheet:hover{border-color:var(--line)} .sheet.on{background:#2f3a4a;border-color:var(--acc)}
+  .sheet b{display:block;font-size:12px} .sheet small{color:var(--muted)}
+  #stage{position:relative;overflow:auto;background:#2b3038}
+  #stage svg{display:block;max-width:none}
+  #stage [data-tag]{cursor:pointer} #stage g.sel rect:first-of-type{stroke:var(--acc)!important;stroke-width:2.2!important}
+  #side{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px}
+  #side .kv{display:grid;grid-template-columns:72px 1fr;gap:3px 8px;margin:6px 0} #side .kv b{color:var(--muted);font-weight:normal}
+  #side .box{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:10px}
+  #msg{padding:30px;color:var(--muted);max-width:640px;line-height:1.8}
+  #msg.err{color:var(--warn)} .tools{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  textarea{width:100%;min-height:110px;font:12px Consolas,monospace;background:#101418;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px}
+  .legend{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:11.5px;color:var(--muted)}
+  .sw{width:22px;height:10px;border-radius:2px;display:inline-block}
+  .hint{color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" title="P&amp;ID 첫 화면으로">← P&amp;ID</a>
+  <h1>DCS 그래픽</h1>
+  <span id="who" class="muted"></span>
+  <span class="sp"></span>
+  <button id="fit">맞춤</button><button id="zin">＋</button><button id="zout">－</button>
+  <a id="dl-svg" class="muted" href="#" download>SVG</a>
+  <a id="dl-png" class="muted" href="#" download>PNG</a>
+  <a id="dl-zip" class="muted" href="#" download>전체 zip</a>
+</header>
+<main>
+  <aside>
+    <div id="jobinfo" class="hint"></div>
+    <h3>장 (실행 P&amp;ID)</h3>
+    <div id="sheets"></div>
+    <h3>색</h3>
+    <div class="legend">
+      <span class="sw" style="background:#d7c24a"></span><span>배관 — 식별된 계기 · 밸브가 걸린 선</span>
+      <span class="sw" style="background:#5d6670;border:1px solid #c9d1da"></span><span>기기 — 도면이 인쇄한 이름</span>
+      <span class="sw" style="background:#101418;border:1px solid #8a97a8"></span><span>계기 칸 — TYPE · 값 · 태그</span>
+      <span class="sw" style="background:#101418;border:1px solid #f0b429"></span><span>타사 공급 계기 (VENDOR)</span>
+      <span class="sw" style="background:#39e07a"></span><span>밸브 열림 · 값 1 · 정상 값</span>
+      <span class="sw" style="background:#ff5a5a"></span><span>밸브 닫힘 · 경보</span>
+      <span class="sw" style="background:#c8d0d8"></span><span>밸브 상태 모름 (로직 연동 전)</span>
+    </div>
+  </aside>
+  <div id="stage"><div id="msg">분석 결과를 고르세요 — 주소에 <code>?job=분석번호</code></div></div>
+  <div id="side">
+    <h3>고른 요소</h3>
+    <div id="pick" class="box hint">그림의 계기 칸 · 밸브를 누르세요.</div>
+    <h3>값 · 상태 칠하기 (로직 시뮬레이션 연동 자리)</h3>
+    <div class="box">
+      <p class="hint" style="margin:0 0 6px">태그마다 <code>{"v":값,"u":"단위","s":0|1,"open":true,"alarm":true}</code>.  LOGIC 검토가 같은 태그로 이 자리에 값을 보내면 그림이 그대로 칠해집니다.</p>
+      <textarea id="states" placeholder='{"14LBA16CP013": {"v": 523.4, "u": "degC"}, "14LBA16AA001": {"open": true}}'></textarea>
+      <div class="tools"><button id="paint" class="pri">칠하기</button><button id="clear">지우기</button><button id="demo">예시 값</button></div>
+      <p id="paint-msg" class="hint"></p>
+    </div>
+    <h3>이 장</h3>
+    <div id="counts" class="box hint"></div>
+  </div>
+</main>
+<script>
+(()=>{
+const $=s=>document.querySelector(s), Q=new URLSearchParams(location.search);
+const JOB=Q.get('job')||'', USER=(Q.get('user')||'').trim();
+if(USER)$('#who').textContent='✎ '+USER;
+const S={job:null,page:null,sheet:null,zoom:1,states:{}};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(path,opt){const r=await fetch(path,{cache:'no-store',...(opt||{})});let j=null;try{j=await r.json()}catch(e){}if(!r.ok)throw new Error((j&&j.error)||('서버 응답 '+r.status));return j}
+function msg(t,err){const m=document.createElement('div');m.id='msg';m.className=err?'err':'';m.textContent=t;$('#stage').replaceChildren(m)}
+async function load(){
+  if(!JOB)return;
+  try{S.job=await api(`/dcs/api/jobs/${JOB}`)}catch(e){return msg('분석을 읽지 못했습니다: '+e.message,true)}
+  $('#jobinfo').textContent=`${S.job.pdf_name||''}${S.job.project?' · '+S.job.project:''}`;
+  $('#dl-zip').href=`/dcs/api/jobs/${JOB}/export.zip`;
+  if(!S.job.eligible){$('#sheets').innerHTML='';return msg(S.job.reason,true)}
+  $('#sheets').innerHTML=S.job.sheets.map(s=>`<div class="sheet" data-p="${s.page_no}"><b>${esc(s.drawing_no||('p'+s.page_no))}</b><small>${esc(s.title||'')}</small><small><br>계기 ${s.instruments} · 밸브 ${s.valves} · 태그 ${s.tagged}</small></div>`).join('')||'<p class="hint">식별된 행이 있는 장이 없습니다.</p>';
+  const first=Number(Q.get('page'))||(S.job.sheets[0]&&S.job.sheets[0].page_no);
+  if(first)show(first);
+}
+$('#sheets').addEventListener('click',e=>{const d=e.target.closest('[data-p]');if(d)show(Number(d.dataset.p))});
+async function show(p){
+  S.page=p;document.querySelectorAll('.sheet').forEach(d=>d.classList.toggle('on',Number(d.dataset.p)===p));
+  try{S.sheet=await api(`/dcs/api/jobs/${JOB}/sheet/${p}/model`)}catch(e){return msg(e.message,true)}
+  $('#counts').innerHTML=`<div class="kv"><b>도면</b><span>${esc(S.sheet.drawing_no)}</span><b>제목</b><span>${esc(S.sheet.title)}</span><b>계기</b><span>${S.sheet.instruments.length} (태그 ${S.sheet.instruments.filter(i=>i.tag).length})</span><b>밸브</b><span>${S.sheet.valves.length} (태그 ${S.sheet.valves.filter(i=>i.tag).length})</span><b>배관</b><span>${S.sheet.pipes.length} 토막</span><b>기기</b><span>${S.sheet.equipment.length}</span><b>커넥터</b><span>${S.sheet.connectors.length}</span></div>`;
+  await draw();
+}
+async function draw(){
+  const body=JSON.stringify({states:S.states,format:'svg'});
+  const r=await fetch(`/dcs/api/jobs/${JOB}/sheet/${S.page}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+  if(!r.ok){let j={};try{j=await r.json()}catch(e){}return msg(j.error||('서버 응답 '+r.status),true)}
+  const wrap=document.createElement('div');wrap.innerHTML=await r.text();const svg=wrap.firstElementChild;
+  $('#stage').replaceChildren(svg);if(S._fitPage!==S.page){S._fitPage=S.page;fit()}else applyZoom();
+  const q=encodeURIComponent(JSON.stringify(S.states));
+  $('#dl-svg').href=`/dcs/api/jobs/${JOB}/sheet/${S.page}.svg?states=${q}`;$('#dl-svg').download=`${S.sheet.drawing_no||'p'+S.page}.svg`;
+  $('#dl-png').href=`/dcs/api/jobs/${JOB}/sheet/${S.page}.png?states=${q}`;$('#dl-png').download=`${S.sheet.drawing_no||'p'+S.page}.png`;
+  svg.addEventListener('click',e=>{const g=e.target.closest('[data-tag]');if(!g)return;svg.querySelectorAll('g.sel').forEach(x=>x.classList.remove('sel'));g.classList.add('sel');pick(g)});
+}
+function pick(g){
+  const key=g.dataset.key, it=S.sheet.instruments.find(i=>i.key===key)||S.sheet.valves.find(i=>i.key===key);
+  if(!it)return;
+  const st=S.states[it.tag]||null;
+  $('#pick').className='box';
+  $('#pick').innerHTML=`<div class="kv"><b>태그</b><span><b>${esc(it.tag||'(없음)')}</b></span><b>종류</b><span>${esc(it.type||it.body)}${it.actuator?' · '+esc(it.actuator):''}</span>`+
+    (it.scope?`<b>공급</b><span>${esc(it.scope)}</span>`:'')+(it.line_no?`<b>라인</b><span>${esc(it.line_no)} ${esc(it.line_size||'')}</span>`:'')+(it.equip?`<b>기기</b><span>${esc(it.equip)}</span>`:'')+
+    (it.lines!=null&&it.type?`<b>위치</b><span>${it.lines===0?'현장 (선 없음)':it.lines===1?'DCS (한 줄)':'현장 패널 (두 줄)'}</span>`:'')+
+    `<b>자리</b><span>${it.rect.map(v=>Math.round(v)).join(', ')} (P&amp;ID 좌표)</span><b>지금 값</b><span>${st?esc(JSON.stringify(st)):'— (로직 연동 전)'}</span></div>`+
+    (it.tag?`<div class="tools"><button data-set="on">1 / 열림</button><button data-set="off">0 / 닫힘</button><button data-set="alarm">경보</button><button data-set="none">지움</button></div>`:'<p class="hint">태그가 없어 값을 칠할 수 없습니다.</p>');
+  $('#pick').querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{const k=b.dataset.set;
+    if(k==='none')delete S.states[it.tag];else if(k==='alarm')S.states[it.tag]={...(S.states[it.tag]||{}),alarm:true};
+    else S.states[it.tag]=it.type?{s:k==='on'?1:0}:{open:k==='on'};
+    $('#states').value=JSON.stringify(S.states,null,1);draw().then(()=>{const g2=$('#stage').querySelector(`[data-key="${CSS.escape(key)}"]`);if(g2){g2.classList.add('sel');pick(g2)}})});
+}
+$('#paint').onclick=()=>{try{const v=$('#states').value.trim();S.states=v?JSON.parse(v):{};if(typeof S.states!=='object'||Array.isArray(S.states))throw 0;$('#paint-msg').textContent=`${Object.keys(S.states).length}개 태그를 칠했습니다`;draw()}catch(e){$('#paint-msg').textContent='JSON 꼴이 아닙니다 — 예시 값을 눌러 보세요'}};
+$('#clear').onclick=()=>{S.states={};$('#states').value='';$('#paint-msg').textContent='';draw()};
+$('#demo').onclick=()=>{if(!S.sheet)return;const d={};S.sheet.instruments.filter(i=>i.tag).slice(0,6).forEach((i,n)=>{d[i.tag]=n%3===2?{v:Math.round(100+n*37.3),u:'%',alarm:n===5}:{v:+(10+n*4.25).toFixed(2),u:i.type.startsWith('P')?'barg':i.type.startsWith('T')?'degC':i.type.startsWith('L')?'%':'t/h'}});
+  S.sheet.valves.filter(v=>v.tag).slice(0,4).forEach((v,n)=>d[v.tag]={open:n%2===0});S.states=d;$('#states').value=JSON.stringify(d,null,1);$('#paint-msg').textContent='예시 값 — 실제 값이 아닙니다 (로직 연동 자리를 보여 주는 것)';draw()};
+function applyZoom(){const svg=$('#stage svg');if(!svg)return;const W=svg.viewBox.baseVal.width,H=svg.viewBox.baseVal.height;svg.setAttribute('width',W*S.zoom);svg.setAttribute('height',H*S.zoom)}
+function fit(){const svg=$('#stage svg');if(!svg)return;const st=$('#stage');S.zoom=Math.min((st.clientWidth-8)/svg.viewBox.baseVal.width,(st.clientHeight-8)/svg.viewBox.baseVal.height);applyZoom()}
+$('#fit').onclick=fit;$('#zin').onclick=()=>{S.zoom*=1.25;applyZoom()};$('#zout').onclick=()=>{S.zoom/=1.25;applyZoom()};
+$('#stage').addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();S.zoom*=e.deltaY<0?1.15:1/1.15;applyZoom()},{passive:false});
+// 로직 시뮬레이션(다른 창)이 보내는 값 — 같은 출처 postMessage {kind:'dcs-states', states:{태그:{…}}}
+window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.kind!=='dcs-states')return;S.states=e.data.states||{};$('#states').value=JSON.stringify(S.states,null,1);draw()});
+new ResizeObserver(()=>{if($('#stage svg'))fit()}).observe($('#stage'));
+load();
+})();
+</script>
+</body>
+</html>
