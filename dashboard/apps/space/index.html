@@ -29,7 +29,7 @@ html,body{height:100%}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:13px;margin:0}
 *{box-sizing:border-box}
 [hidden]{display:none!important}   /* .modal{display:flex} 가 hidden 속성을 이기지 않게 */
-.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.app{display:grid;grid-template-rows:auto auto 1fr auto;height:100%;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
 .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--sheet)}
 .bar .brand{font-weight:700;letter-spacing:.02em;margin-right:8px;white-space:nowrap}
 .bar .brand small{font-family:var(--f-mono);font-weight:500;color:var(--ink-2);margin-left:6px;font-size:11px}
@@ -55,22 +55,37 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .f label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
 .f label.full{grid-column:1/-1}
 .f input,.f select{width:100%}
-.types{display:flex;flex-direction:column;gap:8px}
-.type{border:1px solid var(--line);border-radius:5px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--panel-bg)}
-.type.act{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.type .hd{display:flex;gap:6px;align-items:center}
-.type .hd input[type=color]{width:24px;height:24px;padding:0;border:none;background:none}
-.type .hd .nm{flex:1;min-width:0}
-.type .hd .pre{width:56px;font-family:var(--f-mono)}
-.dims{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
-.dims label{display:flex;flex-direction:column;font-size:10px;color:var(--ink-2);gap:1px}
-.dims input{width:100%;padding:2px 2px;font-size:11.5px}
-.type .door{display:grid;grid-template-columns:1fr 1.3fr;gap:4px}
-.type .door label{display:flex;flex-direction:column;font-size:10px;color:var(--ink-2);gap:1px}
-.type .door select{width:100%;padding:2px 3px;font-size:11.5px}
-.type .ft{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-2)}
-.type .ft .acts{display:flex;gap:4px}
-.type .ft button{padding:3px 8px}
+/* Panel 삽입 줄 (PPT '삽입 > 도형' 처럼): Type 단추를 누르면 배치 모드 → 도면 클릭 */
+.ribbon{display:flex;gap:8px;align-items:stretch;padding:6px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--sheet);overflow-x:auto}
+.ribbon .rb-h{display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:11px;color:var(--ink-2);padding-right:10px;border-right:1px solid var(--line);white-space:nowrap}
+.ribbon .rb-h b{color:var(--ink);font-size:12.5px}
+.palette{display:flex;gap:6px;align-items:stretch}
+.tile{display:grid;grid-template-columns:46px auto;grid-template-rows:auto auto;gap:1px 8px;align-items:center;text-align:left;padding:4px 22px 4px 4px;min-width:150px;max-width:230px;position:relative;border-radius:6px}
+.tile .ic{grid-row:1/3;width:46px;height:46px;background:var(--paper);border-radius:4px;display:flex}
+.tile .ic svg{width:100%;height:100%}
+.tile .nm{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.tile .sz{font-family:var(--f-mono);font-size:11px;color:var(--ink-2)}
+.tile .ed{position:absolute;top:2px;right:3px;font-size:12px;padding:1px 4px;border-radius:4px;color:var(--ink-2)}
+.tile .ed:hover{background:var(--hover);color:var(--ink)}
+.tile.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:var(--accent-soft)}
+.tile.add{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;min-width:86px;padding:4px 10px;border-style:dashed;color:var(--ink-2)}
+.tile.add b{font-size:18px;line-height:1;color:var(--accent)}
+/* Type 만들기 · 고치기 창 */
+.tdlg .box{width:min(780px,100%)}
+.tdlg .tform{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
+.tdlg .tf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 8px;align-content:start}
+.tdlg .tf label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
+.tdlg .tf label.w2{grid-column:span 2}.tdlg .tf label.w4{grid-column:1/-1}
+.tdlg .tf label.chk{flex-direction:row;align-items:center;gap:6px;font-size:12px;color:var(--ink)}
+.tdlg .tf input:not([type=checkbox]),.tdlg .tf select{width:100%}
+.tdlg .tf input[type=color]{height:26px;padding:1px}
+.tdlg .tf .gh{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--ink);margin-top:4px;border-bottom:1px solid var(--line);padding-bottom:2px}
+.tdlg #tPrev{height:250px;background:var(--paper);border:1px solid var(--line);border-radius:4px;display:flex}
+.tdlg #tPrev svg{width:100%;height:100%}
+.tdlg .terr{color:var(--err);font-size:12px;min-height:17px}
+.lib{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}
+.lib li{display:grid;grid-template-columns:46px 1fr auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.lib li .ic{width:46px;height:46px;background:var(--paper);border-radius:4px;display:flex}.lib li .ic svg{width:100%;height:100%}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
 .kv dt{color:var(--ink-2)} .kv dd{margin:0;font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
 .big{font-family:var(--f-mono);font-size:18px;font-weight:600;letter-spacing:-.01em}
@@ -145,6 +160,11 @@ svg text{font-family:var(--f-mono)}
     <button id="bTheme" title="어두운 CAD 화면 ↔ 밝은 화면 (이 PC 에 기억)">☀ 밝게</button>
   </div>
 
+  <div class="ribbon" aria-label="Panel 삽입">
+    <div class="rb-h"><b>Panel 삽입</b><span>누른 뒤 도면 클릭</span></div>
+    <div class="palette" id="palette"></div>
+  </div>
+
   <div class="main">
     <aside class="side">
       <section class="sec">
@@ -177,8 +197,9 @@ svg text{font-family:var(--f-mono)}
 
       <section class="sec">
         <h3><span class="t"><span class="step-n">3</span>Panel Type · 배치</span> <span class="row" style="gap:4px"><label class="chk" style="font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
-        <div class="types" id="types"></div>
-        <div class="row" style="margin-top:8px"><button id="bAddType">+ Type 추가</button>
+        <p class="muted" style="margin:0">위 <b>Panel 삽입</b> 줄에서 Type 을 누르면 배치 모드가 되고, 도면을 클릭하면 그 자리에 놓입니다 (연속 N EA 는 옆으로 붙여 놓음 · R = 회전 · Esc = 끝). Type 을 고치려면 ✎ 또는 두 번 누르기.</p>
+        <div class="row" style="margin-top:8px"><button id="bAddType" class="primary">+ 새 Type</button>
+          <button id="bLib" title="이 PC 에 저장해 둔 Type — 다른 프로젝트에서 만든 것도 여기서 가져옵니다">📚 라이브러리</button>
           <button id="bPreSave" title="지금 Type 목록을 파일로 — 다른 프로젝트에서 다시 씁니다">프리셋 저장</button>
           <button id="bPreLoad" title="저장한 프리셋(또는 배치안 JSON)의 Type 을 가져옵니다">프리셋 불러오기</button>
           <input type="file" id="fPreset" accept=".json,application/json" hidden></div>
@@ -237,6 +258,42 @@ svg text{font-family:var(--f-mono)}
 </div>
 
 <div class="toast" id="toast" role="status"></div>
+<div class="modal tdlg" id="tdlg" hidden>
+  <div class="box" role="dialog" aria-labelledby="tdTitle">
+    <h4 id="tdTitle">새 Panel Type</h4>
+    <div class="tform">
+      <div class="tf">
+        <span class="gh">이름</span>
+        <label class="w2">Type 이름<input id="tdName" placeholder="예: System Cabinet"></label>
+        <label>Tag 접두어<input id="tdPre" placeholder="예: SC-"></label>
+        <label>색<input type="color" id="tdColor"></label>
+        <span class="gh">판넬 치수 (mm)</span>
+        <label>W 폭<input type="number" id="tdW" step="50" min="0"></label>
+        <label>D 깊이<input type="number" id="tdD" step="50" min="0"></label>
+        <label>H 높이<input type="number" id="tdH" step="50" min="0"></label>
+        <label></label>
+        <span class="gh">유지보수 공간 (mm)</span>
+        <label class="w2">전면 F<input type="number" id="tdF" step="50" min="0"></label>
+        <label class="w2">후면 R (없으면 0)<input type="number" id="tdR" step="50" min="0"></label>
+        <span class="gh">도어</span>
+        <label class="w2">Door 위치<select id="tdDoor"></select></label>
+        <label class="w2" title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 폭 절반 문짝 둘">열림<select id="tdHinge"></select></label>
+        <label class="chk w4"><input type="checkbox" id="tdLib" checked>이 PC 라이브러리에도 저장 — 다른 프로젝트에서 📚 로 다시 씀</label>
+      </div>
+      <div><div id="tPrev"></div><div class="muted" id="tdInfo" style="margin-top:4px"></div></div>
+    </div>
+    <div class="terr" id="tdErr"></div>
+    <div class="row"><button id="tdDel" style="margin-right:auto">Type 삭제</button><button id="tdCancel">취소</button><button id="tdSave">저장</button><button id="tdSavePlace" class="primary">저장하고 배치</button></div>
+  </div>
+</div>
+<div class="modal" id="libdlg" hidden>
+  <div class="box">
+    <h4>📚 이 PC 의 Panel Type 라이브러리</h4>
+    <div class="muted">[+ 새 Type] 에서 '라이브러리에도 저장' 을 켜고 저장한 Type 이 모입니다 (이 PC · 이 브라우저). 다른 PC 로 옮길 때는 [프리셋 저장] 파일을 쓰세요.</div>
+    <ul class="lib" id="libList"></ul>
+    <div class="row"><button id="libAll" style="margin-right:auto">지금 프로젝트 Type 모두 라이브러리에 저장</button><button id="libClose">닫기</button></div>
+  </div>
+</div>
 <div class="modal" id="modal" hidden>
   <div class="box">
     <h4 id="mTitle">출력</h4>
@@ -307,8 +364,8 @@ function restore(str){S=norm(JSON.parse(str));lastSnap=str;sel=new Set([...sel].
 
 /* ---------- geometry ---------- */
 const typeOf=p=>S.types.find(t=>t.id===p.type)||S.types[0];
-function geom(p){
-  const t=typeOf(p), r=((p.rot%360)+360)%360, sw=r%180===0;
+function geom(p,tt){
+  const t=tt||typeOf(p), r=((p.rot%360)+360)%360, sw=r%180===0;
   const bw=sw?t.w:t.d, bh=sw?t.d:t.w, F=+t.front||0, R=+t.rear||0, x=p.x, y=p.y;
   let fr,rr,fe;
   if(r===0){fr={x,y:y-F,w:bw,h:F};rr={x,y:y+bh,w:bw,h:R};fe=[x,y,x+bw,y]}
@@ -419,6 +476,31 @@ const toW=(sx,sy)=>({x:(sx-V.ox)/V.s,y:(sy-V.oy)/V.s});
 const snapV=v=>Math.round(v/S.snap)*S.snap;
 
 /* ---------- render ---------- */
+function doorSvg(d,dc){   // 90° 열린 문짝(실선) + 회전 궤적(점선 호)
+  const sw=((d.c[0]-d.h[0])*(d.o[1]-d.h[1])-(d.c[1]-d.h[1])*(d.o[0]-d.h[0]))>0?1:0;
+  return `<line x1="${d.h[0]}" y1="${d.h[1]}" x2="${d.o[0]}" y2="${d.o[1]}" stroke="${dc}" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`
+    +`<path d="M${d.c[0]} ${d.c[1]} A${d.r} ${d.r} 0 0 ${sw} ${d.o[0]} ${d.o[1]}" fill="none" stroke="${dc}" stroke-width="1" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`;
+}
+/* Type 그림 (평면 · 전면 위쪽): 삽입 줄 아이콘(작게) · 만들기 창 미리보기(big = 치수 글자) */
+function typeSvg(t,big){
+  const g=geom({x:0,y:0,rot:0},t), ds=doors(g), rs=[g.body,g.fr,g.rr,...ds.map(d=>d.box)].filter(r=>r.w>0&&r.h>0);
+  if(!(g.body.w>0&&g.body.h>0))return '<svg></svg>';
+  const x0=Math.min(...rs.map(r=>r.x)),y0=Math.min(...rs.map(r=>r.y)),x1=Math.max(...rs.map(r=>r.x+r.w)),y1=Math.max(...rs.map(r=>r.y+r.h));
+  const W=x1-x0,H=y1-y0,M=Math.max(W,H),pad=M*(big?.2:.08),fs=M*.055;
+  const cs=getComputedStyle(document.documentElement),C=k=>cs.getPropertyValue(k).trim(),ink=C('--ink'),ink2=C('--ink-2'),clr=C('--clear');
+  let o=`<svg viewBox="${x0-pad} ${y0-pad} ${W+pad*2} ${H+pad*2}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">`;
+  [g.fr,g.rr].forEach(r=>{if(r.w>0&&r.h>0)o+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${clr}" fill-opacity=".14" stroke="${clr}" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`});
+  const b=g.body; o+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${t.color}" fill-opacity=".55" stroke="${ink}" vector-effect="non-scaling-stroke"/>`;
+  o+=`<line x1="${b.x}" y1="${b.y}" x2="${b.x+b.w}" y2="${b.y}" stroke="${ink}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+  ds.forEach(d=>o+=doorSvg(d,C('--door')));
+  if(big){const tx=(x,y,s,a='middle')=>`<text x="${x}" y="${y}" font-size="${fs}" fill="${ink2}" text-anchor="${a}" dominant-baseline="middle" font-family="Consolas,monospace">${s}</text>`;
+    o+=tx(b.w/2,b.h+(+t.rear||0)+fs*1.2,`W ${fmt(t.w)}`);
+    o+=tx(Math.max(b.w,...ds.map(d=>d.box.x+d.box.w))+fs*.6,b.h/2,`D ${fmt(t.d)}`,'start');
+    if(+t.front)o+=tx(-fs*.6,-(+t.front)/2,`F ${fmt(t.front)}`,'end');
+    if(+t.rear)o+=tx(-fs*.6,b.h+(+t.rear)/2,`R ${fmt(t.rear)}`,'end');
+    o+=tx(b.w/2,y0-pad*.45,'▲ 전면 (굵은 선)');}
+  return o+'</svg>';
+}
 let ghost=null, marquee=null, cursorW=null;
 function rect(r,cls,extra=''){return `<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" ${extra}/>`}
 function dimH(x0,x1,y,txt,off,col){ // horizontal dimension at y with tick marks
@@ -462,10 +544,7 @@ function render(){
   const G=S.panels.map(p=>({p,g:geom(p)}));
   if(show.clr) G.forEach(({g:q})=>{[q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="${clr}" stroke-dasharray="4 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`})});
   // doors: 문짝(90° 열린 위치, 실선) + 회전 궤적(점선 호)
-  if(show.door){const dc=C('--door');G.forEach(({g:q})=>doors(q).forEach(d=>{
-    const sw=((d.c[0]-d.h[0])*(d.o[1]-d.h[1])-(d.c[1]-d.h[1])*(d.o[0]-d.h[0]))>0?1:0;
-    g+=`<line x1="${d.h[0]}" y1="${d.h[1]}" x2="${d.o[0]}" y2="${d.o[1]}" stroke="${dc}" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`;
-    g+=`<path d="M${d.c[0]} ${d.c[1]} A${d.r} ${d.r} 0 0 ${sw} ${d.o[0]} ${d.o[1]}" fill="none" stroke="${dc}" stroke-width="1" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}))}
+  if(show.door){const dc=C('--door');G.forEach(({g:q})=>doors(q).forEach(d=>{g+=doorSvg(d,dc)}))}
   // envelope
   const env=envelope();
   if(env){g+=`<rect x="${env.x}" y="${env.y}" width="${env.w}" height="${env.h}" fill="none" stroke="${acc}" stroke-width="1.5" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`}
@@ -530,22 +609,18 @@ function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l
   const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir'}[id], v=e.target.value;
   S.room[k]=(k==='spX'||k==='spY'||k==='spareDir')?v:Math.max(0,+v||0); commit();
 }));
-function buildTypes(){
-  const box=$('#types'); box.innerHTML='';
-  S.types.forEach(t=>{
-    const n=S.panels.filter(p=>p.type===t.id).length;
-    const d=document.createElement('div'); d.className='type'+(mode==='place'&&placeType===t.id?' act':'');
-    d.innerHTML=`<div class="hd"><input type="color" value="${t.color}" data-k="color" aria-label="색상"><input class="nm" id="tn_${t.id}" data-k="name" value="${esc(t.name)}" aria-label="Type 이름"><input class="pre" id="tp_${t.id}" data-k="pre" value="${esc(t.pre)}" aria-label="Tag 접두어" title="Tag 접두어"></div>
-      <div class="dims">${[['w','W'],['d','D'],['h','H'],['front','F'],['rear','R']].map(([k,l])=>`<label>${l}<input type="number" step="50" min="0" id="t${k}_${t.id}" data-k="${k}" value="${t[k]}"></label>`).join('')}</div>
-      <div class="door"><label>Door 위치<select data-k="door" aria-label="Door 위치">${Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}" ${t.door===v?'selected':''}>${l}</option>`).join('')}</select></label>
-        <label title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 문짝 둘(폭의 절반씩)">열림<select data-k="hinge" aria-label="열림">${Object.entries(HINGE).map(([v,l])=>`<option value="${v}" ${t.hinge===v?'selected':''}>${l}${v==='LR'?'':' (앞에서 볼 때)'}</option>`).join('')}</select></label></div>
-      <div class="ft"><span>배치 ${n} EA</span><span class="acts"><button data-a="del" ${n||S.types.length<2?'disabled':''} title="${n?'배치된 판넬이 있어 삭제 불가':'Type 삭제'}">삭제</button><button data-a="place" class="${mode==='place'&&placeType===t.id?'on':''}">배치</button></span></div>`;
-    d.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('change',()=>{const k=inp.dataset.k;t[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge')?inp.value:Math.max(0,+inp.value||0);commit()}));
-    d.querySelector('[data-a=place]').onclick=()=>{if(mode==='place'&&placeType===t.id)setMode('select');else{placeType=t.id;setMode('place')}};
-    d.querySelector('[data-a=del]').onclick=()=>{S.types=S.types.filter(x=>x!==t);commit();buildTypes()};
-    box.appendChild(d);
-  });
+function buildTypes(){   // 삽입 줄: Type 단추(그림 · 이름 · 치수 · 배치 수) + [＋ 새 Type]
+  $('#palette').innerHTML=S.types.map(t=>{const n=S.panels.filter(p=>p.type===t.id).length, on=mode==='place'&&placeType===t.id;
+    return `<button class="tile${on?' on':''}" data-tid="${t.id}" title="${esc(t.name)} — 누르면 배치 모드 (도면 클릭) · 두 번 누르기 또는 ✎ = 고치기"><span class="ic">${typeSvg(t)}</span><span class="nm">${esc(t.name)}</span><span class="sz">${t.w}×${t.d} · ${n} EA</span><span class="ed" data-ed="${t.id}" title="이 Type 고치기">✎</span></button>`}).join('')
+    +`<button class="tile add" id="tAdd" title="새 Panel Type 만들기"><b>＋</b>새 Type</button>`;
 }
+$('#palette').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-ed]'); if(ed)return openTypeDlg(S.types.find(t=>t.id===ed.dataset.ed));
+  if(e.target.closest('#tAdd'))return openTypeDlg(null);
+  const b=e.target.closest('[data-tid]'); if(!b)return;
+  if(mode==='place'&&placeType===b.dataset.tid)setMode('select');else{placeType=b.dataset.tid;setMode('place')}
+});
+$('#palette').addEventListener('dblclick',e=>{const b=e.target.closest('[data-tid]');if(b){setMode('select');openTypeDlg(S.types.find(t=>t.id===b.dataset.tid))}});
 /* Panel Type 프리셋 — 프로젝트 사이에 Type(치수 · 유지보수 공간 · 색)을 다시 쓰기 위한 파일 */
 const TYPE_KEYS=['name','pre','w','d','h','front','rear','color','door','hinge'];
 function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
@@ -560,7 +635,67 @@ $('#fPreset').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
     commit();buildTypes();toast(`프리셋 ${f.name}: Type 추가 ${add} · 갱신 ${upd} (이름이 같은 Type 은 치수 · 색을 덮어썼고 배치된 판넬에 바로 반영됨)`);
   }catch(err){toast(`프리셋 불러오기 실패: ${f.name} 에 Panel Type 목록이 없습니다 (types 의 각 항목에 이름 · W · D 가 있어야 함). [프리셋 저장]으로 만든 파일을 고르세요.`,true)}};
   r.readAsText(f);e.target.value=''};
-$('#bAddType').onclick=()=>{const i=S.types.length+1;S.types.push({id:uid(),name:'Panel Type '+String.fromCharCode(64+Math.min(i,26)),pre:'P'+i+'-',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'][i%6]});commit();buildTypes()};
+/* ---------- Type 만들기 · 고치기 창 ---------- */
+let tEdit=null;                                            // 고치는 Type (새 Type 이면 null)
+const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',Door:'door',Hinge:'hinge'};
+const PAL=['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'];
+$('#tdDoor').innerHTML=Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+$('#tdHinge').innerHTML=Object.entries(HINGE).map(([v,l])=>`<option value="${v}">${l}${v==='LR'?' (문짝 둘)':' (앞에서 볼 때)'}</option>`).join('');
+function tdRead(){const o={};Object.entries(TDK).forEach(([k,f])=>o[f]=$('#td'+k).value);return cleanType(o)}
+function tdPreview(){
+  const t=tdRead(); $('#tPrev').innerHTML=typeSvg(t,true); $('#tdHinge').disabled=t.door==='none';
+  const ds=doors(geom({x:0,y:0,rot:0},t)), over=ds.filter(d=>d.r>d.clr+0.5).map(d=>`${d.face} 도어 반경 ${fmt(d.r)} > ${d.face} 유지보수 ${fmt(d.clr)}`);
+  $('#tdInfo').innerHTML=`유지보수 포함 깊이 <b class="mono">${fmt(t.d+t.front+t.rear)}</b> mm`+(over.length?`<br><span style="color:var(--warn)">⚠ ${esc([...new Set(over)].join(' · '))} — 배치하면 경고됩니다</span>`:'');
+}
+function openTypeDlg(t){
+  tEdit=t||null;
+  const v=t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
+  Object.entries(TDK).forEach(([k,f])=>$('#td'+k).value=v[f]);
+  const n=t?S.panels.filter(p=>p.type===t.id).length:0;
+  $('#tdTitle').textContent=t?`Panel Type 고치기 — ${t.name}`+(n?` (배치 ${n} EA 에 바로 반영)`:''):'새 Panel Type';
+  $('#tdDel').hidden=!t; $('#tdDel').disabled=!!n||S.types.length<2; $('#tdDel').title=n?'배치된 판넬이 있어 삭제할 수 없습니다 — 판넬을 먼저 지우세요':'이 Type 을 지웁니다';
+  $('#tdSavePlace').textContent=t?'저장하고 배치':'만들고 배치'; $('#tdSave').textContent=t?'저장':'만들기';
+  $('#tdErr').textContent=''; $('#tdlg').hidden=false; tdPreview(); $('#tdName').focus();
+}
+function tdSave(place){
+  const v=tdRead(), err=m=>{$('#tdErr').textContent=m;return null};
+  if(!v.name)return err('Type 이름을 적으세요 (예: System Cabinet).');
+  if(S.types.some(x=>x!==tEdit&&x.name.trim()===v.name))return err(`이름이 "${v.name}" 인 Type 이 이미 있습니다 — 다른 이름을 쓰거나 그 Type 의 ✎ 로 고치세요.`);
+  if(!v.pre)return err('Tag 접두어를 적으세요 (예: SC-). 배치할 때 SC-01, SC-02 … 로 붙습니다.');
+  if(!(v.w>0&&v.d>0))return err('W(폭) · D(깊이)는 0 보다 커야 합니다.');
+  const isNew=!tEdit; if(tEdit)Object.assign(tEdit,v);else{tEdit={id:uid(),...v};S.types.push(tEdit)}
+  const lib=$('#tdLib').checked; if(lib)libPut(v);
+  $('#tdlg').hidden=true; commit(); buildTypes();
+  toast(`${v.name} 을(를) ${isNew?'만들었습니다':'고쳤습니다'}${lib?' · 라이브러리에도 저장':''}${place?' — 도면을 클릭해 배치하세요 (Esc = 끝)':' — 위 삽입 줄에서 누르면 배치'}`);
+  if(place){placeType=tEdit.id;setMode('place')}
+}
+Object.keys(TDK).forEach(k=>$('#td'+k).addEventListener('input',tdPreview));
+$('#tdSave').onclick=()=>tdSave(false); $('#tdSavePlace').onclick=()=>tdSave(true);
+$('#tdCancel').onclick=()=>{$('#tdlg').hidden=true};
+$('#tdDel').onclick=()=>{if(!tEdit||S.panels.some(p=>p.type===tEdit.id))return;const nm=tEdit.name;S.types=S.types.filter(x=>x!==tEdit);$('#tdlg').hidden=true;commit();buildTypes();toast(`${nm} Type 을 지웠습니다 (Ctrl+Z 로 되돌림)`)};
+$('#tdlg').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#tdlg').hidden=true}else if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='checkbox'){e.preventDefault();tdSave(false)}});
+$('#bAddType').onclick=()=>openTypeDlg(null);
+
+/* ---------- 이 PC 의 Type 라이브러리 (localStorage crspace.lib.v1) — 프로젝트를 넘어 다시 쓰기 ---------- */
+const LIB_KEY='crspace.lib.v1';
+function libGet(){try{const a=JSON.parse(localStorage.getItem(LIB_KEY)||'[]');return Array.isArray(a)?a.map(cleanType).filter(t=>t.name&&t.w>0&&t.d>0):[]}catch(e){return[]}}
+function libSet(a){try{localStorage.setItem(LIB_KEY,JSON.stringify(a))}catch(e){toast('이 브라우저에 라이브러리를 저장할 수 없습니다 — [프리셋 저장]으로 파일에 남기세요.',true)}}
+function libPut(t){const a=libGet().filter(x=>x.name!==t.name);a.push(cleanType(t));libSet(a)}
+function buildLib(){
+  const a=libGet();
+  $('#libList').innerHTML=a.length?a.map((t,i)=>{const has=S.types.some(x=>x.name.trim()===t.name);
+    return `<li><span class="ic">${typeSvg(t)}</span><span><b>${esc(t.name)}</b> <span class="mono muted">${esc(t.pre)}</span><br><span class="mono muted">${t.w}×${t.d}×${t.h} · F ${t.front} / R ${t.rear} · 도어 ${DOOR_AT[t.door]}${t.door!=='none'?' '+HINGE[t.hinge]:''}</span></span>
+      <button data-lib-add="${i}" ${has?'disabled title="이 프로젝트에 같은 이름의 Type 이 있습니다"':''}>${has?'프로젝트에 있음':'프로젝트에 추가'}</button><button data-lib-del="${i}" title="라이브러리에서만 지웁니다 (프로젝트의 Type 은 그대로)">지우기</button></li>`}).join('')
+    :'<li class="muted" style="display:block">아직 비어 있습니다 — [+ 새 Type] 에서 \'이 PC 라이브러리에도 저장\' 을 켜고 만들면 여기에 모입니다.</li>';
+}
+$('#bLib').onclick=()=>{buildLib();$('#libdlg').hidden=false};
+$('#libClose').onclick=()=>{$('#libdlg').hidden=true};
+$('#libAll').onclick=()=>{S.types.forEach(libPut);buildLib();toast(`프로젝트 Type ${S.types.length}개를 라이브러리에 저장했습니다`)};
+$('#libList').addEventListener('click',e=>{
+  const a=libGet(), ad=e.target.closest('[data-lib-add]'), dl=e.target.closest('[data-lib-del]');
+  if(ad){const t=a[+ad.dataset.libAdd];if(!t||S.types.some(x=>x.name.trim()===t.name))return;S.types.push({id:uid(),...t});commit();buildTypes();buildLib();toast(`${t.name} 을(를) 프로젝트에 추가했습니다 — 삽입 줄에서 눌러 배치`)}
+  if(dl){const t=a[+dl.dataset.libDel];libSet(a.filter((_,i)=>i!==+dl.dataset.libDel));buildLib();if(t)toast(`${t.name} 을(를) 라이브러리에서 지웠습니다`)}
+});
 
 function buildProps(){
   const box=$('#props'), ps=S.panels.filter(p=>sel.has(p.id));
@@ -721,7 +856,7 @@ svg.addEventListener('wheel',e=>{e.preventDefault();const sp=local(e),w=toW(sp.x
 
 /* ---------- keys & buttons ---------- */
 document.addEventListener('keydown',e=>{
-  if(e.target.matches('input,select,textarea'))return; if(!$('#modal').hidden)return;
+  if(e.target.matches('input,select,textarea'))return; if(document.querySelector('.modal:not([hidden])')){if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>m.hidden=true);return}
   const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return}
@@ -851,7 +986,7 @@ $('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new File
 
 /* ---------- 화면 테마: 기본 어둡게(CAD) · [☀ 밝게] ---------- */
 function setTheme(t){if(t==='light')document.documentElement.dataset.theme='light';else delete document.documentElement.dataset.theme;
-  $('#bTheme').textContent=t==='light'?'🌙 어둡게':'☀ 밝게';try{localStorage.setItem('crspace.theme',t)}catch(e){}render()}
+  $('#bTheme').textContent=t==='light'?'🌙 어둡게':'☀ 밝게';try{localStorage.setItem('crspace.theme',t)}catch(e){}buildTypes();render()}
 $('#bTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
 try{if(localStorage.getItem('crspace.theme')==='light')setTheme('light')}catch(e){}
 
