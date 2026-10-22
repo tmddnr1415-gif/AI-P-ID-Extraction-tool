@@ -230,6 +230,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 ### 메뉴를 더 추가하려면
 - `ROUTES` 배열과 `MODULES` 에 키 추가 → `renderMenu()` 의 메뉴 HTML 에 `btn({k:'<키>', l:'<아이콘 이름>', n:'', c:0}, 'top')` 한 줄 추가.
 
+### 방법 A' (2026-10-22~): 같은 서버 `apps/` 앱을 P&ID 와 같은 화면 틀로 — `APP_ROUTES`
+- 예: **판넬 공간확보** = `APP_ROUTES.space = { title:'판넬 공간확보', src:'/apps/space/index.html' }`, 파일은 운영 폴더 `apps\space\index.html` (저장소 `dashboard/apps/space/index.html`).
+- `MODULES`(카드 안 iframe)와 달리 본문 전체를 채우고(`pid-mode`), 1분 자동 갱신에도 iframe 을 다시 만들지 않는다(`#pidwrap` 유지) — 편집 중인 화면이 날아가지 않음. 위쪽 주간업무 버튼은 숨김.
+- 주소 뒤 값: `?embed=1&user=<본명>`. 앱은 `embed=1` 이면 자기 제목줄을 숨긴다.
+- 추가하려면: `APP_ROUTES` 에 한 줄 · `ROUTES` 에 키 · `renderMenu()` 에 `btn(...)` 한 줄 · (권한 표에 넣으려면) server.py `MENUS` 에 `(키, 이름)`.
+
 ---
 
 ## 8. 개발·배포 규칙
@@ -890,3 +896,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 9 담당자별 담당 PJT 수(홈): 한 막대에 **수행(파랑) · 입찰(주황)** 을 쌓고 끝에 '5 (3 + 2)', 막대 조각에 마우스 = 그쪽 PJT 만, 이름 · 줄 = '■ 수행 n건 … ■ 입찰 n건 …' 로 나눠서. 제목 옆 범례. 바뀐 곳: `PJ_COL` · `svgBars`(parts) · `renderHome`.
 - 확인한 것: `py_compile`, JS 문법(`node --check`, 스크립트 부분), 임시 폴더 서버(사본 데이터)로 브라우저: 기술공유 · 통합 업무 기술공유 최신순, ◀ 숨기기 → 새로고침해도 숨김 · ☰ 메뉴로 열림, 열 숨기기(▾ · 선택 열) → 숨긴 열 줄 · ◂ 표시 · 다시 보이기, Shift+→→↓ = 6 칸 · 복사 글/HTML 표, 머리글 클릭 = 열 · Shift = 2 열, 작업 칸 = 행, 끌기 = 15 칸, 구종현(서버 PC 아님) 금주 마감 단추 보임 · ⚙ 안 보임 · Management 보임 · `admin/perms` 403 / 일반 부서원 금주 마감 403, 게시판 피드, 홈 배치, LNG/수소 툴팁, 수행/입찰 막대 툴팁, 스크립트 오류 없음.
 - 회사에서 확인할 것: 엑셀에 붙여넣기(표 모양 · 칸 안 줄바꿈). 구종현 계정의 본명이 정확히 '구종현' 이어야 함(띄어쓰기 없이) — 다르면 server.py `SUPER_NAMES` 를 고침.
+
+### 2026-10-22 (7) — 판넬 공간확보 메뉴 · 분석·도구 화면 헤더 정리 (APP_VERSION 2026-10-22.3 / SERVER_VERSION 2026-10-22.2)
+> server.py 가 바뀜(메뉴 권한 표에 '판넬 공간확보' 한 줄) → **서버 재시작 필요** (8장 3번). 재시작 전에도 화면은 열린다(권한 기본 = 허용).
+> 새 파일 `apps\space\index.html` 이 운영 폴더에 생긴다 (패치 APPLY.bat 이 폴더를 만듦). 데이터 폴더는 건드리지 않음.
+- 무엇을: 계장 Control Room 판넬 **초기 공간확보 툴**(단일 HTML 프로토타입)을 세 번째 분석 메뉴 '🗄 판넬 공간확보'로 넣음 (P&ID 분석 · LOGIC 분석과 같은 레벨). 왜: 계장이 판넬을 대략 배치해 필요 면적 · 권장 실 크기를 건축에 전달하는 업무.
+  - 툴 정리: Google Fonts · claude.ai 전용 다운로드 코드 제거(폐쇄망), 대시보드 색 · 글꼴 토큰, 다크모드 제거, 출력 창이 처음부터 떠 있던 버그(`[hidden]`) 수정.
+  - 세 메뉴 맞춤: 흐름 ①②③ 번호 · '<형식> 출력' 버튼 이름 · OK/경고/간섭 pill · 검토 문장에 '→ 어떻게 고치나' · 불러오기 실패 알림.
+  - 추가 기능: ① 프로젝트 정보(프로젝트명 · Room 명칭 · 작성자 · Rev → 요약 머리 · DXF 타이틀 · 파일 이름), Panel Type 프리셋 저장/불러오기, Spare 공간 %(+ 증설 방향, 기본 0%), Rev 이력(이전 Rev 대비 면적 변화).
+  - 저장: 지금은 브라우저 보관(localStorage `crspace.v1`) + 배치안 JSON 파일. 서버 폴더 저장은 제안만(보고서) — 승인 후 구현.
+  - 대시보드: P&ID · LOGIC · 판넬 공간확보 화면에서 위쪽 주간업무 전용 버튼(주차 · 전체 저장 · 금주 마감 · CSV · 엑셀 내보내기 · 인쇄 · 대기열)을 숨기고 부제목을 '<메뉴> · 입력 → 실행 → 결과 → 출력은 아래 화면 안에서' 로. 예전엔 P&ID 화면에서 '엑셀 내보내기'를 누르면 주간업무가 받아졌음.
+- 바뀐 곳: dashboard.html 새 `APP_ROUTES` `FRAME_ROUTES` `appUrl` `renderApp`, `render()`(pid-mode · keepPid · 분기) · `ROUTES` · `renderMenu` · `PZ_STATUS` · `renderHeader`(부제목) · CSS `body.pid-mode header.top .actions` / server.py `MENUS` / 새 `apps/space/index.html`.
+- 확인한 것: `py_compile`, `node --check`(두 HTML 의 스크립트). 임시 폴더 + 가짜 계정으로 server.py(8780) 와 P&ID 도구(8000, titleblock 브랜치 소스 그대로)를 띄워 Chromium 에서 홈 · P&ID · LOGIC · 판넬 공간확보 캡처, 페이지 · iframe 요청 중 외부 주소 **0건**. 공간확보: 시나리오(기둥 간섭 · 실 밖) 불러오기 → 간섭 2건 문장, 출력 4종 실제 다운로드(.txt · .dxf · .csv(BOM) · .json 이름 그대로), DXF ezdxf audit 오류 0 · Layer 8개 · 글자 스타일 CR-KOR(malgun.ttf), Spare 20% X → 권장 27,700 × 10,600(손 계산 일치), Rev A→B +35.0 m². P&ID · LOGIC 코드는 이 작업에서 0줄 바뀜.
+- 회사에서 확인할 것: (1) 서버 재시작 후 ⚙ 메뉴 권한 표에 '판넬 공간확보'. (2) DXF 를 AutoCAD 2026 에서 열어 Layer · 치수 · 한글(CR-KOR = 맑은 고딕) 확인. (3) Edge 개발자도구 Network 탭에서 외부 요청 0건. (4) P&ID 회귀 `python spike/regression_3p.py` 와 LOGIC 샘플 1건 — 코드는 안 바뀌었지만 완료 기준이라 기록을 남김.

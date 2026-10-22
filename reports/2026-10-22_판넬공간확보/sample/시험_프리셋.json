@@ -1,0 +1,3 @@
+{"kind":"crspace-types","v":1,"types":[
+ {"name":"System Cabinet","pre":"SC-","w":900,"d":800,"h":2100,"front":1200,"rear":800,"color":"#2f6db5"},
+ {"name":"Telecom Rack","pre":"TR-","w":600,"d":800,"h":2000,"front":1000,"rear":600,"color":"#a33f6b"}]}

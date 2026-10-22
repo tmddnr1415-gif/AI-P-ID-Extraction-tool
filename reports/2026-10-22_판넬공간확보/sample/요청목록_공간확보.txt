@@ -1,0 +1,14 @@
+http://localhost:8780/
+http://localhost:8780/api/info
+http://localhost:8780/api/birthdays
+http://localhost:8780/api/auth/me
+http://localhost:8780/api/info
+http://localhost:8780/api/all
+http://localhost:8780/api/archive/2026-W43
+http://localhost:8780/api/board
+http://localhost:8780/api/profiles
+http://localhost:8780/api/birthdays
+http://localhost:8100/version
+http://localhost:8780/apps/space/index.html?embed=1&user=%ED%99%8D%EA%B8%B8%EB%8F%99
+http://localhost:8780/api/timesheets?year=2026
+http://localhost:8780/api/auth/ping
