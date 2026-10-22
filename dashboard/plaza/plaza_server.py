@@ -51,11 +51,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.9'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.10'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
-MAP_W, MAP_H = 64, 44        # plaza.js 의 지도 크기와 같다 (2026-10-19 조선 마을로 넓힘)
+MAP_W, MAP_H = 96, 60        # plaza.js 의 지도 크기와 같다 (2026-10-22 판10: 동쪽 복지 구역 + 아래 실내 식당 · 헬스장)
 NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
@@ -923,6 +923,168 @@ def equip_defs() -> dict:
 
 
 # ── 광장 상태 ──────────────────────────────────────────────────────────
+# ── 박병두 프로님 동상 · NPC 말 (2026-10-22 판10) ─────────────────────────────────────────
+# 동상: 광장 가운데 받침대(STATUE_HOME). 때리면 깨어나 때린 사람이 걸은 칸을 그대로 밟아 따라가며 STATUE_HITS 번 때리고,
+# 걸어온 길을 되짚어 제자리로 돌아와 다시 동상이 된다. 지도의 막힌 칸을 몰라도 사람이 걸은 칸만 밟으므로 벽을 뚫지 않는다.
+STATUE_NAME = "박병두 프로님"
+STATUE_HOME = (78, 31)          # plaza.js STATUE_HOME 과 같다
+STATUE_HITS, STATUE_DMG = 10, 3
+STATUE_STEP_S, STATUE_HIT_S, STATUE_WAKE_S, STATUE_MAX_S = 0.14, 0.8, 0.9, 120.0
+STATUE: dict = {"x": STATUE_HOME[0], "y": STATUE_HOME[1], "dir": 0, "mode": "stone", "target": "", "tname": "", "hits": 0,
+                "since": 0.0, "step_at": 0.0, "hit_at": 0.0, "trail": [], "hist": [], "act_seq": 0, "act_at": 0.0,
+                "say": "", "say_at": 0.0, "say_seq": 0}
+STATUE_ATTACKER = {"name": "박병두 프로"}   # damage() 가 쓰러뜨린 사람으로 적음 ("… 박병두 프로 님에게 쓰러져")
+NPC_N = 16
+NPC_LINES = {"hit": "{name} 프로님 그만좀 때리세요!!", "click": "아!! 프로님 왜 불러요!! 바쁜데"}
+NPC_SAY: dict = {}              # NPC 번호(plaza.js NPC_DEF 순서) → {text, at, seq, kind}
+NPC_SAY_S = 3.5
+
+
+def statue_say(text: str, now: float) -> None:     # LOCK 안에서
+    STATUE["say"], STATUE["say_at"] = text, now
+    STATUE["say_seq"] += 1
+
+
+def statue_wake(p: dict, now: float) -> bool:      # LOCK 안에서 — p 가 받침대 위 동상을 때림
+    if STATUE["mode"] != "stone":
+        return False
+    STATUE.update(mode="wake", target=next((pid for pid, q in STATE["players"].items() if q is p), ""), tname=p["name"], hits=0,
+                  since=now, step_at=now, hit_at=now, trail=[(p["x"], p["y"])], hist=[STATUE_HOME])
+    statue_say(f"누가 감히 나를 때려?! {p['name']} 프로님 거기 서!!", now)
+    log_system(f"🗿 {STATUE_NAME} 동상이 깨어나 {p['name']} 님을 쫓아갑니다! ({STATUE_HITS}대 맞으면 돌아갑니다)", now)
+    STATE["ver"] += 1
+    return True
+
+
+def statue_front(p: dict) -> bool:                 # 받침대 위 동상이 p 의 앞 칸(또는 같은 칸)에 있나
+    dx, dy = DIRV.get(p["dir"], (0, 1))
+    return STATUE["mode"] == "stone" and (STATUE["x"], STATUE["y"]) in {(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])}
+
+
+def statue_trail(p: dict) -> None:                 # LOCK 안에서 (api_move) — 쫓기는 사람이 밟은 칸을 줄에 적음
+    if STATUE["mode"] in ("wake", "chase") and STATUE["tname"] == p["name"]:
+        t = STATUE["trail"]
+        if not t or t[-1] != (p["x"], p["y"]):
+            t.append((p["x"], p["y"]))
+            del t[:-400]
+
+
+def statue_step(nx: int, ny: int) -> None:         # LOCK 안에서 — 한 칸 (걸어온 길에 같은 칸이 있으면 그 뒤를 잘라 돌아갈 길을 짧게)
+    x, y = STATUE["x"], STATUE["y"]
+    if (nx, ny) == (x, y):
+        return
+    STATUE["dir"] = 3 if nx > x else 2 if nx < x else 0 if ny > y else 1
+    STATUE["x"], STATUE["y"] = nx, ny
+    h = STATUE["hist"]
+    if (nx, ny) in h:
+        del h[h.index((nx, ny)) + 1:]
+    else:
+        h.append((nx, ny))
+
+
+def statue_home(now: float, why: str = "") -> None:   # LOCK 안에서 — 돌아가기 시작
+    STATUE.update(mode="back", trail=[])
+    statue_say(why or "에휴… 이제 됐다. 제자리로 돌아간다.", now)
+
+
+def statue_tick(now: float) -> None:               # LOCK 안에서 (0.07초마다)
+    m = STATUE["mode"]
+    if m == "stone":
+        return
+    changed = False
+    if m == "wake":
+        if now - STATUE["since"] >= STATUE_WAKE_S:
+            STATUE["mode"] = m = "chase"
+            changed = True
+    if m == "chase":
+        q = STATE["players"].get(STATUE["target"]) or next((r for r in STATE["players"].values() if r["name"] == STATUE["tname"]), None)
+        if q is None or hp_p(q) <= 0 or now - STATUE["since"] > STATUE_MAX_S:
+            statue_home(now, "어디 갔어?! …돌아간다." if q is None else "쓰러졌군. 돌아간다." if hp_p(q) <= 0 else "헉헉… 오늘은 여기까지.")
+            STATE["ver"] += 1
+            return
+        x, y = STATUE["x"], STATUE["y"]
+        if abs(q["x"] - x) + abs(q["y"] - y) <= 1 and (q["x"], q["y"]) != (x, y):   # 곁 — 바라보고 때림
+            STATUE["dir"] = 3 if q["x"] > x else 2 if q["x"] < x else 0 if q["y"] > y else 1
+            if now - STATUE["hit_at"] >= STATUE_HIT_S:
+                STATUE["hit_at"] = now
+                STATUE["hits"] += 1
+                STATUE["act_seq"] += 1
+                STATUE["act_at"] = now
+                q["hit_seq"] += 1
+                q["hit_at"], q["hit_by"], q["hit_dmg"] = now, STATUE_NAME, 0
+                if q.get("role") != "operator":    # 운영자는 무적 (맞는 시늉만)
+                    damage(STATUE_ATTACKER, q, STATUE_DMG, now)
+                n = STATUE["hits"]
+                statue_say(f"{n}대!" + (" 이제 됐다." if n >= STATUE_HITS else ""), now)
+                if n >= STATUE_HITS:
+                    log_system(f"🗿 {STATUE_NAME} 동상이 {q['name']} 님을 {n}대 때리고 제자리로 돌아갑니다.", now)
+                    STATUE.update(mode="back", trail=[])
+            changed = True
+        elif now - STATUE["step_at"] >= STATUE_STEP_S:   # 따라감 — 그 사람이 밟은 칸을 차례로 (곁에 닿으면 멈춤)
+            t = STATUE["trail"]
+            while t and t[0] == (x, y):
+                t.pop(0)
+            if t and t[0] != (q["x"], q["y"]):
+                nx, ny = t.pop(0)                  # 문으로 순간 이동한 칸이면 같이 건너뜀
+                statue_step(nx, ny)
+                STATUE["step_at"] = now
+                changed = True
+    elif m == "back":
+        if now - STATUE["step_at"] >= STATUE_STEP_S:
+            h = STATUE["hist"]
+            if len(h) > 1:
+                h.pop()
+                nx, ny = h[-1]
+                STATUE["dir"] = 3 if nx > STATUE["x"] else 2 if nx < STATUE["x"] else 0 if ny > STATUE["y"] else 1
+                STATUE["x"], STATUE["y"] = nx, ny
+            else:
+                STATUE.update(x=STATUE_HOME[0], y=STATUE_HOME[1], dir=0, mode="stone", target="", tname="", hist=[])
+                statue_say("…(다시 동상이 되었다)", now)
+            STATUE["step_at"] = now
+            changed = True
+    if changed:
+        STATE["ver"] += 1
+
+
+def statue_loop() -> None:
+    while True:
+        time.sleep(0.07)
+        with LOCK:
+            statue_tick(time.time())
+
+
+def statue_snap(now: float) -> dict:               # LOCK 안에서
+    age = now - STATUE["say_at"]
+    return {"x": STATUE["x"], "y": STATUE["y"], "dir": STATUE["dir"], "mode": STATUE["mode"], "hits": STATUE["hits"], "max": STATUE_HITS,
+            "target": STATUE["tname"], "act_seq": STATUE["act_seq"], "act_age": round(now - STATUE["act_at"], 2),
+            "say": STATUE["say"] if age < BUBBLE_S else "", "say_seq": STATUE["say_seq"], "say_left": round(BUBBLE_S - age, 2) if age < BUBBLE_S else 0,
+            "home": list(STATUE_HOME), "name": STATUE_NAME}
+
+
+def api_npc(body: dict) -> dict:                  # NPC 를 때리거나(hit) 마우스로 누름(click) → 그 NPC 가 모두에게 보이는 말을 함
+    kind = str(body.get("kind") or "")
+    if kind not in NPC_LINES:
+        raise ApiError(400, "없는 동작입니다.")
+    try:
+        i = int(body.get("npc"))
+    except (TypeError, ValueError):
+        raise ApiError(400, "NPC 번호는 정수입니다.")
+    if not 0 <= i < NPC_N:
+        raise ApiError(400, "없는 NPC 입니다.")
+    now = time.time()
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        if kind == "hit" and hp_p(p) <= 0:
+            return {"ok": False}
+        o = NPC_SAY.get(i)
+        if o and now - o["at"] < 0.4:              # 꾹 누르기 · 연타는 0.4초에 한 번만
+            return {"ok": True}
+        NPC_SAY[i] = {"text": NPC_LINES[kind].format(name=p["name"]), "at": now, "seq": (o["seq"] + 1) if o else 1, "kind": kind}
+        STATE["ver"] += 1
+    return {"ok": True}
+
+
 def log_system(text: str, now: float) -> None:
     STATE["seq"] += 1
     STATE["log"].append({"seq": STATE["seq"], "at": now, "name": "", "text": text, "sys": True})
@@ -978,8 +1140,10 @@ def snapshot(now: float | None = None) -> dict:
         trades = [{"tid": t, "from": v["from"], "to": v["to"], "left": round(TRADE_S - (now - v["at"]), 1),
                    "give": [dict(i) for i in bag(v["from"]) if i["id"] in v["give"]], "want": [dict(i) for i in bag(v["to"]) if i["id"] in v["want"]]}
                   for t, v in TRADES.items() if now - v["at"] <= TRADE_S]
+        npc_say = {str(i): [v["seq"], v["text"], round(NPC_SAY_S - (now - v["at"]), 2), v["kind"], round(now - v["at"], 2)]
+                   for i, v in NPC_SAY.items() if now - v["at"] < NPC_SAY_S}
         return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"], "eq": eq, "heal_r": HEAL_RADIUS,
-                "ground": ground, "trades": trades}
+                "ground": ground, "trades": trades, "statue": statue_snap(now), "npc_say": npc_say}
 
 
 def player(pid) -> dict:
@@ -1061,6 +1225,7 @@ def api_move(body: dict) -> dict:
             p.pop("work", None)
         if (x, y, d % 4) != (p["x"], p["y"], p["dir"]):
             p["x"], p["y"], p["dir"] = x, y, d % 4
+            statue_trail(p)
             STATE["ver"] += 1
     return {"ok": True}
 
@@ -1095,6 +1260,8 @@ def api_attack(body: dict) -> dict:
         dx, dy = DIRV.get(p["dir"], (0, 1))
         front = {(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])}
         hit, done = [], set()
+        if statue_front(p) and statue_wake(p, now):
+            hit.append(STATUE_NAME)
         for q in STATE["players"].values():
             if q is p or (q["x"], q["y"]) not in front or q["name"] == p["name"] or hp_p(q) <= 0:
                 continue
@@ -1157,6 +1324,11 @@ def api_skill(body: dict) -> dict:                 # 1 강타 · 2 응급 처치
             front = [(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])]
             q = next((q for c in front for q in STATE["players"].values()
                       if q is not p and q["name"] != p["name"] and (q["x"], q["y"]) == c and hp_p(q) > 0), None)
+            if q is None and statue_front(p) and statue_wake(p, now):
+                p["act_at"] = now
+                p["act_seq"] += 1
+                STATE["ver"] += 1
+                return {"ok": True, "skill": key, "label": label, "target": STATUE_NAME, "dmg": 0, "mp": mp_of(p["name"]), "cd": 0}
             if q is None:
                 raise ApiError(400, "앞 칸에 사람이 없습니다 (마나는 그대로).")
             q["hit_seq"] += 1
@@ -1278,7 +1450,7 @@ POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/s
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
          "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup, "/plaza/api/hold": api_hold, "/plaza/api/equip": api_equip, "/plaza/api/drop": api_drop,
-         "/plaza/api/trade": api_trade}
+         "/plaza/api/trade": api_trade, "/plaza/api/npc": api_npc}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
@@ -1458,6 +1630,7 @@ def main(argv=None) -> None:
         check_week(time.time(), force=True)        # 꺼져 있는 동안 마감이 지났으면 바로 부활
     save_hp()
     threading.Thread(target=hp_loop, daemon=True).start()
+    threading.Thread(target=statue_loop, daemon=True).start()
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     srv.daemon_threads = True
     try:                                           # 한글 Windows(cp949) 출력에서 '—' 같은 글자로 멈추지 않게 (2026-10-16 실제로 겪음: 시작하자마자 꺼짐)

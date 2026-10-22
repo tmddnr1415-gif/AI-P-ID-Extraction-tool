@@ -174,7 +174,7 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-tools .slot.mine { opacity: .85; border-color: #5f9bd6; }
 .pz-tools .slot.on { opacity: 1; border-color: #ffd84a; box-shadow: 0 0 8px rgba(255, 216, 74, .8), inset 0 0 6px rgba(255, 216, 74, .35); }
 .pz-tools .slot.on span { color: #ffe7a6; }
-.pz-mini { position: absolute; right: 22px; bottom: 56px; width: 128px; height: 88px; image-rendering: pixelated; pointer-events: none;
+.pz-mini { position: absolute; right: 22px; bottom: 56px; width: 192px; height: 88px; image-rendering: pixelated; pointer-events: none;
   border: 2px solid #3d6a9a; border-radius: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .35); background: #0d1320; }
 .pz-who .hpv { color: #8fa3bb; font-size: 10.5px; }
 @media (max-width: 560px) { .pz-hud { width: 184px; } .pz-help { display: none; } .pz-mini { display: none; } }
@@ -182,6 +182,6 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 @media (max-width: 700px) { .pz-tools { display: none; } }
 @media (max-height: 520px), (max-width: 700px) {   /* 작은 화면 — 대화창 · 상태판을 줄여 놀이 공간 확보 */
   .pz-log { height: 44px; font-size: 11.5px; } .pz-chat { width: min(300px, calc(100% - 44px)); }
-  .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .q, .pz-hud .face { display: none; } .pz-tools { display: none; } .pz-mini { width: 96px; height: 66px; bottom: 50px; }
+  .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .q, .pz-hud .face { display: none; } .pz-tools { display: none; } .pz-mini { width: 132px; height: 60px; bottom: 50px; }
   .pz-who { max-height: 26%; font-size: 11px; } .pz-help { display: none; }
 }

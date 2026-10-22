@@ -243,6 +243,32 @@ try:
     ps.XP["pres"]["가상"]["day"] = ""                          # 다음 날
     b2 = ps.XP["xp"]["가상"]; ps.visit_xp("가상", t0 + 86400)
     ok.append(("연속 접속 — 이틀째 +10 +4", ps.XP["streak"]["가상"]["n"] == 2 and ps.XP["xp"]["가상"] - b2 == ps.VISIT_XP + ps.STREAK_XP))
+    # NPC 말 · 박병두 프로님 동상 (2026-10-22 판10 — 서버 함수를 직접, 시각은 가짜로)
+    ps.STATE["players"]["zz"].update(x=40, y=24, dir=1, say="", say_at=0.0, say_seq=0, seen=t0, act_seq=0, act_at=0.0, hit_seq=0, hit_at=0.0, hit_by="")
+    ps.HP["hp"]["가상"] = 100
+    ps.api_npc({"id": "zz", "npc": 2, "kind": "hit"})
+    ok.append(("NPC 때리기 — 때린 사람 이름을 부름", ps.NPC_SAY[2]["text"] == "가상 프로님 그만좀 때리세요!!"))
+    ps.NPC_SAY.clear(); ps.api_npc({"id": "zz", "npc": 2, "kind": "click"})
+    ok.append(("NPC 누르기 — 왜 불러요", ps.NPC_SAY[2]["text"] == "아!! 프로님 왜 불러요!! 바쁜데" and ps.statue_snap(t0)["mode"] == "stone"))
+    hx, hy = ps.STATUE_HOME
+    q = ps.STATE["players"]["zz"]; q.update(x=hx, y=hy + 1, dir=1)
+    woke = ps.statue_front(q) and ps.statue_wake(q, t0)
+    for x, y in [(hx, hy + 2), (hx + 1, hy + 2), (hx + 2, hy + 2), (hx + 2, hy + 3)]:   # 깨어나는 동안 달아남 → 같은 칸을 밟아 따라옴
+        q["x"], q["y"] = x, y; ps.statue_trail(q)
+    tt = t0
+    for _ in range(80):
+        tt += 0.2; ps.statue_tick(tt)
+        if ps.STATUE["hits"]:
+            break
+    near = ps.STATUE["hits"] == 1 and (ps.STATUE["x"], ps.STATUE["y"]) == (hx + 2, hy + 2)
+    for _ in range(40):
+        if ps.STATUE["hits"] >= 10:
+            break
+        tt += 0.85; ps.statue_tick(tt)
+    ok.append(("동상 — 때리면 깨어나 밟은 칸을 따라와 10대", woke and near and ps.STATUE["hits"] == 10 and ps.hp_of("가상") == 100 - 10 * ps.STATUE_DMG))
+    for _ in range(40):
+        tt += 0.2; ps.statue_tick(tt)
+    ok.append(("동상 — 걸어온 길로 제자리에 돌아가 다시 동상", ps.STATUE["mode"] == "stone" and (ps.STATUE["x"], ps.STATUE["y"]) == ps.STATUE_HOME))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)
