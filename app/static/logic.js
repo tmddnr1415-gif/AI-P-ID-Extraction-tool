@@ -943,7 +943,7 @@ async function openSheet(page, opt) {
   if (MACRO_FROM && page === MACRO_FROM.target && !L.macroApplied) {
     L.macroApplied = true;
     // L44 — 부모 시트에 펼쳐 같이 돈 값을 받아 그린다.  부모 창이 없으면(주소로 직접 연 창) 예전처럼 이 Typical 만 돌린다
-    if (MACRO_FROM.pending) applyMacroInner(MACRO_FROM.pending, true);
+    if (MACRO_FROM.pending) applyMacroInner(MACRO_FROM.pending, true, MACRO_FROM.pendingForces);
     else if (!askParentMacro()) applyMacroInputs(MACRO_FROM.inputs);
     return;
   }
@@ -2830,7 +2830,9 @@ function sendMacroInputs() {
     if (!c.win || c.win.closed) { delete L.childWins[key]; continue; }
     if (c.page !== L.page && !(L.macros || {})[c.page]) continue;
     const v = ((L.macros || {})[c.page] || {})[c.bid];
-    if (v) c.win.postMessage({ type: "macro-inputs", key, inputs: v.inputs, inner: (L.macroInner || {})[key] || null }, location.origin);
+    const inner = (L.macroInner || {})[key] || null;
+    const forces = inner ? macroChildForces(L.allForces[c.page], c.bid, inner.alias) : null;
+    if (v) c.win.postMessage({ type: "macro-inputs", key, inputs: v.inputs, inner, forces }, location.origin);
   }
 }
 window.addEventListener("message", (e) => {
@@ -2844,7 +2846,7 @@ window.addEventListener("message", (e) => {
     return;
   }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
-  if (e.data.inner) applyMacroInner(e.data.inner);
+  if (e.data.inner) applyMacroInner(e.data.inner, false, e.data.forces);
   else applyMacroInputs(e.data.inputs);
 });
 async function applyMacroInputs(inputs) {
@@ -2883,9 +2885,9 @@ function macroRowOn(n) {
   const r = L.sheet && L.sheet.rows.find((x) => x.side === "L" && x.n === n);
   return !!(r && L.values[r.net] === 1);
 }
-async function applyMacroInner(inner, first) {
+async function applyMacroInner(inner, first, forces) {
   if (!MACRO_FROM) return;
-  if (!L.sheet || L.page !== MACRO_FROM.target) { MACRO_FROM.pending = inner; return; }
+  if (!L.sheet || L.page !== MACRO_FROM.target) { MACRO_FROM.pending = inner; MACRO_FROM.pendingForces = forces; return; }
   const was = L.macroLink;
   const lastJson = was ? JSON.stringify(was.frames[was.frames.length - 1].values) : null;
   L.macroLink = inner;
@@ -2901,7 +2903,8 @@ async function applyMacroInner(inner, first) {
     return { ...fr, values: v, depth: fr.depth || {} };
   });
   if (!frames.length) return;
-  L.forces = L.allForces[L.page] = {};             // 이 창에서 따로 준 값은 없다 — 부모 시트가 정한다
+  // 값은 부모 시트가 정한다 — 강제 표시만 부모 장의 강제(이 매크로 안쪽)를 옮겨 그린다 (L45)
+  L.forces = L.allForces[L.page] = { ...(forces || {}) };
   L.implied = {}; L.unmet = []; L.short = new Set(); L.design = []; L.chain = []; L.linked = {};
   L.notes = []; L.pulled = [];
   L.finalValues = frames[frames.length - 1].values;
@@ -2940,7 +2943,36 @@ async function macroWindowForce(key, v) {
       return;
     }
   }
-  status(`이 창의 값은 부모 시트(${ln.sheet_no || ""})의 계산 그대로입니다 — 입력 행을 누르거나 부모 시트에서 신호를 주세요`);
+  // L45 — Typical 안의 선 · 블록(S-R 래치 앞뒤 게이트 …)도 부모 장에 펼친 이름으로 준다.  값은 그 묶음 계산이 정한다
+  const pk = macroParentKey(key);
+  if (!pk) { status(`이 항목은 부모 시트(${ln.sheet_no || ""})에서 주세요`); return; }
+  window.opener.postMessage({ type: "macro-set", parent: MACRO_FROM.parent, block: MACRO_FROM.block, key: pk, value: v }, location.origin);
+  status(`${v === null ? "풀기" : v + " 로 줌"} — 부모 시트(${ln.sheet_no || ""})의 매크로 안에서 계산합니다`);
+}
+/* 새 창의 강제 열쇠 → 부모 장에 펼친 이름 (단자 선은 부모 선 이름 그대로) */
+function macroParentKey(key) {
+  const bid = MACRO_FROM.block, al = (L.macroLink || {}).alias || {};
+  const netKey = (n) => "net:" + (al[String(n)] || `${bid}/${n}`);
+  const i = key.indexOf(":"), kind = key.slice(0, i), id = key.slice(i + 1);
+  if (kind === "net") return netKey(id);
+  if (kind === "block" || kind === "hold") return `${kind}:${bid}/${id}`;
+  if (kind === "row") {
+    const r = L.sheet.rows.find((x) => x.n === Number(id) && x.net != null);
+    return r ? netKey(r.net) : null;
+  }
+  return null;
+}
+/* 부모 장의 강제 → 새 창(Typical) 열쇠 — 새 창이 강제 표시를 그리게 */
+function macroChildForces(f, bid, alias) {
+  const back = {};
+  for (const [tn, nm] of Object.entries(alias || {})) back[nm] = tn;
+  const out = {};
+  for (const [k, v] of Object.entries(f || {})) {
+    const i = k.indexOf(":"), kind = k.slice(0, i), id = k.slice(i + 1);
+    if (id.startsWith(bid + "/")) out[`${kind}:${id.slice(bid.length + 1)}`] = v;
+    else if (kind === "net" && back[id] !== undefined) out["net:" + back[id]] = v;
+  }
+  return out;
 }
 /* 부모 창 쪽 — 새 창이 값을 달라 할 때 · 새 창의 입력 행을 부모 시트의 실제 행으로 줄 때 */
 async function handleMacroAsk(d, src) {
@@ -2957,16 +2989,19 @@ async function handleMacroSet(d) {
   let s = L.page === page ? L.sheet : null;
   if (!s) { try { s = await getSheet(page); } catch (e) { return; } }
   const m = ((s.blocks[d.block] || {}).macro) || {};
-  const x = (m.inputs || []).find((p) => p.row === Number(d.row) && p.net != null);
-  if (!x) return;
-  const pr = s.rows.find((r) => r.side === "L" && r.net === x.net);
-  const k = pr ? "row:" + pr.n : "net:" + x.net;
+  let x = null, pr = null, k = d.key || null;            // L45 — 새 창이 펼친 이름으로 준 열쇠
+  if (!k) {
+    x = (m.inputs || []).find((p) => p.row === Number(d.row) && p.net != null);
+    if (!x) return;
+    pr = s.rows.find((r) => r.side === "L" && r.net === x.net);
+    k = pr ? "row:" + pr.n : "net:" + x.net;
+  }
   const f = { ...(L.allForces[page] || {}) };
   if (d.value === null || d.value === undefined) delete f[k]; else f[k] = d.value === 1 ? 1 : 0;
   L.allForces[page] = f;
   if (page === L.page) L.forces = f;
   if (L.mode !== "sim") setMode("sim", true);
-  status(`매크로 새 창 — ${s.sheet_no} ${pr ? pr.n + "행" : "단자 " + (x.pin || "")} 을 ${d.value == null ? "풀기" : d.value}`);
+  status(`매크로 새 창 — ${s.sheet_no} ${pr ? pr.n + "행" : x ? "단자 " + (x.pin || "") : "매크로 안 " + k.split(":")[0]} 을 ${d.value == null ? "풀기" : d.value}`);
   runSim(true);
 }
 function renderMacroBanner() {
@@ -4193,7 +4228,9 @@ function latchState(bid) {
   const ps = s.ports.filter((p) => p.block === bid);
   const S = ps.some((p) => p.dir === "in" && p.role === "set" && portVal(p) === 1) ? 1 : 0;
   const R = ps.some((p) => p.dir === "in" && p.role === "reset" && portVal(p) === 1) ? 1 : 0;
-  const Q = L.state && L.state.mem && L.state.mem[bid] === 1 ? 1 : 0;
+  let Q = L.state && L.state.mem && L.state.mem[bid] === 1 ? 1 : 0;
+  // L45 — 매크로 새 창은 상태를 갖지 않는다 (부모 장이 센다) — Q 출력 선의 값이 그 상태다
+  if (macroLinked()) Q = ps.some((p) => p.dir === "out" && p.role === "q" && portVal(p) === 1) ? 1 : 0;
   const dom = (s.blocks[bid].param || {}).dominant || "";
   return { S, R, Q, dom };
 }
