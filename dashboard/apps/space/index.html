@@ -6,13 +6,23 @@
 <title>판넬 공간확보</title>
 <style>
 /* 판넬 공간확보 — 계장 Control Room 판넬 초기 공간확보 (대시보드 메뉴 '판넬 공간확보', /apps/space/)
-   폐쇄망: 외부 글꼴·CDN 없음. 색·글꼴은 dashboard.html :root 토큰과 같은 값 (navy #1e2a5a · accent #2b44c9 …) */
+   폐쇄망: 외부 글꼴·CDN 없음. 기본 = 어두운 CAD 화면 (AutoCAD 모델 공간처럼 짙은 회색 바탕 · 밝은 선),
+   도구줄 [☀ 밝게] 로 대시보드 색(밝은 화면)으로 바꿀 수 있다 (이 PC 에 기억). */
 :root{
-  --paper:#eef1f8; --sheet:#ffffff; --ink:#1b2238; --ink-2:#667089; --line:#d5dcea; --grid:#e3e8f2; --grid-major:#c3cbdc;
-  --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.12); --err:#d63a2f; --warn:#c77700; --ok:#168a5c;
-  --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a;
+  --paper:#212830; --sheet:#2a313a; --ink:#e4e9ef; --ink-2:#9aa5b3; --line:#3d4652; --grid:#29313a; --grid-major:#36404c;
+  --accent:#5b9dff; --accent-d:#3f82ea; --accent-soft:rgba(91,157,255,.16); --err:#ff6259; --warn:#f2b33d; --ok:#45d08c;
+  --clear:#e3a33a; --panel-bg:#1b2128; --col:#8793a3; --navy:#3d5a8f; --door:#4dd4c6; --wall:#f2f5f8;
+  --hover:#343c47; --pfill:.34; --pfill-on:.5; --ok-l:rgba(69,208,140,.14); --err-l:rgba(255,98,89,.16); --warn-l:rgba(242,179,61,.16); --toast:#0f1318;
   --f-ui:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;
   --f-mono:Consolas,monospace;
+  color-scheme:dark;
+}
+/* 밝은 화면 — dashboard.html :root 토큰과 같은 값 (navy #1e2a5a · accent #2b44c9 …) */
+:root[data-theme="light"]{
+  --paper:#eef1f8; --sheet:#ffffff; --ink:#1b2238; --ink-2:#667089; --line:#d5dcea; --grid:#e3e8f2; --grid-major:#c3cbdc;
+  --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.12); --err:#d63a2f; --warn:#c77700; --ok:#168a5c;
+  --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a; --door:#0f8a80; --wall:#1b2238;
+  --hover:#f4f6fd; --pfill:.2; --pfill-on:.32; --ok-l:#dff4ea; --err-l:#fde8e6; --warn-l:#fff6dc; --toast:#1b2238;
   color-scheme:light;
 }
 html,body{height:100%}
@@ -25,7 +35,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:
 .bar .brand small{font-family:var(--f-mono);font-weight:500;color:var(--ink-2);margin-left:6px;font-size:11px}
 .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
 button,.btn{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
-button:hover{background:#f4f6fd}
+button:hover{background:var(--hover)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
@@ -77,9 +87,9 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .issues li.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
 /* 상태 pill — 대시보드 색 (OK 초록 · 경고 주황 · 간섭=오류 빨강), 배경을 옅게 채움 */
 .pill{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;border:1px solid}
-.pill.ok{color:var(--ok);border-color:#a8dcc3;background:#dff4ea} .pill.err{color:var(--err);border-color:#f3b4ae;background:#fde8e6} .pill.warn{color:var(--warn);border-color:#f0d58a;background:#fff6dc}
+.pill.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-l)} .pill.err{color:var(--err);border-color:var(--err);background:var(--err-l)} .pill.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-l)}
 /* 알림 (불러오기 실패 등) — 대시보드 toast 와 같은 자리·모양 */
-.toast{position:fixed;bottom:40px;right:22px;background:#1b2238;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:30;max-width:420px;font-size:12.5px;line-height:1.5}
+.toast{position:fixed;bottom:40px;right:22px;background:var(--toast);border:1px solid var(--line);color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:30;max-width:420px;font-size:12.5px;line-height:1.5}
 .toast.show{opacity:1}.toast.err{background:var(--err)}
 body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠에 메뉴 이름이 이미 있음 */
 .row{display:flex;gap:6px;flex-wrap:wrap}
@@ -91,7 +101,7 @@ body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠�
 .status .mode{color:var(--accent);font-weight:600}
 .legend{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:6px 9px;font-size:11px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;pointer-events:none}
 .legend i{display:inline-block;width:18px;height:9px;margin-right:6px;vertical-align:middle}
-.modal{position:fixed;inset:0;background:rgba(10,18,24,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal{position:fixed;inset:0;background:rgba(5,8,12,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
 .modal .box{background:var(--sheet);border:1px solid var(--line);border-radius:6px;width:min(720px,100%);max-height:90%;display:flex;flex-direction:column;gap:10px;padding:14px}
 .modal h4{margin:0;font-size:14px}
 .modal textarea{width:100%;min-height:300px;flex:1;font-family:var(--f-mono);font-size:12px;background:var(--panel-bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
@@ -127,6 +137,8 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vClr" checked>유지보수 공간</label>
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
     <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
+    <span class="sep"></span>
+    <button id="bTheme" title="어두운 CAD 화면 ↔ 밝은 화면 (이 PC 에 기억)">☀ 밝게</button>
   </div>
 
   <div class="main">
@@ -410,7 +422,7 @@ function render(){
    <pattern id="hatchE" width="${hs}" height="${hs}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs}" stroke="${err}" stroke-width="${1.2/s}" opacity=".7"/></pattern></defs>`;
   const a=toW(0,0), b=toW(vw,vh);
   let g=`<rect x="${a.x}" y="${a.y}" width="${b.x-a.x}" height="${b.y-a.y}" fill="url(#gp)"/>`;
-  g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".55" stroke="${ink}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+  g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".35" stroke="${C('--wall')}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
   // columns
   const cols=columns(); cols.forEach(c=>{g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"/>`});
   // clearances
@@ -425,7 +437,7 @@ function render(){
     const b=q.body, st=status[p.id], isS=sel.has(p.id);
     const stroke=isS?acc:(st==='err'?err:ink);
     g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${C('--panel-bg')}" stroke="${stroke}" stroke-width="${isS?2:1}" vector-effect="non-scaling-stroke"/>`;
-    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${q.t.color}" fill-opacity="${isS?.32:.2}"/>`;
+    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${q.t.color}" fill-opacity="${isS?C('--pfill-on'):C('--pfill')}"/>`;
     if(st==='err')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="url(#hatchE)"/>`;
     if(st==='warn')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="${warn}" stroke-width="2" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`;
     const f=q.fe; g+=`<line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${isS?acc:ink}" stroke-width="3.5" vector-effect="non-scaling-stroke"/>`;
@@ -788,6 +800,12 @@ $('#bDxf').onclick=()=>{
 $('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),fname('배치안','json'),'application/json');
 $('#bLoad').onclick=()=>$('#fLoad').click();
 $('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=norm(d);sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
+
+/* ---------- 화면 테마: 기본 어둡게(CAD) · [☀ 밝게] ---------- */
+function setTheme(t){if(t==='light')document.documentElement.dataset.theme='light';else delete document.documentElement.dataset.theme;
+  $('#bTheme').textContent=t==='light'?'🌙 어둡게':'☀ 밝게';try{localStorage.setItem('crspace.theme',t)}catch(e){}render()}
+$('#bTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
+try{if(localStorage.getItem('crspace.theme')==='light')setTheme('light')}catch(e){}
 
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildProps();
