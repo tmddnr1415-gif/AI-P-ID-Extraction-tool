@@ -992,7 +992,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-22.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-22.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2460,6 +2460,27 @@ async function pidConnect(key) {
          <p class="muted">${esc(base)}</p><button class="btn pri" data-pidretry>다시 시도</button></div>`;
 }
 
+/* ---------- 판넬 공간확보 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
+ * MODULES(카드 안 iframe)와 달리 1분 자동 갱신에도 iframe 을 다시 만들지 않는다 (편집 중인 배치가 날아가지 않게).
+ * 주소 뒤 값: embed=1(앱 자체 제목줄 숨김) · user=로그인 본명(작성자 기본값) */
+const APP_ROUTES = { space:{ title:'판넬 공간확보', src:'/apps/space/index.html' } };
+const FRAME_ROUTES = k => PID_ROUTES[k] || APP_ROUTES[k];   // 본문 전체를 iframe 으로 채우는 메뉴
+function appUrl(key) {
+  return `${API_BASE}${APP_ROUTES[key].src}?embed=1&user=${encodeURIComponent(user || '')}`;
+}
+function renderApp(c, key) {
+  const A = APP_ROUTES[key], T = esc(A.title);
+  if (!SERVER || OFFLINE) {                                // 앱 파일은 대시보드 서버가 주므로 온라인일 때만
+    c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}"><div class="pidbar"><b>${T}</b></div>
+      <div class="pidbody"><div class="pidmsg"><p>${T}은(는) 대시보드 서버에 연결되어 있을 때만 열 수 있습니다.</p><p class="muted">서버가 연결되면 이 메뉴를 다시 누르세요.</p></div></div></div>`);
+    return;
+  }
+  const url = appUrl(key);
+  c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}">
+    <div class="pidbar"><b>${T}</b> · <a href="${esc(url.replace('embed=1&', ''))}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
+    <div class="pidbody"><iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe></div></div>`);
+}
+
 function render() {
   if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }
   if (route === 'mgmt') { route = 'mgalloc'; try { history.replaceState(null, '', '#mgalloc'); } catch (_) {} }   // Management 머리 → 첫 하위 메뉴   // 예전 주소 #work → 통합 업무 시트
@@ -2467,7 +2488,7 @@ function render() {
   renderMenu(); renderHeader();
   if (root) plazaOn();                                     // 계장 광장: 어느 메뉴에 있든 접속 유지 (홈에서만 보임) · P&ID/LOGIC 이면 '분석 중' 표시
   const c = $('#content');
-  document.body.classList.toggle('pid-mode', !!PID_ROUTES[route] && !!root);   // P&ID: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
+  document.body.classList.toggle('pid-mode', !!FRAME_ROUTES(route) && !!root);   // P&ID · 판넬 공간확보: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
   if (TB.shown || presenceOn()) renderTaskBar();           // 저장·자동 갱신 때마다 '내 업무' 완료 상태·접속자 갱신
   if (!root) return renderWelcome(c);
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
@@ -2486,10 +2507,10 @@ function render() {
   }
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
       <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
-  if (readOnly() && !PID_ROUTES[route]) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
+  if (readOnly() && !FRAME_ROUTES(route)) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
   // P&ID 화면을 보고 있는 중의 재렌더링(1분 자동 갱신 등)은 iframe 을 그대로 두고 배너만 갱신 → 도구 작업 내용 유지
   const allowed = can(menuOf(route));                      // 메뉴 권한 (주소창으로 직접 들어와도 막음)
-  const keepPid = PID_ROUTES[route] && allowed ? $('#pidwrap') : null;
+  const keepPid = FRAME_ROUTES(route) && allowed ? $('#pidwrap') : null;
   if (keepPid && keepPid.dataset.route === route) {
     [...c.children].forEach(ch => { if (ch !== keepPid) ch.remove(); });
     keepPid.insertAdjacentHTML('beforebegin', banners);
@@ -2499,12 +2520,13 @@ function render() {
   if (!allowed) {
     document.body.classList.remove('pid-mode');
     c.insertAdjacentHTML('beforeend', `<div class="card welcome"><h2>🔒 접근 권한이 없습니다</h2>
-      <p>이 메뉴(${esc(menuOf(route) === 'weekly' ? '주간업무보고' : menuOf(route) === 'mgmt' ? 'Management' : MODULES[route]?.title || PID_ROUTES[route]?.title || (route === 'board' ? '익명게시판' : route))})는 운영자가 권한을 부여해야 사용할 수 있습니다.</p>
+      <p>이 메뉴(${esc(menuOf(route) === 'weekly' ? '주간업무보고' : menuOf(route) === 'mgmt' ? 'Management' : MODULES[route]?.title || FRAME_ROUTES(route)?.title || (route === 'board' ? '익명게시판' : route))})는 운영자가 권한을 부여해야 사용할 수 있습니다.</p>
       <p class="muted">${AUTH ? '운영자(서버 PC)에게 권한을 요청하세요. 권한이 부여되면 30초 안에 메뉴가 나타납니다.' : '로그인하면 계정에 부여된 메뉴를 사용할 수 있습니다.'}</p></div>`);
     return;
   }
   if (route === 'home') renderHome(c); else if (route === 'board') renderBoard(c);
   else if (PID_ROUTES[route]) renderPid(c, route);
+  else if (APP_ROUTES[route]) renderApp(c, route);
   else if (MODULES[route]) renderModule(c, route);
   else if (route === 'alloc') renderAlloc(c);
   else if (route === 'mgalloc') renderAlloc(c, true);
@@ -2517,7 +2539,7 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'space', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
@@ -2542,6 +2564,7 @@ function renderMenu() {
     (can('weekly') ? group('weekly', { k:'home', l:'📋 주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
     (can('pid') ? btn({ k:'pid', l:'📐 P&ID 분석', n:'', c:0 }, 'top') : '') +
     (can('logic') ? btn({ k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, 'top') : '') +
+    (can('space') ? btn({ k:'space', l:'🗄 판넬 공간확보', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
@@ -2928,7 +2951,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...' };
+const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', space:'판넬 공간확보 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {
@@ -5186,7 +5209,7 @@ $('#content').onclick = e => {
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
   const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true) : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
-  if (MODULES[route]) return;
+  if (MODULES[route] || APP_ROUTES[route]) return;
   if (route === 'board') return;
   if (DRAG?.skipClick) return;
   const hth = e.target.closest('#tarea thead th[data-ck]');
