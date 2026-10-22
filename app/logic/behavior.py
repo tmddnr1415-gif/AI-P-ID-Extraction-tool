@@ -86,7 +86,7 @@ def _minimize(sheets, forces, page, net, want, cache, timers):
 
 
 def learn_one(sheets, page, row, want=1, cache=None, timers=None, deep=False):
-    p = sequence.plan(sheets, page, row, want)
+    p = sequence.plan(sheets, page, row, want, timers, cache)
     if not p.get("ok"):
         return {"page": page, "row": row, "reached": False, "why": p.get("why") or "조건을 읽지 못함"}
     tree = sequence.link(p)

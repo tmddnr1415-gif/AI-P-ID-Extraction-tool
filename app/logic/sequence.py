@@ -25,6 +25,7 @@ import yaml
 
 from . import sim
 
+ALIGN_TRIES = 48        # L50 — 권하는 갈래가 안 설 때 시뮬레이터 조합을 찾는 상한 (scenario limit · 한 번 0.1~0.3초)
 NODE_LIMIT = 700        # 한 시트 나무의 마디 상한 — 넘으면 그 아래는 '더 깊다' 로 남긴다 (화면이 그 선을 직접 묻는다)
 DEPTH_LIMIT = 160       # L50 — 여러 장에 걸친 매크로(PS3 · 4장) 안쪽 조건이 90 을 넘겼다 (실측 최대 54 단계 · 시간 같음)
 
@@ -134,7 +135,7 @@ def _row(s, side, n):
     return next((r for r in s["rows"] if r["side"] == side and r["n"] == n), None)
 
 
-def plan(sheets, page, row, value=1, timers=None):
+def plan(sheets, page, row, value=1, timers=None, cache=None):
     """그 시트 그 출력 행이 value 가 되기 위한 조건 나무.
 
     매크로 상자(MOV · SOV · MOTOR 블록)의 출력은 그 Typical 시트 안의 조건으로 들어가 읽는다 — Typical 의 입력 행은
@@ -147,7 +148,7 @@ def plan(sheets, page, row, value=1, timers=None):
     r = _row(s, "R", row)
     if r is None or r.get("net") is None:
         return {"ok": False, "why": f"{s.get('sheet_no')} {row}행에 읽힌 출력 선이 없습니다"}
-    return _plan_net(sheets, page, r["net"], value, timers, {"row": row, "desc": r.get("desc")})
+    return _plan_net(sheets, page, r["net"], value, timers, {"row": row, "desc": r.get("desc"), "cache": cache})
 
 
 def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
@@ -188,8 +189,17 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
                     # 상자에 이 입력의 단자가 없다(그리지 않았거나 못 읽음) — 펼친 매크로 안에서 그 Typical 행의 선은 몰이가
                     # 없는 선이라 직접 답할 수 있다 (L33).  지어낸 연결이 아니라 '사람이 답한 값' 으로 남는다.
                     if rr.get("net") is not None:
+                        key = "net:" + C["prefix"] + str(rr["net"])
+                        # L50 — 그 Typical 행의 선이 출력 행과 한 선이면(RUNNING STATUS 입력 = RUN FEED BACK 출력) 펼친 장에서는
+                        # 그 선이 상자 출력 단자 선으로 이름이 바뀐다 — 안쪽 이름으로 주면 아무것도 안 바뀐다 (실측 HRSG G063)
+                        mb = (C["parent"]["s"]["blocks"].get(C["macro"].split("/")[-1]) or {}) if C.get("parent") else {}
+                        for o in (mb.get("macro") or {}).get("outputs") or []:
+                            orow = _row(sc, "R", o.get("row")) if o.get("row") is not None else None
+                            if orow and orow.get("net") == rr["net"] and o.get("net") is not None:
+                                key = "net:" + C["parent"]["prefix"] + str(o["net"])
+                                break
                         return base("terminal", w, f"매크로 입력 '{rr.get('desc') or n}' — 상자에 이 단자가 없습니다 (직접 답함)",
-                                    key="net:" + C["prefix"] + str(rr["net"]), block=C["macro"],
+                                    key=key, block=C["macro"],
                                     at=(top["s"]["blocks"].get(C["macro"].split("/")[0]) or {}).get("at"))
                     return base("stuck", w, f"매크로 입력 '{rr.get('desc') or n}' 에 닿는 상자 단자를 읽지 못했습니다",
                                 block=C["macro"], at=(C["parent"]["s"]["blocks"].get(C["macro"]) or {}).get("at"))
@@ -318,6 +328,10 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
             if want == 0:
                 return base("default0", 0, "아무것도 주지 않으면 0 입니다", auto=True)
             return macro_node(C, gate, want, goal[3], depth, path)
+        if gate and want == 0 and C["s"]["blocks"].get(gate, {}).get("logic") == "pulse":
+            # L50 — 펄스는 가만히 있으면 0 이다 (오르는 변에서만 잠깐 1).  '펄스 = 0' 을 입력 = 0 으로 거꾸로 풀면
+            # 그 입력(예: NOT STOPPED)을 0 으로 요구해 앞 단계가 1 로 켠 신호와 어긋났다 (HRSG G009 STOP CMD).
+            return base("default0", 0, "펄스 — 가만히 있으면 0 입니다", auto=True)
         try:
             opts = sim._back_options(C["s"], C["idx"], goal, True, {**ctx, "rows_only": False})
         except Exception:
@@ -365,6 +379,8 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
 
     tree = expand(top, ("net", net, int(value)), 0, frozenset())
     _finish(tree)
+    _resolve_picks(tree)
+    tested = _align_picks(tree, sheets, s, net, int(value), timers, (meta or {}).get("cache")) if (meta or {}).get("align", True) else None
     flat = {}
 
     def flatten(n):
@@ -379,7 +395,7 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
     # 같은 마디가 여러 자리에 나오므로 나무를 펼쳐 보내지 않고 마디 표 + id 로 보낸다 (화면이 다시 잇는다)
     return {"ok": True, "page": page, "sheet": s.get("sheet_no"), "row": row, "desc": meta.get("desc"), "net": net,
             "value": int(value), "title": s.get("title"), "root": root, "nodes": flat, "size": count[0],
-            "truncated": count[0] > NODE_LIMIT, "signals": _signals(tree)}
+            "truncated": count[0] > NODE_LIMIT, "signals": dict(_signals(tree), tested=tested)}
 
 
 def _analog_text(gb):
@@ -449,6 +465,9 @@ def _signals(tree):
         kids = n.get("kids") or []
         if n["t"] == "any":
             forks[0] += 1
+            if n.get("conflict"):
+                gaps.append({"text": "서로 어긋나는 조건 — 어느 갈래를 골라도 앞 조건과 반대 값을 요구합니다: " + " · ".join(str(x) for x in n["conflict"][:3]),
+                             "block": (n.get("gate") or {}).get("block"), "at": (n.get("gate") or {}).get("at"), "key": None})
             kids = kids[n.get("pick", 0):n.get("pick", 0) + 1]
         for k in kids:
             walk(k)
@@ -456,7 +475,7 @@ def _signals(tree):
     return {"need": need, "zero": zero, "gaps": gaps, "forks": forks[0], "asks": tree.get("asks", 0), "viable": tree.get("viable", False)}
 
 
-def needs(sheets, page, target, value=1, timers=None):
+def needs(sheets, page, target, value=1, timers=None, cache=None):
     """블록(게이트 · 매크로 · 신호원) 또는 선을 누르면 — 그 출력이 value 가 되려면 앞쪽 어떤 신호가 켜져야 하는지.
 
     target `block:<id>` 는 그 블록의 출력 선마다(매크로는 출력 단자마다) 나무 하나 · `net:<id>` 는 그 선 하나.
@@ -468,7 +487,7 @@ def needs(sheets, page, target, value=1, timers=None):
     t = str(target or "")
     if t.startswith("net:"):
         net = t[4:]
-        p = _plan_net(sheets, page, net, value, timers, {})
+        p = _plan_net(sheets, page, net, value, timers, {"cache": cache})
         return {"ok": p.get("ok", False), "why": p.get("why"), "kind": "net", "page": page, "sheet": s.get("sheet_no"),
                 "label": "선 " + net, "value": int(value), "outputs": [{"net": net, "desc": "", "plan": p}] if p.get("ok") else []}
     if not t.startswith("block:"):
@@ -485,7 +504,7 @@ def needs(sheets, page, target, value=1, timers=None):
                 outs.append({"pin": o.get("pin"), "desc": o.get("desc") or "", "row": o.get("row"), "net": None,
                              "plan": {"ok": False, "why": "이 출력 단자에 닿는 선을 도면에서 읽지 못했습니다"}})
                 continue
-            p = _plan_net(sheets, page, o["net"], value, timers, {"desc": o.get("desc") or o.get("pin")})
+            p = _plan_net(sheets, page, o["net"], value, timers, {"desc": o.get("desc") or o.get("pin"), "cache": cache})
             outs.append({"pin": o.get("pin"), "desc": o.get("desc") or "", "row": o.get("row"), "net": o["net"], "plan": p})
         kind, label = "macro", (m.get("title") or b.get("caption") or "매크로 블록")
         if not outs:
@@ -504,7 +523,7 @@ def needs(sheets, page, target, value=1, timers=None):
             to += [_block_short(s["blocks"].get(pt["block"]) or {}, pt["block"])
                    for pt in s.get("ports") or [] if pt.get("net") == n and pt.get("dir") == "in" and pt.get("block") != bid]
             outs.append({"pin": None, "desc": " · ".join(x for x in to if x)[:120], "row": None, "net": n,
-                         "plan": _plan_net(sheets, page, n, value, timers, {})})
+                         "plan": _plan_net(sheets, page, n, value, timers, {"cache": cache})})
         kind = "gate"
         lg = b.get("logic")
         label = GATE_KO.get(lg) or b.get("label") or b.get("func") or bid
@@ -580,6 +599,154 @@ def _finish(n):
         n["asks"] = 1 + n["kids"][pick]["asks"]
         n["summary"] = n["kids"][pick]["summary"]
     return n
+
+
+def _picked_reqs(n, out):
+    """권하는 갈래를 따라 잎이 요구하는 값 — {key: want} (없어야 하는 묶음의 항목은 0)."""
+    if n["t"] == "leaf":
+        if n.get("kind") == "zero":
+            for it in n.get("items") or []:
+                if it.get("key"):
+                    out.setdefault(it["key"], 0)
+        elif n.get("key") and not n.get("auto") and n.get("kind") not in ("stuck", "deep", "loop"):
+            out.setdefault(n["key"], n.get("want"))
+        return out
+    kids = n.get("kids") or []
+    if n["t"] == "any":
+        kids = kids[n.get("pick", 0):n.get("pick", 0) + 1]
+    for k in kids:
+        _picked_reqs(k, out)
+    return out
+
+
+def _tree_forces(tree, page):
+    """권하는 갈래의 요구를 묶음 시뮬레이터 강제 꼴로 — {쪽: {key: 0|1}} (읽기 빈틈 hold 는 1 로 · 매크로 안쪽 키는 그 장)."""
+    out = {}
+
+    def walk(n):
+        if n["t"] == "leaf":
+            pg = n.get("page", page)
+            if n.get("kind") == "zero":
+                for it in n.get("items") or []:
+                    if it.get("key"):
+                        out.setdefault(pg, {}).setdefault(it["key"], 0)
+            elif n.get("key") and not n.get("auto") and n.get("kind") not in ("deep", "loop"):
+                out.setdefault(pg, {}).setdefault(n["key"], 1 if n.get("kind") == "stuck" else n.get("want", 1))
+            return
+        kids = n.get("kids") or []
+        if n["t"] == "any":
+            kids = kids[n.get("pick", 0):n.get("pick", 0) + 1]
+        for k in kids:
+            walk(k)
+    walk(tree)
+    return out
+
+
+def _align_picks(tree, sheets, s, net, value, timers, cache=None):
+    """L50 — 권하는 갈래를 시뮬레이터가 실제로 찾은 조합에 맞춘다 (L32 '권장은 짐작이 아니라 시험' 을 나무 전체로).
+    갈래를 하나씩만 시험하면 안쪽 갈래가 함께 바뀌어야 서는 조합(HRSG G049 MOV CLOSE = CLOSE 요청 + REM + …)을
+    못 찾았다.  시뮬레이터의 조합(sim.scenario · L14)과 어긋나지 않는 갈래를 고르고, 고른 길을 한 번 앞으로 돌려
+    목표가 서는지 적는다 (`tested`).  못 찾으면 갈래는 그대로이고 tested 는 0 — 지어내지 않는다."""
+    page = s["page"]
+
+    def picks(n, out):
+        if n["t"] == "any":
+            out[n["id"]] = (n.get("pick", 0), n.get("asks"), n.get("summary"))
+        for k in n.get("kids") or []:
+            picks(k, out)
+        return out
+
+    def restore(n, saved):
+        if n["t"] == "any" and n["id"] in saved:
+            n["pick"], n["asks"], n["summary"] = saved[n["id"]]
+        for k in n.get("kids") or []:
+            restore(k, saved)
+
+    def test():
+        try:
+            f = _tree_forces(tree, page)
+            if not f:
+                return None
+            r = sim.simulate_bundle(sheets, f, None, page, timers=timers or {}, cache=cache, light=True)["focus"] or {"frames": []}
+            return int(any(fr["values"].get(str(net)) == value for fr in r["frames"]))
+        except Exception:
+            return None
+
+    before = picks(tree, {})
+    first = test()
+    if first != 0:
+        # 원래 길이 서거나(1) 시험할 것이 없으면(None) 시뮬레이터 조합을 찾지 않는다 — 블록마다 부르는 needs 가 느려진다
+        return first
+    try:
+        sc = sim.scenario(s, "net:" + str(net), value, limit=ALIGN_TRIES, sheets=sheets, cache=cache)
+    except Exception:
+        sc = {"ok": False}
+    forces = sc.get("forces") or {} if sc.get("ok") else {}
+    if forces:
+        def score(n):
+            r = _picked_reqs(n, {})
+            bad = sum(1 for k, w in r.items() if k in forces and forces[k] != w)
+            # 시뮬레이터가 안 쓴 신호를 1 로 요구하는 갈래는 뒤로 — 그 조합에 없는 1 은 대개 다른 길을 막는다 (PROTECTION CLOSE)
+            extra = sum(1 for k, w in r.items() if w == 1 and k not in forces)
+            hit = sum(1 for k, w in r.items() if k in forces and forces[k] == w)
+            return (bad, extra, -hit, n.get("asks", 0))
+
+        def walk(n):
+            if n["t"] == "leaf":
+                return
+            if n["t"] == "any":
+                kids = n["kids"]
+                best = min((i for i, k in enumerate(kids) if k.get("viable")), key=lambda i: score(kids[i]), default=None)
+                if best is not None and score(kids[best])[0] == 0 and best != n.get("pick", 0):
+                    n["pick"] = best
+                    n["asks"] = 1 + kids[best]["asks"]
+                    n["summary"] = kids[best]["summary"]
+                walk(kids[n.get("pick", 0)])
+                return
+            for k in n["kids"]:
+                walk(k)
+        walk(tree)
+        if picks(tree, {}) != before:
+            got = test()
+            if got == 1:
+                return 1
+            # 맞춘 길도 안 서면 원래 길로 되돌린다 (1A5J DRIVE-3 START 처럼 시뮬레이터 조합이 나무의 갈래와 다른 선을 쓸 때) — 지어내지 않는다
+            restore(tree, before)
+    return first
+
+
+def _resolve_picks(tree):
+    """L50 — 권하는 갈래끼리 서로 어긋나지 않게 한다.  `_finish` 는 갈래마다 묻는 수만 보고 골라, 앞에서 '1 이어야'
+    한 신호를 뒤 갈래가 '0 이어야' 로 요구하는 일이 있었다 (HRSG G049 MOV REM — 안내가 1 로 켠 신호를 다시 0 으로
+    묻고 최종 출력이 꺼졌다).  묻는 순서(앞에서 뒤로)대로 요구를 모으며, ANY 에서는 모인 요구와 어긋나지 않는
+    갈래 중 묻는 수가 가장 적은 것을 고른다 — 전부 어긋나면 원래 갈래를 두고 `conflict` 를 적는다 (지어내지 않는다)."""
+    req = {}
+
+    def clash(n):
+        r = _picked_reqs(n, {})
+        return [k for k, w in r.items() if k in req and req[k] != w]
+
+    def walk(n):
+        if n["t"] == "leaf":
+            _picked_reqs(n, req)
+            return
+        if n["t"] == "any":
+            kids = n["kids"]
+            cur = n.get("pick", 0)
+            if clash(kids[cur]):
+                ok = [i for i, k in enumerate(kids) if k.get("viable") and not clash(k)]
+                if ok:
+                    n["pick"] = min(ok, key=lambda i: kids[i]["asks"])
+                    n["asks"] = 1 + kids[n["pick"]]["asks"]
+                    n["summary"] = kids[n["pick"]]["summary"]
+                else:
+                    n["conflict"] = clash(kids[cur])
+            walk(kids[n.get("pick", 0)])
+            return
+        for k in n["kids"]:
+            walk(k)
+    walk(tree)
+    return tree
 
 
 def _all_want0(n):

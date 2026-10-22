@@ -4206,7 +4206,9 @@ function renderNeeds() {
     const open = ND.open[i] != null ? ND.open[i] : (!multi || i === 0);
     const title = d.kind === "macro" ? `${esc(o.pin || "")} ${o.desc ? "· " + esc(o.desc) : ""}` : (o.desc ? `→ ${esc(o.desc)}` : "출력 선");
     const nowTxt = o.now == null ? "" : ` · <span class="nd-now${o.now === ND.value ? " on" : ""}" title="아무것도 주지 않은 상태(이 시트만)에서 이 선의 값">지금 ${o.now}</span>`;
-    const sum = p.ok ? (sig.already ? `<span class="nd-now on">이미 ${ND.value} — 아무것도 주지 않아도</span>` : `꼭 필요 ${(sig.need || []).length} · 없어야 ${(sig.zero || []).length}${sig.forks ? ` · 갈래 ${sig.forks}` : ""}${(sig.gaps || []).length ? ` · <span class="nd-gapn">읽기 빈틈 ${sig.gaps.length}</span>` : ""}${p.truncated ? " · 일부만" : ""}${nowTxt}`) : `⚠ ${esc(p.why || "")}`;
+    const testedTxt = sig.tested === 1 ? ` · <span class="nd-now on" title="요약의 신호를 그대로 주고 시뮬레이터로 돌려 이 출력이 ${ND.value} 이 되는 것을 확인했습니다">✔ 시험 확인</span>`
+      : sig.tested === 0 ? ` · <span class="nd-gapn" title="요약의 신호를 그대로 주고 돌려도 이 출력이 ${ND.value} 이 되지 않았습니다 — 읽기 빈틈 · 되먹임 · 다른 갈래일 수 있습니다">⚠ 시험에서 안 섬</span>` : "";
+    const sum = p.ok ? (sig.already ? `<span class="nd-now on">이미 ${ND.value} — 아무것도 주지 않아도</span>` : `꼭 필요 ${(sig.need || []).length} · 없어야 ${(sig.zero || []).length}${sig.forks ? ` · 갈래 ${sig.forks}` : ""}${(sig.gaps || []).length ? ` · <span class="nd-gapn">읽기 빈틈 ${sig.gaps.length}</span>` : ""}${p.truncated ? " · 일부만" : ""}${nowTxt}${testedTxt}`) : `⚠ ${esc(p.why || "")}`;
     html += `<div class="nd-out${open ? " open" : ""}" data-i="${i}">
       <div class="nd-oh" data-toggle="${i}"><span class="nd-arrow">${open ? "▾" : "▸"}</span> <b>${title}</b> <small>${sum}</small></div>` +
       (open && p.ok ? `<div class="nd-acts">

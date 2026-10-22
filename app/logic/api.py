@@ -844,7 +844,9 @@ def sequence_plan(job: str, body: dict = Body(default={})):
     except (TypeError, ValueError):
         raise HTTPException(400, "page · row 가 필요합니다.")
     value = 0 if body.get("value") in (0, "0") else 1
-    return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value), page, row, value)
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):   # L50 — 권하는 갈래를 시뮬레이터로 시험한다 (묶음 기억 공유 · 한 번에 하나)
+        return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value, cache=cache), page, row, value)
 
 
 @router.post("/logic/api/jobs/{job}/needs")
@@ -860,7 +862,9 @@ def needs(job: str, body: dict = Body(default={})):
     if not (target.startswith("block:") or target.startswith("net:")):
         raise HTTPException(400, "target 은 block:<id> · net:<id> 입니다.")
     value = 0 if body.get("value") in (0, "0") else 1
-    return _memo(res, "needs", lambda: sequence.needs(_all_sheets(res), page, target, value), page, target, value)
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):
+        return _memo(res, "needs", lambda: sequence.needs(_all_sheets(res), page, target, value, cache=cache), page, target, value)
 
 
 @router.delete("/logic/api/jobs/{job}")

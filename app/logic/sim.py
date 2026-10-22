@@ -1692,19 +1692,23 @@ def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None, max_steps=None
         stack.extend(reversed(branch))               # 앞 갈래를 먼저 본다
 
 
-def _reached(s, forces, net, value, sheets=None):
+def _reached(s, forces, net, value, sheets=None, cache=None):
     """그 조합만 넣고 앞으로 돌려 그 선이 value 가 되는 틀이 있는가 (펄스처럼 잠깐 서는 것도 선 것이다).
     매크로 블록이 있는 장은 묶음째 돌린다 (매크로 출력은 Typical 시트가 낸다)."""
     if sheets:
         # 화면과 같은 길 — 묶음째 돌린다 (다른 장에서 연결로 들어오는 입력 · 매크로 출력이 화면과 같다)
-        r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"])["focus"]
+        if cache is not None:
+            # L50 — 묶음 기억을 들고 돌린다 (827장 묶음에서 한 번 1초 → 0.07초 · 바뀐 장만 다시 센다)
+            r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"], cache=cache, light=True)["focus"]
+        else:
+            r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"])["focus"]
     else:
         r = simulate(s, forces)
     hit = [fr["t"] for fr in r["frames"] if fr["values"].get(net) == value]
     return r, hit
 
 
-def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_allowed=None):
+def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_allowed=None, cache=None):
     """target = "row:<n>"(오른쪽 행) | "net:<id>".  → {"ok", "forces", "net", "frames", "why", "direct_nets"}"""
     if target.startswith("row:"):
         n = int(target[4:])
@@ -1730,7 +1734,7 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
             seen.add(key)
             tried += 1
             forces = {k: w for k, w in leaves.items() if not (w == 0 and not k.startswith("net:"))}
-            r, hit = _reached(s, forces, net, value, sheets)
+            r, hit = _reached(s, forces, net, value, sheets, cache)
             if hit:
                 direct = sorted(k for k in forces if k.startswith("net:"))
                 ans = {"ok": True, "net": net, "forces": forces, "at": hit[0],
