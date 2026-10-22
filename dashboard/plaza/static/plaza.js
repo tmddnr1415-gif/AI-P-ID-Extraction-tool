@@ -1119,10 +1119,13 @@ function drawParts(g, cx, cy, now) {
   g.globalAlpha = 1;
 }
 const FLOATS = [];
-function floater(a, text, col, dur = 1400) { if (!a) return; FLOATS.push({ x: a.x + 16, y: a.y - 18, text, col, t0: performance.now(), dur }); if (FLOATS.length > 40) FLOATS.shift(); }
+function floater(a, text, col, dur = 1400) { if (!a) return; const now = performance.now();   // 같은 사람 위에 여럿이면 줄을 바꿔 차례로 — 겹쳐 읽히지 않게
+  const mine = FLOATS.filter(f => f.who === a && now - f.t0 < f.dur), last = mine.reduce((m, f) => Math.max(m, f.t0), -1e9);
+  const t0 = Math.max(now, last + 250), n = mine.length;                          // 떠 있는 글 수만큼 한 줄(17px)씩 위에서 시작
+  FLOATS.push({ x: a.x + 16, y: a.y - 18 - n * 17, text, col, t0, dur, who: a }); if (FLOATS.length > 40) FLOATS.shift(); }
 function drawFloats(g, cx, cy, now) {
   g.font = `bold 12px ${FONT}`; g.textAlign = "center"; g.textBaseline = "bottom"; g.lineWidth = 3; g.strokeStyle = "#0b111c";
-  for (let i = FLOATS.length - 1; i >= 0; i--) { const f = FLOATS[i], k = (now - f.t0) / f.dur; if (k >= 1) { FLOATS.splice(i, 1); continue; }
+  for (let i = FLOATS.length - 1; i >= 0; i--) { const f = FLOATS[i], k = (now - f.t0) / f.dur; if (k >= 1) { FLOATS.splice(i, 1); continue; } if (k < 0) continue;   // 차례를 기다리는 글
     const x = Math.round(f.x - cx), y = Math.round(f.y - cy - k * 26); g.globalAlpha = k < .7 ? 1 : (1 - k) / .3;
     g.strokeText(f.text, x, y); g.fillStyle = f.col; g.fillText(f.text, x, y); }
   g.globalAlpha = 1; g.textAlign = "left";
@@ -1421,6 +1424,7 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
   updateSkillBar(now);
   bar("hud-st", S.stamina / ST_MAX); set("hud-stt", `${Math.round(S.stamina)}` + (S.stamina < ST_TIRED ? " 지침" : ""));
   bar("hud-xp", (xp - lo) / Math.max(1, hi - lo)); set("hud-lv", `Lv ${lv}`); set("hud-xpt", `${xp} XP`);
+  const P = S.me.pres; set("hud-pres", P ? `🕒 오늘 ${P.min}분 · 🔥 연속 ${P.streak}일 · 접속 XP ${P.got}/${P.cap} · 총 ${P.visits}일` : "");
   set("hud-job", `${(S.jobs || [])[S.me.job ?? 0] || ""}${S.role === "unit" ? " · 회복 오라" : ""}`);
   const w = S.work; set("hud-work", w ? `${w.eq.id} ${WORK_NAME[w.kind]} ${Math.min(100, Math.round((now - w.t0) / w.need * 100))}%` : S.healNear ? "유닛장 회복 오라 안 — 체력 · 기력 회복 중" : "대기 — 설비 옆에서 E");
   const c = { ok: 0, warn: 0, fault: 0 }; for (const v of Object.values(EQ_ST)) c[v[0]] = (c[v[0]] || 0) + 1;
@@ -1490,7 +1494,14 @@ setInterval(sendMove, 15000);
 window.addEventListener("pagehide", () => { if (S.id) navigator.sendBeacon("/plaza/api/leave", JSON.stringify({ id: S.id })); });
 
 function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오라 · 회복(+1) · 축하
-  a.xp = p.xp || 0; a.lv = p.lv || 1; a.job = p.job ?? 0; a.healer = !!p.healer;
+  const lv0 = a.lv;
+  a.xp = p.xp || 0; a.lv = p.lv || 1; a.job = p.job ?? 0; a.healer = !!p.healer; a.pres = p.pres || null;
+  if ((p.xp_seq || 0) !== a.xpseq) {             // 접속 경험치 (오늘 첫 접속 · 연속 · 접속 유지) — 작업 경험치는 작업 완료 쪽에서 이미 보임
+    if ((a.xpseq != null || a === S.me) && p.xp_age < 4 && /^(접속|오늘)/.test(p.xp_why || "")) floater(a, `+${p.xp_gain} XP · ${p.xp_why}`, "#9fe0ff", 2200);
+    a.xpseq = p.xp_seq || 0; }
+  if ((lv0 ? a.lv > lv0 : a === S.me) && p.lvup_age < 4 && !(a.lvup && tnow - a.lvup < 3000)) {   // 들어오자마자 오른 것(첫 접속 경험치)도   // 레벨 업 (어떤 경험치로든) — 최대 체력 · 마나가 늘고 가득 참
+    a.lvup = tnow; floater(a, `레벨 업!  Lv ${a.lv}`, "#ffd84a", 2600); setTimeout(() => floater(a, "최대 체력 · 마나 증가 · 가득 참", "#9fe0ff", 2000), 500);
+    for (let i = 0; i < 14; i++) puff(a.x + 16, a.y + 10, (Math.random() - .5) * 90, -40 - Math.random() * 60, 1000, i % 2 ? "#ffd84a" : "#fff6c8", 2); }
   if ((p.heal_seq || 0) !== a.healseq) { if (a.healseq != null && p.heal_age < 1.5) { floater(a, `+${p.heal_amt || 1} HP`, "#7cffc8", (p.heal_amt || 1) > 1 ? 1600 : 1100);
     for (let i = 0; i < 5; i++) puff(a.x + 8 + Math.random() * 16, a.y + 20, (Math.random() - .5) * 10, -34 - Math.random() * 20, 900, i % 2 ? "#7cffc8" : "#c8fff0"); }
     a.healseq = p.heal_seq || 0; }

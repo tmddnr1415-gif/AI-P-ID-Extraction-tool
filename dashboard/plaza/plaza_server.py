@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.8'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.9'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -330,6 +330,8 @@ def hp_loop() -> None:                             # 1초마다 회복 오라 ·
         with LOCK:
             heal_tick(time.time())
             mp_tick()
+            if n % 10 == 0:
+                stay_tick(time.time())
             if n % EQ_BREAK_S == 0:
                 eq_tick(time.time())
             if n % 30 == 0:
@@ -384,6 +386,9 @@ def eq_init() -> None:
     ids = [e[0] for e in EQUIP]
     for i in r.sample(ids, 6):                          # 처음부터 할 일이 있게 — 경고 4 · 고장 2
         EQ[i]["st"] = "warn" if sum(1 for v in EQ.values() if v["st"] != "ok") < 4 else "fault"
+    raw_xp = read_json(DATA / "xp.json", {})
+    XP["pres"] = {clean(k, NAME_MAX): v for k, v in (raw_xp.get("pres") or {}).items() if isinstance(v, dict) and clean(k, NAME_MAX)}
+    XP["streak"] = {clean(k, NAME_MAX): v for k, v in (raw_xp.get("streak") or {}).items() if isinstance(v, dict) and clean(k, NAME_MAX)}
     XP["xp"] = {clean(k, NAME_MAX): int(v) for k, v in read_json(DATA / "xp.json", {}).get("xp", {}).items()
                 if isinstance(v, (int, float)) and clean(k, NAME_MAX)}
 
@@ -442,11 +447,82 @@ def heal_tick(now: float) -> None:                 # LOCK 안에서 — 유닛�
         STATE["ver"] += 1
 
 
+# ── 접속 경험치 (2026-10-22 판9): 하루 첫 접속 · 연속 접속일 · 접속 유지 시간 → XP (레벨이 오르면 최대 체력 · 마나 늘고 가득 참) ──
+VISIT_XP = 10                   # 하루 첫 접속
+STREAK_XP, STREAK_CAP = 4, 7    # 연속 접속일마다 +4 (7 일까지 → 최대 +28)
+STAY_EVERY, STAY_XP = 300, 2    # 접속 유지 5 분마다 +2
+STAY_LONG = 3600                # 오늘 1 시간 넘게 머물면 5 분마다 +3 (오래 있을수록 조금 더)
+STAY_CAP = 60                   # 접속 유지로 하루 최대 60 XP (켜 두기만 해서 끝없이 오르지 않게)
+
+
+def today_str(now: float) -> str:
+    return time.strftime("%Y-%m-%d", time.localtime(now))
+
+
+def pres_of(name: str, now: float) -> dict:      # LOCK 안에서 — 오늘 기록 (날이 바뀌면 새로)
+    d = XP.setdefault("pres", {}).setdefault(name, {})
+    t = today_str(now)
+    if d.get("day") != t:
+        d.update(day=t, sec=0, got=0, bank=0)
+    return d
+
+
+def add_xp(p_or_name, n: int, why: str, now: float, log: bool = False) -> int:   # LOCK 안에서 — 경험치 + 레벨 업(체력 · 마나 가득 · 알림)
+    name = p_or_name if isinstance(p_or_name, str) else p_or_name["name"]
+    old = XP["xp"].get(name, 0)
+    XP["xp"][name] = old + n
+    XP["dirty"] = True
+    lv0, lv1 = min(LV_CAP, level_of(old)), min(LV_CAP, level_of(old + n))
+    for q in STATE["players"].values():
+        if q["name"] == name:
+            q["xp_seq"] = q.get("xp_seq", 0) + 1
+            q["xp_gain"], q["xp_why"], q["xp_at"] = n, why, now
+            if lv1 > lv0:
+                q["lvup_at"] = now
+    if lv1 > lv0:
+        if hp_of(name) > 0:                       # 유령은 그대로 (부활은 주간 마감 · 운영자)
+            HP["hp"].pop(name, None); HP["dirty"] = True
+        MP.pop(name, None)
+        log_system(f"🎉 {name} 님 Lv {lv1} 달성! 최대 체력 {hp_max(name)} (+{HP_PER_LV * (lv1 - lv0)}) · 마나 {mp_max(name)} (+{MP_PER_LV * (lv1 - lv0)}) — 가득 찼습니다.", now)
+    elif log:
+        log_system(f"{name} 님 {why} +{n} XP", now)
+    STATE["ver"] += 1
+    return lv1
+
+
+def visit_xp(name: str, now: float) -> None:     # LOCK 안에서 — 들어올 때: 하루 첫 접속 + 연속 접속일 보너스
+    d = pres_of(name, now)
+    if d.get("visited"):
+        return
+    st = XP.setdefault("streak", {}).setdefault(name, {"last": "", "n": 0, "visits": 0})
+    yday = today_str(now - 86400)
+    st["n"] = st["n"] + 1 if st.get("last") == yday else 1
+    st["last"], st["visits"] = d["day"], st.get("visits", 0) + 1
+    d["visited"] = True
+    bonus, days = STREAK_XP * min(STREAK_CAP, st["n"] - 1), st["n"]
+    add_xp(name, VISIT_XP + bonus, "오늘 첫 접속" + (f" · 연속 {days}일" if days > 1 else ""), now, log=True)
+
+
+def stay_tick(now: float) -> None:               # LOCK 안에서 — 10초마다: 광장에 연결된 사람의 오늘 머문 시간 + 5분마다 XP
+    for name in {q["name"] for q in STATE["players"].values() if q["streams"] > 0}:
+        d = pres_of(name, now)
+        d["sec"] += 10
+        d["bank"] = d.get("bank", 0) + 10
+        XP["dirty"] = True
+        if d["bank"] >= STAY_EVERY and d["got"] < STAY_CAP:
+            d["bank"] -= STAY_EVERY
+            n = min(STAY_CAP - d["got"], STAY_XP + (1 if d["sec"] > STAY_LONG else 0))
+            d["got"] += n
+            add_xp(name, n, f"접속 유지 {d['sec'] // 60}분", now)
+
+
 def save_xp() -> None:
     with LOCK:
         if not XP["dirty"]:
             return
-        data = {"xp": dict(XP["xp"]), "_설명": "계장 광장 경험치 (이름 → XP). 설비 점검 · 교정 · 수리로 쌓임. 레벨 = sqrt(XP/25)+1."}
+        data = {"xp": dict(XP["xp"]), "pres": {k: dict(v) for k, v in XP.get("pres", {}).items()}, "streak": {k: dict(v) for k, v in XP.get("streak", {}).items()},
+                "_설명": "계장 광장 경험치 (이름 → XP). 설비 점검 · 교정 · 수리 · 접속(하루 첫 접속 · 연속 접속일 · 접속 유지 5분마다)으로 쌓임. 레벨 = sqrt(XP/25)+1. "
+                         "pres = 오늘 머문 초 · 접속 유지 XP · streak = 연속 접속일 · 총 접속일."}
         XP["dirty"] = False
     try:
         with FILE_LOCK:
@@ -827,15 +903,11 @@ def api_work(body: dict) -> dict:
             gained = w["xp"] if before == w["st"] else WORK["ok"][2]       # 그사이 남이 고쳤으면 점검 몫만
             st.update(st="ok", since=now, busy="")
             old = XP["xp"].get(p["name"], 0)
-            XP["xp"][p["name"]] = old + gained
-            XP["dirty"] = True
             p.pop("work", None)
             p["cheer_at"] = now
-            lv0, lv1 = level_of(old), level_of(old + gained)
             if before != "ok":
                 log_system(f"{p['name']} 님이 {eid} {e[5]} {WORK[before][3]} 완료 (+{gained} XP)", now)
-            if lv1 > lv0:
-                log_system(f"🎉 {p['name']} 님 Lv {lv1} 달성!", now)
+            lv1 = add_xp(p, gained, WORK[before][3], now)
             STATE["ver"] += 1
             return {"ok": True, "gained": gained, "xp": old + gained, "lv": lv1, "was": before, "label": WORK[before][3], "name": e[5]}
     raise ApiError(400, "phase 는 start · done · cancel 입니다.")
@@ -884,7 +956,12 @@ def snapshot(now: float | None = None) -> dict:
                 "mp": mp_of(p["name"]), "mp_max": mp_max(p["name"]),
                 "skill": p.get("skill", ""), "skill_seq": p.get("skill_seq", 0), "skill_age": round(now - p.get("skill_at", 0), 2),
                 "kills": HP["kills"].get(p["name"], 0), "killer": HP["kills"].get(p["name"], 0) >= KILLER_AT,
-                "xp": XP["xp"].get(p["name"], 0), "lv": level_of(XP["xp"].get(p["name"], 0)), "job": job_of(p),
+                "xp": XP["xp"].get(p["name"], 0), "lv": min(LV_CAP, level_of(XP["xp"].get(p["name"], 0))), "job": job_of(p),
+                "xp_seq": p.get("xp_seq", 0), "xp_gain": p.get("xp_gain", 0), "xp_why": p.get("xp_why", ""), "xp_age": round(now - p.get("xp_at", 0), 2),
+                "lvup_age": round(now - p.get("lvup_at", 0), 2),
+                "pres": {"min": (XP.get("pres", {}).get(p["name"], {}).get("sec", 0) // 60) if XP.get("pres", {}).get(p["name"], {}).get("day") == today_str(now) else 0,
+                         "got": XP.get("pres", {}).get(p["name"], {}).get("got", 0) if XP.get("pres", {}).get(p["name"], {}).get("day") == today_str(now) else 0,
+                         "streak": XP.get("streak", {}).get(p["name"], {}).get("n", 0), "visits": XP.get("streak", {}).get(p["name"], {}).get("visits", 0), "cap": STAY_CAP},
                 "healer": p.get("role") in HEAL_ROLES and hp_p(p) > 0,
                 "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2), "heal_amt": p.get("heal_amt", 1),
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
@@ -936,6 +1013,7 @@ def api_join(body: dict) -> dict:
                 q["seen"] = now
                 if "status" in body:
                     q["status"] = clean(body.get("status"), STATUS_MAX)
+                visit_xp(name, now)
                 STATE["ver"] += 1
                 return {"id": pid, "name": name, "look": q["look"], "face": q["face"], "role": q["role"], "say_max": SAY_MAX,
                         "x": q["x"], "y": q["y"], "dir": q["dir"], "shared": True}
@@ -953,6 +1031,7 @@ def api_join(body: dict) -> dict:
         }
         log_system(f"{name} 님이 광장에 들어왔습니다.", now)
         give_items(name)
+        visit_xp(name, now)
         STATE["ver"] += 1
     return {"id": pid, "name": name, "look": look, "face": face, "role": role, "say_max": SAY_MAX,
             "x": STATE["players"][pid]["x"], "y": STATE["players"][pid]["y"], "dir": 0, "shared": False}

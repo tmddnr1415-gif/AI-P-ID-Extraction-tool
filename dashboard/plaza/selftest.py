@@ -154,9 +154,14 @@ try:
     ok.append(("작업 — 시간 안 됐으면 완료 거절", st1 == 400))
     time.sleep(s1.get("need", 3) + .1)
     _, d1 = call("/plaza/api/work", {"id": wk["id"], "eq": "PT-101", "phase": "done"}, W1)
-    ok.append(("작업 — 완료 · 경험치", d1.get("gained", 0) > 0 and d1.get("xp") == d1.get("gained")))
+    V = plaza_server.VISIT_XP                                   # 2026-10-22 판9: 들어올 때 하루 첫 접속 경험치
+    ok.append(("작업 — 완료 · 경험치 (하루 첫 접속 +10 위에)", d1.get("gained", 0) > 0 and d1.get("xp") == d1.get("gained") + V))
     time.sleep(2.3)
-    ok.append(("경험치 — 파일에 남음", json.loads((data / "xp.json").read_text(encoding="utf-8"))["xp"].get("점검왕") == d1.get("gained")))
+    xpf = json.loads((data / "xp.json").read_text(encoding="utf-8"))
+    ok.append(("경험치 — 파일에 남음", xpf["xp"].get("점검왕") == d1.get("gained") + V))
+    ok.append(("접속 경험치 — 하루 첫 접속 · 연속 1일 · 총 접속 1일 기록", xpf["streak"].get("점검왕", {}).get("n") == 1 and xpf["streak"]["점검왕"].get("visits") == 1 and xpf["pres"]["점검왕"].get("visited")))
+    _, wk2 = call("/plaza/api/join", {"name": "점검왕", "x": 6, "y": 11}, W1)
+    ok.append(("접속 경험치 — 같은 날 다시 들어와도 한 번만", json.loads((data / "xp.json").read_text(encoding="utf-8"))["xp"].get("점검왕") == d1.get("gained") + V))
     # 2026-10-22 판4: 레벨 → 최대 체력 · 마나 / 기술 (마나 · 재사용 시간)
     S1, S2 = "127.0.0.12", "127.0.0.13"
     _, g1 = call("/plaza/api/join", {"name": "고수", "x": 20, "y": 30}, S1)
@@ -220,6 +225,24 @@ try:
     ok.append(("얼굴 — '사람'(kind 1) 은 없앰 → EPC 안전모", call("/plaza/api/look", {"id": g2["id"], "look": {**face, "kind": 1}}, S2)[1]["face"]["kind"] == 7))
     ok.append(("교환 — 끝난 제안은 다시 못 씀", call("/plaza/api/trade", {"id": g1["id"], "op": "accept", "tid": t1.get("tid")}, S1)[0] == 404))
     ok.append(("기술 정보 — 설비 목록에 같이", call("/plaza/api/equip")[1].get("skills", {}).get("aid", {}).get("mp") == 20))
+    # 접속 유지 · 레벨 업 (서버 함수를 직접 — 5분을 기다리지 않음)
+    ps = plaza_server; t0 = 1_800_000_000.0
+    ps.XP.update(xp={"가상": 95}, pres={}, streak={}); ps.HP["hp"]["가상"] = 50; ps.MP["가상"] = 3
+    ps.STATE["players"]["zz"] = {"name": "가상", "streams": 1, "role": "member"}
+    for i in range(31):                                        # 310초 머묾 → 5분에 +2
+        ps.stay_tick(t0 + i * 10)
+    ok.append(("접속 유지 — 5분마다 +2 XP · 오늘 머문 시간", ps.XP["xp"]["가상"] == 97 and ps.XP["pres"]["가상"]["sec"] == 310))
+    lv = ps.add_xp("가상", 10, "시험", t0)
+    ok.append(("레벨 업 — 최대 체력 · 마나 늘고 가득 참", lv == 3 and ps.hp_of("가상") == ps.HP_MAX + 2 * ps.HP_PER_LV and ps.mp_of("가상") == ps.MP_BASE + 2 * ps.MP_PER_LV))
+    ps.XP["pres"]["가상"].update(got=ps.STAY_CAP, bank=0)
+    before = ps.XP["xp"]["가상"]
+    for i in range(40):
+        ps.stay_tick(t0 + 400 + i * 10)
+    ok.append(("접속 유지 — 하루 상한 넘으면 더 안 줌", ps.XP["xp"]["가상"] == before))
+    ps.visit_xp("가상", t0); ps.XP["pres"]["가상"]["visited"] = False
+    ps.XP["pres"]["가상"]["day"] = ""                          # 다음 날
+    b2 = ps.XP["xp"]["가상"]; ps.visit_xp("가상", t0 + 86400)
+    ok.append(("연속 접속 — 이틀째 +10 +4", ps.XP["streak"]["가상"]["n"] == 2 and ps.XP["xp"]["가상"] - b2 == ps.VISIT_XP + ps.STREAK_XP))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)
