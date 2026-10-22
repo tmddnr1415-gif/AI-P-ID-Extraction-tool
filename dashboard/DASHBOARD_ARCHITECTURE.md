@@ -158,6 +158,7 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 | GET `/`, `/dashboard.html[?download=1]` | 화면 (기본 서버 주소 치환) |
 | GET `/apps/…` | **연결 프로그램 정적 파일** (운영 폴더 `apps/`, 상위 경로 접근 403) |
 | POST `auth/register` · `auth/login` · `auth/reset` · `auth/logout`, GET `auth/me` | 계정. 로그인 응답 `{token, user:{id,name}}`, 이후 요청 헤더 `X-Auth-Token`. 로그인·재설정 5회 실패 시 10분 잠금 |
+| GET `space/projects` · POST `space/projects` `{name}` · GET `space/{pid}` · GET `space/{pid}/saves/{sid}` · POST `space/{pid}/saves` `{data, memo, sum}` · POST `space/{pid}/notes` `{text}` · DELETE `space/{pid}/notes/{nid}` · GET `space/recent?n=` (모든 프로젝트 최근 저장) | 판넬 공간확보 서버 저장 (2026-10-22~). 운영 폴더 `space/{pid}/index.json`(프로젝트 · 저장 메타 · 노트) + `space/{pid}/saves/{sid}.json`(배치안). 보기 = 누구나, 쓰기 = 로그인 + `space` 권한, 노트 삭제 = 본인 · 운영자/그룹장. 일일 백업 포함 |
 | POST `auth/ping` | 접속 표시 갱신(화면이 30초마다) → `{users:[{id,name,online}], unread}`. 75초 안에 요청이 있었으면 online |
 | GET `msg` · POST `msg` `{to, body}` · POST `msg/{id}/read` · DELETE `msg/in\|sent/{id}` | 쪽지 (로그인 필요) |
 
@@ -918,7 +919,6 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저: 종류 한 바퀴에 '사람' 없음 · 무작위 5 번 모두 동물, 케이블 기술자 = 검은 고양이 초상 · 걷기, 안전모 · 조끼 · 렌치 더블클릭 → 공 21 → 35 · 모습 바뀜(앞 · 옆 · 뒤) · 상대 화면에도 보임, F 로 벗기, 고양이 기사 · 팬더 · 호랑이에도 조끼 · 작은 안전모, 스크립트 오류 없음.
 
 ### 2026-10-22 (9) — 판넬 공간확보 메뉴 · 분석·도구 화면 헤더 정리 (APP_VERSION 2026-10-22.3 / SERVER_VERSION 2026-10-22.2)
-> 이 (9)~(11) 은 다른 작업 줄기(브랜치 `ccr-d82d97fa-bb3ty3`)에서 만든 것을 이 판(계장 광장 2026-10-22.7 까지 들어 있음)에 그대로 합친 것. 그쪽 번호 (7)(8)(9) → 여기 (9)(10)(11). dashboard.html · server.py 는 이 판에서 2026-10-22 (6) 뒤로 안 바뀌었던 파일이라 그쪽 것을 그대로 씀 → APP_VERSION 2026-10-22.3 · SERVER_VERSION 2026-10-22.2.
 > server.py 가 바뀜(메뉴 권한 표에 '판넬 공간확보' 한 줄) → **서버 재시작 필요** (8장 3번). 재시작 전에도 화면은 열린다(권한 기본 = 허용).
 > 새 파일 `apps\space\index.html` 이 운영 폴더에 생긴다 (패치 APPLY.bat 이 폴더를 만듦). 데이터 폴더는 건드리지 않음.
 - 무엇을: 계장 Control Room 판넬 **초기 공간확보 툴**(단일 HTML 프로토타입)을 세 번째 분석 메뉴 '🗄 판넬 공간확보'로 넣음 (P&ID 분석 · LOGIC 분석과 같은 레벨). 왜: 계장이 판넬을 대략 배치해 필요 면적 · 권장 실 크기를 건축에 전달하는 업무.
@@ -948,3 +948,36 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: `$('#bDxf').onclick` 의 `layers`.
 - 확인한 것: ezdxf audit 오류 0, Layer 색 읽어 확인, 화면 바탕색(#212830)으로 그려 비교.
 - 회사에서 확인할 것: AutoCAD 바탕이 흰색이면 회색 선(254 · 9)이 흐릴 수 있음 — 그 경우 CR-ROOM · CR-TEXT 를 7 로 되돌리면 됨.
+
+### 2026-10-22 (12) — 판넬 공간확보: PPT 도형 삽입처럼 Type 만들기 · 저장 · 눌러서 배치 (apps/space/index.html 만)
+- 무엇을: 요청 "Panel 을 PPT 주석 넣듯 Type 별로 생성 · 저장하고, 생성된 Type 을 누르면 그 Type 의 panel 을 배치". 개발 의도 = 1단계(계장이 빈 상태에서 판넬을 배치해 필요 볼륨 산출) → 건축 전달 → 건축 Room CAD → 계장이 그 CAD 를 backdrawing 으로 상세 배치.
+  - 도구줄 아래 'Panel 삽입' 줄(그림 단추) → 누르면 배치 모드 → 도면 클릭. ✎/두 번 누르기 = 고치기, [＋ 새 Type] = 만들기 창(실시간 미리보기 · 입력 오류 문장).
+  - 📚 라이브러리(localStorage `crspace.lib.v1`) — 다른 프로젝트에서 다시 쓰기.
+- 바뀐 곳: apps/space/index.html — HTML `.ribbon #palette` · `#tdlg` · `#libdlg`, `buildTypes`(삽입 줄), `typeSvg` `doorSvg`, `geom(p, tt)`, `openTypeDlg` `tdRead` `tdPreview` `tdSave`, `libGet` `libSet` `libPut` `buildLib`, 키 입력(열린 창이면 도면 단축키 끔 · Esc 닫기). 사이드 Type 입력 카드 삭제.
+- 확인한 것: `node --check`, Chromium 으로 만들기 → 만들고 배치 → 도면 클릭 2 EA, 다른 Type 단추 배치, 이름 중복 오류, 라이브러리 1건, 스크립트 오류 0.
+- 회사에서 확인할 것: 라이브러리는 PC · 브라우저마다 따로 (Edge 사이트 데이터 지우면 사라짐) — 부서 공용은 서버 저장(보고서 5-1) 승인 시.
+
+### 2026-10-22 (13) — 판넬 공간확보: 서버에 프로젝트별 · 날짜별 저장 · 저장 이력 · 프로젝트 노트 / 도면 노트 / 기둥 편집 (APP_VERSION 2026-10-22.4 / SERVER_VERSION 2026-10-22.3)
+> server.py 가 바뀜 → **서버 재시작 필요** (8장 3번). 운영 폴더에 `space\` 폴더가 생긴다(일일 백업 zip 에 포함). 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 요청 "프로젝트별 · 날짜별로 작업을 저장, 도면에 또는 별도 노트를 추가, 다른 부서원이 그 history 를 볼 수 있게, 기둥 위치도 사용자가 바꿀 수 있게".
+  1. 서버 저장 (server.py 새 API `space/…`, 위 5장 표): 저장은 덮어쓰지 않고 매번 새 파일 → 날짜별 이력(시각 · 저장한 사람 · 메모 · Rev · 판넬 수 · 필요 영역 · 권장 실). 프로젝트 노트(시각 · 사람). 작성자 = 서버가 로그인 토큰으로 정함.
+  2. 앱: ① 에 '서버 프로젝트' 상자 [💾 서버에 저장] [🗂 프로젝트 · 이력 · 노트], 🗂 창(프로젝트 · 저장 이력 · 프로젝트 노트 세 칸), 저장본 열기, '서버 저장 이후 바뀜' 표시.
+  3. 도면 노트: [📌 노트] → 도면 위 번호 핀 + 말풍선, 목록 · 끌어 옮기기 · 고치기, 배치안에 저장(서버 이력에도), 요약 7절 · DXF CR-NOTE.
+  4. 기둥 편집: [기둥 편집] → 기둥 Drag 이동 · 빈 곳 클릭 추가 · Delete 삭제 · X/Y/W/H 입력, [격자로 다시 만들기].
+  5. dashboard.html: 연결 앱에 로그인 토큰을 postMessage 로 전달(부서원 file:// 사본은 앱 주소의 저장소를 못 읽음) — 받는 쪽 = 앱 주소로 한정.
+- 바뀐 곳: server.py 새 `SPACE_ID_RE` `space_id` `space_idx_path` `space_idx` `space_name` `api_space_projects` `api_space_project_new` `api_space_get` `api_space_save_get` `api_space_save` `api_space_note_add` `api_space_note_del`, `api()` 의 `space` 분기, 백업 · 시작 폴더에 `space` / dashboard.html `renderApp` · 새 `appAuth` · `render()` / apps/space/index.html `sapi` `openHist` `loadProjects` `loadProject` `updSrv`, 노트(`hitNote` `openNote` `saveNote` `buildNotes`), 기둥(`toCustomCols` `hitCol` `delCol`, `columns()` 이 `S.cols` 우선).
+- 확인한 것: `py_compile`, `node --check`, 임시 폴더 서버 + 가짜 계정 두 개(홍길동 · 김철수): API 생성 · 중복 409 · 비로그인 401 · 잘못된 배치안 400 · 잘못된 ID 400 · 노트 삭제 · 저장본 읽기. 브라우저: 홍길동 저장 2회 · 노트 → 김철수가 이력 2건 · 노트 1건 보고(남의 노트 지우기 없음) 첫 저장본 열기, file:// 사본에서 postMessage 로 로그인 전달, 도면 노트 · DXF(audit 0), 기둥 이동 · 추가 · 삭제 · 격자로 다시. 스크립트 오류 0.
+- 회사에서 확인할 것: (1) 서버 재시작 후 [🗂] 창이 열리는지, 두 사람이 서로의 저장 · 노트를 보는지. (2) 부서원 PC(file:// 사본)에서 [💾 서버에 저장] 이 본인 이름으로 남는지. (3) 메뉴 권한 표에서 '판넬 공간확보' 를 끈 사람은 보기만 되는지.
+
+### 2026-10-22 (14) — 판넬 공간확보: P&ID · LOGIC 과 같은 첫 화면 (APP 그대로 / SERVER_VERSION 2026-10-22.4)
+> server.py 가 바뀜(GET `space/recent` 한 개) → **서버 재시작 필요**. (11) 과 함께 적용하면 재시작 한 번.
+- 무엇을: 요청 "프로젝트별 저장은 P&ID 분석 · LOGIC 분석 첫 화면 UI 와 같이". 메뉴에 들어오면 첫 화면 — ① 어디에 넣을지(프로젝트 · 새 프로젝트 · Room · Rev) · ② 어떻게 시작할지(최근 저장본 / 하던 작업 / 빈 실 / 예시 / JSON) · [배치 시작] · 저장된 프로젝트 · 최근 저장 이력. 배치 화면 [⌂ 첫 화면] 으로 돌아옴. 첫 화면은 밝게(P&ID · LOGIC 첫 화면과 같은 색 · 모양), 배치 화면은 어두운 CAD.
+- 바뀐 곳: server.py 새 `api_space_recent` + `space` 분기 / apps/space/index.html `#home` (CSS `.lh-*` `.pj*` `.jn` `.jm` — LOGIC logic.css 와 같은 이름), `showHome` `showEditor` `hmLoad` `hmRender` `hmLast` `hmOpen`, `#hmGo`, 도구줄 `#bHome`, `HAD_LOCAL`.
+- 확인한 것: `py_compile`, `node --check`, Chromium 으로 첫 화면 → 새 프로젝트 → 배치 시작 → 서버 저장 → 첫 화면에 카드 · 최근 이력 → 이력 줄로 열기. 스크립트 오류 0.
+- 회사에서 확인할 것: P&ID · LOGIC 첫 화면과 나란히 봤을 때 같은 느낌인지.
+
+
+### 2026-10-22 (15) — 통합: 계장 광장(판 7 · 8) 과 판넬 공간확보(판 9~14) 를 한 판으로 (APP_VERSION 2026-10-22.4 / SERVER_VERSION 2026-10-22.4 / PLAZA_VERSION 2026-10-22.7)
+- 두 갈래가 따로 만든 수정본을 합침. 겹친 파일은 이 문서뿐(광장은 plaza/ 만, 판넬 공간확보는 dashboard.html · server.py · apps/space/ 만 바꿈).
+- 위 (9)~(14) 는 판넬 공간확보 쪽에서 (7)~(12) 로 적었던 것을 번호만 뒤로 옮김.
+- 회사에서: server.py 가 바뀜 → 서버 재시작. 적용 후 Ctrl+F5 → 왼쪽 메뉴 '🗄 판넬 공간확보' · 홈 '계장 광장' 둘 다 확인.

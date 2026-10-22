@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-22.2'
+SERVER_VERSION = '2026-10-22.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1370,6 +1370,143 @@ def api_profile_put(acc, b):
     return {'status': 'ok'}
 
 
+# ---------------------------------------------------------------- 판넬 공간확보 (apps/space): 프로젝트별 · 날짜별 저장 + 프로젝트 노트
+# 운영 폴더 space/<프로젝트ID>/index.json = {project, saves:[메타 …], notes:[…]}, space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+# 저장은 덮어쓰지 않고 매번 새 파일 → 누가 · 언제 · 어떤 메모로 저장했는지가 그대로 이력. 보기 = 누구나(사내망), 쓰기 = 로그인 + '판넬 공간확보' 권한
+SPACE_ID_RE = re.compile(r'^[a-z0-9]{6,32}$')
+SPACE_MAX = 5 * 1024 * 1024                 # 배치안 하나 최대 (판넬 수천 개도 1MB 안팎)
+
+
+def space_id():
+    return format(int(time.time() * 1000), 'x') + os.urandom(3).hex()
+
+
+def space_idx_path(pid):
+    if not SPACE_ID_RE.match(pid or ''):
+        raise ApiError(400, '잘못된 프로젝트 ID')
+    return P('space', pid, 'index.json')
+
+
+def space_idx(pid):
+    d = read_json(space_idx_path(pid))
+    if not d:
+        raise ApiError(404, '없는 프로젝트입니다 (다른 사람이 지웠거나 다른 서버의 프로젝트)')
+    return d
+
+
+def space_name(v, what, n):
+    v = re.sub(r'\s+', ' ', str(v or '')).strip()
+    if not v:
+        raise ApiError(400, f'{what}을(를) 적으세요')
+    return v[:n]
+
+
+def api_space_projects():
+    out = []
+    for pid in sorted(os.listdir(P('space'))) if os.path.isdir(P('space')) else []:
+        d = read_json(P('space', pid, 'index.json')) if SPACE_ID_RE.match(pid) else None
+        if not d:
+            continue
+        sv = d.get('saves') or []
+        last = sv[-1] if sv else {}
+        out.append({**d['project'], 'saves': len(sv), 'notes': len(d.get('notes') or []), 'lastAt': last.get('at', ''), 'lastBy': last.get('by', '')})
+    out.sort(key=lambda x: x.get('lastAt') or x.get('createdAt') or '', reverse=True)
+    return {'projects': out}
+
+
+def api_space_recent(n):
+    """모든 프로젝트의 저장을 최신순으로 (첫 화면 '최근 저장 이력' · 프로젝트 카드)"""
+    try:
+        n = max(1, min(200, int(n or 30)))
+    except ValueError:
+        n = 30
+    out = []
+    for pid in os.listdir(P('space')) if os.path.isdir(P('space')) else []:
+        d = read_json(P('space', pid, 'index.json')) if SPACE_ID_RE.match(pid) else None
+        if d:
+            out += [{**m, 'pid': pid, 'pname': d['project']['name']} for m in d.get('saves') or []]
+    out.sort(key=lambda m: m.get('at') or '', reverse=True)
+    return {'saves': out[:n]}
+
+
+def api_space_project_new(acc, b):
+    name = space_name(b.get('name'), '프로젝트 이름', 60)
+    with LOCK:
+        for x in api_space_projects()['projects']:
+            if x['name'].lower() == name.lower():
+                raise ApiError(409, f'같은 이름의 프로젝트가 이미 있습니다: {x["name"]} — 목록에서 고르세요')
+        pid = space_id()
+        proj = {'id': pid, 'name': name, 'createdAt': stamp(), 'createdBy': acc['name']}
+        write_json(space_idx_path(pid), {'project': proj, 'saves': [], 'notes': []})
+    log.info('공간확보 프로젝트 생성: %s (%s)', name, acc['name'])
+    return proj
+
+
+def api_space_get(pid):
+    d = space_idx(pid)
+    return {'project': d['project'], 'saves': list(reversed(d.get('saves') or [])), 'notes': list(reversed(d.get('notes') or []))}
+
+
+def api_space_save_get(pid, sid):
+    space_idx(pid)
+    if not SPACE_ID_RE.match(sid or ''):
+        raise ApiError(400, '잘못된 저장 ID')
+    d = read_json(P('space', pid, 'saves', sid + '.json'))
+    if not d:
+        raise ApiError(404, '없는 저장본입니다')
+    return d
+
+
+def api_space_save(acc, pid, raw):
+    if len(raw) > SPACE_MAX:
+        raise ApiError(413, f'배치안이 너무 큽니다 ({len(raw) // 1024} KB > {SPACE_MAX // 1024 // 1024} MB)')
+    try:
+        b = json.loads(raw.decode('utf-8'))
+    except ValueError:
+        raise ApiError(400, 'JSON 형식 오류')
+    data = b.get('data')
+    if not isinstance(data, dict) or not isinstance(data.get('room'), dict) or not isinstance(data.get('types'), list) or not isinstance(data.get('panels'), list):
+        raise ApiError(400, '배치안이 아닙니다 (room · types · panels 항목이 필요)')
+    num = lambda v: round(float(v), 1) if isinstance(v, (int, float)) else None
+    sm = b.get('sum') if isinstance(b.get('sum'), dict) else {}
+    with LOCK:
+        d = space_idx(pid)
+        sid = space_id()
+        meta = {'id': sid, 'at': stamp(), 'by': acc['name'], 'memo': re.sub(r'\s+', ' ', str(b.get('memo') or '')).strip()[:200],
+                'rev': str((data.get('info') or {}).get('rev') or '')[:20], 'panels': len(data['panels']),
+                'sum': {k: num(sm.get(k)) for k in ('envW', 'envH', 'recW', 'recH', 'spare')}}
+        write_json(P('space', pid, 'saves', sid + '.json'), {'meta': meta, 'data': data})
+        d.setdefault('saves', []).append(meta)
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 저장: %s / %s (%s)', d['project']['name'], sid, acc['name'])
+    return meta
+
+
+def api_space_note_add(acc, pid, b):
+    text = str(b.get('text') or '').strip()
+    if not text:
+        raise ApiError(400, '노트 내용을 적으세요')
+    with LOCK:
+        d = space_idx(pid)
+        n = {'id': space_id(), 'at': stamp(), 'by': acc['name'], 'text': text[:2000], 'save': str(b.get('save') or '')[:32]}
+        d.setdefault('notes', []).append(n)
+        write_json(space_idx_path(pid), d)
+    return n
+
+
+def api_space_note_del(acc, pid, nid, sup):
+    with LOCK:
+        d = space_idx(pid)
+        n = next((x for x in d.get('notes') or [] if x.get('id') == nid), None)
+        if not n:
+            raise ApiError(404, '없는 노트입니다')
+        if n.get('by') != acc['name'] and not sup:
+            raise ApiError(403, '자기가 쓴 노트만 지울 수 있습니다')
+        d['notes'] = [x for x in d['notes'] if x is not n]
+        write_json(space_idx_path(pid), d)
+    return {'status': 'ok'}
+
+
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
 MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', '판넬 공간확보'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
@@ -1480,7 +1617,7 @@ def make_backup(keep_days):
     tmp = dest + '.tmp'
     with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime'):
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space'):
                 for dirpath, _, files in os.walk(P(top)):
                     for fn in files:
                         if fn.endswith('.tmp'):
@@ -1908,6 +2045,23 @@ class Handler(BaseHTTPRequestHandler):
                 return api_ts_delete(acc, can_all, seg[1], seg[2])
         if head == 'order' and m == 'PUT' and len(seg) == 2:          # 행 순서 바꾸기 (선택한 행 위로/아래로)
             return api_reorder(sheet(1), self.json_body(), self.need_menu('weekly')['name'])
+        if head == 'space':                                         # 판넬 공간확보: 보기 = 누구나 · 쓰기 = 로그인 + 메뉴 권한
+            if m == 'GET' and seg[1:] == ['projects']:
+                return api_space_projects()
+            if m == 'GET' and seg[1:] == ['recent']:
+                return api_space_recent(q.get('n'))
+            if m == 'POST' and seg[1:] == ['projects']:
+                return api_space_project_new(self.need_menu('space'), self.json_body())
+            if m == 'GET' and len(seg) == 2:
+                return api_space_get(seg[1])
+            if m == 'GET' and len(seg) == 4 and seg[2] == 'saves':
+                return api_space_save_get(seg[1], seg[3])
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'saves':
+                return api_space_save(self.need_menu('space'), seg[1], self.raw_body())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'notes':
+                return api_space_note_add(self.need_menu('space'), seg[1], self.json_body())
+            if m == 'DELETE' and len(seg) == 4 and seg[2] == 'notes':
+                return api_space_note_del(self.need_menu('space'), seg[1], seg[3], self.is_super())
         if head == 'birthdays':                                     # 부서원 생일: 보기 = 누구나(비회원 화면에도 축하 팝업), 고치기·엑셀 = Management 권한
             if m == 'GET' and len(seg) == 1:
                 return api_bday_get(session_account(self.token(), False))
@@ -2211,7 +2365,7 @@ def main():
             pass
     if not os.path.isfile(P('dashboard.html')):
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
-    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', os.path.join('data', '_meta')):
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
     refresh_nets(first=True)                              # 허용 대역(지금까지 쓴 유선·Wi-Fi 대역 모두) · 네트워크 종류 확인
 
