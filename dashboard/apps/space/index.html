@@ -1,0 +1,697 @@
+<title>Control Room 공간확보</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: drafting sheet — toolbar strip on top, spec sidebar on the left, canvas as the drawing sheet */
+:root{
+  --paper:#eef2f3; --sheet:#f8fafa; --ink:#14232e; --ink-2:#4b5d68; --line:#c7d3d9; --grid:#dbe4e8; --grid-major:#b9c8cf;
+  --accent:#1f5fd1; --accent-soft:rgba(31,95,209,.12); --err:#c8372d; --warn:#c48410; --ok:#2e8a57;
+  --clear:#d98a1c; --panel-bg:#ffffff; --col:#22313a;
+  --f-ui:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0e171c; --sheet:#121e24; --ink:#dbe6eb; --ink-2:#91a5b0; --line:#2a3b44; --grid:#1a2930; --grid-major:#2b3f49;
+  --accent:#6aa0ff; --accent-soft:rgba(106,160,255,.16); --err:#ff6b5e; --warn:#f0b13c; --ok:#58c487;
+  --clear:#e9a040; --panel-bg:#17252c; --col:#c3d2d9; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0e171c; --sheet:#121e24; --ink:#dbe6eb; --ink-2:#91a5b0; --line:#2a3b44; --grid:#1a2930; --grid-major:#2b3f49;
+  --accent:#6aa0ff; --accent-soft:rgba(106,160,255,.16); --err:#ff6b5e; --warn:#f0b13c; --ok:#58c487;
+  --clear:#e9a040; --panel-bg:#17252c; --col:#c3d2d9; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:13px;margin:0}
+*{box-sizing:border-box}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--sheet)}
+.bar .brand{font-weight:700;letter-spacing:.02em;margin-right:8px;white-space:nowrap}
+.bar .brand small{font-family:var(--f-mono);font-weight:500;color:var(--ink-2);margin-left:6px;font-size:11px}
+.sep{width:1px;height:22px;background:var(--line);margin:0 2px}
+button,.btn{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--ink-2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.on{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+label.chk{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;white-space:nowrap}
+select,input{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:3px;padding:3px 5px}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.main{display:grid;grid-template-columns:320px 1fr;min-height:0}
+.side{overflow:auto;border-right:1px solid var(--line);background:var(--sheet);padding:12px 14px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.sec h3{margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center}
+.sec h3 b{font-family:var(--f-mono);color:var(--ink);letter-spacing:0;text-transform:none;font-weight:600}
+.f{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+.f label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
+.f label.full{grid-column:1/-1}
+.f input,.f select{width:100%}
+.types{display:flex;flex-direction:column;gap:8px}
+.type{border:1px solid var(--line);border-radius:5px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--panel-bg)}
+.type.act{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.type .hd{display:flex;gap:6px;align-items:center}
+.type .hd input[type=color]{width:24px;height:24px;padding:0;border:none;background:none}
+.type .hd .nm{flex:1;min-width:0}
+.type .hd .pre{width:56px;font-family:var(--f-mono)}
+.dims{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.dims label{display:flex;flex-direction:column;font-size:10px;color:var(--ink-2);gap:1px}
+.dims input{width:100%;padding:2px 3px}
+.type .ft{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-2)}
+.type .ft .acts{display:flex;gap:4px}
+.type .ft button{padding:3px 8px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.big{font-family:var(--f-mono);font-size:18px;font-weight:600;letter-spacing:-.01em}
+.big small{font-size:11px;color:var(--ink-2);font-weight:400;margin-left:4px}
+.counts{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.counts td{padding:3px 0;border-bottom:1px dashed var(--line)}
+.counts td:last-child{text-align:right;font-family:var(--f-mono)}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.issues{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:auto}
+.issues li{font-size:11.5px;padding:4px 6px;border-radius:3px;cursor:pointer;border-left:3px solid}
+.issues li.err{border-color:var(--err);background:color-mix(in srgb,var(--err) 10%,transparent)}
+.issues li.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.pill{font-family:var(--f-mono);font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid}
+.pill.ok{color:var(--ok);border-color:var(--ok)} .pill.err{color:var(--err);border-color:var(--err)} .pill.warn{color:var(--warn);border-color:var(--warn)}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.muted{color:var(--ink-2);font-size:11.5px;line-height:1.5}
+.stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden}
+#cv{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.status{display:flex;gap:16px;flex-wrap:wrap;padding:5px max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:var(--sheet);font-size:11.5px;color:var(--ink-2)}
+.status .mono{font-family:var(--f-mono)}
+.status .mode{color:var(--accent);font-weight:600}
+.legend{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:6px 9px;font-size:11px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;pointer-events:none}
+.legend i{display:inline-block;width:18px;height:9px;margin-right:6px;vertical-align:middle}
+.modal{position:fixed;inset:0;background:rgba(10,18,24,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal .box{background:var(--sheet);border:1px solid var(--line);border-radius:6px;width:min(720px,100%);max-height:90%;display:flex;flex-direction:column;gap:10px;padding:14px}
+.modal h4{margin:0;font-size:14px}
+.modal textarea{width:100%;min-height:300px;flex:1;font-family:var(--f-mono);font-size:12px;background:var(--panel-bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
+.modal .row{justify-content:flex-end}
+svg text{font-family:var(--f-mono)}
+@media (max-width:760px){
+  .main{grid-template-columns:1fr;grid-template-rows:62vh auto;overflow:auto}
+  .side{order:2;border-right:none;border-top:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .stage{order:1}
+  .app{height:auto;min-height:100%}
+  .legend{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <div class="bar">
+    <div class="brand">Control Room 공간확보<small>Phase 0 · 건축 전달용</small></div>
+    <button id="bSel" class="on" title="선택 (Esc)">선택</button>
+    <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
+    <span class="sep"></span>
+    <button id="bRL" title="반시계 90° (Shift+R)">⟲ 90°</button>
+    <button id="bRR" title="시계 90° (R)">⟳ 90°</button>
+    <button id="bDup" title="복제 (Ctrl+D)">복제</button>
+    <button id="bDel" title="삭제 (Delete)">삭제</button>
+    <span class="sep"></span>
+    <button id="bUndo" title="Ctrl+Z">↶</button>
+    <button id="bRedo" title="Ctrl+Y">↷</button>
+    <button id="bFit" title="전체 보기 (F)">맞춤</button>
+    <span class="sep"></span>
+    <label class="chk">Snap <select id="snap"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label>
+    <label class="chk"><input type="checkbox" id="vClr" checked>유지보수 공간</label>
+    <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
+    <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
+  </div>
+
+  <div class="main">
+    <aside class="side">
+      <section class="sec">
+        <h3>Room · 실 치수 <span class="muted" style="text-transform:none;letter-spacing:0">mm</span></h3>
+        <div class="f">
+          <label>Width (X)<input type="number" id="rW" step="100"></label>
+          <label>Length (Y)<input type="number" id="rL" step="100"></label>
+          <label>기둥 Span X<input type="text" id="rSX" placeholder="7000,7000,7000"></label>
+          <label>기둥 Span Y<input type="text" id="rSY" placeholder="6000,6000,6000"></label>
+          <label>기둥 크기<input type="number" id="rC" step="50"></label>
+          <label>벽 이격 (권장)<input type="number" id="rM" step="100"></label>
+        </div>
+        <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 벽 이격은 권장 실 크기 계산에만 쓰입니다.</p>
+      </section>
+
+      <section class="sec">
+        <h3>Panel Type <span class="row" style="gap:4px"><label class="chk" style="text-transform:none;letter-spacing:0;font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
+        <div class="types" id="types"></div>
+        <div class="row" style="margin-top:8px"><button id="bAddType">+ Type 추가</button></div>
+        <p class="muted" style="margin:6px 0 0">W·D = 평면 치수, F·R = 전면·후면 유지보수 공간. 굵은 선이 전면입니다. Type 치수를 바꾸면 배치된 판넬에 바로 반영됩니다.</p>
+      </section>
+
+      <section class="sec" id="propSec">
+        <h3>선택 <b id="selInfo">없음</b></h3>
+        <div id="props" class="muted">판넬을 클릭하거나 Shift+Drag로 여러 개를 선택하세요.</div>
+      </section>
+
+      <section class="sec">
+        <h3>공간 요구 <span id="chkPill" class="pill ok">OK</span></h3>
+        <div class="muted">판넬 + 유지보수 공간 외곽</div>
+        <div class="big" id="envBig">–</div>
+        <div class="muted" style="margin-top:6px">권장 실 크기 (벽 이격 반영)</div>
+        <div class="big" id="recBig">–</div>
+        <dl class="kv" style="margin-top:8px" id="kv"></dl>
+        <table class="counts" id="counts"></table>
+        <ul class="issues" id="issues"></ul>
+      </section>
+
+      <section class="sec">
+        <h3>출력</h3>
+        <div class="row">
+          <button class="primary" id="bReq">건축 전달 요약</button>
+          <button id="bDxf">DXF</button>
+          <button id="bCsv">판넬 List CSV</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="bSave">배치안 저장(JSON)</button>
+          <button id="bLoad">불러오기</button>
+          <button id="bReset">예시로 초기화</button>
+          <input type="file" id="fLoad" accept=".json,application/json" hidden>
+        </div>
+      </section>
+    </aside>
+
+    <div class="stage">
+      <svg id="cv"></svg>
+      <div class="legend">
+        <span><i style="background:var(--panel-bg);border:1px solid var(--ink);border-top:3px solid var(--ink)"></i>판넬 (굵은 선 = 전면)</span>
+        <span><i style="background:repeating-linear-gradient(45deg,var(--clear) 0 1px,transparent 1px 4px);border:1px dashed var(--clear)"></i>유지보수 공간</span>
+        <span><i style="border:1.5px dashed var(--accent)"></i>필요 영역 외곽</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span class="mode" id="stMode">선택</span>
+    <span class="mono" id="stXY">X – · Y –</span>
+    <span id="stHint">빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동</span>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="box">
+    <h4 id="mTitle">출력</h4>
+    <div class="muted" id="mNote"></div>
+    <textarea id="mText" readonly></textarea>
+    <div class="row">
+      <button id="mCopy">복사</button>
+      <button id="mDown" class="primary">파일 다운로드</button>
+      <button id="mClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- state ---------- */
+function sample(){
+  const types=[
+    {id:'t1',name:'System Cabinet',pre:'SC-',w:800,d:800,h:2100,front:1000,rear:800,color:'#2f6db5'},
+    {id:'t2',name:'Marshalling Cabinet',pre:'MC-',w:800,d:800,h:2100,front:1000,rear:800,color:'#2f8a6a'},
+    {id:'t3',name:'Network / Server Rack',pre:'NR-',w:600,d:1000,h:2100,front:1000,rear:800,color:'#7a59b0'},
+    {id:'t4',name:'Power Distribution',pre:'PD-',w:800,d:600,h:2100,front:1000,rear:0,color:'#b8642a'},
+    {id:'t5',name:'UPS / Battery',pre:'UP-',w:1200,d:800,h:2000,front:1200,rear:600,color:'#8a7a2a'}
+  ];
+  const panels=[]; const add=(t,pre,n,x0,y,rot,step)=>{for(let i=0;i<n;i++)panels.push({id:uid(),type:t,tag:pre+String(i+1).padStart(2,'0'),desc:'',x:x0+i*step,y,rot})};
+  add('t1','SC-',7,1000,2000,0,800);
+  add('t2','MC-',7,1000,4400,180,800);
+  add('t3','NR-',4,8600,2000,0,600);
+  add('t4','PD-',3,11600,2000,0,800);
+  add('t5','UP-',2,8600,4400,180,1200);
+  return {room:{w:21000,l:18000,spX:'7000,7000,7000',spY:'6000,6000,6000',col:600,margin:1000},snap:100,types,panels};
+}
+let S;
+try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
+if(!S||!S.room||!Array.isArray(S.panels))S=sample();
+let sel=new Set();
+let mode='select';           // select | box | place
+let placeType=null, placeRot=0;
+const show={clr:true,dim:true,lbl:true};
+const V={s:0.04,ox:60,oy:60};
+let undo=[],redo=[];
+
+const snapshot=()=>JSON.stringify(S);
+function commit(){undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[];lastSnap=snapshot();persist();refresh();}
+let lastSnap=snapshot();
+function persist(){try{localStorage.setItem('crspace.v1',lastSnap)}catch(e){}}
+function restore(str){S=JSON.parse(str);lastSnap=str;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));persist();buildRoom();buildTypes();refresh();}
+
+/* ---------- geometry ---------- */
+const typeOf=p=>S.types.find(t=>t.id===p.type)||S.types[0];
+function geom(p){
+  const t=typeOf(p), r=((p.rot%360)+360)%360, sw=r%180===0;
+  const bw=sw?t.w:t.d, bh=sw?t.d:t.w, F=+t.front||0, R=+t.rear||0, x=p.x, y=p.y;
+  let fr,rr,fe;
+  if(r===0){fr={x,y:y-F,w:bw,h:F};rr={x,y:y+bh,w:bw,h:R};fe=[x,y,x+bw,y]}
+  else if(r===90){fr={x:x+bw,y,w:F,h:bh};rr={x:x-R,y,w:R,h:bh};fe=[x+bw,y,x+bw,y+bh]}
+  else if(r===180){fr={x,y:y+bh,w:bw,h:F};rr={x,y:y-R,w:bw,h:R};fe=[x,y+bh,x+bw,y+bh]}
+  else {fr={x:x-F,y,w:F,h:bh};rr={x:x+bw,y,w:R,h:bh};fe=[x,y,x,y+bh]}
+  return {t,r,body:{x,y,w:bw,h:bh},fr,rr,fe};
+}
+const ov=(a,b)=>a.w>0&&a.h>0&&b.w>0&&b.h>0&&a.x<b.x+b.w-0.5&&b.x<a.x+a.w-0.5&&a.y<b.y+b.h-0.5&&b.y<a.y+a.h-0.5;
+const inside=(a,R)=>a.x>=-0.5&&a.y>=-0.5&&a.x+a.w<=R.w+0.5&&a.y+a.h<=R.l+0.5;
+function spans(str){return String(str||'').split(/[,\s]+/).map(Number).filter(n=>n>0)}
+function columns(){
+  const sx=spans(S.room.spX), sy=spans(S.room.spY), c=+S.room.col||0;
+  if(!sx.length||!sy.length||c<=0)return[];
+  const xs=[0],ys=[0]; sx.forEach(v=>xs.push(xs[xs.length-1]+v)); sy.forEach(v=>ys.push(ys[ys.length-1]+v));
+  const out=[]; xs.forEach(x=>ys.forEach(y=>out.push({x:x-c/2,y:y-c/2,w:c,h:c,cx:x,cy:y}))); return out;
+}
+
+/* ---------- checks & summary ---------- */
+let issues=[], status={};
+function check(){
+  issues=[];status={};
+  const G=S.panels.map(p=>({p,g:geom(p)})), cols=columns(), R=S.room;
+  const mark=(id,lv)=>{if(lv==='err'||!status[id])status[id]=lv};
+  G.forEach(({p,g},i)=>{
+    if(!inside(g.body,R)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag}: 실 외곽 밖으로 나감`});mark(p.id,'err')}
+    else{[['전면',g.fr],['후면',g.rr]].forEach(([n,c])=>{if(c.w>0&&c.h>0&&!inside(c,R)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag}: ${n} 유지보수 공간이 벽에 걸림`});mark(p.id,'warn')}})}
+    cols.forEach(c=>{
+      if(ov(g.body,c)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag}: 기둥(${fmt(c.cx)}, ${fmt(c.cy)})과 겹침`});mark(p.id,'err')}
+      else if(ov(g.fr,c)||ov(g.rr,c)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag}: 유지보수 공간에 기둥`});mark(p.id,'warn')}
+    });
+    G.forEach(({p:q,g:h},j)=>{
+      if(j>i&&ov(g.body,h.body)){issues.push({lv:'err',ids:[p.id,q.id],msg:`${p.tag} ↔ ${q.tag}: 판넬 겹침`});mark(p.id,'err');mark(q.id,'err')}
+      if(j!==i&&!ov(g.body,h.body)){
+        if(ov(g.fr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 전면 공간에 ${q.tag}`});mark(p.id,'warn')}
+        else if(ov(g.rr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 후면 공간에 ${q.tag}`});mark(p.id,'warn')}
+      }
+    });
+  });
+}
+function envelope(){
+  if(!S.panels.length)return null;
+  let x0=1e12,y0=1e12,x1=-1e12,y1=-1e12;
+  S.panels.forEach(p=>{const g=geom(p);[g.body,g.fr,g.rr].forEach(r=>{if(r.w<=0||r.h<=0)return;x0=Math.min(x0,r.x);y0=Math.min(y0,r.y);x1=Math.max(x1,r.x+r.w);y1=Math.max(y1,r.y+r.h)})});
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+const ceil100=v=>Math.ceil(v/100)*100;
+function summary(){
+  const env=envelope(), m=+S.room.margin||0;
+  const rec=env?{w:ceil100(env.w+2*m),h:ceil100(env.h+2*m)}:null;
+  const by=S.types.map(t=>({t,n:S.panels.filter(p=>p.type===t.id).length})).filter(o=>o.n);
+  const body=S.panels.reduce((a,p)=>{const g=geom(p);return a+g.body.w*g.body.h},0);
+  return {env,rec,by,body,roomA:S.room.w*S.room.l};
+}
+
+/* ---------- view ---------- */
+const svg=$('#cv');
+function vp(){return {w:svg.clientWidth||800,h:svg.clientHeight||600}}
+function fit(){
+  const {w,h}=vp(), W=S.room.w, L=S.room.l, pad=70;
+  V.s=Math.min((w-pad*2)/W,(h-pad*2)/L); if(!(V.s>0))V.s=0.03;
+  V.ox=(w-W*V.s)/2+10; V.oy=(h-L*V.s)/2+10; render();
+}
+const toW=(sx,sy)=>({x:(sx-V.ox)/V.s,y:(sy-V.oy)/V.s});
+const snapV=v=>Math.round(v/S.snap)*S.snap;
+
+/* ---------- render ---------- */
+let ghost=null, marquee=null, cursorW=null;
+function rect(r,cls,extra=''){return `<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" ${extra}/>`}
+function dimH(x0,x1,y,txt,off,col){ // horizontal dimension at y with tick marks
+  const s=V.s,t=4/s,fs=11/s;
+  return `<g stroke="${col}" fill="${col}"><line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" vector-effect="non-scaling-stroke"/><line x1="${x0}" y1="${y-t}" x2="${x0}" y2="${y+t}" vector-effect="non-scaling-stroke"/><line x1="${x1}" y1="${y-t}" x2="${x1}" y2="${y+t}" vector-effect="non-scaling-stroke"/><text x="${(x0+x1)/2}" y="${y+off}" font-size="${fs}" text-anchor="middle" stroke="none" paint-order="stroke">${txt}</text></g>`;
+}
+function dimV(y0,y1,x,txt,off,col){
+  const s=V.s,t=4/s,fs=11/s,cy=(y0+y1)/2;
+  return `<g stroke="${col}" fill="${col}"><line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" vector-effect="non-scaling-stroke"/><line x1="${x-t}" y1="${y0}" x2="${x+t}" y2="${y0}" vector-effect="non-scaling-stroke"/><line x1="${x-t}" y1="${y1}" x2="${x+t}" y2="${y1}" vector-effect="non-scaling-stroke"/><text x="${x+off}" y="${cy}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle" stroke="none" transform="rotate(-90 ${x+off} ${cy})">${txt}</text></g>`;
+}
+function gaps(p){ // nearest obstacle in 4 directions for a single panel
+  const b=geom(p).body, R=S.room, obs=[];
+  S.panels.forEach(q=>{if(q.id!==p.id)obs.push(geom(q).body)}); columns().forEach(c=>obs.push(c));
+  const res={l:{d:b.x,to:0},r:{d:R.w-(b.x+b.w),to:R.w},u:{d:b.y,to:0},dn:{d:R.l-(b.y+b.h),to:R.l}};
+  obs.forEach(o=>{
+    const yo=o.y<b.y+b.h&&b.y<o.y+o.h, xo=o.x<b.x+b.w&&b.x<o.x+o.w;
+    if(yo){ if(o.x+o.w<=b.x&&b.x-(o.x+o.w)<res.l.d)res.l={d:b.x-(o.x+o.w),to:o.x+o.w};
+            if(o.x>=b.x+b.w&&o.x-(b.x+b.w)<res.r.d)res.r={d:o.x-(b.x+b.w),to:o.x}; }
+    if(xo){ if(o.y+o.h<=b.y&&b.y-(o.y+o.h)<res.u.d)res.u={d:b.y-(o.y+o.h),to:o.y+o.h};
+            if(o.y>=b.y+b.h&&o.y-(b.y+b.h)<res.dn.d)res.dn={d:o.y-(b.y+b.h),to:o.y}; }
+  });
+  return {b,res};
+}
+function render(){
+  const s=V.s, W=S.room.w, L=S.room.l, {w:vw,h:vh}=vp(), cs=getComputedStyle(document.documentElement);
+  const C=k=>cs.getPropertyValue(k).trim();
+  const ink=C('--ink'),ink2=C('--ink-2'),acc=C('--accent'),clr=C('--clear'),err=C('--err'),warn=C('--warn');
+  // grid pattern
+  let mi=100,ma=1000; if(100*s<7){mi=500;ma=5000} if(500*s<7){mi=1000;ma=10000}
+  let pl=''; for(let k=0;k<ma;k+=mi){const isM=k===0;pl+=`<line x1="${k}" y1="0" x2="${k}" y2="${ma}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/><line x1="0" y1="${k}" x2="${ma}" y2="${k}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/>`}
+  const hs=7/s;
+  let defs=`<defs><pattern id="gp" width="${ma}" height="${ma}" patternUnits="userSpaceOnUse">${pl}</pattern>
+   <pattern id="hatch" width="${hs}" height="${hs}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${hs}" stroke="${clr}" stroke-width="${1/s}" opacity=".55"/></pattern>
+   <pattern id="hatchE" width="${hs}" height="${hs}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs}" stroke="${err}" stroke-width="${1.2/s}" opacity=".7"/></pattern></defs>`;
+  const a=toW(0,0), b=toW(vw,vh);
+  let g=`<rect x="${a.x}" y="${a.y}" width="${b.x-a.x}" height="${b.y-a.y}" fill="url(#gp)"/>`;
+  g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".55" stroke="${ink}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+  // columns
+  const cols=columns(); cols.forEach(c=>{g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"/>`});
+  // clearances
+  const G=S.panels.map(p=>({p,g:geom(p)}));
+  if(show.clr) G.forEach(({g:q})=>{[q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="${clr}" stroke-dasharray="4 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`})});
+  // envelope
+  const env=envelope();
+  if(env){g+=`<rect x="${env.x}" y="${env.y}" width="${env.w}" height="${env.h}" fill="none" stroke="${acc}" stroke-width="1.5" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`}
+  // bodies
+  const fs=11/s;
+  G.forEach(({p,g:q})=>{
+    const b=q.body, st=status[p.id], isS=sel.has(p.id);
+    const stroke=isS?acc:(st==='err'?err:ink);
+    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${C('--panel-bg')}" stroke="${stroke}" stroke-width="${isS?2:1}" vector-effect="non-scaling-stroke"/>`;
+    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${q.t.color}" fill-opacity="${isS?.32:.2}"/>`;
+    if(st==='err')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="url(#hatchE)"/>`;
+    if(st==='warn')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="${warn}" stroke-width="2" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`;
+    const f=q.fe; g+=`<line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${isS?acc:ink}" stroke-width="3.5" vector-effect="non-scaling-stroke"/>`;
+    if(show.lbl&&b.w*s>26&&b.h*s>12){
+      const cx=b.x+b.w/2, cy=b.y+b.h/2, vert=b.h>b.w*1.3&&b.w*s<p.tag.length*7;
+      g+=`<text x="${cx}" y="${cy}" font-size="${fs}" fill="${ink}" text-anchor="middle" dominant-baseline="middle" font-weight="600"${vert?` transform="rotate(-90 ${cx} ${cy})"`:''}>${esc(p.tag)}</text>`;
+    }
+  });
+  // dims
+  if(show.dim){
+    g+=dimH(0,W,-34/s,`Width ${fmt(W)} mm`,-6/s,ink);
+    g+=dimV(0,L,-34/s,`Length ${fmt(L)} mm`,-8/s,ink);
+    if(env){
+      g+=dimH(env.x,env.x+env.w,L+30/s,`필요 ${fmt(env.w)}`,14/s,acc);
+      g+=dimV(env.y,env.y+env.h,W+30/s,`필요 ${fmt(env.h)}`,12/s,acc);
+    }
+    if(sel.size===1){
+      const p=S.panels.find(q=>sel.has(q.id));
+      if(p){const {b,res}=gaps(p), cy=b.y+b.h/2, cx=b.x+b.w/2;
+        const lab=d=>fmt(d);
+        if(res.l.d>0)g+=dimH(res.l.to,b.x,cy,lab(res.l.d),-5/s,acc);
+        if(res.r.d>0)g+=dimH(b.x+b.w,res.r.to,cy,lab(res.r.d),-5/s,acc);
+        if(res.u.d>0)g+=dimV(res.u.to,b.y,cx,lab(res.u.d),-8/s,acc);
+        if(res.dn.d>0)g+=dimV(b.y+b.h,res.dn.to,cx,lab(res.dn.d),-8/s,acc);
+        g+=`<text x="${b.x+b.w/2}" y="${b.y-6/s}" font-size="${10/s}" fill="${acc}" text-anchor="middle">${fmt(b.w)}×${fmt(b.h)}</text>`;
+      }
+    }
+  }
+  // ghost
+  if(ghost){ghost.forEach(p=>{const q=geom(p),b=q.body;
+    [q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" opacity=".6"/>`});
+    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${q.t.color}" fill-opacity=".35" stroke="${acc}" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+    g+=`<line x1="${q.fe[0]}" y1="${q.fe[1]}" x2="${q.fe[2]}" y2="${q.fe[3]}" stroke="${acc}" stroke-width="3" vector-effect="non-scaling-stroke"/>`})}
+  if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
+  // rulers (screen space)
+  let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
+  const steps=[100,200,500,1000,2000,5000,10000]; const st=steps.find(v=>v*s>=55)||10000, sub=st/5;
+  for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:14}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
+  for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:14}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
+  ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
+  svg.innerHTML=defs+`<g transform="translate(${V.ox} ${V.oy}) scale(${s})">${g}</g>`+ru;
+}
+
+/* ---------- side panels ---------- */
+function buildRoom(){$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#snap').value=String(S.snap)}
+['rW','rL','rSX','rSY','rC','rM'].forEach(id=>$('#'+id).addEventListener('change',e=>{
+  const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin'}[id], v=e.target.value;
+  S.room[k]=(k==='spX'||k==='spY')?v:Math.max(0,+v||0); commit();
+}));
+function buildTypes(){
+  const box=$('#types'); box.innerHTML='';
+  S.types.forEach(t=>{
+    const n=S.panels.filter(p=>p.type===t.id).length;
+    const d=document.createElement('div'); d.className='type'+(mode==='place'&&placeType===t.id?' act':'');
+    d.innerHTML=`<div class="hd"><input type="color" value="${t.color}" data-k="color" aria-label="색상"><input class="nm" id="tn_${t.id}" data-k="name" value="${esc(t.name)}" aria-label="Type 이름"><input class="pre" id="tp_${t.id}" data-k="pre" value="${esc(t.pre)}" aria-label="Tag 접두어" title="Tag 접두어"></div>
+      <div class="dims">${[['w','W'],['d','D'],['h','H'],['front','F'],['rear','R']].map(([k,l])=>`<label>${l}<input type="number" step="50" min="0" id="t${k}_${t.id}" data-k="${k}" value="${t[k]}"></label>`).join('')}</div>
+      <div class="ft"><span>배치 ${n} EA</span><span class="acts"><button data-a="del" ${n||S.types.length<2?'disabled':''} title="${n?'배치된 판넬이 있어 삭제 불가':'Type 삭제'}">삭제</button><button data-a="place" class="${mode==='place'&&placeType===t.id?'on':''}">배치</button></span></div>`;
+    d.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('change',()=>{const k=inp.dataset.k;t[k]=(k==='name'||k==='pre'||k==='color')?inp.value:Math.max(0,+inp.value||0);commit()}));
+    d.querySelector('[data-a=place]').onclick=()=>{if(mode==='place'&&placeType===t.id)setMode('select');else{placeType=t.id;setMode('place')}};
+    d.querySelector('[data-a=del]').onclick=()=>{S.types=S.types.filter(x=>x!==t);commit();buildTypes()};
+    box.appendChild(d);
+  });
+}
+$('#bAddType').onclick=()=>{const i=S.types.length+1;S.types.push({id:uid(),name:'Panel Type '+String.fromCharCode(64+Math.min(i,26)),pre:'P'+i+'-',w:800,d:800,h:2100,front:1000,rear:800,color:['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'][i%6]});commit();buildTypes()};
+
+function buildProps(){
+  const box=$('#props'), ps=S.panels.filter(p=>sel.has(p.id));
+  $('#selInfo').textContent=ps.length?ps.length+' EA':'없음';
+  if(!ps.length){box.className='muted';box.innerHTML='판넬을 클릭하거나 Shift+Drag로 여러 개를 선택하세요.';return}
+  box.className='';
+  if(ps.length===1){
+    const p=ps[0], g=geom(p);
+    box.innerHTML=`<div class="f">
+      <label>Tag<input id="pTag" value="${esc(p.tag)}"></label>
+      <label>Type<select id="pType">${S.types.map(t=>`<option value="${t.id}" ${t.id===p.type?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label class="full">Description<input id="pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label>
+      <label>X (좌상단)<input type="number" id="pX" step="${S.snap}" value="${p.x}"></label>
+      <label>Y (좌상단)<input type="number" id="pY" step="${S.snap}" value="${p.y}"></label>
+      <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
+      <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label></div>`;
+    const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
+    ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
+    ch('#pType',v=>p.type=v); ch('#pDesc',v=>p.desc=v);
+    ch('#pX',v=>p.x=+v||0); ch('#pY',v=>p.y=+v||0); ch('#pRot',v=>{rotateAbout([p],null,0,+v)});
+  }else{
+    const by={};ps.forEach(p=>{const n=typeOf(p).name;by[n]=(by[n]||0)+1});
+    box.innerHTML=`<div class="muted">${Object.entries(by).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')}</div>
+     <div class="row" style="margin-top:6px"><button id="gRL">그룹 ⟲</button><button id="gRR">그룹 ⟳</button><button id="gRe">Tag 재부여</button></div>
+     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
+    $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90);
+    $('#gRe').onclick=()=>{const gs=ps.slice().sort((a,b)=>a.y-b.y||a.x-b.x);const used={};
+      S.panels.filter(p=>!sel.has(p.id)).forEach(p=>used[p.tag]=1);
+      gs.forEach(p=>{const t=typeOf(p);let k=1;while(used[t.pre+String(k).padStart(2,'0')])k++;p.tag=t.pre+String(k).padStart(2,'0');used[p.tag]=1});commit()};
+  }
+}
+
+function buildSummary(){
+  const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
+  const pill=$('#chkPill'); pill.className='pill '+(e?'err':w?'warn':'ok'); pill.textContent=e?`간섭 ${e}`:w?`경고 ${w}`:'OK';
+  $('#envBig').innerHTML=sm.env?`${fmt(sm.env.w)} × ${fmt(sm.env.h)}<small>mm · ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²</small>`:'–';
+  $('#recBig').innerHTML=sm.rec?`${fmt(sm.rec.w)} × ${fmt(sm.rec.h)}<small>mm · ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²</small>`:'–';
+  const fitW=sm.rec&&sm.rec.w<=S.room.w&&sm.rec.h<=S.room.l;
+  $('#kv').innerHTML=`<dt>현재 실</dt><dd>${fmt(S.room.w)} × ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m²)</dd>
+   <dt>판넬 수</dt><dd>${S.panels.length} EA</dd>
+   <dt>판넬 바닥면적</dt><dd>${(sm.body/1e6).toFixed(1)} m²</dd>
+   <dt>실 대비 필요영역</dt><dd>${sm.env?((sm.env.w*sm.env.h)/sm.roomA*100).toFixed(0)+' %':'–'}</dd>
+   <dt>권장 크기 수용</dt><dd style="color:var(${fitW?'--ok':'--warn'})">${sm.rec?(fitW?'가능':'실 크기 부족'):'–'}</dd>`;
+  $('#counts').innerHTML=sm.by.map(o=>`<tr><td><span class="sw" style="background:${o.t.color}"></span>${esc(o.t.name)} <span class="muted">${o.t.w}×${o.t.d}</span></td><td>${o.n} EA</td></tr>`).join('');
+  const ul=$('#issues'); ul.innerHTML='';
+  issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.textContent=i.msg;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
+}
+function refresh(){check();buildSummary();buildProps();render();
+  const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
+  if(n!==refresh._n){refresh._n=n;buildTypes()}
+  $('#bUndo').disabled=!undo.length;$('#bRedo').disabled=!redo.length;
+}
+
+/* ---------- edit operations ---------- */
+function nextTag(t,extra){const used=new Set(S.panels.map(p=>p.tag).concat(extra||[]));let k=1;while(used.has(t.pre+String(k).padStart(2,'0')))k++;return t.pre+String(k).padStart(2,'0')}
+function makeGhost(w){
+  const t=S.types.find(x=>x.id===placeType); if(!t)return null;
+  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=sw?t.w:t.d, out=[], tags=[];
+  for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:snapV(w.x)+(sw?i*step:0),y:snapV(w.y)+(sw?0:i*step)})}
+  return out;
+}
+function rotateAbout(ps,center,delta,abs){
+  if(!ps.length)return;
+  let cx,cy;
+  if(center){cx=center.x;cy=center.y}
+  else{let x0=1e12,y0=1e12,x1=-1e12,y1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);x1=Math.max(x1,b.x+b.w);y1=Math.max(y1,b.y+b.h)});cx=(x0+x1)/2;cy=(y0+y1)/2}
+  ps.forEach(p=>{
+    const b=geom(p).body; let pcx=b.x+b.w/2, pcy=b.y+b.h/2;
+    const nr=abs!==undefined?abs:(((p.rot+delta)%360)+360)%360;
+    const turn=((nr-p.rot)%360+360)%360;
+    if(ps.length>1&&abs===undefined){const dx=pcx-cx,dy=pcy-cy; if(delta>0){pcx=cx-dy;pcy=cy+dx}else{pcx=cx+dy;pcy=cy-dx}}
+    p.rot=nr; const nb=geom(p).body;
+    p.x=snapV(pcx-nb.w/2); p.y=snapV(pcy-nb.h/2);
+  });
+}
+function rotSel(d){
+  if(mode==='place'){placeRot=((placeRot+d)%360+360)%360;ghost=cursorW?makeGhost(cursorW):null;render();return}
+  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return; rotateAbout(ps,null,d); commit();
+}
+function delSel(){if(!sel.size)return;S.panels=S.panels.filter(p=>!sel.has(p.id));sel.clear();commit()}
+function dupSel(){
+  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
+  let x0=1e12,x1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);x1=Math.max(x1,b.x+b.w)});
+  const off=snapV(x1-x0)||S.snap, tags=[], nw=[];
+  ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off})});
+  S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); commit();
+}
+function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});commit()}
+function setMode(m){
+  mode=m; if(m!=='place'){ghost=null}
+  $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box');
+  const t=S.types.find(x=>x.id===placeType);
+  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':'선택';
+  $('#stHint').textContent=m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
+  buildTypes(); render();
+}
+
+/* ---------- pointer ---------- */
+const ptrs=new Map(); let drag=null, pinch=null;
+function hit(w){for(let i=S.panels.length-1;i>=0;i--){const b=geom(S.panels[i]).body;if(w.x>=b.x&&w.x<=b.x+b.w&&w.y>=b.y&&w.y<=b.y+b.h)return S.panels[i]}return null}
+function local(e){const r=svg.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
+svg.addEventListener('pointerdown',e=>{
+  svg.setPointerCapture(e.pointerId); const sp=local(e); ptrs.set(e.pointerId,sp);
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s:V.s,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,ox:V.ox,oy:V.oy};drag=null;marquee=null;return}
+  const w=toW(sp.x,sp.y);
+  if(e.button===1){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}
+  if(mode==='place'){const gh=makeGhost(w);if(gh){S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=makeGhost(w);render()}return}
+  const p=hit(w);
+  if(p&&mode!=='box'){
+    if(e.shiftKey||e.ctrlKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}
+    else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
+    const ps=S.panels.filter(q=>sel.has(q.id));
+    drag={k:'move',w0:w,orig:ps.map(q=>({q,x:q.x,y:q.y})),moved:false};render();return;
+  }
+  if(e.shiftKey||mode==='box'){marquee={x0:w.x,y0:w.y,x1:w.x,y1:w.y,add:e.shiftKey&&mode!=='box'};drag={k:'box'};return}
+  drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:false};
+});
+let raf=0; const req=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;render()})};
+svg.addEventListener('pointermove',e=>{
+  const sp=local(e); if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,sp);
+  const w=toW(sp.x,sp.y); cursorW=w;
+  $('#stXY').textContent=`X ${fmt(snapV(w.x))} · Y ${fmt(snapV(w.y))}`;
+  if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const ns=Math.max(.004,Math.min(2,pinch.s*d/pinch.d));const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;const wx=(pinch.mx-pinch.ox)/pinch.s,wy=(pinch.my-pinch.oy)/pinch.s;V.s=ns;V.ox=mx-wx*ns;V.oy=my-wy*ns;req();return}
+  if(mode==='place'&&!drag){ghost=makeGhost(w);req();return}
+  if(!drag)return;
+  if(drag.k==='pan'){const dx=sp.x-drag.sx,dy=sp.y-drag.sy;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;V.ox=drag.ox+dx;V.oy=drag.oy+dy;req()}
+  else if(drag.k==='move'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.orig.forEach(o=>{o.q.x=o.x+dx;o.q.y=o.y+dy});check();req()}
+  else if(drag.k==='box'){marquee.x1=w.x;marquee.y1=w.y;req()}
+});
+function endPtr(e){
+  ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
+  if(!drag)return; const d=drag; drag=null;
+  if(d.k==='move'){if(d.moved)commit();else render()}
+  else if(d.k==='pan'){if(!d.moved&&sel.size){sel.clear();buildProps();render()}}
+  else if(d.k==='box'){const r=marquee,x0=Math.min(r.x0,r.x1),x1=Math.max(r.x0,r.x1),y0=Math.min(r.y0,r.y1),y1=Math.max(r.y0,r.y1);
+    if(!r.add)sel.clear();
+    S.panels.forEach(p=>{const b=geom(p).body;if(b.x>=x0&&b.y>=y0&&b.x+b.w<=x1&&b.y+b.h<=y1)sel.add(p.id)});
+    marquee=null;buildProps();render()}
+}
+svg.addEventListener('pointerup',endPtr); svg.addEventListener('pointercancel',endPtr);
+svg.addEventListener('pointerleave',()=>{if(mode==='place'&&!drag){ghost=null;render()}});
+svg.addEventListener('wheel',e=>{e.preventDefault();const sp=local(e),w=toW(sp.x,sp.y);const k=Math.exp(-e.deltaY*0.0015);V.s=Math.max(.004,Math.min(2,V.s*k));V.ox=sp.x-w.x*V.s;V.oy=sp.y-w.y*V.s;req()},{passive:false});
+
+/* ---------- keys & buttons ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return; if(!$('#modal').hidden)return;
+  const k=e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return}
+  if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return}
+  if((e.ctrlKey||e.metaKey)&&k==='d'){e.preventDefault();dupSel();return}
+  if((e.ctrlKey||e.metaKey)&&k==='a'){e.preventDefault();sel=new Set(S.panels.map(p=>p.id));buildProps();render();return}
+  if(k==='r'){rotSel(e.shiftKey?-90:90);return}
+  if(k==='delete'||k==='backspace'){delSel();return}
+  if(k==='escape'){if(mode!=='select')setMode('select');else{sel.clear();buildProps();render()}return}
+  if(k==='f'){fit();return}
+  const st=e.shiftKey?S.snap*10:S.snap;
+  if(k==='arrowleft'){e.preventDefault();nudge(-st,0)} if(k==='arrowright'){e.preventDefault();nudge(st,0)}
+  if(k==='arrowup'){e.preventDefault();nudge(0,-st)} if(k==='arrowdown'){e.preventDefault();nudge(0,st)}
+});
+function doUndo(){if(!undo.length)return;redo.push(lastSnap);restore(undo.pop())}
+function doRedo(){if(!redo.length)return;undo.push(lastSnap);restore(redo.pop())}
+$('#bSel').onclick=()=>setMode('select'); $('#bBox').onclick=()=>setMode(mode==='box'?'select':'box');
+$('#bRL').onclick=()=>rotSel(-90); $('#bRR').onclick=()=>rotSel(90);
+$('#bDel').onclick=delSel; $('#bDup').onclick=dupSel;
+$('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
+$('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
+$('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
+$('#vDim').onchange=e=>{show.dim=e.target.checked;render()};
+$('#vLbl').onchange=e=>{show.lbl=e.target.checked;render()};
+$('#bReset').onclick=()=>{const b=$('#bReset');if(b.dataset.c){S=sample();sel.clear();commit();buildRoom();buildTypes();fit();b.textContent='예시로 초기화';delete b.dataset.c}else{b.dataset.c=1;b.textContent='한 번 더 누르면 초기화';setTimeout(()=>{b.textContent='예시로 초기화';delete b.dataset.c},2500)}};
+
+/* ---------- outputs ---------- */
+let mFile=null;
+function openModal(title,note,text,name,mime){
+  $('#mTitle').textContent=title;$('#mNote').textContent=note;$('#mText').value=text;mFile={name,mime,text};$('#modal').hidden=false;
+}
+$('#mClose').onclick=()=>{$('#modal').hidden=true};
+$('#mCopy').onclick=async()=>{const t=$('#mText');try{await navigator.clipboard.writeText(t.value);$('#mCopy').textContent='복사됨'}catch(e){t.focus();t.select();$('#mCopy').textContent='Ctrl+C로 복사'}setTimeout(()=>$('#mCopy').textContent='복사',1800)};
+let dlNS;
+if(window.claude&&window.claude.use){window.claude.use('downloads').then(ns=>{dlNS=ns}).catch(()=>{})}
+$('#mDown').onclick=async()=>{
+  const btn=$('#mDown');
+  if(dlNS){ // published artifact: platform save (dxf is not on the allowlist, so it is saved as .dxf.txt)
+    const ok=/\.(txt|json|csv|md|html)$/i.test(mFile.name), fn=ok?mFile.name:mFile.name+'.txt';
+    try{await dlNS.save({filename:fn,data:mFile.text});btn.textContent=ok?'저장됨':'저장됨 (.txt 제거 후 사용)'}
+    catch(e){btn.textContent=e&&e.code==='declined'?'취소됨':'다운로드 불가 · 복사 사용'}
+    setTimeout(()=>btn.textContent='파일 다운로드',2600);return;
+  }
+  try{const b=new Blob([mFile.text],{type:mFile.mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=mFile.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}catch(e){}
+};
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const dlNote='웹(claude.ai)에서 받은 DXF는 이름 끝 .txt를 지우면 됩니다. 다운로드가 안 되면 복사해 메모장에 붙여넣고 해당 확장자로 저장하세요.';
+
+$('#bReq').onclick=()=>{
+  check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
+  const L=[];
+  L.push('[계장 Control Room 공간 요구사항 - 초안]');
+  L.push(`작성일: ${today()}   단위: mm`);
+  L.push('');
+  L.push('1. 계장 판넬 배치 필요 영역 (판넬 + 전/후면 유지보수 공간)');
+  L.push(sm.env?`   ${fmt(sm.env.w)} (W) x ${fmt(sm.env.h)} (L) = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m2`:'   -');
+  L.push(`2. 권장 실 내부 치수 (벽 이격 ${fmt(S.room.margin)} 반영, 100 단위 올림)`);
+  L.push(sm.rec?`   ${fmt(sm.rec.w)} (W) x ${fmt(sm.rec.h)} (L) = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m2`:'   -');
+  L.push(`3. 검토 기준 실 크기: ${fmt(S.room.w)} x ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m2)`+(cols.length?`, 기둥 ${S.room.col}x${S.room.col} / Span X ${S.room.spX} / Y ${S.room.spY}`:', 기둥 없음'));
+  L.push('');
+  L.push('4. 판넬 수량 및 치수');
+  sm.by.forEach(o=>L.push(`   - ${o.t.name}: ${o.n} EA  (${o.t.w}W x ${o.t.d}D x ${o.t.h}H, 전면 ${o.t.front} / 후면 ${o.t.rear})`));
+  L.push(`   합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m2`);
+  L.push('');
+  L.push(`5. 배치 검토: 간섭 ${e}건, 경고 ${w}건`);
+  issues.slice(0,15).forEach(i=>L.push(`   - [${i.lv==='err'?'간섭':'경고'}] ${i.msg}`));
+  L.push('');
+  L.push('6. 요청 사항');
+  L.push('   - 상기 필요 영역 기준으로 Room 초안 도면(CAD) 회신 요청');
+  L.push('   - 출입문 위치, 케이블 인입(Floor/Trench) 위치, Access Floor 여부 확인 요청');
+  L.push('   - 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정 예정 (본 수치는 초기 공간확보용)');
+  openModal('건축 전달 요약','메일·회의록에 붙여넣기용입니다. DXF와 함께 보내면 영역 확인이 빠릅니다.',L.join('\n'),`ControlRoom_공간요구_${today()}.txt`,'text/plain;charset=utf-8');
+};
+
+$('#bCsv').onclick=()=>{
+  const rows=[['Tag','Type','Description','W','D','H','Front','Rear','Facing','X','Y']];
+  const fd={0:'N',90:'E',180:'S',270:'W'};
+  S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y])});
+  const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
+  openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,`Panel_List_${today()}.csv`,'text/csv;charset=utf-8');
+};
+
+function dxfStr(s){return String(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'))}
+$('#bDxf').onclick=()=>{
+  const Lr=S.room.l, o=[]; const P=(...a)=>{for(let i=0;i<a.length;i+=2)o.push(String(a[i]),String(a[i+1]))};
+  const Y=y=>+(Lr-y).toFixed(1), X=x=>+(+x).toFixed(1);
+  const layers=[['CR-ROOM',7],['CR-COLUMN',8],['CR-PANEL',4],['CR-PANEL-FRONT',1],['CR-CLEARANCE',30],['CR-ENVELOPE',6],['CR-TEXT',2],['CR-DIM',3]];
+  P(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,4,0,'ENDSEC');
+  P(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
+  P(0,'TABLE',2,'LAYER',70,layers.length); layers.forEach(([n,c])=>P(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS')); P(0,'ENDTAB',0,'ENDSEC');
+  P(0,'SECTION',2,'ENTITIES');
+  const line=(ly,x1,y1,x2,y2)=>P(0,'LINE',8,ly,10,X(x1),20,Y(y1),30,0,11,X(x2),21,Y(y2),31,0);
+  const box=(ly,r)=>{if(r.w<=0||r.h<=0)return;line(ly,r.x,r.y,r.x+r.w,r.y);line(ly,r.x+r.w,r.y,r.x+r.w,r.y+r.h);line(ly,r.x+r.w,r.y+r.h,r.x,r.y+r.h);line(ly,r.x,r.y+r.h,r.x,r.y)};
+  const text=(ly,x,y,h,s,rot=0)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),50,rot,72,1,11,X(x),21,Y(y),31,0,73,2);
+  box('CR-ROOM',{x:0,y:0,w:S.room.w,h:S.room.l});
+  columns().forEach(c=>box('CR-COLUMN',c));
+  S.panels.forEach(p=>{const g=geom(p);box('CR-PANEL',g.body);line('CR-PANEL-FRONT',...g.fe);box('CR-CLEARANCE',g.fr);box('CR-CLEARANCE',g.rr);
+    const b=g.body,th=Math.max(60,Math.min(150,Math.min(b.w,b.h)*0.16));text('CR-TEXT',b.x+b.w/2,b.y+b.h/2,th,p.tag,b.h>b.w*1.3?90:0);
+    if(p.desc)text('CR-TEXT',b.x+b.w/2,b.y+b.h/2+th*1.6,th*0.7,p.desc,0)});
+  const env=envelope(); if(env){box('CR-ENVELOPE',env);
+    const dy=Lr+600; line('CR-DIM',env.x,dy,env.x+env.w,dy);line('CR-DIM',env.x,dy-150,env.x,dy+150);line('CR-DIM',env.x+env.w,dy-150,env.x+env.w,dy+150);
+    text('CR-DIM',env.x+env.w/2,dy+250,200,'REQUIRED '+fmt(env.w));
+    const dx=S.room.w+600; line('CR-DIM',dx,env.y,dx,env.y+env.h);line('CR-DIM',dx-150,env.y,dx+150,env.y);line('CR-DIM',dx-150,env.y+env.h,dx+150,env.y+env.h);
+    text('CR-DIM',dx+250,env.y+env.h/2,200,'REQUIRED '+fmt(env.h),90)}
+  line('CR-DIM',0,-600,S.room.w,-600);text('CR-DIM',S.room.w/2,-850,250,'ROOM W '+fmt(S.room.w));
+  line('CR-DIM',-600,0,-600,S.room.l);text('CR-DIM',-850,S.room.l/2,250,'ROOM L '+fmt(S.room.l),90);
+  P(0,'ENDSEC',0,'EOF');
+  openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM. '+dlNote,o.join('\n'),`ControlRoom_Layout_${today()}.dxf`,'application/dxf');
+};
+$('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),`ControlRoom_Layout_${today()}.json`,'application/json');
+$('#bLoad').onclick=()=>$('#fLoad').click();
+$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=d;sel.clear();commit();buildRoom();buildTypes();fit()}catch(err){openModal('불러오기 실패','이 툴에서 저장한 JSON 파일인지 확인하세요.','','x.txt','text/plain')}};r.readAsText(f);e.target.value=''};
+
+/* ---------- boot ---------- */
+buildRoom(); buildTypes(); check(); buildSummary(); buildProps();
+new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render)}catch(e){}
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+$('#bUndo').disabled=true;$('#bRedo').disabled=true;
+})();
+</script>
