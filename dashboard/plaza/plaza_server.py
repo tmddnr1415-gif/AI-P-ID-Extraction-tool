@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.12'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.13'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 

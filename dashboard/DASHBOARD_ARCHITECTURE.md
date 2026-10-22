@@ -1055,3 +1055,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 레벨 빛(판10)은 무기 끝을 따라감.
 - 바뀐 곳: plaza.js `ATK_MS` 320 · 새 `ATK_ARC` `easeO/easeI/easeIO` `atkCurve` `atkKind` `atkLean` `scrAng` `handOf` `WGRIP` `WSC` `weaponIcon` `weaponLen` `weaponTip` `uprightTilt` `drawWeaponAt` `drawAttack` · `drawSwing`(몸 뒤 · 앞 두 번) · `drawActorBody`(젖힘 · 내딛음, 네 갈래 모두 drawSwing 두 번) · `epcPose`(공격 중 서 있는 칸). 옛 `drawWeaponSwing` 없앰. plaza_server.py `PLAZA_VERSION` 만.
 - 확인한 것: `node --check` · `selftest.py` 모두 통과. 브라우저에서 시각을 멈춰 렌치 · 드라이버 · 케이블 드럼 · HART · 무전기 · 점검표 · 목검 × 4 방향 × 8 순간 캡처로 동작 확인, Space 꾹 누르기(실제 시간) 연속 휘두르기, 스크립트 오류 없음.
+
+### 2026-10-22 (21) — 계장 광장: 그래픽 해상도 2배 · 4배 (PLAZA_VERSION 2026-10-22.13 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 → 적용 후 30초 뒤 Ctrl+F5.
+- 무엇을: 요청 "계장 광장 그래픽의 해상도를 높여줘". 그림은 점(dot) 하나 = 2px 의 픽셀 그림이라 한 점이 2×2 네모로 커져 계단 모서리가 보였음.
+  - **2배 (Scale2x / EPX)**: 점 그림을 키울 때 이웃 점을 보고 모서리 · 비스듬한 선 · 둥근 곳을 한 단계 잘게 다듬음. 건물 · 설비 · 소품(점 그림 pix) · 캐릭터 · 아이콘(시트) · 무기 · 땅 모두. 땅은 그 위에 1px 결(자갈 · 콘크리트 · 아스팔트 · 잔디)을 더함.
+  - **4배 (.hd)**: 그림마다 한 번 더 키운 그림(점 하나 = 4px)을 만들어 두고 화면에 그릴 때 그것을 같은 크기로 부드럽게 줄여 그림 → 보통 화면(100%)은 계단 대신 매끈한 테두리, 윈도우 배율 125% 이상 · 노트북 화면은 화면 실제 화소만큼 잘게. 글씨(간판 · 명판)는 4배 그림에 큰 글씨로 따로 써서 또렷함. 색 입힌 그림(맞을 때 붉게 · 유령 · 안전모/조끼 색 · 동상 돌빛)도 4배를 따라 만듦.
+  - 땅 그림의 4배는 너무 커서(6144×3840) 만들지 않음.
+  - 주소에 `hd=0` 을 붙이면 예전처럼(2배만). 느린 PC 대비.
+- 바뀐 곳: plaza.js 새 `EPX_TOL` `epx` `HD` `hdOf` · `pix`(EPX · .hd · 글씨 두 번) · `awning`(.hd 에도) · `atlasSprite`(scale 2 = EPX + .hd) · `drawGround`(EPX + 1px 결) · `weaponIcon`(2배 · HD 4배, `k`) · `drawWeaponAt` · `tinted` `ghostly` `helmTint` `vestTint` `stoneTint`(.hd 따라 만듦) · 화면 캔버스 `ctx.drawImage`(.hd 가 있으면 그것을 같은 크기로 부드럽게). plaza_server.py `PLAZA_VERSION` 만.
+- 확인한 것: `node --check` · `selftest.py` 통과. 브라우저(배율 100% · 150%)로 같은 자리 전후 캡처 비교 — 동상 둘레 고리 · 보도블록 · 간판 · 문 모서리가 매끈, 스크립트 오류 없음. 시험 PC(그래픽 카드 없음) 속도: 100% 48 → 40 fps, 150% 25 → 23.5 fps. 처음 그리기 1.1 → 1.3초.
+- 회사에서 확인할 것: 회사 PC 에서 느리면 `hd=0`(대시보드 광장 카드 주소 끝에 `&hd=0`) — 다음 판에서 단추로 뺄 수 있음.

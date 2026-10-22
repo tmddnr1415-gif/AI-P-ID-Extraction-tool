@@ -79,6 +79,26 @@ const roomAt = (x, y) => ROOMS.find(r => x >= r.x0 - 1 && x <= r.x1 + 1 && y >= 
 const STATUE_HOME = [78, 31];               // 박병두 프로님 동상 받침대 (서버 STATUE_HOME 과 같다)
 
 // ── 그림 도구 ───────────────────────────────────────────────────────────
+// 해상도 2배 (2026-10-22 판13): 점 그림을 PX(2)배로 키울 때 한 점을 2×2 네모로 늘리지 않고 Scale2x(EPX)로 — 이웃 점을 보고
+// 계단 모서리 · 비스듬한 선 · 둥근 곳을 한 단계 잘게 다듬는다. 색이 거의 같으면(합 차이 < EPX_TOL) 같은 색으로 봄(시트 그림의 음영 때문).
+const EPX_TOL = 24;
+// 그림마다 한 번 더 키운 .hd(Scale4x, 점 하나 = 4px)를 만들어 두고, 화면 캔버스의 drawImage 가 .hd 가 있으면 그것을 같은 크기로 부드럽게 줄여 그린다
+// → 보통 화면(100%)은 계단 모서리가 매끈한 테두리로, 고해상도 화면(125% 이상 · 노트북)은 화면의 실제 화소만큼 잘게. 땅 그림은 너무 커서(6144×3840) 그대로.
+const HD = Q.get("hd") !== "0";              // 늘 켬 (보통 화면은 .hd 를 반으로 줄여 그려 계단 모서리가 부드러움) · 주소에 hd=0 이면 예전처럼
+function hdOf(c) { const g = c.getContext("2d"), h = canvas(c.width * 2, c.height * 2); h.getContext("2d").putImageData(epx(g.getImageData(0, 0, c.width, c.height), c.width, c.height), 0, 0); return h; }
+function epx(src, w, h) {                    // ImageData(w×h) → ImageData(2w×2h)
+  const out = new ImageData(w * 2, h * 2), S = src.data, O = out.data, W2 = w * 2;
+  const same = (i, j) => { const a = S[i + 3] >= 128, b = S[j + 3] >= 128; if (a !== b) return false; if (!a) return true;
+    return Math.abs(S[i] - S[j]) + Math.abs(S[i + 1] - S[j + 1]) + Math.abs(S[i + 2] - S[j + 2]) < EPX_TOL; };
+  const cp = (o, i) => { O[o] = S[i]; O[o + 1] = S[i + 1]; O[o + 2] = S[i + 2]; O[o + 3] = S[i + 3]; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const P = (y * w + x) * 4, A = y > 0 ? P - w * 4 : P, D = y < h - 1 ? P + w * 4 : P, C = x > 0 ? P - 4 : P, B = x < w - 1 ? P + 4 : P, o = (y * 2 * W2 + x * 2) * 4;
+    const ca = same(C, A), ab = same(A, B), bd = same(B, D), dc = same(D, C);
+    cp(o, ca && !dc && !ab ? A : P); cp(o + 4, ab && !ca && !bd ? B : P);
+    cp(o + W2 * 4, dc && !bd && !ca ? C : P); cp(o + W2 * 4 + 4, bd && !ab && !dc ? D : P);
+  }
+  return out;
+}
 function canvas(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
 function shade(hex, k) {                    // k<0 어둡게 · k>0 밝게
   const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
@@ -116,8 +136,11 @@ function pix(w, h, draw, { ol = C.ol, labels = [] } = {}) {
       if ((x > 0 && d.data[i - 1]) || (x < wd - 1 && d.data[i + 7]) || (y > 0 && d.data[i - wd * 4 + 3]) || (y < hd - 1 && d.data[i + wd * 4 + 3])) { o[i] = orr; o[i + 1] = og; o[i + 2] = ob; o[i + 3] = 255; } }
     g.putImageData(new ImageData(o, wd, hd), 0, 0);
   }
-  const big = canvas(c.width * PX, c.height * PX), bg = big.getContext("2d"); bg.imageSmoothingEnabled = false; bg.drawImage(c, 0, 0, big.width, big.height);
-  for (const L of labels) { bg.font = `bold ${L.s || 10}px ${FONT}`; bg.textAlign = "center"; bg.textBaseline = "middle"; bg.fillStyle = L.c || C.white; bg.fillText(L.t, (L.x + 1) * PX, (L.y + 1) * PX); }
+  const big = canvas(c.width * PX, c.height * PX), bg = big.getContext("2d"); bg.imageSmoothingEnabled = false;
+  if (PX === 2) bg.putImageData(epx(g.getImageData(0, 0, c.width, c.height), c.width, c.height), 0, 0); else bg.drawImage(c, 0, 0, big.width, big.height);
+  if (HD) big.hd = hdOf(big);
+  for (const [cg, k] of [[bg, 1]].concat(big.hd ? [[big.hd.getContext("2d"), 2]] : []))
+    for (const L of labels) { cg.font = `bold ${(L.s || 10) * k}px ${FONT}`; cg.textAlign = "center"; cg.textBaseline = "middle"; cg.fillStyle = L.c || C.white; cg.fillText(L.t, (L.x + 1) * PX * k, (L.y + 1) * PX * k); }
   big.foot = (h + 1) * PX; return big;
 }
 // 밤 조명 (2026-10-22 판11): 그림 안에서 스스로 빛나는 곳(창 · 화면 · 등) — 점 좌표 [x, y, w, h] → img.glow (px)
@@ -369,8 +392,10 @@ function crWallS(wTiles) { const w = wTiles * 16; return pix(w, 14, R => { R(0, 
 
 // ── 복지 구역 · 실내 소품 (2026-10-22 판10) — 식당 · 헬스장 건물 · 동상 받침대 · 꽃밭 · 식탁 · 배식대 · 운동기구 ─────────
 function awning(img, x, y, w, cols) {         // 건물 그림 위에 줄무늬 차양 (점 좌표)
-  const g = img.getContext("2d"); for (let i = 0; i < w; i += 4) { g.fillStyle = cols[(i / 4) % 2]; g.fillRect((x + 1 + i) * PX, (y + 1) * PX, 4 * PX, 5 * PX); }
-  g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect((x + 1) * PX, (y + 6) * PX, w * PX, PX); return img; }
+  for (const [c, k] of [[img, PX]].concat(img.hd ? [[img.hd, PX * 2]] : [])) { const g = c.getContext("2d");
+    for (let i = 0; i < w; i += 4) { g.fillStyle = cols[(i / 4) % 2]; g.fillRect((x + 1 + i) * k, (y + 1) * k, 4 * k, 5 * k); }
+    g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect((x + 1) * k, (y + 6) * k, w * k, k); }
+  return img; }
 function foodHallImg() {
   return awning(building({ w: 208, roofH: 40, wallH: 44, roof: "#8a4430", wall: "#e3d3b2", sign: { t: "식당  CAFETERIA", x: 12, y: 3, w: 74, h: 10, s: 10 },
     doors: [{ x: 96, w: 16, h: 26, c: "#6a3b1c" }], wins: [{ x: 14, y: 20, w: 30, h: 12 }, { x: 52, y: 20, w: 30, h: 12 }, { x: 126, y: 20, w: 30, h: 12 }, { x: 164, y: 20, w: 30, h: 12 }],
@@ -602,7 +627,12 @@ function drawGround() {
       paint(x0, y0 + 26, x1 - x0, 6, [40, 44, 52]); paint(x0, y0 + 26, x1 - x0, 1, [210, 60, 50]); }
     const [ex, ey] = r.exit; paint(ex * 16 + 2, ey * 16 + 2, 12, 12, [60, 64, 70]); paint(ex * 16 + 3, ey * 16 + 3, 10, 10, [118, 32, 30]); paint(ex * 16 + 4, ey * 16 + 7, 8, 2, [230, 200, 120]); }
   g.imageSmoothingEnabled = false;
-  const s1 = canvas(AW, AH); s1.getContext("2d").putImageData(img, 0, 0); g.drawImage(s1, 0, 0, W * T, H * T);
+  if (PX === 2) { const big = epx(img, AW, AH), B = big.data, BW = AW * 2;   // 2배 + 한 px 결 (자갈 · 콘크리트 · 아스팔트가 더 잘게)
+    for (let y = 0; y < AH * 2; y++) for (let x = 0; x < BW; x++) { const t = tile(x >> 1, y >> 1); if (t === VOID || t === WALLI) continue;
+      const i = (y * BW + x) * 4, v = ((ih(x, y, 77) & 15) - 7.5) * (t === WOOD || t === EPOXY ? .6 : t === GRASS ? 1.4 : 1);
+      B[i] = Math.max(0, Math.min(255, B[i] + v)); B[i + 1] = Math.max(0, Math.min(255, B[i + 1] + v)); B[i + 2] = Math.max(0, Math.min(255, B[i + 2] + v)); }
+    g.putImageData(big, 0, 0); }
+  else { const s1 = canvas(AW, AH); s1.getContext("2d").putImageData(img, 0, 0); g.drawImage(s1, 0, 0, W * T, H * T); }
 }
 function drawGroundPlain() { const g = groundImg.getContext("2d"), P = { [GRAV]: "#464e5a", [CONC]: "#7a828c", [ASPH]: "#2a2f3c", [GRAT]: "#4a5566", [GRASS]: "#2c4a2e", [EPOXY]: "#2f6274",
     [WOOD]: "#9c6c40", [RUBBER]: "#2e3238", [VOID]: "#07090e", [WALLI]: "#3a322e", [PAVE]: "#968a7c" };
@@ -653,8 +683,9 @@ function atlasSprite(A, FR, name, mirror, scale = PX) {   // 한 칸 → scale �
     const di = (y * fw + (mirror ? fw - 1 - x : x)) * 4;
     small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255;
   }
-  const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0);
-  const c = canvas(fw * scale, fh * scale), g = c.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(s1, 0, 0, c.width, c.height);
+  const c = canvas(fw * scale, fh * scale), g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+  if (scale === 2) { g.putImageData(epx(small, fw, fh), 0, 0); if (HD) c.hd = hdOf(c); }
+  else { const s1 = canvas(fw, fh); s1.getContext("2d").putImageData(small, 0, 0); g.drawImage(s1, 0, 0, c.width, c.height); }
   c.cx = (mirror ? fw - cx : cx) * scale; c.foot = foot * scale;
   spriteCache.set(key, c); return c;
 }
@@ -1139,14 +1170,14 @@ function tinted(img) {                      // 맞은 순간 — 붉게 번쩍
   let c = tintCache.get(img); if (c) return c;
   c = canvas(img.width, img.height); const g = c.getContext("2d");
   g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(255,70,50,.65)"; g.fillRect(0, 0, c.width, c.height);
-  tintCache.set(img, c); return c;
+  tintCache.set(img, c); if (img.hd) c.hd = tinted(img.hd); return c;
 }
 const ghostCache = new Map();
 function ghostly(img) {                      // 유령 — 희푸르게
   let c = ghostCache.get(img); if (c) return c;
   c = canvas(img.width, img.height); const g = c.getContext("2d");
   g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "rgba(205,228,255,.7)"; g.fillRect(0, 0, c.width, c.height);
-  ghostCache.set(img, c); return c;
+  ghostCache.set(img, c); if (img.hd) c.hd = ghostly(img.hd); return c;
 }
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
@@ -1203,8 +1234,9 @@ function weaponIcon(k) {                     // → { c 그림, g 손잡이, h �
   const [[x0, y0, w, h], gp, hp, rot, sc = 1] = d, src = EPC.data, small = new ImageData(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const si = ((y0 + y) * src.width + x0 + x) * 4; if (src.data[si + 3] < 128) continue;
     const di = (y * w + x) * 4; small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255; }
-  const c = canvas(w, h); c.getContext("2d").putImageData(small, 0, 0);
-  const o = { c, g: gp, h: hp, rot: !!rot, sc: WSC * sc, phi: Math.atan2(hp[1] - gp[1], hp[0] - gp[0]), len: Math.hypot(hp[0] - gp[0], hp[1] - gp[1]) * WSC * sc + 2 };
+  let c = canvas(w * 2, h * 2); c.getContext("2d").putImageData(epx(small, w, h), 0, 0);   // 판13: 2배(EPX) 그림 (고해상도 화면은 4배)
+  const WK = HD ? 4 : 2; if (HD) c = hdOf(c);
+  const o = { c, k: WK, g: gp, h: hp, rot: !!rot, sc: WSC * sc, phi: Math.atan2(hp[1] - gp[1], hp[0] - gp[0]), len: Math.hypot(hp[0] - gp[0], hp[1] - gp[1]) * WSC * sc + 2 };
   wIconCache.set(k, o); return o;
 }
 function weaponLen(it) { const w = it && weaponIcon(it.k); return w ? w.len : 38; }
@@ -1216,7 +1248,7 @@ const uprightTilt = dir => dir === 3 ? .35 : dir === 2 ? -.35 : 0;   // 세워 �
 function drawWeaponAt(g, it, x, y, th, gold, dir) {   // 손잡이를 (x, y) 에 두고 th 쪽으로 뻗은 무기
   g.save(); g.translate(x, y);
   const w = it && weaponIcon(it.k);
-  if (w) { g.rotate(w.rot ? th - w.phi : uprightTilt(dir)); g.scale(w.sc, w.sc); g.drawImage(w.c, -w.g[0] - .5, -w.g[1] - .5); }
+  if (w) { g.rotate(w.rot ? th - w.phi : uprightTilt(dir)); g.scale(w.sc / w.k, w.sc / w.k); g.imageSmoothingEnabled = w.k > 2; g.drawImage(w.c, -(w.g[0] + .5) * w.k, -(w.g[1] + .5) * w.k); }   // 4배 그림을 줄여 그릴 땐 부드럽게 (restore 가 되돌림)
   else if (it) { const s1 = eps("i_" + it.k, false, 1); if (s1) { g.rotate(th + Math.PI / 2); g.scale(WSC, WSC); g.drawImage(s1, -s1.width / 2, -s1.height * .86); } }
   else { g.rotate(th); g.scale(1.4, 1.4); g.fillStyle = "#2a1a12"; g.fillRect(-2, -3, 27, 6);   // 목검 (손에 낀 도구가 없을 때)
     g.fillStyle = gold ? "#f8ba4c" : "#d8b07a"; g.fillRect(6, -2, 18, 4); g.fillStyle = gold ? "#fbe7a3" : "#f0d3a2"; g.fillRect(6, -2, 18, 1);
@@ -1305,6 +1337,13 @@ function drawSwing(g, sx, sy, dir, k, gold, pass = "front") {   // gold = 고양
 const S = { id: null, name: "", look: 0, face: null, role: "member", me: null, others: new Map(), logSeq: 0,
   typing: false, keys: new Set(), panel: false, status: "", atkHeld: false };
 const cv = $("#pz-map"), ctx = cv.getContext("2d");
+if (HD) { const di = ctx.drawImage.bind(ctx);                 // 고해상도 화면 — 그림의 .hd(2배)를 같은 자리 · 같은 크기로
+  const hdi = (h, ...a) => { const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "low"; di(h, ...a); ctx.imageSmoothingEnabled = sm; };
+  ctx.drawImage = (img, ...a) => { const h = img && img.hd; if (!h) return di(img, ...a);
+    if (a.length === 2) return hdi(h, Math.round(a[0]), Math.round(a[1]), img.width, img.height);
+    if (a.length === 4) return hdi(h, ...a);
+    if (a.length === 8) return hdi(h, a[0] * 2, a[1] * 2, a[2] * 2, a[3] * 2, a[4], a[5], a[6], a[7]);
+    return di(img, ...a); }; }
 
 function newActor(p) { return { id: p.id, name: p.name, face: p.face || null, role: p.role || "member", tx: p.x, ty: p.y, x: p.x * T, y: p.y * T,
   dir: p.dir || 0, gx: p.x, gy: p.y, from: null, t0: 0, moving: false, steps: 0, bubble: null, sayseq: p.say_seq || 0,
@@ -1476,7 +1515,7 @@ function stoneTint(spr) {                    // 동상 — 그림을 회갈색 �
   const d = g.getImageData(0, 0, c.width, c.height), D = d.data;
   for (let i = 0; i < D.length; i += 4) { if (D[i + 3] < 128) continue; const l = (D[i] * 3 + D[i + 1] * 6 + D[i + 2]) / 10, n = (ih(i >> 2, 3) & 15) - 8, v = 52 + l * .62 + n;
     D[i] = v + 8; D[i + 1] = v + 4; D[i + 2] = v - 4; }
-  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; stoneCache.set(spr, c); return c;
+  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; stoneCache.set(spr, c); if (spr.hd) c.hd = stoneTint(spr.hd); return c;
 }
 const statueLift = a => a.statue && !a.moving && a.tx === STATUE_HOME[0] && a.ty === STATUE_HOME[1] ? STATUE_LIFT : 0;
 
@@ -1601,7 +1640,7 @@ function helmTint(spr, r) {                   // EPC 캐릭터 그림의 흰 안
   const d = g.getImageData(0, 0, c.width, Math.round(c.height * .42)), D = d.data, [tr, tg, tb] = HELM_COL[r] || HELM_COL[0];
   for (let i = 0; i < D.length; i += 4) { if (D[i + 3] < 128) continue; const R = D[i], G = D[i + 1], B = D[i + 2], l = (R * 3 + G * 6 + B) / 10;
     if (l > 140 && Math.max(R, G, B) - Math.min(R, G, B) < 46) { const k = l / 255; D[i] = tr * k; D[i + 1] = tg * k; D[i + 2] = tb * k; } }
-  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); return c;
+  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); if (spr.hd) c.hd = helmTint(spr.hd, r); return c;
 }
 function rareTint(s1, r) {                    // 끼운 안전모 — 등급 색 (일반 노랑 · 고급 초록 · 희귀 파랑 · 전설 금)
   let m = rareCache.get(s1); if (!m) rareCache.set(s1, m = new Map()); if (m.has(r)) return m.get(r);
@@ -1620,7 +1659,7 @@ function vestTint(spr, r) {                   // 안전 조끼 — 캐릭터 몸
     const R = D[i], G = D[i + 1], B = D[i + 2], l = (R * 3 + G * 6 + B) / 10; if (l < 46) continue;          // 외곽선은 그대로
     const sb = band.some(b => y >= b && y < b + PX), k = .62 + .38 * Math.min(1, l / 200);
     if (sb) { D[i] = stripe[0]; D[i + 1] = stripe[1]; D[i + 2] = stripe[2]; } else { D[i] = 255 * k; D[i + 1] = 118 * k; D[i + 2] = 24 * k; } }
-  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); return c;
+  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); if (spr.hd) c.hd = vestTint(spr.hd, r); return c;
 }
 function dress(spr, a, epc) {                 // 끼운 것을 그림에 입힘 — 몸 = 조끼 색, 머리 = (EPC) 자기 안전모 색
   if (!spr || !a.equip || a.ghost) return spr;
