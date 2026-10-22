@@ -91,6 +91,12 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .srvbox .st{font-size:11.5px}.srvbox .st.dirty{color:var(--warn)}.srvbox .st.ok{color:var(--ok)}
 .modal.hdlg .box{width:min(1200px,100%);height:min(82vh,820px);max-height:none}
 .hdlg .hh{display:flex;gap:10px;align-items:center}
+.modal.v3dlg .box{width:min(1500px,100%);height:min(90vh,940px);max-height:none}
+.v3dlg .hh{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.v3wrap{position:relative;flex:1;min-height:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.v3wrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#v3gl{cursor:grab;touch-action:none}#v3gl:active{cursor:grabbing}#v3tx{pointer-events:none}
+.v3tip{position:absolute;pointer-events:none;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:4px 7px;font-size:12px;color:var(--ink);white-space:nowrap}
 .hgrid{display:grid;grid-template-columns:1fr 1.5fr 1.1fr;gap:12px;flex:1;min-height:0}
 .hcol{display:flex;flex-direction:column;gap:6px;min-height:0;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--panel-bg)}
 .hcol h5{margin:0;font-size:12.5px}
@@ -259,6 +265,7 @@ svg text{font-family:var(--f-mono)}
     <button id="bZo" title="축소 (Ctrl+휠 아래 · -)">－</button>
     <button id="bFit" title="전체 보기 (F)">맞춤</button>
     <button id="bZi" title="확대 (Ctrl+휠 위 · +)">＋</button>
+    <button id="b3d" title="판넬 높이(H)로 세워 3D 로 보기 — 돌려 보기 · 확대 · PNG (보기 전용)">🧊 3D</button>
     <span class="sep"></span>
     <label class="chk">Snap <select id="snap"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label>
     <label class="chk"><input type="checkbox" id="vClr" checked>유지보수 공간</label>
@@ -455,6 +462,21 @@ svg text{font-family:var(--f-mono)}
     <div id="hErr" style="color:var(--err);font-size:12px;min-height:16px"></div>
   </div>
 </div>
+<div class="modal v3dlg" id="v3dlg" hidden>
+  <div class="box">
+    <div class="hh"><h4>🧊 3D 보기</h4><span class="muted" id="v3Info"></span>
+      <span style="margin-left:auto"></span>
+      <button data-v3="iso" title="더블클릭으로도">등각</button><button data-v3="front" title="도면 아래쪽에서">정면</button><button data-v3="side" title="도면 오른쪽에서">측면</button><button data-v3="top">위</button>
+      <label class="chk" title="3D 보기에서 기둥 · 벽을 세울 높이 (이 PC 에 기억, 배치안에는 안 들어감)">기둥 · 벽 높이<input type="number" id="v3H" step="100" min="1000" style="width:72px"></label>
+      <label class="chk"><input type="checkbox" id="v3Wall" checked>벽</label>
+      <label class="chk"><input type="checkbox" id="v3Clr" checked>유지보수</label>
+      <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
+      <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
+      <button id="v3Png">PNG 저장</button><button id="v3Close" class="primary">닫기 (Esc)</button></div>
+    <div class="v3wrap"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
+    <div class="muted">끌기 = 돌려 보기 · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 휠 = 확대 · 축소 · 더블클릭 = 처음 시점 · 판넬 위에 마우스 = Tag · 크기. 판넬 높이 = Type 의 H, 밝은 면 = 전면.</div>
+  </div>
+</div>
 <div class="modal" id="kdlg" hidden>
   <div class="box" style="width:min(640px,100%)">
     <h4>단축키 · 마우스</h4>
@@ -469,6 +491,7 @@ svg text{font-family:var(--f-mono)}
       <tr><td>Ctrl+S</td><td>서버에 저장 (프로젝트 · 이력 창)</td></tr>
       <tr><td>기둥 Drag</td><td>기둥 옮기기 (추가 · 삭제는 [기둥 편집])</td></tr>
       <tr><td>[📏 거리] 두 점 클릭 · [📌 노트] 클릭</td><td>거리 재기 · 도면 노트</td></tr>
+      <tr><td>[🧊 3D]</td><td>판넬 H 로 세워 3D 보기 (끌기 돌리기 · Shift+끌기 옮기기 · 휠 확대 · PNG)</td></tr>
       <tr><td>?</td><td>이 도움말</td></tr>
     </tbody></table>
     <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
@@ -1368,6 +1391,143 @@ function preflight(what){   // 출력 전: 간섭(오류)이 있으면 먼저 �
   check(); const e=issues.filter(i=>i.lv==='err').length; if(!e)return true;
   return confirm(`간섭(오류) ${e}건이 있습니다 — ${issues.find(i=>i.lv==='err').msg}.\n그대로 ${what}할까요? (취소 = 검토 목록 확인)`);
 }
+/* ---------- 3D 보기: 판넬 H 로 세운 상자 (WebGL 직접 — 외부 라이브러리 없음, 보기 전용 · 배치안은 안 바꿈) ----------
+   좌표: X = 도면 x, Y = 높이, Z = 도면 y. 벽은 카메라 쪽 벽을 숨겨(인형집 단면) 안이 보이게. */
+const V3={gl:null,on:false,yaw:-0.62,pitch:0.62,D:0,T:[0,0,0],H:3000,hover:null,raf:0,vb:null,eye:[0,0,0]};
+try{const v=+localStorage.getItem('crspace.h3d');if(v>=1000&&v<=20000)V3.H=v}catch(e){}
+const hexRGB=s=>{s=String(s||'').trim();let m=s.match(/^#([0-9a-f]{3})$/i);if(m)s='#'+[...m[1]].map(c=>c+c).join('');m=s.match(/^#([0-9a-f]{6})$/i);if(m){const n=parseInt(m[1],16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]}
+  m=s.match(/rgba?\(([^)]+)\)/);if(m){const a=m[1].split(',').map(Number);return [a[0]/255,a[1]/255,a[2]/255]}return [.5,.5,.5]};
+const mix=(a,b,k)=>a.map((v,i)=>v*(1-k)+b[i]*k);
+const v3sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], v3dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], v3crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]], v3n=a=>{const l=Math.hypot(...a)||1;return a.map(v=>v/l)};
+function m4mul(a,b){const r=new Array(16);for(let c=0;c<4;c++)for(let i=0;i<4;i++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+i]*b[c*4+k];r[c*4+i]=s}return r}
+function v3init(){
+  const cv=$('#v3gl'), gl=cv.getContext('webgl',{antialias:true,preserveDrawingBuffer:true}); if(!gl)return false;
+  const sh=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);return s};
+  const pg=gl.createProgram();
+  gl.attachShader(pg,sh(gl.VERTEX_SHADER,`attribute vec3 p;attribute vec4 c;attribute vec3 n;uniform mat4 M;varying vec4 vc;
+    void main(){gl_Position=M*vec4(p,1.0);float l=1.0;if(length(n)>0.5){vec3 m=normalize(n);l=0.58+0.34*max(dot(m,normalize(vec3(0.35,0.85,0.45))),0.0)+0.12*max(dot(m,normalize(vec3(-0.6,0.3,-0.4))),0.0);}vc=vec4(c.rgb*l,c.a);}`));
+  gl.attachShader(pg,sh(gl.FRAGMENT_SHADER,`precision mediump float;varying vec4 vc;void main(){gl_FragColor=vc;}`));
+  gl.linkProgram(pg); if(!gl.getProgramParameter(pg,gl.LINK_STATUS))return false;
+  V3.gl=gl; V3.pg=pg; V3.buf=gl.createBuffer(); V3.loc={p:gl.getAttribLocation(pg,'p'),c:gl.getAttribLocation(pg,'c'),n:gl.getAttribLocation(pg,'n'),M:gl.getUniformLocation(pg,'M')};
+  return true;
+}
+function v3home(){const W=S.room.w,L=S.room.l;V3.T=[W/2,600,L/2];V3.D=Math.max(W,L)*1.6;}
+function v3cam(){const cp=Math.cos(V3.pitch);V3.eye=[V3.T[0]+V3.D*cp*Math.sin(V3.yaw),V3.T[1]+V3.D*Math.sin(V3.pitch),V3.T[2]+V3.D*cp*Math.cos(V3.yaw)];
+  const f=v3n(v3sub(V3.T,V3.eye)), r=v3n(v3crs(f,[0,1,0])), u=v3crs(r,f); return {f,r,u};}
+function v3matrix(w,h){
+  const {f,r,u}=v3cam(), e=V3.eye, fov=32*Math.PI/180, a=w/h, sz=Math.max(S.room.w,S.room.l), n=Math.max(20,V3.D/80), fa=V3.D*3+sz*3, t=1/Math.tan(fov/2), nf=1/(n-fa);
+  const P=[t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)*nf,-1, 0,0,2*fa*n*nf,0];
+  const z=f.map(v=>-v), Vw=[r[0],u[0],z[0],0, r[1],u[1],z[1],0, r[2],u[2],z[2],0, -v3dot(r,e),-v3dot(u,e),-v3dot(z,e),1];
+  V3.M=m4mul(P,Vw); V3.basis={f,r,u,tf:Math.tan(fov/2),a}; return V3.M;
+}
+function v3proj(p,w,h){const M=V3.M,x=M[0]*p[0]+M[4]*p[1]+M[8]*p[2]+M[12],y=M[1]*p[0]+M[5]*p[1]+M[9]*p[2]+M[13],ww=M[3]*p[0]+M[7]*p[1]+M[11]*p[2]+M[15];if(ww<=0)return null;return [(x/ww+1)/2*w,(1-y/ww)/2*h,ww]}
+function v3build(){
+  const cs=getComputedStyle(document.documentElement), C=k=>hexRGB(cs.getPropertyValue(k));
+  const T=[],L=[],X=[];   // 불투명 면 · 선 · 반투명 면 : 꼭짓점마다 p3 c4 n3
+  const vtx=(A,p,c,a,n)=>A.push(p[0],p[1],p[2],c[0],c[1],c[2],a,n?n[0]:0,n?n[1]:0,n?n[2]:0);
+  const quad=(A,q,c,a,n)=>{[0,1,2,0,2,3].forEach(i=>vtx(A,q[i],c,a,n))};
+  const seg=(p,q,c,a=1)=>{vtx(L,p,c,a);vtx(L,q,c,a)};
+  const box=(x0,z0,x1,z1,y0,y1,col,o={})=>{   // 도면 사각형 (x0,z0)-(x1,z1), 높이 y0~y1
+    const fc=o.front, cc=k=>fc&&fc[0]===k[0]&&fc[1]===k[1]?mix(col,[1,1,1],.28):col;
+    quad(T,[[x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0]],o.top||col,1,[0,1,0]);
+    quad(T,[[x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0]],cc([0,-1]),1,[0,0,-1]);
+    quad(T,[[x1,y0,z1],[x1,y1,z1],[x0,y1,z1],[x0,y0,z1]],cc([0,1]),1,[0,0,1]);
+    quad(T,[[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],[x0,y0,z0]],cc([-1,0]),1,[-1,0,0]);
+    quad(T,[[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]],cc([1,0]),1,[1,0,0]);
+    if(o.edge){const e=o.edge,P=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];P.forEach((a,i)=>{const b=P[(i+1)%4];seg([a[0],y0,a[1]],[b[0],y0,b[1]],e);seg([a[0],y1,a[1]],[b[0],y1,b[1]],e);seg([a[0],y0,a[1]],[a[0],y1,a[1]],e)})}
+  };
+  const W=S.room.w, Lr=S.room.l, H=V3.H, ink=C('--ink'), acc=C('--accent'), e=V3.eye;
+  // 바닥 + 1 m 격자
+  quad(T,[[0,0,0],[0,0,Lr],[W,0,Lr],[W,0,0]],C('--sheet'),1,[0,1,0]);
+  const gc=C('--grid-major'); for(let x=1000;x<W;x+=1000)seg([x,1,0],[x,1,Lr],gc,.9); for(let z=1000;z<Lr;z+=1000)seg([0,1,z],[W,1,z],gc,.9);
+  // 벽: 카메라와 실 사이에 있는 벽은 숨김
+  if(V3.wall){const wc=mix(C('--col'),C('--sheet'),.35),t=200,we=mix(wc,ink,.3);
+    if(e[0]>=0)box(-t,-t,0,Lr+t,0,H,wc,{edge:we}); if(e[0]<=W)box(W,-t,W+t,Lr+t,0,H,wc,{edge:we});
+    if(e[2]>=0)box(0,-t,W,0,0,H,wc,{edge:we}); if(e[2]<=Lr)box(0,Lr,W,Lr+t,0,H,wc,{edge:we});}
+  // 기둥
+  const cc=C('--col'); columns().forEach(c=>box(c.x,c.y,c.x+c.w,c.y+c.h,0,H,cc,{edge:mix(cc,ink,.35)}));
+  // 판넬 (전면 = 밝은 면)
+  const clr=C('--clear'), dc=C('--door');
+  S.panels.forEach(p=>{const g=geom(p), b=g.body, ht=+g.t.h||2100, col=hexRGB(g.t.color), on=sel.has(p.id)||V3.hover===p.id;
+    box(b.x,b.y,b.x+b.w,b.y+b.h,0,ht,col,{front:FRONT_N[g.r],edge:on?acc:mix(col,ink,.55),top:on?mix(col,acc,.45):mix(col,[1,1,1],.12)});
+    const f=g.fe; seg([f[0],ht+2,f[1]],[f[2],ht+2,f[3]],on?acc:ink);
+    if(V3.clr)[g.fr,g.rr].forEach(r=>{if(r.w>0&&r.h>0){quad(X,[[r.x,3,r.y],[r.x,3,r.y+r.h],[r.x+r.w,3,r.y+r.h],[r.x+r.w,3,r.y]],clr,.22,null);
+      [[r.x,r.y],[r.x+r.w,r.y],[r.x+r.w,r.y+r.h],[r.x,r.y+r.h]].forEach((a,i,A)=>{const q=A[(i+1)%4];seg([a[0],4,a[1]],[q[0],4,q[1]],clr,.8)})}});
+    if(V3.door)doors(g).forEach(d=>{const dh=ht*.94, h=d.h, o=d.o;   // 90° 열린 문짝(반투명 판) + 바닥 회전 궤적
+      quad(X,[[h[0],0,h[1]],[h[0],dh,h[1]],[o[0],dh,o[1]],[o[0],0,o[1]]],dc,.16,null);
+      seg([h[0],dh,h[1]],[o[0],dh,o[1]],dc);seg([o[0],0,o[1]],[o[0],dh,o[1]],dc);seg([h[0],0,h[1]],[h[0],dh,h[1]],dc);
+      const u=[(d.c[0]-h[0])/d.r,(d.c[1]-h[1])/d.r], w=[(o[0]-h[0])/d.r,(o[1]-h[1])/d.r]; let pv=null;
+      for(let i=0;i<=18;i++){const a=i/18*Math.PI/2, q=[h[0]+d.r*(Math.cos(a)*u[0]+Math.sin(a)*w[0]),6,h[1]+d.r*(Math.cos(a)*u[1]+Math.sin(a)*w[1])]; if(pv)seg(pv,q,dc); pv=q}});
+  });
+  return {T,L,X};
+}
+function v3draw(){
+  V3.raf=0; if(!V3.on)return; const gl=V3.gl, cv=$('#v3gl'), tx=$('#v3tx'), dpr=window.devicePixelRatio||1;
+  const w=Math.max(1,cv.clientWidth), h=Math.max(1,cv.clientHeight);
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=tx.width=Math.round(w*dpr);cv.height=tx.height=Math.round(h*dpr)}
+  const M=v3matrix(w,h), G=v3build(), bg=hexRGB(getComputedStyle(document.documentElement).getPropertyValue('--paper'));
+  gl.viewport(0,0,cv.width,cv.height); gl.clearColor(bg[0],bg[1],bg[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(V3.pg); gl.uniformMatrix4fv(V3.loc.M,false,new Float32Array(M)); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+  const put=(A,mode)=>{if(!A.length)return; gl.bindBuffer(gl.ARRAY_BUFFER,V3.buf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(A),gl.STREAM_DRAW);
+    const st=40,l=V3.loc; gl.enableVertexAttribArray(l.p);gl.vertexAttribPointer(l.p,3,gl.FLOAT,false,st,0); gl.enableVertexAttribArray(l.c);gl.vertexAttribPointer(l.c,4,gl.FLOAT,false,st,12); gl.enableVertexAttribArray(l.n);gl.vertexAttribPointer(l.n,3,gl.FLOAT,false,st,28);
+    gl.drawArrays(mode,0,A.length/10)};
+  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1,1); gl.disable(gl.BLEND); put(G.T,gl.TRIANGLES); gl.disable(gl.POLYGON_OFFSET_FILL);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA); put(G.L,gl.LINES); gl.depthMask(false); put(G.X,gl.TRIANGLES); gl.depthMask(true);
+  // Tag 글자 (2D 겹친 캔버스)
+  const c2=tx.getContext('2d'); c2.setTransform(dpr,0,0,dpr,0,0); c2.clearRect(0,0,w,h);
+  if(V3.lbl){const cs=getComputedStyle(document.documentElement), ink=cs.getPropertyValue('--ink').trim(), sh=cs.getPropertyValue('--sheet').trim();
+    const used=[]; c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif'; c2.textAlign='center'; c2.textBaseline='middle';
+    S.panels.map(p=>{const g=geom(p),b=g.body;return {p,q:v3proj([b.x+b.w/2,(+g.t.h||2100)+120,b.y+b.h/2],w,h)}}).filter(o=>o.q).sort((a,b)=>a.q[2]-b.q[2]).forEach(({p,q})=>{   // 가까운 것부터, 겹치는 글자는 건너뜀 (확대하면 보임)
+      const tw=c2.measureText(p.tag).width+8, R={x:q[0]-tw/2,y:q[1]-8,w:tw,h:16}; if(used.some(u=>ov(u,R)))return; used.push(R); c2.globalAlpha=.85; c2.fillStyle=sh; c2.fillRect(q[0]-tw/2,q[1]-8,tw,16); c2.globalAlpha=1; c2.fillStyle=ink; c2.fillText(p.tag,q[0],q[1])});}
+  const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
+  $('#v3Info').textContent=`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} · 판넬 ${S.panels.length} EA · 최고 H ${fmt(mh)}`+(mh>V3.H?` · ⚠ 판넬 H 가 기둥 · 벽 높이 ${fmt(V3.H)} 보다 큼`:'');
+}
+const v3req=()=>{if(!V3.raf)V3.raf=requestAnimationFrame(v3draw)};
+function v3pick(mx,my){   // 마우스 아래 판넬: 카메라 광선 ∩ 판넬 상자
+  const cv=$('#v3gl'),w=cv.clientWidth,h=cv.clientHeight,B=V3.basis; if(!B)return null;
+  const px=(mx/w)*2-1, py=1-(my/h)*2, d=v3n([0,1,2].map(i=>B.f[i]+B.r[i]*px*B.tf*B.a+B.u[i]*py*B.tf)), o=V3.eye;
+  let best=null,bt=1e18;
+  S.panels.forEach(p=>{const g=geom(p),b=g.body,lo=[b.x,0,b.y],hi=[b.x+b.w,+g.t.h||2100,b.y+b.h];let t0=-1e18,t1=1e18;
+    for(let i=0;i<3;i++){if(Math.abs(d[i])<1e-9){if(o[i]<lo[i]||o[i]>hi[i])return;continue}let a=(lo[i]-o[i])/d[i],c=(hi[i]-o[i])/d[i];if(a>c)[a,c]=[c,a];t0=Math.max(t0,a);t1=Math.min(t1,c)}
+    if(t0<=t1&&t1>0&&t0<bt){bt=t0;best=p}});
+  return best;
+}
+function open3d(){
+  if(!V3.gl&&!v3init()){toast('이 브라우저에서 3D(WebGL)를 쓸 수 없습니다 — Edge 설정 > 시스템 > 하드웨어 가속을 켜 보세요.',true);return}
+  $('#v3dlg').hidden=false; V3.on=true; $('#v3H').value=V3.H; ['wall','clr','door','lbl'].forEach(k=>V3[k]=$('#v3'+k[0].toUpperCase()+k.slice(1)).checked);
+  if(!V3.D||V3.room!==S.room.w+'x'+S.room.l){v3home();V3.room=S.room.w+'x'+S.room.l} v3req();
+}
+const v3view={iso:[-0.62,0.62],front:[0,0.16],side:[Math.PI/2,0.16],top:[0,1.55]};
+document.querySelectorAll('[data-v3]').forEach(b=>b.onclick=()=>{const [y,p]=v3view[b.dataset.v3];V3.yaw=y;V3.pitch=p;v3home();V3.D*=b.dataset.v3==='top'?0.95:b.dataset.v3==='iso'?1:0.75;v3req()});
+$('#b3d').onclick=open3d;
+$('#v3Close').onclick=()=>{$('#v3dlg').hidden=true;V3.on=false};
+new MutationObserver(()=>{if($('#v3dlg').hidden)V3.on=false}).observe($('#v3dlg'),{attributes:true,attributeFilter:['hidden']});   // Esc 로 닫힘
+$('#v3H').onchange=e=>{const v=Math.round(+e.target.value);if(v>=1000&&v<=20000){V3.H=v;try{localStorage.setItem('crspace.h3d',String(v))}catch(_){}}else e.target.value=V3.H;v3req()};
+['Wall','Clr','Door','Lbl'].forEach(k=>$('#v3'+k).onchange=e=>{V3[k.toLowerCase()]=e.target.checked;v3req()});
+window.addEventListener('resize',()=>{if(V3.on)v3req()});
+{const cv=$('#v3gl'); let drag=null;
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey};cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener('pointermove',e=>{
+    if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+      if(drag.pan){const B=V3.basis,k=V3.D*2*B.tf/cv.clientHeight,g=v3n([B.f[0],0,B.f[2]]);   // 바닥과 나란히 옮김
+        const fw=V3.pitch>1.2?v3n([B.u[0],0,B.u[2]]):g; V3.T=[V3.T[0]-B.r[0]*dx*k+fw[0]*dy*k,V3.T[1],V3.T[2]-B.r[2]*dx*k+fw[2]*dy*k]}
+      else{V3.yaw-=dx*0.008;V3.pitch=Math.min(1.55,Math.max(0.02,V3.pitch+dy*0.008))}
+      v3req();return}
+    const r=cv.getBoundingClientRect(), p=v3pick(e.clientX-r.left,e.clientY-r.top), tip=$('#v3Tip');
+    if((p&&p.id)!==V3.hover){V3.hover=p&&p.id;v3req()}
+    if(p){const t=typeOf(p);tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';
+      tip.innerHTML=`<b>${esc(p.tag)}</b> ${esc(p.desc||t.name)}<br>${fmt(t.w)} × ${fmt(t.d)} × H ${fmt(+t.h||2100)}`} else tip.hidden=true;
+  });
+  cv.addEventListener('pointerup',()=>{drag=null});
+  cv.addEventListener('pointerleave',()=>{$('#v3Tip').hidden=true;if(V3.hover){V3.hover=null;v3req()}});
+  cv.addEventListener('wheel',e=>{e.preventDefault();V3.D=Math.min(Math.max(S.room.w,S.room.l)*6,Math.max(800,V3.D*Math.exp(Math.sign(e.deltaY)*Math.min(Math.abs(e.deltaY),200)*0.001)));v3req()},{passive:false});
+  cv.addEventListener('dblclick',()=>{V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req()});
+}
+$('#v3Png').onclick=()=>{   // 3D 화면 + Tag 글자 → PNG
+  v3draw(); const a=$('#v3gl'), b=$('#v3tx'), c=document.createElement('canvas'); c.width=a.width; c.height=a.height; const g=c.getContext('2d'); g.drawImage(a,0,0); g.drawImage(b,0,0);
+  c.toBlob(bl=>{const l=document.createElement('a');l.href=URL.createObjectURL(bl);l.download=fname('3D','png');document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(l.href),4000);toast(`3D PNG 저장 — ${c.width} × ${c.height} px`)},'image/png');
+};
 $('#bPng').onclick=async()=>{   // 지금 보이는 도면 → PNG (2배 해상도). 폐쇄망: 글꼴 · 그림 모두 로컬
   const {w,h}=vp(), K=2, bg=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
   const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h);
