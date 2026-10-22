@@ -927,3 +927,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: `$('#bDxf').onclick` 의 `layers`.
 - 확인한 것: ezdxf audit 오류 0, Layer 색 읽어 확인, 화면 바탕색(#212830)으로 그려 비교.
 - 회사에서 확인할 것: AutoCAD 바탕이 흰색이면 회색 선(254 · 9)이 흐릴 수 있음 — 그 경우 CR-ROOM · CR-TEXT 를 7 로 되돌리면 됨.
+
+### 2026-10-22 (10) — 판넬 공간확보: PPT 도형 삽입처럼 Type 만들기 · 저장 · 눌러서 배치 (apps/space/index.html 만)
+- 무엇을: 요청 "Panel 을 PPT 주석 넣듯 Type 별로 생성 · 저장하고, 생성된 Type 을 누르면 그 Type 의 panel 을 배치". 개발 의도 = 1단계(계장이 빈 상태에서 판넬을 배치해 필요 볼륨 산출) → 건축 전달 → 건축 Room CAD → 계장이 그 CAD 를 backdrawing 으로 상세 배치.
+  - 도구줄 아래 'Panel 삽입' 줄(그림 단추) → 누르면 배치 모드 → 도면 클릭. ✎/두 번 누르기 = 고치기, [＋ 새 Type] = 만들기 창(실시간 미리보기 · 입력 오류 문장).
+  - 📚 라이브러리(localStorage `crspace.lib.v1`) — 다른 프로젝트에서 다시 쓰기.
+- 바뀐 곳: apps/space/index.html — HTML `.ribbon #palette` · `#tdlg` · `#libdlg`, `buildTypes`(삽입 줄), `typeSvg` `doorSvg`, `geom(p, tt)`, `openTypeDlg` `tdRead` `tdPreview` `tdSave`, `libGet` `libSet` `libPut` `buildLib`, 키 입력(열린 창이면 도면 단축키 끔 · Esc 닫기). 사이드 Type 입력 카드 삭제.
+- 확인한 것: `node --check`, Chromium 으로 만들기 → 만들고 배치 → 도면 클릭 2 EA, 다른 Type 단추 배치, 이름 중복 오류, 라이브러리 1건, 스크립트 오류 0.
+- 회사에서 확인할 것: 라이브러리는 PC · 브라우저마다 따로 (Edge 사이트 데이터 지우면 사라짐) — 부서 공용은 서버 저장(보고서 5-1) 승인 시.
