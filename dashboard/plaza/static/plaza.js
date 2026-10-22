@@ -120,13 +120,16 @@ function pix(w, h, draw, { ol = C.ol, labels = [] } = {}) {
   for (const L of labels) { bg.font = `bold ${L.s || 10}px ${FONT}`; bg.textAlign = "center"; bg.textBaseline = "middle"; bg.fillStyle = L.c || C.white; bg.fillText(L.t, (L.x + 1) * PX, (L.y + 1) * PX); }
   big.foot = (h + 1) * PX; return big;
 }
+// 밤 조명 (2026-10-22 판11): 그림 안에서 스스로 빛나는 곳(창 · 화면 · 등) — 점 좌표 [x, y, w, h] → img.glow (px)
+function lit(img, rects, col) { img.glow = (img.glow || []).concat(rects.map(([x, y, w, h]) => ({ x: (x + 1) * PX, y: (y + 1) * PX, w: w * PX, h: h * PX, col }))); return img; }
+const WARM = [255, 206, 130], COOL = [150, 215, 255], SCREEN = [90, 200, 255];
 const hz = (R, x, y, w, h) => { for (let i = 0; i < w; i++) R(x + i, y, 1, h, Math.floor((i + y) / 3) % 2 ? C.yel : "#1a1a1a"); };   // 노랑 · 검정 빗금 띠
 function ribs(R, x, y, w, h, col, step = 4) { for (let i = x + 1; i < x + w; i += step) R(i, y, 1, h, col); }
 
 // ── 건물 (지붕 + 앞 벽) — 탑다운 3/4 시점, 빛은 왼쪽 위 ───────────────────────
-function building({ w, roofH, wallH, roof = C.steel, wall = "#8e9aa7", doors = [], wins = [], sign, vents = [], louver = [] }) {
+function building({ w, roofH, wallH, roof = C.steel, wall = "#8e9aa7", doors = [], wins = [], sign, vents = [], louver = [], glowCol }) {
   const lab = sign ? [{ t: sign.t, x: sign.x + sign.w / 2, y: roofH + sign.y + sign.h / 2, s: sign.s || 10, c: "#e9f2ff" }] : [];
-  return pix(w, roofH + wallH, R => {
+  const img = pix(w, roofH + wallH, R => {
     R(0, 0, w, roofH, roof); ribs(R, 0, 2, w, roofH - 4, shade(roof, -.18));   // 골강판 지붕
     R(0, 0, w, 2, shade(roof, .25)); R(0, roofH - 3, w, 3, shade(roof, -.35)); R(0, 2, 2, roofH - 5, shade(roof, .12));
     for (const v of vents) { R(v.x, v.y, v.w, v.h, C.grayD); R(v.x + 1, v.y + 1, v.w - 2, v.h - 3, C.gray); R(v.x + 1, v.y + 1, v.w - 2, 1, C.grayL); }
@@ -144,6 +147,7 @@ function building({ w, roofH, wallH, roof = C.steel, wall = "#8e9aa7", doors = [
     }
     if (sign) { R(sign.x, roofH + sign.y, sign.w, sign.h, C.navy2); R(sign.x, roofH + sign.y, sign.w, 1, C.steelL); }
   }, { labels: lab });
+  return lit(lit(img, wins.map(q => [q.x, roofH + q.y, q.w, q.h]), glowCol || WARM), sign ? [[sign.x, roofH + sign.y, sign.w, sign.h]] : [], [120, 170, 255]);
 }
 // ── 굴뚝 (연돌) · 냉각탑 · 펌프 · 열교환기 · 배관랙 ─────────────────────────────
 function stackImg() {
@@ -322,10 +326,19 @@ function truckImg(col) { return pix(44, 24, R => { R(0, 8, 44, 10, col); R(0, 8,
   R(2, 10, 22, 6, shade(col, -.12)); R.disc(9, 19, 4, 4, "#1a1d22"); R.disc(35, 19, 4, 4, "#1a1d22"); R(40, 12, 4, 2, C.yel); R(0, 12, 2, 2, C.red); }); }
 function spoolImg() { return pix(46, 22, R => { R(0, 18, 46, 4, "#7a5534"); for (let k = 0; k < 3; k++) for (let i = 0; i < 4 - k; i++) {
   const x = 6 + i * 11 + k * 5.5, y = 13 - k * 8; R.disc(x, y, 5, 5, "#9aa6b1"); R.disc(x, y, 3, 3, "#3b434d"); } }); }
-function lightPoleImg() { return pix(14, 70, R => { R(6, 6, 2, 62, C.grayD); R(5, 6, 1, 62, C.gray); R(1, 0, 12, 6, "#3a4250"); R(2, 4, 10, 2, "#fff4c2"); R(3, 66, 8, 4, C.concD); }); }
-function treeImg(seed) { const r = rng(seed); return pix(30, 38, R => { R(13, 24, 4, 14, "#4a3423"); R.disc(15, 15, 14, 13, "#1f3d26");
-  for (let i = 0; i < 9; i++) R.disc(6 + r() * 18, 6 + r() * 14, 4 + r() * 3, 4 + r() * 3, i % 3 ? "#2f5a35" : "#3f7343"); R.disc(10, 8, 3, 3, "#5a9256"); }); }
-function shrubImg(seed) { const r = rng(seed); return pix(18, 12, R => { R.disc(9, 6, 9, 6, "#23432a"); for (let i = 0; i < 4; i++) R.disc(3 + r() * 12, 3 + r() * 5, 3, 3, "#386a3c"); }); }
+function lightPoleImg() { return lit(pix(14, 70, R => { R(6, 6, 2, 62, C.grayD); R(5, 6, 1, 62, C.gray); R(1, 0, 12, 6, "#3a4250"); R(2, 4, 10, 2, "#fff4c2"); R(3, 66, 8, 4, C.concD); }), [[2, 4, 10, 2]], [255, 236, 190]); }
+function treeImg(seed) {                      // 2026-10-22 판11: 잎을 3~4 톤으로 (아래 그늘 → 왼쪽 위 햇빛 · 잎 끝 점) · 밑동 그림자
+  const r = rng(seed), D = r() < .5 ? ["#132a1d", "#1f4528", "#2e6436", "#468a45", "#79b961"] : ["#14301f", "#22503a", "#337446", "#519c55", "#8acb74"];
+  return pix(34, 42, R => { R.disc(17, 39, 12, 3, "#141e18"); R(15, 26, 4, 13, "#4a3423"); R(15, 26, 1, 13, "#6b4c32"); R(18, 26, 1, 13, "#33241a");
+    R.disc(17, 16, 16, 14, D[0]);
+    for (let i = 0; i < 11; i++) R.disc(5 + r() * 24, 7 + r() * 16, 4 + r() * 4, 3 + r() * 4, D[1]);
+    for (let i = 0; i < 8; i++) R.disc(5 + r() * 17, 4 + r() * 12, 3 + r() * 3, 3 + r() * 3, D[2]);
+    for (let i = 0; i < 6; i++) R.disc(7 + r() * 11, 4 + r() * 8, 1.5 + r() * 1.5, 1.5 + r() * 1.5, D[3]);
+    for (let i = 0; i < 9; i++) R(6 + r() * 14, 3 + r() * 10, 1, 1, D[4]);
+    for (let i = 0; i < 6; i++) R(8 + r() * 20, 22 + r() * 6, 2, 1, D[0]); }); }
+function shrubImg(seed) { const r = rng(seed); return pix(20, 14, R => { R.disc(10, 12, 9, 2, "#141e18"); R.disc(10, 7, 10, 6, "#1d3b25");
+  for (let i = 0; i < 5; i++) R.disc(3 + r() * 14, 4 + r() * 5, 3, 3, "#2f6136"); for (let i = 0; i < 4; i++) R.disc(3 + r() * 9, 2 + r() * 4, 1.5, 1.5, "#4f9a4c");
+  if (r() < .5) for (let i = 0; i < 3; i++) R(3 + r() * 14, 2 + r() * 8, 1, 1, ["#ff7a9a", "#ffe066", "#ffffff"][i]); }); }
 function coneImg() { return pix(10, 14, R => { R(1, 12, 8, 2, "#2a2f36"); for (let y = 0; y < 12; y++) { const w = 2 + Math.floor(y / 2); R(5 - w / 2, y, w, 1, y === 4 || y === 5 ? C.white : C.org); } }); }
 function signImg(text, col, sub) { return pix(34, 34, R => { R(16, 18, 2, 16, C.grayD); R(0, 0, 34, 18, col); R(0, 0, 34, 1, shade(col, .4)); R(1, 17, 32, 1, shade(col, -.4)); },
   { labels: [{ t: text, x: 17, y: sub ? 6 : 9, s: 10, c: C.white }].concat(sub ? [{ t: sub, x: 17, y: 13, s: 8, c: C.white }] : []) }); }
@@ -333,7 +346,8 @@ function boardImg() { return pix(34, 34, R => { for (const x of [3, 29]) R(x, 18
   for (let y = 5; y < 18; y += 4) { R(4, y, 3, 2, C.grn); R(9, y + 1, 20, 1, "#7a8591"); } }, { labels: [{ t: "LOOP CHECK", x: 17, y: 1, s: 7, c: C.white }] }); }
 function testBenchImg() { return pix(36, 22, R => { R(0, 8, 36, 5, "#5b6878"); R(0, 8, 36, 1, "#8494a8"); R(2, 13, 2, 9, C.grayD); R(32, 13, 2, 9, C.grayD);
   R(3, 2, 12, 6, "#1c2333"); R(4, 3, 10, 4, "#14385c"); R(5, 5, 8, 1, C.grn); R(18, 3, 8, 5, C.org); R(19, 4, 4, 2, "#222"); R(28, 4, 6, 4, C.yel); R(29, 5, 4, 1, "#333"); }); }
-function vendingImg() { return pix(18, 32, R => { R(0, 0, 18, 30, C.red); R(0, 0, 18, 2, "#ff7b6e"); R(2, 4, 10, 18, "#1c2333");
+function vendingImg() { return lit(vendingImg0(), [[2, 4, 10, 18]], [200, 235, 255]); }
+function vendingImg0() { return pix(18, 32, R => { R(0, 0, 18, 30, C.red); R(0, 0, 18, 2, "#ff7b6e"); R(2, 4, 10, 18, "#1c2333");
   for (let y = 6; y < 21; y += 4) for (let x = 3; x < 11; x += 3) R(x, y, 2, 2, ["#ffd35a", "#61b3ff", "#7be08f"][(x + y) % 3]); R(13, 8, 3, 6, "#eee"); R(0, 30, 18, 2, "#2a2f36"); }); }
 function parkBenchImg() { return pix(32, 16, R => { R(0, 2, 32, 3, "#8b6a45"); R(0, 7, 32, 3, "#8b6a45"); R(0, 2, 32, 1, "#b8925f"); R(2, 10, 2, 6, C.grayD); R(28, 10, 2, 6, C.grayD); }); }
 function boothImg() { return pix(36, 44, R => { R(0, 0, 36, 8, C.steel); R(0, 0, 36, 2, C.steelL); R(2, 8, 32, 32, "#dfe6ec"); R(4, 12, 28, 12, C.glass);
@@ -344,7 +358,8 @@ function gateImg() { return pix(192, 40, R => {                // 정문 — 기
   R(56, 2, 80, 10, C.navy2); R(56, 2, 80, 1, C.steelL);
   for (let i = 0; i < 70; i++) R(30 + i, 26, 1, 3, Math.floor(i / 5) % 2 ? C.red : C.white); R(26, 22, 4, 12, C.yel); }, { labels: [{ t: "정문  MAIN GATE", x: 96, y: 7, s: 10, c: "#e9f2ff" }] }); }
 // 제어실 벽 (지붕 없는 단면): 북쪽 벽은 안쪽 면(영상 벽 · 경보창), 옆 · 남쪽은 낮은 벽 윗면
-function crWallN(wTiles, screens) { const w = wTiles * 16; return pix(w, 40, R => { R(0, 0, w, 4, "#9aa3ad"); R(0, 4, w, 34, "#c9d1d9"); R(0, 4, w, 2, "#5d6772"); R(0, 36, w, 4, "#7d8794");
+function crWallN(wTiles, screens) { const w = wTiles * 16; return lit(crWallN0(w, screens), screens ? [[7, 10, w - 14, 16]] : [], SCREEN); }
+function crWallN0(w, screens) { return pix(w, 40, R => { R(0, 0, w, 4, "#9aa3ad"); R(0, 4, w, 34, "#c9d1d9"); R(0, 4, w, 2, "#5d6772"); R(0, 36, w, 4, "#7d8794");
   if (screens) { R(6, 9, w - 12, 18, "#0f1a2b"); R(7, 10, w - 14, 16, "#132a45");
     for (let x = 10; x < w - 12; x += 3) R(x, 12 + Math.round(Math.sin(x / 7) * 3 + 4), 2, 1, C.grn);
     for (let x = 10; x < w - 12; x += 14) { R(x, 20, 8, 3, "#2f6db5"); R(x + 2, 21, 4, 1, C.yel); }
@@ -363,7 +378,7 @@ function foodHallImg() {
 }
 function gymImg() {
   return awning(building({ w: 208, roofH: 40, wallH: 44, roof: "#27466a", wall: "#b9c4ce", sign: { t: "헬스장  FITNESS", x: 12, y: 2, w: 74, h: 11, s: 10 },
-    doors: [{ x: 96, w: 16, h: 26, c: "#1d3550" }], wins: [{ x: 10, y: 20, w: 76, h: 12 }, { x: 122, y: 20, w: 76, h: 12 }], vents: [{ x: 96, y: 10, w: 18, h: 12 }] }), 92, 48, 24, ["#1f6fd1", "#f2f6fa"]);
+    doors: [{ x: 96, w: 16, h: 26, c: "#1d3550" }], wins: [{ x: 10, y: 20, w: 76, h: 12 }, { x: 122, y: 20, w: 76, h: 12 }], vents: [{ x: 96, y: 10, w: 18, h: 12 }], glowCol: COOL }), 92, 48, 24, ["#1f6fd1", "#f2f6fa"]);
 }
 function pedestalImg() {                      // 동상 받침대 — 화강석 3 단 · 금 명판
   return pix(24, 20, R => { R(0, 12, 24, 8, "#6d7078"); R(0, 12, 24, 1, "#a3a7ae"); R(2, 5, 20, 8, "#868a92"); R(2, 5, 20, 1, "#bfc3c9"); R(4, 0, 16, 6, "#9a9ea6"); R(4, 0, 16, 1, "#d4d7dc");
@@ -456,7 +471,7 @@ put(benchImg, 48, 29, { fw: 2, solid: [48, 29, 49, 29] }); put(toolRackImg, 51, 
 put(() => drumImg("#2b2f36"), 55, 30, { solid: [55, 30, 55, 30] }); put(() => drumImg(C.org), 57, 30, { solid: [57, 30, 57, 30] }); put(() => drumImg("#3d6fb0"), 59, 30, { solid: [59, 30, 59, 30] });
 put(shelfImg, 60, 29, { solid: [60, 29, 60, 29] });
 // H 현장 사무소 · 물류 · 쉼터 · 주차 · 정문
-put(officeImg, 52, 36, { fw: 9, solid: [52, 33, 60, 36], fade: true });
+put(() => { const W2 = []; for (const [y, x0] of [[0, 8], [32, 0]]) for (let x = x0 + 8; x < x0 + 130; x += 22) W2.push([x, y + 12, 12, 9]); return lit(officeImg(), W2, WARM); }, 52, 36, { fw: 9, solid: [52, 33, 60, 36], fade: true });
 for (const [x, col] of [[35, "#2f6fb5"], [38, "#d9692b"], [41, "#7c8a94"]]) put(() => containerImg(col), x, 34, { fw: 3, solid: [x, 33, x + 2, 34], fade: true });
 put(craneImg, 45, 39, { fw: 5, solid: [45, 38, 49, 39], fade: true, anim: (g, X, Y, now) => { if (Math.floor(now / 500) % 2) { g.fillStyle = "#ffb03a"; g.fillRect(X + 8, Y + 80, 8, 6); } } });
 put(forkliftImg, 43, 38, { solid: [43, 38, 43, 38] });
@@ -467,7 +482,7 @@ put(vendingImg, 19, 35, { solid: [19, 35, 19, 35] }); put(parkBenchImg, 21, 37, 
 put(() => signImg("안전제일", C.grnD, "SAFETY FIRST"), 26, 34, { solid: [26, 34, 26, 34] });
 put(() => signImg("보호구 착용", "#2f6db5", "PPE"), 34, 22, { solid: [34, 22, 34, 22] });
 put(() => signImg("고압 위험", C.redD, "HIGH VOLTAGE"), 12, 22, { solid: [12, 22, 12, 22] });
-put(boothImg, 27, 39, { fw: 2, solid: [27, 38, 28, 39], fade: true });
+put(() => lit(boothImg(), [[4, 12, 28, 12]], WARM), 27, 39, { fw: 2, solid: [27, 38, 28, 39], fade: true });
 put(gateImg, 26, 42, { fw: 12 });
 for (const [x, y] of [[3, 17], [13, 17], [22, 17], [37, 17], [47, 17], [57, 17], [20, 33], [32, 33], [45, 32], [10, 34]]) {   // 조명탑 (땅에 불빛 웅덩이)
   put(lightPoleImg, x, y, { solid: [x, y, x, y] }); LIGHTS.push([x + .5, y + .8]); }
@@ -555,6 +570,25 @@ function drawGround() {
   for (let i = 0; i < 40; i++) { const r = rng(900 + i), x = Math.floor(r() * AW), y = Math.floor(r() * AH); if (tile(x, y) === CONC || tile(x, y) === ASPH) mul(x, y, x + 6 + Math.floor(r() * 8), y + 3 + Math.floor(r() * 4), .82); }
   for (const [x0, y0, x1, y1] of [[35, 26, 44, 28], [37, 26, 41, 30], [44, 26, 43, 29]]) { let x = x0 * 16 + 8, y = y0 * 16 + 4; const tx = x1 * 16 + 8, ty = y1 * 16 + 4;
     while (Math.abs(x - tx) + Math.abs(y - ty) > 1) { paint(x, y, 1, 1, [232, 117, 42]); if (Math.abs(x - tx) > Math.abs(y - ty)) x += Math.sign(tx - x); else y += Math.sign(ty - y); if (hash(`c${x},${y}`) % 5 === 0) y += Math.sign(ty - y); } }
+  // 2026-10-22 판11 — 땅 다듬기: 차도 연석(밝은 돌 + 차도 쪽 그늘) · 잔디 가장자리 · 잔디 결 · 아스팔트 균열 · 바퀴 자국 · 막힌 칸 밑 접지 그림자
+  const TT = (x, y) => inside(x, y) ? ground[at(x, y)] : VOID, walk = t => t === CONC || t === PAVE || t === GRAV || t === GRAT;
+  for (let ty = 0; ty < H_OUT; ty++) for (let tx = 0; tx < W; tx++) { const t = TT(tx, ty), X = tx * 16, Y = ty * 16;
+    if (t === ASPH) { for (const [nx, ny, side] of [[tx, ty - 1, 0], [tx, ty + 1, 1], [tx - 1, ty, 2], [tx + 1, ty, 3]]) { if (!walk(TT(nx, ny))) continue;
+      if (side === 0) { paint(X, Y - 2, 16, 2, [176, 182, 190]); paint(X, Y - 2, 16, 1, [206, 212, 218]); mul(X, Y, X + 16, Y + 3, .72); }
+      else if (side === 1) { paint(X, Y + 16, 16, 2, [150, 156, 164]); mul(X, Y + 13, X + 16, Y + 16, .8); }
+      else if (side === 2) { paint(X - 2, Y, 2, 16, [176, 182, 190]); mul(X, Y, X + 3, Y + 16, .78); }
+      else { paint(X + 16, Y, 2, 16, [160, 166, 174]); mul(X + 13, Y, X + 16, Y + 16, .82); } } }
+    if (t === GRASS) for (const [nx, ny] of [[tx, ty - 1], [tx, ty + 1], [tx - 1, ty], [tx + 1, ty]]) { const u = TT(nx, ny); if (u === GRASS || u === VOID) continue;
+      if (ny < ty) mul(X, Y, X + 16, Y + 2, .7); if (ny > ty) mul(X, Y + 14, X + 16, Y + 16, .7); if (nx < tx) mul(X, Y, X + 2, Y + 16, .7); if (nx > tx) mul(X + 14, Y, X + 16, Y + 16, .7); }
+    if (solid[at(tx, ty)] && ty < H_OUT - 2 && inside(tx, ty + 1) && !solid[at(tx, ty + 1)] && TT(tx, ty + 1) !== GRASS)                       // 접지 그림자 (빛은 왼쪽 위)
+      for (let i = 0; i < 5; i++) mul(X, Y + 16 + i, X + 16, Y + 17 + i, .6 + i * .08);
+    if (solid[at(tx, ty)] && tx < W - 2 && !solid[at(tx + 1, ty)] && TT(tx + 1, ty) !== GRASS) for (let i = 0; i < 3; i++) mul(X + 16 + i, Y + 4, X + 17 + i, Y + 16, .7 + i * .1);
+  }
+  for (let i = 0; i < 2600; i++) { const x = ih(i, 11) % AW, y = ih(i, 12) % (H_OUT * 16); if (tile(x, y) !== GRASS) continue;   // 잔디 결 (밝은 · 어두운 짧은 줄)
+    const c = i % 3 ? [66, 112, 62] : [28, 52, 32]; paint(x, y, 1, 2, c); if (i % 7 === 0) paint(x + 1, y, 1, 1, [96, 150, 84]); }
+  for (let i = 0; i < 70; i++) { const rr = rng(4400 + i); let x = Math.floor(rr() * AW), y = Math.floor(rr() * H_OUT * 16); if (tile(x, y) !== ASPH) continue;   // 아스팔트 균열
+    for (let k = 0; k < 10 + rr() * 14; k++) { mul(x, y, x + 1, y + 1, .66); x += rr() < .5 ? 1 : 0; y += rr() < .6 ? 1 : -1; if (tile(x, y) !== ASPH) break; } }
+  for (const y0 of [20 * 16 + 6, 21 * 16 + 6]) for (let x = 2 * 16; x < 94 * 16; x++) if (tile(x, y0) === ASPH && ((x >> 5) % 5)) { mul(x, y0, x + 1, y0 + 2, .9); mul(x, y0 + 6, x + 1, y0 + 8, .9); }   // 바퀴 자국
   // 복지 광장 — 동상 둘레 둥근 무늬 (밝은 돌 고리 · 붉은 돌 고리)
   { const cx = STATUE_HOME[0] * 16 + 8, cy = STATUE_HOME[1] * 16 + 10;
     for (let y = cy - 60; y < cy + 60; y++) for (let x = cx - 84; x < cx + 84; x++) { const d = Math.hypot((x - cx) / 1.4, y - cy);
@@ -1989,6 +2023,52 @@ function goDoor(a, [x, y, dir, room], now) {   // 문 칸 — 방 안 / 건물 �
   floater(a, room ? `${room.name}에 들어왔습니다` : "밖으로 나왔습니다", "#ffe7a6", 1500);
 }
 
+// ── 해질녘 · 밤 조명 (2026-10-22 판11, 사용자 첨부 'EPC 발전플랜트' 참고 그림의 남색 · 작업등 느낌) ─────────────
+// 빛 지도(화면 크기 캔버스)를 남색으로 칠하고 가로등 · 창 · 화면 · 설비 LED · 사람 둘레 빛을 더한 뒤 '곱하기'로 덮는다 → 빛 없는 곳만 어두워짐.
+// 그다음 빛나는 곳(등 머리 · 창 · 화면)을 '더하기'로 한 번 더 → 스스로 빛나 보임. 이름 · 말풍선 · 효과는 그 뒤에 그려 늘 또렷하다.
+// 🌙/☀ 단추로 끔 (이 PC 에만 기억).
+const NIGHT = { on: true, c: null };
+try { NIGHT.on = localStorage.getItem("pid.plaza.night") !== "0"; } catch (_) { /* 기본 = 밤 */ }
+function nightBtn() { const b = document.getElementById("pz-night"); if (b) { b.textContent = NIGHT.on ? "🌙 밤" : "☀ 낮"; b.title = NIGHT.on ? "낮으로 바꾸기" : "해질녘 · 밤으로 바꾸기"; } }
+function toggleNight() { NIGHT.on = !NIGHT.on; try { localStorage.setItem("pid.plaza.night", NIGHT.on ? "1" : "0"); } catch (_) { /* 이번만 */ } nightBtn(); cv.focus(); }
+const AMB_OUT = [70, 84, 128], AMB_FOOD = [214, 196, 168], AMB_GYM = [176, 188, 212];
+function drawNight(g, cx, cy, vw, vh, now, room, who, healers) {
+  if (!NIGHT.on) return;
+  const hw = Math.ceil(vw / 2), hh = Math.ceil(vh / 2);                      // 빛 지도는 반 해상도 (부드러운 빛이라 티 안 남 · 4배 빠름)
+  let c = NIGHT.c; if (!c || c.width !== hw || c.height !== hh) c = NIGHT.c = canvas(hw, hh);
+  const L = c.getContext("2d"), amb = room ? (room.id === "food" ? AMB_FOOD : AMB_GYM) : AMB_OUT;
+  L.setTransform(.5, 0, 0, .5, 0, 0); L.globalCompositeOperation = "source-over"; L.fillStyle = rgba(amb, 1); L.fillRect(0, 0, vw, vh);
+  if (!room) { const vg = L.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * .3, vw / 2, vh / 2, Math.max(vw, vh) * .72);   // 가장자리 더 어둡게 (화면 가운데에 눈이 가게)
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.34)"); L.fillStyle = vg; L.fillRect(0, 0, vw, vh); }
+  L.globalCompositeOperation = "lighter";
+  const glow = (x, y, r, col, a) => { if (x + r < 0 || y + r < 0 || x - r > vw || y - r > vh) return;
+    const gr = L.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(col, a)); gr.addColorStop(.55, rgba(col, a * .35)); gr.addColorStop(1, rgba(col, 0)); L.fillStyle = gr; L.fillRect(x - r, y - r, r * 2, r * 2); };
+  if (room) { for (let y = room.y0 + 1; y <= room.y1; y += 4) for (let x = room.x0 + 2; x <= room.x1; x += 5) glow(x * T + 16 - cx, y * T - cy, 170, room.id === "food" ? [255, 214, 160] : [200, 225, 255], .42); }   // 천장 등
+  else for (const [lx, ly] of LIGHTS) { const x = lx * T - cx, y = ly * T - cy, f = .94 + .06 * Math.sin(now / 900 + lx * 3);   // 가로등 웅덩이 (나트륨 빛)
+    glow(x, y, 210, [255, 176, 92], .7 * f); glow(x, y, 90, [255, 226, 170], .45 * f); }
+  for (const p of props) if (p.img.glow) { const ox = p.x - cx, oy = p.y - p.img.height - cy;   // 창 · 화면 · 등 머리가 둘레를 비춤
+    if (ox > vw + 80 || ox + p.img.width < -80 || oy > vh + 80 || oy + p.img.height < -80) continue;
+    for (const q of p.img.glow) glow(ox + q.x + q.w / 2, oy + q.y + q.h / 2 + 8, Math.max(q.w, q.h) * .7 + 26, q.col, .38); }
+  for (const e of EQUIP) { const st = (EQ_ST[e.id] || ["ok"])[0], x = e.x * T + (e.w || 1) * 16 - cx, y = e.y * T + 6 - cy;   // 설비 상태 LED 빛
+    glow(x, y, 46, st === "fault" ? [255, 60, 40] : st === "warn" ? [255, 170, 40] : [70, 255, 140], st === "fault" ? .3 + .25 * (Math.floor(now / 500) % 2) : .22); }
+  for (const a of who) if (!a.ghost) glow(a.x + 16 - cx, a.y + 18 - cy - (a.statue ? statueLift(a) : 0), a === S.me ? 96 : 70, [205, 215, 255], a === S.me ? .55 : .42);   // 사람 둘레 (얼굴이 보이게)
+  for (const h of healers) glow(h.x + 16 - cx, h.y + 26 - cy, (S.healR || 4) * T * .8, [90, 255, 160], .28);
+  for (const a of who) if (a.attack && now - a.attack < ATK_MS) { const [dx, dy] = DIRV[a.dir] || [0, 1], P = Math.min(1, ((a.lv || 1) - 1) / 29);   // 휘두를 때 무기 빛이 땅을 비춤
+    glow(a.x + 16 + dx * 30 - cx, a.y + 14 + dy * 24 - cy, 50 + 70 * P, lvRgb(a.lv || 1, now), .3 + .4 * P); }
+  for (const a of who) if (a.skillFx) glow(a.x + 16 - cx, a.y + 14 - cy, 120, [160, 220, 255], .45);
+  g.save(); g.globalCompositeOperation = "multiply"; g.imageSmoothingEnabled = true; g.drawImage(c, 0, 0, hw * 2, hh * 2); g.imageSmoothingEnabled = false;
+  g.globalCompositeOperation = "lighter";                                        // 스스로 빛나는 곳
+  if (!room) for (const [lx, ly] of LIGHTS) { const x = lx * T - cx, y = ly * T - cy; if (x < -200 || y < -200 || x > vw + 200 || y > vh + 200) continue;   // 가로등 웅덩이 — 노란 빛을 한 겹 더
+    const gr = g.createRadialGradient(x, y, 0, x, y, 150); gr.addColorStop(0, "rgba(255,170,70,.2)"); gr.addColorStop(.6, "rgba(255,150,60,.07)"); gr.addColorStop(1, "rgba(255,150,60,0)");
+    g.fillStyle = gr; g.fillRect(x - 150, y - 150, 300, 300); }
+  for (const p of props) if (p.img.glow) { const ox = Math.round(p.x - cx), oy = Math.round(p.y - p.img.height - cy);
+    if (ox > vw || ox + p.img.width < 0 || oy > vh || oy + p.img.height < 0) continue;
+    for (const q of p.img.glow) { g.fillStyle = rgba(q.col, .42); g.fillRect(ox + q.x, oy + q.y, q.w, q.h);
+      const r = Math.max(q.w, q.h) * .6 + 8, mx = ox + q.x + q.w / 2, my = oy + q.y + q.h / 2, gr = g.createRadialGradient(mx, my, 0, mx, my, r);
+      gr.addColorStop(0, rgba(q.col, .22)); gr.addColorStop(1, rgba(q.col, 0)); g.fillStyle = gr; g.fillRect(mx - r, my - r, r * 2, r * 2); } }
+  g.restore();
+}
+
 // ── 그리기 ─────────────────────────────────────────────────────────────
 const FONT = "'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','WenQuanYi Zen Hei',sans-serif";
 function wrap(g, text, maxW) {
@@ -2194,6 +2274,7 @@ function frame(now) {
     }
     drawActor(ctx, it.a, Math.round(it.a.x - cx), Math.round(it.a.y - cy) - statueLift(it.a), now);
   }
+  drawNight(ctx, cx, cy, vw, vh, now, room, actors.concat(npcs), healers);   // 해질녘 · 밤 조명 (🌙/☀)
   drawParts(ctx, cx, cy, now);              // 효과 층 (입자)
   drawEqMarks(ctx, cx, cy, now);            // 설비 상태 · [E] 안내
   for (const r of ROOMS) { const [dx, dy] = r.door; if (Math.abs(S.me.tx - dx) + Math.abs(S.me.ty - dy) > 3) continue;   // 건물 문 앞 — [↑] 들어가기
@@ -2386,6 +2467,7 @@ function toggleKeys() {
   $("#pz-keys").hidden = false; S.panel = "keys"; S.keys.clear();
 }
 $("#pz-keys-btn").onclick = toggleKeys; $("#pz-keys-close").onclick = toggleKeys;
+$("#pz-night").onclick = toggleNight; nightBtn();
 $("#pz-face-btn").onclick = openFace;
 $("#pz-face-save").onclick = saveFace;
 $("#pz-face-cancel").onclick = closeFace;

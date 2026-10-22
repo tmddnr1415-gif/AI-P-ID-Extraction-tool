@@ -1030,3 +1030,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: plaza_server.py `PLAZA_VERSION` · `MAP_W/MAP_H` 96·60 · 새 `STATUE_*` `STATUE` `statue_say` `statue_wake` `statue_front` `statue_trail` `statue_step` `statue_home` `statue_tick` `statue_loop`(0.07초 스레드) `statue_snap` `NPC_LINES` `NPC_SAY` `api_npc`(POST /plaza/api/npc {id, npc, kind: hit|click}) · `api_attack`·`api_skill`(강타)에서 동상 깨움 · `api_move`(쫓기는 사람 칸 적기) · snapshot(statue · npc_say) · `main`. plaza.js `W/H` · 새 `H_OUT` 땅 종류 `WOOD RUBBER VOID WALLI PAVE` · `ROOMS` `DOORS` `roomAt` `goDoor` `STATUE_HOME` · 새 그림 `foodHallImg` `gymImg` `awning` `pedestalImg` `flowerBedImg` `counterImg` `menuBoardImg` `tableImg` `chairsImg` `waterImg` `trayRackImg` `treadmillImg` `dumbbellImg` `benchPressImg` `squatRackImg` `punchBagImg` `matImg` `bannerImg` · `drawGround`(정수 해시 `ih` 로 빠르게 · 마루 · 고무 · 보도블록 · 실내 벽 · 동상 둘레 무늬) · `frame`(방 카메라 · 잘라 그리기 · 문 안내 · 방 이름 · 어둡게 전환) · `drawMini` · 새 `lvFx` `lvRgb` · `drawWeaponSwing` `drawSwing` `drawHeld` · NPC `npcOn` `npcAtPx` · 동상 `statueActor` `stoneTint` `statueLift` · `applySnapshot` · `attack` · 캔버스 클릭 · `nameTag` `jobTag` `occupied` · `KEY_ROWS`. plaza.html/css 현장 지도 192×88. selftest.py NPC 말 2 · 동상 2.
 - 확인한 것: `py_compile` · `node --check` · `selftest.py` 모두 통과. 브라우저(임시 서버): 동상 앞에서 Space → 흔들리며 깨어남 → 오른쪽으로 달아나자 같은 칸을 밟아 따라와 10대(체력 −30) → 제자리 돌빛 동상. 식당 문 → 방 안(배경 · 카메라 바뀜) → 빨간 깔개 → 건물 앞, 헬스장도 같음. NPC 치기 · 누르기 말풍선. Lv 1 · 10 · 20 · 30 휘두르기 캡처 비교. 스크립트 오류 없음.
 - 회사에서 확인할 것: 두 사람이 함께 들어가 동상 쫓기 · 식당 안에서 서로 보이는지. 예전에 칸 62~63(옛 동쪽 끝)에 떨어뜨린 아이템은 그 자리 그대로.
+
+### 2026-10-22 (19) — 계장 광장: 배경 품질 — 해질녘 · 밤 조명 · 땅 · 나무 다듬기 (PLAZA_VERSION 2026-10-22.11 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 → 적용 후 30초 뒤 Ctrl+F5.
+- 무엇을: 요청 "첨부한 epc_plant_game_starter.zip 같은 퀄리티로 배경 개선". 첨부의 참고 그림(EPC 발전플랜트 야경 — 남색 · 철골 회색 · 따뜻한 작업등 · 상태 LED · 풍성한 나무)은 **보기만** 하고(그림 · 로고는 넣지 않음), 지금 지도 · 설비 · 충돌 · 캐릭터는 그대로 두고 그리는 방식만 바꿈.
+  - **해질녘 · 밤 조명**(기본): 화면 전체를 남색으로 낮추고, 가로등 아래 노란 빛 웅덩이(살짝 일렁임) · 켜진 창(건물 · 현장 사무소 · 경비실 · 식당은 따뜻한 색 · 헬스장은 흰 파랑) · 제어실 화면 · 자판기 · 가로등 머리가 스스로 빛남. 설비는 상태 색 빛(정상 초록 · 경고 주황 · 고장 빨강 깜빡), 사람 · NPC 둘레는 은은한 빛(얼굴이 보이게), 휘두르면 무기 빛이 땅을 비춤(레벨이 높을수록 크게), 유닛장 회복 오라는 초록 빛. 화면 가장자리는 조금 더 어둡게. 실내는 천장 등(식당 따뜻 · 헬스장 차가움).
+  - **🌙 밤 / ☀ 낮** 단추(오른쪽 아래 '얼굴 바꾸기' 옆): 예전 낮 화면으로 돌아감 · 이 PC 브라우저에 기억.
+  - **땅**: 차도 연석(밝은 돌 줄 + 차도 쪽 그늘) · 잔디 가장자리 그늘 · 잔디 결 · 아스팔트 균열 · 바퀴 자국 · 막힌 칸(설비 · 건물 밑동) 아래 · 오른쪽 접지 그림자.
+  - **나무 · 덤불**: 잎 3~4 톤(아래 그늘 → 왼쪽 위 빛 · 잎 끝 점) · 밑동 그림자 · 덤불 꽃.
+  - 이름표 · 말풍선 · 설비 표시 · 효과는 조명 뒤에 그려 늘 또렷함. 빛 지도는 반 해상도로 그려 느려지지 않게(시험 PC 50 fps 안팎).
+  - 참고: 스타터가 권한 '1.5~1.8배 확대'는 하지 않음 — 지금 캐릭터 키가 화면 높이의 약 8% 로 스타터 기준(7~12%) 안이라서.
+- 바뀐 곳: plaza.js 새 `lit` `WARM` `COOL` `SCREEN` `NIGHT` `nightBtn` `toggleNight` `AMB_*` `drawNight` · `building`(창 · 간판 빛, `glowCol`) · `lightPoleImg` `vendingImg`(→`vendingImg0`) `crWallN`(→`crWallN0`) · 현장 사무소 · 경비실 put · `treeImg` `shrubImg` · `drawGround`(연석 · 그늘 · 잔디 결 · 균열 · 바퀴 자국) · `frame`(drawNight). plaza.html `#pz-night`. plaza_server.py `PLAZA_VERSION` 만.
+- 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저: 큰길 네거리 · 터빈 홀 앞 · 공정 구역 · 복지 구역(식당 · 헬스장 앞) · 동상 광장 · 식당 · 헬스장 안을 밤 · 낮으로 캡처, 스크립트 오류 없음, 약 50 fps.
+- 회사에서 확인할 것: 회사 PC 에서 너무 어둡거나 느리면 ☀ 낮 단추. 어둡기는 plaza.js `AMB_OUT`(바깥 남색, 숫자가 클수록 밝음)에서 바꿈.
