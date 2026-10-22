@@ -437,9 +437,11 @@ def _export(sh, pno, sheet_no, title, rows, timers):
                     blks[b.id]["shape"] = b.shape
         if getattr(b, "learned", ""):
             blks[b.id]["learned"] = b.learned
-        if getattr(b, "func", "") == "MACRO":
+        if getattr(b, "func", "") == "MACRO" or getattr(b, "pinbox", False):
             blks[b.id]["pins"] = dict(getattr(b, "pins", {}))
             blks[b.id]["lines"] = [list(ln) for ln in getattr(b, "lines", [])]
+        if getattr(b, "aop", ""):
+            blks[b.id]["aop"] = b.aop                   # L48 — 단자 이름을 안에 인쇄한 연산 상자 (EQUAL · BIT_CNT · SPC)
         if b.id in timers:
             blks[b.id]["param"].update(timers[b.id])
     ports = []
@@ -457,7 +459,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             d = "in"                                    # 램프 · 경보 · 기록은 받기만 한다 (범례 G003)
         pd = {"block": pt.block, "net": str(pt.net), "dir": d, "at": list(pt.at),
               "side": pt.side, "cell": pt.cell, "role": role}
-        if getattr(b, "func", "") == "MACRO":
+        if getattr(b, "func", "") == "MACRO" or getattr(b, "pinbox", False):
             pd["pin"] = b.pins.get(f"{pt.at[0]},{pt.at[1]}", "")
         ports.append(pd)
     rmap = {(r["side"], r["n"]): r for r in rows}

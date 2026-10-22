@@ -189,6 +189,8 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
                 back(iv[0], 1 - v, depth + 1)
             elif lg in ("delay_on", "delay_off", "pulse") and v == 1 and len(iv) == 1:
                 back(iv[0], 1, depth + 1)
+            elif lg == "toggle" and v == 1 and len(iv) == 1:
+                back(iv[0], 1, depth + 1)              # L48 — 꺼진 토글을 켜려면 입력이 한 번 참이 되면 된다
             elif lg == "memory":
                 # L16 — Q=1(또는 반대 출력 D=0) 이 나오려면 SET 이 1 이어야 하고 (SET 입력이 하나일 때만 정해진다),
                 # SET 우선이 아니면 RESET 은 0 이어야 한다.  Q=0 은 '한 번도 SET 안 됨' 일 수도 있어 정해지지 않는다.
@@ -249,12 +251,13 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     """
     forces = dict(forces or {})
     tset = {str(k): float(v) for k, v in (timers or {}).items() if _secs(v) is not None}
-    st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
+    st = {"mem": {}, "tim": {}, "sr": {}, "tog": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     floating = set()                  # L46 — 몰이가 없는 선 (값은 0 · 화면 근거용으로 `unread` 에 남긴다)
     if state:
         st["mem"].update(state.get("mem", {}))
         st["sr"].update(state.get("sr", {}))
+        st["tog"].update({k: dict(v) for k, v in state.get("tog", {}).items()})
         st["tim"].update({k: dict(v) for k, v in state.get("tim", {}).items()})
         st["t"] = max(now, state.get("t", 0.0))
     ins, outs, drivers, sinks, groups = _index(s)
@@ -267,7 +270,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks), None, an_ops)
     mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))}
     an_dig = {bid: d["dig"] for bid, d in an_ops.items() if d.get("dig") is not None}
-    tr_conds = sorted({d["cond"] for d in an_ops.values() if d.get("cond") is not None}, key=str)
+    tr_conds = sorted({d["cond"] for d in an_ops.values() if d.get("cond") is not None} |
+                      {c for d in an_ops.values() for c in (d.get("conds") or [])}, key=str)
     an_last = {"dig": None}
 
     def analog_refresh(val):
@@ -366,6 +370,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         if lg == "memory":
             q = st["mem"].get(bid, 0)
             return q if role != "qn" else _not(q)
+        if lg == "toggle":                             # L48 — NOTE 가 정의한 토글 (SRST): 상태가 곧 출력
+            return st["tog"].get(bid, {}).get("q", 0)
         if lg in ("delay_on", "delay_off", "pulse"):
             return st["tim"].get(bid, {}).get("out", 0)
         if lg == "step":
@@ -420,6 +426,20 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                 if nq != q:
                     st["mem"][bid] = nq
                     changed = True
+            # L48 — 토글: 입력(OR)이 0 → 1 로 바뀌는 순간 출력이 뒤집힌다.  자기 출력 선이 되돌아 들어온 것은 입력이 아니다
+            for bid, b in B.items():
+                if b["logic"] != "toggle" or bid in blk_force:
+                    continue
+                own_out = {n for n, _, _ in outs[bid]}
+                iv_n = [n for n, _, _ in ins[bid] if n not in own_out]
+                if any(n not in val and n in s["nets"] for n in iv_n):
+                    continue
+                inp = _b(_or3([val.get(n) for n in iv_n])) if iv_n else 0
+                ts = st["tog"].setdefault(bid, {"q": 0, "inp": 0})
+                if inp == 1 and ts["inp"] != 1:
+                    ts["q"] = _not(ts["q"])
+                    changed = True
+                ts["inp"] = inp
             for nid in s["nets"]:
                 if nid in net_force:
                     v = net_force[nid]
@@ -1608,6 +1628,10 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         return [({}, [("net", n, 0) for n in S])] + [({}, [("net", r, 1)] + [("net", n, 0) for n in S]) for r in R]
     if lg in ("delay_on", "delay_off", "pulse"):
         return one(iv, 1) if v == 1 else allg(iv, 0)
+    if lg == "toggle":                               # L48 — NOTE 가 정의한 토글: 꺼진 상태에서 입력이 한 번 참이 되면 켜진다
+        own = {n for n, _, _ in outs.get(x, [])}
+        tv = [n for n in iv if n not in own]
+        return one(tv, 1) if v == 1 else allg(tv, 0)
     if lg == "step":
         si = [n for n, r, _ in ins[x] if r == "step_in"]
         cr = [n for n, r, _ in ins[x] if r == "crit"]

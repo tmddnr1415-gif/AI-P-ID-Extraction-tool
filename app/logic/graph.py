@@ -159,7 +159,32 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         # LOGIC 영역 테두리 자체(표의 괘선)는 신호선이 아니다
         return all((s.vert and (abs(s.x0 - LX0) <= tol or abs(s.x0 - LX1) <= tol)) or
                    (s.horiz and (abs(s.y0 - LY0) <= tol or abs(s.y0 - LY1) <= tol)) for s in p.segs)
-    polys = [p for p in prims.polys if inside(p.bbox) and not on_border(p)]
+    def clip_logic(p):
+        """L48 — LOGIC 영역 바깥으로 **조금**(1P 안) 삐져나간 꺾은선은 버리지 않고 영역 안 토막만 남긴다.
+        19VA Typical 0015 의 M_SEL · LOCK · RESET 행 선이 표 경계 1.5pt 안쪽(x=253.84)에서 시작해 path 전체가
+        '영역 밖' 으로 버려졌고, MTS 매크로 56개가 그 입력을 잃었다.  남긴 토막의 끝은 경계 x 에 둔다 (행 붙이기 규칙 그대로)."""
+        bb = p.bbox
+        if inside(bb):
+            return p
+        if bb[1] < LY0 - tol or bb[3] > LY1 + tol or bb[0] < LX0 - P or bb[2] > LX1 + P:
+            return None
+        segs = []
+        for s in p.segs:
+            if s.horiz:
+                lo, hi = min(s.x0, s.x1), max(s.x0, s.x1)
+                lo, hi = max(lo, LX0), min(hi, LX1)
+                if hi - lo <= 0.01:
+                    continue
+                segs.append(geom.Seg(lo if s.x0 <= s.x1 else hi, s.y0, hi if s.x0 <= s.x1 else lo, s.y1))
+            elif min(s.x0, s.x1) >= LX0 - tol and max(s.x0, s.x1) <= LX1 + tol:
+                segs.append(s)
+        if not segs:
+            return None
+        nb = (min(min(s.x0, s.x1) for s in segs), min(min(s.y0, s.y1) for s in segs),
+              max(max(s.x0, s.x1) for s in segs), max(max(s.y0, s.y1) for s in segs))
+        q = geom.Poly(segs, nb, p.dashed, p.pid, getattr(p, "curved", False))
+        return q
+    polys = [q for q in (clip_logic(p) for p in prims.polys) if q is not None and not on_border(q)]
     wires, glyphs = [], []
     for p in polys:
         (glyphs if p.size < GLYPH_MAX * P else wires).append(p)
@@ -889,6 +914,35 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     for r in sh.rows:
         if r["side"] == "L":
             drivers[r["net"]] += 1
+    # L48 — 단자 방향을 '확실한 것부터' 정한다.  ① 들어오는 단자(입력 막대 · 화살)를 이미 가진 블록의 **하나 남은** 미정 단자는
+    # 출력이다 (OR 의 오른쪽 변).  순서대로 풀면 그 선 위의 다른 블록(세로 선 위의 NOT)이 먼저 '나가는 쪽' 을 차지해 OR 출력이
+    # 들어오는 쪽이 되고 NOT 은 입력 없는 게이트가 됐다 (19VA Typical 0009 — 펌프 그룹 STOP 명령이 전부 그 NOT 에서 막혔다).
+    # ② 위·아래 변 단자만 둘인 작은 상자(세로 선 위의 NOT · 타이머): 한쪽 선만 확실한 받는 쪽(다른 블록의 들어오는 단자 ·
+    # 오른쪽 행)에 닿으면 닿는 쪽이 출력, 다른 쪽이 입력.
+    by_block = defaultdict(list)
+    for pt in sh.ports:
+        by_block[pt.block].append(pt)
+    for pts in by_block.values():
+        q = [pt for pt in pts if pt.dir == "?"]
+        if len(q) == 1 and any(pt.dir == "in" for pt in pts) and not any(pt.dir == "out" for pt in pts):
+            q[0].dir = "out"
+            drivers[q[0].net] += 1
+    consumers = defaultdict(int)
+    for pt in sh.ports:
+        if pt.dir == "in":
+            consumers[pt.net] += 1
+    for r in sh.rows:
+        if r["side"] == "R":
+            consumers[r["net"]] += 1
+    for pts in by_block.values():
+        if len(pts) != 2 or any(pt.dir != "?" for pt in pts) or pts[0].net == pts[1].net:
+            continue
+        a, b = pts
+        ca, cb = consumers[a.net] > 0, consumers[b.net] > 0
+        if ca != cb and not drivers[a.net] and not drivers[b.net]:
+            out_pt, in_pt = (a, b) if ca else (b, a)
+            out_pt.dir, in_pt.dir = "out", "in"
+            drivers[out_pt.net] += 1
     for pt in sh.ports:
         if pt.dir == "?":
             pt.dir = "in" if drivers[pt.net] else "out"
