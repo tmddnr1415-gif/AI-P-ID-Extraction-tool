@@ -452,7 +452,9 @@ function drawGroundPlain() { const g = groundImg.getContext("2d"), P = { [GRAV]:
 // ── 설비 (서버가 목록 · 상태를 준다 — 점검 · 교정 · 수리 대상) ────────────────────
 const EQUIP = [], EQ_BY = new Map(), EQ_ST = {};          // EQ_ST[id] = [상태, 작업 중인 사람]
 const EQ_CAT = { PT: "계장", DPT: "계장", TT: "계장", FT: "계장", LT: "계장", PG: "계장", CV: "현장", DCS: "DCS", IO: "DCS", PLC: "DCS", CON: "DCS", MC: "DCS", JB: "케이블", TRAY: "케이블" };
-function eqImg(t) { return t === "CON" ? consoleImg() : ["DCS", "IO", "PLC", "MC"].includes(t) ? cabinetImg(t) : t === "JB" ? jbImg() : t === "TRAY" ? trayImg() : xmtrImg(t); }
+const EQ_ICON = { PT: "i_PT", DPT: "i_DPT", TT: "i_TT", FT: "i_FT", LT: "i_LT", CV: "i_CV", PG: "i_PG", JB: "i_JB", MC: "i_MC", IO: "i_IO", PLC: "i_PLC", CON: "i_CON", DCS: "i_DCSCARD" };
+function eqImg(t) { const ic = EQ_ICON[t] && eps(EQ_ICON[t]); if (ic) return ic;   // EPC 시트의 장비 아이콘 (없으면 손그림)
+  return t === "CON" ? consoleImg() : ["DCS", "IO", "PLC", "MC"].includes(t) ? cabinetImg(t) : t === "JB" ? jbImg() : t === "TRAY" ? trayImg() : xmtrImg(t); }
 async function loadEquip() {
   try { const r = await fetch("/plaza/api/equip", { cache: "no-store" }); if (!r.ok) return; const d = await r.json();
     for (const e of d.equip || []) { EQUIP.push(e); EQ_BY.set(e.id, e); block(e.x, e.y, e.x + (e.w || 1) - 1, e.y); }
@@ -463,6 +465,11 @@ async function loadEquip() {
 // ── 캐릭터 그림 (마을 시트에서 뽑은 static/village_chars.png — 디자인 그대로) ───────────
 const CHR_FR = {"cat_d0":[0,0,22,30,10.7,29],"cat_d1":[23,0,21,29,9.8,28],"cat_d2":[45,0,22,29,10.3,27],"cat_d3":[68,0,21,29,9.5,28],"cat_s0":[90,0,22,29,10.3,28],"cat_s1":[113,0,20,29,9.9,27],"cat_a":[134,0,37,28,13.9,26],"panda_d0":[172,0,19,30,8.7,29],"panda_d1":[192,0,20,29,9.4,28],"panda_s0":[213,0,21,28,10.4,27],"panda_s1":[235,0,20,29,9.8,28],"panda_a":[256,0,30,30,11.3,29],"lion_d0":[287,0,23,30,10.9,29],"lion_d1":[311,0,22,30,10.8,28],"lion_d2":[334,0,22,30,10.0,29],"lion_d3":[357,0,20,29,9.2,28],"lion_s0":[378,0,22,30,10.3,29],"lion_s1":[401,0,22,28,10.5,27],"lion_a":[424,0,46,33,16.9,32],"tiger_d0":[471,0,22,28,10.3,27],"tiger_d1":[0,34,20,28,9.0,27],"tiger_a":[21,34,48,29,25.6,28],"nobi_d0":[70,34,20,26,8.5,24],"nobi_d1":[91,34,19,28,9.2,27],"nobi_s0":[111,34,21,26,10.0,24],"nobi_s1":[133,34,20,26,8.9,25],"nobi_s2":[154,34,20,26,9.1,24],"nobi_s3":[175,34,18,26,8.0,24],"p_cat":[194,34,64,90,33.4,89],"p_panda":[259,34,58,88,28.9,86],"p_lion":[318,34,66,91,32.4,90],"p_tiger":[385,34,63,88,30.5,87],"p_nobi":[449,34,57,72,27.3,71]};
 const CHR = { data: null, ready: false };
+// EPC 시트(사용자 첨부, 2026-10-22): 안전모 쓴 직무 캐릭터 5종 × 동작 15칸(대기 · 걷기 5 · 점검 · HART · 케이블 · DCS · 수리 · 점프 · 피격 · 축하 · 지침) ·
+// 큰 초상 p_* · 장비/도구 아이콘 i_* · UI 효과 아이콘 f_* — static/epc.png (배경 투명 · 한 점 = 캐릭터와 같은 크기 · 원본 96 색)
+const EPC_FR = {"cat_idle":[194,0,23,34,9.6,34],"cat_w0":[269,95,18,29,6.4,29],"cat_w1":[288,95,16,29,6.9,29],"cat_w2":[193,126,16,28,6.3,28],"cat_w3":[305,95,15,29,5.7,29],"cat_w4":[210,126,15,28,5.2,28],"cat_inspect":[271,62,22,31,10.8,31],"cat_hart":[0,95,28,30,14.3,30],"cat_cable":[294,62,23,31,10.3,31],"cat_dcs":[29,95,22,30,10.3,30],"cat_repair":[321,95,18,29,8.3,29],"cat_jump":[340,95,18,29,8.9,29],"cat_hurt":[359,95,17,29,8.5,29],"cat_cheer":[318,62,21,31,9.1,31],"cat_tired":[370,0,22,32,8.9,32],"panda_idle":[393,0,24,32,11.0,32],"panda_w0":[377,95,17,29,7.0,29],"panda_w1":[395,95,15,29,6.2,29],"panda_w2":[226,126,15,28,6.4,28],"panda_w3":[411,95,15,29,6.2,29],"panda_w4":[242,126,15,28,6.3,28],"panda_inspect":[418,0,19,32,9.0,32],"panda_hart":[438,0,24,32,11.1,32],"panda_cable":[463,0,23,32,10.7,32],"panda_dcs":[487,0,22,32,10.4,32],"panda_repair":[340,62,19,31,8.7,31],"panda_jump":[0,62,17,32,7.8,32],"panda_hurt":[52,95,18,30,7.9,30],"panda_cheer":[427,95,16,29,7.6,29],"panda_tired":[360,62,18,31,8.0,31],"lion_idle":[18,62,24,32,11.4,32],"lion_w0":[258,126,18,28,7.7,28],"lion_w1":[444,95,15,29,6.1,29],"lion_w2":[460,95,15,29,6.4,29],"lion_w3":[476,95,15,29,6.0,29],"lion_w4":[277,126,16,28,6.7,28],"lion_inspect":[379,62,22,31,10.0,31],"lion_hart":[43,62,25,32,11.4,32],"lion_cable":[69,62,23,32,11.1,32],"lion_dcs":[402,62,22,31,10.4,31],"lion_repair":[71,95,21,30,10.7,30],"lion_jump":[492,95,16,29,7.7,29],"lion_hurt":[0,126,18,29,7.7,29],"lion_cheer":[19,126,19,29,7.8,29],"lion_tired":[425,62,18,31,7.9,31],"tiger_idle":[218,0,23,34,11.4,34],"tiger_w0":[93,62,18,32,7.0,32],"tiger_w1":[112,62,17,32,7.2,32],"tiger_w2":[93,95,15,30,6.1,30],"tiger_w3":[109,95,15,30,5.7,30],"tiger_w4":[125,95,15,30,5.8,30],"tiger_inspect":[267,0,19,33,9.0,33],"tiger_hart":[287,0,28,33,12.0,33],"tiger_cable":[130,62,27,32,11.5,32],"tiger_dcs":[316,0,24,33,11.0,33],"tiger_repair":[141,95,18,30,7.5,30],"tiger_jump":[444,62,19,31,8.4,31],"tiger_hurt":[464,62,17,31,6.7,31],"tiger_cheer":[482,62,18,31,8.1,31],"tiger_tired":[158,62,19,32,9.0,32],"worker_idle":[242,0,24,34,10.7,34],"worker_w0":[160,95,18,30,7.7,30],"worker_w1":[39,126,15,29,5.9,29],"worker_w2":[55,126,16,29,6.5,29],"worker_w3":[72,126,15,29,5.8,29],"worker_w4":[179,95,15,30,5.4,30],"worker_inspect":[178,62,20,32,9.6,32],"worker_hart":[341,0,28,33,11.6,33],"worker_cable":[199,62,24,32,11.5,32],"worker_dcs":[224,62,23,32,11.3,32],"worker_repair":[195,95,18,30,8.6,30],"worker_jump":[214,95,18,30,8.3,30],"worker_hurt":[233,95,16,30,7.3,30],"worker_cheer":[250,95,18,30,7.3,30],"worker_tired":[248,62,22,32,10.1,32],"p_cat":[44,0,36,60,18.1,60],"p_panda":[120,0,38,59,18.8,59],"p_lion":[0,0,43,61,22.3,61],"p_tiger":[81,0,38,60,18.8,60],"p_worker":[159,0,34,52,15.9,52],"i_PT":[445,126,21,24,10.0,24],"i_DPT":[467,126,18,24,8.1,24],"i_TT":[337,126,18,26,7.3,26],"i_FT":[124,156,20,23,9.6,23],"i_LT":[294,126,18,28,7.7,28],"i_HART":[356,126,17,25,5.9,25],"i_MULTI":[486,126,18,24,8.0,24],"i_CALIB":[374,126,20,25,8.0,25],"i_SPOOL":[395,126,24,25,11.5,25],"i_ICABLE":[420,126,24,25,11.7,25],"i_GLAND":[0,156,12,24,5.2,24],"i_JB":[345,156,21,20,10.4,20],"i_TB":[367,156,25,20,13.0,20],"i_MC":[88,126,25,29,12.5,29],"i_DCSCARD":[393,156,22,20,8.1,20],"i_IO":[224,156,23,22,10.9,22],"i_PLC":[114,126,28,29,11.5,29],"i_CON":[143,126,26,29,12.3,29],"i_AIRTUBE":[416,156,21,20,8.9,20],"i_IMPULSE":[248,156,21,22,9.2,22],"i_POSITIONER":[13,156,21,24,8.6,24],"i_CV":[170,126,22,29,10.4,29],"i_PG":[145,156,16,23,7.6,23],"i_CALPUMP":[313,126,23,28,10.5,28],"i_HELMET":[438,156,21,20,9.5,20],"i_VEST":[35,156,31,24,10.5,24],"i_WRENCH":[162,156,30,23,14.3,23],"i_SCREW":[67,156,31,24,24.0,24],"i_LAPTOP":[193,156,30,23,14.2,23],"i_CHECK":[318,156,26,21,14.2,21],"i_RADIO":[460,156,10,20,4.0,20],"f_HP":[127,181,16,12,7.4,12],"f_ST":[46,181,12,14,5.1,14],"f_XP":[59,181,16,14,7.5,14],"f_QUEST":[34,181,11,15,4.8,15],"f_OK":[112,181,14,13,6.7,13],"f_ALARM":[76,181,16,14,7.4,14],"f_SIGNAL":[93,181,18,14,7.7,14],"f_LED":[16,181,17,18,8.5,18],"f_HARTSIG":[270,156,20,22,7.1,22],"f_SPARK":[471,156,22,20,10.1,20],"f_SCAN":[291,156,26,22,11.9,22],"f_AURA":[99,156,24,24,11.7,24],"f_LVUP":[494,156,18,20,8.6,20],"f_CABLECON":[0,181,15,20,6.9,20]};
+const EPC = { data: null, ready: false };
+const eps = (name, mirror, scale = PX) => EPC_FR[name] && EPC.ready ? atlasSprite(EPC, EPC_FR, name, mirror, scale) : null;
 function loadAtlas(o, src) {
   return new Promise(res => {
     const im = new Image();
@@ -473,7 +480,7 @@ function loadAtlas(o, src) {
   });
 }
 function atlasSprite(A, FR, name, mirror, scale = PX) {   // 한 칸 → scale 배 (뒤집기) · canvas.cx · canvas.foot (px)
-  const key = `c|${name}|${mirror ? 1 : 0}|${scale}`; if (spriteCache.has(key)) return spriteCache.get(key);
+  const key = `${A === EPC ? "e" : "c"}|${name}|${mirror ? 1 : 0}|${scale}`; if (spriteCache.has(key)) return spriteCache.get(key);
   const [fx, fy, fw, fh, cx, foot] = FR[name], src = A.data, small = new ImageData(fw, fh);
   for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
     const si = ((fy + y) * src.width + fx + x) * 4; if (src.data[si + 3] < 128) continue;
@@ -501,7 +508,7 @@ function buildWorld() {                     // 설비 막기 → 땅 → 소품 
   try { npcInit(); } catch (_) { NPCS.length = 0; }
   WORLD.ready = true; WORLD.done();
 }
-Promise.all([loadAtlas(CHR, "/static/village_chars.png"), loadEquip()]).then(buildWorld);
+Promise.all([loadAtlas(CHR, "/static/village_chars.png"), loadAtlas(EPC, "/static/epc.png"), loadEquip()]).then(buildWorld);
 setTimeout(buildWorld, 8000);               // 그림 · 설비가 끝내 안 오면 있는 것만으로
 
 // ── 경로 찾기 (A*, 4 방향 · 막힌 칸 피함) — NPC 가 씀 ───────────────────────────
@@ -566,22 +573,23 @@ const BEARDS = ["수염 없음", "콧수염", "염소수염", "덥수룩"];
 const CLOTHS = ["#8fb06a", "#c23b2e", "#2e6db4", "#2f8c58", "#d9a520", "#7a4ea3", "#e0789a", "#34507a", "#9c5530", "#efe7d2", "#1f8a8a", "#5a5a66"];
 const PANTS = ["#f1e9d4", "#55597a", "#e6d29f", "#6b705c", "#8a8f99", "#3b3b44"];
 // 2026-10-19 고양이 기사 — 종류 · 동물(털) · 갑옷 · 망토 (서버 LOOK_EXTRA 와 같은 개수)
-const KINDS = ["고양이 기사", "사람", "고양이 양반", "팬더 학자", "사자 무관", "호랑이 무관", "노비"];   // 2~6 = 마을 시트 캐릭터 (노비는 운영자만)
+const KINDS = ["고양이 기사", "사람", "고양이 양반", "팬더 학자", "사자 무관", "호랑이 무관", "노비", "EPC 안전모 (직무별)"];   // 7 = EPC 시트 — 직무에 따라 고양이 · 판다 · 사자 · 호랑이 · 작업자   // 2~6 = 마을 시트 캐릭터 (노비는 운영자만)
 const FURS = ["치즈 고양이", "회색 고양이", "검은 고양이", "흰 고양이", "호랑이", "여우"];
 const ARMORS = ["은빛 갑옷", "황금 갑옷", "흑철 갑옷", "청동 갑옷", "푸른 강철", "백은 갑옷"];
 const CAPES = ["빨간 망토", "파란 망토", "초록 망토", "보라 망토", "검은 망토", "흰 망토", "노란 망토"];
 const RANGES = { hair: HAIRS.length, hairc: HAIRC.length, skin: SKINS.length, eyes: EYES.length, beard: BEARDS.length,
-  cloth: CLOTHS.length, pants: PANTS.length, kind: KINDS.length, fur: FURS.length, armor: ARMORS.length, cape: CAPES.length, job: 5 };
+  cloth: CLOTHS.length, pants: PANTS.length, kind: KINDS.length, fur: FURS.length, armor: ARMORS.length, cape: CAPES.length, job: 5, v: 4 };
 const ROLE_LABEL = { leader: "그룹장", unit: "유닛장", operator: "운영자", member: "" };
 const ROLE_COLOR = { leader: "#ffd84a", unit: "#ffb36b", operator: "#d8c59a" };
 function defaultFace(name) {                // 처음 들어온 사람 — 이름에서 정한 외형
   const n = hash(name);
   return { hair: n % 10, hairc: (n >>> 4) % 3, skin: (n >>> 7) % 3, eyes: (n >>> 9) % 3, beard: 0,
-    cloth: (n >>> 12) % 12, pants: (n >>> 16) % 6, kind: 0, fur: 0, armor: 0, cape: 0, job: [0, 1, 3, 4][(n >>> 20) % 4] };   // 처음엔 누구나 원본 고양이 기사 (갈색 털 · 은빛 갑옷 · 빨간 망토)
+    cloth: (n >>> 12) % 12, pants: (n >>> 16) % 6, kind: 7, fur: 0, armor: 0, cape: 0, job: [0, 1, 3, 4][(n >>> 20) % 4], v: 2 };   // 2026-10-22 처음엔 EPC 안전모   // 처음엔 누구나 원본 고양이 기사 (갈색 털 · 은빛 갑옷 · 빨간 망토)
 }
 function faceOf(a) {                       // 서버가 준 값도 범위 밖이면 이름에서 정한 값으로
   const d = defaultFace(a.name), f = a.face || d, out = {};
   for (const k of Object.keys(RANGES)) out[k] = Number.isInteger(f[k]) && f[k] >= 0 && f[k] < RANGES[k] ? f[k] : d[k];
+  if (!(f.v >= 2)) { out.kind = 7; out.v = 2; }   // 2026-10-22 전에 저장한 얼굴도 EPC 안전모로 (얼굴 바꾸기에서 예전 종류로 되돌릴 수 있음)
   return out;
 }
 
@@ -911,6 +919,20 @@ const KIND_FR = {
 };
 const isChr = F => F.kind >= 2 && CHR.ready && !!KIND_FR[F.kind];
 const chrSprite = (name, mirror) => atlasSprite(CHR, CHR_FR, name, mirror);
+const JOB_CHAR = ["cat", "panda", "lion", "tiger", "worker"];
+const isEpc = F => F.kind === 7 && EPC.ready;
+function epcWho(a, F) { return a.role === "unit" ? "lion" : JOB_CHAR[(a.npc ? F.job : a.job ?? F.job) ?? 0] || "cat"; }
+function workPose(w) { const t = (EQ_BY.get(typeof w.eq === "string" ? w.eq : w.eq.id) || {}).t;
+  return w.kind === "repair" ? "repair" : DCS_T.has(t) ? "dcs" : CABLE_T.has(t) ? "cable" : t === "PG" || t === "LT" ? "inspect" : "hart"; }
+function epcPose(who, a, now, atk, hit, w, seed) {   // 시트에 있는 칸만 — 피격 · 축하/점프 · 작업 · 공격(수리 칸) · 걷기 5 · 지침 · 대기
+  if (hit >= 0 && hit < .8) return who + "_hurt";
+  if (a.cheer && now - a.cheer < 900) return who + (Math.floor((now - a.cheer) / 220) % 2 ? "_cheer" : "_jump");
+  if (w) return who + "_" + workPose(w);
+  if (atk >= 0) return who + "_repair";
+  if (a.moving) return who + "_w" + (Math.floor(now / (a.running || (a.stepMs || STEP_MS) < 150 ? 85 : 125)) % 5);
+  if (a === S.me && S.stamina < ST_TIRED) return who + "_tired";
+  return who + (Math.floor((now + seed) / 4200) % 5 === 4 ? "_inspect" : "_idle");   // 가끔 둘러봄
+}
 function chrPose(K, a, now, atk, seed = 0) {
   const side = a.dir >= 2, want = a.dir === 2 ? "L" : "R";
   if (atk >= 0 && K.a) return [K.a, side ? K.af !== want : false];
@@ -1056,14 +1078,29 @@ async function interact() {
     S.work = { eq: e, kind: r.kind, need: r.need * 1000, t0: performance.now(), label: r.label, state: r.state };
   } catch (err) { floater(S.me, err.message, "#ffb3a8", 2000); if (err.status === 404 && /캐릭터/.test(err.message)) join().catch(() => {}); }
 }
+// 점검 끝 — 설비 위 결과 창 (✓ · 모의 측정값 · Status OK) — 값은 놀이용 무작위
+const POPS = [];
+function reading(e) { const r = Math.random();
+  return { PT: `Pressure ${(2 + r).toFixed(2)} bar`, DPT: `DP ${(18 + r * 12).toFixed(1)} kPa`, TT: `Temp ${(160 + r * 60).toFixed(1)} °C`, FT: `Flow ${(110 + r * 40).toFixed(1)} m³/h`,
+    LT: `Level ${(35 + r * 40).toFixed(0)} %`, CV: `Position ${(30 + r * 50).toFixed(0)} %`, PG: `Gauge ${(3 + r * 2).toFixed(2)} bar`, JB: `Insulation ${(200 + r * 800) | 0} MΩ`,
+    TRAY: `Cable OK · ${(12 + r * 20) | 0} cores`, MC: "Loop 4-20 mA OK", IO: "I/O Ch 16/16 OK", DCS: "Controller Run · Comm OK", PLC: "PLC Run · Scan 20 ms", CON: "HMI OK · Alarm 0" }[e.t] || "OK"; }
+function drawPops(g, cx, cy, now) {
+  for (let i = POPS.length - 1; i >= 0; i--) { const p = POPS[i], k = (now - p.t0) / 3200; if (k >= 1) { POPS.splice(i, 1); continue; }
+    const x = Math.round((p.e.x + (p.e.w || 1) / 2) * T - cx + 22), y = Math.round(p.e.y * T - cy - 70 - Math.min(1, k * 6) * 6);
+    g.save(); g.globalAlpha = k > .85 ? (1 - k) / .15 : 1; g.font = `bold 12px ${FONT}`;
+    const tw = Math.max(...p.lines.map(l => g.measureText(l).width)) + 46;
+    g.fillStyle = "rgba(10,18,32,.92)"; roundRect(g, x, y, tw, 40, 6); g.fill(); g.strokeStyle = "#4f9bd9"; g.lineWidth = 2; g.stroke();
+    fxIcon(g, "f_OK", x + 19, y + 20, 1); g.fillStyle = "#e9f2ff"; g.textBaseline = "top"; g.fillText(p.lines[0], x + 36, y + 6); g.fillStyle = "#7be08f"; g.fillText(p.lines[1], x + 36, y + 22); g.restore(); }
+}
 function cancelWork() { if (!S.work) return; const e = S.work.eq; S.work = null; post("/plaza/api/work", { id: S.id, eq: e.id, phase: "cancel" }).catch(() => {}); }
 async function finishWork() {
   const w = S.work; S.work = null;
   try {
     const r = await post("/plaza/api/work", { id: S.id, eq: w.eq.id, phase: "done" });
-    floater(S.me, `${r.was === "ok" ? "OK ✓" : "✓"} ${w.eq.id} ${r.label} 완료  +${r.gained} XP`, "#7be08f", 2200);
+    floater(S.me, `${w.eq.id} ${r.label} 완료  +${r.gained} XP`, "#7be08f", 2200);
+    POPS.push({ e: w.eq, t0: performance.now(), lines: [reading(w.eq), "Status : OK"] }); if (POPS.length > 6) POPS.shift();
     S.me.cheer = performance.now(); for (let i = 0; i < 14; i++) puff(S.me.x + 16, S.me.y - 10, (Math.random() - .5) * 60, -30 - Math.random() * 40, 900, i % 2 ? "#ffe066" : "#7be08f");
-    if (r.lv > (S.me.lv || 1)) floater(S.me, `레벨 업!  Lv ${r.lv}`, "#ffd84a", 2600);
+    if (r.lv > (S.me.lv || 1)) { floater(S.me, `레벨 업!  Lv ${r.lv}`, "#ffd84a", 2600); S.me.lvup = performance.now(); }
     S.me.xp = r.xp; S.me.lv = r.lv;
   } catch (err) { floater(S.me, err.message, "#ffb3a8", 2000); }
 }
@@ -1095,7 +1132,7 @@ function npcInit() {
       const walk = (path.length - 1) * NPC_STEP; legs.push({ path, walk, e: stops[(k + 1) % stops.length].e, t0: total }); total += walk + NPC_WORK;
     }
     if (!legs.length) continue;
-    NPCS.push({ d, legs, total, off: i * 37.3, a: { id: "npc" + i, name: d.name, npc: true, face: { kind: d.kind }, role: "member", job: d.job,
+    NPCS.push({ d, legs, total, off: i * 37.3, a: { id: "npc" + i, name: d.name, npc: true, face: { kind: EPC.ready ? 7 : d.kind, job: d.job }, role: "member", job: d.job,
       x: legs[0].path[0][0] * T, y: legs[0].path[0][1] * T, tx: legs[0].path[0][0], ty: legs[0].path[0][1], dir: 0, moving: false, steps: 0, hp: 100, hpMax: 100, stepMs: NPC_STEP * 1000 } });
   }
 }
@@ -1126,15 +1163,27 @@ function drawHealAura(g, a, cx, cy, now) {   // 발밑 둥근 오라 — 은은�
   g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, R, R * .62, 0, 0, Math.PI * 2); g.fill();
   for (let i = 0; i < 64; i++) { if ((i + Math.floor(now / 140)) % 4 === 0) continue; const an = i / 64 * Math.PI * 2;
     g.fillStyle = i % 2 ? "rgba(120,255,200,.75)" : "rgba(80,220,255,.6)"; g.fillRect(Math.round((x + Math.cos(an) * R) / PX) * PX, Math.round((y + Math.sin(an) * R * .62) / PX) * PX, PX, PX); }
+  for (let i = 0; i < 4; i++) { const an = now / 1400 + i * Math.PI / 2, px = x + Math.cos(an) * R * .78, py = y + Math.sin(an) * R * .48 - 6 - Math.sin(now / 300 + i) * 3;   // 도는 + (치유 십자)
+    g.fillStyle = "rgba(10,40,25,.6)"; g.fillRect(Math.round(px) - 5, Math.round(py) - 2, 10, 4); g.fillRect(Math.round(px) - 2, Math.round(py) - 5, 4, 10);
+    g.fillStyle = i % 2 ? "#9dffcf" : "#5ff0b4"; g.fillRect(Math.round(px) - 4, Math.round(py) - 1, 8, 2); g.fillRect(Math.round(px) - 1, Math.round(py) - 4, 2, 8); }
   const w = (now / 1700) % 1; g.strokeStyle = `rgba(120,255,210,${.45 * (1 - w)})`; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, R * w, R * w * .62, 0, 0, Math.PI * 2); g.stroke();
   g.restore();
   if (Math.random() < .25) { const an = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * R;
     puff(a.x + 16 + Math.cos(an) * r, a.y + 26 + Math.sin(an) * r * .62, (Math.random() - .5) * 6, -30 - Math.random() * 30, 1300, Math.random() < .5 ? "#7cffc8" : "#7fe7ff"); }
 }
-function drawTool(g, a, sx, sy, now, w) {    // 작업 표시 — 손에 든 도구 + 진행 막대 (sx = 캐릭터 가운데, sy = 발바닥)
+function fxIcon(g, name, x, y, alpha = 1, scale = PX) { const s = eps(name, false, scale); if (!s) return; g.save(); g.globalAlpha = alpha; g.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height / 2)); g.restore(); }
+function drawTool(g, a, sx, sy, now, w, epc) {   // 작업 표시 — 도구(안전모 캐릭터는 포즈가 듦) · 효과 아이콘 · 진행 막대 (sx = 캐릭터 가운데, sy = 발바닥)
   const eid = typeof w.eq === "string" ? w.eq : w.eq.id, e = EQ_BY.get(eid), t = e ? e.t : "", hx = sx + ([10, 0, -14, 14][a.dir] || 10), hy = sy - 26, b = Math.floor(now / 160) % 2 * PX;
   const P = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(Math.round(x / PX) * PX, Math.round(y / PX) * PX, ww, hh); };
-  if (w.kind === "repair") {                 // 렌치 · 불똥
+  if (e) {                                   // 설비 쪽 효과 — 스캔 고리 (점검 · 교정) · 불똥 (수리) · 케이블 연결
+    const ex = (e.x + (e.w || 1) / 2) * T - (S.cam ? S.cam[0] : 0), ey = e.y * T + 4 - (S.cam ? S.cam[1] : 0), k = (now / 900) % 1;
+    if (w.kind === "repair") { if (Math.floor(now / 120) % 3) fxIcon(g, "f_SPARK", ex + Math.sin(now / 70) * 6, ey - 6, .9); }
+    else if (CABLE_T.has(t)) fxIcon(g, "f_CABLECON", ex, ey - 4, .55 + .45 * Math.sin(now / 160));
+    else { g.save(); g.globalAlpha = .7 * (1 - k); const s = eps("f_SCAN", false, PX); if (s) g.drawImage(s, ex - s.width * (.5 + k * .4) / 1, ey + 8 - s.height * .25 * (1 + k * .8), s.width * (1 + k * .8), s.height * .5 * (1 + k * .8)); g.restore(); }
+    if (!DCS_T.has(t) && !CABLE_T.has(t) && w.kind !== "repair") fxIcon(g, "f_HARTSIG", (hx + ex) / 2, Math.min(hy, ey) - 14, .5 + .5 * Math.sin(now / 140), 1);
+  }
+  if (epc) { /* 포즈가 도구를 듦 */ }
+  else if (w.kind === "repair") {                 // 렌치 · 불똥
     g.save(); g.translate(hx, hy); g.rotate(Math.sin(now / 90) * .6); P(-2, -12, 4, 14, "#c9d2da"); P(-5, -16, 10, 5, "#c9d2da"); P(-2, -15, 4, 3, "#2a2f36"); g.restore();
     if (Math.random() < .3) puff(hx, hy - 10, (Math.random() - .5) * 50, -20 - Math.random() * 30, 450, Math.random() < .5 ? "#ffd35a" : "#ff8a3a");
   } else if (DCS_T.has(t)) {                 // 콘솔 · 캐비닛 — 화면 빛 · 타자
@@ -1154,16 +1203,20 @@ function drawTool(g, a, sx, sy, now, w) {    // 작업 표시 — 손에 든 도
 }
 function drawEqMarks(g, cx, cy, now) {       // 설비 상태 표시 (정상 초록 점 · 경고 주황 ! · 고장 빨간 ✕ 깜빡) + 가까운 설비 [E] 안내
   const near = S.work ? null : nearEquip();
-  for (const p of props) { if (!p.eq) continue; const e = p.eq, [st, busy] = EQ_ST[e.id] || ["ok", ""];
+  for (const p of props) { if (!p.eq) continue; const e = p.eq, [st] = EQ_ST[e.id] || ["ok"];   // 누가 작업 중인지는 그 사람 머리 위 진행 막대에 나옴
     const x = Math.round(p.x + p.img.width / 2 - cx), y = Math.round(p.y - p.img.height - cy) - 4;
     if (x < -40 || y < -40 || x > cv.clientWidth + 40 || y > cv.clientHeight + 60) continue;
-    if (st === "ok") { g.fillStyle = "#0b111c"; g.fillRect(x - 3, y - 3, 6, 6); g.fillStyle = C.grn; g.fillRect(x - 2, y - 2, 4, 4); }
+    if (EPC.ready) {                         // EPC 시트의 상태 아이콘 — 정상 LED · 경고 ! · 고장 경보 ▲ (깜빡)
+      const bob = Math.round(Math.sin(now / 220) * 2);
+      if (st === "ok") fxIcon(g, "f_LED", x, y - 2, .9, 1);
+      else { if (st === "fault") { g.fillStyle = `rgba(224,68,58,${.18 + .14 * Math.sin(now / 150)})`; g.beginPath(); g.ellipse(x, p.y - cy - 4, 22, 9, 0, 0, Math.PI * 2); g.fill(); }
+        fxIcon(g, st === "fault" ? "f_ALARM" : "f_QUEST", x, y - 12 + bob, st === "fault" ? (Math.floor(now / 300) % 2 ? 1 : .55) : 1); }
+    } else if (st === "ok") { g.fillStyle = "#0b111c"; g.fillRect(x - 3, y - 3, 6, 6); g.fillStyle = C.grn; g.fillRect(x - 2, y - 2, 4, 4); }
     else { const bob = Math.round(Math.sin(now / 220) * 2), fault = st === "fault";
       if (fault) { g.fillStyle = `rgba(224,68,58,${.18 + .14 * Math.sin(now / 150)})`; g.beginPath(); g.ellipse(x, p.y - cy - 4, 20, 9, 0, 0, Math.PI * 2); g.fill(); }
       g.fillStyle = "#0b111c"; g.fillRect(x - 7, y - 14 + bob, 14, 14); g.fillStyle = fault ? (Math.floor(now / 300) % 2 ? C.red : C.redD) : C.org; g.fillRect(x - 6, y - 13 + bob, 12, 12);
       g.fillStyle = "#fff"; if (fault) { for (let i = 0; i < 6; i++) { g.fillRect(x - 4 + i, y - 11 + i + bob, 2, 2); g.fillRect(x + 2 - i, y - 11 + i + bob, 2, 2); } }
       else { g.fillRect(x - 1, y - 11 + bob, 2, 5); g.fillRect(x - 1, y - 4 + bob, 2, 2); } }
-    if (busy) { g.font = `10px ${FONT}`; g.textAlign = "center"; g.fillStyle = "#e9f2ff"; g.strokeStyle = "#0b111c"; g.lineWidth = 3; g.strokeText(`${busy} 작업 중`, x, y - 18); g.fillText(`${busy} 작업 중`, x, y - 18); g.textAlign = "left"; }
     if (near === e) {                         // [E] 점검 안내
       const txt = `[E] ${e.id} ${e.name} — ${ST_NAME[st]}: ${st === "ok" ? "Loop Check" : st === "warn" ? "교정" : "수리"}`;
       g.font = `bold 11px ${FONT}`; const tw = Math.ceil(g.measureText(txt).width) + 14, bx = Math.round(x - tw / 2), by = y - 40;
@@ -1173,8 +1226,27 @@ function drawEqMarks(g, cx, cy, now) {       // 설비 상태 표시 (정상 초
   }
 }
 let hudAt = 0;
-function updateHud(now) {                    // 왼쪽 위 작은 판 — HP · 기력 · 레벨/XP · 지금 하는 일 · 설비 현황 (초당 6번만)
+function paintIcons() {                       // 상태판 · 도구칸의 작은 그림 (EPC 시트에서, 한 번만)
+  if (!EPC.ready || hudIcons) return; hudIcons = true;
+  for (const c of document.querySelectorAll("canvas[data-ic]")) {
+    const g = c.getContext("2d"), s1 = eps(c.dataset.ic, false, 1); if (!s1) continue;
+    const z = Math.max(1, Math.floor(Math.min(c.width / s1.width, c.height / s1.height)));
+    g.imageSmoothingEnabled = false; g.clearRect(0, 0, c.width, c.height);
+    g.drawImage(s1, Math.round((c.width - s1.width * z) / 2), Math.round((c.height - s1.height * z) / 2), s1.width * z, s1.height * z);
+  }
+}
+let hudIcons = false, hudFace = "";
+function hudPortrait() {                     // 내 직무 초상 (유닛장은 사자)
+  const c = document.getElementById("hud-face"); if (!c || !EPC.ready) return;
+  const who = S.role === "unit" ? "lion" : JOB_CHAR[S.me.job ?? 0] || "cat"; if (who === hudFace) return; hudFace = who;
+  const s1 = eps("p_" + who, false, 1), g = c.getContext("2d"); if (!s1) return;
+  g.imageSmoothingEnabled = false; g.clearRect(0, 0, c.width, c.height);
+  g.drawImage(s1, Math.round((c.width - s1.width) / 2), 2);   // 머리 · 어깨가 보이게 위쪽 맞춤
+}
+const TOOL_OF = { loop: "loop", calib: "calib", repair: "repair" }, JOB_TOOL = ["loop", "dcs", "calib", "repair", "cable"];
+function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 · HP · 기력 · 레벨/XP · 하는 일 · 설비 과제 · 아래 도구칸 (초당 6번만)
   if (now - hudAt < 160 || !S.me) return; hudAt = now;
+  paintIcons(); hudPortrait();
   const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
   const bar = (id, k) => { const el = document.getElementById(id); if (el) el.style.width = Math.round(Math.max(0, Math.min(1, k)) * 100) + "%"; };
   const hp = Math.round(S.me.hpShow ?? S.me.hp), lv = S.me.lv || 1, xp = S.me.xp || 0, lo = 25 * (lv - 1) ** 2, hi = 25 * lv ** 2;
@@ -1184,7 +1256,30 @@ function updateHud(now) {                    // 왼쪽 위 작은 판 — HP · 
   set("hud-job", `${(S.jobs || [])[S.me.job ?? 0] || ""}${S.role === "unit" ? " · 회복 오라" : ""}`);
   const w = S.work; set("hud-work", w ? `${w.eq.id} ${WORK_NAME[w.kind]} ${Math.min(100, Math.round((now - w.t0) / w.need * 100))}%` : S.healNear ? "유닛장 회복 오라 안 — 체력 · 기력 회복 중" : "대기 — 설비 옆에서 E");
   const c = { ok: 0, warn: 0, fault: 0 }; for (const v of Object.values(EQ_ST)) c[v[0]] = (c[v[0]] || 0) + 1;
-  set("hud-eq", `설비 정상 ${c.ok} · 경고 ${c.warn} · 고장 ${c.fault}`);
+  set("hud-eq", `LOOP CHECK 정상 ${c.ok}/${EQUIP.length || 0}` + (c.warn ? ` · 경고 ${c.warn}` : "") + (c.fault ? ` · 고장 ${c.fault}` : ""));
+  const on = w ? TOOL_OF[w.kind] : "", mine = JOB_TOOL[S.me.job ?? 0];
+  for (const el of document.querySelectorAll("#pz-tools .slot")) { el.classList.toggle("on", el.dataset.k === on); el.classList.toggle("mine", el.dataset.k === mine); }
+}
+
+let miniAt = 0, miniBase = null;
+function drawMini(now) {                     // 오른쪽 아래 현장 지도 — 땅 · 설비 상태 점 · 사람 · 지금 보이는 곳 (초당 4번)
+  const c = document.getElementById("pz-mini"); if (!c || !S.me || now - miniAt < 250 || c.offsetParent === null) return; miniAt = now;
+  const g = c.getContext("2d"), sx = c.width / W, sy = c.height / H;
+  if (!miniBase && WORLD.ready) {
+    miniBase = canvas(c.width, c.height); const b = miniBase.getContext("2d");
+    b.imageSmoothingEnabled = true; b.drawImage(groundImg, 0, 0, c.width, c.height);
+    b.fillStyle = "rgba(10,16,28,.55)"; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (solid[y * W + x]) b.fillRect(x * sx, y * sy, Math.ceil(sx), Math.ceil(sy));
+  }
+  g.fillStyle = "#0d1320"; g.fillRect(0, 0, c.width, c.height); if (miniBase) g.drawImage(miniBase, 0, 0);
+  const blink = Math.floor(now / 500) % 2;
+  for (const e of EQUIP) { const st = (EQ_ST[e.id] || ["ok"])[0];
+    g.fillStyle = st === "fault" ? (blink ? "#ff3b30" : "#7a1a14") : st === "warn" ? "#ffb020" : "#39d353";
+    g.fillRect(Math.round(e.x * sx), Math.round(e.y * sy), Math.max(2, Math.round((e.w || 1) * sx)), 2); }
+  g.fillStyle = "#c9d4e0"; for (const n of NPCS) g.fillRect(Math.round(n.a.x / T * sx), Math.round(n.a.y / T * sy), 2, 2);
+  g.fillStyle = "#5fd0ff"; for (const a of S.others.values()) g.fillRect(Math.round(a.x / T * sx), Math.round(a.y / T * sy), 2, 2);
+  g.fillStyle = "#ffd84a"; g.fillRect(Math.round(S.me.x / T * sx) - 1, Math.round(S.me.y / T * sy) - 1, 3, 3);
+  if (S.cam) { g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 1;
+    g.strokeRect(Math.round(S.cam[0] / T * sx) + .5, Math.round(S.cam[1] / T * sy) + .5, Math.round(cv.clientWidth / T * sx), Math.round(cv.clientHeight / T * sy)); }
 }
 
 // ── 서버 ───────────────────────────────────────────────────────────────
@@ -1415,7 +1510,7 @@ function drawActor(g, a, sx, sy, now) {
   if (cheer >= 0) { sy -= Math.round(Math.abs(Math.sin(cheer * Math.PI * 3)) * 8 / PX) * PX; if (Math.random() < .2) puff(a.x + 16, a.y, (Math.random() - .5) * 40, -30, 700, "#ffe066"); }
   drawActorBody(g, a, sx, sy, now);
   const w = a === S.me ? S.work : a.work;
-  if (w) drawTool(g, a, sx + 16, sy + 28, now, w);
+  if (w) drawTool(g, a, sx + 16, sy + 28, now, w, isEpc(a.npc ? a.face : roleFace(faceOf(a), a.role)));
   if (a === S.me && S.stamina < ST_TIRED && Math.floor(now / 400) % 3 === 0) { g.fillStyle = "#7fe7ff"; g.fillRect(sx + 26, sy + 28 - HEAD_PX + 10 + Math.floor(now / 100) % 4 * 2, 4, 6); }   // 땀
   if (a === S.me && a.moving && a.running && Math.random() < .5) puff(a.x + 16, a.y + 28, (Math.random() - .5) * 20, -6, 400, "#9aa6b1");   // 흙먼지
 }
@@ -1429,9 +1524,19 @@ function drawActorBody(g, a, sx, sy, now) {
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
   const F = a.npc ? a.face : roleFace(faceOf(a), a.role);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
-    const base = isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : isChr(F) ? chrSprite(KIND_FR[F.kind].d[0], false) : charSprite(F, a.role, a.dir, 0);
+    const base = isEpc(F) ? eps(epcWho(a, F) + "_idle", false) : isCat(F) ? catSprite(F, catPose({ dir: a.dir }, now, -1, -1)[0], false) : isChr(F) ? chrSprite(KIND_FR[F.kind].d[0], false) : charSprite(F, a.role, a.dir, 0);
     const spr = ghostly(base), bob = Math.round(Math.sin(now / 420 + a.x * .01) * 2) - 3;
     g.save(); g.globalAlpha = .5; g.drawImage(spr, Math.round(sx + 16 - (base.cx ?? spr.width / 2)), sy + 28 - (base.foot ?? FOOT) + bob); g.restore();
+    return;
+  }
+  if (isEpc(F)) {                            // EPC 안전모 캐릭터 — 시트의 동작 칸 (작업 포즈 포함)
+    drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
+    ell(g, sx + 16, sy + 28, 12, 4, "rgba(5,10,20,.45)");
+    const w = a === S.me ? S.work : a.work, nm = epcPose(epcWho(a, F), a, now, atk, hit, w, hash(a.name) % 4200), spr = eps(nm, a.dir === 2);
+    const bob = !a.moving && !w && atk < 0 && Math.floor((now + hash(a.name) % 1600) / 800) % 2 ? -PX : 0;
+    if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+    if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
     return;
   }
   if (isChr(F)) {                            // 마을 시트 캐릭터 — 대기 칸 번갈아 · 걷기 칸 · 옆 칸 · 공격 칸
@@ -1539,8 +1644,11 @@ function frame(now) {
       ctx.fillStyle = i % 2 ? "#fff6b0" : "#ff9a3c"; ctx.fillRect(Math.round(sx + Math.cos(ang) * r) - 2, Math.round(sy + 6 + Math.sin(ang) * r * .7) - 2, 4, 4); }
     ctx.restore();
   }
+  for (const a of actors) if (a.lvup && now - a.lvup < 1600) { const k = (now - a.lvup) / 1600; fxIcon(ctx, "f_LVUP", a.x + 16 - cx, a.y - 30 - cy - k * 30, 1 - k * k); }   // 레벨 업
+  drawPops(ctx, cx, cy, now);
   drawFloats(ctx, cx, cy, now);
   ctx.drawImage(frameImg(vw, vh), 0, 0);
+  drawMini(now);
   updateHud(now);
 }
 
@@ -1557,6 +1665,7 @@ function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = nul
 const CAT_ROWS = [["fur", "동물 · 털", FURS], ["armor", "갑옷", ARMORS], ["cape", "망토", CAPES]];
 function faceNote() {
   const RK = roleFace(draft, S.role).kind;
+  if (RK === 7) { $("#pz-face-note").textContent = "EPC 안전모 — 직무에 따라 계장 고양이 · DCS 판다 · 현장 호랑이 · 케이블 작업자 (유닛장은 시운전 리드 사자). 작업할 때 시트의 작업 포즈."; return; }
   if (RK >= 2) { $("#pz-face-note").textContent = RK === 6 ? "운영자는 노비 — 마을 시트의 노비(평민) 그대로입니다." : `${KINDS[RK]} — 마을 시트의 캐릭터 그대로입니다 (색은 고르지 않음).` + (S.role === "leader" ? " 그룹장 금빛 후광." : S.role === "unit" ? " 유닛장 은빛 후광." : ""); return; }
   $("#pz-face-note").textContent = isCat(draft) ? (S.role === "leader" ? "그룹장 — 황금 갑옷에 금빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
       : S.role === "unit" ? "유닛장 — 은색(백은) 갑옷에 은빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
@@ -1588,7 +1697,7 @@ function kindRow() {                       // 종류 — 운영자는 노비로 
 function buildFace() {
   faceNote();
   const RF = roleFace(draft, S.role);
-  if (isChr(RF) || (RF.kind >= 2 && KIND_FR[RF.kind])) {   // 마을 시트 캐릭터 — 고를 것은 종류뿐
+  if (isChr(RF) || (RF.kind >= 2 && KIND_FR[RF.kind]) || RF.kind === 7) {   // 마을 · EPC 시트 캐릭터 — 고를 것은 종류 · 직무
     $("#pz-hairs").hidden = true; $("#pz-hairs").previousElementSibling.hidden = true;
     const rows = $("#pz-facerows"); rows.textContent = ""; rows.append(kindRow(), jobRow()); return;
   }
@@ -1640,6 +1749,11 @@ function drawPreview(now) {
   const dir = [0, 2, 1, 3][Math.floor(now / 900) % 4], fr = Math.floor(now / 220) % 4;
   ell(g, c.width / 2, c.height - 22, 30, 8, "rgba(40,20,5,.3)");
   const RF = roleFace(draft, S.role);
+  if (isEpc(RF)) {                           // EPC 안전모 — 시트의 큰 초상 (직무에 따라)
+    const who = S.role === "unit" ? "lion" : JOB_CHAR[RF.job] || "cat", spr = eps("p_" + who, false);
+    if (spr) { g.fillStyle = "#16233a"; g.fillRect(0, 0, c.width, c.height); ell(g, c.width / 2, c.height - 22, 34, 9, "rgba(0,0,0,.35)");
+      g.drawImage(spr, Math.round(c.width / 2 - spr.cx), Math.round(c.height - 22 - spr.foot)); return; }
+  }
   if (isChr(RF)) {                           // 마을 시트 캐릭터 — 시트 맨 위의 큰 그림
     const spr = chrSprite(KIND_FR[RF.kind].p, false);
     g.drawImage(spr, Math.round(c.width / 2 - spr.cx), Math.round(c.height - 22 - spr.foot));
@@ -1654,7 +1768,7 @@ function drawPreview(now) {
   g.drawImage(spr, Math.round(c.width / 2 - spr.width * z / 2), Math.round(c.height - 22 - FOOT * z), spr.width * z, spr.height * z);
 }
 async function saveFace() {
-  const f = { ...draft };
+  const f = { ...draft, v: 2 };
   try {
     await post("/plaza/api/look", { id: S.id, look: f });
     S.face = S.me.face = f; try { localStorage.setItem("pid.plaza.face", JSON.stringify(f)); } catch (_) { /* 브라우저가 막으면 서버 것만 */ }

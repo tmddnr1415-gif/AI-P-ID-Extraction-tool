@@ -102,20 +102,42 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-who .role.killer { background: #8b0000; color: #ffe2e2; }
 
 /* 2026-10-22 EPC — 내 상태 (HP · 기력 · 레벨/XP · 직무 · 지금 하는 일 · 설비 현황) — 작게, 왼쪽 위 */
-.pz-hud { position: absolute; left: 22px; top: 48px; width: 214px; pointer-events: none; font-size: 11px; color: #e9f2ff;
-  background: rgba(11, 17, 28, .72); border: 1px solid rgba(95, 130, 166, .7); border-radius: 4px; padding: 5px 7px; }
-.pz-hud .r { display: flex; align-items: center; gap: 5px; height: 14px; }
-.pz-hud .r span { width: 30px; color: #9fb6d1; font-weight: bold; }
-.pz-hud .r i { flex: 1; height: 6px; background: #24364f; border: 1px solid #0b111c; position: relative; }
-.pz-hud .r b { position: absolute; left: 0; top: 0; bottom: 0; background: #e0443a; transition: width .25s; }
-.pz-hud .r b.st { background: #f2c230; } .pz-hud .r b.xp { background: #5fd0ff; }
-.pz-hud .r em { width: 52px; text-align: right; font-style: normal; color: #c9d4e0; }
-.pz-hud .w { margin-top: 2px; color: #c9d4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pz-hud .w.eq { color: #9fb6d1; }
+.pz-hud { position: absolute; left: 22px; top: 48px; width: 236px; pointer-events: none; font-size: 11px; color: #e9f2ff;
+  background: linear-gradient(180deg, rgba(20, 34, 58, .88), rgba(9, 15, 27, .86)); border: 2px solid #3d6a9a; border-radius: 6px;
+  box-shadow: 0 0 0 1px #0a1220, 0 0 10px rgba(80, 170, 255, .35), inset 0 0 8px rgba(80, 170, 255, .18); padding: 5px 7px 6px; }
+.pz-hud .top { display: flex; gap: 6px; align-items: center; }
+.pz-hud .face { width: 44px; height: 52px; flex: none; image-rendering: pixelated; background: #16233a; border: 2px solid #5f9bd6;
+  border-radius: 4px; box-shadow: 0 0 6px rgba(95, 180, 255, .5); }
+.pz-hud .hb { flex: 1; min-width: 0; }
+.pz-hud .nm { display: flex; gap: 5px; align-items: baseline; height: 14px; white-space: nowrap; overflow: hidden; }
+.pz-hud .nm b { color: #ffd84a; text-shadow: 0 0 4px rgba(255, 200, 60, .6); }
+.pz-hud .nm span { color: #9fd6ff; overflow: hidden; text-overflow: ellipsis; }
+.pz-hud .ic { width: 16px; height: 16px; flex: none; image-rendering: pixelated; }
+.pz-hud .r { display: flex; align-items: center; gap: 4px; height: 15px; }
+.pz-hud .r i { flex: 1; height: 7px; background: #182a42; border: 1px solid #0b111c; border-radius: 2px; position: relative; overflow: hidden; }
+.pz-hud .r b { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #ff7a6a, #d8322a); transition: width .25s;
+  box-shadow: 0 0 5px rgba(255, 80, 60, .7); }
+.pz-hud .r b.st { background: linear-gradient(180deg, #ffe27a, #e0a820); box-shadow: 0 0 5px rgba(255, 210, 60, .7); }
+.pz-hud .r b.xp { background: linear-gradient(180deg, #9ae6ff, #2f9fe0); box-shadow: 0 0 5px rgba(90, 200, 255, .7); }
+.pz-hud .r em { width: 46px; text-align: right; font-style: normal; color: #c9d4e0; font-size: 10.5px; }
+.pz-hud .w { margin-top: 4px; color: #c9d4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-hud .q { display: flex; gap: 4px; align-items: center; margin-top: 2px; color: #ffe7a6; white-space: nowrap; overflow: hidden; }
+.pz-tools { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 4px; pointer-events: none;
+  background: rgba(9, 15, 27, .82); border: 2px solid #3d6a9a; border-radius: 6px; padding: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .3); }
+.pz-tools .slot { width: 40px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #142238; border: 1px solid #2c4a6e; border-radius: 4px; opacity: .55; transition: opacity .2s, box-shadow .2s; }
+.pz-tools .slot canvas { width: 30px; height: 30px; image-rendering: pixelated; }
+.pz-tools .slot span { font-size: 9.5px; color: #9fb6d1; line-height: 1; }
+.pz-tools .slot.mine { opacity: .85; border-color: #5f9bd6; }
+.pz-tools .slot.on { opacity: 1; border-color: #ffd84a; box-shadow: 0 0 8px rgba(255, 216, 74, .8), inset 0 0 6px rgba(255, 216, 74, .35); }
+.pz-tools .slot.on span { color: #ffe7a6; }
+.pz-mini { position: absolute; right: 22px; bottom: 56px; width: 128px; height: 88px; image-rendering: pixelated; pointer-events: none;
+  border: 2px solid #3d6a9a; border-radius: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .35); background: #0d1320; }
 .pz-who .hpv { color: #8fa3bb; font-size: 10.5px; }
-@media (max-width: 560px) { .pz-hud { width: 168px; } .pz-help { display: none; } }
+@media (max-width: 560px) { .pz-hud { width: 184px; } .pz-help { display: none; } .pz-mini { display: none; } }
+@media (max-width: 1100px) { .pz-tools { display: none; } }
 @media (max-height: 520px), (max-width: 700px) {   /* 작은 화면 — 대화창 · 상태판을 줄여 놀이 공간 확보 */
   .pz-log { height: 44px; font-size: 11.5px; } .pz-chat { width: min(300px, calc(100% - 44px)); }
-  .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .w.eq, .pz-hud #hud-job { display: none; }
+  .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .q, .pz-hud .face { display: none; } .pz-tools { display: none; } .pz-mini { width: 96px; height: 66px; bottom: 50px; }
   .pz-who { max-height: 26%; font-size: 11px; } .pz-help { display: none; }
 }

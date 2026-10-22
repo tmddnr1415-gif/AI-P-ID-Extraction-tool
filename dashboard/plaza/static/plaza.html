@@ -16,13 +16,27 @@
   </div>
 
   <div id="pz-hud" class="pz-hud" aria-label="내 상태">
-    <div class="r"><span>HP</span><i><b id="hud-hp"></b></i><em id="hud-hpt"></em></div>
-    <div class="r"><span>기력</span><i><b id="hud-st" class="st"></b></i><em id="hud-stt"></em></div>
-    <div class="r"><span id="hud-lv">Lv 1</span><i><b id="hud-xp" class="xp"></b></i><em id="hud-xpt"></em></div>
-    <div class="w" id="hud-job"></div>
+    <div class="top"><canvas id="hud-face" class="face" width="44" height="52"></canvas>
+      <div class="hb">
+        <div class="nm"><b id="hud-lv">Lv 1</b><span id="hud-job"></span></div>
+        <div class="r"><canvas class="ic" data-ic="f_HP" width="16" height="16"></canvas><i><b id="hud-hp"></b></i><em id="hud-hpt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_ST" width="16" height="16"></canvas><i><b id="hud-st" class="st"></b></i><em id="hud-stt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_XP" width="16" height="16"></canvas><i><b id="hud-xp" class="xp"></b></i><em id="hud-xpt"></em></div>
+      </div>
+    </div>
     <div class="w" id="hud-work"></div>
-    <div class="w eq" id="hud-eq"></div>
+    <div class="q"><canvas class="ic" data-ic="f_QUEST" width="16" height="16"></canvas><span id="hud-eq"></span></div>
   </div>
+
+  <div id="pz-tools" class="pz-tools" aria-label="도구 (지금 하는 작업에 불이 들어옴)">
+    <div class="slot" data-k="loop"><canvas data-ic="i_HART" width="30" height="30"></canvas><span>Loop</span></div>
+    <div class="slot" data-k="calib"><canvas data-ic="i_CALIB" width="30" height="30"></canvas><span>교정</span></div>
+    <div class="slot" data-k="cable"><canvas data-ic="i_SPOOL" width="30" height="30"></canvas><span>케이블</span></div>
+    <div class="slot" data-k="dcs"><canvas data-ic="i_MULTI" width="30" height="30"></canvas><span>측정</span></div>
+    <div class="slot" data-k="repair"><canvas data-ic="i_WRENCH" width="30" height="30"></canvas><span>수리</span></div>
+  </div>
+
+  <canvas id="pz-mini" class="pz-mini" width="128" height="88" aria-label="현장 지도"></canvas>
 
   <div id="pz-who" class="pz-who" aria-label="광장에 있는 사람"></div>
 

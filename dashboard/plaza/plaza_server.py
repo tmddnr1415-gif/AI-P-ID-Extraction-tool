@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.1'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.2'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -65,7 +65,7 @@ CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
 LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
 # 2026-10-19 고양이 기사: 종류(0 고양이 기사 · 1 사람) · 털(동물) · 갑옷 · 망토 — 예전에 저장한 얼굴엔 없으므로 없으면 0 (= 원본 고양이 기사)
-LOOK_EXTRA = {"kind": 7, "fur": 6, "armor": 6, "cape": 7, "job": 5}   # job = EPC 직무 (2026-10-22: 0 계장 · 1 DCS · 2 시운전 리드 · 3 현장 기술 · 4 케이블)   # kind 2~6 = 마을 시트 캐릭터 (고양이 양반 · 팬더 학자 · 사자 무관 · 호랑이 무관 · 노비)
+LOOK_EXTRA = {"kind": 8, "fur": 6, "armor": 6, "cape": 7, "job": 5, "v": 4}   # kind 7 = EPC 안전모 직무 캐릭터 (2026-10-22 판2) · v = 얼굴 저장 판 (2 이상이면 새 기본값 옮김을 다시 하지 않음)   # job = EPC 직무 (2026-10-22: 0 계장 · 1 DCS · 2 시운전 리드 · 3 현장 기술 · 4 케이블)   # kind 2~6 = 마을 시트 캐릭터 (고양이 양반 · 팬더 학자 · 사자 무관 · 호랑이 무관 · 노비)
 ROLES = ("member", "unit", "leader", "operator")
 ROLE_KEYS = {"leader": "group_leader", "unit": "unit_leaders", "operator": "operators"}
 ROLE_TEMPLATE = {
@@ -715,7 +715,8 @@ FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
          "/static/catknight.png": ("catknight.png", "image/png"),
-         "/static/village_chars.png": ("village_chars.png", "image/png")}  # 마을 시트에서 뽑은 캐릭터 5종   # 고양이 기사 그림 (사용자가 준 시트에서 캐릭터만 뽑은 것)
+         "/static/village_chars.png": ("village_chars.png", "image/png"),  # 마을 시트에서 뽑은 캐릭터 5종
+         "/static/epc.png": ("epc.png", "image/png")}  # EPC 시트 (직무 캐릭터 · 초상 · 장비 · 효과 아이콘)
 
 
 EXTRA_NETS: list = []                              # --allow 대역

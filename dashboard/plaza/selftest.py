@@ -59,11 +59,11 @@ try:
     ok.append(("말하기 — 80자", len(call("/plaza/api/say", {"id": a["id"], "text": "가" * 200})[1]["text"]) == 80))
     face = {"hair": 4, "hairc": 4, "skin": 1, "eyes": 2, "beard": 0, "cloth": 3, "pants": 1}
     call("/plaza/api/look", {"id": a["id"], "look": face})
-    ok.append(("얼굴 — 파일에 남음 (예전 값만 보내면 고양이 기사 기본값이 붙음)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == {**face, "kind": 0, "fur": 0, "armor": 0, "cape": 0, "job": 0}))
-    cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2, "job": 3}
+    ok.append(("얼굴 — 파일에 남음 (예전 값만 보내면 고양이 기사 기본값이 붙음)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == {**face, "kind": 0, "fur": 0, "armor": 0, "cape": 0, "job": 0, "v": 0}))
+    cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2, "job": 3, "v": 2}
     call("/plaza/api/look", {"id": a["id"], "look": cat})
     ok.append(("얼굴 — 고양이 기사 (호랑이 · 황금 갑옷 · 초록 망토)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == cat))
-    ok.append(("그림 파일 — 마을 캐릭터 · 고양이 기사 (PNG)", all(urllib.request.urlopen(base + f"/static/{n}.png").read()[:4] == b"\x89PNG" for n in ("village_chars", "catknight"))))
+    ok.append(("그림 파일 — 마을 캐릭터 · 고양이 기사 · EPC 시트 (PNG)", all(urllib.request.urlopen(base + f"/static/{n}.png").read()[:4] == b"\x89PNG" for n in ("village_chars", "catknight", "epc"))))
     call("/plaza/api/look", {"id": a["id"], "look": {**face, "kind": 4}})
     ok.append(("얼굴 — 마을 캐릭터 (사자 무관)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"]["kind"] == 4))
     ok.append(("그림 파일 — 고양이 기사 (PNG)", urllib.request.urlopen(base + "/static/catknight.png").read()[:8] == b"\x89PNG\r\n\x1a\n"))
