@@ -892,3 +892,5 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 .lg-needs .nd-now{color:#6b6b80}
 .lg-needs .nd-now.on{color:#0b7a4b;font-weight:600}
 .lg-needs .nd-none.gap{color:#9a4b00;background:#fff4e8;border-radius:6px;padding:4px 8px;margin:4px 0}
+#needs .sp-h b{white-space:nowrap}
+#needs-sum{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;display:inline-block;vertical-align:bottom}

@@ -4230,7 +4230,7 @@ function ndSummaryHtml(sig, pg) {
       : x.block && x.at ? `<span class="nd-loc" data-go="block" data-page="${x.page != null ? x.page : pg}" data-block="${esc(String(x.block).split("/")[0])}">${esc(sh)} · ${esc(x.block)}</span>` : "";
     const ref = x.ref && x.ref.sheet ? `<span class="nd-ref${x.ref.other ? " other" : ""}" data-ref-sheet="${esc(x.ref.sheet)}" data-ref-row="${x.ref.row || ""}">← ${esc(x.ref.sheet)}${x.ref.row ? "-" + x.ref.row : ""}</span>` : "";
     const ft = x.ft ? `<span class="nd-ft" title="${esc((x.ft.why || []).join(" · "))}">⚠ from-to</span>` : "";
-    const cst = x.const != null ? (x.const === x.want ? `<span class="nd-k">상수 ${x.const}</span>` : `<span class="nd-k gap">상수 ${x.const} — 도면이 ${x.const} 으로 묶어 둠 · 켤 수 없음</span>`) : "";
+    const cst = x.const != null ? (x.const === x.want ? `<span class="nd-k">상수 ${x.const}</span>` : `<span class="nd-k gap">상수 ${x.const} — 도면이 ${x.const} 으로 묶어 둠 · ${x.want === 1 ? "켤" : "끌"} 수 없음</span>`) : "";
     return `<li>${ndWant(x.want)} ${esc(x.text || x.key || "")} ${cst} ${loc} ${ref} ${ft}</li>`;
   };
   const need = sig.need || [], zero = sig.zero || [], gaps = sig.gaps || [];
