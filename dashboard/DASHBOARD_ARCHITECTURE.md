@@ -909,3 +909,15 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html 새 `APP_ROUTES` `FRAME_ROUTES` `appUrl` `renderApp`, `render()`(pid-mode · keepPid · 분기) · `ROUTES` · `renderMenu` · `PZ_STATUS` · `renderHeader`(부제목) · CSS `body.pid-mode header.top .actions` / server.py `MENUS` / 새 `apps/space/index.html`.
 - 확인한 것: `py_compile`, `node --check`(두 HTML 의 스크립트). 임시 폴더 + 가짜 계정으로 server.py(8780) 와 P&ID 도구(8000, titleblock 브랜치 소스 그대로)를 띄워 Chromium 에서 홈 · P&ID · LOGIC · 판넬 공간확보 캡처, 페이지 · iframe 요청 중 외부 주소 **0건**. 공간확보: 시나리오(기둥 간섭 · 실 밖) 불러오기 → 간섭 2건 문장, 출력 4종 실제 다운로드(.txt · .dxf · .csv(BOM) · .json 이름 그대로), DXF ezdxf audit 오류 0 · Layer 8개 · 글자 스타일 CR-KOR(malgun.ttf), Spare 20% X → 권장 27,700 × 10,600(손 계산 일치), Rev A→B +35.0 m². P&ID · LOGIC 코드는 이 작업에서 0줄 바뀜.
 - 회사에서 확인할 것: (1) 서버 재시작 후 ⚙ 메뉴 권한 표에 '판넬 공간확보'. (2) DXF 를 AutoCAD 2026 에서 열어 Layer · 치수 · 한글(CR-KOR = 맑은 고딕) 확인. (3) Edge 개발자도구 Network 탭에서 외부 요청 0건. (4) P&ID 회귀 `python spike/regression_3p.py` 와 LOGIC 샘플 1건 — 코드는 안 바뀌었지만 완료 기준이라 기록을 남김.
+
+### 2026-10-22 (8) — 판넬 공간확보: 어두운 CAD 화면 · 도어 위치/열림 · 회전 궤적 (APP · SERVER 그대로 — apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. `apps\space\index.html` 만 바꾸고 화면에서 Ctrl+F5.
+- 무엇을: 요청 "UI 를 CAD 처럼 어둡게, 도어가 열리는 궤도까지, 판넬 Type 을 만들 때 L-R Open · 전면 · 후면 어디에 도어가 있는지 선택".
+  - 기본 화면 = 어두운 CAD(짙은 회색 바탕 · 흰 벽선), 도구줄 [☀ 밝게] 로 예전 밝은 화면 (localStorage `crspace.theme`).
+  - Type 카드: Door 위치(없음/전면/후면/전·후면) · 열림(L 힌지/R 힌지/양개 L-R — 그 면 앞에 서서 볼 때 기준). 화면에 열린 문짝 + 점선 호, DXF 새 Layer `CR-DOOR`(LINE + ARC).
+  - 검토(경고): 문짝 반경 > 유지보수 공간, 궤적이 벽 · 기둥 · 다른 판넬에 닿음. 궤적이 유지보수 공간 밖이면 필요 영역에 포함.
+  - 예전 배치안 · 프리셋 Type 은 '도어 없음' → 예전 숫자 그대로. CSV 에 Door · Hinge 열.
+- 바뀐 곳: apps/space/index.html — CSS 테마 토큰(`:root` 어두움 · `[data-theme=light]`), `setTheme`, `DOOR_AT` `HINGE` `fixDoor` `FRONT_N` `edgeOf` `doors`, `check`(도어 경고), `envelope`, `render`(문짝 · 호), `buildTypes`(선택칸), `cleanType`, 요약 · CSV · DXF(`arc`, CR-DOOR).
+- 확인한 것: `node --check`. 임시 서버 + Chromium: 도어 시험 배치(L · R · 양개 · 1200 단문 · 후면만 · 벽 옆) → 경고 3건 기대대로, DXF ezdxf audit 오류 0 · ARC 15 = 문짝 수 · 각도 확인, 도어 없는 예전 시나리오 권장 실 23,400 × 10,600 그대로, 외부 요청 0건.
+- 회사에서 확인할 것: AutoCAD 에서 CR-DOOR 호의 방향(힌지 쪽)이 화면과 같은지, L/R 기준(앞에서 볼 때)이 부서 관례와 맞는지.
+

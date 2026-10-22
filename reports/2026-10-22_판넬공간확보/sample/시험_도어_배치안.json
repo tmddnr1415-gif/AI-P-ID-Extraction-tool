@@ -1,0 +1,179 @@
+{
+ "room": {
+  "w": 9000,
+  "l": 9000,
+  "spX": "",
+  "spY": "",
+  "col": 600,
+  "margin": 1000
+ },
+ "snap": 100,
+ "types": [
+  {
+   "id": "a",
+   "name": "System Cabinet (L 힌지 · 전후면)",
+   "pre": "SC-",
+   "w": 800,
+   "d": 800,
+   "h": 2100,
+   "front": 1000,
+   "rear": 800,
+   "color": "#2f6db5",
+   "door": "both",
+   "hinge": "L"
+  },
+  {
+   "id": "b",
+   "name": "Marshalling (R 힌지 · 전면)",
+   "pre": "MC-",
+   "w": 800,
+   "d": 800,
+   "h": 2100,
+   "front": 1000,
+   "rear": 800,
+   "color": "#2f8a6a",
+   "door": "front",
+   "hinge": "R"
+  },
+  {
+   "id": "c",
+   "name": "UPS (양개 L-R · 전면)",
+   "pre": "UP-",
+   "w": 1200,
+   "d": 800,
+   "h": 2000,
+   "front": 1200,
+   "rear": 600,
+   "color": "#8a7a2a",
+   "door": "front",
+   "hinge": "LR"
+  },
+  {
+   "id": "d",
+   "name": "Wide 1200 단문 (반경 > 유지보수)",
+   "pre": "WD-",
+   "w": 1200,
+   "d": 800,
+   "h": 2100,
+   "front": 1000,
+   "rear": 0,
+   "color": "#a33f6b",
+   "door": "front",
+   "hinge": "L"
+  },
+  {
+   "id": "e",
+   "name": "Rack (후면만 · R)",
+   "pre": "NR-",
+   "w": 600,
+   "d": 1000,
+   "h": 2100,
+   "front": 1000,
+   "rear": 800,
+   "color": "#7a59b0",
+   "door": "rear",
+   "hinge": "R"
+  }
+ ],
+ "panels": [
+  {
+   "id": "SC-0",
+   "type": "a",
+   "tag": "SC-01",
+   "desc": "",
+   "x": 1000,
+   "y": 1500,
+   "rot": 0
+  },
+  {
+   "id": "SC-1",
+   "type": "a",
+   "tag": "SC-02",
+   "desc": "",
+   "x": 1800,
+   "y": 1500,
+   "rot": 0
+  },
+  {
+   "id": "SC-2",
+   "type": "a",
+   "tag": "SC-03",
+   "desc": "",
+   "x": 2600,
+   "y": 1500,
+   "rot": 0
+  },
+  {
+   "id": "MC-0",
+   "type": "b",
+   "tag": "MC-01",
+   "desc": "",
+   "x": 1000,
+   "y": 4200,
+   "rot": 180
+  },
+  {
+   "id": "MC-1",
+   "type": "b",
+   "tag": "MC-02",
+   "desc": "",
+   "x": 1800,
+   "y": 4200,
+   "rot": 180
+  },
+  {
+   "id": "MC-2",
+   "type": "b",
+   "tag": "MC-03",
+   "desc": "",
+   "x": 2600,
+   "y": 4200,
+   "rot": 180
+  },
+  {
+   "id": "UP-0",
+   "type": "c",
+   "tag": "UP-01",
+   "desc": "",
+   "x": 4600,
+   "y": 1500,
+   "rot": 0
+  },
+  {
+   "id": "WD-0",
+   "type": "d",
+   "tag": "WD-01",
+   "desc": "",
+   "x": 6400,
+   "y": 1500,
+   "rot": 0
+  },
+  {
+   "id": "NR-0",
+   "type": "e",
+   "tag": "NR-01",
+   "desc": "",
+   "x": 4600,
+   "y": 4000,
+   "rot": 180
+  },
+  {
+   "id": "NR-1",
+   "type": "e",
+   "tag": "NR-02",
+   "desc": "",
+   "x": 5200,
+   "y": 4000,
+   "rot": 180
+  },
+  {
+   "id": "w",
+   "type": "b",
+   "tag": "MC-09",
+   "desc": "벽 옆 90° — 도어가 벽에 걸림",
+   "x": 0,
+   "y": 6800,
+   "rot": 270
+  }
+ ]
+}
