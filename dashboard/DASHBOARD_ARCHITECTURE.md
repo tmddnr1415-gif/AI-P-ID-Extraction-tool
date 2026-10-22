@@ -1013,3 +1013,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: 새 `V3` · `v3init` `v3home` `v3cam` `v3matrix` `v3proj` `v3build` `v3draw` `v3pick` `open3d`, HTML `#b3d` `#v3dlg`, CSS `.v3dlg` `.v3wrap` `.v3tip`, 도움말 한 줄.
 - 확인한 것: `node --check`, Chromium(SwiftShader WebGL): 열기 · 돌리기 · 확대 · 마우스 정보 · 시점 4개 · PNG · Esc · 높이 ⚠ · 밝은 화면. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
 - 회사에서 확인할 것: Edge 에서 3D 가 뜨는지(안 뜨면 '하드웨어 가속 사용' 켜기 안내가 나옴), 판넬 수백 개일 때 돌리기가 부드러운지.
+
+### 2026-10-22 (18) — 판넬 공간확보 3D: 사람 175 cm · 80 kg (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 무엇을: 요청 "175 cm 80 kg 성인 남성을 3D 화면에 표기하고 움직일 수 있게". 크기 비교용 사람(정수리 1,750, 어깨 폭 약 580) — 끌기 · 방향키 · R 돌리기, 판넬 몸체 · 기둥 · 벽은 통과 못 함(50 mm 걸음, 막히면 빨강), [👁 사람 시점](어깨 너머, ↑↓ 걷기 · ← → 돌기), [사람] 끄기. 보기 전용(`V3.man`, 저장 안 함).
+- 바뀐 곳: `v3build`(사람 상자 · 머리 구 · 그림자), 새 `manFoot` `manFree` `manHome` `manMove` `manPov` `v3ray` `rayBox` `rayFloor` `v3hidden`(가려진 Tag 숨김), `v3pick`(사람 포함), `v3matrix`(사람 시점 62°), 포인터 · 키 입력, HTML `#v3Man` `#v3ManRot` `#v3Pov`.
+- 확인한 것: `node --check`, Chromium: 보임 · 마우스 정보 · 끌기 · 둘러 가기 · 막힘 · 사람 시점 · 돌기. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
+- 회사에서 확인할 것: 도어 문짝은 '열린 상태 가정' 이라 사람이 지나가게 둠 — 막아야 하면 알려 주세요.
