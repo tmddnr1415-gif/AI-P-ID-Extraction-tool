@@ -1020,3 +1020,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: `v3build`(사람 상자 · 머리 구 · 그림자), 새 `manFoot` `manFree` `manHome` `manMove` `manPov` `v3ray` `rayBox` `rayFloor` `v3hidden`(가려진 Tag 숨김), `v3pick`(사람 포함), `v3matrix`(사람 시점 62°), 포인터 · 키 입력, HTML `#v3Man` `#v3ManRot` `#v3Pov`.
 - 확인한 것: `node --check`, Chromium: 보임 · 마우스 정보 · 끌기 · 둘러 가기 · 막힘 · 사람 시점 · 돌기. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
 - 회사에서 확인할 것: 도어 문짝은 '열린 상태 가정' 이라 사람이 지나가게 둠 — 막아야 하면 알려 주세요.
+
+### 2026-10-22 (19) — 판넬 공간확보 3D: 재기 · 통로 폭 · 품질 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 무엇을: 요청 "거기를 측정할 수 있게, 3D 퀄리티 있게". [📏 재기] 두 점 거리(X · Y · H, 모서리 붙기), 사람 자리 통로 폭 자동(앞뒤 · 좌우, 허리 높이 1,000, 판넬 · 기둥 · 벽까지), 품질: 셰이더 빛(반구 · 주광 · 보조 · 반사), stencil 바닥 그림자, 옆면 그늘, 받침 100, 문짝 줄눈 · 손잡이, 600 격자, 배경 그라데이션, Tag 디자인.
+- 바뀐 곳: `v3init`(셰이더 · stencil · E uniform), `v3build`(shade · shadow · obox · lid · 600 격자 · 재기 선 ML), 새 `v3hull` `v3clip` `v3cast` `manGaps` `v3hit` `v3rr`, `v3draw`(배경 · 그림자 패스 · 재기 글자), 포인터(클릭 = 재기), HTML `#v3Meas` `#v3MeasClr` `#v3Gap`.
+- 확인한 것: `node --check`, Chromium: 재기 3,406 / 2,797(H 840), 통로 폭, 사람 시점, 밝은 화면. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
+- 회사에서 확인할 것: 판넬 수백 개에서 그림자 · 손잡이 때문에 느려지지 않는지 (느리면 알려 주세요 — 그림자 끄기 단추를 붙임).
