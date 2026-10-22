@@ -1,4 +1,4 @@
-hotfix107 — PID_dev + 운영(PID) 꾸러미  (97a8732 기준 누적 · hotfix101~106 내용 전부 포함)
+hotfix107 — PID_dev + 운영(PID) 꾸러미  (hotfix105 를 적용한 폴더에 얹습니다 · hotfix106 · hotfix107 내용)
 
 이번에 들어간 것 — P&ID 서버 (8000)
   (hotfix106) 판넬 공간확보가 이 서버로 들어왔습니다 — http://서버:8000/space
