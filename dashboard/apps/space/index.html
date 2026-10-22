@@ -36,8 +36,11 @@ select,input{font:inherit;font-size:12.5px;color:var(--ink);background:var(--pan
 input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .main{display:grid;grid-template-columns:320px 1fr;min-height:0}
 .side{overflow:auto;border-right:1px solid var(--line);background:var(--sheet);padding:12px 14px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
-.sec h3{margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center}
-.sec h3 b{font-family:var(--f-mono);color:var(--ink);letter-spacing:0;text-transform:none;font-weight:600}
+.sec h3{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:6px}
+.sec h3 .t{display:inline-flex;align-items:center;gap:6px}
+.sec h3 b{font-family:var(--f-mono);font-weight:600}
+/* 단계 번호 — P&ID 분석 · LOGIC 분석 첫 화면의 ① ② 와 같은 모양 */
+.step-n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11.5px;font-weight:700;flex:none}
 .f{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
 .f label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
 .f label.full{grid-column:1/-1}
@@ -51,7 +54,7 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .type .hd .pre{width:56px;font-family:var(--f-mono)}
 .dims{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
 .dims label{display:flex;flex-direction:column;font-size:10px;color:var(--ink-2);gap:1px}
-.dims input{width:100%;padding:2px 3px}
+.dims input{width:100%;padding:2px 2px;font-size:11.5px}
 .type .ft{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--ink-2)}
 .type .ft .acts{display:flex;gap:4px}
 .type .ft button{padding:3px 8px}
@@ -64,11 +67,18 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .counts td:last-child{text-align:right;font-family:var(--f-mono)}
 .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .issues{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:auto}
-.issues li{font-size:11.5px;padding:4px 6px;border-radius:3px;cursor:pointer;border-left:3px solid}
+.issues li{font-size:11.5px;line-height:1.45;padding:4px 6px;border-radius:3px;cursor:pointer;border-left:3px solid}
+.issues li .lv{font-weight:700;margin-right:4px}
+.issues li .fix{display:block;color:var(--ink-2)}
 .issues li.err{border-color:var(--err);background:color-mix(in srgb,var(--err) 10%,transparent)}
 .issues li.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
-.pill{font-family:var(--f-mono);font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid}
-.pill.ok{color:var(--ok);border-color:var(--ok)} .pill.err{color:var(--err);border-color:var(--err)} .pill.warn{color:var(--warn);border-color:var(--warn)}
+/* 상태 pill — 대시보드 색 (OK 초록 · 경고 주황 · 간섭=오류 빨강), 배경을 옅게 채움 */
+.pill{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;border:1px solid}
+.pill.ok{color:var(--ok);border-color:#a8dcc3;background:#dff4ea} .pill.err{color:var(--err);border-color:#f3b4ae;background:#fde8e6} .pill.warn{color:var(--warn);border-color:#f0d58a;background:#fff6dc}
+/* 알림 (불러오기 실패 등) — 대시보드 toast 와 같은 자리·모양 */
+.toast{position:fixed;bottom:40px;right:22px;background:#1b2238;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:30;max-width:420px;font-size:12.5px;line-height:1.5}
+.toast.show{opacity:1}.toast.err{background:var(--err)}
+body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠에 메뉴 이름이 이미 있음 */
 .row{display:flex;gap:6px;flex-wrap:wrap}
 .muted{color:var(--ink-2);font-size:11.5px;line-height:1.5}
 .stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden}
@@ -97,7 +107,7 @@ svg text{font-family:var(--f-mono)}
 <body>
 <div class="app">
   <div class="bar">
-    <div class="brand">Control Room 공간확보<small>Phase 0 · 건축 전달용</small></div>
+    <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
     <span class="sep"></span>
@@ -119,7 +129,7 @@ svg text{font-family:var(--f-mono)}
   <div class="main">
     <aside class="side">
       <section class="sec">
-        <h3>Room · 실 치수 <span class="muted" style="text-transform:none;letter-spacing:0">mm</span></h3>
+        <h3><span class="t"><span class="step-n">1</span>실 치수 (Room)</span> <span class="muted">단위 mm</span></h3>
         <div class="f">
           <label>Width (X)<input type="number" id="rW" step="100"></label>
           <label>Length (Y)<input type="number" id="rL" step="100"></label>
@@ -132,19 +142,19 @@ svg text{font-family:var(--f-mono)}
       </section>
 
       <section class="sec">
-        <h3>Panel Type <span class="row" style="gap:4px"><label class="chk" style="text-transform:none;letter-spacing:0;font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
+        <h3><span class="t"><span class="step-n">2</span>Panel Type · 배치</span> <span class="row" style="gap:4px"><label class="chk" style="font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
         <div class="types" id="types"></div>
         <div class="row" style="margin-top:8px"><button id="bAddType">+ Type 추가</button></div>
         <p class="muted" style="margin:6px 0 0">W·D = 평면 치수, F·R = 전면·후면 유지보수 공간. 굵은 선이 전면입니다. Type 치수를 바꾸면 배치된 판넬에 바로 반영됩니다.</p>
       </section>
 
       <section class="sec" id="propSec">
-        <h3>선택 <b id="selInfo">없음</b></h3>
+        <h3><span class="t">선택한 판넬</span> <b id="selInfo">없음</b></h3>
         <div id="props" class="muted">판넬을 클릭하거나 Shift+Drag로 여러 개를 선택하세요.</div>
       </section>
 
       <section class="sec">
-        <h3>공간 요구 <span id="chkPill" class="pill ok">OK</span></h3>
+        <h3><span class="t"><span class="step-n">3</span>검토 결과 (자동 계산)</span> <span id="chkPill" class="pill ok">OK</span></h3>
         <div class="muted">판넬 + 유지보수 공간 외곽</div>
         <div class="big" id="envBig">–</div>
         <div class="muted" style="margin-top:6px">권장 실 크기 (벽 이격 반영)</div>
@@ -155,15 +165,15 @@ svg text{font-family:var(--f-mono)}
       </section>
 
       <section class="sec">
-        <h3>출력</h3>
+        <h3><span class="t"><span class="step-n">4</span>출력</span></h3>
         <div class="row">
-          <button class="primary" id="bReq">건축 전달 요약</button>
-          <button id="bDxf">DXF</button>
-          <button id="bCsv">판넬 List CSV</button>
+          <button class="primary" id="bReq">건축 전달 요약 출력 (TXT)</button>
+          <button id="bDxf">DXF 출력</button>
+          <button id="bCsv">판넬 List 출력 (CSV)</button>
         </div>
         <div class="row" style="margin-top:6px">
-          <button id="bSave">배치안 저장(JSON)</button>
-          <button id="bLoad">불러오기</button>
+          <button id="bSave">배치안 저장 (JSON)</button>
+          <button id="bLoad">배치안 불러오기</button>
           <button id="bReset">예시로 초기화</button>
           <input type="file" id="fLoad" accept=".json,application/json" hidden>
         </div>
@@ -187,6 +197,7 @@ svg text{font-family:var(--f-mono)}
   </div>
 </div>
 
+<div class="toast" id="toast" role="status"></div>
 <div class="modal" id="modal" hidden>
   <div class="box">
     <h4 id="mTitle">출력</h4>
@@ -194,7 +205,7 @@ svg text{font-family:var(--f-mono)}
     <textarea id="mText" readonly></textarea>
     <div class="row">
       <button id="mCopy">복사</button>
-      <button id="mDown" class="primary">파일 다운로드</button>
+      <button id="mDown" class="primary">파일로 저장</button>
       <button id="mClose">닫기</button>
     </div>
   </div>
@@ -207,6 +218,10 @@ const NS='http://www.w3.org/2000/svg';
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const Q=new URLSearchParams(location.search);            // 대시보드가 넘기는 값: embed=1 · user=로그인 본명
+if(Q.get('embed')==='1')document.body.classList.add('embed');
+let toastT=0;
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(toastT);toastT=setTimeout(()=>t.className='toast',err?6000:3500)}
 
 /* ---------- state ---------- */
 function sample(){
@@ -270,17 +285,19 @@ function check(){
   const G=S.panels.map(p=>({p,g:geom(p)})), cols=columns(), R=S.room;
   const mark=(id,lv)=>{if(lv==='err'||!status[id])status[id]=lv};
   G.forEach(({p,g},i)=>{
-    if(!inside(g.body,R)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag}: 실 외곽 밖으로 나감`});mark(p.id,'err')}
-    else{[['전면',g.fr],['후면',g.rr]].forEach(([n,c])=>{if(c.w>0&&c.h>0&&!inside(c,R)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag}: ${n} 유지보수 공간이 벽에 걸림`});mark(p.id,'warn')}})}
+    // 판정은 원본 그대로 · 문장만 '무엇이 → 어떻게 고치나' (fix)
+    const out=c=>Math.max(-c.x,-c.y,c.x+c.w-R.w,c.y+c.h-R.l);   // 실 밖으로 나간 길이
+    if(!inside(g.body,R)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag} 이(가) 실 밖으로 ${fmt(out(g.body))} mm 나갔습니다`,fix:'실 안으로 옮기거나 실 치수(Width · Length)를 늘리세요.'});mark(p.id,'err')}
+    else{[['전면',g.fr],['후면',g.rr]].forEach(([n,c])=>{if(c.w>0&&c.h>0&&!inside(c,R)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag} 의 ${n} 유지보수 공간이 벽에 ${fmt(out(c))} mm 걸립니다`,fix:`벽에서 ${fmt(out(c))} mm 이상 떼거나 ${n} 방향을 바꾸세요.`});mark(p.id,'warn')}})}
     cols.forEach(c=>{
-      if(ov(g.body,c)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag}: 기둥(${fmt(c.cx)}, ${fmt(c.cy)})과 겹침`});mark(p.id,'err')}
-      else if(ov(g.fr,c)||ov(g.rr,c)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag}: 유지보수 공간에 기둥`});mark(p.id,'warn')}
+      if(ov(g.body,c)){issues.push({lv:'err',ids:[p.id],msg:`${p.tag} 이(가) 기둥(X ${fmt(c.cx)}, Y ${fmt(c.cy)})과 겹칩니다`,fix:'기둥을 피해 옮기세요.'});mark(p.id,'err')}
+      else if(ov(g.fr,c)||ov(g.rr,c)){issues.push({lv:'warn',ids:[p.id],msg:`${p.tag} 의 유지보수 공간에 기둥(X ${fmt(c.cx)}, Y ${fmt(c.cy)})이 들어옵니다`,fix:'판넬을 옮기거나 회전해 기둥을 유지보수 공간 밖으로 두세요.'});mark(p.id,'warn')}
     });
     G.forEach(({p:q,g:h},j)=>{
-      if(j>i&&ov(g.body,h.body)){issues.push({lv:'err',ids:[p.id,q.id],msg:`${p.tag} ↔ ${q.tag}: 판넬 겹침`});mark(p.id,'err');mark(q.id,'err')}
+      if(j>i&&ov(g.body,h.body)){issues.push({lv:'err',ids:[p.id,q.id],msg:`${p.tag} 와 ${q.tag} 가 겹칩니다`,fix:'한쪽을 옮기세요 (목록을 누르면 두 판넬이 선택됩니다).'});mark(p.id,'err');mark(q.id,'err')}
       if(j!==i&&!ov(g.body,h.body)){
-        if(ov(g.fr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 전면 공간에 ${q.tag}`});mark(p.id,'warn')}
-        else if(ov(g.rr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 후면 공간에 ${q.tag}`});mark(p.id,'warn')}
+        if(ov(g.fr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 의 전면 유지보수 공간에 ${q.tag} 가 있습니다`,fix:`${p.tag} 전면에 ${fmt(g.t.front)} mm 를 비우세요.`});mark(p.id,'warn')}
+        else if(ov(g.rr,h.body)){issues.push({lv:'warn',ids:[p.id,q.id],msg:`${p.tag} 의 후면 유지보수 공간에 ${q.tag} 가 있습니다`,fix:`${p.tag} 후면에 ${fmt(g.t.rear)} mm 를 비우세요.`});mark(p.id,'warn')}
       }
     });
   });
@@ -473,7 +490,7 @@ function buildSummary(){
    <dt>권장 크기 수용</dt><dd style="color:var(${fitW?'--ok':'--warn'})">${sm.rec?(fitW?'가능':'실 크기 부족'):'–'}</dd>`;
   $('#counts').innerHTML=sm.by.map(o=>`<tr><td><span class="sw" style="background:${o.t.color}"></span>${esc(o.t.name)} <span class="muted">${o.t.w}×${o.t.d}</span></td><td>${o.n} EA</td></tr>`).join('');
   const ul=$('#issues'); ul.innerHTML='';
-  issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.textContent=i.msg;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
+  issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.innerHTML=`<span class="lv">${i.lv==='err'?'간섭':'경고'}</span>${esc(i.msg)}<span class="fix">→ ${esc(i.fix)}</span>`;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
 }
 function refresh(){check();buildSummary();buildProps();render();
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
@@ -629,7 +646,7 @@ $('#bReq').onclick=()=>{
   L.push(`   합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m2`);
   L.push('');
   L.push(`5. 배치 검토: 간섭 ${e}건, 경고 ${w}건`);
-  issues.slice(0,15).forEach(i=>L.push(`   - [${i.lv==='err'?'간섭':'경고'}] ${i.msg}`));
+  issues.slice(0,15).forEach(i=>L.push(`   - [${i.lv==='err'?'간섭':'경고'}] ${i.msg} → ${i.fix}`));
   L.push('');
   L.push('6. 요청 사항');
   L.push('   - 상기 필요 영역 기준으로 Room 초안 도면(CAD) 회신 요청');
@@ -675,7 +692,7 @@ $('#bDxf').onclick=()=>{
 };
 $('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),`ControlRoom_Layout_${today()}.json`,'application/json');
 $('#bLoad').onclick=()=>$('#fLoad').click();
-$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=d;sel.clear();commit();buildRoom();buildTypes();fit()}catch(err){openModal('불러오기 실패','이 툴에서 저장한 JSON 파일인지 확인하세요.','','x.txt','text/plain')}};r.readAsText(f);e.target.value=''};
+$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=d;sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
 
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildProps();
