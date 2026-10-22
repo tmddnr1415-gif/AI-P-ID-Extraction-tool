@@ -993,7 +993,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-22.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-22.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2480,6 +2480,13 @@ function renderApp(c, key) {
   c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}">
     <div class="pidbar"><b>${T}</b> · <a href="${esc(url.replace('embed=1&', ''))}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
     <div class="pidbody"><iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe></div></div>`);
+  $('#pidwrap iframe.pidframe').addEventListener('load', appAuth);
+}
+// 연결 앱에 로그인 토큰 전달 (서버 저장 · 노트의 작성자 확인용). file:// 사본은 앱 주소와 저장소가 달라 직접 못 읽으므로
+// postMessage 로, 받는 쪽을 앱 주소(= 대시보드 서버)로 한정해서 보낸다
+function appAuth() {
+  const f = $('#pidwrap iframe.pidframe'); if (!f || !APP_ROUTES[route]) return;
+  try { f.contentWindow.postMessage({ kind:'dept-auth', token:AUTH?.token || '', name:AUTH?.name || '' }, new URL(f.src).origin); } catch (_) {}
 }
 
 function render() {
@@ -2515,6 +2522,7 @@ function render() {
   if (keepPid && keepPid.dataset.route === route) {
     [...c.children].forEach(ch => { if (ch !== keepPid) ch.remove(); });
     keepPid.insertAdjacentHTML('beforebegin', banners);
+    appAuth();                                             // 로그인 · 로그아웃 뒤에도 앱이 같은 계정을 쓰게
     return;
   }
   c.innerHTML = banners;
