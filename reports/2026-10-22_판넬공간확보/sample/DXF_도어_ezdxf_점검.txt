@@ -1,0 +1,17 @@
+DXF 버전 AC1009 | $INSUNITS 4 | audit 오류 0 수정 0
+  CR-CLEARANCE     LINE  84
+  CR-DIM           LINE  8
+  CR-DIM           TEXT  4
+  CR-DOOR          ARC   15
+  CR-DOOR          LINE  15
+  CR-ENVELOPE      LINE  4
+  CR-PANEL         LINE  44
+  CR-PANEL-FRONT   LINE  11
+  CR-ROOM          LINE  4
+  CR-TEXT          TEXT  17
+  layers: ['CR-ROOM', 'CR-COLUMN', 'CR-PANEL', 'CR-PANEL-FRONT', 'CR-CLEARANCE', 'CR-ENVELOPE', 'CR-TEXT', 'CR-DIM', 'CR-DOOR', '0', 'Defpoints']
+  title: ROOM : -
+  title: REV : -   DATE : 2026-10-22   BY : 홍길동
+  title: REQUIRED 8,600 x 7,300   SPARE 0%   ->   RECOMMENDED ROOM 10,600 x 9,300
+  title: CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)
+png /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/a7205710-32e3-5f5a-a137-6ba27dd5ef44/scratchpad/door2/dxf_render.png

@@ -921,3 +921,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 확인한 것: `node --check`. 임시 서버 + Chromium: 도어 시험 배치(L · R · 양개 · 1200 단문 · 후면만 · 벽 옆) → 경고 3건 기대대로, DXF ezdxf audit 오류 0 · ARC 15 = 문짝 수 · 각도 확인, 도어 없는 예전 시나리오 권장 실 23,400 × 10,600 그대로, 외부 요청 0건.
 - 회사에서 확인할 것: AutoCAD 에서 CR-DOOR 호의 방향(힌지 쪽)이 화면과 같은지, L/R 기준(앞에서 볼 때)이 부서 관례와 맞는지.
 
+### 2026-10-22 (9) — 판넬 공간확보: DXF Layer 색을 화면과 같은 톤으로 (apps/space/index.html 만)
+- 무엇을: 요청 "DXF 출력도 너무 눈부시다. UI 와 같은 색감으로". 원색(빨강 1 · 노랑 2 · 초록 3 · 자홍 6 · 순백 7)을 화면 색에 가장 가까운 ACI 로.
+  CR-ROOM 254 · CR-COLUMN 8 · CR-PANEL 253 · CR-PANEL-FRONT 254 · CR-CLEARANCE 43 · CR-ENVELOPE 161 · CR-TEXT 9 · CR-DIM 151 · CR-DOOR 133. Layer 이름 · 도형은 그대로.
+- 바뀐 곳: `$('#bDxf').onclick` 의 `layers`.
+- 확인한 것: ezdxf audit 오류 0, Layer 색 읽어 확인, 화면 바탕색(#212830)으로 그려 비교.
+- 회사에서 확인할 것: AutoCAD 바탕이 흰색이면 회색 선(254 · 9)이 흐릴 수 있음 — 그 경우 CR-ROOM · CR-TEXT 를 7 로 되돌리면 됨.
