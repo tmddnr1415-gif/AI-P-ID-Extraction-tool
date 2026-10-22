@@ -991,8 +991,67 @@ function ghostly(img) {                      // 유령 — 희푸르게
 }
 // 목검을 휘두른다 — 바라보는 쪽으로 반원을 긋고 흰 칼바람을 남긴다
 const BASE_ANG = { 0: Math.PI / 2, 1: -Math.PI / 2, 2: Math.PI, 3: 0 };
+/* 무기별 휘두르기 (2026-10-22 판8): 손에 낀 도구를 실제로 휘두르고, 효과는 도구 성질대로
+ *  둔기(렌치 · 단자대 · 압력계 …) = 무거운 호 + 쾅 충격파 · 불똥 / 찌르기(드라이버) = 앞으로 찌름 + 별빛
+ *  채찍(케이블 드럼 · 계장 케이블 · 튜브) = 케이블이 앞으로 휘감겨 '찰싹' / 전기(HART · 멀티미터 · 교정기 · 노트북 · DCS 카드) = 번개
+ *  전파(무전기) = 퍼지는 전파 고리 / 분사(교정 펌프) = 앞으로 뿜는 물안개 / 종이(점검표) = 종이 휘두르기 + 종잇조각 */
+const WPN = { WRENCH:"blunt", TB:"blunt", GLAND:"blunt", PG:"blunt", POSITIONER:"blunt", SCREW:"stab", SPOOL:"whip", ICABLE:"whip", AIRTUBE:"whip", IMPULSE:"whip",
+  HART:"zap", MULTI:"zap", CALIB:"zap", LAPTOP:"zap", DCSCARD:"zap", RADIO:"wave", CALPUMP:"spray", CHECK:"paper" };
+const WHIP_COL = { SPOOL:["#e8622a", "#8a2a10"], ICABLE:["#2a2a30", "#d8322a"], AIRTUBE:["#3d8bff", "#1a4a9a"], IMPULSE:["#c9d4e0", "#6e7a8a"] };
+let SWING_A = null;                             // 지금 그리는 캐릭터 (drawActorBody 가 정함)
+function drawWeaponSwing(g, px, py, dir, k, it) {
+  const kind = WPN[it.k] || "blunt", side = dir === 2 ? -1 : 1, base = BASE_ANG[dir], [dx, dy] = DIRV[dir] || [0, 1];
+  const s1 = eps("i_" + it.k, false, 1), glow = RARE_COL[it.r] || "#ffffff", ease = 1 - Math.pow(1 - k, 3);
+  const tx = px + dx * 34, ty = py + dy * 26;                      // 맞는 곳 (앞 칸)
+  const icon = (x, y, ang, sc = 1) => { if (!s1) return; g.save(); g.translate(x, y); g.rotate(ang); g.scale(sc, sc); g.drawImage(s1, -s1.width / 2, -s1.height * .8); g.restore(); };
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  if (kind === "blunt") {                                          // 무거운 호 → 끝에서 쾅
+    const span = 1.5, ang = base - side * span + side * 2 * span * ease;
+    g.globalAlpha = .55 * (1 - k * .5); g.strokeStyle = it.r >= 2 ? glow : "#ffe1b0"; g.lineWidth = 8;
+    g.beginPath(); g.arc(px, py, 28, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+    g.globalAlpha = 1; icon(px + Math.cos(ang) * 22, py + Math.sin(ang) * 22, ang + Math.PI / 2, 1.15);
+    if (k > .55) { const q = (k - .55) / .45; g.globalAlpha = 1 - q; g.strokeStyle = "#ffb347"; g.lineWidth = 3; g.beginPath(); g.arc(tx, ty, 6 + q * 18, 0, Math.PI * 2); g.stroke();
+      if (q < .3) for (let i = 0; i < 4; i++) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 150, (Math.random() - .8) * 120, 420, i % 2 ? "#fff3a0" : "#ff8a3c", 2); }
+  } else if (kind === "stab") {                                    // 찌르기 — 앞으로 쭉 · 별빛
+    const reach = Math.sin(Math.min(1, k * 1.6) * Math.PI) * 26;
+    g.globalAlpha = .6 * (1 - k); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.beginPath(); g.moveTo(px, py); g.lineTo(px + dx * (reach + 14), py + dy * (reach + 10)); g.stroke();
+    g.globalAlpha = 1; icon(px + dx * reach, py + dy * reach * .8, base + Math.PI / 2, 1.1);
+    if (k > .3 && k < .7) { g.fillStyle = "#ffffff"; const x = px + dx * (reach + 16), y = py + dy * (reach + 12); g.fillRect(x - 1, y - 6, 2, 12); g.fillRect(x - 6, y - 1, 12, 2); }
+  } else if (kind === "whip") {                                    // 케이블 채찍 — 앞으로 휘감겨 찰싹
+    const [c1, c2] = WHIP_COL[it.k] || WHIP_COL.SPOOL, L = 18 + 30 * Math.sin(Math.min(1, k * 1.3) * Math.PI / 2), wv = Math.sin(k * 14) * 10 * (1 - k);
+    const ex = px + dx * L, ey = py + dy * L * .8, mx = px + dx * L * .5 + (dy ? wv : 0), my = py + dy * L * .4 + (dx ? wv : 0) - 6;
+    g.globalAlpha = 1; for (const [w, c] of [[5, c2], [3, c1]]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(mx, my, ex, ey); g.stroke(); }
+    icon(px - dx * 4, py - dy * 3, 0, .9);
+    if (k > .6) { const q = (k - .6) / .4; g.globalAlpha = 1 - q; g.strokeStyle = "#ffffff"; g.lineWidth = 2; for (let i = 0; i < 5; i++) { const a2 = i / 5 * Math.PI * 2; g.beginPath(); g.moveTo(ex + Math.cos(a2) * 4, ey + Math.sin(a2) * 4); g.lineTo(ex + Math.cos(a2) * (8 + q * 10), ey + Math.sin(a2) * (8 + q * 10)); g.stroke(); } }
+  } else if (kind === "zap") {                                     // 전기 — 도구를 내밀고 번개
+    g.globalAlpha = 1; icon(px + dx * 8, py + dy * 6, 0, 1);
+    if (k > .15) { g.globalAlpha = 1 - k * .7;
+      for (const [w, c] of [[6, "rgba(120,220,255,.45)"], [2, "#eaffff"]]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(px + dx * 12, py + dy * 8);
+        for (let i = 1; i < 6; i++) { const t = i / 6, j = ((i * 37 + Math.floor(k * 20) * 13) % 11 - 5) * 1.6; g.lineTo(px + dx * (12 + 26 * t) + (dy ? j : 0), py + dy * (8 + 22 * t) + (dx ? j : 0)); }
+        g.lineTo(tx, ty); g.stroke(); }
+      const gr = g.createRadialGradient(tx, ty, 1, tx, ty, 14); gr.addColorStop(0, "rgba(255,255,255,.95)"); gr.addColorStop(.4, "rgba(150,230,255,.7)"); gr.addColorStop(1, "rgba(80,180,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(tx, ty, 14, 0, Math.PI * 2); g.fill();   // 맞은 곳 — 파란 전기 빛
+      if (Math.random() < .5) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 120, (Math.random() - .5) * 120, 300, "#bff6ff", 2); }
+  } else if (kind === "wave") {                                    // 무전기 — 퍼지는 전파
+    g.globalAlpha = 1; icon(px + dx * 6, py + dy * 4, 0, 1);
+    for (let i = 0; i < 3; i++) { const q = (k * 1.4 - i * .25); if (q < 0 || q > 1) continue; g.globalAlpha = 1 - q; g.strokeStyle = "#9fe8ff"; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(px, py, 10 + q * 30, base - .7, base + .7); g.stroke(); }
+  } else if (kind === "spray") {                                   // 교정 펌프 — 물안개 분사
+    g.globalAlpha = 1; icon(px + dx * 6, py + dy * 4, 0, 1);
+    if (k < .7) for (let i = 0; i < 3; i++) puff(px + cvCam(0) + dx * 10, py + cvCam(1) + dy * 8, dx * (110 + Math.random() * 60) + (Math.random() - .5) * 50, dy * (90 + Math.random() * 50) + (Math.random() - .5) * 50, 380, Math.random() < .5 ? "#dff4ff" : "#9fd0ff", 2);
+  } else {                                                         // 점검표 — 종이 휘두르기
+    const span = 1.2, ang = base - side * span + side * 2 * span * ease;
+    g.globalAlpha = .5 * (1 - k); g.strokeStyle = "#ffffff"; g.lineWidth = 6; g.beginPath(); g.arc(px, py, 24, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
+    g.globalAlpha = 1; icon(px + Math.cos(ang) * 18, py + Math.sin(ang) * 18, ang + Math.PI / 2, 1);
+    if (k > .5 && Math.random() < .4) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 80, -40 - Math.random() * 40, 600, "#f4f6fb", 2);
+  }
+  if (it.r >= 2 && k < .8) { g.globalAlpha = .35 * (1 - k); g.fillStyle = glow; g.beginPath(); g.arc(tx, ty, 10, 0, Math.PI * 2); g.fill(); }   // 희귀 · 전설 = 맞는 곳 빛
+  g.restore();
+}
+const cvCam = i => (S.cam ? S.cam[i] : 0);         // 화면 좌표 → 세계 좌표 (입자용)
 function drawSwing(g, sx, sy, dir, k, gold) {   // gold = 고양이 기사의 황금 검
   const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 12 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
+  const wp = SWING_A?.equip?.hand; if (wp) return drawWeaponSwing(g, px, py, dir, k, wp);   // 손에 낀 도구가 있으면 그 도구로
   const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
   const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
   g.save();
@@ -1295,13 +1354,29 @@ function rareTint(s1, r) {                    // 끼운 안전모 — 등급 색
   g.globalCompositeOperation = "source-atop"; g.globalAlpha = .5; g.fillStyle = ["#ffd23a", "#3fc95a", "#3d8bff", "#ffb02e"][r] || "#ffd23a"; g.fillRect(0, 0, c.width, c.height);
   m.set(r, c); return c;
 }
-function drawEquip(g, a, sx, sy, now) {      // 몸(조끼) · 머리(안전모) 를 캐릭터 그림 위에 · 손 도구는 drawHeld
+const vestCache = new Map();
+function vestTint(spr, r) {                   // 안전 조끼 — 캐릭터 몸통(키의 42~80%, 가운데 68%)을 형광 주황 + 반사띠 두 줄로 (그림을 덧붙이지 않고 몸에 입힘)
+  let m = vestCache.get(spr); if (!m) vestCache.set(spr, m = new Map()); if (m.has(r)) return m.get(r);
+  const c = canvas(spr.width, spr.height), g = c.getContext("2d"); g.drawImage(spr, 0, 0);
+  const H = c.height, W = c.width, y0 = Math.round(H * .42), y1 = Math.round(H * .8), x0 = Math.round(W * .16), x1 = Math.round(W * .84);
+  const d = g.getImageData(0, 0, W, H), D = d.data, s1 = Math.round(H * .53 / PX) * PX, s2 = Math.round(H * .66 / PX) * PX, band = [s1, s2];
+  const stripe = r >= 3 ? [255, 236, 140] : [226, 236, 222];
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * W + x) * 4; if (D[i + 3] < 128) continue;
+    const R = D[i], G = D[i + 1], B = D[i + 2], l = (R * 3 + G * 6 + B) / 10; if (l < 46) continue;          // 외곽선은 그대로
+    const sb = band.some(b => y >= b && y < b + PX), k = .62 + .38 * Math.min(1, l / 200);
+    if (sb) { D[i] = stripe[0]; D[i + 1] = stripe[1]; D[i + 2] = stripe[2]; } else { D[i] = 255 * k; D[i + 1] = 118 * k; D[i + 2] = 24 * k; } }
+  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); return c;
+}
+function dress(spr, a, epc) {                 // 끼운 것을 그림에 입힘 — 몸 = 조끼 색, 머리 = (EPC) 자기 안전모 색
+  if (!spr || !a.equip || a.ghost) return spr;
+  let s1 = spr; if (epc && a.equip.head) s1 = helmTint(s1, a.equip.head.r); if (a.equip.body) s1 = vestTint(s1, a.equip.body.r); return s1;
+}
+function drawEquip(g, a, sx, sy, now) {      // 머리(안전모 없는 캐릭터) · 반짝이 — 조끼 · EPC 안전모는 dress() 가 그림에 입힘, 손 도구는 drawHeld
   const E = a.equip; if (!E || a.ghost) return;
-  const top = a._top ?? (sy + 28 - 64), h = a._h || 64, cx = sx + 16 + (a._ox || 0);
-  if (E.body) { const s1 = eps("i_" + E.body.k, false, 1);
-    if (s1) { g.save(); g.globalAlpha = .93; g.drawImage(s1, Math.round(cx - s1.width / 2), Math.round(top + h * .58 - s1.height / 2)); g.restore(); } }
-  if (E.head && !a._epc) { const s0 = eps("i_" + E.head.k, false, 1);   // 안전모 없는 캐릭터(고양이 기사 · 마을) — 머리 위에 작은 안전모
-    if (s0) { const s1 = rareTint(s0, E.head.r); g.drawImage(s1, Math.round(cx - s1.width / 2), Math.round(top - s1.height * .45)); } }
+  const top = a._top ?? (sy + 28 - 64), h = a._h || 64, w = a._w || 40, cx = sx + 16 + (a._ox || 0);
+  if (E.head && !a._epc) { const s0 = eps("i_" + E.head.k, false, 2);   // 안전모 없는 캐릭터(고양이 기사 · 마을 · 노비) — 머리 폭에 맞춘 안전모를 머리 위에
+    if (s0) { const s1 = rareTint(s0, E.head.r), ww = Math.round(Math.min(w * .78, h * .62)), hh = Math.round(ww * s1.height / s1.width);
+      g.drawImage(s1, Math.round(cx - ww / 2), Math.round(top - hh * .42), ww, hh); } }
   const best = Math.max(...Object.values(E).map(i => i.r));
   if (best >= 2 && Math.random() < .25) puff(a.x + 4 + Math.random() * 24, a.y + 30 - Math.random() * 50, 0, -18, 700, RARE_COL[best], 2);   // 희귀 · 전설 착용 = 반짝이
 }
@@ -1309,10 +1384,11 @@ function drawHeld(g, a, sx, sy, now) {        // 손에 낀 도구 — 캐릭터
   const it = a.equip?.hand; if (!it || a.ghost || (a === S.me ? S.work : a.work) || (a.attack && now - a.attack < ATK_MS)) return;
   const s1 = eps("i_" + it.k, false, 1); if (!s1) return;
   const side = a.dir === 2 ? -1 : 1, bob = Math.round(Math.sin(now / 300 + hash(a.name) % 7) * 1.5);
-  const top = a._top ?? (sy + 28 - 64), h = a._h || 64;
-  const x = Math.round(sx + 16 + (a._ox || 0) + side * (h * .26) - s1.width / 2), y = Math.round(top + h * .66 - s1.height * .75) + bob;   // 손 높이 (몸통 아래쪽)
-  if (it.r >= 2) { g.save(); g.globalAlpha = .35 + .2 * Math.sin(now / 200); ell(g, x + s1.width / 2, y + s1.height / 2, s1.width / 2 + 4, s1.height / 2 + 4, RARE_COL[it.r]); g.restore(); }
-  g.drawImage(s1, x, y);
+  const top = a._top ?? (sy + 28 - 64), h = a._h || 64, w = a._w || 40;
+  const z = Math.min(1, h * .36 / Math.max(s1.width, s1.height)), iw = Math.round(s1.width * z), ih = Math.round(s1.height * z);   // 키의 36% 크기로 (작은 캐릭터면 줄임)
+  const x = Math.round(sx + 16 + (a._ox || 0) + side * (w * .46) - iw / 2), y = Math.round(top + h * .64 - ih * .7) + bob;   // 몸 옆 손 높이 (몸통을 가리지 않음)
+  if (it.r >= 2) { g.save(); g.globalAlpha = .3 + .15 * Math.sin(now / 200); ell(g, x + iw / 2, y + ih / 2, iw / 2 + 3, ih / 2 + 3, RARE_COL[it.r]); g.restore(); }
+  g.drawImage(s1, x, y, iw, ih);
 }
 function hudPortrait() {                     // 내 직무 초상 (유닛장은 사자)
   const c = document.getElementById("hud-face"); if (!c || !EPC.ready) return;
@@ -1805,7 +1881,7 @@ function drawActor(g, a, sx, sy, now) {
   if (a === S.me && a.moving && a.running && Math.random() < .5) puff(a.x + 16, a.y + 28, (Math.random() - .5) * 20, -6, 400, "#9aa6b1");   // 흙먼지
 }
 function drawActorBody(g, a, sx, sy, now) {
-  a._epc = false;
+  a._epc = false; SWING_A = a;
   const k = a.moving ? Math.min(1, (now - a.t0) / (a.stepMs || STEP_MS)) : 0;
   const fr = a.moving && k > .15 && k < .85 ? (a.steps % 2 ? 1 : 2) : 0;
   const atk = a.attack && now - a.attack < ATK_MS ? (now - a.attack) / ATK_MS : -1;
@@ -1824,40 +1900,40 @@ function drawActorBody(g, a, sx, sy, now) {
     drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
     ell(g, sx + 16, sy + 28, 12, 4, "rgba(5,10,20,.45)");
     const w = a === S.me ? S.work : a.work, nm = epcPose(epcWho(a, F), a, now, atk, hit, w, hash(a.name) % 4200), spr0 = eps(nm, a.dir === 2);
-    const spr = a.equip?.head ? helmTint(spr0, a.equip.head.r) : spr0; a._epc = true;   // 낀 안전모 = 캐릭터 자기 안전모를 등급 색으로
+    const spr = dress(spr0, a, true); a._epc = true;   // 낀 안전모 = 자기 안전모를 등급 색으로 · 낀 조끼 = 몸통 색
     const bob = !a.moving && !w && atk < 0 && Math.floor((now + hash(a.name) % 1600) / 800) % 2 ? -PX : 0;
     if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
     if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
     return;
   }
   if (isChr(F)) {                            // 마을 시트 캐릭터 — 대기 칸 번갈아 · 걷기 칸 · 옆 칸 · 공격 칸
     drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
     ell(g, sx + 16, sy + 28, 12, 4, "rgba(40,20,5,.3)");
-    const K = KIND_FR[F.kind], [nm, mir] = chrPose(K, a, now, atk, hash(a.name) % 650), spr = chrSprite(nm, mir);
+    const K = KIND_FR[F.kind], [nm, mir] = chrPose(K, a, now, atk, hash(a.name) % 650), spr = dress(chrSprite(nm, mir), a);
     const bob = a.moving && a.dir < 2 && fr ? -PX : 0;
-    if (atk >= 0 && !K.a && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
-    if (atk >= 0 && !K.a && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);   // 공격 칸이 없는 노비는 예전 휘두르기
+    if (atk >= 0 && (!K.a || a.equip?.hand) && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
+    if (atk >= 0 && (!K.a || a.equip?.hand) && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);   // 공격 칸이 없는 노비는 예전 휘두르기
     return;
   }
   if (isCat(F)) {                            // 고양이 기사 — 시트의 포즈 (서기 · 걷기 · 공격 · 피격)
     drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
     ell(g, sx + 16, sy + 28, 13, 5, "rgba(40,20,5,.3)");
-    const side = a.dir >= 2, [nm, mir] = catPose(a, now, atk, hit), spr = catSprite(F, nm, mir);
+    const side = a.dir >= 2, [nm, mir] = catPose(a, now, atk, hit), spr = dress(catSprite(F, nm, mir), a);
     let bob = 0;
     if (a.moving && !side) bob = fr ? -PX : 0;                                          // 위 · 아래로 걸을 때 한 점 들썩
     else if (!a.moving && atk < 0) bob = Math.floor((now + (hash(a.name) % 1600)) / 800) % 2 ? -PX : 0;   // 서 있을 때 숨쉬기 (한 점)
     if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);
     g.drawImage(nm !== "hurt" && hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
-                Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
-    if (atk >= 0 && a.dir === 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);    // 옆 공격은 시트의 칼바람 칸이 그림
+                Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
+    if (atk >= 0 && (a.dir === 0 || (a.equip?.hand && a.dir !== 1))) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);    // 옆 공격은 시트의 칼바람 칸이 그림
     return;
   }
   drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
   ell(g, sx + 16, sy + 28, 14, 5, "rgba(40,20,5,.3)");
   if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-  const spr = charSprite(F, a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0);   // 휘두를 때는 손의 목검 대신 drawSwing
+  const spr = dress(charSprite(F, a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0), a);   // 휘두를 때는 손의 목검 대신 drawSwing
   g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
               sx + 16 - spr.width / 2 + ox, sy + 28 - FOOT - (fr && atk < 0 ? 1 : 0) + oy);
   if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
