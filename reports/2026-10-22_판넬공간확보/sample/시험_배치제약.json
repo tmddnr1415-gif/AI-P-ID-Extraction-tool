@@ -1,0 +1,1 @@
+{"room": {"w": 15000, "l": 10000, "spX": "7500,7500", "spY": "5000,5000", "col": 600, "margin": 1000}, "snap": 100, "types": [{"id": "a", "name": "Cabinet A", "pre": "A-", "w": 800, "d": 600, "h": 2100, "front": 1000, "rear": 800, "color": "#2f6db5", "door": "front", "hinge": "L"}], "panels": [{"id": "p1", "type": "a", "tag": "A-01", "desc": "", "x": 1000, "y": 4000, "rot": 0}]}
