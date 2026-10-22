@@ -197,6 +197,17 @@ try:
     inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
     ok.append(("교환 — 수락하면 서로 바뀜 · 파일에 남음", st6 == 200 and give in [i["id"] for i in inv["고수"]] and want in [i["id"] for i in inv["마법사"]]
                and give not in [i["id"] for i in inv["마법사"]]))
+    # 2026-10-22 판6: 들기 · 내려놓기
+    inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
+    hid = inv["고수"][0]["id"]
+    _, hd = call("/plaza/api/hold", {"id": g1["id"], "item": hid}, S1)
+    ok.append(("아이템 들기 — 손에 든 것이 모두에게 보임", hd.get("held", {}).get("id") == hid))
+    ok.append(("내려놓기 — 남의 아이템은 안 됨", call("/plaza/api/drop", {"id": g2["id"], "item": hid}, S2)[0] == 404))
+    _, dr = call("/plaza/api/drop", {"id": g1["id"], "item": hid}, S1)
+    ok.append(("내려놓기 — 선 자리에 떨어짐 · 가방에서 빠짐", dr.get("item", {}).get("id") == hid and call("/plaza/api/hold", {"id": g1["id"], "item": hid}, S1)[1].get("held") is None))
+    time.sleep(0.9)                                            # 떨어진 직후 0.8초는 못 주움
+    _, pk2 = call("/plaza/api/pickup", {"id": g1["id"]}, S1)
+    ok.append(("내려놓은 것을 Z 로 다시 주움", any(i["id"] == hid for i in pk2.get("picked", []))))
     ok.append(("교환 — 끝난 제안은 다시 못 씀", call("/plaza/api/trade", {"id": g1["id"], "op": "accept", "tid": t1.get("tid")}, S1)[0] == 404))
     ok.append(("기술 정보 — 설비 목록에 같이", call("/plaza/api/equip")[1].get("skills", {}).get("aid", {}).get("mp") == 20))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))

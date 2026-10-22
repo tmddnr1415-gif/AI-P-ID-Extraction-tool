@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.5'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.6'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -574,6 +574,42 @@ def drop_items(q: dict, now: float) -> list:       # LOCK 안에서 — 가방�
     return list(lost)
 
 
+def api_hold(body: dict) -> dict:                 # 가방에서 아이템 하나를 '들기' (손에 보임 · 모두에게) — item 없으면 내려놓음
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = time.time()
+        iid = body.get("item")
+        held = next((i for i in bag(p["name"]) if iid is not None and i["id"] == iid), None)
+        p["held"] = held["id"] if held else None
+        STATE["ver"] += 1
+    return {"ok": True, "held": held}
+
+
+def api_drop(body: dict) -> dict:                 # X — 든(고른) 아이템을 선 자리에 떨어뜨림 (남이 Z 로 주울 수 있음)
+    now = time.time()
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        if hp_p(p) <= 0:
+            raise ApiError(400, "유령은 떨어뜨릴 수 없습니다.")
+        b = ITEMS["inv"].setdefault(p["name"], [])
+        it = next((i for i in b if i["id"] == body.get("item")), None)
+        if it is None:
+            raise ApiError(404, "가방에 없는 아이템입니다.")
+        b.remove(it)
+        ITEMS["seq"] += 1
+        ITEMS["ground"].append({"id": ITEMS["seq"], "item": it, "x": p["x"], "y": p["y"], "at": now})
+        del ITEMS["ground"][:-GROUND_MAX]
+        ITEMS["dirty"] = True
+        if p.get("held") == it["id"]:
+            p["held"] = None
+        for tid in [t for t, v in TRADES.items() if p["name"] in (v["from"], v["to"])]:
+            TRADES.pop(tid)
+        log_system(f"{p['name']} 님이 {item_txt(it)} 을(를) 내려놓았습니다.", now)
+        STATE["ver"] += 1
+    return {"ok": True, "item": it}
+
+
 def api_pickup(body: dict) -> dict:               # Z — 선 칸과 둘레(PICK_DIST)의 아이템을 가까운 것부터, 가방이 찰 때까지
     now = time.time()
     with LOCK:
@@ -815,6 +851,7 @@ def snapshot(now: float | None = None) -> dict:
                 "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2), "heal_amt": p.get("heal_amt", 1),
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
                 "items": [dict(i) for i in bag(p["name"])], "atk": power(p["name"])[0], "matk": power(p["name"])[1],
+                "held": next((dict(i) for i in bag(p["name"]) if i["id"] == p.get("held")), None),
                 "trade_age": round(now - p.get("trade_at", 0), 2), "skill_to": p.get("skill_to"), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
                 "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
             })
@@ -1122,7 +1159,7 @@ def api_leave(body: dict) -> dict:
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
-         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup,
+         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup, "/plaza/api/hold": api_hold, "/plaza/api/drop": api_drop,
          "/plaza/api/trade": api_trade}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),

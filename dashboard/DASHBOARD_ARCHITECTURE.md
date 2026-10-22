@@ -890,3 +890,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 9 담당자별 담당 PJT 수(홈): 한 막대에 **수행(파랑) · 입찰(주황)** 을 쌓고 끝에 '5 (3 + 2)', 막대 조각에 마우스 = 그쪽 PJT 만, 이름 · 줄 = '■ 수행 n건 … ■ 입찰 n건 …' 로 나눠서. 제목 옆 범례. 바뀐 곳: `PJ_COL` · `svgBars`(parts) · `renderHome`.
 - 확인한 것: `py_compile`, JS 문법(`node --check`, 스크립트 부분), 임시 폴더 서버(사본 데이터)로 브라우저: 기술공유 · 통합 업무 기술공유 최신순, ◀ 숨기기 → 새로고침해도 숨김 · ☰ 메뉴로 열림, 열 숨기기(▾ · 선택 열) → 숨긴 열 줄 · ◂ 표시 · 다시 보이기, Shift+→→↓ = 6 칸 · 복사 글/HTML 표, 머리글 클릭 = 열 · Shift = 2 열, 작업 칸 = 행, 끌기 = 15 칸, 구종현(서버 PC 아님) 금주 마감 단추 보임 · ⚙ 안 보임 · Management 보임 · `admin/perms` 403 / 일반 부서원 금주 마감 403, 게시판 피드, 홈 배치, LNG/수소 툴팁, 수행/입찰 막대 툴팁, 스크립트 오류 없음.
 - 회사에서 확인할 것: 엑셀에 붙여넣기(표 모양 · 칸 안 줄바꿈). 구종현 계정의 본명이 정확히 '구종현' 이어야 함(띄어쓰기 없이) — 다르면 server.py `SUPER_NAMES` 를 고침.
+
+### 2026-10-22 (7) — 계장 광장: 아이템 들기(선택) · 내려놓기 · 단축키 판 · 얼굴 바꾸기 점검(머리 그리드 안 숨던 것 고침) (PLAZA_VERSION 2026-10-22.6 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 (대시보드 서버가 30초 안에 새 판 광장으로 바꿈) → 적용 후 30초 뒤 Ctrl+F5.
+- 아이템 들기(선택): 상태판 가방 칸을 누르거나 **Q**(가방의 다음 것, 끝이면 내려놓은 상태) → 든 아이템은 노란 테두리 · 상태판 '🖐 들고 있음: …' · 캐릭터 손 옆에 그림(모두에게 보임, 희귀 이상은 빛). **X** = 든 아이템을 선 자리에 내려놓음(남이 Z 로 주움 · 0.8초 뒤부터). 교환 판을 열면 든 아이템이 '줄 것'에 미리 골라짐. 서버 POST `/plaza/api/hold` `{item}` (없으면 내려놓음) · POST `/plaza/api/drop` `{item}` · snapshot players 에 `held`.
+- 단축키 판: **H · ?** 또는 오른쪽 아래 '⌨ 단축키' 단추 — 걷기 · 달리기 · E · Space · 1~4 기술(마나 · 식) · Q · X · Z · Enter · 사람 클릭 · R. Esc 로 닫음. 판이 열려 있으면 키가 캐릭터로 안 감.
+- 얼굴 바꾸기 점검(브라우저로 8 종류 × 저장 · 새로고침 · 취소 · 사람 머리 10 종): 저장 · 유지 · 취소 모두 정상. **고친 것**: 사람(머리 모양 그리드)에서 다른 종류로 넘기면 머리 그리드가 그대로 보이던 것 — `.pz-hairs{display:grid}` 가 `hidden` 을 이김 → CSS `[hidden]{display:none!important}`.
+- 마법 · 기술: 1~4 키와 기술 칸 클릭 둘 다 됨을 다시 확인(앞에 사람이 없거나 체력이 가득하면 마나 안 씀). 바뀐 곳: plaza_server.py `PLAZA_VERSION` `api_hold` `api_drop` · snapshot(held) · POSTS. plaza.js `S.held` `holdItem` `holdNext` `dropHeld` `drawHeld` `KEY_ROWS` `toggleKeys` · `updateHud`(가방 칸 클릭 · hud-held) · `epcFields`(heldItem) · `drawActor` · `openTrade` · 키 Q · X · H · ?. plaza.html 가방 안내 · `#hud-held` · `#pz-keys` · '⌨ 단축키'. plaza.css 같은 것 + `[hidden]`. selftest.py 들기 · 내려놓기 · 다시 줍기.
+- 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저 두 사람: 가방 칸 클릭 → 들림 · 상대 화면에 손 옆 그림, Q 두 번(다음 → 없음), X · Z, 1~4 (전기 충격 55→40 · 현장 지원 → 11 · 상대 +17), H → 15 줄 판 → Esc, 단추로 열기, 사람 → 고양이 양반에서 머리 그리드 숨김, 교환 판 미리 선택, 스크립트 오류 없음.

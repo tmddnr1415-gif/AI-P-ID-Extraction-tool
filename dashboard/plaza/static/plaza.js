@@ -1247,6 +1247,32 @@ function paintIcons() {                       // 상태판 · 도구칸의 작�
   }
 }
 let hudIcons = false, hudFace = "", hudInv = null;
+/* 아이템 들기 · 내려놓기 (2026-10-22 판6): 가방 칸 클릭 또는 Q(다음 것) → 손에 보임(모두에게) · X → 선 자리에 내려놓음 (Z 로 다시 주움) */
+S.held = null;
+async function holdItem(id) {
+  if (!S.me) return;
+  try { const r = await post("/plaza/api/hold", { id: S.id, item: id }); S.held = r.held ? r.held.id : null; S.me.heldItem = r.held || null; hudInv = null;
+    if (r.held) floater(S.me, `🖐 ${itemName(r.held)}`, RARE_COL[r.held.r] || "#ffe066", 900); }
+  catch (e) { floater(S.me, String(e.message || e).slice(0, 24), "#c9d4e0", 1200); }
+}
+function holdNext() {                        // Q — 가방의 다음 아이템 (끝이면 내려놓은 상태)
+  const items = S.me?.items || []; if (!items.length) { floater(S.me, "가방이 비었습니다", "#c9d4e0", 900); return; }
+  const i = items.findIndex(x => x.id === S.held); holdItem(i + 1 < items.length ? items[i + 1].id : i === items.length - 1 ? null : items[0].id);
+}
+async function dropHeld() {
+  if (!S.me || S.me.ghost) return;
+  const it = (S.me.items || []).find(i => i.id === S.held); if (!it) { floater(S.me, "먼저 가방 칸을 누르거나 Q 로 아이템을 드세요", "#c9d4e0", 1300); return; }
+  try { await post("/plaza/api/drop", { id: S.id, item: it.id }); S.held = null; S.me.heldItem = null; hudInv = null; floater(S.me, `⬇ ${itemName(it)} 내려놓음`, "#ffe066", 1100); }
+  catch (e) { floater(S.me, String(e.message || e).slice(0, 24), "#c9d4e0", 1200); }
+}
+function drawHeld(g, a, sx, sy, now) {        // 손에 든 아이템 — 캐릭터 옆 (작업 · 공격 중엔 안 보임)
+  const it = a.heldItem; if (!it || a.ghost || (a === S.me ? S.work : a.work) || (a.attack && now - a.attack < ATK_MS)) return;
+  const s1 = eps("i_" + it.k, false, 1); if (!s1) return;
+  const side = a.dir === 2 ? -1 : 1, bob = Math.round(Math.sin(now / 300 + hash(a.name) % 7) * 1.5);
+  const x = Math.round(sx + 16 + side * 13 - s1.width / 2), y = Math.round(sy + 28 - HEAD_PX + 12 - s1.height / 2) + bob;
+  if (it.r >= 2) { g.save(); g.globalAlpha = .35 + .2 * Math.sin(now / 200); ell(g, x + s1.width / 2, y + s1.height / 2, s1.width / 2 + 4, s1.height / 2 + 4, RARE_COL[it.r]); g.restore(); }
+  g.drawImage(s1, x, y);
+}
 function hudPortrait() {                     // 내 직무 초상 (유닛장은 사자)
   const c = document.getElementById("hud-face"); if (!c || !EPC.ready) return;
   const who = S.role === "unit" ? "lion" : JOB_CHAR[S.me.job ?? 0] || "cat"; if (who === hudFace) return; hudFace = who;
@@ -1265,7 +1291,8 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
   const ik = (S.me.items || []).map(i => i.id).join(",");
   if (ik !== hudInv && EPC.ready) { hudInv = ik; const box = document.getElementById("hud-inv");   // 가방 8 칸 (등급 색 테두리)
     if (box) { box.textContent = ""; for (let i = 0; i < 8; i++) { const it = (S.me.items || [])[i], c = it ? itemIcon(it, 22) : document.createElement("canvas");
-      if (!it) c.width = c.height = 22; c.className = it ? "on" : ""; box.append(c); } } }
+      if (!it) c.width = c.height = 22; c.className = (it ? "on" : "") + (it && S.held === it.id ? " held" : ""); if (it) { c.title += " — 누르면 들기 (X 내려놓기)"; c.onclick = () => holdItem(S.held === it.id ? null : it.id); } box.append(c); } } }
+  set("hud-held", S.held && (S.me.items || []).find(i => i.id === S.held) ? `🖐 들고 있음: ${itemFull((S.me.items || []).find(i => i.id === S.held))}  (X 내려놓기)` : (S.me.items || []).length ? "가방 칸을 누르거나 Q 로 아이템을 듭니다" : "");
   set("hud-pow", `⚔ 공격력 ${S.me.atk || 0}  ✦ 마법 ${S.me.matk || 0}  · 평타 ${1 + Math.floor((S.me.atk || 0) / 10)}`);
   bar("hud-mp", (S.me.mp ?? 0) / (S.me.mpMax || 50)); set("hud-mpt", `${S.me.mp ?? 0}/${S.me.mpMax || 50}`);
   updateSkillBar(now);
@@ -1352,6 +1379,8 @@ function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오
   if (a === S.me && a.items && !a.ghost) { const had = new Set(a.items.map(i => i.id));   // 주움 · 교환으로 받음
     for (const it of items) if (!had.has(it.id)) floater(a, `+ ${itemName(it)} (${itemStat(it)})`, RARE_COL[it.r] || "#ffe066", 1800); }
   a.items = items; a.atk = p.atk || 0; a.matk = p.matk || 0;
+  if (a !== S.me || p.held || !S.held) a.heldItem = p.held || null;   // 남의 손 · 내 것도 서버 값을 따름 (방금 눌러 보내는 중이면 잠깐 기다림)
+  if (a === S.me && S.held && !items.some(i => i.id === S.held)) { S.held = null; hudInv = null; }
   if (p.skill_to) a.skillTo = p.skill_to;
   if (p.trade_age != null && p.trade_age < 1.2 && (!a.tradeFx || tnow - a.tradeFx > 2000)) { a.tradeFx = tnow; floater(a, "🤝 교환!", "#ffe7a6", 1400); }
   if (p.revive_age != null && p.revive_age < 2) { const t = tnow - p.revive_age * 1000;   // 부활 — 빛기둥
@@ -1477,7 +1506,7 @@ async function pickup() {                    // Z — 곁의 아이템 줍기
 // ── 교환 (2026-10-22 판5): 상대를 눌러 '교환' → 줄 것 · 받을 것을 골라 제안 → 상대가 수락하면 서로 바뀜 ─────────────
 let tradeWith = null; const tradeSel = { give: new Set(), want: new Set() };
 function openTrade(a) {
-  tradeWith = a.name; tradeSel.give.clear(); tradeSel.want.clear();
+  tradeWith = a.name; tradeSel.give.clear(); tradeSel.want.clear(); if (S.held) tradeSel.give.add(S.held);
   S.panel = "trade"; S.keys.clear(); $("#pz-trade").hidden = false; $("#pz-trade-head").textContent = `${a.name} 님과 교환`; $("#pz-trade-note").textContent = ""; fillTrade();
 }
 function closeTrade() { $("#pz-trade").hidden = true; S.panel = false; tradeWith = null; cv.focus(); }
@@ -1720,6 +1749,7 @@ function drawActor(g, a, sx, sy, now) {
   const cheer = a.cheer && now - a.cheer < 900 ? (now - a.cheer) / 900 : -1;      // 작업 끝 — 세 번 깡충
   if (cheer >= 0) { sy -= Math.round(Math.abs(Math.sin(cheer * Math.PI * 3)) * 8 / PX) * PX; if (Math.random() < .2) puff(a.x + 16, a.y, (Math.random() - .5) * 40, -30, 700, "#ffe066"); }
   drawActorBody(g, a, sx, sy, now);
+  drawHeld(g, a, sx, sy, now);
   const w = a === S.me ? S.work : a.work;
   if (w) drawTool(g, a, sx + 16, sy + 28, now, w, isEpc(a.npc ? a.face : roleFace(faceOf(a), a.role)));
   if (a === S.me && S.stamina < ST_TIRED && Math.floor(now / 400) % 3 === 0) { g.fillStyle = "#7fe7ff"; g.fillRect(sx + 26, sy + 28 - HEAD_PX + 10 + Math.floor(now / 100) % 4 * 2, 4, 6); }   // 땀
@@ -1992,6 +2022,19 @@ async function saveFace() {
     closeFace();
   } catch (e) { $("#pz-face-note").textContent = "저장하지 못했습니다 — " + e.message; }
 }
+/* 단축키 판 (H · ? · 아래 '단축키' 단추) */
+const KEY_ROWS = [["방향키 · WASD", "걷기"], ["Shift + 방향키", "달리기 (기력 씀)"], ["E", "설비 옆에서 점검 · 교정 · 수리 (걸으면 취소)"], ["Space", "공격 (앞 칸 · 평타 = 1 + 공격력/10)"],
+  ["1", "강타 — 마나 10 · 앞 사람 체력 −(5 + 공격력/4)"], ["2", "응급 처치 — 마나 20 · 내 체력 +(25 + 마법/3)"], ["3", "현장 지원 — 마나 30 · 둘레 3칸 팀원 체력 +(15 + 마법/4) · 기력 +30"], ["4", "전기 충격 — 마나 15 · 보는 쪽 4칸 안 첫 사람 체력 −(4 + 마법/3)"],
+  ["Q", "아이템 들기 (가방의 다음 것 · 가방 칸을 눌러도 됨)"], ["X", "든 아이템 내려놓기 (선 자리 · 남이 Z 로 주울 수 있음)"], ["Z", "곁(둘레 한 칸)에 떨어진 아이템 줍기"],
+  ["Enter", "대화 입력 (Esc 취소)"], ["사람 클릭", "캐릭터 정보 · 가방 보기 · 교환 제안"], ["R", "운영자 — 곁의 유령 부활"], ["H · ?", "이 판 열고 닫기"]];
+function toggleKeys() {
+  const on = S.panel === "keys";
+  if (on) { $("#pz-keys").hidden = true; S.panel = false; cv.focus(); return; }
+  if (S.panel) return;
+  $("#pz-keylist").innerHTML = KEY_ROWS.map(([k, d]) => `<div class="krow"><kbd>${k}</kbd><span>${d}</span></div>`).join("");
+  $("#pz-keys").hidden = false; S.panel = "keys"; S.keys.clear();
+}
+$("#pz-keys-btn").onclick = toggleKeys; $("#pz-keys-close").onclick = toggleKeys;
 $("#pz-face-btn").onclick = openFace;
 $("#pz-face-save").onclick = saveFace;
 $("#pz-face-cancel").onclick = closeFace;
@@ -2056,12 +2099,15 @@ document.addEventListener("keydown", ev => {
   S.run = ev.shiftKey;
   if (!S.typing && !S.panel && (ev.code === "KeyE" || ev.key === "e" || ev.key === "E")) { ev.preventDefault(); if (!ev.repeat) interact(); return; }   // 점검 · 수리
   if (!S.typing && !S.panel && (ev.code === "KeyZ" || ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); if (!ev.repeat) pickup(); return; }   // 곁의 아이템 줍기
+  if (!S.typing && !S.panel && (ev.code === "KeyQ" || ev.key === "q" || ev.key === "Q")) { ev.preventDefault(); if (!ev.repeat) holdNext(); return; }   // 아이템 들기(다음)
+  if (!S.typing && !S.panel && (ev.code === "KeyX" || ev.key === "x" || ev.key === "X")) { ev.preventDefault(); if (!ev.repeat) dropHeld(); return; }   // 든 아이템 내려놓기
+  if (!S.typing && (ev.key === "?" || ev.key === "/" || (ev.code === "KeyH" && !S.panel) || (ev.key === "h" && !S.panel) || (ev.key === "H" && !S.panel) || (S.panel === "keys" && ev.key === "Escape"))) { ev.preventDefault(); if (!ev.repeat) toggleKeys(); return; }   // 단축키 판
   if (!S.typing && !S.panel && SKILL_KEYS[ev.code]) { ev.preventDefault(); if (!ev.repeat) useSkill(SKILL_KEYS[ev.code]); return; }   // 1 강타 · 2 응급 처치 · 3 현장 지원
   if (!S.typing && !S.panel && S.role === "operator" && (ev.code === "KeyR" || ev.key === "r" || ev.key === "R")) { ev.preventDefault(); if (!ev.repeat) revive(nearGhost()); return; }   // 운영자 — 곁의 유령 부활
   const arrow = !S.typing && !S.panel ? arrowOf(ev) : null;
   if (arrow) { ev.preventDefault(); S.keys.delete(arrow); S.keys.add(arrow); return; }   // 입력기가 켜져 있어도 걷는다
   if (ev.isComposing || ev.keyCode === 229) return;          // 한글 조합 중
-  if (S.panel) { if (ev.key === "Escape") { S.panel === "face" ? closeFace() : S.panel === "trade" ? closeTrade() : closeRoles(); } return; }
+  if (S.panel) { if (ev.key === "Escape") { S.panel === "face" ? closeFace() : S.panel === "trade" ? closeTrade() : S.panel === "keys" ? toggleKeys() : closeRoles(); } return; }
   if (ev.key === "Enter") {
     ev.preventDefault();
     if (!S.typing) { setTyping(true); return; }
