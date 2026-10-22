@@ -158,6 +158,7 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 | GET `/`, `/dashboard.html[?download=1]` | 화면 (기본 서버 주소 치환) |
 | GET `/apps/…` | **연결 프로그램 정적 파일** (운영 폴더 `apps/`, 상위 경로 접근 403) |
 | POST `auth/register` · `auth/login` · `auth/reset` · `auth/logout`, GET `auth/me` | 계정. 로그인 응답 `{token, user:{id,name}}`, 이후 요청 헤더 `X-Auth-Token`. 로그인·재설정 5회 실패 시 10분 잠금 |
+| GET `space/projects` · POST `space/projects` `{name}` · GET `space/{pid}` · GET `space/{pid}/saves/{sid}` · POST `space/{pid}/saves` `{data, memo, sum}` · POST `space/{pid}/notes` `{text}` · DELETE `space/{pid}/notes/{nid}` | 판넬 공간확보 서버 저장 (2026-10-22~). 운영 폴더 `space/{pid}/index.json`(프로젝트 · 저장 메타 · 노트) + `space/{pid}/saves/{sid}.json`(배치안). 보기 = 누구나, 쓰기 = 로그인 + `space` 권한, 노트 삭제 = 본인 · 운영자/그룹장. 일일 백업 포함 |
 | POST `auth/ping` | 접속 표시 갱신(화면이 30초마다) → `{users:[{id,name,online}], unread}`. 75초 안에 요청이 있었으면 online |
 | GET `msg` · POST `msg` `{to, body}` · POST `msg/{id}/read` · DELETE `msg/in\|sent/{id}` | 쪽지 (로그인 필요) |
 
@@ -935,3 +936,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: apps/space/index.html — HTML `.ribbon #palette` · `#tdlg` · `#libdlg`, `buildTypes`(삽입 줄), `typeSvg` `doorSvg`, `geom(p, tt)`, `openTypeDlg` `tdRead` `tdPreview` `tdSave`, `libGet` `libSet` `libPut` `buildLib`, 키 입력(열린 창이면 도면 단축키 끔 · Esc 닫기). 사이드 Type 입력 카드 삭제.
 - 확인한 것: `node --check`, Chromium 으로 만들기 → 만들고 배치 → 도면 클릭 2 EA, 다른 Type 단추 배치, 이름 중복 오류, 라이브러리 1건, 스크립트 오류 0.
 - 회사에서 확인할 것: 라이브러리는 PC · 브라우저마다 따로 (Edge 사이트 데이터 지우면 사라짐) — 부서 공용은 서버 저장(보고서 5-1) 승인 시.
+
+### 2026-10-22 (11) — 판넬 공간확보: 서버에 프로젝트별 · 날짜별 저장 · 저장 이력 · 프로젝트 노트 / 도면 노트 / 기둥 편집 (APP_VERSION 2026-10-22.4 / SERVER_VERSION 2026-10-22.3)
+> server.py 가 바뀜 → **서버 재시작 필요** (8장 3번). 운영 폴더에 `space\` 폴더가 생긴다(일일 백업 zip 에 포함). 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 요청 "프로젝트별 · 날짜별로 작업을 저장, 도면에 또는 별도 노트를 추가, 다른 부서원이 그 history 를 볼 수 있게, 기둥 위치도 사용자가 바꿀 수 있게".
+  1. 서버 저장 (server.py 새 API `space/…`, 위 5장 표): 저장은 덮어쓰지 않고 매번 새 파일 → 날짜별 이력(시각 · 저장한 사람 · 메모 · Rev · 판넬 수 · 필요 영역 · 권장 실). 프로젝트 노트(시각 · 사람). 작성자 = 서버가 로그인 토큰으로 정함.
+  2. 앱: ① 에 '서버 프로젝트' 상자 [💾 서버에 저장] [🗂 프로젝트 · 이력 · 노트], 🗂 창(프로젝트 · 저장 이력 · 프로젝트 노트 세 칸), 저장본 열기, '서버 저장 이후 바뀜' 표시.
+  3. 도면 노트: [📌 노트] → 도면 위 번호 핀 + 말풍선, 목록 · 끌어 옮기기 · 고치기, 배치안에 저장(서버 이력에도), 요약 7절 · DXF CR-NOTE.
+  4. 기둥 편집: [기둥 편집] → 기둥 Drag 이동 · 빈 곳 클릭 추가 · Delete 삭제 · X/Y/W/H 입력, [격자로 다시 만들기].
+  5. dashboard.html: 연결 앱에 로그인 토큰을 postMessage 로 전달(부서원 file:// 사본은 앱 주소의 저장소를 못 읽음) — 받는 쪽 = 앱 주소로 한정.
+- 바뀐 곳: server.py 새 `SPACE_ID_RE` `space_id` `space_idx_path` `space_idx` `space_name` `api_space_projects` `api_space_project_new` `api_space_get` `api_space_save_get` `api_space_save` `api_space_note_add` `api_space_note_del`, `api()` 의 `space` 분기, 백업 · 시작 폴더에 `space` / dashboard.html `renderApp` · 새 `appAuth` · `render()` / apps/space/index.html `sapi` `openHist` `loadProjects` `loadProject` `updSrv`, 노트(`hitNote` `openNote` `saveNote` `buildNotes`), 기둥(`toCustomCols` `hitCol` `delCol`, `columns()` 이 `S.cols` 우선).
+- 확인한 것: `py_compile`, `node --check`, 임시 폴더 서버 + 가짜 계정 두 개(홍길동 · 김철수): API 생성 · 중복 409 · 비로그인 401 · 잘못된 배치안 400 · 잘못된 ID 400 · 노트 삭제 · 저장본 읽기. 브라우저: 홍길동 저장 2회 · 노트 → 김철수가 이력 2건 · 노트 1건 보고(남의 노트 지우기 없음) 첫 저장본 열기, file:// 사본에서 postMessage 로 로그인 전달, 도면 노트 · DXF(audit 0), 기둥 이동 · 추가 · 삭제 · 격자로 다시. 스크립트 오류 0.
+- 회사에서 확인할 것: (1) 서버 재시작 후 [🗂] 창이 열리는지, 두 사람이 서로의 저장 · 노트를 보는지. (2) 부서원 PC(file:// 사본)에서 [💾 서버에 저장] 이 본인 이름으로 남는지. (3) 메뉴 권한 표에서 '판넬 공간확보' 를 끈 사람은 보기만 되는지.
+
