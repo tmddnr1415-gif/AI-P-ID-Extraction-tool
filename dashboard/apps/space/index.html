@@ -71,7 +71,7 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .tile.add{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;min-width:86px;padding:4px 10px;border-style:dashed;color:var(--ink-2)}
 .tile.add b{font-size:18px;line-height:1;color:var(--accent)}
 /* Type 만들기 · 고치기 창 */
-.tdlg .box{width:min(780px,100%)}
+.modal.tdlg .box{width:min(780px,100%)}
 .tdlg .tform{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
 .tdlg .tf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 8px;align-content:start}
 .tdlg .tf label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
@@ -87,6 +87,20 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .notes-l li{font-size:12px;padding:4px 6px;border-left:3px solid var(--note);border-radius:3px;background:var(--panel-bg);cursor:pointer;white-space:pre-wrap;word-break:break-word}
 .notes-l li .nb{font-family:var(--f-mono);font-weight:700;color:var(--note);margin-right:4px}.notes-l li .nm{display:block;color:var(--ink-2);font-size:11px}
 .ndlg textarea{width:100%;min-height:120px;font:inherit;font-size:13px;background:var(--panel-bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
+.srvbox{border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:8px;background:var(--panel-bg);display:flex;flex-direction:column;gap:6px}
+.srvbox .st{font-size:11.5px}.srvbox .st.dirty{color:var(--warn)}.srvbox .st.ok{color:var(--ok)}
+.modal.hdlg .box{width:min(1200px,100%);height:min(82vh,820px);max-height:none}
+.hdlg .hh{display:flex;gap:10px;align-items:center}
+.hgrid{display:grid;grid-template-columns:1fr 1.5fr 1.1fr;gap:12px;flex:1;min-height:0}
+.hcol{display:flex;flex-direction:column;gap:6px;min-height:0;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--panel-bg)}
+.hcol h5{margin:0;font-size:12.5px}
+.hcol textarea{flex:none;height:72px;width:100%;min-height:64px;max-height:140px;font:inherit;font-size:12.5px;background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:6px;resize:vertical}
+.hl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;overflow:auto;flex:1;min-height:0}
+.hl li{border:1px solid var(--line);border-radius:5px;padding:5px 7px;font-size:12px;background:var(--sheet)}
+.hl li.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.hl li .m{color:var(--ink-2);font-size:11px;font-family:var(--f-mono)}
+.hl li .tx{white-space:pre-wrap;word-break:break-word;margin-top:2px}
+.hl li.pj{cursor:pointer}.hl li .acts{display:flex;gap:4px;justify-content:flex-end;margin-top:3px}
 .lib{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}
 .lib li{display:grid;grid-template-columns:46px 1fr auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 .lib li .ic{width:46px;height:46px;background:var(--paper);border-radius:4px;display:flex}.lib li .ic svg{width:100%;height:100%}
@@ -161,6 +175,8 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vClr" checked>유지보수 공간</label>
     <label class="chk"><input type="checkbox" id="vDoor" checked>도어</label>
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
+    <span class="sep"></span>
+    <button id="bSrvOpen2" title="서버: 프로젝트별 · 날짜별 저장 이력과 프로젝트 노트 (부서원 모두 봄)">🗂 이력</button>
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
     <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
     <span class="sep"></span>
@@ -181,6 +197,10 @@ svg text{font-family:var(--f-mono)}
           <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Rack Room"></label>
           <label>작성자<input type="text" id="iBy"></label>
           <label>Rev<input type="text" id="iRev" placeholder="A"></label>
+        </div>
+        <div class="srvbox" style="margin-top:8px">
+          <div><span class="muted">서버 프로젝트</span> <b id="srvName">없음</b> <span class="st muted" id="srvState"></span></div>
+          <div class="row"><button id="bSrvSave" class="primary" title="지금 배치안을 서버의 이 프로젝트에 날짜별로 저장 (덮어쓰지 않음 — 이력)">💾 서버에 저장</button><button id="bSrvOpen" title="프로젝트 고르기 · 만들기, 저장 이력 열기, 프로젝트 노트">🗂 프로젝트 · 이력 · 노트</button></div>
         </div>
         <div class="row" style="margin-top:8px;align-items:center"><button id="bRevRec" title="지금 Rev 의 필요 영역 · 권장 실 크기를 이력에 남깁니다 (같은 Rev 는 덮어씀)">현재 Rev 기록</button><span class="muted" id="revNow"></span></div>
         <table class="counts revs" id="revList"></table>
@@ -309,6 +329,24 @@ svg text{font-family:var(--f-mono)}
     <div class="row"><button id="ndDel" style="margin-right:auto">노트 삭제</button><button id="ndCancel">취소</button><button id="ndSave" class="primary">저장 (Ctrl+Enter)</button></div>
   </div>
 </div>
+<div class="modal hdlg" id="hdlg" hidden>
+  <div class="box">
+    <div class="hh"><h4>🗂 프로젝트 · 저장 이력 · 노트</h4><span class="muted" id="hWho"></span><button id="hClose" style="margin-left:auto">닫기 (Esc)</button></div>
+    <div class="hgrid">
+      <div class="hcol"><h5>프로젝트</h5>
+        <div class="row"><input id="hNewName" placeholder="새 프로젝트 이름" style="flex:1;min-width:0"><button id="hNew">만들기</button></div>
+        <ul class="hl" id="hProj"></ul></div>
+      <div class="hcol"><h5>저장 이력 <span class="muted" id="hPjName"></span></h5>
+        <div class="row"><input id="hMemo" placeholder="저장 메모 (예: 건축 1차 전달본)" style="flex:1;min-width:0"><button id="hSave" class="primary">💾 지금 배치안 저장</button></div>
+        <ul class="hl" id="hSaves"></ul></div>
+      <div class="hcol"><h5>프로젝트 노트 <span class="muted">— 부서원 모두 봄</span></h5>
+        <textarea id="hNote" placeholder="예: 건축 회신 대기 (10/25) / Access Floor 600 확정"></textarea>
+        <div class="row"><button id="hNoteAdd">노트 남기기</button></div>
+        <ul class="hl" id="hNotes"></ul></div>
+    </div>
+    <div id="hErr" style="color:var(--err);font-size:12px;min-height:16px"></div>
+  </div>
+</div>
 <div class="modal" id="libdlg" hidden>
   <div class="box">
     <h4>📚 이 PC 의 Panel Type 라이브러리</h4>
@@ -364,9 +402,12 @@ try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample()
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
 function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);
-const LOGIN=(Q.get('user')||'').trim();                    // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
+let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
+// 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
+let AUTH_TOKEN='', AUTH_NAME='';
+try{const a=JSON.parse(localStorage.getItem('dept-auth')||'null');if(a){AUTH_TOKEN=a.token||'';AUTH_NAME=a.name||''}}catch(e){}
 const author=()=>S.info.author.trim()||LOGIN;
 const revOf=()=>S.info.rev.trim()||'-';
 // 파일 이름: 프로젝트_Room_Rev_종류_날짜 (빈 칸은 빼고, 윈도 파일 이름에 못 쓰는 글자는 _)
@@ -807,7 +848,7 @@ function buildSummary(){
   const ul=$('#issues'); ul.innerHTML='';
   issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.innerHTML=`<span class="lv">${i.lv==='err'?'간섭':'경고'}</span>${esc(i.msg)}<span class="fix">→ ${esc(i.fix)}</span>`;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
 }
-function refresh(){check();buildSummary();buildRevs();buildNotes();buildProps();render();
+function refresh(){check();buildSummary();buildRevs();buildNotes();updSrv();buildProps();render();
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
   if(n!==refresh._n){refresh._n=n;buildTypes()}
   $('#bUndo').disabled=!undo.length;$('#bRedo').disabled=!redo.length;
@@ -1069,6 +1110,79 @@ $('#bDxf').onclick=()=>{
 };
 $('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),fname('배치안','json'),'application/json');
 $('#bLoad').onclick=()=>$('#fLoad').click();
+/* ---------- 서버 저장: 프로젝트별 · 날짜별 이력 + 프로젝트 노트 (server.py /api/space) ---------- */
+const SRV_OK=/^https?:$/.test(location.protocol);           // 파일로 직접 연 경우 서버 없음
+let srvSnap=null, HPID=null, HD=null;                       // 마지막 서버 저장/열기 때의 화면 · 창에서 고른 프로젝트 · 그 내용
+const lt=iso=>{if(!iso)return '';const d=new Date(iso);return isNaN(d)?iso:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+async function sapi(method,path,body){
+  const r=await fetch('/api/space'+path,{method,cache:'no-store',headers:{'Content-Type':'application/json',...(AUTH_TOKEN?{'X-Auth-Token':AUTH_TOKEN}:{})},body:body===undefined?undefined:JSON.stringify(body)});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(j.error||`서버 응답 ${r.status}`);
+  return j;
+}
+window.addEventListener('message',e=>{if(e.source!==window.parent||!e.data||e.data.kind!=='dept-auth')return;AUTH_TOKEN=e.data.token||'';AUTH_NAME=e.data.name||'';if(AUTH_NAME)LOGIN=AUTH_NAME;buildInfo();updSrv()});
+function updSrv(){
+  const sv=S.srv, st=$('#srvState'); $('#srvName').textContent=sv?sv.name:'없음';
+  $('#bSrvSave').disabled=$('#bSrvOpen').disabled=$('#bSrvOpen2').disabled=!SRV_OK;
+  st.className='st muted';
+  if(!SRV_OK){st.textContent='— 파일로 연 상태라 서버 저장 없음 (대시보드 메뉴에서 여세요)';return}
+  if(!sv){st.textContent='— 아직 서버에 저장 안 함';return}
+  if(srvSnap===null){st.textContent=sv.at?`— 마지막 서버 저장 ${lt(sv.at)}${sv.by?' · '+sv.by:''}`:'';return}
+  if(srvSnap===lastSnap){st.className='st ok';st.textContent=`— 저장됨 ${lt(sv.at)}`}else{st.className='st dirty';st.textContent='— 서버 저장 이후 바뀜'}
+}
+const herr=m=>{$('#hErr').textContent=m||''};
+async function openHist(focusMemo){
+  if(!SRV_OK)return toast('파일로 직접 연 상태라 서버를 쓸 수 없습니다 — 대시보드의 [판넬 공간확보] 메뉴에서 여세요.',true);
+  herr('');$('#hWho').textContent=AUTH_TOKEN?`${AUTH_NAME||LOGIN} 로 저장`:'로그인하지 않음 — 보기만 (저장 · 노트는 대시보드에서 로그인)';
+  $('#hdlg').hidden=false; HPID=HPID||S.srv?.pid||null;
+  await loadProjects(); if(focusMemo)$('#hMemo').focus();
+}
+async function loadProjects(){
+  try{const {projects}=await sapi('GET','/projects');
+    if(HPID&&!projects.some(p=>p.id===HPID))HPID=null;
+    $('#hProj').innerHTML=projects.length?projects.map(p=>`<li class="pj${p.id===HPID?' on':''}" data-pid="${p.id}"><b>${esc(p.name)}</b><div class="m">저장 ${p.saves} · 노트 ${p.notes}${p.lastAt?` · 마지막 ${esc(lt(p.lastAt))} ${esc(p.lastBy)}`:''}</div><div class="m">만듦 ${esc(lt(p.createdAt))} ${esc(p.createdBy)}</div></li>`).join('')
+      :'<li class="muted">아직 프로젝트가 없습니다 — 위에 이름을 적고 [만들기]</li>';
+    if(HPID)await loadProject(HPID);else{$('#hPjName').textContent='— 왼쪽에서 프로젝트를 고르세요';$('#hSaves').innerHTML='';$('#hNotes').innerHTML=''}
+  }catch(e){herr(`프로젝트 목록을 못 읽었습니다: ${e.message} — 대시보드 서버 연결을 확인하세요.`)}
+}
+async function loadProject(pid){
+  try{HD=await sapi('GET','/'+pid);HPID=pid;
+    document.querySelectorAll('#hProj li.pj').forEach(li=>li.classList.toggle('on',li.dataset.pid===pid));
+    $('#hPjName').textContent='— '+HD.project.name;
+    $('#hSaves').innerHTML=HD.saves.length?HD.saves.map(m=>`<li class="${S.srv&&S.srv.sid===m.id?'on':''}"><div><b>${esc(lt(m.at))}</b> · ${esc(m.by)}${m.rev?` · Rev ${esc(m.rev)}`:''}</div>
+      ${m.memo?`<div class="tx">${esc(m.memo)}</div>`:''}<div class="m">판넬 ${m.panels} EA${m.sum&&m.sum.recW?` · 권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}`:''}${m.sum&&m.sum.envW?` · 필요 ${fmt(m.sum.envW)}×${fmt(m.sum.envH)}`:''}${m.sum&&m.sum.spare?` · Spare ${m.sum.spare}%`:''}</div>
+      <div class="acts"><button data-open="${m.id}">이 저장본 열기</button></div></li>`).join(''):'<li class="muted">아직 저장 없음 — 위 [💾 지금 배치안 저장]</li>';
+    $('#hNotes').innerHTML=HD.notes.length?HD.notes.map(n=>`<li><div class="m">${esc(lt(n.at))} · ${esc(n.by)}</div><div class="tx">${esc(n.text)}</div>${AUTH_TOKEN&&n.by===(AUTH_NAME||LOGIN)?`<div class="acts"><button data-ndel="${n.id}">지우기</button></div>`:''}</li>`).join(''):'<li class="muted">아직 노트 없음</li>';
+  }catch(e){herr(`프로젝트를 못 읽었습니다: ${e.message}`)}
+}
+$('#hProj').addEventListener('click',e=>{const li=e.target.closest('[data-pid]');if(li){herr('');loadProject(li.dataset.pid)}});
+$('#hNew').onclick=async()=>{const name=$('#hNewName').value.trim();if(!name)return herr('새 프로젝트 이름을 적으세요.');
+  try{const p=await sapi('POST','/projects',{name});$('#hNewName').value='';HPID=p.id;herr('');await loadProjects();toast(`프로젝트 ${p.name} 을(를) 만들었습니다 — 가운데 [💾 지금 배치안 저장]`)}catch(e){herr(e.message)}};
+$('#hSave').onclick=async()=>{
+  if(!HPID||!HD)return herr('왼쪽에서 저장할 프로젝트를 고르거나 새로 만드세요.');
+  if(!AUTH_TOKEN)return herr('로그인해야 저장할 수 있습니다 — 대시보드에서 로그인한 뒤 이 메뉴를 다시 여세요 (비회원은 보기만).');
+  const sm=summary(), name=HD.project.name;
+  S.srv={pid:HPID,name,sid:S.srv?.sid||'',at:S.srv?.at||'',by:S.srv?.by||''}; if(!S.info.project)S.info.project=name;
+  try{const meta=await sapi('POST',`/${HPID}/saves`,{data:S,memo:$('#hMemo').value.trim(),sum:{envW:sm.env?.w,envH:sm.env?.h,recW:sm.rec?.w,recH:sm.rec?.h,spare:S.room.spare}});
+    S.srv={pid:HPID,name,sid:meta.id,at:meta.at,by:meta.by}; commit(); srvSnap=lastSnap; buildInfo(); updSrv(); $('#hMemo').value=''; herr('');
+    await loadProjects(); toast(`서버에 저장했습니다 — ${name} · ${lt(meta.at)} · ${meta.by}`);
+  }catch(e){herr(`저장하지 못했습니다: ${e.message}`)}
+};
+$('#hSaves').addEventListener('click',async e=>{const b=e.target.closest('[data-open]');if(!b)return;
+  if(srvSnap!==null&&srvSnap!==lastSnap&&!confirm('지금 화면에 서버에 저장하지 않은 변경이 있습니다. 이 저장본을 열면 화면이 바뀝니다 (Ctrl+Z 로 되돌릴 수 있음). 계속할까요?'))return;
+  try{const {meta,data}=await sapi('GET',`/${HPID}/saves/${b.dataset.open}`);
+    S=norm(data); S.srv={pid:HPID,name:HD.project.name,sid:meta.id,at:meta.at,by:meta.by}; sel.clear(); selNote=null; selCol=null;
+    commit(); buildRoom(); buildTypes(); fit(); srvSnap=lastSnap; updSrv(); $('#hdlg').hidden=true;
+    toast(`${HD.project.name} · ${lt(meta.at)} ${meta.by} 저장본을 열었습니다${meta.memo?' — '+meta.memo:''}`);
+  }catch(err){herr(`저장본을 못 열었습니다: ${err.message}`)}});
+$('#hNoteAdd').onclick=async()=>{const text=$('#hNote').value.trim();if(!HPID)return herr('노트를 남길 프로젝트를 고르세요.');if(!text)return herr('노트 내용을 적으세요.');
+  if(!AUTH_TOKEN)return herr('로그인해야 노트를 남길 수 있습니다 — 대시보드에서 로그인하세요.');
+  try{await sapi('POST',`/${HPID}/notes`,{text,save:S.srv?.pid===HPID?S.srv.sid:''});$('#hNote').value='';herr('');await loadProjects()}catch(e){herr(`노트를 남기지 못했습니다: ${e.message}`)}};
+$('#hNotes').addEventListener('click',async e=>{const b=e.target.closest('[data-ndel]');if(!b||!confirm('이 노트를 지울까요?'))return;
+  try{await sapi('DELETE',`/${HPID}/notes/${b.dataset.ndel}`);await loadProjects()}catch(err){herr(err.message)}});
+$('#hClose').onclick=()=>{$('#hdlg').hidden=true};
+$('#bSrvOpen').onclick=$('#bSrvOpen2').onclick=()=>openHist(false);
+$('#bSrvSave').onclick=()=>openHist(true);
 $('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=norm(d);sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
 
 /* ---------- 화면 테마: 기본 어둡게(CAD) · [☀ 밝게] ---------- */
@@ -1078,7 +1192,7 @@ $('#bTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='ligh
 try{if(localStorage.getItem('crspace.theme')==='light')setTheme('light')}catch(e){}
 
 /* ---------- boot ---------- */
-buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildProps();
+buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); updSrv(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 })();
