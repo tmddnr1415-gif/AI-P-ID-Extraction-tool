@@ -1,5 +1,5 @@
 /* 가상 광장 — 옛 온라인 RPG 마을 느낌 (가는 글씨 · 반투명 창 · 둥근 말풍선은 canvas 가 그린다) */
-html, body { margin: 0; height: 100%; background: #1b2414; overflow: hidden; }
+html, body { margin: 0; height: 100%; background: #0d1320; overflow: hidden; }
 body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "WenQuanYi Zen Hei", sans-serif; }
 .pz { position: relative; width: 100%; height: 100%; }
 #pz-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none;
@@ -100,3 +100,22 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 
 /* 2026-10-19 처치 수 — 사람 목록의 killer 표시 */
 .pz-who .role.killer { background: #8b0000; color: #ffe2e2; }
+
+/* 2026-10-22 EPC — 내 상태 (HP · 기력 · 레벨/XP · 직무 · 지금 하는 일 · 설비 현황) — 작게, 왼쪽 위 */
+.pz-hud { position: absolute; left: 22px; top: 48px; width: 214px; pointer-events: none; font-size: 11px; color: #e9f2ff;
+  background: rgba(11, 17, 28, .72); border: 1px solid rgba(95, 130, 166, .7); border-radius: 4px; padding: 5px 7px; }
+.pz-hud .r { display: flex; align-items: center; gap: 5px; height: 14px; }
+.pz-hud .r span { width: 30px; color: #9fb6d1; font-weight: bold; }
+.pz-hud .r i { flex: 1; height: 6px; background: #24364f; border: 1px solid #0b111c; position: relative; }
+.pz-hud .r b { position: absolute; left: 0; top: 0; bottom: 0; background: #e0443a; transition: width .25s; }
+.pz-hud .r b.st { background: #f2c230; } .pz-hud .r b.xp { background: #5fd0ff; }
+.pz-hud .r em { width: 52px; text-align: right; font-style: normal; color: #c9d4e0; }
+.pz-hud .w { margin-top: 2px; color: #c9d4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-hud .w.eq { color: #9fb6d1; }
+.pz-who .hpv { color: #8fa3bb; font-size: 10.5px; }
+@media (max-width: 560px) { .pz-hud { width: 168px; } .pz-help { display: none; } }
+@media (max-height: 520px), (max-width: 700px) {   /* 작은 화면 — 대화창 · 상태판을 줄여 놀이 공간 확보 */
+  .pz-log { height: 44px; font-size: 11.5px; } .pz-chat { width: min(300px, calc(100% - 44px)); }
+  .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .w.eq, .pz-hud #hud-job { display: none; }
+  .pz-who { max-height: 26%; font-size: 11px; } .pz-help { display: none; }
+}

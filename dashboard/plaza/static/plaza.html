@@ -3,16 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>계장 광장 — 부여성 남쪽</title>
+<title>계장 광장 — EPC 발전플랜트 현장</title>
 <link rel="stylesheet" href="/static/plaza.css">
 </head>
 <body>
 <div id="pz" class="pz">
-  <canvas id="pz-map" tabindex="0" aria-label="계장 광장 — 방향키로 움직이고 Enter 로 대화 · Space 로 공격"></canvas>
+  <canvas id="pz-map" tabindex="0" aria-label="계장 광장 — 방향키 · WASD 로 움직이고 Shift 달리기 · E 설비 점검 · Enter 대화 · Space 공격"></canvas>
 
   <div class="pz-top">
     <span id="pz-online" class="pz-online">접속 0명</span>
-    <span class="pz-help">방향키 ←↑→↓ 이동 · Enter 대화 · Space 공격</span>
+    <span class="pz-help">방향키 · WASD 이동 · Shift 달리기 · E 설비 점검/수리 · Enter 대화 · Space 공격</span>
+  </div>
+
+  <div id="pz-hud" class="pz-hud" aria-label="내 상태">
+    <div class="r"><span>HP</span><i><b id="hud-hp"></b></i><em id="hud-hpt"></em></div>
+    <div class="r"><span>기력</span><i><b id="hud-st" class="st"></b></i><em id="hud-stt"></em></div>
+    <div class="r"><span id="hud-lv">Lv 1</span><i><b id="hud-xp" class="xp"></b></i><em id="hud-xpt"></em></div>
+    <div class="w" id="hud-job"></div>
+    <div class="w" id="hud-work"></div>
+    <div class="w eq" id="hud-eq"></div>
   </div>
 
   <div id="pz-who" class="pz-who" aria-label="광장에 있는 사람"></div>

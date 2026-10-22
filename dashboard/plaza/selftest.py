@@ -59,11 +59,11 @@ try:
     ok.append(("말하기 — 80자", len(call("/plaza/api/say", {"id": a["id"], "text": "가" * 200})[1]["text"]) == 80))
     face = {"hair": 4, "hairc": 4, "skin": 1, "eyes": 2, "beard": 0, "cloth": 3, "pants": 1}
     call("/plaza/api/look", {"id": a["id"], "look": face})
-    ok.append(("얼굴 — 파일에 남음 (예전 값만 보내면 고양이 기사 기본값이 붙음)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == {**face, "kind": 0, "fur": 0, "armor": 0, "cape": 0}))
-    cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2}
+    ok.append(("얼굴 — 파일에 남음 (예전 값만 보내면 고양이 기사 기본값이 붙음)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == {**face, "kind": 0, "fur": 0, "armor": 0, "cape": 0, "job": 0}))
+    cat = {**face, "kind": 0, "fur": 4, "armor": 1, "cape": 2, "job": 3}
     call("/plaza/api/look", {"id": a["id"], "look": cat})
     ok.append(("얼굴 — 고양이 기사 (호랑이 · 황금 갑옷 · 초록 망토)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"] == cat))
-    ok.append(("그림 파일 — 조선 마을 · 마을 캐릭터 (PNG)", all(urllib.request.urlopen(base + f"/static/{n}.png").read()[:4] == b"\x89PNG" for n in ("joseon", "village_chars"))))
+    ok.append(("그림 파일 — 마을 캐릭터 · 고양이 기사 (PNG)", all(urllib.request.urlopen(base + f"/static/{n}.png").read()[:4] == b"\x89PNG" for n in ("village_chars", "catknight"))))
     call("/plaza/api/look", {"id": a["id"], "look": {**face, "kind": 4}})
     ok.append(("얼굴 — 마을 캐릭터 (사자 무관)", json.loads((data / "looks.json").read_text(encoding="utf-8"))["김철수"]["kind"] == 4))
     ok.append(("그림 파일 — 고양이 기사 (PNG)", urllib.request.urlopen(base + "/static/catknight.png").read()[:8] == b"\x89PNG\r\n\x1a\n"))
@@ -102,7 +102,8 @@ try:
     time.sleep(2.5)
     saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
     ok.append(("처치 수 — 3명 쓰러뜨림 (killer)", saved.get("kills", {}).get("성춘향") == 3))
-    ok.append(("체력 — 파일에 남음 (홍길동 99 · 이몽룡 0)", saved["hp"].get("홍길동") == 99 and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
+    # 홍길동(99)은 바로 옆 유닛장 김철수(위에서 unit 으로 지정)의 회복 오라로 100 이 됨 → hp.json 에서 빠짐
+    ok.append(("체력 — 파일에 남음 (이몽룡 0) · 유닛장 곁 홍길동은 회복되어 100", "홍길동" not in saved["hp"] and saved["hp"].get("이몽룡") == 0 and saved["week"] == week))
     (root / "data" / "_meta").mkdir()
     (root / "data" / "_meta" / "state.json").write_text(json.dumps({"manualClosedWeek": week}), encoding="utf-8")   # [금주 마감]
     time.sleep(5.2)
@@ -112,6 +113,23 @@ try:
     time.sleep(2.5)
     saved = json.loads((data / "hp.json").read_text(encoding="utf-8"))
     ok.append(("주간 마감 — 모두 100 · 처치 수 0 · 새 주차", saved["hp"] == {} and saved.get("kills") == {} and saved["week"] > week))
+    # 2026-10-22 EPC: 설비 목록 · 점검(Loop Check) · 너무 멀면 거절 · 끝나기 전 완료 거절 · 경험치 · 유닛장 회복 오라
+    defs = call("/plaza/api/equip")[1]
+    ok.append(("설비 목록", len(defs.get("equip", [])) >= 20 and any(e["id"] == "PT-101" for e in defs["equip"])))
+    W1 = "127.0.0.9"
+    _, wk = call("/plaza/api/join", {"name": "점검왕", "x": 6, "y": 11}, W1)
+    call("/plaza/api/move", {"id": wk["id"], "x": 6, "y": 11, "dir": 1}, W1)
+    st0, far = call("/plaza/api/work", {"id": wk["id"], "eq": "CV-504", "phase": "start"}, W1)
+    ok.append(("작업 — 멀면 거절", st0 == 400))
+    _, s1 = call("/plaza/api/work", {"id": wk["id"], "eq": "PT-101", "phase": "start"}, W1)
+    ok.append(("작업 — 설비 옆에서 시작", s1.get("kind") in ("loop", "calib", "repair") and s1.get("need", 0) > 0))
+    st1, _e = call("/plaza/api/work", {"id": wk["id"], "eq": "PT-101", "phase": "done"}, W1)
+    ok.append(("작업 — 시간 안 됐으면 완료 거절", st1 == 400))
+    time.sleep(s1.get("need", 3) + .1)
+    _, d1 = call("/plaza/api/work", {"id": wk["id"], "eq": "PT-101", "phase": "done"}, W1)
+    ok.append(("작업 — 완료 · 경험치", d1.get("gained", 0) > 0 and d1.get("xp") == d1.get("gained")))
+    time.sleep(2.3)
+    ok.append(("경험치 — 파일에 남음", json.loads((data / "xp.json").read_text(encoding="utf-8"))["xp"].get("점검왕") == d1.get("gained")))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:
         print(("통과 " if good else "실패 ") + name)

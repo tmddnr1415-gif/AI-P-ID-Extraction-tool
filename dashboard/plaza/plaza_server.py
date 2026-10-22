@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-19.4'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.1'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -65,7 +65,7 @@ CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
 LOOK_RANGES = {"hair": 10, "hairc": 8, "skin": 4, "eyes": 5, "beard": 4, "cloth": 12, "pants": 6}
 # 2026-10-19 고양이 기사: 종류(0 고양이 기사 · 1 사람) · 털(동물) · 갑옷 · 망토 — 예전에 저장한 얼굴엔 없으므로 없으면 0 (= 원본 고양이 기사)
-LOOK_EXTRA = {"kind": 7, "fur": 6, "armor": 6, "cape": 7}   # kind 2~6 = 마을 시트 캐릭터 (고양이 양반 · 팬더 학자 · 사자 무관 · 호랑이 무관 · 노비)
+LOOK_EXTRA = {"kind": 7, "fur": 6, "armor": 6, "cape": 7, "job": 5}   # job = EPC 직무 (2026-10-22: 0 계장 · 1 DCS · 2 시운전 리드 · 3 현장 기술 · 4 케이블)   # kind 2~6 = 마을 시트 캐릭터 (고양이 양반 · 팬더 학자 · 사자 무관 · 호랑이 무관 · 노비)
 ROLES = ("member", "unit", "leader", "operator")
 ROLE_KEYS = {"leader": "group_leader", "unit": "unit_leaders", "operator": "operators"}
 ROLE_TEMPLATE = {
@@ -273,15 +273,200 @@ def save_hp() -> None:
             HP["dirty"] = True
 
 
-def hp_loop() -> None:                             # 2초마다 체력 저장 · 30초마다 주간 마감(부활) 확인 — 아무도 안 움직여도
+def hp_loop() -> None:                             # 1초마다 회복 오라 · 2초마다 저장 · 15초마다 설비 · 30초마다 주간 마감(부활) 확인
     n = 0
     while True:
-        time.sleep(2)
+        time.sleep(1)
         n += 1
-        if n % 15 == 0:
-            with LOCK:
+        with LOCK:
+            heal_tick(time.time())
+            if n % EQ_BREAK_S == 0:
+                eq_tick(time.time())
+            if n % 30 == 0:
                 check_week(time.time(), force=True)
-        save_hp()
+        if n % 2 == 0:
+            save_hp()
+            save_xp()
+
+
+# ── EPC 발전플랜트 (2026-10-22): 계장 설비 · 점검/수리 · 경험치 · 유닛장 회복 오라 ─────────────
+# 모든 값은 광장 안의 놀이일 뿐 — 실제 DCS · 계장 설비와는 아무 연결이 없다.
+HEAL_ROLES = ("unit",)          # 회복 오라를 내는 역할 (유닛장 = 시운전 리드)
+HEAL_RADIUS = 4.0               # 칸 (가운데에서 거리)
+HEAL_PER_SEC = 1                # 1초마다 체력 +1 (최대 HP_MAX, 유령은 회복 안 됨 — 부활은 주간 마감)
+EQ_MAX_BAD = 7                  # 동시에 '경고 · 고장' 인 설비 수 상한
+EQ_BREAK_S = 15                 # 이만큼마다 정상 설비 하나가 경고로 바뀔 수 있음 (확률 1/2)
+EQ_WARN_TO_FAULT_S = 180        # 경고를 이만큼 두면 고장
+JOBS = ("계장 엔지니어", "DCS 엔지니어", "시운전 리드", "현장 기술자", "케이블 기술자")
+JOB_CATS = {0: {"PT", "DPT", "TT", "FT", "LT", "PG"}, 1: {"DCS", "IO", "PLC", "CON", "MC"}, 3: {"CV", "PT", "TT", "PG", "FT"}, 4: {"JB", "TRAY", "MC"}}
+WORK = {"ok": ("loop", 3.0, 5, "Loop Check"), "warn": ("calib", 5.0, 10, "교정"), "fault": ("repair", 7.0, 20, "수리")}
+# 설비 (plaza.js 지도와 같은 칸) — id · 종류 · 칸 x · y · 폭 · 이름
+EQUIP = [
+    ("PT-101", "PT", 6, 10, 1, "보일러 급수 압력 전송기"), ("TT-102", "TT", 11, 10, 1, "주증기 온도 전송기"), ("FT-103", "FT", 16, 10, 1, "급수 유량계"),
+    ("CV-104", "CV", 24, 10, 1, "터빈 바이패스 제어밸브"),
+    ("CV-201", "CV", 37, 6, 1, "냉각수 펌프 토출 제어밸브"), ("PT-202", "PT", 41, 6, 1, "냉각수 헤더 압력 전송기"), ("FT-203", "FT", 45, 6, 1, "냉각수 유량계"),
+    ("TT-204", "TT", 47, 8, 1, "열교환기 출구 온도 전송기"), ("LT-205", "LT", 50, 10, 1, "냉각탑 수조 레벨 전송기"),
+    ("JB-151", "JB", 12, 15, 1, "랙 정션 박스 JB-151"), ("TRAY-152", "TRAY", 26, 15, 1, "계장 케이블 트레이 구간 A"),
+    ("JB-153", "JB", 40, 15, 1, "랙 정션 박스 JB-153"), ("TRAY-154", "TRAY", 52, 15, 1, "계장 케이블 트레이 구간 B"),
+    ("JB-301", "JB", 14, 29, 1, "전기실 정션 박스"), ("MC-302", "MC", 16, 29, 1, "마샬링 캐비닛 MC-302"),
+    ("CON-401", "CON", 22, 26, 2, "DCS 운전 콘솔 1"), ("CON-402", "CON", 25, 26, 2, "DCS 운전 콘솔 2"),
+    ("DCS-403", "DCS", 21, 30, 1, "DCS 컨트롤러"), ("IO-404", "IO", 22, 30, 1, "I/O 모듈 캐비닛"), ("PLC-405", "PLC", 27, 30, 1, "보조설비 PLC"),
+    ("PT-501", "PT", 35, 25, 1, "시운전 시험 압력 전송기"), ("DPT-502", "DPT", 38, 25, 1, "차압 전송기 (유량)"), ("TT-503", "TT", 41, 25, 1, "시험 온도 전송기"),
+    ("CV-504", "CV", 44, 25, 1, "시험 제어밸브 (포지셔너)"), ("LT-505", "LT", 36, 29, 1, "시험 레벨 전송기"), ("FT-506", "FT", 40, 29, 1, "시험 유량계"),
+    ("JB-601", "JB", 49, 25, 1, "정비동 정션 박스"), ("PG-602", "PG", 51, 25, 1, "압력계 (교정 대기)"),
+]
+EQ: dict = {}                    # id → {st: ok|warn|fault, since, busy(이름), busy_at}
+XP: dict = {"xp": {}, "dirty": False}   # 이름 → 경험치 (주간 마감과 상관없이 계속 쌓임, <data>/xp.json)
+
+
+def level_of(xp: int) -> int:
+    return int((max(0, xp) / 25) ** 0.5) + 1          # 25 XP → Lv2 · 100 → Lv3 · 225 → Lv4 …
+
+
+def eq_init() -> None:
+    import random
+    r = random.Random(int(time.time()) // 86400)
+    now = time.time()
+    for e in EQUIP:
+        EQ[e[0]] = {"st": "ok", "since": now, "busy": "", "busy_at": 0.0}
+    ids = [e[0] for e in EQUIP]
+    for i in r.sample(ids, 6):                          # 처음부터 할 일이 있게 — 경고 4 · 고장 2
+        EQ[i]["st"] = "warn" if sum(1 for v in EQ.values() if v["st"] != "ok") < 4 else "fault"
+    XP["xp"] = {clean(k, NAME_MAX): int(v) for k, v in read_json(DATA / "xp.json", {}).get("xp", {}).items()
+                if isinstance(v, (int, float)) and clean(k, NAME_MAX)}
+
+
+def eq_tick(now: float) -> None:                   # LOCK 안에서 — 경고 → 고장, 가끔 새 경고
+    import random
+    changed = False
+    for v in EQ.values():
+        if v["busy"] and now - v["busy_at"] > 30:
+            v["busy"] = ""
+        if v["st"] == "warn" and now - v["since"] > EQ_WARN_TO_FAULT_S and not v["busy"]:
+            v["st"], v["since"], changed = "fault", now, True
+    bad = sum(1 for v in EQ.values() if v["st"] != "ok")
+    if bad < EQ_MAX_BAD and random.random() < .5:
+        ok = [k for k, v in EQ.items() if v["st"] == "ok" and not v["busy"]]
+        if ok:
+            k = random.choice(ok)
+            EQ[k].update(st="warn", since=now)
+            changed = True
+    if changed:
+        STATE["ver"] += 1
+
+
+def job_of(p: dict) -> int:
+    if p.get("role") in HEAL_ROLES:
+        return 2
+    try:
+        j = int((p.get("face") or {}).get("job", 0)) % len(JOBS)
+    except (TypeError, ValueError):
+        j = 0
+    return 0 if j == 2 else j
+
+
+def eq_near(p: dict, e) -> bool:
+    _, _, ex, ey, w, _ = e
+    return any(max(abs(p["x"] - (ex + i)), abs(p["y"] - ey)) <= 1 for i in range(w))
+
+
+def heal_tick(now: float) -> None:                 # LOCK 안에서 — 유닛장 둘레 HEAL_RADIUS 칸 안 팀원 체력 +HEAL_PER_SEC
+    healers = [p for p in STATE["players"].values() if p.get("role") in HEAL_ROLES and hp_of(p["name"]) > 0]
+    if not healers:
+        return
+    done = set()
+    for q in STATE["players"].values():
+        name = q["name"]
+        if name in done or hp_of(name) <= 0 or hp_of(name) >= HP_MAX:
+            continue
+        if any(h is not q and h["name"] != name and ((h["x"] - q["x"]) ** 2 + (h["y"] - q["y"]) ** 2) ** .5 <= HEAL_RADIUS for h in healers):
+            done.add(name)
+            v = min(HP_MAX, hp_of(name) + HEAL_PER_SEC)
+            if v >= HP_MAX:
+                HP["hp"].pop(name, None)
+            else:
+                HP["hp"][name] = v
+            HP["dirty"] = True
+            for r in STATE["players"].values():
+                if r["name"] == name:
+                    r["heal_seq"] = r.get("heal_seq", 0) + 1
+                    r["heal_at"] = now
+    if done:
+        STATE["ver"] += 1
+
+
+def save_xp() -> None:
+    with LOCK:
+        if not XP["dirty"]:
+            return
+        data = {"xp": dict(XP["xp"]), "_설명": "계장 광장 경험치 (이름 → XP). 설비 점검 · 교정 · 수리로 쌓임. 레벨 = sqrt(XP/25)+1."}
+        XP["dirty"] = False
+    try:
+        with FILE_LOCK:
+            write_json(DATA / "xp.json", data)
+    except OSError:
+        with LOCK:
+            XP["dirty"] = True
+
+
+def api_work(body: dict) -> dict:
+    eid, phase, now = str(body.get("eq") or ""), str(body.get("phase") or ""), time.time()
+    e = next((x for x in EQUIP if x[0] == eid), None)
+    if e is None:
+        raise ApiError(404, "없는 설비입니다.")
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        st = EQ[eid]
+        if phase == "cancel":
+            if p.get("work") and p["work"]["eq"] == eid:
+                p.pop("work", None)
+                if st["busy"] == p["name"]:
+                    st["busy"] = ""
+                STATE["ver"] += 1
+            return {"ok": True}
+        if hp_of(p["name"]) <= 0:
+            raise ApiError(400, "유령은 작업할 수 없습니다 — 주간 마감 때 부활합니다.")
+        if not eq_near(p, e):
+            raise ApiError(400, "설비 바로 옆(한 칸 안)으로 가서 하세요.")
+        job = job_of(p)
+        if phase == "start":
+            if st["busy"] and st["busy"] != p["name"] and now - st["busy_at"] < 30:
+                raise ApiError(409, f"{st['busy']} 님이 작업 중입니다.")
+            kind, need, xp, label = WORK[st["st"]]
+            if e[1] in JOB_CATS.get(job, set()):
+                need, xp = round(need * .6, 1), int(round(xp * 1.5))     # 내 직무의 설비 — 빨리 · 더 많이
+            elif job == 2:
+                need = round(need * .8, 1)                                # 시운전 리드는 무엇이든 조금 빨리
+            p["work"] = {"eq": eid, "kind": kind, "need": need, "xp": xp, "label": label, "st": st["st"], "at": now}
+            st["busy"], st["busy_at"] = p["name"], now
+            STATE["ver"] += 1
+            return {"ok": True, "kind": kind, "need": need, "label": label, "state": st["st"], "name": e[5]}
+        if phase == "done":
+            w = p.get("work")
+            if not w or w["eq"] != eid or now - w["at"] < w["need"] - .4:
+                raise ApiError(400, "작업이 아직 끝나지 않았습니다.")
+            before = st["st"]
+            gained = w["xp"] if before == w["st"] else WORK["ok"][2]       # 그사이 남이 고쳤으면 점검 몫만
+            st.update(st="ok", since=now, busy="")
+            old = XP["xp"].get(p["name"], 0)
+            XP["xp"][p["name"]] = old + gained
+            XP["dirty"] = True
+            p.pop("work", None)
+            p["cheer_at"] = now
+            lv0, lv1 = level_of(old), level_of(old + gained)
+            if before != "ok":
+                log_system(f"{p['name']} 님이 {eid} {e[5]} {WORK[before][3]} 완료 (+{gained} XP)", now)
+            if lv1 > lv0:
+                log_system(f"🎉 {p['name']} 님 Lv {lv1} 달성!", now)
+            STATE["ver"] += 1
+            return {"ok": True, "gained": gained, "xp": old + gained, "lv": lv1, "was": before, "label": WORK[before][3], "name": e[5]}
+    raise ApiError(400, "phase 는 start · done · cancel 입니다.")
+
+
+def equip_defs() -> dict:
+    return {"equip": [{"id": i, "t": t, "x": x, "y": y, "w": w, "name": n} for i, t, x, y, w, n in EQUIP],
+            "jobs": list(JOBS), "heal_radius": HEAL_RADIUS, "heal_per_sec": HEAL_PER_SEC}
 
 
 # ── 광장 상태 ──────────────────────────────────────────────────────────
@@ -316,10 +501,16 @@ def snapshot(now: float | None = None) -> dict:
                 "status": p.get("status", ""),
                 "hp": hp_of(p["name"]), "hp_max": HP_MAX, "ghost": hp_of(p["name"]) <= 0,
                 "kills": HP["kills"].get(p["name"], 0), "killer": HP["kills"].get(p["name"], 0) >= KILLER_AT,
+                "xp": XP["xp"].get(p["name"], 0), "lv": level_of(XP["xp"].get(p["name"], 0)), "job": job_of(p),
+                "healer": p.get("role") in HEAL_ROLES and hp_of(p["name"]) > 0,
+                "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2),
+                "cheer_age": round(now - p.get("cheer_at", 0), 2),
+                "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
-        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"]}
+        eq = {k: [v["st"], v["busy"]] for k, v in EQ.items()}
+        return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"], "eq": eq, "heal_r": HEAL_RADIUS}
 
 
 def player(pid) -> dict:
@@ -391,6 +582,11 @@ def api_move(body: dict) -> dict:
                 p["dir"] = d % 4
                 STATE["ver"] += 1
             return {"ok": False, "blocked": True, "x": p["x"], "y": p["y"]}
+        if (x, y) != (p["x"], p["y"]) and p.get("work"):    # 걸어가면 하던 작업은 그만
+            st = EQ.get(p["work"]["eq"])
+            if st and st["busy"] == p["name"]:
+                st["busy"] = ""
+            p.pop("work", None)
         if (x, y, d % 4) != (p["x"], p["y"], p["dir"]):
             p["x"], p["y"], p["dir"] = x, y, d % 4
             STATE["ver"] += 1
@@ -514,12 +710,11 @@ def api_leave(body: dict) -> dict:
 
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
-         "/plaza/api/leave": api_leave, "/plaza/api/status": api_status}
+         "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),
          "/static/catknight.png": ("catknight.png", "image/png"),
-         "/static/joseon.png": ("joseon.png", "image/png"),              # 조선 마을 타일셋에서 뽑은 땅 타일 · 한옥 · 담장 · 나무 · 소품
          "/static/village_chars.png": ("village_chars.png", "image/png")}  # 마을 시트에서 뽑은 캐릭터 5종   # 고양이 기사 그림 (사용자가 준 시트에서 캐릭터만 뽑은 것)
 
 
@@ -595,6 +790,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, (STATIC / name).read_bytes(), ctype)
             except OSError:
                 return self._json(404, {"detail": f"{name} 이 없습니다."})
+        if url.path == "/plaza/api/equip":                   # 설비 목록 (지도에 그릴 자리 · 이름) — 누구나
+            return self._json(200, equip_defs())
         if url.path == "/plaza/api/roles":
             try:
                 need_operator((q.get("id") or [""])[0])
@@ -686,6 +883,7 @@ def main(argv=None) -> None:
     NETS_FILE = Path(a.nets_file).resolve() if a.nets_file else None
     roles()                                        # 역할 파일 빈 틀을 만들어 둔다
     load_hp()
+    eq_init()
     with LOCK:
         check_week(time.time(), force=True)        # 꺼져 있는 동안 마감이 지났으면 바로 부활
     save_hp()
