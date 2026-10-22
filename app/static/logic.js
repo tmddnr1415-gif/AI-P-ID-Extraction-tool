@@ -2538,7 +2538,7 @@ function reportUnmet() {
     const ins = L.sheet.ports.filter((p) => p.block === x.block && p.dir === "in");
     if ((x.unread || []).length) {
       for (const n of x.unread) keys.push("net:" + n);
-      parts.push(`${name} 입력선 ${x.unread.length}개를 도면에서 읽지 못해 ${x.want} 을 낼 수 없음`);
+      parts.push(`${name} 입력선 ${x.unread.length}개가 연결 안 됨 (0 으로 봄) — ${x.want} 이 안 나옴`);
       continue;
     }
     const need = gateNeed(x.logic, x.want);
