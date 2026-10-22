@@ -929,7 +929,9 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                                 src = " ".join(t for t in (b_.get("func") or "", b_.get("label") or "") if t).strip()
                                 break
                     links.append({"side": side, "row": x["row"], "pin": x.get("pin") or "", "rows": prow, "src": src})
-            out[bid] = {"sheet_no": s0.get("sheet_no"), "frames": fr_out, "links": links}
+            # L45 — 새 창에서 Typical 안의 선을 강제하면 부모 장에서 이 이름으로 준다 (단자 선은 부모 선 이름)
+            out[bid] = {"sheet_no": s0.get("sheet_no"), "frames": fr_out, "links": links,
+                        "alias": {str(tn): str(nm) for tn, nm in alias.items() if tn in tnets}}
         return out
 
     def macro_views(page, items, values):

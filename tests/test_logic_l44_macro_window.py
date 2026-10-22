@@ -54,5 +54,38 @@ def test_macro_window_does_not_simulate_the_typical_on_its_own():
     assert "if (macroLinked()) { askParentMacro(); return; }" in JS          # 새 창의 runSim 은 부모에게 묻는다
     assert "if (macroLinked()) { macroWindowForce(key, v); return; }" in JS  # 새 창의 입력은 부모 시트의 행으로
     assert '"macro-ask"' in JS and '"macro-set"' in JS
-    assert "inner: (L.macroInner || {})[key]" in JS                          # 부모가 펼친 값을 보낸다
+    assert "const inner = (L.macroInner || {})[key]" in JS                   # 부모가 펼친 값을 보낸다
     assert "loadTeach(id, !fromWin && !MACRO_FROM" in JS                     # 새 창에 가르치기 창을 덮지 않는다
+
+
+def _latch_bundle():
+    """L45 — Typical 안: (단자 16행 t1 · 단자 없는 x) → OR → s → 래치 S · 몰이 없는 r → 래치 R · Q → 70행."""
+    typ = _sheet(2, "T1", [{"n": 16, "side": "L", "net": "t1"}, {"n": 70, "side": "R", "net": "q"}],
+                 {"O": {"func": "OR", "logic": "or", "group": "", "param": {}},
+                  "MM": {"func": "MEMORY", "logic": "memory", "group": "", "param": {}}},
+                 [P("O", "t1", "in"), P("O", "x", "in"), P("O", "s", "out"),
+                  {**P("MM", "s", "in"), "role": "set"}, {**P("MM", "r", "in"), "role": "reset"},
+                  {**P("MM", "q", "out"), "role": "q"}])
+    mac = {"func": "MACRO", "logic": "macro", "group": "", "param": {}, "label": "",
+           "macro": {"sheet": "T1", "page": 2, "inputs": [{"net": "p1", "pin": "A", "row": 16}],
+                     "outputs": [{"net": "po", "pin": "Q", "row": 70}]}}
+    par = _sheet(1, "G1", [{"n": 14, "side": "L", "net": "p1"}, {"n": 73, "side": "R", "net": "po"}],
+                 {"M": mac}, [P("M", "p1", "in"), P("M", "po", "out")])
+    return [par, typ]
+
+
+def test_macro_window_can_force_signals_inside_the_typical():
+    sheets = _latch_bundle()
+    out = sim.simulate_bundle(sheets, {}, None, 1, cache={})
+    inner = out["macro_inner"][1]["M"]
+    assert inner["alias"] == {"t1": "p1", "q": "po"}                # 단자 선은 부모 선 이름
+    assert inner["frames"][-1]["values"].get("q") is None
+    # 새 창에서 단자 없는 OR 입력 x 를 1 로 → 부모 장에 펼친 이름 net:M/x 로 준다 → 래치 SET → Q → 부모 73행
+    out = sim.simulate_bundle(sheets, {1: {"net:M/x": 1}}, None, 1, cache={})
+    last = out["macro_inner"][1]["M"]["frames"][-1]["values"]
+    assert last.get("s") == 1 and last.get("q") == 1
+    assert out["focus"]["frames"][-1]["values"]["po"] == 1
+    # 래치 RESET 선(몰이 없음)을 1 로 → Q 0 (기본 메모리: SET 0 · RESET 1)
+    out = sim.simulate_bundle(sheets, {1: {"net:M/r": 1}}, None, 1, cache={})
+    assert out["macro_inner"][1]["M"]["frames"][-1]["values"].get("q") is None
+    assert "function macroParentKey" in JS and "macroChildForces" in JS
