@@ -507,20 +507,23 @@ def test_every_gate_follows_the_legend_g003_truth_table():
     assert [_out(vote, o) for o in ((), (1,), (1, 2), (1, 2, 3))] == [0, 0, 1, 1]
 
 
-def test_a_gate_whose_inputs_were_not_read_gives_no_output():
-    """입력을 다 읽지 못한 게이트는 출력을 내지 않는다 — 읽힌 입력만으로 결과가 정해질 때만 낸다."""
-    assert _out(_one("and", 1), (1,)) == 0           # 하나만 읽힌 AND — 그 하나가 1 이어도 0
-    assert _out(_one("not", 0)) == 0                 # 입력이 안 읽힌 NOT — 1 을 내지 않는다
-    assert _out(_one("nor", 1)) == 0                 # 하나만 읽힌 NOR — 다 0 인지 모른다
-    assert _out(_one("or", 1), (1,)) == 1            # 하나만 읽힌 OR 라도 그 하나가 1 이면 1 (정해진다)
-    assert _out(_one("nand", 1)) == 1                # 읽힌 입력이 0 이면 NAND 는 1 (정해진다)
+def test_unconnected_gate_inputs_are_inactive():
+    """L46 — 연결 안 된 입력(빠진 칸 · 몰이 없는 선)은 비활성(0) 이고 게이트는 그 값대로 판정한다
+    (사용자 지시 — "O_OPN 과 같이 연결되지 않은 것들은 모두 비활성으로 인식하고 그 값에 따라 Gate 들이 동작하게")."""
+    assert _out(_one("and", 1), (1,)) == 0           # 하나만 읽힌 AND — 빠진 칸 0 이라 0
+    assert _out(_one("not", 0)) == 1                 # 입력이 안 읽힌 NOT — 0 의 반대 1
+    assert _out(_one("nor", 1)) == 1                 # 하나만 읽힌 NOR — 읽힌 칸 0 · 빠진 칸 0 → 1
+    assert _out(_one("nor", 1), (1,)) == 0
+    assert _out(_one("or", 1), (1,)) == 1
+    assert _out(_one("nand", 1)) == 1
     r = sim.simulate(_one("and", 1), {"row:1": 1})
     assert r["short_gates"] == ["G"] and any("입력을 다 읽지 못한" in n for n in r["notes"])
-    # 몰이가 없는 선(도면에서 끊긴 입력)도 모름 — NOT 뒤로 1 이 나오지 않는다
+    # 몰이가 없는 선(연결 안 된 입력)도 0 — NOT 뒤로 1 이 나온다 · 그 선은 근거용으로 unread 에 남는다
     s = _one("not", 1)
     s["rows"] = [r for r in s["rows"] if r["side"] == "R"]
-    assert sim.simulate(s, {})["frames"][-1]["values"]["o"] == 0
-    # 판정 못 한 블록은 출력을 내지 않는다
+    fr = sim.simulate(s, {})["frames"][-1]
+    assert fr["values"]["o"] == 1 and fr["unread"]
+    # 판정 못 한 블록은 연결된 것이라 여전히 출력을 내지 않는다
     assert _out(_one("unknown", 2, label="MAN"), (1, 2)) == 0
 
 

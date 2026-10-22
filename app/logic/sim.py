@@ -5,10 +5,10 @@
 값은 디지털 둘뿐: 1(활성) · 0(비활성) — 화면에는 그 둘만 보인다 (사용자 지시 L3).
   * 왼쪽 행 입력 · 누름단추 · 들어오는 선이 없는 블록은 **사람이 활성화하지 않으면 0** 이다.
   * L10 — **입력 조건이 만족되지 않으면 출력은 나오지 않는다** (사용자 지시 · 모든 로직 · 모든 프로젝트 같은 원리).
-    도면에서 **읽지 못한 입력**(몰이가 없는 선 · 판정 못 한 블록의 출력 · 범례가 여러 입력으로 그리는 AND/OR/NAND/NOR
-    에서 둘 미만만 읽힌 칸 · 입력이 안 읽힌 NOT)은 안에서 '모름' 으로 계산한다 (Kleene 3값).  모름이 출력을 바꿀 수
-    있으면 그 출력은 0 이고 `unread` 에 남는다 — 예: 입력이 안 읽힌 NOT 은 1 을 내지 않는다 · 입력 하나만 읽힌 AND 는
-    그 하나가 1 이어도 1 을 내지 않는다.  모름과 상관없이 정해지는 출력은 그대로 낸다 (읽힌 입력 하나가 1 인 OR).
+  * L46 — **연결 안 된 입력은 비활성(0)** 이다 (사용자 지시 — "O_OPN 과 같이 연결되지 않은 것들은 모두 비활성").
+    몰이가 없는 선 · 범례가 여러 입력으로 그리는 게이트의 빠진 칸 · 짝 기호 입력이 없는 연결 기호는 0 으로 보고 게이트가
+    그 값대로 판정한다 — 입력이 연결 안 된 NOT 은 1 · 입력 하나만 읽힌 AND 는 0.  그 선은 근거용으로 `unread` 에 남긴다.
+    판정 못 한 블록의 출력만 '모름'(Kleene 3값)이고 모름이 출력을 바꿀 수 있으면 그 출력은 0 이다.
   * 선(넷)을 직접 강제하면 그 넷의 값은 몰이와 상관없이 그 값이다.
   * 블록 동작은 범례 G003 정의 (config/logic_symbols.yaml) — AND · OR · NOT · NAND · NOR ·
     메모리(우선 칸) · GT/DT/PD 타이머 (시간은 타이머 옆에 인쇄된 t 를 읽은 값 · 못 읽으면 1초로 보고 그렇게 말한다).
@@ -123,9 +123,10 @@ def _vote3(vs, a, n):
     return 0 if ones + unk < a else None
 
 
-def gate3(lg, iv):
-    """범례 정의 게이트 하나 — 읽힌 입력 수가 모자라면 모자란 칸을 모름으로 채운다."""
-    iv = list(iv) + [None] * max(0, MIN_INPUTS.get(lg, 0) - len(iv))
+def gate3(lg, iv, fill=None):
+    """범례 정의 게이트 하나 — 읽힌 입력 수가 모자라면 모자란 칸을 `fill` 로 채운다.
+    L46 — 시뮬레이션은 0 (연결 안 된 칸 = 비활성) 으로 채운다.  None(모름)으로 채우는 것은 '정해지는가' 를 물을 때뿐."""
+    iv = list(iv) + [fill] * max(0, MIN_INPUTS.get(lg, 0) - len(iv))
     if lg == "and":
         return _and3(iv)
     if lg == "nand":
@@ -231,10 +232,10 @@ def timer_seconds(b, override=None):
     return DEFAULT_T
 
 
-def _frame(t, val, depth, note):
+def _frame(t, val, depth, note, floating=()):
     """화면은 1/0 만 본다 — 모름은 0 (출력 없음) 으로 내고 어느 선이 모름이었는지는 `unread` 에 남긴다."""
     return {"t": t, "values": {n: (0 if v is None else v) for n, v in val.items()},
-            "unread": sorted(n for n, v in val.items() if v is None),
+            "unread": sorted(n for n, v in val.items() if v is None or n in floating),
             "depth": depth, "note": note}
 
 
@@ -250,6 +251,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     tset = {str(k): float(v) for k, v in (timers or {}).items() if _secs(v) is not None}
     st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
+    floating = set()                  # L46 — 몰이가 없는 선 (값은 0 · 화면 근거용으로 `unread` 에 남긴다)
     if state:
         st["mem"].update(state.get("mem", {}))
         st["sr"].update(state.get("sr", {}))
@@ -345,17 +347,21 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         if lg == "sink":
             return 0
         if lg == "pass":                               # 이음점 · 그대로 넘김 (사람이 가르친 종류 · L25)
-            return _or3(iv) if iv else None
+            return _or3(iv) if iv else 0
+        # L46 — 연결 안 된 입력 칸은 비활성(0) 이다 (사용자 지시 — "O_OPN 과 같이 연결되지 않은 것들은 모두 비활성으로
+        # 인식하고 그 값에 따라 Gate 들이 동작하게").  L32 hold 는 그 칸을 모름으로 보아 출력이 정해지지 않을 때만 쓴다.
         if lg in MIN_INPUTS:
             if len(iv) < MIN_INPUTS[lg]:
                 short.add(bid)
-                return _held(bid, role, gate3(lg, iv))
+                o = _held(bid, role, gate3(lg, iv))
+                return gate3(lg, iv, 0) if o is None else o
             return gate3(lg, iv)
         vote = _vote_of(b)
         if vote:
             if len(iv) < vote[1]:
                 short.add(bid)
-                return _held(bid, role, _vote3(iv, *vote))
+                o = _held(bid, role, _vote3(iv, *vote))
+                return _vote3(list(iv) + [0] * (vote[1] - len(iv)), *vote) if o is None else o
             return _vote3(iv, *vote)
         if lg == "memory":
             q = st["mem"].get(bid, 0)
@@ -374,7 +380,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         if lg == "connector":
             g = groups.get(b["group"] or bid, [bid])
             vals = [val.get(n) for gid in g for n, _, _ in ins[gid]]
-            return _or3(vals) if vals else None        # 짝 기호의 입력을 못 읽었으면 모름
+            return _or3(vals) if vals else 0           # L46 — 짝 기호의 입력이 연결 안 됨 = 비활성
         if bid in an_dig:
             return an_dig[bid]                         # L30 — DEV 처럼 아날로그 값을 맞대어 1/0 을 내는 연산자
         if ins[bid] and not b.get("aop"):
@@ -430,7 +436,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                             dd = [depth.get(n, 0) for n, _, _ in ins[x]]
                             ds.append((max(dd) if dd else 0) + 1)
                     if not vs:
-                        v, d = None, 0                 # L10 — 몰이가 없는 선 = 도면에서 못 읽은 입력
+                        v, d = 0, 0                    # L46 — 몰이가 없는 선(연결 안 됨) = 비활성 · `unread` 에는 남긴다
+                        floating.add(nid)
                     else:
                         v = _or3(vs) if len(vs) > 1 else vs[0]
                         d = max(ds) if ds else 0
@@ -526,7 +533,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         val, depth = settle(val)
         if not timers_step(val, t):
             break
-    frames.append(_running(_frame(t, val, depth, "누른 순간"), t))
+    frames.append(_running(_frame(t, val, depth, "누른 순간", floating), t))
     while len(frames) < MAX_FRAMES:
         due = [(ts["due"], bid) for bid, ts in st["tim"].items() if ts.get("due") is not None]
         if not due:
@@ -545,7 +552,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             if not timers_step(val, t):
                 break
         labels = [B[b].get("param", {}).get("text") or B[b]["func"] for b in fired]
-        fr = _running(_frame(t, val, depth, f"{', '.join(labels)} 경과"), t)
+        fr = _running(_frame(t, val, depth, f"{', '.join(labels)} 경과", floating), t)
         fr["fired"] = fired
         frames.append(fr)
     st["t"] = t
@@ -563,7 +570,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         notes.add(f"출력 선을 직접 켜지 않습니다 — 게이트 조건이 맞을 때만 나갑니다.  조건을 다 채우지 못한 출력 {len(unmet)}개"
                   " (앞쪽 입력이 0 으로 고정됐거나, OR · 메모리처럼 어느 입력인지 정해지지 않는 자리)")
     if short:
-        notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 그 입력 조건을 확인할 수 없어 출력을 내지 않습니다 (도면에서 확인)")
+        notes.add(f"입력을 다 읽지 못한 게이트 {len(short)}개는 연결 안 된 칸을 비활성(0)으로 보고 판정했습니다 (도면에서 확인)")
     if any(m["value"] is not None and m["sp"] is None for m in mons.values()):
         notes.add("설정값이 없는 감시 블록은 값을 맞대지 못했습니다 — 블록을 눌러 설정값을 적을 수 있습니다")
     return {"frames": frames, "state": st, "notes": sorted(notes), "short_gates": sorted(short),

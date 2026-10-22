@@ -145,9 +145,10 @@ def test_hold_answers_only_what_the_drawing_could_not_read():
                {"N": _B("not"), "A": _B("and")},
                [_P("N", "q", "out"), _P("A", "a", "in"), _P("A", "q", "in"), _P("A", "o", "out")])
     last = lambda f: sim.simulate(s, f)["frames"][-1]["values"]
-    assert last({"row:1": 1}).get("q") in (None, 0) and last({"row:1": 1}).get("o") in (None, 0)   # 읽지 못한 NOT → 출력 없음
-    v = last({"row:1": 1, "hold:q": 1})
-    assert v["q"] == 1 and v["o"] == 1
+    # L46 — 입력이 연결 안 된 NOT 은 입력을 비활성(0)으로 보아 1 을 낸다
+    assert last({"row:1": 1})["q"] == 1 and last({"row:1": 1})["o"] == 1
+    v = last({"row:1": 1, "hold:q": 0})            # 사람이 '빠진 입력은 1' 이라고 답하면 그 값
+    assert v["q"] == 0 and v["o"] == 0
     # AND 하나만 읽힌 자리 — 읽힌 입력이 0 이면 출력은 0 으로 정해진다: 사람 값이 이기지 않는다
     s2 = _sheet(1, "G001", [{"n": 1, "side": "L", "net": "a", "desc": "A"},
                             {"n": 90, "side": "R", "net": "o", "desc": "OUT"}],
