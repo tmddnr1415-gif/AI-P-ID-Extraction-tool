@@ -29,25 +29,30 @@ def _pct(v):
 
 
 class _Writer:
-    """요약 장 — 글줄을 위에서 아래로.  넘치면 새 장."""
+    """요약 장 — 글줄을 위에서 아래로.  넘치면 새 장.
+    L47 — 글자는 쪽마다 색깔별 TextWriter 에 모아 두었다가 한 번에 쓴다 (글줄마다 insert_text 를 부르면 쪽 내용이 글줄 수만큼
+    따로 쌓여 그 다음 글줄마다 그것을 다시 세었다 — 4,500항목 요약에 70초).  바탕 칠도 쪽마다 Shape 하나."""
 
     def __init__(self, doc, at, size):
         self.doc, self.at, self.size = doc, at, size
         self.pages = []
+        self.tw = {}                                  # (쪽, 색) → TextWriter
+        self.fills = {}                               # 쪽 → [(rect, fill)]
         self.new()
 
     def new(self):
         w, h = self.size
         i = self.at + len(self.pages)
         self.doc.new_page(i, width=w, height=h)
-        self.doc[i].insert_font(fontname="ko", fontbuffer=_font().buffer)
         self.pages.append(i)
         self.idx, self.y = i, 40
         self.m = 36
 
-    @property
-    def page(self):                                   # 쪽을 넣으면 앞서 받은 쪽 객체가 끊긴다 — 늘 새로 받는다
-        return self.doc[self.idx]
+    def _tw(self, color):
+        k = (self.idx, tuple(color))
+        if k not in self.tw:
+            self.tw[k] = pymupdf.TextWriter(pymupdf.Rect(0, 0, *self.size), color=color)
+        return self.tw[k]
 
     def need(self, h):
         if self.y + h > self.size[1] - 30:
@@ -55,25 +60,54 @@ class _Writer:
 
     def text(self, s, size=10, color=(0, 0, 0), x=None):
         self.need(size * 1.5)
-        self.page.insert_text((x if x is not None else self.m, self.y + size), s, fontname="ko", fontsize=size, color=color)
+        self._tw(color).append((x if x is not None else self.m, self.y + size), s, font=_font(), fontsize=size)
         self.y += size * 1.55
+
+    @staticmethod
+    def _fit(s, size, lim):
+        """칸 폭에 맞게 자른다 — 예전 규칙(두 글자 떼고 … · 그 뒤 한 글자씩)과 같은 답을 폭 비례로 찾아간다.
+        후보는 s · s[:n-2]+… · s[:n-3]+… … 이고 가장 긴 맞는 것 (맞음은 길이에 단조)."""
+        f = _font()
+        if not s or f.text_length(s, size) <= lim:
+            return s
+        n = len(s)
+        cand = lambda m: (s[:m] + "…") if m >= 1 else ""
+        fits = lambda m: not cand(m) or f.text_length(cand(m), size) <= lim
+        est = max(0, min(n - 2, int(n * lim / f.text_length(s, size))))
+        m = est
+        if fits(m):
+            while m < n - 2 and fits(m + 1):
+                m += 1
+        else:
+            while m > 0 and not fits(m):
+                m -= 1
+        return cand(m)
 
     def cells(self, vals, xs, size=8.5, color=(0, 0, 0), fill=None, link=None, colors=None):
         self.need(size * 1.6)
         w = self.size[0] - self.m
         if fill:
-            self.page.draw_rect(pymupdf.Rect(self.m - 2, self.y, w, self.y + size * 1.5), color=None, fill=fill)
+            self.fills.setdefault(self.idx, []).append((pymupdf.Rect(self.m - 2, self.y, w, self.y + size * 1.5), fill))
         for i, (v, x) in enumerate(zip(vals, xs)):
             lim = (xs[i + 1] - x - 4) if i + 1 < len(xs) else (w - x)
-            s = str(v if v is not None else "")
-            while s and _font().text_length(s, size) > lim:
-                s = s[:-2] + "…" if len(s) > 2 else ""
-            self.page.insert_text((x, self.y + size * 1.1), s, fontname="ko", fontsize=size,
-                                  color=(colors[i] if colors and colors[i] else color))
+            s = self._fit(str(v if v is not None else ""), size, lim)
+            if s:
+                self._tw(colors[i] if colors and colors[i] else color).append((x, self.y + size * 1.1), s, font=_font(), fontsize=size)
         if link is not None:
-            self.page.insert_link({"kind": pymupdf.LINK_GOTO, "page": link,
-                                   "from": pymupdf.Rect(self.m - 2, self.y, w, self.y + size * 1.5)})
+            self.doc[self.idx].insert_link({"kind": pymupdf.LINK_GOTO, "page": link,
+                                            "from": pymupdf.Rect(self.m - 2, self.y, w, self.y + size * 1.5)})
         self.y += size * 1.5
+
+    def flush(self):
+        """모아 둔 바탕 칠과 글자를 쪽마다 한 번에 쓴다 (칠이 글자 아래로)."""
+        for i, rects in self.fills.items():
+            sh = self.doc[i].new_shape()
+            for r, fill in rects:
+                sh.draw_rect(r)
+                sh.finish(color=None, fill=fill)
+            sh.commit()
+        for (i, _), tw in self.tw.items():
+            tw.write_text(self.doc[i])
 
 
 VERDICT_KO = {"OK": "맞음", "WRONG": "툴 오판", "HOLD": "보류"}
@@ -102,6 +136,7 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
             continue
         page = doc[pg - 1]
         dm = page.derotation_matrix
+        sh = page.new_shape()                         # L47 — 번호표(상자 + 글자)는 쪽마다 한 번에 (항목마다 내용을 쌓지 않는다)
         for it in its:
             if not it.get("rect"):
                 continue
@@ -125,9 +160,11 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
             box = pymupdf.Rect(R.x1, R.y0 - fs - 2, R.x1 + tw, R.y0)
             bu = box * dm
             bu.normalize()
-            page.draw_rect(bu, color=col, fill=col, width=0.3, overlay=True)
+            sh.draw_rect(bu)
+            sh.finish(color=col, fill=col, width=0.3)
             org = pymupdf.Point(box.x0 + 1.5, box.y1 - 1.6) * dm
-            page.insert_text(org, tag, fontname="helv", fontsize=fs, color=(1, 1, 1), rotate=page.rotation, overlay=True)
+            sh.insert_text(org, tag, fontname="helv", fontsize=fs, color=(1, 1, 1), rotate=page.rotation)
+        sh.commit(overlay=True)
     # ---- 앞에 요약 장
     W = _Writer(doc, 0, size)
     cnt = review.get("count") or {}
@@ -181,8 +218,10 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
                 xs, 8, colors=[COLOR[it["cat"]], COLOR[it["cat"]], None, None, (0.3, 0.3, 0.3)])
         links.append((W.idx, W.y - 8 * 1.5, it["page"]))
     n = len(W.pages)
-    doc[note_page].insert_text((W.m, note_y + 9), f"각 쪽의 색 상자를 누르면 내용이 보입니다.  맨 앞 {n} 장이 이 요약이라 "
-                          f"원래 쪽 번호에 {n} 을 더한 쪽이 그 도면입니다.", fontname="ko", fontsize=9, color=(0.45, 0.45, 0.45))
+    W.idx = note_page
+    W._tw((0.45, 0.45, 0.45)).append((W.m, note_y + 9), f"각 쪽의 색 상자를 누르면 내용이 보입니다.  맨 앞 {n} 장이 이 요약이라 "
+                                      f"원래 쪽 번호에 {n} 을 더한 쪽이 그 도면입니다.", font=_font(), fontsize=9)
+    W.flush()
     for p, y, pg in links:
         if 1 <= pg <= n0:
             doc[p].insert_link({"kind": pymupdf.LINK_GOTO, "page": pg - 1 + n,
@@ -204,7 +243,7 @@ def build(src_pdf, review, out_pdf, name="", include_info=False, author=""):
     except Exception:
         pass
     doc.subset_fonts()
-    doc.save(out_pdf, garbage=3, deflate=True)
+    doc.save(out_pdf, garbage=1, deflate=True)        # L47 — garbage=3(객체 중복 합치기)은 846쪽에서 3분을 썼다 · 크기 차이는 작다
     doc.close()
     return {"cover_pages": n, "marked": sum(1 for it in items if it.get("rect")), "items": len(items)}
 

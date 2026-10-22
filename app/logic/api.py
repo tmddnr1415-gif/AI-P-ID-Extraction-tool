@@ -926,7 +926,7 @@ def _start_learning(job, d):
         _LEARNING[job] = None
         return
     if paths.frozen():
-        th = threading.Thread(target=behavior.learn_dir, args=(d,), daemon=True)
+        th = threading.Thread(target=lambda: (behavior.wait_quiet(d), behavior.learn_dir(d)), daemon=True)
         th.start()
         _LEARNING[job] = type("T", (), {"poll": lambda self: None if th.is_alive() else 0})()
         return
@@ -962,7 +962,7 @@ def sequence_try(job: str, body: dict = Body(default={})):
         for p, v in _clean_forces(o).items():
             f.setdefault(p, {}).update(v)
         with cache.setdefault("_lock", __import__("threading").Lock()):
-            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)["focus"] or {"frames": []}
+            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache, light=True)["focus"] or {"frames": []}
         vals = [fr["values"].get(net) for fr in r["frames"]]
         out.append({"reached": want in vals, "steady": bool(vals) and vals[-1] == want})
     return {"options": out}

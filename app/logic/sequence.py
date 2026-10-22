@@ -456,7 +456,7 @@ def effect(sheets, page, net, want, forces, add, timers=None, gate=None, cache=N
     by_page = {s["page"]: s for s in sheets}
 
     def run(f):
-        sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)
+        sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache, light=True)
         return cache.pop("_last_results", None) or {}
 
     after_f = {p: dict(v) for p, v in forces.items()}

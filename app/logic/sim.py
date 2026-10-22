@@ -725,7 +725,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
     → {"focus": 그 장의 simulate 결과, "linked": {page: {row: 값}}, "pages": [...], "state": {page: st}, "notes"}
     """
     forces = {int(k): v for k, v in (forces or {}).items()}
-    state = {int(k): v for k, v in (state or {}).items()}
+    if not isinstance(state, _LazyState):            # L47 — light 호출이 돌려받은 상태는 풀지 않고 그대로 넘긴다
+        state = {int(k): v for k, v in (state or {}).items()}
     timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     analog = {int(k): v for k, v in (analog or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     # L28 — 경량화: cache(부르는 쪽이 그 결과마다 하나 들고 있는 dict)가 있으면 묶음의 연결(feeds · 매크로 · 펼친 장)을
@@ -766,7 +767,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                 macros[s0["page"]].append((bid, m))
     inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
     if cache is not None:
-        for k in ("topo", "analog", "idx", "run_of", "fp", "an_nets"):
+        for k in ("topo", "analog", "idx", "run_of", "fp", "an_nets", "ref_in", "quiet", "fed_by"):
             cache.pop(k, None)
         cache["topo"] = (by_page, by_no, feeds, macros, inline)
         cache["n_sheets"] = len(sheets)
@@ -805,6 +806,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         page_memo = cache.setdefault("pages", {})
         if len(page_memo) > BUNDLE_MEMO_MAX:
             page_memo.clear()
+            cache.pop("quiet", None)
     else:
         an_given = _analog_bundle(by_page, feeds, analog)
         page_memo = None
@@ -962,6 +964,19 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
     notes = set()
     chain = {}                        # L16 — 줄줄이 켜기가 보내는 시트에 준 목표 {page: {row:n: v}} (사람 값 아님)
     pulls = []
+    # L47 — 아무 입력도 안 받은 장(사람 값 · 줄줄이 · 상태 · 타이머 없음)의 기억 열쇠는 들어오는 값(lin)만 다르다 —
+    # 같은 lin 이면 지난 열쇠를 그대로 쓴다 (827장마다 json 열쇠를 다시 만들던 것 · 열쇠가 같으면 답도 같다)
+    quiet = cache.setdefault("quiet", {}).setdefault(ak, {}) if cache is not None else None
+    fed_by = cache.get("fed_by") if cache is not None else None
+    if fed_by is None:
+        fed_by = {}
+        for p, fd in feeds.items():
+            for _, sp, _ in fd:
+                fed_by.setdefault(sp, set()).add(p)
+        if cache is not None:
+            cache["fed_by"] = fed_by
+    lazy_state = isinstance(state, _LazyState)
+    no_timers = not timers
     for _ in range(MAX_PASSES):
         if not todo:
             break
@@ -974,29 +989,41 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             user = forces.get(page, {})
             f = {k: v for k, v in chain.get(page, {}).items() if k not in user}
             f.update(user)                            # 사람이 준 값이 이긴다
-            soft = {n: v for n, v in lin.items() if f"row:{n}" not in f}
-            tm = dict(timers.get(page) or {})
-            for bid, m in items.items():
-                for k, v in (timers.get(m["page"]) or {}).items():
-                    tm[f"{bid}/{k}"] = v
-                for pg in (m.get("parts") or []):
-                    if pg != m["page"]:
-                        for k, v in (timers.get(pg) or {}).items():
-                            tm[f"{bid}/P{pg}.{k}"] = v
-            asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
-            mk = hit = None
-            if page_memo is not None:
-                try:
-                    mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, state.get(page), tm, soft, sorted(asked),
-                                   an_given.get(page))
+            st_raw = state.raw(page) if lazy_state else state.get(page)
+            is_quiet = quiet is not None and not f and st_raw is None and no_timers and not chain
+            if is_quiet:
+                q = quiet.get(page)
+                if q is not None and q[0] == lin:
+                    mk, soft, tm, asked = q[1], lin, {}, set()
                     hit = page_memo.get(mk)
-                except (TypeError, ValueError):
+                else:
                     mk = None
+            if not is_quiet or mk is None:
+                soft = {n: v for n, v in lin.items() if f"row:{n}" not in f}
+                tm = dict(timers.get(page) or {})
+                for bid, m in items.items():
+                    for k, v in (timers.get(m["page"]) or {}).items():
+                        tm[f"{bid}/{k}"] = v
+                    for pg in (m.get("parts") or []):
+                        if pg != m["page"]:
+                            for k, v in (timers.get(pg) or {}).items():
+                                tm[f"{bid}/P{pg}.{k}"] = v
+                asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
+                mk = hit = None
+                if page_memo is not None:
+                    try:
+                        mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, st_raw, tm, soft, sorted(asked),
+                                       an_given.get(page))
+                        hit = page_memo.get(mk)
+                    except (TypeError, ValueError):
+                        mk = None
+                if is_quiet and mk is not None:
+                    quiet[page] = (lin, mk)
             hit_rv = None
-            if mk is not None and hit is not None and not items:
+            if mk is not None and hit is not None and (light or not items):
                 res, mv, hit_rv = _LazyRes(hit[0], hit[2]), None, hit[1]
             elif mk is not None and hit is not None:
-                res, mv = _fresh(hit[0])
+                res, mv, hit_rv = _LazyRes(hit[0], hit[2]), pickle.loads(hit[4]), hit[1]
             else:
                 res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
                 mv = None
@@ -1018,24 +1045,26 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                     redo.add(sp)
                     redo.add(page)
             if items:
-                if mv is None:
+                if mv is None and hit_rv is None:
                     mv = macro_views(page, items, res["frames"][-1]["values"])
                     inner = macro_inner(page, items, res["frames"])
                     for bid, v in mv.items():
                         if bid in inner:
                             v["_inner"] = inner[bid]
                     strip(res)
-                macro_view[page] = mv
+                if mv is not None:
+                    macro_view[page] = mv             # light 면 기억에서 꺼낸 장의 매크로 보기는 만들지 않는다 (부르는 쪽이 안 읽는다)
             rv = hit_rv if hit_rv is not None else _row_values(s, res["frames"][-1]["values"])
             if mk is not None and hit is None:
-                page_memo[mk] = (_pack((res, mv)), rv, _pack(res.get("state")), dict(res.get("pulled") or {}))
+                # 결과 · 매크로 보기 · 상태를 따로 담는다 — 꺼낼 때 필요한 것만 푼다 (L47)
+                page_memo[mk] = (_pack(res), rv, _pack(res.get("state")), dict(res.get("pulled") or {}), _pack(mv))
             results[page] = res
             link_in[page] = lin
             if rv != out_rows.get(page):
                 out_rows[page] = rv
                 changed_out.add(page)
-        todo = {p for p, fd in feeds.items() if any(sp in changed_out for _, sp, _ in fd)
-                and inputs_of(p) != link_in.get(p)} | redo
+        # L47 — 바뀐 장이 먹이는 장만 본다 (feeds 전체를 매 번 훑던 것 · 같은 답)
+        todo = {p for sp in changed_out for p in fed_by.get(sp, ()) if inputs_of(p) != link_in.get(p)} | redo
     else:
         if todo:
             notes.add(f"시트 사이 되먹임이 {MAX_PASSES}번 안에 가라앉지 않았습니다 — 마지막 상태를 보입니다")
@@ -1081,7 +1110,11 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
     run_of = cache.get("run_of") if cache is not None else None
     if cache is not None and run_of is None:
         run_of = cache["run_of"] = {x["page"]: _to_runs(x) for x in sheets}
-    design = [] if light else [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop))
+    ref_in = cache.get("ref_in") if cache is not None else None
+    if cache is not None and ref_in is None:
+        ref_in = cache["ref_in"] = _ref_index(sheets, by_page)
+    design = [] if light else [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop),
+                                                         ref_in=ref_in)
                                if e["page"] in hop]
     for page, view in macro_view.items():
         for bid, v in view.items():
@@ -1111,7 +1144,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             "chain_forces": {p: v for p, v in chain.items() if v},
             "analog_given": an_given,
             "pulled": pulls,
-            "state": {p: results.state_of(p) for p in results},
+            "state": (_LazyState({p: results.state_raw(p) for p in results}) if light
+                      else {p: results.state_of(p) for p in results}),
             "notes": sorted(notes)}
 
 
@@ -1153,6 +1187,38 @@ class _LazyResults(dict):
             return pickle.loads(v.st) if v.obj is None else v.obj["state"]
         return v["state"]
 
+    def state_raw(self, k):
+        """상태를 풀지 않고 — 기억에서 꺼낸 장은 바이트 그대로, 새로 센 장은 객체."""
+        v = dict.__getitem__(self, k)
+        if isinstance(v, _LazyRes):
+            return v.st if v.obj is None else v.obj["state"]
+        return v["state"]
+
+
+class _LazyState(dict):
+    """L47 — light 호출이 돌려주는 묶음 상태 {page: 상태}.  값은 바이트(기억에서) 또는 객체이고 꺼낼 때 푼다.
+    그대로 다음 simulate_bundle 에 넘기면 장마다 풀지 않고 바이트를 열쇠에 쓴다 — 같은 열쇠면 같은 답.
+    (화면에 보내는 보통 호출은 예전처럼 보통 dict 를 받는다 — JSON 이 dict 하위 클래스의 바이트를 못 적는다.)"""
+
+    def raw(self, k):
+        return dict.get(self, k)
+
+    def __getitem__(self, k):
+        v = dict.__getitem__(self, k)
+        if isinstance(v, bytes):
+            v = pickle.loads(v)
+            dict.__setitem__(self, k, v)
+        return v
+
+    def get(self, k, d=None):
+        return self[k] if k in self else d
+
+    def items(self):
+        return [(k, self[k]) for k in list(self.keys())]
+
+    def values(self):
+        return [self[k] for k in list(self.keys())]
+
 
 def _pack(x):
     """기억에 넣을 때는 바이트로 — 꺼낼 때마다 새 객체라 부르는 쪽(응답 · 다음 장 계산)이 고쳐도 기억이 안 바뀐다
@@ -1161,8 +1227,7 @@ def _pack(x):
 
 
 def _fresh(packed):
-    res, mv = pickle.loads(packed)
-    return res, mv
+    return pickle.loads(packed), None
 
 
 def _analog_bundle(by_page, feeds, analog, idx_cache=None, nets_memo=None):
@@ -1277,7 +1342,46 @@ def _norm_desc(t):
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
-def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, only=None):
+_BUNDLES = {}
+
+
+def _bundle_of(by_no):
+    """refs.Bundle 은 시트 이름 모음에서만 나온다 — 같은 모음이면 한 번만 만든다 (학습은 한 명령에 수십 번 부른다)."""
+    k = frozenset(by_no)
+    b = _BUNDLES.get(k)
+    if b is None:
+        if len(_BUNDLES) > 8:
+            _BUNDLES.clear()
+        b = _BUNDLES[k] = _RF.Bundle(by_no)
+    return b
+
+
+def _fed_rows(sheets, by_page, only, ref_in):
+    """FM 으로 다른 장을 받는 왼쪽 행 — `only` 가 있으면 보내는 장이 그 안인 행만.  ref_in 은 보내는 장 → [(시트, 행)] (cache)."""
+    if only is None:
+        for s in sheets:
+            for r in s["rows"]:
+                if r["side"] == "L" and (r.get("ref") or {}).get("page") in by_page:
+                    yield s, r
+        return
+    if ref_in is None:
+        ref_in = _ref_index(sheets, by_page)
+    for sp in sorted(only):
+        for s, r in ref_in.get(sp, ()):
+            yield s, r
+
+
+def _ref_index(sheets, by_page):
+    idx = {}
+    for s in sheets:
+        for r in s["rows"]:
+            ref = r.get("ref") or {}
+            if r["side"] == "L" and ref.get("page") in by_page:
+                idx.setdefault(ref["page"], []).append((s, r))
+    return idx
+
+
+def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, only=None, ref_in=None):
     """**활성(1)인 신호**가 TO · FM 을 따라 이동하는 자리에서 도면끼리 어긋난 곳 (사용자 지시 L11).
 
     보내는 쪽: 1 인 출력 행(주인 행)과 그 아래로 이어지는 TO 줄들의 TO 마다 —
@@ -1288,7 +1392,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
     받는 쪽: FM 으로 1 을 받은 입력 행 — 보내는 행의 TO 목록에 이 장-행이 없으면(TO 가 다른 곳만 적음) 설계 오류.
     판정은 읽은 글자 그대로이고(fromto 와 같은 규칙) 고치지 않는다.
     """
-    bundle = _RF.Bundle(by_no)
+    bundle = _bundle_of(by_no)
     out = []
     seen = set()
 
@@ -1353,15 +1457,12 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
                         add({**base, "kind": "warn",
                              "why": f"TO {sh}-{rn} — 연결은 맞고 설명이 다릅니다: '{od}' ↔ '{tr.get('desc')}'"})
     # 받는 쪽 — FM 으로 1 을 받았는데 보내는 행의 TO 목록에 이 장-행이 없다
-    for s in sheets:
+    # L47 — 보내는 장이 `only`(신호가 닿은 장) 안인 받는 행만 본다 (예전에는 매번 827장 · 10만 행을 다 훑었다 · 답은 같다)
+    for s, r in _fed_rows(sheets, by_page, only, ref_in):
         page, me = s["page"], s.get("sheet_no") or ""
-        for r in s["rows"]:
+        if True:
             ref = r.get("ref") or {}
-            if r["side"] != "L" or ref.get("page") not in by_page:
-                continue
             sp, own = ref["page"], ref.get("src_row", ref.get("row"))
-            if only is not None and sp not in only:
-                continue
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
@@ -1374,7 +1475,10 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
                      "why": f"{me}-{r['n']} 의 FM 은 {r.get('fm')} 인데 {src}-{own} 의 TO 는 "
                             f"{', '.join(f'{a}-{b}' for a, b in tos)} 만 적습니다 (잘못 연결)"})
     # 1 이 된 입력 행 — 그 행의 FM 이 from-to 대조(L5)에서 일치하지 않으면 (사람이 직접 준 입력 포함, 사용자 규칙 2)
+    # L47 — `only` 밖의 장은 부르는 쪽이 어차피 버린다 — 그 장의 결과를 기억에서 풀지 않는다 (827장을 매번 풀던 것)
     for s in sheets:
+        if only is not None and s["page"] not in only:
+            continue
         res = (results or {}).get(s["page"])
         if not res:
             continue

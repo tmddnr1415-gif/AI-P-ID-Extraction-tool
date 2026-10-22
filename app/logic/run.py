@@ -84,6 +84,7 @@ def run(d: Path):
         except Exception:
             pass
         _final(d, st)
+        lower_priority()                             # L47 — 결과는 섰다 · 이제부터는 뒤에서 (그림 · 사전 · 학습 · 검토)
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
         try:                                         # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로
             from app.logic import library
@@ -108,6 +109,21 @@ def run(d: Path):
     _final(d, st)
 
 
+def lower_priority():
+    """L47 — 뒤에서 도는 일(동작 학습 · 장 그림 미리 그리기)은 낮은 우선순위로 — 사람이 보는 화면 · 분석이 먼저 CPU 를 쓴다.
+    Linux/macOS 는 nice 10, Windows 는 BELOW_NORMAL.  못 바꾸면 그냥 돈다."""
+    import os
+    try:
+        if os.name == "nt":
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00004000)     # BELOW_NORMAL_PRIORITY_CLASS
+        else:
+            os.nice(10)
+    except Exception:
+        pass
+
+
 def prerender_missing(d: Path):
     """L31 — 그림이 아직 없는 시트만 그린다 (L7 이전 분석 · 미리 그리기가 중간에 끊긴 분석).  서버와 따로 돌아
     화면 요청을 막지 않는다.  이미 있는 그림은 건드리지 않는다."""
@@ -120,13 +136,16 @@ def prerender_missing(d: Path):
 
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--pages":
+        lower_priority()
         prerender_missing(Path(sys.argv[2]))
     elif len(sys.argv) > 2 and sys.argv[1] == "--behavior":
         from app.logic import behavior, review
-        behavior.learn_dir(Path(sys.argv[2]))
-        try:
-            review.after_learning(Path(sys.argv[2]))
-        except Exception:
-            pass
+        lower_priority()                                 # L47 — 배우는 동안 화면 · 분석이 먼저다
+        behavior.wait_quiet(Path(sys.argv[2]))
+        if behavior.learn_dir(Path(sys.argv[2])) is not None:
+            try:
+                review.after_learning(Path(sys.argv[2]))
+            except Exception:
+                pass
     else:
         run(Path(sys.argv[1]))

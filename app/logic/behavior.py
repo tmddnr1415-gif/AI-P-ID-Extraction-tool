@@ -66,7 +66,7 @@ def _forces(tree, choice, prefer=1):
 
 
 def _hit(sheets, forces, page, net, want, cache, timers):
-    r = sim.simulate_bundle(sheets, forces, None, page, timers=timers, cache=cache)["focus"] or {"frames": []}
+    r = sim.simulate_bundle(sheets, forces, None, page, timers=timers, cache=cache, light=True)["focus"] or {"frames": []}
     vals = [fr["values"].get(net) for fr in r["frames"]]
     return (want in vals), (bool(vals) and vals[-1] == want), r
 
@@ -309,7 +309,7 @@ def _probe_keys(p, need):
 
 
 def _last(sheets, forces, state, page, net, cache, timers):
-    r = sim.simulate_bundle(sheets, forces, state, page, timers=timers, cache=cache)
+    r = sim.simulate_bundle(sheets, forces, state, page, timers=timers, cache=cache, light=True)
     fr = (r["focus"] or {}).get("frames") or []
     return (fr[-1]["values"].get(net) if fr else None), [f["values"].get(net) for f in fr], r.get("state") or {}
 
@@ -401,7 +401,7 @@ def _effects(sheets, r1, page, row, cache, timers):
             for n in c.get("on_out") or [] if not (c["page"] == page and n == row)]
     if not cand:
         return []
-    sim.simulate_bundle(sheets, {}, None, page, timers=timers, cache=cache)
+    sim.simulate_bundle(sheets, {}, None, page, timers=timers, cache=cache, light=True)
     res0 = (cache or {}).get("_last_results") or {}
     out = []
     for pg, n, hop in sorted(cand, key=lambda x: (x[2], x[0], x[1])):
@@ -574,8 +574,32 @@ def load(d):
     return obj
 
 
-def learn_dir(d):
-    """분석 폴더 하나 — 사람 값까지 얹은 결과로 배운다 (화면이 시뮬레이션하는 것과 같은 결과)."""
+class Stale(Exception):
+    """배우는 동안 결과 · 사람 값이 바뀌었다 — 이 학습은 버린다 (다음 요청이 새로 시작한다)."""
+
+
+QUIET_S = 12.0            # L47 — 사람 값이 이만큼 조용해진 뒤에 배운다 (고치는 중에 10분짜리 학습을 열 번 돌리지 않게)
+QUIET_MAX_S = 180.0
+
+
+def wait_quiet(d, quiet_s=QUIET_S, max_s=QUIET_MAX_S, sleep=time.sleep):
+    """사람 값 파일이 quiet_s 동안 안 바뀔 때까지 기다린다 (상한 max_s).  → 기다린 초."""
+    from . import overrides
+    t0 = time.time()
+    while True:
+        try:
+            age = time.time() - overrides._path(d).stat().st_mtime
+        except OSError:
+            age = quiet_s
+        if age >= quiet_s or time.time() - t0 >= max_s:
+            return time.time() - t0
+        sleep(min(3.0, quiet_s - age + 0.1))
+
+
+def learn_dir(d, check_every=8):
+    """분석 폴더 하나 — 사람 값까지 얹은 결과로 배운다 (화면이 시뮬레이션하는 것과 같은 결과).
+    L47 — 명령 check_every 개마다 열쇠(결과 · 사람 값)를 다시 보고 바뀌었으면 멈춘다(Stale · 파일을 안 쓴다) —
+    고치는 중에 낡은 학습을 끝까지 돌리지 않는다."""
     import json
     from . import api, store
     job = d.name
@@ -585,6 +609,8 @@ def learn_dir(d):
     t0 = [0.0]
 
     def progress(done, total):
+        if done % check_every == 0 and key_of(d) != key:
+            raise Stale(key)
         if time.time() - t0[0] < 1 and done != total:
             return
         t0[0] = time.time()
@@ -594,9 +620,13 @@ def learn_dir(d):
             pass
     try:
         out = learn(sheets, {}, progress=progress)
+        if key_of(d) != key:
+            raise Stale(key)
         out["key"] = key
         out["learned_at"] = time.time()
         store._atomic(d / FILE, json.dumps(out, ensure_ascii=False))
+    except Stale:
+        return None
     finally:
         try:
             (d / RUNNING).unlink()
