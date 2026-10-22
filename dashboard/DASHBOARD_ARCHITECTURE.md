@@ -230,6 +230,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 ### 메뉴를 더 추가하려면
 - `ROUTES` 배열과 `MODULES` 에 키 추가 → `renderMenu()` 의 메뉴 HTML 에 `btn({k:'<키>', l:'<아이콘 이름>', n:'', c:0}, 'top')` 한 줄 추가.
 
+### 방법 A' (2026-10-22~): 같은 서버 `apps/` 앱을 P&ID 와 같은 화면 틀로 — `APP_ROUTES`
+- 예: **판넬 공간확보** = `APP_ROUTES.space = { title:'판넬 공간확보', src:'/apps/space/index.html' }`, 파일은 운영 폴더 `apps\space\index.html` (저장소 `dashboard/apps/space/index.html`).
+- `MODULES`(카드 안 iframe)와 달리 본문 전체를 채우고(`pid-mode`), 1분 자동 갱신에도 iframe 을 다시 만들지 않는다(`#pidwrap` 유지) — 편집 중인 화면이 날아가지 않음. 위쪽 주간업무 버튼은 숨김.
+- 주소 뒤 값: `?embed=1&user=<본명>`. 앱은 `embed=1` 이면 자기 제목줄을 숨긴다.
+- 추가하려면: `APP_ROUTES` 에 한 줄 · `ROUTES` 에 키 · `renderMenu()` 에 `btn(...)` 한 줄 · (권한 표에 넣으려면) server.py `MENUS` 에 `(키, 이름)`.
+
 ---
 
 ## 8. 개발·배포 규칙
@@ -910,3 +916,35 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 단추 정리: 클릭 = 고르기(내려놓기 X · 교환용), 더블클릭 · F = 끼기, 단축키 판에 F 줄 추가. 예전 '들기(손에 보임)'는 '착용 손'으로 합침.
 - 바뀐 곳: plaza_server.py `PLAZA_VERSION` · 새 `SLOTS` `SLOT_NAME` `slot_of` `equipped` `api_equip`(POST `/plaza/api/equip`) · `power`(낀 것 한 번 더) · `load_items` `save_items`(eq) · snapshot(`equip`) · `clean_look`(kind 1 → 7). plaza.js `EPC_FR`(bcat) · `JOB_CHAR` · `KINDS` · `faceOf` · `kindRow` · 무작위 · `NPC_DEF` · 새 `SLOT_ICON` `equipItem` `rareTint` `helmTint` `HELM_COL` `drawEquip` · `drawHeld`(손 착용) · `drawActorBody`(그림 위치 `_top` `_h` `_ox` · 안전모 색) · `updateHud`(착용 줄 · 더블클릭) · `epcFields`(equip) · 키 F · `KEY_ROWS` · `showCtx`. plaza.html `#hud-equip` · 안내. plaza.css `.worn` · `.equip`. epc.png(512×334). selftest.py 착용 · 벗기 · 사람 → EPC.
 - 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저: 종류 한 바퀴에 '사람' 없음 · 무작위 5 번 모두 동물, 케이블 기술자 = 검은 고양이 초상 · 걷기, 안전모 · 조끼 · 렌치 더블클릭 → 공 21 → 35 · 모습 바뀜(앞 · 옆 · 뒤) · 상대 화면에도 보임, F 로 벗기, 고양이 기사 · 팬더 · 호랑이에도 조끼 · 작은 안전모, 스크립트 오류 없음.
+
+### 2026-10-22 (9) — 판넬 공간확보 메뉴 · 분석·도구 화면 헤더 정리 (APP_VERSION 2026-10-22.3 / SERVER_VERSION 2026-10-22.2)
+> 이 (9)~(11) 은 다른 작업 줄기(브랜치 `ccr-d82d97fa-bb3ty3`)에서 만든 것을 이 판(계장 광장 2026-10-22.7 까지 들어 있음)에 그대로 합친 것. 그쪽 번호 (7)(8)(9) → 여기 (9)(10)(11). dashboard.html · server.py 는 이 판에서 2026-10-22 (6) 뒤로 안 바뀌었던 파일이라 그쪽 것을 그대로 씀 → APP_VERSION 2026-10-22.3 · SERVER_VERSION 2026-10-22.2.
+> server.py 가 바뀜(메뉴 권한 표에 '판넬 공간확보' 한 줄) → **서버 재시작 필요** (8장 3번). 재시작 전에도 화면은 열린다(권한 기본 = 허용).
+> 새 파일 `apps\space\index.html` 이 운영 폴더에 생긴다 (패치 APPLY.bat 이 폴더를 만듦). 데이터 폴더는 건드리지 않음.
+- 무엇을: 계장 Control Room 판넬 **초기 공간확보 툴**(단일 HTML 프로토타입)을 세 번째 분석 메뉴 '🗄 판넬 공간확보'로 넣음 (P&ID 분석 · LOGIC 분석과 같은 레벨). 왜: 계장이 판넬을 대략 배치해 필요 면적 · 권장 실 크기를 건축에 전달하는 업무.
+  - 툴 정리: Google Fonts · claude.ai 전용 다운로드 코드 제거(폐쇄망), 대시보드 색 · 글꼴 토큰, 다크모드 제거, 출력 창이 처음부터 떠 있던 버그(`[hidden]`) 수정.
+  - 세 메뉴 맞춤: 흐름 ①②③ 번호 · '<형식> 출력' 버튼 이름 · OK/경고/간섭 pill · 검토 문장에 '→ 어떻게 고치나' · 불러오기 실패 알림.
+  - 추가 기능: ① 프로젝트 정보(프로젝트명 · Room 명칭 · 작성자 · Rev → 요약 머리 · DXF 타이틀 · 파일 이름), Panel Type 프리셋 저장/불러오기, Spare 공간 %(+ 증설 방향, 기본 0%), Rev 이력(이전 Rev 대비 면적 변화).
+  - 저장: 지금은 브라우저 보관(localStorage `crspace.v1`) + 배치안 JSON 파일. 서버 폴더 저장은 제안만(보고서) — 승인 후 구현.
+  - 대시보드: P&ID · LOGIC · 판넬 공간확보 화면에서 위쪽 주간업무 전용 버튼(주차 · 전체 저장 · 금주 마감 · CSV · 엑셀 내보내기 · 인쇄 · 대기열)을 숨기고 부제목을 '<메뉴> · 입력 → 실행 → 결과 → 출력은 아래 화면 안에서' 로. 예전엔 P&ID 화면에서 '엑셀 내보내기'를 누르면 주간업무가 받아졌음.
+- 바뀐 곳: dashboard.html 새 `APP_ROUTES` `FRAME_ROUTES` `appUrl` `renderApp`, `render()`(pid-mode · keepPid · 분기) · `ROUTES` · `renderMenu` · `PZ_STATUS` · `renderHeader`(부제목) · CSS `body.pid-mode header.top .actions` / server.py `MENUS` / 새 `apps/space/index.html`.
+- 확인한 것: `py_compile`, `node --check`(두 HTML 의 스크립트). 임시 폴더 + 가짜 계정으로 server.py(8780) 와 P&ID 도구(8000, titleblock 브랜치 소스 그대로)를 띄워 Chromium 에서 홈 · P&ID · LOGIC · 판넬 공간확보 캡처, 페이지 · iframe 요청 중 외부 주소 **0건**. 공간확보: 시나리오(기둥 간섭 · 실 밖) 불러오기 → 간섭 2건 문장, 출력 4종 실제 다운로드(.txt · .dxf · .csv(BOM) · .json 이름 그대로), DXF ezdxf audit 오류 0 · Layer 8개 · 글자 스타일 CR-KOR(malgun.ttf), Spare 20% X → 권장 27,700 × 10,600(손 계산 일치), Rev A→B +35.0 m². P&ID · LOGIC 코드는 이 작업에서 0줄 바뀜.
+- 회사에서 확인할 것: (1) 서버 재시작 후 ⚙ 메뉴 권한 표에 '판넬 공간확보'. (2) DXF 를 AutoCAD 2026 에서 열어 Layer · 치수 · 한글(CR-KOR = 맑은 고딕) 확인. (3) Edge 개발자도구 Network 탭에서 외부 요청 0건. (4) P&ID 회귀 `python spike/regression_3p.py` 와 LOGIC 샘플 1건 — 코드는 안 바뀌었지만 완료 기준이라 기록을 남김.
+
+### 2026-10-22 (10) — 판넬 공간확보: 어두운 CAD 화면 · 도어 위치/열림 · 회전 궤적 (APP · SERVER 그대로 — apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. `apps\space\index.html` 만 바꾸고 화면에서 Ctrl+F5.
+- 무엇을: 요청 "UI 를 CAD 처럼 어둡게, 도어가 열리는 궤도까지, 판넬 Type 을 만들 때 L-R Open · 전면 · 후면 어디에 도어가 있는지 선택".
+  - 기본 화면 = 어두운 CAD(짙은 회색 바탕 · 흰 벽선), 도구줄 [☀ 밝게] 로 예전 밝은 화면 (localStorage `crspace.theme`).
+  - Type 카드: Door 위치(없음/전면/후면/전·후면) · 열림(L 힌지/R 힌지/양개 L-R — 그 면 앞에 서서 볼 때 기준). 화면에 열린 문짝 + 점선 호, DXF 새 Layer `CR-DOOR`(LINE + ARC).
+  - 검토(경고): 문짝 반경 > 유지보수 공간, 궤적이 벽 · 기둥 · 다른 판넬에 닿음. 궤적이 유지보수 공간 밖이면 필요 영역에 포함.
+  - 예전 배치안 · 프리셋 Type 은 '도어 없음' → 예전 숫자 그대로. CSV 에 Door · Hinge 열.
+- 바뀐 곳: apps/space/index.html — CSS 테마 토큰(`:root` 어두움 · `[data-theme=light]`), `setTheme`, `DOOR_AT` `HINGE` `fixDoor` `FRONT_N` `edgeOf` `doors`, `check`(도어 경고), `envelope`, `render`(문짝 · 호), `buildTypes`(선택칸), `cleanType`, 요약 · CSV · DXF(`arc`, CR-DOOR).
+- 확인한 것: `node --check`. 임시 서버 + Chromium: 도어 시험 배치(L · R · 양개 · 1200 단문 · 후면만 · 벽 옆) → 경고 3건 기대대로, DXF ezdxf audit 오류 0 · ARC 15 = 문짝 수 · 각도 확인, 도어 없는 예전 시나리오 권장 실 23,400 × 10,600 그대로, 외부 요청 0건.
+- 회사에서 확인할 것: AutoCAD 에서 CR-DOOR 호의 방향(힌지 쪽)이 화면과 같은지, L/R 기준(앞에서 볼 때)이 부서 관례와 맞는지.
+
+### 2026-10-22 (11) — 판넬 공간확보: DXF Layer 색을 화면과 같은 톤으로 (apps/space/index.html 만)
+- 무엇을: 요청 "DXF 출력도 너무 눈부시다. UI 와 같은 색감으로". 원색(빨강 1 · 노랑 2 · 초록 3 · 자홍 6 · 순백 7)을 화면 색에 가장 가까운 ACI 로.
+  CR-ROOM 254 · CR-COLUMN 8 · CR-PANEL 253 · CR-PANEL-FRONT 254 · CR-CLEARANCE 43 · CR-ENVELOPE 161 · CR-TEXT 9 · CR-DIM 151 · CR-DOOR 133. Layer 이름 · 도형은 그대로.
+- 바뀐 곳: `$('#bDxf').onclick` 의 `layers`.
+- 확인한 것: ezdxf audit 오류 0, Layer 색 읽어 확인, 화면 바탕색(#212830)으로 그려 비교.
+- 회사에서 확인할 것: AutoCAD 바탕이 흰색이면 회색 선(254 · 9)이 흐릴 수 있음 — 그 경우 CR-ROOM · CR-TEXT 를 7 로 되돌리면 됨.
