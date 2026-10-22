@@ -67,3 +67,4 @@ b126810f11e03272dad54f53dc1e9ea3c1f024a0  UPDATE_from_v16.25_to_v16.26 (+ any_to
 1884c34c56efa5b1ea20afc42a4545e2f6c6ea8b  Dashboard_UPDATE_any_to_v16.26_panel_space_integrated (다른 곳에서 만듦 · 회사 적용 확인 2026-10-22, APP 2026-10-22.4 / SERVER 2026-10-22.4)
 8256c32fb7a7ced2b0cc4baea990d8b88c0c306d  UPDATE_from_v16.26_to_v16.27 (+ any_to_v16.27)
 7a974bc2ec831af22fa85833cc87636f4b8bf286  UPDATE_from_v16.27_to_v16.28 (+ any_to_v16.28)
+549f8649446620e70fb0d3969ff33a1658e60f4a  UPDATE_from_v16.28_to_v16.29 (+ any_to_v16.29)
