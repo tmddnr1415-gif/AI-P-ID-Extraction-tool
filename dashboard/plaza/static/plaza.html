@@ -8,11 +8,11 @@
 </head>
 <body>
 <div id="pz" class="pz">
-  <canvas id="pz-map" tabindex="0" aria-label="계장 광장 — 방향키 · WASD 로 움직이고 Shift 달리기 · E 설비 점검 · Enter 대화 · Space 공격 · R 부활(운영자)"></canvas>
+  <canvas id="pz-map" tabindex="0" aria-label="계장 광장 — 방향키 · WASD 로 움직이고 Shift 달리기 · E 설비 점검 · Enter 대화 · Space 공격 · 1·2·3 기술 · R 부활(운영자)"></canvas>
 
   <div class="pz-top">
     <span id="pz-online" class="pz-online">접속 0명</span>
-    <span class="pz-help">방향키 · WASD 이동 · Shift 달리기 · E 설비 점검/수리 · Enter 대화 · Space 공격 · R 부활(운영자)</span>
+    <span class="pz-help">방향키 · WASD 이동 · Shift 달리기 · E 설비 점검/수리 · Enter 대화 · Space 공격 · 1·2·3 기술 · R 부활(운영자)</span>
   </div>
 
   <div id="pz-hud" class="pz-hud" aria-label="내 상태">
@@ -20,6 +20,7 @@
       <div class="hb">
         <div class="nm"><b id="hud-lv">Lv 1</b><span id="hud-job"></span></div>
         <div class="r"><canvas class="ic" data-ic="f_HP" width="16" height="16"></canvas><i><b id="hud-hp"></b></i><em id="hud-hpt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_SIGNAL" width="16" height="16"></canvas><i><b id="hud-mp" class="mp"></b></i><em id="hud-mpt"></em></div>
         <div class="r"><canvas class="ic" data-ic="f_ST" width="16" height="16"></canvas><i><b id="hud-st" class="st"></b></i><em id="hud-stt"></em></div>
         <div class="r"><canvas class="ic" data-ic="f_XP" width="16" height="16"></canvas><i><b id="hud-xp" class="xp"></b></i><em id="hud-xpt"></em></div>
       </div>
@@ -29,12 +30,16 @@
     <div class="inv" id="hud-inv" title="가방 — 쓰러지면 그 자리에 떨어뜨림 · 바닥의 것은 밟으면 주움"></div>
   </div>
 
-  <div id="pz-tools" class="pz-tools" aria-label="도구 (지금 하는 작업에 불이 들어옴)">
-    <div class="slot" data-k="loop"><canvas data-ic="i_HART" width="30" height="30"></canvas><span>Loop</span></div>
-    <div class="slot" data-k="calib"><canvas data-ic="i_CALIB" width="30" height="30"></canvas><span>교정</span></div>
-    <div class="slot" data-k="cable"><canvas data-ic="i_SPOOL" width="30" height="30"></canvas><span>케이블</span></div>
-    <div class="slot" data-k="dcs"><canvas data-ic="i_MULTI" width="30" height="30"></canvas><span>측정</span></div>
-    <div class="slot" data-k="repair"><canvas data-ic="i_WRENCH" width="30" height="30"></canvas><span>수리</span></div>
+  <div id="pz-tools" class="pz-tools" aria-label="기술 (1 · 2 · 3, 마나 사용) · 도구 (지금 하는 작업에 불이 들어옴)">
+    <div class="slot sk" data-k="strike"><canvas data-ic="f_SPARK" width="30" height="30"></canvas><span>1 강타</span><u class="m">10</u><i class="cd"></i><b class="t"></b></div>
+    <div class="slot sk" data-k="aid"><canvas data-ic="f_HP" width="30" height="30"></canvas><span>2 응급</span><u class="m">20</u><i class="cd"></i><b class="t"></b></div>
+    <div class="slot sk" data-k="support"><canvas data-ic="f_AURA" width="30" height="30"></canvas><span>3 지원</span><u class="m">30</u><i class="cd"></i><b class="t"></b></div>
+    <div class="sep"></div>
+    <div class="slot tool" data-k="loop"><canvas data-ic="i_HART" width="30" height="30"></canvas><span>Loop</span></div>
+    <div class="slot tool" data-k="calib"><canvas data-ic="i_CALIB" width="30" height="30"></canvas><span>교정</span></div>
+    <div class="slot tool" data-k="cable"><canvas data-ic="i_SPOOL" width="30" height="30"></canvas><span>케이블</span></div>
+    <div class="slot tool" data-k="dcs"><canvas data-ic="i_MULTI" width="30" height="30"></canvas><span>측정</span></div>
+    <div class="slot tool" data-k="repair"><canvas data-ic="i_WRENCH" width="30" height="30"></canvas><span>수리</span></div>
   </div>
 
   <canvas id="pz-mini" class="pz-mini" width="128" height="88" aria-label="현장 지도"></canvas>

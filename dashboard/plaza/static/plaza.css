@@ -118,6 +118,7 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-hud .r b { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #ff7a6a, #d8322a); transition: width .25s;
   box-shadow: 0 0 5px rgba(255, 80, 60, .7); }
 .pz-hud .r b.st { background: linear-gradient(180deg, #ffe27a, #e0a820); box-shadow: 0 0 5px rgba(255, 210, 60, .7); }
+.pz-hud .r b.mp { background: linear-gradient(180deg, #b0a8ff, #5a4ae0); box-shadow: 0 0 5px rgba(140, 120, 255, .7); }
 .pz-hud .r b.xp { background: linear-gradient(180deg, #9ae6ff, #2f9fe0); box-shadow: 0 0 5px rgba(90, 200, 255, .7); }
 .pz-hud .r em { width: 46px; text-align: right; font-style: normal; color: #c9d4e0; font-size: 10.5px; }
 .pz-hud .w { margin-top: 4px; color: #c9d4e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -131,6 +132,14 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
   background: #142238; border: 1px solid #2c4a6e; border-radius: 4px; opacity: .55; transition: opacity .2s, box-shadow .2s; }
 .pz-tools .slot canvas { width: 30px; height: 30px; image-rendering: pixelated; }
 .pz-tools .slot span { font-size: 9.5px; color: #9fb6d1; line-height: 1; }
+.pz-tools .slot.sk { position: relative; opacity: 1; pointer-events: auto; cursor: pointer; border-color: #6a5ad0; background: #1a1e3c; overflow: hidden; }
+.pz-tools .slot.sk:hover { filter: brightness(1.2); }
+.pz-tools .slot.sk u { position: absolute; right: 2px; top: 1px; font-size: 9px; text-decoration: none; color: #b0a8ff; font-weight: bold; }
+.pz-tools .slot.sk .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(5, 8, 18, .72); }
+.pz-tools .slot.sk .t { position: absolute; left: 0; right: 0; top: 13px; text-align: center; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; }
+.pz-tools .slot.sk.nomp { border-color: #a04040; } .pz-tools .slot.sk.nomp canvas { opacity: .45; }
+.pz-tools .slot.sk.off { opacity: .35; }
+.pz-tools .sep { width: 2px; margin: 2px 3px; background: #2c4a6e; }
 .pz-tools .slot.mine { opacity: .85; border-color: #5f9bd6; }
 .pz-tools .slot.on { opacity: 1; border-color: #ffd84a; box-shadow: 0 0 8px rgba(255, 216, 74, .8), inset 0 0 6px rgba(255, 216, 74, .35); }
 .pz-tools .slot.on span { color: #ffe7a6; }
@@ -138,7 +147,8 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
   border: 2px solid #3d6a9a; border-radius: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .35); background: #0d1320; }
 .pz-who .hpv { color: #8fa3bb; font-size: 10.5px; }
 @media (max-width: 560px) { .pz-hud { width: 184px; } .pz-help { display: none; } .pz-mini { display: none; } }
-@media (max-width: 1100px) { .pz-tools { display: none; } }
+@media (max-width: 1100px) { .pz-tools .tool, .pz-tools .sep { display: none; } }
+@media (max-width: 700px) { .pz-tools { display: none; } }
 @media (max-height: 520px), (max-width: 700px) {   /* 작은 화면 — 대화창 · 상태판을 줄여 놀이 공간 확보 */
   .pz-log { height: 44px; font-size: 11.5px; } .pz-chat { width: min(300px, calc(100% - 44px)); }
   .pz-hud { top: 44px; padding: 3px 6px; } .pz-hud .q, .pz-hud .face { display: none; } .pz-tools { display: none; } .pz-mini { width: 96px; height: 66px; bottom: 50px; }

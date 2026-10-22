@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.3'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.4'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -59,7 +59,17 @@ MAP_W, MAP_H = 64, 44        # plaza.js 의 지도 크기와 같다 (2026-10-19 
 NAME_MAX, SAY_MAX, LOG_KEEP, STATUS_MAX = 20, 80, 60, 24
 BUBBLE_S, IDLE_S, PLAYERS_MAX = 7.0, 45.0, 80
 ATTACK_GAP_S = 0.3
-HP_MAX = 100                 # 체력 — 맞을 때마다 1, 0 이면 유령 (주간 마감에 부활)
+HP_MAX = 100                 # Lv 1 체력 — 맞을 때마다 1, 0 이면 유령 (주간 마감에 부활) · 레벨마다 +HP_PER_LV
+HP_PER_LV = 10               # 2026-10-22 판4: 레벨이 오르면 최대 체력 · 마나도 오름 (Lv 30 까지)
+MP_BASE, MP_PER_LV = 50, 5   # 마나 — Lv 1 은 50, 레벨마다 +5
+MP_REGEN = 1                 # 1초마다 마나 +1 (유령은 안 참)
+LV_CAP = 30
+SKILLS = {                   # 키: (이름, 마나, 재사용 초) — 1 강타 · 2 응급 처치 · 3 현장 지원
+    "strike": ("강타", 10, 3.0),      # 앞 칸 한 사람 체력 -STRIKE_DMG (평타는 -1)
+    "aid": ("응급 처치", 20, 8.0),     # 내 체력 +AID_HEAL
+    "support": ("현장 지원", 30, 15.0),  # 둘레 SUPPORT_R 칸 안 팀원 체력 +SUPPORT_HEAL · 기력 회복은 화면이 함
+}
+STRIKE_DMG, AID_HEAL, SUPPORT_HEAL, SUPPORT_R = 5, 25, 15, 3.0
 KILLER_AT = 3                # 이번 주에 이만큼 쓰러뜨리면 이름 앞에 [killer n] (이름 붉은색은 1명부터 점점 짙게 · 화면이 정함)
 CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간 마감 (수요일 12:00)
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
@@ -224,7 +234,7 @@ def load_hp() -> None:
             n = int(v)
         except (TypeError, ValueError):
             continue
-        if 0 <= n < HP_MAX and clean(k, NAME_MAX):
+        if 0 <= n < HP_MAX + HP_PER_LV * LV_CAP and clean(k, NAME_MAX):
             hp[clean(k, NAME_MAX)] = n
     kills = {}
     for k, v in (raw.get("kills") or {}).items() if isinstance(raw.get("kills"), dict) else []:
@@ -249,17 +259,42 @@ def check_week(now: float, force: bool = False) -> None:
     revived = sum(1 for v in HP["hp"].values() if v <= 0)
     HP.update(week=week, hp={}, kills={}, dirty=True)   # 처치 수도 주마다 새로
     items_new_week(now)                                 # 바닥 아이템 치우고 빈 가방은 새로 채움
+    MP.clear()
     if not first:
-        log_system(f"주간 마감 — 새 주차 {week}. 모두 체력 {HP_MAX} 으로 돌아왔습니다." + (f" (유령 {revived}명 부활)" if revived else ""), now)
+        log_system(f"주간 마감 — 새 주차 {week}. 모두 체력 · 마나가 가득 찼습니다." + (f" (유령 {revived}명 부활)" if revived else ""), now)
         STATE["ver"] += 1
 
 
-def hp_of(name: str) -> int:
-    return HP["hp"].get(name, HP_MAX)
+def lv_of(name: str) -> int:
+    return min(LV_CAP, level_of(XP["xp"].get(name, 0)))
+
+
+def hp_max(name: str) -> int:
+    return HP_MAX + HP_PER_LV * (lv_of(name) - 1)
+
+
+def mp_max(name: str) -> int:
+    return MP_BASE + MP_PER_LV * (lv_of(name) - 1)
+
+
+def hp_of(name: str) -> int:                       # 기록이 없으면 가득 (레벨이 오르면 최대치도 함께 오름)
+    return min(HP["hp"].get(name, 10 ** 6), hp_max(name))
+
+
+def mp_of(name: str) -> int:
+    return min(MP.get(name, 10 ** 6), mp_max(name))
+
+
+def set_hp(name: str, v: int) -> None:             # LOCK 안에서
+    if v >= hp_max(name):
+        HP["hp"].pop(name, None)
+    else:
+        HP["hp"][name] = max(0, v)
+    HP["dirty"] = True
 
 
 def hp_p(p: dict) -> int:                          # 광장에 있는 사람의 체력 — 운영자는 무적(늘 가득)
-    return HP_MAX if p.get("role") == "operator" else hp_of(p["name"])
+    return hp_max(p["name"]) if p.get("role") == "operator" else hp_of(p["name"])
 
 
 def save_hp() -> None:
@@ -267,8 +302,8 @@ def save_hp() -> None:
         if not HP["dirty"]:
             return
         data = {"week": HP["week"], "hp": dict(HP["hp"]), "kills": dict(HP["kills"]),
-                "_설명": f"계장 광장 체력 (이름 → 남은 체력, 없으면 {HP_MAX}). 0 = 유령. kills = 이번 주에 쓰러뜨린 수. "
-                         f"주차가 바뀌면(주간 마감) 모두 {HP_MAX} 으로 부활 · kills 0."}
+                "_설명": f"계장 광장 체력 (이름 → 남은 체력, 없으면 가득 = {HP_MAX} + 레벨마다 {HP_PER_LV}). 0 = 유령. kills = 이번 주에 쓰러뜨린 수. "
+                         f"주차가 바뀌면(주간 마감) 모두 가득 · kills 0."}
         HP["dirty"] = False
     try:
         with FILE_LOCK:
@@ -285,6 +320,7 @@ def hp_loop() -> None:                             # 1초마다 회복 오라 ·
         n += 1
         with LOCK:
             heal_tick(time.time())
+            mp_tick()
             if n % EQ_BREAK_S == 0:
                 eq_tick(time.time())
             if n % 30 == 0:
@@ -299,7 +335,7 @@ def hp_loop() -> None:                             # 1초마다 회복 오라 ·
 # 모든 값은 광장 안의 놀이일 뿐 — 실제 DCS · 계장 설비와는 아무 연결이 없다.
 HEAL_ROLES = ("unit",)          # 회복 오라를 내는 역할 (유닛장 = 시운전 리드)
 HEAL_RADIUS = 4.0               # 칸 (가운데에서 거리)
-HEAL_PER_SEC = 1                # 1초마다 체력 +1 (최대 HP_MAX, 유령은 회복 안 됨 — 부활은 주간 마감)
+HEAL_PER_SEC = 1                # 1초마다 체력 +1 (최대치까지, 유령은 회복 안 됨 — 부활은 주간 마감 · 운영자)
 EQ_MAX_BAD = 7                  # 동시에 '경고 · 고장' 인 설비 수 상한
 EQ_BREAK_S = 15                 # 이만큼마다 정상 설비 하나가 경고로 바뀔 수 있음 (확률 1/2)
 EQ_WARN_TO_FAULT_S = 180        # 경고를 이만큼 두면 고장
@@ -322,6 +358,7 @@ EQUIP = [
     ("JB-601", "JB", 49, 25, 1, "정비동 정션 박스"), ("PG-602", "PG", 51, 25, 1, "압력계 (교정 대기)"),
 ]
 EQ: dict = {}                    # id → {st: ok|warn|fault, since, busy(이름), busy_at}
+MP: dict = {}                    # 이름 → 남은 마나 (없으면 가득 · 서버를 다시 켜면 가득 · 주간 마감에 가득)
 XP: dict = {"xp": {}, "dirty": False}   # 이름 → 경험치 (주간 마감과 상관없이 계속 쌓임, <data>/xp.json)
 
 
@@ -383,20 +420,15 @@ def heal_tick(now: float) -> None:                 # LOCK 안에서 — 유닛�
     done = set()
     for q in STATE["players"].values():
         name = q["name"]
-        if name in done or hp_p(q) <= 0 or hp_p(q) >= HP_MAX:
+        if name in done or hp_p(q) <= 0 or hp_p(q) >= hp_max(name):
             continue
         if any(h is not q and h["name"] != name and ((h["x"] - q["x"]) ** 2 + (h["y"] - q["y"]) ** 2) ** .5 <= HEAL_RADIUS for h in healers):
             done.add(name)
-            v = min(HP_MAX, hp_of(name) + HEAL_PER_SEC)
-            if v >= HP_MAX:
-                HP["hp"].pop(name, None)
-            else:
-                HP["hp"][name] = v
-            HP["dirty"] = True
+            set_hp(name, hp_of(name) + HEAL_PER_SEC)
             for r in STATE["players"].values():
                 if r["name"] == name:
                     r["heal_seq"] = r.get("heal_seq", 0) + 1
-                    r["heal_at"] = now
+                    r["heal_at"], r["heal_amt"] = now, HEAL_PER_SEC
     if done:
         STATE["ver"] += 1
 
@@ -524,9 +556,10 @@ def api_revive(body: dict) -> dict:               # 운영자가 곁(REVIVE_DIST
         give_items(target, force=True)
         for q in qs:
             q["revive_at"], q["revive_by"] = now, p["name"]
-        log_system(f"✨ 운영자 {p['name']} 님이 {target} 님을 부활시켰습니다. (체력 {HP_MAX})", now)
+        MP.pop(target, None)
+        log_system(f"✨ 운영자 {p['name']} 님이 {target} 님을 부활시켰습니다. (체력 {hp_max(target)})", now)
         STATE["ver"] += 1
-    return {"ok": True, "target": target, "hp": HP_MAX}
+    return {"ok": True, "target": target, "hp": hp_max(target)}
 
 
 def api_work(body: dict) -> dict:
@@ -587,7 +620,10 @@ def api_work(body: dict) -> dict:
 def equip_defs() -> dict:
     return {"equip": [{"id": i, "t": t, "x": x, "y": y, "w": w, "name": n} for i, t, x, y, w, n in EQUIP],
             "jobs": list(JOBS), "heal_radius": HEAL_RADIUS, "heal_per_sec": HEAL_PER_SEC,
-            "items": ITEM_NAMES, "revive_dist": REVIVE_DIST}
+            "items": ITEM_NAMES, "revive_dist": REVIVE_DIST,
+            "skills": {k: {"name": v[0], "mp": v[1], "cd": v[2]} for k, v in SKILLS.items()},
+            "skill_vals": {"strike": STRIKE_DMG, "aid": AID_HEAL, "support": SUPPORT_HEAL, "support_r": SUPPORT_R},
+            "hp_per_lv": HP_PER_LV, "mp_base": MP_BASE, "mp_per_lv": MP_PER_LV, "mp_regen": MP_REGEN}
 
 
 # ── 광장 상태 ──────────────────────────────────────────────────────────
@@ -618,13 +654,15 @@ def snapshot(now: float | None = None) -> dict:
                 "x": p["x"], "y": p["y"], "dir": p["dir"],
                 "say": p["say"] if live else "", "say_seq": p["say_seq"], "say_left": round(BUBBLE_S - age, 2) if live else 0,
                 "act_seq": p["act_seq"], "act_age": round(now - p["act_at"], 2),
-                "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"],
+                "hit_seq": p["hit_seq"], "hit_age": round(now - p["hit_at"], 2), "hit_by": p["hit_by"], "hit_dmg": p.get("hit_dmg", 0),
                 "status": p.get("status", ""),
-                "hp": hp_p(p), "hp_max": HP_MAX, "ghost": hp_p(p) <= 0, "inf": p.get("role") == "operator",
+                "hp": hp_p(p), "hp_max": hp_max(p["name"]), "ghost": hp_p(p) <= 0, "inf": p.get("role") == "operator",
+                "mp": mp_of(p["name"]), "mp_max": mp_max(p["name"]),
+                "skill": p.get("skill", ""), "skill_seq": p.get("skill_seq", 0), "skill_age": round(now - p.get("skill_at", 0), 2),
                 "kills": HP["kills"].get(p["name"], 0), "killer": HP["kills"].get(p["name"], 0) >= KILLER_AT,
                 "xp": XP["xp"].get(p["name"], 0), "lv": level_of(XP["xp"].get(p["name"], 0)), "job": job_of(p),
                 "healer": p.get("role") in HEAL_ROLES and hp_p(p) > 0,
-                "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2),
+                "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2), "heal_amt": p.get("heal_amt", 1),
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
                 "items": list(ITEMS["inv"].get(p["name"], [])), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
                 "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
@@ -755,21 +793,96 @@ def api_attack(body: dict) -> dict:
             q["hit_seq"] += 1
             q["hit_at"], q["hit_by"] = now, p["name"]
             if q["name"] in done or q.get("role") == "operator":   # 같은 이름이 둘이어도 체력은 한 번만 · 운영자는 무적
+                q["hit_dmg"] = 0
                 continue
             done.add(q["name"])
-            left = hp_of(q["name"]) - 1             # 한 대에 1
-            HP["hp"][q["name"]] = left
-            HP["dirty"] = True
+            damage(p, q, 1, now)                   # 한 대에 1
             hit.append(q["name"])
-            if left <= 0:
-                k = HP["kills"][p["name"]] = min(HP["kills"].get(p["name"], 0) + 1, 9999)   # 처치 수
-                lost = drop_items(q, now)
-                log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 · 운영자가 부활)"
-                           + (f" — {' · '.join(ITEM_NAMES[i] for i in lost)} 을(를) 떨어뜨렸습니다." if lost else ""), now)
-                if k == KILLER_AT:
-                    log_system(f"⚔ {p['name']} 님이 이번 주 {k}명을 쓰러뜨려 killer 가 되었습니다!", now)
         STATE["ver"] += 1
     return {"ok": True, "hit": hit}
+
+
+def damage(p: dict, q: dict, n: int, now: float) -> int:   # LOCK 안에서 — p 가 q 에게 n · 쓰러지면 처치 수 · 아이템 떨어뜨림
+    left = hp_of(q["name"]) - n
+    set_hp(q["name"], left)
+    q["hit_dmg"] = n
+    if left <= 0:
+        k = HP["kills"][p["name"]] = min(HP["kills"].get(p["name"], 0) + 1, 9999)   # 처치 수
+        lost = drop_items(q, now)
+        log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 · 운영자가 부활)"
+                   + (f" — {' · '.join(ITEM_NAMES[i] for i in lost)} 을(를) 떨어뜨렸습니다." if lost else ""), now)
+        if k == KILLER_AT:
+            log_system(f"⚔ {p['name']} 님이 이번 주 {k}명을 쓰러뜨려 killer 가 되었습니다!", now)
+    return max(0, left)
+
+
+def mp_tick() -> None:                             # LOCK 안에서 — 1초마다 마나 +MP_REGEN (광장에 있는 산 사람)
+    for name in {q["name"] for q in STATE["players"].values() if hp_p(q) > 0}:
+        if name in MP:
+            v = MP[name] + MP_REGEN
+            if v >= mp_max(name):
+                MP.pop(name)
+            else:
+                MP[name] = v
+            STATE["ver"] += 1
+
+
+def api_skill(body: dict) -> dict:                 # 1 강타 · 2 응급 처치 · 3 현장 지원 — 마나를 쓰고 재사용 시간이 있음
+    now, key = time.time(), str(body.get("skill") or "")
+    if key not in SKILLS:
+        raise ApiError(400, "없는 기술입니다.")
+    label, cost, cd = SKILLS[key]
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        check_week(now)
+        if hp_p(p) <= 0:
+            raise ApiError(400, "유령은 기술을 쓸 수 없습니다.")
+        left_cd = p.setdefault("cd", {}).get(key, 0) - now
+        if left_cd > 0:
+            raise ApiError(429, f"{label} — {left_cd:.1f}초 뒤에 다시 쓸 수 있습니다.")
+        if mp_of(p["name"]) < cost:
+            raise ApiError(400, f"마나가 모자랍니다 ({label} {cost} 필요 · 지금 {mp_of(p['name'])}).")
+        res: dict = {"ok": True, "skill": key, "label": label}
+        if key == "strike":
+            dx, dy = DIRV.get(p["dir"], (0, 1))
+            front = [(p["x"] + dx, p["y"] + dy), (p["x"], p["y"])]
+            q = next((q for c in front for q in STATE["players"].values()
+                      if q is not p and q["name"] != p["name"] and (q["x"], q["y"]) == c and hp_p(q) > 0), None)
+            if q is None:
+                raise ApiError(400, "앞 칸에 사람이 없습니다 (마나는 그대로).")
+            q["hit_seq"] += 1
+            q["hit_at"], q["hit_by"] = now, p["name"]
+            res["target"], res["dmg"] = q["name"], 0 if q.get("role") == "operator" else STRIKE_DMG
+            q["hit_dmg"] = 0
+            if q.get("role") != "operator":
+                res["left"] = damage(p, q, STRIKE_DMG, now)
+            p["act_at"] = now
+            p["act_seq"] += 1
+        elif key == "aid":
+            if hp_p(p) >= hp_max(p["name"]):
+                raise ApiError(400, "체력이 가득합니다 (마나는 그대로).")
+            set_hp(p["name"], hp_of(p["name"]) + AID_HEAL)
+            res["hp"] = hp_of(p["name"])
+        else:
+            near = {q["name"] for q in STATE["players"].values()
+                    if q["name"] != p["name"] and hp_p(q) > 0 and ((q["x"] - p["x"]) ** 2 + (q["y"] - p["y"]) ** 2) ** .5 <= SUPPORT_R}
+            if not near:
+                raise ApiError(400, f"둘레 {SUPPORT_R:g} 칸 안에 팀원이 없습니다 (마나는 그대로).")
+            for name in near:
+                set_hp(name, hp_of(name) + SUPPORT_HEAL)
+                for r in STATE["players"].values():
+                    if r["name"] == name:
+                        r["heal_seq"] = r.get("heal_seq", 0) + 1
+                        r["heal_at"], r["heal_amt"] = now, SUPPORT_HEAL
+            res["healed"] = sorted(near)
+            log_system(f"💚 {p['name']} 님의 현장 지원 — {' · '.join(sorted(near))} 체력 +{SUPPORT_HEAL}", now)
+        MP[p["name"]] = mp_of(p["name"]) - cost
+        p["cd"][key] = now + cd
+        p["skill"], p["skill_at"], p["skill_seq"] = key, now, p.get("skill_seq", 0) + 1
+        STATE["ver"] += 1
+        res.update(mp=mp_of(p["name"]), cd=cd)
+    return res
 
 
 def api_look(body: dict) -> dict:
@@ -839,7 +952,7 @@ def api_leave(body: dict) -> dict:
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
-         "/plaza/api/revive": api_revive}
+         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),

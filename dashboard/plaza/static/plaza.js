@@ -459,6 +459,8 @@ async function loadEquip() {
   try { const r = await fetch("/plaza/api/equip", { cache: "no-store" }); if (!r.ok) return; const d = await r.json();
     for (const e of d.equip || []) { EQUIP.push(e); EQ_BY.set(e.id, e); block(e.x, e.y, e.x + (e.w || 1) - 1, e.y); }
     if (d.heal_radius) S.healR = d.heal_radius; if (Array.isArray(d.jobs)) S.jobs = d.jobs; if (d.items) S.itemNames = d.items;
+    if (d.skills) for (const [k, v] of Object.entries(d.skills)) if (SKILL[k]) Object.assign(SKILL[k], { name: v.name, mp: v.mp, cd: v.cd });
+    if (d.skill_vals) { const v = d.skill_vals; SKILL.strike.note = `앞 사람 체력 −${v.strike}`; SKILL.aid.note = `내 체력 +${v.aid}`; SKILL.support.note = `둘레 ${v.support_r}칸 팀원 체력 +${v.support} · 기력 +30`; }
   } catch (_) { /* 설비 없이 */ }
 }
 
@@ -1104,7 +1106,8 @@ async function finishWork() {
     floater(S.me, `${w.eq.id} ${r.label} 완료  +${r.gained} XP`, "#7be08f", 2200);
     POPS.push({ e: w.eq, t0: performance.now(), lines: [reading(w.eq), "Status : OK"] }); if (POPS.length > 6) POPS.shift();
     S.me.cheer = performance.now(); for (let i = 0; i < 14; i++) puff(S.me.x + 16, S.me.y - 10, (Math.random() - .5) * 60, -30 - Math.random() * 40, 900, i % 2 ? "#ffe066" : "#7be08f");
-    if (r.lv > (S.me.lv || 1)) { floater(S.me, `레벨 업!  Lv ${r.lv}`, "#ffd84a", 2600); S.me.lvup = performance.now(); }
+    if (r.lv > (S.me.lv || 1)) { floater(S.me, `레벨 업!  Lv ${r.lv}`, "#ffd84a", 2600); S.me.lvup = performance.now();
+      setTimeout(() => floater(S.me, "최대 체력 · 마나 증가", "#9fe0ff", 2000), 500); }
     S.me.xp = r.xp; S.me.lv = r.lv;
   } catch (err) { floater(S.me, err.message, "#ffb3a8", 2000); }
 }
@@ -1230,8 +1233,10 @@ function drawEqMarks(g, cx, cy, now) {       // 설비 상태 표시 (정상 초
   }
 }
 let hudAt = 0;
+document.querySelectorAll("#pz-tools .sk").forEach(el => el.addEventListener("click", () => { useSkill(el.dataset.k); cv.focus(); }));
 function paintIcons() {                       // 상태판 · 도구칸의 작은 그림 (EPC 시트에서, 한 번만)
   if (!EPC.ready || hudIcons) return; hudIcons = true;
+  for (const el of document.querySelectorAll("#pz-tools .sk")) { const d = SKILL[el.dataset.k]; el.title = `${d.key} ${d.name} — 마나 ${d.mp} · ${d.cd}초 · ${d.note}`; el.querySelector(".m").textContent = d.mp; }
   for (const c of document.querySelectorAll("canvas[data-ic]")) {
     const g = c.getContext("2d"), s1 = eps(c.dataset.ic, false, 1); if (!s1) continue;
     const z = Math.max(1, Math.floor(Math.min(c.width / s1.width, c.height / s1.height)));
@@ -1261,6 +1266,8 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
       c.className = it ? "on" : ""; if (it) { c.title = itemName(it); const s1 = eps("i_" + it, false, 1), g = c.getContext("2d");
         if (s1) { const z = Math.min(1, 20 / Math.max(s1.width, s1.height)); g.imageSmoothingEnabled = false; g.drawImage(s1, Math.round((22 - s1.width * z) / 2), Math.round((22 - s1.height * z) / 2), s1.width * z, s1.height * z); } }
       box.append(c); } } }
+  bar("hud-mp", (S.me.mp ?? 0) / (S.me.mpMax || 50)); set("hud-mpt", `${S.me.mp ?? 0}/${S.me.mpMax || 50}`);
+  updateSkillBar(now);
   bar("hud-st", S.stamina / ST_MAX); set("hud-stt", `${Math.round(S.stamina)}` + (S.stamina < ST_TIRED ? " 지침" : ""));
   bar("hud-xp", (xp - lo) / Math.max(1, hi - lo)); set("hud-lv", `Lv ${lv}`); set("hud-xpt", `${xp} XP`);
   set("hud-job", `${(S.jobs || [])[S.me.job ?? 0] || ""}${S.role === "unit" ? " · 회복 오라" : ""}`);
@@ -1333,11 +1340,13 @@ window.addEventListener("pagehide", () => { if (S.id) navigator.sendBeacon("/pla
 
 function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오라 · 회복(+1) · 축하
   a.xp = p.xp || 0; a.lv = p.lv || 1; a.job = p.job ?? 0; a.healer = !!p.healer;
-  if ((p.heal_seq || 0) !== a.healseq) { if (a.healseq != null && p.heal_age < 1.5) { floater(a, "+1 HP", "#7cffc8", 1100);
+  if ((p.heal_seq || 0) !== a.healseq) { if (a.healseq != null && p.heal_age < 1.5) { floater(a, `+${p.heal_amt || 1} HP`, "#7cffc8", (p.heal_amt || 1) > 1 ? 1600 : 1100);
     for (let i = 0; i < 5; i++) puff(a.x + 8 + Math.random() * 16, a.y + 20, (Math.random() - .5) * 10, -34 - Math.random() * 20, 900, i % 2 ? "#7cffc8" : "#c8fff0"); }
     a.healseq = p.heal_seq || 0; }
   if (p.cheer_age != null && p.cheer_age < 1 && a !== S.me) a.cheer = tnow - p.cheer_age * 1000;
   a.inf = !!p.inf;                                                   // 운영자 — 무적
+  a.mp = p.mp ?? 50; a.mpMax = p.mp_max || 50;
+  if ((p.skill_seq || 0) !== a.skillseq) { if (a.skillseq != null && p.skill_age < 1.2 && SKILL[p.skill]) skillFx(a, p.skill, tnow - p.skill_age * 1000); a.skillseq = p.skill_seq || 0; }
   const items = Array.isArray(p.items) ? p.items : [];
   if (a === S.me && a.items && !a.ghost) for (const it of items.slice(a.items.length)) floater(a, "+ " + itemName(it), "#ffe066", 1600);   // 주움
   a.items = items;
@@ -1381,6 +1390,57 @@ function drawRevive(g, a, cx, cy, now) {      // 부활 — 빛기둥 · 퍼지�
   g.restore();
   if (Math.random() < .6) puff(a.x + 6 + Math.random() * 20, a.y + 26, (Math.random() - .5) * 12, -40 - Math.random() * 30, 900, Math.random() < .5 ? "#fff2a8" : "#ffd84a");
 }
+// ── 기술 (2026-10-22 판4): 마나를 씀 · 재사용 시간 — 값은 서버 SKILLS 가 정함 (여기는 보이는 기본값) ─────────────
+const SKILL = { strike: { key: "1", name: "강타", mp: 10, cd: 3, ic: "f_SPARK", note: "앞 사람 체력 −5" },
+  aid: { key: "2", name: "응급 처치", mp: 20, cd: 8, ic: "f_HP", note: "내 체력 +25" },
+  support: { key: "3", name: "현장 지원", mp: 30, cd: 15, ic: "f_AURA", note: "둘레 3칸 팀원 체력 +15 · 기력 +30" } };
+const SKILL_KEYS = { Digit1: "strike", Digit2: "aid", Digit3: "support", Numpad1: "strike", Numpad2: "aid", Numpad3: "support" };
+S.cd = {};
+function dmgFloat(a, n) { if (n > 0) floater(a, `−${n}`, n > 1 ? "#ff6a4a" : "#ffb0a0", n > 1 ? 1300 : 900); else if (a.inf) floater(a, "무적", "#ffd84a", 900); }
+function skillFx(a, k, t0) { a.skillFx = { k, t0 };
+  if (k === "strike") { a.attack = t0; floater(a, "강타!", "#ffb347", 1100); }
+  if (k === "aid") floater(a, "응급 처치", "#7cffc8", 1200);
+  if (k === "support") { floater(a, "현장 지원!", "#7ce8ff", 1400); if (S.me && a !== S.me && !S.me.ghost && Math.hypot(a.tx - S.me.tx, a.ty - S.me.ty) <= 3) S.stamina = Math.min(ST_MAX, S.stamina + 30); }
+}
+async function useSkill(k) {
+  const d = SKILL[k]; if (!d || !S.me) return;
+  if (S.me.ghost) { localNote("유령은 기술을 쓸 수 없습니다."); return; }
+  const left = ((S.cd[k] || 0) - performance.now()) / 1000;
+  if (left > 0) { floater(S.me, `${d.name} ${left.toFixed(1)}초`, "#9fb6d1", 800); return; }
+  if ((S.me.mp ?? 0) < d.mp) { floater(S.me, `마나 부족 (${d.mp})`, "#8fa8ff", 1000); return; }
+  if (S.work) cancelWork();
+  try { const r = await post("/plaza/api/skill", { id: S.id, skill: k });
+    S.cd[k] = performance.now() + (r.cd || d.cd) * 1000; S.me.mp = r.mp ?? S.me.mp; skillFx(S.me, k, performance.now());
+    if (k === "support") S.stamina = Math.min(ST_MAX, S.stamina + 30);
+  } catch (e) { floater(S.me, String(e.message || e).split(" (")[0].slice(0, 28), "#c9d4e0", 1400); }
+}
+function drawSkillFx(g, a, cx, cy, now) {     // 기술 효과 — 강타 불꽃 · 응급 처치 초록 십자 · 현장 지원 퍼지는 고리
+  const f = a.skillFx; if (!f) return; const age = Math.max(0, now - f.t0), x = a.x + 16 - cx, y = a.y + 28 - cy;
+  if (f.k === "strike") { const k = age / 500; if (k > 1) { a.skillFx = null; return; }
+    const [dx, dy] = DIRV[a.dir] || [0, 1], hx = x + dx * 26, hy = y - 14 + dy * 22;
+    g.save(); g.globalAlpha = 1 - k; g.strokeStyle = "#ffcf6a"; g.lineWidth = 4; g.beginPath(); g.arc(hx, hy, 10 + k * 18, 0, Math.PI * 2); g.stroke(); g.restore();
+    fxIcon(g, "f_SPARK", hx, hy - k * 8, 1 - k * .6);
+    if (k < .3) for (let i = 0; i < 3; i++) puff(a.x + 16 + dx * 26, a.y + 14 + dy * 22, (Math.random() - .5) * 120, (Math.random() - .7) * 120, 450, i % 2 ? "#fff3a0" : "#ff8a3c", 2);
+    return; }
+  if (f.k === "aid") { const k = age / 1200; if (k > 1) { a.skillFx = null; return; }
+    g.save(); g.globalAlpha = (1 - k) * .8; g.strokeStyle = "#7cffc8"; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, 14 + k * 6, 5 + k * 2, 0, 0, Math.PI * 2); g.stroke(); g.restore();
+    fxIcon(g, "f_HP", x, y - HEAD_PX - 8 - k * 20, 1 - k * k);
+    if (Math.random() < .5) { const px = a.x + 6 + Math.random() * 20, py = a.y + 24; puff(px, py, 0, -40, 800, "#7cffc8", 2); }
+    return; }
+  if (f.k === "support") { const k = age / 1300; if (k > 1) { a.skillFx = null; return; }
+    const r = 3 * T * Math.min(1, k * 1.6);
+    g.save(); g.globalAlpha = (1 - k) * .75; g.strokeStyle = "#7ce8ff"; g.lineWidth = 3; g.beginPath(); g.ellipse(x, y, r, r * .55, 0, 0, Math.PI * 2); g.stroke();
+    g.globalAlpha = (1 - k) * .18; g.fillStyle = "#7ce8ff"; g.fill(); g.restore();
+    fxIcon(g, "f_AURA", x, y - HEAD_PX - 6, 1 - k * .5);
+    if (Math.random() < .7) { const ang = Math.random() * Math.PI * 2; puff(a.x + 16 + Math.cos(ang) * r, a.y + 28 + Math.sin(ang) * r * .55, 0, -30, 700, "#c8fff0", 2); }
+  }
+}
+function updateSkillBar(now) {               // 기술 칸 — 재사용 남은 시간 · 마나 부족
+  for (const el of document.querySelectorAll("#pz-tools .sk")) { const k = el.dataset.k, d = SKILL[k], left = Math.max(0, (S.cd[k] || 0) - now);
+    const cdEl = el.querySelector(".cd"), h = left > 0 ? Math.round(left / (d.cd * 1000) * 100) + "%" : "0%"; if (cdEl.style.height !== h) cdEl.style.height = h;
+    const t = left > 0 ? (left / 1000).toFixed(left < 10000 ? 1 : 0) : ""; const tEl = el.querySelector(".t"); if (tEl.textContent !== t) tEl.textContent = t;
+    el.classList.toggle("nomp", !S.me.ghost && (S.me.mp ?? 0) < d.mp); el.classList.toggle("off", !!S.me.ghost); }
+}
 const REVIVE_D = 2.5;
 function nearGhost() { if (S.role !== "operator" || !S.me) return null; let best = null, bd = 1e9;
   for (const a of S.others.values()) { if (!a.ghost) continue; const d = Math.hypot(a.tx - S.me.tx, a.ty - S.me.ty); if (d <= REVIVE_D && d < bd) { bd = d; best = a; } }
@@ -1402,7 +1462,7 @@ function applySnapshot(s) {
     const tnow = performance.now();
     if (p.id === S.id) {
       if (p.say && p.say_seq !== S.me.sayseq) S.me.sayseq = p.say_seq;
-      if (p.hit_seq !== S.me.hitseq) { S.me.hitseq = p.hit_seq; if (p.hit_age < .8) S.me.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
+      if (p.hit_seq !== S.me.hitseq) { if (S.me.hitseq != null && p.hit_age < .8) dmgFloat(S.me, p.hit_dmg); S.me.hitseq = p.hit_seq; if (p.hit_age < .8) S.me.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
       if (p.role && p.role !== S.role) { S.role = S.me.role = p.role; $("#pz-roles").hidden = S.role !== "operator"; }
       // 같은 캐릭터를 다른 창에서 움직였으면(이 창에서 1초 넘게 안 움직임) 서버 자리를 따름
       if (!S.me.moving && tnow - (S.lastMove || 0) > 1000 && (p.x !== S.me.tx || p.y !== S.me.ty)) {
@@ -1422,7 +1482,7 @@ function applySnapshot(s) {
     if (Math.abs(p.x - a.tx) + Math.abs(p.y - a.ty) > 3) { a.tx = p.x; a.ty = p.y; a.x = p.x * T; a.y = p.y * T; a.moving = false; }
     if (!a.moving && a.tx === a.gx && a.ty === a.gy) a.dir = p.dir;
     if (p.act_seq !== a.actseq) { a.actseq = p.act_seq; if (p.act_age < .6) a.attack = tnow - p.act_age * 1000; }
-    if (p.hit_seq !== a.hitseq) { a.hitseq = p.hit_seq; if (p.hit_age < .8) a.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
+    if (p.hit_seq !== a.hitseq) { if (a.hitseq != null && p.hit_age < .8) dmgFloat(a, p.hit_dmg); a.hitseq = p.hit_seq; if (p.hit_age < .8) a.hit = { t0: tnow - p.hit_age * 1000, by: p.hit_by }; }
     if (p.say && p.say_seq !== a.sayseq) { a.sayseq = p.say_seq; a.bubble = { text: p.say, until: performance.now() + p.say_left * 1000 }; }
   }
   for (const id of [...S.others.keys()]) if (!seen.has(id)) S.others.delete(id);
@@ -1713,6 +1773,7 @@ function frame(now) {
     ctx.restore();
   }
   for (const a of actors) if (a.revive) drawRevive(ctx, a, cx, cy, now);
+  for (const a of actors) if (a.skillFx) drawSkillFx(ctx, a, cx, cy, now);
   const ng = nearGhost(); if (ng) { const x = Math.round(ng.x - cx) + 16, y = Math.round(ng.y - cy) + 28 - HEAD_PX - 4;   // [R] 부활 안내 (운영자)
     ctx.font = `bold 11px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.lineWidth = 3; ctx.strokeStyle = "#0b111c";
     ctx.strokeText("[R] 부활", x, y); ctx.fillStyle = Math.floor(now / 400) % 2 ? "#fff2a8" : "#ffd84a"; ctx.fillText("[R] 부활", x, y); ctx.textAlign = "left"; }
@@ -1910,6 +1971,7 @@ document.addEventListener("keydown", ev => {
   if (!$("#pz-name").hidden) return;
   S.run = ev.shiftKey;
   if (!S.typing && !S.panel && (ev.code === "KeyE" || ev.key === "e" || ev.key === "E")) { ev.preventDefault(); if (!ev.repeat) interact(); return; }   // 점검 · 수리
+  if (!S.typing && !S.panel && SKILL_KEYS[ev.code]) { ev.preventDefault(); if (!ev.repeat) useSkill(SKILL_KEYS[ev.code]); return; }   // 1 강타 · 2 응급 처치 · 3 현장 지원
   if (!S.typing && !S.panel && S.role === "operator" && (ev.code === "KeyR" || ev.key === "r" || ev.key === "R")) { ev.preventDefault(); if (!ev.repeat) revive(nearGhost()); return; }   // 운영자 — 곁의 유령 부활
   const arrow = !S.typing && !S.panel ? arrowOf(ev) : null;
   if (arrow) { ev.preventDefault(); S.keys.delete(arrow); S.keys.add(arrow); return; }   // 입력기가 켜져 있어도 걷는다
