@@ -11,7 +11,7 @@ const T = 32, W = 96, H = 60;               // 칸 크기 · 지도 칸 수 (서
 const H_OUT = 44;                           // 바깥(현장) 줄 수 — 그 아래 44~59 줄은 문으로만 가는 실내 (식당 · 헬스장, 2026-10-22 판10)
 const STEP_MS = 190;                        // 한 칸 걷는 시간
 const PX = 2;                               // 캐릭터 한 점 = 2px
-const ATK_MS = 280, HIT_MS = 520;          // 휘두르기 · 맞은 표시 시간
+const ATK_MS = 320, HIT_MS = 520;          // 휘두르기(준비 · 휘두름 · 멈칫 · 돌아옴, 판12: 280 → 320) · 맞은 표시 시간
 const FRAME = 14;                           // 화면 둘레 철골 틀 두께
 const PLACE = "EPC 발전플랜트 현장";
 const $ = s => document.querySelector(s);
@@ -1096,7 +1096,7 @@ function epcPose(who, a, now, atk, hit, w, seed) {   // 시트에 있는 칸만 
   if (a.cheer && now - a.cheer < 900) return who + (Math.floor((now - a.cheer) / 220) % 2 ? "_cheer" : "_jump");
   if (w) return who + "_" + workPose(w);
   const back = a.dir === 1 && EPC_FR[who + "_back_idle"] ? "_back_" : "_";     // 위로 = 뒷모습
-  if (atk >= 0) return back === "_" ? who + "_repair" : who + "_back_idle";
+  if (atk >= 0) return who + (back !== "_" ? "_back_idle" : "_idle");   // 판12: 서 있는 칸 그대로 (수리 칸은 손에 렌치가 그려져 있고, 걷기 칸은 크기가 작아 몸이 줄었다 커짐) — 움직임은 몸 젖힘 · 내딛음 + 손의 무기
   if (a.moving) return who + back + "w" + (Math.floor(now / (a.running || (a.stepMs || STEP_MS) < 150 ? 85 : 125)) % 5);
   if (back !== "_") return who + "_back_idle";
   if (a === S.me && S.stamina < ST_TIRED) return who + "_tired";
@@ -1158,55 +1158,120 @@ const WPN = { WRENCH:"blunt", TB:"blunt", GLAND:"blunt", PG:"blunt", POSITIONER:
   HART:"zap", MULTI:"zap", CALIB:"zap", LAPTOP:"zap", DCSCARD:"zap", RADIO:"wave", CALPUMP:"spray", CHECK:"paper" };
 const WHIP_COL = { SPOOL:["#e8622a", "#8a2a10"], ICABLE:["#2a2a30", "#d8322a"], AIRTUBE:["#3d8bff", "#1a4a9a"], IMPULSE:["#c9d4e0", "#6e7a8a"] };
 let SWING_A = null;                             // 지금 그리는 캐릭터 (drawActorBody 가 정함)
-function drawWeaponSwing(g, px, py, dir, k, it) {
-  const kind = WPN[it.k] || "blunt", side = dir === 2 ? -1 : 1, base = BASE_ANG[dir], [dx, dy] = DIRV[dir] || [0, 1];
-  const s1 = eps("i_" + it.k, false, 1), glow = RARE_COL[it.r] || "#ffffff", ease = 1 - Math.pow(1 - k, 3);
-  const tx = px + dx * 34, ty = py + dy * 26;                      // 맞는 곳 (앞 칸)
-  const icon = (x, y, ang, sc = 1) => { if (!s1) return; g.save(); g.translate(x, y); g.rotate(ang); g.scale(sc, sc); g.drawImage(s1, -s1.width / 2, -s1.height * .8); g.restore(); };
-  g.save(); g.lineCap = "round"; g.lineJoin = "round";
-  if (kind === "blunt") {                                          // 무거운 호 → 끝에서 쾅
-    const span = 1.5, ang = base - side * span + side * 2 * span * ease;
-    g.globalAlpha = .55 * (1 - k * .5); g.strokeStyle = it.r >= 2 ? glow : "#ffe1b0"; g.lineWidth = 8;
-    g.beginPath(); g.arc(px, py, 28, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
-    g.globalAlpha = 1; icon(px + Math.cos(ang) * 22, py + Math.sin(ang) * 22, ang + Math.PI / 2, 1.15);
-    if (k > .55) { const q = (k - .55) / .45; g.globalAlpha = 1 - q; g.strokeStyle = "#ffb347"; g.lineWidth = 3; g.beginPath(); g.arc(tx, ty, 6 + q * 18, 0, Math.PI * 2); g.stroke();
-      if (q < .3) for (let i = 0; i < 4; i++) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 150, (Math.random() - .8) * 120, 420, i % 2 ? "#fff3a0" : "#ff8a3c", 2); }
-  } else if (kind === "stab") {                                    // 찌르기 — 앞으로 쭉 · 별빛
-    const reach = Math.sin(Math.min(1, k * 1.6) * Math.PI) * 26;
-    g.globalAlpha = .6 * (1 - k); g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.beginPath(); g.moveTo(px, py); g.lineTo(px + dx * (reach + 14), py + dy * (reach + 10)); g.stroke();
-    g.globalAlpha = 1; icon(px + dx * reach, py + dy * reach * .8, base + Math.PI / 2, 1.1);
-    if (k > .3 && k < .7) { g.fillStyle = "#ffffff"; const x = px + dx * (reach + 16), y = py + dy * (reach + 12); g.fillRect(x - 1, y - 6, 2, 12); g.fillRect(x - 6, y - 1, 12, 2); }
-  } else if (kind === "whip") {                                    // 케이블 채찍 — 앞으로 휘감겨 찰싹
-    const [c1, c2] = WHIP_COL[it.k] || WHIP_COL.SPOOL, L = 18 + 30 * Math.sin(Math.min(1, k * 1.3) * Math.PI / 2), wv = Math.sin(k * 14) * 10 * (1 - k);
-    const ex = px + dx * L, ey = py + dy * L * .8, mx = px + dx * L * .5 + (dy ? wv : 0), my = py + dy * L * .4 + (dx ? wv : 0) - 6;
-    g.globalAlpha = 1; for (const [w, c] of [[5, c2], [3, c1]]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(mx, my, ex, ey); g.stroke(); }
-    icon(px - dx * 4, py - dy * 3, 0, .9);
-    if (k > .6) { const q = (k - .6) / .4; g.globalAlpha = 1 - q; g.strokeStyle = "#ffffff"; g.lineWidth = 2; for (let i = 0; i < 5; i++) { const a2 = i / 5 * Math.PI * 2; g.beginPath(); g.moveTo(ex + Math.cos(a2) * 4, ey + Math.sin(a2) * 4); g.lineTo(ex + Math.cos(a2) * (8 + q * 10), ey + Math.sin(a2) * (8 + q * 10)); g.stroke(); } }
-  } else if (kind === "zap") {                                     // 전기 — 도구를 내밀고 번개
-    g.globalAlpha = 1; icon(px + dx * 8, py + dy * 6, 0, 1);
-    if (k > .15) { g.globalAlpha = 1 - k * .7;
-      for (const [w, c] of [[6, "rgba(120,220,255,.45)"], [2, "#eaffff"]]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(px + dx * 12, py + dy * 8);
-        for (let i = 1; i < 6; i++) { const t = i / 6, j = ((i * 37 + Math.floor(k * 20) * 13) % 11 - 5) * 1.6; g.lineTo(px + dx * (12 + 26 * t) + (dy ? j : 0), py + dy * (8 + 22 * t) + (dx ? j : 0)); }
-        g.lineTo(tx, ty); g.stroke(); }
-      const gr = g.createRadialGradient(tx, ty, 1, tx, ty, 14); gr.addColorStop(0, "rgba(255,255,255,.95)"); gr.addColorStop(.4, "rgba(150,230,255,.7)"); gr.addColorStop(1, "rgba(80,180,255,0)");
-      g.fillStyle = gr; g.beginPath(); g.arc(tx, ty, 14, 0, Math.PI * 2); g.fill();   // 맞은 곳 — 파란 전기 빛
-      if (Math.random() < .5) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 120, (Math.random() - .5) * 120, 300, "#bff6ff", 2); }
-  } else if (kind === "wave") {                                    // 무전기 — 퍼지는 전파
-    g.globalAlpha = 1; icon(px + dx * 6, py + dy * 4, 0, 1);
-    for (let i = 0; i < 3; i++) { const q = (k * 1.4 - i * .25); if (q < 0 || q > 1) continue; g.globalAlpha = 1 - q; g.strokeStyle = "#9fe8ff"; g.lineWidth = 2.5;
-      g.beginPath(); g.arc(px, py, 10 + q * 30, base - .7, base + .7); g.stroke(); }
-  } else if (kind === "spray") {                                   // 교정 펌프 — 물안개 분사
-    g.globalAlpha = 1; icon(px + dx * 6, py + dy * 4, 0, 1);
-    if (k < .7) for (let i = 0; i < 3; i++) puff(px + cvCam(0) + dx * 10, py + cvCam(1) + dy * 8, dx * (110 + Math.random() * 60) + (Math.random() - .5) * 50, dy * (90 + Math.random() * 50) + (Math.random() - .5) * 50, 380, Math.random() < .5 ? "#dff4ff" : "#9fd0ff", 2);
-  } else {                                                         // 점검표 — 종이 휘두르기
-    const span = 1.2, ang = base - side * span + side * 2 * span * ease;
-    g.globalAlpha = .5 * (1 - k); g.strokeStyle = "#ffffff"; g.lineWidth = 6; g.beginPath(); g.arc(px, py, 24, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
-    g.globalAlpha = 1; icon(px + Math.cos(ang) * 18, py + Math.sin(ang) * 18, ang + Math.PI / 2, 1);
-    if (k > .5 && Math.random() < .4) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 80, -40 - Math.random() * 40, 600, "#f4f6fb", 2);
-  }
-  if (it.r >= 2 && k < .8) { g.globalAlpha = .35 * (1 - k); g.fillStyle = glow; g.beginPath(); g.arc(tx, ty, 10, 0, Math.PI * 2); g.fill(); }   // 희귀 · 전설 = 맞는 곳 빛
+// ── 공격 동작 (2026-10-22 판12): 무기를 손에 쥐고 휘두르는 동작 ──────────────────────────────
+// 준비(0~.28: 몸을 뒤로 젖히며 무기를 들어 올림) → 휘두름(.28~.5: 점점 빠르게 · 잔상) → 맞힘(.5~.62: 멈칫 · 충격) → 돌아옴(.62~1).
+// 무기 손잡이는 늘 손에 붙어 있고 손은 몸과 함께 움직인다. 각도는 '오른쪽을 볼 때' 기준(앞 = 0°, 위 = −90°)으로 정하고 방향마다 화면 각도로 바꾼다.
+const ATK_ARC = { blunt: [60, -150, 35], sword: [55, -155, 40], paper: [50, -105, 70], whip: [50, -125, 15], stab: [20, -14, 0], zap: [-25, -40, 0], wave: [-25, -40, 0], spray: [-25, -40, 0] };   // [쉼, 준비, 맞힘]
+const easeO = t => 1 - (1 - t) * (1 - t), easeI = t => t * t * t, easeIO = t => t < .5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+function atkCurve(k, kind) {                // → { deg 각도, lean 몸(−1 뒤 ~ +1 앞), reach 앞으로 뻗음(px), ph 단계 0~3, t 단계 안 진행 }
+  const [r0, up, hit] = ATK_ARC[kind] || ATK_ARC.blunt, R = kind === "stab" ? [-5, 7] : kind === "zap" || kind === "wave" || kind === "spray" ? [-3, 10] : kind === "whip" ? [-2, 6] : [0, 0];   // [당김, 내밂]
+  if (k < .28) { const t = easeO(k / .28); return { deg: r0 + (up - r0) * t, lean: -t, reach: R[0] * t, ph: 0, t }; }
+  if (k < .5) { const t = easeI((k - .28) / .22); return { deg: up + (hit - up) * t, lean: -1 + 2 * t, reach: R[0] + (R[1] - R[0]) * t, ph: 1, t }; }
+  if (k < .62) { const t = (k - .5) / .12; return { deg: hit + Math.sin(t * Math.PI) * 6, lean: 1, reach: R[1] - Math.sin(t * Math.PI) * (R[1] > 8 ? 3 : 0), ph: 2, t }; }   // 쏘는 도구는 반동
+  const t = easeIO((k - .62) / .38); return { deg: hit + (r0 - hit) * t, lean: 1 - t, reach: R[1] * (1 - t), ph: 3, t };
+}
+const atkKind = a => { const it = a && a.equip && a.equip.hand; return it ? WPN[it.k] || "blunt" : "sword"; };
+function atkLean(a, k) {                    // 몸 움직임 [ox, oy] — 뒤로 젖혔다가 앞으로 내딛음 (내려치기는 준비 때 살짝 솟음)
+  const kind = atkKind(a), c = atkCurve(k, kind), [dx, dy] = DIRV[a.dir] || [0, 1], f = c.lean > 0 ? 5 * c.lean : 2.5 * c.lean;
+  const lift = c.ph === 0 && (kind === "blunt" || kind === "sword") ? -2 * c.t : c.ph === 1 && (kind === "blunt" || kind === "sword") ? -2 * (1 - c.t) : 0;
+  return [Math.round(dx * f), Math.round(dy * f * .7 + lift)];
+}
+function scrAng(dir, deg, kind) {           // 기준 각도 → 화면 각도 (라디안)
+  const hit = (ATK_ARC[kind] || ATK_ARC.blunt)[2];
+  if (dir === 3) return deg * Math.PI / 180;
+  if (dir === 2) return Math.PI - deg * Math.PI / 180;
+  if (dir === 0) return (90 + (deg - hit) * .95) * Math.PI / 180;           // 앞(아래)을 볼 때 — 머리 위에서 몸 앞 아래로
+  return (-90 - (deg - hit) * .45) * Math.PI / 180;                          // 뒤(위)를 볼 때 — 어깨에서 머리 위 앞으로
+}
+function handOf(a, sx, sy, dir, deg = 60, upright = false) {   // 손 자리 (몸 그림 크기 기준) — 허리 높이, 무기를 들어 올리면 어깨까지
+  const h = a && a._h || 60, w = a && a._w || 40, up = upright ? 0 : Math.max(0, -Math.sin(deg * Math.PI / 180));
+  const sideX = upright ? .36 : .2, x = sx + 16 + (dir === 3 ? w * sideX : dir === 2 ? -w * sideX : dir === 0 ? w * (upright ? .4 : .2) : -w * (upright ? .36 : .18));
+  return [x, sy + 28 - h * (.3 + .16 * up)];                // 세워 든 도구는 옆으로 내밀어 얼굴을 가리지 않음
+}
+// 무기 그림 — EPC 시트의 도구 아이콘은 비스듬히 그려져 있고 옆 아이콘이 조금 섞여 있어, 깨끗한 자리 [x, y, w, h] · 손잡이 점 · 머리 점(아이콘 점 좌표)을 따로 적는다.
+// rot = 막대처럼 휘두름(손잡이 → 머리 축을 휘두르는 각도에 맞춤) · 아니면 세운 채 앞으로 내밂(측정기 · 무전기 · 케이블 뭉치) · 마지막 = 크기 배율(큰 뭉치는 줄임)
+const WGRIP = { WRENCH: [[162, 156, 16, 23], [1, 21], [10, 3], 1], SCREW: [[67, 156, 15, 17], [1, 14], [13, 1], 1], TB: [[367, 156, 20, 20], [10, 19], [10, 2], 1],
+  GLAND: [[0, 156, 12, 24], [6, 23], [6, 1], 1], PG: [[145, 156, 16, 23], [8, 22], [8, 4], 1], POSITIONER: [[13, 156, 18, 24], [8, 23], [8, 2], 1],
+  CHECK: [[213, 156, 11, 22], [5, 21], [5, 1], 1], HART: [[356, 126, 17, 25], [8, 24], [8, 1], 0], MULTI: [[486, 126, 18, 24], [9, 23], [9, 1], 0],
+  CALIB: [[374, 126, 17, 25], [8, 24], [8, 1], 0], LAPTOP: [[193, 156, 14, 23], [7, 22], [7, 1], 0], DCSCARD: [[393, 156, 22, 20], [11, 19], [11, 1], 0],
+  RADIO: [[460, 156, 10, 20], [5, 19], [5, 1], 0], CALPUMP: [[313, 126, 23, 28], [11, 27], [11, 4], 0, .85], SPOOL: [[395, 126, 24, 25], [12, 22], [12, 2], 0, .8],
+  ICABLE: [[420, 126, 24, 25], [12, 22], [12, 2], 0, .8], AIRTUBE: [[416, 156, 21, 20], [10, 18], [10, 2], 0, .85], IMPULSE: [[248, 156, 21, 22], [10, 20], [10, 2], 0, .85] };
+const WSC = 1.2, wIconCache = new Map();
+function weaponIcon(k) {                     // → { c 그림, g 손잡이, h 머리, rot, phi 축 각도, len 길이(px) } (시트가 아직이면 null)
+  if (wIconCache.has(k)) return wIconCache.get(k);
+  const d = WGRIP[k]; if (!d || !EPC.ready) return null;
+  const [[x0, y0, w, h], gp, hp, rot, sc = 1] = d, src = EPC.data, small = new ImageData(w, h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const si = ((y0 + y) * src.width + x0 + x) * 4; if (src.data[si + 3] < 128) continue;
+    const di = (y * w + x) * 4; small.data[di] = src.data[si]; small.data[di + 1] = src.data[si + 1]; small.data[di + 2] = src.data[si + 2]; small.data[di + 3] = 255; }
+  const c = canvas(w, h); c.getContext("2d").putImageData(small, 0, 0);
+  const o = { c, g: gp, h: hp, rot: !!rot, sc: WSC * sc, phi: Math.atan2(hp[1] - gp[1], hp[0] - gp[0]), len: Math.hypot(hp[0] - gp[0], hp[1] - gp[1]) * WSC * sc + 2 };
+  wIconCache.set(k, o); return o;
+}
+function weaponLen(it) { const w = it && weaponIcon(it.k); return w ? w.len : 38; }
+function weaponTip(it, x, y, th, dir) {      // 무기 머리 끝 자리 (효과가 나오는 곳)
+  const w = it && weaponIcon(it.k); if (!w) return [x + Math.cos(th) * 38, y + Math.sin(th) * 38];
+  const a = w.rot ? th : uprightTilt(dir) + w.phi; return [x + Math.cos(a) * w.len, y + Math.sin(a) * w.len];
+}
+const uprightTilt = dir => dir === 3 ? .35 : dir === 2 ? -.35 : 0;   // 세워 든 도구 — 보는 쪽으로 살짝 기울임
+function drawWeaponAt(g, it, x, y, th, gold, dir) {   // 손잡이를 (x, y) 에 두고 th 쪽으로 뻗은 무기
+  g.save(); g.translate(x, y);
+  const w = it && weaponIcon(it.k);
+  if (w) { g.rotate(w.rot ? th - w.phi : uprightTilt(dir)); g.scale(w.sc, w.sc); g.drawImage(w.c, -w.g[0] - .5, -w.g[1] - .5); }
+  else if (it) { const s1 = eps("i_" + it.k, false, 1); if (s1) { g.rotate(th + Math.PI / 2); g.scale(WSC, WSC); g.drawImage(s1, -s1.width / 2, -s1.height * .86); } }
+  else { g.rotate(th); g.scale(1.4, 1.4); g.fillStyle = "#2a1a12"; g.fillRect(-2, -3, 27, 6);   // 목검 (손에 낀 도구가 없을 때)
+    g.fillStyle = gold ? "#f8ba4c" : "#d8b07a"; g.fillRect(6, -2, 18, 4); g.fillStyle = gold ? "#fbe7a3" : "#f0d3a2"; g.fillRect(6, -2, 18, 1);
+    g.fillStyle = "#2a1a12"; g.fillRect(4, -5, 3, 10); if (gold) { g.fillStyle = "#d4a020"; g.fillRect(5, -4, 1, 8); }
+    g.fillStyle = gold ? "#8a5a20" : "#6e4527"; g.fillRect(-2, -2, 6, 4); }
   g.restore();
-  lvFx(g, px, py, tx, ty, k, SWING_A?.lv || 1);
+}
+function drawAttack(g, sx, sy, dir, k, it, gold, pass) {
+  const a = SWING_A, kind = it ? WPN[it.k] || "blunt" : "sword", c = atkCurve(k, kind), [dx, dy] = DIRV[dir] || [0, 1];
+  const wi = it && weaponIcon(it.k), upr = !!(wi && !wi.rot);
+  let [hx, hy] = handOf(a, sx, sy, dir, c.deg, upr); hx += dx * c.reach; hy += dy * c.reach * .7;
+  const behind = dir === 1 || (!upr && ((dir >= 2 && c.deg < -95) || (dir === 0 && c.ph === 0 && c.t > .5)));   // 몸 뒤 — 뒷모습 · 옆에서 머리 뒤로 들어 올림 · 앞에서 머리 위로
+  if (pass === "back") { if (behind) drawWeaponAt(g, it, hx, hy, scrAng(dir, c.deg, kind), gold, dir); return; }
+  const th = scrAng(dir, c.deg, kind), L = weaponLen(it), [tipx, tipy] = weaponTip(it, hx, hy, th, dir);
+  const tx = sx + 16 + dx * 34, ty = sy + 12 + dy * 26, glow = it ? RARE_COL[it.r] || "#ffffff" : "#fff3d6";   // 맞는 곳 (앞 칸)
+  const once = key => { if (!a || a["_fx" + key] === a.attack) return false; a["_fx" + key] = a.attack; return true; };   // 한 번 휘두를 때 한 번만
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  const arcK = kind === "blunt" || kind === "sword" || kind === "paper" || kind === "whip";
+  if (arcK && (c.ph === 1 || c.ph === 2)) {                                    // 잔상 — 들어 올린 곳부터 지금 자리까지
+    const up = scrAng(dir, (ATK_ARC[kind] || ATK_ARC.blunt)[1], kind), sg = Math.sign(th - up) || 1, span = Math.min(Math.abs(th - up), 1.9) * (c.ph === 1 ? Math.min(1, c.t * 1.6 + .2) : 1 - c.t);
+    const N = 8, f = c.ph === 1 ? .5 + .5 * c.t : 1 - c.t;                    // 잔상 — 무기 뒤로 짧게, 뒤쪽일수록 옅게
+    for (let i = 0; i < N; i++) { const a0 = th - sg * span * (1 - i / N), a1 = th - sg * span * (1 - (i + 1) / N), w = (i + 1) / N;
+      g.globalAlpha = .4 * f * w * w; g.strokeStyle = glow; g.lineWidth = L * .34 * w + 1; g.beginPath(); g.arc(hx, hy, L * .78, a0, a1, sg < 0); g.stroke();
+      g.globalAlpha = .8 * f * w * w; g.strokeStyle = "#ffffff"; g.lineWidth = 1.5; g.beginPath(); g.arc(hx, hy, L * .97, a0, a1, sg < 0); g.stroke(); }
+  }
+  g.globalAlpha = 1;
+  if (kind === "whip" && c.ph >= 1) {                                          // 케이블 — 손에서 앞으로 뻗어 '찰싹', 돌아올 때 감김
+    const [c1, c2] = WHIP_COL[it.k] || WHIP_COL.SPOOL, ext = c.ph === 1 ? c.t : c.ph === 2 ? 1 : 1 - c.t, ex = hx + (tx - hx) * ext, ey = hy + (ty - hy) * ext;
+    const wv = Math.sin(k * 26) * 9 * (1 - ext * .6), mx = (hx + ex) / 2 + (dy ? wv : 0) - dx * 4, my = (hy + ey) / 2 + (dx ? wv : 0) - 8;
+    for (const [w, col] of [[5, c2], [3, c1]]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(hx, hy); g.quadraticCurveTo(mx, my, ex, ey); g.stroke(); }
+    if (c.ph === 2) { g.globalAlpha = 1 - c.t; g.strokeStyle = "#ffffff"; g.lineWidth = 2; for (let i = 0; i < 6; i++) { const a2 = i / 6 * Math.PI * 2; g.beginPath();
+      g.moveTo(ex + Math.cos(a2) * 4, ey + Math.sin(a2) * 4); g.lineTo(ex + Math.cos(a2) * (9 + c.t * 10), ey + Math.sin(a2) * (9 + c.t * 10)); g.stroke(); } g.globalAlpha = 1; }
+  }
+  if (!behind) drawWeaponAt(g, it, hx, hy, th, gold, dir);
+  if ((kind === "blunt" || kind === "sword") && c.ph === 2) {                  // 맞힘 — 끝에서 쾅 (충격 고리 · 불똥)
+    g.globalAlpha = 1 - c.t; g.strokeStyle = kind === "sword" ? "#ffffff" : "#ffb347"; g.lineWidth = 3; g.beginPath(); g.ellipse(tipx, tipy, 6 + c.t * 16, (6 + c.t * 16) * .7, 0, 0, Math.PI * 2); g.stroke();
+    if (once("b")) for (let i = 0; i < 7; i++) puff(tipx + cvCam(0), tipy + cvCam(1), (Math.random() - .5) * 160, (Math.random() - .8) * 130, 420, i % 2 ? "#fff3a0" : "#ff8a3c", 2); }
+  if (kind === "paper" && c.ph >= 2 && once("p")) for (let i = 0; i < 5; i++) puff(tipx + cvCam(0), tipy + cvCam(1), (Math.random() - .5) * 90, -40 - Math.random() * 50, 700, "#f4f6fb", 2);
+  if (kind === "stab" && c.ph === 2) { g.globalAlpha = 1 - c.t; g.fillStyle = "#ffffff"; const s2 = 6 + c.t * 6; g.fillRect(tipx - 1, tipy - s2, 2, s2 * 2); g.fillRect(tipx - s2, tipy - 1, s2 * 2, 2);   // 찌른 끝 별빛
+    if (once("s")) for (let i = 0; i < 4; i++) puff(tipx + cvCam(0), tipy + cvCam(1), dx * 80 + (Math.random() - .5) * 60, dy * 60 + (Math.random() - .5) * 60, 300, "#e8f4ff", 2); }
+  if (kind === "zap" && k > .4 && k < .85) { const f = 1 - (k - .4) / .45; g.globalAlpha = f;   // 전기 — 도구 끝에서 앞 칸으로 번개
+    for (const [w, col] of [[6, "rgba(120,220,255,.45)"], [2, "#eaffff"]]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(tipx, tipy);
+      for (let i = 1; i < 6; i++) { const t = i / 6, j = ((i * 37 + Math.floor(k * 20) * 13) % 11 - 5) * 1.6; g.lineTo(tipx + (tx - tipx) * t + (dy ? j : 0), tipy + (ty - tipy) * t + (dx ? j : 0)); }
+      g.lineTo(tx, ty); g.stroke(); }
+    const gr = g.createRadialGradient(tx, ty, 1, tx, ty, 14); gr.addColorStop(0, "rgba(255,255,255,.95)"); gr.addColorStop(.4, "rgba(150,230,255,.7)"); gr.addColorStop(1, "rgba(80,180,255,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(tx, ty, 14, 0, Math.PI * 2); g.fill();
+    if (once("z")) for (let i = 0; i < 5; i++) puff(tx + cvCam(0), ty + cvCam(1), (Math.random() - .5) * 130, (Math.random() - .5) * 130, 320, "#bff6ff", 2); }
+  if (kind === "wave" && k > .35) for (let i = 0; i < 3; i++) { const q = (k - .35) / .65 * 1.4 - i * .25; if (q < 0 || q > 1) continue;   // 무전기 — 도구 끝에서 퍼지는 전파
+    g.globalAlpha = 1 - q; g.strokeStyle = "#9fe8ff"; g.lineWidth = 2.5; g.beginPath(); g.arc(tipx, tipy, 6 + q * 30, BASE_ANG[dir] - .7, BASE_ANG[dir] + .7); g.stroke(); }
+  if (kind === "spray" && k > .35 && k < .75) for (let i = 0; i < 2; i++)                                      // 교정 펌프 — 끝에서 물안개
+    puff(tipx + cvCam(0), tipy + cvCam(1), dx * (110 + Math.random() * 60) + (Math.random() - .5) * 50, dy * (90 + Math.random() * 50) + (Math.random() - .5) * 50, 380, Math.random() < .5 ? "#dff4ff" : "#9fd0ff", 2);
+  if (it && it.r >= 2 && c.ph === 2) { g.globalAlpha = .35 * (1 - c.t); g.fillStyle = glow; g.beginPath(); g.arc(kind === "zap" || kind === "wave" || kind === "spray" ? tx : tipx, kind === "zap" || kind === "wave" || kind === "spray" ? ty : tipy, 10, 0, Math.PI * 2); g.fill(); }   // 희귀 · 전설 = 맞는 곳 빛
+  g.restore();
+  const far = kind === "zap" || kind === "wave" || kind === "spray" || kind === "whip";
+  lvFx(g, hx, hy, far ? tx : tipx, far ? ty : tipy, k, a?.lv || 1);
 }
 // 레벨 빛 (2026-10-22 판10): 레벨이 오를수록 휘두르는 무기 빛이 크고 밝아지고, 맞는 곳 효과(고리 · 빛살 · 섬광 · 불꽃)가 많아짐
 // 색은 레벨 단계 — 1~4 흰빛 · 5~9 초록 · 10~14 파랑 · 15~19 보라 · 20~29 주황 · 30 무지개
@@ -1232,23 +1297,8 @@ function lvFx(g, px, py, tx, ty, k, lv) {
   g.restore();
 }
 const cvCam = i => (S.cam ? S.cam[i] : 0);         // 화면 좌표 → 세계 좌표 (입자용)
-function drawSwing(g, sx, sy, dir, k, gold) {   // gold = 고양이 기사의 황금 검
-  const px = sx + 16 + (dir === 2 ? -4 : dir === 3 ? 4 : 0), py = sy + 12 + (dir === 0 ? 2 : dir === 1 ? -4 : 0);   // 손 높이
-  const wp = SWING_A?.equip?.hand; if (wp) return drawWeaponSwing(g, px, py, dir, k, wp);   // 손에 낀 도구가 있으면 그 도구로
-  const side = dir === 2 ? -1 : 1, span = 1.35, base = BASE_ANG[dir];
-  const ease = 1 - Math.pow(1 - k, 3), ang = base - side * span + side * 2 * span * ease;
-  g.save();
-  g.globalAlpha = .75 * (1 - k * .6); g.strokeStyle = "#ffffff"; g.lineWidth = 5; g.lineCap = "round";
-  g.beginPath(); g.arc(px, py, 30, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
-  g.globalAlpha = .35 * (1 - k); g.lineWidth = 9; g.strokeStyle = "#cfe9ff";
-  g.beginPath(); g.arc(px, py, 26, Math.min(base - side * span, ang), Math.max(base - side * span, ang)); g.stroke();
-  g.globalAlpha = 1; g.translate(px, py); g.rotate(ang); g.scale(1.4, 1.4);   // 손의 긴 목검에 맞춰 크게
-  g.fillStyle = "#2a1a12"; g.fillRect(3, -3, 25, 6);
-  g.fillStyle = gold ? "#f8ba4c" : "#d8b07a"; g.fillRect(9, -2, 18, 4); g.fillStyle = gold ? "#fbe7a3" : "#f0d3a2"; g.fillRect(9, -2, 18, 1);
-  g.fillStyle = "#2a1a12"; g.fillRect(8, -5, 3, 10); if (gold) { g.fillStyle = "#d4a020"; g.fillRect(9, -4, 1, 8); }
-  g.fillStyle = gold ? "#8a5a20" : "#6e4527"; g.fillRect(3, -2, 5, 4);
-  g.restore();
-  const [ddx, ddy] = DIRV[dir] || [0, 1]; lvFx(g, px, py, px + ddx * 34, py + ddy * 26, k, SWING_A?.lv || 1);
+function drawSwing(g, sx, sy, dir, k, gold, pass = "front") {   // gold = 고양이 기사의 황금 검 · 손에 낀 도구가 있으면 그 도구, 없으면 목검 (판12: 손에 쥐고 휘두름)
+  drawAttack(g, sx, sy, dir, k, SWING_A?.equip?.hand || null, gold, pass);   // pass: 몸 뒤(back) · 몸 앞(front) — 무기가 몸 뒤에 있을 때는 back 에서 그림
 }
 
 // ── 상태 ───────────────────────────────────────────────────────────────
@@ -2171,7 +2221,7 @@ function drawActorBody(g, a, sx, sy, now) {
   const atk = a.attack && now - a.attack < ATK_MS ? (now - a.attack) / ATK_MS : -1;
   const hit = a.hit && now - a.hit.t0 < HIT_MS ? (now - a.hit.t0) / HIT_MS : -1;
   let ox = 0, oy = 0;
-  if (atk >= 0) { const [dx, dy] = DIRV[a.dir], l = Math.sin(atk * Math.PI) * 3; ox = Math.round(dx * l); oy = Math.round(dy * l); }
+  if (atk >= 0) [ox, oy] = atkLean(a, atk);   // 판12: 준비 때 뒤로 젖히고 휘두를 때 앞으로 내딛음
   if (hit >= 0 && hit < .5) ox += Math.round(Math.sin(hit * 60) * 2);
   const F = a.npc ? a.face : roleFace(faceOf(a), a.role);
   if (a.ghost) {                             // 유령 — 그림자 없이 반투명하게 둥둥
@@ -2190,9 +2240,9 @@ function drawActorBody(g, a, sx, sy, now) {
       if (wake) { ox += Math.round(Math.sin(now / 25) * 2); if (Math.random() < .3) puff(a.x + 8 + Math.random() * 16, a.y + 10 - STATUE_LIFT + Math.random() * 20, (Math.random() - .5) * 40, -20 - Math.random() * 30, 600, "#b9b4a8", 2); }
       if (a.mode === "chase" || a.mode === "back") { g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = .35 + .2 * Math.sin(now / 120); ell(g, sx + 16, sy + 28, 18, 6, a.mode === "chase" ? "#ff3020" : "#c9b48a"); g.restore(); } }
     const bob = !a.statue && !a.moving && !w && atk < 0 && Math.floor((now + hash(a.name) % 1600) / 800) % 2 ? -PX : 0;
-    if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    if (atk >= 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "back");
     g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
-    if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    if (atk >= 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "front");
     return;
   }
   if (isChr(F)) {                            // 마을 시트 캐릭터 — 대기 칸 번갈아 · 걷기 칸 · 옆 칸 · 공격 칸
@@ -2200,9 +2250,9 @@ function drawActorBody(g, a, sx, sy, now) {
     ell(g, sx + 16, sy + 28, 12, 4, "rgba(40,20,5,.3)");
     const K = KIND_FR[F.kind], [nm, mir] = chrPose(K, a, now, atk, hash(a.name) % 650), spr = dress(chrSprite(nm, mir), a);
     const bob = a.moving && a.dir < 2 && fr ? -PX : 0;
-    if (atk >= 0 && (!K.a || a.equip?.hand) && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+    if (atk >= 0 && (!K.a || a.equip?.hand)) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "back");
     g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
-    if (atk >= 0 && (!K.a || a.equip?.hand) && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);   // 공격 칸이 없는 노비는 예전 휘두르기
+    if (atk >= 0 && (!K.a || a.equip?.hand)) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "front");   // 공격 칸이 없는 노비는 예전 휘두르기
     return;
   }
   if (isCat(F)) {                            // 고양이 기사 — 시트의 포즈 (서기 · 걷기 · 공격 · 피격)
@@ -2212,19 +2262,19 @@ function drawActorBody(g, a, sx, sy, now) {
     let bob = 0;
     if (a.moving && !side) bob = fr ? -PX : 0;                                          // 위 · 아래로 걸을 때 한 점 들썩
     else if (!a.moving && atk < 0) bob = Math.floor((now + (hash(a.name) % 1600)) / 800) % 2 ? -PX : 0;   // 서 있을 때 숨쉬기 (한 점)
-    if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);
+    if (atk >= 0 && (a.dir <= 1 || a.equip?.hand)) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true, "back");
     g.drawImage(nm !== "hurt" && hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
                 Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._w = spr.width, a._ox = ox, a._top));
-    if (atk >= 0 && (a.dir === 0 || (a.equip?.hand && a.dir !== 1))) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);    // 옆 공격은 시트의 칼바람 칸이 그림
+    if (atk >= 0 && (a.dir <= 1 || a.equip?.hand)) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true, "front");    // 옆 공격은 시트의 칼바람 칸이 그림
     return;
   }
   drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
   ell(g, sx + 16, sy + 28, 14, 5, "rgba(40,20,5,.3)");
-  if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+  if (atk >= 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "back");
   const spr = dress(charSprite(F, a.role, a.dir, atk >= 0 ? 0 : fr, atk < 0), a);   // 휘두를 때는 손의 목검 대신 drawSwing
   g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
               sx + 16 - spr.width / 2 + ox, sy + 28 - FOOT - (fr && atk < 0 ? 1 : 0) + oy);
-  if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
+  if (atk >= 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, false, "front");
 }
 
 function frame(now) {

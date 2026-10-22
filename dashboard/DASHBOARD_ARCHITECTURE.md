@@ -1043,3 +1043,15 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: plaza.js 새 `lit` `WARM` `COOL` `SCREEN` `NIGHT` `nightBtn` `toggleNight` `AMB_*` `drawNight` · `building`(창 · 간판 빛, `glowCol`) · `lightPoleImg` `vendingImg`(→`vendingImg0`) `crWallN`(→`crWallN0`) · 현장 사무소 · 경비실 put · `treeImg` `shrubImg` · `drawGround`(연석 · 그늘 · 잔디 결 · 균열 · 바퀴 자국) · `frame`(drawNight). plaza.html `#pz-night`. plaza_server.py `PLAZA_VERSION` 만.
 - 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저: 큰길 네거리 · 터빈 홀 앞 · 공정 구역 · 복지 구역(식당 · 헬스장 앞) · 동상 광장 · 식당 · 헬스장 안을 밤 · 낮으로 캡처, 스크립트 오류 없음, 약 50 fps.
 - 회사에서 확인할 것: 회사 PC 에서 너무 어둡거나 느리면 ☀ 낮 단추. 어둡기는 plaza.js `AMB_OUT`(바깥 남색, 숫자가 클수록 밝음)에서 바꿈.
+
+### 2026-10-22 (20) — 계장 광장: 공격 = 무기를 손에 쥐고 휘두르는 동작 (PLAZA_VERSION 2026-10-22.12 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 → 적용 후 30초 뒤 Ctrl+F5.
+- 무엇을: 요청 "공격 모션을 무기로 공격하는 자연스러운 동작으로". 예전엔 무기 그림이 손에서 떨어져 몸 둘레를 돌았고, 몸은 거의 안 움직였고, 시트의 '수리' 칸(손에 렌치가 그려져 있음)을 써서 도구가 둘로 보였음.
+  - 한 번 휘두르기 = **준비**(몸을 뒤로 젖히며 무기를 머리 뒤로 들어 올림, 내려치기는 살짝 솟음) → **휘두름**(점점 빠르게 · 무기 뒤로 옅어지는 잔상) → **맞힘**(멈칫 · 무기 끝에서 충격) → **돌아옴**(허리 옆 쉬는 자리). 0.28 → 0.32초.
+  - **손잡이가 늘 손에** 붙어 있고 손은 몸과 함께 움직임(쉴 때 허리 · 들어 올리면 어깨). 머리 뒤로 들어 올린 동안 · 뒷모습일 때는 무기를 몸 뒤에 그림.
+  - 도구마다 쥐는 법: 렌치 · 단자대 · 글랜드 · 압력계 · 포지셔너 = 내려치기 / 드라이버 = 당겼다 찌르기 / 점검표 = 옆으로 후려치기 / 목검(맨손) = 베기 / 케이블 드럼 · 케이블 · 튜브 = 들고 케이블을 앞으로 '찰싹' / HART · 멀티미터 · 교정기 · 노트북 · DCS 카드 · 무전기 · 교정 펌프 = 세워 든 채 앞으로 내밀어 끝에서 번개 · 전파 · 물안개(반동).
+  - EPC 시트 도구 아이콘은 비스듬하고 옆 아이콘이 섞여 있어, 무기마다 깨끗한 자리 · 손잡이 점 · 머리 점을 따로 적음(`WGRIP`).
+  - 몸 그림은 서 있는 칸 그대로(걷기 칸은 크기가 작아 몸이 줄었다 커져 보였음) — 움직임은 젖힘 · 내딛음 + 손의 무기.
+  - 레벨 빛(판10)은 무기 끝을 따라감.
+- 바뀐 곳: plaza.js `ATK_MS` 320 · 새 `ATK_ARC` `easeO/easeI/easeIO` `atkCurve` `atkKind` `atkLean` `scrAng` `handOf` `WGRIP` `WSC` `weaponIcon` `weaponLen` `weaponTip` `uprightTilt` `drawWeaponAt` `drawAttack` · `drawSwing`(몸 뒤 · 앞 두 번) · `drawActorBody`(젖힘 · 내딛음, 네 갈래 모두 drawSwing 두 번) · `epcPose`(공격 중 서 있는 칸). 옛 `drawWeaponSwing` 없앰. plaza_server.py `PLAZA_VERSION` 만.
+- 확인한 것: `node --check` · `selftest.py` 모두 통과. 브라우저에서 시각을 멈춰 렌치 · 드라이버 · 케이블 드럼 · HART · 무전기 · 점검표 · 목검 × 4 방향 × 8 순간 캡처로 동작 확인, Space 꾹 누르기(실제 시간) 연속 휘두르기, 스크립트 오류 없음.
