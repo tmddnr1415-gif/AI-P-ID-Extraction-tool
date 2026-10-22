@@ -472,9 +472,10 @@ svg text{font-family:var(--f-mono)}
       <label class="chk"><input type="checkbox" id="v3Clr" checked>유지보수</label>
       <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
+      <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label><button id="v3ManRot" title="사람 45° 돌리기 (R)">↻ 사람</button><button id="v3Pov" title="사람 어깨 너머에서 사람이 보는 방향으로 — 방향키 ↑↓ 걷기 · ← → 돌기, 다시 누르면 등각">👁 사람 시점</button>
       <button id="v3Png">PNG 저장</button><button id="v3Close" class="primary">닫기 (Esc)</button></div>
     <div class="v3wrap"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
-    <div class="muted">끌기 = 돌려 보기 · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 휠 = 확대 · 축소 · 더블클릭 = 처음 시점 · 판넬 위에 마우스 = Tag · 크기. 판넬 높이 = Type 의 H, 밝은 면 = 전면.</div>
+    <div class="muted">끌기 = 돌려 보기 · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 휠 = 확대 · 축소 · 더블클릭 = 처음 시점 · 판넬 위에 마우스 = Tag · 크기. 판넬 높이 = Type 의 H, 밝은 면 = 전면. 사람(175 cm · 80 kg) = 끌기 · 방향키로 옮기기, R 돌리기 — 판넬 · 기둥 · 벽은 못 지나감.</div>
   </div>
 </div>
 <div class="modal" id="kdlg" hidden>
@@ -1393,7 +1394,7 @@ function preflight(what){   // 출력 전: 간섭(오류)이 있으면 먼저 �
 }
 /* ---------- 3D 보기: 판넬 H 로 세운 상자 (WebGL 직접 — 외부 라이브러리 없음, 보기 전용 · 배치안은 안 바꿈) ----------
    좌표: X = 도면 x, Y = 높이, Z = 도면 y. 벽은 카메라 쪽 벽을 숨겨(인형집 단면) 안이 보이게. */
-const V3={gl:null,on:false,yaw:-0.62,pitch:0.62,D:0,T:[0,0,0],H:3000,hover:null,raf:0,vb:null,eye:[0,0,0]};
+const V3={man:null,manOn:true,manBad:false,pov:false,gl:null,on:false,yaw:-0.62,pitch:0.62,D:0,T:[0,0,0],H:3000,hover:null,raf:0,vb:null,eye:[0,0,0]};
 try{const v=+localStorage.getItem('crspace.h3d');if(v>=1000&&v<=20000)V3.H=v}catch(e){}
 const hexRGB=s=>{s=String(s||'').trim();let m=s.match(/^#([0-9a-f]{3})$/i);if(m)s='#'+[...m[1]].map(c=>c+c).join('');m=s.match(/^#([0-9a-f]{6})$/i);if(m){const n=parseInt(m[1],16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]}
   m=s.match(/rgba?\(([^)]+)\)/);if(m){const a=m[1].split(',').map(Number);return [a[0]/255,a[1]/255,a[2]/255]}return [.5,.5,.5]};
@@ -1415,7 +1416,7 @@ function v3home(){const W=S.room.w,L=S.room.l;V3.T=[W/2,600,L/2];V3.D=Math.max(W
 function v3cam(){const cp=Math.cos(V3.pitch);V3.eye=[V3.T[0]+V3.D*cp*Math.sin(V3.yaw),V3.T[1]+V3.D*Math.sin(V3.pitch),V3.T[2]+V3.D*cp*Math.cos(V3.yaw)];
   const f=v3n(v3sub(V3.T,V3.eye)), r=v3n(v3crs(f,[0,1,0])), u=v3crs(r,f); return {f,r,u};}
 function v3matrix(w,h){
-  const {f,r,u}=v3cam(), e=V3.eye, fov=32*Math.PI/180, a=w/h, sz=Math.max(S.room.w,S.room.l), n=Math.max(20,V3.D/80), fa=V3.D*3+sz*3, t=1/Math.tan(fov/2), nf=1/(n-fa);
+  const {f,r,u}=v3cam(), e=V3.eye, fov=(V3.pov?62:32)*Math.PI/180, a=w/h, sz=Math.max(S.room.w,S.room.l), n=Math.max(20,V3.D/80), fa=V3.D*3+sz*3, t=1/Math.tan(fov/2), nf=1/(n-fa);
   const P=[t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)*nf,-1, 0,0,2*fa*n*nf,0];
   const z=f.map(v=>-v), Vw=[r[0],u[0],z[0],0, r[1],u[1],z[1],0, r[2],u[2],z[2],0, -v3dot(r,e),-v3dot(u,e),-v3dot(z,e),1];
   V3.M=m4mul(P,Vw); V3.basis={f,r,u,tf:Math.tan(fov/2),a}; return V3.M;
@@ -1459,8 +1460,44 @@ function v3build(){
       const u=[(d.c[0]-h[0])/d.r,(d.c[1]-h[1])/d.r], w=[(o[0]-h[0])/d.r,(o[1]-h[1])/d.r]; let pv=null;
       for(let i=0;i<=18;i++){const a=i/18*Math.PI/2, q=[h[0]+d.r*(Math.cos(a)*u[0]+Math.sin(a)*w[0]),6,h[1]+d.r*(Math.cos(a)*u[1]+Math.sin(a)*w[1])]; if(pv)seg(pv,q,dc); pv=q}});
   });
+  // 사람 (키 175 cm · 80 kg 성인 남성) — 크기 비교용. 로컬 +z = 앞(발끝 · 코 방향)
+  if(V3.manOn&&V3.man){const m=V3.man, c=Math.cos(m.rot), s=Math.sin(m.rot), W2=(lx,lz)=>[m.x+lx*c+lz*s,m.z-lx*s+lz*c], nr=(lx,lz)=>[lx*c+lz*s,0,-lx*s+lz*c];
+    const shirt=hexRGB(V3.manBad?'#d64545':'#e8792b'), pants=hexRGB('#34405a'), skin=hexRGB('#e2b08a'), shoe=hexRGB('#1d2128'), ed=mix(pants,[0,0,0],.4);
+    const rb=(x0,z0,x1,z1,y0,y1,col,edge)=>{const P=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]].map(q=>W2(q[0],q[1])), N=[nr(0,-1),nr(1,0),nr(0,1),nr(-1,0)];
+      quad(T,P.map(q=>[q[0],y1,q[1]]),col,1,[0,1,0]); P.forEach((a,i)=>{const b=P[(i+1)%4];quad(T,[[a[0],y0,a[1]],[a[0],y1,a[1]],[b[0],y1,b[1]],[b[0],y0,b[1]]],col,1,N[i]);
+        if(edge){seg([a[0],y1,a[1]],[b[0],y1,b[1]],edge,.6);seg([a[0],y0,a[1]],[a[0],y1,a[1]],edge,.6)}})};
+    {const k=24,P=i=>[m.x+Math.cos(i/k*Math.PI*2)*330,2,m.z+Math.sin(i/k*Math.PI*2)*330];for(let i=0;i<k;i++){vtx(X,[m.x,2,m.z],[0,0,0],.22);vtx(X,P(i),[0,0,0],.22);vtx(X,P(i+1),[0,0,0],.22)}}   // 바닥 그림자
+    rb(-165,-90,-40,150,0,70,shoe); rb(40,-90,165,150,0,70,shoe);                       // 신발 (앞쪽이 길다)
+    rb(-170,-80,-22,80,70,860,pants,ed); rb(22,-80,170,80,70,860,pants,ed);             // 다리
+    rb(-215,-125,215,125,860,1440,shirt,mix(shirt,[0,0,0],.35));                          // 몸통 (80 kg — 어깨 폭 430 · 두께 250)
+    rb(-290,-60,-218,60,800,1430,shirt); rb(218,-60,290,60,800,1430,shirt);               // 팔
+    rb(-285,-45,-222,45,690,800,skin); rb(222,-45,285,45,690,800,skin);                  // 손
+    rb(-55,-50,55,50,1440,1525,skin);                                                     // 목
+    {const [hx,hz]=W2(0,0), hy=1635, R=115, la=8, lo=14, P=(i,j)=>{const t=i/la*Math.PI, f=j/lo*Math.PI*2;return [hx+R*Math.sin(t)*Math.cos(f),hy+R*Math.cos(t),hz+R*Math.sin(t)*Math.sin(f)]};
+      for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (정수리 1,750)
+    rb(-16,100,16,135,1600,1650,skin);                                                    // 코 = 보는 방향
+  }
   return {T,L,X};
 }
+const MAN_R=240;   // 사람 바닥 자리 (반폭, 팔 포함 ≈ 어깨 폭 580 의 반)
+function manFoot(x,z){return {x:x-MAN_R,y:z-MAN_R,w:MAN_R*2,h:MAN_R*2}}
+function manFree(x,z){const r=manFoot(x,z);if(r.x<0||r.y<0||r.x+r.w>S.room.w||r.y+r.h>S.room.l)return false;
+  return !S.panels.some(p=>ov(r,geom(p).body))&&!columns().some(c=>ov(r,c))}
+function manHome(){   // 처음 자리: 판넬 유지보수 공간(전면 · 후면) 가운데 중 처음 시점(등각) 카메라에 가장 가까운 곳, 판넬을 바라봄 → 없으면 빈 곳
+  let best=null,bs=-1e18; const cy=Math.sin(v3view.iso[0]), cz=Math.cos(v3view.iso[0]);
+  S.panels.forEach(p=>{const g=geom(p),n=FRONT_N[g.r];[[g.fr,n],[g.rr,[-n[0],-n[1]]]].forEach(([f,d])=>{if(!(f.w>0&&f.h>0))return;const x=f.x+f.w/2,z=f.y+f.h/2,sc=x*cy+z*cz;
+    if(sc>bs&&manFree(x,z)){bs=sc;best={x,z,rot:Math.atan2(-d[0],-d[1])}}})});
+  if(best)return best;
+  for(let z=600;z<S.room.l;z+=500)for(let x=600;x<S.room.w;x+=500)if(manFree(x,z))return {x,z,rot:0};
+  return {x:S.room.w/2,z:S.room.l/2,rot:0};
+}
+function manMove(x,z){   // 지금 자리에서 목표까지 50 mm 씩 걸어가다 판넬 · 기둥 · 벽에 닿으면 그 앞에서 멈춤 (뚫고 지나가지 않음)
+  x=Math.round(x/50)*50;z=Math.round(z/50)*50; const m=V3.man, n=Math.max(1,Math.ceil(Math.hypot(x-m.x,z-m.z)/50)); let ok=true, px=m.x, pz=m.z;
+  for(let i=1;i<=n;i++){const tx=Math.round((m.x+(x-m.x)*i/n)/50)*50, tz=Math.round((m.z+(z-m.z)*i/n)/50)*50;
+    if(manFree(tx,tz)){px=tx;pz=tz}else if(manFree(tx,pz)){px=tx;ok=false}else if(manFree(px,tz)){pz=tz;ok=false}else{ok=false;break}}   // 막히면 벽을 따라 미끄러짐
+  m.x=px;m.z=pz;V3.manBad=!ok;if(V3.pov)manPov();v3req();return ok}
+function manPov(){   // 사람 시점: 어깨 너머(뒤 1.8 m · 눈 조금 위)에서 사람이 보는 방향으로 — 사람과 앞 판넬 크기를 같이 봄
+  const m=V3.man,f=[Math.sin(m.rot),Math.cos(m.rot)],A=1000;V3.T=[m.x+f[0]*A,1250,m.z+f[1]*A];V3.D=2850;V3.yaw=Math.atan2(-f[0],-f[1]);V3.pitch=0.17;V3.pov=true;v3req()}
 function v3draw(){
   V3.raf=0; if(!V3.on)return; const gl=V3.gl, cv=$('#v3gl'), tx=$('#v3tx'), dpr=window.devicePixelRatio||1;
   const w=Math.max(1,cv.clientWidth), h=Math.max(1,cv.clientHeight);
@@ -1477,51 +1514,77 @@ function v3draw(){
   const c2=tx.getContext('2d'); c2.setTransform(dpr,0,0,dpr,0,0); c2.clearRect(0,0,w,h);
   if(V3.lbl){const cs=getComputedStyle(document.documentElement), ink=cs.getPropertyValue('--ink').trim(), sh=cs.getPropertyValue('--sheet').trim();
     const used=[]; c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif'; c2.textAlign='center'; c2.textBaseline='middle';
-    S.panels.map(p=>{const g=geom(p),b=g.body;return {p,q:v3proj([b.x+b.w/2,(+g.t.h||2100)+120,b.y+b.h/2],w,h)}}).filter(o=>o.q).sort((a,b)=>a.q[2]-b.q[2]).forEach(({p,q})=>{   // 가까운 것부터, 겹치는 글자는 건너뜀 (확대하면 보임)
+    S.panels.map(p=>{const g=geom(p),b=g.body,pt=[b.x+b.w/2,(+g.t.h||2100)+120,b.y+b.h/2];return {p,pt,q:v3proj(pt,w,h)}}).filter(o=>o.q&&!v3hidden(o.p,o.pt)).sort((a,b)=>a.q[2]-b.q[2]).forEach(({p,q})=>{   // 가까운 것부터, 겹치는 글자는 건너뜀 (확대하면 보임)
       const tw=c2.measureText(p.tag).width+8, R={x:q[0]-tw/2,y:q[1]-8,w:tw,h:16}; if(used.some(u=>ov(u,R)))return; used.push(R); c2.globalAlpha=.85; c2.fillStyle=sh; c2.fillRect(q[0]-tw/2,q[1]-8,tw,16); c2.globalAlpha=1; c2.fillStyle=ink; c2.fillText(p.tag,q[0],q[1])});}
+  if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
+    const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
   $('#v3Info').textContent=`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} · 판넬 ${S.panels.length} EA · 최고 H ${fmt(mh)}`+(mh>V3.H?` · ⚠ 판넬 H 가 기둥 · 벽 높이 ${fmt(V3.H)} 보다 큼`:'');
 }
 const v3req=()=>{if(!V3.raf)V3.raf=requestAnimationFrame(v3draw)};
-function v3pick(mx,my){   // 마우스 아래 판넬: 카메라 광선 ∩ 판넬 상자
-  const cv=$('#v3gl'),w=cv.clientWidth,h=cv.clientHeight,B=V3.basis; if(!B)return null;
-  const px=(mx/w)*2-1, py=1-(my/h)*2, d=v3n([0,1,2].map(i=>B.f[i]+B.r[i]*px*B.tf*B.a+B.u[i]*py*B.tf)), o=V3.eye;
-  let best=null,bt=1e18;
-  S.panels.forEach(p=>{const g=geom(p),b=g.body,lo=[b.x,0,b.y],hi=[b.x+b.w,+g.t.h||2100,b.y+b.h];let t0=-1e18,t1=1e18;
-    for(let i=0;i<3;i++){if(Math.abs(d[i])<1e-9){if(o[i]<lo[i]||o[i]>hi[i])return;continue}let a=(lo[i]-o[i])/d[i],c=(hi[i]-o[i])/d[i];if(a>c)[a,c]=[c,a];t0=Math.max(t0,a);t1=Math.min(t1,c)}
-    if(t0<=t1&&t1>0&&t0<bt){bt=t0;best=p}});
+function v3ray(mx,my){const cv=$('#v3gl'),w=cv.clientWidth,h=cv.clientHeight,B=V3.basis;if(!B)return null;
+  const px=(mx/w)*2-1, py=1-(my/h)*2;return {o:V3.eye,d:v3n([0,1,2].map(i=>B.f[i]+B.r[i]*px*B.tf*B.a+B.u[i]*py*B.tf))}}
+function rayBox(R,lo,hi){const {o,d}=R;let t0=-1e18,t1=1e18;
+  for(let i=0;i<3;i++){if(Math.abs(d[i])<1e-9){if(o[i]<lo[i]||o[i]>hi[i])return null;continue}let a=(lo[i]-o[i])/d[i],c=(hi[i]-o[i])/d[i];if(a>c)[a,c]=[c,a];t0=Math.max(t0,a);t1=Math.min(t1,c)}
+  return t0<=t1&&t1>0?t0:null}
+function v3pick(mx,my){   // 마우스 아래: 사람 또는 판넬 (카메라 광선 ∩ 상자, 가까운 것)
+  const R=v3ray(mx,my); if(!R)return null; let best=null,bt=1e18;
+  S.panels.forEach(p=>{const g=geom(p),b=g.body,t=rayBox(R,[b.x,0,b.y],[b.x+b.w,+g.t.h||2100,b.y+b.h]);if(t!=null&&t<bt){bt=t;best=p}});
+  if(V3.manOn&&V3.man&&!V3.pov){const m=V3.man,t=rayBox(R,[m.x-MAN_R,0,m.z-MAN_R],[m.x+MAN_R,1750,m.z+MAN_R]);if(t!=null&&t<bt)best={man:true}}
   return best;
 }
+function v3hidden(p,pt){   // 글자 자리가 다른 판넬 뒤에 가려지면 true (사람 시점에서 뒤 판넬 Tag 가 비치지 않게)
+  const v=v3sub(pt,V3.eye), L=Math.hypot(...v), R={o:V3.eye,d:v.map(x=>x/L)};
+  return S.panels.some(q=>{if(q===p)return false;const g=geom(q),b=g.body,t=rayBox(R,[b.x,0,b.y],[b.x+b.w,+g.t.h||2100,b.y+b.h]);return t!=null&&t<L-50})}
+function rayFloor(R){if(!R||R.d[1]>=-1e-6)return null;const t=-R.o[1]/R.d[1];return [R.o[0]+R.d[0]*t,R.o[2]+R.d[2]*t]}
 function open3d(){
   if(!V3.gl&&!v3init()){toast('이 브라우저에서 3D(WebGL)를 쓸 수 없습니다 — Edge 설정 > 시스템 > 하드웨어 가속을 켜 보세요.',true);return}
   $('#v3dlg').hidden=false; V3.on=true; $('#v3H').value=V3.H; ['wall','clr','door','lbl'].forEach(k=>V3[k]=$('#v3'+k[0].toUpperCase()+k.slice(1)).checked);
-  if(!V3.D||V3.room!==S.room.w+'x'+S.room.l){v3home();V3.room=S.room.w+'x'+S.room.l} v3req();
+  if(!V3.D||V3.room!==S.room.w+'x'+S.room.l){v3home();V3.room=S.room.w+'x'+S.room.l;V3.man=null;V3.pov=false}
+  V3.manOn=$('#v3Man').checked; if(!V3.man||!manFree(V3.man.x,V3.man.z)){V3.man=manHome();V3.manBad=false} if(V3.pov)manPov(); v3req();
 }
 const v3view={iso:[-0.62,0.62],front:[0,0.16],side:[Math.PI/2,0.16],top:[0,1.55]};
-document.querySelectorAll('[data-v3]').forEach(b=>b.onclick=()=>{const [y,p]=v3view[b.dataset.v3];V3.yaw=y;V3.pitch=p;v3home();V3.D*=b.dataset.v3==='top'?0.95:b.dataset.v3==='iso'?1:0.75;v3req()});
+document.querySelectorAll('[data-v3]').forEach(b=>b.onclick=()=>{V3.pov=false;const [y,p]=v3view[b.dataset.v3];V3.yaw=y;V3.pitch=p;v3home();V3.D*=b.dataset.v3==='top'?0.95:b.dataset.v3==='iso'?1:0.75;v3req()});
 $('#b3d').onclick=open3d;
 $('#v3Close').onclick=()=>{$('#v3dlg').hidden=true;V3.on=false};
 new MutationObserver(()=>{if($('#v3dlg').hidden)V3.on=false}).observe($('#v3dlg'),{attributes:true,attributeFilter:['hidden']});   // Esc 로 닫힘
 $('#v3H').onchange=e=>{const v=Math.round(+e.target.value);if(v>=1000&&v<=20000){V3.H=v;try{localStorage.setItem('crspace.h3d',String(v))}catch(_){}}else e.target.value=V3.H;v3req()};
 ['Wall','Clr','Door','Lbl'].forEach(k=>$('#v3'+k).onchange=e=>{V3[k.toLowerCase()]=e.target.checked;v3req()});
+$('#v3Man').onchange=e=>{V3.manOn=e.target.checked;if(!V3.manOn&&V3.pov){V3.pov=false;v3home()}v3req()};
+$('#v3ManRot').onclick=()=>{if(!V3.manOn)return;V3.man.rot+=Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req()};
+$('#v3Pov').onclick=()=>{if(!V3.manOn){$('#v3Man').checked=V3.manOn=true}if(V3.pov){V3.pov=false;V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req()}else manPov()};
+document.addEventListener('keydown',e=>{   // 3D 창: 사람 옮기기 (방향키 = 화면 기준 100 mm, Shift = 500) · R 돌리기 (사람 시점이면 ← → 로 고개 돌리기)
+  if(!V3.on||!V3.manOn||!V3.man||e.target.matches('input,select,textarea'))return; const k=e.key, st=e.shiftKey?500:100;
+  if(k==='r'||k==='R'){e.preventDefault();V3.man.rot+=(e.shiftKey?-1:1)*Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req();return}
+  if(!/^Arrow/.test(k))return; e.preventDefault();
+  if(V3.pov&&(k==='ArrowLeft'||k==='ArrowRight')){V3.man.rot+=(k==='ArrowLeft'?1:-1)*Math.PI/12;V3.manBad=false;manPov();return}
+  const B=V3.basis, fw=V3.pov?[Math.sin(V3.man.rot),Math.cos(V3.man.rot)]:(V3.pitch>1.2?[B.u[0],B.u[2]]:[B.f[0],B.f[2]]), l=Math.hypot(fw[0],fw[1])||1, f=[fw[0]/l,fw[1]/l], r=[-f[1],f[0]];
+  const v=k==='ArrowUp'?f:k==='ArrowDown'?[-f[0],-f[1]]:k==='ArrowRight'?[-r[0],-r[1]]:r;
+  manMove(V3.man.x+v[0]*st,V3.man.z+v[1]*st);
+});
 window.addEventListener('resize',()=>{if(V3.on)v3req()});
 {const cv=$('#v3gl'); let drag=null;
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey};cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener('pointerdown',e=>{const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top;
+    if(e.button===0&&!e.shiftKey){const hit=v3pick(mx,my);if(hit&&hit.man){const fp=rayFloor(v3ray(mx,my));if(fp){drag={man:true,off:[V3.man.x-fp[0],V3.man.z-fp[1]]};cv.setPointerCapture(e.pointerId);return}}}
+    drag={x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey};cv.setPointerCapture(e.pointerId)});
   cv.addEventListener('pointermove',e=>{
-    if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+    if(drag&&drag.man){const rc=cv.getBoundingClientRect(),fp=rayFloor(v3ray(e.clientX-rc.left,e.clientY-rc.top));if(fp)manMove(fp[0]+drag.off[0],fp[1]+drag.off[1]);return}
+    if(drag){if(V3.pov){V3.pov=false}const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
       if(drag.pan){const B=V3.basis,k=V3.D*2*B.tf/cv.clientHeight,g=v3n([B.f[0],0,B.f[2]]);   // 바닥과 나란히 옮김
         const fw=V3.pitch>1.2?v3n([B.u[0],0,B.u[2]]):g; V3.T=[V3.T[0]-B.r[0]*dx*k+fw[0]*dy*k,V3.T[1],V3.T[2]-B.r[2]*dx*k+fw[2]*dy*k]}
       else{V3.yaw-=dx*0.008;V3.pitch=Math.min(1.55,Math.max(0.02,V3.pitch+dy*0.008))}
       v3req();return}
     const r=cv.getBoundingClientRect(), p=v3pick(e.clientX-r.left,e.clientY-r.top), tip=$('#v3Tip');
     if((p&&p.id)!==V3.hover){V3.hover=p&&p.id;v3req()}
-    if(p){const t=typeOf(p);tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';
+    cv.style.cursor=p&&p.man?'move':'';
+    if(p&&p.man){tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.innerHTML=`<b>사람</b> 키 175 cm · 80 kg (어깨 폭 약 580)<br>끌어서 옮기기 · R 돌리기 · 방향키 이동`}
+    else if(p){const t=typeOf(p);tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';
       tip.innerHTML=`<b>${esc(p.tag)}</b> ${esc(p.desc||t.name)}<br>${fmt(t.w)} × ${fmt(t.d)} × H ${fmt(+t.h||2100)}`} else tip.hidden=true;
   });
-  cv.addEventListener('pointerup',()=>{drag=null});
+  cv.addEventListener('pointerup',()=>{if(drag&&drag.man&&V3.manBad){V3.manBad=false;v3req()}drag=null});
   cv.addEventListener('pointerleave',()=>{$('#v3Tip').hidden=true;if(V3.hover){V3.hover=null;v3req()}});
-  cv.addEventListener('wheel',e=>{e.preventDefault();V3.D=Math.min(Math.max(S.room.w,S.room.l)*6,Math.max(800,V3.D*Math.exp(Math.sign(e.deltaY)*Math.min(Math.abs(e.deltaY),200)*0.001)));v3req()},{passive:false});
+  cv.addEventListener('wheel',e=>{e.preventDefault();V3.pov=false;V3.D=Math.min(Math.max(S.room.w,S.room.l)*6,Math.max(800,V3.D*Math.exp(Math.sign(e.deltaY)*Math.min(Math.abs(e.deltaY),200)*0.001)));v3req()},{passive:false});
   cv.addEventListener('dblclick',()=>{V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req()});
 }
 $('#v3Png').onclick=()=>{   // 3D 화면 + Tag 글자 → PNG
