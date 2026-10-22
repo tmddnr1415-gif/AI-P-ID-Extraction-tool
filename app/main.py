@@ -5506,6 +5506,8 @@ def favicon():
 
 from app.logic import api as _logic_api              # LOGIC 검토 (app/logic) — 라우터만 붙인다
 app.include_router(_logic_api.router)
+from app import space as _space                      # 판넬 공간확보 — /space (hotfix106 · P&ID · LOGIC 과 같은 서버)
+app.include_router(_space.router)
 from app import plaza as _plaza                      # 가상 광장 — 대시보드 iframe 용 (판정과 무관 · 메모리만)
 app.include_router(_plaza.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
