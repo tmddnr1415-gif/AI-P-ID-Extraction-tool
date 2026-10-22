@@ -1,37 +1,35 @@
-<title>Control Room 공간확보</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>판넬 공간확보</title>
 <style>
-/* Layout: drafting sheet — toolbar strip on top, spec sidebar on the left, canvas as the drawing sheet */
+/* 판넬 공간확보 — 계장 Control Room 판넬 초기 공간확보 (대시보드 메뉴 '판넬 공간확보', /apps/space/)
+   폐쇄망: 외부 글꼴·CDN 없음. 색·글꼴은 dashboard.html :root 토큰과 같은 값 (navy #1e2a5a · accent #2b44c9 …) */
 :root{
-  --paper:#eef2f3; --sheet:#f8fafa; --ink:#14232e; --ink-2:#4b5d68; --line:#c7d3d9; --grid:#dbe4e8; --grid-major:#b9c8cf;
-  --accent:#1f5fd1; --accent-soft:rgba(31,95,209,.12); --err:#c8372d; --warn:#c48410; --ok:#2e8a57;
-  --clear:#d98a1c; --panel-bg:#ffffff; --col:#22313a;
-  --f-ui:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --paper:#eef1f8; --sheet:#ffffff; --ink:#1b2238; --ink-2:#667089; --line:#d5dcea; --grid:#e3e8f2; --grid-major:#c3cbdc;
+  --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.12); --err:#d63a2f; --warn:#c77700; --ok:#168a5c;
+  --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a;
+  --f-ui:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  --f-mono:Consolas,monospace;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#0e171c; --sheet:#121e24; --ink:#dbe6eb; --ink-2:#91a5b0; --line:#2a3b44; --grid:#1a2930; --grid-major:#2b3f49;
-  --accent:#6aa0ff; --accent-soft:rgba(106,160,255,.16); --err:#ff6b5e; --warn:#f0b13c; --ok:#58c487;
-  --clear:#e9a040; --panel-bg:#17252c; --col:#c3d2d9; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --paper:#0e171c; --sheet:#121e24; --ink:#dbe6eb; --ink-2:#91a5b0; --line:#2a3b44; --grid:#1a2930; --grid-major:#2b3f49;
-  --accent:#6aa0ff; --accent-soft:rgba(106,160,255,.16); --err:#ff6b5e; --warn:#f0b13c; --ok:#58c487;
-  --clear:#e9a040; --panel-bg:#17252c; --col:#c3d2d9; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:13px;margin:0}
 *{box-sizing:border-box}
+[hidden]{display:none!important}   /* .modal{display:flex} 가 hidden 속성을 이기지 않게 */
 .app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
 .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--sheet)}
 .bar .brand{font-weight:700;letter-spacing:.02em;margin-right:8px;white-space:nowrap}
 .bar .brand small{font-family:var(--f-mono);font-weight:500;color:var(--ink-2);margin-left:6px;font-size:11px}
 .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
-button,.btn{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer;white-space:nowrap}
-button:hover{border-color:var(--ink-2)}
+button,.btn{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+button:hover{background:#f4f6fd}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-button.on{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{background:var(--accent-d)}
 button:disabled{opacity:.4;cursor:default}
 label.chk{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;white-space:nowrap}
 select,input{font:inherit;font-size:12.5px;color:var(--ink);background:var(--panel-bg);border:1px solid var(--line);border-radius:3px;padding:3px 5px}
@@ -95,7 +93,8 @@ svg text{font-family:var(--f-mono)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
+</head>
+<body>
 <div class="app">
   <div class="bar">
     <div class="brand">Control Room 공간확보<small>Phase 0 · 건축 전달용</small></div>
@@ -607,20 +606,11 @@ function openModal(title,note,text,name,mime){
 }
 $('#mClose').onclick=()=>{$('#modal').hidden=true};
 $('#mCopy').onclick=async()=>{const t=$('#mText');try{await navigator.clipboard.writeText(t.value);$('#mCopy').textContent='복사됨'}catch(e){t.focus();t.select();$('#mCopy').textContent='Ctrl+C로 복사'}setTimeout(()=>$('#mCopy').textContent='복사',1800)};
-let dlNS;
-if(window.claude&&window.claude.use){window.claude.use('downloads').then(ns=>{dlNS=ns}).catch(()=>{})}
-$('#mDown').onclick=async()=>{
-  const btn=$('#mDown');
-  if(dlNS){ // published artifact: platform save (dxf is not on the allowlist, so it is saved as .dxf.txt)
-    const ok=/\.(txt|json|csv|md|html)$/i.test(mFile.name), fn=ok?mFile.name:mFile.name+'.txt';
-    try{await dlNS.save({filename:fn,data:mFile.text});btn.textContent=ok?'저장됨':'저장됨 (.txt 제거 후 사용)'}
-    catch(e){btn.textContent=e&&e.code==='declined'?'취소됨':'다운로드 불가 · 복사 사용'}
-    setTimeout(()=>btn.textContent='파일 다운로드',2600);return;
-  }
+$('#mDown').onclick=()=>{ // 브라우저가 직접 저장 — 파일 이름(.dxf · .csv · .txt · .json) 그대로
   try{const b=new Blob([mFile.text],{type:mFile.mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=mFile.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}catch(e){}
 };
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
-const dlNote='웹(claude.ai)에서 받은 DXF는 이름 끝 .txt를 지우면 됩니다. 다운로드가 안 되면 복사해 메모장에 붙여넣고 해당 확장자로 저장하세요.';
+const dlNote='다운로드가 안 되면 [복사] 후 메모장에 붙여넣고 같은 확장자로 저장하세요.';
 
 $('#bReq').onclick=()=>{
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
@@ -690,8 +680,8 @@ $('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new File
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
-try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render)}catch(e){}
-new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 })();
 </script>
+</body>
+</html>
