@@ -11,7 +11,7 @@
 :root{
   --paper:#212830; --sheet:#2a313a; --ink:#e4e9ef; --ink-2:#9aa5b3; --line:#3d4652; --grid:#29313a; --grid-major:#36404c;
   --accent:#5b9dff; --accent-d:#3f82ea; --accent-soft:rgba(91,157,255,.16); --err:#ff6259; --warn:#f2b33d; --ok:#45d08c;
-  --clear:#e3a33a; --panel-bg:#1b2128; --col:#8793a3; --navy:#3d5a8f; --door:#4dd4c6; --wall:#f2f5f8; --note:#f6c453;
+  --clear:#e3a33a; --panel-bg:#1b2128; --col:#8793a3; --navy:#3d5a8f; --door:#4dd4c6; --wall:#f2f5f8; --note:#f6c453; --snap:#ff7ad9;
   --hover:#343c47; --pfill:.34; --pfill-on:.5; --ok-l:rgba(69,208,140,.14); --err-l:rgba(255,98,89,.16); --warn-l:rgba(242,179,61,.16); --toast:#0f1318;
   --f-ui:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;
   --f-mono:Consolas,monospace;
@@ -21,7 +21,7 @@
 :root[data-theme="light"]{
   --paper:#eef1f8; --sheet:#ffffff; --ink:#1b2238; --ink-2:#667089; --line:#d5dcea; --grid:#e3e8f2; --grid-major:#c3cbdc;
   --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.12); --err:#d63a2f; --warn:#c77700; --ok:#168a5c;
-  --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a; --door:#0f8a80; --wall:#1b2238; --note:#b7791f;
+  --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a; --door:#0f8a80; --wall:#1b2238; --note:#b7791f; --snap:#c026d3;
   --hover:#f4f6fd; --pfill:.2; --pfill-on:.32; --ok-l:#dff4ea; --err-l:#fde8e6; --warn-l:#fff6dc; --toast:#1b2238;
   color-scheme:light;
 }
@@ -290,6 +290,14 @@ svg text{font-family:var(--f-mono)}
           <label>Spare 공간 (%)<input type="number" id="rSp" min="0" max="200" step="5" title="향후 증설분. 필요 영역을 이 비율만큼 늘려 권장 실 크기를 냅니다 (기본 0 = 미적용)"></label>
           <label>증설 방향<select id="rSd"><option value="x">X (Width) 쪽</option><option value="y">Y (Length) 쪽</option></select></label>
         </div>
+        <div class="f" style="margin-top:10px">
+          <label class="full" style="font-weight:700;color:var(--ink)">배치 제약 — 위반이면 놓을 수 없음</label>
+          <label>판넬 간 최소 이격 (mm)<input type="number" id="rGp" min="0" step="50" title="판넬 몸체 사이 최소 거리. 0 = 겹치지만 않으면 됨"></label>
+          <label>도어 간 최소 이격 (mm)<input type="number" id="rGd" min="0" step="50" title="서로 다른 판넬의 도어 회전 궤적 사이 최소 거리 (같은 줄에 나란한 문끼리는 제외). 0 = 궤적이 겹치지만 않으면 됨"></label>
+          <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="rTouch">줄 배치로 맞닿은 판넬(0 mm)은 이격 예외</label>
+          <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="rEnf">위반이면 놓지 못하게 (끄면 검토 목록에만)</label>
+        </div>
+        <p class="muted" style="margin:4px 0 0">항상 막는 것: 기둥과 겹침 · 판넬끼리 겹침 · 다른 판넬의 도어 회전 궤적과 간섭 · 도어 궤적끼리 겹침. Ctrl 을 누른 채 끌면 근처 판넬 · 벽 · 기둥에 맞춰 붙습니다(정렬 안내선).</p>
         <div class="row" id="colCustom" style="margin-top:6px;align-items:center" hidden><span class="muted" id="colCustomTxt"></span><button id="bColReset" title="직접 고친 기둥을 버리고 위 Span · 크기로 다시 만듭니다">격자로 다시 만들기</button></div>
         <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 기둥 하나씩 옮기기 · 추가 · 삭제는 도구줄 [기둥 편집]. 벽 이격 · Spare 는 권장 실 크기 계산에만 쓰입니다 (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
       </section>
@@ -358,7 +366,8 @@ svg text{font-family:var(--f-mono)}
   <div class="status">
     <span class="mode" id="stMode">선택</span>
     <span class="mono" id="stXY">X – · Y –</span>
-    <span id="stHint">빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동</span>
+    <span id="stBlock" style="color:var(--err);font-weight:700"></span>
+    <span id="stHint">빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동</span>
   </div>
 </div>
 
@@ -474,7 +483,7 @@ try{const raw=localStorage.getItem('crspace.v1'); HAD_LOCAL=!!raw; S=raw?JSON.pa
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
 function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 // 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
@@ -531,6 +540,78 @@ function doors(g){
 }
 function toCustomCols(){if(!Array.isArray(S.cols))S.cols=columns().map(c=>({id:uid(),cx:c.cx,cy:c.cy,w:c.w,h:c.h}))}   // 첫 편집 때 격자 → 목록
 function hitCol(w){const cs=columns();for(let i=cs.length-1;i>=0;i--){const c=cs[i];if(w.x>=c.x&&w.x<=c.x+c.w&&w.y>=c.y&&w.y<=c.y+c.h)return c}return null}
+/* ---------- 배치 제약: 놓을 때 막는 규칙 ----------
+   항상: 기둥과 겹침 · 판넬끼리 겹침 · 다른 판넬의 도어 회전 궤적(사분원)과 간섭 · 도어 궤적끼리 겹침
+   입력값: 판넬 간 최소 이격(gapP, 줄로 맞닿은 0 mm 는 touchOK 면 예외) · 도어 간 최소 이격(gapD, 같은 줄 나란한 문 제외) */
+function rectDist(a,b){if(ov(a,b))return -1;const dx=Math.max(0,a.x-(b.x+b.w),b.x-(a.x+a.w)),dy=Math.max(0,a.y-(b.y+b.h),b.y-(a.y+a.h));return Math.hypot(dx,dy)}
+function unionR(rs){rs=rs.filter(r=>r&&r.w>0&&r.h>0);if(!rs.length)return null;const x0=Math.min(...rs.map(r=>r.x)),y0=Math.min(...rs.map(r=>r.y));return {x:x0,y:y0,w:Math.max(...rs.map(r=>r.x+r.w))-x0,h:Math.max(...rs.map(r=>r.y+r.h))-y0}}
+const dirOf=d=>[Math.round((d.o[0]-d.h[0])/d.r),Math.round((d.o[1]-d.h[1])/d.r)], uOf=d=>[(d.c[0]-d.h[0])/d.r,(d.c[1]-d.h[1])/d.r];
+function rectHitsSector(R,d){   // 사각형 ∩ 도어 회전 궤적(사분원) — 경계에 닿기만 하는 것은 간섭 아님
+  const b=d.box,x0=Math.max(R.x,b.x),y0=Math.max(R.y,b.y),x1=Math.min(R.x+R.w,b.x+b.w),y1=Math.min(R.y+R.h,b.y+b.h);
+  if(x1-x0<=0.5||y1-y0<=0.5)return false;
+  const px=Math.min(Math.max(d.h[0],x0),x1),py=Math.min(Math.max(d.h[1],y0),y1); return Math.hypot(px-d.h[0],py-d.h[1])<d.r-0.5;
+}
+function secPts(d){const u=uOf(d),n=dirOf(d),P=[d.h];for(let i=0;i<=24;i++){const a=i/24*Math.PI/2;P.push([d.h[0]+d.r*(Math.cos(a)*u[0]+Math.sin(a)*n[0]),d.h[1]+d.r*(Math.cos(a)*u[1]+Math.sin(a)*n[1])])}
+  for(let i=1;i<10;i++){const k=i/10;P.push([d.h[0]+(d.c[0]-d.h[0])*k,d.h[1]+(d.c[1]-d.h[1])*k],[d.h[0]+(d.o[0]-d.h[0])*k,d.h[1]+(d.o[1]-d.h[1])*k])}return P}
+function inSec(q,d){const u=uOf(d),n=dirOf(d),vx=q[0]-d.h[0],vy=q[1]-d.h[1],a=vx*u[0]+vy*u[1],b=vx*n[0]+vy*n[1];return a>0.5&&b>0.5&&a*a+b*b<(d.r-0.5)**2}
+function secDist(d1,d2,need){   // 두 도어 궤적 사이 거리 (겹치면 -1). 호 · 문짝 선을 점으로 나눠 잰다 (오차 ≈ 반경의 3%)
+  const bd=rectDist(d1.box,d2.box); if(bd>need+1)return bd;
+  const A=secPts(d1),B=secPts(d2); if(A.some(q=>inSec(q,d2))||B.some(q=>inSec(q,d1)))return -1;
+  let m=1e12;A.forEach(q=>B.forEach(r=>{const t=Math.hypot(q[0]-r[0],q[1]-r[1]);if(t<m)m=t}));return m;
+}
+function sameRow(a,b){const na=dirOf(a),nb=dirOf(b);if(na[0]!==nb[0]||na[1]!==nb[1])return false;return na[0]===0?Math.abs(a.h[1]-b.h[1])<1:Math.abs(a.h[0]-b.h[0])<1}   // 같은 줄 같은 면의 나란한 문
+function extOf(g){return unionR([g.body,g.fr,g.rr,...doors(g).map(d=>d.box)])}
+function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으면 null)
+  const dd=rectDist(g.body,h.body);
+  if(dd<0)return {msg:`${p.tag} 이(가) ${q.tag} 와 겹칩니다`,fix:'한쪽을 옮기세요.'};
+  if(gp>0&&dd<gp-0.5&&!(S.room.touchOK&&dd<0.5))return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — 판넬 간 최소 이격 ${fmt(gp)} mm 보다 좁습니다`,fix:`${fmt(gp)} mm 이상 떼거나 맞닿게 붙이세요.`};
+  const dg=doors(g), dh=doors(h);
+  let x=dh.find(d=>rectHitsSector(g.body,d)); if(x)return {msg:`${p.tag} 이(가) ${q.tag} 의 ${x.face} 도어 회전 궤적 안에 들어갑니다`,fix:`${q.tag} 의 문이 열리는 자리를 비우세요.`};
+  x=dg.find(d=>rectHitsSector(h.body,d)); if(x)return {msg:`${p.tag} 의 ${x.face} 도어 회전 궤적에 ${q.tag} 가 있습니다`,fix:'간격을 넓히거나 힌지 방향(L/R) · 양개로 바꾸세요.'};
+  for(const a of dg)for(const b of dh){if(sameRow(a,b))continue;const sd=secDist(a,b,gd);
+    if(sd<0)return {msg:`${p.tag} 의 ${a.face} 도어와 ${q.tag} 의 ${b.face} 도어 회전 궤적이 겹칩니다`,fix:'마주 보는 줄 간격을 넓히거나 힌지 방향을 바꾸세요.'};
+    if(gd>0&&sd<gd-0.5)return {msg:`${p.tag} ↔ ${q.tag} 도어 간 이격 ${fmt(sd)} mm — 도어 간 최소 이격 ${fmt(gd)} mm 보다 좁습니다`,fix:`도어 궤적 사이를 ${fmt(gd)} mm 이상 떼세요.`}}
+  return null;
+}
+function violation(movers){   // 옮기거나 새로 놓을 판넬 묶음이 지금 자리에 놓일 수 있나 → 첫 위반 문장 / null
+  const ids=new Set(movers.map(p=>p.id)), gp=+S.room.gapP||0, gd=+S.room.gapD||0, cols=columns(), far=Math.max(gp,gd)+1;
+  const F=S.panels.filter(p=>!ids.has(p.id)).map(p=>{const g=geom(p);return {p,g,e:extOf(g)}});
+  for(const p of movers){const g=geom(p),e=extOf(g);
+    const c=cols.find(c=>ov(g.body,c)); if(c)return `${p.tag} 이(가) 기둥(X ${fmt(c.cx)}, Y ${fmt(c.cy)})과 겹칩니다`;
+    for(const f of F){if(rectDist(e,f.e)>far)continue;const v=pairRule(p,g,f.p,f.g,gp,gd);if(v)return v.msg}}
+  return null;
+}
+const ENF=()=>S.room.enforce!==false;
+function refuse(m){toast(`놓을 수 없습니다 — ${m}. (② 배치 제약에서 기준을 바꾸거나 '놓지 못하게' 를 끌 수 있습니다)`,true)}
+function guardCommit(ids){   // 회전 · 복제 · 방향키 · 속성칸: 위반이면 직전 상태로 되돌림
+  if(ENF()){const v=violation(S.panels.filter(p=>ids.has(p.id)));if(v){restore(lastSnap);refuse(v);return false}}
+  commit();return true;
+}
+/* Ctrl 정렬 스냅 (CAD 처럼): 움직이는 묶음의 몸체 · 외곽(유지보수 · 도어 포함) 모서리를 근처 판넬 · 벽 · 기둥 기준선에 붙이고 안내선을 보인다 */
+let guides=[];
+function smartSnap(movers){
+  const ids=new Set(movers.map(p=>p.id)), Gm=movers.map(p=>geom(p)), bb=unionR(Gm.map(g=>g.body)), eb=unionR(Gm.map(extOf)), tol=12/V.s, gp=S.room.touchOK?0:(+S.room.gapP||0);
+  const W=S.room.w, L=S.room.l, cand={x:[],y:[]};
+  const add=(ax,cur,to,lab,span)=>cand[ax].push({d:to-cur,to,lab,span});
+  const M={x:{L:bb.x,R:bb.x+bb.w,C:bb.x+bb.w/2,eL:eb.x,eR:eb.x+eb.w},y:{L:bb.y,R:bb.y+bb.h,C:bb.y+bb.h/2,eL:eb.y,eR:eb.y+eb.h}};
+  S.panels.filter(p=>!ids.has(p.id)).forEach(p=>{const g=geom(p),b=g.body,e=extOf(g);
+    [['x',b.x,b.w,e.x,e.w,[b.y,b.y+b.h]],['y',b.y,b.h,e.y,e.h,[b.x,b.x+b.w]]].forEach(([ax,o,ow,eo,ew,sp])=>{const m=M[ax];
+      add(ax,m.L,o,'모서리 정렬',sp);add(ax,m.R,o+ow,'모서리 정렬',sp);add(ax,m.C,o+ow/2,'중심 정렬',sp);
+      add(ax,m.L,o+ow+gp,gp?`이격 ${fmt(gp)}`:'맞닿음',sp);add(ax,m.R,o-gp,gp?`이격 ${fmt(gp)}`:'맞닿음',sp);
+      add(ax,m.eL,eo+ew,'유지보수 외곽 맞닿음',sp);add(ax,m.eR,eo,'유지보수 외곽 맞닿음',sp);
+      add(ax,m.L,o+ow,'맞닿음',sp);add(ax,m.R,o,'맞닿음',sp)})});
+  add('x',M.x.eL,0,'벽',null);add('x',M.x.eR,W,'벽',null);add('y',M.y.eL,0,'벽',null);add('y',M.y.eR,L,'벽',null);
+  add('x',M.x.L,0,'벽',null);add('x',M.x.R,W,'벽',null);add('y',M.y.L,0,'벽',null);add('y',M.y.R,L,'벽',null);
+  columns().forEach(c=>{add('x',M.x.L,c.x+c.w,'기둥 면',[c.y,c.y+c.h]);add('x',M.x.R,c.x,'기둥 면',[c.y,c.y+c.h]);add('y',M.y.L,c.y+c.h,'기둥 면',[c.x,c.x+c.w]);add('y',M.y.R,c.y,'기둥 면',[c.x,c.x+c.w])});
+  // 고르는 순서: 가까운 기준선 · 옆(수직 방향)으로도 가까운 대상 먼저 · 벽 · 기둥은 판넬보다 뒤 (멀리 떨어진 기둥 면에 붙지 않게)
+  const perp=(ax,sp)=>{if(!sp)return 0;const lo=ax==='x'?eb.y:eb.x,hi=ax==='x'?eb.y+eb.h:eb.x+eb.w;return Math.max(0,sp[0]-hi,lo-sp[1])};
+  const wt=(ax,c)=>Math.abs(c.d)*(c.lab==='벽'||c.lab==='기둥 면'?1.6:1)+0.05*perp(ax,c.span);
+  const best=ax=>cand[ax].filter(c=>Math.abs(c.d)<=tol).sort((a,b)=>wt(ax,a)-wt(ax,b))[0]||null;
+  const bx=best('x'), by=best('y'), out={dx:bx?bx.d:null,dy:by?by.d:null,guides:[]};
+  if(bx){const y0=Math.min(eb.y,bx.span?bx.span[0]:0),y1=Math.max(eb.y+eb.h,bx.span?bx.span[1]:L);out.guides.push({x1:bx.to,y1:y0,x2:bx.to,y2:y1,lab:bx.lab})}
+  if(by){const x0=Math.min(eb.x,by.span?by.span[0]:0),x1=Math.max(eb.x+eb.w,by.span?by.span[1]:W);out.guides.push({x1:x0,y1:by.to,x2:x1,y2:by.to,lab:by.lab})}
+  return out;
+}
 const ov=(a,b)=>a.w>0&&a.h>0&&b.w>0&&b.h>0&&a.x<b.x+b.w-0.5&&b.x<a.x+a.w-0.5&&a.y<b.y+b.h-0.5&&b.y<a.y+a.h-0.5;
 const inside=(a,R)=>a.x>=-0.5&&a.y>=-0.5&&a.x+a.w<=R.w+0.5&&a.y+a.h<=R.l+0.5;
 function spans(str){return String(str||'').split(/[,\s]+/).map(Number).filter(n=>n>0)}
@@ -572,8 +653,11 @@ function check(){
       if(dr.r>dr.clr+0.5){seen.add(k);issues.push({lv:'warn',ids:[p.id],msg:`${p.tag} 의 ${dr.face} 도어 회전 반경 ${fmt(dr.r)} mm 가 ${dr.face} 유지보수 공간 ${fmt(dr.clr)} mm 보다 깁니다`,fix:`${dr.face} 유지보수 공간을 ${fmt(dr.r)} mm 이상으로 하거나 열림을 양개(L-R)로 바꾸세요.`});mark(p.id,'warn');return}
       if(!inside(dr.box,R)){seen.add(k);issues.push({lv:'warn',ids:[p.id],msg:`${p.tag} 의 ${dr.face} 도어가 열리다 벽에 걸립니다`,fix:'판넬을 벽에서 떼거나 힌지 방향(L/R)을 바꾸세요.'});mark(p.id,'warn');return}
       const hitC=cols.find(c=>ov(dr.box,c)); if(hitC){seen.add(k);issues.push({lv:'warn',ids:[p.id],msg:`${p.tag} 의 ${dr.face} 도어 회전 궤적에 기둥(X ${fmt(hitC.cx)}, Y ${fmt(hitC.cy)})이 있습니다`,fix:'판넬을 옮기거나 힌지 방향을 바꾸세요.'});mark(p.id,'warn');return}
-      const hitP=G.find(({p:q,g:h})=>q!==p&&ov(dr.box,h.body)); if(hitP){seen.add(k);issues.push({lv:'warn',ids:[p.id,hitP.p.id],msg:`${p.tag} 의 ${dr.face} 도어 회전 궤적에 ${hitP.p.tag} 가 있습니다`,fix:'간격을 넓히거나 힌지 방향(L/R) · 양개로 바꾸세요.'});mark(p.id,'warn')}
     });
+    // 배치 제약 (놓을 때 막는 것과 같은 규칙) — 판넬 쌍마다 한 번, 겹침은 위에서 이미
+    const gp=+R.gapP||0, gd=+R.gapD||0, e1=extOf(g);
+    G.forEach(({p:q,g:h},j)=>{if(j<=i||ov(g.body,h.body)||rectDist(e1,extOf(h))>Math.max(gp,gd)+1)return;
+      const v=pairRule(p,g,q,h,gp,gd);if(v){issues.push({lv:'err',ids:[p.id,q.id],msg:v.msg,fix:v.fix});mark(p.id,'err');mark(q.id,'err')}});
   });
 }
 function envelope(){
@@ -643,7 +727,8 @@ function typeSvg(t,big){
     o+=tx(b.w/2,y0-pad*.45,'▲ 전면 (굵은 선)');}
   return o+'</svg>';
 }
-let ghost=null, marquee=null, cursorW=null;
+let ghost=null, marquee=null, cursorW=null, block=null;   // block = 지금 끌거나 놓으려는 자리의 위반 문장
+function showBlock(){$('#stBlock').textContent=block?`⛔ 놓을 수 없음 — ${block}`:''}
 function rect(r,cls,extra=''){return `<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" ${extra}/>`}
 function dimH(x0,x1,y,txt,off,col){ // horizontal dimension at y with tick marks
   const s=V.s,t=4/s,fs=11/s;
@@ -735,10 +820,15 @@ function render(){
     if(lab)g+=`<rect x="${lx}" y="${ly}" width="${tw}" height="${th}" rx="${3/s}" fill="${bg}" fill-opacity=".92" stroke="${nc}" stroke-width="${on?2:1}" vector-effect="non-scaling-stroke"/><text x="${lx+7/s}" y="${ly+th/2}" font-size="${11/s}" fill="${ink}" dominant-baseline="middle" font-family="Malgun Gothic,sans-serif">${esc(lab)}</text>`;
     g+=`<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${nc}" stroke="${on?acc:bg}" stroke-width="${on?2.5:1.5}" vector-effect="non-scaling-stroke"/><text x="${n.x}" y="${n.y}" font-size="${9.5/s}" fill="#1b2238" font-weight="700" text-anchor="middle" dominant-baseline="central">${i+1}</text>`})}
   // ghost
-  if(ghost){ghost.forEach(p=>{const q=geom(p),b=q.body;
+  if(ghost){const gc=block?err:acc;ghost.forEach(p=>{const q=geom(p),b=q.body;
     [q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" opacity=".6"/>`});
-    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${q.t.color}" fill-opacity=".35" stroke="${acc}" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
-    g+=`<line x1="${q.fe[0]}" y1="${q.fe[1]}" x2="${q.fe[2]}" y2="${q.fe[3]}" stroke="${acc}" stroke-width="3" vector-effect="non-scaling-stroke"/>`})}
+    if(show.door)doors(q).forEach(d=>g+=doorSvg(d,block?err:C('--door')));
+    g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${block?err:q.t.color}" fill-opacity="${block?.45:.35}" stroke="${gc}" stroke-width="${block?2:1}" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+    g+=`<line x1="${q.fe[0]}" y1="${q.fe[1]}" x2="${q.fe[2]}" y2="${q.fe[3]}" stroke="${gc}" stroke-width="3" vector-effect="non-scaling-stroke"/>`})}
+  // 끄는 중 놓을 수 없는 자리: 움직이는 판넬을 빨갛게
+  if(drag&&drag.k==='move'&&drag.block)drag.orig.forEach(o=>{const b=geom(o.q).body;g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${err}" fill-opacity=".4" stroke="${err}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`});
+  // Ctrl 정렬 안내선
+  if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6/s}" y="${(l.y1+l.y2)/2-6/s}" font-size="${11/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
@@ -752,10 +842,11 @@ function render(){
 /* ---------- side panels ---------- */
 function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#snap').value=String(S.snap);
+function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#snap').value=String(S.snap);
   const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
-['rW','rL','rSX','rSY','rC','rM','rSp','rSd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
-  const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir'}[id], v=e.target.value;
+$('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').onchange=e=>{S.room.enforce=e.target.checked;commit()};
+['rW','rL','rSX','rSY','rC','rM','rSp','rSd','rGp','rGd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
+  const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir',rGp:'gapP',rGd:'gapD'}[id], v=e.target.value;
   S.room[k]=(k==='spX'||k==='spY'||k==='spareDir')?v:Math.max(0,+v||0); commit();
   if(Array.isArray(S.cols)&&(k==='spX'||k==='spY'||k==='col'))toast('기둥을 직접 고친 상태라 Span · 크기가 바로 반영되지 않습니다 — 반영하려면 [격자로 다시 만들기]');
 }));
@@ -876,8 +967,9 @@ function buildProps(){
       <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label></div>`;
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
     ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
-    ch('#pType',v=>p.type=v); ch('#pDesc',v=>p.desc=v);
-    ch('#pX',v=>p.x=+v||0); ch('#pY',v=>p.y=+v||0); ch('#pRot',v=>{rotateAbout([p],null,0,+v)});
+    const chG=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);if(!guardCommit(new Set([p.id])))buildProps()});   // 위반이면 되돌리고 칸도 원래 값
+    chG('#pType',v=>p.type=v); ch('#pDesc',v=>p.desc=v);
+    chG('#pX',v=>p.x=+v||0); chG('#pY',v=>p.y=+v||0); chG('#pRot',v=>{rotateAbout([p],null,0,+v)});
   }else{
     const by={};ps.forEach(p=>{const n=typeOf(p).name;by[n]=(by[n]||0)+1});
     box.innerHTML=`<div class="muted">${Object.entries(by).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')}</div>
@@ -928,10 +1020,17 @@ function refresh(){check();buildSummary();buildRevs();buildNotes();updSrv();buil
 
 /* ---------- edit operations ---------- */
 function nextTag(t,extra){const used=new Set(S.panels.map(p=>p.tag).concat(extra||[]));let k=1;while(used.has(t.pre+String(k).padStart(2,'0')))k++;return t.pre+String(k).padStart(2,'0')}
-function makeGhost(w){
+function placeGhost(w,ctrl){   // 놓을 자리 미리보기: Ctrl = 정렬 스냅, 위반이면 빨강(block)
+  const gh=makeGhost(w,ctrl); guides=[]; if(!gh)return gh;
+  if(ctrl){   // 커서 그대로 놓고 기준선에 붙임 — 안 붙는 축만 Snap 격자로
+    const s=smartSnap(gh), ddx=s.dx!==null?s.dx:snapV(gh[0].x)-gh[0].x, ddy=s.dy!==null?s.dy:snapV(gh[0].y)-gh[0].y;
+    gh.forEach(p=>{p.x=Math.round(p.x+ddx);p.y=Math.round(p.y+ddy)}); guides=s.guides}
+  block=ENF()?violation(gh):null; showBlock(); return gh;
+}
+function makeGhost(w,raw){   // raw = 격자에 맞추지 않음 (Ctrl 정렬용)
   const t=S.types.find(x=>x.id===placeType); if(!t)return null;
-  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=sw?t.w:t.d, out=[], tags=[];
-  for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:snapV(w.x)+(sw?i*step:0),y:snapV(w.y)+(sw?0:i*step)})}
+  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0), out=[], tags=[];
+  for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:(raw?w.x:snapV(w.x))+(sw?i*step:0),y:(raw?w.y:snapV(w.y))+(sw?0:i*step)})}
   return out;
 }
 function rotateAbout(ps,center,delta,abs){
@@ -949,25 +1048,25 @@ function rotateAbout(ps,center,delta,abs){
   });
 }
 function rotSel(d){
-  if(mode==='place'){placeRot=((placeRot+d)%360+360)%360;ghost=cursorW?makeGhost(cursorW):null;render();return}
-  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return; rotateAbout(ps,null,d); commit();
+  if(mode==='place'){placeRot=((placeRot+d)%360+360)%360;ghost=cursorW?placeGhost(cursorW,false):null;render();return}
+  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return; rotateAbout(ps,null,d); guardCommit(new Set(ps.map(p=>p.id)));
 }
 function delCol(){if(!selCol||!Array.isArray(S.cols))return;S.cols=S.cols.filter(c=>c.id!==selCol);selCol=null;commit();buildRoom()}
 function delSel(){if(!sel.size)return;S.panels=S.panels.filter(p=>!sel.has(p.id));sel.clear();commit()}
 function dupSel(){
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
   let x0=1e12,x1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);x1=Math.max(x1,b.x+b.w)});
-  const off=snapV(x1-x0)||S.snap, tags=[], nw=[];
+  const off=snapV(x1-x0+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0))||S.snap, tags=[], nw=[];
   ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off})});
-  S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); commit();
+  S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); guardCommit(new Set(nw.map(p=>p.id)));
 }
-function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});commit()}
+function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});guardCommit(new Set(ps.map(p=>p.id)))}
 function setMode(m){
-  mode=m; if(m!=='place'){ghost=null} if(m!=='col')selCol=null;
+  mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null;
   $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note');
   const t=S.types.find(x=>x.id===placeType);
   $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':m==='note'?'📌 노트':'선택';
-  $('#stHint').textContent=m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Shift+Drag = 박스 선택 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
+  $('#stHint').textContent=m==='place'?'클릭 = 배치 (좌상단 기준) · Ctrl = 정렬 스냅 · R = 회전 · 연속 EA 는 옆으로 · 빨간색 = 놓을 수 없는 자리 · Esc = 끝':m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
   buildTypes(); buildProps(); render();
 }
 
@@ -997,18 +1096,21 @@ svg.addEventListener('pointerdown',e=>{
   if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s:V.s,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,ox:V.ox,oy:V.oy};drag=null;marquee=null;return}
   const w=toW(sp.x,sp.y);
   if(e.button===1){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}
-  if(mode==='place'){const gh=makeGhost(w);if(gh){S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=makeGhost(w);render()}return}
+  if(mode==='place'){const gh=ghost&&ghost.length?ghost:placeGhost(w,e.ctrlKey);if(gh){const v=ENF()?violation(gh):null;if(v){refuse(v);return}S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=placeGhost(w,e.ctrlKey);render()}return}
   if(mode==='note'){const n=hitNote(w);if(n){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render()}else openNote(null,w);return}
   {const n=hitNote(w);if(n&&mode==='select'){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render();return}}
   if(mode==='col'){                                        // 기둥 편집: 기둥 누르기 = 고르기 · 끌어 옮기기, 빈 곳 = 추가
     toCustomCols(); const c=hitCol(w);
     if(c){const o=S.cols.find(x=>x.id===c.id);selCol=o.id;drag={k:'col',w0:w,o,ox:o.cx,oy:o.cy,moved:false};buildProps();render();return}
     if(e.shiftKey){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}   // Shift+Drag = 화면 이동
-    const sz=+S.room.col||600, n={id:uid(),cx:snapV(w.x),cy:snapV(w.y),w:sz,h:sz}; S.cols.push(n); selCol=n.id; commit(); buildRoom(); return;
+    const sz=+S.room.col||600, n={id:uid(),cx:snapV(w.x),cy:snapV(w.y),w:sz,h:sz}, nb={x:n.cx-sz/2,y:n.cy-sz/2,w:sz,h:sz}, hp=ENF()&&S.panels.find(q=>ov(geom(q).body,nb));
+    if(hp){refuse(`${hp.tag} 위에 기둥이 겹칩니다`);return}
+    S.cols.push(n); selCol=n.id; commit(); buildRoom(); return;
   }
   const p=hit(w);
   if(p&&mode!=='box'){
-    if(e.shiftKey||e.ctrlKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}
+    if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}   // Shift = 선택 넣고 빼기
+    else if(e.ctrlKey){if(!sel.has(p.id)){sel.add(p.id);buildProps()}}                                            // Ctrl = 선택에 더하고 그대로 끌기(정렬 스냅)
     else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
     const ps=S.panels.filter(q=>sel.has(q.id));
     drag={k:'move',w0:w,orig:ps.map(q=>({q,x:q.x,y:q.y})),moved:false};render();return;
@@ -1022,10 +1124,15 @@ svg.addEventListener('pointermove',e=>{
   const w=toW(sp.x,sp.y); cursorW=w;
   $('#stXY').textContent=`X ${fmt(snapV(w.x))} · Y ${fmt(snapV(w.y))}`;
   if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const ns=Math.max(.004,Math.min(2,pinch.s*d/pinch.d));const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;const wx=(pinch.mx-pinch.ox)/pinch.s,wy=(pinch.my-pinch.oy)/pinch.s;V.s=ns;V.ox=mx-wx*ns;V.oy=my-wy*ns;req();return}
-  if(mode==='place'&&!drag){ghost=makeGhost(w);req();return}
+  if(mode==='place'&&!drag){ghost=placeGhost(w,e.ctrlKey);req();return}
   if(!drag)return;
   if(drag.k==='pan'){const dx=sp.x-drag.sx,dy=sp.y-drag.sy;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;V.ox=drag.ox+dx;V.oy=drag.oy+dy;req()}
-  else if(drag.k==='move'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.orig.forEach(o=>{o.q.x=o.x+dx;o.q.y=o.y+dy});check();req()}
+  else if(drag.k==='move'){
+    let dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y); guides=[];
+    if(e.ctrlKey){const rx=w.x-drag.w0.x, ry=w.y-drag.w0.y; drag.orig.forEach(o=>{o.q.x=o.x+rx;o.q.y=o.y+ry});
+      const s=smartSnap(drag.orig.map(o=>o.q)); dx=s.dx!==null?Math.round(rx+s.dx):snapV(rx); dy=s.dy!==null?Math.round(ry+s.dy):snapV(ry); guides=s.guides}
+    if(dx||dy)drag.moved=true; drag.orig.forEach(o=>{o.q.x=o.x+dx;o.q.y=o.y+dy});
+    drag.block=ENF()?violation(drag.orig.map(o=>o.q)):null; block=drag.block; showBlock(); check(); req()}
   else if(drag.k==='box'){marquee.x1=w.x;marquee.y1=w.y;req()}
   else if(drag.k==='note'){const dx=w.x-drag.w0.x,dy=w.y-drag.w0.y;if(Math.abs(dx)+Math.abs(dy)>2/V.s)drag.moved=true;drag.n.x=Math.round(drag.ox+dx);drag.n.y=Math.round(drag.oy+dy);req()}
   else if(drag.k==='col'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.o.cx=drag.ox+dx;drag.o.cy=drag.oy+dy;check();req()}
@@ -1033,8 +1140,11 @@ svg.addEventListener('pointermove',e=>{
 function endPtr(e){
   ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
   if(!drag)return; const d=drag; drag=null;
-  if(d.k==='move'){if(d.moved)commit();else render()}
-  else if(d.k==='col'){if(d.moved)commit();else render()}
+  if(d.k==='move'){guides=[];block=null;showBlock();
+    if(d.moved&&d.block){d.orig.forEach(o=>{o.q.x=o.x;o.q.y=o.y});check();render();refuse(d.block)}   // 놓을 수 없는 자리 → 원래 자리로
+    else if(d.moved)commit();else render()}
+  else if(d.k==='col'){const cb={x:d.o.cx-d.o.w/2,y:d.o.cy-d.o.h/2,w:d.o.w,h:d.o.h}, hp=d.moved&&ENF()&&S.panels.find(q=>ov(geom(q).body,cb));
+    if(hp){d.o.cx=d.ox;d.o.cy=d.oy;check();render();refuse(`${hp.tag} 위에 기둥이 겹칩니다`)}else if(d.moved)commit();else render()}
   else if(d.k==='note'){if(d.moved)commit();else render()}
   else if(d.k==='pan'){if(!d.moved&&(sel.size||selNote)){sel.clear();selNote=null;buildProps();render()}}
   else if(d.k==='box'){const r=marquee,x0=Math.min(r.x0,r.x1),x1=Math.max(r.x0,r.x1),y0=Math.min(r.y0,r.y1),y1=Math.max(r.y0,r.y1);
