@@ -608,6 +608,42 @@ body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .igcform .nickin{border:1px solid var(--line);border-radius:99px;padding:4px 10px;width:120px}
 .igcform [data-bact=cadd]{border:0;background:none;color:#0095f6;font-weight:800;cursor:pointer}
 .igcform [data-bact=cadd]:hover{color:#00376b}
+.vtabs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 12px;padding:8px 10px;border:1px solid #f3c4d4;border-radius:12px;background:#fff5f8}
+.vtabs[hidden]{display:none}.vtabs .sp{flex:1}
+.vtab{border:1px solid #f0c6d3;background:#fff;border-radius:99px;padding:4px 11px;font-size:12.5px;cursor:pointer;color:#a8234f}
+.vtab b{margin-left:3px;font-size:11px;color:#c26688}.vtab.on{background:#d6336c;border-color:#d6336c;color:#fff}.vtab.on b{color:#ffe1ec}
+.vocmeta{display:flex;gap:8px;align-items:center;margin:0 14px 6px;font-size:12px}
+.vmenu{font-weight:700;color:#d6336c;background:#fde7ef;border-radius:99px;padding:2px 10px}
+.vimgs{margin:0 14px 8px}
+.vimgs .vbig{display:block;border-radius:12px;overflow:hidden;background:#0d1320;text-align:center}
+.vimgs .vbig img{display:block;max-width:100%;max-height:420px;margin:0 auto;object-fit:contain}
+.vthumbs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.vthumbs img{width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+dialog.wide:has(.vocdlg){width:min(1100px,96vw)}
+.vocdlg .vbody{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);gap:16px;padding:14px 16px}
+.vleft{display:flex;flex-direction:column;gap:8px;min-width:0;border:2px dashed transparent;border-radius:12px;padding:2px}.vleft.drop{border-color:#d6336c;background:#fff5f8}
+.vprev{flex:1;min-height:360px;max-height:62vh;display:grid;place-items:center;background:#0d1320;border-radius:12px;overflow:auto;outline:none}
+.vprev img{max-width:100%;max-height:62vh;display:block}
+.vempty{color:#9fb0d0;text-align:center;font-size:15px;line-height:1.7}.vempty small{color:#6f7d9c}
+.vlist{display:flex;gap:6px;flex-wrap:wrap}
+.vth{position:relative;display:inline-block;border:2px solid transparent;border-radius:8px;cursor:pointer}.vth.on{border-color:#d6336c}
+.vth img{width:84px;height:60px;object-fit:cover;border-radius:6px;display:block}
+.vth button{position:absolute;right:-6px;top:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#d6336c;color:#fff;font-size:11px;cursor:pointer}
+.vbtns{display:flex;gap:6px;flex-wrap:wrap}.vhint{margin:0;font-size:12px}
+.vright{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vright label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600}
+.vright input,.vright select,.vright textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-weight:400}
+.vright label.grow{flex:1}.vright textarea{flex:1;min-height:240px;resize:vertical}
+.vfoot{display:flex;gap:8px;align-items:center}.vfoot .sp{flex:1}
+@media (max-width:900px){.vocdlg .vbody{grid-template-columns:1fr}.vprev{min-height:220px}}
+.shotbtn{background:#fff0f5;border-color:#f3b6ca;color:#b0244f;font-weight:700;white-space:nowrap}
+.shotbtn:hover{background:#ffe1ec}
+.shotov{position:fixed;inset:0;z-index:9999;cursor:crosshair;user-select:none}
+.shotov canvas{position:absolute;inset:0;width:100vw;height:100vh;filter:brightness(.55)}
+.shotbox{position:absolute;outline:2px solid #ff4d8d;box-shadow:0 0 0 9999px rgba(0,0,0,.25);background:rgba(255,255,255,.04)}
+.shotbox::after{content:attr(data-sz);position:absolute;left:0;top:-22px;background:#ff4d8d;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.shotbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,25,45,.92);color:#fff;padding:8px 14px;border-radius:99px;font-size:13px;display:flex;gap:8px;align-items:center;cursor:default}
+.shotbar button{border:0;border-radius:99px;padding:4px 12px;background:#fff;color:#1b2238;cursor:pointer}.shotbar button[data-all]{background:#ff4d8d;color:#fff}
+@media print{.shotbtn{display:none}}
 .igtag{font-size:11px;font-weight:700;color:#e1306c;background:#fde7ef;border-radius:99px;padding:1px 8px}
 /* 셀 크기 조절 */
 table.t.fx-l{table-layout:fixed}
@@ -859,6 +895,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
   <header class="top">
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
     <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
+    <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면은 그대로)">📷 스크린 → VOC</button>
     <div class="actions">
       <select id="weekSel" class="sel" aria-label="주차 선택"></select>
       <button class="btn pri" id="btnSaveAll" title="모든 사용자의 최신 데이터를 모아 전체 저장본(JSON+엑셀)을 공유폴더 saves/ 에 저장">전체 저장</button>
@@ -993,7 +1030,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-22.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-22.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2217,9 +2254,9 @@ const Board = {
     for (const [, h] of await listFiles(d)) { try { out.push(bPublic(JSON.parse(await (await h.getFile()).text()))); } catch (_) {} }
     return out.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
   },
-  async create({ title, body, kind, mode, nick }) {
+  async create({ title, body, kind, mode, nick, menu, images }) {
     bOnline(); const token = rndToken(); let p; const a = bSend({ mode, nick });
-    if (SERVER) p = await api('POST', 'board', { title, body, kind, ...a, token });
+    if (SERVER) p = await api('POST', 'board', { title, body, kind, ...a, token, menu, images });
     else {
       const now = stamp(), id = 'b' + Date.now().toString(16) + rndToken().slice(0, 6);
       p = { id, title, body, kind, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), createdAt:now, updatedAt:now, tokenHash:await tokenHash(token), comments:[] };
@@ -2227,9 +2264,9 @@ const Board = {
     }
     BT[p.id] = token; saveBT(); return p;
   },
-  async update(pid, { title, body, kind, mode, nick }) {
+  async update(pid, { title, body, kind, mode, nick, menu, images }) {
     bOnline(); const token = BT[pid], a = bSend({ mode, nick });
-    if (SERVER) return api('PUT', 'board/' + enc(pid), { title, body, kind, ...a, token });
+    if (SERVER) return api('PUT', 'board/' + enc(pid), { title, body, kind, ...a, token, menu, images });
     const [d, p] = await bFile(pid); await bOwner(p, token);
     Object.assign(p, { title, body, kind, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), updatedAt:stamp() }); await writeJSON(d, pid + '.json', p);
   },
@@ -2262,7 +2299,7 @@ const Board = {
 };
 async function loadBoard() { try { DB.board = await Board.list(); } catch (_) { DB.board = DB.board || []; } }
 
-const BS = { q:'', sort:'new', open:new Set(), kind:'' };            // 게시판 보기 상태
+const BS = { q:'', sort:'new', open:new Set(), kind:'', vmenu:'' };   // vmenu = VOC 의 메뉴 탭            // 게시판 보기 상태
 const bAdmin = () => SERVER && MGR();                       // 관리자 삭제: 서버 PC · 그룹장
 function nickHtml(n, real) { return real ? `<span class="nick real" title="실명 (로그인 계정)">✔ ${esc(n)}</span>` : n === '익명' ? '<span class="nick anon">익명</span>' : `<span class="nick">${esc(n)}</span>`; }
 const kindTag = p => { const k = bKind(p), K = BKINDS[k]; return `<span class="bkind" style="--c:${K.color}">${K.icon} ${esc(k)}</span>`; };
@@ -2275,13 +2312,16 @@ function renderBoard(c) {
     <div class="ighead"><h2>익명게시판</h2><span class="sp"></span><button class="btn pri" id="bWrite">✏ 글쓰기</button></div>
     <p class="muted" style="margin:2px 0 0;font-size:12.5px">🔒 글·댓글마다 <b>익명 / 닉네임 / 실명</b>을 고릅니다. 익명·닉네임은 실명이 기록되지 않습니다. 내 글은 <b>이 브라우저에서만</b> 수정·삭제할 수 있어요. 서로 존중하는 표현을 써 주세요.</p>
     <div class="igstories" id="bkinds"></div>
+    <div class="vtabs" id="bvoc" hidden></div>
     <div class="igtools"><input type="search" id="bQ" value="${esc(BS.q)}" placeholder="🔍 제목 · 내용 · 닉네임 · 댓글 검색" aria-label="검색">
       <select id="bSort" aria-label="정렬"><option value="new">최신순</option><option value="cmt" ${BS.sort === 'cmt' ? 'selected' : ''}>댓글 많은 순</option></select></div>
     <div class="igcompose" id="bCompose" role="button" tabindex="0"><span class="igav" style="--av:linear-gradient(135deg,#833ab4,#e1306c,#f77737);--ring:transparent">✏</span><span>무슨 이야기를 나눠 볼까요? (익명 가능)</span></div>
     <div id="blist"></div></div></section>`);
   $('#bQ').oninput = e => { BS.q = e.target.value; drawBoard(); };
   $('#bSort').onchange = e => { BS.sort = e.target.value; drawBoard(); };
-  $('#bWrite').onclick = () => openPost(null);
+  $('#bWrite').onclick = () => BS.kind === 'VOC' ? openVoc({ menu:BS.vmenu || '' }) : openPost(null);
+  $('#bvoc').onclick = e => { const t = e.target.closest('[data-vmenu]'); if (t) { BS.vmenu = t.dataset.vmenu; drawBoard(); return; }
+    if (e.target.closest('[data-vwrite]')) openVoc({ menu:BS.vmenu || '' }); else if (e.target.closest('[data-vshot]')) shotToVoc(); };
   $('#bCompose').onclick = () => openPost(null);
   $('#bCompose').onkeydown = e => { if (e.key === 'Enter') openPost(null); };
   $('#bkinds').onclick = e => { const b = e.target.closest('[data-bkind]'); if (b) { BS.kind = b.dataset.bkind; drawBoard(); } };
@@ -2304,8 +2344,11 @@ function drawBoard() {
   const el = $('#blist'); if (!el) return;
   const all = DB.board || [], kc = k => all.filter(p => bKind(p) === k).length, kb = $('#bkinds');   // 유형 '스토리' 동그라미 (글 수는 그릴 때마다 새로)
   if (kb) kb.innerHTML = `<button type="button" class="igst ${!BS.kind ? 'on' : ''}" data-bkind="" style="--c:#e1306c"><i>🗂</i>전체<b>${all.length}</b></button>${Object.entries(BKINDS).map(([k, K]) => `<button type="button" class="igst ${BS.kind === k ? 'on' : ''}" data-bkind="${esc(k)}" style="--c:${K.color}"><i>${K.icon}</i>${esc(k)}<b>${kc(k)}</b></button>`).join('')}`;
+  const vb = $('#bvoc'), vocs = all.filter(p => bKind(p) === 'VOC'), vc = k => vocs.filter(p => (p.menu || 'etc') === k).length;
+  if (vb) { vb.hidden = BS.kind !== 'VOC';                     // VOC: 메뉴별 탭 + VOC 쓰기
+    vb.innerHTML = `<button type="button" class="vtab ${!BS.vmenu ? 'on' : ''}" data-vmenu="">전체 VOC <b>${vocs.length}</b></button>${Object.entries(VOC_MENU).map(([k, l]) => `<button type="button" class="vtab ${BS.vmenu === k ? 'on' : ''}" data-vmenu="${k}">${esc(l)} <b>${vc(k)}</b></button>`).join('')}<span class="sp"></span><button type="button" class="btn pri sm" data-vwrite>📣 VOC 쓰기</button><button type="button" class="btn sm" data-vshot title="지금 화면에서 범위를 골라 캡처한 뒤 VOC 쓰기">📷 화면 캡처로 VOC</button>`; }
   const q = BS.q.trim().toLowerCase();
-  let posts = all.filter(p => (!BS.kind || bKind(p) === BS.kind) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
+  let posts = all.filter(p => (!BS.kind || bKind(p) === BS.kind) && (BS.kind !== 'VOC' || !BS.vmenu || (p.menu || 'etc') === BS.vmenu) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
   if (BS.sort === 'cmt') posts = [...posts].sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0) || (a.createdAt < b.createdAt ? 1 : -1));
   if (!posts.length) { el.innerHTML = `<div class="empty">${all.length ? '검색 결과가 없습니다' : '아직 글이 없습니다. 첫 글을 남겨 보세요! ✨'}</div>`; return; }
   const { mode, nick } = authorPrefs();
@@ -2319,6 +2362,7 @@ function drawBoard() {
       <div class="igph">${avatarHtml(p.nick, p.real, false, K.color)}
         <div class="igwho"><b class="${p.real ? 'real' : ''}">${p.real ? '✔ ' : ''}${esc(p.nick || '익명')}</b><small>${K.icon} ${esc(bKind(p))} · <span title="${esc(fmtTime(p.createdAt))}">${esc(agoText(p.createdAt))}</span>${p.updatedAt && p.updatedAt !== p.createdAt ? ' · 수정됨' : ''}</small></div>
         <span class="sp"></span>${mine ? '<span class="igtag">내 글</span><button class="btn sm" data-bact="edit">수정</button>' : ''}${mine || bAdmin() ? `<button class="btn sm bad" data-bact="del">${mine ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>
+      ${bKind(p) === 'VOC' ? `<div class="vocmeta"><span class="vmenu">📍 ${esc(VOC_MENU[p.menu] || '기타')}</span>${(p.images || []).length ? `<span class="muted">🖼 ${(p.images || []).length}</span>` : ''}</div>` : ''}${(p.images || []).length ? vocImgsHtml(p.images) : ''}
       <div class="igcard"><h3>${esc(p.title)}</h3><div class="igbody${long && !more ? ' clip' : ''}">${fmtText(p.body)}</div>${long ? `<button class="igmore" data-bact="more">${more ? '접기 ▲' : '… 더 보기'}</button>` : ''}</div>
       <div class="igact"><button data-bact="toggle" title="댓글">💬 댓글 ${cm.length}</button><span class="sp"></span><span class="muted" style="font-size:12px">${esc(fmtTime(p.createdAt))}</span></div>
       <div class="igcm">${cm.length > 2 && !open ? `<button class="igall" data-bact="toggle">댓글 ${cm.length}개 모두 보기</button>` : ''}${shown.map(cmtHtml).join('')}${open && cm.length > 2 ? '<button class="igall" data-bact="toggle">댓글 접기 ▲</button>' : ''}</div>
@@ -2331,7 +2375,7 @@ async function boardAction(btn) {
   try {
     if (act === 'toggle') { BS.open.has(pid) ? BS.open.delete(pid) : BS.open.add(pid); return drawBoard(); }
     if (act === 'more') { BS.more = BS.more || new Set(); BS.more.has(pid) ? BS.more.delete(pid) : BS.more.add(pid); return drawBoard(); }
-    if (act === 'edit') return openPost((DB.board || []).find(p => p.id === pid));
+    if (act === 'edit') { const p = (DB.board || []).find(x => x.id === pid); return bKind(p) === 'VOC' ? openVoc({ post:p }) : openPost(p); }
     if (act === 'del') {
       if (await ask('글 삭제', '이 글과 댓글을 삭제합니다. 삭제한 글은 되돌릴 수 없습니다.', [{ id:'ok', label:'삭제', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
       await Board.remove(pid); toast('삭제했습니다');
@@ -2361,6 +2405,7 @@ function openPost(p) {
       <div class="full authorrow">${authorFields(mode, nick)}</div></div></div>
     <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">${p ? '수정' : '등록'}</button></div></form>`, true);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
+  $('#pf').addEventListener('change', e => { if (e.target.name === 'pKind' && e.target.value === 'VOC') { dlg.close(); openVoc({ menu:'' }); } });   // VOC = 실명 · 그림 창
   $('#pf').onsubmit = async e => {
     e.preventDefault();
     const title = $('#pTitle').value.trim(), body = $('#pBody').value.replace(/\r/g, '').trim();
@@ -2373,6 +2418,135 @@ function openPost(p) {
       dlg.close(); toast(p ? '수정했습니다' : '등록했습니다'); await loadBoard(); drawBoard(); renderMenu();
     } catch (er) { toast((p ? '수정' : '등록') + ' 실패: ' + er.message, true); }
   };
+}
+/* ---------- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 왼쪽 = 그림(캡처 · 파일 · 붙여넣기) 미리보기, 오른쪽 = 작성 ----------
+ * 📷 스크린(위쪽 단추 · 어느 화면에서나): 화면을 캡처해 범위를 고르면 그 자리에서 VOC 창 → 등록해도 지금 화면 그대로(화면 전환 없음)
+ * 캡처 = 브라우저 화면 공유(getDisplayMedia, '이 탭' 선택). http://PC이름 주소처럼 보안 연결이 아니면 브라우저가 막음 → Win+Shift+S 후 Ctrl+V 안내 */
+const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'판넬 공간확보', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
+const VOC_IMG_MAX = 6;
+const imgUrl = id => `${API_BASE}/api/board/img/${enc(id)}`;
+function vocImgsHtml(ids) {                    // 글 카드의 그림 — 첫 장 크게 · 나머지 작게 · 누르면 새 창 원본
+  const [a, ...rest] = ids;
+  return `<div class="vimgs"><a href="${esc(imgUrl(a))}" target="_blank" rel="noopener" class="vbig"><img src="${esc(imgUrl(a))}" alt="첨부 그림" loading="lazy"></a>${rest.length ? `<div class="vthumbs">${rest.map(i => `<a href="${esc(imgUrl(i))}" target="_blank" rel="noopener"><img src="${esc(imgUrl(i))}" alt="" loading="lazy"></a>`).join('')}</div>` : ''}</div>`;
+}
+const vocMenuOf = r => r === 'home' ? 'weekly' : VOC_MENU[menuOf(r)] ? menuOf(r) : 'etc';
+async function blobToJpeg(blob, max = 2400) {  // 큰 그림은 줄이고 JPEG 로 (서버 8MB 한도 · 빠른 전송)
+  const bmp = await createImageBitmap(blob), z = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * z); c.height = Math.round(bmp.height * z);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(b => res(b || blob), 'image/jpeg', .88));
+}
+function openVoc({ menu = '', images = [], post = null, keep = null } = {}) {   // keep = 창 안 '화면 캡처 추가' 뒤 다시 열 때 이어 쓸 값
+  if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
+  if (!SERVER || OFFLINE) return toast('VOC(그림 첨부)는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
+  const V = { list:[...(keep?.ids ?? post?.images ?? []).map(id => ({ id, url:imgUrl(id) })), ...images.map(b => ({ blob:b, url:URL.createObjectURL(b) }))], cur:0 };
+  V.cur = Math.max(0, V.list.length - 1);
+  const T0 = keep?.title ?? post?.title ?? '', B0 = keep?.body ?? post?.body ?? '';
+  const m0 = menu || post?.menu || vocMenuOf(route);
+  openDlg(dlg, `<form id="vf" class="vocdlg"><div class="dh"><span>📣 VOC ${post ? '수정' : '쓰기'} <small class="muted">· 실명으로 등록됩니다 (${esc(AUTH.name)})</small></span><button type="button" class="btn sm" data-close>닫기</button></div>
+    <div class="vbody">
+      <div class="vleft"><div class="vprev" id="vPrev" tabindex="0" title="그림을 끌어다 놓거나 Ctrl+V 로 붙여넣기"></div>
+        <div class="vlist" id="vList"></div>
+        <div class="vbtns"><button type="button" class="btn sm" id="vShot">📷 화면 캡처 추가</button><label class="btn sm">🖼 파일 고르기<input type="file" id="vFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label></div>
+        <p class="muted vhint">그림을 이 칸에 끌어다 놓거나 <b>Ctrl+V</b> 로 붙여넣어도 됩니다 (최대 ${VOC_IMG_MAX}장 · PNG · JPG · GIF · WEBP).</p></div>
+      <div class="vright">
+        <label>메뉴 <select id="vMenu">${Object.entries(VOC_MENU).map(([k, l]) => `<option value="${k}" ${k === m0 ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+        <label>제목 <input id="vTitle" maxlength="100" required value="${esc(T0)}" placeholder="예) P&ID 분석 결과 표에서 계기 번호가 잘려 보여요"></label>
+        <label class="grow">내용 <textarea id="vBody" maxlength="5000" required placeholder="무엇이 · 어디서 · 어떻게 바뀌면 좋은지 적어 주세요">${esc(B0)}</textarea></label>
+        <div class="vfoot"><span class="muted">작성자: <b>✔ ${esc(AUTH.name)}</b> (VOC 는 실명만)</span><span class="sp"></span><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">${post ? '수정' : '등록'}</button></div>
+      </div></div></form>`, true);
+  const draw = () => {
+    const pv = $('#vPrev'), it = V.list[V.cur];
+    pv.innerHTML = it ? `<img src="${esc(it.url)}" alt="미리보기">` : '<div class="vempty">📷<br>화면 캡처 · 그림을 여기에<br><small>끌어다 놓기 · Ctrl+V · 아래 단추</small></div>';
+    $('#vList').innerHTML = V.list.map((x, i) => `<span class="vth ${i === V.cur ? 'on' : ''}" data-vi="${i}"><img src="${esc(x.url)}" alt=""><button type="button" data-vdel="${i}" title="빼기">✕</button></span>`).join('');
+  };
+  const add = async files => { for (const f of files) { if (V.list.length >= VOC_IMG_MAX) { toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true); break; } if (!/^image\//.test(f.type)) continue;
+    const b = f.size > 1.5e6 || f.type === 'image/png' && f.size > 6e5 ? await blobToJpeg(f) : f; V.list.push({ blob:b, url:URL.createObjectURL(b) }); V.cur = V.list.length - 1; } draw(); };
+  draw();
+  dlg.onclick = e => {
+    if (e.target.closest('[data-close]')) { dlg.close(); return; }
+    const d = e.target.closest('[data-vdel]'); if (d) { V.list.splice(+d.dataset.vdel, 1); V.cur = Math.max(0, Math.min(V.cur, V.list.length - 1)); draw(); return; }
+    const t = e.target.closest('[data-vi]'); if (t) { V.cur = +t.dataset.vi; draw(); }
+  };
+  $('#vFile').onchange = e => add([...e.target.files]);
+  $('#vShot').onclick = async () => {        // 창을 잠깐 닫고 캡처 → 쓰던 내용 · 그림 그대로 다시 열기
+    if (V.list.length >= VOC_IMG_MAX) return toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true);
+    const k = { title:$('#vTitle').value, body:$('#vBody').value, ids:V.list.filter(x => x.id).map(x => x.id) }, m = $('#vMenu').value, blobs = V.list.filter(x => x.blob).map(x => x.blob);
+    dlg.close(); const b = await captureRegion();
+    openVoc({ post, menu:m, images:[...blobs, ...(b ? [b] : [])], keep:k }); };
+  const pv = $('#vPrev'), lft = $('.vleft');
+  lft.addEventListener('dragover', e => { e.preventDefault(); lft.classList.add('drop'); });
+  lft.addEventListener('dragleave', () => lft.classList.remove('drop'));
+  lft.addEventListener('drop', e => { e.preventDefault(); lft.classList.remove('drop'); add([...e.dataTransfer.files]); });
+  $('#vf').addEventListener('paste', e => { const fs = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); add(fs); } });
+  setTimeout(() => (post ? $('#vBody') : $('#vTitle')).focus());
+  $('#vf').onsubmit = async e => {
+    e.preventDefault();
+    const title = $('#vTitle').value.trim(), body = $('#vBody').value.replace(/\r/g, '').trim(), menu2 = $('#vMenu').value;
+    if (!title || !body) return toast('제목과 내용을 입력하세요', true);
+    const btn = $('#vf button[type=submit]'); btn.disabled = true; btn.textContent = '올리는 중…';
+    try {
+      const ids = [];
+      for (const x of V.list) ids.push(x.id || (await api('PUT', 'board/img', undefined, x.blob)).id);   // 새 그림만 올림
+      const data = { title, body, kind:'VOC', mode:'real', nick:'', menu:menu2, images:ids };
+      if (post) await Board.update(post.id, data); else await Board.create(data);
+      dlg.close(); V.list.forEach(x => x.blob && URL.revokeObjectURL(x.url));
+      toast(`VOC 를 등록했습니다 — 익명게시판 › VOC › ${VOC_MENU[menu2]} (지금 화면은 그대로)`);
+      await loadBoard(); if (route === 'board') drawBoard(); renderMenu();      // 화면 전환 없음 (게시판을 보고 있을 때만 목록 새로)
+    } catch (er) { toast('VOC 등록 실패: ' + er.message, true); btn.disabled = false; btn.textContent = post ? '수정' : '등록'; }
+  };
+}
+/* 화면 캡처 → 범위 고르기 → Blob (취소하면 null) */
+async function captureRegion() {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    await ask('화면 캡처', `<p>이 주소(<b>${esc(location.protocol === 'file:' ? '파일' : location.host)}</b>)에서는 브라우저가 화면 캡처를 막습니다 (보안 연결이 아님).</p><p><b>Win + Shift + S</b> 로 원하는 범위를 캡처한 뒤, 열리는 VOC 창의 그림 칸에서 <b>Ctrl + V</b> 로 붙여넣으세요.</p>`, [{ id:'ok', label:'알겠습니다', cls:'pri' }]);
+    return null;
+  }
+  let stream;
+  tipEl.style.display = 'none';
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video:{ displaySurface:'browser', frameRate:5 }, audio:false, preferCurrentTab:true, selfBrowserSurface:'include', surfaceSwitching:'exclude' }); }
+  catch (_) { toast('화면 캡처를 취소했습니다'); return null; }
+  try {
+    const v = document.createElement('video'); v.srcObject = stream; v.muted = true; await v.play();
+    await new Promise(r => setTimeout(r, 350));                 // 공유 안내 줄이 사라질 시간
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+    stream.getTracks().forEach(t => t.stop());
+    return await pickRegion(c);
+  } catch (e) { stream.getTracks().forEach(t => t.stop()); toast('캡처하지 못했습니다: ' + e.message, true); return null; }
+}
+function pickRegion(full) {                   // 캡처한 그림 위에서 끌어 범위 지정 (Enter/더블클릭 = 전체 · Esc = 취소)
+  return new Promise(resolve => {
+    const ov = document.createElement('div'); ov.className = 'shotov';
+    ov.innerHTML = `<canvas></canvas><div class="shotbox" hidden></div><div class="shotbar">마우스로 끌어 범위를 고르세요 · <b>Enter</b> = 전체 화면 · <b>Esc</b> = 취소 <button type="button" data-all>전체 화면</button><button type="button" data-no>취소</button></div>`;
+    document.body.appendChild(ov);
+    const cv = $('canvas', ov), box = $('.shotbox', ov), W = innerWidth, H = innerHeight;
+    cv.width = W; cv.height = H; cv.getContext('2d').drawImage(full, 0, 0, W, H);
+    const sx = full.width / W, sy = full.height / H;
+    let a = null, r = null;
+    const done = rect => {
+      ov.remove(); removeEventListener('keydown', key, true);
+      if (!rect) return resolve(null);
+      const [x, y, w, h] = rect.map((v, i) => Math.round(v * (i % 2 ? sy : sx)));
+      if (w < 8 || h < 8) return resolve(null);
+      const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(full, x, y, w, h, 0, 0, w, h);
+      c.toBlob(b => resolve(b), 'image/png');
+    };
+    const key = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); } else if (e.key === 'Enter') { e.preventDefault(); done([0, 0, W, H]); } };
+    addEventListener('keydown', key, true);
+    ov.onpointerdown = e => { if (e.target.closest('.shotbar')) return; a = [e.clientX, e.clientY]; r = null; box.hidden = false; ov.setPointerCapture(e.pointerId); };
+    ov.onpointermove = e => { if (!a) return; const x = Math.min(a[0], e.clientX), y = Math.min(a[1], e.clientY); r = [x, y, Math.abs(e.clientX - a[0]), Math.abs(e.clientY - a[1])];
+      Object.assign(box.style, { left:x + 'px', top:y + 'px', width:r[2] + 'px', height:r[3] + 'px' }); box.dataset.sz = `${Math.round(r[2] * sx)} × ${Math.round(r[3] * sy)}`; };
+    ov.onpointerup = () => { if (a && r && r[2] > 6 && r[3] > 6) done(r); a = null; };
+    ov.ondblclick = () => done([0, 0, W, H]);
+    ov.onclick = e => { if (e.target.closest('[data-all]')) done([0, 0, W, H]); else if (e.target.closest('[data-no]')) done(null); };
+  });
+}
+async function shotToVoc() {                   // 📷 스크린 단추 — 캡처 → 범위 → 그 자리에서 VOC 창
+  if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
+  if (!SERVER || OFFLINE) return toast('VOC 는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
+  if (!can('board')) return toast('익명게시판 권한이 없어 VOC 를 쓸 수 없습니다', true);
+  const from = route, b = await captureRegion();
+  openVoc({ menu:vocMenuOf(from), images:b ? [b] : [] });
 }
 // 익명 체크 ↔ 닉네임 입력 활성화
 document.addEventListener('change', e => { if (e.target.matches('[data-amode]')) { const n = e.target.closest('.cform,.authorrow')?.querySelector('[data-nick]'); if (n) { n.hidden = e.target.value !== 'nick'; if (!n.hidden) n.focus(); } } });
@@ -5289,6 +5463,7 @@ document.addEventListener('dblclick', e => {
 const setNavClosed = on => { document.body.classList.toggle('nav-closed', on); $('#burger').textContent = on ? '☰ 메뉴' : '☰'; $('#burger').title = on ? '왼쪽 메뉴 보이기' : '메뉴 접기/펼치기';
   try { localStorage.setItem('dept-nav-closed', on ? '1' : ''); } catch (_) {} };
 try { if (localStorage.getItem('dept-nav-closed') === '1' && innerWidth > 900) setNavClosed(true); } catch (_) {}
+$('#btnShot').onclick = () => shotToVoc();
 $('#burger').onclick =() => { if (innerWidth <= 900) document.body.classList.toggle('nav-open'); else setNavClosed(!document.body.classList.contains('nav-closed')); };
 $('#sideHide').onclick = () => { if (innerWidth <= 900) document.body.classList.remove('nav-open'); else setNavClosed(true); };
 $('#scrim').onclick = () => document.body.classList.remove('nav-open');

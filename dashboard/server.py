@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-22.4'
+SERVER_VERSION = '2026-10-22.5'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -526,6 +526,68 @@ def board_kind(b):
     return k if k in BOARD_KINDS else '블라블라'
 
 
+# ---- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 화면 캡처/사진 첨부 (board/img/{이미지ID}.{png|jpg|gif|webp}) ----
+VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
+IMG_ID_RE = re.compile(r'^i[0-9a-f]{8,40}$')
+IMG_MAX = 8 * 1024 * 1024
+IMG_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
+VOC_IMG_MAX = 6
+
+
+def img_ext(data):
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return '.png'
+    if data[:3] == b'\xff\xd8\xff':
+        return '.jpg'
+    if data[:6] in (b'GIF87a', b'GIF89a'):
+        return '.gif'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return '.webp'
+    return None
+
+
+def img_path(iid):
+    if not IMG_ID_RE.match(iid or ''):
+        return None
+    for ext in IMG_TYPES:
+        f = P('board', 'img', iid + ext)
+        if os.path.isfile(f):
+            return f
+    return None
+
+
+def api_board_img_put(data):
+    if not data:
+        raise ApiError(400, '그림이 비었습니다')
+    if len(data) > IMG_MAX:
+        raise ApiError(413, f'그림은 {IMG_MAX // 1024 // 1024}MB 이하만 올릴 수 있습니다')
+    ext = img_ext(data)
+    if not ext:
+        raise ApiError(400, 'PNG · JPG · GIF · WEBP 그림만 올릴 수 있습니다')
+    iid = f"i{int(time.time() * 1000):x}{os.urandom(4).hex()}"
+    os.makedirs(P('board', 'img'), exist_ok=True)
+    with LOCK:
+        tmp = P('board', 'img', iid + ext + '.tmp')
+        with open(tmp, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, P('board', 'img', iid + ext))
+    return {'id': iid, 'size': len(data)}
+
+
+def board_voc(p, b, acc):
+    """VOC 글: 실명만(로그인 본명) · 메뉴 · 첨부 그림(올린 것만, 최대 6). 다른 유형이면 VOC 칸을 지움"""
+    if p['kind'] != 'VOC':
+        p.pop('menu', None); p.pop('images', None)
+        return
+    if not acc:
+        raise ApiError(401, 'VOC 는 실명(로그인)으로만 쓸 수 있습니다')
+    p['nick'], p['real'] = acc['name'], True
+    m = str(b.get('menu') or '')
+    p['menu'] = m if m in VOC_MENUS else 'etc'
+    imgs = [i for i in (b.get('images') or []) if isinstance(i, str) and img_path(i)]
+    p['images'] = list(dict.fromkeys(imgs))[:VOC_IMG_MAX]
+
+
 def board_public(p):
     q = {k: v for k, v in p.items() if k != 'tokenHash'}
     q['comments'] = [{k: v for k, v in c.items() if k != 'tokenHash'} for c in p.get('comments', [])]
@@ -577,6 +639,7 @@ def api_board_create(b, acc=None):
         now = stamp()
         p = {'id': pid, 'title': title, 'body': body, 'kind': board_kind(b), 'nick': nick, 'real': real, 'createdAt': now, 'updatedAt': now,
              'tokenHash': token_hash(b['token']), 'comments': []}
+        board_voc(p, b, acc)
         write_json(P('board', pid + '.json'), p)
     return board_public(p)
 
@@ -586,7 +649,13 @@ def api_board_update(pid, b, acc=None):
     with LOCK:
         p = board_load(pid)
         board_owner(p, b.get('token'), False)
+        old = set(p.get('images') or [])
         p.update(title=board_text(b, 'title', 100), body=board_text(b, 'body', 5000), kind=board_kind(b), nick=nick, real=real, updatedAt=stamp())
+        board_voc(p, b, acc)
+        for iid in old - set(p.get('images') or []):           # 수정하며 뺀 그림은 지움
+            f = img_path(iid)
+            if f:
+                os.remove(f)
         write_json(P('board', pid + '.json'), p)
     return board_public(p)
 
@@ -596,6 +665,10 @@ def api_board_delete(pid, b, admin):
         p = board_load(pid)
         board_owner(p, b.get('token'), admin)
         os.remove(P('board', pid + '.json'))
+        for iid in p.get('images') or []:                       # VOC 첨부 그림도 함께
+            f = img_path(iid)
+            if f:
+                os.remove(f)
     return {'status': 'ok'}
 
 
@@ -2141,6 +2214,16 @@ class Handler(BaseHTTPRequestHandler):
         if head == 'board':
             if m == 'GET' and len(seg) == 1:
                 return api_board_list()
+            if m == 'GET' and len(seg) == 3 and seg[1] == 'img':             # VOC 첨부 그림 (보기 = 누구나, 게시판처럼)
+                f = img_path(seg[2])
+                if not f:
+                    raise ApiError(404, '없는 그림입니다')
+                with open(f, 'rb') as fh:
+                    self.send(200, fh.read(), IMG_TYPES[os.path.splitext(f)[1]], {'Cache-Control': 'private, max-age=86400'})
+                return None
+            if m == 'PUT' and seg[1:] == ['img']:                           # VOC 그림 올리기: 로그인 + 게시판 권한
+                self.need_menu('board', touch=False)
+                return api_board_img_put(self.raw_body())
             acc = self.need_menu('board', touch=False)        # 글·댓글 쓰기는 로그인 + 게시판 권한 필요. 실명을 고른 경우에만 계정 본명을 기록
             if m == 'POST' and len(seg) == 1:
                 return api_board_create(self.json_body(), acc)
