@@ -147,6 +147,20 @@ def plan(sheets, page, row, value=1, timers=None):
     r = _row(s, "R", row)
     if r is None or r.get("net") is None:
         return {"ok": False, "why": f"{s.get('sheet_no')} {row}행에 읽힌 출력 선이 없습니다"}
+    return _plan_net(sheets, page, r["net"], value, timers, {"row": row, "desc": r.get("desc")})
+
+
+def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
+    """그 시트의 선(net)이 value 가 되기 위한 조건 나무 — plan(출력 행) 과 needs(게이트 · 매크로 출력) 가 같이 쓴다 (L49)."""
+    by_page = {s["page"]: s for s in sheets}
+    s = by_page.get(page)
+    if s is None:
+        return {"ok": False, "why": "그 쪽은 Logic 표 시트가 아닙니다"}
+    known = {str(k) for k in (s.get("order") or {})} | {str(k) for k in (s.get("nets") or {})}
+    if net is None or (known and str(net) not in known):
+        return {"ok": False, "why": f"{s.get('sheet_no')} 에 그 선이 없습니다"}
+    meta = meta or {}
+    row = meta.get("row")
     seq = [0]
     count = [0]
     zero_mode = [False]
@@ -345,7 +359,7 @@ def plan(sheets, page, row, value=1, timers=None):
             node = wrap
         return node
 
-    tree = expand(top, ("net", r["net"], int(value)), 0, frozenset())
+    tree = expand(top, ("net", net, int(value)), 0, frozenset())
     _finish(tree)
     flat = {}
 
@@ -359,9 +373,9 @@ def plan(sheets, page, row, value=1, timers=None):
         return n["id"]
     root = flatten(tree)
     # 같은 마디가 여러 자리에 나오므로 나무를 펼쳐 보내지 않고 마디 표 + id 로 보낸다 (화면이 다시 잇는다)
-    return {"ok": True, "page": page, "sheet": s.get("sheet_no"), "row": row, "desc": r.get("desc"), "net": r["net"],
+    return {"ok": True, "page": page, "sheet": s.get("sheet_no"), "row": row, "desc": meta.get("desc"), "net": net,
             "value": int(value), "title": s.get("title"), "root": root, "nodes": flat, "size": count[0],
-            "truncated": count[0] > NODE_LIMIT}
+            "truncated": count[0] > NODE_LIMIT, "signals": _signals(tree)}
 
 
 def link(p):
@@ -376,6 +390,100 @@ def link(p):
 
 
 ASK = ("row", "button", "monitor", "net", "held", "terminal", "stuck", "zero", "deep")
+
+
+# ---------------------------------------------------------------- L49 — 게이트 · 매크로를 누르면: 이 출력이 켜지려면
+def _signals(tree):
+    """나무를 '권하는 갈래' 로 접어 한 줄 요약 — 꼭 필요한 신호(1) · 없어야 하는 신호(0) · 갈래 수 · 읽기 빈틈.
+    화면이 나무를 그대로 그리고, 이 요약은 머리줄과 주황 점등에 쓴다 (판정 0줄)."""
+    need, zero, gaps, seen = [], [], [], set()
+    forks = [0]
+
+    def walk(n):
+        if n["t"] == "leaf":
+            k = n.get("kind")
+            if k == "zero":
+                for it in n.get("items") or []:
+                    if it.get("key") and it["key"] not in seen:
+                        seen.add(it["key"]); zero.append(it)
+            elif k in ("stuck", "deep", "held"):
+                gaps.append({"text": n.get("text"), "block": n.get("block"), "at": n.get("at"), "key": n.get("key")})
+            elif n.get("key") and not n.get("auto") and n["key"] not in seen:
+                seen.add(n["key"])
+                d = {x: n.get(x) for x in ("key", "text", "want", "at", "fm", "ref", "ft", "n", "block", "kind", "page", "kks")}
+                m = re.match(r"([01]) \(", n.get("text") or "")
+                if m and n.get("kind") == "button":
+                    # 범례 FORCED INPUT `0`/`1` — 도면이 그 값으로 묶어 둔 자리 (L35 '상수로 묶인 길').  켤 수 없는 신호다
+                    d["const"] = int(m.group(1))
+                (need if n.get("want") == 1 else zero).append(d)
+            return
+        kids = n.get("kids") or []
+        if n["t"] == "any":
+            forks[0] += 1
+            kids = kids[n.get("pick", 0):n.get("pick", 0) + 1]
+        for k in kids:
+            walk(k)
+    walk(tree)
+    return {"need": need, "zero": zero, "gaps": gaps, "forks": forks[0], "asks": tree.get("asks", 0), "viable": tree.get("viable", False)}
+
+
+def needs(sheets, page, target, value=1, timers=None):
+    """블록(게이트 · 매크로 · 신호원) 또는 선을 누르면 — 그 출력이 value 가 되려면 앞쪽 어떤 신호가 켜져야 하는지.
+
+    target `block:<id>` 는 그 블록의 출력 선마다(매크로는 출력 단자마다) 나무 하나 · `net:<id>` 는 그 선 하나.
+    나무는 plan 과 같은 길(_plan_net) 이라 순차 동작 · 동작 예시와 같은 조건을 말한다."""
+    by_page = {s["page"]: s for s in sheets}
+    s = by_page.get(page)
+    if s is None:
+        return {"ok": False, "why": "그 쪽은 Logic 표 시트가 아닙니다"}
+    t = str(target or "")
+    if t.startswith("net:"):
+        net = t[4:]
+        p = _plan_net(sheets, page, net, value, timers, {})
+        return {"ok": p.get("ok", False), "why": p.get("why"), "kind": "net", "page": page, "sheet": s.get("sheet_no"),
+                "label": "선 " + net, "value": int(value), "outputs": [{"net": net, "desc": "", "plan": p}] if p.get("ok") else []}
+    if not t.startswith("block:"):
+        return {"ok": False, "why": "target 은 block:<id> · net:<id> 입니다"}
+    bid = t[6:]
+    b = s["blocks"].get(bid)
+    if b is None:
+        return {"ok": False, "why": f"{s.get('sheet_no')} 에 블록 {bid} 가 없습니다"}
+    outs = []
+    if b.get("func") == "MACRO":
+        m = b.get("macro") or {}
+        for o in m.get("outputs") or []:
+            if o.get("net") is None:
+                outs.append({"pin": o.get("pin"), "desc": o.get("desc") or "", "row": o.get("row"), "net": None,
+                             "plan": {"ok": False, "why": "이 출력 단자에 닿는 선을 도면에서 읽지 못했습니다"}})
+                continue
+            p = _plan_net(sheets, page, o["net"], value, timers, {"desc": o.get("desc") or o.get("pin")})
+            outs.append({"pin": o.get("pin"), "desc": o.get("desc") or "", "row": o.get("row"), "net": o["net"], "plan": p})
+        kind, label = "macro", (m.get("title") or b.get("caption") or "매크로 블록")
+        if not outs:
+            return {"ok": False, "why": m.get("why") or "이 매크로의 출력 단자를 읽지 못했습니다", "kind": kind, "label": label}
+    else:
+        nets = []
+        for pt in s.get("ports") or []:
+            if pt.get("block") == bid and pt.get("dir") == "out" and pt.get("net") is not None and pt["net"] not in nets:
+                nets.append(pt["net"])
+        if not nets:
+            return {"ok": False, "why": "이 블록에서 나가는 선을 도면에서 읽지 못했습니다", "kind": "gate",
+                    "label": b.get("label") or b.get("func") or bid}
+        for n in nets:
+            # 이 선을 받는 자리 — 출력 행 · 다음 블록 (어디로 가는지 한 줄)
+            to = [f"출력 {r['n']}행" + (f" · {r['desc']}" if r.get("desc") else "") for r in s["rows"] if r["side"] == "R" and r.get("net") == n]
+            to += [(s["blocks"].get(pt["block"]) or {}).get("label") or (s["blocks"].get(pt["block"]) or {}).get("func") or pt["block"]
+                   for pt in s.get("ports") or [] if pt.get("net") == n and pt.get("dir") == "in" and pt.get("block") != bid]
+            outs.append({"pin": None, "desc": " · ".join(x for x in to if x)[:120], "row": None, "net": n,
+                         "plan": _plan_net(sheets, page, n, value, timers, {})})
+        kind = "gate"
+        lg = b.get("logic")
+        label = GATE_KO.get(lg) or b.get("label") or b.get("func") or bid
+        vote = sim._vote_of(b)
+        if vote:
+            label = f"투표 {vote[0]}/{vote[1]}"
+    return {"ok": True, "kind": kind, "page": page, "sheet": s.get("sheet_no"), "block": bid, "label": label,
+            "func": b.get("func"), "logic": b.get("logic"), "value": int(value), "outputs": outs}
 
 
 def _first_leaves(n):

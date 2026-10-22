@@ -847,6 +847,22 @@ def sequence_plan(job: str, body: dict = Body(default={})):
     return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value), page, row, value)
 
 
+@router.post("/logic/api/jobs/{job}/needs")
+def needs(job: str, body: dict = Body(default={})):
+    """L49 — 게이트 · 매크로 · 선을 누르면: 그 출력이 켜지려면 앞쪽 어떤 신호가 켜져야 하는지 (출력마다 조건 나무 · 판정 0줄)."""
+    res = _result(job)
+    from . import sequence
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    target = str(body.get("target") or "")
+    if not (target.startswith("block:") or target.startswith("net:")):
+        raise HTTPException(400, "target 은 block:<id> · net:<id> 입니다.")
+    value = 0 if body.get("value") in (0, "0") else 1
+    return _memo(res, "needs", lambda: sequence.needs(_all_sheets(res), page, target, value), page, target, value)
+
+
 @router.delete("/logic/api/jobs/{job}")
 def delete(job: str, author: str = ""):
     """L22 — 첫 화면에서 분석 하나를 지운다 (부서원).  분석 중이면 거절 · 누가 언제 무엇을 지웠는지 남긴다."""
