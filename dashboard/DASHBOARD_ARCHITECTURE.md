@@ -898,3 +898,15 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 얼굴 바꾸기 점검(브라우저로 8 종류 × 저장 · 새로고침 · 취소 · 사람 머리 10 종): 저장 · 유지 · 취소 모두 정상. **고친 것**: 사람(머리 모양 그리드)에서 다른 종류로 넘기면 머리 그리드가 그대로 보이던 것 — `.pz-hairs{display:grid}` 가 `hidden` 을 이김 → CSS `[hidden]{display:none!important}`.
 - 마법 · 기술: 1~4 키와 기술 칸 클릭 둘 다 됨을 다시 확인(앞에 사람이 없거나 체력이 가득하면 마나 안 씀). 바뀐 곳: plaza_server.py `PLAZA_VERSION` `api_hold` `api_drop` · snapshot(held) · POSTS. plaza.js `S.held` `holdItem` `holdNext` `dropHeld` `drawHeld` `KEY_ROWS` `toggleKeys` · `updateHud`(가방 칸 클릭 · hud-held) · `epcFields`(heldItem) · `drawActor` · `openTrade` · 키 Q · X · H · ?. plaza.html 가방 안내 · `#hud-held` · `#pz-keys` · '⌨ 단축키'. plaza.css 같은 것 + `[hidden]`. selftest.py 들기 · 내려놓기 · 다시 줍기.
 - 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저 두 사람: 가방 칸 클릭 → 들림 · 상대 화면에 손 옆 그림, Q 두 번(다음 → 없음), X · Z, 1~4 (전기 충격 55→40 · 현장 지원 → 11 · 상대 +17), H → 15 줄 판 → Esc, 단추로 열기, 사람 → 고양이 양반에서 머리 그리드 숨김, 교환 판 미리 선택, 스크립트 오류 없음.
+
+### 2026-10-22 (8) — 계장 광장: 사람 캐릭터 없앰(동물만) · 케이블 기술자 = 검은 고양이 · 아이템 착용(더블클릭 · F) → 모습 바뀜 (PLAZA_VERSION 2026-10-22.7 / APP · SERVER 그대로)
+> 서버 재시작 필요 없음 (대시보드 서버가 30초 안에 새 판 광장으로 바꿈) → 적용 후 30초 뒤 Ctrl+F5.
+- 사람 캐릭터 없앰: 얼굴 바꾸기 '종류'에서 '사람'을 뺌 → 고양이 기사 · 고양이 양반 · 팬더 학자 · 사자 무관 · 호랑이 무관 · EPC 안전모 (동물만). 무작위 단추도 동물 종류 중에서. 예전에 '사람'으로 저장한 얼굴은 EPC 안전모로(화면 `faceOf` · 서버 `clean_look` 둘 다).
+  - EPC 안전모의 케이블 기술자는 사람(작업자) 그림이었음 → **검은 고양이** (치즈 고양이 그림 22 칸의 털색만 짙은 회색으로 바꿔 `epc.png` 맨 아래에 붙임 · `bcat_*` `p_bcat`). NPC 케이블 기술자도 같음.
+  - 운영자 = 노비(마을 시트)는 예전 요청대로 그대로 둠 — 노비도 없애려면 plaza.js `roleFace` 의 `kind: 6` 을 바꾸면 됨.
+- 아이템 착용: 상태판 가방 칸 **더블클릭**(또는 고른 뒤 **F**) → 손(도구) · 머리(안전모) · 몸(안전 조끼) 칸에 끼기 / 다시 하면 벗기. 낀 칸은 초록 테두리, 상태판 '착용 🖐 렌치 ⛑ 안전모 🦺 안전 조끼', 캐릭터를 누르면 '착용: …'.
+  - 모습: 손 = 도구가 손 옆에 · 몸 = 주황 안전 조끼를 입음 · 머리 = EPC 캐릭터는 자기 안전모 색이 등급 색(일반 노랑 · 고급 초록 · 희귀 파랑 · 전설 금), 다른 캐릭터는 머리 위에 작은 안전모. 희귀 · 전설을 끼면 반짝이. 걷기 · 옆 · 뒷모습에서도 보이고, 다른 사람 화면에도 보임.
+  - 능력치: 낀 아이템은 공격력 · 마법이 **두 배**로 셈(가방 합 + 낀 것 한 번 더). 가방에서 빠지면(내려놓기 · 교환 · 쓰러짐) 저절로 벗음. 저장 `data/plaza/items.json` 의 `eq`.
+  - 단추 정리: 클릭 = 고르기(내려놓기 X · 교환용), 더블클릭 · F = 끼기, 단축키 판에 F 줄 추가. 예전 '들기(손에 보임)'는 '착용 손'으로 합침.
+- 바뀐 곳: plaza_server.py `PLAZA_VERSION` · 새 `SLOTS` `SLOT_NAME` `slot_of` `equipped` `api_equip`(POST `/plaza/api/equip`) · `power`(낀 것 한 번 더) · `load_items` `save_items`(eq) · snapshot(`equip`) · `clean_look`(kind 1 → 7). plaza.js `EPC_FR`(bcat) · `JOB_CHAR` · `KINDS` · `faceOf` · `kindRow` · 무작위 · `NPC_DEF` · 새 `SLOT_ICON` `equipItem` `rareTint` `helmTint` `HELM_COL` `drawEquip` · `drawHeld`(손 착용) · `drawActorBody`(그림 위치 `_top` `_h` `_ox` · 안전모 색) · `updateHud`(착용 줄 · 더블클릭) · `epcFields`(equip) · 키 F · `KEY_ROWS` · `showCtx`. plaza.html `#hud-equip` · 안내. plaza.css `.worn` · `.equip`. epc.png(512×334). selftest.py 착용 · 벗기 · 사람 → EPC.
+- 확인한 것: `node --check` · `py_compile` · `selftest.py` 모두 통과. 브라우저: 종류 한 바퀴에 '사람' 없음 · 무작위 5 번 모두 동물, 케이블 기술자 = 검은 고양이 초상 · 걷기, 안전모 · 조끼 · 렌치 더블클릭 → 공 21 → 35 · 모습 바뀜(앞 · 옆 · 뒤) · 상대 화면에도 보임, F 로 벗기, 고양이 기사 · 팬더 · 호랑이에도 조끼 · 작은 안전모, 스크립트 오류 없음.

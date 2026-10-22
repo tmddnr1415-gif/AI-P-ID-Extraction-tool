@@ -472,7 +472,9 @@ const CHR = { data: null, ready: false };
 // 큰 초상 p_* · 장비/도구 아이콘 i_* · UI 효과 아이콘 f_* · 뒷모습 *_back_* (맨 아래 줄) — static/epc.png (배경 투명 · 한 점 = 캐릭터와 같은 크기)
 const EPC_FR = {"cat_idle":[194,0,23,34,9.6,34],"cat_w0":[269,95,18,29,6.4,29],"cat_w1":[288,95,16,29,6.9,29],"cat_w2":[193,126,16,28,6.3,28],"cat_w3":[305,95,15,29,5.7,29],"cat_w4":[210,126,15,28,5.2,28],"cat_inspect":[271,62,22,31,10.8,31],"cat_hart":[0,95,28,30,14.3,30],"cat_cable":[294,62,23,31,10.3,31],"cat_dcs":[29,95,22,30,10.3,30],"cat_repair":[321,95,18,29,8.3,29],"cat_jump":[340,95,18,29,8.9,29],"cat_hurt":[359,95,17,29,8.5,29],"cat_cheer":[318,62,21,31,9.1,31],"cat_tired":[370,0,22,32,8.9,32],"panda_idle":[393,0,24,32,11.0,32],"panda_w0":[377,95,17,29,7.0,29],"panda_w1":[395,95,15,29,6.2,29],"panda_w2":[226,126,15,28,6.4,28],"panda_w3":[411,95,15,29,6.2,29],"panda_w4":[242,126,15,28,6.3,28],"panda_inspect":[418,0,19,32,9.0,32],"panda_hart":[438,0,24,32,11.1,32],"panda_cable":[463,0,23,32,10.7,32],"panda_dcs":[487,0,22,32,10.4,32],"panda_repair":[340,62,19,31,8.7,31],"panda_jump":[0,62,17,32,7.8,32],"panda_hurt":[52,95,18,30,7.9,30],"panda_cheer":[427,95,16,29,7.6,29],"panda_tired":[360,62,18,31,8.0,31],"lion_idle":[18,62,24,32,11.4,32],"lion_w0":[258,126,18,28,7.7,28],"lion_w1":[444,95,15,29,6.1,29],"lion_w2":[460,95,15,29,6.4,29],"lion_w3":[476,95,15,29,6.0,29],"lion_w4":[277,126,16,28,6.7,28],"lion_inspect":[379,62,22,31,10.0,31],"lion_hart":[43,62,25,32,11.4,32],"lion_cable":[69,62,23,32,11.1,32],"lion_dcs":[402,62,22,31,10.4,31],"lion_repair":[71,95,21,30,10.7,30],"lion_jump":[492,95,16,29,7.7,29],"lion_hurt":[0,126,18,29,7.7,29],"lion_cheer":[19,126,19,29,7.8,29],"lion_tired":[425,62,18,31,7.9,31],"tiger_idle":[218,0,23,34,11.4,34],"tiger_w0":[93,62,18,32,7.0,32],"tiger_w1":[112,62,17,32,7.2,32],"tiger_w2":[93,95,15,30,6.1,30],"tiger_w3":[109,95,15,30,5.7,30],"tiger_w4":[125,95,15,30,5.8,30],"tiger_inspect":[267,0,19,33,9.0,33],"tiger_hart":[287,0,28,33,12.0,33],"tiger_cable":[130,62,27,32,11.5,32],"tiger_dcs":[316,0,24,33,11.0,33],"tiger_repair":[141,95,18,30,7.5,30],"tiger_jump":[444,62,19,31,8.4,31],"tiger_hurt":[464,62,17,31,6.7,31],"tiger_cheer":[482,62,18,31,8.1,31],"tiger_tired":[158,62,19,32,9.0,32],"worker_idle":[242,0,24,34,10.7,34],"worker_w0":[160,95,18,30,7.7,30],"worker_w1":[39,126,15,29,5.9,29],"worker_w2":[55,126,16,29,6.5,29],"worker_w3":[72,126,15,29,5.8,29],"worker_w4":[179,95,15,30,5.4,30],"worker_inspect":[178,62,20,32,9.6,32],"worker_hart":[341,0,28,33,11.6,33],"worker_cable":[199,62,24,32,11.5,32],"worker_dcs":[224,62,23,32,11.3,32],"worker_repair":[195,95,18,30,8.6,30],"worker_jump":[214,95,18,30,8.3,30],"worker_hurt":[233,95,16,30,7.3,30],"worker_cheer":[250,95,18,30,7.3,30],"worker_tired":[248,62,22,32,10.1,32],"p_cat":[44,0,36,60,18.1,60],"p_panda":[120,0,38,59,18.8,59],"p_lion":[0,0,43,61,22.3,61],"p_tiger":[81,0,38,60,18.8,60],"p_worker":[159,0,34,52,15.9,52],"i_PT":[445,126,21,24,10.0,24],"i_DPT":[467,126,18,24,8.1,24],"i_TT":[337,126,18,26,7.3,26],"i_FT":[124,156,20,23,9.6,23],"i_LT":[294,126,18,28,7.7,28],"i_HART":[356,126,17,25,5.9,25],"i_MULTI":[486,126,18,24,8.0,24],"i_CALIB":[374,126,20,25,8.0,25],"i_SPOOL":[395,126,24,25,11.5,25],"i_ICABLE":[420,126,24,25,11.7,25],"i_GLAND":[0,156,12,24,5.2,24],"i_JB":[345,156,21,20,10.4,20],"i_TB":[367,156,25,20,13.0,20],"i_MC":[88,126,25,29,12.5,29],"i_DCSCARD":[393,156,22,20,8.1,20],"i_IO":[224,156,23,22,10.9,22],"i_PLC":[114,126,28,29,11.5,29],"i_CON":[143,126,26,29,12.3,29],"i_AIRTUBE":[416,156,21,20,8.9,20],"i_IMPULSE":[248,156,21,22,9.2,22],"i_POSITIONER":[13,156,21,24,8.6,24],"i_CV":[170,126,22,29,10.4,29],"i_PG":[145,156,16,23,7.6,23],"i_CALPUMP":[313,126,23,28,10.5,28],"i_HELMET":[438,156,21,20,9.5,20],"i_VEST":[35,156,31,24,10.5,24],"i_WRENCH":[162,156,30,23,14.3,23],"i_SCREW":[67,156,31,24,24.0,24],"i_LAPTOP":[193,156,30,23,14.2,23],"i_CHECK":[318,156,26,21,14.2,21],"i_RADIO":[460,156,10,20,4.0,20],"f_HP":[127,181,16,12,7.4,12],"f_ST":[46,181,12,14,5.1,14],"f_XP":[59,181,16,14,7.5,14],"f_QUEST":[34,181,11,15,4.8,15],"f_OK":[112,181,14,13,6.7,13],"f_ALARM":[76,181,16,14,7.4,14],"f_SIGNAL":[93,181,18,14,7.7,14],"f_LED":[16,181,17,18,8.5,18],"f_HARTSIG":[270,156,20,22,7.1,22],"f_SPARK":[471,156,22,20,10.1,20],"f_SCAN":[291,156,26,22,11.9,22],"f_AURA":[99,156,24,24,11.7,24],"f_LVUP":[494,156,18,20,8.6,20],"f_CABLECON":[0,181,15,20,6.9,20],
   // 뒷모습 (2026-10-22 판3) — 시트에 없어 앞모습에서 만듦: 안전모 로고 지움 · 얼굴 → 털/머리 뒤통수 · 등 반사띠 · 꼬리 (대기 · 걷기 5)
-  "cat_back_idle":[0,202,29,34,9.6,34],"cat_back_w0":[30,202,24,29,6.4,29],"cat_back_w1":[55,202,22,29,6.9,29],"cat_back_w2":[78,202,22,28,6.3,28],"cat_back_w3":[101,202,21,29,5.7,29],"cat_back_w4":[123,202,21,28,5.2,28],"panda_back_idle":[145,202,24,32,11.0,32],"panda_back_w0":[170,202,17,29,7.0,29],"panda_back_w1":[188,202,15,29,6.2,29],"panda_back_w2":[204,202,15,28,6.4,28],"panda_back_w3":[220,202,15,29,6.2,29],"panda_back_w4":[236,202,15,28,6.3,28],"lion_back_idle":[252,202,30,32,11.4,32],"lion_back_w0":[283,202,24,28,7.7,28],"lion_back_w1":[308,202,21,29,6.1,29],"lion_back_w2":[330,202,21,29,6.4,29],"lion_back_w3":[352,202,21,29,6.0,29],"lion_back_w4":[374,202,22,28,6.7,28],"tiger_back_idle":[397,202,29,34,11.4,34],"tiger_back_w0":[427,202,24,32,7.0,32],"tiger_back_w1":[452,202,23,32,7.2,32],"tiger_back_w2":[476,202,21,30,6.1,30],"tiger_back_w3":[0,237,21,30,5.7,30],"tiger_back_w4":[22,237,21,30,5.8,30],"worker_back_idle":[44,237,24,34,10.7,34],"worker_back_w0":[69,237,18,30,7.7,30],"worker_back_w1":[88,237,15,29,5.9,29],"worker_back_w2":[104,237,16,29,6.5,29],"worker_back_w3":[121,237,15,29,5.8,29],"worker_back_w4":[137,237,15,30,5.4,30]};
+  "cat_back_idle":[0,202,29,34,9.6,34],"cat_back_w0":[30,202,24,29,6.4,29],"cat_back_w1":[55,202,22,29,6.9,29],"cat_back_w2":[78,202,22,28,6.3,28],"cat_back_w3":[101,202,21,29,5.7,29],"cat_back_w4":[123,202,21,28,5.2,28],"panda_back_idle":[145,202,24,32,11.0,32],"panda_back_w0":[170,202,17,29,7.0,29],"panda_back_w1":[188,202,15,29,6.2,29],"panda_back_w2":[204,202,15,28,6.4,28],"panda_back_w3":[220,202,15,29,6.2,29],"panda_back_w4":[236,202,15,28,6.3,28],"lion_back_idle":[252,202,30,32,11.4,32],"lion_back_w0":[283,202,24,28,7.7,28],"lion_back_w1":[308,202,21,29,6.1,29],"lion_back_w2":[330,202,21,29,6.4,29],"lion_back_w3":[352,202,21,29,6.0,29],"lion_back_w4":[374,202,22,28,6.7,28],"tiger_back_idle":[397,202,29,34,11.4,34],"tiger_back_w0":[427,202,24,32,7.0,32],"tiger_back_w1":[452,202,23,32,7.2,32],"tiger_back_w2":[476,202,21,30,6.1,30],"tiger_back_w3":[0,237,21,30,5.7,30],"tiger_back_w4":[22,237,21,30,5.8,30],"worker_back_idle":[44,237,24,34,10.7,34],"worker_back_w0":[69,237,18,30,7.7,30],"worker_back_w1":[88,237,15,29,5.9,29],"worker_back_w2":[104,237,16,29,6.5,29],"worker_back_w3":[121,237,15,29,5.8,29],"worker_back_w4":[137,237,15,30,5.4,30],
+  // 검은 고양이 (2026-10-22 판7) — 케이블 기술자: 사람(작업자) 대신. 치즈 고양이 그림의 털색만 짙은 회색으로 바꿈
+  "bcat_idle":[0, 273, 23, 34, 9.6, 34],"bcat_w0":[24, 273, 18, 29, 6.4, 29],"bcat_w1":[43, 273, 16, 29, 6.9, 29],"bcat_w2":[60, 273, 16, 28, 6.3, 28],"bcat_w3":[77, 273, 15, 29, 5.7, 29],"bcat_w4":[93, 273, 15, 28, 5.2, 28],"bcat_inspect":[109, 273, 22, 31, 10.8, 31],"bcat_hart":[132, 273, 28, 30, 14.3, 30],"bcat_cable":[161, 273, 23, 31, 10.3, 31],"bcat_dcs":[185, 273, 22, 30, 10.3, 30],"bcat_repair":[208, 273, 18, 29, 8.3, 29],"bcat_jump":[227, 273, 18, 29, 8.9, 29],"bcat_hurt":[246, 273, 17, 29, 8.5, 29],"bcat_cheer":[264, 273, 21, 31, 9.1, 31],"bcat_tired":[286, 273, 22, 32, 8.9, 32],"bcat_back_idle":[309, 273, 29, 34, 9.6, 34],"bcat_back_w0":[339, 273, 24, 29, 6.4, 29],"bcat_back_w1":[364, 273, 22, 29, 6.9, 29],"bcat_back_w2":[387, 273, 22, 28, 6.3, 28],"bcat_back_w3":[410, 273, 21, 29, 5.7, 29],"bcat_back_w4":[432, 273, 21, 28, 5.2, 28],"p_bcat":[454, 273, 36, 60, 18.1, 60]};
 const EPC = { data: null, ready: false };
 const eps = (name, mirror, scale = PX) => EPC_FR[name] && EPC.ready ? atlasSprite(EPC, EPC_FR, name, mirror, scale) : null;
 function loadAtlas(o, src) {
@@ -578,7 +580,7 @@ const BEARDS = ["수염 없음", "콧수염", "염소수염", "덥수룩"];
 const CLOTHS = ["#8fb06a", "#c23b2e", "#2e6db4", "#2f8c58", "#d9a520", "#7a4ea3", "#e0789a", "#34507a", "#9c5530", "#efe7d2", "#1f8a8a", "#5a5a66"];
 const PANTS = ["#f1e9d4", "#55597a", "#e6d29f", "#6b705c", "#8a8f99", "#3b3b44"];
 // 2026-10-19 고양이 기사 — 종류 · 동물(털) · 갑옷 · 망토 (서버 LOOK_EXTRA 와 같은 개수)
-const KINDS = ["고양이 기사", "사람", "고양이 양반", "팬더 학자", "사자 무관", "호랑이 무관", "노비", "EPC 안전모 (직무별)"];   // 7 = EPC 시트 — 직무에 따라 고양이 · 판다 · 사자 · 호랑이 · 작업자   // 2~6 = 마을 시트 캐릭터 (노비는 운영자만)
+const KINDS = ["고양이 기사", "(사람 — 없앰)", "고양이 양반", "팬더 학자", "사자 무관", "호랑이 무관", "노비", "EPC 안전모 (직무별)"];   // 7 = EPC 시트 — 직무에 따라 고양이 · 판다 · 사자 · 호랑이 · 작업자   // 2~6 = 마을 시트 캐릭터 (노비는 운영자만)
 const FURS = ["치즈 고양이", "회색 고양이", "검은 고양이", "흰 고양이", "호랑이", "여우"];
 const ARMORS = ["은빛 갑옷", "황금 갑옷", "흑철 갑옷", "청동 갑옷", "푸른 강철", "백은 갑옷"];
 const CAPES = ["빨간 망토", "파란 망토", "초록 망토", "보라 망토", "검은 망토", "흰 망토", "노란 망토"];
@@ -594,7 +596,8 @@ function defaultFace(name) {                // 처음 들어온 사람 — 이�
 function faceOf(a) {                       // 서버가 준 값도 범위 밖이면 이름에서 정한 값으로
   const d = defaultFace(a.name), f = a.face || d, out = {};
   for (const k of Object.keys(RANGES)) out[k] = Number.isInteger(f[k]) && f[k] >= 0 && f[k] < RANGES[k] ? f[k] : d[k];
-  if (!(f.v >= 2)) { out.kind = 7; out.v = 2; }   // 2026-10-22 전에 저장한 얼굴도 EPC 안전모로 (얼굴 바꾸기에서 예전 종류로 되돌릴 수 있음)
+  if (!(f.v >= 2)) { out.kind = 7; out.v = 2; }
+  if (out.kind === 1) out.kind = 7;          // 2026-10-22 판7: '사람' 캐릭터 없앰 → EPC 안전모 (동물)   // 2026-10-22 전에 저장한 얼굴도 EPC 안전모로 (얼굴 바꾸기에서 예전 종류로 되돌릴 수 있음)
   return out;
 }
 
@@ -924,7 +927,7 @@ const KIND_FR = {
 };
 const isChr = F => F.kind >= 2 && CHR.ready && !!KIND_FR[F.kind];
 const chrSprite = (name, mirror) => atlasSprite(CHR, CHR_FR, name, mirror);
-const JOB_CHAR = ["cat", "panda", "lion", "tiger", "worker"];
+const JOB_CHAR = ["cat", "panda", "lion", "tiger", "bcat"];   // 2026-10-22 판7: 케이블 기술자 = 검은 고양이 (사람 작업자 없앰)
 const isEpc = F => F.kind === 7 && EPC.ready;
 function epcWho(a, F) { return a.role === "unit" ? "lion" : JOB_CHAR[(a.npc ? F.job : a.job ?? F.job) ?? 0] || "cat"; }
 function workPose(w) { const t = (EQ_BY.get(typeof w.eq === "string" ? w.eq : w.eq.id) || {}).t;
@@ -1121,7 +1124,7 @@ const NPC_DEF = [
   { name: "DCS 엔지니어", kind: 3, job: 1, eqs: ["CON-401", "DCS-403", "IO-404", "PLC-405", "CON-402", "MC-302"] },
   { name: "시운전 리드", kind: 4, job: 2, eqs: ["LT-505", "FT-506", "CV-504", "PT-202", "TT-204"] },
   { name: "현장 기술자", kind: 5, job: 3, eqs: ["CV-201", "FT-203", "LT-205", "CV-104", "PG-602"] },
-  { name: "케이블 기술자", kind: 6, job: 4, eqs: ["JB-151", "TRAY-152", "JB-153", "TRAY-154", "JB-601", "JB-301"] },
+  { name: "케이블 기술자", kind: 2, job: 4, eqs: ["JB-151", "TRAY-152", "JB-153", "TRAY-154", "JB-601", "JB-301"] },
 ];
 const NPC_STEP = .42, NPC_WORK = 7;          // 한 칸 0.42초 · 설비마다 7초 작업
 const NPCS = [];
@@ -1265,11 +1268,49 @@ async function dropHeld() {
   try { await post("/plaza/api/drop", { id: S.id, item: it.id }); S.held = null; S.me.heldItem = null; hudInv = null; floater(S.me, `⬇ ${itemName(it)} 내려놓음`, "#ffe066", 1100); }
   catch (e) { floater(S.me, String(e.message || e).slice(0, 24), "#c9d4e0", 1200); }
 }
-function drawHeld(g, a, sx, sy, now) {        // 손에 든 아이템 — 캐릭터 옆 (작업 · 공격 중엔 안 보임)
-  const it = a.heldItem; if (!it || a.ghost || (a === S.me ? S.work : a.work) || (a.attack && now - a.attack < ATK_MS)) return;
+/* 착용 (2026-10-22 판7): 가방 칸 더블클릭 · F — 손(도구) · 머리(안전모) · 몸(조끼) 칸에 낌 → 모습에 보이고 공격력 · 마법이 두 배로 셈 */
+const SLOT_ICON = { hand: "🖐", head: "⛑", body: "🦺" };
+async function equipItem(id) {
+  if (!S.me) return;
+  try { const r = await post("/plaza/api/equip", { id: S.id, item: id });
+    S.me.equip = { ...(S.me.equip || {}) }; if (r.on) S.me.equip[r.slot] = r.item; else delete S.me.equip[r.slot];
+    S.me.atk = r.atk; S.me.matk = r.matk; hudInv = null;
+    floater(S.me, `${r.on ? "착용" : "벗음"} ${SLOT_ICON[r.slot]} ${itemName(r.item)} · 공 ${r.atk} · 마 ${r.matk}`, r.on ? RARE_COL[r.item.r] || "#ffe066" : "#c9d4e0", 1500);
+    for (let i = 0; i < 10; i++) puff(S.me.x + 6 + Math.random() * 20, S.me.y + 10 + Math.random() * 20, (Math.random() - .5) * 30, -30 - Math.random() * 20, 700, r.on ? RARE_COL[r.item.r] || "#ffe066" : "#9aa6b1", 2); }
+  catch (e) { floater(S.me, String(e.message || e).slice(0, 24), "#c9d4e0", 1200); }
+}
+const rareCache = new Map(), helmCache = new Map();
+const HELM_COL = [[255, 210, 58], [63, 201, 90], [61, 139, 255], [255, 176, 46]];   // 일반 노랑 · 고급 초록 · 희귀 파랑 · 전설 금
+function helmTint(spr, r) {                   // EPC 캐릭터 그림의 흰 안전모(위쪽 40% 의 흰 · 회색 점)를 등급 색으로
+  let m = helmCache.get(spr); if (!m) helmCache.set(spr, m = new Map()); if (m.has(r)) return m.get(r);
+  const c = canvas(spr.width, spr.height), g = c.getContext("2d"); g.drawImage(spr, 0, 0);
+  const d = g.getImageData(0, 0, c.width, Math.round(c.height * .42)), D = d.data, [tr, tg, tb] = HELM_COL[r] || HELM_COL[0];
+  for (let i = 0; i < D.length; i += 4) { if (D[i + 3] < 128) continue; const R = D[i], G = D[i + 1], B = D[i + 2], l = (R * 3 + G * 6 + B) / 10;
+    if (l > 140 && Math.max(R, G, B) - Math.min(R, G, B) < 46) { const k = l / 255; D[i] = tr * k; D[i + 1] = tg * k; D[i + 2] = tb * k; } }
+  g.putImageData(d, 0, 0); c.cx = spr.cx; c.foot = spr.foot; m.set(r, c); return c;
+}
+function rareTint(s1, r) {                    // 끼운 안전모 — 등급 색 (일반 노랑 · 고급 초록 · 희귀 파랑 · 전설 금)
+  let m = rareCache.get(s1); if (!m) rareCache.set(s1, m = new Map()); if (m.has(r)) return m.get(r);
+  const c = canvas(s1.width, s1.height), g = c.getContext("2d"); g.drawImage(s1, 0, 0);
+  g.globalCompositeOperation = "source-atop"; g.globalAlpha = .5; g.fillStyle = ["#ffd23a", "#3fc95a", "#3d8bff", "#ffb02e"][r] || "#ffd23a"; g.fillRect(0, 0, c.width, c.height);
+  m.set(r, c); return c;
+}
+function drawEquip(g, a, sx, sy, now) {      // 몸(조끼) · 머리(안전모) 를 캐릭터 그림 위에 · 손 도구는 drawHeld
+  const E = a.equip; if (!E || a.ghost) return;
+  const top = a._top ?? (sy + 28 - 64), h = a._h || 64, cx = sx + 16 + (a._ox || 0);
+  if (E.body) { const s1 = eps("i_" + E.body.k, false, 1);
+    if (s1) { g.save(); g.globalAlpha = .93; g.drawImage(s1, Math.round(cx - s1.width / 2), Math.round(top + h * .58 - s1.height / 2)); g.restore(); } }
+  if (E.head && !a._epc) { const s0 = eps("i_" + E.head.k, false, 1);   // 안전모 없는 캐릭터(고양이 기사 · 마을) — 머리 위에 작은 안전모
+    if (s0) { const s1 = rareTint(s0, E.head.r); g.drawImage(s1, Math.round(cx - s1.width / 2), Math.round(top - s1.height * .45)); } }
+  const best = Math.max(...Object.values(E).map(i => i.r));
+  if (best >= 2 && Math.random() < .25) puff(a.x + 4 + Math.random() * 24, a.y + 30 - Math.random() * 50, 0, -18, 700, RARE_COL[best], 2);   // 희귀 · 전설 착용 = 반짝이
+}
+function drawHeld(g, a, sx, sy, now) {        // 손에 낀 도구 — 캐릭터 옆 (작업 · 공격 중엔 안 보임)
+  const it = a.equip?.hand; if (!it || a.ghost || (a === S.me ? S.work : a.work) || (a.attack && now - a.attack < ATK_MS)) return;
   const s1 = eps("i_" + it.k, false, 1); if (!s1) return;
   const side = a.dir === 2 ? -1 : 1, bob = Math.round(Math.sin(now / 300 + hash(a.name) % 7) * 1.5);
-  const x = Math.round(sx + 16 + side * 13 - s1.width / 2), y = Math.round(sy + 28 - HEAD_PX + 12 - s1.height / 2) + bob;
+  const top = a._top ?? (sy + 28 - 64), h = a._h || 64;
+  const x = Math.round(sx + 16 + (a._ox || 0) + side * (h * .26) - s1.width / 2), y = Math.round(top + h * .66 - s1.height * .75) + bob;   // 손 높이 (몸통 아래쪽)
   if (it.r >= 2) { g.save(); g.globalAlpha = .35 + .2 * Math.sin(now / 200); ell(g, x + s1.width / 2, y + s1.height / 2, s1.width / 2 + 4, s1.height / 2 + 4, RARE_COL[it.r]); g.restore(); }
   g.drawImage(s1, x, y);
 }
@@ -1289,10 +1330,16 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
   const hp = Math.round(S.me.hpShow ?? S.me.hp), lv = S.me.lv || 1, xp = S.me.xp || 0, lo = 25 * (lv - 1) ** 2, hi = 25 * lv ** 2;
   bar("hud-hp", S.me.inf ? 1 : hp / (S.me.hpMax || 100)); set("hud-hpt", S.me.inf ? "∞ 무적" : S.me.ghost ? "유령" : `${hp}/${S.me.hpMax || 100}`);
   const ik = (S.me.items || []).map(i => i.id).join(",");
-  if (ik !== hudInv && EPC.ready) { hudInv = ik; const box = document.getElementById("hud-inv");   // 가방 8 칸 (등급 색 테두리)
+  const ek = ik + "|" + JSON.stringify(Object.values(S.me.equip || {}).map(e => e.id)) + "|" + S.held;
+  if (ek !== hudInv && EPC.ready) { hudInv = ek; const box = document.getElementById("hud-inv");   // 가방 8 칸 (등급 색 테두리)
     if (box) { box.textContent = ""; for (let i = 0; i < 8; i++) { const it = (S.me.items || [])[i], c = it ? itemIcon(it, 22) : document.createElement("canvas");
-      if (!it) c.width = c.height = 22; c.className = (it ? "on" : "") + (it && S.held === it.id ? " held" : ""); if (it) { c.title += " — 누르면 들기 (X 내려놓기)"; c.onclick = () => holdItem(S.held === it.id ? null : it.id); } box.append(c); } } }
-  set("hud-held", S.held && (S.me.items || []).find(i => i.id === S.held) ? `🖐 들고 있음: ${itemFull((S.me.items || []).find(i => i.id === S.held))}  (X 내려놓기)` : (S.me.items || []).length ? "가방 칸을 누르거나 Q 로 아이템을 듭니다" : "");
+      const worn = it && Object.values(S.me.equip || {}).some(e => e.id === it.id);
+      if (!it) c.width = c.height = 22; c.className = (it ? "on" : "") + (it && S.held === it.id ? " held" : "") + (worn ? " worn" : "");
+      if (it) { c.title += worn ? " — 착용 중 (더블클릭 = 벗기)" : " — 클릭 = 고르기 · 더블클릭 = 끼기"; c.onclick = () => { if (S.held !== it.id) holdItem(it.id); }; c.ondblclick = () => equipItem(it.id); }
+      box.append(c); } } }
+  const E = S.me.equip || {}, eqTxt = ["hand", "head", "body"].map(sl => `${SLOT_ICON[sl]} ${E[sl] ? itemName(E[sl]) : "—"}`).join("  ");
+  set("hud-equip", `착용  ${eqTxt}`);
+  set("hud-held", S.held && (S.me.items || []).find(i => i.id === S.held) ? `고름: ${itemFull((S.me.items || []).find(i => i.id === S.held))} — F 끼기 · X 내려놓기` : (S.me.items || []).length ? "가방 칸 클릭 = 고르기 · 더블클릭(F) = 끼기" : "");
   set("hud-pow", `⚔ 공격력 ${S.me.atk || 0}  ✦ 마법 ${S.me.matk || 0}  · 평타 ${1 + Math.floor((S.me.atk || 0) / 10)}`);
   bar("hud-mp", (S.me.mp ?? 0) / (S.me.mpMax || 50)); set("hud-mpt", `${S.me.mp ?? 0}/${S.me.mpMax || 50}`);
   updateSkillBar(now);
@@ -1379,7 +1426,8 @@ function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오
   if (a === S.me && a.items && !a.ghost) { const had = new Set(a.items.map(i => i.id));   // 주움 · 교환으로 받음
     for (const it of items) if (!had.has(it.id)) floater(a, `+ ${itemName(it)} (${itemStat(it)})`, RARE_COL[it.r] || "#ffe066", 1800); }
   a.items = items; a.atk = p.atk || 0; a.matk = p.matk || 0;
-  if (a !== S.me || p.held || !S.held) a.heldItem = p.held || null;   // 남의 손 · 내 것도 서버 값을 따름 (방금 눌러 보내는 중이면 잠깐 기다림)
+  if (a !== S.me || p.held || !S.held) a.heldItem = p.held || null;
+  a.equip = p.equip || {};   // 남의 손 · 내 것도 서버 값을 따름 (방금 눌러 보내는 중이면 잠깐 기다림)
   if (a === S.me && S.held && !items.some(i => i.id === S.held)) { S.held = null; hudInv = null; }
   if (p.skill_to) a.skillTo = p.skill_to;
   if (p.trade_age != null && p.trade_age < 1.2 && (!a.tradeFx || tnow - a.tradeFx > 2000)) { a.tradeFx = tnow; floater(a, "🤝 교환!", "#ffe7a6", 1400); }
@@ -1749,6 +1797,7 @@ function drawActor(g, a, sx, sy, now) {
   const cheer = a.cheer && now - a.cheer < 900 ? (now - a.cheer) / 900 : -1;      // 작업 끝 — 세 번 깡충
   if (cheer >= 0) { sy -= Math.round(Math.abs(Math.sin(cheer * Math.PI * 3)) * 8 / PX) * PX; if (Math.random() < .2) puff(a.x + 16, a.y, (Math.random() - .5) * 40, -30, 700, "#ffe066"); }
   drawActorBody(g, a, sx, sy, now);
+  drawEquip(g, a, sx, sy, now);
   drawHeld(g, a, sx, sy, now);
   const w = a === S.me ? S.work : a.work;
   if (w) drawTool(g, a, sx + 16, sy + 28, now, w, isEpc(a.npc ? a.face : roleFace(faceOf(a), a.role)));
@@ -1756,6 +1805,7 @@ function drawActor(g, a, sx, sy, now) {
   if (a === S.me && a.moving && a.running && Math.random() < .5) puff(a.x + 16, a.y + 28, (Math.random() - .5) * 20, -6, 400, "#9aa6b1");   // 흙먼지
 }
 function drawActorBody(g, a, sx, sy, now) {
+  a._epc = false;
   const k = a.moving ? Math.min(1, (now - a.t0) / (a.stepMs || STEP_MS)) : 0;
   const fr = a.moving && k > .15 && k < .85 ? (a.steps % 2 ? 1 : 2) : 0;
   const atk = a.attack && now - a.attack < ATK_MS ? (now - a.attack) / ATK_MS : -1;
@@ -1773,10 +1823,11 @@ function drawActorBody(g, a, sx, sy, now) {
   if (isEpc(F)) {                            // EPC 안전모 캐릭터 — 시트의 동작 칸 (작업 포즈 포함)
     drawAura(g, sx + 16, sy + 28, a.role, now, hash(a.name) % 7);
     ell(g, sx + 16, sy + 28, 12, 4, "rgba(5,10,20,.45)");
-    const w = a === S.me ? S.work : a.work, nm = epcPose(epcWho(a, F), a, now, atk, hit, w, hash(a.name) % 4200), spr = eps(nm, a.dir === 2);
+    const w = a === S.me ? S.work : a.work, nm = epcPose(epcWho(a, F), a, now, atk, hit, w, hash(a.name) % 4200), spr0 = eps(nm, a.dir === 2);
+    const spr = a.equip?.head ? helmTint(spr0, a.equip.head.r) : spr0; a._epc = true;   // 낀 안전모 = 캐릭터 자기 안전모를 등급 색으로
     const bob = !a.moving && !w && atk < 0 && Math.floor((now + hash(a.name) % 1600) / 800) % 2 ? -PX : 0;
     if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
     if (atk >= 0 && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
     return;
   }
@@ -1786,7 +1837,7 @@ function drawActorBody(g, a, sx, sy, now) {
     const K = KIND_FR[F.kind], [nm, mir] = chrPose(K, a, now, atk, hash(a.name) % 650), spr = chrSprite(nm, mir);
     const bob = a.moving && a.dir < 2 && fr ? -PX : 0;
     if (atk >= 0 && !K.a && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);
-    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+    g.drawImage(hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr, Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
     if (atk >= 0 && !K.a && a.dir !== 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk);   // 공격 칸이 없는 노비는 예전 휘두르기
     return;
   }
@@ -1799,7 +1850,7 @@ function drawActorBody(g, a, sx, sy, now) {
     else if (!a.moving && atk < 0) bob = Math.floor((now + (hash(a.name) % 1600)) / 800) % 2 ? -PX : 0;   // 서 있을 때 숨쉬기 (한 점)
     if (atk >= 0 && a.dir === 1) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);
     g.drawImage(nm !== "hurt" && hit >= 0 && hit < .6 && Math.floor(hit * 12) % 2 === 0 ? tinted(spr) : spr,
-                Math.round(sx + 16 - spr.cx + ox), sy + 28 - spr.foot + oy + bob);
+                Math.round(sx + 16 - spr.cx + ox), (a._top = sy + 28 - spr.foot + oy + bob, a._h = spr.foot, a._ox = ox, a._top));
     if (atk >= 0 && a.dir === 0) drawSwing(g, sx + ox, sy + oy, a.dir, atk, true);    // 옆 공격은 시트의 칼바람 칸이 그림
     return;
   }
@@ -1912,7 +1963,7 @@ function closeFace() { $("#pz-face").hidden = true; S.panel = false; draft = nul
 const CAT_ROWS = [["fur", "동물 · 털", FURS], ["armor", "갑옷", ARMORS], ["cape", "망토", CAPES]];
 function faceNote() {
   const RK = roleFace(draft, S.role).kind;
-  if (RK === 7) { $("#pz-face-note").textContent = "EPC 안전모 — 직무에 따라 계장 고양이 · DCS 판다 · 현장 호랑이 · 케이블 작업자 (유닛장은 시운전 리드 사자). 작업할 때 시트의 작업 포즈."; return; }
+  if (RK === 7) { $("#pz-face-note").textContent = "EPC 안전모 — 직무에 따라 계장 고양이 · DCS 판다 · 현장 호랑이 · 케이블 검은 고양이 (유닛장은 시운전 리드 사자). 작업할 때 시트의 작업 포즈. 아이템을 끼면(가방 칸 더블클릭) 모습이 바뀝니다."; return; }
   if (RK >= 2) { $("#pz-face-note").textContent = RK === 6 ? "운영자는 노비 — 마을 시트의 노비(평민) 그대로입니다." : `${KINDS[RK]} — 마을 시트의 캐릭터 그대로입니다 (색은 고르지 않음).` + (S.role === "leader" ? " 그룹장 금빛 후광." : S.role === "unit" ? " 유닛장 은빛 후광." : ""); return; }
   $("#pz-face-note").textContent = isCat(draft) ? (S.role === "leader" ? "그룹장 — 황금 갑옷에 금빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
       : S.role === "unit" ? "유닛장 — 은색(백은) 갑옷에 은빛 후광이 나옵니다. 동물(털) · 망토를 고릅니다."
@@ -1939,7 +1990,7 @@ function jobRow() {                        // 직무 — 유닛장은 '시운전
 function kindRow() {                       // 종류 — 운영자는 노비로 고정, 다른 사람은 노비를 못 고름
   if (S.role === "operator") { const row = document.createElement("div"); row.className = "frow"; const l = document.createElement("label"); l.textContent = "종류";
     const v = document.createElement("span"); v.className = "fval"; v.textContent = "노비 (운영자)"; row.append(l, v); return row; }
-  return arrowRow("kind", "종류", KINDS, i => i === 6);
+  return arrowRow("kind", "종류", KINDS, i => i === 6 || i === 1);   // 노비 = 운영자만 · 사람 = 없앰 (동물만)
 }
 function buildFace() {
   faceNote();
@@ -2025,7 +2076,8 @@ async function saveFace() {
 /* 단축키 판 (H · ? · 아래 '단축키' 단추) */
 const KEY_ROWS = [["방향키 · WASD", "걷기"], ["Shift + 방향키", "달리기 (기력 씀)"], ["E", "설비 옆에서 점검 · 교정 · 수리 (걸으면 취소)"], ["Space", "공격 (앞 칸 · 평타 = 1 + 공격력/10)"],
   ["1", "강타 — 마나 10 · 앞 사람 체력 −(5 + 공격력/4)"], ["2", "응급 처치 — 마나 20 · 내 체력 +(25 + 마법/3)"], ["3", "현장 지원 — 마나 30 · 둘레 3칸 팀원 체력 +(15 + 마법/4) · 기력 +30"], ["4", "전기 충격 — 마나 15 · 보는 쪽 4칸 안 첫 사람 체력 −(4 + 마법/3)"],
-  ["Q", "아이템 들기 (가방의 다음 것 · 가방 칸을 눌러도 됨)"], ["X", "든 아이템 내려놓기 (선 자리 · 남이 Z 로 주울 수 있음)"], ["Z", "곁(둘레 한 칸)에 떨어진 아이템 줍기"],
+  ["Q", "아이템 고르기 (가방의 다음 것 · 가방 칸 클릭도 됨)"], ["F · 더블클릭", "고른 아이템 끼기 / 벗기 — 손(도구) · 머리(안전모) · 몸(조끼). 모습이 바뀌고 낀 아이템은 공격력 · 마법 2배"],
+  ["X", "고른 아이템 내려놓기 (선 자리 · 남이 Z 로 주울 수 있음)"], ["Z", "곁(둘레 한 칸)에 떨어진 아이템 줍기"],
   ["Enter", "대화 입력 (Esc 취소)"], ["사람 클릭", "캐릭터 정보 · 가방 보기 · 교환 제안"], ["R", "운영자 — 곁의 유령 부활"], ["H · ?", "이 판 열고 닫기"]];
 function toggleKeys() {
   const on = S.panel === "keys";
@@ -2038,7 +2090,10 @@ $("#pz-keys-btn").onclick = toggleKeys; $("#pz-keys-close").onclick = toggleKeys
 $("#pz-face-btn").onclick = openFace;
 $("#pz-face-save").onclick = saveFace;
 $("#pz-face-cancel").onclick = closeFace;
-$("#pz-face-rand").onclick = () => { for (const k of Object.keys(RANGES)) if (k !== "kind" && k !== "job") draft[k] = Math.floor(Math.random() * RANGES[k]); buildFace(); };   // 종류 · 직무는 그대로   // 종류(고양이 · 사람)는 그대로
+$("#pz-face-rand").onclick = () => {          // 무작위 — 동물 종류도 (사람 · 노비 빼고), 직무는 그대로
+  for (const k of Object.keys(RANGES)) if (k !== "kind" && k !== "job" && k !== "v") draft[k] = Math.floor(Math.random() * RANGES[k]);
+  if (S.role !== "operator") { const ks = [0, 2, 3, 4, 5, 7]; draft.kind = ks[Math.floor(Math.random() * ks.length)]; }
+  buildFace(); };   // 종류 · 직무는 그대로   // 종류(고양이 · 사람)는 그대로
 
 // ── 역할 지정 판 (운영자만 — 서버도 운영자만 받는다) ──────────────────────
 async function openRoles() {
@@ -2100,6 +2155,7 @@ document.addEventListener("keydown", ev => {
   if (!S.typing && !S.panel && (ev.code === "KeyE" || ev.key === "e" || ev.key === "E")) { ev.preventDefault(); if (!ev.repeat) interact(); return; }   // 점검 · 수리
   if (!S.typing && !S.panel && (ev.code === "KeyZ" || ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); if (!ev.repeat) pickup(); return; }   // 곁의 아이템 줍기
   if (!S.typing && !S.panel && (ev.code === "KeyQ" || ev.key === "q" || ev.key === "Q")) { ev.preventDefault(); if (!ev.repeat) holdNext(); return; }   // 아이템 들기(다음)
+  if (!S.typing && !S.panel && (ev.code === "KeyF" || ev.key === "f" || ev.key === "F")) { ev.preventDefault(); if (!ev.repeat) { if (S.held) equipItem(S.held); else floater(S.me, "먼저 가방 칸을 누르거나 Q 로 고르세요", "#c9d4e0", 1200); } return; }   // 고른 아이템 끼기 · 벗기
   if (!S.typing && !S.panel && (ev.code === "KeyX" || ev.key === "x" || ev.key === "X")) { ev.preventDefault(); if (!ev.repeat) dropHeld(); return; }   // 든 아이템 내려놓기
   if (!S.typing && (ev.key === "?" || ev.key === "/" || (ev.code === "KeyH" && !S.panel) || (ev.key === "h" && !S.panel) || (ev.key === "H" && !S.panel) || (S.panel === "keys" && ev.key === "Escape"))) { ev.preventDefault(); if (!ev.repeat) toggleKeys(); return; }   // 단축키 판
   if (!S.typing && !S.panel && SKILL_KEYS[ev.code]) { ev.preventDefault(); if (!ev.repeat) useSkill(SKILL_KEYS[ev.code]); return; }   // 1 강타 · 2 응급 처치 · 3 현장 지원
@@ -2150,7 +2206,8 @@ function showCtx(a, x, y) {
     if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");
     else { const n = document.createElement("small"); n.textContent = "대시보드 안에서 열면 부서원 정보를 볼 수 있습니다"; ctxMenu.textContent = ""; ctxMenu.append(n); ctxMenu.hidden = false; setTimeout(hideCtx, 2500); } };
   if (a.items && a.items.length) { const iv = document.createElement("div"); iv.className = "cbag"; for (const it of a.items) iv.append(itemIcon(it, 22)); ctxMenu.append(iv);
-    const pw = document.createElement("small"); pw.textContent = `⚔ 공격력 ${a.atk || 0} · ✦ 마법 ${a.matk || 0}`; ctxMenu.append(pw); }
+    const pw = document.createElement("small"); pw.textContent = `⚔ 공격력 ${a.atk || 0} · ✦ 마법 ${a.matk || 0}`; ctxMenu.append(pw);
+    const E = a.equip || {}; if (Object.keys(E).length) { const ew = document.createElement("small"); ew.textContent = "착용: " + Object.entries(E).map(([sl, i]) => `${SLOT_ICON[sl]} ${itemName(i)}`).join(" · "); ctxMenu.append(ew); } }
   ctxMenu.append(btn);
   if (a !== S.me && !a.npc && !a.ghost && !S.me.ghost) { const tb = document.createElement("button"); tb.type = "button"; tb.textContent = "교환";
     tb.onclick = () => { hideCtx(); openTrade(a); }; ctxMenu.append(tb); }

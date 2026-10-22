@@ -208,6 +208,16 @@ try:
     time.sleep(0.9)                                            # 떨어진 직후 0.8초는 못 주움
     _, pk2 = call("/plaza/api/pickup", {"id": g1["id"]}, S1)
     ok.append(("내려놓은 것을 Z 로 다시 주움", any(i["id"] == hid for i in pk2.get("picked", []))))
+    # 2026-10-22 판7: 착용 · 사람 캐릭터 없앰
+    time.sleep(2.3)
+    inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
+    it1 = inv["고수"][0]; a0 = call("/plaza/api/equip", {"id": g1["id"], "item": -1}, S1)[0]
+    _, e1 = call("/plaza/api/equip", {"id": g1["id"], "item": it1["id"]}, S1)
+    base_atk = sum(i["atk"] for i in inv["고수"])
+    ok.append(("착용 — 가방 아이템을 그 칸에 낌 · 공격력에 한 번 더", a0 == 404 and e1.get("on") is True and e1.get("slot") == plaza_server.slot_of(it1["k"]) and e1.get("atk") == base_atk + it1["atk"]))
+    _, e2 = call("/plaza/api/equip", {"id": g1["id"], "item": it1["id"]}, S1)
+    ok.append(("착용 — 한 번 더 하면 벗음", e2.get("on") is False and e2.get("atk") == base_atk))
+    ok.append(("얼굴 — '사람'(kind 1) 은 없앰 → EPC 안전모", call("/plaza/api/look", {"id": g2["id"], "look": {**face, "kind": 1}}, S2)[1]["face"]["kind"] == 7))
     ok.append(("교환 — 끝난 제안은 다시 못 씀", call("/plaza/api/trade", {"id": g1["id"], "op": "accept", "tid": t1.get("tid")}, S1)[0] == 404))
     ok.append(("기술 정보 — 설비 목록에 같이", call("/plaza/api/equip")[1].get("skills", {}).get("aid", {}).get("mp") == 20))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))

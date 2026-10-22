@@ -129,6 +129,8 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-hud .inv canvas.on:hover { filter: brightness(1.25); }
 .pz-hud .inv canvas.held { outline: 2px solid #ffd84a; outline-offset: 1px; box-shadow: 0 0 8px rgba(255, 216, 74, .9) !important; }
 .pz-hud .w.held { color: #ffe7a6; font-size: 10.5px; }
+.pz-hud .w.equip { color: #b9f5c6; font-size: 10.5px; }
+.pz-hud .inv canvas.worn { border: 2px solid #3fc95a !important; box-shadow: 0 0 6px rgba(63, 201, 90, .9) !important; }
 .pz-keybox { width: min(520px, calc(100% - 24px)); }
 .pz-keylist { padding: 8px 14px 2px; max-height: 60vh; overflow: auto; }
 .pz-keylist .krow { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid #e3cf9d; font-size: 13px; }

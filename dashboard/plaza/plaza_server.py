@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.6'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.7'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -187,6 +187,8 @@ def clean_look(look):
             out[k] = int(look.get(k) or 0) % n
         except (TypeError, ValueError):
             out[k] = 0
+    if out.get("kind") == 1:                       # 2026-10-22 판7: '사람' 캐릭터 없앰 → EPC 안전모 (동물)
+        out["kind"] = 7
     return out
 
 
@@ -473,7 +475,7 @@ PICK_DIST = 1                   # Z 로 주울 수 있는 거리 (선 칸 + 둘�
 REVIVE_DIST = 2.5               # 운영자가 부활시킬 수 있는 거리 (칸)
 TRADE_DIST = 3.0                # 교환 제안 · 수락 거리 (칸)
 TRADE_S = 60                    # 교환 제안이 남는 시간 (초)
-ITEMS: dict = {"inv": {}, "ground": [], "seq": 0, "iseq": 0, "dirty": False}   # inv: 이름 → [아이템] · ground: [{id, item, x, y, at}] (<data>/items.json)
+ITEMS: dict = {"inv": {}, "ground": [], "seq": 0, "iseq": 0, "dirty": False, "eq": {}}   # inv: 이름 → [아이템] · ground: [{id, item, x, y, at}] (<data>/items.json)
 TRADES: dict = {}               # tid → {from, to, give: [아이템 id], want: [아이템 id], at}
 
 
@@ -508,7 +510,10 @@ def fix_item(v):                                   # 파일에서 읽은 값 →
 
 def load_items() -> None:
     raw = read_json(DATA / "items.json", {})
-    ITEMS.update(inv={}, ground=[], seq=0, iseq=int(raw.get("iseq") or 0) if str(raw.get("iseq") or "0").isdigit() else 0, dirty=False)
+    ITEMS.update(inv={}, ground=[], seq=0, iseq=int(raw.get("iseq") or 0) if str(raw.get("iseq") or "0").isdigit() else 0, dirty=False, eq={})
+    for k, v in (raw.get("eq") or {}).items() if isinstance(raw.get("eq"), dict) else []:
+        if clean(k, NAME_MAX) and isinstance(v, dict):
+            ITEMS["eq"][clean(k, NAME_MAX)] = {sl: int(i) for sl, i in v.items() if sl in SLOTS and str(i).isdigit()}
     for k, v in (raw.get("inv") or {}).items() if isinstance(raw.get("inv"), dict) else []:
         if clean(k, NAME_MAX) and isinstance(v, list):
             ITEMS["inv"][clean(k, NAME_MAX)] = [i for i in map(fix_item, v) if i][:ITEM_MAX]
@@ -528,7 +533,7 @@ def save_items() -> None:
         if not ITEMS["dirty"]:
             return
         data = {"inv": {k: [dict(i) for i in v] for k, v in ITEMS["inv"].items()}, "ground": [{**g, "item": dict(g["item"])} for g in ITEMS["ground"]],
-                "iseq": ITEMS["iseq"],
+                "iseq": ITEMS["iseq"], "eq": {k: dict(v) for k, v in ITEMS.get("eq", {}).items() if v},
                 "_설명": "계장 광장 아이템. inv = 이름 → 가방 [{id, k 종류, atk 공격력, matk 마법 공격력, r 등급 0~3}] (처음 무작위 3 개). "
                          "ground = 쓰러진 사람이 떨어뜨린 것 (곁에서 Z 로 주움). 주간 마감에 바닥은 치우고 빈 가방은 새로 채움."}
         ITEMS["dirty"] = False
@@ -544,9 +549,42 @@ def bag(name: str) -> list:
     return ITEMS["inv"].get(name) or []
 
 
-def power(name: str) -> tuple:                     # (공격력, 마법 공격력) = 가방의 합
-    b = bag(name)
-    return sum(i["atk"] for i in b), sum(i["matk"] for i in b)
+# 착용 (2026-10-22 판7): 가방의 아이템을 손 · 머리 · 몸 칸에 낌 — 외형에 보이고, 낀 아이템은 공격력 · 마법이 두 배로 셈
+SLOTS = ("hand", "head", "body")
+SLOT_NAME = {"hand": "손", "head": "머리", "body": "몸"}
+def slot_of(k: str) -> str:
+    return "head" if k == "HELMET" else "body" if k == "VEST" else "hand"
+
+
+def equipped(name: str) -> dict:                   # 칸 → 아이템 (가방에서 빠진 것은 빼고 돌려줌)
+    ids = ITEMS.setdefault("eq", {}).get(name) or {}
+    by = {i["id"]: i for i in bag(name)}
+    return {sl: by[i] for sl, i in ids.items() if i in by}
+
+
+def power(name: str) -> tuple:                     # (공격력, 마법 공격력) = 가방의 합 + 낀 아이템 한 번 더
+    b, e = bag(name), equipped(name).values()
+    return sum(i["atk"] for i in b) + sum(i["atk"] for i in e), sum(i["matk"] for i in b) + sum(i["matk"] for i in e)
+
+
+def api_equip(body: dict) -> dict:                # 더블클릭 · F — 고른 아이템을 그 칸에 끼기 (이미 꼈으면 벗기)
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = time.time()
+        it = next((i for i in bag(p["name"]) if i["id"] == body.get("item")), None)
+        if it is None:
+            raise ApiError(404, "가방에 없는 아이템입니다.")
+        sl = slot_of(it["k"])
+        eq = ITEMS.setdefault("eq", {}).setdefault(p["name"], {})
+        on = eq.get(sl) != it["id"]
+        if on:
+            eq[sl] = it["id"]
+        else:
+            eq.pop(sl, None)
+        ITEMS["dirty"] = True
+        STATE["ver"] += 1
+        atk, matk = power(p["name"])
+    return {"ok": True, "on": on, "slot": sl, "slot_name": SLOT_NAME[sl], "item": it, "atk": atk, "matk": matk}
 
 
 def item_txt(it: dict) -> str:
@@ -852,6 +890,7 @@ def snapshot(now: float | None = None) -> dict:
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
                 "items": [dict(i) for i in bag(p["name"])], "atk": power(p["name"])[0], "matk": power(p["name"])[1],
                 "held": next((dict(i) for i in bag(p["name"]) if i["id"] == p.get("held")), None),
+                "equip": {sl: dict(i) for sl, i in equipped(p["name"]).items()},
                 "trade_age": round(now - p.get("trade_at", 0), 2), "skill_to": p.get("skill_to"), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
                 "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
             })
@@ -1159,7 +1198,7 @@ def api_leave(body: dict) -> dict:
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
-         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup, "/plaza/api/hold": api_hold, "/plaza/api/drop": api_drop,
+         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup, "/plaza/api/hold": api_hold, "/plaza/api/equip": api_equip, "/plaza/api/drop": api_drop,
          "/plaza/api/trade": api_trade}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
