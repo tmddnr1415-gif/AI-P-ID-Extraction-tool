@@ -129,7 +129,18 @@ svg text{font-family:var(--f-mono)}
   <div class="main">
     <aside class="side">
       <section class="sec">
-        <h3><span class="t"><span class="step-n">1</span>실 치수 (Room)</span> <span class="muted">단위 mm</span></h3>
+        <h3><span class="t"><span class="step-n">1</span>프로젝트 정보</span></h3>
+        <div class="f">
+          <label>프로젝트명<input type="text" id="iPj" placeholder="예: AL NOUF1"></label>
+          <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Rack Room"></label>
+          <label>작성자<input type="text" id="iBy"></label>
+          <label>Rev<input type="text" id="iRev" placeholder="A"></label>
+        </div>
+        <p class="muted" style="margin:6px 0 0">건축 전달 요약 머리와 DXF 타이틀 글자 · 파일 이름에 들어갑니다. 작성자를 비우면 대시보드 로그인 이름(회색 글자)을 씁니다 — 저장 파일에는 직접 적은 값만 남습니다.</p>
+      </section>
+
+      <section class="sec">
+        <h3><span class="t"><span class="step-n">2</span>실 치수 (Room)</span> <span class="muted">단위 mm</span></h3>
         <div class="f">
           <label>Width (X)<input type="number" id="rW" step="100"></label>
           <label>Length (Y)<input type="number" id="rL" step="100"></label>
@@ -142,7 +153,7 @@ svg text{font-family:var(--f-mono)}
       </section>
 
       <section class="sec">
-        <h3><span class="t"><span class="step-n">2</span>Panel Type · 배치</span> <span class="row" style="gap:4px"><label class="chk" style="font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
+        <h3><span class="t"><span class="step-n">3</span>Panel Type · 배치</span> <span class="row" style="gap:4px"><label class="chk" style="font-weight:400">연속 <input type="number" id="qty" value="1" min="1" max="40" style="width:46px"> EA</label></span></h3>
         <div class="types" id="types"></div>
         <div class="row" style="margin-top:8px"><button id="bAddType">+ Type 추가</button></div>
         <p class="muted" style="margin:6px 0 0">W·D = 평면 치수, F·R = 전면·후면 유지보수 공간. 굵은 선이 전면입니다. Type 치수를 바꾸면 배치된 판넬에 바로 반영됩니다.</p>
@@ -154,7 +165,7 @@ svg text{font-family:var(--f-mono)}
       </section>
 
       <section class="sec">
-        <h3><span class="t"><span class="step-n">3</span>검토 결과 (자동 계산)</span> <span id="chkPill" class="pill ok">OK</span></h3>
+        <h3><span class="t"><span class="step-n">4</span>검토 결과 (자동 계산)</span> <span id="chkPill" class="pill ok">OK</span></h3>
         <div class="muted">판넬 + 유지보수 공간 외곽</div>
         <div class="big" id="envBig">–</div>
         <div class="muted" style="margin-top:6px">권장 실 크기 (벽 이격 반영)</div>
@@ -165,7 +176,7 @@ svg text{font-family:var(--f-mono)}
       </section>
 
       <section class="sec">
-        <h3><span class="t"><span class="step-n">4</span>출력</span></h3>
+        <h3><span class="t"><span class="step-n">5</span>출력</span></h3>
         <div class="row">
           <button class="primary" id="bReq">건축 전달 요약 출력 (TXT)</button>
           <button id="bDxf">DXF 출력</button>
@@ -243,6 +254,14 @@ function sample(){
 let S;
 try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});return d}   // 3단계 항목이 없는 예전 파일도 열리게
+norm(S);
+const LOGIN=(Q.get('user')||'').trim();                    // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
+const author=()=>S.info.author.trim()||LOGIN;
+const revOf=()=>S.info.rev.trim()||'-';
+// 파일 이름: 프로젝트_Room_Rev_종류_날짜 (빈 칸은 빼고, 윈도 파일 이름에 못 쓰는 글자는 _)
+const fnPart=v=>String(v||'').trim().replace(/[\\/:*?"<>|\s]+/g,'_');
+function fname(kind,ext){const a=[fnPart(S.info.project),fnPart(S.info.room),S.info.rev.trim()?'Rev'+fnPart(S.info.rev):''].filter(Boolean);return `${a.length?a.join('_'):'ControlRoom'}_${kind}_${today()}.${ext}`}
 let sel=new Set();
 let mode='select';           // select | box | place
 let placeType=null, placeRot=0;
@@ -254,7 +273,7 @@ const snapshot=()=>JSON.stringify(S);
 function commit(){undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[];lastSnap=snapshot();persist();refresh();}
 let lastSnap=snapshot();
 function persist(){try{localStorage.setItem('crspace.v1',lastSnap)}catch(e){}}
-function restore(str){S=JSON.parse(str);lastSnap=str;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));persist();buildRoom();buildTypes();refresh();}
+function restore(str){S=norm(JSON.parse(str));lastSnap=str;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));persist();buildRoom();buildTypes();refresh();}
 
 /* ---------- geometry ---------- */
 const typeOf=p=>S.types.find(t=>t.id===p.type)||S.types[0];
@@ -425,7 +444,9 @@ function render(){
 }
 
 /* ---------- side panels ---------- */
-function buildRoom(){$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#snap').value=String(S.snap)}
+function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
+[['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
+function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#snap').value=String(S.snap)}
 ['rW','rL','rSX','rSY','rC','rM'].forEach(id=>$('#'+id).addEventListener('change',e=>{
   const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin'}[id], v=e.target.value;
   S.room[k]=(k==='spX'||k==='spY')?v:Math.max(0,+v||0); commit();
@@ -614,7 +635,7 @@ $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vDim').onchange=e=>{show.dim=e.target.checked;render()};
 $('#vLbl').onchange=e=>{show.lbl=e.target.checked;render()};
-$('#bReset').onclick=()=>{const b=$('#bReset');if(b.dataset.c){S=sample();sel.clear();commit();buildRoom();buildTypes();fit();b.textContent='예시로 초기화';delete b.dataset.c}else{b.dataset.c=1;b.textContent='한 번 더 누르면 초기화';setTimeout(()=>{b.textContent='예시로 초기화';delete b.dataset.c},2500)}};
+$('#bReset').onclick=()=>{const b=$('#bReset');if(b.dataset.c){S=norm(sample());sel.clear();commit();buildRoom();buildTypes();fit();b.textContent='예시로 초기화';delete b.dataset.c}else{b.dataset.c=1;b.textContent='한 번 더 누르면 초기화';setTimeout(()=>{b.textContent='예시로 초기화';delete b.dataset.c},2500)}};
 
 /* ---------- outputs ---------- */
 let mFile=null;
@@ -633,7 +654,8 @@ $('#bReq').onclick=()=>{
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
   const L=[];
   L.push('[계장 Control Room 공간 요구사항 - 초안]');
-  L.push(`작성일: ${today()}   단위: mm`);
+  L.push(`프로젝트: ${S.info.project||'-'}   Room: ${S.info.room||'-'}   Rev: ${revOf()}`);
+  L.push(`작성자: ${author()||'-'}   작성일: ${today()}   단위: mm`);
   L.push('');
   L.push('1. 계장 판넬 배치 필요 영역 (판넬 + 전/후면 유지보수 공간)');
   L.push(sm.env?`   ${fmt(sm.env.w)} (W) x ${fmt(sm.env.h)} (L) = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m2`:'   -');
@@ -652,7 +674,7 @@ $('#bReq').onclick=()=>{
   L.push('   - 상기 필요 영역 기준으로 Room 초안 도면(CAD) 회신 요청');
   L.push('   - 출입문 위치, 케이블 인입(Floor/Trench) 위치, Access Floor 여부 확인 요청');
   L.push('   - 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정 예정 (본 수치는 초기 공간확보용)');
-  openModal('건축 전달 요약','메일·회의록에 붙여넣기용입니다. DXF와 함께 보내면 영역 확인이 빠릅니다.',L.join('\n'),`ControlRoom_공간요구_${today()}.txt`,'text/plain;charset=utf-8');
+  openModal('건축 전달 요약','메일·회의록에 붙여넣기용입니다. DXF와 함께 보내면 영역 확인이 빠릅니다.',L.join('\n'),fname('공간요구','txt'),'text/plain;charset=utf-8');
 };
 
 $('#bCsv').onclick=()=>{
@@ -660,7 +682,7 @@ $('#bCsv').onclick=()=>{
   const fd={0:'N',90:'E',180:'S',270:'W'};
   S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y])});
   const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
-  openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,`Panel_List_${today()}.csv`,'text/csv;charset=utf-8');
+  openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,fname('Panel_List','csv'),'text/csv;charset=utf-8');
 };
 
 function dxfStr(s){return String(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'))}
@@ -670,11 +692,13 @@ $('#bDxf').onclick=()=>{
   const layers=[['CR-ROOM',7],['CR-COLUMN',8],['CR-PANEL',4],['CR-PANEL-FRONT',1],['CR-CLEARANCE',30],['CR-ENVELOPE',6],['CR-TEXT',2],['CR-DIM',3]];
   P(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,4,0,'ENDSEC');
   P(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
+  // 글자 스타일 CR-KOR = 맑은 고딕 TrueType — 기본 STANDARD(txt.shx)에는 한글 글꼴이 없어 Room 명칭 등이 ? 로 보인다
+  P(0,'TABLE',2,'STYLE',70,1,0,'STYLE',2,'CR-KOR',70,0,40,0,41,1,50,0,71,0,42,250,3,'malgun.ttf',4,'',0,'ENDTAB');
   P(0,'TABLE',2,'LAYER',70,layers.length); layers.forEach(([n,c])=>P(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS')); P(0,'ENDTAB',0,'ENDSEC');
   P(0,'SECTION',2,'ENTITIES');
   const line=(ly,x1,y1,x2,y2)=>P(0,'LINE',8,ly,10,X(x1),20,Y(y1),30,0,11,X(x2),21,Y(y2),31,0);
   const box=(ly,r)=>{if(r.w<=0||r.h<=0)return;line(ly,r.x,r.y,r.x+r.w,r.y);line(ly,r.x+r.w,r.y,r.x+r.w,r.y+r.h);line(ly,r.x+r.w,r.y+r.h,r.x,r.y+r.h);line(ly,r.x,r.y+r.h,r.x,r.y)};
-  const text=(ly,x,y,h,s,rot=0)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),50,rot,72,1,11,X(x),21,Y(y),31,0,73,2);
+  const text=(ly,x,y,h,s,rot=0)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),50,rot,7,'CR-KOR',72,1,11,X(x),21,Y(y),31,0,73,2);
   box('CR-ROOM',{x:0,y:0,w:S.room.w,h:S.room.l});
   columns().forEach(c=>box('CR-COLUMN',c));
   S.panels.forEach(p=>{const g=geom(p);box('CR-PANEL',g.body);line('CR-PANEL-FRONT',...g.fe);box('CR-CLEARANCE',g.fr);box('CR-CLEARANCE',g.rr);
@@ -687,12 +711,16 @@ $('#bDxf').onclick=()=>{
     text('CR-DIM',dx+250,env.y+env.h/2,200,'REQUIRED '+fmt(env.h),90)}
   line('CR-DIM',0,-600,S.room.w,-600);text('CR-DIM',S.room.w/2,-850,250,'ROOM W '+fmt(S.room.w));
   line('CR-DIM',-600,0,-600,S.room.l);text('CR-DIM',-850,S.room.l/2,250,'ROOM L '+fmt(S.room.l),90);
+  const textL=(ly,x,y,h,s)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),7,'CR-KOR');   // 왼쪽 아래 기준
+  const ty=Lr+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
+  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${S.info.room||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
+    .forEach((t,i)=>textL('CR-TEXT',0,ty+i*th*1.6,th,t));
   P(0,'ENDSEC',0,'EOF');
-  openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM. '+dlNote,o.join('\n'),`ControlRoom_Layout_${today()}.dxf`,'application/dxf');
+  openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM. '+dlNote,o.join('\n'),fname('Layout','dxf'),'application/dxf');
 };
-$('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),`ControlRoom_Layout_${today()}.json`,'application/json');
+$('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),fname('배치안','json'),'application/json');
 $('#bLoad').onclick=()=>$('#fLoad').click();
-$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=d;sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
+$('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=norm(d);sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
 
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildProps();
