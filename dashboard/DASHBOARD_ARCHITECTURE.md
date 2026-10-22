@@ -158,7 +158,7 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 | GET `/`, `/dashboard.html[?download=1]` | 화면 (기본 서버 주소 치환) |
 | GET `/apps/…` | **연결 프로그램 정적 파일** (운영 폴더 `apps/`, 상위 경로 접근 403) |
 | POST `auth/register` · `auth/login` · `auth/reset` · `auth/logout`, GET `auth/me` | 계정. 로그인 응답 `{token, user:{id,name}}`, 이후 요청 헤더 `X-Auth-Token`. 로그인·재설정 5회 실패 시 10분 잠금 |
-| GET `space/projects` · POST `space/projects` `{name}` · GET `space/{pid}` · GET `space/{pid}/saves/{sid}` · POST `space/{pid}/saves` `{data, memo, sum}` · POST `space/{pid}/notes` `{text}` · DELETE `space/{pid}/notes/{nid}` | 판넬 공간확보 서버 저장 (2026-10-22~). 운영 폴더 `space/{pid}/index.json`(프로젝트 · 저장 메타 · 노트) + `space/{pid}/saves/{sid}.json`(배치안). 보기 = 누구나, 쓰기 = 로그인 + `space` 권한, 노트 삭제 = 본인 · 운영자/그룹장. 일일 백업 포함 |
+| GET `space/projects` · POST `space/projects` `{name}` · GET `space/{pid}` · GET `space/{pid}/saves/{sid}` · POST `space/{pid}/saves` `{data, memo, sum}` · POST `space/{pid}/notes` `{text}` · DELETE `space/{pid}/notes/{nid}` · GET `space/recent?n=` (모든 프로젝트 최근 저장) | 판넬 공간확보 서버 저장 (2026-10-22~). 운영 폴더 `space/{pid}/index.json`(프로젝트 · 저장 메타 · 노트) + `space/{pid}/saves/{sid}.json`(배치안). 보기 = 누구나, 쓰기 = 로그인 + `space` 권한, 노트 삭제 = 본인 · 운영자/그룹장. 일일 백업 포함 |
 | POST `auth/ping` | 접속 표시 갱신(화면이 30초마다) → `{users:[{id,name,online}], unread}`. 75초 안에 요청이 있었으면 online |
 | GET `msg` · POST `msg` `{to, body}` · POST `msg/{id}/read` · DELETE `msg/in\|sent/{id}` | 쪽지 (로그인 필요) |
 
@@ -948,4 +948,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: server.py 새 `SPACE_ID_RE` `space_id` `space_idx_path` `space_idx` `space_name` `api_space_projects` `api_space_project_new` `api_space_get` `api_space_save_get` `api_space_save` `api_space_note_add` `api_space_note_del`, `api()` 의 `space` 분기, 백업 · 시작 폴더에 `space` / dashboard.html `renderApp` · 새 `appAuth` · `render()` / apps/space/index.html `sapi` `openHist` `loadProjects` `loadProject` `updSrv`, 노트(`hitNote` `openNote` `saveNote` `buildNotes`), 기둥(`toCustomCols` `hitCol` `delCol`, `columns()` 이 `S.cols` 우선).
 - 확인한 것: `py_compile`, `node --check`, 임시 폴더 서버 + 가짜 계정 두 개(홍길동 · 김철수): API 생성 · 중복 409 · 비로그인 401 · 잘못된 배치안 400 · 잘못된 ID 400 · 노트 삭제 · 저장본 읽기. 브라우저: 홍길동 저장 2회 · 노트 → 김철수가 이력 2건 · 노트 1건 보고(남의 노트 지우기 없음) 첫 저장본 열기, file:// 사본에서 postMessage 로 로그인 전달, 도면 노트 · DXF(audit 0), 기둥 이동 · 추가 · 삭제 · 격자로 다시. 스크립트 오류 0.
 - 회사에서 확인할 것: (1) 서버 재시작 후 [🗂] 창이 열리는지, 두 사람이 서로의 저장 · 노트를 보는지. (2) 부서원 PC(file:// 사본)에서 [💾 서버에 저장] 이 본인 이름으로 남는지. (3) 메뉴 권한 표에서 '판넬 공간확보' 를 끈 사람은 보기만 되는지.
+
+### 2026-10-22 (12) — 판넬 공간확보: P&ID · LOGIC 과 같은 첫 화면 (APP 그대로 / SERVER_VERSION 2026-10-22.4)
+> server.py 가 바뀜(GET `space/recent` 한 개) → **서버 재시작 필요**. (11) 과 함께 적용하면 재시작 한 번.
+- 무엇을: 요청 "프로젝트별 저장은 P&ID 분석 · LOGIC 분석 첫 화면 UI 와 같이". 메뉴에 들어오면 첫 화면 — ① 어디에 넣을지(프로젝트 · 새 프로젝트 · Room · Rev) · ② 어떻게 시작할지(최근 저장본 / 하던 작업 / 빈 실 / 예시 / JSON) · [배치 시작] · 저장된 프로젝트 · 최근 저장 이력. 배치 화면 [⌂ 첫 화면] 으로 돌아옴. 첫 화면은 밝게(P&ID · LOGIC 첫 화면과 같은 색 · 모양), 배치 화면은 어두운 CAD.
+- 바뀐 곳: server.py 새 `api_space_recent` + `space` 분기 / apps/space/index.html `#home` (CSS `.lh-*` `.pj*` `.jn` `.jm` — LOGIC logic.css 와 같은 이름), `showHome` `showEditor` `hmLoad` `hmRender` `hmLast` `hmOpen`, `#hmGo`, 도구줄 `#bHome`, `HAD_LOCAL`.
+- 확인한 것: `py_compile`, `node --check`, Chromium 으로 첫 화면 → 새 프로젝트 → 배치 시작 → 서버 저장 → 첫 화면에 카드 · 최근 이력 → 이력 줄로 열기. 스크립트 오류 0.
+- 회사에서 확인할 것: P&ID · LOGIC 첫 화면과 나란히 봤을 때 같은 느낌인지.
 
