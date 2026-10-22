@@ -18,6 +18,14 @@
 > `python spike/voc.py verdicts` 로 `out/verdicts/<프로젝트>.json` 정답지를 만들고, 회귀 하네스가 그것을 **참고축**으로 찍습니다.
 > 밸브 모양 사전은 `python spike/shape_train.py --pdf … --verdicts out/verdicts/<이름>.json` 으로 만듭니다 (`docs/voc.md`).
 
+> **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
+> **P&ID · LOGIC · 판넬 공간확보** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다.
+> **Dashboard(대시보드 본체 · `dashboard.html` · `server.py`) 와 계장 광장** 의 zip 은
+> **"계장ENG 주간업무 Dashboard 코드"** 쪽에서 만든다 — 여기서는 대시보드·광장 zip 을 만들지 않는다.
+> 판넬 공간확보의 화면 코드(`apps/space/`)는 여기서 묶고, 대시보드에 메뉴를 거는 줄과 서버 저장 API 는
+> 대시보드 쪽 몫이다 (지금 판넬 소스는 `origin/ccr-d82d97fa-bb3ty3` 의 `dashboard/apps/space/` 에 있다 —
+> 다음 판넬 zip 때 이 저장소로 들여온다).
+
 ## 1. 지금 어디까지 와 있나
 
 | 단계 | 상태 |
