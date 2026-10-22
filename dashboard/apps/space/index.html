@@ -84,7 +84,7 @@ body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠�
 .stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden}
 #cv{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 .status{display:flex;gap:16px;flex-wrap:wrap;padding:5px max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:var(--sheet);font-size:11.5px;color:var(--ink-2)}
-.status .mono{font-family:var(--f-mono)}
+.status .mono,.mono{font-family:var(--f-mono)}
 .status .mode{color:var(--accent);font-weight:600}
 .legend{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:6px 9px;font-size:11px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;pointer-events:none}
 .legend i{display:inline-block;width:18px;height:9px;margin-right:6px;vertical-align:middle}
@@ -148,8 +148,10 @@ svg text{font-family:var(--f-mono)}
           <label>기둥 Span Y<input type="text" id="rSY" placeholder="6000,6000,6000"></label>
           <label>기둥 크기<input type="number" id="rC" step="50"></label>
           <label>벽 이격 (권장)<input type="number" id="rM" step="100"></label>
+          <label>Spare 공간 (%)<input type="number" id="rSp" min="0" max="200" step="5" title="향후 증설분. 필요 영역을 이 비율만큼 늘려 권장 실 크기를 냅니다 (기본 0 = 미적용)"></label>
+          <label>증설 방향<select id="rSd"><option value="x">X (Width) 쪽</option><option value="y">Y (Length) 쪽</option></select></label>
         </div>
-        <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 벽 이격은 권장 실 크기 계산에만 쓰입니다.</p>
+        <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 벽 이격 · Spare 는 권장 실 크기 계산에만 쓰입니다 (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
       </section>
 
       <section class="sec">
@@ -171,7 +173,8 @@ svg text{font-family:var(--f-mono)}
         <h3><span class="t"><span class="step-n">4</span>검토 결과 (자동 계산)</span> <span id="chkPill" class="pill ok">OK</span></h3>
         <div class="muted">판넬 + 유지보수 공간 외곽</div>
         <div class="big" id="envBig">–</div>
-        <div class="muted" style="margin-top:6px">권장 실 크기 (벽 이격 반영)</div>
+        <div class="muted" id="spLine" style="margin-top:2px"></div>
+        <div class="muted" style="margin-top:6px">권장 실 크기 (Spare · 벽 이격 반영, 100 단위 올림)</div>
         <div class="big" id="recBig">–</div>
         <dl class="kv" style="margin-top:8px" id="kv"></dl>
         <table class="counts" id="counts"></table>
@@ -257,7 +260,7 @@ function sample(){
 let S;
 try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);
 const LOGIN=(Q.get('user')||'').trim();                    // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 const author=()=>S.info.author.trim()||LOGIN;
@@ -331,12 +334,20 @@ function envelope(){
   return {x:x0,y:y0,w:x1-x0,h:y1-y0};
 }
 const ceil100=v=>Math.ceil(v/100)*100;
+// Spare: 필요 영역(env)을 증설 방향으로 spare % 만큼 늘린 것 → 권장 실 크기는 이것 기준
+const spareTxt=()=>S.room.spare>0?`Spare ${S.room.spare}% (${S.room.spareDir==='y'?'Y · Length':'X · Width'} 방향)`:'Spare 0% (미적용)';
+function spareRect(env){
+  if(!env||!(S.room.spare>0))return null; const k=S.room.spare/100;
+  return S.room.spareDir==='y'?{x:env.x,y:env.y+env.h,w:env.w,h:env.h*k}:{x:env.x+env.w,y:env.y,w:env.w*k,h:env.h};
+}
 function summary(){
-  const env=envelope(), m=+S.room.margin||0;
-  const rec=env?{w:ceil100(env.w+2*m),h:ceil100(env.h+2*m)}:null;
+  const env0=envelope(), m=+S.room.margin||0, sp=spareRect(env0);
+  const env=env0;                                          // 판넬 + 유지보수 공간 외곽 (Spare 없음)
+  const envS=env0?(sp?{w:env0.w+(S.room.spareDir==='y'?0:sp.w),h:env0.h+(S.room.spareDir==='y'?sp.h:0)}:{w:env0.w,h:env0.h}):null;   // Spare 포함
+  const rec=envS?{w:ceil100(envS.w+2*m),h:ceil100(envS.h+2*m)}:null;
   const by=S.types.map(t=>({t,n:S.panels.filter(p=>p.type===t.id).length})).filter(o=>o.n);
   const body=S.panels.reduce((a,p)=>{const g=geom(p);return a+g.body.w*g.body.h},0);
-  return {env,rec,by,body,roomA:S.room.w*S.room.l};
+  return {env,envS,sp,rec,by,body,roomA:S.room.w*S.room.l};
 }
 
 /* ---------- view ---------- */
@@ -412,6 +423,9 @@ function render(){
     }
   });
   // dims
+  const spr=spareRect(env);
+  if(spr){g+=`<rect x="${spr.x}" y="${spr.y}" width="${spr.w}" height="${spr.h}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-width="1.2" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>`;
+    g+=`<text x="${spr.x+spr.w/2}" y="${spr.y+spr.h/2}" font-size="${12/s}" fill="${acc}" text-anchor="middle" dominant-baseline="middle">Spare ${S.room.spare}%</text>`}
   if(show.dim){
     g+=dimH(0,W,-34/s,`Width ${fmt(W)} mm`,-6/s,ink);
     g+=dimV(0,L,-34/s,`Length ${fmt(L)} mm`,-8/s,ink);
@@ -449,10 +463,10 @@ function render(){
 /* ---------- side panels ---------- */
 function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#snap').value=String(S.snap)}
-['rW','rL','rSX','rSY','rC','rM'].forEach(id=>$('#'+id).addEventListener('change',e=>{
-  const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin'}[id], v=e.target.value;
-  S.room[k]=(k==='spX'||k==='spY')?v:Math.max(0,+v||0); commit();
+function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#snap').value=String(S.snap)}
+['rW','rL','rSX','rSY','rC','rM','rSp','rSd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
+  const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir'}[id], v=e.target.value;
+  S.room[k]=(k==='spX'||k==='spY'||k==='spareDir')?v:Math.max(0,+v||0); commit();
 }));
 function buildTypes(){
   const box=$('#types'); box.innerHTML='';
@@ -519,12 +533,13 @@ function buildSummary(){
   const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
   const pill=$('#chkPill'); pill.className='pill '+(e?'err':w?'warn':'ok'); pill.textContent=e?`간섭 ${e}`:w?`경고 ${w}`:'OK';
   $('#envBig').innerHTML=sm.env?`${fmt(sm.env.w)} × ${fmt(sm.env.h)}<small>mm · ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²</small>`:'–';
+  $('#spLine').innerHTML=sm.env?(sm.sp?`${esc(spareTxt())} 포함 → <b class="mono">${fmt(sm.envS.w)} × ${fmt(sm.envS.h)}</b> mm · ${(sm.envS.w*sm.envS.h/1e6).toFixed(1)} m²`:esc(spareTxt())):'';
   $('#recBig').innerHTML=sm.rec?`${fmt(sm.rec.w)} × ${fmt(sm.rec.h)}<small>mm · ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²</small>`:'–';
   const fitW=sm.rec&&sm.rec.w<=S.room.w&&sm.rec.h<=S.room.l;
   $('#kv').innerHTML=`<dt>현재 실</dt><dd>${fmt(S.room.w)} × ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m²)</dd>
    <dt>판넬 수</dt><dd>${S.panels.length} EA</dd>
    <dt>판넬 바닥면적</dt><dd>${(sm.body/1e6).toFixed(1)} m²</dd>
-   <dt>실 대비 필요영역</dt><dd>${sm.env?((sm.env.w*sm.env.h)/sm.roomA*100).toFixed(0)+' %':'–'}</dd>
+   <dt>실 대비 필요영역${sm.sp?' (Spare 포함)':''}</dt><dd>${sm.envS?((sm.envS.w*sm.envS.h)/sm.roomA*100).toFixed(0)+' %':'–'}</dd>
    <dt>권장 크기 수용</dt><dd style="color:var(${fitW?'--ok':'--warn'})">${sm.rec?(fitW?'가능':'실 크기 부족'):'–'}</dd>`;
   $('#counts').innerHTML=sm.by.map(o=>`<tr><td><span class="sw" style="background:${o.t.color}"></span>${esc(o.t.name)} <span class="muted">${o.t.w}×${o.t.d}</span></td><td>${o.n} EA</td></tr>`).join('');
   const ul=$('#issues'); ul.innerHTML='';
@@ -676,7 +691,8 @@ $('#bReq').onclick=()=>{
   L.push('');
   L.push('1. 계장 판넬 배치 필요 영역 (판넬 + 전/후면 유지보수 공간)');
   L.push(sm.env?`   ${fmt(sm.env.w)} (W) x ${fmt(sm.env.h)} (L) = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m2`:'   -');
-  L.push(`2. 권장 실 내부 치수 (벽 이격 ${fmt(S.room.margin)} 반영, 100 단위 올림)`);
+  L.push(`   ${spareTxt()}`+(sm.sp&&sm.envS?` 포함: ${fmt(sm.envS.w)} (W) x ${fmt(sm.envS.h)} (L) = ${(sm.envS.w*sm.envS.h/1e6).toFixed(1)} m2`:''));
+  L.push(`2. 권장 실 내부 치수 (${spareTxt()} · 벽 이격 ${fmt(S.room.margin)} 반영, 100 단위 올림)`);
   L.push(sm.rec?`   ${fmt(sm.rec.w)} (W) x ${fmt(sm.rec.h)} (L) = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m2`:'   -');
   L.push(`3. 검토 기준 실 크기: ${fmt(S.room.w)} x ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m2)`+(cols.length?`, 기둥 ${S.room.col}x${S.room.col} / Span X ${S.room.spX} / Y ${S.room.spY}`:', 기둥 없음'));
   L.push('');
@@ -725,12 +741,14 @@ $('#bDxf').onclick=()=>{
     const dy=Lr+600; line('CR-DIM',env.x,dy,env.x+env.w,dy);line('CR-DIM',env.x,dy-150,env.x,dy+150);line('CR-DIM',env.x+env.w,dy-150,env.x+env.w,dy+150);
     text('CR-DIM',env.x+env.w/2,dy+250,200,'REQUIRED '+fmt(env.w));
     const dx=S.room.w+600; line('CR-DIM',dx,env.y,dx,env.y+env.h);line('CR-DIM',dx-150,env.y,dx+150,env.y);line('CR-DIM',dx-150,env.y+env.h,dx+150,env.y+env.h);
-    text('CR-DIM',dx+250,env.y+env.h/2,200,'REQUIRED '+fmt(env.h),90)}
+    text('CR-DIM',dx+250,env.y+env.h/2,200,'REQUIRED '+fmt(env.h),90);
+    const spr=spareRect(env); if(spr){box('CR-ENVELOPE',spr);text('CR-TEXT',spr.x+spr.w/2,spr.y+spr.h/2,200,`SPARE ${S.room.spare}%`)}}
   line('CR-DIM',0,-600,S.room.w,-600);text('CR-DIM',S.room.w/2,-850,250,'ROOM W '+fmt(S.room.w));
   line('CR-DIM',-600,0,-600,S.room.l);text('CR-DIM',-850,S.room.l/2,250,'ROOM L '+fmt(S.room.l),90);
   const textL=(ly,x,y,h,s)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),7,'CR-KOR');   // 왼쪽 아래 기준
   const ty=Lr+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
-  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${S.info.room||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
+  const sm=summary();
+  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${S.info.room||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
     .forEach((t,i)=>textL('CR-TEXT',0,ty+i*th*1.6,th,t));
   P(0,'ENDSEC',0,'EOF');
   openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM. '+dlNote,o.join('\n'),fname('Layout','dxf'),'application/dxf');
