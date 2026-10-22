@@ -21,7 +21,10 @@ input,select,textarea{font:inherit;color:var(--text)}
 
 /* ---------- 사이드바 ---------- */
 #side{position:fixed;inset:0 auto 0 0;width:var(--side-w);background:var(--navy);color:#dfe5ff;display:flex;flex-direction:column;z-index:30;transition:transform .2s}
-.logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+.logo{position:relative;padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+#sideHide{position:absolute;right:10px;top:16px;border:1px solid rgba(255,255,255,.25);background:none;color:#aab6ee;border-radius:6px;padding:3px 7px;font-size:12px;cursor:pointer}
+#sideHide:hover{background:var(--navy-2);color:#fff}
+body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(--navy);color:#fff;border-color:var(--navy)}
 .logo b{display:block;font-size:17px;letter-spacing:.5px;color:#fff}
 .logo span{font-size:13px;color:#aab6ee}
 .menu-title{padding:16px 18px 6px;font-size:11px;letter-spacing:2px;color:#8a98d8}
@@ -400,6 +403,16 @@ svg [data-tip]{cursor:pointer}
 svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 /* 홈 하단: 최근 이력 + 메모 */
 .homebottom{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:16px;margin-top:16px;align-items:start}
+/* 2026-10-22: 왼쪽 = 주간회의 전달사항(크게) + 계장 광장 · 오른쪽 = 최근 변경 이력(작게 · 이번 주 마감 전까지 스크롤) */
+.homebottom .memo.big{padding:20px 24px 16px}
+.homebottom .memo.big .md{font-size:13.5px;font-weight:700}
+.homebottom .memo.big .mb{max-height:620px;font-size:14.5px;line-height:1.7}
+.recentside h2{font-size:14px;flex-wrap:wrap}
+.recentside #recent{max-height:460px;overflow:auto;padding-right:4px}
+.recentside ul.recent li{grid-template-columns:auto 1fr;gap:2px 8px;padding:6px 0;font-size:12px}
+.recentside ul.recent li>span:nth-child(3){grid-column:1/-1}
+.recentside ul.recent li>span:nth-child(4){grid-column:1/-1;color:var(--sub)}
+.recentside .rcnt{font-size:11.5px;color:var(--sub);font-weight:400}
 .homebottom .card{margin:0}
 .hcol{display:flex;flex-direction:column;gap:16px;min-width:0}
 #recent.half{overflow:hidden;position:relative}
@@ -548,6 +561,53 @@ body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .cform input[data-cbody]{flex:1;min-width:200px}
 .nickin{width:170px}.nickin:disabled{background:#f3f4f8;color:#aaa}
 .authorrow .chk,.cform .chk{display:flex;gap:5px;align-items:center;font-size:13px;color:var(--text)}
+/* 익명게시판 — 인스타그램 느낌 피드 (2026-10-22): 가운데 한 줄 카드 · 동그란 프로필 · 유형 '스토리' 동그라미 · 몇 분 전 · 더 보기 · 댓글 미리보기 */
+.igwrap{max-width:660px;margin:0 auto}
+.ighead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.ighead h2{margin:0;font-size:20px;background:linear-gradient(90deg,#833ab4,#e1306c,#f77737);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ighead .sp{flex:1}
+.igstories{display:flex;gap:16px;overflow-x:auto;padding:10px 4px 12px;margin:6px 0 10px;border-bottom:1px solid var(--line)}
+.igst{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;cursor:pointer;min-width:66px;font-size:12px;color:var(--text)}
+.igst i{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;font-style:normal;font-size:24px;background:#fff;box-shadow:0 0 0 2px #fff,0 0 0 4px #d8dbe6}
+.igst.on i{box-shadow:0 0 0 2px #fff,0 0 0 4.5px var(--c,#e1306c)}
+.igst.on{font-weight:800;color:var(--c,#e1306c)}
+.igst b{font-size:11px;color:var(--sub);font-weight:600}
+.igtools{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.igtools input[type=search]{flex:1;min-width:180px;border:1px solid var(--line);border-radius:99px;padding:8px 14px;background:#f6f7fb}
+.igtools select{border:1px solid var(--line);border-radius:99px;padding:7px 12px;background:#fff}
+.igcompose{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:16px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer}
+.igcompose>span:last-child{flex:1;padding:9px 14px;border-radius:99px;background:#f2f3f8;color:var(--sub)}
+.igcompose:hover>span:last-child{background:#eceef6}
+.igpost{border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:18px;overflow:hidden;box-shadow:0 1px 2px rgba(20,30,70,.04)}
+.igph{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
+.igav{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;color:#fff;font-weight:800;font-size:15px;background:var(--av,#9aa3bd);box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ring,#e1306c)}
+.igav.sm{width:26px;height:26px;font-size:11px;box-shadow:none}
+.igwho{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.igwho b{font-size:14px}.igwho b.real{color:var(--accent-d)}
+.igwho small{color:var(--sub);font-size:11.5px}
+.igph .sp{flex:1}
+.igph .btn{padding:3px 9px}
+.igcard{margin:0 14px;padding:16px 18px;border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 14%,#fff),color-mix(in srgb,var(--c) 4%,#fff))}
+.igcard h3{margin:0 0 8px;font-size:17px;line-height:1.35;word-break:break-word}
+.igbody{font-size:14px;line-height:1.65}
+.igbody.clip{max-height:9.6em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 70%,transparent)}
+.igmore{border:0;background:none;color:var(--sub);font-weight:700;padding:4px 0 0;cursor:pointer}
+.igact{display:flex;align-items:center;gap:16px;padding:10px 16px 4px;font-size:14px}
+.igact button{border:0;background:none;font-size:14px;cursor:pointer;padding:2px 0;color:var(--text)}
+.igact button:hover{color:var(--accent)}
+.igact .sp{flex:1}
+.igcm{padding:2px 16px 8px}
+.igcm .cmt{border:0;padding:4px 0;align-items:flex-start}
+.igcm .cmt .nick{white-space:nowrap}
+.igcm .cmt .muted{font-size:11px;white-space:nowrap}
+.igall{border:0;background:none;color:var(--sub);padding:2px 0 4px;cursor:pointer;font-size:13px}
+.igcform{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid #eef0f6;padding:8px 14px 10px}
+.igcform input[data-cbody]{flex:1;min-width:180px;border:0;padding:8px 2px;font-size:14px;background:none;outline:none}
+.igcform .amode select{border:1px solid var(--line);border-radius:99px;padding:3px 8px;font-size:12px}
+.igcform .nickin{border:1px solid var(--line);border-radius:99px;padding:4px 10px;width:120px}
+.igcform [data-bact=cadd]{border:0;background:none;color:#0095f6;font-weight:800;cursor:pointer}
+.igcform [data-bact=cadd]:hover{color:#00376b}
+.igtag{font-size:11px;font-weight:700;color:#e1306c;background:#fde7ef;border-radius:99px;padding:1px 8px}
 /* 셀 크기 조절 */
 table.t.fx-l{table-layout:fixed}
 table.t.fx-l th{white-space:normal}
@@ -617,6 +677,12 @@ table.t td.act .by{display:block;margin-top:6px;font-size:11px;color:var(--sub);
 .overdue{color:var(--bad);font-weight:700}
 .ox{font-weight:700}.ox.o{color:var(--ok)}.ox.t{color:var(--warn)}
 .cnt{margin-top:8px;color:var(--sub);font-size:12px}
+.hidbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px;padding:6px 10px;border:1px dashed #b8c2e8;border-radius:8px;background:#f5f7ff;font-size:12px;color:var(--sub)}
+.hidbar b{color:var(--accent-d)}
+.hidbar button{border:1px solid #c9d1ef;background:#fff;border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer}
+.hidbar button:hover{background:#e8edff}
+table.t th .hidmk{display:inline-block;margin-right:4px;padding:0 4px;border-radius:4px;background:#e1e6fb;color:var(--accent-d);font-size:10px;cursor:pointer}
+table.t th.cfh.colpick,table.t td.colpick{box-shadow:inset 0 0 0 9999px rgba(43,68,201,.10)}
 /* 투입인력 매트릭스 */
 table.m td,table.m th{text-align:center;padding:6px 6px}
 table.m th.v{min-width:58px;max-width:70px;white-space:normal;font-size:11px;line-height:1.25;vertical-align:bottom}
@@ -770,7 +836,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
 <body>
 
 <aside id="side">
-  <div class="logo"><b>SAMSUNG C&amp;T</b><span>계장ENG그룹</span></div>
+  <div class="logo"><b>SAMSUNG C&amp;T</b><span>계장ENG그룹</span><button id="sideHide" type="button" title="왼쪽 메뉴 숨기기 (☰ 로 다시 열기 · 이 PC 에 기억)" aria-label="메뉴 숨기기">◀ 숨기기</button></div>
   <div class="acct" id="acct" hidden>
     <button class="abtn" id="acctBtn" aria-haspopup="menu"><span class="an"><span id="acctName"></span><i>▼</i></span><span class="as" id="acctSub"></span></button>
     <div class="amenu" id="acctMenu" role="menu" hidden><button id="acctProf" role="menuitem"><span>🙋</span> 내 정보 (사진·전화·PJT)</button><button id="acctPw" role="menuitem"><span>🔑</span> 비밀번호 변경</button><button id="acctAct" role="menuitem"></button></div>
@@ -926,7 +992,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-16.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-22.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -965,6 +1031,8 @@ let OFFLINE = false;                                    // 오프라인 모드 (
 let OFFLINE_AT = '';                                    // 보관본의 마지막 동기화 시각
 let NEWVER = '';                                        // 서버에 더 새 버전이 있으면 그 버전
 let ADMIN = !SERVER;                                    // 서버 모드에서는 localhost 접속일 때만 관리자
+let SUPER = false;                                      // 2026-10-22: 그룹장(서버 SUPER_NAMES, 지금은 구종현) — 관리자 기능(금주 마감 · 영구삭제 · 게시판 관리 삭제 · 모든 메뉴), 메뉴 권한 설정만 제외
+const MGR = () => ADMIN || SUPER;
 // 계정 로그인 (서버 모드): 토큰·ID·본명을 이 브라우저에 보관. 수정자는 서버가 토큰으로 확인한 본명으로 기록
 const LS_AUTH = 'dept-auth';
 let AUTH = null;                                        // { token, id, name }
@@ -974,14 +1042,15 @@ let GUEST = false;                                      // 비회원 접속 = �
 const LS_PERMS = 'dept-perms';
 let PERMS = null;
 try { PERMS = JSON.parse(localStorage.getItem(LS_PERMS) || 'null'); } catch (_) {}
-function setPerms(p) {
+function setPerms(p, sup) {
   if (!p) return false;
-  const changed = JSON.stringify(p) !== JSON.stringify(PERMS);
+  const was = SUPER; if (sup !== undefined) SUPER = !!sup;
+  const changed = JSON.stringify(p) !== JSON.stringify(PERMS) || was !== SUPER;
   PERMS = p; try { localStorage.setItem(LS_PERMS, JSON.stringify(p)); } catch (_) {}
   return changed;
 }
 // 메뉴 키: weekly(주간업무보고+하위 시트) / pid / bidpjt / runpjt / board / mgmt. 폴더 모드·운영자는 전부 허용, 모르면 Management 만 비허용
-const can = m => { if (!SERVER || ADMIN) return true; const p = PERMS || {}; return m in p ? !!p[m] : m !== 'mgmt'; };
+const can = m => { if (!SERVER || MGR()) return true; const p = PERMS || {}; return m in p ? !!p[m] : m !== 'mgmt'; };
 async function api(method, path, body, raw) {
   const opt = { method, cache:'no-store', headers:{} };
   if (AUTH?.token) opt.headers['X-Auth-Token'] = AUTH.token;
@@ -1322,7 +1391,7 @@ async function closeWeek() {
   if (readOnly()) return toast('현재 주차에서만 마감할 수 있습니다', true);
   if (GUEST) return toast('비회원은 마감할 수 없습니다 (로그인 필요)', true);
   if (offlineGuard('금주 마감')) return;
-  if (!ADMIN) return toast('금주 마감은 서버 PC(관리자)에서만 할 수 있습니다', true);
+  if (!MGR()) return toast('금주 마감은 서버 PC(관리자) 또는 그룹장만 할 수 있습니다', true);
   if (SERVER) {
     const name = curWeek(), exists = DB.archives.includes(name);
     const nx = (() => { const d = wedOf(name); d.setDate(d.getDate() + 7); return isoWeek(d); })();
@@ -1471,7 +1540,7 @@ async function trySync(manual) {
       if (location.protocol === 'file:') { const prev = API_BASE; info = await findServer(); if (!info) API_BASE = prev; }   // IP 가 바뀌었을 수 있음 → 기억해 둔 다른 주소들
       if (!info) { if (manual) toast(BLOCKED || '서버에 연결할 수 없습니다. 오프라인 상태를 유지합니다', true); return; }
     }
-    ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms); checkVersion(info);
+    ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super); checkVersion(info);
     const was = OFFLINE; OFFLINE = false;
     if (was) root = { name:serverLabel() };
     let up = 0, later = 0;
@@ -1549,7 +1618,7 @@ async function replaceSelf(html) {
   }
 }
 function checkVersion(info) { NEWVER = info.version && info.version !== APP_VERSION && location.protocol === 'file:' ? info.version : ''; }
-const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : ''})`;
+const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : SUPER ? ' · 그룹장 권한' : ''})`;
 
 /* 대기열 보기 / 내보내기 / 가져오기 */
 const OPNAME = { create:'추가', update:'수정', delete:'삭제' };
@@ -1659,7 +1728,7 @@ async function authStart() {
   }
   await authDialog();
 }
-async function refreshPerms() { try { setPerms((await api('GET', 'info')).perms); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
+async function refreshPerms() { try { const i = await api('GET', 'info'); if (setPerms(i.perms, i.super)) render(); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
 async function afterAuth() { loadBirthdays().then(bdayCheck); plazaOff();   // 사용자가 바뀌면 광장도 새 이름으로   // 로그인하면(사용자가 바뀌면) 생일 팝업 다시
   await refreshPerms(); TB.prev = null; TB.active = ''; todoShown = false; render(); showMyTodo(); presenceStart(); }
 // 첫 화면: 전체 화면 로그인 (ID 입력 → 비밀번호 입력 2단계, 계정 개설·비밀번호 재설정·비회원 보기)
@@ -1769,7 +1838,7 @@ async function ping() {
     const r = await api('POST', 'auth/ping', {});
     if (PRES.ready && r.unread > PRES.unread) toast(`📨 새 쪽지 ${r.unread - PRES.unread}건 — 오른쪽 툴바의 쪽지함에서 확인하세요`);
     PRES.users = r.users; PRES.unread = r.unread; PRES.ready = true;
-    if (setPerms(r.perms) && !dlg.open && !dlg2.open) { toast('메뉴 권한이 변경되었습니다'); render(); }   // 운영자가 권한을 바꾸면 30초 안에 반영
+    if (setPerms(r.perms, r.super) && !dlg.open && !dlg2.open) { toast('메뉴 권한이 변경되었습니다'); render(); }   // 운영자가 권한을 바꾸면 30초 안에 반영
     renderTaskBar();
   } catch (e) { if (e.status === 401) authExpired(); }
 }
@@ -2094,7 +2163,7 @@ async function openTrash() {
     for (const [, h] of await listFiles(td)) { try { items.push({ key:s.key, ...JSON.parse(await (await h.getFile()).text()) }); } catch (_) {} }
   }
   items.sort((a, b) => (a.meta.deletedAt < b.meta.deletedAt ? 1 : -1));
-  const canPurge = SERVER && ADMIN;                      // 영구삭제: 서버 PC(관리자)에서만
+  const canPurge = SERVER && MGR();                      // 영구삭제: 서버 PC(관리자) · 그룹장
   $('.db', dlg).innerHTML = !items.length ? '<div class="empty">휴지통이 비어 있습니다</div>' : `<table class="t"><thead><tr><th>시트</th><th>항목</th><th>삭제자</th><th>삭제 시각</th><th></th></tr></thead><tbody>${items.map((r, i) => `<tr><td>${esc(SHEET[r.key].label)}</td><td>${esc(recLabel(r.key, r.fields))}</td><td>${esc(r.meta.deletedBy)}</td><td>${fmtTime(r.meta.deletedAt)}</td><td style="white-space:nowrap">${GUEST ? '' : `<button class="btn sm pri" data-rs="${i}">복구</button>`}${canPurge ? ` <button class="btn sm bad" data-purge="${i}">영구삭제</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
   dlg.onclick = async e => {
     if (e.target.closest('[data-close]')) return dlg.close();
@@ -2193,7 +2262,7 @@ const Board = {
 async function loadBoard() { try { DB.board = await Board.list(); } catch (_) { DB.board = DB.board || []; } }
 
 const BS = { q:'', sort:'new', open:new Set(), kind:'' };            // 게시판 보기 상태
-const bAdmin = () => SERVER && ADMIN;                       // 관리자 삭제는 서버 PC에서만
+const bAdmin = () => SERVER && MGR();                       // 관리자 삭제: 서버 PC · 그룹장
 function nickHtml(n, real) { return real ? `<span class="nick real" title="실명 (로그인 계정)">✔ ${esc(n)}</span>` : n === '익명' ? '<span class="nick anon">익명</span>' : `<span class="nick">${esc(n)}</span>`; }
 const kindTag = p => { const k = bKind(p), K = BKINDS[k]; return `<span class="bkind" style="--c:${K.color}">${K.icon} ${esc(k)}</span>`; };
 function authorPrefs() { let p = { mode:'anon', nick:'' }; try { const s = JSON.parse(localStorage.getItem(LS_BNICK) || '{}'); p = { ...p, ...s }; if (!s.mode && 'anon' in s) p.mode = s.anon ? 'anon' : 'nick'; } catch (_) {} return p; }
@@ -2201,46 +2270,66 @@ function saveAuthorPrefs(mode, nick) { try { localStorage.setItem(LS_BNICK, JSON
 const authorFields = (mode, nick, cls = '') => `<label class="amode ${cls}">작성자 <select data-amode><option value="anon" ${mode === 'anon' ? 'selected' : ''}>익명</option><option value="nick" ${mode === 'nick' ? 'selected' : ''}>닉네임</option><option value="real" ${mode === 'real' ? 'selected' : ''}>실명 (${esc(AUTH?.name || user || '본명')})</option></select></label><input data-nick class="nickin" maxlength="20" placeholder="닉네임" value="${esc(nick)}" ${mode === 'nick' ? '' : 'hidden'}>`;
 
 function renderBoard(c) {
-  c.insertAdjacentHTML('beforeend', `<section class="card"><h2>익명게시판</h2>
-    <p class="muted" style="margin-top:-4px">글·댓글마다 작성자를 <b>익명 / 닉네임 / 실명</b> 중에서 고릅니다. 🔒 익명·닉네임은 실명이 기록되지 않고, <b>실명</b>은 로그인 계정의 본명이 표시됩니다(서버가 확인). 내가 쓴 글·댓글은 <b>이 브라우저에서만</b> 수정·삭제할 수 있습니다. 서로 존중하는 표현을 사용해 주세요.</p>
-    <div class="bkinds" id="bkinds"></div>
-    <div class="fbar"><label>검색<input type="search" id="bQ" value="${esc(BS.q)}" placeholder="제목·내용·닉네임"></label>
-      <label>정렬<select id="bSort"><option value="new">최신순</option><option value="cmt" ${BS.sort === 'cmt' ? 'selected' : ''}>댓글 많은 순</option></select></label>
-      <span class="sp"></span><button class="btn pri" id="bWrite">✏ 글쓰기</button></div>
-    <div id="blist"></div></section>`);
+  c.insertAdjacentHTML('beforeend', `<section class="card"><div class="igwrap">
+    <div class="ighead"><h2>익명게시판</h2><span class="sp"></span><button class="btn pri" id="bWrite">✏ 글쓰기</button></div>
+    <p class="muted" style="margin:2px 0 0;font-size:12.5px">🔒 글·댓글마다 <b>익명 / 닉네임 / 실명</b>을 고릅니다. 익명·닉네임은 실명이 기록되지 않습니다. 내 글은 <b>이 브라우저에서만</b> 수정·삭제할 수 있어요. 서로 존중하는 표현을 써 주세요.</p>
+    <div class="igstories" id="bkinds"></div>
+    <div class="igtools"><input type="search" id="bQ" value="${esc(BS.q)}" placeholder="🔍 제목 · 내용 · 닉네임 · 댓글 검색" aria-label="검색">
+      <select id="bSort" aria-label="정렬"><option value="new">최신순</option><option value="cmt" ${BS.sort === 'cmt' ? 'selected' : ''}>댓글 많은 순</option></select></div>
+    <div class="igcompose" id="bCompose" role="button" tabindex="0"><span class="igav" style="--av:linear-gradient(135deg,#833ab4,#e1306c,#f77737);--ring:transparent">✏</span><span>무슨 이야기를 나눠 볼까요? (익명 가능)</span></div>
+    <div id="blist"></div></div></section>`);
   $('#bQ').oninput = e => { BS.q = e.target.value; drawBoard(); };
   $('#bSort').onchange = e => { BS.sort = e.target.value; drawBoard(); };
   $('#bWrite').onclick = () => openPost(null);
+  $('#bCompose').onclick = () => openPost(null);
+  $('#bCompose').onkeydown = e => { if (e.key === 'Enter') openPost(null); };
   $('#bkinds').onclick = e => { const b = e.target.closest('[data-bkind]'); if (b) { BS.kind = b.dataset.bkind; drawBoard(); } };
   if (!DB.board) loadBoard().then(drawBoard); else drawBoard();
 }
+/* 몇 분 전 · 몇 시간 전 · 며칠 전 (일주일 넘으면 날짜) */
+function agoText(iso) {
+  const t = Date.parse(iso || ''); if (isNaN(t)) return '';
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 1) return '방금'; if (m < 60) return m + '분 전'; if (m < 1440) return Math.floor(m / 60) + '시간 전'; if (m < 10080) return Math.floor(m / 1440) + '일 전';
+  return fmtTime(iso).slice(0, 5).replace('-', '월 ') + '일';
+}
+const AV_COLS = ['#f77737', '#e1306c', '#833ab4', '#405de6', '#0e9f8e', '#5b6b9a', '#d6336c', '#2b8a3e'];
+function avatarHtml(n, real, sm = false, ring = '') {             // 동그란 프로필 — 익명 = 회색 🙂 · 닉네임 = 이름 색 · 실명 = 파랑 + ✔
+  const anon = !real && (!n || n === '익명'), h = [...String(n || '')].reduce((a, ch) => a * 31 + ch.charCodeAt(0) | 0, 7);
+  const bg = anon ? 'linear-gradient(135deg,#b6bccd,#8b93ab)' : real ? 'linear-gradient(135deg,#405de6,#2b44c9)' : `linear-gradient(135deg,${AV_COLS[Math.abs(h) % AV_COLS.length]},${AV_COLS[Math.abs(h >> 3) % AV_COLS.length]})`;
+  return `<span class="igav${sm ? ' sm' : ''}" style="--av:${bg}${ring ? ';--ring:' + ring : ''}">${anon ? '🙂' : esc([...String(n)][0] || '?')}</span>`;
+}
 function drawBoard() {
   const el = $('#blist'); if (!el) return;
-  const all = DB.board || [], kc = k => all.filter(p => bKind(p) === k).length, kb = $('#bkinds');   // 유형 칩 (글 수는 그릴 때마다 새로)
-  if (kb) kb.innerHTML = `<button class="wtc2 ${!BS.kind ? 'on' : ''}" data-bkind="">전체 <b>${all.length}</b></button>${Object.entries(BKINDS).map(([k, K]) => `<button class="wtc2 ${BS.kind === k ? 'on' : ''}" data-bkind="${esc(k)}" style="--c:${K.color}">${K.icon} ${esc(k)} <b>${kc(k)}</b></button>`).join('')}`;
+  const all = DB.board || [], kc = k => all.filter(p => bKind(p) === k).length, kb = $('#bkinds');   // 유형 '스토리' 동그라미 (글 수는 그릴 때마다 새로)
+  if (kb) kb.innerHTML = `<button type="button" class="igst ${!BS.kind ? 'on' : ''}" data-bkind="" style="--c:#e1306c"><i>🗂</i>전체<b>${all.length}</b></button>${Object.entries(BKINDS).map(([k, K]) => `<button type="button" class="igst ${BS.kind === k ? 'on' : ''}" data-bkind="${esc(k)}" style="--c:${K.color}"><i>${K.icon}</i>${esc(k)}<b>${kc(k)}</b></button>`).join('')}`;
   const q = BS.q.trim().toLowerCase();
-  let posts = (DB.board || []).filter(p => (!BS.kind || bKind(p) === BS.kind) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
+  let posts = all.filter(p => (!BS.kind || bKind(p) === BS.kind) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
   if (BS.sort === 'cmt') posts = [...posts].sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0) || (a.createdAt < b.createdAt ? 1 : -1));
-  if (!posts.length) { el.innerHTML = `<div class="empty">${DB.board?.length ? '검색 결과가 없습니다' : '아직 글이 없습니다. 첫 글을 남겨 보세요!'}</div>`; return; }
+  if (!posts.length) { el.innerHTML = `<div class="empty">${all.length ? '검색 결과가 없습니다' : '아직 글이 없습니다. 첫 글을 남겨 보세요! ✨'}</div>`; return; }
   const { mode, nick } = authorPrefs();
+  BS.more = BS.more || new Set();
   el.innerHTML = posts.map(p => {
-    const mine = !!BT[p.id], open = BS.open.has(p.id), cm = p.comments || [];
-    return `<article class="post" data-pid="${esc(p.id)}">
-      <div class="ph">${kindTag(p)}<b class="pt">${esc(p.title)}</b>${mine ? '<span class="tag">내 글</span>' : ''}
-        <span class="sp"></span>${nickHtml(p.nick, p.real)}<span class="muted">${fmtTime(p.createdAt)}${p.updatedAt && p.updatedAt !== p.createdAt ? ' (수정됨)' : ''}</span>
-        ${mine ? '<button class="btn sm" data-bact="edit">수정</button>' : ''}${mine || bAdmin() ? `<button class="btn sm bad" data-bact="del">${mine ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>
-      <div class="pb">${fmtText(p.body)}</div>
-      <button class="btn sm" data-bact="toggle">💬 댓글 ${cm.length} ${open ? '▲' : '▼'}</button>
-      <div class="cmts" ${open ? '' : 'hidden'}>
-        ${cm.map(cmt => { const my = !!BT['c:' + cmt.id]; return `<div class="cmt">${nickHtml(cmt.nick, cmt.real)}<span class="cb">${esc(cmt.body)}</span><span class="muted">${fmtTime(cmt.createdAt)}</span>${my || bAdmin() ? `<button class="btn sm bad" data-bact="cdel" data-cid="${esc(cmt.id)}">${my ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>`; }).join('') || '<div class="muted" style="padding:4px 0">첫 댓글을 남겨 보세요</div>'}
-        <div class="cform">${authorFields(mode, nick)}<input data-cbody maxlength="1000" placeholder="댓글을 입력하세요 (Enter 등록)"><button class="btn sm pri" data-bact="cadd">등록</button></div>
-      </div></article>`;
+    const mine = !!BT[p.id], open = BS.open.has(p.id), cm = p.comments || [], K = BKINDS[bKind(p)];
+    const long = (p.body || '').length > 260 || (p.body || '').split('\n').length > 6, more = BS.more.has(p.id);
+    const shown = open ? cm : cm.slice(-2);
+    const cmtHtml = cmt => { const my = !!BT['c:' + cmt.id]; return `<div class="cmt">${avatarHtml(cmt.nick, cmt.real, true)}${nickHtml(cmt.nick, cmt.real)}<span class="cb">${esc(cmt.body)}</span><span class="muted" title="${esc(fmtTime(cmt.createdAt))}">${esc(agoText(cmt.createdAt))}</span>${my || bAdmin() ? `<button class="btn sm bad" data-bact="cdel" data-cid="${esc(cmt.id)}">${my ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>`; };
+    return `<article class="igpost" data-pid="${esc(p.id)}" style="--c:${K.color}">
+      <div class="igph">${avatarHtml(p.nick, p.real, false, K.color)}
+        <div class="igwho"><b class="${p.real ? 'real' : ''}">${p.real ? '✔ ' : ''}${esc(p.nick || '익명')}</b><small>${K.icon} ${esc(bKind(p))} · <span title="${esc(fmtTime(p.createdAt))}">${esc(agoText(p.createdAt))}</span>${p.updatedAt && p.updatedAt !== p.createdAt ? ' · 수정됨' : ''}</small></div>
+        <span class="sp"></span>${mine ? '<span class="igtag">내 글</span><button class="btn sm" data-bact="edit">수정</button>' : ''}${mine || bAdmin() ? `<button class="btn sm bad" data-bact="del">${mine ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>
+      <div class="igcard"><h3>${esc(p.title)}</h3><div class="igbody${long && !more ? ' clip' : ''}">${fmtText(p.body)}</div>${long ? `<button class="igmore" data-bact="more">${more ? '접기 ▲' : '… 더 보기'}</button>` : ''}</div>
+      <div class="igact"><button data-bact="toggle" title="댓글">💬 댓글 ${cm.length}</button><span class="sp"></span><span class="muted" style="font-size:12px">${esc(fmtTime(p.createdAt))}</span></div>
+      <div class="igcm">${cm.length > 2 && !open ? `<button class="igall" data-bact="toggle">댓글 ${cm.length}개 모두 보기</button>` : ''}${shown.map(cmtHtml).join('')}${open && cm.length > 2 ? '<button class="igall" data-bact="toggle">댓글 접기 ▲</button>' : ''}</div>
+      <div class="igcform cform">${authorFields(mode, nick)}<input data-cbody maxlength="1000" placeholder="댓글 달기… (Enter)"><button data-bact="cadd">게시</button></div>
+      </article>`;
   }).join('');
 }
 async function boardAction(btn) {
   const art = btn.closest('[data-pid]'), pid = art?.dataset.pid, act = btn.dataset.bact;
   try {
     if (act === 'toggle') { BS.open.has(pid) ? BS.open.delete(pid) : BS.open.add(pid); return drawBoard(); }
+    if (act === 'more') { BS.more = BS.more || new Set(); BS.more.has(pid) ? BS.more.delete(pid) : BS.more.add(pid); return drawBoard(); }
     if (act === 'edit') return openPost((DB.board || []).find(p => p.id === pid));
     if (act === 'del') {
       if (await ask('글 삭제', '이 글과 댓글을 삭제합니다. 삭제한 글은 되돌릴 수 없습니다.', [{ id:'ok', label:'삭제', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
@@ -2322,7 +2411,7 @@ function renderModule(c, key) {
     return;
   }
   const url = /^https?:/.test(m.src) ? m.src : API_BASE + m.src;
-  const q = new URLSearchParams({ user, server:API_BASE || location.origin, admin:ADMIN ? '1' : '0' });   // 연결 프로그램에 넘겨 주는 값
+  const q = new URLSearchParams({ user, server:API_BASE || location.origin, admin:MGR() ? '1' : '0' });   // 연결 프로그램에 넘겨 주는 값
   c.insertAdjacentHTML('beforeend', `<section class="card" style="padding:0;overflow:hidden">
     <iframe class="modframe" src="${esc(url + (url.includes('?') ? '&' : '?') + q)}" title="${esc(m.title)}"></iframe></section>`);
 }
@@ -2476,7 +2565,7 @@ function renderHeader() {
   const opts = [`<option value="current">${weekLabel(cw)} (현재)</option>`, ...DB.archives.filter(a => a !== cw).map(a => `<option value="${esc(a)}">${esc(weekLabel(a))} 마감본</option>`)];
   $('#weekSel').innerHTML = opts.join(''); $('#weekSel').value = view.week;
   ['btnClose', 'btnSaveAll'].forEach(i => $('#' + i).disabled = !root || noEdit());
-  $('#btnClose').style.display = ADMIN ? '' : 'none';     // 금주 마감: 관리자(서버 PC)만 표시
+  $('#btnClose').style.display = MGR() ? '' : 'none';     // 금주 마감: 관리자(서버 PC) · 그룹장
   $('#btnFolder').style.display = SERVER ? 'none' : '';
   $('#btnSrv').style.display = location.protocol === 'file:' ? '' : 'none';
   const bq = $('#btnQueue'); bq.style.display = SERVER ? '' : 'none';
@@ -2525,6 +2614,7 @@ function iecNames() {
 function ownerTokens(recs, f) { const m = new Map(); recs.forEach(r => tokens(r.fields[f]).forEach(t => m.set(t, (m.get(t) || 0) + 1))); return m; }
 const cell1 = v => String(v || '').split('\n')[0].replace(/\(.*?\)/g, '').trim() || '(미분류)';
 
+const PJ_COL = { perform:'#2b44c9', bid:'#e8730c' };   // 그래프의 수행 · 입찰 색
 function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}) {
   if (!items.length) return '<div class="empty">데이터 없음</div>';
   const max = Math.max(...items.map(i => i.v)) || 1;
@@ -2532,7 +2622,12 @@ function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}
   if (horiz) {
     const rh = 24, W = 520, L = 110, h = items.length * rh + 6;
     return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${items.map((i, k) => {
-      const w = (W - L - 50) * i.v / max, y = k * rh + 4;
+      const w = (W - L - 70) * i.v / max, y = k * rh + 4;
+      if (i.parts) {                                     // 쌓은 막대 (조각마다 색 · 툴팁)
+        let x = L; const segs = i.parts.filter(p => p.v > 0).map(p => { const pw = (W - L - 70) * p.v / max, g = `<g${tipA(p)}><rect class="bar" x="${x}" y="${y + 2}" width="${Math.max(pw, 2)}" height="15" fill="${p.color}"/></g>`; x += pw; return g; }).join('');
+        const lab = i.parts.map(p => `<tspan fill="${p.color}" font-weight="700">${fmt(p.v)}</tspan>`).join('<tspan fill="#9aa1b5"> + </tspan>');
+        return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + 14}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text>${segs}<text x="${L + w + 6}" y="${y + 14}" font-size="12" fill="#667089">${fmt(i.v)} <tspan font-size="10.5">(${lab})</tspan></text></g>`;
+      }
       return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + 14}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text><rect class="bar" x="${L}" y="${y + 2}" width="${Math.max(w, 2)}" height="15" rx="3" fill="${color}"/><text x="${L + w + 6}" y="${y + 14}" font-size="12" fill="#667089">${fmt(i.v)}</text></g>`;
     }).join('')}</svg>`;
   }
@@ -2775,13 +2870,19 @@ function renderHome(c) {
 
   // 차트 데이터 + 마우스 올리면 보이는 상세(툴팁)
   const tagOf = r => r.sheet === 'bid' ? '입찰' : '수행';
-  const grp = new Map(); pj.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => (grp.get(g) || grp.set(g, []).get(g)).push(r)); });   // 수행·입찰 PJT 보드와 같은 사업군 단어 (여럿이면 각각)
+  const grp = new Map(); pj.forEach(r => { const ts = bizGrp(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => (grp.get(g) || grp.set(g, []).get(g)).push(r)); });   // 수행·입찰 PJT 보드와 같은 사업군 단어 (여럿이면 각각)
   const grpItems = [...grp].sort((a, b) => b[1].length - a[1].length).map(([l, rs]) => ({ l, v:rs.length,
-    tip:tipHtml(`${l} · ${rs.length}개 PJT`, rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}`)) }));
+    tip:tipHtml(`${l} · ${rs.length}개 PJT`, [...(l === BIZ_LH ? [lhLine(rs)] : []), ...rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${l === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`)], l === BIZ_LH ? 16 : 14) }));
   // 담당자: 칸에 이름이 들어 있으면 (수행 = 영문 이름 뺌, 입찰 = IEC 포함 — 수행·입찰 PJT 보드와 같은 규칙)
   const og = new Map(); [[live('perform'), 'skip'], [live('bid'), 'iec']].forEach(([rs, e]) => personGroups(rs, r => r.fields['담당자'], e).forEach(([n, xs]) => og.set(n, [...(og.get(n) || []), ...xs])));
-  const own = [...og].map(([l, rs]) => [l, rs.length, rs]).filter(x => x[1]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).slice(0, 12).map(([l, v, rs]) => ({ l, v,
-    tip:tipHtml(`${l} · 담당 ${v}건`, rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${flat(r.fields['사업군']) ? ` <span class="tm">· ${esc(cell1(r.fields['사업군']))}</span>` : ''}`)) }));
+  // 2026-10-22: 한 막대에 수행(파랑) · 입찰(주황)을 색으로 나눔 — 막대 조각에 마우스 = 그쪽 PJT 만, 이름 쪽 = 둘 다 나눠서
+  const pjLine = r => `${esc(flat(r.fields['PJT명']))}${flat(r.fields['사업군']) ? ` <span class="tm">· ${esc(cell1(r.fields['사업군']))}</span>` : ''}`;
+  const own = [...og].map(([l, rs]) => [l, rs.length, rs]).filter(x => x[1]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).slice(0, 12).map(([l, v, rs]) => {
+    const pr = rs.filter(r => r.sheet !== 'bid'), br = rs.filter(r => r.sheet === 'bid');
+    return { l, v,
+      tip:tipHtml(`${l} · 담당 ${v}건 (수행 ${pr.length} · 입찰 ${br.length})`, [...(pr.length ? [`<b style="color:${PJ_COL.perform}">■ 수행 ${pr.length}건</b>`, ...pr.map(pjLine)] : []), ...(br.length ? [`<b style="color:${PJ_COL.bid}">■ 입찰 ${br.length}건</b>`, ...br.map(pjLine)] : [])], 18),
+      parts:[{ v:pr.length, color:PJ_COL.perform, tip:tipHtml(`${l} · 수행 ${pr.length}건`, pr.map(pjLine)) }, { v:br.length, color:PJ_COL.bid, tip:tipHtml(`${l} · 입찰 ${br.length}건`, br.map(pjLine)) }] };
+  });
   const upd2 = SHEETS.map(s => { const rs = R(s.key).filter(isUpdated).sort((a, b) => (a.meta.updatedAt < b.meta.updatedAt ? 1 : -1));
     return { l:s.label, v:rs.length, tip:tipHtml(`${s.label} · 금주 업데이트 ${rs.length}건`, rs.map(r => `<b style="color:#9fd0ff">${esc(r.meta.updatedBy || '')}</b> <span class="tm">${fmtTime(r.meta.updatedAt)}</span> · ${esc(recLabel(s.key, r.fields))}`)) }; }).filter(x => x.v);
   const pv = new Map(); R('staffing').forEach(r => Object.entries(r.fields.배정 || {}).forEach(([cid, a]) => { if (num(a.pct) > 0) (pv.get(cid) || pv.set(cid, []).get(cid)).push({ r, a }); }));
@@ -2792,24 +2893,24 @@ function renderHome(c) {
   const memo = sortRecs(SHEET.notice, R('notice'))[0];
   c.insertAdjacentHTML('beforeend', `<div class="charts">
     <section class="card"><h2>사업군별 PJT 수 (수행+입찰 · 진행 중)</h2>${svgBars(grpItems)}</section>
-    <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12)</h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
+    <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12) <span class="legend" style="display:inline-flex;margin:0 0 0 10px;font-weight:400;vertical-align:1px"><span><i style="background:${PJ_COL.perform}"></i>수행</span><span><i style="background:${PJ_COL.bid}"></i>입찰</span></span></h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
     <section class="card"><h2>시트별 금주 업데이트 비율</h2>${svgDonut(upd2)}</section>
     <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100)</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
    <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 PJT·담당자·업데이트 내역을 볼 수 있습니다.</p>
    <div class="homebottom"><div class="hcol">
-     <section class="card"><h2>최근 변경 이력 <span class="muted" style="font-weight:400">· ${esc(weekLabel(curWeek()))} (${sinceText()})</span><button class="btn sm" id="recentHalf" style="margin-left:auto">${recentHalf() ? '펼치기 ▾' : '반으로 접기 ▴'}</button></h2><div id="recent" class="${recentHalf() ? 'half' : ''}"><div class="empty">불러오는 중…</div></div></section>
-     <section class="card plazacard"><h2>계장 광장 <span class="muted" style="font-weight:400">· 부서원이 캐릭터로 모이는 곳 — 방향키 이동 · Enter 대화 · Space 목검</span></h2><div id="plazaSlot"></div></section></div>
-     <section class="memo"><span class="mt">📌 주간회의 전달사항 (최신)</span>
+     <section class="memo big"><span class="mt">📌 주간회의 전달사항 (최신)</span>
        ${memo ? `<div class="md">${esc(memo.fields['일자'] || '')} · ${esc(memo.fields['제목'] || '')}</div><div class="mb">${fmtText(memo.fields['내용'])}</div>` : '<div class="mb muted">등록된 전달사항이 없습니다</div>'}
        <div class="mf"><button class="btn sm" data-go="notice">전체 보기 →</button></div></section>
+     <section class="card plazacard"><h2>계장 광장 <span class="muted" style="font-weight:400">· 부서원이 캐릭터로 모이는 곳 — 방향키 이동 · Enter 대화 · Space 목검</span></h2><div id="plazaSlot"></div></section></div>
+     <section class="card recentside"><h2>최근 변경 이력 <span class="muted" style="font-weight:400">· ${esc(weekLabel(curWeek()))} (${sinceText()})</span> <span class="rcnt" id="recentCnt"></span></h2><div id="recent"><div class="empty">불러오는 중…</div></div></section>
    </div>`);
   const drawRecent = () => {
     const el = $('#recent'); if (!el) return;
     const since = DB.state.lastClosedAt || '', list = (DB.recent || []).filter(e => (e.at || '') > since && e.by !== IMPORT_BY);   // 마감(Cutoff) 이후 이력만 (엑셀 이관·정리 작업 제외)
+    const cnt = $('#recentCnt'); if (cnt) cnt.textContent = list.length ? `${list.length}건 · 스크롤로 이번 주 마감 전까지` : '';
     el.innerHTML = !list.length ? '<div class="empty">이번 주(마감 이후) 변경 이력이 없습니다</div>' : `<ul class="recent">${list.map(e => `<li><span class="muted">${fmtTime(e.at)}</span><b>${esc(e.by)}</b><span><span class="tag ${(ACT[e.action] || [])[1] || ''}">${esc((ACT[e.action] || [e.action])[0])}</span> ${esc(SHEET[e.key]?.label)}</span><span>${esc(e.label || '')}</span></li>`).join('')}</ul>`;
     fitRecent(); placePlaza();
   };
-  $('#recentHalf').onclick = () => { const h = !recentHalf(); try { localStorage.setItem('dash.history.half', h ? '1' : '0'); } catch (_) {} $('#recentHalf').textContent = h ? '펼치기 ▾' : '반으로 접기 ▴'; $('#recent').classList.toggle('half', h); fitRecent(); placePlaza(); };
   plazaOn();
   if (DB.recent) drawRecent(); else loadRecent().then(drawRecent).catch(() => { const el = $('#recent'); if (el) el.innerHTML = '<div class="empty">이력을 읽지 못했습니다</div>'; });
 }
@@ -2895,9 +2996,13 @@ const YEAR_OF = { task:r => (isoD(r.fields['시작일']) || isoD(r.fields['종�
 const yearsOf = s => [...new Set(getRecs(s.key).map(YEAR_OF[s.key]).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
 function yearSel(s) { const st = fstate(s.key); if (st.year === undefined) st.year = s.key === 'task' ? '' : yearsOf(s)[0] || ''; return st.year; }
 const yearTabs = (cur, years, extra = '') => `<div class="ytabs" role="tablist">${['', ...years].map(y => `<button type="button" class="yt ${y === cur ? 'on' : ''}" data-year="${y}" role="tab">${y ? y + '년' : '전체'}</button>`).join('')}${extra}</div>`;
-/* 주간회의 전달사항은 최신(일자 내림차순)이 위로 */
+/* 주간회의 전달사항은 최신(일자 내림차순)이 위로 · 기술공유(시트 · 통합 업무의 '기술공유' 유형)도 최신 날짜가 맨 위 (2026-10-22, 날짜 없는 행은 아래) */
+const dateDesc = (da, db) => (!da) - (!db) || (db || '').localeCompare(da || '');
+const tsDate = r => isoD(r.fields['발표일']) || isoD(r.fields['시작일']) || isoD(r.fields['종료일']);
 function sortRecs(s, arr) {
-  if (s?.key === 'task') { const ti = r => { const i = TASK_TYPES.indexOf(normType(r.fields['유형'])); return i < 0 ? 9 : i; }; return [...arr].sort((a, b) => ti(a) - ti(b) || a.order - b.order); }
+  if (s?.key === 'task') { const ti = r => { const i = TASK_TYPES.indexOf(normType(r.fields['유형'])); return i < 0 ? 9 : i; };
+    return [...arr].sort((a, b) => ti(a) - ti(b) || (normType(a.fields['유형']) === '기술공유' ? dateDesc(tsDate(a), tsDate(b)) : 0) || a.order - b.order); }
+  if (s?.key === 'techshare') return [...arr].sort((a, b) => dateDesc(tsDate(a), tsDate(b)) || a.order - b.order);
   if (s?.key !== 'notice') return arr;
   return [...arr].sort((a, b) => (b.fields['일자'] || '').localeCompare(a.fields['일자'] || '') || (b.order - a.order));
 }
@@ -2941,7 +3046,7 @@ function openCf(btn) {
   const vals = [...cnt.keys()].sort(cfCmp), allow = st.cf[k] ? new Set(st.cf[k]) : null, so = st.sort?.k === k ? st.sort.dir : 0;
   const pop = document.createElement('div'); pop.id = 'cfPop';
   pop.innerHTML = `<button class="cfa ${so === 1 ? 'cur' : ''}" data-cfs="1">↑ 오름차순 정렬 (가→하, 1→9)</button><button class="cfa ${so === -1 ? 'cur' : ''}" data-cfs="-1">↓ 내림차순 정렬 (하→가, 9→1)</button>
-    <button class="cfa" data-cfx ${allow || so ? '' : 'disabled'}>✕ 이 열의 필터·정렬 지우기</button>${s?.cols?.find(c => c.f === k)?.extra && !noEdit() ? '<button class="cfa" data-cfdel style="color:var(--bad)">🗑 추가한 이 열 지우기 (값은 남음)</button>' : ''}<hr>
+    <button class="cfa" data-cfx ${allow || so ? '' : 'disabled'}>✕ 이 열의 필터·정렬 지우기</button>${HIDE_SHEETS.has(s.key) && k !== s.title ? '<button class="cfa" data-cfhide>🙈 이 열 숨기기 (나에게만)</button>' : ''}${s?.cols?.find(c => c.f === k)?.extra && !noEdit() ? '<button class="cfa" data-cfdel style="color:var(--bad)">🗑 추가한 이 열 지우기 (값은 남음)</button>' : ''}<hr>
     <input type="search" placeholder="검색 (포함된 값만)" aria-label="값 검색">
     <div class="cfl"><label class="cfall"><input type="checkbox" data-all> <span>(모두 선택)</span></label>${vals.map((v, i) => `<label data-t="${esc(cfLabel(v).toLowerCase())}"><input type="checkbox" data-i="${i}" ${!allow || allow.has(v) ? 'checked' : ''}> <span>${esc(cfLabel(v))}</span><i>${cnt.get(v)}</i></label>`).join('')}</div>
     <div class="cfbtns"><button class="btn sm" data-cfc>취소</button><button class="btn sm pri" data-cfo>확인</button></div>`;
@@ -2960,6 +3065,7 @@ function openCf(btn) {
     if (t.dataset.cfs) { st.sort = { k, dir:+t.dataset.cfs }; done(); }
     else if (t.dataset.cfx != null) { delete st.cf[k]; if (st.sort?.k === k) st.sort = null; done(); }
     else if (t.dataset.cfc != null) closeCf();
+    else if (t.dataset.cfhide != null) { closeCf(); hideCols(s.key, [k]); }
     else if (t.dataset.cfdel != null) { closeCf(); delExtraCol(s, k); }
     else if (t.dataset.cfo != null) {
       const ok = (q.value.trim() ? shown() : boxes).filter(x => x.checked).map(x => vals[+x.dataset.i]);
@@ -3010,7 +3116,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     if (s.key === 'todo' && st.done && (st.done === 'done') !== (f['완료 여부'] === 'O')) return false;
     if (st.upd && (st.upd === 'upd') !== isUpdated(r)) return false;
     if (s.key === 'task' && st.wst && workItem('task', r).cls !== st.wst) return false;
-    if (st.kw && !(st.kw === '(미분류)' ? !bizTok(f['사업군']).length : bizTok(f['사업군']).includes(st.kw))) return false;
+    if (st.kw && !(st.kw === '(미분류)' ? !bizTok(f['사업군']).length : bizGrp(f['사업군']).includes(st.kw) || bizTok(f['사업군']).includes(st.kw))) return false;
     return true;
   });
   const out = cfSort(s, sortRecs(s, list));
@@ -3060,7 +3166,7 @@ function renderSheet(c, s) {
       <span class="selctl">선택 셀 <b id="selName">없음</b>
         <span style="margin-left:6px">열</span><button class="btn sm" data-sz="c-" title="선택 셀의 열 좁게 (Alt+←)">◀ 좁게</button><button class="btn sm" data-sz="c+" title="선택 셀의 열 넓게 (Alt+→)">넓게 ▶</button>
         <span style="margin-left:6px">행</span><button class="btn sm" data-sz="r-" title="선택 셀의 행 낮게 (Alt+↑)">▲ 낮게</button><button class="btn sm" data-sz="r+" title="선택 셀의 행 높게 (Alt+↓)">높게 ▼</button>
-        <button class="btn sm" data-sz="reset" title="선택 셀의 행·열 크기를 원래대로">원래대로</button></span>
+        <button class="btn sm" data-sz="reset" title="선택 셀의 행·열 크기를 원래대로">원래대로</button>${HIDE_SHEETS.has(s.key) ? '<button class="btn sm" id="fHide" style="margin-left:6px" title="선택한 셀이 있는 열을 숨깁니다 (나에게만 · 표 위에서 다시 보이기)">🙈 선택 열 숨기기</button>' : ''}</span>
       <span class="muted">· 셀 클릭 = 선택(방향키 이동, Alt+방향키 = 크기), 더블클릭/Enter = 편집 · 헤더 오른쪽 끝·작업 칸 아래쪽 경계를 드래그해도 조절</span>
     </div>
     <div id="tarea"></div></section>`);
@@ -3074,6 +3180,7 @@ function renderSheet(c, s) {
   $('#fFm').onclick = () => setFont(-1); $('#fFp').onclick = () => setFont(1);
   $('#fLay').onclick = () => { delete LAYOUT[s.key]; saveLayout(); render(); };
   c.querySelectorAll('[data-sz]').forEach(b => b.onclick = () => resizeSel(b.dataset.sz));
+  const fh = $('#fHide'); if (fh) fh.onclick = () => { const tds = selTds().length ? selTds() : [selTd()].filter(Boolean); if (!tds.length) return toast('숨길 열의 셀을 먼저 클릭하세요 (Shift/Ctrl 로 여러 열)', true); hideCols(s.key, [...new Set(tds.map(x => x.dataset.f))]); };
   c.onchange = e => {
     const t = e.target, id = t.dataset.filter;
     if (id) { if (id === 'owner') st.owner = t.value; else if (id === 'done') st.done = t.value; else if (id === 'closed') st.closed = t.value; else if (s.key === 'task' && id === 'f:유형') { taskTypeSwitch(st, t.value); return render(); } else st.f[id.slice(2)] = t.value; drawTable(s); }
@@ -3117,6 +3224,8 @@ function drawTable(s) {
   if (s.key === 'unit' && st.view !== 'table') { el.innerHTML = orgHtml(recs, st.year); el.onclick = orgClick; return; }
   el.onclick = null;
   el.innerHTML = s.special === 'matrix' ? matrixHtml(s, recs) : tableHtml(s, recs);
+  const hid = hiddenCols(s.key);
+  if (hid.length) el.insertAdjacentHTML('afterbegin', `<div class="hidbar">🙈 <b>숨긴 열 ${hid.length}개</b> (나에게만 · 다른 부서원 화면과 엑셀 내보내기는 그대로) — 누르면 다시 보임: ${hid.map(f => `<button type="button" data-unhide="${esc(f)}">${esc(fieldLabel(s.key, f))} ✕</button>`).join('')}<button type="button" data-unhide="*">모두 보이기</button></div>`);
   if (!recs.length && ncf) el.insertAdjacentHTML('beforeend', '<div style="text-align:center;margin:-8px 0 12px"><button class="btn sm" id="cfAllOff">열 필터 모두 지우기</button></div>');
   const off = $('#cfAllOff'); if (off) off.onclick = () => { st.cf = {}; drawTable(s); };
   setTimeout(() => {
@@ -3268,34 +3377,99 @@ function resizeSel(op) {
   }
   saveLayout();
 }
-/* Ctrl+C: 선택한 셀들을 표 모양(탭 구분)으로 복사 → 엑셀에 붙여넣기 가능 */
-function copySel() {
-  const tds = selTds(); if (!tds.length) return false;
+/* Ctrl+C: 선택한 셀들을 엑셀 표 모양으로 복사 (2026-10-22: 글(탭 구분) + HTML 표 둘 다 → 엑셀 · 메일 · PPT 에 표로 붙여넣기)
+ * navigator.clipboard 는 http://PC이름:8080 (보안 연결 아님)에서 막혀 있어, 브라우저의 copy 이벤트에 직접 넣는다 */
+function selGrid() {
+  const tds = selTds(); if (!tds.length) return null;
   const table = tds[0].closest('table'), rows = [...table.querySelectorAll('tbody tr[data-rid]')], cols = [...table.querySelectorAll('col[data-ck]')].map(c => c.dataset.ck);
-  const val = x => { const rec = getRecs(route).find(r => r.id === x.dataset.rid), f = x.dataset.f; if (!rec) return ''; const v = f.startsWith('배정.') ? rec.fields.배정?.[f.slice(3)]?.pct : rec.fields[f]; return String(v ?? '').replace(/~~[\s\S]*?~~/g, ''); };
+  const val = x => { const rec = getRecs(route).find(r => r.id === x.dataset.rid), f = x.dataset.f; if (!rec) return ''; const v = f.startsWith('배정.') ? rec.fields.배정?.[f.slice(3)]?.pct : rec.fields[f]; return purgeStrike(String(v ?? '')).replace(/\r/g, ''); };
   const grid = new Map();
   tds.forEach(x => { const i = rows.indexOf(x.closest('tr')), j = cols.indexOf(x.dataset.ck); (grid.get(i) || grid.set(i, new Map()).get(i)).set(j, val(x)); });
-  const js = [...new Set(tds.map(x => cols.indexOf(x.dataset.ck)))].sort((a, b) => a - b);
-  const q = s => /[\t\n"]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  const text = [...grid.keys()].sort((a, b) => a - b).map(i => js.map(j => q(grid.get(i).get(j) ?? '')).join('\t')).join('\n');
-  navigator.clipboard?.writeText(text).then(() => toast(`${tds.length}개 셀을 복사했습니다 (엑셀에 붙여넣기 가능)`), () => toast('복사하지 못했습니다', true));
+  const js = [...new Set(tds.map(x => cols.indexOf(x.dataset.ck)))].sort((a, b) => a - b), is = [...grid.keys()].sort((a, b) => a - b);
+  const q = v => /[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const text = is.map(i => js.map(j => q(grid.get(i).get(j) ?? '')).join('\t')).join('\r\n');
+  const head = js.map(j => { const th = table.querySelector(`thead th[data-ck="${CSS.escape(cols[j])}"]`); return th ? th.textContent.replace(/[▾↑↓◂\d]+$/, '').trim() : ''; });
+  const cell = v => esc(v).replace(/\n/g, '<br style="mso-data-placement:same-cell">');
+  const html = `<html><head><meta charset="utf-8"></head><body><table border="1" style="border-collapse:collapse;font-family:'Malgun Gothic',sans-serif;font-size:10pt">${
+    is.map(i => `<tr>${js.map(j => `<td style="vertical-align:top;white-space:pre-wrap;mso-number-format:'\\@'">${cell(grid.get(i).get(j) ?? '')}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+  return { text, html, n:tds.length, head };
+}
+function copySel() {                                  // 예전 방식(보조) — copy 이벤트가 안 오는 브라우저용
+  const g = selGrid(); if (!g) return false;
+  navigator.clipboard?.writeText(g.text).then(() => toast(`${g.n}개 셀을 복사했습니다 (엑셀에 붙여넣기 가능)`), () => toast('복사하지 못했습니다', true));
   return true;
+}
+document.addEventListener('copy', e => {
+  if (dlg.open || dlg2.open || route === 'home' || !SEL || !$('#tarea')) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || String(getSelection())) return;   // 글자를 직접 고른 경우는 브라우저 그대로
+  const g = selGrid(); if (!g) return;
+  e.clipboardData.setData('text/plain', g.text); e.clipboardData.setData('text/html', g.html); e.preventDefault();
+  toast(`${g.n}개 셀을 엑셀 표 모양으로 복사했습니다 — 엑셀 · 메일 · PPT 에 붙여넣기`);
+  COPIED = true;
+});
+let COPIED = false;
+/* 다음 칸 (방향키) — 왼쪽/오른쪽은 같은 행, 위/아래는 같은 열 */
+function nextCell(td, key) {
+  if (key === 'ArrowLeft' || key === 'ArrowRight') {
+    let x = td; do { x = key === 'ArrowLeft' ? x.previousElementSibling : x.nextElementSibling; } while (x && !x.dataset.rid);
+    return x;
+  }
+  const rows = [...td.closest('tbody').querySelectorAll('tr[data-rid]')], i = rows.indexOf(td.closest('tr'));
+  const tr = rows[i + (key === 'ArrowUp' ? -1 : 1)];
+  return tr && tr.querySelector(`td[data-ck="${CSS.escape(td.dataset.ck)}"][data-rid]`);
 }
 function moveSel(key) {
   const td = selTd(); if (!td) return;
-  let next = null;
-  if (key === 'ArrowLeft' || key === 'ArrowRight') {
-    let x = td; do { x = key === 'ArrowLeft' ? x.previousElementSibling : x.nextElementSibling; } while (x && !x.dataset.rid);
-    next = x;
-  } else {
-    const rows = [...td.closest('tbody').querySelectorAll('tr[data-rid]')], i = rows.indexOf(td.closest('tr'));
-    const tr = rows[i + (key === 'ArrowUp' ? -1 : 1)];
-    next = tr && tr.querySelector(`td[data-f="${CSS.escape(td.dataset.f)}"]`);
-  }
-  if (!next) return;
+  const next = nextCell(td, key); if (!next) return;
   SEL = { route, rid:next.dataset.rid, f:next.dataset.f }; ANCHOR = SEL; MSEL = new Set([mkey(SEL.rid, SEL.f)]); applySel();
   next.scrollIntoView({ block:'nearest', inline:'nearest' });
 }
+/* Shift+방향키: 기준 셀(ANCHOR)은 그대로 두고 활성 셀만 옮겨 사각형 범위 선택 (엑셀처럼) */
+function extendSel(key) {
+  const td = selTd(); if (!td) return;
+  if (!ANCHOR || ANCHOR.route !== route) ANCHOR = { ...SEL };
+  const next = nextCell(td, key); if (!next) return;
+  selectRange(next, false);
+  SEL = { route, rid:next.dataset.rid, f:next.dataset.f }; applySel();
+  next.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+/* 머리글 클릭 = 열 전체 · 작업 칸 클릭 = 행 전체 (Shift = 기준부터 범위 · Ctrl = 더하기) */
+function selectLines(table, kind, target, e) {
+  const rows = [...table.querySelectorAll('tbody tr[data-rid]')], cols = [...table.querySelectorAll('col[data-ck]')].map(c => c.dataset.ck).filter(k => k !== '__act');
+  const add = e.ctrlKey || e.metaKey;
+  let rset = rows, cset = cols;
+  if (kind === 'col') {
+    const j = cols.indexOf(target); if (j < 0) return;
+    const aj = e.shiftKey && ANCHOR?.route === route && ANCHOR.line === 'col' ? cols.indexOf(ANCHOR.ck) : j;
+    cset = cols.slice(Math.min(aj, j), Math.max(aj, j) + 1);
+  } else {
+    const i = rows.indexOf(target); if (i < 0) return;
+    const ai = e.shiftKey && ANCHOR?.route === route && ANCHOR.line === 'row' ? rows.findIndex(r => r.dataset.rid === ANCHOR.rid) : i;
+    rset = rows.slice(Math.min(ai, i), Math.max(ai, i) + 1);
+  }
+  if (!add) MSEL = new Set();
+  let first = null;
+  for (const tr of rset) for (const ck of cset) { const x = tr.querySelector(`td[data-rid][data-ck="${CSS.escape(ck)}"]`); if (x) { MSEL.add(mkey(x.dataset.rid, x.dataset.f)); first = first || x; } }
+  if (!first) return;
+  SEL = { route, rid:first.dataset.rid, f:first.dataset.f };
+  if (!e.shiftKey) ANCHOR = kind === 'col' ? { route, rid:first.dataset.rid, f:first.dataset.f, line:'col', ck:target } : { route, rid:target.dataset.rid, f:first.dataset.f, line:'row' };
+  applySel();
+  const nm = $('#selName'); if (nm) nm.textContent = `${MSEL.size}개 셀 · ${kind === 'col' ? cset.length + '개 열' : rset.length + '개 행'} 선택 (Ctrl+C = 엑셀로 복사)`;
+}
+/* 마우스로 끌어 범위 선택 (누른 셀 → 놓은 셀) */
+let DRAG = null;
+document.addEventListener('pointerdown', e => {
+  const td = e.button === 0 && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.target.closest('#tarea td[data-rid]');
+  DRAG = td && !e.target.closest('.rz,.rh,button,a') ? { td, moved:false } : null;
+});
+document.addEventListener('pointerover', e => {
+  if (!DRAG || !(e.buttons & 1)) return;
+  const td = e.target.closest('#tarea td[data-rid]'); if (!td || td.closest('table') !== DRAG.td.closest('table')) return;
+  if (td === DRAG.td && !DRAG.moved) return;
+  if (!DRAG.moved) { DRAG.moved = true; ANCHOR = { route, rid:DRAG.td.dataset.rid, f:DRAG.td.dataset.f }; getSelection().removeAllRanges(); }
+  selectRange(td, false); SEL = { route, rid:td.dataset.rid, f:td.dataset.f }; applySel();
+});
+document.addEventListener('pointerup', () => { if (DRAG?.moved) { DRAG.skipClick = true; setTimeout(() => { DRAG = null; }, 0); getSelection().removeAllRanges(); } else DRAG = null; });
 async function editAt(td) {
   if (!td || noEdit() || route === 'home') return;
   await openEdit(route, td.dataset.rid);
@@ -3323,6 +3497,24 @@ function cellHtml(s, c, r, h) {
   return `<td class="${cls.join(' ')}${selCls(r.id, c.f)}" ${cellAttr(r, c.f)}><div class="cw">${inner}</div></td>`;
 }
 /* ---------- 셀 크기 조절 (열 너비·행 높이·글자 크기) : 브라우저별 저장 ---------- */
+/* 수행 · 입찰 열 숨기기 (2026-10-22): 숨긴 사람에게만 (이 PC 의 localStorage, 로그인 이름별) · 표 위에 '숨긴 열' 표시 + 다시 보이기 */
+const LS_HIDE = 'dept-hidecols', HIDE_SHEETS = new Set(['perform', 'bid']);
+let HIDE = {}; try { HIDE = JSON.parse(localStorage.getItem(LS_HIDE) || '{}') || {}; } catch (_) {}
+const hideUser = () => normName(user) || '_';
+const hiddenCols = key => HIDE_SHEETS.has(key) ? ((HIDE[hideUser()] || {})[key] || []).filter(f => SHEET[key]?.cols.some(c => c.f === f)) : [];
+function setHidden(key, list) {
+  const u = hideUser(); HIDE[u] = { ...(HIDE[u] || {}), [key]: [...new Set(list)] };
+  try { localStorage.setItem(LS_HIDE, JSON.stringify(HIDE)); } catch (_) {}
+  const s = SHEET[key]; if (s && route === key) drawTable(s);
+}
+function hideCols(key, fs) {
+  const s = SHEET[key]; if (!s || !HIDE_SHEETS.has(key)) return;
+  fs = fs.filter(f => f && f !== s.title && s.cols.some(c => c.f === f));        // 제목 열(PJT명)은 숨기지 않음
+  if (!fs.length) return toast(`'${s.title}' 열은 숨길 수 없습니다 — 다른 열을 고르세요`, true);
+  setHidden(key, [...hiddenCols(key), ...fs]);
+  toast(`${fs.map(f => fieldLabel(key, f)).join(', ')} 열을 숨겼습니다 (나에게만 · 표 위 '숨긴 열'에서 다시 보이기)`);
+}
+const visCols = s => { const h = new Set(hiddenCols(s.key)); return h.size ? s.cols.filter(c => !h.has(c.f)) : s.cols; };
 const LS_LAYOUT = 'dept-dashboard-layout';
 let LAYOUT = {};
 try { LAYOUT = JSON.parse(localStorage.getItem(LS_LAYOUT) || '{}'); } catch (_) {}
@@ -3344,14 +3536,19 @@ const thR = (ck, label, extra = '', key = '') => `<th data-ck="${esc(ck)}" ${key
 
 function tableHtml(s, recs) {
   if (!recs.length) return '<div class="empty">표시할 행이 없습니다</div>';
-  const L = lay(s.key), cg = colgroup(L, [...s.cols.map(c => ({ k:c.f, w:c.w + 20 })), { k:'__act', w:170 }]);
+  const cols = visCols(s), hid = hiddenCols(s.key);
+  const L = lay(s.key), cg = colgroup(L, [...cols.map(c => ({ k:c.f, w:c.w + 20 })), { k:'__act', w:170 }]);
+  const hidBefore = f => { const i = s.cols.findIndex(c => c.f === f), out = []; for (let j = i - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; };
+  const hidMk = f => { const h = hidBefore(f); return h.length ? `<span class="hidmk" data-unhide="${esc(h.join('|'))}" title="여기 숨긴 열: ${esc(h.map(x => fieldLabel(s.key, x)).join(', '))} — 누르면 다시 보임">◂${h.length}</span>` : ''; };
   let last = null, rows = '';
   for (const r of recs) {
-    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${s.cols.length + 1}">${s.key === 'task' ? `<span style="color:${ttOf(last).color}">${ttOf(last).icon}</span> ${esc(last || '유형 미지정')}` : esc(last || '(미분류)')}</td></tr>`; }
+    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${cols.length + 1}">${s.key === 'task' ? `<span style="color:${ttOf(last).color}">${ttOf(last).icon}</span> ${esc(last || '유형 미지정')}` : esc(last || '(미분류)')}</td></tr>`; }
     const h = hlOf(r); h.base = baseFieldsOf(r);
-    rows += `<tr ${rowAttr(L, r)}>${s.cols.map(c => cellHtml(s, c, r, h)).join('')}${actCell(s.key, r)}</tr>`;
+    rows += `<tr ${rowAttr(L, r)}>${cols.map(c => cellHtml(s, c, r, h)).join('')}${actCell(s.key, r)}</tr>`;
   }
-  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${s.cols.map(c => thR(c.f, esc(c.label || c.f), '', s.key)).join('')}${thR('__act', '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  const tail = hid.length && hid.includes(s.cols[s.cols.length - 1].f) ? (() => { const out = []; for (let j = s.cols.length - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; })() : [];
+  const actMk = tail.length ? `<span class="hidmk" data-unhide="${esc(tail.join('|'))}" title="여기 숨긴 열: ${esc(tail.map(x => fieldLabel(s.key, x)).join(', '))} — 누르면 다시 보임">◂${tail.length}</span>` : '';
+  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${cols.map(c => thR(c.f, hidMk(c.f) + esc(c.label || c.f), '', s.key)).join('')}${thR('__act', actMk + '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function staffStats(r) {
@@ -3432,12 +3629,19 @@ function workItem(key, r) {
 /* 수행·입찰 PJT 현황판 (통합 업무와 같은 색감) — 카드·칩·막대를 누르면 아래 엑셀형 표가 걸러짐 */
 // 사업군 단어: '발전(UNIT1)' → 발전, '수소/LNG' → 수소·LNG (숫자가 든 조각은 버림)
 const bizTok = v => [...new Set(String(v || '').replace(/~~[\s\S]*?~~/g, '').split(/[\/,·()\[\]\s+&\-]+/).map(x => x.trim().toUpperCase()).filter(x => x && !/\d/.test(x)))];
+/* 2026-10-22: 그래프 · 사업군 칩에서는 LNG 와 수소를 'LNG/수소' 하나로 (엑셀에 'LNG/수소' 로 함께 쓰는 경우가 많음) — 마우스를 올리면 LNG · 수소 · LNG/수소 각각 몇 개인지 */
+const BIZ_LH = 'LNG/수소';
+const bizGrp = v => [...new Set(bizTok(v).map(t => t === 'LNG' || t === '수소' ? BIZ_LH : t))];
+const lhKind = v => { const ts = bizTok(v), l = ts.includes('LNG'), h = ts.includes('수소'); return l && h ? 'LNG/수소' : l ? 'LNG' : h ? '수소' : ''; };
+const lhSplit = rs => { const c = { LNG:0, '수소':0, 'LNG/수소':0 }; rs.forEach(r => { const k = lhKind(r.fields['사업군']); if (k) c[k]++; }); return c; };
+const lhLine = rs => { const c = lhSplit(rs); return `<b style="color:#9fd0ff">LNG ${c.LNG}개 · 수소 ${c['수소']}개 · LNG/수소 ${c['LNG/수소']}개</b> <span class="tm">(엑셀 사업군 값 기준)</span>`; };
 const avHtml = name => { const pr = profOf(name); return pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(String(name).slice(0, 1))}</b>`; };
 function pjHero(s) {
   const st = fstate(s.key), recs = getRecs(s.key), live = recs.filter(isLive), closed = recs.length - live.length;
   const upd = live.filter(isUpdated).length, rate = live.length ? Math.round(upd / live.length * 100) : 0;
   const bid = s.key === 'bid', on = (k, v) => st[k] === v ? 'on' : '';
-  const biz = new Map(); recs.forEach(r => { const ts = bizTok(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0 }).get(g); isLive(r) ? o.live++ : o.end++; }); });
+  const biz = new Map(); recs.forEach(r => { const ts = bizGrp(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0, rs:[] }).get(g); isLive(r) ? o.live++ : o.end++; o.rs.push(r); }); });
+  const bizTip = (g, o) => tipHtml(`${g} · 진행 ${o.live}${o.end ? ` · 종결 ${o.end}` : ''}`, [...(g === BIZ_LH ? [lhLine(o.rs)] : []), ...o.rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')}${isLive(r) ? '' : ' <span class="tm">(종결)</span>'}${g === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`)], 16);
   const bizs = [...biz].sort((a, b) => (b[1].live + b[1].end) - (a[1].live + a[1].end)), bmx = Math.max(1, ...bizs.map(([, o]) => o.live + o.end));
   // 부서원별: 담당자 칸에 그 이름이 '들어 있는' 진행 PJT 수 (부서원 명단 + 명단에 없는 담당자 이름)
   // 수행 = 영문 이름(IEC)은 세지 않음 · 입찰 = IEC 인원(영문 이름)도 셈
@@ -3451,7 +3655,7 @@ function pjHero(s) {
   return `<div id="pjhero" class="pjhero">
     <section class="whero pj-${s.key}">
       <div class="wh-top"><div><h2>${bid ? '📈 입찰 PJT 보드' : '🏗 수행 PJT 보드'}</h2><p>${bid ? '입찰 진행 현황과 담당자별 PJT 를 한눈에 — 아래 표는 엑셀 형태 그대로 편집합니다.' : '수행 중인 PJT 와 담당자별 현황을 한눈에 — 아래 표는 엑셀 형태 그대로 편집합니다.'}</p></div></div>
-      <div class="wtypes"><button class="wtc ${!st.kw && !st.f['사업군'] && !st.closed && !st.upd && !st.owner ? 'on' : ''}" data-pjf="all|">전체 <b>${recs.length}</b></button>${bizs.map(([g, o]) => `<button class="wtc ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" title="사업군에 '${esc(g)}' 가 들어간 PJT">${esc(g)} <b>${o.live + o.end}</b></button>`).join('')}</div>
+      <div class="wtypes"><button class="wtc ${!st.kw && !st.f['사업군'] && !st.closed && !st.upd && !st.owner ? 'on' : ''}" data-pjf="all|">전체 <b>${recs.length}</b></button>${bizs.map(([g, o]) => `<button class="wtc ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" data-tip="${esc(bizTip(g, o))}">${esc(g)} <b>${o.live + o.end}</b></button>`).join('')}</div>
     </section>
     <div class="wkpis pjkpis">
       <div class="wk wk-main ${bid ? 'pjm-bid' : ''}"><span class="wkl">금주 업데이트율 (진행 PJT)</span><span class="wkr">${ring}<span class="wkv">${rate}<small>%</small></span></span><span class="wks">진행 ${live.length}건 중 ${upd}건 작성</span></div>
@@ -3460,7 +3664,7 @@ function pjHero(s) {
     </div>
     <div class="wgrid pjgrid">
       <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결 · 누르면 그 단어가 들어간 PJT 만</span></h2>
-        ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" title="사업군에 '${esc(g)}' 가 들어간 PJT 만 아래 표에"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
+        ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" data-tip="${esc(bizTip(g, o))}"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
         <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
       <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만 · ${bid ? 'IEC 인원(영문 이름) 포함' : 'IEC 인원(영문 이름)은 세지 않음'}</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
         ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}" data-tip="${esc(ownTip(p))}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}${isIec(p) ? '<small class="iectag">IEC</small>' : ''}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
@@ -4984,6 +5188,13 @@ $('#content').onclick = e => {
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route]) return;
   if (route === 'board') return;
+  if (DRAG?.skipClick) return;
+  const hth = e.target.closest('#tarea thead th[data-ck]');
+  if (hth && hth.dataset.ck !== '__act' && !e.target.closest('.cfb,.rz,[data-unhide]') && hth.closest('table').querySelector(`col[data-ck="${CSS.escape(hth.dataset.ck)}"]`)) { selectLines(hth.closest('table'), 'col', hth.dataset.ck, e); return; }
+  const atd = e.target.closest('#tarea td.act');
+  if (atd && !e.target.closest('button,.rh')) { selectLines(atd.closest('table'), 'row', atd.closest('tr'), e); return; }
+  const uh = e.target.closest('[data-unhide]');
+  if (uh && SHEET[route]) { e.stopPropagation(); const v = uh.dataset.unhide; setHidden(route, v === '*' ? [] : hiddenCols(route).filter(f => !v.split('|').includes(f))); return; }
   const td = e.target.closest('td[data-rid]');
   if (td && !e.target.closest('button')) {                     // 셀 활성화 (Ctrl=추가/해제, Shift=범위)
     const k = mkey(td.dataset.rid, td.dataset.f), cur = { route, rid:td.dataset.rid, f:td.dataset.f };
@@ -5009,13 +5220,14 @@ document.addEventListener('keydown', e => {
   const k = e.key;
   if (e.altKey && e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown') && TOP_NEW.has(route)) { e.preventDefault(); moveRow(k === 'ArrowUp' ? -1 : 1); }   // 행 위로/아래로
   else if (e.altKey && k.startsWith('Arrow')) { e.preventDefault(); resizeSel({ ArrowLeft:'c-', ArrowRight:'c+', ArrowUp:'r-', ArrowDown:'r+' }[k]); }
+  else if (e.shiftKey && k.startsWith('Arrow')) { e.preventDefault(); extendSel(k); }   // 엑셀처럼 범위 늘리기
   else if (k.startsWith('Arrow')) { e.preventDefault(); moveSel(k); }
   else if (k === 'Enter') { e.preventDefault(); editAt(selTd()); }
   else if (k === 'Escape') { SEL = null; MSEL = new Set(); applySel(); }
-  else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'c' && !String(getSelection())) { if (copySel()) e.preventDefault(); }
+  else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'c' && !String(getSelection())) { COPIED = false; setTimeout(() => { if (!COPIED) copySel(); }); }   // 보통은 copy 이벤트가 처리 · 안 오면 예전 방식
 });
 // Shift/Ctrl+클릭 때 글자 드래그 선택이 생기지 않도록
-document.addEventListener('mousedown', e => { if ((e.shiftKey || e.ctrlKey) && e.target.closest('#tarea td[data-rid]')) e.preventDefault(); });
+document.addEventListener('mousedown', e => { if ((e.shiftKey || e.ctrlKey) && e.target.closest('#tarea td[data-rid],#tarea thead th,#tarea td.act')) e.preventDefault(); });
 /* 열 너비 / 행 높이 드래그 */
 document.addEventListener('pointerdown', e => {
   const handle = e.target.closest('.rz,.rh'); if (!handle) return;
@@ -5040,7 +5252,12 @@ document.addEventListener('dblclick', e => {
   if (handle.classList.contains('rz')) delete L.colw[handle.closest('th').dataset.ck]; else delete L.rowh[handle.closest('tr').dataset.rid];
   saveLayout(); drawTable(SHEET[route]);
 }, true);
-$('#burger').onclick =() => { if (innerWidth <= 900) document.body.classList.toggle('nav-open'); else document.body.classList.toggle('nav-closed'); };
+/* 왼쪽 메뉴 숨기기 (2026-10-22): ◀ 숨기기 / ☰ 메뉴 — 넓은 화면에서 숨긴 상태를 이 PC 에 기억 (localStorage dept-nav-closed) */
+const setNavClosed = on => { document.body.classList.toggle('nav-closed', on); $('#burger').textContent = on ? '☰ 메뉴' : '☰'; $('#burger').title = on ? '왼쪽 메뉴 보이기' : '메뉴 접기/펼치기';
+  try { localStorage.setItem('dept-nav-closed', on ? '1' : ''); } catch (_) {} };
+try { if (localStorage.getItem('dept-nav-closed') === '1' && innerWidth > 900) setNavClosed(true); } catch (_) {}
+$('#burger').onclick =() => { if (innerWidth <= 900) document.body.classList.toggle('nav-open'); else setNavClosed(!document.body.classList.contains('nav-closed')); };
+$('#sideHide').onclick = () => { if (innerWidth <= 900) document.body.classList.remove('nav-open'); else setNavClosed(true); };
 $('#scrim').onclick = () => document.body.classList.remove('nav-open');
 $('#btnPrint').onclick = () => window.print();
 $('#btnCsv').onclick = exportCsv;
@@ -5134,7 +5351,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
       $('#btnLocalMode').onclick = () => initFolderMode();
       return;
     }
-    ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms);
+    ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super);
     root = { name:serverLabel() };
     await startOnline();
     return;
@@ -5146,7 +5363,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     // 설정한 주소가 있으면 그 주소만, 없으면 PC 이름 주소 → IP 주소 순으로 시도
     API_BASE = normUrl(DEFAULT_SERVERS[0] || '');
     info = await findServer();                               // 설정한 주소 → 기본 주소(PC 이름 · IP) → 예전에 연결됐던 주소 모두 동시에
-    if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms); checkVersion(info); root = { name:serverLabel() }; await startOnline(); return; }
+    if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super); checkVersion(info); root = { name:serverLabel() }; await startOnline(); return; }
     API_BASE = (await cacheLoad())?.server || API_BASE;     // 오프라인: 마지막으로 연결됐던 서버로 재연결 시도
     const c = await cacheLoad();
     if (c) {

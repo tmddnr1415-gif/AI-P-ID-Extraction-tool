@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-16.3'
+SERVER_VERSION = '2026-10-22.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1374,7 +1374,8 @@ def api_profile_put(acc, b):
 MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
 MENU_KEYS = [k for k, _ in MENUS]
-DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}   # 기본: 모두 허용, Management 만 권한 부여 필요
+DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}
+SUPER_NAMES = ('구종현',)   # 2026-10-22 그룹장: 운영자와 같은 권한 (금주 마감 · 휴지통 영구삭제 · 게시판 관리 삭제 · 모든 메뉴) — 메뉴 권한 설정(부서원 권한 주기)만 운영자   # 기본: 모두 허용, Management 만 권한 부여 필요
 
 
 def perms_file():
@@ -1681,6 +1682,13 @@ class Handler(BaseHTTPRequestHandler):
     def is_admin(self):
         return self.client_address[0] in ('127.0.0.1', '::1')
 
+    def is_super(self):
+        """운영자(서버 PC) 또는 SUPER_NAMES 계정 — 금주 마감 · 휴지통 영구삭제 · 게시판 관리 삭제 · 모든 메뉴 (메뉴 권한 설정만 운영자)"""
+        if self.is_admin():
+            return True
+        acc = session_account(self.token(), False)
+        return bool(acc and (acc.get('name') or '').strip() in SUPER_NAMES)
+
     def origin_ok(self):
         """허용 출처: 없음(직접 접속) / null(부서원 PC의 file:// 사본) / 이 서버 자신의 주소. 그 외 웹페이지에서의 호출은 거부"""
         o = self.headers.get('Origin')
@@ -1804,6 +1812,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self.is_admin():
             raise ApiError(403, '관리자(서버 PC)에서만 사용할 수 있습니다')
 
+    def need_super(self):
+        if not self.is_super():
+            raise ApiError(403, '관리자(서버 PC) 또는 그룹장만 사용할 수 있습니다')
+
     def token(self):
         return (self.headers.get('X-Auth-Token') or '').strip()
 
@@ -1822,7 +1834,7 @@ class Handler(BaseHTTPRequestHandler):
     def need_menu(self, menu, touch=True):
         """로그인 + 메뉴 권한 (운영자가 accounts/_perms.json 으로 부여)"""
         acc = self.need_user(touch)
-        if not perms_for(acc, self.is_admin()).get(menu):
+        if not perms_for(acc, self.is_super()).get(menu):
             raise ApiError(403, f"'{dict(MENUS)[menu]}' 메뉴 권한이 없습니다 (운영자에게 요청하세요)")
         return acc
 
@@ -1839,8 +1851,8 @@ class Handler(BaseHTTPRequestHandler):
 
         head = seg[0] if seg else ''
         if m == 'GET' and head == 'info':
-            return {'mode': 'server', 'admin': self.is_admin(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
-                    'perms': perms_for(session_account(self.token(), False), self.is_admin()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
+            return {'mode': 'server', 'admin': self.is_admin(), 'super': self.is_super(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
+                    'perms': perms_for(session_account(self.token(), False), self.is_super()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
                     'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(), 'plazaPort': PLAZA['port'],
                     **({'net': {'ips': NET_STATE['ips'] or [], 'profiles': NET_STATE['profiles'], 'changedAt': NET_STATE['changedAt'],
                                 'allow': [str(n) for n in ALLOW_NETS]}} if self.is_admin() else {})}
@@ -1862,7 +1874,7 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'GET' and seg[1:] == ['me']:
                 return acc_public(self.need_user())
             if m == 'POST' and seg[1:] == ['ping']:
-                return api_ping(self.need_user(), self.is_admin())
+                return {**api_ping(self.need_user(), self.is_super()), 'super': self.is_super()}
         if head == 'admin' and seg[1:] == ['perms']:             # 메뉴 권한 설정: 운영자(서버 PC)만
             self.need_admin()
             if m == 'GET':
@@ -1884,7 +1896,7 @@ class Handler(BaseHTTPRequestHandler):
             return api_all()
         if head == 'timesheet' or head == 'timesheets':          # 월말 시수: 로그인 필요, 실제 시간은 Management 권한자만
             acc = self.need_user()
-            can_all = bool(perms_for(acc, self.is_admin()).get('mgmt'))
+            can_all = bool(perms_for(acc, self.is_super()).get('mgmt'))
             if m == 'GET' and head == 'timesheets':
                 return api_ts_list(q.get('year', ''), can_all)
             if m == 'POST' and head == 'timesheet' and seg[1:] == ['preview']:
@@ -1941,7 +1953,7 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'POST' and len(seg) == 4 and seg[3] == 'restore':
                 return api_restore(sheet(1), rid(2), self.need_menu('weekly')['name'])
             if m == 'DELETE' and len(seg) == 3:
-                self.need_admin()
+                self.need_super()
                 return api_purge(sheet(1), rid(2), self.need_menu('weekly')['name'])
         if m == 'GET' and head == 'history' and len(seg) == 3:
             return api_history(sheet(1), rid(2))
@@ -1952,7 +1964,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(400, '잘못된 주차')
             return api_archive(seg[1])
         if m == 'POST' and head == 'close':
-            self.need_admin()
+            self.need_super()
             return api_close(self.body_by())
         if m == 'POST' and head == 'columns':
             return api_add_column(self.body_by())
@@ -1981,11 +1993,11 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT' and len(seg) == 2:
                 return api_board_update(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 2:
-                return api_board_delete(seg[1], self.json_body(), self.is_admin())
+                return api_board_delete(seg[1], self.json_body(), self.is_super())
             if m == 'POST' and len(seg) == 3 and seg[2] == 'comments':
                 return api_comment_add(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 4 and seg[2] == 'comments':
-                return api_comment_delete(seg[1], seg[3], self.json_body(), self.is_admin())
+                return api_comment_delete(seg[1], seg[3], self.json_body(), self.is_super())
         raise ApiError(404, '없는 API')
 
 
