@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-22.3'
+SERVER_VERSION = '2026-10-22.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1414,6 +1414,21 @@ def api_space_projects():
     return {'projects': out}
 
 
+def api_space_recent(n):
+    """모든 프로젝트의 저장을 최신순으로 (첫 화면 '최근 저장 이력' · 프로젝트 카드)"""
+    try:
+        n = max(1, min(200, int(n or 30)))
+    except ValueError:
+        n = 30
+    out = []
+    for pid in os.listdir(P('space')) if os.path.isdir(P('space')) else []:
+        d = read_json(P('space', pid, 'index.json')) if SPACE_ID_RE.match(pid) else None
+        if d:
+            out += [{**m, 'pid': pid, 'pname': d['project']['name']} for m in d.get('saves') or []]
+    out.sort(key=lambda m: m.get('at') or '', reverse=True)
+    return {'saves': out[:n]}
+
+
 def api_space_project_new(acc, b):
     name = space_name(b.get('name'), '프로젝트 이름', 60)
     with LOCK:
@@ -2033,6 +2048,8 @@ class Handler(BaseHTTPRequestHandler):
         if head == 'space':                                         # 판넬 공간확보: 보기 = 누구나 · 쓰기 = 로그인 + 메뉴 권한
             if m == 'GET' and seg[1:] == ['projects']:
                 return api_space_projects()
+            if m == 'GET' and seg[1:] == ['recent']:
+                return api_space_recent(q.get('n'))
             if m == 'POST' and seg[1:] == ['projects']:
                 return api_space_project_new(self.need_menu('space'), self.json_body())
             if m == 'GET' and len(seg) == 2:
