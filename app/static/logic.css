@@ -887,3 +887,8 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 .lg-needs .nd-none { color: #8a93a6; padding: 2px 4px; }
 .lg-needs .nd-th { margin: 6px 10px 2px; padding: 3px 6px; border-top: 1px dashed #cfd6e4; color: #4a3b8f; cursor: pointer; font-size: 12px; }
 .lg-needs .nd-th small { color: #8a93a6; }
+
+/* L50 — 기본 상태 값 · 이미 그 값 */
+.lg-needs .nd-now{color:#6b6b80}
+.lg-needs .nd-now.on{color:#0b7a4b;font-weight:600}
+.lg-needs .nd-none.gap{color:#9a4b00;background:#fff4e8;border-radius:6px;padding:4px 8px;margin:4px 0}

@@ -4162,7 +4162,7 @@ function ndLeafHtml(n, pg) {
   }
   if (n.auto && n.kind !== "loop") return "";
   if (n.kind === "loop") return `<li class="nd-leaf nd-auto"><span class="nd-k">되먹임</span> <span class="nd-t">${esc(n.text)}</span></li>`;
-  return `<li class="nd-leaf${gap ? " nd-gap" : ""}" data-key="${esc(n.key || "")}" data-page="${n.page}">${gap ? `<span class="nd-k gap">${esc(kind)}</span>` : ndWant(n.want)} <span class="nd-k">${esc(kind)}</span>
+  return `<li class="nd-leaf${gap ? " nd-gap" : ""}" data-key="${esc(n.key || "")}" data-page="${n.page}">${gap ? `<span class="nd-k gap">${esc(kind)}</span>` : `${ndWant(n.want)} <span class="nd-k">${esc(kind)}</span>`}
     <span class="nd-t">${esc(n.text || "")}</span> ${where} ${n.fm ? `<small>FM ${esc(n.fm)}</small>` : ""} ${ref} ${ft}</li>`;
 }
 function ndTreeHtml(plan, id, pg, depth) {
@@ -4190,23 +4190,29 @@ function renderNeeds() {
   pop.classList.toggle("min", lsGet("logic.needs.min") === "1");
   $("#needs-min").textContent = pop.classList.contains("min") ? "＋" : "－";
   const d = ND.data;
+  $("#needs-t").textContent = ND.value === 1 ? "🔍 이 출력이 켜지려면" : "🔍 이 출력이 꺼지려면";
+  $("#needs-val").textContent = ND.value === 1 ? "↔ 0" : "↔ 1";
   if (ND.busy || !d) { $("#needs-sum").textContent = ""; b.innerHTML = `<div class="sp-empty">조건을 범례대로 거꾸로 읽는 중…</div>`; return; }
   if (!d.ok) { $("#needs-sum").textContent = d.label || ""; b.innerHTML = `<div class="sp-empty">⚠ ${esc(d.why || "조건을 찾지 못했습니다")}</div>`; return; }
   $("#needs-sum").textContent = `${d.sheet || ""} · ${d.label || ""}`;
+  const unjudged = d.kind === "gate" && (!d.logic || d.logic === "unknown");
   const outs = d.outputs || [];
   const multi = outs.length > 1;
-  let html = `<div class="nd-intro">${d.kind === "macro" ? "매크로 출력 단자마다" : multi ? "나가는 선마다" : "이 출력이"} <b>${ND.value}</b> 이 되려면 앞에서 무엇이 켜져야 하는지 — 범례 정의를 거꾸로 읽은 것입니다.  항목을 누르면 그 자리로 갑니다.</div>`;
+  let html = `<div class="nd-intro">${d.kind === "macro" ? "매크로 출력 단자마다" : multi ? "나가는 선마다" : "이 출력이"} <b>${ND.value}</b> 이 되려면 앞에서 무엇이 ${ND.value === 1 ? "켜져야" : "켜지고 꺼져야"} 하는지 — 범례 정의를 거꾸로 읽은 것입니다.  항목을 누르면 그 자리로 갑니다.</div>` +
+    (unjudged ? `<div class="nd-none gap">판정 못 한 블록 — 종류를 정하면(블록 누름 → 종류 정하기) 조건을 셀 수 있습니다</div>` : "");
   outs.forEach((o, i) => {
     const p = o.plan || {};
     const sig = p.signals || {};
     const open = ND.open[i] != null ? ND.open[i] : (!multi || i === 0);
     const title = d.kind === "macro" ? `${esc(o.pin || "")} ${o.desc ? "· " + esc(o.desc) : ""}` : (o.desc ? `→ ${esc(o.desc)}` : "출력 선");
-    const sum = p.ok ? `꼭 필요 ${(sig.need || []).length} · 없어야 ${(sig.zero || []).length}${sig.forks ? ` · 갈래 ${sig.forks}` : ""}${(sig.gaps || []).length ? ` · <span class="nd-gapn">읽기 빈틈 ${sig.gaps.length}</span>` : ""}${p.truncated ? " · 일부만" : ""}` : `⚠ ${esc(p.why || "")}`;
+    const nowTxt = o.now == null ? "" : ` · <span class="nd-now${o.now === ND.value ? " on" : ""}" title="아무것도 주지 않은 상태(이 시트만)에서 이 선의 값">지금 ${o.now}</span>`;
+    const sum = p.ok ? (sig.already ? `<span class="nd-now on">이미 ${ND.value} — 아무것도 주지 않아도</span>` : `꼭 필요 ${(sig.need || []).length} · 없어야 ${(sig.zero || []).length}${sig.forks ? ` · 갈래 ${sig.forks}` : ""}${(sig.gaps || []).length ? ` · <span class="nd-gapn">읽기 빈틈 ${sig.gaps.length}</span>` : ""}${p.truncated ? " · 일부만" : ""}${nowTxt}`) : `⚠ ${esc(p.why || "")}`;
     html += `<div class="nd-out${open ? " open" : ""}" data-i="${i}">
       <div class="nd-oh" data-toggle="${i}"><span class="nd-arrow">${open ? "▾" : "▸"}</span> <b>${title}</b> <small>${sum}</small></div>` +
       (open && p.ok ? `<div class="nd-acts">
         <button data-flash="${i}" title="이 시트에 있는 꼭 필요한 신호를 주황으로 3번 짚습니다">주황으로 짚기</button>
-        <button data-on="${i}" class="pri" title="필요한 입력을 실제로 켜고 흐름을 그립니다 (게이트가 범례대로 판정 — 조건이 안 맞으면 출력은 나가지 않습니다)">▶ 조건 채워 켜기</button></div>
+        ${ND.value === 1 ? `<button data-on="${i}" class="pri" title="필요한 입력을 실제로 켜고 흐름을 그립니다 (게이트가 범례대로 판정 — 조건이 안 맞으면 출력은 나가지 않습니다)">▶ 조건 채워 켜기</button>`
+                           : `<button data-off="${i}" class="pri" title="요약의 신호를 그 값으로 주고 흐름을 그립니다 (게이트가 범례대로 판정)">▶ 조건 채워 끄기</button>`}</div>
         ${ndSummaryHtml(sig, p.page)}
         <div class="nd-th" data-tree="${i}"><span class="nd-arrow">${ndTreeOpen(i, p) ? "▾" : "▸"}</span> 게이트 단계로 보기 <small>AND 는 모두 · OR 는 하나 · NOT 은 반대 — 범례 정의 그대로</small></div>
         ${ndTreeOpen(i, p) ? `<ul class="nd-tree">${ndTreeHtml(p, p.root, p.page, 0)}</ul>` : ""}` : "") + `</div>`;
@@ -4228,7 +4234,7 @@ function ndSummaryHtml(sig, pg) {
   const need = sig.need || [], zero = sig.zero || [], gaps = sig.gaps || [];
   return `<div class="nd-sum">
     <div class="nd-sh">꼭 켜져야 하는 신호 <small>${need.length}${sig.forks ? ` · 갈래가 있는 곳은 ★ 권하는 갈래로` : ""}</small></div>
-    ${need.length ? `<ul>${need.map(chip).join("")}</ul>` : `<div class="nd-none">${(sig.asks || 0) === 0 && !gaps.length ? "없음 — 언제나 만족 (조건 없음)" : "없음"}</div>`}
+    ${need.length ? `<ul>${need.map(chip).join("")}</ul>` : `<div class="nd-none">${sig.already ? "없음 — 아무것도 주지 않아도 이미 이 값입니다 (앞 게이트가 기본 상태에서 그렇게 냅니다)" : (sig.asks || 0) === 0 && !gaps.length ? "없음 — 언제나 만족 (조건 없음)" : "없음"}</div>`}
     ${zero.length ? `<div class="nd-sh">없어야 하는 신호 <small>${zero.length} · 고장 · 트립 · 인터록 · 반대 명령</small></div><ul>${zero.map(chip).join("")}</ul>` : ""}
     ${gaps.length ? `<div class="nd-sh gap">도면에서 읽지 못한 자리 <small>${gaps.length} — 이 길의 값을 정할 수 없습니다</small></div><ul>${gaps.map((g) => `<li class="nd-gap">${esc(g.text || "")} ${g.block && g.at ? `<span class="nd-loc" data-go="block" data-page="${pg}" data-block="${esc(String(g.block).split("/")[0])}">${esc(seqSheetName(pg))} · ${esc(g.block)}</span>` : ""}</li>`).join("")}</ul>` : ""}
   </div>`;
@@ -4249,6 +4255,7 @@ function bindNeeds() {
     head.addEventListener("pointermove", move); head.addEventListener("pointerup", up);
   });
   $("#needs-x").onclick = needsClose;
+  $("#needs-val").onclick = () => { if (ND.target) needsOpen(ND.target, ND.value === 1 ? 0 : 1); };
   $("#needs-min").onclick = () => { lsSet("logic.needs.min", pop.classList.contains("min") ? null : "1"); renderNeeds(); };
   $("#needs-b").addEventListener("click", async (e) => {
     const d = ND.data;
@@ -4272,6 +4279,24 @@ function bindNeeds() {
       if (o.net == null) return;
       if (ND.page !== L.page) await openSheet(ND.page);
       await activateOutput("net:" + o.net); return;
+    }
+    const off = e.target.closest("button[data-off]");
+    if (off) {
+      // L50 — 꺼지려면: 요약(권하는 갈래)의 신호를 그 값으로 주고 출력은 0 을 목표로 (게이트가 판정 · 직접 끄지 않는다)
+      const o = d.outputs[Number(off.dataset.off)];
+      if (o.net == null) return;
+      if (ND.page !== L.page) await openSheet(ND.page);
+      if (L.mode !== "sim") setMode("sim", true);
+      const sig = (o.plan || {}).signals || {};
+      const give = {};
+      for (const x of [...(sig.need || []), ...(sig.zero || [])]) if ((x.page == null || x.page === L.page) && x.key && !x.key.includes("/") && x.const == null) give[x.key] = x.want;
+      const keep = {};
+      for (const [k, v] of Object.entries(L.forces)) if (!(k in give) && k !== "net:" + o.net) keep[k] = v;
+      L.forces = L.allForces[L.page] = { ...keep, ...give, ["net:" + o.net]: 0 };
+      const on = Object.keys(give).filter((k) => give[k] === 1);
+      status(`출력을 0 으로 — 신호 ${Object.keys(give).length}개를 요약대로 줍니다${on.length ? ` (켜는 것 ${on.length})` : ""}`);
+      if (on.length) await flashNeed(on);
+      await runSim(true); reportUnmet(); return;
     }
     const ref = e.target.closest(".nd-ref");
     if (ref) { if (!ref.classList.contains("other")) goToRef(ref.dataset.refSheet, Number(ref.dataset.refRow) || 0, "R"); return; }
@@ -4382,7 +4407,7 @@ function renderInfo() {
     </table>
     ${b.func === "MACRO" && (b.macro || {}).page ? `<div class="acts"><button data-macro="${esc(L.sel.block)}">↗ 내부 동작 보기 (새 창) — ${esc(b.macro.sheet)}</button></div>` : ""}
     ${b.func === "MEMORY" ? latchTableHtml(L.sel.block) : ""}
-    ${ins.length || b.func === "MACRO" ? `<div class="acts"><button data-needs="${esc(L.sel.block)}">🔍 이 출력이 켜지려면 — 필요한 신호</button></div>` : ""}
+    ${ins.length || b.func === "MACRO" || (b.logic && b.logic !== "unknown" && b.logic !== "source" && L.sheet.ports.some((p) => p.block === L.sel.block && p.dir === "out")) ? `<div class="acts"><button data-needs="${esc(L.sel.block)}">🔍 이 출력이 켜지려면 — 필요한 신호</button></div>` : ""}
     ${b.func !== "CONNECTOR" && b.func !== "MACRO" ? `<div class="acts"><button data-gate="${esc(L.sel.block)}">${b.func === "UNKNOWN" ? "이 블록의 종류 정하기" : "종류 바꾸기 (사람이 정함)"}</button></div>` : ""}
     <div class="acts">${L.mode === "sim" && (!ins.length || b.logic === "source") ? forceBtns("block:" + L.sel.block) : ""}
       ${L.mode === "trace" ? `<button data-act="up">거슬러 올라가기</button><button data-act="down">따라가기</button>` : ""}</div>`;

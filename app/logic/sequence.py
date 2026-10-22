@@ -26,7 +26,7 @@ import yaml
 from . import sim
 
 NODE_LIMIT = 700        # 한 시트 나무의 마디 상한 — 넘으면 그 아래는 '더 깊다' 로 남긴다 (화면이 그 선을 직접 묻는다)
-DEPTH_LIMIT = 90
+DEPTH_LIMIT = 160       # L50 — 여러 장에 걸친 매크로(PS3 · 4장) 안쪽 조건이 90 을 넘겼다 (실측 최대 54 단계 · 시간 같음)
 
 
 @lru_cache(maxsize=1)
@@ -326,8 +326,12 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
             onet = goal[1] if goal[0] == "net" else goal[3]
             gb = C["s"]["blocks"].get(gate, {}) if gate else {}
             short_gate = gb.get("logic") in sim.MIN_INPUTS or bool(sim._vote_of(gb))
+            judged = bool(gate) and gb.get("logic") not in (None, "", "unknown")
+            an = _analog_text(gb) if gate else None
             what = (f"{GATE_KO.get(gb.get('logic')) or gb.get('func') or '게이트'} 의 입력선을 도면에서 다 읽지 못했습니다"
-                    if short_gate else f"판정 못 한 블록 '{gb.get('label') or gb.get('func') or '?'}' 이 이 값을 냅니다"
+                    if short_gate else an if an
+                    else _missing_inputs_text(C["s"], gate, gb)
+                    if judged else f"판정 못 한 블록 '{gb.get('label') or gb.get('func') or '?'}' 이 이 값을 냅니다"
                     if gate else "이 값을 내는 조건을 범례 정의로 찾지 못했습니다")
             # 짧은 게이트는 'hold:' — 읽힌 입력이 출력을 정하면 게이트가 이긴다 (sim L32) · 판정 못 한 블록은 그 선을 직접
             n = base("stuck", want, what, key=("hold:" if short_gate else "net:") + C["prefix"] + str(onet))
@@ -376,6 +380,31 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
     return {"ok": True, "page": page, "sheet": s.get("sheet_no"), "row": row, "desc": meta.get("desc"), "net": net,
             "value": int(value), "title": s.get("title"), "root": root, "nodes": flat, "size": count[0],
             "truncated": count[0] > NODE_LIMIT, "signals": _signals(tree)}
+
+
+def _analog_text(gb):
+    """L50 — 아날로그 연산자 · 감시 블록은 '판정 못 한 블록' 이 아니다 — 값(mA · 설정값)으로 정해지는 자리라 그렇게 말한다."""
+    from . import analog
+    label = " ".join(str(gb.get("label") or gb.get("func") or "?").split())[:24]
+    if analog.monitor_kind(gb):
+        return f"감시 블록 '{label}' — 입력 값(mA)과 설정값으로 정해집니다 (아날로그 입력에 값을 주세요)"
+    if gb.get("aop") or analog.is_analog_block(gb):
+        return f"아날로그 연산 '{label}' — 연산자 판에서 입력 값을 넣으면 정해집니다"
+    return None
+
+
+def _missing_inputs_text(s, gate, gb):
+    """L50 — 판정은 됐는데(메모리 · 타이머 · STEP …) 들어오는 선을 못 읽어 조건을 세울 수 없는 블록.
+    '판정 못 한 블록' 과 가른다 — 고칠 자리가 다르다 (종류 정하기 ↔ 마크업으로 선 잇기)."""
+    label = GATE_KO.get(gb.get("logic")) or gb.get("label") or gb.get("func") or "블록"
+    ins = {str(pt.get("role") or "") for pt in s.get("ports") or [] if pt.get("block") == gate and pt.get("dir") == "in"}
+    if gb.get("logic") == "memory":
+        miss = [r for r in ("set", "reset") if r not in ins]
+        if miss:
+            return f"{label} 의 {' · '.join(x.upper() for x in miss)} 입력선을 도면에서 읽지 못했습니다"
+    if not ins:
+        return f"{label} 의 입력선을 도면에서 읽지 못했습니다"
+    return f"{label} 의 입력 조건을 범례 정의로 찾지 못했습니다"
 
 
 def link(p):
@@ -472,7 +501,7 @@ def needs(sheets, page, target, value=1, timers=None):
         for n in nets:
             # 이 선을 받는 자리 — 출력 행 · 다음 블록 (어디로 가는지 한 줄)
             to = [f"출력 {r['n']}행" + (f" · {r['desc']}" if r.get("desc") else "") for r in s["rows"] if r["side"] == "R" and r.get("net") == n]
-            to += [(s["blocks"].get(pt["block"]) or {}).get("label") or (s["blocks"].get(pt["block"]) or {}).get("func") or pt["block"]
+            to += [_block_short(s["blocks"].get(pt["block"]) or {}, pt["block"])
                    for pt in s.get("ports") or [] if pt.get("net") == n and pt.get("dir") == "in" and pt.get("block") != bid]
             outs.append({"pin": None, "desc": " · ".join(x for x in to if x)[:120], "row": None, "net": n,
                          "plan": _plan_net(sheets, page, n, value, timers, {})})
@@ -482,8 +511,37 @@ def needs(sheets, page, target, value=1, timers=None):
         vote = sim._vote_of(b)
         if vote:
             label = f"투표 {vote[0]}/{vote[1]}"
+    # L50 — 아무것도 주지 않은 상태(이 시트만 · 다른 시트 입력 0)에서 그 선이 지금 몇인가.  조건이 비어 있는데 이미
+    # 그 값이면 "아무것도 주지 않아도 켜져 있다" 고 말할 수 있다 (NOT 앞의 AND 가 0 인 자리).  판정은 시뮬레이터 그대로
+    now = _default_values(s, timers)
+    for o in outs:
+        v = now.get(str(o.get("net"))) if o.get("net") is not None else None
+        o["now"] = int(v) if v in (0, 1, True, False) else None
+        sg = (o.get("plan") or {}).get("signals")
+        if sg is not None:
+            sg["already"] = bool(o["now"] == int(value) and not sg.get("need") and not sg.get("zero") and not sg.get("gaps"))
     return {"ok": True, "kind": kind, "page": page, "sheet": s.get("sheet_no"), "block": bid, "label": label,
             "func": b.get("func"), "logic": b.get("logic"), "value": int(value), "outputs": outs}
+
+
+def _block_short(b, bid):
+    """다음 블록을 한 마디로 — 매크로는 제목 첫 줄, 글자가 길면 자른다 (어디로 가는지 한 줄에 여럿이 선다)."""
+    if b.get("func") == "MACRO":
+        x = ((b.get("macro") or {}).get("title") or b.get("caption") or b.get("label") or "매크로").split("\n")[0]
+    else:
+        x = b.get("label") or b.get("func") or bid
+    x = " ".join(str(x).split())
+    return x if len(x) <= 28 else x[:27] + "…"
+
+
+def _default_values(s, timers):
+    """이 시트만 · 아무 강제도 없이 한 번 돌린 마지막 틀의 선 값 (`{선: 0|1}`).  못 돌리면 빈 사전."""
+    try:
+        r = sim.simulate(s, {}, None, 0.0, timers or {})
+        fr = (r.get("frames") or [{}])[-1]
+        return {str(k): v for k, v in (fr.get("values") or {}).items()}
+    except Exception:
+        return {}
 
 
 def _first_leaves(n):
