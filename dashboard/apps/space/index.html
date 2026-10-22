@@ -244,6 +244,7 @@ svg text{font-family:var(--f-mono)}
     <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
+    <button id="bMeas" title="거리 재기: 두 점을 차례로 클릭 (Snap) — 거리 · X · Y 차이 (Esc = 끝)">📏 거리</button>
     <button id="bNote" title="도면 노트: 도면을 누른 자리에 메모 핀 (Esc = 끝) · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기">📌 노트</button>
     <button id="bCol" title="기둥 편집: 빈 곳 클릭 = 기둥 추가 · 기둥 Drag = 이동 · Delete = 삭제 (Esc = 끝)">기둥 편집</button>
     <span class="sep"></span>
@@ -254,6 +255,7 @@ svg text{font-family:var(--f-mono)}
     <span class="sep"></span>
     <button id="bUndo" title="Ctrl+Z">↶</button>
     <button id="bRedo" title="Ctrl+Y">↷</button>
+    <button id="bHelp" title="단축키 도움말 (?)">?</button>
     <button id="bZo" title="축소 (Ctrl+휠 아래 · -)">－</button>
     <button id="bFit" title="전체 보기 (F)">맞춤</button>
     <button id="bZi" title="확대 (Ctrl+휠 위 · +)">＋</button>
@@ -360,6 +362,7 @@ svg text{font-family:var(--f-mono)}
           <button class="primary" id="bReq">건축 전달 요약 출력 (TXT)</button>
           <button id="bDxf">DXF 출력</button>
           <button id="bCsv">판넬 List 출력 (CSV)</button>
+          <button id="bPng" title="지금 보이는 도면을 그림(PNG)으로 — 메일 · 회의록 · PPT 에 붙이기">도면 PNG 저장</button>
         </div>
         <div class="row" style="margin-top:6px">
           <button id="bSave">배치안 저장 (JSON)</button>
@@ -380,7 +383,7 @@ svg text{font-family:var(--f-mono)}
       </div>
     </div>
     <aside class="eqside" id="eqBox" aria-label="Equipment List">
-      <div class="eqh"><button id="eqFold" title="접기 / 펼치기">⟩</button><b>EQUIPMENT LIST</b><span class="muted" id="eqCnt"></span></div>
+      <div class="eqh"><button id="eqFold" title="접기 / 펼치기">⟩</button><b>EQUIPMENT LIST</b><span class="muted" id="eqCnt"></span><input id="eqQ" placeholder="찾기" style="width:70px;margin-left:auto;padding:1px 5px;font-size:11px"><label class="chk" style="font-size:11px" title="도면에서 고른 판넬만"><input type="checkbox" id="eqSel">선택만</label></div>
       <div class="eqb"><table><thead><tr><th>NO.</th><th>TAG</th><th>DESCRIPTION</th><th style="text-align:right">SIZE (W×D×H)</th></tr></thead><tbody id="eqTbl"></tbody></table></div>
       <p class="muted eqf">Tag 순 번호 = 도면의 육각 번호 · DXF 표와 같음. 줄을 누르면 그 판넬로. Description 은 판넬을 고르고 속성칸에서.</p>
     </aside>
@@ -448,6 +451,25 @@ svg text{font-family:var(--f-mono)}
         <ul class="hl" id="hNotes"></ul></div>
     </div>
     <div id="hErr" style="color:var(--err);font-size:12px;min-height:16px"></div>
+  </div>
+</div>
+<div class="modal" id="kdlg" hidden>
+  <div class="box" style="width:min(640px,100%)">
+    <h4>단축키 · 마우스</h4>
+    <table class="counts" style="font-size:12px"><tbody>
+      <tr><td>Type 단추 → 도면 클릭</td><td>배치 (연속 N EA · R 회전 · Esc 끝)</td></tr>
+      <tr><td>Drag · Ctrl+Drag</td><td>옮기기 · 정렬 스냅(분홍 안내선)</td></tr>
+      <tr><td>Shift+클릭 · Shift+Drag</td><td>선택 넣고 빼기 · 박스 선택 (여러 개 = 그룹 W×L · 정렬 · 균등 배치)</td></tr>
+      <tr><td>휠 · Ctrl+휠 · + − · F · Z</td><td>확대/축소 · 전체 맞춤 · 선택한 판넬로 줌</td></tr>
+      <tr><td>R · Shift+R · 방향키 · Shift+방향키</td><td>회전 · 반대 회전 · Snap 이동 · ×10 이동</td></tr>
+      <tr><td>Ctrl+D · Delete · Ctrl+Z · Ctrl+Y · Ctrl+A</td><td>복제 · 삭제 · 되돌리기 · 다시 · 모두 선택</td></tr>
+      <tr><td>L</td><td>선택한 판넬 잠금 / 해제 (잠긴 판넬은 옮기기 · 회전 · 삭제 안 됨)</td></tr>
+      <tr><td>Ctrl+S</td><td>서버에 저장 (프로젝트 · 이력 창)</td></tr>
+      <tr><td>기둥 Drag</td><td>기둥 옮기기 (추가 · 삭제는 [기둥 편집])</td></tr>
+      <tr><td>[📏 거리] 두 점 클릭 · [📌 노트] 클릭</td><td>거리 재기 · 도면 노트</td></tr>
+      <tr><td>?</td><td>이 도움말</td></tr>
+    </tbody></table>
+    <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
   </div>
 </div>
 <div class="modal" id="libdlg" hidden>
@@ -617,6 +639,7 @@ function guardCommit(ids){   // 회전 · 복제 · 방향키 · 속성칸: 위�
 }
 /* Ctrl 정렬 스냅 (CAD 처럼): 움직이는 묶음의 몸체 · 외곽(유지보수 · 도어 포함) 모서리를 근처 판넬 · 벽 · 기둥 기준선에 붙이고 안내선을 보인다 */
 let guides=[];
+let measure=null;             // 거리 재기 {a, b} (b 없으면 커서까지)
 function smartSnap(movers){
   const ids=new Set(movers.map(p=>p.id)), Gm=movers.map(p=>geom(p)), bb=unionR(Gm.map(g=>g.body)), eb=unionR(Gm.map(extOf)), tol=12/V.s, gp=S.room.touchOK?0:(+S.room.gapP||0);
   const W=S.room.w, L=S.room.l, cand={x:[],y:[]};
@@ -754,6 +777,7 @@ function typeSvg(t,big){
 let ANN=1.5;   // 도면 글자 · 표시 배율 (Tag · 치수 · 노트 · 번호 · 안내선), 도구줄에서 바꿈 — 이 PC 에 기억
 try{const v=+localStorage.getItem('crspace.ann');if(v>=1&&v<=2)ANN=v}catch(e){}
 let ghost=null, marquee=null, cursorW=null, block=null;   // block = 지금 끌거나 놓으려는 자리의 위반 문장
+function measStatus(){const m=measure;if(!m)return;const b=m.b||m.cur;if(!b)return;const dx=b.x-m.a.x,dy=b.y-m.a.y;$('#stXY').textContent=`📏 ${fmt(Math.hypot(dx,dy))} mm (X ${fmt(Math.abs(dx))} · Y ${fmt(Math.abs(dy))})`}
 function showBlock(){$('#stBlock').textContent=block?`⛔ 놓을 수 없음 — ${block}`:''}
 function rect(r,cls,extra=''){return `<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" ${extra}/>`}
 function dimH(x0,x1,y,txt,off,col){ // horizontal dimension at y with tick marks
@@ -811,6 +835,7 @@ function render(){
     if(st==='err')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="url(#hatchE)"/>`;
     if(st==='warn')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="${warn}" stroke-width="2" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`;
     const f=q.fe; g+=`<line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${isS?acc:ink}" stroke-width="3.5" vector-effect="non-scaling-stroke"/>`;
+    if(p.lock&&b.w*s>14*ANN)g+=`<text x="${b.x+b.w-3*ANN/s}" y="${b.y+3*ANN/s}" font-size="${9*ANN/s}" text-anchor="end" dominant-baseline="hanging">🔒</text>`;
     if(show.lbl&&b.w*s>26*ANN&&b.h*s>12*ANN){
       const cx=b.x+b.w/2, cy=b.y+b.h/2, vert=b.h>b.w*1.3&&b.w*s<p.tag.length*7*ANN;
       g+=`<text x="${cx}" y="${cy}" font-size="${fs}" fill="${ink}" text-anchor="middle" dominant-baseline="middle" font-weight="600"${vert?` transform="rotate(-90 ${cx} ${cy})"`:''}>${esc(p.tag)}</text>`;
@@ -862,6 +887,13 @@ function render(){
     g+=`<line x1="${q.fe[0]}" y1="${q.fe[1]}" x2="${q.fe[2]}" y2="${q.fe[3]}" stroke="${gc}" stroke-width="3" vector-effect="non-scaling-stroke"/>`})}
   // 끄는 중 놓을 수 없는 자리: 움직이는 판넬을 빨갛게
   if(drag&&drag.k==='move'&&drag.block)drag.orig.forEach(o=>{const b=geom(o.q).body;g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${err}" fill-opacity=".4" stroke="${err}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`});
+  // 거리 재기
+  if(measure){const b=measure.b||measure.cur, mc=C('--snap');if(b){const dx=b.x-measure.a.x,dy=b.y-measure.a.y,A=ANN/s;
+    g+=`<line x1="${measure.a.x}" y1="${measure.a.y}" x2="${b.x}" y2="${b.y}" stroke="${mc}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    if(dx&&dy)g+=`<path d="M${measure.a.x} ${measure.a.y} H${b.x} V${b.y}" fill="none" stroke="${mc}" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`;
+    [measure.a,b].forEach(q=>g+=`<circle cx="${q.x}" cy="${q.y}" r="${4*A}" fill="${mc}"/>`);
+    g+=`<text x="${(measure.a.x+b.x)/2+8*A}" y="${(measure.a.y+b.y)/2-8*A}" font-size="${12*A}" fill="${mc}" font-weight="700">${fmt(Math.hypot(dx,dy))}${dx&&dy?` (X ${fmt(Math.abs(dx))} · Y ${fmt(Math.abs(dy))})`:''}</text>`}
+    else g+=`<circle cx="${measure.a.x}" cy="${measure.a.y}" r="${4*ANN/s}" fill="${mc}"/>`}
   // Ctrl 정렬 안내선
   if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6*ANN/s}" y="${(l.y1+l.y2)/2-6*ANN/s}" font-size="${11*ANN/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
@@ -955,6 +987,7 @@ $('#tdCancel').onclick=()=>{$('#tdlg').hidden=true};
 $('#tdDel').onclick=()=>{if(!tEdit||S.panels.some(p=>p.type===tEdit.id))return;const nm=tEdit.name;S.types=S.types.filter(x=>x!==tEdit);$('#tdlg').hidden=true;commit();buildTypes();toast(`${nm} Type 을 지웠습니다 (Ctrl+Z 로 되돌림)`)};
 $('#tdlg').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#tdlg').hidden=true}else if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='checkbox'){e.preventDefault();tdSave(false)}});
 $('#bAddType').onclick=()=>openTypeDlg(null);
+$('#bHelp').onclick=()=>{$('#kdlg').hidden=false}; $('#kClose').onclick=()=>{$('#kdlg').hidden=true};
 $('#bColReset').onclick=()=>{const n=Array.isArray(S.cols)?S.cols.length:0;S.cols=null;selCol=null;commit();buildRoom();buildProps();toast(`직접 고친 기둥 ${n}개를 버리고 Span 격자로 다시 만들었습니다 (Ctrl+Z 로 되돌림)`)};
 
 /* ---------- 이 PC 의 Type 라이브러리 (localStorage crspace.lib.v1) — 프로젝트를 넘어 다시 쓰기 ---------- */
@@ -1003,7 +1036,9 @@ function buildProps(){
       <label>X (좌상단)<input type="number" id="pX" step="${S.snap}" value="${p.x}"></label>
       <label>Y (좌상단)<input type="number" id="pY" step="${S.snap}" value="${p.y}"></label>
       <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
-      <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label></div>`;
+      <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label>
+      <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>`;
+    $('#pLock').onchange=()=>lockSel();
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
     ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
     const chG=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);if(!guardCommit(new Set([p.id])))buildProps()});   // 위반이면 되돌리고 칸도 원래 값
@@ -1014,9 +1049,12 @@ function buildProps(){
     const gs=ps.map(q=>geom(q)), bb=unionR(gs.map(q=>q.body)), eb=unionR(gs.map(extOf));
     box.innerHTML=`<dl class="kv" style="margin-bottom:6px"><dt>그룹 W × L (판넬 외곽)</dt><dd><b>${fmt(bb.w)} × ${fmt(bb.h)}</b></dd><dt>유지보수 · 도어 포함</dt><dd>${fmt(eb.w)} × ${fmt(eb.h)}</dd></dl>
      <div class="muted">${Object.entries(by).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')}</div>
-     <div class="row" style="margin-top:6px"><button id="gRL">그룹 ⟲</button><button id="gRR">그룹 ⟳</button><button id="gRe">Tag 재부여</button></div>
-     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
-    $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90);
+     <div class="row" style="margin-top:6px"><button id="gRL">그룹 ⟲</button><button id="gRR">그룹 ⟳</button><button id="gRe">Tag 재부여</button><button id="gLk">${ps.every(p=>p.lock)?'🔓 잠금 해제':'🔒 잠금'}</button></div>
+     <div class="row" style="margin-top:6px;align-items:center"><span class="muted">맞춤</span><button data-al="l" title="왼쪽 모서리 맞춤">⇤ 왼쪽</button><button data-al="r" title="오른쪽 모서리 맞춤">오른쪽 ⇥</button><button data-al="t" title="위 모서리 맞춤">⤒ 위</button><button data-al="b" title="아래 모서리 맞춤">아래 ⤓</button></div>
+     <div class="row" style="margin-top:6px;align-items:center"><span class="muted">균등 간격</span><input type="number" id="gGap" min="0" step="50" value="${S.room.touchOK?0:(+S.room.gapP||0)}" style="width:70px" title="판넬 사이 간격 (mm)"><button data-al="dx" title="왼쪽부터 같은 간격으로 가로 배치">가로 →</button><button data-al="dy" title="위부터 같은 간격으로 세로 배치">세로 ↓</button></div>
+     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
+    $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90); $('#gLk').onclick=lockSel;
+    box.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>alignSel(b.dataset.al,+$('#gGap').value||0));
     $('#gRe').onclick=()=>{const gs=ps.slice().sort((a,b)=>a.y-b.y||a.x-b.x);const used={};
       S.panels.filter(p=>!sel.has(p.id)).forEach(p=>used[p.tag]=1);
       gs.forEach(p=>{const t=typeOf(p);let k=1;while(used[t.pre+String(k).padStart(2,'0')])k++;p.tag=t.pre+String(k).padStart(2,'0');used[p.tag]=1});commit()};
@@ -1057,12 +1095,15 @@ function buildSummary(){
 function eqRows(){return S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag,'en',{numeric:true})).map((p,i)=>{const t=typeOf(p);return {no:i+1,p,desc:(p.desc||'').trim()||t.name,size:`${t.w}×${t.d}×${t.h}`}})}
 function buildEq(){
   const box=$('#eqBox'); box.hidden=!show.eq; if(!show.eq)return;
-  const R=eqRows(); $('#eqCnt').textContent=`${R.length} EA`;
+  const q=($('#eqQ').value||'').trim().toLowerCase(), onlySel=$('#eqSel').checked;
+  const R=eqRows().filter(r=>(!onlySel||sel.has(r.p.id))&&(!q||`${r.p.tag} ${r.desc} ${r.size}`.toLowerCase().includes(q))); $('#eqCnt').textContent=`${R.length} EA`;
   $('#eqTbl').innerHTML=R.length?R.map(r=>`<tr data-pid="${r.p.id}" class="${sel.has(r.p.id)?'on':''}"><td class="no">${r.no}</td><td>${esc(r.p.tag)}</td><td>${esc(r.desc)}</td><td class="n">${r.size}</td></tr>`).join(''):'<tr><td colspan="4" class="muted">배치된 판넬이 없습니다</td></tr>';
 }
+$('#eqQ').oninput=buildEq; $('#eqSel').onchange=buildEq;
 $('#eqFold').onclick=()=>{const b=$('#eqBox');b.classList.toggle('fold');$('#eqFold').textContent=b.classList.contains('fold')?'⟨':'⟩';try{localStorage.setItem('crspace.eqfold',b.classList.contains('fold')?'1':'')}catch(e){}};
 try{if(localStorage.getItem('crspace.eqfold')){$('#eqBox').classList.add('fold');$('#eqFold').textContent='⟨'}}catch(e){}
 $('#eqTbl').addEventListener('click',e=>{const tr=e.target.closest('[data-pid]');if(!tr)return;const p=S.panels.find(x=>x.id===tr.dataset.pid);if(!p)return;
+  if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();buildEq();render();return}   // Shift = 목록에서도 여러 개 고르기
   sel=new Set([p.id]);const b=geom(p).body,{w,h}=vp();V.ox=w/2-(b.x+b.w/2)*V.s;V.oy=h/2-(b.y+b.h/2)*V.s;buildProps();buildEq();render()});
 function refresh(){check();buildSummary();buildRevs();buildNotes();buildEq();updSrv();buildProps();render();
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
@@ -1085,6 +1126,18 @@ function makeGhost(w,raw){   // raw = 격자에 맞추지 않음 (Ctrl 정렬용
   for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:(raw?w.x:snapV(w.x))+(sw?i*step:0),y:(raw?w.y:snapV(w.y))+(sw?0:i*step)})}
   return out;
 }
+/* 정렬 · 균등 배치 (CAD 처럼): 잠긴 판넬 · 선택 영역 모서리를 기준으로 나머지를 움직인다. 위반이면 되돌림 */
+function alignSel(kind,gap){
+  const all=S.panels.filter(p=>sel.has(p.id)), ps=all.filter(p=>!p.lock); if(all.length<2||!ps.length)return;
+  const B=p=>geom(p).body, ref=all.filter(p=>p.lock).length?all.filter(p=>p.lock):all;
+  if(kind==='l'){const x=Math.min(...ref.map(p=>B(p).x));ps.forEach(p=>{p.x=x})}
+  else if(kind==='r'){const x=Math.max(...ref.map(p=>{const b=B(p);return b.x+b.w}));ps.forEach(p=>{p.x=x-B(p).w})}
+  else if(kind==='t'){const y=Math.min(...ref.map(p=>B(p).y));ps.forEach(p=>{p.y=y})}
+  else if(kind==='b'){const y=Math.max(...ref.map(p=>{const b=B(p);return b.y+b.h}));ps.forEach(p=>{p.y=y-B(p).h})}
+  else if(kind==='dx'){const o=all.slice().sort((a,b)=>B(a).x-B(b).x);let x=B(o[0]).x;o.forEach(p=>{if(!p.lock)p.x=x;x=B(p).x+B(p).w+gap})}
+  else if(kind==='dy'){const o=all.slice().sort((a,b)=>B(a).y-B(b).y);let y=B(o[0]).y;o.forEach(p=>{if(!p.lock)p.y=y;y=B(p).y+B(p).h+gap})}
+  if(guardCommit(new Set(ps.map(p=>p.id))))toast({l:'왼쪽 맞춤',r:'오른쪽 맞춤',t:'위 맞춤',b:'아래 맞춤',dx:`가로 균등 간격 ${fmt(gap)} mm`,dy:`세로 균등 간격 ${fmt(gap)} mm`}[kind]+` — ${ps.length}개`);
+}
 function rotateAbout(ps,center,delta,abs){
   if(!ps.length)return;
   let cx,cy;
@@ -1101,24 +1154,25 @@ function rotateAbout(ps,center,delta,abs){
 }
 function rotSel(d){
   if(mode==='place'){placeRot=((placeRot+d)%360+360)%360;ghost=cursorW?placeGhost(cursorW,false):null;render();return}
-  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return; rotateAbout(ps,null,d); guardCommit(new Set(ps.map(p=>p.id)));
+  const ps=S.panels.filter(p=>sel.has(p.id)&&!p.lock); if(!ps.length)return; rotateAbout(ps,null,d); guardCommit(new Set(ps.map(p=>p.id)));
 }
 function delCol(){if(!selCol||!Array.isArray(S.cols))return;S.cols=S.cols.filter(c=>c.id!==selCol);selCol=null;commit();buildRoom()}
-function delSel(){if(!sel.size)return;S.panels=S.panels.filter(p=>!sel.has(p.id));sel.clear();commit()}
+function delSel(){if(!sel.size)return;const lk=S.panels.filter(p=>sel.has(p.id)&&p.lock).length;S.panels=S.panels.filter(p=>!sel.has(p.id)||p.lock);sel=new Set(S.panels.filter(p=>sel.has(p.id)).map(p=>p.id));commit();if(lk)toast(`잠긴 판넬 ${lk}개는 지우지 않았습니다 (L 로 잠금 해제)`)}
+function lockSel(){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;const on=ps.some(p=>!p.lock);ps.forEach(p=>{p.lock=on});commit();toast(on?`판넬 ${ps.length}개를 잠갔습니다 — 옮기기 · 회전 · 삭제가 막힙니다 (L 로 해제)`:`판넬 ${ps.length}개 잠금을 풀었습니다`)}
 function dupSel(){
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
   let x0=1e12,x1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);x1=Math.max(x1,b.x+b.w)});
   const off=snapV(x1-x0+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0))||S.snap, tags=[], nw=[];
-  ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off})});
+  ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off,lock:false})});
   S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); guardCommit(new Set(nw.map(p=>p.id)));
 }
-function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});guardCommit(new Set(ps.map(p=>p.id)))}
+function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id)&&!p.lock);if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});guardCommit(new Set(ps.map(p=>p.id)))}
 function setMode(m){
-  mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null;
-  $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note');
+  mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null; if(m!=='measure')measure=null;
+  $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note'); $('#bMeas').classList.toggle('on',m==='measure');
   const t=S.types.find(x=>x.id===placeType);
-  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':m==='note'?'📌 노트':'선택';
-  $('#stHint').textContent=m==='place'?'클릭 = 배치 (좌상단 기준) · Ctrl = 정렬 스냅 · R = 회전 · 연속 EA 는 옆으로 · 빨간색 = 놓을 수 없는 자리 · Esc = 끝':m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
+  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
+  $('#stHint').textContent=m==='measure'?'첫 점 클릭 → 둘째 점 클릭 = 거리 · X · Y 차이 (Snap) · 다시 클릭 = 새로 재기 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · Ctrl = 정렬 스냅 · R = 회전 · 연속 EA 는 옆으로 · 빨간색 = 놓을 수 없는 자리 · Esc = 끝':m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
   buildTypes(); buildProps(); render();
 }
 
@@ -1149,6 +1203,7 @@ svg.addEventListener('pointerdown',e=>{
   const w=toW(sp.x,sp.y);
   if(e.button===1){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}
   if(mode==='place'){const gh=ghost&&ghost.length?ghost:placeGhost(w,e.ctrlKey);if(gh){const v=ENF()?violation(gh):null;if(v){refuse(v);return}S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=placeGhost(w,e.ctrlKey);render()}return}
+  if(mode==='measure'){const q={x:snapV(w.x),y:snapV(w.y)};if(!measure||measure.b)measure={a:q,b:null};else measure.b=q;render();measStatus();return}
   if(mode==='note'){const n=hitNote(w);if(n){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render()}else openNote(null,w);return}
   {const n=hitNote(w);if(n&&mode==='select'){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render();return}}
   if(mode==='col'){                                        // 기둥 편집: 기둥 누르기 = 고르기 · 끌어 옮기기, 빈 곳 = 추가
@@ -1164,7 +1219,8 @@ svg.addEventListener('pointerdown',e=>{
     if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}   // Shift = 선택 넣고 빼기
     else if(e.ctrlKey){if(!sel.has(p.id)){sel.add(p.id);buildProps()}}                                            // Ctrl = 선택에 더하고 그대로 끌기(정렬 스냅)
     else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
-    const ps=S.panels.filter(q=>sel.has(q.id));
+    const ps=S.panels.filter(q=>sel.has(q.id)&&!q.lock);
+    if(!ps.length){toast('잠긴 판넬입니다 — 속성칸의 🔒 또는 L 키로 풀면 옮길 수 있습니다');render();return}
     drag={k:'move',w0:w,orig:ps.map(q=>({q,x:q.x,y:q.y})),moved:false};render();return;
   }
   if(mode==='select'&&!e.shiftKey&&hitCol(w)){   // 선택 모드에서도 기둥을 바로 끌어 옮김 (추가 · 삭제는 [기둥 편집])
@@ -1181,6 +1237,7 @@ svg.addEventListener('pointermove',e=>{
   $('#stXY').textContent=`X ${fmt(snapV(w.x))} · Y ${fmt(snapV(w.y))}`;
   if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const ns=Math.max(.004,Math.min(2,pinch.s*d/pinch.d));const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;const wx=(pinch.mx-pinch.ox)/pinch.s,wy=(pinch.my-pinch.oy)/pinch.s;V.s=ns;V.ox=mx-wx*ns;V.oy=my-wy*ns;req();return}
   if(mode==='place'&&!drag){ghost=placeGhost(w,e.ctrlKey);req();return}
+  if(mode==='measure'&&measure&&!measure.b){measure.cur={x:snapV(w.x),y:snapV(w.y)};measStatus();req();return}
   if(!drag)return;
   if(drag.k==='pan'){const dx=sp.x-drag.sx,dy=sp.y-drag.sy;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;V.ox=drag.ox+dx;V.oy=drag.oy+dy;req()}
   else if(drag.k==='move'){
@@ -1212,6 +1269,11 @@ function endPtr(e){
 svg.addEventListener('pointerup',endPtr); svg.addEventListener('pointercancel',endPtr);
 svg.addEventListener('pointerleave',()=>{if(mode==='place'&&!drag){ghost=null;render()}});
 function zoomAt(sx,sy,k){const w=toW(sx,sy);V.s=Math.max(.004,Math.min(2,V.s*k));V.ox=sx-w.x*V.s;V.oy=sy-w.y*V.s;req()}
+function zoomSel(){   // 선택한 판넬(없으면 전체)로 줌
+  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return fit();
+  const eb=unionR(ps.map(p=>extOf(geom(p)))), {w,h}=vp(), pad=80;
+  V.s=Math.max(.004,Math.min(2,Math.min((w-pad*2)/eb.w,(h-pad*2)/eb.h))); V.ox=(w-eb.w*V.s)/2-eb.x*V.s; V.oy=(h-eb.h*V.s)/2-eb.y*V.s; render();
+}
 function zoomMid(k){const {w,h}=vp();zoomAt(w/2,h/2,k)}
 document.addEventListener('wheel',e=>{if(e.ctrlKey&&!svg.contains(e.target)&&!e.target.closest('.modal')){e.preventDefault();zoomMid(Math.exp(-e.deltaY*0.0015))}},{passive:false});   // Ctrl+휠 = 도면 확대 · 축소 (브라우저 화면 확대 대신)
 $('#bZi').onclick=()=>zoomMid(1.25); $('#bZo').onclick=()=>zoomMid(0.8);
@@ -1229,6 +1291,10 @@ document.addEventListener('keydown',e=>{
   if(k==='delete'||k==='backspace'){if(mode==='col')delCol();else if(selNote&&!sel.size){S.notes=S.notes.filter(x=>x.id!==selNote);selNote=null;commit();buildNotes()}else delSel();return}
   if(k==='escape'){if(mode!=='select')setMode('select');else{sel.clear();buildProps();render()}return}
   if(k==='f'){fit();return}
+  if((e.ctrlKey||e.metaKey)&&k==='s'){e.preventDefault();openHist(true);return}
+  if(k==='l'&&!e.ctrlKey&&!e.metaKey){lockSel();return}
+  if(k==='?'){$('#kdlg').hidden=false;return}
+  if(k==='z'&&!e.ctrlKey&&!e.metaKey){zoomSel();return}
   if(k==='+'||k==='='){zoomMid(1.25);return} if(k==='-'||k==='_'){zoomMid(0.8);return}
   const st=e.shiftKey?S.snap*10:S.snap;
   if(k==='arrowleft'){e.preventDefault();nudge(-st,0)} if(k==='arrowright'){e.preventDefault();nudge(st,0)}
@@ -1236,7 +1302,7 @@ document.addEventListener('keydown',e=>{
 });
 function doUndo(){if(!undo.length)return;redo.push(lastSnap);restore(undo.pop())}
 function doRedo(){if(!redo.length)return;undo.push(lastSnap);restore(redo.pop())}
-$('#bSel').onclick=()=>setMode('select'); $('#bBox').onclick=()=>setMode(mode==='box'?'select':'box'); $('#bCol').onclick=()=>setMode(mode==='col'?'select':'col'); $('#bNote').onclick=()=>setMode(mode==='note'?'select':'note');
+$('#bSel').onclick=()=>setMode('select'); $('#bBox').onclick=()=>setMode(mode==='box'?'select':'box'); $('#bCol').onclick=()=>setMode(mode==='col'?'select':'col'); $('#bNote').onclick=()=>setMode(mode==='note'?'select':'note'); $('#bMeas').onclick=()=>setMode(mode==='measure'?'select':'measure');
 $('#bRL').onclick=()=>rotSel(-90); $('#bRR').onclick=()=>rotSel(90);
 $('#bDel').onclick=delSel; $('#bDup').onclick=dupSel;
 $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
@@ -1263,7 +1329,23 @@ $('#mDown').onclick=()=>{ // 브라우저가 직접 저장 — 파일 이름(.dx
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const dlNote='다운로드가 안 되면 [복사] 후 메모장에 붙여넣고 같은 확장자로 저장하세요.';
 
+function preflight(what){   // 출력 전: 간섭(오류)이 있으면 먼저 알림
+  check(); const e=issues.filter(i=>i.lv==='err').length; if(!e)return true;
+  return confirm(`간섭(오류) ${e}건이 있습니다 — ${issues.find(i=>i.lv==='err').msg}.\n그대로 ${what}할까요? (취소 = 검토 목록 확인)`);
+}
+$('#bPng').onclick=async()=>{   // 지금 보이는 도면 → PNG (2배 해상도). 폐쇄망: 글꼴 · 그림 모두 로컬
+  const {w,h}=vp(), K=2, bg=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+  const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h);
+  c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="${bg}"/>`); c.setAttribute('style','font-family:Consolas,monospace');
+  const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(c)],{type:'image/svg+xml;charset=utf-8'}));
+  try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url});
+    const cv=document.createElement('canvas'); cv.width=w*K; cv.height=h*K; const g=cv.getContext('2d'); g.scale(K,K); g.drawImage(im,0,0);
+    cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fname('도면','png');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast(`도면 PNG 저장 — ${w*K} × ${h*K} px (지금 보이는 범위)`)},'image/png');
+  }catch(e){toast('PNG 를 만들지 못했습니다 — 브라우저가 SVG 그림 변환을 막았습니다. 대신 화면 캡처(Win+Shift+S)를 쓰세요.',true)}
+  finally{URL.revokeObjectURL(url)}
+};
 $('#bReq').onclick=()=>{
+  if(!preflight('출력'))return;
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
   const L=[];
   L.push('[계장 Control Room 공간 요구사항 - 초안]');
@@ -1311,6 +1393,7 @@ $('#bCsv').onclick=()=>{
 
 function dxfStr(s){return String(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'))}
 $('#bDxf').onclick=()=>{
+  if(!preflight('DXF 출력'))return;
   const Lr=S.room.l, o=[]; const P=(...a)=>{for(let i=0;i<a.length;i+=2)o.push(String(a[i]),String(a[i+1]))};
   const Y=y=>+(Lr-y).toFixed(1), X=x=>+(+x).toFixed(1);
   // Layer 색 = 화면(어두운 CAD) 색에 가장 가까운 ACI — 원색(빨강 · 노랑 · 자홍 · 순백)을 피해 눈부시지 않게.
