@@ -65,6 +65,9 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .counts{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
 .counts td{padding:3px 0;border-bottom:1px dashed var(--line)}
 .counts td:last-child{text-align:right;font-family:var(--f-mono)}
+.revs td{font-size:11.5px}.revs th{font-size:11px;font-weight:600;color:var(--ink-2);text-align:left;padding:2px 0;border-bottom:1px solid var(--line)}
+.revs td.n,.revs th.n{padding-left:10px;text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.up{color:var(--warn)}.dn{color:var(--ok)}
 .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .issues{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:auto}
 .issues li{font-size:11.5px;line-height:1.45;padding:4px 6px;border-radius:3px;cursor:pointer;border-left:3px solid}
@@ -136,6 +139,8 @@ svg text{font-family:var(--f-mono)}
           <label>작성자<input type="text" id="iBy"></label>
           <label>Rev<input type="text" id="iRev" placeholder="A"></label>
         </div>
+        <div class="row" style="margin-top:8px;align-items:center"><button id="bRevRec" title="지금 Rev 의 필요 영역 · 권장 실 크기를 이력에 남깁니다 (같은 Rev 는 덮어씀)">현재 Rev 기록</button><span class="muted" id="revNow"></span></div>
+        <table class="counts revs" id="revList"></table>
         <p class="muted" style="margin:6px 0 0">건축 전달 요약 머리와 DXF 타이틀 글자 · 파일 이름에 들어갑니다. 작성자를 비우면 대시보드 로그인 이름(회색 글자)을 씁니다 — 저장 파일에는 직접 적은 값만 남습니다.</p>
       </section>
 
@@ -260,7 +265,7 @@ function sample(){
 let S;
 try{const raw=localStorage.getItem('crspace.v1'); S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.revs=Array.isArray(d.revs)?d.revs:[];return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);
 const LOGIN=(Q.get('user')||'').trim();                    // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 const author=()=>S.info.author.trim()||LOGIN;
@@ -349,6 +354,13 @@ function summary(){
   const body=S.panels.reduce((a,p)=>{const g=geom(p);return a+g.body.w*g.body.h},0);
   return {env,envS,sp,rec,by,body,roomA:S.room.w*S.room.l};
 }
+
+/* ---------- Rev 이력: [현재 Rev 기록] 으로 남긴 값과 비교 (권장 실 크기 기준) ---------- */
+const m2=v=>(v/1e6).toFixed(1);
+function revRecord(){const sm=summary();return sm.rec?{rev:S.info.rev.trim(),at:today(),by:author(),env:{w:sm.env.w,h:sm.env.h},spare:S.room.spare,spareDir:S.room.spareDir,margin:+S.room.margin||0,rec:{...sm.rec},n:S.panels.length}:null}
+function revPrev(rev){for(let i=S.revs.length-1;i>=0;i--)if(S.revs[i].rev!==rev)return S.revs[i];return null}   // 지금 Rev 가 아닌 가장 최근 기록
+function revDelta(a,b){if(!a||!b)return null;const dA=a.rec.w*a.rec.h-b.rec.w*b.rec.h;return {dA,dW:a.rec.w-b.rec.w,dL:a.rec.h-b.rec.h,txt:`Rev ${b.rev} 대비 ${dA>=0?'+':''}${m2(dA)} m2 (W ${a.rec.w-b.rec.w>=0?'+':''}${fmt(a.rec.w-b.rec.w)} / L ${a.rec.h-b.rec.h>=0?'+':''}${fmt(a.rec.h-b.rec.h)})`}}
+const sgn=d=>d>0?'up':d<0?'dn':'';
 
 /* ---------- view ---------- */
 const svg=$('#cv');
@@ -529,6 +541,20 @@ function buildProps(){
   }
 }
 
+function buildRevs(){
+  const cur=revRecord(), rev=S.info.rev.trim(), prev=revPrev(rev), d=revDelta(cur,prev), mine=S.revs.find(r=>r.rev===rev);
+  const same=mine&&cur&&mine.rec.w===cur.rec.w&&mine.rec.h===cur.rec.h&&mine.n===cur.n;
+  $('#revNow').innerHTML=!rev?'Rev 를 적으면 기록할 수 있습니다':mine?(same?`Rev ${esc(rev)} 기록과 같음`:`<span class="up">Rev ${esc(rev)} 기록 이후 바뀜 — 다시 기록하세요</span>`):`Rev ${esc(rev)} 미기록`;
+  $('#revList').innerHTML=S.revs.length?`<tr><th>Rev</th><th>기록일</th><th class="n">권장 실</th><th class="n">m²</th><th class="n">이전 대비</th></tr>`+S.revs.map((r,i)=>{const p=i?S.revs[i-1]:null,x=revDelta(r,p);
+    return `<tr><td>${esc(r.rev)}</td><td>${esc(r.at)}</td><td class="n">${fmt(r.rec.w)}×${fmt(r.rec.h)}</td><td class="n">${m2(r.rec.w*r.rec.h)}</td><td class="n ${x?sgn(x.dA):''}">${x?(x.dA>=0?'+':'')+m2(x.dA):'–'}</td></tr>`}).join('')
+    +(cur&&d&&!same?`<tr><td colspan="4">지금 값 (Rev ${esc(rev||'-')})</td><td class="n ${sgn(d.dA)}">${d.dA>=0?'+':''}${m2(d.dA)}</td></tr>`:''):'';
+}
+$('#bRevRec').onclick=()=>{
+  const r=revRecord(); if(!S.info.rev.trim())return toast('Rev 가 비어 있습니다 — ① 프로젝트 정보의 Rev 칸에 적은 뒤 기록하세요 (예: A).',true);
+  if(!r)return toast('배치된 판넬이 없어 기록할 값이 없습니다 — 판넬을 배치한 뒤 기록하세요.',true);
+  const i=S.revs.findIndex(x=>x.rev===r.rev); if(i>=0)S.revs[i]=r;else S.revs.push(r); commit();
+  toast(i>=0?`Rev ${r.rev} 기록을 지금 값으로 바꿨습니다`:`Rev ${r.rev} 를 기록했습니다 — 권장 실 ${fmt(r.rec.w)} × ${fmt(r.rec.h)}`);
+};
 function buildSummary(){
   const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
   const pill=$('#chkPill'); pill.className='pill '+(e?'err':w?'warn':'ok'); pill.textContent=e?`간섭 ${e}`:w?`경고 ${w}`:'OK';
@@ -545,7 +571,7 @@ function buildSummary(){
   const ul=$('#issues'); ul.innerHTML='';
   issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.innerHTML=`<span class="lv">${i.lv==='err'?'간섭':'경고'}</span>${esc(i.msg)}<span class="fix">→ ${esc(i.fix)}</span>`;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
 }
-function refresh(){check();buildSummary();buildProps();render();
+function refresh(){check();buildSummary();buildRevs();buildProps();render();
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
   if(n!==refresh._n){refresh._n=n;buildTypes()}
   $('#bUndo').disabled=!undo.length;$('#bRedo').disabled=!redo.length;
@@ -703,7 +729,13 @@ $('#bReq').onclick=()=>{
   L.push(`5. 배치 검토: 간섭 ${e}건, 경고 ${w}건`);
   issues.slice(0,15).forEach(i=>L.push(`   - [${i.lv==='err'?'간섭':'경고'}] ${i.msg} → ${i.fix}`));
   L.push('');
-  L.push('6. 요청 사항');
+  L.push('6. Rev 이력 (권장 실 크기 기준)');
+  if(!S.revs.length)L.push('   - 기록된 Rev 없음 ([현재 Rev 기록]으로 남기면 다음 Rev 에서 면적 변화가 표시됩니다)');
+  S.revs.forEach((r,i)=>{const x=revDelta(r,i?S.revs[i-1]:null);L.push(`   - Rev ${r.rev} (${r.at}${r.by?', '+r.by:''}): ${fmt(r.rec.w)} x ${fmt(r.rec.h)} = ${m2(r.rec.w*r.rec.h)} m2, 판넬 ${r.n} EA, Spare ${r.spare}%`+(x?`  [${x.txt}]`:''))});
+  {const cur=revRecord(),rv=S.info.rev.trim(),mine=S.revs.find(r=>r.rev===rv),x=revDelta(cur,revPrev(rv));
+   if(cur&&(!mine||mine.rec.w!==cur.rec.w||mine.rec.h!==cur.rec.h||mine.n!==cur.n))L.push(`   - 이번 요약 (Rev ${rv||'-'}, ${mine?'기록 이후 변경':'미기록'}): ${fmt(cur.rec.w)} x ${fmt(cur.rec.h)} = ${m2(cur.rec.w*cur.rec.h)} m2`+(x?`  [${x.txt}]`:''));}
+  L.push('');
+  L.push('7. 요청 사항');
   L.push('   - 상기 필요 영역 기준으로 Room 초안 도면(CAD) 회신 요청');
   L.push('   - 출입문 위치, 케이블 인입(Floor/Trench) 위치, Access Floor 여부 확인 요청');
   L.push('   - 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정 예정 (본 수치는 초기 공간확보용)');
@@ -758,7 +790,7 @@ $('#bLoad').onclick=()=>$('#fLoad').click();
 $('#fLoad').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;S=norm(d);sel.clear();commit();buildRoom();buildTypes();fit();toast(`${f.name} 을(를) 불러왔습니다 — 판넬 ${S.panels.length} EA`)}catch(err){toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음). [배치안 저장 (JSON)]으로 만든 .json 파일을 고르세요.`,true)}};r.readAsText(f);e.target.value=''};
 
 /* ---------- boot ---------- */
-buildRoom(); buildTypes(); check(); buildSummary(); buildProps();
+buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 })();
