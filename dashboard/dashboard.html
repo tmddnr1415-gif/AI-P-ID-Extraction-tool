@@ -530,6 +530,7 @@ svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 /* P&ID 분석: 본문(#content) 전체를 iframe 으로 채움, 바깥 스크롤 없음 */
 body.pid-mode #main{height:100vh;display:flex;flex-direction:column;overflow:hidden}
 body.pid-mode header.top{flex:none}
+body.pid-mode header.top .actions{display:none}   /* 분석·도구 화면: 주간업무 전용 버튼(주차·전체 저장·CSV·엑셀…)은 이 화면 자료와 무관 → 숨김 */
 body.pid-mode #content{flex:1;min-height:0;display:flex;flex-direction:column;padding:0}
 body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .pidwrap{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -992,7 +993,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-22.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-22.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2582,7 +2583,7 @@ function renderMenu() {
   $('#folderName').textContent = root ? '📁 ' + root.name : '';
 }
 function renderHeader() {
-  const cw = curWeek();
+  const cw = curWeek(), F = FRAME_ROUTES(route);
   $('#subtitle').textContent = readOnly() ? `${weekLabel(view.week)} 마감본 · 수요일 오전 11:59 기준`
     : `${weekLabel(cw)} · 기준일 ${todayISO()} · 마감 ${weekLabel(cw).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2')}(수) 11:59` + (DB.state.lastFullSaveAt ? ` · 마지막 전체 저장 ${fmtTime(DB.state.lastFullSaveAt)} (${DB.state.lastFullSaveBy || ''})` : '');
   const opts = [`<option value="current">${weekLabel(cw)} (현재)</option>`, ...DB.archives.filter(a => a !== cw).map(a => `<option value="${esc(a)}">${esc(weekLabel(a))} 마감본</option>`)];
@@ -2597,6 +2598,7 @@ function renderHeader() {
     + `<div style="opacity:.7;margin-top:2px">화면 v${APP_VERSION}${SERVER_INFO?.serverVersion ? ` · 서버 v${esc(SERVER_INFO.serverVersion)}` : ''}</div>`;
   if (OFFLINE) ['btnClose', 'btnSaveAll', 'btnTrash'].forEach(i => $('#' + i).disabled = true);
   ['btnTrash', 'btnReload', 'btnCsv', 'btnXlsx'].forEach(i => $('#' + i).disabled = !root);
+  if (F) $('#subtitle').textContent = `${F.title} · 입력 → 실행 → 결과 → 출력은 아래 화면 안에서 합니다 (주간업무 버튼은 이 화면에서 숨김)`;   // 분석·도구 화면
 }
 function renderWelcome(c) {
   c.innerHTML = `<div class="card welcome"><h2>데이터 폴더를 선택하세요</h2><p class="muted">공유폴더(부서원 전원 쓰기 권한)를 선택하면 <b>data/</b>, <b>history/</b>, <b>trash/</b>, <b>archive/</b> 하위 폴더가 사용됩니다.<br>처음이라면 <code>migrate_xlsx.py</code> 로 엑셀 내용을 먼저 이관하세요.</p>
