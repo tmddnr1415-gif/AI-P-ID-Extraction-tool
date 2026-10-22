@@ -108,8 +108,16 @@ try:
     items = json.loads((data / "items.json").read_text(encoding="utf-8"))
     ok.append(("아이템 — 들어오면 무작위 3 개", len(items["inv"].get("성춘향", [])) == 3 and items["inv"].get("변학도") == []
                and sum(1 for g in items["ground"] if (g["x"], g["y"]) == (46, 24)) == 3))
+    it0 = items["inv"]["성춘향"][0]
+    ok.append(("아이템 — 공격력 · 마법 공격력 · 등급이 붙음", all(isinstance(it0.get(k), int) for k in ("id", "atk", "matk", "r")) and it0["k"] in plaza_server.ITEM_NAMES))
+    call("/plaza/api/move", {"id": h["id"], "x": 46, "y": 27, "dir": 0}, F)     # 방자가 떨어뜨린 (48,24) 곁에서 비켜남
+    ok.append(("아이템 — 멀면 Z 로 못 주움", call("/plaza/api/pickup", {"id": h["id"]}, F)[0] == 400))
     _, pk = call("/plaza/api/move", {"id": h["id"], "x": 46, "y": 24, "dir": 0}, F)
-    ok.append(("아이템 — 쓰러진 자리를 밟으면 주움", len(pk.get("picked", [])) == 3))
+    ok.append(("아이템 — 밟기만 해서는 안 주움", "picked" not in pk))
+    call("/plaza/api/move", {"id": h["id"], "x": 45, "y": 24, "dir": 3}, F)    # (46,24) 곁 · (48,24) 는 두 칸 밖
+    _, pk = call("/plaza/api/pickup", {"id": h["id"]}, F)
+    ok.append(("아이템 — 곁(한 칸)에서 Z 로 주움", len(pk.get("picked", [])) == 3))
+    call("/plaza/api/move", {"id": h["id"], "x": 46, "y": 24, "dir": 0}, F)
     ok.append(("부활 — 부서원은 못 함", call("/plaza/api/revive", {"id": h["id"], "target": "변학도"}, F)[0] == 403))
     ok.append(("부활 — 운영자도 멀면 거절", call("/plaza/api/revive", {"id": b["id"], "target": "변학도"}, B)[0] == 400))
     call("/plaza/api/move", {"id": b["id"], "x": 46, "y": 25, "dir": 1}, B)
@@ -155,16 +163,41 @@ try:
     _, g2 = call("/plaza/api/join", {"name": "신입", "x": 21, "y": 30}, S2)
     call("/plaza/api/move", {"id": g1["id"], "x": 20, "y": 30, "dir": 3}, S1)
     call("/plaza/api/move", {"id": g2["id"], "x": 21, "y": 30, "dir": 2}, S2)
+    time.sleep(2.3)
+    inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
+    atk1, matk2 = sum(i["atk"] for i in inv["고수"]), sum(i["matk"] for i in inv["신입"])
     _, k1 = call("/plaza/api/skill", {"id": g1["id"], "skill": "strike"}, S1)
-    ok.append(("기술 강타 — 앞 사람 −5 · 마나 10 씀 (Lv 5 최대 마나 70 → 60)", k1.get("target") == "신입" and k1.get("left") == 95 and k1.get("mp") == 60))
+    ok.append(("기술 강타 — 앞 사람 −(5 + 공격력/4) · 마나 10 씀 (Lv 5 최대 마나 70 → 60)",
+               k1.get("target") == "신입" and k1.get("dmg") == 5 + atk1 // 4 and k1.get("left") == 100 - k1["dmg"] and k1.get("mp") == 60))
     ok.append(("기술 — 재사용 시간 안에는 거절", call("/plaza/api/skill", {"id": g1["id"], "skill": "strike"}, S1)[0] == 429))
     _, k2 = call("/plaza/api/skill", {"id": g2["id"], "skill": "support"}, S2)
     ok.append(("기술 현장 지원 — 둘레 팀원 회복 · 마나 30 씀 (Lv 1 최대 50 → 20)", k2.get("healed") == ["고수"] and k2.get("mp") == 20))
     _, k3 = call("/plaza/api/skill", {"id": g2["id"], "skill": "strike"}, S2)
     _, k4 = call("/plaza/api/skill", {"id": g1["id"], "skill": "aid"}, S1)
-    ok.append(("레벨 — Lv 5 최대 체력 140 (맞아서 135 → 응급 처치로 140)", k3.get("left") == 135 and k4.get("hp") == 140))
+    ok.append(("레벨 — Lv 5 최대 체력 140 (맞고 → 응급 처치로 140)", k3.get("left") == 140 - k3.get("dmg", -1) and k4.get("hp") == 140))
     st5, k5 = call("/plaza/api/skill", {"id": g2["id"], "skill": "aid"}, S2)
     ok.append(("기술 — 마나가 모자라면 거절", st5 == 400 and "마나" in k5.get("detail", "")))
+    # 2026-10-22 판5: 전기 충격(마법) · 교환
+    S3 = "127.0.0.14"
+    _, g3 = call("/plaza/api/join", {"name": "마법사", "x": 20, "y": 26}, S3)
+    call("/plaza/api/move", {"id": g3["id"], "x": 20, "y": 26, "dir": 0}, S3)
+    time.sleep(2.3)
+    inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
+    m3 = sum(i["matk"] for i in inv["마법사"])
+    _, b1 = call("/plaza/api/skill", {"id": g3["id"], "skill": "bolt"}, S3)
+    ok.append(("기술 전기 충격 — 보는 쪽 4 칸 안 첫 사람 −(4 + 마법/3)", b1.get("target") == "고수" and b1.get("dmg") == 4 + m3 // 3 and b1.get("mp") == 35))
+    give, want = inv["마법사"][0]["id"], inv["고수"][0]["id"]
+    ok.append(("교환 — 남의 아이템을 줄 수는 없음", call("/plaza/api/trade", {"id": g3["id"], "op": "offer", "target": "고수", "give": [want]}, S3)[0] == 400))
+    ok.append(("교환 — 멀면 거절", call("/plaza/api/trade", {"id": g3["id"], "op": "offer", "target": "신입", "give": [give]}, S3)[0] == 400))
+    call("/plaza/api/move", {"id": g3["id"], "x": 20, "y": 28, "dir": 0}, S3)
+    _, t1 = call("/plaza/api/trade", {"id": g3["id"], "op": "offer", "target": "고수", "give": [give], "want": [want]}, S3)
+    ok.append(("교환 — 받는 사람만 수락", call("/plaza/api/trade", {"id": g3["id"], "op": "accept", "tid": t1.get("tid")}, S3)[0] == 403))
+    st6, t2 = call("/plaza/api/trade", {"id": g1["id"], "op": "accept", "tid": t1.get("tid")}, S1)
+    time.sleep(2.3)
+    inv = json.loads((data / "items.json").read_text(encoding="utf-8"))["inv"]
+    ok.append(("교환 — 수락하면 서로 바뀜 · 파일에 남음", st6 == 200 and give in [i["id"] for i in inv["고수"]] and want in [i["id"] for i in inv["마법사"]]
+               and give not in [i["id"] for i in inv["마법사"]]))
+    ok.append(("교환 — 끝난 제안은 다시 못 씀", call("/plaza/api/trade", {"id": g1["id"], "op": "accept", "tid": t1.get("tid")}, S1)[0] == 404))
     ok.append(("기술 정보 — 설비 목록에 같이", call("/plaza/api/equip")[1].get("skills", {}).get("aid", {}).get("mp") == 20))
     ok.append(("나가기", call("/plaza/api/leave", {"id": a["id"]})[0] == 200))
     for name, good in ok:

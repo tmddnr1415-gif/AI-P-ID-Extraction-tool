@@ -51,7 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-PLAZA_VERSION = '2026-10-22.4'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
+PLAZA_VERSION = '2026-10-22.5'   # 대시보드 server.py 가 이 줄을 읽어, 돌고 있는 광장 서버가 옛 판이면 바꿔 띄움
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 
@@ -65,11 +65,18 @@ MP_BASE, MP_PER_LV = 50, 5   # 마나 — Lv 1 은 50, 레벨마다 +5
 MP_REGEN = 1                 # 1초마다 마나 +1 (유령은 안 참)
 LV_CAP = 30
 SKILLS = {                   # 키: (이름, 마나, 재사용 초) — 1 강타 · 2 응급 처치 · 3 현장 지원
-    "strike": ("강타", 10, 3.0),      # 앞 칸 한 사람 체력 -STRIKE_DMG (평타는 -1)
+    "strike": ("강타", 10, 3.0),      # 앞 칸 한 사람 체력 -(STRIKE_DMG + 공격력/4)  (평타는 1 + 공격력/10)
     "aid": ("응급 처치", 20, 8.0),     # 내 체력 +AID_HEAL
-    "support": ("현장 지원", 30, 15.0),  # 둘레 SUPPORT_R 칸 안 팀원 체력 +SUPPORT_HEAL · 기력 회복은 화면이 함
+    "support": ("현장 지원", 30, 15.0),  # 둘레 SUPPORT_R 칸 안 팀원 체력 +(SUPPORT_HEAL + 마법/4) · 기력 회복은 화면이 함
+    "bolt": ("전기 충격", 15, 4.0),    # 2026-10-22 판5 마법 공격 — 보는 쪽 BOLT_R 칸 안 첫 사람 체력 -(BOLT_DMG + 마법 공격력/3)
 }
 STRIKE_DMG, AID_HEAL, SUPPORT_HEAL, SUPPORT_R = 5, 25, 15, 3.0
+BOLT_DMG, BOLT_R = 4, 4         # 응급 처치도 +마법/3
+def dmg_basic(atk: int) -> int: return 1 + atk // 10          # 평타 (Space)
+def dmg_strike(atk: int) -> int: return STRIKE_DMG + atk // 4
+def dmg_bolt(matk: int) -> int: return BOLT_DMG + matk // 3
+def heal_aid(matk: int) -> int: return AID_HEAL + matk // 3
+def heal_support(matk: int) -> int: return SUPPORT_HEAL + matk // 4
 KILLER_AT = 3                # 이번 주에 이만큼 쓰러뜨리면 이름 앞에 [killer n] (이름 붉은색은 1명부터 점점 짙게 · 화면이 정함)
 CUTOFF_WEEKDAY, CUTOFF_HOUR = 2, 12   # 대시보드 server.py 와 같은 주간 마감 (수요일 12:00)
 DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}       # 아래 · 위 · 왼쪽 · 오른쪽
@@ -447,40 +454,83 @@ def save_xp() -> None:
             XP["dirty"] = True
 
 
-# ── 아이템 (2026-10-22 판3): 들어오면 무작위 3 개 · 쓰러지면 그 자리에 떨어뜨림 · 산 사람이 그 칸을 밟으면 주움 ──────
+# ── 아이템 (2026-10-22 판3 · 판5): 들어오면 무작위 3 개 · 쓰러지면 그 자리에 떨어뜨림 · 곁에서 Z 로 주움 · 서로 교환 ──────
+# 아이템마다 공격력(atk) · 마법 공격력(matk) · 등급(r 0 일반 · 1 고급 · 2 희귀 · 3 전설)이 무작위로 붙는다. 가방에 든 것의 합이 내 공격력 · 마법 공격력.
 ITEM_NAMES = {"HART": "HART 통신기", "MULTI": "멀티미터", "CALIB": "루프 교정기", "SPOOL": "케이블 드럼", "ICABLE": "계장 케이블",
               "GLAND": "케이블 글랜드", "TB": "단자대", "AIRTUBE": "에어 튜브", "IMPULSE": "임펄스 튜브", "POSITIONER": "포지셔너",
               "CALPUMP": "교정 펌프", "HELMET": "안전모", "VEST": "안전 조끼", "WRENCH": "렌치", "SCREW": "드라이버",
               "LAPTOP": "노트북", "CHECK": "점검표", "RADIO": "무전기", "PG": "압력계", "DCSCARD": "DCS 카드"}   # 그림 = EPC 시트 i_<키>
+ITEM_W = {   # 종류별 (공격 · 마법) 성향 — 공구는 공격, 계측 · 통신 · 전자는 마법
+    "HART": (.4, 1.2), "MULTI": (.5, 1.0), "CALIB": (.5, 1.0), "SPOOL": (1.2, .2), "ICABLE": (.9, .5), "GLAND": (.8, .2),
+    "TB": (.7, .6), "AIRTUBE": (.7, .3), "IMPULSE": (.8, .3), "POSITIONER": (.6, .9), "CALPUMP": (1.0, .4), "HELMET": (.5, .3),
+    "VEST": (.4, .4), "WRENCH": (1.5, .1), "SCREW": (1.2, .2), "LAPTOP": (.2, 1.5), "CHECK": (.2, .8), "RADIO": (.3, 1.3),
+    "PG": (.9, .4), "DCSCARD": (.2, 1.5)}
+RARITY = ((70, 1.0, "일반"), (22, 1.6, "고급"), (7, 2.4, "희귀"), (1, 3.5, "전설"))   # (확률 % · 배수 · 이름)
 ITEM_START = 3                  # 처음(그리고 빈 가방으로 부활할 때) 받는 개수
 ITEM_MAX = 8                    # 가방 칸
 GROUND_MAX = 80                 # 바닥에 남는 수 상한 (넘으면 오래된 것부터 사라짐)
+PICK_DIST = 1                   # Z 로 주울 수 있는 거리 (선 칸 + 둘레 8 칸)
 REVIVE_DIST = 2.5               # 운영자가 부활시킬 수 있는 거리 (칸)
-ITEMS: dict = {"inv": {}, "ground": [], "seq": 0, "dirty": False}   # inv: 이름 → [키] · ground: [{id, it, x, y, at}] (<data>/items.json)
+TRADE_DIST = 3.0                # 교환 제안 · 수락 거리 (칸)
+TRADE_S = 60                    # 교환 제안이 남는 시간 (초)
+ITEMS: dict = {"inv": {}, "ground": [], "seq": 0, "iseq": 0, "dirty": False}   # inv: 이름 → [아이템] · ground: [{id, item, x, y, at}] (<data>/items.json)
+TRADES: dict = {}               # tid → {from, to, give: [아이템 id], want: [아이템 id], at}
+
+
+def make_item(k: str, rnd=None) -> dict:          # LOCK 안에서 — 종류 k 의 새 아이템 (공격력 · 마법 공격력 · 등급 무작위)
+    import random
+    r = rnd or random
+    roll, tier = r.uniform(0, 100), 0
+    for i, (pct, _m, _n) in enumerate(RARITY):
+        if roll < pct:
+            tier = i
+            break
+        roll -= pct
+    mult, base = RARITY[tier][1], r.randint(2, 5)
+    wp, wm = ITEM_W.get(k, (.5, .5))
+    ITEMS["iseq"] += 1
+    return {"id": ITEMS["iseq"], "k": k, "atk": max(0, round(wp * base * mult)), "matk": max(0, round(wm * base * mult)), "r": tier}
+
+
+def fix_item(v):                                   # 파일에서 읽은 값 → 아이템 (판3 의 '키' 만 있는 것은 새로 굴림)
+    if isinstance(v, str) and v in ITEM_NAMES:
+        return make_item(v)
+    if isinstance(v, dict) and v.get("k") in ITEM_NAMES:
+        try:
+            it = {"id": int(v["id"]), "k": v["k"], "atk": max(0, min(999, int(v["atk"]))), "matk": max(0, min(999, int(v["matk"]))),
+                  "r": max(0, min(3, int(v.get("r") or 0)))}
+            ITEMS["iseq"] = max(ITEMS["iseq"], it["id"])
+            return it
+        except (KeyError, TypeError, ValueError):
+            return make_item(v["k"])
+    return None
 
 
 def load_items() -> None:
     raw = read_json(DATA / "items.json", {})
-    inv = {}
+    ITEMS.update(inv={}, ground=[], seq=0, iseq=int(raw.get("iseq") or 0) if str(raw.get("iseq") or "0").isdigit() else 0, dirty=False)
     for k, v in (raw.get("inv") or {}).items() if isinstance(raw.get("inv"), dict) else []:
         if clean(k, NAME_MAX) and isinstance(v, list):
-            inv[clean(k, NAME_MAX)] = [i for i in v if i in ITEM_NAMES][:ITEM_MAX]
-    ground = []
+            ITEMS["inv"][clean(k, NAME_MAX)] = [i for i in map(fix_item, v) if i][:ITEM_MAX]
     for g in raw.get("ground") or [] if isinstance(raw.get("ground"), list) else []:
         try:
-            if g["it"] in ITEM_NAMES:
-                ground.append({"id": int(g["id"]), "it": g["it"], "x": int(g["x"]) % MAP_W, "y": int(g["y"]) % MAP_H, "at": float(g.get("at") or 0)})
-        except (KeyError, TypeError, ValueError):
+            it = fix_item(g.get("item") or g.get("it"))
+            if it:
+                ITEMS["ground"].append({"id": int(g["id"]), "item": it, "x": int(g["x"]) % MAP_W, "y": int(g["y"]) % MAP_H, "at": float(g.get("at") or 0)})
+        except (KeyError, TypeError, ValueError, AttributeError):
             continue
-    ITEMS.update(inv=inv, ground=ground[-GROUND_MAX:], seq=max([g["id"] for g in ground] + [0]), dirty=False)
+    del ITEMS["ground"][:-GROUND_MAX]
+    ITEMS["seq"] = max([g["id"] for g in ITEMS["ground"]] + [0])
 
 
 def save_items() -> None:
     with LOCK:
         if not ITEMS["dirty"]:
             return
-        data = {"inv": {k: list(v) for k, v in ITEMS["inv"].items()}, "ground": [dict(g) for g in ITEMS["ground"]],
-                "_설명": "계장 광장 아이템. inv = 이름 → 가방 (처음 무작위 3 개). ground = 쓰러진 사람이 떨어뜨린 것 (밟으면 주움). 주간 마감에 바닥은 치우고 빈 가방은 새로 채움."}
+        data = {"inv": {k: [dict(i) for i in v] for k, v in ITEMS["inv"].items()}, "ground": [{**g, "item": dict(g["item"])} for g in ITEMS["ground"]],
+                "iseq": ITEMS["iseq"],
+                "_설명": "계장 광장 아이템. inv = 이름 → 가방 [{id, k 종류, atk 공격력, matk 마법 공격력, r 등급 0~3}] (처음 무작위 3 개). "
+                         "ground = 쓰러진 사람이 떨어뜨린 것 (곁에서 Z 로 주움). 주간 마감에 바닥은 치우고 빈 가방은 새로 채움."}
         ITEMS["dirty"] = False
     try:
         with FILE_LOCK:
@@ -490,41 +540,141 @@ def save_items() -> None:
             ITEMS["dirty"] = True
 
 
+def bag(name: str) -> list:
+    return ITEMS["inv"].get(name) or []
+
+
+def power(name: str) -> tuple:                     # (공격력, 마법 공격력) = 가방의 합
+    b = bag(name)
+    return sum(i["atk"] for i in b), sum(i["matk"] for i in b)
+
+
+def item_txt(it: dict) -> str:
+    return f"{ITEM_NAMES[it['k']]}({RARITY[it['r']][2]} 공{it['atk']}·마{it['matk']})"
+
+
 def give_items(name: str, force: bool = False) -> None:   # LOCK 안에서 — 처음 오거나(가방 없음) force 이면서 빈 가방이면 무작위로
     import random
     have = ITEMS["inv"].get(name)
     if have is None or (force and not have):
-        ITEMS["inv"][name] = random.sample(list(ITEM_NAMES), ITEM_START)
+        ITEMS["inv"][name] = [make_item(k) for k in random.sample(list(ITEM_NAMES), ITEM_START)]
         ITEMS["dirty"] = True
 
 
-def drop_items(q: dict, now: float) -> list:       # LOCK 안에서 — 가방을 그 자리 바닥에
-    lost = ITEMS["inv"].get(q["name"]) or []
+def drop_items(q: dict, now: float) -> list:       # LOCK 안에서 — 가방을 그 자리 바닥에 (걸린 교환은 취소)
+    lost = bag(q["name"])
     for it in lost:
         ITEMS["seq"] += 1
-        ITEMS["ground"].append({"id": ITEMS["seq"], "it": it, "x": q["x"], "y": q["y"], "at": now})
+        ITEMS["ground"].append({"id": ITEMS["seq"], "item": it, "x": q["x"], "y": q["y"], "at": now})
     del ITEMS["ground"][:-GROUND_MAX]
     ITEMS["inv"][q["name"]] = []
     ITEMS["dirty"] = True
+    for tid in [t for t, v in TRADES.items() if q["name"] in (v["from"], v["to"])]:
+        TRADES.pop(tid)
     return list(lost)
 
 
-def pick_up(p: dict, now: float) -> list:         # LOCK 안에서 — 선 칸의 아이템을 가방이 찰 때까지
-    bag = ITEMS["inv"].setdefault(p["name"], [])
-    got = []
-    for g in [g for g in ITEMS["ground"] if (g["x"], g["y"]) == (p["x"], p["y"])]:
-        if len(bag) >= ITEM_MAX:
-            break
-        if now - g["at"] < 0.8:                    # 떨어지는 중(그림이 튀는 동안)은 못 주움
-            continue
-        ITEMS["ground"].remove(g)
-        bag.append(g["it"])
-        got.append(g["it"])
-    if got:
+def api_pickup(body: dict) -> dict:               # Z — 선 칸과 둘레(PICK_DIST)의 아이템을 가까운 것부터, 가방이 찰 때까지
+    now = time.time()
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        if hp_p(p) <= 0:
+            raise ApiError(400, "유령은 주울 수 없습니다.")
+        near = sorted((g for g in ITEMS["ground"] if max(abs(g["x"] - p["x"]), abs(g["y"] - p["y"])) <= PICK_DIST and now - g["at"] >= 0.8),
+                      key=lambda g: (abs(g["x"] - p["x"]) + abs(g["y"] - p["y"]), g["id"]))
+        if not near:
+            raise ApiError(400, "곁에 주울 아이템이 없습니다.")
+        b = ITEMS["inv"].setdefault(p["name"], [])
+        if len(b) >= ITEM_MAX:
+            raise ApiError(400, f"가방이 가득 찼습니다 ({ITEM_MAX} 칸).")
+        got = []
+        for g in near:
+            if len(b) >= ITEM_MAX:
+                break
+            ITEMS["ground"].remove(g)
+            b.append(g["item"])
+            got.append(g["item"])
         ITEMS["dirty"] = True
-        log_system(f"{p['name']} 님이 {' · '.join(ITEM_NAMES[i] for i in got)} 을(를) 주웠습니다.", now)
+        log_system(f"{p['name']} 님이 {' · '.join(item_txt(i) for i in got)} 을(를) 주웠습니다.", now)
         STATE["ver"] += 1
-    return got
+    return {"ok": True, "picked": got, "full": len(b) >= ITEM_MAX, "left": sum(1 for g in ITEMS["ground"] if max(abs(g["x"] - p["x"]), abs(g["y"] - p["y"])) <= PICK_DIST)}
+
+
+def dist(p: dict, q: dict) -> float:
+    return ((p["x"] - q["x"]) ** 2 + (p["y"] - q["y"]) ** 2) ** .5
+
+
+def api_trade(body: dict) -> dict:                # 교환 — offer(제안) · accept(수락) · decline(거절/취소)
+    now, op = time.time(), str(body.get("op") or "")
+    with LOCK:
+        p = player(body.get("id"))
+        p["seen"] = now
+        for t in [t for t, v in TRADES.items() if now - v["at"] > TRADE_S]:
+            TRADES.pop(t)
+        if op == "offer":
+            target = clean(body.get("target"), NAME_MAX)
+            qs = [q for q in STATE["players"].values() if q["name"] == target]
+            if not qs or target == p["name"]:
+                raise ApiError(404, "광장에 없는 사람입니다.")
+            if hp_p(p) <= 0 or hp_p(qs[0]) <= 0:
+                raise ApiError(400, "유령과는 교환할 수 없습니다.")
+            if min(dist(p, q) for q in qs) > TRADE_DIST:
+                raise ApiError(400, f"교환은 {TRADE_DIST:g} 칸 안에서 합니다.")
+            give, want = [int(i) for i in body.get("give") or []], [int(i) for i in body.get("want") or []]
+            mine, theirs = {i["id"] for i in bag(p["name"])}, {i["id"] for i in bag(target)}
+            if not give and not want:
+                raise ApiError(400, "주거나 받을 아이템을 하나 이상 고르세요.")
+            if not set(give) <= mine or not set(want) <= theirs or len(set(give)) != len(give) or len(set(want)) != len(want):
+                raise ApiError(400, "가방에 없는 아이템이 있습니다.")
+            if len(mine) - len(give) + len(want) > ITEM_MAX or len(theirs) - len(want) + len(give) > ITEM_MAX:
+                raise ApiError(400, f"교환하면 가방({ITEM_MAX} 칸)이 넘칩니다.")
+            for t in [t for t, v in TRADES.items() if v["from"] == p["name"] or v["to"] == target]:
+                TRADES.pop(t)                       # 한 사람에게 걸린 제안은 하나 — 새 제안이 옛 것을 대신함
+            tid = secrets.token_hex(4)
+            TRADES[tid] = {"from": p["name"], "to": target, "give": give, "want": want, "at": now}
+            STATE["ver"] += 1
+            return {"ok": True, "tid": tid}
+        tid = str(body.get("tid") or "")
+        t = TRADES.get(tid)
+        if t is None:
+            raise ApiError(404, "끝났거나 없는 교환입니다.")
+        if op == "decline":
+            if p["name"] not in (t["from"], t["to"]):
+                raise ApiError(403, "내 교환이 아닙니다.")
+            TRADES.pop(tid)
+            log_system(f"{t['to']} 님이 {t['from']} 님의 교환 제안을 거절했습니다." if p["name"] == t["to"]
+                       else f"{t['from']} 님이 {t['to']} 님에게 한 교환 제안을 거두었습니다.", now)
+            STATE["ver"] += 1
+            return {"ok": True}
+        if op == "accept":
+            if p["name"] != t["to"]:
+                raise ApiError(403, "받는 사람만 수락할 수 있습니다.")
+            fs = [q for q in STATE["players"].values() if q["name"] == t["from"]]
+            if not fs or hp_p(fs[0]) <= 0 or hp_p(p) <= 0:
+                TRADES.pop(tid)
+                raise ApiError(400, "상대가 광장에 없거나 유령이라 교환이 취소되었습니다.")
+            if min(dist(p, q) for q in fs) > TRADE_DIST + 1:
+                raise ApiError(400, f"상대가 멀리 있습니다 ({TRADE_DIST:g} 칸 안으로).")
+            fb, tb = ITEMS["inv"].setdefault(t["from"], []), ITEMS["inv"].setdefault(t["to"], [])
+            give = [i for i in fb if i["id"] in t["give"]]
+            want = [i for i in tb if i["id"] in t["want"]]
+            if len(give) != len(t["give"]) or len(want) != len(t["want"]):
+                TRADES.pop(tid)
+                raise ApiError(400, "그사이 아이템이 바뀌어 교환이 취소되었습니다.")
+            if len(fb) - len(give) + len(want) > ITEM_MAX or len(tb) - len(want) + len(give) > ITEM_MAX:
+                raise ApiError(400, f"교환하면 가방({ITEM_MAX} 칸)이 넘칩니다.")
+            ITEMS["inv"][t["from"]] = [i for i in fb if i not in give] + want
+            ITEMS["inv"][t["to"]] = [i for i in tb if i not in want] + give
+            ITEMS["dirty"] = True
+            TRADES.pop(tid)
+            for q in fs + [p]:
+                q["trade_at"] = now
+            log_system(f"🤝 {t['from']} ↔ {t['to']} 교환 — " + (" · ".join(item_txt(i) for i in give) or "없음") + " ↔ "
+                       + (" · ".join(item_txt(i) for i in want) or "없음"), now)
+            STATE["ver"] += 1
+            return {"ok": True, "got": give, "gave": want}
+    raise ApiError(400, "op 는 offer · accept · decline 입니다.")
 
 
 def items_new_week(now: float) -> None:            # LOCK 안에서 (check_week)
@@ -620,9 +770,9 @@ def api_work(body: dict) -> dict:
 def equip_defs() -> dict:
     return {"equip": [{"id": i, "t": t, "x": x, "y": y, "w": w, "name": n} for i, t, x, y, w, n in EQUIP],
             "jobs": list(JOBS), "heal_radius": HEAL_RADIUS, "heal_per_sec": HEAL_PER_SEC,
-            "items": ITEM_NAMES, "revive_dist": REVIVE_DIST,
+            "items": ITEM_NAMES, "revive_dist": REVIVE_DIST, "rarity": [r[2] for r in RARITY], "trade_dist": TRADE_DIST,
             "skills": {k: {"name": v[0], "mp": v[1], "cd": v[2]} for k, v in SKILLS.items()},
-            "skill_vals": {"strike": STRIKE_DMG, "aid": AID_HEAL, "support": SUPPORT_HEAL, "support_r": SUPPORT_R},
+            "skill_vals": {"strike": STRIKE_DMG, "aid": AID_HEAL, "support": SUPPORT_HEAL, "support_r": SUPPORT_R, "bolt": BOLT_DMG, "bolt_r": BOLT_R},
             "hp_per_lv": HP_PER_LV, "mp_base": MP_BASE, "mp_per_lv": MP_PER_LV, "mp_regen": MP_REGEN}
 
 
@@ -664,15 +814,19 @@ def snapshot(now: float | None = None) -> dict:
                 "healer": p.get("role") in HEAL_ROLES and hp_p(p) > 0,
                 "heal_seq": p.get("heal_seq", 0), "heal_age": round(now - p.get("heal_at", 0), 2), "heal_amt": p.get("heal_amt", 1),
                 "cheer_age": round(now - p.get("cheer_at", 0), 2),
-                "items": list(ITEMS["inv"].get(p["name"], [])), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
+                "items": [dict(i) for i in bag(p["name"])], "atk": power(p["name"])[0], "matk": power(p["name"])[1],
+                "trade_age": round(now - p.get("trade_at", 0), 2), "skill_to": p.get("skill_to"), "revive_age": round(now - p.get("revive_at", 0), 2), "revive_by": p.get("revive_by", ""),
                 "work": ({k: p["work"][k] for k in ("eq", "kind", "need", "label")} | {"age": round(now - p["work"]["at"], 2)}) if p.get("work") else None,
             })
         log = [{"seq": m["seq"], "name": m["name"], "text": m["text"], "sys": m["sys"],
                 "at": time.strftime("%H:%M", time.localtime(m["at"]))} for m in STATE["log"]]
         eq = {k: [v["st"], v["busy"]] for k, v in EQ.items()}
-        ground = [[g["id"], g["it"], g["x"], g["y"], round(now - g["at"], 2)] for g in ITEMS["ground"]]
+        ground = [[g["id"], g["item"]["k"], g["x"], g["y"], round(now - g["at"], 2), g["item"]["r"], g["item"]["atk"], g["item"]["matk"]] for g in ITEMS["ground"]]
+        trades = [{"tid": t, "from": v["from"], "to": v["to"], "left": round(TRADE_S - (now - v["at"]), 1),
+                   "give": [dict(i) for i in bag(v["from"]) if i["id"] in v["give"]], "want": [dict(i) for i in bag(v["to"]) if i["id"] in v["want"]]}
+                  for t, v in TRADES.items() if now - v["at"] <= TRADE_S]
         return {"ver": STATE["ver"], "players": players, "log": log, "online": len(players), "week": HP["week"], "eq": eq, "heal_r": HEAL_RADIUS,
-                "ground": ground}
+                "ground": ground, "trades": trades}
 
 
 def player(pid) -> dict:
@@ -753,8 +907,7 @@ def api_move(body: dict) -> dict:
         if (x, y, d % 4) != (p["x"], p["y"], p["dir"]):
             p["x"], p["y"], p["dir"] = x, y, d % 4
             STATE["ver"] += 1
-        got = pick_up(p, time.time()) if hp_p(p) > 0 else []
-    return {"ok": True, "picked": got}
+    return {"ok": True}
 
 
 def api_say(body: dict) -> dict:
@@ -796,7 +949,7 @@ def api_attack(body: dict) -> dict:
                 q["hit_dmg"] = 0
                 continue
             done.add(q["name"])
-            damage(p, q, 1, now)                   # 한 대에 1
+            damage(p, q, dmg_basic(power(p["name"])[0]), now)   # 평타 = 1 + 공격력/10
             hit.append(q["name"])
         STATE["ver"] += 1
     return {"ok": True, "hit": hit}
@@ -810,7 +963,7 @@ def damage(p: dict, q: dict, n: int, now: float) -> int:   # LOCK 안에서 — 
         k = HP["kills"][p["name"]] = min(HP["kills"].get(p["name"], 0) + 1, 9999)   # 처치 수
         lost = drop_items(q, now)
         log_system(f"{q['name']} 님이 {p['name']} 님에게 쓰러져 유령이 되었습니다. (주간 마감 · 운영자가 부활)"
-                   + (f" — {' · '.join(ITEM_NAMES[i] for i in lost)} 을(를) 떨어뜨렸습니다." if lost else ""), now)
+                   + (f" — {' · '.join(item_txt(i) for i in lost)} 을(를) 떨어뜨렸습니다." if lost else ""), now)
         if k == KILLER_AT:
             log_system(f"⚔ {p['name']} 님이 이번 주 {k}명을 쓰러뜨려 killer 가 되었습니다!", now)
     return max(0, left)
@@ -853,30 +1006,47 @@ def api_skill(body: dict) -> dict:                 # 1 강타 · 2 응급 처치
                 raise ApiError(400, "앞 칸에 사람이 없습니다 (마나는 그대로).")
             q["hit_seq"] += 1
             q["hit_at"], q["hit_by"] = now, p["name"]
-            res["target"], res["dmg"] = q["name"], 0 if q.get("role") == "operator" else STRIKE_DMG
+            res["target"], res["dmg"] = q["name"], 0 if q.get("role") == "operator" else dmg_strike(power(p["name"])[0])
             q["hit_dmg"] = 0
             if q.get("role") != "operator":
-                res["left"] = damage(p, q, STRIKE_DMG, now)
+                res["left"] = damage(p, q, res["dmg"], now)
             p["act_at"] = now
             p["act_seq"] += 1
         elif key == "aid":
             if hp_p(p) >= hp_max(p["name"]):
                 raise ApiError(400, "체력이 가득합니다 (마나는 그대로).")
-            set_hp(p["name"], hp_of(p["name"]) + AID_HEAL)
+            set_hp(p["name"], hp_of(p["name"]) + heal_aid(power(p["name"])[1]))
             res["hp"] = hp_of(p["name"])
+        elif key == "bolt":
+            dx, dy = DIRV.get(p["dir"], (0, 1))
+            q, end = None, (p["x"] + dx * BOLT_R, p["y"] + dy * BOLT_R)
+            for n in range(1, BOLT_R + 1):
+                c = (p["x"] + dx * n, p["y"] + dy * n)
+                q = next((q for q in STATE["players"].values() if q["name"] != p["name"] and (q["x"], q["y"]) == c and hp_p(q) > 0), None)
+                if q:
+                    end = c
+                    break
+            if q is None:
+                raise ApiError(400, f"보는 쪽 {BOLT_R} 칸 안에 사람이 없습니다 (마나는 그대로).")
+            q["hit_seq"] += 1
+            q["hit_at"], q["hit_by"], q["hit_dmg"] = now, p["name"], 0
+            res["target"], res["dmg"] = q["name"], 0 if q.get("role") == "operator" else dmg_bolt(power(p["name"])[1])
+            if q.get("role") != "operator":
+                res["left"] = damage(p, q, res["dmg"], now)
+            p["skill_to"] = list(end)
         else:
             near = {q["name"] for q in STATE["players"].values()
                     if q["name"] != p["name"] and hp_p(q) > 0 and ((q["x"] - p["x"]) ** 2 + (q["y"] - p["y"]) ** 2) ** .5 <= SUPPORT_R}
             if not near:
                 raise ApiError(400, f"둘레 {SUPPORT_R:g} 칸 안에 팀원이 없습니다 (마나는 그대로).")
             for name in near:
-                set_hp(name, hp_of(name) + SUPPORT_HEAL)
+                set_hp(name, hp_of(name) + heal_support(power(p["name"])[1]))
                 for r in STATE["players"].values():
                     if r["name"] == name:
                         r["heal_seq"] = r.get("heal_seq", 0) + 1
-                        r["heal_at"], r["heal_amt"] = now, SUPPORT_HEAL
+                        r["heal_at"], r["heal_amt"] = now, heal_support(power(p["name"])[1])
             res["healed"] = sorted(near)
-            log_system(f"💚 {p['name']} 님의 현장 지원 — {' · '.join(sorted(near))} 체력 +{SUPPORT_HEAL}", now)
+            log_system(f"💚 {p['name']} 님의 현장 지원 — {' · '.join(sorted(near))} 체력 +{heal_support(power(p['name'])[1])}", now)
         MP[p["name"]] = mp_of(p["name"]) - cost
         p["cd"][key] = now + cd
         p["skill"], p["skill_at"], p["skill_seq"] = key, now, p.get("skill_seq", 0) + 1
@@ -952,7 +1122,8 @@ def api_leave(body: dict) -> dict:
 POSTS = {"/plaza/api/join": api_join, "/plaza/api/move": api_move, "/plaza/api/say": api_say,
          "/plaza/api/attack": api_attack, "/plaza/api/look": api_look, "/plaza/api/role": api_role,
          "/plaza/api/leave": api_leave, "/plaza/api/status": api_status, "/plaza/api/work": api_work,
-         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill}
+         "/plaza/api/revive": api_revive, "/plaza/api/skill": api_skill, "/plaza/api/pickup": api_pickup,
+         "/plaza/api/trade": api_trade}
 FILES = {"/plaza": ("plaza.html", "text/html; charset=utf-8"),
          "/static/plaza.js": ("plaza.js", "text/javascript; charset=utf-8"),
          "/static/plaza.css": ("plaza.css", "text/css; charset=utf-8"),

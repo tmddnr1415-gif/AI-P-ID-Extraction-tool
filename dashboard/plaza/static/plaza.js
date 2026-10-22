@@ -460,7 +460,8 @@ async function loadEquip() {
     for (const e of d.equip || []) { EQUIP.push(e); EQ_BY.set(e.id, e); block(e.x, e.y, e.x + (e.w || 1) - 1, e.y); }
     if (d.heal_radius) S.healR = d.heal_radius; if (Array.isArray(d.jobs)) S.jobs = d.jobs; if (d.items) S.itemNames = d.items;
     if (d.skills) for (const [k, v] of Object.entries(d.skills)) if (SKILL[k]) Object.assign(SKILL[k], { name: v.name, mp: v.mp, cd: v.cd });
-    if (d.skill_vals) { const v = d.skill_vals; SKILL.strike.note = `앞 사람 체력 −${v.strike}`; SKILL.aid.note = `내 체력 +${v.aid}`; SKILL.support.note = `둘레 ${v.support_r}칸 팀원 체력 +${v.support} · 기력 +30`; }
+    if (d.skill_vals) { const v = d.skill_vals; SKILL.strike.note = `앞 사람 체력 −(${v.strike} + 공격력/4)`; SKILL.aid.note = `내 체력 +(${v.aid} + 마법/3)`;
+      SKILL.support.note = `둘레 ${v.support_r}칸 팀원 체력 +(${v.support} + 마법/4) · 기력 +30`; if (v.bolt) SKILL.bolt.note = `보는 쪽 ${v.bolt_r}칸 안 첫 사람 −(${v.bolt} + 마법/3)`; }
   } catch (_) { /* 설비 없이 */ }
 }
 
@@ -1233,6 +1234,7 @@ function drawEqMarks(g, cx, cy, now) {       // 설비 상태 표시 (정상 초
   }
 }
 let hudAt = 0;
+$("#pz-trade-send").onclick = sendTrade; $("#pz-trade-cancel").onclick = closeTrade;
 document.querySelectorAll("#pz-tools .sk").forEach(el => el.addEventListener("click", () => { useSkill(el.dataset.k); cv.focus(); }));
 function paintIcons() {                       // 상태판 · 도구칸의 작은 그림 (EPC 시트에서, 한 번만)
   if (!EPC.ready || hudIcons) return; hudIcons = true;
@@ -1260,12 +1262,11 @@ function updateHud(now) {                    // 왼쪽 위 상태판 — 초상 
   const bar = (id, k) => { const el = document.getElementById(id); if (el) el.style.width = Math.round(Math.max(0, Math.min(1, k)) * 100) + "%"; };
   const hp = Math.round(S.me.hpShow ?? S.me.hp), lv = S.me.lv || 1, xp = S.me.xp || 0, lo = 25 * (lv - 1) ** 2, hi = 25 * lv ** 2;
   bar("hud-hp", S.me.inf ? 1 : hp / (S.me.hpMax || 100)); set("hud-hpt", S.me.inf ? "∞ 무적" : S.me.ghost ? "유령" : `${hp}/${S.me.hpMax || 100}`);
-  const ik = (S.me.items || []).join(",");
-  if (ik !== hudInv && EPC.ready) { hudInv = ik; const box = document.getElementById("hud-inv");   // 가방 8 칸
-    if (box) { box.textContent = ""; for (let i = 0; i < 8; i++) { const it = (S.me.items || [])[i], c = document.createElement("canvas"); c.width = c.height = 22;
-      c.className = it ? "on" : ""; if (it) { c.title = itemName(it); const s1 = eps("i_" + it, false, 1), g = c.getContext("2d");
-        if (s1) { const z = Math.min(1, 20 / Math.max(s1.width, s1.height)); g.imageSmoothingEnabled = false; g.drawImage(s1, Math.round((22 - s1.width * z) / 2), Math.round((22 - s1.height * z) / 2), s1.width * z, s1.height * z); } }
-      box.append(c); } } }
+  const ik = (S.me.items || []).map(i => i.id).join(",");
+  if (ik !== hudInv && EPC.ready) { hudInv = ik; const box = document.getElementById("hud-inv");   // 가방 8 칸 (등급 색 테두리)
+    if (box) { box.textContent = ""; for (let i = 0; i < 8; i++) { const it = (S.me.items || [])[i], c = it ? itemIcon(it, 22) : document.createElement("canvas");
+      if (!it) c.width = c.height = 22; c.className = it ? "on" : ""; box.append(c); } } }
+  set("hud-pow", `⚔ 공격력 ${S.me.atk || 0}  ✦ 마법 ${S.me.matk || 0}  · 평타 ${1 + Math.floor((S.me.atk || 0) / 10)}`);
   bar("hud-mp", (S.me.mp ?? 0) / (S.me.mpMax || 50)); set("hud-mpt", `${S.me.mp ?? 0}/${S.me.mpMax || 50}`);
   updateSkillBar(now);
   bar("hud-st", S.stamina / ST_MAX); set("hud-stt", `${Math.round(S.stamina)}` + (S.stamina < ST_TIRED ? " 지침" : ""));
@@ -1348,8 +1349,11 @@ function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오
   a.mp = p.mp ?? 50; a.mpMax = p.mp_max || 50;
   if ((p.skill_seq || 0) !== a.skillseq) { if (a.skillseq != null && p.skill_age < 1.2 && SKILL[p.skill]) skillFx(a, p.skill, tnow - p.skill_age * 1000); a.skillseq = p.skill_seq || 0; }
   const items = Array.isArray(p.items) ? p.items : [];
-  if (a === S.me && a.items && !a.ghost) for (const it of items.slice(a.items.length)) floater(a, "+ " + itemName(it), "#ffe066", 1600);   // 주움
-  a.items = items;
+  if (a === S.me && a.items && !a.ghost) { const had = new Set(a.items.map(i => i.id));   // 주움 · 교환으로 받음
+    for (const it of items) if (!had.has(it.id)) floater(a, `+ ${itemName(it)} (${itemStat(it)})`, RARE_COL[it.r] || "#ffe066", 1800); }
+  a.items = items; a.atk = p.atk || 0; a.matk = p.matk || 0;
+  if (p.skill_to) a.skillTo = p.skill_to;
+  if (p.trade_age != null && p.trade_age < 1.2 && (!a.tradeFx || tnow - a.tradeFx > 2000)) { a.tradeFx = tnow; floater(a, "🤝 교환!", "#ffe7a6", 1400); }
   if (p.revive_age != null && p.revive_age < 2) { const t = tnow - p.revive_age * 1000;   // 부활 — 빛기둥
     if (!a.revive || t - a.revive > 2500) { a.revive = t; floater(a, "부활!", "#fff2a8", 1800); } }
 }
@@ -1357,12 +1361,22 @@ function epcFields(a, p, tnow) {            // 경험치 · 직무 · 회복 오
 const ITEM_DEF = { HART: "HART 통신기", MULTI: "멀티미터", CALIB: "루프 교정기", SPOOL: "케이블 드럼", ICABLE: "계장 케이블", GLAND: "케이블 글랜드",
   TB: "단자대", AIRTUBE: "에어 튜브", IMPULSE: "임펄스 튜브", POSITIONER: "포지셔너", CALPUMP: "교정 펌프", HELMET: "안전모", VEST: "안전 조끼",
   WRENCH: "렌치", SCREW: "드라이버", LAPTOP: "노트북", CHECK: "점검표", RADIO: "무전기", PG: "압력계", DCSCARD: "DCS 카드" };
-const itemName = it => (S.itemNames && S.itemNames[it]) || ITEM_DEF[it] || it;
+const itemName = it => { const k = it && it.k || it; return (S.itemNames && S.itemNames[k]) || ITEM_DEF[k] || k; };
+const RARE = ["일반", "고급", "희귀", "전설"], RARE_COL = ["#9aa6b1", "#5fd36a", "#5fa8ff", "#ffb02e"];   // 등급 이름 · 색 (서버 RARITY)
+const itemStat = it => `${RARE[it.r] || ""} 공${it.atk} · 마${it.matk}`;
+const itemFull = it => `${itemName(it)} (${itemStat(it)})`;
+function itemIcon(it, size) {                // 아이템 그림 한 칸 (등급 색 테두리 빛)
+  const c = document.createElement("canvas"); c.width = c.height = size; const g = c.getContext("2d"), s1 = eps("i_" + it.k, false, 1);
+  if (s1) { const z = Math.min(1, (size - 2) / Math.max(s1.width, s1.height)); g.imageSmoothingEnabled = false;
+    g.drawImage(s1, Math.round((size - s1.width * z) / 2), Math.round((size - s1.height * z) / 2), s1.width * z, s1.height * z); }
+  c.style.borderColor = RARE_COL[it.r] || ""; if (it.r >= 2) c.style.boxShadow = `0 0 6px ${RARE_COL[it.r]}`;
+  c.title = itemFull(it); return c;
+}
 const GROUND = [], G_SEEN = new Map();        // [id, 키, x, y, 나이] · id → 처음 본 시각 (떨어지는 그림)
 const G_OFF = [[0, 0], [-10, 5], [10, 5], [-6, -7], [7, -7], [0, 10], [-12, -2], [12, -2]];
 function drawGroundItems(g, cx, cy, now) {   // 바닥 층 — 쓰러진 자리에서 튀어 나와 흩어지고, 반짝임
   const per = new Map();
-  for (const [id, it, x, y, age] of GROUND) {
+  for (const [id, it, x, y, age, r] of GROUND) {
     const n = per.get(x + "," + y) || 0; per.set(x + "," + y, n + 1);
     const s1 = eps("i_" + it, false, 1); if (!s1) continue;
     const [ox, oy] = G_OFF[n % G_OFF.length], tx = x * T + 16 + ox - cx, ty = y * T + 26 + oy - cy;
@@ -1371,11 +1385,12 @@ function drawGroundItems(g, cx, cy, now) {   // 바닥 층 — 쓰러진 자리�
     const px = x * T + 16 - cx + (tx - (x * T + 16 - cx)) * k, py = y * T + 22 - cy + (ty - (y * T + 22 - cy)) * k;
     const hop = k < 1 ? Math.sin(k * Math.PI) * 22 : Math.round(Math.sin(now / 380 + id) * 1.5);
     ell(g, px, py, 7, 2.5, "rgba(5,10,20,.4)");
+    if (r >= 1) { g.save(); g.globalAlpha = .25 + .15 * Math.sin(now / 300 + id); ell(g, px, py - 2, 11, 4, RARE_COL[r]); g.restore(); }   // 고급 이상은 바닥빛
     g.drawImage(s1, Math.round(px - s1.width / 2), Math.round(py - s1.height - hop));
     if (k >= 1 && Math.floor(now / 140 + id * 3) % 11 === 0) { g.fillStyle = "#fff"; const sx = Math.round(px + s1.width / 3), sy = Math.round(py - s1.height + 3);
       g.fillRect(sx - 1, sy - 3, 2, 6); g.fillRect(sx - 3, sy - 1, 6, 2); }
-    if (S.me && !S.me.ghost && Math.abs(S.me.tx - x) + Math.abs(S.me.ty - y) <= 1 && n === 0) {   // 가까이 가면 이름
-      const lab = [...GROUND].filter(v => v[2] === x && v[3] === y).map(v => itemName(v[1])).join(" · ");
+    if (S.me && !S.me.ghost && Math.max(Math.abs(S.me.tx - x), Math.abs(S.me.ty - y)) <= 1 && n === 0) {   // 곁이면 이름 · [Z] 줍기
+      const here = GROUND.filter(v => v[2] === x && v[3] === y), lab = "[Z] " + here.slice(0, 3).map(v => `${itemName(v[1])} 공${v[6]}·마${v[7]}`).join(" · ") + (here.length > 3 ? ` 외 ${here.length - 3}` : "");
       g.font = `bold 10px ${FONT}`; g.textAlign = "center"; g.textBaseline = "bottom"; g.lineWidth = 3; g.strokeStyle = "#0b111c";
       g.strokeText(lab, x * T + 16 - cx, y * T - 4 - cy); g.fillStyle = "#ffe7a6"; g.fillText(lab, x * T + 16 - cx, y * T - 4 - cy); g.textAlign = "left"; }
   }
@@ -1393,13 +1408,15 @@ function drawRevive(g, a, cx, cy, now) {      // 부활 — 빛기둥 · 퍼지�
 // ── 기술 (2026-10-22 판4): 마나를 씀 · 재사용 시간 — 값은 서버 SKILLS 가 정함 (여기는 보이는 기본값) ─────────────
 const SKILL = { strike: { key: "1", name: "강타", mp: 10, cd: 3, ic: "f_SPARK", note: "앞 사람 체력 −5" },
   aid: { key: "2", name: "응급 처치", mp: 20, cd: 8, ic: "f_HP", note: "내 체력 +25" },
-  support: { key: "3", name: "현장 지원", mp: 30, cd: 15, ic: "f_AURA", note: "둘레 3칸 팀원 체력 +15 · 기력 +30" } };
-const SKILL_KEYS = { Digit1: "strike", Digit2: "aid", Digit3: "support", Numpad1: "strike", Numpad2: "aid", Numpad3: "support" };
+  support: { key: "3", name: "현장 지원", mp: 30, cd: 15, ic: "f_AURA", note: "둘레 3칸 팀원 체력 +15 · 기력 +30" },
+  bolt: { key: "4", name: "전기 충격", mp: 15, cd: 4, ic: "f_SIGNAL", note: "보는 쪽 4칸 안 첫 사람 −(4 + 마법/3)" } };
+const SKILL_KEYS = { Digit1: "strike", Digit2: "aid", Digit3: "support", Digit4: "bolt", Numpad1: "strike", Numpad2: "aid", Numpad3: "support", Numpad4: "bolt" };
 S.cd = {};
 function dmgFloat(a, n) { if (n > 0) floater(a, `−${n}`, n > 1 ? "#ff6a4a" : "#ffb0a0", n > 1 ? 1300 : 900); else if (a.inf) floater(a, "무적", "#ffd84a", 900); }
 function skillFx(a, k, t0) { a.skillFx = { k, t0 };
   if (k === "strike") { a.attack = t0; floater(a, "강타!", "#ffb347", 1100); }
   if (k === "aid") floater(a, "응급 처치", "#7cffc8", 1200);
+  if (k === "bolt") floater(a, "전기 충격!", "#9fe8ff", 1100);
   if (k === "support") { floater(a, "현장 지원!", "#7ce8ff", 1400); if (S.me && a !== S.me && !S.me.ghost && Math.hypot(a.tx - S.me.tx, a.ty - S.me.ty) <= 3) S.stamina = Math.min(ST_MAX, S.stamina + 30); }
 }
 async function useSkill(k) {
@@ -1411,6 +1428,7 @@ async function useSkill(k) {
   if (S.work) cancelWork();
   try { const r = await post("/plaza/api/skill", { id: S.id, skill: k });
     S.cd[k] = performance.now() + (r.cd || d.cd) * 1000; S.me.mp = r.mp ?? S.me.mp; skillFx(S.me, k, performance.now());
+    if (k === "bolt" && r.target) { const q = [...S.others.values()].find(o => o.name === r.target); if (q) S.me.skillFx.to = [q.tx, q.ty]; }
     if (k === "support") S.stamina = Math.min(ST_MAX, S.stamina + 30);
   } catch (e) { floater(S.me, String(e.message || e).split(" (")[0].slice(0, 28), "#c9d4e0", 1400); }
 }
@@ -1421,6 +1439,16 @@ function drawSkillFx(g, a, cx, cy, now) {     // 기술 효과 — 강타 불꽃
     g.save(); g.globalAlpha = 1 - k; g.strokeStyle = "#ffcf6a"; g.lineWidth = 4; g.beginPath(); g.arc(hx, hy, 10 + k * 18, 0, Math.PI * 2); g.stroke(); g.restore();
     fxIcon(g, "f_SPARK", hx, hy - k * 8, 1 - k * .6);
     if (k < .3) for (let i = 0; i < 3; i++) puff(a.x + 16 + dx * 26, a.y + 14 + dy * 22, (Math.random() - .5) * 120, (Math.random() - .7) * 120, 450, i % 2 ? "#fff3a0" : "#ff8a3c", 2);
+    return; }
+  if (f.k === "bolt") { const k = age / 600; if (k > 1) { a.skillFx = null; return; }   // 번개 — 지그재그 선 · 맞은 자리 불꽃
+    const to = a === S.me && f.to ? f.to : a.skillTo, [dx, dy] = DIRV[a.dir] || [0, 1];
+    const ex = to ? to[0] * T + 16 - cx : x + dx * 4 * T, ey = to ? to[1] * T + 12 - cy : y - 16 + dy * 4 * T, sx0 = x + dx * 10, sy0 = y - 20 + dy * 6;
+    g.save(); g.globalAlpha = 1 - k * k;
+    for (const [w, col] of [[6, "rgba(120,220,255,.45)"], [2, "#eaffff"]]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(sx0, sy0);
+      for (let i = 1; i < 7; i++) { const t = i / 7, j = ((i * 7919 + Math.floor(age / 60) * 31) % 13 - 6) * 1.4; g.lineTo(sx0 + (ex - sx0) * t + (dy ? j : 0), sy0 + (ey - sy0) * t + (dx ? j : 0)); }
+      g.lineTo(ex, ey); g.stroke(); }
+    g.restore(); fxIcon(g, "f_SPARK", ex, ey, 1 - k);
+    if (k < .4 && Math.random() < .6) puff(ex + cx, ey + cy, (Math.random() - .5) * 90, (Math.random() - .7) * 90, 400, Math.random() < .5 ? "#bff6ff" : "#5fd0ff", 2);
     return; }
   if (f.k === "aid") { const k = age / 1200; if (k > 1) { a.skillFx = null; return; }
     g.save(); g.globalAlpha = (1 - k) * .8; g.strokeStyle = "#7cffc8"; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, 14 + k * 6, 5 + k * 2, 0, 0, Math.PI * 2); g.stroke(); g.restore();
@@ -1441,6 +1469,61 @@ function updateSkillBar(now) {               // 기술 칸 — 재사용 남은 
     const t = left > 0 ? (left / 1000).toFixed(left < 10000 ? 1 : 0) : ""; const tEl = el.querySelector(".t"); if (tEl.textContent !== t) tEl.textContent = t;
     el.classList.toggle("nomp", !S.me.ghost && (S.me.mp ?? 0) < d.mp); el.classList.toggle("off", !!S.me.ghost); }
 }
+async function pickup() {                    // Z — 곁의 아이템 줍기
+  if (!S.me || S.me.ghost) return;
+  try { const r = await post("/plaza/api/pickup", { id: S.id }); if (r.left) localNote(r.full ? `가방(8 칸)이 가득 찼습니다 — ${r.left} 개는 바닥에 남았습니다. 교환으로 비우세요.` : `아직 곁에 ${r.left} 개 남았습니다 — Z 를 한 번 더.`); }
+  catch (e) { floater(S.me, String(e.message || e).slice(0, 24), "#c9d4e0", 1200); }
+}
+// ── 교환 (2026-10-22 판5): 상대를 눌러 '교환' → 줄 것 · 받을 것을 골라 제안 → 상대가 수락하면 서로 바뀜 ─────────────
+let tradeWith = null; const tradeSel = { give: new Set(), want: new Set() };
+function openTrade(a) {
+  tradeWith = a.name; tradeSel.give.clear(); tradeSel.want.clear();
+  S.panel = "trade"; S.keys.clear(); $("#pz-trade").hidden = false; $("#pz-trade-head").textContent = `${a.name} 님과 교환`; $("#pz-trade-note").textContent = ""; fillTrade();
+}
+function closeTrade() { $("#pz-trade").hidden = true; S.panel = false; tradeWith = null; cv.focus(); }
+function fillTrade() {
+  const them = [...S.others.values()].find(o => o.name === tradeWith);
+  const list = (el, items, set) => { el.textContent = "";
+    if (!items.length) { const e = document.createElement("small"); e.textContent = "(빈 가방)"; el.append(e); }
+    for (const it of items) { const b = document.createElement("button"); b.type = "button"; b.className = "titem" + (set.has(it.id) ? " sel" : "");
+      b.append(itemIcon(it, 26)); const t = document.createElement("span"); t.innerHTML = ""; t.textContent = itemName(it);
+      const st = document.createElement("small"); st.textContent = itemStat(it); st.style.color = RARE_COL[it.r]; t.append(document.createElement("br"), st); b.append(t);
+      b.onclick = () => { set.has(it.id) ? set.delete(it.id) : set.add(it.id); fillTrade(); }; el.append(b); } };
+  list($("#pz-trade-mine"), S.me.items || [], tradeSel.give);
+  list($("#pz-trade-their"), them ? them.items || [] : [], tradeSel.want);
+  const sum = (items, set) => items.filter(i => set.has(i.id)).reduce((a, i) => [a[0] + i.atk, a[1] + i.matk], [0, 0]);
+  const g = sum(S.me.items || [], tradeSel.give), w = sum(them ? them.items || [] : [], tradeSel.want);
+  $("#pz-trade-sum").textContent = `줄 것 ${tradeSel.give.size}개 (공${g[0]} · 마${g[1]})  ↔  받을 것 ${tradeSel.want.size}개 (공${w[0]} · 마${w[1]})`
+    + (them ? "" : " — 상대가 광장에 없습니다");
+}
+async function sendTrade() {
+  try { await post("/plaza/api/trade", { id: S.id, op: "offer", target: tradeWith, give: [...tradeSel.give], want: [...tradeSel.want] });
+    localNote(`${tradeWith} 님에게 교환을 제안했습니다 — 상대가 수락하면 바뀝니다 (1분).`); closeTrade(); }
+  catch (e) { $("#pz-trade-note").textContent = String(e.message || e); }
+}
+async function answerTrade(tid, op) {
+  try { await post("/plaza/api/trade", { id: S.id, op, tid }); } catch (e) { localNote(String(e.message || e)); }
+  cv.focus();
+}
+let tradeKey = "";
+function showTrades(trades) {                // 받은 제안(수락 · 거절) · 보낸 제안(기다림 · 취소) — 화면 위 가운데
+  const box = $("#pz-tradein"), me = S.me ? S.me.name : S.name, inn = trades.find(t => t.to === me), out = trades.find(t => t.from === me);
+  const key = JSON.stringify([inn && [inn.tid, inn.give.map(i => i.id), inn.want.map(i => i.id)], out && out.tid]);
+  if (key !== tradeKey) { tradeKey = key; box.textContent = "";
+    const row = (t, mine) => { const d = document.createElement("div"); d.className = "trow";
+      const h = document.createElement("b"); h.textContent = mine ? `${t.to} 님에게 교환 제안 — 기다리는 중` : `🤝 ${t.from} 님의 교환 제안`; d.append(h);
+      const line = (lab, items) => { const l = document.createElement("div"); l.className = "tline"; const s1 = document.createElement("span"); s1.textContent = lab; l.append(s1);
+        if (!items.length) { const e = document.createElement("small"); e.textContent = "없음"; l.append(e); } for (const it of items) l.append(itemIcon(it, 24));
+        const sm = document.createElement("small"); sm.textContent = items.map(i => `${itemName(i)} ${itemStat(i)}`).join(" · "); l.append(sm); return l; };
+      d.append(line(mine ? "줌" : "받음", t.give), line(mine ? "받음" : "줌", t.want));
+      const f = document.createElement("div"); f.className = "tbtn";
+      if (!mine) { const ok = document.createElement("button"); ok.type = "button"; ok.className = "ok"; ok.textContent = "수락"; ok.onclick = () => answerTrade(t.tid, "accept"); f.append(ok); }
+      const no = document.createElement("button"); no.type = "button"; no.textContent = mine ? "취소" : "거절"; no.onclick = () => answerTrade(t.tid, "decline"); f.append(no);
+      d.append(f); box.append(d); };
+    if (inn) row(inn, false); if (out) row(out, true);
+  }
+  box.hidden = !inn && !out;
+}
 const REVIVE_D = 2.5;
 function nearGhost() { if (S.role !== "operator" || !S.me) return null; let best = null, bd = 1e9;
   for (const a of S.others.values()) { if (!a.ghost) continue; const d = Math.hypot(a.tx - S.me.tx, a.ty - S.me.ty); if (d <= REVIVE_D && d < bd) { bd = d; best = a; } }
@@ -1453,6 +1536,7 @@ async function revive(a) {
 function applySnapshot(s) {
   if (s.eq) Object.assign(EQ_ST, s.eq);
   if (s.heal_r) S.healR = s.heal_r;
+  if (Array.isArray(s.trades)) showTrades(s.trades);
   if (Array.isArray(s.ground)) { const tn = performance.now(), ids = new Set();
     GROUND.length = 0; for (const g of s.ground) { GROUND.push(g); ids.add(g[0]); if (!G_SEEN.has(g[0])) G_SEEN.set(g[0], g[4] < .7 ? tn - g[4] * 1000 : tn - 9999); }
     for (const id of [...G_SEEN.keys()]) if (!ids.has(id)) G_SEEN.delete(id); }
@@ -1971,12 +2055,13 @@ document.addEventListener("keydown", ev => {
   if (!$("#pz-name").hidden) return;
   S.run = ev.shiftKey;
   if (!S.typing && !S.panel && (ev.code === "KeyE" || ev.key === "e" || ev.key === "E")) { ev.preventDefault(); if (!ev.repeat) interact(); return; }   // 점검 · 수리
+  if (!S.typing && !S.panel && (ev.code === "KeyZ" || ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); if (!ev.repeat) pickup(); return; }   // 곁의 아이템 줍기
   if (!S.typing && !S.panel && SKILL_KEYS[ev.code]) { ev.preventDefault(); if (!ev.repeat) useSkill(SKILL_KEYS[ev.code]); return; }   // 1 강타 · 2 응급 처치 · 3 현장 지원
   if (!S.typing && !S.panel && S.role === "operator" && (ev.code === "KeyR" || ev.key === "r" || ev.key === "R")) { ev.preventDefault(); if (!ev.repeat) revive(nearGhost()); return; }   // 운영자 — 곁의 유령 부활
   const arrow = !S.typing && !S.panel ? arrowOf(ev) : null;
   if (arrow) { ev.preventDefault(); S.keys.delete(arrow); S.keys.add(arrow); return; }   // 입력기가 켜져 있어도 걷는다
   if (ev.isComposing || ev.keyCode === 229) return;          // 한글 조합 중
-  if (S.panel) { if (ev.key === "Escape") { S.panel === "face" ? closeFace() : closeRoles(); } return; }
+  if (S.panel) { if (ev.key === "Escape") { S.panel === "face" ? closeFace() : S.panel === "trade" ? closeTrade() : closeRoles(); } return; }
   if (ev.key === "Enter") {
     ev.preventDefault();
     if (!S.typing) { setTyping(true); return; }
@@ -2018,8 +2103,11 @@ function showCtx(a, x, y) {
   btn.onclick = () => { hideCtx(); cv.focus();
     if (window.parent !== window) window.parent.postMessage({ type: "plaza-profile", name: a.name }, "*");
     else { const n = document.createElement("small"); n.textContent = "대시보드 안에서 열면 부서원 정보를 볼 수 있습니다"; ctxMenu.textContent = ""; ctxMenu.append(n); ctxMenu.hidden = false; setTimeout(hideCtx, 2500); } };
-  if (a.items && a.items.length) { const iv = document.createElement("small"); iv.textContent = "가방: " + a.items.map(itemName).join(" · "); ctxMenu.append(iv); }
+  if (a.items && a.items.length) { const iv = document.createElement("div"); iv.className = "cbag"; for (const it of a.items) iv.append(itemIcon(it, 22)); ctxMenu.append(iv);
+    const pw = document.createElement("small"); pw.textContent = `⚔ 공격력 ${a.atk || 0} · ✦ 마법 ${a.matk || 0}`; ctxMenu.append(pw); }
   ctxMenu.append(btn);
+  if (a !== S.me && !a.npc && !a.ghost && !S.me.ghost) { const tb = document.createElement("button"); tb.type = "button"; tb.textContent = "교환";
+    tb.onclick = () => { hideCtx(); openTrade(a); }; ctxMenu.append(tb); }
   if (a.ghost && a !== S.me && S.role === "operator") { const rb = document.createElement("button"); rb.type = "button"; rb.textContent = "부활 (운영자)";
     rb.onclick = () => { hideCtx(); cv.focus(); revive(a); }; ctxMenu.append(rb); }
   ctxMenu.hidden = false;

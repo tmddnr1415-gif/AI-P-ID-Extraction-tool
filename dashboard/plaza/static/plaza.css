@@ -139,6 +139,27 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
 .pz-tools .slot.sk .t { position: absolute; left: 0; right: 0; top: 13px; text-align: center; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; }
 .pz-tools .slot.sk.nomp { border-color: #a04040; } .pz-tools .slot.sk.nomp canvas { opacity: .45; }
 .pz-tools .slot.sk.off { opacity: .35; }
+.pz-hud .w.pow { color: #ffd9a0; font-size: 10.5px; }
+.pz-hud .inv canvas { border-width: 1px; border-style: solid; }
+.pz-ctx .cbag { display: flex; flex-wrap: wrap; gap: 2px; max-width: 200px; }
+.pz-ctx .cbag canvas, .pz-tradein canvas, .pz-tradebox canvas { image-rendering: pixelated; background: #101c2e; border: 1px solid #2c4a6e; border-radius: 3px; }
+.pz-tradebox { width: min(560px, calc(100% - 24px)); }
+.pz-tradebody { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px 0; }
+.pz-tradebody .tlist { display: flex; flex-direction: column; gap: 3px; max-height: 260px; overflow: auto; }
+.pz-tradebody .titem { display: flex; gap: 6px; align-items: center; text-align: left; padding: 3px 6px; border: 1px solid #c9a34a; border-radius: 4px;
+  background: #fbf3dc; color: #2a1a10; font: inherit; font-size: 12px; cursor: pointer; }
+.pz-tradebody .titem small { font-weight: bold; text-shadow: 0 0 1px #000; }
+.pz-tradebody .titem.sel { background: #ffe08a; border-color: #6e2a14; box-shadow: inset 0 0 0 2px #6e2a14; }
+.pz-tradein { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); z-index: 15; display: flex; flex-direction: column; gap: 6px; max-width: min(460px, calc(100% - 24px)); }
+.pz-tradein[hidden] { display: none; }
+.pz-tradein .trow { background: rgba(11, 17, 28, .92); border: 2px solid #c9a34a; border-radius: 6px; padding: 6px 10px; color: #e9f2ff; font-size: 12px; box-shadow: 0 0 10px rgba(255, 200, 80, .35); }
+.pz-tradein b { color: #ffe7a6; }
+.pz-tradein .tline { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-top: 3px; }
+.pz-tradein .tline span { width: 34px; color: #9fb6d1; }
+.pz-tradein .tline small { color: #c9d4e0; }
+.pz-tradein .tbtn { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+.pz-tradein button { padding: 3px 12px; border: 1px solid #c9a34a; border-radius: 4px; background: #6b3f17; color: #fff; font: inherit; cursor: pointer; }
+.pz-tradein button.ok { background: #2f6e3b; }
 .pz-tools .sep { width: 2px; margin: 2px 3px; background: #2c4a6e; }
 .pz-tools .slot.mine { opacity: .85; border-color: #5f9bd6; }
 .pz-tools .slot.on { opacity: 1; border-color: #ffd84a; box-shadow: 0 0 8px rgba(255, 216, 74, .8), inset 0 0 6px rgba(255, 216, 74, .35); }
@@ -147,7 +168,7 @@ body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Wen
   border: 2px solid #3d6a9a; border-radius: 4px; box-shadow: 0 0 8px rgba(80, 170, 255, .35); background: #0d1320; }
 .pz-who .hpv { color: #8fa3bb; font-size: 10.5px; }
 @media (max-width: 560px) { .pz-hud { width: 184px; } .pz-help { display: none; } .pz-mini { display: none; } }
-@media (max-width: 1100px) { .pz-tools .tool, .pz-tools .sep { display: none; } }
+@media (max-width: 1360px) { .pz-tools .tool, .pz-tools .sep { display: none; } }   /* 대화창과 겹치지 않게 — 기술 칸만 */
 @media (max-width: 700px) { .pz-tools { display: none; } }
 @media (max-height: 520px), (max-width: 700px) {   /* 작은 화면 — 대화창 · 상태판을 줄여 놀이 공간 확보 */
   .pz-log { height: 44px; font-size: 11.5px; } .pz-chat { width: min(300px, calc(100% - 44px)); }
