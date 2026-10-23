@@ -62,6 +62,12 @@ def _new_id() -> str:
     return format(int(time.time() * 1000), "x") + os.urandom(3).hex()
 
 
+def _client_id(body: dict, key: str = "id"):
+    """hotfix108 — 절전모드에서 화면이 미리 정한 id.  꼴이 맞을 때만 받는다 (같은 요청을 다시 보내도 같은 id)."""
+    v = body.get(key) if isinstance(body, dict) else None
+    return v if isinstance(v, str) and SPACE_ID_RE.match(v) else None
+
+
 def _check(pid: str, what: str = "프로젝트") -> str:
     if not SPACE_ID_RE.match(pid or ""):
         raise _Err(400, f"잘못된 {what} ID")
@@ -150,11 +156,16 @@ def recent(n) -> dict:
 
 def project_new(author: str, body: dict) -> dict:
     name = _name(body.get("name"), "프로젝트 이름", 60)
+    want = _client_id(body)
     with _LOCK:
         for x in projects()["projects"]:
+            if want and x.get("id") == want:
+                return x                                   # 절전모드 보관본을 다시 보낸 것 — 이미 만들어져 있다
             if str(x.get("name", "")).lower() == name.lower():
+                if body.get("replay"):
+                    return x
                 raise _Err(409, f'같은 이름의 프로젝트가 이미 있습니다: {x["name"]} — 목록에서 고르세요')
-        pid = _new_id()
+        pid = want or _new_id()
         proj = {"id": pid, "name": name, "createdAt": _stamp(), "createdBy": author}
         jsonstore.write(_idx_path(pid), {"project": proj, "saves": [], "notes": []}, sort_keys=False)
     return proj
@@ -196,7 +207,9 @@ def save_new(author: str, pid: str, raw: bytes) -> dict:
     info = data.get("info") if isinstance(data.get("info"), dict) else {}
     with _LOCK:
         d = _idx(pid)
-        sid = _new_id()
+        sid = _client_id(b, "sid") or _new_id()
+        if any(m.get("id") == sid for m in d.get("saves") or []):
+            return next(m for m in d["saves"] if m.get("id") == sid)   # 같은 보관본을 두 번 보냈다
         meta = {"id": sid, "at": _stamp(), "by": author,
                 "memo": re.sub(r"\s+", " ", str(b.get("memo") or "")).strip()[:200],
                 "rev": str(info.get("rev") or "")[:20], "panels": len(data["panels"]),
@@ -214,7 +227,10 @@ def note_add(author: str, pid: str, body: dict) -> dict:
         raise _Err(400, "노트 내용을 적으세요")
     with _LOCK:
         d = _idx(pid)
-        n = {"id": _new_id(), "at": _stamp(), "by": author, "text": text[:2000],
+        nid = _client_id(body) or _new_id()
+        if any(x.get("id") == nid for x in d.get("notes") or []):
+            return next(x for x in d["notes"] if x.get("id") == nid)
+        n = {"id": nid, "at": _stamp(), "by": author, "text": text[:2000],
              "save": str(body.get("save") or "")[:32]}
         d.setdefault("notes", []).append(n)
         jsonstore.write(_idx_path(pid), d, sort_keys=False)
@@ -347,6 +363,7 @@ def api_recent(n: int = 30):
 @router.post("/space/api/projects")
 async def api_project_new(request: Request):
     body = await _json(request)
+    body["replay"] = bool(request.headers.get("x-offline-replay"))     # hotfix108 — 절전모드 보관본을 되보낸 것
     return _guard(lambda: project_new(_author(request, body), body))
 
 

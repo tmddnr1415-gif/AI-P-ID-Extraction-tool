@@ -74,6 +74,7 @@
     <div id="counts" class="box hint"></div>
   </div>
 </main>
+<script src="/static/offline.js" data-app="dcs"></script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s), Q=new URLSearchParams(location.search);
@@ -138,6 +139,8 @@ $('#stage').addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault()
 window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.kind!=='dcs-states')return;S.states=e.data.states||{};$('#states').value=JSON.stringify(S.states,null,1);draw()});
 new ResizeObserver(()=>{if($('#stage svg'))fit()}).observe($('#stage'));
 load();
+/* hotfix108 — 절전모드: [절전 대비 보관] 이 담을 자료 (장 모델 · 그림).  칠하기(POST render)는 서버가 그리므로 절전모드에서는 안 된다. */
+if(window.OFFLINE)OFFLINE.prefetchUrls=async()=>{const u=[`/dcs/api/jobs/${JOB}`,`/dcs/api/jobs/${JOB}/tags`];for(const s of (S.job&&S.job.sheets)||[]){u.push(`/dcs/api/jobs/${JOB}/sheet/${s.page_no}/model`);u.push(`/dcs/api/jobs/${JOB}/sheet/${s.page_no}.png`)}return u};
 })();
 </script>
 </body>

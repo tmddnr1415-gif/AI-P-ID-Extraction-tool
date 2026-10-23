@@ -5325,3 +5325,62 @@ initPan();
 renderHelp();
 if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
 else loadJobs().catch((e) => { console.error(e); status(`화면 오류 — ${e.message} (${whereErr(e)})`); });
+
+/* ======================================================================================================
+ * hotfix108 — 절전모드 (공용 `offline.js`).  이 화면은 셋만 댄다 — 보관한 쓰기의 임시 응답(사람이 정한 값 · 메모 · 검토 판단) ·
+ * [절전 대비 보관] 이 담을 이 묶음의 자료(시트 전부 + 장 그림 + 메모 · 검토 · 사람 값) · 되보낸 뒤 다시 받기.
+ * 시뮬레이션 · 순차 동작 · 그룹 시험은 서버가 계산하므로 절전모드에서는 "서버가 켜져야" 한다고 말한다 (offline.js 가 거절). */
+(function offlineHooks() {
+  const O = window.OFFLINE;
+  if (!O) return;
+  const body = (it) => { try { return it.body ? JSON.parse(it.body) : {}; } catch (e) { return {}; } };
+  O.synth.push((it, phase) => {
+    if (!L.job || !it.url.startsWith(`/logic/api/jobs/${L.job}/`)) return null;
+    const p = it.url.split("?")[0].slice(`/logic/api/jobs/${L.job}/`.length);
+    const b = body(it);
+    if (phase === "before") {
+      if (p === "memo" && it.method === "POST" && !b.id) { b.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); it.body = JSON.stringify(b); }
+      return null;
+    }
+    const now = Date.now() / 1000;
+    if (p === "overrides/block") return { set: b.block ? [b.block] : [], learned: false };
+    if (p === "overrides/cell") return { saved: { page: b.page, side: b.side, row: b.row, value: b.value, author: b.author }, ft: null, ref: null };
+    if (p === "overrides/mark") return { saved: b, mark: null, ft: null, sheet_no: b.value };
+    if (/^overrides\//.test(p)) return { saved: b };
+    if (p === "review/mark") {
+      const set = {};
+      for (const k of b.keys || []) set[k] = b.verdict ? { verdict: b.verdict, author: b.author || "", note: b.note || "", at: now } : null;
+      return { ok: true, set, marks: null };
+    }
+    if (p === "memo" && it.method === "POST") {
+      const item = { id: b.id, page: b.page, sheet_no: b.sheet_no || "", text: String(b.text || "").trim(), author: b.author || "", time: now,
+                     at: b.at || null, done: false, hidden: false, history: [] };
+      if (b.rect) item.rect = b.rect; if (b.block) item.block = String(b.block);
+      return item;
+    }
+    let m;
+    if ((m = p.match(/^memo\/([^/]+)$/)) && it.method === "PATCH") {
+      const old = (L.memos || []).find((x) => x.id === m[1]) || { id: m[1] };
+      const out = Object.assign({}, old);
+      if (b.text !== undefined && b.text !== null) { out.history = (old.history || []).concat([{ text: old.text, author: old.author, time: old.time }]); out.text = String(b.text); out.author = b.author || old.author; out.time = now; }
+      if (typeof b.done === "boolean") out.done = b.done;
+      if (typeof b.hidden === "boolean") out.hidden = b.hidden;
+      return out;
+    }
+    return null;
+  });
+  O.prefetchUrls = async () => {
+    if (!L.job) return [];
+    const j = L.job, u = ["/logic/api/jobs", "/logic/api/projects", "/logic/api/library", "/logic/api/aops",
+      `/logic/api/jobs/${j}`, `/logic/api/jobs/${j}/sheets`, `/logic/api/jobs/${j}/memo`, `/logic/api/jobs/${j}/overrides`, `/logic/api/jobs/${j}/review`,
+      `/logic/api/jobs/${j}/findings`, `/logic/api/jobs/${j}/idrate`, `/logic/api/jobs/${j}/fromto`, `/logic/api/jobs/${j}/groups`, `/logic/api/jobs/${j}/teach`,
+      `/logic/api/jobs/${j}/commands`, `/logic/api/jobs/${j}/behavior`];
+    for (const s of L.sheets || []) { u.push(`/logic/api/jobs/${j}/sheet/${s.page}`); u.push(`/logic/api/jobs/${j}/page/${s.page}.png`); }
+    return u;
+  };
+  O.on("replayed", async () => {
+    if (!L.job) return;
+    try { if (typeof refreshSheet === "function") await refreshSheet(); } catch (e) { /* 띠가 말한다 */ }
+    try { if (typeof loadMemos === "function") await loadMemos(L.job); } catch (e) { /* */ }
+  });
+})();

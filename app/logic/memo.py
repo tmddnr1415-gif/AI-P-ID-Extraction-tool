@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import re
 import uuid
 from pathlib import Path
 
@@ -64,14 +65,16 @@ def _clean_rect(rect):
     raise ValueError("영역(rect)은 [x0, y0, x1, y1] 숫자 넷이어야 합니다.")
 
 
-def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None, rect=None, block=None) -> dict:
+def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None, rect=None, block=None, mid=None) -> dict:
     text = (text or "").strip()
     author = (author or "").strip()
     if not text:
         raise ValueError("메모 내용이 비어 있습니다.")
     if not author:
         raise ValueError("작성자 이름이 없습니다.")
-    item = {"id": uuid.uuid4().hex[:10], "page": int(page), "sheet_no": str(sheet_no or ""),
+    # hotfix108 — 절전모드에서 화면이 미리 정한 id (꼴이 맞을 때만 · 같은 보관본을 두 번 보내면 하나)
+    mid = mid if isinstance(mid, str) and re.match(r"^[0-9a-z]{8,24}$", mid) else uuid.uuid4().hex[:10]
+    item = {"id": mid, "page": int(page), "sheet_no": str(sheet_no or ""),
             "text": text[:MAX_TEXT], "author": author[:80], "time": _now(), "at": _clean_at(at),
             "done": False, "hidden": False, "history": []}
     rect = _clean_rect(rect)
@@ -83,6 +86,9 @@ def add(d: Path, page: int, sheet_no: str, text: str, author: str, at=None, rect
         item["block"] = str(block)[:24]
     with _LOCK:
         data = load(d)
+        for old in data["items"]:
+            if old.get("id") == item["id"]:
+                return old
         data["items"].append(item)
         _save(d, data)
     return item

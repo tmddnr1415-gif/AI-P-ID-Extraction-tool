@@ -443,6 +443,7 @@ svg text{font-family:var(--f-mono)}
   </div>
 </div>
 
+<script src="/static/offline.js" data-app="space"></script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s);
@@ -1359,6 +1360,22 @@ buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); u
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 showHome();                                                // 메뉴에 들어오면 첫 화면부터 (P&ID · LOGIC 과 같음)
+/* hotfix108 — 절전모드 (공용 offline.js).  서버가 꺼져 있어도 배치는 이 브라우저(localStorage)에 그대로 있고, 서버 저장 ·
+ * 프로젝트 만들기 · 노트는 보관했다가 서버가 켜지면 되보낸다.  id 는 화면이 미리 정해 되보내도 같은 저장본이 되게 한다. */
+(()=>{const O=window.OFFLINE;if(!O||!ON_PID)return;
+const nid=()=>(Date.now().toString(16)+Math.random().toString(16).slice(2,8)).toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,24);
+const body=it=>{try{return it.body?JSON.parse(it.body):{}}catch(e){return{}}};
+O.synth.push((it,phase)=>{if(!it.url.startsWith('/space/api/'))return null;const b=body(it),p=it.url.split('?')[0].slice('/space/api/'.length);
+  if(phase==='before'){let k=null;if(p==='projects'&&it.method==='POST')k='id';else if(/^[a-z0-9]+\/saves$/.test(p)&&it.method==='POST')k='sid';else if(/^[a-z0-9]+\/notes$/.test(p)&&it.method==='POST')k='id';
+    if(k&&!b[k]){b[k]=nid();it.body=JSON.stringify(b)}return null}
+  const at=new Date().toISOString(),by=writer();
+  if(p==='projects'&&it.method==='POST')return{id:b.id,name:b.name,createdAt:at,createdBy:by};
+  if(/^[a-z0-9]+\/saves$/.test(p)&&it.method==='POST'){const d=b.data||{},sm=b.sum||{};return{id:b.sid,at,by,memo:String(b.memo||'').slice(0,200),rev:String((d.info||{}).rev||'').slice(0,20),panels:(d.panels||[]).length,sum:sm}}
+  if(/^[a-z0-9]+\/notes$/.test(p)&&it.method==='POST')return{id:b.id,at,by,text:String(b.text||'').slice(0,2000),save:String(b.save||'')};
+  return null});
+O.prefetchUrls=async()=>{const u=['/space/api/projects','/space/api/recent?n=60'];try{const {projects}=await sapi('GET','/projects');for(const pj of projects||[]){u.push(`/space/api/${pj.id}`);try{const d=await sapi('GET',`/${pj.id}`);for(const sv of (d.saves||[]).slice(0,10))u.push(`/space/api/${pj.id}/saves/${sv.id}`)}catch(e){}}}catch(e){}return u};
+O.on('replayed',async()=>{try{if(!$('#hdlg').hidden)await loadProjects()}catch(e){}try{if(document.body.classList.contains('home')){await hmLoad();hmRender()}}catch(e){}});
+})();
 })();
 </script>
 </body>

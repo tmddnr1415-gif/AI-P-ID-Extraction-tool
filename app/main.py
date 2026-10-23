@@ -1641,7 +1641,8 @@ def add_memo_pin(job_id: str, page_no: int, payload: dict = None):
                            key=sheet_memo.key_of(page.get("drawing_no") or "", page_no),
                            rect=payload.get("rect"), text=str(payload.get("text") or ""),
                            author=str(payload.get("author") or ""), revision=job["revision"] or "",
-                           page_no=page_no, drawing_no=page.get("drawing_no") or "", page_w=w, page_h=h)
+                           page_no=page_no, drawing_no=page.get("drawing_no") or "", page_w=w, page_h=h,
+                           pin_id=str(payload.get("id") or ""))
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return page_memo(job_id, page_no)
@@ -5489,7 +5490,45 @@ def index():
     html = html.replace("/static/app.js", f"/static/app.js?v={_asset_tag('app.js')}")
     html = html.replace("/static/styles.css",
                         f"/static/styles.css?v={_asset_tag('styles.css')}")
+    html = html.replace("/static/offline.js", f"/static/offline.js?v={_asset_tag('offline.js')}")
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+
+# hotfix108 — 절전모드.  서비스워커는 **출처 뿌리**에서 받아야 모든 화면(/ · /logic · /space · /dcs)을 맡는다.
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(STATIC / "sw.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/"})
+
+
+@app.get("/offline/shell")
+def offline_shell():
+    """서비스워커가 설치 때 미리 담는 화면 뼈대 — 네 화면과 `app/static` 의 파일 전부 (그림 · 글꼴 포함).
+    자료(분석 결과 · 장 그림)는 여기 없다 — 열어 본 것과 [절전 대비 보관] 이 담는다."""
+    urls = ["/", "/logic", "/logic/test", "/space", "/dcs",
+            f"/static/app.js?v={_asset_tag('app.js')}", f"/static/styles.css?v={_asset_tag('styles.css')}",
+            f"/static/offline.js?v={_asset_tag('offline.js')}"]
+    skip = {"sw.js", "app.js", "styles.css", "offline.js", "index.html"}      # P&ID 첫 화면 index.html 은 `/` 로 (딱지 때문)
+    for f in sorted(STATIC.rglob("*")):
+        if f.is_file() and f.relative_to(STATIC).as_posix() not in skip and f.suffix in {".js", ".css", ".html", ".svg", ".png", ".woff2", ".woff", ".ico"}:
+            urls.append("/static/" + f.relative_to(STATIC).as_posix())
+    return {"urls": urls, "update": (version.update_info() or {}).get("name")}
+
+
+@app.middleware("http")
+async def _offline_replay_log(request, call_next):
+    """hotfix108 — 절전모드 대기열에서 되보낸 요청은 머리 `X-Offline-Replay`(보관한 시각)를 단다.  판정은 바꾸지
+    않는다 — 기록만 남겨 누가 언제 보관한 값으로 서버 값이 덮였는지 뒤에 알 수 있게 한다."""
+    at = request.headers.get("x-offline-replay")
+    resp = await call_next(request)
+    if at:
+        try:
+            when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(at) / 1000))
+        except (ValueError, OverflowError, OSError):
+            when = at
+        print(f"[offline replay] {request.method} {request.url.path} (kept at {when} · app "
+              f"{request.headers.get('x-offline-app', '?')}) -> {resp.status_code}", flush=True)
+    return resp
 
 
 @app.get("/favicon.ico", include_in_schema=False)

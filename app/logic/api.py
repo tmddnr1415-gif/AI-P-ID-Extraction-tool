@@ -1208,7 +1208,7 @@ def memo_add(job: str, body: dict = Body(...)):
         raise HTTPException(400, "page 는 쪽 번호(정수)여야 합니다.")
     try:
         return memo.add(d, page, str(body.get("sheet_no") or ""), str(body.get("text") or ""),
-                        str(body.get("author") or ""), body.get("at"), body.get("rect"), body.get("block"))
+                        str(body.get("author") or ""), body.get("at"), body.get("rect"), body.get("block"), body.get("id"))
     except ValueError as e:
         raise HTTPException(400, str(e))
 

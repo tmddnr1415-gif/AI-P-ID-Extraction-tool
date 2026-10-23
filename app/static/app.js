@@ -267,7 +267,7 @@ async function loadProjects(select) {
   // 밖에서 분석을 끝내게 된다.
   pick.innerHTML = '<option value="__unset__">(고르세요)</option>'
     + '<option value="">프로젝트 없이 한 번만 분석</option>'
-    + list.map(p => `<option value="${escape(p.name)}">${escape(projectOptionText(p))}</option>`).join("");
+    + (Array.isArray(list) ? list : []).map(p => `<option value="${escape(p.name)}">${escape(projectOptionText(p))}</option>`).join("");
   pick.value = select != null ? select : "__unset__";
   chooseProject(pick.value);
 }
@@ -11157,7 +11157,9 @@ async function syncRows(m) {
  * (사람이 만든 행을 지움)은 빼고, 새 행은 서버 목록과 같은 자리(장 · 열쇠 순)에 둔다.  못 받으면 예전처럼 전부 받는다. */
 async function reloadKeys(keys) {
   let fresh;
-  try {
+  if (window.OFFLINE && OFFLINE.down) {                 // hotfix108 — 절전모드: 임시 응답으로 고친 지금 행을 그대로 다시 그린다
+    fresh = keys.map(k => S.rowByKey[k]).filter(Boolean);
+  } else try {
     const res = await fetch(`/jobs/${S.job.id}/rows?tab=ALL&keys=${keys.map(encodeURIComponent).join(",")}`);
     if (!res.ok) throw new Error(res.status);
     fresh = await res.json();
@@ -11238,6 +11240,10 @@ const NET = { down: false, timer: null };
 function netDown() {
   if (NET.down) return;
   NET.down = true;
+  if (window.OFFLINE) {                                  // hotfix108 — 절전모드 띠(offline.js)가 말한다 · 되돌아옴도 그쪽이 안다
+    OFFLINE.setDown(true, "app"); OFFLINE.on("up", () => { if (NET.down) netUp(); });
+    return;
+  }
   let b = document.getElementById("net-banner");
   if (!b) {
     b = document.createElement("div");
@@ -11591,6 +11597,7 @@ async function pingServer() {
 }
 pingServer();
 setInterval(pingServer, 60000);
+if (window.OFFLINE) { OFFLINE.on("up", pingServer); OFFLINE.on("down", pingServer); }   // hotfix108 — 절전모드 전환 때 바로
 
 /* ---- 첫 화면 머리 · 버튼 ---- */
 $req("#home-new").addEventListener("click", () => {
@@ -11981,3 +11988,103 @@ window.addEventListener("beforeunload", ev => {
   ev.preventDefault();
   ev.returnValue = "";
 });
+
+/* ======================================================================================================
+ * hotfix108 — 절전모드 (공용 `offline.js` 가 보관·되보냄·띠를 맡고, 이 화면은 셋만 댄다):
+ *  ① 보관한 쓰기의 **임시 응답** — 서버가 돌려줬을 꼴로 이 화면이 바로 보이게 (값은 요청 본문 그대로 · 판정 0)
+ *  ② [절전 대비 보관] 이 담을 **이 분석의 자료 주소** (행 · 장 · 범례 · 메모 … + 장 그림 전부)
+ *  ③ 서버가 돌아와 되보낸 뒤 **목록을 다시 받기**.
+ * 서버가 꺼진 동안 `reloadKeys` 는 서버를 묻지 않고 지금 행(임시 응답으로 고친 것)으로 다시 그린다. */
+(function offlineHooks() {
+  const O = window.OFFLINE;
+  if (!O) return;
+  const body = (it) => { try { return it.body ? JSON.parse(it.body) : {}; } catch (e) { return {}; } };
+  const counts = () => ({ review_count: S.counts ? S.counts.REVIEW : undefined, feedback_count: S.feedback });
+  const userWith = (row, field, value) => {
+    const u = Object.assign({}, (row && row.user) || {});
+    if (value === "" || value === null || value === undefined) delete u[field]; else u[field] = value;
+    return u;
+  };
+  const noteView = (b) => ({ seq: Date.now(), text: String(b.text || ""), author: String(b.author || ""), at: Date.now() / 1000,
+                             revision: S.job ? S.job.revision || "" : "", job_id: S.job ? S.job.id : "", page_no: S.memoPage,
+                             drawing_no: "", key: S.memoView ? S.memoView.key : "" });
+  O.synth.push((it, phase) => {
+    if (!S.job || !it.url.startsWith(`/jobs/${S.job.id}/`)) return null;
+    const p = it.url.split("?")[0].slice(`/jobs/${S.job.id}/`.length);
+    const b = body(it);
+    if (phase === "before") {                               // 핀 id 를 미리 정해 되보낼 때 같은 핀이 되게
+      if (/^memo\/\d+\/pins$/.test(p) && it.method === "POST" && !b.id) { b.id = `P${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; it.body = JSON.stringify(b); }
+      return null;
+    }
+    let m;
+    if ((m = p.match(/^rows\/([^/]+)$/)) && it.method === "PATCH") {
+      const row = S.rowByKey[m[1]];
+      return Object.assign({ key: m[1], user: userWith(row, b.field, b.value) }, counts());
+    }
+    if (p === "rows_edit" && it.method === "POST") {
+      const users = {};
+      for (const x of b.items || []) if (x && x.key && S.rowByKey[x.key]) users[x.key] = userWith(S.rowByKey[x.key], b.field, x.value);
+      return Object.assign({ rows: Object.keys(users), missing: [], users }, counts());
+    }
+    if (p === "qty_bulk" && it.method === "POST") {
+      const users = {};
+      for (const x of b.items || []) if (x && x.key && S.rowByKey[x.key]) users[x.key] = userWith(S.rowByKey[x.key], "qty", x.qty);
+      return Object.assign({ rows: Object.keys(users), missing: [], users }, counts());
+    }
+    if (p === "rows_delete" && it.method === "POST") {
+      const rows = {};
+      for (const k of b.keys || []) {
+        const r = S.rowByKey[k]; if (!r) continue;
+        r.removed = b.exclude === false ? 0 : 1;
+        r.reject = { class: b.reason_class || "FALSE_POSITIVE", note: b.reason || "", author: b.author || "", at: Date.now() / 1000 };
+        rows[k] = { removed: r.removed };
+      }
+      return Object.assign({ rows, missing: [] }, counts());
+    }
+    if ((m = p.match(/^rows\/([^/]+)\/restore$/)) && it.method === "POST") {
+      const r = S.rowByKey[m[1]]; if (r) { r.removed = 0; r.reject = {}; }
+      return Object.assign({ key: m[1] }, counts());
+    }
+    if (p === "verdicts" && it.method === "POST") {
+      const keys = [];
+      for (const x of b.items || []) {
+        const r = S.rowByKey[x && x.key]; if (!r) continue;
+        const v = Object.assign({}, r.verdict || {});
+        for (const f of ["verdict", "qty_verdict", "note"]) if (x[f] !== undefined && x[f] !== null) v[f] = x[f];
+        v.author = b.author || v.author; v.at = Date.now() / 1000;
+        r.verdict = v; keys.push(x.key);
+        if (x.verdict === "X") r.removed = 1; else if (x.verdict !== undefined && x.verdict !== "X" && r.reject && /O\/X/.test(r.reject.note || "")) r.removed = 0;
+      }
+      return Object.assign({ rows: keys }, counts());
+    }
+    if ((m = p.match(/^memo\/(\d+)$/)) && it.method === "POST" && S.memoView) {
+      const v = noteView(b);
+      return Object.assign({}, S.memoView, { current: v, history: [v].concat(S.memoView.history || []), saved: v });
+    }
+    if ((m = p.match(/^memo\/(\d+)\/pins$/)) && it.method === "POST" && S.memoView) {
+      const pin = { id: b.id, rect: b.rect, text: b.text || "", author: b.author || "", at: Date.now() / 1000, revision: S.job.revision || "",
+                    job_id: S.job.id, page_no: Number(m[1]), drawing_no: S.memoView.drawing_no || "", key: S.memoView.key, state: "open",
+                    history: [], here: true, other_rev: false };
+      return Object.assign({}, S.memoView, { pins: (S.memoView.pins || []).concat([pin]) });
+    }
+    if ((m = p.match(/^memo\/(\d+)\/pins\/([^/]+)$/)) && it.method === "POST" && S.memoView) {
+      const pins = (S.memoView.pins || []).map((x) => x.id === m[2]
+        ? Object.assign({}, x, b.text !== undefined && b.text !== null ? { text: b.text, edited_at: Date.now() / 1000, edited_by: b.author || "" } : {},
+                        b.state ? { state: b.state, state_at: Date.now() / 1000, state_by: b.author || "" } : {})
+        : x);
+      return Object.assign({}, S.memoView, { pins });
+    }
+    return null;
+  });
+  O.prefetchUrls = async () => {
+    if (!S.job) return [];
+    const id = S.job.id, u = [`/jobs/${id}`, `/jobs/${id}/rows?tab=ALL&slim=1`, `/jobs/${id}/rows?tab=ALL`, `/jobs/${id}/pages`, `/jobs/${id}/legend_profile`,
+      `/jobs/${id}/mode`, `/jobs/${id}/revision`, `/jobs/${id}/review`, `/jobs/${id}/markup`, `/jobs/${id}/axis_overrides`, `/jobs/${id}/feedback?limit=1`,
+      `/jobs/${id}/reports`, `/jobs/${id}/memo`, `/jobs/${id}/multipliers`, `/jobs/${id}/sheet_numbers`, `/jobs/${id}/anchors`, `/jobs/${id}/unjudged`,
+      `/jobs/${id}/scope_summary`, `/jobs/${id}/verdicts`, `/jobs/${id}/intake`, `/jobs/${id}/drawings`,
+      "/home", "/jobs", "/projects", "/audit", "/templates", "/symbols/global", "/voc?limit=30"];
+    for (const p of S.pages || []) { u.push(`/jobs/${id}/page/${p.page_no}.png?zoom=1.6`); u.push(`/jobs/${id}/memo/${p.page_no}`); u.push(`/jobs/${id}/notes/${p.page_no}`); }
+    return u;
+  };
+  O.on("replayed", async () => { if (S.job && typeof loadRows === "function") { try { await loadRows(); } catch (e) { /* 띠가 말한다 */ } } });
+})();

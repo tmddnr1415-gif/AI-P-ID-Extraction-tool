@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -139,7 +140,7 @@ def pins(data: dict, keys) -> list:
 
 
 def add_pin(data_dir: Path, project: str, job_id: str, *, key: str, rect, text: str, author: str,
-            revision: str, page_no: int, drawing_no: str, page_w: float, page_h: float) -> dict:
+            revision: str, page_no: int, drawing_no: str, page_w: float, page_h: float, pin_id: str = "") -> dict:
     text = (text or "").replace("\r\n", "\n").strip()
     if not text:
         raise ValueError("메모 글이 비어 있습니다")
@@ -150,7 +151,11 @@ def add_pin(data_dir: Path, project: str, job_id: str, *, key: str, rect, text: 
         data = load(data_dir, project, job_id)
         lst = data.setdefault("pins", {}).setdefault(key, [])
         now = time.time()
-        rec = {"id": f"P{int(now * 1000):x}{secrets.token_hex(2)}", "rect": rect,
+        # hotfix108 — 절전모드에서 화면이 미리 정한 id (꼴이 맞을 때만 · 같은 보관본을 두 번 보내면 하나)
+        pid = pin_id if isinstance(pin_id, str) and re.match(r"^P[0-9a-z]{8,24}$", pin_id) else ""
+        if pid and any(r.get("id") == pid for r in lst):
+            return {**next(r for r in lst if r.get("id") == pid), "key": key}
+        rec = {"id": pid or f"P{int(now * 1000):x}{secrets.token_hex(2)}", "rect": rect,
                "page_w": float(page_w or 0), "page_h": float(page_h or 0),
                "text": text, "author": (author or "").strip(), "at": now,
                "revision": revision or "", "job_id": job_id, "page_no": int(page_no),
