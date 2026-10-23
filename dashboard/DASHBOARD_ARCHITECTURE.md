@@ -1061,3 +1061,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 가볍게: `v3build` 결과를 GPU 버퍼로 두고 `V3.dirty` 일 때만 다시 만듦(`v3req(false)` = 카메라 · 재기 선만), 벽 네 면 따로(`WT`/`WL`) 그릴 때 고름, 재기 · 통로 폭은 `v3light()`, 판넬 상자 `V3.bx` 를 가림 · 고르기에 재사용, 간격 치수 `V3.gd` 재사용. `window.crspaceSpeed()`.
 - 확인한 것: `node --check`, Chromium: 나란히 · 새 창 양방향(끄는 중 포함) · 선택 따라옴 · Ctrl+Z 한 번만, 판넬 300 EA 돌리기 9 ~ 10 ms/화면. 이전 시험 다시 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 대시보드 안(iframe)에서 [↗ 3D 새 창] 이 Edge 팝업 차단에 걸리면 주소줄 오른쪽에서 허용.
+
+### 2026-10-23 (25) — 판넬 공간확보: 3D 관찰자 시점을 2D 에 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 무엇을: 2D 도면에 3D 카메라 자리 · 방향 · 가로 시야 부채꼴 · 보는 점 · 높이, 사람 자리 · 방향 (`camSvg`), 화면 밖이면 가장자리 표시. `v3draw` 끝 `v3camPub()` → 나란히는 `CAM3D` + 2D `req()`, 새 창은 `bcSend({t:'cam'})`(닫으면 `pagehide` 로 지움). 2D 도구줄 `#vCam`, `show.cam`.
+- 확인한 것: `node --check`, Chromium: 나란히 · 돌리기 · 사람 시점 · 끄기 · 새 창 돌리기 · 닫기. 이전 시험 다시 통과, 스크립트 오류 0.
