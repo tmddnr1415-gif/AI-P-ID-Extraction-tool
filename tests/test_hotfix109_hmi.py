@@ -51,7 +51,7 @@ def test_hmi_api_404_for_unknown_job_and_demo_page_serves(client):
     assert client.get("/dcs/api/jobs/zzzz/hmi").status_code == 404
     assert client.post("/dcs/api/jobs/zzzz/hmi", json={"tags": {}}, headers={"X-Author": quote("홍")}).status_code == 404
     r = client.get("/dcs/demo")
-    assert r.status_code == 200 and "hmi-core.js" in r.text
+    assert r.status_code == 200 and "/static/hmi/hmi.js" in r.text          # hotfix110 — H1 화면
 
 
 # ---------------------------------------------------------------- 같은 프로젝트의 P&ID 를 찾는다 (LOGIC 창이 쓴다)
@@ -81,12 +81,12 @@ def test_for_project_endpoint(client, monkeypatch):
 def test_logic_screen_opens_graphic_and_posts_tag_states():
     html = (STATIC / "logic.html").read_text(encoding="utf-8")
     js = (STATIC / "logic.js").read_text(encoding="utf-8")
-    page = (STATIC / "dcs.html").read_text(encoding="utf-8")
+    page = (STATIC / "hmi" / "hmi.js").read_text(encoding="utf-8")         # hotfix110 — 연동 코드는 H1 화면의 hmi.js
     assert 'id="dcs-btn"' in html
     assert "/dcs/api/for_project?name=" in js and "kind: \"dcs-states\"" in js and "dcs-ready" in js and "dcs-go" in js
     assert "dcsSendSoon();" in js.split("function paint() {")[1].split("\n", 6)[3]     # 흐름 틀마다 (paint) 보낸다
     assert "function openDcsWindow" in js and "placeOnOtherScreen" in js.split("function dcsPlaceOnOtherScreen")[0] or "getScreenDetails" in js
-    assert "logicReady" in page and "applyLogic" in page and "dcs-go" in page and "Q.get('logic')" in page
+    assert "logicReady" in page and "applyLogic" in page and "dcs-go" in page and 'Q.get("logic")' in page
     # 절전모드 — 그래픽의 사람 값 저장은 보관되고, 서버가 그리는 /render 만 거절한다
     off = (STATIC / "offline.js").read_text(encoding="utf-8")
     assert re.search(r"dcs:\s*/\\/render", off)

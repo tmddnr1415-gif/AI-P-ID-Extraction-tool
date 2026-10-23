@@ -88,6 +88,7 @@ def build_sheet(page: dict, rows: list) -> dict:
         tag = str(v.get("tag_no") or "").strip()
         axis = ev.get("axis") or {}
         e = axis.get("ev") or {}
+        tap = _run_seg(e.get("run")) or _run_seg((ev.get("line") or {}).get("run"))   # hotfix110 — 이 계기가 걸린 런
         for key in ("run",):
             s = _run_seg(e.get(key))
             if s:
@@ -123,7 +124,8 @@ def build_sheet(page: dict, rows: list) -> dict:
                          "scope": scope, "line_no": str(v.get("line_no") or ""),
                          "line_size": str(v.get("line_size") or ""),
                          "lines": int(((ev.get("detail") or {}).get("bubble_lines") or 0) or 0),
-                         "equip": axis.get("equip") or "", "review": bool(r.get("needs_review"))})
+                         "equip": axis.get("equip") or "", "review": bool(r.get("needs_review")),
+                         "tap": [round(c, 1) for c in tap] if tap else None})
         else:
             tr = _rect(ev.get("tag_rect")) if ev.get("tag_rect") else None
             valves.append({"key": r["key"], "tag": tag, "body": str(ev.get("body") or v.get("type") or ""),
@@ -364,13 +366,90 @@ def _json(data, status=200):
 
 @router.get("/dcs")
 def dcs_page():
+    """hotfix110 — 화면은 LOGIC 브랜치 H1회차의 HMI 화면(`app/static/dcs.html` + `app/static/hmi/*`) 이다."""
     return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
 
 
 @router.get("/dcs/demo")
 def dcs_demo_page():
-    """예시 화면(압축기 트레인) — 식별 P&ID 없이 HMI 부품을 본다.  같은 dcs.html 이 `?demo=1` 로 연다."""
+    """예시 화면(압축기 트레인) — 식별 P&ID 없이 HMI 부품을 본다.  같은 화면이 출처 '예시' 로 연다."""
     return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+
+
+@router.get("/hmi")
+def hmi_page():
+    """H1 인계 문서(`docs/hmi_handover.md`)가 적은 주소 — 같은 화면."""
+    return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+
+
+@router.get("/dcs/api/example")
+def api_example():
+    """참고 DCS 화면(압축기 트레인)을 데이터로 다시 그린 예시 장면 — PNG 를 쓰지 않는다."""
+    return _json(json.loads(paths.resource("config", "hmi_example_compressor_train.json").read_text(encoding="utf-8")))
+
+
+@router.get("/dcs/api/sources")
+def api_sources():
+    """그래픽을 만들 수 있는 P&ID 분석 (끝났고 · 실행 모드이고 · 태그가 있는 것) — 화면의 출처 고르기."""
+    return _json(pid_jobs_for_project("")["candidates"])
+
+
+def _scene_store():
+    from app.hmi import store
+    return store
+
+
+@router.get("/dcs/api/jobs/{job_id}/scene/{page_no}")
+def api_scene(job_id: str, page_no: int, fresh: int = 0):
+    """저장본이 있으면 그것, 없으면 그 장의 식별 결과에서 새로 만든 장면 (`app.hmi.scene.from_model`)."""
+    job, el = _eligibility(job_id)
+    if job is None or not el["eligible"]:
+        return _json({"error": el.get("reason") or el.get("error")}, 404 if job is None else 400)
+    store = _scene_store()
+    saved = None if fresh else store.load(job_id, page_no)
+    if saved:
+        saved["saved"] = True
+        return _json(saved)
+    s = _sheet(job_id, page_no)
+    if not s:
+        return _json({"error": "그 장에는 식별된 행이 없습니다"}, 404)
+    from app.hmi import scene
+    sc = scene.from_model(s, hmi_load(job_id))
+    sc["saved"] = False
+    return _json(sc)
+
+
+@router.post("/dcs/api/jobs/{job_id}/scene/{page_no}")
+async def api_scene_save(job_id: str, page_no: int, request: Request):
+    """사람이 다듬은 장면 저장 — `{dcs 데이터}/hmi/<분석>/p<장>.json` (작성자 필수 · 분석 결과는 그대로)."""
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json({"error": el["error"]}, 404)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    sc = body.get("scene") if isinstance(body, dict) else None
+    if not isinstance(sc, dict):
+        return _json({"error": "scene 이 없습니다"}, 400)
+    from urllib.parse import unquote
+    author = unquote(request.headers.get("x-author") or "").strip() or str(body.get("author") or "").strip()
+    try:
+        out = _scene_store().save(job_id, page_no, sc, " ".join(author.split())[:40])
+    except ValueError:
+        return _json({"error": "작성자 이름이 필요합니다 — 대시보드에서 로그인한 뒤 다시 여세요 (?user=)"}, 401)
+    except KeyError:
+        return _json({"error": "분석 번호 꼴이 아닙니다"}, 400)
+    return _json({"ok": True, "saved_at": out["saved_at"], "saved_by": out["saved_by"]})
+
+
+@router.delete("/dcs/api/jobs/{job_id}/scene/{page_no}")
+def api_scene_reset(job_id: str, page_no: int):
+    """저장본을 지우고 식별 결과로 되돌린다."""
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json({"error": el["error"]}, 404)
+    return _json({"ok": True, "removed": _scene_store().delete(job_id, page_no)})
 
 
 @router.get("/dcs/api/jobs/{job_id}")
@@ -384,7 +463,8 @@ def api_job(job_id: str):
     return _json({**el, "job_id": job_id, "pdf_name": job["pdf_name"], "project": job["project"] or "",
                   "sheets": [{"page_no": s["page_no"], "drawing_no": s["drawing_no"], "title": s["title"],
                               "instruments": len(s["instruments"]), "valves": len(s["valves"]),
-                              "tagged": s["tagged"], "pipes": len(s["pipes"]), "equipment": len(s["equipment"])}
+                              "tagged": s["tagged"], "pipes": len(s["pipes"]), "equipment": len(s["equipment"]),
+                              "saved": _scene_store().path(job_id, s["page_no"]).exists()}
                              for s in sheets]})
 
 

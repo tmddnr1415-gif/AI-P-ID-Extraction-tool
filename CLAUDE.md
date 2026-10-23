@@ -4949,6 +4949,39 @@ LOGIC 화면에서 새 창(듀얼 모니터)으로 · 같은 프로젝트 · 같
 7. **한계** — 기기 심볼은 라벨 자리에 서고 크기는 실제가 아니다 · 전체 배관망이 아니라 식별된 것이 걸린 런만 · 태그 없는 행(2급 문서)은 보낼
    이름이 없다 · 아날로그 값은 LOGIC 이 공학값을 낸 행만 · Trend 는 흘러온 값만(이력 저장 없음) · 창 배치 권한은 브라우저가 한 번 묻는다.
 
+**그 다음 — DCS 그래픽을 LOGIC 쪽에서 만들던 HMI 화면(H1회차) 수준으로 (hotfix110 · 판정 0줄)**
+
+사용자: *"3. Logic 검토 코드에서 개발하던 hmi graphic 수준으로 개발해줘라"* (그 화면 사진 세 장 — 예시 Overview · Symbol Library ·
+식별된 P&ID 초안).  그 코드는 LOGIC 브랜치 `claude/logic-review-design-pd2z75` 의 H1회차(`d2c5fbe` · 인계 문서 `docs/hmi_handover.md`)에
+있었고 그 저장소는 "여기서는 더 개발하지 않는다 · 다른 코드로 옮긴다" 고 적어 두었다.  **그 화면을 그대로 들여와 `/dcs` 화면으로 삼고**
+hotfix109 의 실제 배치 · LOGIC 연동을 그 위에 얹었다.  시험 `tests/test_hotfix110_hmi.py` 11건 · 화면 자기검증 `spike/ui_audit_hmi110.py`
+→ `out/hotfix110/ui/` (예시 · 라이브러리 · 실제 P&ID 두 장 · 고르기 · 태그 고침 · 저장 · 되돌리기 · LOGIC 두 창 · 페이지 오류 0).
+**P&ID · LOGIC 판정 0줄 — 다섯 프로젝트 지문에 닿을 길이 없다.**
+
+1. **화면 = H1 그대로** — `app/static/dcs.html`(H1 `hmi.html`) · `app/static/hmi/hmi.js` · `hmi_symbols.js`(심볼 사전 하나가 그림 · 범례 ·
+   라이브러리를 먹인다) · `hmi.css`.  머리(Overview / Symbol Library 탭 · 출처 · 장 · Plant 알약 · 시계) · 도구줄(✎ 옮기기 · 추가 계기/밸브/
+   기기/배관 · 저장 · 식별 결과로 다시 · ▶ 시뮬레이션 · 흐름 애니메이션 · 값 표시) · 아래 Control Mode · Trend · Key Parameters · 모터 창 ·
+   오른쪽 속성 판 · Symbol & Legend.  hotfix109 의 `hmi-core.js` · `hmi-pid-adapter.js` · `hmi-demo.js` · `hmi-symbols.js` 는 지웠다
+   (한 벌만 둔다).  예시 장면 `config/hmi_example_compressor_train.json`.  `/hmi` 도 같은 화면.
+2. **장면은 서버가 실제 P&ID 배치로** (`app/hmi/scene.py from_model` — `app.dcs.build_sheet` 모델을 읽는다).  H1 은 같은 라인 번호 항목을
+   x 순으로 이은 띠였는데, 여기서는 그 계기가 **탭한 런**(가로·세로 선분)이고 화살은 런 끝의 `TO`/`FROM` 이 말할 때만이다.  좌표는 그 장
+   PDF 좌표를 **한 배율**로 — 버블 중앙값이 화면 버블(지름 40)과 같게.  배관 종류는 라인 번호의 KKS 계통(없으면 도면번호 계통) — 사전에
+   `steam · water · fuel · air · chem` 다섯 종류를 더했고 범례는 장면에 쓰인 것만 보인다.  태그 없는 계기는 `(태그 없음)` 으로 비운다
+   (TYPE 으로 지어내지 않는다) · 모터 값은 `—` · 값 상자는 위 → 아래 → 오른쪽 → 왼쪽 중 안 겹치는 쪽 (`face`).  라인 깃발 · 커넥터는
+   `labels`.  hotfix109 사람 값(`dcs/<job>/hmi.json` 태그 · 이름 · Key · Trend)을 초안에 얹는다.  `build_sheet` 에 계기마다 `tap`(탭한 런)을 더했다.
+3. **저장은 장면 통째** — `GET/POST/DELETE /dcs/api/jobs/{id}/scene/{page}` (`app/hmi/store.py` · `{data}/hmi/<분석>/p<장>.json` ·
+   작성자 필수 `X-Author` · 분석 결과는 그대로).  `GET /dcs/api/sources`(그래픽을 만들 수 있는 실행 P&ID) · `/dcs/api/example`.  장 목록에
+   `저장본` 표시.  실행(태그 있는) P&ID 만이라는 hotfix107 규칙은 그대로다.
+4. **H1 에 더한 것** — 확대·이동(휠 · 빈 곳 끌기 · 맞춤/＋/－ — 첫 맞춤은 계기가 가장 많이 모인 곳을 읽을 수 있는 배율로, 한 번 더
+   누르면 전체) · 내려받기(SVG · PNG · 서버 전체 zip) · 속성 판에 P&ID 사실(SCOPE · 라인 · 버블 가운데 선 · 몸체/액추에이터 · 도면 이름)과
+   `Trend 로` · `Key Parameters 에 넣기/빼기` · 절전모드 보관 목록.
+5. **LOGIC 연동은 같은 계약** (logic.js 는 한 줄도 안 바꿨다) — LOGIC 창이 `?logic=&link=` 로 열면 `dcs-ready`(태그 목록) · `dcs-states`
+   (태그 → `{v,u,s,open,alarm,state}`)를 받아 칠한다 (계기 값 · `ON (1)`/`OFF (0)` · 경보 · 밸브 열림 · 기기 상태) · 이 장에 맞는 태그가 없으면
+   태그가 가장 많은 장으로 옮긴다 · 심볼을 누르면 `dcs-go` 로 LOGIC 이 그 행으로.  LOGIC 이 칠한 계기는 데모 시뮬레이션이 움직이지 않는다
+   (`live`).  LOGIC 이 연 그래픽은 🔒 잠금(보기)부터.  실측: 태그 8/8 · 입력 1 → 그림 `ON (1)` · 0 → `OFF (0)` · 그림 누름 → LOGIC 2행.
+6. ⚠ 기기 심볼은 인쇄된 이름 자리 위에 선다 — 크기는 실제가 아니다 · 배관은 식별된 것이 걸린 런뿐 (전체 배관망 아님) · 값은 데모이고
+   LOGIC 이 공학값을 보낸 행만 실제 값이다 · H1 의 데모 기준값(압력 50 bar …)은 그대로다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5488,6 +5521,8 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
+| `app/static/dcs.html` · `app/static/hmi/{hmi.js,hmi_symbols.js,hmi.css}` | **hotfix110** — DCS HMI 화면 (LOGIC 브랜치 H1회차 화면 그대로 + 확대/이동 · LOGIC 태그 연동 · 내려받기).  심볼 사전 하나가 그림 · 범례 · 라이브러리를 먹인다 — 새 심볼 · 배관 종류는 `hmi_symbols.js` 에 한 줄 |
+| `app/hmi/scene.py` (`from_model` · `place_faces` · `service_of`) · `app/hmi/store.py` · `/dcs/api/jobs/{id}/scene/{page}` | **hotfix110** — 식별된 장(`dcs.build_sheet`) → 장면 JSON (같은 배율 · 탭한 런 · 지어내지 않음) · 사람이 다듬은 장면 저장 (작성자 필수) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 
