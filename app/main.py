@@ -4966,6 +4966,9 @@ def favicon():
 
 from app.logic import api as _logic_api              # LOGIC 검토 (app/logic) — 라우터만 붙인다
 app.include_router(_logic_api.router)
+from app.hmi import api as _hmi_api                  # HMI 그래픽 (app/hmi) — 라우터 + 읽기용 DB 연결
+_hmi_api.bind(CON)
+app.include_router(_hmi_api.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 

@@ -6529,3 +6529,28 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   ③ 합(∑) 입력 이름이 `+`/`−` 이면 계수 ±1 (범례 *INPUTS MAY BE LABELED WITH POSITIVE OR NEGATIVE SIGNS*).
 * **회귀** — HRSG 50장 · 1A5J 63장 · 1A1Y 39장을 바꾸기 전 코드(worktree)와 전수 대조: 다른 것은 투표 블록 `param.op` 열쇠뿐
   (판정 · 선 · 행 0칸).  LOGIC 시험 266 통과.
+
+### H1회차 — HMI 그래픽: 식별된 P&ID 를 DCS 화면처럼 (2026-10-23)
+
+* 사용자 지시: *식별된 P&ID 를 기준으로 HMI graphic 을 그린다 · 참고 DCS 화면(압축기 열차)을 보고 동작하는 HMI 를 HTML/CSS/SVG 로 ·
+  심볼은 개별 SVG 컴포넌트 · Symbol & Legend 패널 · 태그 편집 · 배관 색과 흐름 방향 · Running/Standby/Trip 색 · Trend · Key Parameters ·
+  Control Mode · PNG 를 배경으로 쓰지 않음 · 재사용 컴포넌트.*  이어서: *배치와 기기 태그를 P&ID 에서 · LOGIC 과 추후 연결 ·
+  속성 변경과 옮기기를 쉽게.*  **P&ID 엔진 0줄 · 네 프로젝트 지문 무관** (분석 뒤 읽기만).  `tests/test_hmi.py` 6건 · 빠른 시험 1407.
+* **구조** — `app/hmi/scene.py`(식별 행 → 장면 JSON) · `store.py`(사람이 다듬은 장면 `{data}/hmi/<분석>/p<장>.json` · jsonstore · 작성자 필수) ·
+  `api.py`(`/hmi` · `/hmi/api/example` · `/jobs` · `/jobs/{job}/pages` · `/scene/{page}` GET/POST/DELETE · DB 는 `main` 이 `bind(CON)`) ·
+  `app/static/hmi/hmi_symbols.js`(**심볼 사전 하나** — 배관 5 · 밸브 6 · 회전기기 6 · 열교환기/용기 5 · 계기 버블 · 기타 6 · 상태색 5) ·
+  `hmi.js`(그리기 · 끌기 · 속성 판 · 데모 시뮬레이션 · 패널) · `config/hmi_example_compressor_train.json`(참고 화면을 데이터로 재구성 — PNG 안 씀).
+  왼쪽 메뉴 `HMI 그래픽`.  장면 · 범례 · 라이브러리 표가 같은 사전을 읽는다 (그림과 설명이 어긋날 길이 없다).
+* **배치와 태그는 P&ID 것이다** — 계기·밸브는 버블 자리(`pid_rect`)와 `tag_no` 그대로 · 기기는 설명 근거의 기기 후보(`candidates` EQUIPMENT 의
+  라벨 글자와 자리 — 문장이 고른 것 · 없으면 가장 가까운 것) · 행이 차지하는 범위를 캔버스에 맞춘다.  **배관은 실제 경로가 아니다** —
+  같은 라인 번호의 항목을 x 순으로 이은 띠이고 화면이 그렇게 말한다(`basis`).  종류는 라인·계통 낱말(COOLING/DRAIN/DISCHARGE 없으면 공정).
+  전송기 → 같은 태그 제어기는 신호선.  값은 **데모 시뮬레이션**(머리글자별 기준값 둘레를 돈다)이고 그렇게 적는다.
+* **편집** — 끌어 옮기기 기본 켬(`✎ 옮기기` ↔ `🔒 잠금`) · 화살표 키(Shift 10) · 두 번 눌러 태그 · 오른쪽 **속성 판**(태그 · 글자 · 종류 · 상태 · 심볼 ·
+  단위 · 기준값 · 경보 · 크기 · 배관 종류/방향/화살) · 추가(계기·밸브·기기·배관) · Delete/지우기 · 상태 띠 누르면 Running→Standby→Trip→Stopped ·
+  밸브 누르면 열림/닫힘 · 저장은 POST 한 곳(작성자는 `?user=` → 기억된 이름) · `식별 결과로 다시`.  **LOGIC 연결은 자리만** — 항목마다 `tag` · `logic: null`,
+  장면의 `links.logic` (태그로 잇는다 · 추후).
+* **화면이 잡은 결함 셋** — 끌기용 `setPointerCapture` 가 click/dblclick 의 대상을 svg 로 바꿔 심볼을 못 찾았다(창 단위 pointermove/up 으로) ·
+  pointerdown 의 `preventDefault` 가 click 까지 막았다(CSS `user-select:none` 으로) · 움직이지 않은 pointermove 에 다시 그려 두 번 누르기가 깨졌다.
+  `[hidden]` 이 `display:grid` 에 졌다 → `!important`.  `global` 문 전수 시험에 걸려 라우터의 DB 자리를 dict 로.
+* ⚠ 이 환경에 P&ID 분석 DB 가 없어 **합성 분석(12행)** 으로 확인했다 (`out/hmi1/*.png`) — 실 프로젝트 장은 계기가 촘촘해 값 상자가 겹칠 수 있다
+  (끌어 다듬는 자리).  Trend·Key·Control Mode 는 장면의 첫 압력 전송기 · 처음 여섯 · 첫 제어기로 고른다.
