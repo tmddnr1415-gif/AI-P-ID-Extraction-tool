@@ -1047,3 +1047,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: 3D 창 HTML(두 줄 도구줄 · `#v3Side` · `#v3Col` `#v3EDim`), CSS `.v3view` `.v3side`, `refresh()` 끝에 3D 속성 칸 · 다시 그리기, 새 `v3rot` `v3setEye` `v3orbit` `v3zoomAt` `v3measToggle` `v3side` `v3applyType` `gapDims`, `v3pick`(기둥), 포인터(휠 누름 · 기둥 끌기 · 빈 곳 클릭 선택 풀기), `v3build`(기둥 강조 · 간격 치수 · 회전 중심), `v3draw`(간격 치수 글자, 가린 것 숨김).
 - 확인한 것: `node --check`, Chromium: 속성(이 판넬만 · Type 전체 거절) · 회전 버튼 규칙 거절 · 휠 줌 · 휠 회전 · M/Esc · 기둥 옮김/막힘/Ctrl+Z · 간격 치수. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
 - 회사에서 확인할 것: 휠 누름이 마우스 드라이버에서 다른 기능(자동 스크롤 등)에 묶여 있으면 동작이 다를 수 있음. 2D 도면에는 간격 치수를 아직 안 넣음.
+
+### 2026-10-23 (23) — 판넬 공간확보: 실 크기 자동 맞춤 · 운전실 가구 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 JSON 에 `room.autoFit`, Type 에 `kind` · `top` `bays` `mon` `monIn` `tiers` `cols` `rows` `tileIn` `elev` 가 늘었음 (예전 파일은 kind=cabinet 으로 그대로 열림).
+- 무엇을 ①: 판넬이 오른쪽 · 아래 벽을 넘으면 실 W · L 넓힘 (`roomFit` in `commit()`, `needOf` = 몸체 + 유지보수 + 도어 궤적). 이번 고침으로 넘친 것만 · 불러온 직후(`_fresh`)는 안 함 · 줄이지 않음. ② 체크 `#rFit`.
+- 무엇을 ②: Emerson iOps 결 운전실 가구 — `KIND`(cabinet · desk · screen · chair), `furnFix`(시작값 · 데스크 H · 화면 W/H 자동 · 시작 이름 숫자), `FURN`(삽입 줄 [🪑 운전실 가구]), `planSegs`/`planDetail`(2D · Type 그림 · DXF), 3D `furn3d`(데스크 · 모니터 · 대형 화면 · 의자), Type 창 '종류' 와 종류별 칸, 3D 속성 칸 종류별 칸, `pairRule` 의자 = 겹침만, 요약 글 종류 줄.
+- 확인한 것: `node --check`, Chromium: 실 9,000 → 9,800 · Ctrl+Z, 가구 배치 · 속성 · 거절 · 이름 · 정면, DXF audit 0. 이전 시험 다시 통과(권장 실 23,400 × 10,600), 스크립트 오류 0.
+- 회사에서 확인할 것: Emerson 실제 납품 데스크 도면이 있으면 그 치수로 Type 시작값(`FURN`)을 맞추면 됨. 의자는 데스크 앞 운전 공간 안에 놓는 것을 허용함.
