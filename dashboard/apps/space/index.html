@@ -293,6 +293,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk" title="필요 영역 외곽에서 벽 이격(실 · 기둥 칸 입력)만큼 — 상 · 하 · 좌 · 우 끝 판넬마다 표시"><input type="checkbox" id="vMargin" checked>벽 이격</label>
     <label class="chk"><input type="checkbox" id="vDoor" checked>도어</label>
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
+    <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
     <span class="sep"></span>
     <button id="bSrvOpen2" title="서버: 프로젝트별 · 날짜별 저장 이력과 프로젝트 노트 (부서원 모두 봄)">🗂 이력</button>
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
@@ -647,7 +648,7 @@ let sel=new Set();
 let mode='select';           // select | box | place | col(기둥 편집)
 let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
-const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true};
+const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true};
 let selNote=null;             // 고른 도면 노트 id
 const V={s:0.04,ox:60,oy:60};
 let undo=[],redo=[];
@@ -1047,12 +1048,16 @@ function render(){v3sync();
   // Ctrl 정렬 안내선
   if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6*ANN/s}" y="${(l.y1+l.y2)/2-6*ANN/s}" font-size="${11*ANN/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
+  {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
   const steps=[100,200,500,1000,2000,5000,10000]; const st=steps.find(v=>v*s>=55)||10000, sub=st/5;
   for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:14}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
   for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:14}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
   ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
+  {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
+    if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
+      ru+=`<g transform="translate(${cx} ${cy})"><g transform="rotate(${an})"><path d="M14 0 L4 -7 L4 7 Z" fill="${ac}"/></g><rect x="-9" y="-6" width="12" height="12" rx="2" fill="${ac}"/><text x="0" y="20" font-size="11" fill="${ac}" text-anchor="middle" font-weight="700">3D 카메라 ${fmt(Math.hypot(c.e[0]-c.t[0],c.e[1]-c.t[1])/1000)} m</text></g>`}}}
   svg.innerHTML=defs+`<g transform="translate(${V.ox} ${V.oy}) scale(${s})">${g}</g>`+ru;
 }
 
@@ -1469,6 +1474,7 @@ $('#bDel').onclick=delSel; $('#bDup').onclick=dupSel;
 $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
+$('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
 $('#vDoor').onchange=e=>{show.door=e.target.checked;render()};
 $('#vNote').onchange=e=>{show.note=e.target.checked;render()};
@@ -1816,6 +1822,7 @@ function v3draw(){
   if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
     const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
   V3.td=performance.now()-t0;   // 그리기 시간 (ms) — window.crspaceSpeed() 로 봄
+  v3camPub();
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
   const nc=columns().length; $('#v3Info').textContent=`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} · 판넬 ${S.panels.length} EA · 기둥 ${nc?nc+'개':'없음 (② 기둥 Span 입력 또는 2D 기둥 편집)'} · 최고 H ${fmt(mh)}`+(mh>V3.H?` · ⚠ 판넬 H 가 기둥 · 벽 높이 ${fmt(V3.H)} 보다 큼`:'');
 }
@@ -1905,7 +1912,7 @@ $('#b3d').onclick=()=>{if(V3.dock)dock3d(false);open3d()};
 function dock3d(on){const d=$('#dock3d'),box=$('#v3dlg .box')||$('#dock3d .box'),main=document.querySelector('.main');
   if(on){if(!V3.gl&&!v3init())return toast('이 브라우저에서 3D(WebGL)를 쓸 수 없습니다 — Edge 설정 > 시스템 > 하드웨어 가속을 켜 보세요.',true);
     $('#v3dlg').hidden=true;d.appendChild(box);d.hidden=false;main.classList.add('dual');V3.dock=true;open3d()}
-  else{$('#v3dlg').appendChild(box);d.hidden=true;main.classList.remove('dual');V3.dock=false;V3.on=false}
+  else{$('#v3dlg').appendChild(box);d.hidden=true;main.classList.remove('dual');V3.dock=false;V3.on=false;V3.camK='';if(CAM3D&&CAM3D.src==='dock')CAM3D=null}
   $('#b3dDual').classList.toggle('primary',!!on);requestAnimationFrame(()=>{fit();if(V3.on){v3home();v3req()}})}
 $('#b3dDual').onclick=()=>dock3d(!V3.dock);
 $('#b3dWin').onclick=()=>{const w=window.open(location.pathname+'?view=3d','crspace3d','popup,width=1400,height=900');
@@ -2298,6 +2305,7 @@ function applyRemote(snap){if(!snap||(snap===lastSnap&&!liveGot))return;liveGot=
 if(BC)BC.onmessage=e=>{const m=e.data;if(!m||m.from===WID)return;bcIn=true;try{
   if(m.t==='state')applyRemote(m.snap);
   else if(m.t==='live'){const by=new Map(S.panels.map(p=>[p.id,p]));m.p.forEach(([id,x,y,r])=>{const p=by.get(id);if(p){p.x=x;p.y=y;p.rot=r}});if(m.cols)S.cols=m.cols;liveGot=true;check();render();buildProps();if(V3.on){v3side();v3req()}}
+  else if(m.t==='cam'){CAM3D=m.c?{...m.c,src:'win'}:null;req()}
   else if(m.t==='sel'){sel=new Set((m.ids||[]).filter(id=>S.panels.some(p=>p.id===id)));bcSelS=[...sel].join();buildProps();buildEq();render();if(V3.on){v3side();v3req()}}
 }finally{bcIn=false}};
 window.addEventListener('storage',e=>{if(e.key==='crspace.v1'&&e.newValue&&e.newValue!==lastSnap){bcIn=true;try{applyRemote(e.newValue)}finally{bcIn=false}}});
@@ -2309,6 +2317,31 @@ function v3sync(){   // render() 마다: 선택을 다른 창에 · 나란히 3D
   const sg=S.panels.map(p=>p.x+','+p.y+','+p.rot+p.type+(p.lock?'L':'')).join('|')+'#'+ss+'#'+(Array.isArray(S.cols)?S.cols.map(c=>c.cx+','+c.cy).join():'g')+'#'+S.room.w+'x'+S.room.l+'#'+lastSnap.length;
   if(sg!==V3.sig){V3.sig=sg;v3req()}}
 $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventListener('pointerdown',()=>{V3.kf=false},true);
+
+/* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
+   같은 화면(나란히)은 3D 를 그릴 때마다, 3D 새 창은 BroadcastChannel {t:'cam'} 으로 받음 */
+var CAM3D=null;
+function cam3d(){if(!CAM3D)return null;if(CAM3D.src==='win')return CAM3D;try{return V3.on&&V3.dock?CAM3D:null}catch(e){return null}}
+function camSvg(c,s){
+  const ac=getComputedStyle(document.documentElement).getPropertyValue('--snap').trim()||'#ff7ad9', mo='#e8792b', [ex,ez]=c.e, [tx,tz]=c.t, r=9*ANN/s, fs=10*ANN/s;
+  let dx=tx-ex, dz=tz-ez, d=Math.hypot(dx,dz), o='', ang=0;
+  if(d>50){dx/=d;dz/=d;ang=Math.atan2(dz,dx)*180/Math.PI;const L=Math.max(d*1.5,3000),h=c.hf/2,R=a=>[dx*Math.cos(a)-dz*Math.sin(a),dx*Math.sin(a)+dz*Math.cos(a)],A=R(h),B=R(-h);
+    o+=`<path d="M${ex} ${ez} L${ex+A[0]*L} ${ez+A[1]*L} L${ex+B[0]*L} ${ez+B[1]*L} Z" fill="${ac}" fill-opacity=".07" stroke="${ac}" stroke-width="1.2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
+    o+=`<line x1="${ex}" y1="${ez}" x2="${tx}" y2="${tz}" stroke="${ac}" stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>`;
+    o+=`<circle cx="${tx}" cy="${tz}" r="${4*ANN/s}" fill="none" stroke="${ac}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`}
+  o+=`<g transform="translate(${ex} ${ez}) rotate(${ang})"><rect x="${-r}" y="${-r*.7}" width="${r*1.4}" height="${r*1.4}" rx="${r*.2}" fill="${ac}"/><path d="M${r*.4} 0 L${r*1.25} ${-r*.65} L${r*1.25} ${r*.65} Z" fill="${ac}"/></g>`;
+  o+=`<text x="${ex}" y="${ez-r*1.7}" font-size="${fs}" fill="${ac}" text-anchor="middle" font-weight="700" paint-order="stroke" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()}" stroke-width="${3/s}">3D 시점 · 높이 ${fmt(c.h)}${d>50?'':' (위에서)'}</text>`;
+  if(c.man){const m=c.man,f=[Math.sin(m.rot),Math.cos(m.rot)],q=[m.x+f[0]*520,m.z+f[1]*520],n=[-f[1],f[0]],k=140;
+    o+=`<circle cx="${m.x}" cy="${m.z}" r="240" fill="${mo}" fill-opacity=".25" stroke="${mo}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    o+=`<path d="M${m.x} ${m.z} L${q[0]} ${q[1]} M${q[0]-f[0]*k+n[0]*k*.6} ${q[1]-f[1]*k+n[1]*k*.6} L${q[0]} ${q[1]} L${q[0]-f[0]*k-n[0]*k*.6} ${q[1]-f[1]*k-n[1]*k*.6}" fill="none" stroke="${mo}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    o+=`<text x="${m.x}" y="${m.z+240+fs*1.2}" font-size="${fs}" fill="${mo}" text-anchor="middle" font-weight="700">사람 175 cm</text>`}
+  return o}
+function v3camPub(){   // 3D 를 그린 뒤: 시점이 바뀌었으면 2D 에 알림
+  const B=V3.basis;if(!B)return; const fov=(V3.pov?62:32)*Math.PI/180;
+  const c={e:[Math.round(V3.eye[0]),Math.round(V3.eye[2])],t:[Math.round(V3.T[0]),Math.round(V3.T[2])],h:Math.round(V3.eye[1]),hf:2*Math.atan(Math.tan(fov/2)*B.a),man:V3.manOn&&V3.man?{x:V3.man.x,z:V3.man.z,rot:V3.man.rot}:null};
+  const k=JSON.stringify(c); if(k===V3.camK)return; V3.camK=k;
+  if(ONLY3D)bcSend({t:'cam',c}); else if(V3.dock){CAM3D={...c,src:'dock'};req()}}
+if(ONLY3D)window.addEventListener('pagehide',()=>{try{BC&&BC.postMessage({t:'cam',c:null,from:WID})}catch(e){}});
 
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
