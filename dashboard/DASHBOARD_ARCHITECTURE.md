@@ -1066,3 +1066,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: plaza.js 새 `EPX_TOL` `epx` `HD` `hdOf` · `pix`(EPX · .hd · 글씨 두 번) · `awning`(.hd 에도) · `atlasSprite`(scale 2 = EPX + .hd) · `drawGround`(EPX + 1px 결) · `weaponIcon`(2배 · HD 4배, `k`) · `drawWeaponAt` · `tinted` `ghostly` `helmTint` `vestTint` `stoneTint`(.hd 따라 만듦) · 화면 캔버스 `ctx.drawImage`(.hd 가 있으면 그것을 같은 크기로 부드럽게). plaza_server.py `PLAZA_VERSION` 만.
 - 확인한 것: `node --check` · `selftest.py` 통과. 브라우저(배율 100% · 150%)로 같은 자리 전후 캡처 비교 — 동상 둘레 고리 · 보도블록 · 간판 · 문 모서리가 매끈, 스크립트 오류 없음. 시험 PC(그래픽 카드 없음) 속도: 100% 48 → 40 fps, 150% 25 → 23.5 fps. 처음 그리기 1.1 → 1.3초.
 - 회사에서 확인할 것: 회사 PC 에서 느리면 `hd=0`(대시보드 광장 카드 주소 끝에 `&hd=0`) — 다음 판에서 단추로 뺄 수 있음.
+
+### 2026-10-23 (22) — VOC 처리 완료 (운영자) · 완료 표기 (APP_VERSION 2026-10-23.1 / SERVER_VERSION 2026-10-23.1)
+> server.py 가 바뀜 → **서버 재시작 필요** (8장 3번). 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 요청 "VOC 는 운영자가 처리 완료를 누를 수 있도록 하고, 처리가 완료되면 완료된 표기".
+  - 운영자 = 서버 PC 또는 그룹장(`SUPER_NAMES`, 지금은 구종현) — 게시판 관리 삭제와 같은 사람. VOC 글 카드에 **[✅ 처리 완료]** 단추 → 창에서 처리 내용 한 줄(선택) → 모두에게 **'✅ 처리 완료 · 처리한 사람 · 언제'** + 💬 처리 내용, 제목 앞 ✅, 카드가 조금 옅어짐. 실수하면 **[완료 취소]**.
+  - 처리 전 VOC 는 **'⏳ 처리 대기'**. VOC 탭 줄에 '✅ 완료 n · ⏳ 미처리 n' 과 **[미처리만]** 체크(완료 글 숨김).
+  - 부서원 화면엔 단추가 없고, 서버도 운영자가 아니면 거절(403). 글쓴이가 글을 고쳐도 완료 표시는 그대로, VOC 가 아닌 유형으로 바꾸면 지움.
+  - 기록: 글 파일 `board/<id>.json` 의 `done: {by, at, note}`. 폴더 직접 연결(file://, 서버 없이) 모드에서는 보기만(단추 없음).
+- 바뀐 곳: server.py `SERVER_VERSION` · 새 `api_board_done` · `board_voc`(VOC 아니면 done 지움) · `board` 분기(POST `board/{id}/done` {done, note} — `need_super`). dashboard.html `APP_VERSION` · `Board.done` · `renderBoard`(미처리만) · `drawBoard`(상태 · 단추 · 탭 줄 수) · `boardAction`(vdone · vundo) · CSS `.vdone` `.vwait` `.vnote` `.vstat` `.vopen` `.btn.ok` `.igpost.vocdone`.
+- 확인한 것: `py_compile` · JS 문법. 임시 서버 + 가짜 계정 브라우저(다른 PC 주소로 접속): 부서원 = '처리 대기'만 · 단추 없음 · API 403, 그룹장 = 단추 → 처리 내용 입력 → '✅ 처리 완료 · 구종현 · 방금' + 처리 내용, 부서원 새로고침하면 완료 보임, [미처리만] 체크하면 완료 글 빠짐, [완료 취소] → 다시 '처리 대기'. 스크립트 오류 없음.
+- 회사에서 확인할 것: 서버 재시작 후 그룹장 계정(구종현) 또는 서버 PC 에서 VOC 하나 처리 완료 → 부서원 PC 에서 보이는지.

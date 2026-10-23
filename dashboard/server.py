@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-22.5'
+SERVER_VERSION = '2026-10-23.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -577,7 +577,7 @@ def api_board_img_put(data):
 def board_voc(p, b, acc):
     """VOC 글: 실명만(로그인 본명) · 메뉴 · 첨부 그림(올린 것만, 최대 6). 다른 유형이면 VOC 칸을 지움"""
     if p['kind'] != 'VOC':
-        p.pop('menu', None); p.pop('images', None)
+        p.pop('menu', None); p.pop('images', None); p.pop('done', None)
         return
     if not acc:
         raise ApiError(401, 'VOC 는 실명(로그인)으로만 쓸 수 있습니다')
@@ -656,6 +656,20 @@ def api_board_update(pid, b, acc=None):
             f = img_path(iid)
             if f:
                 os.remove(f)
+        write_json(P('board', pid + '.json'), p)
+    return board_public(p)
+
+
+def api_board_done(pid, b, who):
+    """VOC 처리 완료 표시 (2026-10-23) — 운영자(서버 PC · 그룹장)만. done=false 면 완료 취소. 글쓴이가 고쳐도 표시는 그대로"""
+    with LOCK:
+        p = board_load(pid)
+        if p.get('kind') != 'VOC':
+            raise ApiError(400, 'VOC 글만 처리 완료를 표시할 수 있습니다')
+        if b.get('done', True):
+            p['done'] = {'by': who, 'at': stamp(), 'note': board_text(b, 'note', 200, required=False)}
+        else:
+            p.pop('done', None)
         write_json(P('board', pid + '.json'), p)
     return board_public(p)
 
@@ -2231,6 +2245,9 @@ class Handler(BaseHTTPRequestHandler):
                 return api_board_update(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 2:
                 return api_board_delete(seg[1], self.json_body(), self.is_super())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'done':          # VOC 처리 완료 · 취소: 운영자(서버 PC · 그룹장)만
+                self.need_super()
+                return api_board_done(seg[1], self.json_body(), (acc or {}).get('name') or '운영자')
             if m == 'POST' and len(seg) == 3 and seg[2] == 'comments':
                 return api_comment_add(seg[1], self.json_body(), acc)
             if m == 'DELETE' and len(seg) == 4 and seg[2] == 'comments':

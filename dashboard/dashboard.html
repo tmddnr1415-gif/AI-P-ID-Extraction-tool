@@ -614,6 +614,11 @@ body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .vtab b{margin-left:3px;font-size:11px;color:#c26688}.vtab.on{background:#d6336c;border-color:#d6336c;color:#fff}.vtab.on b{color:#ffe1ec}
 .vocmeta{display:flex;gap:8px;align-items:center;margin:0 14px 6px;font-size:12px}
 .vmenu{font-weight:700;color:#d6336c;background:#fde7ef;border-radius:99px;padding:2px 10px}
+.vocmeta{flex-wrap:wrap}.vocmeta .vmenu,.vocmeta .vdone,.vocmeta .vwait,.vocmeta .btn{white-space:nowrap}.vocmeta .vnote{order:9;flex-basis:100%;padding-left:2px}
+.vocmeta .sp{flex:1}.vdone{font-weight:700;color:#1b7a3a;background:#e3f6e8;border:1px solid #9fd8ae;border-radius:99px;padding:2px 10px}
+.vwait{font-weight:700;color:#9a6700;background:#fff4d6;border:1px solid #f1d58a;border-radius:99px;padding:2px 10px}
+.vnote{color:#1b7a3a;font-size:12px}.vstat{font-size:12px;color:#6b7280;margin-right:4px}.vopen{font-size:12px;display:inline-flex;gap:4px;align-items:center;margin-right:6px;cursor:pointer}
+.btn.ok{background:#1f9d55;border-color:#1f9d55;color:#fff}.igpost.vocdone{opacity:.82}.igpost.vocdone h3::before{content:'✅ ';}
 .vimgs{margin:0 14px 8px}
 .vimgs .vbig{display:block;border-radius:12px;overflow:hidden;background:#0d1320;text-align:center}
 .vimgs .vbig img{display:block;max-width:100%;max-height:420px;margin:0 auto;object-fit:contain}
@@ -1030,7 +1035,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-22.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-23.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2270,6 +2275,10 @@ const Board = {
     const [d, p] = await bFile(pid); await bOwner(p, token);
     Object.assign(p, { title, body, kind, real:a.real, nick:a.real ? user : boardNick(a.anon, a.nick), updatedAt:stamp() }); await writeJSON(d, pid + '.json', p);
   },
+  async done(pid, on, note = '') {                  // VOC 처리 완료 · 취소 (운영자만 — 서버가 확인)
+    bOnline(); if (!SERVER) throw new Error('처리 완료 표시는 서버 접속(http://…)에서만 됩니다');
+    return api('POST', `board/${enc(pid)}/done`, { done:on, note });
+  },
   async remove(pid) {
     bOnline(); const token = BT[pid];
     if (SERVER) await api('DELETE', 'board/' + enc(pid), { token });
@@ -2321,6 +2330,7 @@ function renderBoard(c) {
   $('#bSort').onchange = e => { BS.sort = e.target.value; drawBoard(); };
   $('#bWrite').onclick = () => BS.kind === 'VOC' ? openVoc({ menu:BS.vmenu || '' }) : openPost(null);
   $('#bvoc').onclick = e => { const t = e.target.closest('[data-vmenu]'); if (t) { BS.vmenu = t.dataset.vmenu; drawBoard(); return; }
+    const o = e.target.closest('[data-vopen]'); if (o) { BS.vopen = o.checked; drawBoard(); return; }
     if (e.target.closest('[data-vwrite]')) openVoc({ menu:BS.vmenu || '' }); else if (e.target.closest('[data-vshot]')) shotToVoc(); };
   $('#bCompose').onclick = () => openPost(null);
   $('#bCompose').onkeydown = e => { if (e.key === 'Enter') openPost(null); };
@@ -2344,11 +2354,11 @@ function drawBoard() {
   const el = $('#blist'); if (!el) return;
   const all = DB.board || [], kc = k => all.filter(p => bKind(p) === k).length, kb = $('#bkinds');   // 유형 '스토리' 동그라미 (글 수는 그릴 때마다 새로)
   if (kb) kb.innerHTML = `<button type="button" class="igst ${!BS.kind ? 'on' : ''}" data-bkind="" style="--c:#e1306c"><i>🗂</i>전체<b>${all.length}</b></button>${Object.entries(BKINDS).map(([k, K]) => `<button type="button" class="igst ${BS.kind === k ? 'on' : ''}" data-bkind="${esc(k)}" style="--c:${K.color}"><i>${K.icon}</i>${esc(k)}<b>${kc(k)}</b></button>`).join('')}`;
-  const vb = $('#bvoc'), vocs = all.filter(p => bKind(p) === 'VOC'), vc = k => vocs.filter(p => (p.menu || 'etc') === k).length;
+  const vb = $('#bvoc'), vocs = all.filter(p => bKind(p) === 'VOC'), vc = k => vocs.filter(p => (p.menu || 'etc') === k).length, nDone = vocs.filter(p => p.done).length;
   if (vb) { vb.hidden = BS.kind !== 'VOC';                     // VOC: 메뉴별 탭 + VOC 쓰기
-    vb.innerHTML = `<button type="button" class="vtab ${!BS.vmenu ? 'on' : ''}" data-vmenu="">전체 VOC <b>${vocs.length}</b></button>${Object.entries(VOC_MENU).map(([k, l]) => `<button type="button" class="vtab ${BS.vmenu === k ? 'on' : ''}" data-vmenu="${k}">${esc(l)} <b>${vc(k)}</b></button>`).join('')}<span class="sp"></span><button type="button" class="btn pri sm" data-vwrite>📣 VOC 쓰기</button><button type="button" class="btn sm" data-vshot title="지금 화면에서 범위를 골라 캡처한 뒤 VOC 쓰기">📷 화면 캡처로 VOC</button>`; }
+    vb.innerHTML = `<button type="button" class="vtab ${!BS.vmenu ? 'on' : ''}" data-vmenu="">전체 VOC <b>${vocs.length}</b></button>${Object.entries(VOC_MENU).map(([k, l]) => `<button type="button" class="vtab ${BS.vmenu === k ? 'on' : ''}" data-vmenu="${k}">${esc(l)} <b>${vc(k)}</b></button>`).join('')}<span class="sp"></span><span class="vstat">✅ 완료 ${nDone} · ⏳ 미처리 ${vocs.length - nDone}</span><label class="vopen"><input type="checkbox" data-vopen ${BS.vopen ? 'checked' : ''}> 미처리만</label><button type="button" class="btn pri sm" data-vwrite>📣 VOC 쓰기</button><button type="button" class="btn sm" data-vshot title="지금 화면에서 범위를 골라 캡처한 뒤 VOC 쓰기">📷 화면 캡처로 VOC</button>`; }
   const q = BS.q.trim().toLowerCase();
-  let posts = all.filter(p => (!BS.kind || bKind(p) === BS.kind) && (BS.kind !== 'VOC' || !BS.vmenu || (p.menu || 'etc') === BS.vmenu) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
+  let posts = all.filter(p => (!BS.kind || bKind(p) === BS.kind) && (BS.kind !== 'VOC' || !BS.vmenu || (p.menu || 'etc') === BS.vmenu) && (BS.kind !== 'VOC' || !BS.vopen || !p.done) && (!q || `${p.title}\n${p.body}\n${p.nick}\n${(p.comments || []).map(c => c.body + ' ' + c.nick).join('\n')}`.toLowerCase().includes(q)));
   if (BS.sort === 'cmt') posts = [...posts].sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0) || (a.createdAt < b.createdAt ? 1 : -1));
   if (!posts.length) { el.innerHTML = `<div class="empty">${all.length ? '검색 결과가 없습니다' : '아직 글이 없습니다. 첫 글을 남겨 보세요! ✨'}</div>`; return; }
   const { mode, nick } = authorPrefs();
@@ -2358,11 +2368,14 @@ function drawBoard() {
     const long = (p.body || '').length > 260 || (p.body || '').split('\n').length > 6, more = BS.more.has(p.id);
     const shown = open ? cm : cm.slice(-2);
     const cmtHtml = cmt => { const my = !!BT['c:' + cmt.id]; return `<div class="cmt">${avatarHtml(cmt.nick, cmt.real, true)}${nickHtml(cmt.nick, cmt.real)}<span class="cb">${esc(cmt.body)}</span><span class="muted" title="${esc(fmtTime(cmt.createdAt))}">${esc(agoText(cmt.createdAt))}</span>${my || bAdmin() ? `<button class="btn sm bad" data-bact="cdel" data-cid="${esc(cmt.id)}">${my ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>`; };
-    return `<article class="igpost" data-pid="${esc(p.id)}" style="--c:${K.color}">
+    const voc = bKind(p) === 'VOC', D = p.done;
+    const vstate = !voc ? '' : D ? `<span class="vdone" title="${esc(fmtTime(D.at))}">✅ 처리 완료 · ${esc(D.by || '운영자')} · ${esc(agoText(D.at))}</span>${D.note ? `<span class="vnote">💬 ${esc(D.note)}</span>` : ''}` : '<span class="vwait">⏳ 처리 대기</span>';
+    const vbtn = voc && bAdmin() ? (D ? '<button class="btn sm" data-bact="vundo" title="처리 완료 표시를 지웁니다">완료 취소</button>' : '<button class="btn sm ok" data-bact="vdone" title="이 VOC 를 처리 완료로 표시합니다 (운영자)">✅ 처리 완료</button>') : '';
+    return `<article class="igpost${voc && D ? ' vocdone' : ''}" data-pid="${esc(p.id)}" style="--c:${K.color}">
       <div class="igph">${avatarHtml(p.nick, p.real, false, K.color)}
         <div class="igwho"><b class="${p.real ? 'real' : ''}">${p.real ? '✔ ' : ''}${esc(p.nick || '익명')}</b><small>${K.icon} ${esc(bKind(p))} · <span title="${esc(fmtTime(p.createdAt))}">${esc(agoText(p.createdAt))}</span>${p.updatedAt && p.updatedAt !== p.createdAt ? ' · 수정됨' : ''}</small></div>
         <span class="sp"></span>${mine ? '<span class="igtag">내 글</span><button class="btn sm" data-bact="edit">수정</button>' : ''}${mine || bAdmin() ? `<button class="btn sm bad" data-bact="del">${mine ? '삭제' : '삭제(관리자)'}</button>` : ''}</div>
-      ${bKind(p) === 'VOC' ? `<div class="vocmeta"><span class="vmenu">📍 ${esc(VOC_MENU[p.menu] || '기타')}</span>${(p.images || []).length ? `<span class="muted">🖼 ${(p.images || []).length}</span>` : ''}</div>` : ''}${(p.images || []).length ? vocImgsHtml(p.images) : ''}
+      ${voc ? `<div class="vocmeta"><span class="vmenu">📍 ${esc(VOC_MENU[p.menu] || '기타')}</span>${vstate}${(p.images || []).length ? `<span class="muted">🖼 ${(p.images || []).length}</span>` : ''}<span class="sp"></span>${vbtn}</div>` : ''}${(p.images || []).length ? vocImgsHtml(p.images) : ''}
       <div class="igcard"><h3>${esc(p.title)}</h3><div class="igbody${long && !more ? ' clip' : ''}">${fmtText(p.body)}</div>${long ? `<button class="igmore" data-bact="more">${more ? '접기 ▲' : '… 더 보기'}</button>` : ''}</div>
       <div class="igact"><button data-bact="toggle" title="댓글">💬 댓글 ${cm.length}</button><span class="sp"></span><span class="muted" style="font-size:12px">${esc(fmtTime(p.createdAt))}</span></div>
       <div class="igcm">${cm.length > 2 && !open ? `<button class="igall" data-bact="toggle">댓글 ${cm.length}개 모두 보기</button>` : ''}${shown.map(cmtHtml).join('')}${open && cm.length > 2 ? '<button class="igall" data-bact="toggle">댓글 접기 ▲</button>' : ''}</div>
@@ -2376,7 +2389,16 @@ async function boardAction(btn) {
     if (act === 'toggle') { BS.open.has(pid) ? BS.open.delete(pid) : BS.open.add(pid); return drawBoard(); }
     if (act === 'more') { BS.more = BS.more || new Set(); BS.more.has(pid) ? BS.more.delete(pid) : BS.more.add(pid); return drawBoard(); }
     if (act === 'edit') { const p = (DB.board || []).find(x => x.id === pid); return bKind(p) === 'VOC' ? openVoc({ post:p }) : openPost(p); }
-    if (act === 'del') {
+    if (act === 'vdone') {                                    // VOC 처리 완료 (운영자) — 한 줄 메모는 선택
+      const P0 = (DB.board || []).find(x => x.id === pid);
+      if (await ask('✅ VOC 처리 완료', `<p style="margin-top:0"><b>${esc(P0?.title || '')}</b> 을(를) 처리 완료로 표시합니다. 모두에게 '✅ 처리 완료'로 보입니다.</p>
+        <input id="vdNote" maxlength="200" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px" placeholder="처리 내용 한 줄 (선택) — 예: 다음 판에서 고쳤습니다">`,
+        [{ id:'ok', label:'처리 완료', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
+      await Board.done(pid, true, ($('#vdNote')?.value || '').trim().slice(0, 200)); toast('처리 완료로 표시했습니다');
+    } else if (act === 'vundo') {
+      if (await ask('처리 완료 취소', '이 VOC 의 처리 완료 표시를 지웁니다.', [{ id:'ok', label:'완료 취소', cls:'pri' }, { id:'no', label:'닫기' }]) !== 'ok') return;
+      await Board.done(pid, false); toast('처리 완료 표시를 지웠습니다');
+    } else if (act === 'del') {
       if (await ask('글 삭제', '이 글과 댓글을 삭제합니다. 삭제한 글은 되돌릴 수 없습니다.', [{ id:'ok', label:'삭제', cls:'pri' }, { id:'no', label:'취소' }]) !== 'ok') return;
       await Board.remove(pid); toast('삭제했습니다');
     } else if (act === 'cdel') {
