@@ -1040,3 +1040,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: 3D 포인터(판넬 끌기 `drag.panel`), `v3build`(`V3.dragBad` 빨강 테두리), 3D Ctrl+Z/Y 키, 커서 · 팁 문구.
 - 확인한 것: `node --check`, Chromium: 옮김 (4,600, 4,000)→(4,400, 6,800) · Ctrl+Z · NR-02 겹침 막힘. 이전 시험 다시 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 3D 에서 판넬 회전은 아직 2D 에서 (R 은 3D 에서 사람 돌리기).
+
+### 2026-10-23 (22) — 판넬 공간확보 3D: 휠 회전 · 커서 줌 · 속성 칸 · 기둥 이동 · 간격 치수 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 무엇을: 요청 — 휠 누르고 끌기 = 그 점 중심 360° 회전(`v3orbit`), 휠 = 커서 쪽 줌(`v3zoomAt`) / 3D 재기 단추를 앞으로 + M · Esc / 판넬 클릭 → 오른쪽 속성 칸(`v3side` · `v3applyType`: Tag · Description · Type · W/D/H · 유지보수 · 도어 위치 · 단문 L/R · 양문 LR · 방향 · X/Y · 잠금; 크기 · 도어는 '이 판넬만'(같은 값 Type 재사용 또는 '(변형)' 새 Type) / '같은 Type 전체', 2D 와 같은 `violation` 규칙) / 기둥 보이기 체크 · 기둥 끌기(`toCustomCols`, 판넬 위 금지) / 간격 치수(`gapDims`: 마주 보는 판넬 몸체 모서리 사이 · 벽 ↔ 가장 가까운 판넬, 같은 두 모서리 합침, <───> 화살).
+- 바뀐 곳: 3D 창 HTML(두 줄 도구줄 · `#v3Side` · `#v3Col` `#v3EDim`), CSS `.v3view` `.v3side`, `refresh()` 끝에 3D 속성 칸 · 다시 그리기, 새 `v3rot` `v3setEye` `v3orbit` `v3zoomAt` `v3measToggle` `v3side` `v3applyType` `gapDims`, `v3pick`(기둥), 포인터(휠 누름 · 기둥 끌기 · 빈 곳 클릭 선택 풀기), `v3build`(기둥 강조 · 간격 치수 · 회전 중심), `v3draw`(간격 치수 글자, 가린 것 숨김).
+- 확인한 것: `node --check`, Chromium: 속성(이 판넬만 · Type 전체 거절) · 회전 버튼 규칙 거절 · 휠 줌 · 휠 회전 · M/Esc · 기둥 옮김/막힘/Ctrl+Z · 간격 치수. 이전 시험 다시 통과, 외부 요청 0, 스크립트 오류 0.
+- 회사에서 확인할 것: 휠 누름이 마우스 드라이버에서 다른 기능(자동 스크롤 등)에 묶여 있으면 동작이 다를 수 있음. 2D 도면에는 간격 치수를 아직 안 넣음.
