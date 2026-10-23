@@ -401,11 +401,16 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
         _set_from_legend(b, hit, "")
         b.legend = {"name": hit["name"], "page": None, "basis": "블록 안 글자 = 기능 이름"}
         return True
-    mv = re.fullmatch(r"(\d+)\s*(?:/|≥|>=|>|=)\s*(\d+)", whole.replace("_", " ").strip())     # `2/3` · `2≥3` · '≥' 의 밑줄을 획으로 그려 `2=3` (1A5J)
-    if mv and 0 < int(mv.group(1)) <= int(mv.group(2)):
+    mv = re.fullmatch(r"(\d+)\s*(/|≥|>=|≤|<=|≠|!=|>|<|=)\s*(\d+)", whole.replace("_", " ").strip())   # `2/3` · `2≥3` · '≥' 의 밑줄을 획으로 그려 `2=3` (1A5J)
+    if mv and 0 < int(mv.group(1)) <= int(mv.group(3)):
         # 범례 A/B (B 개 중 A 개 이상일 때만 출력) — 상자 안에 그 글자만 인쇄한 투표 블록 (1A1Y `2/3` · L23)
+        # L51 — 자격 OR 의 부호 (범례 G003 '( * ) n' · 19VA 'In > N'): > · < · ≤ · ≠ 도 받는다.  `=` 는 선 글자에서 '≥' 의
+        # 밑줄이 획으로 읽힌 것(1A5J 실측)이라 '이상' 으로 둔다 — 정확히 n 개는 범례 글자 `=` 를 진짜 글자로 찍는 양식에서만
         b.func, b.logic, b.label = "VOTE", "vote", whole.replace(" ", "")
-        b.param = {"a": int(mv.group(1)), "b": int(mv.group(2))}
+        op = {"/": "ge", "≥": "ge", ">=": "ge", "=": "ge", ">": "gt", "≤": "le", "<=": "le", "<": "lt", "≠": "ne", "!=": "ne"}[mv.group(2)]
+        if "_" in whole and op in ("gt", "lt"):
+            op = "ge" if op == "gt" else "le"      # 선 글자의 밑줄(`_2>3`) 은 '≥' 의 밑줄이다 (1A5J 실측) — '이상'
+        b.param = {"a": int(mv.group(1)), "b": int(mv.group(3)), "op": op}
         b.score = 1.0
         return True
     ws = [w for w in sheet.words if b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3]]

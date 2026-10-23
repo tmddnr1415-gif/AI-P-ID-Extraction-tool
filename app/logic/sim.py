@@ -41,7 +41,14 @@ def _index(s):
     sinks = defaultdict(list)        # net → [block]
     for p in s["ports"]:
         if p["dir"] == "in":
-            ins[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
+            role = p.get("role", "")
+            lg = (s["blocks"].get(p["block"]) or {}).get("logic")
+            if lg in TIMER_KINDS and not role:
+                # L51 — 범례 G003: 타이머의 왼쪽이 입력 I, 아래쪽이 선택 입력 R(리셋).  1A5J · 19VA 는 위쪽에 시간 값 행
+                # (`WAITING TIME` · `DISCREPANCY TIME DELAY`)을 잇는다 — 논리 입력이 아니라 시간 매개변수다 (OR 하면 틀린다)
+                side = p.get("side")
+                role = "reset" if side == "B" else "t" if side == "T" else ""
+            ins[p["block"]].append((p["net"], role, p.get("cell", 0)))
             sinks[p["net"]].append(p["block"])
         else:
             outs[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
@@ -96,7 +103,16 @@ def _b(v):
 MIN_INPUTS = {"and": 2, "nand": 2, "or": 2, "nor": 2, "not": 1}
 # L16 — 이 블록이 모는 선은 사람이 직접 켜지 않는다 (목표로 두고 게이트가 판정한다)
 GATE_LOGIC = {"and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "delay_off", "pulse", "step"}
+TIMER_KINDS = ("delay_on", "delay_off", "pulse")
 _VOTE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")       # 범례 'A/B' — A 개 이상 입력이 있을 때만 출력
+# L51 — 자격 OR (QUALIFIED OR · 범례 G003 "( * ) 'n'" · 19VA "In > N …"): 참인 입력 수를 n 과 맞대는 부호
+VOTE_OPS = {"ge": lambda k, n: k >= n, "gt": lambda k, n: k > n, "le": lambda k, n: k <= n, "lt": lambda k, n: k < n,
+            "eq": lambda k, n: k == n, "ne": lambda k, n: k != n}
+
+
+def _vote_op(b):
+    op = (b.get("param") or {}).get("op") or "ge"
+    return op if op in VOTE_OPS else "ge"
 
 
 def _vote_of(b):
@@ -114,13 +130,17 @@ def _vote_of(b):
     return (a, n) if 0 < a <= n else None
 
 
-def _vote3(vs, a, n):
+def _vote3(vs, a, n, op="ge"):
+    """참인 입력이 a 개 '이상'(ge · 기본 A/B) 일 때 1.  다른 부호(gt · le · lt · eq · ne)는 범례 QUALIFIED OR 의 '( * ) n'.
+    모르는 입력(None)이 결과를 뒤집을 수 있으면 None."""
     vs = list(vs) + [None] * max(0, n - len(vs))
     ones = sum(1 for v in vs if v == 1)
     unk = sum(1 for v in vs if v is None)
-    if ones >= a:
-        return 1
-    return 0 if ones + unk < a else None
+    f = VOTE_OPS.get(op, VOTE_OPS["ge"])
+    lo, hi = f(ones, a), f(ones + unk, a)
+    if unk == 0 or (lo == hi and all(f(k, a) == lo for k in range(ones, ones + unk + 1))):
+        return 1 if lo else 0
+    return None
 
 
 def gate3(lg, iv, fill=None):
@@ -187,8 +207,8 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
                 back(iv[0], 1, depth + 1)
             elif lg == "not" and iv:
                 back(iv[0], 1 - v, depth + 1)
-            elif lg in ("delay_on", "delay_off", "pulse") and v == 1 and len(iv) == 1:
-                back(iv[0], 1, depth + 1)
+            elif lg in TIMER_KINDS and v == 1 and len([n for n, r_, _ in ins[x] if r_ not in ("t", "reset")]) == 1:
+                back([n for n, r_, _ in ins[x] if r_ not in ("t", "reset")][0], 1, depth + 1)
             elif lg == "toggle" and v == 1 and len(iv) == 1:
                 back(iv[0], 1, depth + 1)              # L48 — 꺼진 토글을 켜려면 입력이 한 번 참이 되면 된다
             elif lg == "memory":
@@ -362,11 +382,12 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             return gate3(lg, iv)
         vote = _vote_of(b)
         if vote:
+            vop = _vote_op(b)
             if len(iv) < vote[1]:
                 short.add(bid)
-                o = _held(bid, role, _vote3(iv, *vote))
-                return _vote3(list(iv) + [0] * (vote[1] - len(iv)), *vote) if o is None else o
-            return _vote3(iv, *vote)
+                o = _held(bid, role, _vote3(iv, *vote, vop))
+                return _vote3(list(iv) + [0] * (vote[1] - len(iv)), *vote, vop) if o is None else o
+            return _vote3(iv, *vote, vop)
         if lg == "memory":
             q = st["mem"].get(bid, 0)
             return q if role != "qn" else _not(q)
@@ -479,7 +500,17 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             if lg not in ("delay_on", "delay_off", "pulse"):
                 continue
             ts = st["tim"].setdefault(bid, {"out": 0, "inp": 0, "due": None, "to": None})
-            inp = _b(_or3([val.get(n) for n, _, _ in ins[bid]]))
+            inp = _b(_or3([val.get(n) for n, r_, _ in ins[bid] if r_ not in ("t", "reset")]))
+            rst = _b(_or3([val.get(n) for n, r_, _ in ins[bid] if r_ == "reset"]))
+            if any(r_ == "t" for _, r_, _ in ins[bid]):
+                notes.add("타이머 시간을 입력 행이 줍니다 (위쪽 단자) — 값은 도면 글자 · 사람이 바꾼 값 · 기본으로 봅니다")
+            if rst == 1:
+                # 범례 G003 GT: OUTPUT REMAINS 1 UNTIL INPUT CHANGES TO 0 OR OPTIONAL RESET [R] CHANGES TO 1
+                if ts["out"] != 0:
+                    ts["out"] = 0
+                    changed = True
+                ts["due"], ts["inp"] = None, inp
+                continue
             T = timer_seconds(b, tset.get(bid))
             if bid not in tset and not b.get("param", {}).get("t"):
                 notes.add(f"타이머 시간을 읽지 못한 블록은 {DEFAULT_T:g}초로 보았습니다 (블록을 눌러 바꿀 수 있습니다)")
@@ -1611,12 +1642,25 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
     vote = _vote_of(b)
     if vote:
         a, n = vote
-        if v == 0:
-            return allg(iv, 0)
-        if len(iv) < a:
-            return []
+        op = _vote_op(b)
         from itertools import combinations
-        return [({}, [("net", m, 1) for m in c]) for c in list(combinations(iv, a))[:6]]
+        if op in ("ge", "gt", "eq"):
+            k = a if op != "gt" else a + 1                      # 참이 k 개면 선다 (eq 는 정확히 k — 나머지는 0)
+            if v == 0:
+                return allg(iv, 0) if op != "eq" or a > 0 else []
+            if len(iv) < k:
+                return []
+            rest = (lambda c: [("net", m, 0) for m in iv if m not in c]) if op == "eq" else (lambda c: [])
+            return [({}, [("net", m, 1) for m in c] + rest(c)) for c in list(combinations(iv, k))[:6]]
+        if op in ("le", "lt", "ne"):
+            # 적을수록 1 — 전부 0 이면 선다 (ne: n 이 0 이 아닐 때) · 0 을 바라면 n 개(이상)를 1 로
+            if v == 1:
+                return [({}, [("net", m, 0) for m in iv])] if (op != "ne" or a > 0) else []
+            k = a + 1 if op == "le" else a
+            if len(iv) < k:
+                return []
+            return [({}, [("net", m, 1) for m in c]) for c in list(combinations(iv, k))[:6]]
+        return []
     if lg == "memory":
         want = v if role != "qn" else 1 - v
         S = [n for n, r, _ in ins[x] if r == "set"]
@@ -1626,8 +1670,9 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         # Q=0 — SET 이 모두 0 이면 (한 번도 SET 안 된 상태에서) 0 이다.  이미 SET 된 래치는 RESET 하나가 1 이어야 한다
         # (SET 우선이면 SET 도 모두 0 이어야 한다 — 그래서 어느 갈래든 SET 은 0).
         return [({}, [("net", n, 0) for n in S])] + [({}, [("net", r, 1)] + [("net", n, 0) for n in S]) for r in R]
-    if lg in ("delay_on", "delay_off", "pulse"):
-        return one(iv, 1) if v == 1 else allg(iv, 0)
+    if lg in TIMER_KINDS:
+        tv = [n for n, r_, _ in ins[x] if r_ not in ("t", "reset")]      # L51 — 시간 값 · 리셋 단자는 논리 입력이 아니다
+        return one(tv, 1) if v == 1 else allg(tv, 0)
     if lg == "toggle":                               # L48 — NOTE 가 정의한 토글: 꺼진 상태에서 입력이 한 번 참이 되면 켜진다
         own = {n for n, _, _ in outs.get(x, [])}
         tv = [n for n in iv if n not in own]

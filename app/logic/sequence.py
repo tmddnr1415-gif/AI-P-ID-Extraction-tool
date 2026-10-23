@@ -126,6 +126,7 @@ def commands(sheets):
     return out
 
 
+VOTE_KO = {"ge": "{a}개 이상", "gt": "{a}개보다 많이", "le": "{a}개 이하", "lt": "{a}개 미만", "eq": "정확히 {a}개", "ne": "{a}개가 아닐 때"}
 GATE_KO = {"and": "AND — 모두 만족", "nand": "NAND", "or": "OR — 하나만 만족하면 됨", "nor": "NOR", "not": "NOT — 반대",
            "memory": "메모리(래치)", "delay_on": "켜짐 지연", "delay_off": "꺼짐 지연", "pulse": "펄스",
            "step": "STEP", "connector": "연결 기호"}
@@ -250,7 +251,7 @@ def _plan_net(sheets, page, net, value=1, timers=None, meta=None):
             lab = f"{lab} {t:g}초"
         vote = sim._vote_of(b)
         if vote:
-            lab = f"투표 {vote[0]}/{vote[1]} — {vote[0]}개 이상"
+            lab = f"투표 {vote[0]}/{vote[1]} — {VOTE_KO.get(sim._vote_op(b), '{a}개 이상').format(a=vote[0])}"
         if C["prefix"]:
             lab += " (매크로 안쪽)"
         return lab, b

@@ -410,6 +410,8 @@ def compute(op, b, ins, net_v, dig=None):
         c = user_coef.get(str(n))
         if c is None:
             c = (pn or {}).get("coef")
+        if c is None and (pn or {}).get("name") in ("+", "-", "−"):
+            c = 1.0 if pn["name"] == "+" else -1.0    # L51 — 범례: INPUTS MAY BE LABELED WITH POSITIVE OR NEGATIVE SIGNS
         coefs.append(1.0 if c is None else float(c))
     known = [v for v in vals if v is not None]
     full = vals and len(known) == len(vals)

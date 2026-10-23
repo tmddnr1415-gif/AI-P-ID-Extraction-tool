@@ -199,7 +199,7 @@ def test_gates_by_their_own_text_and_shape(result):
     timer = next(b for b in s["blocks"].values() if b["logic"] == "delay_on")
     assert timer["param"].get("t") == 3
     vote = next(b for b in s["blocks"].values() if b["logic"] == "vote")
-    assert vote["param"] == {"a": 2, "b": 3}
+    assert {k: vote["param"][k] for k in ("a", "b")} == {"a": 2, "b": 3}      # L51 — op 열쇠는 따로
     assert not any(b["kind"] == "CIRCLE" and b["func"] == "UNKNOWN" for b in s["blocks"].values())   # 이음점 원은 블록이 아니다
 
 
