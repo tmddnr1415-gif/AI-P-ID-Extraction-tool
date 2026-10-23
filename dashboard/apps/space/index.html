@@ -95,10 +95,22 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .modal.v3dlg.dcs .box{background:linear-gradient(#13294a,#0e2140 46px,#0f2237 46px);border-color:#1f3a55;color:#dbe6f2}   /* DCS 화면 머리 띠 (LOGIC DCS Graphic 과 같은 색) */
 .modal.v3dlg.dcs .box h4{color:#dbe6f2}.modal.v3dlg.dcs .muted,.modal.v3dlg.dcs .chk{color:#8aa0b8}.modal.v3dlg.dcs .v3wrap{border-color:#1f3a55}
 .modal.v3dlg.dcs button{background:#16304f;color:#dbe6f2;border-color:#1f3a55}.modal.v3dlg.dcs button.primary{background:#2d8cff;border-color:#2d8cff;color:#fff}
-.modal.v3dlg.dcs select,.modal.v3dlg.dcs input[type=number]{background:#0c1d31;color:#dbe6f2;border-color:#1f3a55}
+.modal.v3dlg.dcs select,.modal.v3dlg.dcs input{background:#0c1d31;color:#dbe6f2;border-color:#1f3a55}
+.modal.v3dlg.dcs .v3side{background:#0f2237;border-color:#1f3a55}.modal.v3dlg.dcs .v3side label{color:#8aa0b8}.modal.v3dlg.dcs .v3side .sc label{color:#dbe6f2}.modal.v3dlg.dcs .v3side .sec{border-color:#1f3a55}
 .v3dlg .hh{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.v3wrap{position:relative;flex:1;min-height:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
-.v3wrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.v3wrap{position:relative;flex:1;min-height:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;display:flex}
+.v3view{position:relative;flex:1;min-width:0}
+.v3side{width:286px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px;background:var(--panel-bg)}
+.v3side[hidden]{display:none}
+.v3side h5{margin:0 0 6px;font-size:13px;display:flex;align-items:center;gap:6px}.v3side h5 i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.v3side .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0}.v3side .g2{grid-template-columns:1fr 1fr}
+.v3side label{display:flex;flex-direction:column;gap:2px;color:var(--ink-2);font-size:11px}.v3side label.full{grid-column:1/-1}
+.v3side input,.v3side select{width:100%;min-width:0}
+.v3side .sec{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}.v3side .sc{display:flex;flex-direction:column;gap:3px;margin:6px 0}
+.v3side .sc label{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:12px}.v3side .sc input{width:auto}
+.v3side .err{color:var(--err);min-height:14px;margin-top:4px}.v3side .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.v3dlg .hh2{margin-top:-4px}.v3dlg .hh{padding-right:64px}   /* 오른쪽 위 = 대시보드 '내 업무' 단추 자리 */
+.v3view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #v3gl{cursor:grab;touch-action:none}#v3gl:active{cursor:grabbing}#v3tx{pointer-events:none}
 .v3tip{position:absolute;pointer-events:none;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:4px 7px;font-size:12px;color:var(--ink);white-space:nowrap}
 .hgrid{display:grid;grid-template-columns:1fr 1.5fr 1.1fr;gap:12px;flex:1;min-height:0}
@@ -469,19 +481,22 @@ svg text{font-family:var(--f-mono)}
 <div class="modal v3dlg" id="v3dlg" hidden>
   <div class="box">
     <div class="hh"><h4>🧊 3D 보기</h4><span class="muted" id="v3Info"></span>
-      <span style="margin-left:auto"></span>
-      <button data-v3="iso" title="더블클릭으로도">등각</button><button data-v3="front" title="도면 아래쪽에서">정면</button><button data-v3="side" title="도면 오른쪽에서">측면</button><button data-v3="top">위</button>
+      <button id="v3Meas" title="두 점을 눌러 거리 재기 (X · Y · 높이 차 같이). 다시 누르거나 M · Esc 로 끝">📏 재기 (M)</button><button id="v3MeasClr" title="잰 선 모두 지우기">재기 지우기</button>
+      <button id="v3Pov" title="사람 어깨 너머에서 사람이 보는 방향으로 — 방향키 ↑↓ 걷기 · ← → 돌기, 다시 누르면 등각">👁 사람 시점</button><button id="v3ManRot" title="사람 45° 돌리기 (R)">↻ 사람</button>
+      <span class="sep"></span><button data-v3="iso" title="더블클릭으로도">등각</button><button data-v3="front" title="도면 아래쪽에서">정면</button><button data-v3="side" title="도면 오른쪽에서">측면</button><button data-v3="top">위</button>
+      <span class="sep"></span><button id="v3Png">PNG 저장</button><button id="v3Close" class="primary">닫기 (Esc)</button></div>
+    <div class="hh hh2">
       <label class="chk" title="DCS = LOGIC 의 DCS Graphic 화면 결(남색 · 금속 · 상태 알약), 도면 색 = 2D 도면과 같은 색">화면<select id="v3Style"><option value="dcs">DCS</option><option value="cad">도면 색</option></select></label>
       <label class="chk" title="3D 보기에서 기둥 · 벽을 세울 높이 (이 PC 에 기억, 배치안에는 안 들어감)">기둥 · 벽 높이<input type="number" id="v3H" step="100" min="1000" style="width:72px"></label>
       <label class="chk"><input type="checkbox" id="v3Wall" checked>벽</label>
       <label class="chk"><input type="checkbox" id="v3Clr" checked>유지보수</label>
       <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
-      <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label><button id="v3ManRot" title="사람 45° 돌리기 (R)">↻ 사람</button><button id="v3Meas" title="두 점을 눌러 거리 재기 (X · Y · 높이 차 같이). 다시 누르면 끝">📏 재기</button><button id="v3MeasClr" title="잰 선 모두 지우기">재기 지우기</button>
-      <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label><button id="v3Pov" title="사람 어깨 너머에서 사람이 보는 방향으로 — 방향키 ↑↓ 걷기 · ← → 돌기, 다시 누르면 등각">👁 사람 시점</button>
-      <button id="v3Png">PNG 저장</button><button id="v3Close" class="primary">닫기 (Esc)</button></div>
-    <div class="v3wrap"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
-    <div class="muted">끌기 = 돌려 보기 · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 휠 = 확대 · 축소 · 더블클릭 = 처음 시점 · 판넬 끌기 = 옮기기(2D 와 같은 배치 규칙 · Snap, 위반이면 빨강 · 제자리, Ctrl+Z 되돌리기) · 판넬 위에 마우스 = Tag · 크기. 판넬 높이 = Type 의 H, 밝은 면 = 전면. 사람(175 cm · 80 kg) = 끌기 · 방향키로 옮기기, R 돌리기 — 판넬 · 기둥 · 벽은 못 지나감, 통로 폭(앞뒤 · 좌우) 자동 표시. [📏 재기] = 두 점 거리.</div>
+      <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label>
+      <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label></div>
+    <div class="v3wrap"><div class="v3view"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
+      <aside class="v3side" id="v3Side"></aside></div>
+    <div class="muted">왼쪽 끌기 = 돌려 보기 · <b>휠 누르고 끌기 = 그 점을 중심으로 360° 돌리기</b> · <b>휠 = 마우스 쪽으로 확대 · 축소</b> · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 더블클릭 = 처음 시점 · <b>판넬 클릭 = 오른쪽에서 속성 고치기</b> · 판넬 끌기 = 옮기기(2D 와 같은 배치 규칙, 위반이면 빨강 · 제자리, Ctrl+Z) · 빈 곳 클릭 = 선택 풀기 · 사람(175 cm · 80 kg) 끌기 · 방향키 · R · M = 재기.</div>
   </div>
 </div>
 <div class="modal" id="kdlg" hidden>
@@ -1169,7 +1184,7 @@ try{if(localStorage.getItem('crspace.eqfold')){$('#eqBox').classList.add('fold')
 $('#eqTbl').addEventListener('click',e=>{const tr=e.target.closest('[data-pid]');if(!tr)return;const p=S.panels.find(x=>x.id===tr.dataset.pid);if(!p)return;
   if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();buildEq();render();return}   // Shift = 목록에서도 여러 개 고르기
   sel=new Set([p.id]);const b=geom(p).body,{w,h}=vp();V.ox=w/2-(b.x+b.w/2)*V.s;V.oy=h/2-(b.y+b.h/2)*V.s;buildProps();buildEq();render()});
-function refresh(){check();buildSummary();buildRevs();buildNotes();buildEq();updSrv();buildProps();render();
+function refresh(){check();buildSummary();buildRevs();buildNotes();buildEq();updSrv();buildProps();render();if(typeof V3!=='undefined'&&V3.on){v3side();v3req()}
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
   if(n!==refresh._n){refresh._n=n;buildTypes()}
   $('#bUndo').disabled=!undo.length;$('#bRedo').disabled=!redo.length;
@@ -1426,6 +1441,17 @@ function v3init(){
   V3.gl=gl; V3.pg=pg; V3.buf=gl.createBuffer(); V3.loc={p:gl.getAttribLocation(pg,'p'),c:gl.getAttribLocation(pg,'c'),n:gl.getAttribLocation(pg,'n'),M:gl.getUniformLocation(pg,'M'),E:gl.getUniformLocation(pg,'E')};
   return true;
 }
+function v3rot(v,ax,a){const c=Math.cos(a),s=Math.sin(a),d=v3dot(ax,v),x=v3crs(ax,v);return [0,1,2].map(i=>v[i]*c+x[i]*s+ax[i]*d*(1-c))}   // 축 ax(단위) 둘레로 a 돌림
+function v3setEye(eye,T){const d=v3sub(eye,T),D=Math.hypot(...d);V3.T=T;V3.D=D;V3.yaw=Math.atan2(d[0],d[2]);V3.pitch=Math.asin(Math.max(-1,Math.min(1,d[1]/D)))}
+function v3orbit(P,dyaw,dpitch){   // 점 P 를 중심으로 시점과 바라보는 점을 함께 돌림 (휠 누르고 끌기)
+  v3cam(); let e=V3.eye.slice(), T=V3.T.slice(); const R=(v,ax,a)=>{const r=v3rot(v3sub(v,P),ax,a);return [r[0]+P[0],r[1]+P[1],r[2]+P[2]]};
+  e=R(e,[0,1,0],dyaw);T=R(T,[0,1,0],dyaw);
+  const f=v3n(v3sub(T,e)), r=v3n(v3crs(f,[0,1,0])), p0=V3.pitch, np=Math.min(1.55,Math.max(0.02,p0+dpitch)), a=np-p0;
+  if(Math.abs(a)>1e-6){e=R(e,r,-a);T=R(T,r,-a)}
+  v3setEye(e,T); V3.pitch=Math.min(1.55,Math.max(0.02,V3.pitch))}
+function v3zoomAt(P,k){   // 점 P 쪽으로 k 배 (k<1 = 확대)
+  v3cam(); const e=V3.eye, T=V3.T, sz=Math.max(S.room.w,S.room.l); if(!P||V3.D*k<800||V3.D*k>sz*6){V3.D=Math.min(sz*6,Math.max(800,V3.D*k));return}
+  v3setEye([0,1,2].map(i=>P[i]+(e[i]-P[i])*k),[0,1,2].map(i=>P[i]+(T[i]-P[i])*k))}
 function v3home(){const W=S.room.w,L=S.room.l;V3.T=[W/2,600,L/2];V3.D=Math.max(W,L)*1.6;}
 function v3cam(){const cp=Math.cos(V3.pitch);V3.eye=[V3.T[0]+V3.D*cp*Math.sin(V3.yaw),V3.T[1]+V3.D*Math.sin(V3.pitch),V3.T[2]+V3.D*cp*Math.cos(V3.yaw)];
   const f=v3n(v3sub(V3.T,V3.eye)), r=v3n(v3crs(f,[0,1,0])), u=v3crs(r,f); return {f,r,u};}
@@ -1518,6 +1544,7 @@ function v3build(){
   // 재기 선 (가려지지 않게 맨 위에): 두 점 재기 + 사람 주변 통로 폭
   const mc=DCS?D('meas'):C('--snap'), segM=(a,b,c)=>{vtx(ML,a,c,1);vtx(ML,b,c,1)}, tick=(p,c,k=70)=>{segM([p[0]-k,p[1],p[2]],[p[0]+k,p[1],p[2]],c);segM([p[0],p[1]-k,p[2]],[p[0],p[1]+k,p[2]],c);segM([p[0],p[1],p[2]-k],[p[0],p[1],p[2]+k],c)};
   V3.ms.forEach(([a,b])=>{segM(a,b,mc);tick(a,mc);tick(b,mc)});
+  if(V3.pivot)tick(V3.pivot,DCS?D('sel'):acc,160);   // 휠 눌러 돌리는 중심
   if(V3.meas){if(V3.mp){tick(V3.mp,mc);if(V3.mh)segM(V3.mp,V3.mh.p,mc)}if(V3.mh)tick(V3.mh.p,mc,110)}
   if(V3.gap&&V3.manOn&&V3.man)manGaps().forEach(q=>{seg(q.a,q.b,gpc);[q.a,q.b].forEach(p=>seg([p[0],p[1]-120,p[2]],[p[0],p[1]+120,p[2]],gpc))});   // 통로 폭: 판넬 뒤로는 가려짐
   return {T,L,X,SH,ML};
@@ -1641,9 +1668,57 @@ function v3hidden(p,pt){   // 글자 자리가 다른 판넬 뒤에 가려지면
   const v=v3sub(pt,V3.eye), L=Math.hypot(...v), R={o:V3.eye,d:v.map(x=>x/L)};
   return S.panels.some(q=>{if(q===p)return false;const g=geom(q),b=g.body,t=rayBox(R,[b.x,0,b.y],[b.x+b.w,+g.t.h||2100,b.y+b.h]);return t!=null&&t<L-50})}
 function rayFloor(R){if(!R||R.d[1]>=-1e-6)return null;const t=-R.o[1]/R.d[1];return [R.o[0]+R.d[0]*t,R.o[2]+R.d[2]*t]}
+/* 3D 속성 칸: 판넬 하나를 고르면 Tag · Description · 크기 · 유지보수 · 도어(위치 · 단문/양문 · 힌지) · 방향 · 위치를 고침.
+   크기 · 도어는 Type 값이라 '이 판넬만'(같은 값 Type 을 찾거나 새 Type 을 만듦) / '같은 Type 전체' 를 고름. 2D 와 같은 배치 규칙 */
+function v3side(){
+  const box=$('#v3Side'), ps=S.panels.filter(p=>sel.has(p.id));
+  if(ps.length!==1){box.innerHTML=ps.length?`<h5>판넬 ${ps.length}개 선택</h5><p class="muted">속성은 하나만 골랐을 때 고칩니다. 끌면 묶음째 옮겨집니다.</p>`:`<h5>속성</h5><p class="muted">판넬을 누르면 여기서 Tag · Description · 크기 · 도어 · 방향을 고칩니다.</p>`;return}
+  const p=ps[0], t=typeOf(p), g=geom(p), n=S.panels.filter(q=>q.type===t.id).length, kind=t.door==='none'?'none':t.hinge==='LR'?'LR':t.hinge;
+  box.innerHTML=`<h5><i style="background:${esc(t.color)}"></i>${esc(p.tag)}${p.lock?' 🔒':''}</h5>
+   <div class="g g2"><label>Tag<input id="v3pTag" value="${esc(p.tag)}"></label><label>Type<select id="v3pType">${S.types.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+    <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label></div>
+   <div class="sec"><b>크기 · 도어</b> <span class="muted">(Type '${esc(t.name)}' 값 · ${n} EA)</span>
+    <div class="g"><label>W 폭<input type="number" id="v3tW" min="1" step="50" value="${t.w}"></label><label>D 깊이<input type="number" id="v3tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="v3tH" min="1" step="50" value="${+t.h||2100}"></label>
+     <label>전면 유지보수<input type="number" id="v3tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="v3tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
+     <label>도어 위치<select id="v3tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
+     <label class="full" style="grid-column:2/-1">도어 형식 · 열림<select id="v3tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
+    ${n>1?`<div class="sc"><label><input type="radio" name="v3sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="v3sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
+    <div class="row"><button id="v3tApply" class="primary">크기 · 도어 적용</button><span class="muted">힌지 L/R 은 그 면 앞에 서서 볼 때</span></div><div class="err" id="v3tErr"></div></div>
+   <div class="sec"><b>방향 · 위치</b>
+    <div class="g"><label>전면 방향<select id="v3pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
+     <label>X<input type="number" id="v3pX" step="${S.snap}" value="${p.x}"></label><label>Y<input type="number" id="v3pY" step="${S.snap}" value="${p.y}"></label></div>
+    <div class="row"><button id="v3pRL">⟲ 90°</button><button id="v3pRR">⟳ 90°</button><label style="flex-direction:row;align-items:center;gap:4px;color:inherit"><input type="checkbox" id="v3pLock" ${p.lock?'checked':''} style="width:auto">🔒 잠금</label></div>
+    <p class="muted" style="margin:6px 0 0">평면 ${fmt(g.body.w)} × ${fmt(g.body.h)} · 판넬 끌기로도 옮김 · Ctrl+Z 되돌리기</p></div>`;
+  const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
+  const chG=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);if(!guardCommit(new Set([p.id])))v3side()});
+  ch('#v3pTag',v=>{v=v.trim();if(!v)return;const dup=S.panels.some(q=>q!==p&&q.tag===v);p.tag=dup?v+'*':v;if(dup)toast(`Tag ${v} 이(가) 이미 있어 ${v}* 로 적었습니다`,true)});
+  ch('#v3pDesc',v=>p.desc=v.trim());
+  chG('#v3pType',v=>p.type=v);
+  const lockMsg=()=>{toast(`${p.tag} 은(는) 잠겨 있습니다 (🔒 를 풀고 고치세요)`,true);v3side()};
+  chG('#v3pX',v=>{if(!p.lock)p.x=+v||0;else lockMsg()}); chG('#v3pY',v=>{if(!p.lock)p.y=+v||0;else lockMsg()});
+  chG('#v3pRot',v=>{if(!p.lock)rotateAbout([p],null,0,+v);else lockMsg()});
+  $('#v3pRL').onclick=()=>{if(p.lock)return lockMsg();rotSel(-90)}; $('#v3pRR').onclick=()=>{if(p.lock)return lockMsg();rotSel(90)};
+  $('#v3pLock').onchange=()=>lockSel();
+  $('#v3tApply').onclick=()=>v3applyType(p);
+}
+function v3applyType(p){
+  const t=typeOf(p), err=m=>{$('#v3tErr').textContent=m}, num=id=>+$(id).value, kind=$('#v3tKind').value;
+  const v={w:num('#v3tW'),d:num('#v3tD'),h:num('#v3tH'),front:Math.max(0,num('#v3tF')||0),rear:Math.max(0,num('#v3tR')||0),door:$('#v3tDoor').value,hinge:kind};
+  if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
+  const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector('input[name=v3sc]:checked')||{}).value:'all';
+  const same=x=>['w','d','h','front','rear','door','hinge'].every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
+  if(sc==='all'){const old={...t};Object.assign(t,v);
+    if(ENF()){const bad=violation(all,true);if(bad){Object.assign(t,old);return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
+    commit();buildTypes();toast(`Type ${t.name} 을(를) 고쳤습니다 — ${all.length} EA 에 적용`);return}
+  let nt=S.types.find(x=>x!==t&&same(x)), made=false;
+  if(!nt){let nm=`${t.name} (변형)`,k=2;while(S.types.some(x=>x.name===nm))nm=`${t.name} (변형 ${k++})`;nt=fixDoor({...t,id:uid(),name:nm,...v});S.types.push(nt);made=true}
+  const old=p.type; p.type=nt.id;
+  if(ENF()){const bad=violation([p]);if(bad){p.type=old;if(made)S.types.pop();return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
+  commit();buildTypes();toast(`${p.tag} 만 고쳤습니다 — Type '${nt.name}'${made?' 을(를) 새로 만듦':' 으로 바꿈'}`);
+}
 function open3d(){
   if(!V3.gl&&!v3init()){toast('이 브라우저에서 3D(WebGL)를 쓸 수 없습니다 — Edge 설정 > 시스템 > 하드웨어 가속을 켜 보세요.',true);return}
-  check(); $('#v3dlg').hidden=false; V3.on=true; $('#v3H').value=V3.H; $('#v3Style').value=V3.style; $('#v3dlg').classList.toggle('dcs',V3.style==='dcs'); ['wall','clr','door','lbl'].forEach(k=>V3[k]=$('#v3'+k[0].toUpperCase()+k.slice(1)).checked);
+  check(); $('#v3dlg').hidden=false; V3.on=true; v3side(); $('#v3H').value=V3.H; $('#v3Style').value=V3.style; $('#v3dlg').classList.toggle('dcs',V3.style==='dcs'); ['wall','clr','door','lbl'].forEach(k=>V3[k]=$('#v3'+k[0].toUpperCase()+k.slice(1)).checked);
   if(!V3.D||V3.room!==S.room.w+'x'+S.room.l){v3home();V3.room=S.room.w+'x'+S.room.l;V3.man=null;V3.pov=false}
   V3.manOn=$('#v3Man').checked; if(!V3.man||!manFree(V3.man.x,V3.man.z)){V3.man=manHome();V3.manBad=false} if(V3.pov)manPov(); v3req();
 }
@@ -1654,7 +1729,12 @@ $('#v3Close').onclick=()=>{$('#v3dlg').hidden=true;V3.on=false};
 new MutationObserver(()=>{if($('#v3dlg').hidden)V3.on=false}).observe($('#v3dlg'),{attributes:true,attributeFilter:['hidden']});   // Esc 로 닫힘
 $('#v3H').onchange=e=>{const v=Math.round(+e.target.value);if(v>=1000&&v<=20000){V3.H=v;try{localStorage.setItem('crspace.h3d',String(v))}catch(_){}}else e.target.value=V3.H;v3req()};
 ['Wall','Clr','Door','Lbl'].forEach(k=>$('#v3'+k).onchange=e=>{V3[k.toLowerCase()]=e.target.checked;v3req()});
-$('#v3Meas').onclick=()=>{V3.meas=!V3.meas;V3.mp=V3.mh=null;$('#v3Meas').classList.toggle('primary',V3.meas);$('#v3gl').style.cursor=V3.meas?'crosshair':'';toast(V3.meas?'3D 재기: 두 점을 누르세요 (판넬 · 기둥 · 벽 면 · 바닥, 모서리에 붙음). 오른쪽 클릭 = 첫 점 취소':'3D 재기 끝');v3req()};
+function v3measToggle(on){V3.meas=on??!V3.meas;V3.mp=V3.mh=null;$('#v3Meas').classList.toggle('primary',V3.meas);$('#v3gl').style.cursor=V3.meas?'crosshair':'';toast(V3.meas?'3D 재기: 두 점을 누르세요 (판넬 · 기둥 · 벽 면 · 바닥, 모서리에 붙음). 오른쪽 클릭 = 첫 점 취소 · M / Esc = 끝':'3D 재기 끝');v3req()}
+$('#v3Meas').onclick=()=>v3measToggle();
+document.addEventListener('keydown',e=>{   // 3D 창: M = 재기 켜고 끄기, 재기 중 Esc = 재기만 끝 (창은 그대로)
+  if(!V3.on||e.target.matches('input,select,textarea'))return;
+  if(e.key==='Escape'&&V3.meas){e.preventDefault();e.stopPropagation();v3measToggle(false);return}
+  if((e.key==='m'||e.key==='M')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();e.stopPropagation();v3measToggle()}},true);
 $('#v3MeasClr').onclick=()=>{V3.ms=[];V3.mp=null;v3req()};
 $('#v3Gap').onchange=e=>{V3.gap=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}$('#v3dlg').classList.toggle('dcs',V3.style==='dcs');v3req()};
@@ -1677,13 +1757,17 @@ window.addEventListener('resize',()=>{if(V3.on)v3req()});
 {const cv=$('#v3gl'); let drag=null;
   cv.addEventListener('contextmenu',e=>{e.preventDefault();if(V3.meas&&V3.mp){V3.mp=null;v3req()}});
   let down=null;
+  cv.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault()});   // 휠 누름 = 브라우저 자동 스크롤 막기
   cv.addEventListener('pointerdown',e=>{const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top; down={x:e.clientX,y:e.clientY,b:e.button};
+    if(e.button===1){e.preventDefault();const h=v3hit(mx,my),fp=h?null:rayFloor(v3ray(mx,my));const P=h?h.p:fp?[fp[0],0,fp[1]]:V3.T.slice();
+      drag={orbit:true,P,x:e.clientX,y:e.clientY};V3.pov=false;V3.pivot=P;cv.setPointerCapture(e.pointerId);v3req();return}
     if(e.button===0&&!e.shiftKey&&!V3.meas){const hit=v3pick(mx,my);if(hit&&hit.man){const fp=rayFloor(v3ray(mx,my));if(fp){drag={man:true,off:[V3.man.x-fp[0],V3.man.z-fp[1]]};cv.setPointerCapture(e.pointerId);return}}
       if(hit&&hit.id){const fp=rayFloor(v3ray(mx,my));if(fp){   // 판넬 끌기: 누른 판넬(이미 고른 묶음이면 묶음 전체) — 2D 와 같은 규칙 · Snap
         if(!sel.has(hit.id)){sel=new Set([hit.id]);refresh()} const ps=S.panels.filter(p=>sel.has(p.id));
         drag={panel:true,ps,orig:ps.map(p=>[p.x,p.y]),fp0:fp,sx:e.clientX,sy:e.clientY,moved:false};cv.setPointerCapture(e.pointerId);v3req();return}}}
     drag={x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey};cv.setPointerCapture(e.pointerId)});
   cv.addEventListener('pointermove',e=>{
+    if(drag&&drag.orbit){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;v3orbit(drag.P,-dx*0.008,dy*0.008);v3req();return}
     if(drag&&drag.man){const rc=cv.getBoundingClientRect(),fp=rayFloor(v3ray(e.clientX-rc.left,e.clientY-rc.top));if(fp)manMove(fp[0]+drag.off[0],fp[1]+drag.off[1]);return}
     if(drag&&drag.panel){if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
       const tip=$('#v3Tip'),rc=cv.getBoundingClientRect(),place=t=>{tip.hidden=false;tip.style.left=(e.clientX-rc.left+14)+'px';tip.style.top=(e.clientY-rc.top+10)+'px';tip.innerHTML=t};
@@ -1713,12 +1797,15 @@ window.addEventListener('resize',()=>{if(V3.on)v3req()});
         if(V3.man&&!manFree(V3.man.x,V3.man.z))V3.man=manHome()}
       else if(d.moved){restore(lastSnap)}
       v3req();down=null;return}
-    drag=null;
+    if(drag&&drag.orbit){drag=null;V3.pivot=null;down=null;v3req();return}
+    const wasOrbit=drag&&!drag.man&&!drag.panel&&!drag.pan; drag=null;
+    if(wasOrbit&&!V3.meas&&down&&down.b===0&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<4&&sel.size){sel=new Set();refresh()}   // 빈 곳 클릭 = 선택 풀기
     if(V3.meas&&down&&down.b===0&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<5){const rc=cv.getBoundingClientRect(),h=v3hit(e.clientX-rc.left,e.clientY-rc.top);
       if(h){if(!V3.mp)V3.mp=h.p;else{V3.ms.push([V3.mp,h.p]);V3.mp=null}v3req()}}
     down=null});
   cv.addEventListener('pointerleave',()=>{$('#v3Tip').hidden=true;if(V3.hover){V3.hover=null;v3req()}});
-  cv.addEventListener('wheel',e=>{e.preventDefault();V3.pov=false;V3.D=Math.min(Math.max(S.room.w,S.room.l)*6,Math.max(800,V3.D*Math.exp(Math.sign(e.deltaY)*Math.min(Math.abs(e.deltaY),200)*0.001)));v3req()},{passive:false});
+  cv.addEventListener('wheel',e=>{e.preventDefault();V3.pov=false;const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top,h=v3hit(mx,my),fp=h?null:rayFloor(v3ray(mx,my));   // 마우스가 가리키는 점 쪽으로
+    v3zoomAt(h?h.p:fp?[fp[0],0,fp[1]]:null,Math.exp(Math.sign(e.deltaY)*Math.min(Math.abs(e.deltaY),200)*0.001));v3req()},{passive:false});
   cv.addEventListener('dblclick',()=>{V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req()});
 }
 $('#v3Png').onclick=()=>{   // 3D 화면 + Tag 글자 → PNG
