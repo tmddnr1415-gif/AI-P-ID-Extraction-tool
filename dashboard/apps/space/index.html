@@ -339,6 +339,7 @@ svg text{font-family:var(--f-mono)}
           <label>판넬 간 최소 이격 (mm)<input type="number" id="rGp" min="0" step="50" title="판넬 몸체 사이 최소 거리. 0 = 겹치지만 않으면 됨"></label>
           <label>도어 간 최소 이격 (mm)<input type="number" id="rGd" min="0" step="50" title="서로 다른 판넬의 도어 회전 궤적 사이 최소 거리 (같은 줄에 나란한 문끼리는 제외). 0 = 궤적이 겹치지만 않으면 됨"></label>
           <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="rTouch">줄 배치로 맞닿은 판넬(0 mm)은 이격 예외</label>
+          <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)" title="판넬 크기를 키우거나 옮겨 오른쪽 · 아래 벽을 넘으면 실 W · L 을 넓힘 (줄이지는 않음)"><input type="checkbox" id="rFit">실 크기 자동 맞춤 (판넬이 넘으면 실을 넓힘)</label>
           <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="rEnf">위반이면 놓지 못하게 (끄면 검토 목록에만)</label>
         </div>
         <p class="muted" style="margin:4px 0 0">항상 막는 것: 기둥과 겹침 · 판넬끼리 겹침 · 다른 판넬의 도어 회전 궤적과 간섭 · 도어 궤적끼리 겹침. Ctrl 을 누른 채 끌면 근처 판넬 · 벽 · 기둥에 맞춰 붙습니다(정렬 안내선).</p>
@@ -577,8 +578,8 @@ try{const raw=localStorage.getItem('crspace.v1'); HAD_LOCAL=!!raw; S=raw?JSON.pa
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
 function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
-norm(S);
+function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+norm(S);S._fresh=false;
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 // 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
 let AUTH_TOKEN='', AUTH_NAME='';
@@ -598,10 +599,22 @@ const V={s:0.04,ox:60,oy:60};
 let undo=[],redo=[];
 
 const snapshot=()=>JSON.stringify(S);
-function commit(){undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[];lastSnap=snapshot();persist();refresh();}
+/* 실 크기 자동 맞춤: 고친 판넬(크기 · 유지보수 · 도어 궤적 포함)이 실 오른쪽 · 아래 벽을 넘으면 실 W · L 을 100 단위로 넓힘.
+   이번 고침으로 넘친 만큼만 (이미 넘쳐 있던 예전 배치나 불러온 파일은 그대로) · 줄이지는 않음 · ② '실 크기 자동 맞춤' 으로 끔 */
+function needOf(st){let x=0,y=0;st.panels.forEach(p=>{const t=st.types.find(k=>k.id===p.type)||st.types[0];if(!t)return;const e=extOf(geom(p,fixDoor({...t})));if(e){x=Math.max(x,e.x+e.w);y=Math.max(y,e.y+e.h)}});return [x,y]}
+function roomFit(){
+  if(S.room.autoFit===false||S._fresh){if(S._fresh)S._fresh=false;return null}   // _fresh = 방금 불러온 배치안 (불러오며 하는 commit 은 맞추지 않음)
+  const [nx,ny]=needOf(S); if(nx<=S.room.w+0.5&&ny<=S.room.l+0.5)return null;
+  let prev=[0,0]; try{prev=needOf(JSON.parse(lastSnap))}catch(e){}
+  const ch=[]; if(nx>S.room.w+0.5&&nx>prev[0]+0.5){const v=Math.ceil(nx/100)*100;ch.push(`W ${fmt(S.room.w)} → ${fmt(v)}`);S.room.w=v}
+  if(ny>S.room.l+0.5&&ny>prev[1]+0.5){const v=Math.ceil(ny/100)*100;ch.push(`L ${fmt(S.room.l)} → ${fmt(v)}`);S.room.l=v}
+  return ch.length?ch:null;
+}
+function commit(){const fitted=roomFit();if(fitted){buildRoom();setTimeout(()=>toast(`판넬이 실을 넘어 실 크기를 넓혔습니다 — ${fitted.join(' · ')} mm (② 실 치수 · Ctrl+Z 로 되돌림)`),30)}
+  undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[];lastSnap=snapshot();persist();refresh();}
 let lastSnap=snapshot();
 function persist(){try{localStorage.setItem('crspace.v1',lastSnap)}catch(e){}}
-function restore(str){S=norm(JSON.parse(str));lastSnap=str;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));persist();buildRoom();buildTypes();refresh();}
+function restore(str){S=norm(JSON.parse(str));S._fresh=false;lastSnap=str;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));persist();buildRoom();buildTypes();refresh();}
 
 /* ---------- geometry ---------- */
 const typeOf=p=>S.types.find(t=>t.id===p.type)||S.types[0];
@@ -990,9 +1003,9 @@ function render(){
 /* ---------- side panels ---------- */
 function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#snap').value=String(S.snap);
+function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
   const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
-$('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').onchange=e=>{S.room.enforce=e.target.checked;commit()};
+$('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').onchange=e=>{S.room.enforce=e.target.checked;commit()}; $('#rFit').onchange=e=>{S.room.autoFit=e.target.checked;commit()};
 ['rW','rL','rSX','rSY','rC','rM','rSp','rSd','rGp','rGd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
   const k={rW:'w',rL:'l',rSX:'spX',rSY:'spY',rC:'col',rM:'margin',rSp:'spare',rSd:'spareDir',rGp:'gapP',rGd:'gapD'}[id], v=e.target.value;
   S.room[k]=(k==='spX'||k==='spY'||k==='spareDir')?v:Math.max(0,+v||0); commit();
