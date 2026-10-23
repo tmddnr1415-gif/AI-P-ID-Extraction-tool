@@ -299,6 +299,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
     <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
     <label class="chk"><input type="checkbox" id="vEq" checked>장비 목록</label>
+    <label class="chk" title="2D 자 · 격자의 작은 눈금 하나 = 이 길이 (mm). 자동 = 확대 정도에 맞춤. 이 PC 에 기억">눈금<select id="tick"><option value="0">자동</option><option value="100">100</option><option value="250">250</option><option value="500">500</option><option value="1000">1,000</option><option value="2000">2,000</option></select></label>
     <label class="chk" title="도면 위 글자 · 치수 · 번호 · 노트 크기">글자<select id="ann"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select></label>
     <span class="sep"></span>
     <button id="bTheme" title="어두운 CAD 화면 ↔ 밝은 화면 (이 PC 에 기억)">☀ 밝게</button>
@@ -908,6 +909,8 @@ function typeSvg(t,big){
     o+=tx(b.w/2,y0-pad*.45,'▲ 전면 (굵은 선)');}
   return o+'</svg>';
 }
+var TICK=500;   // 2D 자 · 격자 작은 눈금 (mm, 0 = 자동) — 도구줄 '눈금'
+try{const v=localStorage.getItem('crspace.tick');if(v!==null&&[0,100,250,500,1000,2000].includes(+v))TICK=+v}catch(e){}
 let ANN=1.5;   // 도면 글자 · 표시 배율 (Tag · 치수 · 노트 · 번호 · 안내선), 도구줄에서 바꿈 — 이 PC 에 기억
 try{const v=+localStorage.getItem('crspace.ann');if(v>=1&&v<=2)ANN=v}catch(e){}
 let ghost=null, marquee=null, cursorW=null, block=null;   // block = 지금 끌거나 놓으려는 자리의 위반 문장
@@ -940,7 +943,8 @@ function render(){v3sync();
   const C=k=>cs.getPropertyValue(k).trim();
   const ink=C('--ink'),ink2=C('--ink-2'),acc=C('--accent'),clr=C('--clear'),err=C('--err'),warn=C('--warn');
   // grid pattern
-  let mi=100,ma=1000; if(100*s<7){mi=500;ma=5000} if(500*s<3){mi=1000;ma=10000}   // 격자도 500 mm 를 오래 유지
+  let mi=100,ma=1000; if(100*s<7){mi=500;ma=5000} if(500*s<3){mi=1000;ma=10000}
+  if(TICK&&TICK*s>=3){mi=TICK;ma=TICK*10}   // 격자도 고른 눈금 간격
   let pl=''; for(let k=0;k<ma;k+=mi){const isM=k===0;pl+=`<line x1="${k}" y1="0" x2="${k}" y2="${ma}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/><line x1="0" y1="${k}" x2="${ma}" y2="${k}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/>`}
   const hs=7/s;
   let defs=`<defs><pattern id="gp" width="${ma}" height="${ma}" patternUnits="userSpaceOnUse">${pl}</pattern>
@@ -1051,9 +1055,10 @@ function render(){v3sync();
   {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
-  const steps=[100,200,500,1000,2000,5000,10000]; const st=steps.find(v=>v*s>=55)||10000, sub=st<=500?st/5:(500*s>=2.5?500:st/5);   // 작은 눈금 = 500 mm (아주 멀리 줄였을 때만 더 굵게)
-  for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:Math.abs(x%1000)<1e-6?11:15}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
-  for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:Math.abs(y%1000)<1e-6?11:15}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
+  const steps=[100,200,500,1000,2000,5000,10000]; let st=steps.find(v=>v*s>=55)||10000, sub=TICK?(TICK*s>=2.5?TICK:st/5):st/5;   // 작은 눈금 = 사용자가 고른 값 (도구줄 '눈금', 너무 촘촘하면 굵게)
+  if(TICK&&sub===TICK&&st%TICK)st=Math.ceil(st/TICK)*TICK;   // 숫자 붙는 큰 눈금은 작은 눈금의 배수로
+  for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:Math.abs(x%(sub*2))<1e-6?11:15}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
+  for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:Math.abs(y%(sub*2))<1e-6?11:15}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
   ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
   {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
     if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
@@ -1475,6 +1480,7 @@ $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
+$('#tick').value=String(TICK); $('#tick').onchange=e=>{TICK=+e.target.value;try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();toast(TICK?`2D 눈금 하나 = ${fmt(TICK)} mm`+(TICK*V.s<2.5?' — 지금 배율에서는 너무 촘촘해 굵게 보입니다. 확대(Ctrl+휠)하면 보입니다':''):'2D 눈금 = 자동 (확대 정도에 맞춤)')};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
 $('#vDoor').onchange=e=>{show.door=e.target.checked;render()};
 $('#vNote').onchange=e=>{show.note=e.target.checked;render()};
