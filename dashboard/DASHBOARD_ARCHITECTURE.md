@@ -1054,3 +1054,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을 ②: Emerson iOps 결 운전실 가구 — `KIND`(cabinet · desk · screen · chair), `furnFix`(시작값 · 데스크 H · 화면 W/H 자동 · 시작 이름 숫자), `FURN`(삽입 줄 [🪑 운전실 가구]), `planSegs`/`planDetail`(2D · Type 그림 · DXF), 3D `furn3d`(데스크 · 모니터 · 대형 화면 · 의자), Type 창 '종류' 와 종류별 칸, 3D 속성 칸 종류별 칸, `pairRule` 의자 = 겹침만, 요약 글 종류 줄.
 - 확인한 것: `node --check`, Chromium: 실 9,000 → 9,800 · Ctrl+Z, 가구 배치 · 속성 · 거절 · 이름 · 정면, DXF audit 0. 이전 시험 다시 통과(권장 실 23,400 × 10,600), 스크립트 오류 0.
 - 회사에서 확인할 것: Emerson 실제 납품 데스크 도면이 있으면 그 치수로 Type 시작값(`FURN`)을 맞추면 됨. 의자는 데스크 앞 운전 공간 안에 놓는 것을 허용함.
+
+### 2026-10-23 (24) — 판넬 공간확보: 2D | 3D 나란히 · 3D 새 창 · 실시간 동기화 · 3D 가볍게 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 외부 연결 없음(같은 PC 창끼리 BroadcastChannel · localStorage).
+- 무엇을: 도구줄 [◧ 2D | 3D](`dock3d` — 3D 창 내용을 `#dock3d` 칸으로 옮김, `.main.dual`), [↗ 3D 새 창](`?view=3d` → `ONLY3D`, 첫 화면 없이 3D 만). 동기화: `persist()` → `bcSend({t:'state'})`, 끄는 중 `bcLive()`(판넬 · 기둥 자리, rAF 한 번), 선택 `v3sync()` → `{t:'sel'}`, 받는 쪽 `applyRemote`(되돌리기 목록에 넣음) · 'storage' 이벤트 예비. 나란히 키보드는 마지막에 누른 쪽(`V3.kf`, `v3keys()`).
+- 가볍게: `v3build` 결과를 GPU 버퍼로 두고 `V3.dirty` 일 때만 다시 만듦(`v3req(false)` = 카메라 · 재기 선만), 벽 네 면 따로(`WT`/`WL`) 그릴 때 고름, 재기 · 통로 폭은 `v3light()`, 판넬 상자 `V3.bx` 를 가림 · 고르기에 재사용, 간격 치수 `V3.gd` 재사용. `window.crspaceSpeed()`.
+- 확인한 것: `node --check`, Chromium: 나란히 · 새 창 양방향(끄는 중 포함) · 선택 따라옴 · Ctrl+Z 한 번만, 판넬 300 EA 돌리기 9 ~ 10 ms/화면. 이전 시험 다시 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 대시보드 안(iframe)에서 [↗ 3D 새 창] 이 Edge 팝업 차단에 걸리면 주소줄 오른쪽에서 허용.
