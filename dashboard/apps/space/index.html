@@ -489,6 +489,7 @@ svg text{font-family:var(--f-mono)}
       <label class="chk" title="DCS = LOGIC 의 DCS Graphic 화면 결(남색 · 금속 · 상태 알약), 도면 색 = 2D 도면과 같은 색">화면<select id="v3Style"><option value="dcs">DCS</option><option value="cad">도면 색</option></select></label>
       <label class="chk" title="3D 보기에서 기둥 · 벽을 세울 높이 (이 PC 에 기억, 배치안에는 안 들어감)">기둥 · 벽 높이<input type="number" id="v3H" step="100" min="1000" style="width:72px"></label>
       <label class="chk"><input type="checkbox" id="v3Wall" checked>벽</label>
+      <label class="chk" title="기둥 보이기 — 끌어서 옮김. 기둥은 ② 실 치수의 기둥 Span 이나 2D [기둥 편집]으로 만듦"><input type="checkbox" id="v3Col" checked>기둥</label>
       <label class="chk"><input type="checkbox" id="v3Clr" checked>유지보수</label>
       <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
@@ -496,7 +497,7 @@ svg text{font-family:var(--f-mono)}
       <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label></div>
     <div class="v3wrap"><div class="v3view"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
       <aside class="v3side" id="v3Side"></aside></div>
-    <div class="muted">왼쪽 끌기 = 돌려 보기 · <b>휠 누르고 끌기 = 그 점을 중심으로 360° 돌리기</b> · <b>휠 = 마우스 쪽으로 확대 · 축소</b> · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 더블클릭 = 처음 시점 · <b>판넬 클릭 = 오른쪽에서 속성 고치기</b> · 판넬 끌기 = 옮기기(2D 와 같은 배치 규칙, 위반이면 빨강 · 제자리, Ctrl+Z) · 빈 곳 클릭 = 선택 풀기 · 사람(175 cm · 80 kg) 끌기 · 방향키 · R · M = 재기.</div>
+    <div class="muted">왼쪽 끌기 = 돌려 보기 · <b>휠 누르고 끌기 = 그 점을 중심으로 360° 돌리기</b> · <b>휠 = 마우스 쪽으로 확대 · 축소</b> · Shift+끌기 / 오른쪽 끌기 = 옮기기 · 더블클릭 = 처음 시점 · <b>판넬 클릭 = 오른쪽에서 속성 고치기</b> · 판넬 끌기 = 옮기기(2D 와 같은 배치 규칙, 위반이면 빨강 · 제자리, Ctrl+Z) · 빈 곳 클릭 = 선택 풀기 · <b>기둥 끌기 = 기둥 옮기기</b>(판넬 위로는 못 놓음) · 사람(175 cm · 80 kg) 끌기 · 방향키 · R · M = 재기.</div>
   </div>
 </div>
 <div class="modal" id="kdlg" hidden>
@@ -1415,7 +1416,7 @@ function preflight(what){   // 출력 전: 간섭(오류)이 있으면 먼저 �
 }
 /* ---------- 3D 보기: 판넬 H 로 세운 상자 (WebGL 직접 — 외부 라이브러리 없음, 보기 전용 · 배치안은 안 바꿈) ----------
    좌표: X = 도면 x, Y = 높이, Z = 도면 y. 벽은 카메라 쪽 벽을 숨겨(인형집 단면) 안이 보이게. */
-const V3={dragBad:null,style:'dcs',meas:false,mp:null,mh:null,ms:[],gap:true,man:null,manOn:true,manBad:false,pov:false,gl:null,on:false,yaw:-0.62,pitch:0.62,D:0,T:[0,0,0],H:3000,hover:null,raf:0,vb:null,eye:[0,0,0]};
+const V3={colOn:true,colHot:null,colBad:false,dragBad:null,style:'dcs',meas:false,mp:null,mh:null,ms:[],gap:true,man:null,manOn:true,manBad:false,pov:false,gl:null,on:false,yaw:-0.62,pitch:0.62,D:0,T:[0,0,0],H:3000,hover:null,raf:0,vb:null,eye:[0,0,0]};
 try{const v=+localStorage.getItem('crspace.h3d');if(v>=1000&&v<=20000)V3.H=v;if(localStorage.getItem('crspace.v3style')==='cad')V3.style='cad'}catch(e){}
 /* DCS 화면 결 — LOGIC 개발(claude/logic-review-design-pd2z75)의 DCS Graphic(app/static/hmi/hmi.css · hmi_symbols.js) 색을 그대로 씀:
    남색 배경 · 금속 그라데이션(#e3eaf2→#8b9bb0) · 어두운 테두리 #2c3a4b · 상태 다섯 색 · 배관 네 색. 코드는 가져오지 않고 값만 맞춤 */
@@ -1496,7 +1497,8 @@ function v3build(){
     if(e[0]>=0)box(-t,-t,0,Lr+t,0,H,wc,{edge:we}); if(e[0]<=W)box(W,-t,W+t,Lr+t,0,H,wc,{edge:we});
     if(e[2]>=0)box(0,-t,W,0,0,H,wc,{edge:we}); if(e[2]<=Lr)box(0,Lr,W,Lr+t,0,H,wc,{edge:we});}
   // 기둥
-  const cc=DCS?D('col'):C('--col'); columns().forEach(c=>{box(c.x,c.y,c.x+c.w,c.y+c.h,0,H,cc,{edge:DCS?D('edge'):mix(cc,ink,.35),ao:.3,grad:DCS?[D('colD'),D('col')]:null});shadow(c,H)});
+  const cc=DCS?D('col'):C('--col'); if(V3.colOn)columns().forEach(c=>{const hot=V3.colHot===c.cx+','+c.cy, ec=hot&&V3.colBad?hexRGB('#ff3b6b'):hot?acc:DCS?D('edge'):mix(cc,ink,.35);   // hot = 마우스 · 끄는 중
+    box(c.x,c.y,c.x+c.w,c.y+c.h,0,H,hot?mix(cc,ec,.35):cc,{edge:ec,ao:.3,grad:DCS?(hot?[mix(D('colD'),ec,.3),mix(D('col'),ec,.3)]:[D('colD'),D('col')]):null});shadow(c,H)});
   // 판넬 (전면 = 밝은 면)
   const clr=DCS?D('clr'):C('--clear'), dc=DCS?D('door'):C('--door');
   S.panels.forEach(p=>{const g=geom(p), b=g.body, ht=+g.t.h||2100, col=hexRGB(g.t.color), on=sel.has(p.id)||V3.hover===p.id, bad=!!(V3.dragBad&&V3.dragBad.has(p.id)), fc=bad?hexRGB('#ff3b6b'):acc;   // bad = 끌어 놓으려는 자리가 규칙 위반
@@ -1571,7 +1573,7 @@ function manGaps(){const m=V3.man,f=[Math.sin(m.rot),0,Math.cos(m.rot)],r=[Math.
 function v3hit(mx,my){const R=v3ray(mx,my);if(!R)return null;const e=V3.eye,W=S.room.w,Lr=S.room.l,H=V3.H;let best=null;
   const try_=(lo,hi,what)=>{const t=rayBox(R,lo,hi);if(t!=null&&(!best||t<best.t))best={t,lo,hi,what}};
   S.panels.forEach(p=>{const g=geom(p),b=g.body;try_([b.x,0,b.y],[b.x+b.w,+g.t.h||2100,b.y+b.h],p.tag)});
-  columns().forEach(c=>try_([c.x,0,c.y],[c.x+c.w,H,c.y+c.h],'기둥'));
+  if(V3.colOn)columns().forEach(c=>try_([c.x,0,c.y],[c.x+c.w,H,c.y+c.h],'기둥'));
   if(V3.wall){if(e[0]>=0)try_([-200,0,-200],[0,H,Lr+200],'벽');if(e[0]<=W)try_([W,0,-200],[W+200,H,Lr+200],'벽');if(e[2]>=0)try_([0,0,-200],[W,H,0],'벽');if(e[2]<=Lr)try_([0,0,Lr],[W,H,Lr+200],'벽')}
   if(R.d[1]<-1e-6){const t=-R.o[1]/R.d[1],x=R.o[0]+R.d[0]*t,z=R.o[2]+R.d[2]*t;if(x>=0&&x<=W&&z>=0&&z<=Lr&&(!best||t<best.t))best={t,what:'바닥'}}
   if(!best)return null; const p=[0,1,2].map(i=>R.o[i]+R.d[i]*best.t), tol=Math.max(25,best.t*0.012);
@@ -1649,7 +1651,7 @@ function v3draw(){
   if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
     const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
-  $('#v3Info').textContent=`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} · 판넬 ${S.panels.length} EA · 최고 H ${fmt(mh)}`+(mh>V3.H?` · ⚠ 판넬 H 가 기둥 · 벽 높이 ${fmt(V3.H)} 보다 큼`:'');
+  const nc=columns().length; $('#v3Info').textContent=`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} · 판넬 ${S.panels.length} EA · 기둥 ${nc?nc+'개':'없음 (② 기둥 Span 입력 또는 2D 기둥 편집)'} · 최고 H ${fmt(mh)}`+(mh>V3.H?` · ⚠ 판넬 H 가 기둥 · 벽 높이 ${fmt(V3.H)} 보다 큼`:'');
 }
 function v3rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
 const v3req=()=>{if(!V3.raf)V3.raf=requestAnimationFrame(v3draw)};
@@ -1661,6 +1663,7 @@ function rayBox(R,lo,hi){const {o,d}=R;let t0=-1e18,t1=1e18;
 function v3pick(mx,my){   // 마우스 아래: 사람 또는 판넬 (카메라 광선 ∩ 상자, 가까운 것)
   const R=v3ray(mx,my); if(!R)return null; let best=null,bt=1e18;
   S.panels.forEach(p=>{const g=geom(p),b=g.body,t=rayBox(R,[b.x,0,b.y],[b.x+b.w,+g.t.h||2100,b.y+b.h]);if(t!=null&&t<bt){bt=t;best=p}});
+  if(V3.colOn)columns().forEach(c=>{const t=rayBox(R,[c.x,0,c.y],[c.x+c.w,V3.H,c.y+c.h]);if(t!=null&&t<bt){bt=t;best={col:c}}});
   if(V3.manOn&&V3.man&&!V3.pov){const m=V3.man,t=rayBox(R,[m.x-MAN_R,0,m.z-MAN_R],[m.x+MAN_R,1750,m.z+MAN_R]);if(t!=null&&t<bt)best={man:true}}
   return best;
 }
@@ -1737,6 +1740,7 @@ document.addEventListener('keydown',e=>{   // 3D 창: M = 재기 켜고 끄기, 
   if((e.key==='m'||e.key==='M')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();e.stopPropagation();v3measToggle()}},true);
 $('#v3MeasClr').onclick=()=>{V3.ms=[];V3.mp=null;v3req()};
 $('#v3Gap').onchange=e=>{V3.gap=e.target.checked;v3req()};
+$('#v3Col').onchange=e=>{V3.colOn=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}$('#v3dlg').classList.toggle('dcs',V3.style==='dcs');v3req()};
 $('#v3Man').onchange=e=>{V3.manOn=e.target.checked;if(!V3.manOn&&V3.pov){V3.pov=false;v3home()}v3req()};
 $('#v3ManRot').onclick=()=>{if(!V3.manOn)return;V3.man.rot+=Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req()};
@@ -1762,6 +1766,8 @@ window.addEventListener('resize',()=>{if(V3.on)v3req()});
     if(e.button===1){e.preventDefault();const h=v3hit(mx,my),fp=h?null:rayFloor(v3ray(mx,my));const P=h?h.p:fp?[fp[0],0,fp[1]]:V3.T.slice();
       drag={orbit:true,P,x:e.clientX,y:e.clientY};V3.pov=false;V3.pivot=P;cv.setPointerCapture(e.pointerId);v3req();return}
     if(e.button===0&&!e.shiftKey&&!V3.meas){const hit=v3pick(mx,my);if(hit&&hit.man){const fp=rayFloor(v3ray(mx,my));if(fp){drag={man:true,off:[V3.man.x-fp[0],V3.man.z-fp[1]]};cv.setPointerCapture(e.pointerId);return}}
+      if(hit&&hit.col){const fp=rayFloor(v3ray(mx,my));if(fp){   // 기둥 끌기 (2D 선택 모드와 같음: 처음 옮기면 격자 → 기둥 목록, 판넬 위로는 못 놓음)
+        toCustomCols(); const o=S.cols.find(x=>x.cx===hit.col.cx&&x.cy===hit.col.cy); if(o){drag={col:true,o,ox:o.cx,oy:o.cy,fp0:fp,sx:e.clientX,sy:e.clientY,moved:false};V3.colHot=o.cx+','+o.cy;cv.setPointerCapture(e.pointerId);v3req();return}}}
       if(hit&&hit.id){const fp=rayFloor(v3ray(mx,my));if(fp){   // 판넬 끌기: 누른 판넬(이미 고른 묶음이면 묶음 전체) — 2D 와 같은 규칙 · Snap
         if(!sel.has(hit.id)){sel=new Set([hit.id]);refresh()} const ps=S.panels.filter(p=>sel.has(p.id));
         drag={panel:true,ps,orig:ps.map(p=>[p.x,p.y]),fp0:fp,sx:e.clientX,sy:e.clientY,moved:false};cv.setPointerCapture(e.pointerId);v3req();return}}}
@@ -1769,6 +1775,12 @@ window.addEventListener('resize',()=>{if(V3.on)v3req()});
   cv.addEventListener('pointermove',e=>{
     if(drag&&drag.orbit){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;v3orbit(drag.P,-dx*0.008,dy*0.008);v3req();return}
     if(drag&&drag.man){const rc=cv.getBoundingClientRect(),fp=rayFloor(v3ray(e.clientX-rc.left,e.clientY-rc.top));if(fp)manMove(fp[0]+drag.off[0],fp[1]+drag.off[1]);return}
+    if(drag&&drag.col){if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
+      const rc=cv.getBoundingClientRect(),fp=rayFloor(v3ray(e.clientX-rc.left,e.clientY-rc.top));if(!fp)return;drag.moved=true;
+      const sn=+S.snap||100,o=drag.o;o.cx=drag.ox+Math.round((fp[0]-drag.fp0[0])/sn)*sn;o.cy=drag.oy+Math.round((fp[1]-drag.fp0[1])/sn)*sn;
+      const cb={x:o.cx-o.w/2,y:o.cy-o.h/2,w:o.w,h:o.h},hp=ENF()&&S.panels.find(q=>ov(geom(q).body,cb));drag.bad=hp?`${hp.tag} 위에 기둥이 겹칩니다`:null;V3.colBad=!!hp;V3.colHot=o.cx+','+o.cy;
+      const tip=$('#v3Tip');tip.hidden=false;tip.style.left=(e.clientX-rc.left+14)+'px';tip.style.top=(e.clientY-rc.top+10)+'px';
+      tip.innerHTML=hp?`<b style="color:#ff3b6b">⛔ 놓을 수 없음</b><br>${esc(drag.bad)}`:`<b>기둥</b> ${fmt(o.w)}×${fmt(o.h)} · 중심 X ${fmt(o.cx)} · Y ${fmt(o.cy)}<br>이동 ${fmt(o.cx-drag.ox)} / ${fmt(o.cy-drag.oy)} mm`;v3req();return}
     if(drag&&drag.panel){if(!drag.moved&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<4)return;
       const tip=$('#v3Tip'),rc=cv.getBoundingClientRect(),place=t=>{tip.hidden=false;tip.style.left=(e.clientX-rc.left+14)+'px';tip.style.top=(e.clientY-rc.top+10)+'px';tip.innerHTML=t};
       const lk=drag.ps.filter(p=>p.lock); if(lk.length){place(`<b style="color:#ff3b6b">🔒 잠긴 판넬</b> ${esc(lk.map(p=>p.tag).join(', '))} — 옮기지 않음 (L 로 잠금 해제)`);return}
@@ -1787,11 +1799,17 @@ window.addEventListener('resize',()=>{if(V3.on)v3req()});
     const r=cv.getBoundingClientRect(), p=v3pick(e.clientX-r.left,e.clientY-r.top), tip=$('#v3Tip');
     if((p&&p.id)!==V3.hover){V3.hover=p&&p.id;v3req()}
     cv.style.cursor=p&&p.man?'move':p?'grab':'';
+    {const k=p&&p.col?p.col.cx+','+p.col.cy:null;if(k!==V3.colHot){V3.colHot=k;v3req()}}
+    if(p&&p.col){const c=p.col;tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.innerHTML=`<b>기둥</b> ${fmt(c.w)} × ${fmt(c.h)} · 중심 X ${fmt(c.cx)} · Y ${fmt(c.cy)}<br>끌어서 옮기기 (판넬 위로는 못 놓음)`;return}
     if(p&&p.man){tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.innerHTML=`<b>사람</b> 키 175 cm · 80 kg (어깨 폭 약 580)<br>끌어서 옮기기 · R 돌리기 · 방향키 이동`}
     else if(p){const t=typeOf(p);tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';
       tip.innerHTML=`<b>${esc(p.tag)}</b> ${esc(p.desc||t.name)}<br>${fmt(t.w)} × ${fmt(t.d)} × H ${fmt(+t.h||2100)}${p.lock?' · 🔒 잠김':' · 끌어서 옮기기'}`} else tip.hidden=true;
   });
   cv.addEventListener('pointerup',e=>{if(drag&&drag.man&&V3.manBad){V3.manBad=false;v3req()}
+    if(drag&&drag.col){const d=drag;drag=null;V3.colBad=false;V3.colHot=null;$('#v3Tip').hidden=true;
+      if(d.moved&&(d.o.cx!==d.ox||d.o.cy!==d.oy)){if(d.bad){restore(lastSnap);refuse(d.bad)}else{commit();toast(`기둥 옮김 → 중심 (${fmt(d.o.cx)}, ${fmt(d.o.cy)}) — Ctrl+Z 되돌리기`)}
+        if(V3.man&&!manFree(V3.man.x,V3.man.z))V3.man=manHome()} else if(d.moved)restore(lastSnap);
+      v3req();down=null;return}
     if(drag&&drag.panel){const d=drag;drag=null;V3.dragBad=null;$('#v3Tip').hidden=true;
       if(d.moved&&(d.dx||d.dz)){if(d.bad){restore(lastSnap);refuse(d.bad)}else{commit();toast(`${d.ps.length>1?`판넬 ${d.ps.length}개`:d.ps[0].tag} 옮김 (${d.dx>=0?'+':''}${fmt(d.dx)}, ${d.dz>=0?'+':''}${fmt(d.dz)}) — Ctrl+Z 되돌리기`)}
         if(V3.man&&!manFree(V3.man.x,V3.man.z))V3.man=manHome()}
