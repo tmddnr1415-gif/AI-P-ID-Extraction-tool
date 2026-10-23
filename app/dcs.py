@@ -25,6 +25,7 @@ import io
 import json
 import math
 import re
+import time
 import zipfile
 from html import escape
 from pathlib import Path
@@ -366,6 +367,12 @@ def dcs_page():
     return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
 
 
+@router.get("/dcs/demo")
+def dcs_demo_page():
+    """예시 화면(압축기 트레인) — 식별 P&ID 없이 HMI 부품을 본다.  같은 dcs.html 이 `?demo=1` 로 연다."""
+    return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+
+
 @router.get("/dcs/api/jobs/{job_id}")
 def api_job(job_id: str):
     job, el = _eligibility(job_id)
@@ -379,6 +386,39 @@ def api_job(job_id: str):
                               "instruments": len(s["instruments"]), "valves": len(s["valves"]),
                               "tagged": s["tagged"], "pipes": len(s["pipes"]), "equipment": len(s["equipment"])}
                              for s in sheets]})
+
+
+def _norm_name(s: str) -> str:
+    return re.sub(r"[\s_\-]+", "", str(s or "")).upper()
+
+
+def pid_jobs_for_project(name: str) -> dict:
+    """hotfix109 — LOGIC 화면이 "같은 프로젝트의 P&ID 그래픽" 을 찾는 길.
+
+    P&ID 프로젝트 장부와 LOGIC 프로젝트 장부는 따로라(각자 이름을 적는다) **이름**으로 맞댄다 — 띄어쓰기 · 밑줄 · 붙임표 ·
+    대소문자는 무시.  맞는 프로젝트의 가장 최근에 끝난 **실행(태그 있는) P&ID** 가 `match`, 그래픽을 만들 수 있는 P&ID
+    분석 전부가 `candidates` (이름이 안 맞으면 사람이 고른다 — 지어내지 않는다)."""
+    m = _main()
+    want = _norm_name(name)
+    cands = []
+    for job in m.db.list_jobs(m.CON):
+        if job["status"] != "done":
+            continue
+        _, el = _eligibility(job["id"])
+        if not el.get("eligible"):
+            continue
+        cands.append({"job_id": job["id"], "project": job["project"] or "", "pdf_name": job["pdf_name"],
+                      "revision": job["revision"] if "revision" in job.keys() else "",
+                      "analysed_at": job["created_at"] if "created_at" in job.keys() else None,
+                      "tagged_rows": el.get("tagged_rows", 0),
+                      "same_project": bool(want) and _norm_name(job["project"]) == want})
+    match = next((c for c in cands if c["same_project"]), None)     # list_jobs 는 최근 것부터
+    return {"project": name or "", "match": match, "candidates": cands}
+
+
+@router.get("/dcs/api/for_project")
+def api_for_project(name: str = ""):
+    return _json(pid_jobs_for_project(name))
 
 
 @router.get("/dcs/api/jobs/{job_id}/tags")
@@ -451,6 +491,88 @@ async def api_render(job_id: str, page_no: int, request: Request):
     if (body or {}).get("format") == "png":
         return Response(render_png(svg), media_type="image/png", headers={"Cache-Control": "no-store"})
     return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "no-store"})
+
+
+# ---------------------------------------------------------------- hotfix109 — HMI 화면의 사람 값 (태그 편집 · Key Parameters · Trend)
+
+HMI_ID_RE = re.compile(r"^[A-Za-z0-9#/._ +()-]{0,40}$")
+
+
+def _hmi_path(job_id: str) -> Path:
+    return paths.data_dir() / "dcs" / re.sub(r"[^0-9a-f]", "", job_id) / "hmi.json"
+
+
+def hmi_load(job_id: str) -> dict:
+    from app import jsonstore
+    d = jsonstore.read(_hmi_path(job_id), {}, what="HMI 사람 값")
+    return d if isinstance(d, dict) else {}
+
+
+def hmi_save(job_id: str, body: dict, author: str) -> dict:
+    """사람이 고친 태그 · 기기 이름 · Key Parameters 목록 · Trend 태그를 분석 폴더 밖 `dcs/<job>/hmi.json` 에 둔다.
+    분석 결과(행)는 건드리지 않는다 — 그래서 지문에 닿지 않고, 다시 분석해도 남는다.  지우지 않고 이력을 쌓는다."""
+    from app import jsonstore
+    if not author:
+        raise ValueError("이름이 없어 저장할 수 없습니다 — 대시보드에서 로그인한 뒤 다시 여세요 (?user=)")
+    cur = hmi_load(job_id)
+    cur.setdefault("tags", {}); cur.setdefault("names", {}); cur.setdefault("history", [])
+    for key, val in (body.get("tags") or {}).items():
+        if not isinstance(val, str) or not HMI_ID_RE.match(val):
+            raise ValueError(f"태그 꼴이 아닙니다: {val!r}")
+        cur["history"].append({"at": time.strftime("%Y-%m-%d %H:%M:%S"), "by": author, "kind": "tag", "key": key, "from": cur["tags"].get(key), "to": val})
+        if val == "" :
+            cur["tags"].pop(key, None)
+        else:
+            cur["tags"][key] = val
+    for key, val in (body.get("names") or {}).items():
+        if not isinstance(val, str) or len(val) > 80:
+            raise ValueError("기기 이름이 너무 깁니다")
+        cur["history"].append({"at": time.strftime("%Y-%m-%d %H:%M:%S"), "by": author, "kind": "name", "key": key, "from": cur["names"].get(key), "to": val})
+        if val == "":
+            cur["names"].pop(key, None)
+        else:
+            cur["names"][key] = val
+    if "params" in body:
+        prm = body.get("params")
+        if not isinstance(prm, dict):
+            raise ValueError("params 는 {쪽: [태그…]} 꼴이어야 합니다")
+        cur.setdefault("params", {}).update({str(k): [str(t)[:40] for t in (v or [])][:12] for k, v in prm.items()})
+    if "trend" in body:
+        tr = body.get("trend")
+        if not isinstance(tr, dict):
+            raise ValueError("trend 는 {쪽: 태그} 꼴이어야 합니다")
+        cur.setdefault("trend", {}).update({str(k): str(v)[:40] for k, v in tr.items()})
+    cur["history"] = cur["history"][-500:]
+    cur["updated"] = {"at": time.strftime("%Y-%m-%d %H:%M:%S"), "by": author}
+    jsonstore.write(_hmi_path(job_id), cur, sort_keys=False)
+    return cur
+
+
+@router.get("/dcs/api/jobs/{job_id}/hmi")
+def api_hmi_get(job_id: str):
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json(el, 404)
+    return _json(hmi_load(job_id))
+
+
+@router.post("/dcs/api/jobs/{job_id}/hmi")
+async def api_hmi_post(job_id: str, request: Request):
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json(el, 404)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        return _json({"error": "JSON 꼴이 아닙니다"}, 400)
+    from urllib.parse import unquote
+    author = unquote(request.headers.get("x-author") or "").strip() or str(body.get("author") or "").strip()
+    try:
+        return _json(hmi_save(job_id, body, " ".join(author.split())[:40]))
+    except ValueError as e:
+        return _json({"error": str(e)}, 400 if "꼴" in str(e) or "깁니다" in str(e) else 401)
 
 
 @router.get("/dcs/api/jobs/{job_id}/export.zip")

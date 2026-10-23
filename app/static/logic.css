@@ -839,3 +839,7 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 #ov .mlink { fill: #5b21b6; font-weight: 700; font-family: sans-serif; pointer-events: auto; }
 .lg-rows .mlk { color: #5b21b6; font-size: 11px; margin-left: 4px; background: #f3e8ff; border-radius: 3px; padding: 0 3px; }
 .lg-rows .mlk.hot { color: #fff; background: #0083c2; }
+
+/* hotfix109 — DCS 그래픽 창이 열려 있는 동안 */
+#dcs-btn.on { background: #0b1626; color: #9ad7ff; border-color: #0b1626; }
+#dcs-btn b { font-weight: 500; }

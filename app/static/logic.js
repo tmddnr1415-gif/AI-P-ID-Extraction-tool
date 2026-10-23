@@ -79,6 +79,136 @@ function tellLogic(msg, fallbackHash) {   // 이어진 LOGIC 창에 보낸다 ·
   if (fallbackHash) WINS.logic = window.open(`/logic${location.search}#${fallbackHash}`, `logic-main-${msg.job}`);
   return false;
 }
+
+/* hotfix109 — DCS HMI 그래픽 창 (듀얼 모니터) · 같은 프로젝트 · 같은 태그로 LOGIC 시뮬레이션 값을 보낸다.
+ *  · 그래픽은 P&ID 분석 결과로 만들어진 것(/dcs?job=) — 여기서는 "같은 이름의 프로젝트" 에서 가장 최근 실행 P&ID 를 찾아 새 창으로 연다.
+ *  · 값은 이 묶음의 시트 행이 든 TAG NO.(KKS) 와 그 선의 1/0 (· 아날로그 공학값) 뿐 — 태그가 없는 행은 보낼 이름이 없다.
+ *  · 그래픽 창은 받은 태그 중 자기 그림에 있는 것만 칠한다 (dcs.html).  어느 태그가 맞는지는 그래픽 창이 `dcs-ready` 로 말한다. */
+const DCS = { win: null, link: "", pidJob: null, tags: null, sent: 0, matched: 0, timer: 0, poll: 0, project: "" };
+const dcsNorm = (t) => String(t || "").toUpperCase().replace(/[\s\-]/g, "");
+function dcsWinOpen() { return !!(DCS.win && !DCS.win.closed); }
+async function dcsProjectOf(job) {
+  const x = (L.jobsList || []).find((j) => j.id === job);
+  if (x && x.project != null) return x.project || "";
+  try { const st = await api(`/logic/api/jobs/${job}`); return st.project || ""; } catch (e) { return ""; }
+}
+async function openDcsWindow() {
+  if (!L.job) { status("먼저 분석한 Logic 묶음을 여세요"); return; }
+  if (dcsWinOpen()) { try { DCS.win.focus(); } catch (e) {} dcsSendSoon(); return; }
+  const project = await dcsProjectOf(L.job);
+  let r;
+  try { r = await api(`/dcs/api/for_project?name=${encodeURIComponent(project)}`); }
+  catch (e) { status(`P&ID 그래픽을 찾지 못했습니다 — ${e.message}`); return; }
+  let pick = r.match;
+  if (!pick) {
+    if (!(r.candidates || []).length) {
+      await askModal({ title: "DCS 그래픽", cancel: false, ok: "닫기",
+        html: `<p>그래픽을 만들 수 있는 P&amp;ID 분석이 아직 없습니다.</p><p class="hint">P&amp;ID 첫 화면에서 <b>${esc(project || "이 LOGIC 과 같은 이름의")}</b> 프로젝트를 <b>실행</b>으로 두고 태그가 인쇄된 P&amp;ID 를 분석하면 여기서 열립니다.</p>` });
+      return;
+    }
+    // 같은 이름의 P&ID 프로젝트가 없다 — 지어내지 않고 사람이 고른다
+    const opts = r.candidates.map((c) => `<option value="${esc(c.job_id)}">${esc(c.project || "(프로젝트 없음)")} · ${esc(c.pdf_name || "")} · 태그 ${c.tagged_rows}행</option>`).join("");
+    const p = askModal({ title: "DCS 그래픽 — 어느 P&ID 로?", ok: "열기",
+      html: `<p>${project ? `LOGIC 프로젝트 <b>${esc(project)}</b> 와 같은 이름의 P&amp;ID 프로젝트가 없습니다.` : "이 Logic 묶음은 프로젝트에 묶여 있지 않습니다."}  그래픽을 만들 P&amp;ID 분석을 고르세요.</p><select id="dcs-cand" style="width:100%">${opts}</select>` });
+    const sel = document.querySelector("#dcs-cand");
+    let chosen = sel ? sel.value : "";
+    if (sel) sel.addEventListener("change", () => { chosen = sel.value; });
+    const ans = await p;
+    if (!ans) return;
+    pick = r.candidates.find((c) => c.job_id === chosen) || r.candidates[0];
+  }
+  DCS.pidJob = pick.job_id; DCS.project = project; DCS.tags = null; DCS.link = Math.random().toString(36).slice(2, 10);
+  const who = new URLSearchParams(location.search).get("user") || lsGet("pid.author") || "";
+  const url = `/dcs?job=${encodeURIComponent(pick.job_id)}&logic=${encodeURIComponent(L.job)}&link=${DCS.link}${who ? "&user=" + encodeURIComponent(who) : ""}`;
+  const w0 = Math.round((screen.availWidth || 1600) * 0.92), h0 = Math.round((screen.availHeight || 900) * 0.92);
+  const w = window.open(url, `dcs-${pick.job_id}`, `popup=yes,width=${w0},height=${h0}`);
+  if (!w) { status("새 창이 막혔습니다 — 주소줄 오른쪽의 팝업 차단 표시에서 이 주소를 허용한 뒤 다시 눌러 주세요"); return; }
+  DCS.win = w;
+  dcsPlaceOnOtherScreen(w);
+  clearInterval(DCS.poll);
+  DCS.poll = setInterval(() => { if (!dcsWinOpen()) { clearInterval(DCS.poll); DCS.win = null; DCS.tags = null; renderDcsChip(); } }, 1000);
+  renderDcsChip();
+  status(`DCS 그래픽을 새 창으로 열었습니다 — ${pick.project || pick.pdf_name}.  시뮬레이션의 같은 태그 값이 그 그림에 칠해집니다`);
+}
+async function dcsPlaceOnOtherScreen(w) {       // P&ID placeOnOtherScreen 과 같은 규칙 — 허락이 없으면 그대로 (사람이 끌어 ⛶)
+  try {
+    if (!("getScreenDetails" in window)) return;
+    const d = await window.getScreenDetails();
+    const other = (d.screens || []).find((sc) => sc !== d.currentScreen);
+    if (!other || !w || w.closed) return;
+    w.moveTo(other.availLeft, other.availTop); w.resizeTo(other.availWidth, other.availHeight);
+  } catch (e) { /* 권한 없음 */ }
+}
+function dcsReady(d, source) {
+  if (!DCS.win || source !== DCS.win) { if (source && !dcsWinOpen()) { DCS.win = source; } else if (source !== DCS.win) return; }
+  DCS.pidJob = d.job || DCS.pidJob;
+  DCS.tags = new Map((d.tags || []).map((t) => [dcsNorm(t.tag || t), t]));
+  renderDcsChip();
+  dcsSendSoon();
+}
+/* 이 시트(와 캐시된 이웃 시트)의 태그 행 → { 태그: {s, open, alarm, state, v, u} }.  글자 뜻은 **행 설명의 낱말**로만 — 도면이 적은 그대로. */
+function dcsStates() {
+  const out = {};
+  if (L.mode !== "sim" || !L.sheet) return out;
+  const put = (kks, desc, on) => {
+    const tag = String(kks || "").trim();
+    if (!tag) return;
+    const dsc = String(desc || "").toUpperCase();
+    const st = out[tag] || (out[tag] = {});
+    // `NOT TRIP` · `NO FAULT` 처럼 부정이 붙은 행은 그 뜻이 반대다 — 1 이면 건강, 0 이면 경보 (L35 negation 과 같은 낱말)
+    const neg = /\b(NOT?|NO)\s+(TRIP|ALARM|ALM|FAULT|FLT|FAIL(ED|URE)?|RUN(NING)?|OPEN(ED)?|CLOSE[D]?)\b/.test(dsc);
+    const yes = neg ? !on : on;
+    if (/\b(OPEN(ED)?|OPN)\b/.test(dsc)) { if (yes) st.open = true; else if (st.open === undefined) st.open = false; }
+    else if (/\b(CLOSE[D]?|CLS|CLSD)\b/.test(dsc)) { if (yes) st.open = false; }
+    if (/\b(TRIP|ALARM|ALM|FAULT|FLT|FAIL(ED|URE)?|HH|LL|HIGH HIGH|LOW LOW)\b/.test(dsc)) { if (yes) st.alarm = true; }
+    if (/\b(RUN(NING)?|START(ED)?|ON)\b/.test(dsc)) { if (yes) st.state = "run"; else if (!st.state) st.state = "stop"; }
+    else if (/\b(STOP(PED)?|OFF)\b/.test(dsc) && yes) st.state = "stop";
+    if (st.s === undefined || on) st.s = on ? 1 : 0;
+  };
+  const rows = (L.sheet.rows || []);
+  const an = (L.analogResPage === L.page && L.analogRes && L.analogRes.nets) || {};
+  const keys = (L.analogRes && L.analogRes.keys) || {};
+  for (const r of rows) {
+    if (!r.kks) continue;
+    put(r.kks, r.desc, L.values[r.net] === 1);
+    const v = an[String(r.net)];
+    if (typeof v === "number") { const k = keys["row:" + r.n] || {}; out[String(r.kks).trim()].v = +v.toFixed(2); if (k.unit) out[String(r.kks).trim()].u = k.unit; }
+  }
+  // 묶음 계산이 1 로 보고한 다른 시트의 행 — 그 시트가 캐시에 있으면 태그를 붙여 보낸다
+  for (const pg of (L.chain || [])) {
+    if (pg.page === L.page) continue;
+    const cached = SC.map.get(pg.page);
+    const sh = cached && cached._v;
+    if (!sh) continue;
+    const on = new Set([...(pg.inputs || []).map((x) => "L" + x.row), ...(pg.outputs || []).map((x) => "R" + x.row)]);
+    for (const r of (sh.rows || [])) if (r.kks && !(String(r.kks).trim() in out)) put(r.kks, r.desc, on.has(r.side + r.n));
+  }
+  return out;
+}
+function dcsSendSoon() { if (!dcsWinOpen()) return; clearTimeout(DCS.timer); DCS.timer = setTimeout(dcsSend, 60); }
+function dcsSend() {
+  if (!dcsWinOpen()) return;
+  const states = dcsStates();
+  const tags = Object.keys(states);
+  DCS.sent = tags.length;
+  DCS.matched = DCS.tags ? tags.filter((t) => DCS.tags.has(dcsNorm(t))).length : 0;
+  DCS.win.postMessage({ kind: "dcs-states", link: DCS.link, states,
+                        logic: { job: L.job, sheet: L.sheet && L.sheet.sheet_no, page: L.page, sent: DCS.sent, matched: DCS.matched, mode: L.mode } }, location.origin);
+  renderDcsChip();
+}
+function renderDcsChip() {
+  const b = $("#dcs-n"); if (!b) return;
+  const btn = $("#dcs-btn"); if (btn) btn.classList.toggle("on", dcsWinOpen());
+  b.textContent = !dcsWinOpen() ? "" : DCS.tags === null ? "· 여는 중" : L.mode !== "sim" ? "· 연동 (시뮬레이션에서 값)" : `· 태그 ${DCS.matched}/${DCS.sent}`;
+}
+/* 그래픽 창에서 태그를 눌렀다 — 이 시트에 그 태그 행이 있으면 그 행으로 */
+function dcsGo(d) {
+  const want = dcsNorm(d.tag);
+  if (!want || !L.sheet) return;
+  const r = (L.sheet.rows || []).find((x) => dcsNorm(x.kks) === want);
+  if (r) { goToRef(L.sheet.sheet_no, r.n, r.side); return; }
+  status(`태그 ${d.tag} 은 지금 시트에 없습니다 — 그 태그가 든 시트를 여세요`);
+}
 function popReview() {
   if (!L.job) return;
   const w = window.open(`/logic${location.search}#job=${L.job}&pane=review`, `logic-review-${L.job}`, "width=1400,height=950");
@@ -866,7 +996,7 @@ function getSheet(page) {
   let p = m.get(page);
   if (p) { m.delete(page); m.set(page, p); return p; }
   p = api(`/logic/api/jobs/${L.job}/sheet/${page}`);
-  p.catch(() => { if (m.get(page) === p) m.delete(page); });
+  p.then((v) => { p._v = v; }, () => { if (m.get(page) === p) m.delete(page); });
   m.set(page, p);
   while (m.size > SHEET_KEEP) m.delete(m.keys().next().value);
   return p;
@@ -1335,6 +1465,7 @@ function connectorGroupOn(gid) {
 function paint() {
   const s = L.sheet;
   if (!s) return;
+  dcsSendSoon();                                           // hotfix109 — 같은 태그의 값을 DCS 그래픽 창으로 (흐름 틀마다)
   for (const ln of document.querySelectorAll("#ov .clink"))
     ln.classList.toggle("on", L.mode === "sim" && connectorGroupOn(ln.dataset.group));
   $("#ov").classList.toggle("sim", L.mode === "sim");     // 시뮬레이션: 활성(1) 선 말고는 아무 표시도 없다
@@ -2837,6 +2968,8 @@ function sendMacroInputs() {
 }
 window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
+  if (e.data.kind === "dcs-ready") { dcsReady(e.data, e.source); return; }     // hotfix109 — DCS 그래픽 창이 섰다 (태그 목록)
+  if (e.data.kind === "dcs-go") { dcsGo(e.data); return; }                     // hotfix109 — 그래픽에서 태그를 눌렀다
   if (e.data.type === "macro-need") { handleMacroNeed(e.data); return; }     // L15 — 새 창이 부모에게
   if (e.data.type === "macro-ask") { handleMacroAsk(e.data, e.source); return; }   // L44
   if (e.data.type === "macro-set") { handleMacroSet(e.data); return; }             // L44
@@ -4104,6 +4237,7 @@ function bindSeq() {
   $("#seq-x").onclick = seqClose;
   $("#seq-min").onclick = () => { lsSet("logic.seq.min", pop.classList.contains("min") ? null : "1"); renderSeq(); };
   $("#gt-btn").onclick = () => popGroupTest(L.job);
+  $("#dcs-btn").onclick = () => openDcsWindow();
   $("#seq-btn").onclick = () => { if (!pop.hidden) seqClose(); else seqOpen(); };
   $("#seq-b").addEventListener("click", (e) => {
     if (SEQ.busy) return;

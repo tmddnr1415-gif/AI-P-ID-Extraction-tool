@@ -5505,7 +5505,7 @@ def service_worker():
 def offline_shell():
     """서비스워커가 설치 때 미리 담는 화면 뼈대 — 네 화면과 `app/static` 의 파일 전부 (그림 · 글꼴 포함).
     자료(분석 결과 · 장 그림)는 여기 없다 — 열어 본 것과 [절전 대비 보관] 이 담는다."""
-    urls = ["/", "/logic", "/logic/test", "/space", "/dcs",
+    urls = ["/", "/logic", "/logic/test", "/space", "/dcs", "/dcs/demo",
             f"/static/app.js?v={_asset_tag('app.js')}", f"/static/styles.css?v={_asset_tag('styles.css')}",
             f"/static/offline.js?v={_asset_tag('offline.js')}"]
     skip = {"sw.js", "app.js", "styles.css", "offline.js", "index.html"}      # P&ID 첫 화면 index.html 은 `/` 로 (딱지 때문)

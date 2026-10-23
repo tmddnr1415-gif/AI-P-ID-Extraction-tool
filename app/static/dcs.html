@@ -3,144 +3,242 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DCS 그래픽</title>
+<title>DCS Graphic</title>
+<link rel="stylesheet" href="/static/hmi/hmi.css">
 <style>
-  :root{--bg:#1c2026;--panel:#262b33;--line:#3b434f;--ink:#e6ebf1;--muted:#9fb2c8;--acc:#4ea1ff;--warn:#f0b429;--err:#ff5a5a;--ok:#39e07a}
-  *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 "Malgun Gothic",Arial,sans-serif}
-  header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#12161b;border-bottom:1px solid var(--line)}
-  header h1{font-size:15px;margin:0 8px 0 0} header a{color:var(--muted);text-decoration:none} header .sp{flex:1}
-  header .muted{color:var(--muted);font-size:12px}
-  button,select,input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
-  button{cursor:pointer} button:hover{border-color:var(--acc)} button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
-  main{display:grid;grid-template-columns:260px 1fr 300px;height:calc(100% - 46px)}
-  aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:10px}
-  aside h3,#side h3{font-size:12px;color:var(--muted);margin:6px 0;text-transform:uppercase;letter-spacing:.04em}
-  .sheet{padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;margin-bottom:4px}
-  .sheet:hover{border-color:var(--line)} .sheet.on{background:#2f3a4a;border-color:var(--acc)}
-  .sheet b{display:block;font-size:12px} .sheet small{color:var(--muted)}
-  #stage{position:relative;overflow:auto;background:#2b3038}
-  #stage svg{display:block;max-width:none}
-  #stage [data-tag]{cursor:pointer} #stage g.sel rect:first-of-type{stroke:var(--acc)!important;stroke-width:2.2!important}
-  #side{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px}
-  #side .kv{display:grid;grid-template-columns:72px 1fr;gap:3px 8px;margin:6px 0} #side .kv b{color:var(--muted);font-weight:normal}
-  #side .box{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:10px}
-  #msg{padding:30px;color:var(--muted);max-width:640px;line-height:1.8}
-  #msg.err{color:var(--warn)} .tools{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-  textarea{width:100%;min-height:110px;font:12px Consolas,monospace;background:#101418;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px}
-  .legend{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:11.5px;color:var(--muted)}
-  .sw{width:22px;height:10px;border-radius:2px;display:inline-block}
-  .hint{color:var(--muted);font-size:11.5px}
+  /* 이 화면의 배치만 — 색 · 심볼 · 패널의 결은 hmi.css */
+  html,body{height:100%;margin:0} body{display:flex;flex-direction:column;background:var(--hmi-bg)}
+  header.top{display:flex;align-items:center;gap:12px;padding:8px 16px;background:#081326;border-bottom:1px solid var(--hmi-line)}
+  header.top h1{font-size:18px;margin:0;font-weight:700} header.top .clock{color:var(--hmi-muted);font-family:Consolas,monospace;font-size:13px}
+  header.top a{color:var(--hmi-muted);text-decoration:none} header.top .sp{flex:1}
+  nav.tabs{display:flex;gap:6px;padding:6px 16px;background:#0b1a30;border-bottom:1px solid var(--hmi-line);align-items:center;flex-wrap:wrap}
+  nav.tabs button,nav.tabs select{font:inherit;color:var(--hmi-ink);background:var(--hmi-panel-2);border:1px solid var(--hmi-line-2);border-radius:6px;padding:4px 12px;cursor:pointer}
+  nav.tabs button.on{background:var(--hmi-acc);border-color:var(--hmi-acc);color:#fff} nav.tabs .sp{flex:1}
+  main{flex:1;display:grid;grid-template-columns:1fr 330px;grid-template-rows:1fr auto;gap:10px;padding:10px 12px;min-height:0}
+  #stage{grid-row:1;grid-column:1;min-height:320px}
+  #bottom{grid-row:2;grid-column:1;display:grid;grid-template-columns:220px 1fr 1fr;gap:10px}
+  #right{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0}
+  #pick.hmi-panel{font-size:12px} #pick .kv{display:grid;grid-template-columns:70px 1fr;gap:3px 8px} #pick .kv b{color:var(--hmi-muted);font-weight:normal}
+  textarea{width:100%;min-height:90px;font:11.5px Consolas,monospace;background:#061020;color:var(--hmi-ink);border:1px solid var(--hmi-line);border-radius:6px;padding:6px}
+  .tools{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0} .hint{color:var(--hmi-muted);font-size:11.5px}
+  details.lib{margin:0 12px 12px} details.lib summary{cursor:pointer;color:var(--hmi-muted);padding:6px 0}
+  #msg{padding:30px;color:var(--hmi-muted);max-width:640px;line-height:1.8} #msg.err{color:var(--hmi-standby)}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:20}
+  #modal .box{background:var(--hmi-panel);border:1px solid var(--hmi-line-2);border-radius:10px;padding:14px 16px;max-height:80vh;overflow:auto;min-width:320px}
+  #modal label{display:block;padding:3px 0;font-size:12.5px}
+  @media (max-width:1100px){main{grid-template-columns:1fr}#right{grid-row:3;grid-column:1}#bottom{grid-template-columns:1fr 1fr}}
 </style>
 </head>
-<body>
-<header>
+<body class="hmi-root">
+<header class="top">
   <a href="/" title="P&amp;ID 첫 화면으로">← P&amp;ID</a>
-  <h1>DCS 그래픽</h1>
-  <span id="who" class="muted"></span>
+  <h1 id="title">DCS Graphic</h1>
+  <span id="sub" class="hint"></span>
+  <span class="sp"></span>
+  <span id="clock" class="clock"></span>
+  <span id="chip" class="hmi-chip"><i></i>Plant Normal</span>
+  <span id="who" class="hint"></span>
+</header>
+<nav class="tabs">
+  <span class="hint">장</span><select id="sheet-sel"></select>
+  <button id="demo-btn" title="참고 그림(압축기 트레인)을 같은 부품으로 그린 예시">예시 화면</button>
   <span class="sp"></span>
   <button id="fit">맞춤</button><button id="zin">＋</button><button id="zout">－</button>
-  <a id="dl-svg" class="muted" href="#" download>SVG</a>
-  <a id="dl-png" class="muted" href="#" download>PNG</a>
-  <a id="dl-zip" class="muted" href="#" download>전체 zip</a>
-</header>
+  <button id="dl-svg">SVG</button><button id="dl-png">PNG</button><a id="dl-zip" class="hint" href="#" download>전체 zip (서버)</a>
+</nav>
 <main>
-  <aside>
-    <div id="jobinfo" class="hint"></div>
-    <h3>장 (실행 P&amp;ID)</h3>
-    <div id="sheets"></div>
-    <h3>색</h3>
-    <div class="legend">
-      <span class="sw" style="background:#d7c24a"></span><span>배관 — 식별된 계기 · 밸브가 걸린 선</span>
-      <span class="sw" style="background:#5d6670;border:1px solid #c9d1da"></span><span>기기 — 도면이 인쇄한 이름</span>
-      <span class="sw" style="background:#101418;border:1px solid #8a97a8"></span><span>계기 칸 — TYPE · 값 · 태그</span>
-      <span class="sw" style="background:#101418;border:1px solid #f0b429"></span><span>타사 공급 계기 (VENDOR)</span>
-      <span class="sw" style="background:#39e07a"></span><span>밸브 열림 · 값 1 · 정상 값</span>
-      <span class="sw" style="background:#ff5a5a"></span><span>밸브 닫힘 · 경보</span>
-      <span class="sw" style="background:#c8d0d8"></span><span>밸브 상태 모름 (로직 연동 전)</span>
-    </div>
-  </aside>
-  <div id="stage"><div id="msg">분석 결과를 고르세요 — 주소에 <code>?job=분석번호</code></div></div>
-  <div id="side">
-    <h3>고른 요소</h3>
-    <div id="pick" class="box hint">그림의 계기 칸 · 밸브를 누르세요.</div>
-    <h3>값 · 상태 칠하기 (로직 시뮬레이션 연동 자리)</h3>
-    <div class="box">
-      <p class="hint" style="margin:0 0 6px">태그마다 <code>{"v":값,"u":"단위","s":0|1,"open":true,"alarm":true}</code>.  LOGIC 검토가 같은 태그로 이 자리에 값을 보내면 그림이 그대로 칠해집니다.</p>
+  <div id="stage"><div id="msg">분석 결과를 고르세요 — 주소에 <code>?job=분석번호</code> · 또는 [예시 화면]</div></div>
+  <div id="bottom">
+    <div id="mode"></div>
+    <div id="trend"></div>
+    <div id="params"></div>
+  </div>
+  <div id="right">
+    <div id="pick" class="hmi-panel"><h3>고른 요소</h3><p class="hint">그림의 계기 · 밸브 · 기기를 누르면 여기와 페이스플레이트에 뜹니다.  태그는 <b>두 번 눌러</b> 고칩니다.</p></div>
+    <div id="legend"></div>
+    <div id="status"></div>
+    <div class="hmi-panel">
+      <h3>값 · 상태 칠하기 <span class="hint" style="font-weight:400">(로직 시뮬레이션 연동 자리)</span></h3>
+      <p class="hint" style="margin:0 0 6px">태그마다 <code>{"v":값,"u":"단위","s":0|1,"open":true,"alarm":true,"state":"run|standby|trip|stop|oos"}</code>.  LOGIC 검토가 같은 태그로 보내면 그대로 칠해집니다.</p>
       <textarea id="states" placeholder='{"14LBA16CP013": {"v": 523.4, "u": "degC"}, "14LBA16AA001": {"open": true}}'></textarea>
-      <div class="tools"><button id="paint" class="pri">칠하기</button><button id="clear">지우기</button><button id="demo">예시 값</button></div>
+      <div class="tools"><button class="hmi-btn" id="paint">칠하기</button><button class="hmi-btn" id="clear">지우기</button><button class="hmi-btn" id="demo">예시 값</button><button class="hmi-btn" id="live">▶ 예시 값 흐르기</button></div>
       <p id="paint-msg" class="hint"></p>
     </div>
-    <h3>이 장</h3>
-    <div id="counts" class="box hint"></div>
+    <div id="counts" class="hmi-panel hint"></div>
   </div>
 </main>
+<details class="lib"><summary>Symbol Library (Detailed) — 쓸 수 있는 심볼 전부</summary><div id="library"></div></details>
+<div id="modal"><div class="box"></div></div>
 <script src="/static/offline.js" data-app="dcs"></script>
+<script src="/static/hmi/hmi-symbols.js"></script>
+<script src="/static/hmi/hmi-core.js"></script>
+<script src="/static/hmi/hmi-pid-adapter.js"></script>
+<script src="/static/hmi/hmi-demo.js"></script>
 <script>
 (()=>{
-const $=s=>document.querySelector(s), Q=new URLSearchParams(location.search);
-const JOB=Q.get('job')||'', USER=(Q.get('user')||'').trim();
+const $=s=>document.querySelector(s), Q=new URLSearchParams(location.search), esc=HMI.esc;
+const JOB=Q.get('job')||'', USER=(Q.get('user')||'').trim(), DEMO=Q.get('demo')==='1'||location.pathname.endsWith('/demo');
+const LOGIC_JOB=Q.get('logic')||'', LINK=Q.get('link')||'';   // hotfix109 — LOGIC 창이 열었다 (그 창의 시뮬레이션 값을 받는다)
 if(USER)$('#who').textContent='✎ '+USER;
-const S={job:null,page:null,sheet:null,zoom:1,states:{}};
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function api(path,opt){const r=await fetch(path,{cache:'no-store',...(opt||{})});let j=null;try{j=await r.json()}catch(e){}if(!r.ok)throw new Error((j&&j.error)||('서버 응답 '+r.status));return j}
+const S={job:null,page:null,model:null,hmi:null,ov:{},states:{},demo:false,tick:0,timer:null,tags:[],pending:null,pendingLogic:null};
+async function api(path,opt){const r=await fetch(path,{cache:'no-store',...(opt||{})});let j=null;try{j=await r.json()}catch(e){}if(!r.ok)throw new Error((j&&(j.error||j.detail))||('서버 응답 '+r.status));return j}
 function msg(t,err){const m=document.createElement('div');m.id='msg';m.className=err?'err':'';m.textContent=t;$('#stage').replaceChildren(m)}
+setInterval(()=>{const d=new Date();$('#clock').textContent=d.toLocaleDateString('sv-SE')+'  '+d.toTimeString().slice(0,8)},1000);
+
+/* ---------- 부품 */
+const screen=new HMI.Screen($('#stage'),{onSelect:onSelect,onTagEdit:onTagEdit});
+const mode=HMI.ControlMode($('#mode'),{onChange:(m)=>{$('#paint-msg').textContent=`Control Mode: ${m} (화면 표시 — 서버에 보내지 않습니다)`}});
+const trend=HMI.Trend($('#trend'),{title:'Trend'});
+const params=HMI.KeyParams($('#params'),{onPick:pickParams});
+HMI.Library($('#library')); HMI.StatusLegend($('#status'));
+$('#fit').onclick=()=>screen.fit();$('#zin').onclick=()=>screen.zoomBy(1.25);$('#zout').onclick=()=>screen.zoomBy(1/1.25);
+
+/* ---------- 읽기 */
 async function load(){
-  if(!JOB)return;
+  if(DEMO||!JOB){showDemo();return}
   try{S.job=await api(`/dcs/api/jobs/${JOB}`)}catch(e){return msg('분석을 읽지 못했습니다: '+e.message,true)}
-  $('#jobinfo').textContent=`${S.job.pdf_name||''}${S.job.project?' · '+S.job.project:''}`;
+  $('#sub').textContent=`${S.job.pdf_name||''}${S.job.project?' · '+S.job.project:''}`;
   $('#dl-zip').href=`/dcs/api/jobs/${JOB}/export.zip`;
-  if(!S.job.eligible){$('#sheets').innerHTML='';return msg(S.job.reason,true)}
-  $('#sheets').innerHTML=S.job.sheets.map(s=>`<div class="sheet" data-p="${s.page_no}"><b>${esc(s.drawing_no||('p'+s.page_no))}</b><small>${esc(s.title||'')}</small><small><br>계기 ${s.instruments} · 밸브 ${s.valves} · 태그 ${s.tagged}</small></div>`).join('')||'<p class="hint">식별된 행이 있는 장이 없습니다.</p>';
+  if(!S.job.eligible){$('#sheet-sel').innerHTML='';return msg(S.job.reason,true)}
+  $('#sheet-sel').innerHTML=S.job.sheets.map(s=>`<option value="${s.page_no}">${esc(s.drawing_no||('p'+s.page_no))} — ${esc(s.title||'')} (계기 ${s.instruments} · 밸브 ${s.valves})</option>`).join('');
+  try{S.ov=await api(`/dcs/api/jobs/${JOB}/hmi`)}catch(e){S.ov={}}
+  try{S.tags=(await api(`/dcs/api/jobs/${JOB}/tags`)).tags||[]}catch(e){S.tags=[]}
+  logicReady();
   const first=Number(Q.get('page'))||(S.job.sheets[0]&&S.job.sheets[0].page_no);
-  if(first)show(first);
+  if(first)show(first);else msg('식별된 행이 있는 장이 없습니다.',true);
 }
-$('#sheets').addEventListener('click',e=>{const d=e.target.closest('[data-p]');if(d)show(Number(d.dataset.p))});
+$('#sheet-sel').onchange=()=>show(Number($('#sheet-sel').value));
 async function show(p){
-  S.page=p;document.querySelectorAll('.sheet').forEach(d=>d.classList.toggle('on',Number(d.dataset.p)===p));
-  try{S.sheet=await api(`/dcs/api/jobs/${JOB}/sheet/${p}/model`)}catch(e){return msg(e.message,true)}
-  $('#counts').innerHTML=`<div class="kv"><b>도면</b><span>${esc(S.sheet.drawing_no)}</span><b>제목</b><span>${esc(S.sheet.title)}</span><b>계기</b><span>${S.sheet.instruments.length} (태그 ${S.sheet.instruments.filter(i=>i.tag).length})</span><b>밸브</b><span>${S.sheet.valves.length} (태그 ${S.sheet.valves.filter(i=>i.tag).length})</span><b>배관</b><span>${S.sheet.pipes.length} 토막</span><b>기기</b><span>${S.sheet.equipment.length}</span><b>커넥터</b><span>${S.sheet.connectors.length}</span></div>`;
-  await draw();
+  stopLive();S.demo=false;S.page=p;$('#sheet-sel').value=String(p);$('#demo-btn').classList.remove('on');
+  try{S.model=await api(`/dcs/api/jobs/${JOB}/sheet/${p}/model`)}catch(e){return msg(e.message,true)}
+  S.hmi=HMI.fromPid(S.model,S.ov);
+  $('#title').textContent=`DCS Graphic – ${S.model.drawing_no||'p'+p}`;
+  render();
+  const tagged=S.hmi.instruments.filter(i=>i.tag);
+  $('#counts').innerHTML=`<h3>이 장</h3><div class="kv" style="display:grid;grid-template-columns:70px 1fr;gap:3px 8px"><b>제목</b><span>${esc(S.model.title)}</span><b>계기</b><span>${S.hmi.instruments.length} (태그 ${tagged.length})</span><b>밸브</b><span>${S.hmi.valves.length} (태그 ${S.hmi.valves.filter(v=>v.tag).length})</span><b>배관</b><span>${S.hmi.pipes.length} 토막</span><b>기기</b><span>${S.hmi.equipment.length}</span><b>커넥터</b><span>${S.hmi.connectors.length}</span></div><p class="hint" style="margin:6px 0 0">자리는 P&amp;ID 좌표 그대로 · 기기 심볼은 도면이 인쇄한 이름 자리에 선다 (크기는 실제가 아니다).</p>`;
+  // Key Parameters · Trend — 사람이 고른 것, 없으면 태그 있는 계기 앞 6개 · 첫 계기
+  const chosen=(S.ov.params||{})[String(p)];
+  const uniq=[...new Map(tagged.map(i=>[i.tag,i])).values()];
+  const rows=(chosen&&chosen.length?[...new Set(chosen)].map(t=>uniq.find(i=>i.tag===t)||{tag:t}):uniq.slice(0,6)).map(i=>({label:`${HMI.fnLabel(i.fn)||i.fn||''}`.trim(),tag:i.tag,unit:i.unit}));
+  params.setRows(rows,S.states);
+  const tr=(S.ov.trend||{})[String(p)]||(tagged[0]&&tagged[0].tag)||'';const ti=tagged.find(i=>i.tag===tr);
+  trend.setTag(tr,ti?ti.unit:'',ti?`${HMI.fnLabel(ti.fn)} (${tr})`:tr);
 }
-async function draw(){
-  const body=JSON.stringify({states:S.states,format:'svg'});
-  const r=await fetch(`/dcs/api/jobs/${JOB}/sheet/${S.page}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body});
-  if(!r.ok){let j={};try{j=await r.json()}catch(e){}return msg(j.error||('서버 응답 '+r.status),true)}
-  const wrap=document.createElement('div');wrap.innerHTML=await r.text();const svg=wrap.firstElementChild;
-  $('#stage').replaceChildren(svg);if(S._fitPage!==S.page){S._fitPage=S.page;fit()}else applyZoom();
-  const q=encodeURIComponent(JSON.stringify(S.states));
-  $('#dl-svg').href=`/dcs/api/jobs/${JOB}/sheet/${S.page}.svg?states=${q}`;$('#dl-svg').download=`${S.sheet.drawing_no||'p'+S.page}.svg`;
-  $('#dl-png').href=`/dcs/api/jobs/${JOB}/sheet/${S.page}.png?states=${q}`;$('#dl-png').download=`${S.sheet.drawing_no||'p'+S.page}.png`;
-  svg.addEventListener('click',e=>{const g=e.target.closest('[data-tag]');if(!g)return;svg.querySelectorAll('g.sel').forEach(x=>x.classList.remove('sel'));g.classList.add('sel');pick(g)});
+function render(){screen.load(S.hmi);screen.setStates(S.states);HMI.Legend($('#legend'),S.hmi);HMI.StatusChip($('#chip'),S.states)}
+function showDemo(){
+  stopLive();S.demo=true;S.model=null;S.hmi=HMI.demoCompressorTrain();$('#demo-btn').classList.add('on');
+  $('#title').textContent='DCS Graphic – Compressor Train (Example)';$('#sub').textContent='참고 그림을 같은 부품으로 다시 그린 예시 — 값은 가짜';
+  render();
+  params.setRows([{label:'Suction Pressure',tag:'PT-101',unit:'bar'},{label:'Discharge Pressure',tag:'PT-103',unit:'bar'},{label:'Suction Temp',tag:'TT-102',unit:'°C'},{label:'Discharge Temp',tag:'TT-104',unit:'°C'},{label:'Separator Level',tag:'LT-101',unit:'%'}],S.states);
+  trend.setTag('PT-103','bar','Discharge Pressure (PT-103)');
+  applyStates(HMI.demoStates(0));
 }
-function pick(g){
-  const key=g.dataset.key, it=S.sheet.instruments.find(i=>i.key===key)||S.sheet.valves.find(i=>i.key===key);
-  if(!it)return;
-  const st=S.states[it.tag]||null;
-  $('#pick').className='box';
-  $('#pick').innerHTML=`<div class="kv"><b>태그</b><span><b>${esc(it.tag||'(없음)')}</b></span><b>종류</b><span>${esc(it.type||it.body)}${it.actuator?' · '+esc(it.actuator):''}</span>`+
-    (it.scope?`<b>공급</b><span>${esc(it.scope)}</span>`:'')+(it.line_no?`<b>라인</b><span>${esc(it.line_no)} ${esc(it.line_size||'')}</span>`:'')+(it.equip?`<b>기기</b><span>${esc(it.equip)}</span>`:'')+
-    (it.lines!=null&&it.type?`<b>위치</b><span>${it.lines===0?'현장 (선 없음)':it.lines===1?'DCS (한 줄)':'현장 패널 (두 줄)'}</span>`:'')+
-    `<b>자리</b><span>${it.rect.map(v=>Math.round(v)).join(', ')} (P&amp;ID 좌표)</span><b>지금 값</b><span>${st?esc(JSON.stringify(st)):'— (로직 연동 전)'}</span></div>`+
-    (it.tag?`<div class="tools"><button data-set="on">1 / 열림</button><button data-set="off">0 / 닫힘</button><button data-set="alarm">경보</button><button data-set="none">지움</button></div>`:'<p class="hint">태그가 없어 값을 칠할 수 없습니다.</p>');
-  $('#pick').querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{const k=b.dataset.set;
-    if(k==='none')delete S.states[it.tag];else if(k==='alarm')S.states[it.tag]={...(S.states[it.tag]||{}),alarm:true};
-    else S.states[it.tag]=it.type?{s:k==='on'?1:0}:{open:k==='on'};
-    $('#states').value=JSON.stringify(S.states,null,1);draw().then(()=>{const g2=$('#stage').querySelector(`[data-key="${CSS.escape(key)}"]`);if(g2){g2.classList.add('sel');pick(g2)}})});
+$('#demo-btn').onclick=()=>{if(S.demo&&JOB){show(S.page||Number($('#sheet-sel').value))}else showDemo()};
+
+/* ---------- 값 · 상태 */
+function applyStates(st){
+  S.states=st||{};screen.setStates(S.states);params.update(S.states);HMI.StatusChip($('#chip'),S.states);
+  const tg=currentTrendTag();const v=S.states[tg]&&S.states[tg].v;if(typeof v==='number')trend.push(v);
+  $('#states').value=Object.keys(S.states).length?JSON.stringify(S.states,null,1):'';
+  if(S.selId)onSelect(screen.find(S.selId));
 }
-$('#paint').onclick=()=>{try{const v=$('#states').value.trim();S.states=v?JSON.parse(v):{};if(typeof S.states!=='object'||Array.isArray(S.states))throw 0;$('#paint-msg').textContent=`${Object.keys(S.states).length}개 태그를 칠했습니다`;draw()}catch(e){$('#paint-msg').textContent='JSON 꼴이 아닙니다 — 예시 값을 눌러 보세요'}};
-$('#clear').onclick=()=>{S.states={};$('#states').value='';$('#paint-msg').textContent='';draw()};
-$('#demo').onclick=()=>{if(!S.sheet)return;const d={};S.sheet.instruments.filter(i=>i.tag).slice(0,6).forEach((i,n)=>{d[i.tag]=n%3===2?{v:Math.round(100+n*37.3),u:'%',alarm:n===5}:{v:+(10+n*4.25).toFixed(2),u:i.type.startsWith('P')?'barg':i.type.startsWith('T')?'degC':i.type.startsWith('L')?'%':'t/h'}});
-  S.sheet.valves.filter(v=>v.tag).slice(0,4).forEach((v,n)=>d[v.tag]={open:n%2===0});S.states=d;$('#states').value=JSON.stringify(d,null,1);$('#paint-msg').textContent='예시 값 — 실제 값이 아닙니다 (로직 연동 자리를 보여 주는 것)';draw()};
-function applyZoom(){const svg=$('#stage svg');if(!svg)return;const W=svg.viewBox.baseVal.width,H=svg.viewBox.baseVal.height;svg.setAttribute('width',W*S.zoom);svg.setAttribute('height',H*S.zoom)}
-function fit(){const svg=$('#stage svg');if(!svg)return;const st=$('#stage');S.zoom=Math.min((st.clientWidth-8)/svg.viewBox.baseVal.width,(st.clientHeight-8)/svg.viewBox.baseVal.height);applyZoom()}
-$('#fit').onclick=fit;$('#zin').onclick=()=>{S.zoom*=1.25;applyZoom()};$('#zout').onclick=()=>{S.zoom/=1.25;applyZoom()};
-$('#stage').addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();S.zoom*=e.deltaY<0?1.15:1/1.15;applyZoom()},{passive:false});
-// 로직 시뮬레이션(다른 창)이 보내는 값 — 같은 출처 postMessage {kind:'dcs-states', states:{태그:{…}}}
-window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.kind!=='dcs-states')return;S.states=e.data.states||{};$('#states').value=JSON.stringify(S.states,null,1);draw()});
-new ResizeObserver(()=>{if($('#stage svg'))fit()}).observe($('#stage'));
+function currentTrendTag(){return trend._tag||''}
+const _setTag=trend.setTag;trend.setTag=(tag,unit,label)=>{trend._tag=tag;_setTag(tag,unit,label)};
+$('#paint').onclick=()=>{try{const v=$('#states').value.trim();const st=v?JSON.parse(v):{};if(typeof st!=='object'||Array.isArray(st))throw 0;stopLive();applyStates(st);$('#paint-msg').textContent=`${Object.keys(st).length}개 태그를 칠했습니다`}catch(e){$('#paint-msg').textContent='JSON 꼴이 아닙니다 — 예시 값을 눌러 보세요'}};
+$('#clear').onclick=()=>{stopLive();applyStates({});$('#paint-msg').textContent=''};
+function demoStatesFor(){
+  if(S.demo)return HMI.demoStates(S.tick);
+  const d={};const inst=S.hmi.instruments.filter(i=>i.tag);
+  inst.slice(0,8).forEach((i,n)=>{const base=10+n*4.25;const v=+(base+Math.sin((S.tick+n)/3)*base*0.04).toFixed(2);d[i.tag]=n%4===3?{v:Math.round(100+n*37.3+Math.sin(S.tick/2)*5),u:'%',alarm:n===7}:{v,u:i.unit||''}});
+  S.hmi.valves.filter(v=>v.tag).slice(0,4).forEach((v,n)=>d[v.tag]={open:n%2===0});
+  S.hmi.equipment.slice(0,3).forEach((e,n)=>{if(e.tag)d[e.tag]={state:['run','standby','trip'][n%3]}});
+  return d;
+}
+$('#demo').onclick=()=>{stopLive();S.tick++;applyStates(demoStatesFor());$('#paint-msg').textContent='예시 값 — 실제 값이 아닙니다 (로직 연동 자리를 보여 주는 것)'};
+function stopLive(){if(S.timer){clearInterval(S.timer);S.timer=null;$('#live').textContent='▶ 예시 값 흐르기'}}
+$('#live').onclick=()=>{if(S.timer){stopLive();return}$('#live').textContent='■ 멈춤';S.timer=setInterval(()=>{S.tick++;applyStates(demoStatesFor())},2000);S.tick++;applyStates(demoStatesFor())};
+/* hotfix109 — LOGIC 창과의 연동.  받는 것은 { 태그: 값 } 뿐이고 이 그림에 있는 태그만 칠해진다 (없는 태그는 세어 말한다).
+ * 같은 태그가 이 장에 하나도 없고 다른 장에 있으면 그 장으로 옮긴다 (태그 → 장 표 `/tags`). */
+const nrm=t=>String(t||'').toUpperCase().replace(/[\s\-]/g,'');
+function logicWin(){if(window.opener&&!window.opener.closed){try{if(window.opener.location.origin===location.origin)return window.opener}catch(e){}}return null}
+function logicReady(){const w=logicWin();if(!w||!LOGIC_JOB)return;w.postMessage({kind:'dcs-ready',job:JOB,link:LINK,tags:(S.tags||[]).map(t=>({tag:t.tag,kind:t.kind,page_no:t.page_no,drawing_no:t.drawing_no}))},location.origin);$('#who').textContent=(USER?'✎ '+USER+' · ':'')+'⧉ LOGIC 창과 연동 중';$('#who').title='LOGIC 검토 창의 시뮬레이션 값이 같은 태그에 칠해집니다'}
+window.addEventListener('message',e=>{
+  if(e.origin!==location.origin||!e.data||e.data.kind!=='dcs-states')return;
+  stopLive();
+  const st=e.data.states||{};const lg=e.data.logic||null;
+  const have=new Map((S.hmi?[...S.hmi.instruments,...S.hmi.valves,...S.hmi.equipment]:[]).filter(x=>x.tag).map(x=>[nrm(x.tag),x.tag]));
+  const here=Object.keys(st).filter(t=>have.has(nrm(t)));
+  // 이 장에 맞는 태그가 없는데 다른 장에 있으면 그 장으로 (태그가 가장 많은 장)
+  if(!here.length&&!S.demo&&S.tags&&S.tags.length){const cnt={};const keys=new Set(Object.keys(st).map(nrm));for(const t of S.tags)if(keys.has(nrm(t.tag)))cnt[t.page_no]=(cnt[t.page_no]||0)+1;const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];if(best&&Number(best[0])!==S.page){S.pending=st;S.pendingLogic=lg;show(Number(best[0])).then(()=>{if(S.pending){const p=S.pending;S.pending=null;applyLogic(p,S.pendingLogic)}});return}}
+  applyLogic(st,lg);
+});
+function applyLogic(st,lg){
+  const have=new Map((S.hmi?[...S.hmi.instruments,...S.hmi.valves,...S.hmi.equipment]:[]).filter(x=>x.tag).map(x=>[nrm(x.tag),x.tag]));
+  const painted={};let miss=0;
+  for(const [t,v] of Object.entries(st)){const k=have.get(nrm(t));if(k)painted[k]=v;else miss++}
+  applyStates(painted);
+  const n=Object.keys(painted).length;
+  $('#paint-msg').textContent=lg?`LOGIC ${lg.sheet||''} 시뮬레이션 값 — 이 장의 태그 ${n}개에 칠함${miss?` · 이 장에 없는 태그 ${miss}개`:''}${lg.mode&&lg.mode!=='sim'?' (LOGIC 이 시뮬레이션 모드가 아니라 값이 없습니다)':''}`:'다른 창(로직 시뮬레이션)이 보낸 값입니다';
+}
+
+/* ---------- 고르기 · 페이스플레이트 */
+function onSelect(it,g){
+  S.selId=it?it.id:null;
+  if(it&&it.tag&&LOGIC_JOB){const w=logicWin();if(w)w.postMessage({kind:'dcs-go',tag:it.tag,link:LINK},location.origin)}
+  if(!it){$('#pick').innerHTML='<h3>고른 요소</h3><p class="hint">그림의 계기 · 밸브 · 기기를 누르면 여기와 페이스플레이트에 뜹니다.  태그는 <b>두 번 눌러</b> 고칩니다.</p>';HMI.Faceplate($('#stage'),null);return}
+  const st=S.states[it.tag]||{};
+  const kv=[['종류',it.kind_==='instrument'?`${it.fn||''} — ${HMI.fnLabel(it.fn)}`:it.kind_==='valve'?(HMI.Symbols.get(it.kind)||{}).label:it.kind_==='equipment'?`${(HMI.Symbols.get(it.kind)||{}).label}${it.noun?' · '+it.noun:''}`:it.kind_],['태그',it.tag||'(없음)']];
+  if(it.name)kv.push(['이름',it.name+(it.origName&&it.origName!==it.name?` (도면: ${it.origName})`:'')]);
+  if(it.scope)kv.push(['공급',it.scope]);if(it.lineNo)kv.push(['라인',`${it.lineNo} ${it.lineSize||''}`]);if(it.equip)kv.push(['기기',it.equip]);
+  if(it.kind_==='instrument'&&it.loc!=null)kv.push(['위치',it.loc===0?'현장 (선 없음)':it.loc===1?'DCS (한 줄)':'현장 패널 (두 줄)']);
+  if(it.body)kv.push(['몸체',`${it.body} · ${it.actuator||'manual'}`]);
+  if(it.x!=null)kv.push(['자리',`${Math.round(it.x)}, ${Math.round(it.y)}${S.demo?'':' (P&ID 좌표)'}`]);
+  kv.push(['지금 값',Object.keys(st).length?JSON.stringify(st):'— (로직 연동 전)']);
+  const tools=it.tag?`<div class="tools"><button class="hmi-btn" data-set="on">1 / 열림 / 운전</button><button class="hmi-btn" data-set="off">0 / 닫힘 / 정지</button><button class="hmi-btn" data-set="standby">대기</button><button class="hmi-btn" data-set="alarm">경보 / 트립</button><button class="hmi-btn" data-set="none">지움</button>${it.kind_==='instrument'?'<button class="hmi-btn" data-trend>Trend 로</button><button class="hmi-btn" data-param>Key Parameters 에</button>':''}<button class="hmi-btn" data-edit>태그 고치기</button></div>`:'<p class="hint">태그가 없어 값을 칠할 수 없습니다 — 두 번 눌러 태그를 적으면 됩니다.</p><div class="tools"><button class="hmi-btn" data-edit>태그 적기</button></div>';
+  $('#pick').innerHTML=`<h3>고른 요소</h3><div class="kv">${kv.map(([k,v])=>`<b>${esc(k)}</b><span>${esc(v)}</span>`).join('')}</div>${tools}`;
+  const fp=HMI.Faceplate($('#stage'),it,S.states,{anchor:g});
+  $('#pick').querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{const k=b.dataset.set;const cur=S.states[it.tag]||{};
+    if(k==='none')delete S.states[it.tag];else if(k==='alarm')S.states[it.tag]=it.kind_==='equipment'?{...cur,state:'trip'}:{...cur,alarm:true};
+    else if(k==='standby')S.states[it.tag]={...cur,state:'standby'};
+    else if(it.kind_==='equipment')S.states[it.tag]={...cur,state:k==='on'?'run':'stop'};
+    else if(it.kind_==='valve')S.states[it.tag]={open:k==='on'};else S.states[it.tag]={...cur,s:k==='on'?1:0,alarm:false};
+    applyStates(S.states)});
+  const te=$('#pick [data-trend]');if(te)te.onclick=()=>{trend.setTag(it.tag,it.unit||'',`${HMI.fnLabel(it.fn)} (${it.tag})`);if(JOB&&!S.demo)saveOv({trend:{[String(S.page)]:it.tag}})};
+  const pe=$('#pick [data-param]');if(pe)pe.onclick=()=>{const rows=params.rows();if(!rows.some(r=>r.tag===it.tag))rows.push({label:HMI.fnLabel(it.fn),tag:it.tag,unit:it.unit});params.setRows(rows,S.states);if(JOB&&!S.demo)saveOv({params:{[String(S.page)]:rows.map(r=>r.tag)}})};
+  const ed=$('#pick [data-edit]');if(ed)ed.onclick=()=>screen.editTag(it.id);
+}
+/* ---------- 태그 편집 (서버에 남는다 · 분석 결과는 그대로) */
+async function onTagEdit(it,value,field){
+  if(S.demo||!JOB){const real=screen.item(it.id)||it;if(field==='name')real.name=value;else real.tag=value;render();$('#paint-msg').textContent='예시 화면 — 고친 태그는 이 화면에만';return}
+  const body=field==='name'?{names:{[it.origName||it.name]:value}}:{tags:{[it.key||it.id]:value}};
+  try{await saveOv(body);S.hmi=HMI.fromPid(S.model,S.ov);render();$('#paint-msg').textContent=`${field==='name'?'기기 이름':'태그'} 저장: ${value||'(비움 → 도면 값)'}`}catch(e){$('#paint-msg').textContent='저장 실패 — '+e.message}
+}
+async function saveOv(body){
+  const r=await fetch(`/dcs/api/jobs/${JOB}/hmi`,{method:'POST',headers:{'Content-Type':'application/json',...(USER?{'X-Author':encodeURIComponent(USER)}:{})},body:JSON.stringify({...body,author:USER})});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(j.error||j.detail||('서버 응답 '+r.status));
+  if(j&&!j.offline)S.ov=j;else{S.ov=S.ov||{};for(const k of ['tags','names'])if(body[k])S.ov[k]={...(S.ov[k]||{}),...body[k]};for(const k of ['params','trend'])if(body[k])S.ov[k]={...(S.ov[k]||{}),...body[k]}}
+  return j;
+}
+function pickParams(){
+  const inst=[...new Map((S.hmi.instruments||[]).filter(i=>i.tag).map(i=>[i.tag,i])).values()];const have=new Set(params.rows().map(r=>r.tag));
+  $('#modal .box').innerHTML=`<h3 style="margin:0 0 8px">Key Parameters 에 보일 계기</h3>`+inst.map(i=>`<label><input type="checkbox" value="${esc(i.tag)}" ${have.has(i.tag)?'checked':''}> ${esc(i.tag)} — ${esc(HMI.fnLabel(i.fn))}</label>`).join('')+`<div class="tools" style="margin-top:10px"><button class="hmi-btn" id="m-ok">적용</button><button class="hmi-btn" id="m-x">닫기</button></div>`;
+  $('#modal').style.display='flex';
+  $('#m-x').onclick=()=>$('#modal').style.display='none';
+  $('#m-ok').onclick=()=>{const tags=[...$('#modal').querySelectorAll('input:checked')].map(c=>c.value);const rows=tags.map(t=>{const i=inst.find(x=>x.tag===t);return{label:HMI.fnLabel(i.fn),tag:t,unit:i.unit}});params.setRows(rows,S.states);$('#modal').style.display='none';if(JOB&&!S.demo)saveOv({params:{[String(S.page)]:tags}}).catch(e=>$('#paint-msg').textContent='저장 실패 — '+e.message)};
+}
+/* ---------- 내려받기 (브라우저에서 — 서버가 꺼져도) */
+function svgText(){return screen.exportSvg().replace(/<svg /,'<svg style="background:#0b1626" ')}   // 엔진이 xmlns 를 이미 적는다
+function dl(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+const fname=()=>(S.demo?'compressor_train_example':(S.model&&S.model.drawing_no)||('p'+S.page));
+$('#dl-svg').onclick=()=>{if(!S.hmi)return;const css=[...document.styleSheets].map(ss=>{try{return[...ss.cssRules].map(r=>r.cssText).join('\n')}catch(e){return''}}).join('\n');dl(fname()+'.svg',new Blob([svgText().replace('</svg>',`<style>${css}</style></svg>`)],{type:'image/svg+xml'}))};
+$('#dl-png').onclick=()=>{if(!S.hmi)return;const css=[...document.styleSheets].map(ss=>{try{return[...ss.cssRules].map(r=>r.cssText).join('\n')}catch(e){return''}}).join('\n');
+  const [,,W,Hh]=screen.view();const svg=svgText().replace('</svg>',`<style>${css}</style></svg>`),sc=Math.min(2,4000/W);
+  const img=new Image();img.onerror=()=>{$('#paint-msg').textContent='PNG 를 만들지 못했습니다 — SVG 로 받으세요'};img.onload=()=>{const c=document.createElement('canvas');c.width=W*sc;c.height=Hh*sc;const x=c.getContext('2d');x.fillStyle='#0b1626';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>dl(fname()+'.png',b),'image/png')};
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg.replace(/ width="[^"]*" height="[^"]*"/,` width="${W}" height="${Hh}"`))};
 load();
-/* hotfix108 — 절전모드: [절전 대비 보관] 이 담을 자료 (장 모델 · 그림).  칠하기(POST render)는 서버가 그리므로 절전모드에서는 안 된다. */
-if(window.OFFLINE)OFFLINE.prefetchUrls=async()=>{const u=[`/dcs/api/jobs/${JOB}`,`/dcs/api/jobs/${JOB}/tags`];for(const s of (S.job&&S.job.sheets)||[]){u.push(`/dcs/api/jobs/${JOB}/sheet/${s.page_no}/model`);u.push(`/dcs/api/jobs/${JOB}/sheet/${s.page_no}.png`)}return u};
+/* hotfix108 — 절전모드: [절전 대비 보관] 이 담을 자료 (장 모델 · 사람 값 · 그림 부품은 화면 뼈대로 이미 담긴다) */
+if(window.OFFLINE)OFFLINE.prefetchUrls=async()=>{if(!JOB)return[];const u=[`/dcs/api/jobs/${JOB}`,`/dcs/api/jobs/${JOB}/tags`,`/dcs/api/jobs/${JOB}/hmi`];for(const s of (S.job&&S.job.sheets)||[])u.push(`/dcs/api/jobs/${JOB}/sheet/${s.page_no}/model`);return u};
 })();
 </script>
 </body>

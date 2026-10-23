@@ -1,0 +1,101 @@
+/* HMI 테마 — 참고 그림(DCS Graphic · Compressor Train)의 결: 남색 바탕 · 어두운 판 · 배관 5색 · 상태 5색 (hotfix109).
+ * 심볼 · 패널은 전부 이 변수만 읽는다 — 다른 화면에 쓰려면 :root 값만 바꾼다. */
+:root {
+  --hmi-bg: #0b1626; --hmi-bg-2: #0f1f36; --hmi-panel: #122743; --hmi-panel-2: #16304f; --hmi-line: #2a4669; --hmi-line-2: #3a5a82;
+  --hmi-ink: #e8f0fa; --hmi-muted: #9db4d0; --hmi-acc: #38a3ff; --hmi-acc-2: #7cc4ff;
+  --hmi-equip: #8e9aa8; --hmi-equip-dark: #5f6b7a; --hmi-equip-line: #d6dde6;
+  --hmi-face: #0a1422; --hmi-face-line: #5fa9e8; --hmi-face-ink: #ffffff; --hmi-val: #4af0b8; --hmi-val-dim: #6b8aa8;
+  --hmi-signal: #b8c6d8;
+  /* 배관 서비스 색 — 범례 '1. Line / Flow' 와 같은 값 */
+  --hmi-svc-process: #f3b61f; --hmi-svc-discharge: #2f8cff; --hmi-svc-cooling: #2bd49a; --hmi-svc-drain: #b05cf5;
+  --hmi-svc-steam: #ff7a59; --hmi-svc-water: #4fc3f7; --hmi-svc-air: #c9d6e3; --hmi-svc-fuel: #e0b400; --hmi-svc-chem: #ff8fd8; --hmi-svc-other: #9fb3c8;
+  /* 상태 색 — 'Status / Color' */
+  --hmi-run: #22d16a; --hmi-standby: #f4c20d; --hmi-trip: #ff2d55; --hmi-stop: #8f9bab; --hmi-oos: #f4f7fa; --hmi-ok: #22d16a;
+}
+.hmi-root { color: var(--hmi-ink); background: var(--hmi-bg); font: 13px/1.45 "Segoe UI", "Malgun Gothic", system-ui, sans-serif; }
+.hmi-root * { box-sizing: border-box; }
+/* ---------------- 무대 */
+.hmi-stage { position: relative; overflow: hidden; background: radial-gradient(1200px 600px at 50% 20%, #10213a 0%, var(--hmi-bg) 70%); border: 1px solid var(--hmi-line); border-radius: 10px; }
+.hmi-stage svg { display: block; }
+.hmi-stage .hmi-grid { stroke: #15284a; stroke-width: 1; }
+.hmi-stage.dragging { cursor: grabbing; }
+.hmi-pipe { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.hmi-pipe.svc-process { stroke: var(--hmi-svc-process); } .hmi-pipe.svc-discharge { stroke: var(--hmi-svc-discharge); }
+.hmi-pipe.svc-cooling { stroke: var(--hmi-svc-cooling); } .hmi-pipe.svc-drain { stroke: var(--hmi-svc-drain); }
+.hmi-pipe.svc-steam { stroke: var(--hmi-svc-steam); } .hmi-pipe.svc-water { stroke: var(--hmi-svc-water); }
+.hmi-pipe.svc-air { stroke: var(--hmi-svc-air); } .hmi-pipe.svc-fuel { stroke: var(--hmi-svc-fuel); }
+.hmi-pipe.svc-chem { stroke: var(--hmi-svc-chem); } .hmi-pipe.svc-other { stroke: var(--hmi-svc-other); }
+.hmi-pipe.role-branch { stroke-dasharray: none; opacity: .85; }
+.hmi-signal-line { fill: none; stroke: var(--hmi-signal); stroke-width: 1.6; stroke-dasharray: 6 5; }
+.hmi-pipe-label { font-size: 10px; fill: var(--hmi-muted); paint-order: stroke; stroke: var(--hmi-bg); stroke-width: 3px; }
+.hmi-equip-name { font-size: 11px; font-weight: 600; fill: var(--hmi-ink); text-anchor: middle; paint-order: stroke; stroke: var(--hmi-bg); stroke-width: 3px; }
+.hmi-equip-tag { font-size: 10px; fill: var(--hmi-muted); text-anchor: middle; }
+/* 상태 class — 심볼 안쪽 채움을 바꾼다 */
+.hmi-sym.st-run use, .hmi-sym.st-run { --hmi-equip: #1f8f55; --hmi-equip-dark: #146b3e; }
+.hmi-sym.st-standby use, .hmi-sym.st-standby { --hmi-equip: #9c7f0b; --hmi-equip-dark: #7a6308; }
+.hmi-sym.st-trip use, .hmi-sym.st-trip { --hmi-equip: #b31b3a; --hmi-equip-dark: #8c1530; animation: hmi-blink 1s steps(2) infinite; }
+.hmi-sym.st-stop use, .hmi-sym.st-stop { --hmi-equip: #5c6670; --hmi-equip-dark: #46505a; }
+.hmi-sym.st-oos use, .hmi-sym.st-oos { --hmi-equip: #e9eef4; --hmi-equip-dark: #c8d2dc; --hmi-equip-line: #8d99a6; }
+@keyframes hmi-blink { 50% { opacity: .45; } }
+.hmi-status-tag { font-size: 9px; font-weight: 700; text-anchor: middle; }
+.hmi-status-box.st-run { fill: #1f8f55; } .hmi-status-box.st-standby { fill: #9c7f0b; } .hmi-status-box.st-trip { fill: #b31b3a; }
+.hmi-status-box.st-stop { fill: #5c6670; } .hmi-status-box.st-oos { fill: #e9eef4; }
+.hmi-status-box.st-oos + .hmi-status-tag { fill: #233; }
+/* 밸브 */
+.hmi-valve-body { fill: var(--hmi-equip); }
+.hmi-sym.v-open .hmi-valve-body { fill: var(--hmi-run); } .hmi-sym.v-closed .hmi-valve-body { fill: var(--hmi-trip); }
+.hmi-sym.v-travel .hmi-valve-body { fill: var(--hmi-standby); }
+.hmi-valve-tag { font-size: 10px; fill: var(--hmi-ink); text-anchor: middle; paint-order: stroke; stroke: var(--hmi-bg); stroke-width: 3px; }
+/* 계기 버블 + 값 칸 */
+.hmi-inst { cursor: pointer; }
+.hmi-inst .fn { font-size: 10px; font-weight: 700; fill: var(--hmi-face-ink); text-anchor: middle; }
+.hmi-inst .face { fill: var(--hmi-face); stroke: var(--hmi-face-line); stroke-width: 1.6; }
+.hmi-inst .tag { font-size: 10px; fill: var(--hmi-ink); text-anchor: middle; }
+.hmi-inst .val { font-size: 11px; font-weight: 700; fill: var(--hmi-val); text-anchor: middle; font-family: Consolas, "Segoe UI", monospace; }
+.hmi-inst .val.dim { fill: var(--hmi-val-dim); font-weight: 400; }
+.hmi-inst.alarm .face { stroke: var(--hmi-trip); stroke-width: 2.4; animation: hmi-blink 1s steps(2) infinite; }
+.hmi-inst.alarm .val { fill: var(--hmi-trip); }
+.hmi-inst.vendor .face { stroke-dasharray: 3 2; }
+.hmi-inst.untagged .face { stroke-dasharray: 2 2; opacity: .8; }
+.hmi-sel > .sel-ring { fill: none; stroke: var(--hmi-acc-2); stroke-width: 2; stroke-dasharray: 4 3; }
+.hmi-conn { fill: var(--hmi-panel-2); stroke: var(--hmi-line-2); stroke-width: 1.2; }
+.hmi-conn-text { font-size: 10px; fill: var(--hmi-ink); }
+.hmi-inline-edit { position: absolute; font: 12px Consolas, monospace; padding: 2px 4px; border: 1px solid var(--hmi-acc); border-radius: 4px; background: #061020; color: #fff; z-index: 5; }
+/* ---------------- 패널 */
+.hmi-panel { background: var(--hmi-panel); border: 1px solid var(--hmi-line); border-radius: 10px; padding: 10px 12px; }
+.hmi-panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--hmi-ink); letter-spacing: .01em; display: flex; align-items: center; gap: 8px; }
+.hmi-panel h3 .sp { flex: 1; } .hmi-panel h4 { margin: 10px 0 4px; font-size: 12px; color: var(--hmi-muted); font-weight: 600; }
+.hmi-panel .x { cursor: pointer; color: var(--hmi-muted); font-size: 14px; }
+.hmi-legend .row { display: grid; grid-template-columns: 44px 1fr; gap: 6px 10px; align-items: center; padding: 3px 0; font-size: 12px; }
+.hmi-legend .sw { width: 40px; height: 6px; border-radius: 3px; }
+.hmi-legend .sw.dashed { height: 0; border-top: 2px dashed var(--hmi-signal); background: none; }
+.hmi-legend .icon-wrap { width: 40px; display: flex; justify-content: center; }
+.hmi-legend .sw-box { width: 22px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+.hmi-library { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 14px; }
+.hmi-library h4 { margin: 2px 0 6px; } .hmi-library .row { display: grid; grid-template-columns: 36px 1fr; gap: 6px 8px; align-items: center; font-size: 11.5px; padding: 2px 0; color: var(--hmi-ink); }
+/* Control Mode */
+.hmi-modes { display: flex; gap: 8px; } .hmi-modes button { flex: 1; padding: 8px 6px; font: inherit; font-weight: 700; border-radius: 6px; border: 1px solid var(--hmi-line-2); background: var(--hmi-panel-2); color: var(--hmi-ink); cursor: pointer; }
+.hmi-modes button.on { background: var(--hmi-run); color: #04210f; border-color: var(--hmi-run); }
+.hmi-modes button.on.man { background: var(--hmi-acc); color: #fff; border-color: var(--hmi-acc); }
+.hmi-modes button.on.local { background: var(--hmi-standby); color: #2c2300; border-color: var(--hmi-standby); }
+/* Key Parameters */
+.hmi-kv { width: 100%; border-collapse: collapse; font-size: 12px; } .hmi-kv td { padding: 4px 6px; border-bottom: 1px solid var(--hmi-line); }
+.hmi-kv td:last-child { text-align: right; font-family: Consolas, monospace; color: var(--hmi-val); font-weight: 700; white-space: nowrap; }
+.hmi-kv tr.alarm td:last-child { color: var(--hmi-trip); } .hmi-kv td.dim { color: var(--hmi-val-dim); font-weight: 400; }
+/* Trend */
+.hmi-trend svg { width: 100%; height: 150px; display: block; } .hmi-trend .ax { stroke: var(--hmi-line-2); stroke-width: 1; }
+.hmi-trend .grid { stroke: var(--hmi-line); stroke-width: 1; stroke-dasharray: 3 3; } .hmi-trend .ln { fill: none; stroke: var(--hmi-ok); stroke-width: 2; stroke-linejoin: round; }
+.hmi-trend .lb { font-size: 10px; fill: var(--hmi-muted); } .hmi-trend .cur { font-size: 11px; fill: var(--hmi-val); font-weight: 700; }
+/* Faceplate (팝업) */
+.hmi-faceplate { position: absolute; min-width: 210px; background: var(--hmi-panel); border: 1px solid var(--hmi-acc); border-radius: 8px; padding: 8px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.45); z-index: 6; font-size: 12px; }
+.hmi-faceplate h3 { display: flex; align-items: center; gap: 8px; background: #0c3a2a; margin: -8px -10px 8px; padding: 6px 10px; border-radius: 8px 8px 0 0; font-size: 13px; }
+.hmi-faceplate h3.trip { background: #4a1020; } .hmi-faceplate h3.standby { background: #4a3a06; }
+.hmi-faceplate table { width: 100%; border-collapse: collapse; } .hmi-faceplate td { padding: 3px 4px; border-bottom: 1px solid var(--hmi-line); }
+.hmi-faceplate td:last-child { text-align: right; font-family: Consolas, monospace; color: var(--hmi-val); }
+.hmi-faceplate .tools { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.hmi-faceplate button, .hmi-btn { font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--hmi-line-2); background: var(--hmi-panel-2); color: var(--hmi-ink); cursor: pointer; }
+.hmi-faceplate button:hover, .hmi-btn:hover { border-color: var(--hmi-acc); }
+/* 상태 칩 */
+.hmi-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hmi-line-2); background: var(--hmi-panel-2); font-size: 12px; }
+.hmi-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--hmi-run); display: inline-block; }
+.hmi-chip.alarm i { background: var(--hmi-trip); animation: hmi-blink 1s steps(2) infinite; } .hmi-chip.warn i { background: var(--hmi-standby); }

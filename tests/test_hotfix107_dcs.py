@@ -109,4 +109,6 @@ def test_module_imports_no_engine_and_routes_are_mounted():
     html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
     assert 'id="dcs-btn"' in html
     page = (ROOT / "app/static/dcs.html").read_text(encoding="utf-8")
-    assert "dcs-states" in page and "/render" in page                            # 로직 연동 자리 둘 (postMessage · POST)
+    assert "dcs-states" in page and "/hmi" in page                               # 로직 연동 자리(postMessage) · 사람 값 저장 (hotfix109)
+    for part in ("hmi-symbols.js", "hmi-core.js", "hmi-pid-adapter.js", "hmi-demo.js", "hmi.css"):
+        assert part in page and (ROOT / "app/static/hmi" / part).exists()

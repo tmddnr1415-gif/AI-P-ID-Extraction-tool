@@ -4912,6 +4912,43 @@ hotfix89 → 충돌 1 · hotfix90 → 합침, 운영도 합침 · 합친 판은 
    (대기열은 남아 있고 서버가 켜지면 반영된다) · 서버가 절전으로 응답이 멈춘 경우는 쓰기 12초 · 화면 열기 6초 뒤 절전모드로 판정한다.
    ⚠ Windows · 대시보드 iframe 에서는 못 돌렸다 (서비스워커는 http 주소에서 돈다 — `file://` 사본은 안 된다).
 
+**그 다음 — DCS HMI 그래픽: 식별된 P&ID 로 그리고, LOGIC 시뮬레이션이 같은 태그를 움직인다 (hotfix109 · 판정 0줄)**
+
+사용자: *"식별된 P&ID 를 기준으로 HMI 그래픽 — 첨부 DCS 그림을 분석해 실제로 동작하는 HMI 화면을 HTML·CSS·SVG 로 · 심볼은 개별 SVG 부품 ·
+Symbol & Legend 패널 · 태그 편집 · 배관 색과 흐름 · Running/Standby/Trip 색 · Trend · Key Parameters · Control Mode · 참고 PNG 는 배경으로
+쓰지 않고 재구성 · 재사용 부품"* → 이어서 *"P&ID 분석 결과로 그래픽이 만들어지고, LOGIC 분석이 끝나면 같은 프로젝트의 P&ID 그래픽을
+LOGIC 화면에서 새 창(듀얼 모니터)으로 · 같은 프로젝트 · 같은 태그끼리 연동되어 LOGIC 시뮬레이션 때 그래픽도 동작 · '3. LOGIC 검토' 메뉴
+쪽의 HMI 그래픽 내용을 여기로 이관."*  시험 `tests/test_hotfix109_hmi.py` 6건 (+ hotfix107 시험 보강) · 화면 자기검증
+`spike/ui_audit_hmi.py`(그래픽 단독 · `out/hotfix109/ui/1~5`) · `spike/ui_audit_logic_dcs.py`(LOGIC ↔ 그래픽 두 창 · `6_logic_linked.png` · `7_dcs_from_logic.png`).
+**P&ID · LOGIC 판정 0줄 — 다섯 프로젝트 지문에 닿을 길이 없다** (저장된 결과를 읽어 그릴 뿐).
+
+1. **HMI 부품 라이브러리** `app/static/hmi/` — `hmi-symbols.js`(SVG `<symbol>` 35개 · 배관/신호/흐름 · 밸브 7종 · 펌프·압축기·모터·터빈·팬 ·
+   드럼·탑·탱크·헤더 · 계기 현장/DCS/패널/로컬 · PLC·캐비닛·HMI 등 — 색은 CSS 변수로만 · `use(kind,{x,y,w,h,rot})` · `kindForName`(도면이
+   인쇄한 명사) · `kindForValve`(몸체·액추에이터)) · `hmi.css`(테마 토큰 · 상태 `st-run/standby/trip/stop/oos` · 서비스 `svc-steam/water/
+   cooling/drain/fuel/air/chem/process/other`) · `hmi-core.js`(`HMI.Screen` — 그리기 · 끌기/확대 · 고르기 · 태그 두 번 눌러 편집 · `model.view`
+   자르기 · SVG 내보내기 / 패널 `Legend`(쓴 것만) · `Library` · `StatusLegend` · `ControlMode` · `KeyParams` · `Trend`(30분 창) · `Faceplate` ·
+   `StatusChip`) · `hmi-demo.js`(참고 그림을 같은 부품으로 다시 그린 압축기 트레인 예시 — 값은 가짜).
+2. **★ 그림은 지어내지 않는다** (`hmi-pid-adapter.js` `HMI.fromPid`) — 자리는 P&ID 좌표 그대로(버블 · 몸체 · 라벨 자리 · 런), 태그·기능 글자는
+   그 행의 값(사람이 고친 태그가 이긴다), 배관 색은 라인 번호의 KKS 계통 코드(없으면 그 장 도면번호의 계통), 흐름 화살은 런 끝의 `TO/FROM`
+   커넥터가 있을 때만, 기기 심볼은 인쇄된 명사로, 보이는 창은 식별된 것 둘레(A1 전체면 버블이 너무 작다).  값 칸은 위→아래→오른쪽→왼쪽 순으로
+   겹치지 않는 자리.  hotfix107 의 서버 모델(`/dcs/api/jobs/{id}/sheet/{p}/model`)을 그대로 읽는다.
+3. **사람 값은 분석 밖** `{data}/dcs/<job>/hmi.json` (`GET/POST /dcs/api/jobs/{id}/hmi` · `X-Author` 필수 · 태그 꼴 검사 · 이름·Key Parameters·
+   Trend 태그 · 지우지 않고 이력) — 다시 분석해도 남고 지문에 닿지 않는다.  절전모드에서는 보관되고 `/render` 만 거절한다.
+4. **★ LOGIC 화면 도구줄 `🖥 DCS 그래픽`** (`logic.js openDcsWindow`) — `GET /dcs/api/for_project?name=`(`dcs.pid_jobs_for_project`) 이
+   **같은 이름의 P&ID 프로젝트**(띄어쓰기 · 밑줄 · 붙임표 · 대소문자 무시)에서 가장 최근에 끝난 실행 P&ID 를 찾아 `/dcs?job=…&logic=…&link=…`
+   를 새 창으로 (다른 모니터가 있으면 거기에 — P&ID `placeOnOtherScreen` 과 같은 규칙).  같은 이름이 없으면 후보 목록에서 사람이 고른다 —
+   P&ID 장부와 LOGIC 장부는 따로라 이름이 유일한 열쇠다.
+5. **태그 연동** — 그래픽 창이 서면 `dcs-ready`(태그 목록)를 LOGIC 창에 보내고, LOGIC 은 `paint()` 때마다(흐름 틀마다 · 60ms 모아) 이 시트
+   (+ 캐시된 이웃 시트의 묶음 결과) 행의 **TAG NO.(KKS)** 와 그 선의 1/0 · 아날로그 공학값을 `{kind:"dcs-states"}` 로 보낸다 (`dcsStates`).
+   뜻은 **행 설명의 낱말**로만 — OPEN/CLOSE → 밸브 열림 · TRIP/ALARM/HH/LL → 경보 · RUN/START → 운전 · `NOT TRIP` 은 반대.  그래픽은 자기
+   그림에 있는 태그만 칠하고 없는 태그는 센다 · 이 장에 맞는 태그가 없고 다른 장에 있으면 그 장으로 옮긴다.  그래픽에서 요소를 누르면
+   `dcs-go` 로 LOGIC 이 그 태그 행으로 간다.  단추에 `· 태그 N/M` · 창을 닫으면 돌아온다.  실측(합성 LOGIC + 태그 P&ID): 태그 8/8 ·
+   입력 1 → 그림 ON · 0 → OFF · 그림 클릭 → LOGIC 2행 · 페이지 오류 0.
+6. **'3. LOGIC 검토' 의 HMI 그래픽 이관** — 그래픽 입구를 LOGIC 화면 도구줄로 두었다 (P&ID 결과 화면 더보기 ▾ 의 [DCS 그래픽]은 그대로).
+   ⚠ 사용자가 말한 "LOGIC 검토 코그" 가 대시보드 쪽 메뉴를 뜻하면 대시보드 저장소에서 메뉴 주소만 `/logic` 으로 잇는다 (`docs/dashboard_embed.md`).
+7. **한계** — 기기 심볼은 라벨 자리에 서고 크기는 실제가 아니다 · 전체 배관망이 아니라 식별된 것이 걸린 런만 · 태그 없는 행(2급 문서)은 보낼
+   이름이 없다 · 아날로그 값은 LOGIC 이 공학값을 낸 행만 · Trend 는 흘러온 값만(이력 저장 없음) · 창 배치 권한은 브라우저가 한 번 묻는다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는

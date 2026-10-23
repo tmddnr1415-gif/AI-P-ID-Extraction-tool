@@ -17,7 +17,7 @@ const PAGES = VERSION + "-pages";
 const NAV_TIMEOUT_MS = 6000;
 let DOWN = false;                       // 화면이 알려 준 "서버 꺼짐" — 그동안은 보관본 먼저
 
-const HTML_PATHS = new Set(["/", "/logic", "/logic/", "/logic/test", "/space", "/space/", "/dcs"]);
+const HTML_PATHS = new Set(["/", "/logic", "/logic/", "/logic/test", "/space", "/space/", "/dcs", "/dcs/demo"]);
 const NEVER_RE = /^\/(version|running|sw\.js|offline\/|plaza)|\/events(\?|$)|\.(xlsx|pdf|zip)(\?|$)|\/(diagnostic|feedback_export|export\.zip|report\.xlsx|grouptest\.xlsx|review\.pdf|review\.xlsx|changes\.xlsx|verdicts\.xlsx|excel)(\?|$)/;
 const PNG_RE = /\.png(\?|$)/;
 

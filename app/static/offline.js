@@ -32,7 +32,7 @@
     pid: /^\/jobs\/?(\?|$)|\/(cancel|reanalyse|propose|preview|diagnostic|snapshot|save|revision|legend_profile|axis_text|titleblock|teach|rows\/[^/]+\/copy)(\/|\?|$)|^\/jobs\/[^/]+\/rows(\?|$)|^\/templates|^\/jobs\/[^/]+$|^\/projects\/[^/]+$|^\/reports\/|^\/symbols/,
     logic: /\/(simulate|press|scenario|trace|sequence|aop|grouptest|teach|sample)(\/|\?|$)|^\/logic\/api\/jobs\/?(\?|$)|^\/logic\/api\/jobs\/[^/]+$|^\/logic\/api\/projects\/[^/]+$/,
     space: /\/import_dashboard/,
-    dcs: /./,
+    dcs: /\/render(\/|\?|$)/,
   };
   const QUEUE_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
   function queueable(method, path) {
