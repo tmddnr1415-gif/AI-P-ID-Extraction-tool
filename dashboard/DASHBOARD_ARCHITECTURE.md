@@ -1033,3 +1033,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 요청 "3D 는 DCS Graphic 같은 느낌으로, 소스는 3. Logic 코드 개발 참조". LOGIC 브랜치 `claude/logic-review-design-pd2z75` `app/static/hmi/hmi.css` · `hmi_symbols.js` 의 색 값만 `DCS_PAL` 로 옮김(코드 의존 없음): 남색 원형 배경, 금속 판넬(윗면 · 명판 = Type 색), DCS 태그 상자 + 상태 알약(검토 결과 NORMAL/WARNING/ALARM), 고른 판넬 초록 테두리, 3D 창 머리 띠 · 단추. [화면] DCS(기본) / 도면 색, `crspace.v3style` 에 기억.
 - 바뀐 곳: 새 `DCS_PAL`, `v3build`(box `grad` 옵션 · DCS 판넬 · 명판 · 초록 테두리 · 팔레트), `v3draw`(DCS 배경 · 태그 상자 · 알약), `open3d`(check · 스타일), HTML `#v3Style`, CSS `.v3dlg.dcs`.
 - 확인한 것: `node --check`, Chromium: DCS 등각 · 확대 · 재기 · 사람 시점, 도면 색으로 바꾸기. 외부 요청 0, 스크립트 오류 0.
+
+### 2026-10-23 (21) — 판넬 공간확보 3D: 판넬 마우스로 옮기기 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 무엇을: 요청 "3D 에서도 판넬을 마우스로 옮길 수 있나". 판넬 끌기 = 바닥 위 이동(Snap), 고른 묶음 전체, 2D 와 같은 `violation()` · `ENF()` 규칙 — 위반이면 빨강 · 놓으면 `restore(lastSnap)` + `refuse()`, 아니면 `commit()`(2D · 목록 · 저장 반영). 잠긴 판넬 안 움직임. 3D 창에서 Ctrl+Z / Ctrl+Y.
+- 바뀐 곳: 3D 포인터(판넬 끌기 `drag.panel`), `v3build`(`V3.dragBad` 빨강 테두리), 3D Ctrl+Z/Y 키, 커서 · 팁 문구.
+- 확인한 것: `node --check`, Chromium: 옮김 (4,600, 4,000)→(4,400, 6,800) · Ctrl+Z · NR-02 겹침 막힘. 이전 시험 다시 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 3D 에서 판넬 회전은 아직 2D 에서 (R 은 3D 에서 사람 돌리기).
