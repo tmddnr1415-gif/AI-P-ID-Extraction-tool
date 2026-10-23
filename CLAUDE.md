@@ -6559,3 +6559,10 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   `[hidden]` 이 `display:grid` 에 졌다 → `!important`.  `global` 문 전수 시험에 걸려 라우터의 DB 자리를 dict 로.
 * ⚠ 이 환경에 P&ID 분석 DB 가 없어 **합성 분석(12행)** 으로 확인했다 (`out/hmi1/*.png`) — 실 프로젝트 장은 계기가 촘촘해 값 상자가 겹칠 수 있다
   (끌어 다듬는 자리).  Trend·Key·Control Mode 는 장면의 첫 압력 전송기 · 처음 여섯 · 첫 제어기로 고른다.
+
+### H1 뒤 — HMI 그래픽은 이 저장소에서 더 개발하지 않는다 (2026-10-23 · 사용자 결정)
+
+* *"Graphic 은 여기서 개발하지 않는다 · 다른 판넬 개발 코드로 이관."*  지금까지의 코드(H1 · `d2c5fbe`)는 그대로 두고
+  **이관 문서 `docs/hmi_handover.md`** (파일 목록 · 장면 JSON 계약 · API 7 · 심볼 사전 · 식별 행 → 장면 규칙 · 떼어 가는 절차 ·
+  한계) 와 그림 5장(`docs/hmi_handover/`)을 남겼다.  앞으로 HMI 요구가 오면 **여기서 만들지 않고** 그 문서를 가리킨다.
+  떼어 간 뒤 이 저장소에서 지울 자리: `app/main.py` 4969~4971 · `app/static/index.html` `#nav-hmi`.
