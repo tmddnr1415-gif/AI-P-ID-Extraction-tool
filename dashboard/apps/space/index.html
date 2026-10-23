@@ -433,6 +433,19 @@ svg text{font-family:var(--f-mono)}
         <label class="w2">Type 이름<input id="tdName" placeholder="예: System Cabinet"></label>
         <label>Tag 접두어<input id="tdPre" placeholder="예: SC-"></label>
         <label>색<input type="color" id="tdColor"></label>
+        <span class="gh">종류</span>
+        <label class="w4">종류<select id="tdKind"></select></label>
+        <span class="gh kd kd-desk">Operation Desk — 운전원 · 모니터</span>
+        <label class="kd kd-desk">작업면 높이<input type="number" id="tdTop" step="10" min="600"></label>
+        <label class="kd kd-desk">운전원 수<input type="number" id="tdBays" step="1" min="1"></label>
+        <label class="kd kd-desk">모니터 / 운전원<input type="number" id="tdMon" step="1" min="0"></label>
+        <label class="kd kd-desk">모니터 (inch)<input type="number" id="tdMonIn" step="1" min="10"></label>
+        <label class="kd kd-desk">모니터 단 수<input type="number" id="tdTiers" step="1" min="1" max="3"></label>
+        <span class="gh kd kd-screen">Large Screen — 화면 장 수 · 크기 (W · H 자동)</span>
+        <label class="kd kd-screen">가로 장 수<input type="number" id="tdCols" step="1" min="1"></label>
+        <label class="kd kd-screen">세로 장 수<input type="number" id="tdRows" step="1" min="1"></label>
+        <label class="kd kd-screen">한 장 크기 (inch)<input type="number" id="tdTileIn" step="1" min="20"></label>
+        <label class="kd kd-screen">바닥에서 화면 아래<input type="number" id="tdElev" step="50" min="0"></label>
         <span class="gh">판넬 치수 (mm)</span>
         <label>W 폭<input type="number" id="tdW" step="50" min="0"></label>
         <label>D 깊이<input type="number" id="tdD" step="50" min="0"></label>
@@ -441,9 +454,9 @@ svg text{font-family:var(--f-mono)}
         <span class="gh">유지보수 공간 (mm)</span>
         <label class="w2">전면 F<input type="number" id="tdF" step="50" min="0"></label>
         <label class="w2">후면 R (없으면 0)<input type="number" id="tdR" step="50" min="0"></label>
-        <span class="gh">도어</span>
-        <label class="w2">Door 위치<select id="tdDoor"></select></label>
-        <label class="w2" title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 폭 절반 문짝 둘">열림<select id="tdHinge"></select></label>
+        <span class="gh kd-door">도어</span>
+        <label class="w2 kd-door">Door 위치<select id="tdDoor"></select></label>
+        <label class="w2 kd-door" title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 폭 절반 문짝 둘">열림<select id="tdHinge"></select></label>
         <label class="chk w4"><input type="checkbox" id="tdLib" checked>이 PC 라이브러리에도 저장 — 다른 프로젝트에서 📚 로 다시 씀</label>
       </div>
       <div><div id="tPrev"></div><div class="muted" id="tdInfo" style="margin-top:4px"></div></div>
@@ -577,7 +590,42 @@ let HAD_LOCAL=false;                                       // 이 PC(브라우�
 try{const raw=localStorage.getItem('crspace.v1'); HAD_LOCAL=!!raw; S=raw?JSON.parse(raw):sample();}catch(e){S=sample();}
 if(!S||!S.room||!Array.isArray(S.panels))S=sample();
 const DOOR_AT={none:'없음',front:'전면',rear:'후면',both:'전·후면'}, HINGE={L:'L 힌지',R:'R 힌지',LR:'양개 L-R'};
-function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return t}   // 도어 항목이 없는 예전 Type = 도어 없음
+function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge='L';return furnFix(t)}
+/* 운전실 가구 (Operation Workstation) — Emerson DeltaV iOps 운전 공간 결: Knürr(Vertiv) · Evosite 운전 데스크 + Barco 대형 화면 + 24시간 의자.
+   참고 값(공개 카탈로그): 데스크 폭 1,400 / 1,800 / 2,200 단위 · 작업면 깊이 800~900 · 높이 650~1,250(좌식 740) · DeltaV 운전원당 모니터 4대.
+   kind: cabinet(판넬) · desk · screen · chair. 데스크 H = 모니터 꼭대기까지(자동), 대형 화면 W · H = 화면 장 수 · 크기에서(자동) */
+const KIND={cabinet:'판넬 · 캐비닛',desk:'Operation Desk (운전 데스크)',screen:'Large Screen (대형 화면)',chair:'Operator Chair (운전원 의자)'};
+const KIND_DEF={desk:{top:740,bays:2,mon:4,monIn:27,tiers:2},screen:{cols:3,rows:2,tileIn:55,elev:900},chair:{}};
+const monRaw=inch=>[inch*25.4*0.8716,inch*25.4*0.4903];   // 16:9 화면 가로 · 세로 (mm)
+function furnFix(t){
+  t.kind=KIND[t.kind]?t.kind:'cabinet'; if(t.kind==='cabinet')return t;
+  const d=KIND_DEF[t.kind]; Object.keys(d).forEach(k=>{if(!(+t[k]>0))t[k]=d[k]}); t.door='none';
+  if(t.kind==='desk'){t.bays=Math.max(1,Math.round(+t.bays));t.mon=Math.max(0,Math.round(+t.mon));t.tiers=Math.min(3,Math.max(1,Math.round(+t.tiers)));const mh=monRaw(+t.monIn)[1]+30;t.h=Math.round(+t.top+120+t.tiers*(mh+30))}
+  if(t.kind==='screen'){t.cols=Math.max(1,Math.round(+t.cols));t.rows=Math.max(1,Math.round(+t.rows));const [tw,th]=monRaw(+t.tileIn);t.w=Math.round(t.cols*tw+80);t.h=Math.round(+t.elev+t.rows*th+60)}
+  if(typeof t.name==='string'){   // 시작 이름 꼴이면 숫자를 따라 바꿈 (사용자가 바꾼 이름은 그대로)
+    if(t.kind==='desk')t.name=t.name.replace(/\(운전원 \d+ · 모니터 \d+\)/,`(운전원 ${t.bays} · 모니터 ${t.mon})`);
+    if(t.kind==='screen')t.name=t.name.replace(/\(\d+×\d+ · \d+"\)/,`(${t.cols}×${t.rows} · ${t.tileIn}")`)}
+  return t}
+const FURN=[   // [🪑 운전실 가구] 로 넣는 Type (이름이 같은 Type 이 있으면 건너뜀)
+  {name:'Operation Desk (운전원 2 · 모니터 4)',pre:'OWS-',kind:'desk',w:3600,d:1200,top:740,bays:2,mon:4,monIn:27,tiers:2,front:1500,rear:800,color:'#4f6a8a'},
+  {name:'Large Screen (3×2 · 55")',pre:'LS-',kind:'screen',d:600,cols:3,rows:2,tileIn:55,elev:900,front:1500,rear:600,color:'#34495e'},
+  {name:'Operator Chair (24/7)',pre:'CH-',kind:'chair',w:680,d:680,h:1150,front:0,rear:0,color:'#3b4250'}];
+/* 가구 평면 그림 (2D 도면 · Type 그림 · DXF 같이 씀): 선 [[p,q,굵기]] · 원 [[c,r]] */
+function planSegs(g){
+  const t=g.t, k=t.kind, out={lines:[],circles:[]}; if(!k||k==='cabinet')return out;
+  const b=g.body,f=g.fe,n=FRONT_N[g.r],L=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/L,(f[3]-f[1])/L],P=(a,c)=>[f[0]+u[0]*a+n[0]*c,f[1]+u[1]*a+n[1]*c];
+  if(k==='desk'){const D=t.d,bw=L/t.bays,per=Math.ceil(t.mon/t.tiers)||0,mw=monRaw(t.monIn)[0]+30;
+    for(let i=1;i<t.bays;i++)out.lines.push([P(i*bw,0),P(i*bw,-D),1]);                       // 운전원 자리 나눔
+    for(let i=0;i<t.bays;i++){const c=i*bw+bw/2,tw=per*mw+Math.max(0,per-1)*12,sc=tw>0?Math.min(1,(bw-40)/tw):1;
+      for(let j=0;j<per;j++){const a0=c-tw*sc/2+j*(mw+12)*sc;out.lines.push([P(a0,-D+265),P(a0+mw*sc,-D+265),3])}   // 모니터
+      out.lines.push([P(c-230,-380),P(c+230,-380),1],[P(c-230,-200),P(c+230,-200),1])}}      // 키보드 자리
+  if(k==='screen'){const tw=monRaw(t.tileIn)[0],x0=(L-t.cols*tw)/2;out.lines.push([P(x0,-80),P(x0+t.cols*tw,-80),4]);
+    for(let i=0;i<=t.cols;i++)out.lines.push([P(x0+i*tw,0),P(x0+i*tw,-160),1])}
+  if(k==='chair'){const c=[b.x+b.w/2,b.y+b.h/2],r=Math.min(b.w,b.h)*0.42,bc=[c[0]-n[0]*r*.85,c[1]-n[1]*r*.85];out.circles.push([c,r]);
+    out.lines.push([[bc[0]-u[0]*r*.75,bc[1]-u[1]*r*.75],[bc[0]+u[0]*r*.75,bc[1]+u[1]*r*.75],3])}
+  return out}
+function planDetail(g,ink){const S2=planSegs(g);return S2.lines.map(([p,q,w])=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${ink}" stroke-width="${w}" vector-effect="non-scaling-stroke"/>`).join('')
+  +S2.circles.map(([c,r])=>`<circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="none" stroke="${ink}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`).join('')}   // 도어 항목이 없는 예전 Type = 도어 없음
 function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);S._fresh=false;
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
@@ -671,6 +719,7 @@ function extOf(g){return unionR([g.body,g.fr,g.rr,...doors(g).map(d=>d.box)])}
 function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으면 null)
   const dd=rectDist(g.body,h.body);
   if(dd<0)return {msg:`${p.tag} 이(가) ${q.tag} 와 겹칩니다`,fix:'한쪽을 옮기세요.'};
+  if(g.t.kind==='chair'||h.t.kind==='chair')return null;   // 의자는 겹침만 — 데스크 앞 운전 공간(유지보수 칸) 안에 놓는 것이 정상
   if(gp>0&&dd<gp-0.5&&!(S.room.touchOK&&dd<0.5))return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — 판넬 간 최소 이격 ${fmt(gp)} mm 보다 좁습니다`,fix:`${fmt(gp)} mm 이상 떼거나 맞닿게 붙이세요.`};
   const inClr=(A,B)=>[['전면',B.fr,B.t.front],['후면',B.rr,B.t.rear]].find(([,c])=>c.w>0&&c.h>0&&ov(A.body,c));
   let c1=inClr(g,h); if(c1)return {msg:`${p.tag} 이(가) ${q.tag} 의 ${c1[0]} 유지보수 공간 안에 들어갑니다`,fix:`${q.tag} ${c1[0]}의 ${fmt(c1[2])} mm 를 비우세요.`};
@@ -843,7 +892,7 @@ function typeSvg(t,big){
   [g.fr,g.rr].forEach(r=>{if(r.w>0&&r.h>0)o+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${clr}" fill-opacity=".14" stroke="${clr}" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`});
   const b=g.body; o+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${t.color}" fill-opacity=".55" stroke="${ink}" vector-effect="non-scaling-stroke"/>`;
   o+=`<line x1="${b.x}" y1="${b.y}" x2="${b.x+b.w}" y2="${b.y}" stroke="${ink}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
-  ds.forEach(d=>o+=doorSvg(d,C('--door')));
+  ds.forEach(d=>o+=doorSvg(d,C('--door'))); o+=planDetail(g,ink);
   if(big){const tx=(x,y,s,a='middle')=>`<text x="${x}" y="${y}" font-size="${fs}" fill="${ink2}" text-anchor="${a}" dominant-baseline="middle" font-family="Consolas,monospace">${s}</text>`;
     o+=tx(b.w/2,b.h+(+t.rear||0)+fs*1.2,`W ${fmt(t.w)}`);
     o+=tx(Math.max(b.w,...ds.map(d=>d.box.x+d.box.w))+fs*.6,b.h/2,`D ${fmt(t.d)}`,'start');
@@ -914,6 +963,7 @@ function render(){
     if(st==='err')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="url(#hatchE)"/>`;
     if(st==='warn')g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="${warn}" stroke-width="2" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>`;
     const f=q.fe; g+=`<line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${isS?acc:ink}" stroke-width="3.5" vector-effect="non-scaling-stroke"/>`;
+    g+=planDetail(q,isS?acc:ink);   // 운전실 가구: 모니터 · 화면 · 의자 모양
     if(p.lock&&b.w*s>14*ANN)g+=`<text x="${b.x+b.w-3*ANN/s}" y="${b.y+3*ANN/s}" font-size="${9*ANN/s}" text-anchor="end" dominant-baseline="hanging">🔒</text>`;
     if(show.lbl&&b.w*s>26*ANN&&b.h*s>12*ANN){
       const cx=b.x+b.w/2, cy=b.y+b.h/2, vert=b.h>b.w*1.3&&b.w*s<p.tag.length*7*ANN;
@@ -1014,18 +1064,22 @@ $('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').
 function buildTypes(){   // 삽입 줄: Type 단추(그림 · 이름 · 치수 · 배치 수) + [＋ 새 Type]
   $('#palette').innerHTML=S.types.map(t=>{const n=S.panels.filter(p=>p.type===t.id).length, on=mode==='place'&&placeType===t.id;
     return `<button class="tile${on?' on':''}" data-tid="${t.id}" title="${esc(t.name)} — 누르면 배치 모드 (도면 클릭) · 두 번 누르기 또는 ✎ = 고치기"><span class="ic">${typeSvg(t)}</span><span class="nm">${esc(t.name)}</span><span class="sz">${t.w}×${t.d} · ${n} EA</span><span class="ed" data-ed="${t.id}" title="이 Type 고치기">✎</span></button>`}).join('')
-    +`<button class="tile add" id="tAdd" title="새 Panel Type 만들기"><b>＋</b>새 Type</button>`;
+    +`<button class="tile add" id="tAdd" title="새 Panel Type 만들기"><b>＋</b>새 Type</button>`
+    +`<button class="tile add" id="tFurn" title="운전실 가구 Type 넣기 — Operation Desk(운전원 2 · 모니터 4) · Large Screen(3×2 55\") · Operator Chair. ✎ 로 크기 · 모니터 수 · 화면 수를 고침"><b>🪑</b>운전실 가구</button>`;
 }
 $('#palette').addEventListener('click',e=>{
   const ed=e.target.closest('[data-ed]'); if(ed)return openTypeDlg(S.types.find(t=>t.id===ed.dataset.ed));
   if(e.target.closest('#tAdd'))return openTypeDlg(null);
+  if(e.target.closest('#tFurn')){const add=FURN.filter(f=>!S.types.some(t=>t.name===f.name)).map(f=>({...cleanType(f),id:uid()}));
+    if(!add.length)return toast('운전실 가구 Type 이 이미 있습니다 — 삽입 줄에서 눌러 배치, ✎ 로 크기 · 모니터 수 고치기');
+    S.types.push(...add);commit();buildTypes();return toast(`운전실 가구 ${add.length}종을 넣었습니다 (${add.map(t=>t.pre.replace(/-$/,'')).join(' · ')}) — 눌러서 배치, ✎ 로 크기 · 모니터 수 · 화면 수 고치기. 의자는 데스크 앞 운전 공간 안에 놓을 수 있습니다`)}
   const b=e.target.closest('[data-tid]'); if(!b)return;
   if(mode==='place'&&placeType===b.dataset.tid)setMode('select');else{placeType=b.dataset.tid;setMode('place')}
 });
 $('#palette').addEventListener('dblclick',e=>{const b=e.target.closest('[data-tid]');if(b){setMode('select');openTypeDlg(S.types.find(t=>t.id===b.dataset.tid))}});
 /* Panel Type 프리셋 — 프로젝트 사이에 Type(치수 · 유지보수 공간 · 색)을 다시 쓰기 위한 파일 */
-const TYPE_KEYS=['name','pre','w','d','h','front','rear','color','door','hinge'];
-function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
+const TYPE_KEYS=['name','pre','w','d','h','front','rear','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
+function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
 $('#bPreSave').onclick=()=>openModal('Panel Type 프리셋 저장','다른 프로젝트에서 [프리셋 불러오기]로 같은 Type 을 씁니다. 불러올 때 이름이 같은 Type 은 치수 · 색을 덮어씁니다. '+dlNote,
   JSON.stringify({kind:'crspace-types',v:1,savedAt:today(),from:S.info.project||'',types:S.types.map(cleanType)},null,1),fname('PanelType_프리셋','json'),'application/json');
 $('#bPreLoad').onclick=()=>$('#fPreset').click();
@@ -1039,19 +1093,22 @@ $('#fPreset').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.readAsText(f);e.target.value=''};
 /* ---------- Type 만들기 · 고치기 창 ---------- */
 let tEdit=null;                                            // 고치는 Type (새 Type 이면 null)
-const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',Door:'door',Hinge:'hinge'};
+const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
 const PAL=['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'];
+$('#tdKind').innerHTML=Object.entries(KIND).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 $('#tdDoor').innerHTML=Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 $('#tdHinge').innerHTML=Object.entries(HINGE).map(([v,l])=>`<option value="${v}">${l}${v==='LR'?' (문짝 둘)':' (앞에서 볼 때)'}</option>`).join('');
 function tdRead(){const o={};Object.entries(TDK).forEach(([k,f])=>o[f]=$('#td'+k).value);return cleanType(o)}
 function tdPreview(){
   const t=tdRead(); $('#tPrev').innerHTML=typeSvg(t,true); $('#tdHinge').disabled=t.door==='none';
+  document.querySelectorAll('#tdlg .kd').forEach(el=>el.hidden=!el.classList.contains('kd-'+t.kind)); document.querySelectorAll('#tdlg .kd-door').forEach(el=>el.hidden=t.kind!=='cabinet');
+  $('#tdH').disabled=t.kind==='desk'||t.kind==='screen'; $('#tdW').disabled=t.kind==='screen'; if($('#tdH').disabled)$('#tdH').value=t.h; if($('#tdW').disabled)$('#tdW').value=t.w;   // 자동 값
   const ds=doors(geom({x:0,y:0,rot:0},t)), over=ds.filter(d=>d.r>d.clr+0.5).map(d=>`${d.face} 도어 반경 ${fmt(d.r)} > ${d.face} 유지보수 ${fmt(d.clr)}`);
   $('#tdInfo').innerHTML=`유지보수 포함 깊이 <b class="mono">${fmt(t.d+t.front+t.rear)}</b> mm`+(over.length?`<br><span style="color:var(--warn)">⚠ ${esc([...new Set(over)].join(' · '))} — 배치하면 경고됩니다</span>`:'');
 }
 function openTypeDlg(t){
   tEdit=t||null;
-  const v=t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
+  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
   Object.entries(TDK).forEach(([k,f])=>$('#td'+k).value=v[f]);
   const n=t?S.panels.filter(p=>p.type===t.id).length:0;
   $('#tdTitle').textContent=t?`Panel Type 고치기 — ${t.name}`+(n?` (배치 ${n} EA 에 바로 반영)`:''):'새 Panel Type';
@@ -1065,6 +1122,7 @@ function tdSave(place){
   if(S.types.some(x=>x!==tEdit&&x.name.trim()===v.name))return err(`이름이 "${v.name}" 인 Type 이 이미 있습니다 — 다른 이름을 쓰거나 그 Type 의 ✎ 로 고치세요.`);
   if(!v.pre)return err('Tag 접두어를 적으세요 (예: SC-). 배치할 때 SC-01, SC-02 … 로 붙습니다.');
   if(!(v.w>0&&v.d>0))return err('W(폭) · D(깊이)는 0 보다 커야 합니다.');
+  if(v.kind==='desk'&&!(v.top>0))return err('작업면 높이를 적으세요 (좌식 740).');
   if(tEdit&&ENF()){   // 치수 · 유지보수 · 도어를 바꿔 배치된 판넬끼리 겹치거나 규칙을 어기게 되면 저장하지 않음
     const old={...tEdit}; Object.assign(tEdit,v); const bad=violation(S.panels.filter(p=>p.type===tEdit.id),true); Object.assign(tEdit,old);
     if(bad)return err(`이 값으로 바꾸면 배치된 판넬이 규칙을 어깁니다 — ${bad}. 판넬을 먼저 옮기거나 ② '위반이면 놓지 못하게' 를 끄세요.`);
@@ -1076,6 +1134,9 @@ function tdSave(place){
   if(place){placeType=tEdit.id;setMode('place')}
 }
 Object.keys(TDK).forEach(k=>$('#td'+k).addEventListener('input',tdPreview));
+$('#tdKind').addEventListener('change',e=>{const f=FURN.find(x=>x.kind===e.target.value);   // 종류를 바꾸면 그 가구의 시작값 (이름 · 접두어 · 색은 비어 있을 때만)
+  if(f){['w','d','h','front','rear',...Object.keys(KIND_DEF[f.kind])].forEach(k=>{if(f[k]!=null)$('#td'+Object.keys(TDK).find(K=>TDK[K]===k)).value=f[k]});if(!$('#tdPre').value)$('#tdPre').value=f.pre;if(!$('#tdName').value)$('#tdName').value=f.name}
+  else{$('#tdDoor').value='front';if(+$('#tdH').value<1500)$('#tdH').value=2100}tdPreview()});
 $('#tdSave').onclick=()=>tdSave(false); $('#tdSavePlace').onclick=()=>tdSave(true);
 $('#tdCancel').onclick=()=>{$('#tdlg').hidden=true};
 $('#tdDel').onclick=()=>{if(!tEdit||S.panels.some(p=>p.type===tEdit.id))return;const nm=tEdit.name;S.types=S.types.filter(x=>x!==tEdit);$('#tdlg').hidden=true;commit();buildTypes();toast(`${nm} Type 을 지웠습니다 (Ctrl+Z 로 되돌림)`)};
@@ -1515,7 +1576,46 @@ function v3build(){
     box(c.x,c.y,c.x+c.w,c.y+c.h,0,H,hot?mix(cc,ec,.35):cc,{edge:ec,ao:.3,grad:DCS?(hot?[mix(D('colD'),ec,.3),mix(D('col'),ec,.3)]:[D('colD'),D('col')]):null});shadow(c,H)});
   // 판넬 (전면 = 밝은 면)
   const clr=DCS?D('clr'):C('--clear'), dc=DCS?D('door'):C('--door');
+  /* 운전실 가구 3D (Emerson iOps 결): 데스크 = HPL 작업면 + 뒤 기술 하부장(Type 색) + 운전원마다 키보드 · 모니터 기둥 · 모니터(켜진 화면에 추세선),
+     대형 화면 = 받침장 + 틀 + 화면 장(공정 선 · 기기 상자 · 추세선), 의자 = 5발 다리 · 가스 실린더 · 좌판 · 등받이 · 팔걸이 */
+  const furn3d=(g,col)=>{const t=g.t,b=g.body,f=g.fe,n=FRONT_N[g.r],W0=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/W0,(f[3]-f[1])/W0],A=[f[0],f[1]],D0=t.d,hx=hexRGB;
+    const face=(o,uu,a,fb,y,P=(aa,yy)=>[o[0]+uu[0]*aa+n[0]*fb,yy,o[1]+uu[1]*aa+n[1]*fb])=>P;   // 앞쪽(n) 으로 fb 만큼 나온 면 위의 점
+    if(t.kind==='desk'){const top=+t.top||740,lam=hx('#c9d0d8'),dark=hx('#2a313b'),base=mix(col,[0,0,0],.2),bw=W0/t.bays,mw=monRaw(t.monIn)[0]+30,mh=monRaw(t.monIn)[1]+30,per=Math.ceil(t.mon/t.tiers)||0;
+      shadow(b,top+300);
+      obox(A,u,n,30,W0-30,-D0,-D0+450,0,top-35,base);                                   // 뒤 기술 하부장
+      obox(A,u,n,0,40,-D0,-120,0,top-35,base);obox(A,u,n,W0-40,W0,-D0,-120,0,top-35,base);   // 옆판
+      obox(A,u,n,0,W0,-D0,0,top-35,top,lam);obox(A,u,n,0,W0,-28,0,top-60,top+2,dark);      // 작업면 · 앞 테
+      for(let i=0;i<t.bays;i++){const c=i*bw+bw/2;
+        obox(A,u,n,c-230,c+230,-380,-200,top,top+22,hx('#20252c'));                      // 키보드
+        obox(A,u,n,c-28,c+28,-D0+180,-D0+236,top,top+80+t.tiers*(mh+30),dark);            // 모니터 기둥
+        let left=t.mon;for(let r=0;r<t.tiers;r++){const cnt=Math.min(per,left);left-=cnt;if(cnt<=0)break;const tw=cnt*mw+(cnt-1)*12,sc=Math.min(1,(bw-40)/tw),y0=top+120+r*(mh+30);
+          for(let j=0;j<cnt;j++){const a0=c-tw*sc/2+j*(mw+12)*sc,a1=a0+mw*sc;
+            obox(A,u,n,a0,a1,-D0+240,-D0+290,y0,y0+mh,hx('#161b22'));                         // 모니터 몸체
+            const P=face(A,u,0,-D0+292),Q=face(A,u,0,-D0+296);
+            quad(T,[P(a0+15*sc,y0+15),P(a0+15*sc,y0+mh-15),P(a1-15*sc,y0+mh-15),P(a1-15*sc,y0+15)],hx((i+j+r)%2?'#1d4f7f':'#1f5f99'),1,null);   // 켜진 화면
+            const pts=[.25,.55,.4,.7,.5,.8].map((v,k)=>Q(a0+(30+k*(mw-60)/5)*sc,y0+25+v*(mh-50)));for(let k=0;k<5;k++)seg(pts[k],pts[k+1],hx(k%2?'#2ecc71':'#f5b400'),.9)}}}}
+    if(t.kind==='screen'){const el=+t.elev||900,[tw,th]=monRaw(t.tileIn),Wv=t.cols*tw,Hv=t.rows*th,x0=(W0-Wv)/2,fr=hx('#1b2028');
+      shadow(b,el);
+      obox(A,u,n,0,W0,-D0,0,0,el-20,mix(col,[0,0,0],.15));                                 // 받침장
+      obox(A,u,n,x0-40,x0+Wv+40,-180,0,el-20,el+Hv+40,fr);                                 // 화면 틀
+      const PC=['#f5b400','#2d8cff','#1fbf9f','#b24cff'];
+      for(let i=0;i<t.cols;i++)for(let j=0;j<t.rows;j++){const a0=x0+i*tw+4,a1=a0+tw-8,y0=el+j*th+4,y1=y0+th-8,P=face(A,u,0,2),Q=face(A,u,0,6),k=(i*3+j*5)%4,ww=a1-a0,hh=y1-y0;
+        quad(T,[P(a0,y0),P(a0,y1),P(a1,y1),P(a1,y0)],hx(['#163d66','#1a4a78','#123659'][(i+j)%3]),1,null);
+        seg(Q(a0+ww*.08,y0+hh*.45),Q(a0+ww*.92,y0+hh*.45),hx(PC[k]));                       // 공정 선
+        const bx0=a0+ww*(.3+.1*k),bx1=bx0+ww*.18,by0=y0+hh*.3,by1=y0+hh*.62;[[bx0,by0,bx1,by0],[bx1,by0,bx1,by1],[bx1,by1,bx0,by1],[bx0,by1,bx0,by0]].forEach(([x1,y1_,x2,y2])=>seg(Q(x1,y1_),Q(x2,y2),hx('#dbe6f2'),.8));   // 기기 상자
+        const pts=[.15,.25,.2,.32,.28,.38].map((v,m)=>Q(a0+ww*(.08+m*.17),y0+hh*(.72+v*.5)));for(let m=0;m<5;m++)seg(pts[m],pts[m+1],hx('#2ecc71'),.9)}}   // 추세선
+    if(t.kind==='chair'){const C0=[b.x+b.w/2,b.y+b.h/2],fab=mix(col,[1,1,1],.05),blk=hx('#1d2128'),met=hx('#7a828e'),hH=+t.h||1150;
+      shadow({x:b.x+60,y:b.y+60,w:b.w-120,h:b.h-120},600);
+      for(let k=0;k<5;k++){const a=k*2*Math.PI/5,d=[Math.cos(a),Math.sin(a)],pp=[-d[1],d[0]];obox(C0,d,pp,0,320,-22,22,40,75,blk);obox([C0[0]+d[0]*300,C0[1]+d[1]*300],d,pp,-25,25,-25,25,0,45,blk)}   // 다리 · 바퀴
+      obox(C0,u,n,-30,30,-30,30,75,430,met);                                                // 가스 실린더
+      obox(C0,u,n,-255,255,-240,230,430,510,fab);                                           // 좌판
+      obox(C0,u,n,-235,235,-275,-215,540,hH,fab);obox(C0,u,n,-245,245,-290,-275,560,hH-40,blk);   // 등받이
+      [[-300,-258],[258,300]].forEach(([a0,a1])=>{obox(C0,u,n,a0,a1,-160,160,610,650,blk);obox(C0,u,n,a0+10,a1-10,-20,20,510,610,met)})}   // 팔걸이
+  };
   S.panels.forEach(p=>{const g=geom(p), b=g.body, ht=+g.t.h||2100, col=hexRGB(g.t.color), on=sel.has(p.id)||V3.hover===p.id, bad=!!(V3.dragBad&&V3.dragBad.has(p.id)), fc=bad?hexRGB('#ff3b6b'):acc;   // bad = 끌어 놓으려는 자리가 규칙 위반
+    if(g.t.kind&&g.t.kind!=='cabinet'){furn3d(g,col);
+      if(on||bad){const k=60,P=[[b.x-k,b.y-k],[b.x+b.w+k,b.y-k],[b.x+b.w+k,b.y+b.h+k],[b.x-k,b.y+b.h+k]];P.forEach((a,i)=>{const c=P[(i+1)%4];[3,ht+40].forEach(y=>seg([a[0],y,a[1]],[c[0],y,c[1]],fc));seg([a[0],3,a[1]],[a[0],ht+40,a[1]],fc)})}
+    } else {
     const bh=Math.min(100,ht*.08), dk=DCS?D('edge'):mix(col,[0,0,0],.55);   // 받침(베이스 100) + 몸체
     box(b.x+8,b.y+8,b.x+b.w-8,b.y+b.h-8,0,bh,DCS?D('edge'):mix(col,[0,0,0],.7),{ao:0});
     if(DCS){   // DCS 결: 금속 몸체 + 윗면 · 명판 = Type 색, 고르거나 마우스 = 초록 테두리 (DCS 화면의 운전 중 기기 테두리)
@@ -1532,6 +1632,7 @@ function v3build(){
       if(hand)obox([h[0]+u[0]*(L-70),h[1]+u[1]*(L-70)],u,n,-11,11,0,26,Math.min(950,ht*.45),Math.min(1250,ht*.6),[.82,.84,.86])};
     const ds=doors(g); ds.forEach(d=>lid(d.h,d.c,[(d.o[0]-d.h[0])/d.r,(d.o[1]-d.h[1])/d.r],true));
     if(!ds.some(d=>d.face==='전면')){const n=FRONT_N[g.r];lid([f[0],f[1]],[f[2],f[3]],n,false)}
+    }
     if(V3.clr)[g.fr,g.rr].forEach(r=>{if(r.w>0&&r.h>0){quad(X,[[r.x,3,r.y],[r.x,3,r.y+r.h],[r.x+r.w,3,r.y+r.h],[r.x+r.w,3,r.y]],clr,.22,null);
       [[r.x,r.y],[r.x+r.w,r.y],[r.x+r.w,r.y+r.h],[r.x,r.y+r.h]].forEach((a,i,A)=>{const q=A[(i+1)%4];seg([a[0],4,a[1]],[q[0],4,q[1]],clr,.8)})}});
     if(V3.door)doors(g).forEach(d=>{const dh=ht*.94, h=d.h, o=d.o;   // 90° 열린 문짝(반투명 판) + 바닥 회전 궤적
@@ -1725,13 +1826,17 @@ function v3side(){
   box.innerHTML=`<h5><i style="background:${esc(t.color)}"></i>${esc(p.tag)}${p.lock?' 🔒':''}</h5>
    <div class="g g2"><label>Tag<input id="v3pTag" value="${esc(p.tag)}"></label><label>Type<select id="v3pType">${S.types.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label></div>
-   <div class="sec"><b>크기 · 도어</b> <span class="muted">(Type '${esc(t.name)}' 값 · ${n} EA)</span>
-    <div class="g"><label>W 폭<input type="number" id="v3tW" min="1" step="50" value="${t.w}"></label><label>D 깊이<input type="number" id="v3tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="v3tH" min="1" step="50" value="${+t.h||2100}"></label>
+   <div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
+    ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="v3kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="v3kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="v3kMon" min="0" step="1" value="${t.mon}"></label>
+      <label>모니터 inch<input type="number" id="v3kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="v3kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
+    ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="v3kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="v3kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="v3kTileIn" min="20" step="1" value="${t.tileIn}"></label>
+      <label class="full">바닥에서 화면 아래<input type="number" id="v3kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
+    <div class="g"><label>W 폭<input type="number" id="v3tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="v3tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="v3tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
      <label>전면 유지보수<input type="number" id="v3tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="v3tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
-     <label>도어 위치<select id="v3tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
-     <label class="full" style="grid-column:2/-1">도어 형식 · 열림<select id="v3tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
+     <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="v3tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
+     <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="v3tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
     ${n>1?`<div class="sc"><label><input type="radio" name="v3sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="v3sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
-    <div class="row"><button id="v3tApply" class="primary">크기 · 도어 적용</button><span class="muted">힌지 L/R 은 그 면 앞에 서서 볼 때</span></div><div class="err" id="v3tErr"></div></div>
+    <div class="row"><button id="v3tApply" class="primary">${t.kind==='cabinet'?'크기 · 도어 적용':'적용'}</button><span class="muted">${t.kind==='cabinet'?'힌지 L/R 은 그 면 앞에 서서 볼 때':t.kind==='chair'?'의자는 데스크 앞 운전 공간 안에 놓을 수 있음':'H 는 자동'}</span></div><div class="err" id="v3tErr"></div></div>
    <div class="sec"><b>방향 · 위치</b>
     <div class="g"><label>전면 방향<select id="v3pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
      <label>X<input type="number" id="v3pX" step="${S.snap}" value="${p.x}"></label><label>Y<input type="number" id="v3pY" step="${S.snap}" value="${p.y}"></label></div>
@@ -1751,15 +1856,18 @@ function v3side(){
 }
 function v3applyType(p){
   const t=typeOf(p), err=m=>{$('#v3tErr').textContent=m}, num=id=>+$(id).value, kind=$('#v3tKind').value;
-  const v={w:num('#v3tW'),d:num('#v3tD'),h:num('#v3tH'),front:Math.max(0,num('#v3tF')||0),rear:Math.max(0,num('#v3tR')||0),door:$('#v3tDoor').value,hinge:kind};
+  const v={w:num('#v3tW'),d:num('#v3tD'),h:num('#v3tH'),front:Math.max(0,num('#v3tF')||0),rear:Math.max(0,num('#v3tR')||0),door:$('#v3tDoor').value,hinge:kind,kind:t.kind||'cabinet'};
+  [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$('#v3k'+K);if(el)v[k]=+el.value});
+  fixDoor(v);   // 가구: 도어 없음 · H(· 화면 W) 자동
   if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
   const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector('input[name=v3sc]:checked')||{}).value:'all';
-  const same=x=>['w','d','h','front','rear','door','hinge'].every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
-  if(sc==='all'){const old={...t};Object.assign(t,v);
+  const KS=['w','d','h','front','rear','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
+  const same=x=>KS.every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
+  if(sc==='all'){const old={...t};Object.assign(t,v);fixDoor(t);
     if(ENF()){const bad=violation(all,true);if(bad){Object.assign(t,old);return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
     commit();buildTypes();toast(`Type ${t.name} 을(를) 고쳤습니다 — ${all.length} EA 에 적용`);return}
   let nt=S.types.find(x=>x!==t&&same(x)), made=false;
-  if(!nt){let nm=`${t.name} (변형)`,k=2;while(S.types.some(x=>x.name===nm))nm=`${t.name} (변형 ${k++})`;nt=fixDoor({...t,id:uid(),name:nm,...v});S.types.push(nt);made=true}
+  if(!nt){nt=fixDoor({...t,id:uid(),...v});let base=nt.name===t.name?`${t.name} (변형)`:nt.name,nm=base,k=2;while(S.types.some(x=>x.name===nm))nm=`${base} ${k++}`;nt.name=nm;S.types.push(nt);made=true}
   const old=p.type; p.type=nt.id;
   if(ENF()){const bad=violation([p]);if(bad){p.type=old;if(made)S.types.pop();return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
   commit();buildTypes();toast(`${p.tag} 만 고쳤습니다 — Type '${nt.name}'${made?' 을(를) 새로 만듦':' 으로 바꿈'}`);
@@ -1904,7 +2012,8 @@ $('#bReq').onclick=()=>{
   L.push(`3. 검토 기준 실 크기: ${fmt(S.room.w)} x ${fmt(S.room.l)} (${(sm.roomA/1e6).toFixed(1)} m2)`+(!cols.length?', 기둥 없음':Array.isArray(S.cols)?`, 기둥 ${cols.length}개 (직접 배치)`:`, 기둥 ${S.room.col}x${S.room.col} / Span X ${S.room.spX} / Y ${S.room.spY}`));
   L.push('');
   L.push('4. 판넬 수량 및 치수');
-  sm.by.forEach(o=>L.push(`   - ${o.t.name}: ${o.n} EA  (${o.t.w}W x ${o.t.d}D x ${o.t.h}H, 전면 ${o.t.front} / 후면 ${o.t.rear}, 도어 ${DOOR_AT[o.t.door]}${o.t.door!=='none'?' '+HINGE[o.t.hinge]:''})`));
+  const kTxt=t=>t.kind==='desk'?`, ${KIND.desk} · 운전원 ${t.bays} · 모니터 ${t.mon}대(${t.monIn}") × ${t.bays} · 작업면 ${t.top}`:t.kind==='screen'?`, ${KIND.screen} · ${t.cols}×${t.rows} · ${t.tileIn}" · 바닥에서 ${t.elev}`:t.kind==='chair'?`, ${KIND.chair}`:'';
+  sm.by.forEach(o=>L.push(`   - ${o.t.name}: ${o.n} EA  (${o.t.w}W x ${o.t.d}D x ${o.t.h}H, 전면 ${o.t.front} / 후면 ${o.t.rear}`+(o.t.kind&&o.t.kind!=='cabinet'?kTxt(o.t):`, 도어 ${DOOR_AT[o.t.door]}${o.t.door!=='none'?' '+HINGE[o.t.hinge]:''}`)+')'));
   L.push(`   합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m2`);
   L.push('');
   L.push(`5. 배치 검토: 간섭 ${e}건, 경고 ${w}건`);
@@ -1960,6 +2069,7 @@ $('#bDxf').onclick=()=>{
     const ac=ang(d.h,d.c), ao=ang(d.h,d.o), ccw=((d.c[0]-d.h[0])*(-(d.o[1]-d.h[1]))-(-(d.c[1]-d.h[1]))*(d.o[0]-d.h[0]))>0;
     ccw?arc('CR-DOOR',d.h[0],d.h[1],d.r,ac,ao):arc('CR-DOOR',d.h[0],d.h[1],d.r,ao,ac)}));
   S.panels.forEach(p=>{const g=geom(p);box('CR-PANEL',g.body);line('CR-PANEL-FRONT',...g.fe);box('CR-CLEARANCE',g.fr);box('CR-CLEARANCE',g.rr);
+    {const ps=planSegs(g);ps.lines.forEach(([a,b])=>line('CR-PANEL',a[0],a[1],b[0],b[1]));ps.circles.forEach(([c,r])=>P(0,'CIRCLE',8,'CR-PANEL',10,X(c[0]),20,Y(c[1]),30,0,40,+r.toFixed(1)))}   // 가구 모양
     const b=g.body,th=Math.max(60,Math.min(150,Math.min(b.w,b.h)*0.16));text('CR-TEXT',b.x+b.w/2,b.y+b.h/2,th,p.tag,b.h>b.w*1.3?90:0);
     if(p.desc)text('CR-TEXT',b.x+b.w/2,b.y+b.h/2+th*1.6,th*0.7,p.desc,0)});
   const env=envelope(); if(env){box('CR-ENVELOPE',env);
