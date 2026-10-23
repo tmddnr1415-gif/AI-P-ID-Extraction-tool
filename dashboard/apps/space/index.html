@@ -940,7 +940,7 @@ function render(){v3sync();
   const C=k=>cs.getPropertyValue(k).trim();
   const ink=C('--ink'),ink2=C('--ink-2'),acc=C('--accent'),clr=C('--clear'),err=C('--err'),warn=C('--warn');
   // grid pattern
-  let mi=100,ma=1000; if(100*s<7){mi=500;ma=5000} if(500*s<7){mi=1000;ma=10000}
+  let mi=100,ma=1000; if(100*s<7){mi=500;ma=5000} if(500*s<3){mi=1000;ma=10000}   // 격자도 500 mm 를 오래 유지
   let pl=''; for(let k=0;k<ma;k+=mi){const isM=k===0;pl+=`<line x1="${k}" y1="0" x2="${k}" y2="${ma}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/><line x1="0" y1="${k}" x2="${ma}" y2="${k}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/>`}
   const hs=7/s;
   let defs=`<defs><pattern id="gp" width="${ma}" height="${ma}" patternUnits="userSpaceOnUse">${pl}</pattern>
@@ -1051,9 +1051,9 @@ function render(){v3sync();
   {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
-  const steps=[100,200,500,1000,2000,5000,10000]; const st=steps.find(v=>v*s>=55)||10000, sub=st/5;
-  for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:14}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
-  for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:14}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
+  const steps=[100,200,500,1000,2000,5000,10000]; const st=steps.find(v=>v*s>=55)||10000, sub=st<=500?st/5:(500*s>=2.5?500:st/5);   // 작은 눈금 = 500 mm (아주 멀리 줄였을 때만 더 굵게)
+  for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:Math.abs(x%1000)<1e-6?11:15}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
+  for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:Math.abs(y%1000)<1e-6?11:15}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
   ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
   {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
     if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
