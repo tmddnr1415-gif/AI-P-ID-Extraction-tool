@@ -1402,6 +1402,13 @@ def aops_vocab():
             "needs": aops.NEEDS}
 
 
+@router.get("/logic/api/functions")
+def functions_get():
+    """기능 책 — 기능마다 범례가 정한 동작 한 줄 (화면 '동작 (범례)' 줄이 읽는다)."""
+    from app.logic import functions
+    return functions.book()
+
+
 @router.get("/logic/api/library")
 def library_get():
     """학습 사전 — 모양 열쇠 → 기능 · Typical 시트 (어느 묶음 · 누가 가르쳤는지)."""

@@ -6529,6 +6529,11 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   ③ 합(∑) 입력 이름이 `+`/`−` 이면 계수 ±1 (범례 *INPUTS MAY BE LABELED WITH POSITIVE OR NEGATIVE SIGNS*).
 * **회귀** — HRSG 50장 · 1A5J 63장 · 1A1Y 39장을 바꾸기 전 코드(worktree)와 전수 대조: 다른 것은 투표 블록 `param.op` 열쇠뿐
   (판정 · 선 · 행 0칸).  LOGIC 시험 266 통과.
+* **기능 책** (`config/logic_functions.yaml` + `logic_analog.yaml` → `app/logic/functions.py` · `GET /logic/api/functions` ·
+  `docs/logic_functions.md` — `python -m app.logic.functions` 로 다시 만든다).  시뮬레이터가 아는 기능 18 + 연산 31 마다
+  *범례가 정한 동작 한 줄* · 범례 원문 · 시뮬레이터 메모(범례와 다른 자리 — STEP 근사 · 연결 안 된 입력 0 · 타이머 기본 5초).
+  **화면 근거 패널에 '동작 (범례)' 줄** — 블록을 누르면 그 블록의 범례 동작이 한 줄로 (투표는 부호 · 메모리는 우선 칸까지 문장에).
+  시험이 모든 `GATE_LOGIC` · 연산 어휘에 항목이 있음을 못박는다 (새 기능을 더하면 책에도 적어야 통과).
 
 ### H1회차 — HMI 그래픽: 식별된 P&ID 를 DCS 화면처럼 (2026-10-23)
 

@@ -219,3 +219,33 @@ def test_deviation_is_one_when_difference_exceeds_d():
     ins = [("a", {"name": "IN1"}), ("b", {"name": "IN2"})]
     assert analog._digital("dev", _ab(d=3), ins, {"a": 10.0, "b": 6.0}, {}) == 1
     assert analog._digital("dev", _ab(d=3), ins, {"a": 10.0, "b": 8.0}, {}) == 0
+
+
+# ---------------------------------------------------------------- 기능 책 — 시뮬레이터가 아는 기능마다 범례 동작 한 줄
+def test_function_book_covers_every_simulator_function_and_analog_op():
+    from app.logic import functions, aops as _aops
+    b = functions.book()
+    for lg in sim.GATE_LOGIC | {"toggle", "source", "connector", "pass", "sink", "macro", "unknown"}:
+        assert lg in b and b[lg]["does"], lg
+    v = _aops.vocab()
+    for grp in ("ops", "digital_ops"):
+        for op in (v.get(grp) or {}):
+            assert "aop:" + op in b, op
+    e = functions.entry("vote", "", {"a": 2, "b": 3, "op": "gt"})
+    assert "보다 많이" in e["does"]
+    assert "SET 우선" in functions.entry("memory", "", {"dominant": "set"})["does"]
+    assert functions.entry("unknownkind") is None
+    assert "| AND" in functions.markdown()
+
+
+def test_function_book_api_and_screen_row():
+    from pathlib import Path
+    from fastapi.testclient import TestClient
+    from fastapi import FastAPI
+    from app.logic import api as lapi
+    app = FastAPI(); app.include_router(lapi.router)
+    r = TestClient(app).get("/logic/api/functions")
+    assert r.status_code == 200 and "and" in r.json() and r.json()["and"]["does"]
+    js = Path(__file__).resolve().parent.parent / "app" / "static" / "logic.js"
+    src = js.read_text(encoding="utf-8")
+    assert "동작 (범례)" in src and "/logic/api/functions" in src and "function funcBookEntry" in src

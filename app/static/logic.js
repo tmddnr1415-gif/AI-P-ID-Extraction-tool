@@ -4393,6 +4393,7 @@ function renderInfo() {
     box.innerHTML = `<table>
       <tr><td>종류</td><td><b>${esc(FUNC_KO[b.func] || b.func)}</b> ${b.func === "MEMORY" ? `(${b.param.dominant === "set" ? "SET 우선" : b.param.dominant === "reset" ? "RESET 우선" : "기본"})` : ""}</td></tr>
       <tr><td>도면 글자</td><td>${esc(b.label || "")} <small>(읽은 그대로: ${esc(b.read || "—")})</small></td></tr>
+      ${(() => { const f = funcBookEntry(b); return f ? `<tr><td>동작 (범례)</td><td>${esc(f.does)}${f.legend ? ` <small title="${esc(f.legend)}">(범례)</small>` : ""}${f.sim ? ` <small class="muted">· ${esc(f.sim)}</small>` : ""}</td></tr>` : ""; })()}
       ${b.user ? `<tr><td>사람이 정함</td><td>✎ ${esc(choiceLabel(b.user.choice))} — ${esc(b.user.author)} · ${esc(b.user.at)} <small>(도면 판정: ${esc(FUNC_KO[b.user.was_func] || b.user.was_func || "")})</small></td></tr>` : ""}
       ${b.learned && !b.user ? `<tr><td>판정 근거</td><td>ⓛ 학습 사전 <small>(${esc(b.learned)} 에서 배운 기준 — 이 묶음 범례에는 없음)</small></td></tr>` : ""}
       ${b.score ? `<tr><td>맞음</td><td>${Math.round(b.score * 100)}% <small>범례 어휘와 글자 모양</small></td></tr>` : ""}
@@ -4448,6 +4449,20 @@ function renderHelp() {
    값은 화면이 지금 그리는 L.values 그대로라 흐르는 모습(애니메이션)과 같이 움직인다.
    '모든 게이트' 를 켜면 활성이 아닌 게이트도 적는다.  S-R(메모리)은 진리표에 지금 줄을 칠한다. */
 
+/* L51 — 기능 책: 블록의 범례 동작 한 줄 (서버 `functions.entry` 와 같은 규칙 — 투표 부호 · 메모리 우선 칸) */
+function funcBookEntry(b) {
+  const fb = L.funcBook || {};
+  let e = (b.aop && fb["aop:" + b.aop]) || fb[b.logic] || null;
+  if (!e) return null;
+  e = Object.assign({}, e);
+  const pr = b.param || {};
+  if (b.logic === "vote" && pr.a != null) {
+    const w = { ge: "이상", gt: "보다 많이", le: "이하", lt: "미만", eq: "정확히", ne: "가 아닐 때" }[pr.op || "ge"] || "이상";
+    e.does = `${pr.b}개 입력 중 1 인 것이 ${pr.a}개 ${w}일 때 출력 1`;
+  }
+  if (b.logic === "memory") e.does = "S=1 → Q=1 · R=1 → Q=0 · 둘 다 1 이면 " + ({ set: "Q=1 (SET 우선)", reset: "Q=0 (RESET 우선)" }[pr.dominant] || "상태가 한 번 바뀜 (기본)") + " · /Q 는 언제나 반대";
+  return e;
+}
 const GATE_LOGIC = new Set(["and", "nand", "or", "nor", "not", "memory", "delay_on", "delay_off", "pulse", "step"]);
 function portVal(p) { return L.values[p.net] === 1 ? 1 : 0; }
 function latchState(bid) {
@@ -5553,5 +5568,7 @@ bind();
 bindHome();
 initPan();
 renderHelp();
+/* L51 — 기능 책(범례 동작 한 줄)은 어느 길로 열려도 한 번 받는다 (첫 화면을 거치지 않고 주소로 묶음을 열어도) */
+api("/logic/api/functions").then((fb) => { L.funcBook = fb || {}; }).catch(() => { L.funcBook = {}; });
 if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
 else loadJobs().catch((e) => { console.error(e); status(`화면 오류 — ${e.message} (${whereErr(e)})`); });
