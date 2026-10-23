@@ -37,6 +37,14 @@ NOUN_SYM = [("air_cooler", ("AIR COOLER",)), ("compressor", ("COMPRESSOR",)), ("
             ("storage_tank", ("TANK",)), ("column", ("COLUMN", "TOWER", "DEAERATOR")),
             ("separator", ("DRUM", "SEPARATOR", "VESSEL", "BOX", "HRSG", "BOILER", "SILENCER"))]
 TALL = {"separator", "column", "storage_tank"}
+# hotfix111 — 범례 EQUIPMENT 표 밖에서 기기 이름으로 받는 명사(VALVE · HEADER · BOX — 18회차 어휘) 중 모양이 따로 없는 것.
+# 밸브는 밸브 심볼이 이미 그리고 헤더는 배관이다 — 기기 모양을 지어내지 않고 이름만 적는다.
+NAME_ONLY = ("VALVE", "HEADER")
+
+
+def name_only(noun: str) -> bool:
+    """이 명사의 기기는 모양 없이 이름만 적는가 (VALVE · HEADER)."""
+    return any(w in str(noun or "").upper().split() for w in NAME_ONLY)
 ROTATING = {"compressor", "pump", "fan", "blower", "turbine", "motor"}
 # KKS 계통 글자 → 배관 종류 (hotfix109 어댑터의 표를 H1 배관 종류로) — 모르면 process
 SVC_BY_SYS = {"LBA": "steam", "LBB": "steam", "LBC": "steam", "LBG": "steam", "LBQ": "steam",
@@ -137,21 +145,29 @@ def place_faces(instruments: list, obstacles: list) -> None:
         placed.append(face_box(i["x"], i["y"], chosen))
 
 
-def from_model(model: dict, ov: dict | None = None) -> dict:
-    """`build_sheet` 모델 하나 → 장면.  `ov` 는 hotfix109 사람 값(`dcs/<job>/hmi.json` — tags · names · params · trend)."""
+def sheet_scale(models: list) -> float:
+    """배율 — 계기 버블 짧은 변의 중앙값이 화면 버블 지름과 같게 (여러 장이면 그 장들 전부의 중앙값 — 한 시스템은 한 배율).
+    계기가 없으면 밸브 몸체로, 그것도 없으면 1."""
+    sizes, vs = [], []
+    for m in models:
+        sizes += [min(i["rect"][2] - i["rect"][0], i["rect"][3] - i["rect"][1]) for i in m.get("instruments") or [] if i.get("rect")]
+        vs += [max(v["rect"][2] - v["rect"][0], v["rect"][3] - v["rect"][1]) for v in m.get("valves") or [] if v.get("rect")]
+    sizes = [x for x in sizes if x > 2]
+    if sizes:
+        sc = BUBBLE / statistics.median(sizes)
+    else:
+        sc = 40.0 / statistics.median(vs) if vs else 1.0
+    return max(0.5, min(4.0, sc))
+
+
+def from_model(model: dict, ov: dict | None = None, scale: float | None = None, prefix: str = "") -> dict:
+    """`build_sheet` 모델 하나 → 장면.  `ov` 는 hotfix109 사람 값(`dcs/<job>/hmi.json` — tags · names · params · trend).
+    hotfix111 — `scale` 을 주면 그 배율로 (시스템 한 장은 그 장들의 공통 배율) · `prefix` 는 배관 · 기기 id 앞에 (장끼리 겹치지 않게)."""
     ov = ov or {}
     tags_ov, names_ov = ov.get("tags") or {}, ov.get("names") or {}
     page = str(model.get("page_no") or "")
     insts, valves = model.get("instruments") or [], model.get("valves") or []
-    # 배율 — 이 장 계기 버블의 짧은 변 중앙값이 화면 버블 지름과 같게.  계기가 없으면 밸브 몸체로, 그것도 없으면 1.
-    sizes = [min(i["rect"][2] - i["rect"][0], i["rect"][3] - i["rect"][1]) for i in insts if i.get("rect")]
-    sizes = [s for s in sizes if s > 2]
-    if sizes:
-        sc = BUBBLE / statistics.median(sizes)
-    else:
-        vs = [max(v["rect"][2] - v["rect"][0], v["rect"][3] - v["rect"][1]) for v in valves if v.get("rect")]
-        sc = 40.0 / statistics.median(vs) if vs else 1.0
-    sc = max(0.5, min(4.0, sc))
+    sc = float(scale) if scale else sheet_scale([model])
     # 보이는 창 — 식별된 것 둘레 (종이 전체를 그리면 한구석에 모인다)
     xs, ys = [], []
     for i in insts:
@@ -221,7 +237,7 @@ def from_model(model: dict, ov: dict | None = None) -> dict:
         pts = [P(*a), P(*b)]
         if flow == -1:
             pts.reverse()
-        pid = f"R{n + 1}"
+        pid = f"{prefix}R{n + 1}"
         seg_id[tuple(round(c, 1) for c in s)] = pid
         scene["pipes"].append({"id": pid, "kind": service_of(ln or (f"00{sheet_sys}" if sheet_sys else "")), "label": "",
                                "line": ln, "pts": pts, "arrow": bool(flow), "role": p.get("role") or "",
@@ -240,13 +256,17 @@ def from_model(model: dict, ov: dict | None = None) -> dict:
     obstacles = []
     for n, e in enumerate(model.get("equipment") or []):
         r = e["rect"]
+        if name_only(e.get("noun")):
+            x, y = P((r[0] + r[2]) / 2, r[1])
+            scene["labels"].append({"text": names_ov.get(e["name"]) or e["name"], "x": x, "y": round(y - 4, 1), "kind": "equip"})
+            continue
         sym = sym_of_noun(e.get("noun") or e.get("name"))
         lx0, ly0 = P(r[0], r[1])
         lx1, ly1 = P(r[2], r[3])
         base = max(80.0, min(160.0, (lx1 - lx0)))
         w, h = (base * 0.55, base * 1.0) if sym in TALL else (base, base * 0.7)
         cx = (lx0 + lx1) / 2
-        eid = f"EQ-{n + 1:02d}"
+        eid = f"{prefix}EQ-{n + 1:02d}"
         name = names_ov.get(e["name"]) or e["name"]
         eq = {"id": eid, "sym": sym, "x": round(cx - w / 2, 1), "y": round(ly0 - h - 6, 1), "w": round(w, 1), "h": round(h, 1),
               "tag": name, "label": "", "status": "running", "noun": e.get("noun") or "", "orig_name": e["name"],
@@ -292,7 +312,12 @@ def from_model(model: dict, ov: dict | None = None) -> dict:
         src = next((j for j in scene["instruments"] if j is not ins and j["kind"] == "field" and j["tag"] == ins["tag"]), None)
         if src:
             scene["pipes"].append({"id": f"S-{ins['id']}", "kind": "signal", "label": "", "pts": [[src["x"], src["y"]], [ins["x"], ins["y"]]], "arrow": True})
-    # 패널 — 사람이 고른 것(hotfix109 params · trend) 먼저
+    set_panels(scene, ov, page)
+    return scene
+
+
+def set_panels(scene: dict, ov: dict, page: str) -> None:
+    """패널 — 사람이 고른 것(hotfix109 params · trend) 먼저.  `page` 는 그 열쇠 (장 번호 · 시스템이면 `sys:<code>`)."""
     tagged = [i for i in scene["instruments"] if i["tag"]]
     uniq = list({i["tag"]: i for i in tagged}.values())
     chosen = (ov.get("params") or {}).get(page)
@@ -310,5 +335,163 @@ def from_model(model: dict, ov: dict | None = None) -> dict:
     scene["panels"]["motor"] = mot["id"] if mot else None
     scene["counts"] = {"instruments": len(scene["instruments"]), "tagged": len(tagged), "valves": len(scene["valves"]),
                        "equipment": len(scene["equipment"]),
-                       "pipes": len([p for p in scene["pipes"] if p["kind"] != "signal"])}
+                       "pipes": len([p for p in scene["pipes"] if p["kind"] not in ("signal", "link")])}
+
+
+# ---------------------------------------------------------------- hotfix111 — 시스템 한 장
+TILE_GAP = 160.0              # 장 사이 띠 (화면 px)
+TILE_HEAD = 64.0              # 장 머리(도면번호 · 제목) 높이
+KEY_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
+SERIAL_RE = re.compile(r"^\d{1,4}[A-Z]?$")
+SYSCODE_RE = re.compile(r"^\d{0,2}[A-Z]{3}\d{0,3}$")
+
+
+def system_of(drawing_no: str, page_no=None) -> tuple[str, str]:
+    """도면번호 → (시스템 열쇠, 보이는 이름).  **도면번호에서 장 일련번호(마지막 숫자 마디)만 뗀 것**이 시스템이다 —
+    `D00P-10LBA10-M05-0001` · `-0002` 는 같은 문서(같은 계통)의 1장 · 2장이다.  KKS 꼴을 외우지 않는다: 마디를 `-` 로 가르고
+    마지막 마디가 숫자(뒤 글자 하나까지)일 때만 뗀다.  보이는 이름은 글자 셋을 품은 계통 마디(`10LBA10`)가 있으면 그것.
+    도면번호를 못 읽은 장은 혼자 한 시스템 (`p<장>`)."""
+    d = re.sub(r"\s+", "", str(drawing_no or "")).upper()
+    if not d:
+        k = f"p{page_no}"
+        return k, k
+    parts = [x for x in re.split(r"[-_]", d) if x]
+    base = "-".join(parts[:-1]) if len(parts) > 1 and SERIAL_RE.match(parts[-1]) else "-".join(parts)
+    key = re.sub(r"\.{2,}", ".", re.sub(r"[^A-Z0-9_.-]", "", base))[:80].strip(".") or f"p{page_no}"
+    code = next((x for x in parts[:-1] if SYSCODE_RE.match(x) and len(re.sub(r"\d", "", x)) == 3), "") or key
+    return key, code
+
+
+def common_title(titles: list) -> str:
+    """장 제목들의 앞 낱말 공통 부분 (`P&ID FOR HP STEAM SYSTEM (1/2)` · `(2/2)` → `P&ID FOR HP STEAM SYSTEM`).
+    공통 부분이 가장 짧은 제목의 절반에 못 미치면(`P&ID FOR` 만 같음) 뜻이 없으므로 제목들을 ` / ` 로 잇는다."""
+    ws = [str(t or "").split() for t in titles if t]
+    if not ws:
+        return ""
+    head = []
+    for col in zip(*ws):
+        if len(set(col)) != 1:
+            break
+        head.append(col[0])
+    if len(head) >= max(2, min(len(w) for w in ws) / 2):
+        return " ".join(head)
+    return " / ".join(dict.fromkeys(" ".join(w) for w in ws))
+
+
+def group_systems(models: list) -> list:
+    """`build_sheet` 모델들 → 시스템 목록 (도면번호 순 · 장 순)."""
+    by = {}
+    for m in models:
+        k, code = system_of(m.get("drawing_no"), m.get("page_no"))
+        g = by.setdefault(k, {"key": k, "code": code, "pages": [], "drawing_nos": [], "titles": []})
+        g["pages"].append(int(m["page_no"]))
+        g["drawing_nos"].append(m.get("drawing_no") or "")
+        g["titles"].append(m.get("title") or "")
+    out = []
+    for g in by.values():
+        g["title"] = common_title(g["titles"])
+        out.append(g)
+    return sorted(out, key=lambda g: (min(g["pages"]), g["key"]))
+
+
+def _shift(sc: dict, dx: float, dy: float) -> None:
+    for p in sc["pipes"]:
+        p["pts"] = [[round(x + dx, 1), round(y + dy, 1)] for x, y in p["pts"]]
+    for k in ("equipment", "valves", "instruments", "labels"):
+        for o in sc[k]:
+            o["x"] = round(o["x"] + dx, 1)
+            o["y"] = round(o["y"] + dy, 1)
+
+
+def _norm(t: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(t or "").upper())
+
+
+def from_system(models: list, ov: dict | None = None, key: str = "") -> dict:
+    """같은 시스템의 장들 → 한 장 (hotfix111).  장마다 `from_model` 을 **공통 배율**로 만들고 장 순서대로 격자에 놓는다 —
+    장 안의 배치는 P&ID 그대로이고 장 사이는 띠로 떨어진다(이어 붙이지 않는다 — 도면이 두 장을 어떻게 잇는지는 커넥터가 말한다).
+    장 사이 선은 **커넥터 글이 다른 장의 도면번호나 그 장이 인쇄한 기기 이름을 담을 때만** 긋는다 (지어내지 않는다)."""
+    ov = ov or {}
+    models = sorted(models, key=lambda m: (str(m.get("drawing_no") or ""), int(m["page_no"])))
+    sc_k = sheet_scale(models)
+    tiles = [from_model(m, ov, scale=sc_k, prefix=f"p{m['page_no']}-") for m in models]
+    n = len(tiles)
+    cols = max(1, int(round(n ** 0.5 + 0.49)))
+    rows = [tiles[i:i + cols] for i in range(0, n, cols)]
+    scene = {"title": "", "system": key, "drawing_no": "", "sheet_title": "", "page_no": None, "pages": [int(m["page_no"]) for m in models],
+             "generated": True, "scale": round(sc_k, 4), "view": "system",
+             "equipment": [], "pipes": [], "valves": [], "instruments": [], "labels": [], "frames": [],
+             "panels": {"trend": None, "key": [], "control": None, "motor": None},
+             "links": {"logic": None, "note": "LOGIC 검토와는 태그(KKS)로 잇는다 — 열린 LOGIC 창이 같은 태그 값을 보낸다"}}
+    # 줌아웃 글자 배율 — 한 장 전체를 화면 폭(약 1800px)에 맞출 때 글자가 읽히도록 장 머리 · 기기 · 기기 이름을 키운다.
+    # 기기만 키우고 계기 · 밸브 · 배관은 P&ID 배율 그대로다 (시스템 한 장의 주인공은 기기 — 사용자 요구).
+    width0 = max(sum(t["size"][0] for t in row) + TILE_GAP * (len(row) - 1) for row in rows) + 2 * MARGIN if rows else 600
+    zt = max(1.0, round(width0 / 1800.0, 2))
+    head = round(TILE_HEAD * zt, 1)
+    grow = max(1.0, zt * 0.7)
+    for t in tiles:
+        for e in t["equipment"]:
+            cx, bottom = e["x"] + e["w"] / 2, e["y"] + e["h"]
+            e["w"], e["h"] = round(e["w"] * grow, 1), round(e["h"] * grow, 1)
+            e["x"], e["y"] = round(cx - e["w"] / 2, 1), round(bottom - e["h"], 1)
+    y = MARGIN
+    width = 0.0
+    for row in rows:
+        x = MARGIN
+        rh = max(t["size"][1] for t in row)
+        for t in row:
+            w, h = t["size"]
+            _shift(t, x, y + head)
+            scene["frames"].append({"x": round(x, 1), "y": round(y, 1), "w": float(w), "h": round(h + head, 1), "head": head,
+                                    "page_no": t["page_no"], "drawing_no": t["drawing_no"], "title": t["sheet_title"],
+                                    "counts": t["counts"]})
+            for k in ("equipment", "pipes", "valves", "instruments", "labels"):
+                for o in t[k]:
+                    o.setdefault("page_no", t["page_no"])
+                    scene[k].append(o)
+            x += w + TILE_GAP
+        width = max(width, x - TILE_GAP + MARGIN)
+        y += rh + head + TILE_GAP
+    scene["size"] = [round(max(width, 600)), round(max(y - TILE_GAP + MARGIN, 400))]
+    scene["zoom_text"] = zt
+    # 장 사이 선 — 커넥터 글에 다른 장의 도면번호 · 그 장의 기기 이름이 들어 있을 때만
+    frames = {f["page_no"]: f for f in scene["frames"]}
+    dwg = {f["page_no"]: _norm(f["drawing_no"]) for f in scene["frames"] if f["drawing_no"]}
+    eq_at = {}
+    for e in scene["equipment"]:
+        nm = _norm(e.get("orig_name") or e.get("tag"))
+        if len(nm) >= 6:
+            eq_at.setdefault(nm, []).append(e)
+    links = 0
+    for lb in [l for l in scene["labels"] if l.get("kind") == "conn"]:
+        txt = _norm(lb["text"])
+        src = lb.get("page_no")
+        target = None
+        for pno, d in dwg.items():
+            if pno != src and d and d in txt:
+                f = frames[pno]
+                target = (pno, [f["x"] + f["w"] / 2, f["y"] + head / 2], "drawing_no")
+                break
+        if target is None:
+            for nm, es in eq_at.items():
+                e = next((q for q in es if q.get("page_no") != src), None)
+                if e and nm in txt:
+                    target = (e["page_no"], [e["x"] + e["w"] / 2, e["y"] + e["h"] / 2], "equipment")
+                    break
+        if target is None:
+            continue
+        a = [lb["x"], lb["y"]]
+        pts = [a, target[1]] if lb.get("dir") != "FROM" else [target[1], a]
+        links += 1
+        scene["pipes"].append({"id": f"LK{links}", "kind": "link", "label": "", "pts": [[round(p[0], 1), round(p[1], 1)] for p in pts],
+                               "arrow": lb.get("dir") in ("TO", "FROM"), "from_page": src, "to_page": target[0], "by": target[2]})
+    titles = [f["title"] for f in scene["frames"]]
+    code = system_of(models[0].get("drawing_no"), models[0]["page_no"])[1] if models else key
+    scene["sheet_title"] = common_title(titles)
+    scene["title"] = f"{code} — {scene['sheet_title']}" if scene["sheet_title"] else code
+    scene["basis"] = (f"시스템 {code} 의 {n}장을 한 장에 — 장마다 P&ID 배치 그대로 · 공통 배율 · 기기는 그 장이 인쇄한 이름 전부 · "
+                      f"장 사이 선은 커넥터 글이 다른 장의 도면번호·기기 이름을 담을 때만 ({links}개) · 값은 데모 (LOGIC 창이 붙으면 그 값)")
+    set_panels(scene, ov, f"sys:{key}")
+    scene["counts"]["sheets"] = n
+    scene["counts"]["links"] = links
     return scene

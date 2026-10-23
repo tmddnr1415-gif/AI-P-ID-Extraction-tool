@@ -56,17 +56,18 @@
     s += p.pts.map((q, i) => `<circle class="vtx" data-pipe="${esc(p.id)}" data-i="${i}" cx="${q[0]}" cy="${q[1]}" r="5"/>`).join("");
     return s + "</g>";
   }
-  function statusPill(x, y, st, w) {
-    const ww = w || 72;
-    return `<g class="stpill" transform="translate(${px(x - ww / 2)} ${px(y)})"><rect width="${ww}" height="16" fill="${statusColor(st)}"/><text x="${ww / 2}" y="12">${esc((STATUS[st] || STATUS.stopped).en.toUpperCase())}</text></g>`;
+  function statusPill(x, y, st, w, k) {
+    const ww = w || 72, kk = k || 1;
+    return `<g class="stpill" transform="translate(${px(x - ww * kk / 2)} ${px(y)})${kk !== 1 ? ` scale(${px(kk)})` : ""}"><rect width="${ww}" height="16" fill="${statusColor(st)}"/><text x="${ww / 2}" y="12">${esc((STATUS[st] || STATUS.stopped).en.toUpperCase())}</text></g>`;
   }
   function drawEquip(e) {
     const st = e.status || "running";
     let s = `<g class="node equip${A.sel === e.id ? " sel" : ""}" data-kind="equipment" data-id="${esc(e.id)}">`;
     s += `<rect class="statusring" x="${px(e.x - 6)}" y="${px(e.y - 6)}" width="${e.w + 12}" height="${e.h + 12}" stroke="${statusColor(st)}" opacity="${st === "running" ? .35 : .9}"/>`;
     s += S.g(e.sym, e.x, e.y, e.w, e.h, { status: st });
-    s += `<text class="tag" data-edit="tag" x="${px(e.x + e.w / 2)}" y="${px(e.y + e.h + 18)}">${esc(e.tag)}</text>`;
-    s += statusPill(e.x + e.w / 2, e.y + e.h + 24, st);
+    const zt = zText();
+    s += `<text class="tag" data-edit="tag" x="${px(e.x + e.w / 2)}" y="${px(e.y + e.h + 18 * zt)}"${zt > 1 ? ` style="font-size:${px(12 * zt)}px"` : ""}>${esc(e.tag)}</text>`;
+    s += statusPill(e.x + e.w / 2, e.y + e.h + 6 + 18 * zt, st, 0, zt);
     if (e.label && e.label !== e.tag) s += `<text class="eqlabel" x="${px(e.x + e.w / 2)}" y="${px(e.y - 12)}">${esc(e.label)}</text>`;
     return s + "</g>";
   }
@@ -115,8 +116,18 @@
       const tip = l.dir === "TO" ? `M${px(x + w)},${px(y)} L${px(x + w + 10)},${px(y + h / 2)} L${px(x + w)},${px(y + h)}` : `M${px(x)},${px(y)} L${px(x - 10)},${px(y + h / 2)} L${px(x)},${px(y + h)}`;
       return `<g class="lbl-conn"><rect x="${px(x)}" y="${px(y)}" width="${px(w)}" height="${h}" rx="3"/><path d="${tip}" fill="#16304f" stroke="#9fb3c8" stroke-width="1.2"/><text x="${px(l.x)}" y="${px(l.y + 4)}" text-anchor="middle">${esc(l.text)}</text></g>`;
     }
+    if (l.kind === "equip") return `<text class="lbl-equip" x="${px(l.x)}" y="${px(l.y)}" text-anchor="middle" style="font-size:${px(13 * zText())}px">${esc(l.text)}</text>`;
     return `<text class="lbl-line" x="${px(l.x)}" y="${px(l.y)}">${esc(l.text)}</text>`;
   }
+  /** hotfix111 — 시스템 한 장의 장 테두리 · 머리 (도면번호 · 제목).  머리를 누르면 그 장 하나로. */
+  function drawFrame(f) {
+    const t = `p${f.page_no} · ${f.drawing_no || ""}${f.title ? " · " + f.title : ""}`, hd = f.head || 64, zt = zText();
+    return `<g class="frame" data-page="${esc(f.page_no)}"><rect class="frame-box" x="${px(f.x)}" y="${px(f.y)}" width="${px(f.w)}" height="${px(f.h)}" rx="${px(8 * zt)}"/>` +
+      `<rect class="frame-head" x="${px(f.x)}" y="${px(f.y)}" width="${px(f.w)}" height="${px(hd * 0.78)}" rx="${px(8 * zt)}"/>` +
+      `<text class="frame-title" data-page="${esc(f.page_no)}" x="${px(f.x + 18 * zt)}" y="${px(f.y + hd * 0.52)}" style="font-size:${px(22 * zt)}px">${esc(t)}<title>이 장 하나로 보기</title></text></g>`;
+  }
+  /** hotfix111 — 시스템 한 장의 줌아웃 글자 배율 (장 머리 · 기기 이름 · 기기 태그).  장 하나는 1. */
+  function zText() { return (A.scene && A.scene.view === "system" && A.scene.zoom_text) || 1; }
   /** 계기가 달린 배관·기기의 가장 가까운 자리 — 점선을 긋기 위해 (선분에 수선의 발 · 기기는 가장 가까운 변). */
   function anchorOf(i) {
     const p = pipeOf(i);
@@ -151,6 +162,7 @@
     if (!A.vb) A.vb = [0, 0, W, H];
     svg.setAttribute("viewBox", A.vb.map(px).join(" "));
     let s = S.lineDefs();
+    s += `<g id="l-frames">${(sc.frames || []).map(drawFrame).join("")}</g>`;
     s += `<g id="l-pipes">${(sc.pipes || []).map(drawPipe).join("")}</g>`;
     s += `<g id="l-labels">${(sc.labels || []).map(drawLabel).join("")}</g>`;
     s += `<g id="l-equip">${(sc.equipment || []).map(drawEquip).join("")}</g>`;
@@ -564,6 +576,14 @@
     }
     return r.json();
   }
+  /** hotfix111 — 지금 보는 것의 장면 주소.  `A.page` 가 `sys:<열쇠>` 면 시스템 한 장, 수면 그 장. */
+  function sceneUrl() {
+    const p = String(A.page || "");
+    return p.startsWith("sys:") ? `/dcs/api/jobs/${A.job}/system/${encodeURIComponent(p.slice(4))}/scene` : `/dcs/api/jobs/${A.job}/scene/${p}`;
+  }
+  function isSys() { return String(A.page || "").startsWith("sys:"); }
+  /** 이 장(번호)이 든 시스템의 고르기 값. */
+  function sysOf(pno) { const sh = (A.sheets || []).find((p) => p.page_no === Number(pno)); return sh && sh.system ? "sys:" + sh.system : String(pno); }
   async function loadSources() {
     try {
       const jobs = await getJSON("/dcs/api/sources");
@@ -592,9 +612,17 @@
     if (!job.eligible) { pg.hidden = true; A.scene = null; $("#svg").innerHTML = ""; stageMsg(job.reason || "이 분석으로는 그래픽을 만들 수 없습니다", true); return; }
     A.sheets = job.sheets || [];
     if (!A.sheets.length) { pg.hidden = true; stageMsg("식별된 행이 있는 장이 없습니다", true); return; }
-    pg.innerHTML = A.sheets.map((p) => `<option value="${p.page_no}">p${p.page_no} · ${esc(p.drawing_no || "")} · 계기 ${p.instruments} · 밸브 ${p.valves}${p.saved ? " · 저장본" : ""}</option>`).join("");
+    // hotfix111 — 같은 시스템의 장은 한 장으로 먼저 (장 하나씩은 아래 묶음)
+    A.systems = job.systems || [];
+    const sysOpts = A.systems.map((g) => `<option value="sys:${esc(g.key)}">▣ ${esc(g.code)}${g.title ? " · " + esc(g.title) : ""} · ${g.pages.length}장 · 기기 ${g.equipment} · 계기 ${g.instruments} · 밸브 ${g.valves}${g.saved ? " · 저장본" : ""}</option>`).join("");
+    const shOpts = A.sheets.map((p) => `<option value="${p.page_no}">p${p.page_no} · ${esc(p.drawing_no || "")} · 계기 ${p.instruments} · 밸브 ${p.valves}${p.saved ? " · 저장본" : ""}</option>`).join("");
+    pg.innerHTML = (sysOpts ? `<optgroup label="시스템 한 장 (같은 시스템의 장을 모아)">${sysOpts}</optgroup>` : "") + `<optgroup label="장 하나씩">${shOpts}</optgroup>`;
     pg.hidden = false;
-    A.page = Number(page) && A.sheets.some((p) => p.page_no === Number(page)) ? Number(page) : A.sheets[0].page_no;
+    // 주소의 장 번호는 그 장이 든 시스템으로 (`view=sheet` 면 그 장) · `sys:<열쇠>` 는 그대로 · 없으면 첫 시스템
+    const want = String(page || "");
+    if (want.startsWith("sys:") && A.systems.some((g) => "sys:" + g.key === want)) A.page = want;
+    else if (Number(want) && A.sheets.some((p) => p.page_no === Number(want))) A.page = Q.get("view") === "sheet" ? Number(want) : sysOf(want);
+    else A.page = A.systems.length ? "sys:" + A.systems[0].key : A.sheets[0].page_no;
     pg.value = String(A.page);
     try { A.tags = (await getJSON(`/dcs/api/jobs/${v}/tags`)).tags || []; } catch (e) { A.tags = []; }
     await loadScene();
@@ -605,17 +633,18 @@
     stageMsg("");
     let sc;
     try {
-      sc = A.src === "example" ? await getJSON("/dcs/api/example") : await getJSON(`/dcs/api/jobs/${A.job}/scene/${A.page}${fresh ? "?fresh=1" : ""}`);
+      sc = A.src === "example" ? await getJSON("/dcs/api/example") : await getJSON(`${sceneUrl()}${fresh ? "?fresh=1" : ""}`);
     } catch (e) { A.scene = null; $("#svg").innerHTML = ""; stageMsg("장면을 읽지 못했습니다 — " + e.message, true); return; }
     A.scene = sc;
     A.motorOpen = A.src === "example";
     for (const i of sc.instruments || []) i.base = Number(i.value) || 0;
     $("#save").disabled = true;
     $("#reset").disabled = A.src === "example" || !sc.saved;
-    const who = sc.saved ? `저장본 · ${sc.saved_by || ""} ${sc.saved_at || ""}` : sc.generated ? `식별 결과에서 만든 초안 — 계기 ${sc.counts ? sc.counts.instruments : 0}(태그 ${sc.counts ? sc.counts.tagged : 0}) · 밸브 ${sc.counts ? sc.counts.valves : 0} · 기기 ${sc.counts ? sc.counts.equipment : 0} · 배관 ${sc.counts ? sc.counts.pipes : 0}` : "예시 장면";
+    const who = sc.saved ? `저장본 · ${sc.saved_by || ""} ${sc.saved_at || ""}` : sc.generated ? `${sc.view === "system" ? `시스템 한 장 (${(sc.pages || []).length}장) — ` : ""}식별 결과에서 만든 초안 — 계기 ${sc.counts ? sc.counts.instruments : 0}(태그 ${sc.counts ? sc.counts.tagged : 0}) · 밸브 ${sc.counts ? sc.counts.valves : 0} · 기기 ${sc.counts ? sc.counts.equipment : 0} · 배관 ${sc.counts ? sc.counts.pipes : 0}` : "예시 장면";
     $("#who").textContent = who;
     render(); renderProps();
-    fitView();
+    A.fitAll = sc.view === "system";        // hotfix111 — 시스템 한 장은 줌아웃해서 전체 (맞춤을 누르면 계기가 모인 곳)
+    fitView(A.fitAll);
     if (A.lastStates) applyLogic(A.lastStates, A.lastMeta, true);
   }
   function author() {
@@ -639,7 +668,7 @@
     if (sc.panels.control) sc.panels.control.mode = A.ctlMode;
     sc.panels.trend = Object.assign(sc.panels.trend || {}, { tag: $("#trend-tag").value });
     try {
-      const r = await getJSON(`/dcs/api/jobs/${A.job}/scene/${A.page}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Author": encodeURIComponent(a) }, body: JSON.stringify({ scene: sc, author: a }) });
+      const r = await getJSON(sceneUrl(), { method: "POST", headers: { "Content-Type": "application/json", "X-Author": encodeURIComponent(a) }, body: JSON.stringify({ scene: sc, author: a }) });
       A.dirty = false; $("#save").disabled = true; $("#reset").disabled = false;
       $("#who").textContent = r.offline ? `절전모드 — 보관했습니다 · 서버가 켜지면 저장됩니다 (${a})` : `저장본 · ${r.saved_by} ${r.saved_at}`;
       toast("저장했습니다 — 다음에 열면 이 모양으로 뜹니다");
@@ -664,7 +693,13 @@
       $("#view-library").hidden = b.dataset.tab !== "library";
     }));
     $("#src").addEventListener("change", (e) => chooseSource(e.target.value).catch((er) => toast(er.message, 4000)));
-    $("#page").addEventListener("change", (e) => { A.page = Number(e.target.value); loadScene().catch((er) => toast(er.message, 4000)); });
+    $("#page").addEventListener("change", (e) => { const v = e.target.value; A.page = v.startsWith("sys:") ? v : Number(v); loadScene().catch((er) => toast(er.message, 4000)); });
+    $("#svg").addEventListener("click", (ev) => {
+      const ft = ev.target.closest && ev.target.closest(".frame-title");
+      if (!ft || A.editing && A.dirty) return;
+      A.page = Number(ft.dataset.page); $("#page").value = String(A.page);
+      loadScene().catch((er) => toast(er.message, 4000));
+    });
     $("#fit").addEventListener("click", () => { if (!A.scene) return; A.fitAll = !A.fitAll; fitView(A.fitAll); });
     $("#zin").addEventListener("click", () => A.scene && zoomBy(1.25));
     $("#zout").addEventListener("click", () => A.scene && zoomBy(1 / 1.25));
@@ -675,7 +710,7 @@
     $("#save").addEventListener("click", saveScene);
     $("#reset").addEventListener("click", async () => {
       if (A.src === "example") return;
-      await fetch(`/dcs/api/jobs/${A.job}/scene/${A.page}`, { method: "DELETE" });
+      await fetch(sceneUrl(), { method: "DELETE" });
       await loadScene(true); toast("식별 결과에서 다시 만들었습니다");
     });
     $("#sim").addEventListener("click", () => setSim(!A.sim));
@@ -734,8 +769,9 @@
       const want = new Set(keys.map(nrm)), cnt = {};
       for (const t of A.tags) if (want.has(nrm(t.tag))) cnt[t.page_no] = (cnt[t.page_no] || 0) + 1;
       const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
-      if (best && Number(best[0]) !== A.page) {
-        A.page = Number(best[0]); $("#page").value = String(A.page);
+      const go = best ? (isSys() ? sysOf(best[0]) : Number(best[0])) : null;
+      if (best && String(go) !== String(A.page)) {
+        A.page = go; $("#page").value = String(A.page);
         if (A.dirty) toast("LOGIC 값이 다른 장의 태그라 그 장으로 옮겼습니다 — 저장하지 않은 편집은 버려졌습니다", 4000);
         loadScene();
         return;

@@ -27,7 +27,9 @@
     water:     { color: "#5bd6ff", ko: "급수 · 응축수 (Water)",         en: "Feed / Condensate Water", dash: "" },
     fuel:      { color: "#d9a35b", ko: "연료 (Fuel Gas · Oil)",          en: "Fuel", dash: "" },
     air:       { color: "#a3e05b", ko: "공기 · 가스 (Air / Gas)",        en: "Air / Gas", dash: "" },
-    chem:      { color: "#ff7fbf", ko: "약품 (Chemical)",               en: "Chemical", dash: "" }
+    chem:      { color: "#ff7fbf", ko: "약품 (Chemical)",               en: "Chemical", dash: "" },
+    // hotfix111 — 시스템 한 장에서 장 사이 (커넥터 글이 다른 장의 도면번호 · 기기 이름을 담을 때만)
+    link:      { color: "#c9d6e3", ko: "장 사이 연결 (오프페이지)",      en: "Off-page Link", dash: "12 8" }
   };
   const STATUS = {
     running: { color: "#2ecc71", ko: "Running / Normal", en: "Running" },

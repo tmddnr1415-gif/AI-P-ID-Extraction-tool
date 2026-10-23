@@ -4982,6 +4982,31 @@ hotfix109 의 실제 배치 · LOGIC 연동을 그 위에 얹었다.  시험 `te
 6. ⚠ 기기 심볼은 인쇄된 이름 자리 위에 선다 — 크기는 실제가 아니다 · 배관은 식별된 것이 걸린 런뿐 (전체 배관망 아님) · 값은 데모이고
    LOGIC 이 공학값을 보낸 행만 실제 값이다 · H1 의 데모 기준값(압력 50 bar …)은 그대로다.
 
+**그 다음 — DCS 그래픽을 시스템별 한 장으로 · 기기는 그 장이 인쇄한 이름 전부 (hotfix111 · 판정 0줄)**
+
+사용자: *"P&ID 식별과 별개로, 각 P&ID 의 시스템 별로 장비들도 hmi graphic 에 표기 · 모든 장을 한장한장하지말고 같은 시스템끼리는
+하나의 page 로 줌아웃해서 한장에."*  시험 `tests/test_hotfix111_system_hmi.py` 10건 (빠른 시험 **1492**) · 화면 자기검증
+`spike/ui_audit_hmi111.py` → `out/hotfix111/ui/`.  **지문 불변** — 같은 PDF(08b 합성)를 다시 분석해 `a87db267` 그대로.
+
+1. **기기 이름 전부를 결과에 남긴다** (`result["equipment_labels"]` · 장 → [{name, rect, noun, ordinal}] · 저장 화이트리스트 ·
+   **지문 밖** — 시험이 `fingerprint()` 본문에 없음을 못박는다).  `_equipment_pass` 가 처음부터 장마다 다 찾고 있었고 설명 후보는
+   **계기 가까이의 기기만** 들고 있어 그래픽이 계기와 무관한 기기를 못 그렸다 (§9 3③ — 스물다섯 번째).  `dcs.build_sheet(…, equipment_labels)`
+   가 후보와 합친다.  ⚠ 옛 분석은 후보만 — **다시 분석해야** 나온다.  찾는 범위는 엔진 그대로(범례 EQUIPMENT 어휘 + VALVE · HEADER · BOX)라
+   08b p5 처럼 그 어휘를 인쇄하지 않은 장은 0 이다 (지어내지 않는다).  VALVE · HEADER 는 모양 없이 이름만 (`scene.name_only`).
+2. **시스템 = 도면번호에서 장 일련번호(마지막 숫자 마디)만 뗀 것** (`scene.system_of` — `D00P-10LBA10-M05-0001` → `D00P-10LBA10-M05`,
+   보이는 이름 `10LBA10`).  KKS 꼴을 외우지 않는다 (Takhiatash `B-SBA-M-32-001` 도 같은 규칙).  도면번호를 못 읽은 장은 혼자.
+3. **시스템 한 장** (`scene.from_system` · `GET/POST/DELETE /dcs/api/jobs/{id}/system/{key}/scene` · 저장 `{data}/hmi/<분석>/s_<열쇠>.json`) —
+   장마다 `from_model` 을 **공통 배율**(그 장들 버블 중앙값)로 만들고 격자로 놓는다 (장 안 배치는 P&ID 그대로 · 이어 붙이지 않음).
+   id 는 장 접두(`p5-R1` · `p5-EQ-01`)로 겹치지 않게.  장 테두리·머리(`frames`)를 누르면 그 장 하나로.  줌아웃 글자 배율 `zoom_text`
+   (캔버스 폭/1800) 로 장 머리 · **기기 심볼(×0.7) · 기기 이름**만 키운다 — 계기 · 밸브 · 배관은 P&ID 배율 그대로.
+   장 사이 선(`link` · 점선)은 **커넥터 글이 다른 장의 도면번호나 그 장이 인쇄한 기기 이름을 담을 때만** (지어내지 않는다 —
+   08b 실측 `To HRSG#12 BD TANK` → p6 의 탱크 1개).  제목은 장 제목의 공통 앞 낱말 (짧으면 ` / ` 로 잇는다).
+4. **화면** — 장 고르기의 위 묶음이 `시스템 한 장`, 아래가 `장 하나씩` · 주소의 장 번호(P&ID 결과 화면 · LOGIC 창)는 **그 장이 든
+   시스템**으로 열고(`view=sheet` 면 그 장) 줌아웃 전체로 시작 · 맞춤을 누르면 계기가 모인 곳.  LOGIC 이 칠하는 태그가 다른 시스템이면
+   그 시스템으로 옮긴다.  선 종류 사전에 `link` 하나.
+5. 실측 (08b · p6 의 도면번호를 사본에서 `-0002` 로 바꿔 두 장 시스템을 흉내): 장 2 · 계기 61 · 밸브 19 · 기기 1(탱크) + 이름 2(바이패스 밸브) ·
+   장 사이 선 1 · 장 머리 → p6 · 저장/다시 열기/되돌리기 · LOGIC 태그 칠함 · 페이지 오류 0.  ⚠ 진짜 여러 장 시스템 PDF 는 이 환경에 없다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5523,6 +5548,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
 | `app/static/dcs.html` · `app/static/hmi/{hmi.js,hmi_symbols.js,hmi.css}` | **hotfix110** — DCS HMI 화면 (LOGIC 브랜치 H1회차 화면 그대로 + 확대/이동 · LOGIC 태그 연동 · 내려받기).  심볼 사전 하나가 그림 · 범례 · 라이브러리를 먹인다 — 새 심볼 · 배관 종류는 `hmi_symbols.js` 에 한 줄 |
 | `app/hmi/scene.py` (`from_model` · `place_faces` · `service_of`) · `app/hmi/store.py` · `/dcs/api/jobs/{id}/scene/{page}` | **hotfix110** — 식별된 장(`dcs.build_sheet`) → 장면 JSON (같은 배율 · 탭한 런 · 지어내지 않음) · 사람이 다듬은 장면 저장 (작성자 필수) |
+| `scene.system_of` · `group_systems` · `from_system` · `name_only` · `/dcs/api/jobs/{id}/system/{key}/scene` · `result["equipment_labels"]` | **hotfix111** — 시스템(도면번호 − 일련번호) 한 장 · 공통 배율 격자 · 장 사이 선은 커넥터 글이 말할 때만 · 기기 이름 전부(지문 밖 · 다시 분석해야) |
 | `report` 테이블 · `app/main.py` 의 `_capture_row` | 오류 신고. 사람이 적는 것은 **무엇이 틀렸나 + 한 줄** 둘뿐이고 나머지는 서버가 담습니다 |
 | `_diagnostic_zip` | 진단 내보내기. 담긴 것과 **뺀 것**을 MANIFEST 에 적습니다 (원본 PDF·발주처 Excel 제외) |
 

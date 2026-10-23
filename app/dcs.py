@@ -74,9 +74,15 @@ def _alive(row: dict) -> bool:
     return not row.get("deleted") and not row.get("removed")
 
 
-def build_sheet(page: dict, rows: list) -> dict:
-    """한 장의 그래픽 모델.  `page` 는 pid_page 한 줄(dict · width/height/drawing_no/title) · `rows` 는 그 장의 행 전부."""
+def build_sheet(page: dict, rows: list, equipment_labels: list | None = None) -> dict:
+    """한 장의 그래픽 모델.  `page` 는 pid_page 한 줄(dict · width/height/drawing_no/title) · `rows` 는 그 장의 행 전부.
+    hotfix111 — `equipment_labels` 는 분석이 그 장에서 찾은 **기기 이름 전부**(`engine_json["equipment_labels"]`) —
+    설명 후보는 계기 가까이의 기기만 들고 있어 계기와 무관한 기기는 그려지지 않았다.  옛 분석(없음)은 후보만으로."""
     inst, valves, pipes, equips, conns, labels = [], [], {}, {}, {}, {}
+    for e in equipment_labels or []:
+        er = _rect(e.get("rect"))
+        if er and e.get("name"):
+            equips[(e["name"], tuple(er))] = {"name": e["name"], "rect": er, "noun": e.get("noun") or ""}
     for r in rows:
         if not _alive(r):
             continue
@@ -340,8 +346,20 @@ def _eligibility(job_id: str) -> tuple[dict | None, dict]:
     return job, {"eligible": True, "mode": "epc", "tagged_rows": facts.get("tagged_rows")}
 
 
+def _equipment_labels(job_id: str) -> dict:
+    """hotfix111 — 그 분석이 장마다 찾은 기기 이름 전부 (`engine_json["equipment_labels"]`).  옛 분석은 빈 값."""
+    m = _main()
+    job = m.db.get_job(m.CON, job_id)
+    try:
+        eng = json.loads((job["engine_json"] if job else None) or "{}")
+    except (TypeError, ValueError):
+        eng = {}
+    return eng.get("equipment_labels") or {}
+
+
 def _sheets(job_id: str) -> list:
     m = _main()
+    eq_labels = _equipment_labels(job_id)
     rows = m.db.merged_rows(m.CON, job_id)
     by_page = {}
     for r in rows:
@@ -352,7 +370,7 @@ def _sheets(job_id: str) -> list:
         p = dict(p)
         if p.get("page_kind") != "PID" or not by_page.get(int(p["page_no"])):
             continue
-        out.append(build_sheet(p, by_page[int(p["page_no"])]))
+        out.append(build_sheet(p, by_page[int(p["page_no"])], eq_labels.get(str(p["page_no"]))))
     return out
 
 
@@ -452,6 +470,70 @@ def api_scene_reset(job_id: str, page_no: int):
     return _json({"ok": True, "removed": _scene_store().delete(job_id, page_no)})
 
 
+def _system_models(job_id: str, key: str) -> list:
+    from app.hmi import scene
+    return [s for s in _sheets(job_id) if scene.system_of(s["drawing_no"], s["page_no"])[0] == key]
+
+
+@router.get("/dcs/api/jobs/{job_id}/system/{key}/scene")
+def api_system_scene(job_id: str, key: str, fresh: int = 0):
+    """hotfix111 — 같은 시스템(도면번호에서 일련번호를 뗀 것)의 장들을 한 장에 (`app.hmi.scene.from_system`).
+    저장본이 있으면 그것 (`{data}/hmi/<분석>/s_<시스템>.json`)."""
+    job, el = _eligibility(job_id)
+    if job is None or not el["eligible"]:
+        return _json({"error": el.get("reason") or el.get("error")}, 404 if job is None else 400)
+    store = _scene_store()
+    try:
+        saved = None if fresh else store.load(job_id, f"sys:{key}")
+    except KeyError:
+        return _json({"error": "시스템 열쇠 꼴이 아닙니다"}, 400)
+    if saved:
+        saved["saved"] = True
+        return _json(saved)
+    models = _system_models(job_id, key)
+    if not models:
+        return _json({"error": "그 시스템에는 식별된 장이 없습니다"}, 404)
+    from app.hmi import scene
+    sc = scene.from_system(models, hmi_load(job_id), key)
+    sc["saved"] = False
+    return _json(sc)
+
+
+@router.post("/dcs/api/jobs/{job_id}/system/{key}/scene")
+async def api_system_scene_save(job_id: str, key: str, request: Request):
+    """사람이 다듬은 시스템 한 장 저장 (작성자 필수 · 분석 결과는 그대로)."""
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json({"error": el["error"]}, 404)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    sc = body.get("scene") if isinstance(body, dict) else None
+    if not isinstance(sc, dict):
+        return _json({"error": "scene 이 없습니다"}, 400)
+    from urllib.parse import unquote
+    author = unquote(request.headers.get("x-author") or "").strip() or str(body.get("author") or "").strip()
+    try:
+        out = _scene_store().save(job_id, f"sys:{key}", sc, " ".join(author.split())[:40])
+    except ValueError:
+        return _json({"error": "작성자 이름이 필요합니다 — 대시보드에서 로그인한 뒤 다시 여세요 (?user=)"}, 401)
+    except KeyError:
+        return _json({"error": "분석 번호 · 시스템 열쇠 꼴이 아닙니다"}, 400)
+    return _json({"ok": True, "saved_at": out["saved_at"], "saved_by": out["saved_by"]})
+
+
+@router.delete("/dcs/api/jobs/{job_id}/system/{key}/scene")
+def api_system_scene_reset(job_id: str, key: str):
+    job, el = _eligibility(job_id)
+    if job is None:
+        return _json({"error": el["error"]}, 404)
+    try:
+        return _json({"ok": True, "removed": _scene_store().delete(job_id, f"sys:{key}")})
+    except KeyError:
+        return _json({"error": "시스템 열쇠 꼴이 아닙니다"}, 400)
+
+
 @router.get("/dcs/api/jobs/{job_id}")
 def api_job(job_id: str):
     job, el = _eligibility(job_id)
@@ -460,12 +542,21 @@ def api_job(job_id: str):
     if not el["eligible"]:
         return _json({**el, "job_id": job_id, "pdf_name": job["pdf_name"], "sheets": []})
     sheets = _sheets(job_id)
+    from app.hmi import scene
+    by = {s["page_no"]: s for s in sheets}
     return _json({**el, "job_id": job_id, "pdf_name": job["pdf_name"], "project": job["project"] or "",
                   "sheets": [{"page_no": s["page_no"], "drawing_no": s["drawing_no"], "title": s["title"],
                               "instruments": len(s["instruments"]), "valves": len(s["valves"]),
-                              "tagged": s["tagged"], "pipes": len(s["pipes"]), "equipment": len(s["equipment"]),
-                              "saved": _scene_store().path(job_id, s["page_no"]).exists()}
-                             for s in sheets]})
+                              "tagged": s["tagged"], "pipes": len(s["pipes"]), "equipment": sum(1 for e in s["equipment"] if not scene.name_only(e.get("noun"))),
+                              "saved": _scene_store().path(job_id, s["page_no"]).exists(),
+                              "system": scene.system_of(s["drawing_no"], s["page_no"])[0]}
+                             for s in sheets],
+                  # hotfix111 — 같은 시스템의 장들은 한 장으로 (화면이 먼저 띄우는 것)
+                  "systems": [{**g, "instruments": sum(len(by[p]["instruments"]) for p in g["pages"]),
+                               "valves": sum(len(by[p]["valves"]) for p in g["pages"]),
+                               "equipment": sum(1 for p in g["pages"] for e in by[p]["equipment"] if not scene.name_only(e.get("noun"))),
+                               "saved": _scene_store().sys_path(job_id, g["key"]).exists()}
+                              for g in scene.group_systems(sheets)]})
 
 
 def _norm_name(s: str) -> str:

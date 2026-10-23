@@ -699,6 +699,8 @@ def store_result(con, job_id: str, result: dict) -> dict:
                               "evidence_tier",
                               # 38회차 [D] — Typical 참조 사실(장 → 표식·상세·참조 수)과 집계.
                               "typical", "typical_stats",
+                              # hotfix111 — 장마다 인쇄된 기기 이름 전부 (HMI 시스템 그림 · 지문 밖)
+                              "equipment_labels",
                               # 53회차 [E] — 그 장 NOTES 에서 읽은 "이 도면은 유닛
                               # 몇 개에 같이 쓰이는가" (27회차가 계산해 놓고
                               # **저장하지 않아** 화면이 못 읽었다 — 38회차

@@ -127,3 +127,10 @@ body.noval .valbox, body.noval .valtext, body.noval .leader { display: none; }
 .tab, .clock, .pill { white-space: nowrap; }
 .hd-src { min-width: 0; flex: 0 1 auto; }
 .hd-src select { max-width: 340px; min-width: 120px; text-overflow: ellipsis; }
+
+/* hotfix111 — 시스템 한 장: 장 테두리 · 머리 · 기기 이름(모양 없는 것) */
+.frame-box { fill: rgba(255,255,255,0.025); stroke: #3d5a7a; stroke-width: 2; stroke-dasharray: 10 6; }
+.frame-head { fill: #16304f; stroke: #3d5a7a; stroke-width: 2; }
+.frame-title { fill: #e8f1fb; font: 600 22px Arial, sans-serif; cursor: pointer; }
+.frame-title:hover { fill: #5bd6ff; text-decoration: underline; }
+.lbl-equip { fill: #c9d6e3; font: 600 13px Arial, sans-serif; paint-order: stroke; stroke: #0b1a2c; stroke-width: 3px; }

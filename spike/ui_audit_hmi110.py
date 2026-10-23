@@ -40,7 +40,7 @@ async def main():
         await pg.screenshot(path=str(OUT / "2_symbol_library.png"))
         await pg.click("#tabs [data-tab=overview]")
         # ③ 식별된 P&ID
-        await pg.goto(f"{BASE}/dcs?job={JOB}&page=5&user={USER}")
+        await pg.goto(f"{BASE}/dcs?job={JOB}&page=5&view=sheet&user={USER}")
         await pg.wait_for_selector("#svg g.node.inst", timeout=30000)
         await asyncio.sleep(1.5)
         res["pid"] = await pg.evaluate("""({inst: document.querySelectorAll('#svg g.node.inst').length, valves: document.querySelectorAll('#svg g.node.valve').length,
@@ -79,7 +79,7 @@ async def main():
         res["save_enabled"] = await pg.evaluate("!document.querySelector('#save').disabled")
         await pg.click("#save"); await asyncio.sleep(1.0)
         res["after_save_who"] = await pg.inner_text("#who")
-        await pg.goto(f"{BASE}/dcs?job={JOB}&page=5&user={USER}")
+        await pg.goto(f"{BASE}/dcs?job={JOB}&page=5&view=sheet&user={USER}")
         await pg.wait_for_selector("#svg g.node.inst", timeout=30000); await asyncio.sleep(1)
         res["reload_who"] = await pg.inner_text("#who")
         res["reload_has_tag"] = await pg.evaluate("[...document.querySelectorAll('#svg .tagtext')].some(t=>t.textContent==='14LBA99CP999')")

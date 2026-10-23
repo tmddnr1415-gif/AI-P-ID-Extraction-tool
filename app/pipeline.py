@@ -2169,6 +2169,13 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
         # 결과는 지문에 들어가고, 이 사실 자체는 지문 밖이다.
         "typical": {str(k): v.as_dict() for k, v in typical_by_page.items() if v.marks},
         "typical_stats": typical_stats,
+        # hotfix111 — 그 장이 **인쇄한 기기 이름 전부** (장 → [{name, rect, noun, ordinal}]).
+        # 설명 후보는 계기 가까이의 기기만 들고 있어 HMI 시스템 그림이 장비를 다 그릴 수
+        # 없었다.  `_equipment_pass` 가 처음부터 장마다 다 찾고 있었다 — 지문 밖.
+        "equipment_labels": {str(pno): [{"name": e.label, "rect": [round(float(c), 1) for c in e.rect],
+                                         "noun": e.kind, "ordinal": e.ordinal or ""}
+                                        for e in found if e.label and e.rect]
+                             for pno, found in sorted(equip_by_page.items()) if found},
         "diaphragm_seal": seal_stats,
         "unit_notes": {str(k): {"units": v[1], "text": v[2],
                                 "counted": bool(v[0]),

@@ -8,6 +8,7 @@ from pathlib import Path
 from app import jsonstore, paths
 
 JOB_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+SYS_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")       # hotfix111 — 시스템 열쇠 (도면번호에서 일련번호를 뗀 것)
 
 
 def root() -> Path:
@@ -22,26 +23,40 @@ def path(job: str, page: int) -> Path:
     return root() / job / f"p{int(page)}.json"
 
 
-def load(job: str, page: int):
-    p = path(job, page)
+def sys_path(job: str, key: str) -> Path:
+    """hotfix111 — 시스템 한 장의 저장 자리 `{data}/hmi/<분석>/s_<시스템>.json`."""
+    if not JOB_RE.match(job or "") or not SYS_RE.match(key or "") or ".." in key:
+        raise KeyError(f"{job}/{key}")
+    return root() / job / f"s_{key}.json"
+
+
+def _at(job: str, page) -> Path:
+    """장 번호면 장, `sys:<열쇠>` 면 시스템."""
+    if isinstance(page, str) and page.startswith("sys:"):
+        return sys_path(job, page[4:])
+    return path(job, int(page))
+
+
+def load(job: str, page):
+    p = _at(job, page)
     return jsonstore.read(p, None, what="HMI 장면", expect=dict) if p.exists() else None
 
 
-def save(job: str, page: int, scene: dict, author: str) -> dict:
+def save(job: str, page, scene: dict, author: str) -> dict:
     if not (author or "").strip():
         raise ValueError("author")
     scene = dict(scene)
     scene["generated"] = False
     scene["saved_by"] = author.strip()
     scene["saved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    p = path(job, page)
+    p = _at(job, page)
     p.parent.mkdir(parents=True, exist_ok=True)
     jsonstore.write(p, scene)
     return scene
 
 
-def delete(job: str, page: int) -> bool:
-    p = path(job, page)
+def delete(job: str, page) -> bool:
+    p = _at(job, page)
     if p.exists():
         p.unlink()
         return True
