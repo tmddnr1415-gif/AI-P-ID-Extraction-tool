@@ -828,8 +828,9 @@
     if (!A.job) return u;
     u.push(`/dcs/api/jobs/${A.job}`, `/dcs/api/jobs/${A.job}/tags`);
     for (const p of A.sheets || []) u.push(`/dcs/api/jobs/${A.job}/scene/${p.page_no}`);
+    for (const g of A.systems || []) u.push(`/dcs/api/jobs/${A.job}/system/${encodeURIComponent(g.key)}/scene`);   // hotfix112 — 시스템 한 장도
     return u;
   };
-  window.HMI = { A, render, tick, loadScene, chooseSource, applyLogic, fitView, zoomBy, setVB };
+  window.HMI = { A, render, tick, loadScene, chooseSource, applyLogic, fitView, zoomBy, setVB, saveScene };
   start().catch((e) => toast("열지 못했습니다: " + e.message, 5000));
 })();

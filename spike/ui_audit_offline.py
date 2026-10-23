@@ -125,6 +125,14 @@ async def main():
         await spg.wait_for_function("window.OFFLINE && OFFLINE.ready", timeout=30000)
         await spg.evaluate("OFFLINE.prefetch()")
         await spg.wait_for_function("OFFLINE.prefetching && OFFLINE.prefetching.finished", timeout=60000)
+        # hotfix112 — DCS 그래픽 (시스템 한 장 · 장 하나씩) 도 열어 보관
+        dg = await ctx.new_page(); dg.on("pageerror", lambda e: res["errors"].append("dcs:" + str(e)))
+        await dg.goto(f"{BASE}/dcs?job={job}&user={USER}")
+        await dg.wait_for_function("window.HMI && HMI.A.scene && window.OFFLINE && OFFLINE.ready", timeout=60000)
+        res["dcs_online"] = await dg.evaluate("({page: String(HMI.A.page), view: HMI.A.scene.view, systems: (HMI.A.systems||[]).length, sheets: (HMI.A.sheets||[]).length})")
+        await dg.evaluate("OFFLINE.prefetch()")
+        await dg.wait_for_function("OFFLINE.prefetching && OFFLINE.prefetching.finished", timeout=60000)
+        res["prefetch_dcs"] = await dg.evaluate("OFFLINE.prefetching")
         res["sw_stats"] = await pg.evaluate("new Promise(r => { navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'stats') r(e.data); }, { once: true }); OFFLINE.sw.postMessage({type:'stats'}); })")
 
         # ── ② 서버를 끈다
@@ -184,6 +192,17 @@ async def main():
         sv = await sp2.evaluate(f"""fetch('/space/api/{sp["id"]}/saves', {{method:'POST', headers:{{'Content-Type':'application/json','X-Author':'{USER}'}},
             body: JSON.stringify({{data: {{room: {{w: 21000, l: 18000, spare: 0}}, types: [], panels: [{{id:'p1'}}], info: {{rev: 'B'}}}}, memo: '절전 저장', sum: {{}}}})}}).then(r => r.json())""")
         res["space_save_synth"] = {k: sv.get(k) for k in ("id", "offline", "memo", "panels")}
+        # DCS — 보관된 시스템 한 장으로 뜨고 · 장 하나로 옮기고 · 저장이 보관된다
+        dg2 = await ctx.new_page(); dg2.on("pageerror", lambda e: res["errors"].append("dcs-off:" + str(e)))
+        await dg2.goto(f"{BASE}/dcs?job={job}&user={USER}", wait_until="domcontentloaded", timeout=60000)
+        await dg2.wait_for_function("window.HMI && HMI.A.scene && window.OFFLINE && OFFLINE.down", timeout=60000)
+        res["dcs_offline"] = await dg2.evaluate("({page: String(HMI.A.page), view: HMI.A.scene.view, frames: (HMI.A.scene.frames||[]).length, ins: (HMI.A.scene.instruments||[]).length})")
+        await dg2.screenshot(path=str(OUT / "5b_dcs_offline_system.png"))
+        sp0 = await dg2.evaluate("(HMI.A.sheets||[])[0].page_no")
+        await dg2.evaluate(f"(async () => {{ HMI.A.page = {sp0}; await HMI.loadScene(); }})()")
+        res["dcs_offline_sheet"] = await dg2.evaluate("({page: String(HMI.A.page), view: HMI.A.scene.view || 'sheet', ins: (HMI.A.scene.instruments||[]).length})")
+        await dg2.evaluate(f"(async () => {{ HMI.A.page = {json.dumps(res['dcs_online']['page'])}; await HMI.loadScene(); HMI.A.scene.title = '절전 저장 시험'; await HMI.saveScene(); }})()")
+        res["dcs_save_who"] = await dg2.inner_text("#who")
         res["queue_total"] = await sp2.evaluate("OFFLINE.queue.length")
         await sp2.screenshot(path=str(OUT / "5_space_offline.png"))
 
@@ -206,6 +225,9 @@ async def main():
                                "space_saves": [(s["id"], s["memo"]) for s in http("GET", f"/space/api/{sp['id']}")["saves"]]}
         res["ids_match"] = {"logic_memo": m.get("id") in [x["id"] for x in http("GET", f"/logic/api/jobs/{ljob}/memo")["items"]],
                             "space_save": sv.get("id") in [s[0] for s in res["server_after"]["space_saves"]]}
+        dsys = res["dcs_online"]["page"]
+        res["dcs_after"] = http("GET", f"/dcs/api/jobs/{job}/system/{urllib.request.quote(dsys[4:])}/scene") if dsys.startswith("sys:") else None
+        res["dcs_after"] = res["dcs_after"] and {k: res["dcs_after"].get(k) for k in ("saved", "saved_by", "title")}
         await lp2.wait_for_function("!OFFLINE.down", timeout=30000)
         res["logic_memo_after_replay"] = await lp2.evaluate("(L.memos || []).map(m => m.text)")
         await b.close()
