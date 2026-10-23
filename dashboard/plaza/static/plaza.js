@@ -2319,7 +2319,7 @@ function drawActorBody(g, a, sx, sy, now) {
 function frame(now) {
   requestAnimationFrame(frame);
   if (S.panel) drawPreview(now);
-  if (!S.me) return;
+  if (!S.me || cv.clientWidth < 2 || cv.clientHeight < 2) return;   // 판14: 대시보드 카드가 아직 크기 0 이면(치워 둔 동안) 그리지 않음 — 크기 0 캔버스 drawImage 오류 방지
   if (S.atkHeld && !S.typing && !S.panel) attack();   // Space 를 누르고 있는 동안 계속 휘두름
   const dt = Math.min(.1, (now - (S.lastFrame || now)) / 1000); S.lastFrame = now;
   stepActor(S.me, now, true);

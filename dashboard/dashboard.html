@@ -352,7 +352,9 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .pjck{display:inline-flex;gap:5px;align-items:center;border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12.5px;color:var(--text);background:#fafbff;cursor:pointer}
 .pjck:has(input:checked){background:var(--accent-l);border-color:var(--accent);color:var(--accent-d);font-weight:700}
 /* ---------- 작성 가이드 ---------- */
-.gbox{background:linear-gradient(135deg,#f3f6ff,#fdf4ff);border:1px solid #dfe4fb;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px}
+.gbox{background:linear-gradient(135deg,#f3f6ff,#fdf4ff);border:1px solid #dfe4fb;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;position:relative}
+.gbox .gfold{position:absolute;right:10px;top:8px;border:1px solid #cdd4f3;background:#fff;border-radius:7px;font-size:11.5px;padding:2px 8px;cursor:pointer;color:#3747a8}
+.gbox.fold{padding:7px 14px}.gbox.fold pre,.gbox.fold>span{display:none}.gbox.fold b::after{content:' — 글머리·들여쓰기 규칙 (펼치기)';font-weight:400;color:#6b7280}
 .gbox pre{margin:6px 0;background:#fff;border:1px dashed #c9d2f5;border-radius:8px;padding:8px 10px;font:12.5px/1.55 Consolas,"Malgun Gothic",monospace;color:#2b3a8f}
 .gbox span{color:var(--sub)}.gbox kbd{background:#fff;border:1px solid #ccd;border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:11px}
 .glab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -390,6 +392,7 @@ table.t td.flash{animation:flash 1.6s ease 2}
 /* 팝업 이동 */
 dialog .dh{cursor:move;user-select:none}
 dialog .dh button{cursor:pointer}
+.badge.dday{background:#eef2ff;color:#3747a8;border:1px solid #cdd4f3;cursor:default}.badge.dday.soon{background:#fff1ee;color:#b42318;border-color:#f3c3bb}
 /* 팝업 목록 (미업데이트 PJT 등) */
 .pgrp{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:10px}
 .pgh{display:flex;gap:8px;align-items:center;margin-bottom:4px}.pgh .sp{flex:1}
@@ -441,6 +444,9 @@ svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 .alldone{background:var(--ok-l);color:var(--ok);border-radius:10px;padding:14px 16px;font-size:15px;margin-bottom:6px}
 #taskbar{position:fixed;right:12px;top:130px;z-index:22;width:250px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(30,42,90,.18);font-size:12px}
 #taskbar[hidden]{display:none}
+/* 2026-10-23: 툴바를 펼쳐 둔 동안 본문 오른쪽을 그만큼 비워 둠(도킹) — 단추·표가 가려지지 않게. 끌어서 옮겼거나 접었거나 좁은 화면이면 비우지 않음 */
+@media (min-width:1101px){body.tb-dock #main{padding-right:270px}}
+@media print{body.tb-dock #main{padding-right:0}}
 #taskbar.min{width:auto;background:none;border:0;box-shadow:none}
 #taskbar .tbh{display:flex;gap:6px;align-items:center;padding:9px 10px 4px;cursor:move;user-select:none}
 #taskbar .tbgrip{color:#9aa3bd;font-size:14px;cursor:move;padding:0 2px}#taskbar.drag{opacity:.85;box-shadow:0 12px 34px rgba(30,42,90,.3)}
@@ -648,7 +654,16 @@ dialog.wide:has(.vocdlg){width:min(1100px,96vw)}
 .shotbox::after{content:attr(data-sz);position:absolute;left:0;top:-22px;background:#ff4d8d;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap}
 .shotbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,25,45,.92);color:#fff;padding:8px 14px;border-radius:99px;font-size:13px;display:flex;gap:8px;align-items:center;cursor:default}
 .shotbar button{border:0;border-radius:99px;padding:4px 12px;background:#fff;color:#1b2238;cursor:pointer}.shotbar button[data-all]{background:#ff4d8d;color:#fff}
-@media print{.shotbtn{display:none}}
+@media print{.shotbtn,.findbtn{display:none}}
+.findbtn{margin-right:8px}
+/* 2026-10-23 빠른 찾기 (Ctrl+K): 메뉴 · 시트 행 · 게시글 */
+.qf input{width:100%;font-size:16px;padding:11px 14px;border:1px solid var(--line);border-radius:10px}
+.qf .qres{max-height:52vh;overflow:auto;margin-top:10px}
+.qf .qg{font-size:12px;font-weight:700;color:var(--sub);padding:8px 4px 2px;border-top:1px solid var(--line)}.qf .qg:first-child{border-top:0}
+.qf .qi{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer}
+.qf .qi:hover,.qf .qi.on{background:var(--accent-l)}.qf .qi b{flex:none;font-size:11px;color:var(--accent-d);background:var(--accent-l);border-radius:99px;padding:1px 8px}
+.qf .qi .qt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qf .qi .qs{color:var(--sub);font-size:12px;flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qf mark{background:#fff3a3;padding:0 1px;border-radius:2px}.qf .qhint{font-size:12px;color:var(--sub);margin:8px 0 0}
 .igtag{font-size:11px;font-weight:700;color:#e1306c;background:#fde7ef;border-radius:99px;padding:1px 8px}
 /* 셀 크기 조절 */
 table.t.fx-l{table-layout:fixed}
@@ -900,6 +915,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
   <header class="top">
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
     <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
+    <button class="btn findbtn" id="btnFind" title="메뉴 · PJT · 업무 · 게시글을 한 번에 찾아 바로 이동 (Ctrl+K)">🔍 찾기</button>
     <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면은 그대로)">📷 스크린 → VOC</button>
     <div class="actions">
       <select id="weekSel" class="sel" aria-label="주차 선택"></select>
@@ -1035,7 +1051,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-23.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-23.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2013,7 +2029,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
   }).join('');
   openDlg(dlg, `<form id="ef"><div class="dh"><span>${esc(s.label)} · ${rec ? '편집' : '행 추가'}</span><button type="button" class="btn sm" data-close>닫기</button></div>
     <div class="db">${rec ? `<p class="muted">최종 수정: ${esc(rec.meta.updatedBy)} · ${fmtTime(rec.meta.updatedAt)} (rev ${rec.meta.rev})</p>` : ''}
-      ${mineBox(s, mine)}${hasGuide ? GUIDE_BOX : ''}<div class="fg">${body}</div></div>
+      ${mineBox(s, mine)}${hasGuide ? guideBox() : ''}<div class="fg">${body}</div></div>
     <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">저장</button></div></form>`, true);
   dlg.onclick = e => {
     if (e.target.closest('[data-close]')) return dlg.close();
@@ -2913,6 +2929,52 @@ function popData(kind) {
         sub:`${r.meta.updatedBy || ''} · ${fmtTime(r.meta.updatedAt)}${h.all ? ' · 새 행' : chg.length ? ' · 변경: ' + chg.map(c => c.label || c.f).join(', ') : ''}` };
     }) })) };
 }
+/* 2026-10-23: 홈 배지 줄 — 이번 주 마감(수요일 11:59)까지 남은 시간. 하루 안이면 붉게 */
+function ddayChip() {
+  const m = weekLabel(curWeek()).match(/^(\d{4})-W\d+\((\d\d)(\d\d)\)/); if (!m || readOnly()) return '';
+  const end = new Date(+m[1], +m[2] - 1, +m[3], 11, 59), ms = end - Date.now(); if (ms <= 0) return '';
+  const h = Math.floor(ms / 36e5), d = Math.floor(h / 24), txt = d >= 1 ? `${d}일 ${h % 24}시간` : h >= 1 ? `${h}시간 ${Math.floor(ms / 6e4) % 60}분` : `${Math.floor(ms / 6e4)}분`;
+  return `<span class="badge dday ${h < 24 ? 'soon' : ''}" title="수요일 11:59 에 자동 마감됩니다 (마감 뒤에는 그 주 마감본으로 남고, 새 주가 시작됩니다)">⏰ 마감까지 <b>${txt}</b></span>`;
+}
+/* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
+const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['space', '판넬 공간확보'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
+  ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
+  .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : k));
+function qfSearch(q) {
+  const Q = q.trim().toLowerCase(); if (!Q) return [];
+  const out = [], hl = t => esc(String(t)).replace(new RegExp(esc(q.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), m => `<mark>${m}</mark>`);
+  for (const [k, l] of QF_MENUS()) if (l.toLowerCase().includes(Q)) out.push({ g:'메뉴', html:`<span class="qt">${hl(l)}</span>`, act:{ go:k } });
+  for (const s of SHEETS) { let n = 0;
+    for (const r of getRecs(s.key)) { if (n >= 8) break; const f = r.fields || {};
+      const hit = (s.cols || []).find(c => String(f[c.f] || '').toLowerCase().includes(Q)); if (!hit) continue; n++;
+      const v = String(f[hit.f] || ''), i = v.toLowerCase().indexOf(Q), snip = v.length > 60 ? '…' + v.slice(Math.max(0, i - 20), i + 40).replace(/\n/g, ' ') + '…' : v.replace(/\n/g, ' ');
+      out.push({ g:s.label, html:`<b>${esc(s.label)}</b><span class="qt">${hl(recLabel(s.key, f))}</span><span class="qs" title="${esc(hit.label || hit.f)}">${hl(snip)}</span>`, act:{ jump:[s.key, r.id, hit.f] } }); } }
+  for (const p of (DB.board || []).filter(p => `${p.title} ${p.body}`.toLowerCase().includes(Q)).slice(0, 6)) out.push({ g:'게시판', html:`<b>${esc(bKind(p))}</b><span class="qt">${hl(p.title)}</span><span class="qs">${esc(p.nick || '익명')} · ${esc(agoText(p.createdAt))}</span>`, act:{ board:p.id } });
+  return out.slice(0, 40);
+}
+function openFind() {
+  if (!root) return toast('먼저 서버에 연결하거나 데이터 폴더를 선택하세요', true);
+  openDlg(dlg2, `<div class="dh"><span>🔍 빠른 찾기</span><button type="button" class="btn sm" data-close>닫기</button></div><div class="db qf">
+    <input id="qfIn" placeholder="메뉴 이름 · PJT명 · 업무 내용 · 담당자 · 게시글… (↑↓ 고르고 Enter)" autocomplete="off" maxlength="60">
+    <div class="qres" id="qfRes"></div><p class="qhint">Ctrl+K 로 어디서나 열 수 있습니다 · 결과를 누르면 그 행(칸)으로 이동해 노란색으로 표시합니다</p></div>`);
+  const inp = $('#qfIn'), res = $('#qfRes'); let items = [], cur = 0;
+  const draw = () => { items = qfSearch(inp.value); cur = 0; let g = '';
+    res.innerHTML = items.length ? items.map((it, i) => (it.g !== g ? `<div class="qg">${esc(g = it.g)}</div>` : '') + `<button type="button" class="qi ${i === cur ? 'on' : ''}" data-i="${i}">${it.html}</button>`).join('')
+      : inp.value.trim() ? '<div class="empty">찾은 것이 없습니다</div>' : ''; };
+  const pick = i => { const it = items[i]; if (!it) return; dlg2.close();
+    if (it.act.go) return go(it.act.go);
+    if (it.act.jump) return jumpTo(...it.act.jump, false);
+    if (it.act.board) { BS.q = inp.value.trim(); BS.kind = ''; go('board'); } };
+  inp.oninput = draw;
+  inp.onkeydown = e => { if (e.isComposing) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!items.length) return; cur = (cur + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length; res.querySelectorAll('.qi').forEach((b, i) => b.classList.toggle('on', i === cur)); res.querySelector('.qi.on')?.scrollIntoView({ block:'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); pick(cur); } };
+  res.onclick = e => { const b = e.target.closest('.qi'); if (b) pick(+b.dataset.i); };
+  dlg2.onclick = e => { if (e.target.closest('[data-close]')) dlg2.close(); };
+  inp.focus();
+}
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K') && !dlg.open && !dlg2.open && !document.querySelector('#authScreen')) { e.preventDefault(); openFind(); } });
 function openPop(kind) {
   const d = popData(kind), groups = d.groups.filter(g => g.items.length), total = groups.reduce((a, g) => a + g.items.length, 0);
   const it = (k, x) => `<div class="pitem"><button class="plink" data-jump="${k}|${esc(x.rid)}|${esc(x.f)}"><b>${esc(x.label)}</b><span class="muted">${esc(x.sub)}</span></button>${noEdit() ? '' : `<button class="btn sm" data-jedit="${k}|${esc(x.rid)}|${esc(x.f)}" title="해당 칸 바로 편집">✏ 편집</button>`}</div>`;
@@ -3011,7 +3073,7 @@ function renderTaskBar() {
   let el = $('#taskbar');
   if (!el) { el = document.createElement('div'); el.id = 'taskbar'; document.body.appendChild(el); el.onclick = taskBarClick; tbDragInit(el); }
   const tasks = TB.shown ? myTasks() : [], people = presenceOn() ? PRES.users : [];
-  if (!tasks.length && !people.length) { el.hidden = true; return; }
+  if (!tasks.length && !people.length) { el.hidden = true; document.body.classList.remove('tb-dock'); return; }
   const done = tasks.filter(t => t.done).length, all = !!tasks.length && done === tasks.length;
   const onCnt = people.filter(u => u.online).length, ub = PRES.unread ? `<i class="ubadge">${PRES.unread}</i>` : '';
   // 이번에 새로 완료된 업무 알림
@@ -3021,8 +3083,9 @@ function renderTaskBar() {
     if (all && [...TB.prev].length < tasks.length) setTimeout(() => toast('🎉 이번 주 할당 업무를 모두 완료했습니다'), 1200);
   }
   TB.prev = nowDone;
-  let min = false; try { min = localStorage.getItem(LS_TBMIN) === '1'; } catch (_) {}
+  let min = false, hasPos = false; try { const m = localStorage.getItem(LS_TBMIN); min = m === '1' || (m === null && innerWidth < 1300); hasPos = !!localStorage.getItem(LS_TBPOS); } catch (_) {}   // 좁은 화면은 처음에 접힌 채로
   el.hidden = false; el.className = min ? 'min' : '';
+  document.body.classList.toggle('tb-dock', !min && !hasPos);
   el.innerHTML = min
     ? `<button class="tbtab ${all ? 'all' : ''}" data-tb="open" title="내 업무 펼치기">📌<br>내 업무${tasks.length ? `<br><b>${done}/${tasks.length}</b>${all ? '<br>완료' : ''}` : ''}${people.length ? `<br><span class="pdot on">●</span>${onCnt}` : ''}${PRES.unread ? `<br>📨${PRES.unread}` : ''}</button>`
     : `<div class="tbh"><span class="tbgrip" title="끌어서 옮기기 · 두 번 누르면 원래 자리">⠿</span><b>📌 내 업무</b>${tasks.length ? `<span class="tbp ${all ? 'all' : ''}">${all ? '✓ 모두 완료' : `${done}/${tasks.length} 완료`}</span>` : '<span class="tbp"></span>'}
@@ -3049,11 +3112,12 @@ function tbDragInit(el) {
     const mv = ev => { if (!moved && Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 5) return; moved = true; el.classList.add('drag');
       Object.assign(el.style, { left:Math.max(0, Math.min(r.left + ev.clientX - sx, innerWidth - 70)) + 'px', top:Math.max(0, Math.min(r.top + ev.clientY - sy, innerHeight - 50)) + 'px', right:'auto' }); };
     const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); el.classList.remove('drag');
-      if (moved) { try { localStorage.setItem(LS_TBPOS, JSON.stringify({ x:parseFloat(el.style.left), y:parseFloat(el.style.top) })); } catch (_) {}
+      if (moved) { try { localStorage.setItem(LS_TBPOS, JSON.stringify({ x:parseFloat(el.style.left), y:parseFloat(el.style.top) })); } catch (_) {} document.body.classList.remove('tb-dock');
         el.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture:true, once:true }); } };   // 끈 뒤의 클릭은 무시
     addEventListener('pointermove', mv); addEventListener('pointerup', up);
   });
-  el.addEventListener('dblclick', e => { if (e.target.closest('.tbgrip')) { try { localStorage.removeItem(LS_TBPOS); } catch (_) {} el.style.left = el.style.top = el.style.right = ''; } });
+  el.addEventListener('dblclick', e => { if (e.target.closest('.tbgrip')) { try { localStorage.removeItem(LS_TBPOS); } catch (_) {} el.style.left = el.style.top = el.style.right = ''; renderTaskBar(); } });
+  let rzT = 0; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if (!el.hidden) renderTaskBar(); }, 200); });
 }
 function taskBarClick(e) {
   const b = e.target.closest('[data-tb]');
@@ -3092,7 +3156,7 @@ function renderHome(c) {
   ];
   c.insertAdjacentHTML('beforeend', `<div class="badges">
     <button class="badge red ${notUpd ? '' : 'zero'}" data-pop="notupd" title="눌러서 목록 보기">이번 주 미업데이트 PJT <b>${notUpd}</b></button>
-    <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 업무 <b>${overdue.length}</b></button></div>
+    <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 업무 <b>${overdue.length}</b></button>${ddayChip()}</div>
    <div class="kpis">${kp.map(([l, v, go, u], i) => i === 2
       ? `<button class="kpi" data-pop="upd"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="go">메뉴 선택 →</div></button>`
       : `<button class="kpi" data-go="${go}"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="go">바로가기 →</div></button>`).join('')}</div>`);
@@ -4261,6 +4325,11 @@ const GUIDE_TPL = '1. \n   - \n   - \n2. \n   - ';
 const GUIDE_TPL_DATE = '- YY.MM.DD : \n- YY.MM.DD : ';
 const guideTpl = (c, f) => (c.f === '진행 사항' && TASK_TPL[f?.['유형']]) || (/일정/.test(c.f) ? GUIDE_TPL_DATE : GUIDE_TPL);
 const cleanGuide = v => String(v || '').split('\n').filter(l => !/^\s*(?:\d{1,2}\.|[-•※]|- YY\.MM\.DD :)\s*$/.test(l)).join('\n').replace(/\s+$/, '');
+const LS_GFOLD = 'dept-guide-fold';                              // 2026-10-23: 가이드 상자 접힘 기억 (이 PC)
+const guideFolded = () => { try { return localStorage.getItem(LS_GFOLD) === '1'; } catch (_) { return false; } };
+document.addEventListener('click', e => { const b = e.target.closest('.gbox .gfold'); if (!b) return; const box = b.closest('.gbox'), on = !box.classList.contains('fold');
+  box.classList.toggle('fold', on); b.textContent = on ? '펼치기' : '접기'; try { localStorage.setItem(LS_GFOLD, on ? '1' : '0'); } catch (_) {} });
+const guideBox = () => GUIDE_BOX.replace('<div class="gbox">', `<div class="gbox ${guideFolded() ? 'fold' : ''}"><button type="button" class="gfold" title="작성 가이드 접기/펼치기 (이 PC 에 기억)">${guideFolded() ? '펼치기' : '접기'}</button>`);
 const GUIDE_BOX = `<div class="gbox"><b>✍ 작성 가이드</b> — 모두 같은 모양으로 쓰면 표·엑셀이 깔끔해집니다.
   <pre>1. 큰 항목 (번호 + 점)\n   - 세부 내용 (3칸 들여쓰고 -)\n      → 결과·후속 조치 (6칸 + →)\n   ※ 참고 사항\n- 26.10.13 : 날짜는 YY.MM.DD</pre>
   <span>칸 위 버튼으로 넣거나, <kbd>Enter</kbd> = 다음 줄도 같은 글머리, <kbd>Tab</kbd> / <kbd>Shift+Tab</kbd> = 들여쓰기/내어쓰기. 비워 둔 글머리 줄은 저장할 때 지워집니다.</span></div>`;
@@ -5496,6 +5565,7 @@ $('#btnSaveAll').onclick = saveAll;
 $('#btnReload').onclick = () => reload(false);
 $('#btnClose').onclick = closeWeek;
 $('#btnTrash').onclick = openTrash;
+$('#btnFind').onclick = openFind;
 $('#btnFolder').onclick = pickFolder;
 $('#btnQueue').onclick = openQueue;
 $('#btnSrv').onclick = () => setServerUrl();
