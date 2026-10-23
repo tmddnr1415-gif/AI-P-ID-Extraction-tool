@@ -648,11 +648,15 @@ dialog.wide:has(.vocdlg){width:min(1100px,96vw)}
 @media (max-width:900px){.vocdlg .vbody{grid-template-columns:1fr}.vprev{min-height:220px}}
 .shotbtn{background:#fff0f5;border-color:#f3b6ca;color:#b0244f;font-weight:700;white-space:nowrap}
 .shotbtn:hover{background:#ffe1ec}
-.shotov{position:fixed;inset:0;z-index:9999;cursor:crosshair;user-select:none}
+dialog.shotov{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent;overflow:hidden;cursor:crosshair;user-select:none}
+dialog.shotov::backdrop{background:transparent}
+.shotbar .qon{font-size:11.5px;color:#9fe3b0}.shotbar .qon button{background:transparent;color:#cfe;border:1px solid #6c8;padding:2px 8px}
+.shotbtn.warm::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#1fa64a;margin-left:6px;vertical-align:middle}
+.vdraft{display:flex;gap:8px;align-items:center;background:#fff8e6;border:1px solid #f1d58a;border-radius:9px;padding:6px 10px;margin:0 0 8px;font-size:12.5px}.vdraft .sp{flex:1}
 .shotov canvas{position:absolute;inset:0;width:100vw;height:100vh;filter:brightness(.55)}
 .shotbox{position:absolute;outline:2px solid #ff4d8d;box-shadow:0 0 0 9999px rgba(0,0,0,.25);background:rgba(255,255,255,.04)}
 .shotbox::after{content:attr(data-sz);position:absolute;left:0;top:-22px;background:#ff4d8d;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap}
-.shotbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(20,25,45,.92);color:#fff;padding:8px 14px;border-radius:99px;font-size:13px;display:flex;gap:8px;align-items:center;cursor:default}
+.shotbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);white-space:nowrap;width:max-content;max-width:96vw;background:rgba(20,25,45,.92);color:#fff;padding:8px 14px;border-radius:99px;font-size:13px;display:flex;gap:8px;align-items:center;cursor:default}
 .shotbar button{border:0;border-radius:99px;padding:4px 12px;background:#fff;color:#1b2238;cursor:pointer}.shotbar button[data-all]{background:#ff4d8d;color:#fff}
 @media print{.shotbtn,.findbtn{display:none}}
 .findbtn{margin-right:8px}
@@ -916,7 +920,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
     <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
     <button class="btn findbtn" id="btnFind" title="메뉴 · PJT · 업무 · 게시글을 한 번에 찾아 바로 이동 (Ctrl+K)">🔍 찾기</button>
-    <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면은 그대로)">📷 스크린 → VOC</button>
+    <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면 · 열린 창은 그대로) · 단축키 F8 · 초록 점 = 빠른 캡처 켜짐(다시 묻지 않음)">📷 스크린 → VOC</button>
     <div class="actions">
       <select id="weekSel" class="sel" aria-label="주차 선택"></select>
       <button class="btn pri" id="btnSaveAll" title="모든 사용자의 최신 데이터를 모아 전체 저장본(JSON+엑셀)을 공유폴더 saves/ 에 저장">전체 저장</button>
@@ -934,6 +938,8 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
 
 <dialog id="dlg"></dialog>
 <dialog id="dlg2"></dialog>
+<dialog id="vocdlg" class="wide"></dialog>
+<dialog id="shotdlg" class="shotov"></dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1051,7 +1057,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-23.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-23.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2474,23 +2480,31 @@ async function blobToJpeg(blob, max = 2400) {  // 큰 그림은 줄이고 JPEG �
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
   return new Promise(res => c.toBlob(b => res(b || blob), 'image/jpeg', .88));
 }
-function openVoc({ menu = '', images = [], post = null, keep = null } = {}) {   // keep = 창 안 '화면 캡처 추가' 뒤 다시 열 때 이어 쓸 값
+/* VOC 쓰기 창 (2026-10-23 판2) — 전용 창(#vocdlg)이라 지금 열려 있는 편집 창 · 쓰던 글은 그대로 남는다.
+ * 닫으면(등록 안 하고) 쓰던 제목 · 내용 · 그림을 이 창 안에서만 기억(VDRAFT) → 다음에 열면 이어 쓰기. 등록하면 그 메뉴의 VOC 로 저장되고 원래 하던 곳으로 포커스가 돌아간다. */
+let VDRAFT = null;
+const vdlg = () => document.getElementById('vocdlg');
+function openVoc({ menu = '', images = [], post = null, keep = null, back = null } = {}) {   // keep = 창 안 '화면 캡처 추가' 뒤 다시 열 때 이어 쓸 값 · back = 끝나고 돌아갈 포커스
   if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
   if (!SERVER || OFFLINE) return toast('VOC(그림 첨부)는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
-  const V = { list:[...(keep?.ids ?? post?.images ?? []).map(id => ({ id, url:imgUrl(id) })), ...images.map(b => ({ blob:b, url:URL.createObjectURL(b) }))], cur:0 };
+  const D = vdlg(), ret = back || (D.open ? null : document.activeElement);
+  const dr = !post && !keep && VDRAFT ? VDRAFT : null;                        // 지난번에 닫은 VOC 이어 쓰기
+  const V = { list:[...(keep?.ids ?? post?.images ?? []).map(id => ({ id, url:imgUrl(id) })), ...(keep?.blobs || dr?.blobs || []).map(b => ({ blob:b, url:URL.createObjectURL(b) })), ...images.map(b => ({ blob:b, url:URL.createObjectURL(b) }))], cur:0 };
   V.cur = Math.max(0, V.list.length - 1);
-  const T0 = keep?.title ?? post?.title ?? '', B0 = keep?.body ?? post?.body ?? '';
+  const T0 = keep?.title ?? post?.title ?? dr?.title ?? '', B0 = keep?.body ?? post?.body ?? dr?.body ?? '';
   const m0 = menu || post?.menu || vocMenuOf(route);
-  openDlg(dlg, `<form id="vf" class="vocdlg"><div class="dh"><span>📣 VOC ${post ? '수정' : '쓰기'} <small class="muted">· 실명으로 등록됩니다 (${esc(AUTH.name)})</small></span><button type="button" class="btn sm" data-close>닫기</button></div>
+  let sent = false;
+  openDlg(D, `<form id="vf" class="vocdlg"><div class="dh"><span>📣 VOC ${post ? '수정' : '쓰기'} <small class="muted">· 실명으로 등록됩니다 (${esc(AUTH.name)}) · 지금 하던 화면은 그대로 있습니다</small></span><button type="button" class="btn sm" data-close>닫기</button></div>
     <div class="vbody">
       <div class="vleft"><div class="vprev" id="vPrev" tabindex="0" title="그림을 끌어다 놓거나 Ctrl+V 로 붙여넣기"></div>
         <div class="vlist" id="vList"></div>
         <div class="vbtns"><button type="button" class="btn sm" id="vShot">📷 화면 캡처 추가</button><label class="btn sm">🖼 파일 고르기<input type="file" id="vFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label></div>
         <p class="muted vhint">그림을 이 칸에 끌어다 놓거나 <b>Ctrl+V</b> 로 붙여넣어도 됩니다 (최대 ${VOC_IMG_MAX}장 · PNG · JPG · GIF · WEBP).</p></div>
       <div class="vright">
+        ${dr ? '<div class="vdraft">✏ 지난번에 닫은 VOC 를 이어 씁니다<span class="sp"></span><button type="button" class="btn sm" id="vNew">새로 쓰기</button></div>' : ''}
         <label>메뉴 <select id="vMenu">${Object.entries(VOC_MENU).map(([k, l]) => `<option value="${k}" ${k === m0 ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         <label>제목 <input id="vTitle" maxlength="100" required value="${esc(T0)}" placeholder="예) P&ID 분석 결과 표에서 계기 번호가 잘려 보여요"></label>
-        <label class="grow">내용 <textarea id="vBody" maxlength="5000" required placeholder="무엇이 · 어디서 · 어떻게 바뀌면 좋은지 적어 주세요">${esc(B0)}</textarea></label>
+        <label class="grow">내용 <textarea id="vBody" maxlength="5000" required placeholder="무엇이 · 어디서 · 어떻게 바뀌면 좋은지 적어 주세요 (Ctrl+Enter = 등록)">${esc(B0)}</textarea></label>
         <div class="vfoot"><span class="muted">작성자: <b>✔ ${esc(AUTH.name)}</b> (VOC 는 실명만)</span><span class="sp"></span><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">${post ? '수정' : '등록'}</button></div>
       </div></div></form>`, true);
   const draw = () => {
@@ -2500,92 +2514,141 @@ function openVoc({ menu = '', images = [], post = null, keep = null } = {}) {   
   };
   const add = async files => { for (const f of files) { if (V.list.length >= VOC_IMG_MAX) { toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true); break; } if (!/^image\//.test(f.type)) continue;
     const b = f.size > 1.5e6 || f.type === 'image/png' && f.size > 6e5 ? await blobToJpeg(f) : f; V.list.push({ blob:b, url:URL.createObjectURL(b) }); V.cur = V.list.length - 1; } draw(); };
+  const snap = () => ({ title:$('#vTitle').value, body:$('#vBody').value, ids:V.list.filter(x => x.id).map(x => x.id), blobs:V.list.filter(x => x.blob).map(x => x.blob) });
   draw();
-  dlg.onclick = e => {
-    if (e.target.closest('[data-close]')) { dlg.close(); return; }
+  let reopening = false;
+  D.onclose = () => {                                          // 등록 안 하고 닫음 → 쓰던 것 기억 · 원래 자리로 포커스
+    if (reopening) return;
+    if (!sent && !post) { const k = snap(); VDRAFT = k.title.trim() || k.body.trim() ? { title:k.title, body:k.body, blobs:k.blobs } : null; /* 글을 쓴 것만 기억 (그림만 찍고 닫으면 버림) */ if (VDRAFT) toast('쓰던 VOC 는 기억해 둡니다 — 📷 또는 VOC 쓰기로 이어 쓰기'); }
+    try { ret?.isConnected && ret.focus({ preventScroll:true }); } catch (_) {}
+  };
+  D.onclick = e => {
+    if (e.target.closest('[data-close]')) { D.close(); return; }
+    if (e.target.closest('#vNew')) { VDRAFT = null; V.list = V.list.filter(x => !(dr?.blobs || []).includes(x.blob)); V.cur = Math.max(0, V.list.length - 1); $('#vTitle').value = ''; $('#vBody').value = ''; e.target.closest('.vdraft').remove(); draw(); $('#vTitle').focus(); return; }
     const d = e.target.closest('[data-vdel]'); if (d) { V.list.splice(+d.dataset.vdel, 1); V.cur = Math.max(0, Math.min(V.cur, V.list.length - 1)); draw(); return; }
     const t = e.target.closest('[data-vi]'); if (t) { V.cur = +t.dataset.vi; draw(); }
   };
   $('#vFile').onchange = e => add([...e.target.files]);
   $('#vShot').onclick = async () => {        // 창을 잠깐 닫고 캡처 → 쓰던 내용 · 그림 그대로 다시 열기
     if (V.list.length >= VOC_IMG_MAX) return toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true);
-    const k = { title:$('#vTitle').value, body:$('#vBody').value, ids:V.list.filter(x => x.id).map(x => x.id) }, m = $('#vMenu').value, blobs = V.list.filter(x => x.blob).map(x => x.blob);
-    dlg.close(); const b = await captureRegion();
-    openVoc({ post, menu:m, images:[...blobs, ...(b ? [b] : [])], keep:k }); };
-  const pv = $('#vPrev'), lft = $('.vleft');
+    const k = snap(), m = $('#vMenu').value;
+    reopening = true; D.close(); reopening = false;
+    const b = await captureRegion();
+    openVoc({ post, menu:m, images:b ? [b] : [], keep:k, back:ret }); };
+  const lft = $('.vleft');
   lft.addEventListener('dragover', e => { e.preventDefault(); lft.classList.add('drop'); });
   lft.addEventListener('dragleave', () => lft.classList.remove('drop'));
   lft.addEventListener('drop', e => { e.preventDefault(); lft.classList.remove('drop'); add([...e.dataTransfer.files]); });
   $('#vf').addEventListener('paste', e => { const fs = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); add(fs); } });
-  setTimeout(() => (post ? $('#vBody') : $('#vTitle')).focus());
+  $('#vf').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); $('#vf').requestSubmit(); } });
+  setTimeout(() => (post || T0 ? $('#vBody') : $('#vTitle')).focus());
   $('#vf').onsubmit = async e => {
     e.preventDefault();
     const title = $('#vTitle').value.trim(), body = $('#vBody').value.replace(/\r/g, '').trim(), menu2 = $('#vMenu').value;
     if (!title || !body) return toast('제목과 내용을 입력하세요', true);
     const btn = $('#vf button[type=submit]'); btn.disabled = true; btn.textContent = '올리는 중…';
     try {
-      const ids = [];
-      for (const x of V.list) ids.push(x.id || (await api('PUT', 'board/img', undefined, x.blob)).id);   // 새 그림만 올림
+      const ids = await Promise.all(V.list.map(async x => x.id || (await api('PUT', 'board/img', undefined, x.blob)).id));   // 새 그림만 · 한꺼번에 올림
       const data = { title, body, kind:'VOC', mode:'real', nick:'', menu:menu2, images:ids };
       if (post) await Board.update(post.id, data); else await Board.create(data);
-      dlg.close(); V.list.forEach(x => x.blob && URL.revokeObjectURL(x.url));
-      toast(`VOC 를 등록했습니다 — 익명게시판 › VOC › ${VOC_MENU[menu2]} (지금 화면은 그대로)`);
-      await loadBoard(); if (route === 'board') drawBoard(); renderMenu();      // 화면 전환 없음 (게시판을 보고 있을 때만 목록 새로)
+      sent = true; VDRAFT = null; D.close(); V.list.forEach(x => x.blob && URL.revokeObjectURL(x.url));
+      toast(`✅ VOC 등록 — 익명게시판 › VOC › ${VOC_MENU[menu2]} (하던 작업을 이어서 하세요)`);
+      loadBoard().then(() => { if (route === 'board') drawBoard(); renderMenu(); }).catch(() => {});   // 화면 전환 없음 · 기다리지 않음
     } catch (er) { toast('VOC 등록 실패: ' + er.message, true); btn.disabled = false; btn.textContent = post ? '수정' : '등록'; }
   };
 }
-/* 화면 캡처 → 범위 고르기 → Blob (취소하면 null) */
-async function captureRegion() {
-  if (!navigator.mediaDevices?.getDisplayMedia) {
-    await ask('화면 캡처', `<p>이 주소(<b>${esc(location.protocol === 'file:' ? '파일' : location.host)}</b>)에서는 브라우저가 화면 캡처를 막습니다 (보안 연결이 아님).</p><p><b>Win + Shift + S</b> 로 원하는 범위를 캡처한 뒤, 열리는 VOC 창의 그림 칸에서 <b>Ctrl + V</b> 로 붙여넣으세요.</p>`, [{ id:'ok', label:'알겠습니다', cls:'pri' }]);
-    return null;
-  }
-  let stream;
-  tipEl.style.display = 'none';
-  try { stream = await navigator.mediaDevices.getDisplayMedia({ video:{ displaySurface:'browser', frameRate:5 }, audio:false, preferCurrentTab:true, selfBrowserSurface:'include', surfaceSwitching:'exclude' }); }
-  catch (_) { toast('화면 캡처를 취소했습니다'); return null; }
-  try {
-    const v = document.createElement('video'); v.srcObject = stream; v.muted = true; await v.play();
-    await new Promise(r => setTimeout(r, 350));                 // 공유 안내 줄이 사라질 시간
-    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
-    stream.getTracks().forEach(t => t.stop());
-    return await pickRegion(c);
-  } catch (e) { stream.getTracks().forEach(t => t.stop()); toast('캡처하지 못했습니다: ' + e.message, true); return null; }
+/* 화면 캡처 → 범위 고르기 → Blob (취소하면 null) — 2026-10-23 판2
+ * - 브라우저 '이 탭 공유'를 한 번 허락하면 SHOT_KEEP_MS(5분) 동안 그 연결을 살려 둬서, 다음 캡처는 묻지 않고 바로(0.1초 안팎) 찍는다.
+ *   마지막 캡처 후 5분이 지나거나, 브라우저의 '공유 중지'를 누르거나, 범위창의 [빠른 캡처 끄기]를 누르면 끊는다. 📷 단추의 초록 점 = 켜짐.
+ * - 범위 고르기 창은 최상위 창(#shotdlg)이라 편집 창이 열려 있어도 그 위에 뜨고, 닫으면 편집 창 · 쓰던 글이 그대로 남는다.
+ * - P&ID · LOGIC · 판넬 화면(iframe)도 보이는 그대로 찍힌다. */
+const SHOT_KEEP_MS = 5 * 60 * 1000;
+const SHOT = { stream:null, video:null, timer:0 };
+function shotStop() {
+  clearTimeout(SHOT.timer); SHOT.stream?.getTracks().forEach(t => t.stop()); SHOT.stream = null;
+  if (SHOT.video) { SHOT.video.srcObject = null; SHOT.video = null; }
+  document.getElementById('btnShot')?.classList.remove('warm');
 }
-function pickRegion(full) {                   // 캡처한 그림 위에서 끌어 범위 지정 (Enter/더블클릭 = 전체 · Esc = 취소)
+function shotArm() { clearTimeout(SHOT.timer); SHOT.timer = setTimeout(shotStop, SHOT_KEEP_MS); document.getElementById('btnShot')?.classList.add('warm'); }
+addEventListener('pagehide', shotStop);
+async function shotStream() {                  // 살아 있으면 그대로, 없으면 허락 받기
+  if (SHOT.stream && SHOT.stream.getVideoTracks().some(t => t.readyState === 'live')) return true;
+  shotStop();
+  let st; try { st = await navigator.mediaDevices.getDisplayMedia({ video:{ displaySurface:'browser', frameRate:{ ideal:10, max:15 } }, audio:false, preferCurrentTab:true, selfBrowserSurface:'include', surfaceSwitching:'exclude', systemAudio:'exclude' }); }
+  catch (_) { return false; }
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = st;
+  try { await v.play(); } catch (_) {}
+  if (!v.videoWidth) await new Promise(r => { v.onloadedmetadata = r; setTimeout(r, 1000); });
+  st.getVideoTracks()[0].addEventListener('ended', shotStop);   // 브라우저의 '공유 중지'
+  SHOT.stream = st; SHOT.video = v;
+  await new Promise(r => setTimeout(r, 250));   // 처음 한 번만: 공유 안내 줄이 그려지고 사라질 시간
+  return true;
+}
+function shotFrame() {                         // 지금 화면 한 장 (새 그림이 오면 그것, 화면이 그대로면 마지막 그림 — 최대 0.15초)
+  const v = SHOT.video;
+  return new Promise(res => {
+    let done = false; const grab = () => { if (done) return; done = true; const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); res(c); };
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(grab);
+    setTimeout(grab, 150);
+  });
+}
+async function captureRegion() {
+  if (!navigator.mediaDevices?.getDisplayMedia) return null;   // 보안 연결이 아닌 주소 — shotToVoc 가 붙여넣기 안내
+  tipEl.style.display = 'none';
+  const warm = !!SHOT.stream;
+  if (!(await shotStream())) { toast('화면 캡처를 취소했습니다'); return null; }
+  try { const full = await shotFrame(); shotArm(); return await pickRegion(full, warm); }
+  catch (e) { shotStop(); toast('캡처하지 못했습니다: ' + e.message, true); return null; }
+}
+function pickRegion(full, warm) {             // 캡처한 그림 위에서 끌어 범위 지정 (Enter/더블클릭 = 전체 · Esc = 취소)
   return new Promise(resolve => {
-    const ov = document.createElement('div'); ov.className = 'shotov';
-    ov.innerHTML = `<canvas></canvas><div class="shotbox" hidden></div><div class="shotbar">마우스로 끌어 범위를 고르세요 · <b>Enter</b> = 전체 화면 · <b>Esc</b> = 취소 <button type="button" data-all>전체 화면</button><button type="button" data-no>취소</button></div>`;
-    document.body.appendChild(ov);
+    const ov = document.getElementById('shotdlg');
+    ov.innerHTML = `<canvas></canvas><div class="shotbox" hidden></div><div class="shotbar">마우스로 끌어 범위를 고르세요 · <b>Enter</b> = 전체 화면 · <b>Esc</b> = 취소 <button type="button" data-all>전체 화면</button><button type="button" data-no>취소</button>
+      <span class="qon" title="이 시간 동안은 브라우저가 다시 묻지 않고 바로 찍습니다">⚡ 빠른 캡처 켜짐 (${SHOT_KEEP_MS / 60000}분) <button type="button" data-qoff>끄기</button></span></div>`;
     const cv = $('canvas', ov), box = $('.shotbox', ov), W = innerWidth, H = innerHeight;
     cv.width = W; cv.height = H; cv.getContext('2d').drawImage(full, 0, 0, W, H);
+    ov.showModal();
     const sx = full.width / W, sy = full.height / H;
-    let a = null, r = null;
+    let a = null, r = null, fin = false;
     const done = rect => {
-      ov.remove(); removeEventListener('keydown', key, true);
+      if (fin) return; fin = true; ov.close(); ov.innerHTML = '';
       if (!rect) return resolve(null);
       const [x, y, w, h] = rect.map((v, i) => Math.round(v * (i % 2 ? sy : sx)));
       if (w < 8 || h < 8) return resolve(null);
       const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(full, x, y, w, h, 0, 0, w, h);
-      c.toBlob(b => resolve(b), 'image/png');
+      c.toBlob(b => resolve(b && b.size ? b : null), w * h > 500000 ? 'image/webp' : 'image/png', 0.92);   // 큰 범위는 WebP(가볍게) · 작은 범위는 PNG(글자 또렷)
     };
-    const key = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); } else if (e.key === 'Enter') { e.preventDefault(); done([0, 0, W, H]); } };
-    addEventListener('keydown', key, true);
+    ov.oncancel = e => { e.preventDefault(); done(null); };
+    ov.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); done([0, 0, W, H]); } };
     ov.onpointerdown = e => { if (e.target.closest('.shotbar')) return; a = [e.clientX, e.clientY]; r = null; box.hidden = false; ov.setPointerCapture(e.pointerId); };
     ov.onpointermove = e => { if (!a) return; const x = Math.min(a[0], e.clientX), y = Math.min(a[1], e.clientY); r = [x, y, Math.abs(e.clientX - a[0]), Math.abs(e.clientY - a[1])];
       Object.assign(box.style, { left:x + 'px', top:y + 'px', width:r[2] + 'px', height:r[3] + 'px' }); box.dataset.sz = `${Math.round(r[2] * sx)} × ${Math.round(r[3] * sy)}`; };
     ov.onpointerup = () => { if (a && r && r[2] > 6 && r[3] > 6) done(r); a = null; };
     ov.ondblclick = () => done([0, 0, W, H]);
-    ov.onclick = e => { if (e.target.closest('[data-all]')) done([0, 0, W, H]); else if (e.target.closest('[data-no]')) done(null); };
+    ov.onclick = e => { if (e.target.closest('[data-all]')) done([0, 0, W, H]); else if (e.target.closest('[data-no]')) done(null);
+      else if (e.target.closest('[data-qoff]')) { shotStop(); e.target.closest('.qon').textContent = '빠른 캡처 꺼짐 (다음엔 다시 묻습니다)'; } };
   });
 }
-async function shotToVoc() {                   // 📷 스크린 단추 — 캡처 → 범위 → 그 자리에서 VOC 창
+async function shotToVoc() {                   // 📷 스크린 단추 · F8 — 캡처 → 범위 → 그 자리에서 VOC 창 (화면 · 열린 편집 창 그대로)
   if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
   if (!SERVER || OFFLINE) return toast('VOC 는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
   if (!can('board')) return toast('익명게시판 권한이 없어 VOC 를 쓸 수 없습니다', true);
-  const from = route, b = await captureRegion();
-  openVoc({ menu:vocMenuOf(from), images:b ? [b] : [] });
+  if (document.getElementById('shotdlg').open) return;
+  if (vdlg().open) return $('#vShot', vdlg())?.click();           // VOC 창이 열려 있으면 그 창의 '화면 캡처 추가'
+  const from = route, back = document.activeElement;
+  if (!navigator.mediaDevices?.getDisplayMedia) {                  // 보안 연결이 아닌 주소(http://PC이름) — 브라우저가 캡처를 막음 → 윈도우 캡처 + 붙여넣기
+    openVoc({ menu:vocMenuOf(from), back });
+    toast('이 주소에서는 브라우저가 화면 캡처를 막습니다 — Win+Shift+S 로 범위를 캡처한 뒤 왼쪽 그림 칸에서 Ctrl+V', true);
+    setTimeout(() => $('#vPrev', vdlg())?.focus(), 50);
+    return;
+  }
+  const b = await captureRegion();
+  if (!b && !VDRAFT) { try { back?.isConnected && back.focus({ preventScroll:true }); } catch (_) {} return; }   // 취소 = 아무 일도 없던 것처럼
+  openVoc({ menu:vocMenuOf(from), images:b ? [b] : [], back });
 }
+document.addEventListener('keydown', e => {                       // F8 = 어디서든 스크린 → VOC (편집 창이 열려 있어도 · Edge 는 Ctrl+Shift+S 를 '웹 캡처'로 써서 F8)
+  if (e.key === 'F8' && !e.ctrlKey && !e.altKey && !e.metaKey && !document.querySelector('#authScreen')) { e.preventDefault(); shotToVoc(); }
+}, true);
 // 익명 체크 ↔ 닉네임 입력 활성화
 document.addEventListener('change', e => { if (e.target.matches('[data-amode]')) { const n = e.target.closest('.cform,.authorrow')?.querySelector('[data-nick]'); if (n) { n.hidden = e.target.value !== 'nick'; if (!n.hidden) n.focus(); } } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-cbody]')) { e.preventDefault(); e.target.closest('.cform').querySelector('[data-bact="cadd"]').click(); } });
