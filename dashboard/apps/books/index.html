@@ -167,6 +167,38 @@ mark.f.cur{background:#ff8c1a;color:#fff;box-shadow:0 0 0 2px #ff8c1a}
 .psg .cp{position:absolute;right:6px;top:6px;border:1px solid var(--line);background:#fff;border-radius:5px;font-size:11px;padding:1px 4px;opacity:.55}
 .psg:hover .cp{opacity:1}
 body.vmode{overflow:hidden}
+.rmode #vwin{gap:0;padding:0}
+.rwh{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.rq{display:flex;align-items:center;gap:6px;border:2px solid #ffb877;border-radius:10px;padding:2px 4px 2px 10px;background:#fff;min-width:320px;flex:0 1 520px}
+.rq input{flex:1;border:0;outline:0;font:inherit;font-size:15px;padding:6px 0;min-width:0}
+.rq input::-webkit-search-cancel-button{display:none}
+#rhead{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px;font-size:13px}
+.rsum .cpt{margin:1px 2px}
+.rrel{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rbody{flex:1;overflow:auto;padding:12px 16px 30px}
+.rsec{margin-bottom:18px}
+.rst{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:var(--navy);margin:4px 0 8px}
+.rst .seg .btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(500px,1fr));gap:12px}
+@media (max-width:1060px){.rgrid{grid-template-columns:1fr}}
+.rcard{background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;border:1px solid transparent}
+.rcard:hover{border-color:#ffb877}
+.rch{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
+.rch .pg{font-family:var(--f-mono);font-weight:700;color:#c25e00}
+.rch .cnt{background:#ffeedd;color:#c25e00;border-radius:5px;padding:0 6px;font-size:11.5px;font-weight:700}
+.rch .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rmeta{padding:5px 10px 0;font-size:11.5px}
+.rthumb{padding:8px 10px 0}
+.rthumb:empty{display:none}
+.rxs{padding:6px 10px 8px;font-size:12.5px;line-height:1.6}
+.rxs .rx{padding:3px 0;border-bottom:1px dashed var(--line)}
+.rxs .rx:last-child{border-bottom:0}
+.rpage{height:430px;overflow:auto;background:#f6f7fb;border-radius:6px;position:relative}
+.rpage .canvas-wrap{position:relative;margin:0 auto;background:#fff}
+.rpage .hlb{position:absolute;background:rgba(255,214,0,.42);border-radius:2px;mix-blend-mode:multiply;pointer-events:none}
+.rpage .hlf{position:absolute;background:rgba(255,140,26,.45);border-radius:2px;mix-blend-mode:multiply;pointer-events:none;outline:1px solid #ff8c1a}
+.rcard.sm .rpage{height:300px}
+.rcard.fit .rpage{height:auto;max-height:560px}
 #vwin{height:100%;display:flex;flex-direction:column;padding:10px 12px;gap:8px}
 #vwin .vwh{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
 #vwin .vwh b{font-size:15px;color:var(--navy)}
@@ -1056,6 +1088,44 @@ function hl2(text, reQ, reF, curK) {
 /* ===================================================================================== 10) 미리보기 뷰어 (오른쪽 칸 · 새 창 공통)
  * 원본 쪽(PDF 그림 + 투명 글자층 → 끌어 선택 · 복사) / 글자 보기 · 쪽 이동 · 근거 쪽 이동 · 책 안에서 찾기(목록) · 쪽 복사 · 새 창 */
 const MEAS = document.createElement('canvas').getContext('2d');
+// PDF 한 쪽을 그림 + 투명 글자층(끌어 선택 → 복사) + 검색어(노랑) · 찾기(주황) 표시. 위치 = 글자 조각 위치 × 그 안의 글자 폭 비율
+async function paintPdfPage(doc, P, width, o = {}) {
+  const pg = await doc.getPage(P + 1);
+  try {
+    const vp0 = pg.getViewport({ scale: 1 }), scale = width / vp0.width, vp = pg.getViewport({ scale });
+    const dpr = window.devicePixelRatio || 1, cv = document.createElement('canvas');
+    cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
+    const wrap = document.createElement('div'); wrap.className = 'canvas-wrap'; wrap.style.width = vp.width + 'px'; wrap.style.height = vp.height + 'px'; wrap.appendChild(cv);
+    await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise;
+    if (o.stale && o.stale()) return null;
+    const tc = await pg.getTextContent(), layer = document.createElement('div'); layer.className = 'tlayer';
+    let first = null, cur = null, ffirst = null, fk = 0, fx = null, qx = null, minX = Infinity;
+    for (const it of tc.items) {
+      if (!it.str) { if (it.hasEOL) layer.appendChild(document.createElement('br')); continue; }
+      const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), wd = it.width * scale;
+      if (fh < 1) continue;
+      if (it.str.trim()) minX = Math.min(minX, tx[4]);
+      const fam = tc.styles[it.fontName]?.fontFamily || 'sans-serif';
+      MEAS.font = `${fh}px ${fam}`; const mw = t => MEAS.measureText(t).width, full = mw(it.str) || 1;
+      const sp = document.createElement('span'); sp.textContent = it.str;
+      Object.assign(sp.style, { left: tx[4] + 'px', top: (tx[5] - fh) + 'px', fontSize: fh + 'px', fontFamily: fam, transform: `scaleX(${wd / full})` });
+      layer.appendChild(sp); if (it.hasEOL) layer.appendChild(document.createElement('br')); else layer.appendChild(document.createTextNode(' '));
+      let lastX = 0;
+      const box = (m, cls) => { const x = tx[4] + wd * (mw(it.str.slice(0, m.index)) / full), y = tx[5] - fh, b = document.createElement('div'); lastX = x;
+        b.className = cls; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: Math.max(4, wd * (mw(m[0]) / full)) + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b); return y; };
+      for (const [re, cls] of [[o.re, 'hlb'], [o.fre, 'hlf']]) {
+        if (!re) continue; re.lastIndex = 0; let m;
+        while ((m = re.exec(it.str))) {
+          if (!m[0]) { re.lastIndex++; continue; }
+          const isCur = cls === 'hlf' && fk === o.curK, y = box(m, cls + (isCur ? ' cur' : ''));
+          if (cls === 'hlf') { if (isCur) cur = y; if (ffirst === null || y < ffirst) { ffirst = y; fx = lastX; } fk++; } else if (first === null || y < first) { first = y; qx = lastX; }
+        }
+      }
+    }
+    wrap.appendChild(layer);
+    return { wrap, first, cur, ffirst, fx, qx, minX: isFinite(minX) ? minX : 0 };
+  } finally { pg.cleanup(); }
+}
 let PDFDOC = null;   // { sig, doc } — 같은 책을 다시 열 때 재사용
 async function pdfDoc(B, file) {
   if (PDFDOC && PDFDOC.sig === B.sig) return PDFDOC.doc;
@@ -1082,6 +1152,7 @@ class Viewer {
         <span class="fi"><span>🔎</span><input data-v="find" type="search" placeholder="이 책 안에서 찾기 (Enter = 다음, Shift+Enter = 이전)" aria-label="책 안에서 찾기"></span>
         <button class="btn sm" data-v="fPrev" title="이전 (Shift+Enter)">▲</button><button class="btn sm" data-v="fNext" title="다음 (Enter)">▼</button>
         <span class="muted fcount" data-v="fNo"></span>
+        <button class="btn sm pri" data-v="rel" title="이 낱말이 나온 쪽들 · 연관어 · 다른 도서를 새 창에 여러 개 나란히 (Ctrl+Enter)" disabled>⧉ 연관 검색 창</button>
         <button class="btn sm" data-v="fList" hidden>목록 ▾</button>
       </div>
       <div class="flist" data-v="flist" hidden></div>
@@ -1089,8 +1160,8 @@ class Viewer {
     this.$ = k => host.querySelector(`[data-v="${k}"]`); this.body = host.querySelector('.vbody');
     host.addEventListener('click', e => this.click(e));
     host.addEventListener('change', e => { if (e.target.name === 'vm' + host.id) { this.mode = e.target.value; this.draw(); } else if (e.target.dataset.v === 'pg') this.go((+e.target.value || 1) - 1); });
-    this.$('find').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (this.fre?._t !== e.target.value) this.find(e.target.value); else this.step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') { e.target.value = ''; this.find(''); } });
-    let ft; this.$('find').addEventListener('input', e => { clearTimeout(ft); ft = setTimeout(() => this.find(e.target.value, true), 350); });
+    this.$('find').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (e.target.value.trim()) openRelatedWindow(this, e.target.value); return; } if (e.key === 'Enter') { e.preventDefault(); if (this.fre?._t !== e.target.value) this.find(e.target.value); else this.step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') { e.target.value = ''; this.find(''); } });
+    let ft; this.$('find').addEventListener('input', e => { this.$('rel').disabled = !e.target.value.trim(); clearTimeout(ft); ft = setTimeout(() => this.find(e.target.value, true), 350); });
     this.$('pg').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.go((+e.target.value || 1) - 1); } });
   }
   click(e) {
@@ -1103,6 +1174,7 @@ class Viewer {
     else if (v === 'fList') { const l = this.$('flist'); l.hidden = !l.hidden; this.$('fList').textContent = l.hidden ? '목록 ▾' : '목록 ▴'; }
     else if (v === 'copyPage') { const t = this.B.pages[P] || ''; t ? copyText(t + '\n\n' + cite(this.B, P)) : toast('이 쪽에는 글자가 없습니다'); }
     else if (v === 'pop') openViewerWindow(this);
+    else if (v === 'rel') { const t = this.$('find').value.trim(); if (t) openRelatedWindow(this, t); }
     else if (v === 'orig') openOriginal(this.B, this.file, P);
   }
   go(p, keepFind) {
@@ -1145,40 +1217,11 @@ class Viewer {
       if (!body.querySelector('.canvas-wrap')) body.innerHTML = '<div class="empty">쪽 그리는 중…</div>';
       try {
         const doc = await pdfDoc(B, this.file); if (seq !== this.seq) return;
-        const pg = await doc.getPage(P + 1);
-        const w = Math.max(320, body.clientWidth - 24), vp0 = pg.getViewport({ scale: 1 }), scale = w / vp0.width, vp = pg.getViewport({ scale });
-        const dpr = window.devicePixelRatio || 1, cv = document.createElement('canvas');
-        cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
-        const wrap = document.createElement('div'); wrap.className = 'canvas-wrap'; wrap.style.width = vp.width + 'px'; wrap.style.height = vp.height + 'px'; wrap.appendChild(cv);
-        await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise;
-        if (seq !== this.seq) return;
-        // 투명 글자층(끌어 선택 → 복사) + 검색어(노랑) · 찾기(주황) 표시. 위치 = 글자 조각 위치 × 그 안의 글자 폭 비율
-        const tc = await pg.getTextContent(), layer = document.createElement('div'); layer.className = 'tlayer';
-        let first = null, cur = null, fk = 0;
-        for (const it of tc.items) {
-          if (!it.str) { if (it.hasEOL) layer.appendChild(document.createElement('br')); continue; }
-          const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), wd = it.width * scale;
-          if (fh < 1) continue;
-          const fam = tc.styles[it.fontName]?.fontFamily || 'sans-serif';
-          MEAS.font = `${fh}px ${fam}`; const mw = t => MEAS.measureText(t).width, full = mw(it.str) || 1;
-          const sp = document.createElement('span'); sp.textContent = it.str;
-          Object.assign(sp.style, { left: tx[4] + 'px', top: (tx[5] - fh) + 'px', fontSize: fh + 'px', fontFamily: fam, transform: `scaleX(${wd / full})` });
-          layer.appendChild(sp); if (it.hasEOL) layer.appendChild(document.createElement('br')); else layer.appendChild(document.createTextNode(' '));
-          const box = (m, cls) => { const x = tx[4] + wd * (mw(it.str.slice(0, m.index)) / full), y = tx[5] - fh, b = document.createElement('div');
-            b.className = cls; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: Math.max(4, wd * (mw(m[0]) / full)) + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b); return y; };
-          for (const [re, cls] of [[this.re, 'hlb'], [this.fre, 'hlf']]) {
-            if (!re) continue; re.lastIndex = 0; let m;
-            while ((m = re.exec(it.str))) {
-              if (!m[0]) { re.lastIndex++; continue; }
-              const isCur = cls === 'hlf' && fk === curK, y = box(m, cls + (isCur ? ' cur' : ''));
-              if (cls === 'hlf') { if (isCur) cur = y; fk++; } else if (first === null || y < first) first = y;
-            }
-          }
-        }
-        wrap.appendChild(layer);
-        body.innerHTML = ''; body.appendChild(wrap);
-        const y = cur ?? (this.fre ? null : first); body.scrollTop = y !== null ? Math.max(0, y - 140) : 0;
-        pg.cleanup(); return;
+        const r = await paintPdfPage(doc, P, Math.max(320, body.clientWidth - 24), { re: this.re, fre: this.fre, curK, stale: () => seq !== this.seq });
+        if (!r) return;
+        body.innerHTML = ''; body.appendChild(r.wrap);
+        const y = r.cur ?? (this.fre ? null : r.first); body.scrollTop = y !== null ? Math.max(0, y - 140) : 0;
+        return;
       } catch (e) { if (seq !== this.seq) return; body.innerHTML = `<div class="warnline" style="margin:8px">원본 쪽을 그리지 못해 글자로 보여 줍니다 (${esc(e.message || e)})</div>`; }
     }
     const txt = B.pages[P] || '';
@@ -1204,13 +1247,19 @@ function openOriginal(B, f, pg) {
   if (!w) { const a = document.createElement('a'); a.href = url; a.download = B.name; a.click(); }
   setTimeout(() => URL.revokeObjectURL(url), 120000);
 }
+// 원본 파일은 처음 폴더를 고른 창에만 있음 → 새 창은 opener 를 거슬러 올라가며 빌림 (같은 주소라 접근 가능)
+function borrowFile(rel) {
+  let w = window;
+  for (let i = 0; i < 6 && w; i++) { try { const f = w.BOOKS?.LIB?.files?.get(rel); if (f) return f; w = w.opener; } catch (_) { return null; } }
+  return null;
+}
 async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
   document.body.classList.add('vmode'); $('#app').hidden = true;
   const W = $('#vwin'); W.hidden = false;
   const sig = Q0.get('sig'), rec = await DB.get('books', sig).catch(() => null);
   if (!rec) { W.innerHTML = '<div class="empty">이 책의 색인을 찾지 못했습니다. 원래 화면에서 다시 열어 주세요.</div>'; return; }
   const B = makeBook(rec); let file = null;
-  try { file = window.opener?.BOOKS?.LIB.files.get(B.rel) || null; } catch (_) {}
+  file = borrowFile(B.rel); if (file) LIB.files.set(B.rel, file);
   const q = Q0.get('q') || '', Q = q ? buildQuery(q) : null;
   const hitPages = Q ? [...new Set(Q.mains.flatMap(qq => [...matchConcept(B, qq).pages.keys()]))].sort((a, b) => a - b) : [];
   document.title = `${B.base} — 계장도서검토`;
@@ -1218,7 +1267,7 @@ async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
   const v = new Viewer($('#viewerWin'), { B, re: Q ? hlRegex(Q) : null, q, hitPages, page: (+Q0.get('p') || 1) - 1, file, popup: true });
   if (Q0.get('m') === 'text') v.mode = 'text';
   STATE.viewer = v;
-  const f = Q0.get('f'); if (f) { v.$('find').value = f; v.find(f); } else v.draw();
+  const f = Q0.get('f'); if (f) { v.$('find').value = f; v.$('rel').disabled = false; v.find(f); } else v.draw();
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); v.$('find').focus(); v.$('find').select(); return; }
     if (e.target.tagName === 'INPUT') return;
@@ -1231,6 +1280,130 @@ function showDict() {
     <div class="muted" style="margin-bottom:8px">질문에 개념 이름 · 표현 중 하나만 들어 있으면 됩니다. 하위 개념(예: Transmitter → 압력 전송기 · 차압 전송기)도 함께 찾고, 계기 태그(PT-101 · FIT-2001A)는 약한 근거로 셉니다.</div>
     ${THES.map(c => `<div style="padding:7px 0;border-top:1px solid var(--line)"><b>${esc(c.n)}</b>${c.p ? ` <span class="muted">⊂ ${esc(c.p.map(x => TH[x].n).join(', '))}</span>` : ''}
       <div class="muted" style="line-height:1.6">${esc([...c.t.map(x => x[0]), ...c.ab.map(x => x[0])].join(' · '))}${c.tag ? ' · 계기 태그' : ''}</div></div>`).join('')}</div>`;
+}
+
+/* ===================================================================================== 11) 연관 검색 창 (?related=1)
+ * 미리보기에서 찾은 낱말 → 새 창에 ① 이 책에서 그 낱말(+ 같은 뜻 표현)이 나온 쪽들을 원본 쪽 미리보기 카드로 여러 개 나란히
+ *                            ② 다른 도서에서 같은 주제를 다룬 곳 ③ 함께 찾아볼 연관 주제 */
+function openRelatedWindow(v, t) {
+  const u = new URL(location.href);
+  const P = new URLSearchParams({ related: '1', t, sig: v.B.sig, q: v.q || '' });
+  const w = window.open(`${u.pathname}?${P}`, '_blank', 'popup=yes,width=1360,height=940');
+  if (!w) toast('새 창이 막혔습니다 — 브라우저 주소창 오른쪽의 팝업 차단 표시에서 허용해 주세요', 4000);
+}
+async function initRelatedWindow() {
+  document.body.classList.add('vmode', 'rmode'); $('#app').hidden = true;
+  const W = $('#vwin'); W.hidden = false; W.innerHTML = '<div class="empty">이 PC 의 도서 색인 불러오는 중…</div>';
+  const sig = Q0.get('sig'), q0 = Q0.get('q') || '';
+  const lib = await DB.get('kv', 'lib').catch(() => null);
+  const sigs = [...new Set([sig, ...(lib?.sigs || [])])].filter(Boolean);
+  for (let i = 0; i < sigs.length; i++) {
+    const rec = await DB.get('books', sigs[i]).catch(() => null);
+    if (rec && rec.v === EXTRACT_VER) { const B = makeBook(rec); LIB.books.push(B); LIB.bySig.set(B.sig, B); }
+    if (i % 5 === 4) { W.innerHTML = `<div class="empty">이 PC 의 도서 색인 불러오는 중… ${i + 1}/${sigs.length}</div>`; await sleep(0); }
+  }
+  LIB.folder = lib?.folder || '';
+  const RS = { t: Q0.get('t') || '', sig, q0, sort: 'count', shown: 24, obs: null };
+  W.innerHTML = `
+    <div class="rwh">
+      <form class="rq" id="rform"><span>🔎</span><input id="rt" type="search" value="${esc(RS.t)}" aria-label="연관 검색어"><button class="btn sm pri">다시 찾기</button></form>
+      <label class="muted"><input type="checkbox" id="rexp" checked> 같은 뜻 표현까지</label>
+      <span class="sp"></span><span class="muted">${q0 ? `메인 검색어 '${esc(q0)}' 는 노란색, 이 낱말은 주황색` : ''}</span>
+    </div>
+    <div id="rhead"></div>
+    <div class="rbody" id="rbody"></div>`;
+  $('#rform').addEventListener('submit', e => { e.preventDefault(); RS.t = $('#rt').value.trim(); RS.shown = 24; runRelated(RS); });
+  $('#rexp').addEventListener('change', () => runRelated(RS));
+  W.addEventListener('click', e => {
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const d = a.dataset;
+    if (d.act === 'retry') { $('#rt').value = d.t; RS.t = d.t; RS.shown = 24; runRelated(RS); }
+    else if (d.act === 'view') openViewerWindow({ B: LIB.bySig.get(d.sig), page: +d.p, q: RS.q0, fre: { _t: RS.t }, mode: 'page' });
+    else if (d.act === 'copy') { const B = LIB.bySig.get(d.sig); copyText((B.pages[+d.p] || '') + '\n\n' + cite(B, +d.p)); }
+    else if (d.act === 'sort') { RS.sort = d.v; runRelated(RS); }
+    else if (d.act === 'fit') { const c = a.closest('.rcard'); c.classList.toggle('fit'); a.textContent = c.classList.contains('fit') ? '🔍 확대' : '🔍 쪽 전체'; thumb(c, RS.reQ, RS.reT); }
+    else if (d.act === 'more') { RS.shown += 24; runRelated(RS, true); }
+  });
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#rt').focus(); $('#rt').select(); } });
+  runRelated(RS);
+}
+function runRelated(RS, keepScroll) {
+  const t = RS.t, B0 = LIB.bySig.get(RS.sig), expand = $('#rexp').checked, body = $('#rbody'), sy = body.scrollTop;
+  document.title = `'${t}' 연관 검색 — 계장도서검토`;
+  if (!t || !B0) { $('#rhead').innerHTML = ''; body.innerHTML = '<div class="empty">찾을 낱말을 넣으세요.</div>'; return; }
+  const Q = buildQuery(t, expand), fre = findRegex(t);
+  // 이 낱말 그대로(주황) + 사전이 아는 같은 뜻 표현(주황 옅게) → 한 정규식으로 쪽마다 셈
+  const reT = expand ? (hlRegex({ qs: Q.mains }) || fre) : fre;
+  const reQ = RS.q0 ? hlRegex(buildQuery(RS.q0)) : null; RS.reQ = reQ; RS.reT = reT;
+  const pages = [];
+  for (let p = 0; p < B0.nPages; p++) { const tx = B0.pages[p]; if (!tx) continue; reT.lastIndex = 0; let n = 0, m; const at = []; while ((m = reT.exec(tx))) { if (!m[0]) { reT.lastIndex++; continue; } n++; if (at.length < 3) at.push([m.index, m[0].length]); } if (n) pages.push({ p, n, at }); }
+  if (RS.sort === 'count') pages.sort((a, b) => b.n - a.n || a.p - b.p); else pages.sort((a, b) => a.p - b.p);
+  const total = pages.reduce((a, x) => a + x.n, 0);
+  // 다른 도서: 메인 검색 엔진으로 (같은 뜻 표현 · 하위 개념 · 문맥 판단 그대로)
+  const SR = search(t, { expand }), others = SR.results.filter(R => R.B.sig !== B0.sig).slice(0, 12);
+  // 연관 주제: 사전의 rel · 상위/하위 개념 + 이 책에서 그 낱말 주변에 자주 나온 개념
+  const rel = new Map();
+  for (const id of Q.found) { const c = TH[id]; for (const r of [...c.rel, ...(c.p || []), ...c.kids]) if (!Q.found.includes(r)) rel.set(r, (rel.get(r) || 0) + 1); }
+  if (pages.length) {
+    const txk = pages.slice(0, 30).map(x => B0.sq.slice(B0.sqStarts[x.p], x.p + 1 < B0.nPages ? B0.sqStarts[x.p + 1] : B0.sq.length)).join('');
+    const txt = pages.slice(0, 30).map(x => B0.low.slice(B0.starts[x.p], B0.starts[x.p] + B0.pages[x.p].length)).join(' ');
+    for (const c of THES) { if (Q.found.includes(c.id) || c.id === 'instrumentation') continue; let n = 0;
+      for (const [w] of c.t) { const ko = isHangul(w), s = ko ? w.replace(/ /g, '') : w.toLowerCase(), T = ko ? txk : txt; if (s.length < 3) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1 && n < 999) { n++; i += s.length; } }
+      if (n >= 3) rel.set(c.id, (rel.get(c.id) || 0) + n / 10); }
+  }
+  const relTop = [...rel.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id]) => TH[id]);
+  const variants = [...new Set(Q.qs.filter(q => q.main).flatMap(q => q.vs.map(v => v.label)))];
+  const u = B0.ext === 'pdf' ? 'p.' : '§';
+  $('#rhead').innerHTML = `
+    <div class="rsum"><b>'${esc(t)}'</b> — 이 책 <b>${fmtN(total)}곳 · ${fmtN(pages.length)}쪽</b> · 다른 도서 <b>${fmtN(others.length)}권</b>
+      ${expand && variants.length > 1 ? `<span class="muted">· 같은 뜻으로 함께 찾은 표현: ${variants.slice(0, 10).map(x => `<span class="cpt part">${esc(x)}</span>`).join(' ')}${variants.length > 10 ? ` +${variants.length - 10}` : ''}</span>` : ''}</div>
+    ${relTop.length ? `<div class="rrel"><span class="muted">함께 찾아볼 연관 주제:</span>${relTop.map(c => `<button class="chip" data-act="retry" data-t="${esc(c.n.replace(/\(.*?\)/g, '').trim())}">${esc(c.n)}</button>`).join('')}</div>` : ''}`;
+  if (RS.obs) RS.obs.disconnect();
+  const card = (B, x, big) => {
+    const tx = B.pages[x.p]; let ex = '';
+    for (const [i, n] of x.at) { const a = Math.max(0, i - 70), b = Math.min(tx.length, i + n + 110); ex += `<div class="rx">${a ? '…' : ''}${hl2(tx.slice(a, b).replace(/\n/g, ' '), reQ, reT, -1)}${b < tx.length ? '…' : ''}</div>`; }
+    return `<div class="rcard${big ? '' : ' sm'}" data-sig="${esc(B.sig)}" data-p="${x.p}">
+      <div class="rch"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${x.p + 1}</span><span class="cnt">${fmtN(x.n)}곳</span>${big ? '' : `<b class="bn" title="${esc(B.rel)}">${esc(B.base)}</b>`}<span class="sp"></span>
+        ${B.ext === 'pdf' ? `<button class="btn sm" data-act="fit" title="찾은 곳 확대 ↔ 쪽 전체">🔍 쪽 전체</button>` : ''}
+        <button class="btn sm" data-act="copy" data-sig="${esc(B.sig)}" data-p="${x.p}" title="이 쪽 글자 전체를 출처와 함께 복사">📋</button>
+        <button class="btn sm" data-act="view" data-sig="${esc(B.sig)}" data-p="${x.p}" title="이 쪽을 미리보기 창으로 (책 안에서 찾기 그대로)">⧉ 열기</button></div>
+      <div class="rthumb"></div><div class="rxs">${ex}</div></div>`;
+  };
+  body.innerHTML = `
+    <div class="rsec"><div class="rst">📖 이 책에서 — <b>${esc(B0.base)}</b> <span class="muted">${fmtN(pages.length)}쪽</span><span class="sp"></span>
+      <span class="seg"><button class="btn sm ${RS.sort === 'count' ? 'on' : ''}" data-act="sort" data-v="count">많이 나온 쪽 순</button><button class="btn sm ${RS.sort === 'page' ? 'on' : ''}" data-act="sort" data-v="page">쪽 순서</button></span></div>
+      ${pages.length ? `<div class="rgrid">${pages.slice(0, RS.shown).map(x => card(B0, x, true)).join('')}</div>${pages.length > RS.shown ? `<button class="btn more" data-act="more">더 보기 (${fmtN(pages.length - RS.shown)}쪽 더)</button>` : ''}`
+        : `<div class="empty">이 책에는 '${esc(t)}' 가 없습니다${expand ? '' : ' — [같은 뜻 표현까지] 를 켜 보세요'}.</div>`}</div>
+    <div class="rsec"><div class="rst">📚 다른 도서에서 <span class="muted">${fmtN(others.length)}권 — 관련도 순</span></div>
+      ${others.length ? `<div class="rgrid">${others.map(R => {
+        const ex = explain(R, SR.Q); const p = R.top[0]?.[0] ?? 0, tx = R.B.pages[p] || '';
+        reT.lastIndex = 0; const at = []; let m, n = 0; while ((m = reT.exec(tx))) { if (!m[0]) { reT.lastIndex++; continue; } n++; if (at.length < 2) at.push([m.index, m[0].length]); }
+        return card(R.B, { p, n, at }, false).replace('<div class="rthumb">', `<div class="rmeta"><span class="tier t${ex.tier}">${ex.tierName}</span> <span class="muted">${esc(ex.short)}</span></div><div class="rthumb">`);
+      }).join('')}</div>` : '<div class="empty">다른 도서에서는 찾지 못했습니다.</div>'}</div>`;
+  if (keepScroll) body.scrollTop = sy;
+  // 원본 PDF 쪽 미리보기: 화면에 들어온 카드부터 그림 (파일은 처음 창에서 빌림)
+  const io = new IntersectionObserver(ents => { for (const en of ents) if (en.isIntersecting) { io.unobserve(en.target); thumb(en.target, reQ, reT); } }, { root: body, rootMargin: '300px' });
+  body.querySelectorAll('.rcard').forEach(c => io.observe(c)); RS.obs = io;
+}
+const THUMBQ = []; let thumbBusy = false;
+function thumb(el, reQ, reT) { THUMBQ.push([el, reQ, reT]); if (!thumbBusy) pumpThumbs(); }
+async function pumpThumbs() {   // 한 번에 한 쪽씩 (메모리 · 속도)
+  thumbBusy = true;
+  while (THUMBQ.length) {
+    const [el, reQ, reT] = THUMBQ.shift(); if (!el.isConnected) continue;
+    const B = LIB.bySig.get(el.dataset.sig), p = +el.dataset.p; if (!B || B.ext !== 'pdf' || !window.pdfjsLib) continue;
+    const f = LIB.files.get(B.rel) || borrowFile(B.rel); if (!f) continue; LIB.files.set(B.rel, f);
+    try {
+      // 기본 = 찾은 곳 확대(카드 폭의 약 2배로 그려 그 자리로 스크롤) · [쪽 전체] = 카드 폭에 맞춤
+      const doc = await pdfDoc(B, f), host = el.querySelector('.rthumb'), cw = Math.max(240, host.clientWidth - 2), fit = el.classList.contains('fit');
+      const r = await paintPdfPage(doc, p, fit ? cw - 14 : Math.max(700, cw * 1.45), { re: reQ, fre: reT, curK: -1 }); if (!r || !el.isConnected) continue;
+      const box = document.createElement('div'); box.className = 'rpage'; box.appendChild(r.wrap);
+      host.innerHTML = ''; host.appendChild(box);
+      const y = r.ffirst ?? r.first, x = r.ffirst !== null ? r.fx : r.qx;
+      box.scrollTop = !fit && y !== null ? Math.max(0, y - 70) : 0; box.scrollLeft = fit || x === null ? 0 : x - r.minX < cw - 120 ? Math.max(0, r.minX - 30) : Math.max(0, x - cw * 0.35);   // 줄 첫머리부터 보이게, 멀면 찾은 곳 쪽으로
+    } catch (_) {}
+  }
+  thumbBusy = false;
 }
 
 /* --- 폴더 고르기 */
@@ -1304,6 +1477,7 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 /* --- 시작: 보관된 색인이 있으면 바로 검색 가능 (폴더 연결은 원본 미리보기 · 새 파일 반영 때만 필요) */
 (async () => {
   if (Q0.get('viewer') === '1') return initViewerWindow();
+  if (Q0.get('related') === '1') return initRelatedWindow();
   renderTop();
   if (!window.indexedDB) { toast('이 브라우저는 색인 보관(IndexedDB)을 쓸 수 없습니다 — Edge 또는 Chrome 으로 여세요', 6000); }
   const had = await loadLib().catch(() => false);

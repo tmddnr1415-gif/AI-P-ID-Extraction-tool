@@ -42,6 +42,7 @@ VOC_MENUS = ( … 'space', 'books', … )
   - 폴더를 다시 고르지 않아도 **보관된 색인으로 바로 검색**된다. 원본 쪽 그림 미리보기·원본 열기·새 파일 반영만 폴더 연결이 필요하다.
 - IndexedDB 는 **주소(origin)별**이다. 같은 부서원이 `http://PC이름:8080` 과 `http://65.3.30.234:8080` 으로 번갈아 들어오면 색인을 두 번 만든다(기능 문제는 없고 첫 인덱싱 시간만 다시 듦).
 - 미리보기 [⧉ 새 창] = 같은 앱 주소 `?viewer=1&sig=…&p=…&q=…&f=…` 를 팝업으로 연다. 본문은 IndexedDB, 원본 PDF 는 원래 창(`window.opener`)의 파일을 빌려 쓴다 → iframe 에 `sandbox` 속성을 붙이지 말 것(지금 `renderApp` 에는 없음). 팝업 차단 시 안내 문구가 뜬다.
+- 미리보기 찾기 칸의 [⧉ 연관 검색 창](Ctrl+Enter) = `?related=1&t=낱말&sig=…&q=…` 팝업. 이 책에서 그 낱말(+ 사전의 같은 뜻 표현)이 나온 쪽을 원본 쪽 카드로 여러 개 나란히, 다른 도서, 연관 주제 칩. 원본 파일은 opener 를 거슬러 올라가며 빌린다.
 - 복사: 보안 컨텍스트면 `navigator.clipboard`, 아니면(`http://PC이름`) `execCommand('copy')` 로 — iframe 에 `allow` 속성이 없어도 동작.
 - 1분 자동 갱신 때 iframe 을 다시 만들지 않는 `APP_ROUTES` 틀이라 검색 중인 화면이 유지된다.
 - Edge/Chrome 103 이상 필요(`DecompressionStream('deflate-raw')` — EPUB·DOCX·HWPX 풀기).
