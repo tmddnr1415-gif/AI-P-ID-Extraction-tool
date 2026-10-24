@@ -1,0 +1,22 @@
+{
+ "4-20mA 루프 전류 원리": {"XTR116U": 3, "PR5335": 2, "TankSensor": 2, "Pressure transmitter calibration": 1, "Process_Control_C3": 1, "HART Protocol Fundamentals": 1},
+ "로드셀 지시계 설정 방법": {"AEX-1": 3, "필드엔지니어": 2},
+ "온도 조절기 프로그램 설정": {"NP100": 3, "필드엔지니어": 2},
+ "Modbus랑 OPC 통신 차이": {"Industrial Control Protocols": 3, "NIST.SP.800-82": 1, "PLC BOOK": 1, "HART-IP": 1},
+ "변압기 원리 설명": {"32 Transformer": 3, "Hughes": 2},
+ "전기 계측기 종류": {"10 Electrical instruments": 3, "Hughes": 2, "Engineering Metrology": 1},
+ "배전 자동화 시스템": {"42 Distribution Automation": 3},
+ "산업안전보건법 안전 기준": {"산업안전보건법": 3, "전기안전관리법": 1},
+ "분석기 고장 대처 GC O2": {"Analyzer troubleshooting": 3},
+ "열전달 전도 대류": {"Heat Transfer": 3, "Refrigeration": 2, "Fluid Mechanics": 1},
+ "냉동 사이클 원리": {"Refrigeration": 3, "Heat Transfer": 1},
+ "펌프와 유체역학": {"Fluid Mechanics": 3, "Refrigeration": 1},
+ "리눅스 명령어 배우기": {"Linux-Command-Line": 3},
+ "파이썬 자습서": {"파이썬 자습서": 3, "Python Tutorial": 2},
+ "neurotransmitter 시냅스": {"Psychology": 3},
+ "무선 송신기 radio transmitter 시험 문제": {"Amateur Radio": 3},
+ "계량법 검정 기준": {"계량에 관한 법률": 3, "국가표준기본법": 2},
+ "IEC 62443 존과 컨듀잇": {"ISAGCA": 3, "NIST.SP.800-82": 2, "CISA": 1, "IAEA": 1},
+ "HART 멀티드롭 모드": {"HART Protocol Fundamentals": 3, "Samson_HART": 2, "HART_Communication_Made_Easy": 2, "HART Commands": 2, "HART-IP": 1, "PR5335": 1},
+ "인턴 보고서 자동화 공정": {"Internship Report": 3}
+}

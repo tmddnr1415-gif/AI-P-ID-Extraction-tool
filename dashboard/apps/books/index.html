@@ -70,6 +70,7 @@ body.embed .brand{display:none}
 .cpt{display:inline-flex;align-items:center;gap:4px;background:var(--accent-l);color:var(--navy);border-radius:6px;padding:2px 8px;font-weight:600;font-size:12px}
 .cpt.part{background:var(--bg);color:var(--sub);font-weight:500}
 .cpt small{font-weight:400;color:var(--sub)}
+.cpt.asp{background:#eef7f1;color:#11734c}
 .dym{color:var(--warn)}
 
 /* 본문: 결과 목록 | 미리보기 */
@@ -80,6 +81,12 @@ body.embed .brand{display:none}
 .sum b{color:var(--text)}
 .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
 .card h2{margin:0 0 8px;font-size:15px}
+.spots{background:#fff;border:1px solid #cfe3d7;border-radius:12px;padding:8px 10px;margin-bottom:12px;box-shadow:var(--shadow)}
+.sph{font-weight:700;color:#11734c;font-size:13px;margin-bottom:4px}
+.spot{padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;border:1px solid transparent}
+.spot:hover,.spot.on{background:#eef7f1;border-color:#cfe3d7}
+.spot .pg{font-family:var(--f-mono);font-size:11px;color:#11734c;font-weight:700;margin-right:6px}
+.spot .sx{color:var(--sub);margin-top:1px}
 .res{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;background:var(--card);border:1px solid transparent;border-radius:12px;box-shadow:var(--shadow);padding:11px 12px;margin-bottom:8px;cursor:pointer}
 .res:hover{border-color:var(--line-2)}
 .res.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-l),var(--shadow)}
@@ -198,6 +205,15 @@ body.vmode{overflow:hidden}
 #vwin .viewer{flex:1;display:flex;flex-direction:column;min-height:0;margin:0}
 #vwin .vbody{flex:1;max-height:none}
 .vtext{white-space:pre-wrap;word-break:break-word;line-height:1.75;padding:14px 18px;font-size:13px;background:#fff;margin:0;font-family:var(--f-ui)}
+.libsrc{display:flex;flex-direction:column;gap:6px}
+.srcopt{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px;line-height:1.6}
+.srcopt.on{border-color:var(--accent);background:var(--accent-l)}
+.srcopt input{margin-top:4px}
+.mgr{border-top:1px solid var(--line);margin-top:12px;padding-top:4px}
+.mgr .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+.mgr input#libRoot{flex:1;min-width:260px;font:inherit;font-family:var(--f-mono);font-size:13px;border:1px solid var(--line-2);border-radius:8px;padding:6px 10px}
+.probs{margin:4px 0 0;padding-left:18px;font-size:12.5px;line-height:1.7;max-height:240px;overflow:auto}
+#folderChip{cursor:pointer}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:80;box-shadow:var(--shadow);max-width:90vw}
 .warnline{background:var(--warn-l);border:1px solid #f0d58a;border-radius:8px;padding:7px 10px;font-size:12.5px;margin-bottom:10px}
 
@@ -219,13 +235,14 @@ body.vmode{overflow:hidden}
     <button class="btn sm" id="btnRescan" hidden title="폴더에 새로 넣은 · 바뀐 · 지운 파일만 반영">🔄 새 파일 반영</button>
     <span class="sp"></span>
     <span class="prog" id="prog" hidden><span class="pb"><i id="progBar"></i></span><span id="progText"></span><button class="btn sm" id="btnStop">중지</button></span>
+    <button class="btn sm" id="btnLib" title="검색 대상(공용 도서관 · 내 PC 폴더) · 공용 도서관 관리 · 못 읽은 파일">📚 도서관</button>
     <button class="btn sm" id="btnDict" title="검색어를 넓혀 주는 계장 용어 사전 보기">📖 용어 사전</button>
   </div>
 
   <div class="sz">
     <form class="qrow" id="qform" autocomplete="off">
       <div class="qbox"><span class="ic">🔍</span>
-        <input id="q" type="search" placeholder="예) Transmitter 관련 도서 · 압력 전송기 설치 · HART 통신 · 제어밸브 포지셔너" aria-label="검색어">
+        <input id="q" type="search" placeholder="말하듯 물어보세요 — 예) 압력 트랜스미터 교정하는 방법 · HART로 PV 읽는 법 · 탱크 수위 센서 매뉴얼" aria-label="검색어">
         <button type="button" class="x" id="qclear" title="지우기" hidden>✕</button>
       </div>
       <button class="btn pri" type="submit">검색</button>
@@ -299,7 +316,7 @@ const THES = [
     t:[['flow transmitter',1],['유량 전송기',1],['유량 트랜스미터',1]], tag:/\bF(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
   { id:'level_tx', n:'레벨 전송기', p:['transmitter','level'], d:1,
     t:[['level transmitter',1],['레벨 전송기',1],['액위 전송기',1],['레벨 트랜스미터',1]], tag:/\bL(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
-  { id:'sensor', n:'센서·변환기', d:1,
+  { id:'sensor', n:'센서·변환기', d:1, g:1,
     t:[['sensor',1],['transducer',1],['sensing element',1],['primary element',.9],['센서',1],['변환기',.8],['검출기',.8],['검출부',.8]], rel:['transmitter'] },
   { id:'pressure', n:'압력 측정', d:1,
     t:[['pressure measurement',1],['pressure gauge',1],['pressure sensor',1],['bourdon tube',1],['manometer',.9],['diaphragm seal',.9],['remote seal',.9],['압력 측정',1],['압력계',1],['압력 센서',1],['부르동관',1],['다이어프램 실',.9]],
@@ -367,19 +384,74 @@ const THES = [
     t:[['cybersecurity',1],['cyber security',1],['iec 62443',1],['ot security',1],['ics security',1],['industrial control system security',1],['malware',.7],['firewall',.7],['사이버 보안',1],['사이버보안',1],['정보보안',1],['제어시스템 보안',1],['보안',.6]] },
   { id:'power', n:'전력·전기설비',
     t:[['transformer',1],['switchgear',1],['circuit breaker',1],['motor control center',1],['busbar',.9],['power system',.9],['변압기',1],['차단기',1],['배전반',1],['전동기',.9],['수배전',1]], ab:[['MCC',.8]] },
-  { id:'instrumentation', n:'계장·계측 일반', d:1,
+  { id:'loadcell', n:'로드셀·중량 계측', d:1,
+    t:[['load cell',1],['loadcell',1],['strain gauge',.9],['weighing',.8],['weight indicator',1],['로드셀',1],['중량 지시계',1],['스트레인 게이지',.9]] },
+  { id:'metrology_law', n:'계량·측정 법규', d:1,
+    t:[['계량법',1],['계량에 관한 법률',1],['국가표준기본법',1],['법정계량',1],['형식승인',1],['검정',.7],['교정기관',1],['legal metrology',1],['metrology',.7]], rel:['calibration'] },
+  { id:'daq', n:'데이터 수집(DAQ)', d:1,
+    t:[['data acquisition',1],['daq',1],['analog input module',.8],['데이터 수집',1],['데이터수집',1]] },
+  { id:'tempctrl', n:'온도 조절기·컨트롤러', d:1,
+    t:[['temperature controller',1],['program controller',1],['process controller',.8],['온도 조절기',1],['온도조절기',1],['온도 컨트롤러',1],['프로그램 컨트롤러',1],['조절계',.8]] },
+  { id:'instrumentation', n:'계장·계측 일반', d:1, g:1,
     t:[['instrumentation',1],['process control',1],['measurement and control',1],['instrument engineer',1],['field instrument',1],['계장',1],['계측제어',1],['계측 제어',1],['계측기',.9],['계측',.8],['계기',.7]] },
+  /* ---- 관점(무엇을 알고 싶은지) — 주제가 아니라 '어떤 내용' 을 찾는지. 낮은 가중치로 그 내용이 있는 쪽을 조금 앞으로 (책을 거르지는 않음) */
+  { id:'a_principle', n:'원리·개념', a:1, t:[['원리',1],['개념',1],['정의',.8],['이론',.8],['동작 원리',1],['작동 원리',1],['구조',.6],['principle',1],['principles',1],['theory',.8],['how it works',1],['operating principle',1],['fundamentals',.9],['basics',.8],['introduction',.6]] },
+  { id:'a_procedure', n:'방법·절차', a:1, t:[['방법',1],['절차',1],['순서',.8],['요령',.8],['사용법',1],['procedure',1],['step by step',1],['steps',.7],['method',.8],['how to',1],['instructions',.8]] },
+  { id:'a_types', n:'종류·비교', a:1, t:[['종류',1],['차이',1],['비교',1],['장단점',1],['선정',.8],['types',1],['type of',.8],['comparison',1],['difference',1],['versus',.8],['selection',.8]] },
+  { id:'a_install', n:'설치·배선', a:1, t:[['설치',1],['배선',1],['결선',1],['시공',.8],['installation',1],['mounting',1],['wiring',1]] },
+  { id:'a_trouble', n:'고장·점검', a:1, t:[['고장',1],['이상',.6],['트러블',1],['점검',1],['진단',1],['에러',.8],['오류',.8],['troubleshooting',1],['fault',1],['failure',.9],['diagnostic',1],['diagnostics',1],['error',.6]] },
+  { id:'a_setup', n:'설정·세팅', a:1, t:[['설정',1],['세팅',1],['파라미터',1],['구성',.6],['configuration',1],['setup',1],['setting',.9],['settings',.9],['parameter',.9]] },
+  { id:'a_example', n:'예제·사례', a:1, t:[['예제',1],['예시',1],['사례',1],['샘플',.8],['example',1],['examples',1],['sample',.7],['case study',1]] },
+  { id:'a_standard', n:'기준·규격·법규', a:1, t:[['기준',1],['규격',1],['표준',1],['법령',1],['법률',1],['규정',1],['주기',.7],['standard',1],['regulation',1],['requirement',.9],['requirements',.9],['compliance',.8]] },
+  { id:'a_calc', n:'계산·공식', a:1, t:[['계산',1],['공식',1],['수식',1],['산정',1],['calculation',1],['formula',1],['equation',.9],['sizing',.8]] },
+  { id:'a_program', n:'프로그래밍', a:1, t:[['프로그래밍',1],['코딩',1],['programming',1],['program',.6],['instruction set',.8]] },
+  { id:'a_doc', n:'매뉴얼·교재', a:1, t:[['매뉴얼',1],['설명서',1],['교재',1],['강의',.8],['핸드북',1],['manual',1],['user manual',1],['handbook',1],['textbook',1],['lecture',.8],['guide',.7]] },
 ];
+// 2026-10-24 시뮬레이션(인터넷 도서 63권 · 질문 48개)에서 빠졌던 표현 보강
+const THES_ADD = {
+  level: [['수위',1],['탱크 레벨',1],['tank level',1],['liquid level',1],['레벨 센서',1],['수위 센서',1],['hydrostatic',.8],['정수두',.8]],
+  pnid: [['계장 도면',1],['도면 기호',1],['계장 기호',1],['심볼',.6],['instrument tag',1],['계기 태그',1],['태그 번호',1],['loop number',.8],['isa symbol',1],['instrument symbols',1]],
+  interlock: [['인터록 로직',1],['interlock logic',1],['shutdown logic',1],['trip logic',1]],
+  sis: [['비상정지',.9],['비상 정지',.9],['긴급 차단',.9],['sil 등급',1],['sil 결정',1],['sil determination',1],['sil assessment',1],['sil rating',1],['lopa',1],['layer of protection',1],['risk graph',1],['2oo3',1],['1oo2',1],['2oo2',1],['voting',.6],['보팅',.8]],
+  ot_security: [['해킹',1],['사이버 공격',1],['사이버공격',1],['침해',.8],['악성코드',1],['랜섬웨어',1],['hacking',1],['cyber attack',1],['cyberattack',1],['intrusion',.8],['incident response',.8],['보안 사고',1]],
+  calibration: [['영점',1],['스팬',.9],['zero span',1],['zero & span',1],['zero/span',1],['zero adjustment',1],['span adjustment',1],['zero calibration',1]],
+  flow: [['flow rate',.7],['flowrate',.7],['차압식 유량계',1],['orifice meter',1],['flow element',.9]],
+  control_valve: [['밸브 개도',1],['개도',.7],['valve opening',.8],['valve position',.8],['valve travel',.8]],
+  hart: [['primary variable',.6],['hart command',1],['하트',.8]],
+  plc: [['plc programming',1],['plc 프로그래밍',1],['래더 로직',1],['래더 다이어그램',1]],
+  fieldbus: [['opc ua',1],['opc',.8]],
+  instrumentation: [['measuring instrument',1],['measuring instruments',1],['electrical instruments',.9],['test equipment',.7]],
+};
+for (const [id, add] of Object.entries(THES_ADD)) THES.find(c => c.id === id).t.push(...add);
+// 일반 기술 용어 한↔영 (사전에 없는 낱말을 다른 말로도 찾기 — 한글 질문으로 영어 책, 영어 질문으로 한글 책). '한글=영어,영어' 한 줄에 여럿
+const GLOSS_SRC = `
+열전달=heat transfer|전도=conduction|대류=convection|복사열=thermal radiation|열교환기=heat exchanger|열교환=heat exchange|냉동=refrigeration,refrigerating|냉동기=refrigerator,chiller|냉매=refrigerant|공조=air conditioning,hvac|공기조화=air conditioning|냉방=cooling,air conditioning|난방=heating|냉각=cooling|가열=heating|단열=insulation|열역학=thermodynamics|엔탈피=enthalpy|엔트로피=entropy|증발기=evaporator|응축기=condenser|압축기=compressor|사이클=cycle|증기=steam,vapor|보일러=boiler|터빈=turbine|발전기=generator|발전소=power plant,power station|발전=power generation
+유체역학=fluid mechanics|유체=fluid|펌프=pump,pumps|송풍기=fan,blower|배관=piping,pipe|관로=pipeline|마찰손실=friction loss|레이놀즈=reynolds|베르누이=bernoulli|점도=viscosity|밀도=density|양정=head|캐비테이션=cavitation|수격=water hammer|노즐=nozzle|탱크=tank|용기=vessel
+전기=electrical,electric,electricity|전자=electronic,electronics|회로=circuit,circuits|저항=resistance,resistor|전압=voltage|전류=current|전력=power|주파수=frequency|교류=alternating current|직류=direct current|변압기=transformer|전동기=motor,motors|모터=motor|인버터=inverter|차단기=circuit breaker,breaker|계전기=relay|보호계전=protective relay|접지=grounding,earthing|배전=distribution,power distribution|송전=transmission line,power transmission|변전소=substation|역률=power factor|고조파=harmonics|반도체=semiconductor|다이오드=diode|트랜지스터=transistor|증폭기=amplifier|콘덴서=capacitor|커패시터=capacitor|인덕터=inductor|오실로스코프=oscilloscope|멀티미터=multimeter|전력량계=energy meter,watt-hour meter|검류계=galvanometer|전류계=ammeter|전압계=voltmeter
+자동화=automation,automated|제어=control|공정=process|시스템=system|설비=equipment,facility|장비=equipment|기계=machine,mechanical|기계공학=mechanical engineering|로봇=robot,robotics|센서=sensor|모니터링=monitoring|감시=monitoring,supervision|원격=remote|무선=wireless,radio|송신기=transmitter|수신기=receiver|안테나=antenna|통신=communication|네트워크=network|프로토콜=protocol|이더넷=ethernet|직렬통신=serial communication|시리얼=serial|주소=address|모드=mode|멀티드롭=multidrop,multi-drop|명령=command|명령어=command,commands|응답=response|존=zone,zones|컨듀잇=conduit,conduits|구역=zone|위험=risk,hazard|위험성평가=risk assessment|안전=safety|보호=protection|화재=fire|폭발=explosion|가스=gas|누출=leak,leakage|환경=environment|배출=emission|소음=noise|진동=vibration|부식=corrosion|용접=welding|재료=material,materials|강도=strength|응력=stress|변형률=strain|피로=fatigue|설계=design|도면=drawing,drawings|치수=dimension|공차=tolerance|측정=measurement,measuring|계측=measurement,instrumentation|정밀=precision|정확도=accuracy|분해능=resolution|오차=error|불확도=uncertainty|검정=verification,inspection|시험=test,testing,exam|검사=inspection,test|품질=quality|유지보수=maintenance|정비=maintenance|보수=repair|점검표=checklist|운전=operation|시운전=commissioning|기동=start-up,startup|정지=shutdown,stop
+리눅스=linux|명령줄=command line|쉘=shell|셸=shell|윈도우=windows|파이썬=python|자바스크립트=javascript|자바=java|프로그램=program|소프트웨어=software|하드웨어=hardware|데이터=data|데이터베이스=database|서버=server|클라우드=cloud|인공지능=artificial intelligence|머신러닝=machine learning|알고리즘=algorithm|함수=function,functions|변수=variable,variables|반복문=loop|조건문=conditional,if statement|객체=object|클래스=class|모듈=module|라이브러리=library|파일=file|디렉토리=directory|암호=encryption,password|암호화=encryption|방화벽=firewall|인증=authentication|접근제어=access control|취약점=vulnerability|패치=patch|백업=backup
+자습서=tutorial|입문=introduction,beginner|기초=basics,fundamentals|초보=beginner|교과서=textbook|보고서=report|인턴=intern,internship|실습=lab,practice,exercise|실험=experiment,lab|강의=lecture|문제=problem,question|시험문제=question pool,exam questions|요약=summary|부록=appendix|용어=terminology,glossary
+수학=mathematics,math|미분=derivative,differential|적분=integral|행렬=matrix|통계=statistics|확률=probability|물리=physics|화학=chemistry|생물=biology|심리=psychology|심리학=psychology|뇌=brain|신경=nerve,neural|시냅스=synapse|기억=memory|감정=emotion|경제=economy,economics|시장=market|가격=price|무역=trade|노동=labor,labour|세금=tax|역사=history|전쟁=war|전략=strategy|정부=government|헌법=constitution|소설=novel|문학=literature|요리=cooking,cookery,recipe|소스=sauce|에너지=energy|효율=efficiency|태양광=solar|풍력=wind power|배터리=battery|수소=hydrogen|연소=combustion|연료=fuel|원자력=nuclear|원전=nuclear power plant
+`;
+const GLOSS = new Map(), GLOSS_EN = new Map();
+for (const part of GLOSS_SRC.split(/[|\n]/)) { const m = part.trim().match(/^([^=]+)=(.+)$/); if (!m) continue; const ko = m[1].trim(), en = m[2].split(',').map(x => x.trim().toLowerCase()).filter(Boolean); GLOSS.set(ko, en); for (const e of en) { if (!GLOSS_EN.has(e)) GLOSS_EN.set(e, []); GLOSS_EN.get(e).push(ko); } }
 const TH = Object.fromEntries(THES.map(c => [c.id, c]));
 for (const c of THES) { c.kids = THES.filter(k => (k.p || []).includes(c.id)).map(k => k.id); c.ab ||= []; c.rel ||= []; c.neg ||= []; }
 // 이 말들이 주변에 있으면 '계장 분야' 문맥으로 본다 (다른 뜻 배제 · 도서 분야 점수)
 const DOMAIN_CTX = ['instrument','process','calibrat','4-20','hart','valve','loop','plant','pressure','flow','level','temperature','signal','setpoint','controller','dcs','plc','p&id',
   '계장','계측','계기','공정','밸브','압력','유량','레벨','온도','신호','교정','제어','플랜트','설치'];
 // 질문에서 뺄 말 (검색 의도와 무관)
-const STOP = new Set(['관련','관련된','관련한','관한','관해','관하여','대한','대해','대해서','도서','책','자료','문서','서적','교재','찾아줘','찾아','찾기','알려줘','보여줘','있는','나온','나오는','나와있는','설명','설명된','설명한','설명하는','다룬','다루는','내용','관련도서','주제','좀','등','및','어떤','무엇','방법',
-  'book','books','about','related','regarding','on','the','a','an','of','for','and','or','in','to','with','document','documents','find','me','show','please']);
-const JOSA = ['으로부터','에서부터','으로서','으로써','에게서','이라는','이라고','에서의','에서는','으로는','하는법','하는','하기','하고','되는','라는','라고','에서','에게','으로','까지','부터','처럼','보다','이나','에는','과','와','은','는','이','가','을','를','에','의','도','만','로','된','한'];
+const STOP = new Set(['관련','관련된','관련한','관한','관해','관하여','대한','대해','대해서','대해서는','도서','책','자료','문서','서적','파일','찾아줘','찾아','찾기','찾고','알려줘','알려','보여줘','해줘','줘','있는','있어','있나','있나요','있는지','있을까','있을까요','있어요','나온','나오는','나와있는','나와','설명','설명된','설명한','설명하는','설명해줘','다룬','다루는','내용','관련도서','주제','좀','혹시','등','및','또는','그리고','어떤','어떻게','어떻게해','어떻게하나','무엇','무엇인지','뭐야','뭔지','뭐','어디','싶어','싶다','싶은데','배우고','공부','하는','되는','정리','정리된','읽는','보는','쓰는','재는','내는','하려면','할때','때','것','거','수','중','각','위한','위해','필요한','의미','뜻','법','어디에','에서','으로','에게','랑','이랑','하고','이고','는','은','이','가',
+  'book','books','about','related','regarding','on','the','a','an','of','for','and','or','in','to','with','document','documents','find','me','show','please','i','want','how','what','is','are','do','does','explain','explained','learn','learning','which','where','any','some','tell','need','info','information','there']);
+const JOSA = ['으로부터','에서부터','으로서','으로써','에게서','이라는','이라고','에서의','에서는','으로는','하는법','하려면','하는','하기','하고','되는','라는','라고','이랑','에서','에게','으로','까지','부터','처럼','보다','이나','에는','과','와','은','는','이','가','을','를','에','의','도','만','로','된','한','랑'];
 const stripJosa = w => { for (const j of JOSA) if (w.endsWith(j) && w.length - j.length >= 2) return w.slice(0, -j.length); return w; };
+// '재는 · 읽는 · 정하는 · 배우고 · 싶어' 같은 짧은 동사·어미 꼴은 검색어가 아님 (사전에 있는 말은 제외)
+let DICTW = null;   // 사전 표현에 들어 있는 한글 낱말 (이건 동사 꼴이어도 버리지 않음: 제어 · 기어 …)
+const VERBISH = w => {
+  if (!DICTW) { DICTW = new Set(); for (const c of THES) for (const [t] of c.t) for (const x of t.split(' ')) if (isHangul(x)) DICTW.add(x); }
+  if (DICTW.has(w)) return false;
+  return (w.length <= 3 && /[는던고면어아요까니다지]$/.test(w)) || (w.length === 2 && /하$/.test(w));
+};
 const isHangul = s => /[가-힣]/.test(s);
 
 /* ===================================================================================== 2) 본문 추출 */
@@ -545,8 +617,121 @@ const DB = (() => {
   };
 })();
 
+/* ===================================================================================== 3-2) 공용 도서관 (대시보드 서버 /api/books — books_api.py)
+ * 운영자가 서버 PC 의 도서 폴더 경로를 정함 → 운영자 브라우저가 그 폴더 책을 서버에서 받아 본문을 뽑아 색인을 서버에 올림
+ * → 부서원은 색인을 내려받아(이 PC 에 보관) 각자 브라우저에서 검색, 미리보기 원본은 서버에서 받음 */
+const SRV = { base: '', on: false, info: null, token: '', name: '' };
+try { const a = JSON.parse(localStorage.getItem('dept-auth') || 'null'); if (a) { SRV.token = a.token || ''; SRV.name = a.name || ''; } } catch (_) {}
+window.addEventListener('message', e => {   // 대시보드(renderApp → appAuth)가 보내는 로그인 토큰
+  if (e.source !== window.parent || !e.data || e.data.kind !== 'dept-auth') return;
+  const changed = SRV.token !== (e.data.token || ''); SRV.token = e.data.token || ''; SRV.name = e.data.name || '';
+  if (changed && SRV.on) srvInfo().then(() => { renderTop(); if ($('#libPanel')) showLibPanel(); }).catch(() => {});
+});
+async function srvFetch(path, opt = {}) {
+  const r = await fetch(SRV.base + '/api/books/' + path, { cache: 'no-store', ...opt, headers: { ...(SRV.token ? { 'X-Auth-Token': SRV.token } : {}), ...(opt.headers || {}) } });
+  if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch (_) {} const e = new Error(m || `서버 응답 ${r.status}`); e.status = r.status; throw e; }
+  return r;
+}
+const srvJson = async (path, opt) => (await srvFetch(path, opt)).json();
+const srvPut = (path, body, type = 'application/json') => srvJson(path, { method: 'PUT', body, headers: { 'Content-Type': type } });
+async function srvInfo() { SRV.info = await srvJson('info'); return SRV.info; }
+async function srvDetect() {
+  if (!/^https?:$/.test(location.protocol)) return false;
+  SRV.base = location.origin;
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 3500);
+  try { SRV.info = await srvJson('info', { signal: ctl.signal }); SRV.on = true; } catch (_) { SRV.on = false; } finally { clearTimeout(t); }
+  return SRV.on;
+}
+class RemoteFile {   // 서버에 있는 원본 — 처음 쓸 때 한 번 받아 둠
+  constructor(rel) { this.rel = rel; this.name = rel.split('/').pop(); this.url = `${SRV.base}/api/books/file?rel=${encodeURIComponent(rel)}`; this._b = null; }
+  async arrayBuffer() { if (!this._b) this._b = await (await srvFetch(`file?rel=${encodeURIComponent(this.rel)}`)).arrayBuffer(); return this._b; }
+}
+function fileFor(B) {   // 미리보기 · 원본 열기용 파일: 내 PC 폴더(이 창 또는 처음 창) / 공용 도서관(서버)
+  if (!B) return null;
+  let f = LIB.files.get(B.rel);
+  if (!f && LIB.src === 'srv' && SRV.on) { f = new RemoteFile(B.rel); LIB.files.set(B.rel, f); }
+  if (!f) { f = borrowFile(B.rel); if (f) LIB.files.set(B.rel, f); }
+  return f || null;
+}
+const gzipJson = obj => new Response(new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
+async function pool(items, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } })); }
+async function loadSrvLib() {
+  const man = await srvJson('manifest'), list = man.books || [];
+  LIB.src = 'srv'; LIB.folder = man.folder || SRV.info?.folder || '공용 도서관'; LIB.live = true; LIB.files = new Map(); LIB.dirHandle = null;
+  const books = []; let k = 0, old = 0; setProg(0, '공용 도서관 불러오는 중…');
+  await pool(list, 4, async e => {
+    let rec = await DB.get('books', e.sig).catch(() => null);
+    if (!rec || rec.v !== EXTRACT_VER) {
+      try { rec = await srvJson('book/' + e.id); } catch (_) { rec = null; }
+      if (rec && rec.v === EXTRACT_VER) DB.put('books', rec).catch(() => {}); else if (rec) { old++; rec = null; }
+    }
+    if (rec) books.push(makeBook(rec));
+    if (++k % 3 === 0 || k === list.length) setProg(k / Math.max(1, list.length), `공용 도서관 불러오는 중 ${k}/${list.length} (처음 한 번만 받습니다)`);
+  });
+  books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
+  LIB.books = books; LIB.bySig = new Map(books.map(B => [B.sig, B])); LIB.srvAt = man.at || ''; LIB.srvBy = man.by || ''; LIB.srvOld = old;
+  setProg(null);
+  DB.put('kv', { folder: LIB.folder, sigs: books.map(B => B.sig), at: Date.now() }, 'srvlib').catch(() => {});
+  return true;
+}
+// 운영자 · 그룹장: 서버 폴더의 새 · 바뀐 책만 받아 본문을 뽑아 서버에 올림 (full = 전부 다시)
+async function srvIndex(full) {
+  if (RUN.busy) { toast('지금 읽는 중입니다. 끝나거나 [중지] 후 다시 하세요'); return; }
+  let files, man;
+  try { files = await srvJson('files'); man = await srvJson('manifest'); } catch (e) { toast('서버 폴더를 읽지 못했습니다: ' + e.message, 5000); return; }
+  const have = new Map((man.books || []).map(e => [e.sig, e])), oldByRel = new Map((man.books || []).map(e => [e.rel, e]));
+  const keep = [], todo = [];
+  for (const f of files.files) {
+    const sig = `${f.rel}|${f.size}|${f.mtime}`, e = have.get(sig);
+    if (e && e.v === EXTRACT_VER && !full) keep.push(e); else todo.push({ ...f, sig, ext: relOk(f.rel) });
+  }
+  if (LIB.src !== 'srv') await loadSrvLib().catch(() => {});
+  RUN.busy = true; RUN.stop = false; renderTop();
+  const done = [], t0 = Date.now(); let n = 0, failed = 0, upErr = '';
+  const putMan = final => srvPut('manifest', JSON.stringify({ folder: files.folder, final, books: [...keep, ...done, ...(final ? [] : todo.slice(n).map(t => oldByRel.get(t.rel)).filter(Boolean))] }));
+  for (; n < todo.length; n++) {
+    if (RUN.stop) break;
+    const it = todo[n], label = it.rel.split('/').pop();
+    setProg(n / todo.length, `공용 색인 ${n + 1}/${todo.length} — ${label}`);
+    let rec;
+    try {
+      const r = await extractFile(new RemoteFile(it.rel), it.ext, (i, k) => setProg((n + i / k) / todo.length, `공용 색인 ${n + 1}/${todo.length} — ${label} (${i}/${k}쪽)`), () => RUN.stop);
+      const chars = r.pages.reduce((a, p) => a + p.length, 0);
+      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.size, mtime: it.mtime, title: r.title || '', pages: r.pages, heads: r.heads, err: chars < 20 ? 'notext' : '' };
+    } catch (e) {
+      if (RUN.stop) break;
+      failed++; rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.size, mtime: it.mtime, title: '', pages: [''], heads: [], err: 'read:' + (e && e.message || e) };
+    }
+    try {
+      const up = await srvPut('book', await gzipJson(rec), 'application/octet-stream');
+      done.push({ sig: rec.sig, rel: rec.rel, ext: rec.ext, size: rec.size, mtime: rec.mtime, nPages: rec.pages.length, chars: rec.pages.reduce((a, p) => a + p.length, 0), err: rec.err, title: rec.title, v: EXTRACT_VER, id: up.id });
+    } catch (e) { upErr = e.message; toast('서버에 올리지 못했습니다: ' + e.message, 5000); break; }
+    DB.put('books', rec).catch(() => {});
+    const B = makeBook(rec), old = LIB.books.findIndex(x => x.rel === B.rel);
+    if (old >= 0) LIB.books[old] = B; else LIB.books.push(B);
+    LIB.bySig = new Map(LIB.books.map(x => [x.sig, x]));
+    if (n % 5 === 4) { await putMan(false).catch(() => {}); refreshAfterIndex(); }
+  }
+  const complete = !RUN.stop && !upErr && n >= todo.length;
+  try { await putMan(complete); } catch (e) { upErr ||= e.message; }
+  RUN.busy = false; setProg(null);
+  await srvInfo().catch(() => {}); await loadSrvLib().catch(() => {});
+  const sec = Math.round((Date.now() - t0) / 1000);
+  toast(upErr ? `중간에 멈췄습니다 (${upErr}) — 다시 [색인 갱신] 하면 이어서 합니다` : RUN.stop ? `중지 — ${done.length}권 올림. [색인 갱신]으로 이어서 할 수 있습니다`
+    : todo.length ? `공용 색인 ${done.length}권 완료 (${sec}초)${failed ? ` · 읽기 실패 ${failed}` : ''} — 부서원 화면에 바로 반영됩니다` : '바뀐 파일이 없습니다', 5000);
+  renderAll(); if ($('#libPanel')) showLibPanel(); if (STATE.q) doSearch(STATE.q, true);
+}
+async function useSource(src) {   // 검색 대상 바꾸기: 공용 도서관 ↔ 내 PC 폴더
+  if (RUN.busy) { toast('읽는 중에는 바꿀 수 없습니다'); return; }
+  try { localStorage.setItem('gyejang-books-src', src); } catch (_) {}
+  STATE.res = null; STATE.viewer = null;
+  if (src === 'srv') await loadSrvLib().catch(e => toast('공용 도서관을 불러오지 못했습니다: ' + e.message, 5000));
+  else { LIB.books = []; LIB.bySig = new Map(); LIB.files = new Map(); LIB.src = 'local'; LIB.folder = ''; LIB.live = false; await loadLib().catch(() => {}); }
+  renderAll(); if (STATE.q) doSearch(STATE.q, true);
+}
+
 /* ===================================================================================== 4) 도서관(메모리) */
-const LIB = { folder: '', books: [], bySig: new Map(), files: new Map(), live: false, dirHandle: null };
+const LIB = { folder: '', books: [], bySig: new Map(), files: new Map(), live: false, dirHandle: null, src: 'local' };   // src: 'srv' 공용 도서관 · 'local' 내 PC 폴더
 function makeBook(rec) {
   const pages = rec.pages || [''];
   const starts = new Int32Array(pages.length); let off = 0;
@@ -566,7 +751,7 @@ function makeBook(rec) {
   // 분야 점수: 계장 문맥어가 1만 자당 얼마나 나오나
   let hits = 0; const lim = Math.min(low.length, 3_000_000);
   for (const w of DOMAIN_CTX) { let i = 0; while ((i = low.indexOf(w, i)) !== -1 && i < lim) { hits++; i += w.length; } }
-  B.domain = B.chars ? Math.min(1, (hits / (Math.min(B.chars, lim) / 10000)) / 25) : 0;
+  B.domain = B.chars >= 1500 ? Math.min(1, (hits / (Math.min(B.chars, lim) / 10000)) / 25) : 0.6;   // 글자가 거의 없는 스캔본은 중립
   return B;
 }
 // 한글 표현은 띄어쓰기를 무시하고 찾음 — PDF 양쪽 정렬에서 생기는 '차 압 전송기' 같은 끊김 · '압력전송기'/'압력 전송기' 차이
@@ -612,25 +797,29 @@ function buildQuery(raw, expand = true) {
   const pairs = [];
   for (const c of THES) for (const [t] of [...c.t, ...c.ab]) { const l = normText(t).toLowerCase(); pairs.push([isHangul(l) ? l.replace(/ /g, '') : l, c.id]); }
   pairs.sort((a, b) => b[0].length - a[0].length);
+  // 겹치는 표현도 모두 개념으로 ('제어밸브 포지셔너' = 제어밸브 + 포지셔너), 찾은 자리는 남은 낱말 고를 때만 지움
+  const s0 = s, blank = [];
   for (const [t, id] of pairs) {
     if (isHangul(t)) {
-      const re = new RegExp([...t].map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' *'), 'g');
-      s = s.replace(re, m => { if (!found.includes(id)) found.push(id); return ' '.repeat(m.length); });
+      const re = new RegExp([...t].map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' *'), 'g'); let m;
+      while ((m = re.exec(s0))) { if (!found.includes(id)) found.push(id); blank.push([m.index, m.index + m[0].length]); }
       continue;
     }
-    let i = s.indexOf(t);
+    let i = s0.indexOf(t);
     while (i !== -1) {
-      const ok = isHangul(t) || (!W(s.charCodeAt(i - 1)) && (!W(s.charCodeAt(i + t.length)) || (s[i + t.length] === 's' && !W(s.charCodeAt(i + t.length + 1)))));
-      if (ok) { if (!found.includes(id)) found.push(id); s = s.slice(0, i) + ' '.repeat(t.length) + s.slice(i + t.length); }
-      i = s.indexOf(t, i + 1);
+      const ok = !W(s0.charCodeAt(i - 1)) && (!W(s0.charCodeAt(i + t.length)) || (s0[i + t.length] === 's' && !W(s0.charCodeAt(i + t.length + 1))));
+      if (ok) { if (!found.includes(id)) found.push(id); blank.push([i, i + t.length + (s0[i + t.length] === 's' ? 1 : 0)]); }
+      i = s0.indexOf(t, i + 1);
     }
   }
-  // ② 남은 낱말: 불용어·조사 제거 → 오타면 사전 표현으로, 아니면 그 낱말 그대로 찾기
-  const free = [];
+  for (const [a, b] of blank) s = s.slice(0, a) + ' '.repeat(b - a) + s.slice(b);
+  // 넓은 표현 안에 든 좁은 개념만 찾힌 경우는 그대로 둠 (예: '압력 전송기' → 압력 전송기 + 압력 측정 상위 개념은 사전 관계로 처리)
+  // ② 남은 낱말: 불용어·조사·어미 제거 → 오타면 사전 표현으로, 아니면 그 낱말 그대로 찾기
+  const free = [], dropped = [];
   for (let w of s.split(/[^0-9a-z가-힣&/.+#-]+/)) {
     w = w.replace(/^[-./]+|[-./]+$/g, ''); if (!w) continue;
-    if (isHangul(w)) w = stripJosa(w);
-    if (STOP.has(w) || w.length < 2) continue;
+    if (isHangul(w)) { w = stripJosa(w); if (w.length === 2 && GLOSS.has(w[0]) && /[과와은는이가을를에의도]$/.test(w)) w = w[0]; }
+    if (STOP.has(w) || (w.length < 2 && !GLOSS.has(w)) || (isHangul(w) && VERBISH(w))) { if (w.length >= 2 && !STOP.has(w)) dropped.push(w); continue; }
     if (found.some(id => [...TH[id].t, ...TH[id].ab].some(([t]) => t.toLowerCase().includes(w)))) continue;
     if (!isHangul(w) && w.length >= 5) {
       const hit = vocab().find(([v]) => edit1(w, v) || edit1(w.replace(/s$/, ''), v));
@@ -638,25 +827,36 @@ function buildQuery(raw, expand = true) {
     }
     if (!free.includes(w)) free.push(w);
   }
-  // ③ 검색 개념 목록: 주 개념(질문에 나온 것) + 하위 개념 표현(같이 찾음) + 상위 개념(부분 점수)
-  const qs = [];
+  // ③ 검색 개념 목록
+  //   주제 개념(사전) = 주 개념 · 일반 개념(센서 · 계장 일반)은 더 구체적인 주제가 있으면 보조로 · 관점(원리 · 방법 …)은 보조
+  //   하위 개념 표현은 함께 찾고, 상위 개념은 부분 점수, 사전에 없는 낱말은 주제가 있으면 보조 가중치로
+  const C = CFG, qs = [], topical = found.filter(id => !TH[id].a), specific = topical.filter(id => !TH[id].g);
   for (const id of found) {
-    const c = TH[id];
-    let vs = expand ? conceptVariants(c, 1) : conceptVariants({ t: c.t.filter(([t]) => text.toLowerCase().replace(/ /g, '').includes(t.toLowerCase().replace(/ /g, ''))), ab: c.ab.filter(([t]) => text.includes(t)) }, 1);
+    const c = TH[id], aspect = !!c.a, generic = !!c.g && specific.length > 0;
+    let vs = expand || aspect ? conceptVariants(c, 1) : conceptVariants({ t: c.t.filter(([t]) => text.toLowerCase().replace(/ /g, '').includes(t.toLowerCase().replace(/ /g, ''))), ab: c.ab.filter(([t]) => text.includes(t)) }, 1);
     if (!vs.length) vs = conceptVariants(c, 1);
     let tags = c.tag ? [c.tag] : [];
-    if (expand) for (const kid of c.kids) { vs.push(...conceptVariants(TH[kid], 0.95)); if (TH[kid].tag) tags.push(TH[kid].tag); }
-    qs.push({ id, label: c.n, main: true, W: 1, vs, tags: expand ? tags : [], domain: !!c.d, neg: c.neg, c });
+    if (expand && !aspect) for (const kid of c.kids) { vs.push(...conceptVariants(TH[kid], 0.95)); if (TH[kid].tag) tags.push(TH[kid].tag); }
+    // 질문에 다른 뜻을 가리키는 말이 있으면(예: 'radio transmitter') 그 뜻으로 찾는 것 → 계장 문맥 감점 안 함
+    const otherSense = (c.neg || []).some(x => s0.includes(x));
+    qs.push({ id, label: c.n, main: !aspect && !generic, aspect, W: aspect ? C.aspW : generic ? C.genW : 1, vs, tags: expand && !aspect ? tags : [], domain: !!c.d && !aspect && !otherSense, neg: otherSense ? [] : c.neg, c });
   }
   if (expand) for (const id of found) for (const pid of TH[id].p || []) {
     if (found.includes(pid) || qs.some(q => q.id === pid)) continue;
-    qs.push({ id: pid, label: TH[pid].n, main: false, W: 0.3, vs: conceptVariants(TH[pid], 1), tags: [], domain: !!TH[pid].d, neg: TH[pid].neg, c: TH[pid] });
+    qs.push({ id: pid, label: TH[pid].n, main: false, W: C.parentW, vs: conceptVariants(TH[pid], 1), tags: [], domain: !!TH[pid].d, neg: TH[pid].neg, c: TH[pid] });
   }
+  const anchored = topical.length > 0;
   for (const w of free) {
     const en = !isHangul(w), sfx = en && w.length >= 6 ? 4 : 0;
     const stem = en && sfx ? w.replace(/(ations?|ings?|ed|es|s)$/, '') : w;
-    qs.push({ id: 'free:' + w, label: w, main: true, W: 1, free: true, vs: [variant(stem.length >= 4 ? stem : w, 1, en ? 'en' : 'ko', { sfx: stem !== w ? sfx + (w.length - stem.length) : 0, label: w })], tags: [], domain: false, neg: [] });
+    const vs = [variant(stem.length >= 4 ? stem : w, 1, en ? 'en' : 'ko', { sfx: stem !== w ? sfx + (w.length - stem.length) : 0, label: w })];
+    // 용어집: 한글 → 영어 표현 · 영어 → 한글 표현도 같은 낱말로 (번역은 조금 낮은 가중치)
+    const tr = en ? (GLOSS_EN.get(w) || GLOSS_EN.get(w.replace(/s$/, '')) || []) : (GLOSS.get(w) || []);
+    for (const x of tr) vs.push(variant(x, 0.9, isHangul(x) ? 'ko' : 'en', { label: x }));
+    qs.push({ id: 'free:' + w, label: w + (tr.length ? ` (${tr.slice(0, 2).join(', ')})` : ''), main: true, free: true, soft: anchored, W: anchored ? C.freeW : 1, vs, tags: [], domain: false, neg: [] });
   }
+  if (!qs.some(q => q.main) && qs.length) qs.forEach(q => { if (q.aspect || q.c?.g) { q.main = true; q.W = 1; } });   // '설치 방법' 처럼 관점만 물으면 그것으로 찾음
+  if (dropped.length) notes.push(`검색에서 뺀 말: ${dropped.slice(0, 5).join(', ')}`);
   return { raw, text, qs, mains: qs.filter(q => q.main), notes, found };
 }
 
@@ -680,7 +880,14 @@ function scan(D, v, out, qi, vi) {   // D = {low, orig}; out 에 [시작, 끝, �
     i = low.indexOf(s, i + s.length);
   }
 }
+const MC = new Map();   // 일치 결과 보관: 같은 책 · 같은 표현 묶음이면 다시 세지 않음 (정렬 · 거르기 · 다시 찾기가 빨라짐)
 function matchConcept(B, q) {
+  const key = B.sig + '\u0001' + (q.key ||= q.vs.map(v => v.kind + v.s + '*' + v.w + (v.sfx || '')).join('|') + '#' + q.tags.map(t => t.source).join('|') + (q.domain ? 'D' : '') + q.neg.join(','));
+  let r = MC.get(key); if (r) return r;
+  if (MC.size > 40000) MC.clear();
+  r = matchConcept0(B, q); MC.set(key, r); return r;
+}
+function matchConcept0(B, q) {
   const rawL = [], rawK = [];   // 영어·약어·태그 = low 좌표, 한글 = sq(공백 뺀 글) 좌표
   q.vs.forEach((v, vi) => scan(B, v, v.kind === 'ko' ? rawK : rawL, 0, vi));
   for (const re of q.tags) { re.lastIndex = 0; let m, k = 0; while ((m = re.exec(B.orig)) && k < 20000) { rawL.push(m.index, m.index + m[0].length, 0.3, -1); k++; } }
@@ -717,9 +924,13 @@ function matchConcept(B, q) {
   }
   return { hits, pages, vcount, tags, title: th.length > 0, heads: [...headHit.keys()].map(i => B.heads[i]).filter(Boolean), dirHit: dh.length > 0, sense };
 }
-const K1 = 1.2, BB = 0.5;
+// 순위 가중치 — 인터넷 도서 63권으로 시뮬레이션해 고른 값 (SIMULATION.md)
+//   조정용 대화체 질문 48개로 300가지를 시험해 고르고, 조정에 쓰지 않은 질문 20개로 나빠지지 않음을 확인
+//   b: 쪽 길이 보정 · top: 깊이에 쓰는 상위 쪽 수 · wFrac: 책에서 다룬 비율 · wHead/wTitle: 목차/제목 일치 · domA: 계장 분야 문맥 · cover: 주제 여럿이 한 쪽에
+//   miss: 주제 하나가 아예 없을 때 · aspW: 관점(원리 · 방법 …) · genW: 넓은 말 · parentW: 상위 개념 · freeW: 사전에 없는 보조어 · senseA: 다른 뜻 감점 하한
+const CFG = { k1: 1.2, b: 0.75, top: 3, wDepth: 1, wLog: 0.55, wFrac: 5, wHead: 0.8, wTitle: 5, wDir: 0.8, domA: 0.75, cover: 1, miss: 0.45, aspW: 0.15, genW: 0.2, parentW: 0.5, freeW: 0.3, senseA: 0.5 };
 function search(raw, opt = {}) {
-  const t0 = performance.now();
+  const t0 = performance.now(), C = CFG;
   const Q = buildQuery(raw, opt.expand !== false);
   const books = LIB.books.filter(B => (!opt.fmt || B.ext === opt.fmt) && (!opt.dir || B.dir === opt.dir || B.dir.startsWith(opt.dir + '/')));
   if (!Q.qs.length || !books.length) return { Q, results: [], ms: performance.now() - t0, total: books.length };
@@ -727,7 +938,8 @@ function search(raw, opt = {}) {
   const avgLen = Math.max(200, chars / Math.max(1, N));
   const M = books.map(B => Q.qs.map(q => matchConcept(B, q)));
   const idf = Q.qs.map((q, qi) => { let df = 0; for (const m of M) df += m[qi].pages.size; return Math.log(1 + (N - df + 0.5) / (df + 0.5)); });
-  const nMain = Q.mains.length, results = [];
+  const gate = Q.qs.filter(q => q.main && !q.soft), nMain = gate.length || Q.mains.length, results = [];
+  const domainQ = Q.qs.some(q => q.main && q.domain);
   books.forEach((B, bi) => {
     const m = M[bi];
     if (!Q.qs.some((q, qi) => q.main && (m[qi].pages.size || m[qi].title || m[qi].heads.length))) return;   // 주 개념이 하나도 없으면 제외
@@ -735,25 +947,26 @@ function search(raw, opt = {}) {
     const pscore = new Map(), pcover = new Map();
     Q.qs.forEach((q, qi) => {
       for (const [p, tf] of m[qi].pages) {
-        const len = B.pages[p].length || 1, sat = tf * (K1 + 1) / (tf + K1 * (1 - BB + BB * len / avgLen));
+        const len = B.pages[p].length || 1, sat = tf * (C.k1 + 1) / (tf + C.k1 * (1 - C.b + C.b * len / avgLen));
         pscore.set(p, (pscore.get(p) || 0) + q.W * idf[qi] * sat);
-        if (q.main) pcover.set(p, (pcover.get(p) || 0) + 1);
+        if (q.main && !q.soft) pcover.set(p, (pcover.get(p) || 0) + 1);
       }
     });
-    if (nMain > 1) for (const [p, s] of pscore) pscore.set(p, s * (1 + 0.6 * ((pcover.get(p) || 1) - 1) / (nMain - 1)));
+    if (nMain > 1) for (const [p, s] of pscore) pscore.set(p, s * (1 + C.cover * ((pcover.get(p) || 1) - 1) / (nMain - 1)));
     const top = [...pscore.entries()].sort((a, b) => b[1] - a[1]);
-    let depth = 0; for (let i = 0; i < Math.min(5, top.length); i++) depth += top[i][1] / (i + 1);
+    let depth = 0; for (let i = 0; i < Math.min(C.top, top.length); i++) depth += top[i][1] / (i + 1);
     let breadth = 0, head = 0, title = 0, factor = 1, missing = 0;
     Q.qs.forEach((q, qi) => {
       const r = m[qi], np = r.pages.size, f = idf[qi] * q.W;
-      breadth += f * (0.55 * Math.log2(1 + np) + 3 * Math.sqrt(np / B.nPages));
-      head += f * 1.6 * Math.log2(1 + r.heads.length);
-      title += f * (r.title ? 3.2 : 0) + f * (r.dirHit ? 0.8 : 0);
-      if (q.main && q.domain) factor *= (0.55 + 0.45 * B.domain) * (0.35 + 0.65 * r.sense);
-      if (q.main && !np && !r.title && !r.heads.length) missing++;
+      breadth += f * (C.wLog * Math.log2(1 + np) + C.wFrac * Math.sqrt(np / B.nPages));
+      head += f * C.wHead * Math.log2(1 + r.heads.length);
+      title += f * (r.title ? C.wTitle : 0) + f * (r.dirHit ? C.wDir : 0);
+      if (q.main && q.domain) factor *= C.senseA + (1 - C.senseA) * r.sense;
+      if (q.main && !q.soft && !np && !r.title && !r.heads.length) missing++;
     });
-    if (nMain > 1 && missing) factor *= Math.pow(0.45, missing);
-    const score = (depth + breadth + head + title) * factor;
+    if (domainQ) factor *= C.domA + (1 - C.domA) * B.domain;
+    if (nMain > 1 && missing) factor *= Math.pow(C.miss, missing);
+    const score = (C.wDepth * depth + breadth + head + title) * factor;
     if (score <= 0) return;
     results.push({ B, m, score, top, depth, breadth, head, title, factor });
   });
@@ -788,7 +1001,7 @@ function explain(R, Q) {
     const txt = topPages.map(p => B.low.slice(B.starts[p], B.starts[p] + B.pages[p].length)).join(' ');
     const txk = topPages.map(p => B.sq.slice(B.sqStarts[p], p + 1 < B.nPages ? B.sqStarts[p + 1] : B.sq.length)).join('');
     for (const c of THES) {
-      if (qids.has(c.id) || (TH[Q.qs[0]?.id]?.kids || []).includes(c.id) || c.id === 'instrumentation') continue;
+      if (c.a || c.g || qids.has(c.id) || (TH[Q.qs[0]?.id]?.kids || []).includes(c.id)) continue;
       let n = 0; for (const [t] of c.t) { const ko = isHangul(t), s = ko ? t.replace(/ /g, '') : t.toLowerCase(), T = ko ? txk : txt; if (s.length < (ko ? 2 : 3)) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1) { n++; i += s.length; } }
       for (const [t] of c.ab) { let i = 0; const T = topPages.map(p => B.pages[p]).join(' '); while ((i = T.indexOf(t, i)) !== -1) { if (!/[A-Za-z]/.test(T[i - 1] || ' ') && !/[A-Za-z]/.test(T[i + t.length] || ' ')) n++; i += t.length; } }
       if (n >= 3) co.push([c.n, n]);
@@ -865,7 +1078,9 @@ async function useFiles(list, folder) {
   if (RUN.busy) { toast('지금 읽는 중입니다. 끝나거나 [중지] 후 다시 하세요'); return; }
   if (!list.length) { toast('이 폴더에 읽을 수 있는 도서 파일(PDF · EPUB · DOCX · HWPX · TXT · MD)이 없습니다', 4000); }
   RUN.busy = true; RUN.stop = false;
-  LIB.folder = folder; LIB.live = true; LIB.files = new Map();
+  if (LIB.src === 'srv') { LIB.books = []; LIB.bySig = new Map(); }
+  LIB.folder = folder; LIB.live = true; LIB.files = new Map(); LIB.src = 'local';
+  try { localStorage.setItem('gyejang-books-src', 'local'); } catch (_) {}
   const items = [];
   for (const it of list) { const f = await it.getFile(); const ext = relOk(it.rel); LIB.files.set(it.rel, f); items.push({ rel: it.rel, ext, f, sig: `${it.rel}|${f.size}|${f.lastModified}` }); }
   items.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
@@ -909,12 +1124,15 @@ let lastRefresh = 0;
 function refreshAfterIndex() { const now = Date.now(); if (now - lastRefresh < 4000) return; lastRefresh = now; renderTop(); if (STATE.q) doSearch(STATE.q, true); else renderAll(); }
 async function saveLib() { await DB.put('kv', { folder: LIB.folder, sigs: LIB.books.map(B => B.sig), at: Date.now() }, 'lib').catch(() => {}); }
 async function gc() {   // 폴더에서 지워진 책의 보관본 정리
-  try { const keys = await DB.keys('books'); const live = new Set(LIB.books.map(B => B.sig)); for (const k of keys) if (!live.has(k)) await DB.del('books', k); } catch (_) {}
+  try {   // 공용 도서관에서 받아 둔 색인(srvlib)은 남김
+    const keys = await DB.keys('books'), sl = await DB.get('kv', 'srvlib').catch(() => null);
+    const live = new Set([...LIB.books.map(B => B.sig), ...(sl?.sigs || [])]); for (const k of keys) if (!live.has(k)) await DB.del('books', k);
+  } catch (_) {}
 }
 async function loadLib() {
   const lib = await DB.get('kv', 'lib').catch(() => null);
   if (!lib || !lib.sigs?.length) return false;
-  LIB.folder = lib.folder; LIB.books = []; LIB.live = false;
+  LIB.folder = lib.folder; LIB.books = []; LIB.live = false; LIB.src = 'local';
   setProg(0, '이 PC 에 보관된 도서 색인 불러오는 중…');
   let k = 0;
   for (const sig of lib.sigs) { const rec = await DB.get('books', sig).catch(() => null); if (rec && rec.v === EXTRACT_VER) LIB.books.push(makeBook(rec)); if (++k % 5 === 0) { setProg(k / lib.sigs.length, `보관된 색인 불러오는 중 ${k}/${lib.sigs.length}`); await sleep(0); } }
@@ -924,7 +1142,7 @@ async function loadLib() {
 
 /* ===================================================================================== 9) 화면 */
 const STATE = { q: '', res: null, sel: 0, shown: 30, view: null, pdfCache: null };
-const EXAMPLES = ['Transmitter 관련 도서', '압력 전송기 설치', 'HART 통신', '제어밸브 포지셔너', 'SIS SIL 안전계장', '유량계 측정 원리', '열전대 온도 측정', 'P&ID 심볼'];
+const EXAMPLES = ['Transmitter 관련 도서', '압력전송기 영점 조정은 어떻게 해?', 'HART로 PV 값 읽는 방법', '제어밸브 포지셔너 세팅 방법', 'SIL 등급 정하는 법', '열전대 냉접점 보상', 'P&ID에서 계기 태그 의미', '제어시스템 사이버 보안 가이드'];
 function recent() { try { return JSON.parse(localStorage.getItem('gyejang-books-recent') || '[]'); } catch (_) { return []; } }
 function pushRecent(q) { try { const r = [q, ...recent().filter(x => x !== q)].slice(0, 8); localStorage.setItem('gyejang-books-recent', JSON.stringify(r)); } catch (_) {} }
 function setProg(f, text) {
@@ -934,12 +1152,14 @@ function setProg(f, text) {
 }
 function renderTop() {
   const chip = $('#folderChip'); chip.classList.toggle('live', LIB.live); chip.classList.toggle('cache', !LIB.live && LIB.books.length > 0);
-  $('#folderName').textContent = LIB.folder || '폴더 없음';
+  $('#folderName').textContent = (LIB.src === 'srv' ? '📚 공용 · ' : LIB.folder ? '💻 ' : '') + (LIB.folder || '폴더 없음');
   const nt = LIB.books.filter(B => B.err === 'notext').length, bad = LIB.books.filter(B => B.err.startsWith('read:')).length;
   $('#folderStat').textContent = LIB.books.length ? `· ${fmtN(LIB.books.length)}권 · ${fmtN(LIB.books.reduce((a, B) => a + B.nPages, 0))}쪽${nt ? ` · 글자 없음 ${nt}` : ''}${bad ? ` · 실패 ${bad}` : ''}${LIB.live ? '' : ' · 보관본'}` : '';
-  chip.title = LIB.live ? '폴더 연결됨 — 미리보기에서 원본 쪽 그림까지 볼 수 있습니다' : LIB.books.length ? '이 PC 에 보관된 색인으로 검색합니다. 원본 쪽 그림 · 새 파일 반영은 [폴더 다시 연결] 후' : '';
-  $('#btnRescan').hidden = !LIB.books.length; $('#btnReconnect').hidden = LIB.live || !LIB.books.length;
+  chip.title = LIB.src === 'srv' ? `공용 도서관 (대시보드 서버)${LIB.srvAt ? ` — ${LIB.srvAt.replace('T', ' ').slice(0, 16)} ${LIB.srvBy} 색인` : ''} · 누르면 도서관 설정` : LIB.live ? '폴더 연결됨 — 미리보기에서 원본 쪽 그림까지 볼 수 있습니다' : LIB.books.length ? '이 PC 에 보관된 색인으로 검색합니다. 원본 쪽 그림 · 새 파일 반영은 [폴더 다시 연결] 후' : '';
+  const srv = LIB.src === 'srv';
+  $('#btnRescan').hidden = srv || !LIB.books.length; $('#btnReconnect').hidden = srv || LIB.live || !LIB.books.length; $('#btnPick').hidden = srv;
   $('#btnPick').textContent = LIB.books.length ? '📁 다른 폴더' : '📁 폴더 선택';
+  $('#folderStat').textContent += srv && LIB.srvOld ? ` · 옛 형식 ${LIB.srvOld}권(관리자 재색인 필요)` : '';
   // 형식 · 폴더 고르기
   const fmts = [...new Set(LIB.books.map(B => B.ext))].sort(), dirs = [...new Set(LIB.books.map(B => B.dir.split('/')[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
   const fs = $('#optFmt'), ds = $('#optDir'), fv = fs.value, dv = ds.value;
@@ -951,6 +1171,11 @@ function renderTop() {
 }
 function renderIntro() {
   $('#main').hidden = true; const el = $('#intro'); el.hidden = false;
+  if (SRV.on && (SRV.info?.canManage || SRV.info?.count)) {   // 대시보드 서버: 공용 도서관부터
+    el.innerHTML = `<div class="card" style="margin-bottom:12px"><h2>부서 공용 계장 도서를 <u>본문 내용</u>으로 찾습니다</h2>
+      <div class="muted" style="font-size:13px;line-height:1.7">${SRV.info.canManage ? '① 서버 PC 의 도서 폴더 경로를 넣고 ② [색인 갱신] 을 한 번 누르면 ③ 부서원 모두 "Transmitter 관련 도서" 처럼 말하듯 검색할 수 있습니다.' : '공용 도서관을 불러오는 중이거나 아직 색인이 없습니다.'}</div></div><div id="libHost"></div>`;
+    showLibPanel($('#libHost')); return;
+  }
   const fsapi = !!window.showDirectoryPicker;
   el.innerHTML = `
     <div class="card" style="margin-bottom:0"><h2>내 PC 의 계장 도서를 <u>본문 내용</u>으로 찾습니다</h2>
@@ -1002,7 +1227,8 @@ function renderInterp(Q) {
   el.hidden = false;
   el.innerHTML = '<span class="k">이렇게 찾았습니다:</span>' + Q.qs.map(q => {
     const ex = [...new Set(q.vs.map(v => v.label))]; const tip = ex.join(', ') + (q.tags.length ? ', 계기 태그(PT-101 …)' : '');
-    return `<span class="cpt ${q.main ? '' : 'part'}" title="${esc(tip)}">${esc(q.free ? `'${q.label}'` : q.label)}${q.main ? '' : ' <small>(상위 개념 · 일부 점수)</small>'}${ex.length > 1 ? ` <small>+${ex.length - 1}개 표현</small>` : ''}</span>`;
+    const kind = q.aspect ? ' <small>(알고 싶은 내용)</small>' : q.main ? (q.soft ? ' <small>(보조어)</small>' : '') : q.c?.g ? ' <small>(넓은 말 · 보조)</small>' : ' <small>(상위 개념 · 일부 점수)</small>';
+    return `<span class="cpt ${q.main && !q.soft ? '' : 'part'}${q.aspect ? ' asp' : ''}" title="${esc(tip)}">${q.aspect ? '🎯 ' : ''}${esc(q.free ? `'${q.label}'` : q.label)}${kind}${ex.length > 1 && !q.aspect ? ` <small>+${ex.length - 1}개 표현</small>` : ''}</span>`;
   }).join('') + Q.notes.map(n => `<span class="dym">✎ ${esc(n)}</span>`).join('');
 }
 function renderResults() {
@@ -1015,7 +1241,15 @@ function renderResults() {
   }
   const top = results[0].score;
   const shown = results.slice(0, STATE.shown);
-  L.innerHTML = `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
+  // 📍 바로 볼 곳: 상위 도서들의 가장 관련 높은 쪽을 한데 모아 쪽 점수 순으로 (한 책에서 2곳까지)
+  const spots = [];
+  results.slice(0, 15).forEach((R, i) => R.top.slice(0, 2).forEach(([p, sc]) => spots.push({ i, p, sc: sc * R.factor })));
+  spots.sort((a, b) => b.sc - a.sc);
+  const per = {}, pick = []; for (const x of spots) { if ((per[x.i] = (per[x.i] || 0) + 1) > 2) continue; pick.push(x); if (pick.length >= 5) break; }
+  const reHL = hlRegex(Q);
+  const spotHtml = pick.length >= 2 ? `<div class="spots"><div class="sph">📍 바로 볼 곳 <span class="muted">— 질문과 가장 잘 맞는 쪽 (누르면 그 쪽을 엽니다)</span></div>${pick.map(x => { const R = results[x.i];
+    return `<div class="spot" data-si="${x.i}" data-sp="${x.p}"><span class="pg">${R.B.ext === 'pdf' ? 'p.' : '§'}${x.p + 1}</span><b>${esc(R.B.base.slice(0, 46))}</b><div class="sx">${hl(snippet(R.B, R, x.p, Q).slice(0, 170), reHL)}</div></div>`; }).join('')}</div>` : '';
+  L.innerHTML = spotHtml + `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
     shown.map((R, i) => {
       const ex = explain(R, Q), pct = Math.max(3, Math.round(100 * R.score / top));
       return `<div class="res ${i === STATE.sel ? 'on' : ''}" data-i="${i}" tabindex="0">
@@ -1032,7 +1266,7 @@ function renderPreview(goPage) {
   const B = R.B, Q = STATE.res.Q, ex = explain(R, Q), re = hlRegex(Q);
   const psgPages = R.top.slice(0, 6).map(x => x[0]);
   const heads = [...new Map(Q.qs.flatMap((q, i) => q.main ? R.m[i].heads : []).map(h => [h.t + h.p, h])).values()].slice(0, 12);
-  const file = LIB.files.get(B.rel);
+  const file = fileFor(B);
   P.innerHTML = `
     <div class="pvh"><div class="tt"><h2>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
       <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span><span class="badge">${fmtSize(B.size)}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
@@ -1234,18 +1468,20 @@ class Viewer {
 // 새 창: 같은 앱 주소에 viewer=1 — 본문은 이 PC 의 색인(IndexedDB), 원본 PDF 는 원래 창(opener)의 파일을 빌려 씀
 function openViewerWindow(v) {
   const u = new URL(location.href); u.search = '';
-  const P = new URLSearchParams({ viewer: '1', sig: v.B.sig, p: String(v.page + 1), q: v.q || '', f: v.fre?._t || '', m: v.mode });
+  const P = new URLSearchParams({ viewer: '1', sig: v.B.sig, p: String(v.page + 1), q: v.q || '', f: v.fre?._t || '', m: v.mode, src: LIB.src });
   const w = window.open(`${u.pathname}?${P}`, '_blank', 'popup=yes,width=1100,height=920');
   if (!w) toast('새 창이 막혔습니다 — 브라우저 주소창 오른쪽의 팝업 차단 표시에서 허용해 주세요', 4000);
 }
 function openOriginal(B, f, pg) {
-  if (!B) { const R = STATE.res?.results[STATE.sel]; if (!R) return; B = R.B; f = LIB.files.get(B.rel); pg = STATE.viewer?.page ?? 0; }
+  if (!B) { const R = STATE.res?.results[STATE.sel]; if (!R) return; B = R.B; f = fileFor(B); pg = STATE.viewer?.page ?? 0; }
   if (!f) return;
+  if (f instanceof RemoteFile) { window.open(B.ext === 'pdf' ? `${f.url}#page=${(pg || 0) + 1}` : f.url, '_blank'); return; }
   const url = URL.createObjectURL(f);
   const w = window.open(B.ext === 'pdf' ? `${url}#page=${(pg || 0) + 1}` : url, '_blank');
   if (!w) { const a = document.createElement('a'); a.href = url; a.download = B.name; a.click(); }
   setTimeout(() => URL.revokeObjectURL(url), 120000);
 }
+function popupSource() { if (Q0.get('src') === 'srv' && /^https?:$/.test(location.protocol)) { LIB.src = 'srv'; SRV.on = true; SRV.base = location.origin; } }
 // 원본 파일은 처음 폴더를 고른 창에만 있음 → 새 창은 opener 를 거슬러 올라가며 빌림 (같은 주소라 접근 가능)
 function borrowFile(rel) {
   let w = window;
@@ -1253,12 +1489,13 @@ function borrowFile(rel) {
   return null;
 }
 async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
+  popupSource();
   document.body.classList.add('vmode'); $('#app').hidden = true;
   const W = $('#vwin'); W.hidden = false;
   const sig = Q0.get('sig'), rec = await DB.get('books', sig).catch(() => null);
   if (!rec) { W.innerHTML = '<div class="empty">이 책의 색인을 찾지 못했습니다. 원래 화면에서 다시 열어 주세요.</div>'; return; }
   const B = makeBook(rec); let file = null;
-  file = borrowFile(B.rel); if (file) LIB.files.set(B.rel, file);
+  file = fileFor(B);
   const q = Q0.get('q') || '', Q = q ? buildQuery(q) : null;
   const hitPages = Q ? [...new Set(Q.mains.flatMap(qq => [...matchConcept(B, qq).pages.keys()]))].sort((a, b) => a - b) : [];
   document.title = `${B.base} — 계장도서검토`;
@@ -1273,6 +1510,37 @@ async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') v.go(v.page - 1); else if (e.key === 'ArrowRight' || e.key === 'PageDown') v.go(v.page + 1);
   });
 }
+function showLibPanel(host) {
+  if (!host) { $('#intro').hidden = true; $('#main').hidden = false; host = $('#pv'); }
+  const I = SRV.info || {}, srv = LIB.src === 'srv';
+  const nt = LIB.books.filter(B => B.err === 'notext'), bad = LIB.books.filter(B => B.err.startsWith('read:'));
+  const at = I.at ? `${I.at.replace('T', ' ').slice(0, 16)} · ${I.by}` : '';
+  host.innerHTML = `<div class="card" id="libPanel"><h2>📚 도서관</h2>
+    ${SRV.on ? `<div class="secttl">무엇을 검색할까요</div><div class="libsrc">
+      <label class="srcopt ${srv ? 'on' : ''}"><input type="radio" name="libsrc" value="srv" ${srv ? 'checked' : ''} ${I.count ? '' : 'disabled'}><span><b>📚 공용 도서관</b> — ${I.enabled ? `서버 PC 의 '${esc(I.folder)}' · <b>${fmtN(I.count)}권</b>${at ? ` · 마지막 색인 ${esc(at)}` : ''}` : '아직 폴더가 정해지지 않았습니다'}<br><span class="muted">부서원 모두 같은 책을 검색합니다. 원본 미리보기는 서버에서 받아 봅니다.</span></span></label>
+      <label class="srcopt ${srv ? '' : 'on'}"><input type="radio" name="libsrc" value="local" ${srv ? '' : 'checked'}><span><b>💻 내 PC 폴더</b> — ${!srv && LIB.folder ? `'${esc(LIB.folder)}' · ${fmtN(LIB.books.length)}권` : '이 PC 에서 직접 고른 폴더'}<br><span class="muted">나만 검색합니다. 파일은 서버로 올라가지 않습니다.</span></span></label></div>
+    ${I.canManage ? `<div class="mgr"><div class="secttl">🛠 공용 도서관 관리</div>
+      <label class="muted" for="libRoot">서버 PC 의 도서 폴더 경로 (하위 폴더 포함)</label>
+      <div class="row"><input id="libRoot" value="${esc(I.root || '')}" placeholder="예) D:\\계장도서   또는   C:\\Claude\\계장도서"><button class="btn sm pri" id="libRootSave">경로 저장</button></div>
+      ${I.rootSet && !I.rootOk ? '<div class="warnline">저장된 경로가 서버 PC 에 없습니다 — 다시 확인해 주세요</div>' : ''}
+      <div class="row"><button class="btn pri" id="libIndex" ${I.enabled ? '' : 'disabled'}>🔄 색인 갱신 (새 · 바뀐 파일만)</button><button class="btn" id="libIndexAll" ${I.enabled ? '' : 'disabled'}>⟳ 전체 다시 색인</button></div>
+      <div class="muted" style="line-height:1.6">이 브라우저가 서버 폴더의 책을 받아 본문을 뽑아 서버에 올립니다 — 처음 한 번은 책 양에 따라 수 분~수십 분(이 창을 열어 두세요), 이후에는 새로 넣거나 바뀐 파일만 합니다. 끝나면 부서원 화면에 바로 반영됩니다.</div></div>`
+      : `<div class="muted" style="margin-top:6px">공용 도서관 폴더 지정 · 색인은 운영자(서버 PC) · 그룹장이 합니다.${SRV.token ? '' : ' (대시보드에 로그인한 상태여야 권한이 확인됩니다)'}</div>`}`
+      : `<div class="muted">대시보드 서버에 연결되어 있지 않아 '내 PC 폴더' 만 쓸 수 있습니다.</div>`}
+    <div class="mgr"><div class="secttl">💻 내 PC 폴더</div><div class="row"><button class="btn" id="libPick">📁 폴더 선택</button><span class="muted">${!srv && LIB.folder ? `지금: '${esc(LIB.folder)}' · ${fmtN(LIB.books.length)}권` : '고르면 검색 대상이 내 PC 폴더로 바뀝니다'}</span></div></div>
+    ${nt.length || bad.length ? `<div class="mgr"><div class="secttl">⚠ 본문을 읽지 못한 파일 ${nt.length + bad.length}개 <span class="muted" style="font-weight:400">— 파일명 · 목차로만 찾습니다</span></div><ul class="probs">${[...nt.map(B => [B, '글자 없음 (스캔본으로 보임)']), ...bad.map(B => [B, '읽기 실패: ' + B.err.slice(5)])].slice(0, 60).map(([B, w]) => `<li><b>${esc(B.base)}</b> <span class="muted">${esc(B.dir || '')} — ${esc(w)}</span></li>`).join('')}</ul></div>` : ''}
+  </div>`;
+}
+document.addEventListener('click', async e => {
+  const id = e.target.id;
+  if (id === 'libRootSave') {
+    const v = $('#libRoot').value.trim(); if (!v) return;
+    try { const r = await srvPut('root', JSON.stringify({ root: v })); toast(`경로를 저장했습니다: ${r.root}`); await srvInfo(); showLibPanel(e.target.closest('#libHost') || undefined); }
+    catch (er) { toast(er.message, 5000); }
+  } else if (id === 'libIndex' || id === 'libIndexAll') { if (id === 'libIndexAll' && !confirm('모든 책을 처음부터 다시 색인합니다. 계속할까요?')) return; srvIndex(id === 'libIndexAll'); }
+  else if (id === 'libPick') pickFolder();
+});
+document.addEventListener('change', e => { if (e.target.name === 'libsrc') useSource(e.target.value); });
 function showDict() {
   const P = $('#pv'); $('#main').hidden = false; $('#intro').hidden = true;
   P.innerHTML = `<div class="card"><h2>📖 계장 용어 사전 <span class="muted">— [계장 용어 확장]이 켜져 있으면 아래 표현을 함께 찾습니다</span></h2>
@@ -1286,15 +1554,16 @@ function showDict() {
  *                            ② 다른 도서에서 같은 주제를 다룬 곳 ③ 함께 찾아볼 연관 주제 */
 function openRelatedWindow(v, t) {
   const u = new URL(location.href);
-  const P = new URLSearchParams({ related: '1', t, sig: v.B.sig, q: v.q || '' });
+  const P = new URLSearchParams({ related: '1', t, sig: v.B.sig, q: v.q || '', src: LIB.src });
   const w = window.open(`${u.pathname}?${P}`, '_blank', 'popup=yes,width=1360,height=940');
   if (!w) toast('새 창이 막혔습니다 — 브라우저 주소창 오른쪽의 팝업 차단 표시에서 허용해 주세요', 4000);
 }
 async function initRelatedWindow() {
+  popupSource();
   document.body.classList.add('vmode', 'rmode'); $('#app').hidden = true;
   const W = $('#vwin'); W.hidden = false; W.innerHTML = '<div class="empty">이 PC 의 도서 색인 불러오는 중…</div>';
   const sig = Q0.get('sig'), q0 = Q0.get('q') || '';
-  const lib = await DB.get('kv', 'lib').catch(() => null);
+  const lib = await DB.get('kv', LIB.src === 'srv' ? 'srvlib' : 'lib').catch(() => null);
   const sigs = [...new Set([sig, ...(lib?.sigs || [])])].filter(Boolean);
   for (let i = 0; i < sigs.length; i++) {
     const rec = await DB.get('books', sigs[i]).catch(() => null);
@@ -1366,13 +1635,13 @@ function runRelated(RS) {
   RS.rows = rows;
   // 연관 주제 칩: 사전의 관련 · 상위/하위 개념 + 이 책에서 그 낱말이 나온 쪽에 자주 함께 나온 개념
   const rel = new Map();
-  for (const id of Q.found) { const c = TH[id]; for (const r of [...c.rel, ...(c.p || []), ...c.kids]) if (!Q.found.includes(r)) rel.set(r, (rel.get(r) || 0) + 1); }
+  for (const id of Q.found) { const c = TH[id]; for (const r of [...c.rel, ...(c.p || []), ...c.kids]) if (!Q.found.includes(r) && !TH[r].a) rel.set(r, (rel.get(r) || 0) + 1); }
   const hp = [...new Set(rows.filter(r => !r.h && r.sig === B0.sig).map(r => r.p))].slice(0, 30);
   if (hp.length) {
     const txk = hp.map(p => B0.sq.slice(B0.sqStarts[p], p + 1 < B0.nPages ? B0.sqStarts[p + 1] : B0.sq.length)).join('');
     const txt = hp.map(p => B0.low.slice(B0.starts[p], B0.starts[p] + B0.pages[p].length)).join(' ');
     for (const c of THES) {
-      if (Q.found.includes(c.id) || c.id === 'instrumentation') continue; let n = 0;
+      if (c.a || c.g || Q.found.includes(c.id)) continue; let n = 0;
       for (const [w] of c.t) { const ko = isHangul(w), s = ko ? w.replace(/ /g, '') : w.toLowerCase(), T = ko ? txk : txt; if (s.length < 3) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1 && n < 999) { n++; i += s.length; } }
       if (n >= 3) rel.set(c.id, (rel.get(c.id) || 0) + n / 10);
     }
@@ -1409,7 +1678,7 @@ function showRow(RS) {
   const r = RS.rows[RS.sel]; if (!r) return;
   const B = LIB.bySig.get(r.sig);
   if (RS.vsig !== B.sig) {   // 다른 책이면 미리보기를 새로
-    const file = LIB.files.get(B.rel) || borrowFile(B.rel); if (file) LIB.files.set(B.rel, file);
+    const file = fileFor(B);
     $('#rpv').innerHTML = `<div class="rpvh"><b>${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span></div><div class="viewer" id="rviewer"></div>`;
     const hitPages = [...new Set(RS.rows.filter(x => !x.h && x.sig === B.sig).map(x => x.p))];
     RS.viewer = new Viewer($('#rviewer'), { B, re: RS.reQ, q: RS.q0, hitPages, page: r.p, file, popup: true, noFind: true });
@@ -1473,9 +1742,15 @@ $('#chips').addEventListener('click', e => { const b = e.target.closest('[data-q
 ['#optExpand', '#optFmt', '#optDir', '#optSort'].forEach(s => $(s).addEventListener('change', () => { if (STATE.q) doSearch(STATE.q, true); }));
 $('#btnPick').onclick = pickFolder; $('#btnReconnect').onclick = reconnect; $('#btnRescan').onclick = reconnect;
 $('#btnStop').onclick = () => { RUN.stop = true; };
-$('#btnDict').onclick = showDict;
+$('#btnDict').onclick = showDict; $('#btnLib').onclick = () => showLibPanel(); $('#folderChip').onclick = () => showLibPanel();
 $('#list').addEventListener('click', e => {
   if (e.target.id === 'more') { STATE.shown += 30; renderResults(); return; }
+  const sp = e.target.closest('.spot'); if (sp) {
+    STATE.sel = +sp.dataset.si; if (STATE.sel >= STATE.shown) { STATE.shown = STATE.sel + 1; renderResults(); }
+    document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel));
+    document.querySelectorAll('.spot').forEach(x => x.classList.toggle('on', x === sp));
+    renderPreview(+sp.dataset.sp); setTimeout(() => $('#viewerHost')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60); return;
+  }
   const r = e.target.closest('.res[data-i]'); if (!r) return;
   STATE.sel = +r.dataset.i; document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', x === r)); renderPreview();
 });
@@ -1501,7 +1776,11 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
   if (Q0.get('related') === '1') return initRelatedWindow();
   renderTop();
   if (!window.indexedDB) { toast('이 브라우저는 색인 보관(IndexedDB)을 쓸 수 없습니다 — Edge 또는 Chrome 으로 여세요', 6000); }
-  const had = await loadLib().catch(() => false);
+  await srvDetect();
+  let pref = ''; try { pref = localStorage.getItem('gyejang-books-src') || ''; } catch (_) {}
+  let had = false;
+  if (SRV.on && SRV.info?.count && pref !== 'local') had = await loadSrvLib().then(() => false).catch(e => { toast('공용 도서관을 불러오지 못했습니다: ' + e.message, 5000); return false; });
+  else had = await loadLib().catch(() => false);
   if (had) {
     const h = await DB.get('kv', 'dir').catch(() => null);
     if (h && h.queryPermission && (await h.queryPermission({ mode: 'read' }).catch(() => '')) === 'granted') { LIB.dirHandle = h; reconnect(); }
@@ -1512,7 +1791,7 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 })();
 
 // 시험·자동화용 (화면에는 영향 없음)
-window.BOOKS = { LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION, Viewer };
+window.BOOKS = { CFG, LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION, Viewer, SRV, srvIndex, useSource };
 </script>
 </body>
 </html>
