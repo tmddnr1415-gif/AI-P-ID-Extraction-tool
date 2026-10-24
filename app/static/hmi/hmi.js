@@ -45,7 +45,8 @@
     const marker = p.arrow === false ? "" : ` marker-end="url(#hmi-arrow-${p.kind in LINES ? p.kind : "process"})"`;
     const sig = p.kind === "signal" ? " signal" : "";
     let s = `<g class="pipeg" data-id="${esc(p.id)}">`;
-    s += `<polyline class="pipe base${sig}" points="${pts(p.pts)}" stroke="${L.color}"${marker}/>`;
+    const dash = p.style === "dashed" ? ` stroke-dasharray="14 8"` : "";      // hotfix113 — 도면이 점선으로 그린 배관 (협력사 범위 · 장래)
+    s += `<polyline class="pipe base${sig}" points="${pts(p.pts)}" stroke="${L.color}"${dash}${marker}/>`;
     if (p.kind !== "signal") s += `<polyline class="pipe flow${p.dir === -1 ? " rev" : ""}" points="${pts(p.pts)}"/>`;
     if (p.label) {
       const a = p.pts[0], b = p.pts[p.pts.length - 1];
@@ -65,7 +66,8 @@
     let s = `<g class="node equip${A.sel === e.id ? " sel" : ""}" data-kind="equipment" data-id="${esc(e.id)}">`;
     s += `<rect class="statusring" x="${px(e.x - 6)}" y="${px(e.y - 6)}" width="${e.w + 12}" height="${e.h + 12}" stroke="${statusColor(st)}" opacity="${st === "running" ? .35 : .9}"/>`;
     s += S.g(e.sym, e.x, e.y, e.w, e.h, { status: st });
-    const zt = zText();
+    // hotfix113 — 도면 외곽 크기로 선 큰 장비는 이름 · 상태도 그만큼 (예시 화면처럼 장비가 주인공)
+    const zt = Math.max(zText(), e.from_drawing ? Math.min(3.2, Math.max(1, e.w / 160)) : 1);
     s += `<text class="tag" data-edit="tag" x="${px(e.x + e.w / 2)}" y="${px(e.y + e.h + 18 * zt)}"${zt > 1 ? ` style="font-size:${px(12 * zt)}px"` : ""}>${esc(e.tag)}</text>`;
     s += statusPill(e.x + e.w / 2, e.y + e.h + 6 + 18 * zt, st, 0, zt);
     if (e.label && e.label !== e.tag) s += `<text class="eqlabel" x="${px(e.x + e.w / 2)}" y="${px(e.y - 12)}">${esc(e.label)}</text>`;

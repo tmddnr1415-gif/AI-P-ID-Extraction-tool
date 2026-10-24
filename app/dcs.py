@@ -374,6 +374,83 @@ def _sheets(job_id: str) -> list:
     return out
 
 
+def _layout_area(job_id: str) -> list | None:
+    """분석이 그 문서에서 잰 도면 영역 (`applied_rules.layout` 의 `regions.drawing_area` — 적용되지 않았어도 기록은 남는다)."""
+    m = _main()
+    job = m.db.get_job(m.CON, job_id)
+    try:
+        eng = json.loads((job["engine_json"] if job else None) or "{}")
+    except (TypeError, ValueError):
+        return None
+    for it in ((eng.get("applied_rules") or {}).get("layout") or {}).get("items") or []:
+        if it.get("key") == "regions.drawing_area" and isinstance(it.get("value"), list) and len(it["value"]) == 4:
+            return [float(v) for v in it["value"]]
+    return None
+
+
+def geom_hints(model: dict, area: list | None) -> dict:
+    """hotfix113 — 도면 기하 읽기(`app.hmi.pidgeom`)에 줄 것: 도면 영역 · 버블 크기 · 비킬 사각형(계기 · 밸브 · 태그 버블)."""
+    import statistics
+    bub = [min(i["rect"][2] - i["rect"][0], i["rect"][3] - i["rect"][1]) for i in model.get("instruments") or []]
+    bub = [b for b in bub if b > 2]
+    avoid = [i["rect"] for i in model.get("instruments") or []] + [v["rect"] for v in model.get("valves") or []] \
+        + [v["tag_rect"] for v in model.get("valves") or [] if v.get("tag_rect")]
+    return {"area": area, "bubble": statistics.median(bub) if bub else None, "avoid": avoid,
+            "bubbles": [i["rect"] for i in model.get("instruments") or []]}
+
+
+GEOM_VERSION = 1
+
+
+def attach_geom(job_id: str, models: list) -> None:
+    """hotfix113 — 모델마다 그 장의 도면 기하(배관 전체 · 장비 외곽 · 커넥터 · 직경 글)를 `model["geom"]` 에.
+    판정과 무관한 그래픽 재료다 — 분석 결과 · 지문에 닿지 않고 `{data}/hmi/<분석>/geom/p<장>.json` 에 기억한다
+    (PDF 크기 · 시각 · 판이 같을 때만).  계산은 서버 밖 일꾼(`page_warm.call`)이 — 못 쓰면 서버 안에서."""
+    from app.hmi import pidgeom
+    m = _main()
+    job = m.db.get_job(m.CON, job_id)
+    pdf = Path(job["pdf_path"]) if job and job["pdf_path"] else None
+    if not pdf or not pdf.exists() or pdf.suffix.lower() != ".pdf":
+        return
+    st = pdf.stat()
+    stamp = f"{pidgeom.VERSION}.{GEOM_VERSION}:{st.st_size}:{int(st.st_mtime)}"
+    folder = paths.data_dir() / "hmi" / job_id / "geom"
+    area = _layout_area(job_id)
+    todo = []
+    for md in models:
+        f = folder / f"p{int(md['page_no'])}.json"
+        try:
+            got = json.loads(f.read_text(encoding="utf-8"))
+            if got.get("stamp") == stamp:
+                md["geom"] = got["geom"]
+                continue
+        except (OSError, ValueError):
+            pass
+        todo.append(md)
+    if not todo:
+        return
+    jobs = [(int(md["page_no"]), geom_hints(md, area)) for md in todo]
+    try:
+        from app import page_warm
+        out = page_warm.call(pidgeom.read_pdf, (str(pdf), jobs), timeout=300)
+    except Exception:                            # noqa: BLE001 — 일꾼이 없으면 서버 안에서
+        try:
+            out = pidgeom.read_pdf(str(pdf), jobs)
+        except Exception:                        # noqa: BLE001 — 도면을 못 읽으면 기하 없이 (예전 장면)
+            return
+    folder.mkdir(parents=True, exist_ok=True)
+    for md in todo:
+        g = (out or {}).get(int(md["page_no"]))
+        if g is None:
+            continue
+        md["geom"] = g
+        try:
+            from app import jsonstore
+            jsonstore.write(folder / f"p{int(md['page_no'])}.json", {"stamp": stamp, "geom": g})
+        except Exception:                        # noqa: BLE001 — 기억 못 해도 그림은 그린다
+            pass
+
+
 def _sheet(job_id: str, page_no: int) -> dict | None:
     return next((s for s in _sheets(job_id) if s["page_no"] == int(page_no)), None)
 
@@ -431,6 +508,7 @@ def api_scene(job_id: str, page_no: int, fresh: int = 0):
     s = _sheet(job_id, page_no)
     if not s:
         return _json({"error": "그 장에는 식별된 행이 없습니다"}, 404)
+    attach_geom(job_id, [s])
     from app.hmi import scene
     sc = scene.from_model(s, hmi_load(job_id))
     sc["saved"] = False
@@ -493,6 +571,7 @@ def api_system_scene(job_id: str, key: str, fresh: int = 0):
     models = _system_models(job_id, key)
     if not models:
         return _json({"error": "그 시스템에는 식별된 장이 없습니다"}, 404)
+    attach_geom(job_id, models)
     from app.hmi import scene
     sc = scene.from_system(models, hmi_load(job_id), key)
     sc["saved"] = False

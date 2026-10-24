@@ -146,6 +146,9 @@
     `<line x1="32" y1="76" x2="68" y2="76" stroke="${C.bodyDark}" stroke-width="1.5"/>` +
     rect(44, 92, 12, 6, C.bodyDark) + rect(22, 46, 10, 8, C.bodyDark) + rect(68, 46, 10, 8, C.bodyDark),
     { in: [22, 50], out: [78, 50] });
+  // hotfix113 — 도면이 그린 외곽은 있는데 기기 명사가 없는 장비 (상자 안 'A' 하나 따위) — 모양을 지어내지 않고 그 외곽 그대로 상자로
+  def("equipment_box", "vessel", "Equipment (drawn outline)", "장비 (도면 외곽 그대로)", () =>
+    rect(4, 8, 92, 84, METAL, 'rx="6"') + rect(4, 84, 92, 8, C.bodyDark, 'rx="2"'));
   def("column", "vessel", "Column", "탑 (칼럼)", () =>
     stadium(38, 4, 24, 92, METAL) + fins(38, 62, 14, 86, 8) + rect(28, 40, 10, 6, C.bodyDark) + rect(62, 60, 10, 6, C.bodyDark));
   def("storage_tank", "vessel", "Storage Tank", "저장 탱크", () =>

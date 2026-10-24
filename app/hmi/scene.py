@@ -82,6 +82,18 @@ def sym_of_noun(noun: str) -> str:
     return "separator"
 
 
+def drawn_sym(noun: str) -> str:
+    """hotfix113 — 도면 외곽으로 선 장비의 심볼.  명사가 심볼 사전에 있으면 그 심볼, 없으면(FILTER · EJECTOR · 명사 없음)
+    외곽 그대로의 상자 — 드럼 따위로 지어내지 않는다."""
+    up = str(noun or "").upper()
+    if "MOTOR" in up.split():
+        return "motor"
+    for sym, needles in NOUN_SYM:
+        if any(n in up for n in needles):
+            return sym
+    return "equipment_box"
+
+
 def valve_sym(body: str, actuator: str, tag: str, tab: str) -> str:
     b, a, t = str(body or "").upper(), str(actuator or "").upper(), str(tag or "").upper()
     if "CHECK" in b:
@@ -180,6 +192,13 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
         r = e["rect"]; xs += [r[0], r[2]]; ys += [r[1] - 60 / sc, r[3]]
     for c in model.get("connectors") or []:
         xs += [c["at"][0]]; ys += [c["at"][1]]
+    geom = model.get("geom") or {}
+    for gp in geom.get("pipes") or []:
+        xs += [gp[0], gp[2]]; ys += [gp[1], gp[3]]
+    for sh in geom.get("shapes") or []:
+        r = sh["rect"]; xs += [r[0], r[2]]; ys += [r[1] - 60 / sc, r[3]]
+    for c in geom.get("conns") or []:
+        r = c["rect"]; xs += [r[0], r[2]]; ys += [r[1], r[3]]
     if xs:
         x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
     else:
@@ -242,6 +261,8 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
         scene["pipes"].append({"id": pid, "kind": service_of(ln or (f"00{sheet_sys}" if sheet_sys else "")), "label": "",
                                "line": ln, "pts": pts, "arrow": bool(flow), "role": p.get("role") or "",
                                "pid_seg": list(s)})
+    if geom:
+        _geom_pipes(scene, geom, model, P, prefix, seg_id, labels, sheet_sys)
     for lb in labels:
         r = lb.get("rect")
         if r:
@@ -251,11 +272,44 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
         x, y = P(*c["at"])
         scene["labels"].append({"text": f"{'To' if c.get('dir') == 'TO' else 'From' if c.get('dir') == 'FROM' else ''} {c['name']}".strip(),
                                 "x": x, "y": round(y - 8, 1), "kind": "conn", "dir": c.get("dir") or ""})
-    # 기기 — 인쇄된 이름 자리 위에 심볼
+    seen = {re.sub(r"[^A-Z0-9]", "", str(c.get("name") or "").upper()) for c in conns}
+    for c in geom.get("conns") or []:
+        if re.sub(r"[^A-Z0-9]", "", str(c.get("name") or "").upper()) in seen:
+            continue
+        r = c["rect"]
+        x, y = P((r[0] + r[2]) / 2, (r[1] + r[3]) / 2)
+        scene["labels"].append({"text": f"{'To' if c.get('dir') == 'TO' else 'From'} {c['name']}", "x": x, "y": y,
+                                "kind": "conn", "dir": c.get("dir") or "", "from_drawing": True})
+    # 기기 — hotfix113: 도면이 그린 외곽(이름이 그 안에 인쇄된 닫힌 영역)이 있으면 그 자리 · 그 크기로
     eq_by_name = {}
     obstacles = []
+    shapes = geom.get("shapes") or []
+    for n, sh in enumerate(shapes):
+        r = sh["rect"]
+        sym = drawn_sym(sh.get("noun") or "")
+        ex0, ey0 = P(r[0], r[1])
+        ex1, ey1 = P(r[2], r[3])
+        eid = f"{prefix}EQS-{n + 1:02d}"
+        name = names_ov.get(sh["name"]) or sh["name"]
+        eq = {"id": eid, "sym": sym, "x": ex0, "y": ey0, "w": round(ex1 - ex0, 1), "h": round(ey1 - ey0, 1),
+              "tag": name, "label": "", "status": "running", "noun": sh.get("noun") or "", "orig_name": sh["name"],
+              "pid_rect": list(r), "from_drawing": True}
+        if sym in ROTATING:
+            eq["params"] = {"Current": [None, "A"], "Voltage": [None, "kV"], "Speed": [None, "rpm"], "Power": [None, "MW"]}
+        scene["equipment"].append(eq)
+        eq_by_name[sh["name"]] = eid
+        obstacles.append([eq["x"], eq["y"], eq["x"] + eq["w"], eq["y"] + eq["h"] + 40])
+
+    def drawn(e):
+        """이름 자리 기기가 도면 외곽으로 이미 섰는가 (같은 이름 · 이름 자리가 외곽 안)."""
+        r = e["rect"]
+        cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+        return any(sh["name"] == e["name"] or (sh["rect"][0] - 4 <= cx <= sh["rect"][2] + 4 and sh["rect"][1] - 4 <= cy <= sh["rect"][3] + 4)
+                   for sh in shapes)
     for n, e in enumerate(model.get("equipment") or []):
         r = e["rect"]
+        if drawn(e):
+            continue
         if name_only(e.get("noun")):
             x, y = P((r[0] + r[2]) / 2, r[1])
             scene["labels"].append({"text": names_ov.get(e["name"]) or e["name"], "x": x, "y": round(y - 4, 1), "kind": "equip"})
@@ -304,6 +358,10 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
                                      "on": on or "", "scope": i.get("scope") or "", "line": i.get("line_no") or "",
                                      "line_size": i.get("line_size") or "", "loc": i.get("lines") or 0,
                                      "review": bool(i.get("review")), "pid_rect": list(r), "logic": None, "face": "above"})
+    if geom:
+        scene["basis"] = ("P&ID 도면 기하로 만든 그래픽 — 배관은 도면이 그린 선 전체 · 장비는 그 이름이 인쇄된 외곽의 자리와 크기 · "
+                          "커넥터 · 직경 글은 도면 그대로 · 화살은 도면의 TO/FROM 이 말할 때만 · 값은 데모 (LOGIC 창이 붙으면 그 값)")
+        scene["geom"] = {"pipes": len(geom.get("pipes") or []), "shapes": len(shapes), "conns": len(geom.get("conns") or [])}
     place_faces(scene["instruments"], obstacles)
     # 전송기 → 같은 태그의 제어기는 신호선 (H1 규칙 · 태그가 같을 때만 — 지어내지 않는다)
     for ins in scene["instruments"]:
@@ -314,6 +372,78 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
             scene["pipes"].append({"id": f"S-{ins['id']}", "kind": "signal", "label": "", "pts": [[src["x"], src["y"]], [ins["x"], ins["y"]]], "arrow": True})
     set_panels(scene, ov, page)
     return scene
+
+
+def _geom_pipes(scene: dict, geom: dict, model: dict, P, prefix: str, seg_id: dict, labels: list, sheet_sys: str) -> None:
+    """hotfix113 — 도면이 그린 배관 전체(`app.hmi.pidgeom`)를 장면에.  탭한 런이 그 배관 안에 들면 탭한 런 대신
+    그 배관을 쓴다(계기의 `on` 이 그 배관을 가리키게 `seg_id` 를 옮긴다).  종류는 가장 가까운 라인 깃발 → 장의 계통.
+    직경 글(`DN350`)은 가장 가까운 배관의 이름표 · 화살은 그 끝에 `TO`/`FROM` 커넥터가 있을 때만."""
+    bub = float(geom.get("bubble") or 20.0)
+    conns = [{"at": c["at"], "dir": c.get("dir")} for c in model.get("connectors") or []]
+    for c in geom.get("conns") or []:
+        r = c["rect"]
+        conns.append({"rect": r, "dir": c.get("dir")})
+
+    def conn_dist(c, x, y):
+        if "rect" in c:
+            r = c["rect"]
+            dx = max(r[0] - x, 0, x - r[2]); dy = max(r[1] - y, 0, y - r[3])
+            return (dx * dx + dy * dy) ** 0.5
+        return ((c["at"][0] - x) ** 2 + (c["at"][1] - y) ** 2) ** 0.5
+    sizes = list(geom.get("sizes") or [])
+    taps = [p for p in scene["pipes"] if p.get("pid_seg")]
+    drop = set()
+    for n, gp in enumerate(geom.get("pipes") or []):
+        x0, y0, x1, y1 = gp[:4]
+        hz = y0 == y1
+        gid = f"{prefix}G{n + 1}"
+        for t in taps:
+            s = t["pid_seg"]
+            if hz and s[1] == s[3] and abs(s[1] - y0) <= 1.5:
+                ov = min(s[2], x1) - max(s[0], x0)
+                if ov >= 0.6 * max(1.0, s[2] - s[0]):
+                    drop.add(t["id"]); seg_id[tuple(round(c, 1) for c in s)] = gid
+            elif not hz and s[0] == s[2] and abs(s[0] - x0) <= 1.5:
+                ov = min(s[3], y1) - max(s[1], y0)
+                if ov >= 0.6 * max(1.0, s[3] - s[1]):
+                    drop.add(t["id"]); seg_id[tuple(round(c, 1) for c in s)] = gid
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        ln, bd = "", 1e18
+        for lb in labels:
+            r = lb.get("rect")
+            if r:
+                d = (((r[0] + r[2]) / 2 - mx) ** 2 + ((r[1] + r[3]) / 2 - my) ** 2) ** 0.5
+                if d < bd:
+                    bd, ln = d, lb["line_no"]
+        if bd > 400:
+            ln = ""
+        flow = 0
+        for c in conns:
+            dA, dB = conn_dist(c, x0, y0), conn_dist(c, x1, y1)
+            if min(dA, dB) > bub * 3:
+                continue
+            at_b = dB <= dA
+            if c.get("dir") == "TO":
+                flow = 1 if at_b else -1
+            elif c.get("dir") == "FROM":
+                flow = -1 if at_b else 1
+        label = ""
+        for sz in sizes:
+            r = sz["rect"]
+            cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+            if hz and x0 - bub <= cx <= x1 + bub and abs(cy - y0) <= bub * 1.2:
+                label = sz["text"]; break
+            if not hz and y0 - bub <= cy <= y1 + bub and abs(cx - x0) <= bub * 1.2:
+                label = sz["text"]; break
+        pts = [P(x0, y0), P(x1, y1)]
+        if flow == -1:
+            pts.reverse()
+        p = {"id": gid, "kind": service_of(ln or (f"00{sheet_sys}" if sheet_sys else "")), "label": label, "line": ln,
+             "pts": pts, "arrow": bool(flow), "role": "drawn", "pid_seg": [x0, y0, x1, y1], "from_drawing": True}
+        if len(gp) > 4 and gp[4] == "dashed":
+            p["style"] = "dashed"
+        scene["pipes"].append(p)
+    scene["pipes"] = [p for p in scene["pipes"] if p["id"] not in drop]
 
 
 def set_panels(scene: dict, ov: dict, page: str) -> None:
@@ -431,6 +561,8 @@ def from_system(models: list, ov: dict | None = None, key: str = "") -> dict:
     grow = max(1.0, zt * 0.7)
     for t in tiles:
         for e in t["equipment"]:
+            if e.get("from_drawing"):
+                continue                      # hotfix113 — 도면 외곽 크기로 선 장비는 이미 실제 크기다
             cx, bottom = e["x"] + e["w"] / 2, e["y"] + e["h"]
             e["w"], e["h"] = round(e["w"] * grow, 1), round(e["h"] * grow, 1)
             e["x"], e["y"] = round(cx - e["w"] / 2, 1), round(bottom - e["h"], 1)
