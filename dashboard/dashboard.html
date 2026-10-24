@@ -664,6 +664,20 @@ dialog.wide:has(.vocdlg){width:min(1100px,96vw)}
 .vleft{display:flex;flex-direction:column;gap:8px;min-width:0;border:2px dashed transparent;border-radius:12px;padding:2px}.vleft.drop{border-color:#d6336c;background:#fff5f8}
 .vprev{flex:1;min-height:360px;max-height:62vh;display:grid;place-items:center;background:#0d1320;border-radius:12px;overflow:auto;outline:none}
 .vprev img{max-width:100%;max-height:62vh;display:block}
+.vprev{position:relative}.vprev canvas{display:block;touch-action:none;cursor:crosshair;box-shadow:0 2px 14px rgba(0,0,0,.4)}
+.vprev[data-tool="text"] canvas{cursor:text}
+.vprev .vtxt{position:absolute;z-index:2;min-width:140px;border:2px dashed #fff;background:rgba(0,0,0,.35);color:#fff;font:700 16px/1.3 inherit;padding:2px 6px;border-radius:4px;outline:none}
+/* 2026-10-24 VOC 그림 마크업 도구줄 */
+.vtools{display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#f4f6fc;border:1px solid var(--line);border-radius:10px;padding:5px 6px}
+.vtools[hidden]{display:none}
+.vtools button{border:1px solid transparent;background:transparent;border-radius:7px;min-width:30px;height:28px;padding:0 6px;cursor:pointer;font-size:13px;color:#33405e;display:inline-flex;align-items:center;justify-content:center;gap:3px}
+.vtools button:hover{background:#fff;border-color:var(--line)}.vtools button.on{background:#fff;border-color:#d6336c;color:#d6336c;box-shadow:0 0 0 2px rgba(214,51,108,.15)}
+.vtools button:disabled{opacity:.35;cursor:default}
+.vtools .vsep{width:1px;height:20px;background:var(--line);margin:0 3px}
+.vtools .vcol{width:22px;min-width:22px;height:22px;border-radius:50%;padding:0;border:2px solid #fff;box-shadow:0 0 0 1px #c5cbe0}.vtools .vcol.on{box-shadow:0 0 0 2px #33405e}
+.vtools .vsz i{display:block;border-radius:99px;background:currentColor;width:14px}
+.vtools .vmk{margin-left:auto;font-size:11.5px;color:#8a93ab}.vtools [data-mt]{font-size:12px;padding:0 7px}
+.vth .vmark{position:absolute;left:3px;bottom:3px;background:#d6336c;color:#fff;font-size:10px;border-radius:4px;padding:0 4px;font-style:normal}
 .vempty{color:#9fb0d0;text-align:center;font-size:15px;line-height:1.7}.vempty small{color:#6f7d9c}
 .vlist{display:flex;gap:6px;flex-wrap:wrap}
 .vth{position:relative;display:inline-block;border:2px solid transparent;border-radius:8px;cursor:pointer}.vth.on{border-color:#d6336c}
@@ -1087,7 +1101,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-24.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-24.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2674,19 +2688,124 @@ async function blobToJpeg(blob, max = 2400) {  // 큰 그림은 줄이고 JPEG �
  * 닫으면(등록 안 하고) 쓰던 제목 · 내용 · 그림을 이 창 안에서만 기억(VDRAFT) → 다음에 열면 이어 쓰기. 등록하면 그 메뉴의 VOC 로 저장되고 원래 하던 곳으로 포커스가 돌아간다. */
 let VDRAFT = null;
 const vdlg = () => document.getElementById('vocdlg');
+/* =====================================================================
+ *  VOC 그림 마크업 (2026-10-24) — 그림 위에 펜 · 형광펜 · 네모 · 화살표 · 글자, 색 5 · 굵기 3, 되돌리기 · 다시 · 원본으로
+ *  - 표시는 그림 좌표로 기억(ops)하고, 그릴 때마다 0.3초 뒤 원본(base) + 표시를 한 장으로 굳혀 x.blob 을 바꿈 → 썸네일 · 등록 · 임시 저장이 그대로 씀
+ *  - 굳힌 뒤에도 ops 가 남아 있어 VOC 창을 닫았다 열어도(이어 쓰기 · 화면 캡처 추가) 되돌리기 · 지우기 가능. 올린 그림(수정 때)을 고치면 새 그림으로 올라감
+ *  - 단축키 (VOC 창, 글 칸 밖): P 펜 · H 형광펜 · R 네모 · A 화살표 · T 글자 · Ctrl+Z / Ctrl+Y
+ * ===================================================================== */
+const VMK_COLORS = ['#ff2d55', '#ffcc00', '#1e88ff', '#22c55e', '#111827'], VMK_SIZES = [2, 4, 8];
+const VMK = (() => { try { return { tool:'pen', color:VMK_COLORS[0], size:4, ...JSON.parse(localStorage.getItem('dept-voc-pen') || '{}') }; } catch (_) { return { tool:'pen', color:VMK_COLORS[0], size:4 }; } })();
+const vmkSave = () => { try { localStorage.setItem('dept-voc-pen', JSON.stringify(VMK)); } catch (_) {} };
+const VMK_I = (d, extra = '') => `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>${extra}`;
+const VMK_TOOLS = [['pen', VMK_I('<path d="M3 17l1-4L13.5 3.5a2 2 0 0 1 3 3L7 16z"/><path d="M12 5l3 3"/>', '펜'), '펜 (P)'],
+  ['hl', VMK_I('<path d="M5 13l6-9 5 3-6 9H5z" fill="currentColor" fill-opacity=".25"/><path d="M4 17h12"/>', '형광펜'), '형광펜 (H)'],
+  ['rect', VMK_I('<rect x="3" y="5" width="14" height="10" rx="1"/>', '네모'), '네모 (R)'], ['arrow', VMK_I('<path d="M3 16L16 4"/><path d="M9 4h7v7"/>', '화살표'), '화살표 (A)'],
+  ['text', VMK_I('<path d="M4 5V3.5h12V5M10 3.5V17M7.5 17h5"/>', '글자'), '글자 (T) — 누른 곳에 쓰고 Enter']];
+const VMK_BAR = `<div class="vtools" id="vTools" hidden>${VMK_TOOLS.map(([k, i, t]) => `<button type="button" data-mt="${k}" title="${t}">${i}</button>`).join('')}<span class="vsep"></span>
+  ${VMK_COLORS.map(c => `<button type="button" class="vcol" data-mc="${c}" style="background:${c}" title="색"></button>`).join('')}<span class="vsep"></span>
+  ${VMK_SIZES.map((z, i) => `<button type="button" class="vsz" data-ms="${z}" title="${['가늘게', '보통', '굵게'][i]}"><i style="height:${z + 1}px"></i></button>`).join('')}<span class="vsep"></span>
+  <button type="button" data-ma="undo" title="되돌리기 (Ctrl+Z)">${VMK_I('<path d="M7 8H13a4 4 0 0 1 0 8H9"/><path d="M9 4L5 8l4 4"/>')}</button><button type="button" data-ma="redo" title="다시 (Ctrl+Y)">${VMK_I('<path d="M13 8H7a4 4 0 0 0 0 8h4"/><path d="M11 4l4 4-4 4"/>')}</button><button type="button" data-ma="clear" title="표시 모두 지우기 (되돌리기로 살릴 수 있음)">원본으로</button>
+  <span class="vmk">그림 위에 끌어서 표시</span></div>`;
+const vmkOps = x => { const o = x.ops || [], i = o.map(q => q.t).lastIndexOf('clear'); return o.slice(i + 1); };   // 마지막 '원본으로' 뒤의 표시
+const vmkLive = x => vmkOps(x).length > 0;
+function vmkPaint(g, img, ops, cur) {                         // 그림 좌표(1 = 원본 1px)로 그림
+  g.drawImage(img, 0, 0);
+  for (const o of cur ? [...ops, cur] : ops) {
+    g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = g.fillStyle = o.c; g.lineWidth = o.w;
+    if (o.t === 'pen' || o.t === 'hl') {
+      if (o.t === 'hl') { g.globalAlpha = .38; g.globalCompositeOperation = 'multiply'; g.lineCap = 'square'; }
+      g.beginPath(); o.p.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); if (o.p.length === 1) g.lineTo(o.p[0][0] + .1, o.p[0][1]); g.stroke();
+    } else if (o.t === 'rect') { g.strokeRect(Math.min(o.x0, o.x1), Math.min(o.y0, o.y1), Math.abs(o.x1 - o.x0), Math.abs(o.y1 - o.y0)); }
+    else if (o.t === 'arrow') { const a = Math.atan2(o.y1 - o.y0, o.x1 - o.x0), L = Math.max(o.w * 4, 12);
+      g.beginPath(); g.moveTo(o.x0, o.y0); g.lineTo(o.x1 - Math.cos(a) * L * .6, o.y1 - Math.sin(a) * L * .6); g.stroke();
+      g.beginPath(); g.moveTo(o.x1, o.y1); g.lineTo(o.x1 - L * Math.cos(a - .45), o.y1 - L * Math.sin(a - .45)); g.lineTo(o.x1 - L * Math.cos(a + .45), o.y1 - L * Math.sin(a + .45)); g.closePath(); g.fill(); }
+    else if (o.t === 'text') { g.font = `bold ${o.s}px ${getComputedStyle(document.body).fontFamily}`; g.textBaseline = 'top'; g.lineWidth = Math.max(2, o.s / 6); g.strokeStyle = o.c === '#111827' ? '#fff' : 'rgba(0,0,0,.75)';
+      o.text.split('\n').forEach((l, i) => { g.strokeText(l, o.x, o.y + i * o.s * 1.25); g.fillText(l, o.x, o.y + i * o.s * 1.25); }); }
+    g.restore();
+  }
+}
+function vocMarkup(pv, x, { onFlat, bar }) {
+  let alive = true, img = null, sc = 1, cur = null, txt = null, flatT = 0;
+  const dpr = window.devicePixelRatio || 1;
+  pv.innerHTML = '<canvas></canvas>'; const cv = pv.querySelector('canvas'), g = cv.getContext('2d');
+  x.ops = x.ops || []; x.redo = x.redo || [];
+  const syncBar = () => { bar.querySelectorAll('[data-mt]').forEach(b => b.classList.toggle('on', b.dataset.mt === VMK.tool));
+    bar.querySelectorAll('[data-mc]').forEach(b => b.classList.toggle('on', b.dataset.mc === VMK.color));
+    bar.querySelectorAll('[data-ms]').forEach(b => b.classList.toggle('on', +b.dataset.ms === VMK.size));
+    bar.querySelector('[data-ma="undo"]').disabled = !x.ops.length; bar.querySelector('[data-ma="redo"]').disabled = !x.redo.length; bar.querySelector('[data-ma="clear"]').disabled = !vmkLive(x);
+    pv.dataset.tool = VMK.tool; };
+  const layout = () => { if (!img || !alive) return; const bw = Math.max(80, pv.clientWidth - 16), bh = Math.max(80, pv.clientHeight - 16);
+    sc = Math.min(bw / img.naturalWidth, bh / img.naturalHeight, 2); const w = Math.round(img.naturalWidth * sc), h = Math.round(img.naturalHeight * sc);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); paint(); };
+  const paint = () => { if (!img) return; g.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0); g.clearRect(0, 0, img.naturalWidth, img.naturalHeight); vmkPaint(g, img, vmkOps(x), cur); };
+  let pend = null;                                              // 굳히기 기다리는 중 (등록 · 창 닫기 때 바로 끝냄)
+  const doFlat = () => new Promise(res => {                    // 원본 + 표시 → 한 장
+    if (!vmkLive(x)) {                                         // 표시가 없으면 원본으로
+      if (x.id0) { x.id = x.id0; delete x.blob; x.url = imgUrl(x.id0); } else if (x.base) { x.blob = x.base; x.url = URL.createObjectURL(x.base); }
+      onFlat(); return res(); }
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; vmkPaint(c.getContext('2d'), img, vmkOps(x));
+    c.toBlob(b => { if (b) { x.blob = b; x.url = URL.createObjectURL(b); delete x.id; onFlat(); } res(); }, c.width * c.height > 500000 ? 'image/webp' : 'image/png', .92);
+  });
+  const flush = () => { clearTimeout(flatT); if (pend) { const d = pend; pend = null; doFlat().then(d); } };
+  const flat = () => { clearTimeout(flatT); if (!pend) x.flat = new Promise(r => { pend = r; }); flatT = setTimeout(flush, 300); };   // 0.3초 뒤 (계속 그리면 미룸)
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / sc, (e.clientY - r.top) / sc]; };
+  const commit = o => { x.ops.push(o); x.redo = []; syncBar(); paint(); flat(); };
+  const closeTxt = save => { if (!txt) return; const t = txt, v = t.value.replace(/\s+$/, ''); txt = null; t.remove(); if (save && v) commit({ t:'text', c:VMK.color, s:Math.round((10 + VMK.size * 2.5) / sc), x:t._x, y:t._y, text:v }); };
+  cv.onpointerdown = e => {
+    if (e.button !== 0 || !img) return; e.preventDefault(); pv.focus({ preventScroll:true });
+    const [px, py] = pt(e), w = (VMK.tool === 'hl' ? VMK.size * 4 + 6 : VMK.size) / sc;
+    if (VMK.tool === 'text') { closeTxt(true);
+      txt = document.createElement('textarea'); txt.className = 'vtxt'; txt.rows = 1; txt._x = px; txt._y = py; txt.placeholder = '글자 쓰고 Enter';
+      const r = cv.getBoundingClientRect(), pr = pv.getBoundingClientRect(); Object.assign(txt.style, { left:(e.clientX - pr.left + pv.scrollLeft) + 'px', top:(e.clientY - pr.top + pv.scrollTop - 4) + 'px', color:VMK.color, fontSize:(10 + VMK.size * 2.5) + 'px' });
+      pv.appendChild(txt); setTimeout(() => txt?.focus());
+      txt.onkeydown = ev => { if (ev.isComposing) return; if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); closeTxt(true); } else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeTxt(false); } };
+      txt.onblur = () => setTimeout(() => closeTxt(true), 0); return; }
+    cur = VMK.tool === 'pen' || VMK.tool === 'hl' ? { t:VMK.tool, c:VMK.color, w, p:[[px, py]] } : { t:VMK.tool, c:VMK.color, w, x0:px, y0:py, x1:px, y1:py };
+    cv.setPointerCapture(e.pointerId); paint();
+  };
+  cv.onpointermove = e => { if (!cur) return; const [px, py] = pt(e);
+    if (cur.p) { const l = cur.p[cur.p.length - 1]; if (Math.hypot(px - l[0], py - l[1]) * sc >= 1.5) cur.p.push([px, py]); } else { cur.x1 = px; cur.y1 = py; }
+    paint(); };
+  cv.onpointerup = cv.onpointercancel = () => { if (!cur) return; const o = cur; cur = null;
+    if (!o.p && Math.hypot(o.x1 - o.x0, o.y1 - o.y0) * sc < 4) return paint();   // 그냥 누른 것 = 무시 (네모 · 화살표)
+    commit(o); };
+  const act = k => { closeTxt(true);
+    if (k === 'undo' && x.ops.length) x.redo.push(x.ops.pop());
+    else if (k === 'redo' && x.redo.length) x.ops.push(x.redo.pop());
+    else if (k === 'clear' && vmkLive(x)) { x.ops.push({ t:'clear' }); x.redo = []; }
+    else return; syncBar(); paint(); flat(); };
+  const barClick = e => { const t = e.target.closest('button'); if (!t || !bar.contains(t)) return;
+    if (t.dataset.mt) { closeTxt(true); VMK.tool = t.dataset.mt; } else if (t.dataset.mc) VMK.color = t.dataset.mc; else if (t.dataset.ms) VMK.size = +t.dataset.ms; else if (t.dataset.ma) return act(t.dataset.ma); else return;
+    vmkSave(); syncBar(); };
+  const keys = e => { const a = document.activeElement; if (!alive || a?.matches?.('input,textarea,select') || e.isComposing) return;
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); act(e.shiftKey ? 'redo' : 'undo'); return; }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); act('redo'); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const m = { p:'pen', h:'hl', r:'rect', a:'arrow', t:'text' }[e.key.toLowerCase()]; if (m) { e.preventDefault(); VMK.tool = m; vmkSave(); syncBar(); } };
+  bar.addEventListener('click', barClick); pv.closest('dialog').addEventListener('keydown', keys);
+  const ro = new ResizeObserver(() => layout()); ro.observe(pv);
+  if (x.id && !x.id0) x.id0 = x.id;                            // 처음 표시하는 그림 = 원본으로 기억 (올린 그림은 그 ID)
+  if (!x.base && !x.id0) x.base = x.blob;
+  const im = new Image(); im.onload = () => { if (!alive) return; img = im; layout(); };
+  im.src = x.base ? URL.createObjectURL(x.base) : imgUrl(x.id0);
+  syncBar();
+  return { flush, destroy() { alive = false; closeTxt(true); flush(); ro.disconnect(); bar.removeEventListener('click', barClick); pv.closest('dialog')?.removeEventListener('keydown', keys); } };
+}
 function openVoc({ menu = '', images = [], post = null, keep = null, back = null } = {}) {   // keep = 창 안 '화면 캡처 추가' 뒤 다시 열 때 이어 쓸 값 · back = 끝나고 돌아갈 포커스
   if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
   if (!SERVER || OFFLINE) return toast('VOC(그림 첨부)는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
   const D = vdlg(), ret = back || (D.open ? null : document.activeElement);
   const dr = !post && !keep && VDRAFT ? VDRAFT : null;                        // 지난번에 닫은 VOC 이어 쓰기
-  const V = { list:[...(keep?.ids ?? post?.images ?? []).map(id => ({ id, url:imgUrl(id) })), ...(keep?.blobs || dr?.blobs || []).map(b => ({ blob:b, url:URL.createObjectURL(b) })), ...images.map(b => ({ blob:b, url:URL.createObjectURL(b) }))], cur:0 };
+  const itemUrl = x => (x.url = x.blob ? URL.createObjectURL(x.blob) : imgUrl(x.id), x);   // 그림 하나 = { id(올린 것) | blob, base(마크업 전 원본), ops(마크업), url }
+  const V = { list:[...(keep?.items ?? dr?.items ?? (post?.images || []).map(id => ({ id }))).map(itemUrl), ...images.map(b => itemUrl({ blob:b }))], cur:0 };
   V.cur = Math.max(0, V.list.length - 1);
   const T0 = keep?.title ?? post?.title ?? dr?.title ?? '', B0 = keep?.body ?? post?.body ?? dr?.body ?? '';
   const m0 = menu || post?.menu || vocMenuOf(route);
   let sent = false;
   openDlg(D, `<form id="vf" class="vocdlg"><div class="dh"><span>📣 VOC ${post ? '수정' : '쓰기'} <small class="muted">· 실명으로 등록됩니다 (${esc(AUTH.name)}) · 지금 하던 화면은 그대로 있습니다</small></span><button type="button" class="btn sm" data-close>닫기</button></div>
     <div class="vbody">
-      <div class="vleft"><div class="vprev" id="vPrev" tabindex="0" title="그림을 끌어다 놓거나 Ctrl+V 로 붙여넣기"></div>
+      <div class="vleft">${VMK_BAR}<div class="vprev" id="vPrev" tabindex="0" title="그림을 끌어다 놓거나 Ctrl+V 로 붙여넣기 · 위 도구로 그림 위에 표시"></div>
         <div class="vlist" id="vList"></div>
         <div class="vbtns"><button type="button" class="btn sm" id="vShot">📷 화면 캡처 추가</button><label class="btn sm">🖼 파일 고르기<input type="file" id="vFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label></div>
         <p class="muted vhint">그림을 이 칸에 끌어다 놓거나 <b>Ctrl+V</b> 로 붙여넣어도 됩니다 (최대 ${VOC_IMG_MAX}장 · PNG · JPG · GIF · WEBP).</p></div>
@@ -2697,32 +2816,37 @@ function openVoc({ menu = '', images = [], post = null, keep = null, back = null
         <label class="grow">내용 <textarea id="vBody" maxlength="5000" required placeholder="무엇이 · 어디서 · 어떻게 바뀌면 좋은지 적어 주세요 (Ctrl+Enter = 등록)">${esc(B0)}</textarea></label>
         <div class="vfoot"><span class="muted">작성자: <b>✔ ${esc(AUTH.name)}</b> (VOC 는 실명만)</span><span class="sp"></span><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">${post ? '수정' : '등록'}</button></div>
       </div></div></form>`, true);
+  let MK = null;                                                 // 지금 그림의 마크업 편집기
+  const drawList = () => { $('#vList').innerHTML = V.list.map((x, i) => `<span class="vth ${i === V.cur ? 'on' : ''}" data-vi="${i}"><img src="${esc(x.url)}" alt="">${vmkLive(x) ? '<i class="vmark">✏</i>' : ''}<button type="button" data-vdel="${i}" title="빼기">✕</button></span>`).join(''); };
   const draw = () => {
     const pv = $('#vPrev'), it = V.list[V.cur];
-    pv.innerHTML = it ? `<img src="${esc(it.url)}" alt="미리보기">` : '<div class="vempty">📷<br>화면 캡처 · 그림을 여기에<br><small>끌어다 놓기 · Ctrl+V · 아래 단추</small></div>';
-    $('#vList').innerHTML = V.list.map((x, i) => `<span class="vth ${i === V.cur ? 'on' : ''}" data-vi="${i}"><img src="${esc(x.url)}" alt=""><button type="button" data-vdel="${i}" title="빼기">✕</button></span>`).join('');
+    MK?.destroy(); MK = null;
+    $('#vTools').hidden = !it;
+    if (it) MK = vocMarkup(pv, it, { onFlat:drawList, bar:$('#vTools') });
+    else pv.innerHTML = '<div class="vempty">📷<br>화면 캡처 · 그림을 여기에<br><small>끌어다 놓기 · Ctrl+V · 아래 단추</small></div>';
+    drawList();
   };
   const add = async files => { for (const f of files) { if (V.list.length >= VOC_IMG_MAX) { toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true); break; } if (!/^image\//.test(f.type)) continue;
-    const b = f.size > 1.5e6 || f.type === 'image/png' && f.size > 6e5 ? await blobToJpeg(f) : f; V.list.push({ blob:b, url:URL.createObjectURL(b) }); V.cur = V.list.length - 1; } draw(); };
-  const snap = () => ({ title:$('#vTitle').value, body:$('#vBody').value, ids:V.list.filter(x => x.id).map(x => x.id), blobs:V.list.filter(x => x.blob).map(x => x.blob) });
+    const b = f.size > 1.5e6 || f.type === 'image/png' && f.size > 6e5 ? await blobToJpeg(f) : f; V.list.push(itemUrl({ blob:b })); V.cur = V.list.length - 1; } draw(); };
+  const snap = () => ({ title:$('#vTitle').value, body:$('#vBody').value, items:V.list });   // 마크업(ops)까지 그대로 넘김 → 다시 열어도 고칠 수 있음
   draw();
-  let reopening = false;
   D.onclose = () => {                                          // 등록 안 하고 닫음 → 쓰던 것 기억 · 원래 자리로 포커스
-    if (reopening) return;
-    if (!sent && !post) { const k = snap(); VDRAFT = k.title.trim() || k.body.trim() ? { title:k.title, body:k.body, blobs:k.blobs } : null; /* 글을 쓴 것만 기억 (그림만 찍고 닫으면 버림) */ if (VDRAFT) toast('쓰던 VOC 는 기억해 둡니다 — 📷 또는 VOC 쓰기로 이어 쓰기'); }
+    MK?.destroy(); MK = null;
+    if (!sent && !post) { const k = snap(); VDRAFT = k.title.trim() || k.body.trim() ? { title:k.title, body:k.body, items:k.items.filter(x => !x.id) } : null; /* 글을 쓴 것만 기억 (그림만 찍고 닫으면 버림) */ if (VDRAFT) toast('쓰던 VOC 는 기억해 둡니다 — 📷 또는 VOC 쓰기로 이어 쓰기'); }
     try { ret?.isConnected && ret.focus({ preventScroll:true }); } catch (_) {}
   };
   D.onclick = e => {
     if (e.target.closest('[data-close]')) { D.close(); return; }
-    if (e.target.closest('#vNew')) { VDRAFT = null; V.list = V.list.filter(x => !(dr?.blobs || []).includes(x.blob)); V.cur = Math.max(0, V.list.length - 1); $('#vTitle').value = ''; $('#vBody').value = ''; e.target.closest('.vdraft').remove(); draw(); $('#vTitle').focus(); return; }
+    if (e.target.closest('#vNew')) { VDRAFT = null; V.list = V.list.filter(x => !(dr?.items || []).includes(x)); V.cur = Math.max(0, V.list.length - 1); $('#vTitle').value = ''; $('#vBody').value = ''; e.target.closest('.vdraft').remove(); draw(); $('#vTitle').focus(); return; }
     const d = e.target.closest('[data-vdel]'); if (d) { V.list.splice(+d.dataset.vdel, 1); V.cur = Math.max(0, Math.min(V.cur, V.list.length - 1)); draw(); return; }
-    const t = e.target.closest('[data-vi]'); if (t) { V.cur = +t.dataset.vi; draw(); }
+    const t = e.target.closest('[data-vi]'); if (t) { if (+t.dataset.vi !== V.cur) { V.cur = +t.dataset.vi; draw(); } }
   };
   $('#vFile').onchange = e => add([...e.target.files]);
   $('#vShot').onclick = async () => {        // 창을 잠깐 닫고 캡처 → 쓰던 내용 · 그림 그대로 다시 열기
     if (V.list.length >= VOC_IMG_MAX) return toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true);
+    MK?.destroy(); MK = null;
     const k = snap(), m = $('#vMenu').value;
-    reopening = true; D.close(); reopening = false;
+    D.onclose = null; D.close();                              // 다시 열 것이므로 '임시 저장' 처리 없이
     const b = await captureRegion();
     openVoc({ post, menu:m, images:b ? [b] : [], keep:k, back:ret }); };
   const lft = $('.vleft');
@@ -2738,7 +2862,9 @@ function openVoc({ menu = '', images = [], post = null, keep = null, back = null
     if (!title || !body) return toast('제목과 내용을 입력하세요', true);
     const btn = $('#vf button[type=submit]'); btn.disabled = true; btn.textContent = '올리는 중…';
     try {
-      const ids = await Promise.all(V.list.map(async x => x.id || (await api('PUT', 'board/img', undefined, x.blob)).id));   // 새 그림만 · 한꺼번에 올림
+      btn.textContent = '그림 정리 중…'; MK?.flush(); await Promise.all(V.list.map(x => x.flat));   // 마크업을 그림에 굳힘 (기다림)
+      btn.textContent = '올리는 중…';
+      const ids = await Promise.all(V.list.map(async x => x.id || (await api('PUT', 'board/img', undefined, x.blob)).id));   // 새 그림 · 마크업한 그림만 · 한꺼번에 올림
       const data = { title, body, kind:'VOC', mode:'real', nick:'', menu:menu2, images:ids };
       if (post) await Board.update(post.id, data); else await Board.create(data);
       sent = true; VDRAFT = null; D.close(); V.list.forEach(x => x.blob && URL.revokeObjectURL(x.url));
