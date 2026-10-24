@@ -207,7 +207,8 @@ body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠�
 .eqside{width:380px;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line);background:var(--sheet);font-size:11.5px;user-select:none}
 .eqside .eqh{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}.eqside .eqh b{letter-spacing:.03em}
 .eqside .eqh button{padding:0 7px}
-.eqside .eqb{overflow:auto;flex:1;min-height:0}.eqside .eqf{margin:0;padding:6px 8px;border-top:1px solid var(--line)}
+.eqside .eqb{overflow:auto;flex:1;min-height:0}
+.scb{display:inline-block;padding:0 6px;border-radius:8px;font-size:10.5px;font-weight:700;color:#0b1a2b;background:var(--sc);white-space:nowrap}   /* 공급 Scope 표시 */.eqside .eqf{margin:0;padding:6px 8px;border-top:1px solid var(--line)}
 .eqside.fold{width:34px}.eqside.fold .eqb,.eqside.fold .eqf,.eqside.fold #eqCnt{display:none}
 .eqside.fold .eqh{flex-direction:column;border:0}.eqside.fold .eqh b{writing-mode:vertical-rl;margin-top:6px}
 .eqside table{width:100%;border-collapse:collapse}
@@ -418,7 +419,8 @@ svg text{font-family:var(--f-mono)}
     <div class="dock3d v3dlg" id="dock3d" hidden></div>
     <aside class="eqside" id="eqBox" aria-label="Equipment List">
       <div class="eqh"><button id="eqFold" title="접기 / 펼치기">⟩</button><b>EQUIPMENT LIST</b><span class="muted" id="eqCnt"></span><input id="eqQ" placeholder="찾기" style="width:70px;margin-left:auto;padding:1px 5px;font-size:11px"><label class="chk" style="font-size:11px" title="도면에서 고른 판넬만"><input type="checkbox" id="eqSel">선택만</label></div>
-      <div class="eqb"><table><thead><tr><th>NO.</th><th>TAG</th><th>DESCRIPTION</th><th style="text-align:right">SIZE (W×D×H)</th></tr></thead><tbody id="eqTbl"></tbody></table></div>
+      <datalist id="scopeList"></datalist>
+      <div class="eqb"><table><thead><tr><th>NO.</th><th>TAG</th><th>DESCRIPTION</th><th>SCOPE</th><th style="text-align:right">SIZE (W×D×H)</th></tr></thead><tbody id="eqTbl"></tbody></table></div>
       <p class="muted eqf">Tag 순 번호 = 도면의 육각 번호 · DXF 표와 같음. 줄을 누르면 그 판넬로. Description 은 판넬을 고르고 속성칸에서.</p>
     </aside>
   </div>
@@ -634,7 +636,8 @@ function planSegs(g){
   return out}
 function planDetail(g,ink){const S2=planSegs(g);return S2.lines.map(([p,q,w])=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${ink}" stroke-width="${w}" vector-effect="non-scaling-stroke"/>`).join('')
   +S2.circles.map(([c,r])=>`<circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="none" stroke="${ink}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`).join('')}   // 도어 항목이 없는 예전 Type = 도어 없음
-function norm(d){d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+function norm(d){(d.panels||[]).forEach(p=>{p.scope=String(p.scope??'').trim()});   // 공급 Scope (예전 파일 = 빈칸)
+  d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);S._fresh=false;
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 // 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
@@ -979,7 +982,9 @@ function render(){v3sync();
     if(show.lbl&&b.w*s>26*ANN&&b.h*s>12*ANN){
       const cx=b.x+b.w/2, cy=b.y+b.h/2, vert=b.h>b.w*1.3&&b.w*s<p.tag.length*7*ANN;
       g+=`<text x="${cx}" y="${cy}" font-size="${fs}" fill="${ink}" text-anchor="middle" dominant-baseline="middle" font-weight="600"${vert?` transform="rotate(-90 ${cx} ${cy})"`:''}>${esc(p.tag)}</text>`;
+      if(p.scope&&!vert&&b.h*s>22*ANN)g+=`<text x="${cx}" y="${cy+fs*1.05}" font-size="${fs*.72}" fill="${scopeColor(p.scope)}" text-anchor="middle" dominant-baseline="middle" font-weight="700">${esc(p.scope)}</text>`;
     }
+    if(p.scope){const sc=scopeColor(p.scope),hh=Math.min(b.h*.12,4*ANN/s);g+=`<rect x="${b.x}" y="${b.y+b.h-hh}" width="${b.w}" height="${hh}" fill="${sc}" opacity=".9"/>`}   // 공급 Scope 색 띠
   });
   // Equipment List 번호 balloon (육각형 — 건축 CAD 장비 번호와 같은 모양)
   if(show.eq){const nb=Object.fromEntries(eqRows().map(r=>[r.p.id,r.no])), yc=C('--note');
@@ -1204,6 +1209,7 @@ function buildProps(){
       <label>Tag<input id="pTag" value="${esc(p.tag)}"></label>
       <label>Type<select id="pType">${S.types.map(t=>`<option value="${t.id}" ${t.id===p.type?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
       <label class="full">Description<input id="pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label>
+      <label class="full">공급 Scope<input id="pScope" list="scopeList" value="${esc(p.scope||'')}" placeholder="예: EPC · OWNER · VENDOR · BY OTHERS"></label>
       <label>X (좌상단)<input type="number" id="pX" step="${S.snap}" value="${p.x}"></label>
       <label>Y (좌상단)<input type="number" id="pY" step="${S.snap}" value="${p.y}"></label>
       <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -1213,7 +1219,7 @@ function buildProps(){
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
     ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
     const chG=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);if(!guardCommit(new Set([p.id])))buildProps()});   // 위반이면 되돌리고 칸도 원래 값
-    chG('#pType',v=>p.type=v); ch('#pDesc',v=>p.desc=v);
+    chG('#pType',v=>p.type=v); ch('#pDesc',v=>p.desc=v); ch('#pScope',v=>p.scope=v.trim());
     chG('#pX',v=>p.x=+v||0); chG('#pY',v=>p.y=+v||0); chG('#pRot',v=>{rotateAbout([p],null,0,+v)});
   }else{
     const by={};ps.forEach(p=>{const n=typeOf(p).name;by[n]=(by[n]||0)+1});
@@ -1221,9 +1227,13 @@ function buildProps(){
     box.innerHTML=`<dl class="kv" style="margin-bottom:6px"><dt>그룹 W × L (판넬 외곽)</dt><dd><b>${fmt(bb.w)} × ${fmt(bb.h)}</b></dd><dt>유지보수 · 도어 포함</dt><dd>${fmt(eb.w)} × ${fmt(eb.h)}</dd></dl>
      <div class="muted">${Object.entries(by).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')}</div>
      <div class="row" style="margin-top:6px"><button id="gRL">그룹 ⟲</button><button id="gRR">그룹 ⟳</button><button id="gRe">Tag 재부여</button><button id="gLk">${ps.every(p=>p.lock)?'🔓 잠금 해제':'🔒 잠금'}</button></div>
+     <div class="row" style="margin-top:6px;align-items:center"><span class="muted">공급 Scope</span><input id="gScope" list="scopeList" style="width:150px" value="${esc(new Set(ps.map(p=>p.scope||'')).size===1?ps[0].scope||'':'')}" placeholder="${new Set(ps.map(p=>p.scope||'')).size>1?'여러 값 — 새로 적으면 모두':'예: EPC · OWNER · VENDOR'}"><button id="gScopeSet" class="primary" title="고른 판넬 모두의 공급 Scope 를 이 값으로 (빈칸 = 지움)">${ps.length} EA 에 적용</button></div>
+     <div class="muted" style="margin-top:2px">${(()=>{const m={};ps.forEach(p=>{const k=p.scope||'(미지정)';m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')})()}</div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">맞춤</span><button data-al="l" title="왼쪽 모서리 맞춤">⇤ 왼쪽</button><button data-al="r" title="오른쪽 모서리 맞춤">오른쪽 ⇥</button><button data-al="t" title="위 모서리 맞춤">⤒ 위</button><button data-al="b" title="아래 모서리 맞춤">아래 ⤓</button></div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">균등 간격</span><input type="number" id="gGap" min="0" step="50" value="${S.room.touchOK?0:(+S.room.gapP||0)}" style="width:70px" title="판넬 사이 간격 (mm)"><button data-al="dx" title="왼쪽부터 같은 간격으로 가로 배치">가로 →</button><button data-al="dy" title="위부터 같은 간격으로 세로 배치">세로 ↓</button></div>
      <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
+    {const ap=()=>{const v=$('#gScope').value.trim();ps.forEach(p=>{p.scope=v});commit();toast(v?`판넬 ${ps.length}개 공급 Scope = ${v}`:`판넬 ${ps.length}개 공급 Scope 를 지웠습니다`)};
+      $('#gScopeSet').onclick=ap;$('#gScope').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ap()}})}
     $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90); $('#gLk').onclick=lockSel;
     box.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>alignSel(b.dataset.al,+$('#gGap').value||0));
     $('#gRe').onclick=()=>{const gs=ps.slice().sort((a,b)=>a.y-b.y||a.x-b.x);const used={};
@@ -1263,12 +1273,18 @@ function buildSummary(){
   issues.slice(0,60).forEach(i=>{const li=document.createElement('li');li.className=i.lv;li.innerHTML=`<span class="lv">${i.lv==='err'?'간섭':'경고'}</span>${esc(i.msg)}<span class="fix">→ ${esc(i.fix)}</span>`;li.onclick=()=>{sel=new Set(i.ids);buildProps();render()};ul.appendChild(li)});
 }
 // Equipment List: 배치된 판넬을 Tag 순으로 번호 (도면 balloon · 화면 목록 · DXF 표가 같은 번호)
-function eqRows(){return S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag,'en',{numeric:true})).map((p,i)=>{const t=typeOf(p);return {no:i+1,p,desc:(p.desc||'').trim()||t.name,size:`${t.w}×${t.d}×${t.h}`}})}
+/* 공급 Scope: 판넬마다 글자 (EPC · OWNER · VENDOR · BY OTHERS 등 자유 입력), 색은 이름에서 정해짐 */
+const SCOPE_DEF=['EPC','OWNER','VENDOR','DCS VENDOR','PACKAGE','BY OTHERS'];
+function scopeColor(sc){const P=['#2d8cff','#2ecc71','#f5b400','#b24cff','#1fbf9f','#ff7a59','#e84393','#8aa0b8'];let h=0;for(const c of String(sc).toUpperCase())h=(h*31+c.charCodeAt(0))>>>0;return P[h%P.length]}
+function scopeList(){const u=[...new Set(S.panels.map(p=>p.scope).filter(Boolean))];$('#scopeList').innerHTML=[...new Set([...u,...SCOPE_DEF])].map(v=>`<option value="${esc(v)}">`).join('')}
+function scopeCount(){const m={};S.panels.forEach(p=>{const k=p.scope||'(미지정)';m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
+function eqRows(){return S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag,'en',{numeric:true})).map((p,i)=>{const t=typeOf(p);return {no:i+1,p,desc:(p.desc||'').trim()||t.name,size:`${t.w}×${t.d}×${t.h}`,scope:p.scope||''}})}
 function buildEq(){
   const box=$('#eqBox'); box.hidden=!show.eq; if(!show.eq)return;
   const q=($('#eqQ').value||'').trim().toLowerCase(), onlySel=$('#eqSel').checked;
-  const R=eqRows().filter(r=>(!onlySel||sel.has(r.p.id))&&(!q||`${r.p.tag} ${r.desc} ${r.size}`.toLowerCase().includes(q))); $('#eqCnt').textContent=`${R.length} EA`;
-  $('#eqTbl').innerHTML=R.length?R.map(r=>`<tr data-pid="${r.p.id}" class="${sel.has(r.p.id)?'on':''}"><td class="no">${r.no}</td><td>${esc(r.p.tag)}</td><td>${esc(r.desc)}</td><td class="n">${r.size}</td></tr>`).join(''):'<tr><td colspan="4" class="muted">배치된 판넬이 없습니다</td></tr>';
+  const R=eqRows().filter(r=>(!onlySel||sel.has(r.p.id))&&(!q||`${r.p.tag} ${r.desc} ${r.size} ${r.scope}`.toLowerCase().includes(q))); $('#eqCnt').textContent=`${R.length} EA`;
+  $('#eqTbl').innerHTML=R.length?R.map(r=>`<tr data-pid="${r.p.id}" class="${sel.has(r.p.id)?'on':''}"><td class="no">${r.no}</td><td>${esc(r.p.tag)}</td><td>${esc(r.desc)}</td><td>${r.scope?`<span class="scb" style="--sc:${scopeColor(r.scope)}">${esc(r.scope)}</span>`:'<span class="muted">-</span>'}</td><td class="n">${r.size}</td></tr>`).join(''):'<tr><td colspan="5" class="muted">배치된 판넬이 없습니다</td></tr>';
+  scopeList();
 }
 $('#eqQ').oninput=buildEq; $('#eqSel').onchange=buildEq;
 $('#eqFold').onclick=()=>{const b=$('#eqBox');b.classList.toggle('fold');$('#eqFold').textContent=b.classList.contains('fold')?'⟨':'⟩';try{localStorage.setItem('crspace.eqfold',b.classList.contains('fold')?'1':'')}catch(e){}};
@@ -1816,6 +1832,7 @@ function v3draw(){
         c2.fillStyle=t.color;c2.fillRect(R.x,R.y,bw,2);
         c2.fillStyle=P.ink;c2.font='700 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.fillText(p.tag,q[0],R.y+10);c2.fillStyle=P.val;c2.font='11px Consolas,monospace';c2.fillText(sz,q[0],R.y+22);
         c2.font='700 9px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';const pw=c2.measureText(pill[0]).width+10;c2.fillStyle=pill[1];v3rr(c2,q[0]-pw/2,R.y+32,pw,13,2);c2.fill();c2.fillStyle='#0b1a2b';c2.fillText(pill[0],q[0],R.y+39);
+        if(p.scope){c2.font='700 9px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';const sw=c2.measureText(p.scope).width+10;c2.fillStyle=scopeColor(p.scope);v3rr(c2,R.x+bw+3,R.y,sw,13,2);c2.fill();c2.fillStyle='#0b1a2b';c2.fillText(p.scope,R.x+bw+3+sw/2,R.y+7)}   // 공급 Scope
         c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';return}
       const tw=c2.measureText(p.tag).width+14, R={x:q[0]-tw/2,y:q[1]-9,w:tw,h:18}; if(used.some(u=>ov(u,R)))return; used.push(R);
       c2.globalAlpha=.9; c2.fillStyle=sh; v3rr(c2,R.x,R.y,R.w,R.h,4); c2.fill(); c2.globalAlpha=1; c2.fillStyle=typeOf(p).color; v3rr(c2,R.x,R.y,4,R.h,2); c2.fill(); c2.fillStyle=ink; c2.fillText(p.tag,q[0]+2,q[1])});}
@@ -1867,7 +1884,8 @@ function v3side(){
   const p=ps[0], t=typeOf(p), g=geom(p), n=S.panels.filter(q=>q.type===t.id).length, kind=t.door==='none'?'none':t.hinge==='LR'?'LR':t.hinge;
   box.innerHTML=`<h5><i style="background:${esc(t.color)}"></i>${esc(p.tag)}${p.lock?' 🔒':''}</h5>
    <div class="g g2"><label>Tag<input id="v3pTag" value="${esc(p.tag)}"></label><label>Type<select id="v3pType">${S.types.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
-    <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label></div>
+    <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label>
+    <label class="full">공급 Scope<input id="v3pScope" list="scopeList" value="${esc(p.scope||'')}" placeholder="예: EPC · OWNER · VENDOR"></label></div>
    <div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
     ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="v3kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="v3kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="v3kMon" min="0" step="1" value="${t.mon}"></label>
       <label>모니터 inch<input type="number" id="v3kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="v3kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
@@ -1887,7 +1905,7 @@ function v3side(){
   const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
   const chG=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);if(!guardCommit(new Set([p.id])))v3side()});
   ch('#v3pTag',v=>{v=v.trim();if(!v)return;const dup=S.panels.some(q=>q!==p&&q.tag===v);p.tag=dup?v+'*':v;if(dup)toast(`Tag ${v} 이(가) 이미 있어 ${v}* 로 적었습니다`,true)});
-  ch('#v3pDesc',v=>p.desc=v.trim());
+  ch('#v3pDesc',v=>p.desc=v.trim()); ch('#v3pScope',v=>p.scope=v.trim());
   chG('#v3pType',v=>p.type=v);
   const lockMsg=()=>{toast(`${p.tag} 은(는) 잠겨 있습니다 (🔒 를 풀고 고치세요)`,true);v3side()};
   chG('#v3pX',v=>{if(!p.lock)p.x=+v||0;else lockMsg()}); chG('#v3pY',v=>{if(!p.lock)p.y=+v||0;else lockMsg()});
@@ -2008,7 +2026,7 @@ window.addEventListener('resize',()=>{if(V3.on)v3req(false)});
     if(p&&p.col){const c=p.col;tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.innerHTML=`<b>기둥</b> ${fmt(c.w)} × ${fmt(c.h)} · 중심 X ${fmt(c.cx)} · Y ${fmt(c.cy)}<br>끌어서 옮기기 (판넬 위로는 못 놓음)`;return}
     if(p&&p.man){tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.innerHTML=`<b>사람</b> 키 175 cm · 80 kg (어깨 폭 약 580)<br>끌어서 옮기기 · R 돌리기 · 방향키 이동`}
     else if(p){const t=typeOf(p);tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';
-      tip.innerHTML=`<b>${esc(p.tag)}</b> ${esc(p.desc||t.name)}<br>${fmt(t.w)} × ${fmt(t.d)} × H ${fmt(+t.h||2100)}${p.lock?' · 🔒 잠김':' · 끌어서 옮기기'}`} else tip.hidden=true;
+      tip.innerHTML=`<b>${esc(p.tag)}</b> ${esc(p.desc||t.name)}${p.scope?` · <span class="scb" style="--sc:${scopeColor(p.scope)}">${esc(p.scope)}</span>`:''}<br>${fmt(t.w)} × ${fmt(t.d)} × H ${fmt(+t.h||2100)}${p.lock?' · 🔒 잠김':' · 끌어서 옮기기'}`} else tip.hidden=true;
   });
   cv.addEventListener('pointerup',e=>{if(drag&&drag.man&&V3.manBad){V3.manBad=false;v3req()}
     if(drag&&drag.col){const d=drag;drag=null;V3.colBad=false;V3.colHot=null;$('#v3Tip').hidden=true;
@@ -2065,6 +2083,7 @@ $('#bReq').onclick=()=>{
   L.push('4. 판넬 수량 및 치수');
   const kTxt=t=>t.kind==='desk'?`, ${KIND.desk} · 운전원 ${t.bays} · 모니터 ${t.mon}대(${t.monIn}") × ${t.bays} · 작업면 ${t.top}`:t.kind==='screen'?`, ${KIND.screen} · ${t.cols}×${t.rows} · ${t.tileIn}" · 바닥에서 ${t.elev}`:t.kind==='chair'?`, ${KIND.chair}`:'';
   sm.by.forEach(o=>L.push(`   - ${o.t.name}: ${o.n} EA  (${o.t.w}W x ${o.t.d}D x ${o.t.h}H, 전면 ${o.t.front} / 후면 ${o.t.rear}`+(o.t.kind&&o.t.kind!=='cabinet'?kTxt(o.t):`, 도어 ${DOOR_AT[o.t.door]}${o.t.door!=='none'?' '+HINGE[o.t.hinge]:''}`)+')'));
+  L.push(`   공급 Scope: ${scopeCount().map(([k,v])=>`${k} ${v} EA`).join(' / ')}`);
   L.push(`   합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m2`);
   L.push('');
   L.push(`5. 배치 검토: 간섭 ${e}건, 경고 ${w}건`);
@@ -2088,9 +2107,9 @@ $('#bReq').onclick=()=>{
 };
 
 $('#bCsv').onclick=()=>{
-  const rows=[['Tag','Type','Description','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
+  const rows=[['Tag','Type','Description','Scope','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
   const fd={0:'N',90:'E',180:'S',270:'W'};
-  S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y,t.door==='none'?'':{front:'Front',rear:'Rear',both:'Front+Rear'}[t.door],t.door==='none'?'':t.hinge])});
+  S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,p.scope||'',t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y,t.door==='none'?'':{front:'Front',rear:'Rear',both:'Front+Rear'}[t.door],t.door==='none'?'':t.hinge])});
   const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
   openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,fname('Panel_List','csv'),'text/csv;charset=utf-8');
 };
@@ -2146,9 +2165,9 @@ $('#bDxf').onclick=()=>{
   // Equipment List: 판넬마다 번호 원(CR-LIST) + 실 오른쪽에 표 (NO. · EQUIPMENT TAG NO. · DESCRIPTION · DIMENSION) — 화면 목록과 같은 번호
   {const EQ=eqRows(); if(EQ.length){
     EQ.forEach(r=>{const b=geom(r.p).body,R=Math.min(220,Math.min(b.w,b.h)*0.28);P(0,'CIRCLE',8,'CR-LIST',10,X(b.x+R*1.2),20,Y(b.y+b.h-R*1.2),30,0,40,R);text('CR-LIST',b.x+R*1.2,b.y+b.h-R*1.2,R*0.9,String(r.no))});
-    const x0=S.room.w+2500, cw=[700,2600,5600,2800], rh=480, xs=[x0];cw.forEach(v=>xs.push(xs[xs.length-1]+v));
+    const x0=S.room.w+2500, cw=[700,2600,5600,1900,2800], rh=480, xs=[x0];cw.forEach(v=>xs.push(xs[xs.length-1]+v));
     textL('CR-LIST',x0,-250,300,'EQUIPMENT LIST');
-    const rows=[['NO.','EQUIPMENT TAG NO.','DESCRIPTION','DIMENSION (WxDxH)'],...EQ.map(r=>[String(r.no),r.p.tag,r.desc,r.size.replace(/×/g,'x')])];
+    const rows=[['NO.','EQUIPMENT TAG NO.','DESCRIPTION','SCOPE','DIMENSION (WxDxH)'],...EQ.map(r=>[String(r.no),r.p.tag,r.desc,r.scope||'-',r.size.replace(/×/g,'x')])];
     rows.forEach((row,i)=>{const y=i*rh;row.forEach((t,j)=>textL('CR-LIST',xs[j]+120,y+rh-150,i?190:170,t))});
     for(let i=0;i<=rows.length;i++)line('CR-LIST',x0,i*rh,xs[xs.length-1],i*rh);
     xs.forEach(x=>line('CR-LIST',x,0,x,rows.length*rh));

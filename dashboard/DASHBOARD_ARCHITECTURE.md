@@ -1079,3 +1079,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 2D `svg` 휠 — 휠 누름(`midDown` 또는 `e.buttons&4`) 중이면 `stepTick()` 위 = 작게 · 아래 = 크게(`TICKS` 100~2,000, 한 칸에 한 단계), 아니면 예전 확대 · 축소. 휠 누름 자동 스크롤 막음.
 - 확인한 것: Chromium 500→250→100→250→500→1,000 · 배율 그대로 · 휠만 = 확대, 이전 시험 통과.
 - 회사에서 확인할 것: 마우스 드라이버가 휠 누름을 다른 기능에 묶어 두었으면 도구줄 [눈금] 칸을 쓰면 됨.
+
+### 2026-10-24 (29) — 판넬 공간확보: 판넬 공급 Scope (apps/space/index.html 만)
+> 배치안 JSON 판넬에 `scope`(글자) 가 늘었음 — 예전 파일은 빈칸.
+- 무엇을: 판넬 `scope` — 2D/3D 속성 칸 입력(`#pScope` `#v3pScope`, `datalist#scopeList`), 여러 개 고르면(박스선택 · Shift+끌기) `#gScope` + [n EA 에 적용], 2D 색 띠 · Tag 밑 글자(`scopeColor`), EQUIPMENT LIST SCOPE 열 · 찾기, 3D 팁 · DCS 태그 옆, CSV · DXF 표 · 요약 '공급 Scope' 줄(`scopeCount`).
+- 확인한 것: `node --check`, Chromium 범위 7 EA OWNER · EPC · 하나 VENDOR · 표 · CSV · 요약, DXF audit 0. 이전 시험 통과.
